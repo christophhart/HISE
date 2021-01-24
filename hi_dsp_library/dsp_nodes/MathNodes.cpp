@@ -81,8 +81,7 @@ void scriptnode::math::OpNode<OpType, V>::createParameters(ParameterDataList& da
 {
 	{
 		DEFINE_PARAMETERDATA(OpNode, Value);
-		p.range = { 0.0, 1.0, 0.01 };
-		p.defaultValue = OpType::defaultValue;
+		p.setDefaultValue(OpType::defaultValue);
 		data.add(std::move(p));
 	}
 }

@@ -112,46 +112,95 @@ private:
 	Function f = nullptr;
 };
 
-
-struct data // better name: parameter::data
+struct pod
 {
+	static constexpr int MaxParameterNameLength = 16;
+
+	pod()
+	{
+		clearParameterName();
+	};
+
+	pod(MemoryInputStream& mis);
+
+	pod(const ValueTree& v);
+
+	String toString();
+
+	String getId() const { return String(parameterName); }
+
+	void clearParameterName()
+	{
+		memset(parameterName, 0, MaxParameterNameLength);
+	}
+
+	void setRange(const NormalisableRange<double>& r);
+
+	NormalisableRange<double> toRange() const;
+
+	using DataType = float;
+	int index = -1;
+
+	char parameterName[MaxParameterNameLength];
+
+	bool setId(const String& id);
+
+	DataType min = DataType(0);
+	DataType max = DataType(1);
+	DataType defaultValue = DataType(0);
+	DataType skew = DataType(1);
+	DataType interval = DataType(0);
+
+	bool ok = false;
+
+	void writeToStream(MemoryOutputStream& b);
+};
+
+/** Used by the scriptnode interpreter. */
+struct data
+{
+	data();
 	data(const String& id_);;
 	data(const String& id_, NormalisableRange<double> r);
 	data withRange(NormalisableRange<double> r);
 
 	ValueTree createValueTree() const;
 
+	void setRange(const NormalisableRange<double>& r)
+	{
+		info.setRange(r);
+	}
+
+	NormalisableRange<double> toRange() const
+	{
+		return info.toRange();
+	}
+	
+	void setSkewForCentre(double midPoint)
+	{
+		auto r = info.toRange();
+		r.setSkewForCentre(midPoint);
+		info.skew = r.skew;
+	}
+
 	void setDefaultValue(double newDefaultValue)
 	{
-		defaultValue = newDefaultValue;
+		info.defaultValue = newDefaultValue;
 	}
 
 	operator bool() const
 	{
-		return id.isNotEmpty();
+		return info.ok;
 	}
 
 	void setParameterValueNames(const StringArray& valueNames);
 	void init();
 
-	String id;
-	NormalisableRange<double> range;
-	double defaultValue = 0.0;
-	dynamic dbNew;
+	pod info;
+	dynamic callback;
 
 	StringArray parameterNames;
-
-	double lastValue = 0.0;
-	bool isUsingRange = true;
 };
-
-}
-
-
-using ParameterDataList = Array<parameter::data>;
-
-
-
 
 /** A Parameter encoder encodes / decodes the parameter data of a node
 
@@ -160,7 +209,7 @@ using ParameterDataList = Array<parameter::data>;
 	of ints that can be read by the JIT compiler and plain C++.
 
 */
-struct ParameterEncoder
+struct encoder
 {
 	// Just a node that shows how it must look so you can feed it to ParameterEncoder::fromNode
 	struct ExampleNode
@@ -176,54 +225,30 @@ struct ParameterEncoder
 		};
 	};
 
-
-	template <typename NodeClass> static ParameterEncoder fromNode()
+	template <typename NodeClass> static encoder fromNode()
 	{
 		NodeClass::MetadataClass n;
 
 		MemoryOutputStream tm;
 
 		for (auto& s : n.encodedParameters)
-			tm.writeInt(static_cast<int>(s));
+			tm.writeShort(static_cast<uint16>(s));
 
 		auto data = tm.getMemoryBlock();
 
-		return ParameterEncoder(data);
+		return encoder(data);
 	}
 
-	ParameterEncoder(ValueTree& v);
+	encoder(ValueTree& v);
 
-	ParameterEncoder(const MemoryBlock& m);
+	encoder(const MemoryBlock& m);
 
-	struct Item
-	{
-		Item()
-		{};
-
-		Item(MemoryInputStream& mis);
-
-		String toString();
-
-		Item(const ValueTree& v);
-		using DataType = float;
-		int index;
-		String id;
-
-		DataType min;
-		DataType max;
-		DataType defaultValue;
-		DataType skew;
-		DataType interval;
-
-		void writeToStream(MemoryOutputStream& b);
-	};
-
-	Item* begin() const
+	pod* begin() const
 	{
 		return items.begin();
 	}
 
-	Item* end() const
+	pod* end() const
 	{
 		return items.end();
 	}
@@ -232,13 +257,21 @@ struct ParameterEncoder
 
 private:
 
-	
-
 	void parseItems(const MemoryBlock& mb);
-	
 
-	Array<Item> items;
+
+	Array<pod> items;
 };
+
+}
+
+
+using ParameterDataList = Array<parameter::data>;
+
+
+
+
+
 
 
 }

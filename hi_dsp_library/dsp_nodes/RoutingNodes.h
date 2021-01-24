@@ -260,6 +260,8 @@ template <typename CableType> struct receive: public base
 	{
 		currentSpecs = ps;
 
+		null.prepare(ps);
+
 		if (isConnected())
 		{
 			source->validate(currentSpecs);
@@ -322,8 +324,6 @@ template <typename CableType> struct receive: public base
 	void createParameters(ParameterDataList& data)
 	{
 		DEFINE_PARAMETERDATA(receive, Feedback);
-		p.range = { 0.0, 1.0, 0.01 };
-		p.defaultValue = 0.0;
 		data.add(p);
 	}
 

@@ -112,7 +112,7 @@ struct JitCompiledNode : public ReferenceCountedObject,
 		callbacks[Types::ScriptnodeCallbacks::ProcessFrameFunction].callVoid(data.begin());
 	}
 
-	OpaqueSnexParameter::List getParameterList() const
+	scriptnode::ParameterDataList getParameterList() const
 	{
 		return parameterList;
 	}
@@ -125,34 +125,30 @@ struct JitCompiledNode : public ReferenceCountedObject,
 
 	int getNumChannels() const { return numChannels; }
 
-	template <int P> static void setParameter(void* obj, double value)
+	template <int P> static void setParameterStatic(void* obj, double value)
 	{
 		auto typed = static_cast<JitCompiledNode*>(obj);
 
-		if (auto pf = typed->parameterList[P].function)
+		if(isPositiveAndBelow(P, typed->parameterFunctions.size()))
 		{
-			typedef void(*typedF)(double);
-
-			
-			((typedF)pf)(value);
+			typed->parameterFunctions.getReference(P).callVoid(value);
 		}
-			
 	}
 
+#if 0
 	void setParameterDynamic(int index, double value)
 	{
-		if (index == 0) setParameter<0>(this, value);
-		if (index == 1) setParameter<1>(this, value);
-		if (index == 2) setParameter<2>(this, value);
-		if (index == 3) setParameter<3>(this, value);
-		if (index == 4) setParameter<4>(this, value);
-		if (index == 5) setParameter<5>(this, value);
-		if (index == 6) setParameter<6>(this, value);
-		if (index == 7) setParameter<7>(this, value);
-		if (index == 8) setParameter<8>(this, value);
+		if (index == 0) setParameterStatic<0>(this, value);
+		if (index == 1) setParameterStatic<1>(this, value);
+		if (index == 2) setParameterStatic<2>(this, value);
+		if (index == 3) setParameterStatic<3>(this, value);
+		if (index == 4) setParameterStatic<4>(this, value);
+		if (index == 5) setParameterStatic<5>(this, value);
+		if (index == 6) setParameterStatic<6>(this, value);
+		if (index == 7) setParameterStatic<7>(this, value);
+		if (index == 8) setParameterStatic<8>(this, value);
 	}
-
-	
+#endif
 
 private:
 
@@ -160,13 +156,15 @@ private:
 
 	PrepareSpecs lastSpecs;
 
-	OpaqueSnexParameter::List parameterList;
+	scriptnode::ParameterDataList parameterList;
 
 	int numChannels = 0;
 	bool ok = false;
 	FunctionData callbacks[Types::ScriptnodeCallbacks::numFunctions];
 
 	FunctionData setExternalDataFunction;
+
+	Array<FunctionData> parameterFunctions;
 
 	JitObject obj;
 	ComplexType::Ptr instanceType;

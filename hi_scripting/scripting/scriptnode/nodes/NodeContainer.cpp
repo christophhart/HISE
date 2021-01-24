@@ -1256,7 +1256,7 @@ void NodeContainer::MacroParameter::rebuildCallback()
 
 			for (auto p : pList)
 			{
-				if (p.id == c->targetParameter->getId())
+				if (p.info.getId() == c->targetParameter->getId())
 				{
 					ScopedPointer<parameter::dynamic_base> b;
 
@@ -1264,11 +1264,11 @@ void NodeContainer::MacroParameter::rebuildCallback()
 					auto e = c->data[PropertyIds::Expression].toString();
 
 					if (e.isNotEmpty())
-						b = new parameter::dynamic_expression(p.dbNew, new snex::JitExpression(e));
+						b = new parameter::dynamic_expression(p.callback, new snex::JitExpression(e));
 					else if (!RangeHelpers::isIdentity(r))
-						b = new parameter::dynamic_from0to1(p.dbNew, r);
+						b = new parameter::dynamic_from0to1(p.callback, r);
 					else
-						b = new parameter::dynamic_base(p.dbNew);
+						b = new parameter::dynamic_base(p.callback);
 
 					b->setDataTree(c->targetParameter->data);
 

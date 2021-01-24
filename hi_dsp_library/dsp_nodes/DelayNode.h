@@ -138,18 +138,18 @@ template <class ParameterType, int NumVoices=1> struct pma : public combined_par
 	{
 		{
 			DEFINE_PARAMETERDATA(pma, Value);
-			p.range = { 0.0, 1.0 };
-			p.defaultValue = 0.0;
+			p.setRange({ 0.0, 1.0 });
+			p.setDefaultValue(0.0);
 			data.add(std::move(p));
 		}
 		{
 			DEFINE_PARAMETERDATA(pma, Multiply);
-			p.defaultValue = 1.0;
+			p.setDefaultValue(1.0);
 			data.add(std::move(p));
 		}
 		{
 			DEFINE_PARAMETERDATA(pma, Add);
-			p.defaultValue = 0.0;
+			p.setDefaultValue(0.0);
 			data.add(std::move(p));
 		}
 	}
@@ -177,6 +177,7 @@ struct fix_delay : public HiseDspBase
 		DEF_PARAMETER(DelayTime, fix_delay);
 		DEF_PARAMETER(FadeTime, fix_delay);
 	}
+	PARAMETER_MEMBER_FUNCTION;
 
 	SET_HISE_NODE_ID("fix_delay");
 	SN_GET_SELF_AS_OBJECT(fix_delay);

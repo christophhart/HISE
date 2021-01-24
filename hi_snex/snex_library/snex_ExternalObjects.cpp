@@ -321,6 +321,7 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler& c, ID id, in
 	return f;
 }
 
+#if 0
 snex::jit::Inliner::Ptr SnexNodeBase::createInliner(const NamespacedIdentifier& id, const Array<void*>& functions)
 {
 	return Inliner::createAsmInliner(id, [id, functions](InlineData* b)
@@ -353,21 +354,10 @@ TypeInfo SnexNodeBase::Wrappers::createFrameType(const SnexTypeConstructData& cd
 	return TypeInfo(cd.c.getNamespaceHandler().registerComplexTypeOrReturnExisting(st), false, true);
 }
 
+#endif
 
 
 
-
-snex::jit::FunctionData OpaqueSnexParameter::toFunctionData()
-{
-	FunctionData f;
-
-	f.id = NamespacedIdentifier(data.id);
-	f.returnType = Types::ID::Void;
-	f.addArgs("value", Types::ID::Double);
-	f.function = function;
-
-	return f;
-}
 
 }
 }

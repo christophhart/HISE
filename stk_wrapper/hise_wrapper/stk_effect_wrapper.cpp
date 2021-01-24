@@ -69,7 +69,7 @@ public:
 		if (Index == 0)
 		{
 			parameter::data p("Delay");
-			p.dbNew = parameter::inner<DelayA, 0>(*this);
+			p.callback = parameter::inner<DelayA, 0>(*this);
 			p.range = { 0.0, 10.0, 0.0 };
 			data.add(std::move(p));
 		}
@@ -103,7 +103,7 @@ public:
 		if (Index == 0)
 		{
 			parameter::data p("Delay");
-			p.dbNew = parameter::inner<DelayL, 0>(*this);
+			p.callback = parameter::inner<DelayL, 0>(*this);
 			p.range = { 0.0, 10.0, 0.0 };
 			data.add(std::move(p));
 		}
@@ -134,7 +134,7 @@ public:
 		if (Index == 0)
 		{
 			parameter::data p("Delay");
-			p.dbNew = parameter::inner<JCRev, 0>(*this);
+			p.callback = parameter::inner<JCRev, 0>(*this);
 			p.range = { 0.0, 10.0, 0.0 };
 			data.add(std::move(p));
 		}
@@ -161,7 +161,7 @@ public:
 		if (Index == 0)
 		{
 			parameter::data p("Reverb Time");
-			p.dbNew = parameter::inner<PRCRev, 0>(*this);
+			p.callback = parameter::inner<PRCRev, 0>(*this);
 			p.range = { 0.0, 10.0, 0.0 };
 			data.add(std::move(p));
 		}
@@ -189,14 +189,14 @@ public:
 		if (Index == 0)
 		{
 			parameter::data p("Depth");
-			p.dbNew = parameter::inner<Chorus, 0>(*this);
+			p.callback = parameter::inner<Chorus, 0>(*this);
 			p.range = { 0.0, 1.0, 0.0 };
 			data.add(std::move(p));
 		}
 		if (Index == 1)
 		{
 			parameter::data p("Frequency");
-			p.dbNew = parameter::inner<Chorus, 1>(*this);
+			p.callback = parameter::inner<Chorus, 1>(*this);
 			p.range = { 0.0, 10.0, 0.0 };
 			data.add(std::move(p));
 		}
@@ -226,7 +226,7 @@ public:
 		if (Index == 0)
 		{
 			parameter::data p("Frequency");
-			p.dbNew = parameter::inner<FormSwep, 0>(*this);
+			p.callback = parameter::inner<FormSwep, 0>(*this);
 			p.range = { 20.0, 20000.0, 0.1 };
 			p.range.setSkewForCentre(1000.0);
 			data.add(std::move(p));
@@ -234,7 +234,7 @@ public:
 		if (Index == 1)
 		{
 			parameter::data p("Radius");
-			p.dbNew = parameter::inner<FormSwep, 1>(*this);
+			p.callback = parameter::inner<FormSwep, 1>(*this);
 			p.range = { 0.01, 0.99, 0.01 };
 			data.add(std::move(p));
 		}

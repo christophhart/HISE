@@ -108,7 +108,7 @@ void scriptnode::seq_impl<NV>::createParameters(ParameterDataList& data)
 	{
 		DEFINE_PARAMETERDATA(seq_impl, SliderPack);
 		double maxPacks = (double)sp.get()->getNumSliderPacks();
-		p.range = { 0.0, jmax(1.0, maxPacks), 1.0 };
+		p.setRange({ 0.0, jmax(1.0, maxPacks), 1.0 });
 		data.add(std::move(p));
 	}
 }

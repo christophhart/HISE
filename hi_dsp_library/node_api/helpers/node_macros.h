@@ -46,7 +46,7 @@ using namespace hise;
 */
 #define DEFINE_PARAMETERS template <int P> static void setParameterStatic(void* obj, double value)
 #define DEF_PARAMETER(ParameterName, ClassName) if (P == (int)Parameters::ParameterName) static_cast<ClassName*>(obj)->set##ParameterName(value);
-#define DEFINE_PARAMETERDATA(ClassName, ParameterName) parameter::data p(#ParameterName); p.dbNew = parameter::inner<ClassName, (int)Parameters::ParameterName>(*this);
+#define DEFINE_PARAMETERDATA(ClassName, ParameterName) parameter::data p(#ParameterName); p.callback = parameter::inner<ClassName, (int)Parameters::ParameterName>(*this);
 
 
 #define PARAMETER_MEMBER_FUNCTION template <int P> void setParameter(double v) { setParameterStatic<P>(this, v); }

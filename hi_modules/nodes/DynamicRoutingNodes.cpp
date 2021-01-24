@@ -186,6 +186,8 @@ void cable::dynamic::restoreConnections(Identifier id, var newValue)
 						if (source == safePtr.get())
 							source = &(ro.as<dynamic_receive>().null);
 					}
+
+					safePtr.get()->connect(ro.as<dynamic_receive>());
 				}
 			}
 		}

@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_zstd
+  dependencies:      juce_audio_basics, juce_audio_formats, juce_core, juce_graphics,  juce_data_structures, juce_events
   OSXFrameworks:    Accelerate
   iOSFrameworks:    Accelerate
 
@@ -53,19 +53,42 @@ END_JUCE_MODULE_DECLARATION
 #pragma once
 
 #include "AppConfig.h"
+
+
+
+
+/** Config: HISE_NO_GUI_TOOLS
+
+	Set this to true to remove some UI code from this module
+	This will reduce the build times and compilation size for headless projects.
+*/
+#ifndef HISE_NO_GUI_TOOLS
+#define HISE_NO_GUI_TOOLS 0
+#endif
+
+
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
-#include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"
+
+#include "../JUCE/modules/juce_graphics/juce_graphics.h"
+
 #include "../JUCE/modules/juce_audio_devices/juce_audio_devices.h"
 #include "../JUCE/modules/juce_audio_utils/juce_audio_utils.h"
+
+#include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"
+
+#if !HISE_NO_GUI_TOOLS
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
-
-
-
-
 #include "../hi_zstd/hi_zstd.h"
+
+#endif
+
+
+
 #include "../hi_streaming/hi_streaming.h"
+
+
 
 
 #if USE_BACKEND || USE_FRONTEND
@@ -79,14 +102,6 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
-/** Config: HISE_NO_GUI_TOOLS
-
-	Set this to true to remove some UI code from this module
-	This will reduce the build times and compilation size for headless projects.
-*/
-#ifndef HISE_NO_GUI_TOOLS
-#define HISE_NO_GUI_TOOLS 0
-#endif
 
 
 #if HISE_NO_GUI_TOOLS

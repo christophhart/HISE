@@ -99,33 +99,33 @@ void dynamics_wrapper<DynamicProcessorType>::createParameters(ParameterDataList&
 {
 	{
 		DEFINE_PARAMETERDATA(dynamics_wrapper, Threshhold);
-		p.range = { -100.0, 0.0, 0.1 };
-		p.range.setSkewForCentre(-12.0);
-		p.defaultValue = 0.0;
+		p.setRange({ -100.0, 0.0, 0.1 });
+		p.setSkewForCentre(-12.0);
+		p.setDefaultValue(0.0);
 		data.add(std::move(p));
 	}
 
 	{
 		DEFINE_PARAMETERDATA(dynamics_wrapper, Attack);
-		p.range = { 0.0, 250.0, 0.1 };
-		p.range.setSkewForCentre(50.0);
-		p.defaultValue = 50.0;
+		p.setRange({ 0.0, 250.0, 0.1 });
+		p.setSkewForCentre(50.0);
+		p.setDefaultValue(50.0);
 		data.add(std::move(p));
 	}
 
 	{
 		DEFINE_PARAMETERDATA(dynamics_wrapper, Release);
-		p.range = { 0.0, 250.0, 0.1 };
-		p.range.setSkewForCentre(50.0);
-		p.defaultValue = 50.0;
+		p.setRange({ 0.0, 250.0, 0.1 });
+		p.setSkewForCentre(50.0);
+		p.setDefaultValue(50.0);
 		data.add(std::move(p));
 	}
 
 	{
 		DEFINE_PARAMETERDATA(dynamics_wrapper, Ratio);
-		p.range = { 1.0, 32.0, 0.1 };
-		p.range.setSkewForCentre(4.0);
-		p.defaultValue = 1.0;
+		p.setRange({ 1.0, 32.0, 0.1 });
+		p.setSkewForCentre(4.0);
+		p.setDefaultValue(1.0);
 		data.add(std::move(p));
 	}
 }
@@ -189,22 +189,18 @@ void envelope_follower::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(envelope_follower, Attack);
-		p.range = { 0.0, 1000.0, 0.1 };
-		p.range.setSkewForCentre(50.0);
-		p.defaultValue = 20.0;
-
-		//p.db = std::bind(&EnvelopeFollower::AttackRelease::setAttackDouble, &envelope, std::placeholders::_1);
+		p.setRange({ 0.0, 1000.0, 0.1 });
+		p.setSkewForCentre(50.0);
+		p.setDefaultValue(20.0);
 
 		data.add(std::move(p));
 	}
 
 	{
 		DEFINE_PARAMETERDATA(envelope_follower, Release);
-		p.range = { 0.0, 1000.0, 0.1 };
-		p.range.setSkewForCentre(50.0);
-		p.defaultValue = 50.0;
-
-		//p.db = std::bind(&EnvelopeFollower::AttackRelease::setReleaseDouble, &envelope, std::placeholders::_1);
+		p.setRange({ 0.0, 1000.0, 0.1 });
+		p.setSkewForCentre(50.0);
+		p.setDefaultValue(20.0);
 
 		data.add(std::move(p));
 	}

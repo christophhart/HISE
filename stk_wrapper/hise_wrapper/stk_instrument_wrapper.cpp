@@ -70,7 +70,7 @@ public:
 		if (Index == 0)
 		{
 			parameter::data p("Frequency");
-			p.dbNew = parameter::inner<Plucked, 0>(*this);
+			p.callback = parameter::inner<Plucked, 0>(*this);
 			p.range = { 20.0, 20000.0, 0.1 };
 			p.range.setSkewForCentre(1000.0);
 			data.add(std::move(p));
@@ -78,7 +78,7 @@ public:
 		if (Index == 1)
 		{
 			parameter::data p("Release");
-			p.dbNew = parameter::inner<Plucked, 1>(*this);
+			p.callback = parameter::inner<Plucked, 1>(*this);
 			p.range = { 0.0, 1.0, 0.1 };
 			data.add(std::move(p));
 		}
@@ -109,7 +109,7 @@ public:
 		if (Index == 0)
 		{
 			parameter::data p("Frequency");
-			p.dbNew = parameter::inner<Guitar, 0>(*this);
+			p.callback = parameter::inner<Guitar, 0>(*this);
 			p.range = { 20.0, 20000.0, 0.1 };
 			p.range.setSkewForCentre(1000.0);
 			data.add(std::move(p));
@@ -117,7 +117,7 @@ public:
 		if (Index == 1)
 		{
 			parameter::data p("Release");
-			p.dbNew = parameter::inner<Guitar, 1>(*this);
+			p.callback = parameter::inner<Guitar, 1>(*this);
 			p.range = { 0.0, 1.0, 0.1 };
 			data.add(std::move(p));
 		}

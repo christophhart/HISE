@@ -609,8 +609,6 @@ namespace MultithreadedQueueHelpers
 	};
 }
 
-
-
 /** A wrapper around moodycamels ConcurrentQueue with more JUCE like interface and some assertions. */
 template <typename ElementType, 
 	      MultithreadedQueueHelpers::Configuration ConfigurationType=MultithreadedQueueHelpers::DefaultConfiguration>

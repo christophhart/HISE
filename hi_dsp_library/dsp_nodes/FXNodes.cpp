@@ -59,8 +59,8 @@ void sampleandhold_impl<V>::createParameters(ParameterDataList& d)
 {
 	{
 		DEFINE_PARAMETERDATA(sampleandhold_impl, Counter);
-		p.range = { 1.0, 64, 1.0 };
-		p.defaultValue = 1.0;
+		p.setRange({ 1.0, 64, 1.0 });
+		p.setDefaultValue(1.0);
 		d.add(std::move(p));
 	}
 }
@@ -109,8 +109,8 @@ void bitcrush_impl<V>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(bitcrush_impl, BitDepth);
-		p.range = { 4.0, 16.0, 0.1 };
-		p.defaultValue = 16.0;
+		p.setRange({ 4.0, 16.0, 0.1 });
+		p.setDefaultValue(16.0);
 		data.add(std::move(p));
 	}
 }
@@ -184,9 +184,9 @@ void phase_delay_impl<V>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(phase_delay_impl, Frequency);
-		p.range = { 20.0, 20000.0, 0.1 };
-		p.range.setSkewForCentre(1000.0);
-		p.defaultValue = 400.0;
+		p.setRange({ 20.0, 20000.0, 0.1});
+		p.setSkewForCentre(1000.0);
+		p.setDefaultValue(400.0);
 		data.add(std::move(p));
 	}
 }
@@ -300,8 +300,8 @@ void haas_impl<V>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(haas_impl, Position);
-		p.range = { -1.0, 1.0, 0.1 };
-		p.defaultValue = 0.0;
+		p.setRange({ -1.0, 1.0, 0.1 });
+		p.setDefaultValue(0.0);
 		data.add(std::move(p));
 	}
 }
@@ -340,22 +340,19 @@ void reverb::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(reverb, Damping);
-		p.range = { 0.0, 1.0, 0.01 };
-		p.defaultValue = 0.5f;
+		p.setDefaultValue(0.5);
 		data.add(std::move(p));
 	}
 
 	{
 		DEFINE_PARAMETERDATA(reverb, Width);
-		p.range = { 0.0, 1.0, 0.01 };
-		p.defaultValue = 0.5f;
+		p.setDefaultValue(0.5);
 		data.add(std::move(p));
 	}
 
 	{
 		DEFINE_PARAMETERDATA(reverb, Size);
-		p.range = { 0.0, 1.0, 0.01 };
-		p.defaultValue = 0.5f;
+		p.setDefaultValue(0.5);
 		data.add(std::move(p));
 	}
 }

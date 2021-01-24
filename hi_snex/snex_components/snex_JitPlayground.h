@@ -296,7 +296,8 @@ public:
 		jassert(lastTest != nullptr);
 		jassert(lastTest->nodeToTest != nullptr);
 
-		lastTest->nodeToTest->setParameterDynamic(parameterIndex, value);
+		if (isPositiveAndBelow(parameterIndex, lastResult.parameters.size()))
+			lastResult.parameters.getReference(parameterIndex).callback.call(value);
 	}
 
 	void processTest(ProcessDataDyn& data) override
@@ -317,6 +318,8 @@ public:
 	}
 
 private:
+
+	ui::WorkbenchData::CompileResult lastResult;
 
 	AudioSampleBuffer empty;
 
@@ -342,8 +345,8 @@ public:
 
 	void processTestParameterEvent(int parameterIndex, double value) override
 	{
-		if (lastNode != nullptr)
-			lastNode->setParameterDynamic(parameterIndex, value);
+		if (isPositiveAndBelow(parameterIndex, lastResult.parameters.size()))
+			lastResult.parameters.getReference(parameterIndex).callback.call(value);
 	}
 
 	void processTest(ProcessDataDyn& data) override
@@ -376,15 +379,8 @@ public:
 			lastResult.obj = lastNode->getJitObject();
 			lastResult.lastNode = lastNode;
 
-			DBG(lastResult.obj.dumpTable());
-			
-			for (auto p : lastNode->getParameterList())
-			{
-				ui::WorkbenchData::CompileResult::DynamicParameterData d;
-				d.data = p.data;
-				d.f = (void(*)(double))p.function;
-				lastResult.parameters.add(d);
-			}
+			lastResult.parameters.clear();
+			lastResult.parameters.addArray(lastNode->getParameterList());
 
 			return lastResult;
 		}

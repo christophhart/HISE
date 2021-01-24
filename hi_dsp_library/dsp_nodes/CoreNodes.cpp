@@ -72,15 +72,14 @@ void ramp_impl<NV>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(ramp_impl, PeriodTime);
-		p.range = { 0.1, 1000.0, 0.1 };
-		p.defaultValue = 100.0;
+		p.setRange({ 0.1, 1000.0, 0.1 });
+		p.setDefaultValue(100.0);
 		data.add(std::move(p));
 	}
 
 	{
 		DEFINE_PARAMETERDATA(ramp_impl, LoopStart);
-		p.range = { 0.0, 1.0, 0.01 };
-		p.defaultValue = 0.0;
+		p.setDefaultValue(0.0);
 		data.add(std::move(p));
 	}
 }
@@ -164,10 +163,14 @@ template <int NV>
 void scriptnode::core::oscillator_impl<NV>::setFrequency(double newFrequency)
 {
 	freqValue = newFrequency;
-	auto newUptimeDelta = (double)(freqValue / sr * (double)sinTable->getTableSize());
 
-	for (auto& d : voiceData)
-		d.uptimeDelta = newUptimeDelta;
+	if (sr > 0.0)
+	{
+		auto newUptimeDelta = (double)(freqValue / sr * (double)sinTable->getTableSize());
+
+		for (auto& d : voiceData)
+			d.uptimeDelta = newUptimeDelta;
+	}
 }
 
 template <int NV>
@@ -196,16 +199,16 @@ void scriptnode::core::oscillator_impl<NV>::createParameters(ParameterDataList& 
 	}
 	{
 		DEFINE_PARAMETERDATA(oscillator_impl, Frequency);
-		p.range = { 20.0, 20000.0, 0.1 };
-		p.defaultValue = 220.0;
-		p.range.setSkewForCentre(1000.0);
+		p.setRange({ 20.0, 20000.0, 0.1 });
+		p.setDefaultValue(220.0);
+		p.setSkewForCentre(1000.0);
 		data.add(std::move(p));
 	}
 	{
 		parameter::data p("Freq Ratio");
-		p.range = { 1.0, 16.0, 1.0 };
-		p.defaultValue = 1.0;
-		p.dbNew = parameter::inner<oscillator_impl, (int)Parameters::PitchMultiplier>(*this);
+		p.setRange({ 1.0, 16.0, 1.0 });
+		p.setDefaultValue(1.0);
+		p.callback = parameter::inner<oscillator_impl, (int)Parameters::PitchMultiplier>(*this);
 		data.add(std::move(p));
 	}
 }
@@ -248,23 +251,23 @@ void gain_impl<V>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(gain_impl, Gain);
-		p.range = { -100.0, 0.0, 0.1 };
-		p.range.setSkewForCentre(-12.0);
-		p.defaultValue = 0.0;
+		p.setRange({ -100.0, 0.0, 0.1 });
+		p.setSkewForCentre(-12.0);
+		p.setDefaultValue(0.0);
 		data.add(std::move(p));
 	}
 	{
 		DEFINE_PARAMETERDATA(gain_impl, Smoothing);
-		p.range = { 0.0, 1000.0, 0.1 };
-		p.range.setSkewForCentre(100.0);
-		p.defaultValue = 20.0;
+		p.setRange({ 0.0, 1000.0, 0.1 });
+		p.setSkewForCentre(100.0);
+		p.setDefaultValue(20.0);
 		data.add(std::move(p));
 	}
 	{
 		DEFINE_PARAMETERDATA(gain_impl, ResetValue);
-		p.range = { -100.0, 0.0, 0.1 };
-		p.range.setSkewForCentre(-12.0);
-		p.defaultValue = 0.0;
+		p.setRange({ -100.0, 0.0, 0.1 });
+		p.setSkewForCentre(-12.0);
+		p.setDefaultValue(0.0);
 		data.add(std::move(p));
 	}
 }
@@ -365,15 +368,14 @@ void smoother_impl<NV>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(smoother_impl, DefaultValue);
-		p.range = { 0.0, 1.0, 0.01 };
-		p.defaultValue = 0.0;
+		p.setDefaultValue(0.0);
 		data.add(std::move(p));
 	}
 	{
 		DEFINE_PARAMETERDATA(smoother_impl, SmoothingTime);
-		p.range = { 0.0, 2000.0, 0.1 };
-		p.range.setSkewForCentre(100.0);
-		p.defaultValue = 100.0;
+		p.setRange({ 0.0, 2000.0, 0.1 });
+		p.setSkewForCentre(100.0);
+		p.setDefaultValue(100.0);
 		data.add(std::move(p));
 	}
 }
@@ -398,7 +400,7 @@ void ramp_envelope_impl<V>::createParameters(ParameterDataList& data)
 
 	{
 		DEFINE_PARAMETERDATA(ramp_envelope_impl, RampTime);
-		p.range = { 0.0, 2000.0, 0.1 };
+		p.setRange({ 0.0, 2000.0, 0.1 });
 		data.add(std::move(p));
 	}
 }
@@ -480,9 +482,9 @@ void fm::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(fm, Frequency);
-		p.range = { 20.0, 20000.0, 0.1 };
+		p.setRange({ 20.0, 20000.0, 0.1 });
 		p.setDefaultValue(20.0);
-		p.range.setSkewForCentre(1000.0);
+		p.setSkewForCentre(1000.0);
 		data.add(std::move(p));
 	}
 
@@ -494,8 +496,8 @@ void fm::createParameters(ParameterDataList& data)
 
 	{
 		DEFINE_PARAMETERDATA(fm, FreqMultiplier);
-		p.range = { 1.0, 12.0, 1.0 };
-		p.defaultValue = 1.0;
+		p.setRange({ 1.0, 12.0, 1.0 });
+		p.setDefaultValue(1.0);
 		data.add(std::move(p));
 	}
 }

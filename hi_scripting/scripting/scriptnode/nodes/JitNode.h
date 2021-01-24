@@ -265,6 +265,8 @@ struct new_jit: public SnexSource,
 
 	void updateParameters()
 	{
+		jassertfalse; // rewrite this with the proper parameter::data logic
+#if 0
 		ParameterDataList l;
 		createParameters(l);
 
@@ -299,8 +301,8 @@ struct new_jit: public SnexSource,
 
 			if (auto param = parentNode->getParameter(p.id))
 			{
-				p.dbNew(param->getValue());
-				auto pc = new parameter::dynamic_base(p.dbNew);
+				p.callback(param->getValue());
+				auto pc = new parameter::dynamic_base(p.callback);
 				param->setCallbackNew(pc);
 			}
 			else
@@ -310,11 +312,12 @@ struct new_jit: public SnexSource,
 
 				auto newP = new NodeBase::Parameter(parentNode, newTree);
 
-				auto pc = new parameter::dynamic_base(p.dbNew);
+				auto pc = new parameter::dynamic_base(p.callback);
 				newP->setCallbackNew(pc);
 				parentNode->addParameter(newP);
 			}
 		}
+#endif
 	}
 
 	void process(ProcessDataDyn& d)
@@ -335,16 +338,7 @@ struct new_jit: public SnexSource,
 	{
 		if (compiledNode)
 		{
-			auto l = compiledNode->getParameterList();
-
-			for (int i = 0; i < l.size(); i++)
-			{
-				parameter::data p(l[i].data.id);
-				p.range = { 0.0, 1.0 };
-				p.dbNew.referTo(compiledNode->thisPtr, (parameter::dynamic::Function)l[i].function);
-
-				data.add(p);
-			}
+			data.addArray(compiledNode->getParameterList());
 		}
 	}
 

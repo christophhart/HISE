@@ -414,14 +414,14 @@ public:
 	{
 		{
 			DEFINE_PARAMETERDATA(timer_impl, Active);
-			p.range = { 0.0, 1.0, 1.0 };
-			p.defaultValue = 1.0;
+			p.setRange({ 0.0, 1.0, 1.0 });
+			p.setDefaultValue(1.0);
 			data.add(std::move(p));
 		}
 		{
 			DEFINE_PARAMETERDATA(timer_impl, Interval);
-			p.range = { 0.0, 2000.0, 0.1 };
-			p.defaultValue = 500.0;
+			p.setRange({ 0.0, 2000.0, 0.1 });
+			p.setDefaultValue(500.0);
 			data.add(std::move(p));
 		}
 	}
@@ -635,30 +635,26 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 	{
 		{
 			DEFINE_PARAMETERDATA(snex_osc_impl, Frequency);
-			p.range = { 20.0, 20000.0, 0.1 };
-			p.range.setSkewForCentre(1000.0);
-			p.defaultValue = 220.0;
+			p.setRange({ 20.0, 20000.0, 0.1 });
+			p.setSkewForCentre(1000.0);
+			p.setDefaultValue(220.0);
 			data.add(std::move(p));
 		}
 
 		{
 			DEFINE_PARAMETERDATA(snex_osc_impl, PitchMultiplier);
-			p.range = { 1.0, 16.0, 1.0 };
-			p.defaultValue = 1.0;
+			p.setRange({ 1.0, 16.0, 1.0 });
+			p.setDefaultValue(1.0);
 			data.add(std::move(p));
 		}
 
 		{
 			DEFINE_PARAMETERDATA(snex_osc_impl, Extra1);
-			p.range = { 0.0, 1.0, 0.01 };
-			p.defaultValue = 0.0;
 			data.add(std::move(p));
 		}
 
 		{
 			DEFINE_PARAMETERDATA(snex_osc_impl, Extra2);
-			p.range = { 0.0, 1.0, 0.01 };
-			p.defaultValue = 0.0;
 			data.add(std::move(p));
 		}
 	}

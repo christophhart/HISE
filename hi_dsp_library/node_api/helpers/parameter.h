@@ -270,8 +270,7 @@ template <class T, int P> struct plain : public single_base<T, P>
 	void addToList(ParameterDataList& d)
 	{
 		data p("plainUnNamed");
-		p.dbNew.referTo(this, callStatic);
-		p.range = NormalisableRange<double>(0.0, 1.0);
+		p.callback.referTo(obj, callStatic);
 		d.add(p);
 	}
 
@@ -311,7 +310,7 @@ template <class T, int P, class Expression> struct expression : public single_ba
 	void addToList(ParameterDataList& d)
 	{
 		data p("exprUnNamed");
-		p.dbNew.referTo(this, callStatic);
+		p.callback.referTo(this, callStatic);
 		p.range = NormalisableRange<double>();
 		d.add(p);
 	}
@@ -362,10 +361,10 @@ template <class T, int P, class RangeType> struct from0To1 : public single_base<
 	void addToList(ParameterDataList& d)
 	{
 		data p("plainUnNamed");
-		p.dbNew.referTo(this, callStatic);
+		p.callback.referTo(obj, callStatic);
 
 		// use the default range here...
-		p.range = NormalisableRange<double>(0.0, 1.0);
+		p.setRange({ 0.0, 1.0 });
 		d.add(p);
 	}
 
@@ -405,7 +404,7 @@ template <class T, int P, class RangeType> struct to0To1 : public single_base<T,
 	void addToList(ParameterDataList& d)
 	{
 		data p("plainUnNamed");
-		p.dbNew.referTo(this, callStatic);
+		p.callback.referTo(this, callStatic);
 		p.range = RangeType::createNormalisableRange();
 		d.add(p);
 	}
@@ -460,7 +459,7 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 	void addToList(ParameterDataList& d)
 	{
 		data p("plainUnNamed");
-		p.dbNew.referTo(this, callStatic);
+		p.callback.referTo(this, callStatic);
 		p.range = InputRange::createNormalisableRange();
 		d.add(p);
 	}

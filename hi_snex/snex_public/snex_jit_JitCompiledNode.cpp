@@ -105,26 +105,28 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 		if (instanceType = c.getComplexType(implId))
 		{
 			
+#if 0
 			if (auto libraryNode = dynamic_cast<SnexNodeBase*>(instanceType.get()))
 			{
 				parameterList = libraryNode->getParameterList();
 			}
+#endif
 			if (auto st = dynamic_cast<StructType*>(instanceType.get()))
 			{
 				WrapBuilder::InnerData inner(instanceType, WrapBuilder::GetObj);
 
-				Array<cppgen::ParameterEncoder::Item> encoderData;
+				Array<scriptnode::parameter::pod> encoderData;
 
 				if (inner.resolve())
 				{
 					if (auto metadataType = dynamic_cast<jit::StructType*>(c.getComplexType(inner.st->id.getChildId("metadata")).get()))
 					{
-						scriptnode::ParameterEncoder encoder(metadataType->createByteBlock());
+						scriptnode::parameter::encoder encoder(metadataType->createByteBlock());
 
 						for (auto& p: encoder)
 						{
 							encoderData.add(p);
-							addParameterMethod(s, p.id, p.index);
+							addParameterMethod(s, p.getId(), p.index);
 						}
 					}
 					else
@@ -136,10 +138,10 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 						{
 							for (int i = 0; i < pNames.size(); i++)
 							{
-								cppgen::ParameterEncoder::Item item;
+								scriptnode::parameter::pod item;
 
 								item.index = i;
-								item.id = pNames[i];
+								item.setId(pNames[i]);
 								addParameterMethod(s, pNames[i], i);
 							}
 						}
@@ -159,14 +161,32 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 
 				instanceType = c.getComplexType(implId);
 
+				parameterFunctions.clear();
+
 				for (auto& n : encoderData)
 				{
-					auto f = obj[Identifier("set" + n.id)];
+					scriptnode::parameter::data d;
+					d.info = n;
+					auto f = obj[Identifier("set" + n.getId())];
 
-					OpaqueSnexParameter osp;
-					osp.data = n;
-					osp.function = f.function;
-					parameterList.add(osp);
+					parameterFunctions.add(f);
+
+					auto pIndex = n.index;
+
+					if (pIndex == 0)
+						d.callback.referTo(this, setParameterStatic<0>);
+					else if (pIndex == 1)
+						d.callback.referTo(this, setParameterStatic<1>);
+					else if (pIndex == 2)
+						d.callback.referTo(this, setParameterStatic<2>);
+					else if (pIndex == 3)
+						d.callback.referTo(this, setParameterStatic<3>);
+					else if (pIndex == 4)
+						d.callback.referTo(this, setParameterStatic<4>);
+					else
+						jassertfalse;
+					
+					parameterList.add(d);
 				}
 			}
 
@@ -174,6 +194,7 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 
 			thisPtr = obj.getMainObjectPtr();
 			ok = true;
+
 
 
 

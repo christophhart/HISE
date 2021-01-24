@@ -83,8 +83,17 @@ template <typename T> struct RangeBase
 {
 	static constexpr T from0To1(T min, T max, T value) { return hmath::map(value, min, max); }
 	static constexpr T to0To1(T min, T max, T value) { return (value - min) / (max - min); }
-	static constexpr T from0To1Skew(T min, T max, T skew, T value) { auto v = hmath::pow(value, skew); return from0To1(min, max, value); }
-	static constexpr T to0To1Skew(T min, T max, T skew, T value) { return hmath::pow(to0To1(min, max, value), skew); }
+
+	static constexpr T from0To1Skew(T min, T max, T skew, T value) 
+	{ 
+		return min + (max - min) * hmath::exp(hmath::log(value) / skew);
+	}
+
+	static constexpr T to0To1Skew(T min, T max, T skew, T value) 
+	{
+		return hmath::pow(to0To1(min, max, value), skew);
+	}
+
 	static constexpr T to0To1Step(T min, T max, T step, T value) { return to0To1(min, max, value - hmath::fmod(value, step)); }
 	static constexpr T to0To1StepSkew(T min, T max, T step, T skew, T value) { return to0To1(min, max, skew, value - hmath::fmod(value, step)); }
 

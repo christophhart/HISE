@@ -74,8 +74,8 @@ void tempo_sync::createParameters(ParameterDataList& data)
 	}
 	{
 		DEFINE_PARAMETERDATA(tempo_sync, Multiplier);
-		p.range = { 1, 16, 1.0 };
-		p.defaultValue = 1.0;
+		p.setRange({ 1, 16, 1.0 });
+		p.setDefaultValue(1.0);
 		data.add(std::move(p));
 	}
 }
@@ -162,7 +162,7 @@ void hise_mod::createParameters(ParameterDataList& data)
 	{
 		DEFINE_PARAMETERDATA(hise_mod, Index);
 		p.setParameterValueNames({ "Pitch", "Extra 1", "Extra 2" });
-		p.defaultValue = 0.0;
+		p.setDefaultValue(0.0);
 		data.add(std::move(p));
 	}
 }

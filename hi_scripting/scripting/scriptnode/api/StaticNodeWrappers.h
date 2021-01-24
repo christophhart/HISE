@@ -43,14 +43,6 @@ namespace scriptnode_initialisers
 		{};
 	};
 
-	struct oversample
-	{
-		static void initialise(void* obj, NodeBase* n)
-		{
-			auto typed = static_cast<wrap::oversample_base*>(obj);
-			typed->lock = &n->getRootNetwork()->getConnectionLock();
-		};
-	};
 }
 
 using namespace juce;
@@ -235,8 +227,8 @@ struct ParameterMultiplyAddNode : public ModulationSourceNode
 			else if (auto p = getParameterData(firstChild))
 			{
 				auto thisValue = getParameter("Value")->data;
-				RangeHelpers::storeDoubleRange(thisValue, false, p.range, getUndoManager());
-				obj.currentRange = p.range;
+				RangeHelpers::storeDoubleRange(thisValue, false, p.toRange(), getUndoManager());
+				obj.currentRange = p.toRange();
 
 				auto v = obj.getUIData().getPmaValue();
 				getParameterHolder()->call(v);

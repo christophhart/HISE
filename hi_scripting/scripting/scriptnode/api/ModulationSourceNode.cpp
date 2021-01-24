@@ -200,7 +200,7 @@ parameter::data ModulationSourceNode::getParameterData(const ValueTree& m) const
 
 		for (auto& p : pList)
 		{
-			if (p.id == m[PropertyIds::ParameterId].toString())
+			if (p.info.getId() == m[PropertyIds::ParameterId].toString())
 				return p;
 		}
 	}
@@ -222,13 +222,13 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 		ScopedPointer<parameter::dynamic_base> np;
 
 		if (expression.isNotEmpty())
-			np = new parameter::dynamic_expression(p.dbNew, new JitExpression(expression, this));
+			np = new parameter::dynamic_expression(p.callback, new JitExpression(expression, this));
 		else if (allowRangeConversion & !RangeHelpers::isIdentity(range))
-			np = new parameter::dynamic_from0to1(p.dbNew, range);
+			np = new parameter::dynamic_from0to1(p.callback, range);
 		else
-			np = new parameter::dynamic_base(p.dbNew);
+			np = new parameter::dynamic_base(p.callback);
 
-		double* lValue = &targetNode->getParameter(p.id)->getReferenceToCallback().lastValue;
+		double* lValue = &targetNode->getParameter(p.info.getId())->getReferenceToCallback().lastValue;
 
 		np->displayValuePointer = lValue;
 
@@ -609,7 +609,7 @@ void WrapperNode::initParameterData(ParameterDataList& pData)
 
 	for (auto p : pData)
 	{
-		auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.id);
+		auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.info.getId());
 
 		if (!existingChild.isValid())
 		{
@@ -619,7 +619,7 @@ void WrapperNode::initParameterData(ParameterDataList& pData)
 
 		auto newP = new Parameter(this, existingChild);
 
-		auto ndb = new parameter::dynamic_base(p.dbNew);
+		auto ndb = new parameter::dynamic_base(p.callback);
 
 		newP->setCallbackNew(ndb);
 		newP->valueNames = p.parameterNames;

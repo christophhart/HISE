@@ -468,7 +468,7 @@ struct ScriptNodeTests : public juce::UnitTest
 			expect(p.size() == 1, "not one parameter");
 			
 			if (p.size() == 1)
-				p.getReference(0).dbNew.call(0.6);
+				p.getReference(0).callback.call(0.6);
 
 
 			span<float, 2> d;

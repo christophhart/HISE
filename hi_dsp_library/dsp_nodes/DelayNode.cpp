@@ -59,15 +59,15 @@ void fix_delay::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(fix_delay, DelayTime);
-		p.range = { 0.0, 1000.0, 0.1 };
-		p.range.setSkewForCentre(100.0);
-		p.defaultValue = 100.0;
+		p.setRange({ 0.0, 1000.0, 0.1 });
+		p.setSkewForCentre(100.0);
+		p.setDefaultValue(100.0);
 		data.add(std::move(p));
 	}
 	{
 		DEFINE_PARAMETERDATA(fix_delay, FadeTime);
-		p.range = { 0.0, 1024.0, 1.0 };
-		p.defaultValue = 512;
+		p.setRange({ 0.0, 1024.0, 1.0 });
+		p.setDefaultValue(512.0);
 		data.add(std::move(p));
 	}
 }

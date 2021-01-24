@@ -32,6 +32,9 @@
 
 #include "BinaryDataDictionaries.h"
 
+#if !HISE_NO_GUI_TOOLS
+
+
 namespace hise {
 using namespace juce;
 
@@ -4351,3 +4354,5 @@ MemoryBlock UserPresetDictionaryProvider::createDictionaryData()
 }
 
 }
+
+#endif

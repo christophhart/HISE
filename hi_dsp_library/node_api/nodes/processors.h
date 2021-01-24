@@ -74,7 +74,7 @@ using namespace snex::Types;
 struct OpaqueNode
 {
 	static constexpr int NumMaxParameters = 16;
-	static constexpr int SmallObjectSize = 64;
+	static constexpr int SmallObjectSize = 1024;
 
 	using MonoFrame = span<float, 1>;
 	using StereoFrame = span<float, 2>;
@@ -121,7 +121,19 @@ struct OpaqueNode
 
 		auto t = prototypes::static_wrappers<T>::create(obj);
 		isPoly = t->isPolyphonic();
-		t->createParameters(parameters);
+		
+		ParameterDataList pList;
+
+		t->createParameters(pList);
+
+		numParameters = pList.size();
+
+		for (int i = 0; i < numParameters; i++)
+		{
+			parameters[i] = pList[i].info;
+			parameterFunctions[i] = pList[i].callback.getFunction();
+			parameterObjects[i] = pList[i].callback.getObjectPtr();
+		}
 	}
 
 	template <typename T> T& as()
@@ -144,6 +156,7 @@ struct OpaqueNode
 	void prepare(PrepareSpecs ps)
 	{
 		prepareFunc(obj, &ps);
+		resetFunc(obj);
 	}
 
 	void process(ProcessDataDyn& data)
@@ -173,12 +186,18 @@ struct OpaqueNode
 
 	void createParameters(ParameterDataList& l)
 	{
-		l.clear();
-		l.addArray(parameters);
+		for (int i = 0; i < numParameters; i++)
+		{
+			parameter::data d;
+			d.info = parameters[i];
+			d.callback.referTo(parameterObjects[i], parameterFunctions[i]);
+			l.add(d);
+		}
 	}
 
 	template <int P> static void setParameterStatic(void* obj, double v)
 	{
+		// should always be forwarded directly...
 		jassertfalse;
 	}
 
@@ -191,25 +210,23 @@ struct OpaqueNode
 		obj = externPtr;
 	}
 
-private:
-
 	void callDestructor()
 	{
 		if (destructFunc != nullptr && getObjectPtr() != nullptr)
 		{
 			destructFunc(obj);
-			
+
 			if (obj == bigBuffer)
 				bigBuffer.free();
 			else if (obj == smallObjectBuffer)
 				memset(smallObjectBuffer, 0, SmallObjectSize);
-			else
-			{
-				jassertfalse;
-				// do nothing here, it must be deallocated by the dll.
-			}
+
+			destructFunc = nullptr;
+			obj = nullptr;
 		}
 	}
+
+private:
 
 	uint8 smallObjectBuffer[SmallObjectSize];
 	HeapBlock<uint8> bigBuffer;
@@ -226,7 +243,13 @@ private:
 	prototypes::processFrame<StereoFrame> stereoFrame = nullptr;
 	prototypes::initialise initFunc = nullptr;
 
-	ParameterDataList parameters;
+	public:
+
+	span<parameter::pod, NumMaxParameters> parameters;
+	span<prototypes::setParameter, NumMaxParameters> parameterFunctions;
+	span<void*, NumMaxParameters> parameterObjects;
+
+	int numParameters = 0;
 };
 
 struct OpaqueModNode : public OpaqueNode
@@ -718,8 +741,6 @@ struct oversample_base
 
 	void prepare(PrepareSpecs ps)
 	{
-		jassert(lock != nullptr);
-
 		ScopedPointer<Oversampler> newOverSampler;
 
 		auto originalBlockSize = ps.blockSize;
@@ -727,8 +748,8 @@ struct oversample_base
 		ps.sampleRate *= (double)oversamplingFactor;
 		ps.blockSize *= oversamplingFactor;
 
-		if (pCallback)
-			pCallback(ps);
+		if (prepareFunc)
+			prepareFunc(pObj, &ps);
 		
 		newOverSampler = new Oversampler(ps.numChannels, (int)std::log2(oversamplingFactor), Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
 
@@ -736,17 +757,20 @@ struct oversample_base
 			newOverSampler->initProcessing(originalBlockSize);
 
 		{
-			ScopedLock sl(*lock);
+			hise::SimpleReadWriteLock::ScopedReadLock sl(lock);
 			oversampler.swapWith(newOverSampler);
 		}
 	}
 
-	CriticalSection* lock = nullptr;
-
 protected:
 
+	hise::SimpleReadWriteLock lock;
+
 	const int oversamplingFactor = 0;
-	std::function<void(PrepareSpecs)> pCallback;
+	
+	void* pObj = nullptr;
+	prototypes::prepare prepareFunc;
+
 	ScopedPointer<Oversampler> oversampler;
 };
 
@@ -763,16 +787,18 @@ public:
 	oversample():
 		oversample_base(OversamplingFactor)
 	{
-		pCallback = [this](PrepareSpecs ps)
-		{
-			obj.prepare(ps);
-		};
+		this->prepareFunc = prototypes::static_wrappers<T>::prepare;
+		this->pObj = &obj;
 	}
 
 	forcedinline void reset() noexcept 
 	{
-		if (oversampler != nullptr)
+		hise::SimpleReadWriteLock::ScopedTryReadLock sl(this->lock);
+
+		if (sl.hasLock() && oversampler != nullptr)
+		{
 			oversampler->reset();
+		}
 
 		obj.reset(); 
 	}
@@ -790,28 +816,32 @@ public:
 
 	template <typename ProcessDataType>  void process(ProcessDataType& data)
 	{
-		if (oversampler == nullptr)
-			return;
+		hise::SimpleReadWriteLock::ScopedTryReadLock sl(this->lock);
 
-		auto bl = data.toAudioBlock();
-		auto output = oversampler->processSamplesUp(bl);
+		if (sl.hasLock())
+		{
+			if (oversampler == nullptr)
+				return;
 
-		float* tmp[NUM_MAX_CHANNELS];
+			auto bl = data.toAudioBlock();
+			auto output = oversampler->processSamplesUp(bl);
 
-		for (int i = 0; i < data.getNumChannels(); i++)
-			tmp[i] = output.getChannelPointer(i);
+			float* tmp[NUM_MAX_CHANNELS];
 
-		ProcessDataType od(tmp, data.getNumSamples() * OversamplingFactor, data.getNumChannels());
+			for (int i = 0; i < data.getNumChannels(); i++)
+				tmp[i] = output.getChannelPointer(i);
 
-		od.copyNonAudioDataFrom(data);
-		obj.process(od);
+			ProcessDataType od(tmp, data.getNumSamples() * OversamplingFactor, data.getNumChannels());
 
-		oversampler->processSamplesDown(bl);
+			od.copyNonAudioDataFrom(data);
+			obj.process(od);
+
+			oversampler->processSamplesDown(bl);
+		}
 	}
 
 	void initialise(NodeBase* n)
 	{
-		InitFunctionClass::initialise(this, n);
 		obj.initialise(n);
 	}
 
@@ -1173,16 +1203,16 @@ template <class T, class PropertyClass = properties::none> struct node : public 
 		ParameterDataList l;
 		obj.parameters.addToList(l);
 
+		auto peList = parameter::encoder::fromNode<node>();
 
-		jassertfalse; // Use scriptnode::ParameterEncoder and the fromT() function
-#if 0
-		auto pNames = MetadataClass::getParameterIds();
-
-		for (int i = 0; i < l.size(); i++)
+		for (const parameter::pod& p : peList)
 		{
-			l.getReference(i).id = pNames[i];
+			if (isPositiveAndBelow(p.index, l.size()))
+			{
+				auto& r = l.getReference(p.index);
+				r.info = p;
+			}
 		}
-#endif
 
 		data.addArray(l);
 	}
@@ -1230,7 +1260,6 @@ struct PluginFactory : public FactoryBase
 
 	virtual bool initOpaqueNode(scriptnode::OpaqueNode* n, int index)
 	{
-		jassert(n->getObjectPtr() != nullptr);
 		items[index].f(n);
 		return true;
 	}
@@ -1297,8 +1326,6 @@ struct HostFactory : public FactoryBase
 		if (f != nullptr)
 		{
 			f(n, index);
-
-			jassertfalse;
 		}
 
 		return true;

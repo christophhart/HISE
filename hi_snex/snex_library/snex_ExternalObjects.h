@@ -94,18 +94,6 @@ struct SnexObjectDatabase
 };
 
 
-
-struct OpaqueSnexParameter
-{
-	using List = Array<OpaqueSnexParameter>;
-
-	FunctionData toFunctionData();
-
-	cppgen::ParameterEncoder::Item data;
-
-	void* function;
-};
-
 struct SnexTypeConstructData
 {
 	SnexTypeConstructData(snex::jit::Compiler& c_) :
@@ -141,6 +129,7 @@ struct DefaultFunctionClass
 	CreateFunction processFrameFunction;
 };
 
+#if 0
 struct SnexNodeBase : public snex::ComplexType
 {
 	SnexNodeBase(const SnexTypeConstructData& cd_) :
@@ -328,7 +317,7 @@ struct SnexNodeBase : public snex::ComplexType
 		}
 	}
 
-	virtual OpaqueSnexParameter::List getParameterList() = 0;
+	virtual ParameterDataList getParameterList() = 0;
 
 	snex::jit::FunctionClass* getFunctionClass() override
 	{
@@ -365,7 +354,7 @@ struct SnexNodeBase : public snex::ComplexType
 
 	DefaultFunctionClass functionCreator;
 };
-
+#endif
 
 
 }

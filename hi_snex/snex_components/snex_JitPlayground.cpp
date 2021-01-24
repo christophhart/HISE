@@ -1177,27 +1177,20 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 	{
 		lastTest = new JitFileTestCase(getParent()->getGlobalScope(), s);
 
-		ui::WorkbenchData::CompileResult r;
+		lastResult = {};
 
-		r.compileResult = lastTest->compileWithoutTesting();
-		r.assembly = lastTest->assembly;
-		r.obj = lastTest->obj;
+		lastResult.compileResult = lastTest->compileWithoutTesting();
+		lastResult.assembly = lastTest->assembly;
+		lastResult.obj = lastTest->obj;
+		lastResult.parameters.clear();
 
 		if (lastTest->nodeToTest != nullptr)
 		{
-			for (auto p : lastTest->nodeToTest->getParameterList())
-			{
-				ui::WorkbenchData::CompileResult::DynamicParameterData d;
-				d.data = p.data;
-				d.f = (void(*)(double))p.function;
-				r.parameters.add(d);
-			}
-
+			lastResult.parameters.addArray(lastTest->nodeToTest->getParameterList());
 			getParent()->getTestData().testSourceData.makeCopyOf(lastTest->getBuffer(true));
-
 		}
 		
-		return r;
+		return lastResult;
 	}
 
 	void TestCompileThread::postCompile(ui::WorkbenchData::CompileResult& lastResult)

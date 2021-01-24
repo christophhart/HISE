@@ -164,31 +164,30 @@ void FilterNodeBase<FilterType, NV>::createParameters(ParameterDataList& paramet
 {
 	{
 		DEFINE_PARAMETERDATA(FilterNodeBase, Frequency);
-		p.range = { 20.0, 20000.0, 0.1 };
-		p.range.setSkewForCentre(1000.0);
-		p.defaultValue = 1000.0;
+		p.setRange({ 20.0, 20000.0});
+		p.setSkewForCentre(1000.0);
+		p.setDefaultValue(1000.0);
 		parameters.add(std::move(p));
 	}
 	{
 		DEFINE_PARAMETERDATA(FilterNodeBase, Q);
 
-		p.range = { 0.3, 9.9, 0.1 };
-		p.range.setSkewForCentre(1.0);
-		p.defaultValue = 1.0;
+		p.setRange({ 0.3, 9.9});
+		p.setSkewForCentre(1.0);
+		p.setDefaultValue(1.0);
 		parameters.add(std::move(p));
 	}
 	{
 		DEFINE_PARAMETERDATA(FilterNodeBase, Gain);
-		p.range = { -18, 18, 0.1 };
-		p.range.setSkewForCentre(0.0);
-		p.defaultValue = 0.0;
+		p.setRange({ -18, 18 });
+		p.setSkewForCentre(0.0);
+		p.setDefaultValue(0.0);
 		parameters.add(std::move(p));
 	}
 	{
 		DEFINE_PARAMETERDATA(FilterNodeBase, Smoothing);
-		p.range = { 0.0, 1.0, 0.01 };
-		p.range.setSkewForCentre(0.1);
-		p.defaultValue = 0.01;
+		p.setSkewForCentre(0.1);
+		p.setDefaultValue(0.01);
 		parameters.add(std::move(p));
 	}
 	{

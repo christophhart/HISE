@@ -115,178 +115,229 @@ juce::NormalisableRange<double> RangeHelpers::getDoubleRange(const ValueTree& t)
 namespace parameter
 {
 
-data::data(const String& id_) :
-	id(id_)
-{
-
-}
-
-data::data(const String& id_, NormalisableRange<double> r) :
-	id(id_),
-	range(r)
-{
-
-}
-
-juce::ValueTree data::createValueTree() const
-{
-	ValueTree p(PropertyIds::Parameter);
-
-	RangeHelpers::storeDoubleRange(p, false, range, nullptr);
-
-	p.setProperty(PropertyIds::ID, id, nullptr);
-	p.setProperty(PropertyIds::Value, defaultValue, nullptr);
-
-	return p;
-}
-
-data data::withRange(NormalisableRange<double> r)
-{
-	data copy(*this);
-	copy.range = r;
-	copy.isUsingRange = !RangeHelpers::isIdentity(r);
-	return copy;
-}
-
-void data::setParameterValueNames(const StringArray& valueNames)
-{
-	parameterNames = valueNames;
-
-	if (valueNames.size() > 1)
-		range = { 0.0, (double)valueNames.size() - 1.0, 1.0 };
-}
-
-void data::init()
-{
-	jassertfalse; // check this
-	dbNew(defaultValue);
-}
-
-dynamic::dynamic() :
-	f(nullptr),
-	obj(nullptr)
-{
-
-}
-
-void dynamic::call(double v) const
-{
-	if (f != nullptr && obj != nullptr)
-		f(getObjectPtr(), v);
-}
-
-void dynamic::referTo(void* p, Function f_)
-{
-	f = f_;
-	obj = p;
-}
-
-void dynamic::operator()(double v) const
-{
-	call(v);
-}
-
-void* dynamic::getObjectPtr() const
-{
-	return obj;
-}
-
-}
-
-
-ParameterEncoder::ParameterEncoder(ValueTree& v)
-{
-	for (auto c : v)
-		items.add(ParameterEncoder::Item(c));
-}
-
-ParameterEncoder::ParameterEncoder(const MemoryBlock& m)
-{
-	parseItems(m);
-}
-
-void ParameterEncoder::parseItems(const MemoryBlock& mb)
-{
-	MemoryInputStream mis(mb, true);
-
-	while (!mis.isExhausted())
+	data::data(const String& id_)
 	{
-		Item item(mis);
-
-		if (item.id.isNotEmpty())
-			items.add(item);
+		info.setId(id_);
+		info.setRange({ 0.0, 1.0 });
+		info.ok = id_.isNotEmpty();
 	}
+
+	data::data(const String& id_, NormalisableRange<double> r)
+	{
+		info.setId(id_);
+		info.setRange(r);
+		info.ok = id_.isNotEmpty();
+	}
+
+	data::data()
+	{
+
+	}
+
+	juce::ValueTree data::createValueTree() const
+	{
+		ValueTree p(PropertyIds::Parameter);
+
+		RangeHelpers::storeDoubleRange(p, false, info.toRange(), nullptr);
+
+		p.setProperty(PropertyIds::ID, info.getId(), nullptr);
+		p.setProperty(PropertyIds::Value, info.defaultValue, nullptr);
+
+		return p;
+	}
+
+	data data::withRange(NormalisableRange<double> r)
+	{
+		data copy(*this);
+		copy.info.setRange(r);
+		return copy;
+	}
+
+	void data::setParameterValueNames(const StringArray& valueNames)
+	{
+		parameterNames = valueNames;
+
+		if (valueNames.size() > 1)
+			setRange({ 0.0, (double)valueNames.size() - 1.0, 1.0 });
+	}
+
+	void data::init()
+	{
+		callback(info.defaultValue);
+	}
+
+	dynamic::dynamic() :
+		f(nullptr),
+		obj(nullptr)
+	{
+
+	}
+
+	void dynamic::call(double v) const
+	{
+		if (f != nullptr && obj != nullptr)
+			f(getObjectPtr(), v);
+	}
+
+	void dynamic::referTo(void* p, Function f_)
+	{
+		f = f_;
+		obj = p;
+	}
+
+	void dynamic::operator()(double v) const
+	{
+		call(v);
+	}
+
+	void* dynamic::getObjectPtr() const
+	{
+		return obj;
+	}
+
+
+
+	encoder::encoder(ValueTree& v)
+	{
+		for (auto c : v)
+			items.add(pod(c));
+	}
+
+	encoder::encoder(const MemoryBlock& m)
+	{
+		parseItems(m);
+	}
+
+	void encoder::parseItems(const MemoryBlock& mb)
+	{
+		MemoryInputStream mis(mb, true);
+
+		while (!mis.isExhausted())
+		{
+			pod item(mis);
+
+			if (item.ok)
+				items.add(item);
+		}
+	}
+
+	MemoryBlock encoder::writeItems()
+	{
+		MemoryBlock data;
+
+		MemoryOutputStream mos(data, false);
+
+		for (auto& d : items)
+			d.writeToStream(mos);
+
+		int numToPad = 4 - mos.getPosition() % 4;
+
+		for (int i = 0; i < numToPad; i++)
+			mos.writeByte(0);
+
+		mos.flush();
+
+		return data;
+	}
+
+	pod::pod(const ValueTree& v)
+	{
+		clearParameterName();
+
+		index = v.getParent().indexOf(v);
+		ok = setId(v[PropertyIds::ID].toString());
+
+		auto range = RangeHelpers::getDoubleRange(v);
+		min = (DataType)range.start;
+		max = (DataType)range.end;
+		skew = (DataType)range.skew;
+		interval = (DataType)range.interval;
+		defaultValue = (DataType)v[PropertyIds::Value];
+	}
+
+	pod::pod(MemoryInputStream& mis)
+	{
+		clearParameterName();
+
+		auto safe = mis.readByte();
+
+		if (safe == 91)
+		{
+			ok = true;
+			index = mis.readInt();
+			auto s = mis.readString();
+
+			ok = setId(s);
+
+			min = mis.readFloat();
+			max = mis.readFloat();
+			defaultValue = mis.readFloat();
+			skew = mis.readFloat();
+			interval = mis.readFloat();
+		}
+	}
+
+	String pod::toString()
+	{
+		String s;
+		String nl;
+
+		s << "index: " << index << nl;
+		s << "id: " << parameterName << nl;
+		s << "min: " << min << nl;
+		s << "max: " << max << nl;
+
+		return s;
+	}
+
+	void pod::setRange(const NormalisableRange<double>& r)
+	{
+		min = r.start;
+		max = r.end;
+		interval = r.interval;
+		skew = r.skew;
+	}
+
+	juce::NormalisableRange<double> pod::toRange() const
+	{
+		NormalisableRange<double> r;
+		r.start = min;
+		r.end = max;
+		r.skew = skew;
+		r.interval = interval;
+
+		return r;
+	}
+
+	bool pod::setId(const String& id)
+	{
+		if (id.isNotEmpty() && isPositiveAndBelow(id.length(), MaxParameterNameLength))
+		{
+			memcpy(parameterName, id.getCharPointer().getAddress(), id.length());
+			return true;
+		}
+		else
+			clearParameterName();
+
+		return false;
+	}
+
+	void pod::writeToStream(MemoryOutputStream& b)
+	{
+		b.writeByte(91);
+		b.writeInt(index);
+
+		String id(parameterName);
+
+		b.writeString(id);
+		b.writeFloat(min);
+		b.writeFloat(max);
+		b.writeFloat(defaultValue);
+		b.writeFloat(skew);
+		b.writeFloat(interval);
+	}
+
+
 }
-
-MemoryBlock ParameterEncoder::writeItems()
-{
-	MemoryBlock data;
-
-	MemoryOutputStream mos(data, false);
-
-	for (auto& d : items)
-		d.writeToStream(mos);
-
-	int numToPad = 4 - mos.getPosition() % 4;
-
-	for (int i = 0; i < numToPad; i++)
-		mos.writeByte(0);
-
-	mos.flush();
-
-	return data;
-}
-
-ParameterEncoder::Item::Item(const ValueTree& v)
-{
-	index = v.getParent().indexOf(v);
-	id = v[PropertyIds::ID].toString();
-
-	auto range = RangeHelpers::getDoubleRange(v);
-
-	min = (DataType)range.start;
-	max = (DataType)range.end;
-	skew = (DataType)range.skew;
-	interval = (DataType)range.interval;
-	defaultValue = (DataType)v[PropertyIds::Value];
-}
-
-ParameterEncoder::Item::Item(MemoryInputStream& mis)
-{
-	index = mis.readInt();
-	id = mis.readString();
-	min = mis.readFloat();
-	max = mis.readFloat();
-	defaultValue = mis.readFloat();
-	skew = mis.readFloat();
-	interval = mis.readFloat();
-}
-
-String ParameterEncoder::Item::toString()
-{
-	String s;
-	String nl;
-
-	s << "index: " << index << nl;
-	s << "id: " << id << nl;
-	s << "min: " << min << nl;
-	s << "max: " << max << nl;
-
-	return s;
-}
-
-void ParameterEncoder::Item::writeToStream(MemoryOutputStream& b)
-{
-	b.writeInt(index);
-	b.writeString(id);
-	b.writeFloat(min);
-	b.writeFloat(max);
-	b.writeFloat(defaultValue);
-	b.writeFloat(skew);
-	b.writeFloat(interval);
-}
-
-
-
 
 }

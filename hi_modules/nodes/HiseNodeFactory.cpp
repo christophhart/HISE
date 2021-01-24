@@ -96,7 +96,6 @@ Factory::Factory(DspNetwork* n) :
 
 	registerPolyNode<tanh, tanh_poly>();
 
-#if NOT_JUST_OSC
 	registerPolyNode<mul, mul_poly>();
 
 	
@@ -111,7 +110,6 @@ Factory::Factory(DspNetwork* n) :
 	registerNode<square>();
 	registerNode<sqrt>();
 	registerNode<pow>();
-#endif
 
 	sortEntries();
 }
