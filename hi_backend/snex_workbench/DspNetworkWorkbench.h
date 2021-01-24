@@ -199,7 +199,9 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 	{
 		InterpretedNode,
 		JitCompiledNode,
-		CustomCode
+		DynamicLibrary,
+		CustomCode,
+		numSourceModes
 	};
 
 	struct IconFactory: public PathFactory
@@ -214,8 +216,10 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 			if (m == DspNetworkCodeProvider::SourceMode::JitCompiledNode)
 				return "jit";
-		}
 
+			if (m == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
+				return "dll";
+		}
 
 		String getId() const override { return {}; }
 
@@ -225,6 +229,7 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 			auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 
+			LOAD_PATH_IF_URL("dll", HnodeIcons::exportIcon);
 			LOAD_PATH_IF_URL("code", HiBinaryData::SpecialSymbols::scriptProcessor);
 			LOAD_PATH_IF_URL("jit", HnodeIcons::jit);
 			LOAD_PATH_IF_URL("scriptnode", ScriptnodeIcons::splitIcon);
@@ -413,7 +418,17 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 	void setProjectFactory(DynamicLibrary* dll, scriptnode::DspNetwork* n)
 	{
-		projectDllFactory = new scriptnode::dll::FunkyHostFactory(n, dll);
+		if (dll == nullptr || n == nullptr)
+		{
+			MessageManagerLock mm;
+
+			setSource(SourceMode::InterpretedNode);
+			projectDllFactory = nullptr;
+		}
+		else
+		{
+			projectDllFactory = new scriptnode::dll::FunkyHostFactory(n, dll);
+		}
 	}
 
 	ValueTree currentTree;
@@ -511,6 +526,7 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 		codeButton(DspNetworkCodeProvider::SourceMode::CustomCode),
 		jitNodeButton(DspNetworkCodeProvider::SourceMode::JitCompiledNode),
 		scriptnodeButton(DspNetworkCodeProvider::SourceMode::InterpretedNode),
+		dllButton(DspNetworkCodeProvider::SourceMode::DynamicLibrary),
 		consoleButton("console", this, f),
 		parameterButton("parameters", this, f),
 		signalButton("signal", this, f)
@@ -528,6 +544,7 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 		addAndMakeVisible(scriptnodeButton);
 		addAndMakeVisible(jitNodeButton);
 		addAndMakeVisible(codeButton);
+		addAndMakeVisible(dllButton);
 		addAndMakeVisible(cpuMeter);
 
 		d->addListener(this);
@@ -646,6 +663,7 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 		scriptnodeButton.setBounds(r.removeFromLeft(b.getHeight()));
 		jitNodeButton.setBounds(r.removeFromLeft(b.getHeight()));
 		codeButton.setBounds(r.removeFromLeft(b.getHeight()));
+		dllButton.setBounds(r.removeFromLeft(b.getHeight()));
 
 		cpuMeter.setBounds(r);
 	}
@@ -657,6 +675,7 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 	CompileSourceButton scriptnodeButton;
 	CompileSourceButton jitNodeButton;
 	CompileSourceButton codeButton;
+	CompileSourceButton dllButton;
 
 	HiseShapeButton consoleButton;
 	HiseShapeButton parameterButton;
@@ -676,6 +695,8 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 		DspNetworkSubBase(d, mc)
 	{
 		initRoot();
+
+		holder = ProcessorHelpers::getFirstProcessorWithType<scriptnode::DspNetwork::Holder>(getMainController()->getMainSynthChain());
 	}
 
 	void anythingChanged() override
@@ -688,54 +709,12 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 
 	WorkbenchData::CompileResult compile(const String& codeToCompile) override;
 
-	/** Override this function and call the parameter method. */
-	virtual void processTestParameterEvent(int parameterIndex, double value)
-	{
-		if (dllNode.getObjectPtr() != nullptr)
-		{
-			jassertfalse;
-		}
+	
+	void processTestParameterEvent(int parameterIndex, double value) override;
 
-		if (interpreter != nullptr)
-		{
-			if(auto p = interpreter->getRootNode()->getParameter(parameterIndex))
-				p->setValueAndStoreAsync(value);
-		}
-			
-		else if (jitNode != nullptr)
-			jitNode->setParameterDynamic(parameterIndex, value);
-	}
+	void prepareTest(PrepareSpecs ps) override;
 
-	virtual void prepareTest(PrepareSpecs ps)
-	{
-		if (dllNode.getObjectPtr() != nullptr)
-		{
-			dllNode.prepare(ps);
-			return;
-		}
-
-		if (interpreter != nullptr)
-			interpreter->prepareToPlay(ps.sampleRate, ps.blockSize);
-		else if (jitNode != nullptr)
-			jitNode->prepare(ps);
-	}
-
-	virtual void processTest(ProcessDataDyn& data)
-	{
-		if (dllNode.getObjectPtr() != nullptr)
-		{
-			dllNode.process(data);
-			return;
-		}
-
-		if (interpreter != nullptr)
-		{
-			ScopedLock sl(interpreter->getConnectionLock());
-			interpreter->getRootNode()->process(data);
-		}
-		else if (jitNode != nullptr)
-			jitNode->process(data);
-	}
+	void processTest(ProcessDataDyn& data) override;
 
 	void postCompile(WorkbenchData::CompileResult& lastResult) override
 	{
@@ -747,10 +726,13 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 			{
 				if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
 				{
-					auto h = ProcessorHelpers::getFirstProcessorWithType<scriptnode::DspNetwork::Holder>(dnp->getMainController()->getMainSynthChain());
-
 					jitNode = nullptr;
-					interpreter = h->getActiveNetwork();
+					interpreter = holder->getActiveNetwork();
+				}
+				else if (dnp->source == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
+				{
+					interpreter = nullptr;
+					jitNode = nullptr;
 				}
 				else
 				{
@@ -788,10 +770,13 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 		}
 	};
 
+	WeakReference<scriptnode::DspNetwork::Holder> holder;
+
 	WeakReference<scriptnode::DspNetwork> interpreter;
 
 	scriptnode::OpaqueNode dllNode;
 
+	snex::ui::WorkbenchData::CompileResult lastResult;
 
 	JitCompiledNode::Ptr jitNode;
 };

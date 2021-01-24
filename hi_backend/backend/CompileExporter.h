@@ -46,6 +46,8 @@ public:
 
 	HiseSettings::Data& dataObject;
 
+	virtual File getBuildFolder() const = 0;
+
 protected:
 
 	ValueTree exportEmbeddedFiles();
@@ -197,6 +199,8 @@ public:
 
 	static String getCompileResult(ErrorCodes result);
 
+	File getBuildFolder() const override;
+	
 	void writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile, bool compress=false);
 
 	template <class ProviderType> Result compressValueTree(const ValueTree& v, const String& tempFolder, const String& childFile)
@@ -224,7 +228,15 @@ public:
 
 	static bool isExportingFromCommandLine() { return globalCommandLineExport; }
 
-private:
+	struct BatchFileCreator
+	{
+		static void createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types);
+		static File getBatchFile(CompileExporter* exporter);
+	};
+
+protected:
+
+	String configurationName = "Release";
 
 	static bool globalCommandLineExport;
 	
@@ -289,11 +301,7 @@ private:
 	ErrorCodes createStandaloneAppHeaderFile(const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey);
 	CompileExporter::ErrorCodes createStandaloneAppProjucerFile(BuildOption option);
 
-	struct BatchFileCreator
-	{
-		static void createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types);
-		static File getBatchFile(CompileExporter* exporter);
-	};
+	
 };
 
 /** A cheap rip-off of Juce's Binary Builder to convert the exported valuetrees into a cpp file. */

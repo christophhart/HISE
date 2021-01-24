@@ -61,6 +61,7 @@
 #include "backend/BackendRootWindow.cpp"
 
 #include "backend/ProjectTemplate.cpp"
+#include "backend/ProjectDllTemplate.cpp"
 #include "backend/StandaloneProjectTemplate.cpp"
 
 

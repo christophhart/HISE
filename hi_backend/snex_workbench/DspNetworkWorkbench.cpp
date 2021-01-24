@@ -39,19 +39,42 @@ using namespace juce;
 
 snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const String& codeToCompile)
 {
-	WorkbenchData::CompileResult r;
+	lastResult = {};
 
 	using namespace scriptnode;
 
 	if (auto dcg = dynamic_cast<DspNetworkCodeProvider*>(getParent()->getCodeProvider()))
 	{
-		bool useDll = true;
+		dllNode.callDestructor();
 
-		if (useDll)
+		auto mode = dcg->source;
+
+		if (mode == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
 		{
-			auto ok = dcg->projectDllFactory->dllFactory.initOpaqueNode(&dllNode, 1);
+			auto id = dcg->getInstanceId();
 
-			
+			auto& f = dcg->projectDllFactory->dllFactory;
+
+			bool found = false;
+
+			for (int i = 0; i < f.getNumNodes(); i++)
+			{
+				if (id.toString() == f.getId(i))
+				{
+					found = f.initOpaqueNode(&dllNode, i);
+
+					break;
+				}
+			}
+
+			if (found)
+			{
+				dllNode.createParameters(lastResult.parameters);
+			}
+			else
+				lastResult.compileResult = Result::fail("Can't find node in dll");
+
+			return lastResult;
 		}
 
 		if (dcg->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
@@ -60,25 +83,22 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 
 			np->getActiveNetwork()->setExternalDataHolder(&getParent()->getTestData());
 
-			auto pList = rootNode->getValueTree().getChildWithName(PropertyIds::Parameters);
-			snex::cppgen::ParameterEncoder pe(pList);
-
-			for (auto& i : pe)
+			for (int i = 0; i < rootNode->getNumParameters(); i++)
 			{
-				WorkbenchData::CompileResult::DynamicParameterData d;
-				d.data = i;
+				auto p = rootNode->getParameter(i);
 
-				auto scriptnodeParameter = rootNode->getParameter(d.data.index);
+				scriptnode::parameter::data d;
 
-				if (scriptnodeParameter != nullptr)
+				auto f = [](void* obj, double value)
 				{
-					d.f = [scriptnodeParameter, this](double v)
-					{
-						scriptnodeParameter->setValueAndStoreAsync(v);
-					};
-				}
+					auto typed = static_cast<scriptnode::NodeBase::Parameter*>(obj);
+					typed->setValueAndStoreAsync(value);
+				};
 
-				r.parameters.add(d);
+				d.info = scriptnode::parameter::pod(p->data);
+				
+				d.callback.referTo(p, f);
+				lastResult.parameters.add(d);
 			}
 		}
 		else
@@ -94,28 +114,62 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 				if (numChannels == 0)
 					numChannels = 2;
 
-				r.lastNode = new JitCompiledNode(*cc, codeToCompile, instanceId.toString(), numChannels);
+				lastResult.lastNode = new JitCompiledNode(*cc, codeToCompile, instanceId.toString(), numChannels);
+				lastResult.assembly = cc->getAssemblyCode();
+				lastResult.compileResult = lastResult.lastNode->r;
+				lastResult.obj = lastResult.lastNode->getJitObject();
+				lastResult.parameters.addArray(lastResult.lastNode->getParameterList());
 
-				r.assembly = cc->getAssemblyCode();
-				r.compileResult = r.lastNode->r;
-				r.obj = r.lastNode->getJitObject();
-
-				for (const auto& i : r.lastNode->getParameterList())
-				{
-					WorkbenchData::CompileResult::DynamicParameterData d;
-					d.data = i.data;
-					d.f = (void(*)(double))i.function;
-					r.parameters.add(d);
-				}
-
-				return r;
+				return lastResult;
 			}
 
-			r.compileResult = Result::fail("Didn't specify file");
+			lastResult.compileResult = Result::fail("Didn't specify file");
 		}
 	}
 
-	return r;
+	return lastResult;
+}
+
+void DspNetworkCompileHandler::processTestParameterEvent(int parameterIndex, double value)
+{
+#if 0
+	if (dllNode.getObjectPtr() != nullptr)
+	{
+		dllNode.parameterFunctions[parameterIndex](dllNode.getObjectPtr(), value);
+	}
+#endif
+
+	if (interpreter != nullptr)
+	{
+		if (auto p = interpreter->getRootNode()->getParameter(parameterIndex))
+			p->setValueAndStoreAsync(value);
+	}
+
+	if (isPositiveAndBelow(parameterIndex, lastResult.parameters.size()))
+		lastResult.parameters.getReference(parameterIndex).callback.call(value);
+}
+
+void DspNetworkCompileHandler::prepareTest(PrepareSpecs ps)
+{
+	if (dllNode.getObjectPtr() != nullptr)
+		dllNode.prepare(ps);
+	else if (interpreter != nullptr)
+		interpreter->prepareToPlay(ps.sampleRate, ps.blockSize);
+	else if (jitNode != nullptr)
+		jitNode->prepare(ps);
+}
+
+void DspNetworkCompileHandler::processTest(ProcessDataDyn& data)
+{
+	if (dllNode.getObjectPtr() != nullptr)
+		dllNode.process(data);
+	else if (interpreter != nullptr)
+	{
+		ScopedLock sl(interpreter->getConnectionLock());
+		interpreter->getRootNode()->process(data);
+	}
+	else if (jitNode != nullptr)
+		jitNode->process(data);
 }
 
 DspNetworkCodeProvider::DspNetworkCodeProvider(WorkbenchData* d, MainController* mc, const File& fileToWriteTo) :

@@ -48,6 +48,7 @@ public:
 	{
 		FileMenu,
 		ToolsMenu,
+		TestMenu,
 		numMenuItems
 	};
 
@@ -60,6 +61,8 @@ public:
 		ToolsEditTestData,
 		ToolsAudioConfig,
 		ToolsCompileNetworks,
+		ToolsClearDlls,
+		TestsRunAll,
 		ProjectOffset = 9000,
 		FileOffset = 9000,
 		numCommandIds
@@ -67,7 +70,7 @@ public:
 
 	StringArray getMenuBarNames() override
 	{
-		return { "File", "Tools" };
+		return { "File", "Tools", "Tests" };
 	}
 
 	/** This should return the popup menu to display for a given top-level menu.
@@ -88,7 +91,17 @@ public:
 	{
 		if (auto dnp = dynamic_cast<DspNetworkCodeProvider*>(p->getCodeProvider()))
 		{
-			if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
+			if (dnp->source == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
+			{
+				if (getHash(true) != getHash(false))
+				{
+					PresetHandler::showMessageWindow("DLL mismatch", "The dll is different than the source files. Recompile it");
+				}
+
+				dgp->getParentShell()->setOverlayComponent(new DspNetworkCodeProvider::OverlayComponent(dnp->source, p), 300);
+				ep->getParentShell()->setOverlayComponent(new DspNetworkCodeProvider::OverlayComponent(dnp->source, p), 300);
+			}
+			else if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
 			{
 				dgp->getParentShell()->setOverlayComponent(nullptr, 300);
 				ep->getParentShell()->setOverlayComponent(new DspNetworkCodeProvider::OverlayComponent(dnp->source, p), 300);
@@ -169,6 +182,14 @@ public:
 	void resized();
 	void requestQuit();
 
+	enum class DllType
+	{
+		Debug,
+		Release,
+		Latest,
+		numDllTypes
+	};
+
 	enum class FolderSubType
 	{
 		Root,
@@ -212,6 +233,34 @@ public:
 		return {};
 	}
 
+	File getBestProjectDll(DllType t) const;
+
+	void saveCurrentFile();
+
+	bool unloadDll()
+	{
+		if (df != nullptr)
+			df->setProjectFactory(nullptr, nullptr);
+
+		if (projectDll != nullptr)
+		{
+			projectDll->close();
+			projectDll = nullptr;
+
+			return true;
+		}
+
+		return false;
+	}
+
+	bool loadDll(bool forceUnload);
+
+	void loadDllFactory(DspNetworkCodeProvider* cp);
+
+	int64 getHash(bool getDllHash);
+
+
+
 private:
 
 	ScopedPointer<juce::DynamicLibrary> projectDll;
@@ -219,6 +268,8 @@ private:
 	void addFile(const File& f);
 
 	
+	friend class DspNetworkCompileExporter;
+
 	WeakReference<DspNetworkProcessor> dnp;
 
 	WeakReference<DspNetworkCodeProvider> df;
@@ -242,33 +293,177 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SnexWorkbenchEditor)
 };
 
-
-struct DspNetworkCompileExporter : public hise::DialogWindowWithBackgroundThread,
-	public ControlledObject
+struct BufferTestResult
 {
-	DspNetworkCompileExporter(MainController* mc) :
-		DialogWindowWithBackgroundThread("Compile DSP networks"),
-		ControlledObject(mc)
+	static bool isAlmostEqual(float a, float b, float errorDb = -80.0f)
 	{
+		return std::abs(a - b) < Decibels::decibelsToGain(errorDb);
+	}
 
-		addBasicComponents(true);
+	BufferTestResult(const AudioSampleBuffer& a, const AudioSampleBuffer& b) :
+		r(Result::ok())
+	{
+		if (a.getNumChannels() != b.getNumChannels())
+			r = Result::fail("Channel amount mismatch");
+
+		if (a.getNumSamples() != b.getNumSamples())
+			r = Result::fail("Sample amount mismatch");
+
+		if (!r.wasOk())
+			return;
+
+		for (int c = 0; c < a.getNumChannels(); c++)
+		{
+			BigInteger sampleStates;
+			sampleStates.setBit(a.getNumSamples() - 1, true);
+			sampleStates.clearBit(a.getNumSamples() - 1);
+
+			for (int i = 0; i < a.getNumSamples(); i++)
+			{
+				auto as = a.getSample(c, i);
+				auto es = b.getSample(c, i);
+
+				if (!isAlmostEqual(as, es))
+				{
+					sampleStates.setBit(i, true);
+
+					if (r.wasOk())
+					{
+						String d;
+						d << "data[" << String(c) << "][" << String(i) << "]: value mismatch";
+
+						r = Result::fail(d);
+					}
+				}
+			}
+
+			errorRanges.add(sampleStates);
+		}
+	}
+
+	Result r;
+	Array<BigInteger> errorRanges;
+};
+
+struct TestRunWindow : public hise::DialogWindowWithBackgroundThread,
+					   public snex::ui::WorkbenchData::Listener,
+					   public ControlledObject
+{
+	TestRunWindow(SnexWorkbenchEditor* editor_) :
+		DialogWindowWithBackgroundThread("Run tests"),
+		ControlledObject(editor_->getProcessor()),
+		editor(editor_)
+	{
+		addComboBox("tests", collectNetworks(), "Networks to test");
+		addComboBox("config", { "All", "Interpreted", "JIT", "Dynamic Library" }, "Configuration");
+
+		addBasicComponents();
 	};
+
+	StringArray collectNetworks()
+	{
+		auto root = SnexWorkbenchEditor::getSubFolder(getMainController(), SnexWorkbenchEditor::FolderSubType::Networks);
+
+		filesToTest = root.findChildFiles(File::findFiles, false, "*.xml");
+
+		StringArray sa;
+
+		sa.add("All Tests");
+
+		for (auto f : filesToTest)
+			sa.add(f.getFileNameWithoutExtension());
+
+		return sa;
+	}
+
+	~TestRunWindow()
+	{
+	}
+
+	using Configurations = Array<DspNetworkCodeProvider::SourceMode>;
+
+	String getSoloTest()
+	{
+		auto cb = getComboBoxComponent("tests");
+
+		if (cb->getSelectedItemIndex() != 0)
+			return cb->getText();
+
+		return "";
+	}
+
+	Configurations getConfigurations()
+	{
+		Configurations c;
+
+		auto cb = getComboBoxComponent("config");
+
+		if (cb->getSelectedItemIndex() == 0)
+		{
+			c.add(DspNetworkCodeProvider::SourceMode::InterpretedNode);
+			c.add(DspNetworkCodeProvider::SourceMode::JitCompiledNode);
+
+			if (editor->getBestProjectDll(SnexWorkbenchEditor::DllType::Latest).existsAsFile())
+				c.add(DspNetworkCodeProvider::SourceMode::DynamicLibrary);
+		}
+		else
+		{
+			c.add((DspNetworkCodeProvider::SourceMode)(cb->getSelectedItemIndex() - 1));
+		}
+
+		return c;
+	}
+
+	void writeConsoleMessage(const String& m)
+	{
+		getMainController()->getConsoleHandler().writeToConsole(m, 0, nullptr, Colours::white);
+	}
+
 
 	void run() override;
 
-	void threadFinished() override
-	{
+	void runTest(const File& f, DspNetworkCodeProvider::SourceMode c);
 
-	}
+	void threadFinished() override;
+
+	bool allOk = true;
+
+
+	Array<File> filesToTest;
+
+	
+
+	SnexWorkbenchEditor* editor;
+	WorkbenchData::Ptr data;
+};
+
+struct DspNetworkCompileExporter : public hise::DialogWindowWithBackgroundThread,
+	public ControlledObject,
+	public CompileExporter
+{
+	DspNetworkCompileExporter(SnexWorkbenchEditor* editor);
+
+	void run() override;
+
+	void threadFinished() override;
+
+	File getBuildFolder() const override;
 
 private:
 
-	File getFolder(SnexWorkbenchEditor::FolderSubType t)
+
+	SnexWorkbenchEditor* editor;
+
+	ErrorCodes ok = ErrorCodes::UserAbort;
+
+	File getFolder(SnexWorkbenchEditor::FolderSubType t) const
 	{
 		return SnexWorkbenchEditor::getSubFolder(getMainController(), t);
 	}
 
+	void createProjucerFile();
 
+	Array<File> includedFiles;
 
 	void createMainCppFile();
 };
