@@ -118,7 +118,7 @@ struct JitObjectWithPrototype
 };
 
 
-
+#if 0
 template <int NumChannels> struct ScriptNodeClassPrototype : public JitObjectWithPrototype
 {
 	
@@ -179,6 +179,7 @@ template <int NumChannels> struct ScriptNodeClassPrototype : public JitObjectWit
 			call<ScriptnodeCallbacks::HandleEventFunction, void>(&e);
 	}
 };
+#endif
 
 juce::String getEmpty(const Identifier& namespaceId)
 {

@@ -67,9 +67,9 @@ constexpr const auto& getWrappedObject() const { return x; }
 #define SN_GET_SELF_AS_OBJECT(x) GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(*this); using ObjectType = x; using WrappedObjectType = x;
 
 
-#define SN_SELF_AWARE_WRAPPER(x, ObjectClass) GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(obj.getWrappedObject()); using ObjectType = x; using WrappedObjectType = typename ObjectClass::WrappedObjectType;
+#define SN_SELF_AWARE_WRAPPER(x, ObjectClass) GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(this->obj.getWrappedObject()); using ObjectType = x; using WrappedObjectType = typename ObjectClass::WrappedObjectType;
 
-#define SN_OPAQUE_WRAPPER(x, ObjectClass) GET_SELF_OBJECT(obj.getObject()); GET_WRAPPED_OBJECT(obj.getWrappedObject()); using ObjectType = typename ObjectClass::ObjectType; using WrappedObjectType= typename ObjectClass::WrappedObjectType;
+#define SN_OPAQUE_WRAPPER(x, ObjectClass) GET_SELF_OBJECT(this->obj.getObject()); GET_WRAPPED_OBJECT(this->obj.getWrappedObject()); using ObjectType = typename ObjectClass::ObjectType; using WrappedObjectType= typename ObjectClass::WrappedObjectType;
 
 
 

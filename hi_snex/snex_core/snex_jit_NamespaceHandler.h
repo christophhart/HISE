@@ -50,6 +50,8 @@ struct NamespaceHandler: public ReferenceCountedObject
 
 	struct SymbolDebugInfo
 	{
+        SymbolDebugInfo() = default;
+        
 		static SymbolDebugInfo fromString(const String& s, Visibility v=Visibility::numVisibilities)
 		{
 			SymbolDebugInfo info;
@@ -296,7 +298,7 @@ public:
 	juce::String dump() const;
 	Result addUsedNamespace(const NamespacedIdentifier& usedNamespace);
 	Result resolve(NamespacedIdentifier& id, bool allowZeroMatch = false) const;
-	void addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType, const SymbolDebugInfo& info = {});
+	void addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType, const SymbolDebugInfo& info);
 	void setSymbolCode(const NamespacedIdentifier& id, const String& tokenToInsert);
 
 	Result addConstant(const NamespacedIdentifier& id, const VariableStorage& v);

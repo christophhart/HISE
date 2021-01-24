@@ -73,6 +73,7 @@ template <class ...Types> static constexpr int getSummedChannels()
 template <class ParameterClass, typename... Processors> struct container_base
 {
 	using Type = container_base<ParameterClass, Processors...>;
+    
 	static constexpr bool isModulationSource = false;
 
 	void initialise(NodeBase* b)

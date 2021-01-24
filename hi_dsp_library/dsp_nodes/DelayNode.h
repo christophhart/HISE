@@ -117,7 +117,7 @@ template <class ParameterType, int NumVoices=1> struct pma : public combined_par
 	*/
 	template <int I, class T> void connect(T& t)
 	{
-		p.getParameter<0>().connect<I>(t);
+		this->p.template getParameter<0>().template connect<I>(t);
 	}
 
 	HISE_EMPTY_RESET;

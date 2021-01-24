@@ -64,8 +64,7 @@ END_JUCE_MODULE_DECLARATION
 #define REMOVE_REUSABLE_REG 0
 
 
-/** As soon as we jump to C++14, we can use proper if constexpr. */
-#define IF_CONSTEXPR if
+
 
 #include "AppConfig.h"
 

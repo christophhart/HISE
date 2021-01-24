@@ -191,6 +191,11 @@ struct helper_nodes
 		HISE_EMPTY_PREPARE;
 		HISE_EMPTY_RESET;
 		
+        template <int P> void setParameter(double v)
+        {
+            
+        };
+        
 		template <typename FrameDataType> void processFrame(FrameDataType& data)
 		{
 			for (auto& s : data)

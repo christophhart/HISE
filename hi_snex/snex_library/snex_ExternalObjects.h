@@ -127,11 +127,14 @@ struct DefaultFunctionClass
 
 	template <typename ObjectType> DefaultFunctionClass(ObjectType* t)
 	{
+        jassertfalse;
+#if 0
 		resetFunction = Types::SnexNodeBase::Wrappers::createResetFunction<ObjectType>;
 		prepareFunction = Types::SnexNodeBase::Wrappers::createPrepareFunction<ObjectType>;
 		processFunction = Types::SnexNodeBase::Wrappers::createProcessFunction<ObjectType>;
 		handleEventFunction = Types::SnexNodeBase::Wrappers::createHandleEventFunction<ObjectType>;
-		processFrameFunction = Types::SnexNodeBase::Wrappers::createProcessFrameFunction<ObjectType>;
+        processFrameFunction = Types::SnexNodeBase::Wrappers::createProcessFrameFunction<ObjectType>;
+#endif
 	}
 
 	CreateFunction resetFunction;

@@ -428,7 +428,9 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
 {
 	Node::List children;
 
-	ValueTreeIterator::forEach(container->nodeTree.getChildWithName(PropertyIds::Nodes), ValueTreeIterator::OnlyChildren, [&](ValueTree& c)
+    auto nodeTree = container->nodeTree.getChildWithName(PropertyIds::Nodes);
+    
+	ValueTreeIterator::forEach(nodeTree, ValueTreeIterator::OnlyChildren, [&](ValueTree& c)
 	{
 		auto parentPath = getNodePath(ValueTreeIterator::findParentWithType(c, PropertyIds::Node));
 
@@ -750,7 +752,7 @@ bool ValueTreeIterator::isRecursive(IterationType t)
 	return !isBetween(OnlyChildren, OnlyChildrenBackwards, t);
 }
 
-bool ValueTreeIterator::forEach(ValueTree& v, IterationType type, const std::function<bool(ValueTree& v)>& f)
+bool ValueTreeIterator::forEach(ValueTree v, IterationType type, const std::function<bool(ValueTree& v)>& f)
 {
 	if (isBetween(Forward, Backwards, type))
 	{
@@ -769,7 +771,8 @@ bool ValueTreeIterator::forEach(ValueTree& v, IterationType type, const std::fun
 			}
 			else
 			{
-				if (f(v.getChild(i)))
+                auto c = v.getChild(i);
+				if (f(c))
 					return true;
 			}
 		}
@@ -810,7 +813,9 @@ bool ValueTreeIterator::forEachParent(ValueTree& v, const Func& f)
 	if (f(v))
 		return true;
 
-	return forEachParent(v.getParent(), f);
+    
+    auto p = v.getParent();
+	return forEachParent(p, f);
 }
 
 bool ValueTreeIterator::getNodePath(Array<int>& path, ValueTree& root, const Identifier& id)
@@ -1022,7 +1027,7 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 
 		auto numParameters = getNumParametersToInitialise(child);
 
-		for (auto& p : pTree)
+		for (auto p : pTree)
 		{
 			String comment;
 
@@ -1054,7 +1059,7 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 		parent.addEmptyLine();
 	}
 
-	for (auto& p : root->nodeTree.getChildWithName(PropertyIds::Parameters))
+	for (auto p : root->nodeTree.getChildWithName(PropertyIds::Parameters))
 	{
 		String l;
 		l << "this->setParameter<" << ValueTreeIterator::getIndexInParent(p) << ">(";
@@ -1181,7 +1186,7 @@ void ValueTreeBuilder::RootContainerBuilder::addParameterConnections()
 				if (cTree.getNumChildren() > 1)
 					pv.flushIfNot();
 
-				for (auto& c_ : cTree)
+				for (auto c_ : cTree)
 				{
 					auto targetId = Identifier(c_[PropertyIds::NodeId].toString());
 

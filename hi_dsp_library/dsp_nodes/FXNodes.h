@@ -80,7 +80,7 @@ public:
 			v.counter -= d.getNumSamples();
 		}
 		else
-			DspHelpers::forwardToFrame16(this, d);
+			snex::Types::FrameConverters::forwardToFrame16(this, d);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& d)

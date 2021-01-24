@@ -102,6 +102,9 @@ Set this to 1 if you want to embed the libraries created with this module into y
 */
 
 
+/** As soon as we jump to C++14, we can use proper if constexpr. */
+#define IF_CONSTEXPR if
+
 // Include the basic structures from SNEX
 
 #include "snex_basics/snex_Types.h"

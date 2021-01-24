@@ -1171,7 +1171,7 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 
 			NamespaceHandler::ScopedNamespaceSetter sns(c->namespaceHandler, iteratorSymbol.id.getParent());
 
-			c->namespaceHandler.addSymbol(iteratorSymbol.id, iteratorSymbol.typeInfo, NamespaceHandler::Variable);
+            c->namespaceHandler.addSymbol(iteratorSymbol.id, iteratorSymbol.typeInfo, NamespaceHandler::Variable, NamespaceHandler::SymbolDebugInfo());
 
 			iteratorSymbol.typeInfo = iteratorSymbol.typeInfo.withModifiers(iteratorSymbol.isConst(), true);
 

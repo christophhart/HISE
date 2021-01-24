@@ -98,7 +98,7 @@ public:
 			return hardcodedClassType.get();
 
 		if (auto cs = getParentScopeOfType<ClassScope>())
-			return cs->typePtr;
+			return cs->typePtr.get();
 
 		return nullptr;
 	}

@@ -90,9 +90,10 @@ template <typename FrameType> struct Frame
 
 template <class ParameterClass, typename... Processors> struct multi: public container_base<ParameterClass, Processors...>
 {
+    using Type = container_base<ParameterClass, Processors...>;
+    
 	SN_GET_SELF_AS_OBJECT(multi);
 
-	
 	constexpr static int NumChannels = Helpers::getSummedChannels<Processors...>();
 
 	using BlockType = snex::Types::ProcessData<NumChannels>;

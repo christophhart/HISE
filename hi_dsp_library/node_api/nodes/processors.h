@@ -114,9 +114,9 @@ struct OpaqueNode
 		prepareFunc =		prototypes::static_wrappers<T>::prepare;
 		resetFunc =			prototypes::static_wrappers<T>::reset;	
 		eventFunc =			prototypes::static_wrappers<T>::handleHiseEvent;
-		processFunc =		prototypes::static_wrappers<T>::process<ProcessDataDyn>;
-		monoFrame =			prototypes::static_wrappers<T>::processFrame<MonoFrame>;
-		stereoFrame =		prototypes::static_wrappers<T>::processFrame<StereoFrame>;
+        processFunc =		prototypes::static_wrappers<T>::template process<ProcessDataDyn>;
+        monoFrame =			prototypes::static_wrappers<T>::template processFrame<MonoFrame>;
+        stereoFrame =		prototypes::static_wrappers<T>::template processFrame<StereoFrame>;
 		initFunc =		    prototypes::static_wrappers<T>::initialise;
 
 		auto t = prototypes::static_wrappers<T>::create(obj);
@@ -470,7 +470,7 @@ public:
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
 		jassert(data.getNumChannels() >= NumChannels);
-		auto& fd = data.as<FixProcessType>();
+        auto& fd = data.template as<FixProcessType>();
 		this->obj.process(fd);
 	}
 
@@ -603,7 +603,7 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto p = prototypes::static_wrappers<T>::process<ProcessDataType>;
+        auto p = prototypes::static_wrappers<T>::template process<ProcessDataType>;
 		auto e = prototypes::static_wrappers<T>::handleHiseEvent;
 		static_functions::event::process<ProcessDataType>(this, p, e, data);
 	}
@@ -833,7 +833,7 @@ template <class T> class default_data
 		obj.setExternalData(b, -1);
 	}
 
-	template <typename T> void setExternalData(T& obj, const snex::ExternalData& data, int index)
+	void setExternalData(T& obj, const snex::ExternalData& data, int index)
 	{
 		obj.setExternalData(data, index);
 	}
@@ -860,7 +860,7 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 
 	void setExternalData(const snex::ExternalData& data, int index)
 	{
-		this->i.setExternalData(obj, data, index);
+		this->i.setExternalData(this->obj, data, index);
 	}
 };
 
@@ -880,7 +880,7 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		static_functions::fix_block<BlockSize>::process(this, prototypes::static_wrappers<T>::process<ProcessDataType>, data);
+        static_functions::fix_block<BlockSize>::process(this, prototypes::static_wrappers<T>::template process<ProcessDataType>, data);
 	}
 
 	HISE_DEFAULT_INIT(T);
@@ -920,7 +920,7 @@ public:
 		ps.blockSize /= HISE_EVENT_RASTER;
 		ps.numChannels = 1;
 
-		DspHelpers::increaseBuffer(controlBuffer, ps);
+		snex::Types::FrameConverters::increaseBuffer(controlBuffer, ps);
 
 		this->obj.prepare(ps);
 	}
@@ -1055,9 +1055,9 @@ template <class ParameterClass, class T> struct mod
 	/** This method can be used to connect a target to the parameter of this
 	    modulation node. 
 	*/
-	template <int I, class T> void connect(T& t)
+	template <int I, class TargetType> void connect(TargetType& t)
 	{
-		p.getParameter<0>().connect<I>(t);
+		p.template getParameter<0>().template connect<I>(t);
 	}
 
 	ParameterClass& getParameter() { return p; }

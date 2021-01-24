@@ -94,7 +94,7 @@ template <int C> struct ProcessDataHelpers
 
 	template <typename OtherContainer> static void copyTo(const ProcessData<C>& source, OtherContainer& t)
 	{
-		static_assert(std::is_same<float, OtherContainer::DataType>(), "target must be float array");
+        static_assert(std::is_same<float, typename OtherContainer::DataType>(), "target must be float array");
 
 		auto dst = t.begin();
 		int numElements = source.getNumSamples();

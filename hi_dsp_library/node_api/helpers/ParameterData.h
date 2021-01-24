@@ -179,7 +179,7 @@ struct ParameterEncoder
 
 	template <typename NodeClass> static ParameterEncoder fromNode()
 	{
-		NodeClass::MetadataClass n;
+        typename NodeClass::MetadataClass n;
 
 		MemoryOutputStream tm;
 

@@ -139,7 +139,7 @@ template <int C, int AddToSignal=1> struct block
 	void prepare(PrepareSpecs ps)
 	{
 		jassert(ps.numChannels <= getNumChannels());
-		DspHelpers::increaseBuffer(buffer, ps);
+		snex::Types::FrameConverters::increaseBuffer(buffer, ps);
 
 		int index = 0;
 
@@ -246,7 +246,7 @@ template <typename CableType> struct receive: public base
 	void disconnect()
 	{
 		source = &null;
-		currentError = {};
+		
 	}
 
 	void handleHiseEvent(HiseEvent& e) {}

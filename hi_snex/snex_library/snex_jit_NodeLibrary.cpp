@@ -150,7 +150,7 @@ template <class Node> struct LibraryNode
 		auto f = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::SetExternalDataFunction, numChannels);
 		f.id = st->id.getChildId(f.id.getIdentifier());
 		st->addJitCompiledMemberFunction(f);
-		st->injectMemberFunctionPointer(f, Wrapper::setExternalData);
+		st->injectMemberFunctionPointer(f, (void*)Wrapper::setExternalData);
 	}
 
 	void addModulationFunction(const Inliner::Func& highLevelInliner = {})
@@ -164,7 +164,7 @@ template <class Node> struct LibraryNode
 		if (highLevelInliner)
 			st->injectInliner(f.id.getIdentifier(), Inliner::HighLevel, highLevelInliner);
 
-		st->injectMemberFunctionPointer(f, Wrapper::handleModulation);
+		st->injectMemberFunctionPointer(f, (void*)Wrapper::handleModulation);
 	}
 	
 	void addMember(const Identifier& id, const TypeInfo& type, const VariableStorage& defaultValue)
@@ -247,9 +247,9 @@ private:
 		addProcessCallbacks(2);
 		addProcessCallbacks(1);
 
-		st->injectMemberFunctionPointer(prepaFunction, Wrapper::prepare);
-		st->injectMemberFunctionPointer(eventFunction, Wrapper::handleHiseEvent);
-		st->injectMemberFunctionPointer(resetFunction, Wrapper::reset);
+		st->injectMemberFunctionPointer(prepaFunction, (void*)Wrapper::prepare);
+		st->injectMemberFunctionPointer(eventFunction, (void*)Wrapper::handleHiseEvent);
+		st->injectMemberFunctionPointer(resetFunction, (void*)Wrapper::reset);
 	}
 
 	void addParameterCallback()
@@ -279,8 +279,8 @@ private:
 			f.addArgs("value", TypeInfo(Types::ID::Double));
 
 			st->addJitCompiledMemberFunction(f);
-			f.function = p.dbNew.getFunction();
-			st->injectMemberFunctionPointer(f, p.dbNew.getFunction());
+			f.function = (void*)p.dbNew.getFunction();
+			st->injectMemberFunctionPointer(f, f.function);
 		}
 	}
 
@@ -294,7 +294,7 @@ private:
 			constructor.returnType = TypeInfo(Types::ID::Void);
 
 			st->addJitCompiledMemberFunction(constructor);
-			st->injectMemberFunctionPointer(constructor, Wrapper::construct);
+			st->injectMemberFunctionPointer(constructor, (void*)Wrapper::construct);
 		}
 
 		{
@@ -303,7 +303,7 @@ private:
 			destructor.returnType = TypeInfo(Types::ID::Void);
 
 			st->addJitCompiledMemberFunction(destructor);
-			st->injectMemberFunctionPointer(destructor, Wrapper::destruct);
+			st->injectMemberFunctionPointer(destructor, (void*)Wrapper::destruct);
 		}
 		
 

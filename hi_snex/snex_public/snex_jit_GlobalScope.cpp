@@ -172,14 +172,16 @@ void GlobalScope::registerFunctionsToNamespaceHandler(NamespaceHandler& handler)
 
 	addFunctionClass(new MathFunctions(false, blockType));
 
+    NamespaceHandler::SymbolDebugInfo di;
+    
 	for (auto of : objectClassesWithJitCallableFunctions)
 	{
-		handler.addSymbol(of->getClassName(), TypeInfo(Types::ID::Pointer, true), NamespaceHandler::StaticFunctionClass);
+		handler.addSymbol(of->getClassName(), TypeInfo(Types::ID::Pointer, true), NamespaceHandler::StaticFunctionClass, di);
 	}
 
 	for (auto rc : registeredClasses)
 	{
-		handler.addSymbol(rc->getClassName(), TypeInfo(Types::ID::Pointer, true), NamespaceHandler::StaticFunctionClass);
+		handler.addSymbol(rc->getClassName(), TypeInfo(Types::ID::Pointer, true), NamespaceHandler::StaticFunctionClass, di);
 	}
 }
 
