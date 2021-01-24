@@ -281,10 +281,28 @@ public:
 	SET_HISE_POLY_NODE_ID("ramp");
 	SN_GET_SELF_AS_OBJECT(ramp_impl);
 
-	ramp_impl();
+	ramp_impl()
+	{
+		setPeriodTime(100.0);
+	}
 
-	void prepare(PrepareSpecs ps);
-	void reset() noexcept;;
+	void prepare(PrepareSpecs ps)
+	{
+		currentValue.prepare(ps);
+		state.prepare(ps);
+		loopStart.prepare(ps);
+
+		sr = ps.sampleRate;
+		setPeriodTime(periodTime);
+	}
+
+	void reset() noexcept;
+	{
+		for (auto& s : state)
+			s.reset();
+
+		currentValue.setAll(0.0);
+	}
 
 	DEFINE_PARAMETERS
 	{
@@ -320,7 +338,11 @@ public:
 		currentValue.get() = thisState.uptime;
 	}
 
-	bool handleModulation(double& v);;
+	bool handleModulation(double& v);
+	{
+		v = currentValue.get();
+		return true;
+	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
@@ -338,11 +360,51 @@ public:
 		currentValue.get() = newValue;
 	}
 
-	void createParameters(ParameterDataList& data) override;
-	void handleHiseEvent(HiseEvent& e);
+	void createParameters(ParameterDataList& data) override
+	{
+		{
+			DEFINE_PARAMETERDATA(ramp_impl, PeriodTime);
+			p.setRange({ 0.1, 1000.0, 0.1 });
+			p.setDefaultValue(100.0);
+			data.add(std::move(p));
+		}
 
-	void setPeriodTime(double periodTimeMs);
-	void setLoopStart(double loopStart);
+		{
+			DEFINE_PARAMETERDATA(ramp_impl, LoopStart);
+			p.setDefaultValue(0.0);
+			data.add(std::move(p));
+		}
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (e.isNoteOn())
+			state.get().reset();
+	}
+
+	void setPeriodTime(double periodTimeMs)
+	{
+		periodTime = periodTimeMs;
+
+		if (sr > 0.0)
+		{
+			auto s = periodTime * 0.001;
+			auto inv = 1.0 / jmax(0.00001, s);
+
+			auto newUptimeDelta = jmax(0.0000001, inv / sr);
+
+			for (auto& s : state)
+				s.uptimeDelta = newUptimeDelta;
+		}
+	}
+
+	void setLoopStart(double newLoopStart)
+	{
+		auto v = jlimit(0.0, 1.0, newLoopStart);
+
+		for (auto& d : loopStart)
+			d = v;
+	}
 
 private:
 
