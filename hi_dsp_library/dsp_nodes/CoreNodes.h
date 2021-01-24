@@ -231,8 +231,12 @@ public:
 	
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		if (data.getNumChannels() >= 2) 
-			Math.vcopy(data[1], data[0]);
+		if (data.getNumChannels() >= 2)
+        {
+            auto dst = data[1];
+            Math.vcopy(dst, data[0]);
+        }
+			
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
@@ -586,7 +590,11 @@ public:
 
 	smoother_impl();
 
-	void initialise(NodeBase* n) override;
+	void initialise(NodeBase* n) override
+    {
+        
+    }
+    
 	void createParameters(ParameterDataList& data) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
@@ -659,7 +667,7 @@ public:
 		auto& thisG = gainer.get();
 
 		if (thisG.isSmoothing())
-			DspHelpers::forwardToFrame16(this, data);
+			snex::Types::FrameConverters::forwardToFrame16(this, data);
 		else
 		{
 			auto v = thisG.getTargetValue();

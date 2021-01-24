@@ -486,12 +486,34 @@ struct FrameConverters
 		processFix<1>(ptr, data);
 	}
 
+    static void increaseBuffer(AudioSampleBuffer& b, const PrepareSpecs& specs)
+    {
+        auto numChannels = specs.numChannels;
+        auto numSamples = specs.blockSize;
+        
+        if (numChannels != b.getNumChannels() ||
+            b.getNumSamples() < numSamples)
+        {
+            b.setSize(numChannels, numSamples);
+        }
+    }
+    
+    static void increaseBuffer(snex::Types::heap<float>& b, const PrepareSpecs& specs)
+    {
+        auto numChannels = specs.numChannels;
+        auto numSamples = specs.blockSize;
+        auto numElements = numChannels * numSamples;
+        
+        if (numElements > b.size())
+            b.setSize(numElements);
+    }
+    
 	template <int NumChannels, typename DspClass, typename ProcessDataType> static void processFix(DspClass* ptr, ProcessDataType& data)
 	{
 		jassert(data.getNumEvents() == 0);
 
 		auto& obj = *static_cast<DspClass*>(ptr);
-		auto& fixData = data.as<snex::Types::ProcessData<NumChannels>>();
+        auto& fixData = data.template as<snex::Types::ProcessData<NumChannels>>();
 
 		auto fd = fixData.toFrameData();
 

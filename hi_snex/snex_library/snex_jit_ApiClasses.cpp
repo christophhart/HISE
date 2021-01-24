@@ -93,9 +93,9 @@ struct VectorMathFunction
 };
 
 #define DESCRIPTION(type, x) setDescription(juce::String("Calculates the ") + #type + " " + #x + " value", { "input" }); 
-#define HNODE_JIT_VECTOR_FUNCTION_1(name) addFunction(VectorMathFunction::createSingleArgsFunction(static_cast<block&(*)(block&)>(hmath::name), #name, blockType)); DESCRIPTION(name, block);
-#define HNODE_JIT_VECTOR_FUNCTION(name) addFunction(VectorMathFunction::createForTwoBlocks(static_cast<block&(*)(block&, const block&)>(hmath::name), #name, blockType)); DESCRIPTION(name, block);
-#define HNODE_JIT_VECTOR_FUNCTION_S(name) addFunction(VectorMathFunction::createForScalar(static_cast<block&(*)(block&, float)>(hmath::name), #name, blockType)); DESCRIPTION(name, float);
+#define HNODE_JIT_VECTOR_FUNCTION_1(name) addFunction((void*)VectorMathFunction::createSingleArgsFunction(static_cast<block&(*)(block&)>(hmath::name), #name, blockType)); DESCRIPTION(name, block);
+#define HNODE_JIT_VECTOR_FUNCTION(name) addFunction((void*)VectorMathFunction::createForTwoBlocks(static_cast<block&(*)(block&, const block&)>(hmath::name), #name, blockType)); DESCRIPTION(name, block);
+#define HNODE_JIT_VECTOR_FUNCTION_S(name) addFunction((void*)VectorMathFunction::createForScalar(static_cast<block&(*)(block&, float)>(hmath::name), #name, blockType)); DESCRIPTION(name, float);
 
 #define FP_TARGET FP_REG_W(d->target)
 #define ARGS(i) d->args[i]
@@ -112,13 +112,14 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	addFunctionConstant("SQRT2", hmath::SQRT2);
 	addFunctionConstant("FORTYTWO", hmath::FORTYTWO);
 
-
+#if 0
 	HNODE_JIT_VECTOR_FUNCTION(min);
 	HNODE_JIT_VECTOR_FUNCTION_S(min);
 	HNODE_JIT_VECTOR_FUNCTION(max);
 	HNODE_JIT_VECTOR_FUNCTION_S(max);
 	HNODE_JIT_VECTOR_FUNCTION_1(abs);
-
+#endif
+    
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::min, int, int, "min");		DESCRIPTION(int, smaller);
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::max, int, int, "max");		DESCRIPTION(int, bigger);
 	HNODE_JIT_ADD_C_FUNCTION_3(int, hmath::range, int, int, int, "range");		DESCRIPTION(int, clamped);
@@ -260,7 +261,7 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 			FunctionData bf;
 			bf.returnType = TypeInfo(Types::ID::Void);
 			bf.addArgs("line", TypeInfo(Types::ID::Integer));
-			bf.function = ConsoleFunctions::blink;
+			bf.function = (void*)ConsoleFunctions::blink;
 			bf.object = this;
 
 			AsmCodeGenerator::TemporaryRegister tempReg(d->gen, d->target->getScope(), TypeInfo(Types::ID::Integer));
@@ -301,7 +302,7 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 			cc.mov(target, lineNumber);
 
 			FunctionData rp;
-			rp.function = WrapperStop::stop;
+			rp.function = (void*)WrapperStop::stop;
 			rp.object = this;
 			rp.returnType = TypeInfo(Types::ID::Void);
 			rp.addArgs("condition", TypeInfo(Types::ID::Integer));

@@ -257,7 +257,7 @@ juce::var ui::WorkbenchData::TestData::toJSON() const
 	obj->setProperty(TestDataIds::HiseEvents, eventList);
 	obj->setProperty(TestDataIds::ParameterEvents, parameterList);
 
-	return obj;
+	return var(obj);
 }
 
 bool ui::WorkbenchData::TestData::fromJSON(const var& jsonData)

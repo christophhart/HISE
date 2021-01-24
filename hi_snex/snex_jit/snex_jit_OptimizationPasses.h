@@ -395,7 +395,7 @@ struct AsmCleanupPass : public OptimizationPass,
 			using ReturnType = typename FilterType::ReturnType;
 
 			if (FilterType::matches(retNode))
-				return retNode->as<ReturnType>();
+				return retNode->template as<ReturnType>();
 			else
 				return next();
 		}

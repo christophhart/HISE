@@ -166,7 +166,7 @@ template <int NumChannels> struct FrameProcessor
 private:
 
 	friend class SnexObjectDatabase;
-	template <int NumChannels> friend class ProcessData;
+	template <int C> friend class ProcessData;
 	friend class ProcessDataDyn;
 
 	/** @internal: only used by ProcessData<NumChannels>::toFrameData(). */

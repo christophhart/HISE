@@ -649,7 +649,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 		*/
 		virtual CompileResult compile(const String& codeToCompile)
 		{
-			ScopedPointer<Compiler> cc = createCompiler();
+            Compiler::Ptr cc = createCompiler();
 
 			CompileResult r;
 			r.obj = cc->compileJitObject(codeToCompile);

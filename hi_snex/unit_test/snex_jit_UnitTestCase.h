@@ -251,7 +251,6 @@ private:
 		}
 		case Types::ID::Pointer:
 		{
-			jassert(function.args[0].typeInfo.getTypedComplexType<StructType>()->id == NamespacedIdentifier("ProcessData"));
 			jassert(inputBuffer.getNumSamples() > 0);
 			jassert(inputBuffer.getNumChannels() == numChannels);
 

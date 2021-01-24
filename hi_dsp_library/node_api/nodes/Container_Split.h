@@ -137,6 +137,8 @@ template <typename FrameType, int N> struct Frame
 
 template <class ParameterClass, typename... Processors> struct split : public container_base<ParameterClass, Processors...>
 {
+    using Type = container_base<ParameterClass, Processors...>;
+    
 	SN_GET_SELF_AS_OBJECT(split);
 	static constexpr int N = sizeof...(Processors);
 
@@ -157,8 +159,8 @@ template <class ParameterClass, typename... Processors> struct split : public co
 
 		if (N > 1)
 		{
-			DspHelpers::increaseBuffer(originalBuffer, ps);
-			DspHelpers::increaseBuffer(workBuffer, ps);
+            snex::Types::FrameConverters::increaseBuffer(originalBuffer, ps);
+			snex::Types::FrameConverters::increaseBuffer(workBuffer, ps);
 		}
 	}
 

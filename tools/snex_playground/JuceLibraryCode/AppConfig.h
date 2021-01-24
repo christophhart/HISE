@@ -74,6 +74,10 @@
 //==============================================================================
 // hi_dsp_library flags:
 
+#ifndef    HI_EXPORT_AS_PROJECT_DLL
+ //#define HI_EXPORT_AS_PROJECT_DLL 0
+#endif
+
 #ifndef    HI_EXPORT_DSP_LIBRARY
  #define   HI_EXPORT_DSP_LIBRARY 0
 #endif

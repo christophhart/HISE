@@ -116,7 +116,8 @@ ComplexType::Ptr Compiler::getComplexType(const NamespacedIdentifier& s, const A
 
 void Compiler::addConstant(const NamespacedIdentifier& s, const VariableStorage& v)
 {
-	compiler->namespaceHandler.addSymbol(s, TypeInfo(v.getType(), true, false), NamespaceHandler::Constant);
+    NamespaceHandler::SymbolDebugInfo di;
+	compiler->namespaceHandler.addSymbol(s, TypeInfo(v.getType(), true, false), NamespaceHandler::Constant, di);
 	compiler->namespaceHandler.addConstant(s, v);
 }
 

@@ -88,7 +88,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 					for (auto arg : classData->args)
 					{
-						compiler->namespaceHandler.addSymbol(fNamespace.getChildId(arg.id.id), arg.typeInfo, NamespaceHandler::Variable);
+                        compiler->namespaceHandler.addSymbol(fNamespace.getChildId(arg.id.id), arg.typeInfo, NamespaceHandler::Variable, NamespaceHandler::SymbolDebugInfo());
 					}
 
 					// Might be set manually from a precodegen function

@@ -56,7 +56,11 @@ namespace Operations
 		OP_BLOCK(data, value)
 		{
 			for (auto ch : data)
-				hmath::vmuls(data.toChannelData(ch), value);
+            {
+                block b(data.toChannelData(ch));
+                hmath::vmuls(b, value);
+            }
+				
 		}
 
 		OP_SINGLE(data, value)
@@ -94,7 +98,11 @@ namespace Operations
 		OP_BLOCK(data, value)
 		{
 			for (auto ch : data)
-				hmath::vset(data.toChannelData(ch), 0.0f);
+            {
+                auto dst = data.toChannelData(ch);
+                hmath::vset(dst, 0.0f);
+            }
+				
 		}
 
 		OP_SINGLE(data, value)
@@ -111,7 +119,11 @@ namespace Operations
 		OP_BLOCK(data, value)
 		{
 			for (auto ch : data)
-				hmath::vadds(data.toChannelData(ch), -value);
+            {
+                block b(data.toChannelData(ch));
+                hmath::vadds(b, -value);
+            }
+				
 		}
 
 		OP_SINGLE(data, value)
@@ -130,7 +142,11 @@ namespace Operations
 			auto factor = value > 0.0f ? 1.0f / value : 0.0f;
 
 			for (auto ch : data)
-				hmath::vmuls(data.toChannelData(ch), factor);
+            {
+                block b(data.toChannelData(ch));
+                hmath::vmuls(b, factor);
+            }
+				
 		}
 
 		OP_SINGLE(data, value)
@@ -164,7 +180,10 @@ namespace Operations
 		OP_BLOCK(data, unused)
 		{
 			for (auto ch : data)
-				hmath::vmuls(data.toChannelData(ch), float_Pi);
+            {
+                block b(data.toChannelData(ch));
+				hmath::vmuls(b, float_Pi);
+            }
 		}
 
 		OP_SINGLE(data, value)
@@ -207,7 +226,10 @@ namespace Operations
 		OP_BLOCK(data, value)
 		{
 			for (auto ch : data)
-				hmath::vclip(data.toChannelData(ch), -value, value);
+            {
+                block b(data.toChannelData(ch));
+				hmath::vclip(b, -value, value);
+            }
 		}
 
 		OP_SINGLE(data, value)
@@ -224,7 +246,10 @@ namespace Operations
 		OP_BLOCK(data, value)
 		{
 			for (auto ch : data)
-				hmath::vmul(data.toChannelData(ch), data.toChannelData(ch));
+            {
+                block b(data.toChannelData(ch));
+				hmath::vmul(b, b);
+            }
 		}
 
 		OP_SINGLE(data, value)
@@ -306,7 +331,7 @@ public:
 
 	template <typename PD> void process(PD& d)
 	{
-		OpType::op<PD>(d, value.get());
+        OpType::template op<PD>(d, value.get());
 	}
 
 	template <typename FD> void processFrame(FD& d)

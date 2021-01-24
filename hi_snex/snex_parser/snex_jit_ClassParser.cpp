@@ -62,13 +62,17 @@ void ClassParser::registerTemplateArguments(TemplateParameter::List& templateLis
 
 		jassert(tp.argumentId.getParent() == scopeId);
 
+        
+        NamespaceHandler::SymbolDebugInfo di;
+        
 		if (tp.t == TemplateParameter::TypeTemplateArgument)
 		{
-			compiler->namespaceHandler.addSymbol(tp.argumentId, tp.type, NamespaceHandler::TemplateType);
+            
+			compiler->namespaceHandler.addSymbol(tp.argumentId, tp.type, NamespaceHandler::TemplateType, di);
 		}
 		else
 		{
-			compiler->namespaceHandler.addSymbol(tp.argumentId, TypeInfo(Types::ID::Integer), NamespaceHandler::TemplateConstant);
+			compiler->namespaceHandler.addSymbol(tp.argumentId, TypeInfo(Types::ID::Integer), NamespaceHandler::TemplateConstant, di);
 		}
 	}
 }

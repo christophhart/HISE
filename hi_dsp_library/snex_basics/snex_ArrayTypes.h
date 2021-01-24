@@ -159,11 +159,11 @@ template <class T, int Size> struct span
 	struct wrapped: public index_base<wrapped>
 	{
 		wrapped(int initValue=0) : index_base<wrapped>(initValue) {}
-		wrapped& operator=(int v) { value = v; return *this; };
+		wrapped& operator=(int v) { this->value = v; return *this; };
 
 		operator int() const
 		{
-			return value >= 0 ? value % Size : (Size - abs(value%Size)) % Size;
+			return this->value >= 0 ? this->value % Size : (Size - abs(this->value%Size)) % Size;
 		}
 	};
 
@@ -171,8 +171,8 @@ template <class T, int Size> struct span
 	{
 		operator int() const
 		{
-			if (isPositiveAndBelow(value, Size - 1))
-				return value;
+			if (isPositiveAndBelow(this->value, Size - 1))
+				return this->value;
 
 			return 0;
 		}
@@ -185,11 +185,11 @@ template <class T, int Size> struct span
 	struct clamped: public index_base<clamped>
 	{
 		clamped(int initValue=0) : index_base<clamped>(initValue) {}
-		clamped& operator=(int v) { value = v; return *this; };
+		clamped& operator=(int v) { this->value = v; return *this; };
 
 		operator int() const
 		{
-			return jlimit(0, Size - 1, value);
+			return jlimit(0, Size - 1, this->value);
 		}
 	};
 
@@ -197,11 +197,11 @@ template <class T, int Size> struct span
 	struct unsafe: public index_base<unsafe>
 	{
 		unsafe(int initValue=0) : index_base<unsafe>(initValue) {}
-		unsafe& operator=(int v) { value = v; return *this; };
+		unsafe& operator=(int v) { this->value = v; return *this; };
 
 		operator int() const
 		{
-			return value;
+			return this->value;
 		}
 	};
 
@@ -612,14 +612,14 @@ template <class T> struct dyn
 		data(o.begin()),
 		size_(o.end() - o.begin())
 	{
-		static_assert(std::is_same<DataType, Other::DataType>(), "not same data type");
+        static_assert(std::is_same<DataType, typename Other::DataType>(), "not same data type");
 	}
 
 	template<class Other> dyn(Other& o, size_t s_) :
 		data(o.begin()),
 		size_(s_)
 	{
-		static_assert(std::is_same<DataType, Other::DataType>(), "not same data type");
+        static_assert(std::is_same<DataType, typename Other::DataType>(), "not same data type");
 	}
 
 	dyn(juce::HeapBlock<T>& d, size_t s_):
@@ -667,7 +667,7 @@ template <class T> struct dyn
 
 	template <typename OtherContainer> dyn<float>& operator=(OtherContainer& other)
 	{
-		static_assert(std::is_same<OtherContainer::DataType, float>(), "not a float container");
+        static_assert(std::is_same<typename OtherContainer::DataType, float>(), "not a float container");
 
 		// If you hit one of those, you probably wanted
 		// to refer the data. Use referTo instead!
@@ -746,13 +746,6 @@ template <class T> struct dyn
 		return DSP::interpolate<WrapType>(*this, index);
 	}
 
-	float operator[](double index)
-	{
-		static_assert(is_same<T, float>, "interpolating []-operator with only valid with dyn<float>");
-
-		Interpolator::interpolateLinear()
-	}
-	
 	template <class IndexType> const T& operator[](IndexType t) const
 	{
 		int i = (int)t;

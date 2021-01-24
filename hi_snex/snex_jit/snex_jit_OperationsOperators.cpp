@@ -717,7 +717,10 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 	void incAdress(x86::Compiler& cc, bool isSimd)
 	{
 		if (isVectorType())
-			cc.add(addressReg, isSimd ? 4 * sizeof(float) : sizeof(float));
+        {
+            int offset = isSimd ? 4 * sizeof(float) : sizeof(float);
+			cc.add(addressReg, offset);
+        }
 
 		for (auto c : childOps)
 			c->incAdress(cc, isSimd);

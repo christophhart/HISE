@@ -126,7 +126,9 @@ template <typename FrameDataType> struct Frame
 */
 template <class ParameterClass, typename... Processors> struct chain: public container_base<ParameterClass, Processors...>
 {
-	static constexpr int NumChannels = Helpers::getNumChannelsOfFirstElement<Processors...>();
+    using Type = container_base<ParameterClass, Processors...>;
+    
+    static constexpr int NumChannels = Helpers::getNumChannelsOfFirstElement<Processors...>();
 	static constexpr int getNumChannels() { return NumChannels; }
 
 	using BlockType = snex::Types::ProcessData<NumChannels>;

@@ -100,8 +100,8 @@ protected:
 /**@internal. */
 #define _pre_tupleT_(name, ta) template <typename ta, std::size_t ...Ns> void name##_each(
 /**@internal. */
-#define _post_tuple_(x) std::index_sequence<Ns...>) { _pre_for_each_ std::get<Ns>(elements).x _post_for_each_ }
-#define _post_tuple_op_(x) std::index_sequence<Ns...>) { _pre_for_each_ x(std::get<Ns>(elements)) _post_for_each_ }
+#define _post_tuple_(x) std::index_sequence<Ns...>) { _pre_for_each_ std::get<Ns>(this->elements).x _post_for_each_ }
+#define _post_tuple_op_(x) std::index_sequence<Ns...>) { _pre_for_each_ x(std::get<Ns>(this->elements)) _post_for_each_ }
          
 
 #define tuple_iterator0(name)							_pre_tuple_(name) _post_tuple_(name())
@@ -113,10 +113,10 @@ protected:
 #define tuple_iterator_opT(name, ta, opType) _pre_tupleT_(name, ta) opType & data, _post_tuple_op_(data)
 
 
-#define call_tuple_iterator0(name)             name##_each(getIndexSequence());
-#define call_tuple_iterator1(name, a1)         name##_each(a1, getIndexSequence());
-#define call_tuple_iterator2(name, a1, a2)	   name##_each(a1, a2, getIndexSequence());
-#define call_tuple_iterator3(name, a1, a2, a3) name##_each(a1, a2, a3, getIndexSequence());
+#define call_tuple_iterator0(name)             this->name##_each(Type::getIndexSequence());
+#define call_tuple_iterator1(name, a1)         this->name##_each(a1, Type::getIndexSequence());
+#define call_tuple_iterator2(name, a1, a2)	   this->name##_each(a1, a2, Type::getIndexSequence());
+#define call_tuple_iterator3(name, a1, a2, a3) this->name##_each(a1, a2, a3, Type::getIndexSequence());
 
 #define tuple_iteratorT0(name, ta)							_pre_tupleT_(name, ta) _post_tuple_(name())
 #define tuple_iteratorT1(name, ta, t1, a1)					_pre_tupleT_(name, ta) t1 a1, _post_tuple_(name(a1))
@@ -151,7 +151,7 @@ template <class T, int P> struct single_base
 		
 
 		static_assert(Index == 0, "Index must be zero");
-		static_assert(std::is_same<OtherType::ObjectType, T::ObjectType>(), "target type mismatch");
+        static_assert(std::is_same<typename OtherType::ObjectType, typename T::ObjectType>(), "target type mismatch");
 
 		obj = reinterpret_cast<void*>(&element.getObject());
 	}
@@ -201,7 +201,7 @@ template <typename T> struct bypass : public single_base<T, 9000>
 
 	void call(double v)
 	{
-		callStatic(obj, v);
+		callStatic(this->obj, v);
 	}
 
 	void addToList(ParameterDataList& )
@@ -211,7 +211,8 @@ template <typename T> struct bypass : public single_base<T, 9000>
 
 	static void callStatic(void*  obj, double v)
 	{
-		T::setParameter<scriptnode::bypass::ParameterId>(obj, v);
+        jassertfalse;
+		//T::setParameter<9000>(obj, v);
 	}
 
 	template <int P> auto& getParameter()
@@ -257,12 +258,12 @@ template <class T, int P> struct plain : public single_base<T, P>
 {
 	void call(double v)
 	{
-		callStatic(obj, v);
+		callStatic(this->obj, v);
 	}
 
 	static void callStatic(void* o, double v)
 	{
-		using ObjectType = T::ObjectType;
+        using ObjectType = typename T::ObjectType;
 
 		ObjectType::setParameterStatic<P>(o, v);
 	}
@@ -274,7 +275,7 @@ template <class T, int P> struct plain : public single_base<T, P>
 		d.add(p);
 	}
 
-	template <int P> auto& getParameter()
+	template <int Unused> auto& getParameter()
 	{
 		return *this;
 	}
@@ -292,14 +293,14 @@ template <class T, int P, class Expression> struct expression : public single_ba
 {
 	void call(double v)
 	{
-		jassert(obj != nullptr);
+		jassert(this->obj != nullptr);
 
-		using ObjectType = T::ObjectType;
+        using ObjectType = typename T::ObjectType;
 
 		Expression e;
 		v = e.op(v);
 
-		ObjectType::setParameterStatic<P>(obj, v);
+		ObjectType::setParameterStatic<P>(this->obj, v);
 	}
 
 	void operator()(double v)
@@ -310,20 +311,20 @@ template <class T, int P, class Expression> struct expression : public single_ba
 	void addToList(ParameterDataList& d)
 	{
 		data p("exprUnNamed");
-		p.callback.referTo(this, callStatic);
+		p.callback.referTo(this, single_base<T, P>::callStatic);
 		p.range = NormalisableRange<double>();
 		d.add(p);
 	}
 
-	template <int P> auto& getParameter()
+	template <int Unused> auto& getParameter()
 	{
 		return *this;
 	}
 
 	void validate()
 	{
-		jassert(connected);
-		jassert(obj != nullptr);
+		jassert(this->connected);
+		jassert(this->obj != nullptr);
 	}
 };
 
@@ -341,16 +342,16 @@ template <class T, int P, class RangeType> struct from0To1 : public single_base<
 {
 	void call(double v)
 	{
-		callStatic(obj, v);
+		callStatic(this->obj, v);
 	}
 
 	static void callStatic(void* obj_, double v)
 	{
-		auto converted = RangeType::from0To1(v);
+        auto converted = RangeType::from0To1(v);
 
-		using ObjectType = T::ObjectType;
+        using ObjectType = typename T::ObjectType;
 
-		ObjectType::setParameterStatic<P>(obj_, converted);
+		ObjectType::template setParameterStatic<P>(obj_, converted);
 	}
 
 	void operator()(double v)
@@ -368,15 +369,15 @@ template <class T, int P, class RangeType> struct from0To1 : public single_base<
 		d.add(p);
 	}
 
-	template <int P> auto& getParameter()
+	template <int Unused> auto& getParameter()
 	{
 		return *this;
 	}
 
 	void validate()
 	{
-		jassert(connected);
-		jassert(obj != nullptr);
+		jassert(this->connected);
+		jassert(this->obj != nullptr);
 	}
 };
 
@@ -395,29 +396,29 @@ template <class T, int P, class RangeType> struct to0To1 : public single_base<T,
 {
 	void call(double v)
 	{
-		jassert(obj != nullptr);
-		jassert(connected);
+		jassert(this->obj != nullptr);
+		jassert(this->connected);
 
-		f(obj, RangeType::to0To1(v));
+		f(this->obj, RangeType::to0To1(v));
 	}
 
 	void addToList(ParameterDataList& d)
 	{
 		data p("plainUnNamed");
-		p.callback.referTo(this, callStatic);
+        p.callback.referTo(this, single_base<T, P>::callStatic);
 		p.range = RangeType::createNormalisableRange();
 		d.add(p);
 	}
 
-	template <int P> auto& getParameter()
+	template <int Unused> auto& getParameter()
 	{
 		return *this;
 	}
 
 	void validate()
 	{
-		jassert(connected);
-		jassert(obj != nullptr);
+		jassert(this->connected);
+		jassert(this->obj != nullptr);
 	}
 };
 
@@ -433,6 +434,8 @@ template <class T, int P, class RangeType> struct to0To1 : public single_base<T,
 */
 template <class InputRange, class... Others> struct chain: public advanced_tuple<Others...>
 {
+    using Type = advanced_tuple<Others...>;
+    
 	PARAMETER_SPECS(ParameterType::Chain, 1);
 
 	template <int P> auto& getParameter()
@@ -466,7 +469,7 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 
 	template <int Index, class Target> void connect(Target& t)
 	{
-		get<Index>().template connect<0>(t);
+		this->template get<Index>().connect<0>(t);
 	}
 };
 
@@ -485,11 +488,13 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 */
 template <class... Parameters> struct list: public advanced_tuple<Parameters...>
 {
+    using Type = advanced_tuple<Parameters...>;
+    
 	PARAMETER_SPECS(ParameterType::List, sizeof...(Parameters));
 
 	template <int P> auto& getParameter()
 	{
-		return get<P>();
+		return this->template get<P>();
 	}
 
 	tuple_iterator1(addToList, ParameterDataList&, d);
@@ -501,7 +506,7 @@ template <class... Parameters> struct list: public advanced_tuple<Parameters...>
 
 	template <int Index, class Target> void connect(Target& t)
 	{
-		static_assert(false, "Can't connect to list");
+        jassertfalse;
 	}
 };
 

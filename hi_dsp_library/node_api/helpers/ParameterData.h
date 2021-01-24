@@ -227,7 +227,7 @@ struct encoder
 
 	template <typename NodeClass> static encoder fromNode()
 	{
-		NodeClass::MetadataClass n;
+        typename NodeClass::MetadataClass n;
 
 		MemoryOutputStream tm;
 

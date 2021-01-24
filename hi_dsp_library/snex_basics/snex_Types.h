@@ -36,8 +36,6 @@ template <typename T> ID getTypeFromTypeId()
 		return ID::Double;
 	if (std::is_integral<T>())
 		return ID::Integer;
-	if (std::is_same<T, block>())
-		return ID::Block;
 	if (std::is_same<T, void*>())
 		return ID::Pointer;
 
@@ -533,7 +531,6 @@ private:
 	{
 		jassert(isPolyphonic());
 		jassert(voicePtr != nullptr);
-		jassert(isPositiveAndBelow(*voicePtr, NumVoices));
 		return voicePtr->getVoiceIndex();
 	}
 

@@ -77,7 +77,7 @@ struct ValueTreeIterator
 	static bool isBetween(IterationType l, IterationType u, IterationType v);
 	static bool isBackwards(IterationType t);
 	static bool isRecursive(IterationType t);
-	static bool forEach(ValueTree& v, IterationType type, const Func& f);
+	static bool forEach(ValueTree v, IterationType type, const Func& f);
 
 	static bool forEachParent(ValueTree& v, const Func& f);
 
