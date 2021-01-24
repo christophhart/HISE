@@ -343,25 +343,34 @@ public:
 		OpType::opSingle(d, value.get());
 	}
 
-	void reset() noexcept;
-	void prepare(PrepareSpecs ps);
-	void createParameters(ParameterDataList& data);
-	void setValue(double newValue);
+	HISE_EMPTY_RESET;
+
+	void prepare(PrepareSpecs ps)
+	{
+		value.prepare(ps);
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(OpNode, Value);
+			p.setDefaultValue(OpType::defaultValue);
+			data.add(std::move(p));
+		}
+	}
+
+	void setValue(double newValue)
+	{
+		for (auto& v : value)
+			v = (float)newValue;
+	}
 
 	PolyData<float, NumVoices> value = OpType::defaultValue;
 };
 
-#define DEFINE_OP_NODE_IMPL(opName) template class OpNode<Operations::opName, 1>; \
-template class OpNode<Operations::opName, NUM_POLYPHONIC_VOICES>;
+#define DEFINE_MONO_OP_NODE(monoName) using monoName = OpNode<Operations::monoName, 1>;
 
-#define DEFINE_MONO_OP_NODE_IMPL(opName) template class OpNode<Operations::opName, 1>; \
-
-#define DEFINE_MONO_OP_NODE(monoName) extern template class OpNode<Operations::monoName, 1>; \
-using monoName = OpNode<Operations::monoName, 1>;
-
-#define DEFINE_OP_NODE(monoName, polyName) extern template class OpNode<Operations::monoName, 1>; \
-using monoName = OpNode<Operations::monoName, 1>; \
-extern template class OpNode<Operations::monoName, NUM_POLYPHONIC_VOICES>; \
+#define DEFINE_OP_NODE(monoName, polyName) using monoName = OpNode<Operations::monoName, 1>; \
 using polyName = OpNode<Operations::monoName, NUM_POLYPHONIC_VOICES>;
 
 DEFINE_OP_NODE(mul, mul_poly);

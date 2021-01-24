@@ -32,7 +32,6 @@
 
 /* HI Module */
 
-#if 0
 #include "AppConfig.h"
 
 // Import the files here when not building a library (see comment in hi_dsp_library.h)
@@ -41,7 +40,13 @@
 #include "hi_dsp_library.h"
 
 
-#endif
+#include "dsp_nodes/CoreNodes.cpp"
+#include "dsp_nodes/DelayNode.cpp"
+#include "dsp_nodes/MathNodes.cpp"
+#include "dsp_nodes/FXNodes.cpp"
+#include "dsp_nodes/RoutingNodes.cpp"
+
+
 #endif
 
 

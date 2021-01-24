@@ -183,7 +183,12 @@ public:
 
 	bool isPolyphonic() const { return false; }
 
-	bool handleModulation(double& value);
+	bool handleModulation(double& value)
+	{
+		value = max;
+		return true;
+	}
+
 	void reset() noexcept;;
 
 	constexpr bool isNormalisedModulation() const { return true; }
@@ -296,7 +301,7 @@ public:
 		setPeriodTime(periodTime);
 	}
 
-	void reset() noexcept;
+	void reset() noexcept
 	{
 		for (auto& s : state)
 			s.reset();
@@ -338,7 +343,7 @@ public:
 		currentValue.get() = thisState.uptime;
 	}
 
-	bool handleModulation(double& v);
+	bool handleModulation(double& v)
 	{
 		v = currentValue.get();
 		return true;
@@ -440,11 +445,22 @@ public:
 	SET_HISE_POLY_NODE_ID("oscillator");
 	SN_GET_SELF_AS_OBJECT(oscillator_impl);
 
-	oscillator_impl();
+	oscillator_impl() = default;
 
-	void initialise(NodeBase* n) {};
-	void reset() noexcept;
-	void prepare(PrepareSpecs ps);
+	HISE_EMPTY_INITIALISE;
+
+	void reset()
+	{
+		for (auto& s : voiceData)
+			s.reset();
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		voiceData.prepare(ps);
+		sr = ps.sampleRate;
+		setFrequency(freqValue);
+	}
 	
 	void process(snex::Types::ProcessData<1>& data)
 	{
@@ -473,11 +489,63 @@ public:
 		}
 	}
 
-	void handleHiseEvent(HiseEvent& e);
-	void createParameters(ParameterDataList& data);
-	void setMode(double newMode);
-	void setFrequency(double newFrequency);
-	void setPitchMultiplier(double newMultiplier);
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (useMidi && e.isNoteOn())
+		{
+			setFrequency(e.getFrequency());
+		}
+	}
+
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(oscillator_impl, Mode);
+			p.setParameterValueNames(modes);
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(oscillator_impl, Frequency);
+			p.setRange({ 20.0, 20000.0, 0.1 });
+			p.setDefaultValue(220.0);
+			p.setSkewForCentre(1000.0);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("Freq Ratio");
+			p.setRange({ 1.0, 16.0, 1.0 });
+			p.setDefaultValue(1.0);
+			p.callback = parameter::inner<oscillator_impl, (int)Parameters::PitchMultiplier>(*this);
+			data.add(std::move(p));
+		}
+	}
+
+	void setMode(double newMode)
+	{
+		currentMode = (Mode)(int)newMode;
+	}
+
+	void setFrequency(double newFrequency)
+	{
+		freqValue = newFrequency;
+
+		if (sr > 0.0)
+		{
+			auto newUptimeDelta = (double)(freqValue / sr * (double)sinTable->getTableSize());
+
+			for (auto& d : voiceData)
+				d.uptimeDelta = newUptimeDelta;
+		}
+	}
+
+	void setPitchMultiplier(double newMultiplier)
+	{
+		auto pitchMultiplier = jlimit(0.01, 100.0, newMultiplier);
+
+		for (auto& d : voiceData)
+			d.multiplier = pitchMultiplier;
+	}
 
 	DEFINE_PARAMETERS
 	{
@@ -581,7 +649,15 @@ public:
 	SET_HISE_POLY_NODE_ID("gain");
 	SN_GET_SELF_AS_OBJECT(gain_impl);
 
-	void prepare(PrepareSpecs ps);
+	HISE_EMPTY_MOD;
+
+	void prepare(PrepareSpecs ps)
+	{
+		gainer.prepare(ps);
+		sr = ps.sampleRate;
+
+		setSmoothing(smoothingTime);
+	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
@@ -606,16 +682,76 @@ public:
 		}
 	}
 
-	void reset() noexcept;;
+	void reset() noexcept
+	{
+		if (sr == 0.0)
+			return;
 
-	bool handleModulation(double&) noexcept { return false; };
-	void createParameters(ParameterDataList& data) override;
+		for (auto& g : gainer)
+		{
+			g.set(resetValue);
+			g.reset();
+			g.set((float)gainValue);
+		}
+	}
 
-	void handleHiseEvent(HiseEvent& e);
+	void createParameters(ParameterDataList& data) override
+	{
+		{
+			DEFINE_PARAMETERDATA(gain_impl, Gain);
+			p.setRange({ -100.0, 0.0, 0.1 });
+			p.setSkewForCentre(-12.0);
+			p.setDefaultValue(0.0);
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(gain_impl, Smoothing);
+			p.setRange({ 0.0, 1000.0, 0.1 });
+			p.setSkewForCentre(100.0);
+			p.setDefaultValue(20.0);
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(gain_impl, ResetValue);
+			p.setRange({ -100.0, 0.0, 0.1 });
+			p.setSkewForCentre(-12.0);
+			p.setDefaultValue(0.0);
+			data.add(std::move(p));
+		}
+	}
 
-	void setGain(double newValue);
-	void setSmoothing(double smoothingTimeMs);
-	void setResetValue(double newResetValue);
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (e.isNoteOn())
+			reset();
+	}
+
+
+	void setGain(double newValue)
+	{
+		gainValue = Decibels::decibelsToGain(newValue);
+
+		float gf = (float)gainValue;
+
+		for (auto& g : gainer)
+			g.set(gf);
+	}
+
+	void setSmoothing(double smoothingTimeMs)
+	{
+		smoothingTime = smoothingTimeMs;
+
+		if (sr <= 0.0)
+			return;
+
+		for (auto& g : gainer)
+			g.prepare(sr, smoothingTime);
+	}
+
+	void setResetValue(double newResetValue)
+	{
+		resetValue = newResetValue;
+	}
 
 	double gainValue = 1.0;
 	double sr = 0.0;
@@ -652,14 +788,45 @@ public:
 
 	smoother_impl();
 
-	void initialise(NodeBase* n) override
-    {
-        
-    }
+	HISE_EMPTY_INITIALISE;
     
-	void createParameters(ParameterDataList& data) override;
-	void prepare(PrepareSpecs ps);
-	void reset();
+	void createParameters(ParameterDataList& data) override
+	{
+		{
+			DEFINE_PARAMETERDATA(smoother_impl, DefaultValue);
+			p.setDefaultValue(0.0);
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(smoother_impl, SmoothingTime);
+			p.setRange({ 0.0, 2000.0, 0.1 });
+			p.setSkewForCentre(100.0);
+			p.setDefaultValue(100.0);
+			data.add(std::move(p));
+		}
+	}
+
+	void prepare(PrepareSpecs ps) 
+	{
+		modValue.prepare(ps);
+		smoother.prepare(ps);
+		auto sr = ps.sampleRate;
+		auto sm = smoothingTimeMs;
+
+		for (auto& s : smoother)
+		{
+			s.prepareToPlay(sr);
+			s.setSmoothingTime((float)sm);
+		}
+	}
+
+	void reset()
+	{
+		auto d = defaultValue;
+
+		for (auto& s : smoother)
+			s.resetToValue(d, 0.0);
+	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
@@ -673,11 +840,34 @@ public:
 		modValue.get().setModValue(smoother.get().getDefaultValue());
 	}
 
-	bool handleModulation(double&);
-	void handleHiseEvent(HiseEvent& e);
-	
-	void setSmoothingTime(double newSmoothingTime);
-	void setDefaultValue(double newDefaultValue);
+	bool handleModulation(double& value)
+	{
+		return modValue.get().getChangedValue(value);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (e.isNoteOn())
+			reset();
+	}
+
+	void setSmoothingTime(double newSmoothingTime)
+	{
+		smoothingTimeMs = newSmoothingTime;
+
+		for (auto& s : smoother)
+			s.setSmoothingTime((float)newSmoothingTime);
+	}
+
+	void setDefaultValue(double newDefaultValue)
+	{
+		defaultValue = (float)newDefaultValue;
+
+		auto d = defaultValue; auto sm = smoothingTimeMs;
+
+		for (auto& s : smoother)
+			s.resetToValue((float)d, (float)sm);
+	}
 
 	double smoothingTimeMs = 100.0;
 	float defaultValue = 0.0f;
@@ -709,11 +899,39 @@ public:
 	SET_HISE_POLY_NODE_ID("ramp_envelope");
 	SN_GET_SELF_AS_OBJECT(ramp_envelope_impl);
 
-	ramp_envelope_impl();
+	/* ============================================================================ ramp_impl */
+	ramp_envelope_impl()
+	{
 
-	void createParameters(ParameterDataList& data) override;
-	void prepare(PrepareSpecs ps);
-	void reset();
+	}
+
+	void createParameters(ParameterDataList& data) override
+	{
+		{
+			DEFINE_PARAMETERDATA(ramp_envelope_impl, Gate);
+			p.setParameterValueNames({ "On", "Off" });
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(ramp_envelope_impl, RampTime);
+			p.setRange({ 0.0, 2000.0, 0.1 });
+			data.add(std::move(p));
+		}
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		gainer.prepare(ps);
+		sr = ps.sampleRate;
+		setRampTime(attackTimeSeconds * 1000.0);
+	}
+
+	void reset()
+	{
+		for (auto& g : gainer)
+			g.setValueWithoutSmoothing(0.0f);
+	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
@@ -742,10 +960,33 @@ public:
 		}
 	}
 
-	bool handleModulation(double&);
-	void handleHiseEvent(HiseEvent& e);
-	void setGate(double newValue);
-	void setRampTime(double newAttackTimeMs);
+	bool handleModulation(double&)
+	{
+		return false;
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (e.isNoteOnOrOff())
+			gainer.get().setTargetValue(e.isNoteOn() ? 1.0f : 0.0f);
+	}
+
+	void setGate(double newValue)
+	{
+		for (auto& g : gainer)
+			g.setTargetValue(newValue > 0.5 ? 1.0f : 0.0f);
+	}
+
+	void setRampTime(double newAttackTimeMs)
+	{
+		attackTimeSeconds = newAttackTimeMs * 0.001;
+
+		if (sr > 0.0)
+		{
+			for (auto& g : gainer)
+				g.reset(sr, attackTimeSeconds);
+		}
+	}
 
 	double attackTimeSeconds = 0.01;
 	double sr = 0.0;
