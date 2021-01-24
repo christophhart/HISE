@@ -4794,7 +4794,7 @@ bool ScriptingApi::Server::isOnline()
 		URL u(*url);
 
 		auto ms = Time::getMillisecondCounter();
-		std::unique_ptr<InputStream> in(u.createInputStream(false, nullptr, nullptr, String(), 2000, nullptr));
+		std::unique_ptr<InputStream> in(u.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr));
 		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(Time::getMillisecondCounter() - ms);
 
 		if (in != nullptr)
@@ -4862,7 +4862,7 @@ void ScriptingApi::Server::WebThread::run()
 			{
 				ScopedPointer<WebInputStream> wis;
 
-				wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, 3000, nullptr, &job->status));
+				wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &job->status));
 
 				auto response = wis != nullptr ? wis->readEntireStreamAsString() : "{}";
 				std::array<var, 2> args;
