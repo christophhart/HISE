@@ -244,6 +244,7 @@ struct DefinitionBase
 	NamespacedIdentifier scopedId;
 };
 
+
 struct Op
 {
 	Op(Base& parent_) :
@@ -278,6 +279,18 @@ protected:
 
 	bool flushed = false;
 	Base& parent;
+};
+
+struct UsingNamespace : public Op
+{
+	UsingNamespace(Base& b, const NamespacedIdentifier& id):
+		Op(b)
+	{
+		String def;
+		def << "using namespace " << id.toString() << ";";
+		b << def;
+		Op::flush();
+	}
 };
 
 struct StatementBlock: public Op
@@ -513,19 +526,30 @@ struct Include : public Op
 		Op(b),
 		root(currentFile),
 		includeFile(fileToInclude)
-	{
+	{}
 
-	}
+	Include(Base& b, const String& globalHeader_, bool includeContent = false) :
+		Op(b),
+		root(File()),
+		includeFile(File()),
+		globalHeader(globalHeader_)
+	{}
 
 	~Include()
 	{
 		flushIfNot();
 	}
 
+
+
 	void flush() override
 	{
 		String d;
-		d << "#include " << includeFile.getRelativePathFrom(root.getParentDirectory()).replace("\\", "/").quoted();
+
+		if (globalHeader.isNotEmpty())
+			d << "#include <" << globalHeader << ">";
+		else
+			d << "#include " << includeFile.getRelativePathFrom(root).replace("\\", "/").quoted();
 
 		parent << d;
 
@@ -534,6 +558,7 @@ struct Include : public Op
 
 	File root;
 	File includeFile;
+	String globalHeader;
 };
 
 struct Macro : public Op
@@ -573,7 +598,7 @@ private:
 
 struct EncodedParameterMacro : public Op
 {
-	EncodedParameterMacro(Base& b, scriptnode::ParameterEncoder& pe_) :
+	EncodedParameterMacro(Base& b, scriptnode::parameter::encoder& pe_) :
 		Op(b),
 		pe(pe_)
 	{}
@@ -629,7 +654,7 @@ struct EncodedParameterMacro : public Op
 		Op::flush();
 	}
 
-	scriptnode::ParameterEncoder& pe;
+	scriptnode::parameter::encoder& pe;
 };
 
 struct UsingTemplate: public DefinitionBase,

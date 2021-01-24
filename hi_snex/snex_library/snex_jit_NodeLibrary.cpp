@@ -279,8 +279,8 @@ private:
 			f.addArgs("value", TypeInfo(Types::ID::Double));
 
 			st->addJitCompiledMemberFunction(f);
-			f.function = p.dbNew.getFunction();
-			st->injectMemberFunctionPointer(f, p.dbNew.getFunction());
+			f.function = p.callback.getFunction();
+			st->injectMemberFunctionPointer(f, p.callback.getFunction());
 		}
 	}
 

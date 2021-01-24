@@ -553,6 +553,11 @@ struct TestDataComponent : public TestDataComponentBase
 
 		addAndMakeVisible(addEvent);
 		addAndMakeVisible(addParameter);
+		
+		addSpacer();
+
+		compareButton = addButton("compare");
+		testIcon = addButton("test");
 
 		eventViewport.setViewedComponent(&eventHolder, false);
 		parameterViewport.setViewedComponent(&parameterHolder, false);
@@ -572,43 +577,7 @@ struct TestDataComponent : public TestDataComponentBase
 
 	Graph::Icons f;
 
-	void buttonClicked(Button* b) override
-	{
-		auto& td = getWorkbench()->getTestData();
-			
-		if (b == &addParameter)
-			td.addTestEvent(WorkbenchData::TestData::ParameterEvent());
-		else if (b == &addEvent)
-			td.addTestEvent(HiseEvent(HiseEvent::Type::NoteOn, 64, 127, 1));
-
-		FileChooser fc("Choose Test file", td.getTestRootDirectory(), "*.json", true);
-
-		if (b->getName() == "new-file")
-		{
-			td.clear(sendNotification);
-		}
-
-		if (b->getName() == "open-file")
-		{
-			if (fc.browseForFileToOpen())
-			{
-				auto json = JSON::parse(fc.getResult());
-
-				if (json.isObject())
-				{
-					auto ok = td.fromJSON(json);
-				}
-			}
-		}
-		if (b->getName() == "save-file")
-		{
-			if (fc.browseForFileToSave(true))
-			{
-				auto jsonData = JSON::toString(td.toJSON());
-				fc.getResult().replaceWithText(jsonData);
-			}
-		}
-	}
+	void buttonClicked(Button* b) override;
 
 	void comboBoxChanged(ComboBox* cb) override;
 
@@ -770,6 +739,8 @@ struct TestDataComponent : public TestDataComponentBase
 
 	ComboBox* signalLength;
 	ComboBox* signalType;
+	HiseShapeButton* compareButton;
+	HiseShapeButton* testIcon;
 };
 
 struct TestComplexDataManager : public TestDataComponentBase,

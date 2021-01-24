@@ -103,6 +103,17 @@ void ui::WorkbenchData::handleBlinks()
 	pendingBlinks.clearQuick();
 }
 
+void ui::WorkbenchData::callAsyncWithSafeCheck(const std::function<void(WorkbenchData* d)>& f)
+{
+	WeakReference<WorkbenchData> safePtr(this);
+
+	MessageManager::callAsync([safePtr, f]()
+	{
+		if (safePtr.get() != nullptr)
+			f(safePtr.get());
+	});
+}
+
 bool ui::WorkbenchData::handleCompilation()
 {
 	if (getGlobalScope().getBreakpointHandler().shouldAbort())
@@ -126,14 +137,14 @@ bool ui::WorkbenchData::handleCompilation()
 
 		lastCompileResult = compileHandler->compile(s);
 
-		MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(WorkbenchData::postCompile));
+		callAsyncWithSafeCheck([](WorkbenchData* d) { d->postCompile(); });
 
 		compileHandler->postCompile(lastCompileResult);
 		
 		// Might get deleted in the meantime...
 		if (compileHandler != nullptr)
 		{
-			MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(WorkbenchData::postPostCompile));
+			callAsyncWithSafeCheck([](WorkbenchData* d) { d->postPostCompile(); });
 		}
 	}
 

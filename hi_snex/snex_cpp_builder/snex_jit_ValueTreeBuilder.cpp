@@ -105,6 +105,8 @@ void ValueTreeBuilder::rebuild()
 		Sanitizers::setChannelAmount(v);
 		
 		{
+			*this << getGlueCode(FormatGlueCode::PreNamespaceCode);
+
 			Namespace impl(*this, getGlueCode(FormatGlueCode::WrappedNamespace), false);
 			addComment("Node & Parameter type declarations", Base::CommentType::FillTo80);
 			pooledTypeDefinitions.add(parseNode(v));
@@ -160,6 +162,19 @@ String ValueTreeBuilder::getGlueCode(ValueTreeBuilder::FormatGlueCode c)
 	{
 		switch (c)
 		{
+		case FormatGlueCode::PreNamespaceCode: 
+		{
+			*this << "#pragma once";
+			addEmptyLine();
+
+
+			Include(*this, "JuceHeader.h");
+			UsingNamespace(*this, NamespacedIdentifier("scriptnode"));
+			UsingNamespace(*this, NamespacedIdentifier("snex"));
+			UsingNamespace(*this, NamespacedIdentifier("snex").getChildId("Types"));
+			
+			return {};
+		}
 		case FormatGlueCode::WrappedNamespace: return v[PropertyIds::ID].toString() + "_impl";
 		case FormatGlueCode::MainInstanceClass: return "instance";
 		case FormatGlueCode::PublicDefinition: 
@@ -267,14 +282,14 @@ Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
 	{
 		PooledCableType::TemplateConstants c;
 
+		
+
 		c.numChannels = (int)u->nodeTree[PropertyIds::NumChannels];
 		c.isFrame = ValueTreeIterator::forEachParent(u->nodeTree, [&](ValueTree& v)
 		{
 			if (v.getType() == PropertyIds::Node)
 			{
-				auto p = getNodePath(v);
-
-				if (p.toString().startsWith("container::frame"))
+				if (v[scriptnode::PropertyIds::FactoryPath].toString().contains("frame"))
 					return true;
 			}
 
@@ -411,6 +426,11 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		{
 			auto bs = realPath.fromFirstOccurrenceOf("fix", false, false).getIntValue();
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::fix_block"), bs);
+		}
+		if (realPath.startsWith("oversample"))
+		{
+			auto os = realPath.fromFirstOccurrenceOf("oversample", false, false).getIntValue();
+			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::oversample"), os);
 		}
 
 		jassert(!u->isFlushed());
@@ -1061,6 +1081,11 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 		l << Helpers::getCppValueString(p[PropertyIds::Value], Types::ID::Double) << ");";
 		parent << l;
 	}
+
+	if (outputFormat == Format::CppDynamicLibrary && hasComplexTypes())
+	{
+		parent << "setExternalData({}, -1);";
+	}
 }
 
 PooledStackVariable::Ptr ValueTreeBuilder::RootContainerBuilder::getChildNodeAsStackVariable(const ValueTree& v)
@@ -1114,12 +1139,12 @@ void ValueTreeBuilder::RootContainerBuilder::addMetadata()
 {
 	Struct m(parent, "metadata", {}, {});
 
-	Macro(parent, "SNEX_METADATA_ID", { nodeClassId });
+	Macro(parent, "SNEX_METADATA_ID", { root->nodeTree[PropertyIds::ID].toString() });
 	Macro(parent, "SNEX_METADATA_NUM_CHANNELS", { root->nodeTree[PropertyIds::NumChannels].toString() });
 
 	auto pCopy = root->nodeTree.getChildWithName(PropertyIds::Parameters).createCopy();
 
-	ParameterEncoder encoder(pCopy);
+	scriptnode::parameter::encoder encoder(pCopy);
 
 	int ssi = sizeof(NormalisableRange<double>);
 

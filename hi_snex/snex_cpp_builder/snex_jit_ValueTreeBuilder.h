@@ -458,6 +458,7 @@ struct ValueTreeBuilder: public Base
 
 	enum class FormatGlueCode
 	{
+		PreNamespaceCode,
 		WrappedNamespace,
 		MainInstanceClass,
 		PublicDefinition,

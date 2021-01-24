@@ -603,15 +603,6 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	struct CompileResult
 	{
-		/** This data is used by the ParameterList component to change the parameters. */
-		struct DynamicParameterData
-		{
-			using List = Array<DynamicParameterData>;
-
-			cppgen::ParameterEncoder::Item data;
-			std::function<void(double)> f;
-		};
-
 		CompileResult() :
 			compileResult(Result::ok())
 		{};
@@ -624,7 +615,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 		Result compileResult;
 		String assembly;
 		JitObject obj;
-		DynamicParameterData::List parameters;
+
+		scriptnode::ParameterDataList parameters;
 		JitCompiledNode::Ptr lastNode;
 	};
 
@@ -860,6 +852,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 		}
 	}
 
+	void callAsyncWithSafeCheck(const std::function<void(WorkbenchData* d)>& f);
+
 	void postCompile()
 	{
 		if (getLastResult().compiledOk())
@@ -947,9 +941,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 			triggerRecompile();
 	}
 
-	void setCompileHandler(CompileHandler* newCompileHandler, NotificationType recompile = dontSendNotification)
+	void setCompileHandler(CompileHandler* ownedNewCompileHandler, NotificationType recompile = dontSendNotification)
 	{
-		compileHandler = newCompileHandler;
+		compileHandler = ownedNewCompileHandler;
 
 		if (recompile != dontSendNotification)
 			triggerRecompile();
