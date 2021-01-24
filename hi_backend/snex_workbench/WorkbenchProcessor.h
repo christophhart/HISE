@@ -223,7 +223,12 @@ public:
 		case FolderSubType::Tests:					return createIfNotDirectory(f.getChildFile("Tests"));
 		case FolderSubType::CustomNodes:			return createIfNotDirectory(f.getChildFile("CustomNodes"));
 		case FolderSubType::AdditionalCode:			return createIfNotDirectory(f.getChildFile("AdditionalCode"));
-		case FolderSubType::DllLocation:			return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("dll").getChildFile("Dynamic Library"));
+		case FolderSubType::DllLocation:
+#if JUCE_WINDOWS
+                return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("dll").getChildFile("Dynamic Library"));
+#else
+                return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("dll"));
+#endif
 		case FolderSubType::Binaries:				return createIfNotDirectory(f.getChildFile("Binaries"));
 		case FolderSubType::Layouts:				return createIfNotDirectory(f.getChildFile("Layouts"));
 		case FolderSubType::ProjucerSourceFolder:	return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("Source"));

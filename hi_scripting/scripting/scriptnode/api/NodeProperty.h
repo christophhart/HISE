@@ -214,7 +214,7 @@ namespace properties
 template <class PropertyClass> struct native : public NodePropertyT<typename PropertyClass::DataType>
 {
 	native() :
-		NodePropertyT<PropertyClass::DataType>(PropertyClass::getId(), PropertyClass::getDefault())
+    NodePropertyT<typename PropertyClass::DataType>(PropertyClass::getId(), PropertyClass::getDefault())
 	{};
 
 	/** This is being called in the initialise method of the cpp_node template class.
@@ -224,7 +224,7 @@ template <class PropertyClass> struct native : public NodePropertyT<typename Pro
 	{
 		setRootObject(r);
 		p.set(r, PropertyClass::getDefault());
-		initialise(n);
+		this->initialise(n);
 	}
 
 private:
@@ -236,7 +236,7 @@ private:
 		{
 			if (id == PropertyIds::Value)
 			{
-				auto typedValue = (PropertyClass::DataType)newValue;
+				auto typedValue = (typename PropertyClass::DataType)newValue;
 				p.set(r, typedValue);
 			}
 		});
@@ -271,12 +271,16 @@ template <class PropertyClass, int NumChannels> struct file : public NodePropert
 	*/
 	template <class RootObject> void initWithRoot(NodeBase* n, RootObject& r)
 	{
+        jassertfalse;
+        
+#if 0
 		if (n != nullptr)
 		{
 			mc = n->getScriptProcessor()->getMainController_();
 			initialise(n);
 			setRootObject(r);
 		}
+#endif
 	}
 
 private:
@@ -327,7 +331,10 @@ template <class... Properties> struct list: advanced_tuple<Properties...>
 
 	template <class RootObject> void initWithRoot(NodeBase* n, RootObject& r)
 	{
+        jassertfalse;
+#if 0
 		call_tuple_iterator2(initWithRoot, n, r);
+#endif
 	}
 };
 }

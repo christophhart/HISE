@@ -187,7 +187,7 @@ template <typename T, int C> struct file_node: public file_base
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
 		if(!writeFlag)
-			obj.process(data.as<ProcessData<C>>());
+            obj.process(data.template as<ProcessData<C>>());
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
@@ -214,6 +214,8 @@ template <typename T, int C> struct file_node: public file_base
 
 		void setFile(file_node& obj, FileType& file)
 		{
+            jassertfalse;
+#if 0
 			int numSamples = file.data[0].size();
 
 			for (int i = 0; i < C; i++)
@@ -224,6 +226,7 @@ template <typename T, int C> struct file_node: public file_base
 			ScopedLock sl(fileLock);
 			obj.setFile(file.data, file.sampleRate);
 			writeFlag.store(false);
+#endif
 		}
 	};
 

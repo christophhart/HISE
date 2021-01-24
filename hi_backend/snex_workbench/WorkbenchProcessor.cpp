@@ -370,7 +370,13 @@ juce::File SnexWorkbenchEditor::getBestProjectDll(DllType t) const
 {
 	auto dllFolder = getSubFolder(getProcessor(), FolderSubType::DllLocation);
 
-	auto files = dllFolder.findChildFiles(File::findFiles, false, "*.dll");
+#if JUCE_WINDOWS
+    String extension = "*.dll";
+#else
+    String extension = "*.dylib";
+#endif
+    
+	auto files = dllFolder.findChildFiles(File::findFiles, false, extension);
 
 
 	auto removeWildcard = "Never";
@@ -592,8 +598,11 @@ void DspNetworkCompileExporter::run()
 	createProjucerFile();
 	createMainCppFile();
 
+    silentMode = true;
+    
 #if JUCE_WINDOWS
 	BuildOption o = CompileExporter::VSTiWindowsx64;
+    
 #elif JUCE_MAC
 	BuildOption o = CompileExporter::VSTmacOS;
 #else
@@ -604,7 +613,7 @@ void DspNetworkCompileExporter::run()
 
 	configurationName = getComboBoxComponent("build")->getText();
 
-	CompileExporter::setExportingFromCommandLine();
+	
 
 	ok = compileSolution(o, CompileExporter::TargetTypes::numTargetTypes);
 }

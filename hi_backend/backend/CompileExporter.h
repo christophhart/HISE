@@ -228,6 +228,8 @@ public:
 
 	static bool isExportingFromCommandLine() { return globalCommandLineExport; }
 
+    bool shouldBeSilent() const { return isExportingFromCommandLine() || silentMode; }
+    
 	struct BatchFileCreator
 	{
 		static void createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types);
@@ -236,6 +238,8 @@ public:
 
 protected:
 
+    bool silentMode = false;
+    
 	String configurationName = "Release";
 
 	static bool globalCommandLineExport;

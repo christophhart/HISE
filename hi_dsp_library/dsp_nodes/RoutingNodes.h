@@ -233,7 +233,7 @@ template <typename CableType> struct receive: public base
 	template <int P> static void setParameterStatic(void* obj, double value)
 	{
 		auto t = static_cast<receive<CableType>*>(obj);
-		t->setParameter<P>(value);
+		t->template setParameter<P>(value);
 	}
 
 	HISE_EMPTY_RESET;

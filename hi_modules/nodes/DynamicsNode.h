@@ -72,7 +72,7 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		DspHelpers::forwardToFrameStereo(this, data);
+        snex::Types::FrameConverters::forwardToFrameStereo(this, data);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
@@ -130,7 +130,7 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		DspHelpers::forwardToFrameStereo(this, data);
+        snex::Types::FrameConverters::forwardToFrameStereo(this, data);
 	}
 
 	template <typename FrameType> void processFrame(FrameType& data)

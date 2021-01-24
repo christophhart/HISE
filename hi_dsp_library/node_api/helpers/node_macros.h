@@ -130,6 +130,17 @@ constexpr const auto& getWrappedObject() const { return x; }
 
 /** Node Factory macros. */
 
+#define DEFINE_EXTERN_MONO_TEMPLATE(monoName, classWithTemplate) using monoName = classWithTemplate;
+    
+#define DEFINE_EXTERN_NODE_TEMPLATE(monoName, polyName, className) using monoName = className<1>; \
+using polyName = className<NUM_POLYPHONIC_VOICES>;
+    
+#define DEFINE_EXTERN_MONO_TEMPIMPL(classWithTemplate)
+    
+#define DEFINE_EXTERN_NODE_TEMPIMPL(className) 
+
+#if 0
+    
 #define DEFINE_EXTERN_MONO_TEMPLATE(monoName, classWithTemplate) extern template class classWithTemplate; using monoName = classWithTemplate;
 
 #define DEFINE_EXTERN_NODE_TEMPLATE(monoName, polyName, className) extern template class className<1>; \
@@ -140,6 +151,7 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 #define DEFINE_EXTERN_MONO_TEMPIMPL(classWithTemplate) template class classWithTemplate;
 
 #define DEFINE_EXTERN_NODE_TEMPIMPL(className) template class className<1>; template class className<NUM_POLYPHONIC_VOICES>;
+#endif
 
 /** SNEX Metadata macros to be used in metadata subclass for wrap::node. */
 

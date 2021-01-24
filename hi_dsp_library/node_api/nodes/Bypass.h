@@ -66,10 +66,12 @@ public:
 	{
 		auto thisPointer = static_cast<smoothed*>(obj);
 
+        using ObjectTypeT = typename T::ObjectType;
+        
 		if (P == ParameterId)
 			thisPointer->setBypassed(v > 0.5);
 		else
-			T::ObjectType::setParameterStatic<P>(&thisPointer->obj, v);
+			ObjectTypeT::template setParameterStatic<P>(&thisPointer->obj, v);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept

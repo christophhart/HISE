@@ -888,7 +888,7 @@ namespace init
         template <class T, class ComponentType=NoExtraComponent, typename WrapperType=InterpretedNode> void registerNode()
         {
 			Item newItem;
-            newItem.cb = typename WrapperType::createNode<T, ComponentType>;
+            newItem.cb = WrapperType::template createNode<T, ComponentType>;
             newItem.id = T::getStaticId();
 			
             monoNodes.add(newItem);
@@ -901,7 +901,7 @@ namespace init
             
             {
                 Item newItem;
-                newItem.cb = WrapperType::createNode<PolyT, ComponentType>;
+                newItem.cb = WrapperType::template createNode<PolyT, ComponentType>;
                 newItem.id = PolyT::getStaticId();
                 
                 polyNodes.add(newItem);
@@ -909,7 +909,7 @@ namespace init
             
             {
                 Item newItem;
-                newItem.cb = WrapperType::createNode<MonoT, ComponentType>;
+                newItem.cb = WrapperType::template createNode<MonoT, ComponentType>;
                 newItem.id = MonoT::getStaticId();
                 
                 monoNodes.add(newItem);

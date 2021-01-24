@@ -902,11 +902,11 @@ struct ScriptingApi::Engine::Snex: public ApiClass::SnexWrapper
 	{
 		using namespace snex::Types;
 
-		addApiCall(ID::Double, "getUptime", getUptime, {});
-		addApiCall(ID::Double, "getSampleRate", getSampleRate, {});
-		addApiCall(ID::Double, "getHostBpm", getHostBpm, {});
-		addApiCall(ID::Void, "allNotesOff", allNotesOff, {});
-		addApiCall(ID::Double, "getControlRateDownsamplingFactor", getControlRateDownsamplingFactor, {});
+		addApiCall(ID::Double, "getUptime", (void*)getUptime, {});
+		addApiCall(ID::Double, "getSampleRate", (void*)getSampleRate, {});
+		addApiCall(ID::Double, "getHostBpm", (void*)getHostBpm, {});
+		addApiCall(ID::Void, "allNotesOff", (void*)allNotesOff, {});
+		addApiCall(ID::Double, "getControlRateDownsamplingFactor", (void*)getControlRateDownsamplingFactor, {});
 	}
 
 #define AS_ENGINE static_cast<Engine*>(e)
@@ -2928,9 +2928,9 @@ struct ScriptingApi::Synth::Snex : public ApiClass::SnexWrapper
 	{
 		using namespace snex::Types;
 
-		addApiCall(Integer, "playNote", playNote, { Integer, Integer });
-		addApiCall(Void, "noteOffByEventId", noteOffByEventId, { Integer });
-		addApiCall(Void, "noteOffDelayedByEventId", noteOffDelayedByEventId, { Integer, Integer });
+		addApiCall(Integer, "playNote", (void*)playNote, { Integer, Integer });
+		addApiCall(Void, "noteOffByEventId", (void*)noteOffByEventId, { Integer });
+		addApiCall(Void, "noteOffDelayedByEventId", (void*)noteOffDelayedByEventId, { Integer, Integer });
 	};
 
 	static int playNote(void* s, int noteNumber, int velocity)

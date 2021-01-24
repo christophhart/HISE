@@ -265,13 +265,13 @@ template <class T, int P> struct plain : public single_base<T, P>
 	{
         using ObjectType = typename T::ObjectType;
 
-		ObjectType::setParameterStatic<P>(o, v);
+		ObjectType::template setParameterStatic<P>(o, v);
 	}
 
 	void addToList(ParameterDataList& d)
 	{
 		data p("plainUnNamed");
-		p.callback.referTo(obj, callStatic);
+		p.callback.referTo(this->obj, callStatic);
 		d.add(p);
 	}
 
@@ -312,7 +312,7 @@ template <class T, int P, class Expression> struct expression : public single_ba
 	{
 		data p("exprUnNamed");
 		p.callback.referTo(this, single_base<T, P>::callStatic);
-		p.range = NormalisableRange<double>();
+		p.setRange(NormalisableRange<double>());
 		d.add(p);
 	}
 
@@ -362,7 +362,7 @@ template <class T, int P, class RangeType> struct from0To1 : public single_base<
 	void addToList(ParameterDataList& d)
 	{
 		data p("plainUnNamed");
-		p.callback.referTo(obj, callStatic);
+		p.callback.referTo(this->obj, callStatic);
 
 		// use the default range here...
 		p.setRange({ 0.0, 1.0 });
@@ -406,7 +406,7 @@ template <class T, int P, class RangeType> struct to0To1 : public single_base<T,
 	{
 		data p("plainUnNamed");
         p.callback.referTo(this, single_base<T, P>::callStatic);
-		p.range = RangeType::createNormalisableRange();
+		p.setRange(RangeType::createNormalisableRange());
 		d.add(p);
 	}
 
@@ -463,13 +463,13 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 	{
 		data p("plainUnNamed");
 		p.callback.referTo(this, callStatic);
-		p.range = InputRange::createNormalisableRange();
+		p.setRange(InputRange::createNormalisableRange());
 		d.add(p);
 	}
 
 	template <int Index, class Target> void connect(Target& t)
 	{
-		this->template get<Index>().connect<0>(t);
+		this->template get<Index>().template connect<0>(t);
 	}
 };
 

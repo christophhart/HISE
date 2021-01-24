@@ -158,6 +158,13 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_nodes/MathNodes.h"
 #include "dsp_nodes/FXNodes.h"
 
+#include "dsp_nodes/CoreNodes.cpp"
+#include "dsp_nodes/DelayNode.cpp"
+#include "dsp_nodes/MathNodes.cpp"
+#include "dsp_nodes/FXNodes.cpp"
+#include "dsp_nodes/RoutingNodes.cpp"
+
+
 // Include these files in the header because the external functions won't get linked when in another object file...
 #if HI_EXPORT_DSP_LIBRARY
 #include "dsp_library/DspBaseModule.cpp"

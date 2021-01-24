@@ -155,7 +155,7 @@ bool CompileExporter::useCIMode = false;
 
 void CompileExporter::printErrorMessage(const String& title, const String &message)
 {
-	if (isExportingFromCommandLine())
+	if (shouldBeSilent())
 	{
 		std::cout << "ERROR: " << title << std::endl;
 		std::cout << message;
@@ -870,7 +870,7 @@ bool CompileExporter::checkSanity(BuildOption option)
     }
 #endif
     
-    if(!isExportingFromCommandLine() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
+    if(!shouldBeSilent() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
     {
         const String faultySample = checkSampleReferences(chainToExport);
         
@@ -2159,7 +2159,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 
 	File batchFile = getBatchFile(exporter);
 
-	if (!exporter->isExportingFromCommandLine() && batchFile.existsAsFile())
+	if (!exporter->shouldBeSilent() && batchFile.existsAsFile())
 	{
 		if (!PresetHandler::showYesNoWindow("Batch File already found", "Do you want to rewrite the batch file for the compile process?"))
 		{

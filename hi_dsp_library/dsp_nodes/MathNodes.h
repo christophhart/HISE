@@ -47,7 +47,7 @@ namespace Operations
 
 #define OP_BLOCK(data, value) template <typename PD> static void op(PD& data, float value)
 #define OP_SINGLE(data, value) template <typename FD> static void opSingle(FD& data, float value)
-#define OP_BLOCK2SINGLE(data, value) OP_BLOCK(data, value) { for (auto ch : data) { opSingle(data.toChannelData(ch), value); }}
+#define OP_BLOCK2SINGLE(data, value) OP_BLOCK(data, value) { for (auto ch : data) { block b(data.toChannelData(ch)); opSingle(b, value); }}
 
 	struct mul
 	{
@@ -292,7 +292,11 @@ namespace Operations
 		OP_BLOCK(data, unused)
 		{
 			for (auto& ch : data)
-				hmath::vabs(data.toChannelData(ch));
+            {
+                block b(data.toChannelData(ch));
+                hmath::vabs(b);
+            }
+				
 		}
 
 		OP_SINGLE(data, value)

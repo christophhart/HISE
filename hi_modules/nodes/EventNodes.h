@@ -345,14 +345,14 @@ public:
 
 	void prepare(PrepareSpecs ps)
 	{
-		sr = ps.sampleRate;
-		tType.prepare(ps);
+		this->sr = ps.sampleRate;
+		this->tType.prepare(ps);
 		t.prepare(ps);
 	}
 
 	void reset()
 	{
-		auto v = tType.getTimerValue();
+		auto v = this->tType.getTimerValue();
 
 		for (auto& ti : t)
 		{
@@ -371,7 +371,7 @@ public:
 		if (thisInfo.tick())
 		{
 			thisInfo.reset();
-			thisInfo.lastValue = tType.getTimerValue();
+			thisInfo.lastValue = this->tType.getTimerValue();
 		}
 	}
 
@@ -394,7 +394,7 @@ public:
 		{
 			const int numRemaining = numSamples - thisInfo.samplesLeft;
 
-			t.get().lastValue = tType.getTimerValue();
+			t.get().lastValue = this->tType.getTimerValue();
 			const int numAfter = numSamples - numRemaining;
 			thisInfo.samplesLeft = thisInfo.samplesBetweenCallbacks + numRemaining;
 		}
@@ -442,7 +442,7 @@ public:
 
 	void setInterval(double timeMs)
 	{
-		auto newTime = roundToInt(timeMs * 0.001 * sr);
+		auto newTime = roundToInt(timeMs * 0.001 * this->sr);
 
 		for (auto& ti : t)
 			ti.samplesBetweenCallbacks = newTime;
@@ -567,7 +567,7 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		if (oscType.isReady())
+		if (this->oscType.isReady())
 		{
 			auto& thisData = oscData.get();
 			auto uptime = thisData.tick();
@@ -577,7 +577,7 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		if (oscType.isReady())
+		if (this->oscType.isReady())
 		{
 			auto& thisData = oscData.get();
 
@@ -588,7 +588,7 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 			op.delta = thisData.uptimeDelta * thisData.multiplier;
 			op.voiceIndex = voiceIndex->getVoiceIndex();
 			
-			oscType.process(op);
+			this->oscType.process(op);
 			thisData.uptime += op.delta * (double)data.getNumSamples();
 		}
 	}
