@@ -1551,8 +1551,10 @@ protected:
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
 
-	
-	
+	void setMaxEventTimestamp(int newMaxTimestamp)
+	{
+		maxEventTimestamp = newMaxTimestamp;
+	}
 
 private:
 
@@ -1570,6 +1572,8 @@ private:
 #endif
 
 	Array<WeakReference<ControlledObject>> registeredObjects;
+
+	int maxEventTimestamp = 0;
 
 	PooledUIUpdater globalUIUpdater;
 
