@@ -763,22 +763,20 @@ void JitFileTestCase::parseFunctionData()
 					case Types::ID::Block:
 					case Types::ID::Pointer:
 					{
-						AudioSampleBuffer b;
-
 						try
 						{
-							b = Helpers::loadFile(v);
+							inputBuffer = Helpers::loadFile(v);
 						}
 						catch (String& m)
 						{
+                            inputBuffer = AudioSampleBuffer();
 							throwError(m);
 						}
 
-						if (isProcessDataTest && b.getNumChannels() != numChannels)
-							throwError("Input Channel mismatch: " + String(b.getNumChannels()));
+						if (isProcessDataTest && inputBuffer.getNumChannels() != numChannels)
+							throwError("Input Channel mismatch: " + String(inputBuffer.getNumChannels()));
 
-						inputs.add(block(b.getWritePointer(0), b.getNumSamples()));
-						inputBuffer = b;
+						inputs.add(block(inputBuffer.getWritePointer(0), inputBuffer.getNumSamples()));
 						break;
 					}
 					default:				 jassertfalse;

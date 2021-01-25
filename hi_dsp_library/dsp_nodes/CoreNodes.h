@@ -999,8 +999,6 @@ DEFINE_EXTERN_NODE_TEMPLATE(ramp_envelope, ramp_envelope_poly, ramp_envelope_imp
 } // namespace core
 
 
-extern template class scriptnode::wrap::fix<1, core::oscillator_impl<1>>;
-extern template class scriptnode::wrap::fix<1, core::oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
 
 }

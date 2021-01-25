@@ -414,7 +414,12 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 		}
 		if (getType() == Types::ID::Pointer)
 		{
-			memory = x86::qword_ptr((uint64_t)reinterpret_cast<VariableStorage*>(memoryLocation)->getDataPointer());
+            // If it's not aligned to 16 byte it's definitely not a VariableStorage
+            
+            if((uint64_t)memoryLocation % 16 == 0)
+                memory = x86::qword_ptr((uint64_t)reinterpret_cast<VariableStorage*>(memoryLocation)->getDataPointer());
+            else
+                memory = x86::qword_ptr((uint64_t)memoryLocation);
 		}
 			
 		state = State::LoadedMemoryLocation;

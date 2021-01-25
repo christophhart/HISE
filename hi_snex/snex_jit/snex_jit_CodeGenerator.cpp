@@ -959,9 +959,14 @@ Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr
 			}
 
 			HeapBlock<uint8> data;
-			data.allocate(typePtr->getRequiredByteSize() + typePtr->getRequiredAlignment(), true);
+			data.allocate(typePtr->getRequiredByteSize() + 16, true);
 
-			auto start = data + typePtr->getRequiredAlignment();
+            int alignOffset = 0;
+            
+            if((uint64_t)data.get() % 16 != 0)
+                alignOffset = 16 - ((uint64_t)data.get() % 16);
+            
+            auto start = data + alignOffset;
 			auto end = start + typePtr->getRequiredByteSize();
 			int numBytesToInitialise = end - start;
 
@@ -1285,7 +1290,7 @@ Result AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& 
 
 	FuncCallNode* call = cc.call((uint64_t)f.function, sig);
 
-	call->setInlineComment(f.functionName.getCharPointer().getAddress());
+	//call->setInlineComment(f.functionName.getCharPointer().getAddress());
 
 	int offset = 0;
 

@@ -265,7 +265,7 @@ public:
 
 		for (auto& t : l)
 		{
-			hash += t->tokenContent.hashCode64();
+			hash += t->tokenContent.hashCode();
 		}
 
 		return hash;
