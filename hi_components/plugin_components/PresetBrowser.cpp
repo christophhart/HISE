@@ -1568,7 +1568,8 @@ void PresetBrowser::DataBaseHelpers::cleanFileList(MainController* mc, Array<Fil
 	{
 		const bool isNoPresetFile = filesToClean[i].isHidden() || filesToClean[i].getFileName().startsWith(".") || filesToClean[i].getFileExtension() != ".preset";
 		const bool isNoDirectory = !filesToClean[i].isDirectory();
-		const bool requiresMissingExpansions = !matchesAvailableExpansions(mc, filesToClean[i]);
+
+		const bool requiresMissingExpansions = mc != nullptr && !matchesAvailableExpansions(mc, filesToClean[i]);
 
 		if ((isNoPresetFile && isNoDirectory) || requiresMissingExpansions)
 		{
