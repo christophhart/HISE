@@ -82,7 +82,7 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
     isActive = true;
 
 	jassert(uptimeDelta > 0.0);
-	jassert(uptimeDelta < MAX_SAMPLER_PITCH);
+	jassert(sound->isEntireSampleLoaded() || uptimeDelta <= MAX_SAMPLER_PITCH);
 }
 
 void ModulatorSamplerVoice::stopNote(float velocity, bool allowTailoff)

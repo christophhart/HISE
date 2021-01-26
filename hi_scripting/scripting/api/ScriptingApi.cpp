@@ -3106,8 +3106,8 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 	}
 	else
 	{
-		if(!parentMidiProcessor->setArtificialTimestamp(eventId, timestamp))
-			reportScriptError("NoteOn with ID" + String(eventId) + " wasn't found");
+		// The note might already be killed, but you want to change the timestamp afterwards...
+		parentMidiProcessor->setArtificialTimestamp(eventId, timestamp);
 	}
 }
 
