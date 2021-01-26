@@ -809,7 +809,7 @@ void PolyshapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 	{
 		dc.setFrequency(20.0);
 		dc.setSampleRate(sampleRate);
-		dc.setType(SimpleOnePole::FilterType::HP);
+		dc.setType(SimpleOnePoleSubType::FilterType::HP);
 		dc.setNumChannels(2);
 		dc.reset();
 	}

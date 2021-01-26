@@ -48,7 +48,7 @@
 
 #include "scripting/scriptnode/ui/ModulationSourceComponent.h"
 #include "scripting/scriptnode/ui/NodeContainerComponent.h"
-#include "scripting/scriptnode/ui/FeedbackNodeComponents.h"
+
 #include "scripting/scriptnode/ui/DspNodeComponent.h"
 #include "scripting/scriptnode/ui/DspNetworkComponents.h"
 

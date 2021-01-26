@@ -58,6 +58,7 @@
 #include "node_api/nodes/Base.cpp"
 
 #include "dsp_basics/Oscillators.cpp"
+#include "dsp_basics/MultiChannelFilters.cpp"
 
 #include "unit_test/wrapper_tests.cpp"
 #include "unit_test/node_tests.cpp"

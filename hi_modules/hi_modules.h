@@ -262,7 +262,6 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "nodes/ComplexDataNodes.h"
 #include "nodes/DynamicsNode.h"
 #include "nodes/EventNodes.h"
-#include "nodes/FilterNode.h"
 #include "nodes/DynamicRoutingNodes.h"
 
 #include "nodes/MetaNodes.h"

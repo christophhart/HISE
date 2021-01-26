@@ -148,6 +148,24 @@ Factory::Factory(DspNetwork* network) :
 }
 }
 
+namespace filters
+{
 
+Factory::Factory(DspNetwork* n) :
+	NodeFactory(n)
+{
+	registerPolyNode<one_pole, one_pole_poly, FilterNodeGraph>();
+	registerPolyNode<svf, svf_poly, FilterNodeGraph>();
+	registerPolyNode<svf_eq, svf_eq_poly, FilterNodeGraph>();
+	registerPolyNode<biquad, biquad_poly, FilterNodeGraph>();
+	registerPolyNode<ladder, ladder_poly, FilterNodeGraph>();
+	registerPolyNode<ring_mod, ring_mod_poly, FilterNodeGraph>();
+	registerPolyNode<moog, moog_poly, FilterNodeGraph>();
+	registerPolyNode<allpass, allpass_poly, FilterNodeGraph>();
+	registerPolyNode<linkwitzriley, linkwitzriley_poly, FilterNodeGraph>();
+	registerNode<convolution>();
+	//registerPolyNode<fir, fir_poly>();
+}
+}
 
 }

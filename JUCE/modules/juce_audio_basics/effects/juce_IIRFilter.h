@@ -63,6 +63,11 @@ public:
                                         double frequency,
                                         double Q) noexcept;
 
+
+	static IIRCoefficients makeResoLowPass(double sampleRate, double cutoff, double q);
+
+
+
     //==============================================================================
     /** Returns the coefficients for a high-pass filter. */
     static IIRCoefficients makeHighPass (double sampleRate,

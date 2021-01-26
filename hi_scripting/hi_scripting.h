@@ -131,6 +131,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/nodes/JitNode.h"
 
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.h"
+#include "scripting/scriptnode/ui/FeedbackNodeComponents.h"
 
 
 

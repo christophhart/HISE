@@ -51,8 +51,7 @@ struct CoefficientProvider
 
 
 template <class FilterType, int NV> 
-class FilterNodeBase : public HiseDspBase,
-	public CoefficientProvider
+class FilterNodeBase : public CoefficientProvider
 {
 public:
 
@@ -75,8 +74,9 @@ public:
 	SN_GET_SELF_AS_OBJECT(FilterNodeBase);
 
 	HISE_EMPTY_HANDLE_EVENT;
+	HISE_EMPTY_INITIALISE;
 
-	void createParameters(ParameterDataList& parameters) override;
+	void createParameters(ParameterDataList& parameters);
 	void prepare(PrepareSpecs ps);
 	void reset();
 
@@ -133,6 +133,7 @@ DEFINE_FILTER_NODE_TEMPLATE(linkwitzriley, linkwitzriley_poly, LinkwitzRiley);
 
 #undef DEFINE_FILTER_NODE_TEMPLATE
 
+#if 0
 template <int NV> struct fir_impl : public AudioFileNodeBase
 {
 	using CoefficientType = juce::dsp::FIR::Coefficients<float>;
@@ -150,15 +151,78 @@ template <int NV> struct fir_impl : public AudioFileNodeBase
 
 	bool isPolyphonic() const { return NumVoices > 1; }
 
-	void prepare(PrepareSpecs specs) ;
+	void prepare(PrepareSpecs specs)
+	{
+		dsp::ProcessSpec ps;
+		ps.numChannels = 1;
+		ps.sampleRate = specs.sampleRate;
+		ps.maximumBlockSize = specs.blockSize;
+
+		leftFilters.prepare(specs);
+		rightFilters.prepare(specs);
+
+		for (auto& f : leftFilters)
+			f.prepare(ps);
+
+		for (auto& f : rightFilters)
+			f.prepare(ps);
+
+		rebuildCoefficients();
+	}
 	
-	void rebuildCoefficients();
+	void rebuildCoefficients()
+	{
+		if (currentBuffer->range.getNumSamples() == 0)
+			return;
 
-	void contentChanged() override;
+		auto ptrs = currentBuffer->range.getArrayOfReadPointers();
 
-	void reset();
+		auto tapSize = jmin(128, currentBuffer->range.getNumSamples());
 
-	bool handleModulation(double&);
+		leftCoefficients = new CoefficientType(ptrs[0], tapSize);
+
+		if (currentBuffer->range.getNumChannels() > 1)
+			rightCoefficients = new CoefficientType(ptrs[1], tapSize);
+		else
+			rightCoefficients = leftCoefficients;
+
+		SimpleReadWriteLock::ScopedWriteLock sl(coefficientLock);
+
+		for (auto& f : leftFilters)
+		{
+			f.coefficients = leftCoefficients;
+			f.reset();
+		}
+
+		for (auto& f : rightFilters)
+		{
+			f.coefficients = rightCoefficients;
+			f.reset();
+		}
+
+		ok = true;
+	}
+
+	void contentChanged() override
+	{
+		AudioFileNodeBase::contentChanged();
+
+		rebuildCoefficients();
+	}
+
+	void reset()
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(coefficientLock, true);
+
+		for (auto& f : leftFilters)
+			f.reset();
+
+		for (auto& f : rightFilters)
+			f.reset();
+	}
+
+	HISE_EMPTY_MOD;
+
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
 		if (!ok)
@@ -206,6 +270,8 @@ private:
 };
 
 DEFINE_EXTERN_NODE_TEMPLATE(fir, fir_poly, fir_impl);
+
+#endif
 
 }
 

@@ -8,8 +8,6 @@
 #include "nodes/EventNodes.h"
 #include "nodes/DynamicRoutingNodes.h"
 
-#include "nodes/FilterNode.h"
-
 #include "nodes/ComplexDataNodes.cpp"
 #include "nodes/ConvolutionNode.cpp"
 #include "nodes/DynamicsNode.cpp"
