@@ -55,8 +55,8 @@ public:
 
 		void resized();
 
-		Point<int> getConnectionPoint() const {	return Point<int>(getWidth() / 2, isSource ? getHeight() - 3 : 3); }
-		Point<int> getConnectionPointInParent() const { return getParentComponent()->getLocalPoint(this, getConnectionPoint()); }
+		juce::Point<int> getConnectionPoint() const {	return juce::Point<int>(getWidth() / 2, isSource ? getHeight() - 3 : 3); }
+		juce::Point<int> getConnectionPointInParent() const { return getParentComponent()->getLocalPoint(this, getConnectionPoint()); }
 
 		void setUsed(bool shouldBeUsed) { used = shouldBeUsed; repaint(); }
 		void setSelected(bool shouldBeSelected, bool shouldBeSelectedAsSend) { selected = shouldBeSelected; selectedAsSend = shouldBeSelectedAsSend; repaint(); }

@@ -99,7 +99,7 @@ Goniometer::Shape::Shape(const AudioSampleBuffer& buffer, Rectangle<int> area)
 
 
 
-Point<float> Goniometer::Shape::createPointFromSample(float left, float right, float size)
+juce::Point<float> Goniometer::Shape::createPointFromSample(float left, float right, float size)
 {
 	float lScaled = sqrt(fabsf(left));
 	float rScaled = sqrt(fabsf(right));

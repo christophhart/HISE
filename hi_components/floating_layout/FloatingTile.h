@@ -47,7 +47,7 @@ public:
 		numColourIds
 	};
 
-	FloatingTilePopup(Component* content_, Component* attachedComponent, Point<int> localPoint);
+	FloatingTilePopup(Component* content_, Component* attachedComponent, juce::Point<int> localPoint);
 
 	~FloatingTilePopup();
 
@@ -69,7 +69,7 @@ public:
 
 	Component* getComponent() { return content; };
 
-	Point<float> arrowPosition;
+	juce::Point<float> arrowPosition;
 
 	bool arrowAtBottom;
 	int arrowX = -1;
@@ -86,7 +86,7 @@ public:
 private:
 
 	Component::SafePointer<Component> attachedComponent;
-	Point<int> localPointInComponent;
+	juce::Point<int> localPointInComponent;
 
 	ScopedPointer<Component> content;
 	ScopedPointer<ImageButton> closeButton;
@@ -518,7 +518,7 @@ public:
 
 	void editJSON();
 
-	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint);
+	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, juce::Point<int> localPoint);
 
 	struct LayoutHelpers
 	{

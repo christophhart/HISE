@@ -185,7 +185,7 @@ void DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& e, Com
 		ProcessorEditorContainer *pc = new ProcessorEditorContainer();
 		pc->setRootProcessorEditor(p);
 
-		GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(pc, table, Point<int>(table->getWidth() / 2, e.getMouseDownY() + 40));
+		GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(pc, table, juce::Point<int>(table->getWidth() / 2, e.getMouseDownY() + 40));
 	}
 	else
 	{
@@ -207,7 +207,7 @@ void DebugableObject::Helpers::showJSONEditorForObject(const MouseEvent& e, Comp
 	jsonEditor->setName((cleanedObject.isArray() ? "Show Array: " : "Show Object: ") + id);
 	jsonEditor->setSize(500, 500);
 
-	GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(jsonEditor, table, Point<int>(table->getWidth() / 2, e.getMouseDownY() + 40));
+	GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(jsonEditor, table, juce::Point<int>(table->getWidth() / 2, e.getMouseDownY() + 40));
 #else
 	ignoreUnused(e, table, object, id);
 #endif

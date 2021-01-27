@@ -144,6 +144,7 @@ public:
 	
 
 	using Ptr = ReferenceCountedObjectPtr<ModulatorSamplerSound>;
+    bool sampleExists = true;
 
 	
 
@@ -412,6 +413,11 @@ public:
 	void setSampleProperty(const Identifier& id, const var& newValue, bool useUndo=true);
 
 	var getSampleProperty(const Identifier& id) const;
+
+    void replaceFile(const String &newFile)
+    {
+        firstSound.get()->replaceFileReference(newFile);
+    }
 
 	void setDeletePending()
 	{

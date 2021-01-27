@@ -149,7 +149,7 @@ public:
 
 	void mouseDown(const MouseEvent& event) override;
 
-	void touchAndHold(Point<int> downPosition) override;
+	void touchAndHold(juce::Point<int> downPosition) override;
 
 	void fillPopupMenu(const MouseEvent &event);
 

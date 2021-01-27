@@ -139,7 +139,7 @@ void DspNetworkGraph::resizeNodes()
 	resized();
 }
 
-void DspNetworkGraph::updateDragging(Point<int> position, bool copyNode)
+void DspNetworkGraph::updateDragging(juce::Point<int> position, bool copyNode)
 {
 	copyDraggedNode = copyNode;
 

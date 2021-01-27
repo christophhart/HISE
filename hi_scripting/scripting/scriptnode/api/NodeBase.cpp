@@ -176,7 +176,7 @@ NodeComponent* NodeBase::createComponent()
 }
 
 
-juce::Rectangle<int> NodeBase::getPositionInCanvas(Point<int> topLeft) const
+juce::Rectangle<int> NodeBase::getPositionInCanvas(juce::Point<int> topLeft) const
 {
 	using namespace UIValues;
 

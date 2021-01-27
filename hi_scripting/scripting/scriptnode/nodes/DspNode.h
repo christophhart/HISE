@@ -96,7 +96,7 @@ public:
 		f->destroyDspBaseObject(obj);
 	}
 
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+	Rectangle<int> getPositionInCanvas(juce::Point<int> topLeft) const override
 	{
 		if (obj != nullptr)
 		{

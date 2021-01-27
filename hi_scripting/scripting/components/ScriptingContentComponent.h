@@ -180,13 +180,13 @@ public:
 
 	bool keyPressed(const KeyPress &key) override;
 
-	ScriptingApi::Content::ScriptComponent *getScriptComponentFor(Point<int> pos);
+	ScriptingApi::Content::ScriptComponent *getScriptComponentFor(juce::Point<int> pos);
 
 	ScriptingApi::Content::ScriptComponent* getScriptComponentFor(Component* component);
 
 	Component* getComponentFor(ScriptingApi::Content::ScriptComponent* sc);
 
-	void getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, Point<int> pos);
+	void getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, juce::Point<int> pos);
 
 	void getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, const Rectangle<int> area);
 

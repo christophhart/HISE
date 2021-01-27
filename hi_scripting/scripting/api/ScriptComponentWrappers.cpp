@@ -1120,7 +1120,7 @@ juce::String ScriptCreatedComponentWrappers::TableWrapper::getTextForTablePopup(
 	return t->getPopupString(x, y);
 }
 
-void ScriptCreatedComponentWrappers::TableWrapper::pointDragStarted(Point<int> position, float pointIndex, float value)
+void ScriptCreatedComponentWrappers::TableWrapper::pointDragStarted(juce::Point<int> position, float pointIndex, float value)
 {
 	localPopupPosition = position.withY(position.getY() - 20);;
 
@@ -1143,7 +1143,7 @@ void ScriptCreatedComponentWrappers::TableWrapper::pointDragEnded()
 	closeValuePopupAfterDelay();
 }
 
-void ScriptCreatedComponentWrappers::TableWrapper::pointDragged(Point<int> position, float pointIndex, float value)
+void ScriptCreatedComponentWrappers::TableWrapper::pointDragged(juce::Point<int> position, float pointIndex, float value)
 {
 	if (auto st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
 	{
@@ -1155,7 +1155,7 @@ void ScriptCreatedComponentWrappers::TableWrapper::pointDragged(Point<int> posit
 	updatePopupPosition();
 }
 
-void ScriptCreatedComponentWrappers::TableWrapper::curveChanged(Point<int> position, float curveValue)
+void ScriptCreatedComponentWrappers::TableWrapper::curveChanged(juce::Point<int> position, float curveValue)
 {
 	localPopupPosition = position;
 

@@ -449,16 +449,16 @@ public:
 		virtual ~Listener() {};
 
 		/** Will be called when the user starts dragging a point. */
-		virtual void pointDragStarted(Point<int> position, float index, float value) = 0;
+		virtual void pointDragStarted(juce::Point<int> position, float index, float value) = 0;
 
 		/** Will be called when the user stops dragging a point. */
 		virtual void pointDragEnded() = 0;
 
 		/** Called while the point is being dragged. */
-		virtual void pointDragged(Point<int> position, float index, float value) = 0;
+		virtual void pointDragged(juce::Point<int> position, float index, float value) = 0;
 
 		/** Called when the user changes a curve. The position will be the middle between the points. */
-		virtual void curveChanged(Point<int> position, float curveValue) = 0;
+		virtual void curveChanged(juce::Point<int> position, float curveValue) = 0;
 
 	private:
 
@@ -620,7 +620,7 @@ public:
 		}
 		else
 		{
-			drag_points[index]->changePos(Point<int>(x, y));
+			drag_points[index]->changePos(juce::Point<int>(x, y));
 
 			updateTouchOverlayPosition();
 
@@ -763,21 +763,21 @@ private:
 		void resized();
 	
 		/** Returns the scaled position in the TableEditor. */
-		Point<int> getPos() const
+		juce::Point<int> getPos() const
 		{
 			//jassert( !dragPlotSize.isEmpty() );
 
 			const int x_pos = (int)(normalizedGraphPoint.x * dragPlotSize.getWidth());
 			const int y_pos = (int)((1.0f - normalizedGraphPoint.y) * dragPlotSize.getHeight());
 
-			return Point<int>(x_pos,y_pos);
+			return juce::Point<int>(x_pos,y_pos);
 		};
 	
 		/** Changes the position of the DragPoint
 		*
 		*	Use this when you drag the point around so it can check whether a point should be moved and how.
 		*/
-		void changePos(Point<int> newPosition)
+		void changePos(juce::Point<int> newPosition)
 		{
 			jassert( !dragPlotSize.isEmpty() );
 
@@ -793,7 +793,7 @@ private:
 		/** Sets up the position of the DragPoint in the TableEditor. It doesn't check if a point is start or end, so be careful!
 		*
 		*/
-		void setPos(Point<int> newPosition)
+		void setPos(juce::Point<int> newPosition)
 		{
 			//jassert( !dragPlotSize.isEmpty() );
 
@@ -803,7 +803,7 @@ private:
 			this->setCentrePosition(getPos().getX(), getPos().getY());
 		};
 
-		void setPos(Point<float> normalizedPoint)
+		void setPos(juce::Point<float> normalizedPoint)
 		{
 			jassert(!dragPlotSize.isEmpty());
 

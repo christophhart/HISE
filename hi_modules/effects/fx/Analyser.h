@@ -283,7 +283,7 @@ private:
 
 		RectangleList<float> points;
 
-		static Point<float> createPointFromSample(float left, float right, float size);
+		static juce::Point<float> createPointFromSample(float left, float right, float size);
 
 		void draw(Graphics& g, Colour c);
 	};

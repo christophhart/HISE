@@ -408,7 +408,7 @@ void FileBrowser::previewFile(const File& f)
 {
 	if (currentlyPreviewFile == f)
 	{
-		rootWindow->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, Point<int>());
+		rootWindow->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, juce::Point<int>());
 		currentlyPreviewFile = File();
 		return;
 	}

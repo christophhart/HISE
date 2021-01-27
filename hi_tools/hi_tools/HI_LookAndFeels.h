@@ -118,7 +118,7 @@ public:
 
 				d.colour = c.withAlpha(0.3f);
 				d.radius = (int)offset * 2;
-				d.offset = Point<int>();
+				d.offset = juce::Point<int>();
 				d.drawForRectangle(g, Rectangle<int>((int)rect.getX(), (int)rect.getY(), (int)rect.getWidth(), (int)rect.getHeight()));
 
 				g.setColour(Colours::black.withAlpha(0.3f));
@@ -1327,7 +1327,7 @@ public:
 
 		g.fillPath(p);
 
-		DropShadow d(Colours::white.withAlpha(drawBorders ? 0.2f : 0.1f), 5, Point<int>());
+		DropShadow d(Colours::white.withAlpha(drawBorders ? 0.2f : 0.1f), 5, juce::Point<int>());
 
 		d.drawForPath(g, p);
 

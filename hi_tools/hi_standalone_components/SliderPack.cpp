@@ -396,7 +396,7 @@ void SliderPack::mouseDown(const MouseEvent &e)
 
 	if (e.mods.isRightButtonDown() || e.mods.isCommandDown())
 	{
-		Point<float> start((float)x, (float)y);
+		juce::Point<float> start((float)x, (float)y);
 		rightClickLine = Line<float>(start, start);
 	}
 	else
@@ -442,7 +442,7 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 
 	if (!rightClickLine.getStart().isOrigin())
 	{
-		if (!thisBounds.contains(Point<int>(x, y)))
+		if (!thisBounds.contains(juce::Point<int>(x, y)))
 		{
 			if (x > getWidth()) x = getWidth();
 
@@ -459,7 +459,7 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 	}
 	else
 	{
-		if (!thisBounds.contains(Point<int>(x, y)))
+		if (!thisBounds.contains(juce::Point<int>(x, y)))
 		{
 			if (x > getWidth()) x = getWidth();
 

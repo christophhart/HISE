@@ -216,7 +216,7 @@ void PatchBrowser::paint(Graphics &g)
 
 	SearchableListComponent::paint(g);
 
-	Point<int> startPointInParent;
+	juce::Point<int> startPointInParent;
 
 	int numCollections = getNumCollections();
 
@@ -238,14 +238,14 @@ void PatchBrowser::paint(Graphics &g)
 
 			if (possibleRootCollection->getProcessor() == root)
 			{
-				Point<int> startPoint = possibleRootCollection->getPointForTreeGraph(true);
+				juce::Point<int> startPoint = possibleRootCollection->getPointForTreeGraph(true);
 				startPointInParent = getLocalPoint(possibleRootCollection, startPoint);
 				break;
 			}
 		}
 
-		Point<int> endPoint = c->getPointForTreeGraph(false);
-		Point<int> endPointInParent = getLocalPoint(c, endPoint);
+		juce::Point<int> endPoint = c->getPointForTreeGraph(false);
+		juce::Point<int> endPointInParent = getLocalPoint(c, endPoint);
 
 		g.setColour(Colour(0xFF222222));
 
@@ -582,9 +582,9 @@ void PatchBrowser::PatchCollection::buttonClicked(Button *b)
 	
 }
 
-Point<int> PatchBrowser::PatchCollection::getPointForTreeGraph(bool getStartPoint) const
+juce::Point<int> PatchBrowser::PatchCollection::getPointForTreeGraph(bool getStartPoint) const
 {
-	return getStartPoint ? Point<int>((int)getIntendation() + 20, 32) : Point<int>((int)getIntendation() + 7, 20);
+	return getStartPoint ? juce::Point<int>((int)getIntendation() + 20, 32) : juce::Point<int>((int)getIntendation() + 7, 20);
 }
 
 void PatchBrowser::PatchCollection::checkDragState(const SourceDetails& dragSourceDetails)

@@ -431,7 +431,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 			bool ok = false;
 			Path p;
 
-			Point<float> hoverPos;
+			juce::Point<float> hoverPos;
 
 			HeapBlock<double> data;
 			int numToUse = 0;

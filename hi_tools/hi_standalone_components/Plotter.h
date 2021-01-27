@@ -113,7 +113,7 @@ private:
 
 	Path drawPath;
 
-	Point<int> popupPosition;
+	juce::Point<int> popupPosition;
 	bool stickPopup = false;
 
 	Table::ValueTextConverter yConverter;

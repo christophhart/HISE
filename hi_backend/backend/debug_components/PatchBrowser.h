@@ -180,7 +180,7 @@ private:
 
 		float getIntendation() const { return (float)hierarchy * 20.0f; }
 
-		Point<int> getPointForTreeGraph(bool getStartPoint) const;
+		juce::Point<int> getPointForTreeGraph(bool getStartPoint) const;
 
 		Processor *getProcessor() override { return root.get(); };
 		const Processor *getProcessor() const override { return root.get(); };

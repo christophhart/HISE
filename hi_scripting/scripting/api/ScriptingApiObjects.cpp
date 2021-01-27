@@ -2738,6 +2738,7 @@ struct ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getSampleLength);
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setSampleRange);
 	API_VOID_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, setFile);
+	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getFile);
 };
 
 
@@ -2768,6 +2769,7 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 	ADD_API_METHOD_0(getSampleLength);
 	ADD_API_METHOD_2(setSampleRange);
 	ADD_API_METHOD_1(setFile);
+	ADD_API_METHOD_0(getFile);
 }
 
 
@@ -2844,6 +2846,11 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 
 		asp->setLoadedFile(fileName, true);
 	}
+}
+
+String ScriptingObjects::ScriptingAudioSampleProcessor::getFile()
+{
+    return dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getFileName();
 }
 
 void ScriptingObjects::ScriptingAudioSampleProcessor::setSampleRange(int start, int end)
@@ -3892,16 +3899,16 @@ void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var thicknes
 
 void ScriptingObjects::GraphicsObject::rotate(var angleInRadian, var center)
 {
-	Point<float> c = getPointFromVar(center);
+	juce::Point<float> c = getPointFromVar(center);
     auto air = (float)angleInRadian;
 	auto a = AffineTransform::rotation(SANITIZED(air), c.getX(), c.getY());
 
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::addTransform(a));
 }
 
-Point<float> ScriptingObjects::GraphicsObject::getPointFromVar(const var& data)
+juce::Point<float> ScriptingObjects::GraphicsObject::getPointFromVar(const var& data)
 {
-	Point<float>&& f = ApiHelpers::getPointFromVar(data, &rectangleResult);
+	juce::Point<float>&& f = ApiHelpers::getPointFromVar(data, &rectangleResult);
 
 	if (rectangleResult.failed()) reportScriptError(rectangleResult.getErrorMessage());
 
@@ -4517,7 +4524,7 @@ bool ScriptingObjects::ScriptedMidiPlayer::record(int timestamp)
 	return false;
 }
 
-bool ScriptingObjects::ScriptedMidiPlayer::setFile(var fileName, bool clearExistingSequences, bool selectNewSequence)
+bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearExistingSequences, bool selectNewSequence)
 {
 	if (auto pl = getPlayer())
 	{

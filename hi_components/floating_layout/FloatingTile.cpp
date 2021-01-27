@@ -32,7 +32,7 @@
 
 namespace hise { using namespace juce;
 
-FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedComponent_, Point<int> localPoint) :
+FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedComponent_, juce::Point<int> localPoint) :
 	content(content_),
 	attachedComponent(attachedComponent_),
 	localPointInComponent(localPoint)
@@ -1106,7 +1106,7 @@ void FloatingTile::editJSON()
 	showComponentInRootPopup(codeEditor, moveButton, moveButton->getLocalBounds().getCentre());
 }
 
-FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint)
+FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, juce::Point<int> localPoint)
 {
 	if (getParentType() != ParentType::Root)
 	{
@@ -1167,7 +1167,7 @@ void FloatingTilePopup::updatePosition()
 
 	if (attachedComponent.getComponent() != nullptr)
 	{
-		Point<int> pointInRoot = root->getLocalPoint(attachedComponent.getComponent(), localPointInComponent);
+		juce::Point<int> pointInRoot = root->getLocalPoint(attachedComponent.getComponent(), localPointInComponent);
 
 		int desiredWidth = getWidth();
 		int desiredHeight = getHeight();

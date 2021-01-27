@@ -66,7 +66,7 @@ public:
 		Component::SafePointer<Component> mainEditor;
 	};
 
-	static Point<float> getPointFromVar(const var& data, Result* r = nullptr);
+	static juce::Point<float> getPointFromVar(const var& data, Result* r = nullptr);
 
 	static var getVarRectangle(Rectangle<float> floatRectangle, Result* r = nullptr);
 
@@ -1258,6 +1258,7 @@ public:
 
 		/** loads the file. You can use the wildcard {PROJECT_FOLDER} to get the audio file folder for the current project. */
 		void setFile(String fileName);
+		String getFile();
 
 		/** Returns the length of the current sample selection in samples. */
 		int getSampleLength() const;
@@ -1462,7 +1463,7 @@ public:
 		bool record(int timestamp);
 
 		/** Loads a MIDI file and switches to this sequence if specified. */
-		bool setFile(var fileName, bool clearExistingSequences, bool selectNewSequence);
+		bool setFile(String fileName, bool clearExistingSequences, bool selectNewSequence);
 
 		/** Saves the current sequence into the given file at the track position. */
 		bool saveAsMidiFile(var file, int trackIndex);
@@ -1683,7 +1684,7 @@ public:
 
 	private:
 
-		Point<float> getPointFromVar(const var& data);
+		juce::Point<float> getPointFromVar(const var& data);
 		Rectangle<float> getRectangleFromVar(const var &data);
 		Rectangle<int> getIntRectangleFromVar(const var &data);
 

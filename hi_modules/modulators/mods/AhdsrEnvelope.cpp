@@ -634,7 +634,7 @@ void AhdsrEnvelope::setDecayCurve(float newValue)
 {
 	decayCurve = newValue;
 
-	const float newRatio = decayCurve * 0.0001f;
+	const float newRatio = decayCurve * 0.001f;
 
 	setTargetRatioDR(newRatio);
 	setDecayRate(decay);

@@ -38,7 +38,7 @@ public:
 	double getFrameRate() const;
 	
 	/** Renders the frame of the animation to the Graphics context. */
-	void render(Graphics& g, Point<int> topLeft);
+	void render(Graphics& g, juce::Point<int> topLeft);
 
 	/** Checks whether the animation could be parsed correctly. */
 	bool isValid() const;

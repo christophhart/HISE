@@ -143,7 +143,7 @@ int AudioDisplayComponent::SampleArea::getXForSample(int sample, bool relativeTo
 	
 
 
-	const int xInParent = getParentComponent()->getLocalPoint(parentWaveform, Point<int>(xInWaveform, 0)).getX();
+	const int xInParent = getParentComponent()->getLocalPoint(parentWaveform, juce::Point<int>(xInWaveform, 0)).getX();
 
 	return relativeToAudioDisplayComponent ? xInWaveform : xInParent;
 }
@@ -154,7 +154,7 @@ int AudioDisplayComponent::SampleArea::getSampleForX(int x, bool relativeToAudio
 	jassert(parentWaveform->getWidth() != 0);
 
 	if (!relativeToAudioDisplayComponent)
-		x = parentWaveform->getLocalPoint(getParentComponent(), Point<int>(x, 0)).getX();
+		x = parentWaveform->getLocalPoint(getParentComponent(), juce::Point<int>(x, 0)).getX();
 
 	const int widthOfWaveForm = parentWaveform->getWidth();
 	const double proportion = (double)x / (double)widthOfWaveForm;

@@ -203,7 +203,7 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 	}
 }
 
-void MouseCallbackComponent::touchAndHold(Point<int> downPosition)
+void MouseCallbackComponent::touchAndHold(juce::Point<int> downPosition)
 {
 	ignoreMouseUp = true;
 
@@ -220,7 +220,7 @@ void MouseCallbackComponent::touchAndHold(Point<int> downPosition)
 		return;
 	}
 
-	Point<float> newPos((float)downPosition.getX(), (float)downPosition.getY());
+	juce::Point<float> newPos((float)downPosition.getX(), (float)downPosition.getY());
 	ModifierKeys mods = ModifierKeys(ModifierKeys::rightButtonModifier);
 	MouseEvent e(Desktop::getInstance().getMainMouseSource(), newPos, mods, 0.0f, 0.0, 0.0, 0.0, 0.0f, this, this, Time(), newPos, Time(), 1, false);
 

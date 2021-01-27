@@ -53,7 +53,7 @@ double RLottieAnimation::getFrameRate() const
 	return frameRate;
 }
 
-void RLottieAnimation::render(Graphics& g, Point<int> topLeft)
+void RLottieAnimation::render(Graphics& g, juce::Point<int> topLeft)
 {
 	if (isValid() && isPositiveAndBelow(currentFrame, numFrames+1) && lastFrame != currentFrame)
 	{

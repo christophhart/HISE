@@ -580,7 +580,7 @@ public:
 	void mouseExit(const MouseEvent& event) override;
 	void mouseDown(const MouseEvent& event) override;
 
-	virtual int getInsertPosition(Point<int> x) const = 0;
+	virtual int getInsertPosition(juce::Point<int> x) const = 0;
 	void removeDraggedNode(NodeComponent* draggedNode);
 	void insertDraggedNode(NodeComponent* newNode, bool copyNode);
 
@@ -602,7 +602,7 @@ public:
 		}
 	}
 
-	void setDropTarget(Point<int> position);
+	void setDropTarget(juce::Point<int> position);
 	void clearDropTarget();
 
 	virtual Rectangle<float> getInsertRuler(int ) const { jassertfalse; return {}; }
@@ -628,7 +628,7 @@ public:
 
 protected:
 
-	Point<int> getStartPosition() const;
+	juce::Point<int> getStartPosition() const;
 	float getCableXOffset(int cableIndex, int factor = 1) const;
 
 	OwnedArray<NodeComponent> childNodeComponents;
@@ -666,7 +666,7 @@ struct SerialNodeComponent : public ContainerComponent
 {
 	SerialNodeComponent(SerialNode* node);
 
-	int getInsertPosition(Point<int> position) const override;
+	int getInsertPosition(juce::Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
 
 	void resized() override;
@@ -679,7 +679,7 @@ struct ParallelNodeComponent : public ContainerComponent
 	ParallelNodeComponent(ParallelNode* node);;
 
 	bool isMultiChannelNode() const;
-	int getInsertPosition(Point<int> position) const override;
+	int getInsertPosition(juce::Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
 
 	void resized() override;
@@ -693,7 +693,7 @@ struct ModChainNodeComponent : public ContainerComponent
 
 	bool isMultiChannelNode() const { return false; }
 
-	int getInsertPosition(Point<int> position) const override;
+	int getInsertPosition(juce::Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
 
 	void resized() override;

@@ -221,7 +221,7 @@ void TableEditor::addDragPoint(int x, int y, float curve, bool isStart/*=false*/
 		dp->setCurve(curve);
 
 		dp->setTableEditorSize(getWidth(), getHeight());
-		dp->setPos(Point<int>(x, y));
+		dp->setPos(juce::Point<int>(x, y));
 		addAndMakeVisible(dp);
 
 		DragPointComparator comparator;
@@ -251,8 +251,8 @@ void TableEditor::createDragPoints()
 
 void TableEditor::setEdge(float f, bool setLeftEdge)
 {
-	if(setLeftEdge)	drag_points.getFirst()->changePos(Point<int>(0, (int)((1.0 - f) * getHeight())));
-	else drag_points.getLast()->changePos(Point<int>(getWidth(), (int)((1.0 - f) * getHeight())));
+	if(setLeftEdge)	drag_points.getFirst()->changePos(juce::Point<int>(0, (int)((1.0 - f) * getHeight())));
+	else drag_points.getLast()->changePos(juce::Point<int>(getWidth(), (int)((1.0 - f) * getHeight())));
 
 	updateTable(true);
 	refreshGraph();

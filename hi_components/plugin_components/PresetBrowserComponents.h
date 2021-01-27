@@ -431,7 +431,7 @@ public:
 		}
 	}
 
-	void touchAndHold(Point<int> /*downPosition*/) override;
+	void touchAndHold(juce::Point<int> /*downPosition*/) override;
 
 	void mouseDown(const MouseEvent& e) override
 	{

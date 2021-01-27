@@ -362,7 +362,7 @@ ModalBaseWindow::ModalBaseWindow()
 {
 	s.colour = Colours::black;
 	s.radius = 20;
-	s.offset = Point<int>();
+	s.offset = juce::Point<int>();
 }
 
 ModalBaseWindow::~ModalBaseWindow()

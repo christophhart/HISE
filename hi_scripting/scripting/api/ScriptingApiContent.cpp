@@ -3137,7 +3137,7 @@ void ScriptingApi::Content::ScriptPanel::setMouseCursor(var pathIcon, var colour
 		{
 			if (ar->size() == 2)
 			{
-				mouseCursorPath.hitPoint = Point<float>((float)((*ar)[0]), (float)((*ar)[1]));
+				mouseCursorPath.hitPoint = juce::Point<float>((float)((*ar)[0]), (float)((*ar)[1]));
 				
 				if (!Rectangle<float>(0.0f, 0.0f, 1.0f, 1.0f).contains(mouseCursorPath.hitPoint))
 					reportScriptError("hitPoint must be within [0, 0, 1, 1] area");
@@ -5070,10 +5070,10 @@ Result ScriptingApi::Content::Helpers::setParentComponent(ScriptComponent* paren
 					continue;
 				}
 
-				Point<int> cPosition = ContentValueTreeHelpers::getLocalPosition(cTree);
+				juce::Point<int> cPosition = ContentValueTreeHelpers::getLocalPosition(cTree);
 				ContentValueTreeHelpers::getAbsolutePosition(cTree, cPosition);
 
-				Point<int> pPosition(pTree.getProperty(x), pTree.getProperty(y));
+				juce::Point<int> pPosition(pTree.getProperty(x), pTree.getProperty(y));
 				ContentValueTreeHelpers::getAbsolutePosition(pTree, pPosition);
 
 				ContentValueTreeHelpers::updatePosition(cTree, cPosition, pPosition);
@@ -5099,9 +5099,9 @@ Result ScriptingApi::Content::Helpers::setParentComponent(ScriptComponent* paren
 
 					jassert(cTree.isValid());
 
-					Point<int> cPosition = ContentValueTreeHelpers::getLocalPosition(cTree);
+					juce::Point<int> cPosition = ContentValueTreeHelpers::getLocalPosition(cTree);
 					ContentValueTreeHelpers::getAbsolutePosition(cTree, cPosition);
-					ContentValueTreeHelpers::updatePosition(cTree, cPosition, Point<int>());
+					ContentValueTreeHelpers::updatePosition(cTree, cPosition, juce::Point<int>());
 
 					ContentValueTreeHelpers::setNewParent(content->contentPropertyData, cTree);
 				}
@@ -5152,10 +5152,10 @@ Result ScriptingApi::Content::Helpers::setParentComponent(Content* content, cons
 				continue;
 			}
 
-			Point<int> cPosition = ContentValueTreeHelpers::getLocalPosition(cTree);
+			juce::Point<int> cPosition = ContentValueTreeHelpers::getLocalPosition(cTree);
 			ContentValueTreeHelpers::getAbsolutePosition(cTree, cPosition);
 
-			Point<int> pPosition(pTree.getProperty(x), pTree.getProperty(y));
+			juce::Point<int> pPosition(pTree.getProperty(x), pTree.getProperty(y));
 			ContentValueTreeHelpers::getAbsolutePosition(pTree, pPosition);
 
 			ContentValueTreeHelpers::updatePosition(cTree, cPosition, pPosition);
@@ -5174,9 +5174,9 @@ Result ScriptingApi::Content::Helpers::setParentComponent(Content* content, cons
 
 			jassert(cTree.isValid());
 
-			Point<int> cPosition = ContentValueTreeHelpers::getLocalPosition(cTree);
+			juce::Point<int> cPosition = ContentValueTreeHelpers::getLocalPosition(cTree);
 			ContentValueTreeHelpers::getAbsolutePosition(cTree, cPosition);
-			ContentValueTreeHelpers::updatePosition(cTree, cPosition, Point<int>());
+			ContentValueTreeHelpers::updatePosition(cTree, cPosition, juce::Point<int>());
 			ContentValueTreeHelpers::setNewParent(content->contentPropertyData, cTree);
 		}
 	}

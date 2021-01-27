@@ -246,7 +246,7 @@ double ModulationChainNode::getSampleRateForChildNodes() const
 	return originalSampleRate / (double)HISE_EVENT_RASTER;
 }
 
-juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft) const
+juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(juce::Point<int> topLeft) const
 {
 	using namespace UIValues;
 
@@ -263,7 +263,7 @@ juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft
 
 	h += PinHeight; // the "hole" for the cable
 
-	Point<int> childPos(NodeMargin, NodeMargin);
+	juce::Point<int> childPos(NodeMargin, NodeMargin);
 
 	for (auto n : nodes)
 	{

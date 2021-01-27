@@ -319,7 +319,7 @@ void PopoutButtonPanel::buttonClicked(Button* /*b*/)
 
 	popout->setName(popout->getLayoutData().getID().toString());
 
-	auto p = Point<int>(button->getLocalBounds().getCentreX(), button->getLocalBounds().getBottom());
+	auto p = juce::Point<int>(button->getLocalBounds().getCentreX(), button->getLocalBounds().getBottom());
 
 	getParentShell()->showComponentInRootPopup(popout.release(), button, p);
 }

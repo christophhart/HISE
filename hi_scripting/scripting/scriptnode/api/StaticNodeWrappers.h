@@ -54,7 +54,7 @@ protected:
 
 	virtual Component* createExtraComponent() { return nullptr; }
 
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+	Rectangle<int> getPositionInCanvas(juce::Point<int> topLeft) const override;
 
 	Rectangle<int> createRectangleForParameterSliders(int numColumns) const;
 

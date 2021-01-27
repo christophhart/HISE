@@ -165,7 +165,7 @@ scriptnode::NodeComponent* WrapperNode::createComponent()
 	return nc;
 }
 
-juce::Rectangle<int> WrapperNode::getPositionInCanvas(Point<int> topLeft) const
+juce::Rectangle<int> WrapperNode::getPositionInCanvas(juce::Point<int> topLeft) const
 {
 	int numParameters = getNumParameters();
 

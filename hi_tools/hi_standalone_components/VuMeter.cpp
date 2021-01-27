@@ -152,7 +152,7 @@ void VuMeter::drawMonoMeter(Graphics &g)
 
 		if (w >= 16.0)
 		{
-			DropShadow d(Colours::white.withAlpha(0.2f), 5, Point<int>());
+			DropShadow d(Colours::white.withAlpha(0.2f), 5, juce::Point<int>());
 
 			d.drawForRectangle(g, a);
 		}

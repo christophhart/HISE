@@ -941,7 +941,7 @@ public:
 	void handleAsyncUpdate() override;
 	void rebuildNodes();
 	void resizeNodes();
-	void updateDragging(Point<int> position, bool copyNode);
+	void updateDragging(juce::Point<int> position, bool copyNode);
 	void finishDrag();
 	void paint(Graphics& g) override;
 	void resized() override;
@@ -966,7 +966,7 @@ public:
 
 		p.startNewSubPath(start.getCentre());
 
-		Point<float> controlPoint(start.getX() + (end.getX() - start.getX()) / 2.0f, end.getY() + 100.0f);
+		juce::Point<float> controlPoint(start.getX() + (end.getX() - start.getX()) / 2.0f, end.getY() + 100.0f);
 
 		p.quadraticTo(controlPoint, end.getCentre());
 

@@ -355,8 +355,8 @@ public:
 		int strokeValue;
 		int liftValue;
 		int pressureValue;
-		Point<int> startPoint;
-		Point<int> dragPoint;
+		juce::Point<int> startPoint;
+		juce::Point<int> dragPoint;
 
 	};
 
@@ -408,7 +408,7 @@ public:
 
 	Rectangle<float> getPositionForNote(int noteNumber) const;
 
-	int getNoteForPosition(Point<int> pos) const
+	int getNoteForPosition(juce::Point<int> pos) const
 	{
 		return lowKey + int((float)pos.getX() / getWidthForNote());
 	}
