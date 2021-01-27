@@ -134,7 +134,7 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<gain, gain_poly>();
 	//registerPolyNode<smoother, smoother_poly>();
 	registerNode<new_jit>();
-	registerModNode<core::midi<SnexEventProcessor>, MidiDisplay>();
+	registerModNode<core::midi<DynamicMidiEventProcessor>, MidiDisplay>();
 	registerPolyModNode<timer<SnexEventTimer>, timer_poly<SnexEventTimer>, TimerDisplay>();
 	registerPolyNode<snex_osc<SnexOscillator>, snex_osc_poly<SnexOscillator>, SnexOscillatorDisplay>();
 	registerNodeRaw<ParameterMultiplyAddNode>();
@@ -144,6 +144,8 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<ramp, ramp_poly>();
 	registerNode<core::mono2stereo>();
 	registerPolyNode<core::oscillator, core::oscillator_poly, OscDisplay>();
+
+	
 
 }
 }

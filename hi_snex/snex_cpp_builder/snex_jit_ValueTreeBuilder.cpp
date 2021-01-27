@@ -339,21 +339,50 @@ Node::Ptr ValueTreeBuilder::parseComplexDataNode(Node::Ptr u)
 	if (ValueTreeIterator::isComplexDataNode(u->nodeTree))
 	{
 		ComplexDataBuilder c(*this, u);
-		return parseSnexNode(c.parse());
+		return parseOptionalSnexNode(c.parse());
 	}
 
-	return parseSnexNode(u);
+	return parseOptionalSnexNode(u);
 }
+
+Node::Ptr ValueTreeBuilder::parseOptionalSnexNode(Node::Ptr u)
+{
+	auto p = getNodePath(u->nodeTree).toString();
+
+	if (p.endsWith("midi"))
+	{
+		String type = ValueTreeIterator::getNodeProperty(u->nodeTree, PropertyIds::Mode).toString().toLowerCase();
+
+		if (type == "custom")
+		{
+			return parseSnexNode(u);
+		}
+
+		Node::Ptr wn = new Node(*this, u->scopedId.id, NamespacedIdentifier(p));
+
+		String subName = "midi_logic::" + type;
+
+		*wn << subName;
+
+		return wn;
+	}
+
+	
+
+	return parseContainer(u);
+}
+
 
 Node::Ptr ValueTreeBuilder::parseSnexNode(Node::Ptr u)
 {
+	auto p = getNodePath(u->nodeTree).toString();
 	auto code = ValueTreeIterator::getSnexCode(u->nodeTree);
 
 	if (code.isNotEmpty())
 	{
 		String comment;
 
-		comment << "Custom SNEX class for wrapper " << getNodePath(u->nodeTree).toString();
+		comment << "Custom SNEX class for wrapper " << p;
 
 		Struct s(*this, u->nodeTree[PropertyIds::ID].toString(), {}, {});
 		addComment(comment, Base::CommentType::FillTo80Light);
@@ -375,9 +404,8 @@ Node::Ptr ValueTreeBuilder::parseSnexNode(Node::Ptr u)
 		u->flushIfNot();
 	}
 
-	return parseContainer(u);
+	return u;
 }
-
 
 Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 {

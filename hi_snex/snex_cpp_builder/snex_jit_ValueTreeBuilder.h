@@ -637,6 +637,8 @@ private:
 
 	Node::Ptr parseComplexDataNode(Node::Ptr u);
 
+	Node::Ptr parseOptionalSnexNode(Node::Ptr u);
+
 	Node::Ptr parseSnexNode(Node::Ptr u);
 
 	Node::Ptr parseNode(const ValueTree& n);

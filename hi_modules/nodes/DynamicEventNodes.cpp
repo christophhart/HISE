@@ -40,16 +40,16 @@ namespace core
 {
 
 
-class MidiDisplay : public ScriptnodeExtraComponent<SnexEventProcessor>,
+class MidiDisplay : public ScriptnodeExtraComponent<DynamicMidiEventProcessor>,
 					public SnexPopupEditor::Parent,
 					public Value::Listener
 {
 public:
 
-	using ObjectType = core::midi<SnexEventProcessor>;
+	using ObjectType = core::midi<DynamicMidiEventProcessor>;
 
-	MidiDisplay(SnexEventProcessor* t, PooledUIUpdater* updater) :
-		ScriptnodeExtraComponent<SnexEventProcessor>(t, updater),
+	MidiDisplay(DynamicMidiEventProcessor* t, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<DynamicMidiEventProcessor>(t, updater),
 		SnexPopupEditor::Parent(t),
 		dragger(updater),
 		editCodeButton("snex", this, f),
@@ -82,7 +82,7 @@ public:
 		editCodeButton.setLookAndFeel(&blaf);
 		modeSelector.setLookAndFeel(&claf);
 
-		modeSelector.addItemList(SnexEventProcessor::getModes(), 1);
+		modeSelector.addItemList(DynamicMidiEventProcessor::getModes(), 1);
 
 		editCodeButton.addListener(this);
 
@@ -100,7 +100,7 @@ public:
 	{
 		auto s = value.getValue().toString();
 
-		if (SnexEventProcessor::getModes().contains(s))
+		if (DynamicMidiEventProcessor::getModes().contains(s))
 		{
 			modeSelector.setText(s, dontSendNotification);
 		}
@@ -241,7 +241,7 @@ public:
 	ModulationSourceBaseComponent dragger;
 };
 
-void SnexEventProcessor::prepare(PrepareSpecs ps)
+void DynamicMidiEventProcessor::prepare(PrepareSpecs ps)
 {
 	if (parentNode != nullptr)
 	{

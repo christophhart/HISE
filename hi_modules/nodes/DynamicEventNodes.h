@@ -41,9 +41,7 @@ using namespace hise;
 namespace core
 {
 
-
-
-struct SnexEventProcessor: public SnexSource
+struct DynamicMidiEventProcessor: public SnexSource
 {
 	enum class Mode
 	{
@@ -71,7 +69,7 @@ struct SnexEventProcessor: public SnexSource
 		return c;
 	}
 
-	SnexEventProcessor() :
+	DynamicMidiEventProcessor() :
 		SnexSource(),
 		mode(PropertyIds::Mode, "Gate")
 	{
@@ -83,7 +81,7 @@ struct SnexEventProcessor: public SnexSource
 	void initialise(NodeBase* n)
 	{
 		SnexSource::initialise(n);
-		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(SnexEventProcessor::setMode));
+		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(DynamicMidiEventProcessor::setMode));
 		mode.initialise(n);
 		modeValue.referTo(mode.getPropertyTree().getPropertyAsValue(PropertyIds::Value, n->getUndoManager()));
 	}
@@ -111,48 +109,13 @@ struct SnexEventProcessor: public SnexSource
 		switch (currentMode)
 		{
 		case Mode::Gate:
-		{
-			if (e.isNoteOnOrOff())
-			{
-				v = e.isNoteOn() ? 1.0 : 0.0;
-				lastValue = v;
-				return true;
-			}
-
-			break;
-		}
+			return midi_logic::gate().getMidiValue(e, lastValue);
 		case Mode::Velocity:
-		{
-			if (e.isNoteOn())
-			{
-				v = (double)e.getVelocity() / 127.0;
-				lastValue = v;
-				return true;
-			}
-
-			break;
-		}
+			return midi_logic::velocity().getMidiValue(e, lastValue);
 		case Mode::NoteNumber:
-		{
-			if (e.isNoteOn())
-			{
-				v = (double)e.getNoteNumber() / 127.0;
-				lastValue = v;
-				return true;
-			}
-
-			break;
-		}
+			return midi_logic::notenumber().getMidiValue(e, lastValue);
 		case Mode::Frequency:
-		{
-			if (e.isNoteOn())
-			{
-				v = (e.getFrequency() - 20.0) / 19980.0;
-				lastValue = v;
-				return true;
-			}
-			break;
-		}
+			return midi_logic::frequency().getMidiValue(e, lastValue);
 		case Mode::Custom:
 		{
 			HiseEvent* eptr = &e;
@@ -178,84 +141,7 @@ struct SnexEventProcessor: public SnexSource
 	Value modeValue;
 	snex::jit::FunctionData f;
 	
-	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexEventProcessor);
-};
-
-
-template <typename MidiType> class midi: public HiseDspBase 
-{
-public:
-
-	SET_HISE_NODE_ID("midi");
-	SN_GET_SELF_AS_OBJECT(midi);
-
-	HISE_EMPTY_RESET;
-	HISE_EMPTY_PROCESS_SINGLE;
-	HISE_EMPTY_PROCESS;
-
-	static constexpr bool isNormalisedModulation() { return true; }
-
-	constexpr bool isPolyphonic() const { return false; }
-
-	void initialise(NodeBase* n)
-	{
-		mType.initialise(n);
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		mType.prepare(ps);
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		double thisModValue = 0.0;
-		auto thisChanged = mType.getMidiValue(e, thisModValue);
-		if (thisChanged)
-			v.setModValueIfChanged(thisModValue);
-	}
-
-	bool handleModulation(double& value)
-	{
-		return v.getChangedValue(value);
-	}
-
-	void createParameters(ParameterDataList& data)
-	{
-	}
-
-	MidiType mType;
-	ModValue v;
-};
-
-struct TimerInfo
-{
-	bool active = false;
-	int samplesBetweenCallbacks = 22050;
-	int samplesLeft = 22050;
-	double lastValue = 0.0f;
-	
-	bool getChangedValue(double& v)
-	{
-		if (samplesBetweenCallbacks >= samplesLeft)
-		{
-			v = lastValue;
-			return true;
-		}
-
-		return false;
-	}
-
-	bool tick()
-	{
-		return --samplesLeft <= 0;
-	}
-
-	void reset()
-	{
-		samplesLeft = samplesBetweenCallbacks;
-		lastValue = 0.0;
-	}
+	JUCE_DECLARE_WEAK_REFERENCEABLE(DynamicMidiEventProcessor);
 };
 
 
@@ -296,161 +182,6 @@ struct SnexEventTimer: public SnexSource
 	snex::jit::FunctionData f;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexEventTimer);
-};
-
-template <typename TimerType> struct timer_base
-{
-	enum class Parameters
-	{
-		Active,
-		Interval
-	};
-
-	void initialise(NodeBase* n)
-	{
-		tType.initialise(n);
-	}
-
-	TimerType tType;
-	double sr = 44100.0;
-};
-
-template <int NV, typename TimerType> class timer_impl: public timer_base<TimerType>
-{
-public:
-
-	enum Parameters
-	{
-		Active,
-		Interval,
-		numParameters
-	};
-
-	DEFINE_PARAMETERS
-	{
-		DEF_PARAMETER(Active, timer_impl);
-		DEF_PARAMETER(Interval, timer_impl);
-	}
-
-	constexpr bool isNormalisedModulation() const { return false; }
-	constexpr static int NumVoices = NV;
-
-	SET_HISE_POLY_NODE_ID("timer");
-	SN_GET_SELF_AS_OBJECT(timer_impl);
-
-	timer_impl()
-	{
-		
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		this->sr = ps.sampleRate;
-		this->tType.prepare(ps);
-		t.prepare(ps);
-	}
-
-	void reset()
-	{
-		auto v = this->tType.getTimerValue();
-
-		for (auto& ti : t)
-		{
-			ti.reset();
-			ti.lastValue = v;
-		}
-	}
-
-	template <typename FrameDataType> void processFrame(FrameDataType& d)
-	{
-		auto& thisInfo = t.get();
-
-		if (!thisInfo.active)
-			return;
-
-		if (thisInfo.tick())
-		{
-			thisInfo.reset();
-			thisInfo.lastValue = this->tType.getTimerValue();
-		}
-	}
-
-	void handleHiseEvent(HiseEvent& e) {};
-
-	template <typename ProcessDataType> void process(ProcessDataType& d)
-	{
-		auto& thisInfo = t.get();
-
-		if (!thisInfo.active)
-			return;
-
-		const int numSamples = d.getNumSamples();
-
-		if (numSamples < thisInfo.samplesLeft)
-		{
-			thisInfo.samplesLeft -= numSamples;
-		}
-		else
-		{
-			const int numRemaining = numSamples - thisInfo.samplesLeft;
-
-			t.get().lastValue = this->tType.getTimerValue();
-			const int numAfter = numSamples - numRemaining;
-			thisInfo.samplesLeft = thisInfo.samplesBetweenCallbacks + numRemaining;
-		}
-	}
-
-	bool handleModulation(double& value)
-	{
-		bool ok = false;
-
-		for (auto& ti : t)
-			ok |= ti.getChangedValue(value);
-
-		return ok;
-	}
-
-	void createParameters(ParameterDataList& data)
-	{
-		{
-			DEFINE_PARAMETERDATA(timer_impl, Active);
-			p.setRange({ 0.0, 1.0, 1.0 });
-			p.setDefaultValue(1.0);
-			data.add(std::move(p));
-		}
-		{
-			DEFINE_PARAMETERDATA(timer_impl, Interval);
-			p.setRange({ 0.0, 2000.0, 0.1 });
-			p.setDefaultValue(500.0);
-			data.add(std::move(p));
-		}
-	}
-
-	void setActive(double value)
-	{
-		bool thisActive = value > 0.5;
-
-		for (auto& ti : t)
-		{
-			if (ti.active != thisActive)
-			{
-				ti.active = thisActive;
-				ti.reset();
-			}
-		}
-	}
-
-	void setInterval(double timeMs)
-	{
-		auto newTime = roundToInt(timeMs * 0.001 * this->sr);
-
-		for (auto& ti : t)
-			ti.samplesBetweenCallbacks = newTime;
-	}
-
-private:
-
-	PolyData<TimerInfo, NumVoices> t;
 };
 
 
