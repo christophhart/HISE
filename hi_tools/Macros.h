@@ -71,7 +71,11 @@ namespace hise { using namespace juce;
 #endif
 
 #ifndef HISE_EVENT_RASTER
+#if FRONTEND_IS_PLUGIN
+#define HISE_EVENT_RASTER 1 // Do not downsample the control rate for effect plugins
+#else
 #define HISE_EVENT_RASTER 8
+#endif
 #endif
 
 #ifndef HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR
@@ -239,7 +243,9 @@ struct FontHelpers
 #define END_MARKDOWN_CHAPTER()
 #endif
 
-#define RETURN_STATIC_IDENTIFIER(name) static const Identifier id(name); return id;
+#ifndef RETURN_STATIC_IDENTIFIER
+#define RETURN_STATIC_IDENTIFIER(x) const static Identifier id_(x); return id_;
+#endif
 
 #define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { RETURN_STATIC_IDENTIFIER(x) }
 

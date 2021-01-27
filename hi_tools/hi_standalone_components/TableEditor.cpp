@@ -126,7 +126,9 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 
 	DragPoint* pp = drag_points[prevIndex];
 
-	const bool useEvent = dp != nullptr;
+	bool useEvent = dp != nullptr;
+
+	useEvent &= (allowScrollWheel || e.mods.isCommandDown());
 
 	if(useEvent)
 	{

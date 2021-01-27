@@ -175,6 +175,8 @@ private:
 	void defaultControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r);
 
 	void customControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r);
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessorWithScriptingContent);
 };
 
 
@@ -640,7 +642,7 @@ public:
 
 	void setActiveEditor(JavascriptCodeEditor* e, CodeDocument::Position pos) override;
 
-	int getCodeFontSize() const override { return dynamic_cast<const Processor*>(this)->getMainController()->getGlobalCodeFontSize(); }
+	int getCodeFontSize() const override { return (int)dynamic_cast<const Processor*>(this)->getMainController()->getGlobalCodeFontSize(); }
 
 	
 
@@ -661,7 +663,7 @@ public:
 			}
 		}
 
-		repaintUpdater.triggerAsyncUpdate();
+		repaintUpdater.update(index);
 	}
 
 	
@@ -687,7 +689,11 @@ public:
 
 	void restoreInterfaceData(ValueTree propertyData);
 
-	String getBase64CompressedScript() const;
+	String collectScript(bool silent) const;
+
+	String getBase64CompressedScript(bool silent=false) const;
+
+	
 
 	bool restoreBase64CompressedScript(const String &base64compressedScript);
 
@@ -907,7 +913,8 @@ public:
 		ControlledObject(mc),
 		lowPriorityQueue(8192),
 		highPriorityQueue(2048),
-		compilationQueue(128)
+		compilationQueue(128),
+		deferredPanels(1024)
 	{
 		startThread(6);
 	}
@@ -925,6 +932,7 @@ public:
 		compilationQueue.clear();
 		lowPriorityQueue.clear();
 		highPriorityQueue.clear();
+		deferredPanels.clear();
 	}
 	
 	class Task
@@ -936,6 +944,7 @@ public:
 			Compilation,
 			HiPriorityCallbackExecution,
 			LowPriorityCallbackExecution,
+			DeferredPanelRepaintJob,
 			Free,
 			numTypes
 		};
@@ -973,6 +982,8 @@ public:
 
 	void addJob(Task::Type t, JavascriptProcessor* p, const Task::Function& f);
 
+	void addDeferredPaintJob(ScriptingApi::Content::ScriptPanel* sp);
+
 	void run() override;;
 
 	const CriticalSection& getLock() const noexcept { return scriptLock; };
@@ -1009,6 +1020,8 @@ private:
 	MultithreadedLockfreeQueue<CompilationTask, queueConfig> compilationQueue;
 	MultithreadedLockfreeQueue<CallbackTask, queueConfig> lowPriorityQueue;
 	MultithreadedLockfreeQueue<CallbackTask, queueConfig> highPriorityQueue;
+
+	MultithreadedLockfreeQueue<WeakReference<ScriptingApi::Content::ScriptPanel>, queueConfig> deferredPanels;
 };
 
 

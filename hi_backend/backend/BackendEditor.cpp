@@ -357,6 +357,8 @@ void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
 	isLoadingPreset = true;
 	viewport->showPreloadMessage(true);
 	
+	FullInstrumentExpansion::setNewDefault(getBackendProcessor(), v);
+	
 	if (CompileExporter::isExportingFromCommandLine())
 	{
 		getRootWindow()->getMainSynthChain()->getMainController()->loadPresetFromValueTree(v, nullptr);
@@ -1021,10 +1023,17 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	}
 	case PopupType::PresetBrowser:
 	{
-		PresetBrowser* pr = new PresetBrowser(mc, 700, 500);
+		PresetBrowser* pr = new PresetBrowser(mc, 700, 450);
 
 		PresetBrowser::Options newOptions;
 
+		auto expEnabled = getMainController()->getExpansionHandler().isEnabled();
+
+		newOptions.showExpansions = expEnabled;
+		newOptions.numColumns = expEnabled ? 2 : 3;
+		newOptions.showFavoriteIcons = false;
+		newOptions.showNotesLabel = false;
+		newOptions.showFolderButton = false;
 		newOptions.highlightColour = Colour(SIGNAL_COLOUR);
 		newOptions.backgroundColour = Colours::black.withAlpha(0.8f);
 		newOptions.textColour = Colours::white;

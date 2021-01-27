@@ -397,6 +397,14 @@ void ProcessorEditorContainer::updateChildEditorList(bool forceUpdate)
 	refreshSize();
 }
 
+void callRecursive(Component* c, const std::function<void(Component*)>& f)
+{
+	f(c);
+
+	for (int i = 0; i < c->getNumChildComponents(); i++)
+		callRecursive(c->getChildComponent(i), f);
+}
+
 void ProcessorEditorContainer::refreshSize(bool )
 {
 	int y = 0;
@@ -410,6 +418,15 @@ void ProcessorEditorContainer::refreshSize(bool )
 	{
 		y += soloedProcessors[i]->getActualHeight();
 	}
+
+	callRecursive(this, [](Component* c)
+	{
+		if (auto te = dynamic_cast<TableEditor*>(c))
+			te->setScrollWheelEnabled(false);
+
+		if (auto s = dynamic_cast<HiSlider*>(c))
+			s->setScrollWheelEnabled(false);
+	});
 
 	setSize(getWidthForIntendationLevel(0), y);
 	resized();

@@ -32,6 +32,11 @@
 
 #pragma once
 
+/** Set this to zero in order to write the hxi data as value tree. */
+#ifndef HISE_USE_XML_FOR_HXI
+#define HISE_USE_XML_FOR_HXI 0
+#endif
+
 namespace hise { using namespace juce;
 
 
@@ -64,6 +69,12 @@ public:
 	/** Returns a list of all available expansions. */
 	var getExpansionList();
 
+	/** Returns the expansion with the given name*/
+	var getExpansion(var name);
+
+	/** Returns the currently active expansion (if there is one). */
+	var getCurrentExpansion();
+
 	/** Set a function that will be called whenever a expansion is being loaded. */
 	void setExpansionCallback(var expansionLoadedCallback);
 
@@ -71,15 +82,21 @@ public:
 	var getUninitialisedExpansions();
 
 	/** Call this to refresh the expansion list. */
-	void refreshExpansions();
+	bool refreshExpansions();
 
 	/** Sets the current expansion as active expansion. */
-	bool setCurrentExpansion(String expansionName);
+	bool setCurrentExpansion(var expansionName);
 
 	/** Encrypts the given hxi file. */
 	bool encodeWithCredentials(var hxiFile);
 
+	/** Decompresses the samples and installs the .hxi / .hxp file. */
+	bool installExpansionFromPackage(var packageFile);
 
+	/** Sets a list of allowed expansion types that can be loaded. */
+	void setAllowedExpansionTypes(var typeList);
+
+	
 
 	// ============================================================== End of API calls
 
@@ -104,10 +121,19 @@ public:
 
 private:
 
+	ProcessorWithScriptingContent* getScriptProcessor();
+
+	void reportScriptError(const String& error)
+	{
+#if USE_BACKEND
+		throw error;
+#endif
+	}
+
 	struct Wrapper;
 
-	var errorFunction;
-	var loadedCallback;
+	WeakCallbackHolder errorFunction;
+	WeakCallbackHolder expansionCallback;
 	WeakReference<JavascriptProcessor> jp;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptExpansionHandler);
@@ -124,6 +150,8 @@ public:
 
 	void encodeExpansion() override;
 
+	
+
 	Array<SubDirectories> getSubDirectoryIds() const override;
 
 	Result initialise() override;
@@ -133,9 +161,11 @@ public:
 
 	static BlowFish* createBlowfish(MainController* mc);
 
-	static bool encryptIntermediateFile(MainController* mc, const File& f);
+	static bool encryptIntermediateFile(MainController* mc, const File& f, File expansionRoot=File());
 
-private:
+protected:
+
+	void encodePoolAndUserPresets(ValueTree &hxiData, bool encodeAdditionalData);
 
 	Result skipEncryptedExpansionWithoutKey();
 
@@ -152,6 +182,100 @@ private:
 	void addUserPresets(ValueTree encryptedTree);
 
 	void extractUserPresetsIfEmpty(ValueTree encryptedTree);
+};
+
+/** This expansion type can be used for a custom C++ shell that will load any instrument.
+
+	Unlike the default expansion (or script encrypted expansion) this expansion will include
+	the current patch and can be loaded into a C++ shell.
+*/
+class FullInstrumentExpansion : public ScriptEncryptedExpansion,
+								public ExpansionHandler::Listener
+{
+public:
+
+
+	struct DefaultHandler : public ControlledObject,
+		public ExpansionHandler::Listener
+	{
+		DefaultHandler(MainController* mc, ValueTree t) :
+			ControlledObject(mc),
+			defaultPreset(t),
+			defaultIsLoaded(true)
+		{
+			getMainController()->getExpansionHandler().addListener(this);
+		}
+
+		~DefaultHandler()
+		{
+			getMainController()->getExpansionHandler().removeListener(this);
+		}
+
+		void expansionPackLoaded(Expansion* e) override
+		{
+			if (e != nullptr)
+			{
+				defaultIsLoaded = false;
+			}
+			else
+			{
+				if (!defaultIsLoaded)
+				{
+					auto copy = defaultPreset.createCopy();
+
+					getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), [copy, this](Processor* p)
+					{
+						defaultIsLoaded = true;
+						p->getMainController()->loadPresetFromValueTree(copy);
+
+						return SafeFunctionCall::OK;
+					}, MainController::KillStateHandler::SampleLoadingThread);
+				}
+			}
+		}
+
+	private:
+
+		ValueTree defaultPreset;
+		bool defaultIsLoaded = true;
+	};
+
+	FullInstrumentExpansion(MainController* mc, const File& f) :
+		ScriptEncryptedExpansion(mc, f)
+	{
+
+	}
+
+	~FullInstrumentExpansion()
+	{
+		getMainController()->getExpansionHandler().removeListener(this);
+	}
+
+	static void setNewDefault(MainController* mc, ValueTree t);
+
+	static bool isEnabled(const MainController* mc);
+
+	static Expansion* getCurrentFullExpansion(const MainController* mc);
+
+	void setIsProjectExporter()
+	{
+		isProjectExport = true;
+	}
+
+	ValueTree getValueTreeFromFile(Expansion::ExpansionType type);
+
+	Result lazyLoad();
+
+	void expansionPackLoaded(Expansion* e);
+
+	Result initialise() override;
+
+	void encodeExpansion() override;
+
+	bool fullyLoaded = false;
+	ValueTree presetToLoad;
+	bool isProjectExport = false;
+	String currentKey;
 };
 
 
@@ -173,8 +297,6 @@ public:
 
 	// ============================================================================================================
 
-	
-
 	/** Returns the root folder for this expansion. */
 	var getRootFolder();
 
@@ -192,11 +314,17 @@ public:
 	/** Attempts to parse a JSON file in the AdditionalSourceCode directory of the expansion. */
 	var loadDataFile(var relativePath);
 
+	/** Returns a valid wildcard reference ((`{EXP::Name}relativePath`) for the expansion. */
+	String getWildcardReference(var relativePath);
+
 	/** Writes the given data into the file in the AdditionalSourceCode directory of the expansion. */
 	bool writeDataFile(var relativePath, var dataToWrite);
 
 	/** Returns an object containing all properties of the expansion. */
 	var getProperties() const;
+
+	/** returns the expansion type. Use the constants of ExpansionHandler to resolve the integer number. */
+	int getExpansionType() const;
 
 	/** Encodes the expansion with the credentials provided. */
 private:
@@ -206,6 +334,31 @@ private:
 	struct Wrapper;
 
 	WeakReference<Expansion> exp;
+};
+
+
+
+class ExpansionEncodingWindow : public DialogWindowWithBackgroundThread,
+	public ControlledObject,
+	public ExpansionHandler::Listener
+{
+public:
+
+	ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport);
+	~ExpansionEncodingWindow();
+
+	void logMessage(const String& message, bool /*isCritical*/)
+	{
+		showStatusMessage(message);
+	}
+
+	void run() override;
+	void threadFinished();
+
+
+	
+	bool projectExport = false;
+	WeakReference<Expansion> e;
 };
 
 } // namespace hise

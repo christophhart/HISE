@@ -415,11 +415,11 @@ public:
 
 	bool preloadSample(StreamingSamplerSound * s, const int preloadSizeToUse);
 
-	void saveSampleMap() const;
+	bool saveSampleMap() const;
 
-	void saveSampleMapAsReference() const;
+	bool saveSampleMapAsReference() const;
 
-	void saveSampleMapAsMonolith (Component* mainEditor) const;
+	bool saveSampleMapAsMonolith (Component* mainEditor) const;
 
 	/** Disables the automatic cycling and allows custom setting of the used round robin group. */
 	void setUseRoundRobinLogic(bool shouldUseRoundRobinLogic) noexcept { useRoundRobinCycleLogic = shouldUseRoundRobinLogic; };

@@ -207,6 +207,9 @@ public:
 		/** Sets the font that will be used as default font for various things. */
 		void setGlobalFont(String fontName);
 
+		/** Sets the minimum sample rate for the global processing (and adds oversampling if the current samplerate is lower). */
+		bool setMinimumSampleRate(double minimumSampleRate);
+
 		/** Returns the current sample rate. */
 		double getSampleRate() const;
 
@@ -337,10 +340,13 @@ public:
 		String getCurrentUserPresetName();
 
 		/** Asks for a preset name (if presetName is empty) and saves the current user preset. */
-		void saveUserPreset(String presetName);
+		void saveUserPreset(var presetName);
 
-		/** Loads a user preset with the given relative path (use `/` for directory separation). */
-		void loadUserPreset(const String& relativePathWithoutFileEnding);
+		/** Sorts an array with a given comparison function. */
+		bool sortWithFunction(var arrayToSort, var sortFunction);
+
+		/** Loads a user preset with the given relative path  (use `/` for directory separation) or the given ScriptFile object. */
+		void loadUserPreset(var relativePathOrFileObject);
 
 		/** Sets the tags that appear in the user preset browser. */
 		void setUserPresetTagList(var listOfTags);
@@ -351,8 +357,8 @@ public:
 		/** Sets whether the samples are allowed to be duplicated. Set this to false if you operate on the same samples differently. */
 		void setAllowDuplicateSamples(bool shouldAllow);
 
-		/** Calling this makes sure that all audio files are loaded into the pool and will be available in the compiled plugin. */
-		void loadAudioFilesIntoPool();
+		/** Calling this makes sure that all audio files are loaded into the pool and will be available in the compiled plugin. Returns a list of all references. */
+		var loadAudioFilesIntoPool();
 
 		/** Loads an image into the pool. You can use a wildcard to load multiple images at once. */
 		void loadImageIntoPool(const String& id);
@@ -401,6 +407,9 @@ public:
 
 		/** Returns the preload progress from 0.0 to 1.0. Use this to display some kind of loading icon. */
 		double getPreloadProgress();
+
+		/** Returns the current preload message if there is one. */
+		String getPreloadMessage();
 
 		/** Returns the current Zoom Level. */
 		var getZoomLevel() const;
@@ -470,6 +479,9 @@ public:
 
 		/** Redo the last controller change. */
 		void redo();
+
+		/** Returns a fully described string of this date and time in ISO-8601 format (using the local timezone) with or without divider characters. */
+		String getSystemTime(bool includeDividerCharacters);
 
 		// ============================================================================================================
 
@@ -907,6 +919,9 @@ public:
 		/** Throws an error message if the value is not a legal number (eg. string or array or infinity or NaN). */
 		void assertLegalNumber(var value);
 
+		/** Throws an assertion in the attached debugger. */
+		void breakInDebugger();
+
 		struct Wrapper;
 
 	private:
@@ -942,6 +957,7 @@ public:
 
 		enum StatusCodes
 		{
+			StatusNoConnection = 0,
 			StatusOK = 200,
 			StatusNotFound = 404,
 			StatusServerError = 500,
@@ -970,82 +986,39 @@ public:
 		/** Adds the given String to the HTTP POST header. */
 		void setHttpHeader(String additionalHeader);
 
-		/** Downloads a file to the given target. */
-		void downloadFile(String subURL, var parameters, var targetFile, var callback);
+		/** Downloads a file to the given target and returns a Download object. */
+		var downloadFile(String subURL, var parameters, var targetFile, var callback);
 
-		/** Stops the pending download (and deletes the file). */
-		bool stopDownload(String subURL, var parameters);
+		/** Returns a list of all pending Downloads. */
+		var getPendingDownloads();
+
+		/** Sets the maximal number of parallel downloads. */
+		void setNumAllowedDownloads(int maxNumberOfParallelDownloads);
+
+		/** Returns true if the system is connected to the internet. */
+		bool isOnline();
+		
+		/** Removes all finished downloads from the list. */
+		void cleanFinishedDownloads();
 
 	private:
-
-		struct PendingDownload: public ReferenceCountedObject,
-								public URL::DownloadTask::Listener
-		{
-			void finished(URL::DownloadTask* , bool success) override
-			{
-				data->setProperty("success", success);
-				data->setProperty("finished", true);
-				call();
-
-				isRunning = false;
-				isFinished = true;
-			}
-
-			void progress(URL::DownloadTask* , int64 bytesDownloaded, int64 totalLength) override
-			{
-				data->setProperty("numTotal", totalLength);
-				data->setProperty("numDownloaded", bytesDownloaded);
-				call();
-			}
-
-			void abort()
-			{
-				data->setProperty("success", false);
-				data->setProperty("finished", true);
-				call();
-
-				isRunning = false;
-				isFinished = true;
-				download = nullptr;
-
-				targetFile.deleteFile();
-			}
-
-			void call();
-
-			void start()
-			{
-				isRunning = true;
-				download = downloadURL.downloadToFile(targetFile, {}, this);
-				
-				data = new DynamicObject();
-				
-				data->setProperty("numTotal", 0);
-				data->setProperty("numDownloaded", 0);
-				data->setProperty("finished", false);
-				data->setProperty("success", false);
-			}
-
-			DynamicObject::Ptr data;
-			using Ptr = ReferenceCountedObjectPtr<PendingDownload>;
-			URL downloadURL;
-			File targetFile;
-			var callback;
-			ScopedPointer<URL::DownloadTask> download;
-			std::atomic<bool> isRunning = { false };
-			std::atomic<bool> isFinished = { false };
-			std::atomic<bool> shouldAbort = { false };
-			JavascriptProcessor* jp = nullptr;
-		};
 
 		struct PendingCallback: public ReferenceCountedObject
 		{
 			using Ptr = ReferenceCountedObjectPtr<PendingCallback>;
 
+			PendingCallback(ProcessorWithScriptingContent* p, const var& function):
+				f(p, function, 2)
+			{
+				f.setHighPriority();
+				f.incRefCount();
+			}
+
+			WeakCallbackHolder f;
+
 			URL url;
 			String extraHeader;
 			bool isPost;
-			var function;
 			int status = 0;
 		};
 
@@ -1062,8 +1035,11 @@ public:
 
 			CriticalSection queueLock;
 
+			std::atomic<bool> cleanDownloads = { false };
+
+			int numMaxDownloads = 1;
 			ReferenceCountedArray<PendingCallback> pendingCallbacks;
-			ReferenceCountedArray<PendingDownload> pendingDownloads;
+			ReferenceCountedArray<ScriptingObjects::ScriptDownloadObject> pendingDownloads;
 
 		} internalThread;
 
@@ -1087,7 +1063,6 @@ public:
 		{
 			AudioFiles,
 			Expansions,
-			Images,
 			Samples,
 			UserPresets,
 			AppData,

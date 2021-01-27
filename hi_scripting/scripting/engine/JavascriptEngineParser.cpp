@@ -872,7 +872,17 @@ private:
 			ns->varRegister.addRegister(name, var::undefined());
             ns->registerLocations.add(preparser->createDebugLocation());
 
-			jassert(ns->registerLocations.size() == ns->varRegister.getNumUsedRegisters());
+			if (ns->registerLocations.size() != ns->varRegister.getNumUsedRegisters())
+			{
+				String s;
+
+				if (!ns->id.isNull())
+					s << ns->id.toString() << ".";
+
+				s << name << ": error at definition";
+
+				preparser->location.throwError(s);
+			}
 
 			return nullptr;
 		}
@@ -1756,7 +1766,7 @@ private:
 				}
 
 				const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);
-				const int globalIndex = hiseSpecialData->globals->getProperties().indexOf(id);
+				const int globalIndex = hiseSpecialData->globals != nullptr ? hiseSpecialData->globals->getProperties().indexOf(id) : -1;
 				
 				if (apiClassIndex != -1)
 				{

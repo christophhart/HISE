@@ -281,6 +281,8 @@ private:
 	}
 
 	void calcAngleDelta();;
+    
+    bool tempoSync = false;
 
 	ModulatorChain::Collection modChains;
 
@@ -315,6 +317,7 @@ private:
 	float frequencyModulationValue;
 
 
+    
 	float frequency;
 
 	float currentValue;
@@ -351,7 +354,7 @@ private:
 	bool loopEnabled;
 	bool legato;
 
-	bool tempoSync;
+    
 
 	int lastCycleIndex = 0;
 	int lastIndex = 0;

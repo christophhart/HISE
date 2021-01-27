@@ -74,8 +74,17 @@ var ScriptingObjects::MidiList::getAssignedValue(int index) const				 { return g
 void ScriptingObjects::MidiList::fill(int valueToFill)
 {
 	for (int i = 0; i < 128; i++) data[i] = valueToFill;
-	empty = false;
-	numValues = 128;
+
+	if (valueToFill == -1)
+	{
+		empty = true;
+		numValues = 0;
+	}
+	else
+	{
+		empty = false;
+		numValues = 128;
+	}
 }
 
 void ScriptingObjects::MidiList::clear()
@@ -87,12 +96,18 @@ void ScriptingObjects::MidiList::clear()
 
 int ScriptingObjects::MidiList::getValue(int index) const
 {
-	if (index < 127 && index >= 0) return (int)data[index]; else return -1;
+	if (index <= 127 && index >= 0) return (int)data[index]; else return -1;
 }
 
 int ScriptingObjects::MidiList::getValueAmount(int valueToCheck)
 {
-	if (empty) return 0;
+	if (empty)
+	{
+		if (valueToCheck == -1)
+			return 128;
+
+	 	return 0;
+	}
 
 	int amount = 0;
 
@@ -137,9 +152,9 @@ void ScriptingObjects::MidiList::setValue(int index, int value)
                 numValues++;
                 empty = false;
             }
-            
-            data[index] = value;
 		}
+
+		data[index] = value;
 	}
 }
 
@@ -187,6 +202,19 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
 	API_VOID_METHOD_WRAPPER_0(ScriptFile, show);
 };
+
+String ScriptingObjects::ScriptFile::getFileNameFromFile(var fileOrString)
+{
+	if (fileOrString.isString())
+		return fileOrString.toString();
+
+	if (auto asFile = dynamic_cast<ScriptFile*>(fileOrString.getObject()))
+	{
+		return asFile->f.getFullPathName();
+	}
+
+	return {};
+}
 
 ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const File& f_) :
 	ConstScriptingObject(p, 3),
@@ -302,6 +330,8 @@ var ScriptingObjects::ScriptFile::loadAsObject() const
 		return v;
 
 	reportScriptError(r.getErrorMessage());
+
+	RETURN_IF_NO_THROW(var());
 }
 
 var ScriptingObjects::ScriptFile::loadEncryptedObject(String key)
@@ -330,6 +360,288 @@ void ScriptingObjects::ScriptFile::show()
 	{
 		f_.revealToUser();
 	});
+}
+
+struct ScriptingObjects::ScriptDownloadObject::Wrapper
+{
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, resume);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, stop);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, isRunning);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, getProgress);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, getFullURL);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, getDownloadedTarget);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, getDownloadSpeed);
+};
+
+ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const File& targetFile_, var callback_) :
+	ConstScriptingObject(pwsc, 3),
+	callback(pwsc, callback_, 0),
+	downloadURL(url),
+	targetFile(targetFile_),
+	jp(dynamic_cast<JavascriptProcessor*>(pwsc))
+{
+	data = new DynamicObject();
+	addConstant("data", var(data));
+
+	callback.setThisObject(this);
+
+	ADD_API_METHOD_0(resume);
+	ADD_API_METHOD_0(stop);
+	ADD_API_METHOD_0(isRunning);
+	ADD_API_METHOD_0(getProgress);
+	ADD_API_METHOD_0(getFullURL);
+	ADD_API_METHOD_0(getDownloadedTarget);
+	ADD_API_METHOD_0(getDownloadSpeed);
+}
+
+ScriptingObjects::ScriptDownloadObject::~ScriptDownloadObject()
+{
+	flushTemporaryFile();
+}
+
+bool ScriptingObjects::ScriptDownloadObject::stop()
+{
+	if (isRunning())
+	{
+		isWaitingForStop = true;
+		return true;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptDownloadObject::stopInternal()
+{
+	if (isRunning_)
+	{
+		flushTemporaryFile();
+
+		isRunning_ = false;
+		isFinished = false;
+		download = nullptr;
+
+		data->setProperty("success", false);
+		data->setProperty("finished", true);
+		call(true);
+		return true;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptDownloadObject::resume()
+{
+	if (!isRunning() && !isFinished)
+	{
+		isWaitingForStart = true;
+		return true;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptDownloadObject::resumeInternal()
+{
+	if (!isRunning_)
+	{
+		if (targetFile.existsAsFile())
+		{
+			if (targetFile.existsAsFile())
+			{
+				existingBytesBeforeResuming = targetFile.getSize();
+
+				int status = 0;
+
+				ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
+
+				auto numTotal = wis != nullptr ? wis->getTotalLength() : 0;
+
+				if (numTotal > 0 && status == 206 && numTotal < existingBytesBeforeResuming)
+				{
+					wis = nullptr;
+
+					resumeFile = new TemporaryFile(targetFile, TemporaryFile::OptionFlags::putNumbersInBrackets);
+
+					isRunning_ = true;
+
+					String rangeHeader;
+					rangeHeader << "Range: bytes=" << existingBytesBeforeResuming << "-" << numTotal;
+
+					download = downloadURL.downloadToFile(resumeFile->getFile(), rangeHeader, this);
+
+					data->setProperty("numTotal", numTotal);
+					data->setProperty("numDownloaded", existingBytesBeforeResuming);
+					data->setProperty("finished", false);
+					data->setProperty("success", false);
+				}
+				else
+				{
+					stopInternal();
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+
+bool ScriptingObjects::ScriptDownloadObject::isRunning()
+{
+	return isRunning_;
+}
+
+double ScriptingObjects::ScriptDownloadObject::getProgress() const
+{
+	auto d = (int)data->getProperty("numDownloaded") + existingBytesBeforeResuming;
+	auto t = (int)data->getProperty("numTotal") + existingBytesBeforeResuming;
+
+	if (t != 0)
+		return (double)d / double(t);
+	else
+		return 0.0;
+}
+
+int ScriptingObjects::ScriptDownloadObject::getDownloadSpeed()
+{
+	return isRunning() ? jmax((int)bytesInLastSecond, (int)bytesInCurrentSecond) : 0;
+}
+
+void ScriptingObjects::ScriptDownloadObject::call(bool highPriority)
+{
+	
+	callback.call(nullptr, 0);
+
+#if 0
+	if (HiseJavascriptEngine::isJavascriptFunction(callback))
+	{
+		auto type = highPriority ? JavascriptThreadPool::Task::HiPriorityCallbackExecution :
+			JavascriptThreadPool::Task::Type::LowPriorityCallbackExecution;
+
+		auto& pool = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
+		Ptr strongPtr = Ptr(this);
+
+		pool.addJob(type, jp, [strongPtr](JavascriptProcessor* p)
+		{
+			if (auto e = p->getScriptEngine())
+			{
+				auto r = Result::ok();
+				var::NativeFunctionArgs args(var(strongPtr), nullptr, 0);
+				e->callExternalFunction(strongPtr->callback, args, &r);
+				strongPtr->callbackPending.store(false);
+				return r;
+			}
+
+			return Result::fail("engine doesn't exist");
+		});
+	}
+#endif
+}
+
+
+String ScriptingObjects::ScriptDownloadObject::getFullURL()
+{
+	return downloadURL.toString(false);
+}
+
+var ScriptingObjects::ScriptDownloadObject::getDownloadedTarget()
+{
+	if (isFinished && data->getProperty("success"))
+	{
+		return var(new ScriptFile(getScriptProcessor(), targetFile));
+	}
+
+	return var();
+}
+
+void ScriptingObjects::ScriptDownloadObject::finished(URL::DownloadTask*, bool success)
+{
+	data->setProperty("success", success);
+	data->setProperty("finished", true);
+	flushTemporaryFile();
+
+	isRunning_ = false;
+	isFinished = true;
+
+	call(true);
+}
+
+void ScriptingObjects::ScriptDownloadObject::flushTemporaryFile()
+{
+	if (resumeFile != nullptr)
+	{
+		FileInputStream fis(resumeFile->getFile());
+		FileOutputStream fos(targetFile);
+
+		auto numWritten = fos.writeFromInputStream(fis, -1);
+
+        ignoreUnused(numWritten);
+		resumeFile = nullptr;
+	}
+}
+
+void ScriptingObjects::ScriptDownloadObject::progress(URL::DownloadTask*, int64 bytesDownloaded, int64 totalLength)
+{
+	auto thisTimeMs = Time::getMillisecondCounter();
+
+	bytesInCurrentSecond += (bytesDownloaded + existingBytesBeforeResuming - lastBytesDownloaded);
+	lastBytesDownloaded = bytesDownloaded + existingBytesBeforeResuming;
+
+	if ((thisTimeMs - lastSpeedMeasure) > 1000)
+	{
+		bytesInLastSecond = bytesInCurrentSecond;
+		bytesInCurrentSecond = 0;
+		lastSpeedMeasure = thisTimeMs;
+	}
+
+	data->setProperty("numTotal", totalLength + existingBytesBeforeResuming);
+	data->setProperty("numDownloaded", bytesDownloaded + existingBytesBeforeResuming);
+
+	if (!callbackPending && (thisTimeMs - lastTimeMs) > 100)
+	{
+		callbackPending = true;
+		call(false);
+		lastTimeMs = thisTimeMs;
+	}
+}
+
+void ScriptingObjects::ScriptDownloadObject::start()
+{
+	isWaitingForStart = false;
+
+	if (targetFile.existsAsFile() && targetFile.getSize() > 0)
+	{
+		resumeInternal();
+		return;
+	}
+
+	int status = 0;
+
+	ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
+
+	if (status == 200)
+	{
+		isRunning_ = true;
+		download = downloadURL.downloadToFile(targetFile, {}, this);
+
+		data->setProperty("numTotal", 0);
+		data->setProperty("numDownloaded", 0);
+		data->setProperty("finished", false);
+		data->setProperty("success", false);
+
+		call(true);
+	}
+	else
+	{
+		isFinished = true;
+
+		data->setProperty("numTotal", 0);
+		data->setProperty("numDownloaded", 0);
+		data->setProperty("finished", true);
+		data->setProperty("success", false);
+
+		call(true);
+	}
 }
 
 struct ScriptingObjects::ScriptAudioFile::Wrapper
@@ -2526,7 +2838,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 #if USE_BACKEND
 		auto pool = audioSampleProcessor->getMainController()->getCurrentAudioSampleBufferPool();
 
-		if (!pool->areAllFilesLoaded())
+		if (!fileName.contains("{EXP::") && !pool->areAllFilesLoaded())
 			reportScriptError("You must call Engine.loadAudioFilesIntoPool() before using this method");
 #endif
 
@@ -3472,7 +3784,19 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
 			}
 		}
 		else
-			reportScriptError("Image not found");
+		{
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(Colours::grey));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRect(getRectangleFromVar(area)));
+			
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(Colours::black));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRect(getRectangleFromVar(area), 1.0f));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(GLOBAL_BOLD_FONT()));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText("XXX", getRectangleFromVar(area), Justification::centred));
+
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), "Image " + imageName + " not found");
+		}
+			
+			
 	}
 	else
 	{
@@ -3919,6 +4243,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTrack);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setSequence);
 	API_VOID_METHOD_WRAPPER_3(ScriptedMidiPlayer, create);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getMidiFileList);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, isEmpty);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getNumTracks);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getNumSequences);
@@ -3945,6 +4270,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_1(record);
 	ADD_API_METHOD_3(setFile);
 	ADD_API_METHOD_2(saveAsMidiFile);
+	ADD_API_METHOD_0(getMidiFileList);
 	ADD_API_METHOD_1(setTrack);
 	ADD_API_METHOD_1(setSequence);
 	ADD_API_METHOD_0(isEmpty);
@@ -4191,14 +4517,16 @@ bool ScriptingObjects::ScriptedMidiPlayer::record(int timestamp)
 	return false;
 }
 
-bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearExistingSequences, bool selectNewSequence)
+bool ScriptingObjects::ScriptedMidiPlayer::setFile(var fileName, bool clearExistingSequences, bool selectNewSequence)
 {
 	if (auto pl = getPlayer())
 	{
 		if (clearExistingSequences)
 			pl->clearSequences(dontSendNotification);
 
-		if (!fileName.isEmpty())
+		auto name = ScriptFile::getFileNameFromFile(fileName);
+
+		if (!name.isEmpty())
 		{
 			PoolReference r(pl->getMainController(), fileName, FileHandlerBase::MidiFiles);
 			pl->loadMidiFile(r);
@@ -4210,6 +4538,9 @@ bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearEx
 		}
 		else
 		{
+			if(selectNewSequence)
+				pl->sendSequenceUpdateMessage(sendNotificationAsync);
+
 			// if it's empty, we don't want to load anything, so we "succeeded".
 			return true;
 		}
@@ -4218,12 +4549,33 @@ bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearEx
 	return false;
 }
 
-bool ScriptingObjects::ScriptedMidiPlayer::saveAsMidiFile(String fileName, int trackIndex)
+bool ScriptingObjects::ScriptedMidiPlayer::saveAsMidiFile(var fileName, int trackIndex)
 {
 	if (auto pl = getPlayer())
-		return pl->saveAsMidiFile(fileName, trackIndex);
+	{
+		auto name = ScriptFile::getFileNameFromFile(fileName);
+
+		if (name.isNotEmpty())
+			return pl->saveAsMidiFile(name, trackIndex);
+		else
+			reportScriptError("Can't parse file name");
+	}
 
 	return false;	
+}
+
+var ScriptingObjects::ScriptedMidiPlayer::getMidiFileList()
+{
+	auto list = getProcessor()->getMainController()->getCurrentFileHandler().pool->getMidiFilePool().getListOfAllReferences(true);
+
+	Array<var> l;
+
+	for (auto ref : list)
+	{
+		l.add(ref.getReferenceString());
+	}
+
+	return l;
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::setTrack(int trackIndex)
@@ -4377,7 +4729,7 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 		{
 			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
 		}
-		catch (HiseJavascriptEngine::RootObject::Error& e)
+		catch (HiseJavascriptEngine::RootObject::Error& )
 		{
 
 		}
@@ -4416,7 +4768,7 @@ var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier&
 		{
 			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
 		}
-		catch (HiseJavascriptEngine::RootObject::Error& e)
+		catch (HiseJavascriptEngine::RootObject::Error& )
 		{
 
 		}
@@ -4600,10 +4952,22 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		obj->setProperty("valueNormalized", (slider.getValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
 
 		// Range style slider
-		obj->setProperty("valueRangeStyleMin", slider.getMinValue());
-		obj->setProperty("valueRangeStyleMax", slider.getMaxValue());
-		obj->setProperty("valueRangeStyleMinNormalized", (slider.getMinValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
-		obj->setProperty("valueRangeStyleMaxNormalized", (slider.getMaxValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
+
+		double minv = 0.0;
+		double maxv = 1.0;
+
+		if (slider.isTwoValue())
+		{
+			minv = slider.getMinValue();
+			maxv = slider.getMaxValue();
+		}
+
+		obj->setProperty("valueRangeStyleMin", minv);
+		obj->setProperty("valueRangeStyleMax", maxv);
+
+		obj->setProperty("valueRangeStyleMinNormalized", (minv - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
+		obj->setProperty("valueRangeStyleMaxNormalized", (maxv - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
+
 
 		obj->setProperty("clicked", slider.isMouseButtonDown());
 		obj->setProperty("hover", slider.isMouseOver());
@@ -5044,5 +5408,7 @@ juce::ValueTree ApiHelpers::getApiTree()
 	return v;
 }
 #endif
+
+
 
 } // namespace hise

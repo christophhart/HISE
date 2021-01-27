@@ -643,7 +643,7 @@ void FilterDragOverlay::mouseUp(const MouseEvent& )
 
 void FilterDragOverlay::mouseMove(const MouseEvent &e)
 {
-	setTooltip(String(getGain(e.getPosition().y), 1) + " dB / " + String((int)filterGraph.xToFreq((float)e.getPosition().x)) + " Hz");
+	setTooltip(String(getGain(e.getPosition().y - offset), 1) + " dB / " + String((int)filterGraph.xToFreq((float)e.getPosition().x - offset)) + " Hz");
 };
 
 void FilterDragOverlay::selectDragger(int index)

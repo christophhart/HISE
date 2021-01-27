@@ -41,12 +41,12 @@ thisAsProcessor(dynamic_cast<Processor*>(p))
 
 ProcessorWithScriptingContent *ScriptingObject::getScriptProcessor()
 {
-	return processor;
+	return processor.get();
 };
 
 const ProcessorWithScriptingContent *ScriptingObject::getScriptProcessor() const
 {
-	return processor;
+	return processor.get();
 };
 
 
@@ -456,6 +456,137 @@ void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& /*id*/, c
 	{
 		jassertfalse;
 	}
+}
+
+WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, const var& callback, int numExpectedArgs_) :
+	ScriptingObject(p),
+	r(Result::ok()),
+	numExpectedArgs(numExpectedArgs_)
+{
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(p))
+	{
+		engineToUse = jp->getScriptEngine();
+	}
+
+	if (HiseJavascriptEngine::isJavascriptFunction(callback))
+	{
+		weakCallback = dynamic_cast<DebugableObjectBase*>(callback.getObject());
+
+		// Store it ref-counted if the ref count is one to avoid deletion
+		if (callback.getObject()->getReferenceCount() == 1)
+			anonymousFunctionRef = callback;
+	}
+}
+
+
+
+WeakCallbackHolder::WeakCallbackHolder(const WeakCallbackHolder& copy) :
+	ScriptingObject(const_cast<ProcessorWithScriptingContent*>(copy.getScriptProcessor())),
+	r(Result::ok()),
+	weakCallback(copy.weakCallback),
+	numExpectedArgs(copy.numExpectedArgs),
+	highPriority(copy.highPriority),
+	engineToUse(copy.engineToUse),
+	anonymousFunctionRef(copy.anonymousFunctionRef),
+	thisObject(copy.thisObject)
+{
+	args.addArray(copy.args);
+}
+
+WeakCallbackHolder::WeakCallbackHolder(WeakCallbackHolder&& other):
+	ScriptingObject(other.getScriptProcessor()),
+	r(other.r),
+	weakCallback(other.weakCallback),
+	numExpectedArgs(other.numExpectedArgs),
+	highPriority(other.highPriority),
+	anonymousFunctionRef(other.anonymousFunctionRef),
+	engineToUse(other.engineToUse),
+	thisObject(other.thisObject)
+{
+	args.swapWith(other.args);
+}
+
+WeakCallbackHolder::~WeakCallbackHolder()
+{
+	clear();
+}
+
+hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& other)
+{
+	r = other.r;
+	weakCallback = other.weakCallback;
+	numExpectedArgs = other.numExpectedArgs;
+	highPriority = other.highPriority;
+	anonymousFunctionRef = other.anonymousFunctionRef;
+	engineToUse = other.engineToUse;
+	thisObject = other.thisObject;
+	args.swapWith(other.args);
+
+	return *this;
+}
+
+void WeakCallbackHolder::clear()
+{
+	engineToUse = nullptr;
+	weakCallback = nullptr;
+	thisObject = nullptr;
+	args.clear();
+
+	decRefCount();
+}
+
+void WeakCallbackHolder::call(var* arguments, int numArgs)
+{
+	try
+	{
+		if (weakCallback != nullptr)
+		{
+			checkArguments("external call", numArgs, numExpectedArgs);
+			auto copy = *this;
+			copy.args.addArray(arguments, numArgs);
+			var::NativeFunctionArgs args_(var(), arguments, numArgs);
+			checkValidArguments(args_);
+			auto t = highPriority ? JavascriptThreadPool::Task::HiPriorityCallbackExecution : JavascriptThreadPool::Task::LowPriorityCallbackExecution;
+			getScriptProcessor()->getMainController_()->getJavascriptThreadPool().addJob(t, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), copy);
+		}
+		else
+		{
+			reportScriptError("function not found");
+		}
+	}
+	catch (String& m)
+	{
+		debugError(dynamic_cast<Processor*>(getScriptProcessor()), m);
+	}
+}
+
+juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
+{
+	jassert_locked_script_thread(getScriptProcessor()->getMainController_());
+
+	if (engineToUse.get() == nullptr)
+	{
+		clear();
+		return Result::fail("Engine is dangling");
+	}
+
+	if (weakCallback.get() != nullptr)
+	{
+		var thisObj;
+
+		if (auto d = dynamic_cast<ReferenceCountedObject*>(thisObject.get()))
+			thisObj = var(d);
+
+		var::NativeFunctionArgs a(thisObj, args.getRawDataPointer(), args.size());
+		engineToUse->callExternalFunction(var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get())), a, &r);
+
+		if (!r.wasOk())
+			debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
+	}
+	else
+		jassertfalse;
+
+	return r;
 }
 
 } // namespace hise

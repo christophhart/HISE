@@ -43,9 +43,16 @@ void QuasiModalComponent::setModalBaseWindowComponent(Component * childComponent
 
 	if (editor != nullptr)
 	{
-		editor->setModalComponent(dynamic_cast<Component*>(this), fadeInTime);
+		auto asComponent = dynamic_cast<Component*>(this);
+		asComponent->setWantsKeyboardFocus(true);
+
+		editor->setModalComponent(asComponent, fadeInTime);
 
 		isQuasiModal = true;
+
+		
+		
+		asComponent->grabKeyboardFocus();
 	}
 }
 
@@ -468,7 +475,7 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 
 	auto& expHandler = getMainController()->getExpansionHandler();
 
-	sa4.add("All available samples");
+	sa4.add("Factory Content Samples");
 
 	int activeExpansion = -1;
 
@@ -487,7 +494,7 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 		getComboBoxComponent("expansions")->setSelectedItemIndex(activeExpansion + 1, dontSendNotification);
 	}
 
-	if (GET_HISE_SETTING(synthChain, HiseSettings::Project::SupportFullDynamicsHLAC) == "0")
+	if (!GET_HISE_SETTING(synthChain, HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("supportFull")->setSelectedItemIndex(1, dontSendNotification);
 
 #if USE_BACKEND
@@ -497,6 +504,11 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 #endif
 
 	addComboBox("resume", sa3, "Resume on existing archive");
+
+	hxiFile = new FilenameComponent("HXI File", File(), false, false, false, "*.hxi", "", "Choose optional HXI file to embed");
+	hxiFile->setSize(300, 24);
+	hxiFile->setDefaultBrowseTarget(f);
+	addCustomComponent(hxiFile);
 
 	targetFile = new FilenameComponent("Target directory", f, true, true, true, "", "", "Choose export directory");
 	targetFile->setSize(300, 24);
@@ -547,6 +559,7 @@ void SampleDataExporter::run()
 	hlac::HlacArchiver::CompressData data;
 
 	data.targetFile = getTargetFile();
+	data.optionalHeaderFile = hxiFile->getCurrentFile();
 	data.metadataJSON = getMetadataJSON();
 	data.fileList = collectMonoliths();
 	data.progress = &logData.progress;
@@ -590,13 +603,6 @@ void SampleDataExporter::setTargetDirectory(const File& targetDirectory)
 Array<File> SampleDataExporter::collectMonoliths()
 {
 	Array<File> sampleMonoliths;
-
-	File sampleDirectory = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
-
-	sampleDirectory.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
-
-	
-
 	auto expName = getExpansionName();
 
 	if (expName.isNotEmpty())
@@ -605,29 +611,24 @@ Array<File> SampleDataExporter::collectMonoliths()
 
 		if (auto e = getMainController()->getExpansionHandler().getExpansionFromName(expName))
 		{
-			auto list = e->pool->getSampleMapPool().getListOfAllReferences(true);
+			auto& smPool = e->pool->getSampleMapPool();
+			
+			auto f = e->getSubDirectory(FileHandlerBase::Samples);
+			//f.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
 
-			auto folder = e->getSubDirectory(FileHandlerBase::SampleMaps);
-
-			for (auto ref : list)
+			for (auto& id : smPool.getIdList())
 			{
-				auto path = ref.getFile().getRelativePathFrom(folder);
+				auto hlacFileName = id.fromLastOccurrenceOf("}", false, false).replaceCharacter('/', '_');
 
-				path = path.replaceCharacter('\\', '/');
-				path = path.replaceCharacter('/', '_');
-				path = path.upToFirstOccurrenceOf(".xml", false, true);
+				f.findChildFiles(sampleMonoliths, File::findFiles, false, hlacFileName + ".*");
 
-				validIds.add(path);
 			}
 		}
-
-		for (int i = 0; i < sampleMonoliths.size(); i++)
-		{
-			auto name = sampleMonoliths[i].getFileNameWithoutExtension();
-
-			if (!validIds.contains(name))
-				sampleMonoliths.remove(i--);
-		}
+	}
+	else
+	{
+		File sampleDirectory = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+		sampleDirectory.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
 	}
 
 	sampleMonoliths.sort();
@@ -662,10 +663,37 @@ String SampleDataExporter::getMetadataJSON() const
 		d->setProperty("Expansion", expName);
 	}
 
+	if (hxiFile->getCurrentFile().existsAsFile())
+	{
+		showStatusMessage("Writing HXI name");
+
+		if (Expansion::Helpers::isXmlFile(hxiFile->getCurrentFile()))
+		{
+			ScopedPointer<XmlElement> xml = XmlDocument::parse(hxiFile->getCurrentFile());
+
+			if (xml != nullptr)
+			{
+				if (auto c = xml->getChildByName(ExpansionIds::ExpansionInfo.toString()))
+				{
+					auto name = c->getStringAttribute(ExpansionIds::Name.toString());
+					jassert(name.isNotEmpty());
+					d->setProperty("HxiName", name);
+				}
+			}
+		}
+		else
+		{
+			FileInputStream fis(hxiFile->getCurrentFile());
+			auto v = ValueTree::readFromStream(fis);
+			d->setProperty("HxiName", v.getChildWithName(ExpansionIds::ExpansionInfo)[ExpansionIds::Name]);
+		}
+
+		
+	}
+
 	int index = getComboBoxComponent("supportFull")->getSelectedItemIndex();
 
 	d->setProperty("BitDepth", index == 0 ? 24 : 16);
-
 	var data(d);
 
 	return JSON::toString(data, true);

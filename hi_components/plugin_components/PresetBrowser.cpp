@@ -624,6 +624,9 @@ expHandler(mc->getExpansionHandler())
 		getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
     }
 
+	if (auto e = FullInstrumentExpansion::getCurrentFullExpansion(mc))
+		rootFile = e->getSubDirectory(FileHandlerBase::UserPresets);
+
 #endif
 
 	mc->getUserPresetHandler().getTagDataBase().setRootDirectory(rootFile);
@@ -681,6 +684,14 @@ expHandler(mc->getExpansionHandler())
 
 	setSize(width, height);
 
+	defaultRoot = rootFile;
+
+	if (auto e = getMainController()->getExpansionHandler().getCurrentExpansion())
+	{
+		rootFile = e->getSubDirectory(FileHandlerBase::UserPresets);
+		currentlySelectedExpansion = e;
+	}
+
 	rebuildAllPresets();
 
 	showLoadedPreset();
@@ -693,7 +704,7 @@ expHandler(mc->getExpansionHandler())
 	if(getMainController()->getExpansionHandler().isEnabled())
 		expHandler.addListener(this); //Setup expansion handler listener
 	
-	defaultRoot = rootFile;
+	
 
 }
 
@@ -725,7 +736,7 @@ PresetBrowser::~PresetBrowser()
 
 void PresetBrowser::expansionPackLoaded(Expansion* currentExpansion)
 {
-	if(expansionColumn != nullptr)
+	if(expansionColumn != nullptr && currentExpansion != nullptr)
 		selectionChanged(-1, -1, currentExpansion->getRootFolder(), false);
 }
 
@@ -1140,6 +1151,15 @@ void PresetBrowser::showLoadedPreset()
 		categoryColumn->setSelectedFile(category, dontSendNotification);
 		presetColumn->setNewRootDirectory(category);
 		presetColumn->setSelectedFile(f, dontSendNotification);
+
+		if (expansionColumn != nullptr)
+		{
+			if (auto e = getMainController()->getExpansionHandler().getCurrentExpansion())
+			{
+				expansionColumn->setSelectedFile(e->getRootFolder(), dontSendNotification);
+			}
+				
+		}
 	}
 }
 
@@ -1152,6 +1172,8 @@ void PresetBrowser::setOptions(const Options& newOptions)
 		expansionColumn->setModel(new PresetBrowserColumn::ExpansionColumnModel(this), expRoot);
 
 		expansionColumn->update();
+
+		showLoadedPreset();
 	}
 		
 	else
@@ -1269,8 +1291,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 	}
 	else if (columnIndex == 2)
 	{
-		if (currentlySelectedExpansion != nullptr)
-			getMainController()->getExpansionHandler().setCurrentExpansion(currentlySelectedExpansion);
+		getMainController()->getExpansionHandler().setCurrentExpansion(currentlySelectedExpansion, sendNotificationSync);
 
 		loadPreset(file);
 
@@ -1331,9 +1352,12 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 		else if (numColumns == 1)
 		 	current = rootFile;
 
-		File presetFile = PresetBrowserColumn::getChildDirectory(current, 3, rowIndex);
+		auto presetFile = getMainController()->getUserPresetHandler().getCurrentlyLoadedFile();
 
-		if (newName.isNotEmpty())
+
+		//File presetFile = PresetBrowserColumn::getChildDirectory(current, 3, rowIndex);
+
+		if (presetFile.existsAsFile() && newName.isNotEmpty())
 		{
 			File newFile = presetFile.getSiblingFile(newName + ".preset");
 
@@ -1341,7 +1365,9 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 				modalInputWindow->confirmReplacement(presetFile, newFile);
 			else
 			{
-				presetFile.moveFileTo(newFile);
+				auto ok = presetFile.moveFileTo(newFile);
+
+				
 				presetColumn->setNewRootDirectory(current);
 				rebuildAllPresets();
 				showLoadedPreset();
@@ -1542,7 +1568,8 @@ void PresetBrowser::DataBaseHelpers::cleanFileList(MainController* mc, Array<Fil
 	{
 		const bool isNoPresetFile = filesToClean[i].isHidden() || filesToClean[i].getFileName().startsWith(".") || filesToClean[i].getFileExtension() != ".preset";
 		const bool isNoDirectory = !filesToClean[i].isDirectory();
-		const bool requiresMissingExpansions = !matchesAvailableExpansions(mc, filesToClean[i]);
+
+		const bool requiresMissingExpansions = mc != nullptr && !matchesAvailableExpansions(mc, filesToClean[i]);
 
 		if ((isNoPresetFile && isNoDirectory) || requiresMissingExpansions)
 		{

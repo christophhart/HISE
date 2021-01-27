@@ -470,13 +470,13 @@ public:
   inline Mem cloneAdjustedAndResized(int64_t off, size_t newSize) const noexcept {
 	  Mem result(*this);
 	  result.addOffset(off);
-	  result.setSize(newSize);
+	  result.setSize((uint32_t)newSize);
 	  return result;
   }
 
   inline Mem cloneResized(size_t newSize) const noexcept {
 	  Mem result(*this);
-	  result.setSize(newSize);
+	  result.setSize((uint32_t)newSize);
 	  return result;
   }
 

@@ -80,8 +80,6 @@ void HiseBufferHandler::registerExternalItems()
 
 			auto& buffer = af->getBuffer()->range;
 
-			int numChannels = buffer.getNumChannels();
-
 			if (buffer.getNumSamples() > 0)
 			{
 				snex::block b(buffer.getWritePointer(0), buffer.getNumSamples());

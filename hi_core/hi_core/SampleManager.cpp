@@ -226,13 +226,18 @@ void MainController::SampleManager::setDiskMode(DiskMode mode) noexcept
 
 void MainController::SampleManager::PreloadListenerUpdater::handleAsyncUpdate()
 {
-	for (int i = 0; i < manager->preloadListeners.size(); i++)
-	{
-		auto l = manager->preloadListeners[i].get();
 
-		if(l != nullptr)
-			l->preloadStateChanged(manager->preloadFlag.load());
+	Array<WeakReference<PreloadListener>> arrayToUse;
+
+	arrayToUse.addArray(manager->preloadListeners);
+
+	for (auto& pl: arrayToUse)
+	{
+		if (pl.get() != nullptr)
+			pl->preloadStateChanged(manager->preloadFlag.load());
 	}
+
+	jassert(arrayToUse.size() == manager->preloadListeners.size());
 }
 
 

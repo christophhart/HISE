@@ -388,6 +388,12 @@ void CustomKeyboard::paint(Graphics &g)
 
 void CustomKeyboard::mouseDown(const MouseEvent& e)
 {
+	if (ccc)
+	{
+		if (ccc(e, true))
+			return;
+	}
+
 	if (toggleMode)
 	{
 		auto number = getNoteAtPosition(e.getMouseDownPosition().toFloat());
@@ -411,6 +417,12 @@ void CustomKeyboard::mouseDown(const MouseEvent& e)
 
 void CustomKeyboard::mouseUp(const MouseEvent& e)
 {
+	if (ccc)
+	{
+		if (ccc(e, false))
+			return;
+	}
+
 	if (!toggleMode)
 		MidiKeyboardComponent::mouseUp(e);
 }
@@ -431,9 +443,14 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 
 	auto& handler = mc->getExpansionHandler();
 
+	String wc = "{PROJECT_FOLDER}";
+
+	if (FullInstrumentExpansion::isEnabled(mc) && handler.getCurrentExpansion() != nullptr)
+		wc = handler.getCurrentExpansion()->getWildcard();
+
 	for (int i = 0; i < 12; i++)
 	{
-		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+		PoolReference upRef(mc, wc + "keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
 		upImages.set(i, handler.loadImageReference(upRef, PoolHelpers::LoadAndCacheStrong));
 
@@ -444,7 +461,7 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 			break;
 		}
 
-		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+		PoolReference downRef(mc, wc + "keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
 		downImages.set(i, handler.loadImageReference(downRef, PoolHelpers::LoadAndCacheStrong));
 

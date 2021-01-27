@@ -49,7 +49,7 @@ public:
 			}, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(SoulNodeComponent::updatePosition));
 	}
 
-	void updatePosition(const ValueTree& v, const Identifier& id)
+	void updatePosition(const ValueTree& /*v*/, const Identifier& /*id*/)
 	{
 		jassertfalse;
 	}
@@ -87,7 +87,7 @@ struct SoulEditor : public FloatingTileContent,
 		patchSelector.clear(dontSendNotification);
 
 		int id = 1;
-		int selected = -1;
+		
 
 		results = soulRoot.findChildFiles(File::findFiles, true, "*.soulpatch");
 

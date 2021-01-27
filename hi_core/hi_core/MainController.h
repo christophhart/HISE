@@ -245,6 +245,11 @@ public:
 			nonRealtime = shouldBeNonRealtime;
 		}
 
+		String getPreloadMessage() const
+		{
+			return currentPreloadMessage;
+		}
+
 	private:
 
 		bool nonRealtime = false;
@@ -337,7 +342,7 @@ public:
 
 		bool initialised = false;
 
-		Array<WeakReference<PreloadListener>> preloadListeners;
+		Array<WeakReference<PreloadListener>, CriticalSection> preloadListeners;
 
 		using SampleFunction = SuspendHelpers::Suspended<SafeFunctionCall, SuspendHelpers::ScopedTicket>;
 		static constexpr auto config = MultithreadedQueueHelpers::Configuration::AllocationsAllowedAndTokenlessUsageAllowed;
@@ -1334,6 +1339,12 @@ public:
 
 	void setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf) override;
 
+	bool setMinimumSamplerate(double newMinimumSampleRate)
+	{
+		minimumSamplerate = jlimit<double>(1.0, 96000.0 * 4.0, newMinimumSampleRate);
+		return refreshOversampling();
+	}
+
 	/** Returns the time that the plugin spends in its processBlock method. */
 	float getCpuUsage() const {return usagePercent.load();};
 
@@ -1467,6 +1478,11 @@ public:
 		currentPreview = p;
 	}
 
+	void setDefaultPresetHandler(ControlledObject* ownedHandler)
+	{
+		defaultPresetHandler = ownedHandler;
+	}
+
 	MarkdownContentProcessor* getCurrentMarkdownPreview()
 	{
 		return currentPreview;
@@ -1530,24 +1546,34 @@ protected:
 	
     void setMidiInputFlag() {midiInputFlag = true; };
     
-	void setReplaceBufferContent(bool shouldReplaceContent)
-	{
-		replaceBufferContent = shouldReplaceContent;
-	}
-
 	void killAndCallOnAudioThread(const ProcessorFunction& f);
 
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
-	
+
+	void setMaxEventTimestamp(int newMaxTimestamp)
+	{
+		maxEventTimestamp = newMaxTimestamp;
+	}
 
 private:
+
+	bool refreshOversampling();
+
+	double getOriginalSamplerate() const { return sampleRate / getOversampleFactor(); }
+
+	int getOriginalBufferSize() const { return (int)((double)maxBufferSize.get() / getOversampleFactor()); }
+
+	int getOversampleFactor() const { return currentOversampleFactor; }
+	
 
 #if HISE_INCLUDE_RLOTTIE
 	ScopedPointer<RLottieManager> rLottieManager;
 #endif
 
 	Array<WeakReference<ControlledObject>> registeredObjects;
+
+	int maxEventTimestamp = 0;
 
 	PooledUIUpdater globalUIUpdater;
 
@@ -1583,8 +1609,6 @@ private:
 
 	bool skipCompilingAtPresetLoad = false;
 
-	bool replaceBufferContent = true;
-
 	UnorderedStack<HiseEvent> suspendedNoteOns;
 
 	HiseEventBuffer masterEventBuffer;
@@ -1614,6 +1638,10 @@ private:
 		Identifier id;
 	};
 
+	ScopedPointer<juce::dsp::Oversampling<float>> oversampler;
+	double minimumSamplerate = 0.0;
+	int currentOversampleFactor = 1;
+	
 	Array<CustomTypeFace> customTypeFaces;
 	ValueTree customTypeFaceData;
 	ValueTree embeddedMarkdownDocs;
@@ -1706,6 +1734,8 @@ private:
     std::atomic<double> temp_usage;
 	int scrollY;
 	BigInteger shownComponents;
+
+	ScopedPointer<ControlledObject> defaultPresetHandler;
 
 	void handleSuspendedNoteOffs();
 public:

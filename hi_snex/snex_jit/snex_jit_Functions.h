@@ -216,10 +216,6 @@ struct ComplexType : public ReferenceCountedObject
 		case Types::ID::Block:	 *reinterpret_cast<block*>(dp_raw) = initValue.toBlock(); break;
 		default:				 jassertfalse;
 		}
-
-		auto x = (int*)dataPointer;
-		int y = 1;
-
 	}
 
 	using Ptr = ReferenceCountedObjectPtr<ComplexType>;
@@ -916,9 +912,11 @@ struct VariadicSubType : public ReferenceCountedObject
 
 
 /** A function class is a collection of functions. */
-struct FunctionClass: public DebugableObjectBase,
+class FunctionClass: public DebugableObjectBase,
 					  public ReferenceCountedObject
 {
+public:
+
 	using Ptr = ReferenceCountedObjectPtr<FunctionClass>;
 
 	enum SpecialSymbols
@@ -936,9 +934,8 @@ struct FunctionClass: public DebugableObjectBase,
 		case AssignOverload: return "operator=";
 		case NativeTypeCast: return "type_cast";
 		case Subscript:		 return "operator[]";
+        default:             jassertfalse; return {};
 		}
-
-		return {};
 	}
 
 	bool hasSpecialFunction(SpecialSymbols s) const

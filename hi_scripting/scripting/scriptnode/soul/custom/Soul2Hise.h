@@ -63,7 +63,11 @@ struct VirtualFolder : public soul::patch::VirtualFile,
 
 	int64_t getLastModificationTime() override { return 0; }
 
-	virtual int64_t read(uint64_t startPositionInFile, void* targetBuffer, uint64_t bytesToRead) { return 0; }
+	virtual int64_t read(uint64_t startPositionInFile, void* targetBuffer, uint64_t bytesToRead) 
+	{
+		ignoreUnused(startPositionInFile, targetBuffer, bytesToRead);
+		return 0; 
+	}
 
 	void addRef() noexcept override { ++refCount; }
 	void release() noexcept override { if (--refCount == 0) delete this; }

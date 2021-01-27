@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>BuildMachineOSBuild</key>
-	<string>16E195</string>
+	<string>18G103</string>
 	<key>CFBundleDisplayName</key>
 	<string>Projucer</string>
 	<key>CFBundleDocumentTypes</key>
@@ -34,7 +34,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>5.4.3</string>
+	<string>5.4.5</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleSupportedPlatforms</key>
@@ -42,21 +42,23 @@
 		<string>MacOSX</string>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>5.4.3</string>
+	<string>5.4.5</string>
 	<key>DTCompiler</key>
 	<string>com.apple.compilers.llvm.clang.1_0</string>
 	<key>DTPlatformBuild</key>
-	<string>8E2002</string>
+	<string>11A1027</string>
 	<key>DTPlatformVersion</key>
 	<string>GM</string>
 	<key>DTSDKBuild</key>
-	<string>16E185</string>
+	<string>19A547</string>
 	<key>DTSDKName</key>
-	<string>macosx10.12</string>
+	<string>macosx10.15</string>
 	<key>DTXcode</key>
-	<string>0832</string>
+	<string>1110</string>
 	<key>DTXcodeBuild</key>
-	<string>8E2002</string>
+	<string>11A1027</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>10.11</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -72,9 +74,13 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires access to the camera to function correctly.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>ROLI Ltd.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires audio input. If you do not have an audio interface connected it will use the built-in microphone.</string>
 </dict>
 </plist>

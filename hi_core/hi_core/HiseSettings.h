@@ -82,6 +82,8 @@ DECLARE_ID(EnableMidiInputFX);
 DECLARE_ID(UseRawFrontend);
 DECLARE_ID(VST3Support);
 DECLARE_ID(ExpansionType);
+DECLARE_ID(EncryptionKey);
+DECLARE_ID(LinkExpansionsToProject);
 
 Array<Identifier> getAllIds();
 
@@ -191,7 +193,7 @@ struct Data: public SafeChangeBroadcaster
 	MainController* getMainController() { return mc; }
 	const MainController* getMainController() const { return mc; }
 
-	var getDefaultSetting(const Identifier& id);
+	var getDefaultSetting(const Identifier& id) const;
 
 	ValueTree data;
 

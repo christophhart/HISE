@@ -1242,6 +1242,15 @@ public:
 	{
 		// ========================================================================================================
 
+		struct MouseCursorInfo
+		{
+			Path path;
+			Colour c = juce::Colours::white;
+			Point<float> hitPoint = { 0.0f, 0.0f };
+		} mouseCursorPath;
+
+
+
 		enum Properties
 		{
 			borderSize = ScriptComponent::numProperties,
@@ -1282,13 +1291,41 @@ public:
 
 		void preloadStateChanged(bool isPreloading) override;
 
-		void preloadStateInternal(bool isPreloading, Result& r);
+#if 0
+		void preloadStateInternal(bool isPreloading, Result& r)
+		{
+			jassert_locked_script_thread(getScriptProcessor()->getMainController_());
+
+			var thisObject(this);
+			var b(isPreloading);
+			var::NativeFunctionArgs args(thisObject, &b, 1);
+
+			auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+			jassert(engine != nullptr);
+
+			if (engine != nullptr)
+			{
+				engine->maximumExecutionTime = RelativeTime(0.5);
+				engine->callExternalFunction(loadRoutine, args, &r);
+
+				if (r.failed())
+				{
+					debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+				}
+			}
+		}
+#endif
 
 		void preRecompileCallback() override
 		{
 			ScriptComponent::preRecompileCallback();
+
+			timerRoutine.clear();
+			loadRoutine.clear();
+			mouseRoutine.clear();
+
 			stopTimer();
-			
 		}
 
 		bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
@@ -1304,6 +1341,9 @@ public:
 
 		/** Calls the paint routine immediately. */
 		void repaintImmediately();
+
+		/** Sets a Path as mouse cursor for this panel. */
+		void setMouseCursor(var pathIcon, var colour, var hitPoint);
 
 		/** Sets an JSON animation. */
 		void setAnimation(String base64LottieAnimation);
@@ -1389,6 +1429,11 @@ public:
 		{
 			
 		};
+
+		MouseCursorInfo getMouseCursorPath() const
+		{
+			return mouseCursorPath;
+		}
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override
 		{
@@ -1524,9 +1569,12 @@ public:
 		ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> graphics;
 
 		var paintRoutine;
-		var mouseRoutine;
-		var timerRoutine;
-		var loadRoutine;
+
+		
+
+		WeakCallbackHolder timerRoutine;
+		WeakCallbackHolder loadRoutine;
+		WeakCallbackHolder mouseRoutine;
 
 		var dragBounds;
 
@@ -1537,7 +1585,7 @@ public:
 		};
 		
 		WeakReference<ScriptPanel> parentPanel;
-		Array<WeakReference<ScriptPanel>> childPanels;
+		ReferenceCountedArray<ScriptPanel> childPanels;
 
 		bool isChildPanel = false;
 
@@ -1977,7 +2025,7 @@ public:
 		static ScriptComponent * createComponentFromValueTree(Content* c, const ValueTree& v);
 		static bool hasLocation(ScriptComponent* sc);
 		static void sanitizeNumberProperties(juce::ValueTree copy);
-		static var getCleanedComponentValue(const var& data);
+		static var getCleanedComponentValue(const var& data, bool allowStrings);
 	};
 
 	template <class SubType> SubType* createNewComponent(const Identifier& id, int x, int y)

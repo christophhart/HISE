@@ -117,8 +117,10 @@ int64_t scriptnode::VirtualHiseFile::read(uint64_t startPositionInFile, void* ta
 		if (!stream->setPosition(startPositionInFile))
 			return -1;
 
-		return stream->read(targetBuffer, bytesToRead);
+		return (int64_t)stream->read(targetBuffer, (int)bytesToRead);
 	}
+
+	return 0;
 }
 
 

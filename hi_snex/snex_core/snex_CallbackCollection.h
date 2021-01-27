@@ -41,6 +41,8 @@ template <typename T> struct _ramp
 {
 	using Type = _ramp<T>;
 
+	_ramp() {};
+
 	struct Wrapper
 	{
 		JIT_MEMBER_WRAPPER_0(void, Type, reset);

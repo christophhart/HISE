@@ -32,6 +32,7 @@
 
 namespace hise { using namespace juce;
 
+#if HISE_INCLUDE_OLD_MONO_FILTER
 MonoFilterEffect::MonoFilterEffect(MainController *mc, const String &id) :
 MonophonicEffectProcessor(mc, id),
 changeFlag(false),
@@ -290,20 +291,22 @@ ProcessorEditorBody *MonoFilterEffect::createEditor(ProcessorEditor *parentEdito
 #endif
 }
 
+#endif
+
 PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int numVoices) :
 	VoiceEffectProcessor(mc, uid, numVoices),
 	voiceFilters(numVoices),
 	monoFilters(1),
-	frequency(getDefaultValue(MonoFilterEffect::Parameters::Frequency)),
-	q(getDefaultValue(MonoFilterEffect::Parameters::Q)),
-	gain(getDefaultValue(MonoFilterEffect::Parameters::Gain)),
-	mode((FilterBank::FilterMode)(int)getDefaultValue(MonoFilterEffect::Parameters::Mode))
+	frequency(getDefaultValue(PolyFilterEffect::Parameters::Frequency)),
+	q(getDefaultValue(PolyFilterEffect::Parameters::Q)),
+	gain(getDefaultValue(PolyFilterEffect::Parameters::Gain)),
+	mode((FilterBank::FilterMode)(int)getDefaultValue(PolyFilterEffect::Parameters::Mode))
 {
 	modChains.reserve(numInternalChains);
 
 	modChains += {this, "Frequency Modulation"};
 	modChains += {this, "Gain Modulation"};
-	modChains += {this, "Bipolar Freq Modulation"};
+	modChains += {this, "Bipolar Freq Modulation", ModulatorChain::ModulationType::Normal, Modulation::PanMode};
 	modChains += {this, "Q Modulation"};
 
 	finaliseModChains();
@@ -317,7 +320,7 @@ PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int nu
 	{
 		if (t != nullptr)
 		{
-			auto freq = t->getAttribute(MonoFilterEffect::Parameters::Frequency);
+			auto freq = t->getAttribute(PolyFilterEffect::Parameters::Frequency);
 			auto v = jmap<float>(input, 20.0f, freq);
 			return HiSlider::getFrequencyString(v);
 		}
@@ -333,7 +336,7 @@ PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int nu
 	{
 		if (t != nullptr)
 		{
-			auto g = t->getAttribute(MonoFilterEffect::Parameters::Gain);
+			auto g = t->getAttribute(PolyFilterEffect::Parameters::Gain);
 			auto v = (input - 0.5f) * 2.0f * g;
 			return String(v, 1) + " dB";
 		}
@@ -354,8 +357,8 @@ PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int nu
     parameterNames.add("Quality");
 	parameterNames.add("BipolarIntensity");
 
-	voiceFilters.setMode((FilterBank::FilterMode)(int)getDefaultValue(MonoFilterEffect::Mode));
-	monoFilters.setMode((FilterBank::FilterMode)(int)getDefaultValue(MonoFilterEffect::Mode));
+	voiceFilters.setMode((FilterBank::FilterMode)(int)getDefaultValue(PolyFilterEffect::Mode));
+	monoFilters.setMode((FilterBank::FilterMode)(int)getDefaultValue(PolyFilterEffect::Mode));
 }
 
 PolyFilterEffect::~PolyFilterEffect()
@@ -369,12 +372,10 @@ PolyFilterEffect::~PolyFilterEffect()
 void PolyFilterEffect::processorChanged(EventType /*t*/, Processor* /*p*/)
 {
 	bool before = polyMode;
-
 	polyMode = false;
 
 	for (auto& mb : modChains)
 	{
-
 		if (mb.getChain()->hasActivePolyMods())
 		{
 			polyMode = true;
@@ -384,10 +385,10 @@ void PolyFilterEffect::processorChanged(EventType /*t*/, Processor* /*p*/)
 
 	if (polyMode != before)
 	{
-		setInternalAttribute(MonoFilterEffect::Parameters::Frequency, frequency);
-		setInternalAttribute(MonoFilterEffect::Parameters::Q, q);
-		setInternalAttribute(MonoFilterEffect::Parameters::Gain, gain);
-		setInternalAttribute(MonoFilterEffect::Parameters::Mode, (float)(int)mode);
+		setInternalAttribute(PolyFilterEffect::Parameters::Frequency, frequency);
+		setInternalAttribute(PolyFilterEffect::Parameters::Q, q);
+		setInternalAttribute(PolyFilterEffect::Parameters::Gain, gain);
+		setInternalAttribute(PolyFilterEffect::Parameters::Mode, (float)(int)mode);
 	}
 }
 
@@ -395,34 +396,33 @@ float PolyFilterEffect::getAttribute(int parameterIndex) const
 {
 	switch (parameterIndex)
 	{
-	case MonoFilterEffect::Gain:		return gain;
-	case MonoFilterEffect::Frequency:	return frequency;
-	case MonoFilterEffect::Q:			return q;
-	case MonoFilterEffect::Mode:		return (float)(int)mode;
-    case MonoFilterEffect::Quality:		return (float)getSampleAmountForRenderQuality();
-	case MonoFilterEffect::BipolarIntensity: return bipolarIntensity;
+	case PolyFilterEffect::Gain:		return gain;
+	case PolyFilterEffect::Frequency:	return frequency;
+	case PolyFilterEffect::Q:			return q;
+	case PolyFilterEffect::Mode:		return (float)(int)mode;
+    case PolyFilterEffect::Quality:		return (float)getSampleAmountForRenderQuality();
+	case PolyFilterEffect::BipolarIntensity: return bipolarParameterValue;
 	default:							jassertfalse; return 1.0f;
 	}
 }
 
 void PolyFilterEffect::setInternalAttribute(int parameterIndex, float newValue)
 {
-	
-
 	auto& filterBankToUse = hasPolyMods() ? voiceFilters : monoFilters;
 
 	switch (parameterIndex)
 	{
-	case MonoFilterEffect::Gain:		gain = newValue;
+	case PolyFilterEffect::Gain:		gain = newValue;
 										filterBankToUse.setGain(Decibels::decibelsToGain(newValue));			  break;
-	case MonoFilterEffect::Frequency:	frequency = newValue;
+	case PolyFilterEffect::Frequency:	frequency = newValue;
 										filterBankToUse.setFrequency(newValue); break;
-	case MonoFilterEffect::Q:			q = newValue;
+	case PolyFilterEffect::Q:			q = newValue;
 										filterBankToUse.setQ(newValue); break;
-	case MonoFilterEffect::Mode:		mode = (FilterBank::FilterMode)(int)newValue;
+	case PolyFilterEffect::Mode:		mode = (FilterBank::FilterMode)(int)newValue;
 										filterBankToUse.setMode(mode); break;
-    case MonoFilterEffect::Quality:		setRenderQuality((int)newValue); break;
-	case MonoFilterEffect::BipolarIntensity: bipolarIntensity = jlimit<float>(-1.0f, 1.0f, newValue); break;
+    case PolyFilterEffect::Quality:		setRenderQuality((int)newValue); break;
+	case PolyFilterEffect::BipolarIntensity: bipolarParameterValue = jlimit<float>(-1.0f, 1.0f, newValue);
+										bipolarIntensity.setTargetValue(bipolarParameterValue); break;
 	default:							jassertfalse; return;
 	}
 
@@ -433,12 +433,12 @@ float PolyFilterEffect::getDefaultValue(int parameterIndex) const
 {
 	switch (parameterIndex)
 	{
-	case MonoFilterEffect::Gain:		return 0.0f;
-	case MonoFilterEffect::Frequency:	return 20000.0f;
-	case MonoFilterEffect::Q:			return 1.0f;
-	case MonoFilterEffect::Mode:		return (float)(int)FilterBank::FilterMode::StateVariableLP;
-	case MonoFilterEffect::Quality:   return 256.0f;
-	case MonoFilterEffect::BipolarIntensity: return 0.0f;
+	case PolyFilterEffect::Gain:		return 0.0f;
+	case PolyFilterEffect::Frequency:	return 20000.0f;
+	case PolyFilterEffect::Q:			return 1.0f;
+	case PolyFilterEffect::Mode:		return (float)(int)FilterBank::FilterMode::StateVariableLP;
+	case PolyFilterEffect::Quality:   return 256.0f;
+	case PolyFilterEffect::BipolarIntensity: return 0.0f;
 	default:		jassertfalse; return 1.0f;
 	}
 }
@@ -447,24 +447,24 @@ void PolyFilterEffect::restoreFromValueTree(const ValueTree &v)
 {
 	EffectProcessor::restoreFromValueTree(v);
 
-	loadAttribute(MonoFilterEffect::Gain, "Gain");
-	loadAttribute(MonoFilterEffect::Frequency, "Frequency");
-	loadAttribute(MonoFilterEffect::Q, "Q");
-	loadAttribute(MonoFilterEffect::Mode, "Mode");
-    loadAttribute(MonoFilterEffect::Quality, "Quality");
-	loadAttribute(MonoFilterEffect::BipolarIntensity, "BipolarIntensity");
+	loadAttribute(PolyFilterEffect::Gain, "Gain");
+	loadAttribute(PolyFilterEffect::Frequency, "Frequency");
+	loadAttribute(PolyFilterEffect::Q, "Q");
+	loadAttribute(PolyFilterEffect::Mode, "Mode");
+    loadAttribute(PolyFilterEffect::Quality, "Quality");
+	loadAttribute(PolyFilterEffect::BipolarIntensity, "BipolarIntensity");
 }
 
 ValueTree PolyFilterEffect::exportAsValueTree() const
 {
 	ValueTree v = EffectProcessor::exportAsValueTree();
 
-	saveAttribute(MonoFilterEffect::Gain, "Gain");
-	saveAttribute(MonoFilterEffect::Frequency, "Frequency");
-	saveAttribute(MonoFilterEffect::Q, "Q");
-	saveAttribute(MonoFilterEffect::Mode, "Mode");
-    saveAttribute(MonoFilterEffect::Quality, "Quality");
-	saveAttribute(MonoFilterEffect::BipolarIntensity, "BipolarIntensity");
+	saveAttribute(PolyFilterEffect::Gain, "Gain");
+	saveAttribute(PolyFilterEffect::Frequency, "Frequency");
+	saveAttribute(PolyFilterEffect::Q, "Q");
+	saveAttribute(PolyFilterEffect::Mode, "Mode");
+    saveAttribute(PolyFilterEffect::Quality, "Quality");
+	saveAttribute(PolyFilterEffect::BipolarIntensity, "BipolarIntensity");
 
 	return v;
 }
@@ -483,7 +483,9 @@ void PolyFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	VoiceEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
+	bipolarIntensity.reset(sampleRate / 64.0, 0.05);
 	voiceFilters.setSampleRate(sampleRate);
+	monoFilters.setSampleRate(sampleRate);
 	
 }
 
@@ -509,7 +511,11 @@ void PolyFilterEffect::renderNextBlock(AudioSampleBuffer &b, int startSample, in
 		r.freqModValue = modChains[FrequencyChain].getOneModulationValue(startSample);
 
 		auto bipolarFMod = modChains[BipolarFrequencyChain].getOneModulationValue(startSample);
-		r.freqModValue += (double)(bipolarIntensity * bipolarFMod);
+
+		auto bp = bipolarIntensity.getNextValue();
+
+		r.bipolarDelta = (double)(bp * bp * bp * bipolarFMod);
+
 		r.gainModValue = (double)modChains[GainChain].getOneModulationValue(startSample);
 		r.qModValue = (double)modChains[ResonanceChain].getOneModulationValue(startSample);
 		
@@ -591,7 +597,10 @@ void PolyFilterEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int sta
 	r.freqModValue = modChains[FrequencyChain].getOneModulationValue(startSample);
 
 	auto bipolarFMod = modChains[BipolarFrequencyChain].getOneModulationValue(startSample);
-	r.freqModValue += (double)(bipolarIntensity * bipolarFMod);
+
+	auto bp = bipolarIntensity.getNextValue();
+
+	r.bipolarDelta = (double)(bp * bp * bp * bipolarFMod);
 	r.gainModValue = (double)modChains[GainChain].getOneModulationValue(startSample);
 	r.qModValue = (double)modChains[ResonanceChain].getOneModulationValue(startSample);
 

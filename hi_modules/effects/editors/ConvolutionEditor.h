@@ -139,7 +139,10 @@ public:
 
 		const float numSamples = (float)sampleProcessor->getBuffer()->getNumSamples();
 		const float dampingValue = Decibels::decibelsToGain(getProcessor()->getAttribute(ConvolutionEffect::Damping));
-		const auto range = Range<float>(sampleProcessor->getRange().getStart() / numSamples, sampleProcessor->getRange().getEnd() / numSamples);
+
+		auto numSamplesToUse = jmax(numSamples, 1.0f);
+
+		const auto range = Range<float>(sampleProcessor->getRange().getStart() / numSamplesToUse, sampleProcessor->getRange().getEnd() / numSamplesToUse);
 
 		fadeoutDisplay->setFadeoutValue(dampingValue, range);
 

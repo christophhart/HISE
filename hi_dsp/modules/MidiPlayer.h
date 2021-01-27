@@ -449,6 +449,7 @@ public:
 		LoopEnabled,			   ///< toggles between oneshot and loop playback
 		LoopStart,				   ///< start of the (loop) playback
 		LoopEnd,				   ///< end of the (loop) playback
+		PlaybackSpeed,			   ///< the playback speed of the MidiPlayer
 		numSpecialParameters
 	};
 
@@ -576,7 +577,7 @@ public:
 		by passing in the timestamp of the current event within the buffer. */
 	bool stop(int timestampInBuffer=0);
 
-	double getTicksPerSample() const { return ticksPerSample; }
+	double getTicksPerSample() const { return ticksPerSample * playbackSpeed; }
 
 	/** Starts recording. If the sequence is already playing, it switches into overdub mode, otherwise it also starts playing. */
 	bool record(int timestampInBuffer=0);
@@ -659,7 +660,7 @@ private:
 
 	double getPlaybackPositionFromTicksSinceStart() const;
 
-	void updatePositionInCurrentSequence();
+	void updatePositionInCurrentSequence(bool ignoreSpeed=false);
 
 	int lastBlockSize = -1;
 
@@ -684,6 +685,7 @@ private:
 
 	bool useNextNoteAsRecordStartPos = false;
 	double recordStart = 0.0;
+	double playbackSpeed = 1.0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiPlayer);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiPlayer);

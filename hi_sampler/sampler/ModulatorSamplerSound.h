@@ -299,8 +299,15 @@ public:
 	{
 		checkFileReference();
 
+		if (noteRangeExceedsMaxPitch())
+			preloadSize = -1;
+
 		FOR_EVERY_SOUND(setPreloadSize(preloadSize, true));
 	}
+
+	bool noteRangeExceedsMaxPitch() const;
+
+	void loadEntireSampleIfMaxPitch();
 
 	// ====================================================================================================================
 
@@ -346,6 +353,8 @@ public:
 	*	it will call StreamingSamplerSound::getPeakValue(), which scans the whole file.
 	*/
 	void calculateNormalizedPeak();;
+
+	void removeNormalisationInfo(UndoManager* um);
 
 	/**	Returns the gain value that must be applied to normalize the volume of the sample ( 1.0 / peakValue ). */
 	float getNormalizedPeak() const;

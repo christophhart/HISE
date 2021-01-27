@@ -1680,15 +1680,13 @@ void ScriptCreatedComponentWrappers::PanelWrapper::subComponentAdded(ScriptCompo
 void ScriptCreatedComponentWrappers::PanelWrapper::subComponentRemoved(ScriptComponent* componentAboutToBeRemoved)
 {
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
-	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
-
+	
 	for (int i = 0; i < childPanelWrappers.size(); i++)
 	{
 		if (childPanelWrappers[i]->getScriptComponent() == componentAboutToBeRemoved)
 		{
 			bpc->removeChildComponent(childPanelWrappers[i]->getComponent());
-			childPanelWrappers.remove(i);
-			return;
+			childPanelWrappers.remove(i--);
 		}
 	}
 }
@@ -1713,6 +1711,23 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 	bp->setJSONPopupData(panel->getJSONPopupData(), panel->getPopupSize());
 	bp->setup(getProcessor(), getIndex(), panel->name.toString());
 	bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
+
+	auto cursor = panel->getMouseCursorPath();
+
+	if (!cursor.path.isEmpty())
+	{
+		auto s = 80;
+
+		Image icon(Image::ARGB, s, s, true);
+		Graphics g(icon);
+
+		PathFactory::scalePath(cursor.path, { 0.0f, 0.0f, (float)s, (float)s });
+
+		g.setColour(cursor.c);
+		g.fillPath(cursor.path);
+		MouseCursor c(icon, roundToInt(cursor.hitPoint.x * s), roundToInt(cursor.hitPoint.y * s));
+		bp->setMouseCursor(c);
+	}
 
 	component = bp;
 
@@ -1836,27 +1851,64 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateValue(var newValue
 	}
 }
 
-class ScriptCreatedComponentWrappers::AudioWaveformWrapper::SamplerListener : public SafeChangeListener
+class ScriptCreatedComponentWrappers::AudioWaveformWrapper::SamplerListener : public SafeChangeListener,
+																			  public SampleMap::Listener
 {
 public:
 
 	SamplerListener(ModulatorSampler* s_, SamplerSoundWaveform* waveform_) :
 		s(s_),
+		samplemap(s->getSampleMap()),
 		waveform(waveform_)
 	{
+		samplemap->addListener(this);
 		s->addChangeListener(this);
 
 		if (auto v = s->getLastStartedVoice())
-		{
 			lastSound = v->getCurrentlyPlayingSound();
-		}
 	}
 
 	~SamplerListener()
 	{
 		lastSound = nullptr;
 
-		s->removeChangeListener(this);
+		if (s != nullptr)
+			s->removeChangeListener(this);
+
+		if (samplemap.get() != nullptr)
+			samplemap->removeListener(this);
+	}
+
+	void refreshAfterSampleMapChange()
+	{
+		if (displayedIndex != -1)
+		{
+			if (auto newSound = s->getSound(displayedIndex))
+			{
+				waveform->setSoundToDisplay(dynamic_cast<ModulatorSamplerSound*>(newSound), 0);
+				lastSound = newSound;
+			}
+			else
+			{
+				waveform->setSoundToDisplay(nullptr, 0);
+				lastSound = nullptr;
+			}
+		}
+	}
+
+	void sampleMapWasChanged(PoolReference ) override
+	{
+		refreshAfterSampleMapChange();
+	}
+
+	void sampleAmountChanged() override 
+	{
+		refreshAfterSampleMapChange();
+	};
+
+	void sampleMapCleared() override 
+	{
+		refreshAfterSampleMapChange();
 	}
 
     void setActive(bool shouldBeActive)
@@ -1883,8 +1935,11 @@ public:
 	}
 
 
+	int displayedIndex = -1;
+
     bool active = true;
-	ModulatorSampler* s;
+	WeakReference<ModulatorSampler> s;
+	WeakReference<SampleMap> samplemap;
 	Component::SafePointer<SamplerSoundWaveform> waveform;
 	SynthesiserSound::Ptr lastSound;
 
@@ -1983,6 +2038,7 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateSampleIndex(Scr
             if(samplerListener != nullptr)
             {
                 samplerListener->setActive(newValue == -1);
+				samplerListener->displayedIndex = newValue;
             }
             
             if(newValue != -1 && lastIndex != newValue)

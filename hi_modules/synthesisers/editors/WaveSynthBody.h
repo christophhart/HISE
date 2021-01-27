@@ -67,6 +67,7 @@ public:
 		panSlider2->updateValue();
 
 		enableSecondButton->updateValue();
+		enableSyncButton->updateValue();
 
 		pulseSlider1->updateValue();
 		pulseSlider2->updateValue();
@@ -86,6 +87,7 @@ public:
 			octaveSlider2->setEnabled(false);
 			detuneSlider2->setEnabled(false);
 			panSlider2->setEnabled(false);
+			
 		}
 	};
 
@@ -139,6 +141,7 @@ private:
     ScopedPointer<HiSlider> detuneSlider2;
     ScopedPointer<HiSlider> detuneSlider;
     ScopedPointer<HiToggleButton> enableSecondButton;
+	ScopedPointer<HiToggleButton> enableSyncButton;
     ScopedPointer<HiSlider> pulseSlider1;
     ScopedPointer<HiSlider> pulseSlider2;
 
