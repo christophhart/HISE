@@ -2319,8 +2319,24 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 
 	if (auto sound = soundSelection.getSelectedItem(soundIndex).get())
 	{
-		auto id = sampleIds[propertyIndex];
-		sound->setSampleProperty(id, newValue, false);
+        if (propertyIndex == 1)
+        {
+            if ((newValue.toString().getLastCharacters(4) == ".wav" || newValue.toString().getLastCharacters(4) == ".aif" || newValue.toString().getLastCharacters(5) == ".aiff" || newValue.toString().getLastCharacters(4) == ".WAV" || newValue.toString().getLastCharacters(4) == ".AIF" || newValue.toString().getLastCharacters(5) == ".AIFF") && File(newValue.toString()).existsAsFile() == true)
+            {
+                const String &newSample = newValue.toString();
+                sound->replaceFile(newSample);
+                sound->sampleExists = true;
+            }
+            else
+            {
+                sound->sampleExists = false;
+            }
+        }
+        else
+        {
+            auto id = sampleIds[propertyIndex];
+            sound->setSampleProperty(id, newValue, false);
+        }
 	}
 	else
 	{

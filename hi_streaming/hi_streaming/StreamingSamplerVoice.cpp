@@ -575,6 +575,8 @@ template <typename SignalType, bool isFloat> void interpolateMonoSamples(const S
 
 	constexpr float gainFactor = isFloat ? 1.0f : (1.0f / (float)INT16_MAX);
 
+	int osFactor = 4;
+
 	if (pitchData != nullptr)
 	{
 		pitchData += startSample;
@@ -583,17 +585,27 @@ template <typename SignalType, bool isFloat> void interpolateMonoSamples(const S
 
 		for (int i = 0; i < numSamples; i++)
 		{
-			const int pos = int(indexInBufferFloat);
-			const float alpha = indexInBufferFloat - (float)pos;
-			const float invAlpha = 1.0f - alpha;
+            		float preL = 0;
+            		if (pitchData[i] > 0.5)
+                		osFactor = 8;
+            		for (int z = 0; z < osFactor; z++)
+            		{
+				const int pos = int(indexInBufferFloat);
+				float alpha = indexInBufferFloat - (float)pos;
+				alpha = pow(alpha, jmax(1.0f, 0.25f / pitchData[i] * osFactor));
+				const float invAlpha = 1.0f - alpha;
 
-			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
+				float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
 
-			outL[i] = l * gainFactor;
 
-			jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
+				jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
 
-			indexInBufferFloat += pitchData[i];
+				indexInBufferFloat += (pitchData[i] / osFactor);
+
+                		preL += l;
+			}
+
+			outL[i] = preL * gainFactor / osFactor;
 		}
 	}
 	else
@@ -603,16 +615,24 @@ template <typename SignalType, bool isFloat> void interpolateMonoSamples(const S
 
 		while (numSamples > 0)
 		{
-			const int pos = int(indexInBufferFloat);
-			const float alpha = indexInBufferFloat - (float)pos;
-			const float invAlpha = 1.0f - alpha;
+            		float preL = 0;
+            		if (uptimeDeltaFloat > 0.5)
+                		osFactor = 8;
+            		for (int z = 0; z < osFactor; z++)
+            		{
+				const int pos = int(indexInBufferFloat);
+				float alpha = indexInBufferFloat - (float)pos;
+				alpha = pow(alpha, jmax(1.0f, 0.25f / uptimeDeltaFloat * osFactor));
+				const float invAlpha = 1.0f - alpha;
 
-			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
+				float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
 
-			*outL++ = l * gainFactor;
 
-			indexInBufferFloat += uptimeDeltaFloat;
+				indexInBufferFloat += (uptimeDeltaFloat / osFactor);
 
+                		preL += l;
+			}
+			*outL++ = preL * gainFactor / osFactor;
 			numSamples--;
 		}
 	}
@@ -622,6 +642,8 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 {
 	constexpr float gainFactor = isFloat ? 1.0f : (1.0f / (float)INT16_MAX);
 
+	int osFactor = 4;
+
 	if (pitchData != nullptr)
 	{
 		pitchData += startSample;
@@ -630,23 +652,32 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 
 		for (int i = 0; i < numSamples; i++)
 		{
+            		float preL = 0;
+            		float preR = 0;
+            		if (pitchData[i] > 0.5)
+                		osFactor = 8;
+            		for (int z = 0; z < osFactor; z++)
+            		{
 			const int pos = int(indexInBufferFloat);
 
 			if (pos >= maxIndexInBuffer)
 				return;
 
-			const float alpha = indexInBufferFloat - (float)pos;
+			float alpha = indexInBufferFloat - (float)pos;
+			alpha = pow(alpha, jmax(1.0f, 0.25f / pitchData[i] * osFactor));
 			const float invAlpha = 1.0f - alpha;
 
 			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
 			float r = ((float)inR[pos] * invAlpha + (float)inR[pos + 1] * alpha);
 
-			outL[i] = l * gainFactor;
-			outR[i] = r * gainFactor;
-
 			jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
 
-			indexInBufferFloat += pitchData[i];
+			indexInBufferFloat += (pitchData[i] / osFactor);
+                	preL += l;
+                	preR += r;
+			}
+			outL[i] = preL * gainFactor / osFactor;
+			outR[i] = preR * gainFactor / osFactor;
 		}
 	}
 	else
@@ -662,17 +693,27 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 
 		while (numSamples > 0)
 		{
+            		float preL = 0;
+            		float preR = 0;
+            		if (uptimeDeltaFloat > 0.5)
+                		osFactor = 8;
+            		for (int z = 0; z < osFactor; z++)
+            		{
 			const int pos = int(indexInBufferFloat);
-			const float alpha = indexInBufferFloat - (float)pos;
+			float alpha = indexInBufferFloat - (float)pos;
+			alpha = pow(alpha, jmax(1.0f, 0.25f / uptimeDeltaFloat * osFactor));
 			const float invAlpha = 1.0f - alpha;
 
 			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
 			float r = ((float)inR[pos] * invAlpha + (float)inR[pos + 1] * alpha);
 
-			*outL++ = l * gainFactor;
-			*outR++ = r * gainFactor;
+			indexInBufferFloat += (uptimeDeltaFloat / osFactor);
+                	preL += l;
+                	preR += r;
+			}
 
-			indexInBufferFloat += uptimeDeltaFloat;
+			*outL++ = preL * gainFactor / osFactor;
+			*outR++ = preR * gainFactor / osFactor;
 
 			numSamples--;
 		}

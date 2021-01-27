@@ -3137,7 +3137,7 @@ void ScriptingApi::Content::ScriptPanel::setMouseCursor(var pathIcon, var colour
 		{
 			if (ar->size() == 2)
 			{
-				mouseCursorPath.hitPoint = Point<float>((float)((*ar)[0]), (float)((*ar)[1]));
+				mouseCursorPath.hitPoint = juce::Point<float>((float)((*ar)[0]), (float)((*ar)[1]));
 				
 				if (!Rectangle<float>(0.0f, 0.0f, 1.0f, 1.0f).contains(mouseCursorPath.hitPoint))
 					reportScriptError("hitPoint must be within [0, 0, 1, 1] area");

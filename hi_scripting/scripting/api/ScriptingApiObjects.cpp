@@ -2738,6 +2738,7 @@ struct ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getSampleLength);
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setSampleRange);
 	API_VOID_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, setFile);
+	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getFile);
 };
 
 
@@ -2768,6 +2769,7 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 	ADD_API_METHOD_0(getSampleLength);
 	ADD_API_METHOD_2(setSampleRange);
 	ADD_API_METHOD_1(setFile);
+	ADD_API_METHOD_0(getFile);
 }
 
 
@@ -2844,6 +2846,11 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 
 		asp->setLoadedFile(fileName, true);
 	}
+}
+
+String ScriptingObjects::ScriptingAudioSampleProcessor::getFile()
+{
+    return dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getFileName();
 }
 
 void ScriptingObjects::ScriptingAudioSampleProcessor::setSampleRange(int start, int end)
@@ -4517,7 +4524,7 @@ bool ScriptingObjects::ScriptedMidiPlayer::record(int timestamp)
 	return false;
 }
 
-bool ScriptingObjects::ScriptedMidiPlayer::setFile(var fileName, bool clearExistingSequences, bool selectNewSequence)
+bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearExistingSequences, bool selectNewSequence)
 {
 	if (auto pl = getPlayer())
 	{

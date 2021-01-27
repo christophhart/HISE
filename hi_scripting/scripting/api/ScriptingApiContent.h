@@ -1246,7 +1246,7 @@ public:
 		{
 			Path path;
 			Colour c = juce::Colours::white;
-			Point<float> hitPoint = { 0.0f, 0.0f };
+			juce::Point<float> hitPoint = { 0.0f, 0.0f };
 		} mouseCursorPath;
 
 
