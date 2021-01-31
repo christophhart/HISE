@@ -37,243 +37,10 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-namespace prototypes
-{
-	using namespace snex;
-	using namespace Types;
-
-	typedef void(*prepare)(void*, PrepareSpecs*);
-	typedef void(*reset)(void*);
-	typedef void(*setParameter)(void*, double);
-	typedef void(*handleHiseEvent)(void*, HiseEvent*);
-	typedef void(*initialise)(void*, NodeBase*);
-	typedef void(*destruct)(void*);
-	typedef int(*handleModulation)(void*, double*);
-
-	template <typename ProcessDataType> using process = void(*)(void*, ProcessDataType*);
-	template <typename FrameDataType> using processFrame = void(*)(void*, FrameDataType*);
-
-	template <typename T> struct static_wrappers
-	{
-		static T* create(void* obj) { return new (obj)T(); };
-		static void destruct(void* obj) { static_cast<T*>(obj)->~T(); }
-		static void prepare(void* obj, PrepareSpecs* ps) { static_cast<T*>(obj)->prepare(*ps); };
-		template <typename ProcessDataType> static void process(void* obj, ProcessDataType* data) { static_cast<T*>(obj)->process(*data); }
-		template <typename FrameDataType> static void processFrame(void* obj, FrameDataType* data) { static_cast<T*>(obj)->processFrame(*data); };
-		static void reset(void* obj) { static_cast<T*>(obj)->reset(); }
-		static void handleHiseEvent(void* obj, HiseEvent* e) { static_cast<T*>(obj)->handleHiseEvent(*e); };
-		static void initialise(void* obj, NodeBase* n) { static_cast<T*>(obj)->initialise(n); };
-		static int handleModulation(void* obj, double* modValue) { return (int)static_cast<T*>(obj)->handleModulation(*modValue); }
-	};
-}
-
 using namespace snex;
 using namespace snex::Types;
 
-/** A mysterious wrapper that will use a rather old-school, plain C API for the callbacks. */
-struct OpaqueNode
-{
-	static constexpr int NumMaxParameters = 16;
-	static constexpr int SmallObjectSize = 1024;
 
-	using MonoFrame = span<float, 1>;
-	using StereoFrame = span<float, 2>;
-
-	SN_GET_SELF_AS_OBJECT(OpaqueNode);
-
-	OpaqueNode()
-	{
-		memset(smallObjectBuffer, 0, SmallObjectSize);
-	}
-
-	OpaqueNode(OpaqueNode&& other) = default;
-	OpaqueNode& operator=(OpaqueNode&& other) = default;
-
-	virtual ~OpaqueNode()
-	{
-		callDestructor();
-	}
-	 
-	template <typename T> void create()
-	{
-		callDestructor();
-
-		constexpr int objectSize = sizeof(T);
-
-		if (objectSize < SmallObjectSize)
-		{
-			obj = smallObjectBuffer;
-		}
-		else
-		{
-			bigBuffer.allocate(sizeof(T), false);
-			obj = bigBuffer.get();
-		}
-
-		destructFunc =		prototypes::static_wrappers<T>::destruct;
-		prepareFunc =		prototypes::static_wrappers<T>::prepare;
-		resetFunc =			prototypes::static_wrappers<T>::reset;	
-		eventFunc =			prototypes::static_wrappers<T>::handleHiseEvent;
-        processFunc =		prototypes::static_wrappers<T>::template process<ProcessDataDyn>;
-        monoFrame =			prototypes::static_wrappers<T>::template processFrame<MonoFrame>;
-        stereoFrame =		prototypes::static_wrappers<T>::template processFrame<StereoFrame>;
-		initFunc =		    prototypes::static_wrappers<T>::initialise;
-
-		auto t = prototypes::static_wrappers<T>::create(obj);
-		isPoly = t->isPolyphonic();
-		
-		ParameterDataList pList;
-
-		t->createParameters(pList);
-
-		numParameters = pList.size();
-
-		for (int i = 0; i < numParameters; i++)
-		{
-			parameters[i] = pList[i].info;
-			parameterFunctions[i] = pList[i].callback.getFunction();
-			parameterObjects[i] = pList[i].callback.getObjectPtr();
-		}
-	}
-
-	template <typename T> T& as()
-	{
-		return *static_cast<T*>(obj);
-	}
-
-	template <typename T> const T& as() const
-	{
-		return *static_cast<T*>(obj);
-	}
-
-	void initialise(NodeBase* n)
-	{
-		initFunc(getObjectPtr(), n);
-	}
-
-	bool isPolyphonic() const { return isPoly; };
-
-	void prepare(PrepareSpecs ps)
-	{
-		prepareFunc(obj, &ps);
-		resetFunc(obj);
-	}
-
-	void process(ProcessDataDyn& data)
-	{
-		processFunc(obj, &data);
-	}
-
-	void processFrame(MonoFrame& d)
-	{
-		monoFrame(obj, &d);
-	}
-
-	void processFrame(StereoFrame& d)
-	{
-		stereoFrame(obj, &d);
-	}
-
-	void reset()
-	{
-		resetFunc(obj);
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		eventFunc(obj, &e);
-	}
-
-	void createParameters(ParameterDataList& l)
-	{
-		for (int i = 0; i < numParameters; i++)
-		{
-			parameter::data d;
-			d.info = parameters[i];
-			d.callback.referTo(parameterObjects[i], parameterFunctions[i]);
-			l.add(d);
-		}
-	}
-
-	template <int P> static void setParameterStatic(void* obj, double v)
-	{
-		// should always be forwarded directly...
-		jassertfalse;
-	}
-
-	void* getObjectPtr() { return obj; };
-
-	void setExternalPtr(void* externPtr)
-	{
-		callDestructor();
-
-		obj = externPtr;
-	}
-
-	void callDestructor()
-	{
-		if (destructFunc != nullptr && getObjectPtr() != nullptr)
-		{
-			destructFunc(obj);
-
-			if (obj == bigBuffer)
-				bigBuffer.free();
-			else if (obj == smallObjectBuffer)
-				memset(smallObjectBuffer, 0, SmallObjectSize);
-
-			destructFunc = nullptr;
-			obj = nullptr;
-		}
-	}
-
-private:
-
-	uint8 smallObjectBuffer[SmallObjectSize];
-	HeapBlock<uint8> bigBuffer;
-
-	void* obj = nullptr;
-	bool isPoly = false;
-
-	prototypes::handleHiseEvent eventFunc = nullptr;
-	prototypes::destruct destructFunc = nullptr;
-	prototypes::prepare prepareFunc = nullptr;
-	prototypes::reset resetFunc = nullptr;
-	prototypes::process<ProcessDataDyn> processFunc = nullptr;
-	prototypes::processFrame<MonoFrame> monoFrame = nullptr;
-	prototypes::processFrame<StereoFrame> stereoFrame = nullptr;
-	prototypes::initialise initFunc = nullptr;
-
-	public:
-
-	span<parameter::pod, NumMaxParameters> parameters;
-	span<prototypes::setParameter, NumMaxParameters> parameterFunctions;
-	span<void*, NumMaxParameters> parameterObjects;
-
-	int numParameters = 0;
-};
-
-struct OpaqueModNode : public OpaqueNode
-{
-	SN_GET_SELF_AS_OBJECT(OpaqueModNode);
-
-	template <typename T> void create()
-	{
-		OpaqueNode::create<T>();
-		modFunc = prototypes::static_wrappers<T>::handleModulation;
-
-		auto& typedObject = as<T>();
-
-		isNormalised = typedObject.getWrappedObject().isNormalisedModulation();
-	}
-
-	bool handleModulation(double& d)
-	{
-		return modFunc(getObjectPtr(), &d) > 0;
-	}
-
-	bool isNormalised = false;
-	prototypes::handleModulation modFunc;
-};
 
 namespace scriptnode_initialisers
 {
@@ -564,7 +331,7 @@ public:
 
 	static Identifier getStaticId() { return T::getStaticId(); };
 
-	template <int P> static void setParameter(void* obj, double value)
+	template <int P> static void setParameterStatic(void* obj, double value)
 	{
 		static_cast<init*>(obj)->setParameter<P>(value);
 	}
@@ -898,8 +665,7 @@ template <int BlockSize, class T> class fix_block
 {
 public:
 
-	GET_SELF_OBJECT(obj.getObject());
-	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+	SN_OPAQUE_WRAPPER(fix_block, T);
 
 	fix_block() {};
 
@@ -911,6 +677,12 @@ public:
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
         static_functions::fix_block<BlockSize>::process(this, prototypes::static_wrappers<T>::template process<ProcessDataType>, data);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& t)
+	{
+		// should never happen...
+		jassertfalse;
 	}
 
 	HISE_DEFAULT_INIT(T);
@@ -1100,6 +872,11 @@ template <class ParameterClass, class T> struct mod
 		obj.setParameter<P>(v);
 	}
 
+	template <int P> static void setParameterStatic(void* o, double v)
+	{
+		static_cast<mod*>(o)->template setParameter<P>(v);
+	}
+
 	T obj;
 	ParameterClass p;
 
@@ -1195,7 +972,16 @@ template <class T, class PropertyClass = properties::none> struct node : public 
 
 	bool handleModulation(double& value) noexcept
 	{
-		return obj.handleModulation(value);
+		if constexpr(prototypes::check::handleModulation<T>::value)
+			return obj.handleModulation(value);
+
+		return false;
+	}
+
+	void setExternalData(const ExternalData& d, int index)
+	{
+		if constexpr (prototypes::check::setExternalData<T>::value)
+			obj.setExternalData(d, index);
 	}
 
 	void createParameters(ParameterDataList& data)
@@ -1221,118 +1007,6 @@ template <class T, class PropertyClass = properties::none> struct node : public 
 	PropertyClass props;
 };
 
-
-}
-
-
-namespace dll
-{
-
-struct FactoryBase
-{
-	virtual int getNumNodes() const = 0;
-
-	virtual String getId(int index) const = 0;
-
-	virtual bool initOpaqueNode(OpaqueNode* n, int index) = 0;
-
-};
-
-struct PluginFactory : public FactoryBase
-{
-	struct Item
-	{
-		String id;
-		std::function<void(scriptnode::OpaqueNode* n)> f;
-	};
-
-	Array<Item> items;
-
-	String getId(int index) const override
-	{
-		return items[index].id;
-	}
-
-	int getNumNodes() const override
-	{
-		return items.size();
-	}
-
-	virtual bool initOpaqueNode(scriptnode::OpaqueNode* n, int index)
-	{
-		items[index].f(n);
-		return true;
-	}
-
-	template <typename T> void registerNode()
-	{
-		Item i;
-		i.id = T::MetadataClass::getStaticId().toString();
-		i.f = [](scriptnode::OpaqueNode* n) { n->create<T>(); };
-
-		items.add(i);
-	}
-};
-
-struct HostFactory : public FactoryBase
-{
-	typedef int(*GetNumNodesFunc)();
-
-	typedef size_t(*GetNodeIdFunc)(int, char*);
-
-	typedef void(*InitNodeFunc)(scriptnode::OpaqueNode*, int);
-
-	typedef void(*DeleteNodeFunc)(void* obj);
-
-	HostFactory(DynamicLibrary* dll_):
-		dll(dll_)
-	{
-		jassert(dll != nullptr);
-	}
-
-	~HostFactory()
-	{
-	}
-
-	int getNumNodes() const override
-	{
-		auto f = (GetNumNodesFunc)dll->getFunction("getNumNodes");
-
-		if (f != nullptr)
-			return f();
-
-		return 0;
-	}
-
-	virtual String getId(int index) const override
-	{
-		auto f = (GetNodeIdFunc)dll->getFunction("getNodeId");
-
-		if (f != nullptr)
-		{
-			char buffer[256];
-
-			auto length = f(index, buffer);
-			return String(buffer, length);
-		}
-
-		return {};
-	}
-
-	bool initOpaqueNode(scriptnode::OpaqueNode* n, int index) override
-	{
-		auto f = (InitNodeFunc)dll->getFunction("initOpaqueNode");
-
-		if (f != nullptr)
-		{
-			f(n, index);
-		}
-
-		return true;
-	}
-
-	juce::DynamicLibrary* dll;
-};
 
 }
 

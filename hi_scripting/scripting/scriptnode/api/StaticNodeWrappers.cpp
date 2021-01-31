@@ -410,6 +410,13 @@ bool InterpretedModNode::isPolyphonic() const
 	return wrapper.isPolyphonic();
 }
 
+scriptnode::ParameterDataList InterpretedModNode::createInternalParameterList()
+{
+	ParameterDataList pList;
+	wrapper.getWrappedObject().createParameters(pList);
+	return pList;
+}
+
 void InterpretedModNode::prepare(PrepareSpecs specs)
 {
 	auto& exceptionHandler = getRootNetwork()->getExceptionHandler();

@@ -30,11 +30,11 @@ enum ID
 
 template <typename T> ID getTypeFromTypeId()
 {
-	if (std::is_same<T, float>())
+	if (std::is_same<std::remove_pointer<T>::type, float>())
 		return ID::Float;
-	if (std::is_same<T, double>())
+	if (std::is_same<std::remove_pointer<T>::type, double>())
 		return ID::Double;
-	if (std::is_integral<T>())
+	if (std::is_integral<T>() || std::is_same<std::remove_pointer<T>::type, int>())
 		return ID::Integer;
 	if (std::is_same<T, void*>())
 		return ID::Pointer;
@@ -220,7 +220,11 @@ struct ModValue
 		}
 	}
 
-private:
+	void reset()
+	{
+		changed = false;
+		modValue = 0.0f;
+	}
 
 	int changed = false;
 	float modValue = 0.0f;

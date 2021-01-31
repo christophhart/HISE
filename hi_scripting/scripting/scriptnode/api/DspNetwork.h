@@ -210,7 +210,26 @@ public:
 			return activeNetwork.get();
 		}
 
+		void setProjectDll(dll::ProjectDll::Ptr pdll)
+		{
+			projectDll = pdll;
+		}
+
+		dll::ProjectDll::Ptr projectDll;
+
+		ExternalDataHolder* getExternalDataHolder()
+		{
+			return dataHolder;
+		}
+
+		void setExternalDataHolderToUse(ExternalDataHolder* newHolder)
+		{
+			dataHolder = newHolder;
+		}
+
 	protected:
+
+		ExternalDataHolder* dataHolder = nullptr;
 
 		WeakReference<DspNetwork> activeNetwork;
 

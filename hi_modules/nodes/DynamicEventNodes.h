@@ -106,16 +106,27 @@ struct DynamicMidiEventProcessor: public SnexSource
 
 	bool getMidiValue(HiseEvent& e, double& v)
 	{
+		if (getMidiValueWrapped(e, v))
+		{
+			lastValue = v;
+			return true;
+		}
+
+		return false;
+	}
+
+	bool getMidiValueWrapped(HiseEvent& e, double& v)
+	{
 		switch (currentMode)
 		{
 		case Mode::Gate:
-			return midi_logic::gate().getMidiValue(e, lastValue);
+			return midi_logic::gate().getMidiValue(e, v);
 		case Mode::Velocity:
-			return midi_logic::velocity().getMidiValue(e, lastValue);
+			return midi_logic::velocity().getMidiValue(e, v);
 		case Mode::NoteNumber:
-			return midi_logic::notenumber().getMidiValue(e, lastValue);
+			return midi_logic::notenumber().getMidiValue(e, v);
 		case Mode::Frequency:
-			return midi_logic::frequency().getMidiValue(e, lastValue);
+			return midi_logic::frequency().getMidiValue(e, v);
 		case Mode::Custom:
 		{
 			HiseEvent* eptr = &e;
@@ -124,7 +135,6 @@ struct DynamicMidiEventProcessor: public SnexSource
 			if (f.function != nullptr)
 			{
 				auto ok = (bool)f.call<int>(eptr, s);
-				lastValue = v;
 				return ok;
 			}
 				
@@ -183,6 +193,89 @@ struct SnexEventTimer: public SnexSource
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexEventTimer);
 };
+
+struct SnexWaveshaper : public SnexSource
+{
+	SnexWaveshaper()
+	{
+
+	}
+
+	void initialise(NodeBase* n) override
+	{
+		SnexSource::initialise(n);
+	}
+
+	void codeCompiled() override
+	{
+		if (parentNode != nullptr)
+		{
+			int nc = parentNode->getNumChannelsToProcess();
+
+			ok = false;
+
+			processFunction = obj["process"];
+			processFrameFunction = obj["processFrame"];
+
+			ok = processFrameFunction.function != nullptr && processFunction.function != nullptr;
+		}
+	}
+
+	void process(ProcessDataDyn& data)
+	{
+		if (ok)
+		{
+			processFunction.callVoid(&data);
+		}
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& d)
+	{
+		if (ok)
+			processFrameFunction.callVoid(d.begin());
+	}
+
+	bool preprocessCode(String& c) override
+	{
+		if (parentNode != nullptr)
+		{
+			int nc = parentNode->getNumChannelsToProcess();
+
+			c << "void process(ProcessData<" << String(nc) << ">& data)\n";
+			c << "{\n";
+			c << "    for(auto& ch: data)\n";
+			c << "    {\n";
+			c << "        for(auto& s: data.toChannelData(ch))\n";
+			c << "            s = getSample(s);\n";
+			c << "    }";
+			c << "}";
+			
+			c << "void processFrame(span<float, " << String(nc) << ">& data)\n";
+			c << "{\n";
+			c << "    for(auto& s: data)\n";
+			c << "        s = getSample(s);\n";
+			c << "}\n";
+		}
+		
+		return true;
+	}
+
+	String getEmptyText() const override
+	{
+		String s;
+		
+		s << "// Just implement the (stateless) waveshaping algorithm here...\n";
+		s << "float getSample(float input)\n";
+		s << "{\n    return input;\n}\n";
+
+		return s;
+	}
+
+	bool ok = false;
+	FunctionData processFunction;
+	FunctionData processFrameFunction;
+};
+
 
 
 

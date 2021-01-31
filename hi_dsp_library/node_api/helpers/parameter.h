@@ -508,6 +508,19 @@ template <class... Parameters> struct list: public advanced_tuple<Parameters...>
 	{
         jassertfalse;
 	}
+
+	// the dynamic list needs to be initialised with the value tree
+	HISE_EMPTY_INITIALISE;
+
+	template <int P> void call(double v)
+	{
+		if constexpr (P <= size)
+		{
+			getParameter<P>().call(v);
+		}
+	}
+
+	constexpr int getNumParameters() const { return }
 };
 
 

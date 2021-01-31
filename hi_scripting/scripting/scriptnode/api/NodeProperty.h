@@ -161,6 +161,8 @@ private:
 
 
 
+
+
 /** This namespace contains templates to declare properties in CPP.
 
 	In order to use it, pass one of the template instances to the cpp_node class as third parameter (default is properties::none).
@@ -364,6 +366,12 @@ struct SnexSource
 	virtual void codeCompiled() {};
 
 	virtual void initCompiler(snex::jit::Compiler& c);
+
+	virtual bool preprocessCode(String& codeBeforeCompilation)
+	{
+		ignoreUnused(codeBeforeCompilation);
+		return false;
+	}
 
 	void setCode(Identifier id, var newValue)
 	{

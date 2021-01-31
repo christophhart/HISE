@@ -76,17 +76,15 @@ namespace core
 		static const int NumSliderPacks = 0;
 		static const int NumAudioFiles = 0;
 
-		using TableNodeType = wrap::data<core::table, dynamic_table>;
-
 		struct display: public ScriptnodeExtraComponent<Table>, 
 						public Table::Updater::Listener,
 						public TableEditor::Listener
 		{
-			display(PooledUIUpdater* updater, ExternalData* data) :
-				ScriptnodeExtraComponent(getTableFromExternalData(data), updater),
+			display(PooledUIUpdater* updater, data::base* b) :
+				ScriptnodeExtraComponent(getTableFromExternalData(&b->externalData), updater),
 				editor(nullptr, getObject()),
 				dragger(updater),
-				dataPointer(data)
+				dataPointer(&b->externalData)
 			{
 				if(auto t = getObject())
 					t->addRulerListener(this);
@@ -114,6 +112,8 @@ namespace core
 				{
 					return static_cast<Table*>(d->obj);
 				}
+
+				return nullptr;
 			}
 
 			void pointDragStarted(Point<int> position, float index, float value) override
@@ -143,13 +143,11 @@ namespace core
 					parent->getNodePropertyAsValue(PropertyIds::EmbeddedData).setValue(s);
 			}
 
-			
-
 			static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
 			{
-				auto& t = static_cast<TableNodeType*>(obj)->getWrappedObject();
+				auto t = static_cast<data::base*>(obj);// ->getWrappedObject();
 
-				return new display(updater, &t.tableData);
+				return new display(updater, t);
 			}
 
 			void indexChanged(float newIndex) override
@@ -203,7 +201,7 @@ namespace core
 			ExternalData* dataPointer = nullptr;
 		};
 
-		dynamic_table(core::table& t):
+		dynamic_table(data::base& t):
 			tableIndex(PropertyIds::DataIndex, -1),
 			internalTableData(PropertyIds::EmbeddedData, ""),
 			tableObject(&t)
@@ -233,8 +231,16 @@ namespace core
 			}
 			else
 			{
-				auto h = parentNode->getRootNetwork()->getExternalDataHolder();
-				currentlyUsedTable = h->getTable(index);
+				if (auto h = parentNode->getRootNetwork()->getExternalDataHolder())
+				{
+					currentlyUsedTable = h->getTable(index);
+				}
+				else
+				{
+					currentlyUsedTable = &internalTable;
+					jassertfalse;
+				}
+				
 			}
 
 			ExternalData ed(currentlyUsedTable.get(), 0);
@@ -249,9 +255,9 @@ namespace core
 				internalTable.restoreData(b64);
 		}
 
-		void setExternalData(core::table& n, const ExternalData& b, int index)
+		void setExternalData(data::base& n, const ExternalData& b, int index)
 		{
-			n.tableData = b;
+			n.setExternalData(b, index);
 		}
 
 		WeakReference<NodeBase> parentNode;
@@ -262,7 +268,7 @@ namespace core
 		NodePropertyT<int> tableIndex;
 		NodePropertyT<String> internalTableData;
 
-		core::table* tableObject;
+		scriptnode::data::base* tableObject;
 	};
 }
 

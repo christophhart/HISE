@@ -60,7 +60,104 @@ template <class P, typename... Ts> using modchain = wrap::control_rate<chain<P, 
 namespace core
 {
 
-struct table
+
+
+struct smoothed_parameter
+{
+	enum Parameters
+	{
+		Value,
+		SmoothingTime
+	};
+
+	SET_HISE_NODE_ID("smoothed_parameter");
+	SN_GET_SELF_AS_OBJECT(smoothed_parameter);
+	
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Value, smoothed_parameter);
+		DEF_PARAMETER(SmoothingTime, smoothed_parameter);
+	}
+	PARAMETER_MEMBER_FUNCTION;
+
+	HISE_EMPTY_INITIALISE;
+	HISE_EMPTY_HANDLE_EVENT;
+
+	bool isNormalisedModulation() const { return false; };
+
+	bool isPolyphonic() const { return false; };
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		modValue.setModValueIfChanged(value.advance());
+	}
+
+	bool handleModulation(double& v)
+	{
+		return modValue.getChangedValue(v);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& d)
+	{
+		modValue.setModValueIfChanged(value.advance());
+	}
+
+	void reset()
+	{
+		value.reset();
+		modValue.setModValueIfChanged(value.get());
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		currentBlockRate = ps.sampleRate / (double)ps.blockSize;
+		refreshSmoothingTime();
+	}
+
+	void setValue(double newValue)
+	{
+		value.set(newValue);
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(smoothed_parameter, Value);
+			p.setRange({0.0, 1.0});
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(smoothed_parameter, SmoothingTime);
+			p.setRange({ 0.1, 1000.0, 0.1 });
+			p.setDefaultValue(100.0);
+			data.add(std::move(p));
+		}
+	}
+
+	void setSmoothingTime(double newSmoothingTime)
+	{
+		if (smoothingTimeMs != newSmoothingTime)
+		{
+			smoothingTimeMs = newSmoothingTime;
+			refreshSmoothingTime();
+		}
+	}
+	
+private:
+
+	void refreshSmoothingTime()
+	{
+		value.prepare(currentBlockRate, smoothingTimeMs);
+	}
+
+	double smoothingTimeMs = 20.0;
+	double currentBlockRate = 0.0;
+
+	sdouble value;
+	ModValue modValue;
+};
+
+struct table: public scriptnode::data::base
 {
 	SET_HISE_NODE_ID("table");
 	SN_GET_SELF_AS_OBJECT(table);
@@ -71,11 +168,6 @@ struct table
 	HISE_EMPTY_CREATE_PARAM;
 
 	using TableSpanType = span<float, SAMPLE_LOOKUP_TABLE_SIZE>;
-
-	~table()
-	{
-		int x = 5;
-	}
 
 	bool isPolyphonic() const { return false; };
 	constexpr bool isNormalisedModulation() const { return true; }
@@ -98,7 +190,7 @@ struct table
 
 	TableSpanType* getTableData()
 	{
-		return reinterpret_cast<TableSpanType*>(tableData.data);
+		return reinterpret_cast<TableSpanType*>(externalData.data);
 	}
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
@@ -106,14 +198,14 @@ struct table
 		if (auto td = getTableData())
 		{
 			block b;
-			tableData.referBlockTo(b, 0);
+			externalData.referBlockTo(b, 0);
 
 			float v = 0.0f;
 
 			for (auto& s : data[0])
 				v = processFloat(s);
 
-			tableData.setDisplayedValue(v);
+			externalData.setDisplayedValue(v);
 		}
 	}
 
@@ -136,20 +228,10 @@ struct table
 		return peakValue;
 	}
 
-	void setExternalData(const ExternalData& d, int)
+	void setExternalData(const ExternalData& d, int) override
 	{
-		auto t = reinterpret_cast<uint64_t>(this);
-		auto s = reinterpret_cast<uint64_t>(d.data);
-
-		constexpr int z = sizeof(table);
-
-		auto diff = s - t - z;
-
 		if (d.numSamples == SAMPLE_LOOKUP_TABLE_SIZE)
-			tableData = d;
-			
-		else
-			jassertfalse;
+			base::setExternalData(d, 0);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
@@ -160,10 +242,7 @@ struct table
 		}
 	}
 
-	ExternalData tableData;
-
 	sfloat smoothedValue;
-
 	ModValue currentValue;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(table);

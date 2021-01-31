@@ -105,7 +105,7 @@ struct hmath
 	template <class SpanT> static auto sumSpan(const SpanT& t) { return t.accumulate(); };
 
 
-
+	static constexpr int abs(int value) { return value > 0 ? value : -value; };
 	static forcedinline int min(int value1, int value2) { return jmin<int>(value1, value2); };
 	static forcedinline int max(int value1, int value2) { return jmax<int>(value1, value2); };
 	static forcedinline int range(int value, int lower, int upper)

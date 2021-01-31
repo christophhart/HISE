@@ -56,6 +56,8 @@
 #include "snex_basics/snex_ExternalData.cpp"
 #include "node_api/helpers/ParameterData.cpp"
 #include "node_api/nodes/Base.cpp"
+#include "node_api/nodes/OpaqueNode.cpp"
+#include "node_api/nodes/prototypes.cpp"
 
 #include "dsp_basics/Oscillators.cpp"
 #include "dsp_basics/MultiChannelFilters.cpp"

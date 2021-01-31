@@ -151,9 +151,12 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "node_api/nodes/Container_Chain.h"
 #include "node_api/nodes/Container_Split.h"
 #include "node_api/nodes/Container_Multi.h"
+#include "node_api/nodes/prototypes.h"
+#include "node_api/nodes/OpaqueNode.h"
 #include "node_api/nodes/processors.h"
 
 #include "dsp_nodes/CoreNodes.h"
+#include "dsp_nodes/CableNodes.h"
 #include "dsp_nodes/RoutingNodes.h"
 #include "dsp_nodes/DelayNode.h"
 #include "dsp_nodes/MathNodes.h"

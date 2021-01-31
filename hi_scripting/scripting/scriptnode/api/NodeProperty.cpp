@@ -120,14 +120,19 @@ void ScriptFunctionManager::postInit(NodeBase* n)
 
 void SnexSource::initCompiler(snex::jit::Compiler& c)
 {
-	snex::Types::SnexObjectDatabase::registerObjects(c, 1);
+	snex::Types::SnexObjectDatabase::registerObjects(c, parentNode->getNumChannelsToProcess());
 }
 
 void SnexSource::recompile()
 {
 	snex::jit::Compiler compiler(s);
 	initCompiler(compiler);
-	obj = compiler.compileJitObject(expression.getValue());
+
+	auto codeToCompile = expression.getValue();
+
+	preprocessCode(codeToCompile);
+
+	obj = compiler.compileJitObject(codeToCompile);
 
 	if (compiler.getCompileResult().wasOk())
 	{

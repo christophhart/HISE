@@ -51,6 +51,7 @@ DECLARE_ID(bypass);
 
 namespace PropertyIds
 {
+	
 DECLARE_ID(Coallescated);
 DECLARE_ID(Network);
 DECLARE_ID(Node);
@@ -82,6 +83,7 @@ DECLARE_ID(ShowParameters);
 DECLARE_ID(Bypassed);
 DECLARE_ID(SoulPatch);
 DECLARE_ID(DynamicBypass);
+DECLARE_ID(NumParameters);
 DECLARE_ID(BypassRampTimeMs);
 DECLARE_ID(Value);
 DECLARE_ID(ID);
@@ -95,6 +97,8 @@ DECLARE_ID(FreezedPath);
 DECLARE_ID(FreezedId);
 DECLARE_ID(NumChannels);
 DECLARE_ID(LockNumChannels);
+DECLARE_ID(SwitchTargets);
+DECLARE_ID(SwitchTarget);
 DECLARE_ID(ModulationTargets);
 DECLARE_ID(ModulationTarget);
 DECLARE_ID(ModulationChain);

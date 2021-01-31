@@ -165,13 +165,26 @@ public:
 		DynamicBypassParameter(NodeBase* n, Range<double> enabledRange_) :
 			node(n),
 			enabledRange(enabledRange_)
-		{};
+		{
+			jassert(n != nullptr);
+
+			if (n != nullptr)
+				dataTree = n->getValueTree();
+		};
 
 		void call(double v) final override
 		{
-			node->setBypassed(!enabledRange.contains(v) && enabledRange.getEnd() != v);
+			bypassed = !enabledRange.contains(v) && enabledRange.getEnd() != v;
+			node->setBypassed(bypassed);
 		}
 
+		virtual void updateUI()
+		{
+			if (dataTree.isValid())
+				dataTree.setProperty(PropertyIds::Bypassed, bypassed, nullptr);
+		};
+
+		bool bypassed = false;
 		WeakReference<NodeBase> node;
 		Range<double> enabledRange;
 	};
@@ -451,6 +464,8 @@ public:
 		return data.getParent().isValid();
 	}
 
+	static parameter::dynamic_chain* createParameterFromConnectionTree(NodeBase* n, const ValueTree& connectionTree, bool throwIfNotFound=false);
+
 	ValueTree data;
 
 	valuetree::RemoveListener nodeRemoveUpdater;
@@ -463,6 +478,8 @@ public:
 	bool inverted = false;
 
 	ReferenceCountedObjectPtr<NodeBase::Parameter> targetParameter;
+
+	
 
 protected:
 

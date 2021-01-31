@@ -71,13 +71,23 @@ public:
 	template <typename T> void init()
 	{
 		wrapper.getWrappedObject().create<T>();
-		wrapper.initialise(this);
+		postInit();
+	}
 
+	void postInit()
+	{
+		wrapper.initialise(this);
 		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
 
 		ParameterDataList pData;
 		wrapper.getWrappedObject().createParameters(pData);
 		initParameterData(pData);
+	}
+
+	void initFromDll(dll::HostFactory& f, int index)
+	{
+		f.initOpaqueNode(&wrapper.getWrappedObject(), index);
+		postInit();
 	}
 
 	ParameterDataList createInternalParameterList() override;
@@ -122,7 +132,7 @@ public:
 
 class InterpretedModNode : public ModulationSourceNode
 {
-	using WrapperType = wrap::mod<parameter::dynamic_base_holder, OpaqueModNode>;
+	using WrapperType = wrap::mod<parameter::dynamic_base_holder, OpaqueNode>;
 
 public:
 	InterpretedModNode(DspNetwork* parent, ValueTree d);;
@@ -164,6 +174,8 @@ public:
 
 	bool isPolyphonic() const override;
 
+	ParameterDataList createInternalParameterList() override;
+
 	void reset();
 	void prepare(PrepareSpecs specs) final override;
 	void writeToRingBuffer(double value, int numSamplesForAnalysis);
@@ -202,68 +214,21 @@ struct CombinedParameterDisplay : public ModulationSourceBaseComponent
 	WeakReference<combined_parameter_base> obj;
 };
 
-struct ParameterMultiplyAddNode : public ModulationSourceNode
+struct ParameterNodeBase : public ModulationSourceNode
 {
-	ParameterMultiplyAddNode(DspNetwork* n, ValueTree d) :
+	ParameterNodeBase(DspNetwork* n, ValueTree d) :
 		ModulationSourceNode(n, d)
-	{
-		ParameterDataList pData;
-		obj.createParameters(pData);
-
-		initParameterData(pData);
-
-		valueRangeUpdater.setCallback(getModulationTargetTree(), valuetree::AsyncMode::Asynchronously, [this](ValueTree v, bool wasAdded)
-		{
-			auto firstChild = getModulationTargetTree().getChild(0);
-
-			if (!firstChild.isValid())
-			{
-				NormalisableRange<double> defaultRange(0.0, 1.0);
-				auto thisValue = getParameter("Value")->data;
-
-				obj.currentRange = defaultRange;
-				RangeHelpers::storeDoubleRange(thisValue, false, defaultRange, getUndoManager());
-			}
-			else if (auto p = getParameterData(firstChild))
-			{
-				auto thisValue = getParameter("Value")->data;
-				RangeHelpers::storeDoubleRange(thisValue, false, p.toRange(), getUndoManager());
-				obj.currentRange = p.toRange();
-
-				auto v = obj.getUIData().getPmaValue();
-				getParameterHolder()->call(v);
-			}
-		});
-	};
+	{};
 
 	void timerCallback() override
 	{
-		obj.p.updateUI();
+		getParameterHolder()->updateUI();
 	}
 
 	bool isUsingNormalisedRange() const override
 	{
-		return false;
+		return true;
 	}
-
-	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("pma"); };
-
-	void* getObjectPtr() override 
-	{
-		return &obj; 
-	};
-
-	parameter::dynamic_base_holder* getParameterHolder() override
-	{
-		return &obj.p;
-	}
-
-	static NodeBase* createNode(DspNetwork* n, ValueTree d) 
-	{ 
-		auto node =  new ParameterMultiplyAddNode(n, d); 
-		node->extraComponentFunction = CombinedParameterDisplay::createExtraComponent;
-		return node;
-	};
 
 	void reset()
 	{
@@ -277,7 +242,7 @@ struct ParameterMultiplyAddNode : public ModulationSourceNode
 
 	void processFrame(NodeBase::FrameType& data) final override
 	{
-		
+
 	}
 
 	void processMonoFrame(MonoFrameType& data) final override
@@ -292,6 +257,43 @@ struct ParameterMultiplyAddNode : public ModulationSourceNode
 	{
 	}
 
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{}
+
+	virtual parameter::dynamic_base_holder* getParameterHolder() = 0;
+};
+
+struct ParameterMultiplyAddNode : public ParameterNodeBase
+{
+	ParameterMultiplyAddNode(DspNetwork* n, ValueTree d) :
+		ParameterNodeBase(n, d)
+	{
+		ParameterDataList pData;
+		obj.createParameters(pData);
+		initParameterData(pData);
+
+	};
+
+	parameter::dynamic_base_holder* getParameterHolder() override
+	{
+		return &obj.getParameter();
+	}
+
+	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("pma"); };
+
+	void* getObjectPtr() override 
+	{
+		return &obj; 
+	};
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree d) 
+	{ 
+		auto node =  new ParameterMultiplyAddNode(n, d); 
+		node->extraComponentFunction = CombinedParameterDisplay::createExtraComponent;
+		return node;
+	};
+
 	ParameterDataList createInternalParameterList() override
 	{  
 		ParameterDataList pData;
@@ -299,12 +301,49 @@ struct ParameterMultiplyAddNode : public ModulationSourceNode
 		return pData; 
 	}
 
-	void handleHiseEvent(HiseEvent& e) final override
-	{}
-
 	core::pma<parameter::dynamic_base_holder, 1> obj;
+};
 
-	valuetree::ChildListener valueRangeUpdater;
+
+template <typename T> struct ParameterTableNode : public ParameterNodeBase
+{
+	ParameterTableNode(DspNetwork* n, ValueTree d) :
+		ParameterNodeBase(n, d)
+	{
+		ParameterDataList pData;
+		obj.createParameters(pData);
+		initParameterData(pData);
+
+		obj.initialise(this);
+	};
+
+	parameter::dynamic_base_holder* getParameterHolder() override
+	{
+		return &obj.getWrappedObject().getParameter();
+	}
+
+	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("cable_table"); };
+
+	void* getObjectPtr() override
+	{
+		return &obj.getWrappedObject();
+	};
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree d)
+	{
+		auto node = new ParameterTableNode(n, d);
+		node->extraComponentFunction = core::dynamic_table::display::createExtraComponent;
+		return node;
+	};
+
+	ParameterDataList createInternalParameterList() override
+	{
+		ParameterDataList pData;
+		obj.createParameters(pData);
+		return pData;
+	}
+
+	T obj;
 };
 
 

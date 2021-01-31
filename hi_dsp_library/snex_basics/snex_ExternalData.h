@@ -256,6 +256,23 @@ struct NodeBase;
 namespace data
 {
 
+
+/** Subclass this when you want to show a UI for the given data. */
+struct base
+{
+	virtual ~base() {};
+
+	/** This can be used to connect the UI to the data. */
+	void* getUIPointer() { return &externalData; }
+
+	virtual void setExternalData(const snex::ExternalData& d, int index)
+	{
+		externalData = d;
+	}
+
+	snex::ExternalData externalData;
+};
+
 using namespace snex;
 
 namespace pimpl

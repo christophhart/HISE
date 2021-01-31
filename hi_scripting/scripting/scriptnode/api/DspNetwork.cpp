@@ -54,9 +54,16 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	voiceIndex(poly),
 	parentHolder(dynamic_cast<Holder*>(p))
 {
-	if (auto asScriptHolder = dynamic_cast<ScriptComplexDataHolder*>(p))
+	if (auto asH = dynamic_cast<Holder*>(p))
 	{
-		setExternalDataHolder(asScriptHolder->asExternalDataHolder());
+		if (auto otherHolder = asH->getExternalDataHolder())
+		{
+			setExternalDataHolder(otherHolder);
+		}
+		else if (auto asScriptHolder = dynamic_cast<ScriptComplexDataHolder*>(p))
+		{
+			setExternalDataHolder(asScriptHolder->asExternalDataHolder());
+		}
 	}
 
 	ownedFactories.add(new NodeContainerFactory(this));
@@ -70,6 +77,14 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ownedFactories.add(new dynamics::Factory(this));
 
 	ownedFactories.add(new filters::Factory(this));
+
+	if (auto ah = dynamic_cast<Holder*>(p))
+	{
+		if (ah->projectDll != nullptr)
+		{
+			ownedFactories.add(new dll::FunkyHostFactory(this, ah->projectDll));
+		}
+	}
 
 #if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 	
@@ -267,6 +282,7 @@ juce::StringArray DspNetwork::getFactoryList() const
 void DspNetwork::registerOwnedFactory(NodeFactory* ownedFactory)
 {
 	ownedFactories.add(ownedFactory);
+	nodeFactories.addIfNotAlreadyThere(ownedFactory);
 }
 
 void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
@@ -308,6 +324,7 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 		currentSpecs.voiceIndex = &voiceIndex;
 
 		signalPath->prepare(currentSpecs);
+		signalPath->reset();
 	}
 }
 
@@ -521,6 +538,12 @@ bool DspNetwork::updateIdsInValueTree(ValueTree& v, StringArray& usedIds)
 
 juce::String DspNetwork::getNonExistentId(String id, StringArray& usedIds) const
 {
+	if (usedIds.isEmpty())
+	{
+		usedIds.add(id);
+		return id;
+	}
+
 	if (!get(id).isObject())
 		return id;
 

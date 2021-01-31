@@ -143,6 +143,26 @@ public:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ModulationSourceNode);
 };
 
+struct MultiOutputDragSource
+{
+	static Colour getFadeColour(int index, int numPaths)
+	{
+		if (numPaths == 0)
+			return Colours::transparentBlack;
+
+		auto hue = (float)index / (float)numPaths;
+
+		return Colour::fromHSV(hue, 0.2f, 0.8f, 0.4f);
+	}
+
+	virtual NodeBase* getNode() const = 0;
+	virtual int getOutputIndex() const = 0;
+	virtual int getNumOutputs() const = 0;
+
+	virtual bool matchesParameter(NodeBase::Parameter* p) const = 0;
+
+	Component* asComponent() { return dynamic_cast<Component*>(this); }
+};
 
 struct ModulationSourceBaseComponent : public Component,
 	public PooledUIUpdater::SimpleTimer

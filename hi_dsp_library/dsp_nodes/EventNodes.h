@@ -43,6 +43,9 @@ namespace midi_logic
 
 struct gate
 {
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_INITIALISE;
+
 	bool getMidiValue(HiseEvent& e, double& v)
 	{
 		if (e.isNoteOnOrOff())
@@ -57,6 +60,9 @@ struct gate
 
 struct velocity
 {
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_INITIALISE;
+
 	bool getMidiValue(HiseEvent& e, double& v)
 	{
 		if (e.isNoteOn())
@@ -71,6 +77,9 @@ struct velocity
 
 struct notenumber
 {
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_INITIALISE;
+
 	bool getMidiValue(HiseEvent& e, double& v)
 	{
 		if (e.isNoteOn())
@@ -85,6 +94,9 @@ struct notenumber
 
 struct frequency
 {
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_INITIALISE;
+
 	bool getMidiValue(HiseEvent& e, double& v)
 	{
 		if (e.isNoteOn())
@@ -132,16 +144,17 @@ namespace core
 
 	Take a look at the default classes defined in the
 */
-template <typename MidiType> class midi : public HiseDspBase
+template <typename MidiType> class midi
 {
 public:
 
 	SET_HISE_NODE_ID("midi");
 	SN_GET_SELF_AS_OBJECT(midi);
 
-	HISE_EMPTY_RESET;
+	
 	HISE_EMPTY_PROCESS_SINGLE;
 	HISE_EMPTY_PROCESS;
+	HISE_EMPTY_CREATE_PARAM;
 
 	static constexpr bool isNormalisedModulation() { return true; }
 
@@ -157,6 +170,11 @@ public:
 		mType.prepare(ps);
 	}
 
+	void reset()
+	{
+		v.reset();
+	}
+
 	void handleHiseEvent(HiseEvent& e)
 	{
 		double thisModValue = 0.0;
@@ -168,10 +186,6 @@ public:
 	bool handleModulation(double& value)
 	{
 		return v.getChangedValue(value);
-	}
-
-	void createParameters(ParameterDataList& data)
-	{
 	}
 
 	MidiType mType;

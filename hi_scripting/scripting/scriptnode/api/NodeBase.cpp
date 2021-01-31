@@ -247,22 +247,27 @@ juce::UndoManager* NodeBase::getUndoManager() const
 juce::Rectangle<int> NodeBase::getBoundsToDisplay(Rectangle<int> originalHeight) const
 {
 	if (v_data[PropertyIds::Folded])
-		return originalHeight.withHeight(UIValues::HeaderHeight).withWidth(UIValues::NodeWidth);
-	else
-	{ 
-		auto helpBounds = helpManager.getHelpSize().toNearestInt();
+		originalHeight = originalHeight.withHeight(UIValues::HeaderHeight).withWidth(UIValues::NodeWidth);
+	
+	auto helpBounds = helpManager.getHelpSize().toNearestInt();
 
+	if (!helpBounds.isEmpty())
+	{
 		originalHeight.setWidth(originalHeight.getWidth() + helpBounds.getWidth());
 		originalHeight.setHeight(jmax<int>(originalHeight.getHeight(), helpBounds.getHeight()));
-
-		return originalHeight;
 	}
+
+	return originalHeight;
 }
 
 
 
 juce::Rectangle<int> NodeBase::getBoundsWithoutHelp(Rectangle<int> originalHeight) const
 {
+	auto helpBounds = helpManager.getHelpSize().toNearestInt();
+
+	originalHeight.removeFromRight(helpBounds.getWidth());
+
 	if (v_data[PropertyIds::Folded])
 		return originalHeight.withHeight(UIValues::HeaderHeight);
 	else
@@ -515,6 +520,17 @@ struct DragHelpers
 		auto sourceNodeId = getSourceNodeId(dragDetails);
 		auto pId = getSourceParameterId(dragDetails);
 
+		if (dragDetails.getProperty(PropertyIds::SwitchTarget, false))
+		{
+			auto st = parent->getRootNetwork()->getNodeWithId(sourceNodeId)->getValueTree().getChildWithName(PropertyIds::SwitchTargets);
+
+			jassert(st.isValid());
+
+			auto v = st.getChild(pId.getIntValue());
+			jassert(v.isValid());
+			return v;
+		}
+
 		if (auto sourceContainer = dynamic_cast<NodeContainer*>(parent->getRootNetwork()->get(sourceNodeId).getObject()))
 		{
 			return sourceContainer->asNode()->getParameterTree().getChildWithProperty(PropertyIds::ID, pId);
@@ -570,8 +586,24 @@ var NodeBase::Parameter::addConnectionFrom(var dragDetails)
 		if (auto sp = dynamic_cast<NodeContainer::MacroParameter*>(sn->getParameter(parameterId)))
 		{
 			return sp->addParameterTarget(this);
+		}
 
-			
+		if (dragDetails.getProperty(PropertyIds::SwitchTarget, false))
+		{
+			auto cTree = sn->getValueTree().getChildWithName(PropertyIds::SwitchTargets).getChild(parameterId.getIntValue()).getChildWithName(PropertyIds::Connections);
+
+			if (cTree.isValid())
+			{
+				ValueTree newC(PropertyIds::Connection);
+				newC.setProperty(PropertyIds::NodeId, parent->getId(), nullptr);
+				newC.setProperty(PropertyIds::ParameterId, getId(), nullptr);
+				newC.setProperty(PropertyIds::Converter, ConverterIds::Identity.toString(), nullptr);
+				newC.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
+				RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(data), nullptr);
+				newC.setProperty(PropertyIds::Expression, "", nullptr);
+
+				cTree.addChild(newC, -1, parent->getUndoManager());
+			}
 		}
 	}
 	
@@ -723,6 +755,57 @@ ConnectionBase::ConnectionBase(ProcessorWithScriptingContent* p, ValueTree data_
 	ADD_API_METHOD_0(getLastValue);
 	ADD_API_METHOD_1(get);
 	ADD_API_METHOD_2(set);
+}
+
+scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnectionTree(NodeBase* n, const ValueTree& connectionTree, bool throwIfNotFound)
+{
+	jassert(connectionTree.getType() == PropertyIds::Connections);
+
+	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
+
+	for (auto c : connectionTree)
+	{
+		auto nId = c[PropertyIds::NodeId].toString();
+		auto pId = c[PropertyIds::ParameterId].toString();
+		auto tn = n->getRootNetwork()->getNodeWithId(nId);
+
+		if (tn == nullptr && throwIfNotFound)
+			throw nId;
+
+		if (pId == PropertyIds::Bypassed.toString())
+		{
+			auto r = RangeHelpers::getDoubleRange(c).getRange();
+			chain->addParameter(new NodeBase::DynamicBypassParameter(tn, r));
+		}
+		else if (auto param = tn->getParameter(pId))
+		{
+			auto pList = tn->createInternalParameterList();
+
+			for (auto p : pList)
+			{
+				if (p.info.getId() == pId)
+				{
+					ScopedPointer<parameter::dynamic_base> b;
+
+					auto r = RangeHelpers::getDoubleRange(c);
+					auto e = c[PropertyIds::Expression].toString();
+
+					if (e.isNotEmpty())
+						b = new parameter::dynamic_expression(p.callback, new snex::JitExpression(e));
+					else if (!RangeHelpers::isIdentity(r))
+						b = new parameter::dynamic_from0to1(p.callback, r);
+					else
+						b = new parameter::dynamic_base(p.callback);
+
+					b->setDataTree(param->data);
+
+					chain->addParameter(b.release());
+				}
+			}
+		}
+	}
+
+	return chain.release();
 }
 
 void ConnectionBase::initRemoveUpdater(NodeBase* parent)
