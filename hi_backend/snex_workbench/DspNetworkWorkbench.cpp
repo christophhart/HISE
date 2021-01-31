@@ -32,6 +32,8 @@
 
 
 
+
+
 namespace hise {
 using namespace juce;
 
@@ -43,6 +45,8 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 
 	using namespace scriptnode;
 
+	
+
 	if (auto dcg = dynamic_cast<DspNetworkCodeProvider*>(getParent()->getCodeProvider()))
 	{
 		dllNode.callDestructor();
@@ -51,19 +55,24 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 
 		if (mode == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
 		{
-			auto id = dcg->getInstanceId();
-
-			auto& f = dcg->projectDllFactory->dllFactory;
-
 			bool found = false;
 
-			for (int i = 0; i < f.getNumNodes(); i++)
+			if (auto fh = ProcessorHelpers::getFirstProcessorWithType<DspNetwork::Holder>(getMainController()->getMainSynthChain()))
 			{
-				if (id.toString() == f.getId(i))
+				if (auto d = fh->projectDll)
 				{
-					found = f.initOpaqueNode(&dllNode, i);
+					dll::HostFactory f(fh->projectDll);
 
-					break;
+					auto id = dcg->getInstanceId();
+
+					for (int i = 0; i < f.getNumNodes(); i++)
+					{
+						if (id.toString() == f.getId(i))
+						{
+							found = f.initOpaqueNode(&dllNode, i);
+							break;
+						}
+					}
 				}
 			}
 
@@ -130,6 +139,8 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 	return lastResult;
 }
 
+
+
 void DspNetworkCompileHandler::processTestParameterEvent(int parameterIndex, double value)
 {
 #if 0
@@ -149,7 +160,20 @@ void DspNetworkCompileHandler::processTestParameterEvent(int parameterIndex, dou
 		lastResult.parameters.getReference(parameterIndex).callback.call(value);
 }
 
-void DspNetworkCompileHandler::prepareTest(PrepareSpecs ps)
+void DspNetworkCompileHandler::initExternalData(ExternalDataHolder* h)
+{
+	if (dllNode.getObjectPtr() != nullptr)
+	{
+		dllNode.initExternalData(h);
+	}
+	if (jitNode != nullptr)
+	{
+		jitNode->setExternalDataHolder(h);
+	}
+
+}
+
+void DspNetworkCompileHandler::prepareTest(PrepareSpecs ps, const Array<WorkbenchData::TestData::ParameterEvent>& initialParameters)
 {
 	if (dllNode.getObjectPtr() != nullptr)
 		dllNode.prepare(ps);
@@ -157,6 +181,19 @@ void DspNetworkCompileHandler::prepareTest(PrepareSpecs ps)
 		interpreter->prepareToPlay(ps.sampleRate, ps.blockSize);
 	else if (jitNode != nullptr)
 		jitNode->prepare(ps);
+
+	for (auto& p : initialParameters)
+	{
+		if (p.timeStamp == -1)
+			processTestParameterEvent(p.parameterIndex, p.valueToUse);
+	}
+
+	if (dllNode.getObjectPtr() != nullptr)
+		dllNode.reset();
+	else if (interpreter != nullptr)
+		interpreter->getRootNode()->reset();
+	else if (jitNode != nullptr)
+		jitNode->reset();
 }
 
 void DspNetworkCompileHandler::processTest(ProcessDataDyn& data)
@@ -182,7 +219,10 @@ DspNetworkCodeProvider::DspNetworkCodeProvider(WorkbenchData* d, MainController*
 	setForwardCallback(valuetree::AnyListener::PropertyChange, false);
 
 	initRoot();
+}
 
+void DspNetworkCodeProvider::initNetwork()
+{
 	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(getXmlFile()))
 	{
 		currentTree = ValueTree::fromXml(*xml);
@@ -196,9 +236,6 @@ DspNetworkCodeProvider::DspNetworkCodeProvider(WorkbenchData* d, MainController*
 		currentTree = np->getActiveNetwork()->getValueTree();
 	}
 
-	
-		
-
 	source = SourceMode::InterpretedNode;
 	setRootValueTree(currentTree);
 }
@@ -206,7 +243,9 @@ DspNetworkCodeProvider::DspNetworkCodeProvider(WorkbenchData* d, MainController*
 }
 
 
-scriptnode::dll::FunkyHostFactory::FunkyHostFactory(DspNetwork* n, DynamicLibrary* dll) :
+
+
+scriptnode::dll::FunkyHostFactory::FunkyHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 	NodeFactory(n),
 	dllFactory(dll)
 {
@@ -217,12 +256,10 @@ scriptnode::dll::FunkyHostFactory::FunkyHostFactory(DspNetwork* n, DynamicLibrar
 		NodeFactory::Item item;
 
 		item.id = Identifier(dllFactory.getId(i));
-		item.cb = [](DspNetwork* p, ValueTree v)
+		item.cb = [this, i](DspNetwork* p, ValueTree v)
 		{
-			NodeBase* t = new scriptnode::InterpretedNode(p, v);
-
-			jassertfalse;
-
+			auto t = new scriptnode::InterpretedNode(p, v);
+			t->initFromDll(dllFactory, i);
 			return t;
 		};
 

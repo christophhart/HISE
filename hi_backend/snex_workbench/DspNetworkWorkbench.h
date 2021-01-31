@@ -39,7 +39,7 @@ namespace scriptnode
 	{
 		struct FunkyHostFactory : public scriptnode::NodeFactory
 		{
-			FunkyHostFactory(DspNetwork* n, DynamicLibrary* dll);
+			FunkyHostFactory(DspNetwork* n, dll::ProjectDll::Ptr dll);
 
 			Identifier getId() const override
 			{
@@ -330,6 +330,8 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 	DspNetworkCodeProvider(WorkbenchData* d, MainController* mc, const File& fileToWriteTo);
 
+	void initNetwork();
+
 	void setSource(SourceMode m)
 	{
 		if (m == SourceMode::InterpretedNode)
@@ -347,8 +349,7 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 	Identifier getInstanceId() const override
 	{
-		auto chain = currentTree.getChildWithName(scriptnode::PropertyIds::Node);
-		return Identifier(chain[scriptnode::PropertyIds::ID].toString());
+		return Identifier(connectedFile.getFileNameWithoutExtension());
 	}
 
 	String loadCode() const override
@@ -383,16 +384,18 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 	{
 		auto chain = currentTree.getChildWithName(scriptnode::PropertyIds::Node);
 
-		ScopedPointer<XmlElement> xml = chain.createXml();
-		getTestNodeFile().replaceWithText(xml->createDocument(""));
+		if (ScopedPointer<XmlElement> xml = chain.createXml())
+		{
+			getTestNodeFile().replaceWithText(xml->createDocument(""));
 
-		snex::cppgen::ValueTreeBuilder v(chain, snex::cppgen::ValueTreeBuilder::Format::JitCompiledInstance);
+			snex::cppgen::ValueTreeBuilder v(chain, snex::cppgen::ValueTreeBuilder::Format::JitCompiledInstance);
 
-		auto r = v.createCppCode();
+			auto r = v.createCppCode();
 
-		if (r.r.wasOk())
-			return r.code;
-
+			if (r.r.wasOk())
+				return r.code;
+		}
+		
 		return {};
 	}
 
@@ -416,6 +419,7 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 		}
 	}
 
+#if 0
 	void setProjectFactory(DynamicLibrary* dll, scriptnode::DspNetwork* n)
 	{
 		if (dll == nullptr || n == nullptr)
@@ -430,6 +434,7 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 			projectDllFactory = new scriptnode::dll::FunkyHostFactory(n, dll);
 		}
 	}
+#endif
 
 	ValueTree currentTree;
 
@@ -438,8 +443,6 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 	SourceMode source = SourceMode::InterpretedNode;
 
 	File connectedFile;
-
-	ScopedPointer<scriptnode::dll::FunkyHostFactory> projectDllFactory;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkCodeProvider);
 };
@@ -709,10 +712,11 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 
 	WorkbenchData::CompileResult compile(const String& codeToCompile) override;
 
-	
+	void initExternalData(ExternalDataHolder* h) override;
+
 	void processTestParameterEvent(int parameterIndex, double value) override;
 
-	void prepareTest(PrepareSpecs ps) override;
+	void prepareTest(PrepareSpecs ps, const Array<WorkbenchData::TestData::ParameterEvent>& ) override;
 
 	void processTest(ProcessDataDyn& data) override;
 

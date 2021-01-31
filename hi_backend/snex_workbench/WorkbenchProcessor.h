@@ -57,6 +57,7 @@ public:
 		FileNew = 1,
 		FileOpen,
 		FileSave,
+		FileSaveAll,
 		FileSetProject,
 		ToolsEditTestData,
 		ToolsAudioConfig,
@@ -93,7 +94,10 @@ public:
 		{
 			if (dnp->source == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
 			{
-				if (getHash(true) != getHash(false))
+				auto h1 = getHash(true);
+				auto h2 = getHash(false);
+
+				if (h1 != h2)
 				{
 					PresetHandler::showMessageWindow("DLL mismatch", "The dll is different than the source files. Recompile it");
 				}
@@ -244,14 +248,14 @@ public:
 
 	bool unloadDll()
 	{
-		if (df != nullptr)
-			df->setProjectFactory(nullptr, nullptr);
+		if (auto fh = ProcessorHelpers::getFirstProcessorWithType<scriptnode::DspNetwork::Holder>(getMainController()->getMainSynthChain()))
+		{
+			fh->setProjectDll(nullptr);
+		}
 
 		if (projectDll != nullptr)
 		{
-			projectDll->close();
 			projectDll = nullptr;
-
 			return true;
 		}
 
@@ -260,18 +264,13 @@ public:
 
 	bool loadDll(bool forceUnload);
 
-	void loadDllFactory(DspNetworkCodeProvider* cp);
-
-	int64 getHash(bool getDllHash);
-
-
+	int getHash(bool getDllHash);
 
 private:
 
-	ScopedPointer<juce::DynamicLibrary> projectDll;
+	scriptnode::dll::ProjectDll::Ptr projectDll;
 
 	void addFile(const File& f);
-
 	
 	friend class DspNetworkCompileExporter;
 
@@ -456,6 +455,7 @@ struct DspNetworkCompileExporter : public hise::DialogWindowWithBackgroundThread
 
 private:
 
+	static Array<File> getIncludedNetworkFiles(const File& networkFile);
 
 	SnexWorkbenchEditor* editor;
 
