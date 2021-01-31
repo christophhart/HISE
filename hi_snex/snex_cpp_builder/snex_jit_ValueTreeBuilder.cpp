@@ -100,6 +100,8 @@ void ValueTreeBuilder::rebuild()
 {
 	clear();
 
+	return;
+
 	try
 	{
 		Sanitizers::setChannelAmount(v);
@@ -201,6 +203,7 @@ void ValueTreeBuilder::addNodeComment(Node::Ptr n)
 
 	if (nodeComment.isNotEmpty())
 	{
+		nodeComment = nodeComment.upToFirstOccurrenceOf("\n", false, false);
 		addComment(nodeComment.trim(), Base::CommentType::FillTo80Light);
 		n->flushIfNot();
 	}
@@ -330,20 +333,10 @@ Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
 
 	}
 
-	return parseComplexDataNode(u);
-}
-
-
-Node::Ptr ValueTreeBuilder::parseComplexDataNode(Node::Ptr u)
-{
-	if (ValueTreeIterator::isComplexDataNode(u->nodeTree))
-	{
-		ComplexDataBuilder c(*this, u);
-		return parseOptionalSnexNode(c.parse());
-	}
-
 	return parseOptionalSnexNode(u);
 }
+
+
 
 Node::Ptr ValueTreeBuilder::parseOptionalSnexNode(Node::Ptr u)
 {
@@ -360,14 +353,13 @@ Node::Ptr ValueTreeBuilder::parseOptionalSnexNode(Node::Ptr u)
 
 		Node::Ptr wn = new Node(*this, u->scopedId.id, NamespacedIdentifier(p));
 
+		wn->nodeTree = u->nodeTree;
 		String subName = "midi_logic::" + type;
 
 		*wn << subName;
 
-		return wn;
+		return parseMod(wn);
 	}
-
-	
 
 	return parseContainer(u);
 }
@@ -387,12 +379,19 @@ Node::Ptr ValueTreeBuilder::parseSnexNode(Node::Ptr u)
 		Struct s(*this, u->nodeTree[PropertyIds::ID].toString(), {}, {});
 		addComment(comment, Base::CommentType::FillTo80Light);
 
+
 		*this << code;
 
-		if (outputFormat == Format::CppDynamicLibrary && code.contains("Math"))
+		if (outputFormat == Format::CppDynamicLibrary)
 		{
 			addIfNotEmptyLine();
-			*this << "hmath Math;";
+			*this << "void initialise(NodeBase* n) {}";
+
+			if (code.contains("Math"))
+			{
+				addIfNotEmptyLine();
+				*this << "hmath Math;";
+			}
 		}
 
 		s.flushIfNot();
@@ -400,11 +399,9 @@ Node::Ptr ValueTreeBuilder::parseSnexNode(Node::Ptr u)
 		addEmptyLine();
 
 		*u << s.toExpression();
-
-		u->flushIfNot();
 	}
 
-	return u;
+	return parseMod(u);
 }
 
 Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
@@ -465,8 +462,6 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 
 		addNodeComment(u);
 		u->flushIfNot();
-
-		return u;
 	}
 
 	return parseMod(u);
@@ -558,6 +553,18 @@ Node::Ptr ValueTreeBuilder::parseRootContainer(Node::Ptr container)
 	RootContainerBuilder rb(*this, container);
 
 	return rb.parse();
+}
+
+
+Node::Ptr ValueTreeBuilder::parseComplexDataNode(Node::Ptr u)
+{
+	if (ValueTreeIterator::isComplexDataNode(u->nodeTree))
+	{
+		ComplexDataBuilder c(*this, u);
+		return c.parse();
+	}
+
+	return u;
 }
 
 PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connection::CableType connectionType)
@@ -719,21 +726,30 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 
 		auto id = getNodeId(u->nodeTree);
 
-		auto w = createNode(u->nodeTree, id.getIdentifier(), "wrap::mod");
+		if (!ValueTreeIterator::needsModulationWrapper(u->nodeTree))
+		{
+			*u << *mod;
+		}
+		else
+		{
+			auto inner = u;
+			u = createNode(u->nodeTree, id.getIdentifier(), "wrap::mod");
+			*u << *mod;
+			*u << *inner;
+		}
 
-		*w << *mod;
-		*w << *u;
+		addNodeComment(u);
 
-		addNodeComment(w);
+		u = parseComplexDataNode(u);
 
-		w->flushIfNot();
+		u->flushIfNot();
 
-		return w;
+		return u;
 	}
 
 	addNodeComment(u);
 
-	return u;
+	return parseComplexDataNode(u);
 }
 
 
@@ -864,6 +880,22 @@ bool ValueTreeIterator::forEachParent(ValueTree& v, const Func& f)
     
     auto p = v.getParent();
 	return forEachParent(p, f);
+}
+
+bool ValueTreeIterator::needsModulationWrapper(ValueTree& v)
+{
+	if (v.getChildWithName(PropertyIds::ModulationTargets).getNumChildren() == 0)
+		return false;
+
+	auto id = v.getProperty(PropertyIds::FactoryPath).toString();
+
+	if (id == "core.pma")
+		return false;
+
+	if (id == "core.cable_table")
+		return false;
+
+	return true;
 }
 
 bool ValueTreeIterator::getNodePath(Array<int>& path, ValueTree& root, const Identifier& id)
@@ -1309,13 +1341,27 @@ void ValueTreeBuilder::RootContainerBuilder::addModulationConnections()
 			auto ms = getChildNodeAsStackVariable(m->nodeTree);
 			auto mtargetTree = m->nodeTree.getChildWithName(PropertyIds::ModulationTargets);
 
+			auto needsModWrapper = ValueTreeIterator::needsModulationWrapper(m->nodeTree);
+
 			for (auto t : mtargetTree)
 			{
 				auto cn = parent.getConnection(t);
 
+				if (!cn.n->nodeTree.isValid())
+				{
+					Error e;
+					e.errorMessage = "No ValueTree for node " + cn.n->toString();
+					throw e;
+				}
+
 				String def;
 
-				def << ms->toExpression() << ".getParameter().connect<" << ValueTreeIterator::getIndexInParent(t) << ">(";
+				def << ms->toExpression();
+				
+				if (!needsModWrapper)
+					def << ".getWrappedObject()";
+
+				def << ".getParameter().connect<" << ValueTreeIterator::getIndexInParent(t) << ">(";
 				auto targetId = cn.n->nodeTree[PropertyIds::ID].toString();
 				auto mt = getChildNodeAsStackVariable(cn.n->nodeTree);
 
@@ -1438,7 +1484,7 @@ snex::cppgen::Node::List ValueTreeBuilder::RootContainerBuilder::getModulationNo
 	for (auto u : parent.pooledTypeDefinitions)
 	{
 		if (u->nodeTree.getChildWithName(PropertyIds::ModulationTargets).getNumChildren() > 0)
-			l.add(u);
+			l.addIfNotAlreadyThere(u);
 	}
 
 	return l;
@@ -1496,6 +1542,8 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parse()
 	jassert(!n->isFlushed());
 
 	Node::Ptr wn = new Node(parent, n->scopedId.id, NamespacedIdentifier("wrap::data"));
+
+	wn->nodeTree = n->nodeTree;
 
 	*wn << *n;
 	*wn << *parseDataClass();

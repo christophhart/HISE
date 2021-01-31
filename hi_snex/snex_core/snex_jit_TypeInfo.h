@@ -67,6 +67,13 @@ struct TypeInfo
 	InitialiserList::Ptr makeDefaultInitialiserList() const;
 	void setType(Types::ID newType);
 
+	template <class CppType> static TypeInfo fromT()
+	{
+		auto type = Types::Helpers::getTypeFromTypeId<CppType>();
+		
+		return TypeInfo(type, std::is_const<CppType>(), std::is_pointer<CppType>());
+	}
+
 	bool isNativePointer() const;
 	TypeInfo toNativePointer() const;
 	TypeInfo toPointerIfNativeRef() const;

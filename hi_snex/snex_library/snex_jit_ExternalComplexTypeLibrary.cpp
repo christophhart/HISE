@@ -437,6 +437,24 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 	return obj->finaliseAndReturn();
 }
 
+
+snex::jit::ComplexType::Ptr ModValueJit::createComplexType(Compiler& c, const Identifier& id)
+{
+	ModValue d;
+
+	auto st = CREATE_SNEX_STRUCT(ModValue);
+
+	ADD_SNEX_STRUCT_MEMBER(st, d, changed);
+	ADD_SNEX_STRUCT_MEMBER(st, d, modValue);
+
+	ADD_SNEX_STRUCT_METHOD(st, ModValueJit, getChangedValue);
+	ADD_SNEX_STRUCT_METHOD(st, ModValueJit, getModValue);
+	ADD_SNEX_STRUCT_METHOD(st, ModValueJit, setModValue);
+	ADD_SNEX_STRUCT_METHOD(st, ModValueJit, setModValueIfChanged);
+
+	return st->finaliseAndReturn();
+}
+
 snex::jit::ComplexType::Ptr OscProcessDataJit::createComplexType(Compiler& c, const Identifier& id)
 {
 	OscProcessData d;
@@ -1515,6 +1533,8 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 	REGISTER_ORIGINAL_CPP_CLASS(c, EventWrapper, HiseEvent);
 	REGISTER_ORIGINAL_CPP_CLASS(c, ExternalDataJIT, ExternalData);
 
+	REGISTER_ORIGINAL_CPP_CLASS(c, ModValueJit, ModValue);
+
 	auto eventType = c.getComplexType(NamespacedIdentifier("HiseEvent"));
 	auto eventBufferType = new DynType(TypeInfo(eventType));
 	eventBufferType->setAlias(NamespacedIdentifier("HiseEventBuffer"));
@@ -1531,6 +1551,7 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 
 	return Result::ok();
 }
+
 
 }
 }

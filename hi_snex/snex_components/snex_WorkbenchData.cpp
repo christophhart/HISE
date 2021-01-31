@@ -205,6 +205,22 @@ namespace TestDataIds
 #undef DECLARE_ID
 }
 
+void ui::WorkbenchData::TestData::saveCurrentTestOutput()
+{
+	auto id = parent.getInstanceId();
+
+	testOutputFile = getTestRootDirectory().getChildFile(id.toString()).withFileExtension("wav");
+
+	if (testOutputFile.existsAsFile())
+	{
+		AlertWindowLookAndFeel alaf;
+		if (!AlertWindow::showOkCancelBox(AlertWindow::QuestionIcon, "Replace file", "Do you want to replace the output file " + testOutputFile.getFullPathName()))
+			return;
+	}
+
+	hlac::CompressionHelpers::dump(testOutputData, testOutputFile.getFullPathName());
+}
+
 juce::var ui::WorkbenchData::TestData::toJSON() const
 {
 	DynamicObject::Ptr obj = new DynamicObject();
@@ -468,13 +484,16 @@ void ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 	// if this fails, the compile handler didn't put the node to the CompileResult::lastNode variable...
 	//jassert(!data->getLastResult().compiledOk() || nodeToTest != nullptr);
 
-	if(nodeToTest != nullptr)
-		nodeToTest->setExternalDataHolder(this);
+	compileHandler->initExternalData(this);
+
+	
 
 	jassert(ps.sampleRate > 0.0);
 	ps.numChannels = testSourceData.getNumChannels();
 
-	compileHandler->prepareTest(ps);
+	
+
+	compileHandler->prepareTest(ps, parameterEvents);
 
 	testOutputData.makeCopyOf(testSourceData);
 

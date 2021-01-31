@@ -319,6 +319,29 @@ struct WorkbenchData : public ReferenceCountedObject,
 			return testResult.wasOk();
 		}
 
+		void saveCurrentTestOutput();
+
+		bool saveToFile()
+		{
+			if (currentTestFile.existsAsFile())
+			{
+				return currentTestFile.replaceWithText(JSON::toString(toJSON()));
+			}
+
+			return false;
+		}
+
+		bool loadFromFile(const File& fileToLoad)
+		{
+			currentTestFile = fileToLoad;
+			auto json = JSON::parse(fileToLoad);
+
+			if (json.isObject())
+				return fromJSON(json);
+
+			return false;
+		}
+
 		var toJSON() const;
 
 		bool fromJSON(const var& jsonData);
@@ -428,7 +451,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 		AudioSampleBuffer testSourceData;
 		AudioSampleBuffer testOutputData;
 		
-
+		File currentTestFile;
 		File testInputFile;
 		File testOutputFile;
 
@@ -659,10 +682,15 @@ struct WorkbenchData : public ReferenceCountedObject,
 			return r;
 		}
 
+		virtual void initExternalData(ExternalDataHolder* h)
+		{
+			jassertfalse;
+		}
+
 		/** Override this function and call the parameter method. */
 		virtual void processTestParameterEvent(int parameterIndex, double value) = 0;
 
-		virtual void prepareTest(PrepareSpecs ps) = 0;
+		virtual void prepareTest(PrepareSpecs ps, const Array<TestData::ParameterEvent>& initialParameters) = 0;
 
 		virtual void processTest(ProcessDataDyn& data) = 0;
 

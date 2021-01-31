@@ -98,7 +98,37 @@ struct ExternalDataJIT : public ExternalData
 	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
 };
 
+struct ModValueJit : public ModValue
+{
+	struct Wrapper
+	{
+		static int getChangedValue(void* obj, double* d)
+		{
+			auto typed = static_cast<ModValue*>(obj);
+			return typed->getChangedValue(*d) > 0;
+		}
 
+		static double getModValue(void *obj)
+		{ 
+			auto typed = static_cast<ModValue*>(obj);
+			return (double)typed->modValue; 
+		}
+
+		static void setModValue(void* obj, double newValue)
+		{
+			auto typed = static_cast<ModValue*>(obj);
+			typed->setModValue(newValue);
+		}
+		
+		static void setModValueIfChanged(void* obj, double newValue)
+		{
+			auto typed = static_cast<ModValue*>(obj);
+			typed->setModValueIfChanged(newValue);
+		}
+	};
+
+	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
+};
 
 
 struct OscProcessDataJit : public OscProcessData
