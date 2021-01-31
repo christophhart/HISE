@@ -225,6 +225,16 @@ template <class T> void fillChildComponentList(Array<T*>& list, Component* c)
 	}
 }
 
+static Colour getFadeColour(int index, int numPaths)
+{
+	if (numPaths == 0)
+		return Colours::transparentBlack;
+
+	auto hue = (float)index / (float)numPaths;
+
+	return Colour::fromHSV(hue, 0.2f, 0.8f, 0.4f);
+}
+
 void DspNetworkGraph::paintOverChildren(Graphics& g)
 {
 	Array<ModulationSourceBaseComponent*> modSourceList;
@@ -245,16 +255,19 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 	float alpha = showCables ? 1.0f : 0.1f;
 
-	Array<ParameterSlider*> list;
-	fillChildComponentList(list, this);
+	Array<ParameterSlider*> sliderList;
+	fillChildComponentList(sliderList, this);
 
-	for (auto sourceSlider : list)
+	Array<MultiOutputDragSource*> multiOutputList;
+	fillChildComponentList(multiOutputList, this);
+
+	for (auto sourceSlider : sliderList)
 	{
 		if (auto macro = dynamic_cast<NodeContainer::MacroParameter*>(sourceSlider->parameterToControl.get()))
 		{
 			for (auto c : macro->connections)
 			{
-				for (auto targetSlider : list)
+				for (auto targetSlider : sliderList)
 				{
 					auto target = targetSlider->parameterToControl;
 
@@ -273,6 +286,27 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		}
 	}
 
+	for (auto multiSource : multiOutputList)
+	{
+		for (auto s : sliderList)
+		{
+			if (multiSource->matchesParameter(s->parameterToControl))
+			{
+				auto start = getCircle(multiSource->asComponent(), false);
+				auto end = getCircle(s);
+
+				auto index = multiSource->getOutputIndex();
+				auto numOutputs = multiSource->getNumOutputs();
+
+				auto c = MultiOutputDragSource::getFadeColour(index, numOutputs).withAlpha(1.0f);
+
+				paintCable(g, start, end, c, alpha);
+			}
+		}
+	}
+
+	
+
 	for (auto modSource : modSourceList)
 	{
 		auto start = getCircle(modSource, false);
@@ -286,8 +320,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 			for (auto c : modTargets)
 			{
-
-				for (auto s : list)
+				for (auto s : sliderList)
 				{
 					if (s->parameterToControl == nullptr)
 						continue;
@@ -330,7 +363,26 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 			auto nodeId = connection.upToFirstOccurrenceOf(".", false, false);
 			auto pId = connection.fromFirstOccurrenceOf(".", false, false);
 
-			for (auto sourceSlider : list)
+			for (auto multiSource : multiOutputList)
+			{
+				if (!multiSource->getNode()->isBodyShown())
+					continue;
+
+				if (multiSource->getNode()->getId() == nodeId)
+				{
+					if (multiSource->getOutputIndex() == pId.getIntValue())
+					{
+						auto start = getCircle(multiSource->asComponent(), false);
+						auto end = getCircle(&b->powerButton).translated(0.0, -60.0f);
+
+						auto c = n->isBypassed() ? Colours::grey : Colour(SIGNAL_COLOUR).withAlpha(0.8f);
+
+						paintCable(g, start, end, c, alpha);
+					}
+				}
+			}
+
+			for (auto sourceSlider : sliderList)
 			{
 				if (!sourceSlider->parameterToControl->parent->isBodyShown())
 					continue;
@@ -355,7 +407,6 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 	for (auto s : sendList)
 	{
-
 		auto nc = s->findParentComponentOfClass<NodeComponent>();
 
 		if (!nc->node->isBodyShown())
@@ -391,6 +442,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		}
 	}
 
+	
 }
 
 scriptnode::NodeComponent* DspNetworkGraph::getComponent(NodeBase::Ptr node)

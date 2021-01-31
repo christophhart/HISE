@@ -920,7 +920,7 @@ juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
 	for (auto n : nodes)
 	{
 		auto bounds = n->getPositionInCanvas(childPos);
-		bounds = n->getBoundsToDisplay(bounds);
+		//bounds = n->getBoundsToDisplay(bounds);
 		maxW = jmax<int>(maxW, bounds.getWidth());
 		h += bounds.getHeight() + NodeMargin;
 		childPos = childPos.translated(0, bounds.getHeight());
@@ -1041,7 +1041,6 @@ juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
 	for (auto n : nodes)
 	{
 		auto b = n->getPositionInCanvas(startPos);
-		b = n->getBoundsToDisplay(b);
 		maxy = jmax(b.getBottom(), maxy);
 		startPos = startPos.translated(b.getWidth() + UIValues::NodeMargin, 0);
 		maxWidth = startPos.getX();
@@ -1051,7 +1050,7 @@ juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
 	maxy += UIValues::PinHeight;
 	maxy += UIValues::NodeMargin;
 
-	return { topLeft.getX(), topLeft.getY(), maxWidth, maxy };
+	return getBoundsToDisplay({ topLeft.getX(), topLeft.getY(), maxWidth, maxy });
 }
 
 juce::String ParallelNode::createCppClass(bool isOuterClass)
@@ -1199,11 +1198,14 @@ void NodeContainer::MacroParameter::rebuildCallback()
 
 		if (newC->isValid())
 			connections.add(newC.release());
+
+#if 0
 		else
 		{
 			cTree.removeChild(c, nullptr);
 			break;
 		}
+#endif
 	}
 
 #if 0
@@ -1240,45 +1242,7 @@ void NodeContainer::MacroParameter::rebuildCallback()
 	}
 #endif
 
-	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
-
-	for (auto c : connections)
-	{
-		if (c->nodeToBeBypassed != nullptr)
-		{
-			auto r = RangeHelpers::getDoubleRange(c->data).getRange();
-
-			chain->addParameter(new NodeBase::DynamicBypassParameter(c->nodeToBeBypassed, r));
-		}
-		else
-		{
-			auto pList = c->targetParameter->parent->createInternalParameterList();
-
-			for (auto p : pList)
-			{
-				if (p.info.getId() == c->targetParameter->getId())
-				{
-					ScopedPointer<parameter::dynamic_base> b;
-
-					auto r = RangeHelpers::getDoubleRange(c->data);
-					auto e = c->data[PropertyIds::Expression].toString();
-
-					if (e.isNotEmpty())
-						b = new parameter::dynamic_expression(p.callback, new snex::JitExpression(e));
-					else if (!RangeHelpers::isIdentity(r))
-						b = new parameter::dynamic_from0to1(p.callback, r);
-					else
-						b = new parameter::dynamic_base(p.callback);
-
-					b->setDataTree(c->targetParameter->data);
-
-					chain->addParameter(b.release());
-				}
-			}
-		}
-
-		
-	}
+	ScopedPointer<parameter::dynamic_chain> chain = Connection::createParameterFromConnectionTree(parent, cTree);
 
 	if (auto s = chain->getFirstIfSingle())
 		setCallbackNew(s);
