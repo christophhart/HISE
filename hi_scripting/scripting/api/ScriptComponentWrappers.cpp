@@ -391,6 +391,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int property
 		PROPERTY_CASE::ScriptComponent::textColour :	updateColours(s); break;
 		PROPERTY_CASE::ScriptSlider::dragDirection:
 		PROPERTY_CASE::ScriptSlider::showTextBox:
+		PROPERTY_CASE::ScriptSlider::scrollWheel:		s->setScrollWheelEnabled(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::scrollWheel));
 		PROPERTY_CASE::ScriptSlider::Style:				updateSliderStyle(sc, s); break;
 		PROPERTY_CASE::ScriptSlider::Mode:
 		PROPERTY_CASE::ScriptComponent::min :
