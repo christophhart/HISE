@@ -124,6 +124,11 @@ FunctionData JitCompiledFunctionClass::getFunction(const NamespacedIdentifier& f
 
 
 
+bool JitObject::isStateless()
+{
+	return getClassScope()->getRootData()->getAllVariables().isEmpty();
+}
+
 snex::jit::FunctionData JitObject::operator[](const NamespacedIdentifier& functionId) const
 {
 	if (*this)

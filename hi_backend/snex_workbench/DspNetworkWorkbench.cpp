@@ -88,26 +88,30 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 
 		if (dcg->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
 		{
-			auto rootNode = np->getActiveNetwork()->getRootNode();
-
-			np->getActiveNetwork()->setExternalDataHolder(&getParent()->getTestData());
-
-			for (int i = 0; i < rootNode->getNumParameters(); i++)
+			if (np != nullptr)
 			{
-				auto p = rootNode->getParameter(i);
 
-				scriptnode::parameter::data d;
+				auto rootNode = np->getActiveNetwork()->getRootNode();
 
-				auto f = [](void* obj, double value)
+				np->getActiveNetwork()->setExternalDataHolder(&getParent()->getTestData());
+
+				for (int i = 0; i < rootNode->getNumParameters(); i++)
 				{
-					auto typed = static_cast<scriptnode::NodeBase::Parameter*>(obj);
-					typed->setValueAndStoreAsync(value);
-				};
+					auto p = rootNode->getParameter(i);
 
-				d.info = scriptnode::parameter::pod(p->data);
-				
-				d.callback.referTo(p, f);
-				lastResult.parameters.add(d);
+					scriptnode::parameter::data d;
+
+					auto f = [](void* obj, double value)
+					{
+						auto typed = static_cast<scriptnode::NodeBase::Parameter*>(obj);
+						typed->setValueAndStoreAsync(value);
+					};
+
+					d.info = scriptnode::parameter::pod(p->data);
+
+					d.callback.referTo(p, f);
+					lastResult.parameters.add(d);
+				}
 			}
 		}
 		else
@@ -232,9 +236,11 @@ void DspNetworkCodeProvider::initNetwork()
 	{
 		np->getOrCreate(getXmlFile().getFileNameWithoutExtension());
 
-		np->prepareToPlay(np->getSampleRate(), np->getLargestBlockSize());
+		
 		currentTree = np->getActiveNetwork()->getValueTree();
 	}
+
+	np->prepareToPlay(np->getSampleRate(), np->getLargestBlockSize());
 
 	source = SourceMode::InterpretedNode;
 	setRootValueTree(currentTree);

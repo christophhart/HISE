@@ -99,8 +99,7 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 
 		jassert(startSample == 0);
 		jassert(numSamples == b.getNumSamples());
-		activeNetwork->process(b, &eventBuffer);
-		eventBuffer.clear();
+		activeNetwork->process(b, eventBuffer);
 	}
 
 	int getControlCallbackIndex() const override { return 0; }
@@ -143,14 +142,7 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 		return MasterEffectProcessor::exportAsValueTree();
 	}
 
-	void handleHiseEvent(const HiseEvent &m) override
-	{
-		SimpleReadWriteLock::ScopedReadLock sl(lock);
-		eventBuffer.addEvent(m);
-	}
-
 	hise::SimpleReadWriteLock lock;
-	HiseEventBuffer eventBuffer;
 
 	int getActiveNetworkIndex() const
 	{
@@ -161,8 +153,6 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 	{
 		return  activeNetwork;
 	}
-
-
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkProcessor);
 };
@@ -552,10 +542,12 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 
 		d->addListener(this);
 
+#if 0
 		cpuMeter.setColour(VuMeter::backgroundColour, Colours::transparentBlack);
 		cpuMeter.setColour(VuMeter::ColourId::ledColour, Colours::white.withAlpha(0.45f));
 		cpuMeter.setColour(VuMeter::ColourId::outlineColour, Colours::white.withAlpha(0.4f));
 		cpuMeter.setOpaque(false);
+#endif
 	}
 
 	void anythingChanged() override
@@ -575,9 +567,6 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 	{
 		auto& r = wb->getTestData();
 
-		cpuUsage = r.cpuUsage;
-
-		cpuMeter.setPeak(cpuUsage);
 		repaint();
 	}
 
@@ -587,18 +576,22 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 
 	void paintOverChildren(Graphics& g) override
 	{
-		g.setColour(Colours::white.withAlpha(0.7f));
-		g.setFont(GLOBAL_FONT().withHeight(10.0f));
-
-		String c;
-		c << "CPU: " << String(cpuUsage * 100.0, 2) << "%";
-		g.drawText(c, cpuMeter.getBounds(), Justification::centred, true);
+		
 	}
 
 	void recompiled(WorkbenchData::Ptr wb) override
 	{
 		if (auto dncp = dynamic_cast<DspNetworkCodeProvider*>(wb->getCodeProvider()))
 		{
+			if (cpuMeter == nullptr)
+			{
+				if (auto mc = dncp->getMainController())
+				{
+					addAndMakeVisible(cpuMeter = new VoiceCpuBpmComponent(mc));
+					resized();
+				}
+			}
+
 			codeButton.setMode(dncp->source);
 			jitNodeButton.setMode(dncp->source);
 			scriptnodeButton.setMode(dncp->source);
@@ -668,7 +661,8 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 		codeButton.setBounds(r.removeFromLeft(b.getHeight()));
 		dllButton.setBounds(r.removeFromLeft(b.getHeight()));
 
-		cpuMeter.setBounds(r);
+		if(cpuMeter != nullptr)
+			cpuMeter->setBounds(r);
 	}
 
 	Path scriptnodePath;
@@ -684,8 +678,7 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 	HiseShapeButton parameterButton;
 	HiseShapeButton signalButton;
 
-	double cpuUsage = 0.0;
-	hise::VuMeter cpuMeter;
+	ScopedPointer<hise::VoiceCpuBpmComponent> cpuMeter;
 
 	TooltipBar tooltips;
 };
@@ -731,7 +724,9 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 				if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
 				{
 					jitNode = nullptr;
-					interpreter = holder->getActiveNetwork();
+
+					if(holder != nullptr)
+						interpreter = holder->getActiveNetwork();
 				}
 				else if (dnp->source == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
 				{

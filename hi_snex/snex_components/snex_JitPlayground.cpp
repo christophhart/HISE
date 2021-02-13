@@ -338,17 +338,17 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	consoleContent.addListener(this);
 
-	auto f = [this]()
+	if (isTestMode)
 	{
-		editor.grabKeyboardFocus();
-	};
+		auto f = [this]()
+		{
+			editor.grabKeyboardFocus();
+		};
 
-	
+		MessageManager::callAsync(f);
+	}
 
 	getWorkbench()->addListener(this);
-
-	
-	MessageManager::callAsync(f);
 }
 
 SnexPlayground::~SnexPlayground()
@@ -629,8 +629,11 @@ void SnexPlayground::logMessage(ui::WorkbenchData::Ptr p, int level, const juce:
 	if (m.isEmpty())
 		return;
 
-	consoleContent.insertText(consoleContent.getNumCharacters(), m);
-	consoleContent.clearUndoHistory();
+	if (console.isVisible())
+	{
+		consoleContent.insertText(consoleContent.getNumCharacters(), m);
+		consoleContent.clearUndoHistory();
+	}
 
 	if (level == jit::BaseCompiler::Warning)
 	{

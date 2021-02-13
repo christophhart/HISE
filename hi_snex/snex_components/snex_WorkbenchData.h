@@ -192,14 +192,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 			ignoreUnused(wb, level, s);
 		};
 
-		virtual void workbenchChanged(Ptr oldWorkBench, Ptr newWorkbench)
-		{
-			if (oldWorkBench != nullptr)
-				oldWorkBench->removeListener(this);
-
-			if (newWorkbench != nullptr)
-				newWorkbench->addListener(this);
-		}
+		
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
@@ -513,7 +506,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 				return buffers[index];
 			}
 
-			buffers.add(new MultiChannelAudioBuffer(updater, AudioSampleBuffer()));
+			auto b = new MultiChannelAudioBuffer();
+			b->setProvider(dataProvider);
+			buffers.add(b);
 
 			sendMessageToListeners(true);
 
@@ -583,8 +578,15 @@ struct WorkbenchData : public ReferenceCountedObject,
 			testRootDirectory = newRootDir;
 		}
 
+		void setMultichannelDataProvider(MultiChannelAudioBuffer::DataProvider* p)
+		{
+			dataProvider = p;
+		}
+
 	private:
 		
+		MultiChannelAudioBuffer::DataProvider::Ptr dataProvider;
+
 		int getParameterInSampleRange(Range<int> r, int lastIndex, ParameterEvent& pToFill) const
 		{
 			lastIndex = jmax(0, lastIndex);
@@ -758,6 +760,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 			
 		}
 
+		std::function<String(const Identifier&)> defaultFunction = WorkbenchData::getDefaultNodeTemplate;
+
 		String loadCode() const override
 		{
 			auto parent = getParent();
@@ -768,7 +772,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 				if (code.isEmpty())
 				{
-					code = WorkbenchData::getDefaultNodeTemplate(getInstanceId());
+					code = defaultFunction(getInstanceId());
 					f.replaceWithText(code);
 				}
 
@@ -1101,95 +1105,54 @@ struct ValueTreeCodeProvider : public snex::ui::WorkbenchData::CodeProvider,
 	String customCode;
 };
 
-struct WorkbenchManager : public WorkbenchData::Listener
+struct WorkbenchManager final
 {
 	using LogFunction = std::function<void(int, const String&)>;
 
-	virtual ~WorkbenchManager() {};
+	~WorkbenchManager() {};
 
-	void recompiled(WorkbenchData::Ptr p) override
+	struct WorkbenchChangeListener
 	{
-		setCurrentWorkbench(p);
-	}
+		virtual ~WorkbenchChangeListener() {};
 
-	void logMessage(WorkbenchData::Ptr p, int level, const String& s) override
-	{
-		if (p.get() == currentWb.get() && logFunction)
-			logFunction(level, s);
+		virtual void workbenchChanged(WorkbenchData::Ptr newWorkbench) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(WorkbenchChangeListener);
 	};
 
-	WorkbenchData::Ptr getWorkbenchDataForCodeProvider(WorkbenchData::CodeProvider* p, bool ownCodeProvider)
+	void addListener(WorkbenchChangeListener* l)
 	{
-		ScopedPointer<WorkbenchData::CodeProvider> owned = p;
-
-		for (auto w : data)
-		{
-			if (*w == p)
-			{
-				w->addListener(this);
-				setCurrentWorkbench(w);
-
-				if (!ownCodeProvider)
-					owned.release();
-				
-				return w;
-			}
-		}
-
-		WorkbenchData::Ptr w = new WorkbenchData();
-
-		w->setCodeProvider(p, dontSendNotification);
-		w->addListener(this);
-		setCurrentWorkbench(w);
-
-		if(ownCodeProvider)
-			codeProviders.add(owned.release());
-
-		data.add(w);
-
-		return w;
+		listeners.addIfNotAlreadyThere(l);
 	}
 
-	void workbenchChanged(WorkbenchData::Ptr oldWorkBench, WorkbenchData::Ptr newWorkbench) override;
-
-	void setCurrentWorkbench(WorkbenchData::Ptr newWorkbench)
+	void removeListener(WorkbenchChangeListener* l)
 	{
-		if (currentWb.get() != newWorkbench.get())
-		{
-			registerAllComponents(newWorkbench);
-
-			for (auto l : registeredComponents)
-				l->workbenchChanged(currentWb.get(), newWorkbench);
-		}
+		listeners.removeAllInstancesOf(l);
 	}
 
-	void setLogFunction(const LogFunction& f)
+	WorkbenchData::Ptr getWorkbenchDataForCodeProvider(WorkbenchData::CodeProvider* p, bool ownCodeProvider);
+
+	void resetToRoot()
 	{
-		logFunction = f;
+		if (rootWb != nullptr)
+			setCurrentWorkbench(rootWb, false);
 	}
 
-	void registerAllComponents(WorkbenchData::Ptr p)
-	{
-		for (int i = 0; i < registeredComponents.size(); i++)
-		{
-			if (registeredComponents[i] == nullptr)
-				registeredComponents.remove(i--);
-		}
+	void setCurrentWorkbench(WorkbenchData::Ptr newWorkbench, bool setAsRoot);
 
-		for (auto l : p->listeners)
-		{
-			if(l != nullptr)
-				registeredComponents.addIfNotAlreadyThere(l);
-		}
-	}
+	WorkbenchData::Ptr getCurrentWorkbench() { return currentWb; }
+	
+	WorkbenchData::Ptr getRootWorkbench() { return rootWb; }
+
+private:
+
+	ReferenceCountedArray<WorkbenchData> data;
+	WorkbenchData::Ptr currentWb;
+	WorkbenchData::Ptr rootWb;
 
 	LogFunction logFunction;
 
-	ReferenceCountedArray<WorkbenchData> data;
-
-	WorkbenchData::WeakPtr currentWb;
-
-	Array<WeakReference<WorkbenchData::Listener>> registeredComponents;
+	Array<WeakReference<WorkbenchChangeListener>> listeners;
 
 	OwnedArray<WorkbenchData::CodeProvider> codeProviders;
 

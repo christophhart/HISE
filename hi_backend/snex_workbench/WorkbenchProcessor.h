@@ -103,17 +103,14 @@ public:
 				}
 
 				dgp->getParentShell()->setOverlayComponent(new DspNetworkCodeProvider::OverlayComponent(dnp->source, p), 300);
-				ep->getParentShell()->setOverlayComponent(new DspNetworkCodeProvider::OverlayComponent(dnp->source, p), 300);
 			}
 			else if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
 			{
 				dgp->getParentShell()->setOverlayComponent(nullptr, 300);
-				ep->getParentShell()->setOverlayComponent(new DspNetworkCodeProvider::OverlayComponent(dnp->source, p), 300);
 			}
 			else
 			{
 				ep->getParentShell()->setOverlayComponent(nullptr, 300);
-				dgp->getParentShell()->setOverlayComponent(new DspNetworkCodeProvider::OverlayComponent(dnp->source, p), 300);
 			}
 		}
 	}

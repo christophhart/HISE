@@ -293,7 +293,7 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 		ep->setCustomTitle("SNEX Code Editor");
 		
-
+		builder.setVisibility(v, true, { true, true, false });
 		//auto t = builder.addChild<FloatingTabComponent>(v);
 		//builder.getPanel(t)->setCustomIcon((int)FloatingTileContent::Factory::PopupMenuOptions::ScriptEditor);
 		//auto rightColumn = builder.addChild<HorizontalTile>(v);
@@ -333,6 +333,8 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 		//builder.getContent<VisibilityToggleBar>(htb)->setControlledContainer(builder.getContainer(r));
 
+		builder.setFolded(r, { false, false, true, true, true, true });
+
 		builder.setSizes(r, { 30.0, -0.4, -0.2, -0.2, -0.2, -0.2 });
 
 		builder.getContent<VisibilityToggleBar>(vtb)->refreshButtons();;
@@ -351,7 +353,7 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 	
 
-	setSize(800, 600);
+	setSize(1680, 1050);
 }
 
 
@@ -540,7 +542,7 @@ void SnexWorkbenchEditor::addFile(const File& f)
 	df = new hise::DspNetworkCodeProvider(nullptr, getMainController(), f);
 
 	wb = dynamic_cast<BackendProcessor*>(getMainController())->workbenches.getWorkbenchDataForCodeProvider(df, true);
-
+	wb->getTestData().setMultichannelDataProvider(new PooledAudioFileDataProvider(getMainController()));
 	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb, getMainController()));
 
 	ep->setWorkbenchData(wb.get());
@@ -548,6 +550,7 @@ void SnexWorkbenchEditor::addFile(const File& f)
 	auto testRoot = getSubFolder(getProcessor(), FolderSubType::Tests);
 	
 	wb->getTestData().setTestRootDirectory(createIfNotDirectory(testRoot.getChildFile(f.getFileNameWithoutExtension())));
+	wb->getTestData().setUpdater(getProcessor()->getGlobalUIUpdater());
 
 	wb->addListener(this);
 

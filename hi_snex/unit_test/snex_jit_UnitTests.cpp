@@ -566,7 +566,7 @@ public:
 		
 
 		optimizations = OptimizationIds::getAllIds();
-		runTestFiles("");
+		//runTestFiles("");
 		
 #if INCLUDE_SNEX_BIG_TESTSUITE
 		optimizations = OptimizationIds::getAllIds();

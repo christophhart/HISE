@@ -151,17 +151,54 @@ bool ui::WorkbenchData::handleCompilation()
 	return true;
 }
 
-void ui::WorkbenchManager::workbenchChanged(WorkbenchData::Ptr oldWorkBench, WorkbenchData::Ptr newWorkbench)
+
+
+snex::ui::WorkbenchData::Ptr ui::WorkbenchManager::getWorkbenchDataForCodeProvider(WorkbenchData::CodeProvider* p, bool ownCodeProvider)
 {
-	jassert(oldWorkBench.get() == currentWb.get());
+	ScopedPointer<WorkbenchData::CodeProvider> owned = p;
 
-	currentWb = newWorkbench.get();
+	for (auto w : data)
+	{
+		if (*w == p)
+		{
+			setCurrentWorkbench(w, true);
 
-	if (currentWb != nullptr)
-		logMessage(currentWb.get(), jit::BaseCompiler::VerboseProcessMessage, "Switched to " + currentWb->getInstanceId());
+			if (!ownCodeProvider)
+				owned.release();
+
+			return w;
+		}
+	}
+
+	WorkbenchData::Ptr w = new WorkbenchData();
+
+	w->setCodeProvider(p, dontSendNotification);
+
+	if (ownCodeProvider)
+		codeProviders.add(owned.release());
+
+	data.add(w);
+	setCurrentWorkbench(w, true);
+
+	return w;
 }
 
+void ui::WorkbenchManager::setCurrentWorkbench(WorkbenchData::Ptr newWorkbench, bool setAsRoot)
+{
+	if (setAsRoot)
+		rootWb = newWorkbench;
 
+	if (currentWb.get() != newWorkbench.get())
+	{
+		currentWb = newWorkbench.get();
+
+		for (auto l : listeners)
+		{
+			if (l.get() != nullptr)
+				l->workbenchChanged(newWorkbench);
+		}
+	}
+}
 
 void ui::ValueTreeCodeProvider::timerCallback()
 {

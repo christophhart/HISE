@@ -642,9 +642,6 @@ private:
 		}
 	}
 
-	/** Don't change the workbench in the editor. */
-	void workbenchChanged(ui::WorkbenchData::Ptr, ui::WorkbenchData::Ptr) {}
-
 	void recompiled(ui::WorkbenchData::Ptr p) override;
 
 	void postPostCompile(ui::WorkbenchData::Ptr wb) override;
