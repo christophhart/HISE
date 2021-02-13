@@ -40,7 +40,6 @@ using namespace snex;
 using namespace Types;
 
 
-struct NodeBase;
 
 /** A mysterious wrapper that will use a rather old-school, plain C API for the callbacks. 
 
@@ -95,7 +94,10 @@ struct OpaqueNode
 			externalDataFunc = prototypes::noop::setExternalData;
 
 		if constexpr (prototypes::check::handleModulation<T>::value)
+		{
 			modFunc = prototypes::static_wrappers<T>::handleModulation;
+			isNormalised = T::WrappedObjectType::isNormalisedModulation();
+		}
 		else
 			modFunc = prototypes::noop::handleModulation;
 

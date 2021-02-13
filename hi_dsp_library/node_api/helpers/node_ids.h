@@ -72,10 +72,6 @@ DECLARE_ID(MidPoint);
 DECLARE_ID(MinValue);
 DECLARE_ID(MaxValue);
 DECLARE_ID(Inverted);
-DECLARE_ID(EmbeddedData);
-DECLARE_ID(NumTables);
-DECLARE_ID(NumSliderPacks);
-DECLARE_ID(NumAudioFiles);
 DECLARE_ID(LowerLimit);
 DECLARE_ID(UpperLimit);
 DECLARE_ID(SkewFactor);
@@ -96,6 +92,7 @@ DECLARE_ID(FactoryPath);
 DECLARE_ID(FreezedPath);
 DECLARE_ID(FreezedId);
 DECLARE_ID(NumChannels);
+DECLARE_ID(EmbeddedData);
 DECLARE_ID(LockNumChannels);
 DECLARE_ID(SwitchTargets);
 DECLARE_ID(SwitchTarget);
@@ -118,10 +115,16 @@ DECLARE_ID(SampleIndex);
 DECLARE_ID(File);
 DECLARE_ID(PublicComponent);
 DECLARE_ID(Code);
+DECLARE_ID(ComplexData);
+DECLARE_ID(Table);
+DECLARE_ID(SliderPack);
+DECLARE_ID(AudioFile);
+DECLARE_ID(CodeLibrary);
+DECLARE_ID(ClassId);
 DECLARE_ID(AllowSubBlocks);
 DECLARE_ID(Enabled);
 DECLARE_ID(Mode);
-DECLARE_ID(DataIndex);
+DECLARE_ID(BlockSize);
 
 enum EditType
 {

@@ -90,6 +90,7 @@ viewUndoManager(new UndoManager())
 
 	scriptnode::CodeHelpers::initCustomCodeFolder(synthChain);
 
+#if 0
 	workbenches.setLogFunction([this](int l, const String& message)
 	{
 		if (auto wb = workbenches.currentWb)
@@ -100,6 +101,7 @@ viewUndoManager(new UndoManager())
 				getConsoleHandler().writeToConsole(m, 0, nullptr, Colours::white);
 		}
 	});
+#endif
 }
 
 

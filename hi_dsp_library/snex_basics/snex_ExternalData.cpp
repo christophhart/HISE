@@ -98,4 +98,147 @@ int ExternalDataHolder::getAbsoluteIndex(ExternalData::DataType t, int dataIndex
 	return offset + dataIndex;
 }
 
+hise::ComplexDataUIBase* ExternalDataHolder::getComplexBaseType(ExternalData::DataType t, int index)
+{
+	switch (t)
+	{
+	case ExternalData::DataType::Table:		 return getTable(index);
+	case ExternalData::DataType::SliderPack: return getSliderPack(index);
+	case ExternalData::DataType::AudioFile:  return getAudioFile(index);
+	}
+
+	return nullptr;
+}
+
+ExternalData::ExternalData(ComplexDataUIBase* b, int absoluteIndex) :
+	dataType(getDataTypeForClass(b)),
+	obj(b)
+{
+	SimpleReadWriteLock::ScopedReadLock sl(b->getDataLock());
+
+	switch (dataType)
+	{
+	case DataType::AudioFile:
+	{
+		auto buffer = dynamic_cast<MultiChannelAudioBuffer*>(obj);
+		data = buffer->getDataPtrs();
+		numChannels = buffer->getBuffer().getNumChannels();
+		numSamples = buffer->getCurrentRange().getLength();
+		sampleRate = buffer->sampleRate;
+		break;
+	}
+	case DataType::Table:
+	{
+		auto t = dynamic_cast<Table*>(obj);
+		data = const_cast<float*>(t->getReadPointer());
+		numSamples = t->getTableSize();
+		numChannels = 1;
+		break;
+	}
+	case DataType::SliderPack:
+	{
+		auto t = dynamic_cast<SliderPackData*>(obj);
+		data = const_cast<float*>(t->getCachedData());
+		numSamples = t->getNumSliders();
+		numChannels = 1;
+		break;
+	}
+	}
+}
+
+String ExternalData::getDataTypeName(DataType t)
+{
+	switch (t)
+	{
+	case DataType::AudioFile: return "AudioFile";
+	case DataType::SliderPack: return "SliderPack";
+	case DataType::Table: return "Table";
+	case DataType::ConstantLookUp: return "ConstantLookup";
+	default: jassertfalse; return {};
+	}
+}
+
+juce::Identifier ExternalData::getNumIdentifier(DataType t)
+{
+	String s;
+
+	s << "Num";
+	s << getDataTypeName(t);
+	s << "s";
+
+	return Identifier(s);
+}
+
+void ExternalData::forEachType(const std::function<void(DataType)>& f)
+{
+	f(DataType::Table);
+	f(DataType::SliderPack);
+	f(DataType::AudioFile);
+}
+
+void ExternalData::referBlockTo(block& b, int channelIndex) const
+{
+	if (dataType == DataType::AudioFile)
+	{
+		if (isPositiveAndBelow(channelIndex, numChannels))
+			b.referToRawData(((float**)data)[channelIndex], numSamples);
+		else
+			b.referToNothing();
+	}
+	else
+		b.referToRawData((float*)data, numSamples);
+}
+
+void ExternalData::setDisplayedValue(double valueToDisplay)
+{
+	if (obj != nullptr)
+	{
+		obj->sendDisplayIndexMessage(valueToDisplay);
+	}
+}
+
+juce::AudioSampleBuffer ExternalData::toAudioSampleBuffer() const
+{
+	if (isEmpty())
+		return {};
+
+	if (dataType == DataType::AudioFile)
+		return AudioSampleBuffer((float**)data, numChannels, numSamples);
+	else
+		return AudioSampleBuffer((float**)&data, 1, numSamples);
+}
+
+snex::ExternalData::DataType ExternalData::getDataTypeForClass(ComplexDataUIBase* d)
+{
+	if (auto s = dynamic_cast<SliderPackData*>(d))
+		return DataType::SliderPack;
+	if (auto t = dynamic_cast<Table*>(d))
+		return DataType::Table;
+	if (auto f = dynamic_cast<MultiChannelAudioBuffer*>(d))
+		return DataType::AudioFile;
+
+	return DataType::numDataTypes;
+}
+
+hise::ComplexDataUIBase::EditorBase* ExternalData::createEditor(ComplexDataUIBase* dataObject)
+{
+	hise::ComplexDataUIBase::EditorBase* c;
+
+	if (auto t = dynamic_cast<hise::Table*>(dataObject))
+	{
+		c = new hise::TableEditor();
+	}
+	if (auto t = dynamic_cast<hise::SliderPackData*>(dataObject))
+	{
+		c = new hise::SliderPack();
+	}
+	if (auto t = dynamic_cast<hise::MultiChannelAudioBuffer*>(dataObject))
+	{
+		c = new hise::MultiChannelAudioBufferDisplay();
+	}
+
+	c->setComplexDataUIBase(dataObject);
+	return c;
+}
+
 }

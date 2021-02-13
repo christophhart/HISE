@@ -951,9 +951,8 @@ juce::var ValueTreeIterator::getNodeProperty(const ValueTree& nodeTree, const Id
 
 bool ValueTreeIterator::isComplexDataNode(const ValueTree& nodeTree)
 {
-	return  nodeTree.hasProperty(PropertyIds::NumTables) ||
-			nodeTree.hasProperty(PropertyIds::NumSliderPacks) ||
-			nodeTree.hasProperty(PropertyIds::NumAudioFiles);
+	jassertfalse;
+	return false;
 }
 
 bool ValueTreeIterator::isAutomated(const ValueTree& parameterTree)
@@ -1536,6 +1535,7 @@ ValueTreeBuilder::ComplexDataBuilder::ComplexDataBuilder(ValueTreeBuilder& paren
 
 Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parse()
 {
+#if 0
 	auto dataIndex = ValueTreeIterator::getNodeProperty(n->nodeTree, PropertyIds::DataIndex);
 
 	// The id is already used by the wrapped node...
@@ -1553,10 +1553,14 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parse()
 	wn->flushIfNot();
 
 	return wn;
+#endif
+	jassertfalse;
+	return nullptr;
 }
 
 Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseDataClass()
 {
+#if 0
 	auto dataIndex = (int)ValueTreeIterator::getNodeProperty(n->nodeTree, PropertyIds::DataIndex);
 
 	NamespacedIdentifier d("data");
@@ -1596,12 +1600,17 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseDataClass()
 	*dc << expr;
 
 	return dc;
+#endif
+
+	jassertfalse;
+	return nullptr;
 }
 
 
 
 snex::ExternalData::DataType ValueTreeBuilder::ComplexDataBuilder::getType(const ValueTree& v)
 {
+#if 0
 	if (v.hasProperty(PropertyIds::NumTables))
 		return ExternalData::DataType::Table;
 
@@ -1612,14 +1621,23 @@ snex::ExternalData::DataType ValueTreeBuilder::ComplexDataBuilder::getType(const
 		return ExternalData::DataType::SliderPack;
 
 	return ExternalData::DataType::numDataTypes;
+#endif
+
+	// This should not work because there can be multiple data types...
+	jassertfalse;
+	return ExternalData::DataType::numDataTypes;
 }
 
 juce::Array<float> ValueTreeBuilder::ComplexDataBuilder::getEmbeddedData() const
 {
+	jassertfalse;
+
+
 	auto t = getType(n->nodeTree);
 
 	Array<float> data;
 
+#if 0
 	if (t == ExternalData::DataType::Table)
 	{
 		SampleLookupTable table;
@@ -1634,8 +1652,10 @@ juce::Array<float> ValueTreeBuilder::ComplexDataBuilder::getEmbeddedData() const
 		for (int i = 0; i < SAMPLE_LOOKUP_TABLE_SIZE; i++)
 			data.add(ptr[i]);
 	}
+#endif
 
 	return data;
+
 }
 
 }

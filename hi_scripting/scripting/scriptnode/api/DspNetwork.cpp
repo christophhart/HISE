@@ -52,19 +52,10 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	data(data_),
 	isPoly(poly),
 	voiceIndex(poly),
-	parentHolder(dynamic_cast<Holder*>(p))
+	parentHolder(dynamic_cast<Holder*>(p)),
+	codeManager(*this)
 {
-	if (auto asH = dynamic_cast<Holder*>(p))
-	{
-		if (auto otherHolder = asH->getExternalDataHolder())
-		{
-			setExternalDataHolder(otherHolder);
-		}
-		else if (auto asScriptHolder = dynamic_cast<ScriptComplexDataHolder*>(p))
-		{
-			setExternalDataHolder(asScriptHolder->asExternalDataHolder());
-		}
-	}
+	setExternalDataHolder(dynamic_cast<ExternalDataHolder*>(p));
 
 	ownedFactories.add(new NodeContainerFactory(this));
 	ownedFactories.add(new core::Factory(this));
@@ -72,6 +63,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ownedFactories.add(new routing::Factory(this));
 	ownedFactories.add(new analyse::Factory(this));
 	ownedFactories.add(new fx::Factory(this));
+	ownedFactories.add(new control::Factory(this));
 	ownedFactories.add(new examples::Factory(this));
 
 	ownedFactories.add(new dynamics::Factory(this));
@@ -538,7 +530,7 @@ bool DspNetwork::updateIdsInValueTree(ValueTree& v, StringArray& usedIds)
 
 juce::String DspNetwork::getNonExistentId(String id, StringArray& usedIds) const
 {
-	if (usedIds.isEmpty())
+	if (signalPath == nullptr)
 	{
 		usedIds.add(id);
 		return id;
@@ -826,32 +818,37 @@ void DspNetwork::SelectionUpdater::changeListenerCallback(ChangeBroadcaster*)
 	}
 }
 
-SnexSource::~SnexSource()
+
+
+juce::File DspNetwork::CodeManager::getCodeFolder() const
 {
-	if (parentNode != nullptr)
-	{
-		parentNode->getRootNetwork()->getSnexObjects().removeAllInstancesOf(this);
-	}
+	File f = parent.getScriptProcessor()->getMainController_()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::DspNetworks).getChildFile("CodeLibrary");
+	f.createDirectory();
+	return f;
 }
 
-void SnexSource::initialise(NodeBase* n)
+DspNetwork::CodeManager::SnexSourceCompileHandler::SnexSourceCompileHandler(snex::ui::WorkbenchData* d, ProcessorWithScriptingContent* sp_) :
+	CompileHandler(d),
+	ControlledObject(sp_->getMainController_()),
+	sp(sp_)
 {
-	parentNode = n;
-	expression.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(SnexSource::setCode));
-	expression.initialise(n);
 
-	if (expression.getValue().isEmpty())
-	{
-		expression.storeValue(getEmptyText(), n->getUndoManager());
-	}
-
-	if (parentNode != nullptr)
-	{
-		parentNode->getRootNetwork()->getSnexObjects().addIfNotAlreadyThere(this);
-	}
 }
 
+bool DspNetwork::CodeManager::SnexSourceCompileHandler::triggerCompilation()
+{
+	WorkbenchData::WeakPtr safeWb = getParent();
 
+	auto f = [safeWb](Processor* p)
+	{
+		if (safeWb.get() != nullptr)
+			safeWb.get()->handleCompilation();
+
+		return SafeFunctionCall::OK;
+	};
+
+	return getMainController()->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(sp), f, MainController::KillStateHandler::SampleLoadingThread);
+}
 
 }
 

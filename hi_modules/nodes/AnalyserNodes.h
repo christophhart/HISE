@@ -48,125 +48,47 @@ struct Helpers
 		virtual double getSampleRate() const = 0;
 
 		virtual AnalyserRingBuffer& getRingBuffer() = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(AnalyserDataProvider);
 	};
 
-	struct Base
+	static Colour getColourBase(int colourId)
 	{
-		Base(AnalyserDataProvider& b) :
-			srp(b)
-		{}
+		if (colourId == AudioAnalyserComponent::ColourId::bgColour)
+			return Colour(0xFF333333);
+		if (colourId == AudioAnalyserComponent::ColourId::fillColour)
+			return Colours::white.withAlpha(0.7f);
+		if (colourId == AudioAnalyserComponent::ColourId::lineColour)
+			return Colours::white;
 
-		Colour getColourBase(int colourId)
-		{
-			if (colourId == AudioAnalyserComponent::ColourId::bgColour)
-				return Colour(0xFF333333);
-			if (colourId == AudioAnalyserComponent::ColourId::fillColour)
-				return Colours::white.withAlpha(0.7f);
-			if (colourId == AudioAnalyserComponent::ColourId::lineColour)
-				return Colours::white;
-
-			return Colours::transparentBlack;
-		}
-
-		AnalyserDataProvider& srp;
-	};
+		return Colours::transparentBlack;
+	}
 
 	struct FFT
 	{
 		SET_HISE_NODE_ID("fft");
-
-		static constexpr int width = 512;
-		static constexpr int height = 128;
-
-		struct Display : public Base,
-			public FFTDisplayBase,
-			public Component,
-			public Timer
-		{
-			Display(AnalyserDataProvider& sr) :
-				Base(sr),
-				FFTDisplayBase(sr.getRingBuffer())
-			{
-				sr.getRingBuffer().setAnalyserBufferSize(16384);
-				startTimer(30);
-				setSize(width, height);
-			}
-
-			double getSamplerate() const override
-			{
-				return srp.getSampleRate();
-			}
-
-			Colour getColourForAnalyserBase(int colourId)
-			{
-				return getColourBase(colourId);
-			}
-
-			void timerCallback() override { repaint(); }
-
-			void paint(Graphics& g) override
-			{
-				FFTDisplayBase::drawSpectrum(g);
-			}
-		};
-
-		static Component* createComponent(AnalyserDataProvider& p)
-		{
-			return new Display(p);
-		}
 	};
 
 	struct Oscilloscope
 	{
 		SET_HISE_NODE_ID("oscilloscope");
+	};
 
-		static constexpr int width = 512;
-		static constexpr int height = 128;
-
-		struct Display : public Base,
-			public OscilloscopeBase,
-			public Component,
-			public Timer
-		{
-			Display(AnalyserDataProvider& sr) :
-				Base(sr),
-				OscilloscopeBase(sr.getRingBuffer())
-			{
-				sr.getRingBuffer().setAnalyserBufferSize(2048);
-				startTimer(30);
-				setSize(width, height);
-			}
-
-			Colour getColourForAnalyserBase(int colourId)
-			{
-				return getColourBase(colourId);
-			}
-
-			void timerCallback() override { repaint(); }
-
-			void paint(Graphics& g) override
-			{
-				OscilloscopeBase::drawWaveform(g);
-			}
-		};
-
-		static Component* createComponent(AnalyserDataProvider& p)
-		{
-			return new Display(p);
-		}
+	struct GonioMeter
+	{
+		SET_HISE_NODE_ID("goniometer");
 	};
 
 };
 
 template <class T> class analyse_base : public HiseDspBase,
-					 public Helpers::AnalyserDataProvider
+										public Helpers::AnalyserDataProvider
 {
 public:
 
 	SET_HISE_NODE_ID(T::getStaticId());
     SN_GET_SELF_AS_OBJECT(analyse_base);
     
-	HISE_EMPTY_MOD;
 	HISE_EMPTY_CREATE_PARAM;
 	
 	AnalyserRingBuffer& getRingBuffer() override
@@ -184,10 +106,9 @@ public:
 		sr = ps.sampleRate;
 	}
 
-	void initialise(NodeBase* )
-	{
-
-	}
+	HISE_EMPTY_HANDLE_EVENT;
+	HISE_EMPTY_INITIALISE;
+	HISE_EMPTY_MOD;
 
 	void reset()
 	{
@@ -209,6 +130,8 @@ public:
 
 	double sr = 0.0;
 	AnalyserRingBuffer buffer;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(analyse_base);
 };
 
 template class analyse_base<Helpers::FFT>;
@@ -217,6 +140,109 @@ using fft = analyse_base<Helpers::FFT>;
 template class analyse_base<Helpers::Oscilloscope>;
 using oscilloscope = analyse_base<Helpers::Oscilloscope>;
 
+template class analyse_base<Helpers::GonioMeter>;
+using goniometer = analyse_base<Helpers::GonioMeter>;
+
+
+namespace ui
+{
+struct fft_display : public ScriptnodeExtraComponent<fft>,
+				public hise::FFTDisplayBase
+{
+	fft_display(fft* obj, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<fft>(obj, updater),
+		FFTDisplayBase(obj->getRingBuffer())
+	{
+		obj->getRingBuffer().setAnalyserBufferSize(16384);
+		setSize(512, 100);
+	}
+
+	double getSamplerate() const override
+	{
+		return getObject()->getSampleRate();
+	}
+
+	Colour getColourForAnalyserBase(int colourId)
+	{
+		return Helpers::getColourBase(colourId);
+	}
+
+	void timerCallback() override { repaint(); }
+
+	void paint(Graphics& g) override
+	{
+		FFTDisplayBase::drawSpectrum(g);
+	}
+
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+	{
+		auto typed = static_cast<fft*>(obj);
+		return new fft_display(typed, updater);
+	}
+};
+
+struct osc_display : public ScriptnodeExtraComponent<oscilloscope>,
+					 public OscilloscopeBase
+{
+	osc_display(oscilloscope* obj, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<oscilloscope>(obj, updater),
+		OscilloscopeBase(obj->getRingBuffer())
+	{
+		obj->getRingBuffer().setAnalyserBufferSize(2048);
+		setSize(512, 100);
+	}
+
+	Colour getColourForAnalyserBase(int colourId)
+	{
+		return Helpers::getColourBase(colourId);
+	}
+
+	void timerCallback() override { repaint(); }
+
+	void paint(Graphics& g) override
+	{
+		OscilloscopeBase::drawWaveform(g);
+	}
+
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+	{
+		auto typed = static_cast<oscilloscope*>(obj);
+		return new osc_display(typed, updater);
+	}
+};
+
+struct gonio_display : public ScriptnodeExtraComponent<goniometer>,
+					   public hise::GoniometerBase
+{
+	gonio_display(goniometer* obj, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<goniometer>(obj, updater),
+		GoniometerBase(obj->getRingBuffer())
+	{
+		obj->getRingBuffer().setAnalyserBufferSize(8192);
+		setSize(256, 256);
+	}
+
+	Colour getColourForAnalyserBase(int colourId) override
+	{
+		return Helpers::getColourBase(colourId);
+	}
+
+	void timerCallback() override { repaint(); }
+
+	void paint(Graphics& g) override
+	{
+		GoniometerBase::paintSpacialDots(g);
+	}
+
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+	{
+		auto typed = static_cast<goniometer*>(obj);
+		return new gonio_display(typed, updater);
+	}
+};
+
+	
+}
 
 }
 

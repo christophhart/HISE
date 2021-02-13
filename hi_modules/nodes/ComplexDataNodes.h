@@ -37,96 +37,13 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-template <int NV> class seq_impl : public HiseDspBase
-{
-public:
-
-	enum class Parameters
-	{
-		SliderPack
-	};
-
-	DEFINE_PARAMETERS
-	{
-		DEF_PARAMETER(SliderPack, seq_impl);
-	}
-
-
-	static constexpr int NumVoices = NV;
-
-	SET_HISE_POLY_NODE_ID("seq");
-	SN_GET_SELF_AS_OBJECT(seq_impl);
-
-	HISE_EMPTY_HANDLE_EVENT;
-
-	void createParameters(ParameterDataList& data) override;
-	void initialise(NodeBase* n) override;
-	bool handleModulation(double& value);
-	void reset();
-	void prepare(PrepareSpecs ps);
-
-	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
-	{
-		if (packData != nullptr)
-		{
-			auto peakValue = jlimit(0.0, 0.999999, DspHelpers::findPeak(data.begin(), data.size()));
-			auto index = int(peakValue * (double)packData->getNumSliders());
-
-			if (lastIndex.get() != index)
-			{
-				lastIndex.get() = index;
-				modValue.get().setModValue(packData->getValue(index));
-			}
-
-			float v = (float)modValue.get().getModValue();
-
-			for (auto& s : data)
-				s = v;
-		}
-	}
-
-	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
-	{
-		if (packData != nullptr)
-		{
-			auto peakValue = jlimit(0.0, 0.999999, DspHelpers::findPeak(data));
-			auto index = int(peakValue * (double)(packData->getNumSliders()));
-
-			if (lastIndex.get() != index)
-			{
-				lastIndex.get() = index;
-				modValue.get().setModValue((double)packData->getValue(index));
-				packData->setDisplayedIndex(index);
-			}
-
-			for (auto c : data)
-				FloatVectorOperations::fill(c.getRawWritePointer(), (float)modValue.get().getModValue(), data.getNumSamples());
-
-			String s;
-		}
-	}
-
-	void setSliderPack(double indexAsDouble);
-
-	WeakReference<SliderPackProcessor> sp;
-	WeakReference<SliderPackData> packData;
-
-	PolyData<int, NumVoices> lastIndex = -1;
-	PolyData<ModValue, NumVoices> modValue;
-};
-
-
-DEFINE_EXTERN_NODE_TEMPLATE(seq, seq_poly, seq_impl);
-
-
-
 
 
 namespace core
 {
 
 
-
+#if 0
 struct file_base
 {
 	virtual ~file_base() {};
@@ -232,81 +149,97 @@ template <typename T, int C> struct file_node: public file_base
 
 	properties::file<PropClass, C> fileProperty;
 };
+#endif
 
-struct file_player : public AudioFileNodeBase
+struct file_player : public data::base
 {
 	SET_HISE_NODE_ID("file_player");
 	SN_GET_SELF_AS_OBJECT(file_player);
 
-	HISE_EMPTY_HANDLE_EVENT;
+	static constexpr bool isPolyphonic() { return false; }
+	static constexpr bool isNormalisedModulation() { return false; }
 
+	HISE_EMPTY_HANDLE_EVENT;
+	HISE_EMPTY_CREATE_PARAM;
+	HISE_EMPTY_INITIALISE;
+	
 	file_player();;
+
+	bool handleModulation(double& v) 
+	{ 
+		return lastLength.getChangedValue(v);
+	}
 
 	void prepare(PrepareSpecs specs);
 	void reset();
-	bool handleModulation(double& modValue);
 
-	template <typename AudioDataType> void setFile(AudioDataType& audio, double sampleRate)
+	void setExternalData(const snex::ExternalData& d, int index) override
 	{
+		DataWriteLock l(this);
 
+		base::setExternalData(d, index);
+
+		d.referBlockTo(currentData[0], 0);
+		d.referBlockTo(currentData[1], 1);
+
+		if (lastSpecs.sampleRate > 0.0)
+			lastLength.setModValueIfChanged((double)d.numSamples / lastSpecs.sampleRate * 1000.0);
+
+		prepare(lastSpecs);
+		reset();
 	}
 
 	span<dyn<float>, 2> currentData;
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		static_assert(std::is_base_of<snex::Types::InternalData, ProcessDataType>(), "not called with process data type");
+		DataReadLock l(this);
 
-		SpinLock::ScopedLockType sl(audioFile->getLock());
+		auto pos = data[0][0];
 
-		if (currentBuffer->clear)
-			return;
-
-		int cIndex = 0;
-
-		for (auto c : data)
+		if ((data.getNumChannels() == 1 && externalData.numChannels > 0) ||
+			externalData.numChannels == 1)
 		{
-			double thisUptime = uptime;
-
-			for (auto& s : data.toChannelData(c))
-			{
-				s += getSample(thisUptime, cIndex);
-				thisUptime += uptimeDelta;
-			}
-
-			cIndex++;
+			FrameConverters::forwardToFrameMono(this, data);
 		}
 
-		uptime += (double)data.getNumSamples() * uptimeDelta;
+		if (data.getNumChannels() >= 2 && externalData.numChannels >= 2)
+		{
+			FrameConverters::forwardToFrameStereo(this, data);
+		}
 
-		updatePosition();
+		updatePosition(pos);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		SpinLock::ScopedLockType sl(lock);
+		auto uptime = (double)data[0] * externalData.numSamples;
 
-		if (currentBuffer->clear)
-			return;
+		auto prev = (int)uptime;
+		auto next = prev + 1;
 
-		int index = 0;
+		auto delta = (float)fmod(uptime, 1.0);
 
-		for (auto& s : data)
-			s = getSample(uptime, index++);
-			
-		uptime += uptimeDelta;
+		jassert(data.size() == externalData.numChannels);
 
-		updatePosition();
+		next %= externalData.numSamples;
+		prev %= externalData.numSamples;
+		
+		for (int i = 0; i < data.size(); i++)
+			data[i] = Interpolator::interpolateLinear(currentData[i][prev], currentData[i][next], delta);
 	}
 
-	void updatePosition();
+	void updatePosition(double uptimeNormalised)
+	{
+		auto pos = uptimeNormalised * (double)externalData.numSamples;
+		externalData.setDisplayedValue(pos);
+	}
 
 private:
 
-	float getSample(double pos, int channelIndex);
+	ModValue lastLength;
 
-	double uptime = 0.0;
-	double uptimeDelta = 1.0;
+	PrepareSpecs lastSpecs;
 };
 
 

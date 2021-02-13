@@ -59,11 +59,6 @@ void reverb::reset() noexcept
 	r.reset();
 }
 
-bool reverb::handleModulation(double&) noexcept
-{
-	return false;
-}
-
 void reverb::createParameters(ParameterDataList& data)
 {
 	{

@@ -102,17 +102,32 @@ struct SnexTileBase : public Component,
 */
 template <typename C> struct SnexWorkbenchPanel : public FloatingTileContent,
 							public Component,
-							public snex::ui::WorkbenchData::Listener
+							public snex::ui::WorkbenchData::Listener,
+							public snex::ui::WorkbenchManager::WorkbenchChangeListener
 {
 	using Ptr = snex::ui::WorkbenchData::Ptr;
 
 	SnexWorkbenchPanel(FloatingTile* parent):
 		FloatingTileContent(parent)
 	{
-		auto wb = static_cast<snex::ui::WorkbenchManager*>(parent->getMainController()->getWorkbenchManager());
-		wb->registeredComponents.add(this);
-		
-		setWorkbench(wb->currentWb.get());
+		auto wb = static_cast<snex::ui::WorkbenchManager*>(getMainController()->getWorkbenchManager());
+		static_assert(std::is_base_of<snex::ui::WorkbenchComponent, C>(), "not a workbench component");
+		wb->addListener(this);
+		setWorkbench(wb->getCurrentWorkbench());
+	}
+
+	~SnexWorkbenchPanel()
+	{
+		auto wb = static_cast<snex::ui::WorkbenchManager*>(getMainController()->getWorkbenchManager());
+		wb->removeListener(this);
+	}
+
+	void workbenchChanged(snex::ui::WorkbenchData::Ptr newWorkbench) override
+	{
+		auto wb = static_cast<snex::ui::WorkbenchManager*>(getMainController()->getWorkbenchManager());
+
+		if (newWorkbench == wb->getRootWorkbench())
+			setWorkbench(newWorkbench);
 	}
 
 	void recompiled(Ptr p) override
@@ -145,10 +160,12 @@ template <typename C> struct SnexWorkbenchPanel : public FloatingTileContent,
 		}
 	}
 
+#if 0
 	void workbenchChanged(Ptr oldWorkBench, Ptr newWorkbench) override
 	{
 		setWorkbench(newWorkbench);
 	}
+#endif
 
 	static Identifier getPanelId() { return C::getId(); };
 	
@@ -167,28 +184,29 @@ template <typename C> struct SnexWorkbenchPanel : public FloatingTileContent,
 
 struct SnexEditorPanel : public Component,
 						 public FloatingTileContent,
-						 public snex::ui::WorkbenchData::Listener
+						 public snex::ui::WorkbenchData::Listener,
+						 public snex::ui::WorkbenchManager::WorkbenchChangeListener
 {
-	SnexEditorPanel(FloatingTile* parent) :
-		FloatingTileContent(parent)
-	{
-		
-	};
+	using Ptr = snex::ui::WorkbenchData::Ptr;
 
-	~SnexEditorPanel()
+	SnexEditorPanel(FloatingTile* parent);;
+
+	~SnexEditorPanel();
+
+	void workbenchChanged(Ptr newWorkbench) override
 	{
-		if (wb != nullptr)
-			wb->removeListener(this);
+		setWorkbenchData(newWorkbench);
 	}
 
 	void setWorkbenchData(snex::ui::WorkbenchData::Ptr newWorkbench)
 	{
+		if (wb != nullptr)
+			wb->removeListener(this);
+
 		wb = newWorkbench;
 		addAndMakeVisible(playground = new snex::jit::SnexPlayground(newWorkbench, false));
-
 		wb->addListener(this);
-
-		playground->setReadOnly(true);
+		
 		resized();
 	}
 

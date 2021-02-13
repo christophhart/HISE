@@ -210,116 +210,11 @@ juce::Rectangle<int> WrapperNode::createRectangleForParameterSliders(int numColu
 	return getBoundsToDisplay(b.expanded(UIValues::NodeMargin));
 }
 
-void CombinedParameterDisplay::paint(Graphics& g)
-{
-	g.setFont(GLOBAL_BOLD_FONT());
 
-	auto r = obj->currentRange;
-
-	String start, mid, end;
-
-	int numDigits = jmax<int>(1, -1 * roundToInt(log10(r.interval)));
-
-	start = String(r.start, numDigits);
-
-	mid = String(r.convertFrom0to1(0.5), numDigits);
-
-	end = String(r.end, numDigits);
-
-	auto b = getLocalBounds().toFloat();
-
-	float w = JUCE_LIVE_CONSTANT_OFF(55.0f);
-
-	auto midCircle = b.withSizeKeepingCentre(w, w).translated(0.0f, 5.0f);
-
-	float r1 = JUCE_LIVE_CONSTANT_OFF(3.0f);
-	float r2 = JUCE_LIVE_CONSTANT_OFF(5.0f);
-	
-	float startArc = JUCE_LIVE_CONSTANT_OFF(-2.5f);
-	float endArc = JUCE_LIVE_CONSTANT_OFF(2.5f);
-
-	Colour trackColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF888888));
-	
-	auto createArc = [startArc, endArc](Rectangle<float> b, float startNormalised, float endNormalised)
-	{
-		Path p;
-
-		auto s = startArc + jmin(startNormalised, endNormalised) * (endArc - startArc);
-		auto e = startArc + jmax(startNormalised, endNormalised) * (endArc - startArc);
-
-		s = jlimit(startArc, endArc, s);
-		e = jlimit(startArc, endArc, e);
-
-		p.addArc(b.getX(), b.getY(), b.getWidth(), b.getHeight(), s, e, true);
-
-		return p;
-	};
-
-	auto oc = midCircle;
-	auto mc = midCircle.reduced(5.0f);
-	auto ic = midCircle.reduced(10.0f);
-
-	auto outerTrack = createArc(oc, 0.0f, 1.0f);
-	auto midTrack =   createArc(mc, 0.0f, 1.0f);
-	auto innerTrack = createArc(ic, 0.0f, 1.0f);
-
-	g.setColour(trackColour);
-
-	g.strokePath(outerTrack, PathStrokeType(r1));
-	g.strokePath(midTrack, PathStrokeType(r2));
-	g.strokePath(innerTrack, PathStrokeType(r1));
-	
-	auto data = obj->getUIData();
-
-	auto nrm = [r](double v)
-	{
-		return r.convertTo0to1(v);
-	};
-
-	auto mulValue = nrm(data.value * data.mulValue);
-	auto totalValue = nrm(data.getPmaValue());
-
-	auto outerRing = createArc(oc, mulValue, totalValue);
-	auto midRing =   createArc(mc, 0.0f, totalValue);
-	auto innerRing = createArc(ic, 0.0f, mulValue);
-	auto valueRing = createArc(ic, 0.0f, nrm(data.value));
-
-	g.setColour(Colour(0xFF0051FF));
-	g.strokePath(outerRing, PathStrokeType(r1));
-	g.setColour(Colours::white);
-	g.strokePath(midRing, PathStrokeType(r2));
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x88ff7277)));
-	g.strokePath(valueRing, PathStrokeType(r1));
-	g.setColour(Colour(0xFFE5353C));
-	g.strokePath(innerRing, PathStrokeType(r1));
-
-	b.removeFromTop(18.0f);
-
-	g.setColour(Colours::white.withAlpha(0.7f));
-
-	Rectangle<float> t((float)getWidth() / 2.0f - 35.0f, 0.0f, 70.0f, 15.0f);
-
-	g.drawText(start, t.translated(-50.0f, 60.0f), Justification::centred);
-	g.drawText(mid, t, Justification::centred);
-	g.drawText(end, t.translated(50.0f, 60.0f), Justification::centred);
-}
-
-InterpretedNode::InterpretedNode(DspNetwork* parent, ValueTree d) :
-	WrapperNode(parent, d)
-{
-
-}
-
-scriptnode::ParameterDataList InterpretedNode::createInternalParameterList()
-{
-	ParameterDataList pList;
-	wrapper.getWrappedObject().createParameters(pList);
-	return pList;
-}
 
 void InterpretedNode::reset()
 {
-	wrapper.reset();
+	this->obj.reset();
 }
 
 void InterpretedNode::prepare(PrepareSpecs specs)
@@ -330,7 +225,7 @@ void InterpretedNode::prepare(PrepareSpecs specs)
 
 	try
 	{
-		wrapper.prepare(specs);
+		this->obj.prepare(specs);
 	}
 	catch (Error& s)
 	{
@@ -350,71 +245,54 @@ void InterpretedNode::processFrame(NodeBase::FrameType& data)
 
 void InterpretedNode::processMonoFrame(MonoFrameType& data)
 {
-	wrapper.processFrame(data);
+	this->obj.processFrame(data);
 }
 
 void InterpretedNode::processStereoFrame(StereoFrameType& data)
 {
-	wrapper.processFrame(data);
+	this->obj.processFrame(data);
 }
 
 void InterpretedNode::process(ProcessDataDyn& data) noexcept
 {
-	wrapper.process(data);
+	NodeProfiler np(this);
+	this->obj.process(data);
 }
 
 void InterpretedNode::setBypassed(bool shouldBeBypassed)
 {
 	WrapperNode::setBypassed(shouldBeBypassed);
-	WrapperType::setParameter<bypass::ParameterId>(&wrapper, (double)shouldBeBypassed);
+	WrapperType::setParameter<bypass::ParameterId>(&this->obj, (double)shouldBeBypassed);
 }
 
 void InterpretedNode::handleHiseEvent(HiseEvent& e)
 {
-	wrapper.handleHiseEvent(e);
-}
-
-InterpretedModNode::InterpretedModNode(DspNetwork* parent, ValueTree d) :
-	ModulationSourceNode(parent, d)
-{
-
-}
-
-void* InterpretedModNode::getObjectPtr()
-{
-	return wrapper.getWrappedObject().getObjectPtr();
+	this->obj.handleHiseEvent(e);
 }
 
 void InterpretedModNode::timerCallback()
 {
-	wrapper.p.updateUI();
+	getParameterHolder()->updateUI();
 }
 
 bool InterpretedModNode::isUsingNormalisedRange() const
 {
-	return wrapper.getWrappedObject().isNormalised;
+	return this->obj.getWrappedObject().isNormalised;
 }
 
 scriptnode::parameter::dynamic_base_holder* InterpretedModNode::getParameterHolder()
 {
-	return &wrapper.p;
+	return &this->obj.p;
 }
 
 void InterpretedModNode::reset()
 {
-	wrapper.reset();
+	this->obj.reset();
 }
 
 bool InterpretedModNode::isPolyphonic() const
 {
-	return wrapper.isPolyphonic();
-}
-
-scriptnode::ParameterDataList InterpretedModNode::createInternalParameterList()
-{
-	ParameterDataList pList;
-	wrapper.getWrappedObject().createParameters(pList);
-	return pList;
+	return this->obj.isPolyphonic();
 }
 
 void InterpretedModNode::prepare(PrepareSpecs specs)
@@ -426,14 +304,12 @@ void InterpretedModNode::prepare(PrepareSpecs specs)
 	try
 	{
 		ModulationSourceNode::prepare(specs);
-		wrapper.prepare(specs);
+		this->obj.prepare(specs);
 	}
 	catch (Error& s)
 	{
 		exceptionHandler.addError(this, s);
 	}
-
-	ModulationSourceNode::prepare(specs);
 }
 
 void InterpretedModNode::writeToRingBuffer(double value, int numSamplesForAnalysis)
@@ -456,25 +332,43 @@ void InterpretedModNode::processFrame(NodeBase::FrameType& data)
 
 void InterpretedModNode::processMonoFrame(MonoFrameType& data)
 {
-	wrapper.p.setSamplesToWrite(1);
-	wrapper.processFrame(data);
+	this->obj.p.setSamplesToWrite(1);
+	this->obj.processFrame(data);
 }
 
 void InterpretedModNode::processStereoFrame(StereoFrameType& data)
 {
-	wrapper.p.setSamplesToWrite(1);
-	wrapper.processFrame(data);
+	this->obj.p.setSamplesToWrite(1);
+	this->obj.processFrame(data);
 }
 
 void InterpretedModNode::process(ProcessDataDyn& data) noexcept
 {
-	wrapper.p.setSamplesToWrite(data.getNumSamples());
-	wrapper.process(data);
+	NodeProfiler np(this);
+	this->obj.p.setSamplesToWrite(data.getNumSamples());
+	this->obj.process(data);
 }
 
 void InterpretedModNode::handleHiseEvent(HiseEvent& e)
 {
-	wrapper.handleHiseEvent(e);
+	this->obj.handleHiseEvent(e);
+}
+
+void NewHero::prepare(PrepareSpecs ps)
+{
+	auto& exceptionHandler = getRootNetwork()->getExceptionHandler();
+
+	exceptionHandler.removeError(this);
+
+	try
+	{
+		ModulationSourceNode::prepare(ps);
+		this->obj.prepare(ps);
+	}
+	catch (Error& s)
+	{
+		exceptionHandler.addError(this, s);
+	}
 }
 
 }

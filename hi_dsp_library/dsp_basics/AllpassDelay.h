@@ -34,5 +34,106 @@
 
 namespace hise { using namespace juce;
 
+/** This class contains different EnvelopeFollower algorithm as subclasses and some helper methods for preparing the in / output.
+*/
+class EnvelopeFollower
+{
+public:
+
+	/** This prepares the input (normalises the input using 'max' and return the absolute value. */
+	static inline float prepareAudioInput(float input, float max) { return fabs(input * 1.0f / max); }
+
+	/** This makes sure that the value does not exceed the 0.0 ... 1.0 limits. */
+	static inline float constrainTo0To1(float input) { return jlimit<float>(0.0f, 1.0f, input); };
+
+	/** This envelope following algorithm stores values in a temporary buffer and ramps between the magnitudes.
+	*
+	*	The output is the nicest one (almost no ripple), but you will get a latency of the ramp length
+	*/
+	class MagnitudeRamp
+	{
+	public:
+
+		MagnitudeRamp();;
+
+		/** Set the length of the ramp (also the size of the temporary buffer and thus the delay of the ramping). */
+		void setRampLength(int newRampLength);;
+
+		/** Returns the calculated value. */
+		float getEnvelopeValue(float inputValue);;
+
+		/** The size of the buffer */
+		int size;
+
+	private:
+
+		AudioSampleBuffer rampBuffer;
+		int indexInBufferedArray;
+		float currentPeak;
+		float rampedValue;
+		Ramper bufferRamper;
+	};
+
+	/** This algorithm uses two different times for attack and decay. */
+	class AttackRelease
+	{
+	public:
+
+		/** Creates a new envelope follower using the supplied parameters.
+		*
+		*	You have to call setSampleRate before you can use it.
+		*/
+		AttackRelease(float attackTime, float releaseTime);;
+
+		/** Returns the envelope value. */
+		float calculateValue(float input);;
+
+		/** You have to call this before any call to calculateValue. */
+		void setSampleRate(double sampleRate_);
+
+		void setAttackDouble(double newAttack)
+		{
+			setAttack((float)newAttack);
+		}
+
+		void setReleaseDouble(double newRelease)
+		{
+			setRelease((float)newRelease);
+		}
+
+		void reset()
+		{
+			lastValue = 0.0;
+		}
+
+		void setAttack(float newAttack)
+		{
+			attack = newAttack;
+
+			if (attack == 0.0f)
+				attackCoefficient = 0.0;
+
+			else
+				calculateCoefficients();
+		};
+
+		void setRelease(float newRelease);;
+
+		float getAttack() const noexcept { return (float)attack; };
+		float getRelease() const noexcept { return (float)release; };
+
+	private:
+
+		void calculateCoefficients();
+
+		float attack, release;
+
+		double sampleRate;
+		double attackCoefficient, releaseCoefficient;
+		double lastValue;
+	};
+
+};
+
 
 } 

@@ -526,7 +526,6 @@ template <class... Parameters> struct list: public advanced_tuple<Parameters...>
 
 }
 
-struct NodeBase;
 
 namespace properties
 {

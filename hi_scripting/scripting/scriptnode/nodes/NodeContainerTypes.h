@@ -112,6 +112,26 @@ private:
 	wrap::event<SerialNode::DynamicSerialProcessor> obj;
 };
 
+class OfflineChainNode : public SerialNode
+{
+public:
+
+	SCRIPTNODE_FACTORY(OfflineChainNode, "offline");
+
+	OfflineChainNode(DspNetwork* n, ValueTree t);
+
+	void processFrame(FrameType& data) noexcept final override;
+	void process(ProcessDataDyn& data) noexcept final override;
+	void prepare(PrepareSpecs ps) override;
+	void handleHiseEvent(HiseEvent& e) final override;
+	void reset() final override;
+	String getCppCode(CppGen::CodeLocation location) override;
+
+private:
+
+	wrap::data<wrap::offline<SerialNode::DynamicSerialProcessor>, scriptnode::data::dynamic::audiofile> obj;
+};
+
 template <int OversampleFactor> class OversampleNode : public SerialNode
 {
 public:
@@ -161,7 +181,19 @@ public:
 		return isBypassed() ? originalBlockSize : FixedBlockSize;
 	}
 
-	void updateBypassState(Identifier, var);
+	void updateBypassState(Identifier, var)
+	{
+		if (originalBlockSize == 0)
+			return;
+
+		PrepareSpecs ps;
+		ps.blockSize = originalBlockSize;
+		ps.sampleRate = originalSampleRate;
+		ps.numChannels = getNumChannelsToProcess();
+		ps.voiceIndex = lastVoiceIndex;
+
+		prepare(ps);
+	}
 
 	wrap::fix_block<FixedBlockSize, DynamicSerialProcessor> obj;
 
@@ -169,6 +201,101 @@ public:
 	PolyHandler* lastVoiceIndex = nullptr;
 };
 
+
+class FixedBlockXNode : public SerialNode
+{
+public:
+
+	struct DynamicBlockProperty
+	{
+		DynamicBlockProperty() :
+			blockSizeString(PropertyIds::BlockSize, "64")
+		{};
+
+		void initialise(NodeBase* n)
+		{
+			parent = n;
+			blockSizeString.initialise(n);
+			blockSizeString.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(DynamicBlockProperty::updateBlockSize), true);
+		}
+
+		void updateBlockSize(Identifier id, var newValue)
+		{
+			blockSize = newValue.toString().getIntValue();
+
+			if (blockSize > 7 && isPowerOfTwo(blockSize))
+			{
+				ScopedLock sl(parent->getRootNetwork()->getConnectionLock());
+				parent->prepare(originalSpecs);
+			}
+			else
+				blockSize = 64;
+		}
+
+		void prepare(void* obj, prototypes::prepare f, const PrepareSpecs& ps)
+		{
+			originalSpecs = ps;
+			auto ps_ = ps.withBlockSize(blockSize);
+			f(obj, &ps_);
+		}
+
+		template <typename ProcessDataType> void process(void* obj, prototypes::process<ProcessDataType> pf, ProcessDataType& data)
+		{
+			switch (blockSize)
+			{
+			case 8:   wrap::static_functions::fix_block<8>::process(obj, pf, data); break;
+			case 16:  wrap::static_functions::fix_block<16>::process(obj, pf, data); break;
+			case 32:  wrap::static_functions::fix_block<32>::process(obj, pf, data); break;
+			case 64:  wrap::static_functions::fix_block<64>::process(obj, pf, data); break;
+			case 128: wrap::static_functions::fix_block<128>::process(obj, pf, data); break;
+			case 256: wrap::static_functions::fix_block<256>::process(obj, pf, data); break;
+			case 512: wrap::static_functions::fix_block<512>::process(obj, pf, data); break;
+			}
+		}
+
+		NodeBase::Ptr parent;
+		NodePropertyT<String> blockSizeString;
+		int blockSize = 64;
+		PrepareSpecs originalSpecs;
+	};
+		
+
+	SCRIPTNODE_FACTORY(FixedBlockXNode, "fix_blockx");
+
+	FixedBlockXNode(DspNetwork* network, ValueTree d);
+
+	void process(ProcessDataDyn& data) final override;
+
+	void processFrame(FrameType& data) noexcept final override { jassertfalse; }
+
+	void prepare(PrepareSpecs ps) final override;
+	void reset() final override;
+	void handleHiseEvent(HiseEvent& e) final override;
+
+	int getBlockSizeForChildNodes() const override
+	{
+		return isBypassed() ? originalBlockSize : obj.fbClass.blockSize;
+	}
+
+	void updateBypassState(Identifier, var) 
+	{
+		if (originalBlockSize == 0)
+			return;
+
+		PrepareSpecs ps;
+		ps.blockSize = originalBlockSize;
+		ps.sampleRate = originalSampleRate;
+		ps.numChannels = getNumChannelsToProcess();
+		ps.voiceIndex = lastVoiceIndex;
+
+		prepare(ps);
+	}
+
+	wrap::fix_blockx<DynamicSerialProcessor, DynamicBlockProperty> obj;
+
+	valuetree::PropertyListener bypassListener;
+	PolyHandler* lastVoiceIndex = nullptr;
+};
 
 
 class SplitNode : public ParallelNode
@@ -315,6 +442,7 @@ public:
 
 	void prepare(PrepareSpecs ps) final override
 	{
+		NodeBase::prepare(ps);
 		prepareNodes(ps);
 
 		auto numLeftOverChannels = NumChannels - ps.numChannels;
@@ -327,6 +455,8 @@ public:
 
 	void process(ProcessDataDyn& data) final override
 	{
+		NodeProfiler np(this);
+
 		if (isBypassed())
 			obj.getObject().process(data.as<FixProcessType>());
 		else

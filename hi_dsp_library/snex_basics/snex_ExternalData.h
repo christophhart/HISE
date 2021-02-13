@@ -41,79 +41,26 @@ using namespace Types;
 /** A wrapper around one of the complex data types with a update message. */
 struct ExternalData
 {
-	struct Wrapper
-	{
-		static void updateTable(void* obj, double value)
-		{
-			auto table = static_cast<Table*>(obj);
-			table->setNormalisedIndexSync((float)value);
-		}
-
-		static void updateSliderPack(void* obj, double value)
-		{
-			auto spd = static_cast<SliderPackData*>(obj);
-			spd->setDisplayedIndex((int)value);
-		}
-
-		static void updateAudioFile(void* obj, double value)
-		{
-			auto mcb = static_cast<MultiChannelAudioBuffer*>(obj);
-			mcb->sentDisplayIndexChangeMessage(value);
-		}
-	};
-
 	ExternalData():
 		dataType(DataType::numDataTypes),
 		data(nullptr),
 		numSamples(0),
 		numChannels(0),
 		obj(nullptr),
-		f(nullptr)
+		sampleRate(0.0)
 	{}
 
-	ExternalData(Table* t, int absoluteIndex_):
-		dataType(DataType::Table),
-		obj(t),
-		f(Wrapper::updateTable)
-	{
-		data = const_cast<float*>(t->getReadPointer());
-		numSamples = t->getTableSize();
-		numChannels = 1;
-	}
-
-	ExternalData(SliderPackData* t, int absoluteIndex_) :
-		dataType(DataType::SliderPack),
-		obj(t),
-		f(Wrapper::updateSliderPack)
-	{
-		data = const_cast<float*>(t->getCachedData());
-		numSamples = t->getNumSliders();
-		numChannels = 1;
-	}
-
-	ExternalData(MultiChannelAudioBuffer* buffer, int absoluteIndex_) :
-		dataType(DataType::SliderPack),
-		obj(buffer),
-		f(Wrapper::updateAudioFile)
-	{
-		data = buffer->buffer.getArrayOfWritePointers();
-		numSamples = buffer->buffer.getNumSamples();
-		numChannels = buffer->buffer.getNumChannels();
-	}
+	ExternalData(ComplexDataUIBase* b, int absoluteIndex);
 
 	/** Creates an external data object from a constant value class. */
 	template <typename T> ExternalData(T& other):
 		dataType(DataType::ConstantLookUp),
-		obj(nullptr),
-		f(nullptr)
+		obj(nullptr)
 	{
 		data = other.begin();
 		numSamples = other.size();
 		numChannels = 1;
 	}
-
-	/** A function pointer to an update function. */
-	typedef void(*UpdateFunction)(void*, double);
 
 	enum class DataType
 	{
@@ -124,50 +71,73 @@ struct ExternalData
 		ConstantLookUp
 	};
 
-	static String getDataTypeName(DataType t)
+	static String getDataTypeName(DataType t);
+	static Identifier getNumIdentifier(DataType t);
+
+	static void forEachType(const std::function<void(DataType)>& f);
+
+	void referBlockTo(block& b, int channelIndex) const;
+
+	void setDisplayedValue(double valueToDisplay);
+	
+	static void setDisplayValueStatic(void* externalObj, double valueToDisplay)
 	{
-		switch (t)
-		{
-		case DataType::AudioFile: return "AudioFile";
-		case DataType::SliderPack: return "SliderPack";
-		case DataType::Table: return "Table";
-		case DataType::ConstantLookUp: return "ConstantLookup";
-		default: jassertfalse; return {};
-		}
+		static_cast<ExternalData*>(externalObj)->setDisplayedValue(valueToDisplay);
 	}
 
-	static void forEachType(const std::function<void(DataType)>& f)
+	template <class B, class D> static constexpr bool isSameOrBase()
 	{
-		f(DataType::Table);
-		f(DataType::SliderPack);
-		f(DataType::AudioFile);
+		return std::is_same<B, D>() || std::is_base_of<B, D>();
 	}
 
-	void referBlockTo(block& b, int channelIndex) const
+	template <class DataClass> static constexpr DataType getDataTypeForClass()
 	{
-		if (dataType == DataType::AudioFile)
-		{
-			if (isPositiveAndBelow(channelIndex, numChannels))
-				b.referToRawData(((float**)data)[channelIndex], numSamples);
-			else
-				b.referToRawData(nullptr, 0);
-		}
-		else
-			b.referToRawData((float*)data, numSamples);
+		if (isSameOrBase<hise::Table, DataClass>())
+			return DataType::Table;
+
+		if (isSameOrBase<SliderPackData, DataClass>())
+			return DataType::SliderPack;
+
+		if (isSameOrBase<MultiChannelAudioBuffer, DataClass>())
+			return DataType::AudioFile;
+
+		return DataType::numDataTypes;
 	}
 
-	void setDisplayedValue(double valueToDisplay)
+	bool isEmpty() const
 	{
-		if (f != nullptr)
-			f(obj, valueToDisplay);
+		return dataType == DataType::numDataTypes || numSamples == 0 || obj == nullptr || numChannels == 0 || data == nullptr;
 	}
 
-	DataType dataType;
-	int numSamples;
-	int numChannels;
-	void* data;
-	void* obj;
-	UpdateFunction f;
+	bool isNotEmpty() const
+	{
+		return !isEmpty();
+	}
+
+	AudioSampleBuffer toAudioSampleBuffer() const;
+
+	static DataType getDataTypeForClass(ComplexDataUIBase* d);
+
+	template <typename TableType=hise::SampleLookupTable> static ComplexDataUIBase* create(DataType t)
+	{
+		if (t == DataType::Table)
+			return new TableType();
+		if (t == DataType::SliderPack)
+			return new SliderPackData();
+		if (t == DataType::AudioFile)
+			return new MultiChannelAudioBuffer();
+
+		return nullptr;
+	}
+
+	static ComplexDataUIBase::EditorBase* createEditor(ComplexDataUIBase* dataObject);
+	
+	DataType dataType = DataType::numDataTypes;
+	int numSamples = 0;
+	int numChannels = 0;
+	void* data = nullptr;
+	hise::ComplexDataUIBase* obj = nullptr;
+	double sampleRate = 0.0;
 };
 
 /** A interface class that handles the communication between a SNEX node and externally defined complex data types of HISE.
@@ -194,6 +164,10 @@ struct ExternalDataHolder
 	virtual Table* getTable(int index) = 0;
 	virtual SliderPackData* getSliderPack(int index) = 0;
 	virtual MultiChannelAudioBuffer* getAudioFile(int index) = 0;
+
+	ComplexDataUIBase* getComplexBaseType(ExternalData::DataType t, int index);
+
+	
 
 	/** Override this method and remove the object in question. Return true if successful. */
 	virtual bool removeDataObject(ExternalData::DataType t, int index) = 0;
@@ -251,7 +225,6 @@ protected:
 namespace scriptnode
 {
 
-struct NodeBase;
 
 namespace data
 {
@@ -260,38 +233,84 @@ namespace data
 /** Subclass this when you want to show a UI for the given data. */
 struct base
 {
+	/** Use this in order to lock the access to the external data. */
+	struct DataReadLock: hise::SimpleReadWriteLock::ScopedReadLock
+	{
+		DataReadLock(base* d) :
+			SimpleReadWriteLock::ScopedReadLock(d->externalData.obj != nullptr ? d->externalData.obj->getDataLock() : dummy)
+		{}
+
+		SimpleReadWriteLock dummy;
+	};
+
+	/** Use this in order to lock the access to the external data. */
+	struct DataWriteLock : hise::SimpleReadWriteLock::ScopedWriteLock
+	{
+		DataWriteLock(base* d) :
+			SimpleReadWriteLock::ScopedWriteLock(d->externalData.obj != nullptr ? d->externalData.obj->getDataLock() : dummy)
+		{}
+
+		SimpleReadWriteLock dummy;
+	};
+
 	virtual ~base() {};
 
 	/** This can be used to connect the UI to the data. */
-	void* getUIPointer() { return &externalData; }
+	hise::ComplexDataUIBase* getUIPointer() { return externalData.obj; }
 
 	virtual void setExternalData(const snex::ExternalData& d, int index)
 	{
+		// This function must always be called while the writer lock is active
+		jassert(d.isEmpty() || d.obj->getDataLock().writeAccessIsLocked());
+
 		externalData = d;
 	}
 
 	snex::ExternalData externalData;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(base);
 };
+
+
 
 using namespace snex;
 
 namespace pimpl
 {
 
-	
-
-template <int Index, ExternalData::DataType DType> struct base
+struct base
 {
+	virtual ~base() {};
+
+	virtual void initialise(NodeBase* n) {};
+};
+
+
+/** This is used as interface class for the wrap::data template in order to access the base. */
+struct provider_base
+{
+	virtual ~provider_base() {};
+
+	virtual base* getDataObject() = 0;
+};
+
+template <int Index, ExternalData::DataType DType> struct index_type_base: public base
+{
+private:
 	static constexpr int getNum(ExternalData::DataType t) { return t == DType ? 1 : 0; }
+
+public:
 
 	static constexpr int NumTables = getNum(ExternalData::DataType::Table);
 	static constexpr int NumSliderPacks = getNum(ExternalData::DataType::SliderPack);
 	static constexpr int NumAudioFiles = getNum(ExternalData::DataType::AudioFile);
+	
+private:
 
-	void initialise(NodeBase* n) {};
+	
 };
 
-template <int Index, ExternalData::DataType DType> struct plain : base<Index, DType>
+template <int Index, ExternalData::DataType DType> struct plain : index_type_base<Index, DType>
 {
 	// Needs to be there for compatibility with the wrap::init class
 	template <typename NodeType> plain(NodeType& n) {};
@@ -303,7 +322,7 @@ template <int Index, ExternalData::DataType DType> struct plain : base<Index, DT
 	}
 };
 
-template <typename T, ExternalData::DataType DType> struct embedded : public base<-1, DType>
+template <typename T, ExternalData::DataType DType> struct embedded : public index_type_base<-1, DType>
 {
 	static constexpr int getNum(ExternalData::DataType t) { return t == DType ? 1 : 0; }
 

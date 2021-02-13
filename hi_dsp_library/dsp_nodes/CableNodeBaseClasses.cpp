@@ -23,37 +23,15 @@
  *   http://www.hise.audio/
  *
  *   HISE is based on the JUCE library,
- *   which also must be licensed for commercial applications:
+ *   which also must be licenced for commercial applications:
  *
  *   http://www.juce.com
  *
  *   ===========================================================================
  */
 
-namespace scriptnode
+namespace hise
 {
 using namespace juce;
-using namespace hise;
-
-
-
-
-
-core::file_player::file_player()
-{
 
 }
-
-void core::file_player::prepare(PrepareSpecs specs)
-{
-	lastSpecs = specs;
-
-}
-
-void core::file_player::reset()
-{
-	
-}
-
-}
-

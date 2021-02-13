@@ -211,13 +211,16 @@ struct ModValue
 		can use this in order to prevent unnecessary calls to the 
 		modulation targets.
 	*/
-	void setModValueIfChanged(double newValue)
+	bool setModValueIfChanged(double newValue)
 	{
 		if (modValue != (float)newValue)
 		{
 			modValue = (float)newValue;
 			changed = true;
+			return true;
 		}
+
+		return false;
 	}
 
 	void reset()

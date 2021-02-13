@@ -60,62 +60,116 @@ struct NoExtraComponent
 	static Component* createExtraComponent(void* , PooledUIUpdater*) { return nullptr; }
 };
 
-    
-class InterpretedNode : public WrapperNode
+template <class WType> class InterpretedNodeBase
 {
-	using WrapperType = bypass::smoothed<OpaqueNode>;
-
 public:
-	InterpretedNode(DspNetwork* parent, ValueTree d);;
 
-	template <typename T> void init()
+	using WrapperType = WType;
+
+	virtual ~InterpretedNodeBase() {};
+
+	InterpretedNodeBase() = default;
+
+	template <typename T, bool AddDataOffsetToUIPtr> void init()
 	{
-		wrapper.getWrappedObject().create<T>();
+		obj.getWrappedObject().create<T>();
+
+		if constexpr (AddDataOffsetToUIPtr && std::is_base_of<data::pimpl::provider_base, T>())
+		{
+			auto offset = T::getDataOffset();
+			asWrapperNode()->setUIOffset(offset);	
+		}
+
+		this->obj.initialise(asWrapperNode());
 		postInit();
-	}
-
-	void postInit()
-	{
-		wrapper.initialise(this);
-		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
-
-		ParameterDataList pData;
-		wrapper.getWrappedObject().createParameters(pData);
-		initParameterData(pData);
 	}
 
 	void initFromDll(dll::HostFactory& f, int index)
 	{
-		f.initOpaqueNode(&wrapper.getWrappedObject(), index);
+		f.initOpaqueNode(&obj.getWrappedObject(), index);
+		this->obj.initialise(asWrapperNode());
 		postInit();
 	}
 
-	ParameterDataList createInternalParameterList() override;
+	virtual void postInit()
+	{
+		ParameterDataList pData;
+		obj.getWrappedObject().createParameters(pData);
 
-    template <typename T, typename ComponentType> static NodeBase* createNode(DspNetwork* n, ValueTree d) 
+		asWrapperNode()->initParameterData(pData);
+	}
+
+
+protected:
+
+	WrapperType obj;
+
+	void* getObjectPtrFromWrapper()
+	{
+		return obj.getWrappedObject().getObjectPtr();
+	}
+
+	ParameterDataList createInternalParameterListFromWrapper()
+	{
+		ParameterDataList pList;
+		obj.getWrappedObject().createParameters(pList);
+		return pList;
+	}
+
+private:
+
+	WrapperNode* asWrapperNode()
+	{
+		return dynamic_cast<WrapperNode*>(this);
+	}
+};
+
+    
+class InterpretedNode : public WrapperNode,
+						public InterpretedNodeBase<bypass::smoothed<OpaqueNode>>
+{
+	using Base = InterpretedNodeBase<bypass::smoothed<OpaqueNode>>;
+
+public:
+
+	
+
+	InterpretedNode(DspNetwork* parent, ValueTree d):
+		WrapperNode(parent, d),
+		Base()
+	{}
+
+	void postInit() override
+	{
+		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
+		Base::postInit();
+	}
+
+    template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr> static NodeBase* createNode(DspNetwork* n, ValueTree d) 
 	{ 
 		auto newNode = new InterpretedNode(n, d); 
 
-		newNode->template init<T>();
+		newNode->template init<T, AddDataOffsetToUIPtr>();
 		newNode->extraComponentFunction = ComponentType::createExtraComponent;
 		return newNode;
 	}; 
 
-	
-
-	
+	SN_OPAQUE_WRAPPER(InterpretedModNode, WrapperType);
 
 	void* getObjectPtr() override
 	{
-		return wrapper.getWrappedObject().getObjectPtr();
+		return getObjectPtrFromWrapper();
+
 	}
 
-	GET_SELF_OBJECT(wrapper);
-	GET_WRAPPED_OBJECT(wrapper.getWrappedObject());
+	ParameterDataList createInternalParameterList() override
+	{
+		return createInternalParameterListFromWrapper();
+	}
 
 	void reset();
 
-	bool isPolyphonic() const override { return wrapper.isPolyphonic(); }
+	bool isPolyphonic() const override { return this->obj.isPolyphonic(); }
 
 	void prepare(PrepareSpecs specs) final override;
 	void processFrame(NodeBase::FrameType& data) final override;
@@ -125,56 +179,59 @@ public:
 	void setBypassed(bool shouldBeBypassed) final override;
 	void handleHiseEvent(HiseEvent& e) final override;
 
-	WrapperType wrapper;
 	valuetree::PropertyListener bypassListener;
 };
 
-
-class InterpretedModNode : public ModulationSourceNode
+class InterpretedModNode : public ModulationSourceNode,
+						   public InterpretedNodeBase<wrap::mod<parameter::dynamic_base_holder, OpaqueNode>>
 {
-	using WrapperType = wrap::mod<parameter::dynamic_base_holder, OpaqueNode>;
+	using Base = InterpretedNodeBase<wrap::mod<parameter::dynamic_base_holder, OpaqueNode>>;
 
 public:
-	InterpretedModNode(DspNetwork* parent, ValueTree d);;
 
-	template <typename T> void init()
+	SN_OPAQUE_WRAPPER(InterpretedModNode, WrapperType);
+
+	InterpretedModNode(DspNetwork* parent, ValueTree d):
+		ModulationSourceNode(parent, d),
+		Base()
 	{
-		wrapper.getWrappedObject().create<T>();
 
-		wrapper.initialise(this);
-		wrapper.p.setRingBuffer(ringBuffer.get());
-
-		stop();
-
-		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
-
-		ParameterDataList pData;
-		wrapper.getWrappedObject().createParameters(pData);
-		initParameterData(pData);
 	}
 
-	template <typename T, typename ComponentType> static NodeBase* createNode(DspNetwork* n, ValueTree d) 
+	void postInit() override
+	{
+		getParameterHolder()->setRingBuffer(ringBuffer.get());
+		stop();
+		Base::postInit();
+	}
+
+	template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr> static NodeBase* createNode(DspNetwork* n, ValueTree d)
 	{ 
 		auto mn = new InterpretedModNode(n, d); 
-		mn->init<T>();
+		mn->init<T, AddDataOffsetToUIPtr>();
 		mn->extraComponentFunction = ComponentType::createExtraComponent;
 
 		return mn;
 	};
 
-	void* getObjectPtr() override;
+	void* getObjectPtr() override
+	{
+		return getObjectPtrFromWrapper();
+
+	}
+
+	ParameterDataList createInternalParameterList() override
+	{
+		return createInternalParameterListFromWrapper();
+	}
 
 	void timerCallback() override;
 
 	bool isUsingNormalisedRange() const override;
 
 	parameter::dynamic_base_holder* getParameterHolder() override;
-	
-	GET_WRAPPED_OBJECT(wrapper.getWrappedObject());
 
 	bool isPolyphonic() const override;
-
-	ParameterDataList createInternalParameterList() override;
 
 	void reset();
 	void prepare(PrepareSpecs specs) final override;
@@ -190,30 +247,8 @@ public:
 
 
 
-struct CombinedParameterDisplay : public ModulationSourceBaseComponent
-{
-	CombinedParameterDisplay(combined_parameter_base* b, PooledUIUpdater* u) :
-		ModulationSourceBaseComponent(u),
-		obj(b)
-	{
-		setSize(140, 80);
-	};
 
-	void timerCallback() override
-	{
-		repaint();
-	}
-
-	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
-	{
-		return new CombinedParameterDisplay(static_cast<combined_parameter_base*>(obj), updater);
-	}
-
-	void paint(Graphics& g) override;
-
-	WeakReference<combined_parameter_base> obj;
-};
-
+#if 0
 struct ParameterNodeBase : public ModulationSourceNode
 {
 	ParameterNodeBase(DspNetwork* n, ValueTree d) :
@@ -303,47 +338,110 @@ struct ParameterMultiplyAddNode : public ParameterNodeBase
 
 	core::pma<parameter::dynamic_base_holder, 1> obj;
 };
+#endif
 
 
-template <typename T> struct ParameterTableNode : public ParameterNodeBase
+struct NewHero : public ModulationSourceNode,
+				 public InterpretedNodeBase<OpaqueNode>
 {
-	ParameterTableNode(DspNetwork* n, ValueTree d) :
-		ParameterNodeBase(n, d)
-	{
-		ParameterDataList pData;
-		obj.createParameters(pData);
-		initParameterData(pData);
+	using Base = InterpretedNodeBase<OpaqueNode>;
 
-		obj.initialise(this);
+	NewHero(DspNetwork* n, ValueTree d) :
+		ModulationSourceNode(n, d),
+		Base()
+	{
+		
 	};
 
-	parameter::dynamic_base_holder* getParameterHolder() override
+	template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr> static NodeBase* createNode(DspNetwork* n, ValueTree d)
 	{
-		return &obj.getWrappedObject().getParameter();
-	}
+		constexpr bool isBaseOfDynamicParameterHolder = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_base_holder>, T::WrappedObjectType>();
 
-	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("cable_table"); };
+		static_assert(std::is_base_of<control::pimpl::no_processing, T::WrappedObjectType>(), "not a base of no_processing");
+
+		auto mn = new NewHero(n, d);
+
+		if constexpr (isBaseOfDynamicParameterHolder)
+			mn->getParameterFunction = NewHero::getParameterFunctionStatic<T>;
+		else
+		{
+			constexpr bool isBaseOfDynamicList = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_list>, T::WrappedObjectType>();
+			static_assert(isBaseOfDynamicList, "not a base of dynamic holder or list");
+			mn->getParameterFunction = nullptr;
+		}
+
+		mn->init<T, AddDataOffsetToUIPtr>();
+		mn->extraComponentFunction = ComponentType::createExtraComponent;
+
+		return mn;
+	};
 
 	void* getObjectPtr() override
 	{
-		return &obj.getWrappedObject();
-	};
-
-	static NodeBase* createNode(DspNetwork* n, ValueTree d)
-	{
-		auto node = new ParameterTableNode(n, d);
-		node->extraComponentFunction = core::dynamic_table::display::createExtraComponent;
-		return node;
-	};
+		return getObjectPtrFromWrapper();
+	}
 
 	ParameterDataList createInternalParameterList() override
 	{
-		ParameterDataList pData;
-		obj.createParameters(pData);
-		return pData;
+		return createInternalParameterListFromWrapper();
 	}
 
-	T obj;
+	parameter::dynamic_base_holder* getParameterHolder() override
+	{
+		if(getParameterFunction)
+			return getParameterFunction(getObjectPtr());
+
+		return nullptr;
+	}
+
+	void process(ProcessDataDyn& data) final override
+	{
+
+	}
+
+	void reset() final override
+	{
+
+	}
+
+	void timerCallback() override
+	{
+		if(auto p = getParameterHolder())
+			p->updateUI();
+	}
+
+	bool isUsingNormalisedRange() const override
+	{
+		return this->obj.getWrappedObject().isNormalised;
+	}
+
+	void prepare(PrepareSpecs ps) final override;
+
+	void processFrame(FrameType& data) final override
+	{
+
+	}
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{
+		this->obj.handleHiseEvent(e);
+	}
+
+private:
+
+	typedef parameter::dynamic_base_holder*(*getParamFunc)(void*);
+
+	template <class Derived> static parameter::dynamic_base_holder* getParameterFunctionStatic(void* b)
+	{
+		using BaseClass = control::pimpl::parameter_node_base<parameter::dynamic_base_holder>;
+
+		static_assert(std::is_base_of<BaseClass, Derived::WrappedObjectType>());
+
+		auto typed = static_cast<Derived*>(b);
+		return &typed->getWrappedObject().getParameter();
+	};
+
+	getParamFunc getParameterFunction;
 };
 
 
@@ -924,23 +1022,32 @@ namespace init
         }
         
 
-        template <class T, class ComponentType=NoExtraComponent, typename WrapperType=InterpretedNode> void registerNode()
+        template <class T, 
+				  class ComponentType=NoExtraComponent, 
+				  typename WrapperType=InterpretedNode, 
+				  bool AddDataOffsetToUIPtr=true> 
+			void registerNode()
         {
 			Item newItem;
-            newItem.cb = WrapperType::template createNode<T, ComponentType>;
+            newItem.cb = WrapperType::template createNode<T, ComponentType, AddDataOffsetToUIPtr>;
             newItem.id = T::getStaticId();
 			
             monoNodes.add(newItem);
         };
 
-        template <class MonoT, class PolyT, class ComponentType=NoExtraComponent, typename WrapperType=InterpretedNode> void registerPolyNode()
+        template <class MonoT, 
+				  class PolyT, 
+				  class ComponentType=NoExtraComponent, 
+				  typename WrapperType=InterpretedNode,
+				  bool AddDataOffsetToUIPtr=true>
+			void registerPolyNode()
         {
             using WrappedPolyT = InterpretedNode;
             using WrappedMonoT = InterpretedNode;
             
             {
                 Item newItem;
-                newItem.cb = WrapperType::template createNode<PolyT, ComponentType>;
+                newItem.cb = WrapperType::template createNode<PolyT, ComponentType, AddDataOffsetToUIPtr>;
                 newItem.id = PolyT::getStaticId();
                 
                 polyNodes.add(newItem);
@@ -948,23 +1055,28 @@ namespace init
             
             {
                 Item newItem;
-                newItem.cb = WrapperType::template createNode<MonoT, ComponentType>;
+                newItem.cb = WrapperType::template createNode<MonoT, ComponentType, AddDataOffsetToUIPtr>;
                 newItem.id = MonoT::getStaticId();
                 
                 monoNodes.add(newItem);
             }
         };
 
-		template <class MonoT, class PolyT, class ComponentType=ModulationSourcePlotter> void registerPolyModNode()
+		template <class MonoT, class PolyT, class ComponentType=ModulationSourcePlotter, bool AddDataOffsetToUIPtr = true> void registerPolyModNode()
 		{
-			registerPolyNode<MonoT, PolyT, ComponentType, InterpretedModNode>();
+			registerPolyNode<MonoT, PolyT, ComponentType, InterpretedModNode, AddDataOffsetToUIPtr>();
 		}
 
-		template <class MonoT, class ComponentType = ModulationSourcePlotter> void registerModNode()
+		template <class MonoT, class ComponentType = ModulationSourcePlotter, bool AddDataOffsetToUIPtr=true> void registerModNode()
 		{
-			registerNode<MonoT, ComponentType, InterpretedModNode>();
+			registerNode<MonoT, ComponentType, InterpretedModNode, AddDataOffsetToUIPtr>();
 		}
-        
+
+		template <class MonoT, class ComponentType = ModulationSourcePlotter, bool AddDataOffsetToUIPtr = true> void registerNoProcessNode()
+		{
+			registerNode<MonoT, ComponentType, NewHero, AddDataOffsetToUIPtr>();
+		}
+
         virtual Identifier getId() const = 0;
         
         NodeBase* createNode(ValueTree data, bool createPolyIfAvailable) const;

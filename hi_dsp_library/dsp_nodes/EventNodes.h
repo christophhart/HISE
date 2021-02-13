@@ -110,13 +110,8 @@ struct frequency
 };
 }
 
-namespace core
+namespace control
 {
-
-
-
-
-
 
 
 /** A midi processing node with a customizable logic. Supply a class as template that has a method with the prototype
@@ -257,7 +252,7 @@ public:
 		DEF_PARAMETER(Interval, timer_impl);
 	}
 
-	constexpr bool isNormalisedModulation() const { return false; }
+	static constexpr bool isNormalisedModulation() { return false; }
 	constexpr static int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("timer");
@@ -380,6 +375,8 @@ private:
 	PolyData<TimerInfo, NumVoices> t;
 };
 
+template <typename TimerType> using timer = timer_impl<1, TimerType>;
+template <typename TimerType> using timer_poly = timer_impl<NUM_POLYPHONIC_VOICES, TimerType>;
 
 }
 

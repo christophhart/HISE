@@ -144,9 +144,12 @@ template <class T> struct NodePropertyT : public NodeProperty
 			additionalCallback(id, newValue);
 	}
 
-	void setAdditionalCallback(const valuetree::PropertyListener::PropertyCallback& c)
+	void setAdditionalCallback(const valuetree::PropertyListener::PropertyCallback& c, bool callWithValue=false)
 	{
 		additionalCallback = c;
+
+		if (callWithValue && additionalCallback)
+			additionalCallback(PropertyIds::Value, var(value));
 	}
 
 	T getValue() const { return value; }
@@ -160,7 +163,48 @@ private:
 };
 
 
+struct ComboBoxWithModeProperty : public ComboBox,
+	public ComboBoxListener
+{
+	ComboBoxWithModeProperty(String defaultValue) :
+		ComboBox(),
+		mode(PropertyIds::Mode, defaultValue)
+	{
+		addListener(this);
+		setLookAndFeel(&plaf);
+		GlobalHiseLookAndFeel::setDefaultColours(*this);
+	}
 
+	void comboBoxChanged(ComboBox* comboBoxThatHasChanged)
+	{
+		if (initialised)
+			mode.storeValue(getText(), um);
+	}
+
+	void valueTreeCallback(Identifier id, var newValue)
+	{
+		setText(newValue.toString(), dontSendNotification);
+	}
+
+	void initModes(const StringArray& modes, NodeBase* n)
+	{
+		if (initialised)
+			return;
+
+		clear(dontSendNotification);
+		addItemList(modes, 1);
+
+		um = n->getUndoManager();
+		mode.initialise(n);
+		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(ComboBoxWithModeProperty::valueTreeCallback), true);
+		initialised = true;
+	}
+
+	bool initialised = false;
+	UndoManager* um;
+	NodePropertyT<String> mode;
+	PopupLookAndFeel plaf;
+};
 
 
 /** This namespace contains templates to declare properties in CPP.
@@ -343,45 +387,259 @@ template <class... Properties> struct list: advanced_tuple<Properties...>
 
 
 
-struct SnexSource
+using namespace snex::ui;
+
+struct SnexSource: public WorkbenchData::Listener
 {
-	SnexSource() :
-		expression(PropertyIds::Code, "")
+	struct SnexSourceListener
 	{
-		for (auto& o : snex::OptimizationIds::getAllIds())
-			s.addOptimization(o);
+		virtual ~SnexSourceListener() {};
+		virtual void wasCompiled(bool ok) = 0;
+		virtual void complexDataAdded(snex::ExternalData::DataType t, int index) = 0;
+		JUCE_DECLARE_WEAK_REFERENCEABLE(SnexSourceListener);
 	};
 
-	~SnexSource();
-
-	virtual String getEmptyText() const { return ""; }
-
-	virtual void initialise(NodeBase* n);
-
-	virtual void prepare(PrepareSpecs ps)
+	struct SnexParameter : public NodeBase::Parameter
 	{
-		prepareFunction.callVoid(&ps);
-	}
+		SnexParameter(SnexSource* n, NodeBase* parent, ValueTree dataTree);
+		parameter::dynamic p;
+		const int pIndex;
+		ValueTree treeInNetwork;
 
-	virtual void codeCompiled() {};
+		valuetree::PropertySyncer syncer;
+	};
 
-	virtual void initCompiler(snex::jit::Compiler& c);
-
-	virtual bool preprocessCode(String& codeBeforeCompilation)
+	struct HandlerBase
 	{
-		ignoreUnused(codeBeforeCompilation);
-		return false;
-	}
+		HandlerBase(SnexSource& s) :
+			parent(s)
+		{};
 
-	void setCode(Identifier id, var newValue)
+		virtual void reset() = 0;
+		virtual void recompiledOk(snex::JitObject& obj) = 0;
+		virtual ~HandlerBase() {};
+
+	protected:
+
+		NodeBase* getNode() { return parent.parentNode; }
+		SnexSource& parent;
+	};
+
+	struct ParameterHandler: public HandlerBase
 	{
-		if (id == PropertyIds::Value)
+		ParameterHandler(SnexSource& s) :
+			HandlerBase(s)
+		{};
+
+		void updateParameters(ValueTree v, bool wasAdded)
 		{
-			recompile();
+			if (wasAdded)
+			{
+				auto newP = new SnexParameter(&parent, getNode(), v);
+				getNode()->addParameter(newP);
+			}
+			else
+			{
+				for (int i = 0; i < getNode()->getNumParameters(); i++)
+				{
+					if (auto sn = dynamic_cast<SnexParameter*>(getNode()->getParameter(i)))
+					{
+						if (sn->data == v)
+						{
+							removeSnexParameter(sn);
+							break;
+						}
+					}
+				}
+			}
 		}
+
+		void updateParametersForWorkbench(bool shouldAdd)
+		{
+			for (int i = 0; i < getNode()->getNumParameters(); i++)
+			{
+				if (auto sn = dynamic_cast<SnexParameter*>(getNode()->getParameter(i)))
+				{
+					removeSnexParameter(sn);
+					i--;
+				}
+			}
+
+			if (shouldAdd)
+			{
+				parameterTree = getNode()->getRootNetwork()->codeManager.getParameterTree(parent.getTypeId(), parent.classId.getValue());
+				parameterListener.setCallback(parameterTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(ParameterHandler::updateParameters));
+			}
+		}
+
+		void removeSnexParameter(SnexParameter* p)
+		{
+			p->treeInNetwork.getParent().removeChild(p->treeInNetwork, getNode()->getUndoManager());
+
+			for (int i = 0; i < getNode()->getNumParameters(); i++)
+			{
+				if (getNode()->getParameter(i) == p)
+				{
+					getNode()->removeParameter(i);
+					break;
+				}
+			}
+		}
+
+		void addNewParameter(parameter::data p)
+		{
+			if (auto existing = getNode()->getParameter(p.info.getId()))
+				return;
+
+			auto newTree = p.createValueTree();
+			parameterTree.addChild(newTree, -1, getNode()->getUndoManager());
+		}
+
+		NodeBase* getNode() { return parent.parentNode; }
+
+		void removeLastParameter()
+		{
+			parameterTree.removeChild(parameterTree.getNumChildren() - 1, getNode()->getUndoManager());
+		}
+
+		void addParameterCode(String& code)
+		{
+			using namespace snex::cppgen;
+
+			cppgen::Base c(cppgen::Base::OutputType::AddTabs);
+
+			c.addComment("Adding parameter methods", cppgen::Base::CommentType::Raw);
+
+			for (auto p : parameterTree)
+			{
+				String def;
+				def << "void set" << p[PropertyIds::ID].toString() << "(double value)";
+				c << def;
+				StatementBlock sb(c);
+				String body;
+				body << "setParameter<" << p.getParent().indexOf(p) << ">(value);";
+				c << body;
+			}
+
+			code << c.toString();
+		}
+
+		void reset() override 
+		{
+			for (auto& f : pFunctions)
+				f = {};
+		}
+
+		void recompiledOk(snex::JitObject& obj) override;
+
+		template <int P> static void setParameterStatic(void* obj, double v)
+		{
+			auto typed = static_cast<SnexSource::ParameterHandler*>(obj);
+			typed->pFunctions[P].callVoid(v);
+		}
+
+	private:
+
+		ValueTree parameterTree;
+		valuetree::ChildListener parameterListener;
+		span<snex::jit::FunctionData, OpaqueNode::NumMaxParameters> pFunctions;
+	};
+
+	struct ComplexDataHandler: public HandlerBase,
+							   public ExternalDataHolder,
+							   public scriptnode::data::base
+	{
+		ComplexDataHandler(SnexSource& parent) :
+			HandlerBase(parent)
+		{};
+
+		int getNumDataObjects(ExternalData::DataType t) const override;
+
+		Table* getTable(int index) override;
+		SliderPackData* getSliderPack(int index) override;
+		MultiChannelAudioBuffer* getAudioFile(int index) override;
+		bool removeDataObject(ExternalData::DataType t, int index) override;
+
+		ExternalDataHolder* getDynamicDataHolder(snex::ExternalData::DataType t, int index);
+
+		bool hasComplexData() const
+		{
+			return !tables.isEmpty() || !sliderPacks.isEmpty() || !audioFiles.isEmpty();
+		}
+
+		void setExternalData(const snex::ExternalData& d, int index) override
+		{
+			base::setExternalData(d, index);
+
+			auto v = (void*)(&d);
+
+			externalFunction.callVoid(v, index);
+		}
+
+		void recompiledOk(snex::JitObject& obj) override;
+
+		void reset() override
+		{
+			externalFunction = {};
+		}
+
+		void initialise(NodeBase* n);
+
+		void addOrRemoveDataFromUI(ExternalData::DataType t, bool shouldAdd);
+
+		void dataAddedOrRemoved(ValueTree v, bool wasAdded);
+
+		ValueTree getDataRoot() { return dataTree; }
+
+	private:
+
+		ValueTree dataTree;
+
+		valuetree::ChildListener dataListeners[(int)ExternalData::DataType::numDataTypes];
+
+		OwnedArray<snex::ExternalDataHolder> tables;
+		OwnedArray<snex::ExternalDataHolder> sliderPacks;
+		OwnedArray<snex::ExternalDataHolder> audioFiles;
+
+		snex::jit::FunctionData externalFunction;
+	};
+
+	SnexSource() :
+		classId(PropertyIds::ClassId, ""),
+		parameterHandler(*this),
+		dataHandler(*this)
+	{
+	};
+
+	~SnexSource()
+	{
+		setWorkbench(nullptr);
 	}
 
-	virtual void recompile();
+	virtual Identifier getTypeId() const = 0;
+
+	void initialise(NodeBase* n)
+	{
+		parentNode = n;
+
+		getComplexDataHandler().initialise(n);
+
+		classId.initialise(n);
+		classId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(SnexSource::updateClassId), true);
+	}
+
+	virtual bool setupCallbacks(snex::JitObject& obj) = 0;
+
+	void recompiled(WorkbenchData::Ptr wb) final override;
+
+	bool preprocess(String& code) final override
+	{
+		jassert(code.contains("setParameter("));
+
+		parameterHandler.addParameterCode(code);
+
+		return true;
+	}
 
 	String getId() const
 	{
@@ -391,12 +649,100 @@ struct SnexSource
 		}
 	}
 
-	NodePropertyT<String> expression;
-	WeakReference<NodeBase> parentNode;
+	StringArray getAvailableClassIds()
+	{
+		return parentNode->getRootNetwork()->codeManager.getClassList(getTypeId());
+	}
 
-	snex::jit::GlobalScope s;
-	snex::jit::JitObject obj;
-	snex::jit::FunctionData prepareFunction;
+	virtual String getEmptyText(const Identifier& id) const = 0;
+
+	void setWorkbench(WorkbenchData::Ptr nb)
+	{
+		if (wb != nullptr)
+			wb->removeListener(this);
+
+		wb = nb;
+		
+		if (parentNode != nullptr)
+			parameterHandler.updateParametersForWorkbench(wb != nullptr);
+
+		if (wb != nullptr)
+		{
+			if (auto dc = dynamic_cast<snex::ui::WorkbenchData::DefaultCodeProvider*>(wb->getCodeProvider()))
+				dc->defaultFunction = [this](const Identifier& id) { return this->getEmptyText(id); };
+
+			wb->addListener(this);
+			wb->triggerRecompile();
+		}
+	}
+
+	void updateClassId(Identifier, var newValue)
+	{
+		auto s = newValue.toString();
+
+		if (s.isNotEmpty())
+		{
+			auto nb = parentNode->getRootNetwork()->codeManager.getOrCreate(getTypeId(), Identifier(newValue.toString()));
+			setWorkbench(nb);
+		}
+	}
+
+	WorkbenchData::Ptr getWorkbench() { return wb; }
+
+	void setClass(const String& newClassName)
+	{
+		classId.storeValue(newClassName, parentNode->getUndoManager());
+		updateClassId({}, newClassName);
+	}
+
+	NodeBase* getParentNode() { return parentNode; }
+
+	void addCompileListener(SnexSourceListener* l)
+	{
+		compileListeners.addIfNotAlreadyThere(l);
+
+		if(getWorkbench() != nullptr)
+			l->wasCompiled(isReady());
+	}
+
+	void removeCompileListener(SnexSourceListener* l)
+	{
+		compileListeners.removeAllInstancesOf(l);
+	}
+
+	bool isReady() const { return ok; }
+	
+	ParameterHandler& getParameterHandler() { return parameterHandler; }
+	ComplexDataHandler& getComplexDataHandler() { return dataHandler; }
+
+	const ParameterHandler& getParameterHandler() const { return parameterHandler; }
+	const ComplexDataHandler& getComplexDataHandler() const { return dataHandler; }
+
+protected:
+
+	Array<WeakReference<SnexSourceListener>> compileListeners;
+
+	static void addDefaultParameterFunction(String& code)
+	{
+		code << "template <int P> static void setParameter(double v)\n";
+		code << "{\n";
+		code << "\t\n";
+		code << "}\n";
+	}
+
+private:
+
+	ParameterHandler parameterHandler;
+	ComplexDataHandler dataHandler;
+
+	bool ok = false;
+
+	
+
+	NodePropertyT<String> classId;
+	snex::ui::WorkbenchData::Ptr wb;
+	WeakReference<NodeBase> parentNode;
+	snex::JitObject instanceObject;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexSource);
 };

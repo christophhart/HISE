@@ -61,6 +61,13 @@ struct RangeHelpers
 				r1.skew == r2.skew &&
 				r1.interval == r2.interval;
 	}
+
+	static Array<Identifier> getHiddenIds()
+	{
+		return { PropertyIds::NodeId, PropertyIds::ParameterId,
+				PropertyIds::UpperLimit, PropertyIds::LowerLimit,
+				PropertyIds::Inverted };
+	}
 };
 
 

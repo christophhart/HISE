@@ -310,7 +310,6 @@ public:
 	}
 
 	void reset() noexcept;;
-	bool handleModulation(double&) noexcept;;
 	void createParameters(ParameterDataList& data) override;
 
 	void setDamping(double newDamping);

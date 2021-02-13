@@ -157,6 +157,8 @@ private:
 class SnexSource;
 
 
+
+
 /** A network of multiple DSP objects that are connected using a graph. */
 class DspNetwork : public ConstScriptingObject,
 				   public Timer
@@ -240,6 +242,136 @@ public:
 
 	DspNetwork(ProcessorWithScriptingContent* p, ValueTree data, bool isPolyphonic);
 	~DspNetwork();
+
+	struct CodeManager
+	{
+		CodeManager(DspNetwork& p):
+			parent(p)
+		{
+			
+		}
+
+		struct SnexSourceCompileHandler : public snex::ui::WorkbenchData::CompileHandler,
+										  public ControlledObject
+		{
+			SnexSourceCompileHandler(snex::ui::WorkbenchData* d, ProcessorWithScriptingContent* sp_);;
+
+			void processTestParameterEvent(int parameterIndex, double value) final override {};
+			void prepareTest(PrepareSpecs ps, const Array<snex::ui::WorkbenchData::TestData::ParameterEvent>& initialParameters) final override {};
+			void processTest(ProcessDataDyn& data) final override {};
+
+			bool triggerCompilation() override;
+			
+			ProcessorWithScriptingContent* sp;
+		};
+
+		snex::ui::WorkbenchData::Ptr getOrCreate(const Identifier& typeId, const Identifier& classId)
+		{
+			using namespace snex::ui;
+
+			for (auto e : entries)
+			{
+				if (e->wb->getInstanceId() == classId && e->type == typeId)
+					return e->wb;
+			}
+
+			auto targetFile = getCodeFolder().getChildFile(typeId.toString()).getChildFile(classId.toString()).withFileExtension("h");
+			entries.add(new Entry(typeId, targetFile, parent.getScriptProcessor()));
+			return entries.getLast()->wb;
+		}
+
+		ValueTree getParameterTree(const Identifier& typeId, const Identifier& classId)
+		{
+			for (auto e : entries)
+			{
+				if (e->type == typeId && e->wb->getInstanceId() == classId)
+					return e->parameterTree;
+			}
+
+			jassertfalse;
+			return {};
+		}
+		
+		StringArray getClassList(const Identifier& id)
+		{
+			auto f = getCodeFolder();
+
+			if (id.isValid())
+				f = f.getChildFile(id.toString());
+
+			StringArray sa;
+
+			for (auto& l : f.findChildFiles(File::findFiles, true, "*.h"))
+			{
+				sa.add(l.getFileNameWithoutExtension());
+			}
+
+			return sa;
+		}
+
+	private:
+
+		struct Entry
+		{
+			Entry(const Identifier& t, const File& targetFile, ProcessorWithScriptingContent* sp):
+				type(t),
+				parameterFile(targetFile.withFileExtension("xml"))
+			{
+				targetFile.create();
+
+				cp = new snex::ui::WorkbenchData::DefaultCodeProvider(wb, targetFile);
+				wb = new snex::ui::WorkbenchData();
+				wb->setCodeProvider(cp, dontSendNotification);
+				wb->setCompileHandler(new SnexSourceCompileHandler(wb, sp));
+
+				if (ScopedPointer<XmlElement> xml = XmlDocument::parse(parameterFile))
+					parameterTree = ValueTree::fromXml(*xml);
+				else
+					parameterTree = ValueTree(PropertyIds::Parameters);
+
+				pListener.setCallback(parameterTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::parameterAddedOrRemoved));
+				propListener.setCallback(parameterTree, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::propertyChanged));
+			}
+
+			const Identifier type;
+			const File parameterFile;
+
+			ScopedPointer<snex::ui::WorkbenchData::CodeProvider> cp;
+
+			
+
+			snex::ui::WorkbenchData::Ptr wb;
+
+			void parameterAddedOrRemoved(ValueTree, bool)
+			{
+				updateFile();
+			}
+
+			void propertyChanged(ValueTree, Identifier)
+			{
+				updateFile();
+			}
+
+			ValueTree parameterTree;
+			
+		private:
+
+			void updateFile()
+			{
+				ScopedPointer<XmlElement> xml = parameterTree.createXml();
+				parameterFile.replaceWithText(xml->createDocument(""));
+			}
+
+			valuetree::ChildListener pListener;
+			valuetree::RecursivePropertyListener propListener;
+		};
+
+		OwnedArray<Entry> entries;
+
+		File getCodeFolder() const;
+
+		DspNetwork& parent;
+	} codeManager;
 
 	void setNumChannels(int newNumChannels);
 
@@ -453,7 +585,11 @@ public:
 		dataHolder = newHolder;
 	}
 
+	bool& getCpuProfileFlag() { return enableCpuProfiling; };
+
 private:
+
+	bool enableCpuProfiling = false;
 
 	WeakReference<ExternalDataHolder> dataHolder;
 

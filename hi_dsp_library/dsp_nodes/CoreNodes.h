@@ -38,7 +38,6 @@ using namespace hise;
 using namespace snex;
 using namespace snex::Types;
 
-struct NodeBase;
 
 #if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 namespace container
@@ -57,105 +56,12 @@ template <class P, typename... Ts> using modchain = wrap::control_rate<chain<P, 
 }
 #endif
 
+
+
 namespace core
 {
 
 
-
-struct smoothed_parameter
-{
-	enum Parameters
-	{
-		Value,
-		SmoothingTime
-	};
-
-	SET_HISE_NODE_ID("smoothed_parameter");
-	SN_GET_SELF_AS_OBJECT(smoothed_parameter);
-	
-	DEFINE_PARAMETERS
-	{
-		DEF_PARAMETER(Value, smoothed_parameter);
-		DEF_PARAMETER(SmoothingTime, smoothed_parameter);
-	}
-	PARAMETER_MEMBER_FUNCTION;
-
-	HISE_EMPTY_INITIALISE;
-	HISE_EMPTY_HANDLE_EVENT;
-
-	bool isNormalisedModulation() const { return false; };
-
-	bool isPolyphonic() const { return false; };
-
-	template <typename ProcessDataType> void process(ProcessDataType& d)
-	{
-		modValue.setModValueIfChanged(value.advance());
-	}
-
-	bool handleModulation(double& v)
-	{
-		return modValue.getChangedValue(v);
-	}
-
-	template <typename FrameDataType> void processFrame(FrameDataType& d)
-	{
-		modValue.setModValueIfChanged(value.advance());
-	}
-
-	void reset()
-	{
-		value.reset();
-		modValue.setModValueIfChanged(value.get());
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		currentBlockRate = ps.sampleRate / (double)ps.blockSize;
-		refreshSmoothingTime();
-	}
-
-	void setValue(double newValue)
-	{
-		value.set(newValue);
-	}
-
-	void createParameters(ParameterDataList& data)
-	{
-		{
-			DEFINE_PARAMETERDATA(smoothed_parameter, Value);
-			p.setRange({0.0, 1.0});
-			data.add(std::move(p));
-		}
-		{
-			DEFINE_PARAMETERDATA(smoothed_parameter, SmoothingTime);
-			p.setRange({ 0.1, 1000.0, 0.1 });
-			p.setDefaultValue(100.0);
-			data.add(std::move(p));
-		}
-	}
-
-	void setSmoothingTime(double newSmoothingTime)
-	{
-		if (smoothingTimeMs != newSmoothingTime)
-		{
-			smoothingTimeMs = newSmoothingTime;
-			refreshSmoothingTime();
-		}
-	}
-	
-private:
-
-	void refreshSmoothingTime()
-	{
-		value.prepare(currentBlockRate, smoothingTimeMs);
-	}
-
-	double smoothingTimeMs = 20.0;
-	double currentBlockRate = 0.0;
-
-	sdouble value;
-	ModValue modValue;
-};
 
 struct table: public scriptnode::data::base
 {
@@ -170,7 +76,7 @@ struct table: public scriptnode::data::base
 	using TableSpanType = span<float, SAMPLE_LOOKUP_TABLE_SIZE>;
 
 	bool isPolyphonic() const { return false; };
-	constexpr bool isNormalisedModulation() const { return true; }
+	static constexpr bool isNormalisedModulation() { return true; }
 
 	bool handleModulation(double& value)
 	{
@@ -270,7 +176,7 @@ public:
 
 	void reset() noexcept;;
 
-	constexpr bool isNormalisedModulation() const { return true; }
+	static constexpr bool isNormalisedModulation() { return true; }
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
@@ -299,6 +205,204 @@ public:
 	double max = 0.0;
 };
 
+class recorder: public data::base
+{
+public:
+
+	enum class RecordingState
+	{
+		Idle,
+		Recording,
+		WaitingForStop,
+		numStates
+	};
+
+	enum class Parameters
+	{
+		State,
+		RecordingLength
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(State, recorder);
+		DEF_PARAMETER(RecordingLength, recorder);
+	}
+	
+
+	SET_HISE_NODE_ID("recorder");
+	SN_GET_SELF_AS_OBJECT(recorder);
+
+	static constexpr bool isPolyphonic() { return false; }
+
+	HISE_EMPTY_MOD;
+	HISE_EMPTY_HANDLE_EVENT;
+	HISE_EMPTY_INITIALISE;
+
+	void reset()
+	{
+		recordingIndex = 0;
+	}
+
+	void setExternalData(const snex::ExternalData& d, int index) override
+	{
+		if (updater == nullptr)
+		{
+			if (auto gu = d.obj->getUpdater().getGlobalUIUpdater())
+				updater = new InternalUpdater(*this, gu);
+		}
+
+		base::setExternalData(d, index);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		lastSpecs = ps;
+
+		if (updater != nullptr)
+			updater->resizeFlag.store(true);
+	}
+
+	void setState(double state)
+	{
+		auto thisState = (state > 0.5) ? RecordingState::Recording : RecordingState::Idle;
+
+		if (currentState != thisState)
+		{
+			currentState = thisState;
+			recordingIndex = 0;
+		}
+	}
+
+	void setRecordingLength(double lengthInMilliseconds)
+	{
+		bufferSize = lengthInMilliseconds / 1000.0 * lastSpecs.sampleRate;
+
+		if (updater != nullptr)
+			updater->resizeFlag.store(true);
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(recorder, State);
+			p.setParameterValueNames({ "On", "Off" });
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(recorder, RecordingLength);
+			p.setRange({ 0.0, 2000.0, 0.1 });
+			data.add(std::move(p));
+		}
+	}
+
+	void flush()
+	{
+		SimpleReadWriteLock::ScopedReadLock l(bufferLock);
+
+		if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(externalData.obj))
+		{
+			af->loadBuffer(recordingBuffer, lastSpecs.sampleRate);
+		}
+
+		currentState = RecordingState::Idle;
+	}
+
+	void rebuildBuffer()
+	{
+		AudioSampleBuffer newBuffer(lastSpecs.numChannels, bufferSize);
+		newBuffer.clear();
+
+		{
+			SimpleReadWriteLock::ScopedWriteLock l(bufferLock);
+			std::swap(newBuffer, recordingBuffer);
+			recordingIndex = 0;
+		}
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		if (currentState == RecordingState::Recording)
+		{
+			SimpleReadWriteLock::ScopedReadLock l(bufferLock);
+
+			if (d.getNumChannels() == 2)
+				FrameConverters::forwardToFrameStereo(this, d);
+			if (d.getNumChannels() == 1)
+				FrameConverters::forwardToFrameMono(this, d);
+		}
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		int numSamplesInBuffer = recordingBuffer.getNumSamples();
+
+		if (currentState == RecordingState::Recording && isPositiveAndBelow(recordingIndex, numSamplesInBuffer))
+		{
+			for (int i = 0; i < data.size(); i++)
+				recordingBuffer.setSample(i, recordingIndex, data[i]);
+
+			recordingIndex++;
+		}
+
+
+		if (recordingIndex++ >= numSamplesInBuffer)
+		{
+			recordingIndex = 0;
+			currentState = RecordingState::WaitingForStop;
+
+			if (updater != nullptr)
+				updater->flushFlag.store(true);
+		}
+	}
+
+private:
+
+	struct InternalUpdater : public PooledUIUpdater::SimpleTimer
+	{
+		InternalUpdater(recorder& p, PooledUIUpdater* u) :
+			SimpleTimer(u),
+			parent(p)
+		{};
+
+		void timerCallback() override
+		{
+			if (resizeFlag)
+				refreshBufferSize();
+
+			if (flushFlag)
+				flushBuffer();
+		}
+
+		void flushBuffer()
+		{
+			parent.flush();
+			flushFlag.store(false);
+		}
+
+		void refreshBufferSize()
+		{
+			parent.rebuildBuffer();
+			resizeFlag.store(false);
+		}
+
+		std::atomic<bool> resizeFlag = false;
+		std::atomic<bool> flushFlag = false;
+
+		recorder& parent;
+	};
+
+	ScopedPointer<InternalUpdater> updater;
+
+	int recordingIndex = 0;
+	int bufferSize = 0;
+	RecordingState currentState = RecordingState::Idle;
+	PrepareSpecs lastSpecs;
+	SimpleReadWriteLock bufferLock;
+	AudioSampleBuffer recordingBuffer;
+};
+
 class mono2stereo : public HiseDspBase
 {
 public:
@@ -309,7 +413,6 @@ public:
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
 	HISE_EMPTY_RESET;
-	HISE_EMPTY_MOD;
 	HISE_EMPTY_HANDLE_EVENT;
 	HISE_EMPTY_SET_PARAMETER;
 	
@@ -344,10 +447,65 @@ public:
 	HISE_EMPTY_PROCESS;
 	HISE_EMPTY_PROCESS_SINGLE;
 	HISE_EMPTY_RESET;
-	HISE_EMPTY_MOD;
 	HISE_EMPTY_HANDLE_EVENT;
 };
 
+
+
+template <class ShaperType> struct waveshaper
+{
+	SET_HISE_NODE_ID("waveshaper");
+	SN_GET_SELF_AS_OBJECT(waveshaper);
+
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_RESET;
+	HISE_EMPTY_HANDLE_EVENT;
+	
+	void initialise(NodeBase* n)
+	{
+		shaper.getWrappedObject().initialise(n);
+	}
+
+	static constexpr bool isPolyphonic() { return false; }
+
+	ShaperType shaper;
+
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		shaper.process(data);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		shaper.processFrame(data);
+	}
+
+	template <int P> static void setParameterStatic(void* obj, double v)
+	{
+		auto typed = static_cast<waveshaper*>(obj);
+		typed->shaper.getWrappedObject().template setParameter<P>(v);
+	}
+	PARAMETER_MEMBER_FUNCTION;
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			parameter::data p("Parameter1"); 
+			p.callback = parameter::inner<waveshaper, 0>(*this);
+			p.setRange({ 0.0, 1.0 });
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
+
+		{
+			parameter::data p("Parameter2");
+			p.callback = parameter::inner<waveshaper, 1>(*this);
+			p.setRange({ 0.0, 1.0 });
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
+	}
+};
 
 template <int NV> class ramp_impl : public HiseDspBase
 {
@@ -357,6 +515,7 @@ public:
 	{
 		PeriodTime,
 		LoopStart,
+		Gate,
 		numParameters
 	};
 
@@ -372,9 +531,7 @@ public:
 
 	void prepare(PrepareSpecs ps)
 	{
-		currentValue.prepare(ps);
 		state.prepare(ps);
-		loopStart.prepare(ps);
 
 		sr = ps.sampleRate;
 		setPeriodTime(periodTime);
@@ -383,65 +540,73 @@ public:
 	void reset() noexcept
 	{
 		for (auto& s : state)
-			s.reset();
-
-		currentValue.setAll(0.0);
+		{
+			s.data.reset();
+		}
 	}
+
+	static constexpr bool isNormalisedModulation() { return true; };
 
 	DEFINE_PARAMETERS
 	{
 		DEF_PARAMETER(PeriodTime, ramp_impl);
 		DEF_PARAMETER(LoopStart, ramp_impl);
+		DEF_PARAMETER(Gate, ramp_impl);
 	}
-	PARAMETER_MEMBER_FUNCTION;
-
 
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
 		auto& thisState = state.get();
 
-		double thisUptime = thisState.uptime;
-		double thisDelta = thisState.uptimeDelta;
-
-		for (auto c : d)
+		if (thisState.enabled)
 		{
-			thisUptime = thisState.uptime;
+			double thisUptime = thisState.data.uptime;
+			double thisDelta = thisState.data.uptimeDelta;
 
-			for (auto& s : d.toChannelData(c))
+			for (auto c : d)
 			{
-				if (thisUptime > 1.0)
-					thisUptime = loopStart.get();
+				thisUptime = thisState.data.uptime;
 
-				s += (float)thisUptime;
+				for (auto& s : d.toChannelData(c))
+				{
+					if (thisUptime > 1.0)
+						thisUptime = thisState.loopStart;
 
-				thisUptime += thisDelta;
+					s += (float)thisUptime;
+
+					thisUptime += thisDelta;
+				}
 			}
-		}
 
-		thisState.uptime = thisUptime;
-		currentValue.get() = thisState.uptime;
+			thisState.data.uptime = thisUptime;
+			thisState.modValue.setModValue(thisUptime);
+		}
 	}
 
 	bool handleModulation(double& v)
 	{
-		v = currentValue.get();
-		return true;
+		return state.get().modValue.getChangedValue(v);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		auto newValue = state.get().tick();
+		auto& s = state.get();
 
-		if (newValue > 1.0)
+		if (s.enabled)
 		{
-			newValue = loopStart.get();
-			state.get().uptime = newValue;
+			auto newValue = s.data.tick();
+
+			if (newValue > 1.0)
+			{
+				newValue = s.loopStart;
+				s.data.uptime = newValue;
+			}
+
+			for (auto& s : data)
+				s += (float)newValue;
+			
+			s.modValue.setModValue(newValue);
 		}
-
-		for (auto& s : data)
-			s += (float)newValue;
-
-		currentValue.get() = newValue;
 	}
 
 	void createParameters(ParameterDataList& data) override
@@ -458,27 +623,46 @@ public:
 			p.setDefaultValue(0.0);
 			data.add(std::move(p));
 		}
+
+		{
+			DEFINE_PARAMETERDATA(ramp_impl, Gate);
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
 	}
 
-	void handleHiseEvent(HiseEvent& e)
+	HISE_EMPTY_HANDLE_EVENT;
+
+	void setGate(double onOffValue)
 	{
-		if (e.isNoteOn())
-			state.get().reset();
+		bool shouldBeOn = onOffValue > 0.5;
+
+		for (auto& s : state)
+		{
+			if (s.enabled != shouldBeOn)
+			{
+				s.enabled = shouldBeOn;
+				s.data.uptime = 0.0;
+			}
+		}
 	}
 
 	void setPeriodTime(double periodTimeMs)
 	{
-		periodTime = periodTimeMs;
-
-		if (sr > 0.0)
+		if (periodTimeMs > 0.0)
 		{
-			auto s = periodTime * 0.001;
-			auto inv = 1.0 / jmax(0.00001, s);
+			periodTime = periodTimeMs;
 
-			auto newUptimeDelta = jmax(0.0000001, inv / sr);
+			if (sr > 0.0)
+			{
+				auto s = periodTime * 0.001;
+				auto inv = 1.0 / jmax(0.00001, s);
 
-			for (auto& s : state)
-				s.uptimeDelta = newUptimeDelta;
+				auto newUptimeDelta = jmax(0.0000001, inv / sr);
+
+				for (auto& s : state)
+					s.data.uptimeDelta = newUptimeDelta;
+			}
 		}
 	}
 
@@ -486,17 +670,23 @@ public:
 	{
 		auto v = jlimit(0.0, 1.0, newLoopStart);
 
-		for (auto& d : loopStart)
-			d = v;
+		for (auto& d : state)
+			d.loopStart = v;
 	}
 
 private:
 
+	struct State
+	{
+		OscData data;
+		double loopStart = 0.0;
+		bool enabled = false;
+		ModValue modValue;
+	};
+
 	double sr = 44100.0;
 	double periodTime = 500.0;
-	PolyData<OscData, NumVoices> state;
-	PolyData<double, NumVoices> currentValue;
-	PolyData<double, NumVoices> loopStart;
+	PolyData<State, NumVoices> state;
 };
 
 
@@ -671,7 +861,6 @@ public:
 
 	void prepare(PrepareSpecs ps);
 	void reset();
-	bool handleModulation(double& ) { return false; }
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
@@ -727,8 +916,6 @@ public:
 
 	SET_HISE_POLY_NODE_ID("gain");
 	SN_GET_SELF_AS_OBJECT(gain_impl);
-
-	HISE_EMPTY_MOD;
 
 	void prepare(PrepareSpecs ps)
 	{
@@ -829,7 +1016,7 @@ public:
 
 	void setResetValue(double newResetValue)
 	{
-		resetValue = newResetValue;
+		resetValue = Decibels::decibelsToGain(newResetValue);
 	}
 
 	double gainValue = 1.0;
@@ -1037,11 +1224,6 @@ public:
 			if (thisG.getCurrentValue() == 0.0)
 				data.setResetFlag();
 		}
-	}
-
-	bool handleModulation(double&)
-	{
-		return false;
 	}
 
 	void handleHiseEvent(HiseEvent& e)

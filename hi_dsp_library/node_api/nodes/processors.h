@@ -85,6 +85,8 @@ template <int ChannelAmount> struct frame
 
 template <int BlockSize> struct fix_block
 {
+	HISE_EMPTY_INITIALISE;
+
 	static void prepare(void* obj, prototypes::prepare f, const PrepareSpecs& ps)
 	{
 		auto ps_ = ps.withBlockSizeT<BlockSize>();
@@ -111,26 +113,6 @@ template <int BlockSize> struct fix_block
 				auto c = cpd.getChunk(numThisTime);
 				pf(obj, &c.toData());
 			}
-
-#if 0
-			float* tmp[ProcessDataType::getNumFixedChannels()];
-
-			for (int i = 0; i < data.getNumChannels(); i++)
-				tmp[i] = data[i].data;
-
-			while (numToDo > 0)
-			{
-				int numThisTime = jmin(BlockSize, numToDo);
-				ProcessDataType copy(tmp, numThisTime, data.getNumChannels());
-				copy.copyNonAudioDataFrom(data);
-				typedFunction(obj, copy);
-
-				for (int i = 0; i < data.getNumChannels(); i++)
-					tmp[i] += numThisTime;
-
-				numToDo -= numThisTime;
-			}
-#endif
 		}
 	}
 };
@@ -308,6 +290,7 @@ public:
 
 	init() : obj(), i(obj) {};
 
+	
 	
 	HISE_DEFAULT_PREPARE(T);
 	HISE_DEFAULT_RESET(T);
@@ -562,9 +545,10 @@ public:
 	{
 		hise::SimpleReadWriteLock::ScopedTryReadLock sl(this->lock);
 
-		if (sl.hasLock() && oversampler != nullptr)
+		if (sl)
 		{
-			oversampler->reset();
+			if(oversampler != nullptr)
+				oversampler->reset();
 		}
 
 		obj.reset(); 
@@ -585,7 +569,7 @@ public:
 	{
 		hise::SimpleReadWriteLock::ScopedTryReadLock sl(this->lock);
 
-		if (sl.hasLock())
+		if (sl)
 		{
 			if (oversampler == nullptr)
 				return;
@@ -636,6 +620,8 @@ template <class T> class default_data
 	}
 };
 
+
+
 /** A wrapper that extends the wrap::init class with the possibility of handling external data.
 
 	The DataHandler class needs to have a constructor with a T& argument (where you can do the 
@@ -647,20 +633,104 @@ template <class T> class default_data
 
 
 	*/
-template <class T, class DataHandler = default_data<T>> struct data : public wrap::init<T, DataHandler>
+template <class T, class DataHandler = default_data<T>> struct data : public wrap::init<T, DataHandler>,
+																	  public scriptnode::data::pimpl::provider_base
 {
 	SN_SELF_AWARE_WRAPPER(data, T);
+
+	static constexpr size_t getDataOffset()
+	{
+		using D = data<T, DataHandler>;
+		return offsetof(D, i);
+	}
+
+	data()
+	{
+		static_assert(std::is_base_of<scriptnode::data::pimpl::base, DataHandler>(), "must be base class of data::base");
+	}
 
 	static const int NumTables = DataHandler::NumTables;
 	static const int NumSliderPacks = DataHandler::NumSliderPacks;
 	static const int NumAudioFiles = DataHandler::NumAudioFiles;
 
+	scriptnode::data::pimpl::base* getDataObject() override
+	{
+		return &this->i;
+	}
+
 	void setExternalData(const snex::ExternalData& data, int index)
 	{
 		this->i.setExternalData(this->obj, data, index);
 	}
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(data);
 };
 
+
+
+/** A wrapper node that will render its child node to a external data object. */
+template <class T> class offline : public scriptnode::data::base
+{
+public:
+
+	static const int NumTables = 0;
+	static const int NumSliderPacks = 0;
+	static const int NumAudioFiles = 1;
+
+	SN_SELF_AWARE_WRAPPER(offline, T);
+
+	HISE_EMPTY_PROCESS;
+	HISE_EMPTY_PROCESS_SINGLE;
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_RESET;
+	HISE_EMPTY_HANDLE_EVENT;
+	
+	void initialise(NodeBase* n) { obj.initialise(n); }
+
+	void setExternalData(const snex::ExternalData& data, int index) override
+	{
+		if (recursion || data.isEmpty())
+			return;
+
+		ScopedValueSetter<bool> svs(recursion, true);
+
+		PrepareSpecs ps;
+		ps.blockSize = 512;
+		ps.numChannels = data.numChannels;
+		ps.sampleRate = data.sampleRate;
+
+		getWrappedObject().prepare(ps);
+		getWrappedObject().reset();
+		
+		ProcessDataDyn pd((float**)data.data, data.numSamples, data.numChannels);
+
+		ChunkableProcessData cd(pd);
+
+		while (cd.getNumLeft() > ps.blockSize)
+		{
+			auto c = cd.getChunk(ps.blockSize);
+			getWrappedObject().process(c.toData());
+		}
+
+		if (cd.getNumLeft() > 0)
+		{
+			auto c = cd.getRemainder();
+			getWrappedObject().process(c.toData());
+		}
+
+		if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(data.obj))
+		{
+			af->loadBuffer(data.toAudioSampleBuffer(), data.sampleRate);
+		}
+	}
+
+private:
+
+	T obj;
+	bool recursion = false;
+};
+
+#if 0
 template <int BlockSize, class T> class fix_block
 {
 public:
@@ -694,6 +764,48 @@ private:
 
 	T obj;
 };
+#endif
+
+
+template <class T, typename FixBlockClass> struct fix_blockx
+{
+	SN_OPAQUE_WRAPPER(fix_blockx, T);
+
+	
+	HISE_DEFAULT_RESET(T);
+	HISE_DEFAULT_MOD(T);
+	HISE_DEFAULT_HANDLE_EVENT(T);
+
+	void initialise(NodeBase* n)
+	{
+		fbClass.initialise(n);
+		obj.initialise(n);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		fbClass.prepare(this, prototypes::static_wrappers<T>::prepare, ps);
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		fbClass.process(this, prototypes::static_wrappers<T>::template process<ProcessDataType>, data);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& t)
+	{
+		// should never happen...
+		jassertfalse;
+	}
+
+	T obj;
+	FixBlockClass fbClass;
+};
+
+template <int BlockSize, class T> struct fix_block: public fix_blockx<T, static_functions::fix_block<BlockSize>>
+{
+};
+
 
 
 /** Downsamples the incoming signal with the HISE_EVENT_RASTER value

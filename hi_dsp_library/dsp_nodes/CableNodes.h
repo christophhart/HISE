@@ -37,87 +37,119 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-struct combined_parameter_base
+
+namespace control
 {
-	struct Data
+	template <typename ParameterClass> struct cable_pack : public data::base,
+														   public pimpl::parameter_node_base<ParameterClass>,
+														   public pimpl::no_processing
 	{
-		double getPmaValue() const { return value * mulValue + addValue; }
-		double getPamValue() const { return (value + addValue) * mulValue; }
+		SET_HISE_NODE_ID("cable_pack");
+		SN_GET_SELF_AS_OBJECT(cable_pack);
+		HISE_ADD_SET_VALUE(cable_pack);
 
-		double value = 0.0;
-		double mulValue = 1.0;
-		double addValue = 0.0;
-	};
-
-	virtual Data getUIData() const = 0;
-
-	NormalisableRange<double> currentRange;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(combined_parameter_base);
-};
-
-template <int NumVoices> struct combined_parameter : public combined_parameter_base
-{
-	Data getUIData() const override {
-		return data.getFirst();
-	}
-
-	PolyData<Data, NumVoices> data;
-};
-
-namespace core
-{
-
-	template <class ParameterType> struct parameter_node_base
-	{
-		/** This method can be used to connect a target to the combined output of this
-			node.
-		*/
-		template <int I, class T> void connect(T& t)
+		void setExternalData(const ExternalData& d, int index) override
 		{
-			this->p.template getParameter<0>().template connect<I>(t);
+			base::setExternalData(d, index);
+
+			if (d.numSamples > 0)
+			{
+				d.referBlockTo(b, 0);
+				setValue(lastValue);
+			}
 		}
 
-		auto& getParameter()
-		{
-			return p;
-		}
+		block b;
 
-		ParameterType p;
+		void setValue(double v)
+		{
+			lastValue = v;
+
+			DataReadLock l(this);
+
+			if (b.size() > 0)
+			{
+				auto index = jlimit(0, b.size() - 1, (int)((double)b.size() * v));
+
+				v = b[index];
+				getParameter().call(v);
+				lastValue = v;
+
+				externalData.setDisplayedValue(index);
+			}
+		}
+		
+		double lastValue = 0.0;
 	};
 
-	template <class ParameterType> struct cable_table : public parameter_node_base<ParameterType>,
-		public scriptnode::data::base
+	template <typename ParameterClass> struct sliderbank : public data::base,
+														   public pimpl::parameter_node_base<ParameterClass>,
+														   public pimpl::no_processing
+	{
+		SET_HISE_NODE_ID("sliderbank");
+		SN_GET_SELF_AS_OBJECT(sliderbank);
+
+		HISE_ADD_SET_VALUE(sliderbank);
+
+		void initialise(NodeBase* n)
+		{
+			p.initialise(n);
+		}
+
+		void setExternalData(const ExternalData& d, int index) override
+		{
+			base::setExternalData(d, index);
+
+			if (d.numSamples > 0)
+			{
+				d.referBlockTo(b, 0);
+				setValue(lastValue);
+			}
+		}
+
+		block b;
+
+		template <int P> void callSlider(double v)
+		{
+			if (P < b.size() && P < getParameter().getNumParameters())
+				getParameter().getParameter<P>().call(v * b[P]);
+		}
+
+		void setValue(double v)
+		{
+			lastValue = v;
+
+			DataReadLock l(this);
+
+			callSlider<0>(v);
+			callSlider<1>(v);
+			callSlider<2>(v);
+			callSlider<3>(v);
+			callSlider<4>(v);
+			callSlider<5>(v);
+			callSlider<6>(v);
+			callSlider<7>(v);
+		}
+
+	private:
+
+		double lastValue = 0.0;
+	};
+
+	template <typename ParameterClass> struct cable_table : public scriptnode::data::base,
+															public pimpl::parameter_node_base<ParameterClass>,
+															public pimpl::no_processing
 	{
 		SET_HISE_NODE_ID("cable_table");
 		SN_GET_SELF_AS_OBJECT(cable_table);
 
-		enum class Parameters
-		{
-			Value,
-		};
+		HISE_ADD_SET_VALUE(cable_table);
 
-		DEFINE_PARAMETERS
-		{
-			DEF_PARAMETER(Value, cable_table);
-		};
-		PARAMETER_MEMBER_FUNCTION;
-
-		HISE_EMPTY_INITIALISE;
-		HISE_EMPTY_RESET;
-		HISE_EMPTY_PROCESS;
-		HISE_EMPTY_PREPARE;
-		HISE_EMPTY_PROCESS_SINGLE;
-		HISE_EMPTY_HANDLE_EVENT;
-		HISE_EMPTY_MOD;
-
-		void setExternalData(const ExternalData& d, int index)
+		void setExternalData(const ExternalData& d, int index) override
 		{
 			base::setExternalData(d, index);
 			this->externalData.referBlockTo(tableData, 0);
 		}
-
-		ExternalData* getExternalData() { return &data; }
 
 		void setValue(double input)
 		{
@@ -130,34 +162,71 @@ namespace core
 				int i1 = (int)index & (tableData.size() - 1);
 				int i2 = (i1 + 1) & (tableData.size() - 1);
 
-				auto alpha = hmath::fmod(index, 1.0f);
+				auto alpha = jlimit(0.0f, 1.0f, hmath::fmod(index, 1.0f));
 				auto v1 = tableData[i1];
 				auto v2 = tableData[i2];
 
 				auto tv = Interpolator::interpolateLinear(v1, v2, alpha);
 
-				externalData.setDisplayedValue(input);
-
 				getParameter().call(tv);
-			}
-		}
 
-		void createParameters(ParameterDataList& data)
-		{
-			{
-				DEFINE_PARAMETERDATA(cable_table, Value);
-				p.setRange({ 0.0, 1.0 });
-				p.setDefaultValue(0.0);
-				data.add(std::move(p));
+				this->externalData.setDisplayedValue(input);
 			}
 		}
 
 		block tableData;
 	};
 
+	
+	template <typename ParameterClass, typename FaderClass> struct xfader: public pimpl::parameter_node_base<ParameterClass>,
+																		   public pimpl::no_processing
+	{
+		SET_HISE_NODE_ID("xfader");
+		SN_GET_SELF_AS_OBJECT(xfader);
 
-	template <class ParameterType, int NumVoices = 1> struct pma : public combined_parameter<NumVoices>,
-		public parameter_node_base<ParameterType>
+		HISE_ADD_SET_VALUE(xfader);
+
+		void initialise(NodeBase* n) override
+		{
+			p.initialise(n);
+			fader.initialise(n);
+		}
+
+		void setValue(double v)
+		{
+			lastValue.setModValueIfChanged(v);
+
+			using FaderType = faders::switcher;
+
+			callFadeValue<0>(v);
+			callFadeValue<1>(v);
+			callFadeValue<2>(v);
+			callFadeValue<3>(v);
+			callFadeValue<4>(v);
+			callFadeValue<5>(v);
+			callFadeValue<6>(v);
+			callFadeValue<7>(v);
+			callFadeValue<8>(v);
+		}
+
+		template <int P> void callFadeValue(double v)
+		{
+			if (P < p.getNumParameters())
+				p.call<P>(fader.getFadeValue<P>(p.getNumParameters(), v));
+		}
+
+		ModValue lastValue;
+
+		ParameterClass p;
+		FaderClass fader;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(xfader);
+	};
+
+
+	template <class ParameterType, int NumVoices=1> struct pma : public pimpl::combined_parameter_base,
+																 public pimpl::parameter_node_base<ParameterType>,
+																 public pimpl::no_processing
 	{
 		SET_HISE_NODE_ID("pma");
 		SN_GET_SELF_AS_OBJECT(pma);
@@ -200,12 +269,6 @@ namespace core
 			this->data.prepare(ps);
 		}
 
-		HISE_EMPTY_RESET;
-		HISE_EMPTY_PROCESS;
-		HISE_EMPTY_PROCESS_SINGLE;
-		HISE_EMPTY_HANDLE_EVENT;
-		HISE_EMPTY_INITIALISE;
-
 		void setMultiply(double v)
 		{
 			for (auto& s : this->data)
@@ -235,15 +298,109 @@ namespace core
 			}
 		}
 
+		Data getUIData() const override {
+			return data.getFirst();
+		}
+
 	private:
 
-		void sendParameterChange(combined_parameter_base::Data& d)
+		PolyData<Data, NumVoices> data;
+
+		void sendParameterChange(control::pimpl::combined_parameter_base::Data& d)
 		{
 			getParameter().call(d.getPmaValue());
 		}
 	};
 
+	template <typename SmootherClass> struct smoothed_parameter
+	{
+		enum Parameters
+		{
+			Value,
+			SmoothingTime
+		};
 
+		SET_HISE_NODE_ID("smoothed_parameter");
+		SN_GET_SELF_AS_OBJECT(smoothed_parameter);
+
+		DEFINE_PARAMETERS
+		{
+			DEF_PARAMETER(Value, smoothed_parameter);
+			DEF_PARAMETER(SmoothingTime, smoothed_parameter);
+		}
+		PARAMETER_MEMBER_FUNCTION;
+
+
+		void initialise(NodeBase* n)
+		{
+			value.initialise(n);
+		}
+
+		HISE_EMPTY_HANDLE_EVENT;
+
+		static constexpr bool isNormalisedModulation() { return true; };
+
+		bool isPolyphonic() const { return false; };
+
+		template <typename ProcessDataType> void process(ProcessDataType& d)
+		{
+			modValue.setModValueIfChanged(value.advance());
+		}
+
+
+
+		bool handleModulation(double& v)
+		{
+			return modValue.getChangedValue(v);
+		}
+
+		template <typename FrameDataType> void processFrame(FrameDataType& d)
+		{
+			modValue.setModValueIfChanged(value.advance());
+		}
+
+		void reset()
+		{
+			value.reset();
+			modValue.setModValueIfChanged(value.get());
+		}
+
+		void prepare(PrepareSpecs ps)
+		{
+			value.prepare(ps);
+		}
+
+		void setValue(double newValue)
+		{
+			value.set(newValue);
+		}
+
+		void createParameters(ParameterDataList& data)
+		{
+			{
+				DEFINE_PARAMETERDATA(smoothed_parameter, Value);
+				p.setRange({ 0.0, 1.0 });
+				data.add(std::move(p));
+			}
+			{
+				DEFINE_PARAMETERDATA(smoothed_parameter, SmoothingTime);
+				p.setRange({ 0.1, 1000.0, 0.1 });
+				p.setDefaultValue(100.0);
+				data.add(std::move(p));
+			}
+		}
+
+		void setSmoothingTime(double newSmoothingTime)
+		{
+			value.setSmoothingTime(newSmoothingTime);
+		}
+
+		SmootherClass value;
+
+	private:
+
+		ModValue modValue;
+	};
 
 }
 }

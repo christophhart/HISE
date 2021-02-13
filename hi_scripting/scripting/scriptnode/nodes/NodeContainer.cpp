@@ -76,6 +76,8 @@ void NodeContainer::prepareContainer(PrepareSpecs& ps)
 	originalBlockSize = ps.blockSize;
 	lastVoiceIndex = ps.voiceIndex;
 
+	
+
 	ps.sampleRate = getSampleRateForChildNodes();
 	ps.blockSize = getBlockSizeForChildNodes();
 }
@@ -1079,6 +1081,8 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<FixedBlockNode<64>>();
 	registerNodeRaw<FixedBlockNode<128>>();
 	registerNodeRaw<FixedBlockNode<256>>();
+	registerNodeRaw<FixedBlockXNode>();
+	registerNodeRaw<OfflineChainNode>();
 }
 
 

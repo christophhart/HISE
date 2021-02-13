@@ -79,14 +79,16 @@ Factory::Factory(DspNetwork* n) :
 {
 	registerNode<matrix<dynamic_matrix>, MatrixEditor>();
 
-	registerNode<dynamic_send, FunkySendComponent>();
-	registerNode<dynamic_receive, FunkySendComponent>();
+	registerNode<dynamic_send, cable::dynamic::editor>();
+	registerNode<dynamic_receive, cable::dynamic::editor>();
 	registerNode<ms_encode>();
 	registerNode<ms_decode>();
 }
 
 }
 
+namespace cable
+{
 snex::NamespacedIdentifier cable::dynamic::getReceiveId()
 {
 	return NamespacedIdentifier("routing").getChildId(dynamic_receive::getStaticId());
@@ -227,7 +229,20 @@ void cable::dynamic::setConnection(dynamic_receive& receiveTarget, bool addAsCon
 	}
 }
 
-FunkySendComponent::FunkySendComponent(routing::base* b, PooledUIUpdater* u) :
+template <typename T> static void callForEach(Component* root, const std::function<void(T*)>& f)
+{
+	if (auto typed = dynamic_cast<T*>(root))
+	{
+		f(typed);
+	}
+
+	for (int i = 0; i < root->getNumChildComponents(); i++)
+	{
+		callForEach(root->getChildComponent(i), f);
+	}
+}
+
+dynamic::editor::editor(routing::base* b, PooledUIUpdater* u) :
 	ScriptnodeExtraComponent<routing::base>(b, u),
 	levelDisplay(0.0f, 0.0f, VuMeter::StereoHorizontal)
 {
@@ -243,13 +258,20 @@ FunkySendComponent::FunkySendComponent(routing::base* b, PooledUIUpdater* u) :
 	start();
 }
 
-Error FunkySendComponent::checkConnectionWhileDragging(const SourceDetails& dragSourceDetails)
+void dynamic::editor::resized()
+{
+	auto b = getLocalBounds();
+	b.removeFromLeft(7);
+	levelDisplay.setBounds(b.reduced(1));
+}
+
+Error dynamic::editor::checkConnectionWhileDragging(const SourceDetails& dragSourceDetails)
 {
 	try
 	{
 		PrepareSpecs sp, rp;
 
-		auto other = dynamic_cast<FunkySendComponent*>(dragSourceDetails.sourceComponent.get());
+		auto other = dynamic_cast<editor*>(dragSourceDetails.sourceComponent.get());
 
 		if (auto rn = other->getAsReceiveNode())
 		{
@@ -278,12 +300,33 @@ Error FunkySendComponent::checkConnectionWhileDragging(const SourceDetails& drag
 	return Error();
 }
 
-void FunkySendComponent::itemDragEnter(const SourceDetails& dragSourceDetails)
+bool dynamic::editor::isValidDragTarget(editor* other)
+{
+	if (other == this)
+		return false;
+
+	auto srcIsSend = other->getAsSendNode() != nullptr;
+	auto thisIsSend = getAsSendNode() != nullptr;
+
+	return srcIsSend != thisIsSend;
+}
+
+bool dynamic::editor::isInterestedInDragSource(const SourceDetails& dragSourceDetails)
+{
+	if (auto src = dynamic_cast<editor*>(dragSourceDetails.sourceComponent.get()))
+	{
+		return isValidDragTarget(src);
+	}
+
+	return false;
+}
+
+void dynamic::editor::itemDragEnter(const SourceDetails& dragSourceDetails)
 {
 	dragOver = true;
 
 	currentDragError = checkConnectionWhileDragging(dragSourceDetails);
-	
+
 	if (currentDragError.error != Error::OK)
 	{
 		auto dd = getDragAndDropContainer();
@@ -294,7 +337,7 @@ void FunkySendComponent::itemDragEnter(const SourceDetails& dragSourceDetails)
 	repaint();
 }
 
-void FunkySendComponent::itemDragExit(const SourceDetails& dragSourceDetails)
+void dynamic::editor::itemDragExit(const SourceDetails& dragSourceDetails)
 {
 	getDragAndDropContainer()->setCurrentDragImage(createDragImage("Drag to connect", Colours::transparentBlack));
 
@@ -303,7 +346,7 @@ void FunkySendComponent::itemDragExit(const SourceDetails& dragSourceDetails)
 }
 
 
-void FunkySendComponent::paintOverChildren(Graphics& g)
+void dynamic::editor::paintOverChildren(Graphics& g)
 {
 	if (dragMode)
 	{
@@ -313,7 +356,7 @@ void FunkySendComponent::paintOverChildren(Graphics& g)
 		Path p;
 
 		p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
-		p.scaleToFit(2.0f, 2.0f, (float)getHeight()-4.0f, (float)getHeight()-4.0f, true);
+		p.scaleToFit(2.0f, 2.0f, (float)getHeight() - 4.0f, (float)getHeight() - 4.0f, true);
 
 		g.setColour(Colours::white);
 		g.fillPath(p);
@@ -332,7 +375,7 @@ void FunkySendComponent::paintOverChildren(Graphics& g)
 	}
 }
 
-void FunkySendComponent::timerCallback()
+void dynamic::editor::timerCallback()
 {
 	cable::dynamic* c = nullptr;
 	float feedbackValue = 1.0f;
@@ -345,7 +388,7 @@ void FunkySendComponent::timerCallback()
 		c = rn->source;
 		feedbackValue = rn->feedback;
 	}
-		
+
 	if (c == nullptr)
 	{
 		levelDisplay.setPeak(0.0f, 0.0f);
@@ -354,7 +397,7 @@ void FunkySendComponent::timerCallback()
 
 	int numChannels = c->getNumChannels();
 
-	
+
 	if (c->useFrameDataForDisplay)
 	{
 		auto l = c->frameData[0];
@@ -373,7 +416,7 @@ void FunkySendComponent::timerCallback()
 	}
 }
 
-juce::DragAndDropContainer* FunkySendComponent::getDragAndDropContainer()
+juce::DragAndDropContainer* dynamic::editor::getDragAndDropContainer()
 {
 	auto c = findParentComponentOfClass<NodeComponent>();
 	DragAndDropContainer* dd = nullptr;
@@ -389,7 +432,7 @@ juce::DragAndDropContainer* FunkySendComponent::getDragAndDropContainer()
 	return dd;
 }
 
-juce::Image FunkySendComponent::createDragImage(const String& m, Colour bgColour)
+juce::Image dynamic::editor::createDragImage(const String& m, Colour bgColour)
 {
 	Path p;
 
@@ -422,23 +465,32 @@ juce::Image FunkySendComponent::createDragImage(const String& m, Colour bgColour
 	return img;
 }
 
-template <typename T> static void callForEach(Component* root, const std::function<void(T*)>& f)
+
+
+
+scriptnode::cable::dynamic::dynamic_send* dynamic::editor::getAsSendNode()
 {
-	if (auto typed = dynamic_cast<T*>(root))
+	if (auto c = dynamic_cast<dynamic_send*>(getObject()))
 	{
-		f(typed);
+		return c;
 	}
 
-	for (int i = 0; i < root->getNumChildComponents(); i++)
-	{
-		callForEach(root->getChildComponent(i), f);
-	}
+	return nullptr;
 }
 
-
-void FunkySendComponent::itemDropped(const SourceDetails& dragSourceDetails)
+scriptnode::cable::dynamic::dynamic_receive* dynamic::editor::getAsReceiveNode()
 {
-	auto src = dynamic_cast<FunkySendComponent*>(dragSourceDetails.sourceComponent.get());
+	if (auto c = dynamic_cast<dynamic_receive*>(getObject()))
+	{
+		return c;
+	}
+
+	return nullptr;
+}
+
+void dynamic::editor::itemDropped(const SourceDetails& dragSourceDetails)
+{
+	auto src = dynamic_cast<editor*>(dragSourceDetails.sourceComponent.get());
 
 	jassert(src != nullptr);
 
@@ -459,7 +511,7 @@ void FunkySendComponent::itemDropped(const SourceDetails& dragSourceDetails)
 	repaint();
 }
 
-void FunkySendComponent::mouseDown(const MouseEvent& e)
+void dynamic::editor::mouseDown(const MouseEvent& e)
 {
 	if (e.mods.isRightButtonDown())
 	{
@@ -483,7 +535,7 @@ void FunkySendComponent::mouseDown(const MouseEvent& e)
 
 		dd->startDragging(var(), this, img, false, &offset);
 
-		auto f = [this](FunkySendComponent* fc)
+		auto f = [this](editor* fc)
 		{
 			if (fc->isValidDragTarget(this))
 			{
@@ -493,22 +545,22 @@ void FunkySendComponent::mouseDown(const MouseEvent& e)
 		};
 
 		auto root = dynamic_cast<Component*>(getDragAndDropContainer());
-		callForEach<FunkySendComponent>(root, f);
+		callForEach<editor>(root, f);
 	}
 }
 
-void FunkySendComponent::mouseUp(const MouseEvent& e)
+void dynamic::editor::mouseUp(const MouseEvent& e)
 {
 	auto root = dynamic_cast<Component*>(getDragAndDropContainer());
 
-	callForEach<FunkySendComponent>(root, [](FunkySendComponent* fc)
-	{
-		fc->dragMode = false;
-		fc->repaint();
-	});
+	callForEach<editor>(root, [](editor* fc)
+		{
+			fc->dragMode = false;
+			fc->repaint();
+		});
 }
 
-void FunkySendComponent::paint(Graphics& g)
+void dynamic::editor::paint(Graphics& g)
 {
 	if (dragOver)
 	{
@@ -516,5 +568,52 @@ void FunkySendComponent::paint(Graphics& g)
 		g.drawRect(getLocalBounds().toFloat(), 1.0f);
 	}
 }
+
+dynamic::dynamic() :
+	receiveIds(PropertyIds::Connection, "")
+{
+
+}
+
+void dynamic::reset()
+{
+	for (auto& d : frameData)
+		d = 0.0f;
+
+	for (auto& v : buffer)
+		v = 0.0f;
+}
+
+void dynamic::validate(PrepareSpecs receiveSpecs)
+{
+	DspHelpers::validate(currentSpecs, receiveSpecs);
+}
+
+void dynamic::initialise(NodeBase* n)
+{
+	parentNode = n;
+
+	receiveIds.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::restoreConnections));
+	receiveIds.initialise(n);
+}
+
+void dynamic::incCounter(bool incReadCounter, int delta)
+{
+	auto& counter = incReadCounter ? readIndex : writeIndex;
+
+	counter += delta;
+
+	if (counter == channels[0].size())
+		counter = 0;
+}
+
+void dynamic::connect(routing::receive<cable::dynamic>& receiveTarget)
+{
+	setConnection(receiveTarget, true);
+}
+
+}
+
+
 
 }

@@ -129,15 +129,22 @@ public:
 
 	StringArray valueNames;
 	NodeBase* parent;
-	ValueTree data;
+	
 
 	void updateFromValueTree(Identifier, var newValue)
 	{
 		setValueAndStoreAsync((double)newValue);
 	}
 
+	void setTreeWithValue(ValueTree v);
+
+	ValueTree getTreeWithValue() const { return treeThatStoresValue; }
+
+	ValueTree data;
+
 private:
 
+	ValueTree treeThatStoresValue;
 	parameter::dynamic_base_holder dbNew;
 
 	struct Wrapper;
@@ -276,6 +283,8 @@ public:
 	
 	var getNodeProperty(const Identifier& id) ;
 
+	bool hasNodeProperty(const Identifier& id) const;
+
 	Value getNodePropertyAsValue(const Identifier& id);
 
 	virtual bool isPolyphonic() const { return false; }
@@ -357,12 +366,18 @@ public:
 
 	String getCurrentId() const { return currentId; }
 
+	static void showPopup(Component* childOfGraph, Component* c);
+
 	struct Wrapper;
 
 	virtual Rectangle<int> getExtraComponentBounds() const
 	{
 		return {};
 	}
+
+	double& getCpuFlag() { return cpuUsage; }
+
+	String getCpuUsageInPercent() const;
 
 private:
 
@@ -372,7 +387,13 @@ protected:
 
 	ValueTree v_data;
 
+	PrepareSpecs lastSpecs;
+
 private:
+
+	
+
+	double cpuUsage = 0.0;
 
 	bool isCurrentlyMoved = false;
 
@@ -389,6 +410,39 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeBase);
 };
 
+#define ENABLE_NODE_PROFILING 1
+
+struct DummyNodeProfiler
+{
+	DummyNodeProfiler(NodeBase* unused)
+	{
+		ignoreUnused(unused);
+	}
+};
+
+struct RealNodeProfiler
+{
+	RealNodeProfiler(NodeBase* n);
+
+	~RealNodeProfiler()
+	{
+		if (enabled)
+		{
+			auto delta = Time::getMillisecondCounterHiRes() - start;
+			profileFlag = profileFlag * 0.9 + 0.1 * delta;
+		}
+	}
+
+	bool enabled;
+	double& profileFlag;
+	double start;
+};
+
+#if ENABLE_NODE_PROFILING
+using NodeProfiler = RealNodeProfiler;
+#else
+using NodeProfiler = DummyNodeProfiler;
+#endif
 
 /** A connection between two parameters or a parameter and a modulation source. */
 class ConnectionBase : public ConstScriptingObject
@@ -434,26 +488,6 @@ public:
 
 	// ============================================================================== End of API Calls
 
-#if OLD_OP
-
-	void setOpTypeFromId(const Identifier& id)
-	{
-		if (id == OperatorIds::SetValue)
-			opType = SetValue;
-		else if (id == OperatorIds::Add)
-			opType = Add;
-		else if (id == OperatorIds::Multiply)
-			opType = Multiply;
-	}
-
-	Identifier getOpType() const
-	{
-		static const Identifier ids[OpType::numOpTypes] = { OperatorIds::SetValue, OperatorIds::Multiply, OperatorIds::Add };
-		return ids[opType];
-	}
-
-#endif
-
 	bool objectDeleted() const override
 	{
 		return !data.getParent().isValid();
@@ -470,16 +504,10 @@ public:
 
 	valuetree::RemoveListener nodeRemoveUpdater;
 
-#if OLD_OP
-	OpType opType = SetValue;
-#endif
-
 	NormalisableRange<double> connectionRange;
 	bool inverted = false;
 
 	ReferenceCountedObjectPtr<NodeBase::Parameter> targetParameter;
-
-	
 
 protected:
 

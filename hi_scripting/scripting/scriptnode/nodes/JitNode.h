@@ -151,6 +151,7 @@ struct CompiledNodeBase: public ReferenceCountedObject
 };
 #endif
 
+#if 0
 struct new_jit: public SnexSource,
 				public HiseDspBase
 {
@@ -347,6 +348,7 @@ struct new_jit: public SnexSource,
 	Result lastResult;
 	NodePropertyT<String> classId;
 };
+#endif
 
 
 

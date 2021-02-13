@@ -44,10 +44,14 @@
 #include "scripting/scriptnode/nodes/DspNode.h"
 
 #include "scripting/scriptnode/ui/ParameterSlider.h"
-#include "scripting/scriptnode/ui/PropertyEditor.h"
 
 #include "scripting/scriptnode/ui/ModulationSourceComponent.h"
+
+
+
 #include "scripting/scriptnode/ui/NodeContainerComponent.h"
+
+
 
 #include "scripting/scriptnode/ui/DspNodeComponent.h"
 #include "scripting/scriptnode/ui/DspNetworkComponents.h"
@@ -63,6 +67,13 @@
 #include "scripting/scriptnode/api/ModulationSourceNode.cpp"
 #include "scripting/scriptnode/api/DspNetwork.cpp"
 #include "scripting/scriptnode/api/StaticNodeWrappers.cpp"
+
+#include "scripting/scriptnode/dynamic_elements/DynamicParameterList.cpp"
+#include "scripting/scriptnode/dynamic_elements/DynamicComplexData.cpp"
+#include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.cpp"
+#include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.cpp"
+#include "scripting/scriptnode/dynamic_elements/DynamicSmootherNode.cpp"
+#include "scripting/scriptnode/dynamic_elements/DynamicRoutingNodes.cpp"
 
 #include "scripting/scriptnode/nodes/AudioFileNodeBase.cpp"
 #include "scripting/scriptnode/nodes/CodeGenerator.cpp"

@@ -41,6 +41,25 @@ using namespace hise;
 
 class WrapperNode : public NodeBase
 {
+public:
+
+	void initParameterData(ParameterDataList& pData);
+
+	/** This is called during the initialisation of the wrapper node
+	    if:
+
+		1. The node is wrapped in a wrap::data wrapper and
+		2. The register function was created with the AddDataOffsetToUIPtr template argument set to true.
+
+		It will then use the byte offset for the opaque void* pointer that is supplied as first parameter
+		of the static createExtraComponent function, so you can safely static cast it to the expected data
+		type (the one that you registered the node with).
+	*/
+	void setUIOffset(size_t o)
+	{
+		uiOffset = o;
+	}
+
 protected:
 
 	WrapperNode(DspNetwork* parent, ValueTree d);;
@@ -49,6 +68,8 @@ protected:
 
 	Component* createExtraComponent();
 
+	
+
 	std::function<Component*(void*, PooledUIUpdater* updater)> extraComponentFunction;
 
 	Rectangle<int> getExtraComponentBounds() const;
@@ -56,11 +77,13 @@ protected:
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
 	Rectangle<int> createRectangleForParameterSliders(int numColumns) const;
 
-	void initParameterData(ParameterDataList& pData);
-
 	virtual void* getObjectPtr() = 0;
 	
+	
+
 private:
+
+	size_t uiOffset = 0;
 
 	mutable int cachedExtraWidth = -1;
 	mutable int cachedExtraHeight = -1;
@@ -83,17 +106,15 @@ public:
 
 		~ModulationTarget();
 
-		bool findTarget();
-
 		bool isModulationConnection() const override { return true; }
+
+		bool findTarget();
 
 		valuetree::PropertyListener expressionUpdater;
 		valuetree::PropertyListener rangeUpdater;
-		valuetree::RemoveListener removeWatcher;
 		WeakReference<ModulationSourceNode> parent;
 
 		CachedValue<bool> active;
-		
 	};
 
 	ValueTree getModulationTargetTree();;
@@ -122,7 +143,6 @@ public:
 
 	int fillAnalysisBuffer(AudioSampleBuffer& b);
 
-
 	void checkTargets();
 
 	double sampleRateFactor = 1.0;
@@ -135,9 +155,9 @@ public:
 	int ringBufferSize = 0;
 
 	ScopedPointer<SimpleRingBuffer> ringBuffer;
-	valuetree::ChildListener targetListener;
-
 	bool ok = false;
+
+	valuetree::ChildListener targetListener;
 
 	ReferenceCountedArray<ModulationTarget> targets;
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ModulationSourceNode);
@@ -152,7 +172,15 @@ struct MultiOutputDragSource
 
 		auto hue = (float)index / (float)numPaths;
 
-		return Colour::fromHSV(hue, 0.2f, 0.8f, 0.4f);
+		auto saturation = JUCE_LIVE_CONSTANT_OFF(0.3f);
+		auto brightness = JUCE_LIVE_CONSTANT_OFF(1.0f);
+		auto minHue =	  JUCE_LIVE_CONSTANT_OFF(0.2f);
+		auto maxHue =	  JUCE_LIVE_CONSTANT_OFF(0.8f);
+		auto alpha =	  JUCE_LIVE_CONSTANT_OFF(0.4f);
+
+		hue = jmap(hue, minHue, maxHue);
+
+		return Colour::fromHSV(hue, saturation, brightness, alpha);
 	}
 
 	virtual NodeBase* getNode() const = 0;

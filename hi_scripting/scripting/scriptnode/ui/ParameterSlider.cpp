@@ -42,7 +42,7 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index) :
 	SimpleTimer(node_->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	parameterToControl(node_->getParameter(index)),
 	node(node_),
-	pTree(node_->getParameter(index)->data)
+	pTree(node_->getParameter(index)->getTreeWithValue())
 {
 	setName(pTree[PropertyIds::ID].toString());
 
@@ -165,7 +165,7 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 	if (details.sourceComponent == this)
 		return false;
 
-	if(dynamic_cast<FunkySendComponent*>(details.sourceComponent.get()) != nullptr)
+	if(dynamic_cast<cable::dynamic::editor*>(details.sourceComponent.get()) != nullptr)
 		return false;
 
 	return !isReadOnlyModulated;
@@ -271,7 +271,7 @@ void ParameterSlider::sliderValueChanged(Slider*)
 {
 	if (parameterToControl != nullptr)
 	{
-		parameterToControl->data.setProperty(PropertyIds::Value, getValue(), parameterToControl->parent->getUndoManager());
+		parameterToControl->getTreeWithValue().setProperty(PropertyIds::Value, getValue(), parameterToControl->parent->getUndoManager());
 	}
 
 	if (auto nl = dynamic_cast<ParameterKnobLookAndFeel::SliderLabel*>(getTextBox()))

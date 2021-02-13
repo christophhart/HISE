@@ -34,4 +34,87 @@ namespace hise
 {
 using namespace juce;
 
+EnvelopeFollower::MagnitudeRamp::MagnitudeRamp() :
+	indexInBufferedArray(0),
+	currentPeak(0.0f),
+	rampedValue(0.0f)
+{
+
+}
+
+void EnvelopeFollower::MagnitudeRamp::setRampLength(int newRampLength)
+{
+	rampBuffer.setSize(1, newRampLength, true, false, true);
+	size = newRampLength;
+	bufferRamper.setValue(0.0f);
+	rampedValue = 0.0;
+	indexInBufferedArray = 0;
+}
+
+float EnvelopeFollower::MagnitudeRamp::getEnvelopeValue(float inputValue)
+{
+	if (indexInBufferedArray < size)
+	{
+		rampBuffer.setSample(0, indexInBufferedArray++, inputValue);
+	}
+	else if (indexInBufferedArray == size)
+	{
+		indexInBufferedArray = 0;
+		bufferRamper.setTarget(rampedValue, rampBuffer.getMagnitude(0, size), size);
+	}
+	else
+	{
+		jassertfalse;
+	}
+
+	bufferRamper.ramp(rampedValue);
+
+	return rampedValue;
+}
+
+EnvelopeFollower::AttackRelease::AttackRelease(float attackTime, float releaseTime) :
+	attack(attackTime),
+	release(releaseTime),
+	sampleRate(-1.0),
+	attackCoefficient(-1.0f),
+	releaseCoefficient(-1.0f),
+	lastValue(0.0f)
+{
+
+}
+
+float EnvelopeFollower::AttackRelease::calculateValue(float input)
+{
+	jassert(sampleRate != -1);
+	jassert(attackCoefficient != -1);
+	jassert(releaseCoefficient != -1);
+
+	double inputDouble = (double)input;
+
+	lastValue = ((inputDouble > lastValue) ? attackCoefficient : releaseCoefficient)* (lastValue - inputDouble) + inputDouble;
+
+	return (float)lastValue;
+}
+
+void EnvelopeFollower::AttackRelease::setSampleRate(double sampleRate_)
+{
+	sampleRate = sampleRate_;
+	calculateCoefficients();
+}
+
+void EnvelopeFollower::AttackRelease::setRelease(float newRelease)
+{
+	release = newRelease;
+	calculateCoefficients();
+}
+
+void EnvelopeFollower::AttackRelease::calculateCoefficients()
+{
+	if (sampleRate != -1.0)
+	{
+		attackCoefficient = exp(log(0.01) / (attack * sampleRate * 0.001));
+		releaseCoefficient = exp(log(0.01) / (release * sampleRate * 0.001));
+	}
+}
+
 }

@@ -792,6 +792,13 @@ template <class T> struct dyn
 		referToRawData(t.begin(), newSize, offset);
 	}
 
+	void referToNothing()
+	{
+		unused = Types::ID::Block;
+		data = nullptr;
+		size_ = 0;
+	}
+
 	/** Refers to a raw data pointer. */
 	void referToRawData(T* newData, int newSize, int offset = 0)
 	{
