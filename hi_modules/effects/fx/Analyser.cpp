@@ -51,40 +51,6 @@ ProcessorEditorBody * AnalyserEffect::createEditor(ProcessorEditor *parentEditor
 
 }
 
-void Goniometer::paint(Graphics& g)
-{
-	auto an = getAnalyser();
-
-	if (auto l_ = SingleWriteLockfreeMutex::ScopedReadLock(an->getBufferLock()))
-	{
-		auto size = jmin<int>(getWidth(), getHeight());
-
-		Rectangle<int> area = { (getWidth() - size) / 2, (getHeight() - size) / 2, size, size };
-
-		g.setColour(getColourForAnalyser(AudioAnalyserComponent::bgColour));
-		g.fillRect(area);
-
-		g.setColour(getColourForAnalyser(AudioAnalyserComponent::lineColour));
-
-		g.drawLine((float)area.getX(), (float)area.getY(), (float)area.getRight(), (float)area.getBottom(), 1.0f);
-		g.drawLine((float)area.getX(), (float)area.getBottom(), (float)area.getRight(), (float)area.getY(), 1.0f);
-
-		auto buffer = an->getAnalyseBuffer();
-
-		shapeIndex = (shapeIndex + 1) % 6;
-		shapes[shapeIndex] = Shape(buffer, area);
-
-		Colour c = getColourForAnalyser(AudioAnalyserComponent::fillColour);
-
-		shapes[shapeIndex].draw(g, c.withAlpha(1.0f));
-		shapes[(shapeIndex + 1) % 6].draw(g, c.withAlpha(0.5f));
-		shapes[(shapeIndex + 2) % 6].draw(g, c.withAlpha(0.3f));
-		shapes[(shapeIndex + 3) % 6].draw(g, c.withAlpha(0.2f));
-		shapes[(shapeIndex + 4) % 6].draw(g, c.withAlpha(0.1f));
-		shapes[(shapeIndex + 5) % 6].draw(g, c.withAlpha(0.05f));
-	}
-}
-
 Goniometer::Shape::Shape(const AudioSampleBuffer& buffer, Rectangle<int> area)
 {
 	const int stepSize = buffer.getNumSamples() / 128;
@@ -98,8 +64,7 @@ Goniometer::Shape::Shape(const AudioSampleBuffer& buffer, Rectangle<int> area)
 }
 
 
-
-Point<float> Goniometer::Shape::createPointFromSample(float left, float right, float size)
+juce::Point<float> Goniometer::Shape::createPointFromSample(float left, float right, float size)
 {
 	float lScaled = sqrt(fabsf(left));
 	float rScaled = sqrt(fabsf(right));
@@ -118,7 +83,6 @@ Point<float> Goniometer::Shape::createPointFromSample(float left, float right, f
 
 	return { x, y };
 }
-
 
 void Goniometer::Shape::draw(Graphics& g, Colour c)
 {
@@ -192,6 +156,38 @@ void AudioAnalyserComponent::Panel::fillIndexList(StringArray& indexList)
 	indexList.add("Goniometer");
 	indexList.add("Oscilloscope");
 	indexList.add("Spectral Analyser");
+}
+
+void GoniometerBase::paintSpacialDots(Graphics& g)
+{
+	if (auto l_ = SingleWriteLockfreeMutex::ScopedReadLock(buffer.lock))
+	{
+		auto asComponent = dynamic_cast<Component*>(this);
+
+		auto size = jmin<int>(asComponent->getWidth(), asComponent->getHeight());
+
+		Rectangle<int> area = { (asComponent->getWidth() - size) / 2, (asComponent->getHeight() - size) / 2, size, size };
+
+		g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::bgColour));
+		g.fillRect(area);
+
+		g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::lineColour));
+
+		g.drawLine((float)area.getX(), (float)area.getY(), (float)area.getRight(), (float)area.getBottom(), 1.0f);
+		g.drawLine((float)area.getX(), (float)area.getBottom(), (float)area.getRight(), (float)area.getY(), 1.0f);
+
+		shapeIndex = (shapeIndex + 1) % 6;
+		shapes[shapeIndex] = Shape(buffer.internalBuffer, area);
+
+		Colour c = getColourForAnalyserBase(AudioAnalyserComponent::fillColour);
+
+		shapes[shapeIndex].draw(g, c.withAlpha(1.0f));
+		shapes[(shapeIndex + 1) % 6].draw(g, c.withAlpha(0.5f));
+		shapes[(shapeIndex + 2) % 6].draw(g, c.withAlpha(0.3f));
+		shapes[(shapeIndex + 3) % 6].draw(g, c.withAlpha(0.2f));
+		shapes[(shapeIndex + 4) % 6].draw(g, c.withAlpha(0.1f));
+		shapes[(shapeIndex + 5) % 6].draw(g, c.withAlpha(0.05f));
+	}
 }
 
 }

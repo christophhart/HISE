@@ -1092,7 +1092,6 @@ class EnvelopeModulatorFactoryType: public FactoryType
 		simpleEnvelope = 0,
 		ahdsrEnvelope,
 		tableEnvelope,
-		ccEnvelope,
 		scriptEnvelope,
 		mpeModulator
 	};
@@ -1137,9 +1136,7 @@ class TimeVariantModulatorFactoryType: public FactoryType
 		controlModulator,
 		pitchWheel,
 		macroModulator,
-		audioFileEnvelope,
 		globalTimeVariantModulator,
-		ccDucker,
 		scriptTimeVariantModulator
 	};
 

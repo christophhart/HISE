@@ -332,7 +332,6 @@ public:
 		degrade,
 		chorus,
         phaser,
-		gainCollector,
 		routeFX,
 		saturation,
 		audioProcessorWrapper,

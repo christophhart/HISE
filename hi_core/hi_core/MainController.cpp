@@ -1056,11 +1056,7 @@ void MainController::skin(Component &c)
 {
 	c.setLookAndFeel(mainLookAndFeel);
     
-	c.setColour(HiseColourScheme::ComponentBackgroundColour, Colours::transparentBlack);
-    c.setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
-    c.setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
-    c.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
-	c.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+	GlobalHiseLookAndFeel::setDefaultColours(c);
 	
 
 #if 0
