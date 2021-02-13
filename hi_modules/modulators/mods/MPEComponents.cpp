@@ -701,7 +701,6 @@ void MPEPanel::Model::listBoxItemClicked(int row, const MouseEvent& e)
 		else if (result == 3)
 		{
 			mod->getTable(0)->restoreData(clipboardContent);
-			mod->sendTableIndexChangeMessage(true, mod->getTable(0), 0);
 			mod->sendChangeMessage();
 
 		}
@@ -720,7 +719,6 @@ void MPEPanel::Model::listBoxItemClicked(int row, const MouseEvent& e)
 
 				mod->restoreFromValueTree(v);
 				mod->sendChangeMessage();
-				mod->sendTableIndexChangeMessage(true, mod->getTable(0), 0);
 			}
 			else
 			{

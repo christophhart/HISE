@@ -445,6 +445,13 @@ ScopedNoDenormals::~ScopedNoDenormals()
 }
 
 
+#if 0
+bool SimpleReadWriteLock::ScopedReadLock::anotherThreadHasWriteLock() const
+{
+	return lock.writerThread != nullptr && lock.writerThread != Thread::getCurrentThreadId();
+}
+
+
 
 SimpleReadWriteLock::ScopedReadLock::ScopedReadLock(SimpleReadWriteLock &lock_, bool busyWait) :
 	lock(lock_)
@@ -453,7 +460,7 @@ SimpleReadWriteLock::ScopedReadLock::ScopedReadLock(SimpleReadWriteLock &lock_, 
 		if (lock.writerThread == nullptr)
 			break;
 
-	while (lock.writerThread != nullptr)
+	while (anotherThreadHasWriteLock())
 	{
 		if(!busyWait)
 			Thread::yield();
@@ -520,13 +527,12 @@ SimpleReadWriteLock::ScopedTryReadLock::ScopedTryReadLock(SimpleReadWriteLock &l
 	}
 }
 
-
-
 SimpleReadWriteLock::ScopedTryReadLock::~ScopedTryReadLock()
 {
 	if (is_locked)
 		lock.numReadLocks--;
 }
+#endif
 
 LockfreeAsyncUpdater::~LockfreeAsyncUpdater()
 {

@@ -46,7 +46,8 @@ class ModulatorSynth;
 *	You obviously have to change some language specific stuff (eg. 'var' 'function' ...), but 
 *	this class tries to smooth out the process of converting as much as possible.
 */
-class HardcodedScriptProcessor: public ScriptBaseMidiProcessor
+class HardcodedScriptProcessor: public ScriptBaseMidiProcessor,
+							    public ProcessorWithDynamicExternalData
 {
 public:
 
@@ -379,6 +380,7 @@ public:
 		timeKnob = Content.addKnob("Time", 0, 50);
 		timeKnob->setRange(0, 20, 0.1);
 		table = Content.addTable("TimeTable", 140, 0);
+		table->registerAtParent(0);
 
 		table->enablePooledUpdate(mc->getGlobalUIUpdater());
 		table->setPosition(140, 0, 480, 100);

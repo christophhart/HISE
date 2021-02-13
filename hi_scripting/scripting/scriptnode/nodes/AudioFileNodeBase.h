@@ -37,8 +37,7 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-using RefBufferPtr = ScriptingObjects::ScriptAudioFile::RefCountedBuffer::Ptr;
-
+#if 0
 class AudioFileNodeBase : public HiseDspBase,
 						  public ScriptingObjects::ScriptAudioFile::Listener
 {
@@ -69,13 +68,11 @@ public:
 protected:
 
 	SpinLock lock;
-	RefBufferPtr currentBuffer;
+	
 	ScriptingObjects::ScriptAudioFile::Ptr audioFile;
 
 private:
 
-	
-	
 	UndoManager* undoManager = nullptr;
 
 	bool recursiveProtection = false;
@@ -90,6 +87,6 @@ private:
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(AudioFileNodeBase);
 };
-
+#endif
 
 }

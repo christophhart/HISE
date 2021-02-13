@@ -582,6 +582,23 @@ int ProcessorHelpers::getAmountOf(const Processor *rootProcessor, const Processo
 
 
 
+juce::StringArray ProcessorHelpers::getAllIdsForDataType(const Processor* rootProcessor, snex::ExternalData::DataType dataType)
+{
+	Processor::Iterator<ExternalDataHolder> iter(rootProcessor);
+
+	StringArray sa;
+
+	while (auto p = iter.getNextProcessor())
+	{
+		if (p->getNumDataObjects(dataType) > 0)
+		{
+			sa.add(dynamic_cast<Processor*>(p)->getId());
+		}
+	}
+
+	return sa;
+}
+
 hise::MarkdownLink ProcessorHelpers::getMarkdownLink(const Processor* p)
 {
 	static const String wildcard = "/hise-modules/";
@@ -906,6 +923,9 @@ int ProcessorHelpers::getParameterIndexFromProcessor(Processor* p, const Identif
 
 void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFile/*=false*/, bool forceReload/*=false*/)
 {
+	getBuffer().fromBase64String(fileName);
+
+#if 0
 	ignoreUnused(forceReload, loadThisFile);
 
 	PoolReference newRef(dynamic_cast<Processor*>(this)->getMainController(), fileName, ProjectHandler::SubDirectories::AudioFiles);
@@ -964,26 +984,8 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 		newFileLoaded();
 	}
-};
-
-void AudioSampleProcessor::setRange(Range<int> newSampleRange)
-{
-	if(!newSampleRange.isEmpty())
-	{
-		ScopedLock sl(getFileLock());
-
-		sampleRange = newSampleRange;
-		sampleRange.setEnd(jmin<int>(getTotalLength(), sampleRange.getEnd()));
-		length = sampleRange.getLength();
-
-		if (loopRange.getEnd() < sampleRange.getEnd())
-			loopRange.setEnd(sampleRange.getEnd());
-
-		rangeUpdated();
-		
-		dynamic_cast<Processor*>(this)->sendChangeMessage();
-	}
-};
+#endif
+};;
 
 
 String ProcessorHelpers::ValueTreeHelpers::getBase64StringFromValueTree(const ValueTree& v)

@@ -58,11 +58,12 @@ public:
 	VelocityModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m):
 		VoiceStartModulator(mc, id, voiceAmount, m),
 		Modulation(m),
+		LookupTableProcessor(mc, 1, false),
 		tableUsed(false),
 		inverted(false),
-        decibelMode(false),
-		velocityTable(new MidiTable())
+        decibelMode(false)
 	{ 
+		velocityTable = getMidiTable();
 		velocityTable->setXTextConverter(Modulation::getDomainAsMidiRange);
 
 		parameterNames.add("Inverted");
@@ -132,15 +133,11 @@ public:
 	{
 		float value = m.getFloatVelocity();
 
-		
-
-
 		if(inverted) value = 1.0f - value;
 
 		if (tableUsed)
 		{
-			value = velocityTable->get((int)(value * 127));
-			sendTableIndexChangeMessage(false, velocityTable, m.getFloatVelocity());
+			value = velocityTable->get((int)(value * 127), sendNotificationAsync);
 		}
 			
 		if(decibelMode)
@@ -150,12 +147,6 @@ public:
         }
         
 		return value;
-	};
-
-
-	Table *getTable(int =0) const override
-	{
-		return velocityTable;
 	};
 
 	/// \brief enables the look up table
@@ -168,7 +159,7 @@ private:
 
 	float inputValue;
 
-	ScopedPointer<MidiTable> velocityTable;
+	MidiTable* velocityTable;
 
 	/// checks if the look up table should be used
 	bool tableUsed;

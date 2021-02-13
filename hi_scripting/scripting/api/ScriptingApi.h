@@ -438,9 +438,6 @@ public:
 		/** Creates a MIDI List object. */
         ScriptingObjects::MidiList *createMidiList();
 
-		/** Creates a SliderPack Data object. */
-		ScriptingObjects::ScriptSliderPackData* createSliderPackData();
-
 		/** Creates a SliderPack Data object and registers it so you can access it from other modules. */
 		ScriptingObjects::ScriptSliderPackData* createAndRegisterSliderPackData(int index);
 

@@ -94,12 +94,9 @@ Component* CodeEditorPanel::createContentComponent(int index)
 		{
 			if (auto network = h->getActiveNetwork())
 			{
-				auto list = network->getSnexObjects();
+				// Use the codemanager here...
+				jassertfalse;
 
-				if (auto l = list[jitNodeIndex].get())
-				{
-					return new scriptnode::SnexPopupEditor(l->getId(), l, false);
-				}
 			}
 		}
 #endif
@@ -1114,15 +1111,7 @@ juce::Identifier ComplexDataManager::getProcessorTypeId() const
 struct ComplexDataViewer : public Component,
 						   public ComboBox::Listener
 {
-	enum class Type
-	{
-		AudioFiles,
-		Tables,
-		SliderPack,
-		numTypes
-	};
-
-	ComplexDataViewer(JavascriptProcessor* h_, Type t) :
+	ComplexDataViewer(JavascriptProcessor* h_, ExternalData::DataType t) :
 		type(t),
 		h(h_)
 	{
@@ -1131,8 +1120,7 @@ struct ComplexDataViewer : public Component,
 		refreshSelector();
 		slotSelector.setTextWhenNothingSelected("Select slot");
 
-		dynamic_cast<ControlledObject*>(h.get())->getMainController()->skin(slotSelector);
-
+		GlobalHiseLookAndFeel::setDefaultColours(slotSelector);
 	}
 
 	void refreshSelector()
@@ -1142,12 +1130,7 @@ struct ComplexDataViewer : public Component,
 
 		slotSelector.clear(dontSendNotification);
 
-		switch (type)
-		{
-		case Type::AudioFiles: numEntries = h->getNumAudioFiles(); break;
-		case Type::Tables: numEntries = h->getNumTables(); break;
-		case Type::SliderPack: numEntries = h->getNumSliderPacks(); break;
-		}
+		numEntries = h->getNumDataObjects(type);
 
 		for (int i = 0; i < numEntries; i++)
 		{
@@ -1177,24 +1160,35 @@ struct ComplexDataViewer : public Component,
 
 	void setContent(int slotIndex)
 	{
+		auto mc = dynamic_cast<Processor*>(h.get())->getMainController();
+
+		auto c = h->getComplexBaseType(type, slotIndex);
+		c->setUndoManager(mc->getControlUndoManager());
+		c->setGlobalUIUpdater(mc->getGlobalUIUpdater());
+
 		switch (type)
 		{
-		case Type::AudioFiles:
+		case ExternalData::DataType::AudioFile:
 		{
-			auto c = h->addOrReturnAudioFile(slotIndex);
-			auto tn = new ScriptAudioFileBufferComponent(c);
-
+			auto tn = new MultiChannelAudioBufferDisplay();
 			currentComponent = tn;
 			break;
 		}
-		case Type::Tables:
+		case ExternalData::DataType::SliderPack:
 		{
-			auto c = h->addOrReturnTableObject(slotIndex);
-			auto te = new TableEditor(c->getScriptProcessor()->getMainController_()->getControlUndoManager(), c->getTable());
+			auto sp = new SliderPack();
+			currentComponent = sp;
+			break;
+		}
+		case snex::ExternalData::DataType::Table:
+		{
+			auto te = new TableEditor();
 			currentComponent = te;
 			break;
 		}
 		}
+
+		dynamic_cast<ComplexDataUIBase::EditorBase*>(currentComponent.get())->setComplexDataUIBase(c);
 
 		addAndMakeVisible(currentComponent);
 		resized();
@@ -1212,7 +1206,7 @@ struct ComplexDataViewer : public Component,
 	GlobalHiseLookAndFeel claf;
 	ComboBox slotSelector;
 	ScopedPointer<Component> currentComponent;
-	Type type;
+	ExternalData::DataType type;
 	WeakReference<JavascriptProcessor> h;
 };
 
@@ -1220,7 +1214,7 @@ juce::Component* ComplexDataManager::createContentComponent(int index)
 {
 	if (auto d = dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()))
 	{
-		return new ComplexDataViewer(d, (ComplexDataViewer::Type)index);
+		return new ComplexDataViewer(d, (snex::ExternalData::DataType)index);
 	}
 
 	return nullptr;

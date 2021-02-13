@@ -269,10 +269,8 @@ template <class Locktype=SpinLock> class ExecutionLimiter
 public:
 	/** creates a new UpdateMerger and registeres the given listener.*/
 	ExecutionLimiter():
-		frameRate(20),
         countLimit(0),
         updateCounter(0)
-        
 	{};
 
 	/** A handy method to limit updates from buffer block to frame rate level.
@@ -281,7 +279,8 @@ public:
 	*/
 	void limitFromBlockSizeToFrameRate(double sampleRate, int blockSize) noexcept
 	{
-		limitFromSampleRateToFrameRate(sampleRate / blockSize);
+		if(blockSize > 0)
+			limitFromBlockRateToFrameRate(sampleRate / (double)blockSize);
 	}
 
 	/** sets a manual skip number. Use this if you don't need the fancy block -> frame conversion. */
@@ -290,7 +289,6 @@ public:
 		typename Locktype::ScopedLockType sl(processLock);
 
 		countLimit = skipAmount;
-
 		updateCounter = 0;
 	};
 
@@ -343,19 +341,13 @@ private:
 
 	Locktype processLock;
 
-	
-
-	/** handy method to limit updates from sample rate level to frame rate level.
-	*	
-	*	Use this if you intend to call update() every sample.
-	*/
-	void limitFromSampleRateToFrameRate(double sampleRate) noexcept
+	void limitFromBlockRateToFrameRate(double blocksPerSeconds) noexcept
 	{
-		countLimit = (int)(sampleRate) / frameRate;
+		countLimit = jmax(1, roundToInt(blocksPerSeconds / frameRate));
 		updateCounter = 0;
 	};
 
-	int frameRate;
+	double frameRate = 30.0;
 	
 	int countLimit;
 	volatile int updateCounter;

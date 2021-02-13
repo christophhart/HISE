@@ -32,6 +32,9 @@
 
 #pragma once
 
+#include <mutex>
+#include <shared_mutex>
+
 namespace hise {
 using namespace juce;
 
@@ -187,17 +190,38 @@ public:
 
 		void start()
 		{
-			updater->simpleTimers.addIfNotAlreadyThere(this);
+			startOrStop(true);
 		}
 
 		void stop()
 		{
-			updater->simpleTimers.removeAllInstancesOf(this);
+			startOrStop(false);
 		}
 
 		virtual void timerCallback() = 0;
 
 	private:
+
+		void startOrStop(bool shouldStart)
+		{
+			WeakReference<SimpleTimer> safeThis(this);
+
+			auto f = [safeThis, shouldStart]()
+			{
+				if (safeThis.get() != nullptr)
+				{
+					if(shouldStart)
+						safeThis.get()->updater->simpleTimers.addIfNotAlreadyThere(safeThis);
+					else
+						safeThis.get()->updater->simpleTimers.removeAllInstancesOf(safeThis);
+				}
+			};
+
+			if (MessageManager::getInstance()->currentThreadHasLockedMessageManager())
+				f();
+			else
+				MessageManager::callAsync(f);
+		}
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(SimpleTimer);
 
@@ -228,6 +252,7 @@ public:
 
 		friend class PooledUIUpdater;
 
+		
 		Array<WeakReference<Listener>> pooledListeners;
 
 		WeakReference<PooledUIUpdater> handler;
@@ -267,6 +292,166 @@ private:
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(PooledUIUpdater);
 };
+
+
+
+
+/** This class is used by multiple complex UI classes to handle the notification and updates. 
+
+	There are three main events that can happen with complex data types:
+	1. The values have changed (but the data pointer stays the same).
+	2. The data has been changed (so that the data pointer points to a different location)
+	3. The index has been changed (used for displaying purposes).
+
+	This class manages the communication and notification to connected UI objects for these
+	data types.
+*/
+class ComplexDataUIUpdaterBase
+{
+public:
+
+	enum class EventType
+	{
+		Idle,
+		DisplayIndex,
+		ContentChange,
+		ContentRedirected,
+		numEventTypes
+	};
+
+	struct EventListener
+	{
+		virtual ~EventListener() {};
+
+		virtual void onComplexDataEvent(EventType t, var data) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(EventListener);
+	};
+
+	virtual ~ComplexDataUIUpdaterBase() {};
+
+	void addEventListener(EventListener* l)
+	{
+		ScopedLock sl(updateLock);
+		listeners.addIfNotAlreadyThere(l);
+		updateUpdater();
+	}
+
+	void removeEventListener(EventListener* l)
+	{
+		ScopedLock sl(updateLock);
+		listeners.removeAllInstancesOf(l);
+		updateUpdater();
+	}
+
+	void setUpdater(PooledUIUpdater* updater)
+	{
+		if (globalUpdater == nullptr)
+		{
+			ScopedLock sl(updateLock);
+			globalUpdater = updater;
+			updateUpdater();
+		}
+	}
+
+	void sendDisplayChangeMessage(float newIndexValue, NotificationType notify) const
+	{
+		sendMessageToListeners(EventType::DisplayIndex, var(newIndexValue), notify);
+	}
+
+	void sendContentChangeMessage(NotificationType notify, int indexThatChanged)
+	{
+		sendMessageToListeners(EventType::ContentChange, var(indexThatChanged), notify);
+	}
+
+	void sendContentRedirectMessage()
+	{
+		sendMessageToListeners(EventType::ContentRedirected, {}, sendNotificationSync, true);
+	}
+
+	PooledUIUpdater* getGlobalUIUpdater()
+	{
+		return globalUpdater;
+	}
+
+private:
+
+	void updateUpdater()
+	{
+		if (globalUpdater != nullptr && currentUpdater == nullptr && listeners.size() > 0)
+			currentUpdater = new Updater(*this);
+
+		if (listeners.size() == 0 || globalUpdater == nullptr)
+			currentUpdater = nullptr;
+	}
+
+	PooledUIUpdater* globalUpdater = nullptr;
+
+	struct Updater : public PooledUIUpdater::SimpleTimer
+	{
+		void timerCallback() override
+		{
+			if (parent.lastChange != EventType::Idle)
+			{
+				parent.sendMessageToListeners(parent.lastChange, parent.lastValue, sendNotificationSync, true);
+				parent.lastChange = EventType::Idle;
+			}
+		}
+
+		Updater(ComplexDataUIUpdaterBase& parent_) :
+			SimpleTimer(parent_.globalUpdater),
+			parent(parent_)
+		{
+			start();
+		};
+
+		ComplexDataUIUpdaterBase& parent;
+	};
+
+	CriticalSection updateLock;
+	ScopedPointer<Updater> currentUpdater;
+
+	void sendMessageToListeners(EventType t, var v, NotificationType n, bool forceUpdate = false) const
+	{
+		if (n == dontSendNotification)
+			return;
+
+		if (n == sendNotificationSync)
+		{
+			bool isMoreImportantChange = t >= lastChange;
+			bool valueHasChanged = lastValue != v;
+
+			if (forceUpdate || (isMoreImportantChange && valueHasChanged))
+			{
+				lastChange = jmax(t, lastChange);
+
+				for (auto l : listeners)
+				{
+					if (l.get() != nullptr)
+						l->onComplexDataEvent(t, v);
+				}
+			}
+		}
+		else
+		{
+			bool isMoreImportantChange = t >= lastChange;
+			
+			if (isMoreImportantChange)
+			{
+				lastChange = jmax(lastChange, t);
+				lastValue = v;
+			}
+		}
+	}
+
+	mutable EventType lastChange = EventType::Idle;
+	mutable var lastValue;
+
+	Array<WeakReference<EventListener>> listeners;
+};
+
+
+
 
 class SafeChangeBroadcaster;
 
@@ -570,6 +755,7 @@ private:
     std::atomic<bool> currentlyWriting { false };
 };
 
+#if 0
 /** A simple lock with read-write access. The read lock is non-reentrant (however it will not lock itself out, but the write access is reentrant but expected to be single writer.
 */
 struct SimpleReadWriteLock
@@ -579,6 +765,8 @@ struct SimpleReadWriteLock
 		ScopedReadLock(SimpleReadWriteLock &lock_, bool busyWait = false);
 		~ScopedReadLock();
 		SimpleReadWriteLock& lock;
+
+		bool anotherThreadHasWriteLock() const;
 	};
 
 	struct ScopedWriteLock
@@ -622,6 +810,129 @@ struct SimpleReadWriteLock
 
 	std::atomic<int> numReadLocks{ 0 };
     std::atomic<void*> writerThread{ nullptr };
+};
+#endif
+
+
+
+
+struct SimpleReadWriteLock
+{
+	struct ScopedWriteLock
+	{
+		ScopedWriteLock(SimpleReadWriteLock& l):
+			lock(l)
+		{
+			auto thisId = std::this_thread::get_id();
+			holdsLock = lock.writer.compare_exchange_weak(std::thread::id(), thisId);
+
+			if (holdsLock)
+			{
+				lock.mutex.lock();
+			}
+		}
+
+		~ScopedWriteLock()
+		{
+			unlock();
+		}
+
+		void unlock()
+		{
+			if (holdsLock)
+			{
+				lock.writer.store(std::thread::id());
+				lock.mutex.unlock();
+				holdsLock = false;
+			}
+		}
+
+	private:
+
+		bool holdsLock = false;
+		SimpleReadWriteLock& lock;
+	};
+
+	bool enterReadLock()
+	{
+		if (std::this_thread::get_id() != writer)
+		{
+			mutex.lock_shared();
+			return true;
+		}
+
+		return false;
+	}
+
+	void exitReadLock(bool& holdsLock)
+	{
+		if (holdsLock)
+		{
+			mutex.unlock_shared();
+			holdsLock = false;
+		}
+	}
+
+	struct ScopedReadLock
+	{
+		ScopedReadLock(SimpleReadWriteLock& l):
+			lock(l)
+		{
+			holdsLock = l.enterReadLock();
+		}
+
+		~ScopedReadLock()
+		{
+			lock.exitReadLock(holdsLock);
+		}
+
+	private:
+
+		bool holdsLock = false;
+		SimpleReadWriteLock& lock;
+	};
+
+	bool writeAccessIsLocked() const { return writer.load() != std::thread::id(); }
+
+	struct ScopedTryReadLock
+	{
+		ScopedTryReadLock(SimpleReadWriteLock& l):
+			lock(l)
+		{
+			holdsLock = lock.mutex.try_lock_shared();
+		}
+
+		~ScopedTryReadLock()
+		{
+			unlock();
+			
+		}
+		
+		operator bool() const 
+		{
+			if (holdsLock)
+				return true;
+
+			return lock.writer == std::this_thread::get_id();
+		};
+
+		void unlock()
+		{
+			if (holdsLock)
+			{
+				lock.mutex.unlock_shared();
+				holdsLock = false;
+			}
+		}
+
+	private:
+
+		bool holdsLock = false;
+		SimpleReadWriteLock& lock;
+	};
+
+	std::atomic<std::thread::id> writer;
+	std::shared_mutex mutex;
 };
 
 /** This is a non allocating alternative to the AsyncUpdater.
@@ -701,6 +1012,102 @@ protected:
 };
 
 
+struct ComplexDataUIBase : public ReferenceCountedObject
+{
+	/** A listener that will be notified about changes of the complex data source. */
+	struct SourceListener
+	{
+		virtual ~SourceListener() {};
+
+		virtual void sourceHasChanged(ComplexDataUIBase* oldSource, ComplexDataUIBase* newSource) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(SourceListener);
+	};
+
+	struct EditorBase
+	{
+		virtual ~EditorBase() {};
+
+		virtual void setComplexDataUIBase(ComplexDataUIBase* newData) = 0;
+	};
+
+	/** A SourceWatcher notifies its registered listeners about changes to a source. */
+	struct SourceWatcher
+	{
+		void setNewSource(ComplexDataUIBase* newSource)
+		{
+			if (newSource != currentSource)
+			{
+				for (auto l : listeners)
+				{
+					if (l != nullptr)
+						l->sourceHasChanged(currentSource, newSource);
+				}
+
+				currentSource = newSource;
+			}
+		}
+
+		void addSourceListener(SourceListener* l)
+		{
+			listeners.addIfNotAlreadyThere(l);
+		}
+
+		void removeSourceListener(SourceListener* l)
+		{
+			listeners.removeAllInstancesOf(l);
+		}
+
+	private:
+
+		Array<WeakReference<SourceListener>> listeners;
+
+		WeakReference<ComplexDataUIBase> currentSource;
+	};
+
+	virtual ~ComplexDataUIBase() {};
+
+	void setGlobalUIUpdater(PooledUIUpdater* updater)
+	{
+		internalUpdater.setUpdater(updater);
+	}
+
+	
+
+	void sendDisplayIndexMessage(float n)
+	{
+		internalUpdater.sendDisplayChangeMessage(n, sendNotificationAsync);
+	}
+
+	virtual bool fromBase64String(const String& b64) = 0;
+	virtual String toBase64String() const = 0;
+
+	ComplexDataUIUpdaterBase& getUpdater() { return internalUpdater; };
+	const ComplexDataUIUpdaterBase& getUpdater() const { return internalUpdater; };
+
+	void setUndoManager(UndoManager* managerToUse)
+	{
+		undoManager = managerToUse;
+	}
+
+	UndoManager* getUndoManager(bool useUndoManager = true) { return useUndoManager ? undoManager : nullptr; };
+
+	hise::SimpleReadWriteLock& getDataLock() const { return dataLock; }
+
+protected:
+
+	ComplexDataUIUpdaterBase internalUpdater;
+
+private:
+
+	mutable hise::SimpleReadWriteLock dataLock;
+
+	UndoManager* undoManager = nullptr;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ComplexDataUIBase);
+};
+
+
 /** A fuzzy search algorithm that uses the Levenshtein distance algorithm to find approximate strings. */
 class FuzzySearcher
 {
@@ -753,6 +1160,12 @@ public:
 */
 struct FloatSanitizers
 {
+	template <typename ContainerType> static void sanitizeArray(ContainerType& d)
+	{
+		for (auto& s : d)
+			sanitizeFloatNumber(s);
+	}
+
 	static void sanitizeArray(float* data, int size);;
 
 	static float sanitizeFloatNumber(float& input);;

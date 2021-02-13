@@ -33,11 +33,12 @@
 namespace hise { using namespace juce;
 
 GlobalModulator::GlobalModulator(MainController *mc):
-originalModulator(nullptr),
-connectedContainer(nullptr),
-useTable(false)
+	LookupTableProcessor(mc, 1, false),
+	originalModulator(nullptr),
+	connectedContainer(nullptr),
+	useTable(false)
 {
-	table = new MidiTable();
+	table = getMidiTable();
 
 	ModulatorSynthChain *chain = mc->getMainSynthChain();
 
@@ -288,9 +289,7 @@ float GlobalVoiceStartModulator::calculateVoiceStartValue(const HiseEvent &m)
 		if (useTable)
 		{
 			const int index = (int)((float)globalValue * 127.0f);
-			globalValue = table->get(index);
-
-			sendTableIndexChangeMessage(false, table, (float)index / 127.0f);
+			globalValue = table->get(index, sendNotificationAsync);
 		}
 
 		return inverted ? 1.0f - globalValue : globalValue;
@@ -368,9 +367,7 @@ float GlobalStaticTimeVariantModulator::calculateVoiceStartValue(const HiseEvent
 		if (useTable)
 		{
 			const int index = (int)((float)globalValue * 127.0f);
-			globalValue = table->get(index);
-
-			sendTableIndexChangeMessage(false, table, (float)index / 127.0f);
+			globalValue = table->get(index, sendNotificationAsync);
 		}
 
 		return inverted ? 1.0f - globalValue : globalValue;
@@ -456,14 +453,14 @@ void GlobalTimeVariantModulator::calculateBlock(int startSample, int numSamples)
                 {
                     const int tableIndex = (int)(data[i++] * 127.0f);
                     
-                    internalBuffer.setSample(0, startSample++, table->get(tableIndex));
+                    internalBuffer.setSample(0, startSample++, table->get(tableIndex, dontSendNotification));
                 }
                 
                 invertBuffer(startSample, numSamples);
                 
                 
+				table->setNormalisedIndexSync(thisInputValue);
                 setOutputValue(internalBuffer.getSample(0, startIndex));
-                sendTableIndexChangeMessage(false, table, thisInputValue);
                 
                 return;
             }

@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 
 ConvolutionEffect::ConvolutionEffect(MainController *mc, const String &id) :
 MasterEffectProcessor(mc, id),
-AudioSampleProcessor(this),
+AudioSampleProcessor(mc),
 dryGain(0.0f),
 wetGain(1.0f),
 wetBuffer(2, 0),
@@ -48,6 +48,8 @@ loadAfterProcessFlag(false),
 isCurrentlyProcessing(false),
 loadingThread(*this)
 {
+	getBuffer().addListener(this);
+
 	finaliseModChains();
 
 	parameterNames.add("DryGain");
@@ -67,46 +69,30 @@ loadingThread(*this)
 	smoothedGainerWet.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::Gain, 1.0f);
 	smoothedGainerDry.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::Gain, 0.0f);
 
-	createEngine(audiofft::ImplementationType::BestAvailable);
+	convolverL = createNewEngine(audiofft::ImplementationType::BestAvailable);
+	convolverR = createNewEngine(audiofft::ImplementationType::BestAvailable);
 }
 
 ConvolutionEffect::~ConvolutionEffect()
 {
-    ScopedLock sl(getImpulseLock());
-    
+	getBuffer().removeListener(this);
+
+	SpinLock::ScopedLockType sl(swapLock);
+	
 	convolverL = nullptr;
 	convolverR = nullptr;
 }
 
-void ConvolutionEffect::createEngine(audiofft::ImplementationType fftType)
+MultithreadedConvolver* ConvolutionEffect::createNewEngine(audiofft::ImplementationType fftType)
 {
-	if (fftType != currentType)
-	{
-		currentType = fftType;
+	bool useBackground = convolverL != nullptr ? convolverL->isUsingBackgroundThread() : false;
 
-		ScopedLock sl(getImpulseLock());
+	auto newConvolver = new MultithreadedConvolver(fftType);
+	newConvolver->reset();
+	newConvolver->setUseBackgroundThread(useBackground);
 
-		bool useBackground = convolverL != nullptr ? convolverL->isUsingBackgroundThread() : false;
-		bool reload = convolverL != nullptr;
-
-		convolverL = nullptr;
-		convolverR = nullptr;
-
-		convolverL = new MultithreadedConvolver(fftType);
-		convolverR = new MultithreadedConvolver(fftType);
-
-		convolverL->reset();
-		convolverR->reset();
-
-		convolverL->setUseBackgroundThread(useBackground);
-		convolverR->setUseBackgroundThread(useBackground);
-
-		if (reload)
-			setImpulse();
-	}
+	return newConvolver;
 }
-
-
 
 void ConvolutionEffect::setImpulse()
 {
@@ -151,10 +137,16 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 	case ProcessInput:	processingEnabled = newValue >= 0.5f;
 						enableProcessing(processingEnabled); 
 						break;
-	case UseBackgroundThread:	useBackgroundThread = newValue > 0.5f;
-								convolverL->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
-								convolverR->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
-								break;
+	case UseBackgroundThread:	
+	{
+		useBackgroundThread = newValue > 0.5f;
+
+		SpinLock::ScopedLockType sl(swapLock);
+
+		convolverL->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
+		convolverR->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
+		break;
+	}
 	case Predelay:		predelayMs = newValue;
 						calcPredelay();
 						break;
@@ -165,7 +157,12 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 	case Damping:		damping = Decibels::decibelsToGain(newValue); 
 						setImpulse();
 						break;
-	case FFTType:		createEngine((audiofft::ImplementationType)(int)newValue); break;
+	case FFTType:		
+	{
+		currentType = (audiofft::ImplementationType)(int)newValue;
+		setImpulse();
+		break;
+	}
 	default:			jassertfalse; return;
 	}
 }
@@ -234,8 +231,6 @@ void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	if (sampleRate != lastSampleRate)
 	{
-		ScopedLock sl(getImpulseLock());
-
 		lastSampleRate = sampleRate;
 
 		smoothedGainerWet.prepareToPlay(sampleRate, samplesPerBlock);
@@ -246,8 +241,6 @@ void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 		setImpulse();
 	}
-
-	
 }
 
 void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
@@ -279,13 +272,6 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 		return;
 	}
 
-	ScopedTryLock sl2(getImpulseLock());
-
-	if (!sl2.isLocked())
-		jassertfalse;
-
-	ScopedLock sl(getImpulseLock());
-
 	const int availableSamples = numSamples;
 
 	if (availableSamples > 0)
@@ -308,7 +294,9 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 				s_gain += s_step;
 			}
-			
+
+			SpinLock::ScopedLockType sl(swapLock);
+
 			if (convolverL != nullptr)
 				convolverL->process(smoothed_input_l, convolutedL, numSamples);
 
@@ -319,6 +307,8 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 		}
 		else
 		{
+			SpinLock::ScopedLockType sl(swapLock);
+
 			if (convolverL != nullptr)
 				convolverL->process(l, convolutedL, numSamples);
 
@@ -354,6 +344,8 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 			{
 				if (!processFlag)
 				{
+					SpinLock::ScopedLockType sl(swapLock);
+
 					convolverL->cleanPipeline();
 					convolverR->cleanPipeline();
 				}
@@ -382,8 +374,6 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 				FloatVectorOperations::copy(wetBuffer.getWritePointer(0), convolutedL, availableSamples);
 				FloatVectorOperations::copy(wetBuffer.getWritePointer(1), convolutedR, availableSamples);
 			}
-
-			
 
 			smoothedGainerWet.processBlock(wetBuffer.getArrayOfWritePointers(), 2, availableSamples);
 
@@ -423,8 +413,6 @@ void ConvolutionEffect::enableProcessing(bool shouldBeProcessed)
 {
 	if (processFlag != shouldBeProcessed)
 	{
-		ScopedLock sl(getImpulseLock());
-
 		processFlag = shouldBeProcessed;
 
 		if (processFlag)
@@ -576,8 +564,6 @@ void ConvolutionEffect::LoadingThread::run()
 
 		if (doSomething)
 		{
-			ScopedLock sl(parent.getImpulseLock());
-
 			ScopedValueSetter<bool> svs(parent.isReloading, true);
 
 			shouldRestart = false;
@@ -600,23 +586,25 @@ bool ConvolutionEffect::LoadingThread::reloadInternal()
     if(parent.convolverL == nullptr)
         return true;
     
-	if (parent.getSampleBuffer() == nullptr || parent.getSampleBuffer()->getNumChannels() == 0)
+	if (parent.getBuffer().isEmpty())
 	{
-		ScopedLock sl(parent.getImpulseLock());
-
+		SpinLock::ScopedLockType sl(parent.swapLock);
 		parent.convolverL->reset();
 		parent.convolverR->reset();
 		return true;
 	}
 
-	auto pBuffer = *parent.getSampleBuffer();
-
-	auto resampleRatio = parent.getResampleFactor();
 
 	AudioSampleBuffer scratchBuffer;
+	auto resampleRatio = parent.getResampleFactor();
 
-	if (!MultithreadedConvolver::prepareImpulseResponse(pBuffer, scratchBuffer, &shouldRestart, parent.getRange(), resampleRatio))
-		return false;
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(parent.getBuffer().getDataLock());
+
+		auto& pBuffer = parent.getAudioSampleBuffer();
+		if (!MultithreadedConvolver::prepareImpulseResponse(pBuffer, scratchBuffer, &shouldRestart, parent.getBuffer().getCurrentRange(), resampleRatio))
+			return false;
+	}
 
 	auto resampledLength = scratchBuffer.getNumSamples();
 
@@ -638,15 +626,24 @@ bool ConvolutionEffect::LoadingThread::reloadInternal()
 	const auto headSize = nextPowerOfTwo(parent.getLargestBlockSize());
 	const auto fullTailLength = nextPowerOfTwo(resampledLength - headSize);
 
-	ScopedLock sl(parent.getImpulseLock());
+	ScopedPointer<MultithreadedConvolver> s1, s2;
 
-    
-	parent.convolverL->reset();
-	parent.convolverR->reset();
-	parent.convolverL->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(0), resampledLength);
-	parent.convolverR->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(1), resampledLength);
-	parent.enableProcessing(parent.processingEnabled);
+	s1 = new MultithreadedConvolver(parent.currentType);
+	s2 = new MultithreadedConvolver(parent.currentType);
 
+	s1->setUseBackgroundThread(parent.useBackgroundThread);
+	s2->setUseBackgroundThread(parent.useBackgroundThread);
+
+	s1->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(0), resampledLength);
+	s2->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(1), resampledLength);
+
+	{
+		SpinLock::ScopedLockType sl(parent.swapLock);
+		std::swap(s1, parent.convolverL);
+		std::swap(s2, parent.convolverR);
+		parent.enableProcessing(parent.processingEnabled);
+	}
+	
 	return true;
 }
 

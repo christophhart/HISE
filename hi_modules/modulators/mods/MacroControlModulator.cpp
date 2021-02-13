@@ -35,10 +35,10 @@ namespace hise { using namespace juce;
 MacroModulator::MacroModulator(MainController *mc, const String &id, Modulation::Mode m) :
 TimeVariantModulator(mc, id, m),
 Modulation(m),
+LookupTableProcessor(mc, 1, false),
 macroIndex(-1),
 smoothTime(200.0f),
 useTable(false),
-table(new MidiTable()),
 learnMode(false),
 currentValue(1.0f),
 targetValue(1.0f)
@@ -59,7 +59,7 @@ void MacroModulator::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(MacroIndex, "MacroIndex");
 	loadAttribute(SmoothTime, "SmoothTime");
 
-	if (useTable) loadTable(table, "MacroTableData");
+	loadTable(getTableUnchecked(0), "MacroTableData");
 }
 
 ValueTree MacroModulator::exportAsValueTree() const
@@ -70,7 +70,7 @@ ValueTree MacroModulator::exportAsValueTree() const
 	saveAttribute(MacroIndex, "MacroIndex");
 	saveAttribute(SmoothTime, "SmoothTime");
 
-	if (useTable) saveTable(table, "MacroTableData");
+	saveTable(getTableUnchecked(0), "MacroTableData");
 
 	return v;
 }
@@ -88,19 +88,22 @@ Path MacroModulator::getSpecialSymbol() const
 
 void MacroModulator::addToMacroController(int index)
 {
-	macroIndex = index;
-
-	ModulatorSynthChain *macroChain = getMainController()->getMacroManager().getMacroChain();
-
-	for(int i = 0; i < 8; i++)
+	if (macroIndex != index)
 	{
-		macroChain->getMacroControlData(i)->removeAllParametersWithProcessor(this);
+		macroIndex = index;
 
+		ModulatorSynthChain *macroChain = getMainController()->getMacroManager().getMacroChain();
+
+		for (int i = 0; i < 8; i++)
+		{
+			macroChain->getMacroControlData(i)->removeAllParametersWithProcessor(this);
+
+		}
+
+		macroChain->sendChangeMessage();
+
+		if (macroIndex != -1) macroChain->addControlledParameter(index, getId(), MacroValue, "Macro Modulator", getRange());
 	}
-
-	macroChain->sendChangeMessage();
-
-	if(macroIndex != -1) macroChain->addControlledParameter(index, getId(), MacroValue, "Macro Modulator", getRange());
 }
 
 
@@ -155,9 +158,7 @@ void MacroModulator::macroControllerMoved(float newValue)
 
 	if(useTable)
 	{
-		targetValue = table->get((int)(inputValue * 127));
-		
-		sendTableIndexChangeMessage(false, table, inputValue);
+		targetValue = static_cast<MidiTable*>(getTableUnchecked(0))->get((int)(inputValue * 127), sendNotificationAsync);
 	}
 	else
 	{

@@ -745,7 +745,7 @@ struct TestDataComponent : public TestDataComponentBase
 
 struct TestComplexDataManager : public TestDataComponentBase,
 								public SliderPack::Listener,
-								public TableEditor::Listener
+								public Table::Listener
 {
 	TestComplexDataManager(WorkbenchData::Ptr d) :
 		TestDataComponentBase(d)
@@ -760,12 +760,12 @@ struct TestComplexDataManager : public TestDataComponentBase,
 
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("TestComplexData"); };
 
-	void sliderPackChanged(SliderPack *, int ) override
+	void sliderPackChanged(SliderPackData *, int ) override
 	{
 		getWorkbench()->triggerPostCompileActions();
 	}
 
-	void tableChangedSomehow() override
+	void graphHasChanged(int) override
 	{
 		getWorkbench()->triggerPostCompileActions();
 	}
@@ -895,7 +895,7 @@ struct TestComplexDataManager : public TestDataComponentBase,
 			{
 				auto t = td.getTable(i);
 				auto te = new TableEditor(nullptr, t);
-				te->addListener(this);
+				t->addRulerListener(this);
 				currentDataComponent = te;
 			}
 			if (d == ExternalData::DataType::SliderPack)
@@ -907,8 +907,10 @@ struct TestComplexDataManager : public TestDataComponentBase,
 			}
 			if (d == ExternalData::DataType::AudioFile)
 			{
-				jassertfalse; // soon...
 				auto t = td.getAudioFile(i);
+				auto b = new hise::MultiChannelAudioBufferDisplay();
+				b->setAudioFile(t);
+				currentDataComponent = b;
 			}
 		}
 

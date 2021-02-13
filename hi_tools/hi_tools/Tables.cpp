@@ -36,22 +36,20 @@ Table::Table():
 	xConverter(getDefaultTextValue),
 	yConverter(getDefaultTextValue)
 {
-	
     graphPoints.add(GraphPoint(0.0, 0.0, 0.5));
     graphPoints.add(GraphPoint(1.0, 1.0, 0.5));
 }
 
 Table::~Table()
 {
-	
-
-	masterReference.clear();
 }
 
 void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints)
 {
 	graphPoints.clear();
 	graphPoints.addArray(newGraphPoints, 0, numPoints);
+
+	internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
 };
 
 void Table::createPath(Path &normalizedPath) const

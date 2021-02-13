@@ -35,7 +35,7 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-
+#if 0
 struct AudioFileNodeBase::WrappedDisplay: public Component,
 										  public Listener
 {
@@ -49,7 +49,7 @@ struct AudioFileNodeBase::WrappedDisplay: public Component,
 
 	void sourceChanged(ScriptingObjects::ScriptAudioFile* newReference)
 	{
-		addAndMakeVisible(display = new ScriptAudioFileBufferComponent(newReference));
+		addAndMakeVisible(display = new MultiChannelAudioBufferDisplay(newReference));
 		resized();
 	}
 
@@ -63,7 +63,7 @@ struct AudioFileNodeBase::WrappedDisplay: public Component,
 		parent->removeListener(this);
 	}
 
-	ScopedPointer<ScriptAudioFileBufferComponent> display;
+	ScopedPointer<MultiChannelAudioBufferDisplay> display;
 	WeakReference<AudioFileNodeBase> parent;
 };
 
@@ -150,6 +150,7 @@ void AudioFileNodeBase::removeListener(Listener* l)
 {
 	listeners.removeAllInstancesOf(l);
 }
+#endif
 
 }
 

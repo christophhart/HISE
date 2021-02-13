@@ -104,7 +104,7 @@ Set to 1 to enable all workbench tools. (This is disabled in the lightweight sne
 #include "plugin_components/PluginPreviewWindow.h"
 #endif
 
-#include "wave_components/SampleComponents.h"
+
 
 
 #include "eq_plot/FilterInfo.h"
@@ -113,6 +113,7 @@ Set to 1 to enable all workbench tools. (This is disabled in the lightweight sne
 
 #include "floating_layout/FloatingLayout.h"
 #include "plugin_components/PanelTypes.h"
+#include "wave_components/SampleComponents.h"
 
 #include "markdown_components/MarkdownPreview.h"
 #include "markdown_components/MarkdownComponents.h"

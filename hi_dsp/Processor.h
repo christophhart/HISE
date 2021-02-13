@@ -996,6 +996,8 @@ public:
 
 	template <class ProcessorType> static int getAmountOf(const Processor *rootProcessor, const Processor *upTochildProcessor = nullptr);
 
+	static StringArray getAllIdsForDataType(const Processor* rootProcessor, snex::ExternalData::DataType dataType);
+
 	template <class ProcessorType> static StringArray getAllIdsForType(const Processor *rootProcessor)
 	{
 		StringArray sa;

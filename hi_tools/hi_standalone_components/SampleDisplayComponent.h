@@ -483,7 +483,7 @@ public:
 	*/
 	void setPlaybackPosition(double normalizedPlaybackPosition)
 	{
-        if(playBackPosition != normalizedPlaybackPosition)
+		if(playBackPosition != normalizedPlaybackPosition)
         {
             playBackPosition = normalizedPlaybackPosition;
             repaint();
@@ -645,67 +645,354 @@ private:
 
 };
 
-/** This is a multichannel buffer type used by SNEX and scriptnode for audio files. */
-struct MultiChannelAudioBuffer : public ReferenceCountedObject,
-								 public PooledUIUpdater::Broadcaster
-{
-	struct IndexListener: public PooledUIUpdater::Listener
-	{
-		virtual ~IndexListener() {};
+/** This is a multichannel buffer type used by SNEX and scriptnode for audio files. 
 
-		virtual void readIndexChanged(int) = 0;
+	The buffer will contain two versions of the data, one is used as read-only resource
+	and the other one is used for the data.
+*/
+struct MultiChannelAudioBuffer : public ComplexDataUIBase
+{
+	struct DataProvider: public ReferenceCountedObject
+	{
+		struct LoadResult
+		{
+			LoadResult() :
+				r(Result::ok())
+			{};
+
+			operator bool() { return r.wasOk(); }
+
+			AudioSampleBuffer buffer;
+			Result r;
+			String reference = {};
+			Range<int> loopRange = {};
+			double sampleRate = 0.0;
+		};
+
+		using Ptr = ReferenceCountedObjectPtr<DataProvider>;
+
+		virtual ~DataProvider() = default;
+
+		/** Override this function and load the content and process the string to be displayed. */
+		virtual LoadResult loadFile(const String& referenceString) = 0;
+
+		/** This directory will be used as default directory when opening files. */
+		virtual File getRootDirectory() { return File(); }
 
 	private:
 
-		virtual void handlePooledMessage(Broadcaster* b) override
-		{
-			if (auto sb = dynamic_cast<MultiChannelAudioBuffer*>(b))
-				readIndexChanged(sb->currentIndex);
-		}
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(DataProvider);
 	};
 
-	MultiChannelAudioBuffer(PooledUIUpdater* updater, const AudioSampleBuffer& b)
+	/** A Listener will be notified about changes to the sample content. 
+	
+		By default the content change notifications are synchronous
+		(because you might want to update stuff for the processing), 
+		but you can change the notification to be asynchronous in order
+		to do UI stuff (there's no guarantee from which thread the events
+		might be executed).
+	*/
+	struct Listener: private ComplexDataUIUpdaterBase::EventListener
 	{
-		if(updater != nullptr)
-			setHandler(updater);
+		Listener() = default;
+		virtual ~Listener() = default;
 
-		buffer.makeCopyOf(b);
+		/** This will be called (synchronously while holding the data write lock) whenever the data is relocated. */
+		virtual void bufferWasLoaded() = 0;
+
+		/** This will be called (synchronously but without holding the lock) whenever the (non-original) data has been modified. */
+		virtual void bufferWasModified() = 0;
+
+		/** This will be called asynchronously whenever the sample index has been changed. The index is relative to the data buffer. */
+		virtual void sampleIndexChanged(int newSampleIndex) {};
+
+	private:
+
+		friend class MultiChannelAudioBuffer;
+
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType d, var v) override
+		{
+			switch (d)
+			{
+			case ComplexDataUIUpdaterBase::EventType::ContentChange:
+				bufferWasModified();
+				break;
+			case ComplexDataUIUpdaterBase::EventType::ContentRedirected:
+				bufferWasLoaded();
+				break;
+			case ComplexDataUIUpdaterBase::EventType::DisplayIndex:
+				sampleIndexChanged((int)v);
+				break;
+			}
+		}
+	};
+
+	void addListener(Listener* l)
+	{
+		internalUpdater.addEventListener(l);
 	}
 
-	MultiChannelAudioBuffer(PooledUIUpdater* updater, AudioSampleBuffer&& b)
+	void removeListener(Listener* l)
 	{
-		if (updater != nullptr)
-			setHandler(updater);
-
-		std::swap(buffer, b);
+		internalUpdater.removeEventListener(l);
 	}
 
-	void addListener(IndexListener* l)
-	{
-		addPooledChangeListener(l);
+	String toBase64String() const override 
+	{ 
+		return referenceString;
+	}
+	
+	bool fromBase64String(const String& b64) override 
+	{ 
+		if (b64 != referenceString)
+		{
+			referenceString = b64;
+
+			jassert(provider != nullptr);
+
+			if (provider != nullptr)
+			{
+				if (auto lr = provider->loadFile(referenceString))
+				{
+					originalBuffer = lr.buffer;
+					auto nb = createNewDataBuffer({ 0, originalBuffer.getNumSamples() });
+
+					referenceString = lr.reference;
+
+					{
+						SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+						bufferRange = { 0, originalBuffer.getNumSamples() };
+						sampleRate = lr.sampleRate;
+						setDataBuffer(nb);
+					}
+
+					setLoopRange(lr.loopRange, dontSendNotification);
+
+					return true;
+				}
+				else
+				{
+					
+					originalBuffer = {};
+
+					SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+					bufferRange = {};
+					currentData = {};
+					getUpdater().sendContentRedirectMessage();
+					return false;
+				}
+			}
+		}
+		
+		return false; 
 	}
 
-	void removeListener(IndexListener* l)
+	
+	/** Set the range of the buffer. The notification to the listeners will always be synchronous. */
+	void setRange(Range<int> sampleRange)
 	{
-		removePooledChangeListener(l);
+		sampleRange.setStart(jmax(0, sampleRange.getStart()));
+		sampleRange.setEnd(jmin(originalBuffer.getNumSamples(), sampleRange.getEnd()));
+
+		if (sampleRange != bufferRange)
+		{
+			{
+				auto nb = createNewDataBuffer(sampleRange);
+
+				SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+				bufferRange = sampleRange;
+				setDataBuffer(currentData);
+			}
+		}
 	}
 
-	void sentDisplayIndexChangeMessage(double newIndexValue)
+	void loadBuffer(const AudioSampleBuffer& b, double sr)
 	{
-		currentIndex.store(newIndexValue);
+		referenceString = "{INTERNAL}";
+		
+		originalBuffer.makeCopyOf(b);
 
-		if(updater != nullptr)
-			sendPooledChangeMessage();
+		auto nb = createNewDataBuffer({ 0, b.getNumSamples() });
+		SimpleReadWriteLock::ScopedWriteLock l(getDataLock());
+		sampleRate = sr;
+		bufferRange = { 0, b.getNumSamples() };
+		setDataBuffer(nb);
 	}
 
-	AudioSampleBuffer buffer;
+	void setLoopRange(Range<int> newLoopRange, NotificationType n)
+	{
+		newLoopRange.setStart(jmax(bufferRange.getStart(), newLoopRange.getStart()));
+		newLoopRange.setEnd(jmin(bufferRange.getEnd(), newLoopRange.getEnd()));
 
-	std::atomic<double> currentIndex = { 0.0 };
-	PooledUIUpdater* updater;
+		if (newLoopRange != loopRange)
+		{
+			{
+				SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+				loopRange = newLoopRange;
+				
+				if(loopRange.getEnd() > 1)
+					bufferRange.setEnd(loopRange.getEnd());
+			}
+			
+			if(n != dontSendNotification)
+				getUpdater().sendContentChangeMessage(sendNotificationSync, -1);
+		}
+	}
+
+	var getChannelBuffer(int channelIndex, bool getFullContent)
+	{
+		auto& bToUse = getFullContent ? originalBuffer : currentData;
+
+		if(isPositiveAndBelow(channelIndex, bToUse.getNumChannels()))
+			return var(new VariantBuffer(bToUse.getWritePointer(channelIndex, 0), bToUse.getNumSamples()));
+
+		return {};
+	}
+	
+	void setProvider(DataProvider* p)
+	{
+		provider = p;
+	}
+
+	Range<int> getCurrentRange() const
+	{
+		return bufferRange;
+	}
+
+	Range<int> getTotalRange() const
+	{
+		return { 0, originalBuffer.getNumSamples() };
+	}
+
+	Range<int> getLoopRange() const
+	{
+		return loopRange;
+	}
+
+	double sampleRate = 0.0;
+
+	AudioSampleBuffer& getBuffer() { return currentData; }
+	const AudioSampleBuffer& getBuffer() const { return currentData; }
+
+	DataProvider::Ptr getProvider()
+	{
+		return provider;
+	}
+
+	bool isEmpty() const
+	{
+		return originalBuffer.getNumChannels() == 0 || originalBuffer.getNumSamples() == 0;
+	}
+
+	bool isNotEmpty() const
+	{
+		return originalBuffer.getNumChannels() != 0 || originalBuffer.getNumSamples() != 0;
+	}
+
+	float** getDataPtrs()
+	{
+		return currentData.getArrayOfWritePointers();
+	}
+
+private:
+
+	void setDataBuffer(AudioSampleBuffer& newBuffer)
+	{
+		// Never call this without holding the lock
+		jassert(getDataLock().writeAccessIsLocked());
+
+		std::swap(currentData, newBuffer);
+		getUpdater().sendContentRedirectMessage();
+	}
+
+	AudioSampleBuffer createNewDataBuffer(Range<int> newRange)
+	{
+		if (newRange.isEmpty())
+		{
+			return {};
+		}
+		
+		SimpleReadWriteLock::ScopedReadLock l(getDataLock());
+
+		AudioSampleBuffer newDataBuffer(originalBuffer.getNumChannels(), newRange.getLength());
+
+		for (int i = 0; i < newDataBuffer.getNumChannels(); i++)
+			newDataBuffer.copyFrom(i, 0, originalBuffer.getReadPointer(i, newRange.getStart()), newDataBuffer.getNumSamples());
+
+		return newDataBuffer;
+	}
+
+	friend class DataProvider;
+
+	Range<int> bufferRange;
+	Range<int> loopRange;
+	
+	String referenceString;
+	
+	AudioSampleBuffer originalBuffer;
+	AudioSampleBuffer currentData;
+	DataProvider::Ptr provider;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MultiChannelAudioBuffer);
 };
 
+#if 0
+struct MultiChannelAudioBufferDisplay : public AudioDisplayComponent,
+										public ComplexDataUIBase::EditorBase,
+										public MultiChannelAudioBuffer::Listener,
+										public AudioDisplayComponent::Listener
+{
+	MultiChannelAudioBufferDisplay()
+	{
+		addAreaListener(this);
+
+		areas.add(new SampleArea(AreaTypes::PlayArea, this));
+		addAndMakeVisible(areas[0]);
+		areas[0]->setAreaEnabled(true);
+	}
+
+	
+
+	void updateRanges(SampleArea *areaToSkip/* =nullptr */) override
+	{
+		areas[0]->setSampleRange(connectedFile->getCurrentRange());
+		refreshSampleAreaBounds(areaToSkip);
+	}
+
+	double getSampleRate() const override
+	{
+		if (connectedFile != nullptr)
+			return connectedFile->sampleRate;
+	}
+
+	
+
+	void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea) override
+	{
+		if (auto ar = getSampleArea(changedArea))
+		{
+			if (connectedFile != nullptr)
+			{
+				ar->getSampleRange();
+			}
+		}
+	}
+
+	
+
+	WeakReference<MultiChannelAudioBuffer> connectedFile;
+};
+#endif
+
+
+/** Rewrite AudioDisplayComponent:
+
+	- add Locking on MultiChannelAudioBuffer level
+	- make it use the MultiChannelAudioFile
+	- remove all Listeners & replace with one
+	- remove inheritance stuff and replace with one provider class
+
+*/
 
 /** A waveform component to display the content of a pooled AudioSampleBuffer.
 *	@ingroup hise_ui
@@ -718,12 +1005,12 @@ struct MultiChannelAudioBuffer : public ReferenceCountedObject,
 *	- playback position display
 *	- designed to interact with AudioSampleProcessor & AudioSampleBufferPool
 */
-class AudioSampleBufferComponentBase: public AudioDisplayComponent,
-								  public FileDragAndDropTarget,
-								  public SafeChangeBroadcaster,
-								  public SafeChangeListener,
-								  public DragAndDropTarget,
-								  public Timer
+class MultiChannelAudioBufferDisplay: public AudioDisplayComponent,
+									  public FileDragAndDropTarget,
+									  public DragAndDropTarget,
+									  public ComplexDataUIBase::EditorBase,
+									  public MultiChannelAudioBuffer::Listener,
+									  public AudioDisplayComponent::Listener
 {
 public:
 
@@ -733,40 +1020,20 @@ public:
 		numAreas
 	};
 
-	AudioSampleBufferComponentBase(SafeChangeBroadcaster* p);
-	virtual ~AudioSampleBufferComponentBase();
-
-	virtual void updateProcessorConnection() = 0;
-	virtual File getDefaultDirectory() const = 0;
-	virtual void loadFile(const File& f) = 0;
+	MultiChannelAudioBufferDisplay();
+	virtual ~MultiChannelAudioBufferDisplay();
 
 	void itemDragEnter(const SourceDetails& dragSourceDetails) override;;
 	void itemDragExit(const SourceDetails& /*dragSourceDetails*/) override;;
 	
 	bool isInterestedInFileDrag (const StringArray &files) override;
 
+	bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override;
+	void itemDropped(const SourceDetails& dragSourceDetails) override;
+
 	static bool isAudioFile(const String &s);
 	
 	void filesDropped(const StringArray &fileNames, int, int);
-
-	void setAudioSampleProcessor(SafeChangeBroadcaster* newProcessor);
-
-	virtual void updatePlaybackPosition() = 0;
-	
-	/** Call this when you want the component to display the content of the given AudioSampleBuffer. 
-	*
-	*	It repaints the waveform, resets the range and calls rangeChanged for all registered AreaListeners.
-	*/
-	void setAudioSampleBuffer(const AudioSampleBuffer *b, const String &fileName, NotificationType notifyListeners);
-
-	virtual void newBufferLoaded() = 0;
-
-	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
-	{
-		newBufferLoaded();
-
-		repaint();
-	}
 
 	void updateRanges(SampleArea *areaToSkip=nullptr) override;
 
@@ -779,13 +1046,22 @@ public:
 		repaint();
 	}
 
+	void rangeChanged(AudioDisplayComponent *, int ) override
+	{
+		auto range = areas[0]->getSampleRange();
+
+		if (connectedBuffer != nullptr)
+			connectedBuffer->setRange(range);
+	}
+
 	void setBackgroundColour(Colour c) { bgColour = c; };
 
 	void mouseDown(const MouseEvent &e) override;
 
-	void timerCallback() override
+	void mouseDoubleClick(const MouseEvent&)
 	{
-		repaint();
+		if (connectedBuffer != nullptr)
+			connectedBuffer->fromBase64String({});
 	}
 
 	void paint(Graphics &g) override;
@@ -795,13 +1071,19 @@ public:
 	/** Returns the currently loaded file name. */
 	const String &getCurrentlyLoadedFileName() const
 	{
-		return currentFileName;
+		if (connectedBuffer != nullptr)
+			return connectedBuffer->toBase64String();
+
+		return {};
 	}
 
 	/** Returns only 44100.0 (this will have no impact, but must be overriden. */
 	double getSampleRate() const override
 	{
-		return 44100.0;
+		if (connectedBuffer != nullptr)
+			return connectedBuffer->sampleRate;
+
+		return 0.0;
 	}
 
 	void setShowLoop(bool shouldShowLoop)
@@ -813,7 +1095,55 @@ public:
 		}
 	}
 
+	void bufferWasLoaded() override
+	{
+		if (connectedBuffer != nullptr)
+			preview->setBuffer(connectedBuffer->getChannelBuffer(0, true), connectedBuffer->getChannelBuffer(1, true));
+		else
+			preview->setBuffer({}, {});
+		
+		updateRanges(nullptr);
+	}
+
+	void bufferWasModified() override
+	{
+		updateRanges(nullptr);
+	}
+
+	void sampleIndexChanged(int newSampleIndex) override
+	{
+		if (connectedBuffer != nullptr)
+		{
+			auto s = connectedBuffer->getCurrentRange().getLength();
+			AudioDisplayComponent::setPlaybackPosition((double)newSampleIndex / s);
+			repaint();
+		}
+	}
+
+	void setComplexDataUIBase(ComplexDataUIBase* newData) override
+	{
+		if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(newData))
+			setAudioFile(af);
+	}
+
+	void setAudioFile(MultiChannelAudioBuffer* af)
+	{
+		if (af != connectedBuffer)
+		{
+			if (connectedBuffer != nullptr)
+				connectedBuffer->removeListener(this);
+
+			connectedBuffer = af;
+			bufferWasLoaded();
+
+			if (connectedBuffer != nullptr)
+				connectedBuffer->addListener(this);
+		}
+	}
+
 protected:
+
+	WeakReference<MultiChannelAudioBuffer> connectedBuffer;
 
 	bool over = false;
 
@@ -824,14 +1154,9 @@ protected:
 
 	Range<int> xPositionOfLoop;
 
-	WeakReference<SafeChangeBroadcaster> connectedProcessor;
-
 	Colour bgColour;
 
-	String currentFileName;
 	bool itemDragged;
-
-	const AudioSampleBuffer *buffer;
 };
 
 

@@ -1306,32 +1306,7 @@ public:
 		return label;
 	}
 
-	static void fillPathHiStyle(Graphics &g, const Path &p, int width, int height, bool drawBorders = true)
-	{
-
-
-		if (drawBorders)
-		{
-			g.setColour(Colours::lightgrey.withAlpha(0.8f));
-			g.strokePath(p, PathStrokeType(1.0f));
-
-			g.setColour(Colours::lightgrey.withAlpha(0.1f));
-			g.drawRect(0, 0, width, height, 1);
-		}
-
-		g.setGradientFill(ColourGradient(Colour(0x88ffffff),
-			0.0f, 0.0f,
-			Colour(0x11ffffff),
-			0.0f, (float)height,
-			false));
-
-		g.fillPath(p);
-
-		DropShadow d(Colours::white.withAlpha(drawBorders ? 0.2f : 0.1f), 5, Point<int>());
-
-		d.drawForPath(g, p);
-
-	};
+	static void fillPathHiStyle(Graphics &g, const Path &p, int , int , bool drawBorders = true);;
 
 	int getSliderThumbRadius(Slider& ) override { return 0; }
 
@@ -1421,7 +1396,14 @@ public:
 	static const char* slider2_bipolar_png;
     static const int slider2_bipolar_pngSize;
     
-    
+	static void setDefaultColours(Component& c)
+	{
+		c.setColour(HiseColourScheme::ComponentBackgroundColour, Colours::transparentBlack);
+		c.setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+		c.setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+		c.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+		c.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+	}
 
 private:
     

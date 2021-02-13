@@ -77,8 +77,6 @@ public:
 	void handleHiseEvent(const HiseEvent &m) override;
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 
-	Table *getTable(int = 0) const override { return table; };
-
 	void enableLearnMode() { learnMode = true; };
 	void disableLearnMode() { learnMode = false; sendChangeMessage(); }
 	bool learnModeActive() const { return learnMode; }
@@ -123,7 +121,8 @@ private:
 	float intensity;
 
 	Smoother smoother;
-	ScopedPointer<SampleLookupTable> table;
+
+	MidiTable* table;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ControlModulator);
 };

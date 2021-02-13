@@ -35,55 +35,228 @@
 namespace hise {
 using namespace juce;
 
-/** A component that displays the content of a buffer loaded into a AudioSampleProcessor. */
-class HiseAudioSampleBufferComponent : public AudioSampleBufferComponentBase
+class WaveformComponent : public Component,
+	public SafeChangeListener
 {
 public:
 
-	HiseAudioSampleBufferComponent(SafeChangeBroadcaster* p);;
+	struct WaveformFactory : public PathFactory
+	{
+		String getId() const override { return "Waveform Icons"; }
 
-	bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override;
-	
-	File getDefaultDirectory() const override;
-	void itemDropped(const SourceDetails& dragSourceDetails) override;
-	void poolItemWasDropped(const PoolReference& /*ref*/);
+		Path createPath(const String& id) const override;
+	};
+
+	enum InterpolationMode
+	{
+		Truncate,
+		LinearInterpolation,
+		numInterpolationModes
+	};
+
+	using ScaleFunction = std::function<float(float)>;
+
+	static float identity(float input) { return input; }
+
+	enum WaveformType
+	{
+		Sine = 1,
+		Triangle,
+		Saw,
+		Square,
+		Noise,
+		numWaveformTypes
+	};
+
+	class Broadcaster : public SuspendableTimer::Manager
+	{
+		class Updater : public SuspendableTimer,
+			public ComplexDataUIUpdaterBase::EventListener
+		{
+		public:
+
+			Updater(Broadcaster& p) :
+				parent(p)
+			{
+				startTimer(30);
+			}
+
+			void timerCallback() override
+			{
+				if (changeFlag)
+				{
+					changeFlag = false;
+
+					parent.updateData();
+				}
+			}
+
+			void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override
+			{
+				if (t != ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+					parent.triggerWaveformUpdate();
+			}
+
+			std::atomic<bool> changeFlag;
+
+			Broadcaster& parent;
+		};
+
+
+	public:
+
+		Broadcaster() :
+			updater(*this)
+		{}
+
+		virtual ~Broadcaster() {};
+
+		/** If you want to display a complex UI in the waveform, just connect the updaters here. */
+		void connectWaveformUpdaterToComplexUI(ComplexDataUIBase* d, bool enableUpdate)
+		{
+			if (enableUpdate)
+				d->getUpdater().addEventListener(&updater);
+			else
+				d->getUpdater().removeEventListener(&updater);
+		}
+
+		void suspendStateChanged(bool shouldBeSuspended) override
+		{
+			updater.suspendTimer(shouldBeSuspended);
+		}
+
+		void triggerWaveformUpdate() { updater.changeFlag = true; };
+
+		void addWaveformListener(WaveformComponent* listener)
+		{
+			listener->broadcaster = this;
+			listeners.addIfNotAlreadyThere(listener);
+		}
+
+		void removeWaveformListener(WaveformComponent* listener)
+		{
+			listener->broadcaster = nullptr;
+			listeners.removeAllInstancesOf(listener);
+		}
+
+		void updateData();
+
+		ScaleFunction scaleFunction = identity;
+
+		InterpolationMode interpolationMode = LinearInterpolation;
+
+		virtual void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) = 0;
+
+		virtual int getNumWaveformDisplays() const { return 1; }
+
+	protected:
+
+	private:
+
+		Updater updater;
+		Array<Component::SafePointer<WaveformComponent>> listeners;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Broadcaster)
+	};
+
+
+	enum ColourIds
+	{
+		bgColour = 1024,
+		fillColour,
+		lineColour,
+		numColourIds
+	};
+
+	WaveformComponent(Processor *p, int index = 0);
+
+	~WaveformComponent();
+
+	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
+	{
+		setBypassed(processor->isBypassed());
+	}
+
+	void setBypassed(bool shouldBeBypassed)
+	{
+		if (bypassed != shouldBeBypassed)
+		{
+			bypassed = shouldBeBypassed;
+			rebuildPath();
+		}
+	}
+
+	void setUseFlatDesign(bool shouldUseFlatDesign)
+	{
+		useFlatDesign = shouldUseFlatDesign;
+		repaint();
+	}
+
+	void paint(Graphics &g);
+
+
+
+	void resized() override
+	{
+		rebuildPath();
+	}
+
+	class Panel : public PanelWithProcessorConnection
+	{
+	public:
+
+		SET_PANEL_NAME("Waveform");
+
+		Panel(FloatingTile* parent) :
+			PanelWithProcessorConnection(parent)
+		{
+			setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
+			setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white);
+			setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.5f));
+		}
+
+		Identifier getProcessorTypeId() const override;
+
+		Component* createContentComponent(int /*index*/) override;
+
+		void fillModuleList(StringArray& moduleList) override;
+	};
+
+protected:
+
+	void setTableValues(const float* values, int numValues, float normalizeValue_);
+
+
+
+private:
+
+	bool bypassed = false;
+
+	int index = 0;
+
+	friend class Broadcaster;
+
+	static Path getPathForBasicWaveform(WaveformType t);
+
+	void rebuildPath();
+
+	Path path;
+
+	bool useFlatDesign = false;
+
+	WeakReference<Processor> processor;
+
+
+
+	float const *tableValues;
+
+	int tableLength;
+
+	float normalizeValue;
+
+	WeakReference<Broadcaster> broadcaster;
+
 };
-
-class AudioSampleProcessorBufferComponent : public HiseAudioSampleBufferComponent
-{
-public:
-
-	AudioSampleProcessorBufferComponent(SafeChangeBroadcaster* p);
-
-	void updatePlaybackPosition() override;
-	void updateProcessorConnection() override;
-	void newBufferLoaded() override;
-
-	void loadFile(const File& f) override;
-	void mouseDoubleClick(const MouseEvent&) override;
-};
-
-
-class ScriptAudioFileBufferComponent : public HiseAudioSampleBufferComponent
-{
-public:
-
-	ScriptAudioFileBufferComponent(ReferenceCountedObject* saf);
-	~ScriptAudioFileBufferComponent();
-
-	void updatePlaybackPosition() override;
-	void updateProcessorConnection() override;
-	void newBufferLoaded() override;
-
-	void loadFile(const File& f) override;
-	void mouseDoubleClick(const MouseEvent&) override;
-
-	struct UpdateHandler;
-
-	ScopedPointer<UpdateHandler> updater;
-};
-
-
 
 
 /** A component that displays the waveform of a sample.

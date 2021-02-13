@@ -157,88 +157,12 @@ public:
     //[UserMethods]     -- You can add your own custom methods in this section.
 
 
-	void setSelectedRange(Range<int> newSelection)
-	{
-		if(!controlButton->getToggleState()) return;
-
-		if(dragLock) return;
-
-		selectedRange = newSelection;
-		discreteTableEditor->setSelected(selectedRange);
-
-		selectionSlider->setValue(discreteTableEditor->getMaximumInSelection(), dontSendNotification);
-
-	}
-
-	void showTable()
-	{
-		KeyModulator::Mode m = (KeyModulator::Mode)(int)getProcessor()->getAttribute(KeyModulator::TableMode);
-
-		const bool useKeyMode = m == KeyModulator::KeyMode;
-
-		discreteTableEditor->setVisible(useKeyMode);
-		keyGraph->setVisible(useKeyMode);
-		selectionSlider->setVisible(useKeyMode);
-		controlButton->setEnabled(useKeyMode);
-		scrollButton->setEnabled(useKeyMode);
-		midiTable->setVisible(!useKeyMode);
-	}
-
+	
 	void updateGui() override
 	{
-		const int currentKey = (int)getProcessor()->getInputValue();
-		const bool processorIsInKeyMode = (KeyModulator::Mode)(int)getProcessor()->getAttribute(KeyModulator::TableMode) == KeyModulator::KeyMode;
-
-		showTable();
-
-		keyMode->setToggleState(processorIsInKeyMode, dontSendNotification);
-
-
-		if(controlButton->getToggleState()) discreteTableEditor->setCurrentKey(currentKey);
-
-		if(currentKey > 0)
-		{
-			keyGraph->setCurrentKey(currentKey);
-
-			if(intervalKey == -1)
-			{
-				setSelectedRange(Range<int>(currentKey, currentKey + 1));
-				intervalKey = currentKey;
-			}
-			else
-			{
-				setSelectedRange(Range<int>(jmin(intervalKey, currentKey), jmax(intervalKey, currentKey) + 1));
-				intervalKey = -1;
-			}
-		}
-		else
-		{
-			keyGraph->setCurrentKey(-1);
-			intervalKey = -1;
-		}
-
-		if(scrollButton->getToggleState()) discreteTableEditor->scrollToKey(currentKey);
-
-		keyGraph->repaint();
-
-
-
 	};
 
 	int getBodyHeight() const override { return h; };
-
-	void sliderDragStarted(Slider *s)
-	{
-		dragStartValue = (float)s->getValue();
-		discreteTableEditor->startDrag();
-		dragLock = true;
-	}
-
-	void sliderDragEnded(Slider *)
-	{
-		discreteTableEditor->endDrag();
-		dragLock = false;
-	}
 
     //[/UserMethods]
 
@@ -247,18 +171,8 @@ public:
     void sliderValueChanged (Slider* sliderThatWasMoved);
     void buttonClicked (Button* buttonThatWasClicked);
 
-
-
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
-
-	Range<int> selectedRange;
-
-	float dragStartValue;
-
-	int intervalKey;
-
-	bool dragLock;
 
 	int h;
 
@@ -266,13 +180,6 @@ private:
 
     //==============================================================================
     ScopedPointer<TableEditor> midiTable;
-    ScopedPointer<DiscreteTableEditor> discreteTableEditor;
-    ScopedPointer<KeyGraph> keyGraph;
-    ScopedPointer<Slider> selectionSlider;
-    ScopedPointer<ToggleButton> keyMode;
-    ScopedPointer<ToggleButton> controlButton;
-    ScopedPointer<ToggleButton> scrollButton;
-
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (KeyEditor)

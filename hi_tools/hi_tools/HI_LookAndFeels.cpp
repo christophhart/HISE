@@ -318,6 +318,33 @@ GlobalHiseLookAndFeel::GlobalHiseLookAndFeel()
 }
 
 
+void GlobalHiseLookAndFeel::fillPathHiStyle(Graphics &g, const Path &p, int, int, bool drawBorders /*= true*/)
+{
+	if (drawBorders)
+	{
+		g.setColour(Colours::lightgrey.withAlpha(0.8f));
+		g.strokePath(p, PathStrokeType(1.0f));
+
+		g.setColour(Colours::lightgrey.withAlpha(0.1f));
+
+		g.drawRect(p.getBounds().expanded(1), 1.0f);
+	}
+
+	auto pb = p.getBounds();
+
+	g.setGradientFill(ColourGradient(Colour(0x88ffffff),
+		pb.getTopLeft(),
+		Colour(0x11ffffff),
+		pb.getBottomLeft(),
+		false));
+
+	g.fillPath(p);
+
+	DropShadow d(Colours::white.withAlpha(drawBorders ? 0.2f : 0.1f), 5, Point<int>());
+
+	d.drawForPath(g, p);
+}
+
 const char* GlobalHiseLookAndFeel::smalliKnob_png =  (const char*) HiBinaryData::LookAndFeelBinaryData::knob_mod_bg_png;
 const int GlobalHiseLookAndFeel::smalliKnob_pngSize = 16277;
 

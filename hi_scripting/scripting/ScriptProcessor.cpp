@@ -555,6 +555,7 @@ void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles
 }
 
 JavascriptProcessor::JavascriptProcessor(MainController *mc) :
+	ProcessorWithDynamicExternalData(mc, true),
 	mainController(mc),
 	scriptEngine(new HiseJavascriptEngine(this)),
 	lastCompileWasOK(false),

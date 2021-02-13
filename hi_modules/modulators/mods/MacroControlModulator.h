@@ -89,9 +89,6 @@ public:
 	/** sets the new target value if the controller number matches. */
 	void handleHiseEvent(const HiseEvent &m) override;
 
-	/** returns a pointer to the look up table. Don't delete it! */
-	Table *getTable(int=0) const override {return table; };
-
 	/** sets up the smoothing filter. */
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 
@@ -119,8 +116,6 @@ private:
 	float smoothTime;
 	
 	bool useTable;
-
-	ScopedPointer<MidiTable> table;
 
 	float inputValue;
 

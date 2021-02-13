@@ -36,8 +36,11 @@ namespace hise { using namespace juce;
 
 WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices),
+	SliderPackProcessor(mc, 1),
 	morphSmoothing(700)
 {
+	pack = getSliderPackUnchecked(0);
+
 	modChains += {this, "Table Index"};
 
 	finaliseModChains();

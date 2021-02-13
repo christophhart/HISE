@@ -328,13 +328,10 @@ void AudioDisplayComponent::SampleArea::EdgeLookAndFeel::drawStretchableLayoutRe
 
 #pragma warning( pop )
 
-AudioSampleBufferComponentBase::AudioSampleBufferComponentBase(SafeChangeBroadcaster* p) :
+MultiChannelAudioBufferDisplay::MultiChannelAudioBufferDisplay() :
 	AudioDisplayComponent(),
-	buffer(nullptr),
 	itemDragged(false),
-
-	bgColour(Colour(0xFF555555)),
-	connectedProcessor(p)
+	bgColour(Colour(0xFF555555))
 {
 	setColour(ColourIds::bgColour, Colour(0xFF555555));
 
@@ -343,8 +340,7 @@ AudioSampleBufferComponentBase::AudioSampleBufferComponentBase(SafeChangeBroadca
 	areas.add(new SampleArea(AreaTypes::PlayArea, this));
 	addAndMakeVisible(areas[0]);
 	areas[0]->setAreaEnabled(true);
-
-	setAudioSampleProcessor(p);
+	addAreaListener(this);
 
 	static const unsigned char pathData[] = { 110,109,0,23,2,67,128,20,106,67,108,0,0,230,66,128,92,119,67,108,0,23,2,67,128,82,130,67,108,0,23,2,67,128,92,123,67,108,0,0,7,67,128,92,123,67,98,146,36,8,67,128,92,123,67,243,196,9,67,58,18,124,67,128,5,11,67,128,88,125,67,98,13,70,12,67,198,158,126,
 		67,0,0,13,67,53,39,128,67,0,0,13,67,64,197,128,67,98,0,0,13,67,109,97,129,67,151,72,12,67,91,58,130,67,0,11,11,67,128,221,130,67,98,105,205,9,67,165,128,131,67,219,50,8,67,0,220,131,67,0,0,7,67,0,220,131,67,108,0,0,210,66,0,220,131,67,98,30,54,205,66,
@@ -356,40 +352,43 @@ AudioSampleBufferComponentBase::AudioSampleBufferComponentBase(SafeChangeBroadca
 	loopPath.loadPathFromData(pathData, sizeof(pathData));
 }
 
-AudioSampleBufferComponentBase::~AudioSampleBufferComponentBase()
+MultiChannelAudioBufferDisplay::~MultiChannelAudioBufferDisplay()
 {
-	if (connectedProcessor != nullptr)
-	{
-		connectedProcessor->removeChangeListener(this);
-	}
-}
-
-void AudioSampleBufferComponentBase::setAudioSampleProcessor(SafeChangeBroadcaster* newProcessor)
-{
-	connectedProcessor = newProcessor;
-
-	
+	setAudioFile(nullptr);
 }
 
 
-void AudioSampleBufferComponentBase::itemDragEnter(const SourceDetails& dragSourceDetails)
+void MultiChannelAudioBufferDisplay::itemDragEnter(const SourceDetails& dragSourceDetails)
 {
 	over = isInterestedInDragSource(dragSourceDetails);
 	repaint();
 }
 
-void AudioSampleBufferComponentBase::itemDragExit(const SourceDetails& /*dragSourceDetails*/)
+void MultiChannelAudioBufferDisplay::itemDragExit(const SourceDetails& /*dragSourceDetails*/)
 {
 	over = false;
 	repaint();
 }
 
-bool AudioSampleBufferComponentBase::isInterestedInFileDrag(const StringArray &files)
+bool MultiChannelAudioBufferDisplay::isInterestedInFileDrag(const StringArray &files)
 {
 	return files.size() == 1 && isAudioFile(files[0]);
 }
 
-bool AudioSampleBufferComponentBase::isAudioFile(const String &s)
+bool MultiChannelAudioBufferDisplay::isInterestedInDragSource(const SourceDetails& dragSourceDetails)
+{
+	return isAudioFile(dragSourceDetails.description.toString());
+}
+
+void MultiChannelAudioBufferDisplay::itemDropped(const SourceDetails& dragSourceDetails)
+{
+	if (connectedBuffer != nullptr)
+	{
+		connectedBuffer->fromBase64String(dragSourceDetails.description.toString());
+	}
+}
+
+bool MultiChannelAudioBufferDisplay::isAudioFile(const String &s)
 {
     AudioFormatManager afm;
 
@@ -402,25 +401,23 @@ bool AudioSampleBufferComponentBase::isAudioFile(const String &s)
 }
 
 
-void AudioSampleBufferComponentBase::filesDropped(const StringArray &fileNames, int, int)
+void MultiChannelAudioBufferDisplay::filesDropped(const StringArray &fileNames, int, int)
 {
-	if (fileNames.size() > 0)
+	if (fileNames.size() > 0 && connectedBuffer != nullptr)
 	{
-		auto f = File(fileNames[0]);
-
-		loadFile(f);
+		connectedBuffer->fromBase64String(fileNames[0]);
 	}
 }
 
-void AudioSampleBufferComponentBase::updateRanges(SampleArea *areaToSkip/*=nullptr*/)
+void MultiChannelAudioBufferDisplay::updateRanges(SampleArea *areaToSkip/*=nullptr*/)
 {
-	areas[PlayArea]->setSampleRange(Range<int>(0, buffer == nullptr ? 0 : buffer->getNumSamples()));
+	areas[PlayArea]->setSampleRange(connectedBuffer != nullptr ? connectedBuffer->getCurrentRange() : Range<int>());
 	refreshSampleAreaBounds(areaToSkip);
 }
 
-void AudioSampleBufferComponentBase::setRange(Range<int> newRange)
+void MultiChannelAudioBufferDisplay::setRange(Range<int> newRange)
 {
-	const bool isSomethingLoaded = currentFileName.isNotEmpty();
+	const bool isSomethingLoaded = connectedBuffer != nullptr && connectedBuffer->toBase64String().isNotEmpty();
 
 	getSampleArea(0)->setVisible(isSomethingLoaded);
 
@@ -433,71 +430,35 @@ void AudioSampleBufferComponentBase::setRange(Range<int> newRange)
 
 
 
-void AudioSampleBufferComponentBase::setAudioSampleBuffer(const AudioSampleBuffer *b, const String &fileName, NotificationType notifyListeners)
+void MultiChannelAudioBufferDisplay::mouseDown(const MouseEvent &e)
 {
-	if (b != nullptr)
+	if (connectedBuffer != nullptr && (e.mods.isRightButtonDown() || e.mods.isCtrlDown()))
 	{
-		currentFileName = fileName;
-
-		buffer = b;
-
-		auto data = const_cast<float**>(b->getArrayOfReadPointers());
-
-		VariantBuffer::Ptr l = new VariantBuffer(data[0], b->getNumSamples());
-
-		var lVar = var(l.get());
-		var rVar;
-
-		if (b->getNumChannels() > 1)
+		if (auto p = connectedBuffer->getProvider())
 		{
-			VariantBuffer::Ptr r = new VariantBuffer(data[1], b->getNumSamples());
-			rVar = var(r.get());
-		}
+			String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF;*.hlac;*.flac;*.HLAC;*.FLAC";
 
-		preview->setBuffer(lVar, rVar);
-	}
-	else
-	{
-		currentFileName = {};
+			File searchDirectory = connectedBuffer->getProvider()->getRootDirectory();
 
-		buffer = nullptr;
+			FileChooser fc("Load File", searchDirectory, patterns, true);
 
-		preview->clear();
-	}
-
-	updateRanges();
-
-	setCurrentArea(getSampleArea(0));
-
-	if (notifyListeners)
-		sendAreaChangedMessage();
-}
-
-
-
-void AudioSampleBufferComponentBase::mouseDown(const MouseEvent &e)
-{
-	if (e.mods.isRightButtonDown() || e.mods.isCtrlDown())
-	{
-		String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF;*.hlac;*.flac;*.HLAC;*.FLAC";
-
-		File searchDirectory = getDefaultDirectory();
-
-		FileChooser fc("Load File", searchDirectory, patterns, true);
-
-		if (fc.browseForFileToOpen())
-		{
-			auto f = fc.getResult();
-
-			loadFile(f);
+			if (fc.browseForFileToOpen())
+			{
+				auto f = fc.getResult();
+				connectedBuffer->fromBase64String(f.getFullPathName());
+			}
 		}
 	}
 }
 
-void AudioSampleBufferComponentBase::paint(Graphics &g)
+void MultiChannelAudioBufferDisplay::paint(Graphics &g)
 {
+	
+
 	bgColour = findColour(AudioDisplayComponent::ColourIds::bgColour);
 	g.fillAll(bgColour);
+
+	AudioDisplayComponent::paint(g);
 
 	if (over)
 	{
@@ -507,7 +468,7 @@ void AudioSampleBufferComponentBase::paint(Graphics &g)
 }
 
 
-void AudioSampleBufferComponentBase::paintOverChildren(Graphics& g)
+void MultiChannelAudioBufferDisplay::paintOverChildren(Graphics& g)
 {
 
 	Font f = GLOBAL_BOLD_FONT();
@@ -519,11 +480,9 @@ void AudioSampleBufferComponentBase::paintOverChildren(Graphics& g)
     
     const int w = f.getStringWidth(text) + 20;
 
-	if (getWidth() > (w+10) && (buffer == nullptr || buffer->getNumSamples() == 0))
+	if (getWidth() > (w+10) && (connectedBuffer == nullptr || connectedBuffer->getBuffer().getNumSamples() == 0))
 	{
 		g.setColour(Colours::white.withAlpha(0.3f));
-
-		
 		g.setColour(Colours::black.withAlpha(0.5f));
 		Rectangle<int> r((getWidth() - w) / 2, (getHeight() - 20) / 2, w, 20);
 		g.fillRect(r);
@@ -535,7 +494,7 @@ void AudioSampleBufferComponentBase::paintOverChildren(Graphics& g)
 
 	AudioDisplayComponent::paint(g);
 
-	const String fileNameToShow = File::isAbsolutePath(currentFileName) ? File(currentFileName).getFileName() : currentFileName;
+	const String fileNameToShow = getCurrentlyLoadedFileName();
 
 	if (showFileName && fileNameToShow.isNotEmpty())
 	{

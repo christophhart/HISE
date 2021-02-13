@@ -34,8 +34,9 @@
 namespace hise {
 using namespace juce;
 
-ShapeFX::ShapeFX(MainController *mc, const String &uid):
+ShapeFX::ShapeFX(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid),
+	LookupTableProcessor(mc, 1, true),
 #if HI_USE_SHAPE_FX_SCRIPTING
 	JavascriptProcessor(mc),
 	ProcessorWithScriptingContent(mc),
@@ -51,7 +52,6 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	limitInput(getDefaultValue(LimitInput)),
 	highpass(getDefaultValue(HighPass)),
 	lowpass(getDefaultValue(LowPass)),
-	tableBroadcaster(new SafeChangeBroadcaster()),
 #if HI_USE_SHAPE_FX_SCRIPTING
 	functionCode(new SnippetDocument("shape", "input")),
 	shapeResult(Result::ok()),
@@ -76,9 +76,6 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 #endif
 
 	tableUpdater = new TableUpdater(*this);
-
-	tableBroadcaster->addChangeListener(tableUpdater);
-	tableBroadcaster->enablePooledUpdate(mc->getGlobalUIUpdater());
 
 	memset(displayTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
     memset(unusedTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
@@ -110,9 +107,6 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 
 ShapeFX::~ShapeFX()
 {
-	tableBroadcaster->removeChangeListener(tableUpdater);
-
-	tableBroadcaster = nullptr;
 	tableUpdater = nullptr;
 
 #if HI_USE_SHAPE_FX_SCRIPTING
@@ -210,8 +204,7 @@ juce::ValueTree ShapeFX::exportAsValueTree() const
 	saveContent(v);
 #endif
 
-	saveTable(getTable(0), "Curve");
-	
+	saveTable(getTableUnchecked(0), "Curve");
 
 	saveAttribute(BiasLeft, "BiasLeft");
 	saveAttribute(BiasRight, "BiasRight");
@@ -239,7 +232,7 @@ void ShapeFX::restoreFromValueTree(const ValueTree &v)
 	restoreContent(v);
 #endif
 
-	loadTable(getTable(0), "Curve");
+	loadTable(getTableUnchecked(0), "Curve");
 	
 
 	loadAttribute(BiasLeft, "BiasLeft");
@@ -255,11 +248,6 @@ void ShapeFX::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(Drive, "Drive");
 	loadAttribute(Mix, "Mix");
 	loadAttributeWithDefault(BypassFilters);
-}
-
-hise::Table* ShapeFX::getTable(int /*tableIndex*/) const
-{
-	return getTableShaper()->table;
 }
 
 hise::ProcessorEditorBody * ShapeFX::createEditor(ProcessorEditor *parentEditor)
@@ -434,9 +422,6 @@ void ShapeFX::rebuildScriptedTable()
 
 void ShapeFX::recalculateDisplayTable()
 {
-	if (mode == Script || mode == CachedScript)
-		return;
-
 	generateRampForDisplayValue(displayTable, gain);
 
 
@@ -460,22 +445,7 @@ void ShapeFX::generateRampForDisplayValue(float* data, float gainToUse)
 
 void ShapeFX::updateMode()
 {
-	if (mode == Script || mode == CachedScript)
-	{	
-#if HI_USE_SHAPE_FX_SCRIPTING
-		rebuildScriptedTable();
-#else
-		// You somehow managed to set the mode to Script without having this enabled...
-		jassertfalse;
-		mode = Linear;
-		updateGain();
-#endif
-	}
-	else
-	{
-		updateGain();
-		tableBroadcaster->sendAllocationFreeChangeMessage();
-	}	
+	updateGain();
 }
 
 void ShapeFX::updateOversampling()
@@ -512,7 +482,7 @@ void ShapeFX::updateGain()
 	if (mode == Saturate)
 		static_cast<InternalSaturator*>(shapers[Saturate])->updateAmount(gain);
 
-	if (autogain && mode != Script && mode != CachedScript)
+	if (autogain)
 	{
 		float sum = 0.0f;
 
@@ -656,6 +626,7 @@ void ShapeFX::updateMix()
 
 PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	VoiceEffectProcessor(mc, uid, numVoices),
+	LookupTableProcessor(mc, 2, true),
 	polyUpdater(*this),
 	dcRemovers(numVoices)
 {
@@ -754,21 +725,14 @@ juce::ValueTree PolyshapeFX::exportAsValueTree() const
 {
 	auto v = VoiceEffectProcessor::exportAsValueTree();
 
-	saveTable(getTable(0), "Curve");
-	saveTable(getTable(1), "AsymetricalCurve");
+	saveTable(getTableUnchecked(0), "Curve");
+	saveTable(getTableUnchecked(1), "AsymetricalCurve");
 
 	saveAttribute(Drive, "Drive");
 	saveAttribute(Mode, "Mode");
 	saveAttribute(Oversampling, "Oversampling");
 
 	return v;
-}
-
-hise::Table* PolyshapeFX::getTable(int tableIndex) const
-{
-	int shapeIndexes[2] = { ShapeFX::ShapeMode::Curve, ShapeFX::ShapeMode::AsymetricalCurve };
-
-	return static_cast<PolytableShaper*>(shapers[shapeIndexes[tableIndex]])->table;
 }
 
 hise::ProcessorEditorBody * PolyshapeFX::createEditor(ProcessorEditor *parentEditor)
