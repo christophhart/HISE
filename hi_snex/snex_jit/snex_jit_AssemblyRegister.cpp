@@ -312,6 +312,8 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 				e = cc.lea(reg.as<X86Gpq>(), memory);
 			else if (memory.hasOffset() && !memory.hasBaseOrIndex())
 				e = cc.mov(reg.as<X86Gpq>(), memory.offset());
+			else if (isGlobalMemory())
+				e = cc.mov(reg.as<X86Gpq>(), (uint64_t)memoryLocation);
 		}
 
 		break;

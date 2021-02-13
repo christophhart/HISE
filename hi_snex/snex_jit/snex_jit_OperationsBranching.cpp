@@ -66,9 +66,8 @@ void Operations::StatementBlock::process(BaseCompiler* compiler, BaseScope* scop
 
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
-		addDestructors(scope);
-
 		removeStatementsAfterReturn();
+		addDestructors(scope);
 	}
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
@@ -177,50 +176,6 @@ void Operations::StatementBlock::addInlinedReturnJump(X86Compiler& cc)
 	cc.jmp(endLabel);
 }
 
-void Operations::StatementBlock::addDestructors(BaseScope* scope)
-{
-	Array<Symbol> destructorIds;
-	auto path = getPath();
-
-	forEachRecursive([path, &destructorIds, scope](Ptr p)
-		{
-			if (auto cd = as<ComplexTypeDefinition>(p))
-			{
-				if (cd->isStackDefinition(scope))
-				{
-					if (cd->type.getComplexType()->hasDestructor())
-					{
-						for (auto& id : cd->getInstanceIds())
-						{
-							if (path == id.getParent())
-							{
-								destructorIds.add(Symbol(id, cd->type));
-							}
-						}
-					}
-				}
-			}
-
-			return false;
-		});
-
-	//  Reverse the order of destructor execution.
-	for (int i = destructorIds.size() - 1; i >= 0; i--)
-	{
-		auto id = destructorIds[i];
-
-		ComplexType::InitData d;
-		ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(this, getPath(), {});
-
-		d.t = ComplexType::InitData::Type::Desctructor;
-		d.functionTree = b.get();
-		b->object = this;
-		b->expression = new Operations::VariableReference(location, id);
-		auto r = id.typeInfo.getComplexType()->callDestructor(d);
-		location.test(r);
-	}
-}
-
 void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	processBaseWithChildren(compiler, scope);
@@ -231,7 +186,7 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 		{
 			TypeInfo actualType(Types::ID::Void);
 
-			if (auto first = getSubExpr(0))
+			if (auto first = getReturnValue())
 				actualType = first->getTypeInfo();
 
 			if (isVoid() && actualType != Types::ID::Void)

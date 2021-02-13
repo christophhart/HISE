@@ -244,8 +244,15 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			if (assignmentType == JitTokens::assign_)
 			{
-				if (tReg != value)
-					acg.emitStore(tReg, value);
+				if (tReg->getTypeInfo().isComplexType() && getTargetType() == TargetType::Variable)
+				{
+					acg.emitStackInitialisation(tReg, tReg->getTypeInfo().getComplexType(), value, nullptr);
+				}
+				else
+				{
+					if (tReg != value)
+						acg.emitStore(tReg, value);
+				}
 			}
 			else
 				acg.emitBinaryOp(assignmentType, tReg, value);

@@ -1020,14 +1020,56 @@ Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr
 
 			return Result::ok();
 		}
-
-
-		
 	}
 	else
 	{
-		jassertfalse;
-		return Result::fail("unimplemented");
+		int numToCopy = typePtr->getRequiredByteSize();
+
+		target->loadMemoryIntoRegister(cc, true);
+		expr->loadMemoryIntoRegister(cc, true);
+
+		auto dst = x86::ptr(PTR_REG_R(target));
+		auto src = x86::ptr(PTR_REG_R(expr));
+
+		int offset = 0;
+
+		cc.setInlineComment("Copy complex type");
+
+#if 0
+		while (numToCopy >= 16)
+		{
+			auto tmp = cc.newXmmPs();
+			cc.movaps(tmp, src.cloneAdjustedAndResized(offset, 16));
+			cc.movaps(dst.cloneAdjustedAndResized(offset, 16), tmp);
+
+			numToCopy -= 16;
+			offset += 16;
+		}
+#endif
+
+		while(numToCopy >= 8)
+		{
+			auto tmp = cc.newGpq();
+
+			cc.mov(tmp, src.cloneAdjustedAndResized(offset, 8));
+			cc.mov(dst.cloneAdjustedAndResized(offset, 8), tmp);
+
+			numToCopy -= 8;
+			offset += 8;
+		}
+
+		while (numToCopy >= 4)
+		{
+			auto tmp = cc.newGpd();
+
+			cc.mov(tmp, src.cloneAdjustedAndResized(offset, 4));
+			cc.mov(dst.cloneAdjustedAndResized(offset, 4), tmp);
+
+			numToCopy -= 4;
+			offset += 4;
+		}
+
+		return Result::ok();
 	}
 }
 

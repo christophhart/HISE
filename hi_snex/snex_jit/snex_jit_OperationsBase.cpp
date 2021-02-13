@@ -134,23 +134,22 @@ snex::jit::Operations::Expression::Ptr Operations::evalConstExpr(Expression::Ptr
 
 	Random r;
 	
-
-	SyntaxTree bl(expr->location, compiler->namespaceHandler.createNonExistentIdForLocation({}, r.nextInt()));
-	bl.addStatement(expr.get());
+	Statement::Ptr tr = new SyntaxTree(expr->location, compiler->namespaceHandler.createNonExistentIdForLocation({}, r.nextInt()));
+	as<SyntaxTree>(tr)->addStatement(expr.get());
 
 	BaseCompiler::ScopedPassSwitcher sp1(compiler, BaseCompiler::DataAllocation);
-	compiler->executePass(BaseCompiler::DataAllocation, scope, &bl);
+	compiler->executePass(BaseCompiler::DataAllocation, scope, tr);
 
 	BaseCompiler::ScopedPassSwitcher sp2(compiler, BaseCompiler::PreSymbolOptimization);
 	compiler->optimize(expr, scope, false);
 
 	BaseCompiler::ScopedPassSwitcher sp3(compiler, BaseCompiler::ResolvingSymbols);
-	compiler->executePass(BaseCompiler::ResolvingSymbols, scope, &bl);
+	compiler->executePass(BaseCompiler::ResolvingSymbols, scope, tr);
 
 	BaseCompiler::ScopedPassSwitcher sp4(compiler, BaseCompiler::PostSymbolOptimization);
 	compiler->optimize(expr, scope, false);
 
-	return dynamic_cast<Operations::Expression*>(bl.getChildStatement(0).get());
+	return dynamic_cast<Operations::Expression*>(tr->getChildStatement(0).get());
 }
 
 Operations::Expression* Operations::findAssignmentForVariable(Expression::Ptr variable, BaseScope*)
@@ -520,6 +519,80 @@ Operations::Statement::Ptr Operations::ScopeStatementBase::createChildBlock(Loca
 	return new StatementBlock(l, id);
 }
 
+
+void Operations::ScopeStatementBase::addDestructors(BaseScope* scope)
+{
+	Array<Symbol> destructorIds;
+	auto path = getPath();
+
+	auto asStatement = dynamic_cast<Statement*>(this);
+
+	asStatement->forEachRecursive([path, &destructorIds, scope](Statement::Ptr p)
+	{
+		if (auto cd = as<ComplexTypeDefinition>(p))
+		{
+			if (cd->isStackDefinition(scope))
+			{
+				if (cd->type.getComplexType()->hasDestructor())
+				{
+					for (auto& id : cd->getInstanceIds())
+					{
+						if (path == id.getParent())
+						{
+							destructorIds.add(Symbol(id, cd->type));
+						}
+					}
+				}
+			}
+		}
+
+		return false;
+	});
+
+	bool destructorsAdded = false;
+
+	asStatement->forEachRecursive([&destructorIds, asStatement, path, &destructorsAdded](Statement::Ptr p)
+	{
+		if (auto rt = as<ReturnStatement>(p))
+		{
+			//  Reverse the order of destructor execution.
+			for (int i = destructorIds.size() - 1; i >= 0; i--)
+			{
+				auto id = destructorIds[i];
+
+				ComplexType::InitData d;
+				ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(p, path, {});
+				d.t = ComplexType::InitData::Type::Desctructor;
+				d.functionTree = b.get();
+				b->object = p;
+				b->expression = new Operations::VariableReference(p->location, id);
+				auto r = id.typeInfo.getComplexType()->callDestructor(d);
+				p->location.test(r);
+			}
+
+			destructorsAdded = true;
+		}
+
+		return false;
+	});
+
+	if (!destructorsAdded)
+	{
+		for (int i = destructorIds.size() - 1; i >= 0; i--)
+		{
+			auto id = destructorIds[i];
+
+			ComplexType::InitData d;
+			ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(asStatement, path, {});
+			d.t = ComplexType::InitData::Type::Desctructor;
+			d.functionTree = b.get();
+			b->object = asStatement;
+			b->expression = new Operations::VariableReference(asStatement->location, id);
+			auto r = id.typeInfo.getComplexType()->callDestructor(d);
+			asStatement->location.test(r);
+		}
+	}
+}
 
 void Operations::ScopeStatementBase::removeStatementsAfterReturn()
 {

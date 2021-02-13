@@ -455,6 +455,36 @@ snex::jit::ComplexType::Ptr ModValueJit::createComplexType(Compiler& c, const Id
 	return st->finaliseAndReturn();
 }
 
+snex::jit::ComplexType::Ptr DataReadLockJIT::createComplexType(Compiler& c, const Identifier& id)
+{
+	DataReadLockJIT l;
+
+	auto st = CREATE_SNEX_STRUCT(DataReadLock);
+
+	ADD_SNEX_STRUCT_MEMBER(st, l, complexDataPtr);
+	ADD_SNEX_STRUCT_MEMBER(st, l, holdsLock);
+
+	st->setVisibility("complexDataPtr", NamespaceHandler::Visibility::Private);
+	st->setVisibility("holdsLock", NamespaceHandler::Visibility::Private);
+
+	ComplexType::Ptr ed = c.getComplexType(NamespacedIdentifier("ExternalData"));
+
+	FunctionData cf;
+	cf.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
+	cf.addArgs("data", TypeInfo(ed, false, true));
+	cf.returnType = Types::ID::Void;
+	cf.function = Wrappers::constructor;
+	st->addExternalMemberFunction(cf);
+
+	FunctionData df;
+	df.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Destructor));
+	df.returnType = Types::ID::Void;
+	df.function = Wrappers::destructor;
+	st->addExternalMemberFunction(df);
+
+	return st->finaliseAndReturn();
+}
+
 snex::jit::ComplexType::Ptr OscProcessDataJit::createComplexType(Compiler& c, const Identifier& id)
 {
 	OscProcessData d;
@@ -594,9 +624,11 @@ struct ExternalDataTemplateBuilder: public TemplateClassBuilder
 
 		setInitialiseStructFunction([d, isEmbedded](const TemplateObject::ConstructData& data, StructType* st)
 		{
-			st->setInternalProperty(scriptnode::PropertyIds::NumTables, d == ExternalData::DataType::Table ? 1 : 0);
-			st->setInternalProperty(scriptnode::PropertyIds::NumSliderPacks, d == ExternalData::DataType::SliderPack ? 1 : 0);
-			st->setInternalProperty(scriptnode::PropertyIds::NumAudioFiles, d == ExternalData::DataType::AudioFile ? 1 : 0);
+			ExternalData::forEachType([st, d](ExternalData::DataType t)
+			{
+				auto id = ExternalData::getNumIdentifier(t);
+				st->setInternalProperty(id, d == t ? 1 : 0);
+			});
 
 			if (isEmbedded)
 			{
@@ -1532,6 +1564,7 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 	REGISTER_ORIGINAL_CPP_CLASS(c, PrepareSpecsJIT, PrepareSpecs);
 	REGISTER_ORIGINAL_CPP_CLASS(c, EventWrapper, HiseEvent);
 	REGISTER_ORIGINAL_CPP_CLASS(c, ExternalDataJIT, ExternalData);
+	REGISTER_ORIGINAL_CPP_CLASS(c, DataReadLockJIT, DataReadLock);
 
 	REGISTER_ORIGINAL_CPP_CLASS(c, ModValueJit, ModValue);
 
@@ -1551,6 +1584,8 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 
 	return Result::ok();
 }
+
+
 
 
 }

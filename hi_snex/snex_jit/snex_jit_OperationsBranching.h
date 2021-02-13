@@ -128,8 +128,6 @@ struct Operations::StatementBlock : public Expression,
 
 private:
 
-	void addDestructors(BaseScope* scope);
-
 	asmjit::Label endLabel;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StatementBlock);
@@ -229,6 +227,28 @@ struct Operations::ReturnStatement : public Expression
 	}
 
 	StatementBlock* findInlinedRoot() const;;
+
+	Ptr getReturnValue()
+	{
+		return !isVoid() ? getSubExpr(0) : nullptr;
+	}
+
+	void addDestructor(Ptr destructorCall)
+	{
+		addStatement(destructorCall);
+	}
+
+	Ptr getDestructorCall(int i)
+	{
+		int offset = 0;
+		if (!isVoid())
+			offset++;
+
+		if (isPositiveAndBelow(offset + i, getNumChildStatements()))
+			return getSubExpr(offset + i);
+
+		return nullptr;
+	}
 
 private:
 

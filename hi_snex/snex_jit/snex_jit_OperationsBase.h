@@ -504,6 +504,8 @@ namespace Operations
 			return returnType;
 		}
 
+		void addDestructors(BaseScope* scope);
+
 		static ScopeStatementBase* getStatementListWithReturnType(Statement* s)
 		{
 			if (s == nullptr)
@@ -753,6 +755,7 @@ public:
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
 			removeStatementsAfterReturn();
+			addDestructors(scope);
 		}
 
 		if(compiler->getCurrentPass() == BaseCompiler::RegisterAllocation && hasReturnType())
