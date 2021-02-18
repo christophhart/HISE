@@ -396,6 +396,10 @@ struct SnexSource: public WorkbenchData::Listener
 		virtual ~SnexSourceListener() {};
 		virtual void wasCompiled(bool ok) = 0;
 		virtual void complexDataAdded(snex::ExternalData::DataType t, int index) = 0;
+		virtual void parameterChanged(int snexParameterId, double newValue) = 0;
+
+		virtual void complexDataTypeChanged() {};
+
 		JUCE_DECLARE_WEAK_REFERENCEABLE(SnexSourceListener);
 	};
 
@@ -406,29 +410,149 @@ struct SnexSource: public WorkbenchData::Listener
 		const int pIndex;
 		ValueTree treeInNetwork;
 
+		void sendValueChangeToParentListeners(Identifier id, var newValue);
+
 		valuetree::PropertySyncer syncer;
+		valuetree::PropertyListener parentValueUpdater;
+		WeakReference<SnexSource> snexSource;
+	};
+
+	template <int BSize, int Alignment> struct ObjectStorage
+	{
+		static constexpr int SmallBufferSize = BSize;
+
+		ObjectStorage()
+		{
+			memset(smallBuffer, 0, BSize + Alignment);
+			setSize(0);
+		}
+
+		void initialise(snex::jit::ComplexType::Ptr obj)
+		{
+			setSize(obj->getRequiredByteSize());
+
+			ComplexType::InitData d;
+			d.callConstructor = obj->hasConstructor();
+			d.dataPointer = getObjectPtr();
+			d.t = ComplexType::InitData::Type::Constructor;
+			d.initValues = obj->makeDefaultInitialiserList();
+
+			obj->initialise(d);
+		}
+
+		void* getObjectPtr()
+		{
+			return objPtr;
+		}
+
+		void setSize(size_t newSize)
+		{
+			if (newSize != allocatedSize)
+			{
+				allocatedSize = newSize;
+
+				if (allocatedSize >= (SmallBufferSize))
+				{
+					bigBuffer.allocate(newSize + Alignment, true);
+					objPtr = bigBuffer.get();
+				}
+				else
+				{
+					bigBuffer.free();
+					objPtr = &smallBuffer;
+				}
+
+				if (Alignment != 0)
+				{
+					if (auto o = reinterpret_cast<uint64_t>(objPtr) % Alignment)
+						objPtr = (static_cast<uint8*>(objPtr) + (Alignment - o));
+				}
+			}
+		}
+
+	private:
+
+		void* objPtr = nullptr;
+		size_t allocatedSize = 0;
+		uint8 smallBuffer[BSize + Alignment];
+		HeapBlock<uint8> bigBuffer;
 	};
 
 	struct HandlerBase
 	{
-		HandlerBase(SnexSource& s) :
-			parent(s)
+		using ObjectStorageType = ObjectStorage<OpaqueNode::SmallObjectSize, 16>;
+
+		HandlerBase(SnexSource& s, ObjectStorageType& obj_) :
+			parent(s),
+			obj(obj_)
 		{};
 
 		virtual void reset() = 0;
-		virtual void recompiledOk(snex::JitObject& obj) = 0;
+		virtual Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) = 0;
 		virtual ~HandlerBase() {};
+
+		snex::jit::FunctionData getFunctionAsObjectCallback(const String& id);
+
+		void addObjectPtrToFunction(FunctionData& f);;
+
+		SimpleReadWriteLock& getAccessLock() { return lock; }
 
 	protected:
 
 		NodeBase* getNode() { return parent.parentNode; }
 		SnexSource& parent;
+
+		ObjectStorageType& obj;
+
+	private:
+
+		SimpleReadWriteLock lock;
 	};
 
-	struct ParameterHandler: public HandlerBase
+	struct ParameterHandlerLight : public HandlerBase
 	{
-		ParameterHandler(SnexSource& s) :
-			HandlerBase(s)
+		ParameterHandlerLight(SnexSource& s, ObjectStorageType& o) :
+			HandlerBase(s, o)
+		{
+			memset(lastValues, 0, sizeof(double)*OpaqueNode::NumMaxParameters);
+		};
+
+		virtual ~ParameterHandlerLight() {};
+
+		void reset() override
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(getAccessLock());
+
+			for (auto& f : pFunctions)
+				f = {};
+		}
+
+		void copyLastValuesFrom(ParameterHandlerLight& other)
+		{
+			memcpy(lastValues, other.lastValues, sizeof(double) *OpaqueNode::NumMaxParameters);
+		}
+
+		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override;
+
+		template <int P> static void setParameterStatic(void* obj, double v)
+		{
+			auto typed = static_cast<SnexSource::ParameterHandler*>(obj);
+			typed->lastValues[P] = v;
+
+			SimpleReadWriteLock::ScopedReadLock sl(typed->getAccessLock());
+			typed->pFunctions[P].callVoid(v);
+		}
+
+	protected:
+
+		span<snex::jit::FunctionData, OpaqueNode::NumMaxParameters> pFunctions;
+		double lastValues[OpaqueNode::NumMaxParameters];
+	};
+
+	struct ParameterHandler: public ParameterHandlerLight
+	{
+		ParameterHandler(SnexSource& s, ObjectStorageType& o) :
+			ParameterHandlerLight(s, o)
 		{};
 
 		void updateParameters(ValueTree v, bool wasAdded)
@@ -502,56 +626,75 @@ struct SnexSource: public WorkbenchData::Listener
 			parameterTree.removeChild(parameterTree.getNumChildren() - 1, getNode()->getUndoManager());
 		}
 
-		void addParameterCode(String& code)
-		{
-			using namespace snex::cppgen;
+		void addParameterCode(String& code);
 
-			cppgen::Base c(cppgen::Base::OutputType::AddTabs);
-
-			c.addComment("Adding parameter methods", cppgen::Base::CommentType::Raw);
-
-			for (auto p : parameterTree)
-			{
-				String def;
-				def << "void set" << p[PropertyIds::ID].toString() << "(double value)";
-				c << def;
-				StatementBlock sb(c);
-				String body;
-				body << "setParameter<" << p.getParent().indexOf(p) << ">(value);";
-				c << body;
-			}
-
-			code << c.toString();
-		}
-
-		void reset() override 
-		{
-			for (auto& f : pFunctions)
-				f = {};
-		}
-
-		void recompiledOk(snex::JitObject& obj) override;
-
-		template <int P> static void setParameterStatic(void* obj, double v)
-		{
-			auto typed = static_cast<SnexSource::ParameterHandler*>(obj);
-			typed->pFunctions[P].callVoid(v);
-		}
 
 	private:
 
 		ValueTree parameterTree;
 		valuetree::ChildListener parameterListener;
-		span<snex::jit::FunctionData, OpaqueNode::NumMaxParameters> pFunctions;
 	};
 
-	struct ComplexDataHandler: public HandlerBase,
-							   public ExternalDataHolder,
-							   public scriptnode::data::base
+	struct ComplexDataHandlerLight : public HandlerBase,
+									 public scriptnode::data::base
 	{
-		ComplexDataHandler(SnexSource& parent) :
-			HandlerBase(parent)
+		ComplexDataHandlerLight(SnexSource& parent, ObjectStorageType& o):
+			HandlerBase(parent, o)
+		{
+
+		}
+
+		virtual ~ComplexDataHandlerLight() {};
+
+		void reset() override
+		{
+			SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
+			externalFunction = {};
+		}
+
+		void setExternalData(const snex::ExternalData& d, int index) override
+		{
+			base::setExternalData(d, index);
+
+			auto v = (void*)(&d);
+
+			SimpleReadWriteLock::ScopedReadLock l(getAccessLock());
+			externalFunction.callVoid(v, index);
+		}
+
+		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override
+		{
+			auto newFunction = getFunctionAsObjectCallback("setExternalData");
+			auto r = newFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer, Types::ID::Integer });
+
+			if (r.wasOk())
+			{
+				SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
+				std::swap(newFunction, externalFunction);
+			}
+
+			
+
+			return r;
+		}
+
+	protected:
+
+		snex::jit::FunctionData externalFunction;
+	};
+
+	struct ComplexDataHandler: public ComplexDataHandlerLight,
+							   public ExternalDataHolder,
+							   public hise::ComplexDataUIUpdaterBase::EventListener
+	{
+		ComplexDataHandler(SnexSource& parent, ObjectStorageType& o) :
+			ComplexDataHandlerLight(parent, o)
 		{};
+
+		~ComplexDataHandler()
+		{
+			reset();
+		}
 
 		int getNumDataObjects(ExternalData::DataType t) const override;
 
@@ -562,34 +705,55 @@ struct SnexSource: public WorkbenchData::Listener
 
 		ExternalDataHolder* getDynamicDataHolder(snex::ExternalData::DataType t, int index);
 
+		void reset() override
+		{
+			ComplexDataHandlerLight::reset();
+
+			ExternalData::forEachType([this](ExternalData::DataType t)
+			{
+				for (int i = 0; i < getNumDataObjects(t); i++)
+					getComplexBaseType(t, i)->getUpdater().removeEventListener(this);
+			});
+		}
+
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override
+		{
+			if (t != ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+			{
+				for (auto l : parent.compileListeners)
+				{
+					if (l != nullptr)
+						l->complexDataTypeChanged();
+				}
+			}
+		}
+
 		bool hasComplexData() const
 		{
 			return !tables.isEmpty() || !sliderPacks.isEmpty() || !audioFiles.isEmpty();
 		}
 
-		void setExternalData(const snex::ExternalData& d, int index) override
-		{
-			base::setExternalData(d, index);
-
-			auto v = (void*)(&d);
-
-			externalFunction.callVoid(v, index);
-		}
-
-		void recompiledOk(snex::JitObject& obj) override;
-
-		void reset() override
-		{
-			externalFunction = {};
-		}
-
+		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override;
 		void initialise(NodeBase* n);
-
 		void addOrRemoveDataFromUI(ExternalData::DataType t, bool shouldAdd);
-
 		void dataAddedOrRemoved(ValueTree v, bool wasAdded);
-
 		ValueTree getDataRoot() { return dataTree; }
+
+		
+
+		static void callExternalDataForAll(ComplexDataHandler& handler, ComplexDataHandlerLight& target)
+		{
+			ExternalData::forEachType([&handler, &target](ExternalData::DataType t)
+			{
+				for (int i = 0; i < handler.getNumDataObjects(t); i++)
+				{
+					auto absoluteIndex = handler.getAbsoluteIndex(t, i);
+					ExternalData ed(handler.getComplexBaseType(t, i), absoluteIndex);
+					SimpleReadWriteLock::ScopedWriteLock l(ed.obj->getDataLock());
+					target.setExternalData(ed, absoluteIndex);
+				}
+			});
+		}
 
 	private:
 
@@ -600,14 +764,82 @@ struct SnexSource: public WorkbenchData::Listener
 		OwnedArray<snex::ExternalDataHolder> tables;
 		OwnedArray<snex::ExternalDataHolder> sliderPacks;
 		OwnedArray<snex::ExternalDataHolder> audioFiles;
+	};
 
-		snex::jit::FunctionData externalFunction;
+	struct CallbackHandlerBase : public HandlerBase
+	{
+		CallbackHandlerBase(SnexSource& p, ObjectStorageType& o) :
+			HandlerBase(p, o)
+		{};
+
+		virtual ~CallbackHandlerBase() {};
+
+	protected:
+
+		/** Use this in every callback and it will check that the read lock was
+		    acquired and the compilation was ok. */
+		struct ScopedCallbackChecker
+		{
+			ScopedCallbackChecker(CallbackHandlerBase& p) :
+				parent(p)
+			{
+				if (parent.ok)
+					holdsLock = p.getAccessLock().enterReadLock();
+			}
+
+			operator bool() { return parent.ok && holdsLock; }
+
+			~ScopedCallbackChecker()
+			{
+				parent.getAccessLock().exitReadLock(holdsLock);
+			}
+
+			bool holdsLock = false;
+			CallbackHandlerBase& parent;
+		};
+
+		std::atomic<bool> ok = { false };
+	};
+
+	template <class T> struct Tester
+	{
+		Tester(SnexSource& s):
+			dataHandler(s, obj),
+			parameterHandler(s, obj),
+			callbacks(s, obj)
+		{
+			static_assert(std::is_base_of<CallbackHandlerBase, T>(), "not a base of CallbackHandlerBase");
+
+			callbacks.reset();
+			dataHandler.reset();
+			parameterHandler.reset();
+			parameterHandler.copyLastValuesFrom(s.getParameterHandler());
+
+			if (auto wb = s.getWorkbench())
+			{
+				if (auto ptr = wb->getLastResult().mainClassPtr)
+				{
+					obj.initialise(ptr);
+
+					callbacks.recompiledOk(ptr);
+					parameterHandler.recompiledOk(ptr);
+					dataHandler.recompiledOk(ptr);
+					ComplexDataHandler::callExternalDataForAll(s.getComplexDataHandler(), dataHandler);
+				}
+			}
+		}
+
+		HandlerBase::ObjectStorageType obj;
+		ComplexDataHandlerLight dataHandler;
+		ParameterHandlerLight parameterHandler;
+		T callbacks;
 	};
 
 	SnexSource() :
 		classId(PropertyIds::ClassId, ""),
-		parameterHandler(*this),
-		dataHandler(*this)
+		parameterHandler(*this, object),
+		dataHandler(*this, object),
+		lastResult(Result::fail("uninitialised"))
 	{
 	};
 
@@ -627,8 +859,6 @@ struct SnexSource: public WorkbenchData::Listener
 		classId.initialise(n);
 		classId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(SnexSource::updateClassId), true);
 	}
-
-	virtual bool setupCallbacks(snex::JitObject& obj) = 0;
 
 	void recompiled(WorkbenchData::Ptr wb) final override;
 
@@ -702,7 +932,7 @@ struct SnexSource: public WorkbenchData::Listener
 		compileListeners.addIfNotAlreadyThere(l);
 
 		if(getWorkbench() != nullptr)
-			l->wasCompiled(isReady());
+			l->wasCompiled(lastResult.wasOk());
 	}
 
 	void removeCompileListener(SnexSourceListener* l)
@@ -710,15 +940,20 @@ struct SnexSource: public WorkbenchData::Listener
 		compileListeners.removeAllInstancesOf(l);
 	}
 
-	bool isReady() const { return ok; }
-	
 	ParameterHandler& getParameterHandler() { return parameterHandler; }
 	ComplexDataHandler& getComplexDataHandler() { return dataHandler; }
+	CallbackHandlerBase& getCallbackHandler() { jassert(callbackHandler != nullptr); return *callbackHandler; }
 
 	const ParameterHandler& getParameterHandler() const { return parameterHandler; }
 	const ComplexDataHandler& getComplexDataHandler() const { return dataHandler; }
+	const CallbackHandlerBase& getCallbackHandler() const { jassert(callbackHandler != nullptr); *callbackHandler; }
 
 protected:
+
+	void setCallbackHandler(CallbackHandlerBase* nonOwnedHandler)
+	{
+		callbackHandler = nonOwnedHandler;
+	}
 
 	Array<WeakReference<SnexSourceListener>> compileListeners;
 
@@ -730,19 +965,23 @@ protected:
 		code << "}\n";
 	}
 
+protected:
+
+	ObjectStorage<OpaqueNode::SmallObjectSize, 16> object;
+
 private:
 
 	ParameterHandler parameterHandler;
 	ComplexDataHandler dataHandler;
+	CallbackHandlerBase* callbackHandler = nullptr;
 
-	bool ok = false;
+	Result lastResult;
 
-	
-
+	// This keeps the function alive until recompiled
+	snex::JitObject lastCompiledObject;
 	NodePropertyT<String> classId;
 	snex::ui::WorkbenchData::Ptr wb;
 	WeakReference<NodeBase> parentNode;
-	snex::JitObject instanceObject;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexSource);
 };

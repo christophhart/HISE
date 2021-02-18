@@ -310,42 +310,110 @@ namespace core
 
 struct SnexOscillator : public SnexSource
 {
-	SnexOscillator()
+	struct OscillatorCallbacks: public SnexSource::CallbackHandlerBase
 	{
+		OscillatorCallbacks(SnexSource& p, ObjectStorageType& o) :
+			CallbackHandlerBase(p, o)
+		{};
 
+		void reset() override
+		{
+			SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
+			ok = false;
+			tickFunction = {};
+			processFunction = {};
+		}
+
+		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override
+		{
+			auto r = Result::ok();
+
+			auto newTickFunction = getFunctionAsObjectCallback("tick");
+			auto newProcessFunction = getFunctionAsObjectCallback("process");
+
+			r = newTickFunction.validateWithArgs(Types::ID::Float, { Types::ID::Double });
+
+			if (r.wasOk())
+				r = newProcessFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
+
+			{
+				SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
+				ok = r.wasOk();
+				std::swap(newTickFunction, tickFunction);
+				std::swap(newProcessFunction, processFunction);
+			}
+
+			return r;
+		}
+
+		float tick(double uptime)
+		{
+			if(auto c = ScopedCallbackChecker(*this))
+				return tickFunction.call<float>(uptime);
+
+			return 0.0;
+		}
+
+		void process(OscProcessData& d)
+		{
+			if(auto c = ScopedCallbackChecker(*this))
+				processFunction.callVoid(&d);
+		}
+
+		FunctionData tickFunction;
+		FunctionData processFunction;
+	};
+
+	SnexOscillator():
+		SnexSource(),
+		callbacks(*this, object)
+	{
+		setCallbackHandler(&callbacks);
 	}
 
 	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("snex_osc"); };
 
-	bool setupCallbacks(snex::JitObject& obj) override
-	{
-		tickFunction = obj["tick"];
-		processFunction = obj["process"];
-
-		auto tickMatches = tickFunction.returnType == Types::ID::Float && tickFunction.args[0].typeInfo.getType() == Types::ID::Double;
-		auto processMatches = processFunction.returnType == Types::ID::Void;
-
-		return processFunction.function != nullptr && tickMatches && processMatches && processFunction.function != nullptr;
-	}
-
 	String getEmptyText(const Identifier& id) const override
 	{
-		String s;
-		s << "float tick(double uptime)\n";
-		s << "{\n    return 0.0f;\n}\n";
+		using namespace snex::cppgen;
 
-		s << "void process(OscProcessData& d)\n";
-		s << "{\n";
-		s << "    for (auto& s : d.data)\n";
-		s << "    {\n";
-		s << "        s = tick(d.uptime);\n";
-		s << "        d.uptime += d.delta;\n";
-		s << "    }\n";
-		s << "}\n";
+		cppgen::Base c(cppgen::Base::OutputType::AddTabs);
 
-		addDefaultParameterFunction(s);
+		cppgen::Struct s(c, id, {}, {});
 
-		return s;
+		c.addComment("This function will be called once per sample", cppgen::Base::CommentType::Raw);
+		c << "float tick(double uptime)\n";
+		{
+			StatementBlock sb(c);
+			c << "return Math.fmod(uptime, 1.0);";
+		}
+
+		c.addEmptyLine();
+		c.addComment("This function will calculate a chunk of samples", cppgen::Base::CommentType::Raw);
+		c << "void process(OscProcessData& d)\n";
+		{
+			StatementBlock sb(c);
+			c << "for (auto& s : d.data)";
+			{
+				StatementBlock sb2(c);
+				c << "s = tick(d.uptime);";
+				c << "d.uptime += d.delta;";
+			}
+		}
+
+		String pf;
+
+		addDefaultParameterFunction(pf);
+
+		c << pf;
+
+		s.flushIfNot();
+
+		auto code = c.toString();
+
+		
+
+		return code;
 	}
 
 	void initialise(NodeBase* n)
@@ -355,19 +423,15 @@ struct SnexOscillator : public SnexSource
 
 	float tick(double uptime)
 	{
-		jassert(isReady());
-		auto s = tickFunction.call<float>(uptime);
-		return s;
+		return callbacks.tick(uptime);
 	}
 
 	void process(OscProcessData& d)
 	{
-		jassert(isReady());
-		processFunction.callVoid(&d);
+		callbacks.process(d);
 	}
 
-	FunctionData tickFunction;
-	FunctionData processFunction;
+	OscillatorCallbacks callbacks;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexOscillator);
 };
@@ -417,30 +481,24 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		if (this->oscType.isReady())
-		{
-			auto& thisData = oscData.get();
-			auto uptime = thisData.tick();
-			data[0] += this->oscType.tick(thisData.tick());
-		}
+		auto& thisData = oscData.get();
+		auto uptime = thisData.tick();
+		data[0] += this->oscType.tick(thisData.tick());
 	}
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		if (this->oscType.isReady())
-		{
-			auto& thisData = oscData.get();
+		auto& thisData = oscData.get();
 
-			OscProcessData op;
+		OscProcessData op;
 
-			op.data.referToRawData(data.getRawDataPointers()[0], data.getNumSamples());
-			op.uptime = thisData.uptime;
-			op.delta = thisData.uptimeDelta * thisData.multiplier;
-			op.voiceIndex = voiceIndex->getVoiceIndex();
-			
-			this->oscType.process(op);
-			thisData.uptime += op.delta * (double)data.getNumSamples();
-		}
+		op.data.referToRawData(data.getRawDataPointers()[0], data.getNumSamples());
+		op.uptime = thisData.uptime;
+		op.delta = thisData.uptimeDelta * thisData.multiplier;
+		op.voiceIndex = voiceIndex->getVoiceIndex();
+
+		this->oscType.process(op);
+		thisData.uptime += op.delta * (double)data.getNumSamples();
 	}
 
 	void handleHiseEvent(HiseEvent& e)
@@ -517,6 +575,11 @@ struct SnexComplexDataDisplay : public Component,
 	void complexDataAdded(snex::ExternalData::DataType , int )
 	{
 		rebuildEditors();
+	}
+
+	void parameterChanged(int index, double v)
+	{
+
 	}
 
 	void rebuildEditors();
@@ -640,6 +703,11 @@ struct SnexMenuBar : public Component,
 		repaint();
 	}
 
+	void parameterChanged(int snexParameterId, double newValue) override
+	{
+
+	}
+
 	~SnexMenuBar()
 	{
 		auto wb = static_cast<snex::ui::WorkbenchManager*>(source->getParentNode()->getScriptProcessor()->getMainController_()->getWorkbenchManager());
@@ -732,7 +800,6 @@ struct NewSnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator
 		addAndMakeVisible(menuBar);
 		setSize(512, 144);
 		getObject()->addCompileListener(this);
-		stop();
 	}
 
 	~NewSnexOscillatorDisplay()
@@ -742,7 +809,17 @@ struct NewSnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator
 
 	void complexDataAdded(snex::ExternalData::DataType t, int index) override
 	{
-		
+		rebuildPath = true;
+	}
+
+	void parameterChanged(int snexParameterId, double newValue) override
+	{
+		rebuildPath = true;
+	}
+
+	void complexDataTypeChanged() override
+	{
+		rebuildPath = true;
 	}
 
 	void wasCompiled(bool ok)
@@ -750,43 +827,7 @@ struct NewSnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator
 		if (ok)
 		{
 			errorMessage = {};
-
-			heap<float> buffer;
-			buffer.setSize(200);
-			dyn<float> d(buffer);
-
-			for (auto& s : buffer)
-				s = 0.0f;
-
-			OscProcessData od;
-			od.data.referTo(d);
-			od.uptime = 0.0;
-			od.delta = 1.0 / (double)buffer.size();
-			od.voiceIndex = 0;
-
-			getObject()->process(od);
-
-			p.clear();
-			p.startNewSubPath(0.0f, 0.0f);
-
-			float i = 0.0f;
-
-			for (auto& s : buffer)
-			{
-				FloatSanitizers::sanitizeFloatNumber(s);
-				jlimit(-10.0f, 10.0f, s);
-				p.lineTo(i, -1.0f * s);
-				i += 1.0f;
-			}
-
-			p.lineTo(i-1.0f, 0.0f);
-			p.closeSubPath();
-
-			if (p.getBounds().getHeight() > 0.0f && p.getBounds().getWidth() > 0.0f)
-			{
-				p.scaleToFit(pathBounds.getX(), pathBounds.getY(), pathBounds.getWidth(), pathBounds.getHeight(), false);
-			}
-
+			rebuildPath = true;
 			repaint();
 		}
 		else
@@ -819,6 +860,52 @@ struct NewSnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator
 
 	void timerCallback() override
 	{
+		if (rebuildPath)
+		{
+			if (!pathBounds.isEmpty())
+			{
+				heap<float> buffer;
+				buffer.setSize((int)pathBounds.getWidth());
+				dyn<float> d(buffer);
+
+				for (auto& s : buffer)
+					s = 0.0f;
+
+				OscProcessData od;
+				od.data.referTo(d);
+				od.uptime = 0.0;
+				od.delta = 1.0 / (double)buffer.size();
+				od.voiceIndex = 0;
+
+				SnexSource::Tester<SnexOscillator::OscillatorCallbacks> tester(*getObject());
+
+				tester.callbacks.process(od);
+
+				p.clear();
+				p.startNewSubPath(0.0f, 0.0f);
+
+				float i = 0.0f;
+
+				for (auto& s : buffer)
+				{
+					FloatSanitizers::sanitizeFloatNumber(s);
+					jlimit(-10.0f, 10.0f, s);
+					p.lineTo(i, -1.0f * s);
+					i += 1.0f;
+				}
+
+				p.lineTo(i - 1.0f, 0.0f);
+				p.closeSubPath();
+
+				if (p.getBounds().getHeight() > 0.0f && p.getBounds().getWidth() > 0.0f)
+				{
+					p.scaleToFit(pathBounds.getX(), pathBounds.getY(), pathBounds.getWidth(), pathBounds.getHeight(), false);
+				}
+			}
+
+			rebuildPath = false;
+			repaint();
+		}
 	}
 
 	void resized() override
@@ -834,6 +921,8 @@ struct NewSnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator
 	{
 		return new NewSnexOscillatorDisplay(static_cast<SnexOscillator*>(obj), u);
 	}
+
+	bool rebuildPath = false;
 
 	SnexMenuBar menuBar;
 	Path p;

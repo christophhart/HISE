@@ -828,6 +828,7 @@ juce::File DspNetwork::CodeManager::getCodeFolder() const
 }
 
 DspNetwork::CodeManager::SnexSourceCompileHandler::SnexSourceCompileHandler(snex::ui::WorkbenchData* d, ProcessorWithScriptingContent* sp_) :
+	Thread("SNEX Compile Thread"),
 	CompileHandler(d),
 	ControlledObject(sp_->getMainController_()),
 	sp(sp_)
@@ -835,19 +836,28 @@ DspNetwork::CodeManager::SnexSourceCompileHandler::SnexSourceCompileHandler(snex
 
 }
 
+void DspNetwork::CodeManager::SnexSourceCompileHandler::run()
+{
+	getParent()->handleCompilation();
+}
+
 bool DspNetwork::CodeManager::SnexSourceCompileHandler::triggerCompilation()
 {
-	WorkbenchData::WeakPtr safeWb = getParent();
+	getParent()->handleCompilation();
+	return true;
 
-	auto f = [safeWb](Processor* p)
+	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
+
+	if (currentThread == MainController::KillStateHandler::SampleLoadingThread ||
+		currentThread == MainController::KillStateHandler::ScriptingThread)
 	{
-		if (safeWb.get() != nullptr)
-			safeWb.get()->handleCompilation();
+		getParent()->handleCompilation();
+		return true;
+	}
 
-		return SafeFunctionCall::OK;
-	};
-
-	return getMainController()->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(sp), f, MainController::KillStateHandler::SampleLoadingThread);
+	getParent()->getGlobalScope().getBreakpointHandler().abort();
+	startThread();
+	return false;
 }
 
 }

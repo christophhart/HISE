@@ -252,17 +252,56 @@ public:
 		}
 
 		struct SnexSourceCompileHandler : public snex::ui::WorkbenchData::CompileHandler,
-										  public ControlledObject
+										  public ControlledObject,
+									      public Thread
 		{
+			struct SnexCompileListener
+			{
+				virtual ~SnexCompileListener() {};
+
+				/** This is called directly after the compilation (if it was OK) and can 
+				    be used to run the test and update the UI display. */
+				virtual void postCompileSync() = 0;
+
+				JUCE_DECLARE_WEAK_REFERENCEABLE(SnexCompileListener);
+			};
+
 			SnexSourceCompileHandler(snex::ui::WorkbenchData* d, ProcessorWithScriptingContent* sp_);;
 
 			void processTestParameterEvent(int parameterIndex, double value) final override {};
 			void prepareTest(PrepareSpecs ps, const Array<snex::ui::WorkbenchData::TestData::ParameterEvent>& initialParameters) final override {};
 			void processTest(ProcessDataDyn& data) final override {};
 
+			void run() override;
+
 			bool triggerCompilation() override;
 			
+			/** This returns the mutex used for synchronising the compilation. 
+			
+				Any access to a JIT compiled function must be locked using a read lock.
+
+				The write lock will be held for a short period before compiling (where you need to reset 
+				the state) and then after the compilation where you need to setup the object.
+			*/
+			SimpleReadWriteLock& getCompileLock() { return compileLock; }
+
+			void addCompileListener(SnexCompileListener* l)
+			{
+				compileListeners.addIfNotAlreadyThere(l);
+			}
+
+			void removeCompileListener(SnexCompileListener* l)
+			{
+				compileListeners.removeAllInstancesOf(l);
+			}
+
+		private:
+
 			ProcessorWithScriptingContent* sp;
+
+			hise::SimpleReadWriteLock compileLock;
+
+			Array<WeakReference<SnexCompileListener>> compileListeners;
 		};
 
 		snex::ui::WorkbenchData::Ptr getOrCreate(const Identifier& typeId, const Identifier& classId)

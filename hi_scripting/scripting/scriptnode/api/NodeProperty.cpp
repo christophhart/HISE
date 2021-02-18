@@ -120,94 +120,91 @@ void ScriptFunctionManager::postInit(NodeBase* n)
 
 void SnexSource::recompiled(WorkbenchData::Ptr wb)
 {
-	ok = false;
-
 	getParameterHandler().reset();
 	getComplexDataHandler().reset();
 
-	if (wb->getLastResult().compiledOk())
+	lastResult = wb->getLastResult().compileResult;
+
+	if (auto objPtr = wb->getLastResult().mainClassPtr)
 	{
-		instanceObject = wb->getLastJitObject();
+		object.initialise(objPtr);
 
-		
+		if(lastResult.wasOk())
+			lastResult = getCallbackHandler().recompiledOk(objPtr);
 
-		// We need to duplicate the instance when it has no state
-		if (!instanceObject.isStateless())
-		{
-			auto c = wb->getCompileHandler()->createCompiler();
+		if(lastResult.wasOk())
+			lastResult = getParameterHandler().recompiledOk(objPtr);
 
-			auto code = wb->getCode();
-			preprocess(code);
+		if(lastResult.wasOk())
+			lastResult = getComplexDataHandler().recompiledOk(objPtr);
 
-			instanceObject = c->compileJitObject(code);
-
-			auto tree = getComplexDataHandler().getDataRoot();
-
-			ExternalData::forEachType([&](ExternalData::DataType t)
-			{
-				auto typeTree = tree.getChild((int)t);
-				
-				auto id = NamespacedIdentifier(ExternalData::getNumIdentifier(t));
-				int numRequired = c->getNamespaceHandler().getConstantValue(id).toInt();
-
-				while (numRequired > typeTree.getNumChildren())
-				{
-					getComplexDataHandler().addOrRemoveDataFromUI(t, true);
-				}
-			});
-		}
-		
-		ok = setupCallbacks(instanceObject);
-
-		if (ok)
-		{
-			getParameterHandler().recompiledOk(instanceObject);
-			getComplexDataHandler().recompiledOk(instanceObject);
-		}
+		lastCompiledObject = getWorkbench()->getLastJitObject();
 	}
 
 	for (auto l : compileListeners)
 	{
-		l->wasCompiled(ok);
+		l->wasCompiled(lastResult.wasOk());
 	}
 }
 
-void SnexSource::ParameterHandler::recompiledOk(snex::JitObject& obj)
+void SnexSource::ParameterHandler::addParameterCode(String& code)
 {
-	for (auto p : parameterTree)
+	using namespace snex::cppgen;
+
+	cppgen::Base c(cppgen::Base::OutputType::AddTabs);
+
+	c.addComment("Adding parameter methods", cppgen::Base::CommentType::RawWithNewLine);
+
+	String fDef;
+	fDef << "void initMainObject(" << parent.getWorkbench()->getInstanceId() << "& obj)";
+	c << fDef;
+	
 	{
-		auto index = p.getParent().indexOf(p);
-		String fId = "set";
-		fId << p[PropertyIds::ID].toString();
-		pFunctions[index] = obj[fId];
+		cppgen::StatementBlock sb(c);
 
-		if (auto np = getNode()->getParameter(p[PropertyIds::ID].toString()))
-			pFunctions[index].callVoid(np->getValue());
-	}
-}
-
-void SnexSource::ComplexDataHandler::recompiledOk(JitObject& obj)
-{
-	if (externalFunction = obj["setExternalData"])
-	{
-		
-
-		if (hasComplexData())
+		for (auto p : parameterTree)
 		{
-			ExternalData::forEachType([this](ExternalData::DataType t)
-			{
-				for (int i = 0; i < getNumDataObjects(t); i++)
-				{
-					auto absoluteIndex = getAbsoluteIndex(t, i);
-
-					ExternalData ed(getComplexBaseType(t, i), absoluteIndex);
-
-					SimpleReadWriteLock::ScopedWriteLock l(ed.obj->getDataLock());
-					setExternalData(ed, absoluteIndex);
-				}
-			});
+			String def;
+			def << "obj.setParameter<" << p.getParent().indexOf(p) << ">(";
+			def << Types::Helpers::getCppValueString((double)p[PropertyIds::Value]);
+			def << ");";
+			
+			c << def;
+			c.addComment(p[PropertyIds::ID].toString(), cppgen::Base::CommentType::AlignOnSameLine);
 		}
 	}
+
+	code << c.toString();
+
+	DBG(code);
+}
+
+Result SnexSource::ComplexDataHandler::recompiledOk(snex::jit::ComplexType::Ptr objectClass)
+{
+	ExternalData::forEachType([this, objectClass](ExternalData::DataType t)
+	{
+		auto typeTree = getDataRoot().getChild((int)t);
+		auto id = ExternalData::getNumIdentifier(t);
+		int numRequired = (int)objectClass->getInternalProperty(id, var(0));
+
+		while (numRequired > typeTree.getNumChildren())
+			addOrRemoveDataFromUI(t, true);
+
+		for (int i = 0; i < getNumDataObjects(t); i++)
+			getComplexBaseType(t, i)->getUpdater().addEventListener(this);
+	});
+
+	if (!hasComplexData())
+		return Result::ok();
+
+	auto r = ComplexDataHandlerLight::recompiledOk(objectClass);
+
+	if (!r.wasOk())
+		return r;
+
+	callExternalDataForAll(*this, *this);
+
+	return r;
 }
 
 void SnexSource::ComplexDataHandler::initialise(NodeBase* n)
@@ -400,7 +397,8 @@ snex::ExternalDataHolder* SnexSource::ComplexDataHandler::getDynamicDataHolder(s
 
 SnexSource::SnexParameter::SnexParameter(SnexSource* n, NodeBase* parent, ValueTree dataTree) :
 	Parameter(parent, dataTree),
-	pIndex(dataTree.getParent().indexOf(dataTree))
+	pIndex(dataTree.getParent().indexOf(dataTree)),
+	snexSource(n)
 {
 	auto& pHandler = n->getParameterHandler();
 
@@ -442,6 +440,76 @@ SnexSource::SnexParameter::SnexParameter(SnexSource* n, NodeBase* parent, ValueT
 	ids.add(PropertyIds::ID);
 
 	syncer.setPropertiesToSync(dataTree, treeInNetwork, ids, parent->getUndoManager());
+
+	parentValueUpdater.setCallback(treeInNetwork, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(SnexSource::SnexParameter::sendValueChangeToParentListeners));
+}
+
+void SnexSource::SnexParameter::sendValueChangeToParentListeners(Identifier id, var newValue)
+{
+	auto d = (double)newValue;
+
+	for (auto l : snexSource->compileListeners)
+	{
+		if (l != nullptr)
+			l->parameterChanged(pIndex, d);
+	}
+}
+
+snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(const String& id)
+{
+	if (auto wb = parent.getWorkbench())
+	{
+		if (auto obj = wb->getLastResult().mainClassPtr)
+		{
+			auto f = obj->getNonOverloadedFunction(Identifier(id));
+
+			if (f.isResolved())
+			{
+				addObjectPtrToFunction(f);
+				return f;
+			}
+		}
+	}
+
+	return {};
+}
+
+void SnexSource::HandlerBase::addObjectPtrToFunction(FunctionData& f)
+{
+	jassert(f.isResolved());
+	f.object = obj.getObjectPtr();
+}
+
+juce::Result SnexSource::ParameterHandlerLight::recompiledOk(snex::jit::ComplexType::Ptr objectClass)
+{
+	using namespace snex::jit;
+
+	snex::jit::FunctionClass::Ptr fc = objectClass->getFunctionClass();
+	Array<FunctionData> matches;
+	fc->addMatchingFunctions(matches, fc->getClassName().getChildId("setParameter"));
+
+	SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
+
+	for (int i = 0;i < matches.size(); i++)
+	{
+		auto m = matches[i];
+
+		if (!m.templateParameters[0].constantDefined)
+			matches.remove(i--);
+	}
+
+	for (int index = 0; index < matches.size(); index++)
+	{
+		pFunctions[index] = matches[index];
+
+		if (pFunctions[index].templateParameters[0].constant != index)
+			return Result::fail("Template index mismatch");
+
+		addObjectPtrToFunction(pFunctions[index]);
+		pFunctions[index].callVoid(lastValues[index]);
+	}
+
+	return Result::ok();
 }
 
 }

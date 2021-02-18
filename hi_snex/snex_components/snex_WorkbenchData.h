@@ -640,6 +640,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 		Result compileResult;
 		String assembly;
 		JitObject obj;
+		ComplexType::Ptr mainClassPtr;
+		
 
 		scriptnode::ParameterDataList parameters;
 		JitCompiledNode::Ptr lastNode;
@@ -680,6 +682,10 @@ struct WorkbenchData : public ReferenceCountedObject,
 			r.obj = cc->compileJitObject(codeToCompile);
 			r.assembly = cc->getAssemblyCode();
 			r.compileResult = cc->getCompileResult();
+
+			NamespacedIdentifier mainObjectId(getParent()->getInstanceId());
+
+			r.mainClassPtr = cc->getComplexType(mainObjectId);
 
 			return r;
 		}

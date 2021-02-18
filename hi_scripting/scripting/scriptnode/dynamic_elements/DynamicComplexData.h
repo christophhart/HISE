@@ -184,11 +184,12 @@ struct audiofile : public data::pimpl::dynamicT<hise::MultiChannelAudioBuffer>,
 
 	void initialise(NodeBase* n)
 	{
-		dynamicT<hise::MultiChannelAudioBuffer>::initialise(n);
-
 		auto fileProvider = new PooledAudioFileDataProvider(n->getScriptProcessor()->getMainController_());
-		
+
 		internalData->setProvider(fileProvider);
+
+		dynamicT<hise::MultiChannelAudioBuffer>::initialise(n);
+		
 		rangeSyncer.setCallback(getValueTree(), { PropertyIds::MinValue, PropertyIds::MaxValue }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(audiofile::updateRange));
 	}
 	
