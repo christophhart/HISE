@@ -97,6 +97,7 @@ struct VectorMathFunction
 #define HNODE_JIT_VECTOR_FUNCTION(name) addFunction((void*)VectorMathFunction::createForTwoBlocks(static_cast<block&(*)(block&, const block&)>(hmath::name), #name, blockType)); DESCRIPTION(name, block);
 #define HNODE_JIT_VECTOR_FUNCTION_S(name) addFunction((void*)VectorMathFunction::createForScalar(static_cast<block&(*)(block&, float)>(hmath::name), #name, blockType)); DESCRIPTION(name, float);
 
+#define INT_TARGET INT_REG_W(d->target)
 #define FP_TARGET FP_REG_W(d->target)
 #define ARGS(i) d->args[i]
 #define SETUP_MATH_INLINE(name) auto d = d_->toAsmInlineData(); auto& cc = d->gen.cc; auto type = d->target->getType(); d->target->createRegister(cc); cc.setInlineComment(name);
@@ -122,6 +123,7 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
     
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::min, int, int, "min");		DESCRIPTION(int, smaller);
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::max, int, int, "max");		DESCRIPTION(int, bigger);
+	HNODE_JIT_ADD_C_FUNCTION_1(int, hmath::abs, int, "abs");			DESCRIPTION(int, positive);
 	HNODE_JIT_ADD_C_FUNCTION_3(int, hmath::range, int, int, int, "range");		DESCRIPTION(int, clamped);
 
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sin, double, "sin");		DESCRIPTION(double, sin);
@@ -393,6 +395,13 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 juce::Result MathFunctions::Inliners::abs(InlineData* d_)
 {
 	SETUP_MATH_INLINE("inline abs");
+
+	IF_(int)
+	{
+		cc.mov(INT_TARGET, INT_REG_R(ARGS(0)));
+		cc.neg(INT_TARGET);
+		cc.cmovl(INT_TARGET, INT_REG_R(ARGS(0)));
+	}
 
 	IF_(float)
 	{

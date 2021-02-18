@@ -612,7 +612,15 @@ struct ParserHelpers
 
 			auto type = Types::Helpers::getTypeFromStringValue(currentString);
 
+
 			juce::String stringValue = currentString;
+
+			if (matchIf(JitTokens::true_))
+				return VariableStorage(1);
+
+			if (matchIf(JitTokens::false_))
+				return VariableStorage(0);
+
 			match(JitTokens::literal);
 
 			if (type == Types::ID::Integer)

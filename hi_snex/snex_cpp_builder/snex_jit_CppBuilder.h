@@ -79,6 +79,7 @@ public:
 		Uglify,
 		AddTabs,
 		WrapInBlock,
+		StatementListWithoutSemicolon,
 		numOutputTypes
 	};
 
@@ -108,6 +109,8 @@ public:
 
 	String parseUglified() const;
 
+	void replaceWildcard(const String& wc, const String& expression);
+
 	static int getRealLineLength(const String& s);
 
 	void addIfNotEmptyLine()
@@ -123,6 +126,23 @@ public:
 	virtual void addEmptyLine()
 	{
 		lines.add("");
+	}
+
+	Base& append(const String& s)
+	{
+		if (lines.isEmpty())
+			lines.add(s);
+
+		lines.getReference(lines.size() - 1) << s;
+		return *this;
+	}
+
+	Base& addWithSemicolon(const String& line)
+	{
+		String l;
+		l << line << ";";
+		lines.add(l);
+		return *this;
 	}
 
 	String toString() const;
@@ -181,6 +201,8 @@ private:
 	bool containsButNot(int line, TokenType toContain, TokenType toNotContain) const;
 	bool matchesEnd(int line, TokenType t, TokenType other1 = nullptr, TokenType other2 = nullptr) const;
 	bool matchesStart(int line, TokenType t, TokenType other1 = nullptr, TokenType other2 = nullptr) const;
+
+	String parseRawAndAddSemicolon() const;
 
 	String parseLines() const;
 	String wrapInBlock() const;

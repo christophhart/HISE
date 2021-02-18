@@ -145,13 +145,14 @@ void SliderPackData::fromBase64(const String &encodedValues)
 
 	mb.fromBase64Encoding(encodedValues);
 
-	int numElements = (int)(mb.getSize() / sizeof(float));
+	if (int numElements = (int)(mb.getSize() / sizeof(float)))
+	{
+		VariantBuffer::Ptr newBuffer = new VariantBuffer(numElements);
 
-	VariantBuffer::Ptr newBuffer = new VariantBuffer(numElements);
+		memcpy(newBuffer->buffer.getWritePointer(0), mb.getData(), mb.getSize());
 
-	memcpy(newBuffer->buffer.getWritePointer(0), mb.getData(), mb.getSize());
-	
-	swapBuffer(dataBuffer);
+		swapBuffer(dataBuffer);
+	}
 }
 
 void SliderPackData::swapData(const var &otherData)

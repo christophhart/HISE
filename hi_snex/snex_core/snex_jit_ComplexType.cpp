@@ -256,6 +256,14 @@ void ComplexType::registerExternalAtNamespaceHandler(NamespaceHandler* handler, 
 	}
 }
 
+
+
+snex::jit::FunctionData ComplexType::getNonOverloadedFunction(const Identifier& id)
+{
+	FunctionClass::Ptr fc = getFunctionClass();
+	return fc->getNonOverloadedFunction(NamespacedIdentifier(id));
+}
+
 bool ComplexType::isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const
 {
 	if (complexSourceType == this)

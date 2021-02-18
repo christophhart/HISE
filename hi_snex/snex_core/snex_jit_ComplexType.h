@@ -128,6 +128,10 @@ struct ComplexType : public ReferenceCountedObject
 	*/
 	virtual FunctionClass* getFunctionClass() { return nullptr; };
 
+	FunctionData getNonOverloadedFunction(const Identifier& id);
+
+	virtual var getInternalProperty(const Identifier& id, const var& defaultValue) { return defaultValue; }
+
 	bool isFinalised() const { return finalised; }
 
 	bool operator ==(const ComplexType& other) const

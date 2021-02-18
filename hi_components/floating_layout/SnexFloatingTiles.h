@@ -205,6 +205,7 @@ struct SnexEditorPanel : public Component,
 
 		wb = newWorkbench;
 		addAndMakeVisible(playground = new snex::jit::SnexPlayground(newWorkbench, false));
+		playground->setFullTokenProviders();
 		wb->addListener(this);
 		
 		resized();
