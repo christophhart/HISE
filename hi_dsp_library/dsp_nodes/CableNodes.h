@@ -69,16 +69,18 @@ namespace control
 
 			if (b.size() > 0)
 			{
-				auto index = jlimit(0, b.size() - 1, (int)((double)b.size() * v));
+				IndexType index(v);
 
 				v = b[index];
 				getParameter().call(v);
 				lastValue = v;
 
-				externalData.setDisplayedValue(index);
+				externalData.setDisplayedValue((double)index.getIndex(b.size()));
 			}
 		}
 		
+		using IndexType = index::normalised<double, index::clamped<0>>;
+
 		double lastValue = 0.0;
 	};
 
@@ -155,24 +157,18 @@ namespace control
 		{
 			if (!tableData.isEmpty())
 			{
-				auto index = (float)input * (float)tableData.size();
+				InterpolatorType ip(input);
 
-				jassert(isPowerOfTwo(tableData.size()));
-
-				int i1 = (int)index & (tableData.size() - 1);
-				int i2 = (i1 + 1) & (tableData.size() - 1);
-
-				auto alpha = jlimit(0.0f, 1.0f, hmath::fmod(index, 1.0f));
-				auto v1 = tableData[i1];
-				auto v2 = tableData[i2];
-
-				auto tv = Interpolator::interpolateLinear(v1, v2, alpha);
+				auto tv = tableData.interpolate(ip);
 
 				getParameter().call(tv);
 
 				this->externalData.setDisplayedValue(input);
 			}
 		}
+
+		using TableClampType = index::clamped<SAMPLE_LOOKUP_TABLE_SIZE>;
+		using InterpolatorType = index::lerp<index::normalised<double, TableClampType>>;
 
 		block tableData;
 	};

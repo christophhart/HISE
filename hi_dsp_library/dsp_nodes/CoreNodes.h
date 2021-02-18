@@ -101,55 +101,53 @@ struct table: public scriptnode::data::base
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		if (auto td = getTableData())
-		{
-			block b;
-			externalData.referBlockTo(b, 0);
+		DataReadLock l(this);
 
+		if (!tableData.isEmpty())
+		{
 			float v = 0.0f;
 
-			for (auto& s : data[0])
-				v = processFloat(s);
+			for (auto& ch : data)
+			{
+				for (auto& s : data.toChannelData(ch))
+				{
+					processFloat(s);
+				}
+			}
 
 			externalData.setDisplayedValue(v);
 		}
 	}
 
-	float processFloat(float& s)
+	void processFloat(float& s)
 	{
-		auto& data = *getTableData();
-
-		TableSpanType::wrapped i1, i2;
-
-		auto peakValue = s;
-		auto floatIndex = peakValue * (float)SAMPLE_LOOKUP_TABLE_SIZE;
-
-		i1 = (int)floatIndex & (SAMPLE_LOOKUP_TABLE_SIZE - 1);
-		i2 = i1 + 1;
-
-		auto alpha = floatIndex - (float)i1;
-
-		s = Interpolator::interpolateLinear(data[i1], data[i2], hmath::fmod(floatIndex, 1.0f));
-
-		return peakValue;
+		InterpolatorType ip(hmath::abs(s));
+		s *= tableData.interpolate(ip);
 	}
 
 	void setExternalData(const ExternalData& d, int) override
 	{
-		if (d.numSamples == SAMPLE_LOOKUP_TABLE_SIZE)
-			base::setExternalData(d, 0);
+		base::setExternalData(d, 0);
+		d.referBlockTo(tableData, 0);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		if (auto td = getTableData())
+		DataReadLock l(this);
+
+		if (!tableData.isEmpty())
 		{
-			processFloat(data[0]);
+			for(auto& s: data)
+				processFloat(s);
 		}
 	}
 
 	sfloat smoothedValue;
 	ModValue currentValue;
+	block tableData;
+
+	using TableClampType = index::clamped<SAMPLE_LOOKUP_TABLE_SIZE, false>;
+	using InterpolatorType = index::lerp<index::normalised<float, TableClampType>>;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(table);
 };

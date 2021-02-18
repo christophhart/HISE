@@ -153,6 +153,9 @@ template <typename T, int C> struct file_node: public file_base
 
 struct file_player : public data::base
 {
+	using IndexType = index::normalised<float, index::wrapped<0, true>>;
+	using InterpolatorType = interpolators::linear<IndexType>;
+
 	SET_HISE_NODE_ID("file_player");
 	SN_GET_SELF_AS_OBJECT(file_player);
 
@@ -195,50 +198,40 @@ struct file_player : public data::base
 	{
 		DataReadLock l(this);
 
-		auto pos = data[0][0];
-
-		if ((data.getNumChannels() == 1 && externalData.numChannels > 0) ||
-			externalData.numChannels == 1)
+		if (!externalData.isEmpty())
 		{
-			FrameConverters::forwardToFrameMono(this, data);
-		}
+			auto pos = data[0][0];
 
-		if (data.getNumChannels() >= 2 && externalData.numChannels >= 2)
-		{
-			FrameConverters::forwardToFrameStereo(this, data);
-		}
+			if ((data.getNumChannels() == 1 && externalData.numChannels > 0) ||
+				externalData.numChannels == 1)
+			{
+				FrameConverters::forwardToFrameMono(this, data);
+			}
 
-		updatePosition(pos);
+			IndexType p(data[0][0]);
+
+			externalData.setDisplayedValue(p.getIndex(externalData.numSamples));
+
+			if (data.getNumChannels() >= 2 && externalData.numChannels >= 2)
+			{
+				FrameConverters::forwardToFrameStereo(this, data);
+			}
+		}
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		auto uptime = (double)data[0] * externalData.numSamples;
+		DataReadLock l(this);
 
-		auto prev = (int)uptime;
-		auto next = prev + 1;
+		InterpolatorType ip(data[0]);
 
-		auto delta = (float)fmod(uptime, 1.0);
-
-		jassert(data.size() == externalData.numChannels);
-
-		next %= externalData.numSamples;
-		prev %= externalData.numSamples;
-		
 		for (int i = 0; i < data.size(); i++)
-			data[i] = Interpolator::interpolateLinear(currentData[i][prev], currentData[i][next], delta);
-	}
-
-	void updatePosition(double uptimeNormalised)
-	{
-		auto pos = uptimeNormalised * (double)externalData.numSamples;
-		externalData.setDisplayedValue(pos);
+			data[i] = currentData[i].interpolate(ip);
 	}
 
 private:
 
 	ModValue lastLength;
-
 	PrepareSpecs lastSpecs;
 };
 
