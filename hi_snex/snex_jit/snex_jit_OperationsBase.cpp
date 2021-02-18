@@ -210,6 +210,16 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 
 	if (auto v = dynamic_cast<VariableReference*>(e.get()))
 	{
+		v->tryToResolveType(currentCompiler);
+
+		if (v->getTypeInfo().isDynamic())
+		{
+			currentCompiler->namespaceHandler.setTypeInfo(v->id.id, NamespaceHandler::Variable, expectedType);
+
+			v->id = { v->id.id, expectedType };
+			return expectedType;
+		}
+
 		bool isDifferentType = expectedType != Types::ID::Dynamic && expectedType != v->getConstExprValue().getType();
 
 		if (v->isConstExpr() && isDifferentType)
@@ -221,6 +231,7 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 	}
 
 	auto thisType = e->getTypeInfo();
+
 
 	if (expectedType.isInvalid())
 	{
@@ -243,8 +254,11 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 	{
 		if (auto targetType = expectedType.getTypedIfComplexType<ComplexType>())
 		{
-			if(!targetType->isValidCastSource(thisType.getType(), thisType.getTypedIfComplexType<ComplexType>()))
+			if (!targetType->isValidCastSource(thisType.getType(), thisType.getTypedIfComplexType<ComplexType>()))
+			{
 				throwError(juce::String("Can't cast ") + thisType.toString() + " to " + expectedType.toString());
+			}
+				
 		}
 
 		if (auto sourceType = thisType.getTypedIfComplexType<ComplexType>())
@@ -408,6 +422,50 @@ void Operations::Statement::logOptimisationMessage(const juce::String& m)
 void Operations::Statement::logWarning(const juce::String& m)
 {
 	logMessage(currentCompiler, BaseCompiler::Warning, m);
+}
+
+bool Operations::Statement::replaceIfOverloaded(Ptr objPtr, List args, FunctionClass::SpecialSymbols overloadType)
+{
+	if (auto cType = objPtr->getTypeInfo().getTypedIfComplexType<ComplexType>())
+	{
+		if (FunctionClass::Ptr fc = cType->getFunctionClass())
+		{
+			TypeInfo::List argTypes;
+
+			for (auto a : args)
+				argTypes.add(a->getTypeInfo());
+
+			auto returnType = getTypeInfo();
+
+			if (overloadType == FunctionClass::AssignOverload)
+				returnType = { Types::ID::Void };
+
+			auto overloadedFunction = fc->getSpecialFunction(overloadType, returnType, argTypes);
+
+			if (overloadedFunction.canBeInlined(true))
+			{
+				auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
+
+				auto f = new FunctionCall(location, nullptr, Symbol(overloadedFunction.id, overloadedFunction.returnType), {});
+
+				f->setObjectExpression(objPtr->clone(location));
+
+				for(auto a: args)
+					f->addArgument(a->clone(location));
+
+				Ptr fPtr(f);
+				Ptr thisPtr(this);
+
+				replaceInParent(fPtr);
+				SyntaxTreeInlineData::processUpToCurrentPass(thisPtr, fPtr);
+				return true;
+			}
+		}
+	}
+
+	
+
+	return false;
 }
 
 bool Operations::Statement::isConstExpr() const

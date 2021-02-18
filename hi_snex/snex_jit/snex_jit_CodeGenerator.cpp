@@ -483,67 +483,83 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 		if (type == Types::ID::Integer && (op == JitTokens::modulo || op == JitTokens::divide))
 		{
-			auto gs = r->getScope()->getGlobalScope();
-			auto checkZeroDivision = gs->isRuntimeErrorCheckEnabled();
-			auto okBranch = cc.newLabel();
-			auto errorBranch = cc.newLabel();
-
-			if (checkZeroDivision)
+			if (r->isImmediate() && r->getImmediateIntValue() != 0 && isPowerOfTwo(r->getImmediateIntValue()))
 			{
-				if (r->isMemoryLocation())
+				if (op == JitTokens::modulo)
 				{
-					if (r->getImmediateIntValue() == 0)
-						location.throwError("Divide by zero");
+					auto mask = (uint64_t)r->getImmediateIntValue() - 1;
+					cc.and_(INT_REG_W(l), mask);
 				}
 				else
 				{
-					cc.cmp(INT_REG_R(r), 0);
-					cc.je(errorBranch);
+					auto shiftAmount = (uint64_t)log2(r->getImmediateIntValue());
+					cc.shr(INT_REG_W(l), shiftAmount);
 				}
 			}
-
-			TemporaryRegister dummy(*this, r->getScope(), TypeInfo(Types::ID::Integer));
-			cc.cdq(dummy.get(), INT_REG_W(l));
-
-			if (r->isMemoryLocation())
-			{
-				auto forcedMemory = cc.newInt32Const(ConstPool::kScopeLocal, static_cast<int>(INT_IMM(r)));
-				cc.idiv(dummy.get(), INT_REG_W(l), forcedMemory);
-			}
 			else
-				cc.idiv(dummy.get(), INT_REG_W(l), INT_REG_R(r));
-
-			if (op == JitTokens::modulo)
-				cc.mov(INT_REG_W(l), dummy.get());
-
-			if (checkZeroDivision)
 			{
-				cc.jmp(okBranch);
-				cc.bind(errorBranch);
+				auto gs = r->getScope()->getGlobalScope();
+				auto checkZeroDivision = gs->isRuntimeErrorCheckEnabled();
+				auto okBranch = cc.newLabel();
+				auto errorBranch = cc.newLabel();
 
-				auto flagReg = cc.newGpd();
-				auto errorFlag = x86::ptr(gs->getRuntimeErrorFlag()).cloneResized(4);
-				
-				cc.mov(flagReg, (int)RuntimeError::ErrorType::IntegerDivideByZero);
-				cc.mov(errorFlag, flagReg);
+				if (checkZeroDivision)
+				{
+					if (r->isMemoryLocation())
+					{
+						if (r->getImmediateIntValue() == 0)
+							location.throwError("Divide by zero");
+					}
+					else
+					{
+						cc.cmp(INT_REG_R(r), 0);
+						cc.je(errorBranch);
+					}
+				}
 
-				cc.mov(flagReg, (int)location.getLine());
-				cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), flagReg);
-				cc.mov(flagReg, (int)location.getColNumber());
-				cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), flagReg);
-				
-				cc.mov(INT_REG_W(l), 0);
-				cc.bind(okBranch);
+				TemporaryRegister dummy(*this, r->getScope(), TypeInfo(Types::ID::Integer));
+				cc.cdq(dummy.get(), INT_REG_W(l));
+
+				if (r->isMemoryLocation())
+				{
+					auto forcedMemory = cc.newInt32Const(ConstPool::kScopeLocal, static_cast<int>(INT_IMM(r)));
+					cc.idiv(dummy.get(), INT_REG_W(l), forcedMemory);
+				}
+				else
+					cc.idiv(dummy.get(), INT_REG_W(l), INT_REG_R(r));
+
+				if (op == JitTokens::modulo)
+					cc.mov(INT_REG_W(l), dummy.get());
+
+				if (checkZeroDivision)
+				{
+					cc.jmp(okBranch);
+					cc.bind(errorBranch);
+
+					auto flagReg = cc.newGpd();
+					auto errorFlag = x86::ptr(gs->getRuntimeErrorFlag()).cloneResized(4);
+
+					cc.mov(flagReg, (int)RuntimeError::ErrorType::IntegerDivideByZero);
+					cc.mov(errorFlag, flagReg);
+
+					cc.mov(flagReg, (int)location.getLine());
+					cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), flagReg);
+					cc.mov(flagReg, (int)location.getColNumber());
+					cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), flagReg);
+
+					cc.mov(INT_REG_W(l), 0);
+					cc.bind(okBranch);
+				}
 			}
-
-			return l;
 		}
-
-		BINARY_OP(JitTokens::plus, cc.add, cc.addss, cc.addsd);
-		BINARY_OP(JitTokens::minus, cc.sub, cc.subss, cc.subsd);
-		BINARY_OP(JitTokens::times, cc.imul, cc.mulss, cc.mulsd);
-		FLOAT_BINARY_OP(JitTokens::divide, cc.divss, cc.divsd);
-		BINARY_OP(JitTokens::assign_, cc.mov, cc.movss, cc.movsd);
+		else
+		{
+			BINARY_OP(JitTokens::plus, cc.add, cc.addss, cc.addsd);
+			BINARY_OP(JitTokens::minus, cc.sub, cc.subss, cc.subsd);
+			BINARY_OP(JitTokens::times, cc.imul, cc.mulss, cc.mulsd);
+			FLOAT_BINARY_OP(JitTokens::divide, cc.divss, cc.divsd);
+			BINARY_OP(JitTokens::assign_, cc.mov, cc.movss, cc.movsd);
+		}
 	}
 	
 	auto target = l->getMemoryLocationForReference();
@@ -562,14 +578,6 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 		if (l->isDirtyGlobalMemory())
 			l->setUndirty();
 	}
-
-#if 0
-	if (l->getTypeInfo().isRef() || l->hasCustomMemoryLocation())
-	{
-		
-		
-	}
-#endif
 
 	return l;
 }

@@ -539,7 +539,7 @@ struct StructType : public ComplexType,
 		internalProperties.set(propId, newValue);
 	}
 
-	var getInternalProperty(const Identifier& propId, const var& defaultValue)
+	var getInternalProperty(const Identifier& propId, const var& defaultValue) override
 	{
 		return internalProperties.getWithDefault(propId, defaultValue);
 	}

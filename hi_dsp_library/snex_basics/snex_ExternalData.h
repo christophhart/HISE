@@ -240,6 +240,10 @@ struct base
 			SimpleReadWriteLock::ScopedReadLock(d->externalData.obj != nullptr ? d->externalData.obj->getDataLock() : dummy)
 		{}
 
+		DataReadLock(snex::ExternalData& d) :
+			SimpleReadWriteLock::ScopedReadLock(d.obj != nullptr ? d.obj->getDataLock() : dummy)
+		{}
+
 		SimpleReadWriteLock dummy;
 	};
 

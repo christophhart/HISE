@@ -200,13 +200,16 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 			auto type = compiler->namespaceHandler.getVariableType(id.id);
 
-			id = Symbol(id.id, type);
+			if (!type.isDynamic())
+			{
+				id = Symbol(id.id, type);
 
-			if (!id.resolved)
-				throwError("Can't find symbol" + id.toString());
+				if (!id.resolved)
+					throwError("Can't resolve type for symbol" + id.toString());
+			}
 		}
 
-		jassert(id.resolved);
+		jassert(id.resolved || getTypeInfo().isDynamic());
 
 		if (isLocalDefinition)
 		{

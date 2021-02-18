@@ -272,6 +272,8 @@ namespace Operations
 			return false;
 		}
 
+		bool replaceIfOverloaded(Ptr objPtr, List args, FunctionClass::SpecialSymbols overloadType);
+
 		virtual bool isConstExpr() const;
 
 		Location location;

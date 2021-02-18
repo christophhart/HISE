@@ -212,6 +212,8 @@ struct FunctionData
 
 	bool hasDefaultParameter(const Symbol& arg) const;
 
+	Result validateWithArgs(Types::ID r, const Array<Types::ID>& nativeArgList) const;
+
 	Inliner::Func getDefaultExpression(const Symbol& s) const;
 
 	bool matchesTemplateArguments(const TemplateParameter::List& l) const;

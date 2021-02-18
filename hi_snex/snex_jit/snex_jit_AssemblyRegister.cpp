@@ -190,7 +190,7 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 
 		auto sToUse = scope->getScopeForSymbol(id.id);
 
-		jassert(sToUse != nullptr);
+		//jassert(sToUse != nullptr);
 
 		if (sToUse == nullptr)
 			sToUse = scope;

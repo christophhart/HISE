@@ -225,7 +225,7 @@ private:
 
 	static Operations::BinaryOp* getFirstOp(ExprPtr e);
 
-	SymbolWithScope currentlyAssignedId;
+	Symbol currentlyAssignedId;
 
 	static bool containsVariableReference(ExprPtr p, const Symbol& refToCheck);
 

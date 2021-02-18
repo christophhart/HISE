@@ -68,6 +68,9 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 
 	MathNodeLibrary mBuilder(c, numChannels);
 	mBuilder.registerTypes();
+
+	IndexLibrary iBuilder2(c, numChannels);
+	iBuilder2.registerTypes();
 }
 
 

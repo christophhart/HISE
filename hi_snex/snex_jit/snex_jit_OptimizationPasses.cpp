@@ -716,9 +716,10 @@ bool DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			if (a->getTargetType() != Operations::Assignment::TargetType::Variable)
 				return false;
 
-			
+			auto v = as<Operations::VariableReference>(a->getTargetVariable());
 
-			auto v = a->getTargetVariable();
+			if (v == nullptr)
+				return false;
 
 			if (v->isClassVariable(s))
 				return false;
@@ -833,8 +834,7 @@ bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 
 			if (a->getTargetType() == Operations::Assignment::TargetType::Variable)
 			{
-				currentlyAssignedId.s = a->getTargetVariable()->id;
-				currentlyAssignedId.scope = a->getTargetVariable()->variableScope;
+				currentlyAssignedId = a->getTargetSymbolStatement()->getSymbol();
 
 				a->getSubExpr(0)->process(compiler, s);
 
@@ -955,9 +955,9 @@ bool BinaryOpOptimizer::simplifyOp(ExprPtr l, ExprPtr r, const char* op, BaseCom
 
 bool BinaryOpOptimizer::isAssignedVariable(ExprPtr e) const
 {
-	if (auto v = dynamic_cast<Operations::VariableReference*>(e.get()))
+	if (auto v = Operations::as<Operations::SymbolStatement>(e))
 	{
-		return SymbolWithScope({ v->id, v->variableScope}) == currentlyAssignedId;
+		return v->getSymbol() == currentlyAssignedId;
 	}
 	else
 	{
@@ -1046,7 +1046,7 @@ void BinaryOpOptimizer::createSelfAssignmentFromBinaryOp(ExprPtr assignment)
 
 		if (auto v_l = dynamic_cast<Operations::VariableReference*>(bOp->getSubExpr(0).get()))
 		{
-			if (v_l->id == as->getTargetVariable()->id)
+			if (v_l->id == as->getTargetSymbolStatement()->getSymbol())
 			{
 				if (auto bOp_r = dynamic_cast<Operations::BinaryOp*>(bOp->getSubExpr(1).get()))
 				{
@@ -1067,7 +1067,7 @@ void BinaryOpOptimizer::createSelfAssignmentFromBinaryOp(ExprPtr assignment)
 
 		if (auto v_r = dynamic_cast<Operations::VariableReference*>(bOp->getSubExpr(1).get()))
 		{
-			if (v_r->id == as->getTargetVariable()->id)
+			if (v_r->id == as->getTargetSymbolStatement()->getSymbol())
 			{
 				as->logOptimisationMessage("Create self assign");
 				as->assignmentType = bOp->op;

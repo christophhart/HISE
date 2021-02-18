@@ -179,11 +179,13 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseVariableDefinition()
 
 	if (s.typeInfo.isDynamic())
 	{
-		expr->tryToResolveType(compiler);
-		bool isConst = s.isConst();
-		bool isRef = s.isReference();
+		if (expr->tryToResolveType(compiler))
+		{
+			bool isConst = s.isConst();
+			bool isRef = s.isReference();
 
-		s.typeInfo = expr->getTypeInfo().withModifiers(isConst, isRef);
+			s.typeInfo = expr->getTypeInfo().withModifiers(isConst, isRef);
+		}
 	}
 
 	
@@ -376,12 +378,9 @@ juce::Result SyntaxTreeInlineParser::flush()
 
 	auto f = new Function(location, { d->getFunctionId(), d->expression->getTypeInfo() });
 
-	DBG("Flushing " + d->getFunctionId().toString());
-
 	StatementPtr asF = f;
 
 	auto fc = dynamic_cast<FunctionCall*>(d->expression.get());
-	jassert(fc != nullptr);
 
 	int index = 0;
 
@@ -392,15 +391,30 @@ juce::Result SyntaxTreeInlineParser::flush()
 			auto ti = d->args[index]->getTypeInfo();
 
 			if (!ti.isDynamic())
-				a.typeInfo = ti;
+				a.typeInfo = ti.withModifiers(a.isConst(), a.isReference());
 		}
 
 		index++;
 	}
 
+	
+
 	f->data = d->originalFunction;
 
-	
+	if (f->data.returnType.isDynamic())
+	{
+		ReturnTypeInlineData rData(f->data);
+		rData.object = fc;
+		rData.object->currentCompiler = compiler;
+
+		auto r = f->data.inliner->process(&rData);
+
+		if (r.wasOk())
+			f->data.returnType = rData.f.returnType;
+
+		if (!r.wasOk())
+			location.throwError(r.getErrorMessage());
+	}
 
 	f->data.inliner = nullptr;
 	f->code = p;

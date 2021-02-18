@@ -2343,7 +2343,7 @@ snex::jit::Inliner::Func IndexBase::getAsmFunction(FunctionClass::SpecialSymbols
 			auto d = b->toAsmInlineData();
 			auto& cc = d->gen.cc;
 			auto thisObj = d->target;
-			auto value = d->args[1];
+			auto value = d->args[0];
 
 			jassert(thisObj->getTypeInfo().getTypedComplexType<IndexBase>() != nullptr);
 			jassert(value->getType() == Types::ID::Integer);

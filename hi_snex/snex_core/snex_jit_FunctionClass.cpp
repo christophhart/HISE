@@ -261,11 +261,15 @@ juce::Identifier FunctionClass::getSpecialSymbol(const NamespacedIdentifier& cla
 	{
 	case AssignOverload: return "operator=";
 	case NativeTypeCast: return "type_cast";
-	case IncOverload:    return "operator++";
+	case IncOverload:    return "++operator";
+	case DecOverload:    return "--operator";
+	case PostIncOverload: return "operator++";
+	case PostDecOverload: return "operator--";
 	case Subscript:		 return "operator[]";
 	case ToSimdOp:		 return "toSimd";
 	case BeginIterator:  return "begin";
 	case SizeFunction:	 return "size";
+	case GetFrom:		 return "getFrom";
 	case Destructor:     return Identifier("~" + classId.getIdentifier().toString());
 	case Constructor:    return classId.getIdentifier();
 	}
@@ -289,7 +293,7 @@ FunctionData FunctionClass::getConstructor(const Array<TypeInfo>& args)
 {
 	for (auto f : functions)
 	{
-		if (f->isConstructor() && f->matchesArgumentTypes(args))
+		if (f->isConstructor() && f->matchesArgumentTypesWithDefault(args))
 			return FunctionData(*f);
 	}
 

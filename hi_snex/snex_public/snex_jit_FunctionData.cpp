@@ -200,7 +200,7 @@ bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 
 bool FunctionData::matchesArgumentTypes(TypeInfo r, const Array<TypeInfo>& argsList) const
 {
-	if (r != returnType)
+	if (r != returnType && !returnType.isDynamic())
 		return false;
 
 	return matchesArgumentTypes(argsList);
@@ -274,6 +274,40 @@ bool FunctionData::hasDefaultParameter(const Symbol& arg) const
 	}
 
 	return false;
+}
+
+juce::Result FunctionData::validateWithArgs(Types::ID r, const Array<Types::ID>& nativeArgList) const
+{
+	String d = getSignature();
+
+	if (!isResolved())
+		return Result::fail(d + " not found");
+
+	if (args.size() != nativeArgList.size())
+	{
+		d << " - argument amount mismatch: expected " << String(nativeArgList.size());
+		return Result::fail(d);
+	}
+		
+	if (r != returnType.getType())
+	{
+		d << " - return type mismatch: expected " << Types::Helpers::getTypeName(r);
+		return Result::fail(d);
+	}
+
+	for (int i = 0; i < nativeArgList.size(); i++)
+	{
+		auto actualType = args[i].typeInfo.getType();
+
+		if (actualType != nativeArgList[i])
+		{
+			d << " - " << args[i].id.getIdentifier();
+			d << " - expected " << Types::Helpers::getTypeName(nativeArgList[i]) << " type";
+			return Result::fail(d);
+		}
+	}
+
+	return Result::ok();
 }
 
 snex::jit::Inliner::Func FunctionData::getDefaultExpression(const Symbol& s) const
