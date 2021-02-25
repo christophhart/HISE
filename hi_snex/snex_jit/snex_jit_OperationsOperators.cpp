@@ -156,6 +156,15 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 				location.throwError("Can't modify const object");
 		}
 
+		if (getTargetType() == TargetType::Reference && isFirstAssignment)
+		{
+			if(!canBeReferenced(getSubExpr(0)))
+			{
+				location.throwError("Can't assign non-reference");
+			}
+		}
+		
+
 		auto targetType = getSubExpr(1)->getTypeInfo();
 		auto assignedType = getSubExpr(0)->getTypeInfo();
 
@@ -1411,12 +1420,24 @@ void Operations::PointerAccess::process(BaseCompiler* compiler, BaseScope* s)
 
 		auto obj = getSubRegister(0);
 
-		auto mem = obj->getMemoryLocationForReference();
-
-		jassert(!mem.isNone());
-
 		auto ptrReg = acg.cc.newGpq();
-		acg.cc.mov(ptrReg, mem);
+
+		if (auto thisPtr = as<ThisPointer>(getSubExpr(0)))
+		{
+			if (obj->isMemoryLocation())
+				acg.cc.lea(ptrReg, obj->getAsMemoryLocation());
+			else
+				acg.cc.mov(ptrReg, PTR_REG_R(obj));
+				
+		}
+		else
+		{
+
+			auto mem = obj->getMemoryLocationForReference();
+
+			jassert(!mem.isNone());
+			acg.cc.mov(ptrReg, mem);
+		}
 
 		reg->setCustomMemoryLocation(x86::ptr(ptrReg), obj->isGlobalMemory());
 	}

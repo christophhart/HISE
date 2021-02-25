@@ -125,7 +125,15 @@ struct SyntaxTreeInlineData : public InlineData
 		{
 			auto thisSymbol = Symbol("this");
 			auto e = object->clone(location);
+
 			cs->addInlinedParameter(-1, thisSymbol, e);
+
+			if (auto b = as<StatementBlock>(e))
+			{
+				jassert(b->isInlinedFunction);
+
+				e = b->getThisExpression();
+			}
 
 			if (auto st = e->getTypeInfo().getTypedIfComplexType<StructType>())
 			{

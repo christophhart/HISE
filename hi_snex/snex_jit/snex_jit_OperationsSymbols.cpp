@@ -245,6 +245,32 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 				objectAdress = VariableStorage((int)subClassType->getMemberOffset(memberId));
 				objectPtr = subClassType;
+
+				bool hasAlreadyThisPointer = false;
+				bool isClassDefinition = dynamic_cast<ClassScope*>(scope) != nullptr;
+
+				if (auto pDot = as<DotOperator>(parent.get()))
+				{
+					hasAlreadyThisPointer = pDot->getDotChild().get() == this || 
+											as<ThisPointer>(pDot->getDotParent()) != nullptr;
+				}
+
+				if (!hasAlreadyThisPointer && !isClassDefinition)
+				{
+					DBG("ADD THIS POINTER");
+
+					auto tp = new ThisPointer(location, TypeInfo(subClassType, false, true));
+					auto dot = new DotOperator(location, tp, this->clone(location));
+					auto p = parent.get();
+
+					Ptr keepAlive(this);
+
+					replaceInParent(dot);
+
+					SyntaxTreeInlineData::processUpToCurrentPass(p, dot);
+
+					return;
+				}
 			}
 
 		}
@@ -304,33 +330,38 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				{
 					if (auto pf = dynamic_cast<Function*>(fs->parentFunction))
 					{
-						if (auto cs = dynamic_cast<ClassScope*>(variableScope.get()))
+						if (pf->objectPtr != nullptr)
 						{
-							if (cs->typePtr != nullptr && compiler->fitsIntoNativeRegister(cs->typePtr))
+							if (auto cs = dynamic_cast<ClassScope*>(variableScope.get()))
 							{
-								auto ot = pf->objectPtr->getType();
-								auto dt = compiler->getRegisterType(TypeInfo(cs->typePtr.get()));
-								jassert(ot == dt);
-								reg = pf->objectPtr;
-								return;
+								if (cs->typePtr != nullptr && compiler->fitsIntoNativeRegister(cs->typePtr))
+								{
+									auto ot = pf->objectPtr->getType();
+									auto dt = compiler->getRegisterType(TypeInfo(cs->typePtr.get()));
+									jassert(ot == dt);
+									reg = pf->objectPtr;
+									return;
+								}
 							}
+
+							auto regType = compiler->getRegisterType(getTypeInfo());
+							auto acg = CREATE_ASM_COMPILER(regType);
+
+							if (regType == Types::ID::Pointer)
+								reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
+							else
+								reg = compiler->registerPool.getNextFreeRegister(scope, TypeInfo(regType, true));
+
+
+							reg->setReference(scope, id);
+							
+							acg.emitThisMemberAccess(reg, pf->objectPtr, objectAdress);
+							return;
 						}
-
-						auto regType = compiler->getRegisterType(getTypeInfo());
-
-						if (regType == Types::ID::Pointer)
-							reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
 						else
-							reg = compiler->registerPool.getNextFreeRegister(scope, TypeInfo(regType, true));
-
-
-						reg->setReference(scope, id);
-						auto acg = CREATE_ASM_COMPILER(regType);
-
-
-
-						acg.emitThisMemberAccess(reg, pf->objectPtr, objectAdress);
-						return;
+						{
+							location.throwError("Can't find this pointer");
+						}
 					}
 				}
 			}

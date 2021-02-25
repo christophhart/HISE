@@ -91,8 +91,10 @@ snex::jit::Symbol SymbolParser::parseNewSymbol(NamespaceHandler::SymbolType t)
 	if (t != NamespaceHandler::Unknown)
 		handler.addSymbol(s.id, type, t, ca.getInfo());
 
+#if 0
 	if (s.typeInfo.isDynamic() && t != NamespaceHandler::UsingAlias)
 		location.throwError("Can't resolve symbol type");
+#endif
 
 	return s;
 }

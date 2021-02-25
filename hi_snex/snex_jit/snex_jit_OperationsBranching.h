@@ -92,6 +92,8 @@ struct Operations::StatementBlock : public Expression,
 		return true;
 	}
 
+	Ptr getThisExpression();
+
 	bool hasSideEffect() const override
 	{
 		return isInlinedFunction;

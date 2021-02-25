@@ -176,9 +176,40 @@ void Operations::StatementBlock::addInlinedReturnJump(X86Compiler& cc)
 	cc.jmp(endLabel);
 }
 
+Operations::Statement::Ptr Operations::StatementBlock::getThisExpression()
+{
+	Ptr expr;
+
+	forEachRecursive([&expr](Ptr p)
+	{
+		if (auto ia = as<InlinedArgument>(p))
+		{
+			if (ia->argIndex == -1)
+			{
+				expr = ia->getSubExpr(0);
+
+				if (auto sb = as<StatementBlock>(ia->getSubExpr(0)))
+					expr = sb->getThisExpression();
+				
+				return true;
+			}
+		}
+
+		return false;
+	});
+
+	if (expr == nullptr)
+		location.throwError("Can't find this pointer");
+
+	return expr;
+}
+
 void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* scope)
 {
-	processBaseWithChildren(compiler, scope);
+	if (compiler->getCurrentPass() != BaseCompiler::CodeGeneration)
+		processBaseWithChildren(compiler, scope);
+	else
+		processBaseWithoutChildren(compiler, scope);
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{

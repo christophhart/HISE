@@ -126,16 +126,20 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			compiler->executePass(BaseCompiler::DataAllocation, functionScope, sTree);
 			compiler->executePass(BaseCompiler::DataInitialisation, functionScope, sTree);
 
+			
+
 			if (classData->isConst())
 			{
 				sTree->forEachRecursive([](Ptr p)
 				{
 					if (auto a = as<Assignment>(p))
 					{
-						if (auto ss = as<VariableReference>(a->getSubExpr(1)))
+						if (auto dp = as<DotOperator>(a->getSubExpr(1)))
 						{
-							if (ss->variableScope->getScopeType() <= BaseScope::ScopeType::Class)
-								ss->location.throwError("Can't modify const object variables");
+							if (as<ThisPointer>(dp->getDotParent()) != nullptr)
+							{
+								dp->location.throwError("Can't modify const object variables");
+							}
 						}
 					}
 
@@ -840,10 +844,23 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 					}
 				}
 
-				auto pType = function.args[i].isReference() ? TypeInfo(Types::ID::Pointer, true) : getArgument(i)->getTypeInfo();
+				tryToResolveType(compiler);
+
+
+				auto pType = function.args[i].typeInfo;
+				
+				if (pType.isDynamic())
+					pType = getArgument(i)->getTypeInfo().withModifiers(pType.isConst(), pType.isRef());
+				
+				jassert(pType.isValid());
+
+				pType = pType.toPointerIfNativeRef();
+
+				
+				
 				auto asg = CREATE_ASM_COMPILER(getType());
 
-				if (pType.isComplexType())
+				if (pType.isComplexType() && !pType.isRef())
 				{
 					auto alignment = pType.getRequiredAlignment();
 					auto size = pType.getRequiredByteSize();
@@ -1307,7 +1324,7 @@ void Operations::FunctionCall::adjustBaseClassPointer(BaseCompiler* compiler, Ba
 		{
 			auto bindex = st->getBaseClassIndexForMethod(function);
 
-			if (bindex != -1)
+			if (bindex != -1 && st->hasMember(bindex))
 			{
 				if (auto byteOffset = st->getMemberOffset(bindex))
 				{
