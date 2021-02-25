@@ -1650,6 +1650,8 @@ namespace AsmSubPasses
 
 struct Helpers
 {
+	constexpr static uint32 NoReg = 125500012;
+
 	static bool isInstruction(BaseNode* node, Array<uint32_t> ids)
 	{
 		if (node == nullptr)
@@ -1838,6 +1840,38 @@ struct Helpers
 			return n->opType(1);
 		else
 			return n->opType(0);
+	}
+
+	static uint32 getBaseRegIndex(Operand op)
+	{
+		return (op.isMem() && op.as<BaseMem>().hasBaseReg()) ? op.as<BaseMem>().baseId() : NoReg;
+	}
+
+	static uint32 getIndexRegIndex(Operand op)
+	{
+		return (op.isMem() && op.as<BaseMem>().hasIndexReg()) ? op.as<BaseMem>().indexId() : NoReg;
+	}
+
+	static bool isInstructionWithIndexAsTarget(BaseNode* n, uint32 base, uint32 index)
+	{
+		if (base == NoReg && index == NoReg)
+			return false;
+
+		if (n->isInst())
+		{
+			auto target = getTargetOp(n->as<InstNode>());
+
+			if (target.isPhysReg())
+			{
+				auto id = target.id();
+
+				return id == base || id == index;
+			}
+
+			return false;
+		}
+
+		return false;
 	}
 };
 
@@ -2320,12 +2354,20 @@ struct RemoveSubsequentMovCalls : public AsmCleanupPass::SubPass<Mov>
 	{
 		AsmCleanupPass::Iterator<> it(parent, current->next());
 
+		auto currentSourceOp = Helpers::getSourceOp(current->as<InstNode>());
+
+		auto currentBase = Helpers::getBaseRegIndex(currentSourceOp);
+		auto currentIndex = Helpers::getIndexRegIndex(currentSourceOp);
+
 		while (auto sn = it.next())
 		{
 			if (Helpers::isInstructWithSourceAsTarget(current, sn))
 				return nullptr;
 
 			if (ControlFlowBreakers::matches(sn))
+				return nullptr;
+
+			if (Helpers::isInstructionWithIndexAsTarget(sn, currentBase, currentIndex))
 				return nullptr;
 
 			if (Helpers::isInstructWithSameTarget(current, sn))
@@ -2383,6 +2425,7 @@ struct RemoveSubsequentMovCalls : public AsmCleanupPass::SubPass<Mov>
 
 				if (instMatch)
 				{
+					
 					it.removeNode(sn);
 					return true;
 				}
@@ -2403,6 +2446,11 @@ struct RemoveUndirtyMovCallsFromSameSource : public AsmCleanupPass::SubPass<Mov>
 	{
 		AsmCleanupPass::Iterator<AsmCleanupPass::Base> all(parent, current);
 
+		auto currentSourceOp = Helpers::getSourceOp(current->as<InstNode>());
+
+		auto currentBase = Helpers::getBaseRegIndex(currentSourceOp);
+		auto currentIndex = Helpers::getIndexRegIndex(currentSourceOp);
+
 		while (auto n = all.next())
 		{
 			if (current == n)
@@ -2414,6 +2462,9 @@ struct RemoveUndirtyMovCallsFromSameSource : public AsmCleanupPass::SubPass<Mov>
 			if (Helpers::isInstructWithSourceAsTarget(current, n))
 				return nullptr;
 			
+			if (Helpers::isInstructionWithIndexAsTarget(n, currentBase, currentIndex))
+				return nullptr;
+
 			if (Helpers::isInstructWithSameTarget(current, n))
 			{
 				// If the target is a pointer with a base register
