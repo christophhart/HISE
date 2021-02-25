@@ -46,29 +46,36 @@ namespace IndexIds
 	DECLARE_ID(normalised);
 	DECLARE_ID(unscaled);
 	DECLARE_ID(unsafe);
+	DECLARE_ID(previous);
+	DECLARE_ID(lerp);
+	DECLARE_ID(hermite);
 #undef DECLARE_ID;
 }
 
 struct IndexBuilder : public TemplateClassBuilder
 {
+	enum class Type
+	{
+		Integer,
+		Float,
+		Interpolated,
+		numIndexTypes
+	};
+
 	struct MetaDataExtractor
 	{
+		
+
 		enum class WrapLogicType
 		{
 			Unsafe,
 			Clamped,
 			Wrapped,
+			Previous,
 			numWrapLogicTypes
 		};
 
-		MetaDataExtractor(StructType* st):
-			mainStruct(st)
-		{
-			if (getMainParameter(0).constantDefined)
-				indexStruct = mainStruct;
-			else
-				indexStruct = getMainParameter(1).type.getTypedComplexType<StructType>();
-		}
+		MetaDataExtractor(StructType* st);
 
 		/** Returns true if the index has an integer type or false if it's a float index. */
 		bool isIntegerType() const
@@ -76,21 +83,35 @@ struct IndexBuilder : public TemplateClassBuilder
 			return mainStruct == indexStruct;
 		}
 
+		bool isInterpolationType() const
+		{
+			auto id = mainStruct->id.getIdentifier();
+			
+			if (id == IndexIds::lerp || id == IndexIds::hermite)
+			{
+				jassert(floatIndexStruct != nullptr);
+				return true;
+			}
+			
+			return false;
+		}
+
 		bool hasBoundCheck() const
 		{
 			return indexStruct->id.getIdentifier() != IndexIds::unsafe;
 		}
 
-		bool isNormalisedFloat() const
-		{
-			return !isIntegerType() && mainStruct->id.getIdentifier() == IndexIds::normalised;
-		}
+		bool isNormalisedFloat() const;
+
+		bool shouldRedirect(InlineData* b) const;
 
 		/** Returns the Type ID used for the index (either int or a float type). */
 		Types::ID getIndexType() const
 		{
 			if (isIntegerType())
 				return Types::ID::Integer;
+			else if (isInterpolationType())
+				return getFloatTypeParameter(0).type.getType();
 			else
 				return getMainParameter(0).type.getType();
 		}
@@ -100,151 +121,34 @@ struct IndexBuilder : public TemplateClassBuilder
 			return getIndexTypeParameter(0).constant;
 		}
 
+		TypeInfo getInterpolatedIndexAsType() const;
+
 		bool hasDynamicBounds() const
 		{
 			return getStaticBounds() == 0 && getWrapType() != WrapLogicType::Unsafe;
 		}
 
-		bool checkBoundsOnAssign() const
-		{
-			if (hasDynamicBounds())
-				return false;
+		bool checkBoundsOnAssign() const;
 
-			return getIndexTypeParameter(1).constant > 0;
-		}
-
-		String getWithCast(const String& v, Types::ID t = Types::ID::Void) const
-		{
-			if (t == Types::ID::Dynamic)
-				return v;
-
-			String s;
-			s << "(" << Types::Helpers::getTypeName(t != Types::ID::Void ? t : getIndexType()) << ")" << v;
-			return s;
-		}
+		String getWithCast(const String& v, Types::ID t = Types::ID::Void) const;
 
 		String getTypedLiteral(int v, Types::ID t = Types::ID::Void) const
 		{
 			return getWithCast(String(v), t);
 		}
 
-		String getScaledExpression(const String& v, bool from0To1, Types::ID t=Types::ID::Void) const
-		{
-			if (!isNormalisedFloat())
-				return v;
-
-			String s;
-
-			s << v;
-			s << (from0To1 ? JitTokens::times : JitTokens::divide);
-			s << getLimitExpression({}, t);
-
-			return s;	
-		}
+		String getScaledExpression(const String& v, bool from0To1, Types::ID t=Types::ID::Void) const;
 
 		String getLimitExpression(const String& dynamicLimit, Types::ID t = Types::ID::Void) const
 		{
 			return  hasDynamicBounds() ? getWithCast(dynamicLimit, t) : String(getTypedLiteral(getStaticBounds(), t));
 		}
 
-		String getWithLimit(const String& v, const String& l, Types::ID dataType=Types::ID::Void) const
-		{
-			if (dataType == Types::ID::Void)
-				dataType = getIndexType();
+		String getWithLimit(const String& v, const String& l, Types::ID dataType=Types::ID::Void) const;
 
-			String expression;
+		WrapLogicType getWrapType() const;
 
-			switch (getWrapType())
-			{
-			case WrapLogicType::Unsafe:
-				expression << v;
-				break;
-			case WrapLogicType::Clamped:
-			{
-				expression << "Math.range(";
-				expression << v << ", " << getTypedLiteral(0, dataType);
-				expression << ", " << l << " - " << getTypedLiteral(1) << ")";
-			}
-			break;
-			case WrapLogicType::Wrapped:
-			{
-				if (dataType == Types::ID::Integer)
-				{
-					String formula = "(!v >= 0) ? !v % !limit : (!limit - Math.abs(!v) % !limit) % !limit";
-					expression << formula.replace("!v", v).replace("!limit", l);
-				}
-				else
-					expression << "Math.fmod(" << v << ", " << l << ")";
-
-				break;
-			}
-			}
-
-			return expression;
-		}
-
-#if 0
-		String getBoundsExpression(const String& v, const String& dynamicLimit) const
-		{
-			String expression;
-			String limitExpression = getLimitExpression(dynamicLimit);
-
-			if (isNormalisedFloat())
-				limitExpression = getTypedLiteral(1);
-
-			switch (getWrapType())
-			{
-			case WrapLogicType::Unsafe: 
-				expression << v; 
-				break;
-			case WrapLogicType::Clamped: 
-			{
-				expression << "Math.range(";
-				expression << v;
-				expression << ", " << getTypedLiteral(0) << ", ";
-
-				// subtract 1 for integers
-				if (isIntegerType())
-					expression << limitExpression << " - " << getTypedLiteral(1) << ")";
-				else
-					expression << limitExpression << ")";
-			}
-
-				
-				break;
-			case WrapLogicType::Wrapped:
-			{
-				if (isIntegerType())
-				{
-					String formula = "(!v >= 0) ? !v % !limit : (!limit - Math.abs(!v) % !limit) % !limit";
-
-					expression << formula.replace("!v", v).replace("!limit", limitExpression);
-				}
-					
-				else
-					expression << "Math.fmod(v, " << limitExpression << ")";
-
-				break;
-			}
-			}
-
-			return expression;
-		}
-#endif
-
-		WrapLogicType getWrapType() const
-		{
-			auto i = indexStruct->id.getIdentifier();
-
-			if (i == IndexIds::unsafe)
-				return WrapLogicType::Unsafe;
-
-			if (i == IndexIds::wrapped)
-				return WrapLogicType::Wrapped;
-
-			if (i == IndexIds::clamped)
-				return WrapLogicType::Clamped;
-		}
+		TypeInfo getContainerElementType(InlineData* b) const;
 
 	private:
 
@@ -253,50 +157,23 @@ struct IndexBuilder : public TemplateClassBuilder
 			return mainStruct->getTemplateInstanceParameters()[index];
 		}
 
+		TemplateParameter getFloatTypeParameter(int index) const
+		{
+			jassert(isInterpolationType() && floatIndexStruct != nullptr);
+			return floatIndexStruct->getTemplateInstanceParameters()[index];
+		}
+
 		TemplateParameter getIndexTypeParameter(int index) const
 		{
 			return indexStruct->getTemplateInstanceParameters()[index];
 		}
 
-		StructType* mainStruct;
+		StructType* mainStruct;			
 		StructType* indexStruct;
+		StructType* floatIndexStruct = nullptr; // Only non-null when interpolating
 	};
 
-	IndexBuilder(Compiler& c, const Identifier& indexId, bool isIntegerIndex) :
-		TemplateClassBuilder(c, NamespacedIdentifier("index").getChildId(indexId))
-	{
-		if (isIntegerIndex)
-		{
-			addIntTemplateParameter("UpperLimit");
-			addIntTemplateParameterWithDefault("CheckOnAssign", 0);
-		}
-		else
-		{
-			addTypeTemplateParameter("FloatType");
-			addTypeTemplateParameter("IndexType");
-		}
-
-		setInitialiseStructFunction(IndexBuilder::initialise);
-
-		addFunction(IndexBuilder::assignFunction);
-		addFunction(IndexBuilder::constructorFunction);
-		addFunction(IndexBuilder::nativeTypeCast);
-		addFunction(IndexBuilder::assignOp);
-		addFunction(IndexBuilder::getFrom);
-
-		if (isIntegerIndex)
-		{
-			addFunction(incOp<FunctionClass::SpecialSymbols::IncOverload>);
-			addFunction(incOp<FunctionClass::SpecialSymbols::DecOverload>);
-			addFunction(incOp<FunctionClass::SpecialSymbols::PostIncOverload>);
-			addFunction(incOp<FunctionClass::SpecialSymbols::PostDecOverload>);
-		}
-		else
-		{
-			addFunction(IndexBuilder::getIndexFunction);
-			addFunction(IndexBuilder::getAlphaFunction);
-		}
-	}
+	IndexBuilder(Compiler& c, const Identifier& indexId, Type indexType);
 
 	static FunctionData assignFunction(StructType* st)
 	{
@@ -304,50 +181,67 @@ struct IndexBuilder : public TemplateClassBuilder
 
 		FunctionData af;
 		af.id = st->id.getChildId("assignInternal");
-		af.returnType = TypeInfo(Types::ID::Void);
+		af.returnType = Types::ID::Void;
 		af.addArgs("v", mt.getIndexType());
 
-		af.inliner = Inliner::createHighLevelInliner({}, [mt](InlineData* b)
+		if (mt.isInterpolationType())
 		{
-			cppgen::Base cb(cppgen::Base::OutputType::NoProcessing);
-			String e;
-			
-			if (mt.checkBoundsOnAssign())
+			af.inliner = Inliner::createHighLevelInliner({}, [mt](InlineData* b)
 			{
-				auto l = mt.getLimitExpression({});
+				cppgen::Base cb(cppgen::Base::OutputType::NoProcessing);
 
-				if (mt.isNormalisedFloat())
+				cb << "this->idx = v;";
+
+				return SyntaxTreeInlineParser(b, { "v" }, cb).flush();
+			});
+		}
+		else
+		{
+			af.inliner = Inliner::createHighLevelInliner({}, [mt](InlineData* b)
+			{
+				cppgen::Base cb(cppgen::Base::OutputType::NoProcessing);
+				String e;
+
+				if (mt.checkBoundsOnAssign())
 				{
-					String l1, l2, l3;
-					auto v = 
+					auto l = mt.getLimitExpression({});
 
-					l1 << "auto scaled = " << mt.getScaledExpression("v", true) << ";";
-					l2 << "auto wrapped = " << mt.getWithLimit("scaled", l) << ";";
-					l3 << "this->value = " << mt.getScaledExpression("wrapped", false) << ";";
+					if (mt.isNormalisedFloat())
+					{
+						String l1, l2, l3;
 
-					cb << l1;
-					cb << l2;
-					cb << l3;
+						l1 << "auto scaled = " << mt.getScaledExpression("v", true) << ";";
+						l2 << "auto wrapped = " << mt.getWithLimit("scaled", l) << ";";
+						l3 << "this->value = " << mt.getScaledExpression("wrapped", false) << ";";
+
+						cb << l1;
+						cb << l2;
+						cb << l3;
+					}
+					else
+					{
+						e << "this->value = " << mt.getWithLimit("v", l) << ";";
+						cb << e;
+					}
 				}
 				else
 				{
-					e << "this->value = " << mt.getWithLimit("v", l) << ";";
+					e << "this->value = v;";
 					cb << e;
 				}
-			}
-			else
-			{
-				e << "this->value = v;";
-				cb << e;
-			}
 
-			return SyntaxTreeInlineParser(b, {"v"}, cb).flush();
-		});
+				return SyntaxTreeInlineParser(b, { "v" }, cb).flush();
+			});
+		}
+
+
 
 		return af;
 	}
 
 	static FunctionData getFrom(StructType* st);
+
+	static Result getElementType(InlineData* b);
 
 	template <FunctionClass::SpecialSymbols IncType> static FunctionData incOp(StructType* st)
 	{
@@ -360,121 +254,113 @@ struct IndexBuilder : public TemplateClassBuilder
 		f.id = st->id.getChildId(FunctionClass::getSpecialSymbol({}, IncType));
 		//f.returnType = { Types::ID::Integer };
 
-		f.returnType = { Types::ID::Dynamic };
+		bool isInc = IncType == FunctionClass::SpecialSymbols::PostIncOverload ||
+			IncType == FunctionClass::SpecialSymbols::IncOverload;
 
-		f.inliner = Inliner::createHighLevelInliner({}, [mt](InlineData* b)
+		bool isPre = IncType == FunctionClass::SpecialSymbols::IncOverload ||
+			IncType == FunctionClass::SpecialSymbols::DecOverload;
+
+		String expr = isInc ? "this->value + 1" : "this->value - 1";
+
+		if (isPre)
 		{
-			if (mt.hasDynamicBounds())
-				return Result::fail("can't increment index with dynamic bounds");
+			// PreInc will return itself as object after incrementing.
+			// We can't define it directly because of cyclic references...
+			f.returnType = TypeInfo::makeNonRefCountedReferenceType(st);
 
-			cppgen::Base cb(cppgen::Base::OutputType::NoProcessing);
+			/* Original Function:
 
-			bool isInc = IncType == FunctionClass::SpecialSymbols::PostIncOverload ||
-					     IncType == FunctionClass::SpecialSymbols::IncOverload;
+				if constexpr (checkBoundsOnAssign())
+					value = LogicType::getWithDynamicLimit(++value, LogicType::getUpperLimit());
+				else
+					++value;
 
-			bool isPre = IncType == FunctionClass::SpecialSymbols::IncOverload ||
-						 IncType == FunctionClass::SpecialSymbols::DecOverload;
-
-			auto expr = isInc ? JitTokens::plusplus : JitTokens::minusminus;
-
-			if (!isPre)
-				cb << "auto retValue = this->value;";
-
-			cb << "auto& v = this->value;";
-			cb << expr << "v;";
-
-			auto limit = mt.getLimitExpression({});
-
-			if (mt.checkBoundsOnAssign())
+				return *this;
+				*/
+			f.inliner = Inliner::createHighLevelInliner({}, [mt, expr](InlineData* b)
 			{
-				String s;
-				s << "v = " << mt.getWithLimit("v", limit) << ";";
-				cb << s;
+				cppgen::Base cb(cppgen::Base::OutputType::StatementListWithoutSemicolon);
 
-				if (isPre) // already bound checked...
-					cb << "return v;";
+				String l1, l2;
+
+				l1 << "auto newValue = " << expr;
+
+				if (mt.checkBoundsOnAssign())
+					l2 << "this->value = " << mt.getWithLimit("newValue", mt.getLimitExpression({}));
+				else
+					l2 << "this->value = newValue";
+
+				cb << l1 << l2;
+
+				cb << "return *this";
+
+				return SyntaxTreeInlineParser(b, {}, cb).flush();
+			});
+		}
+		else
+		{
+			// Postinc will always return a (checked) integer
+			f.returnType = { Types::ID::Integer };
+
+			/** Original function: 
+			
+			int operator++(int)
+			{
+				if constexpr (checkBoundsOnAssign())
+				{
+					auto v = value;
+					value = LogicType::getWithDynamicLimit(++value, LogicType::getUpperLimit());
+					return v;
+				}
 				else
 				{
-					// we need to bound check the return type again
-					String r;
-					r << "return " << mt.getWithLimit("retValue", limit) << ";";
-					cb << r;
+					auto v = LogicType::getWithDynamicLimit(value, LogicType::getUpperLimit());
+					++value;
+					return v;
 				}
-			}
-			else
+			}/
+			*/
+
+			f.inliner = Inliner::createHighLevelInliner({}, [mt, expr](InlineData* b)
 			{
-				// We don't check the bounds on assignment (so just return the value)
-				String e;
-				e << "return " << (isPre ? "v" : "retValue") << ";";
-				cb << e;
-			}
+				// We need to check the bounds here in every case
+				if (mt.hasDynamicBounds())
+					return Result::fail("can't post increment index with dynamic bounds");
 
-			DBG(cb.toString());
+				cppgen::Base cb(cppgen::Base::OutputType::StatementListWithoutSemicolon);
 
-			return SyntaxTreeInlineParser(b, {}, cb).flush();
-		});
+				auto limit = mt.getLimitExpression({});
 
-		f.inliner->returnTypeFunction = [st](InlineData* b)
-		{
-			auto rt = dynamic_cast<ReturnTypeInlineData*>(b);
+				String l1, l2, l3;
 
-			if (IncType == FunctionClass::IncOverload ||
-				IncType == FunctionClass::DecOverload)
-			{
-				rt->f.returnType = TypeInfo(st, false, true);
-			}
-			else
-			{
-				rt->f.returnType = { Types::ID::Integer };
-			}
+				if (mt.checkBoundsOnAssign())
+				{
+					l1 << "auto v = this->value";
+					l2 << "this->value = " << mt.getWithLimit(expr, limit);
+				}
+				else
+				{
+					l1 << "auto v = " << mt.getWithLimit("this->value", limit);
+					l2 << "this->value = " << expr;
+				}
 
-			return Result::ok();
-		};
+				l3 << "return v";
+
+				cb << l1 << l2 << l3;
+
+
+				return SyntaxTreeInlineParser(b, {}, cb).flush();
+			});
+
+		}
+
+		
 
 		return f;
 	}
 
 
-	static FunctionData nativeTypeCast(StructType* st)
-	{
-		MetaDataExtractor mt(st);
-
-		FunctionData d;
-		d.id = st->id.getChildId(FunctionClass::getSpecialSymbol({}, FunctionClass::NativeTypeCast));
-		d.returnType = TypeInfo(mt.getIndexType());
-
-		d.inliner = Inliner::createHighLevelInliner({}, [mt](InlineData* b)
-		{
-			cppgen::Base cb(cppgen::Base::OutputType::StatementListWithoutSemicolon);
-
-			if (mt.checkBoundsOnAssign())
-				cb << "return this->value";
-			else
-			{
-				if (mt.hasDynamicBounds())
-					return Result::fail("Can't cast an index with dynamic bounds");
-
-				if (mt.isNormalisedFloat())
-				{
-					String l1, l2, l3;
-
-					cb << "auto scaled = " + mt.getScaledExpression("this->value", true);
-					cb << "auto limit = " + mt.getLimitExpression({});
-					cb << "return " + mt.getWithLimit("scaled", "limit");
-				}
-				else
-				{
-					String e;
-					cb << "auto limit = " + mt.getLimitExpression({});
-					cb << "return " + mt.getWithLimit("this->value", "limit");
-				}
-			}
-
-			return SyntaxTreeInlineParser(b, {}, cb).flush();
-		});
-
-		return d;
-	}
+	static FunctionData nativeTypeCast(StructType* st);
 
 	static FunctionData getIndexFunction(StructType* st)
 	{
@@ -487,32 +373,34 @@ struct IndexBuilder : public TemplateClassBuilder
 		gi.addArgs("delta", Types::ID::Integer);
 
 		gi.inliner = Inliner::createHighLevelInliner({}, [mt](InlineData* b)
-		{
-			cppgen::Base cb(cppgen::Base::OutputType::AddTabs);
+			{
+				cppgen::Base cb(cppgen::Base::OutputType::AddTabs);
 
-			//auto scaled = (int)from0To1(v, limit) + delta;
-			//return LogicType::getWithDynamicLimit(scaled, limit);
+				//auto scaled = (int)from0To1(v, limit) + delta;
+				//return LogicType::getWithDynamicLimit(scaled, limit);
 
-			String l1, l2;
+				String l1, l2;
 
-			auto limit = mt.getLimitExpression("limit", Types::ID::Integer);
+				auto limit = mt.getLimitExpression("limit", Types::ID::Integer);
 
-			if (mt.isNormalisedFloat())
-				l1 << "auto scaled = (int)(this->value * " << mt.getWithCast(limit) << ") + delta;";
-			else
-				l1 << "auto scaled = (int)this->value + delta;";
+				if (mt.isNormalisedFloat())
+					l1 << "auto scaled = (int)(this->value * " << mt.getWithCast(limit) << ") + delta;";
+				else
+					l1 << "auto scaled = (int)this->value + delta;";
 
-			
-			l2 << "return " << mt.getWithLimit("scaled", limit, Types::ID::Integer) << ";";
 
-			cb << l1;
-			cb << l2;
+				l2 << "return " << mt.getWithLimit("scaled", limit, Types::ID::Integer) << ";";
 
-			return SyntaxTreeInlineParser(b, {"limit", "delta"}, cb).flush();
-		});
+				cb << l1;
+				cb << l2;
+
+				return SyntaxTreeInlineParser(b, { "limit", "delta" }, cb).flush();
+			});
 
 		return gi;
 	}
+
+	static FunctionData getInterpolated(StructType* st);
 
 	static FunctionData getAlphaFunction(StructType* st)
 	{
@@ -529,15 +417,15 @@ struct IndexBuilder : public TemplateClassBuilder
 
 			//auto f = from0To1(v, limit);
 			//return f - (FloatType)((int)f);
-			
+
 			String l1, l2;
 
 			if (mt.isNormalisedFloat())
-				l1 << "auto f = this->value * " << mt.getLimitExpression("limit") << ";";
+				l1 << "auto f = this->value * (" << mt.getLimitExpression("limit") << ");";
 			else
 				l1 << "auto f = this->value;";
 
-			
+
 			l2 << "return f - " << mt.getWithCast(mt.getWithCast("f", Types::ID::Integer)) << ";";
 
 			cb << l1;
@@ -549,57 +437,11 @@ struct IndexBuilder : public TemplateClassBuilder
 		return gi;
 	}
 
-	static FunctionData constructorFunction(StructType* st)
-	{
-		MetaDataExtractor mt(st);
+	static FunctionData constructorFunction(StructType* st);
 
-		FunctionData c;
-		c.id = st->id.getChildId(st->id.getIdentifier());
-		c.returnType = Types::ID::Void;
-		c.addArgs("initValue", TypeInfo(mt.getIndexType()));
-		c.setDefaultParameter("initValue", VariableStorage(mt.getIndexType(), var(0)));
+	static FunctionData assignOp(StructType* st);
 
-		c.inliner = Inliner::createHighLevelInliner({}, [](InlineData* b)
-		{
-			cppgen::Base cb(cppgen::Base::OutputType::AddTabs);
-
-			cb << "this->assignInternal(initValue);";
-
-			return SyntaxTreeInlineParser(b, { "initValue" }, cb).flush();
-		});
-
-		return c;
-	}
-
-	static FunctionData assignOp(StructType* st)
-	{
-		MetaDataExtractor mt(st);
-
-		FunctionData af;
-		af.id = st->id.getChildId(FunctionClass::getSpecialSymbol({}, FunctionClass::AssignOverload));
-		af.returnType = TypeInfo(Types::ID::Void);
-		af.addArgs("v", mt.getIndexType());
-
-		af.inliner = Inliner::createHighLevelInliner({}, [mt](InlineData* b)
-		{
-			cppgen::Base cb(cppgen::Base::OutputType::AddTabs);
-			cb << "this->assignInternal(v); ";
-			return SyntaxTreeInlineParser(b, { "v" }, cb).flush();
-		});
-
-		return af;
-	}
-
-	
-
-	static void initialise(const TemplateObject::ConstructData&, StructType* st)
-	{
-		MetaDataExtractor metadata(st);
-
-		st->addMember("value", TypeInfo(metadata.getIndexType()));
-		st->setDefaultValue("value", InitialiserList::makeSingleList(VariableStorage(metadata.getIndexType(), var(0))));
-		st->setVisibility("value", NamespaceHandler::Visibility::Private);
-	}
+	static void initialise(const TemplateObject::ConstructData&, StructType* st);
 };
 
 struct IndexLibrary : public LibraryBuilderBase
@@ -612,20 +454,14 @@ struct IndexLibrary : public LibraryBuilderBase
 
 	Result registerTypes() override
 	{
-		IndexBuilder wb(c, "wrapped", true);
-		wb.flush();
+		IndexBuilder wb(c, "wrapped", IndexBuilder::Type::Integer);			wb.flush();
+		IndexBuilder cb(c, "clamped", IndexBuilder::Type::Integer);			cb.flush();
+		IndexBuilder ub(c, "unsafe", IndexBuilder::Type::Integer);			ub.flush();
+		IndexBuilder fnb(c, "normalised", IndexBuilder::Type::Float);		fnb.flush();
+		IndexBuilder fub(c, "unscaled", IndexBuilder::Type::Float);			fub.flush();
 
-		IndexBuilder cb(c, "clamped", true);
-		cb.flush();
-
-		IndexBuilder ub(c, "unsafe", true);
-		ub.flush();
-
-		IndexBuilder fnb(c, "normalised", false);
-		fnb.flush();
-
-		IndexBuilder fub(c, "unscaled", false);
-		fub.flush();
+		IndexBuilder lub(c, "lerp", IndexBuilder::Type::Interpolated);		lub.flush();
+		IndexBuilder hub(c, "hermite", IndexBuilder::Type::Interpolated);	hub.flush();
 
 		return Result::ok();
 	}
