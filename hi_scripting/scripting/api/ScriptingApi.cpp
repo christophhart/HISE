@@ -894,6 +894,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 };
 
+#if HISE_INCLUDE_SNEX
 struct ScriptingApi::Engine::Snex: public ApiClass::SnexWrapper
 {
 	Snex(ApiClass* obj, void* e):
@@ -918,6 +919,7 @@ struct ScriptingApi::Engine::Snex: public ApiClass::SnexWrapper
 
 #undef AS_ENGINE
 };
+#endif
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
@@ -1990,10 +1992,12 @@ void ScriptingApi::Engine::redo()
 	MessageManager::callAsync(f);
 }
 
+#if HISE_INCLUDE_SNEX
 ApiClass::SnexWrapper* ScriptingApi::Engine::createSnexWrapper()
 {
 	return SnexWrapper::create<Snex>(this);
 }
+#endif
 
 // ====================================================================================================== Sampler functions
 
@@ -2903,7 +2907,7 @@ bool ScriptingApi::Sampler::clearSampleMap()
 
 // ====================================================================================================== Synth functions
 
-
+#if HISE_INCLUDE_SNEX
 struct ScriptingApi::Synth::Snex : public ApiClass::SnexWrapper
 {
 	Snex(ApiClass* c, void* obj) :
@@ -2931,6 +2935,7 @@ struct ScriptingApi::Synth::Snex : public ApiClass::SnexWrapper
 		static_cast<Synth*>(s)->noteOffDelayedByEventId(eventId, timestamp);
 	}
 };
+#endif
 
 struct ScriptingApi::Synth::Wrapper
 {
@@ -4133,10 +4138,12 @@ int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
 	RETURN_IF_NO_THROW(-1)
 }
 
+#if HISE_INCLUDE_SNEX
 ApiClass::SnexWrapper* ScriptingApi::Synth::createSnexWrapper()
 {
 	return SnexWrapper::create<Snex>(this);
 }
+#endif
 
 // ====================================================================================================== Console functions
 

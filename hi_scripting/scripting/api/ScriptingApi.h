@@ -479,11 +479,12 @@ public:
 
 		// ============================================================================================================
 
+#if HISE_INCLUDE_SNEX
 		SnexWrapper* createSnexWrapper() override;
+		struct Snex;
+#endif
 
 		struct Wrapper;
-
-		struct Snex;
 
 		double unused = 0.0;
 
@@ -848,9 +849,11 @@ public:
 
 		struct Wrapper;
 
+#if HISE_INCLUDE_SNEX
 		struct Snex;
 
 		SnexWrapper* createSnexWrapper() override;
+#endif
 
 	private:
 

@@ -845,6 +845,7 @@ scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnect
 		}
 		else if (auto param = tn->getParameter(pId))
 		{
+#if HISE_INCLUDE_SNEX
 			if (auto sn = dynamic_cast<SnexSource::SnexParameter*>(param))
 			{
 				ScopedPointer<parameter::dynamic_base> b;
@@ -889,6 +890,7 @@ scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnect
 					}
 				}
 			}
+#endif
 		}
 	}
 

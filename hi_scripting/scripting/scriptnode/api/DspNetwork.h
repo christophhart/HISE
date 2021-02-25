@@ -243,6 +243,7 @@ public:
 	DspNetwork(ProcessorWithScriptingContent* p, ValueTree data, bool isPolyphonic);
 	~DspNetwork();
 
+#if HISE_INCLUDE_SNEX
 	struct CodeManager
 	{
 		CodeManager(DspNetwork& p):
@@ -411,6 +412,7 @@ public:
 
 		DspNetwork& parent;
 	} codeManager;
+#endif
 
 	void setNumChannels(int newNumChannels);
 

@@ -512,6 +512,8 @@ void snex_timer::editor::timerCallback()
 
 #endif
 
+#if HISE_INCLUDE_SNEX
+
 namespace core
 {
 juce::Path SnexMenuBar::Factory::createPath(const String& url) const
@@ -806,6 +808,8 @@ SnexMenuBar::ComplexDataPopupButton::ComplexDataPopupButton(SnexSource* s) :
 }
 
 }
+
+#endif
 
 VuMeterWithModValue::VuMeterWithModValue(PooledUIUpdater* updater) :
 	SimpleTimer(updater)

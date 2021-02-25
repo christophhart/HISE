@@ -554,7 +554,9 @@ private:
 		if (matchIf(TokenTypes::break_))           return new BreakStatement(location);
 		if (matchIf(TokenTypes::continue_))        return new ContinueStatement(location);
 		if (matchIf(TokenTypes::function))         return parseFunction();
+#if HISE_INCLUDE_SNEX
 		if (matchIf(TokenTypes::snex_))			   return parseSnexStatement();
+#endif
 		if (matchIf(TokenTypes::semicolon))        return new Statement(location);
 		if (matchIf(TokenTypes::plusplus))         return parsePreIncDec<AdditionOp>();
 		if (matchIf(TokenTypes::minusminus))       return parsePreIncDec<SubtractionOp>();
@@ -1299,6 +1301,7 @@ private:
 		}
 	}
 
+#if HISE_INCLUDE_SNEX
 	Expression* parseSnexExpression()
 	{
 		match(TokenTypes::dot);
@@ -1352,8 +1355,6 @@ private:
 
 		location.throwError("Unknown SNEX expression: " + commandId);
 	}
-
-	/** ========== SNEX!! */
 
 	Statement* parseSnexStatement()
 	{
@@ -1479,6 +1480,7 @@ private:
 		
 		location.throwError("Unknown SNEX statement: " + commandId);
 	}
+#endif
 
 	Statement* parseJITModule()
 	{
@@ -2085,7 +2087,9 @@ private:
 
 	Expression* parseUnary()
 	{
+#if HISE_INCLUDE_SNEX
 		if (matchIf(TokenTypes::snex_))		  return parseSnexExpression();
+#endif
 		if (matchIf(TokenTypes::minus))       { ExpPtr a(new LiteralValue(location, (int)0)), b(parseUnary()); return new SubtractionOp(location, a, b); }
 		if (matchIf(TokenTypes::logicalNot))  { ExpPtr a(new LiteralValue(location, (int)0)), b(parseUnary()); return new EqualsOp(location, a, b); }
 		if (matchIf(TokenTypes::plusplus))    return parsePreIncDec<AdditionOp>();

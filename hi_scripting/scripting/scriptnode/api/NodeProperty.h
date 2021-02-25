@@ -387,6 +387,7 @@ template <class... Properties> struct list: advanced_tuple<Properties...>
 
 
 
+#if HISE_INCLUDE_SNEX
 using namespace snex::ui;
 
 struct SnexSource: public WorkbenchData::Listener
@@ -508,6 +509,7 @@ struct SnexSource: public WorkbenchData::Listener
 
 		SimpleReadWriteLock lock;
 	};
+
 
 	struct ParameterHandlerLight : public HandlerBase
 	{
@@ -985,5 +987,6 @@ private:
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexSource);
 };
+#endif
 
 }

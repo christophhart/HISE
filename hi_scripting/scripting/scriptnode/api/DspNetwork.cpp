@@ -52,8 +52,10 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	data(data_),
 	isPoly(poly),
 	voiceIndex(poly),
-	parentHolder(dynamic_cast<Holder*>(p)),
-	codeManager(*this)
+#if HISE_INCLUDE_SNEX
+	codeManager(*this),
+#endif
+	parentHolder(dynamic_cast<Holder*>(p))
 {
 	setExternalDataHolder(dynamic_cast<ExternalDataHolder*>(p));
 
@@ -70,6 +72,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 	ownedFactories.add(new filters::Factory(this));
 
+
+#if HISE_INCLUDE_SNEX
 	if (auto ah = dynamic_cast<Holder*>(p))
 	{
 		if (ah->projectDll != nullptr)
@@ -77,6 +81,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 			ownedFactories.add(new dll::FunkyHostFactory(this, ah->projectDll));
 		}
 	}
+#endif
 
 #if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 	
@@ -819,7 +824,7 @@ void DspNetwork::SelectionUpdater::changeListenerCallback(ChangeBroadcaster*)
 }
 
 
-
+#if HISE_INCLUDE_SNEX
 juce::File DspNetwork::CodeManager::getCodeFolder() const
 {
 	File f = parent.getScriptProcessor()->getMainController_()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::DspNetworks).getChildFile("CodeLibrary");
@@ -859,6 +864,7 @@ bool DspNetwork::CodeManager::SnexSourceCompileHandler::triggerCompilation()
 	startThread();
 	return false;
 }
+#endif
 
 }
 

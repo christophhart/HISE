@@ -154,7 +154,13 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<gain, gain_poly>();
 
 	registerModNode<tempo_sync, TempoDisplay>();
+
+#if HISE_INCLUDE_SNEX
 	registerPolyNode<snex_osc<SnexOscillator>, snex_osc_poly<SnexOscillator>, NewSnexOscillatorDisplay>();
+#endif
+
+
+
 	registerModNode<hise_mod>();
 	
 	registerModNode<peak>();

@@ -118,6 +118,7 @@ void ScriptFunctionManager::postInit(NodeBase* n)
 		BIND_MEMBER_FUNCTION_2(ScriptFunctionManager::updateFunction));
 }
 
+#if HISE_INCLUDE_SNEX
 void SnexSource::recompiled(WorkbenchData::Ptr wb)
 {
 	getParameterHandler().reset();
@@ -511,5 +512,6 @@ juce::Result SnexSource::ParameterHandlerLight::recompiledOk(snex::jit::ComplexT
 
 	return Result::ok();
 }
+#endif
 
 }

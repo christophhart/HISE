@@ -308,6 +308,7 @@ struct dynamic : public SnexSource
 namespace core
 {
 
+#if HISE_INCLUDE_SNEX
 struct SnexOscillator : public SnexSource
 {
 	struct OscillatorCallbacks: public SnexSource::CallbackHandlerBase
@@ -929,7 +930,7 @@ struct NewSnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator
 	String errorMessage;
 	Rectangle<float> pathBounds;
 };
-
+#endif
 
 #if REWRITE_SNEX_SOURCE_STUFF
 struct SnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator>

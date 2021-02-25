@@ -400,6 +400,7 @@ void ApiClass::getAllConstants(Array<Identifier> &ids) const
 	}
 }
 
+#if HISE_INCLUDE_SNEX
 struct ApiClass::SnexWrapper: public snex::jit::FunctionClass
 {
 	/** Use this function to create a sub type.. */
@@ -454,6 +455,7 @@ protected:
 
 	void* obj;
 };
+#endif
 
 ApiClass::Constant::Constant(const Identifier &id_, var value_) :
 id(id_),

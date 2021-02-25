@@ -36,8 +36,6 @@ namespace scriptnode
 {
 using namespace juce;
 using namespace hise;
-using namespace snex;
-using namespace jit;
 
 #if 0
 struct CompiledNodeBase: public ReferenceCountedObject

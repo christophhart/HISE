@@ -196,6 +196,7 @@ parameter::data ModulationSourceNode::getParameterData(const ValueTree& m) const
 {
 	if (auto targetNode = getTargetNode(m))
 	{
+#if HISE_INCLUDE_SNEX
 		if (auto sn = dynamic_cast<SnexSource::SnexParameter*>(targetNode->getParameter(m[PropertyIds::ParameterId].toString())))
 		{
 			parameter::data obj;
@@ -203,6 +204,7 @@ parameter::data ModulationSourceNode::getParameterData(const ValueTree& m) const
 			obj.callback.referTo(sn->p.getObjectPtr(), sn->p.getFunction());
 			return obj;
 		}
+#endif
 
 		auto pList = targetNode->createInternalParameterList();
 
@@ -232,7 +234,14 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 		ScopedPointer<parameter::dynamic_base> np;
 
 		if (expression.isNotEmpty())
+		{
+#if HISE_INCLUDE_SNEX
 			np = new parameter::dynamic_expression(p.callback, new JitExpression(expression, this));
+#else
+			// Set the default...
+			np = new parameter::dynamic_base(p.callback);
+#endif
+		}
 		else if (allowRangeConversion & !RangeHelpers::isIdentity(range))
 			np = new parameter::dynamic_from0to1(p.callback, range);
 		else
