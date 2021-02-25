@@ -262,6 +262,7 @@ public:
 	ExprPtr parseTerm();
 	ExprPtr parseCast(Types::ID type);
 	virtual ExprPtr parseUnary();
+	ExprPtr parseThis();
 	ExprPtr parseFactor();
 	ExprPtr parseDotOperator(ExprPtr p);
 	ExprPtr parseSubscript(ExprPtr p);
