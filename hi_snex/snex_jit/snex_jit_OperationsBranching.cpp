@@ -325,6 +325,8 @@ void Operations::TernaryOp::process(BaseCompiler* compiler, BaseScope* scope)
 
 void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 {
+	scope = getScopeToUse(scope);
+
 	if (compiler->getCurrentPass() == BaseCompiler::CodeGeneration)
 		Statement::processBaseWithoutChildren(compiler, scope);
 	else
@@ -332,19 +334,22 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
-		if (getSubExpr(0)->isConstExpr())
+		auto cond = getLoopChildStatement(ChildStatementType::Condition);
+
+		if (cond->isConstExpr())
 		{
-			auto v = getSubExpr(0)->getConstExprValue();
+			auto v = cond->getConstExprValue();
 
 			if (v.toInt() != 0)
-			{
 				throwError("Endless loop detected");
-			}
 		}
 	}
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
+		if (auto li = getLoopChildStatement(ChildStatementType::Initialiser))
+			li->process(compiler, scope);
+
 		auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
 		auto safeCheck = scope->getGlobalScope()->isRuntimeErrorCheckEnabled();
 		auto cond = acg.cc.newLabel();
@@ -362,7 +367,7 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 		if (cp != nullptr)
 			cp->useAsmFlag = true;
 
-		getSubExpr(0)->process(compiler, scope);
+		getLoopChildStatement(ChildStatementType::Condition)->process(compiler, scope);
 		auto cReg = getSubRegister(0);
 
 		if (cp != nullptr)
@@ -385,7 +390,9 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 				auto okBranch = acg.cc.newLabel();
 				acg.cc.jb(okBranch);
 
-				auto errorFlag = x86::ptr(scope->getGlobalScope()->getRuntimeErrorFlag()).cloneResized(4);
+				auto errorMemReg = acg.cc.newGpq();
+				acg.cc.mov(errorMemReg, scope->getGlobalScope()->getRuntimeErrorFlag());
+				auto errorFlag = x86::ptr(errorMemReg).cloneResized(4);
 				acg.cc.mov(why, (int)RuntimeError::ErrorType::WhileLoop);
 				acg.cc.mov(errorFlag, why);
 				acg.cc.mov(why, (int)location.getLine());
@@ -421,8 +428,11 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 		}
 
-		getSubExpr(1)->process(compiler, scope);
+		getLoopChildStatement(ChildStatementType::Body)->process(compiler, scope);
 
+		if (auto pb = getLoopChildStatement(ChildStatementType::PostBodyOp))
+			pb->process(compiler, scope);
+		
 		acg.cc.jmp(cond);
 		acg.cc.bind(exit);
 	}
@@ -430,10 +440,10 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 
 snex::jit::Operations::Compare* Operations::WhileLoop::getCompareCondition()
 {
-	if (auto cp = as<Compare>(getSubExpr(0)))
+	if (auto cp = as<Compare>(getLoopChildStatement(ChildStatementType::Condition)))
 		return cp;
 
-	if (auto sb = as<StatementBlock>(getSubExpr(0)))
+	if (auto sb = as<StatementBlock>(getLoopChildStatement(ChildStatementType::Condition)))
 	{
 		for (auto s : *sb)
 		{
@@ -450,6 +460,49 @@ snex::jit::Operations::Compare* Operations::WhileLoop::getCompareCondition()
 	return nullptr;
 }
 
+snex::jit::BaseScope* Operations::WhileLoop::getScopeToUse(BaseScope* outerScope)
+{
+	if (loopType == LoopType::For)
+	{
+		if (forScope == nullptr)
+		{
+			forScope = new RegisterScope(outerScope, outerScope->getScopeSymbol().getChildId("for_loop"));
+			
+		}
+
+		return forScope;
+	}
+
+	return outerScope;
+}
+
+Operations::Statement::Ptr Operations::WhileLoop::getLoopChildStatement(ChildStatementType t)
+{
+	if (loopType == LoopType::While)
+	{
+		switch (t)
+		{
+		case ChildStatementType::Initialiser:
+		case ChildStatementType::PostBodyOp: return nullptr;
+
+		case ChildStatementType::Condition: return getSubExpr(0);
+		case ChildStatementType::Body:		return getSubExpr(1);
+		default: jassertfalse; return nullptr;
+		}
+	}
+	else
+	{
+		switch (t)
+		{
+		case ChildStatementType::Initialiser: return getSubExpr(0);
+		case ChildStatementType::Condition: return getSubExpr(1);
+		case ChildStatementType::Body:		return getSubExpr(2);
+		case ChildStatementType::PostBodyOp: return getSubExpr(3);
+		default: jassertfalse; return nullptr;
+		}
+	}
+}
+
 void Operations::Loop::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	processBaseWithoutChildren(compiler, scope);
@@ -457,7 +510,6 @@ void Operations::Loop::process(BaseCompiler* compiler, BaseScope* scope)
 	if (compiler->getCurrentPass() != BaseCompiler::DataAllocation &&
 		compiler->getCurrentPass() != BaseCompiler::CodeGeneration)
 	{
-
 		getTarget()->process(compiler, scope);
 		getLoopBlock()->process(compiler, scope);
 	}

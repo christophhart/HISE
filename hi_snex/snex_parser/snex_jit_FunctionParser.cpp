@@ -215,25 +215,47 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseLoopStatement()
 	// has to be done manually because the normal symbol parser consumes the ':' token...
 	auto iteratorId = parseIdentifier();
 
-	match(JitTokens::colon);
-	
-	ExprPtr loopBlock = parseExpression();
+	if(matchIf(JitTokens::colon))
+	{
+		ExprPtr loopBlock = parseExpression();
 
-	match(JitTokens::closeParen);
-	
+		match(JitTokens::closeParen);
+
+		auto id = compiler->namespaceHandler.createNonExistentIdForLocation({}, location.getLine());
+
+		Symbol iteratorSymbol(id.getChildId(iteratorId), iteratorType);
+
+		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, id);
+
+		lastComment = {};
+		CommentAttacher ca(*this);
+
+		compiler->namespaceHandler.addSymbol(id.getChildId(iteratorId), iteratorSymbol.typeInfo, NamespaceHandler::Variable, ca.getInfo());
+		StatementPtr body = parseStatementToBlock();
+
+		return new Operations::Loop(location, iteratorSymbol, loopBlock.get(), body);
+	}
+
+	match(JitTokens::assign_);
+	auto initValue = parseExpression();
+	match(JitTokens::semicolon);
+
 	auto id = compiler->namespaceHandler.createNonExistentIdForLocation({}, location.getLine());
-
 	Symbol iteratorSymbol(id.getChildId(iteratorId), iteratorType);
-
 	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, id);
-
 	lastComment = {};
 	CommentAttacher ca(*this);
+	compiler->namespaceHandler.addSymbol(id.getChildId(iteratorId), iteratorSymbol.typeInfo, NamespaceHandler::Variable, ca.getInfo());
 
-	compiler->namespaceHandler.addSymbol(id.getChildId(iteratorId), {}, NamespaceHandler::Variable, ca.getInfo());
-	StatementPtr body = parseStatementToBlock();
-	
-	return new Operations::Loop(location, iteratorSymbol, loopBlock.get(), body);
+	auto iv = new Operations::VariableReference(location, iteratorSymbol);
+	StatementPtr initAssignment = new Operations::Assignment(location, iv, JitTokens::assign_, initValue, true);
+	auto condition = parseExpression();
+	match(JitTokens::semicolon);
+	auto postOp = parseStatement(false);
+	match(JitTokens::closeParen);
+	auto body = parseStatementToBlock();
+
+	return new Operations::WhileLoop(location, initAssignment, condition, body, postOp);
 }
 
 snex::jit::BlockParser::StatementPtr CodeParser::parseWhileLoop()
