@@ -36,64 +36,6 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
-struct IndexBase : public ComplexType
-{
-	IndexBase(const TypeInfo& parentType);
-
-	virtual ~IndexBase();
-
-	virtual Identifier getIndexName() const = 0;
-
-	virtual Inliner::Func getAsmFunction(FunctionClass::SpecialSymbols s);
-
-	Inliner::Func getAsmFunctionWithFixedSize(FunctionClass::SpecialSymbols s, int size);
-
-	virtual int getInitValue(int input) const { return input; }
-
-	FunctionData* createOperator(FunctionClass* f, FunctionClass::SpecialSymbols s)
-	{
-		if (auto asmFunc = getAsmFunction(s))
-		{
-			auto op = new FunctionData();
-			op->returnType = TypeInfo(this);
-			op->id = f->getClassName().getChildId(f->getSpecialSymbol(f->getClassName(), s));
-			op->inliner = new Inliner(op->id, asmFunc, {});
-			f->addFunction(op);
-
-			return op;
-		}
-
-		return nullptr;
-	}
-
-	size_t getRequiredByteSize() const override { return 4; }
-	size_t getRequiredAlignment() const override { return 0; };
-
-	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override;
-
-	bool isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const override;
-	bool isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr complexTargetType) const override;
-
-	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const override 
-	{ 
-		ignoreUnused(allowSmallObjectOptimisation);
-		return Types::ID::Integer; 
-	}
-
-	InitialiserList::Ptr makeDefaultInitialiserList() const override;
-
-	FunctionClass* getFunctionClass() override;
-
-	Result initialise(InitData data) override;
-
-	void dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const override;
-
-	juce::String toStringInternal() const override;
-
-	ComplexType::WeakPtr parentType;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(IndexBase);
-};
 
 struct ArrayTypeBase : public ComplexType,
 					   public ComplexTypeWithTemplateParameters
@@ -107,28 +49,6 @@ struct ArrayTypeBase : public ComplexType,
 
 struct SpanType : public ArrayTypeBase
 {
-	struct Wrapped : public IndexBase
-	{
-		Wrapped(TypeInfo p) :
-			IndexBase(p)
-		{};
-
-		Identifier getIndexName() const override { RETURN_STATIC_IDENTIFIER("wrapped"); }
-		Inliner::Func getAsmFunction(FunctionClass::SpecialSymbols s) override;
-		
-		int getInitValue(int input) const { return input % getSpanSize(); }
-		int getSpanSize() const { return dynamic_cast<SpanType*>(parentType.get())->getNumElements(); }
-	};
-
-	struct Unsafe : public IndexBase
-	{
-		Unsafe(TypeInfo p):
-			IndexBase(p)
-		{}
-
-		Identifier getIndexName() const override { RETURN_STATIC_IDENTIFIER("unsafe"); };
-	};
-
 	/** Creates a simple one-dimensional span. */
 	SpanType(const TypeInfo& dataType, int size_);
 	~SpanType();
@@ -219,8 +139,6 @@ struct SpanType : public ArrayTypeBase
 
 	size_t getElementSize() const;
 
-	ComplexType::Ptr createSubType(SubTypeConstructData* sd) override;
-
 private:
 
 	TypeInfo elementType;
@@ -232,33 +150,6 @@ private:
 
 struct DynType : public ArrayTypeBase
 {
-	enum class IndexType
-	{
-		W,
-		C,
-		Z,
-		U,
-		numIndexTypes
-	};
-
-	struct Wrapped : public IndexBase
-	{
-		Wrapped(TypeInfo p) :
-			IndexBase(p)
-		{};
-
-		Identifier getIndexName() const override { RETURN_STATIC_IDENTIFIER("wrapped"); }
-	};
-
-	struct Unsafe : public IndexBase
-	{
-		Unsafe(TypeInfo p) :
-			IndexBase(p)
-		{}
-
-		Identifier getIndexName() const override { RETURN_STATIC_IDENTIFIER("unsafe"); };
-	};
-
 	DynType(const TypeInfo& elementType_);
 
 	bool hasDefaultConstructor() override
@@ -302,8 +193,6 @@ struct DynType : public ArrayTypeBase
 		l.add(TemplateParameter(elementType).withId(dId.getChildId("DataType")));
 		return l;
 	}
-
-	ComplexType::Ptr createSubType(SubTypeConstructData* sd) override;
 
 	TypeInfo elementType;
 
@@ -570,13 +459,9 @@ struct StructType : public ComplexType,
 private:
 
 	NamedValueSet internalProperties;
-
 	std::function<String(void*)> customDumpFunction;
-
 	size_t externalyDefinedSize = 0;
-
 	TemplateParameter::List templateParameters;
-	
 	Array<FunctionData> memberFunctions;
 
 	struct Member
@@ -633,30 +518,6 @@ private:
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(StructType);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StructType);
-};
-
-
-struct StructSubscriptIndexType : public IndexBase
-{
-	StructSubscriptIndexType(StructType* parent, const Identifier& id):
-		IndexBase(TypeInfo(parent))
-	{
-		auto tp = parent->getTemplateInstanceParameters();
-		maxSize = tp[0].constant;
-	}
-
-	Identifier getIndexName() const override { return indexId; }
-	Inliner::Func getAsmFunction(FunctionClass::SpecialSymbols s) override
-	{
-		return getAsmFunctionWithFixedSize(s, maxSize);
-	}
-
-	int getInitValue(int input) const { return input % maxSize; }
-
-	Identifier indexId;
-	int maxSize = 0;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StructSubscriptIndexType);
 };
 
 #define CREATE_SNEX_STRUCT(x) new StructType(NamespacedIdentifier(#x));
