@@ -249,12 +249,12 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 
 		Base c(Base::OutputType::AddTabs);
 
-		StatementBlock b1(c);
+		cppgen::StatementBlock b1(c);
 		c << "if (stepsToDo <= 0)";
 		c << "	  return value;";
 		c << "else";
 		{
-			StatementBlock b(c);
+			cppgen::StatementBlock b(c);
 			c << "auto v = value;";
 			c << "value += delta;";
 			c << "stepsToDo--;";

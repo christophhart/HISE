@@ -193,6 +193,16 @@ juce::Result ComplexType::callDestructor(InitData& d)
 
 }
 
+snex::jit::FunctionData ComplexType::getDestructor()
+{
+	if (FunctionClass::Ptr fc = getFunctionClass())
+	{
+		return fc->getSpecialFunction(FunctionClass::Destructor);
+	}
+
+	return {};
+}
+
 bool ComplexType::hasDestructor()
 {
 	if (FunctionClass::Ptr fc = getFunctionClass())

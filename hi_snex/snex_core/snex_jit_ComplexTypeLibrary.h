@@ -257,10 +257,13 @@ struct StructType : public ComplexType,
 
 	bool setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList);
 
+	bool setTypeForDynamicReturnFunction(FunctionData& functionDataWithReturnType);
+
 	bool hasMemberAtOffset(int offset, const TypeInfo& type) const;
 
 	ComplexType::Ptr createSubType(SubTypeConstructData* sd) override;
 
+	bool hasMember(int index) const;
 	bool hasMember(const Identifier& id) const;
 	TypeInfo getMemberTypeInfo(const Identifier& id) const;
 	Types::ID getMemberDataType(const Identifier& id) const;
@@ -312,7 +315,7 @@ struct StructType : public ComplexType,
 		nm->id = id;
 		nm->typeInfo = TypeInfo(p);
 		nm->offset = reinterpret_cast<uint64>(&defaultValue) - reinterpret_cast<uint64>(&obj);
-		nm->defaultList = p->makeDefaultInitialiserList();
+ 		nm->defaultList = p->makeDefaultInitialiserList();
 
 		memberData.add(nm);
 		isExternalDefinition = true;
@@ -401,6 +404,9 @@ struct StructType : public ComplexType,
 
 	// Returns the member index of the base class if the function matches a base class method.
 	int getBaseClassIndexForMethod(const FunctionData& f) const;
+
+	/** Returns a list of special functions for all base classes. */
+	Array<FunctionData> getBaseSpecialFunctions(FunctionClass::SpecialSymbols s, TypeInfo returnType = {}, const Array<TypeInfo>& args = {});
 
 	NamespacedIdentifier id;
 

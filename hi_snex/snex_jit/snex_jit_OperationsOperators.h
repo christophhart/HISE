@@ -185,6 +185,7 @@ struct Operations::Increment : public UnaryOp
 		return TypeInfo(Types::ID::Integer);
 	}
 
+	FunctionClass::SpecialSymbols getOperatorId() const;
 	ValueTree toValueTree() const override
 	{
 		auto t = Expression::toValueTree();

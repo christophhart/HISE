@@ -1415,6 +1415,25 @@ bool StructType::setDefaultValue(const Identifier& id, InitialiserList::Ptr defa
 	return false;
 }
 
+bool StructType::setTypeForDynamicReturnFunction(FunctionData& functionDataWithReturnType)
+{
+	for (auto& m : memberFunctions)
+	{
+		if (!m.returnType.isDynamic())
+			continue;
+
+		if(m.id == functionDataWithReturnType.id &&
+		   m.matchesTemplateArguments(functionDataWithReturnType.templateParameters) &&
+		   m.matchesArgumentTypes(functionDataWithReturnType, false))
+		{
+			m = functionDataWithReturnType;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool validMemberType(const TypeInfo& member, const TypeInfo& t)
 {
 	if (member == t)
@@ -1494,6 +1513,11 @@ bool StructType::hasMember(const Identifier& id) const
 			return true;
 
 	return false;
+}
+
+bool StructType::hasMember(int index) const
+{
+	return isPositiveAndBelow(index, memberData.size());
 }
 
 snex::jit::TypeInfo StructType::getMemberTypeInfo(const Identifier& id) const
@@ -2100,6 +2124,20 @@ int StructType::getBaseClassIndexForMethod(const FunctionData& f) const
 	}
 
 	return -1;
+}
+
+juce::Array<snex::jit::FunctionData> StructType::getBaseSpecialFunctions(FunctionClass::SpecialSymbols s, TypeInfo returnType, const Array<TypeInfo>& args)
+{
+	Array<FunctionData> matches;
+
+	for (auto b : baseClasses)
+	{
+		FunctionClass::Ptr fc = b->baseClass->getFunctionClass();
+
+		matches.add(fc->getSpecialFunction(s, returnType, args));
+	}
+
+	return matches;
 }
 
 Result StructType::redirectAllOverloadedMembers(const Identifier& id, TypeInfo::List mainArgs)

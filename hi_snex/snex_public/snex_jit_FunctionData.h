@@ -221,6 +221,8 @@ struct FunctionData
 	/** Checks if the id matches the constructor syntax (parent name == function name). */
 	bool isConstructor() const { return id.getIdentifier() == id.getParent().getIdentifier(); }
 
+	int getSpecialFunctionType() const;
+
 	void setDescription(const juce::String& d, const StringArray& parameterNames = StringArray())
 	{
 		description = d;

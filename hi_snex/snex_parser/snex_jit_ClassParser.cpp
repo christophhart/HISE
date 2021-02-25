@@ -84,7 +84,7 @@ snex::jit::BlockParser::StatementPtr ClassParser::addConstructorToComplexTypeDef
 	return def;
 }
 
-BlockParser::StatementPtr ClassParser::parseStatement()
+BlockParser::StatementPtr ClassParser::parseStatement(bool mustHaveSemicolon)
 {
 	if (auto noop = parseVisibilityStatement())
 		return noop;
@@ -115,7 +115,7 @@ BlockParser::StatementPtr ClassParser::parseStatement()
 
 			match(JitTokens::closeParen);
 
-			return matchSemicolonAndReturn(new Operations::InternalProperty(location, id, v));
+			return matchSemicolonAndReturn(new Operations::InternalProperty(location, id, v), true);
 		}
 	}
 
@@ -139,7 +139,7 @@ BlockParser::StatementPtr ClassParser::parseStatement()
 		while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
 		{
 			CommentAttacher ca(*this);
-			auto p = parseStatement();
+			auto p = parseStatement(true);
 			sb->addStatement(ca.withComment(p));
 		}
 
@@ -216,11 +216,11 @@ BlockParser::StatementPtr ClassParser::parseVariableDefinition()
 
 			if (v.getType() == Types::ID::Integer)
 			{
-				return matchSemicolonAndReturn(new Operations::InternalProperty(location, s.id.getIdentifier(), v.toInt()));
+				return matchSemicolonAndReturn(new Operations::InternalProperty(location, s.id.getIdentifier(), v.toInt()), true);
 			}
 			else
 			{
-				return matchSemicolonAndReturn(new Operations::Noop(location));
+				return matchSemicolonAndReturn(new Operations::Noop(location), true);
 			}
 		}
 
@@ -232,7 +232,7 @@ BlockParser::StatementPtr ClassParser::parseVariableDefinition()
 
 			expr = new Operations::Immediate(location, parseConstExpression(false));
 
-			return matchSemicolonAndReturn(new Operations::Assignment(location, target, JitTokens::assign_, expr, true));
+			return matchSemicolonAndReturn(new Operations::Assignment(location, target, JitTokens::assign_, expr, true), true);
 		}
 
 		if (!s.typeInfo.isTemplateType())
@@ -241,7 +241,7 @@ BlockParser::StatementPtr ClassParser::parseVariableDefinition()
 		}
 		else
 		{
-			return matchSemicolonAndReturn(new Operations::ComplexTypeDefinition(location, s.id, s.typeInfo));
+			return matchSemicolonAndReturn(new Operations::ComplexTypeDefinition(location, s.id, s.typeInfo), true);
 		}
 	}
 }
@@ -441,7 +441,7 @@ BlockParser::StatementPtr ClassParser::parseSubclass(NamespaceHandler::Visibilit
 
 		Operations::as<Operations::ClassStatement>(cs)->createMembersAndFinalise();
 
-		return matchSemicolonAndReturn(cs);
+		return matchSemicolonAndReturn(cs, true);
 	}
 	else
 	{

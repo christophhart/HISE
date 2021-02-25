@@ -105,7 +105,7 @@ struct ComplexType : public ReferenceCountedObject
 	
 
 	
-
+	FunctionData getDestructor();
 
 	virtual bool hasDestructor();
 

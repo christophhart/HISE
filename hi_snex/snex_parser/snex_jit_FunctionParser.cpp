@@ -88,7 +88,7 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 	return b.release();
 }
 
-BlockParser::StatementPtr CodeParser::parseStatement()
+BlockParser::StatementPtr CodeParser::parseStatement(bool mustHaveSemicolon)
 {
 	while (currentType == JitTokens::semicolon)
 		match(JitTokens::semicolon);
@@ -120,11 +120,11 @@ BlockParser::StatementPtr CodeParser::parseStatement()
 	else if (matchIf(JitTokens::openBrace))
 		return matchIfSemicolonAndReturn(parseStatementBlock());
 	else if (matchIf(JitTokens::return_))
-		return matchSemicolonAndReturn(parseReturnStatement());
+		return matchSemicolonAndReturn(parseReturnStatement(), mustHaveSemicolon);
 	else if (matchIf(JitTokens::break_))
-		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, true));
+		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, true), mustHaveSemicolon);
 	else if (matchIf(JitTokens::continue_))
-		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, false));
+		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, false), mustHaveSemicolon);
 	else if (matchIf(JitTokens::while_))
 		return parseWhileLoop();
 	else if (matchIf(JitTokens::for_))
@@ -135,10 +135,10 @@ BlockParser::StatementPtr CodeParser::parseStatement()
 		if (currentTypeInfo.isComplexType())
 			return parseComplexTypeDefinition();
 		else
-			return matchSemicolonAndReturn(parseVariableDefinition());
+			return matchSemicolonAndReturn(parseVariableDefinition(), mustHaveSemicolon);
 	}
 	else
-		return matchSemicolonAndReturn(parseAssignment());
+		return matchSemicolonAndReturn(parseAssignment(), mustHaveSemicolon);
 }
 
 BlockParser::StatementPtr CodeParser::parseReturnStatement()

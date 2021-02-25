@@ -1091,6 +1091,21 @@ void Operations::Increment::getOrSetIncProperties(Array<TemplateParameter>& tp, 
 	}
 }
 
+snex::jit::FunctionClass::SpecialSymbols Operations::Increment::getOperatorId() const
+{
+	if (isPreInc && isDecrement)
+		return FunctionClass::SpecialSymbols::DecOverload;
+	if (isPreInc && !isDecrement)
+		return FunctionClass::SpecialSymbols::IncOverload;
+	if (!isPreInc && isDecrement)
+		return FunctionClass::SpecialSymbols::PostDecOverload;
+	if (!isPreInc && !isDecrement)
+		return FunctionClass::SpecialSymbols::PostIncOverload;
+
+	jassertfalse;
+	return FunctionClass::numOperatorOverloads;
+}
+
 bool Operations::DotOperator::tryToResolveType(BaseCompiler* compiler)
 {
 	if (Statement::tryToResolveType(compiler))
@@ -1188,42 +1203,10 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 		
 		auto indexType = getSubExpr(1)->getTypeInfo();
 
-		if (indexType.getType() != Types::ID::Integer)
+		if (subscriptType != ArrayStatementBase::CustomObject && dynType == nullptr && !getSubExpr(1)->isConstExpr() && !compiler->allowUnsafeIndexes())
 		{
-			if (auto it = indexType.getTypedIfComplexType<IndexBase>())
-			{
-				if (subscriptType == CustomObject)
-				{
-					auto wId = NamespacedIdentifier("IndexType").getChildId("wrapped");
-
-					auto fData = compiler->getInbuiltFunctionClass()->getNonOverloadedFunctionRaw(wId);
-
-
-
-				}
-				else
-				{
-					auto parentType = getSubExpr(0)->getTypeInfo();
-
-					if (TypeInfo(it->parentType.get()) != parentType)
-					{
-						juce::String s;
-
-						s << "index type mismatch: ";
-						s << indexType.toString();
-						s << " for target ";
-						s << parentType.toString();
-
-						getSubExpr(1)->throwError(s);
-					}
-				}
-			}
-			else
-				getSubExpr(1)->throwError("illegal index type");
-		}
-		else if (dynType == nullptr && !getSubExpr(1)->isConstExpr() && !compiler->allowUnsafeIndexes())
-		{
-			getSubExpr(1)->throwError("Can't use non-constant or non-wrapped index");
+			auto idx = getSubExpr(1);
+			idx->logWarning("unsafe index access.");
 		}
 
 		if (spanType != nullptr)

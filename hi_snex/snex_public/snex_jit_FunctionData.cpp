@@ -335,6 +335,21 @@ bool FunctionData::matchesTemplateArguments(const TemplateParameter::List& l) co
 	return true;
 }
 
+int FunctionData::getSpecialFunctionType() const
+{
+	for (int i = 0; i < FunctionClass::SpecialSymbols::numOperatorOverloads; i++)
+	{
+		auto ss = FunctionClass::getSpecialSymbol(id.getParent(), (FunctionClass::SpecialSymbols)i);
+
+		if (ss == id.getIdentifier())
+			return i;
+	}
+
+	return FunctionClass::SpecialSymbols::numOperatorOverloads;
+}
+
+
+
 struct VariadicCallHelpers
 {
 #define variadic_call static forcedinline
