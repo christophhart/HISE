@@ -139,12 +139,16 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 						break;
 	case UseBackgroundThread:	
 	{
+		
 		useBackgroundThread = newValue > 0.5f;
 
-		SpinLock::ScopedLockType sl(swapLock);
+		{
+			SpinLock::ScopedLockType sl(swapLock);
 
-		convolverL->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
-		convolverR->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
+			convolverL->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
+			convolverR->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
+		}
+		
 		break;
 	}
 	case Predelay:		predelayMs = newValue;
@@ -159,8 +163,14 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 						break;
 	case FFTType:		
 	{
-		currentType = (audiofft::ImplementationType)(int)newValue;
-		setImpulse();
+		auto newType = (audiofft::ImplementationType)(int)newValue;
+
+		if (newType != audiofft::ImplementationType::numImplementationTypes)
+		{
+			currentType = newType;
+			setImpulse();
+		}
+		
 		break;
 	}
 	default:			jassertfalse; return;
@@ -297,6 +307,10 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 			SpinLock::ScopedLockType sl(swapLock);
 
+			wetBuffer.clear();
+			convolverL->cleanPipeline();
+			convolverR->cleanPipeline();
+
 			if (convolverL != nullptr)
 				convolverL->process(smoothed_input_l, convolutedL, numSamples);
 
@@ -325,6 +339,8 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 		if (rampFlag)
 		{
+			
+
 			const int rampingTime = (CONVOLUTION_RAMPING_TIME_MS * (int)getSampleRate()) / 1000;
 
 			for (int i = 0; i < availableSamples; i++)
@@ -333,7 +349,7 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
                 
                 //rampValue *= rampValue; // Cheap mans logarithm
                 
-                const float gainValue = wetGain * (float)(rampUp ? rampValue : (1.0f - rampValue));
+                const float gainValue = 0.5f * wetGain * (float)(rampUp ? rampValue : (1.0f - rampValue));
                 l[startSample + i] += gainValue * convolutedL[i];
                 r[startSample + i] += gainValue * convolutedR[i];
                 
@@ -344,10 +360,7 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 			{
 				if (!processFlag)
 				{
-					SpinLock::ScopedLockType sl(swapLock);
-
-					convolverL->cleanPipeline();
-					convolverR->cleanPipeline();
+					
 				}
 
 				rampFlag = false;
@@ -631,8 +644,8 @@ bool ConvolutionEffect::LoadingThread::reloadInternal()
 	s1 = new MultithreadedConvolver(parent.currentType);
 	s2 = new MultithreadedConvolver(parent.currentType);
 
-	s1->setUseBackgroundThread(parent.useBackgroundThread);
-	s2->setUseBackgroundThread(parent.useBackgroundThread);
+	s1->setUseBackgroundThread(parent.useBackgroundThread, true);
+	s2->setUseBackgroundThread(parent.useBackgroundThread, true);
 
 	s1->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(0), resampledLength);
 	s2->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(1), resampledLength);

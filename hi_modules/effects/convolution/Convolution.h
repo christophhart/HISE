@@ -189,9 +189,9 @@ public:
 
 	
 
-	void setUseBackgroundThread(bool shouldBeUsingBackgroundThread)
+	void setUseBackgroundThread(bool shouldBeUsingBackgroundThread, bool forceUpdate = false)
 	{
-		if (useBackgroundThread != shouldBeUsingBackgroundThread)
+		if (useBackgroundThread != shouldBeUsingBackgroundThread || forceUpdate)
 		{
 			useBackgroundThread = shouldBeUsingBackgroundThread;
 		
@@ -257,6 +257,12 @@ class ConvolutionEffect: public MasterEffectProcessor,
 
 		void reloadImpulse()
 		{
+			ScopedValueSetter<bool> svs(parent.isReloading, true);
+
+			reloadInternal();
+
+			return;
+
 			if (!isThreadRunning())
 			{
 				startThread(5);
