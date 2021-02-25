@@ -114,6 +114,10 @@ namespace snex
 			DECLARE_ID(AsmOptimisation)
 			DECLARE_ID(NoSafeChecks);
 
+			static StringArray getDefaultIds()
+			{
+				return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation };
+			}
 
 			static StringArray getAllIds()
 			{

@@ -154,7 +154,7 @@ template <typename T, int C> struct file_node: public file_base
 struct file_player : public data::base
 {
 	using IndexType = index::normalised<float, index::wrapped<0, true>>;
-	using InterpolatorType = interpolators::linear<IndexType>;
+	using InterpolatorType = index::lerp<IndexType>;
 
 	SET_HISE_NODE_ID("file_player");
 	SN_GET_SELF_AS_OBJECT(file_player);

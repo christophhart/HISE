@@ -163,6 +163,8 @@ template <int NumChannels> struct FrameProcessor
 
 	FrameType& toSpan() { return frameData; }
 
+	static constexpr bool hasCompileTimeSize() { return true; }
+
 private:
 
 	friend class SnexObjectDatabase;

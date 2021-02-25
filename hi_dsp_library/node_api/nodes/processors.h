@@ -415,7 +415,7 @@ public:
 	{
 		constexpr int C = ProcessDataType::getNumFixedChannels();
 
-		if constexpr (ProcessDataType::isFixedChannel)
+		if constexpr (ProcessDataType::hasCompileTimeSize())
 			FrameConverters::processFix<C>(&obj, data);
 		else
 			FrameConverters::forwardToFrame16(&obj, data);

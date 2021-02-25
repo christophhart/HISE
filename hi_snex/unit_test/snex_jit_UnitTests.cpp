@@ -49,7 +49,7 @@ using namespace asmjit;
 #pragma warning( disable : 4244)
 
 
-#define INCLUDE_SNEX_BIG_TESTSUITE 0
+#define INCLUDE_SNEX_BIG_TESTSUITE 1
 
 static int numTests = 0;
 
@@ -561,354 +561,49 @@ public:
 	}
 #endif
 	
-#define TEST_ALL_INDEXES 1
 
-	template <typename IndexType> struct IndexTester
+
+	template <typename IntegerIndexType> void testIntegerIndex(int dynamicSize=0)
 	{
-		using Type = typename IndexType::Type;
-		static constexpr int Limit = IndexType::LogicType::getUpperLimit();
-
-		IndexTester(HiseJITUnitTest& test_):
-			test(test_),
-			indexName(IndexType::toString())
-		{
-			test.beginTest("Testing " + indexName);
-			runTest();
-		}
-
-	private:
-
-		const String indexName;
-
-		void runTest()
-		{
-#if TEST_ALL_INDEXES
-			testIncrementors(FunctionClass::SpecialSymbols::IncOverload);
-			testIncrementors(FunctionClass::SpecialSymbols::DecOverload);
-			testIncrementors(FunctionClass::SpecialSymbols::PostIncOverload);
-			testIncrementors(FunctionClass::SpecialSymbols::PostDecOverload);
-			testAssignAndCast();
-			testFloatAlphaAndIndex();
-#endif
-			
-			testSpanAccess();
-		}
-
-		void testSpanAccess()
-		{
-			if constexpr (Limit != 0)
-			{
-				// Test Code ===================================================
-
-				cppgen::Base c(cppgen::Base::OutputType::AddTabs);
-
-				span<int, Limit> data;
-				String spanCode;
-
-				initialiseSpan(spanCode, data);
-
-				c << spanCode;
-				c << indexName + " i;";
-				c << "int test(T input)";
-
-				{
-					cppgen::StatementBlock sb(c);
-					c.addWithSemicolon("i = input;");
-					c.addWithSemicolon("return data[i];");
-				}
-
-				test.logMessage("Testing " + indexName + " span[]");
-
-				c.replaceWildcard("T", Types::Helpers::getTypeNameFromTypeId<Type>());
-				auto obj = compile(c.toString());
-
-				// Test Routine ==============================================
-
-				auto testWithValue = [&](Type testValue)
-				{
-					numTests++;
-
-					IndexType i;
-					i = testValue;
-
-					auto expectedValue = data[i];
-					auto actualValue = obj["test"].call<int>(testValue);
-					
-					String m = indexName;
-					m << "::operator[]";
-					m << " with value " << String(testValue);
-
-					test.expectEquals(actualValue, expectedValue, m);
-				};
-
-				// Test List =======================================================
-
-				if (std::is_floating_point<Type>())
-				{
-					testWithValue(0.5);
-					testWithValue(Limit + 0.5);
-					testWithValue(Limit / 3.f);
-					testWithValue(-12.215 * Limit);
-
-				}
-				else
-				{
-					testWithValue(80);
-					testWithValue(Limit);
-					testWithValue(Limit - 1);
-					testWithValue(-1);
-					testWithValue(0);
-					testWithValue(1);
-					testWithValue(Limit + 1);
-					testWithValue(-Limit - 1);
-				}
-			}
-		}
-
-		void initialiseSpan(String& asCode, span<int, Limit>& data)
-		{
-			asCode << "span<int, " << Limit << "> data = { ";
-
-			for (int i = 0; i < Limit; i++)
-			{
-				asCode << String(i) << ", ";
-				data[i] = i;
-			}
-
-			asCode = asCode.upToLastOccurrenceOf(", ", false, false);
-			asCode << " };";
-		}
-
-		void testFloatAlphaAndIndex()
-		{
-			if constexpr (std::is_floating_point<Type>())
-			{
-				// Test Code ===================================================
-
-				cppgen::Base c(cppgen::Base::OutputType::AddTabs);
-
-				c << indexName + " i;";
-				c << "T testAlpha(T input)";
-
-				{
-					cppgen::StatementBlock sb(c);
-					c.addWithSemicolon("i = input;");
-					c.addWithSemicolon("return i.getAlpha(0);");
-				}
-
-				c << "int testIndex(T input, int delta)";
-				{
-					cppgen::StatementBlock sb(c);
-					c.addWithSemicolon("i = input;");
-					c.addWithSemicolon("return i.getIndex(0, delta);");
-				}
-
-				test.logMessage("Testing " + indexName + "::getAlpha");
-
-				c.replaceWildcard("T", Types::Helpers::getTypeNameFromTypeId<Type>());
-				auto obj = compile(c.toString());
-
-				// Test Routine ==============================================
-
-				auto testWithValue = [&](Type testValue, int deltaValue)
-				{
-					numTests++;
-
-					IndexType i;
-					i = testValue;
-					auto expectedAlpha = i.getAlpha(0);
-					auto actualAlpha = obj["testAlpha"].call<Type>(testValue);
-					String am = indexName;
-					am << "::getAlpha()";
-					am << " with value " << String(testValue);
-					test.expectWithinAbsoluteError(actualAlpha, expectedAlpha, Type(0.00001), am);
-
-					auto expectedIndex = i.getIndex(0, deltaValue);
-					auto actualIndex = obj["testIndex"].call<int>(testValue, deltaValue);
-
-					String im = indexName;
-					im << "::getIndex()";
-					im << " with value " << String(testValue) << " and delta " << String(deltaValue);
-					test.expectEquals(actualIndex, expectedIndex, im);
-				};
-
-				// Test List =======================================================
-
-				testWithValue(0.51, 0);
-				testWithValue(12.3, 0);
-				testWithValue(-0.52, -1);
-				testWithValue(Limit - 0.44, 2);
-				testWithValue(Limit + 25.2, 1);
-				testWithValue(Limit / 0.325 - 1, 9);
-				testWithValue(Limit * 9.029, 4);
-				testWithValue(Limit * -0.42, Limit + 2);
-				testWithValue(324.42, - Limit + 2);
-			}
-		}
-
-		void testIncrementors(FunctionClass::SpecialSymbols incType)
-		{
-			if constexpr (std::is_integral<Type>())
-			{
-				// Test Code ===================================================
-
-				cppgen::Base c(cppgen::Base::OutputType::AddTabs);
-
-				c << indexName + " i;";
-				c << "int test(int input)";
-
-				String op;
-
-				{
-					cppgen::StatementBlock sb(c);
-					c.addWithSemicolon("i = input");
-					
-					switch (incType)
-					{
-					case FunctionClass::IncOverload:	 op = "++i;"; break;
-					case FunctionClass::PostIncOverload: op = "i++;"; break;
-					case FunctionClass::DecOverload:	 op = "--i;"; break;
-					case FunctionClass::PostDecOverload: op = "i--;"; break;
-					}
-
-					c.addWithSemicolon("return (int)" + op);
-				}
-
-				test.logMessage("Testing " + indexName + "::" + FunctionClass::getSpecialSymbol({}, incType).toString());
-
-				auto obj = compile(c.toString());
-
-				// Test Routine ==============================================
-
-				auto testWithValue = [&](int testValue)
-				{
-					numTests++;
-
-					IndexType i;
-					i = testValue;
-					int expected;
-
-					switch (incType)
-					{
-					case FunctionClass::IncOverload:	 expected = ++i; break;
-					case FunctionClass::PostIncOverload: expected = i++; break;
-					case FunctionClass::DecOverload:	 expected = --i; break;
-					case FunctionClass::PostDecOverload: expected = i--; break;
-					}
-
-					auto actual = obj["test"].call<int>(testValue);
-					String message = indexName;
-					message << ": " << op;
-					message << " with value " << String(testValue);
-					test.expectEquals(actual, expected, message);
-				};
-
-				// Test List =======================================================
-
-				testWithValue(0);
-				testWithValue(-1);
-				testWithValue(Limit - 1);
-				testWithValue(Limit + 1);
-				testWithValue(Limit);
-				testWithValue(Limit * 2);
-				testWithValue(-Limit);
-				testWithValue(Limit / 3);
-			}
-		}
-
-		void testAssignAndCast()
-		{
-			if constexpr (Limit != 0)
-			{
-				test.logMessage("Testing assignment and type cast ");
-
-				// Test Code ===================================================
-
-				cppgen::Base c(cppgen::Base::OutputType::AddTabs);
-
-				c << indexName + " i;";
-				c << "T test(T input)";
-
-				{
-					cppgen::StatementBlock sb(c);
-					c.addWithSemicolon("i = input");
-					c.addWithSemicolon("return (T)i");
-				}
-
-				c.replaceWildcard("T", Types::Helpers::getTypeNameFromTypeId<Type>());
-				auto obj = compile(c.toString());
-
-				// Test Routine ==============================================
-
-				auto testWithValue = [&](Type testValue)
-				{
-					numTests++;
-					IndexType i;
-					i = testValue;
-					auto expected = (Type)i;
-					auto actual = obj["test"].call<Type>(testValue);
-					String message = indexName;
-					message << " with value " << String(testValue);
-					test.expectWithinAbsoluteError(actual, expected, Type(0.00001), message);
-				};
-
-				// Test List =======================================================
-
-				if constexpr (std::_Is_floating_point<Type>())
-				{
-					testWithValue(Type(Limit - 0.4));
-					testWithValue(Type(Limit + 0.1));
-					testWithValue(Type(Limit + 2.4));
-					testWithValue(Type(-0.2));
-					testWithValue(Type(-80.2));
-				}
-				else
-				{
-					testWithValue(Type(0));
-					testWithValue(Type(Limit - 1));
-					testWithValue(Type(Limit));
-					testWithValue(Type(Limit + 1));
-					testWithValue(Type(-1));
-					testWithValue(Type(-Limit - 2));
-					testWithValue(Type(Limit * 32 + 9));
-				}
-			}
-		}
-
-		JitObject compile(const String& code)
-		{
-			for (auto& o : test.optimizations)
-				s.addOptimization(o);
-
-			Compiler compiler(s);
-			SnexObjectDatabase::registerObjects(compiler, 2);
-			auto obj = compiler.compileJitObject(code);
-
-			test.expect(compiler.getCompileResult().wasOk(), compiler.getCompileResult().getErrorMessage());
-			return obj;
-		}
-
-		GlobalScope s;
-		HiseJITUnitTest& test;
-	};
-
-	template <typename IntegerIndexType> void testIntegerIndex()
-	{
-		IndexTester<IntegerIndexType>(*this);
-
-		using ScaledFloatType = index::normalised<float, IntegerIndexType>;
-		using UnscaledFloatType = index::normalised<float, IntegerIndexType>;
-		using ScaledDoubleType = index::unscaled<double, IntegerIndexType>;
+		IndexTester<IntegerIndexType>(this, optimizations, dynamicSize);
+
+		using ScaledFloatType	 = index::normalised<float, IntegerIndexType>;
+		using UnscaledFloatType  = index::normalised<float, IntegerIndexType>;
+		using ScaledDoubleType   = index::unscaled<double, IntegerIndexType>;
 		using UnscaledDoubleType = index::unscaled<double, IntegerIndexType>;
 
-		IndexTester<ScaledFloatType>(*this);
-		IndexTester<ScaledDoubleType>(*this);
-		IndexTester<UnscaledFloatType>(*this);
-		IndexTester<UnscaledDoubleType>(*this);
+		
+
+		IndexTester<ScaledFloatType>(this, optimizations, dynamicSize);
+		IndexTester<ScaledDoubleType>(this, optimizations, dynamicSize);
+		IndexTester<UnscaledFloatType>(this, optimizations, dynamicSize);
+		IndexTester<UnscaledDoubleType>(this, optimizations, dynamicSize);
+
+		using UnscaledLerpFloatType  = index::lerp<UnscaledFloatType>;
+		using ScaledLerpFloatType	 = index::lerp<ScaledFloatType>;
+		using UnscaledLerpDoubleType = index::lerp<UnscaledDoubleType>;
+		using ScaledLerpDoubleType   = index::lerp<ScaledDoubleType>;
+
+		IndexTester<UnscaledLerpFloatType>(this, optimizations, dynamicSize);
+		IndexTester<ScaledLerpFloatType>(this, optimizations, dynamicSize);
+		IndexTester<UnscaledLerpDoubleType>(this, optimizations, dynamicSize);
+		IndexTester<ScaledLerpDoubleType>(this, optimizations, dynamicSize);
+
+		using UnscaledHermiteFloatType = index::hermite<UnscaledFloatType>;
+		using ScaledHermiteFloatType = index::hermite<ScaledFloatType>;
+		using UnscaledHermiteDoubleType = index::hermite<UnscaledDoubleType>;
+		using ScaledHermiteDoubleType = index::hermite<ScaledDoubleType>;
+
+		IndexTester<UnscaledHermiteFloatType>(this, optimizations, dynamicSize);
+		IndexTester<ScaledHermiteFloatType>(this, optimizations, dynamicSize);
+		IndexTester<UnscaledHermiteDoubleType>(this, optimizations, dynamicSize);
+		IndexTester<ScaledHermiteDoubleType>(this, optimizations, dynamicSize);
 	}
 
 	void testIndexTypes()
 	{
+		
+
 		testIntegerIndex<index::wrapped<32, false>>();
 
 #if TEST_ALL_INDEXES
@@ -924,19 +619,29 @@ public:
 		testIntegerIndex<index::unsafe<64, true>>();
 		testIntegerIndex<index::unsafe<51, true>>();
 #endif
-
-		DBG(numTests);
 	}
 
 	void runTest() override
 	{
 		beginTest("Funky");
-		testIndexTypes();
 
+
+		optimizations = OptimizationIds::getAllIds();
+		//testIndexTypes();
+
+		runTestFiles("simple_template25");
+
+		return;
+
+		// Continue: Make type info optional ref count... 
+
+		
+
+		
 
 
 		
-		//runTestFiles("index6");
+		//runTestFiles("return_reference2");
 		
 #if INCLUDE_SNEX_BIG_TESTSUITE
 		optimizations = OptimizationIds::getAllIds();
@@ -952,7 +657,6 @@ public:
 		runTestFiles("preprocessor_if5");
 
 		testExternalFunctionCalls();
-		testArrayTypes();
 		testAccessWrappers();
 		testEvents();
 		testProcessData();
@@ -976,15 +680,7 @@ public:
 
 
 #if INCLUDE_SNEX_BIG_TESTSUITE
-	template <typename T> void testWrapType(T& data)
-	{
-		using namespace Types;
-
-		auto idx = IndexType::wrapped(data);
-
-		testBasicIndexOperators(idx);
-
-	}
+	
 
 	void testExternalFunctionCalls()
 	{
@@ -1002,50 +698,7 @@ public:
 
 	}
 
-	template <typename Index> void testBasicIndexOperators(Index& idx)
-	{
-		expectEquals<int>(idx, 0, "init value defaults to zero");
-		expectEquals<int>(idx++, 0, "post inc still zero");
-		expectEquals<int>(idx, 1, "inced after inc");
-		expectEquals<int>(++idx, 2, "incred before pre");
-	}
-
-	template <typename T> void testClampType(const T& data)
-	{
-		using namespace Types;
-
-		auto idx = IndexType::clamped(data);
-
-		testBasicIndexOperators(idx);
-
-		idx++; idx++; idx++; idx++; idx++; idx++; idx++;
-
-		expectEquals<int>(idx, 4, "inced against clamp");
-
-		idx = 9;
-
-		expectEquals<int>(idx, 4, "clamped works");
-		expectEquals<int>(data[idx], 10, "clamped access works");
-
-		idx = 2;
-
-		expectEquals<int>(idx.moved(1), 3, "clamp moved by 1");
-		expectEquals<int>(idx, 3, "clamped after moved");
-		expectEquals<int>(idx.moved(2), 4, "moved against clamped");
-		expectEquals<int>(idx, 4, "clamped after moved");
-	}
-
-	void testArrayTypes()
-	{
-		beginTest("Testing array types");
-
-		using namespace Types;
-
-		span<int, 5> data = { 2, 4, 6, 8, 10 };
-		testClampType(data);
-		testWrapType(data);
-
-	}
+	
 
 	void testValueTreeCodeBuilder()
 	{

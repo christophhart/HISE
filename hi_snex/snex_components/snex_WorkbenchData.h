@@ -845,7 +845,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 	{
 		memory.addDebugHandler(this);
 
-		for (auto o : OptimizationIds::getAllIds())
+		for (auto o : OptimizationIds::getDefaultIds())
 			memory.addOptimization(o);
 	};
 

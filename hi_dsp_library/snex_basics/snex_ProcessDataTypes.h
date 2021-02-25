@@ -135,7 +135,7 @@ public:
 
 	template <typename T> T& as()
 	{
-		if (T::isFixedChannel)
+		if constexpr (T::hasCompileTimeSize())
 		{
 			jassert(numChannels >= T::getNumFixedChannels());
 		}
@@ -195,13 +195,13 @@ protected:
 */
 template <int C> struct ProcessData: public InternalData
 {
-	constexpr static bool isFixedChannel = true;
-
 	/** The number of channels. */
 	constexpr static int NumChannels = C;
 
 	/** @internal The internal channel data type.*/
 	using ChannelDataType = Types::span<float*, NumChannels>;
+
+	static constexpr bool hasCompileTimeSize() { return true; }
 
 	/** Creates a ProcessDataFix object from the given data pointer. */
 	ProcessData(float** d, int numSamples_, int numChannels_=NumChannels) :
@@ -280,7 +280,7 @@ protected:
 
 struct ProcessDataDyn: public InternalData
 {
-	constexpr static bool isFixedChannel = false;
+	static constexpr bool hasCompileTimeSize() { return false; }
 
 	constexpr static int getNumFixedChannels()
 	{
@@ -417,7 +417,7 @@ template <typename ProcessDataType, bool IncludeEvents=true> struct ChunkablePro
 
 		~ScopedChunk()
 		{
-			if (ProcessDataType::isFixedChannel)
+			if constexpr (ProcessDataType::hasCompileTimeSize())
 			{
 				for (auto& p : parent.ptrs)
 					p += sliced.getNumSamples();
