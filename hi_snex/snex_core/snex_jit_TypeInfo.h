@@ -106,7 +106,15 @@ struct TypeInfo
 	TypeInfo asConst();
 	TypeInfo asNonConst();
 
+	void setRefCounted(bool shouldBeRefcounted);
+
+	bool isRefCounted() const;
+
+	static TypeInfo makeNonRefCountedReferenceType(ComplexType* t);
+
 private:
+
+	ComplexType* getRawComplexTypePtr() const;
 
 	void updateDebugName();
 
@@ -119,6 +127,7 @@ private:
 	bool ref_ = false;
 	Types::ID type = Types::ID::Dynamic;
 	ComplexType::Ptr typePtr;
+	WeakReference<ComplexType> weakPtr;
 	NamespacedIdentifier templateTypeId;
 };
 
