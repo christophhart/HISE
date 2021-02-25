@@ -59,6 +59,8 @@ public:
 	NamespaceHandler::Visibility parseVisibility();
 
 	StatementPtr parseVisibilityStatement();
+
+	StatementPtr parseTypeCastOverload();
 };
 
 

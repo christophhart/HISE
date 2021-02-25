@@ -490,7 +490,6 @@ void Operations::BinaryOp::process(BaseCompiler* compiler, BaseScope* scope)
 
 			if (reg == nullptr)
 			{
-				asg.emitComment("temp register for binary op");
 				reg = compiler->getRegFromPool(scope, getTypeInfo());
 
 			}
@@ -1008,17 +1007,9 @@ void Operations::Increment::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
-		FunctionClass::SpecialSymbols s;
+		tryToResolveType(compiler);
 
-		if (isPreInc && isDecrement)
-			s = FunctionClass::SpecialSymbols::DecOverload;
-		if (isPreInc && !isDecrement)
-			s = FunctionClass::SpecialSymbols::IncOverload;
-		if (!isPreInc && isDecrement)
-			s = FunctionClass::SpecialSymbols::PostDecOverload;
-		if (!isPreInc && !isDecrement)
-			s = FunctionClass::SpecialSymbols::PostIncOverload;
-
+		auto s = getOperatorId();
 
 		if (replaceIfOverloaded(getSubExpr(0), {}, s))
 			return;
@@ -1091,6 +1082,39 @@ void Operations::Increment::getOrSetIncProperties(Array<TemplateParameter>& tp, 
 	}
 }
 
+bool Operations::Increment::tryToResolveType(BaseCompiler* c)
+{
+	if (resolvedType.isValid())
+		return true;
+
+	auto s = getSubExpr(0);
+
+	if (s->tryToResolveType(c))
+	{
+		resolvedType = s->getTypeInfo();
+
+		if (resolvedType.isComplexType())
+		{
+			// The operator overload might return a reference
+			// so we need to make sure the type has the correct
+			// ref specifier
+
+			FunctionClass::Ptr fc = resolvedType.getComplexType()->getFunctionClass();
+
+			auto overloadedFunction = fc->getSpecialFunction(getOperatorId());
+
+			if (!overloadedFunction.isResolved())
+				location.throwError(fc->getClassName().getChildId(fc->getSpecialSymbol({}, getOperatorId())).toString() + " not found");
+
+			resolvedType = overloadedFunction.returnType;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 snex::jit::FunctionClass::SpecialSymbols Operations::Increment::getOperatorId() const
 {
 	if (isPreInc && isDecrement)
@@ -1137,11 +1161,16 @@ bool Operations::DotOperator::tryToResolveType(BaseCompiler* compiler)
 
 bool Operations::Subscript::tryToResolveType(BaseCompiler* compiler)
 {
-	Statement::tryToResolveType(compiler);
+	if (Statement::tryToResolveType(compiler) && subscriptType != ArrayStatementBase::Undefined)
+		return true;
 
 	auto parentType = getSubExpr(0)->getTypeInfo();
 
-	if (auto ts = parentType.getTypedIfComplexType<SpanType>())
+	if (auto td = parentType.getTypedIfComplexType<TemplatedComplexType>())
+	{
+		jassertfalse;
+	}
+	else if (auto ts = parentType.getTypedIfComplexType<SpanType>())
 	{
 		spanType = ts;
 		subscriptType = Span;
@@ -1228,6 +1257,14 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		else if (subscriptType == CustomObject)
 		{
+			List l;
+			l.add(getSubExpr(1));
+
+			BaseCompiler::ScopedUnsafeBoundChecker subc(compiler);
+
+			if (replaceIfOverloaded(getSubExpr(0), l, FunctionClass::Subscript))
+				return;
+
 			// nothing to do here, the type check will be done in the function itself...
 			return;
 		}

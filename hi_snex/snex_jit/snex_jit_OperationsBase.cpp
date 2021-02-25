@@ -437,9 +437,6 @@ bool Operations::Statement::replaceIfOverloaded(Ptr objPtr, List args, FunctionC
 
 			auto returnType = getTypeInfo();
 
-			if (overloadType == FunctionClass::AssignOverload)
-				returnType = { Types::ID::Void };
-
 			auto overloadedFunction = fc->getSpecialFunction(overloadType, returnType, argTypes);
 
 			if (overloadedFunction.canBeInlined(true))

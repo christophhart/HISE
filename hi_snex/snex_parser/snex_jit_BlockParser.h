@@ -159,7 +159,7 @@ public:
 
 	virtual StatementPtr parseFunction(const Symbol& s);
 
-	virtual StatementPtr parseStatement() = 0;
+	virtual StatementPtr parseStatement(bool mustHaveSemicolon = true) = 0;
 
 	Symbol parseNewSymbol(NamespaceHandler::SymbolType t)
 	{
@@ -224,9 +224,11 @@ public:
 		return p;
 	}
 
-	StatementPtr matchSemicolonAndReturn(StatementPtr p)
+	StatementPtr matchSemicolonAndReturn(StatementPtr p, bool mustHaveSemicolon)
 	{
-		match(JitTokens::semicolon);
+		if(mustHaveSemicolon)
+			match(JitTokens::semicolon);
+		
 		return matchIfSemicolonAndReturn(p);
 	}
 

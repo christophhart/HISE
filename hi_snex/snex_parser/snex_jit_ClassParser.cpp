@@ -175,6 +175,12 @@ BlockParser::StatementPtr ClassParser::parseStatement(bool mustHaveSemicolon)
 		return parseComplexTypeDefinition(true);
 	}
 
+	if (matchIf(JitTokens::operator_))
+	{
+		matchType(templateArguments);
+		return parseTypeCastOverload();
+	}
+
 	if (matchIfType(templateArguments))
 	{
 		if (currentTypeInfo.isComplexType())
@@ -509,6 +515,13 @@ ClassParser::StatementPtr ClassParser::parseVisibilityStatement()
 	return nullptr;
 }
 
+
+snex::jit::BlockParser::StatementPtr ClassParser::parseTypeCastOverload()
+{
+	auto id = compiler->namespaceHandler.getCurrentNamespaceIdentifier().getChildId(FunctionClass::getSpecialSymbol({}, FunctionClass::NativeTypeCast));
+	match(JitTokens::openParen);
+	return parseFunction(Symbol(id, currentTypeInfo));
+}
 
 }
 }

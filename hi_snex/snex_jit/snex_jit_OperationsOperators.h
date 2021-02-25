@@ -182,10 +182,15 @@ struct Operations::Increment : public UnaryOp
 
 	TypeInfo getTypeInfo() const override
 	{
-		return TypeInfo(Types::ID::Integer);
+		jassert(resolvedType.isValid());
+
+		return resolvedType;
 	}
 
 	FunctionClass::SpecialSymbols getOperatorId() const;
+
+	bool tryToResolveType(BaseCompiler* c) override;
+
 	ValueTree toValueTree() const override
 	{
 		auto t = Expression::toValueTree();
@@ -208,6 +213,8 @@ struct Operations::Increment : public UnaryOp
 	bool isDecrement;
 	bool isPreInc;
 	bool removed = false;
+
+	TypeInfo resolvedType = Types::ID::Void;
 };
 
 

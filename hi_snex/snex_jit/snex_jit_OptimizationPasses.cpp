@@ -810,9 +810,34 @@ bool DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseSc
 
 bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
+	using namespace Operations;
+
 	COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
 	{
-		if (auto bOp = as<Operations::BinaryOp>(statement))
+		if (auto inc = as<Increment>(statement))
+		{
+			if (!inc->isPreInc)
+			{
+				auto parentStatement = inc->parent;
+
+				auto cantBeSwapped = false;
+
+				cantBeSwapped |= findParentStatementOfType<Assignment>(statement) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<BinaryOp>(statement) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<FunctionCall>(statement) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<ComplexTypeDefinition>(statement) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<ReturnStatement>(statement) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<Compare>(statement) != nullptr;
+								
+				if (!cantBeSwapped)
+				{
+					inc->isPreInc = true;
+					return true;
+				}
+			}
+		}
+
+		if (auto bOp = as<BinaryOp>(statement))
 		{
 			if (simplifyOp(bOp->getSubExpr(0), bOp->getSubExpr(1), bOp->op, compiler, s))
 				return true;
