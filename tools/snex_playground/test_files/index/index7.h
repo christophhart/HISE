@@ -4,17 +4,16 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 17
+  output: 1
   error: ""
-  filename: "span/wrap_sum"
+  filename: "index/index7"
 END_TEST_DATA
 */
 
-
-span<int, 8>::wrapped i = { 5 };
+index::wrapped<32, false> j;
 
 int main(int input)
 {
-	return input + i;
+  	return (int)++j;
 }
 

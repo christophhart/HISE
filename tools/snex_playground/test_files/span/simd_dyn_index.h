@@ -17,10 +17,7 @@ span<T, 4> d = { (T)1, (T)2, (T)3, (T)4 };
 
 int main(int input)
 {
-    
-    span<T, 4>::wrapped i = input;
-	
-    
+  index::wrapped<4> i(input);
 	return d[i];
 }
 

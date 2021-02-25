@@ -4,18 +4,19 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 7
+  output: 9
   error: ""
-  filename: "span/wrap_dec"
+  filename: "index/index8"
 END_TEST_DATA
 */
 
-span<int, 8>::wrapped i;
+index::unsafe<32, false> j;
+
+span<int, 32> data = { 9 };
 
 int main(int input)
 {
+	return data[j];
 	
-	
-	return --i;
 }
 

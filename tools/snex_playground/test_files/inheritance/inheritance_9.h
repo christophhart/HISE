@@ -4,13 +4,13 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 6
+  output: 90
   error: ""
   filename: "inheritance/inheritance_9"
 END_TEST_DATA
 */
 
-int counter = 0;
+int counter = 1;
 
 struct Base
 {
@@ -21,7 +21,7 @@ struct Base
 	
 	~Base()
 	{
-		
+		counter = 90;
 	}
 };
 
@@ -31,16 +31,19 @@ struct Derived: public Base
 	{
 		counter *= 3;
 	}
-	
+
 	~Derived()
 	{
-		
+		counter += 1;
 	}
 };
 
 int main(int input)
 {
-	Derived obj;
+	{
+		Derived obj;
+	}
+	
 	return counter;
 }
 

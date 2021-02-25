@@ -13,10 +13,9 @@ END_TEST_DATA
 int main(int input)
 {
 	span<int, 3> d = { 1, 2, 3 };
-	span<int, 3>::wrapped i = 4;
-	
+
+  index::wrapped<3, false> i(4);
+
 	return d[i];
-	
-	
 }
 

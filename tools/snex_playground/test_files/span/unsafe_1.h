@@ -10,7 +10,7 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-span<float, 9>::unsafe i = { 12 };
+index::unsafe<9> i = { 12 };
 
 int main(int input)
 {

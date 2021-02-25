@@ -10,10 +10,10 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-span<int, 5>::wrapped s = { 7 };
+index::wrapped<5> s = { 7 };
 
 int main(int input)
 {
-	return s;
+	return (int)s;
 }
 

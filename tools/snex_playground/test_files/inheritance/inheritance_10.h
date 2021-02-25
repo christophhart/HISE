@@ -1,47 +1,44 @@
 /*
 BEGIN_TEST_DATA
   f: main
-  ret: float
+  ret: int
   args: int
   input: 12
-  output: 1.4
+  output: 90
   error: ""
   filename: "inheritance/inheritance_10"
 END_TEST_DATA
 */
 
-namespace impl
-{
+int counter = 1;
 
-struct chain_t: public container::chain<parameter::empty, wrap::fix<2, math::add>>
+struct Base
 {
-	struct metadata
+	Base()
 	{
-		SNEX_METADATA_ID(chain_t);
-		SNEX_METADATA_NUM_CHANNELS(2);
-		SNEX_METADATA_PARAMETERS(0, "");
-	};
+		counter = 2;
+	}
 	
-	chain_t()
+	~Base()
 	{
-		auto& math = this->get<0>();
-		
-		math.setParameter<0>(0.7);
+		counter = 90;
 	}
 };
-	
-}
 
-using instance = wrap::node<impl::chain_t>;
-
-
-span<float, 2> data;
-instance obj;
-
-float main(int input)
+struct Derived: public Base
 {
-	obj.processFrame(data);
+	Derived()
+	{
+		counter *= 3;
+	} 
+};
 
-	return data[0] + data[1];
+int main(int input)
+{
+	{
+		Derived obj;
+	}
+	
+	return counter;
 }
 

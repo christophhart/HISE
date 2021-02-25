@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: float
   args: int
   input: -1
-  output: 12
+  output: 0.2
   error: ""
   filename: "index/index4"
 END_TEST_DATA
@@ -16,12 +16,12 @@ using FloatIndexType = index::normalised<float, IndexType>;
 
 float main(int input)
 {
-	FloatIndexType i(19.f);
+	FloatIndexType i(0.2f);
 
-	//i = 0.8f;
-
-	Console.print(i);
 	
-	return 2.0f;
+
+	
+	
+	return (float)i;
 }
 

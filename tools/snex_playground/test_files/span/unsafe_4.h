@@ -10,11 +10,12 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-span<float, 9>::unsafe i;
+index::unsafe<9> i;
 
 int main(int input)
 {
     i = 91;
-	return i.moved(9);
+    i = (int)i+9;
+	return i;
 }
 

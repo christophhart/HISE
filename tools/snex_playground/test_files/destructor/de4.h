@@ -4,9 +4,9 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 1
+  output: 14
   error: ""
-  filename: "destructor/de1"
+  filename: "destructor/de4"
 END_TEST_DATA
 */
 
@@ -23,16 +23,32 @@ struct ScopedX
 	{
 		counter--;
 	}
+	
+	int value = 9;
 };
+
+struct Outer 
+{
+	ScopedX a;
+	ScopedX b;
+};
+
+void tut()
+{
+	Outer e;
+}
 
 int main(int input)
 {
+	int sum = 0;
+
+	for(int i = 0; i < 14; i++)
 	{
 		ScopedX a;
+		tut();
+		sum += counter;
 	}
-
-	ScopedX b;
 	
-	return counter;
+	return counter + sum;
 }
 

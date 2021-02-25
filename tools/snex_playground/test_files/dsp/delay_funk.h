@@ -11,7 +11,7 @@ END_TEST_DATA
 */
 
 using DelayBuffer = span<float, 1024>;
-using WrappedIndex = DelayBuffer::wrapped;
+using WrappedIndex = index::wrapped<1024, false>;
 
 span<DelayBuffer, NumChannels> buffer;
 WrappedIndex readBuffer;

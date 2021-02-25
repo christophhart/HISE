@@ -4,20 +4,18 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 12
+  output: 91
   error: ""
   filename: "index/index6"
 END_TEST_DATA
 */
 
-index::normalised<float, index::wrapped<0, false>> i;
-
-span<float, 4> data = { 1.0f, 4.0f, 9.0f, 12.0f };
+index::unsafe<0, false> i;
 
 int main(int input)
 {
-	i = 0.5f;
+	i = 90;
 
-	return data[i];
+	return (int)++i;
 }
 
