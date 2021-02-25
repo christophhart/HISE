@@ -94,6 +94,85 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 					// Might be set manually from a precodegen function
 					if (statements == nullptr)
 						statements = p.parseStatementList();
+
+					auto specialFunctionType = (FunctionClass::SpecialSymbols)classData->getSpecialFunctionType();
+
+					if (specialFunctionType == FunctionClass::Constructor || specialFunctionType == FunctionClass::Destructor)
+					{
+						if (auto cs = dynamic_cast<ClassScope*>(scope))
+						{
+							if (auto st = dynamic_cast<StructType*>(cs->typePtr.get()))
+							{
+								auto baseSpecialFunctions = st->getBaseSpecialFunctions(specialFunctionType);
+
+								if (!baseSpecialFunctions.isEmpty())
+								{
+									List l;
+
+									for (auto& m : baseSpecialFunctions)
+									{
+										// We need to change the parent ID to the derived class
+										auto specialFunctionId = st->id.getChildId(m.id.getIdentifier());
+
+										auto fc = new FunctionCall(location, nullptr, { specialFunctionId, m.returnType }, {});
+										fc->setObjectExpression(new ThisPointer(location, TypeInfo(st, false, true)));
+
+										l.add(fc);
+									}
+
+									
+
+									for (int i = l.size() - 1; i >= 0; i--)
+										addStatement(l[i], specialFunctionType == FunctionClass::Constructor);
+								}
+							}
+						}
+					}
+
+					// Now we might set the return type...
+					if (classData->returnType.isDynamic())
+					{
+						Array<TypeInfo> returnTypes;
+
+						statements->forEachRecursive([&returnTypes, compiler](Ptr s)
+						{
+							if (auto rt = as<ReturnStatement>(s))
+							{
+								if (auto r = rt->getSubExpr(0))
+								{
+									if (r->tryToResolveType(compiler))
+									{
+										returnTypes.addIfNotAlreadyThere(r->getTypeInfo());
+									}
+								}
+							}
+
+							return false;
+						});
+
+						switch (returnTypes.size())
+						{
+						case 0: location.throwError("expected return statement with type");
+						case 1: 
+						{
+							auto prevT = data.returnType;
+
+							auto newT = returnTypes[0].withModifiers(prevT.isConst(), prevT.isRef(), prevT.isStatic());
+
+							newT.setRefCounted(false);
+
+							classData->returnType = newT;
+							data.returnType = newT;
+							compiler->namespaceHandler.setTypeInfo(fNamespace, NamespaceHandler::Function, newT);
+
+							if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
+								st->setTypeForDynamicReturnFunction(data);
+
+							break;
+						}
+						default: location.throwError("Ambigous return types");
+						}
+					}
 				}
 			}
 			catch (ParserHelpers::Error& e)

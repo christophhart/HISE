@@ -80,10 +80,13 @@ void Operations::StatementBlock::process(BaseCompiler* compiler, BaseScope* scop
 			{
 				int returnStatements = 0;
 
-				forEachRecursive([&returnStatements](Ptr p)
+				forEachRecursive([&](Ptr p)
 				{
-					if (as<ReturnStatement>(p))
-						returnStatements++;
+					if (auto rt = as<ReturnStatement>(p))
+					{
+						if(rt->findRoot() == as<ScopeStatementBase>(this))
+							returnStatements++;
+					}
 
 					return false;
 				});
@@ -237,7 +240,37 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 
 		auto asg = CREATE_ASM_COMPILER(t.getType());
 
-		bool isFunctionReturn = true;
+		AsmCodeGenerator::TemporaryRegister tmpReg(asg, scope, getTypeInfo());
+		bool useCopyReg = false;
+		
+		auto isNonReferenceReturn = !isVoid() && !getTypeInfo().isRef();
+		auto hasDestructors = getNumChildStatements() > 1;
+
+		if (isNonReferenceReturn && hasDestructors)
+		{
+			// process the return expression
+			getSubExpr(0)->process(compiler, scope);
+
+			// There are a few destructors around, which might alter the return
+			// value, so we need to copy the return value
+			asg.emitStore(tmpReg.tempReg, getSubRegister(0));
+			useCopyReg = true;
+
+			for (int i = 1; i < getNumChildStatements(); i++)
+			{
+				// Now we can execute the destructors...
+				getSubExpr(i)->process(compiler, scope);
+			}
+		}
+		else if (isVoid())
+		{
+			for (auto s : *this)
+				s->process(compiler, scope);
+		}
+		else
+		{
+			getSubExpr(0)->process(compiler, scope);
+		}
 
 		if (!isVoid())
 		{
@@ -275,6 +308,9 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 		if (findInlinedRoot() == nullptr)
 		{
 			auto sourceReg = isVoid() ? nullptr : getSubRegister(0);
+
+			if (useCopyReg)
+				sourceReg = tmpReg.tempReg;
 
 			asg.emitReturn(compiler, reg, sourceReg);
 		}

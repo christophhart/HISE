@@ -606,30 +606,43 @@ void Operations::ScopeStatementBase::addDestructors(BaseScope* scope)
 
 	bool destructorsAdded = false;
 
+	for (auto dv : destructorIds)
+	{
+		StatementWithControlFlowEffectBase::addDestructorToAllChildStatements(asStatement, dv);
+	}
+
+	
+#if 0
 	asStatement->forEachRecursive([&destructorIds, asStatement, path, &destructorsAdded](Statement::Ptr p)
 	{
 		if (auto rt = as<ReturnStatement>(p))
 		{
-			//  Reverse the order of destructor execution.
-			for (int i = destructorIds.size() - 1; i >= 0; i--)
+			// Only add the destructors to the return statements of this block
+			// (inlined functions will also have a return statement
+			if (rt->findRoot() == as<ScopeStatementBase>(asStatement))
 			{
-				auto id = destructorIds[i];
+				//  Reverse the order of destructor execution.
+				for (int i = destructorIds.size() - 1; i >= 0; i--)
+				{
+					auto id = destructorIds[i];
 
-				ComplexType::InitData d;
-				ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(p, path, {});
-				d.t = ComplexType::InitData::Type::Desctructor;
-				d.functionTree = b.get();
-				b->object = p;
-				b->expression = new Operations::VariableReference(p->location, id);
-				auto r = id.typeInfo.getComplexType()->callDestructor(d);
-				p->location.test(r);
+					ComplexType::InitData d;
+					ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(p, path, {});
+					d.t = ComplexType::InitData::Type::Desctructor;
+					d.functionTree = b.get();
+					b->object = p;
+					b->expression = new Operations::VariableReference(p->location, id);
+					auto r = id.typeInfo.getComplexType()->callDestructor(d);
+					p->location.test(r);
+				}
+
+				destructorsAdded = true;
 			}
-
-			destructorsAdded = true;
 		}
 
 		return false;
 	});
+
 
 	if (!destructorsAdded)
 	{
@@ -647,6 +660,7 @@ void Operations::ScopeStatementBase::addDestructors(BaseScope* scope)
 			asStatement->location.test(r);
 		}
 	}
+#endif
 }
 
 void Operations::ScopeStatementBase::removeStatementsAfterReturn()
@@ -976,6 +990,50 @@ juce::Result Operations::TemplateParameterResolver::resolveIdForType(TypeInfo& t
 	}
 
 	return Result::ok();
+}
+
+void Operations::StatementWithControlFlowEffectBase::addDestructorToAllChildStatements(Statement::Ptr root, const Symbol& id)
+{
+	Statement::List breakStatements;
+
+	auto rootTyped = as<ScopeStatementBase>(root);
+
+	jassert(rootTyped != nullptr);
+
+	root->forEachRecursive([&](Statement::Ptr p)
+	{
+		if (auto swcfweb = as<StatementWithControlFlowEffectBase>(p))
+		{
+			if (swcfweb->findRoot() == rootTyped)
+				breakStatements.add(p);
+		}
+
+		return false;
+	});
+
+	bool hasReturn = false; 
+
+	for (auto s : *root)
+	{
+		if (as<ReturnStatement>(s) != nullptr)
+			hasReturn = true;
+	}
+
+	if(!hasReturn)
+		breakStatements.add(root);
+
+	for (auto bs : breakStatements)
+	{
+		ComplexType::InitData d;
+		ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(bs, rootTyped->getPath(), {});
+		d.t = ComplexType::InitData::Type::Desctructor;
+		d.functionTree = b.get();
+		b->object = bs;
+		b->expression = new Operations::VariableReference(bs->location, id);
+		auto r = id.typeInfo.getComplexType()->callDestructor(d);
+		bs->location.test(r);
+	}
+		
 }
 
 }

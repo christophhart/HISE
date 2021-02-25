@@ -167,7 +167,8 @@ struct Operations::AnonymousBlock : public Expression
 };
 
 
-struct Operations::ReturnStatement : public Expression
+struct Operations::ReturnStatement : public Expression,
+								     public StatementWithControlFlowEffectBase
 {
 	ReturnStatement(Location l, Expression::Ptr expr) :
 		Expression(l)
@@ -223,33 +224,16 @@ struct Operations::ReturnStatement : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
-	ScopeStatementBase* findRoot() const
+	StatementBlock* findInlinedRoot() const;;
+
+	ScopeStatementBase* findRoot() const override
 	{
 		return ScopeStatementBase::getStatementListWithReturnType(const_cast<ReturnStatement*>(this));
 	}
 
-	StatementBlock* findInlinedRoot() const;;
-
 	Ptr getReturnValue()
 	{
 		return !isVoid() ? getSubExpr(0) : nullptr;
-	}
-
-	void addDestructor(Ptr destructorCall)
-	{
-		addStatement(destructorCall);
-	}
-
-	Ptr getDestructorCall(int i)
-	{
-		int offset = 0;
-		if (!isVoid())
-			offset++;
-
-		if (isPositiveAndBelow(offset + i, getNumChildStatements()))
-			return getSubExpr(offset + i);
-
-		return nullptr;
 	}
 
 private:
