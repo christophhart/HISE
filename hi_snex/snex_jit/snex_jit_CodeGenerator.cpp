@@ -711,7 +711,9 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 	{
 		indexReg = index->getRegisterForReadOp().as<x86::Gpd>();
 
-		if (!canUseShift && index->getVariableId())
+		// We can't use the register for a named variable because
+		// it might get changed later on before the pointer is loaded
+		if (index->getVariableId().resolved)
 		{
 			auto newIndexReg = cc.newGpd().as<x86::Gpd>();
 			cc.mov(newIndexReg, indexReg);
@@ -869,17 +871,22 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 	{
 		jassert(expr != nullptr);
 
-		auto mem = expr->getMemoryLocationForReference();
+		X86Mem ptr;
 
-		if(mem.isNone())
-			jassertfalse;
+		if (expr->isMemoryLocation())
+		{
+			ptr = expr->getAsMemoryLocation();
+			target->createRegister(cc);
+			cc.lea(PTR_REG_W(target), ptr);
+			cc.ret(PTR_REG_W(target));
+		}
 		else
 		{
-			target->createRegister(cc);
-			cc.lea(PTR_REG_W(target), mem);
-			cc.ret(PTR_REG_W(target));
-			return;
+			//ptr = x86::ptr(PTR_REG_R(expr)).cloneResized(expr->getTypeInfo().getRequiredByteSize());
+			cc.ret(PTR_REG_W(expr));
 		}
+		
+		return;
 	}
 
 	if (expr != nullptr && (expr->isMemoryLocation() || expr->isDirtyGlobalMemory()))
@@ -906,12 +913,40 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 		cc.ret();
 	else
 	{
-		if (type == Types::ID::Float || type == Types::ID::Double)
-			cc.ret(rToUse->getRegisterForReadOp().as<X86Xmm>());
-		else if (type == Types::ID::Integer)
-            cc.ret(rToUse->getRegisterForReadOp().as<x86::Gpd>());
-		else if (type == Types::ID::Block || type == Types::ID::Pointer)
-			cc.ret(rToUse->getRegisterForReadOp().as<X86Gpq>());
+		// We need to check if the actual register is an address (eg. a function call that returns a reference)
+		bool needsPointerToTypeConversion = target->getType() != Types::ID::Pointer && expr->getType() == Types::ID::Pointer;
+
+		if (needsPointerToTypeConversion)
+		{
+			X86Mem ptr;
+
+			if (expr->isMemoryLocation())
+				ptr = expr->getAsMemoryLocation();
+			else
+				ptr = x86::ptr(PTR_REG_R(expr)).cloneResized(expr->getTypeInfo().getRequiredByteSize());
+
+			IF_(int)
+				cc.mov(INT_REG_W(rToUse), ptr);
+			IF_(float)
+				cc.movss(FP_REG_W(rToUse), ptr);
+			IF_(double)
+				cc.movsd(FP_REG_W(rToUse), ptr);
+		}
+
+		switch (type)
+		{
+		case Types::ID::Float:
+		case Types::ID::Double: 
+			cc.ret(FP_REG_R(rToUse)); break;
+		case Types::ID::Integer:
+			cc.ret(INT_REG_R(rToUse)); break;
+		case Types::ID::Block:
+		case Types::ID::Pointer:
+			cc.ret(PTR_REG_R(rToUse));
+			break;
+		default:
+			jassertfalse;
+		}
 	}
 }
 

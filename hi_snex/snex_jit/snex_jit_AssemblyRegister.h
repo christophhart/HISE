@@ -181,10 +181,13 @@ public:
 
 	bool isImmediate() const
 	{
-		return isUnloadedImmediate() || (globalMemory && state == LoadedMemoryLocation);
+		return hasImmediateValue;
 	}
 
-	bool isUnloadedImmediate() const { return getType() == Types::ID::Integer && state == UnloadedMemoryLocation; }
+	bool isUnloadedImmediate() const 
+	{ 
+		return hasImmediateValue && state == UnloadedMemoryLocation; 
+	}
 
 	void setIsIteratorRegister(bool isIterator)
 	{
@@ -253,6 +256,7 @@ private:
 	bool reusable = false;
 #endif
 
+	bool hasImmediateValue = false;
 	int immediateIntValue = 0;
 	TypeInfo type;
 	asmjit::X86Mem memory;

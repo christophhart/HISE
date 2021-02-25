@@ -246,6 +246,7 @@ juce::int64 AssemblyRegister::getImmediateIntValue()
 	jassert(state == LoadedMemoryLocation || state == UnloadedMemoryLocation);
 	jassert(getType() == Types::ID::Integer);
 	jassert(!hasCustomMem);
+	jassert(hasImmediateValue);
 
 	return static_cast<int64>(immediateIntValue);
 }
@@ -290,10 +291,10 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 	case Types::ID::Block:
 	case Types::ID::Integer:
 	{
-		if (hasCustomMem)
-			e = cc.mov(reg.as<IntRegisterType>(), memory);
-		else
+		if (hasImmediateValue)
 			e = cc.mov(reg.as<IntRegisterType>(), static_cast<int64_t>(immediateIntValue));
+		else
+			e = cc.mov(reg.as<IntRegisterType>(), memory);
 
 		break;
 	}
@@ -378,18 +379,19 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 	if (getType() != Types::ID::Pointer && isGlobalVariableRegister() && !id.isConst())
 	{
 		auto t = getType();
+		
+		hasCustomMem = false;
+		state = State::LoadedMemoryLocation;
 
 		bool useQword = (t == Types::ID::Double ||
 			t == Types::ID::Block ||
 			t == Types::ID::Pointer);
 
-        auto r = cc.newGpq();
-        
-        cc.mov(r, (uint64_t)memoryLocation);
-        
+		auto r = cc.newGpq();
+
+		cc.mov(r, (uint64_t)memoryLocation);
+
 		memory = useQword ? x86::qword_ptr(r) : x86::dword_ptr(r);
-		hasCustomMem = true;
-		state = State::LoadedMemoryLocation;
 	}
 	else
 	{
@@ -409,8 +411,11 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 		}
 		if (getType() == Types::ID::Integer)
 		{
-			if(memoryLocation != nullptr)
+			if (memoryLocation != nullptr)
+			{
 				immediateIntValue = *reinterpret_cast<int*>(memoryLocation);
+				hasImmediateValue = true;
+			}
 
 			isZeroValue = immediateIntValue == 0;
 		}
@@ -520,6 +525,7 @@ void AssemblyRegister::setImmediateValue(int64 value)
 
 	jassert(getType() == Types::ID::Integer);
 
+	hasImmediateValue = true;
 	immediateIntValue = value;
 	state = UnloadedMemoryLocation;
 	memoryLocation = nullptr;
@@ -615,7 +621,7 @@ bool AssemblyRegister::isZero() const
 	if (isReferencingOtherRegister())
 		return getReferenceTargetRegister()->isZero();
 
-	return isZeroValue;
+	return !isActive() && isZeroValue;
 }
 
 AssemblyRegisterPool::AssemblyRegisterPool(BaseCompiler* c):

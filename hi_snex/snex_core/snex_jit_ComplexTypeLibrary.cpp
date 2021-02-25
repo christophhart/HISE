@@ -904,7 +904,8 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 			auto okBranch = cc.newLabel();
 			auto errorBranch = cc.newLabel();
 
-			safeCheck &= (index->getTypeInfo().getTypedIfComplexType<IndexBase>() == nullptr);
+			// Skip safe checks for index objects...
+			//safeCheck &= (index->getTypeInfo().getTypedIfComplexType<IndexBase>() == nullptr);
 
 			if (safeCheck)
 			{
@@ -915,6 +916,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 				else
 					p = x86::ptr(PTR_REG_R(dynReg)).cloneAdjustedAndResized(4, 4);
 
+				cc.setInlineComment("Bound check for dyn");
 				cc.mov(limit, p);
 				
 				
@@ -927,8 +929,10 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 				auto flagReg = cc.newGpd();
 
-				auto errorFlag = x86::ptr(gs->getRuntimeErrorFlag()).cloneResized(4);
+				auto errorMemReg = cc.newGpq();
+				cc.mov(errorMemReg, gs->getRuntimeErrorFlag());
 
+				auto errorFlag = x86::ptr(errorMemReg).cloneResized(4);
 
 				cc.mov(flagReg, (int)RuntimeError::ErrorType::DynAccessOutOfBounds);
 
@@ -961,12 +965,24 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 			if (safeCheck)
 			{
-				target->loadMemoryIntoRegister(cc, true);
+				auto memReg = cc.newGpq();
+				
+				cc.lea(memReg, target->getMemoryLocationForReference());
 
+				target->setCustomMemoryLocation(x86::ptr(memReg).cloneResized(t.getRequiredByteSize()), target->isGlobalMemory());
+				
 				cc.jmp(endLabel);
 				cc.bind(errorBranch);
-				auto nirvana = cc.newStack(target->getTypeInfo().getRequiredByteSize(), 0);
+				auto nirvana = cc.newStack(t.getRequiredByteSize(), t.getRequiredAlignment());
+				
+				
+				
+				
+				cc.lea(memReg, nirvana);
 
+				
+
+#if 0
 				auto type = d->target->getType();
 
 				
@@ -974,7 +990,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 				IF_(double) cc.movsd(FP_REG_W(target), nirvana);
 				IF_(float) cc.movss(FP_REG_W(target), nirvana);
 				IF_(void*) cc.mov(PTR_REG_W(target), nirvana);
-
+#endif
 				
 				cc.bind(endLabel);
 				cc.nop();
