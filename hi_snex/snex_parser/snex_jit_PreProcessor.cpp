@@ -224,8 +224,7 @@ String Preprocessor::process()
 			if (!conditionMode)
 			{
 				b.processError(e);
-				auto message = e.toString();
-				throw message;
+				throw e;
 			}
 		}
 	}
@@ -235,7 +234,7 @@ String Preprocessor::process()
 		ParserHelpers::CodeLocation l(code.getCharPointer() + code.length(), code.getCharPointer());
 		ParserHelpers::Error e(l);
 		e.errorMessage = "missing #endif";
-		throw e.toString();
+		throw e;
 	}
 
 	return toString(blocks);
@@ -382,7 +381,7 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 		bool isPreprocessor = *start == '#';
 		auto breakCharacter = isPreprocessor ? '\n' : '#';
 
-		while (start != end)
+		while (start < end)
 		{
 			if (*start == '/')
 			{
@@ -534,6 +533,22 @@ void Preprocessor::addDefinitionsFromScope(const ExternalPreprocessorDefinition:
 			entries.add(newItem);
 		}
 	}
+}
+
+juce::SparseSet<int> Preprocessor::getDeactivatedLines()
+{
+	try
+	{
+		conditionMode = true;
+		process();
+		jassert(conditionMode);
+	}
+	catch (ParserHelpers::Error& e)
+	{
+		DBG(e.toString());
+	}
+
+	return deactivatedLines;
 }
 
 String Preprocessor::Macro::evaluate(StringArray& parameters, Result& r)

@@ -73,13 +73,7 @@ struct Preprocessor
 	juce::String process();
 	juce::String getOriginalCode() const { return code; }
 
-	SparseSet<int> getDeactivatedLines()
-	{
-		conditionMode = true;
-		process();
-		jassert(conditionMode);
-		return deactivatedLines;
-	}
+	SparseSet<int> getDeactivatedLines();
 
 	struct AutocompleteData
 	{
