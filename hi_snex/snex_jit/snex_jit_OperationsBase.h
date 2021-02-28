@@ -577,7 +577,7 @@ namespace Operations
 	*/
 	struct ConditionalBranch
 	{
-		void allocateDirtyGlobalVariables(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
+		void preallocateVariableRegistersBeforeBranching(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
 
 		
 

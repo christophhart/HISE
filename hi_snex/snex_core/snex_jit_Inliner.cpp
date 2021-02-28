@@ -177,7 +177,17 @@ struct SyntaxTreeInlineData : public InlineData
 								auto newChild = v->clone(v->location);
 								auto newDot = new Operations::DotOperator(v->location, newParent, newChild);
 
-								v->replaceInParent(newDot);
+								Operations::Statement::Ptr statementToReplace = v;
+
+								if (auto dot = as<DotOperator>(v->parent.get()))
+								{
+									if (auto tp = as<ThisPointer>(dot->getDotParent()))
+									{
+										statementToReplace = dot;
+									}
+								}
+
+								statementToReplace->replaceInParent(newDot);
 							}
 						}
 

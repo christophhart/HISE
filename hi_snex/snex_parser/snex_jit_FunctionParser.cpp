@@ -324,29 +324,33 @@ void CodeParser::finaliseSyntaxTree(SyntaxTree* tree)
 
 		auto hasReturn = [](Operations::Statement::Ptr p)
 		{
-			if(dynamic_cast<Operations::ReturnStatement*>(p.get()))
-				return true;
-
-			return false;
+			return as<Operations::ReturnStatement>(p) != nullptr;
 		};
 
-		if (!lastTrueStatement->forEachRecursive(hasReturn))
-		{
-			auto ptr = new Operations::StatementBlock(lastTrueStatement->location, tree->getPath());
-			ptr->addStatement(lastTrueStatement->clone(lastTrueStatement->location));
-			ptr->addStatement(new Operations::ReturnStatement(lastTrueStatement->location, nullptr));
 
-			lastTrueStatement->replaceInParent(ptr);
-		}
-			
+		auto trueStatementHasReturn = lastTrueStatement->forEachRecursive(hasReturn);
+		auto falseStatementHasReturn = lastFalseStatement != nullptr && lastFalseStatement->forEachRecursive(hasReturn);
 
-		if (lastFalseStatement != nullptr)
+		if (trueStatementHasReturn || falseStatementHasReturn)
 		{
-			if (!lastFalseStatement->forEachRecursive(hasReturn))
+			if (!trueStatementHasReturn)
 			{
-				lastFalseStatement->addStatement(new Operations::ReturnStatement(location, nullptr));
+				auto ptr = new Operations::StatementBlock(lastTrueStatement->location, tree->getPath());
+				ptr->addStatement(lastTrueStatement->clone(lastTrueStatement->location));
+				ptr->addStatement(new Operations::ReturnStatement(lastTrueStatement->location, nullptr));
+
+				lastTrueStatement->replaceInParent(ptr);
 			}
-		
+
+			if (!falseStatementHasReturn)
+			{
+				auto ptr = new Operations::StatementBlock(lastFalseStatement->location, tree->getPath());
+				ptr->addStatement(lastFalseStatement->clone(lastFalseStatement->location));
+				ptr->addStatement(new Operations::ReturnStatement(lastFalseStatement->location, nullptr));
+
+				lastFalseStatement->replaceInParent(ptr);
+			}
+
 			return;
 		}
 	}

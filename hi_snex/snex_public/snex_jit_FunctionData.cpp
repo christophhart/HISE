@@ -132,6 +132,20 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds, b
 	return s;
 }
 
+bool FunctionData::hasTemplatedArgumentOrReturnType() const
+{
+	if (returnType.isTemplateType())
+		return true;
+
+	for (auto a : args)
+	{
+		if (a.typeInfo.isTemplateType())
+			return true;
+	}
+		
+	return false;
+}
+
 snex::jit::FunctionData FunctionData::withParent(const NamespacedIdentifier& newParent) const
 {
 	auto copy = *this;
@@ -274,6 +288,11 @@ bool FunctionData::hasDefaultParameter(const Symbol& arg) const
 	}
 
 	return false;
+}
+
+bool FunctionData::isValid() const
+{
+	return id.isValid();
 }
 
 juce::Result FunctionData::validateWithArgs(Types::ID r, const Array<Types::ID>& nativeArgList) const

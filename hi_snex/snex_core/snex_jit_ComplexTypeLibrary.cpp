@@ -1084,7 +1084,12 @@ size_t StructType::getRequiredByteSize() const
 	size_t s = 0;
 
 	for (auto m : memberData)
+	{
+		jassert(m->typeInfo.getTypedIfComplexType<TemplatedComplexType>() == nullptr);
+			
+
 		s += (m->typeInfo.getRequiredByteSize() + m->padding);
+	}
 
 	auto alignment = getRequiredAlignment();
 
@@ -1717,6 +1722,13 @@ void StructType::finaliseAlignment()
 
 	for (auto m : memberData)
 	{
+		if (auto tcd = m->typeInfo.getTypedIfComplexType<TemplatedComplexType>())
+		{
+			Operations::TemplateParameterResolver resolver(templateParameters);
+
+			auto r = resolver.processType(m->typeInfo);
+		}
+
 		if (m->typeInfo.isComplexType())
 			m->typeInfo.getComplexType()->finaliseAlignment();
 

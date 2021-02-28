@@ -90,6 +90,8 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 			if (!Types::Helpers::isFixedType(type))
 			{
+				getSubExpr(0)->tryToResolveType(compiler);
+
 				type = getSubExpr(0)->getType();
 
 				if (!Types::Helpers::isFixedType(type))
@@ -318,6 +320,15 @@ Operations::Assignment::TargetType Operations::Assignment::getTargetType() const
 		return TargetType::Span;
 	else if (dynamic_cast<MemoryReference*>(target.get()))
 		return TargetType::Reference;
+	else if (dynamic_cast<StatementBlock*>(target.get()))
+	{
+		auto t = target->getTypeInfo();
+
+		if(!t.isRef())
+			target->throwError("Can't assign to target");
+
+		return TargetType::Reference;
+	}
 
 	getSubExpr(1)->throwError("Can't assign to target");
 
@@ -1112,7 +1123,7 @@ bool Operations::Increment::tryToResolveType(BaseCompiler* c)
 
 			auto overloadedFunction = fc->getSpecialFunction(getOperatorId());
 
-			if (!overloadedFunction.isResolved())
+			if (!overloadedFunction.isValid())
 				location.throwError(fc->getClassName().getChildId(fc->getSpecialSymbol({}, getOperatorId())).toString() + " not found");
 
 			resolvedType = overloadedFunction.returnType;

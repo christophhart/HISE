@@ -190,6 +190,8 @@ struct FunctionData
 		return function != nullptr || inliner != nullptr;
 	}
 
+	bool hasTemplatedArgumentOrReturnType() const;
+
 	FunctionData withParent(const NamespacedIdentifier& newParent) const;
 
 	TypeInfo getOrResolveReturnType(ComplexType::Ptr p);
@@ -211,6 +213,8 @@ struct FunctionData
 	bool matchesArgumentTypesWithDefault(const Array<TypeInfo>& typeList) const;
 
 	bool hasDefaultParameter(const Symbol& arg) const;
+
+	bool isValid() const;
 
 	Result validateWithArgs(Types::ID r, const Array<Types::ID>& nativeArgList) const;
 

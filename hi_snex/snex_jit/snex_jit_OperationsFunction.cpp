@@ -120,10 +120,22 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 										l.add(fc);
 									}
 
-									
+									if (specialFunctionType == FunctionClass::Constructor)
+									{
+										for (int i = l.size() - 1; i >= 0; i--)
+											statements->addStatement(l[i], true);
+									}
 
-									for (int i = l.size() - 1; i >= 0; i--)
-										addStatement(l[i], specialFunctionType == FunctionClass::Constructor);
+#if 0
+									if (specialFunctionType == FunctionClass::Destructor)
+									{
+										for (int i = l.size() - 1; i >= 0; i--)
+										{
+											Symbol s(NamespacedIdentifier("this"), TypeInfo(cs->typePtr.get()));
+											StatementWithControlFlowEffectBase::addDestructorToAllChildStatements(statements, s);
+										}
+									}
+#endif
 								}
 							}
 						}
@@ -796,9 +808,23 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			struct {
 				static int compareElements(const FunctionData& f1, const FunctionData& f2)
 				{
+					bool firstResolvedOrNoT = f1.isResolved() || !f1.hasTemplatedArgumentOrReturnType();
+					bool seconResolvedOrNoT = f2.isResolved() || !f2.hasTemplatedArgumentOrReturnType();
+
+					if (firstResolvedOrNoT && !seconResolvedOrNoT)
+						return -1;
+
+					if (seconResolvedOrNoT && !firstResolvedOrNoT)
+						return 1;
+
+					return 0;
+
+#if 0
 					if (f1.isResolved() && !f2.isResolved()) return -1;
 					if (f2.isResolved() && !f1.isResolved()) return 1;
 					return 0;
+#endif
+
 				}
 			} sorter;
 			possibleMatches.sort(sorter);
@@ -1163,6 +1189,8 @@ bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
 			TemplateParameterResolver resolver(l);
 			auto r = resolver.process(function);
 			location.test(r);
+
+			ok = !function.returnType.isTemplateType() && !function.returnType.isDynamic();
 		}
 	}
 

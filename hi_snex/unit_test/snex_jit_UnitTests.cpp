@@ -625,45 +625,18 @@ public:
 	{
 		beginTest("Funky");
 
-
-		optimizations = OptimizationIds::getAllIds();
-		//testIndexTypes();
-
-		runTestFiles("simple_template25");
-
-		return;
-
-		// Continue: Make type info optional ref count... 
-
-		
-
-		
-
-
-		
-		//runTestFiles("return_reference2");
-		
 #if INCLUDE_SNEX_BIG_TESTSUITE
 		optimizations = OptimizationIds::getAllIds();
 
-		runTestFiles("wrap_frame");
+		testOptimizations();
+		testInlining();
 
-		return;
 
-		runTestsWithOptimisation({});
+		runTestsWithOptimisation(OptimizationIds::getDefaultIds());
 
 		optimizations = OptimizationIds::getAllIds();
 
-		runTestFiles("preprocessor_if5");
-
-		testExternalFunctionCalls();
-		testAccessWrappers();
-		testEvents();
-		testProcessData();
-		testEvents();
 		
-		testOptimizations();
-		testInlining();
 
 		juce::String s;
 		s << "Compile count: ";
@@ -840,7 +813,7 @@ public:
 
 		pc.start();
 
-		runTestFiles();
+		testStaticConst();
 		testFpu();
 
 		testParser();
@@ -857,6 +830,8 @@ public:
 		testPointerVariables<int>();
 		testPointerVariables<double>();
 		testPointerVariables<float>();
+
+		
 
 		testTernaryOperator();
 		testIfStatement();
@@ -878,9 +853,6 @@ public:
 
 		testScopes();
 		
-		//testEventSetters();
-		//testEvents();
-
 		testBlocks();
 		testSpan<int>();
 		testSpan<float>();
@@ -889,9 +861,14 @@ public:
 		testUsingAliases();
 		testProcessData();
 
-		testStaticConst();
-		testWrap();
 		testMacOSRelocation();
+
+		testExternalFunctionCalls();
+		testAccessWrappers();
+		testEvents();
+
+		testIndexTypes();
+		runTestFiles();
 
 		pc.stop();
 	}
@@ -1286,10 +1263,34 @@ private:
 
 		tdi << "{ " << im(1) << ", " << im(2) << ", " << im(3) << "};";
 
+#if 1
+
+		NEW_CODE_TEXT();
+
+		juce::String st;
+		st << "struct X { double unused = 2.0; $T value = " << im(2) << "; };";
+
+		ADD_CODE_LINE(st);
+		ADD_CODE_LINE("span<X, 3> data;");
+		ADD_CODE_LINE("$T test($T input){");
+		ADD_CODE_LINE("    for(auto& s: data)");
+		ADD_CODE_LINE("        input += s.value;");
+
+		ADD_CODE_LINE("    return input;}");
+		FINALIZE_CODE();
+
+		DBG(code);
+
+		CREATE_TYPED_TEST(code);
+		EXPECT_TYPED(GET_TYPE(T) + " iterator with struct element type ", 0, 6);
+
+#endif
+
+
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
-			ADD_CODE_LINE("span<$T, $size>::wrapped index = {0};");
+			ADD_CODE_LINE("index::wrapped<$size> index = {0};");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    int i = (int)input + 2;");
 			ADD_CODE_LINE("    i = i > $size ? ($size -1 ) : i;");
@@ -1306,7 +1307,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
-			ADD_CODE_LINE("span<$T, $size>::wrapped index = {0};");
+			ADD_CODE_LINE("index::wrapped<$size> index = {0};");
 			ADD_CODE_LINE("int clamp(int i) { return i > $size ? ($size -1 ) : i; };");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    index = clamp((int)input + 2);");
@@ -1433,7 +1434,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
-			ADD_CODE_LINE("span<$T, $size>::wrapped index;");
+			ADD_CODE_LINE("index::wrapped<$size> index;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    index = (int)input;");
 			ADD_CODE_LINE("    data[index] = 4.0;");
@@ -1455,7 +1456,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
-			ADD_CODE_LINE("span<$T, 2>::wrapped j;");
+			ADD_CODE_LINE("index::wrapped<2> j;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    j = (int)1.8f;");
 			ADD_CODE_LINE("    return data[2][j];}");
@@ -1492,8 +1493,8 @@ private:
 
 		{
 			NEW_CODE_TEXT();
-			ADD_CODE_LINE("span<span<$T, 2>, 3>::wrapped i;");
-			ADD_CODE_LINE("span<$T, 2>::wrapped j;");
+			ADD_CODE_LINE("index::wrapped<3> i;");
+			ADD_CODE_LINE("index::wrapped<2> j;");
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    i = (int)1.2;");
@@ -1508,7 +1509,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
-			ADD_CODE_LINE("span<span<$T, 2>, 3>::wrapped i;");
+			ADD_CODE_LINE("index::wrapped<3> i;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    i = (int)1.2;");
 			ADD_CODE_LINE("    return data[i][0];}");
@@ -1552,7 +1553,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
-			ADD_CODE_LINE("span<span<$T, 2>, 3>::wrapped i;");
+			ADD_CODE_LINE("index::wrapped<3, true> i;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    i = (int)input;");
 			ADD_CODE_LINE("    data[0][0] = data[i][0];");
@@ -1566,7 +1567,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
-			ADD_CODE_LINE("span<$T, 2>::wrapped j;");
+			ADD_CODE_LINE("index::wrapped<2> j;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    j = (int)input;");
 			ADD_CODE_LINE("    data[0][0] = data[1][j];");
@@ -1583,7 +1584,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 3>, 2> data = " + tdi);
-			ADD_CODE_LINE("span<span<$T, 3>, 2>::wrapped i;");
+			ADD_CODE_LINE("index::wrapped<2> i;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    i = (int)input;");
 			ADD_CODE_LINE("    data[0][0] = data[i][0];");
@@ -1596,7 +1597,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 3>, 2> data = " + tdi);
-			ADD_CODE_LINE("span<span<$T, 3>, 2>::wrapped i;");
+			ADD_CODE_LINE("index::wrapped<2> i;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    i = (int)input;");
 			ADD_CODE_LINE("    data[0][0] = data[i][0];");
@@ -1894,7 +1895,7 @@ private:
 			ADD_CODE_LINE("static const int x = 4;");
 			
 			ADD_CODE_LINE("span<int, x> data = { 1, 2, 3, 4 };");
-			ADD_CODE_LINE("span<int, x>::wrapped index = {0};");
+			ADD_CODE_LINE("index::wrapped<x> index;");
 			ADD_CODE_LINE("int test(int input) { index = input; return data[index]; }");
 
 			CREATE_TYPED_TEST(code);
@@ -1926,105 +1927,11 @@ private:
 			ADD_CODE_LINE("static const int x = 2;");
 			ADD_CODE_LINE("static const int y = x-1;");
 			ADD_CODE_LINE("span<int, x> data = { y, x };");
-			ADD_CODE_LINE("span<int, x>::wrapped index = { x - 2};");
-			ADD_CODE_LINE("int test(int input) { return data[index]; }");
+			ADD_CODE_LINE("int test(int input) { index::wrapped<x> index(x - 2);  return data[index]; }");
 
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED("test static const variable in span initialiser list", 10, 1);
 		}
-	}
-
-	void testWrap()
-	{
-		beginTest("Testing wrap type");
-
-		using T = int;
-
-		ScopedPointer<HiseJITTestCase<T>> test;
-
-		{
-			juce::String code;
-
-			ADD_CODE_LINE("span<int, 4>::wrapped x = {2};");
-			ADD_CODE_LINE("int test(int input) { x = input; return x; }");
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED("wrap assign", 5, 1);
-		}
-
-		{
-			juce::String code;
-
-			ADD_CODE_LINE("static const int size = 4;");
-			ADD_CODE_LINE("span<int, size>::wrapped x = {5};");
-			ADD_CODE_LINE("int test(int input) { return x; }");
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED("wrap with const variable", 5, 1);
-		}
-
-		{
-			juce::String code;
-
-			ADD_CODE_LINE("span<int, 5>::wrapped x = {3};");
-			ADD_CODE_LINE("int test(int input) { return x; }");
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED("simple", 5, 3);
-		}
-
-		{
-			juce::String code;
-
-			ADD_CODE_LINE("span<int, 4>::wrapped x = {5};");
-			ADD_CODE_LINE("int test(int input) { return x; }");
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED("wrap at initialisation", 5, 1);
-		}
-
-		
-
-		{
-			juce::String code;
-
-			ADD_CODE_LINE("span<int, 4>::wrapped x = {2};");
-			ADD_CODE_LINE("int test(int input) { return x++; }");
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED("wrap post-inc", 5, 2);
-		}
-
-		{
-			juce::String code;
-
-			ADD_CODE_LINE("span<int, 4>::wrapped x = {2};");
-			ADD_CODE_LINE("int test(int input) { return ++x; }");
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED("wrap pre-inc", 5, 3);
-		}
-
-		{
-			juce::String code;
-
-			ADD_CODE_LINE("span<int, 4>::wrapped x = {3};");
-			ADD_CODE_LINE("int test(int input) { return ++x; }");
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED("wrap pre-inc with wrap", 5, 0);
-		}
-
-		{
-			juce::String code;
-
-			ADD_CODE_LINE("span<int, 4>::wrapped x = {3};");
-			ADD_CODE_LINE("int test(int input) { return x++; }");
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED("wrap post-inc with wrap", 5, 3);
-		}
-		
 	}
 
 	template <typename T> void testMathInlining()
@@ -2650,7 +2557,7 @@ private:
 		expectEquals<uint64>(reinterpret_cast<uint64>(bl.begin()), reinterpret_cast<uint64>(rb->begin()), "simple block return");
 
 
-		CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[in.index<block::unsafe>(1)] = Math.sin(x); return 1.0f; };");
+		CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[1] = Math.sin(x); return 1.0f; };");
 		test->setup();
 		test->func["test"].call<float>(&bl);
 		expectAlmostEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
@@ -2678,7 +2585,7 @@ private:
 
 		CREATE_TYPED_TEST("block test(int in2, block in){ return in; };");
 
-		CREATE_TYPED_TEST("float test(block in){ in[in.index<block::unsafe>(4)] = 124.0f; return 1.0f; };");
+		CREATE_TYPED_TEST("float test(block in){ in[4] = 124.0f; return 1.0f; };");
 		test->setup();
 		
 		test->func["test"].call<float>(&bl);
@@ -2703,7 +2610,7 @@ private:
         test->func["test"].call<float>(&bl);
         expectEquals<float>(bl[1], 0.0f, "Calling function with wrong signature as block assignment");
 
-        CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[in.index<block::unsafe>(1)] = Math.sin(x); return 1.0f; };");
+        CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[1] = Math.sin(x); return 1.0f; };");
         test->setup();
         test->func["test"].call<float>(&bl);
 		expectAlmostEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
@@ -2712,13 +2619,13 @@ private:
 		bl[0] = 0.86f;
 		bl2[128] = 0.92f;
 
-		CREATE_TYPED_TEST("float test(block in, block in2){ block::unsafe idx; return in[idx] + in2[idx.moved(128)]; };");
+		CREATE_TYPED_TEST("float test(block in, block in2){ int idx = 0; return in[idx] + in2[idx + 128]; };");
 
 		test->setup();
 		auto rb2 = test->func["test"].call<float>(&bl, &bl2);
 		expectEquals<float>(rb2, 0.86f + 0.92f, "Adding two block values");
 
-		CREATE_TYPED_TEST("float test(block in){ in[in.index<block::unsafe>(1)] = 124.0f; return 1.0f; };");
+		CREATE_TYPED_TEST("float test(block in){ in[1] = 124.0f; return 1.0f; };");
 		test->setup();
 		test->func["test"].call<float>(&bl);
 		expectEquals<float>(bl[1], 124.0f, "Setting block value");

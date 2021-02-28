@@ -282,6 +282,7 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 				if (sb->reg != nullptr)
 				{
 					asg.emitStore(sb->reg, reg);
+					reg->clearAfterReturn();
 					sb->addInlinedReturnJump(asg.cc);
 				}
 				else
@@ -452,7 +453,9 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 				auto okBranch = acg.cc.newLabel();
 				acg.cc.jb(okBranch);
 
-				auto errorFlag = x86::ptr(scope->getGlobalScope()->getRuntimeErrorFlag()).cloneResized(4);
+				auto errorFlagReg = acg.cc.newGpq();
+				acg.cc.mov(errorFlagReg, scope->getGlobalScope()->getRuntimeErrorFlag());
+				auto errorFlag = x86::ptr(errorFlagReg).cloneResized(4);
 				acg.cc.mov(why, (int)RuntimeError::ErrorType::WhileLoop);
 				acg.cc.mov(errorFlag, why);
 				acg.cc.mov(why, (int)location.getLine());
@@ -635,7 +638,7 @@ void Operations::Loop::process(BaseCompiler* compiler, BaseScope* scope)
 
 		jassert(r != nullptr && r->getScope() != nullptr);
 
-		allocateDirtyGlobalVariables(getLoopBlock(), compiler, scope);
+		preallocateVariableRegistersBeforeBranching(getLoopBlock(), compiler, scope);
 
 		if (loopTargetType == Span)
 		{
@@ -815,10 +818,10 @@ void Operations::IfStatement::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
 
-		allocateDirtyGlobalVariables(getTrueBranch(), compiler, scope);
+		preallocateVariableRegistersBeforeBranching(getTrueBranch(), compiler, scope);
 
 		if (hasFalseBranch())
-			allocateDirtyGlobalVariables(getFalseBranch(), compiler, scope);
+			preallocateVariableRegistersBeforeBranching(getFalseBranch(), compiler, scope);
 
 		auto cond = dynamic_cast<Expression*>(getCondition().get());
 		auto trueBranch = getTrueBranch();

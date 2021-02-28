@@ -192,6 +192,9 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 		}
 	}
 	
+	if (target->shouldWriteToMemoryAfterStore())
+		writeRegisterToMemory(target);
+
 }
 
 
@@ -243,11 +246,15 @@ void AsmCodeGenerator::writeRegisterToMemory(RegPtr p)
 	if (p->hasCustomMemoryLocation() && p->isActive())
 	{
 		auto mem = p->getMemoryLocationForReference();
-		auto reg = INT_REG_R(p);
 
 		IF_(int) cc.mov(mem, INT_REG_R(p));
 		IF_(float) cc.movss(mem, FP_REG_R(p));
 		IF_(double) cc.movsd(mem, FP_REG_W(p));
+	}
+
+	if (p->isGlobalMemory() && p->isActive())
+	{
+		emitMemoryWrite(p);
 	}
 }
 
@@ -411,7 +418,7 @@ void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, Variab
 	}
 	else
 	{
-		auto ptr = x86::ptr(INT_REG_R(parent), memberOffset.toInt());
+		auto ptr = x86::ptr(PTR_REG_R(parent), memberOffset.toInt());
 		target->setCustomMemoryLocation(ptr.cloneResized(byteSize), parent->isGlobalMemory());
 	}
 }
@@ -537,7 +544,13 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 					cc.bind(errorBranch);
 
 					auto flagReg = cc.newGpd();
-					auto errorFlag = x86::ptr(gs->getRuntimeErrorFlag()).cloneResized(4);
+
+					auto errorFlagReg = cc.newGpq();
+					cc.mov(errorFlagReg, gs->getRuntimeErrorFlag());
+
+					auto errorFlag = x86::ptr(errorFlagReg).cloneResized(4);
+
+					
 
 					cc.mov(flagReg, (int)RuntimeError::ErrorType::IntegerDivideByZero);
 					cc.mov(errorFlag, flagReg);
@@ -818,7 +831,12 @@ void AsmCodeGenerator::emitCompare(bool useAsmFlags, OpType op, RegPtr target, R
 
 	IF_(int)
 	{
+		auto leftWasDirty = l->isDirtyGlobalMemory();
+
 		INT_OP(cc.cmp, l, r);
+
+		if (!leftWasDirty)
+			l->setUndirty();
 
 		if (!useAsmFlags)
 		{
@@ -893,8 +911,8 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 	{
 		if (auto am = c->registerPool.getActiveRegisterForCustomMem(expr))
 		{
-			rToUse = expr;
-			expr->loadMemoryIntoRegister(cc);
+			rToUse = am;
+			 am->loadMemoryIntoRegister(cc);
 		}
 		else
 		{
@@ -904,10 +922,6 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 	}
 	else
 		rToUse = expr;
-
-	
-
-	
 
 	if (expr == nullptr || target == nullptr)
 		cc.ret();
@@ -933,6 +947,8 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 				cc.movsd(FP_REG_W(rToUse), ptr);
 		}
 
+		jassert(rToUse->isActive());
+
 		switch (type)
 		{
 		case Types::ID::Float:
@@ -947,6 +963,8 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 		default:
 			jassertfalse;
 		}
+
+		rToUse->clearAfterReturn();
 	}
 }
 
@@ -1161,6 +1179,8 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(TypeInfo returnType, Opera
 
 		falseBranch->process(c, s);
 
+		writeDirtyGlobals(c);
+
 		if (returnReg != nullptr)
 		{
 			if (auto fAsExpr = dynamic_cast<Operations::Expression*>(falseBranch))
@@ -1272,12 +1292,13 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 		{
 			
 			if (IS_REG(expr))    cc.cvtsi2sd(FP_REG_W(target), INT_REG_R(expr));
-			else if (IS_CMEM(expr))   cc.cvtsi2sd(FP_REG_W(target), INT_MEM(expr));
-			else if (IS_MEM(expr))
+			else if (IS_IMM(expr))
 			{
 				auto m = cc.newDoubleConst(ConstPool::kScopeLocal, static_cast<double>(INT_IMM(expr)));
 				target->setCustomMemoryLocation(m, false);
 			}
+			else if (IS_CMEM(expr) || IS_MEM(expr))   
+				cc.cvtsi2sd(FP_REG_W(target), INT_MEM(expr));
 			else
 				cc.cvtsi2sd(FP_REG_W(target), INT_REG_R(expr));
 		}
@@ -1296,12 +1317,12 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 		IF_(int) // SOURCE TYPE
 		{
 			if     (IS_REG(expr))    cc.cvtsi2ss(FP_REG_W(target), INT_REG_R(expr));
-		    else if(IS_CMEM(expr))   cc.cvtsi2ss(FP_REG_W(target), INT_MEM(expr));
-			else if (IS_MEM(expr))
+			else if (IS_IMM(expr))
 			{
 				auto m = cc.newFloatConst(ConstPool::kScopeLocal, static_cast<float>(INT_IMM(expr)));
 				target->setCustomMemoryLocation(m, false);
 			}
+		    else if(IS_CMEM(expr) || IS_MEM(expr))   cc.cvtsi2ss(FP_REG_W(target), INT_MEM(expr));
 			else                     
 				cc.cvtsi2ss(FP_REG_W(target), INT_REG_R(expr));
 		}

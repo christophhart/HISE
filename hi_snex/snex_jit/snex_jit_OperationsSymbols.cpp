@@ -155,9 +155,12 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				}
 				else
 				{
-					//jassert(!id.resolved);
+					auto newId = Symbol(st->id.getChildId(id.getName()), st->getMemberTypeInfo(id.getName()));
 
-					id = Symbol(st->id.getChildId(id.getName()), st->getMemberTypeInfo(id.getName()));
+					// set the type if it's not templated and the existing type is already instantiated...
+					if (newId.typeInfo.getTypedIfComplexType<TemplatedComplexType>() == nullptr || !id.resolved)
+						id = newId;
+
 					variableScope = scope;
 					objectAdress = VariableStorage((int)(st->getMemberOffset(id.id.getIdentifier())));
 					objectPtr = st;
@@ -257,18 +260,13 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 				if (!hasAlreadyThisPointer && !isClassDefinition)
 				{
-					DBG("ADD THIS POINTER");
-
 					auto tp = new ThisPointer(location, TypeInfo(subClassType, false, true));
 					auto dot = new DotOperator(location, tp, this->clone(location));
 					auto p = parent.get();
 
 					Ptr keepAlive(this);
-
 					replaceInParent(dot);
-
 					SyntaxTreeInlineData::processUpToCurrentPass(p, dot);
-
 					return;
 				}
 			}
@@ -352,11 +350,12 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 							else
 								reg = compiler->registerPool.getNextFreeRegister(scope, TypeInfo(regType, true));
 
-
 							reg->setReference(scope, id);
-							
 							acg.emitThisMemberAccess(reg, pf->objectPtr, objectAdress);
+
+							replaceMemoryWithExistingReference(compiler);
 							return;
+
 						}
 						else
 						{
@@ -418,11 +417,6 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			return;
 		}
 
-#if 0
-		if (reg->isIteratorRegister())
-			return;
-#endif
-
 		auto asg = CREATE_ASM_COMPILER(getType());
 
 		isFirstOccurence = (!reg->isActive() && !reg->isMemoryLocation()) || isFirstReference();
@@ -455,12 +449,6 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 					if (reg->getType() == Types::ID::Pointer)
 						reg->loadMemoryIntoRegister(asg.cc);
-
-
-#if 0
-					if (!isReferencedOnce())
-						reg->loadMemoryIntoRegister(asg.cc);
-#endif
 				}
 			}
 		}

@@ -60,6 +60,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	WrapLibraryBuilder wBuilder(c, numChannels);
 	wBuilder.registerTypes();
 
+#if 0
 	FxNodeLibrary fBuilder(c, numChannels);
 	fBuilder.registerTypes();
 
@@ -68,6 +69,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 
 	MathNodeLibrary mBuilder(c, numChannels);
 	mBuilder.registerTypes();
+#endif
 
 	IndexLibrary iBuilder2(c, numChannels);
 	iBuilder2.registerTypes();

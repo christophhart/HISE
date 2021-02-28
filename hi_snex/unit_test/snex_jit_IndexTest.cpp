@@ -72,9 +72,12 @@ private:
 		testFloatAlphaAndIndex();
 		testSpanAccess();
 		testDynAccess();
+		testInterpolators();
 #endif
 
-		testInterpolators();
+		testSpanAccess();
+
+		
 
 
 	}
@@ -122,7 +125,7 @@ private:
 				String message = indexName;
 
 				message << " with value " << String(testValue);
-				test.expectEquals(actual, expected, message);
+				test.expectWithinAbsoluteError(actual, expected, Type(0.0001), message);
 			};
 
 			// Test List =======================================================
@@ -161,6 +164,14 @@ private:
 				c.addWithSemicolon("return data[i];");
 			}
 
+			c << "int test2(T input)";
+			{
+				cppgen::StatementBlock sb(c);
+				c << "i = input;";
+				c << "data[i] = (T)50;";
+				c << "return data[i];";
+			}
+
 			test.logMessage("Testing " + indexName + " span[]");
 
 			c.replaceWildcard("T", Types::Helpers::getTypeNameFromTypeId<Type>());
@@ -185,6 +196,16 @@ private:
 					m << " with value " << String(testValue);
 
 					test.expectEquals(actualValue, expectedValue, m);
+
+					data[i] = Type(50);
+					auto e2 = data[i];
+
+					auto a2 = obj["test2"].call<int>(testValue);
+
+					m << "(write access)";
+
+					test.expectEquals(e2, a2, m);
+
 				}
 				else
 				{

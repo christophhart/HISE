@@ -284,6 +284,8 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 
 	asmjit::Error e = asmjit::kErrorOk;
 
+	jassert(!memory.isNone());
+
 	switch (getType())
 	{
 	case Types::ID::Float: e = cc.movss(reg.as<X86Xmm>(), memory); break;
@@ -533,6 +535,14 @@ void AssemblyRegister::setImmediateValue(int64 value)
 	hasCustomMem = false;
 }
 
+bool AssemblyRegister::isImmediate() const
+{
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isImmediate();
+
+	return hasImmediateValue;
+}
+
 void AssemblyRegister::invalidateRegisterForCustomMemory()
 {
 	if (isReferencingOtherRegister())
@@ -543,6 +553,18 @@ void AssemblyRegister::invalidateRegisterForCustomMemory()
 
 	jassert(hasCustomMemoryLocation());
 	dirty = false;
+	reg = {};
+	state = LoadedMemoryLocation;
+}
+
+void AssemblyRegister::clearAfterReturn()
+{
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->clearAfterReturn();
+		return;
+	}
+
 	reg = {};
 	state = LoadedMemoryLocation;
 }
@@ -622,6 +644,27 @@ bool AssemblyRegister::isZero() const
 		return getReferenceTargetRegister()->isZero();
 
 	return !isActive() && isZeroValue;
+}
+
+void AssemblyRegister::setWriteBackToMemory(bool shouldWriteBackToMemory)
+{
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->setWriteBackToMemory(shouldWriteBackToMemory);
+		return;
+	}
+
+	writeBackToMemory = shouldWriteBackToMemory;
+}
+
+bool AssemblyRegister::shouldWriteToMemoryAfterStore() const
+{
+	if (isReferencingOtherRegister())
+	{
+		return getReferenceTargetRegister()->shouldWriteToMemoryAfterStore();
+	}
+
+	return writeBackToMemory;
 }
 
 AssemblyRegisterPool::AssemblyRegisterPool(BaseCompiler* c):

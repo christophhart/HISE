@@ -250,20 +250,46 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 		Base c(Base::OutputType::AddTabs);
 
 		cppgen::StatementBlock b1(c);
-		c << "if (stepsToDo <= 0)";
-		c << "	  return value;";
+		c << "if (this->stepsToDo <= 0)";
+		c << "	  return this->value;";
 		c << "else";
 		{
 			cppgen::StatementBlock b(c);
-			c << "auto v = value;";
-			c << "value += delta;";
-			c << "stepsToDo--;";
+			c << "auto v = this->value;";
+			c << "this->value += this->delta;";
+			c << "this->stepsToDo -= 1;";
 			c << "return v;";
 		}
 
 		return SyntaxTreeInlineParser(b, {}, c).flush();
 	});
 
+
+	obj->injectInliner("set", Inliner::HighLevel, [](InlineData* b)
+	{
+		using namespace cppgen;
+
+		Base c(Base::OutputType::AddTabs);
+
+		c << "if (this->numSteps == 0)";
+		{
+			cppgen::StatementBlock sb(c);
+			c << "this->targetValue = newTargetValue;";
+			c << "this->reset();";
+		}
+		c << "else";
+		{
+			cppgen::StatementBlock sb(c);
+			c << "auto d = newTargetValue - this->value;";
+			c << "this->delta = d * this->stepDivider;";
+			c << "this->targetValue = newTargetValue;";
+			c << "this->stepsToDo = this->numSteps;";
+		}
+
+		return SyntaxTreeInlineParser(b, {"newTargetValue"}, c).flush();
+	});
+
+#if 0
 	ADD_INLINER(set, {
 		SETUP_INLINER(T);
 
@@ -318,6 +344,7 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 
 		return Result::ok();
 		});
+#endif
 
 	ADD_INLINER(get,
 		{

@@ -111,7 +111,7 @@ bool TemplateParameter::ListOps::isSubset(const List& all, const List& possibleS
 
 bool TemplateParameter::ListOps::readyToResolve(const List& l)
 {
-	return isNamed(l) && isParameter(l);
+	return isNamed(l) && (isParameter(l) || l.isEmpty());
 }
 
 bool TemplateParameter::ListOps::isValidTemplateAmount(const List& argList, int numProvided)

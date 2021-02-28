@@ -228,8 +228,37 @@ struct Operations::ReturnStatement : public Expression,
 
 	ScopeStatementBase* findRoot() const override
 	{
+		Ptr p = parent.get();
+
+		while (p != nullptr)
+		{
+			if (auto st = as<SyntaxTree>(p))
+			{
+				return st;
+			}
+
+			if (auto sb = as<StatementBlock>(p))
+			{
+				if (sb->isInlinedFunction)
+					return sb;
+			}
+
+			p = p->parent.get();
+		}
+
+		jassertfalse;
+		return nullptr;
+
+		//return ScopeStatementBase::getStatementListWithReturnType(const_cast<ReturnStatement*>(this));
+	}
+
+#if 0
+	ScopeStatementBase* findRoot() const override
+	{
 		return ScopeStatementBase::getStatementListWithReturnType(const_cast<ReturnStatement*>(this));
 	}
+#endif
+
 
 	Ptr getReturnValue()
 	{

@@ -439,11 +439,11 @@ bool Operations::Statement::replaceIfOverloaded(Ptr objPtr, List args, FunctionC
 
 			auto overloadedFunction = fc->getSpecialFunction(overloadType, returnType, argTypes);
 
-			if (overloadedFunction.canBeInlined(true))
+			if (overloadedFunction.id.isValid())
 			{
 				auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
 
-				auto f = new FunctionCall(location, nullptr, Symbol(overloadedFunction.id, overloadedFunction.returnType), {});
+				auto f = new FunctionCall(location, nullptr, overloadedFunction.toSymbol(), {});
 
 				f->setObjectExpression(objPtr->clone(location));
 
@@ -548,21 +548,83 @@ void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::Mes
 	compiler->logMessage(type, e.toString());
 }
 
-void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr statementToSearchFor, BaseCompiler* c, BaseScope* s)
+void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(Statement::Ptr statementToSearchFor, BaseCompiler* c, BaseScope* s)
 {
+	auto asScope = as<ScopeStatementBase>(statementToSearchFor);
+
+	if (asScope == nullptr)
+	{
+		// just grab the nearest scope
+		asScope = findParentStatementOfType<ScopeStatementBase>(statementToSearchFor);
+	}
+
+	jassert(asScope != nullptr);
+	auto path = asScope->getPath();
+
+	auto hasChildStatementsWithLocalScope = [&](Statement::Ptr p)
+	{
+		if (auto v = as<VariableReference>(p))
+		{
+			auto scopeId = v->id.id.getParent();
+
+			return scopeId == path || path.isParentOf(scopeId);
+		}
+
+		return false;
+	};
+
+	
+
+	statementToSearchFor->forEachRecursive([&](Statement::Ptr p)
+	{
+		auto d = as<DotOperator>(p) ;
+		auto v = as<VariableReference>(p);
+
+		if (p->forEachRecursive(hasChildStatementsWithLocalScope))
+			return false;
+
+		if (d != nullptr || v != nullptr)
+		{
+
+			if (v != nullptr && v->isClassVariable(s))
+				v->forceLoadData = true;
+
+			p->process(c, s);
+
+			if (p->reg != nullptr)
+			{
+				auto& cc = getFunctionCompiler(c);
+
+				if(d != nullptr)
+					p->reg->loadMemoryIntoRegister(cc);
+
+				p->reg->setWriteBackToMemory(true);
+			}
+		}
+		
+		return false;
+	});
+
+
+#if 0
 	SyntaxTreeWalker w(statementToSearchFor, false);
 
 	while (auto v = w.getNextStatementOfType<VariableReference>())
 	{
+		//v->forceLoadData = true;
+		v->process(c, s);
+
+		auto r = v->reg;
+
 		// If use a class variable, we need to create the register
 		// outside the loop
-		if (v->isClassVariable(s) && v->isFirstReference())
+		if (v->isFirstReference())
 		{
-			v->forceLoadData = true;
-			v->process(c, s);
+			
 		}
 			
 	}
+#endif
 }
 
 Operations::Statement::Ptr Operations::ScopeStatementBase::createChildBlock(Location l) const
@@ -1029,7 +1091,12 @@ void Operations::StatementWithControlFlowEffectBase::addDestructorToAllChildStat
 		d.t = ComplexType::InitData::Type::Desctructor;
 		d.functionTree = b.get();
 		b->object = bs;
-		b->expression = new Operations::VariableReference(bs->location, id);
+
+		if (id.id.getIdentifier() == Identifier("this"))
+			b->expression = new Operations::ThisPointer(bs->location, id.typeInfo);
+		else
+			b->expression = new Operations::VariableReference(bs->location, id);
+
 		auto r = id.typeInfo.getComplexType()->callDestructor(d);
 		bs->location.test(r);
 	}
