@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 90
+  output: 6
   error: ""
   filename: "inheritance/inheritance_9"
 END_TEST_DATA
@@ -21,7 +21,7 @@ struct Base
 	
 	~Base()
 	{
-		counter = 90;
+		
 	}
 };
 
@@ -34,7 +34,7 @@ struct Derived: public Base
 
 	~Derived()
 	{
-		counter += 1;
+		
 	}
 };
 

@@ -14,8 +14,8 @@ END_TEST_DATA
 
 int main(int input)
 {
-	span<int, 8>::wrapped i;
+	index::wrapped<8> i;
 	
-	return --i;
+	return (int)--i;
 }
 

@@ -11,13 +11,13 @@ END_TEST_DATA
 */
 
 using SpanType = span<int, 5>;
-using WrapType = index::wrapped<5>
+using WrapType = index::wrapped<5>;
 
 SpanType d = { 1, 2, 3, 4, 5 };
 
 int main(int input)
 {
-	SpanType i(input);
+	WrapType i(input);
 	return d[i];
 }
 

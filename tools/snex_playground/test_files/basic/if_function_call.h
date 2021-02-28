@@ -18,7 +18,7 @@ bool handleModulation(int& d)
 	// Change this to a non-constant
 	// and it will not remove the
 	// function call...
-	return false; // value3 != 9;
+	return true; // value3 != 9;
 }
 
 int value3 = 9;
@@ -30,7 +30,7 @@ void doSomething()
 
 int main(int input)
 {
-	if(handleModulation(input))
+	if(handleModulation(input) == 0)
 	{
 		doSomething();
 	}

@@ -27,9 +27,6 @@ float main(int input)
 		v += s;
 	}
 
-	if(!r.isActive())
-		return 0;
-	else
-		return v;
+	return v;
 }
 

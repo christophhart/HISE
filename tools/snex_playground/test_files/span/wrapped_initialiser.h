@@ -10,10 +10,12 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-index::wrapped<5> s = { 7 };
+
 
 int main(int input)
 {
+	index::wrapped<5> s = { 7 };
+	
 	return (int)s;
 }
 
