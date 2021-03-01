@@ -207,7 +207,7 @@ namespace control
 		template <int P> void callFadeValue(double v)
 		{
 			if (P < p.getNumParameters())
-				p.call<P>(fader.getFadeValue<P>(p.getNumParameters(), v));
+				p.template call<P>(fader.template getFadeValue<P>(p.getNumParameters(), v));
 		}
 
 		ModValue lastValue;

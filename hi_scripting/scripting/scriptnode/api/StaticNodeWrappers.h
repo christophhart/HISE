@@ -72,7 +72,7 @@ public:
 
 	template <typename T, bool AddDataOffsetToUIPtr> void init()
 	{
-		obj.getWrappedObject().create<T>();
+		obj.getWrappedObject().template create<T>();
 
 		if constexpr (AddDataOffsetToUIPtr && std::is_base_of<data::pimpl::provider_base, T>())
 		{
@@ -340,6 +340,10 @@ struct ParameterMultiplyAddNode : public ParameterNodeBase
 };
 #endif
 
+namespace parameter
+{
+    struct dynamic_list;
+}
 
 struct NewHero : public ModulationSourceNode,
 				 public InterpretedNodeBase<OpaqueNode>
@@ -355,9 +359,9 @@ struct NewHero : public ModulationSourceNode,
 
 	template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr> static NodeBase* createNode(DspNetwork* n, ValueTree d)
 	{
-		constexpr bool isBaseOfDynamicParameterHolder = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_base_holder>, T::WrappedObjectType>();
+		constexpr bool isBaseOfDynamicParameterHolder = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_base_holder>, typename T::WrappedObjectType>();
 
-		static_assert(std::is_base_of<control::pimpl::no_processing, T::WrappedObjectType>(), "not a base of no_processing");
+		static_assert(std::is_base_of<control::pimpl::no_processing, typename T::WrappedObjectType>(), "not a base of no_processing");
 
 		auto mn = new NewHero(n, d);
 
@@ -365,7 +369,7 @@ struct NewHero : public ModulationSourceNode,
 			mn->getParameterFunction = NewHero::getParameterFunctionStatic<T>;
 		else
 		{
-			constexpr bool isBaseOfDynamicList = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_list>, T::WrappedObjectType>();
+			constexpr bool isBaseOfDynamicList = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_list>, typename T::WrappedObjectType>();
 			static_assert(isBaseOfDynamicList, "not a base of dynamic holder or list");
 			mn->getParameterFunction = nullptr;
 		}
@@ -435,7 +439,7 @@ private:
 	{
 		using BaseClass = control::pimpl::parameter_node_base<parameter::dynamic_base_holder>;
 
-		static_assert(std::is_base_of<BaseClass, Derived::WrappedObjectType>());
+		static_assert(std::is_base_of<BaseClass, typename Derived::WrappedObjectType>());
 
 		auto typed = static_cast<Derived*>(b);
 		return &typed->getWrappedObject().getParameter();

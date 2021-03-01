@@ -141,7 +141,7 @@ namespace parameter
 		return targets.size();
 	}
 
-	void dynamic_list::updateConnections(ValueTree& v, bool wasAdded)
+	void dynamic_list::updateConnections(ValueTree v, bool wasAdded)
 	{
 		if (deferUpdate)
 			return;

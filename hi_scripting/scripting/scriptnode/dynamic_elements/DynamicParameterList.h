@@ -79,7 +79,7 @@ namespace parameter
 
 		int getNumParameters() const;
 
-		void updateConnections(ValueTree& v, bool wasAdded);
+		void updateConnections(ValueTree v, bool wasAdded);
 
 		void updateParameterAmount(Identifier id, var newValue);
 

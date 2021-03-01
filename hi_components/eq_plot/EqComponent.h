@@ -67,7 +67,7 @@ struct AnalyserRingBuffer: public AsyncUpdater
 		handleAsyncUpdate();
 	}
 
-	void pushSamples(AudioSampleBuffer& b, int startSample, int numSamples)
+	void pushSamples(const AudioSampleBuffer& b, int startSample, int numSamples)
 	{
 		if (internalBuffer.getNumSamples() == 0)
 			return;
