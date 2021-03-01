@@ -63,6 +63,11 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #define INCLUDE_TCC 0
 
+/** This will determine the timeout duration (in milliseconds) after which a server call will be aborted. */
+#ifndef HISE_SCRIPT_SERVER_TIMEOUT
+#define HISE_SCRIPT_SERVER_TIMEOUT 10000
+#endif
+
 #define MAX_SCRIPT_HEIGHT 700
 
 #define INCLUDE_NATIVE_JIT 0

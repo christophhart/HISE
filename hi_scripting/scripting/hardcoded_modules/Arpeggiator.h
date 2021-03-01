@@ -78,7 +78,7 @@ public:
 	~Arpeggiator();
 
 	void mpeDataReloaded() override {};
-	void mpeModeChanged(bool isEnabled) override { mpeMode = isEnabled; reset(true, true); }
+	void mpeModeChanged(bool isEnabled) override;
 	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
 
 	SET_PROCESSOR_NAME("Arpeggiator", "Arpeggiator", "A arpeggiator module");

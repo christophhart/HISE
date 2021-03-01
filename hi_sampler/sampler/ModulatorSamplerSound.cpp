@@ -280,6 +280,39 @@ Range<int> ModulatorSamplerSound::getVelocityRange() const {
 float ModulatorSamplerSound::getPropertyVolume() const noexcept { return gain.load(); }
 double ModulatorSamplerSound::getPropertyPitch() const noexcept { return pitchFactor.load(); }
 
+bool ModulatorSamplerSound::noteRangeExceedsMaxPitch() const
+{
+	if (auto s = getReferenceToSound())
+	{
+		auto pf = s->getPitchFactor(midiNotes.getHighestBit(), rootNote);
+
+		return pf > (double)MAX_SAMPLER_PITCH;
+	}
+
+	return false;
+}
+
+void ModulatorSamplerSound::loadEntireSampleIfMaxPitch()
+{
+	if(noteRangeExceedsMaxPitch())
+	{
+		auto safeThis = WeakReference<ModulatorSamplerSound>(this);
+
+		auto f = [this, safeThis](Processor* )
+		{
+			if (safeThis.get() == nullptr)
+				return SafeFunctionCall::OK;
+
+			FOR_EVERY_SOUND(loadEntireSample());
+			return SafeFunctionCall::OK;
+		};
+
+		auto s = parentMap->getSampler();
+		
+		s->getMainController()->getKillStateHandler().killVoicesAndCall(s, f, MainController::KillStateHandler::SampleLoadingThread);
+	}
+}
+
 void ModulatorSamplerSound::setMaxRRGroupIndex(int newGroupLimit)
 {
 	maxRRGroup = newGroupLimit;
@@ -564,6 +597,8 @@ void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& 
 		{
 			upperVeloXFadeValue = newValue;
 		}
+
+		loadEntireSampleIfMaxPitch();
 	}
 	else
 	{

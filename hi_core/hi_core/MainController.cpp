@@ -775,6 +775,14 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	masterEventBuffer.addEvents(midiMessages);
 
+	if (maxEventTimestamp != 0)
+	{
+		int maxAligned = maxEventTimestamp - maxEventTimestamp % HISE_EVENT_RASTER;
+
+		for (auto& e : masterEventBuffer)
+			e.setTimeStamp(jmin(maxAligned, e.getTimeStamp()));
+	}
+
 	handleSuspendedNoteOffs();
 
     if (!masterEventBuffer.isEmpty()) setMidiInputFlag();

@@ -663,7 +663,7 @@ public:
 			}
 		}
 
-		repaintUpdater.triggerAsyncUpdate();
+		repaintUpdater.update(index);
 	}
 
 	

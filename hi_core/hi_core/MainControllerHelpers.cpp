@@ -847,7 +847,7 @@ public:
 
 	bool shouldDelayRendering() const 
 	{
-#if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
+#if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND || (HISE_EVENT_RASTER == 1)
 		return false;
 #else
 		return hostType.isFruityLoops();
@@ -865,6 +865,7 @@ DelayedRenderer::DelayedRenderer(MainController* mc_) :
 	pimpl(new Pimpl()),
 	mc(mc_)
 {
+	memset(leftOverChannels, 0, sizeof(float)*HISE_NUM_PLUGIN_CHANNELS * HISE_EVENT_RASTER);
 }
 
 DelayedRenderer::~DelayedRenderer()
@@ -1143,6 +1144,66 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 			mc->processBlockCommon(chunk, delayedMidiBuffer);
 		}
+	}
+
+	else if (buffer.getNumSamples() % HISE_EVENT_RASTER != 0 || numLeftOvers != 0)
+	{
+#if FRONTEND_IS_PLUGIN
+		jassertfalse;
+		buffer.clear();
+#else
+
+		DBG(buffer.getNumSamples());
+
+		int numSamplesToCalculate = buffer.getNumSamples() - numLeftOvers;
+
+		// use a temp buffer and pad to the event raster size...
+		auto oddSampleAmount = numSamplesToCalculate % HISE_EVENT_RASTER;
+		auto thisLeftOver = (HISE_EVENT_RASTER - oddSampleAmount) % HISE_EVENT_RASTER;
+
+		int paddedBufferSize = (numSamplesToCalculate + thisLeftOver);
+
+		int numToCopy = jmin(paddedBufferSize, buffer.getNumSamples());
+
+		auto data = (float*)alloca(sizeof(float) * buffer.getNumChannels() * paddedBufferSize);
+
+		float* ptrs[HISE_NUM_PLUGIN_CHANNELS];
+
+		for (int i = 0; i < buffer.getNumChannels(); i++)
+		{
+			leftOverChannels[i] = leftOverData + i * HISE_EVENT_RASTER;
+
+			ptrs[i] = data + i * paddedBufferSize;
+
+			FloatVectorOperations::copy(ptrs[i], buffer.getReadPointer(i), numToCopy);
+
+			if(thisLeftOver > 0 && (numToCopy + thisLeftOver) < paddedBufferSize)
+				FloatVectorOperations::clear(ptrs[i] + numToCopy, thisLeftOver);
+		}
+
+		if (paddedBufferSize > 0)
+		{
+			AudioSampleBuffer tempBuffer(ptrs, buffer.getNumChannels(), paddedBufferSize);
+
+			mc->setMaxEventTimestamp(numSamplesToCalculate);
+			mc->processBlockCommon(tempBuffer, midiMessages);
+			mc->setMaxEventTimestamp(0);
+		}
+
+		for (int i = 0; i < buffer.getNumChannels(); i++)
+		{
+			if (numLeftOvers != 0)
+				FloatVectorOperations::copy(buffer.getWritePointer(i), leftOverChannels[i], numLeftOvers);
+
+			if(numSamplesToCalculate > 0)
+				FloatVectorOperations::copy(buffer.getWritePointer(i, numLeftOvers), ptrs[i], numSamplesToCalculate);
+
+			if(thisLeftOver != 0)
+				FloatVectorOperations::copy(leftOverChannels[i], ptrs[i] + numSamplesToCalculate, thisLeftOver);
+		}
+
+		numLeftOvers = thisLeftOver;
+#endif
 	}
 	else
 	{

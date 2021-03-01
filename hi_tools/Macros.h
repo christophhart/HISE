@@ -71,7 +71,11 @@ namespace hise { using namespace juce;
 #endif
 
 #ifndef HISE_EVENT_RASTER
+#if FRONTEND_IS_PLUGIN
+#define HISE_EVENT_RASTER 1 // Do not downsample the control rate for effect plugins
+#else
 #define HISE_EVENT_RASTER 8
+#endif
 #endif
 
 #ifndef HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR

@@ -361,31 +361,38 @@ public:
                 }
                 else
                 {
-                    HeapBlock<char, true> newData;
-                    newData.allocate (newTotalBytes, clearExtraSpace || isClear);
+					if (avoidReallocating && newTotalBytes <= allocatedBytes && newNumChannels <= numChannels)
+					{
+						// no need to remap the pointers as long as the sample size changes
+					}
+					else
+					{
+						HeapBlock<char, true> newData;
+						newData.allocate(newTotalBytes, clearExtraSpace || isClear);
 
-                    auto numSamplesToCopy = (size_t) jmin (newNumSamples, size);
+						auto numSamplesToCopy = (size_t)jmin(newNumSamples, size);
 
-                    auto newChannels = reinterpret_cast<Type**> (newData.get());
-                    auto newChan     = reinterpret_cast<Type*> (newData + channelListSize);
+						auto newChannels = reinterpret_cast<Type**> (newData.get());
+						auto newChan = reinterpret_cast<Type*> (newData + channelListSize);
 
-                    for (int j = 0; j < newNumChannels; ++j)
-                    {
-                        newChannels[j] = newChan;
-                        newChan += allocatedSamplesPerChannel;
-                    }
+						for (int j = 0; j < newNumChannels; ++j)
+						{
+							newChannels[j] = newChan;
+							newChan += allocatedSamplesPerChannel;
+						}
 
-                    if (! isClear)
-                    {
-                        auto numChansToCopy = jmin (numChannels, newNumChannels);
+						if (!isClear)
+						{
+							auto numChansToCopy = jmin(numChannels, newNumChannels);
 
-                        for (int i = 0; i < numChansToCopy; ++i)
-                            FloatVectorOperations::copy (newChannels[i], channels[i], (int) numSamplesToCopy);
-                    }
+							for (int i = 0; i < numChansToCopy; ++i)
+								FloatVectorOperations::copy(newChannels[i], channels[i], (int)numSamplesToCopy);
+						}
 
-                    allocatedData.swapWith (newData);
-                    allocatedBytes = newTotalBytes;
-                    channels = newChannels;
+						allocatedData.swapWith(newData);
+						allocatedBytes = newTotalBytes;
+						channels = newChannels;
+					}
                 }
             }
             else
