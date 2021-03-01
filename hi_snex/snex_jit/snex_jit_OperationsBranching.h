@@ -226,30 +226,11 @@ struct Operations::ReturnStatement : public Expression,
 
 	StatementBlock* findInlinedRoot() const;;
 
-	ScopeStatementBase* findRoot() const override
+	ScopeStatementBase* findRoot() const override;
+
+	bool shouldAddDestructor(ScopeStatementBase* b, const Symbol& id) const override
 	{
-		Ptr p = parent.get();
-
-		while (p != nullptr)
-		{
-			if (auto st = as<SyntaxTree>(p))
-			{
-				return st;
-			}
-
-			if (auto sb = as<StatementBlock>(p))
-			{
-				if (sb->isInlinedFunction)
-					return sb;
-			}
-
-			p = p->parent.get();
-		}
-
-		jassertfalse;
-		return nullptr;
-
-		//return ScopeStatementBase::getStatementListWithReturnType(const_cast<ReturnStatement*>(this));
+		return findRoot() == b;
 	}
 
 #if 0
@@ -390,6 +371,15 @@ struct Operations::WhileLoop : public Statement,
 
 	Ptr getLoopChildStatement(ChildStatementType t);
 
+	asmjit::Label getJumpTargetForEnd(bool getContinue) override
+	{
+		return getContinue ? continueTarget : breakTarget;
+	}
+
+
+	asmjit::Label continueTarget;
+	asmjit::Label breakTarget;
+
 	ScopedPointer<RegisterScope> forScope;
 };
 
@@ -446,6 +436,11 @@ struct Operations::Loop : public Expression,
 
 	bool evaluateIteratorLoad();
 
+	asmjit::Label getJumpTargetForEnd(bool getContinue) override
+	{
+		return loopEmitter->getLoopPoint(getContinue);
+	}
+
 	void process(BaseCompiler* compiler, BaseScope* scope);
 
 	RegPtr iteratorRegister;
@@ -467,7 +462,8 @@ struct Operations::Loop : public Expression,
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Loop);
 };
 
-struct Operations::ControlFlowStatement : public Expression
+struct Operations::ControlFlowStatement : public Expression,
+										  public StatementWithControlFlowEffectBase
 {
 
 
@@ -497,7 +493,23 @@ struct Operations::ControlFlowStatement : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;;
 
-	WeakReference<Loop> parentLoop;
+	virtual ScopeStatementBase* findRoot() const override;
+
+	bool shouldAddDestructor(ScopeStatementBase* b, const Symbol& id) const override
+	{
+		/** Return if 
+
+		- b is child of loopblock or loopblock
+		- (check definition after...)
+		*/
+
+		auto loopPath = findRoot()->getPath();
+		auto thisP = b->getPath();
+
+		return thisP == loopPath || loopPath.isParentOf(thisP);
+	}
+
+	WeakReference<ConditionalBranch> parentLoop;
 	bool isBreak;
 };
 
@@ -525,6 +537,12 @@ struct Operations::IfStatement : public Statement,
 		Statement::Ptr c3 = hasFalseBranch() ? getChildStatement(2)->clone(l) : nullptr;
 
 		return new IfStatement(l, dynamic_cast<Expression*>(c1.get()), c2, c3);
+	}
+
+	asmjit::Label getJumpTargetForEnd(bool getContinue) override
+	{
+		location.throwError("Can't jump to end of if");
+		return {};
 	}
 
 	TypeInfo getTypeInfo() const override { return {}; }

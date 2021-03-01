@@ -260,7 +260,7 @@ struct AsmCodeGenerator
 
 	void dumpVariables(BaseScope* s, uint64_t lineNumber);
 
-	void emitLoopControlFlow(Operations::Loop* parentLoop, bool isBreak);
+	void emitLoopControlFlow(Operations::ConditionalBranch* parentLoop, bool isBreak);
 
 	Compiler& cc;
 

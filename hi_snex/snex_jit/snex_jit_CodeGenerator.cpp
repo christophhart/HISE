@@ -1013,6 +1013,7 @@ Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr
 		{
 			if (typePtr->getRequiredByteSize() == 0)
 			{
+
 				jassert(target->isMemoryLocation());
 				auto mem = target->getAsMemoryLocation().cloneResized(1);
 				cc.mov(mem, 0);
@@ -1555,9 +1556,9 @@ void AsmCodeGenerator::dumpVariables(BaseScope* s, uint64_t lineNumber)
 	cc.mov(target, lineNumber);
 }
 
-void AsmCodeGenerator::emitLoopControlFlow(Operations::Loop* parentLoop, bool isBreak)
+void AsmCodeGenerator::emitLoopControlFlow(Operations::ConditionalBranch* parentLoop, bool isBreak)
 {
-	auto l = parentLoop->loopEmitter->getLoopPoint(!isBreak);
+	auto l = parentLoop->getJumpTargetForEnd(!isBreak);
 
 	jassert(l.isLabel());
 	jassert(l.isValid());

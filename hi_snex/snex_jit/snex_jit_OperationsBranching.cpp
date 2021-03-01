@@ -338,6 +338,32 @@ snex::jit::Operations::StatementBlock* Operations::ReturnStatement::findInlinedR
 	return nullptr;
 }
 
+snex::jit::Operations::ScopeStatementBase* Operations::ReturnStatement::findRoot() const
+{
+	Ptr p = parent.get();
+
+	while (p != nullptr)
+	{
+		if (auto st = as<SyntaxTree>(p))
+		{
+			return st;
+		}
+
+		if (auto sb = as<StatementBlock>(p))
+		{
+			if (sb->isInlinedFunction)
+				return sb;
+		}
+
+		p = p->parent.get();
+	}
+
+	jassertfalse;
+	return nullptr;
+
+	//return ScopeStatementBase::getStatementListWithReturnType(const_cast<ReturnStatement*>(this));
+}
+
 void Operations::TernaryOp::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	// We need to have precise control over the code generation
@@ -391,6 +417,7 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 		auto safeCheck = scope->getGlobalScope()->isRuntimeErrorCheckEnabled();
 		auto cond = acg.cc.newLabel();
 		auto exit = acg.cc.newLabel();
+		continueTarget = acg.cc.newLabel();
 		auto why = acg.cc.newGpd();
 
 		if (safeCheck)
@@ -398,6 +425,8 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 
 		acg.cc.nop();
 		acg.cc.bind(cond);
+
+		breakTarget = exit;
 
 		auto cp = getCompareCondition();
 
@@ -469,8 +498,16 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 
 		getLoopChildStatement(ChildStatementType::Body)->process(compiler, scope);
 
+
 		if (auto pb = getLoopChildStatement(ChildStatementType::PostBodyOp))
+		{
+			acg.cc.bind(continueTarget);
 			pb->process(compiler, scope);
+		}
+		else
+		{
+			continueTarget = cond;
+		}
 		
 		acg.cc.jmp(cond);
 		acg.cc.bind(exit);
@@ -778,11 +815,27 @@ bool Operations::Loop::tryToResolveType(BaseCompiler* compiler)
 
 void Operations::ControlFlowStatement::process(BaseCompiler* compiler, BaseScope* scope)
 {
+	if (parentLoop == nullptr)
+	{
+		Ptr p = parent;
+
+		while (p != nullptr)
+		{
+			if (as<WhileLoop>(p) || as<Loop>(p))
+			{
+				parentLoop = as<ConditionalBranch>(p);
+				break;
+			}
+
+			p = p->parent;
+		}
+	}
+
 	processBaseWithChildren(compiler, scope);
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
-		parentLoop = findParentStatementOfType<Loop>(this);
+		
 
 		if (parentLoop == nullptr)
 		{
@@ -797,6 +850,27 @@ void Operations::ControlFlowStatement::process(BaseCompiler* compiler, BaseScope
 		auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
 		acg.emitLoopControlFlow(parentLoop, isBreak);
 	}
+}
+
+snex::jit::Operations::ScopeStatementBase* Operations::ControlFlowStatement::findRoot() const
+{
+	jassert(parentLoop != nullptr);
+
+	Ptr p = parent;
+
+	auto parentLoopAsPtr = dynamic_cast<Statement*>(parentLoop.get());
+
+	while (p != nullptr)
+	{
+		if (p->parent == parentLoopAsPtr)
+		{
+			return dynamic_cast<ScopeStatementBase*>(p.get());
+		}
+
+		p = p->parent;
+	}
+
+	return nullptr;
 }
 
 void Operations::IfStatement::process(BaseCompiler* compiler, BaseScope* scope)

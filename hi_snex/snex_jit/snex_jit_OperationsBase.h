@@ -569,6 +569,8 @@ namespace Operations
 		*/
 		virtual ScopeStatementBase* findRoot() const = 0;
 
+		virtual bool shouldAddDestructor(ScopeStatementBase* b, const Symbol& id) const = 0;
+
 		static void addDestructorToAllChildStatements(Statement::Ptr p, const Symbol& id);
 	};
 
@@ -579,9 +581,13 @@ namespace Operations
 	{
 		void preallocateVariableRegistersBeforeBranching(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
 
-		
+		virtual asmjit::Label getJumpTargetForEnd(bool getContinue) = 0;
 
 		virtual ~ConditionalBranch() {}
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ConditionalBranch);
 	};
 
 	struct FunctionDefinitionBase

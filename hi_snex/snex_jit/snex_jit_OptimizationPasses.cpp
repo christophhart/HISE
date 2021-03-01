@@ -563,9 +563,11 @@ bool FunctionInliner::processStatementInternal(BaseCompiler* compiler, BaseScope
 				}
 			}
 
-			is->addStatement(newFalseBranch);
-
-			return true;
+			if (newFalseBranch != nullptr)
+			{
+				is->addStatement(newFalseBranch);
+				return true;
+			}
 		}
 	}
 

@@ -1062,11 +1062,25 @@ void Operations::StatementWithControlFlowEffectBase::addDestructorToAllChildStat
 
 	jassert(rootTyped != nullptr);
 
+	bool symbolWasDefined = false;
+
 	root->forEachRecursive([&](Statement::Ptr p)
 	{
+		if (auto cd = as<ComplexTypeDefinition>(p))
+		{
+			if (cd->getInstanceIds().contains(id.id))
+			{
+				symbolWasDefined = true;
+				return false;
+			}
+		}
+
+		if (!symbolWasDefined)
+			return false;
+
 		if (auto swcfweb = as<StatementWithControlFlowEffectBase>(p))
 		{
-			if (swcfweb->findRoot() == rootTyped)
+			if (swcfweb->shouldAddDestructor(rootTyped, id))
 				breakStatements.add(p);
 		}
 
