@@ -49,6 +49,20 @@ Arpeggiator::~Arpeggiator()
 	mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
 }
 
+void Arpeggiator::mpeModeChanged(bool isEnabled)
+{
+	try
+	{
+		mpeMode = isEnabled; reset(true, true);
+	}
+	catch (String& m)
+	{
+#if USE_BACKEND
+		debugError(this, m);
+#endif
+	}
+}
+
 int Arpeggiator::getNumSliderPacks()
 {
 	return 3;
@@ -881,6 +895,10 @@ void Arpeggiator::reset(bool do_all_notes_off, bool do_stop)
 	case Direction::DownUp:
 		arpDirMod = -1;
 		curHeldNoteIdx = MidiSequenceArray.size() - 1;
+		break;
+	case Direction::Random:
+		arpDirMod = 1;
+		curHeldNoteIdx = 0;
 		break;
     default:
         jassertfalse;
