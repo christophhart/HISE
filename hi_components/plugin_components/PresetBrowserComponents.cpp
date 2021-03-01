@@ -675,6 +675,9 @@ void PresetBrowserColumn::paint(Graphics& g)
 	else if (listModel->isEmpty())
 		emptyText = isResultBar ? "No results" : "Add a " + name;
 
+	if (auto exp = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
+		emptyText = "";
+
 	getPresetBrowserLookAndFeel().drawColumnBackground(g, listArea, emptyText);
 }
 
