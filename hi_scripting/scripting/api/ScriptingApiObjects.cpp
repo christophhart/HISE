@@ -1281,8 +1281,8 @@ hise::ModulatorSampler* ScriptingObjects::ScriptingSamplerSound::getSampler() co
 struct ScriptingObjects::ScriptingModulator::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingModulator, setAttribute);
-    API_METHOD_WRAPPER_1(ScriptingModulator, getAttribute);
-    API_METHOD_WRAPPER_1(ScriptingModulator, getAttributeId);
+	API_METHOD_WRAPPER_1(ScriptingModulator, getAttribute);
+  API_METHOD_WRAPPER_1(ScriptingModulator, getAttributeId);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setBypassed);
 	API_METHOD_WRAPPER_0(ScriptingModulator, isBypassed);
@@ -1294,12 +1294,13 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, restoreScriptControls);
 	API_METHOD_WRAPPER_0(ScriptingModulator, exportScriptControls);
 	API_METHOD_WRAPPER_3(ScriptingModulator, addModulator);
-    API_METHOD_WRAPPER_1(ScriptingModulator, getModulatorChain);
+  API_METHOD_WRAPPER_1(ScriptingModulator, getModulatorChain);
     
 	API_METHOD_WRAPPER_3(ScriptingModulator, addGlobalModulator);
 	API_METHOD_WRAPPER_3(ScriptingModulator, addStaticGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingModulator, asTableProcessor);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getId);
+	API_METHOD_WRAPPER_0(ScriptingModulator, getType);
 };
 
 ScriptingObjects::ScriptingModulator::ScriptingModulator(ProcessorWithScriptingContent *p, Modulator *m_) :
@@ -1327,13 +1328,14 @@ moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
 	}
 
 	ADD_API_METHOD_0(getId);
+	ADD_API_METHOD_0(getType);
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_1(setIntensity);
 	ADD_API_METHOD_0(getIntensity);
-    ADD_API_METHOD_1(getAttribute);
-    ADD_API_METHOD_1(getAttributeId);
+  ADD_API_METHOD_1(getAttribute);
+  ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_0(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
@@ -1341,7 +1343,7 @@ moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
 	ADD_API_METHOD_1(restoreScriptControls);
 	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_3(addModulator);
-    ADD_API_METHOD_1(getModulatorChain);
+  ADD_API_METHOD_1(getModulatorChain);
     
 	ADD_API_METHOD_3(addGlobalModulator);
 	ADD_API_METHOD_3(addStaticGlobalModulator);
@@ -1396,6 +1398,14 @@ String ScriptingObjects::ScriptingModulator::getId() const
 {
 	if (checkValidObject())
 		return mod->getId();
+
+	return String();
+}
+
+String ScriptingObjects::ScriptingModulator::getType() const
+{
+	if (checkValidObject())
+		return mod->getType().toString();
 
 	return String();
 }
