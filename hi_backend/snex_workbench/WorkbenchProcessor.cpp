@@ -240,6 +240,15 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 	menuBar.setModel(this);
 	menuBar.setLookAndFeel(&getProcessor()->getGlobalLookAndFeel());
 
+    
+    
+    addAndMakeVisible(menuBar);
+    
+#if JUCE_MAC
+    MenuBarModel::setMacMainMenu(this);
+    menuBar.setVisible(false);
+#endif
+    
 	auto json = getLayoutFile().loadFileAsString();
 
 	if (json.isNotEmpty())
@@ -332,8 +341,6 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 	addAndMakeVisible(rootTile);
 
-	addAndMakeVisible(menuBar);
-
 	
 
 	setSize(800, 600);
@@ -357,7 +364,9 @@ void SnexWorkbenchEditor::resized()
 {
 	auto b = getLocalBounds();
 
+#if !JUCE_MAC
 	menuBar.setBounds(b.removeFromTop(24));
+#endif
 	rootTile->setBounds(b);
 }
 
