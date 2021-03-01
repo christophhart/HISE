@@ -1167,6 +1167,22 @@ juce::ReferenceCountedArray<snex::jit::ComplexType> NamespaceHandler::getComplex
 	return l;
 }
 
+bool NamespaceHandler::removeNamespace(const NamespacedIdentifier& id)
+{
+	jassert(!id.isNull());
+
+	for (auto e : existingNamespace)
+	{
+		if (e->id == id)
+		{
+			existingNamespace.removeObject(e);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 TypeInfo NamespaceHandler::getTypeInfo(const NamespacedIdentifier& aliasId, const Array<SymbolType>& t) const
 {
 	auto p = aliasId.getParent();

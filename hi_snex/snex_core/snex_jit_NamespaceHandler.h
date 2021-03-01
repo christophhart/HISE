@@ -376,6 +376,10 @@ public:
 
 	ReferenceCountedArray<ComplexType> getComplexTypeList();
 
+	bool removeNamespace(const NamespacedIdentifier& id);
+
+
+
 private:
 
 	mutable bool skipResolving = false;

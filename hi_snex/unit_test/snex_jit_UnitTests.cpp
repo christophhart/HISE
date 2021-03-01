@@ -1752,7 +1752,7 @@ private:
 			ADD_CODE_LINE("    int v = f.next();");
 			ADD_CODE_LINE("    for(auto& s: f)");
 			ADD_CODE_LINE("        s = 0.8f;");
-			ADD_CODE_LINE("    int v = f.next();");
+			ADD_CODE_LINE("    v = f.next();");
 			ADD_CODE_LINE("    for(auto& s: f)");
 			ADD_CODE_LINE("        s = 1.4f;");
 			ADD_CODE_LINE("return f.next();}");

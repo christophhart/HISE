@@ -475,10 +475,18 @@ juce::Result SyntaxTreeInlineParser::flush()
 		jassertfalse;
 	}
 
+
+
 	if (f->classData != nullptr)
 	{
-		return f->classData->inliner->process(b);
+		auto r = f->classData->inliner->process(b);
+
+		d->expression->currentCompiler->namespaceHandler.removeNamespace(f->classData->id);
+
+		return r;
 	}
+
+	
 
 	return Result::fail("Can't find inliner");
 
