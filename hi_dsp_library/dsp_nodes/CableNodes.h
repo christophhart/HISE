@@ -72,7 +72,7 @@ namespace control
 				IndexType index(v);
 
 				v = b[index];
-				getParameter().call(v);
+				this->getParameter().call(v);
 				lastValue = v;
 
 				externalData.setDisplayedValue((double)index.getIndex(b.size()));
@@ -95,7 +95,7 @@ namespace control
 
 		void initialise(NodeBase* n)
 		{
-			p.initialise(n);
+			this->p.initialise(n);
 		}
 
 		void setExternalData(const ExternalData& d, int index) override
@@ -113,8 +113,8 @@ namespace control
 
 		template <int P> void callSlider(double v)
 		{
-			if (P < b.size() && P < getParameter().getNumParameters())
-				getParameter().getParameter<P>().call(v * b[P]);
+			if (P < b.size() && P < this->getParameter().getNumParameters())
+				this->getParameter().template getParameter<P>().call(v * b[P]);
 		}
 
 		void setValue(double v)
@@ -161,8 +161,7 @@ namespace control
 
 				auto tv = tableData.interpolate(ip);
 
-				getParameter().call(tv);
-
+				this->getParameter().call(tv);
 				this->externalData.setDisplayedValue(input);
 			}
 		}
@@ -304,7 +303,7 @@ namespace control
 
 		void sendParameterChange(control::pimpl::combined_parameter_base::Data& d)
 		{
-			getParameter().call(d.getPmaValue());
+			this->getParameter().call(d.getPmaValue());
 		}
 	};
 

@@ -500,13 +500,13 @@ snex::jit::ComplexType::Ptr DataReadLockJIT::createComplexType(Compiler& c, cons
 	cf.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
 	cf.addArgs("data", TypeInfo(ed, false, true));
 	cf.returnType = Types::ID::Void;
-	cf.function = Wrappers::constructor;
+	cf.function = (void*)Wrappers::constructor;
 	st->addExternalMemberFunction(cf);
 
 	FunctionData df;
 	df.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Destructor));
 	df.returnType = Types::ID::Void;
-	df.function = Wrappers::destructor;
+	df.function = (void*)Wrappers::destructor;
 	st->addExternalMemberFunction(df);
 
 	return st->finaliseAndReturn();

@@ -824,7 +824,8 @@ struct SimpleReadWriteLock
 			lock(l)
 		{
 			auto thisId = std::this_thread::get_id();
-			holdsLock = lock.writer.compare_exchange_weak(std::thread::id(), thisId);
+            auto i = std::thread::id();
+			holdsLock = lock.writer.compare_exchange_weak(i, thisId);
 
 			if (holdsLock)
 			{

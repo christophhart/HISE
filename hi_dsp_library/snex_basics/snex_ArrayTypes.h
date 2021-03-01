@@ -137,9 +137,9 @@ template <int UpperLimit> struct wrapped_logic
 		if constexpr (std::is_floating_point<T>())
 		{
 			if constexpr (hasDynamicBounds())
-				return hmath::fmod(input, limit);
+				return std::fmod(input, limit);
 			else
-				return hmath::fmod(input, (T)UpperLimit);
+				return std::fmod(input, (T)UpperLimit);
 		}
 		else
 		{
@@ -184,9 +184,9 @@ template <int UpperLimit> struct clamped_logic
 	template <typename T> static T getWithDynamicLimit(T input, T limit)
 	{
 		if constexpr (hasDynamicBounds())
-			return hmath::range(input, T(0), limit - T(1));
+			return jlimit<T>(T(0), limit - T(1), input);
 		else
-			return hmath::range(input, T(0), T(getUpperLimit() - 1));
+			return jlimit<T>(T(0), T(getUpperLimit() - 1), input);
 	}
 
 	template <typename ContainerType> static auto& getRedirected(ContainerType& c, int index)
@@ -393,7 +393,7 @@ template <typename FloatType, typename IntegerIndexType, bool IsNormalised> stru
 	{
 		String s;
 		s << "index::" << (IsNormalised ? "normalised" : "unscaled");
-		s << "<" << Types::Helpers::getTypeNameFromTypeId<Type>() << ", ";
+        s << "<" << Types::Helpers::getTypeNameFromTypeId<Type>() << ", ";
 		s << IntegerIndexType::toString() << ">";
 		return s;
 	}
@@ -514,8 +514,8 @@ template <typename IndexType> struct interpolator_base
 
 	static constexpr bool hasBoundCheck() { return IndexType::hasBoundCheck(); };
 
-	using LogicType = typename IndexType::LogicType;
-	using Type = typename IndexType::Type;
+    using LogicType = typename IndexType::LogicType;
+    using Type = typename IndexType::Type;
 
 	interpolator_base(Type initValue = Type(0)):
 		idx(initValue)
@@ -531,12 +531,12 @@ template <typename IndexType> struct interpolator_base
 
 	interpolator_base operator+(FloatType t) const
 	{
-		return interpolator_base(v + t);
+		return interpolator_base((FloatType)idx + t);
 	}
 
 	interpolator_base operator-(FloatType t) const
 	{
-		return interpolator_base(v - t);
+		return interpolator_base((FloatType)idx - t);
 	}
 
 	explicit operator Type() const
@@ -551,6 +551,9 @@ protected:
 
 template <typename IndexType> struct lerp: public interpolator_base<IndexType>
 {
+    using LogicType = typename IndexType::LogicType;
+    using Type = typename IndexType::Type;
+    
 	lerp(Type initValue=Type(0)):
 		interpolator_base<IndexType>(initValue)
 	{}
@@ -565,11 +568,11 @@ template <typename IndexType> struct lerp: public interpolator_base<IndexType>
 
 	template <typename ContainerType> auto getFrom(const ContainerType& t) const
 	{
-		auto i1 = idx.getIndex(t.size(), 0);
-		auto i2 = idx.getIndex(t.size(), 1);
-		auto alpha = idx.getAlpha(t.size());
+		auto i1 = this->idx.getIndex(t.size(), 0);
+		auto i2 = this->idx.getIndex(t.size(), 1);
+		auto alpha = this->idx.getAlpha(t.size());
 
-		return getFromImpl(t, i1, i2, alpha, std::is_floating_point<ContainerType::DataType>());
+		return getFromImpl(t, i1, i2, alpha, std::is_floating_point<typename ContainerType::DataType>());
 	}
 
 	
@@ -580,8 +583,8 @@ private:
 	{
 		using ElementType = typename ContainerType::DataType;
 
-		auto v1 = LogicType::getRedirected(t, i1);
-		auto v2 = LogicType::getRedirected(t, i2);
+        auto v1 = LogicType::getRedirected(t, i1);
+        auto v2 = LogicType::getRedirected(t, i2);
 
 		return interpolate(v1, v2, (ElementType)alpha);
 	}
@@ -614,6 +617,9 @@ private:
 
 template <typename IndexType> struct hermite : public interpolator_base<IndexType>
 {
+    using LogicType = typename IndexType::LogicType;
+    using Type = typename IndexType::Type;
+    
 	hermite(Type initValue = Type(0)) :
 		interpolator_base<IndexType>(initValue)
 	{}
@@ -628,13 +634,13 @@ template <typename IndexType> struct hermite : public interpolator_base<IndexTyp
 
 	template <typename ContainerType> auto getFrom(const ContainerType& t) const
 	{
-		auto i0 = idx.getIndex(t.size(), -1);
-		auto i1 = idx.getIndex(t.size(), 0);
-		auto i2 = idx.getIndex(t.size(), 1);
-		auto i3 = idx.getIndex(t.size(), 2);
-		auto alpha = idx.getAlpha(t.size());
+		auto i0 = this->idx.getIndex(t.size(), -1);
+		auto i1 = this->idx.getIndex(t.size(), 0);
+		auto i2 = this->idx.getIndex(t.size(), 1);
+		auto i3 = this->idx.getIndex(t.size(), 2);
+		auto alpha = this->idx.getAlpha(t.size());
 
-		return getFromImpl(t, i0, i1, i2, i3, alpha, std::is_floating_point<ContainerType::DataType>());
+		return getFromImpl(t, i0, i1, i2, i3, alpha, std::is_floating_point<typename ContainerType::DataType>());
 	}
 
 private:
@@ -1507,8 +1513,11 @@ template <class DataType, int Size> static dyn<DataType> slice(const span<DataTy
 
 
 
-
 }
+    
+using block = Types::dyn<float>;
+
+    
 }
 
 #endif

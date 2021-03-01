@@ -33,6 +33,15 @@
 #pragma once
 
 namespace snex {
+    
+
+    
+    
+    
+    
+    
+    
+    
 namespace Types {
 using namespace juce;
 
@@ -215,12 +224,12 @@ struct IndexType
 
 	template <typename T> static auto clamped(const dyn<T>& obj, int initValue=0)
 	{
-		return index::typename clamped<0>(initValue);
+		return index::clamped<0>(initValue);
 	}
 
 	template <typename T> static auto wrapped(const dyn<T>& obj, int initValue=0)
 	{
-		return index::typename wrapped<0>(initValue);
+		return index::wrapped<0>(initValue);
 	}
 
 

@@ -116,12 +116,10 @@ private:
 
 			auto testWithValue = [&](Type testValue)
 			{
-				numTests++;
-
 				IndexType i;
 				i = testValue;
 				auto expected = data[i];
-				auto actual = obj["test"].call<Type>(testValue);
+				auto actual = obj["test"].template call<Type>(testValue);
 				String message = indexName;
 
 				message << " with value " << String(testValue);
@@ -183,13 +181,11 @@ private:
 			{
 				if (IndexType::LogicType::hasBoundCheck())
 				{
-					numTests++;
-
 					IndexType i;
 					i = testValue;
 
 					auto expectedValue = data[i];
-					auto actualValue = obj["test"].call<int>(testValue);
+					auto actualValue = obj["test"].template call<int>(testValue);
 
 					String m = indexName;
 					m << "::operator[]";
@@ -200,7 +196,7 @@ private:
 					data[i] = Type(50);
 					auto e2 = data[i];
 
-					auto a2 = obj["test2"].call<int>(testValue);
+					auto a2 = obj["test2"].template call<int>(testValue);
 
 					m << "(write access)";
 
@@ -279,13 +275,12 @@ private:
 			{
 				if (IndexType::LogicType::hasBoundCheck())
 				{
-					numTests++;
-
+					
 					IndexType i;
 					i = testValue;
 
 					auto expectedValue = d[i];
-					auto actualValue = obj["test"].call<int>(testValue);
+					auto actualValue = obj["test"].template call<int>(testValue);
 
 					String m = indexName;
 					m << "::operator[]";
@@ -329,14 +324,14 @@ private:
 	template <typename Container> void initialiseSpan(String& asCode, Container& data)
 	{
 
-		auto elementType = Types::Helpers::getTypeFromTypeId<Container::DataType>();
+		auto elementType = Types::Helpers::getTypeFromTypeId<typename Container::DataType>();
 
 		asCode << "span<" << Types::Helpers::getTypeName(elementType) << ", " << ArraySize << "> data = { ";
 
 		for (int i = 0; i < ArraySize; i++)
 		{
 			asCode << Types::Helpers::getCppValueString(var(i), elementType) << ", ";
-			data[i] = (Container::DataType)i;
+			data[i] = (typename Container::DataType)i;
 		}
 
 		asCode = asCode.upToLastOccurrenceOf(", ", false, false);
@@ -388,19 +383,18 @@ private:
 
 				auto testWithValue = [&](Type testValue, int deltaValue, int limit)
 				{
-					numTests++;
-
+					
 					IndexType i;
 					i = testValue;
 					auto expectedAlpha = i.getAlpha(limit);
-					auto actualAlpha = obj["testAlpha"].call<Type>(testValue, limit);
+					auto actualAlpha = obj["testAlpha"].template call<Type>(testValue, limit);
 					String am = indexName;
 					am << "::getAlpha()";
 					am << " with value " << String(testValue);
 					test.expectWithinAbsoluteError(actualAlpha, expectedAlpha, Type(0.00001), am);
 
 					auto expectedIndex = i.getIndex(limit, deltaValue);
-					auto actualIndex = obj["testIndex"].call<int>(testValue, deltaValue, limit);
+					auto actualIndex = obj["testIndex"].template call<int>(testValue, deltaValue, limit);
 
 					String im = indexName;
 					im << "::getIndex()";
@@ -451,19 +445,18 @@ private:
 
 				auto testWithValue = [&](Type testValue, int deltaValue)
 				{
-					numTests++;
-
+					
 					IndexType i;
 					i = testValue;
 					auto expectedAlpha = i.getAlpha(0);
-					auto actualAlpha = obj["testAlpha"].call<Type>(testValue);
+					auto actualAlpha = obj["testAlpha"].template call<Type>(testValue);
 					String am = indexName;
 					am << "::getAlpha()";
 					am << " with value " << String(testValue);
 					test.expectWithinAbsoluteError(actualAlpha, expectedAlpha, Type(0.00001), am);
 
 					auto expectedIndex = i.getIndex(0, deltaValue);
-					auto actualIndex = obj["testIndex"].call<int>(testValue, deltaValue);
+					auto actualIndex = obj["testIndex"].template call<int>(testValue, deltaValue);
 
 					String im = indexName;
 					im << "::getIndex()";
@@ -522,8 +515,7 @@ private:
 
 			auto testWithValue = [&](int testValue)
 			{
-				numTests++;
-
+				
 				IndexType i;
 				i = testValue;
 				int expected;
@@ -536,7 +528,7 @@ private:
 				case FunctionClass::PostDecOverload: expected = (int)i--; break;
 				}
 
-				auto actual = obj["test"].call<int>(testValue);
+				auto actual = obj["test"].template call<int>(testValue);
 				String message = indexName;
 				message << ": " << op;
 				message << " with value " << String(testValue);
@@ -582,11 +574,10 @@ private:
 
 			auto testWithValue = [&](Type testValue)
 			{
-				numTests++;
 				IndexType i;
 				i = testValue;
 				auto expected = (Type)i;
-				auto actual = obj["test"].call<Type>(testValue);
+				auto actual = obj["test"].template call<Type>(testValue);
 				String message = indexName;
 				message << " with value " << String(testValue);
 				test.expectWithinAbsoluteError(actual, expected, Type(0.00001), message);
@@ -594,7 +585,7 @@ private:
 
 			// Test List =======================================================
 
-			if constexpr (std::_Is_floating_point<Type>())
+			if constexpr (std::is_floating_point<Type>())
 			{
 				testWithValue(Type(Limit - 0.4));
 				testWithValue(Type(Limit + 0.1));

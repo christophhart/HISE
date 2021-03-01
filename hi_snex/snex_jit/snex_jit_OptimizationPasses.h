@@ -106,12 +106,12 @@ public:
 
 	template <class StatementType, class... StatementTypes> static bool is(StatementPtr obj)
 	{
-		return as<StatementType>(obj) != nullptr && is<StatementTypes...>(obj);
+        return Operations::as<StatementType>(obj) != nullptr && is<StatementTypes...>(obj);
 	}
 
 	template <class StatementType> static bool is(StatementPtr obj)
 	{
-		return as<StatementType>(obj) != nullptr;
+		return Operations::as<StatementType>(obj) != nullptr;
 	}
 
 };

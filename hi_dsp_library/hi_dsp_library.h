@@ -110,13 +110,19 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "node_api/helpers/node_macros.h"
 
 #include "snex_basics/snex_Types.h"
-#include "snex_basics/snex_ArrayTypes.h"
-#include "snex_basics/snex_Math.h"
-
-
-#include "snex_basics/snex_DynamicType.h"
 
 #include "snex_basics/snex_TypeHelpers.h"
+
+
+#include "snex_basics/snex_ArrayTypes.h"
+#include "snex_basics/snex_Math.h"
+#include "snex_basics/snex_DynamicType.h"
+
+
+
+
+
+
 
 #include "snex_basics/snex_ExternalData.h"
 

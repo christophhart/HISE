@@ -279,7 +279,7 @@ snex::jit::ComplexType::Ptr TypeInfo::getComplexType() const
 	if (typePtr != nullptr)
 		return typePtr;
 	else
-		return weakPtr;
+		return weakPtr.get();
 }
 
 bool TypeInfo::isComplexType() const

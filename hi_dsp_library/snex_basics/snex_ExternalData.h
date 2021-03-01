@@ -38,6 +38,248 @@ using namespace juce;
 using namespace hise;
 using namespace Types;
 
+
+    struct InitialiserList : public ReferenceCountedObject
+    {
+        using Ptr = ReferenceCountedObjectPtr<InitialiserList>;
+        
+        struct ChildBase : public ReferenceCountedObject
+        {
+            using List = ReferenceCountedArray<ChildBase>;
+            
+            virtual bool getValue(VariableStorage& v) const = 0;
+            
+            virtual InitialiserList::Ptr createChildList() const = 0;
+            
+            virtual ~ChildBase() {};
+            
+            virtual bool forEach(const std::function<bool(ChildBase*)>& func)
+            {
+                return func(this);
+            }
+            
+            virtual juce::String toString() const = 0;
+        };
+        
+        juce::String toString() const
+        {
+            juce::String s;
+            s << "{ ";
+            
+            for (auto l : root)
+            {
+                s << l->toString();
+                
+                if (root.getLast().get() != l)
+                    s << ", ";
+            }
+            
+            s << " }";
+            return s;
+        }
+        
+        static Ptr makeSingleList(const VariableStorage& v)
+        {
+            InitialiserList::Ptr singleList = new InitialiserList();
+            singleList->addImmediateValue(v);
+            return singleList;
+        }
+        
+        void addChildList(const InitialiserList* other)
+        {
+            addChild(new ListChild(other->root));
+        }
+        
+        void addImmediateValue(const VariableStorage& v)
+        {
+            addChild(new ImmediateChild(v));
+        }
+        
+        void addChild(ChildBase* b)
+        {
+            root.add(b);
+        }
+        
+        ReferenceCountedObject* getExpression(int index);
+        
+        Result getValue(int index, VariableStorage& v)
+        {
+            if (auto child = root[index])
+            {
+                if (child->getValue(v))
+                    return Result::ok();
+                else
+                    return Result::fail("Can't resolve value at index " + juce::String(index));
+            }
+            else
+                return Result::fail("Can't find item at index " + juce::String(index));
+        }
+        
+        Array<VariableStorage> toFlatConstructorList() const
+        {
+            Array<VariableStorage> list;
+            
+            for (auto c : root)
+            {
+                VariableStorage v;
+                
+                if (c->getValue(v))
+                    list.add(v);
+            }
+            
+            return list;
+        }
+        
+        Ptr createChildList(int index)
+        {
+            if (auto child = root[index])
+            {
+                return child->createChildList();
+            }
+            
+            return nullptr;
+        }
+        
+        Ptr getChild(int index)
+        {
+            if (auto cb = dynamic_cast<ListChild*>(root[index].get()))
+            {
+                Ptr p = new InitialiserList();
+                p->root.addArray(cb->list);
+                return p;
+            }
+            
+            return nullptr;
+        }
+        
+        int size() const
+        {
+            return root.size();
+        }
+        
+        bool forEach(const std::function<bool(ChildBase*)>& func)
+        {
+            for (auto l : root)
+            {
+                if (l->forEach(func))
+                    return true;
+            }
+            
+            return false;
+        }
+        
+        struct ExpressionChild;
+        
+        
+        
+        struct MemberPointer;
+        
+        /** This is used when a struct is being initialised by a externally defined C++ struct
+         (via placement new) and has the sole purpose of avoiding compile warnings...
+         */
+        struct ExternalInitialiser : public ChildBase
+        {
+            ExternalInitialiser():
+            ChildBase()
+            {}
+            
+            juce::String toString() const override
+            {
+                return "external_class";
+            }
+            
+            bool getValue(VariableStorage& ) const override
+            {
+                return true;
+            }
+            
+            InitialiserList::Ptr createChildList() const override
+            {
+                InitialiserList::Ptr n = new InitialiserList();
+                n->addChild(new ExternalInitialiser());
+                return n;
+            }
+        };
+        
+    private:
+        
+        struct ImmediateChild : public ChildBase
+        {
+            ImmediateChild(const VariableStorage& v_) :
+            v(v_)
+            {};
+            
+            bool getValue(VariableStorage& target) const override
+            {
+                target = v;
+                return true;
+            }
+            
+            InitialiserList::Ptr createChildList() const override
+            {
+                InitialiserList::Ptr n = new InitialiserList();
+                n->addImmediateValue(v);
+                return n;
+            }
+            
+            juce::String toString() const override
+            {
+                return Types::Helpers::getCppValueString(v);
+            }
+            
+            VariableStorage v;
+        };
+        
+        struct ListChild : public ChildBase
+        {
+            ListChild(const ChildBase::List& l) :
+            list(l)
+            {};
+            
+            virtual InitialiserList::Ptr createChildList() const override
+            {
+                InitialiserList::Ptr n = new InitialiserList();
+                n->root.addArray(list);
+                return n;
+            }
+            
+            bool getValue(VariableStorage& target) const override
+            {
+                if (list.size() == 1)
+                    return list[0]->getValue(target);
+                
+                return false;
+            }
+            
+            bool forEach(const std::function<bool(ChildBase *)>& func) override
+            {
+                for (auto l : list)
+                {
+                    if (l->forEach(func))
+                        return true;
+                }
+                
+                return false;
+            }
+            
+            juce::String toString() const override
+            {
+                juce::String s;
+                s << "{ ";
+                
+                for (auto l : list)
+                    s << l->toString();
+                
+                s << " }";
+                return s;
+            }
+            
+            ChildBase::List list;
+        };
+        
+        ChildBase::List root;
+    };
+    
 /** A wrapper around one of the complex data types with a update message. */
 struct ExternalData
 {

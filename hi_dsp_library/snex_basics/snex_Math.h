@@ -34,57 +34,104 @@
 
 namespace snex {
 
-
-using block = Types::dyn<float>;
-
-
+    
 #if JUCE_LINUX
 #define std_
 #else
 #define std_ std
 #endif
-
-struct hmath
-{
-
-	constexpr static double PI = 3.1415926535897932384626433832795;
-	constexpr static double E = 2.7182818284590452353602874713527;
-	constexpr static double SQRT2 = 1.4142135623730950488016887242097;
-	constexpr static double FORTYTWO = 42.0; // just for unit test purposes, the other ones choke because of 
-									   // String conversion imprecisions...
-
-	static forcedinline block& min(block& b1, float s)
-	{
-		FloatVectorOperations::min(b1.begin(), b1.begin(), s, b1.size());
-		return b1;
-	}
-
-	static forcedinline block& min(block& b1, const block& b2)
-	{
-		jassert(b1.size() == b2.size());
-		FloatVectorOperations::min(b1.begin(), b1.begin(), b2.begin(), b1.size());
-		return b1;
-	}
-
-	static forcedinline block& max(block& b1, float s)
-	{
-		FloatVectorOperations::max(b1.begin(), b1.begin(), s, b1.size());
-		return b1;
-	}
-
-	static forcedinline block& max(block& b1, const block& b2)
-	{
-		jassert(b1.size() == b2.size());
-		FloatVectorOperations::max(b1.begin(), b1.begin(), b2.begin(), b1.size());
-		return b1;
-	}
-
-	static forcedinline block& abs(block& b1)
-	{
-		FloatVectorOperations::abs(b1.begin(), b1.begin(), b1.size());
-		return b1;
-	}
-
+    
+    struct hmath
+    {
+        
+        
+        
+        static forcedinline block& min(block& b1, float s)
+        {
+            FloatVectorOperations::min(b1.begin(), b1.begin(), s, b1.size());
+            return b1;
+        }
+        
+        static forcedinline block& min(block& b1, const block& b2)
+        {
+            jassert(b1.size() == b2.size());
+            FloatVectorOperations::min(b1.begin(), b1.begin(), b2.begin(), b1.size());
+            return b1;
+        }
+        
+        static forcedinline block& max(block& b1, float s)
+        {
+            FloatVectorOperations::max(b1.begin(), b1.begin(), s, b1.size());
+            return b1;
+        }
+        
+        static forcedinline block& max(block& b1, const block& b2)
+        {
+            jassert(b1.size() == b2.size());
+            FloatVectorOperations::max(b1.begin(), b1.begin(), b2.begin(), b1.size());
+            return b1;
+        }
+        
+        static forcedinline block& abs(block& b1)
+        {
+            FloatVectorOperations::abs(b1.begin(), b1.begin(), b1.size());
+            return b1;
+        }
+        
+        
+        static void throwIfSizeMismatch(const block& b1, const block& b2)
+        {
+            if (b1.size() != b2.size())
+                throw String("Size mismatch");
+        }
+        
+#define vOpBinary(name, vectorOp) static forcedinline block& name(block& b1, const block& b2) { \
+throwIfSizeMismatch(b1, b2); \
+vectorOp(b1.data, b2.data, b1.size()); \
+return b1; \
+};
+        
+#define vOpScalar(name, vectorOp) static forcedinline block& name(block& b1, float s) { \
+vectorOp(b1.data, s, b1.size()); \
+return b1; \
+};
+        
+#define vOpScalar2A(name, vectorOp)
+        
+        
+        vOpBinary(vmul, FloatVectorOperations::multiply);
+        vOpBinary(vadd, FloatVectorOperations::add);
+        vOpBinary(vsub, FloatVectorOperations::subtract);
+        vOpBinary(vcopy, FloatVectorOperations::copy);
+        
+        vOpScalar(vset, FloatVectorOperations::fill);
+        vOpScalar(vmuls, FloatVectorOperations::multiply);
+        vOpScalar(vadds, FloatVectorOperations::add);
+        
+        static forcedinline block& vclip(block& b1, float s1, float s2)
+        {
+            FloatVectorOperations::clip(b1.data, b1.data, s1, s2, b1.size());
+            return b1;
+        };
+        
+        static forcedinline block& vabs(block& input)
+        {
+            FloatVectorOperations::abs(input.data, input.data, input.size());
+            return input;
+        }
+        
+        
+        
+#undef vOpBinary
+#undef vOpScalar
+        
+        
+    constexpr static double PI = 3.1415926535897932384626433832795;
+    constexpr static double E = 2.7182818284590452353602874713527;
+    constexpr static double SQRT2 = 1.4142135623730950488016887242097;
+    constexpr static double FORTYTWO = 42.0; // just for unit test purposes, the other ones choke because of
+    // String conversion imprecisions...
+    
 	static forcedinline double sign(double value) { return value > 0.0 ? 1.0 : -1.0; };
 	static forcedinline double abs(double value) { return value * sign(value); };
 	static forcedinline double round(double value) { return roundf((float)value); };
@@ -178,52 +225,6 @@ struct hmath
 		};
 	};
 
-
-	static void throwIfSizeMismatch(const block& b1, const block& b2)
-	{
-		if (b1.size() != b2.size())
-			throw String("Size mismatch");
-	}
-
-#define vOpBinary(name, vectorOp) static forcedinline block& name(block& b1, const block& b2) { \
-	throwIfSizeMismatch(b1, b2); \
-	vectorOp(b1.data, b2.data, b1.size()); \
-	return b1; \
-};
-
-#define vOpScalar(name, vectorOp) static forcedinline block& name(block& b1, float s) { \
-	vectorOp(b1.data, s, b1.size()); \
-	return b1; \
-};
-
-#define vOpScalar2A(name, vectorOp) 
-
-
-	vOpBinary(vmul, FloatVectorOperations::multiply);
-	vOpBinary(vadd, FloatVectorOperations::add);
-	vOpBinary(vsub, FloatVectorOperations::subtract);
-	vOpBinary(vcopy, FloatVectorOperations::copy);
-
-	vOpScalar(vset, FloatVectorOperations::fill);
-	vOpScalar(vmuls, FloatVectorOperations::multiply);
-	vOpScalar(vadds, FloatVectorOperations::add);
-
-	static forcedinline block& vclip(block& b1, float s1, float s2) 
-	{
-		FloatVectorOperations::clip(b1.data, b1.data, s1, s2, b1.size()); 
-		return b1;
-	};
-
-	static forcedinline block& vabs(block& input)
-	{
-		FloatVectorOperations::abs(input.data, input.data, input.size());
-		return input;
-	}
-
-	
-
-#undef vOpBinary
-#undef vOpScalar
 
 };
 

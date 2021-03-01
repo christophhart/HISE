@@ -520,7 +520,7 @@ template <class... Parameters> struct list: public advanced_tuple<Parameters...>
 		}
 	}
 
-	constexpr int getNumParameters() const { return }
+    constexpr int getNumParameters() const { return sizeof...(Parameters); }
 };
 
 
