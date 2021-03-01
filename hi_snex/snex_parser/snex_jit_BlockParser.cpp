@@ -790,26 +790,26 @@ BlockParser::ExprPtr BlockParser::parseCast(Types::ID type)
 
 BlockParser::ExprPtr BlockParser::parseUnary()
 {
+	if (matchIf(JitTokens::times))
+	{
+		match(JitTokens::this_);
+
+		auto p = parseThis();
+
+		return new Operations::PointerAccess(location, p);
+	}
+
 	if (matchIf(JitTokens::this_))
 	{
-		match(JitTokens::pointer_);
+		auto p = parseThis();
 
-		if (auto fs = currentScope->getParentScopeOfType<FunctionScope>())
+		if (matchIf(JitTokens::pointer_))
 		{
-			if (auto typePtr = fs->getClassType())
-			{
-				auto p = new Operations::ThisPointer(location, TypeInfo(typePtr, false, true));
+			auto c = parseReference(false);
+			auto d = new Operations::DotOperator(location, p, c);
 
-				auto c = parseReference(false);
-
-				auto d = new Operations::DotOperator(location, p, c);
-
-				return parseDotOperator(d);
-
-			}
+			return parseDotOperator(d);
 		}
-		
-		location.throwError("Can't use this pointer outside of class method");
 	}
 
 	if (currentType == JitTokens::identifier ||
@@ -840,6 +840,18 @@ BlockParser::ExprPtr BlockParser::parseUnary()
 	return nullptr;
 }
 
+
+snex::jit::BlockParser::ExprPtr BlockParser::parseThis()
+{
+	if (auto fs = currentScope->getParentScopeOfType<FunctionScope>())
+	{
+		if (auto typePtr = fs->getClassType())
+			return new Operations::ThisPointer(location, TypeInfo(typePtr, false, true));
+	}
+
+	location.throwError("Can't use this pointer outside of class method");
+	return nullptr;
+}
 
 BlockParser::ExprPtr BlockParser::parseFactor()
 {
@@ -877,6 +889,8 @@ BlockParser::ExprPtr BlockParser::parseDotOperator(ExprPtr p)
 {
 	while (matchIf(JitTokens::dot))
 	{
+		
+
 		auto e = parseReference(false);
 		auto dp = new Operations::DotOperator(location, p, e);
 		p = dp;
@@ -1036,14 +1050,18 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 				rt.object->currentCompiler = compiler;
 				rt.templateParameters = templateParameters;
 
-				il->process(&rt);
+				r = il->process(&rt);
+				location.test(r);
 
 				f.templateParameters = TemplateParameter::ListOps::merge(f.templateParameters, templateParameters, r);
 				location.test(r);
+
+				fSymbol = Symbol(f.id, f.returnType);
+				resolveAfterArgumentParsing = f.returnType.isDynamic();
 			}
-
-
 		}
+
+		
 
 		if (!f.returnType.isDynamic())
 		{
@@ -1097,6 +1115,8 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 				}
 			}
 		}
+
+		
 
 		auto f = new FunctionCall(location, p, fSymbol, templateParameters);
 
@@ -1217,6 +1237,27 @@ BlockParser::ExprPtr BlockParser::parsePostSymbol()
 
 BlockParser::ExprPtr BlockParser::parseReference(bool mustBeResolvedAtCompileTime)
 {
+	if (matchIf(JitTokens::this_))
+	{
+		match(JitTokens::pointer_);
+
+		if (auto fs = currentScope->getParentScopeOfType<FunctionScope>())
+		{
+			if (auto typePtr = fs->getClassType())
+			{
+				auto p = new Operations::ThisPointer(location, TypeInfo(typePtr, false, true));
+				auto c = parseReference(false);
+				auto d = new Operations::DotOperator(location, p, c);
+
+				return parseDotOperator(d);
+			}
+		}
+
+		location.throwError("Can't use this pointer outside of class method");
+	}
+
+	
+
 	if (mustBeResolvedAtCompileTime)
 		parseExistingSymbol();
 	else

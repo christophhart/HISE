@@ -53,26 +53,6 @@ void ApplicationCommandButtonPanel::setCommand(int commandID)
 }
 #endif
 
-
-void SliderPackPanel::resized()
-{
-	PanelWithProcessorConnection::resized();
-
-	if (auto sp = getContent<SliderPack>())
-	{
-		int numSliders = sp->getNumSliders();
-
-		int wPerSlider = getWidth() / numSliders;
-
-		int newWidth = numSliders * wPerSlider;
-
-		int y = sp->getY();
-		int height = sp->getHeight();
-
-		sp->setBounds((getWidth() - newWidth) / 2, y, newWidth, height);
-	}
-}
-
 void SpacerPanel::paint(Graphics& g)
 {
 	g.setColour(findPanelColour(FloatingTileContent::PanelColourId::bgColour));

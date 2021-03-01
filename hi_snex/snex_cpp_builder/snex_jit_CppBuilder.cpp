@@ -144,6 +144,12 @@ String Base::parseUglified() const
 	return s;
 }
 
+void Base::replaceWildcard(const String& wc, const String& expression)
+{
+	for (auto& l : lines)
+		l = l.replace(wc, expression);
+}
+
 int Base::getRealLineLength(const String& s)
 {
 	int l = 0;
@@ -172,6 +178,7 @@ String Base::toString() const
 	{
 	case OutputType::Uglify:       return parseUglified();
 	case OutputType::WrapInBlock:  return wrapInBlock();
+	case OutputType::StatementListWithoutSemicolon: return parseRawAndAddSemicolon();
 	default:					   return parseLines();
 	}
 }
@@ -235,6 +242,21 @@ bool Base::matchesStart(int line, TokenType t, TokenType other1 /*= nullptr*/, T
 	return lines[line].startsWith(t) ||
 		(other1 != nullptr && lines[line].startsWith(other1)) ||
 		(other2 != nullptr && lines[line].startsWith(other2));
+}
+
+String Base::parseRawAndAddSemicolon() const
+{
+	String s;
+
+	for (const auto& l : lines)
+	{
+		if (l.isEmpty())
+			continue;
+
+		s << l << ";" << "\n";
+	}
+
+	return s;
 }
 
 String Base::parseLines() const

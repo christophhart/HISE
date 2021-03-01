@@ -344,6 +344,10 @@ protected:
 		return ""; 
 	};
 
+	virtual void updateComplexDataConnection();
+
+	bool updateIfComplexDataProperty(int propertyIndex);
+
 	/** the component that will be owned by this wrapper. */
 	ScopedPointer<Component> component;
 
@@ -616,8 +620,7 @@ public:
 	};
 
 	class TableWrapper : public ScriptCreatedComponentWrapper,
-						 public TableEditor::Listener
-		
+						 public TableEditor::EditListener
 	{
 	public:
 
@@ -629,8 +632,6 @@ public:
 
 		void updateComponent(int index, var newValue) override;
 
-		void updateConnectedTable(TableEditor * t);
-		
 		String getTextForTablePopup(float x, float y);
 
 		void pointDragStarted(Point<int> position, float index, float value) override;
@@ -772,11 +773,14 @@ public:
 	};
 
 	class SliderPackWrapper : public ScriptCreatedComponentWrapper,
-							  public SliderPack::Listener
+							  public ComplexDataUIBase::SourceListener,
+							  public SliderPackData::Listener
 	{
 	public:
 
 		SliderPackWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSliderPack *pack, int index);
+
+		~SliderPackWrapper();
 
 		void updateComponent() override;
 
@@ -785,25 +789,32 @@ public:
 		
 		void updateValue(var newValue) override;
 
-		void sliderPackChanged(SliderPack *, int newIndex) override { changed(newIndex); };
+		void sliderPackChanged(SliderPackData *, int newIndex) override { changed(newIndex); };
+
+		void sourceHasChanged(ComplexDataUIBase* oldSource, ComplexDataUIBase* newSource) override
+		{
+			SliderPack *sp = dynamic_cast<SliderPack*>(component.get());
+
+			auto newPack = dynamic_cast<SliderPackData*>(newSource);
+
+			if (newPack != sp->getData())
+			{
+				sp->setSliderPackData(newPack);
+			}
+		}
 
 	private:
 
 		void updateColours(SliderPack * sp);
 		void updateRange(SliderPackData* data);
 
-
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SliderPackWrapper)
 	};
 	
 
-	class AudioWaveformWrapper : public ScriptCreatedComponentWrapper,
-								 public AudioDisplayComponent::Listener,
-								 public Timer
+	class AudioWaveformWrapper : public ScriptCreatedComponentWrapper
 	{
 	public:
-
-		
 
 		AudioWaveformWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptAudioWaveform *waveform, int index);
 
@@ -813,14 +824,9 @@ public:
 
 		void updateComponent(int index, var newValue) override;
 
-		void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea);
-
-		void timerCallback() override;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioWaveformWrapper)
 	private:
 
-        void updateSampleIndex(ScriptingApi::Content::ScriptAudioWaveform *waveform, AudioDisplayComponent* asb, int newValue);
+		void updateComplexDataConnection() override;
         
 		class SamplerListener;
 
@@ -829,7 +835,6 @@ public:
 		void updateColours(AudioDisplayComponent* asb);
         
         int lastIndex = -1;
-		ScriptingObjects::ScriptAudioFile::Ptr saf;
 	};
 
 	class FloatingTileWrapper : public ScriptCreatedComponentWrapper

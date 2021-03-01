@@ -193,6 +193,16 @@ juce::Result ComplexType::callDestructor(InitData& d)
 
 }
 
+snex::jit::FunctionData ComplexType::getDestructor()
+{
+	if (FunctionClass::Ptr fc = getFunctionClass())
+	{
+		return fc->getSpecialFunction(FunctionClass::Destructor);
+	}
+
+	return {};
+}
+
 bool ComplexType::hasDestructor()
 {
 	if (FunctionClass::Ptr fc = getFunctionClass())
@@ -254,6 +264,14 @@ void ComplexType::registerExternalAtNamespaceHandler(NamespaceHandler* handler, 
 
 		handler->addSymbol(getAlias(), TypeInfo(this), NamespaceHandler::UsingAlias, info);
 	}
+}
+
+
+
+snex::jit::FunctionData ComplexType::getNonOverloadedFunction(const Identifier& id)
+{
+	FunctionClass::Ptr fc = getFunctionClass();
+	return fc->getNonOverloadedFunction(NamespacedIdentifier(id));
 }
 
 bool ComplexType::isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const

@@ -202,7 +202,7 @@ void NodeComponent::Header::mouseDrag(const MouseEvent& e)
 
 bool NodeComponent::Header::isInterestedInDragSource(const SourceDetails& details)
 {
-	if (dynamic_cast<FunkySendComponent*>(details.sourceComponent.get()) != nullptr)
+	if (dynamic_cast<cable::dynamic::editor*>(details.sourceComponent.get()) != nullptr)
 		return false;
 
 	return true;
@@ -216,14 +216,17 @@ void NodeComponent::Header::paint(Graphics& g)
 	
 	g.setFont(GLOBAL_BOLD_FONT());
 
-
-
 	String s = parent.dataReference[PropertyIds::ID].toString();
 
 	if (parent.node.get()->isPolyphonic())
 		s << " [poly]";
 
 	
+	if (parent.node->getRootNetwork()->getCpuProfileFlag())
+	{
+		s << parent.node->getCpuUsageInPercent();
+	}
+
 
 	auto textWidth = GLOBAL_BOLD_FONT().getStringWidthFloat(s) + 10.0f;
 

@@ -718,6 +718,7 @@ public:
 
 			void prepareCycleReferenceCheck() override;
 
+#if HISE_INCLUDE_SNEX
 			void addSnexClass(HiseJavascriptEngine::RootObject* root, const String& code, const Identifier& classId);
 
 			bool hasSnexClass(const Identifier& sId) const;
@@ -725,6 +726,9 @@ public:
 			var createSnexInstance(const Identifier& sId, const var::NativeFunctionArgs& args);
 
 			snex::jit::SnexStructSriptingWrapper::Ptr getSnexStruct(const Identifier& id);
+
+			snex::jit::SnexStructSriptingWrapper::List snexClasses;
+#endif
 
 			DebugInformation* createDebugInformation(int index) const;
 
@@ -738,8 +742,6 @@ public:
 			Array<DebugableObject::Location> constLocations;
 
 			DebugableObject::Location namespaceLocation;
-
-			snex::jit::SnexStructSriptingWrapper::List snexClasses;
 		};
 
 		struct HiseSpecialData: public JavascriptNamespace
@@ -855,7 +857,9 @@ public:
 
 		HiseSpecialData hiseSpecialData;
 
+#if HISE_INCLUDE_SNEX
 		snex::jit::GlobalScope snexGlobalScope;
+#endif
 
 		private:
 

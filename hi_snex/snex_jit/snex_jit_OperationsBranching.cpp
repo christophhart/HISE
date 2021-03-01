@@ -66,9 +66,8 @@ void Operations::StatementBlock::process(BaseCompiler* compiler, BaseScope* scop
 
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
-		addDestructors(scope);
-
 		removeStatementsAfterReturn();
+		addDestructors(scope);
 	}
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
@@ -81,10 +80,13 @@ void Operations::StatementBlock::process(BaseCompiler* compiler, BaseScope* scop
 			{
 				int returnStatements = 0;
 
-				forEachRecursive([&returnStatements](Ptr p)
+				forEachRecursive([&](Ptr p)
 				{
-					if (as<ReturnStatement>(p))
-						returnStatements++;
+					if (auto rt = as<ReturnStatement>(p))
+					{
+						if(rt->findRoot() == as<ScopeStatementBase>(this))
+							returnStatements++;
+					}
 
 					return false;
 				});
@@ -177,53 +179,40 @@ void Operations::StatementBlock::addInlinedReturnJump(X86Compiler& cc)
 	cc.jmp(endLabel);
 }
 
-void Operations::StatementBlock::addDestructors(BaseScope* scope)
+Operations::Statement::Ptr Operations::StatementBlock::getThisExpression()
 {
-	Array<Symbol> destructorIds;
-	auto path = getPath();
+	Ptr expr;
 
-	forEachRecursive([path, &destructorIds, scope](Ptr p)
-		{
-			if (auto cd = as<ComplexTypeDefinition>(p))
-			{
-				if (cd->isStackDefinition(scope))
-				{
-					if (cd->type.getComplexType()->hasDestructor())
-					{
-						for (auto& id : cd->getInstanceIds())
-						{
-							if (path == id.getParent())
-							{
-								destructorIds.add(Symbol(id, cd->type));
-							}
-						}
-					}
-				}
-			}
-
-			return false;
-		});
-
-	//  Reverse the order of destructor execution.
-	for (int i = destructorIds.size() - 1; i >= 0; i--)
+	forEachRecursive([&expr](Ptr p)
 	{
-		auto id = destructorIds[i];
+		if (auto ia = as<InlinedArgument>(p))
+		{
+			if (ia->argIndex == -1)
+			{
+				expr = ia->getSubExpr(0);
 
-		ComplexType::InitData d;
-		ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(this, getPath(), {});
+				if (auto sb = as<StatementBlock>(ia->getSubExpr(0)))
+					expr = sb->getThisExpression();
+				
+				return true;
+			}
+		}
 
-		d.t = ComplexType::InitData::Type::Desctructor;
-		d.functionTree = b.get();
-		b->object = this;
-		b->expression = new Operations::VariableReference(location, id);
-		auto r = id.typeInfo.getComplexType()->callDestructor(d);
-		location.test(r);
-	}
+		return false;
+	});
+
+	if (expr == nullptr)
+		location.throwError("Can't find this pointer");
+
+	return expr;
 }
 
 void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* scope)
 {
-	processBaseWithChildren(compiler, scope);
+	if (compiler->getCurrentPass() != BaseCompiler::CodeGeneration)
+		processBaseWithChildren(compiler, scope);
+	else
+		processBaseWithoutChildren(compiler, scope);
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
@@ -231,7 +220,7 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 		{
 			TypeInfo actualType(Types::ID::Void);
 
-			if (auto first = getSubExpr(0))
+			if (auto first = getReturnValue())
 				actualType = first->getTypeInfo();
 
 			if (isVoid() && actualType != Types::ID::Void)
@@ -251,7 +240,37 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 
 		auto asg = CREATE_ASM_COMPILER(t.getType());
 
-		bool isFunctionReturn = true;
+		AsmCodeGenerator::TemporaryRegister tmpReg(asg, scope, getTypeInfo());
+		bool useCopyReg = false;
+		
+		auto isNonReferenceReturn = !isVoid() && !getTypeInfo().isRef();
+		auto hasDestructors = getNumChildStatements() > 1;
+
+		if (isNonReferenceReturn && hasDestructors)
+		{
+			// process the return expression
+			getSubExpr(0)->process(compiler, scope);
+
+			// There are a few destructors around, which might alter the return
+			// value, so we need to copy the return value
+			asg.emitStore(tmpReg.tempReg, getSubRegister(0));
+			useCopyReg = true;
+
+			for (int i = 1; i < getNumChildStatements(); i++)
+			{
+				// Now we can execute the destructors...
+				getSubExpr(i)->process(compiler, scope);
+			}
+		}
+		else if (isVoid())
+		{
+			for (auto s : *this)
+				s->process(compiler, scope);
+		}
+		else
+		{
+			getSubExpr(0)->process(compiler, scope);
+		}
 
 		if (!isVoid())
 		{
@@ -263,6 +282,7 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 				if (sb->reg != nullptr)
 				{
 					asg.emitStore(sb->reg, reg);
+					reg->clearAfterReturn();
 					sb->addInlinedReturnJump(asg.cc);
 				}
 				else
@@ -289,6 +309,9 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 		if (findInlinedRoot() == nullptr)
 		{
 			auto sourceReg = isVoid() ? nullptr : getSubRegister(0);
+
+			if (useCopyReg)
+				sourceReg = tmpReg.tempReg;
 
 			asg.emitReturn(compiler, reg, sourceReg);
 		}
@@ -339,6 +362,8 @@ void Operations::TernaryOp::process(BaseCompiler* compiler, BaseScope* scope)
 
 void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 {
+	scope = getScopeToUse(scope);
+
 	if (compiler->getCurrentPass() == BaseCompiler::CodeGeneration)
 		Statement::processBaseWithoutChildren(compiler, scope);
 	else
@@ -346,19 +371,22 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
-		if (getSubExpr(0)->isConstExpr())
+		auto cond = getLoopChildStatement(ChildStatementType::Condition);
+
+		if (cond->isConstExpr())
 		{
-			auto v = getSubExpr(0)->getConstExprValue();
+			auto v = cond->getConstExprValue();
 
 			if (v.toInt() != 0)
-			{
 				throwError("Endless loop detected");
-			}
 		}
 	}
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
+		if (auto li = getLoopChildStatement(ChildStatementType::Initialiser))
+			li->process(compiler, scope);
+
 		auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
 		auto safeCheck = scope->getGlobalScope()->isRuntimeErrorCheckEnabled();
 		auto cond = acg.cc.newLabel();
@@ -376,7 +404,7 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 		if (cp != nullptr)
 			cp->useAsmFlag = true;
 
-		getSubExpr(0)->process(compiler, scope);
+		getLoopChildStatement(ChildStatementType::Condition)->process(compiler, scope);
 		auto cReg = getSubRegister(0);
 
 		if (cp != nullptr)
@@ -399,7 +427,9 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 				auto okBranch = acg.cc.newLabel();
 				acg.cc.jb(okBranch);
 
-				auto errorFlag = x86::ptr(scope->getGlobalScope()->getRuntimeErrorFlag()).cloneResized(4);
+				auto errorMemReg = acg.cc.newGpq();
+				acg.cc.mov(errorMemReg, scope->getGlobalScope()->getRuntimeErrorFlag());
+				auto errorFlag = x86::ptr(errorMemReg).cloneResized(4);
 				acg.cc.mov(why, (int)RuntimeError::ErrorType::WhileLoop);
 				acg.cc.mov(errorFlag, why);
 				acg.cc.mov(why, (int)location.getLine());
@@ -423,7 +453,9 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 				auto okBranch = acg.cc.newLabel();
 				acg.cc.jb(okBranch);
 
-				auto errorFlag = x86::ptr(scope->getGlobalScope()->getRuntimeErrorFlag()).cloneResized(4);
+				auto errorFlagReg = acg.cc.newGpq();
+				acg.cc.mov(errorFlagReg, scope->getGlobalScope()->getRuntimeErrorFlag());
+				auto errorFlag = x86::ptr(errorFlagReg).cloneResized(4);
 				acg.cc.mov(why, (int)RuntimeError::ErrorType::WhileLoop);
 				acg.cc.mov(errorFlag, why);
 				acg.cc.mov(why, (int)location.getLine());
@@ -435,8 +467,11 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 		}
 
-		getSubExpr(1)->process(compiler, scope);
+		getLoopChildStatement(ChildStatementType::Body)->process(compiler, scope);
 
+		if (auto pb = getLoopChildStatement(ChildStatementType::PostBodyOp))
+			pb->process(compiler, scope);
+		
 		acg.cc.jmp(cond);
 		acg.cc.bind(exit);
 	}
@@ -444,10 +479,10 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 
 snex::jit::Operations::Compare* Operations::WhileLoop::getCompareCondition()
 {
-	if (auto cp = as<Compare>(getSubExpr(0)))
+	if (auto cp = as<Compare>(getLoopChildStatement(ChildStatementType::Condition)))
 		return cp;
 
-	if (auto sb = as<StatementBlock>(getSubExpr(0)))
+	if (auto sb = as<StatementBlock>(getLoopChildStatement(ChildStatementType::Condition)))
 	{
 		for (auto s : *sb)
 		{
@@ -464,6 +499,49 @@ snex::jit::Operations::Compare* Operations::WhileLoop::getCompareCondition()
 	return nullptr;
 }
 
+snex::jit::BaseScope* Operations::WhileLoop::getScopeToUse(BaseScope* outerScope)
+{
+	if (loopType == LoopType::For)
+	{
+		if (forScope == nullptr)
+		{
+			forScope = new RegisterScope(outerScope, outerScope->getScopeSymbol().getChildId("for_loop"));
+			
+		}
+
+		return forScope;
+	}
+
+	return outerScope;
+}
+
+Operations::Statement::Ptr Operations::WhileLoop::getLoopChildStatement(ChildStatementType t)
+{
+	if (loopType == LoopType::While)
+	{
+		switch (t)
+		{
+		case ChildStatementType::Initialiser:
+		case ChildStatementType::PostBodyOp: return nullptr;
+
+		case ChildStatementType::Condition: return getSubExpr(0);
+		case ChildStatementType::Body:		return getSubExpr(1);
+		default: jassertfalse; return nullptr;
+		}
+	}
+	else
+	{
+		switch (t)
+		{
+		case ChildStatementType::Initialiser: return getSubExpr(0);
+		case ChildStatementType::Condition: return getSubExpr(1);
+		case ChildStatementType::Body:		return getSubExpr(2);
+		case ChildStatementType::PostBodyOp: return getSubExpr(3);
+		default: jassertfalse; return nullptr;
+		}
+	}
+}
+
 void Operations::Loop::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	processBaseWithoutChildren(compiler, scope);
@@ -471,7 +549,6 @@ void Operations::Loop::process(BaseCompiler* compiler, BaseScope* scope)
 	if (compiler->getCurrentPass() != BaseCompiler::DataAllocation &&
 		compiler->getCurrentPass() != BaseCompiler::CodeGeneration)
 	{
-
 		getTarget()->process(compiler, scope);
 		getLoopBlock()->process(compiler, scope);
 	}
@@ -561,7 +638,7 @@ void Operations::Loop::process(BaseCompiler* compiler, BaseScope* scope)
 
 		jassert(r != nullptr && r->getScope() != nullptr);
 
-		allocateDirtyGlobalVariables(getLoopBlock(), compiler, scope);
+		preallocateVariableRegistersBeforeBranching(getLoopBlock(), compiler, scope);
 
 		if (loopTargetType == Span)
 		{
@@ -741,10 +818,10 @@ void Operations::IfStatement::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
 
-		allocateDirtyGlobalVariables(getTrueBranch(), compiler, scope);
+		preallocateVariableRegistersBeforeBranching(getTrueBranch(), compiler, scope);
 
 		if (hasFalseBranch())
-			allocateDirtyGlobalVariables(getFalseBranch(), compiler, scope);
+			preallocateVariableRegistersBeforeBranching(getFalseBranch(), compiler, scope);
 
 		auto cond = dynamic_cast<Expression*>(getCondition().get());
 		auto trueBranch = getTrueBranch();

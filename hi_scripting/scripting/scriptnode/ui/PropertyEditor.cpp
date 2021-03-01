@@ -50,6 +50,23 @@ juce::Path NodePopupEditor::Factory::createPath(const String& s) const
 }
 
 
+NodePopupEditor::NodePopupEditor(NodeComponent* nc_) :
+	nc(nc_),
+	editor(nc->node, false, nc->node->getValueTree()),
+	exportButton("export", this, factory),
+	wrapButton("wrap", this, factory),
+	surroundButton("surround", this, factory)
+{
+	setName("Edit Node Properties");
+
+	addAndMakeVisible(editor);
+	addAndMakeVisible(exportButton);
+	addAndMakeVisible(wrapButton);
+	addAndMakeVisible(surroundButton);
+	setWantsKeyboardFocus(true);
+	setSize(editor.getWidth(), editor.getHeight() + 50);
+}
+
 bool NodePopupEditor::keyPressed(const KeyPress& key)
 {
 	if (key.getKeyCode() == 'w' || key.getKeyCode() == 'W')
@@ -266,14 +283,28 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 	else
 	{
 		auto te = new TextEditor();
-		te->getTextValue().referTo(v);
 		te->setLookAndFeel(&laf);
+		te->addListener(this);
 		editor = te;
-
+		valueChanged(v);
 	}
 
 	if (editor != nullptr)
 		addAndMakeVisible(editor);
+}
+
+juce::StringArray NodePropertyComponent::Comp::getListForId(const Identifier& id, NodeBase* n)
+{
+	if (id == PropertyIds::Callback)
+	{
+		if (auto jp = dynamic_cast<JavascriptProcessor*>(n->getScriptProcessor()))
+		{
+			return jp->getScriptEngine()->getInlineFunctionNames(1);
+		}
+	}
+
+
+	return {};
 }
 
 void MultiColumnPropertyPanel::resized()
@@ -348,6 +379,48 @@ int MultiColumnPropertyPanel::getTotalContentHeight() const
 }
 
 
+
+PropertyEditor::PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds)
+{
+	plaf.propertyBgColour = Colours::transparentBlack;
+
+	Array<PropertyComponent*> newProperties;
+
+	for (int i = 0; i < data.getNumProperties(); i++)
+	{
+		auto id = data.getPropertyName(i);
+
+		if (hiddenIds.contains(id))
+			continue;
+
+		auto nt = PropertyHelpers::createPropertyComponent(n->getScriptProcessor(), data, id, n->getUndoManager());
+
+		newProperties.add(nt);
+	}
+
+	// Only add Node properties in two-column mode (aka Connection Editor)...
+	if (!useTwoColumns)
+	{
+		for (auto prop : n->getPropertyTree())
+		{
+			if (!(bool)prop[PropertyIds::Public] && prop[PropertyIds::ID].toString().contains("."))
+			{
+				continue;
+			}
+
+			auto nt = new NodePropertyComponent(n, prop);
+			newProperties.add(nt);
+		}
+	}
+
+
+	p.setUseTwoColumns(useTwoColumns);
+	p.addProperties(newProperties);
+
+	addAndMakeVisible(p);
+	p.setLookAndFeel(&plaf);
+	updateSize();
+}
 
 }
 

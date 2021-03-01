@@ -68,12 +68,15 @@ struct WrapBuilder : public TemplateClassBuilder
 							callbacks and doesn't need to be accessible, use this OpaqueType and it
 							will return the wrapped object for both calls to getObject() and getWrappedObject()
 		- GetObj:		   returns just the top-most object that is wrapped
+		- FullOpaque:	   both getObject and getWrappedObject will return the wrapped node (so the inner
+		                   object is inaccessible from the outside.
 	*/
 	enum OpaqueType
 	{
 		GetSelfAsObject,
 		ForwardToObj,
 		GetObj,
+		FullOpaque,
 		numOpaqueTypes
 	};
 
@@ -129,6 +132,8 @@ struct WrapBuilder : public TemplateClassBuilder
 
 	/** Use this constructor for all wrappers that have an int as first argument before the object. */
 	WrapBuilder(Compiler& c, const Identifier& id, const Identifier& constantArg, int numChannels, OpaqueType opaqueType_);
+
+	static NamespacedIdentifier getWrapId(const Identifier& id);
 
 	~WrapBuilder()
 	{
@@ -274,6 +279,8 @@ struct WrapBuilder : public TemplateClassBuilder
 
 	void setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, CallbackList requiredFunctions, Inliner::InlineType t, const Inliner::Func& inliner);
 
+	void setEmptyCallback(Types::ScriptnodeCallbacks::ID cb);
+
 private:
 
 	const int WrappedObjectOffset;
@@ -300,6 +307,11 @@ struct WrapLibraryBuilder : public LibraryBuilderBase
 	/** Contains replacement functions for the callbacks. */
 	struct Callbacks
 	{
+		struct empty
+		{
+			static Result noop(InlineData* b);
+		};
+
 		struct wrap_event
 		{
 			static Result process(WrapBuilder::ExternalFunctionMapData& mapData);
@@ -326,6 +338,13 @@ struct WrapLibraryBuilder : public LibraryBuilderBase
 
 			static Result process(InlineData* b);
 			static Result processFrame(InlineData* b);
+		};
+
+		struct core_midi
+		{
+			static Result prepare(InlineData* b);
+			static Result handleEvent(InlineData* b);
+			static Result handleModulation(InlineData* b);
 		};
 
 		struct fix
@@ -391,6 +410,8 @@ struct WrapLibraryBuilder : public LibraryBuilderBase
 	Identifier getFactoryId() const override { RETURN_STATIC_IDENTIFIER("wrap"); }
 
 	Result registerTypes() override;
+
+	void registerCoreTemplates();
 };
 
 }

@@ -98,7 +98,7 @@ public:
 	void setTempo(double newTempoIndex);
 	bool handleModulation(double& max);
 
-	constexpr bool isNormalisedModulation() const { return false; }
+	static constexpr bool isNormalisedModulation() { return false; }
 
 	void setMultiplier(double newMultiplier);
 
@@ -234,7 +234,7 @@ public:
 
 	constexpr bool isPolyphonic() const { return true; }
 
-	bool isNormalisedModulation() const { return modIndex != ModulatorSynth::BasicChains::PitchChain; }
+	static constexpr bool isNormalisedModulation() { return true; }
 
 	void initialise(NodeBase* b);
 	void prepare(PrepareSpecs ps);

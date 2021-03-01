@@ -34,17 +34,17 @@ namespace hise { using namespace juce;
 
 //==============================================================================
 TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
-	editedTable(tableToBeEdited),
 	domainRange(Range<int>()),
 	currentType(DomainType::originalSize),
-	displayIndex(0.0f),
-	undoManager(undoManager_)
+	displayIndex(0.0f)
 {
+	if (tableToBeEdited != nullptr)
+		setEditedTable(tableToBeEdited);
+	else
+		setEditedTable(&dummyTable);
+
 	setUseFlatDesign(false);
 	setEnablePaintProfiling("TableEditor");
-
-	if (editedTable == nullptr)
-		editedTable = &dummyTable;
 
     // MUST BE SET!
 	jassert(editedTable != nullptr);
@@ -60,23 +60,17 @@ TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 	setColour(ColourIds::overlayTextId, Colour(0xDD000000));
 	setColour(ColourIds::overlayBgColour, Colour(0xBBffffff));
 
-	if(editedTable.get() != nullptr)
-        editedTable->addChangeListener(this);
-
 	popupFunction = BIND_MEMBER_FUNCTION_2(TableEditor::getPopupString);
+
+	if (undoManager_ != nullptr)
+	{
+		getEditedTable()->setUndoManager(undoManager_);
+	}
 }
 
 TableEditor::~TableEditor()
 {
-	if(editedTable.get() != nullptr)
-	{
-		editedTable->removeChangeListener(this);
-	}
-	
-#if !HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES
-	removeProcessorConnection();
-#endif
-	
+	setEditedTable(nullptr);
 
 	closeTouchOverlay();
 }
@@ -132,7 +126,7 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 
 	if(useEvent)
 	{
-		if (undoManager != nullptr && thisIndex != lastEditedPointIndex)
+		if (getUndoManager(thisIndex != lastEditedPointIndex))
 		{
 			lastEditedPointIndex = thisIndex;
 		}
@@ -146,21 +140,14 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 			auto ar = Rectangle<int>(pp->getPos(), dp->getPos());
 			auto middle = ar.getCentre();
 
-			ScopedLock sl(listeners.getLock());
+			ScopedLock sl(editListeners.getLock());
 
-			for (auto l : listeners)
+			for (auto l : editListeners)
 			{
 				if (l.get() != nullptr)
-				{
 					l->curveChanged(middle, curveValue);
-				}
 			}
-			
 		}
-        
-        if (editedTable.get() != nullptr)
-            editedTable->sendSynchronousChangeMessage();
-
 	}
 
 	else getParentComponent()->mouseWheelMove(e, wheel);
@@ -174,9 +161,9 @@ void TableEditor::updateCurve(int x, int y, float newCurveValue, bool useUndoMan
 	if (dp == nullptr)
 		return;
 
-	if (undoManager != nullptr && useUndoManager)
+	if (auto um = getUndoManager(useUndoManager))
 	{
-		undoManager->perform(new TableAction(this, TableAction::Curve, -1, x, y, newCurveValue, x, y, -1.0f * newCurveValue));
+		um->perform(new TableAction(this, TableAction::Curve, -1, x, y, newCurveValue, x, y, -1.0f * newCurveValue));
 	}
 	else
 	{
@@ -210,9 +197,9 @@ juce::String TableEditor::getPopupString(float x, float y)
 
 void TableEditor::addDragPoint(int x, int y, float curve, bool isStart/*=false*/, bool isEnd/*=false*/, bool useUndoManager/*=false*/)
 {
-	if (useUndoManager && undoManager != nullptr)
+	if (auto um = getUndoManager(useUndoManager))
 	{
-		undoManager->perform(new TableAction(this, TableAction::Add, -1, x, y, curve, -1, -1, -1.0f));
+		um->perform(new TableAction(this, TableAction::Add, -1, x, y, curve, -1, -1, -1.0f));
 	}
 	else
 	{
@@ -332,25 +319,14 @@ void TableEditor::resized()
 	}
 }
 
-void TableEditor::changeListenerCallback(SafeChangeBroadcaster *b)
+void TableEditor::graphHasChanged(int point)
 {
-	if (dynamic_cast<Table*>(b) != nullptr)
+	if (currently_dragged_point == nullptr)
 	{
 		createDragPoints();
-
 		refreshGraph();
-
-		return;
 	}
-
-#if !HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES
-	updateFromProcessor(b);
-#endif
-
-	
 }
-
-
 
 void TableEditor::setDomain(DomainType newDomainType, Range<int> newRange)
 {
@@ -380,7 +356,7 @@ void TableEditor::mouseDown(const MouseEvent &e)
 			removeDragPoint(dp);
 
 			if (editedTable.get() != nullptr)
-				editedTable->sendSynchronousChangeMessage();
+				editedTable->sendGraphUpdateMessage();
 		}
 	}
 	else
@@ -391,9 +367,9 @@ void TableEditor::mouseDown(const MouseEvent &e)
 
 			showTouchOverlay();
 
-			ScopedLock sl(listeners.getLock());
+			ScopedLock sl(editListeners.getLock());
 
-			for (auto l : listeners)
+			for (auto l : editListeners)
 			{
 				if (l.get() != nullptr)
 				{
@@ -406,12 +382,8 @@ void TableEditor::mouseDown(const MouseEvent &e)
 			x = snapXValueToGrid(x);
 
 			addDragPoint(x, y, 0.5f, false, false, true);
-
-
 		}
 	}
-
-	
 
 	updateTable(false);
 	refreshGraph();
@@ -427,13 +399,12 @@ void TableEditor::removeDragPoint(DragPoint * dp, bool useUndoManager)
 {
 	if (!dp->isStartOrEnd())
 	{
-
-		if (undoManager != nullptr && useUndoManager)
+		if (auto um = getUndoManager(useUndoManager))
 		{
 			int x = dp->getBoundsInParent().getCentreX();
 			int y = dp->getBoundsInParent().getCentreY();
 
-			undoManager->perform(new TableAction(this, TableAction::Delete, -1, -1, -1, -1, x, y, dp->getCurve()));
+			um->perform(new TableAction(this, TableAction::Delete, -1, -1, -1, -1, x, y, dp->getCurve()));
 		}
 		else
 		{
@@ -488,21 +459,15 @@ void TableEditor::mouseUp(const MouseEvent &)
 	currently_dragged_point = nullptr;
 	updateTable(true);
 
-	if(editedTable.get() != nullptr) editedTable->sendSynchronousChangeMessage();
-	
-	
-
 	needsRepaint = true;
 	repaint();
 
-	ScopedLock sl(listeners.getLock());
+	ScopedLock sl(editListeners.getLock());
 
-	for (auto l : listeners)
+	for (auto l : editListeners)
 	{
 		if (l.get() != nullptr)
-		{
 			l->pointDragEnded();
-		}
 	}
 }
 
@@ -532,9 +497,9 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 
 	changePointPosition(index, x, y, true);
 
-	ScopedLock sl(listeners.getLock());
+	ScopedLock sl(editListeners.getLock());
 
-	for (auto l : listeners)
+	for (auto l : editListeners)
 	{
 		if (l.get() != nullptr)
 		{

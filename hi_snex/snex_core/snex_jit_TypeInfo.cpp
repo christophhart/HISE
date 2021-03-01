@@ -44,10 +44,10 @@ bool TypeInfo::operator==(const Types::ID other) const
 
 bool TypeInfo::operator==(const TypeInfo& other) const
 {
-	if (typePtr != nullptr)
+	if (isComplexType())
 	{
-		if (other.typePtr != nullptr)
-			return *typePtr == *other.typePtr;
+		if (other.isComplexType())
+			return *getRawComplexTypePtr() == *other.getRawComplexTypePtr();
 
 		return false;
 	}
@@ -126,7 +126,7 @@ bool TypeInfo::isInvalid() const noexcept
 size_t TypeInfo::getRequiredByteSize() const
 {
 	if (isComplexType())
-		return typePtr->getRequiredByteSize();
+		return getRawComplexTypePtr()->getRequiredByteSize();
 	else
 		return Types::Helpers::getSizeForType(type);
 }
@@ -134,7 +134,7 @@ size_t TypeInfo::getRequiredByteSize() const
 size_t TypeInfo::getRequiredAlignment() const
 {
 	if (isComplexType())
-		return typePtr->getRequiredAlignment();
+		return getRawComplexTypePtr()->getRequiredAlignment();
 	else
 		return Types::Helpers::getSizeForType(type);
 }
@@ -145,8 +145,6 @@ snex::jit::TypeInfo TypeInfo::withModifiers(bool isConst_, bool isRef_, bool isS
 	c.const_ = isConst_;
 	c.ref_ = isRef_;
 	c.static_ = isStatic_;
-
-
 
 	c.updateDebugName();
 	return c;
@@ -164,7 +162,7 @@ juce::String TypeInfo::toString() const
 
 	if (isComplexType())
 	{
-		s << typePtr->toString();
+		s << getRawComplexTypePtr()->toString();
 
 		if (isRef())
 			s << "&";
@@ -184,7 +182,7 @@ juce::String TypeInfo::toString() const
 snex::InitialiserList::Ptr TypeInfo::makeDefaultInitialiserList() const
 {
 	if (isComplexType())
-		return getComplexType()->makeDefaultInitialiserList();
+		return getRawComplexTypePtr()->makeDefaultInitialiserList();
 	else
 	{
 		jassert(getType() != Types::ID::Pointer);
@@ -238,7 +236,7 @@ bool TypeInfo::replaceBlockWithDynType(ComplexType::Ptr blockPtr)
 snex::Types::ID TypeInfo::getRegisterType(bool allowSmallObjectOptimisation) const noexcept
 {
 	if (isComplexType())
-		return getComplexType()->getRegisterType(allowSmallObjectOptimisation);
+		return getRawComplexTypePtr()->getRegisterType(allowSmallObjectOptimisation);
 
 	return getType();
 }
@@ -275,14 +273,18 @@ bool TypeInfo::isStatic() const noexcept
 snex::jit::ComplexType::Ptr TypeInfo::getComplexType() const
 {
 	jassert(type == Types::ID::Pointer);
-	jassert(typePtr != nullptr);
+	jassert(typePtr != nullptr || weakPtr != nullptr);
+	jassert(!(typePtr != nullptr && weakPtr != nullptr));
 
-	return typePtr.get();
+	if (typePtr != nullptr)
+		return typePtr;
+	else
+		return weakPtr;
 }
 
 bool TypeInfo::isComplexType() const
 {
-	return typePtr != nullptr;
+	return typePtr != nullptr || weakPtr != nullptr;
 }
 
 int TypeInfo::getRequiredByteSizeNonZero() const
@@ -319,6 +321,63 @@ snex::jit::TypeInfo TypeInfo::asNonConst()
 	t.const_ = false;
 	t.updateDebugName();
 	return t;
+}
+
+void TypeInfo::setRefCounted(bool shouldBeRefcounted)
+{
+	if (!isComplexType())
+		return;
+
+	if (shouldBeRefcounted)
+	{
+		if (weakPtr != nullptr)
+		{
+			typePtr = weakPtr.get();
+			weakPtr = nullptr;
+		}
+	}
+	else
+	{
+		if (typePtr != nullptr)
+		{
+			// You're going to delete it with this operation!
+			// Use makeNonRefCountedReference() instead!
+			jassert(typePtr->getReferenceCount() > 1);
+
+			weakPtr = typePtr.get();
+			typePtr = nullptr;
+		}
+	}
+}
+
+bool TypeInfo::isRefCounted() const
+{
+	return isComplexType() && weakPtr == nullptr;
+}
+
+TypeInfo TypeInfo::makeNonRefCountedReferenceType(ComplexType* ptr)
+{
+	TypeInfo t;
+
+	t.type = Types::ID::Pointer;
+	t.weakPtr = ptr;
+	t.ref_ = true;
+	t.const_ = false;
+	t.static_ = false;
+
+	t.updateDebugName();
+
+	return t;
+}
+
+snex::jit::ComplexType* TypeInfo::getRawComplexTypePtr() const
+{
+	jassert(isComplexType());
+
+	if (typePtr != nullptr)
+		return typePtr.get();
+	else
+		return weakPtr.get();
 }
 
 void TypeInfo::updateDebugName()

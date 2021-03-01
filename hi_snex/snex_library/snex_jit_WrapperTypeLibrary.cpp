@@ -39,7 +39,7 @@ using namespace asmjit;
 namespace jit
 {
 WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels_, OpaqueType opaqueType_, bool addParameterClass) :
-	TemplateClassBuilder(c, NamespacedIdentifier("wrap").getChildId(id)),
+	TemplateClassBuilder(c, getWrapId(id)),
 	WrappedObjectOffset(addParameterClass ? 1 : 0),
 	numChannels(numChannels_),
 	opaqueType(opaqueType_)
@@ -51,7 +51,7 @@ WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels_, Op
 }
 
 WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, const Identifier& constantArg, int numChannels_, OpaqueType opaqueType_) :
-	TemplateClassBuilder(c, NamespacedIdentifier("wrap").getChildId(id)),
+	TemplateClassBuilder(c, getWrapId(id)),
 	WrappedObjectOffset(1),
 	numChannels(numChannels_),
 	opaqueType(opaqueType_)
@@ -60,6 +60,14 @@ WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, const Identifier& co
 	init(c, numChannels);
 }
 
+
+snex::NamespacedIdentifier WrapBuilder::getWrapId(const Identifier& id)
+{
+	if (id.toString().contains("::"))
+		return NamespacedIdentifier::fromString(id.toString());
+	else
+		return NamespacedIdentifier("wrap").getChildId(id);
+}
 
 void WrapBuilder::init(Compiler& c, int numChannels)
 {
@@ -77,11 +85,16 @@ void WrapBuilder::init(Compiler& c, int numChannels)
 		st->addMember("obj", TypeInfo(pType, false, false));
 
 		st->setInternalProperty(WrapIds::ObjectIndex, 0);
-		st->setInternalProperty(WrapIds::IsObjectWrapper, true);
+
 		st->setInternalProperty(WrapIds::IsNode, true);
 
-		if (opaqueType_ == GetSelfAsObject)
-			st->setInternalProperty(WrapIds::GetSelfAsObject, true);
+		if (opaqueType_ != FullOpaque)
+		{
+			st->setInternalProperty(WrapIds::IsObjectWrapper, true);
+
+			if (opaqueType_ == GetSelfAsObject)
+				st->setInternalProperty(WrapIds::GetSelfAsObject, true);
+		}
 
 		for (int i = 1; i < numChannels + 1; i++)
 		{
@@ -383,6 +396,41 @@ void WrapBuilder::setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, Callb
 	addInitFunction(replacer);
 }
 
+
+void WrapBuilder::setEmptyCallback(Types::ScriptnodeCallbacks::ID cb)
+{
+	setInlinerForCallback(cb, {}, Inliner::HighLevel, WrapLibraryBuilder::Callbacks::empty::noop);
+
+	auto numChannels_ = numChannels;
+
+	addPostFunctionBuilderInitFunction([cb, numChannels_](const TemplateObject::ConstructData& cd, StructType* st)
+	{
+		auto f = ScriptnodeCallbacks::getPrototype(*st->getCompiler(), cb, numChannels_);
+
+		using namespace scriptnode;
+
+		switch (cb)
+		{
+		case ScriptnodeCallbacks::ProcessFunction: 
+			f.function = (void*)prototypes::noop::process<ProcessData<1>>; 
+			break;
+		case ScriptnodeCallbacks::ProcessFrameFunction: 
+			f.function = (void*)prototypes::noop::processFrame<span<float, 1>>; 
+			break;
+		case ScriptnodeCallbacks::ResetFunction:
+			f.function = (void*)prototypes::noop::reset;
+			break;
+		case ScriptnodeCallbacks::HandleEventFunction:
+			f.function = (void*)prototypes::noop::handleHiseEvent;
+			break;
+		case ScriptnodeCallbacks::PrepareFunction:
+			f.function = (void*)prototypes::noop::prepare;
+			break;
+		}
+
+		st->injectMemberFunctionPointer(f, f.function);
+	});
+}
 
 juce::Result WrapBuilder::Helpers::constructorInliner(InlineData* b)
 {
@@ -915,6 +963,8 @@ Result WrapLibraryBuilder::registerTypes()
 
 	frame.flush();
 
+	
+
 	WrapBuilder mod(c, "mod", numChannels, WrapBuilder::GetSelfAsObject, true);
 	mod.addInitFunction([](const TemplateObject::ConstructData& cd, StructType* st)
 	{
@@ -984,9 +1034,40 @@ Result WrapLibraryBuilder::registerTypes()
 
 	nWrapper.flush();
 
+	registerCoreTemplates();
+
 	return Result::ok();
 }
 
+
+void WrapLibraryBuilder::registerCoreTemplates()
+{
+	WrapBuilder coreMidi(c, "core::midi", numChannels, WrapBuilder::FullOpaque);
+
+	coreMidi.addInitFunction([](const TemplateObject::ConstructData& cd, StructType* st)
+		{
+			auto mv = cd.handler->getComplexType(NamespacedIdentifier("ModValue"));
+			st->addMember("v", TypeInfo(mv));
+		});
+
+	coreMidi.addFunction([](StructType* st)
+		{
+			auto c_ = st->getCompiler();
+			auto f = ScriptnodeCallbacks::getPrototype(*c_, ScriptnodeCallbacks::HandleModulation, 2);
+			f.id = st->id.getChildId(f.id.getIdentifier());
+			f.inliner = Inliner::createHighLevelInliner({}, Callbacks::core_midi::handleModulation);
+			return f;
+		});
+
+	coreMidi.setEmptyCallback(ScriptnodeCallbacks::ProcessFunction);
+	coreMidi.setEmptyCallback(ScriptnodeCallbacks::ProcessFrameFunction);
+	coreMidi.setEmptyCallback(ScriptnodeCallbacks::ResetFunction);
+	coreMidi.setInlinerForCallback(ScriptnodeCallbacks::PrepareFunction, {}, Inliner::HighLevel, Callbacks::core_midi::prepare);
+	coreMidi.setInlinerForCallback(ScriptnodeCallbacks::HandleEventFunction, {}, Inliner::HighLevel, Callbacks::core_midi::handleEvent);
+
+	coreMidi.flush();
+
+}
 
 juce::Result WrapLibraryBuilder::Callbacks::fix_block::prepare(WrapBuilder::ExternalFunctionMapData& mapData)
 {
@@ -1213,6 +1294,43 @@ juce::Result WrapLibraryBuilder::Callbacks::mod::processFrame(InlineData* b)
 	c << "this->checkModValue();";
 	
 	return SyntaxTreeInlineParser(b, { "data" }, c).flush();
+}
+
+juce::Result WrapLibraryBuilder::Callbacks::empty::noop(InlineData* b)
+{
+	auto d = b->toSyntaxTreeData();
+
+	d->target = new Operations::Noop(d->location);
+
+	return Result::ok();
+}
+
+juce::Result WrapLibraryBuilder::Callbacks::core_midi::prepare(InlineData* b)
+{
+	cppgen::Base c;
+	c << "this->obj.prepare(ps);";
+
+	return SyntaxTreeInlineParser(b, { "ps" }, c).flush();
+}
+
+juce::Result WrapLibraryBuilder::Callbacks::core_midi::handleEvent(InlineData* b)
+{
+	cppgen::Base c;
+
+
+	c << "double thisModValue = 0.0;";
+	c << "auto thisChanged = this->obj.getMidiValue(e, thisModValue);";
+	c << "if (thisChanged)";
+	c << "   this->v.setModValueIfChanged(thisModValue);";
+
+	return SyntaxTreeInlineParser(b, { "e" }, c).flush();
+}
+
+juce::Result WrapLibraryBuilder::Callbacks::core_midi::handleModulation(InlineData* b)
+{
+	cppgen::Base c;
+	c << "return this->v.getChangedValue(value);";
+	return SyntaxTreeInlineParser(b, { "value" }, c).flush();
 }
 
 }

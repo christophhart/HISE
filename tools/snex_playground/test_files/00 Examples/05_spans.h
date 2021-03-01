@@ -49,7 +49,7 @@ int main(int input)
 	// you will need to create an index type
 	// for the target array
 	// with a specific out-of-bounds behaviour
-	auto index = IndexType::wrapped(fData);
+	index::wrapped<0, false> index;
 	
 	// Now we assign the dynamic input to the
 	// index type. Then we can use the index

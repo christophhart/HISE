@@ -134,23 +134,22 @@ snex::jit::Operations::Expression::Ptr Operations::evalConstExpr(Expression::Ptr
 
 	Random r;
 	
-
-	SyntaxTree bl(expr->location, compiler->namespaceHandler.createNonExistentIdForLocation({}, r.nextInt()));
-	bl.addStatement(expr.get());
+	Statement::Ptr tr = new SyntaxTree(expr->location, compiler->namespaceHandler.createNonExistentIdForLocation({}, r.nextInt()));
+	as<SyntaxTree>(tr)->addStatement(expr.get());
 
 	BaseCompiler::ScopedPassSwitcher sp1(compiler, BaseCompiler::DataAllocation);
-	compiler->executePass(BaseCompiler::DataAllocation, scope, &bl);
+	compiler->executePass(BaseCompiler::DataAllocation, scope, tr);
 
 	BaseCompiler::ScopedPassSwitcher sp2(compiler, BaseCompiler::PreSymbolOptimization);
 	compiler->optimize(expr, scope, false);
 
 	BaseCompiler::ScopedPassSwitcher sp3(compiler, BaseCompiler::ResolvingSymbols);
-	compiler->executePass(BaseCompiler::ResolvingSymbols, scope, &bl);
+	compiler->executePass(BaseCompiler::ResolvingSymbols, scope, tr);
 
 	BaseCompiler::ScopedPassSwitcher sp4(compiler, BaseCompiler::PostSymbolOptimization);
 	compiler->optimize(expr, scope, false);
 
-	return dynamic_cast<Operations::Expression*>(bl.getChildStatement(0).get());
+	return dynamic_cast<Operations::Expression*>(tr->getChildStatement(0).get());
 }
 
 Operations::Expression* Operations::findAssignmentForVariable(Expression::Ptr variable, BaseScope*)
@@ -211,6 +210,16 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 
 	if (auto v = dynamic_cast<VariableReference*>(e.get()))
 	{
+		v->tryToResolveType(currentCompiler);
+
+		if (v->getTypeInfo().isDynamic())
+		{
+			currentCompiler->namespaceHandler.setTypeInfo(v->id.id, NamespaceHandler::Variable, expectedType);
+
+			v->id = { v->id.id, expectedType };
+			return expectedType;
+		}
+
 		bool isDifferentType = expectedType != Types::ID::Dynamic && expectedType != v->getConstExprValue().getType();
 
 		if (v->isConstExpr() && isDifferentType)
@@ -222,6 +231,7 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 	}
 
 	auto thisType = e->getTypeInfo();
+
 
 	if (expectedType.isInvalid())
 	{
@@ -244,8 +254,11 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 	{
 		if (auto targetType = expectedType.getTypedIfComplexType<ComplexType>())
 		{
-			if(!targetType->isValidCastSource(thisType.getType(), thisType.getTypedIfComplexType<ComplexType>()))
+			if (!targetType->isValidCastSource(thisType.getType(), thisType.getTypedIfComplexType<ComplexType>()))
+			{
 				throwError(juce::String("Can't cast ") + thisType.toString() + " to " + expectedType.toString());
+			}
+				
 		}
 
 		if (auto sourceType = thisType.getTypedIfComplexType<ComplexType>())
@@ -411,6 +424,47 @@ void Operations::Statement::logWarning(const juce::String& m)
 	logMessage(currentCompiler, BaseCompiler::Warning, m);
 }
 
+bool Operations::Statement::replaceIfOverloaded(Ptr objPtr, List args, FunctionClass::SpecialSymbols overloadType)
+{
+	if (auto cType = objPtr->getTypeInfo().getTypedIfComplexType<ComplexType>())
+	{
+		if (FunctionClass::Ptr fc = cType->getFunctionClass())
+		{
+			TypeInfo::List argTypes;
+
+			for (auto a : args)
+				argTypes.add(a->getTypeInfo());
+
+			auto returnType = getTypeInfo();
+
+			auto overloadedFunction = fc->getSpecialFunction(overloadType, returnType, argTypes);
+
+			if (overloadedFunction.id.isValid())
+			{
+				auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
+
+				auto f = new FunctionCall(location, nullptr, overloadedFunction.toSymbol(), {});
+
+				f->setObjectExpression(objPtr->clone(location));
+
+				for(auto a: args)
+					f->addArgument(a->clone(location));
+
+				Ptr fPtr(f);
+				Ptr thisPtr(this);
+
+				replaceInParent(fPtr);
+				SyntaxTreeInlineData::processUpToCurrentPass(thisPtr, fPtr);
+				return true;
+			}
+		}
+	}
+
+	
+
+	return false;
+}
+
 bool Operations::Statement::isConstExpr() const
 {
 	return isStatementType<Immediate>(static_cast<const Statement*>(this));
@@ -494,21 +548,83 @@ void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::Mes
 	compiler->logMessage(type, e.toString());
 }
 
-void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr statementToSearchFor, BaseCompiler* c, BaseScope* s)
+void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(Statement::Ptr statementToSearchFor, BaseCompiler* c, BaseScope* s)
 {
+	auto asScope = as<ScopeStatementBase>(statementToSearchFor);
+
+	if (asScope == nullptr)
+	{
+		// just grab the nearest scope
+		asScope = findParentStatementOfType<ScopeStatementBase>(statementToSearchFor);
+	}
+
+	jassert(asScope != nullptr);
+	auto path = asScope->getPath();
+
+	auto hasChildStatementsWithLocalScope = [&](Statement::Ptr p)
+	{
+		if (auto v = as<VariableReference>(p))
+		{
+			auto scopeId = v->id.id.getParent();
+
+			return scopeId == path || path.isParentOf(scopeId);
+		}
+
+		return false;
+	};
+
+	
+
+	statementToSearchFor->forEachRecursive([&](Statement::Ptr p)
+	{
+		auto d = as<DotOperator>(p) ;
+		auto v = as<VariableReference>(p);
+
+		if (p->forEachRecursive(hasChildStatementsWithLocalScope))
+			return false;
+
+		if (d != nullptr || v != nullptr)
+		{
+
+			if (v != nullptr && v->isClassVariable(s))
+				v->forceLoadData = true;
+
+			p->process(c, s);
+
+			if (p->reg != nullptr)
+			{
+				auto& cc = getFunctionCompiler(c);
+
+				if(d != nullptr)
+					p->reg->loadMemoryIntoRegister(cc);
+
+				p->reg->setWriteBackToMemory(true);
+			}
+		}
+		
+		return false;
+	});
+
+
+#if 0
 	SyntaxTreeWalker w(statementToSearchFor, false);
 
 	while (auto v = w.getNextStatementOfType<VariableReference>())
 	{
+		//v->forceLoadData = true;
+		v->process(c, s);
+
+		auto r = v->reg;
+
 		// If use a class variable, we need to create the register
 		// outside the loop
-		if (v->isClassVariable(s) && v->isFirstReference())
+		if (v->isFirstReference())
 		{
-			v->forceLoadData = true;
-			v->process(c, s);
+			
 		}
 			
 	}
+#endif
 }
 
 Operations::Statement::Ptr Operations::ScopeStatementBase::createChildBlock(Location l) const
@@ -520,6 +636,94 @@ Operations::Statement::Ptr Operations::ScopeStatementBase::createChildBlock(Loca
 	return new StatementBlock(l, id);
 }
 
+
+void Operations::ScopeStatementBase::addDestructors(BaseScope* scope)
+{
+	Array<Symbol> destructorIds;
+	auto path = getPath();
+
+	auto asStatement = dynamic_cast<Statement*>(this);
+
+	asStatement->forEachRecursive([path, &destructorIds, scope](Statement::Ptr p)
+	{
+		if (auto cd = as<ComplexTypeDefinition>(p))
+		{
+			if (cd->isStackDefinition(scope))
+			{
+				if (cd->type.getComplexType()->hasDestructor())
+				{
+					for (auto& id : cd->getInstanceIds())
+					{
+						if (path == id.getParent())
+						{
+							destructorIds.add(Symbol(id, cd->type));
+						}
+					}
+				}
+			}
+		}
+
+		return false;
+	});
+
+	bool destructorsAdded = false;
+
+	for (auto dv : destructorIds)
+	{
+		StatementWithControlFlowEffectBase::addDestructorToAllChildStatements(asStatement, dv);
+	}
+
+	
+#if 0
+	asStatement->forEachRecursive([&destructorIds, asStatement, path, &destructorsAdded](Statement::Ptr p)
+	{
+		if (auto rt = as<ReturnStatement>(p))
+		{
+			// Only add the destructors to the return statements of this block
+			// (inlined functions will also have a return statement
+			if (rt->findRoot() == as<ScopeStatementBase>(asStatement))
+			{
+				//  Reverse the order of destructor execution.
+				for (int i = destructorIds.size() - 1; i >= 0; i--)
+				{
+					auto id = destructorIds[i];
+
+					ComplexType::InitData d;
+					ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(p, path, {});
+					d.t = ComplexType::InitData::Type::Desctructor;
+					d.functionTree = b.get();
+					b->object = p;
+					b->expression = new Operations::VariableReference(p->location, id);
+					auto r = id.typeInfo.getComplexType()->callDestructor(d);
+					p->location.test(r);
+				}
+
+				destructorsAdded = true;
+			}
+		}
+
+		return false;
+	});
+
+
+	if (!destructorsAdded)
+	{
+		for (int i = destructorIds.size() - 1; i >= 0; i--)
+		{
+			auto id = destructorIds[i];
+
+			ComplexType::InitData d;
+			ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(asStatement, path, {});
+			d.t = ComplexType::InitData::Type::Desctructor;
+			d.functionTree = b.get();
+			b->object = asStatement;
+			b->expression = new Operations::VariableReference(asStatement->location, id);
+			auto r = id.typeInfo.getComplexType()->callDestructor(d);
+			asStatement->location.test(r);
+		}
+	}
+#endif
+}
 
 void Operations::ScopeStatementBase::removeStatementsAfterReturn()
 {
@@ -848,6 +1052,55 @@ juce::Result Operations::TemplateParameterResolver::resolveIdForType(TypeInfo& t
 	}
 
 	return Result::ok();
+}
+
+void Operations::StatementWithControlFlowEffectBase::addDestructorToAllChildStatements(Statement::Ptr root, const Symbol& id)
+{
+	Statement::List breakStatements;
+
+	auto rootTyped = as<ScopeStatementBase>(root);
+
+	jassert(rootTyped != nullptr);
+
+	root->forEachRecursive([&](Statement::Ptr p)
+	{
+		if (auto swcfweb = as<StatementWithControlFlowEffectBase>(p))
+		{
+			if (swcfweb->findRoot() == rootTyped)
+				breakStatements.add(p);
+		}
+
+		return false;
+	});
+
+	bool hasReturn = false; 
+
+	for (auto s : *root)
+	{
+		if (as<ReturnStatement>(s) != nullptr)
+			hasReturn = true;
+	}
+
+	if(!hasReturn)
+		breakStatements.add(root);
+
+	for (auto bs : breakStatements)
+	{
+		ComplexType::InitData d;
+		ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(bs, rootTyped->getPath(), {});
+		d.t = ComplexType::InitData::Type::Desctructor;
+		d.functionTree = b.get();
+		b->object = bs;
+
+		if (id.id.getIdentifier() == Identifier("this"))
+			b->expression = new Operations::ThisPointer(bs->location, id.typeInfo);
+		else
+			b->expression = new Operations::VariableReference(bs->location, id);
+
+		auto r = id.typeInfo.getComplexType()->callDestructor(d);
+		bs->location.test(r);
+	}
+		
 }
 
 }

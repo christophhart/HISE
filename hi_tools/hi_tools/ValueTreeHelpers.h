@@ -366,6 +366,9 @@ struct ChildListener : public Base
 		allowCallbacksForChildEvents = shouldFireCallbacksForChildEvents;
 	}
 
+	/** Returns the tree that this class is listening to. */
+	ValueTree getParentTree() { return v; }
+
 protected:
 
 	bool allowCallbacksForChildEvents = false;

@@ -58,7 +58,7 @@ using namespace juce;
     X(andEquals,     "&=")       X(logicalAnd,   "&&")      X(bitwiseAnd,   "&") \
     X(orEquals,      "|=")       X(logicalOr,    "||")      X(bitwiseOr,    "|")  \
      X(lessThanOrEqual,  "<=")  X(lessThan,   "<")  		X(destructor,   "~") \
-      X(greaterThanOrEqual, ">=")  X(greaterThan,  ">")	    X(syntax_tree_variable, "$")
+      X(greaterThanOrEqual, ">=")  X(greaterThan,  ">")	    X(syntax_tree_variable, "$") 
 
 #define HNODE_JIT_KEYWORDS(X) \
     X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \
@@ -69,7 +69,7 @@ using namespace juce;
 	X(auto_, "auto")			X(struct_, "struct")	\
 	X(using_, "using")		    X(static_, "static")	X(break_, "break") X(continue_, "continue")			X(namespace_, "namespace") \
 	X(template_, "template")    X(typename_, "typename") X(while_, "while") \
-	X(__internal_property, "__internal_property"); X(this_, "this");
+	X(__internal_property, "__internal_property"); X(this_, "this"); X(operator_, "operator")
 
 namespace JitTokens
 {
@@ -562,13 +562,42 @@ struct ParserHelpers
 			return true;
 		}
 
+		Identifier parseOperatorId()
+		{
+			if (matchIf(JitTokens::assign_))
+			{
+				return FunctionClass::getSpecialSymbol({}, FunctionClass::AssignOverload);
+			}
+			if (matchIf(JitTokens::openBracket))
+			{
+				match(JitTokens::closeBracket);
+				return FunctionClass::getSpecialSymbol({}, FunctionClass::Subscript);
+			}
+			if (matchIf(JitTokens::plusplus))
+			{
+				return FunctionClass::getSpecialSymbol({}, FunctionClass::IncOverload);
+			}
+			if (matchIf(JitTokens::minusminus))
+			{
+				return FunctionClass::getSpecialSymbol({}, FunctionClass::DecOverload);
+			}
+
+			location.throwError("Unsupported operator overload");
+		}
+
 		Identifier parseIdentifier()
 		{
+			if(matchIf(JitTokens::operator_))
+			{
+				return parseOperatorId();
+			}
+
 			Identifier i;
 			if (currentType == JitTokens::identifier)
 				i = currentValue.toString();
 
 			match(JitTokens::identifier);
+
 			return i;
 		}
 
@@ -612,7 +641,15 @@ struct ParserHelpers
 
 			auto type = Types::Helpers::getTypeFromStringValue(currentString);
 
+
 			juce::String stringValue = currentString;
+
+			if (matchIf(JitTokens::true_))
+				return VariableStorage(1);
+
+			if (matchIf(JitTokens::false_))
+				return VariableStorage(0);
+
 			match(JitTokens::literal);
 
 			if (type == Types::ID::Integer)

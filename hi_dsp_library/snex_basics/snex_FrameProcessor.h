@@ -163,6 +163,8 @@ template <int NumChannels> struct FrameProcessor
 
 	FrameType& toSpan() { return frameData; }
 
+	static constexpr bool hasCompileTimeSize() { return true; }
+
 private:
 
 	friend class SnexObjectDatabase;
@@ -191,16 +193,14 @@ private:
 
 struct IndexType
 {
-	
-
-	template <int I> static auto wrapped(const FrameProcessor<I>& f)
+	template <int I> static auto wrapped(const FrameProcessor<I>& f, int initValue=0)
 	{
-		return typename span<float, I>::wrapped(0);
+		return typename span<float, I>::wrapped(initValue);
 	}
 
-	template <int I> static auto clamped(const FrameProcessor<I>& f)
+	template <int I> static auto clamped(const FrameProcessor<I>& f, int initValue=0)
 	{
-		return typename span<float, I>::clamped(0);
+		return typename span<float, I>::clamped(initValue);
 	}
 
 	template <typename E, int I> static auto clamped(const span<E, I>& obj, int index=0)
@@ -213,14 +213,14 @@ struct IndexType
 		return typename span<E, I>::wrapped(index);
 	}
 
-	template <typename T> static auto clamped(const dyn<T>& obj, int index=0)
+	template <typename T> static auto clamped(const dyn<T>& obj, int initValue=0)
 	{
-		return dyn_indexes::clamped(index);
+		return index::typename clamped<0>(initValue);
 	}
 
-	template <typename T> static auto wrapped(const dyn<T>& obj, int index=0)
+	template <typename T> static auto wrapped(const dyn<T>& obj, int initValue=0)
 	{
-		return dyn_indexes::wrapped(index);
+		return index::typename wrapped<0>(initValue);
 	}
 
 

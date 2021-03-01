@@ -36,15 +36,16 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+
+
 namespace analyse
 {
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-#if NOT_JUST_OSC
-	registerNode<fft>({});
-	registerNode<oscilloscope>({});
-#endif
+	registerNode<fft, ui::fft_display>();
+	registerNode<oscilloscope, ui::osc_display>();
+	registerNode<goniometer, ui::gonio_display>();
 }
 
 }
@@ -55,12 +56,10 @@ namespace dynamics
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-#if NOT_JUST_OSC
-	registerNode<gate, ModulationSourcePlotter>();
-	registerNode<comp, ModulationSourcePlotter>();
-	registerNode<limiter, ModulationSourcePlotter>();
-	registerNode<envelope_follower, ModulationSourcePlotter>();
-#endif
+	registerModNode<gate>();
+	registerModNode<comp>();
+	registerModNode<limiter>();
+	registerModNode<envelope_follower>();
 }
 
 }
@@ -115,39 +114,86 @@ Factory::Factory(DspNetwork* n) :
 }
 }
 
+namespace control
+{
+	using dynamic_cable_table = wrap::data<control::cable_table<parameter::dynamic_base_holder>, data::dynamic::table>;
+	using dynamic_cable_pack = wrap::data<control::cable_pack<parameter::dynamic_base_holder>, data::dynamic::sliderpack>;
+
+	using dynamic_smoother_parameter = control::smoothed_parameter<smoothers::dynamic>;
+
+	Factory::Factory(DspNetwork* network) :
+		NodeFactory(network)
+	{
+		registerNoProcessNode<pma_editor::NodeType, pma_editor>();
+		registerNoProcessNode<control::sliderbank_editor::NodeType, control::sliderbank_editor, false>();
+
+		registerNoProcessNode<dynamic_cable_pack, data::ui::sliderpack_editor>();
+		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();
+		
+		registerNoProcessNode<faders::dynamic::NodeType, faders::dynamic::editor>();
+		//registerModNode<midi_logic::dynamic::NodeType, midi_logic::dynamic::editor>();
+		registerModNode<smoothers::dynamic::NodeType, smoothers::dynamic::editor>();
+
+		//registerPolyModNode<control::timer<snex_timer>, timer_poly<snex_timer>, snex_timer::editor>();
+	}
+}
+
 namespace core
 {
 
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-	registerPolyNode<seq, seq_poly>();
-	
-	
-
-	registerModNode<core::dynamic_table::TableNodeType, core::dynamic_table::display>();
 	registerNode<fix_delay>();
-	registerNode<file_player>();
-	
 	registerNode<fm>();
 	
+	registerModNode<wrap::data<core::table,       data::dynamic::table>,     data::ui::table_editor>();
+	registerModNode<wrap::data<core::file_player, data::dynamic::audiofile>, data::ui::audiofile_editor_with_mod>();
+	registerNode   <wrap::data<core::recorder,    data::dynamic::audiofile>, data::ui::audiofile_editor>();
+
 	registerPolyNode<gain, gain_poly>();
-	//registerPolyNode<smoother, smoother_poly>();
-	registerNode<new_jit>();
-	registerModNode<core::midi<SnexEventProcessor>, MidiDisplay>();
-	registerPolyModNode<timer<SnexEventTimer>, timer_poly<SnexEventTimer>, TimerDisplay>();
-	registerPolyNode<snex_osc<SnexOscillator>, snex_osc_poly<SnexOscillator>, SnexOscillatorDisplay>();
-	registerNodeRaw<ParameterMultiplyAddNode>();
-	registerModNode<hise_mod>();
+
 	registerModNode<tempo_sync, TempoDisplay>();
+
+#if HISE_INCLUDE_SNEX
+	registerPolyNode<snex_osc<SnexOscillator>, snex_osc_poly<SnexOscillator>, NewSnexOscillatorDisplay>();
+#endif
+
+
+
+	registerModNode<hise_mod>();
+	
 	registerModNode<peak>();
-	registerPolyNode<ramp, ramp_poly>();
+	registerPolyModNode<ramp, ramp_poly>();
 	registerNode<core::mono2stereo>();
 	registerPolyNode<core::oscillator, core::oscillator_poly, OscDisplay>();
 
+	
+
+	//registerNode<waveshapers::dynamic::NodeType, waveshapers::dynamic::editor>();
+	
+	
 }
 }
 
+namespace filters
+{
 
+Factory::Factory(DspNetwork* n) :
+	NodeFactory(n)
+{
+	registerPolyNode<one_pole, one_pole_poly, FilterNodeGraph>();
+	registerPolyNode<svf, svf_poly, FilterNodeGraph>();
+	registerPolyNode<svf_eq, svf_eq_poly, FilterNodeGraph>();
+	registerPolyNode<biquad, biquad_poly, FilterNodeGraph>();
+	registerPolyNode<ladder, ladder_poly, FilterNodeGraph>();
+	registerPolyNode<ring_mod, ring_mod_poly, FilterNodeGraph>();
+	registerPolyNode<moog, moog_poly, FilterNodeGraph>();
+	registerPolyNode<allpass, allpass_poly, FilterNodeGraph>();
+	registerPolyNode<linkwitzriley, linkwitzriley_poly, FilterNodeGraph>();
+	registerNode<wrap::data<convolution, data::dynamic::audiofile>, data::ui::audiofile_editor>();
+	//registerPolyNode<fir, fir_poly>();
+}
+}
 
 }

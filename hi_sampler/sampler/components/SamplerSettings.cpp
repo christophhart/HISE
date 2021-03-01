@@ -765,10 +765,7 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
 			crossfadeEditor->setEditedTable(nullptr);
 		}
 
-
 		BACKEND_ONLY(findParentComponentOfClass<ProcessorEditorBody>()->refreshBodySize());
-
-
 
         //[/UserLabelCode_crossfadeGroupEditor]
     }
@@ -780,7 +777,6 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
 
 		crossfadeEditor->setEditedTable(sampler->getTable(showCrossfadeLabel->getCurrentIndex()));
 
-		crossfadeEditor->connectToLookupTableProcessor(sampler);
 
 
         //[/UserLabelCode_showCrossfadeLabel]

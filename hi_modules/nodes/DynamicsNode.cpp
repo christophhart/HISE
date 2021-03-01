@@ -204,6 +204,11 @@ void envelope_follower::createParameters(ParameterDataList& data)
 
 		data.add(std::move(p));
 	}
+
+	{
+		DEFINE_PARAMETERDATA(envelope_follower, ProcessSignal);
+		data.add(std::move(p));
+	}
 }
     
 }

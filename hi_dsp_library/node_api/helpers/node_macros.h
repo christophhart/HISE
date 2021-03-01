@@ -37,6 +37,9 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+// We'll define it here once so that it can be used in the initialise() callback
+struct NodeBase;
+
 /** Parameter Preprocessors
 
 	1. Create a enum called Parameters for each parameter
@@ -94,6 +97,7 @@ constexpr const auto& getWrappedObject() const { return x; }
 #define HISE_DEFAULT_PROCESS_FRAME(ObjectType) template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept { this->obj.processFrame(data); }
 
 
+
 /** Stack float array macros. 
 
 	Beware of using to much stack memory !
@@ -123,7 +127,9 @@ constexpr const auto& getWrappedObject() const { return x; }
 #define HISE_EMPTY_PROCESS template <typename ProcessDataType> void process(ProcessDataType&) {}
 #define HISE_EMPTY_PROCESS_SINGLE template <typename FrameDataType> void processFrame(FrameDataType& ) {}
 #define HISE_EMPTY_CREATE_PARAM void createParameters(ParameterDataList&){}
-#define HISE_EMPTY_MOD bool handleModulation(double& ) { return false; }
+
+
+#define HISE_EMPTY_MOD bool handleModulation(double& ) { return false; } static constexpr bool isNormalisedModulation() { return false; }
 #define HISE_EMPTY_HANDLE_EVENT void handleHiseEvent(HiseEvent& e) {};
 #define HISE_EMPTY_SET_PARAMETER template <int P> static void setParameterStatic(void* , double ) {} template <int P> void setParameter(double) {}
 #define HISE_EMPTY_INITIALISE void initialise(NodeBase* b) {}
@@ -168,7 +174,10 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 #define DECLARE_NODE(className) SET_HISE_NODE_ID(#className); FORWARD_PARAMETER_TO_MEMBER(className); SN_GET_SELF_AS_OBJECT(className); hmath Math; HISE_EMPTY_INITIALISE HISE_EMPTY_CREATE_PARAM
 
 
-
+#define HISE_ADD_SET_VALUE(ClassType) enum Parameters { Value }; \
+									  DEFINE_PARAMETERS { DEF_PARAMETER(Value, ClassType); } \
+									  PARAMETER_MEMBER_FUNCTION; \
+									  void createParameters(ParameterDataList& data) { DEFINE_PARAMETERDATA(ClassType, Value); p.setRange({ 0.0, 1.0 }); data.add(std::move(p)); }
 
 #if defined(_MSC_VER) && _MSC_VER >= 1900 && _MSC_FULL_VER >= 190023918 && _MSC_VER < 2000
 	// Selectively enable the empty base optimization for a given type.

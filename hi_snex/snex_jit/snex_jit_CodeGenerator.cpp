@@ -192,6 +192,9 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 		}
 	}
 	
+	if (target->shouldWriteToMemoryAfterStore())
+		writeRegisterToMemory(target);
+
 }
 
 
@@ -243,11 +246,15 @@ void AsmCodeGenerator::writeRegisterToMemory(RegPtr p)
 	if (p->hasCustomMemoryLocation() && p->isActive())
 	{
 		auto mem = p->getMemoryLocationForReference();
-		auto reg = INT_REG_R(p);
 
 		IF_(int) cc.mov(mem, INT_REG_R(p));
 		IF_(float) cc.movss(mem, FP_REG_R(p));
 		IF_(double) cc.movsd(mem, FP_REG_W(p));
+	}
+
+	if (p->isGlobalMemory() && p->isActive())
+	{
+		emitMemoryWrite(p);
 	}
 }
 
@@ -411,7 +418,7 @@ void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, Variab
 	}
 	else
 	{
-		auto ptr = x86::ptr(INT_REG_R(parent), memberOffset.toInt());
+		auto ptr = x86::ptr(PTR_REG_R(parent), memberOffset.toInt());
 		target->setCustomMemoryLocation(ptr.cloneResized(byteSize), parent->isGlobalMemory());
 	}
 }
@@ -483,67 +490,89 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 		if (type == Types::ID::Integer && (op == JitTokens::modulo || op == JitTokens::divide))
 		{
-			auto gs = r->getScope()->getGlobalScope();
-			auto checkZeroDivision = gs->isRuntimeErrorCheckEnabled();
-			auto okBranch = cc.newLabel();
-			auto errorBranch = cc.newLabel();
-
-			if (checkZeroDivision)
+			if (r->isImmediate() && r->getImmediateIntValue() != 0 && isPowerOfTwo(r->getImmediateIntValue()))
 			{
-				if (r->isMemoryLocation())
+				if (op == JitTokens::modulo)
 				{
-					if (r->getImmediateIntValue() == 0)
-						location.throwError("Divide by zero");
+					auto mask = (uint64_t)r->getImmediateIntValue() - 1;
+					cc.and_(INT_REG_W(l), mask);
 				}
 				else
 				{
-					cc.cmp(INT_REG_R(r), 0);
-					cc.je(errorBranch);
+					auto shiftAmount = (uint64_t)log2(r->getImmediateIntValue());
+					cc.shr(INT_REG_W(l), shiftAmount);
 				}
 			}
-
-			TemporaryRegister dummy(*this, r->getScope(), TypeInfo(Types::ID::Integer));
-			cc.cdq(dummy.get(), INT_REG_W(l));
-
-			if (r->isMemoryLocation())
-			{
-				auto forcedMemory = cc.newInt32Const(ConstPool::kScopeLocal, static_cast<int>(INT_IMM(r)));
-				cc.idiv(dummy.get(), INT_REG_W(l), forcedMemory);
-			}
 			else
-				cc.idiv(dummy.get(), INT_REG_W(l), INT_REG_R(r));
-
-			if (op == JitTokens::modulo)
-				cc.mov(INT_REG_W(l), dummy.get());
-
-			if (checkZeroDivision)
 			{
-				cc.jmp(okBranch);
-				cc.bind(errorBranch);
+				auto gs = r->getScope()->getGlobalScope();
+				auto checkZeroDivision = gs->isRuntimeErrorCheckEnabled();
+				auto okBranch = cc.newLabel();
+				auto errorBranch = cc.newLabel();
 
-				auto flagReg = cc.newGpd();
-				auto errorFlag = x86::ptr(gs->getRuntimeErrorFlag()).cloneResized(4);
-				
-				cc.mov(flagReg, (int)RuntimeError::ErrorType::IntegerDivideByZero);
-				cc.mov(errorFlag, flagReg);
+				if (checkZeroDivision)
+				{
+					if (r->isMemoryLocation())
+					{
+						if (r->getImmediateIntValue() == 0)
+							location.throwError("Divide by zero");
+					}
+					else
+					{
+						cc.cmp(INT_REG_R(r), 0);
+						cc.je(errorBranch);
+					}
+				}
 
-				cc.mov(flagReg, (int)location.getLine());
-				cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), flagReg);
-				cc.mov(flagReg, (int)location.getColNumber());
-				cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), flagReg);
-				
-				cc.mov(INT_REG_W(l), 0);
-				cc.bind(okBranch);
+				TemporaryRegister dummy(*this, r->getScope(), TypeInfo(Types::ID::Integer));
+				cc.cdq(dummy.get(), INT_REG_W(l));
+
+				if (r->isMemoryLocation())
+				{
+					auto forcedMemory = cc.newInt32Const(ConstPool::kScopeLocal, static_cast<int>(INT_IMM(r)));
+					cc.idiv(dummy.get(), INT_REG_W(l), forcedMemory);
+				}
+				else
+					cc.idiv(dummy.get(), INT_REG_W(l), INT_REG_R(r));
+
+				if (op == JitTokens::modulo)
+					cc.mov(INT_REG_W(l), dummy.get());
+
+				if (checkZeroDivision)
+				{
+					cc.jmp(okBranch);
+					cc.bind(errorBranch);
+
+					auto flagReg = cc.newGpd();
+
+					auto errorFlagReg = cc.newGpq();
+					cc.mov(errorFlagReg, gs->getRuntimeErrorFlag());
+
+					auto errorFlag = x86::ptr(errorFlagReg).cloneResized(4);
+
+					
+
+					cc.mov(flagReg, (int)RuntimeError::ErrorType::IntegerDivideByZero);
+					cc.mov(errorFlag, flagReg);
+
+					cc.mov(flagReg, (int)location.getLine());
+					cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), flagReg);
+					cc.mov(flagReg, (int)location.getColNumber());
+					cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), flagReg);
+
+					cc.mov(INT_REG_W(l), 0);
+					cc.bind(okBranch);
+				}
 			}
-
-			return l;
 		}
-
-		BINARY_OP(JitTokens::plus, cc.add, cc.addss, cc.addsd);
-		BINARY_OP(JitTokens::minus, cc.sub, cc.subss, cc.subsd);
-		BINARY_OP(JitTokens::times, cc.imul, cc.mulss, cc.mulsd);
-		FLOAT_BINARY_OP(JitTokens::divide, cc.divss, cc.divsd);
-		BINARY_OP(JitTokens::assign_, cc.mov, cc.movss, cc.movsd);
+		else
+		{
+			BINARY_OP(JitTokens::plus, cc.add, cc.addss, cc.addsd);
+			BINARY_OP(JitTokens::minus, cc.sub, cc.subss, cc.subsd);
+			BINARY_OP(JitTokens::times, cc.imul, cc.mulss, cc.mulsd);
+			FLOAT_BINARY_OP(JitTokens::divide, cc.divss, cc.divsd);
+			BINARY_OP(JitTokens::assign_, cc.mov, cc.movss, cc.movsd);
+		}
 	}
 	
 	auto target = l->getMemoryLocationForReference();
@@ -562,14 +591,6 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 		if (l->isDirtyGlobalMemory())
 			l->setUndirty();
 	}
-
-#if 0
-	if (l->getTypeInfo().isRef() || l->hasCustomMemoryLocation())
-	{
-		
-		
-	}
-#endif
 
 	return l;
 }
@@ -703,7 +724,9 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 	{
 		indexReg = index->getRegisterForReadOp().as<x86::Gpd>();
 
-		if (!canUseShift && index->getVariableId())
+		// We can't use the register for a named variable because
+		// it might get changed later on before the pointer is loaded
+		if (index->getVariableId().resolved)
 		{
 			auto newIndexReg = cc.newGpd().as<x86::Gpd>();
 			cc.mov(newIndexReg, indexReg);
@@ -808,7 +831,12 @@ void AsmCodeGenerator::emitCompare(bool useAsmFlags, OpType op, RegPtr target, R
 
 	IF_(int)
 	{
+		auto leftWasDirty = l->isDirtyGlobalMemory();
+
 		INT_OP(cc.cmp, l, r);
+
+		if (!leftWasDirty)
+			l->setUndirty();
 
 		if (!useAsmFlags)
 		{
@@ -861,25 +889,30 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 	{
 		jassert(expr != nullptr);
 
-		auto mem = expr->getMemoryLocationForReference();
+		X86Mem ptr;
 
-		if(mem.isNone())
-			jassertfalse;
+		if (expr->isMemoryLocation())
+		{
+			ptr = expr->getAsMemoryLocation();
+			target->createRegister(cc);
+			cc.lea(PTR_REG_W(target), ptr);
+			cc.ret(PTR_REG_W(target));
+		}
 		else
 		{
-			target->createRegister(cc);
-			cc.lea(PTR_REG_W(target), mem);
-			cc.ret(PTR_REG_W(target));
-			return;
+			//ptr = x86::ptr(PTR_REG_R(expr)).cloneResized(expr->getTypeInfo().getRequiredByteSize());
+			cc.ret(PTR_REG_W(expr));
 		}
+		
+		return;
 	}
 
 	if (expr != nullptr && (expr->isMemoryLocation() || expr->isDirtyGlobalMemory()))
 	{
 		if (auto am = c->registerPool.getActiveRegisterForCustomMem(expr))
 		{
-			rToUse = expr;
-			expr->loadMemoryIntoRegister(cc);
+			rToUse = am;
+			 am->loadMemoryIntoRegister(cc);
 		}
 		else
 		{
@@ -890,20 +923,48 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 	else
 		rToUse = expr;
 
-	
-
-	
-
 	if (expr == nullptr || target == nullptr)
 		cc.ret();
 	else
 	{
-		if (type == Types::ID::Float || type == Types::ID::Double)
-			cc.ret(rToUse->getRegisterForReadOp().as<X86Xmm>());
-		else if (type == Types::ID::Integer)
-            cc.ret(rToUse->getRegisterForReadOp().as<x86::Gpd>());
-		else if (type == Types::ID::Block || type == Types::ID::Pointer)
-			cc.ret(rToUse->getRegisterForReadOp().as<X86Gpq>());
+		// We need to check if the actual register is an address (eg. a function call that returns a reference)
+		bool needsPointerToTypeConversion = target->getType() != Types::ID::Pointer && expr->getType() == Types::ID::Pointer;
+
+		if (needsPointerToTypeConversion)
+		{
+			X86Mem ptr;
+
+			if (expr->isMemoryLocation())
+				ptr = expr->getAsMemoryLocation();
+			else
+				ptr = x86::ptr(PTR_REG_R(expr)).cloneResized(expr->getTypeInfo().getRequiredByteSize());
+
+			IF_(int)
+				cc.mov(INT_REG_W(rToUse), ptr);
+			IF_(float)
+				cc.movss(FP_REG_W(rToUse), ptr);
+			IF_(double)
+				cc.movsd(FP_REG_W(rToUse), ptr);
+		}
+
+		jassert(rToUse->isActive());
+
+		switch (type)
+		{
+		case Types::ID::Float:
+		case Types::ID::Double: 
+			cc.ret(FP_REG_R(rToUse)); break;
+		case Types::ID::Integer:
+			cc.ret(INT_REG_R(rToUse)); break;
+		case Types::ID::Block:
+		case Types::ID::Pointer:
+			cc.ret(PTR_REG_R(rToUse));
+			break;
+		default:
+			jassertfalse;
+		}
+
+		rToUse->clearAfterReturn();
 	}
 }
 
@@ -1020,14 +1081,56 @@ Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr
 
 			return Result::ok();
 		}
-
-
-		
 	}
 	else
 	{
-		jassertfalse;
-		return Result::fail("unimplemented");
+		int numToCopy = typePtr->getRequiredByteSize();
+
+		target->loadMemoryIntoRegister(cc, true);
+		expr->loadMemoryIntoRegister(cc, true);
+
+		auto dst = x86::ptr(PTR_REG_R(target));
+		auto src = x86::ptr(PTR_REG_R(expr));
+
+		int offset = 0;
+
+		cc.setInlineComment("Copy complex type");
+
+#if 0
+		while (numToCopy >= 16)
+		{
+			auto tmp = cc.newXmmPs();
+			cc.movaps(tmp, src.cloneAdjustedAndResized(offset, 16));
+			cc.movaps(dst.cloneAdjustedAndResized(offset, 16), tmp);
+
+			numToCopy -= 16;
+			offset += 16;
+		}
+#endif
+
+		while(numToCopy >= 8)
+		{
+			auto tmp = cc.newGpq();
+
+			cc.mov(tmp, src.cloneAdjustedAndResized(offset, 8));
+			cc.mov(dst.cloneAdjustedAndResized(offset, 8), tmp);
+
+			numToCopy -= 8;
+			offset += 8;
+		}
+
+		while (numToCopy >= 4)
+		{
+			auto tmp = cc.newGpd();
+
+			cc.mov(tmp, src.cloneAdjustedAndResized(offset, 4));
+			cc.mov(dst.cloneAdjustedAndResized(offset, 4), tmp);
+
+			numToCopy -= 4;
+			offset += 4;
+		}
+
+		return Result::ok();
 	}
 }
 
@@ -1075,6 +1178,8 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(TypeInfo returnType, Opera
 		cc.setInlineComment("false branch");
 
 		falseBranch->process(c, s);
+
+		writeDirtyGlobals(c);
 
 		if (returnReg != nullptr)
 		{
@@ -1187,12 +1292,13 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 		{
 			
 			if (IS_REG(expr))    cc.cvtsi2sd(FP_REG_W(target), INT_REG_R(expr));
-			else if (IS_CMEM(expr))   cc.cvtsi2sd(FP_REG_W(target), INT_MEM(expr));
-			else if (IS_MEM(expr))
+			else if (IS_IMM(expr))
 			{
 				auto m = cc.newDoubleConst(ConstPool::kScopeLocal, static_cast<double>(INT_IMM(expr)));
 				target->setCustomMemoryLocation(m, false);
 			}
+			else if (IS_CMEM(expr) || IS_MEM(expr))   
+				cc.cvtsi2sd(FP_REG_W(target), INT_MEM(expr));
 			else
 				cc.cvtsi2sd(FP_REG_W(target), INT_REG_R(expr));
 		}
@@ -1211,12 +1317,12 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 		IF_(int) // SOURCE TYPE
 		{
 			if     (IS_REG(expr))    cc.cvtsi2ss(FP_REG_W(target), INT_REG_R(expr));
-		    else if(IS_CMEM(expr))   cc.cvtsi2ss(FP_REG_W(target), INT_MEM(expr));
-			else if (IS_MEM(expr))
+			else if (IS_IMM(expr))
 			{
 				auto m = cc.newFloatConst(ConstPool::kScopeLocal, static_cast<float>(INT_IMM(expr)));
 				target->setCustomMemoryLocation(m, false);
 			}
+		    else if(IS_CMEM(expr) || IS_MEM(expr))   cc.cvtsi2ss(FP_REG_W(target), INT_MEM(expr));
 			else                     
 				cc.cvtsi2ss(FP_REG_W(target), INT_REG_R(expr));
 		}

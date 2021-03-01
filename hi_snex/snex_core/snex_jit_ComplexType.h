@@ -105,7 +105,7 @@ struct ComplexType : public ReferenceCountedObject
 	
 
 	
-
+	FunctionData getDestructor();
 
 	virtual bool hasDestructor();
 
@@ -127,6 +127,10 @@ struct ComplexType : public ReferenceCountedObject
 	/** Override this and return a function class object containing methods that are performed on this type. The object returned by this function must be owned by the caller (because keeping a member object will most likely create a cyclic reference).
 	*/
 	virtual FunctionClass* getFunctionClass() { return nullptr; };
+
+	FunctionData getNonOverloadedFunction(const Identifier& id);
+
+	virtual var getInternalProperty(const Identifier& id, const var& defaultValue) { return defaultValue; }
 
 	bool isFinalised() const { return finalised; }
 

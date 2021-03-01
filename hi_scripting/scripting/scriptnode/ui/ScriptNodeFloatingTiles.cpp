@@ -141,6 +141,7 @@ static const unsigned char optimizeIcon[] = { 110,109,12,2,148,65,141,151,197,65
 }
 
 
+#if 0
 SnexPopupEditor::SnexPopupEditor(const String& name, SnexSource* src, bool isPopup) :
 	d(doc),
 	Component(name),
@@ -399,6 +400,7 @@ juce::Path SnexPopupEditor::Icons::createPath(const String& url) const
 
 	return p;
 }
+#endif
 
 }
 

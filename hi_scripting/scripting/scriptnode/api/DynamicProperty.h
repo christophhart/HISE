@@ -153,6 +153,7 @@ struct dynamic_to0to1 : public dynamic_base
 	const NormalisableRange<double> range;
 };
 
+#if HISE_INCLUDE_SNEX
 struct dynamic_expression : public dynamic_base
 {
 	dynamic_expression(parameter::dynamic& obj, snex::JitExpression* p_) :
@@ -179,6 +180,7 @@ struct dynamic_expression : public dynamic_base
 
 	snex::JitExpression::Ptr p;
 };
+#endif
 
 struct dynamic_chain : public dynamic_base
 {

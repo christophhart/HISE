@@ -79,6 +79,23 @@ IIRCoefficients IIRCoefficients::makeLowPass (const double sampleRate,
                             c1 * (1.0 - 1.0 / Q * n + nSquared));
 }
 
+juce::IIRCoefficients IIRCoefficients::makeResoLowPass(double sampleRate, double cutoff, double q)
+{
+	const double c = 1.0 / (tan(double_Pi * (cutoff / sampleRate)));
+	const double csq = c * c;
+
+	q = 1 / (3 * q);
+
+	double c1 = 1.0 / (1.0 + (q * c) + (csq));
+
+	return IIRCoefficients(c1,
+		2.0 * c1,
+		c1,
+		1.0,
+		(2.0 * c1) * (1.0 - csq),
+		c1 * (1.0 - (q * c) + csq));
+}
+
 IIRCoefficients IIRCoefficients::makeHighPass (const double sampleRate,
                                                const double frequency) noexcept
 {

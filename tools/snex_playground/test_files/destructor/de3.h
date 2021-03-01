@@ -16,8 +16,6 @@ struct ScopedX
 {
 	ScopedX()
 	{
-		
-	
 		counter++;
 	}
 	
@@ -35,10 +33,9 @@ struct Outer
 	ScopedX b;
 };
 
-int tut()
+void tut()
 {
 	Outer e;
-	return 8;
 }
 
 int main(int input)

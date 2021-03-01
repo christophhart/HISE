@@ -249,21 +249,47 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 
 		Base c(Base::OutputType::AddTabs);
 
-		StatementBlock b1(c);
-		c << "if (stepsToDo <= 0)";
-		c << "	  return value;";
+		cppgen::StatementBlock b1(c);
+		c << "if (this->stepsToDo <= 0)";
+		c << "	  return this->value;";
 		c << "else";
 		{
-			StatementBlock b(c);
-			c << "auto v = value;";
-			c << "value += delta;";
-			c << "stepsToDo--;";
+			cppgen::StatementBlock b(c);
+			c << "auto v = this->value;";
+			c << "this->value += this->delta;";
+			c << "this->stepsToDo -= 1;";
 			c << "return v;";
 		}
 
 		return SyntaxTreeInlineParser(b, {}, c).flush();
 	});
 
+
+	obj->injectInliner("set", Inliner::HighLevel, [](InlineData* b)
+	{
+		using namespace cppgen;
+
+		Base c(Base::OutputType::AddTabs);
+
+		c << "if (this->numSteps == 0)";
+		{
+			cppgen::StatementBlock sb(c);
+			c << "this->targetValue = newTargetValue;";
+			c << "this->reset();";
+		}
+		c << "else";
+		{
+			cppgen::StatementBlock sb(c);
+			c << "auto d = newTargetValue - this->value;";
+			c << "this->delta = d * this->stepDivider;";
+			c << "this->targetValue = newTargetValue;";
+			c << "this->stepsToDo = this->numSteps;";
+		}
+
+		return SyntaxTreeInlineParser(b, {"newTargetValue"}, c).flush();
+	});
+
+#if 0
 	ADD_INLINER(set, {
 		SETUP_INLINER(T);
 
@@ -318,6 +344,7 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 
 		return Result::ok();
 		});
+#endif
 
 	ADD_INLINER(get,
 		{
@@ -435,6 +462,54 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 	
 
 	return obj->finaliseAndReturn();
+}
+
+
+snex::jit::ComplexType::Ptr ModValueJit::createComplexType(Compiler& c, const Identifier& id)
+{
+	ModValue d;
+
+	auto st = CREATE_SNEX_STRUCT(ModValue);
+
+	ADD_SNEX_STRUCT_MEMBER(st, d, changed);
+	ADD_SNEX_STRUCT_MEMBER(st, d, modValue);
+
+	ADD_SNEX_STRUCT_METHOD(st, ModValueJit, getChangedValue);
+	ADD_SNEX_STRUCT_METHOD(st, ModValueJit, getModValue);
+	ADD_SNEX_STRUCT_METHOD(st, ModValueJit, setModValue);
+	ADD_SNEX_STRUCT_METHOD(st, ModValueJit, setModValueIfChanged);
+
+	return st->finaliseAndReturn();
+}
+
+snex::jit::ComplexType::Ptr DataReadLockJIT::createComplexType(Compiler& c, const Identifier& id)
+{
+	DataReadLockJIT l;
+
+	auto st = CREATE_SNEX_STRUCT(DataReadLock);
+
+	ADD_SNEX_STRUCT_MEMBER(st, l, complexDataPtr);
+	ADD_SNEX_STRUCT_MEMBER(st, l, holdsLock);
+
+	st->setVisibility("complexDataPtr", NamespaceHandler::Visibility::Private);
+	st->setVisibility("holdsLock", NamespaceHandler::Visibility::Private);
+
+	ComplexType::Ptr ed = c.getComplexType(NamespacedIdentifier("ExternalData"));
+
+	FunctionData cf;
+	cf.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
+	cf.addArgs("data", TypeInfo(ed, false, true));
+	cf.returnType = Types::ID::Void;
+	cf.function = Wrappers::constructor;
+	st->addExternalMemberFunction(cf);
+
+	FunctionData df;
+	df.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Destructor));
+	df.returnType = Types::ID::Void;
+	df.function = Wrappers::destructor;
+	st->addExternalMemberFunction(df);
+
+	return st->finaliseAndReturn();
 }
 
 snex::jit::ComplexType::Ptr OscProcessDataJit::createComplexType(Compiler& c, const Identifier& id)
@@ -576,9 +651,11 @@ struct ExternalDataTemplateBuilder: public TemplateClassBuilder
 
 		setInitialiseStructFunction([d, isEmbedded](const TemplateObject::ConstructData& data, StructType* st)
 		{
-			st->setInternalProperty(scriptnode::PropertyIds::NumTables, d == ExternalData::DataType::Table ? 1 : 0);
-			st->setInternalProperty(scriptnode::PropertyIds::NumSliderPacks, d == ExternalData::DataType::SliderPack ? 1 : 0);
-			st->setInternalProperty(scriptnode::PropertyIds::NumAudioFiles, d == ExternalData::DataType::AudioFile ? 1 : 0);
+			ExternalData::forEachType([st, d](ExternalData::DataType t)
+			{
+				auto id = ExternalData::getNumIdentifier(t);
+				st->setInternalProperty(id, d == t ? 1 : 0);
+			});
 
 			if (isEmbedded)
 			{
@@ -1285,100 +1362,11 @@ void InbuiltTypeLibraryBuilder::createFrameProcessor()
 void InbuiltTypeLibraryBuilder::registerBuiltInFunctions()
 {
 	{
-		NamespacedIdentifier iId("IndexType");
-
-		NamespaceHandler::ScopedNamespaceSetter(c.getNamespaceHandler(), iId);
-
-		TemplateObject cf({ iId.getChildId("wrapped"), {} });
-		auto pId = cf.id.id.getChildId("ArrayType");
-
-		cf.argList.add(TemplateParameter(pId, false, jit::TemplateParameter::Single));
-
-		cf.functionArgs = [pId]()
-		{
-			Array<TypeInfo> l;
-			l.add(TypeInfo(pId, true, true));
-			l.add(TypeInfo(Types::ID::Integer));
-			return l;
-		};
-
-		auto& compiler = c;
-
-		cf.makeFunction = [&compiler, iId](const TemplateObject::ConstructData& cd)
-		{
-			if (!cd.expectTemplateParameterAmount(1))
-				return;
-
-			if (!cd.expectIsComplexType(0))
-				return;
-
-			auto f = new FunctionData();
-
-			f->id = cd.id.id;
-			f->returnType = TypeInfo(Types::ID::Dynamic);
-			f->templateParameters.add(cd.tp[0]);
-			f->addArgs("obj", TypeInfo(Types::ID::Dynamic));
-			f->addArgs("index", TypeInfo(Types::ID::Integer));
-			f->setDefaultParameter("index", VariableStorage(0));
-
-			f->inliner = Inliner::createHighLevelInliner(f->id, [](InlineData* b)
-				{
-					auto d = b->toSyntaxTreeData();
-
-					if (auto i = d->args[1])
-					{
-						d->target = i->clone(d->location);
-
-						return Result::ok();
-					}
-					else
-						return Result::fail("Can't get init value for IndexType");
-				});
-
-			f->inliner->returnTypeFunction = [](InlineData* b)
-			{
-				auto rt = dynamic_cast<ReturnTypeInlineData*>(b);
-				auto& handler = rt->object->currentCompiler->namespaceHandler;
-				auto ct = b->templateParameters[0].type.getTypedIfComplexType<ComplexType>();
-
-				if (ct == nullptr)
-					return Result::fail("Can't deduce index type from parameter 1");
-
-				if (auto st = dynamic_cast<StructType*>(ct))
-				{
-					auto t = handler.registerComplexTypeOrReturnExisting(new StructSubscriptIndexType(st, Identifier("wrapped")));
-					rt->f.returnType = TypeInfo(t);
-					return Result::ok();
-				}
-
-				SubTypeConstructData sd;
-				sd.handler = &handler;
-				sd.id = NamespacedIdentifier("wrapped");
-				auto subType = ct->createSubType(&sd);
-				subType = sd.handler->registerComplexTypeOrReturnExisting(subType);
-
-				rt->f.returnType = TypeInfo(subType);
-
-				if (!sd.r.wasOk())
-					return sd.r;
-
-				return Result::ok();
-			};
-
-
-			compiler.getInbuiltFunctionClass()->addFunction(f);
-
-			
-		};
-
-		c.getNamespaceHandler().addTemplateFunction(cf);
-	}
-
-
-	{
 		c.addConstant(NamespacedIdentifier("NumChannels"), numChannels);
 
 		auto blockType = c.getNamespaceHandler().getComplexType(NamespacedIdentifier("block"));
+
+		jassert(blockType != nullptr);
 
 		auto floatType = TypeInfo(Types::ID::Float);
 		auto float2 = new SpanType(floatType, numChannels);
@@ -1514,6 +1502,9 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 	REGISTER_ORIGINAL_CPP_CLASS(c, PrepareSpecsJIT, PrepareSpecs);
 	REGISTER_ORIGINAL_CPP_CLASS(c, EventWrapper, HiseEvent);
 	REGISTER_ORIGINAL_CPP_CLASS(c, ExternalDataJIT, ExternalData);
+	REGISTER_ORIGINAL_CPP_CLASS(c, DataReadLockJIT, DataReadLock);
+
+	REGISTER_ORIGINAL_CPP_CLASS(c, ModValueJit, ModValue);
 
 	auto eventType = c.getComplexType(NamespacedIdentifier("HiseEvent"));
 	auto eventBufferType = new DynType(TypeInfo(eventType));
@@ -1531,6 +1522,9 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 
 	return Result::ok();
 }
+
+
+
 
 }
 }

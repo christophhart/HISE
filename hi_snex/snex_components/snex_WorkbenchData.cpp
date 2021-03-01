@@ -151,17 +151,54 @@ bool ui::WorkbenchData::handleCompilation()
 	return true;
 }
 
-void ui::WorkbenchManager::workbenchChanged(WorkbenchData::Ptr oldWorkBench, WorkbenchData::Ptr newWorkbench)
+
+
+snex::ui::WorkbenchData::Ptr ui::WorkbenchManager::getWorkbenchDataForCodeProvider(WorkbenchData::CodeProvider* p, bool ownCodeProvider)
 {
-	jassert(oldWorkBench.get() == currentWb.get());
+	ScopedPointer<WorkbenchData::CodeProvider> owned = p;
 
-	currentWb = newWorkbench.get();
+	for (auto w : data)
+	{
+		if (*w == p)
+		{
+			setCurrentWorkbench(w, true);
 
-	if (currentWb != nullptr)
-		logMessage(currentWb.get(), jit::BaseCompiler::VerboseProcessMessage, "Switched to " + currentWb->getInstanceId());
+			if (!ownCodeProvider)
+				owned.release();
+
+			return w;
+		}
+	}
+
+	WorkbenchData::Ptr w = new WorkbenchData();
+
+	w->setCodeProvider(p, dontSendNotification);
+
+	if (ownCodeProvider)
+		codeProviders.add(owned.release());
+
+	data.add(w);
+	setCurrentWorkbench(w, true);
+
+	return w;
 }
 
+void ui::WorkbenchManager::setCurrentWorkbench(WorkbenchData::Ptr newWorkbench, bool setAsRoot)
+{
+	if (setAsRoot)
+		rootWb = newWorkbench;
 
+	if (currentWb.get() != newWorkbench.get())
+	{
+		currentWb = newWorkbench.get();
+
+		for (auto l : listeners)
+		{
+			if (l.get() != nullptr)
+				l->workbenchChanged(newWorkbench);
+		}
+	}
+}
 
 void ui::ValueTreeCodeProvider::timerCallback()
 {
@@ -203,6 +240,22 @@ namespace TestDataIds
 	DECLARE_ID(OutputFile);
 
 #undef DECLARE_ID
+}
+
+void ui::WorkbenchData::TestData::saveCurrentTestOutput()
+{
+	auto id = parent.getInstanceId();
+
+	testOutputFile = getTestRootDirectory().getChildFile(id.toString()).withFileExtension("wav");
+
+	if (testOutputFile.existsAsFile())
+	{
+		AlertWindowLookAndFeel alaf;
+		if (!AlertWindow::showOkCancelBox(AlertWindow::QuestionIcon, "Replace file", "Do you want to replace the output file " + testOutputFile.getFullPathName()))
+			return;
+	}
+
+	hlac::CompressionHelpers::dump(testOutputData, testOutputFile.getFullPathName());
 }
 
 juce::var ui::WorkbenchData::TestData::toJSON() const
@@ -468,13 +521,16 @@ void ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 	// if this fails, the compile handler didn't put the node to the CompileResult::lastNode variable...
 	//jassert(!data->getLastResult().compiledOk() || nodeToTest != nullptr);
 
-	if(nodeToTest != nullptr)
-		nodeToTest->setExternalDataHolder(this);
+	compileHandler->initExternalData(this);
+
+	
 
 	jassert(ps.sampleRate > 0.0);
 	ps.numChannels = testSourceData.getNumChannels();
 
-	compileHandler->prepareTest(ps);
+	
+
+	compileHandler->prepareTest(ps, parameterEvents);
 
 	testOutputData.makeCopyOf(testSourceData);
 

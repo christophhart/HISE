@@ -81,7 +81,7 @@ struct ValueTreeIterator
 
 	static bool forEachParent(ValueTree& v, const Func& f);
 
-	
+	static bool needsModulationWrapper(ValueTree& v);
 
 	static bool getNodePath(Array<int>& path, ValueTree& root, const Identifier& id);
 
@@ -186,8 +186,9 @@ struct Connection
 		auto sameRange = RangeHelpers::isEqual(targetRange, other.targetRange);
 		auto sameExpression = expressionCode.compare(other.expressionCode) == 0;
 		auto sameIndex = index == other.index;
+		auto sameN = n == other.n;
 
-		return sameRange && sameExpression && sameIndex;
+		return sameRange && sameExpression && sameIndex && sameN;
 	}
 
 	Node::Ptr n;
@@ -636,6 +637,8 @@ private:
 	Node::Ptr parseRoutingNode(Node::Ptr u);
 
 	Node::Ptr parseComplexDataNode(Node::Ptr u);
+
+	Node::Ptr parseOptionalSnexNode(Node::Ptr u);
 
 	Node::Ptr parseSnexNode(Node::Ptr u);
 

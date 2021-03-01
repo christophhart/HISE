@@ -4,16 +4,16 @@ BEGIN_TEST_DATA
   ret: float
   args: float
   input: 12
-  output: 3
+  output: 3.0
   error: ""
   filename: "dyn/dyn_wrap_3"
 END_TEST_DATA
 */
 
-span<float, 6> s = { 1.0f, 2.0f, 3.0f, 4.f, 5.0f, 6.f };
+span<float, 6> s = { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f };
 dyn<float> d;
 
-dyn<float>::unsafe i;
+index::unsafe<0> i;
 
 void assign()
 {
@@ -24,6 +24,6 @@ float main(float input)
 {
     assign();
     
-    return d[i] + d[i.moved(1)];
+    return d[i] + d[++i];
 }
 

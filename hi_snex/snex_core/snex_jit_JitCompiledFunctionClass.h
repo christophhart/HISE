@@ -108,6 +108,8 @@ public:
 		return reinterpret_cast<T*>(functionClass->getVariablePtr(id));
 	}
 
+	bool isStateless();
+
 	FunctionData operator[](const Identifier& functionId) const;
 
 	FunctionData operator[](const NamespacedIdentifier& functionId) const;

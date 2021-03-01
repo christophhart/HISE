@@ -88,7 +88,7 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 	return b.release();
 }
 
-BlockParser::StatementPtr CodeParser::parseStatement()
+BlockParser::StatementPtr CodeParser::parseStatement(bool mustHaveSemicolon)
 {
 	while (currentType == JitTokens::semicolon)
 		match(JitTokens::semicolon);
@@ -120,11 +120,11 @@ BlockParser::StatementPtr CodeParser::parseStatement()
 	else if (matchIf(JitTokens::openBrace))
 		return matchIfSemicolonAndReturn(parseStatementBlock());
 	else if (matchIf(JitTokens::return_))
-		return matchSemicolonAndReturn(parseReturnStatement());
+		return matchSemicolonAndReturn(parseReturnStatement(), mustHaveSemicolon);
 	else if (matchIf(JitTokens::break_))
-		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, true));
+		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, true), mustHaveSemicolon);
 	else if (matchIf(JitTokens::continue_))
-		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, false));
+		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, false), mustHaveSemicolon);
 	else if (matchIf(JitTokens::while_))
 		return parseWhileLoop();
 	else if (matchIf(JitTokens::for_))
@@ -135,10 +135,10 @@ BlockParser::StatementPtr CodeParser::parseStatement()
 		if (currentTypeInfo.isComplexType())
 			return parseComplexTypeDefinition();
 		else
-			return matchSemicolonAndReturn(parseVariableDefinition());
+			return matchSemicolonAndReturn(parseVariableDefinition(), mustHaveSemicolon);
 	}
 	else
-		return matchSemicolonAndReturn(parseAssignment());
+		return matchSemicolonAndReturn(parseAssignment(), mustHaveSemicolon);
 }
 
 BlockParser::StatementPtr CodeParser::parseReturnStatement()
@@ -179,11 +179,13 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseVariableDefinition()
 
 	if (s.typeInfo.isDynamic())
 	{
-		expr->tryToResolveType(compiler);
-		bool isConst = s.isConst();
-		bool isRef = s.isReference();
+		if (expr->tryToResolveType(compiler))
+		{
+			bool isConst = s.isConst();
+			bool isRef = s.isReference();
 
-		s.typeInfo = expr->getTypeInfo().withModifiers(isConst, isRef);
+			s.typeInfo = expr->getTypeInfo().withModifiers(isConst, isRef);
+		}
 	}
 
 	
@@ -213,25 +215,47 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseLoopStatement()
 	// has to be done manually because the normal symbol parser consumes the ':' token...
 	auto iteratorId = parseIdentifier();
 
-	match(JitTokens::colon);
-	
-	ExprPtr loopBlock = parseExpression();
+	if(matchIf(JitTokens::colon))
+	{
+		ExprPtr loopBlock = parseExpression();
 
-	match(JitTokens::closeParen);
-	
+		match(JitTokens::closeParen);
+
+		auto id = compiler->namespaceHandler.createNonExistentIdForLocation({}, location.getLine());
+
+		Symbol iteratorSymbol(id.getChildId(iteratorId), iteratorType);
+
+		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, id);
+
+		lastComment = {};
+		CommentAttacher ca(*this);
+
+		compiler->namespaceHandler.addSymbol(id.getChildId(iteratorId), iteratorSymbol.typeInfo, NamespaceHandler::Variable, ca.getInfo());
+		StatementPtr body = parseStatementToBlock();
+
+		return new Operations::Loop(location, iteratorSymbol, loopBlock.get(), body);
+	}
+
+	match(JitTokens::assign_);
+	auto initValue = parseExpression();
+	match(JitTokens::semicolon);
+
 	auto id = compiler->namespaceHandler.createNonExistentIdForLocation({}, location.getLine());
-
 	Symbol iteratorSymbol(id.getChildId(iteratorId), iteratorType);
-
 	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, id);
-
 	lastComment = {};
 	CommentAttacher ca(*this);
+	compiler->namespaceHandler.addSymbol(id.getChildId(iteratorId), iteratorSymbol.typeInfo, NamespaceHandler::Variable, ca.getInfo());
 
-	compiler->namespaceHandler.addSymbol(id.getChildId(iteratorId), {}, NamespaceHandler::Variable, ca.getInfo());
-	StatementPtr body = parseStatementToBlock();
-	
-	return new Operations::Loop(location, iteratorSymbol, loopBlock.get(), body);
+	auto iv = new Operations::VariableReference(location, iteratorSymbol);
+	StatementPtr initAssignment = new Operations::Assignment(location, iv, JitTokens::assign_, initValue, true);
+	auto condition = parseExpression();
+	match(JitTokens::semicolon);
+	auto postOp = parseStatement(false);
+	match(JitTokens::closeParen);
+	auto body = parseStatementToBlock();
+
+	return new Operations::WhileLoop(location, initAssignment, condition, body, postOp);
 }
 
 snex::jit::BlockParser::StatementPtr CodeParser::parseWhileLoop()
@@ -300,29 +324,33 @@ void CodeParser::finaliseSyntaxTree(SyntaxTree* tree)
 
 		auto hasReturn = [](Operations::Statement::Ptr p)
 		{
-			if(dynamic_cast<Operations::ReturnStatement*>(p.get()))
-				return true;
-
-			return false;
+			return as<Operations::ReturnStatement>(p) != nullptr;
 		};
 
-		if (!lastTrueStatement->forEachRecursive(hasReturn))
-		{
-			auto ptr = new Operations::StatementBlock(lastTrueStatement->location, tree->getPath());
-			ptr->addStatement(lastTrueStatement->clone(lastTrueStatement->location));
-			ptr->addStatement(new Operations::ReturnStatement(lastTrueStatement->location, nullptr));
 
-			lastTrueStatement->replaceInParent(ptr);
-		}
-			
+		auto trueStatementHasReturn = lastTrueStatement->forEachRecursive(hasReturn);
+		auto falseStatementHasReturn = lastFalseStatement != nullptr && lastFalseStatement->forEachRecursive(hasReturn);
 
-		if (lastFalseStatement != nullptr)
+		if (trueStatementHasReturn || falseStatementHasReturn)
 		{
-			if (!lastFalseStatement->forEachRecursive(hasReturn))
+			if (!trueStatementHasReturn)
 			{
-				lastFalseStatement->addStatement(new Operations::ReturnStatement(location, nullptr));
+				auto ptr = new Operations::StatementBlock(lastTrueStatement->location, tree->getPath());
+				ptr->addStatement(lastTrueStatement->clone(lastTrueStatement->location));
+				ptr->addStatement(new Operations::ReturnStatement(lastTrueStatement->location, nullptr));
+
+				lastTrueStatement->replaceInParent(ptr);
 			}
-		
+
+			if (!falseStatementHasReturn)
+			{
+				auto ptr = new Operations::StatementBlock(lastFalseStatement->location, tree->getPath());
+				ptr->addStatement(lastFalseStatement->clone(lastFalseStatement->location));
+				ptr->addStatement(new Operations::ReturnStatement(lastFalseStatement->location, nullptr));
+
+				lastFalseStatement->replaceInParent(ptr);
+			}
+
 			return;
 		}
 	}
@@ -376,12 +404,9 @@ juce::Result SyntaxTreeInlineParser::flush()
 
 	auto f = new Function(location, { d->getFunctionId(), d->expression->getTypeInfo() });
 
-	DBG("Flushing " + d->getFunctionId().toString());
-
 	StatementPtr asF = f;
 
 	auto fc = dynamic_cast<FunctionCall*>(d->expression.get());
-	jassert(fc != nullptr);
 
 	int index = 0;
 
@@ -392,15 +417,30 @@ juce::Result SyntaxTreeInlineParser::flush()
 			auto ti = d->args[index]->getTypeInfo();
 
 			if (!ti.isDynamic())
-				a.typeInfo = ti;
+				a.typeInfo = ti.withModifiers(a.isConst(), a.isReference());
 		}
 
 		index++;
 	}
 
+	
+
 	f->data = d->originalFunction;
 
-	
+	if (f->data.returnType.isDynamic())
+	{
+		ReturnTypeInlineData rData(f->data);
+		rData.object = fc;
+		rData.object->currentCompiler = compiler;
+
+		auto r = f->data.inliner->process(&rData);
+
+		if (r.wasOk())
+			f->data.returnType = rData.f.returnType;
+
+		if (!r.wasOk())
+			location.throwError(r.getErrorMessage());
+	}
 
 	f->data.inliner = nullptr;
 	f->code = p;

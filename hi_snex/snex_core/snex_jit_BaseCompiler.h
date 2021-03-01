@@ -90,6 +90,24 @@ public:
 		numPasses
 	};
 
+	struct ScopedUnsafeBoundChecker
+	{
+		ScopedUnsafeBoundChecker(BaseCompiler* c):
+			compiler(c)
+		{
+			wasAllowed = compiler->unsafeIndexAllowed;
+			compiler->unsafeIndexAllowed = true;
+		}
+
+		~ScopedUnsafeBoundChecker()
+		{
+			compiler->unsafeIndexAllowed = wasAllowed;
+		}
+
+		BaseCompiler* compiler;
+		bool wasAllowed = false;
+	};
+
 	struct ScopedPassSwitcher
 	{
 		ScopedPassSwitcher(BaseCompiler* compiler, Pass newPass):
@@ -217,11 +235,14 @@ public:
 
 	void setInbuildFunctions();
 
-	
+	bool allowUnsafeIndexes() const
+	{
+		return unsafeIndexAllowed;
+	}
 
 private:
 
-	
+	bool unsafeIndexAllowed = false;
 
 	FunctionClass::Ptr inbuildFunctions;
 

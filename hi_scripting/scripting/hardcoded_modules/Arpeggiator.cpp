@@ -49,35 +49,6 @@ Arpeggiator::~Arpeggiator()
 	mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
 }
 
-int Arpeggiator::getNumSliderPacks()
-{
-	return 3;
-}
-
-SliderPackData * Arpeggiator::getSliderPackData(int index)
-{
-	switch (index)
-	{
-	case 0: return semiToneSliderPack->getSliderPackData();
-	case 1: return velocitySliderPack->getSliderPackData();
-	case 2: return lengthSliderPack->getSliderPackData();
-	default: jassertfalse;
-		return semiToneSliderPack->getSliderPackData();
-	}
-}
-
-const SliderPackData * Arpeggiator::getSliderPackData(int index) const
-{
-	switch (index)
-	{
-	case 0: return semiToneSliderPack->getSliderPackData();
-	case 1: return velocitySliderPack->getSliderPackData();
-	case 2: return lengthSliderPack->getSliderPackData();
-	default: jassertfalse;
-		return semiToneSliderPack->getSliderPackData();
-	}
-}
-
 void Arpeggiator::onInit()
 {
 	Content.setWidth(800);
@@ -197,6 +168,8 @@ void Arpeggiator::onInit()
 	bg->set("height", 422);
 
 	semiToneSliderPack = Content.addSliderPack("SemiToneSliderPack", 160, 30);
+	semiToneSliderPack->registerComplexDataObjectAtParent(0);
+
 	semiToneSliderPack->getSliderPackData()->setDefaultValue(0.0);
 
 	semiToneSliderPack->set("width", 512);
@@ -206,6 +179,7 @@ void Arpeggiator::onInit()
 	semiToneSliderPack->set("stepSize", 1);
 	velocitySliderPack = Content.addSliderPack("VelocitySliderPack", 160, 160);
 	velocitySliderPack->getSliderPackData()->setDefaultValue(127.0);
+	velocitySliderPack->registerComplexDataObjectAtParent(1);
 
 	velocitySliderPack->set("width", 512);
 	velocitySliderPack->set("min", 1);
@@ -216,6 +190,7 @@ void Arpeggiator::onInit()
 	
 	lengthSliderPack = Content.addSliderPack("LengthSliderPack", 160, 290);
 	lengthSliderPack->getSliderPackData()->setDefaultValue(75.0);
+	lengthSliderPack->registerComplexDataObjectAtParent(2);
 
 	lengthSliderPack->set("width", 512);
 	lengthSliderPack->set("max", 100);

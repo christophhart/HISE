@@ -10,7 +10,7 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-int counter = 0;
+int counter = 1;
 
 struct Base
 {
@@ -31,7 +31,7 @@ struct Derived: public Base
 	{
 		counter *= 3;
 	}
-	
+
 	~Derived()
 	{
 		
@@ -40,7 +40,10 @@ struct Derived: public Base
 
 int main(int input)
 {
-	Derived obj;
+	{
+		Derived obj;
+	}
+	
 	return counter;
 }
 

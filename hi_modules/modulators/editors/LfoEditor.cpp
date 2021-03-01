@@ -77,6 +77,7 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     waveFormSelector->addItem (TRANS("Square"), 4);
     waveFormSelector->addItem (TRANS("Random"), 5);
     waveFormSelector->addItem (TRANS("Custom"), 6);
+	waveFormSelector->addItem(TRANS("Steps"), 7);
     waveFormSelector->addListener (this);
 
     waveFormSelector->setBounds (59, 68, 128, 28);
@@ -99,7 +100,7 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     retriggerButton->addListener (this);
     retriggerButton->setColour (ToggleButton::textColourId, Colours::white);
 
-    waveformTable.reset (new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<LfoModulator*>(getProcessor())->getTable()));
+    waveformTable.reset (new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<LfoModulator*>(getProcessor())->getTable(0)));
     addAndMakeVisible (waveformTable.get());
     waveformTable->setName ("new component");
 
@@ -163,7 +164,9 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 
 	loopButton->setup(getProcessor(), LfoModulator::Parameters::LoopEnabled, "Loop On");
 
-	addAndMakeVisible(stepPanel = new SliderPack(dynamic_cast<SliderPackProcessor*>(getProcessor())->getSliderPackData(0)));
+	addAndMakeVisible(stepPanel = new SliderPack());
+	stepPanel->setSliderPackData(dynamic_cast<ExternalDataHolder*>(getProcessor())->getSliderPack(0));
+
 	stepPanel->setVisible(false);
 	stepPanel->setStepSize(0.01);
 
@@ -251,10 +254,13 @@ void LfoEditorBody::resized()
 
 	int numSteps = stepPanel->getNumSliders();
 
-	int stepWidth = numSteps * (maxWidth / numSteps);
-	int stepX = (getWidth() - stepWidth) / 2;
+	if (numSteps > 0)
+	{
+		int stepWidth = numSteps * (maxWidth / numSteps);
+		int stepX = (getWidth() - stepWidth) / 2;
 
-	stepPanel->setBounds(stepX, waveformTable->getY(), stepWidth, waveformTable->getHeight());
+		stepPanel->setBounds(stepX, waveformTable->getY(), stepWidth, waveformTable->getHeight());
+	}
 
     //[/UserResized]
 }

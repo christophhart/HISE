@@ -12,8 +12,7 @@ END_TEST_DATA
 
 span<span<int, 2>, 3> data = {{1, 2},{3, 4},{5, 6}};
 
-span<span<int, 2>, 3>::unsafe i;
-
+index::unsafe<0> i;
 
 int main(int input)
 {

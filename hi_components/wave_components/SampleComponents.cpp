@@ -34,222 +34,228 @@ namespace hise
 {
 using namespace juce;
 
-HiseAudioSampleBufferComponent::HiseAudioSampleBufferComponent(SafeChangeBroadcaster* p) :
-	AudioSampleBufferComponentBase(p)
-{
-	
-}
 
-bool HiseAudioSampleBufferComponent::isInterestedInDragSource(const SourceDetails& dragSourceDetails)
-{
-	PoolReference ref(dragSourceDetails.description);
-	return ref && ref.getFileType() == FileHandlerBase::SubDirectories::AudioFiles;
-}
-
-
-juce::File HiseAudioSampleBufferComponent::getDefaultDirectory() const
-{
-#if USE_BACKEND
-	File searchDirectory;
-
-	if (ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>())
-		searchDirectory = GET_PROJECT_HANDLER(editor->getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
-	else
-		searchDirectory = File();
-#else
-	File searchDirectory = FrontendHandler::getAdditionalAudioFilesDirectory();
-#endif
-	return searchDirectory;
-}
-
-void HiseAudioSampleBufferComponent::itemDropped(const SourceDetails& dragSourceDetails)
-{
-	PoolReference ref(dragSourceDetails.description);
-	poolItemWasDropped(ref);
-}
-
-
-
-void HiseAudioSampleBufferComponent::poolItemWasDropped(const PoolReference& /*ref*/)
-{
-
-}
-
-
-AudioSampleProcessorBufferComponent::AudioSampleProcessorBufferComponent(SafeChangeBroadcaster* p) :
-	HiseAudioSampleBufferComponent(p)
-{
-	updateProcessorConnection();
-
-	if (connectedProcessor != nullptr)
-	{
-		removeAllChangeListeners();
-		connectedProcessor->addChangeListener(this);
-		changeListenerCallback(connectedProcessor);
-	}
-}
-
-void AudioSampleProcessorBufferComponent::updatePlaybackPosition()
-{
-	if (connectedProcessor)
-		setPlaybackPosition(dynamic_cast<Processor*>(connectedProcessor.get())->getInputValue());
-}
-
-void AudioSampleProcessorBufferComponent::newBufferLoaded()
-{
-	AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get());
-
-	if (asp != nullptr)
-	{
-		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
-		setRange(asp->getActualRange());
-
-		auto loopRange = asp->getLoopRange().isEmpty() ? asp->getRange() : asp->getLoopRange();
-
-		int x1 = getSampleArea(0)->getXForSample(jmax<int>(asp->getRange().getStart(), loopRange.getStart()));
-		int x2 = getSampleArea(0)->getXForSample(jmin<int>(asp->getRange().getEnd(), loopRange.getEnd()));
-
-		xPositionOfLoop = { x1, x2 };
-		setShowLoop(asp->isUsingLoop());
-	}
-}
-
-void AudioSampleProcessorBufferComponent::loadFile(const File& f)
-{
-	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
-	{
-#if USE_BACKEND
-		String fileName = f.getFullPathName();
-#else
-		auto fileName = FrontendHandler::getRelativePathForAdditionalAudioFile(f);
-#endif
-
-		buffer = nullptr;
-		asp->setLoadedFile(fileName, true);
-	}
-}
-
-void AudioSampleProcessorBufferComponent::mouseDoubleClick(const MouseEvent&)
-{
-	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
-	{
-		buffer = nullptr;
-		asp->setLoadedFile("", true);
-	}
-}
-
-void AudioSampleProcessorBufferComponent::updateProcessorConnection()
-{
-	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
-	{
-		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
-		setRange(asp->getRange());
-	}
-}
 
 ScriptingObjects::ScriptAudioFile* getScriptAudioFile(ReferenceCountedObject* p)
 {
 	return dynamic_cast<ScriptingObjects::ScriptAudioFile*>(p);
 }
 
-struct ScriptAudioFileBufferComponent::UpdateHandler: public ScriptingObjects::ScriptAudioFile::Listener,
-													  public AudioDisplayComponent::Listener
+WaveformComponent::WaveformComponent(Processor* p, int index_) :
+	processor(p),
+	tableLength(0),
+	tableValues(nullptr),
+	index(index_)
 {
-	UpdateHandler(ScriptAudioFileBufferComponent& parent_, ReferenceCountedObject* saf):
-		parent(parent_),
-		audioFile(dynamic_cast<ScriptingObjects::ScriptAudioFile*>(saf))
-	{
-		parent.addAreaListener(this);
-		audioFile->addListener(this);
+	setColour(bgColour, Colours::transparentBlack);
+	setColour(lineColour, Colours::white);
+	setColour(fillColour, Colours::white.withAlpha(0.5f));
 
-		contentChanged();
-	}
-
-	void playbackPositionChanged(double newPos)
+	if (p != nullptr)
 	{
-		parent.setPlaybackPosition(newPos);
-	}
+		p->addChangeListener(this);
 
-	void contentChanged() override
-	{
-		if (audioFile != nullptr)
+		if (auto b = dynamic_cast<Broadcaster*>(p))
 		{
-			if (auto b = audioFile->getBuffer())
+			b->addWaveformListener(this);
+			b->getWaveformTableValues(index, &tableValues, tableLength, normalizeValue);
+		}
+		else
+			jassertfalse; // You have to subclass the processor...
+
+
+	}
+
+	setBufferedToImage(true);
+}
+
+WaveformComponent::~WaveformComponent()
+{
+	if (processor.get() != nullptr)
+	{
+		dynamic_cast<Broadcaster*>(processor.get())->removeWaveformListener(this);
+		processor->removeChangeListener(this);
+	}
+
+}
+
+void WaveformComponent::paint(Graphics &g)
+{
+	auto w = (float)getWidth();
+	auto h = (float)getHeight();
+
+	if (useFlatDesign)
+	{
+		g.setColour(findColour(bgColour));
+		g.fillAll();
+
+		g.setColour(findColour(fillColour));
+		g.fillPath(path);
+
+		g.setColour(findColour(lineColour));
+		g.strokePath(path, PathStrokeType(2.0f));
+	}
+	else
+	{
+		GlobalHiseLookAndFeel::fillPathHiStyle(g, path, (int)w, (int)h);
+	}
+}
+
+juce::Path WaveformComponent::WaveformFactory::createPath(const String& url) const
+{
+	Path p;
+
+	LOAD_PATH_IF_URL("sine", WaveformIcons::sine);
+	LOAD_PATH_IF_URL("triangle", WaveformIcons::triangle);
+	LOAD_PATH_IF_URL("saw", WaveformIcons::saw);
+	LOAD_PATH_IF_URL("square", WaveformIcons::square);
+	LOAD_PATH_IF_URL("noise", WaveformIcons::noise);
+
+	return p;
+}
+
+
+
+juce::Path WaveformComponent::getPathForBasicWaveform(WaveformType t)
+{
+	WaveformFactory f;
+
+	switch (t)
+	{
+	case Sine:		return f.createPath("sine");
+	case Triangle:	return f.createPath("triangle");
+	case Saw:		return f.createPath("saw");
+	case Square:	return f.createPath("square");
+	case Noise:		return f.createPath("noise");
+	default: break;
+	}
+
+	return {};
+}
+
+void WaveformComponent::setTableValues(const float* values, int numValues, float normalizeValue_)
+{
+	tableValues = values;
+	tableLength = numValues;
+	normalizeValue = normalizeValue_;
+}
+
+void WaveformComponent::rebuildPath()
+{
+	if (bypassed)
+	{
+		path.clear();
+		repaint();
+		return;
+	}
+
+	path.clear();
+
+	if (broadcaster == nullptr)
+		return;
+
+	if (tableLength == 0)
+	{
+		repaint();
+		return;
+	}
+
+
+	float w = (float)getWidth();
+	float h = (float)getHeight();
+
+	path.startNewSubPath(0.0, h / 2.0f);
+
+	const float cycle = tableLength / w;
+
+	if (tableValues != nullptr && tableLength > 0)
+	{
+
+		for (int i = 0; i < getWidth(); i++)
+		{
+			const float tableIndex = ((float)i * cycle);
+
+			float value;
+
+			if (broadcaster->interpolationMode == LinearInterpolation)
 			{
-				if(b->clear)
-					parent.setAudioSampleBuffer(nullptr, {}, dontSendNotification);
-				else
-				{
-					parent.setAudioSampleBuffer(&b->all, audioFile->getCurrentlyLoadedFile(), dontSendNotification);
-					parent.setRange(b->sampleRange);
-				}
+				const int x1 = (int)tableIndex;
+				const int x2 = (x1 + 1) % tableLength;
+				const float alpha = tableIndex - (float)x1;
+
+				value = Interpolator::interpolateLinear(tableValues[x1], tableValues[x2], alpha);
+			}
+			else
+			{
+				value = tableValues[(int)tableIndex];
+			}
+
+			value = broadcaster->scaleFunction(value);
+
+			value *= normalizeValue;
+
+			jassert(tableIndex < tableLength);
+
+			path.lineTo((float)i, value * -(h - 2) / 2 + h / 2);
+		}
+	}
+
+	path.lineTo(w, h / 2.0f);
+
+	path.closeSubPath();
+
+	repaint();
+}
+
+juce::Identifier WaveformComponent::Panel::getProcessorTypeId() const
+{
+	return WavetableSynth::getClassType();
+}
+
+Component* WaveformComponent::Panel::createContentComponent(int index)
+{
+	if (index == -1)
+		index = 0;
+
+	auto c = new WaveformComponent(getProcessor(), index);
+
+	c->setUseFlatDesign(true);
+	c->setColour(bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+	c->setColour(fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
+	c->setColour(lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
+
+	if (c->findColour(bgColour).isOpaque())
+		c->setOpaque(true);
+
+	return c;
+}
+
+void WaveformComponent::Panel::fillModuleList(StringArray& moduleList)
+{
+	fillModuleListWithType<WavetableSynth>(moduleList);
+}
+
+void WaveformComponent::Broadcaster::updateData()
+{
+	for (int i = 0; i < getNumWaveformDisplays(); i++)
+	{
+		float const* values = nullptr;
+		int numValues = 0;
+		float normalizeFactor = 1.0f;
+
+		getWaveformTableValues(i, &values, numValues, normalizeFactor);
+
+		for (auto l : listeners)
+		{
+			if (l.getComponent() != nullptr && l->index == i)
+			{
+				l->setTableValues(values, numValues, normalizeFactor);
+				l->rebuildPath();
 			}
 		}
 	}
 
-	void rangeChanged(AudioDisplayComponent *, int ) override
-	{
-		currentRange = parent.getSampleArea(AudioDisplayComponent::AreaTypes::PlayArea)->getSampleRange();
-
-		if (audioFile != nullptr)
-			audioFile->setRange(currentRange.getStart(), currentRange.getEnd());
-	}
-
-	~UpdateHandler()
-	{
-		parent.removeAreaListener(this);
-
-		if (audioFile != nullptr)
-			audioFile->removeListener(this);
-	}
-
-	Range<int> currentRange;
-	ScriptAudioFileBufferComponent& parent;
-	ScriptingObjects::ScriptAudioFile::Ptr audioFile;
-};
-
-ScriptAudioFileBufferComponent::ScriptAudioFileBufferComponent(ReferenceCountedObject* saf):
-	HiseAudioSampleBufferComponent(nullptr)
-{
-	updater = new UpdateHandler(*this, saf);
 }
-
-ScriptAudioFileBufferComponent::~ScriptAudioFileBufferComponent()
-{
-	updater = nullptr;
-}
-
-void ScriptAudioFileBufferComponent::updatePlaybackPosition()
-{
-
-}
-
-void ScriptAudioFileBufferComponent::updateProcessorConnection()
-{
-
-}
-
-void ScriptAudioFileBufferComponent::newBufferLoaded()
-{
-	
-}
-
-void ScriptAudioFileBufferComponent::loadFile(const File& f)
-{
-	if (updater->audioFile != nullptr)
-	{
-		updater->audioFile->loadFile(f.getFullPathName());
-	}
-}
-
-void ScriptAudioFileBufferComponent::mouseDoubleClick(const MouseEvent&)
-{
-	if (updater->audioFile != nullptr)
-	{
-		updater->audioFile->loadFile("");
-	}
-}
-
 
 SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler) :
 	AudioDisplayComponent(),

@@ -99,11 +99,24 @@ void NamespaceHandler::Namespace::addSymbol(const NamespacedIdentifier& aliasId,
 {
 	jassert(aliasId.getParent() == id);
 
-	if (contains(aliasId))
-		return;
-
 	if (description.visibility != Visibility::numVisibilities)
 		v = description.visibility;
+
+	if (contains(aliasId))
+	{
+		for (auto& a : aliases)
+		{
+			if (aliasId == a.id)
+			{
+				a.type = type;
+				a.visibility = v;
+				a.internalSymbol = internalSymbol;
+				a.debugInfo = description;
+
+				return;
+			}
+		}
+	}
 
 	aliases.add({ aliasId, type, v, symbolType });
 	aliases.getReference(aliases.size() - 1).internalSymbol = internalSymbol;

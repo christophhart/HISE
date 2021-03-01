@@ -47,6 +47,7 @@ juce::PopupMenu SnexWorkbenchEditor::getMenuForIndex(int topLevelMenuIndex, cons
 		m.addCommandItem(&mainManager, MenuCommandIds::FileNew);
 		m.addCommandItem(&mainManager, MenuCommandIds::FileOpen);
 		m.addCommandItem(&mainManager, MenuCommandIds::FileSave);
+		m.addCommandItem(&mainManager, MenuCommandIds::FileSaveAll);
 
 		PopupMenu allFiles;
 
@@ -102,6 +103,7 @@ void SnexWorkbenchEditor::getAllCommands(Array<CommandID>& commands)
 		MenuCommandIds::FileNew,
 		MenuCommandIds::FileOpen,
 		MenuCommandIds::FileSave,
+		MenuCommandIds::FileSaveAll,
 		MenuCommandIds::FileSetProject,
 		MenuCommandIds::ToolsAudioConfig,
 		MenuCommandIds::ToolsCompileNetworks,
@@ -119,7 +121,8 @@ void SnexWorkbenchEditor::getCommandInfo(CommandID commandID, ApplicationCommand
 	{
 	case MenuCommandIds::FileNew: setCommandTarget(result, "New File", true, false, 'N', true, ModifierKeys::commandModifier); break;
 	case MenuCommandIds::FileOpen: setCommandTarget(result, "Open File", true, false, 'O', true, ModifierKeys::commandModifier); break;
-	case MenuCommandIds::FileSave: setCommandTarget(result, "Save File", true, false, 'S', true, ModifierKeys::commandModifier); break;
+	case MenuCommandIds::FileSave: setCommandTarget(result, "Save Network", true, false, 'S', true, ModifierKeys::commandModifier); break;
+	case MenuCommandIds::FileSaveAll: setCommandTarget(result, "Save Network & Testdata", true, false, 'x', false); break;
 	case MenuCommandIds::FileSetProject: setCommandTarget(result, "Set Project", true, false, 0, false); break;
 	case MenuCommandIds::ToolsEditTestData: setCommandTarget(result, "Manage Test Files", true, false, 0, false); break;
 	case MenuCommandIds::ToolsCompileNetworks: setCommandTarget(result, "Compile DSP networks", true, false, 'x', false); break;
@@ -159,12 +162,24 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 
 		return true;
 	}
+	case FileSaveAll:
+	{
+		wb->getTestData().saveCurrentTestOutput();
+		if (!wb->getTestData().saveToFile())
+		{
+			PresetHandler::showMessageWindow("Can't save test file", "You haven't specified a test file");
+		}
+
+		saveCurrentFile();
+		return true;
+	}
 	case FileSave:
 	{
 		saveCurrentFile();
 
 		return true;
 	}
+	
 	case ToolsAudioConfig:
 	{
 		auto window = new SettingWindows(getProcessor()->getSettingsObject(), { HiseSettings::SettingFiles::SnexWorkbenchSettings, HiseSettings::SettingFiles::AudioSettings });
@@ -287,7 +302,7 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 		ep->setCustomTitle("SNEX Code Editor");
 		
-
+		builder.setVisibility(v, true, { true, true, false });
 		//auto t = builder.addChild<FloatingTabComponent>(v);
 		//builder.getPanel(t)->setCustomIcon((int)FloatingTileContent::Factory::PopupMenuOptions::ScriptEditor);
 		//auto rightColumn = builder.addChild<HorizontalTile>(v);
@@ -327,6 +342,8 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 		//builder.getContent<VisibilityToggleBar>(htb)->setControlledContainer(builder.getContainer(r));
 
+		builder.setFolded(r, { false, false, true, true, true, true });
+
 		builder.setSizes(r, { 30.0, -0.4, -0.2, -0.2, -0.2, -0.2 });
 
 		builder.getContent<VisibilityToggleBar>(vtb)->refreshButtons();;
@@ -343,7 +360,7 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 	
 
-	setSize(800, 600);
+	setSize(1680, 1050);
 }
 
 
@@ -448,32 +465,20 @@ bool SnexWorkbenchEditor::loadDll(bool forceUnload)
 
 		if (dllFile.existsAsFile())
 		{
-			projectDll = new DynamicLibrary();
-			ok = projectDll->open(dllFile.getFullPathName());
+			projectDll = new scriptnode::dll::ProjectDll(dllFile);
+
+			return *projectDll;
 		}
 
-		if (ok && df != nullptr)
-		{
-			loadDllFactory(df);
-		}
+		return ok;
 	}
 
 	return false;
 }
 
-void SnexWorkbenchEditor::loadDllFactory(DspNetworkCodeProvider* cp)
+int SnexWorkbenchEditor::getHash(bool getDllHash)
 {
-	auto chain = getProcessor()->getMainSynthChain();
-
-	if (auto h = ProcessorHelpers::getFirstProcessorWithType<scriptnode::DspNetwork::Holder>(chain))
-	{
-		cp->setProjectFactory(projectDll, h->getActiveNetwork());
-	}
-}
-
-int64 SnexWorkbenchEditor::getHash(bool getDllHash)
-{
-	int64 hash = 0;
+	int hash = 0;
 
 	if (!getDllHash)
 	{
@@ -502,8 +507,7 @@ int64 SnexWorkbenchEditor::getHash(bool getDllHash)
 
 		if (projectDll != nullptr)
 		{
-			if(auto f = (int64(*)())projectDll->getFunction("getHash"))
-				return f();
+			return projectDll->getHash();
 		}
 	}
 
@@ -512,12 +516,42 @@ int64 SnexWorkbenchEditor::getHash(bool getDllHash)
 
 void SnexWorkbenchEditor::addFile(const File& f)
 {
+	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
+	{
+		auto signalPath = xml->getChildElement(0);
+
+		auto nodeId = signalPath->getStringAttribute(scriptnode::PropertyIds::ID.toString(), "");
+		auto fileId = f.getFileNameWithoutExtension();
+
+		if (nodeId != fileId)
+		{
+			if (PresetHandler::showYesNoWindow("Node ID mismatch", "The file name does not match the node ID. Press OK to replace the node ID with the filename"))
+			{
+				signalPath->setAttribute(scriptnode::PropertyIds::ID.toString(), fileId);
+
+				f.replaceWithText(xml->createDocument(""));
+			}
+			else
+			{
+				return;
+			}
+		}
+
+	}
+
+	loadDll(false);
+
+	auto fh = ProcessorHelpers::getFirstProcessorWithType<scriptnode::DspNetwork::Holder>(getMainController()->getMainSynthChain());
+
+	if (fh != nullptr)
+	{
+		fh->setProjectDll(projectDll);
+	}
+
 	df = new hise::DspNetworkCodeProvider(nullptr, getMainController(), f);
 
 	wb = dynamic_cast<BackendProcessor*>(getMainController())->workbenches.getWorkbenchDataForCodeProvider(df, true);
-
-	
-
+	wb->getTestData().setMultichannelDataProvider(new PooledAudioFileDataProvider(getMainController()));
 	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb, getMainController()));
 
 	ep->setWorkbenchData(wb.get());
@@ -525,10 +559,13 @@ void SnexWorkbenchEditor::addFile(const File& f)
 	auto testRoot = getSubFolder(getProcessor(), FolderSubType::Tests);
 	
 	wb->getTestData().setTestRootDirectory(createIfNotDirectory(testRoot.getChildFile(f.getFileNameWithoutExtension())));
+	wb->getTestData().setUpdater(getProcessor()->getGlobalUIUpdater());
 
 	wb->addListener(this);
 
-	loadDll(false);
+	fh->setExternalDataHolderToUse(&wb->getTestData());
+
+	df->initNetwork();
 
 	wb->triggerRecompile();
 
@@ -547,10 +584,73 @@ DspNetworkCompileExporter::DspNetworkCompileExporter(SnexWorkbenchEditor* e) :
 	addBasicComponents(true);
 }
 
-void DspNetworkCompileExporter::run()
+struct IncludeSorter
 {
 	
 
+	static int compareElements(const File& f1, const File& f2)
+	{
+		using namespace scriptnode;
+		using namespace snex::cppgen;
+
+		ScopedPointer<XmlElement> xml1 = XmlDocument::parse(f1);
+		ScopedPointer<XmlElement> xml2 = XmlDocument::parse(f2);
+
+		if (xml1 != nullptr && xml2 != nullptr)
+		{
+			ValueTree v1 = ValueTree::fromXml(*xml1);
+			ValueTree v2 = ValueTree::fromXml(*xml2);
+
+			auto id1 = "project." + v1.getProperty(PropertyIds::ID).toString();
+			auto id2 = "project." + v2.getProperty(PropertyIds::ID).toString();
+
+			auto f1 = [id1](ValueTree& v)
+			{
+				if (v.getProperty(PropertyIds::FactoryPath).toString() == id1)
+					return true;
+
+				return false;
+			};
+
+			auto f2 = [id2](ValueTree& v)
+			{
+				if (v.getProperty(PropertyIds::FactoryPath).toString() == id2)
+					return true;
+
+				return false;
+			};
+
+			auto firstIsReferencedInSecond = ValueTreeIterator::forEach(v1, ValueTreeIterator::ChildrenFirst, f2);
+			
+			auto secondIsReferencedInFirst = ValueTreeIterator::forEach(v1, ValueTreeIterator::ChildrenFirst, f2);
+
+			String e;
+			e << "Cyclic reference: ";
+			e << id1 << " && " << id2;
+
+			if (firstIsReferencedInSecond)
+			{
+				if (secondIsReferencedInFirst)
+					throw String(e);
+
+				return -1;
+			}
+
+			if (secondIsReferencedInFirst)
+			{
+				if (firstIsReferencedInSecond)
+					throw String(e);
+
+				return 1;
+			}
+		}
+
+		return 0;
+	};
+};
+
+void DspNetworkCompileExporter::run()
+{
 	showStatusMessage("Unload DLL");
 
 	editor->saveCurrentFile();
@@ -561,7 +661,22 @@ void DspNetworkCompileExporter::run()
 	auto buildFolder = getFolder(SnexWorkbenchEditor::FolderSubType::Binaries);
 
 	auto networkRoot = getFolder(SnexWorkbenchEditor::FolderSubType::Networks);
-	auto list = networkRoot.findChildFiles(File::findFiles, false, "*.xml");
+	auto unsortedList = networkRoot.findChildFiles(File::findFiles, false, "*.xml");
+
+	showStatusMessage("Sorting include dependencies");
+
+	Array<File> list;
+
+	for (auto& nf : unsortedList)
+	{
+		for (auto& sf : getIncludedNetworkFiles(nf))
+		{
+			list.addIfNotAlreadyThere(sf);
+		}
+	}
+
+	jassert(list.size() == unsortedList.size());
+
 	auto sourceDir = getFolder(SnexWorkbenchEditor::FolderSubType::ProjucerSourceFolder);
 
 	using namespace snex::cppgen;
@@ -588,6 +703,10 @@ void DspNetworkCompileExporter::run()
 			includedFiles.add(f);
 		}
 	}
+
+
+	
+	
 
 	File includeFile = sourceDir.getChildFile("includes.h");
 
@@ -639,7 +758,14 @@ void DspNetworkCompileExporter::threadFinished()
 
 		if (loadedOk)
 		{
-			auto list = editor->df->projectDllFactory->getModuleList();
+			scriptnode::dll::HostFactory f(editor->projectDll);
+
+			StringArray list;
+			
+			for (int i = 0; i < f.getNumNodes(); i++)
+			{
+				list.add(f.getId(i));
+			}
 
 			String c;
 
@@ -655,6 +781,38 @@ void DspNetworkCompileExporter::threadFinished()
 juce::File DspNetworkCompileExporter::getBuildFolder() const
 {
 	return getFolder(SnexWorkbenchEditor::FolderSubType::Binaries);
+}
+
+juce::Array<juce::File> DspNetworkCompileExporter::getIncludedNetworkFiles(const File& networkFile)
+{
+	using namespace scriptnode;
+	using namespace snex::cppgen;
+
+	Array<File> list;
+
+	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(networkFile))
+	{
+		ValueTree v = ValueTree::fromXml(*xml);
+
+		auto f2 = [&list, networkFile](ValueTree& v)
+		{
+			auto p = v.getProperty(PropertyIds::FactoryPath).toString();
+
+			if (p.startsWith("project."))
+			{
+				auto pId = p.fromFirstOccurrenceOf("project.", false, false);
+				list.add(networkFile.getSiblingFile(pId).withFileExtension("xml"));
+			}
+
+			return false;
+		};
+
+		auto firstIsReferencedInSecond = ValueTreeIterator::forEach(v, ValueTreeIterator::ChildrenFirst, f2);
+	}
+
+	list.add(networkFile);
+
+	return list;
 }
 
 void DspNetworkCompileExporter::createProjucerFile()
@@ -763,7 +921,7 @@ void DspNetworkCompileExporter::createMainCppFile()
 	}
 
 	{
-		b << "DLL_EXPORT int64 getHash()";
+		b << "DLL_EXPORT int getHash()";
 		StatementBlock bk(b);
 		String def;
 		def << "return " << editor->getHash(false) << ";";
@@ -851,17 +1009,20 @@ void TestRunWindow::runTest(const File& f, DspNetworkCodeProvider::SourceMode m)
 
 	ScopedPointer<DspNetworkCodeProvider> dnp = new DspNetworkCodeProvider(d, getMainController(), f);
 
+	
+
 	d->setCodeProvider(dnp);
 	auto dch = new DspNetworkCompileHandler(d, getMainController());
 	d->setCompileHandler(dch);
 
 	d->getTestData().setTestRootDirectory(testRoot);
 
-	if (m == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
-	{
-		editor->loadDllFactory(dnp);
-		
-	}
+	// fix the dll stuff...
+	jassertfalse;
+
+	//dnp->initialiseNetwork(editor->projectDll);
+
+	
 
 	for (auto testFile : testFiles)
 	{

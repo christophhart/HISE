@@ -30,11 +30,11 @@ enum ID
 
 template <typename T> ID getTypeFromTypeId()
 {
-	if (std::is_same<T, float>())
+	if (std::is_same<std::remove_pointer<T>::type, float>())
 		return ID::Float;
-	if (std::is_same<T, double>())
+	if (std::is_same<std::remove_pointer<T>::type, double>())
 		return ID::Double;
-	if (std::is_integral<T>())
+	if (std::is_integral<T>() || std::is_same<std::remove_pointer<T>::type, int>())
 		return ID::Integer;
 	if (std::is_same<T, void*>())
 		return ID::Pointer;
@@ -211,16 +211,23 @@ struct ModValue
 		can use this in order to prevent unnecessary calls to the 
 		modulation targets.
 	*/
-	void setModValueIfChanged(double newValue)
+	bool setModValueIfChanged(double newValue)
 	{
 		if (modValue != (float)newValue)
 		{
 			modValue = (float)newValue;
 			changed = true;
+			return true;
 		}
+
+		return false;
 	}
 
-private:
+	void reset()
+	{
+		changed = false;
+		modValue = 0.0f;
+	}
 
 	int changed = false;
 	float modValue = 0.0f;

@@ -16,11 +16,11 @@ span<int, 10> data = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
 int main(int input)
 {
-  auto firstIndex = IndexType::wrapped(data);
+  index::wrapped<10> firstIndex;
 
 	auto first = data[firstIndex];
 	
-  auto secondIndex = IndexType::wrapped(data, input);
+  index::wrapped<0> secondIndex(input);
 
 	auto second = data[secondIndex];
 	

@@ -45,15 +45,10 @@ struct MacroPropertyEditor : public Component,
 	struct ConnectionEditor : public Component,
 							  public ButtonListener
 	{
-		static Array<Identifier> getHiddenIds()
-		{
-			return { PropertyIds::NodeId, PropertyIds::ParameterId,
-					PropertyIds::UpperLimit, PropertyIds::LowerLimit,
-					PropertyIds::Inverted };
-		}
+		
 
 		ConnectionEditor(NodeBase* b, ValueTree connectionData, bool showSourceInTitle) :
-			cEditor(b, true, connectionData, getHiddenIds()),
+			cEditor(b, true, connectionData, RangeHelpers::getHiddenIds()),
 			node(b),
 			deleteButton("delete", this, f),
 			gotoButton("goto", this, f),

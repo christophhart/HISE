@@ -28,13 +28,11 @@ struct ScopedX
 int main(int input)
 {
 	{
-		ScopedX a, b;
+		ScopedX a;
 	}
 
-
-	ScopedX funky;	
+	ScopedX b;
 	
-
 	return counter;
 }
 

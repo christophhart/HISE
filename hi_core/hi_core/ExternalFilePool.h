@@ -1218,6 +1218,25 @@ using PooledAdditionalData = AdditionalDataPool::ManagedPtr;
 class FileHandlerBase;
 class ModulatorSamplerSoundPool;
 
+/** This provider handles the loading of pooled audio files. */
+struct PooledAudioFileDataProvider : public hise::MultiChannelAudioBuffer::DataProvider,
+	public ControlledObject
+{
+	PooledAudioFileDataProvider(MainController* mc) :
+		ControlledObject(mc)
+	{}
+
+	LoadResult loadFile(const String& ref) override;
+
+	File getRootDirectory() override;
+
+private:
+
+	FileHandlerBase* getFileHandlerBase(const String& wildcard);
+
+	FileHandlerBase* lastHandler = nullptr;
+};
+
 class PoolCollection: public ControlledObject
 {
 public:

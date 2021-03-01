@@ -107,6 +107,8 @@ Set this to 1 if you want to embed the libraries created with this module into y
 
 // Include the basic structures from SNEX
 
+#include "node_api/helpers/node_macros.h"
+
 #include "snex_basics/snex_Types.h"
 #include "snex_basics/snex_ArrayTypes.h"
 #include "snex_basics/snex_Math.h"
@@ -129,11 +131,15 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_library/BaseFactory.h"
 #include "dsp_library/DspFactory.h"
 
+
+#include "dsp_basics/AllpassDelay.h"
+
 #include "dsp_basics/DelayLine.h"
 #include "dsp_basics/DelayLine.cpp"
 #include "dsp_basics/Oscillators.h"
+#include "dsp_basics/MultiChannelFilters.h"
 
-#include "node_api/helpers/node_macros.h"
+
 #include "node_api/helpers/node_ids.h"
 #include "node_api/helpers/ParameterData.h"
 #include "node_api/helpers/parameter.h"
@@ -150,13 +156,19 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "node_api/nodes/Container_Chain.h"
 #include "node_api/nodes/Container_Split.h"
 #include "node_api/nodes/Container_Multi.h"
+#include "node_api/nodes/prototypes.h"
+#include "node_api/nodes/OpaqueNode.h"
 #include "node_api/nodes/processors.h"
 
 #include "dsp_nodes/CoreNodes.h"
+#include "dsp_nodes/CableNodeBaseClasses.h"
+#include "dsp_nodes/CableNodes.h"
 #include "dsp_nodes/RoutingNodes.h"
 #include "dsp_nodes/DelayNode.h"
 #include "dsp_nodes/MathNodes.h"
 #include "dsp_nodes/FXNodes.h"
+#include "dsp_nodes/FilterNode.h"
+#include "dsp_nodes/EventNodes.h"
 
 #include "dsp_nodes/FXNodes_impl.h"
 

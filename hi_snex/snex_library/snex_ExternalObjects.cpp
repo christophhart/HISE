@@ -60,6 +60,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	WrapLibraryBuilder wBuilder(c, numChannels);
 	wBuilder.registerTypes();
 
+#if 0
 	FxNodeLibrary fBuilder(c, numChannels);
 	fBuilder.registerTypes();
 
@@ -68,6 +69,10 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 
 	MathNodeLibrary mBuilder(c, numChannels);
 	mBuilder.registerTypes();
+#endif
+
+	IndexLibrary iBuilder2(c, numChannels);
+	iBuilder2.registerTypes();
 }
 
 
@@ -96,29 +101,32 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 
 	auto st = new StructType(NamespacedIdentifier(id));
 
+
+
 	st->addMember("dataType",		TypeInfo(Types::ID::Integer));
 	st->addMember("numSamples",		TypeInfo(Types::ID::Integer));
 	st->addMember("numChannels",	TypeInfo(Types::ID::Integer));
 	st->addMember("data",			TypeInfo(Types::ID::Pointer, true));
 	st->addMember("obj",			TypeInfo(Types::ID::Pointer, true));
-	st->addMember("f",				TypeInfo(Types::ID::Pointer, true));
+	st->addMember("sampleRate",     TypeInfo(Types::ID::Double));
 	
 	st->setDefaultValue("dataType",		InitialiserList::makeSingleList(VariableStorage(0)));
 	st->setDefaultValue("numSamples",	InitialiserList::makeSingleList(VariableStorage(0)));
 	st->setDefaultValue("numChannels",	InitialiserList::makeSingleList(VariableStorage(0)));
 	st->setDefaultValue("data",			InitialiserList::makeSingleList(VariableStorage(nullptr, 0)));
 	st->setDefaultValue("obj",			InitialiserList::makeSingleList(VariableStorage(nullptr, 0)));
-	st->setDefaultValue("f",			InitialiserList::makeSingleList(VariableStorage(nullptr, 0)));
+	st->setDefaultValue("sampleRate",	InitialiserList::makeSingleList(VariableStorage(0.0)));
 	
 	st->setVisibility("dataType",	 NamespaceHandler::Visibility::Public);
 	st->setVisibility("numSamples",	 NamespaceHandler::Visibility::Public);
 	st->setVisibility("numChannels", NamespaceHandler::Visibility::Public);
-	st->setVisibility("data",		 NamespaceHandler::Visibility::Private);
-	st->setVisibility("obj",		 NamespaceHandler::Visibility::Private);
-	st->setVisibility("f",			 NamespaceHandler::Visibility::Private);
+	st->setVisibility("data",		 NamespaceHandler::Visibility::Public);
+	st->setVisibility("obj",		 NamespaceHandler::Visibility::Public);
+	st->setVisibility("sampleRate",	 NamespaceHandler::Visibility::Public);
 	
 	auto blockType = c.getNamespaceHandler().getComplexType(NamespacedIdentifier("block"));
 
+#if 0
 	FunctionData constructor;
 	constructor.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
 	constructor.addArgs("obj", TypeInfo(Types::ID::Dynamic));
@@ -190,6 +198,7 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 	});
 
 	st->addJitCompiledMemberFunction(constructor);
+#endif
 
 	FunctionData rf;
 	rf.id = st->id.getChildId("referBlockTo");
@@ -205,10 +214,16 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 	df.addArgs("value", TypeInfo(Types::ID::Double));
 	df.returnType = TypeInfo(Types::ID::Void);
 
+
+
 	st->addJitCompiledMemberFunction(df);
 	st->injectMemberFunctionPointer(df, (void*)setDisplayValueStatic);
 
 	st->finaliseExternalDefinition();
+
+	auto originalSize = sizeof(ExternalData);
+
+	jassert(st->getRequiredByteSize() == originalSize);
 
 	return st;
 }

@@ -36,10 +36,11 @@ namespace snex {
 namespace jit {
 using namespace juce;
 using namespace asmjit;
+using namespace Operations;
 
 void OptimizationPass::replaceWithNoop(StatementPtr s)
 {
-	replaceExpression(s, new Operations::Noop(s->location));
+	replaceExpression(s, new Noop(s->location));
 }
 
 void OptimizationPass::processPreviousPasses(BaseCompiler* c, BaseScope* s, StatementPtr st)
@@ -108,13 +109,15 @@ ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalDotOperator(BaseScope* s, Op
 
 bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
+	using namespace Operations;
+
 	// run both times, since something could become constexpr during symbol resolving...
 	if(compiler->getCurrentPass() == BaseCompiler::PostSymbolOptimization ||
 	   compiler->getCurrentPass() == BaseCompiler::PreSymbolOptimization)
 	{
 		
 
-		if (auto fc = as<Operations::FunctionCall>(statement))
+		if (auto fc = as<FunctionCall>(statement))
 		{
 			if (auto constResult = evalConstMathFunction(fc))
 			{
@@ -124,7 +127,7 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			}
 		}
 
-		if (auto dot = as<Operations::DotOperator>(statement))
+		if (auto dot = as<DotOperator>(statement))
 		{
 			if (auto constResult = evalDotOperator(s, dot))
 			{
@@ -134,11 +137,11 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			}
 		}
 
-		if (auto is = as<Operations::BranchingStatement>(statement))
+		if (auto is = as<BranchingStatement>(statement))
 		{
 			is->getCondition()->process(compiler, s);
 
-			auto cond = dynamic_cast<Operations::Expression*>(statement->getChildStatement(0).get());
+			auto cond = as<Expression>(statement->getSubExpr(0));
 
 			if (is->getCondition()->isConstExpr())
 			{
@@ -160,7 +163,7 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			}
 		}
 
-		if (auto c = as<Operations::Cast>(statement))
+		if (auto c = as<Cast>(statement))
 		{
 			if (c->getTypeInfo().isTemplateType())
 				jassertfalse;
@@ -172,7 +175,7 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			}
 		}
 
-		if (auto a = as<Operations::Assignment>(statement))
+		if (auto a = as<Assignment>(statement))
 		{
 			a->getSubExpr(0)->process(compiler, s);
 
@@ -184,7 +187,7 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			}
 		}
 
-		if (auto cOp = as<Operations::Compare>(statement))
+		if (auto cOp = as<Compare>(statement))
 		{
 			cOp->getSubExpr(0)->process(compiler, s);
 			cOp->getSubExpr(1)->process(compiler, s);
@@ -197,7 +200,7 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			}
 		}
 
-		if (auto bOp = as<Operations::BinaryOp>(statement))
+		if (auto bOp = as<BinaryOp>(statement))
 		{
 			bOp->getSubExpr(0)->process(compiler, s);
 			bOp->getSubExpr(1)->process(compiler, s);
@@ -716,9 +719,10 @@ bool DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			if (a->getTargetType() != Operations::Assignment::TargetType::Variable)
 				return false;
 
-			
+			auto v = as<Operations::VariableReference>(a->getTargetVariable());
 
-			auto v = a->getTargetVariable();
+			if (v == nullptr)
+				return false;
 
 			if (v->isClassVariable(s))
 				return false;
@@ -806,9 +810,34 @@ bool DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseSc
 
 bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
+	using namespace Operations;
+
 	COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
 	{
-		if (auto bOp = as<Operations::BinaryOp>(statement))
+		if (auto inc = as<Increment>(statement))
+		{
+			if (!inc->isPreInc)
+			{
+				auto parentStatement = inc->parent;
+
+				auto cantBeSwapped = false;
+
+				cantBeSwapped |= findParentStatementOfType<Assignment>(statement) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<BinaryOp>(statement) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<FunctionCall>(statement) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<ComplexTypeDefinition>(statement) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<ReturnStatement>(statement) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<Compare>(statement) != nullptr;
+								
+				if (!cantBeSwapped)
+				{
+					inc->isPreInc = true;
+					return true;
+				}
+			}
+		}
+
+		if (auto bOp = as<BinaryOp>(statement))
 		{
 			if (simplifyOp(bOp->getSubExpr(0), bOp->getSubExpr(1), bOp->op, compiler, s))
 				return true;
@@ -818,33 +847,31 @@ bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 		}
 	}
 
+
 	COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
 	{
-		if (auto bOp = as<Operations::BinaryOp>(statement))
+		if (auto bOp = as<BinaryOp>(statement))
 		{
 			if (swapIfBetter(bOp, bOp->op, compiler, s))
 				return true;
 		}
 
-		if (auto a = as<Operations::Assignment>(statement))
+		if (auto a = as<Assignment>(statement))
 		{
 			if (simplifyOp(a->getSubExpr(1), a->getSubExpr(0), a->assignmentType, compiler, s))
 				return true;
 
-			if (a->getTargetType() == Operations::Assignment::TargetType::Variable)
+			if (a->getTargetType() == Assignment::TargetType::Variable)
 			{
-				currentlyAssignedId.s = a->getTargetVariable()->id;
-				currentlyAssignedId.scope = a->getTargetVariable()->variableScope;
+				currentlyAssignedId = a->getTargetSymbolStatement()->getSymbol();
 
 				a->getSubExpr(0)->process(compiler, s);
 
-				if (auto bOp = dynamic_cast<Operations::BinaryOp*>(a->getSubExpr(0).get()))
+				if (auto bOp = as<BinaryOp>(a->getSubExpr(0)))
 				{
 					if (isAssignedVariable(bOp->getSubExpr(0)) && !SpanType::isSimdType(a->getSubExpr(1)->getTypeInfo()))
 					{
 						a->logOptimisationMessage("Replace " + juce::String(bOp->op) + " with self assignment");
-
-
 						a->assignmentType = bOp->op;
 
 						auto right = bOp->getSubExpr(1);
@@ -903,13 +930,15 @@ bool BinaryOpOptimizer::swapIfBetter(ExprPtr bOp, const char* op, BaseCompiler* 
 
 bool BinaryOpOptimizer::simplifyOp(ExprPtr l, ExprPtr r, const char* op, BaseCompiler* , BaseScope* )
 {
+	using namespace Operations;
+
 	auto parent = l->parent;
 
-	auto replaceOp = [this](Operations::Statement* p, const char* o)
+	auto replaceOp = [this](Statement* p, const char* o)
 	{
-		if (auto bOp = as<Operations::BinaryOp>(p))
+		if (auto bOp = as<BinaryOp>(p))
 			bOp->op = o;
-		else if (auto a = as<Operations::Assignment>(p))
+		else if (auto a = as<Assignment>(p))
 			a->assignmentType = o;
 	};
 
@@ -923,7 +952,7 @@ bool BinaryOpOptimizer::simplifyOp(ExprPtr l, ExprPtr r, const char* op, BaseCom
 			auto value = r->getConstExprValue();
 			auto invValue = VariableStorage(value.getType(), value.toDouble() * -1.0);
 
-			replaceExpression(r, new Operations::Immediate(r->location, invValue));
+			replaceExpression(r, new Immediate(r->location, invValue));
 			replaceOp(parent, JitTokens::plus);
 
 			return true;
@@ -943,7 +972,7 @@ bool BinaryOpOptimizer::simplifyOp(ExprPtr l, ExprPtr r, const char* op, BaseCom
 
 			auto invValue = VariableStorage(value.getType(), 1.0 / value.toDouble());
 
-			replaceExpression(r, new Operations::Immediate(r->location, invValue));
+			replaceExpression(r, new Immediate(r->location, invValue));
 			replaceOp(parent, JitTokens::times);
 
 			return true;
@@ -955,9 +984,11 @@ bool BinaryOpOptimizer::simplifyOp(ExprPtr l, ExprPtr r, const char* op, BaseCom
 
 bool BinaryOpOptimizer::isAssignedVariable(ExprPtr e) const
 {
-	if (auto v = dynamic_cast<Operations::VariableReference*>(e.get()))
+	using namespace Operations;
+
+	if (auto v = as<SymbolStatement>(e))
 	{
-		return SymbolWithScope({ v->id, v->variableScope}) == currentlyAssignedId;
+		return v->getSymbol() == currentlyAssignedId;
 	}
 	else
 	{
@@ -973,13 +1004,15 @@ bool BinaryOpOptimizer::isAssignedVariable(ExprPtr e) const
 
 snex::jit::Operations::BinaryOp* BinaryOpOptimizer::getFirstOp(ExprPtr e)
 {
+	using namespace Operations;
+
 	if (e == nullptr)
 		return nullptr;
 
 	if (auto bOp = getFirstOp(e->getSubExpr(0)))
 		return bOp;
 
-	if(auto thisOp = dynamic_cast<Operations::BinaryOp*>(e.get()))
+	if(auto thisOp = as<BinaryOp>(e))
 		return thisOp;
 
 	return nullptr;
@@ -1046,7 +1079,7 @@ void BinaryOpOptimizer::createSelfAssignmentFromBinaryOp(ExprPtr assignment)
 
 		if (auto v_l = dynamic_cast<Operations::VariableReference*>(bOp->getSubExpr(0).get()))
 		{
-			if (v_l->id == as->getTargetVariable()->id)
+			if (v_l->id == as->getTargetSymbolStatement()->getSymbol())
 			{
 				if (auto bOp_r = dynamic_cast<Operations::BinaryOp*>(bOp->getSubExpr(1).get()))
 				{
@@ -1067,7 +1100,7 @@ void BinaryOpOptimizer::createSelfAssignmentFromBinaryOp(ExprPtr assignment)
 
 		if (auto v_r = dynamic_cast<Operations::VariableReference*>(bOp->getSubExpr(1).get()))
 		{
-			if (v_r->id == as->getTargetVariable()->id)
+			if (v_r->id == as->getTargetSymbolStatement()->getSymbol())
 			{
 				as->logOptimisationMessage("Create self assign");
 				as->assignmentType = bOp->op;
@@ -1610,18 +1643,20 @@ juce::Result LoopVectoriser::changeIteratorTargetToSimd(Operations::Loop* l)
 
 bool LoopVectoriser::isUnSimdableOperation(Ptr s)
 {
+	using namespace Operations;
+
 	auto parentLoop = Operations::findParentStatementOfType<Operations::Loop>(s);
 
-	if (auto cf = as<Operations::ControlFlowStatement>(s))
+	if (auto cf = as<ControlFlowStatement>(s))
 		return true;
 
-	if (auto cf = as<Operations::FunctionCall>(s))
+	if (auto cf = as<FunctionCall>(s))
 		return true;
 
-	if (auto cf = as<Operations::Increment>(s))
+	if (auto cf = as<Increment>(s))
 		return true;
 
-	if (auto v = as<Operations::VariableReference>(s))
+	if (auto v = as<VariableReference>(s))
 	{
 		auto writeType = v->getWriteAccessType();
 
@@ -1640,6 +1675,8 @@ namespace AsmSubPasses
 
 struct Helpers
 {
+	constexpr static uint32 NoReg = 125500012;
+
 	static bool isInstruction(BaseNode* node, Array<uint32_t> ids)
 	{
 		if (node == nullptr)
@@ -1828,6 +1865,38 @@ struct Helpers
 			return n->opType(1);
 		else
 			return n->opType(0);
+	}
+
+	static uint32 getBaseRegIndex(Operand op)
+	{
+		return (op.isMem() && op.as<BaseMem>().hasBaseReg()) ? op.as<BaseMem>().baseId() : NoReg;
+	}
+
+	static uint32 getIndexRegIndex(Operand op)
+	{
+		return (op.isMem() && op.as<BaseMem>().hasIndexReg()) ? op.as<BaseMem>().indexId() : NoReg;
+	}
+
+	static bool isInstructionWithIndexAsTarget(BaseNode* n, uint32 base, uint32 index)
+	{
+		if (base == NoReg && index == NoReg)
+			return false;
+
+		if (n->isInst())
+		{
+			auto target = getTargetOp(n->as<InstNode>());
+
+			if (target.isPhysReg())
+			{
+				auto id = target.id();
+
+				return id == base || id == index;
+			}
+
+			return false;
+		}
+
+		return false;
 	}
 };
 
@@ -2310,12 +2379,20 @@ struct RemoveSubsequentMovCalls : public AsmCleanupPass::SubPass<Mov>
 	{
 		AsmCleanupPass::Iterator<> it(parent, current->next());
 
+		auto currentSourceOp = Helpers::getSourceOp(current->as<InstNode>());
+
+		auto currentBase = Helpers::getBaseRegIndex(currentSourceOp);
+		auto currentIndex = Helpers::getIndexRegIndex(currentSourceOp);
+
 		while (auto sn = it.next())
 		{
 			if (Helpers::isInstructWithSourceAsTarget(current, sn))
 				return nullptr;
 
 			if (ControlFlowBreakers::matches(sn))
+				return nullptr;
+
+			if (Helpers::isInstructionWithIndexAsTarget(sn, currentBase, currentIndex))
 				return nullptr;
 
 			if (Helpers::isInstructWithSameTarget(current, sn))
@@ -2373,6 +2450,7 @@ struct RemoveSubsequentMovCalls : public AsmCleanupPass::SubPass<Mov>
 
 				if (instMatch)
 				{
+					
 					it.removeNode(sn);
 					return true;
 				}
@@ -2393,6 +2471,11 @@ struct RemoveUndirtyMovCallsFromSameSource : public AsmCleanupPass::SubPass<Mov>
 	{
 		AsmCleanupPass::Iterator<AsmCleanupPass::Base> all(parent, current);
 
+		auto currentSourceOp = Helpers::getSourceOp(current->as<InstNode>());
+
+		auto currentBase = Helpers::getBaseRegIndex(currentSourceOp);
+		auto currentIndex = Helpers::getIndexRegIndex(currentSourceOp);
+
 		while (auto n = all.next())
 		{
 			if (current == n)
@@ -2404,6 +2487,9 @@ struct RemoveUndirtyMovCallsFromSameSource : public AsmCleanupPass::SubPass<Mov>
 			if (Helpers::isInstructWithSourceAsTarget(current, n))
 				return nullptr;
 			
+			if (Helpers::isInstructionWithIndexAsTarget(n, currentBase, currentIndex))
+				return nullptr;
+
 			if (Helpers::isInstructWithSameTarget(current, n))
 			{
 				// If the target is a pointer with a base register

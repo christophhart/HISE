@@ -243,126 +243,8 @@ public:
 		struct Wrapper;
 	};
 
-	class ScriptAudioFile : public ConstScriptingObject,
-							public AsyncUpdater,
-							public PooledUIUpdater::SimpleTimer
-	{
-	public:
-
-		struct RefCountedBuffer : public ReferenceCountedObject
-		{
-			void setRange(int min, int max)
-			{
-				int numChannels = all.getNumChannels();
-				sampleRange = { min, max };
-
-				for (int i = 0; i < numChannels; i++)
-					ptrs[i] = all.getWritePointer(i, min);
-
-				range.setDataToReferTo(ptrs, numChannels, sampleRange.getLength());
-			}
-
-			bool clear = true;
-			using Ptr = ReferenceCountedObjectPtr<RefCountedBuffer>;
-
-			double sampleRate = 44100.0;
-			AudioSampleBuffer all;
-			AudioSampleBuffer range;
-			Range<int> sampleRange;
-			float* ptrs[NUM_MAX_CHANNELS];
-			PoolReference currentFileReference;
-		};
-
-		using Ptr = ReferenceCountedObjectPtr<ScriptAudioFile>;
-
-		struct Listener
-		{
-			virtual ~Listener() {};
-
-			virtual void contentChanged() = 0;
-
-			virtual void playbackPositionChanged(double /*newPos*/) {};
-
-			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
-		};
-
-		ScriptAudioFile(ProcessorWithScriptingContent* pwsc);;
-
-		String getDebugName() const override { return "AudioFile"; };
-		String getDebugValue() const override { return "AudioFile"; };
-
-		void rightClickCallback(const MouseEvent& , Component *) override {};
-
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("AudioFile"); }
-
-		void addListener(Listener* l, bool isSynchronous=false)
-		{
-			ignoreUnused(isSynchronous);
-			listeners.addIfNotAlreadyThere(l);
-		}
-
-		void removeListener(Listener* l)
-		{
-			listeners.removeAllInstancesOf(l);
-		}
-
-		void handleAsyncUpdate();
-
-		// ============================================================================================================
-
-		void clear();
-
-		/** Sets a new sample range. */
-		void setRange(int min, int max);
-
-		/** Loads an audio file from the given reference. */
-		void loadFile(const String& filePath);
-		
-		/** Returns the current audio data as array of channels. */
-		var getContent();
-
-		/** Sends an update message to all registered listeners. */
-		void update();
-
-		/** returns the amount of samples. */
-		int getNumSamples() const;
-
-		/** Returns the samplerate of the audio file. */
-		double getSampleRate() const;
-
-		/** Returns the reference string for the currently loaded file. */
-		String getCurrentlyLoadedFile() const;
-
-		// ============================================================================================================
-
-		void timerCallback() override;
-
-		RefCountedBuffer::Ptr getBuffer();
-
-		void setPosition(double newPosition)
-		{
-			position = newPosition;
-		}
-
-		SpinLock& getLock() { return sampleLock; }
-
-	private:
-
-        std::atomic<double> position {0.0};
-		double lastPosition = 0.0;
-
-
-		SpinLock sampleLock;
-
-		Array<WeakReference<Listener>> listeners;
-
-		RefCountedBuffer::Ptr buffer;
-		
-		struct Wrapper;
-	};
-
 	struct ScriptDownloadObject : public ConstScriptingObject,
-							 public URL::DownloadTask::Listener
+		public URL::DownloadTask::Listener
 	{
 		using Ptr = ReferenceCountedObjectPtr<ScriptDownloadObject>;
 
@@ -435,7 +317,7 @@ public:
 
 		bool resumeInternal();
 
-		
+
 
 		int64 bytesInLastSecond = 0;
 		int64 bytesInCurrentSecond = 0;
@@ -448,36 +330,98 @@ public:
 		uint32 lastSpeedMeasure = 0;
 
 		DynamicObject::Ptr data;
-		
+
 		URL downloadURL;
 		File targetFile;
 
 		WeakCallbackHolder callback;
-		
+
 		ScopedPointer<URL::DownloadTask> download;
-		
+
 		JavascriptProcessor* jp = nullptr;
 	};
 
-	class ScriptTableData : public ConstScriptingObject
+	class ScriptComplexDataReferenceBase: public ConstScriptingObject
 	{
 	public:
 
-		ScriptTableData(ProcessorWithScriptingContent* pwsc);
+		snex::ExternalData::DataType getDataType() const { return type; }
 
-		~ScriptTableData()
-		{
-			
-		}
+		String getDebugName() const override { return snex::ExternalData::getDataTypeName(getDataType()); };
+		String getDebugValue() const override { return getDebugName(); };
+		Identifier getObjectName() const override { return Identifier(getDebugName()); }
 
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("TableData"); }
+		bool objectDeleted() const override { return complexObject == nullptr; }
+		bool objectExists() const override { return complexObject != nullptr; }
 
-		String getDebugName() const override { return "Table"; };
-		String getDebugValue() const override { return "Table"; };
+		void rightClickCallback(const MouseEvent&, Component *) override {};
+
+		ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type, ExternalDataHolder* otherHolder=nullptr);;
+
+		void setPosition(double newPosition);
+
+		int getIndex() const { return index; }
+		ExternalDataHolder* getHolder() { return holder; }
+
+	protected:
+
+		WeakReference<ComplexDataUIBase> complexObject;
+
+	private:
+
+		const snex::ExternalData::DataType type;
+		WeakReference<ExternalDataHolder> holder;
+		const int index;
+	};
+
+	class ScriptAudioFile : public ScriptComplexDataReferenceBase
+	{
+	public:
+
+		ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* otherHolder = nullptr);
+
+		// ============================================================================================================
+
+		void clear();
+
+		/** Sets a new sample range. */
+		void setRange(int min, int max);
+
+		/** Loads an audio file from the given reference. */
+		void loadFile(const String& filePath);
+
+		/** Returns the current audio data as array of channels. */
+		var getContent();
+
+		/** Sends an update message to all registered listeners. */
+		void update();
+
+		/** returns the amount of samples. */
+		int getNumSamples() const;
+
+		/** Returns the samplerate of the audio file. */
+		double getSampleRate() const;
+
+		/** Returns the reference string for the currently loaded file. */
+		String getCurrentlyLoadedFile() const;
+
+		// ============================================================================================================
+
+	private:
+
+		MultiChannelAudioBuffer* getBuffer() { return static_cast<MultiChannelAudioBuffer*>(complexObject.get()); }
+		const MultiChannelAudioBuffer* getBuffer() const { return static_cast<const MultiChannelAudioBuffer*>(complexObject.get()); }
+
+		struct Wrapper;
+	};
+
+	class ScriptTableData : public ScriptComplexDataReferenceBase
+	{
+	public:
+
+		ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* externalHolder=nullptr);
 
 		void rightClickCallback(const MouseEvent& e, Component *c) override;
-
-		Table* getTable() const { return const_cast<Table*>(dynamic_cast<const Table*>(&table)); }
 
 		// ============================================================================================================
 
@@ -497,29 +441,19 @@ public:
 
 	private:
 
-		LookupTableProcessor::TableChangeBroadcaster broadcaster;
+		Table* getTable() { return static_cast<Table*>(complexObject.get()); }
+		const Table* getTable() const { return static_cast<const Table*>(complexObject.get()); }
 
 		struct Wrapper;
-
-		SampleLookupTable table;
 	};
 
-	class ScriptSliderPackData : public ConstScriptingObject
+	class ScriptSliderPackData : public ScriptComplexDataReferenceBase
 	{
 	public:
 
-		ScriptSliderPackData(ProcessorWithScriptingContent* pwsc);
+		ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, snex::ExternalDataHolder* otherHolder=nullptr);
 
 		~ScriptSliderPackData() {};
-
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("SliderPackData"); }
-
-		String getDebugName() const override { return "SliderPackData"; };
-		String getDebugValue() const override { return String(getNumSliders()); };
-
-		void rightClickCallback(const MouseEvent& e, Component *c) override;
-
-		SliderPackData* getSliderPackData() { return &data; }
 
 		// ============================================================================================================
 
@@ -545,10 +479,10 @@ public:
 
 	private:
 
+		SliderPackData* getSliderPackData() { return static_cast<SliderPackData*>(complexObject.get()); }
+		const SliderPackData* getSliderPackData() const { return static_cast<const SliderPackData*>(complexObject.get()); }
+
 		struct Wrapper;
-
-		SliderPackData data;
-
 	};
 
 	class ScriptingSamplerSound : public ConstScriptingObject

@@ -79,6 +79,7 @@ public:
 		InactiveRegister,
 		ActiveRegister,
 		DirtyGlobalRegister,
+		RedirectedRegister,
 		numStates
 	};
 
@@ -179,12 +180,12 @@ public:
 
 	void setImmediateValue(int64 value);
 
-	bool isImmediate() const
-	{
-		return isUnloadedImmediate() || (globalMemory && state == LoadedMemoryLocation);
-	}
+	bool isImmediate() const;
 
-	bool isUnloadedImmediate() const { return getType() == Types::ID::Integer && state == UnloadedMemoryLocation; }
+	bool isUnloadedImmediate() const 
+	{ 
+		return hasImmediateValue && state == UnloadedMemoryLocation; 
+	}
 
 	void setIsIteratorRegister(bool isIterator)
 	{
@@ -192,6 +193,8 @@ public:
 	}
 
 	void invalidateRegisterForCustomMemory();
+
+	void clearAfterReturn();
 
 	bool isIteratorRegister() const;
 
@@ -215,6 +218,9 @@ public:
 		else
 		{
 			referenceTarget = otherPtr->getReferenceTargetRegister();
+			state = RedirectedRegister;
+			memory = {};
+			reg = {};
 		}
 	}
 
@@ -227,6 +233,10 @@ public:
 
 		return const_cast<AssemblyRegister*>(this);
 	}
+
+	void setWriteBackToMemory(bool shouldWriteBackToMemory);
+
+	bool shouldWriteToMemoryAfterStore() const;
 
 private:
 
@@ -253,7 +263,11 @@ private:
 	bool reusable = false;
 #endif
 
+	bool hasImmediateValue = false;
 	int immediateIntValue = 0;
+
+	bool writeBackToMemory = false;
+
 	TypeInfo type;
 	asmjit::X86Mem memory;
 	asmjit::X86Reg reg;

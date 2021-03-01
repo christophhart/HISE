@@ -110,24 +110,24 @@ struct FunctionData
 	template <typename T> void addArgs(bool omitObjPtr=false)
 	{
 		if(!omitObjPtr || !std::is_same<T, void*>())
-			args.add(createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T>()));
+			args.add(createIndexedSymbol(0, TypeInfo::fromT<T>()));
 	}
 
 	template <typename T1, typename T2> void addArgs(bool omitObjPtr = false)
 	{
 		if (!omitObjPtr || !std::is_same<T1, void*>())
-			args.add(createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
+			args.add(createIndexedSymbol(0, TypeInfo::fromT<T1>()));
 
-		args.add(createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
+		args.add(createIndexedSymbol(1, TypeInfo::fromT<T2>()));
 	}
 
 	template <typename T1, typename T2, typename T3> void addArgs(bool omitObjPtr = false)
 	{
 		if (!omitObjPtr || !std::is_same<T1, void*>())
-			args.add(createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
+			args.add(createIndexedSymbol(0, TypeInfo::fromT<T1>()));
 
-		args.add(createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
-		args.add(createIndexedSymbol(2, Types::Helpers::getTypeFromTypeId<T3>()));
+		args.add(createIndexedSymbol(1, TypeInfo::fromT<T2>()));
+		args.add(createIndexedSymbol(2, TypeInfo::fromT<T3>()));
 	}
 
 	void addArgs(const Identifier& argName, const TypeInfo& t)
@@ -146,10 +146,10 @@ struct FunctionData
 		return d;
 	}
 
-	Symbol createIndexedSymbol(int index, Types::ID t)
+	Symbol createIndexedSymbol(int index, TypeInfo t)
 	{
 		Identifier pId("Param" + juce::String(index));
-		return { id.getChildId(pId), TypeInfo(t) };
+		return { id.getChildId(pId), t};
 	}
 
 
@@ -190,6 +190,8 @@ struct FunctionData
 		return function != nullptr || inliner != nullptr;
 	}
 
+	bool hasTemplatedArgumentOrReturnType() const;
+
 	FunctionData withParent(const NamespacedIdentifier& newParent) const;
 
 	TypeInfo getOrResolveReturnType(ComplexType::Ptr p);
@@ -212,12 +214,18 @@ struct FunctionData
 
 	bool hasDefaultParameter(const Symbol& arg) const;
 
+	bool isValid() const;
+
+	Result validateWithArgs(Types::ID r, const Array<Types::ID>& nativeArgList) const;
+
 	Inliner::Func getDefaultExpression(const Symbol& s) const;
 
 	bool matchesTemplateArguments(const TemplateParameter::List& l) const;
 
 	/** Checks if the id matches the constructor syntax (parent name == function name). */
 	bool isConstructor() const { return id.getIdentifier() == id.getParent().getIdentifier(); }
+
+	int getSpecialFunctionType() const;
 
 	void setDescription(const juce::String& d, const StringArray& parameterNames = StringArray())
 	{

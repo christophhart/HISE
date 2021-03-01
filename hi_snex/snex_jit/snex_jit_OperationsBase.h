@@ -74,9 +74,12 @@ namespace Operations
 		juce::String s;
 
 		auto lineNumber = (int)v["Line"];
+
+
+
 		if (lineNumber < 10)
 			s << "0";
-		s << juce::String(lineNumber) << " ";
+		s << juce::String(intLevel) << " ";
 
 		for (int i = 0; i < intLevel; i++)
 		{
@@ -272,6 +275,8 @@ namespace Operations
 			return false;
 		}
 
+		bool replaceIfOverloaded(Ptr objPtr, List args, FunctionClass::SpecialSymbols overloadType);
+
 		virtual bool isConstExpr() const;
 
 		Location location;
@@ -466,6 +471,9 @@ namespace Operations
 	struct WhileLoop;		struct PointerAccess;			struct AnonymousBlock;
 	struct InternalProperty;
 
+	
+	
+
 	struct ScopeStatementBase
 	{
 		ScopeStatementBase(const NamespacedIdentifier& id) :
@@ -503,6 +511,8 @@ namespace Operations
 		{
 			return returnType;
 		}
+
+		void addDestructors(BaseScope* scope);
 
 		static ScopeStatementBase* getStatementListWithReturnType(Statement* s)
 		{
@@ -549,12 +559,25 @@ namespace Operations
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScopeStatementBase);
 	};
 
+	struct StatementWithControlFlowEffectBase
+	{
+		virtual ~StatementWithControlFlowEffectBase() {};
+
+		/** Override this function and return the statement block that is affected by this statement. 
+			For return statements it's most likely the root syntax tree (or the inlined function block) and
+			for break / continue statements it'll be the loop body. 
+		*/
+		virtual ScopeStatementBase* findRoot() const = 0;
+
+		static void addDestructorToAllChildStatements(Statement::Ptr p, const Symbol& id);
+	};
+
 	/** Just a empty base class that checks whether the global variables will be loaded
 		before the branch.
 	*/
 	struct ConditionalBranch
 	{
-		void allocateDirtyGlobalVariables(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
+		void preallocateVariableRegistersBeforeBranching(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
 
 		
 
@@ -753,6 +776,7 @@ public:
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
 			removeStatementsAfterReturn();
+			addDestructors(scope);
 		}
 
 		if(compiler->getCurrentPass() == BaseCompiler::RegisterAllocation && hasReturnType())

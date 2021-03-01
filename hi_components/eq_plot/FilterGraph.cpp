@@ -184,7 +184,8 @@ private:
 
 		for (int i = 0; i < eq->getNumFilterBands(); i++)
 		{
-			addFilter(c, i, (int)eq->getFilterBand(i)->getFilterType());
+			auto t = CurveEq::StereoFilter::SubType::getFilterType();
+			addFilter(c, i, (int)t);
 		}
 
 		int numFilterBands = eq->getNumFilterBands();

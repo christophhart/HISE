@@ -1021,6 +1021,7 @@ public:
 			addButton("fold");
 			addButton("bypass");
 			addButton("properties");
+			addButton("profile");
 			
 			addSpacer(10);
 			addButton("undo");
@@ -1080,6 +1081,7 @@ public:
 
 		static bool copyToClipboard(DspNetworkGraph& g);
 		static bool toggleCableDisplay(DspNetworkGraph& g);
+		static bool toggleCpuProfiling(DspNetworkGraph& g);
 		static bool editNodeProperty(DspNetworkGraph& g);
 		static bool foldSelection(DspNetworkGraph& g);
 		static bool arrowKeyAction(DspNetworkGraph& g, const KeyPress& k);
@@ -1176,6 +1178,33 @@ public:
 		return {};
 	};
 
+	struct PeriodicRepainter : public PooledUIUpdater::SimpleTimer
+	{
+		PeriodicRepainter(DspNetworkGraph& p) :
+			SimpleTimer(p.network->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
+			componentToUpdate(&p)
+		{
+			start();
+		}
+			
+
+		void timerCallback() override
+		{
+			componentToUpdate->repaint();
+		}
+
+		Component* componentToUpdate;
+	};
+
+	void enablePeriodicRepainting(bool shouldBeEnabled)
+	{
+		if (shouldBeEnabled)
+			periodicRepainter = new PeriodicRepainter(*this);
+		else
+			periodicRepainter = nullptr;
+	}
+	
+
 	bool showCables = true;
 
 	bool setCurrentlyDraggedComponent(NodeComponent* n);
@@ -1191,6 +1220,8 @@ public:
 	valuetree::RecursiveTypedChildListener macroListener;
 
 	ScopedPointer<NodeComponent> root;
+
+	ScopedPointer<PeriodicRepainter> periodicRepainter;
 
 	Component::SafePointer<ContainerComponent> currentDropTarget;
 	ScopedPointer<NodeComponent> currentlyDraggedComponent;

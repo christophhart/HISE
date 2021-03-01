@@ -45,6 +45,9 @@
 #include "dsp_nodes/MathNodes.cpp"
 #include "dsp_nodes/FXNodes.cpp"
 #include "dsp_nodes/RoutingNodes.cpp"
+#include "dsp_nodes/FilterNode.cpp"
+#include "dsp_nodes/CableNodeBaseClasses.cpp"
+#include "dsp_nodes/CableNodes.cpp"
 
 
 #endif

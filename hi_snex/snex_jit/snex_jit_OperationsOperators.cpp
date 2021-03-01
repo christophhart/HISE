@@ -37,6 +37,7 @@ using namespace juce;
 using namespace asmjit;
 
 
+
 Operations::Assignment::Assignment(Location l, Expression::Ptr target, TokenType assignmentType_, Expression::Ptr expr, bool firstAssignment_) :
 	Expression(l),
 	assignmentType(assignmentType_),
@@ -71,7 +72,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 				if (typeToAllocate.isInvalid())
 					location.throwError("Can't deduce type");
 
-				getTargetVariable()->id.typeInfo = typeToAllocate;
+				getTargetSymbolStatement()->getSymbol().typeInfo = typeToAllocate;
 			}
 
 			scope->getRootData()->enlargeAllocatedSize(getTargetVariable()->getTypeInfo());
@@ -89,6 +90,8 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 			if (!Types::Helpers::isFixedType(type))
 			{
+				getSubExpr(0)->tryToResolveType(compiler);
+
 				type = getSubExpr(0)->getType();
 
 				if (!Types::Helpers::isFixedType(type))
@@ -105,13 +108,13 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 						location.throwError("Can't deduce auto type");
 				}
 
-				getTargetVariable()->id.typeInfo.setType(type);
+				getTargetSymbolStatement()->getSymbol().typeInfo.setType(type);
 			}
 
-			getTargetVariable()->isLocalDefinition = true;
+			as<VariableReference>(getTargetVariable())->isLocalDefinition = true;
 
 			if (scope->getRootClassScope() == scope)
-				scope->getRootData()->allocate(scope, getTargetVariable()->id);
+				scope->getRootData()->allocate(scope, getTargetSymbolStatement()->getSymbol());
 		}
 
 		getSubExpr(1)->process(compiler, scope);
@@ -130,9 +133,11 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		case TargetType::Variable:
 		{
 			auto e = getSubExpr(1);
-			auto v = getTargetVariable();
+			auto v = getTargetSymbolStatement();
+			
+			jassert(v != nullptr);
 
-			if (v->id.isConst() && !isFirstAssignment)
+			if (v->getSymbol().isConst() && !isFirstAssignment)
 				throwError("Can't change constant variable");
 		}
 		case TargetType::Reference:
@@ -153,6 +158,23 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 				location.throwError("Can't modify const object");
 		}
 
+		if (getTargetType() == TargetType::Reference && isFirstAssignment)
+		{
+			if(!canBeReferenced(getSubExpr(0)))
+			{
+				location.throwError("Can't assign non-reference");
+			}
+		}
+		
+
+		auto targetType = getSubExpr(1)->getTypeInfo();
+		auto assignedType = getSubExpr(0)->getTypeInfo();
+
+		if (targetType.isDynamic() && assignedType.isValid())
+		{
+			setTypeForChild(1, assignedType);
+		}
+
 		auto targetIsSimd = SpanType::isSimdType(getSubExpr(1)->getTypeInfo());
 
 		if (targetIsSimd)
@@ -164,18 +186,11 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		else
 		{
-			if (auto ct = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<ComplexType>())
-			{
-				if (FunctionClass::Ptr fc = ct->getFunctionClass())
-				{
-					auto targetType = getSubExpr(1)->getTypeInfo();
-					TypeInfo::List args = { targetType, getSubExpr(0)->getTypeInfo() };
-					overloadedAssignOperator = fc->getSpecialFunction(FunctionClass::AssignOverload, targetType, args);
+			List l;
+			l.add(getSubExpr(0));
 
-					if (overloadedAssignOperator.isResolved())
-						return;
-				}
-			}
+			if (replaceIfOverloaded(getSubExpr(1), l, FunctionClass::AssignOverload))
+				return;
 
 			checkAndSetType(0, getSubExpr(1)->getTypeInfo());
 		}
@@ -244,8 +259,15 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			if (assignmentType == JitTokens::assign_)
 			{
-				if (tReg != value)
-					acg.emitStore(tReg, value);
+				if (tReg->getTypeInfo().isComplexType() && getTargetType() == TargetType::Variable)
+				{
+					acg.emitStackInitialisation(tReg, tReg->getTypeInfo().getComplexType(), value, nullptr);
+				}
+				else
+				{
+					if (tReg != value)
+						acg.emitStore(tReg, value);
+				}
 			}
 			else
 				acg.emitBinaryOp(assignmentType, tReg, value);
@@ -257,7 +279,7 @@ void Operations::Assignment::initClassMembers(BaseCompiler* compiler, BaseScope*
 {
 	if (getSubExpr(0)->isConstExpr() && scope->getScopeType() == BaseScope::Class)
 	{
-		auto target = getTargetVariable()->id;
+		auto target = getTargetSymbolStatement()->getSymbol();
 		auto initValue = getSubExpr(0)->getConstExprValue();
 
 		if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
@@ -284,6 +306,10 @@ Operations::Assignment::TargetType Operations::Assignment::getTargetType() const
 {
 	auto target = getSubExpr(1);
 
+	// an auto statement will add a cast to the target
+	if (as<Cast>(target) != nullptr)
+		target = target->getSubExpr(0);
+
 	if (auto v = dynamic_cast<SymbolStatement*>(target.get()))
 	{
 		return v->getSymbol().isReference() ? TargetType::Reference : TargetType::Variable;
@@ -294,6 +320,15 @@ Operations::Assignment::TargetType Operations::Assignment::getTargetType() const
 		return TargetType::Span;
 	else if (dynamic_cast<MemoryReference*>(target.get()))
 		return TargetType::Reference;
+	else if (dynamic_cast<StatementBlock*>(target.get()))
+	{
+		auto t = target->getTypeInfo();
+
+		if(!t.isRef())
+			target->throwError("Can't assign to target");
+
+		return TargetType::Reference;
+	}
 
 	getSubExpr(1)->throwError("Can't assign to target");
 
@@ -310,6 +345,40 @@ void Operations::Cast::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		auto sourceType = getSubExpr(0)->getTypeInfo();
 		auto targetType = getTypeInfo();
+
+		if (replaceIfOverloaded(getSubExpr(0), {}, FunctionClass::NativeTypeCast))
+			return;
+
+		if (sourceType.isComplexType())
+			location.throwError("Can't cast " + sourceType.toString() + " to " + targetType.toString());
+
+#if 0
+		if (sourceType.isComplexType())
+		{
+			FunctionClass::Ptr fc = sourceType.getComplexType()->getFunctionClass();
+			complexCastFunction = fc->getSpecialFunction(FunctionClass::NativeTypeCast, targetType, {});
+
+			if (!complexCastFunction.isResolved())
+				location.throwError("Can't cast " + sourceType.toString() + " to " + targetType.toString());
+
+			if (complexCastFunction.canBeInlined(true))
+			{
+				auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
+
+				SyntaxTreeInlineData d(this, path, complexCastFunction);
+				d.object = getSubExpr(0);
+				d.expression = this;
+
+				auto r = complexCastFunction.inlineFunction(&d);
+
+				if (!r.wasOk())
+					location.throwError(r.getErrorMessage());
+
+				d.replaceIfSuccess();
+				return;
+			}
+		}
+#endif
 
 		if (sourceType == targetType)
 		{
@@ -441,7 +510,6 @@ void Operations::BinaryOp::process(BaseCompiler* compiler, BaseScope* scope)
 
 			if (reg == nullptr)
 			{
-				asg.emitComment("temp register for binary op");
 				reg = compiler->getRegFromPool(scope, getTypeInfo());
 
 			}
@@ -959,10 +1027,17 @@ void Operations::Increment::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
+		tryToResolveType(compiler);
+
+		auto s = getOperatorId();
+
+		if (replaceIfOverloaded(getSubExpr(0), {}, s))
+			return;
+
 		if (dynamic_cast<Increment*>(getSubExpr(0).get()) != nullptr)
 			throwError("Can't combine incrementors");
 
-		if (compiler->getRegisterType(getTypeInfo()) != Types::ID::Integer)
+		if (compiler->getRegisterType(getSubExpr(0)->getTypeInfo()) != Types::ID::Integer)
 			throwError("Can't increment non integer variables.");
 	}
 
@@ -1027,6 +1102,54 @@ void Operations::Increment::getOrSetIncProperties(Array<TemplateParameter>& tp, 
 	}
 }
 
+bool Operations::Increment::tryToResolveType(BaseCompiler* c)
+{
+	if (resolvedType.isValid())
+		return true;
+
+	auto s = getSubExpr(0);
+
+	if (s->tryToResolveType(c))
+	{
+		resolvedType = s->getTypeInfo();
+
+		if (resolvedType.isComplexType())
+		{
+			// The operator overload might return a reference
+			// so we need to make sure the type has the correct
+			// ref specifier
+
+			FunctionClass::Ptr fc = resolvedType.getComplexType()->getFunctionClass();
+
+			auto overloadedFunction = fc->getSpecialFunction(getOperatorId());
+
+			if (!overloadedFunction.isValid())
+				location.throwError(fc->getClassName().getChildId(fc->getSpecialSymbol({}, getOperatorId())).toString() + " not found");
+
+			resolvedType = overloadedFunction.returnType;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+snex::jit::FunctionClass::SpecialSymbols Operations::Increment::getOperatorId() const
+{
+	if (isPreInc && isDecrement)
+		return FunctionClass::SpecialSymbols::DecOverload;
+	if (isPreInc && !isDecrement)
+		return FunctionClass::SpecialSymbols::IncOverload;
+	if (!isPreInc && isDecrement)
+		return FunctionClass::SpecialSymbols::PostDecOverload;
+	if (!isPreInc && !isDecrement)
+		return FunctionClass::SpecialSymbols::PostIncOverload;
+
+	jassertfalse;
+	return FunctionClass::numOperatorOverloads;
+}
+
 bool Operations::DotOperator::tryToResolveType(BaseCompiler* compiler)
 {
 	if (Statement::tryToResolveType(compiler))
@@ -1058,11 +1181,16 @@ bool Operations::DotOperator::tryToResolveType(BaseCompiler* compiler)
 
 bool Operations::Subscript::tryToResolveType(BaseCompiler* compiler)
 {
-	Statement::tryToResolveType(compiler);
+	if (Statement::tryToResolveType(compiler) && subscriptType != ArrayStatementBase::Undefined)
+		return true;
 
 	auto parentType = getSubExpr(0)->getTypeInfo();
 
-	if (auto ts = parentType.getTypedIfComplexType<SpanType>())
+	if (auto td = parentType.getTypedIfComplexType<TemplatedComplexType>())
+	{
+		jassertfalse;
+	}
+	else if (auto ts = parentType.getTypedIfComplexType<SpanType>())
 	{
 		spanType = ts;
 		subscriptType = Span;
@@ -1111,44 +1239,23 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		tryToResolveType(compiler);
 		getSubExpr(1)->tryToResolveType(compiler);
+
+		List args;
+		args.add(getSubExpr(0));
+
+		{
+			BaseCompiler::ScopedUnsafeBoundChecker sb(compiler);
+
+			if (replaceIfOverloaded(getSubExpr(1), args, FunctionClass::SpecialSymbols::GetFrom))
+				return;
+		}
+		
 		auto indexType = getSubExpr(1)->getTypeInfo();
 
-		if (indexType.getType() != Types::ID::Integer)
+		if (subscriptType != ArrayStatementBase::CustomObject && dynType == nullptr && !getSubExpr(1)->isConstExpr() && !compiler->allowUnsafeIndexes())
 		{
-			if (auto it = indexType.getTypedIfComplexType<IndexBase>())
-			{
-				if (subscriptType == CustomObject)
-				{
-					auto wId = NamespacedIdentifier("IndexType").getChildId("wrapped");
-
-					auto fData = compiler->getInbuiltFunctionClass()->getNonOverloadedFunctionRaw(wId);
-
-
-
-				}
-				else
-				{
-					auto parentType = getSubExpr(0)->getTypeInfo();
-
-					if (TypeInfo(it->parentType.get()) != parentType)
-					{
-						juce::String s;
-
-						s << "index type mismatch: ";
-						s << indexType.toString();
-						s << " for target ";
-						s << parentType.toString();
-
-						getSubExpr(1)->throwError(s);
-					}
-				}
-			}
-			else
-				getSubExpr(1)->throwError("illegal index type");
-		}
-		else if (dynType == nullptr && !getSubExpr(1)->isConstExpr())
-		{
-			getSubExpr(1)->throwError("Can't use non-constant or non-wrapped index");
+			auto idx = getSubExpr(1);
+			idx->logWarning("unsafe index access.");
 		}
 
 		if (spanType != nullptr)
@@ -1170,6 +1277,14 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		else if (subscriptType == CustomObject)
 		{
+			List l;
+			l.add(getSubExpr(1));
+
+			BaseCompiler::ScopedUnsafeBoundChecker subc(compiler);
+
+			if (replaceIfOverloaded(getSubExpr(0), l, FunctionClass::Subscript))
+				return;
+
 			// nothing to do here, the type check will be done in the function itself...
 			return;
 		}
@@ -1316,12 +1431,24 @@ void Operations::PointerAccess::process(BaseCompiler* compiler, BaseScope* s)
 
 		auto obj = getSubRegister(0);
 
-		auto mem = obj->getMemoryLocationForReference();
-
-		jassert(!mem.isNone());
-
 		auto ptrReg = acg.cc.newGpq();
-		acg.cc.mov(ptrReg, mem);
+
+		if (auto thisPtr = as<ThisPointer>(getSubExpr(0)))
+		{
+			if (obj->isMemoryLocation())
+				acg.cc.lea(ptrReg, obj->getAsMemoryLocation());
+			else
+				acg.cc.mov(ptrReg, PTR_REG_R(obj));
+				
+		}
+		else
+		{
+
+			auto mem = obj->getMemoryLocationForReference();
+
+			jassert(!mem.isNone());
+			acg.cc.mov(ptrReg, mem);
+		}
 
 		reg->setCustomMemoryLocation(x86::ptr(ptrReg), obj->isGlobalMemory());
 	}

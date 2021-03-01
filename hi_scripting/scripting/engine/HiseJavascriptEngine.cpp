@@ -774,12 +774,14 @@ void HiseJavascriptEngine::registerApiClass(ApiClass *apiClass)
 	root->hiseSpecialData.apiClasses.add(apiClass);
 	root->hiseSpecialData.apiIds.add(apiClass->getObjectName());
 
+#if HISE_INCLUDE_SNEX
 	snex::jit::FunctionClass::Ptr p = apiClass->createSnexWrapper();
 
 	if (p != nullptr)
 	{
 		root->snexGlobalScope.addFunctionClass(p);
 	}
+#endif
 }
 
 #if 0
@@ -1114,6 +1116,7 @@ NativeJITCompiler* HiseJavascriptEngine::RootObject::HiseSpecialData::getNativeC
 }
 #endif
 
+#if HISE_INCLUDE_SNEX
 var HiseJavascriptEngine::RootObject::JavascriptNamespace::createSnexInstance(const Identifier& sId, const var::NativeFunctionArgs& args)
 {
 	for (auto s : snexClasses)
@@ -1163,5 +1166,6 @@ snex::jit::SnexStructSriptingWrapper::Ptr HiseJavascriptEngine::RootObject::Java
 
 	return nullptr;
 }
+#endif
 
 } // namespace hise

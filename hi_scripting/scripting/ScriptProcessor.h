@@ -316,189 +316,7 @@ private:
 
 using namespace snex;
 
-class ScriptComplexDataHolder:  public SliderPackProcessor,
-								public LookupTableProcessor
-{
-public:
 
-	struct ReferenceHolder : public ExternalDataHolder
-	{
-		ReferenceHolder(ScriptComplexDataHolder* p) :
-			parent(p)
-		{
-		}
-
-		int getNumDataObjects(ExternalData::DataType t) const override
-		{
-			switch (t)
-			{
-			case ExternalData::DataType::Table: return parent->getNumTables();
-			case ExternalData::DataType::SliderPack: return parent->getNumSliderPacks();
-			case ExternalData::DataType::AudioFile: return parent->getNumAudioFiles();
-			}
-		}
-
-		Table* getTable(int index) override
-		{
-			if (auto t = parent->addOrReturnTableObject(index))
-			{
-				return t->getTable();
-			}
-
-			return nullptr;
-		}
-
-		SliderPackData* getSliderPack(int index)
-		{
-			if (auto sp = parent->addOrReturnSliderPackObject(index))
-			{
-				return sp->getSliderPackData();
-			}
-			return nullptr;
-		}
-
-		MultiChannelAudioBuffer* getAudioFile(int index) override
-		{
-			jassertfalse;
-			return nullptr;
-		}
-
-		bool removeDataObject(ExternalData::DataType t, int index) override
-		{
-			ignoreUnused(t, index);
-			return false;
-		}
-
-		WeakReference<ScriptComplexDataHolder> parent;
-	};
-
-	ExternalDataHolder* asExternalDataHolder()
-	{
-		return &externalHolder;
-	}
-
-	ScriptComplexDataHolder() :
-		externalHolder(this)
-	{};
-
-	virtual ~ScriptComplexDataHolder() {};
-
-	SliderPackData* getSliderPackData(int index) override
-	{
-		if (auto d = sliderPacks[index])
-			return d->getSliderPackData();
-
-		return nullptr;
-	}
-
-	const SliderPackData* getSliderPackData(int index) const override
-	{
-		if (auto d = sliderPacks[index])
-			return d->getSliderPackData();
-
-		return nullptr;
-	}
-
-	Table* getTable(int index) const override
-	{
-		if (auto d = tables[index])
-			return d->getTable();
-
-		return nullptr;
-	}
-
-	int getNumTables() const override { return tables.size(); };
-
-	int getNumSliderPacks() const override { return sliderPacks.size(); }
-
-	int getNumAudioFiles() const { return audioFiles.size(); };
-
-	void saveComplexDataTypeAmounts(ValueTree& v) const
-	{
-		if (!sliderPacks.isEmpty())
-			v.setProperty("NumSliderPacks", sliderPacks.size(), nullptr);
-
-		if (!tables.isEmpty())
-			v.setProperty("NumTables", tables.size(), nullptr);
-
-		if (!audioFiles.isEmpty())
-			v.setProperty("NumAudioFiles", audioFiles.size(), nullptr);
-	}
-
-	void restoreComplexDataTypes(const ValueTree& v)
-	{
-		auto pc = dynamic_cast<ProcessorWithScriptingContent*>(this);
-
-		int numSliderPacks = v.getProperty("NumSliderPacks", 0);
-
-		if (numSliderPacks > 0)
-		{
-			sliderPacks.ensureStorageAllocated(numSliderPacks);
-
-			for (int i = 0; i < numSliderPacks; i++)
-				sliderPacks.add(new ScriptingObjects::ScriptSliderPackData(pc));
-		}
-
-		int numTables = v.getProperty("NumTables", 0);
-
-		if (numTables > 0)
-		{
-			tables.ensureStorageAllocated(numTables);
-
-			for (int i = 0; i < numTables; i++)
-				tables.add(new ScriptingObjects::ScriptTableData(pc));
-		}
-
-		int numAudioFiles = v.getProperty("NumAudioFiles", 0);
-
-		if (numAudioFiles > 0)
-		{
-			audioFiles.ensureStorageAllocated(numAudioFiles);
-
-			for (int i = 0; i < numAudioFiles; i++)
-				audioFiles.add(new ScriptingObjects::ScriptAudioFile(pc));
-		}
-	}
-
-	ScriptingObjects::ScriptSliderPackData* addOrReturnSliderPackObject(int index)
-	{
-		if (auto d = sliderPacks[index])
-			return d;
-
-		sliderPacks.set(index, new ScriptingObjects::ScriptSliderPackData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		return sliderPacks[index];
-	}
-
-	ScriptingObjects::ScriptAudioFile* addOrReturnAudioFile(int index)
-	{
-		if (auto d = audioFiles[index])
-			return d;
-
-		audioFiles.set(index, new ScriptingObjects::ScriptAudioFile(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		return audioFiles[index];
-	}
-
-	ScriptingObjects::ScriptTableData* addOrReturnTableObject(int index)
-	{
-		if (auto d = tables[index])
-			return d;
-
-		tables.set(index, new ScriptingObjects::ScriptTableData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		return tables[index];
-	}
-
-protected:
-
-	ReferenceCountedArray<ScriptingObjects::ScriptSliderPackData> sliderPacks;
-	ReferenceCountedArray<ScriptingObjects::ScriptTableData> tables;
-	ReferenceCountedArray<ScriptingObjects::ScriptAudioFile> audioFiles;
-
-private:
-
-	ReferenceHolder externalHolder;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptComplexDataHolder);
-};
 
 
 
@@ -511,7 +329,7 @@ private:
 class JavascriptProcessor :	public FileChangeListener,
 							public HiseJavascriptEngine::Breakpoint::Listener,
 							public Dispatchable,
-							public ScriptComplexDataHolder,
+							public ProcessorWithDynamicExternalData,
 							public ApiProviderBase::Holder,
 							public scriptnode::DspNetwork::Holder
 {
@@ -1115,7 +933,7 @@ template <class PropertyClass> struct table : public NodePropertyT<int>
 	{
 		if (n != nullptr)
 		{
-			holder = dynamic_cast<ScriptComplexDataHolder*>(n->getScriptProcessor());
+			holder = dynamic_cast<ProcessorWithDynamicExternalData*>(n->getScriptProcessor());
 
 			setAdditionalCallback([&r, this](Identifier id, var newValue)
 			{
@@ -1147,7 +965,7 @@ private:
 		p.setTableData(r, tableData);
 	}
 
-	WeakReference<hise::ScriptComplexDataHolder> holder;
+	WeakReference<hise::ProcessorWithDynamicExternalData> holder;
 	hise::SampleLookupTable ownedTable;
 	WeakReference<hise::Table> usedTable = nullptr;
 };

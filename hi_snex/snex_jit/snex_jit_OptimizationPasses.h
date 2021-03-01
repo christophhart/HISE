@@ -104,12 +104,6 @@ public:
 
 	void processPreviousPasses(BaseCompiler* c, BaseScope* s, StatementPtr st);
 
-    /** Short helper tool to check Types. */
-    template <class T> static T* as(StatementPtr obj)
-    {
-        return dynamic_cast<T*>(obj.get());
-    }
-
 	template <class StatementType, class... StatementTypes> static bool is(StatementPtr obj)
 	{
 		return as<StatementType>(obj) != nullptr && is<StatementTypes...>(obj);
@@ -225,7 +219,7 @@ private:
 
 	static Operations::BinaryOp* getFirstOp(ExprPtr e);
 
-	SymbolWithScope currentlyAssignedId;
+	Symbol currentlyAssignedId;
 
 	static bool containsVariableReference(ExprPtr p, const Symbol& refToCheck);
 

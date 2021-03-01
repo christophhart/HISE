@@ -182,8 +182,14 @@ struct Operations::Increment : public UnaryOp
 
 	TypeInfo getTypeInfo() const override
 	{
-		return getSubExpr(0)->getTypeInfo();
+		jassert(resolvedType.isValid());
+
+		return resolvedType;
 	}
+
+	FunctionClass::SpecialSymbols getOperatorId() const;
+
+	bool tryToResolveType(BaseCompiler* c) override;
 
 	ValueTree toValueTree() const override
 	{
@@ -207,6 +213,8 @@ struct Operations::Increment : public UnaryOp
 	bool isDecrement;
 	bool isPreInc;
 	bool removed = false;
+
+	TypeInfo resolvedType = Types::ID::Void;
 };
 
 
@@ -372,7 +380,12 @@ struct Operations::Assignment : public Expression,
 
 	Assignment(Location l, Expression::Ptr target, TokenType assignmentType_, Expression::Ptr expr, bool firstAssignment_);
 
-	Array<NamespacedIdentifier> getInstanceIds() const override { return { getTargetVariable()->id.id }; };
+	~Assignment()
+	{
+
+	};
+
+	Array<NamespacedIdentifier> getInstanceIds() const override { return { getTargetSymbolStatement()->getSymbol().id }; };
 
 	TypeInfo getTypeInfo() const override { return getSubExpr(1)->getTypeInfo(); }
 
@@ -418,12 +431,21 @@ struct Operations::Assignment : public Expression,
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
-	VariableReference* getTargetVariable() const
+	SymbolStatement* getTargetSymbolStatement() const
+	{
+		return as<SymbolStatement>(getTargetVariable());
+	}
+
+	Ptr getTargetVariable() const
 	{
 		auto targetType = getTargetType();
 		jassert(targetType == TargetType::Variable || targetType == TargetType::Reference);
-		auto v = getSubExpr(1).get();
-		return dynamic_cast<VariableReference*>(v);
+		auto s = getSubExpr(1);
+
+		if (as<Cast>(s) != nullptr)
+			s = s->getSubExpr(0);
+
+		return s;
 	}
 
 	bool loadDataBeforeAssignment() const

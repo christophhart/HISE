@@ -42,6 +42,7 @@ using namespace asmjit;
 #define FP_REG_R(x) x->getRegisterForReadOp().as<X86Xmm>()
 #define FP_MEM(x) x->getAsMemoryLocation()
 #define IS_MEM(x) x->isMemoryLocation()
+#define IS_IMM(x) x->isImmediate()
 #define IS_CMEM(x) x->hasCustomMemoryLocation() && !x->isActive()
 #define IS_REG(x)  x->isActive()
 
@@ -67,7 +68,8 @@ using namespace asmjit;
 
 #define INT_OP(op, l, r) { if(IS_REG(r))    op(INT_REG_W(l), INT_REG_R(r)); \
 					  else if(IS_CMEM(r))   op(INT_REG_W(l), INT_MEM(r)); \
-					  else if(IS_MEM(r))    op(INT_REG_W(l), static_cast<int>(INT_IMM(r))); \
+					  else if(IS_IMM(r))    op(INT_REG_W(l), static_cast<int>(INT_IMM(r))); \
+					  else if(IS_MEM(r))    op(INT_REG_W(l), INT_MEM(r)); \
 					  else op(INT_REG_W(l), INT_REG_R(r)); }
 
 struct AsmCodeGenerator

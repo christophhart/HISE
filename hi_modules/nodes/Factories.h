@@ -64,6 +64,16 @@ public:
 
 }
 
+namespace control
+{
+	class Factory : public NodeFactory
+	{
+	public:
+		Factory(DspNetwork* network);
+		Identifier getId() const override { return "control"; };
+	};
+}
+
 namespace core
 {
 

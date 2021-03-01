@@ -87,10 +87,12 @@ struct SyntaxTreeInlineData : public InlineData
 
 	NamespacedIdentifier getFunctionId() const
 	{
-		auto fc = dynamic_cast<const Operations::FunctionCall*>(expression.get());
-		jassert(fc != nullptr);
+		if (auto fc = dynamic_cast<const Operations::FunctionCall*>(expression.get()))
+		{
+			return fc->function.id;
+		}
 
-		return fc->function.id;
+		return NamespacedIdentifier("anonymous function");
 	}
 
 	bool isHighlevel() const override
@@ -106,7 +108,6 @@ struct SyntaxTreeInlineData : public InlineData
 		using namespace Operations;
 		
 		auto fc = as<FunctionCall>(expression);
-		jassert(fc != nullptr);
 
 		if (syntaxTree->getReturnType() == TypeInfo(Types::ID::Dynamic))
 		{
@@ -124,7 +125,15 @@ struct SyntaxTreeInlineData : public InlineData
 		{
 			auto thisSymbol = Symbol("this");
 			auto e = object->clone(location);
+
 			cs->addInlinedParameter(-1, thisSymbol, e);
+
+			if (auto b = as<StatementBlock>(e))
+			{
+				jassert(b->isInlinedFunction);
+
+				e = b->getThisExpression();
+			}
 
 			if (auto st = e->getTypeInfo().getTypedIfComplexType<StructType>())
 			{
@@ -168,7 +177,17 @@ struct SyntaxTreeInlineData : public InlineData
 								auto newChild = v->clone(v->location);
 								auto newDot = new Operations::DotOperator(v->location, newParent, newChild);
 
-								v->replaceInParent(newDot);
+								Operations::Statement::Ptr statementToReplace = v;
+
+								if (auto dot = as<DotOperator>(v->parent.get()))
+								{
+									if (auto tp = as<ThisPointer>(dot->getDotParent()))
+									{
+										statementToReplace = dot;
+									}
+								}
+
+								statementToReplace->replaceInParent(newDot);
 							}
 						}
 
@@ -178,11 +197,14 @@ struct SyntaxTreeInlineData : public InlineData
 			}
 		}
 
-		for (int i = 0; i < fc->getNumArguments(); i++)
+		if (fc != nullptr)
 		{
-			auto pVarSymbol = functionParameters[i];
-			Operations::Expression::Ptr e = dynamic_cast<Operations::Expression*>(fc->getArgument(i)->clone(fc->location).get());
-			cs->addInlinedParameter(i, pVarSymbol, e);
+			for (int i = 0; i < fc->getNumArguments(); i++)
+			{
+				auto pVarSymbol = functionParameters[i];
+				Operations::Expression::Ptr e = dynamic_cast<Operations::Expression*>(fc->getArgument(i)->clone(fc->location).get());
+				cs->addInlinedParameter(i, pVarSymbol, e);
+			}
 		}
 
 		return Result::ok();

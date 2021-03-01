@@ -81,7 +81,7 @@ bool ModulationSourceNode::ModulationTarget::findTarget()
 		{
 			auto enabled = n->getRootNetwork()->isInSignalPath(n);
 
-			if(!enabled && !n->isBeingMoved())
+			if (!enabled && !n->isBeingMoved())
 				data.setProperty(PropertyIds::Enabled, false, parent->getUndoManager());
 
 			for (int i = 0; i < n->getNumParameters(); i++)
@@ -163,7 +163,7 @@ var ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 	m.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
 	m.setProperty(PropertyIds::Enabled, true, nullptr);
 
-	n->data.setProperty(PropertyIds::ModulationTarget, true, getUndoManager());
+	n->getTreeWithValue().setProperty(PropertyIds::ModulationTarget, true, getUndoManager());
 
 	auto range = RangeHelpers::getDoubleRange(n->data);
 
@@ -196,6 +196,16 @@ parameter::data ModulationSourceNode::getParameterData(const ValueTree& m) const
 {
 	if (auto targetNode = getTargetNode(m))
 	{
+#if HISE_INCLUDE_SNEX
+		if (auto sn = dynamic_cast<SnexSource::SnexParameter*>(targetNode->getParameter(m[PropertyIds::ParameterId].toString())))
+		{
+			parameter::data obj;
+			obj.info = parameter::pod(sn->data);
+			obj.callback.referTo(sn->p.getObjectPtr(), sn->p.getFunction());
+			return obj;
+		}
+#endif
+
 		auto pList = targetNode->createInternalParameterList();
 
 		for (auto& p : pList)
@@ -203,6 +213,8 @@ parameter::data ModulationSourceNode::getParameterData(const ValueTree& m) const
 			if (p.info.getId() == m[PropertyIds::ParameterId].toString())
 				return p;
 		}
+
+		
 	}
 	
 	return parameter::data("");
@@ -222,7 +234,14 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 		ScopedPointer<parameter::dynamic_base> np;
 
 		if (expression.isNotEmpty())
+		{
+#if HISE_INCLUDE_SNEX
 			np = new parameter::dynamic_expression(p.callback, new JitExpression(expression, this));
+#else
+			// Set the default...
+			np = new parameter::dynamic_base(p.callback);
+#endif
+		}
 		else if (allowRangeConversion & !RangeHelpers::isIdentity(range))
 			np = new parameter::dynamic_from0to1(p.callback, range);
 		else
@@ -571,9 +590,12 @@ juce::Component* WrapperNode::createExtraComponent()
 {
 	if (extraComponentFunction)
 	{
-		auto obj = getObjectPtr();
+		auto obj = static_cast<uint8*>(getObjectPtr());
+
+		obj += uiOffset;
+
 		PooledUIUpdater* updater = getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
-		return extraComponentFunction(obj, updater);
+		return extraComponentFunction((void*)obj, updater);
 	}
 
 	return nullptr;

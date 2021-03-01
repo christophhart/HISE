@@ -62,8 +62,7 @@ struct WaveformLookupTables
 */
 class LfoModulator: public TimeVariantModulator,
 					public TempoListener,
-					public LookupTableProcessor,
-					public SliderPackProcessor,
+					public ProcessorWithStaticExternalData,
 					public WaveformComponent::Broadcaster
 {
 public:
@@ -146,13 +145,8 @@ public:
 		}
 	};
 
-	SliderPackData *getSliderPackData(int /*index*/) override { return data; };
-
-	const SliderPackData *getSliderPackData(int /*index*/) const override { return data; };
-
 	/** Returns a new ControlEditor */
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-
 
 	float getDefaultValue(int parameterIndex) const override; 
 	float getAttribute (int parameter_index) const override;
@@ -177,32 +171,7 @@ public:
 
 	void calculateBlock(int startSample, int numSamples) override;;
 
-	/** Returns the table that is used for the LFO waveform. */
-	Table *getTable(int=0) const override 
-	{
-		return customTable;
-	};
-
-	
 private:
-
-	class WaveformUpdater: public SafeChangeListener
-	{
-	public:
-
-		WaveformUpdater(LfoModulator& p) :
-			parent(p)
-		{};
-
-		void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
-		{
-			parent.triggerWaveformUpdate();
-		}
-
-		LfoModulator& parent;
-	};
-
-	WaveformUpdater updater;
 
 	/** Calculates the oscillator value of the LFO
 	*	Don't use this for GUI stuff, since it advances the LFO
@@ -218,10 +187,8 @@ private:
 		case Saw:		currentTable = WaveformLookupTables::sawTable; break;
 		case Square:	currentTable = WaveformLookupTables::squareTable; break;
 		case Random:	currentTable = nullptr; break;
-		case Custom:	currentTable = customTable->getReadPointer(); break;
+		case Custom:	currentTable = getTableUnchecked(0)->getReadPointer(); break;
 		default:		currentTable = WaveformLookupTables::sineTable; break;
-			
-
 		}
 
 		triggerWaveformUpdate();
@@ -295,9 +262,9 @@ private:
 
 	float intensityModulationValue;
 
-	ScopedPointer<SampleLookupTable> customTable;
+	SampleLookupTable* customTable;
 
-	ScopedPointer<SliderPackData> data;
+	SliderPackData* data;
 
 	int currentSliderIndex = 0;
 	float currentSliderValue = 0.0f;
@@ -315,8 +282,6 @@ private:
 	float rampValue = 1.0f;
 
 	float frequencyModulationValue;
-
-
     
 	float frequency;
 

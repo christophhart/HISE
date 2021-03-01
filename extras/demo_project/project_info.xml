@@ -27,4 +27,5 @@
   <UseRawFrontend value="No"/>
   <ExpansionType value="Disabled"/>
   <EncryptionKey value=""/>
+  <LinkExpansionsToProject value="No"/>
 </ProjectSettings>

@@ -67,7 +67,7 @@ public:
 
 	void clear();
 
-	String toDbgString();
+	juce::String toDbgString();
 
 private:
 

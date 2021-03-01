@@ -50,7 +50,10 @@ container::chain<parameter::empty, wrap::fix<2, X>, Y> c;
 
 int main(int input)
 {
-	PrepareSpecs ps = { 44100.0, 512, 2 };
+	PrepareSpecs ps;
+  ps.sampleRate = 44100.0;
+  ps.blockSize = 512;
+  ps.numChannels = 2;
 	
 	c.prepare(ps);
 	

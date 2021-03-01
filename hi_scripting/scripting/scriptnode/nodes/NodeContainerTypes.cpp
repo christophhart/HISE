@@ -52,8 +52,11 @@ ChainNode::ChainNode(DspNetwork* n, ValueTree t) :
 #endif
 }
 
+
+
 void ChainNode::process(ProcessDataDyn& data)
 {
+	NodeProfiler np(this);
 	wrapper.process(data);
 }
 
@@ -82,6 +85,7 @@ void ChainNode::prepare(PrepareSpecs ps)
 {
 	ScopedLock sl(getRootNetwork()->getConnectionLock());
 
+	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
 	wrapper.prepare(ps);
 }
@@ -114,6 +118,7 @@ void SplitNode::prepare(PrepareSpecs ps)
 {
 	ScopedLock sl(getRootNetwork()->getConnectionLock());
 
+	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
 
 	if (ps.blockSize > 1)
@@ -140,8 +145,10 @@ void SplitNode::handleHiseEvent(HiseEvent& e)
 
 void SplitNode::process(ProcessDataDyn& data)
 {
-	if (isBypassed())
+	if (isBypassed() || original.begin() == nullptr)
 		return;
+
+	NodeProfiler np(this);
 
 	float* ptrs[NUM_MAX_CHANNELS];
 	int numSamples = data.getNumSamples();
@@ -220,6 +227,8 @@ void ModulationChainNode::process(ProcessDataDyn& data) noexcept
 	if (isBypassed())
 		return;
 
+	NodeProfiler np(this);
+
 	obj.process(data);
 	double thisValue = 0.0;
 }
@@ -232,6 +241,7 @@ void ModulationChainNode::prepare(PrepareSpecs ps)
 	DspHelpers::setErrorIfFrameProcessing(ps);
 	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 
+	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
 	obj.prepare(ps);
 }
@@ -337,6 +347,7 @@ void OversampleNode<OversampleFactor>::prepare(PrepareSpecs ps)
 	DspHelpers::setErrorIfFrameProcessing(ps);
 	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 
+	NodeBase::prepare(ps);
 	lastVoiceIndex = ps.voiceIndex;
 	prepareNodes(ps);
 
@@ -373,6 +384,8 @@ void OversampleNode<OversampleFactor>::handleHiseEvent(HiseEvent& e)
 template <int OversampleFactor>
 void OversampleNode<OversampleFactor>::process(ProcessDataDyn& d) noexcept
 {
+	NodeProfiler np(this);
+
 	if (isBypassed())
 	{
 		obj.getObject().process(d);
@@ -403,24 +416,12 @@ SerialNode(network, d)
 }
 
 
-template <int B>
-void FixedBlockNode<B>::updateBypassState(Identifier, var)
-{
-	if (originalBlockSize == 0)
-		return;
-
-	PrepareSpecs ps;
-	ps.blockSize = originalBlockSize;
-	ps.sampleRate = originalSampleRate;
-	ps.numChannels = getNumChannelsToProcess();
-	ps.voiceIndex = lastVoiceIndex;
-
-	prepare(ps);
-}
 
 template <int B>
 void FixedBlockNode<B>::process(ProcessDataDyn& d)
 {
+	NodeProfiler np(this);
+
 	if (isBypassed())
 	{
 		obj.getObject().process(d);
@@ -436,6 +437,7 @@ void FixedBlockNode<B>::prepare(PrepareSpecs ps)
 {
 	DspHelpers::setErrorIfFrameProcessing(ps);
 
+	NodeBase::prepare(ps);
 	lastVoiceIndex = ps.voiceIndex;
 	prepareNodes(ps);
 
@@ -512,6 +514,7 @@ void MultiChannelNode::prepare(PrepareSpecs ps)
 {
 	ScopedLock sl(getRootNetwork()->getConnectionLock());
 
+	NodeBase::prepare(ps);
 	NodeContainer::prepareContainer(ps);
 	int channelIndex = 0;
 
@@ -567,6 +570,8 @@ void MultiChannelNode::processFrame(NodeBase::FrameType& data)
 
 void MultiChannelNode::process(ProcessDataDyn& d)
 {
+	NodeProfiler np(this);
+
 	int channelIndex = 0;
 
 	for (auto n : nodes)
@@ -599,6 +604,8 @@ SingleSampleBlockX::SingleSampleBlockX(DspNetwork* n, ValueTree d) :
 void SingleSampleBlockX::prepare(PrepareSpecs ps)
 {
 	ScopedLock sl(getRootNetwork()->getConnectionLock());
+
+	NodeBase::prepare(ps);
 	prepareNodes(ps);
 }
 
@@ -609,6 +616,8 @@ void SingleSampleBlockX::reset()
 
 void SingleSampleBlockX::process(ProcessDataDyn& data)
 {
+	NodeProfiler np(this);
+
 	if (isBypassed())
 		obj.getObject().process(data);
 	else
@@ -674,6 +683,7 @@ void MidiChainNode::prepare(PrepareSpecs ps)
 	DspHelpers::setErrorIfFrameProcessing(ps);
 	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 
+	NodeBase::prepare(ps);
 	prepareNodes(ps);
 }
 
@@ -698,6 +708,67 @@ juce::String MidiChainNode::getCppCode(CppGen::CodeLocation location)
 	}
     else
         return SerialNode::getCppCode(location);
+}
+
+OfflineChainNode::OfflineChainNode(DspNetwork* n, ValueTree t) :
+	SerialNode(n, t)
+{
+	initListeners();
+	obj.initialise(this);
+}
+
+void OfflineChainNode::processFrame(FrameType& data) noexcept
+{
+}
+
+void OfflineChainNode::process(ProcessDataDyn& data) noexcept
+{
+}
+
+void OfflineChainNode::prepare(PrepareSpecs ps)
+{
+}
+
+void OfflineChainNode::handleHiseEvent(HiseEvent& e)
+{
+}
+
+void OfflineChainNode::reset()
+{
+}
+
+String OfflineChainNode::getCppCode(CppGen::CodeLocation location)
+{
+	return {};
+}
+
+FixedBlockXNode::FixedBlockXNode(DspNetwork* network, ValueTree d) :
+	SerialNode(network, d)
+{
+	initListeners();
+	obj.initialise(this);
+}
+
+void FixedBlockXNode::process(ProcessDataDyn& data)
+{
+	NodeProfiler np(this);
+	obj.process(data);
+}
+
+void FixedBlockXNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	obj.prepare(ps);
+}
+
+void FixedBlockXNode::reset()
+{
+	obj.reset();
+}
+
+void FixedBlockXNode::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
 }
 
 }

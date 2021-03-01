@@ -54,6 +54,9 @@ struct FunctionClass : public DebugableObjectBase,
 	{
 		AssignOverload = 0,
 		IncOverload,
+		DecOverload,
+		PostIncOverload,
+		PostDecOverload,
 		BeginIterator,
 		SizeFunction,
 		NativeTypeCast,
@@ -61,6 +64,7 @@ struct FunctionClass : public DebugableObjectBase,
 		ToSimdOp,
 		Constructor,
 		Destructor,
+		GetFrom,
 		numOperatorOverloads
 	};
 

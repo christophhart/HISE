@@ -67,6 +67,9 @@ struct TemplateClassBuilder
 	/** Adds an integer template argument with the given id. */
 	void addIntTemplateParameter(const Identifier& templateId);
 
+	/** Adds an integer template argument with the given id and default value. */
+	void addIntTemplateParameterWithDefault(const Identifier& templateId, int defaultValue);
+
 	/** Adds a type template argument with the given id. */
 	void addTypeTemplateParameter(const Identifier& templateId);
 

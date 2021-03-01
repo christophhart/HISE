@@ -173,57 +173,6 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 	}
 
 	{
-		auto indexFunction = new FunctionData();
-
-		auto iid = st->getClassName().getChildId("index");
-
-		indexFunction->id = iid;
-		indexFunction->returnType = TypeInfo(Types::ID::Dynamic);
-		indexFunction->addArgs("value", TypeInfo(Types::ID::Integer));
-		indexFunction->templateParameters.add(TemplateParameter(iid.getChildId("IndexType")));
-		indexFunction->inliner = new Inliner(indexFunction->id, [](InlineData* b)
-		{
-			auto d = b->toAsmInlineData();
-			auto& cc = d->gen.cc;
-			auto indexType = d->target->getTypeInfo().getTypedIfComplexType<IndexBase>();
-
-			jassert(d->target->getType() == Types::ID::Integer);
-			jassert(indexType != nullptr);
-			jassert(d->args[0] != nullptr);
-
-			auto assignOp = indexType->getAsmFunction(FunctionClass::AssignOverload);
-
-			AsmInlineData assignData(d->gen);
-			assignData.target = d->target;
-			assignData.object = d->target;
-			assignData.args.add(d->target);
-			assignData.args.add(d->args[0]);
-
-			auto r = assignOp(&assignData);
-
-			if (r.failed())
-				return r;
-
-
-			return Result::ok();
-		}, {});
-
-		indexFunction->inliner->returnTypeFunction = [](InlineData* d)
-		{
-			auto r = dynamic_cast<ReturnTypeInlineData*>(d);
-			
-			if (r->templateParameters.size() != 1)
-				return Result::fail("template argument mismatch");
-
-			r->f.returnType = r->templateParameters.getFirst().type;
-
-			return Result::ok();
-		};
-
-		st->addFunction(indexFunction);
-	}
-
-	{
 		auto numElements = getNumElements();
 
 		auto isSimdableFunc = new FunctionData();
@@ -494,35 +443,10 @@ size_t SpanType::getElementSize() const
 		return elementType.getRequiredByteSize();
 }
 
-snex::jit::ComplexType::Ptr SpanType::createSubType(SubTypeConstructData* sd)
-{
-	auto id = sd->id;
-
-	if (id.getIdentifier() == Identifier("wrapped"))
-	{
-		return new Wrapped(TypeInfo(this));
-	}
-	if (id.getIdentifier() == Identifier("unsafe"))
-	{
-		return new Unsafe(TypeInfo(this));
-	}
-
-	return nullptr;
-}
-
 DynType::DynType(const TypeInfo& elementType_) :
 	elementType(elementType_)
 {
 	ComplexType::finaliseAlignment();
-}
-
-snex::jit::DynType::IndexType DynType::getIndexType(const TypeInfo& t)
-{
-	if (t.getTypedIfComplexType<Wrapped>()) return IndexType::W;
-	if (t.getTypedIfComplexType<Unsafe>()) return IndexType::U;
-	
-	jassertfalse;
-	return IndexType::numIndexTypes;
 }
 
 size_t DynType::getRequiredByteSize() const
@@ -833,57 +757,6 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 		dynOperators->addFunction(sizeFunction);
 	}
 
-	{
-		auto indexFunction = new FunctionData();
-
-		auto iid = dynOperators->getClassName().getChildId("index");
-
-		indexFunction->id = iid;
-		indexFunction->returnType = TypeInfo(Types::ID::Dynamic);
-		indexFunction->addArgs("value", TypeInfo(Types::ID::Integer));
-		indexFunction->templateParameters.add(TemplateParameter(iid.getChildId("IndexType")));
-
-		indexFunction->inliner = new Inliner(iid, [](InlineData* b)
-		{
-			auto d = b->toAsmInlineData();
-
-			auto& cc = d->gen.cc;
-
-			auto indexType = d->target->getTypeInfo().getTypedIfComplexType<IndexBase>();
-
-			jassert(d->target->getType() == Types::ID::Integer);
-			jassert(indexType != nullptr);
-			jassert(d->args[0] != nullptr);
-
-			if (d->args[0]->isMemoryLocation())
-			{
-				auto immValue = d->args[0]->getImmediateIntValue();
-				d->target->setImmediateValue(immValue);
-				d->target->createMemoryLocation(cc);
-			}
-			else
-			{
-				d->target->createRegister(cc);
-				INT_OP(cc.mov, d->target, d->args[0]);
-			}
-
-			return Result::ok();
-		}, {});
-
-		indexFunction->inliner->returnTypeFunction = [](InlineData* d)
-		{
-			auto r = dynamic_cast<ReturnTypeInlineData*>(d);
-
-			if (r->templateParameters.size() != 1)
-				return Result::fail("template argument mismatch");
-
-			r->f.returnType = r->templateParameters.getFirst().type;
-
-			return Result::ok();
-		};
-
-		dynOperators->addFunction(indexFunction);
-	}
 
 	{
 		auto& toSimdFunction = dynOperators->createSpecialFunction(FunctionClass::ToSimdOp);
@@ -1031,7 +904,8 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 			auto okBranch = cc.newLabel();
 			auto errorBranch = cc.newLabel();
 
-			safeCheck &= (index->getTypeInfo().getTypedIfComplexType<IndexBase>() == nullptr);
+			// Skip safe checks for index objects...
+			//safeCheck &= (index->getTypeInfo().getTypedIfComplexType<IndexBase>() == nullptr);
 
 			if (safeCheck)
 			{
@@ -1042,6 +916,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 				else
 					p = x86::ptr(PTR_REG_R(dynReg)).cloneAdjustedAndResized(4, 4);
 
+				cc.setInlineComment("Bound check for dyn");
 				cc.mov(limit, p);
 				
 				
@@ -1054,8 +929,10 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 				auto flagReg = cc.newGpd();
 
-				auto errorFlag = x86::ptr(gs->getRuntimeErrorFlag()).cloneResized(4);
+				auto errorMemReg = cc.newGpq();
+				cc.mov(errorMemReg, gs->getRuntimeErrorFlag());
 
+				auto errorFlag = x86::ptr(errorMemReg).cloneResized(4);
 
 				cc.mov(flagReg, (int)RuntimeError::ErrorType::DynAccessOutOfBounds);
 
@@ -1088,12 +965,24 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 			if (safeCheck)
 			{
-				target->loadMemoryIntoRegister(cc, true);
+				auto memReg = cc.newGpq();
+				
+				cc.lea(memReg, target->getMemoryLocationForReference());
 
+				target->setCustomMemoryLocation(x86::ptr(memReg).cloneResized(t.getRequiredByteSize()), target->isGlobalMemory());
+				
 				cc.jmp(endLabel);
 				cc.bind(errorBranch);
-				auto nirvana = cc.newStack(target->getTypeInfo().getRequiredByteSize(), 0);
+				auto nirvana = cc.newStack(t.getRequiredByteSize(), t.getRequiredAlignment());
+				
+				
+				
+				
+				cc.lea(memReg, nirvana);
 
+				
+
+#if 0
 				auto type = d->target->getType();
 
 				
@@ -1101,7 +990,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 				IF_(double) cc.movsd(FP_REG_W(target), nirvana);
 				IF_(float) cc.movss(FP_REG_W(target), nirvana);
 				IF_(void*) cc.mov(PTR_REG_W(target), nirvana);
-
+#endif
 				
 				cc.bind(endLabel);
 				cc.nop();
@@ -1172,22 +1061,6 @@ juce::String DynType::toStringInternal() const
 	return w;
 }
 
-snex::jit::ComplexType::Ptr DynType::createSubType(SubTypeConstructData* sd)
-{
-	auto id = sd->id;
-
-	if (id.getIdentifier() == Identifier("wrapped"))
-	{
-		return new Wrapped(TypeInfo(this));
-	}
-	if (id.getIdentifier() == Identifier("unsafe"))
-	{
-		return new Unsafe(TypeInfo(this));
-	}
-
-	return nullptr;
-}
-
 StructType::StructType(const NamespacedIdentifier& s, const Array<TemplateParameter>& tp) :
 	id(s),
 	templateParameters(tp)
@@ -1211,7 +1084,12 @@ size_t StructType::getRequiredByteSize() const
 	size_t s = 0;
 
 	for (auto m : memberData)
+	{
+		jassert(m->typeInfo.getTypedIfComplexType<TemplatedComplexType>() == nullptr);
+			
+
 		s += (m->typeInfo.getRequiredByteSize() + m->padding);
+	}
 
 	auto alignment = getRequiredAlignment();
 
@@ -1558,6 +1436,25 @@ bool StructType::setDefaultValue(const Identifier& id, InitialiserList::Ptr defa
 	return false;
 }
 
+bool StructType::setTypeForDynamicReturnFunction(FunctionData& functionDataWithReturnType)
+{
+	for (auto& m : memberFunctions)
+	{
+		if (!m.returnType.isDynamic())
+			continue;
+
+		if(m.id == functionDataWithReturnType.id &&
+		   m.matchesTemplateArguments(functionDataWithReturnType.templateParameters) &&
+		   m.matchesArgumentTypes(functionDataWithReturnType, false))
+		{
+			m = functionDataWithReturnType;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool validMemberType(const TypeInfo& member, const TypeInfo& t)
 {
 	if (member == t)
@@ -1637,6 +1534,11 @@ bool StructType::hasMember(const Identifier& id) const
 			return true;
 
 	return false;
+}
+
+bool StructType::hasMember(int index) const
+{
+	return isPositiveAndBelow(index, memberData.size());
 }
 
 snex::jit::TypeInfo StructType::getMemberTypeInfo(const Identifier& id) const
@@ -1820,6 +1722,13 @@ void StructType::finaliseAlignment()
 
 	for (auto m : memberData)
 	{
+		if (auto tcd = m->typeInfo.getTypedIfComplexType<TemplatedComplexType>())
+		{
+			Operations::TemplateParameterResolver resolver(templateParameters);
+
+			auto r = resolver.processType(m->typeInfo);
+		}
+
 		if (m->typeInfo.isComplexType())
 			m->typeInfo.getComplexType()->finaliseAlignment();
 
@@ -2245,6 +2154,20 @@ int StructType::getBaseClassIndexForMethod(const FunctionData& f) const
 	return -1;
 }
 
+juce::Array<snex::jit::FunctionData> StructType::getBaseSpecialFunctions(FunctionClass::SpecialSymbols s, TypeInfo returnType, const Array<TypeInfo>& args)
+{
+	Array<FunctionData> matches;
+
+	for (auto b : baseClasses)
+	{
+		FunctionClass::Ptr fc = b->baseClass->getFunctionClass();
+
+		matches.add(fc->getSpecialFunction(s, returnType, args));
+	}
+
+	return matches;
+}
+
 Result StructType::redirectAllOverloadedMembers(const Identifier& id, TypeInfo::List mainArgs)
 {
 	Inliner::Ptr iToUse = nullptr;
@@ -2324,279 +2247,7 @@ bool StructType::canBeMember(const NamespacedIdentifier& possibleMemberId) const
 	return false;
 }
 
-IndexBase::IndexBase(const TypeInfo& parentType_) :
-	ComplexType(),
-	parentType(parentType_.getComplexType())
-{
-}
 
-IndexBase::~IndexBase()
-{
-}
-
-snex::jit::Inliner::Func IndexBase::getAsmFunction(FunctionClass::SpecialSymbols s)
-{
-	if (s == FunctionClass::SpecialSymbols::AssignOverload)
-	{
-		return [](InlineData* b)
-		{
-			auto d = b->toAsmInlineData();
-			auto& cc = d->gen.cc;
-			auto thisObj = d->target;
-			auto value = d->args[1];
-
-			jassert(thisObj->getTypeInfo().getTypedComplexType<IndexBase>() != nullptr);
-			jassert(value->getType() == Types::ID::Integer);
-
-			thisObj->loadMemoryIntoRegister(cc);
-			INT_OP(cc.mov, thisObj, value);
-
-			return Result::ok();
-		};
-	}
-
-	return {};
-}
-
-snex::jit::Inliner::Func IndexBase::getAsmFunctionWithFixedSize(FunctionClass::SpecialSymbols s, int wrapSize)
-{
-	if (s == FunctionClass::AssignOverload)
-	{
-		return [wrapSize](InlineData* d_)
-		{
-			auto d = dynamic_cast<AsmInlineData*>(d_);
-			auto& cc = d->gen.cc;
-			auto thisObj = d->target;
-			auto value = d->args[1];
-
-			jassert(thisObj->getType() == Types::ID::Integer || thisObj->getTypeInfo().getTypedComplexType<SpanType::Wrapped>() != nullptr);
-			jassert(value->getType() == Types::ID::Integer);
-
-			thisObj->loadMemoryIntoRegister(cc);
-			INT_OP(cc.mov, thisObj, value);
-
-			auto t = INT_REG_W(thisObj);
-
-			if (isPowerOfTwo(wrapSize))
-			{
-				cc.and_(t, wrapSize - 1);
-			}
-			else
-			{
-				auto d = cc.newGpd();
-				auto s = cc.newInt32Const(ConstPool::kScopeLocal, wrapSize);
-
-				cc.cdq(d, t);
-				cc.idiv(d, t, s);
-				cc.mov(t, d);
-			}
-
-			//cc.mov(ptr, t);
-
-			return Result::ok();
-		};
-	}
-	if (s == FunctionClass::IncOverload)
-	{
-		return [wrapSize](InlineData* b)
-		{
-			auto d = b->toAsmInlineData();
-
-			jassert(d->target->getType() == Types::ID::Integer);
-
-			auto valueReg = d->args[0];
-			bool isDec, isPre;
-			auto& cc = d->gen.cc;
-			d->target->loadMemoryIntoRegister(cc);
-			auto r = INT_REG_W(d->target);
-			auto tmp = cc.newGpq();
-
-			Operations::Increment::getOrSetIncProperties(d->templateParameters, isPre, isDec);
-
-			if (!isPre)
-			{
-				valueReg->createRegister(cc);
-				cc.mov(INT_REG_W(valueReg), r);
-			}
-
-			if (isDec)
-			{
-				cc.mov(tmp, r);
-				cc.dec(tmp);
-				cc.mov(r, wrapSize - 1);
-				cc.cmovge(r, tmp);
-			}
-			else
-			{
-				cc.mov(tmp, r);
-				cc.inc(tmp);
-				cc.xor_(r, r);
-				cc.cmp(tmp, wrapSize);
-				cc.cmovne(r, tmp);
-			}
-
-			return Result::ok();
-		};
-	}
-
-	jassertfalse;
-	return {};
-}
-
-bool IndexBase::forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer)
-{
-	if (typePtr.get() == this)
-		return t(this, dataPointer);
-
-	return false;
-}
-
-bool IndexBase::isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const
-{
-	if (complexSourceType != nullptr && complexSourceType->getRegisterType(false) == Types::ID::Integer)
-		return true;
-
-	if (nativeSourceType == Types::ID::Integer)
-		return true;
-
-	return false;
-}
-
-bool IndexBase::isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr complexTargetType) const
-{
-	if (complexTargetType != nullptr && complexTargetType->getRegisterType(false) == Types::ID::Integer)
-		return true;
-
-	if (nativeTargetType == Types::ID::Integer)
-		return true;
-
-	return false;
-}
-
-snex::InitialiserList::Ptr IndexBase::makeDefaultInitialiserList() const
-{
-	InitialiserList::Ptr n = new InitialiserList();
-	n->addImmediateValue(0);
-	return n;
-}
-
-
-juce::Result IndexBase::initialise(InitData data)
-{
-	VariableStorage v;
-
-	auto r = data.initValues->getValue(0, v);
-
-	if (!r.wasOk())
-		return r;
-
-	auto initValue = getInitValue(v.toInt());
-
-	if (data.asmPtr == nullptr)
-	{
-		ComplexType::writeNativeMemberType(data.dataPointer, 0, initValue);
-	}
-	else
-	{
-		auto& cc = GET_COMPILER_FROM_INIT_DATA(data);
-		cc.mov(data.asmPtr->memory, initValue);
-	}
-
-	return Result::ok();
-}
-
-void IndexBase::dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const
-{
-	Types::Helpers::dumpNativeData(s, intendLevel, "value", dataStart, complexTypeStartPointer, 4, Types::ID::Integer);
-}
-
-juce::String IndexBase::toStringInternal() const
-{
-	juce::String s;
-	s << parentType->toString() << "::" << getIndexName().toString();
-	return s;
-}
-
-
-
-snex::jit::FunctionClass* IndexBase::getFunctionClass()
-{
-	auto wId = NamespacedIdentifier("index_operators");
-	auto indexOperators = new FunctionClass(wId);
-
-	if (auto asOp = createOperator(indexOperators, FunctionClass::AssignOverload))
-	{
-		asOp->addArgs("this", TypeInfo(this));
-		asOp->addArgs("newValue", TypeInfo(Types::ID::Integer));
-	}
-
-	if (auto incOp = createOperator(indexOperators, FunctionClass::IncOverload))
-	{
-		incOp->addArgs("value", TypeInfo(Types::ID::Integer, false, true));
-	}
-
-	{
-		auto assignOp = getAsmFunction(FunctionClass::SpecialSymbols::AssignOverload);
-
-		auto movedFunction = new FunctionData();
-		movedFunction->id = wId.getChildId("moved");
-		movedFunction->returnType = TypeInfo(this);
-		movedFunction->addArgs("delta", TypeInfo(Types::ID::Integer));
-		movedFunction->inliner = Inliner::createAsmInliner(movedFunction->id, [assignOp](InlineData* b)
-		{
-			auto d = b->toAsmInlineData();
-
-			auto type = d->target->getTypeInfo();
-
-			auto isDynTarget = dynamic_cast<DynType*>(type.getTypedComplexType<IndexBase>()->parentType.get()) != nullptr;;
-
-			jassert(type.getTypedComplexType<IndexBase>() != nullptr);
-			jassert(d->args[0] != nullptr);
-			jassert(d->args[0]->getType() == Types::ID::Integer);
-			jassert(d->object->getTypeInfo() == type);
-			auto& cc = d->gen.cc;
-
-			
-
-			jassert(assignOp);
-			
-			auto tempReg = d->gen.registerPool->getNextFreeRegister(d->target->getScope(), TypeInfo(Types::ID::Integer));
-
-			tempReg->createRegister(cc);
-
-			INT_OP(cc.mov, tempReg, d->object);
-			INT_OP(cc.add, tempReg, d->args[0]);
-
-			cc.setInlineComment("assign-op");
-
-			AsmInlineData assignData(d->gen);
-
-			d->target->createRegister(cc);
-			assignData.object = d->target;
-			assignData.target = d->target;
-			assignData.args.add(d->target);
-			assignData.args.add(tempReg);
-			
-			auto r = assignOp(&assignData);
-
-			if (r.failed())
-				return r;
-
-			return Result::ok();
-		});
-
-		indexOperators->addFunction(movedFunction);
-	}
-
-	return indexOperators;
-}
-
-snex::jit::Inliner::Func SpanType::Wrapped::getAsmFunction(FunctionClass::SpecialSymbols s) 
-{
-	auto wrapSize = dynamic_cast<SpanType*>(parentType.get())->getNumElements();
-
-	return getAsmFunctionWithFixedSize(s, wrapSize);
-}
 
 }
 }

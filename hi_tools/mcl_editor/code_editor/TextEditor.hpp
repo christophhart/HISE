@@ -475,12 +475,13 @@ public:
 
 			auto updateSpeed = currentAutoComplete != nullptr ? 30 : 1200;
 
-			Timer::callAfterDelay(updateSpeed, [this]()
-			{
-				this->updateAutocomplete();
-			});
+			WeakReference<TextEditor> safeThis(this);
 
-			
+			Timer::callAfterDelay(updateSpeed, [safeThis]()
+			{
+				if(safeThis.get() != nullptr)
+					safeThis.get()->updateAutocomplete();
+			});
 			
 			updateViewTransform();
 

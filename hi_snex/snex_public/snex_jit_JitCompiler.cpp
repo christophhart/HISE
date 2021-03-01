@@ -159,6 +159,10 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 		p.addDefinitionsFromScope(memory.getPreprocessorDefinitions());
 		preprocessedCode = p.process();
 	}
+	catch (ParserHelpers::Error& e)
+	{
+		compiler->lastResult = Result::fail(e.toString());
+	}
 	catch (juce::String& e)
 	{
 		compiler->lastResult = Result::fail(e);

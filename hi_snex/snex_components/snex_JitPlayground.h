@@ -308,7 +308,7 @@ public:
 		lastTest->nodeToTest->process(data);
 	}
 
-	void prepareTest(PrepareSpecs ps) override
+	void prepareTest(PrepareSpecs ps, const Array<ui::WorkbenchData::TestData::ParameterEvent>& initialParameters) override
 	{
 		jassert(lastTest != nullptr);
 		jassert(lastTest->nodeToTest != nullptr);
@@ -337,7 +337,7 @@ public:
 		
 	};
 
-	void prepareTest(PrepareSpecs ps)
+	void prepareTest(PrepareSpecs ps, const Array<ui::WorkbenchData::TestData::ParameterEvent>& initialParameters)
 	{
 		if (lastNode != nullptr)
 			lastNode->prepare(ps);
@@ -641,9 +641,6 @@ private:
 			editor.setCurrentBreakline(-1);
 		}
 	}
-
-	/** Don't change the workbench in the editor. */
-	void workbenchChanged(ui::WorkbenchData::Ptr, ui::WorkbenchData::Ptr) {}
 
 	void recompiled(ui::WorkbenchData::Ptr p) override;
 

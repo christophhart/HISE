@@ -309,12 +309,12 @@ juce::IIRCoefficients FilterEffect::getDisplayCoefficients(FilterBank::FilterMod
 	case FilterBank::LowShelf:				return IIRCoefficients::makeLowShelf(srToUse, frequency, q, gain);
 	case FilterBank::HighShelf:				return IIRCoefficients::makeHighShelf(srToUse, frequency, q, gain);
 	case FilterBank::Peak:					return IIRCoefficients::makePeakFilter(srToUse, frequency, q, gain);
-	case FilterBank::ResoLow:				return makeResoLowPass(srToUse, frequency, q);
-	case FilterBank::StateVariableLP:		return makeResoLowPass(srToUse, frequency, q);
+	case FilterBank::ResoLow:				return IIRCoefficients::makeResoLowPass(srToUse, frequency, q);
+	case FilterBank::StateVariableLP:		return IIRCoefficients::makeResoLowPass(srToUse, frequency, q);
 	case FilterBank::StateVariableHP:		return IIRCoefficients::makeHighPass(srToUse, frequency, q);
-	case FilterBank::LadderFourPoleLP:		return makeResoLowPass(srToUse, frequency, 2.0*q);
+	case FilterBank::LadderFourPoleLP:		return IIRCoefficients::makeResoLowPass(srToUse, frequency, 2.0*q);
 	case FilterBank::LadderFourPoleHP:		return IIRCoefficients::makeHighPass(srToUse, frequency, 2.0*q);
-	case FilterBank::MoogLP:				return makeResoLowPass(srToUse, frequency, q);
+	case FilterBank::MoogLP:				return IIRCoefficients::makeResoLowPass(srToUse, frequency, q);
 	case FilterBank::StateVariablePeak:     return IIRCoefficients::makePeakFilter(srToUse, frequency, q, gain);
 	case FilterBank::StateVariableNotch:    return IIRCoefficients::makeNotchFilter(srToUse, frequency, q);
 	case FilterBank::StateVariableBandPass: return IIRCoefficients::makeBandPass(srToUse, frequency, q);
@@ -322,23 +322,6 @@ juce::IIRCoefficients FilterEffect::getDisplayCoefficients(FilterBank::FilterMod
 	case FilterBank::RingMod:               return IIRCoefficients::makeAllPass(srToUse, frequency, q);
 	default:					return IIRCoefficients();
 	}
-}
-
-juce::IIRCoefficients FilterEffect::makeResoLowPass(double sampleRate, double cutoff, double q)
-{
-	const double c = 1.0 / (tan(double_Pi * (cutoff / sampleRate)));
-	const double csq = c * c;
-
-	q = 1 / (3 * q);
-
-	double c1 = 1.0 / (1.0 + (q * c) + (csq));
-
-	return IIRCoefficients(c1,
-		2.0 * c1,
-		c1,
-		1.0,
-		(2.0 * c1) * (1.0 - csq),
-		c1 * (1.0 - (q * c) + csq));
 }
 
 

@@ -37,14 +37,17 @@ stepSize(0.01),
 nextIndexToDisplay(-1),
 showValueOverlay(true),
 flashActive(true),
-undoManager(undoManager_),
-cachedData(0),
 defaultValue(var(1.0))
 {
-    //enableAllocationFreeMessages(50);
-    
+	
+
+	setNumSliders(NumDefaultSliders);
+	setUndoManager(undoManager_);
+
 	sliderRange = Range<double>(0.0, 1.0);
-	enablePooledUpdate(updater);
+	
+	if(updater != nullptr)
+		setGlobalUIUpdater(updater);
 }
 
 SliderPackData::~SliderPackData()
@@ -58,87 +61,79 @@ void SliderPackData::setRange(double minValue, double maxValue, double stepSize_
 }
 
 Range<double> SliderPackData::getRange() const { return sliderRange; }
+
 double SliderPackData::getStepSize() const { return stepSize; }
-int SliderPackData::getNumSliders() const { return values.size(); };
+
+int SliderPackData::getNumSliders() const 
+{
+	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
+
+	return dataBuffer == nullptr ? 0 : dataBuffer->size;
+};
 
 void SliderPackData::setValue(int sliderIndex, float value, NotificationType notifySliderPack/*=dontSendNotification*/, bool useUndoManager)
 {
-	
-
-	if (sliderIndex >= 0 && sliderIndex < getNumSliders())
+	if (auto um = getUndoManager(useUndoManager))
 	{
-		if (useUndoManager && undoManager != nullptr)
+		um->perform(new SliderPackAction(this, sliderIndex, getValue(sliderIndex), value, notifySliderPack));
+	}
+	else
+	{
 		{
-			undoManager->perform(new SliderPackAction(this, sliderIndex, values[sliderIndex], value, notifySliderPack));
-		}
-		else
-		{
-			{
-				SimpleReadWriteLock::ScopedWriteLock sl(arrayLock, true);
-				values[sliderIndex] = value;
-			}
+			FloatSanitizers::sanitizeFloatNumber(value);
 
-			if (notifySliderPack == sendNotification)
-				sendPooledChangeMessage();
+			SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
+
+			if (isPositiveAndBelow(sliderIndex, getNumSliders()))
+				dataBuffer->setSample(sliderIndex, value);
 		}
 
+		internalUpdater.sendContentChangeMessage(notifySliderPack, sliderIndex);
 	}
 }
 
 float SliderPackData::getValue(int index) const
 {
-	SimpleReadWriteLock::ScopedReadLock sl(arrayLock, true);
+	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
 
-	if (index >= 0 && index < getNumSliders())
-	{
-		return values[index];
-	}
+	if(isPositiveAndBelow(index, getNumSliders()))
+		return dataBuffer->getSample(index); 
 
-	//jassertfalse;
 	return 0.0f;
 }
 
 void SliderPackData::setFromFloatArray(const Array<float> &valueArray)
 {
-	for (int i = 0; i < valueArray.size(); i++)
 	{
-		if (i < getNumSliders())
-		{
-			const float v = valueArray[i];
+		SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
 
-			setValue(i, v, dontSendNotification);
+		for (int i = 0; i < valueArray.size(); i++)
+		{
+			if (i < getNumSliders())
+			{
+				float v = valueArray[i];
+				FloatSanitizers::sanitizeFloatNumber(v);
+				setValue(i, v, dontSendNotification);
+			}
 		}
 	}
 
-	sendChangeMessage();
+	internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
 }
 
 void SliderPackData::writeToFloatArray(Array<float> &valueArray) const
 {
-	SimpleReadWriteLock::ScopedReadLock sl(arrayLock);
+	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
 
 	valueArray.ensureStorageAllocated(getNumSliders());
 
-	for (int i = 0; i < getNumSliders(); i++)
-	{
-		const float v = getValue(i);
-		valueArray.set(i, v);
-	}
+	memcpy(valueArray.begin(), dataBuffer->buffer.getReadPointer(0), sizeof(float)*getNumSliders());
 }
 
 String SliderPackData::toBase64() const
 {
-	Array<float> copyData;
-	copyData.ensureStorageAllocated(getNumSliders());
-
-	{
-		SimpleReadWriteLock::ScopedReadLock sl(arrayLock, true);
-
-		for (int i = 0; i < getNumSliders(); i++)
-			copyData.add(values[i]);
-	}
-
-	MemoryBlock mb = MemoryBlock(copyData.getRawDataPointer(), values.size() * sizeof(float));
+	auto data = getCachedData();
+	MemoryBlock mb = MemoryBlock(data, getNumSliders() * sizeof(float));
 	return mb.toBase64Encoding();
 }
 
@@ -150,18 +145,35 @@ void SliderPackData::fromBase64(const String &encodedValues)
 
 	mb.fromBase64Encoding(encodedValues);
 
-	Array<float> newData((float*)mb.getData(), (int)(mb.getSize() / sizeof(float)));
-
-	var newArray = Array<var>();
-
-	for (int i = 0; i < newData.size(); i++)
+	if (int numElements = (int)(mb.getSize() / sizeof(float)))
 	{
-		newArray.append(newData[i]);
+		VariantBuffer::Ptr newBuffer = new VariantBuffer(numElements);
+
+		memcpy(newBuffer->buffer.getWritePointer(0), mb.getData(), mb.getSize());
+
+		swapBuffer(dataBuffer);
 	}
+}
 
-	SimpleReadWriteLock::ScopedWriteLock sl(arrayLock);
-	values.swapWith(newArray);
+void SliderPackData::swapData(const var &otherData)
+{
+	if (otherData.isArray())
+	{
+		VariantBuffer::Ptr newBuffer = new VariantBuffer(otherData.size());
 
+		for (int i = 0; i < newBuffer->size; i++)
+		{
+			auto v = (float)otherData[i];;
+			FloatSanitizers::sanitizeFloatNumber(v);
+			newBuffer[i] = v;
+		}
+
+		swapBuffer(newBuffer);
+	}
+	else if (otherData.isBuffer())
+	{
+		swapBuffer(otherData.getBuffer());
+	}
 }
 
 void SliderPackData::setNewUndoAction() const
@@ -169,32 +181,34 @@ void SliderPackData::setNewUndoAction() const
 	
 }
 
+void SliderPackData::swapBuffer(VariantBuffer::Ptr otherBuffer)
+{
+	SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+	std::swap(otherBuffer, dataBuffer);
+	internalUpdater.sendContentRedirectMessage();
+}
+
 void SliderPackData::setNumSliders(int numSliders)
 {
-	int numToCopy = jmin<int>(numSliders, values.size());
+	if (numSliders == 0)
+		return;
 
-	Array<var> newValues;
-
-	for (int i = 0; i < numSliders; i++)
+	if (getNumSliders() != numSliders)
 	{
-		if (i < numToCopy)
-			newValues.add(values[i]);
-		else
-			newValues.add(defaultValue);
-	}
+		int numToCopy = jmin<int>(numSliders, getNumSliders());
 
-	if(auto ar = values.getArray())
-	{
-		SimpleReadWriteLock::ScopedWriteLock sl(arrayLock);
-		ar->swapWith(newValues);
-	}
-	else
-	{
-		SimpleReadWriteLock::ScopedWriteLock sl(arrayLock);
-		values = var(newValues);
-	}
+		VariantBuffer::Ptr newBuffer = new VariantBuffer(numSliders);
 
-	sendChangeMessage();
+		for (int i = 0; i < numSliders; i++)
+		{
+			if (i < numToCopy)
+				newBuffer->setSample(i, getValue(i));
+			else
+				newBuffer->setSample(i, defaultValue);
+		}
+
+		swapBuffer(newBuffer);
+	}
 }
 
 
@@ -204,49 +218,26 @@ currentlyDragged(false),
 currentlyDraggedSlider(-1),
 currentlyDraggedSliderValue(0.0),
 defaultValue(0.0),
-dummyData(nullptr, nullptr)
+dummyData(new SliderPackData(nullptr, nullptr))
 {
 	if (data == nullptr)
 	{
-		data = &dummyData;
+		data = dummyData;
 		data->setNumSliders(128);
 	}
 		
-
-	data->addChangeListener(this);
+	getData()->addListener(this);
 
 	setColour(Slider::backgroundColourId, Colour(0x22000000));
 	setColour(Slider::textBoxOutlineColourId, Colours::white.withAlpha(0.2f));
 	setColour(Slider::thumbColourId, Colours::white.withAlpha(0.6f));
 
-
 	setNumSliders(data->getNumSliders());
-	
 }
 
 void SliderPack::setNumSliders(int numSliders)
 {
 	data->setNumSliders(numSliders);
-
-	sliders.clear(); 
-
-	displayAlphas.clear();
-
-	displayAlphas.insertMultiple(0, 0.0f, numSliders);
-
-	for (int i = 0; i < numSliders; i++)
-	{
-		Slider *s = new Slider();
-		addAndMakeVisible(s);
-		sliders.add(s);
-		s->setLookAndFeel(&laf);
-		s->setInterceptsMouseClicks(false, false);
-		s->addListener(this);
-		s->setSliderStyle(Slider::SliderStyle::LinearBarVertical);
-		s->setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
-	}
-
-	updateSliders();
 }
 
 void SliderPack::updateSliders()
@@ -255,13 +246,6 @@ void SliderPack::updateSliders()
 	{
 		Slider *s = sliders[i];
 
-		s->setRange(data->getRange().getStart(), data->getRange().getEnd(), data->getStepSize());
-		s->setColour(Slider::backgroundColourId, findColour(Slider::backgroundColourId));
-		s->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
-		s->setColour(Slider::thumbColourId, findColour(Slider::thumbColourId));
-		s->setColour(Slider::trackColourId, findColour(Slider::trackColourId));
-
-        
         float v = (float)data->getValue(i);
         v = FloatSanitizers::sanitizeFloatNumber(v);
         
@@ -269,7 +253,8 @@ void SliderPack::updateSliders()
 
 	}
 
-	if (getWidth() != 0) resized();
+	if (getWidth() != 0) 
+		resized();
 }
 
 
@@ -280,7 +265,25 @@ double SliderPack::getValue(int sliderIndex)
 
 void SliderPack::setValue(int sliderIndex, double newValue)
 {
-	data->setValue(sliderIndex, (float)newValue, dontSendNotification);
+	data->setValue(sliderIndex, (float)newValue, sendNotificationAsync, false);
+}
+
+void SliderPack::setSliderPackData(SliderPackData* newData)
+{
+	if (data != newData)
+	{
+		if (data != nullptr)
+			data->removeListener(this);
+
+		data = newData;
+
+		slidersNeedRebuild = true;
+		startTimer(30);
+
+		if (data != nullptr)
+			data->addListener(this);
+	}
+	
 }
 
 void SliderPack::resized()
@@ -292,7 +295,6 @@ void SliderPack::resized()
         float widthPerSlider = (float)w / (float)data->getNumSliders();
         
 		float x = 0.0f;
-		
 
         for (int i = 0; i < sliders.size(); i++)
         {
@@ -325,21 +327,6 @@ void SliderPack::resized()
     }
 }
 
-void SliderPack::changeListenerCallback(SafeChangeBroadcaster *)
-{
-	if (data->getNumSliders() != sliders.size())
-		setNumSliders(data->getNumSliders());
-
-	const int displayIndex = data->getNextIndexToDisplay();
-
-	if (displayIndex != -1 && currentDisplayIndex != displayIndex)
-	{
-		setDisplayedIndex(displayIndex);
-	}
-	else
-		update();
-}
-
 void SliderPack::update()
 {
 	for (int i = 0; i < sliders.size(); i++)
@@ -353,37 +340,17 @@ void SliderPack::update()
 
 SliderPack::~SliderPack()
 {
-	if(data.get() != nullptr) data->removeChangeListener(this);
+	if (auto d = getData())
+		data->removeListener(this);
 }
 
 void SliderPack::sliderValueChanged(Slider *s)
 {
 	int index = sliders.indexOf(s);
 
-    if(data.get() == nullptr) return;
+	if(data.get() == nullptr) return;
     
-	data->setValue(index, (float)s->getValue(), sendNotification, true);
-
-	notifyListeners(index);
-
-}
-
-void SliderPack::notifyListeners(int index)
-{
-	ScopedLock sl(listeners.getLock());
-
-	for (int i = 0; i < listeners.size(); i++)
-	{
-		if (listeners[i].get() != nullptr)
-		{
-			listeners[i]->sliderPackChanged(this, index);
-		}
-		else
-		{
-			listeners.remove(i);
-			i--;
-		}
-	}
+	data->setValue(index, (float)s->getValue(), sendNotificationAsync, true);
 }
 
 void SliderPack::mouseDown(const MouseEvent &e)
@@ -405,7 +372,7 @@ void SliderPack::mouseDown(const MouseEvent &e)
 
 		int sliderIndex = getSliderIndexForMouseEvent(e);
 
-		setDisplayedIndex(sliderIndex);
+		getData()->setDisplayedIndex(sliderIndex);
 
 		Slider *s = sliders[sliderIndex];
 
@@ -501,9 +468,6 @@ void SliderPack::mouseUp(const MouseEvent &e)
 
 	if(!rightClickLine.getStart().isOrigin()) setValuesFromLine();
 
-	
-
-
 	repaint();
 }
 
@@ -512,7 +476,6 @@ void SliderPack::mouseExit(const MouseEvent &)
 	if (!isEnabled()) return;
 
 	currentlyDragged = false;
-
 	repaint();
 }
 
@@ -644,19 +607,16 @@ void SliderPack::setValuesFromLine()
 	rightClickLine = Line<float>(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
-void SliderPack::setDisplayedIndex(int displayIndex)
-{
-	if (currentDisplayIndex != displayIndex)
-	{
-		currentDisplayIndex = displayIndex;
-		displayAlphas.set(displayIndex, 0.4f);
-		startTimer(30);
-	}
-}
-
 void SliderPack::timerCallback()
 {
 	if (data.get() == nullptr) return;
+
+	if (slidersNeedRebuild)
+	{
+		rebuildSliders();
+		slidersNeedRebuild = false;
+		stopTimer();
+	}
 
 	if (!data->isFlashActive()) return;
 
@@ -735,10 +695,8 @@ void SliderPack::setColourForSliders(int colourId, Colour c)
 	// when the sliderpack gets updated, it fetches the colour from here...
 	setColour(colourId, c);
 
-	for (int i = 0; i < sliders.size(); i++)
-	{
-		sliders[i]->setColour(colourId, c);
-	}
+	sliders.clear();
+	rebuildSliders();
 }
 
 void SliderPack::setShowValueOverlay(bool shouldShowValueOverlay)
@@ -755,6 +713,47 @@ void SliderPack::setStepSize(double stepSize)
 	}
 }
 
+
+void SliderPack::rebuildSliders()
+{
+	if (auto d = getData())
+	{
+		displayAlphas.clear();
+
+		auto numSliders = d->getNumSliders();
+
+		displayAlphas.insertMultiple(0, 0.0f, numSliders);
+
+		int numToRemove = sliders.size() - numSliders;
+
+		int numToAdd = -1 * numToRemove;
+
+		for (int i = 0; i < numToRemove; i++)
+		{
+			sliders.removeLast();
+		}
+			
+		for (int i = 0; i < numToAdd; i++)
+		{
+			Slider *s = new Slider();
+			addAndMakeVisible(s);
+			sliders.add(s);
+			s->setLookAndFeel(&laf);
+			s->setInterceptsMouseClicks(false, false);
+			s->addListener(this);
+			s->setSliderStyle(Slider::SliderStyle::LinearBarVertical);
+			s->setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
+
+			s->setRange(data->getRange().getStart(), data->getRange().getEnd(), data->getStepSize());
+			s->setColour(Slider::backgroundColourId, findColour(Slider::backgroundColourId));
+			s->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
+			s->setColour(Slider::thumbColourId, findColour(Slider::thumbColourId));
+			s->setColour(Slider::trackColourId, findColour(Slider::trackColourId));
+		}
+
+		updateSliders();
+	}
+}
 
 int SliderPack::getSliderIndexForMouseEvent(const MouseEvent& e)
 {
@@ -780,11 +779,6 @@ int SliderPack::getSliderIndexForMouseEvent(const MouseEvent& e)
 
 		return 0;
 	}
-}
-
-SliderPack::Listener::~Listener()
-{
-	masterReference.clear();
 }
 
 void SliderPack::SliderLookAndFeel::drawLinearSlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPos*/, float /*minSliderPos*/, float /*maxSliderPos*/, const Slider::SliderStyle style, Slider &s)

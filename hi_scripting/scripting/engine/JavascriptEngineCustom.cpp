@@ -515,6 +515,7 @@ struct HiseJavascriptEngine::RootObject::GlobalVarStatement : public Statement
 	ExpPtr initialiser;
 };
 
+#if HISE_INCLUDE_SNEX
 struct HiseJavascriptEngine::RootObject::SnexDefinition : public Statement
 {
 	SnexDefinition(const CodeLocation& l, const String& code_, const Identifier& classId) noexcept : 
@@ -932,6 +933,7 @@ struct HiseJavascriptEngine::RootObject::SnexConfiguration : public Statement
 	ExpPtr command;
 	ExpPtr argument;
 };
+#endif
 
 struct HiseJavascriptEngine::RootObject::GlobalReference : public Expression
 {

@@ -36,8 +36,6 @@ namespace scriptnode
 {
 using namespace juce;
 using namespace hise;
-using namespace snex;
-using namespace jit;
 
 #if 0
 struct CompiledNodeBase: public ReferenceCountedObject
@@ -151,6 +149,7 @@ struct CompiledNodeBase: public ReferenceCountedObject
 };
 #endif
 
+#if 0
 struct new_jit: public SnexSource,
 				public HiseDspBase
 {
@@ -347,6 +346,7 @@ struct new_jit: public SnexSource,
 	Result lastResult;
 	NodePropertyT<String> classId;
 };
+#endif
 
 
 

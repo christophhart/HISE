@@ -40,6 +40,10 @@
 #include <nmmintrin.h>
 #include <stdint.h>
 
+#ifndef SNEX_WRAP_ALL_NEGATIVE_INDEXES
+#define SNEX_WRAP_ALL_NEGATIVE_INDEXES 0
+#endif
+
 namespace snex {
 namespace Types {
 
@@ -67,56 +71,617 @@ struct DSP
 	}
 };
 
-template <typename Derived> struct index_base
+namespace index
 {
-	index_base(int initValue) : value(initValue) {};
-	Derived& operator=(int v) { value = v; return asDerived(); }
 
-	// Preinc
-	int operator++()
+struct Helpers
+{
+	template <typename C> static int getLowestBounds(const C& first)
 	{
-		value++;
-		return (int)asDerived();
+		return first.size();
 	}
 
-	// Postinc
+	template <typename C, typename... Cs> static int getLowestBounds(const C& first, const Cs&... others)
+	{
+		return jmin<int>(first.size(), getLowestBounds(others...));
+	}
+
+	template <typename IndexType> constexpr static bool canReturnReference()
+	{
+		if constexpr (std::is_integral<IndexType>())
+			return true;
+		else
+			return IndexType::canReturnReference();
+	}
+
+	template <typename LogicType> static constexpr int getUpperLimitOrMaxInt()
+	{
+		constexpr int v = LogicType::getUpperLimit();
+		return v == 0 ? INT_MAX : v;
+	}
+};
+
+
+
+/** The wrapped index type can be used for an integer index that will wrap around
+	the boundaries in order to implement eg. ring buffers.
+
+	The template argument specifies the compile time boundary. If it is zero, you can
+	use it dynamically with the getWithDynamicLimit() method
+
+	You can either create them directly or use the IndexType helper class
+	for a leaner syntax:
+
+	@code
+	span<float, 19> data = { 2.0f };
+
+	span<float, 19>::wrapped idx2 = data;
+
+	// Just pass the span into the function
+	auto idx1 = IndexType::wrapped(data);
+	@endcode
+	*/
+template <int UpperLimit> struct wrapped_logic
+{
+	using LogicType = wrapped_logic<UpperLimit>;
+
+	static constexpr bool hasBoundCheck() { return true; };
+	static constexpr bool hasDynamicBounds() { return UpperLimit == 0; }
+	static constexpr int getUpperLimit() { return UpperLimit; }
+	static constexpr bool redirectOnFailure() { return false; }
+
+	static String toString() { return "wrapped"; };
+
+	template <typename T> static T getWithDynamicLimit(T input, T limit)
+	{
+		if constexpr (std::is_floating_point<T>())
+		{
+			if constexpr (hasDynamicBounds())
+				return hmath::fmod(input, limit);
+			else
+				return hmath::fmod(input, (T)UpperLimit);
+		}
+		else
+		{
+#if SNEX_WRAP_ALL_NEGATIVE_INDEXES
+			if constexpr (hasDynamicBounds())
+				return (input >= 0) ? input % limit : (limit - abs(input) % limit) % limit;
+			else
+				return (input >= 0) ? input % UpperLimit : (UpperLimit - abs(input) % UpperLimit) % UpperLimit;
+#else
+			if constexpr (hasDynamicBounds())
+				return (input + 9000 * limit) % limit;
+			else
+				return (input + 9000 * UpperLimit) % UpperLimit;
+#endif
+		}
+	}
+
+	template <typename ContainerType> static auto& getRedirected(ContainerType& c, int index)
+	{
+		jassert(isPositiveAndBelow(index, c.size()));
+		return *(c.begin() + index);
+	}
+};
+
+
+
+/** An index type that will clamp the value to the limits, so that its zero for negative input and `size-1` for values outside the boundary.
+
+		This is useful for look up tables etc.
+*/
+template <int UpperLimit> struct clamped_logic
+{
+	using LogicType = clamped_logic<UpperLimit>;
+
+	static constexpr bool hasBoundCheck() { return true; };
+	static constexpr bool hasDynamicBounds() { return UpperLimit == 0; }
+	static constexpr int getUpperLimit() { return UpperLimit; }
+	static constexpr bool redirectOnFailure() { return false; }
+
+	static String toString() { return "clamped"; };
+
+	template <typename T> static T getWithDynamicLimit(T input, T limit)
+	{
+		if constexpr (hasDynamicBounds())
+			return hmath::range(input, T(0), limit - T(1));
+		else
+			return hmath::range(input, T(0), T(getUpperLimit() - 1));
+	}
+
+	template <typename ContainerType> static auto& getRedirected(ContainerType& c, int index)
+	{
+		jassert(isPositiveAndBelow(index, c.size()));
+		return *(c.begin() + index);
+	}
+};
+
+/** An index type that is not performing any bounds-check at all. Use it at your own risk! */
+template <int UpperLimit, int Offset> struct unsafe_logic
+{
+	using LogicType = unsafe_logic;
+
+	static constexpr bool hasBoundCheck() { return false; };
+	static constexpr bool hasDynamicBounds() { return UpperLimit == 0; }
+	static constexpr int getUpperLimit() { return UpperLimit; }
+
+	static String toString() { return "unsafe"; };
+
+	template <typename T> static T getWithDynamicLimit(T input, T limit)
+	{
+		ignoreUnused(limit);
+		return input;
+	}
+
+	template <typename ContainerType> static auto& getRedirected(ContainerType& c, int index)
+	{
+		jassert(isPositiveAndBelow(index + Offset, c.size()));
+		return *(c.begin() + (index + Offset));
+	}
+};
+
+
+/** The base class for integer indexes. */
+template <typename LT, bool CheckOnAssign> struct integer_index
+{
+	using Type = int;
+	using LogicType = LT;
+
+	static constexpr bool checkBoundsOnAssign() { return !LogicType::hasDynamicBounds() && CheckOnAssign; }
+	static constexpr bool canReturnReference() { return true; }
+	static constexpr bool isExceptionSafe() { return LogicType::hasBoundCheck() || LogicType::redirectOnFailure(); }
+
+	static String toString()
+	{
+		String s;
+		s << "index::" << LogicType::toString();
+		s << "<" << LogicType::getUpperLimit() << ", ";
+		s << (checkBoundsOnAssign() ? "true" : "false") << ">";
+		return s;
+	}
+
+	integer_index(Type initValue=Type(0))
+	{
+		*this = initValue;
+	};
+
+	integer_index& operator=(Type v)
+	{ 
+		value = v; 
+
+		if constexpr (checkBoundsOnAssign())
+			value = LogicType::getWithDynamicLimit(v, LogicType::getUpperLimit());
+
+		return *this;
+	}
+
+	// Preinc
+	integer_index& operator++()
+	{
+		if constexpr (checkBoundsOnAssign())
+			value = LogicType::getWithDynamicLimit(++value, LogicType::getUpperLimit());
+		else
+			++value;
+
+		return *this;
+	}
+
+	// Postinc will always return a checked index
 	int operator++(int)
 	{
-		auto v = value;
-		operator++();
-		return v;
+		if constexpr (checkBoundsOnAssign())
+		{
+			auto v = value;
+			value = LogicType::getWithDynamicLimit(v + 1, LogicType::getUpperLimit());
+			return v;
+		}
+		else
+		{
+			auto v = LogicType::getWithDynamicLimit(value, LogicType::getUpperLimit());
+			++value;
+			return v;
+		}
 	}
 
 	// Preinc
-	int operator--()
+	integer_index& operator--()
 	{
-		value--;
-		return (int)asDerived();
+		if constexpr (checkBoundsOnAssign())
+			value = LogicType::getWithDynamicLimit(--value, LogicType::getUpperLimit());
+		else
+			--value;
+
+		return *this;
 	}
 
 	// Postinc
-	int operator--(int)
+	Type operator--(int)
 	{
-		auto v = value;
-		operator--();
-		return v;
+		if constexpr (checkBoundsOnAssign())
+		{
+			auto v = value;
+			value = LogicType::getWithDynamicLimit(v - 1, LogicType::getUpperLimit());
+			return v;
+		}
+		else
+		{
+			auto v = LogicType::getWithDynamicLimit(value, LogicType::getUpperLimit());
+			--value;
+			return v;
+		}
 	}
 
-	Derived& moved(int delta)
+	integer_index operator+(int delta) const
 	{
-		value += delta;
-		return asDerived();
+		return integer_index(value + delta);
+	}
+
+	integer_index operator-(int delta) const
+	{
+		return integer_index(value - delta);
+	}
+
+	bool next() const
+	{
+		static_assert(LogicType::getUpperLimit() > 0, "can't check dynamic index without container arguments");
+		static_assert(!LogicType::hasBoundCheck(), "wrapped indexes are always inside the boundaries");
+
+		auto ok = isPositiveAndBelow(value, LogicType::getUpperLimit());
+		operator++();
+		return ok;
+	}
+
+	template <typename... Cs> bool next(const Cs&... containers)
+	{
+		static_assert(!LogicType::hasBoundCheck(), "wrapped indexes are always inside the boundaries");
+
+		auto minSize = Helpers::getLowestBounds(containers...);
+
+		if constexpr (LogicType::getUpperLimit() > 0)
+			minSize = jmin(minSize, LogicType::getUpperLimit());
+
+		auto ok = isPositiveAndBelow(value, minSize);
+		operator++();
+		return ok;
+	}
+
+	explicit operator int() const
+	{
+		static_assert(!LogicType::hasDynamicBounds(), "can't use int operator with dynamic indexes");
+
+		if constexpr (checkBoundsOnAssign())
+			return value;
+
+		return LogicType::getWithDynamicLimit(value, LogicType::getUpperLimit());
+	}
+
+	template <typename ContainerType> auto& getFrom(const ContainerType& c) const
+	{
+		auto idx = value;
+
+		if constexpr (!checkBoundsOnAssign() && LogicType::hasBoundCheck())
+		{
+			// We need to pass in at least 1 into the function or the wrapping might
+			// lead to a division by zero exception for empty dynamic containers
+			idx = LogicType::getWithDynamicLimit(idx, jmax(1, c.size()));
+		}
+
+		return LogicType::getRedirected(c, idx);
+	}
+
+private:
+
+	Type value = Type(0);
+};
+
+
+
+template <int UpperLimit, bool CheckOnAssign=false> using wrapped = integer_index<wrapped_logic<UpperLimit>, CheckOnAssign>;
+template <int UpperLimit, bool CheckOnAssign=false> using clamped = integer_index<clamped_logic<UpperLimit>, CheckOnAssign>;
+template <int UpperLimit, bool CheckOnAssign=false> using unsafe = integer_index<unsafe_logic<UpperLimit, 0>, false>;
+template <int UpperLimit, bool CheckOnAssign = false> using previous = integer_index<unsafe_logic<UpperLimit, -1>, false>;
+
+
+template <typename FloatType, typename IntegerIndexType, bool IsNormalised> struct float_index
+{
+	using Type = FloatType;
+	using LogicType = typename IntegerIndexType::LogicType;
+
+	static constexpr bool canReturnReference() { return true; }
+
+	static String toString()
+	{
+		String s;
+		s << "index::" << (IsNormalised ? "normalised" : "unscaled");
+		s << "<" << Types::Helpers::getTypeNameFromTypeId<Type>() << ", ";
+		s << IntegerIndexType::toString() << ">";
+		return s;
+	}
+
+	float_index(FloatType initValue = 0)
+	{
+		*this = initValue;
+	}
+
+	static constexpr bool hasDynamicBounds() { return LogicType::hasDynamicBounds(); }
+
+	static constexpr Type getUpperLimit()
+	{
+		static_assert(!LogicType::hasDynamicBounds(), "can't use upper limit on dynamic bounds");
+		return (FloatType)LogicType::getUpperLimit();
+	}
+
+	static constexpr bool hasBoundCheck() { return LogicType::hasBoundCheck(); };
+	static constexpr bool checkBoundsOnAssign() { return !hasDynamicBounds() && IntegerIndexType::checkBoundsOnAssign(); }
+
+	FloatType getAlpha(int limit) const
+	{
+		auto f = from0To1(v, limit);
+		return f - (FloatType)((int)f);
+	}
+
+	int getIndex(int limit, int delta=0) const
+	{
+		jassert(!hasDynamicBounds() || limit > 0);
+
+		auto scaled = (int)from0To1(v, limit) + delta;
+		return LogicType::getWithDynamicLimit(scaled, jmax(1, limit));
+	}
+
+	float_index& operator=(FloatType t)
+	{
+		v = t;
+
+		if constexpr (checkBoundsOnAssign())
+		{
+			auto scaled = from0To1(v, 0);
+			auto checked = LogicType::getWithDynamicLimit(scaled, FloatType(0));
+			v = to0To1(checked, 0);
+		}
+
+		return *this;
+	}
+
+	float_index operator+(FloatType t) const
+	{
+		return float_index(v + t);
+	}
+
+	float_index operator-(FloatType t) const
+	{
+		return float_index(v - t);
+	}
+
+	explicit operator FloatType() const
+	{
+		static_assert(!LogicType::hasDynamicBounds(), "can't use int operator with dynamic indexes");
+
+		if constexpr (checkBoundsOnAssign())
+			return v;
+
+		auto scaled = from0To1(v, 0);
+		auto limit = (FloatType)LogicType::getUpperLimit();
+		return LogicType::getWithDynamicLimit(scaled, limit);
+	}
+
+	template <typename ContainerType> auto& getFrom(const ContainerType& c) const
+	{
+		auto idx = getIndex(c.size());
+		return LogicType::getRedirected(c, idx);
+	}
+
+private:
+
+	FloatType v = FloatType(0);
+
+	FloatType from0To1(FloatType v, int limit) const
+	{
+		if constexpr (IsNormalised)
+		{
+			if constexpr (!hasDynamicBounds())
+				return v * (getUpperLimit());
+			else
+				return v * (FloatType)(limit);
+		}
+		else
+			return v;
+	}
+
+	FloatType to0To1(FloatType v, int limit) const
+	{
+		if constexpr (IsNormalised)
+		{
+			if constexpr (!hasDynamicBounds())
+				return v * (FloatType(1) / (getUpperLimit()));
+			else
+				return v / (FloatType)(limit);
+		}
+		else
+			return v;
+	}
+};
+
+template <typename FloatType, typename IntegerIndexType> using normalised = float_index<FloatType, IntegerIndexType, true>;
+
+template <typename FloatType, typename IntegerIndexType> using unscaled = float_index<FloatType, IntegerIndexType, false>;
+
+
+template <typename IndexType> struct interpolator_base
+{
+	static constexpr bool canReturnReference() { return false; }
+
+	static constexpr bool redirectOnFailure() { return IndexType::LogicType::redirectOnFailure(); }
+
+	static constexpr bool hasBoundCheck() { return IndexType::hasBoundCheck(); };
+
+	using LogicType = typename IndexType::LogicType;
+	using Type = typename IndexType::Type;
+
+	interpolator_base(Type initValue = Type(0)):
+		idx(initValue)
+	{
+		static_assert(std::is_floating_point<Type>(), "index type must be float for linear interpolation");
+	}
+
+	interpolator_base& operator=(Type v)
+	{
+		idx = v;
+		return *this;
+	}
+
+	interpolator_base operator+(FloatType t) const
+	{
+		return interpolator_base(v + t);
+	}
+
+	interpolator_base operator-(FloatType t) const
+	{
+		return interpolator_base(v - t);
+	}
+
+	explicit operator Type() const
+	{
+		return (Type)idx;
 	}
 
 protected:
 
-	int value = 0;
+	IndexType idx;
+};
+
+template <typename IndexType> struct lerp: public interpolator_base<IndexType>
+{
+	lerp(Type initValue=Type(0)):
+		interpolator_base<IndexType>(initValue)
+	{}
+
+	static String toString()
+	{
+		String s;
+		s << "index::lerp";
+		s << "<" << IndexType::toString() << ">";
+		return s;
+	}
+
+	template <typename ContainerType> auto getFrom(const ContainerType& t) const
+	{
+		auto i1 = idx.getIndex(t.size(), 0);
+		auto i2 = idx.getIndex(t.size(), 1);
+		auto alpha = idx.getAlpha(t.size());
+
+		return getFromImpl(t, i1, i2, alpha, std::is_floating_point<ContainerType::DataType>());
+	}
+
+	
 
 private:
 
-	Derived& asDerived() { return (*static_cast<Derived*>(this)); }
-	const Derived& asDerived() const { return (*static_cast<const Derived*>(this)); }
+	template <typename ContainerType> auto getFromImpl(const ContainerType& t, int i1, int i2, Type alpha, std::true_type) const
+	{
+		using ElementType = typename ContainerType::DataType;
+
+		auto v1 = LogicType::getRedirected(t, i1);
+		auto v2 = LogicType::getRedirected(t, i2);
+
+		return interpolate(v1, v2, (ElementType)alpha);
+	}
+
+	template <typename ContainerType> auto getFromImpl(const ContainerType& t, int i1, int i2, Type alpha, std::false_type) const
+	{
+		using ElementType = typename ContainerType::DataType;
+
+		ElementType d;
+
+		index::unsafe<0> j;
+
+		for (auto& s : d)
+		{
+			auto x0 = t[i1][j];
+			auto x1 = t[i2][j];
+			++j;
+
+			s = interpolate(x0, x1, (typename ElementType::DataType)alpha);
+		}
+
+		return d;
+	}
+
+	static Type interpolate(Type x0, Type x1, Type alpha)
+	{
+		return x0 + (x1 - x0) * alpha;
+	}
 };
+
+template <typename IndexType> struct hermite : public interpolator_base<IndexType>
+{
+	hermite(Type initValue = Type(0)) :
+		interpolator_base<IndexType>(initValue)
+	{}
+
+	static String toString()
+	{
+		String s;
+		s << "index::hermite";
+		s << "<" << IndexType::toString() << ">";
+		return s;
+	}
+
+	template <typename ContainerType> auto getFrom(const ContainerType& t) const
+	{
+		auto i0 = idx.getIndex(t.size(), -1);
+		auto i1 = idx.getIndex(t.size(), 0);
+		auto i2 = idx.getIndex(t.size(), 1);
+		auto i3 = idx.getIndex(t.size(), 2);
+		auto alpha = idx.getAlpha(t.size());
+
+		return getFromImpl(t, i0, i1, i2, i3, alpha, std::is_floating_point<ContainerType::DataType>());
+	}
+
+private:
+
+	template <typename ContainerType> auto getFromImpl(const ContainerType& t, int i0, int i1, int i2, int i3, Type alpha, std::true_type) const
+	{
+		using ElementType = typename ContainerType::DataType;
+
+		const auto v0 = LogicType::getRedirected(t, i0);
+		const auto v1 = LogicType::getRedirected(t, i1);
+		const auto v2 = LogicType::getRedirected(t, i2);
+		const auto v3 = LogicType::getRedirected(t, i3);
+
+		return interpolate(v0, v1, v2, v3, (ElementType)alpha);
+	}
+
+	template <typename ContainerType> auto getFromImpl(const ContainerType& t, int i0, int i1, int i2, int i3, Type alpha, std::false_type) const
+	{
+		using ElementType = typename ContainerType::DataType;
+
+		ElementType d;
+		index::unsafe<0> j;
+
+		for(auto& s: d)
+		{
+			const auto v0 = t[i0][j];
+			const auto v1 = t[i1][j];
+			const auto v2 = t[i2][j];
+			const auto v3 = t[i3][j];
+
+			++j;
+			s = interpolate(v0, v1, v2, v3, (typename ElementType::DataType)alpha);
+		}
+
+		return d;
+	}
+
+	static Type interpolate(Type x0, Type x1, Type x2, Type x3, Type alpha)
+	{
+		Type a = ((Type(3) * (x1 - x2)) - x0 + x3) * Type(0.5);
+		Type b = x2 + x2 + x0 - (Type(5) *x1 + x3) * Type(0.5);
+		Type c = (x2 - x0) * Type(0.5);
+		return ((a*alpha + b)*alpha + c)*alpha + x1;
+	};
+};
+
+}
 
 
 
@@ -141,31 +706,10 @@ template <class T, int Size> struct span
 
 	static constexpr int s = Size;
 
-	/** The wrapped index type can be used for an index that will wrap around
-	    the boundaries in order to implement eg. ring buffers.
+	using wrapped = index::wrapped<Size, false>;
+	using clamped = index::clamped<Size, false>;
 
-		You can either create them directly or use the IndexType helper class
-		for a leaner syntax:
-		
-		@code
-		span<float, 19> data = { 2.0f };
-
-		span<float, 19>::wrapped idx2 = data;
-
-		// Just pass the span into the function
-		auto idx1 = IndexType::wrapped(data);
-		@endcode
-	*/
-	struct wrapped: public index_base<wrapped>
-	{
-		wrapped(int initValue=0) : index_base<wrapped>(initValue) {}
-		wrapped& operator=(int v) { this->value = v; return *this; };
-
-		operator int() const
-		{
-			return this->value >= 0 ? this->value % Size : (Size - abs(this->value%Size)) % Size;
-		}
-	};
+	static constexpr bool hasCompileTimeSize() { return true; }
 
 	struct zeroed
 	{
@@ -178,36 +722,11 @@ template <class T, int Size> struct span
 		}
 	};
 
-	/** An index type that will clamp the value to the limits, so that its zero for negative input and `size-1` for values outside the boundary.
-
-		This is useful for look up tables etc. 
-	*/
-	struct clamped: public index_base<clamped>
-	{
-		clamped(int initValue=0) : index_base<clamped>(initValue) {}
-		clamped& operator=(int v) { this->value = v; return *this; };
-
-		operator int() const
-		{
-			return jlimit(0, Size - 1, this->value);
-		}
-	};
-
-	/** An index type that is not performing any bounds-check at all. Use it at your own risk! */
-	struct unsafe: public index_base<unsafe>
-	{
-		unsafe(int initValue=0) : index_base<unsafe>(initValue) {}
-		unsafe& operator=(int v) { this->value = v; return *this; };
-
-		operator int() const
-		{
-			return this->value;
-		}
-	};
+	
 
 	span()
 	{
-		
+		clear();
 	}
 
 	span(const std::initializer_list<T>& l)
@@ -361,6 +880,12 @@ template <class T, int Size> struct span
 		return *this;
 	}
 
+	void clear()
+	{
+		for (auto& s : *this)
+			s = DataType();
+	}
+
 	T accumulate() const
 	{
 		static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
@@ -391,9 +916,9 @@ template <class T, int Size> struct span
 	}
 
 
-	template <class WrapType> float interpolate(float index)
+	template <class InterpolatorType> DataType interpolate(InterpolatorType& i) const
 	{
-		return DSP::interpolate<WrapType>(*this, index);
+		return i.getFrom(*this);
 	}
 
 	template <class ObjectType> static bool isAlignedTo16Byte(ObjectType& d)
@@ -444,17 +969,47 @@ template <class T, int Size> struct span
 		return *reinterpret_cast<Type*>(this);
 	}
 
-	template <class IndexType> const T& operator[](IndexType i) const
+	template<typename IndexType> typename std::enable_if<index::Helpers::canReturnReference<IndexType>(), const T&>::type
+		operator[](const IndexType& t) const
 	{
-		auto idx = (int)i;
-		return data[idx];
+		if constexpr (std::is_integral<IndexType>())
+		{
+			jassert(isPositiveAndBelow((int)t, size()));
+			return data[t];
+		}
+		else
+		{
+			return t.getFrom(*this);
+		}
 	}
 
-	template <class IndexType> T& operator[](IndexType i)
+	template<typename IndexType> typename std::enable_if<!index::Helpers::canReturnReference<IndexType>(), T>::type
+		operator[](const IndexType& t) const
 	{
-		auto idx = (int)i;
-		return data[idx];
+		return t.getFrom(*this);
 	}
+
+	template<typename IndexType> typename std::enable_if<!index::Helpers::canReturnReference<IndexType>(), T>::type
+		operator[](const IndexType& t)
+	{
+		return t.getFrom(*this);
+	}
+
+	template<typename IndexType> typename std::enable_if<index::Helpers::canReturnReference<IndexType>(), T&>::type
+		operator[](const IndexType& t)
+	{
+		if constexpr (std::is_integral<IndexType>())
+		{
+			jassert(isPositiveAndBelow((int)t, size()));
+			return data[t];
+		}
+		else
+		{
+			return *const_cast<T*>(&t.getFrom(*this));
+		}
+	}
+
+	
 
 	/** Morphs any pointer of the data type into this type. */
 	constexpr static Type& as(T* ptr)
@@ -501,87 +1056,7 @@ template <class T, int Size> struct span
 	alignas(alignment()) T data[Size];
 };
 
-struct dyn_indexes
-{
-#if 0
-	struct wrapped : public index_base<wrapped>
-	{
-		wrapped(int initValue) :
-			index_base<wrapped>(0),
-			size(maxSize)
-		{}
 
-		wrapped& operator=(int v) { value = v; return *this; };
-
-		operator int() const
-		{
-			return value % size;
-		}
-
-	private:
-
-		const int size = 0;
-	};
-
-	struct zeroed : public index_base<zeroed>
-	{
-		zeroed(int maxSize) :
-			index_base<zeroed>(0),
-			size(maxSize)
-		{}
-
-		zeroed& operator=(int v) { value = v; return *this; };
-
-		operator int() const
-		{
-			if (isPositiveAndBelow(value, size))
-				return value;
-
-			return 0;
-		}
-
-	private:
-
-		const int size = 0;
-	};
-
-	struct clamped : public index_base<clamped>
-	{
-		clamped(int maxSize) :
-			index_base<clamped>(0),
-			size(jmax(0, maxSize - 1))
-		{}
-
-		clamped& operator=(int v) { value = v; return *this; };
-
-		operator int() const
-		{
-			return jlimit(0, size, value);
-		}
-
-	private:
-
-		int size = 0;
-	};
-#endif
-
-	struct unsafe : public index_base<unsafe>
-	{
-		unsafe(int initValue=0) :
-			index_base<unsafe>(initValue)
-		{}
-
-		operator int() const
-		{
-			return value;
-		}
-	};
-
-	// The entire index type concept for dyns is flawed...
-	using wrapped = unsafe;
-	using clamped = unsafe;
-	using zeroed = unsafe;
-};
 
 /** This alias is a special type on its own as it has mathematical operators that directly translate to SSE instructions. */
 using float4 = span<float, 4>;
@@ -597,16 +1072,16 @@ template <class T> struct dyn
 	using Type = dyn<T>;
 	using DataType = T;
 
-	using wrapped = dyn_indexes::wrapped;
-	using unsafe = dyn_indexes::unsafe;
-	using clamped = dyn_indexes::clamped;
-	using zeroed = dyn_indexes::zeroed;
+	using wrapped = index::wrapped<0, false>;
+	using clamped = index::clamped<0, false>;
+	using unsafe = index::unsafe<0, false>;
+
+	static constexpr bool hasCompileTimeSize() { return false; }
 
 	dyn() :
 		data(nullptr),
 		size_(0)
 	{}
-
 
 	template<class Other> dyn(Other& o) :
 		data(o.begin()),
@@ -663,7 +1138,6 @@ template <class T> struct dyn
 		FloatVectorOperations::fill((float*)begin(), s, size());
 		return asBlock();
 	}
-
 
 	template <typename OtherContainer> dyn<float>& operator=(OtherContainer& other)
 	{
@@ -741,28 +1215,53 @@ template <class T> struct dyn
 		return r;
 	}
 
-	template <class WrapType> float interpolate(float index)
+	void clear()
 	{
-		return DSP::interpolate<WrapType>(*this, index);
+		for (auto& s : *this)
+			s = DataType();
 	}
 
-	template <class IndexType> const T& operator[](IndexType t) const
+	template <class InterpolatorType> DataType interpolate(const InterpolatorType& i) const
 	{
-		int i = (int)t;
-		return data[i];
+		if (isEmpty())
+			return DataType(0);
+
+		return i.getFrom(*this);
 	}
 
-	template <class IndexType> T& operator[](IndexType t)
+	template <class IndexType> const T& operator[](const IndexType& t) const
 	{
-		int i = (int)t;
-		return data[i];
+		jassert(!isEmpty());
+
+		if constexpr (std::is_integral<IndexType>())
+		{
+			jassert(isPositiveAndBelow((int)t, size()));
+			return data[t];
+		}
+		else
+		{
+			return t.getFrom(*this);
+		}
+	}
+
+	template <class IndexType> T& operator[](const IndexType& t)
+	{
+		if constexpr (std::is_integral<IndexType>())
+		{
+			jassert(!isEmpty());
+			jassert(isPositiveAndBelow((int)t, size()));
+			return data[t];
+		}
+		else
+		{
+			return *const_cast<T*>(&t.getFrom(*this));
+		}
 	}
 
 	template <class Other> bool valid(Other& t)
 	{
 		return t.valid(*this);
 	}
-	
 
 	T* begin() const
 	{
@@ -790,6 +1289,13 @@ template <class T> struct dyn
 		unused = Types::ID::Block;
 		newSize = newSize >= 0 ? newSize : t.size();
 		referToRawData(t.begin(), newSize, offset);
+	}
+
+	void referToNothing()
+	{
+		unused = Types::ID::Block;
+		data = nullptr;
+		size_ = 0;
 	}
 
 	/** Refers to a raw data pointer. */
@@ -828,6 +1334,8 @@ template <typename T> struct heap
 	static constexpr ArrayID ArrayType = Types::ArrayID::HeapType;
 	using Type = heap<T>;
 	using DataType = T;
+
+	static constexpr bool hasCompileTimeSize() { return false; }
 
 	int size() const noexcept { return size_; }
 

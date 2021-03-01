@@ -1016,18 +1016,9 @@ void TestDataComponent::buttonClicked(Button* b)
 	}
 	else if (b == compareButton)
 	{
-		auto id = td.parent.getInstanceId();
+		td.saveCurrentTestOutput();
 
-		td.testOutputFile = td.getTestRootDirectory().getChildFile(id.toString()).withFileExtension("wav");
-
-		if (td.testOutputFile.existsAsFile())
-		{
-			AlertWindowLookAndFeel alaf;
-			if (!AlertWindow::showOkCancelBox(AlertWindow::QuestionIcon, "Replace file", "Do you want to replace the output file " + td.testOutputFile.getFullPathName()))
-				return;
-		}
-
-		hlac::CompressionHelpers::dump(td.testOutputData, td.testOutputFile.getFullPathName());
+		
 
 		return;
 	}
@@ -1044,12 +1035,7 @@ void TestDataComponent::buttonClicked(Button* b)
 	{
 		if (fc.browseForFileToOpen())
 		{
-			auto json = JSON::parse(fc.getResult());
-
-			if (json.isObject())
-			{
-				auto ok = td.fromJSON(json);
-			}
+			td.loadFromFile(fc.getResult());
 		}
 	}
 	if (b->getName() == "save-file")
@@ -1058,6 +1044,7 @@ void TestDataComponent::buttonClicked(Button* b)
 		{
 			auto jsonData = JSON::toString(td.toJSON());
 			fc.getResult().replaceWithText(jsonData);
+			td.loadFromFile(fc.getResult());
 		}
 	}
 

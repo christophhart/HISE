@@ -438,9 +438,6 @@ public:
 		/** Creates a MIDI List object. */
         ScriptingObjects::MidiList *createMidiList();
 
-		/** Creates a SliderPack Data object. */
-		ScriptingObjects::ScriptSliderPackData* createSliderPackData();
-
 		/** Creates a SliderPack Data object and registers it so you can access it from other modules. */
 		ScriptingObjects::ScriptSliderPackData* createAndRegisterSliderPackData(int index);
 
@@ -482,11 +479,12 @@ public:
 
 		// ============================================================================================================
 
+#if HISE_INCLUDE_SNEX
 		SnexWrapper* createSnexWrapper() override;
+		struct Snex;
+#endif
 
 		struct Wrapper;
-
-		struct Snex;
 
 		double unused = 0.0;
 
@@ -851,9 +849,11 @@ public:
 
 		struct Wrapper;
 
+#if HISE_INCLUDE_SNEX
 		struct Snex;
 
 		SnexWrapper* createSnexWrapper() override;
+#endif
 
 	private:
 

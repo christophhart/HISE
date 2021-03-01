@@ -64,6 +64,9 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #define DUMP_SCRIPTNODE_VALUETREE 1
 
 
+
+#define REWRITE_SNEX_SOURCE_STUFF 0
+
 #define INCLUDE_TCC 0
 
 #define MAX_SCRIPT_HEIGHT 700
@@ -119,6 +122,8 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 
 
+#include "scripting/scriptnode/ui/PropertyEditor.h"
+
 #include "scripting/scriptnode/api/ModulationSourceNode.h"
 #include "scripting/scriptnode/api/NodeProperty.h"
 #include "scripting/scriptnode/api/StaticNodeWrappers.h"
@@ -131,6 +136,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/nodes/JitNode.h"
 
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.h"
+#include "scripting/scriptnode/ui/FeedbackNodeComponents.h"
 
 
 
@@ -152,6 +158,15 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "scripting/api/ScriptComponentWrappers.h"
 #include "scripting/components/ScriptingContentComponent.h"
+
+#include "scripting/scriptnode/dynamic_elements/DynamicParameterList.h"
+
+
+#include "scripting/scriptnode/dynamic_elements/DynamicComplexData.h"
+#include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.h"
+#include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.h"
+#include "scripting/scriptnode/dynamic_elements/DynamicSmootherNode.h"
+#include "scripting/scriptnode/dynamic_elements/DynamicRoutingNodes.h"
 
 #include "scripting/scriptnode/nodes/AudioFileNodeBase.h"
 

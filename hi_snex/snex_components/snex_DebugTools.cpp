@@ -121,7 +121,14 @@ void debug::PreprocessorMacroProvider::addTokens(mcl::TokenCollection::List& tok
 
 	p.addDefinitionsFromScope(GlobalScope::getDefaultDefinitions());
 
-	p.process();
+	try
+	{
+		p.process();
+	}
+	catch (ParserHelpers::Error& e)
+	{
+		DBG(e.toString());
+	}
 
 	for (auto ad : p.getAutocompleteData())
 	{

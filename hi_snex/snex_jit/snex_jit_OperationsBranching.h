@@ -92,6 +92,8 @@ struct Operations::StatementBlock : public Expression,
 		return true;
 	}
 
+	Ptr getThisExpression();
+
 	bool hasSideEffect() const override
 	{
 		return isInlinedFunction;
@@ -127,8 +129,6 @@ struct Operations::StatementBlock : public Expression,
 	
 
 private:
-
-	void addDestructors(BaseScope* scope);
 
 	asmjit::Label endLabel;
 
@@ -167,7 +167,8 @@ struct Operations::AnonymousBlock : public Expression
 };
 
 
-struct Operations::ReturnStatement : public Expression
+struct Operations::ReturnStatement : public Expression,
+								     public StatementWithControlFlowEffectBase
 {
 	ReturnStatement(Location l, Expression::Ptr expr) :
 		Expression(l)
@@ -223,12 +224,46 @@ struct Operations::ReturnStatement : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
-	ScopeStatementBase* findRoot() const
+	StatementBlock* findInlinedRoot() const;;
+
+	ScopeStatementBase* findRoot() const override
+	{
+		Ptr p = parent.get();
+
+		while (p != nullptr)
+		{
+			if (auto st = as<SyntaxTree>(p))
+			{
+				return st;
+			}
+
+			if (auto sb = as<StatementBlock>(p))
+			{
+				if (sb->isInlinedFunction)
+					return sb;
+			}
+
+			p = p->parent.get();
+		}
+
+		jassertfalse;
+		return nullptr;
+
+		//return ScopeStatementBase::getStatementListWithReturnType(const_cast<ReturnStatement*>(this));
+	}
+
+#if 0
+	ScopeStatementBase* findRoot() const override
 	{
 		return ScopeStatementBase::getStatementListWithReturnType(const_cast<ReturnStatement*>(this));
 	}
+#endif
 
-	StatementBlock* findInlinedRoot() const;;
+
+	Ptr getReturnValue()
+	{
+		return !isVoid() ? getSubExpr(0) : nullptr;
+	}
 
 private:
 
@@ -275,13 +310,40 @@ private:
 struct Operations::WhileLoop : public Statement,
 	public Operations::ConditionalBranch
 {
+	enum class LoopType
+	{
+		While,
+		For,
+		numLoopTypes
+	};
+
+	enum class ChildStatementType
+	{
+		Initialiser,
+		Condition,
+		Body,
+		PostBodyOp,
+		numChildstatementTypes
+	};
+
 	SET_EXPRESSION_ID(WhileLoop);
 
 	WhileLoop(Location l, Ptr condition, Ptr body) :
-		Statement(l)
+		Statement(l),
+		loopType(LoopType::While)
 	{
 		addStatement(condition);
 		addStatement(body);
+	}
+
+	WhileLoop(Location l, Ptr initialiser, Ptr condition, Ptr body, Ptr postOp):
+		Statement(l),
+		loopType(LoopType::For)
+	{
+		addStatement(initialiser);
+		addStatement(condition);
+		addStatement(body);
+		addStatement(postOp);
 	}
 
 	ValueTree toValueTree() const override
@@ -291,12 +353,25 @@ struct Operations::WhileLoop : public Statement,
 
 	Statement::Ptr clone(Location l) const override
 	{
-		auto c = getSubExpr(0)->clone(l);
-		auto b = getSubExpr(1)->clone(l);
+		if (loopType == LoopType::While)
+		{
+			auto c = getSubExpr(0)->clone(l);
+			auto b = getSubExpr(1)->clone(l);
 
-		auto w = new WhileLoop(l, c, b);
+			auto w = new WhileLoop(l, c, b);
 
-		return w;
+			return w;
+		}
+		else
+		{
+			auto b1 = getSubExpr(0)->clone(l);
+			auto b2 = getSubExpr(1)->clone(l);
+			auto b3 = getSubExpr(2)->clone(l);
+			auto b4 = getSubExpr(3)->clone(l);
+
+			auto w = new WhileLoop(l, b1, b2, b3, b4);
+			return w;
+		}
 	}
 
 	TypeInfo getTypeInfo() const override
@@ -308,6 +383,14 @@ struct Operations::WhileLoop : public Statement,
 	Compare* getCompareCondition();
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
+
+	const LoopType loopType;
+
+	BaseScope* getScopeToUse(BaseScope* outerScope);
+
+	Ptr getLoopChildStatement(ChildStatementType t);
+
+	ScopedPointer<RegisterScope> forScope;
 };
 
 struct Operations::Loop : public Expression,

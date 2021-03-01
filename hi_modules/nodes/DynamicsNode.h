@@ -61,9 +61,13 @@ public:
 
 	static Identifier getStaticId();
 
+	static constexpr bool isNormalisedModulation() { return true; };
+
 	SN_GET_SELF_AS_OBJECT(dynamics_wrapper);
 
 	dynamics_wrapper();
+
+	HISE_EMPTY_HANDLE_EVENT;
 
 	void createParameters(ParameterDataList& data);
 	bool handleModulation(double& max) noexcept;;
@@ -110,13 +114,15 @@ public:
 	enum class Parameters
 	{
 		Attack,
-		Release
+		Release,
+		ProcessSignal
 	};
 
 	DEFINE_PARAMETERS
 	{
 		DEF_PARAMETER(Attack, envelope_follower);
 		DEF_PARAMETER(Release, envelope_follower);
+		DEF_PARAMETER(ProcessSignal, envelope_follower)
 	}
 
 	SET_HISE_NODE_ID("envelope_follower");
@@ -124,13 +130,20 @@ public:
 
 	envelope_follower();
 
-	bool handleModulation(double&) noexcept { return false; };
+	static constexpr bool isNormalisedModulation() { return true; }
+
+	HISE_EMPTY_HANDLE_EVENT;
+
+	bool handleModulation(double& v) noexcept { return modValue.getChangedValue(v); };
 	void prepare(PrepareSpecs ps);
 	void reset() noexcept;
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-        snex::Types::FrameConverters::forwardToFrameStereo(this, data);
+		if (data.getNumChannels() == 1)
+			snex::Types::FrameConverters::forwardToFrameMono(this, data);
+		if(data.getNumChannels() == 2)
+			snex::Types::FrameConverters::forwardToFrameStereo(this, data);
 	}
 
 	template <typename FrameType> void processFrame(FrameType& data)
@@ -140,19 +153,34 @@ public:
 		for (auto& s: data)
 			input = Math.max(Math.abs(s), input);
 
-		input = envelope.calculateValue(input);
+		auto output = envelope.calculateValue(input);
 		
-		for (auto& s : data)
-			s = input;
+		if (processSignal)
+		{
+			for (auto& s : data)
+				s = output;
+		}
+
+		modValue.setModValue(output);
 	}
 
 	void setAttack(double v);
 	void setRelease(double v);
 
+	void setProcessSignal(double v)
+	{
+		processSignal = v > 0.5;
+	}
+
 	void createParameters(ParameterDataList& data);
 
 	EnvelopeFollower::AttackRelease envelope;
+
+	ModValue modValue;
+
 	hmath Math;
+	
+	bool processSignal = false;
 };
 
 

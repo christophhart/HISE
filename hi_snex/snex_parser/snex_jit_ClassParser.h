@@ -51,7 +51,7 @@ public:
 
 	StatementPtr addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids) override;
 
-	StatementPtr parseStatement() override;
+	StatementPtr parseStatement(bool mustHaveSemicolon) override;
 	StatementPtr parseVariableDefinition();
 	StatementPtr parseFunction(const Symbol& s) override;
 	StatementPtr parseSubclass(NamespaceHandler::Visibility defaultVisibility);
@@ -59,6 +59,8 @@ public:
 	NamespaceHandler::Visibility parseVisibility();
 
 	StatementPtr parseVisibilityStatement();
+
+	StatementPtr parseTypeCastOverload();
 };
 
 

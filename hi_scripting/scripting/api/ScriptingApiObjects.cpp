@@ -629,6 +629,26 @@ void ScriptingObjects::ScriptDownloadObject::start()
 	}
 }
 
+ScriptingObjects::ScriptComplexDataReferenceBase::ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type_, ExternalDataHolder* otherHolder/*=nullptr*/) :
+	ConstScriptingObject(c, 0),
+	index(dataIndex),
+	type(type_),
+	holder(otherHolder != nullptr ? otherHolder : dynamic_cast<ExternalDataHolder*>(c))
+{
+	if (holder != nullptr)
+	{
+		complexObject = holder->getComplexBaseType(getDataType(), index);
+	}
+}
+
+void ScriptingObjects::ScriptComplexDataReferenceBase::setPosition(double newPosition)
+{
+	if (complexObject != nullptr)
+	{
+		complexObject->getUpdater().sendDisplayChangeMessage(newPosition, sendNotificationAsync);
+	}
+}
+
 struct ScriptingObjects::ScriptAudioFile::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, loadFile);
@@ -639,9 +659,8 @@ struct ScriptingObjects::ScriptAudioFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptAudioFile, getSampleRate);
 };
 
-ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent* pwsc) :
-	ConstScriptingObject(pwsc, 0),
-	SimpleTimer(pwsc->getMainController_()->getGlobalUIUpdater())
+ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index_, snex::ExternalDataHolder* otherHolder) :
+	ScriptComplexDataReferenceBase(pwsc, 0, snex::ExternalData::DataType::AudioFile, otherHolder)
 {
 	ADD_API_METHOD_2(setRange);
 	ADD_API_METHOD_1(loadFile);
@@ -649,116 +668,55 @@ ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent
 	ADD_API_METHOD_0(update);
 	ADD_API_METHOD_0(getNumSamples);
 	ADD_API_METHOD_0(getSampleRate);
-
-	buffer = new RefCountedBuffer();
-}
-
-void ScriptingObjects::ScriptAudioFile::handleAsyncUpdate()
-{
-	for (auto l : listeners)
-	{
-		if (l != nullptr)
-			l->contentChanged();
-	}
 }
 
 void ScriptingObjects::ScriptAudioFile::clear()
 {
-	RefCountedBuffer::Ptr newB = new RefCountedBuffer();
-
-	{
-		SpinLock::ScopedLockType sl(getLock());
-		std::swap(newB, buffer);
-	}
+	if (auto buffer = getBuffer())
+		buffer->fromBase64String({});
 }
 
 void ScriptingObjects::ScriptAudioFile::setRange(int min, int max)
 {
-	int numChannels = buffer->all.getNumChannels();
-
-	if (numChannels == 0)
+	if (auto buffer = getBuffer())
 	{
-		clear();
-		return;
+		int numChannels = buffer->getBuffer().getNumChannels();
+
+		if (numChannels == 0)
+		{
+			clear();
+			return;
+		}
+
+		min = jmax(0, min);
+		max = jmin(buffer->getBuffer().getNumSamples(), max);
+
+		int size = max - min;
+
+		if (size == 0)
+		{
+			clear();
+			return;
+		}
+
+		buffer->setRange({ min, max });
 	}
-
-	min = jmax(0, min);
-	max = jmin(buffer->all.getNumSamples(), max);
-
-	int size = max - min;
-
-	if (size == 0)
-	{
-		clear();
-		return;
-	}
-
-	{
-		SpinLock::ScopedLockType sl(getLock());
-		buffer->setRange(min, max);
-	}
-
-	update();
 }
 
 void ScriptingObjects::ScriptAudioFile::loadFile(const String& filePath)
 {
-	if (filePath == getCurrentlyLoadedFile())
-		return;
-
-	if (filePath.isEmpty())
-	{
-		clear();
-		update();
-		stop();
-		return;
-	}
-
-	auto mc = getScriptProcessor()->getMainController_();
-	
-	
-
-	RefCountedBuffer::Ptr newBuffer = new RefCountedBuffer();
-
-	newBuffer->currentFileReference = PoolReference(mc, filePath, FileHandlerBase::AudioFiles);
-
-	auto poolData = mc->getCurrentAudioSampleBufferPool()->loadFromReference(newBuffer->currentFileReference, PoolHelpers::LoadAndCacheWeak);
-
-	if (auto d = poolData.get())
-	{
-		auto rb = d->data;
-
-		newBuffer->all.makeCopyOf(rb);
-		newBuffer->sampleRate = d->additionalData.getProperty(MetadataIDs::SampleRate, 44100.0);
-		newBuffer->clear = false;
-		newBuffer->setRange(0, rb.getNumSamples());
-
-		{
-			SpinLock::ScopedLockType sl(getLock());
-			std::swap(newBuffer, buffer);
-		}
-
-		update();
-		start();
-	}
-	else
-	{
-		// Can't find the path...
-		jassertfalse;
-	}
+	if (auto buffer = getBuffer())
+		buffer->fromBase64String(filePath);
 }
 
 var ScriptingObjects::ScriptAudioFile::getContent()
 {
 	Array<var> channels;
 
-	if (auto b = getBuffer())
+	if (auto buffer = getBuffer())
 	{
-		for (int i = 0; i < b->all.getNumChannels(); i++)
-		{
-			auto n = new VariantBuffer(b->range.getWritePointer(i), b->range.getNumSamples());
-			channels.add(var(n));
-		}
+		for (int i = 0; i < buffer->getBuffer().getNumChannels(); i++)
+			channels.add(buffer->getChannelBuffer(i, false));
 	}
 
 	return channels;
@@ -766,44 +724,38 @@ var ScriptingObjects::ScriptAudioFile::getContent()
 
 void ScriptingObjects::ScriptAudioFile::update()
 {
-	triggerAsyncUpdate();
+	if (auto buffer = getBuffer())
+	{
+		buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+	}
 }
 
 int ScriptingObjects::ScriptAudioFile::getNumSamples() const
 {
-	if (buffer->clear)
-		return 0;
+	if (auto buffer = getBuffer())
+	{
+		return buffer->getBuffer().getNumSamples();
+	}
 
-	return buffer->sampleRange.getLength();
+	return 0;
 }
 
 double ScriptingObjects::ScriptAudioFile::getSampleRate() const
 {
-	return buffer->sampleRate;
+	if (auto buffer = getBuffer())
+		return buffer->sampleRate;
+
+	return 0.0;
 }
 
 juce::String ScriptingObjects::ScriptAudioFile::getCurrentlyLoadedFile() const
 {
-	return buffer->currentFileReference.getReferenceString();
-}
-
-void ScriptingObjects::ScriptAudioFile::timerCallback()
-{
-	if (lastPosition != position.load())
+	if (auto buffer = getBuffer())
 	{
-		lastPosition = position.load();
-
-		for (auto l : listeners)
-		{
-			if (l != nullptr)
-				l->playbackPositionChanged(lastPosition);
-		}
+		return buffer->toBase64String();
 	}
-}
 
-ScriptingObjects::ScriptAudioFile::RefCountedBuffer::Ptr ScriptingObjects::ScriptAudioFile::getBuffer()
-{
-	return buffer;
+	return {};
 }
 
 struct ScriptingObjects::ScriptTableData::Wrapper
@@ -814,13 +766,9 @@ struct ScriptingObjects::ScriptTableData::Wrapper
 	API_METHOD_WRAPPER_1(ScriptTableData, getTableValueNormalised);
 };
 
-ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent* pwsc):
-	ConstScriptingObject(pwsc, 0)
+ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* otherHolder):
+	ScriptComplexDataReferenceBase(pwsc, index, snex::ExternalData::DataType::Table, otherHolder)
 {
-	
-	table.setHandler(pwsc->getMainController_()->getGlobalUIUpdater());
-	broadcaster.enablePooledUpdate(pwsc->getMainController_()->getGlobalUIUpdater());
-
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(addTablePoint);
 	ADD_API_METHOD_4(setTablePoint);
@@ -830,14 +778,11 @@ ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent
 void ScriptingObjects::ScriptTableData::rightClickCallback(const MouseEvent& e, Component *c)
 {
 #if USE_BACKEND
-	TableEditor *te = new TableEditor(nullptr, &table);
 
+	auto te = dynamic_cast<Component*>(snex::ExternalData::createEditor(getTable()));
 	te->setSize(300, 200);
-
 	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-
 	MouseEvent ee = e.getEventRelativeTo(editor);
-
 	editor->getRootFloatingTile()->showComponentInRootPopup(te, editor, ee.getMouseDownPosition());
 #else
 	ignoreUnused(e, c);
@@ -846,29 +791,30 @@ void ScriptingObjects::ScriptTableData::rightClickCallback(const MouseEvent& e, 
 
 void ScriptingObjects::ScriptTableData::setTablePoint(int pointIndex, float x, float y, float curve)
 {
-	table.setTablePoint(pointIndex, x, y, curve);
-	table.sendPooledChangeMessage();
+	if(auto table = getTable())
+		table->setTablePoint(pointIndex, x, y, curve);
 }
 
 void ScriptingObjects::ScriptTableData::addTablePoint(float x, float y)
 {
-	table.addTablePoint(x, y);
-	table.sendPooledChangeMessage();
+	if (auto table = getTable())
+		table->addTablePoint(x, y);
 }
 
 void ScriptingObjects::ScriptTableData::reset()
 {
-	table.reset();
-	table.sendPooledChangeMessage();
+	if (auto table = getTable())
+		table->reset();
 }
 
 float ScriptingObjects::ScriptTableData::getTableValueNormalised(double normalisedInput)
 {
-	if (auto lup = dynamic_cast<LookupTableProcessor*>(getScriptProcessor()))
-		lup->sendTableIndexChangeMessage(false, getTable(), (float)normalisedInput);
-		
-	table.sendPooledChangeMessage();
-	return table.getInterpolatedValue((double)SAMPLE_LOOKUP_TABLE_SIZE * normalisedInput);
+	if (auto st = dynamic_cast<SampleLookupTable*>(getTable()))
+	{
+		return st->getInterpolatedValue((double)SAMPLE_LOOKUP_TABLE_SIZE * normalisedInput, sendNotificationAsync);
+	}
+
+	return 0.0f;
 }
 
 
@@ -882,12 +828,9 @@ struct ScriptingObjects::ScriptSliderPackData::Wrapper
 	
 };
 
-ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc) :
-	ConstScriptingObject(pwsc, 0),
-	data(pwsc->getMainController_()->getControlUndoManager(), pwsc->getMainController_()->getGlobalUIUpdater())
+ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, snex::ExternalDataHolder* otherHolder) :
+	ScriptComplexDataReferenceBase(pwsc, dataIndex, snex::ExternalData::DataType::SliderPack, otherHolder)
 {
-	data.setNumSliders(16);
-
 	ADD_API_METHOD_2(setValue);
 	ADD_API_METHOD_1(setNumSliders);
 	ADD_API_METHOD_1(getValue);
@@ -895,62 +838,45 @@ ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScript
 	ADD_API_METHOD_3(setRange);
 }
 
-void ScriptingObjects::ScriptSliderPackData::rightClickCallback(const MouseEvent& e, Component *c)
-{
-#if USE_BACKEND
-	SliderPack *s = new SliderPack(&data);
-
-	const int numSliders = getNumSliders();
-
-
-
-	int widthPerSlider = 16;
-
-	if (numSliders > 64)
-		widthPerSlider = 8;
-
-	s->setSize((int)getNumSliders() * 16, 200);
-
-	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-
-	MouseEvent ee = e.getEventRelativeTo(editor);
-
-	editor->getRootFloatingTile()->showComponentInRootPopup(s, editor, ee.getMouseDownPosition());
-#else
-    ignoreUnused(e, c);
-#endif
-}
-
 var ScriptingObjects::ScriptSliderPackData::getStepSize() const
 {
-	return data.getStepSize();
+	if(auto data = getSliderPackData())
+		return data->getStepSize();
+
+	return 0.0;
 }
 
 void ScriptingObjects::ScriptSliderPackData::setNumSliders(var numSliders)
 {
-	data.setNumSliders(numSliders);
+	if (auto data = getSliderPackData())
+		data->setNumSliders(numSliders);
 }
 
 int ScriptingObjects::ScriptSliderPackData::getNumSliders() const
 {
-	return data.getNumSliders();
+	if (auto data = getSliderPackData())
+		return data->getNumSliders();
+	
+	return 0;
 }
 
 void ScriptingObjects::ScriptSliderPackData::setValue(int sliderIndex, float value)
 {
-	data.setValue(sliderIndex, value, sendNotification);
+	if(auto data = getSliderPackData())
+		data->setValue(sliderIndex, value, sendNotification);
 }
 
 float ScriptingObjects::ScriptSliderPackData::getValue(int index) const
 {
-	return data.getValue((int)index);
+	if(auto data = getSliderPackData())
+		return data->getValue((int)index);
 }
 
 void ScriptingObjects::ScriptSliderPackData::setRange(double minValue, double maxValue, double stepSize)
 {
-	data.setRange(minValue, maxValue, stepSize);
+	if(auto data = getSliderPackData())
+		return data->setRange(minValue, maxValue, stepSize);
 }
-
 
 struct ScriptingObjects::ScriptingSamplerSound::Wrapper
 {
@@ -2816,9 +2742,6 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 {
 	if (checkValidObject())
 	{
-		auto asp = dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get());
-
-		ScopedLock sl(asp->getFileLock());
 
 #if USE_BACKEND
 		auto pool = audioSampleProcessor->getMainController()->getCurrentAudioSampleBufferPool();
@@ -2827,7 +2750,8 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 			reportScriptError("You must call Engine.loadAudioFilesIntoPool() before using this method");
 #endif
 
-		asp->setLoadedFile(fileName, true);
+		auto asp = dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get());
+		asp->getBuffer().fromBase64String(fileName);
 	}
 }
 
@@ -2835,9 +2759,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setSampleRange(int start, 
 {
 	if (checkValidObject())
 	{
-		ScopedLock sl(audioSampleProcessor->getMainController()->getLock());
-		dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->setRange(Range<int>(start, end));
-
+		dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getBuffer().setRange(Range<int>(start, end));
 	}
 }
 
@@ -2845,7 +2767,7 @@ int ScriptingObjects::ScriptingAudioSampleProcessor::getSampleLength() const
 {
 	if (checkValidObject())
 	{
-		return dynamic_cast<const AudioSampleProcessor*>(audioSampleProcessor.get())->getTotalLength();
+		return dynamic_cast<const AudioSampleProcessor*>(audioSampleProcessor.get())->getBuffer().getCurrentRange().getLength();
 	}
 	else return 0;
 }
@@ -2899,7 +2821,6 @@ void ScriptingObjects::ScriptingTableProcessor::setTablePoint(int tableIndex, in
 		if (table != nullptr)
 		{
 			table->setTablePoint(pointIndex, x, y, curve);
-			table->sendChangeMessage();
 			return;
 		}
 	}
@@ -2917,7 +2838,6 @@ void ScriptingObjects::ScriptingTableProcessor::addTablePoint(int tableIndex, fl
 		if (table != nullptr)
 		{
 			table->addTablePoint(x, y);
-			table->sendChangeMessage();
 			return;
 		}
 	}
@@ -2933,7 +2853,6 @@ void ScriptingObjects::ScriptingTableProcessor::reset(int tableIndex)
 		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->reset();
-			table->sendChangeMessage();
 			return;
 		}
 	}
@@ -2948,7 +2867,6 @@ void ScriptingObjects::ScriptingTableProcessor::restoreFromBase64(int tableIndex
 		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->restoreData(state);
-			table->sendChangeMessage();
 			return;
 		}
 	}
@@ -5390,6 +5308,8 @@ juce::ValueTree ApiHelpers::getApiTree()
 	return v;
 }
 #endif
+
+
 
 
 

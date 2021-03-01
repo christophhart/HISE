@@ -53,7 +53,7 @@ public:
 
 	StatementPtr parseStatementToBlock();
 	StatementPtr parseStatementBlock();
-	StatementPtr parseStatement();
+	StatementPtr parseStatement(bool mustHaveSemicolon=true);
 	StatementPtr parseAssignment();
 	StatementPtr parseReturnStatement();
 	StatementPtr parseVariableDefinition();

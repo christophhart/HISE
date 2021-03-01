@@ -74,7 +74,7 @@ public:
 
 
 
-
+#if 0
 struct SnexPopupEditor : public Component,
 	public SnexDebugHandler,
 	public CodeDocument::Listener,
@@ -173,7 +173,7 @@ struct SnexPopupEditor : public Component,
 	StringArray optimizations;
 	bool popupMode;
 };
-
+#endif
 
 
 }

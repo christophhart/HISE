@@ -841,7 +841,6 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getCurrentUserPresetName);
 	API_VOID_METHOD_WRAPPER_1(Engine, saveUserPreset);
 	API_METHOD_WRAPPER_0(Engine, isMpeEnabled);
-	API_METHOD_WRAPPER_0(Engine, createSliderPackData);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterSliderPackData);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterTableData);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterAudioFile);
@@ -895,6 +894,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 };
 
+#if HISE_INCLUDE_SNEX
 struct ScriptingApi::Engine::Snex: public ApiClass::SnexWrapper
 {
 	Snex(ApiClass* obj, void* e):
@@ -919,6 +919,7 @@ struct ScriptingApi::Engine::Snex: public ApiClass::SnexWrapper
 
 #undef AS_ENGINE
 };
+#endif
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
@@ -997,7 +998,6 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getSettingsWindowObject);
 	ADD_API_METHOD_0(createTimerObject);
 	ADD_API_METHOD_0(createMessageHolder);
-	ADD_API_METHOD_0(createSliderPackData);
 	ADD_API_METHOD_1(createAndRegisterSliderPackData);
 	ADD_API_METHOD_1(createAndRegisterTableData);
 	ADD_API_METHOD_1(createAndRegisterAudioFile);
@@ -1848,36 +1848,21 @@ int ScriptingApi::Engine::isControllerUsedByAutomation(int controllerNumber)
 
 ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList() { return new ScriptingObjects::MidiList(getScriptProcessor()); };
 
-ScriptingObjects::ScriptSliderPackData* ScriptingApi::Engine::createSliderPackData() { return new ScriptingObjects::ScriptSliderPackData(getScriptProcessor()); }
+
 
 hise::ScriptingObjects::ScriptSliderPackData* ScriptingApi::Engine::createAndRegisterSliderPackData(int index)
 {
-	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
-	{
-		return jp->addOrReturnSliderPackObject(index);
-	}
-
-	return nullptr;
+	return new ScriptingObjects::ScriptSliderPackData(getScriptProcessor(), index);
 }
 
 hise::ScriptingObjects::ScriptTableData* ScriptingApi::Engine::createAndRegisterTableData(int index)
 {
-	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
-	{
-		return jp->addOrReturnTableObject(index);
-	}
-
-	return nullptr;
+	return new ScriptingObjects::ScriptTableData(getScriptProcessor(), index);
 }
 
 hise::ScriptingObjects::ScriptAudioFile* ScriptingApi::Engine::createAndRegisterAudioFile(int index)
 {
-	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
-	{
-		return jp->addOrReturnAudioFile(index);
-	}
-
-	return nullptr;
+	return new ScriptingObjects::ScriptAudioFile(getScriptProcessor(), index);
 }
 
 ScriptingObjects::TimerObject* ScriptingApi::Engine::createTimerObject() { return new ScriptingObjects::TimerObject(getScriptProcessor()); }
@@ -2007,10 +1992,12 @@ void ScriptingApi::Engine::redo()
 	MessageManager::callAsync(f);
 }
 
+#if HISE_INCLUDE_SNEX
 ApiClass::SnexWrapper* ScriptingApi::Engine::createSnexWrapper()
 {
 	return SnexWrapper::create<Snex>(this);
 }
+#endif
 
 // ====================================================================================================== Sampler functions
 
@@ -2920,7 +2907,7 @@ bool ScriptingApi::Sampler::clearSampleMap()
 
 // ====================================================================================================== Synth functions
 
-
+#if HISE_INCLUDE_SNEX
 struct ScriptingApi::Synth::Snex : public ApiClass::SnexWrapper
 {
 	Snex(ApiClass* c, void* obj) :
@@ -2948,6 +2935,7 @@ struct ScriptingApi::Synth::Snex : public ApiClass::SnexWrapper
 		static_cast<Synth*>(s)->noteOffDelayedByEventId(eventId, timestamp);
 	}
 };
+#endif
 
 struct ScriptingApi::Synth::Wrapper
 {
@@ -4150,10 +4138,12 @@ int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
 	RETURN_IF_NO_THROW(-1)
 }
 
+#if HISE_INCLUDE_SNEX
 ApiClass::SnexWrapper* ScriptingApi::Synth::createSnexWrapper()
 {
 	return SnexWrapper::create<Snex>(this);
 }
+#endif
 
 // ====================================================================================================== Console functions
 

@@ -263,17 +263,25 @@ public:
 	}
 };
 
-class Goniometer : public AudioAnalyserComponent
+class GoniometerBase
 {
 public:
 
-	Goniometer(Processor* p) :
-		AudioAnalyserComponent(p)
-	{}
+	GoniometerBase(const AnalyserRingBuffer& buffer_):
+		buffer(buffer_)
+	{
 
-	void paint(Graphics& g) override;
+	}
+
+	virtual Colour getColourForAnalyserBase(int colourId) = 0;
+
+protected:
+
+	void paintSpacialDots(Graphics& g);
 
 private:
+
+	const AnalyserRingBuffer& buffer;
 
 	struct Shape
 	{
@@ -290,8 +298,25 @@ private:
 
 	Shape shapes[6];
 	int shapeIndex = 0;
+};
 
-	Path oscilloscopePath;
+class Goniometer : public AudioAnalyserComponent,
+				   public GoniometerBase
+{
+public:
+
+	Goniometer(Processor* p) :
+		AudioAnalyserComponent(p),
+		GoniometerBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer())
+	{}
+
+	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((AudioAnalyserComponent::ColourId)colourId); }
+
+	void paint(Graphics& g) override
+	{
+		GoniometerBase::paintSpacialDots(g);
+	}
+	
 };
 
 

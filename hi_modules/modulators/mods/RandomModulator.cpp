@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 RandomModulator::RandomModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m):
 		VoiceStartModulator(mc, id, numVoices, m),
 		Modulation(m),
-		table(new MidiTable()),
+		LookupTableProcessor(mc, 1, false),
 		useTable(false),
 		generator(Random (Time::currentTimeMillis()))
 {
@@ -50,7 +50,7 @@ void RandomModulator::restoreFromValueTree(const ValueTree &v)
 
 	loadAttribute(UseTable, "UseTable");
 
-	if (useTable) loadTable(table, "RandomTableData");
+	loadTable(getTableUnchecked(0), "RandomTableData");
 }
 
 ValueTree RandomModulator::exportAsValueTree() const
@@ -59,7 +59,7 @@ ValueTree RandomModulator::exportAsValueTree() const
 
 	saveAttribute(UseTable, "UseTable");
 
-	if (useTable) saveTable(table, "RandomTableData");
+	saveTable(getTableUnchecked(0), "RandomTableData");
 
 	return v;
 }
@@ -69,7 +69,6 @@ ProcessorEditorBody *RandomModulator::createEditor(ProcessorEditor *parentEditor
 #if USE_BACKEND
 
 	return new RandomEditorBody(parentEditor);
-
 	
 #else
 
@@ -106,9 +105,7 @@ float RandomModulator::calculateVoiceStartValue(const HiseEvent &)
 	if (useTable)
 	{
 		const int index = generator.nextInt(Range<int>(0, 127));
-		randomValue = table->get(index);
-
-		sendTableIndexChangeMessage(false, table, (float)index / 127.0f);
+		randomValue = getMidiTable()->get(index, sendNotificationAsync);
 	}
 	else
 	{

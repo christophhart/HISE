@@ -33,14 +33,6 @@
 namespace hise {
 using namespace juce;
 
-void TableEditor::removeProcessorConnection()
-{
-	if (LookupTableProcessor *ltp = dynamic_cast<LookupTableProcessor*>(connectedProcessor.get()))
-	{
-		ltp->removeTableChangeListener(this);
-	}
-}
-
 
 bool TableEditor::isInMainPanelInternal() const
 {
@@ -49,46 +41,16 @@ bool TableEditor::isInMainPanelInternal() const
 
 void TableEditor::connectToLookupTableProcessor(Processor *p, int tableIndex)
 {
-	if (p == connectedProcessor) return;
-
-	if (auto ltp = dynamic_cast<LookupTableProcessor*>(connectedProcessor.get()))
+	if (p != nullptr)
 	{
-		ltp->removeTableChangeListener(this);
-	}
-
-	if (p == nullptr)
-	{
-		connectedProcessor = nullptr;
-		createDragPoints();
-		refreshGraph();
-	}
-
-	if (LookupTableProcessor * ltp = dynamic_cast<LookupTableProcessor*>(p))
-	{
-		connectedProcessor = p;
-
 		fontToUse = p->getMainController()->getFontFromString("Default", 14.0f);
-
-		ltp->addTableChangeListener(this);
-
-		if (tableIndex != -1)
-			setEditedTable(ltp->getTable(tableIndex));
 	}
-}
 
-void TableEditor::updateFromProcessor(SafeChangeBroadcaster* b)
-{
-	if (dynamic_cast<LookupTableProcessor::TableChangeBroadcaster*>(b) != nullptr)
+	if (auto ed = dynamic_cast<ExternalDataHolder*>(p))
 	{
-		LookupTableProcessor::TableChangeBroadcaster * tcb = dynamic_cast<LookupTableProcessor::TableChangeBroadcaster*>(b);
-
-		if (tcb->table == editedTable)
-		{
-			setDisplayedIndex(tcb->tableIndex);
-		}
+		if (auto t = ed->getTable(tableIndex))
+			setEditedTable(t);
 	}
 }
-
-
 
 }

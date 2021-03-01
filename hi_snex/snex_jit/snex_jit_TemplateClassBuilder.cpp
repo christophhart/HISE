@@ -61,6 +61,11 @@ void TemplateClassBuilder::addIntTemplateParameter(const Identifier& templateId)
 	tp.add(TemplateParameter(id.getChildId(templateId), 0, false));
 }
 
+void TemplateClassBuilder::addIntTemplateParameterWithDefault(const Identifier& templateId, int defaultValue)
+{
+	tp.add(TemplateParameter(id.getChildId(templateId), defaultValue, true));
+}
+
 void TemplateClassBuilder::addTypeTemplateParameter(const Identifier& templateId)
 {
 	tp.add(TemplateParameter(id.getChildId(templateId), TypeInfo()));
@@ -92,39 +97,60 @@ snex::jit::TemplateObject TemplateClassBuilder::createTemplateObject()
 
 	postbF.addArray(postFunctionBuilderFunctions);
 
-	to.makeClassType = [l, fCopy, initFunctions, postbF](const TemplateObject::ConstructData& cd)
+	to.makeClassType = [l, fCopy, initFunctions, postbF](const TemplateObject::ConstructData& cd2)
 	{
 		ComplexType::Ptr ptr;
 
-		if (!l.getLast().isVariadic() && !cd.expectTemplateParameterAmount(l.size()))
-			return ptr;
+		TemplateObject::ConstructData toUse = cd2;
+
+		if (!l.getLast().isVariadic() && toUse.tp.size() < l.size())
+		{
+			int numDefined = toUse.tp.size();
+			int numExpected = l.size();
+
+			for (int i = numDefined; i < numExpected; i++)
+			{
+				auto argumentFromTemplateBuilder = l[i];
+
+				if (argumentFromTemplateBuilder.t == TemplateParameter::IntegerTemplateArgument)
+				{
+					jassert(argumentFromTemplateBuilder.constantDefined);
+					toUse.tp.set(i, TemplateParameter(argumentFromTemplateBuilder.constant));
+				}
+				else
+				{
+					jassert(argumentFromTemplateBuilder.type.isValid());
+					toUse.tp.set(i, TemplateParameter(argumentFromTemplateBuilder.type));
+				}
+			}
+		}
 
 		for (int i = 0; i < l.size(); i++)
 		{
 			if (l[i].t == TemplateParameter::IntegerTemplateArgument)
 			{
-				if (!cd.expectIsNumber(i))
+				if (!toUse.expectIsNumber(i))
 					return ptr;
 			}
 			else
 			{
-				if (!cd.expectType(i))
+				if (!toUse.expectType(i))
 					return ptr;
 			}
 		}
 
-		auto ip = TemplateParameter::ListOps::merge(l, cd.tp, *cd.r);
+		auto ip = TemplateParameter::ListOps::merge(l, toUse.tp, *toUse.r);
 
-		if (!cd.r->wasOk())
+		if (!toUse.r->wasOk())
 			return ptr;
 
-		ScopedPointer<StructType> st = new StructType(cd.id.id, ip);
+		ScopedPointer<StructType> st = new StructType(toUse.id.id, ip);
 
 		for (const auto& f : initFunctions)
 		{
-			f(cd, st);
+			f(toUse, st);
 
-			if (!cd.r->wasOk())
+			if (!toUse.r->wasOk())
 				return ptr;
 		}
 
@@ -138,9 +164,9 @@ snex::jit::TemplateObject TemplateClassBuilder::createTemplateObject()
 
 		for (const auto& f : postbF)
 		{
-			f(cd, st);
+			f(toUse, st);
 
-			if (!cd.r->wasOk())
+			if (!toUse.r->wasOk())
 				return ptr;
 		}
 

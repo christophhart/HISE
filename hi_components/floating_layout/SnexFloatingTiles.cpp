@@ -57,13 +57,27 @@ void SnexTileBase::setCurrentFile(const File& f)
 
 
 
+SnexEditorPanel::SnexEditorPanel(FloatingTile* parent) :
+	FloatingTileContent(parent)
+{
+	dynamic_cast<BackendProcessor*>(getMainController())->workbenches.addListener(this);
+}
+
+SnexEditorPanel::~SnexEditorPanel()
+{
+	dynamic_cast<BackendProcessor*>(getMainController())->workbenches.removeListener(this);
+
+	if (wb != nullptr)
+		wb->removeListener(this);
+}
+
 void SnexEditorPanel::recompiled(snex::ui::WorkbenchData::Ptr)
 {
 	if (auto dnp = dynamic_cast<DspNetworkCodeProvider*>(wb->getCodeProvider()))
 	{
 		if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
 		{
-			playground->updateTextFromCodeProvider();
+			//playground->updateTextFromCodeProvider();
 		}
 	}
 }

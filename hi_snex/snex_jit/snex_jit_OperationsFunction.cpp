@@ -94,6 +94,97 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 					// Might be set manually from a precodegen function
 					if (statements == nullptr)
 						statements = p.parseStatementList();
+
+					auto specialFunctionType = (FunctionClass::SpecialSymbols)classData->getSpecialFunctionType();
+
+					if (specialFunctionType == FunctionClass::Constructor || specialFunctionType == FunctionClass::Destructor)
+					{
+						if (auto cs = dynamic_cast<ClassScope*>(scope))
+						{
+							if (auto st = dynamic_cast<StructType*>(cs->typePtr.get()))
+							{
+								auto baseSpecialFunctions = st->getBaseSpecialFunctions(specialFunctionType);
+
+								if (!baseSpecialFunctions.isEmpty())
+								{
+									List l;
+
+									for (auto& m : baseSpecialFunctions)
+									{
+										// We need to change the parent ID to the derived class
+										auto specialFunctionId = st->id.getChildId(m.id.getIdentifier());
+
+										auto fc = new FunctionCall(location, nullptr, { specialFunctionId, m.returnType }, {});
+										fc->setObjectExpression(new ThisPointer(location, TypeInfo(st, false, true)));
+
+										l.add(fc);
+									}
+
+									if (specialFunctionType == FunctionClass::Constructor)
+									{
+										for (int i = l.size() - 1; i >= 0; i--)
+											statements->addStatement(l[i], true);
+									}
+
+#if 0
+									if (specialFunctionType == FunctionClass::Destructor)
+									{
+										for (int i = l.size() - 1; i >= 0; i--)
+										{
+											Symbol s(NamespacedIdentifier("this"), TypeInfo(cs->typePtr.get()));
+											StatementWithControlFlowEffectBase::addDestructorToAllChildStatements(statements, s);
+										}
+									}
+#endif
+								}
+							}
+						}
+					}
+
+					// Now we might set the return type...
+					if (classData->returnType.isDynamic())
+					{
+						Array<TypeInfo> returnTypes;
+
+						statements->forEachRecursive([&returnTypes, compiler](Ptr s)
+						{
+							if (auto rt = as<ReturnStatement>(s))
+							{
+								if (auto r = rt->getSubExpr(0))
+								{
+									if (r->tryToResolveType(compiler))
+									{
+										returnTypes.addIfNotAlreadyThere(r->getTypeInfo());
+									}
+								}
+							}
+
+							return false;
+						});
+
+						switch (returnTypes.size())
+						{
+						case 0: location.throwError("expected return statement with type");
+						case 1: 
+						{
+							auto prevT = data.returnType;
+
+							auto newT = returnTypes[0].withModifiers(prevT.isConst(), prevT.isRef(), prevT.isStatic());
+
+							newT.setRefCounted(false);
+
+							classData->returnType = newT;
+							data.returnType = newT;
+							compiler->namespaceHandler.setTypeInfo(fNamespace, NamespaceHandler::Function, newT);
+
+							if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
+								st->setTypeForDynamicReturnFunction(data);
+
+							break;
+						}
+						default: location.throwError("Ambigous return types");
+						}
+					}
 				}
 			}
 			catch (ParserHelpers::Error& e)
@@ -126,16 +217,20 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			compiler->executePass(BaseCompiler::DataAllocation, functionScope, sTree);
 			compiler->executePass(BaseCompiler::DataInitialisation, functionScope, sTree);
 
+			
+
 			if (classData->isConst())
 			{
 				sTree->forEachRecursive([](Ptr p)
 				{
 					if (auto a = as<Assignment>(p))
 					{
-						if (auto ss = as<VariableReference>(a->getSubExpr(1)))
+						if (auto dp = as<DotOperator>(a->getSubExpr(1)))
 						{
-							if (ss->variableScope->getScopeType() <= BaseScope::ScopeType::Class)
-								ss->location.throwError("Can't modify const object variables");
+							if (as<ThisPointer>(dp->getDotParent()) != nullptr)
+							{
+								dp->location.throwError("Can't modify const object variables");
+							}
 						}
 					}
 
@@ -713,9 +808,23 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			struct {
 				static int compareElements(const FunctionData& f1, const FunctionData& f2)
 				{
+					bool firstResolvedOrNoT = f1.isResolved() || !f1.hasTemplatedArgumentOrReturnType();
+					bool seconResolvedOrNoT = f2.isResolved() || !f2.hasTemplatedArgumentOrReturnType();
+
+					if (firstResolvedOrNoT && !seconResolvedOrNoT)
+						return -1;
+
+					if (seconResolvedOrNoT && !firstResolvedOrNoT)
+						return 1;
+
+					return 0;
+
+#if 0
 					if (f1.isResolved() && !f2.isResolved()) return -1;
 					if (f2.isResolved() && !f1.isResolved()) return 1;
 					return 0;
+#endif
+
 				}
 			} sorter;
 			possibleMatches.sort(sorter);
@@ -840,10 +949,23 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 					}
 				}
 
-				auto pType = function.args[i].isReference() ? TypeInfo(Types::ID::Pointer, true) : getArgument(i)->getTypeInfo();
+				tryToResolveType(compiler);
+
+
+				auto pType = function.args[i].typeInfo;
+				
+				if (pType.isDynamic())
+					pType = getArgument(i)->getTypeInfo().withModifiers(pType.isConst(), pType.isRef());
+				
+				jassert(pType.isValid());
+
+				pType = pType.toPointerIfNativeRef();
+
+				
+				
 				auto asg = CREATE_ASM_COMPILER(getType());
 
-				if (pType.isComplexType())
+				if (pType.isComplexType() && !pType.isRef())
 				{
 					auto alignment = pType.getRequiredAlignment();
 					auto size = pType.getRequiredByteSize();
@@ -1067,6 +1189,8 @@ bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
 			TemplateParameterResolver resolver(l);
 			auto r = resolver.process(function);
 			location.test(r);
+
+			ok = !function.returnType.isTemplateType() && !function.returnType.isDynamic();
 		}
 	}
 
@@ -1307,7 +1431,7 @@ void Operations::FunctionCall::adjustBaseClassPointer(BaseCompiler* compiler, Ba
 		{
 			auto bindex = st->getBaseClassIndexForMethod(function);
 
-			if (bindex != -1)
+			if (bindex != -1 && st->hasMember(bindex))
 			{
 				if (auto byteOffset = st->getMemberOffset(bindex))
 				{

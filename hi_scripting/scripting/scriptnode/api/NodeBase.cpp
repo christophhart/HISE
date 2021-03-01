@@ -89,6 +89,9 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 
 void NodeBase::prepare(PrepareSpecs specs)
 {
+	lastSpecs = specs;
+	cpuUsage = 0.0;
+
 	for (auto p : parameters)
 	{
 		auto v = p->getValue();
@@ -154,6 +157,16 @@ var NodeBase::getNodeProperty(const Identifier& id)
 		return propTree[PropertyIds::Value];
 
 	return {};
+}
+
+bool NodeBase::hasNodeProperty(const Identifier& id) const
+{
+	auto propTree = v_data.getChildWithName(PropertyIds::Properties);
+
+	if (propTree.isValid())
+		return propTree.getChildWithProperty(PropertyIds::ID, id.toString()).isValid();
+
+	return false;
 }
 
 juce::Value NodeBase::getNodePropertyAsValue(const Identifier& id)
@@ -247,22 +260,27 @@ juce::UndoManager* NodeBase::getUndoManager() const
 juce::Rectangle<int> NodeBase::getBoundsToDisplay(Rectangle<int> originalHeight) const
 {
 	if (v_data[PropertyIds::Folded])
-		return originalHeight.withHeight(UIValues::HeaderHeight).withWidth(UIValues::NodeWidth);
-	else
-	{ 
-		auto helpBounds = helpManager.getHelpSize().toNearestInt();
+		originalHeight = originalHeight.withHeight(UIValues::HeaderHeight).withWidth(UIValues::NodeWidth);
+	
+	auto helpBounds = helpManager.getHelpSize().toNearestInt();
 
+	if (!helpBounds.isEmpty())
+	{
 		originalHeight.setWidth(originalHeight.getWidth() + helpBounds.getWidth());
 		originalHeight.setHeight(jmax<int>(originalHeight.getHeight(), helpBounds.getHeight()));
-
-		return originalHeight;
 	}
+
+	return originalHeight;
 }
 
 
 
 juce::Rectangle<int> NodeBase::getBoundsWithoutHelp(Rectangle<int> originalHeight) const
 {
+	auto helpBounds = helpManager.getHelpSize().toNearestInt();
+
+	originalHeight.removeFromRight(helpBounds.getWidth());
+
 	if (v_data[PropertyIds::Folded])
 		return originalHeight.withHeight(UIValues::HeaderHeight);
 	else
@@ -302,18 +320,65 @@ NodeBase::Parameter* NodeBase::getParameter(int index) const
     return nullptr;
 }
 
+struct ParameterSorter
+{
+	static int compareElements(const Parameter* first, const Parameter* second)
+	{
+		const auto& ftree = first->getTreeWithValue();
+		const auto& stree = second->getTreeWithValue();
+
+		int fIndex = ftree.getParent().indexOf(ftree);
+		int sIndex = stree.getParent().indexOf(stree);
+
+		if (fIndex < sIndex)
+			return -1;
+
+		if (fIndex > sIndex)
+			return 1;
+
+		jassertfalse;
+		return 0;
+	}
+};
+
 void NodeBase::addParameter(Parameter* p)
 {
-	parameters.add(p);
+	ParameterSorter sorter;
+
+	parameters.addSorted(sorter, p);
 	auto& f = p->getReferenceToCallback();
 	
 	f.call(p->getValue());
+
+	
 }
 
 
 void NodeBase::removeParameter(int index)
 {
 	parameters.remove(index);
+}
+
+void NodeBase::showPopup(Component* childOfGraph, Component* c)
+{
+	auto g = childOfGraph->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+	auto b = g->getLocalArea(childOfGraph, childOfGraph->getLocalBounds());
+	g->setCurrentModalWindow(c, b);
+}
+
+String NodeBase::getCpuUsageInPercent() const
+{
+	String s;
+
+	if (lastSpecs.sampleRate > 0.0 && lastSpecs.blockSize > 0)
+	{
+		auto secondPerBuffer = cpuUsage * 0.001;
+		auto bufferDuration = (double)lastSpecs.blockSize / lastSpecs.sampleRate;
+		auto bufferRatio = secondPerBuffer / bufferDuration;
+		s << " - " << String(bufferRatio * 100.0, 1) << "%";
+	}
+
+	return s;
 }
 
 var NodeBase::get(var id)
@@ -416,8 +481,7 @@ Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 	auto initialValue = (double)data[PropertyIds::Value];
 	auto weakThis = WeakReference<Parameter>(this);
 
-	valuePropertyUpdater.setCallback(data, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
-		std::bind(&NodeBase::Parameter::updateFromValueTree, this, std::placeholders::_1, std::placeholders::_2));
+	setTreeWithValue(data);
 
 	ADD_API_METHOD_0(getValue);
 	ADD_API_METHOD_1(addConnectionFrom);
@@ -450,6 +514,13 @@ void Parameter::setCallbackNew(parameter::dynamic_base* ownedNew)
 {
 	ScopedLock sl(parent->getRootNetwork()->getConnectionLock());
 	dbNew.setParameter(ownedNew);
+}
+
+void Parameter::setTreeWithValue(ValueTree v)
+{
+	treeThatStoresValue = v;
+	valuePropertyUpdater.setCallback(treeThatStoresValue, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
+		std::bind(&NodeBase::Parameter::updateFromValueTree, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void Parameter::setValueAndStoreAsync(double newValue)
@@ -515,6 +586,17 @@ struct DragHelpers
 		auto sourceNodeId = getSourceNodeId(dragDetails);
 		auto pId = getSourceParameterId(dragDetails);
 
+		if (dragDetails.getProperty(PropertyIds::SwitchTarget, false))
+		{
+			auto st = parent->getRootNetwork()->getNodeWithId(sourceNodeId)->getValueTree().getChildWithName(PropertyIds::SwitchTargets);
+
+			jassert(st.isValid());
+
+			auto v = st.getChild(pId.getIntValue());
+			jassert(v.isValid());
+			return v;
+		}
+
 		if (auto sourceContainer = dynamic_cast<NodeContainer*>(parent->getRootNetwork()->get(sourceNodeId).getObject()))
 		{
 			return sourceContainer->asNode()->getParameterTree().getChildWithProperty(PropertyIds::ID, pId);
@@ -570,8 +652,24 @@ var NodeBase::Parameter::addConnectionFrom(var dragDetails)
 		if (auto sp = dynamic_cast<NodeContainer::MacroParameter*>(sn->getParameter(parameterId)))
 		{
 			return sp->addParameterTarget(this);
+		}
 
-			
+		if (dragDetails.getProperty(PropertyIds::SwitchTarget, false))
+		{
+			auto cTree = sn->getValueTree().getChildWithName(PropertyIds::SwitchTargets).getChild(parameterId.getIntValue()).getChildWithName(PropertyIds::Connections);
+
+			if (cTree.isValid())
+			{
+				ValueTree newC(PropertyIds::Connection);
+				newC.setProperty(PropertyIds::NodeId, parent->getId(), nullptr);
+				newC.setProperty(PropertyIds::ParameterId, getId(), nullptr);
+				newC.setProperty(PropertyIds::Converter, ConverterIds::Identity.toString(), nullptr);
+				newC.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
+				RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(data), nullptr);
+				newC.setProperty(PropertyIds::Expression, "", nullptr);
+
+				cTree.addChild(newC, -1, parent->getUndoManager());
+			}
 		}
 	}
 	
@@ -725,6 +823,80 @@ ConnectionBase::ConnectionBase(ProcessorWithScriptingContent* p, ValueTree data_
 	ADD_API_METHOD_2(set);
 }
 
+scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnectionTree(NodeBase* n, const ValueTree& connectionTree, bool throwIfNotFound)
+{
+	jassert(connectionTree.getType() == PropertyIds::Connections);
+
+	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
+
+	for (auto c : connectionTree)
+	{
+		auto nId = c[PropertyIds::NodeId].toString();
+		auto pId = c[PropertyIds::ParameterId].toString();
+		auto tn = n->getRootNetwork()->getNodeWithId(nId);
+
+		if (tn == nullptr && throwIfNotFound)
+			throw nId;
+
+		if (pId == PropertyIds::Bypassed.toString())
+		{
+			auto r = RangeHelpers::getDoubleRange(c).getRange();
+			chain->addParameter(new NodeBase::DynamicBypassParameter(tn, r));
+		}
+		else if (auto param = tn->getParameter(pId))
+		{
+#if HISE_INCLUDE_SNEX
+			if (auto sn = dynamic_cast<SnexSource::SnexParameter*>(param))
+			{
+				ScopedPointer<parameter::dynamic_base> b;
+
+				auto r = RangeHelpers::getDoubleRange(c);
+				auto e = c[PropertyIds::Expression].toString();
+
+				if (e.isNotEmpty())
+					b = new parameter::dynamic_expression(sn->p, new snex::JitExpression(e));
+				else if (!RangeHelpers::isIdentity(r))
+					b = new parameter::dynamic_from0to1(sn->p, r);
+				else
+					b = new parameter::dynamic_base(sn->p);
+
+				b->setDataTree(sn->getTreeWithValue());
+
+				chain->addParameter(b.release());
+			}
+			else
+			{
+				auto pList = tn->createInternalParameterList();
+
+				for (auto p : pList)
+				{
+					if (p.info.getId() == pId)
+					{
+						ScopedPointer<parameter::dynamic_base> b;
+
+						auto r = RangeHelpers::getDoubleRange(c);
+						auto e = c[PropertyIds::Expression].toString();
+
+						if (e.isNotEmpty())
+							b = new parameter::dynamic_expression(p.callback, new snex::JitExpression(e));
+						else if (!RangeHelpers::isIdentity(r))
+							b = new parameter::dynamic_from0to1(p.callback, r);
+						else
+							b = new parameter::dynamic_base(p.callback);
+
+						b->setDataTree(param->getTreeWithValue());
+
+						chain->addParameter(b.release());
+					}
+				}
+			}
+#endif
+		}
+	}
+
+	return chain.release();
+}
+
 void ConnectionBase::initRemoveUpdater(NodeBase* parent)
 {
 	auto nodeId = data[PropertyIds::NodeId].toString();
@@ -745,6 +917,14 @@ void ConnectionBase::initRemoveUpdater(NodeBase* parent)
 			}
 		});
 	}
+}
+
+RealNodeProfiler::RealNodeProfiler(NodeBase* n) :
+	enabled(n->getRootNetwork()->getCpuProfileFlag()),
+	profileFlag(n->getCpuFlag())
+{
+	if (enabled)
+		start = Time::getMillisecondCounterHiRes();
 }
 
 }

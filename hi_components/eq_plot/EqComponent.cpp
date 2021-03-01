@@ -417,7 +417,8 @@ void FilterDragOverlay::updateFilters()
 
 		for (int i = 0; i < numFilters; i++)
 		{
-			addFilterToGraph(i, (int)eq->getFilterBand(i)->getFilterType());
+			auto t = CurveEq::StereoFilter::SubType::getFilterType();
+			addFilterToGraph(i, (int)t);
 			addFilterDragger(i);
 		}
 	}
