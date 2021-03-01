@@ -1215,6 +1215,8 @@ String ScriptingApi::Engine::getOS()
 {
 #if JUCE_WINDOWS
 	return "WIN";
+#elif JUCE_LINUX
+	return "LINUX";
 #else
 	return "OSX";
 #endif
