@@ -188,6 +188,8 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseVariableDefinition()
 		}
 	}
 
+	if (compiler->namespaceHandler.getSymbolType(s.id) != NamespaceHandler::Unknown)
+		location.throwError("Duplicate symbol " + s.toString());
 	
 	compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Variable, ca.getInfo());
 
