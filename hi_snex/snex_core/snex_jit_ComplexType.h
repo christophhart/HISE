@@ -100,6 +100,19 @@ struct ComplexType : public ReferenceCountedObject
 
 	virtual Result initialise(InitData d) = 0;
 
+	template <typename StorageType> Result initialiseObjectStorage(StorageType& c)
+	{
+		c.setSize(getRequiredByteSize());
+
+		InitData d;
+		d.callConstructor = hasConstructor();
+		d.dataPointer = c.getObjectPtr();
+		d.t = ComplexType::InitData::Type::Constructor;
+		d.initValues = makeDefaultInitialiserList();
+
+		return initialise(d);
+	}
+
 	virtual InitialiserList::Ptr makeDefaultInitialiserList() const = 0;
 
 	

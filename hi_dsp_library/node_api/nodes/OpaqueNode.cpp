@@ -37,9 +37,6 @@ using namespace hise;
 
 OpaqueNode::OpaqueNode()
 {
-	memset(smallObjectBuffer, 0, SmallObjectSize);
-	
-	
 }
 
 OpaqueNode::~OpaqueNode()
@@ -49,48 +46,38 @@ OpaqueNode::~OpaqueNode()
 
 void OpaqueNode::allocateObjectSize(int numBytes)
 {
-	if (numBytes < SmallObjectSize)
-	{
-		obj = smallObjectBuffer;
-	}
-	else
-	{
-		bigBuffer.allocate(numBytes, false);
-		obj = bigBuffer.get();
-	}
+	object.setSize(numBytes);
 }
-
-
 
 void OpaqueNode::prepare(PrepareSpecs ps)
 {
-	prepareFunc(obj, &ps);
-	resetFunc(obj);
+	prepareFunc(getObjectPtr(), &ps);
+	resetFunc(getObjectPtr());
 }
 
 void OpaqueNode::process(ProcessDataDyn& data)
 {
-	processFunc(obj, &data);
+	processFunc(getObjectPtr(), &data);
 }
 
 void OpaqueNode::processFrame(MonoFrame& d)
 {
-	monoFrame(obj, &d);
+	monoFrame(getObjectPtr(), &d);
 }
 
 void OpaqueNode::processFrame(StereoFrame& d)
 {
-	stereoFrame(obj, &d);
+	stereoFrame(getObjectPtr(), &d);
 }
 
 void OpaqueNode::reset()
 {
-	resetFunc(obj);
+	resetFunc(getObjectPtr());
 }
 
 void OpaqueNode::handleHiseEvent(HiseEvent& e)
 {
-	eventFunc(obj, &e);
+	eventFunc(getObjectPtr(), &e);
 }
 
 void OpaqueNode::setExternalData(const ExternalData& b, int index)
@@ -136,22 +123,17 @@ void OpaqueNode::setExternalPtr(void* externPtr)
 {
 	callDestructor();
 
-	obj = externPtr;
+	object.setExternalPtr(externPtr);
 }
 
 void OpaqueNode::callDestructor()
 {
 	if (destructFunc != nullptr && getObjectPtr() != nullptr)
 	{
-		destructFunc(obj);
+		destructFunc(getObjectPtr());
 
-		if (obj == bigBuffer)
-			bigBuffer.free();
-		else if (obj == smallObjectBuffer)
-			memset(smallObjectBuffer, 0, SmallObjectSize);
-
+		object.free();
 		destructFunc = nullptr;
-		obj = nullptr;
 	}
 }
 

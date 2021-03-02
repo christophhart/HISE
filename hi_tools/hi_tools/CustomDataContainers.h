@@ -500,7 +500,67 @@ private:
 #endif
 
 
+/** A simple data block that either uses a preallocated memory to avoid relocating or a heap block. */
+template <int BSize, int Alignment> struct ObjectStorage
+{
+	static constexpr int SmallBufferSize = BSize;
 
+	ObjectStorage()
+	{
+		free();
+	}
+
+	void free()
+	{
+		bigBuffer.free();
+		memset(smallBuffer, 0, BSize + Alignment);
+		objPtr = nullptr;
+		allocatedSize = 0;
+	}
+	
+	void setExternalPtr(void* ptr)
+	{
+		free();
+		objPtr = ptr;
+	}
+
+	void* getObjectPtr()
+	{
+		return objPtr;
+	}
+
+	void setSize(size_t newSize)
+	{
+		if (newSize != allocatedSize)
+		{
+			allocatedSize = newSize;
+
+			if (allocatedSize >= (SmallBufferSize))
+			{
+				bigBuffer.allocate(newSize + Alignment, true);
+				objPtr = bigBuffer.get();
+			}
+			else
+			{
+				bigBuffer.free();
+				objPtr = &smallBuffer;
+			}
+
+			if (Alignment != 0)
+			{
+				if (auto o = reinterpret_cast<uint64_t>(objPtr) % Alignment)
+					objPtr = (static_cast<uint8*>(objPtr) + (Alignment - o));
+			}
+		}
+	}
+
+private:
+
+	void* objPtr = nullptr;
+	size_t allocatedSize = 0;
+	uint8 smallBuffer[BSize + Alignment];
+	HeapBlock<uint8> bigBuffer;
+};
 
 
 

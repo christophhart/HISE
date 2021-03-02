@@ -85,7 +85,7 @@ struct OpaqueNode
 		stereoFrame = prototypes::static_wrappers<T>::template processFrame<StereoFrame>;
 		initFunc = prototypes::static_wrappers<T>::initialise;
 
-		auto t = prototypes::static_wrappers<T>::create(obj);
+		auto t = prototypes::static_wrappers<T>::create(getObjectPtr());
 		isPoly = t->isPolyphonic();
 
 		if constexpr (prototypes::check::setExternalData<T>::value)
@@ -117,12 +117,12 @@ struct OpaqueNode
 
 	template <typename T> T& as()
 	{
-		return *static_cast<T*>(obj);
+		return *static_cast<T*>(getObjectPtr());
 	}
 
 	template <typename T> const T& as() const
 	{
-		return *static_cast<T*>(obj);
+		return *static_cast<T*>(getObjectPtr());
 	}
 
 	void initialise(NodeBase* n)
@@ -154,8 +154,6 @@ struct OpaqueNode
 		jassertfalse;
 	}
 
-	void* getObjectPtr() { return obj; };
-
 	void initExternalData(ExternalDataHolder* externalDataHolder);
 
 	void setExternalPtr(void* externPtr);
@@ -164,16 +162,14 @@ struct OpaqueNode
 
 	bool handleModulation(double& d);
 
+	void* getObjectPtr() { return object.getObjectPtr(); }
+
 private:
 
 	void allocateObjectSize(int numBytes);
 
-	
+	hise::ObjectStorage<SmallObjectSize, 16> object;
 
-	uint8 smallObjectBuffer[SmallObjectSize];
-	HeapBlock<uint8> bigBuffer;
-
-	void* obj = nullptr;
 	bool isPoly = false;
 
 	prototypes::handleHiseEvent eventFunc = nullptr;
