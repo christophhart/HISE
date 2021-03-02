@@ -848,8 +848,7 @@ void DspNetwork::CodeManager::SnexSourceCompileHandler::run()
 
 bool DspNetwork::CodeManager::SnexSourceCompileHandler::triggerCompilation()
 {
-	getParent()->handleCompilation();
-	return true;
+	
 
 	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
 

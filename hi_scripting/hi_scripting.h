@@ -126,7 +126,13 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "scripting/scriptnode/api/ModulationSourceNode.h"
 #include "scripting/scriptnode/api/NodeProperty.h"
+
+#if HISE_INCLUDE_SNEX
+#include "scripting/scriptnode/snex_nodes/SnexSource.h"
+#endif
+
 #include "scripting/scriptnode/api/StaticNodeWrappers.h"
+
 
 
 
@@ -163,6 +169,15 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 
 #include "scripting/scriptnode/dynamic_elements/DynamicComplexData.h"
+
+#if HISE_INCLUDE_SNEX
+#include "scripting/scriptnode/snex_nodes/SnexShaper.h"
+#include "scripting/scriptnode/snex_nodes/SnexOscillator.h"
+#include "scripting/scriptnode/snex_nodes/SnexTimer.h"
+#include "scripting/scriptnode/snex_nodes/SnexMidi.h"
+#include "scripting/scriptnode/snex_nodes/SnexNode.h"
+#endif
+
 #include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.h"
 #include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.h"
 #include "scripting/scriptnode/dynamic_elements/DynamicSmootherNode.h"

@@ -256,6 +256,13 @@ public:
 										  public ControlledObject,
 									      public Thread
 		{
+			struct TestBase
+			{
+				virtual ~TestBase() {};
+
+				virtual Result runTest(ui::WorkbenchData::CompileResult& lastResult) = 0;
+			};
+
 			struct SnexCompileListener
 			{
 				virtual ~SnexCompileListener() {};
@@ -274,6 +281,18 @@ public:
 			void processTest(ProcessDataDyn& data) final override {};
 
 			void run() override;
+
+			void postCompile(ui::WorkbenchData::CompileResult& lastResult) override
+			{
+				if (lastResult.compiledOk() && test != nullptr)
+				{
+					getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(Thread::getCurrentThread());
+
+					lastResult.compileResult = test->runTest(lastResult);
+
+					getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(nullptr);
+				}
+			}
 
 			bool triggerCompilation() override;
 			
@@ -296,7 +315,14 @@ public:
 				compileListeners.removeAllInstancesOf(l);
 			}
 
+			void setTestBase(TestBase* ownedTest)
+			{
+				test = ownedTest;
+			}
+
 		private:
+
+			ScopedPointer<TestBase> test;
 
 			ProcessorWithScriptingContent* sp;
 

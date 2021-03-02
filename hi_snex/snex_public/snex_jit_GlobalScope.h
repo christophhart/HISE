@@ -334,7 +334,7 @@ public:
 	
 	bool isActive() const
 	{
-		return executingThread != nullptr;
+		return executingThread != nullptr && Thread::getCurrentThread() == executingThread;
 	}
 
 	void setExecutingThread(Thread* threadToUse)
