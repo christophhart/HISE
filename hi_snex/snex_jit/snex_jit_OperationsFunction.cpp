@@ -160,7 +160,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 							}
 
 							return false;
-						});
+						}, IterationType::NoChildInlineFunctionBlocks);
 
 						switch (returnTypes.size())
 						{
@@ -235,7 +235,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 					}
 
 					return false;
-				});
+				}, IterationType::AllChildStatements);
 			}
 
 			compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, sTree);
@@ -440,7 +440,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 
 			return false;
-		});
+		}, IterationType::AllChildStatements);
 
 		FunctionCompileData fcd(data, compiler, scope);
 

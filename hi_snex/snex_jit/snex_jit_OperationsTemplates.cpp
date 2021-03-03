@@ -106,7 +106,7 @@ snex::jit::ComplexType::Ptr Operations::TemplateDefinition::createTemplate(const
 		}
 
 		return false;
-	});
+	}, IterationType::AllChildStatements);
 
 	c->createMembersAndFinalise();
 
@@ -282,7 +282,7 @@ snex::jit::Operations::Statement::List Operations::TemplatedFunction::collectFun
 			}
 
 			return false;
-		});
+		}, IterationType::AllChildStatements);
 
 		orderedFunctions.addIfNotAlreadyThere(f);
 	}

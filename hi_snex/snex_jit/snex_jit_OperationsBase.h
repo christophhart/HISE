@@ -58,7 +58,13 @@ namespace Operations
 	static BaseScope* findClassScope(BaseScope* scope);
 	static BaseScope* findFunctionScope(BaseScope* scope);
 
-	
+	enum class IterationType
+	{
+		AllChildStatements,			 //< all child nodes will be iterated
+		NoChildInlineFunctionBlocks, //< the iterator will not go inside inlined functions (but if the root is an inline function it will process it)
+		NoInlineFunctionBlocks,		 //< the iterator will skip all inline functions (even if it's the root node)
+		numIterationTypes
+	};
 
 	using RegPtr = AssemblyRegister::Ptr;
 
@@ -120,6 +126,7 @@ namespace Operations
 			numTextFormat
 		};
 
+		
 		
 
 		using Ptr = ReferenceCountedObjectPtr<Statement>;
@@ -259,21 +266,7 @@ namespace Operations
 				s->process(compiler, scope);
 		}
 
-		bool forEachRecursive(const std::function<bool(Ptr)>& f)
-		{
-			if (f(this))
-				return true;
-
-			for (int i = 0; i < getNumChildStatements(); i++)
-			{
-				auto c = getChildStatement(i);
-
-				if (c->forEachRecursive(f))
-					return true;
-			}
-
-			return false;
-		}
+		bool forEachRecursive(const std::function<bool(Ptr)>& f, IterationType it);
 
 		bool replaceIfOverloaded(Ptr objPtr, List args, FunctionClass::SpecialSymbols overloadType);
 

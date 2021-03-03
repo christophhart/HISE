@@ -84,12 +84,12 @@ void Operations::StatementBlock::process(BaseCompiler* compiler, BaseScope* scop
 				{
 					if (auto rt = as<ReturnStatement>(p))
 					{
-						if(rt->findRoot() == as<ScopeStatementBase>(this))
-							returnStatements++;
+						jassert(rt->findRoot() == as<ScopeStatementBase>(this));
+						returnStatements++;
 					}
 
 					return false;
-				});
+				}, IterationType::NoChildInlineFunctionBlocks);
 
 				jassert(returnStatements > 0);
 
@@ -199,7 +199,7 @@ Operations::Statement::Ptr Operations::StatementBlock::getThisExpression()
 		}
 
 		return false;
-	});
+	}, IterationType::NoChildInlineFunctionBlocks);
 
 	if (expr == nullptr)
 		location.throwError("Can't find this pointer");
@@ -728,7 +728,7 @@ bool Operations::Loop::evaluateIteratorLoad()
 						}
 
 						return false;
-					});
+					}, IterationType::AllChildStatements);
 
 					loadIterator = isSelfAssign;
 				}

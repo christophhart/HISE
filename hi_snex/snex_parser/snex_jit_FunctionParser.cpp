@@ -332,8 +332,8 @@ void CodeParser::finaliseSyntaxTree(SyntaxTree* tree)
 		};
 
 
-		auto trueStatementHasReturn = lastTrueStatement->forEachRecursive(hasReturn);
-		auto falseStatementHasReturn = lastFalseStatement != nullptr && lastFalseStatement->forEachRecursive(hasReturn);
+		auto trueStatementHasReturn = lastTrueStatement->forEachRecursive(hasReturn, Operations::IterationType::NoChildInlineFunctionBlocks);
+		auto falseStatementHasReturn = lastFalseStatement != nullptr && lastFalseStatement->forEachRecursive(hasReturn, Operations::IterationType::NoChildInlineFunctionBlocks);
 
 		if (trueStatementHasReturn || falseStatementHasReturn)
 		{

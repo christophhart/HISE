@@ -424,6 +424,33 @@ void Operations::Statement::logWarning(const juce::String& m)
 	logMessage(currentCompiler, BaseCompiler::Warning, m);
 }
 
+bool Operations::Statement::forEachRecursive(const std::function<bool(Ptr)>& f, IterationType it)
+{
+	if (f(this))
+		return true;
+
+	if (it == IterationType::NoInlineFunctionBlocks)
+	{
+		if (auto sb = as<StatementBlock>(this))
+		{
+			if (sb->isInlinedFunction)
+				return false;
+		}
+	}
+
+	auto itToUse = it == IterationType::NoChildInlineFunctionBlocks ? IterationType::NoInlineFunctionBlocks : it;
+
+	for (int i = 0; i < getNumChildStatements(); i++)
+	{
+		auto c = getChildStatement(i);
+
+		if (c->forEachRecursive(f, itToUse))
+			return true;
+	}
+
+	return false;
+}
+
 bool Operations::Statement::replaceIfOverloaded(Ptr objPtr, List args, FunctionClass::SpecialSymbols overloadType)
 {
 	if (auto cType = objPtr->getTypeInfo().getTypedIfComplexType<ComplexType>())
@@ -573,14 +600,12 @@ void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(
 		return false;
 	};
 
-	
-
 	statementToSearchFor->forEachRecursive([&](Statement::Ptr p)
 	{
 		auto d = as<DotOperator>(p) ;
 		auto v = as<VariableReference>(p);
 
-		if (p->forEachRecursive(hasChildStatementsWithLocalScope))
+		if (p->forEachRecursive(hasChildStatementsWithLocalScope, IterationType::AllChildStatements))
 			return false;
 
 		if (d != nullptr || v != nullptr)
@@ -603,7 +628,7 @@ void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(
 		}
 		
 		return false;
-	});
+	}, IterationType::AllChildStatements);
 
 
 #if 0
@@ -664,7 +689,7 @@ void Operations::ScopeStatementBase::addDestructors(BaseScope* scope)
 		}
 
 		return false;
-	});
+	}, IterationType::NoChildInlineFunctionBlocks);
 
 	bool destructorsAdded = false;
 
@@ -796,7 +821,7 @@ void Operations::ScopeStatementBase::setNewPath(BaseCompiler* c, const Namespace
 		}
 
 		return false;
-	});
+	}, IterationType::AllChildStatements);
 }
 
 void Operations::ClassDefinitionBase::addMembersFromStatementBlock(StructType* t, Statement::Ptr bl)
@@ -1085,7 +1110,7 @@ void Operations::StatementWithControlFlowEffectBase::addDestructorToAllChildStat
 		}
 
 		return false;
-	});
+	}, IterationType::NoChildInlineFunctionBlocks);
 
 	bool hasReturn = false; 
 

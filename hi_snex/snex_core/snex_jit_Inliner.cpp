@@ -156,7 +156,7 @@ struct SyntaxTreeInlineData : public InlineData
 								return true;
 
 							return false;
-						});
+						}, Operations::IterationType::AllChildStatements);
 					}
 
 					return true;
@@ -192,7 +192,7 @@ struct SyntaxTreeInlineData : public InlineData
 						}
 
 						return false;
-					});
+					}, IterationType::AllChildStatements);
 				}
 			}
 		}

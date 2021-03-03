@@ -73,7 +73,7 @@ Operations::ClassStatement::ClassStatement(Location l, ComplexType::Ptr classTyp
 		}
 
 		return false;
-	});
+	}, IterationType::AllChildStatements);
 }
 
 juce::Result Operations::ClassStatement::addBaseClasses()
@@ -136,7 +136,7 @@ void Operations::ClassStatement::createMembersAndFinalise()
 		}
 
 		return false;
-	});
+	}, IterationType::AllChildStatements);
 
 	for (auto bc : baseClassTypes)
 		bc->finaliseAlignment();

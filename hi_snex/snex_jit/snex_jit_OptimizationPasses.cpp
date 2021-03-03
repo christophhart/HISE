@@ -524,11 +524,8 @@ bool FunctionInliner::processStatementInternal(BaseCompiler* compiler, BaseScope
 	{
 		bool hasReturnStatement = is->getTrueBranch()->forEachRecursive([](StatementPtr p)
 		{
-			if (dynamic_cast<Operations::ReturnStatement*>(p.get()) != nullptr)
-				return true;
-
-			return false;
-		});
+			return as<ReturnStatement>(p) != nullptr;
+		}, IterationType::NoChildInlineFunctionBlocks);
 
 		bool hasNoFalseBranch = is->getFalseBranch() == nullptr;
 
@@ -667,7 +664,7 @@ bool FunctionInliner::inlineRootFunction(BaseCompiler* compiler, BaseScope* scop
 				}
 
 				return false;
-			});
+			}, Operations::IterationType::AllChildStatements);
 		}
 		else
 			return false;
@@ -1159,11 +1156,8 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 	auto hasControlFlow = l->forEachRecursive([](Ptr p)
 	{
 		return as<Operations::ControlFlowStatement>(p) != nullptr;
-	});
+	}, IterationType::NoChildInlineFunctionBlocks);
 		
-
-	
-
 	if (hasControlFlow)
 		return false;
 
@@ -1253,7 +1247,7 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 				}
 
 				return false;
-			});
+			}, Operations::IterationType::NoChildInlineFunctionBlocks);
 
 			lp->addStatement(cb);
 
@@ -1460,7 +1454,7 @@ bool LoopOptimiser::combineInternal(Operations::Loop* l, Operations::Loop* nl)
 			}
 
 			return false;
-		});
+		}, IterationType::AllChildStatements);
 
 		auto newBlock = new StatementBlock(loc, targetBlock->getPath());
 		
@@ -1571,7 +1565,7 @@ bool LoopVectoriser::convertToSimd(BaseCompiler* c, Operations::Loop* l)
 		if (!isFloat)
 			return false;
 
-		auto isUnSimdable = l->getLoopBlock()->forEachRecursive(isUnSimdableOperation);
+		auto isUnSimdable = l->getLoopBlock()->forEachRecursive(isUnSimdableOperation, IterationType::AllChildStatements);
 
 		if (isUnSimdable)
 			return false;

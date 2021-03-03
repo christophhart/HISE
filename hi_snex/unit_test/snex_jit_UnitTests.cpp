@@ -625,10 +625,10 @@ public:
 	{
 		beginTest("Funky");
 
-		runTestFiles("access_2d");
+		
 #if INCLUDE_SNEX_BIG_TESTSUITE
-		optimizations = OptimizationIds::getAllIds();
-
+		
+		optimizations = {};
 		testOptimizations();
 		testInlining();
 

@@ -905,7 +905,7 @@ void Operations::VectorOp::initChildOps()
 				pt->isChildOp = true;
 
 			return false;
-		});
+		}, IterationType::AllChildStatements);
 	}
 }
 
