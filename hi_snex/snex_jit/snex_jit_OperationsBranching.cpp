@@ -410,6 +410,8 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
+		preallocateVariableRegistersBeforeBranching(getLoopChildStatement(ChildStatementType::Body), compiler, scope);
+
 		if (auto li = getLoopChildStatement(ChildStatementType::Initialiser))
 			li->process(compiler, scope);
 
