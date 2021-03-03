@@ -288,6 +288,8 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 		{
 			auto d = b->toAsmInlineData();
 
+			d->gen.location.calculatePosition(false);
+
 			int lineNumber = d->gen.location.getLine();
 
 			auto globalScope = d->args[0]->getScope()->getGlobalScope();
@@ -596,13 +598,16 @@ juce::Result MathFunctions::Inliners::sin(InlineData* d_)
 {
 	SETUP_MATH_INLINE("inline sin");
 
-	static constexpr int TableSize = 2048;
+	static constexpr int TableSize = 1024;
 
 	static float sinTable[TableSize];
+	static double sinTableDouble[TableSize];
+
 	for (int i = 0; i < TableSize; i++)
 	{
 		double v = ((double)i / (double)TableSize) * double_Pi * 2.0;
-		sinTable[i] = std::sin(v);
+		sinTableDouble[i] = std::sin(v);
+		sinTable[i] = (float)sinTableDouble[i];
 	}
 
 	auto i1 = cc.newGpq();

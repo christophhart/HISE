@@ -337,18 +337,18 @@ struct SnexSource : public WorkbenchData::Listener
 
 
 
-		static void callExternalDataForAll(ComplexDataHandler& handler, ComplexDataHandlerLight& target)
+		static void callExternalDataForAll(ComplexDataHandler& handler, ComplexDataHandlerLight& target, bool getWriteLock=true)
 		{
-			ExternalData::forEachType([&handler, &target](ExternalData::DataType t)
+			ExternalData::forEachType([&handler, &target, getWriteLock](ExternalData::DataType t)
+			{
+				for (int i = 0; i < handler.getNumDataObjects(t); i++)
 				{
-					for (int i = 0; i < handler.getNumDataObjects(t); i++)
-					{
-						auto absoluteIndex = handler.getAbsoluteIndex(t, i);
-						ExternalData ed(handler.getComplexBaseType(t, i), absoluteIndex);
-						SimpleReadWriteLock::ScopedWriteLock l(ed.obj->getDataLock());
-						target.setExternalData(ed, absoluteIndex);
-					}
-				});
+					auto absoluteIndex = handler.getAbsoluteIndex(t, i);
+					ExternalData ed(handler.getComplexBaseType(t, i), absoluteIndex);
+					SimpleReadWriteLock::ScopedWriteLock l(ed.obj->getDataLock(), getWriteLock);
+					target.setExternalData(ed, absoluteIndex);
+				}
+			});
 		}
 
 	private:
@@ -404,34 +404,43 @@ struct SnexSource : public WorkbenchData::Listener
 		Tester(SnexSource& s) :
 			dataHandler(s, obj),
 			parameterHandler(s, obj),
-			callbacks(s, obj)
+			callbacks(s, obj),
+			original(s)
 		{
 			static_assert(std::is_base_of<CallbackHandlerBase, T>(), "not a base of CallbackHandlerBase");
 
+			init();
+		}
+
+		void init()
+		{
 			callbacks.reset();
 			dataHandler.reset();
 			parameterHandler.reset();
-			parameterHandler.copyLastValuesFrom(s.getParameterHandler());
+			parameterHandler.copyLastValuesFrom(original.getParameterHandler());
 
-			if (auto wb = s.getWorkbench())
+			if (auto wb = original.getWorkbench())
 			{
 				if (auto ptr = wb->getLastResult().mainClassPtr)
 				{
 					ptr->initialiseObjectStorage(obj);
-					
+
 					callbacks.recompiledOk(ptr);
 					parameterHandler.recompiledOk(ptr);
 					dataHandler.recompiledOk(ptr);
-					ComplexDataHandler::callExternalDataForAll(s.getComplexDataHandler(), dataHandler);
+					ComplexDataHandler::callExternalDataForAll(original.getComplexDataHandler(), dataHandler, false);
 				}
 			}
 		}
 
 		Result runTest(ui::WorkbenchData::CompileResult& lastResult) override
 		{
+			DBG(lastResult.assembly);
+			init();
 			return callbacks.runTest(lastResult);
 		}
 
+		SnexSource& original;
 		HandlerBase::ObjectStorageType obj;
 		ComplexDataHandlerLight dataHandler;
 		ParameterHandlerLight parameterHandler;
@@ -465,6 +474,8 @@ struct SnexSource : public WorkbenchData::Listener
 
 	void recompiled(WorkbenchData::Ptr wb) final override;
 
+	void logMessage(WorkbenchData::Ptr wb, int level, const String& s) override;
+
 	bool preprocess(String& code) final override
 	{
 		jassert(code.contains("setParameter("));
@@ -480,6 +491,11 @@ struct SnexSource : public WorkbenchData::Listener
 		{
 			return parentNode->getId();
 		}
+	}
+
+	bool allowProcessing()
+	{
+		return getWorkbench() != nullptr && !getWorkbench()->getGlobalScope().isDebugModeEnabled();
 	}
 
 	StringArray getAvailableClassIds()
@@ -504,7 +520,7 @@ struct SnexSource : public WorkbenchData::Listener
 			if (auto dc = dynamic_cast<snex::ui::WorkbenchData::DefaultCodeProvider*>(wb->getCodeProvider()))
 				dc->defaultFunction = [this](const Identifier& id) { return this->getEmptyText(id); };
 
-			if (auto c = dynamic_cast<DspNetwork::CodeManager::SnexSourceCompileHandler*>(wb->getCompileHandler()))
+			if (auto c = dynamic_cast<DspNetwork::CodeManager::SnexSourceCompileHandler*>(getWorkbench()->getCompileHandler()))
 			{
 				c->setTestBase(createTester());
 			}
@@ -692,6 +708,9 @@ struct SnexMenuBar : public Component,
 	HiseShapeButton popupButton;
 	HiseShapeButton editButton;
 	HiseShapeButton addButton;
+	HiseShapeButton debugButton;
+	HiseShapeButton optimizeButton;
+	HiseShapeButton asmButton;
 	HiseShapeButton deleteButton;
 	ComplexDataPopupButton cdp;
 

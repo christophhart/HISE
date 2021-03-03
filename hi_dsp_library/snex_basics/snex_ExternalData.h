@@ -507,7 +507,7 @@ struct base
 	virtual void setExternalData(const snex::ExternalData& d, int index)
 	{
 		// This function must always be called while the writer lock is active
-		jassert(d.isEmpty() || d.obj->getDataLock().writeAccessIsLocked());
+		jassert(d.isEmpty() || d.obj->getDataLock().writeAccessIsLocked() || d.obj->getDataLock().writeAccessIsSkipped());
 
 		externalData = d;
 	}

@@ -88,6 +88,7 @@ struct DataReadLockJIT
 	{
 		static void constructor(void* obj, void* externalData)
 		{
+			return;
 			auto thisPtr = static_cast<DataReadLockJIT*>(obj);
 			auto ed = static_cast<ExternalData*>(externalData);
 			auto cd = ed->obj;
@@ -100,6 +101,7 @@ struct DataReadLockJIT
 
 		static void destructor(void* obj)
 		{
+			return;
 			auto thisPtr = static_cast<DataReadLockJIT*>(obj);
 
 			if (auto cd = static_cast<ComplexDataUIBase*>(thisPtr->complexDataPtr))

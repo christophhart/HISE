@@ -136,6 +136,19 @@ struct ParserHelpers
 #endif
 		}
 
+		void calculatePosition(bool calculateColToo, bool forceUpdate=false)
+		{
+#if SNEX_PREPARSE_LINE_NUMBERS
+			if (getXYPosition().isOrigin() || forceUpdate)
+			{
+				lineNumber = calculateLineNumber();
+
+				if (calculateColToo)
+					colNumber = calculateColNumber();
+			}
+#endif
+		}
+
 		int getColNumber() const
 		{
 #if SNEX_PARSE_LINE_NUMBERS
@@ -228,11 +241,7 @@ struct ParserHelpers
 		{
 			auto lToUse = location;
 
-			if (lToUse.getXYPosition().isOrigin())
-			{
-				lToUse.lineNumber = location.calculateLineNumber();
-				lToUse.colNumber = location.calculateColNumber();
-			}
+			lToUse.calculatePosition(true);
 
 			String s;
 

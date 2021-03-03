@@ -362,6 +362,7 @@ BlockParser::StatementPtr ClassParser::parseFunction(const Symbol& s)
 
 	func->code = location.location;
 
+	location.calculatePosition(false);
 	auto startPos = location.getXYPosition();
 
 	match(JitTokens::openBrace);
@@ -374,6 +375,7 @@ BlockParser::StatementPtr ClassParser::parseFunction(const Symbol& s)
 		skip();
 	}
 
+	location.calculatePosition(false, true);
 	auto endPos = location.getXYPosition();
 
 	compiler->namespaceHandler.setNamespacePosition(s.id, startPos, endPos, ca.getInfo());

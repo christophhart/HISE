@@ -185,6 +185,8 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 		}
 		else
 		{
+			target->loadMemoryIntoRegister(cc);
+
 			if (value->isMemoryLocation())
 				cc.lea(PTR_REG_W(target), value->getAsMemoryLocation());
 			else
@@ -1046,7 +1048,7 @@ Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr
 
 			float* d = reinterpret_cast<float*>(start);
 
-			if (numBytesToInitialise % 16 == 0)
+			if (false && numBytesToInitialise % 16 == 0)
 			{
 				uint64_t* s = reinterpret_cast<uint64_t*>(start);
 				auto dst = target->getAsMemoryLocation().clone();
@@ -1067,8 +1069,7 @@ Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr
 			else if (numBytesToInitialise % 4 == 0)
 			{
 				int* s = reinterpret_cast<int*>(start);
-				auto dst = target->getAsMemoryLocation().clone();
-				dst.setSize(4);
+				auto dst = target->getAsMemoryLocation().cloneResized(4);
 
 				auto r = cc.newGpd();
 
@@ -1546,6 +1547,7 @@ void AsmCodeGenerator::dumpVariables(BaseScope* s, uint64_t lineNumber)
 		}
 	}
 
+	
 	
 	auto data = reinterpret_cast<void*>(bpHandler.getLineNumber());
 

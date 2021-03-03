@@ -1062,6 +1062,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (function.id.toString() == "stop")
 		{
+			location.calculatePosition(false);
+
 			asg.dumpVariables(scope, location.getLine());
 
 			function.functionName = "";

@@ -115,8 +115,13 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	void handleBlinks();
 
+	void setEnabled(bool ) override {};
+
 	void logMessage(int level, const juce::String& s) override
 	{
+		if (!getGlobalScope().isDebugModeEnabled())
+			return;
+
 		if (MessageManager::getInstance()->isThisTheMessageThread())
 		{
 			for (auto l : listeners)

@@ -204,6 +204,8 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		auto targetExpression = getSubExpr(1);
 		auto valueExpression = getSubExpr(0);
 
+		auto targetType = getTargetType();
+
 		auto value = getSubRegister(0);
 		auto tReg = getSubRegister(1);
 
@@ -259,7 +261,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			if (assignmentType == JitTokens::assign_)
 			{
-				if (tReg->getTypeInfo().isComplexType() && getTargetType() == TargetType::Variable)
+				if (tReg->getTypeInfo().isComplexType())
 				{
 					acg.emitStackInitialisation(tReg, tReg->getTypeInfo().getComplexType(), value, nullptr);
 				}

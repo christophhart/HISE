@@ -284,7 +284,7 @@ public:
 
 			void postCompile(ui::WorkbenchData::CompileResult& lastResult) override
 			{
-				if (lastResult.compiledOk() && test != nullptr)
+				if (lastResult.compiledOk() && test != nullptr && getParent()->getGlobalScope().isDebugModeEnabled())
 				{
 					getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(Thread::getCurrentThread());
 

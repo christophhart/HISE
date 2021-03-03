@@ -115,12 +115,13 @@ void FunctionClass::addFunctionClass(FunctionClass* newRegisteredClass)
 
 void FunctionClass::removeFunctionClass(const NamespacedIdentifier& id)
 {
-	for (auto c : registeredClasses)
+	for (int i = 0; i < registeredClasses.size(); i++)
 	{
+		auto c = registeredClasses[i];
+
 		if (c->getClassName() == id)
 		{
-			registeredClasses.removeObject(c);
-			return;
+			registeredClasses.remove(i--);
 		}
 	}
 }

@@ -51,6 +51,8 @@ struct SnexOscillator : public SnexSource
 
 		Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) override
 		{
+			
+
 			struct TestData
 			{
 				TestData()
@@ -66,9 +68,10 @@ struct SnexOscillator : public SnexSource
 
 			ScopedPointer<TestData> td = new TestData();
 
-			process(td->d);
+			auto f = getFunctionAsObjectCallback("process");
 
-			
+			f.callVoid(&td->d);
+
 			return Result::ok();
 		}
 

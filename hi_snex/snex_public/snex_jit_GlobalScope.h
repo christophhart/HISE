@@ -141,6 +141,12 @@ struct DebugHandler
 	*/
 	virtual void blink(int line) {};
 
+	/** Override this and change the behaviour for the handler depending on its supposed enablement. */
+	virtual void setEnabled(bool shouldBeEnabled)
+	{
+		ignoreUnused(shouldBeEnabled);
+	};
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DebugHandler);
 };
 
@@ -334,7 +340,7 @@ public:
 	
 	bool isActive() const
 	{
-		return executingThread != nullptr && Thread::getCurrentThread() == executingThread;
+		return enabled && executingThread != nullptr && Thread::getCurrentThread() == executingThread;
 	}
 
 	void setExecutingThread(Thread* threadToUse)
@@ -342,11 +348,16 @@ public:
 		executingThread = threadToUse;
 	}
 
+	void setEnabled(bool shouldBeEnabled)
+	{
+		enabled = shouldBeEnabled;
+	}
+
 private:
 
 	Thread* executingThread = nullptr;
 
-
+	bool enabled;
 	bool active = false;
 	uint64 lineNumber = 0;
 	
@@ -875,7 +886,24 @@ public:
 		return true;
 	}
 
+	void setDebugMode(bool shouldBeDebugMode)
+	{
+		if (debugMode != shouldBeDebugMode)
+		{
+			debugMode = shouldBeDebugMode;
+
+			getBreakpointHandler().setEnabled(shouldBeDebugMode);
+
+			for (auto d : debugHandlers)
+				d->setEnabled(shouldBeDebugMode);
+		}
+	}
+
+	bool isDebugModeEnabled() const { return debugMode; }
+
 private:
+
+	bool debugMode = true;
 
 	Array<Identifier> noInliners;
 

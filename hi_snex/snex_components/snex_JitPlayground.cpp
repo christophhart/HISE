@@ -225,7 +225,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	addAndMakeVisible(editor);
 	addAndMakeVisible(console);
 
-	if (isTestMode)
+	if (true)
 	{
 
 		assembly.setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0));
@@ -277,7 +277,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	resultLabel.setColour(juce::Label::ColourIds::textColourId, Colours::white);
 	resultLabel.setEditable(false);
 
-	if (isTestMode)
+	if (true)
 	{
 		addAndMakeVisible(stateViewer);
 		addAndMakeVisible(showInfo);

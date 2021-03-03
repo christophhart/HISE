@@ -848,7 +848,10 @@ void DspNetwork::CodeManager::SnexSourceCompileHandler::run()
 
 bool DspNetwork::CodeManager::SnexSourceCompileHandler::triggerCompilation()
 {
-	
+	getParent()->getGlobalScope().getBreakpointHandler().abort();
+
+	if (isThreadRunning())
+		stopThread(3000);
 
 	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
 
@@ -859,7 +862,6 @@ bool DspNetwork::CodeManager::SnexSourceCompileHandler::triggerCompilation()
 		return true;
 	}
 
-	getParent()->getGlobalScope().getBreakpointHandler().abort();
 	startThread();
 	return false;
 }

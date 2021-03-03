@@ -820,12 +820,16 @@ struct SimpleReadWriteLock
 {
 	struct ScopedWriteLock
 	{
-		ScopedWriteLock(SimpleReadWriteLock& l):
+		ScopedWriteLock(SimpleReadWriteLock& l, bool tryToAcquireLock=true):
 			lock(l)
 		{
 			auto thisId = std::this_thread::get_id();
             auto i = std::thread::id();
-			holdsLock = lock.writer.compare_exchange_weak(i, thisId);
+
+			if (!tryToAcquireLock)
+				lock.fakeWriteLock = true;
+
+			holdsLock = tryToAcquireLock && lock.enabled && lock.writer.compare_exchange_weak(i, thisId);
 
 			if (holdsLock)
 			{
@@ -835,6 +839,8 @@ struct SimpleReadWriteLock
 
 		~ScopedWriteLock()
 		{
+			lock.fakeWriteLock = false;
+
 			unlock();
 		}
 
@@ -856,7 +862,7 @@ struct SimpleReadWriteLock
 
 	bool enterReadLock()
 	{
-		if (std::this_thread::get_id() != writer)
+		if (enabled && std::this_thread::get_id() != writer)
 		{
 			mutex.lock_shared();
 			return true;
@@ -893,7 +899,25 @@ struct SimpleReadWriteLock
 		SimpleReadWriteLock& lock;
 	};
 
+	struct ScopedDisabler
+	{
+		ScopedDisabler(SimpleReadWriteLock& l):
+			lock(l)
+		{
+			lock.enabled = false;
+		}
+
+		~ScopedDisabler()
+		{
+			lock.enabled = true;
+		}
+
+		SimpleReadWriteLock& lock;
+	};
+
 	bool writeAccessIsLocked() const { return writer.load() != std::thread::id(); }
+
+	bool writeAccessIsSkipped() const { return fakeWriteLock; }
 
 	struct ScopedTryReadLock
 	{
@@ -934,6 +958,9 @@ struct SimpleReadWriteLock
 
 	std::atomic<std::thread::id> writer;
 	std::shared_mutex mutex;
+
+	bool enabled = true;
+	bool fakeWriteLock = false;
 };
 
 /** This is a non allocating alternative to the AsyncUpdater.

@@ -52,8 +52,6 @@ void core::SnexOscillator::OscillatorCallbacks::reset()
 
 juce::Result core::SnexOscillator::OscillatorCallbacks::recompiledOk(snex::jit::ComplexType::Ptr objectClass)
 {
-	
-
 	auto r = Result::ok();
 
 	auto newTickFunction = getFunctionAsObjectCallback("tick");
@@ -133,25 +131,26 @@ String core::SnexOscillator::getEmptyText(const Identifier& id) const
 
 	auto code = c.toString();
 
-
-
 	return code;
 }
 
 void core::SnexOscillator::initialise(NodeBase* n)
 {
 	SnexSource::initialise(n);
-
 }
 
 float core::SnexOscillator::tick(double uptime)
 {
-	return callbacks.tick(uptime);
+	if (allowProcessing())
+		return callbacks.tick(uptime);
+	else
+		return 0.0f;
 }
 
 void core::SnexOscillator::process(OscProcessData& d)
 {
-	callbacks.process(d);
+	if(allowProcessing())
+		callbacks.process(d);
 }
 
 core::NewSnexOscillatorDisplay::NewSnexOscillatorDisplay(SnexOscillator* osc, PooledUIUpdater* updater) :
