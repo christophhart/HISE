@@ -268,7 +268,12 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 				else
 				{
 					if (tReg != value)
+					{
+						if (tReg->isGlobalMemory() || tReg->hasCustomMemoryLocation())
+							tReg->setWriteBackToMemory(true);
+
 						acg.emitStore(tReg, value);
+					}
 				}
 			}
 			else

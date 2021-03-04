@@ -346,7 +346,7 @@ void CodeParser::finaliseSyntaxTree(SyntaxTree* tree)
 				lastTrueStatement->replaceInParent(ptr);
 			}
 
-			if (!falseStatementHasReturn)
+			if (!falseStatementHasReturn && lastFalseStatement != nullptr)
 			{
 				auto ptr = new Operations::StatementBlock(lastFalseStatement->location, tree->getPath());
 				ptr->addStatement(lastFalseStatement->clone(lastFalseStatement->location));
