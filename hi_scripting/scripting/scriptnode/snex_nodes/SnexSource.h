@@ -693,7 +693,16 @@ struct SnexMenuBar : public Component,
 
 		void paintButton(Graphics& g, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
 		{
-			g.setColour(Colours::white);
+			float alpha = 0.6f;
+
+			if (shouldDrawButtonAsDown)
+				alpha += 0.2f;
+
+			if (shouldDrawButtonAsDown)
+				alpha += 0.2f;
+
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colours::white.withAlpha(alpha));
 			g.drawText(text, getLocalBounds().toFloat(), Justification::centred);
 		}
 

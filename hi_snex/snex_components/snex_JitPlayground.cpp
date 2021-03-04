@@ -59,9 +59,10 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	assembly(assemblyDoc, &assemblyTokeniser),
 	console(consoleContent, &consoleTokeniser),
 	snexIcon(factory.createPath("snex")),
-	showInfo("Info"),
-	showAssembly("Assembly"),
-	showConsole("Console"),
+	showInfo("optimise", this, factory),
+	showAssembly("asm", this, factory),
+	showConsole("console", this, factory),
+	bugButton("debug", this, factory),
 	spacerAssembly("Assembly"),
 	spacerConsole("Console"),
 	spacerInfo("Info"),
@@ -227,6 +228,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	if (true)
 	{
+		
 
 		assembly.setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0));
 		assembly.setFont(GLOBAL_MONOSPACE_FONT());
@@ -283,6 +285,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 		addAndMakeVisible(showInfo);
 		addAndMakeVisible(showAssembly);
 		addAndMakeVisible(showConsole);
+		addAndMakeVisible(bugButton);
 
 		addAndMakeVisible(spacerAssembly);
 		addAndMakeVisible(spacerConsole);
@@ -326,6 +329,11 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 		resized();
 	};
 
+	bugButton.onClick = [this]()
+	{
+		getWorkbench()->getGlobalScope().setDebugMode(bugButton.getToggleState());
+	};
+
 	compileButton.onClick = [this]()
 	{
 		getWorkbench()->setCode(doc.getAllContent(), sendNotification);
@@ -335,6 +343,11 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	{
 		getGlobalScope().getBreakpointHandler().resume();
 	};
+
+	bugButton.setToggleModeWithColourChange(true);
+	showAssembly.setToggleModeWithColourChange(true);
+	showConsole.setToggleModeWithColourChange(true);
+	showInfo.setToggleModeWithColourChange(true);
 
 	consoleContent.addListener(this);
 
@@ -389,13 +402,15 @@ void SnexPlayground::resized()
 	spacerAssembly.setVisible(assemblyVisible);
 	spacerConsole.setVisible(consoleVisible);
 
-	auto topRight = top.removeFromRight(500);
-
-	auto buttonWidth = topRight.getWidth() / 6;
+	auto topRight = top.removeFromRight(top.getHeight() * 4);
+	
+	
+	auto buttonWidth = topRight.getHeight();
 
 	showInfo.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
 	showAssembly.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
 	showConsole.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
+	bugButton.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
 	
 	top.removeFromLeft(100);
 
@@ -794,6 +809,11 @@ void SnexPlayground::createTestSignal()
 #endif
 }
 
+void SnexPlayground::buttonClicked(Button* b)
+{
+
+}
+
 String SnexPlayground::TestCodeProvider::getTestTemplate()
 {
 	auto emitCommentLine = [](juce::String& code, const juce::String& comment)
@@ -1070,6 +1090,11 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
         
         LOAD_PATH_IF_URL("snex", Icons::snex);
         
+		LOAD_PATH_IF_URL("debug", SnexIcons::bugIcon);
+		LOAD_PATH_IF_URL("asm", SnexIcons::asmIcon);
+		LOAD_PATH_IF_URL("optimise", SnexIcons::optimizeIcon);
+		LOAD_PATH_IF_URL("console", SnexIcons::debugPanel);
+
         return p;
     }
 
