@@ -102,7 +102,7 @@ struct ComplexType : public ReferenceCountedObject
 
 	template <typename StorageType> Result initialiseObjectStorage(StorageType& c)
 	{
-		c.setSize(getRequiredByteSize());
+		c.setSize(jmax<int>(1, (int)getRequiredByteSize()));
 
 		InitData d;
 		d.callConstructor = hasConstructor();
