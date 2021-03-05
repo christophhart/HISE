@@ -797,7 +797,11 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		Array<TypeInfo> parameterTypes;
 
 		for (int i = 0; i < getNumArguments(); i++)
-			parameterTypes.add(compiler->convertToNativeTypeIfPossible(getArgument(i)->getTypeInfo()));
+		{
+			auto e = getArgument(i);
+			e->tryToResolveType(compiler);
+			parameterTypes.add(compiler->convertToNativeTypeIfPossible(e->getTypeInfo()));
+		}
 
 		if (possibleMatches.size() > 0)
 		{
