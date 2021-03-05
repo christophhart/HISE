@@ -61,7 +61,7 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 	if (parentPath == scopePath)
 		scopePath = compiler->namespaceHandler.createNonExistentIdForLocation(parentPath, location.getLine());
 
-	location.calculatePosition(false, true);
+	location.calculateLineIfEnabled(compiler->namespaceHandler.shouldCalculateNumbers());
 	auto startPos = location.getXYPosition();
 
 	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, scopePath);
@@ -82,7 +82,7 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 
 	CommentAttacher ca(*this);
 
-	location.calculatePosition(false, true);
+	location.calculateLineIfEnabled(compiler->namespaceHandler.shouldCalculateNumbers());
 	compiler->namespaceHandler.setNamespacePosition(scopePath, startPos, location.getXYPosition(), ca.getInfo());
 
 	match(JitTokens::closeBrace);

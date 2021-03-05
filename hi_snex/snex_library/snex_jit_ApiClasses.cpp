@@ -344,6 +344,9 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 
 				i->type = ptr;
 				i->id = d->args[0]->getVariableId().id;
+
+				d->gen.location.calculatePosition(false, true);
+
 				i->lineNumber = d->gen.location.getLine();
 
 				dumpItems.add(i);

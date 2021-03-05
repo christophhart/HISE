@@ -378,9 +378,16 @@ public:
 
 	bool removeNamespace(const NamespacedIdentifier& id);
 
-
+	void setEnableLineNumbers(bool shouldBeEnabled)
+	{
+		enableLineNumbers = shouldBeEnabled;
+	}
+	
+	bool shouldCalculateNumbers() const { return enableLineNumbers; }
 
 private:
+
+	bool enableLineNumbers = true;
 
 	mutable bool skipResolving = false;
 

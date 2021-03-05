@@ -370,7 +370,7 @@ BlockParser::StatementPtr ClassParser::parseFunction(const Symbol& s)
 
 	skipIfConsoleCall();
 
-	location.calculatePosition(false);
+	location.calculateLineIfEnabled(compiler->namespaceHandler.shouldCalculateNumbers());
 	auto startPos = location.getXYPosition();
 
 	match(JitTokens::openBrace);
@@ -383,7 +383,7 @@ BlockParser::StatementPtr ClassParser::parseFunction(const Symbol& s)
 		skip();
 	}
 
-	location.calculatePosition(false, true);
+	location.calculateLineIfEnabled(compiler->namespaceHandler.shouldCalculateNumbers());
 	auto endPos = location.getXYPosition();
 
 	compiler->namespaceHandler.setNamespacePosition(s.id, startPos, endPos, ca.getInfo());

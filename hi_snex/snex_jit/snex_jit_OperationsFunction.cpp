@@ -1037,7 +1037,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (function.id.toString() == "stop")
 		{
-			location.calculatePosition(false);
+			location.calculateLineIfEnabled(compiler->namespaceHandler.shouldCalculateNumbers());
 
 			asg.dumpVariables(scope, location.getLine());
 

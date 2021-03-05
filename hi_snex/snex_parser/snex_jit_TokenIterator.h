@@ -136,6 +136,18 @@ struct ParserHelpers
 #endif
 		}
 
+		void calculateLineIfEnabled(bool isEnabled)
+		{
+			if (isEnabled)
+				calculatePosition(false, true);
+		}
+
+		void calculatePosIfEnabled(bool isEnabled)
+		{
+			if (isEnabled)
+				calculatePosition(true, true);
+		}
+
 		void calculatePosition(bool calculateColToo, bool forceUpdate=false)
 		{
 #if SNEX_PREPARSE_LINE_NUMBERS

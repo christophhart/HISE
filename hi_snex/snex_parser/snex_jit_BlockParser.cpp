@@ -644,7 +644,8 @@ bool BlockParser::skipIfConsoleCall()
 
 			match(JitTokens::semicolon);
 
-			location.calculatePosition(true);
+			location.calculatePosIfEnabled(compiler->namespaceHandler.shouldCalculateNumbers());
+
 			ParserHelpers::Error e(location);
 			e.errorMessage = "Console call outside function body";
 			compiler->logMessage(BaseCompiler::Warning, e.toString());

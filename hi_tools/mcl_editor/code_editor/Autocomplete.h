@@ -188,17 +188,14 @@ public:
 
 	void signalRebuild()
 	{
-		dirty = true;
-		notify();
+		stopThread(1000);
+		startThread();
 	}
 
 	void run() override
 	{
-		while (!threadShouldExit())
-		{
-			rebuild();
-			wait(3000);
-		}
+		dirty = true;
+		rebuild();
 	}
 
 	void clearTokenProviders()
