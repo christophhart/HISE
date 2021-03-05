@@ -39,6 +39,9 @@ namespace hise
 class FloatingTile;
 }
 
+#ifndef HISE_FLOATING_TILE_ALLOW_RESIZE_ANIMATION
+#define HISE_FLOATING_TILE_ALLOW_RESIZE_ANIMATION 1
+#endif
 
 
 

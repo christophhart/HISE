@@ -305,7 +305,9 @@ public:
 
 	void enableAnimationForNextLayout()
 	{
+#if HISE_FLOATING_TILE_ALLOW_RESIZE_ANIMATION
 		animate = true;
+#endif
 	}
 
 	void resized() override;
