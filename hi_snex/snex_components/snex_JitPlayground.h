@@ -722,6 +722,12 @@ private:
 		}
 	}
 
+	void debugModeChanged(bool isEnabled) override
+	{
+		bugButton.setToggleStateAndUpdateIcon(isEnabled);
+		editor.enableBreakpoints(isEnabled);
+	}
+
 	void recompiled(ui::WorkbenchData::Ptr p) override;
 
 	void postPostCompile(ui::WorkbenchData::Ptr wb) override;

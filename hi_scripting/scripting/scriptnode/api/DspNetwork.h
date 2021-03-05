@@ -256,13 +256,8 @@ public:
 										  public ControlledObject,
 									      public Thread
 		{
-			struct TestBase
-			{
-				virtual ~TestBase() {};
-
-				virtual Result runTest(ui::WorkbenchData::CompileResult& lastResult) = 0;
-			};
-
+			using TestBase = snex::ui::WorkbenchData::TestRunnerBase;
+			
 			struct SnexCompileListener
 			{
 				virtual ~SnexCompileListener() {};
@@ -284,14 +279,23 @@ public:
 
 			void postCompile(ui::WorkbenchData::CompileResult& lastResult) override
 			{
+				auto currentThread = Thread::getCurrentThread();
+
+				if (currentThread != this)
+				{
+					runTestNext.store(true);
+					startThread();
+					return;
+				}
+
 				if (lastResult.compiledOk() && test != nullptr && getParent()->getGlobalScope().isDebugModeEnabled())
 				{
-					getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(Thread::getCurrentThread());
-
+					getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(currentThread);
 					lastResult.compileResult = test->runTest(lastResult);
-
 					getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(nullptr);
 				}
+
+				runTestNext.store(false);
 			}
 
 			bool triggerCompilation() override;
@@ -321,6 +325,8 @@ public:
 			}
 
 		private:
+
+			std::atomic<bool> runTestNext = false;
 
 			ScopedPointer<TestBase> test;
 

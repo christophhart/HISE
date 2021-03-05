@@ -331,7 +331,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	bugButton.onClick = [this]()
 	{
-		getWorkbench()->getGlobalScope().setDebugMode(bugButton.getToggleState());
+		getWorkbench()->setDebugMode(bugButton.getToggleState(), sendNotification);
 	};
 
 	compileButton.onClick = [this]()
@@ -348,6 +348,10 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	showAssembly.setToggleModeWithColourChange(true);
 	showConsole.setToggleModeWithColourChange(true);
 	showInfo.setToggleModeWithColourChange(true);
+
+	debugModeChanged(getWorkbench()->getGlobalScope().isDebugModeEnabled());
+
+	
 
 	consoleContent.addListener(this);
 

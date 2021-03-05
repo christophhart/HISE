@@ -192,6 +192,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		virtual void drawBreakpoints(Graphics& g) {};
 
+		virtual void debugModeChanged(bool isEnabled) {};
+
 		virtual void logMessage(WorkbenchData::Ptr wb, int level, const String& s)
 		{
 			ignoreUnused(wb, level, s);
@@ -224,6 +226,96 @@ struct WorkbenchData : public ReferenceCountedObject,
 		WorkbenchData::WeakPtr parent;
 	};
 
+	struct CompileResult
+	{
+		CompileResult() :
+			compileResult(Result::ok())
+		{};
+
+		bool compiledOk() const
+		{
+			return compileResult.wasOk();
+		}
+
+		Result compileResult;
+		String assembly;
+		JitObject obj;
+		ComplexType::Ptr mainClassPtr;
+
+
+		scriptnode::ParameterDataList parameters;
+		JitCompiledNode::Ptr lastNode;
+	};
+
+	struct TestRunnerBase
+	{
+		struct ParameterEvent
+		{
+			ParameterEvent() {};
+
+			ParameterEvent(int timeStamp_, int parameterIndex_, double v) :
+				timeStamp(timeStamp_),
+				parameterIndex(parameterIndex_),
+				valueToUse(v)
+			{};
+
+			bool operator<(const ParameterEvent& other) const
+			{
+				return timeStamp < other.timeStamp;
+			}
+
+			ParameterEvent(const var& obj) :
+				timeStamp(obj.getProperty("Timestamp", 0)),
+				parameterIndex(obj.getProperty("Index", 0)),
+				valueToUse(obj.getProperty("Value", 0.0))
+			{
+
+			}
+
+			var toJson() const
+			{
+				DynamicObject::Ptr obj = new DynamicObject();
+
+				obj->setProperty("Index", parameterIndex);
+				obj->setProperty("Value", valueToUse);
+				obj->setProperty("Timestamp", timeStamp);
+
+				return var(obj);
+			}
+
+			int timeStamp = 0;
+			int parameterIndex = 0;
+			double valueToUse = 0.0;
+		};
+
+		virtual ~TestRunnerBase() {};
+
+		virtual Result runTest(ui::WorkbenchData::CompileResult& lastResult) { return Result::ok(); };
+
+		/** Override this function and call the parameter method. */
+		virtual void processTestParameterEvent(int parameterIndex, double value) = 0;
+
+		virtual void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) = 0;
+
+		virtual void processTest(ProcessDataDyn& data) = 0;
+
+		virtual bool shouldProcessEventsManually() const { return false; }
+
+		virtual void processHiseEvent(HiseEvent& e) {};
+
+		virtual void initExternalData(ExternalDataHolder* h)
+		{
+			jassertfalse;
+		}
+
+		virtual bool triggerTest(ui::WorkbenchData::CompileResult& lastResult)
+		{
+			runTest(lastResult);
+			return true;
+		}
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(TestRunnerBase);
+	};
 	
 	struct TestData: public AsyncUpdater,
 					 public ExternalDataHolder
@@ -262,7 +354,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 		TestData(WorkbenchData& p) :
 			testResult(Result::ok()),
 			parent(p)
-		{};
+		{
+			rebuildTestSignal(dontSendNotification);
+		};
 
 		struct HiseEventEvent
 		{
@@ -273,44 +367,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 			HiseEvent e;
 		};
 
-		struct ParameterEvent
-		{
-			ParameterEvent() {};
-
-			ParameterEvent(int timeStamp_, int parameterIndex_, double v):
-				timeStamp(timeStamp_),
-				parameterIndex(parameterIndex_),
-				valueToUse(v)
-			{};
-
-			bool operator<(const ParameterEvent& other) const
-			{
-				return timeStamp < other.timeStamp;
-			}
-
-			ParameterEvent(const var& obj):
-				timeStamp(obj.getProperty("Timestamp", 0)),
-				parameterIndex(obj.getProperty("Index", 0)),
-				valueToUse(obj.getProperty("Value", 0.0))
-			{
-				
-			}
-
-			var toJson() const
-			{
-				DynamicObject::Ptr obj = new DynamicObject();
-				
-				obj->setProperty("Index", parameterIndex);
-				obj->setProperty("Value", valueToUse);
-				obj->setProperty("Timestamp", timeStamp);
-
-				return var(obj);
-			}
-
-			int timeStamp = 0;
-			int parameterIndex = 0;
-			double valueToUse = 0.0;
-		};
+		using ParameterEvent = TestRunnerBase::ParameterEvent;
 
 		bool testWasOk() const
 		{
@@ -353,6 +410,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 		{
 			return getParameterAmount ? parameterEvents.size() : hiseEvents.getNumUsed();
 		}
+
+		TestRunnerBase* getCustomTest() { return customTester.get(); }
 
 		void addTestEvent(const HiseEvent& e)
 		{
@@ -426,6 +485,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 			listeners.removeAllInstancesOf(l);
 		}
 		
+		void processInChunks(const std::function<void()>& f);
+
 		void processTestData(WorkbenchData::Ptr data);
 
 		void clear(NotificationType notify = dontSendNotification)
@@ -455,7 +516,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		double cpuUsage = 0.0;
 
-		TestSignalMode currentTestSignalType;
+		TestSignalMode currentTestSignalType = TestSignalMode::Empty;
 		int testSignalLength = 1024;
 
 		String getErrorMessage() const
@@ -588,9 +649,34 @@ struct WorkbenchData : public ReferenceCountedObject,
 			dataProvider = p;
 		}
 
+		void setCustomTest(TestRunnerBase* newCustomTester)
+		{
+			customTester = newCustomTester;
+		}
+
 	private:
 		
+		WeakReference<TestRunnerBase> customTester;
+
 		MultiChannelAudioBuffer::DataProvider::Ptr dataProvider;
+
+		int getHiseEventInSampleRange(Range<int> r, int lastIndex, HiseEvent& e)
+		{
+			int before = lastIndex;
+
+			lastIndex = jmax(0, lastIndex);
+
+			for (int i = lastIndex; i < hiseEvents.getNumUsed(); i++)
+			{
+				if (r.contains(hiseEvents.getEvent(i).getTimeStamp()) && before != i)
+				{
+					e = hiseEvents.getEvent(i);
+					return i;
+				}
+			}
+
+			return -1;
+		}
 
 		int getParameterInSampleRange(Range<int> r, int lastIndex, ParameterEvent& pToFill) const
 		{
@@ -631,28 +717,12 @@ struct WorkbenchData : public ReferenceCountedObject,
 		JUCE_DECLARE_NON_COPYABLE(TestData);
 	};
 
-	struct CompileResult
-	{
-		CompileResult() :
-			compileResult(Result::ok())
-		{};
+	
 
-		bool compiledOk() const
-		{
-			return compileResult.wasOk();
-		}
+	
 
-		Result compileResult;
-		String assembly;
-		JitObject obj;
-		ComplexType::Ptr mainClassPtr;
-		
-
-		scriptnode::ParameterDataList parameters;
-		JitCompiledNode::Ptr lastNode;
-	};
-
-	struct CompileHandler : public SubItemBase
+	struct CompileHandler : public SubItemBase,
+						    public TestRunnerBase
 	{
 		CompileHandler(WorkbenchData* d) :
 			SubItemBase(d)
@@ -695,17 +765,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 			return r;
 		}
 
-		virtual void initExternalData(ExternalDataHolder* h)
-		{
-			jassertfalse;
-		}
+		
 
-		/** Override this function and call the parameter method. */
-		virtual void processTestParameterEvent(int parameterIndex, double value) = 0;
-
-		virtual void prepareTest(PrepareSpecs ps, const Array<TestData::ParameterEvent>& initialParameters) = 0;
-
-		virtual void processTest(ProcessDataDyn& data) = 0;
+		
 
 
 		virtual void postCompile(ui::WorkbenchData::CompileResult& lastResult)
@@ -1001,6 +1063,23 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	TestData& getTestData() { return currentTestData; }
 	const TestData& getTestData() const { return currentTestData; }
+
+	void setDebugMode(bool shouldBeEnabled, NotificationType n)
+	{
+		if (shouldBeEnabled != memory.isDebugModeEnabled())
+		{
+			memory.setDebugMode(shouldBeEnabled);
+
+			if (n != dontSendNotification)
+			{
+				for (auto l : listeners)
+				{
+					if (l.get() != nullptr)
+						l->debugModeChanged(shouldBeEnabled);
+				}
+			}
+		}
+	}
 
 private:
 

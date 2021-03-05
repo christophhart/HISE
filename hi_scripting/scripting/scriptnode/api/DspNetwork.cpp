@@ -843,6 +843,12 @@ DspNetwork::CodeManager::SnexSourceCompileHandler::SnexSourceCompileHandler(snex
 
 void DspNetwork::CodeManager::SnexSourceCompileHandler::run()
 {
+	if (runTestNext)
+	{
+		postCompile(getParent()->getLastResult());
+		return;
+	}
+
 	getParent()->handleCompilation();
 }
 

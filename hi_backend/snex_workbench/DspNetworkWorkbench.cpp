@@ -213,6 +213,47 @@ void DspNetworkCompileHandler::processTest(ProcessDataDyn& data)
 		jitNode->process(data);
 }
 
+void DspNetworkCompileHandler::postCompile(WorkbenchData::CompileResult& lastResult)
+{
+	if (lastResult.compiledOk())
+	{
+		auto& testData = getParent()->getTestData();
+
+		if(auto ct = testData.getCustomTest())
+		{
+			ct->triggerTest(lastResult);
+			return;
+		}
+
+		if (auto dnp = dynamic_cast<DspNetworkCodeProvider*>(getParent()->getCodeProvider()))
+		{
+			if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
+			{
+				jitNode = nullptr;
+
+				if (holder != nullptr)
+					interpreter = holder->getActiveNetwork();
+			}
+			else if (dnp->source == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
+			{
+				interpreter = nullptr;
+				jitNode = nullptr;
+			}
+			else
+			{
+				interpreter = nullptr;
+				jitNode = lastResult.lastNode;
+			}
+		}
+
+		if (testData.shouldRunTest())
+		{
+			testData.initProcessing(getMainController()->getMainSynthChain()->getLargestBlockSize(), getMainController()->getMainSynthChain()->getSampleRate());
+			testData.processTestData(getParent());
+		}
+	}
+}
+
 DspNetworkCodeProvider::DspNetworkCodeProvider(WorkbenchData* d, MainController* mc, const File& fileToWriteTo) :
 	CodeProvider(d),
 	DspNetworkSubBase(d, mc),

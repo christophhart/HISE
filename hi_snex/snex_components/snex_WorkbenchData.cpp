@@ -38,6 +38,7 @@ DECLARE_PARAMETER_RANGE(FreqRange, 20.0, 20000.0);
 
 String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 {
+#if 0
 	auto emitCommentLine = [](juce::String& code, const juce::String& comment)
 	{
 		code << "/** " << comment << " */\n";
@@ -62,8 +63,58 @@ String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 	s << emptyBody;
 
 	s << "};" << nl;
+#endif
 
-	return s;
+	using namespace cppgen;
+
+	Base c(Base::OutputType::AddTabs);
+
+	Struct st(c, mainClass, {}, {});
+
+	c.addComment("Initialise the processing specs here", cppgen::Base::CommentType::Raw);
+	c << "void prepare(PrepareSpecs ps)";
+	{
+		StatementBlock sb(c); c.addEmptyLine();
+	}
+
+	c.addEmptyLine();
+	c.addComment("Reset the processing pipeline here", cppgen::Base::CommentType::Raw);
+	c << "void reset()";
+	{
+		StatementBlock sb(c); c.addEmptyLine();
+	}
+
+	c.addEmptyLine();
+	c.addComment("Process the signal here", cppgen::Base::CommentType::Raw);
+	c << "template <typename ProcessDataType> void process(ProcessDataType& data)";
+	{
+		StatementBlock sb(c); c.addEmptyLine();
+	}
+
+	c.addEmptyLine();
+	c.addComment("Process the signal as frame here", cppgen::Base::CommentType::Raw);
+	c << "template <int C> void processFrame(span<float, C>& data)";
+	{
+		StatementBlock sb(c);
+	}
+
+	c.addEmptyLine();
+	c.addComment("Process the MIDI events here", cppgen::Base::CommentType::Raw);
+	c << "void handleEvent(HiseEvent& e)";
+	{
+		StatementBlock sb(c); c.addEmptyLine();
+	}
+
+	c.addEmptyLine();
+	c.addComment("Set the parameters here", cppgen::Base::CommentType::Raw);
+	c << "template <int P> void setParameter(double v)";
+	{
+		StatementBlock sb(c); c.addEmptyLine();
+	}
+
+	st.flushIfNot();
+
+	return c.toString();
 }
 
 String ui::WorkbenchData::convertToLogMessage(int level, const String& s)
@@ -513,24 +564,31 @@ void ui::WorkbenchData::TestData::rebuildTestSignal(NotificationType triggerTest
 	}
 }
 
+void ui::WorkbenchData::TestData::processInChunks(const std::function<void()>& f)
+{
+
+}
+
 void ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 {
-	auto compileHandler = data->getCompileHandler();
+	auto tester = customTester.get();
+
+	if (tester == nullptr)
+		tester = dynamic_cast<TestRunnerBase*>(data->getCompileHandler());
+
 	auto nodeToTest = data->getLastResult().lastNode;
 
 	// if this fails, the compile handler didn't put the node to the CompileResult::lastNode variable...
 	//jassert(!data->getLastResult().compiledOk() || nodeToTest != nullptr);
 
-	compileHandler->initExternalData(this);
-
-	
+	tester->initExternalData(this);
 
 	jassert(ps.sampleRate > 0.0);
 	ps.numChannels = testSourceData.getNumChannels();
 
 	
 
-	compileHandler->prepareTest(ps, parameterEvents);
+	tester->prepareTest(ps, parameterEvents);
 
 	testOutputData.makeCopyOf(testSourceData);
 
@@ -545,41 +603,63 @@ void ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 		int samplePos = 0;
 		int numLeft = cd.getNumLeft();
 		int thisParameterIndex = -1;
+		int thisEventIndex = -1;
 
 		while (numLeft > 0)
 		{
 			auto numThisTime = jmin(ps.blockSize, numLeft);
 
+			auto bufferStart = samplePos;
+
 			Range<int> r(samplePos, samplePos + numThisTime);
 
+			HiseEvent e;
 			ParameterEvent p;
-
 			thisParameterIndex = getParameterInSampleRange(r, thisParameterIndex, p);
 
-			while(thisParameterIndex != -1)
+			thisEventIndex = tester->shouldProcessEventsManually() ? getHiseEventInSampleRange(r, thisEventIndex, e) : -1;
+
+			while(thisParameterIndex != -1 || thisEventIndex != -1)
 			{
 				auto numBeforeParam = p.timeStamp - samplePos;
-
-				if (numBeforeParam > 0)
+				
+				if (numBeforeParam > 0 && thisParameterIndex != -1)
 				{
 					auto sc = cd.getChunk(numBeforeParam);
-					compileHandler->processTest(sc.toData());
-
+					tester->processTest(sc.toData());
 					samplePos = p.timeStamp;
 					numThisTime -= numBeforeParam;
 				}
 
-				compileHandler->processTestParameterEvent(p.parameterIndex, p.valueToUse);
+				if (thisParameterIndex != -1)
+					tester->processTestParameterEvent(p.parameterIndex, p.valueToUse);
+
+				auto numBeforeEvent = e.getTimeStamp() - samplePos;
+				
+				if (numBeforeEvent > 0 && thisEventIndex != -1)
+				{
+					auto sc = cd.getChunk(numBeforeEvent);
+					tester->processTest(sc.toData());
+					samplePos = e.getTimeStamp();
+					numThisTime -= numBeforeEvent;
+				}
+
+				if (thisEventIndex != -1)
+				{
+					e.addToTimeStamp(-bufferStart);
+					tester->processHiseEvent(e);
+				}
 
 				r = { samplePos, samplePos + numThisTime };
 
 				thisParameterIndex = getParameterInSampleRange(r, thisParameterIndex + 1, p);
+				thisEventIndex = tester->shouldProcessEventsManually() ? getHiseEventInSampleRange(r, thisEventIndex, e) : -1;
 			}
 			
 			if (numThisTime > 0)
 			{
 				auto sc = cd.getChunk(numThisTime);
-				compileHandler->processTest(sc.toData());
+				tester->processTest(sc.toData());
 				samplePos += numThisTime;
 			}
 

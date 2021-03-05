@@ -713,61 +713,7 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 
 	void processTest(ProcessDataDyn& data) override;
 
-	void postCompile(WorkbenchData::CompileResult& lastResult) override
-	{
-		if (lastResult.compiledOk())
-		{
-			auto& testData = getParent()->getTestData();
-
-			if (auto dnp = dynamic_cast<DspNetworkCodeProvider*>(getParent()->getCodeProvider()))
-			{
-				if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
-				{
-					jitNode = nullptr;
-
-					if(holder != nullptr)
-						interpreter = holder->getActiveNetwork();
-				}
-				else if (dnp->source == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
-				{
-					interpreter = nullptr;
-					jitNode = nullptr;
-				}
-				else
-				{
-					interpreter = nullptr;
-					jitNode = lastResult.lastNode;
-				}
-			}
-
-			if (testData.shouldRunTest())
-			{
-				testData.initProcessing(getMainController()->getMainSynthChain()->getLargestBlockSize(), getMainController()->getMainSynthChain()->getSampleRate());
-
-				testData.processTestData(getParent());
-			}
-
-#if 0
-			int bs = 1024;
-			double sampleRate = 44100.0;
-
-			testBuffer.setSize(2, bs);
-			testBuffer.clear();
-
-			np->prepareToPlay(sampleRate, bs);
-
-
-			double t = Time::getMillisecondCounterHiRes();
-			np->applyEffect(testBuffer, 0, 1024);
-			t = Time::getMillisecondCounterHiRes() - t;
-
-			auto delta = t * 0.001;
-			auto calculatedSeconds = (double)bs / sampleRate;
-
-			lastResult.cpuUsage = delta / calculatedSeconds;
-#endif
-		}
-	};
+	void postCompile(WorkbenchData::CompileResult& lastResult) override;;
 
 	WeakReference<scriptnode::DspNetwork::Holder> holder;
 
