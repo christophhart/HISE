@@ -89,6 +89,12 @@ BlockParser::StatementPtr ClassParser::parseStatement(bool mustHaveSemicolon)
 	if (auto noop = parseVisibilityStatement())
 		return noop;
 
+	while (skipIfConsoleCall())
+	{
+		if (currentType == JitTokens::closeBrace)
+			return new Operations::Noop(location);
+	}
+
 	if (matchIf(JitTokens::__internal_property))
 	{
 		match(JitTokens::openParen);
@@ -268,8 +274,6 @@ BlockParser::StatementPtr ClassParser::parseFunction(const Symbol& s)
 
 	}
 
-
-
 	StatementPtr newStatement = dynamic_cast<Statement*>(func);
 
 	auto& fData = func->data;
@@ -356,11 +360,15 @@ BlockParser::StatementPtr ClassParser::parseFunction(const Symbol& s)
 
 	match(JitTokens::closeParen);
 
+	
+
 	bool isConstFunction = matchIf(JitTokens::const_);
 
 	func->data.setConst(isConstFunction);
 
 	func->code = location.location;
+
+	skipIfConsoleCall();
 
 	location.calculatePosition(false);
 	auto startPos = location.getXYPosition();
@@ -400,6 +408,8 @@ BlockParser::StatementPtr ClassParser::parseSubclass(NamespaceHandler::Visibilit
 
 	auto classId = sp.currentNamespacedIdentifier;
 
+	skipIfConsoleCall();
+
 	Array<TemplateInstance> baseClasses;
 
 	if (matchIf(JitTokens::colon))
@@ -422,6 +432,8 @@ BlockParser::StatementPtr ClassParser::parseSubclass(NamespaceHandler::Visibilit
 		}
 	}
 
+	skipIfConsoleCall();
+
 	if (templateArguments.isEmpty())
 	{
 		auto p = new StructType(classId, templateArguments);
@@ -442,6 +454,8 @@ BlockParser::StatementPtr ClassParser::parseSubclass(NamespaceHandler::Visibilit
 		auto list = parseStatementList();
 
 		list->currentCompiler = compiler;
+
+		skipIfConsoleCall();
 
 		compiler->namespaceHandler.setNamespacePosition(classId, startPos, location.getXYPosition(), ca.getInfo());
 

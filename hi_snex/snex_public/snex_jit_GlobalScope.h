@@ -903,7 +903,7 @@ public:
 
 private:
 
-	bool debugMode = true;
+	bool debugMode = false;
 
 	Array<Identifier> noInliners;
 

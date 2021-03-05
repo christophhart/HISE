@@ -273,6 +273,8 @@ public:
 
 	static bool isVectorOp(TokenType t, ExprPtr l, ExprPtr r = nullptr);
 
+	bool skipIfConsoleCall();
+
 protected:
 
 	WeakReference<Operations::ScopeStatementBase> currentScopeStatement;

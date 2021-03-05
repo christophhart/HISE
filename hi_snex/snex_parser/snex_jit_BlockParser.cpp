@@ -627,6 +627,35 @@ bool BlockParser::isVectorOp(TokenType t, BlockParser::ExprPtr l, BlockParser::E
 	return false;
 }
 
+bool BlockParser::skipIfConsoleCall()
+{
+	if (currentType == JitTokens::identifier)
+	{
+		auto id = Identifier(currentValue.toString());
+
+		static const Identifier console("Console");
+
+		if (id == console)
+		{
+			// you monkey-clicked on a breakpoint outside a function, so skip until the next semicolon
+
+			while (currentType != JitTokens::semicolon && !isEOF())
+				skip();
+
+			match(JitTokens::semicolon);
+
+			location.calculatePosition(true);
+			ParserHelpers::Error e(location);
+			e.errorMessage = "Console call outside function body";
+			compiler->logMessage(BaseCompiler::Warning, e.toString());
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 Operations::Expression::Ptr BlockParser::parseExpression()
 {
 	return parseTernaryOperator();
