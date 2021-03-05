@@ -620,7 +620,7 @@ void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(
 			{
 				auto& cc = getFunctionCompiler(c);
 
-				if(d != nullptr)
+				if (d != nullptr || (v != nullptr && v->isClassVariable(s)))
 					p->reg->loadMemoryIntoRegister(cc);
 
 				p->reg->setWriteBackToMemory(true);
