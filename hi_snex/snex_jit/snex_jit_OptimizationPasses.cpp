@@ -1873,6 +1873,13 @@ struct Helpers
 		return (op.isMem() && op.as<BaseMem>().hasIndexReg()) ? op.as<BaseMem>().indexId() : NoReg;
 	}
 
+	static bool isFpuInstruction(BaseNode* n)
+	{
+		using namespace x86;
+		return isInstruction(n, { Inst::kIdFld, Inst::kIdFprem, Inst::kIdFld1, Inst::kIdFprem1,
+								  Inst::kIdFstp });
+	}
+
 	static bool isInstructionWithIndexAsTarget(BaseNode* n, uint32 base, uint32 index)
 	{
 		if (base == NoReg && index == NoReg)
@@ -2192,6 +2199,9 @@ struct RemoveDoubleMemoryWrites : public AsmCleanupPass::SubPass<InstructionFilt
 		while (auto thisNode = it.next())
 		{
 			auto thisTarget = Helpers::getTargetOp(thisNode);
+
+			if (Helpers::isFpuInstruction(thisNode))
+				continue;
 
 			if (thisTarget.isMem())
 			{
