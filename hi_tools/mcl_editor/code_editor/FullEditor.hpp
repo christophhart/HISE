@@ -137,6 +137,11 @@ struct FullEditor: public Component
 		editor.gutter.removeBreakpointListener(l);
 	}
 
+	void enableBreakpoints(bool shouldBeEnabled)
+	{
+		editor.gutter.setBreakpointsEnabled(shouldBeEnabled);
+	}
+
 	void resized() override
 	{
 		auto b = getLocalBounds();

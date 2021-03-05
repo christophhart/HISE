@@ -231,6 +231,9 @@ public:
 
 	bool hasEntries(const String& input, const String& previousToken, int lineNumber) const
 	{
+		if (CharacterFunctions::isDigit(previousToken[0]))
+			return false;
+
 		for (auto t : tokens)
 		{
 			if (t->matches(input, previousToken, lineNumber))

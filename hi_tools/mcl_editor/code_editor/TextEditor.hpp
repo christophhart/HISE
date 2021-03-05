@@ -265,9 +265,11 @@ public:
 
 		auto tokenBefore = document.getSelectionContent(beforeToken);
 
+		auto hasDotAndNotFloat = !CharacterFunctions::isDigit(tokenBefore[0]) && tokenBefore.endsWith(".");
+
 		auto lineNumber = o.x;
 		
-		if (forceShow || (input.isNotEmpty() && tokenCollection.hasEntries(input, tokenBefore, lineNumber) || tokenBefore.endsWith(".")))
+		if (forceShow || (input.isNotEmpty() && tokenCollection.hasEntries(input, tokenBefore, lineNumber) || hasDotAndNotFloat))
 		{
 			if (currentAutoComplete != nullptr)
 				currentAutoComplete->setInput(input, tokenBefore, lineNumber);

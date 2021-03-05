@@ -32,7 +32,7 @@ juce::AttributedString Autocomplete::Item::createDisplayText() const
 	auto between = text.substring(beforeIndex, beforeIndex + input.length());
 	auto after = text.substring(beforeIndex + input.length());
 
-	auto nf = Font(Font::getDefaultMonospacedFontName(), 16.0f, Font::plain);
+	auto nf = GLOBAL_MONOSPACE_FONT().withHeight(16.0f);
 	auto bf = nf.boldened();
 
 	s.append(before, nf, Colours::white.withAlpha(0.7f));

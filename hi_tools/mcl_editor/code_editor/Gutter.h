@@ -78,6 +78,12 @@ public:
 
 	void sendBlinkMessage(int n);
 
+	void setBreakpointsEnabled(bool shouldBeEnabled)
+	{
+		breakpointsEnabled = shouldBeEnabled;
+		repaint();
+	}
+
 	void sendBreakpointChangeMessage()
 	{
 		if (recompileOnBreakpointChange)
@@ -194,8 +200,6 @@ private:
 			{
 				String m;
 
-				
-
 				auto e = logExpression.toString();
 
 				if (e.isNotEmpty() || blinkIfHit.getValue())
@@ -268,6 +272,8 @@ private:
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Breakpoint);
 	};
+
+	bool breakpointsEnabled = false;
 
 	struct BlinkState
 	{

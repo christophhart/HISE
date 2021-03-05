@@ -128,7 +128,13 @@ static Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceF
 #if JUCE_IOS
 #define GLOBAL_MONOSPACE_FONT() Font(Font::getDefaultMonospacedFontName(), 14.0f, Font::plain)
 #else
+#if JUCE_WINDOWS
+#define GLOBAL_MONOSPACE_FONT() (Font("Consolas", 14.0f, Font::plain))
+#elif JUCE_MAC
+#define GLOBAL_MONOSPACE_FONT() (Font("Menlo", 14.0f, Font::plain))
+#else
 #define GLOBAL_MONOSPACE_FONT() (Font(sourceCodeProTypeFace).withHeight(14.0f))
+#endif
 #endif
 #endif
 

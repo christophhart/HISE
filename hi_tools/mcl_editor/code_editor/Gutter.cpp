@@ -242,7 +242,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 			auto bPath = bp->createPath();
 			PathFactory::scalePath(bPath, b);
 
-			if (bp->enabled.getValue())
+			if (bp->enabled.getValue() && breakpointsEnabled)
 			{
 				g.setColour(bp->breakIfHit.getValue() ? Colour(0xFF683333) : Colour(0xFF333368));
 				g.fillPath(bPath);
