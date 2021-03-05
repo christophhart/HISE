@@ -1798,10 +1798,16 @@ void StructType::finaliseAlignment()
 				auto call = new FunctionCall(d->location, nullptr, Symbol(f.id, TypeInfo(Types::ID::Void)), f.templateParameters);
 				call->setObjectExpression(new MemoryReference(d->location, parent, TypeInfo(sc.childType.get()), sc.offset));
 
+				
+
 				if (f.canBeInlined(true))
 				{
 					SyntaxTreeInlineData sd(call, {}, f);
 					sd.object = call->getObjectExpression();
+
+					call->currentCompiler = d->object->currentCompiler;
+					call->currentScope = d->object->currentScope;
+
 					sd.templateParameters = f.templateParameters;
 					
 					auto r = f.inlineFunction(&sd);

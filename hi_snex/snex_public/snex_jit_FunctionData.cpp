@@ -146,6 +146,23 @@ bool FunctionData::hasTemplatedArgumentOrReturnType() const
 	return false;
 }
 
+bool FunctionData::hasUnresolvedTemplateParameters() const
+{
+	for (auto t : templateParameters)
+	{
+		if (t.t == TemplateParameter::IntegerTemplateArgument || t.t == TemplateParameter::TypeTemplateArgument)
+			return true;
+
+		if (t.t == TemplateParameter::ConstantInteger && !t.constantDefined)
+			return true;
+
+		if (t.t == TemplateParameter::ParameterType::Type && t.type.isInvalid())
+			return true;
+	}
+
+	return false;
+}
+
 snex::jit::FunctionData FunctionData::withParent(const NamespacedIdentifier& newParent) const
 {
 	auto copy = *this;
@@ -322,6 +339,40 @@ juce::Result FunctionData::validateWithArgs(Types::ID r, const Array<Types::ID>&
 		{
 			d << " - " << args[i].id.getIdentifier();
 			d << " - expected " << Types::Helpers::getTypeName(nativeArgList[i]) << " type";
+			return Result::fail(d);
+		}
+	}
+
+	return Result::ok();
+}
+
+juce::Result FunctionData::validateWithArgs(String returnString, const StringArray& argStrings) const
+{
+	String d = getSignature();
+
+	if (!isResolved())
+		return Result::fail(d + " not found");
+
+	if (args.size() != argStrings.size())
+	{
+		d << " - argument amount mismatch: expected " << String(argStrings.size());
+		return Result::fail(d);
+	}
+
+	if (returnString.compare(returnType.toString()) != 0)
+	{
+		d << " - return type mismatch: expected " << returnString;
+		return Result::fail(d);
+	}
+
+	for (int i = 0; i < argStrings.size(); i++)
+	{
+		auto actualType = args[i].typeInfo;
+
+		if (argStrings[i].compare(actualType.toString()) != 0)
+		{
+			d << " - " << args[i].id.getIdentifier();
+			d << " - expected " << argStrings[i] << " type";
 			return Result::fail(d);
 		}
 	}

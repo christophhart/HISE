@@ -48,6 +48,27 @@ struct InlineData;
 struct FunctionClass : public DebugableObjectBase,
 	public ReferenceCountedObject
 {
+	// Sort the matches so that resolved functions come first
+			// This avoids templated functions without inliner to be picked over their
+			// actual functions with proper inlining.
+
+	struct ResolveSorter
+	{
+		static int compareElements(const FunctionData& f1, const FunctionData& f2)
+		{
+			bool firstResolvedOrNoT = f1.isResolved() || !f1.hasTemplatedArgumentOrReturnType();
+			bool seconResolvedOrNoT = f2.isResolved() || !f2.hasTemplatedArgumentOrReturnType();
+
+			if (firstResolvedOrNoT && !seconResolvedOrNoT)
+				return -1;
+
+			if (seconResolvedOrNoT && !firstResolvedOrNoT)
+				return 1;
+
+			return 0;
+		}
+	};
+
 	using Ptr = ReferenceCountedObjectPtr<FunctionClass>;
 
 	enum SpecialSymbols

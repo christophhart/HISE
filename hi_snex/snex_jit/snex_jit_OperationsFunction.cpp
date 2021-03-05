@@ -801,32 +801,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (possibleMatches.size() > 0)
 		{
-			// Sort the matches so that resolved functions come first
-			// This avoids templated functions without inliner to be picked over their
-			// actual functions with proper inlining.
-
-			struct {
-				static int compareElements(const FunctionData& f1, const FunctionData& f2)
-				{
-					bool firstResolvedOrNoT = f1.isResolved() || !f1.hasTemplatedArgumentOrReturnType();
-					bool seconResolvedOrNoT = f2.isResolved() || !f2.hasTemplatedArgumentOrReturnType();
-
-					if (firstResolvedOrNoT && !seconResolvedOrNoT)
-						return -1;
-
-					if (seconResolvedOrNoT && !firstResolvedOrNoT)
-						return 1;
-
-					return 0;
-
-#if 0
-					if (f1.isResolved() && !f2.isResolved()) return -1;
-					if (f2.isResolved() && !f1.isResolved()) return 1;
-					return 0;
-#endif
-
-				}
-			} sorter;
+			FunctionClass::ResolveSorter sorter;
 			possibleMatches.sort(sorter);
 		}
 		

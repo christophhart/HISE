@@ -109,7 +109,11 @@ class ConsoleFunctions : public JitCallableObject
 			s << "Dump object " << ptr->id.toString();
 			s << " at line " << String(ptr->lineNumber) << "\n";
 
-			ptr->type->dumpTable(s, l, dataPtr, dataPtr);
+			if (dataPtr != nullptr)
+				ptr->type->dumpTable(s, l, dataPtr, dataPtr);
+			else
+				s << "nullptr!";
+
 			c->logAsyncIfNecessary(s);
 		}
 	}

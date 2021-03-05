@@ -192,6 +192,8 @@ struct FunctionData
 
 	bool hasTemplatedArgumentOrReturnType() const;
 
+	bool hasUnresolvedTemplateParameters() const;
+
 	FunctionData withParent(const NamespacedIdentifier& newParent) const;
 
 	TypeInfo getOrResolveReturnType(ComplexType::Ptr p);
@@ -217,6 +219,8 @@ struct FunctionData
 	bool isValid() const;
 
 	Result validateWithArgs(Types::ID r, const Array<Types::ID>& nativeArgList) const;
+
+	Result validateWithArgs(String returnString, const StringArray& argStrings) const;
 
 	Inliner::Func getDefaultExpression(const Symbol& s) const;
 
