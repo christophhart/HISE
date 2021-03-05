@@ -51,8 +51,6 @@ struct SnexOscillator : public SnexSource
 
 		Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) override
 		{
-			
-
 			struct TestData
 			{
 				TestData()

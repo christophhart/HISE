@@ -36,5 +36,47 @@ using namespace juce;
 using namespace hise;
 using namespace snex;
 
+namespace core
+{
+String snex_node::getEmptyText(const Identifier& id) const
+{
+	return WorkbenchData::getDefaultNodeTemplate(id);
+}
+
+bool snex_node::preprocess(String& code)
+{
+	SnexSource::preprocess(code);
+
+	using namespace cppgen;
+
+	Base c(Base::OutputType::AddTabs);
+
+	int nc = getParentNode()->getNumChannelsToProcess();
+
+	String def1, def2;
+
+	def1 << "void dummyProcess(ProcessData<" << nc << ">& d)"; c << def1;
+	{ StatementBlock body(c);
+	    c << getCurrentClassId() + " instance;";
+		c << "instance.process(d);";
+	}
+
+	def2 << "void dummyProcessFrame(span<float, " << nc << ">& d)"; c << def2;
+	{ StatementBlock body(c);
+	c << getCurrentClassId() + " instance;";
+	c << "instance.processFrame(d);";
+	}
+
+	code << c.toString();
+
+	DBG(code);
+
+	return true;
+}
+
+}
+
+
+
 }
 

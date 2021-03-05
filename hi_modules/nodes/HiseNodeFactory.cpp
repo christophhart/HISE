@@ -131,10 +131,10 @@ namespace control
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();
 		
 		registerNoProcessNode<faders::dynamic::NodeType, faders::dynamic::editor>();
-		//registerModNode<midi_logic::dynamic::NodeType, midi_logic::dynamic::editor>();
+		registerModNode<midi_logic::dynamic::NodeType, midi_logic::dynamic::editor>();
 		registerModNode<smoothers::dynamic::NodeType, smoothers::dynamic::editor>();
 
-		//registerPolyModNode<control::timer<snex_timer>, timer_poly<snex_timer>, snex_timer::editor>();
+		registerPolyModNode<control::timer<snex_timer>, timer_poly<snex_timer>, snex_timer::editor>();
 	}
 }
 
@@ -157,6 +157,7 @@ Factory::Factory(DspNetwork* network) :
 
 #if HISE_INCLUDE_SNEX
 	registerPolyNode<snex_osc<SnexOscillator>, snex_osc_poly<SnexOscillator>, NewSnexOscillatorDisplay>();
+	registerNode<core::snex_node, core::snex_node::editor>();
 #endif
 
 
@@ -170,7 +171,7 @@ Factory::Factory(DspNetwork* network) :
 
 	
 
-	//registerNode<waveshapers::dynamic::NodeType, waveshapers::dynamic::editor>();
+	registerNode<waveshapers::dynamic::NodeType, waveshapers::dynamic::editor>();
 	
 	
 }

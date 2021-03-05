@@ -36,5 +36,118 @@ using namespace juce;
 using namespace hise;
 using namespace snex;
 
+
+namespace control
+{
+	String snex_timer::getEmptyText(const Identifier& id) const
+	{
+		cppgen::Base c(cppgen::Base::OutputType::AddTabs);
+
+		cppgen::Struct s(c, id, {}, {});
+
+		c.addComment("Calculate a new timer value here", snex::cppgen::Base::CommentType::Raw);
+		c << "double getTimerValue()\n";
+		c << "{\n    return 0.0;\n}\n";
+
+		String pf;
+		c.addEmptyLine();
+		addDefaultParameterFunction(pf);
+		c << pf;
+
+		return c.toString();
+	}
+
+	double snex_timer::getTimerValue()
+	{
+		auto v = callbacks.getTimerValue();
+		lastValue.setModValue(v);
+		return v;
+	}
+
+	snex_timer::editor::editor(snex_timer* t, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<snex_timer>(t, updater),
+		menuBar(t),
+		dragger(updater),
+		meter(updater)
+	{
+		t->addCompileListener(this);
+
+		addAndMakeVisible(menuBar);
+		this->addAndMakeVisible(dragger);
+
+		meter.setModValue(t->lastValue);
+
+		addAndMakeVisible(meter);
+
+		this->setSize(512, 90);
+	}
+
+	juce::Component* snex_timer::editor::createExtraComponent(void* obj, PooledUIUpdater* updater)
+	{
+		return new editor(&static_cast<NodeType*>(obj)->tType, updater);
+	}
+
+	void snex_timer::editor::resized()
+	{
+		auto b = this->getLocalBounds();
+
+		auto top = b.removeFromTop(24);
+		
+
+		menuBar.setBounds(top);
+
+		b.removeFromTop(5);
+
+		auto r = b.removeFromTop(20);
+
+		flashDot = r.removeFromLeft(20).toFloat();
+
+		r.removeFromLeft(3);
+
+		meter.setBounds(r);
+
+		b.removeFromTop(5);
+
+		dragger.setBounds(b);
+	}
+
+	void snex_timer::editor::paint(Graphics& g)
+	{
+		auto b = this->getLocalBounds().removeFromTop(28);
+
+		auto ledArea = b.removeFromLeft(24).removeFromTop(24);
+
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.drawRect(flashDot, 1.0f);
+
+		g.setColour(Colours::white.withAlpha(alpha));
+		g.fillRect(flashDot.reduced(2.0f));
+	}
+
+	void snex_timer::editor::timerCallback()
+	{
+		if (getObject() == nullptr)
+		{
+			stop();
+			return;
+		}
+
+		float lastAlpha = alpha;
+
+		auto& ui_led = getObject()->lastValue.changed;
+
+		if (ui_led)
+		{
+			alpha = 1.0f;
+		}
+		else
+			alpha = jmax(0.0f, alpha - 0.1f);
+
+		if (lastAlpha != alpha)
+			repaint();
+	}
+
+}
+
 }
 

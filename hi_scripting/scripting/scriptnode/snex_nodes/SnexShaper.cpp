@@ -36,5 +36,123 @@ using namespace juce;
 using namespace hise;
 using namespace snex;
 
+
+
+namespace waveshapers
+{
+
+	String dynamic::getEmptyText(const Identifier& id) const
+	{
+		using namespace snex::cppgen;
+
+		Base c(Base::OutputType::AddTabs);
+
+		Struct s(c, id, {}, {});
+
+		c.addComment("Implement the Waveshaper here...", Base::CommentType::RawWithNewLine);
+		c << "float getSample(float input)";
+
+		{
+			StatementBlock body(c);
+			c << "return input;";
+		}
+
+		c.addComment("These functions are the glue code that call the function above", Base::CommentType::Raw);
+		c << "template <typename T> void process(T& data)";
+		{							 StatementBlock body(c);
+			c << "for(auto ch: data)";
+			{						 StatementBlock loop(c);
+				c << "for(auto& s: data.toChannelData(ch))";
+				{					StatementBlock loop2(c);
+					c << "s = getSample(s);";
+				}
+			}
+		}
+
+		c << "template <typename T> void processFrame(T& data)";
+		{								 StatementBlock body(c);
+			c << "for(auto& s: data)";
+			c << "s = getSample(s);";
+		}
+
+		String pf;
+		c.addEmptyLine();
+		addDefaultParameterFunction(pf);
+		c << pf;
+
+		s.flushIfNot();
+
+		return c.toString();
+	}
+
+	dynamic::editor::editor(dynamic* t, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<dynamic>(t, updater),
+		waveform(nullptr, 0),
+		menuBar(t)
+	{
+		t->addCompileListener(this);
+		addAndMakeVisible(menuBar);
+
+		addAndMakeVisible(waveform);
+		addWaveformListener(&waveform);
+
+		this->setSize(400, 128 + 24 + 5);
+	}
+
+	dynamic::editor::~editor()
+	{
+		getObject()->removeCompileListener(this);
+	}
+
+	void dynamic::editor::getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue)
+	{
+		for (int i = 0; i < 128; i++)
+			tData[i] = 2.0f * (float)i / 127.0f - 1.0f;
+
+
+		float* x = tData.begin();
+
+		ProcessDataDyn pd(&x, 128, 1);
+
+		SnexSource::Tester<ShaperCallbacks> tester(*getObject());
+
+		tester.callbacks.process(pd);
+
+		
+
+		*tableValues = tData.begin();
+		numValues = 128;
+		normalizeValue = 1.0f;
+	}
+
+	void dynamic::editor::timerCallback()
+	{
+		double v1, v2 = 0.0;
+
+		if (rebuild)
+			Broadcaster::updateData();
+
+		rebuild = false;
+	}
+
+	juce::Component* dynamic::editor::createExtraComponent(void* obj, PooledUIUpdater* updater)
+	{
+		auto typed = static_cast<NodeType*>(obj);
+		return new editor(&typed->shaper, updater);
+	}
+
+	void dynamic::editor::resized()
+	{
+		auto b = this->getLocalBounds();
+
+		menuBar.setBounds(b.removeFromTop(24));
+		b.removeFromTop(5);
+		waveform.setBounds(b.reduced((400 - 256) / 2,0));
+	}
+
+}
+
+
+
 }
 

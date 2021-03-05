@@ -66,7 +66,8 @@ void SnexSource::recompiled(WorkbenchData::Ptr wb)
 
 	for (auto l : compileListeners)
 	{
-		l->wasCompiled(lastResult.wasOk());
+		if(l != nullptr)
+			l->wasCompiled(lastResult.wasOk());
 	}
 }
 
@@ -110,7 +111,7 @@ void SnexSource::ParameterHandler::addParameterCode(String& code)
 
 	code << c.toString();
 
-	DBG(code);
+	
 }
 
 Result SnexSource::ComplexDataHandler::recompiledOk(snex::jit::ComplexType::Ptr objectClass)
@@ -502,11 +503,9 @@ void SnexComplexDataDisplay::rebuildEditors()
 }
 
 SnexMenuBar::SnexMenuBar(SnexSource* s) :
-	newButton("new", this, f),
 	popupButton("popup", this, f),
 	editButton("edit", this, f),
 	addButton("add", this, f),
-	deleteButton("delete", this, f),
 	asmButton("asm", this, f),
 	debugButton("debug", this, f),
 	optimizeButton("optimize", this, f),
@@ -515,7 +514,8 @@ SnexMenuBar::SnexMenuBar(SnexSource* s) :
 {
 	s->addCompileListener(this);
 
-	addAndMakeVisible(newButton);
+	
+
 	addAndMakeVisible(classSelector);
 	//addAndMakeVisible(popupButton);
 	addAndMakeVisible(editButton);
@@ -526,7 +526,6 @@ SnexMenuBar::SnexMenuBar(SnexSource* s) :
 	classSelector.addListener(this);
 
 	addAndMakeVisible(addButton);
-	addAndMakeVisible(deleteButton);
 	addAndMakeVisible(cdp);
 
 	editButton.setToggleModeWithColourChange(true);
@@ -559,13 +558,28 @@ SnexMenuBar::~SnexMenuBar()
 	auto wb = static_cast<snex::ui::WorkbenchManager*>(source->getParentNode()->getScriptProcessor()->getMainController_()->getWorkbenchManager());
 	wb->removeListener(this);
 
+	if (lastBench != nullptr)
+		lastBench->removeListener(this);
+
 	source->removeCompileListener(this);
 }
 
 void SnexMenuBar::workbenchChanged(snex::ui::WorkbenchData::Ptr newWb)
 {
+	if (source->getWorkbench() == newWb)
+	{
+		if (lastBench != nullptr)
+			lastBench->removeListener(this);
+
+		lastBench = newWb;
+		lastBench->addListener(this);
+		debugModeChanged(lastBench->getGlobalScope().isDebugModeEnabled());
+	}
+
 	editButton.setToggleStateAndUpdateIcon(source->getWorkbench() == newWb && newWb != nullptr, true);
-	debugButton.setToggleStateAndUpdateIcon(newWb != nullptr && newWb->getGlobalScope().isDebugModeEnabled(), true);
+	
+
+	repaint();
 }
 
 void SnexMenuBar::complexDataAdded(snex::ExternalData::DataType t, int index)
@@ -586,9 +600,8 @@ void SnexMenuBar::refreshButtonState()
 {
 	bool shouldBeEnabled = source->getWorkbench() != nullptr;
 
-	addButton.setEnabled(shouldBeEnabled);
+	
 	editButton.setEnabled(shouldBeEnabled);
-	deleteButton.setEnabled(shouldBeEnabled);
 	popupButton.setEnabled(shouldBeEnabled);
 	asmButton.setEnabled(shouldBeEnabled);
 	debugButton.setEnabled(shouldBeEnabled);
@@ -603,28 +616,19 @@ void SnexMenuBar::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 
 void SnexMenuBar::buttonClicked(Button* b)
 {
-	if (b == &newButton)
-	{
-		auto name = PresetHandler::getCustomName(source->getId(), "Enter the name for the SNEX class file");
-
-		if (name.isNotEmpty())
-		{
-			source->setClass(name);
-			rebuildComboBoxItems();
-			refreshButtonState();
-		}
-	}
-
 	if (b == &popupButton)
 	{
 		PopupMenu m;
 		m.setLookAndFeel(&plaf);
 
+		
 		m.addItem(1, "Show popup editor", source->getWorkbench() != nullptr);
 		m.addItem(2, "Show complex data", source->getComplexDataHandler().hasComplexData());
 
 		if (auto r = m.show())
 		{
+			
+
 			Component* c;
 
 			if (r == 1)
@@ -649,18 +653,45 @@ void SnexMenuBar::buttonClicked(Button* b)
 
 	if (b == &addButton)
 	{
+		auto enableOptions = source->getWorkbench() != nullptr;
+
 		PopupMenu m;
 		m.setLookAndFeel(&plaf);
 
-		m.addItem(1, "Add Parameter");
+		m.addItem(4, "Create new file");
+		m.addSeparator();
+		m.addItem(1, "Add Parameter", enableOptions);
 
-		ExternalData::forEachType([&m](ExternalData::DataType t)
-			{
-				m.addItem(12 + (int)t, "Add " + ExternalData::getDataTypeName(t));
-			});
+		ExternalData::forEachType([&](ExternalData::DataType t)
+		{
+			m.addItem(12 + (int)t, "Add " + ExternalData::getDataTypeName(t), enableOptions);
+		});
+
+		m.addSeparator();
+
+		m.addItem(20, "Remove last Parameter", enableOptions);
+
+		ExternalData::forEachType([&](ExternalData::DataType t)
+		{
+			m.addItem(24 + (int)t, "Remove " + ExternalData::getDataTypeName(t), enableOptions);
+		});
 
 		if (auto r = m.show())
 		{
+			if (r == 4)
+			{
+				auto name = PresetHandler::getCustomName(source->getId(), "Enter the name for the SNEX class file");
+
+				if (name.isNotEmpty())
+				{
+					source->setClass(name);
+					rebuildComboBoxItems();
+					refreshButtonState();
+				}
+
+				return;
+			}
+
 			if (r == 1)
 			{
 				auto n = PresetHandler::getCustomName("Parameter");
@@ -668,33 +699,17 @@ void SnexMenuBar::buttonClicked(Button* b)
 				if (n.isNotEmpty())
 					source->getParameterHandler().addNewParameter(parameter::data(n, { 0.0, 1.0 }));
 			}
+			else if (r == 20)
+				source->getParameterHandler().removeLastParameter();
+			else if (r > 20)
+			{
+				auto t = (ExternalData::DataType)(r - 24);
+				source->getComplexDataHandler().addOrRemoveDataFromUI(t, false);
+			}
 			else
 			{
 				auto t = (ExternalData::DataType)(r - 12);
 				source->getComplexDataHandler().addOrRemoveDataFromUI(t, true);
-			}
-		}
-	}
-	if (b == &deleteButton)
-	{
-		PopupMenu m;
-		m.setLookAndFeel(&plaf);
-
-		m.addItem(1, "Remove last Parameter");
-
-		ExternalData::forEachType([&m](ExternalData::DataType t)
-			{
-				m.addItem(12 + (int)t, "Remove " + ExternalData::getDataTypeName(t));
-			});
-
-		if (auto r = m.show())
-		{
-			if (r == 1)
-				source->getParameterHandler().removeLastParameter();
-			else
-			{
-				auto t = (ExternalData::DataType)(r - 12);
-				source->getComplexDataHandler().addOrRemoveDataFromUI(t, false);
 			}
 		}
 	}
@@ -717,10 +732,29 @@ void SnexMenuBar::buttonClicked(Button* b)
 
 void SnexMenuBar::paint(Graphics& g)
 {
-	g.setColour(Colours::black.withAlpha(0.2f));
+	g.setColour(Colours::black.withAlpha(0.05f));
 	g.fillRoundedRectangle(getLocalBounds().toFloat(), 1.0f);
-	g.setColour(iconColour);
-	g.fillPath(snexIcon);
+
+	if (debugMode)
+	{
+		g.setColour(iconColour.withMultipliedAlpha(0.2f));
+		g.fillPath(snexIcon);
+
+		g.setColour(Colours::white);
+
+		SnexPathFactory f;
+		auto bug = f.createPath("debug");
+		f.scalePath(bug, snexIcon.getBounds());
+		g.fillPath(bug);
+	}
+	else
+	{
+		g.setColour(iconColour);
+		g.fillPath(snexIcon);
+	}
+
+	
+	
 }
 
 void SnexMenuBar::resized()
@@ -728,17 +762,19 @@ void SnexMenuBar::resized()
 	auto b = getLocalBounds().reduced(1);
 	auto h = getHeight();
 
-	newButton.setBounds(b.removeFromLeft(h));
+	addButton.setBounds(b.removeFromLeft(h));
+
+	b.removeFromLeft(3);
+
 	classSelector.setBounds(b.removeFromLeft(128));
-	//popupButton.setBounds(b.removeFromLeft(h));
+	
+	b.removeFromLeft(3);
+
 	editButton.setBounds(b.removeFromLeft(h));
-	//debugButton.setBounds(b.removeFromLeft(h));
-	//asmButton.setBounds(b.removeFromLeft(h));
-	//optimizeButton.setBounds(b.removeFromLeft(h));
+	
 
 	b.removeFromLeft(10);
-	addButton.setBounds(b.removeFromLeft(h));
-	deleteButton.setBounds(b.removeFromLeft(h));
+	
 	cdp.setBounds(b.removeFromLeft(90));
 
 	snexIcon = f.createPath("snex");
@@ -791,7 +827,7 @@ juce::Path SnexMenuBar::Factory::createPath(const String& url) const
 	Path p;
 
 	LOAD_PATH_IF_URL("new", SampleMapIcons::newSampleMap);
-	LOAD_PATH_IF_URL("edit", HiBinaryData::SpecialSymbols::scriptProcessor);
+	LOAD_PATH_IF_URL("edit", ColumnIcons::openWorkspaceIcon);
 	LOAD_PATH_IF_URL("popup", HiBinaryData::ProcessorEditorHeaderIcons::popupShape);
 	LOAD_PATH_IF_URL("compile", EditorIcons::compileIcon);
 	LOAD_PATH_IF_URL("reset", EditorIcons::swapIcon);

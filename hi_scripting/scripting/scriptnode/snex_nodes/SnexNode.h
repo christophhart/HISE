@@ -38,4 +38,254 @@ using namespace juce;
 using namespace hise;
 using namespace snex;
 
+namespace core
+{
+
+struct snex_node : public SnexSource
+{
+	SET_HISE_NODE_ID("snex_node");
+	SN_GET_SELF_AS_OBJECT(snex_node);
+
+	static constexpr bool isPolyphonic() { return false; }
+
+	HISE_EMPTY_CREATE_PARAM;
+
+	struct NodeCallbacks : public SnexSource::CallbackHandlerBase
+	{
+		NodeCallbacks(SnexSource& s, ObjectStorageType& o) :
+			CallbackHandlerBase(s, o)
+		{};
+
+		void reset() override
+		{
+			SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
+
+			for (int i = 0; i < ScriptnodeCallbacks::numFunctions; i++)
+				f[i] = {};
+
+			ok = false;
+		}
+
+		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override
+		{
+			FunctionData nf[(int)ScriptnodeCallbacks::numFunctions];
+
+			auto ids = ScriptnodeCallbacks::getIds({});
+
+			auto r = Result::ok();
+
+			for (auto id : ids)
+			{
+				auto i = (int)ScriptnodeCallbacks::getCallbackId(id);
+				nf[i] = getFunctionAsObjectCallback(id.toString());
+			}
+
+			{
+				SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
+				
+				for (int i = 0; i < (int)ScriptnodeCallbacks::numFunctions; i++)
+					f[i] = nf[i];
+
+				ok = r.wasOk();
+			}
+
+			return Result::ok();
+		}
+
+		void runHiseEventTest(HiseEvent& e) override
+		{
+			handleHiseEvent(e);
+		}
+
+		void runPrepareTest(PrepareSpecs ps) override
+		{
+			prepare(ps);
+			resetFunc();
+		}
+
+		void runProcessTest(ProcessDataDyn& d) override
+		{
+			process(d);
+		}
+		
+		bool runRootTest() const override { return true; };
+
+#if 0
+		Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) override
+		{
+			auto wb = static_cast<snex::ui::WorkbenchManager*>(parent.getParentNode()->getScriptProcessor()->getMainController_()->getWorkbenchManager());
+
+			if (auto rwb = wb->getRootWorkbench())
+			{
+				auto& td = rwb->getTestData();
+
+				td.processTestData(rwb, this);
+
+#if 0
+				if (td.testSourceData.getNumSamples() > 0)
+				{
+					auto& testData = td.testOutputData;
+
+					testData.makeCopyOf(td.testSourceData);
+
+					struct Test
+					{
+						Test(snex::ui::WorkbenchData::TestData& td) :
+							ps(td.getPrepareSpecs()),
+							pd(td.testOutputData.getArrayOfWritePointers(), td.testOutputData.getNumSamples(), td.testOutputData.getNumChannels()),
+							chunk(nullptr, 0, 0),
+							cd(pd)
+						{};
+
+						void next()
+						{
+							auto c = cd.getChunk(jmin(cd.getNumLeft(), ps.blockSize));
+							auto& d = c.toData();
+							chunk.referTo(d.getRawDataPointers(), d.getNumChannels(), d.getNumSamples());
+						}
+
+						PrepareSpecs ps;
+						ProcessDataDyn pd;
+						ProcessDataDyn chunk;
+						ChunkableProcessData<ProcessDataDyn> cd;
+					};
+
+
+					ScopedPointer<Test> t = new Test(td);
+					
+					prepare(t->ps);
+					resetFunc();
+
+					process(t->pd);
+
+
+					WeakReference<snex::ui::WorkbenchData> safeW(rwb.get());
+
+					auto f = [safeW]()
+					{
+						if (safeW.get() != nullptr)
+							safeW.get()->postPostCompile();
+					};
+
+					MessageManager::callAsync(f);
+				}
+#endif
+			}
+
+			return Result::ok();
+		}
+#endif
+
+		void resetFunc()
+		{
+			if (auto s = ScopedCallbackChecker(*this))
+				f[(int)ScriptnodeCallbacks::ResetFunction].callVoid();
+		}
+
+		void process(ProcessDataDyn& data)
+		{
+			if (auto s = ScopedCallbackChecker(*this))
+				f[(int)ScriptnodeCallbacks::ProcessFunction].callVoid(&data);
+		}
+
+		template <typename T> void processFrame(T& d)
+		{
+			if (auto s = ScopedCallbackChecker(*this))
+				f[(int)ScriptnodeCallbacks::ProcessFrameFunction].callVoid(&d);
+		}
+
+		void prepare(PrepareSpecs ps)
+		{
+			if (auto s = ScopedCallbackChecker(*this))
+				f[(int)ScriptnodeCallbacks::PrepareFunction].callVoid(&ps);
+		}
+		
+		void handleHiseEvent(HiseEvent& e)
+		{
+			if (auto s = ScopedCallbackChecker(*this))
+				f[(int)ScriptnodeCallbacks::HandleEventFunction].callVoid(&e);
+		}
+		
+		FunctionData f[(int)ScriptnodeCallbacks::numFunctions];
+		
+	} callbacks;
+
+	snex_node() :
+		SnexSource(),
+		callbacks(*this, object)
+	{
+		setCallbackHandler(&callbacks);
+	};
+
+	String getEmptyText(const Identifier& id) const override;
+	virtual Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("snex_node"); }
+
+	bool preprocess(String& code) override;
+
+	SnexTestBase* createTester() override
+	{
+		return new SnexSource::Tester<NodeCallbacks>(*this);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		if (allowProcessing())
+			callbacks.prepare(ps);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (allowProcessing())
+			callbacks.handleHiseEvent(e);
+	}
+
+	void reset()
+	{
+		if (allowProcessing())
+			callbacks.resetFunc();
+	}
+
+	void process(ProcessDataDyn& data)
+	{
+		if(allowProcessing())
+			callbacks.process(data);
+	}
+
+	template <typename T> void processFrame(T& data)
+	{
+		if (allowProcessing())
+			callbacks.processFrame(data);
+	}
+
+	struct editor : public ScriptnodeExtraComponent<snex_node>
+	{
+		editor(snex_node* n, PooledUIUpdater* updater):
+			ScriptnodeExtraComponent(n, updater),
+			menubar(n)
+		{
+			addAndMakeVisible(menubar);
+			setSize(400, 24);
+			stop();
+		}
+
+		void resized() override
+		{
+			menubar.setBounds(getLocalBounds());
+		}
+
+		void timerCallback() override {};
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			return new editor(static_cast<snex_node*>(obj), updater);
+		}
+
+		SnexMenuBar menubar;
+	};
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(snex_node);
+};
+
+}
+
 }

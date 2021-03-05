@@ -38,4 +38,116 @@ using namespace juce;
 using namespace hise;
 using namespace snex;
 
+namespace control
+{
+
+
+
+struct snex_timer : public SnexSource
+{
+	using NodeType = control::timer_impl<1, snex_timer>;
+
+	struct TimerCallbackHandler : public SnexSource::CallbackHandlerBase
+	{
+		TimerCallbackHandler(SnexSource& p, ObjectStorageType& o) :
+			CallbackHandlerBase(p, o)
+		{};
+
+		void reset()
+		{
+			SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
+			ok = false;
+			tc = {};
+		}
+
+		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override
+		{
+			auto newTc = getFunctionAsObjectCallback("getTimerValue");
+
+			auto r = newTc.validateWithArgs(Types::ID::Double, {});
+
+			{
+				SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
+				std::swap(newTc, tc);
+				ok = r.wasOk();
+			}
+
+			return r;
+		}
+
+		double getTimerValue()
+		{
+			if (auto c = ScopedCallbackChecker(*this))
+				return tc.call<double>();
+			
+			return 0.0;
+		}
+
+		Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) override
+		{
+			return Result::ok();
+		}
+
+		FunctionData tc;
+	};
+
+	snex_timer() :
+		SnexSource(),
+		callbacks(*this, object)
+	{
+		setCallbackHandler(&callbacks);
+	}
+
+
+	String getEmptyText(const Identifier& id) const override;
+
+	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("snex_timer"); };
+
+	SnexTestBase* createTester() override
+	{
+		return new Tester<TimerCallbackHandler>(*this);
+	}
+
+	double getTimerValue();
+
+	TimerCallbackHandler callbacks;
+	ModValue lastValue;
+
+	HISE_EMPTY_PREPARE;
+
+	class editor : public ScriptnodeExtraComponent<snex_timer>,
+				  SnexSource::SnexSourceListener
+	{
+	public:
+
+		editor(snex_timer* t, PooledUIUpdater* updater);
+
+		~editor()
+		{
+			getObject()->removeCompileListener(this);
+		}
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater);
+
+		void resized() override;
+
+		void paint(Graphics& g) override;
+
+		void timerCallback() override;
+
+		SnexMenuBar menuBar;
+		VuMeterWithModValue meter;
+
+		Rectangle<float> flashDot;
+		float alpha = 0.0f;
+		ModulationSourceBaseComponent dragger;
+	};
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(snex_timer);
+};
+
+
 }
+
+}
+

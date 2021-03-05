@@ -38,4 +38,182 @@ using namespace juce;
 using namespace hise;
 using namespace snex;
 
+namespace midi_logic
+{
+struct dynamic : public SnexSource
+{
+	using NodeType = control::midi<dynamic>;
+
+	struct CustomMidiCallback : public SnexSource::CallbackHandlerBase
+	{
+		CustomMidiCallback(SnexSource& parent, SnexSource::HandlerBase::ObjectStorageType& o) :
+			CallbackHandlerBase(parent, o)
+		{};
+
+		void reset() override;
+
+		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override;
+
+		void prepare(PrepareSpecs ps)
+		{
+			lastSpecs = ps;
+
+			if (auto c = ScopedCallbackChecker(*this))
+				prepareFunction.callVoid(&lastSpecs);
+		}
+
+		int getMidiValue(HiseEvent* e, double* v)
+		{
+			if (auto c = ScopedCallbackChecker(*this))
+				return midiFunction.call<int>(e, v);
+
+			return 0;
+		}
+
+		Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) override
+		{
+			auto wb = static_cast<snex::ui::WorkbenchManager*>(parent.getParentNode()->getScriptProcessor()->getMainController_()->getWorkbenchManager());
+			
+			if (auto rwb = wb->getRootWorkbench())
+			{
+				auto& td = rwb->getTestData();
+
+				struct TestData
+				{
+					PrepareSpecs ps;
+					double d;
+					HiseEvent e;
+				};
+
+				// needs to be on the heap or it crashes in optimised mode...
+				ScopedPointer<TestData> data = new TestData();
+
+				data->ps = td.getPrepareSpecs();
+				data->d = 0.0;
+				data->e = {};
+
+				auto f = getFunctionAsObjectCallback("prepare");
+				f.callVoid(&data->ps);
+
+				auto m = getFunctionAsObjectCallback("getMidiValue");
+
+				for (int i = 0; i < td.getNumTestEvents(false); i++)
+				{
+					data->e = td.getTestHiseEvent(i);
+					auto r = m.call<int>(&data->e, &data->d);
+				}
+
+				return Result::ok();
+
+			}
+
+			jassertfalse;
+
+			return Result::ok();
+		}
+
+		PrepareSpecs lastSpecs;
+		snex::jit::FunctionData prepareFunction;
+		snex::jit::FunctionData midiFunction;
+	};
+
+	enum class Mode
+	{
+		Gate = 0,
+		Velocity,
+		NoteNumber,
+		Frequency,
+		Custom
+	};
+
+	static StringArray getModes()
+	{
+		return { "Gate", "Velocity", "NoteNumber", "Frequency", "Custom" };
+	}
+
+	String getEmptyText(const Identifier& id) const override;
+
+	dynamic();;
+
+	class editor : public ScriptnodeExtraComponent<dynamic>,
+		public SnexSource::SnexSourceListener,
+		public Value::Listener
+	{
+	public:
+
+		editor(dynamic* t, PooledUIUpdater* updater);
+
+		~editor()
+		{
+			getObject()->removeCompileListener(this);
+			midiMode.mode.asJuceValue().removeListener(this);
+		}
+
+		void valueChanged(Value& value) override;
+
+		void paint(Graphics& g) override;
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			auto typed = static_cast<NodeType*>(obj);
+			return new editor(&typed->mType, updater);
+		}
+
+		void wasCompiled(bool ok) override {};
+		void parameterChanged(int snexParameterId, double newValue) override
+		{
+
+		}
+
+		void complexDataAdded(snex::ExternalData::DataType t, int index) override
+		{}
+
+		void resized() override;
+
+		void timerCallback() override
+		{
+			jassertfalse;
+		}
+
+		SnexMenuBar menuBar;
+
+		SnexPathFactory f;
+		BlackTextButtonLookAndFeel blaf;
+		GlobalHiseLookAndFeel claf;
+
+		ComboBoxWithModeProperty midiMode;
+
+		ModulationSourceBaseComponent dragger;
+		VuMeterWithModValue meter;
+	};
+
+	void prepare(PrepareSpecs ps);
+
+	void initialise(NodeBase* n);
+
+	void setMode(Identifier id, var newValue);
+
+	bool getMidiValue(HiseEvent& e, double& v);
+
+	bool getMidiValueWrapped(HiseEvent& e, double& v);
+
+	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("snex_midi"); };
+
+	SnexTestBase* createTester() override
+	{
+		return new Tester<CustomMidiCallback>(*this);
+	}
+
+	ModValue lastValue;
+	Mode currentMode = Mode::Gate;
+	NodePropertyT<String> mode;
+
+	CustomMidiCallback callbacks;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic);
+};
+
+
+
+}
 }

@@ -478,13 +478,9 @@ template <class ShaperType> struct waveshaper
 		shaper.processFrame(data);
 	}
 
-	template <int P> static void setParameterStatic(void* obj, double v)
-	{
-		auto typed = static_cast<waveshaper*>(obj);
-		typed->shaper.getWrappedObject().template setParameter<P>(v);
-	}
-	PARAMETER_MEMBER_FUNCTION;
+	HISE_EMPTY_CREATE_PARAM;
 
+#if 0
 	void createParameters(ParameterDataList& data)
 	{
 		{
@@ -503,6 +499,7 @@ template <class ShaperType> struct waveshaper
 			data.add(std::move(p));
 		}
 	}
+#endif
 };
 
 template <int NV> class ramp_impl : public HiseDspBase

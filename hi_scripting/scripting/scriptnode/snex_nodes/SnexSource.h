@@ -41,14 +41,14 @@ using namespace snex::ui;
 
 struct SnexSource : public WorkbenchData::Listener
 {
-	using SnexTestBase = DspNetwork::CodeManager::SnexSourceCompileHandler::TestBase;
+	using SnexTestBase = snex::ui::WorkbenchData::TestRunnerBase;
 
 	struct SnexSourceListener
 	{
 		virtual ~SnexSourceListener() {};
-		virtual void wasCompiled(bool ok) = 0;
-		virtual void complexDataAdded(snex::ExternalData::DataType t, int index) = 0;
-		virtual void parameterChanged(int snexParameterId, double newValue) = 0;
+		virtual void wasCompiled(bool ok) {};
+		virtual void complexDataAdded(snex::ExternalData::DataType t, int index) {};
+		virtual void parameterChanged(int snexParameterId, double newValue) {};
 
 		virtual void complexDataTypeChanged() {};
 
@@ -128,13 +128,17 @@ struct SnexSource : public WorkbenchData::Listener
 
 		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override;
 
+		void setParameterDynamic(int index, double v)
+		{
+			lastValues[index] = v;
+			SimpleReadWriteLock::ScopedReadLock sl(getAccessLock());
+			pFunctions[index].callVoid(v);
+		}
+
 		template <int P> static void setParameterStatic(void* obj, double v)
 		{
 			auto typed = static_cast<SnexSource::ParameterHandler*>(obj);
-			typed->lastValues[P] = v;
-
-			SimpleReadWriteLock::ScopedReadLock sl(typed->getAccessLock());
-			typed->pFunctions[P].callVoid(v);
+			typed->setParameterDynamic(P, v);
 		}
 
 	protected:
@@ -370,7 +374,31 @@ struct SnexSource : public WorkbenchData::Listener
 
 		virtual ~CallbackHandlerBase() {};
 
-		virtual Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) = 0;
+		virtual Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult)
+		{ 
+			// If you hit this, you haven't overriden the runTest method
+			jassertfalse;
+			return Result::ok(); 
+		}
+
+		virtual void runPrepareTest(PrepareSpecs ps)
+		{
+			// if you hit this you haven't overriden the runRootTest() method
+			jassertfalse;
+		}
+
+		virtual void runProcessTest(ProcessDataDyn& d)
+		{
+			// if you hit this you haven't overriden the runRootTest() method
+			jassertfalse;
+		}
+
+		virtual void runHiseEventTest(HiseEvent& e) 
+		{
+			jassertfalse;
+		}
+
+		virtual bool runRootTest() const { return false; }
 
 	protected:
 
@@ -399,7 +427,7 @@ struct SnexSource : public WorkbenchData::Listener
 		std::atomic<bool> ok = { false };
 	};
 
-	template <class T> struct Tester: public SnexTestBase
+	template <class T, bool UseRootTest=false> struct Tester: public SnexTestBase
 	{
 		Tester(SnexSource& s) :
 			dataHandler(s, obj),
@@ -433,11 +461,82 @@ struct SnexSource : public WorkbenchData::Listener
 			}
 		}
 
+		void processTestParameterEvent(int parameterIndex, double value) final override
+		{
+			parameterHandler.setParameterDynamic(parameterIndex, value);
+		};
+
+		void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) override
+		{
+			callbacks.runPrepareTest(ps);
+
+			for (const auto& p : initialParameters)
+				processTestParameterEvent(p.parameterIndex, p.valueToUse);
+		}
+
+		void processTest(ProcessDataDyn& data) override
+		{
+			callbacks.runProcessTest(data);
+		}
+
+		void processHiseEvent(HiseEvent& e) override
+		{
+			callbacks.runHiseEventTest(e);
+		}
+
+		bool shouldProcessEventsManually() const override { return true; }
+
+		void initExternalData(ExternalDataHolder* ) override {}
+
+		bool triggerTest(ui::WorkbenchData::CompileResult& lastResult) override
+		{
+			original.getWorkbench()->triggerPostCompileActions();
+			return false;
+		}
+
 		Result runTest(ui::WorkbenchData::CompileResult& lastResult) override
 		{
-			DBG(lastResult.assembly);
 			init();
-			return callbacks.runTest(lastResult);
+
+			if (callbacks.runRootTest())
+			{
+				auto wb = static_cast<snex::ui::WorkbenchManager*>(original.getParentNode()->getScriptProcessor()->getMainController_()->getWorkbenchManager());
+
+				if (auto rwb = wb->getRootWorkbench())
+				{
+					auto& td = rwb->getTestData();
+
+					td.setCustomTest(this);
+
+					auto cs = original.parentNode->getRootNetwork()->getCurrentSpecs();
+
+					if (cs.sampleRate <= 0.0)
+					{
+						cs.sampleRate = 44100.0;
+						cs.blockSize = 512;
+					}
+
+					td.initProcessing(cs.blockSize, cs.sampleRate);
+
+					td.processTestData(rwb);
+
+					WeakReference<snex::ui::WorkbenchData> safeW(rwb.get());
+
+					auto f = [safeW]()
+					{
+						if (safeW.get() != nullptr)
+							safeW.get()->postPostCompile();
+					};
+
+					MessageManager::callAsync(f);
+
+					return Result::ok();
+				}
+			}
+			else
+			{
+				return callbacks.runTest(lastResult);
+			}
 		}
 
 		SnexSource& original;
@@ -472,11 +571,18 @@ struct SnexSource : public WorkbenchData::Listener
 		classId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(SnexSource::updateClassId), true);
 	}
 
+	void preCompile() override
+	{
+		callbackHandler->reset();
+		parameterHandler.reset();
+		getComplexDataHandler().reset();
+	}
+
 	void recompiled(WorkbenchData::Ptr wb) final override;
 
 	void logMessage(WorkbenchData::Ptr wb, int level, const String& s) override;
 
-	bool preprocess(String& code) final override
+	bool preprocess(String& code) override
 	{
 		jassert(code.contains("setParameter("));
 
@@ -572,6 +678,8 @@ struct SnexSource : public WorkbenchData::Listener
 	const ComplexDataHandler& getComplexDataHandler() const { return dataHandler; }
 	const CallbackHandlerBase& getCallbackHandler() const { jassert(callbackHandler != nullptr); *callbackHandler; }
 
+	Identifier getCurrentClassId() const { return Identifier(classId.getValue()); }
+
 protected:
 
 	void setCallbackHandler(CallbackHandlerBase* nonOwnedHandler)
@@ -583,7 +691,7 @@ protected:
 
 	static void addDefaultParameterFunction(String& code)
 	{
-		code << "template <int P> static void setParameter(double v)\n";
+		code << "template <int P> void setParameter(double v)\n";
 		code << "{\n";
 		code << "\t\n";
 		code << "}\n";
@@ -652,7 +760,9 @@ struct SnexMenuBar : public Component,
 	public ButtonListener,
 	public ComboBox::Listener,
 	public SnexSource::SnexSourceListener,
-	public snex::ui::WorkbenchManager::WorkbenchChangeListener
+	public snex::ui::WorkbenchManager::WorkbenchChangeListener,
+	public snex::ui::WorkbenchData::Listener
+
 {
 	struct Factory : public PathFactory
 	{
@@ -672,17 +782,22 @@ struct SnexMenuBar : public Component,
 			String s;
 
 			ExternalData::forEachType([this, &s, &containsSomething](ExternalData::DataType t)
+			{
+				auto numObjects = source->getComplexDataHandler().getNumDataObjects(t);
+
+				containsSomething |= numObjects > 0;
+
+				if (numObjects > 0)
 				{
-					auto numObjects = source->getComplexDataHandler().getNumDataObjects(t);
-					containsSomething |= numObjects > 0;
 					s << ExternalData::getDataTypeName(t).substring(0, 1);
-					s << ":" << String(numObjects);
-					s << ", ";
-				});
+					s << String(numObjects);
+					s << " | ";
+				}
+			});
 
 			setEnabled(containsSomething);
 
-			return s.upToLastOccurrenceOf(", ", false, false);
+			return s.upToLastOccurrenceOf(" | ", false, false);
 		}
 
 		void update(ValueTree, bool)
@@ -712,7 +827,6 @@ struct SnexMenuBar : public Component,
 		valuetree::RecursiveTypedChildListener l;
 	};
 
-	HiseShapeButton newButton;
 	ComboBox classSelector;
 	HiseShapeButton popupButton;
 	HiseShapeButton editButton;
@@ -720,7 +834,6 @@ struct SnexMenuBar : public Component,
 	HiseShapeButton debugButton;
 	HiseShapeButton optimizeButton;
 	HiseShapeButton asmButton;
-	HiseShapeButton deleteButton;
 	ComplexDataPopupButton cdp;
 
 	SnexMenuBar(SnexSource* s);
@@ -730,6 +843,12 @@ struct SnexMenuBar : public Component,
 	void parameterChanged(int snexParameterId, double newValue) override;
 
 	~SnexMenuBar();
+
+	void debugModeChanged(bool isEnabled) override
+	{
+		debugMode = isEnabled;
+		repaint();
+	};
 
 	void workbenchChanged(snex::ui::WorkbenchData::Ptr newWb);
 
@@ -751,9 +870,12 @@ struct SnexMenuBar : public Component,
 	Path snexIcon;
 	Colour iconColour = Colours::white.withAlpha(0.2f);
 
+	bool debugMode = false;
+
 	WeakReference<SnexSource> source;
 
 	snex::ui::WorkbenchData::WeakPtr rootBench;
+	snex::ui::WorkbenchData::WeakPtr lastBench;
 
 };
 
