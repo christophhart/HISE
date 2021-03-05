@@ -379,6 +379,13 @@ snex::jit::FunctionData FunctionClass::getNonOverloadedFunction(NamespacedIdenti
 
 	addMatchingFunctions(matches, id);
 
+	for (int i = 0; i < matches.size(); i++)
+	{
+		if (matches[i].hasTemplatedArgumentOrReturnType() ||
+			matches[i].hasUnresolvedTemplateParameters())
+			matches.remove(i--);
+	}
+
 	if (matches.size() == 1)
 		return matches.getFirst();
 
