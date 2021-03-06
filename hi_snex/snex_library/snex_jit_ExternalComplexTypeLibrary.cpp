@@ -264,6 +264,20 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 		return SyntaxTreeInlineParser(b, {}, c).flush();
 	});
 
+	obj->injectInliner("reset", Inliner::HighLevel, [](InlineData* b)
+	{
+		using namespace cppgen;
+
+		Base c(Base::OutputType::StatementListWithoutSemicolon);
+
+		c << "stepsToDo = 0";
+		c << "value = targetValue";
+
+		auto t = Types::Helpers::getTypeName(Types::Helpers::getTypeFromTypeId<T>());
+		String l; l << "delta = (" << t << ")0"; c << l;
+
+		return SyntaxTreeInlineParser(b, {}, c).flush();
+	});
 
 	obj->injectInliner("set", Inliner::HighLevel, [](InlineData* b)
 	{

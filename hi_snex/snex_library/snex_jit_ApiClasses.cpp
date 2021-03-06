@@ -210,6 +210,9 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	HNODE_JIT_ADD_C_FUNCTION_0(float, hmath::random, "random");
 	setDescription("returns a 32bit floating point random value", {});
 	
+	for (auto f : functions)
+		f->setConst(true);
+
 	if (!addInlinedFunctions)
 		return;
 
@@ -221,6 +224,8 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	addInliner("map", Inliners::map);
 	addInliner("fmod", Inliners::fmod);
 	addInliner("sin", Inliners::sin);
+
+	
 }
 
 
