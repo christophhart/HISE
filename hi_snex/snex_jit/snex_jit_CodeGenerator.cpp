@@ -1153,6 +1153,16 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(TypeInfo returnType, Opera
 	// emit the code for the condition here
 	condition->process(c, s);
 
+
+	if (returnType == Types::ID::Void)
+	{
+		Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(trueBranch, c, s);
+
+		if (falseBranch != nullptr)
+			Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(falseBranch, c, s);
+	}
+
+
 	if (condition->reg->isMemoryLocation())
 	{
 		auto dummy = c->registerPool.getNextFreeRegister(s, TypeInfo(Types::ID::Integer));

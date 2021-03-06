@@ -894,10 +894,7 @@ void Operations::IfStatement::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
 
-		preallocateVariableRegistersBeforeBranching(getTrueBranch(), compiler, scope);
-
-		if (hasFalseBranch())
-			preallocateVariableRegistersBeforeBranching(getFalseBranch(), compiler, scope);
+		
 
 		auto cond = dynamic_cast<Expression*>(getCondition().get());
 		auto trueBranch = getTrueBranch();

@@ -554,6 +554,7 @@ void AssemblyRegister::invalidateRegisterForCustomMemory()
 	jassert(hasCustomMemoryLocation());
 	dirty = false;
 	reg = {};
+
 	state = LoadedMemoryLocation;
 }
 
@@ -566,7 +567,8 @@ void AssemblyRegister::clearAfterReturn()
 	}
 
 	reg = {};
-	state = LoadedMemoryLocation;
+
+	setMemoryState();
 }
 
 bool AssemblyRegister::isIteratorRegister() const
@@ -665,6 +667,14 @@ bool AssemblyRegister::shouldWriteToMemoryAfterStore() const
 	}
 
 	return writeBackToMemory;
+}
+
+void AssemblyRegister::setMemoryState()
+{
+	auto memIsValid = memory.hasBase();
+	memIsValid |= memory.offset() != 0;
+
+	state = memIsValid ? LoadedMemoryLocation : UnloadedMemoryLocation;
 }
 
 AssemblyRegisterPool::AssemblyRegisterPool(BaseCompiler* c):

@@ -240,6 +240,8 @@ public:
 
 private:
 
+	void setMemoryState();
+
 	Ptr referenceTarget;
 
 	int numMemoryReferences = 0;

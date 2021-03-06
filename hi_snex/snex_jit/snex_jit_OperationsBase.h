@@ -572,7 +572,7 @@ namespace Operations
 	*/
 	struct ConditionalBranch
 	{
-		void preallocateVariableRegistersBeforeBranching(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
+		static void preallocateVariableRegistersBeforeBranching(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
 
 		virtual asmjit::Label getJumpTargetForEnd(bool getContinue) = 0;
 
