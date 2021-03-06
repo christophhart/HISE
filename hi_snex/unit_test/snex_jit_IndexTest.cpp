@@ -72,8 +72,9 @@ private:
 		testFloatAlphaAndIndex();
 		testSpanAccess();
 		testDynAccess();
-		testInterpolators();
+		
 #endif
+		testInterpolators();
 
 		testSpanAccess();
 

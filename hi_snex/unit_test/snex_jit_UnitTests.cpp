@@ -625,33 +625,17 @@ public:
 	{
 		beginTest("Funky");
 
-		
 #if INCLUDE_SNEX_BIG_TESTSUITE
 		
 		optimizations = {};
 		testOptimizations();
 		testInlining();
 
-
-		runTestsWithOptimisation(OptimizationIds::getDefaultIds());
-
-		optimizations = OptimizationIds::getAllIds();
-
-		
-
-		juce::String s;
-		s << "Compile count: ";
-		s << juce::String(Compiler::compileCount);
-
-		logMessage(s);
-
 		runTestsWithOptimisation({});
+		runTestsWithOptimisation(OptimizationIds::getDefaultIds());
 		runTestsWithOptimisation(OptimizationIds::getAllIds());
 #endif
 	}
-
-
-
 
 #if INCLUDE_SNEX_BIG_TESTSUITE
 	
@@ -868,8 +852,8 @@ public:
 		testAccessWrappers();
 		testEvents();
 
-		testIndexTypes();
 		runTestFiles();
+		testIndexTypes();
 
 		pc.stop();
 	}
@@ -1084,8 +1068,6 @@ private:
 
 			auto obj = c.compileJitObject(code);
 
-			DBG(c.getAssemblyCode());
-
 			expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
 
 			auto f = obj["test"];
@@ -1279,8 +1261,6 @@ private:
 
 		ADD_CODE_LINE("    return input;}");
 		FINALIZE_CODE();
-
-		DBG(code);
 
 		CREATE_TYPED_TEST(code);
 		EXPECT_TYPED(GET_TYPE(T) + " iterator with struct element type ", 0, 6);
