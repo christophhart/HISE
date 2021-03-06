@@ -224,8 +224,8 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 		target = x86::qword_ptr(r);
 	}
 
-	IF_(int)	ok = cc.mov(target, INT_REG_R(source));
-	IF_(float)	ok = cc.movss(target, FP_REG_R(source));
+	IF_(int)	ok = cc.mov(target.cloneResized(4), INT_REG_R(source));
+	IF_(float)	ok = cc.movss(target.cloneResized(4), FP_REG_R(source));
 	IF_(double) ok = cc.movsd(target, FP_REG_R(source));
 	
 	if (source->isSimd4Float())

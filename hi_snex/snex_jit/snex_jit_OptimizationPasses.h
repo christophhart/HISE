@@ -490,10 +490,9 @@ public:
 			if (p->run(func))
 			{
 				numOptimisations++;
-				i = -1;
+				i = 0;
 			}
 		}
-
 		
 
 		return 0;
