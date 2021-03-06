@@ -714,6 +714,7 @@ public:
 			dragDirection,
 			showValuePopup,
 			showTextBox,
+			scrollWheel,
 			enableMidiLearn,
 			numProperties,
 		};
