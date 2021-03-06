@@ -1215,6 +1215,8 @@ String ScriptingApi::Engine::getOS()
 {
 #if JUCE_WINDOWS
 	return "WIN";
+#elif JUCE_LINUX
+	return "LINUX";
 #else
 	return "OSX";
 #endif
@@ -4485,7 +4487,7 @@ struct ScriptingApi::FileSystem::Wrapper
 	API_METHOD_WRAPPER_1(FileSystem, getFolder);
 	API_METHOD_WRAPPER_3(FileSystem, findFiles);
 	API_METHOD_WRAPPER_0(FileSystem, getSystemId);
-	API_VOID_METHOD_WRAPPER_4(FileSystem, browse);
+	API_VOID_METHOD_WRAPPER_5(FileSystem, browse);
 };
 
 ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
@@ -4507,7 +4509,7 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	ADD_API_METHOD_1(getFolder);
 	ADD_API_METHOD_3(findFiles);
 	ADD_API_METHOD_0(getSystemId);
-	ADD_API_METHOD_4(browse);
+	ADD_API_METHOD_5(browse);
 }
 
 ScriptingApi::FileSystem::~FileSystem()
@@ -4545,7 +4547,7 @@ var ScriptingApi::FileSystem::findFiles(var directory, String wildcard, bool rec
 	return l;
 }
 
-void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wildcard, var callback)
+void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wildcard, bool forDirectory, var callback)
 {
 	File f;
 
@@ -4556,21 +4558,30 @@ void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wi
 
 	auto p_ = p;
 
-	auto cb = [forSaving, f, wildcard, callback, p_]()
+	auto cb = [forSaving, f, wildcard, callback, p_, forDirectory]()
 	{
     FileChooser fc(!forSaving ? "Open file" : "Save file", f, wildcard);
 
 		var a;
 
-		if (forSaving && fc.browseForFileToSave(true))
+		if (forDirectory)
 		{
-			a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+			if (fc.browseForDirectory())
+			{
+				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));	
+			}
 		}
-		if (!forSaving && fc.browseForFileToOpen())
+		else 
 		{
-			a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+			if (forSaving && fc.browseForFileToSave(true))
+			{
+				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+			}
+			if (!forSaving && fc.browseForFileToOpen())
+			{
+				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+			}
 		}
-
 		if (a.isObject())
 		{
 			WeakCallbackHolder cb(p_, callback, 1);
