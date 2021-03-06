@@ -1313,7 +1313,17 @@ void Operations::FunctionCall::inlineAndSetType(BaseCompiler* compiler, const Fu
 		}
 	}
 
-	if (allowInlining && f.canBeInlined(true))
+	bool shouldInline = allowInlining;
+
+	shouldInline &= f.canBeInlined(true);
+	
+	if (!compiler->getOptimizations().contains(OptimizationIds::Inlining))
+	{
+		if (f.function != nullptr)
+			shouldInline = false;
+	}
+
+	if (shouldInline)
 	{
 		auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
 

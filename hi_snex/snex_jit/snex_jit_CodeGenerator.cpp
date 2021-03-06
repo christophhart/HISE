@@ -1362,6 +1362,18 @@ Result AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& 
 		return f.inlineFunction(&d);
 	}
 
+	if (!f.isConst())
+	{
+		for (auto vr : registerPool->getListOfAllNamedRegisters())
+		{
+			RegPtr p(vr);
+
+			// Native global types might be changed in the function call...
+			if (p->isGlobalMemory() && p->getType() != Types::ID::Pointer)
+				p->clearAfterReturn();
+		}
+	}
+
 	asmjit::FuncSignatureBuilder sig;
 
 	bool isMemberFunction = objectAddress != nullptr;
