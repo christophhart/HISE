@@ -1090,7 +1090,7 @@ public:
 		var findFiles(var directory, String wildcard, bool recursive);
 
 		/** Opens a file browser to choose a file. */
-		void browse(var startFolder, bool forSaving, String wildcard, var callback);
+		void browse(var startFolder, bool forSaving, String wildcard, bool forDirectory, var callback);
 
 		/** Returns a unique machine ID that can be used to identify the computer. */
 		String getSystemId();

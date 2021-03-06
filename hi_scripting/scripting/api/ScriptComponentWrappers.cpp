@@ -384,7 +384,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int property
 		PROPERTY_CASE::ScriptComponent::text:			s->setName(GET_SCRIPT_PROPERTY(text)); break;
 		PROPERTY_CASE::ScriptComponent::enabled:		s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled)); break;
 		PROPERTY_CASE::ScriptComponent::tooltip :		s->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
-		PROPERTY_CASE::ScriptComponent::saveInPreset:   s->setCanBeMidiLearned(newValue); break;
+		PROPERTY_CASE::ScriptSlider::enableMidiLearn:   s->setCanBeMidiLearned(newValue); break;
 		PROPERTY_CASE::ScriptComponent::bgColour:
 		PROPERTY_CASE::ScriptComponent::itemColour :
 		PROPERTY_CASE::ScriptComponent::itemColour2 :
@@ -670,7 +670,7 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent(int proper
 		PROPERTY_CASE::ScriptComponent::useUndoManager: cb->setUseUndoManagerForEvents(newValue); break;
 		PROPERTY_CASE::ScriptComponent::enabled:		cb->enableMacroControlledComponent(newValue); break;
 		PROPERTY_CASE::ScriptComponent::text:			cb->setTextWhenNothingSelected(newValue); break;
-		PROPERTY_CASE::ScriptComponent::saveInPreset:   cb->setCanBeMidiLearned(newValue); break;
+		PROPERTY_CASE::ScriptComboBox::enableMidiLearn:   cb->setCanBeMidiLearned(newValue); break;
 		PROPERTY_CASE::ScriptComponent::bgColour:
 		PROPERTY_CASE::ScriptComponent::itemColour :
 			PROPERTY_CASE::ScriptComponent::itemColour2 :
@@ -832,6 +832,7 @@ void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent(int property
 		PROPERTY_CASE::ScriptComponent::text:			b->setButtonText(GET_SCRIPT_PROPERTY(text)); break;
 		PROPERTY_CASE::ScriptComponent::enabled:		b->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled)); break;
 		PROPERTY_CASE::ScriptComponent::tooltip :		b->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
+		PROPERTY_CASE::ScriptButton::enableMidiLearn:   b->setCanBeMidiLearned(newValue); break;
 		PROPERTY_CASE::ScriptComponent::bgColour:
 		PROPERTY_CASE::ScriptComponent::itemColour :
 		PROPERTY_CASE::ScriptComponent::itemColour2 :

@@ -715,7 +715,8 @@ public:
 			showValuePopup,
 			showTextBox,
 			scrollWheel,
-			numProperties
+			enableMidiLearn,
+			numProperties,
 		};
 
 		ScriptSlider(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int, int);
@@ -804,6 +805,7 @@ public:
 			scaleFactor,
 			radioGroup,
 			isMomentary,
+			enableMidiLearn,
 			numProperties
 		};
 
@@ -871,6 +873,7 @@ public:
 			FontName,
 			FontSize,
 			FontStyle,
+			enableMidiLearn,
 			numProperties
 		};
 

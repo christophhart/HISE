@@ -485,6 +485,15 @@ public:
 
 		struct RepaintUpdater : public AsyncUpdater
 		{
+			void update(int index)
+			{
+				if (lastIndex != index)
+				{
+					lastIndex = index;
+					triggerAsyncUpdate();
+				}
+			}
+
 			void handleAsyncUpdate() override
 			{
 				for (int i = 0; i < editors.size(); i++)
@@ -493,6 +502,7 @@ public:
 				}
 			}
 
+			int lastIndex = -1;
 			Array<Component::SafePointer<Component>> editors;
 		};
 

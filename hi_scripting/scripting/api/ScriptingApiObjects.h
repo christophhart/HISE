@@ -764,6 +764,9 @@ public:
 		/** Returns the ID of the modulator. */
 		String getId() const;
 
+		/** Returns the Type of the modulator. */
+		String getType() const;
+		
 		/** Sets the attribute of the Modulator. You can look up the specific parameter indexes in the manual. */
 		void setAttribute(int index, float value);
 

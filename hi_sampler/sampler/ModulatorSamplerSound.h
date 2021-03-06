@@ -299,8 +299,15 @@ public:
 	{
 		checkFileReference();
 
+		if (noteRangeExceedsMaxPitch())
+			preloadSize = -1;
+
 		FOR_EVERY_SOUND(setPreloadSize(preloadSize, true));
 	}
+
+	bool noteRangeExceedsMaxPitch() const;
+
+	void loadEntireSampleIfMaxPitch();
 
 	// ====================================================================================================================
 
