@@ -158,7 +158,7 @@ core::NewSnexOscillatorDisplay::NewSnexOscillatorDisplay(SnexOscillator* osc, Po
 	menuBar(osc)
 {
 	addAndMakeVisible(menuBar);
-	setSize(512, 144);
+	setSize(256, 144);
 	getObject()->addCompileListener(this);
 }
 
@@ -202,8 +202,6 @@ void core::NewSnexOscillatorDisplay::paint(Graphics& g)
 {
 	g.setColour(Colours::white.withAlpha(0.2f));
 	g.drawRect(pathBounds, 1.0f);
-	g.setFont(GLOBAL_BOLD_FONT());
-	g.drawText("SNEX Oscillator", pathBounds.reduced(3.0f), Justification::topRight);
 
 	if (errorMessage.isNotEmpty())
 	{
@@ -213,7 +211,6 @@ void core::NewSnexOscillatorDisplay::paint(Graphics& g)
 	}
 	else if (!p.getBounds().isEmpty())
 	{
-
 		GlobalHiseLookAndFeel::fillPathHiStyle(g, p, (int)pathBounds.getWidth(), (int)pathBounds.getHeight());
 	}
 }

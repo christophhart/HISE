@@ -535,6 +535,11 @@ public:
 	/** Deletes the node if it is not in a signal path. */
 	bool deleteIfUnused(String id);
 
+	/** Sets the parameters of this node according to the JSON data. */
+	bool setParameterDataFromJSON(var jsonData);
+
+	Array<Parameter*> getListOfProbedParameters();
+
 	String getId() const { return data[PropertyIds::ID].toString(); }
 
 	ValueTree getValueTree() const { return data; };

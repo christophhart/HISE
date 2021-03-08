@@ -1131,6 +1131,16 @@ void FloatingTile::editJSON()
 	showComponentInRootPopup(codeEditor, moveButton, moveButton->getLocalBounds().getCentre());
 }
 
+bool FloatingTile::isRootPopupShown() const
+{
+	if (getParentType() != ParentType::Root)
+	{
+		return getRootFloatingTile()->isRootPopupShown();
+	}
+
+	return currentPopup != nullptr;
+}
+
 FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint)
 {
 	if (getParentType() != ParentType::Root)
@@ -1177,6 +1187,8 @@ FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponen
 		return currentPopup;
 	}
 }
+
+
 
 
 void FloatingTilePopup::updatePosition()

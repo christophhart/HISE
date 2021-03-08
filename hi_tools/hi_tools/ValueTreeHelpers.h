@@ -344,6 +344,41 @@ private:
 	ValueTree second;
 };
 
+struct ParentListener : public Base
+{
+	using ParentChangeCallback = std::function<void()>;
+
+	void setCallback(ValueTree v, AsyncMode m, const ParentChangeCallback& pc)
+	{
+		mode = m;
+		t = v;
+		c = pc;
+		t.addListener(this);
+	}
+
+private:
+	
+	void handleAsyncUpdate()
+	{
+		c();
+	}
+
+	ParentChangeCallback c;
+	ValueTree t;
+
+	void valueTreeChildAdded(ValueTree&, ValueTree&) override { }
+	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override {}
+	void valueTreeChildOrderChanged(ValueTree&, int, int) override { }
+	void valueTreePropertyChanged(ValueTree& , const Identifier& ) override {}
+
+	void valueTreeParentChanged(ValueTree& newParent) override 
+	{
+		if (mode == AsyncMode::Synchronously)
+			c();
+		else
+			triggerAsyncUpdate();
+	}
+};
 
 
 

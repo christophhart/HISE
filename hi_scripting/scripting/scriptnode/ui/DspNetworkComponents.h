@@ -623,7 +623,7 @@ public:
 
 		void paint(Graphics& g) override
 		{
-			g.fillAll(Colour(0xFF262626));
+			g.fillAll(Colour(0xff1d1d1d));
 		}
 
 		DspNetworkGraph* getGraph() const
@@ -1013,6 +1013,7 @@ public:
 			addButton("error");
 			addButton("goto");
 			addButton("cable");
+			addButton("probe");
 			addSpacer(10);
 			addButton("add");
 			addButton("wrap");
@@ -1020,6 +1021,7 @@ public:
 			addButton("deselect");
 			addButton("fold");
 			addButton("bypass");
+			addButton("colour");
 			addButton("properties");
 			addButton("profile");
 			
@@ -1079,6 +1081,9 @@ public:
 		static bool toggleBypass(DspNetworkGraph& g);
 		static bool toggleFreeze(DspNetworkGraph& g);
 
+		static bool toggleProbe(DspNetworkGraph& g);
+		static bool setRandomColour(DspNetworkGraph& g);
+
 		static bool copyToClipboard(DspNetworkGraph& g);
 		static bool toggleCableDisplay(DspNetworkGraph& g);
 		static bool toggleCpuProfiling(DspNetworkGraph& g);
@@ -1115,26 +1120,80 @@ public:
 
 	void paintOverChildren(Graphics& g) override;
 
+	void toggleProbeMode()
+	{
+		probeSelectionEnabled = !probeSelectionEnabled;
+
+		auto ft = findParentComponentOfClass<FloatingTile>();
+
+		if (!probeSelectionEnabled && !ft->isRootPopupShown())
+		{
+			DynamicObject::Ptr obj = new DynamicObject();
+			
+			auto l = network->getListOfProbedParameters();
+
+			for (auto p : l)
+			{
+				String key;
+				key << p->parent->getId() << "." << p->getId();
+				obj->setProperty(Identifier(key), p->getValue());
+			}
+
+			String s;
+			s << "// Set the properties of this object to the parameter values\n";
+			s << "var data = " << JSON::toString(var(obj)) << ";";
+
+
+			auto n = new JSONEditor(s, new JavascriptTokeniser());
+
+			n->setCompileCallback([this](const String& text, var& data)
+			{
+				ScopedPointer<JavascriptEngine> e = new JavascriptEngine();
+
+				auto r = e->execute(text);
+
+				data = e->getRootObjectProperties().getWithDefault("data", {});
+
+				return r;
+			}, false);
+
+			n->setCallback([this](const var& d)
+			{
+				network->setParameterDataFromJSON(d);
+				
+			}, false);
+
+			n->setEditable(true);
+			n->setName("Edit Parameter List");
+			n->setSize(600, 400);
+			
+			
+			auto c = findParentComponentOfClass<WrapperWithMenuBar>()->actionButtons[3];
+			
+			ft->showComponentInRootPopup(n, c, c->getLocalBounds().getBottomRight());
+		}
+
+		repaint();
+	}
+
 	NodeComponent* getComponent(NodeBase::Ptr node);
 
-	static void paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha=1.0f)
+	static void paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha=1.0f, Colour holeColour=Colour(0xFFAAAAAA))
 	{
-		Colour holeColour = Colours::black;
-
 		if (alpha != 1.0f)
 		{
 			holeColour = c;
 		}
 
 
-		g.setColour(holeColour);
+		g.setColour(Colours::black);
 		g.fillEllipse(start);
 		g.setColour(Colour(0xFFAAAAAA));
 		g.drawEllipse(start, 2.0f);
 
-		g.setColour(holeColour);
+		g.setColour(Colours::black);
 		g.fillEllipse(end);
-		g.setColour(Colour(0xFFAAAAAA));
+		g.setColour(holeColour);
 		g.drawEllipse(end, 2.0f);
 
 		
@@ -1206,6 +1265,7 @@ public:
 	
 
 	bool showCables = true;
+	bool probeSelectionEnabled = false;
 
 	bool setCurrentlyDraggedComponent(NodeComponent* n);
 

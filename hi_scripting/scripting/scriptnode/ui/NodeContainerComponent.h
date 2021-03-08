@@ -543,6 +543,7 @@ public:
 		{
 			auto b = getLocalBounds();
 
+			b.removeFromTop(15);
 			auto bRow = b.removeFromLeft(b.getHeight() / 3);
 
 			addButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
@@ -556,7 +557,13 @@ public:
 
 		void paint(Graphics& g) override
 		{
-			g.fillAll(Colours::black.withAlpha(0.1f));
+			auto b = getLocalBounds().toFloat();
+			
+			b.removeFromTop(10.0f);
+
+			g.setColour(Colours::black.withAlpha(0.1f));
+
+			g.fillRoundedRectangle(b, 10.0f);
 		}
 
 		ContainerComponent& parent;
@@ -664,6 +671,8 @@ struct SerialNodeComponent : public ContainerComponent
 	int getInsertPosition(Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
 
+	Colour getOutlineColour() const override;
+
 	void resized() override;
 	void paintSerialCable(Graphics& g, int cableIndex);
 	void paint(Graphics& g) override;
@@ -690,6 +699,11 @@ struct ModChainNodeComponent : public ContainerComponent
 
 	int getInsertPosition(Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
+
+	Colour getOutlineColour() const override
+	{
+		return JUCE_LIVE_CONSTANT(Colour(0xff776123));
+	}
 
 	void resized() override;
 	void paint(Graphics& g) override;

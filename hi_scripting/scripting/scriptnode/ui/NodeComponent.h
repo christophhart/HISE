@@ -195,7 +195,9 @@ public:
 
 	virtual void handlePopupMenuResult(int result);
 
-	Colour getOutlineColour() const;
+	virtual Colour getOutlineColour() const;
+
+	void drawTopBodyGradient(Graphics& g, float alpha=0.1f, float height=15.0f);
 
 	bool isRoot() const;
 	bool isFolded() const;

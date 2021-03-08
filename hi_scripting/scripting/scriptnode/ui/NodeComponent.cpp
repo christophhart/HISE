@@ -213,6 +213,14 @@ void NodeComponent::Header::paint(Graphics& g)
 	g.setColour(parent.getOutlineColour());
 	g.fillAll();
 
+	auto b = getLocalBounds();
+	b.removeFromLeft(1);
+	b.removeFromRight(1);
+	b.removeFromTop(1);
+
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x2b000000)));
+	g.fillRect(b);
+
 	
 	g.setFont(GLOBAL_BOLD_FONT());
 
@@ -230,6 +238,7 @@ void NodeComponent::Header::paint(Graphics& g)
 
 	auto textWidth = GLOBAL_BOLD_FONT().getStringWidthFloat(s) + 10.0f;
 
+#if 0
 	auto colourBounds = getLocalBounds().reduced(3, 6);
 
 	if (powerButton.isVisible())
@@ -240,6 +249,7 @@ void NodeComponent::Header::paint(Graphics& g)
 
 	if (deleteButton.isVisible())
 		colourBounds.removeFromRight(deleteButton.getWidth() + 6);
+
 
 	if (!colour.isTransparent())
 	{
@@ -253,7 +263,7 @@ void NodeComponent::Header::paint(Graphics& g)
 		g.fillRoundedRectangle(colourL, 2.0f);
 		g.fillRoundedRectangle(colourR, 2.0f);
 	}
-
+#endif
 	
 
 
@@ -277,7 +287,7 @@ NodeComponent::NodeComponent(NodeBase* b) :
 
 	setName(b->getId());
 	addAndMakeVisible(header);
-	setOpaque(true);
+	setOpaque(false);
 
 	repaintListener.setCallback(dataReference, {PropertyIds::ID, PropertyIds::NumChannels},
 		valuetree::AsyncMode::Asynchronously,
@@ -299,11 +309,15 @@ NodeComponent::~NodeComponent()
 
 void NodeComponent::paint(Graphics& g)
 {
-	g.fillAll(Colour(0xFF444444));
-	g.setColour(getOutlineColour());
-	g.drawRect(getLocalBounds());
 
-	Path p;
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff353535)));
+
+	g.fillAll();
+
+	drawTopBodyGradient(g, JUCE_LIVE_CONSTANT_OFF(0.15f));
+
+	g.setColour(getOutlineColour());
+	g.drawRect(getLocalBounds().toFloat(), 1.0f);
 
 #if 0
 	if (node->getAsRestorableNode() != nullptr)
@@ -353,9 +367,14 @@ void NodeComponent::paintOverChildren(Graphics& g)
 
 	if (error.isNotEmpty())
 	{
-		g.setColour(Colour(0xaa683333));
+		g.setColour(JUCE_LIVE_CONSTANT(Colour(0xaa683333)));
+
 		g.drawRect(getLocalBounds().reduced(1), 1);
-		g.fillRect(getLocalBounds().reduced(1));
+
+		auto b = getLocalBounds();
+		b.removeFromTop(header.getHeight());
+
+		g.fillRect(b.reduced(1));
 
 		auto f = GLOBAL_BOLD_FONT();
 
@@ -367,9 +386,7 @@ void NodeComponent::paintOverChildren(Graphics& g)
 		mp.parse();
 		auto h = mp.getHeightForWidth(getWidth() - 20.0f);
 
-		mp.draw(g, getLocalBounds().toFloat().reduced(10.0f));
-
-		setEnabled(false);
+		mp.draw(g, b.toFloat().reduced(20.0f));
 	}
 }
 
@@ -620,7 +637,29 @@ juce::Colour NodeComponent::getOutlineColour() const
 	if (isRoot())
 		return dynamic_cast<const Processor*>(node->getScriptProcessor())->getColour();
 
+	auto& exceptionHandler = node->getRootNetwork()->getExceptionHandler();
+
+	if (!exceptionHandler.isOk())
+	{
+		auto error = exceptionHandler.getErrorMessage(node);
+
+		if (error.isNotEmpty())
+				return JUCE_LIVE_CONSTANT(Colour(0xFFFF0000));
+	}
+
+	if (!header.colour.isTransparent())
+		return header.colour;
+
 	return header.isDragging ? Colour(0x88444444) : Colour(0xFF555555);
+}
+
+void NodeComponent::drawTopBodyGradient(Graphics& g, float alpha/*=0.1f*/, float height/*=20.0f*/)
+{
+	auto b = getLocalBounds().toFloat();
+	b.removeFromTop(header.getHeight());
+	b = b.removeFromTop(height);
+	g.setGradientFill(ColourGradient(Colours::black.withAlpha(alpha), 0.0f, b.getY(), Colours::transparentBlack, 0.0f, b.getBottom(), false));
+	g.fillRect(b);
 }
 
 bool NodeComponent::isRoot() const

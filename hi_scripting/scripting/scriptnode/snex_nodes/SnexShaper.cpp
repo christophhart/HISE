@@ -75,6 +75,16 @@ namespace waveshapers
 			c << "s = getSample(s);";
 		}
 
+		c << "void reset()";
+		{								 StatementBlock body(c);
+			c.addEmptyLine();
+		}
+
+		c << "void prepare(PrepareSpecs ps)";
+		{								 StatementBlock body(c);
+			c.addEmptyLine();
+		}
+
 		String pf;
 		c.addEmptyLine();
 		addDefaultParameterFunction(pf);
@@ -96,7 +106,7 @@ namespace waveshapers
 		addAndMakeVisible(waveform);
 		addWaveformListener(&waveform);
 
-		this->setSize(400, 128 + 24 + 5);
+		this->setSize(256, 128 + 24 + 16);
 	}
 
 	dynamic::editor::~editor()
@@ -146,8 +156,8 @@ namespace waveshapers
 		auto b = this->getLocalBounds();
 
 		menuBar.setBounds(b.removeFromTop(24));
-		b.removeFromTop(5);
-		waveform.setBounds(b.reduced((400 - 256) / 2,0));
+		b.removeFromTop(16);
+		waveform.setBounds(b);
 	}
 
 }

@@ -43,6 +43,7 @@ struct DspNetwork::Wrapper
 	API_METHOD_WRAPPER_2(DspNetwork, create);
 	API_METHOD_WRAPPER_1(DspNetwork, get);
 	API_VOID_METHOD_WRAPPER_1(DspNetwork, setForwardControlsToParameters);
+	API_METHOD_WRAPPER_1(DspNetwork, setParameterDataFromJSON);
 	//API_VOID_METHOD_WRAPPER_0(DspNetwork, disconnectAll);
 	//API_VOID_METHOD_WRAPPER_3(DspNetwork, injectAfter);
 };
@@ -112,6 +113,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ADD_API_METHOD_2(create);
 	ADD_API_METHOD_1(get);
 	ADD_API_METHOD_1(setForwardControlsToParameters);
+	ADD_API_METHOD_1(setParameterDataFromJSON);
 	//ADD_API_METHOD_0(disconnectAll);
 	//ADD_API_METHOD_3(injectAfter);
 
@@ -426,6 +428,55 @@ bool DspNetwork::deleteIfUnused(String id)
 	}
 
 	return false;
+}
+
+bool DspNetwork::setParameterDataFromJSON(var jsonData)
+{
+	auto ok = false;
+
+	if (auto dyn = jsonData.getDynamicObject())
+	{
+		for (auto n : dyn->getProperties())
+		{
+			auto nId = n.name.toString().upToFirstOccurrenceOf(".", false, false);
+			auto pId = n.name.toString().fromFirstOccurrenceOf(".", false, false);
+
+			auto value = (double)n.value;
+
+			if (nId.isNotEmpty() && pId.isNotEmpty())
+			{
+				if (auto node = getNodeWithId(nId))
+				{
+					if (auto p = node->getParameter(pId))
+					{
+						p->getTreeWithValue().setProperty(PropertyIds::Value, value, getUndoManager());
+						p->isProbed = true;
+						ok = true;
+					}
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+juce::Array<Parameter*> DspNetwork::getListOfProbedParameters()
+{
+	Array<Parameter*> list;
+
+	auto l = getListOfNodesWithType<NodeBase>(false);
+
+	for (auto node : l)
+	{
+		for (int i = 0; i < node->getNumParameters(); i++)
+		{
+			if (node->getParameter(i)->isProbed)
+				list.add(node->getParameter(i));
+		}
+	}
+
+	return list;
 }
 
 NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree d, bool forceCreate)

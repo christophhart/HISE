@@ -155,9 +155,18 @@ struct ParameterSlider : public Slider,
 	valuetree::PropertyListener valueListener;
 	valuetree::PropertyListener rangeListener;
 
+	/** Returns either the Connection or the ModulationTarget, or SwitchTarget tree if it's connected. */
+	ValueTree getConnectionSourceTree();
+
 	bool matchesConnection(ValueTree& c) const;
 
 	void mouseDown(const MouseEvent& e) override;
+
+	void mouseEnter(const MouseEvent& e) override;
+
+	void mouseExit(const MouseEvent& e) override;
+
+	void mouseDoubleClick(const MouseEvent&) override;
 
 	void sliderDragStarted(Slider*) override;
 	void sliderDragEnded(Slider*) override;

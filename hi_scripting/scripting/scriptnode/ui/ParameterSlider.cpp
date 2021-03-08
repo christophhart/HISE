@@ -132,12 +132,18 @@ void ParameterSlider::updateOnOpTypeChange(Identifier id, var newValue)
 
 void ParameterSlider::checkEnabledState()
 {
+#if 0
 	auto macroList = getConnectedMacroParameters();
+
+
 
 	bool isModulated = (bool)pTree[PropertyIds::ModulationTarget];
 	bool isConnectedToMacro = macroList.size() > 0;
 	
 	modulationActive = isModulated || isConnectedToMacro;
+#endif
+
+	modulationActive = getConnectionSourceTree().isValid();
 
 	setEnabled(!modulationActive);
 
@@ -220,6 +226,68 @@ Array<NodeContainer::MacroParameter*> ParameterSlider::getConnectedMacroParamete
 	return list;
 }
 
+juce::ValueTree ParameterSlider::getConnectionSourceTree()
+{
+	auto pId = parameterToControl->getId();
+	auto nId = parameterToControl->parent->getId();
+	auto n = parameterToControl->parent->getRootNetwork();
+
+	{
+		auto containers = n->getListOfNodesWithType<NodeContainer>(true);
+
+		for (auto c : containers)
+		{
+			for (auto p : c->getParameterTree())
+			{
+				auto cTree = p.getChildWithName(PropertyIds::Connections);
+
+				for (auto c : cTree)
+				{
+					if (c[PropertyIds::NodeId].toString() == nId &&
+						c[PropertyIds::ParameterId].toString() == pId)
+					{
+						return c;
+					}
+				}
+			}
+		}
+	}
+
+	{
+		auto modNodes = n->getListOfNodesWithType<ModulationSourceNode>(true);
+
+		for (auto mn : modNodes)
+		{
+			auto mTree = mn->getValueTree().getChildWithName(PropertyIds::ModulationTargets);
+
+			for (auto mt : mTree)
+			{
+				if (mt[PropertyIds::NodeId].toString() == nId &&
+					mt[PropertyIds::ParameterId].toString() == pId)
+				{
+					return mt;
+				}
+			}
+
+			auto sTree = mn->getValueTree().getChildWithName(PropertyIds::SwitchTargets);
+
+			for (auto sts : sTree)
+			{
+				for (auto st : sts.getChildWithName(PropertyIds::Connections))
+				{
+					if (st[PropertyIds::NodeId].toString() == nId &&
+						st[PropertyIds::ParameterId].toString() == pId)
+					{
+						return st;
+					}
+				}
+			}
+		}
+	}
+
+	return {};
+}
+
 bool ParameterSlider::matchesConnection(ValueTree& c) const
 {
 	if (parameterToControl == nullptr)
@@ -237,19 +305,59 @@ void ParameterSlider::mouseDown(const MouseEvent& e)
 
 		pe->setName("Edit Parameter");
 
-		
-
 		auto g = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
 		auto b = g->getLocalArea(this, getLocalBounds());
 
 		g->setCurrentModalWindow(pe, b);
 	}
 	else
+	{
+		auto dp = findParentComponentOfClass<DspNetworkGraph>();
+
+		if (dp->probeSelectionEnabled && isEnabled())
+		{
+			parameterToControl->isProbed = !parameterToControl->isProbed;
+			dp->repaint();
+			return;
+		}
+
 		Slider::mouseDown(e);
+	}
 }
 
 
 
+
+void ParameterSlider::mouseEnter(const MouseEvent& e)
+{
+	if (!isEnabled())
+	{
+		findParentComponentOfClass<DspNetworkGraph>()->repaint();
+	}
+
+	Slider::mouseEnter(e);
+}
+
+void ParameterSlider::mouseExit(const MouseEvent& e)
+{
+	if (!isEnabled())
+	{
+		findParentComponentOfClass<DspNetworkGraph>()->repaint();
+	}
+
+	Slider::mouseExit(e);
+}
+
+void ParameterSlider::mouseDoubleClick(const MouseEvent&)
+{
+	if (!isEnabled())
+	{
+		auto c = getConnectionSourceTree();
+
+		if (c.isValid())
+			c.getParent().removeChild(c, parameterToControl->parent->getUndoManager());
+	}
+}
 
 void ParameterSlider::sliderDragStarted(Slider*)
 {

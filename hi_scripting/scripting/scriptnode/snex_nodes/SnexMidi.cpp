@@ -185,7 +185,7 @@ dynamic::editor::editor(dynamic* t, PooledUIUpdater* updater) :
 	addAndMakeVisible(menuBar);
 	this->addAndMakeVisible(meter);
 	this->addAndMakeVisible(dragger);
-	this->setSize(384, 160);
+	this->setSize(256, 140);
 	stop();
 }
 
@@ -217,8 +217,7 @@ void dynamic::editor::resized()
 	menuBar.setBounds(b.removeFromTop(24));
 
 	b.removeFromTop(18);
-
-	meter.setBounds(b.removeFromTop(24));
+	meter.setBounds(b.removeFromTop(18));
 	b.removeFromTop(18);
 	auto r = b.removeFromTop(28);
 	midiMode.setBounds(r);

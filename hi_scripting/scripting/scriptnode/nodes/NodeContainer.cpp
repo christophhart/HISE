@@ -88,6 +88,9 @@ void NodeContainer::prepareNodes(PrepareSpecs ps)
 
 	for (auto n : nodes)
 	{
+		if (n == nullptr)
+			continue;
+
 		auto& eHandler = asNode()->getRootNetwork()->getExceptionHandler();
 
 		eHandler.removeError(n);

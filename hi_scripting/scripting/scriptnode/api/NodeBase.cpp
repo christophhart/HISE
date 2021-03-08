@@ -359,6 +359,16 @@ void NodeBase::removeParameter(int index)
 	parameters.remove(index);
 }
 
+void NodeBase::setParentNode(Ptr newParentNode)
+{
+	if (newParentNode == nullptr && getRootNetwork() != nullptr)
+	{
+		getRootNetwork()->getExceptionHandler().removeError(this);
+	}
+
+	parentNode = newParentNode;
+}
+
 void NodeBase::showPopup(Component* childOfGraph, Component* c)
 {
 	auto g = childOfGraph->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();

@@ -417,6 +417,16 @@ juce::Rectangle<float> SerialNodeComponent::getInsertRuler(int position) const
 	return Rectangle<int>(UIValues::NodeMargin, targetY, getWidth() - 2 * UIValues::NodeMargin, UIValues::NodeMargin / 2).toFloat();
 }
 
+juce::Colour SerialNodeComponent::getOutlineColour() const
+{
+	if (auto c = dynamic_cast<MidiChainNode*>(node.get()))
+	{
+		return Colour(MIDI_PROCESSOR_COLOUR);
+	}
+	
+	return NodeComponent::getOutlineColour();
+}
+
 void SerialNodeComponent::resized()
 {
 	ContainerComponent::resized();
@@ -511,31 +521,40 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 void SerialNodeComponent::paint(Graphics& g)
 {
 	auto b = getLocalBounds().toFloat();
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF3f363a)));
 
+
+
+	Colour fc = getOutlineColour();
+
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff232323)));
+
+	g.fillRect(b);
+
+	g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT(Colour(0x22000000)), 0.0f, (float)UIValues::HeaderHeight, Colours::transparentBlack, 0.0f, 50.0f, false));
 	
+	auto copy = b;
+	g.fillRect(copy.removeFromTop(50.0f));
 
-	if (dynamic_cast<DspNetworkGraph*>(getParentComponent()) != nullptr)
-	{
-		g.setColour(dynamic_cast<Processor*>(node->getScriptProcessor())->getColour().withMultipliedSaturation(0.6f).withMultipliedBrightness(0.8f));
-	}
-
-	g.fillRoundedRectangle(b, 5.0f);
-	g.setColour(getOutlineColour());
-	g.drawRoundedRectangle(b.reduced(1.5f), 0.0f, 3.0f);
-
-	g.setColour(Colours::white.withAlpha(0.03f));
+	g.setColour(fc);
+	g.drawRect(b, 1.0f);
 
 	int yStart = 0;
 	
 	if (auto ng = findParentComponentOfClass<DspNetworkGraph>())
 	{
-		yStart = (ng->getLocalArea(this, getLocalBounds()).getY() + 15) % 10;
+		yStart = (ng->getLocalArea(this, getLocalBounds()).getY() + 15 + UIValues::HeaderHeight) % 10;
 	}
 
-	for (int i = yStart; i < getHeight(); i += 10)
+	for (int i = yStart; i < getHeight() + 10; i += 10)
 	{
-		g.drawHorizontalLine(i, 3.0f, (float)getWidth() - 3.0f);
+		auto h2 = (float)getHeight() / 2.0f;
+		float multiplier = (float)i / float(getHeight());
+		multiplier += JUCE_LIVE_CONSTANT(0.5f);
+		g.setColour(fc.withMultipliedAlpha( multiplier * JUCE_LIVE_CONSTANT(0.08f)));
+
+		g.fillRect(2, i, getWidth() - 2, 9 );
+
+		//g.drawHorizontalLine(i, 2.0f, (float)getWidth() - 2.0f);
 	}
 
 	for (int i = 0; i < node->getNumChannelsToProcess(); i++)
@@ -544,19 +563,6 @@ void SerialNodeComponent::paint(Graphics& g)
 	}
 
 	drawHelp(g);
-
-
-	DropShadow sh;
-	sh.colour = Colours::black.withAlpha(0.5f);
-	sh.offset = { 0, 2 };
-	sh.radius = 3;
-
-	for (auto nc : childNodeComponents)
-	{
-		Path rr;
-		rr.addRoundedRectangle(nc->getBounds().toFloat(), 5.0f);
-		//sh.drawForPath(g, rr);
-	}
 
 	if (addPosition != -1)
 	{
@@ -647,22 +653,39 @@ void ParallelNodeComponent::paint(Graphics& g)
 		g.setOpacity(0.3f);
 
 	auto b = getLocalBounds().toFloat();
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF39363f)));
+	
 
-	if (isMultiChannelNode())
-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF393f36)));
+	Colour fc = getOutlineColour();
+	
+	g.setColour(JUCE_LIVE_CONSTANT(Colour(0xff232323)));
+	g.fillRect(b);
+	
+	drawTopBodyGradient(g);
+
+	g.setColour(fc);
+
+	g.drawRect(b, 1.0f);
 
 	
 
-	g.fillRoundedRectangle(b, 5.0f);
-	g.setColour(getOutlineColour());
-	g.drawRoundedRectangle(b.reduced(1.5f), 5.0f, 3.0f);
-
-	g.setColour(Colours::white.withAlpha(0.03f));
-
-	for (int i = 0; i < getWidth(); i += 10)
+	for (int i = 2; i < getWidth() + 10; i += 10)
 	{
-		g.drawVerticalLine(i, 0.0f, (float)getHeight());
+		auto halfWidth = (float)getWidth() / 2.0f;
+		float multiplier = std::abs((float)i - halfWidth) / halfWidth;
+
+		multiplier += JUCE_LIVE_CONSTANT(0.5f);
+		g.setColour(fc.withMultipliedAlpha(multiplier * JUCE_LIVE_CONSTANT(0.07f)));
+
+		g.fillRect(i, 2, 9, getHeight() - 2);
+
+#if 0
+
+		multiplier += JUCE_LIVE_CONSTANT(0.1f);
+
+		g.setColour(fc.withMultipliedAlpha(multiplier * JUCE_LIVE_CONSTANT(0.2f)));
+
+		g.drawVerticalLine(i, 2.0f, (float)getHeight() - 2.0f);
+#endif
 	}
 
 	for (int i = 0; i < node->getNumChannelsToProcess(); i++)
@@ -829,11 +852,16 @@ void ModChainNodeComponent::resized()
 void ModChainNodeComponent::paint(Graphics& g)
 {
 	auto b = getLocalBounds().toFloat();
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF403c32)));
+	
+	Colour fc = getOutlineColour();
 
-	g.fillRoundedRectangle(b, 5.0f);
-	g.setColour(getOutlineColour());
-	g.drawRoundedRectangle(b.reduced(1.5f), 5.0f, 3.0f);
+	g.setColour(JUCE_LIVE_CONSTANT(Colour(0xff363636)));
+	g.fillRect(b);
+
+	g.setColour(fc);
+
+	g.drawRect(b, 3.0f);
+	
 
 	int yStart = 0;
 	g.setColour(Colours::white.withAlpha(0.03f));
@@ -842,6 +870,8 @@ void ModChainNodeComponent::paint(Graphics& g)
 	{
 		yStart = (ng->getLocalArea(this, getLocalBounds()).getY() + 15) % 10;
 	}
+
+	g.setColour(fc.withMultipliedAlpha(0.15f));
 
 	for (int i = yStart; i < getHeight(); i += 10)
 	{

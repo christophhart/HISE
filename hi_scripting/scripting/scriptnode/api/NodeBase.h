@@ -142,7 +142,11 @@ public:
 
 	ValueTree data;
 
+	bool isProbed = false;
+
 private:
+
+
 
 	ValueTree treeThatStoresValue;
 	parameter::dynamic_base_holder dbNew;
@@ -354,10 +358,7 @@ public:
 	void addParameter(Parameter* p);
 	void removeParameter(int index);
 
-	void setParentNode(Ptr newParentNode)
-	{
-		parentNode = newParentNode;
-	}
+	void setParentNode(Ptr newParentNode);
 
 	void setCurrentId(const String& newId)
 	{

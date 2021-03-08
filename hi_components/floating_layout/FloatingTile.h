@@ -523,6 +523,8 @@ public:
 
 	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint);
 
+	bool isRootPopupShown() const;
+
 	struct LayoutHelpers
 	{
 	public:
