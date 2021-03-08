@@ -126,7 +126,10 @@ struct dynamic : public SnexSource
 				processFunction.callVoid(&data);
 
 				for (auto ch : data)
-					FloatSanitizers::sanitizeArray(data.toChannelData(ch));
+                {
+                    auto b = data.toChannelData(ch);
+					FloatSanitizers::sanitizeArray(b);
+                }
 			}
 		}
 

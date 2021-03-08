@@ -896,7 +896,8 @@ void DspNetwork::CodeManager::SnexSourceCompileHandler::run()
 {
 	if (runTestNext)
 	{
-		postCompile(getParent()->getLastResult());
+        auto r = getParent()->getLastResult();
+		postCompile(r);
 		return;
 	}
 

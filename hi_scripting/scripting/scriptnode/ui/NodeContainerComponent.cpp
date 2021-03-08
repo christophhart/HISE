@@ -530,7 +530,7 @@ void SerialNodeComponent::paint(Graphics& g)
 
 	g.fillRect(b);
 
-	g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT(Colour(0x22000000)), 0.0f, (float)UIValues::HeaderHeight, Colours::transparentBlack, 0.0f, 50.0f, false));
+	g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0x22000000)), 0.0f, (float)UIValues::HeaderHeight, Colours::transparentBlack, 0.0f, 50.0f, false));
 	
 	auto copy = b;
 	g.fillRect(copy.removeFromTop(50.0f));
@@ -549,8 +549,8 @@ void SerialNodeComponent::paint(Graphics& g)
 	{
 		auto h2 = (float)getHeight() / 2.0f;
 		float multiplier = (float)i / float(getHeight());
-		multiplier += JUCE_LIVE_CONSTANT(0.5f);
-		g.setColour(fc.withMultipliedAlpha( multiplier * JUCE_LIVE_CONSTANT(0.08f)));
+		multiplier += JUCE_LIVE_CONSTANT_OFF(0.5f);
+		g.setColour(fc.withMultipliedAlpha( multiplier * JUCE_LIVE_CONSTANT_OFF(0.08f)));
 
 		g.fillRect(2, i, getWidth() - 2, 9 );
 
@@ -657,7 +657,7 @@ void ParallelNodeComponent::paint(Graphics& g)
 
 	Colour fc = getOutlineColour();
 	
-	g.setColour(JUCE_LIVE_CONSTANT(Colour(0xff232323)));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff232323)));
 	g.fillRect(b);
 	
 	drawTopBodyGradient(g);
@@ -673,16 +673,16 @@ void ParallelNodeComponent::paint(Graphics& g)
 		auto halfWidth = (float)getWidth() / 2.0f;
 		float multiplier = std::abs((float)i - halfWidth) / halfWidth;
 
-		multiplier += JUCE_LIVE_CONSTANT(0.5f);
-		g.setColour(fc.withMultipliedAlpha(multiplier * JUCE_LIVE_CONSTANT(0.07f)));
+		multiplier += JUCE_LIVE_CONSTANT_OFF(0.5f);
+		g.setColour(fc.withMultipliedAlpha(multiplier * JUCE_LIVE_CONSTANT_OFF(0.07f)));
 
 		g.fillRect(i, 2, 9, getHeight() - 2);
 
 #if 0
 
-		multiplier += JUCE_LIVE_CONSTANT(0.1f);
+		multiplier += JUCE_LIVE_CONSTANT_OFF(0.1f);
 
-		g.setColour(fc.withMultipliedAlpha(multiplier * JUCE_LIVE_CONSTANT(0.2f)));
+		g.setColour(fc.withMultipliedAlpha(multiplier * JUCE_LIVE_CONSTANT_OFF(0.2f)));
 
 		g.drawVerticalLine(i, 2.0f, (float)getHeight() - 2.0f);
 #endif
@@ -855,7 +855,7 @@ void ModChainNodeComponent::paint(Graphics& g)
 	
 	Colour fc = getOutlineColour();
 
-	g.setColour(JUCE_LIVE_CONSTANT(Colour(0xff363636)));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff363636)));
 	g.fillRect(b);
 
 	g.setColour(fc);

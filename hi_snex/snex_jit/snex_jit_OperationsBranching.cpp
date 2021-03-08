@@ -819,7 +819,7 @@ void Operations::ControlFlowStatement::process(BaseCompiler* compiler, BaseScope
 {
 	if (parentLoop == nullptr)
 	{
-		Ptr p = parent;
+		Ptr p = parent.get();
 
 		while (p != nullptr)
 		{
@@ -858,7 +858,7 @@ snex::jit::Operations::ScopeStatementBase* Operations::ControlFlowStatement::fin
 {
 	jassert(parentLoop != nullptr);
 
-	Ptr p = parent;
+	Ptr p = parent.get();
 
 	auto parentLoopAsPtr = dynamic_cast<Statement*>(parentLoop.get());
 

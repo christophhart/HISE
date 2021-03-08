@@ -366,6 +366,10 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 SnexWorkbenchEditor::~SnexWorkbenchEditor()
 {
+#if JUCE_MAC
+    MenuBarModel::setMacMainMenu(nullptr);
+#endif
+    
 	//getLayoutFile().replaceWithText(rootTile->exportAsJSON());
 	context.detach();
 

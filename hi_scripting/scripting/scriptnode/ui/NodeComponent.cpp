@@ -367,7 +367,7 @@ void NodeComponent::paintOverChildren(Graphics& g)
 
 	if (error.isNotEmpty())
 	{
-		g.setColour(JUCE_LIVE_CONSTANT(Colour(0xaa683333)));
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xaa683333)));
 
 		g.drawRect(getLocalBounds().reduced(1), 1);
 
@@ -644,7 +644,7 @@ juce::Colour NodeComponent::getOutlineColour() const
 		auto error = exceptionHandler.getErrorMessage(node);
 
 		if (error.isNotEmpty())
-				return JUCE_LIVE_CONSTANT(Colour(0xFFFF0000));
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFFFF0000));
 	}
 
 	if (!header.colour.isTransparent())

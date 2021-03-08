@@ -524,7 +524,7 @@ template <int BSize, int Alignment> struct ObjectStorage
 		objPtr = ptr;
 	}
 
-	void* getObjectPtr()
+	void* getObjectPtr() const
 	{
 		return objPtr;
 	}

@@ -702,7 +702,7 @@ struct ModChainNodeComponent : public ContainerComponent
 
 	Colour getOutlineColour() const override
 	{
-		return JUCE_LIVE_CONSTANT(Colour(0xff776123));
+		return JUCE_LIVE_CONSTANT_OFF(Colour(0xff776123));
 	}
 
 	void resized() override;

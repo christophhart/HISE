@@ -898,8 +898,8 @@ bool DspNetworkGraph::Actions::setRandomColour(DspNetworkGraph& g)
 {
 	auto selection = g.network->getSelection();
 
-	auto sat = JUCE_LIVE_CONSTANT(0.6f);
-	auto br = JUCE_LIVE_CONSTANT(0.7f);
+	auto sat = JUCE_LIVE_CONSTANT_OFF(0.5f);
+	auto br = JUCE_LIVE_CONSTANT_OFF(0.7f);
 
 	auto c = Colour::fromHSV(Random::getSystemRandom().nextFloat(), sat, br, 1.0f);
 	auto v = (int64)c.getARGB();

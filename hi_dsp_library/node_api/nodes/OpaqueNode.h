@@ -122,12 +122,12 @@ struct OpaqueNode
 
 	template <typename T> const T& as() const
 	{
-		return *static_cast<T*>(getObjectPtr());
+		return *static_cast<T*>(this->getObjectPtr());
 	}
 
 	void initialise(NodeBase* n)
 	{
-		initFunc(getObjectPtr(), n);
+		initFunc(this->getObjectPtr(), n);
 	}
 
 	bool isPolyphonic() const { return isPoly; };
@@ -162,7 +162,7 @@ struct OpaqueNode
 
 	bool handleModulation(double& d);
 
-	void* getObjectPtr() { return object.getObjectPtr(); }
+	void* getObjectPtr() const { return this->object.getObjectPtr(); }
 
 private:
 

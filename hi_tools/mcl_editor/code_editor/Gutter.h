@@ -279,7 +279,7 @@ private:
 	{
 		bool blinkCallback()
 		{
-			alpha *= JUCE_LIVE_CONSTANT(0.8f);
+			alpha *= JUCE_LIVE_CONSTANT_OFF(0.8f);
 
 			if (alpha < 0.001f)
 			{

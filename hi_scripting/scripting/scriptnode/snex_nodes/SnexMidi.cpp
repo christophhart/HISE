@@ -180,7 +180,10 @@ dynamic::editor::editor(dynamic* t, PooledUIUpdater* updater) :
 	addAndMakeVisible(midiMode);
 
 	midiMode.mode.asJuceValue().addListener(this);
-	valueChanged(midiMode.mode.asJuceValue());
+    
+    auto v = midiMode.mode.asJuceValue();
+    
+	valueChanged(v);
 
 	addAndMakeVisible(menuBar);
 	this->addAndMakeVisible(meter);
