@@ -509,6 +509,9 @@ void ui::WorkbenchData::TestData::rebuildTestSignal(NotificationType triggerTest
 		psCopy.numChannels = 1;
 		fObj.prepare(psCopy);
 		fObj.reset();
+
+
+		obj.get<0>().setGate(1.0);
 		obj.get<0>().setPeriodTime(1000.0 * (double)psCopy.blockSize / ps.sampleRate);
 
 		ProcessData<1> d(testSourceData.getArrayOfWritePointers(), size, 1);

@@ -455,10 +455,19 @@ template <class ShaperType> struct waveshaper
 	SET_HISE_NODE_ID("waveshaper");
 	SN_GET_SELF_AS_OBJECT(waveshaper);
 
-	HISE_EMPTY_PREPARE;
-	HISE_EMPTY_RESET;
+	
 	HISE_EMPTY_HANDLE_EVENT;
 	
+	void prepare(PrepareSpecs ps)
+	{
+		shaper.prepare(ps);
+	}
+
+	void reset()
+	{
+		shaper.reset();
+	};
+
 	void initialise(NodeBase* n)
 	{
 		shaper.getWrappedObject().initialise(n);

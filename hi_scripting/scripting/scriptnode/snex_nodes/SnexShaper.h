@@ -58,10 +58,19 @@ struct dynamic : public SnexSource
 		{
 			auto newProcessFunction = getFunctionAsObjectCallback("process");
 			auto newProcessFrameFunction = getFunctionAsObjectCallback("processFrame");
+			auto newPrepareFunc = getFunctionAsObjectCallback("processFrame");
+			auto newResetFunc = getFunctionAsObjectCallback("reset");
+
 			auto r = newProcessFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
 
 			if(r.wasOk())
 				r = newProcessFrameFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
+
+			if (r.wasOk())
+				r = newPrepareFunc.validateWithArgs("void", { "PrepareSpecs" });
+
+			if (r.wasOk())
+				r = newResetFunc.validateWithArgs(Types::ID::Void, {});
 
 			{
 				SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
@@ -69,6 +78,8 @@ struct dynamic : public SnexSource
 				ok = r.wasOk();
 				std::swap(processFunction, newProcessFunction);
 				std::swap(processFrameFunction, newProcessFrameFunction);
+				std::swap(prepareFunc, newPrepareFunc);
+				std::swap(resetFunc, newResetFunc);
 			}
 
 			return r;
@@ -80,12 +91,32 @@ struct dynamic : public SnexSource
 
 			processFunction = {};
 			processFrameFunction = {};
+			prepareFunc = {};
+			resetFunc = {};
 			ok = false;
 		}
 
-		Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) override
+		bool runRootTest() const override { return true; }
+
+		void runPrepareTest(PrepareSpecs ps) override
 		{
-			return Result::ok();
+			prepare(ps);
+			resetShaper();
+		}
+
+		void runProcessTest(ProcessDataDyn& d) override
+		{
+			process(d);
+		}
+
+		void runHiseEventTest(HiseEvent& ) override
+		{
+		}
+
+		void resetShaper()
+		{
+			if (auto s = ScopedCallbackChecker(*this))
+				resetFunc.callVoid();
 		}
 
 		void process(ProcessDataDyn& data)
@@ -108,14 +139,35 @@ struct dynamic : public SnexSource
 			}
 		}
 
+		void prepare(PrepareSpecs ps)
+		{
+			if (auto s = ScopedCallbackChecker(*this))
+				prepareFunc.callVoid(&ps);
+		}
+
+		FunctionData prepareFunc;
+		FunctionData resetFunc;
 		FunctionData processFunction;
 		FunctionData processFrameFunction;
+		FunctionData resetF;
 	};
 
 	dynamic():
 		callbacks(*this, object)
 	{
 		setCallbackHandler(&callbacks);
+	}
+
+	void reset()
+	{
+		if (allowProcessing())
+			callbacks.resetShaper();
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		if (allowProcessing())
+			callbacks.prepare(ps);
 	}
 
 	void process(ProcessDataDyn& data)

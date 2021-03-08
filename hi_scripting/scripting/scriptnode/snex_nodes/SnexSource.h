@@ -490,7 +490,9 @@ struct SnexSource : public WorkbenchData::Listener
 
 		bool triggerTest(ui::WorkbenchData::CompileResult& lastResult) override
 		{
-			original.getWorkbench()->triggerPostCompileActions();
+			if(auto wb = original.getWorkbench())
+				wb->triggerPostCompileActions();
+
 			return false;
 		}
 
@@ -567,6 +569,8 @@ struct SnexSource : public WorkbenchData::Listener
 
 		getComplexDataHandler().initialise(n);
 
+		compileChecker.setCallback(n->getValueTree(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_0(SnexSource::throwScriptnodeErrorIfCompileFail));
+
 		classId.initialise(n);
 		classId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(SnexSource::updateClassId), true);
 	}
@@ -580,7 +584,11 @@ struct SnexSource : public WorkbenchData::Listener
 
 	void recompiled(WorkbenchData::Ptr wb) final override;
 
+	void throwScriptnodeErrorIfCompileFail();
+
 	void logMessage(WorkbenchData::Ptr wb, int level, const String& s) override;
+
+	void debugModeChanged(bool isEnabled) override;
 
 	bool preprocess(String& code) override
 	{
@@ -703,6 +711,8 @@ protected:
 
 private:
 
+	valuetree::ParentListener compileChecker;
+
 	ParameterHandler parameterHandler;
 	ComplexDataHandler dataHandler;
 	CallbackHandlerBase* callbackHandler = nullptr;
@@ -771,6 +781,7 @@ struct SnexMenuBar : public Component,
 		String getId() const override { return {}; }
 	} f;
 
+#if 0
 	struct ComplexDataPopupButton : public Button
 	{
 		ComplexDataPopupButton(SnexSource* s);
@@ -826,6 +837,7 @@ struct SnexMenuBar : public Component,
 		ValueTree t;
 		valuetree::RecursiveTypedChildListener l;
 	};
+#endif
 
 	ComboBox classSelector;
 	HiseShapeButton popupButton;
@@ -834,7 +846,7 @@ struct SnexMenuBar : public Component,
 	HiseShapeButton debugButton;
 	HiseShapeButton optimizeButton;
 	HiseShapeButton asmButton;
-	ComplexDataPopupButton cdp;
+	HiseShapeButton cdp;
 
 	SnexMenuBar(SnexSource* s);
 
@@ -844,11 +856,7 @@ struct SnexMenuBar : public Component,
 
 	~SnexMenuBar();
 
-	void debugModeChanged(bool isEnabled) override
-	{
-		debugMode = isEnabled;
-		repaint();
-	};
+	void debugModeChanged(bool isEnabled) override;;
 
 	void workbenchChanged(snex::ui::WorkbenchData::Ptr newWb);
 

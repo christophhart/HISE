@@ -51,6 +51,8 @@ struct Error
 		IllegalBlockSize,
 		SampleRateMismatch,
 		InitialisationError,
+		CompileFail,
+		NodeDebuggerEnabled,
 		numErrorCodes
 	};
 
@@ -82,6 +84,7 @@ class ScriptnodeExceptionHandler
 
 		WeakReference<NodeBase> node;
 		Error error;
+		
 	};
 
 public:
@@ -106,10 +109,21 @@ public:
 		items.add({ n, e });
 	}
 
-	void removeError(NodeBase* n)
+	void removeError(NodeBase* n, Error::ErrorCode errorToRemove=Error::numErrorCodes)
 	{
-		Item i = { n, Error::OK };
-		items.removeAllInstancesOf(i);
+		if (errorToRemove == Error::numErrorCodes)
+		{
+			Item i = { n, Error::OK };
+			items.removeAllInstancesOf(i);
+		}
+		else
+		{
+			for (int i = 0; i < items.size(); i++)
+			{
+				if (items[i].node == n && items[i].error.error == errorToRemove)
+					items.remove(i--);
+			}
+		}
 	}
 
 	static String getErrorMessage(Error e)
@@ -127,6 +141,8 @@ public:
 		case Error::SampleRateMismatch: s << "Samplerate mismatch"; break;
 		case Error::InitialisationError: return "Initialisation error";
 		case Error::NoMatchingParent:	return "Can't find suitable parent node";
+		case Error::NodeDebuggerEnabled: return "Node is being debugged";
+		case Error::CompileFail:	s << "Compilation error** at Line " << e.expected << ", Column " << e.actual; return s;
 		default:
 			break;
 		}

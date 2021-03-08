@@ -207,7 +207,11 @@ void DspNetworkCompileHandler::processTest(ProcessDataDyn& data)
 	else if (interpreter != nullptr)
 	{
 		ScopedLock sl(interpreter->getConnectionLock());
-		interpreter->getRootNode()->process(data);
+
+		if (interpreter->getExceptionHandler().isOk())
+		{
+			interpreter->getRootNode()->process(data);
+		}
 	}
 	else if (jitNode != nullptr)
 		jitNode->process(data);

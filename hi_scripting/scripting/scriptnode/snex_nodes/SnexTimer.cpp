@@ -79,7 +79,7 @@ namespace control
 
 		addAndMakeVisible(meter);
 
-		this->setSize(512, 90);
+		this->setSize(256, 90);
 	}
 
 	juce::Component* snex_timer::editor::createExtraComponent(void* obj, PooledUIUpdater* updater)
@@ -96,32 +96,32 @@ namespace control
 
 		menuBar.setBounds(top);
 
-		b.removeFromTop(5);
+		b.removeFromTop(12);
 
 		auto r = b.removeFromTop(20);
 
-		flashDot = r.removeFromLeft(20).toFloat();
+		flashDot = r.removeFromRight(20).toFloat().reduced(2.0f);
 
-		r.removeFromLeft(3);
+		r.removeFromRight(5);
 
-		meter.setBounds(r);
+		meter.setBounds(r.reduced(0, 2));
 
-		b.removeFromTop(5);
+		b.removeFromTop(12);
 
 		dragger.setBounds(b);
 	}
 
 	void snex_timer::editor::paint(Graphics& g)
 	{
-		auto b = this->getLocalBounds().removeFromTop(28);
+		auto b = this->getLocalBounds().removeFromTop(32);
 
 		auto ledArea = b.removeFromLeft(24).removeFromTop(24);
 
 		g.setColour(Colours::white.withAlpha(0.7f));
-		g.drawRect(flashDot, 1.0f);
+		g.drawEllipse(flashDot, 1.0f);
 
 		g.setColour(Colours::white.withAlpha(alpha));
-		g.fillRect(flashDot.reduced(2.0f));
+		g.fillEllipse(flashDot.reduced(2.0f));
 	}
 
 	void snex_timer::editor::timerCallback()
