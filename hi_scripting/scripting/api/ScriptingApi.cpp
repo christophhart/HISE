@@ -861,6 +861,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getDeviceType);
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
+	API_VOID_METHOD_WRAPPER_1(Engine, setZoomLevel);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
 	API_METHOD_WRAPPER_0(Engine, getName);
 	API_METHOD_WRAPPER_0(Engine, getFilterModeList);
@@ -988,6 +989,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getPreloadProgress);
 	ADD_API_METHOD_0(getPreloadMessage);
 	ADD_API_METHOD_0(getZoomLevel);
+	ADD_API_METHOD_1(setZoomLevel);
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getName);
 	ADD_API_METHOD_0(getFilterModeList);
@@ -1290,7 +1292,17 @@ String ScriptingApi::Engine::getPreloadMessage()
 
 var ScriptingApi::Engine::getZoomLevel() const
 {
-	return dynamic_cast<const GlobalSettingManager*>(getScriptProcessor()->getMainController_())->getGlobalScaleFactor();
+	auto gm = dynamic_cast<const GlobalSettingManager*>(getScriptProcessor()->getMainController_());
+	
+	return gm->getGlobalScaleFactor();
+}
+
+void ScriptingApi::Engine::setZoomLevel(double newLevel)
+{
+	newLevel = jlimit(0.25, 2.0, newLevel);
+
+	auto gm = dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_());
+	gm->setGlobalScaleFactor(newLevel, sendNotificationAsync);
 }
 
 var ScriptingApi::Engine::getFilterModeList() const

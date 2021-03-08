@@ -255,13 +255,24 @@ void GlobalSettingManager::setGlobalScaleFactor(double newScaleFactor, Notificat
 
 		if (notifyListeners != dontSendNotification)
 		{
-			for (int i = 0; i < listeners.size(); i++)
+			WeakReference<GlobalSettingManager> safeThis(this);
+
+			auto f = [safeThis, newScaleFactor]()
 			{
-				if (listeners[i].get() != nullptr)
+				if (safeThis.get() != nullptr)
 				{
-					listeners[i]->scaleFactorChanged((float)scaleFactor);
+					for (int i = 0; i < safeThis->listeners.size(); i++)
+					{
+						if (safeThis->listeners[i].get() != nullptr)
+							safeThis->listeners[i]->scaleFactorChanged((float)newScaleFactor);
+					}
 				}
-			}
+			};
+
+			if (notifyListeners == sendNotificationSync)
+				f();
+			else
+				MessageManager::callAsync(f);
 		}
 	}
 }
