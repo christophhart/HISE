@@ -43,6 +43,7 @@ using namespace snex;
 
 void SnexSource::recompiled(WorkbenchData::Ptr wb)
 {
+	getCallbackHandler().reset();
 	getParameterHandler().reset();
 	getComplexDataHandler().reset();
 
@@ -85,6 +86,8 @@ void SnexSource::throwScriptnodeErrorIfCompileFail()
 			eh.removeError(parentNode, Error::NodeDebuggerEnabled);
 
 		auto ok = wb->getLastResult().compileResult.wasOk();
+
+		processingEnabled = wb->getGlobalScope().isDebugModeEnabled() && ok;
 
 		if (ok)
 			parentNode->getRootNetwork()->getExceptionHandler().removeError(parentNode, Error::CompileFail);
@@ -563,6 +566,7 @@ SnexMenuBar::SnexMenuBar(SnexSource* s) :
 
 	editButton.setToggleModeWithColourChange(true);
 	debugButton.setToggleModeWithColourChange(true);
+	cdp.setToggleModeWithColourChange(true);
 
 	rebuildComboBoxItems();
 	refreshButtonState();
@@ -631,7 +635,7 @@ void SnexMenuBar::workbenchChanged(snex::ui::WorkbenchData::Ptr newWb)
 
 void SnexMenuBar::complexDataAdded(snex::ExternalData::DataType t, int index)
 {
-
+	refreshButtonState();
 }
 
 void SnexMenuBar::rebuildComboBoxItems()
@@ -671,16 +675,19 @@ void SnexMenuBar::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 
 void SnexMenuBar::buttonClicked(Button* b)
 {
-	if (b == &popupButton)
+	if (b == &cdp)
 	{
 		auto ft = findParentComponentOfClass<FloatingTile>();
 
-		if (b->getToggleState())
+		if (ft->isRootPopupShown())
 		{
 			ft->showComponentInRootPopup(nullptr, nullptr, {});
+			
+			cdp.setToggleStateAndUpdateIcon(false);
 		}
 		else
 		{
+			cdp.setToggleStateAndUpdateIcon(true);
 			Component* c = new SnexComplexDataDisplay(source);
 
 			auto nc = findParentComponentOfClass<NodeComponent>();

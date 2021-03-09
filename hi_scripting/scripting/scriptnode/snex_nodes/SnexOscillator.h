@@ -178,7 +178,7 @@ template <int NV, typename T> struct snex_osc_impl : snex_osc_base<T>
 	{
 		auto& thisData = oscData.get();
 		auto uptime = thisData.tick();
-		data[0] += this->oscType.tick(thisData.tick());
+		data[0] += this->oscType.tick(uptime);
 	}
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)

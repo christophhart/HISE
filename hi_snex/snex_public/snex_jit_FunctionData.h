@@ -327,11 +327,24 @@ struct FunctionData
 		f_(ps...);
 	}
 
-	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUncheckedWithObject(void* d, Parameters... ps) const
+	template <typename... Parameters> forcedinline void callVoidUncheckedWithObject(Parameters... ps) const
 	{
+		jassert(object != nullptr);
+		jassert(function != nullptr);
+		using signature = void(*)(void*, Parameters...);
+
+		auto f_ = (signature)function;
+		f_(object, ps...);
+	}
+
+	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUncheckedWithObj5ect(Parameters... ps) const
+	{
+		jassert(object != nullptr);
+		jassert(function != nullptr);
+
 		using signature = ReturnType(*)(void*, Parameters...);
 		auto f_ = (signature)function;
-		return static_cast<ReturnType>(f_(d, ps...));
+		return static_cast<ReturnType>(f_(object, ps...));
 	}
 
 	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUnchecked(Parameters... ps) const

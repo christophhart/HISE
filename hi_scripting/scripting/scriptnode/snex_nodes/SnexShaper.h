@@ -116,14 +116,14 @@ struct dynamic : public SnexSource
 		void resetShaper()
 		{
 			if (auto s = ScopedCallbackChecker(*this))
-				resetFunc.callVoid();
+				resetFunc.callVoidUncheckedWithObject();
 		}
 
 		void process(ProcessDataDyn& data)
 		{
 			if (auto s = ScopedCallbackChecker(*this))
 			{
-				processFunction.callVoid(&data);
+				processFunction.callVoidUncheckedWithObject(&data);
 
 				for (auto ch : data)
                 {
@@ -137,7 +137,7 @@ struct dynamic : public SnexSource
 		{
 			if (auto s = ScopedCallbackChecker(*this))
 			{
-				processFrameFunction.callVoid(d.begin());
+				processFrameFunction.callVoidUncheckedWithObject(d.begin());
 				FloatSanitizers::sanitizeArray(d);
 			}
 		}
@@ -145,7 +145,7 @@ struct dynamic : public SnexSource
 		void prepare(PrepareSpecs ps)
 		{
 			if (auto s = ScopedCallbackChecker(*this))
-				prepareFunc.callVoid(&ps);
+				prepareFunc.callVoidUncheckedWithObject(&ps);
 		}
 
 		FunctionData prepareFunc;
@@ -163,28 +163,22 @@ struct dynamic : public SnexSource
 
 	void reset()
 	{
-		if (allowProcessing())
-			callbacks.resetShaper();
+		callbacks.resetShaper();
 	}
 
 	void prepare(PrepareSpecs ps)
 	{
-		if (allowProcessing())
-			callbacks.prepare(ps);
+		callbacks.prepare(ps);
 	}
 
 	void process(ProcessDataDyn& data)
 	{
-		if (allowProcessing())
-			callbacks.process(data);
+		callbacks.process(data);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& d)
 	{
-		if (allowProcessing())
-		{
-			callbacks.processFrame(d);
-		}
+		callbacks.processFrame(d);
 	}
 
 	bool preprocess(String& c) final override

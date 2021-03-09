@@ -34,9 +34,151 @@
 
 #include <mutex>
 #include <shared_mutex>
+#include <array>
+#include <thread>
+#include <atomic>
+#include <emmintrin.h>
+
+
+
 
 namespace hise {
 using namespace juce;
+
+
+struct audio_spin_mutex 
+{
+	void lock() noexcept {
+		constexpr std::array iterations = { 5, 10, 3000 };
+
+		for (int i = 0; i < iterations[0]; ++i) {
+			if (try_lock())
+				return;
+		}
+
+		for (int i = 0; i < iterations[1]; ++i) {
+			if (try_lock())
+				return;
+
+			_mm_pause();
+		}
+
+		while (true) 
+		{
+			for (int i = 0; i < iterations[2]; ++i) {
+				if (try_lock())
+					return;
+
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+			}
+
+			jassertfalse;
+		}
+	}
+
+	bool try_lock() noexcept
+	{
+		return !flag.test_and_set(std::memory_order_acquire);
+	}
+
+	void unlock() noexcept 
+	{
+		flag.clear(std::memory_order_release);
+	}
+
+private:
+
+	std::atomic_flag flag = ATOMIC_FLAG_INIT;
+};
+
+struct audio_spin_mutex_shared
+{
+	void lock() noexcept
+	{
+		w.lock();
+
+		constexpr std::array iterations = { 5, 10, 3000 };
+
+		for (int i = 0; i < iterations[0]; ++i) {
+			if (sharedCounter.load() == 0)
+				return;
+		}
+
+		for (int i = 0; i < iterations[1]; ++i) {
+			if (sharedCounter.load() == 0)
+				return;
+
+			_mm_pause();
+		}
+
+		while (true)
+		{
+			for (int i = 0; i < iterations[2]; ++i) {
+				if (sharedCounter.load() == 0)
+					return;
+
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+				_mm_pause();
+			}
+
+			jassertfalse;
+		}
+	}
+
+	bool try_lock() noexcept
+	{
+		return w.try_lock();
+	}
+
+	void unlock() noexcept
+	{
+		w.unlock();
+	}
+
+	void lock_shared() noexcept
+	{
+		w.lock();
+		sharedCounter.fetch_add(1, std::memory_order_acquire);
+		w.unlock();
+	}
+
+	bool try_lock_shared() noexcept
+	{
+		if (w.try_lock())
+		{
+			sharedCounter.fetch_add(1, std::memory_order_acquire);
+			w.unlock();
+			return true;
+		}
+
+		return false;
+	}
+
+	void unlock_shared() noexcept
+	{
+		sharedCounter.fetch_sub(1, std::memory_order_release);
+	}
+
+	audio_spin_mutex w;
+	std::atomic<int> sharedCounter = 0;
+};
 
 
 /** Same as MessageManager::callAsync, but uses a Safe pointer for a component and cancels the async execution if the object is deleted. */
@@ -956,9 +1098,12 @@ struct SimpleReadWriteLock
 		SimpleReadWriteLock& lock;
 	};
 
-	std::atomic<std::thread::id> writer;
-	std::shared_mutex mutex;
+	using LockType = audio_spin_mutex_shared;
+	//using LockType = std::shared_mutex;
 
+	LockType mutex;
+
+	std::atomic<std::thread::id> writer;
 	bool enabled = true;
 	bool fakeWriteLock = false;
 };

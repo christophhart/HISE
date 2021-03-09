@@ -712,6 +712,7 @@ protected:
 private:
 
 	valuetree::ParentListener compileChecker;
+	bool processingEnabled = true;
 
 	ParameterHandler parameterHandler;
 	ComplexDataHandler dataHandler;

@@ -179,31 +179,31 @@ struct snex_node : public SnexSource
 		void resetFunc()
 		{
 			if (auto s = ScopedCallbackChecker(*this))
-				f[(int)ScriptnodeCallbacks::ResetFunction].callVoid();
+				f[(int)ScriptnodeCallbacks::ResetFunction].callVoidUncheckedWithObject();
 		}
 
 		void process(ProcessDataDyn& data)
 		{
 			if (auto s = ScopedCallbackChecker(*this))
-				f[(int)ScriptnodeCallbacks::ProcessFunction].callVoid(&data);
+				f[(int)ScriptnodeCallbacks::ProcessFunction].callVoidUncheckedWithObject(&data);
 		}
 
 		template <typename T> void processFrame(T& d)
 		{
 			if (auto s = ScopedCallbackChecker(*this))
-				f[(int)ScriptnodeCallbacks::ProcessFrameFunction].callVoid(&d);
+				f[(int)ScriptnodeCallbacks::ProcessFrameFunction].callVoidUncheckedWithObject(&d);
 		}
 
 		void prepare(PrepareSpecs ps)
 		{
 			if (auto s = ScopedCallbackChecker(*this))
-				f[(int)ScriptnodeCallbacks::PrepareFunction].callVoid(&ps);
+				f[(int)ScriptnodeCallbacks::PrepareFunction].callVoidUncheckedWithObject(&ps);
 		}
 		
 		void handleHiseEvent(HiseEvent& e)
 		{
 			if (auto s = ScopedCallbackChecker(*this))
-				f[(int)ScriptnodeCallbacks::HandleEventFunction].callVoid(&e);
+				f[(int)ScriptnodeCallbacks::HandleEventFunction].callVoidUncheckedWithObject(&e);
 		}
 		
 		FunctionData f[(int)ScriptnodeCallbacks::numFunctions];
@@ -229,32 +229,27 @@ struct snex_node : public SnexSource
 
 	void prepare(PrepareSpecs ps)
 	{
-		if (allowProcessing())
-			callbacks.prepare(ps);
+		callbacks.prepare(ps);
 	}
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		if (allowProcessing())
-			callbacks.handleHiseEvent(e);
+		callbacks.handleHiseEvent(e);
 	}
 
 	void reset()
 	{
-		if (allowProcessing())
-			callbacks.resetFunc();
+		callbacks.resetFunc();
 	}
 
 	void process(ProcessDataDyn& data)
 	{
-		if(allowProcessing())
-			callbacks.process(data);
+		callbacks.process(data);
 	}
 
 	template <typename T> void processFrame(T& data)
 	{
-		if (allowProcessing())
-			callbacks.processFrame(data);
+		callbacks.processFrame(data);
 	}
 
 	struct editor : public ScriptnodeExtraComponent<snex_node>

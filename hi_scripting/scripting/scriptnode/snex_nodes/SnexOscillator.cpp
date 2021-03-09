@@ -75,7 +75,7 @@ juce::Result core::SnexOscillator::OscillatorCallbacks::recompiledOk(snex::jit::
 float core::SnexOscillator::OscillatorCallbacks::tick(double uptime)
 {
 	if (auto c = ScopedCallbackChecker(*this))
-		return tickFunction.call<float>(uptime);
+		return tickFunction.callUncheckedWithObj5ect<float>(uptime);
 
 	return 0.0;
 }
@@ -83,7 +83,7 @@ float core::SnexOscillator::OscillatorCallbacks::tick(double uptime)
 void core::SnexOscillator::OscillatorCallbacks::process(OscProcessData& d)
 {
 	if (auto c = ScopedCallbackChecker(*this))
-		processFunction.callVoid(&d);
+		processFunction.callVoidUncheckedWithObject(&d);
 }
 
 core::SnexOscillator::SnexOscillator() :
@@ -141,16 +141,12 @@ void core::SnexOscillator::initialise(NodeBase* n)
 
 float core::SnexOscillator::tick(double uptime)
 {
-	if (allowProcessing())
-		return callbacks.tick(uptime);
-	else
-		return 0.0f;
+	return callbacks.tick(uptime);
 }
 
 void core::SnexOscillator::process(OscProcessData& d)
 {
-	if(allowProcessing())
-		callbacks.process(d);
+	callbacks.process(d);
 }
 
 core::NewSnexOscillatorDisplay::NewSnexOscillatorDisplay(SnexOscillator* osc, PooledUIUpdater* updater) :
