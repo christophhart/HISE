@@ -579,11 +579,10 @@ void FloatSanitizers::sanitizeArray(float* data, int size)
 		const int aDen = exponent > 0;
 
 		*dataAsInt++ = sample * (aNaN & aDen);
-
 	}
 }
 
-float FloatSanitizers::sanitizeFloatNumber(float& input)
+bool FloatSanitizers::sanitizeFloatNumber(float& input)
 {
 	uint32* valueAsInt = reinterpret_cast<uint32*>(&input);
 	const uint32 exponent = *valueAsInt & 0x7F800000;
@@ -593,7 +592,9 @@ float FloatSanitizers::sanitizeFloatNumber(float& input)
 
 	const uint32 sanitized = *valueAsInt * (aNaN & aDen);
 
-	return *reinterpret_cast<const float*>(&sanitized);
+	input = *reinterpret_cast<const float*>(&sanitized);
+
+	return sanitized > 0;
 }
 
 void FloatSanitizers::Test::runTest()
@@ -627,12 +628,12 @@ void FloatSanitizers::Test::runTest()
 	float d4 = 24.0f;
 	float d5 = 0.0052f;
 
-	d0 = sanitizeFloatNumber(d0);
-	d1 = sanitizeFloatNumber(d1);
-	d2 = sanitizeFloatNumber(d2);
-	d3 = sanitizeFloatNumber(d3);
-	d4 = sanitizeFloatNumber(d4);
-	d5 = sanitizeFloatNumber(d5);
+	sanitizeFloatNumber(d0);
+	sanitizeFloatNumber(d1);
+	sanitizeFloatNumber(d2);
+	sanitizeFloatNumber(d3);
+	sanitizeFloatNumber(d4);
+	sanitizeFloatNumber(d5);
 
 	expectEquals<float>(d0, 0.0f, "Single Infinity");
 	expectEquals<float>(d1, 0.0f, "Single Denormal");

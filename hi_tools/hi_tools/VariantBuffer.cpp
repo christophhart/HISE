@@ -146,7 +146,8 @@ VariantBuffer VariantBuffer::operator+(const VariantBuffer &b)
 
 VariantBuffer & VariantBuffer::operator-(float value)
 {
-	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * FloatSanitizers::sanitizeFloatNumber(value), buffer.getNumSamples());
+	FloatSanitizers::sanitizeFloatNumber(value);
+	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * value, buffer.getNumSamples());
 
 	return *this;
 }
@@ -154,7 +155,8 @@ VariantBuffer & VariantBuffer::operator-(float value)
 
 VariantBuffer & VariantBuffer::operator-=(float value)
 {
-	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * FloatSanitizers::sanitizeFloatNumber(value), buffer.getNumSamples());
+	FloatSanitizers::sanitizeFloatNumber(value);
+	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * value, buffer.getNumSamples());
 	
 	return *this;
 }

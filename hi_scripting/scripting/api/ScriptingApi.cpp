@@ -4292,7 +4292,7 @@ void ScriptingApi::Console::assertLegalNumber(var value)
 	float v2 = v1;
 
 
-	if (v1 != FloatSanitizers::sanitizeFloatNumber(v2))
+	if (!FloatSanitizers::sanitizeFloatNumber(v2))
 	{
 		reportScriptError("Assertion failure: value is not a legal number. Value: " + value.toString());
 	}

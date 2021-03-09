@@ -495,7 +495,7 @@ void ShapeFX::updateGain()
 		sum /= 64.0f;
 
 		autogainValue = 1.0f / sum;
-		autogainValue = FloatSanitizers::sanitizeFloatNumber(autogainValue);
+		FloatSanitizers::sanitizeFloatNumber(autogainValue);
 	}
 	else
 	{

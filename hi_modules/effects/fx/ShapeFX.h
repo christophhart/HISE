@@ -69,7 +69,8 @@ public:
 
 	void setTargetValue(float newTargetValue)
 	{
-		targetValue = FloatSanitizers::sanitizeFloatNumber(newTargetValue);
+		FloatSanitizers::sanitizeFloatNumber(newTargetValue);
+		targetValue = newTargetValue;
 	}
 
 	Smoother s;

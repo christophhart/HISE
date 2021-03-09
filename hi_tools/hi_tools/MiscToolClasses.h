@@ -1196,7 +1196,7 @@ struct FloatSanitizers
 
 	static void sanitizeArray(float* data, int size);;
 
-	static float sanitizeFloatNumber(float& input);;
+	static bool sanitizeFloatNumber(float& input);;
 
 	struct Test : public UnitTest
 	{
