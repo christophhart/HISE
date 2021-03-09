@@ -42,6 +42,7 @@ AudioProcessorEditor(fp)
 		context.attachTo(*this);
 #endif
 
+	fp->addScaleFactorListener(this);
 	fp->incActiveEditors();
 
     Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
@@ -181,7 +182,7 @@ FrontendProcessorEditor::~FrontendProcessorEditor()
 #endif
 
 	dynamic_cast<FrontendProcessor*>(getAudioProcessor())->decActiveEditors();
-
+	dynamic_cast<GlobalSettingManager*>(getAudioProcessor())->removeScaleFactorListener(this);
 	dynamic_cast<OverlayMessageBroadcaster*>(getAudioProcessor())->removeOverlayListener(this);
 
 #if USE_RAW_FRONTEND
@@ -204,6 +205,11 @@ Component* FrontendProcessorEditor::getContentComponent()
 #else
 	return rootTile;
 #endif
+}
+
+void FrontendProcessorEditor::scaleFactorChanged(float newScaleFactor)
+{
+	setGlobalScaleFactor(newScaleFactor);
 }
 
 void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)

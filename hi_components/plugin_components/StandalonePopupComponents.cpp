@@ -508,18 +508,7 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 	else if (comboBoxThatHasChanged == scaleFactorSelector)
 	{
 		double scaleFactor = scaleFactorList[scaleFactorSelector->getSelectedItemIndex()];
-
-		driver->setGlobalScaleFactor(scaleFactor, sendNotification);
-
-#if USE_FRONTEND
-
-		auto fpe = findParentComponentOfClass<FrontendProcessorEditor>();
-
-		if (fpe != nullptr)
-		{
-			fpe->setGlobalScaleFactor((float)scaleFactor);
-		}
-#endif
+		driver->setGlobalScaleFactor(scaleFactor, sendNotificationSync);
 	}
 	else if (comboBoxThatHasChanged == bpmSelector)
 	{
