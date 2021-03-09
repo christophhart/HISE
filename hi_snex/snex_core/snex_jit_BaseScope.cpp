@@ -66,6 +66,17 @@ BaseScope* BaseScope::getParent()
 	return parent.get();
 }
 
+BaseScope* BaseScope::getParentWithPath(NamespacedIdentifier& id)
+{
+	if (getScopeSymbol() == id)
+		return this;
+
+	if (parent != nullptr)
+		return parent->getParentWithPath(id);
+
+	return nullptr;
+}
+
 NamespaceHandler& BaseScope::getNamespaceHandler()
 {
 	auto h = getRootClassScope()->handler;

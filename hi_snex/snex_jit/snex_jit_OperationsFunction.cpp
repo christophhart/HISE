@@ -252,6 +252,10 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			auto createInliner = scope->getGlobalScope()->shouldInlineFunction(classData->id.getIdentifier());
 
+			auto inlineScore = sTree->getInlinerScore();
+
+			createInliner &= isPositiveAndBelow(inlineScore, InlineScoreThreshhold);
+
 			if (createInliner || isHardcodedFunction)
 			{
 				classData->inliner = Inliner::createHighLevelInliner(data.id, [sTree, fParameters](InlineData* b)

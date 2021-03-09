@@ -766,6 +766,8 @@ public:
 		}
 	}
 
+	int getInlinerScore();
+
 	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("SyntaxTree"); }
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override

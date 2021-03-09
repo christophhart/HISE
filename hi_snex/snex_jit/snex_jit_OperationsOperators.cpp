@@ -1350,6 +1350,8 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 		RegPtr indexReg;
 
 		indexReg = getSubRegister(1);
+
+		jassert(indexReg->isActive() || indexReg->isMemoryLocation());
 		jassert(indexReg->getType() == Types::ID::Integer);
 
 		acg.emitSpanReference(reg, getSubRegister(0), indexReg, elementType.getRequiredByteSize());

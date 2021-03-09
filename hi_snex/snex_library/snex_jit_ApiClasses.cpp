@@ -602,78 +602,100 @@ juce::Result MathFunctions::Inliners::fmod(InlineData* d_)
 	return Result::ok();
 }
 
+static constexpr int TableSize = 1024;
+static float sinTable[TableSize];
+static double sinTableDouble[TableSize];
+
 juce::Result MathFunctions::Inliners::sin(InlineData* d_)
 {
 	SETUP_MATH_INLINE("inline sin");
 
-	static constexpr int TableSize = 1024;
-
-	static float sinTable[TableSize];
-	static double sinTableDouble[TableSize];
-
 	for (int i = 0; i < TableSize; i++)
 	{
 		double v = ((double)i / (double)TableSize) * double_Pi * 2.0;
-		sinTableDouble[i] = std::sin(v);
-		sinTable[i] = (float)sinTableDouble[i];
+
+		v = std::sin(v);
+
+		sinTableDouble[i] = v;
+		sinTable[i] = (float)v;
 	}
 
 	auto i1 = cc.newGpq();
 	auto i2 = cc.newGpq();
-	auto tmpFloat = cc.newXmmSs();
+	
 
 	d->target->loadMemoryIntoRegister(cc);
+	
+	x86::Xmm tmpFloat;
+	x86::Xmm idx;
+	x86::Mem tableSize;
 
-	auto idx = cc.newXmmSs();
 	bool isDouble = d->args[0]->getType() == Types::ID::Double;
 
 	if (isDouble)
 	{
+		idx = cc.newXmmSd();
+		tmpFloat = cc.newXmmSd();
+		tableSize = cc.newDoubleConst(ConstPool::kScopeGlobal, (double)TableSize / (2.0 * double_Pi));
+
 		if (d->args[0]->isMemoryLocation())
-			cc.cvtsd2ss(idx, d->args[0]->getAsMemoryLocation());
+			cc.movsd(idx, d->args[0]->getAsMemoryLocation());
 		else
-			cc.cvtsd2ss(idx, FP_REG_R(d->args[0]));
+			cc.movsd(idx, FP_REG_R(d->args[0]));
+
+		cc.mulsd(idx, tableSize);
+		cc.cvttsd2si(i1, idx);
+		cc.cvtsi2sd(tmpFloat, i1);
+		cc.subsd(idx, tmpFloat);
 	}
 	else
 	{
+		idx = cc.newXmmSs();
+		tmpFloat = cc.newXmmSs();
+		tableSize = cc.newFloatConst(ConstPool::kScopeGlobal, (float)TableSize / (2.0f * float_Pi));
+
 		if (d->args[0]->isMemoryLocation())
 			cc.movss(idx, d->args[0]->getAsMemoryLocation());
 		else
 			cc.movss(idx, FP_REG_R(d->args[0]));
+
+		cc.mulss(idx, tableSize);
+		cc.cvttss2si(i1, idx);
+		cc.cvtsi2ss(tmpFloat, i1);
+		cc.subss(idx, tmpFloat);
 	}
 
-	auto tableSize = cc.newFloatConst(ConstPool::kScopeGlobal, (float)TableSize / (2.0f * float_Pi));
-
-	cc.mulss(idx, tableSize);
-	cc.cvttss2si(i1, idx);
 	cc.lea(i2, x86::ptr(i1).cloneAdjusted(1));
-	cc.cvtsi2ss(tmpFloat, i1);
-	cc.subss(idx, tmpFloat);
 	cc.and_(i1, TableSize - 1);
 	cc.and_(i2, TableSize - 1);
 
-	auto adr = (uint64_t)sinTable;
+	auto adr = isDouble ? (uint64_t)sinTableDouble : (uint64_t)sinTable;
 
 	auto dataReg = cc.newGpq();
 	cc.mov(dataReg, adr);
-	auto p1 = x86::dword_ptr(dataReg, i1, 2);
-	auto p2 = x86::dword_ptr(dataReg, i2, 2);
+	auto p1 = x86::ptr(dataReg, i1, isDouble ? 3 : 2).cloneResized(isDouble ? 8 : 4);
+	auto p2 = x86::ptr(dataReg, i2, isDouble ? 3 : 2).cloneResized(isDouble ? 8 : 4);
 
-	X86Xmm v1;
+	auto v1 = FP_REG_W(d->target);
+
+	X86Xmm d1;
 
 	if (isDouble)
-		v1 = cc.newXmmSs();
+	{
+		d1 = cc.newXmmSd(); cc.movsd(d1, p1);
+		cc.movsd(v1, p2);
+		cc.subsd(v1, d1);
+		cc.mulsd(v1, idx);
+		cc.addsd(v1, d1);
+	}
 	else
-		v1 = FP_REG_W(d->target);
-
-	// return v0 + t * (v1 - v0);
-	cc.movss(v1, p2);
-	cc.subss(v1, p1);
-	cc.mulss(v1, idx);
-	cc.addss(v1, p1);
-
-	if (isDouble)
-		cc.cvtss2sd(FP_REG_W(d->target), v1);
+	{
+		d1 = cc.newXmmSs(); cc.movss(d1, p1);
+		cc.movss(v1, p2);
+		cc.subss(v1, d1);
+		cc.mulss(v1, idx);
+		cc.addss(v1, d1);
+	}
 
 	return Result::ok();
 }

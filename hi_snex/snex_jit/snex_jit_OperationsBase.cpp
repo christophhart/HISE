@@ -363,6 +363,39 @@ SyntaxTree::SyntaxTree(ParserHelpers::CodeLocation l, const NamespacedIdentifier
 {
 }
 
+int SyntaxTree::getInlinerScore()
+{
+	using namespace Operations;
+
+	int score = 0;
+
+	forEachRecursive([&score](Ptr p)
+	{
+		if (as<VariableReference>(p))
+			score += 2;
+		else if (as<IfStatement>(p))
+			score += 5;
+		else if (as<TernaryOp>(p))
+			score += 3;
+		else if (as<DotOperator>(p))
+			score += 0;
+		else if (as<WhileLoop>(p))
+			score += 20;
+		else if (as<Loop>(p))
+			score += 10;
+		else if (as<FunctionCall>(p))
+			score += 2;
+		else if (as<StatementWithControlFlowEffectBase>(p))
+			score += 2;
+		else
+			score += 1;
+
+		return false;
+	}, Operations::IterationType::AllChildStatements);
+
+	return score;
+}
+
 bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 {
 	SyntaxTreeWalker m(v_);
@@ -592,8 +625,12 @@ void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(
 	{
 		if (auto v = as<VariableReference>(p))
 		{
-			auto scopeId = v->id.id.getParent();
+#if 0
+			if (v->variableScope->getParentWithPath(path) != nullptr)
+				return true;
+#endif
 
+			auto scopeId = v->id.id.getParent();
 			return scopeId == path || path.isParentOf(scopeId);
 		}
 

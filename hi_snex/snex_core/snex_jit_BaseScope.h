@@ -72,6 +72,8 @@ public:
 
 	BaseScope* getParent();
 
+	BaseScope* getParentWithPath(NamespacedIdentifier& id);
+
 	NamespaceHandler& getNamespaceHandler();
 
 	RootClassData* getRootData() const;

@@ -42,6 +42,8 @@ struct Operations::Function : public Statement,
 	public asmjit::ErrorHandler,
 	public Operations::FunctionDefinitionBase
 {
+	static constexpr int InlineScoreThreshhold = 40;
+
 	SET_EXPRESSION_ID(Function);
 
 	Function(Location l, const Symbol& id_) :
