@@ -137,6 +137,7 @@ private:
 
 	Array<WeakReference<ScaleFactorListener>> listeners;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(GlobalSettingManager);
 };
 
 class AudioProcessorDriver: public GlobalSettingManager

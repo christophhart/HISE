@@ -48,7 +48,8 @@ class FrontendProcessorEditor: public AudioProcessorEditor,
 							   public Timer,
 							   public ModalBaseWindow,
 							   public OverlayMessageBroadcaster::Listener,
-							   public ComponentWithBackendConnection
+							   public ComponentWithBackendConnection,
+							   public GlobalSettingManager::ScaleFactorListener
 
 
 {
@@ -112,6 +113,8 @@ public:
 		dynamic_cast<FrontendProcessor*>(getAudioProcessor())->updateUnlockedSuspendStatus();
 
 	}
+
+	void scaleFactorChanged(float newScaleFactor) override;
 
 	void paint(Graphics &g) override
 	{
