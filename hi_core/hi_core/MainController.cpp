@@ -772,6 +772,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	masterEventBuffer.addEvents(midiMessages);
 
+	masterEventBuffer.alignEventsToRaster<HISE_EVENT_RASTER>(numSamplesThisBlock);
+
 	handleSuspendedNoteOffs();
 
     if (!masterEventBuffer.isEmpty()) setMidiInputFlag();
