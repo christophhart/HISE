@@ -89,6 +89,34 @@ void ScriptCreatedComponentWrapper::changed(var newValue)
 	dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
 }
 
+bool ScriptCreatedComponentWrapper::setMouseCursorFromParentPanel(ScriptComponent* sc, MouseCursor& c)
+{
+	if (sc == nullptr)
+		return false;
+
+	if (auto sp = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(sc))
+	{
+		auto cursor = sp->getMouseCursorPath();
+
+		if (!cursor.path.isEmpty())
+		{
+			auto s = 80;
+
+			Image icon(Image::ARGB, s, s, true);
+			Graphics g(icon);
+
+			PathFactory::scalePath(cursor.path, { 0.0f, 0.0f, (float)s, (float)s });
+
+			g.setColour(cursor.c);
+			g.fillPath(cursor.path);
+			c = MouseCursor(icon, roundToInt(cursor.hitPoint.x * s), roundToInt(cursor.hitPoint.y * s));
+			return true;
+		}
+	}
+
+	return setMouseCursorFromParentPanel(sc->getParentScriptComponent(), c);
+}
+
 void ScriptCreatedComponentWrapper::asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
 {
 	if (v != getScriptComponent()->getPropertyValueTree())
@@ -165,6 +193,9 @@ ScriptCreatedComponentWrapper(content, index)
 
 	s = new HiSlider(sc->name.toString());
 
+	MouseCursor cursor;
+
+	
 	
 	s->addListener(this);
 	s->setValue(sc->value, dontSendNotification);
@@ -176,6 +207,9 @@ ScriptCreatedComponentWrapper(content, index)
 	initAllProperties();
 
 	s->updateValue(dontSendNotification);
+
+	if (setMouseCursorFromParentPanel(sc, cursor))
+		s->setMouseCursor(cursor);
 }
 
 void ScriptCreatedComponentWrappers::SliderWrapper::updateFilmstrip()
@@ -649,6 +683,10 @@ ScriptCreatedComponentWrapper(content, index)
 	initAllProperties();
 
 	cb->updateValue(dontSendNotification);
+
+	MouseCursor cursor;
+	if (setMouseCursorFromParentPanel(scriptComboBox, cursor))
+		cb->setMouseCursor(cursor);
 }
 
 void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent()
@@ -767,6 +805,9 @@ ScriptCreatedComponentWrapper(content, index)
 
 	initAllProperties();
 
+	MouseCursor cursor;
+	if (setMouseCursorFromParentPanel(sb, cursor))
+		b->setMouseCursor(cursor);
 }
 
 
@@ -1714,21 +1755,11 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 	bp->setup(getProcessor(), getIndex(), panel->name.toString());
 	bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
 
-	auto cursor = panel->getMouseCursorPath();
+	MouseCursor cursor;
 
-	if (!cursor.path.isEmpty())
+	if (setMouseCursorFromParentPanel(panel, cursor))
 	{
-		auto s = 80;
-
-		Image icon(Image::ARGB, s, s, true);
-		Graphics g(icon);
-
-		PathFactory::scalePath(cursor.path, { 0.0f, 0.0f, (float)s, (float)s });
-
-		g.setColour(cursor.c);
-		g.fillPath(cursor.path);
-		MouseCursor c(icon, roundToInt(cursor.hitPoint.x * s), roundToInt(cursor.hitPoint.y * s));
-		bp->setMouseCursor(c);
+		bp->setMouseCursor(cursor);
 	}
 
 	component = bp;
