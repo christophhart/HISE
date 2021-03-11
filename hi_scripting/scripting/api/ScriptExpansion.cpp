@@ -189,7 +189,12 @@ bool ScriptExpansionHandler::setCurrentExpansion(var expansionName)
 bool ScriptExpansionHandler::encodeWithCredentials(var hxiFile)
 {
 	if (auto f = dynamic_cast<ScriptingObjects::ScriptFile*>(hxiFile.getObject()))
+	{
+		if (!f->f.existsAsFile())
+			reportScriptError(f->toString(0) + " doesn't exist");
+
 		return ScriptEncryptedExpansion::encryptIntermediateFile(getMainController(), f->f);
+	}
 	else
 	{
 		reportScriptError("argument is not a file");
@@ -457,7 +462,7 @@ void ScriptEncryptedExpansion::encodeExpansion()
 		String s;
 		s << "Do you want to encode the expansion " << getProperty(ExpansionIds::Name) << "?  \n> The encryption key is `" << handler.getEncryptionKey() << "`.";
 
-		if (PresetHandler::showYesNoWindow("Encode expansion", s))
+		if (true)//PresetHandler::showYesNoWindow("Encode expansion", s))
 		{
 			auto hxiFile = Expansion::Helpers::getExpansionInfoFile(getRootFolder(), Expansion::Intermediate);
 
@@ -479,6 +484,7 @@ void ScriptEncryptedExpansion::encodeExpansion()
 			hxiFile.deleteFile();
 			FileOutputStream fos(hxiFile);
 			hxiData.writeToStream(fos);
+			fos.flush();
 #endif
 			auto h = &getMainController()->getExpansionHandler();
 
@@ -617,7 +623,7 @@ bool ScriptEncryptedExpansion::encryptIntermediateFile(MainController* mc, const
 	if (hxiData.getType() != Identifier("Expansion"))
 		return h.setErrorMessage("Invalid .hxi file", true);
 
-	if (expRoot != File())
+	if (expRoot == File())
 	{
 		auto hxiName = hxiData.getChildWithName(ExpansionIds::ExpansionInfo).getProperty(ExpansionIds::Name).toString();
 
@@ -727,13 +733,13 @@ juce::Result ScriptEncryptedExpansion::skipEncryptedExpansionWithoutKey()
 {
 	ValueTree v(ExpansionIds::ExpansionInfo);
 	v.setProperty(ExpansionIds::Name, getRootFolder().getFileName(), nullptr);
-	data = new Data(getRootFolder(), v);
+	data = new Data(getRootFolder(), v, getMainController());
 	return Result::fail("no encryption key set for scripted encryption");
 }
 
 Result ScriptEncryptedExpansion::initialiseFromValueTree(const ValueTree& hxiData)
 {
-	data = new Data(getRootFolder(), hxiData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy());
+	data = new Data(getRootFolder(), hxiData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy(), getMainController());
 
 	extractUserPresetsIfEmpty(hxiData);
 
@@ -950,7 +956,7 @@ juce::Result FullInstrumentExpansion::initialise()
 
 		jassert(allData.isValid() && allData.getType() == ExpansionIds::FullData);
 
-		data = new Data(getRootFolder(), allData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy());
+		data = new Data(getRootFolder(), allData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy(), getMainController());
 
 		auto iconData = allData.getChildWithName(ExpansionIds::HeaderData).getChildWithName(ExpansionIds::Icon)[ExpansionIds::Data].toString();
 

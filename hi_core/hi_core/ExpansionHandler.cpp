@@ -152,6 +152,15 @@ void ExpansionHandler::createNewExpansion(const File& expansionFolder)
 	if (Helpers::isValidExpansion(expansionFolder))
 		return;
 
+	if (expansionFolder.getParentDirectory() != getExpansionFolder())
+	{
+		PresetHandler::showMessageWindow("Invalid location", "An expansion must be a child folder of the expansion folder", PresetHandler::IconType::Error);
+		return;
+	}
+
+	auto f = Expansion::Helpers::getExpansionInfoFile(expansionFolder, Expansion::FileBased);
+	f.create();
+
 	if (auto e = createExpansionForFile(expansionFolder))
 	{
 		expansionList.add(e);
@@ -725,9 +734,42 @@ String Expansion::Helpers::getExpansionTypeName(ExpansionType e)
 	}
 }
 
+Expansion::Data::Data(const File& root, ValueTree expansionInfo, MainController* mc) :
+	v(expansionInfo),
+	name(v, "Name", nullptr, root.getFileNameWithoutExtension()),
+	projectName(v, ExpansionIds::ProjectName, nullptr, getProjectName(mc)),
+	projectVersion(v, ExpansionIds::ProjectVersion, nullptr, getProjectVersion(mc)),
+	tags(v, "Tags", nullptr, ""),
+	version(v, "Version", nullptr, "1.0.0")
+{
+	Helpers::initCachedValue(v, name);
+	Helpers::initCachedValue(v, version);
+	Helpers::initCachedValue(v, projectName);
+	Helpers::initCachedValue(v, projectVersion);
+	Helpers::initCachedValue(v, tags);
+}
+
 var Expansion::Data::toPropertyObject() const
 {
 	return ValueTreeConverters::convertValueTreeToDynamicObject(v);
+}
+
+var Expansion::Data::getProjectVersion(MainController* mc)
+{
+#if USE_BACKEND
+	return var(GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Project::Version));
+#else
+	return var(FrontendHandler::getVersionString());
+#endif
+}
+
+var Expansion::Data::getProjectName(MainController* mc)
+{
+#if USE_BACKEND
+	return var(GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Project::Name));
+#else
+	return var(FrontendHandler::getProjectName());
+#endif
 }
 
 #if USE_BACKEND
