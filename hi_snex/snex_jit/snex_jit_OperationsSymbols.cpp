@@ -637,7 +637,13 @@ void Operations::ThisPointer::process(BaseCompiler* compiler, BaseScope* scope)
 		Symbol thisSymbol(NamespacedIdentifier("this"), getTypeInfo());
 
 		if (auto ie = StatementBlock::findInlinedParameterInParentBlocks(this, thisSymbol))
+		{
 			reg = ie->getSubRegister(0);
+
+			// If this happens, the ThisPointer will most likely point to another object
+			if (reg != nullptr && reg->getTypeInfo() != thisSymbol.typeInfo)
+				reg = nullptr;
+		}
 
 		if (reg == nullptr)
 		{

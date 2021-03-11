@@ -652,6 +652,8 @@ void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(
 
 		if (d != nullptr || v != nullptr)
 		{
+			if (d != nullptr && as<Subscript>(d->getDotParent()))
+				return false;
 
 			if (v != nullptr && v->isClassVariable(s))
 				v->forceLoadData = true;
