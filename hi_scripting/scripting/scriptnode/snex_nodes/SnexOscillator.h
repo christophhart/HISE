@@ -51,25 +51,41 @@ struct SnexOscillator : public SnexSource
 
 		Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) override
 		{
-			struct TestData
+			struct OscTestData
 			{
-				TestData()
+				OscTestData(WorkbenchData::Ptr rootWb)
 				{
-					d.data.referTo(data);
-					d.delta = 1.0 / 256.0;
-					d.uptime = 0.0;
+					auto& td = rootWb->getTestData();
 
+					td.testOutputData.makeCopyOf(td.testSourceData);
+					d.data.referToRawData(td.testOutputData.getWritePointer(0), td.testOutputData.getNumSamples());
+					d.uptime = 0.0;
+					d.delta = 0.0;
 				}
+
 				OscProcessData d;
-				span<float, 256> data;
 			};
 
-			ScopedPointer<TestData> td = new TestData();
+			auto wb = static_cast<snex::ui::WorkbenchManager*>(parent.getParentNode()->getScriptProcessor()->getMainController_()->getWorkbenchManager());
 
+			ScopedPointer<OscTestData> td = new OscTestData(wb->getRootWorkbench());
+
+			ScopedDeactivator sd(*this);
+			
 			auto f = getFunctionAsObjectCallback("process");
+
+			if (auto realOsc = dynamic_cast<OscillatorCallbacks*>(&parent.getCallbackHandler()))
+			{
+				td->d.delta = realOsc->lastDelta;
+			}
 
 			f.callVoid(&td->d);
 
+			MessageManager::callAsync([wb]()
+			{
+				wb->getRootWorkbench()->postPostCompile();
+			});
+			
 			return Result::ok();
 		}
 
@@ -77,6 +93,7 @@ struct SnexOscillator : public SnexSource
 		float tick(double uptime);
 		void process(OscProcessData& d);
 
+		double lastDelta = 0.0;
 		FunctionData tickFunction;
 		FunctionData processFunction;
 	};

@@ -116,7 +116,7 @@ namespace snex
 
 			static StringArray getDefaultIds()
 			{
-				return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation };
+				return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
 			}
 
 			static StringArray getAllIds()

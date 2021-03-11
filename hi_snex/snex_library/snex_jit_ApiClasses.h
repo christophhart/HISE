@@ -80,20 +80,32 @@ class ConsoleFunctions : public JitCallableObject
 	
 	int print(int value)
 	{
-		DBG(value);
-		logAsyncIfNecessary(juce::String(value));
+		if (gs.get() != nullptr && gs->isDebugModeEnabled())
+		{
+			DBG(value);
+			logAsyncIfNecessary(juce::String(value));
+		}
+
+		
 		return value;
 	}
 	double print(double value)
 	{
-		DBG(value);
-		logAsyncIfNecessary(juce::String(value));
+		if (gs.get() != nullptr && gs->isDebugModeEnabled())
+		{
+			DBG(value);
+			logAsyncIfNecessary(juce::String(value));
+		}
+
 		return value;
 	}
 	float print(float value)
 	{
-		DBG(value);
-		logAsyncIfNecessary(juce::String(value));
+		if (gs.get() != nullptr && gs->isDebugModeEnabled())
+		{
+			DBG(value);
+			logAsyncIfNecessary(juce::String(value));
+		}
 		return value;
 	}
 
@@ -101,26 +113,29 @@ class ConsoleFunctions : public JitCallableObject
 	{
 		auto c = static_cast<ConsoleFunctions*>(consoleObject);
 
-		if (auto ptr = c->dumpItems[dumpedObjectIndex])
+		if (c->gs.get() != nullptr && c->gs->isDebugModeEnabled())
 		{
-			int l = 0;
-			String s;
+			if (auto ptr = c->dumpItems[dumpedObjectIndex])
+			{
+				int l = 0;
+				String s;
 
-			s << "Dump object " << ptr->id.toString();
-			s << " at line " << String(ptr->lineNumber) << "\n";
+				s << "Dump object " << ptr->id.toString();
+				s << " at line " << String(ptr->lineNumber) << "\n";
 
-			if (dataPtr != nullptr)
-				ptr->type->dumpTable(s, l, dataPtr, dataPtr);
-			else
-				s << "nullptr!";
+				if (dataPtr != nullptr)
+					ptr->type->dumpTable(s, l, dataPtr, dataPtr);
+				else
+					s << "nullptr!";
 
-			c->logAsyncIfNecessary(s);
+				c->logAsyncIfNecessary(s);
+			}
 		}
 	}
 
 	void dump()
 	{
-		if (gs != nullptr)
+		if (gs.get() != nullptr && gs->isDebugModeEnabled())
 		{
 			auto s = gs->getCurrentClassScope()->getRootData()->dumpTable();
 			logAsyncIfNecessary(s);
@@ -129,6 +144,9 @@ class ConsoleFunctions : public JitCallableObject
 
 	void logAsyncIfNecessary(const juce::String& s)
 	{
+		jassert(gs != nullptr);
+		jassert(gs->isDebugModeEnabled());
+
 		auto f = [this, s]()
 		{
 			if (gs != nullptr)

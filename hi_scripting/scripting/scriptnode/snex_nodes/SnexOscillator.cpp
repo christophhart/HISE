@@ -82,6 +82,8 @@ float core::SnexOscillator::OscillatorCallbacks::tick(double uptime)
 
 void core::SnexOscillator::OscillatorCallbacks::process(OscProcessData& d)
 {
+	lastDelta = d.delta;
+
 	if (auto c = ScopedCallbackChecker(*this))
 		processFunction.callVoidUncheckedWithObject(&d);
 }

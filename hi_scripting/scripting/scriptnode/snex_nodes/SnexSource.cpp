@@ -110,7 +110,7 @@ void SnexSource::logMessage(WorkbenchData::Ptr wb, int level, const String& s)
 	{
 		if (auto p = dynamic_cast<Processor*>(parentNode->getScriptProcessor()))
 		{
-			parentNode->getScriptProcessor()->getMainController_()->writeToConsole(s, 0);
+			parentNode->getScriptProcessor()->getMainController_()->writeToConsole(s.trim(), 0);
 		}
 	}
 }
@@ -175,7 +175,9 @@ Result SnexSource::ComplexDataHandler::recompiledOk(snex::jit::ComplexType::Ptr 
 	if (!r.wasOk())
 		return r;
 
-	callExternalDataForAll(*this, *this);
+	auto debugMode = parent.getWorkbench()->getGlobalScope().isDebugModeEnabled();
+
+	callExternalDataForAll(*this, *this, !debugMode);
 
 	return r;
 }

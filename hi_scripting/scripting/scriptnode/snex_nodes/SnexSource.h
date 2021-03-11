@@ -400,7 +400,28 @@ struct SnexSource : public WorkbenchData::Listener
 
 		virtual bool runRootTest() const { return false; }
 
+		struct ScopedDeactivator
+		{
+			ScopedDeactivator(CallbackHandlerBase& p) :
+				parent(p),
+				prevState(parent.parent.getCallbackHandler().ok.load())
+			{
+				parent.parent.getCallbackHandler().ok = false;
+			};
+
+			~ScopedDeactivator()
+			{
+				parent.parent.getCallbackHandler().ok = prevState;
+			}
+
+			CallbackHandlerBase& parent;
+			const bool prevState;
+		};
+
 	protected:
+
+		
+		friend class ScopedDeactivator;
 
 		/** Use this in every callback and it will check that the read lock was
 			acquired and the compilation was ok. */
@@ -509,6 +530,8 @@ struct SnexSource : public WorkbenchData::Listener
 					auto& td = rwb->getTestData();
 
 					td.setCustomTest(this);
+
+					CallbackHandlerBase::ScopedDeactivator sd(callbacks);
 
 					auto cs = original.parentNode->getRootNetwork()->getCurrentSpecs();
 
