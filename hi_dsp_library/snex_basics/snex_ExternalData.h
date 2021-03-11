@@ -102,18 +102,7 @@ using namespace Types;
         
         ReferenceCountedObject* getExpression(int index);
         
-        Result getValue(int index, VariableStorage& v)
-        {
-            if (auto child = root[index])
-            {
-                if (child->getValue(v))
-                    return Result::ok();
-                else
-                    return Result::fail("Can't resolve value at index " + juce::String(index));
-            }
-            else
-                return Result::fail("Can't find item at index " + juce::String(index));
-        }
+        Result getValue(int index, VariableStorage& v);
         
         Array<VariableStorage> toFlatConstructorList() const
         {

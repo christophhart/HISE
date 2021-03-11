@@ -895,7 +895,10 @@ public:
 			getBreakpointHandler().setEnabled(shouldBeDebugMode);
 
 			for (auto d : debugHandlers)
-				d->setEnabled(shouldBeDebugMode);
+			{
+				if (d.get() != nullptr)
+					d->setEnabled(shouldBeDebugMode);
+			}
 		}
 	}
 

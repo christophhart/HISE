@@ -426,8 +426,13 @@ void Operations::Cast::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		else
 		{
+			auto sourceReg = getSubRegister(0);
+
+			if (sourceReg == nullptr)
+				location.throwError("Source register not found");
+
 			auto sourceType = getSubExpr(0)->getType();
-			asg.emitCast(reg, getSubRegister(0), sourceType);
+			asg.emitCast(reg, sourceReg, sourceType);
 		}
 	}
 }
@@ -529,7 +534,12 @@ void Operations::BinaryOp::process(BaseCompiler* compiler, BaseScope* scope)
 			auto le = getSubExpr(0);
 			auto re = getSubExpr(1);
 
-			asg.emitBinaryOp(op, reg, getSubRegister(1));
+			auto r = getSubRegister(1);
+
+			if (r == nullptr)
+				getSubExpr(1)->throwError("Can't find register for right operand");
+
+			asg.emitBinaryOp(op, reg, r);
 
 			VariableReference::reuseAllLastReferences(getChildStatement(0));
 			VariableReference::reuseAllLastReferences(getChildStatement(1));

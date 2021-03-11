@@ -241,4 +241,25 @@ hise::ComplexDataUIBase::EditorBase* ExternalData::createEditor(ComplexDataUIBas
 	return c;
 }
 
+juce::Result InitialiserList::getValue(int index, VariableStorage& v)
+{
+	if (auto child = root[index])
+	{
+		try
+		{
+			if (child->getValue(v))
+				return Result::ok();
+			else
+				return Result::fail("Can't resolve value at index " + juce::String(index));
+		}
+		catch (...)
+		{
+			return Result::fail("Expression can't be evaluated");
+		}
+
+	}
+	else
+		return Result::fail("Can't find item at index " + juce::String(index));
+}
+
 }

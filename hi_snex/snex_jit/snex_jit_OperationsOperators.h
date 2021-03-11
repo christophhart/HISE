@@ -182,8 +182,6 @@ struct Operations::Increment : public UnaryOp
 
 	TypeInfo getTypeInfo() const override
 	{
-		jassert(resolvedType.isValid());
-
 		return resolvedType;
 	}
 

@@ -582,7 +582,7 @@ void FloatSanitizers::sanitizeArray(float* data, int size)
 	}
 }
 
-bool FloatSanitizers::sanitizeFloatNumber(float& input)
+float FloatSanitizers::sanitizeFloatNumber(float& input)
 {
 	uint32* valueAsInt = reinterpret_cast<uint32*>(&input);
 	const uint32 exponent = *valueAsInt & 0x7F800000;
@@ -594,7 +594,7 @@ bool FloatSanitizers::sanitizeFloatNumber(float& input)
 
 	input = *reinterpret_cast<const float*>(&sanitized);
 
-	return sanitized > 0;
+	return input;
 }
 
 void FloatSanitizers::Test::runTest()

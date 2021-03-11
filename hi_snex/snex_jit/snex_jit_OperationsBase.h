@@ -274,7 +274,7 @@ namespace Operations
 
 		Location location;
 
-		BaseCompiler* currentCompiler = nullptr;
+		WeakReference<BaseCompiler> currentCompiler = nullptr;
 		BaseScope* currentScope = nullptr;
 		BaseCompiler::Pass currentPass;
 

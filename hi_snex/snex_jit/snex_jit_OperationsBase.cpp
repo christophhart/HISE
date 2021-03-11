@@ -129,6 +129,9 @@ snex::jit::Operations::Expression::Ptr Operations::evalConstExpr(Expression::Ptr
 	auto compiler = expr->currentCompiler;
 	auto scope = expr->currentScope;
 
+	if (compiler == nullptr)
+		expr->throwError("Can't evaluate expression");
+
 	jassert(compiler != nullptr);
 	jassert(scope != nullptr);
 
