@@ -88,26 +88,27 @@ struct DataReadLockJIT
 	{
 		static void constructor(void* obj, void* externalData)
 		{
-			return;
-			auto thisPtr = static_cast<DataReadLockJIT*>(obj);
-			auto ed = static_cast<ExternalData*>(externalData);
-			auto cd = ed->obj;
+			if (auto thisPtr = static_cast<DataReadLockJIT*>(obj))
+			{
+				auto ed = static_cast<ExternalData*>(externalData);
+				auto cd = ed->obj;
 
-			thisPtr->complexDataPtr = cd;
+				thisPtr->complexDataPtr = cd;
 
-			if(cd != nullptr)
-				thisPtr->holdsLock = (int)cd->getDataLock().enterReadLock();
+				if (cd != nullptr)
+					thisPtr->holdsLock = (int)cd->getDataLock().enterReadLock();
+			}
 		}
 
 		static void destructor(void* obj)
 		{
-			return;
-			auto thisPtr = static_cast<DataReadLockJIT*>(obj);
-
-			if (auto cd = static_cast<ComplexDataUIBase*>(thisPtr->complexDataPtr))
+			if (auto thisPtr = static_cast<DataReadLockJIT*>(obj))
 			{
-				bool holdsLock = thisPtr->holdsLock > 0;
-				cd->getDataLock().exitReadLock(holdsLock);
+				if (auto cd = static_cast<ComplexDataUIBase*>(thisPtr->complexDataPtr))
+				{
+					bool holdsLock = thisPtr->holdsLock > 0;
+					cd->getDataLock().exitReadLock(holdsLock);
+				}
 			}
 		}
 	};
