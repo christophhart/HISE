@@ -1030,17 +1030,25 @@ hise::DebugableObjectBase* HiseJavascriptEngine::getDebugObject(const String& to
 	if (auto obj = ApiProviderBase::getDebugObject(token))
 		return obj;
 
-	auto r = root->evaluate(token);
+	try
+	{
+		auto r = root->evaluate(token);
 
-	if (r.isArray())
-		return ApiProviderBase::getDebugObject("Array");
-	if (r.isString())
-		return ApiProviderBase::getDebugObject("String");
+		if (r.isArray())
+			return ApiProviderBase::getDebugObject("Array");
+		if (r.isString())
+			return ApiProviderBase::getDebugObject("String");
 
-		
 
-	if(auto s = dynamic_cast<DebugableObjectBase*>(r.getObject()))
-		return s;
+
+		if (auto s = dynamic_cast<DebugableObjectBase*>(r.getObject()))
+			return s;
+	}
+	catch (...)
+	{
+		// we don't care about compile fails here
+		return nullptr;
+	}
 
 	return nullptr;
 }

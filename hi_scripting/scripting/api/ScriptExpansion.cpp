@@ -553,11 +553,13 @@ Result ScriptEncryptedExpansion::initialise()
 
 		zstd::ZDefaultCompressor comp;
 		auto f = Helpers::getExpansionInfoFile(getRootFolder(), type);
-		ValueTree hxpData;
-		auto r = comp.expand(f, hxpData);
 
-		if (r.failed())
-			return r;
+		FileInputStream fis(f);
+
+		auto hxpData = ValueTree::readFromStream(fis);
+
+		if (!hxpData.isValid())
+			return Result::fail("Can't parse expansion data file");
 
 		auto credTree = hxpData.getChildWithName(ExpansionIds::Credentials);
 		auto base64Obj = credTree[ExpansionIds::Data].toString();
@@ -671,6 +673,7 @@ bool ScriptEncryptedExpansion::encryptIntermediateFile(MainController* mc, const
 
 	FileOutputStream fos(hxpFile);
 	hxiData.writeToStream(fos);
+	fos.flush();
 	h.createAvailableExpansions();
 	return true;
 }
