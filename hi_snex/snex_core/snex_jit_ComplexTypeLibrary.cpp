@@ -911,19 +911,23 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 			{
 				X86Mem p;
 
-				if (dynReg->isMemoryLocation())
-					p = dynReg->getAsMemoryLocation().cloneAdjustedAndResized(4, 4);
-				else
-					p = x86::ptr(PTR_REG_R(dynReg)).cloneAdjustedAndResized(4, 4);
+				dynReg->loadMemoryIntoRegister(cc);
+
+				p = x86::ptr(PTR_REG_R(dynReg)).cloneAdjustedAndResized(4, 4);
 
 				cc.setInlineComment("Bound check for dyn");
 				cc.mov(limit, p);
 				
-				
 				if (index->isMemoryLocation())
-					cc.cmp(limit, INT_IMM(index));
+				{
+					if (IS_IMM(index))
+						cc.cmp(limit, INT_IMM(index));
+					else
+						cc.cmp(limit, INT_MEM(index));
+				}
 				else
 					cc.cmp(limit, INT_REG_R(index));
+
 				cc.jg(okBranch);
 
 
@@ -945,8 +949,10 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 				cc.mov(flagReg, (int)l.getColNumber());
 				cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), flagReg);
 				
-				if (index->isMemoryLocation())
+				if(index->isImmediate())
 					cc.mov(flagReg, INT_IMM(index));
+				else if (index->isMemoryLocation())
+					cc.mov(flagReg, INT_MEM(index));
 				else
 					cc.mov(flagReg, INT_REG_R(index));
 				
