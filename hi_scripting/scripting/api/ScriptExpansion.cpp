@@ -695,13 +695,13 @@ juce::Result ScriptEncryptedExpansion::skipEncryptedExpansionWithoutKey()
 {
 	ValueTree v(ExpansionIds::ExpansionInfo);
 	v.setProperty(ExpansionIds::Name, getRootFolder().getFileName(), nullptr);
-	data = new Data(getRootFolder(), v);
+	data = new Data(getRootFolder(), v, getMainController());
 	return Result::fail("no encryption key set for scripted encryption");
 }
 
 Result ScriptEncryptedExpansion::initialiseFromValueTree(const ValueTree& hxiData)
 {
-	data = new Data(getRootFolder(), hxiData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy());
+	data = new Data(getRootFolder(), hxiData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy(), getMainController());
 
 	extractUserPresetsIfEmpty(hxiData);
 
@@ -918,7 +918,7 @@ juce::Result FullInstrumentExpansion::initialise()
 
 		jassert(allData.isValid() && allData.getType() == ExpansionIds::FullData);
 
-		data = new Data(getRootFolder(), allData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy());
+		data = new Data(getRootFolder(), allData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy(), getMainController());
 
 		auto iconData = allData.getChildWithName(ExpansionIds::HeaderData).getChildWithName(ExpansionIds::Icon)[ExpansionIds::Data].toString();
 
