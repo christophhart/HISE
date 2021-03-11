@@ -304,7 +304,7 @@ void AsmCodeGenerator::emitComplexTypeCopy(RegPtr target, RegPtr source, Complex
 	jassert(type != nullptr);
 	jassert(source->getTypeInfo().getComplexType() == type);
 
-	cc.setInlineComment("Copy complex type argument");
+	
 
 	auto ptr = target->getAsMemoryLocation();
 	auto numBytesToCopy = type->getRequiredByteSize();
@@ -331,6 +331,8 @@ void AsmCodeGenerator::emitComplexTypeCopy(RegPtr target, RegPtr source, Complex
 	if (wordSize == 8) tempReg = cc.newGpq();
 	if (wordSize == 4) tempReg = cc.newGpd();
 
+	cc.setInlineComment("Copy complex type argument");
+
 	if (shouldUnroll)
 	{
 		X86Mem srcBegin;
@@ -341,8 +343,6 @@ void AsmCodeGenerator::emitComplexTypeCopy(RegPtr target, RegPtr source, Complex
 			srcBegin = x86::ptr(PTR_REG_R(source));
 
 		auto dstBegin = ptr;
-
-		
 
 		for (int i = 0; i < numIterations; i++)
 		{
@@ -1030,7 +1030,7 @@ Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr
             if((uint64_t)data.get() % 16 != 0)
                 alignOffset = 16 - ((uint64_t)data.get() % 16);
             
-            auto start = data + alignOffset;
+            auto start = data.get() + alignOffset;
 			auto end = start + typePtr->getRequiredByteSize();
 			int numBytesToInitialise = end - start;
 
@@ -1043,44 +1043,64 @@ Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr
 
 			auto r = typePtr->initialise(initData);
 
+			bool isNonZero = false;
+
+			for (int i = 0; i < numBytesToInitialise; i++)
+			{
+				if (start[i] != 0)
+				{
+					isNonZero = true;
+					break;
+				}
+			}
+
 			if (!r.wasOk())
 				return r;
 
-			float* d = reinterpret_cast<float*>(start);
+			auto tmpSSE = cc.newXmm();
 
-			if (false && numBytesToInitialise % 16 == 0)
+			if(numBytesToInitialise >= 16 && !isNonZero)
+				cc.xorps(tmpSSE, tmpSSE);
+
+			auto dst = target->getAsMemoryLocation().cloneResized(16);
+
+			while (numBytesToInitialise >= 16)
 			{
-				uint64_t* s = reinterpret_cast<uint64_t*>(start);
-				auto dst = target->getAsMemoryLocation().clone();
-				
-				auto r = cc.newXmm();
+				jassert(reinterpret_cast<uint64_t>(start) % 16 == 0);
 
-				for (int i = 0; i < numBytesToInitialise; i += 16)
+				if (isNonZero)
 				{
+					uint64_t* s = reinterpret_cast<uint64_t*>(start);
+
 					auto d = Data128::fromU64(s[0], s[1]);
 					auto c = cc.newXmmConst(ConstPool::kScopeLocal, d);
-
-					cc.movaps(r, c);
-					cc.movaps(dst, r);
-					dst.addOffset(16);
-					s += 2;
+					cc.movaps(tmpSSE, c);
 				}
+				
+				cc.movaps(dst, tmpSSE);
+				dst = dst.cloneAdjusted(16);
+				numBytesToInitialise -= 16;
+				start += 16;
 			}
-			else if (numBytesToInitialise % 4 == 0)
+
+			dst = dst.cloneResized(4);
+
+			while (numBytesToInitialise >= 4)
 			{
-				int* s = reinterpret_cast<int*>(start);
-				auto dst = target->getAsMemoryLocation().cloneResized(4);
+				jassert(reinterpret_cast<uint64_t>(start) % 4 == 0);
 
-				auto r = cc.newGpd();
-
-				for (int i = 0; i < numBytesToInitialise; i += 4)
+				if (isNonZero)
 				{
-					cc.mov(dst, *s);
-					dst.addOffset(4);
-					s++;
+					cc.mov(dst, *reinterpret_cast<int*>(start));
 				}
-			}
+				else
+					cc.mov(dst, 0);
 
+				dst = dst.cloneAdjusted(4);
+				start += 4;
+				numBytesToInitialise -= 4;
+			}
+			
 			return Result::ok();
 		}
 	}

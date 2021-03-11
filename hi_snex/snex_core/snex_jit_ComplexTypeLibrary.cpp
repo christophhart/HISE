@@ -1574,7 +1574,7 @@ size_t StructType::getRequiredAlignment() const
 
 size_t StructType::getRequiredAlignment(Member* m)
 {
-return m->typeInfo.getRequiredAlignment();
+	return m->typeInfo.getRequiredAlignmentNonZero();
 }
 
 bool StructType::hasDestructor()

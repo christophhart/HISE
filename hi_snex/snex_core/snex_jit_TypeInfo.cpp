@@ -301,6 +301,10 @@ int TypeInfo::getRequiredAlignmentNonZero() const
 {
 	auto s = getRequiredAlignment();
 
+	// Make sure that the movaps calls are working
+	if (getRequiredByteSize() >= 16)
+		return 16;
+
 	if (s == 0)
 		return 1;
 
