@@ -674,33 +674,43 @@ bool PresetHandler::showYesNoWindow(const String &title, const String &message, 
 
 void PresetHandler::showMessageWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
-#if USE_BACKEND
-	if (CompileExporter::isExportingFromCommandLine())
+	if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
 	{
-		std::cout << title << ": " << message << std::endl;
-		return;
-	}
-		
+#if USE_BACKEND
+		if (CompileExporter::isExportingFromCommandLine())
+		{
+			std::cout << title << ": " << message << std::endl;
+			return;
+		}
+
 #endif
 
 #if HISE_IOS
-    
-    NativeMessageBox::showMessageBox(AlertWindow::AlertIconType::NoIcon, title, message);
-    
+
+		NativeMessageBox::showMessageBox(AlertWindow::AlertIconType::NoIcon, title, message);
+
 #else
-    
-	ScopedPointer<LookAndFeel> laf = createAlertWindowLookAndFeel();
-    ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, laf, message);
-    ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
-    
-    nameWindow->setLookAndFeel(laf);
-    nameWindow->addCustomComponent(comp);
-    nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
-    
-    nameWindow->runModalLoop();
+
+		ScopedPointer<LookAndFeel> laf = createAlertWindowLookAndFeel();
+		ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, laf, message);
+		ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
+
+		nameWindow->setLookAndFeel(laf);
+		nameWindow->addCustomComponent(comp);
+		nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
+
+		nameWindow->runModalLoop();
 #endif
 
-	return ;
+		return;
+	}
+	else
+	{
+		MessageManager::callAsync([title, message, type]()
+		{
+			showMessageWindow(title, message, type);
+		});
+	}
 };
 
 struct CountedProcessorId

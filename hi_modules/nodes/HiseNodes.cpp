@@ -185,10 +185,13 @@ void hise_mod::setIndex(double index)
 
 void hise_mod::reset()
 {
-	auto startValue = parentProcessor->getModValueAtVoiceStart(modIndex);
+	if (parentProcessor != nullptr)
+	{
+		auto startValue = parentProcessor->getModValueAtVoiceStart(modIndex);
 
-	for (auto& m : modValues)
-		m.setModValue(startValue);
+		for (auto& m : modValues)
+			m.setModValue(startValue);
+	}
 }
 
 
