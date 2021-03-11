@@ -383,9 +383,11 @@ int SyntaxTree::getInlinerScore()
 		else if (as<DotOperator>(p))
 			score += 0;
 		else if (as<WhileLoop>(p))
-			score += 20;
+			score += 40;
 		else if (as<Loop>(p))
-			score += 10;
+			score += 25;
+		else if (as<Subscript>(p))
+			score += 0;
 		else if (as<FunctionCall>(p))
 			score += 2;
 		else if (as<StatementWithControlFlowEffectBase>(p))
