@@ -303,6 +303,8 @@ struct ScriptExpansionReference::Wrapper
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getRootFolder);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getExpansionType);
 	API_METHOD_WRAPPER_1(ScriptExpansionReference, getWildcardReference);
+	API_METHOD_WRAPPER_0(ScriptExpansionReference, getSampleFolder);
+	API_METHOD_WRAPPER_1(ScriptExpansionReference, setSampleFolder);
 };
 
 ScriptExpansionReference::ScriptExpansionReference(ProcessorWithScriptingContent* p, Expansion* e) :
@@ -319,6 +321,9 @@ ScriptExpansionReference::ScriptExpansionReference(ProcessorWithScriptingContent
 	ADD_API_METHOD_0(getRootFolder);
 	ADD_API_METHOD_0(getExpansionType);
 	ADD_API_METHOD_1(getWildcardReference);
+	ADD_API_METHOD_1(setSampleFolder);
+	ADD_API_METHOD_0(getSampleFolder);
+
 }
 
 juce::BlowFish* ScriptExpansionReference::createBlowfish()
@@ -415,6 +420,33 @@ var ScriptExpansionReference::getMidiFileList() const
 
 	reportScriptError("Expansion was deleted");
 	RETURN_IF_NO_THROW({});
+}
+
+var ScriptExpansionReference::getSampleFolder()
+{
+	File sampleFolder = exp->getSubDirectory(FileHandlerBase::Samples);
+
+	return new ScriptingObjects::ScriptFile(getScriptProcessor(), sampleFolder);
+}
+
+bool ScriptExpansionReference::setSampleFolder(var newSampleFolder)
+{
+	if (auto f = dynamic_cast<ScriptingObjects::ScriptFile*>(newSampleFolder.getObject()))
+	{
+		auto newTarget = f->f;
+
+		if (!newTarget.isDirectory())
+			reportScriptError(newTarget.getFullPathName() + " is not an existing directory");
+
+		if (newTarget != exp->getSubDirectory(FileHandlerBase::Samples))
+		{
+			exp->createLinkFile(FileHandlerBase::Samples, newTarget);
+			exp->checkSubDirectories();
+			return true;
+		}
+	}
+
+	return false;
 }
 
 var ScriptExpansionReference::loadDataFile(var relativePath)
