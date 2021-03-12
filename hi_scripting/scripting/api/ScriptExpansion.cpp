@@ -47,7 +47,7 @@ struct ScriptExpansionHandler::Wrapper
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, encodeWithCredentials);
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, refreshExpansions);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setAllowedExpansionTypes);
-	API_METHOD_WRAPPER_1(ScriptExpansionHandler, installExpansionFromPackage);
+	API_METHOD_WRAPPER_2(ScriptExpansionHandler, installExpansionFromPackage);
 };
 
 ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
@@ -69,7 +69,7 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ADD_API_METHOD_1(setCurrentExpansion);
 	ADD_API_METHOD_1(encodeWithCredentials);
 	ADD_API_METHOD_0(refreshExpansions);
-	ADD_API_METHOD_1(installExpansionFromPackage);
+	ADD_API_METHOD_2(installExpansionFromPackage);
 	ADD_API_METHOD_1(setAllowedExpansionTypes);
 	ADD_API_METHOD_0(getCurrentExpansion);
 
@@ -203,10 +203,31 @@ bool ScriptExpansionHandler::encodeWithCredentials(var hxiFile)
 	}
 }
 
-bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile)
+bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile, var sampleDirectory)
 {
 	if (auto f = dynamic_cast<ScriptingObjects::ScriptFile*>(packageFile.getObject()))
-		return getMainController()->getExpansionHandler().installFromResourceFile(f->f);
+	{
+		File targetFolder;
+
+		if (sampleDirectory.isInt())
+		{
+			auto target = (ScriptingApi::FileSystem::SpecialLocations)(int)sampleDirectory;
+
+			if (target == ScriptingApi::FileSystem::Expansions)
+				targetFolder = getMainController()->getExpansionHandler().getExpansionFolder();
+			if (target == ScriptingApi::FileSystem::Samples)
+				targetFolder = getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Samples);
+		}
+		else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(packageFile.getObject()))
+		{
+			targetFolder = sf->f;
+		}
+
+		if (!targetFolder.isDirectory())
+			reportScriptError("The sample directory does not exist");
+		
+		return getMainController()->getExpansionHandler().installFromResourceFile(f->f, targetFolder);
+	}
 	else
 	{
 		reportScriptError("argument is not a file");

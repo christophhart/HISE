@@ -382,7 +382,7 @@ void ExpansionHandler::setCurrentExpansion(Expansion* e, NotificationType notify
 	}
 }
 
-bool ExpansionHandler::installFromResourceFile(const File& resourceFile)
+bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const File& sampleDirectoryToUse)
 {
 	hlac::HlacArchiver a(nullptr);
 
@@ -391,7 +391,7 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile)
 
 	if (expansionName.isNotEmpty())
 	{
-		auto f = [this, expansionName, resourceFile](Processor* p)
+		auto f = [this, expansionName, resourceFile, sampleDirectoryToUse](Processor* p)
 		{
 			jassert(LockHelpers::freeToGo(getMainController()));
 
@@ -400,6 +400,12 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile)
 			expRoot.createDirectory();
 			auto samplesDir = expRoot.getChildFile("Samples");
 			samplesDir.createDirectory();
+
+			if (sampleDirectoryToUse != getExpansionFolder())
+			{
+				FileHandlerBase::createLinkFileInFolder(samplesDir, sampleDirectoryToUse);
+				samplesDir = sampleDirectoryToUse;
+			}
 
 			hlac::HlacArchiver::DecompressData data;
 
@@ -426,10 +432,11 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile)
 			else
 			{
 				auto hxiFile = Expansion::Helpers::getExpansionInfoFile(expRoot, Expansion::Intermediate);
-				hxiFile.deleteFile();
 
-				if (headerFile.moveFileTo(hxiFile))
+				if (hxiFile.deleteFile() && headerFile.moveFileTo(hxiFile))
 					createAvailableExpansions();
+				else
+					setErrorMessage("Can't override expansion metadata file", false);
 			}
 
 			return SafeFunctionCall::OK;

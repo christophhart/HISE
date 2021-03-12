@@ -452,7 +452,7 @@ public:
 		listeners.removeAllInstancesOf(l);
 	}
 
-	bool installFromResourceFile(const File& f);
+	bool installFromResourceFile(const File& f, const File& sampleDirectoryToUse);
 
 	PooledAudioFile loadAudioFileReference(const PoolReference& sampleId);
 
