@@ -1093,18 +1093,21 @@ public:
 		var findFiles(var directory, String wildcard, bool recursive);
 
 		/** Opens a file browser to choose a file. */
-		void browse(var startFolder, bool forSaving, String wildcard, bool forDirectory, var callback);
+		void browse(var startFolder, bool forSaving, String wildcard, var callback);
+
+		/** Opens a file browser to choose a directory. */
+		void browseForDirectory(var startFolder, var callback);
 
 		/** Returns a unique machine ID that can be used to identify the computer. */
 		String getSystemId();
 
 		// ========================================================= End of API calls
 
-		
-
 		ProcessorWithScriptingContent* p;
 
 	private:
+
+		void browseInternally(File startFolder, bool forSaving, bool isDirectory, String wildcard, var callback);
 
 		File getFile(SpecialLocations l);
 
