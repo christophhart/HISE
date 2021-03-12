@@ -344,6 +344,8 @@ class ExpansionEncodingWindow : public DialogWindowWithBackgroundThread,
 {
 public:
 
+	static constexpr int AllExpansionId = 9000000;
+
 	ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport);
 	~ExpansionEncodingWindow();
 

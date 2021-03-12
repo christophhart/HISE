@@ -1236,9 +1236,10 @@ ExpansionEncodingWindow::ExpansionEncodingWindow(MainController* mc, Expansion* 
 
 		addComboBox("expansion", expList, "Expansion to encode");
 
+		getComboBoxComponent("expansion")->addItem("All expansions", AllExpansionId);
+
 		if (e != nullptr)
 			getComboBoxComponent("expansion")->setText(e->getProperty(ExpansionIds::Name), dontSendNotification);
-
 	}
 
 	getMainController()->getExpansionHandler().addListener(this);
@@ -1279,6 +1280,27 @@ void ExpansionEncodingWindow::run()
 	}
 	else
 	{
+		if (getComboBoxComponent("expansion")->getSelectedId() == AllExpansionId)
+		{
+			auto& h = getMainController()->getExpansionHandler();
+
+			for (int i = 0; i < h.getNumExpansions(); i++)
+			{
+				if (auto e = h.getExpansion(i))
+				{
+					showStatusMessage("Encoding " + e->getProperty(ExpansionIds::Name));
+					setProgress((double)i / (double)h.getNumExpansions());
+
+					encodeResult = e->encodeExpansion();
+
+					if (encodeResult.failed())
+						break;
+				}
+			}
+
+			return;
+		}
+
 		if (e == nullptr)
 		{
 			auto n = getComboBoxComponent("expansion")->getText();
