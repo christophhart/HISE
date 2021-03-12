@@ -4697,13 +4697,15 @@ struct ScriptingApi::Server::Wrapper
 	API_METHOD_WRAPPER_0(Server, isOnline);
 	API_VOID_METHOD_WRAPPER_1(Server, setNumAllowedDownloads);
 	API_VOID_METHOD_WRAPPER_0(Server, cleanFinishedDownloads);
+	API_VOID_METHOD_WRAPPER_1(Server, setServerCallback);
 };
 
 ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ApiClass(4),
 	ScriptingObject(dynamic_cast<ProcessorWithScriptingContent*>(jp_)),
 	jp(jp_),
-	internalThread(*this)
+	internalThread(*this),
+	serverCallback(getScriptProcessor(), {}, 1)
 {
 	addConstant("StatusNoConnection", StatusNoConnection);
 	addConstant("StatusOK", StatusOK);
@@ -4718,6 +4720,7 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_4(downloadFile);
 	ADD_API_METHOD_0(getPendingDownloads);
 	ADD_API_METHOD_0(isOnline);
+	ADD_API_METHOD_1(setServerCallback);
 }
 
 void ScriptingApi::Server::setBaseURL(String url)
@@ -4730,6 +4733,9 @@ void ScriptingApi::Server::callWithGET(String subURL, var parameters, var callba
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
+		if (serverCallback && internalThread.pendingCallbacks.isEmpty())
+			serverCallback.call1(true);
+
 		PendingCallback::Ptr p = new PendingCallback(getScriptProcessor(), callback);
 		p->url = getWithParameters(subURL, parameters);
 		p->isPost = false;
@@ -4742,8 +4748,12 @@ void ScriptingApi::Server::callWithGET(String subURL, var parameters, var callba
 
 void ScriptingApi::Server::callWithPOST(String subURL, var parameters, var callback)
 {
+
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
+		if (serverCallback && internalThread.pendingCallbacks.isEmpty())
+			serverCallback.call1(true);
+
 		PendingCallback::Ptr p = new PendingCallback(getScriptProcessor(), callback);
 		p->url = getWithParameters(subURL, parameters);
 		p->extraHeader = extraHeader;
@@ -4838,6 +4848,12 @@ void ScriptingApi::Server::cleanFinishedDownloads()
 	internalThread.cleanDownloads = true;
 }
 
+void ScriptingApi::Server::setServerCallback(var callback)
+{
+	serverCallback = WeakCallbackHolder(getScriptProcessor(), callback, 1);
+	serverCallback.incRefCount();
+}
+
 juce::URL ScriptingApi::Server::getWithParameters(String subURL, var parameters)
 {
 	auto url = baseURL.getChildURL(subURL);
@@ -4887,6 +4903,8 @@ void ScriptingApi::Server::WebThread::run()
 				cleanDownloads = false;
 			}
 
+			bool shouldFireServerCallback = false;
+
 			while (auto job = pendingCallbacks.removeAndReturn(0))
 			{
 				ScopedPointer<WebInputStream> wis;
@@ -4907,32 +4925,13 @@ void ScriptingApi::Server::WebThread::run()
 				}
 
 				job->f.call(args);
-#if 0
 
-				auto& pool = parent.getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
+				shouldFireServerCallback = true;
+			}
 
-				
-
-				pool.addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution, dynamic_cast<JavascriptProcessor*>(parent.getScriptProcessor()), [status, response, function](JavascriptProcessor* jp)
-				{
-					if (auto engine = jp->getScriptEngine())
-					{
-						auto r = Result::ok();
-
-						var argData[2];
-						argData[0] = status;
-
-						
-
-						
-
-						var::NativeFunctionArgs args(var(), argData, 2);
-						engine->callExternalFunction(function, args, &r);
-
-						return r;
-					}
-				});
-#endif
+			if (shouldFireServerCallback && parent.serverCallback)
+			{
+				parent.serverCallback.call1(false);
 			}
 
 			Thread::wait(500);

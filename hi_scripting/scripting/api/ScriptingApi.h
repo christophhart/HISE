@@ -1004,7 +1004,12 @@ public:
 		/** Removes all finished downloads from the list. */
 		void cleanFinishedDownloads();
 
+		/** This function will be called whenever there is server activity. */
+		void setServerCallback(var callback);
+
 	private:
+
+		WeakCallbackHolder serverCallback;
 
 		struct PendingCallback: public ReferenceCountedObject
 		{
