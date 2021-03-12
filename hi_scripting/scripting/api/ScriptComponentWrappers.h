@@ -676,7 +676,8 @@ public:
 	class PanelWrapper : public ScriptCreatedComponentWrapper,
                          public MouseCallbackComponent::Listener,
 						 public MouseCallbackComponent::RectangleConstrainer::Listener,
-						 public ScriptComponent::SubComponentListener
+						 public ScriptComponent::SubComponentListener,
+						 public ScriptingApi::Content::ScriptPanel::AnimationListener
 	{
 	public:
 
@@ -690,6 +691,10 @@ public:
 		
 		void subComponentAdded(ScriptComponent* newComponent) override;
 		void subComponentRemoved(ScriptComponent* componentAboutToBeRemoved) override;
+
+
+		void animationChanged() override;
+
 
 		void initPanel(ScriptingApi::Content::ScriptPanel* panel);
 
