@@ -54,7 +54,7 @@ public:
 
 	// ============================================================== API Calls
 
-	/** Set a encryption key that will be used to encrypt the content. */
+	/** Set a encryption key that will be used to encrypt the content (deprecated). */
 	void setEncryptionKey(String newKey);
 
 	/** Set a credentials object that can be embedded into each expansion. */
@@ -91,12 +91,10 @@ public:
 	bool encodeWithCredentials(var hxiFile);
 
 	/** Decompresses the samples and installs the .hxi / .hxp file. */
-	bool installExpansionFromPackage(var packageFile);
+	bool installExpansionFromPackage(var packageFile, var sampleDirectory);
 
 	/** Sets a list of allowed expansion types that can be loaded. */
 	void setAllowedExpansionTypes(var typeList);
-
-	
 
 	// ============================================================== End of API calls
 
@@ -112,12 +110,9 @@ public:
 	}
 
 	void expansionPackLoaded(Expansion* currentExpansion) override;
-
 	void expansionPackCreated(Expansion* newExpansion) override;
 
 	void logMessage(const String& message, bool isCritical) override;
-
-	
 
 private:
 
@@ -148,40 +143,28 @@ public:
 
 	virtual ExpansionType getExpansionType() const;
 
-	void encodeExpansion() override;
-
-	
+	Result encodeExpansion() override;
 
 	Array<SubDirectories> getSubDirectoryIds() const override;
-
 	Result initialise() override;
-	
-	
 	juce::BlowFish* createBlowfish();
 
 	static BlowFish* createBlowfish(MainController* mc);
-
 	static bool encryptIntermediateFile(MainController* mc, const File& f, File expansionRoot=File());
 
 protected:
 
 	void encodePoolAndUserPresets(ValueTree &hxiData, bool encodeAdditionalData);
-
 	Result skipEncryptedExpansionWithoutKey();
-
 	Result initialiseFromValueTree(const ValueTree& hxiData);
-
 	PoolBase::DataProvider::Compressor* createCompressor(bool createEncrypted);
-
 	void setCompressorForPool(SubDirectories fileType, bool createEncrypted);
-
 	void addDataType(ValueTree& parent, SubDirectories fileType);
-
 	void restorePool(ValueTree encryptedTree, SubDirectories fileType);
-
 	void addUserPresets(ValueTree encryptedTree);
-
 	void extractUserPresetsIfEmpty(ValueTree encryptedTree);
+
+	Result returnFail(const String& errorMessage);
 };
 
 /** This expansion type can be used for a custom C++ shell that will load any instrument.
@@ -270,7 +253,7 @@ public:
 
 	Result initialise() override;
 
-	void encodeExpansion() override;
+	Result encodeExpansion() override;
 
 	bool fullyLoaded = false;
 	ValueTree presetToLoad;
@@ -311,6 +294,12 @@ public:
 
 	var getMidiFileList() const;
 
+	/** Returns the folder where this expansion looks for samples. */
+	var getSampleFolder();
+
+	/** Changes the sample folder of that particular expansion. */
+	bool setSampleFolder(var newSampleFolder);
+
 	/** Attempts to parse a JSON file in the AdditionalSourceCode directory of the expansion. */
 	var loadDataFile(var relativePath);
 
@@ -326,7 +315,7 @@ public:
 	/** returns the expansion type. Use the constants of ExpansionHandler to resolve the integer number. */
 	int getExpansionType() const;
 
-	/** Encodes the expansion with the credentials provided. */
+	
 private:
 
 	friend class ScriptExpansionHandler;
@@ -344,6 +333,8 @@ class ExpansionEncodingWindow : public DialogWindowWithBackgroundThread,
 {
 public:
 
+	static constexpr int AllExpansionId = 9000000;
+
 	ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport);
 	~ExpansionEncodingWindow();
 
@@ -355,7 +346,7 @@ public:
 	void run() override;
 	void threadFinished();
 
-
+	Result encodeResult;
 	
 	bool projectExport = false;
 	WeakReference<Expansion> e;

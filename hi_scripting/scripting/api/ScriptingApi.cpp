@@ -4499,7 +4499,8 @@ struct ScriptingApi::FileSystem::Wrapper
 	API_METHOD_WRAPPER_1(FileSystem, getFolder);
 	API_METHOD_WRAPPER_3(FileSystem, findFiles);
 	API_METHOD_WRAPPER_0(FileSystem, getSystemId);
-	API_VOID_METHOD_WRAPPER_5(FileSystem, browse);
+	API_VOID_METHOD_WRAPPER_4(FileSystem, browse);
+	API_VOID_METHOD_WRAPPER_2(FileSystem, browseForDirectory);
 };
 
 ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
@@ -4521,7 +4522,8 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	ADD_API_METHOD_1(getFolder);
 	ADD_API_METHOD_3(findFiles);
 	ADD_API_METHOD_0(getSystemId);
-	ADD_API_METHOD_5(browse);
+	ADD_API_METHOD_4(browse);
+	ADD_API_METHOD_2(browseForDirectory);
 }
 
 ScriptingApi::FileSystem::~FileSystem()
@@ -4559,7 +4561,7 @@ var ScriptingApi::FileSystem::findFiles(var directory, String wildcard, bool rec
 	return l;
 }
 
-void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wildcard, bool forDirectory, var callback)
+void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wildcard, var callback)
 {
 	File f;
 
@@ -4568,60 +4570,64 @@ void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wi
 	else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(startFolder.getObject()))
 		f = sf->f;
 
-	auto p_ = p;
+	browseInternally(f, forSaving, false, wildcard, callback);
+}
 
-	auto cb = [forSaving, f, wildcard, callback, p_, forDirectory]()
-	{
-    FileChooser fc(!forSaving ? "Open file" : "Save file", f, wildcard);
+void ScriptingApi::FileSystem::browseForDirectory(var startFolder, var callback)
+{
+	File f;
 
-		var a;
+	if (startFolder.isInt())
+		f = getFile((SpecialLocations)(int)startFolder);
+	else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(startFolder.getObject()))
+		f = sf->f;
 
-		if (forDirectory)
-		{
-			if (fc.browseForDirectory())
-			{
-				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));	
-			}
-		}
-		else 
-		{
-			if (forSaving && fc.browseForFileToSave(true))
-			{
-				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
-			}
-			if (!forSaving && fc.browseForFileToOpen())
-			{
-				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
-			}
-		}
-		if (a.isObject())
-		{
-			WeakCallbackHolder cb(p_, callback, 1);
-			cb.call(&a, 1);
-
-#if 0
-			p_->getMainController_()->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution,
-				dynamic_cast<JavascriptProcessor*>(p_), [callback, a](JavascriptProcessor* p)
-			{
-				var::NativeFunctionArgs args({}, &a, 1);
-				auto r = Result::ok();
-				p->getScriptEngine()->callExternalFunction(callback, args, &r);
-
-				if (!r.wasOk())
-					debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
-
-				return r;
-			});
-#endif
-		}
-	};
-
-	MessageManager::callAsync(cb);
+	browseInternally(f, false, true, "", callback);
 }
 
 String ScriptingApi::FileSystem::getSystemId()
 {
 	return OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs()[0];
+}
+
+void ScriptingApi::FileSystem::browseInternally(File f, bool forSaving, bool isDirectory, String wildcard, var callback)
+{
+	auto p_ = p;
+
+	auto cb = [forSaving, f, wildcard, callback, p_, isDirectory]()
+	{
+		String title;
+
+		if (isDirectory)
+			title = "Browse for directory";
+		else
+			title = !forSaving ? "Open file" : "Save file";
+
+		FileChooser fc(title, f, wildcard);
+
+		var a;
+
+		if (isDirectory)
+		{
+			if (fc.browseForDirectory())
+				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+		}
+		else
+		{
+			if (forSaving && fc.browseForFileToSave(true))
+				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+			if (!forSaving && fc.browseForFileToOpen())
+				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+		}
+
+		if (a.isObject())
+		{
+			WeakCallbackHolder cb(p_, callback, 1);
+			cb.call(&a, 1);
+		}
+	};
+
+	MessageManager::callAsync(cb);
 }
 
 juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
