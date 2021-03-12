@@ -146,10 +146,9 @@ public:
 
 	};
 
-
-	virtual void encodeExpansion()
+	virtual Result encodeExpansion()
 	{
-		PresetHandler::showMessageWindow("Can't encode Expansion", "You haven't set a encryption key yet", PresetHandler::IconType::Error);
+		return Result::fail("The current project does not allow encryption because it's FileBased only");
 	}
 
 	var getPropertyObject() const

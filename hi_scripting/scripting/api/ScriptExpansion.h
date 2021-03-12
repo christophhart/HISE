@@ -148,9 +148,7 @@ public:
 
 	virtual ExpansionType getExpansionType() const;
 
-	void encodeExpansion() override;
-
-	
+	Result encodeExpansion() override;
 
 	Array<SubDirectories> getSubDirectoryIds() const override;
 
@@ -182,6 +180,8 @@ protected:
 	void addUserPresets(ValueTree encryptedTree);
 
 	void extractUserPresetsIfEmpty(ValueTree encryptedTree);
+
+	Result returnFail(const String& errorMessage);
 };
 
 /** This expansion type can be used for a custom C++ shell that will load any instrument.
@@ -270,7 +270,7 @@ public:
 
 	Result initialise() override;
 
-	void encodeExpansion() override;
+	Result encodeExpansion() override;
 
 	bool fullyLoaded = false;
 	ValueTree presetToLoad;
@@ -326,7 +326,7 @@ public:
 	/** returns the expansion type. Use the constants of ExpansionHandler to resolve the integer number. */
 	int getExpansionType() const;
 
-	/** Encodes the expansion with the credentials provided. */
+	
 private:
 
 	friend class ScriptExpansionHandler;
@@ -355,7 +355,7 @@ public:
 	void run() override;
 	void threadFinished();
 
-
+	Result encodeResult;
 	
 	bool projectExport = false;
 	WeakReference<Expansion> e;

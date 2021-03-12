@@ -448,7 +448,7 @@ hise::Expansion::ExpansionType ScriptEncryptedExpansion::getExpansionType() cons
 	return getExpansionTypeFromFolder(getRootFolder());
 }
 
-void ScriptEncryptedExpansion::encodeExpansion()
+Result ScriptEncryptedExpansion::encodeExpansion()
 {
 	if (getExpansionType() == Expansion::FileBased)
 	{
@@ -456,8 +456,7 @@ void ScriptEncryptedExpansion::encodeExpansion()
 
 		if (handler.getEncryptionKey().isEmpty())
 		{
-			PresetHandler::showMessageWindow("No key available", "You have to set an encryption key using `ExpansionHandler.setEncryptionKey()` before using this method.", PresetHandler::IconType::Error);
-			return;
+			return Result::fail("You have to set an encryption key using `ExpansionHandler.setEncryptionKey()` before using this method.");
 		}
 
 		String s;
@@ -473,12 +472,9 @@ void ScriptEncryptedExpansion::encodeExpansion()
 			metadata.setProperty(ExpansionIds::Hash, handler.getEncryptionKey().hashCode64(), nullptr);
 
 			hxiData.addChild(metadata, -1, nullptr);
-
-
 			encodePoolAndUserPresets(hxiData, true);
 
 #if HISE_USE_XML_FOR_HXI
-
 			ScopedPointer<XmlElement> xml = hxiData.createXml();
 			hxiFile.replaceWithText(xml->createDocument(""));
 #else
@@ -494,8 +490,10 @@ void ScriptEncryptedExpansion::encodeExpansion()
 	}
 	else
 	{
-		PresetHandler::showMessageWindow("Already encoded", "The expansion " + getProperty(ExpansionIds::Name) + " is already encoded");
+		return Result::fail("The expansion " + getProperty(ExpansionIds::Name) + " is already encoded");
 	}
+
+	return Result::ok();
 }
 
 juce::Array<hise::FileHandlerBase::SubDirectories> ScriptEncryptedExpansion::getSubDirectoryIds() const
@@ -1062,9 +1060,16 @@ Result FullInstrumentExpansion::lazyLoad()
 	return r;
 }
 
+juce::Result ScriptEncryptedExpansion::returnFail(const String& errorMessage)
+{
+	auto& h = getMainController()->getExpansionHandler();
+	h.setErrorMessage(errorMessage, false);
+	return Result::fail(errorMessage);
+}
 
 
-void FullInstrumentExpansion::encodeExpansion()
+
+Result FullInstrumentExpansion::encodeExpansion()
 {
 	ValueTree allData(ExpansionIds::FullData);
 
@@ -1073,8 +1078,7 @@ void FullInstrumentExpansion::encodeExpansion()
 
 	if (key.isEmpty())
 	{
-		h.setErrorMessage("The encryption key has not been set", false);
-		return;
+		return returnFail("The encryption key has not been set");
 	}
 
 	auto hxiFile = Expansion::Helpers::getExpansionInfoFile(getRootFolder(), Expansion::Intermediate);
@@ -1208,12 +1212,15 @@ void FullInstrumentExpansion::encodeExpansion()
 
 	if(!isProjectExport)
 		h.forceReinitialisation();
+
+	return Result::ok();
 }
 
 ExpansionEncodingWindow::ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport) :
 	DialogWindowWithBackgroundThread(isProjectExport ? "Encode project as Full Expansion" : "Encode Expansion"),
 	ControlledObject(mc),
 	e(eToEncode),
+	encodeResult(Result::ok()),
 	projectExport(isProjectExport)
 {
 	if (isProjectExport)
@@ -1267,7 +1274,7 @@ void ExpansionEncodingWindow::run()
 		ScopedPointer<FullInstrumentExpansion> e = new FullInstrumentExpansion(getMainController(), h.getWorkDirectory());
 		e->initialise();
 		e->setIsProjectExporter();
-		e->encodeExpansion();
+		encodeResult = e->encodeExpansion();
 		f.deleteFile();
 	}
 	else
@@ -1279,7 +1286,9 @@ void ExpansionEncodingWindow::run()
 		}
 
 		if (e != nullptr)
-			e->encodeExpansion();
+			encodeResult = e->encodeExpansion();
+		else
+			encodeResult = Result::fail("No expansion to encode");
 	}
 #endif
 }
@@ -1294,14 +1303,10 @@ void ExpansionEncodingWindow::threadFinished()
 		return;
 	}
 
-	if (e != nullptr)
-	{
+	if (encodeResult.wasOk())
 		PresetHandler::showMessageWindow("Expansion encoded", "The expansion was encoded successfully");
-	}
 	else
-	{
-		PresetHandler::showMessageWindow("No expansion selected", "Select an expansion to encode", PresetHandler::IconType::Error);
-	}
+		PresetHandler::showMessageWindow("Expansion encoding failed", encodeResult.getErrorMessage(), PresetHandler::IconType::Error);
 #endif
 }
 
