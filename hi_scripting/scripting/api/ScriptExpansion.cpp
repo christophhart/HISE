@@ -85,7 +85,8 @@ ScriptExpansionHandler::~ScriptExpansionHandler()
 
 void ScriptExpansionHandler::setEncryptionKey(String newKey)
 {
-	getMainController()->getExpansionHandler().setEncryptionKey(newKey);
+	reportScriptError("This function is deprecated. Use the project settings to setup the project's blowfish key");
+	//getMainController()->getExpansionHandler().setEncryptionKey(newKey);
 }
 
 void ScriptExpansionHandler::setCredentials(var newCredentials)

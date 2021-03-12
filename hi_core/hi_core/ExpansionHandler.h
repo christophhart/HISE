@@ -330,7 +330,8 @@ protected:
 };
 
 
-class ExpansionHandler: public hlac::HlacArchiver::Listener
+class ExpansionHandler: public hlac::HlacArchiver::Listener,
+					    public ControlledObject
 {
 public:
 
@@ -406,9 +407,14 @@ public:
 		File expFolder;
 		bool wasEnabled = false;
 	};
+
+	
+
 #endif
 
 	ExpansionHandler(MainController* mc);
+
+	~ExpansionHandler();
 
 	struct Helpers
 	{
@@ -530,12 +536,14 @@ public:
 		return false;
 	}
 
-	void setEncryptionKey(const String& newKey)
+	void setEncryptionKey(const String& newKey, NotificationType reinitialise=sendNotification)
 	{
 		if (keyCode != newKey)
 		{
 			keyCode = newKey;
-			forceReinitialisation();
+
+			if(reinitialise != dontSendNotification)
+				forceReinitialisation();
 		}
 	}
 
@@ -572,11 +580,13 @@ public:
 
 			expansionCreateFunction = [&](const File& f)
 			{
-				auto e = new T(mc, f);
+				auto e = new T(getMainController(), f);
 				return dynamic_cast<Expansion*>(e);
 			};
 		}
 	}
+
+	void resetAfterProjectSwitch();
 
 #if HISE_USE_CUSTOM_EXPANSION_TYPE
 	// Implement this method and return your custom C++ expansion class
@@ -622,7 +632,7 @@ private:
 			*pool = e->pool->getPool<DataType>();
 		}
 		else
-			*pool = getFileHandler(mc)->pool->getPool<DataType>();
+			*pool = getFileHandler(getMainController())->pool->getPool<DataType>();
 	}
 
 	struct Notifier : private AsyncUpdater
@@ -695,11 +705,9 @@ private:
 	OwnedArray<Expansion> uninitialisedExpansions;
 
 	WeakReference<Expansion> currentExpansion;
-
-	MainController * mc;
 };
 
-#define SET_CUSTOM_EXPANSION_TYPE(ExpansionClass) hise::Expansion* hise::ExpansionHandler::createCustomExpansion(const File& f) { return new ExpansionClass(mc, f); };
+#define SET_CUSTOM_EXPANSION_TYPE(ExpansionClass) hise::Expansion* hise::ExpansionHandler::createCustomExpansion(const File& f) { return new ExpansionClass(getMainController(), f); };
 
 }
 
