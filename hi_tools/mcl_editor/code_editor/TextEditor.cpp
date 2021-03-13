@@ -27,6 +27,7 @@ mcl::TextEditor::TextEditor(TextDocument& codeDoc)
 , scrollBar(true)
 , tokenCollection()
 , tooltipManager(*this)
+, autocompleteTimer(*this)
 , plaf(new LookAndFeel_V3())
 {
 	tokenCollection.addTokenProvider(new SimpleDocumentTokenProvider(docRef));
@@ -456,6 +457,11 @@ void mcl::TextEditor::translateToEnsureCaretIsVisible()
     {
         translateView (0.f, -b.y + getHeight());
     }
+    else
+    {
+        // refresh the transform because the gutter might have changed
+        translateView(0.0f, 0.0f);
+    }
 
 	if (document.getFoldableLineRangeHolder().isFolded(i.x))
 	{
@@ -805,7 +811,7 @@ void mcl::TextEditor::mouseMagnify (const MouseEvent& e, float scaleFactor)
 
 bool mcl::TextEditor::keyPressed (const KeyPress& key)
 {
-	
+    autocompleteTimer.abortAutocomplete();
 
 	tooltipManager.clearDisplay();
 
@@ -1172,6 +1178,11 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     {
         if (key.isKeyCode (KeyPress::downKey)) return nav (mods, Target::document, Direction::forwardRow);
         if (key.isKeyCode (KeyPress::upKey  )) return nav (mods, Target::document, Direction::backwardRow);
+        
+#if JUCE_MAC
+        if (key.isKeyCode (KeyPress::leftKey)) return nav(mods, Target::firstnonwhitespace, Direction::backwardCol);
+        if (key.isKeyCode (KeyPress::rightKey  )) return nav(mods, Target::line, Direction::forwardCol);
+#endif
     }
 
 
@@ -1260,8 +1271,15 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 	if (key.isKeyCode(KeyPress::backspaceKey)) return remove(Target::character, Direction::backwardCol);
 	if (key.isKeyCode(KeyPress::deleteKey))	   return remove(Target::character, Direction::forwardCol);
 
+#if JUCE_WINDOWS
+    // Home/End: End / start of line
 	if (key.isKeyCode(KeyPress::homeKey)) return nav(mods, Target::firstnonwhitespace, Direction::backwardCol);
 	if (key.isKeyCode(KeyPress::endKey))  return nav(mods, Target::line, Direction::forwardCol);
+#else
+    // Home/End: Scroll to beginning
+    if (key.isKeyCode(KeyPress::homeKey)) return nav (mods, Target::document, Direction::forwardRow);
+    if (key.isKeyCode(KeyPress::endKey))  return nav (mods, Target::document, Direction::backwardRow);
+#endif
 
     if (key == KeyPress ('a', ModifierKeys::commandModifier, 0)) return expand (Target::document);
 	if (key == KeyPress('d', ModifierKeys::commandModifier, 0))  return addNextTokenToSelection();
@@ -1429,16 +1447,12 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
     {
         auto rows = document.getRangeOfRowsIntersecting (g.getClipBounds().toFloat());
 
-
 		rows.setStart(jmax(0, rows.getStart() - 20));
 
         auto index = Point<int> (rows.getStart(), 0);
-        
-
         auto it = TextDocument::Iterator (document, index);
         auto previous = it.getIndex();
         auto zones = Array<Selection>();
-        auto start = Time::getMillisecondCounterHiRes();
 
         while (it.getIndex().x < rows.getEnd() && ! it.isEOF())
         {
@@ -1455,8 +1469,6 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 
         document.clearTokens (rows);
         document.applyTokens (rows, zones);
-
-        lastTokeniserTime = Time::getMillisecondCounterHiRes() - start;
 
         for (int n = 0; n < colourScheme.types.size(); ++n)
         {

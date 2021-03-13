@@ -777,7 +777,11 @@ public:
 		for (int i = 0; i < doc.getNumLines(); i++)
 		{
 			auto l = doc.getLine(i).removeCharacters("\r");
-			lines.add(l.substring(0, l.length()-1));
+            
+            if(l.endsWith("\n"))
+                lines.add(l.substring(0, l.length()-1));
+            else
+                lines.add(l);
 		}
 
 		CodeDocument::Position pos(getCodeDocument(), wasInserted ? endIndex : startIndex);

@@ -175,7 +175,7 @@ String Preprocessor::process()
 				}
 				
 				if(deactivate)
-					deactivatedLines.addRange(b.getLineRange());
+					deactivatedLines.addRange(b.getLineRange() + 1);
 
 				blocks.getReference(i).replaceWithEmptyLines();
 				continue;
@@ -417,9 +417,14 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 					}
 				}
 			}
+            
+            
 
 			start++;
 
+            if(start >= end)
+                break;
+            
 			if (*start == firstNewLineChar)
 				lineNumber++;
 

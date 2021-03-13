@@ -475,15 +475,7 @@ public:
 
 			updateSelections();
 
-			auto updateSpeed = currentAutoComplete != nullptr ? 30 : 1200;
-
-			WeakReference<TextEditor> safeThis(this);
-
-			Timer::callAfterDelay(updateSpeed, [safeThis]()
-			{
-				if(safeThis.get() != nullptr)
-					safeThis.get()->updateAutocomplete();
-			});
+            autocompleteTimer.startAutocomplete();
 			
 			updateViewTransform();
 
@@ -558,6 +550,32 @@ public:
 
 private:
 
+    struct AutocompleteTimer: public Timer
+    {
+        AutocompleteTimer(TextEditor& p):
+          parent(p)
+        {}
+        
+        void startAutocomplete()
+        {
+            auto updateSpeed = parent.currentAutoComplete != nullptr ? 30 : 1200;
+            startTimer(updateSpeed);
+        }
+        
+        void abortAutocomplete()
+        {
+            stopTimer();
+        }
+        
+        void timerCallback() override
+        {
+            parent.updateAutocomplete();
+            stopTimer();
+        }
+        
+        TextEditor& parent;
+    } autocompleteTimer;
+    
 	bool readOnly = false;
 
 	bool expand(TextDocument::Target target)
