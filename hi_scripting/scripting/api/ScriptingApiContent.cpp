@@ -3329,6 +3329,12 @@ void ScriptingApi::Content::ScriptPanel::setAnimation(String base64LottieAnimati
 	}
 
 	setAnimationFrame(0);
+
+	for (auto l : animationListeners)
+	{
+		if (l.get() != nullptr)
+			l->animationChanged();
+	}
 }
 
 void ScriptingApi::Content::ScriptPanel::setAnimationFrame(int numFrame)
@@ -3395,6 +3401,20 @@ var ScriptingApi::Content::ScriptPanel::getParentPanel()
 		return var(parentPanel);
 
 	return {};
+}
+
+void ScriptingApi::Content::ScriptPanel::addAnimationListener(AnimationListener* l)
+{
+#if HISE_INCLUDE_RLOTTIE
+	animationListeners.addIfNotAlreadyThere(l);
+#endif
+}
+
+void ScriptingApi::Content::ScriptPanel::removeAnimationListener(AnimationListener* l)
+{
+#if HISE_INCLUDE_RLOTTIE
+	animationListeners.removeAllInstancesOf(l);
+#endif
 }
 
 #endif

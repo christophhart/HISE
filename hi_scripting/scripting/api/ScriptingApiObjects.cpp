@@ -4739,9 +4739,10 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 		{
 			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
 		}
-		catch (HiseJavascriptEngine::RootObject::Error& )
+		catch (HiseJavascriptEngine::RootObject::Error& e)
 		{
-
+			auto p = dynamic_cast<Processor*>(getScriptProcessor());
+			debugToConsole(p, e.toString(p) + e.errorMessage);
 		}
 		
 		g->getDrawHandler().flush();

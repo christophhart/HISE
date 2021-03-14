@@ -1580,9 +1580,6 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->alignPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::popupMenuAlign));
 
 	bpc->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
-
-	
-
 	bpc->setTouchEnabled(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::holdIsRightClick));
 
 	// TODO: in updateValue
@@ -1591,7 +1588,6 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 
 	updateRange(bpc);
 
-
 	bpc->setInterceptsMouseClicks(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::enabled), true);
 
 	bpc->repaint();
@@ -1599,8 +1595,6 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->setAllowCallback(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowCallbacks).toString());
 
 	contentComponent->repaint();
-
-	
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent(int propertyIndex, var newValue)
@@ -1693,13 +1687,15 @@ void ScriptCreatedComponentWrappers::PanelWrapper::boundsChanged(const Rectangle
 
 ScriptCreatedComponentWrappers::PanelWrapper::~PanelWrapper()
 {
-	if (auto c = getScriptComponent())
+	if (auto c = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent()))
+	{
 		c->removeSubComponentListener(this);
+		c->removeAnimationListener(this);
+	}
 
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
 
 	bpc->removeCallbackListener(this);
-	
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::subComponentAdded(ScriptComponent* newComponent)
@@ -1734,17 +1730,27 @@ void ScriptCreatedComponentWrappers::PanelWrapper::subComponentRemoved(ScriptCom
 	}
 }
 
+
+
+void ScriptCreatedComponentWrappers::PanelWrapper::animationChanged()
+{
+#if HISE_INCLUDE_RLOTTIE
+	auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+	auto bp = dynamic_cast<BorderPanel*>(getComponent());
+	bp->setAnimation(panel->getAnimation());
+#endif
+}
+
 void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Content::ScriptPanel* panel)
 {
 	BorderPanel *bp = new BorderPanel(panel->getDrawActionHandler());
 
 	panel->addSubComponentListener(this);
+	panel->addAnimationListener(this);
 
 	bp->setName(panel->name.toString());
 
-#if HISE_INCLUDE_RLOTTIE
-	bp->setAnimation(panel->getAnimation());
-#endif
+
 
 	bp->addMouseCallbackListener(this);
 	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
@@ -1763,6 +1769,10 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 	}
 
 	component = bp;
+
+#if HISE_INCLUDE_RLOTTIE
+	animationChanged();
+#endif
 
 	initAllProperties();
 
