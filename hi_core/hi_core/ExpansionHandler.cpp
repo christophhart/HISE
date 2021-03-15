@@ -140,17 +140,35 @@ juce::int64 ExpansionHandler::Helpers::getJSONHash(var obj)
 	return -1;
 }
 
-ExpansionHandler::ExpansionHandler(MainController* mc_):
-	mc(mc_),
+
+
+ExpansionHandler::ExpansionHandler(MainController* mc):
+	ControlledObject(mc),
 	notifier(*this)
 {
 	setAllowedExpansions({ Expansion::FileBased, Expansion::Intermediate, Expansion::Encrypted });
+}
+
+ExpansionHandler::~ExpansionHandler()
+{
+	// Important: the listener is removed in the MainController destructor
+	// (because the project handler is being destroyed before the expansion handler)
+	// getMainController()->getSampleManager().getProjectHandler().removeListener(this);
 }
 
 void ExpansionHandler::createNewExpansion(const File& expansionFolder)
 {
 	if (Helpers::isValidExpansion(expansionFolder))
 		return;
+
+	if (expansionFolder.getParentDirectory() != getExpansionFolder())
+	{
+		PresetHandler::showMessageWindow("Invalid location", "An expansion must be a child folder of the expansion folder", PresetHandler::IconType::Error);
+		return;
+	}
+
+	auto f = Expansion::Helpers::getExpansionInfoFile(expansionFolder, Expansion::FileBased);
+	f.create();
 
 	if (auto e = createExpansionForFile(expansionFolder))
 	{
@@ -163,13 +181,13 @@ juce::File ExpansionHandler::getExpansionFolder() const
 {
 #if USE_FRONTEND
 	// We'll automatically use the sample folder to store the expansions
-	if (FullInstrumentExpansion::isEnabled(mc))
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
 		return FrontendHandler::getSampleLocationForCompiledPlugin();
 #endif
 
 	if (!expansionFolder.isDirectory())
 	{
-		auto f = mc->getSampleManager().getProjectHandler().getRootFolder().getChildFile("Expansions");
+		auto f = getMainController()->getSampleManager().getProjectHandler().getRootFolder().getChildFile("Expansions");
 
 		if (!f.isDirectory())
 			f.createDirectory();
@@ -352,9 +370,9 @@ void ExpansionHandler::setCurrentExpansion(Expansion* e, NotificationType notify
 	if (currentExpansion != e)
 	{
 #if USE_BACKEND
-		if (FullInstrumentExpansion::isEnabled(mc))
+		if (FullInstrumentExpansion::isEnabled(getMainController()))
 		{
-			debugToConsole(mc->getMainSynthChain(), "Skipping loading of expansion " + (e != nullptr ? e->getProperty(ExpansionIds::Name) : "Default"));
+			debugToConsole(getMainController()->getMainSynthChain(), "Skipping loading of expansion " + (e != nullptr ? e->getProperty(ExpansionIds::Name) : "Default"));
 			return;
 		}
 #endif
@@ -364,7 +382,7 @@ void ExpansionHandler::setCurrentExpansion(Expansion* e, NotificationType notify
 	}
 }
 
-bool ExpansionHandler::installFromResourceFile(const File& resourceFile)
+bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const File& sampleDirectoryToUse)
 {
 	hlac::HlacArchiver a(nullptr);
 
@@ -373,9 +391,9 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile)
 
 	if (expansionName.isNotEmpty())
 	{
-		auto f = [this, expansionName, resourceFile](Processor* p)
+		auto f = [this, expansionName, resourceFile, sampleDirectoryToUse](Processor* p)
 		{
-			jassert(LockHelpers::freeToGo(mc));
+			jassert(LockHelpers::freeToGo(getMainController()));
 
 			auto expRoot = getExpansionFolder().getChildFile(expansionName);
 
@@ -383,13 +401,19 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile)
 			auto samplesDir = expRoot.getChildFile("Samples");
 			samplesDir.createDirectory();
 
+			if (sampleDirectoryToUse != getExpansionFolder())
+			{
+				FileHandlerBase::createLinkFileInFolder(samplesDir, sampleDirectoryToUse);
+				samplesDir = sampleDirectoryToUse;
+			}
+
 			hlac::HlacArchiver::DecompressData data;
 
 			double unused = 0.0;
 
 			data.option = hlac::HlacArchiver::OverwriteOption::OverwriteIfNewer;
 			data.targetDirectory = samplesDir;
-			data.progress = &mc->getSampleManager().getPreloadProgress();
+			data.progress = &getMainController()->getSampleManager().getPreloadProgress();
 			data.totalProgress = &unused;
 			data.partProgress = &unused;
 			data.sourceFile = resourceFile;
@@ -404,20 +428,21 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile)
 			jassert(headerFile.existsAsFile());
 
 			if (getCredentials().isObject())
-				ScriptEncryptedExpansion::encryptIntermediateFile(mc, headerFile, expRoot);
+				ScriptEncryptedExpansion::encryptIntermediateFile(getMainController(), headerFile, expRoot);
 			else
 			{
 				auto hxiFile = Expansion::Helpers::getExpansionInfoFile(expRoot, Expansion::Intermediate);
-				hxiFile.deleteFile();
 
-				if (headerFile.moveFileTo(hxiFile))
+				if (hxiFile.deleteFile() && headerFile.moveFileTo(hxiFile))
 					createAvailableExpansions();
+				else
+					setErrorMessage("Can't override expansion metadata file", false);
 			}
 
 			return SafeFunctionCall::OK;
 		};
 
-		mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+		getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 
 		return true;
 	}
@@ -482,9 +507,31 @@ void ExpansionHandler::clearPools()
 
 }
 
+void ExpansionHandler::resetAfterProjectSwitch()
+{
+	allowedExpansions = { Expansion::FileBased, Expansion::Intermediate, Expansion::Encrypted };
+	initialisationErrors.clear();
+	credentials = var();
+	currentExpansion = nullptr;
+	uninitialisedExpansions.clear();
+	expansionList.clear();
+	expansionFolder = File();
+
+	// Only after reinitialisation
+	if (expansionCreateFunction)
+	{
+		if (createAvailableExpansions())
+			return;
+	}
+
+	// force the update to remove all expansions
+	auto notification = MessageManager::getInstance()->isThisTheMessageThread() ? sendNotificationSync : sendNotificationAsync;
+	notifier.sendNotification(Notifier::EventType::ExpansionCreated, notification);
+}
+
 void ExpansionHandler::logStatusMessage(const String& message)
 {
-	mc->getSampleManager().setCurrentPreloadMessage(message);
+	getMainController()->getSampleManager().setCurrentPreloadMessage(message);
 	setErrorMessage(message, false);
 }
 
@@ -562,7 +609,7 @@ hise::PooledImage ExpansionHandler::loadImageReference(const PoolReference& imag
 
 PoolCollection* ExpansionHandler::getCurrentPoolCollection()
     {
-        return mc->getCurrentFileHandler().pool;
+        return getMainController()->getCurrentFileHandler().pool;
     }
 
 
@@ -725,9 +772,42 @@ String Expansion::Helpers::getExpansionTypeName(ExpansionType e)
 	}
 }
 
+Expansion::Data::Data(const File& root, ValueTree expansionInfo, MainController* mc) :
+	v(expansionInfo),
+	name(v, "Name", nullptr, root.getFileNameWithoutExtension()),
+	projectName(v, ExpansionIds::ProjectName, nullptr, getProjectName(mc)),
+	projectVersion(v, ExpansionIds::ProjectVersion, nullptr, getProjectVersion(mc)),
+	tags(v, "Tags", nullptr, ""),
+	version(v, "Version", nullptr, "1.0.0")
+{
+	Helpers::initCachedValue(v, name);
+	Helpers::initCachedValue(v, version);
+	Helpers::initCachedValue(v, projectName);
+	Helpers::initCachedValue(v, projectVersion);
+	Helpers::initCachedValue(v, tags);
+}
+
 var Expansion::Data::toPropertyObject() const
 {
 	return ValueTreeConverters::convertValueTreeToDynamicObject(v);
+}
+
+var Expansion::Data::getProjectVersion(MainController* mc)
+{
+#if USE_BACKEND
+	return var(GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Project::Version));
+#else
+	return var(FrontendHandler::getVersionString());
+#endif
+}
+
+var Expansion::Data::getProjectName(MainController* mc)
+{
+#if USE_BACKEND
+	return var(GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Project::Name));
+#else
+	return var(FrontendHandler::getProjectName());
+#endif
 }
 
 #if USE_BACKEND

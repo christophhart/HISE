@@ -55,6 +55,7 @@ DECLARE_ID(Credentials);
 DECLARE_ID(PrivateInfo);
 DECLARE_ID(Name);
 DECLARE_ID(ProjectName);
+DECLARE_ID(ProjectVersion);
 DECLARE_ID(Version);
 DECLARE_ID(Tags);
 DECLARE_ID(Key);
@@ -109,6 +110,10 @@ public:
 	*/
 	virtual Result initialise() 
 	{
+		data = new Data(root, Helpers::loadValueTreeForFileBasedExpansion(root), getMainController());
+
+		saveExpansionInfoFile();
+
 		addMissingFolders();
 
 		checkSubDirectories();
@@ -116,14 +121,8 @@ public:
 		pool->getSampleMapPool().loadAllFilesFromProjectFolder();
 		pool->getMidiFilePool().loadAllFilesFromProjectFolder();
 
-		data = new Data(root, Helpers::loadValueTreeForFileBasedExpansion(root));
-
-		saveExpansionInfoFile();
-
 		return Result::ok();
 	};
-
-
 
 	struct Helpers
 	{
@@ -147,10 +146,9 @@ public:
 
 	};
 
-
-	virtual void encodeExpansion()
+	virtual Result encodeExpansion()
 	{
-		PresetHandler::showMessageWindow("Can't encode Expansion", "You haven't set a encryption key yet", PresetHandler::IconType::Error);
+		return Result::fail("The current project does not allow encryption because it's FileBased only");
 	}
 
 	var getPropertyObject() const
@@ -255,26 +253,7 @@ protected:
 	{
 		
 
-		Data(const File& root, ValueTree expansionInfo) :
-			v(expansionInfo),
-			name(v, "Name", nullptr, root.getFileNameWithoutExtension()),
-#if USE_BACKEND
-			projectName(v, "ProjectName", nullptr, "unused"),
-			projectVersion(v, "ProjectName", nullptr, "1.0.0"),
-			tags(v, "Tags", nullptr, ""),
-#else
-			projectName(v, "ProjectName", nullptr, FrontendHandler::getProjectName()),
-			projectVersion(v, "ProjectName", nullptr, FrontendHandler::getVersionString()),
-			tags(v, "Tags", nullptr, ""),
-#endif
-			version(v, "Version", nullptr, "1.0.0")
-		{
-			Helpers::initCachedValue(v, name);
-			Helpers::initCachedValue(v, version);
-			Helpers::initCachedValue(v, projectName);
-			Helpers::initCachedValue(v, projectVersion);
-			Helpers::initCachedValue(v, tags);
-		}
+		Data(const File& root, ValueTree expansionInfo, MainController* mc);
 
 		var toPropertyObject() const;
 
@@ -287,6 +266,12 @@ protected:
 		CachedValue<String> version;
 		CachedValue<String> projectVersion;
 		CachedValue<String> tags;
+
+	private:
+
+		static var getProjectVersion(MainController* mc);
+
+		static var getProjectName(MainController* mc);
 	};
 
 	ScopedPointer<Data> data;
@@ -344,7 +329,8 @@ protected:
 };
 
 
-class ExpansionHandler: public hlac::HlacArchiver::Listener
+class ExpansionHandler: public hlac::HlacArchiver::Listener,
+					    public ControlledObject
 {
 public:
 
@@ -420,9 +406,14 @@ public:
 		File expFolder;
 		bool wasEnabled = false;
 	};
+
+	
+
 #endif
 
 	ExpansionHandler(MainController* mc);
+
+	~ExpansionHandler();
 
 	struct Helpers
 	{
@@ -461,7 +452,7 @@ public:
 		listeners.removeAllInstancesOf(l);
 	}
 
-	bool installFromResourceFile(const File& f);
+	bool installFromResourceFile(const File& f, const File& sampleDirectoryToUse);
 
 	PooledAudioFile loadAudioFileReference(const PoolReference& sampleId);
 
@@ -544,12 +535,14 @@ public:
 		return false;
 	}
 
-	void setEncryptionKey(const String& newKey)
+	void setEncryptionKey(const String& newKey, NotificationType reinitialise=sendNotification)
 	{
 		if (keyCode != newKey)
 		{
 			keyCode = newKey;
-			forceReinitialisation();
+
+			if(reinitialise != dontSendNotification)
+				forceReinitialisation();
 		}
 	}
 
@@ -586,11 +579,13 @@ public:
 
 			expansionCreateFunction = [&](const File& f)
 			{
-				auto e = new T(mc, f);
+				auto e = new T(getMainController(), f);
 				return dynamic_cast<Expansion*>(e);
 			};
 		}
 	}
+
+	void resetAfterProjectSwitch();
 
 #if HISE_USE_CUSTOM_EXPANSION_TYPE
 	// Implement this method and return your custom C++ expansion class
@@ -636,7 +631,7 @@ private:
 			*pool = e->pool->getPool<DataType>();
 		}
 		else
-			*pool = getFileHandler(mc)->pool->getPool<DataType>();
+			*pool = getFileHandler(getMainController())->pool->getPool<DataType>();
 	}
 
 	struct Notifier : private AsyncUpdater
@@ -709,11 +704,9 @@ private:
 	OwnedArray<Expansion> uninitialisedExpansions;
 
 	WeakReference<Expansion> currentExpansion;
-
-	MainController * mc;
 };
 
-#define SET_CUSTOM_EXPANSION_TYPE(ExpansionClass) hise::Expansion* hise::ExpansionHandler::createCustomExpansion(const File& f) { return new ExpansionClass(mc, f); };
+#define SET_CUSTOM_EXPANSION_TYPE(ExpansionClass) hise::Expansion* hise::ExpansionHandler::createCustomExpansion(const File& f) { return new ExpansionClass(getMainController(), f); };
 
 }
 

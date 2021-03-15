@@ -168,26 +168,18 @@ void hise::raw::UIConnection::Base<ComponentType, ValueType>::parameterChangedFr
 	
 }
 
+
+	
+
+
+
 template <int parameterIndex>
 hise::raw::UIConnection::Slider<parameterIndex>::Slider(juce::Slider* s, MainController* mc, const String& processorID) :
-	Base(s, mc, processorID)
+	SliderBase(s, mc, processorID)
 {
 	setData<Data::Attribute<parameterIndex>>();
-	changeListenerCallback(nullptr);
 }
 
-template <int parameterIndex>
-void hise::raw::UIConnection::Slider<parameterIndex>::sliderValueChanged(juce::Slider*)
-{
-	parameterChangedFromUI((float)getComponent().getValue());
-}
-
-template <int parameterIndex>
-void hise::raw::UIConnection::Slider<parameterIndex>::updateUI(float newValue)
-{
-
-	getComponent().setValue(newValue, dontSendNotification);
-}
 
 }
 
