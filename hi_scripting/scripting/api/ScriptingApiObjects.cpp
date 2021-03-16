@@ -4967,9 +4967,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		NormalisableRange<double> range = NormalisableRange<double>(slider.getMinimum(), slider.getMaximum(), slider.getInterval(), slider.getSkewFactor());
 		obj->setProperty("valueNormalized", range.convertTo0to1(slider.getValue()));
 
-
 		// Range style slider
-
 		double minv = 0.0;
 		double maxv = 1.0;
 
@@ -4982,9 +4980,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		obj->setProperty("valueRangeStyleMin", minv);
 		obj->setProperty("valueRangeStyleMax", maxv);
 
-		obj->setProperty("valueRangeStyleMinNormalized", (minv - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
-		obj->setProperty("valueRangeStyleMaxNormalized", (maxv - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
-
+		obj->setProperty("valueRangeStyleMinNormalized", range.convertTo0to1(minv));
+		obj->setProperty("valueRangeStyleMaxNormalized", range.convertTo0to1(maxv));
 
 		obj->setProperty("clicked", slider.isMouseButtonDown());
 		obj->setProperty("hover", slider.isMouseOver());
