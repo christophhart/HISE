@@ -218,7 +218,7 @@ bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile, var sa
 			if (target == ScriptingApi::FileSystem::Samples)
 				targetFolder = getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Samples);
 		}
-		else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(packageFile.getObject()))
+		else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(sampleDirectory.getObject()))
 		{
 			targetFolder = sf->f;
 		}
