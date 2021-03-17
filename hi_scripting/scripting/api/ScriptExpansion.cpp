@@ -525,7 +525,7 @@ Result ScriptEncryptedExpansion::encodeExpansion()
 			metadata.setProperty(ExpansionIds::Hash, handler.getEncryptionKey().hashCode64(), nullptr);
 
 			hxiData.addChild(metadata, -1, nullptr);
-			encodePoolAndUserPresets(hxiData, true);
+			encodePoolAndUserPresets(hxiData, false);
 
 #if HISE_USE_XML_FOR_HXI
 			ScopedPointer<XmlElement> xml = hxiData.createXml();
@@ -811,6 +811,7 @@ Result ScriptEncryptedExpansion::initialiseFromValueTree(const ValueTree& hxiDat
 
 	pool->getSampleMapPool().loadAllFilesFromDataProvider();
 	pool->getMidiFilePool().loadAllFilesFromDataProvider();
+	pool->getAdditionalDataPool().loadAllFilesFromDataProvider();
 	checkSubDirectories();
 	return Result::ok();
 }
