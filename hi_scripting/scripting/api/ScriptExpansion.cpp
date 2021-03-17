@@ -451,9 +451,34 @@ bool ScriptExpansionReference::setSampleFolder(var newSampleFolder)
 
 var ScriptExpansionReference::loadDataFile(var relativePath)
 {
-	auto fileToLoad = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
+	if (objectExists())
+	{
+		if (exp->getExpansionType() == Expansion::FileBased)
+		{
+			auto fileToLoad = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
+			return JSON::parse(fileToLoad.loadFileAsString());
+		}
+		else
+		{
+			String rs;
+			rs << exp->getWildcard() << relativePath.toString();
 
-	return JSON::parse(fileToLoad.loadFileAsString());
+			PoolReference ref(getScriptProcessor()->getMainController_(), rs, FileHandlerBase::AdditionalSourceCode);
+			
+			if (auto o = exp->pool->getAdditionalDataPool().loadFromReference(ref, PoolHelpers::LoadAndCacheStrong))
+			{
+				var obj;
+				auto ok = JSON::parse(o->data.getFile(), obj);
+
+				if (ok.wasOk())
+					return obj;
+
+				reportScriptError("Error at parsing JSON: " + ok.getErrorMessage());
+			}
+		}
+	}
+
+	return {};
 }
 
 String ScriptExpansionReference::getWildcardReference(var relativePath)
