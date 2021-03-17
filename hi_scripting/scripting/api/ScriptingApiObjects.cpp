@@ -4917,7 +4917,10 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawRotarySlider(Graphics &g_, 
 		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
 
 		obj->setProperty("value", s.getValue());
-		obj->setProperty("valueNormalized", (s.getValue() - s.getMinimum()) / (s.getMaximum() - s.getMinimum()));
+		
+		NormalisableRange<double> range = NormalisableRange<double>(s.getMinimum(), s.getMaximum(), s.getInterval(), s.getSkewFactor());
+		obj->setProperty("valueNormalized", range.convertTo0to1(s.getValue()));
+
 		obj->setProperty("valueSuffixString", s.getTextFromValue(s.getValue()));
 		obj->setProperty("suffix", s.getTextValueSuffix());
 		obj->setProperty("skew", s.getSkewFactor());
@@ -4960,10 +4963,11 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		obj->setProperty("min", slider.getMinimum());
 		obj->setProperty("max", slider.getMaximum());
 		obj->setProperty("value", slider.getValue());
-		obj->setProperty("valueNormalized", (slider.getValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
+		
+		NormalisableRange<double> range = NormalisableRange<double>(slider.getMinimum(), slider.getMaximum(), slider.getInterval(), slider.getSkewFactor());
+		obj->setProperty("valueNormalized", range.convertTo0to1(slider.getValue()));
 
 		// Range style slider
-
 		double minv = 0.0;
 		double maxv = 1.0;
 
@@ -4976,9 +4980,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		obj->setProperty("valueRangeStyleMin", minv);
 		obj->setProperty("valueRangeStyleMax", maxv);
 
-		obj->setProperty("valueRangeStyleMinNormalized", (minv - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
-		obj->setProperty("valueRangeStyleMaxNormalized", (maxv - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
-
+		obj->setProperty("valueRangeStyleMinNormalized", range.convertTo0to1(minv));
+		obj->setProperty("valueRangeStyleMaxNormalized", range.convertTo0to1(maxv));
 
 		obj->setProperty("clicked", slider.isMouseButtonDown());
 		obj->setProperty("hover", slider.isMouseOver());
