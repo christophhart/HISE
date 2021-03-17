@@ -262,12 +262,12 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateColours(HiSlider * s)
 	s->setColour(Slider::backgroundColourId, GET_OBJECT_COLOUR(bgColour));
 	s->setColour(Slider::thumbColourId, GET_OBJECT_COLOUR(itemColour));
 	s->setColour(Slider::trackColourId, GET_OBJECT_COLOUR(itemColour2));
+	s->setColour(Slider::textBoxTextColourId, GET_OBJECT_COLOUR(textColour));
 
 	s->setColour(HiseColourScheme::ComponentOutlineColourId, GET_OBJECT_COLOUR(bgColour));
 	s->setColour(HiseColourScheme::ComponentFillTopColourId, GET_OBJECT_COLOUR(itemColour));
 	s->setColour(HiseColourScheme::ComponentFillBottomColourId, GET_OBJECT_COLOUR(itemColour2));
-
-	s->setColour(Slider::textBoxTextColourId, GET_OBJECT_COLOUR(textColour));
+	s->setColour(HiseColourScheme::ComponentTextColourId, GET_OBJECT_COLOUR(textColour));
 }
 
 
