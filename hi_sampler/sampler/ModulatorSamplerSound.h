@@ -307,6 +307,8 @@ public:
 
 	bool noteRangeExceedsMaxPitch() const;
 
+    double getMaxPitchRatio() const;
+    
 	void loadEntireSampleIfMaxPitch();
 
 	// ====================================================================================================================

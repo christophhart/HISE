@@ -288,7 +288,7 @@ public:
 	void setTemporaryVoiceBuffer(hlac::HiseSampleBuffer* buffer);
 
 	/** Call this once for every sampler. */
-	static void initTemporaryVoiceBuffer(hlac::HiseSampleBuffer* bufferToUse, int samplesPerBlock);
+	static void initTemporaryVoiceBuffer(hlac::HiseSampleBuffer* bufferToUse, int samplesPerBlock, double maxPitchRatio);
 
 	void setPitchCounterForThisBlock(double p) noexcept { pitchCounter = p; }
 

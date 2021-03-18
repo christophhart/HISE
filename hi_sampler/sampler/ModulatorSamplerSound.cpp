@@ -105,11 +105,11 @@ ModulatorSamplerSound::ModulatorSamplerSound(SampleMap* parent, const ValueTree&
 		loadSampleFromValueTree(data, hmaf);	
 	}
 
-
 	firstSound = soundArray.getFirst();
 
-	
-
+    for(auto s: soundArray)
+        s->setDelayPreloadInitialisation(true);
+    
 	ScopedValueSetter<bool> svs(enableAsyncPropertyChange, false);
 
 	for (int i = 0; i < data.getNumProperties(); i++)
@@ -118,19 +118,9 @@ ModulatorSamplerSound::ModulatorSamplerSound(SampleMap* parent, const ValueTree&
 
 		updateInternalData(id_, data.getProperty(id_));
 	}
-
-#if 0
-	if (firstSound.get()->isMonolithic())
-	{
-		const int64 offset = firstSound->getMonolithOffset();
-		const int64 length = firstSound->getMonolithLength();
-		const double sampleRate = firstSound->getMonolithSampleRate();
-
-		data.setProperty("MonolithOffset", offset, nullptr);
-		data.setProperty("MonolithLength", length, nullptr);
-		data.setProperty("SampleRate", sampleRate, nullptr);
-	}
-#endif
+    
+    for(auto s: soundArray)
+        s->setDelayPreloadInitialisation(false);
 }
 
 ModulatorSamplerSound::~ModulatorSamplerSound()
@@ -280,16 +270,21 @@ Range<int> ModulatorSamplerSound::getVelocityRange() const {
 float ModulatorSamplerSound::getPropertyVolume() const noexcept { return gain.load(); }
 double ModulatorSamplerSound::getPropertyPitch() const noexcept { return pitchFactor.load(); }
 
+double ModulatorSamplerSound::getMaxPitchRatio() const
+{
+    if (auto s = getReferenceToSound())
+    {
+        int hiKey = (int)getSampleProperty(SampleIds::HiKey);
+        int root = (int)getSampleProperty(SampleIds::Root);
+        return s->getPitchFactor(hiKey, root);
+    }
+    
+    return 1.0;
+}
+    
 bool ModulatorSamplerSound::noteRangeExceedsMaxPitch() const
 {
-	if (auto s = getReferenceToSound())
-	{
-		auto pf = s->getPitchFactor(midiNotes.getHighestBit(), rootNote);
-
-		return pf > (double)MAX_SAMPLER_PITCH;
-	}
-
-	return false;
+    return getMaxPitchRatio() > (double)MAX_SAMPLER_PITCH;
 }
 
 void ModulatorSamplerSound::loadEntireSampleIfMaxPitch()
