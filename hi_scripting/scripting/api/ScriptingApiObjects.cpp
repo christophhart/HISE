@@ -501,6 +501,7 @@ ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScript
 	addConstant("data", var(data));
 
 	callback.setThisObject(this);
+	callback.incRefCount();
 
 	ADD_API_METHOD_0(resume);
 	ADD_API_METHOD_0(stop);
