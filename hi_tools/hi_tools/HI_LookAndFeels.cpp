@@ -844,6 +844,54 @@ void FrontendKnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/
 	g.drawImageAt(clip, 0, 0);
 }
 
+void AlertWindowLookAndFeel::drawButtonText(Graphics &g, TextButton &button, bool /*isMouseOverButton*/, bool /*isButtonDown*/)
+{
+	Font font(getTextButtonFont(button, button.getHeight()));
+	g.setFont(font);
+
+	auto c = button.findColour(HiseColourScheme::ComponentTextColourId);
+
+	if (c == Colours::black)
+		c = dark;
+
+	g.setColour(c.withMultipliedAlpha(button.isEnabled() ? 1.0f : 0.5f));
+
+	const int yIndent = jmin(4, button.proportionOfHeight(0.3f));
+	const int cornerSize = jmin(button.getHeight(), button.getWidth()) / 2;
+
+	const int fontHeight = roundToInt(font.getHeight() * 0.6f);
+	const int leftIndent = jmin(fontHeight, 2 + cornerSize / (button.isConnectedOnLeft() ? 4 : 2));
+	const int rightIndent = jmin(fontHeight, 2 + cornerSize / (button.isConnectedOnRight() ? 4 : 2));
+
+	g.drawFittedText(button.getButtonText(),
+		leftIndent,
+		yIndent,
+		button.getWidth() - leftIndent - rightIndent,
+		button.getHeight() - yIndent * 2,
+		Justification::centred, 2);
+}
+
+void AlertWindowLookAndFeel::drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/, bool isMouseOverButton, bool isButtonDown)
+{
+	auto c = button.findColour(HiseColourScheme::ComponentBackgroundColour);
+
+	if (c == Colours::black)
+		c = bright;
+
+	Colour baseColour(c.withMultipliedSaturation(button.hasKeyboardFocus(true) ? 1.3f : 0.9f)
+		.withMultipliedAlpha(button.isEnabled() ? 0.9f : 0.5f));
+
+	if (isButtonDown || isMouseOverButton)
+		baseColour = baseColour.contrasting(isButtonDown ? 0.2f : 0.1f);
+
+	g.setColour(baseColour);
+
+	const float width = (float)button.getWidth();
+	const float height = (float)button.getHeight();
+
+	g.fillRoundedRectangle(0.f, 0.f, width, height, 3.0f);
+}
+
 void AlertWindowLookAndFeel::drawAlertBox(Graphics &g, AlertWindow &alert, const Rectangle< int > &textArea, juce::TextLayout &textLayout)
 {
 	ColourGradient grad(dark.withMultipliedBrightness(1.4f), 0.0f, 0.0f,

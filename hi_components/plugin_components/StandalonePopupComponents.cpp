@@ -176,6 +176,9 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	diskModeSelector->setLookAndFeel(&plaf);
 	clearMidiLearn->setLookAndFeel(&blaf);
 	
+	for (int i = 0; i < getNumChildComponents(); i++)
+		HiseColourScheme::setDefaultColours(*getChildComponent(i));
+
 	debugButton->setLookAndFeel(&blaf);
 	clearMidiLearn->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 	clearMidiLearn->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
@@ -202,6 +205,13 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 		for (int i = 0; i < getNumChildComponents(); i++)
 		{
 			getChildComponent(i)->setLookAndFeel(slaf.get());
+		}
+	}
+	else
+	{
+		for (int i = 0; i < getNumChildComponents(); i++)
+		{
+			getChildComponent(i)->setLookAndFeel(&glaf);
 		}
 	}
 
