@@ -150,15 +150,7 @@ public:
 		return getTextForName();
 	}
 
-	void rightClickCallback(const MouseEvent& e, Component* componentToNotify) override
-	{
-		var v = getVariantCopy();
-
-		if (v.isObject() || v.isArray())
-		{
-			DebugableObject::Helpers::showJSONEditorForObject(e, componentToNotify, v, getTextForName());
-		}
-	}
+	void rightClickCallback(const MouseEvent& e, Component* componentToNotify) override;
 
 	virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify);
 
@@ -187,6 +179,10 @@ protected:
 		else if (v.isArray())
 		{
 			return varArrayToString(*v.getArray());
+		}
+		else if (v.isBuffer())
+		{
+			return v.getBuffer()->toDebugString();
 		}
 		else return v.toString();
 	}
