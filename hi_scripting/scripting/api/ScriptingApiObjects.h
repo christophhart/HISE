@@ -216,6 +216,9 @@ public:
 		/** Replaces the file content with the JSON data. */
 		bool writeObject(var jsonData);
 
+		/** Writes the given data (either a Buffer or Array of Buffers) to a audio file. */
+		bool writeAudioFile(var audioData, double sampleRate, int bitDepth);
+
 		/** Replaces the file content with the given text. */
 		bool writeString(String text);
 

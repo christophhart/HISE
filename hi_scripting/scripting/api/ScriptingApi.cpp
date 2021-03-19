@@ -895,6 +895,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getLatencySamples);
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 	API_METHOD_WRAPPER_1(Engine, getSystemTime);
+	API_METHOD_WRAPPER_1(Engine, loadAudioFileIntoBufferArray);
 };
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
@@ -981,6 +982,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(createAndRegisterAudioFile);
 	ADD_API_METHOD_1(loadFont);
 	ADD_API_METHOD_2(loadFontAs);
+	ADD_API_METHOD_1(loadAudioFileIntoBufferArray);
 	ADD_API_METHOD_1(setGlobalFont);
 	ADD_API_METHOD_1(extendTimeOut);
 	ADD_API_METHOD_0(getControlRateDownsamplingFactor);
@@ -1746,6 +1748,32 @@ var ScriptingApi::Engine::loadAudioFilesIntoPool()
 		ar.add(ref.getReferenceString());
 
 	return var(ar);
+}
+
+var ScriptingApi::Engine::loadAudioFileIntoBufferArray(String audioFileReference)
+{
+	PoolReference ref(getScriptProcessor()->getMainController_(), audioFileReference, FileHandlerBase::AudioFiles);
+
+	auto pool = getScriptProcessor()->getMainController_()->getActiveFileHandler()->pool.get();
+
+	if (auto e = getScriptProcessor()->getMainController_()->getExpansionHandler().getExpansionForWildcardReference(ref.getReferenceString()))
+	{
+		pool = e->pool.get();
+	}
+
+	if (auto audioData = pool->getAudioSampleBufferPool().loadFromReference(ref, PoolHelpers::LoadAndCacheStrong))
+	{
+		auto& b = audioData->data;
+
+		Array<var> channels;
+
+		for (int i = 0; i < b.getNumChannels(); i++)
+			channels.add(var(new VariantBuffer(b.getWritePointer(i), b.getNumSamples())));
+
+		return channels;
+	}
+	else
+		reportScriptError("Can't load audio file " + ref.getReferenceString());
 }
 
 void ScriptingApi::Engine::loadImageIntoPool(const String& id)

@@ -360,6 +360,9 @@ public:
 		/** Calling this makes sure that all audio files are loaded into the pool and will be available in the compiled plugin. Returns a list of all references. */
 		var loadAudioFilesIntoPool();
 
+		/** Loads a file and returns its content as array of Buffers. */
+		var loadAudioFileIntoBufferArray(String audioFileReference);
+
 		/** Loads an image into the pool. You can use a wildcard to load multiple images at once. */
 		void loadImageIntoPool(const String& id);
 

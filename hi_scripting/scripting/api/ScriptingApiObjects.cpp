@@ -196,6 +196,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, writeObject);
 	API_METHOD_WRAPPER_1(ScriptFile, writeString);
 	API_METHOD_WRAPPER_2(ScriptFile, writeEncryptedObject);
+	API_METHOD_WRAPPER_3(ScriptFile, writeAudioFile);
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsString);
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsObject);
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
@@ -234,6 +235,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_1(writeObject);
 	ADD_API_METHOD_1(writeString);
 	ADD_API_METHOD_2(writeEncryptedObject);
+	ADD_API_METHOD_3(writeAudioFile);
 	ADD_API_METHOD_0(loadAsString);
 	ADD_API_METHOD_0(loadAsObject);
 	ADD_API_METHOD_1(loadEncryptedObject);
@@ -288,6 +290,121 @@ bool ScriptingObjects::ScriptFile::writeObject(var jsonData)
 {
 	auto text = JSON::toString(jsonData);
 	return writeString(text);
+}
+
+bool ScriptingObjects::ScriptFile::writeAudioFile(var audioData, double sampleRate, int bitDepth)
+{
+	if (f.isDirectory())
+		reportScriptError("Can't write audio data to a directory target");
+
+	AudioFormatManager afm;
+	afm.registerBasicFormats();
+
+	auto fileFormat = f.getFileExtension();
+
+	int numChannels = 1;
+	int numSamples = -1;
+	int index = 0;
+	bool needsBuffering = false;
+
+	auto setIfEqual = [&](int s)
+	{
+		if (numSamples == -1)
+			numSamples = s;
+		else if (numSamples != s)
+			reportScriptError("Size mismatch at channel " + index);
+
+		index++;
+	};
+
+	if (audioData.isArray())
+	{
+		if (audioData[0].isBuffer() || audioData[0].isArray())
+		{
+			numChannels = audioData.size();
+
+			for (const auto& a : *audioData.getArray())
+			{
+				if (a.isArray())
+				{
+					setIfEqual(a.size());
+					needsBuffering = true;
+				}
+				else if (a.isBuffer())
+					setIfEqual(a.getBuffer()->size);
+			}
+		}
+		else
+		{
+			numSamples = audioData.size();
+			needsBuffering = true;
+		}
+	}
+	else if (audioData.isBuffer())
+	{
+		numSamples = audioData.getBuffer()->size;
+	}
+	
+	if (numSamples == -1)
+		reportScriptError("Incompatible data");
+
+	if (auto m = afm.findFormatForFileExtension(fileFormat))
+	{
+		f.deleteFile();
+		FileOutputStream* fos = new FileOutputStream(f);
+
+		ScopedPointer<AudioFormatWriter> w = m->createWriterFor(fos, sampleRate, numChannels, bitDepth, {}, 9);
+		float** channels = (float**)alloca(sizeof(float**) * numChannels);
+		AudioSampleBuffer b;
+
+		if (needsBuffering)
+		{
+			b = AudioSampleBuffer(numChannels, numSamples);
+
+			if (numChannels == 1)
+			{
+				for (int i = 0; i < audioData.size(); i++)
+				{
+					auto value = (float)audioData[i];
+					FloatSanitizers::sanitizeFloatNumber(value);
+					b.setSample(0, i, value);
+				}
+			}
+			else
+			{
+				for (int c = 0; c < audioData.size(); c++)
+				{
+					for (int i = 0; i < audioData.size(); i++)
+					{
+						auto value = (float)audioData[c][i];
+						FloatSanitizers::sanitizeFloatNumber(value);
+						b.setSample(c, i, value);
+					}
+				}
+			}
+		}
+		else
+		{
+			if (audioData.isBuffer())
+			{
+				channels[0] = audioData.getBuffer()->buffer.getWritePointer(0);
+			}
+			else
+			{
+				for (int i = 0; i < audioData.size(); i++)
+				{
+					jassert(audioData[i].isBuffer());
+					channels[i] = audioData[i].getBuffer()->buffer.getWritePointer(0);
+				}
+			}
+
+			b = AudioSampleBuffer(channels, numChannels, numSamples);
+		}
+
+		return w->writeFromAudioSampleBuffer(b, 0, numSamples);
+	}
+	else
+		reportScriptError("Can't find audio format for file extension " + fileFormat);
 }
 
 bool ScriptingObjects::ScriptFile::writeString(String text)
