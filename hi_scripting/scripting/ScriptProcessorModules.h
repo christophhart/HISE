@@ -129,6 +129,8 @@ public:
 		return storedModuleIds;
 	}
 
+	ScriptingApi::Server::WeakPtr getServerObject() { return serverObject; }
+
 private:
 
 	struct DeferredExecutioner : public LockfreeAsyncUpdater
@@ -201,6 +203,8 @@ private:
 
 	ReferenceCountedObjectPtr<ScriptingApi::Message> currentMidiMessage;
 	ReferenceCountedObjectPtr<ScriptingApi::Engine> engineObject;
+
+	ScriptingApi::Server::WeakPtr serverObject;
 
 	ScriptingApi::Sampler *samplerObject;
 	ScriptingApi::Synth *synthObject;

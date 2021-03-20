@@ -908,19 +908,11 @@ class JavascriptThreadPool : public Thread,
 {
 public:
 
-	JavascriptThreadPool(MainController* mc) :
-		Thread("Javascript Thread"),
-		ControlledObject(mc),
-		lowPriorityQueue(8192),
-		highPriorityQueue(2048),
-		compilationQueue(128),
-		deferredPanels(1024)
-	{
-		startThread(6);
-	}
+	JavascriptThreadPool(MainController* mc);
 
 	~JavascriptThreadPool()
 	{
+		globalServer = nullptr;
 		stopThread(1000);
 	}
 
@@ -994,7 +986,11 @@ public:
 
 	void killVoicesAndExtendTimeOut(JavascriptProcessor* jp, int milliseconds=1000);
 
+	GlobalServer* getGlobalServer() { return globalServer.get(); }
+
 private:
+
+	ScopedPointer<GlobalServer> globalServer;
 
 	using PendingCompilationList = Array<WeakReference<JavascriptProcessor>>;
 

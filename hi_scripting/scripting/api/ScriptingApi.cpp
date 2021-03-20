@@ -4732,9 +4732,11 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ApiClass(4),
 	ScriptingObject(dynamic_cast<ProcessorWithScriptingContent*>(jp_)),
 	jp(jp_),
-	internalThread(*this),
+	globalServer(*getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getGlobalServer()),
 	serverCallback(getScriptProcessor(), {}, 1)
 {
+	globalServer.addListener(this);
+
 	addConstant("StatusNoConnection", StatusNoConnection);
 	addConstant("StatusOK", StatusOK);
 	addConstant("StatusNotFound", StatusNotFound);
@@ -4753,48 +4755,34 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 
 void ScriptingApi::Server::setBaseURL(String url)
 {
-	baseURL = URL(url);
-	internalThread.startThread();
+	globalServer.setBaseURL(url);
 }
 
 void ScriptingApi::Server::callWithGET(String subURL, var parameters, var callback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		if (serverCallback && internalThread.pendingCallbacks.isEmpty())
-			serverCallback.call1(true);
-
-		PendingCallback::Ptr p = new PendingCallback(getScriptProcessor(), callback);
+		GlobalServer::PendingCallback::Ptr p = new GlobalServer::PendingCallback(getScriptProcessor(), callback);
 		p->url = getWithParameters(subURL, parameters);
 		p->isPost = false;
-		p->extraHeader = extraHeader;
-
-		internalThread.notify();
-		internalThread.pendingCallbacks.add(p);
+		globalServer.addPendingCallback(p);
 	}
 }
 
 void ScriptingApi::Server::callWithPOST(String subURL, var parameters, var callback)
 {
-
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		if (serverCallback && internalThread.pendingCallbacks.isEmpty())
-			serverCallback.call1(true);
-
-		PendingCallback::Ptr p = new PendingCallback(getScriptProcessor(), callback);
+		GlobalServer::PendingCallback::Ptr p = new GlobalServer::PendingCallback(getScriptProcessor(), callback);
 		p->url = getWithParameters(subURL, parameters);
-		p->extraHeader = extraHeader;
 		p->isPost = true;
-
-		internalThread.notify();
-		internalThread.pendingCallbacks.add(p);
+		globalServer.addPendingCallback(p);
 	}
 }
 
 void ScriptingApi::Server::setHttpHeader(String newHeader)
 {
-	extraHeader = newHeader;
+	globalServer.setHttpHeader(newHeader);
 }
 
 var ScriptingApi::Server::downloadFile(String subURL, var parameters, var targetFile, var callback)
@@ -4812,19 +4800,7 @@ var ScriptingApi::Server::downloadFile(String subURL, var parameters, var target
 		if(urlToUse.isWellFormed())
 		{
 			ScriptingObjects::ScriptDownloadObject::Ptr p = new ScriptingObjects::ScriptDownloadObject(getScriptProcessor(), urlToUse, sf->f, callback);
-
-			ScopedLock sl(internalThread.queueLock);
-
-			for (auto ep : internalThread.pendingDownloads)
-			{
-				if (*p == *ep)
-					return var(ep);
-			}
-
-			internalThread.pendingDownloads.add(p);
-			internalThread.notify();
-
-			return var(p);
+			return globalServer.addDownload(p);
 		}
 	}
 	else
@@ -4837,19 +4813,12 @@ var ScriptingApi::Server::downloadFile(String subURL, var parameters, var target
 
 var ScriptingApi::Server::getPendingDownloads()
 {
-	Array<var> list;
-
-	for (auto p : internalThread.pendingDownloads)
-	{
-		list.add(var(p));
-	}
-
-	return list;
+	return globalServer.getPendingDownloads();
 }
 
 void ScriptingApi::Server::setNumAllowedDownloads(int maxNumberOfParallelDownloads)
 {
-	internalThread.numMaxDownloads = maxNumberOfParallelDownloads;
+	globalServer.setNumAllowedDownloads(maxNumberOfParallelDownloads);
 }
 
 bool ScriptingApi::Server::isOnline()
@@ -4873,7 +4842,7 @@ bool ScriptingApi::Server::isOnline()
 
 void ScriptingApi::Server::cleanFinishedDownloads()
 {
-	internalThread.cleanDownloads = true;
+	globalServer.cleanFinishedDownloads();
 }
 
 void ScriptingApi::Server::setServerCallback(var callback)
@@ -4882,95 +4851,11 @@ void ScriptingApi::Server::setServerCallback(var callback)
 	serverCallback.incRefCount();
 }
 
-juce::URL ScriptingApi::Server::getWithParameters(String subURL, var parameters)
-{
-	auto url = baseURL.getChildURL(subURL);
 
-	if (auto d = parameters.getDynamicObject())
-	{
-		for (auto& p : d->getProperties())
-			url = url.withParameter(p.name.toString(), p.value.toString());
-	}
 
-	return url;
-}
 
-void ScriptingApi::Server::WebThread::run()
-{
-	while (!threadShouldExit())
-	{
-		if (parent.getScriptProcessor()->getMainController_()->getKillStateHandler().initialised())
-		{
-			{
-				ScopedLock sl(queueLock);
 
-				int numActiveDownloads = 0;
 
-				for (int i = 0; i < pendingDownloads.size(); i++)
-				{
-					auto d = pendingDownloads[i];
-
-					if (d->isWaitingForStart && numActiveDownloads < numMaxDownloads)
-						d->start();
-
-					if (d->isWaitingForStop)
-						d->stopInternal();
-
-					if (d->isRunning())
-					{
-						if (numActiveDownloads >= numMaxDownloads)
-							d->stop();
-						else
-							numActiveDownloads++;
-					}
-					
-					if (cleanDownloads && d->isFinished)
-						pendingDownloads.remove(i--);
-				}
-
-				cleanDownloads = false;
-			}
-
-			bool shouldFireServerCallback = false;
-
-			while (auto job = pendingCallbacks.removeAndReturn(0))
-			{
-				ScopedPointer<WebInputStream> wis;
-
-				wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &job->status));
-
-				auto response = wis != nullptr ? wis->readEntireStreamAsString() : "{}";
-				std::array<var, 2> args;
-
-				args[0] = job->status;
-				auto r = JSON::parse(response, args[1]);
-
-				if (!r.wasOk())
-				{
-					args[0] = 500;
-					args[1] = var(new DynamicObject());
-					args[1].getDynamicObject()->setProperty("error", r.getErrorMessage());
-				}
-
-				job->f.call(args);
-
-				shouldFireServerCallback = true;
-			}
-
-			if (shouldFireServerCallback && parent.serverCallback)
-			{
-				parent.serverCallback.call1(false);
-			}
-
-			Thread::wait(500);
-		}
-		else
-		{
-			// We postpone each server call until the thingie is loaded...
-			Thread::wait(200);
-		}
-	}
-}
 
 
 } // namespace hise

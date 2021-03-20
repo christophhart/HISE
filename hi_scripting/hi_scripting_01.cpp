@@ -56,6 +56,7 @@
 
 #include "scripting/api/ScriptingApiObjects.cpp"
 #include "scripting/api/ScriptExpansion.cpp"
+#include "scripting/api/GlobalServer.cpp"
 #include "scripting/api/ScriptingApi.cpp"
 
 

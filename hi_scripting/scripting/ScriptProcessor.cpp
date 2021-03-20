@@ -1810,6 +1810,18 @@ float ScriptBaseMidiProcessor::getDefaultValue(int index) const
 	return 0.0f;
 }
 
+JavascriptThreadPool::JavascriptThreadPool(MainController* mc) :
+	Thread("Javascript Thread"),
+	ControlledObject(mc),
+	lowPriorityQueue(8192),
+	highPriorityQueue(2048),
+	compilationQueue(128),
+	deferredPanels(1024),
+	globalServer(new GlobalServer(mc))
+{
+	startThread(6);
+}
+
 void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Task::Function& f)
 {
 	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::StringCreation);
