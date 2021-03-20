@@ -292,7 +292,11 @@ public:
 	/** Returns a list of all available audio files in the expansion. */
 	var getAudioFileList() const;
 
+	/** Returns a list of all available MIDI files in the expansion. */
 	var getMidiFileList() const;
+
+	/** Returns a list of all available data files in the expansion. */
+	var getDataFileList() const;
 
 	/** Returns the folder where this expansion looks for samples. */
 	var getSampleFolder();

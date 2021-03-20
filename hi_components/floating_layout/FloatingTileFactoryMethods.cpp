@@ -77,6 +77,8 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ScriptComponentList::Panel>(PopupMenuOptions::ScriptComponentList);
 	registerType<MarkdownEditorPanel>(PopupMenuOptions::MarkdownEditor);
 
+	registerType<ServerControllerPanel>(PopupMenuOptions::ServerController);
+
 	registerType<scriptnode::DspNetworkGraphPanel>(PopupMenuOptions::DspNetworkGraph);
 	registerType<scriptnode::NodePropertyPanel>(PopupMenuOptions::DspNodeParameterEditor);
 #endif
@@ -350,6 +352,13 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 #endif
 		break;
 	}
+	case FloatingTileContent::Factory::PopupMenuOptions::ServerController:
+	{
+#if USE_BACKEND
+		path.loadPathFromData(MainToolbarIcons::web, sizeof(MainToolbarIcons::web));
+#endif
+		break;
+	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptComponentList:
 	{
 #if USE_BACKEND
@@ -596,6 +605,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::DspNetworkGraph, "DSP Network Graph");
 			addToPopupMenu(m, PopupMenuOptions::DspNodeParameterEditor, "DSP Network Node Editor");
 			addToPopupMenu(m, PopupMenuOptions::RLottieDevPanel, "Lottie Dev Panel");
+			addToPopupMenu(m, PopupMenuOptions::ServerController, "Server Controller");
 
 			m.addSectionHeader("Sampler Tools");
 
@@ -736,6 +746,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ModuleBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ModuleBrowser>)); break;
 	case PopupMenuOptions::SamplePoolTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<SamplePoolTable>)); break;
 	case PopupMenuOptions::SampleMapBrowser:	parent->setNewContent(GET_PANEL_NAME(SampleMapBrowser)); break;
+	case PopupMenuOptions::ServerController:	parent->setNewContent(GET_PANEL_NAME(ServerControllerPanel)); break;
 	case PopupMenuOptions::AboutPage:			parent->setNewContent(GET_PANEL_NAME(AboutPagePanel)); break;
 #if HISE_INCLUDE_RLOTTIE
 	case PopupMenuOptions::RLottieDevPanel:		parent->setNewContent(GET_PANEL_NAME(RLottieFloatingTile));

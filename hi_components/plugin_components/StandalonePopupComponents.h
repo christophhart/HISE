@@ -177,6 +177,7 @@ public:
 
 private:
 
+	GlobalHiseLookAndFeel glaf;
 	friend class CustomSettingsWindowPanel;
 
     Font font;

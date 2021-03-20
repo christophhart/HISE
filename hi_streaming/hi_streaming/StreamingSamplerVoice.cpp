@@ -207,11 +207,14 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		{
 			const int index = (int)readIndexDouble;
 			StereoChannelData returnData;
-			returnData.b = localReadBuffer;
-			returnData.offsetInBuffer = index;
-			return returnData;
+            
+            if(isPositiveAndBelow(maxSampleIndexForFillOperation, localReadBuffer->getNumSamples()))
+            {
+                returnData.b = localReadBuffer;
+                returnData.offsetInBuffer = index;
+                return returnData;
+            }
 		}
-		
 
 		const int indexBeforeWrap = jmax<int>(0, (int)(readIndexDouble));
 		const int numSamplesInFirstBuffer = localReadBuffer->getNumSamples() - indexBeforeWrap;
@@ -233,39 +236,54 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		if (numSamplesInFirstBuffer > 0)
 		{
-			hlac::HiseSampleBuffer::copy(voiceBuffer, *localReadBuffer, 0, indexBeforeWrap, numSamplesInFirstBuffer);
+            hlac::HiseSampleBuffer::copy(voiceBuffer, *localReadBuffer, 0, indexBeforeWrap, numSamplesInFirstBuffer);
 		}
 
 		const int offset = numSamplesInFirstBuffer;
-		const int numSamplesAvailableInSecondBuffer = localWriteBuffer->getNumSamples() - offset;
-
-		if ((numSamplesAvailableInSecondBuffer > 0) && (numSamplesAvailableInSecondBuffer <= localWriteBuffer->getNumSamples()))
-		{
-			//const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
-
-			int numSamplesToCopyFromSecondBuffer = (int)(ceil(numSamples - (double)numSamplesInFirstBuffer)) + 1;
-
-			numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesToCopyFromSecondBuffer, numSamplesAvailableInSecondBuffer);
-
-			if (writeBufferIsBeingFilled || entireSampleIsLoaded)
-				voiceBuffer.clear(offset, numSamplesToCopyFromSecondBuffer);
-			else
-				hlac::HiseSampleBuffer::copy(voiceBuffer, *localWriteBuffer, offset, 0, numSamplesToCopyFromSecondBuffer);
-		}
-		else
-		{
-			// The streaming buffers must be greater than the block size!
-			jassertfalse;
-			voiceBuffer.clear();
-		}
-
+        int numSamplesToCopyFromSecondBuffer = (int)(ceil(numSamples - (double)numSamplesInFirstBuffer)) + 1;
+        
+        if(entireSampleIsLoaded)
+        {
+            if(sound.get()->isLoopEnabled())
+            {
+                auto offsetInLoop = localReadBuffer->getNumSamples() - sound.get()->getLoopEnd();
+                auto startInBuffer = sound.get()->getLoopStart() + offsetInLoop;
+                
+                hlac::HiseSampleBuffer::copy(voiceBuffer, *localReadBuffer, offset, startInBuffer, numSamplesToCopyFromSecondBuffer);
+            }
+            else
+            {
+                voiceBuffer.clear(offset, numSamplesToCopyFromSecondBuffer);
+            }
+        }
+        else
+        {
+            const int numSamplesAvailableInSecondBuffer = localWriteBuffer->getNumSamples() - offset;
+            
+            if ((numSamplesAvailableInSecondBuffer > 0) && (numSamplesAvailableInSecondBuffer <= localWriteBuffer->getNumSamples()))
+            {
+                //const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
+                
+                numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesToCopyFromSecondBuffer, numSamplesAvailableInSecondBuffer);
+                
+                if (writeBufferIsBeingFilled || entireSampleIsLoaded)
+                    voiceBuffer.clear(offset, numSamplesToCopyFromSecondBuffer);
+                else
+                    hlac::HiseSampleBuffer::copy(voiceBuffer, *localWriteBuffer, offset, 0, numSamplesToCopyFromSecondBuffer);
+            }
+            else
+            {
+                // The streaming buffers must be greater than the block size!
+                jassertfalse;
+                voiceBuffer.clear();
+            }
+        }
+        
 		StereoChannelData returnData;
 
 		returnData.b = &voiceBuffer;
 		returnData.offsetInBuffer = 0;
 
-
-		
 
 #if USE_SAMPLE_DEBUG_COUNTER
 
@@ -309,6 +327,14 @@ bool SampleLoader::advanceReadIndex(double uptime)
 	{
 		if (entireSampleIsLoaded)
 		{
+            if(sound.get()->isLoopEnabled())
+            {
+                auto loopLengthDouble = (double)sound.get()->getLoopLength();
+                
+                lastSwapPosition += loopLengthDouble;
+                readIndexDouble = uptime - lastSwapPosition;
+            }
+            
 			return true;
 		}
 		else
@@ -699,6 +725,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		auto tempVoiceBuffer = getTemporaryVoiceBuffer();
 
 		jassert(tempVoiceBuffer != nullptr);
+        jassert(isPositiveAndBelow(pitchCounter+startAlpha, (double)tempVoiceBuffer->getNumSamples()));
 
 		// Copy the not resampled values into the voice buffer.
 		StereoChannelData data = loader.fillVoiceBuffer(*tempVoiceBuffer, pitchCounter + startAlpha);
@@ -864,14 +891,16 @@ void StreamingSamplerVoice::setTemporaryVoiceBuffer(hlac::HiseSampleBuffer* buff
 	tvb = buffer;
 }
 
-void StreamingSamplerVoice::initTemporaryVoiceBuffer(hlac::HiseSampleBuffer* bufferToUse, int samplesPerBlock)
+void StreamingSamplerVoice::initTemporaryVoiceBuffer(hlac::HiseSampleBuffer* bufferToUse, int samplesPerBlock, double maxPitchRatio)
 {
 	// The channel amount must be set correctly in the constructor
 	jassert(bufferToUse->getNumChannels() > 0);
 
-	if (bufferToUse->getNumSamples() < samplesPerBlock*MAX_SAMPLER_PITCH)
+    auto requiredSampleAmount = roundToInt((double)samplesPerBlock* maxPitchRatio);
+    
+	if (bufferToUse->getNumSamples() < requiredSampleAmount)
 	{
-		bufferToUse->setSize(bufferToUse->getNumChannels(), samplesPerBlock*MAX_SAMPLER_PITCH);
+		bufferToUse->setSize(bufferToUse->getNumChannels(), requiredSampleAmount);
 		bufferToUse->clear();
 	}
 }

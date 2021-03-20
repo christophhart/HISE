@@ -160,6 +160,7 @@ public:
 	var getSample(int sampleIndex);
 	void setSample(int sampleIndex, float newValue);
 
+	String toDebugString() const;
 	
 	class Factory : public DynamicObject
 	{

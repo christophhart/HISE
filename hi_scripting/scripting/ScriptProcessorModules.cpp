@@ -69,6 +69,8 @@ JavascriptMidiProcessor::~JavascriptMidiProcessor()
 	cleanupEngine();
 	clearExternalWindows();
 
+	serverObject = nullptr;
+
 	onInitCallback = nullptr;
 	onNoteOnCallback = nullptr;
 	onNoteOffCallback = nullptr;
@@ -185,7 +187,7 @@ void JavascriptMidiProcessor::registerApiClasses()
 	scriptEngine->registerApiClass(currentMidiMessage);
 	scriptEngine->registerApiClass(engineObject);
 	scriptEngine->registerApiClass(new ScriptingApi::FileSystem(this));
-	scriptEngine->registerApiClass(new ScriptingApi::Server(this));
+	scriptEngine->registerApiClass(serverObject = new ScriptingApi::Server(this));
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerApiClass(new ScriptingApi::Colours());
 	scriptEngine->registerApiClass(synthObject);
@@ -193,7 +195,6 @@ void JavascriptMidiProcessor::registerApiClasses()
     
     scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(this));
     scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
-    
 }
 
 

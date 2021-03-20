@@ -297,6 +297,7 @@ struct ScriptExpansionReference::Wrapper
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getImageList);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getAudioFileList);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getMidiFileList);
+	API_METHOD_WRAPPER_0(ScriptExpansionReference, getDataFileList);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getProperties);
 	API_METHOD_WRAPPER_1(ScriptExpansionReference, loadDataFile);
 	API_METHOD_WRAPPER_2(ScriptExpansionReference, writeDataFile);
@@ -315,6 +316,7 @@ ScriptExpansionReference::ScriptExpansionReference(ProcessorWithScriptingContent
 	ADD_API_METHOD_0(getImageList);
 	ADD_API_METHOD_0(getAudioFileList);
 	ADD_API_METHOD_0(getMidiFileList);
+	ADD_API_METHOD_0(getDataFileList);
 	ADD_API_METHOD_0(getProperties);
 	ADD_API_METHOD_1(loadDataFile);
 	ADD_API_METHOD_2(writeDataFile);
@@ -323,7 +325,6 @@ ScriptExpansionReference::ScriptExpansionReference(ProcessorWithScriptingContent
 	ADD_API_METHOD_1(getWildcardReference);
 	ADD_API_METHOD_1(setSampleFolder);
 	ADD_API_METHOD_0(getSampleFolder);
-
 }
 
 juce::BlowFish* ScriptExpansionReference::createBlowfish()
@@ -422,6 +423,24 @@ var ScriptExpansionReference::getMidiFileList() const
 	RETURN_IF_NO_THROW({});
 }
 
+var ScriptExpansionReference::getDataFileList() const
+{
+	if (objectExists())
+	{
+		auto refList = exp->pool->getAdditionalDataPool().getListOfAllReferences(true);
+
+		Array<var> list;
+
+		for (auto& ref : refList)
+			list.add(ref.getReferenceString());
+
+		return list;
+	}
+
+	reportScriptError("Expansion was deleted");
+	RETURN_IF_NO_THROW({});
+}
+
 var ScriptExpansionReference::getSampleFolder()
 {
 	File sampleFolder = exp->getSubDirectory(FileHandlerBase::Samples);
@@ -451,9 +470,49 @@ bool ScriptExpansionReference::setSampleFolder(var newSampleFolder)
 
 var ScriptExpansionReference::loadDataFile(var relativePath)
 {
-	auto fileToLoad = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
+	if (objectExists())
+	{
+		if (exp->getExpansionType() == Expansion::FileBased)
+		{
+			auto fileToLoad = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
 
-	return JSON::parse(fileToLoad.loadFileAsString());
+			if(fileToLoad.existsAsFile())
+				return JSON::parse(fileToLoad.loadFileAsString());
+
+			reportScriptError("Can't find data file " + fileToLoad.getFullPathName());
+		}
+		else
+		{
+			String rs;
+
+			auto wc = exp->getWildcard();
+			auto path = relativePath.toString();
+
+			if (!path.contains(wc))
+				rs << wc;
+
+			rs << path;
+
+			PoolReference ref(getScriptProcessor()->getMainController_(), rs, FileHandlerBase::AdditionalSourceCode);
+			
+			if (auto o = exp->pool->getAdditionalDataPool().loadFromReference(ref, PoolHelpers::LoadAndCacheStrong))
+			{
+				var obj;
+				auto ok = JSON::parse(o->data.getFile(), obj);
+
+				if (ok.wasOk())
+					return obj;
+
+				reportScriptError("Error at parsing JSON: " + ok.getErrorMessage());
+			}
+			else
+			{
+				reportScriptError("Can't find data file " + ref.getReferenceString());
+			}
+		}
+	}
+
+	return {};
 }
 
 String ScriptExpansionReference::getWildcardReference(var relativePath)
@@ -525,7 +584,7 @@ Result ScriptEncryptedExpansion::encodeExpansion()
 			metadata.setProperty(ExpansionIds::Hash, handler.getEncryptionKey().hashCode64(), nullptr);
 
 			hxiData.addChild(metadata, -1, nullptr);
-			encodePoolAndUserPresets(hxiData, true);
+			encodePoolAndUserPresets(hxiData, false);
 
 #if HISE_USE_XML_FOR_HXI
 			ScopedPointer<XmlElement> xml = hxiData.createXml();
@@ -811,6 +870,7 @@ Result ScriptEncryptedExpansion::initialiseFromValueTree(const ValueTree& hxiDat
 
 	pool->getSampleMapPool().loadAllFilesFromDataProvider();
 	pool->getMidiFilePool().loadAllFilesFromDataProvider();
+	pool->getAdditionalDataPool().loadAllFilesFromDataProvider();
 	checkSubDirectories();
 	return Result::ok();
 }

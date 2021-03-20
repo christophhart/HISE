@@ -118,25 +118,37 @@ struct StereoChannelData
 
 // ==================================================================================================================================================
 
-// This class is a spin off of my upcoming sampler framework, so in order to use it in another project, leave this at '1'
+// If you want to use the streaming engine without anything else from HISE, set this to 1 and implement your own wrapper
 #define STANDALONE 0
 
 // Set this to 1 to replace the sample content with indexes for debugging purposes (it will also mute the sound)
 #define USE_SAMPLE_DEBUG_COUNTER 0
 
 
+/*  This number defines the pitch ratio threshhold (8 = three octaves) that decides whether to load the entire sample into memory.
+ 
+    Rationale: If a sample is played with a high pitch ratio, the streaming engine has to fetch more samples and copy it into the temporary
+    streaming buffers (which size can be set with the `BufferSize` property of the Sampler module). This opposes a minimum size restriction on the
+    streaming buffer size which is dependent on the audio buffer size because there has to be `MAX_SAMPLER_PITCH * AudioBufferSize` available in
+    the streaming buffers. If a sample exceeds that pitch ratio, it will be loaded completely into memory in order to avoid the streaming buffer
+    overrun - and since it will be most likely one or two samples of a sample map that are expanded to the upper hand, the memory consumption of
+    these samples is much lower than having a big streaming buffer available for all voices.
+ 
+    Note: be aware that the pitch ratio detection just takes the *static* pitch ratio into account (HiKey - RootNote). Changing the global pitch,
+    adding pitch modulators or changing the `Pitch` property might lead to a pitch ratio that is above the limit, so be careful when you use these
+    in combination with a high-pitched sample!
+*/
 #if HISE_IOS
-// This is the maximum value for sample pitch manipulation (this means 3 octaves, which should be more than enough
-#define MAX_SAMPLER_PITCH 16
+#define MAX_SAMPLER_PITCH 8
 #else
-#define MAX_SAMPLER_PITCH 16
+#define MAX_SAMPLER_PITCH 8
 #endif
 
 // This is the default preload size. I defined a pretty random value here, but you can change this dynamically.
 #define PRELOAD_SIZE 8192
 
 // Same as the preload size.
-#define BUFFER_SIZE_FOR_STREAM_BUFFERS 8192
+#define BUFFER_SIZE_FOR_STREAM_BUFFERS 4096
 
 // Deactivate this to use one rounded pitch value for one a buffer (crucial for other interpolation methods than linear interpolation)
 #define USE_SAMPLE_ACCURATE_RESAMPLING 0

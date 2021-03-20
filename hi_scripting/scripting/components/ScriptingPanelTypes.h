@@ -357,7 +357,25 @@ private:
 
 };
 
+class ServerControllerPanel : public PanelWithProcessorConnection
+{
+public:
 
+	ServerControllerPanel(FloatingTile* parent) :
+		PanelWithProcessorConnection(parent)
+	{};
+
+	SET_PANEL_NAME("ServerController");
+
+	Identifier getProcessorTypeId() const override;
+
+	Component* createContentComponent(int) override;
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<JavascriptProcessor>(moduleList);
+	}
+};
 
 class ScriptWatchTablePanel : public PanelWithProcessorConnection
 {
@@ -385,6 +403,8 @@ private:
 	const Identifier showConnectionBar;
 
 };
+
+
 
 
 class ConsolePanel : public FloatingTileContent,

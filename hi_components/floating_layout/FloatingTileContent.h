@@ -648,6 +648,7 @@ public:
 			WavetablePreview,
 			AHDSRGraph,
 			MarkdownEditor,
+			ServerController,
 			MarkdownPreviewPanel,
 			FilterGraphPanel,
 			DraggableFilterPanel,

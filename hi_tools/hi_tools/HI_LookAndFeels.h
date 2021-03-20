@@ -1057,7 +1057,7 @@ public:
 
 
 
-class AlertWindowLookAndFeel: public LookAndFeel_V3
+class AlertWindowLookAndFeel: public PopupLookAndFeel
 {
 public:
 
@@ -1116,45 +1116,10 @@ public:
 		g.fillRect(0.0f, 0.0f, (float)width, (float)height);
 	}
  
-	void drawButtonText (Graphics &g, TextButton &button, bool /*isMouseOverButton*/, bool /*isButtonDown*/) override
-	{
-		Font font (getTextButtonFont (button, button.getHeight()));
-		g.setFont (font);
-		g.setColour (dark.withMultipliedAlpha (button.isEnabled() ? 1.0f : 0.5f));
-
-		const int yIndent = jmin (4, button.proportionOfHeight (0.3f));
-		const int cornerSize = jmin (button.getHeight(), button.getWidth()) / 2;
-
-		const int fontHeight = roundToInt (font.getHeight() * 0.6f);
-		const int leftIndent  = jmin (fontHeight, 2 + cornerSize / (button.isConnectedOnLeft() ? 4 : 2));
-		const int rightIndent = jmin (fontHeight, 2 + cornerSize / (button.isConnectedOnRight() ? 4 : 2));
-
-		g.drawFittedText (button.getButtonText(),
-						  leftIndent,
-						  yIndent,
-						  button.getWidth() - leftIndent - rightIndent,
-						  button.getHeight() - yIndent * 2,
-						  Justification::centred, 2);
-	}
+	void drawButtonText (Graphics &g, TextButton &button, bool /*isMouseOverButton*/, bool /*isButtonDown*/) override;
  	
-
 	void drawButtonBackground (Graphics& g, Button& button, const Colour& /*backgroundColour*/,
-                                           bool isMouseOverButton, bool isButtonDown) override
-	{
-		Colour baseColour (bright.withMultipliedSaturation (button.hasKeyboardFocus (true) ? 1.3f : 0.9f)
-										   .withMultipliedAlpha (button.isEnabled() ? 0.9f : 0.5f));
-
-		if (isButtonDown || isMouseOverButton)
-			baseColour = baseColour.contrasting (isButtonDown ? 0.2f : 0.1f);
-
-		g.setColour(baseColour);
-
-		const float width  = (float)button.getWidth();
-		const float height = (float)button.getHeight();
-
-		g.fillRoundedRectangle(0.f, 0.f, width, height, 3.0f);
-
-	}
+                                           bool isMouseOverButton, bool isButtonDown) override;
  
 	Font getAlertWindowFont () override
 	{
@@ -1250,7 +1215,7 @@ private:
 
 };
 
-class GlobalHiseLookAndFeel: public PopupLookAndFeel
+class GlobalHiseLookAndFeel: public AlertWindowLookAndFeel
 {
 public:
 
