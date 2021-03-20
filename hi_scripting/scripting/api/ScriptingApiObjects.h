@@ -383,6 +383,9 @@ public:
 		/** Resumes the download. */
 		bool resume();
 
+		/** Aborts the download and deletes the file that was downloaded. */
+		bool abort();
+
 		/** Checks if the download is currently active. */
 		bool isRunning();
 
@@ -403,9 +406,6 @@ public:
 
 		/** Returns the target file if the download has succeeded. */
 		var getDownloadedTarget();
-
-		/** Sets the maximum amount of allowed downloads. */
-		void setNumAllowedDownloads(int maxNumber);
 
 		/** Returns a descriptive text of the current download state (eg. "Downloading" or "Paused"). */
 		String getStatusText();
@@ -431,6 +431,7 @@ public:
 		std::atomic<bool> isWaitingForStart = { true };
 		std::atomic<bool> isRunning_ = { false };
 		std::atomic<bool> isFinished = { false };
+		std::atomic<bool> shouldAbort = { false };
 
 		struct Wrapper;
 

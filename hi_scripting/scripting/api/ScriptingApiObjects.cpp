@@ -483,9 +483,11 @@ struct ScriptingObjects::ScriptDownloadObject::Wrapper
 {
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, resume);
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, stop);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, abort);
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, isRunning);
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, getProgress);
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, getFullURL);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, getStatusText);
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, getDownloadedTarget);
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, getDownloadSpeed);
 };
@@ -505,9 +507,11 @@ ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScript
 
 	ADD_API_METHOD_0(resume);
 	ADD_API_METHOD_0(stop);
+	ADD_API_METHOD_0(abort);
 	ADD_API_METHOD_0(isRunning);
 	ADD_API_METHOD_0(getProgress);
 	ADD_API_METHOD_0(getFullURL);
+	ADD_API_METHOD_0(getStatusText);
 	ADD_API_METHOD_0(getDownloadedTarget);
 	ADD_API_METHOD_0(getDownloadSpeed);
 }
@@ -515,6 +519,12 @@ ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScript
 ScriptingObjects::ScriptDownloadObject::~ScriptDownloadObject()
 {
 	flushTemporaryFile();
+}
+
+bool ScriptingObjects::ScriptDownloadObject::abort()
+{
+	shouldAbort.store(true);
+	return stop();
 }
 
 bool ScriptingObjects::ScriptDownloadObject::stop()
@@ -538,9 +548,15 @@ bool ScriptingObjects::ScriptDownloadObject::stopInternal(bool forceUpdate)
 		isRunning_ = false;
 		isFinished = false;
 
+		if (shouldAbort)
+		{
+			targetFile.deleteFile();
+		}
+
 		data->setProperty("success", false);
 		data->setProperty("finished", true);
 		call(true);
+
 		return true;
 	}
 
@@ -549,7 +565,7 @@ bool ScriptingObjects::ScriptDownloadObject::stopInternal(bool forceUpdate)
 
 bool ScriptingObjects::ScriptDownloadObject::resume()
 {
-	if (!isRunning() && !isFinished)
+	if (!isRunning() && !isFinished && !shouldAbort)
 	{
 		isWaitingForStart = true;
 		return true;
@@ -557,6 +573,8 @@ bool ScriptingObjects::ScriptDownloadObject::resume()
 
 	return false;
 }
+
+
 
 bool ScriptingObjects::ScriptDownloadObject::resumeInternal()
 {
@@ -684,12 +702,7 @@ String ScriptingObjects::ScriptDownloadObject::getFullURL()
 
 var ScriptingObjects::ScriptDownloadObject::getDownloadedTarget()
 {
-	if (isFinished && data->getProperty("success"))
-	{
-		return var(new ScriptFile(getScriptProcessor(), targetFile));
-	}
-
-	return var();
+	return var(new ScriptFile(getScriptProcessor(), targetFile));
 }
 
 String ScriptingObjects::ScriptDownloadObject::getStatusText()
@@ -703,7 +716,7 @@ String ScriptingObjects::ScriptDownloadObject::getStatusText()
 	if (isWaitingForStop)
 		return "Paused";
 
-	return "Unknown";
+	return "Waiting";
 }
 
 void ScriptingObjects::ScriptDownloadObject::finished(URL::DownloadTask*, bool success)
