@@ -407,6 +407,9 @@ public:
 		/** Sets the maximum amount of allowed downloads. */
 		void setNumAllowedDownloads(int maxNumber);
 
+		/** Returns a descriptive text of the current download state (eg. "Downloading" or "Paused"). */
+		String getStatusText();
+
 		// ============================================================================================= End of API
 
 		void finished(URL::DownloadTask*, bool success) override;
@@ -428,24 +431,34 @@ public:
 		std::atomic<bool> isWaitingForStart = { true };
 		std::atomic<bool> isRunning_ = { false };
 		std::atomic<bool> isFinished = { false };
-		std::atomic<bool> callbackPending = { false };
 
 		struct Wrapper;
 
-		bool stopInternal();
+		bool stopInternal(bool forceUpdate=false);
+
+		void copyCallBackFrom(ScriptDownloadObject* other)
+		{
+			callback = std::move(other->callback);
+			callback.setThisObject(this);
+		}
+
+		URL getURL() const { return downloadURL; }
+
+		File getTargetFile() const { return targetFile; }
 
 	private:
 
 		bool resumeInternal();
 
-		
-
 		int64 bytesInLastSecond = 0;
 		int64 bytesInCurrentSecond = 0;
 		int64 lastBytesDownloaded = 0;
 
+		int64 bytesDownloaded_ = 0;
+		int64 totalLength_ = 0;
+
 		int64 existingBytesBeforeResuming = 0;
-		ScopedPointer<TemporaryFile> resumeFile;
+		File resumeFile;
 
 		uint32 lastTimeMs = 0;
 		uint32 lastSpeedMeasure = 0;
@@ -1787,6 +1800,10 @@ public:
 			Image createIcon(PresetHandler::IconType type) override;
 
 			bool functionDefined(const String& s);
+
+			static Identifier getIdOfParentFloatingTile(Component& c);
+
+			static bool addParentFloatingTile(Component& c, DynamicObject* obj);
 		};
 
 		struct Wrapper;
