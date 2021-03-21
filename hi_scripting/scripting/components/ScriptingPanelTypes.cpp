@@ -1260,6 +1260,9 @@ struct ServerController: public Component,
 
 				if (n == "file")
 					d->getTargetFile().revealToUser();
+
+				if (n == "clear")
+					d->abort();
 			}
 		}
 
