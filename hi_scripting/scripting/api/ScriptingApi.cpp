@@ -862,6 +862,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
 	API_VOID_METHOD_WRAPPER_1(Engine, setZoomLevel);
+	API_VOID_METHOD_WRAPPER_1(Engine, setDiskMode);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
 	API_METHOD_WRAPPER_0(Engine, getName);
 	API_METHOD_WRAPPER_0(Engine, getFilterModeList);
@@ -885,7 +886,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, setGlobalFont);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
-	API_VOID_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
+	API_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadImageIntoPool);
 	API_VOID_METHOD_WRAPPER_0(Engine, clearMidiFilePool);
 	API_VOID_METHOD_WRAPPER_0(Engine, clearSampleMapPool);
@@ -893,6 +894,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, setLatencySamples);
 	API_METHOD_WRAPPER_0(Engine, getLatencySamples);
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
+	API_METHOD_WRAPPER_1(Engine, getSystemTime);
+	API_METHOD_WRAPPER_1(Engine, loadAudioFileIntoBufferArray);
 };
 
 #if HISE_INCLUDE_SNEX
@@ -990,6 +993,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getPreloadMessage);
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_1(setZoomLevel);
+	ADD_API_METHOD_1(setDiskMode);
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getName);
 	ADD_API_METHOD_0(getFilterModeList);
@@ -1005,6 +1009,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(createAndRegisterAudioFile);
 	ADD_API_METHOD_1(loadFont);
 	ADD_API_METHOD_2(loadFontAs);
+	ADD_API_METHOD_1(loadAudioFileIntoBufferArray);
 	ADD_API_METHOD_1(setGlobalFont);
 	ADD_API_METHOD_1(extendTimeOut);
 	ADD_API_METHOD_0(getControlRateDownsamplingFactor);
@@ -1022,6 +1027,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_2(getDspNetworkReference);
 	ADD_API_METHOD_0(createExpansionHandler);
 	ADD_API_METHOD_3(showYesNoWindow);
+	ADD_API_METHOD_1(getSystemTime);
 }
 
 ScriptingApi::Engine::~Engine()
@@ -1244,6 +1250,8 @@ String ScriptingApi::Engine::getOS()
 {
 #if JUCE_WINDOWS
 	return "WIN";
+#elif JUCE_LINUX
+	return "LINUX";
 #else
 	return "OSX";
 #endif
@@ -1305,6 +1313,16 @@ void ScriptingApi::Engine::setZoomLevel(double newLevel)
 	gm->setGlobalScaleFactor(newLevel, sendNotificationAsync);
 }
 
+void ScriptingApi::Engine::setDiskMode(int mode)
+{
+	auto mc = dynamic_cast<MainController*>(getScriptProcessor()->getMainController_());
+
+	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
+
+	driver->diskMode = mode;
+	mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)mode);
+}
+	
 var ScriptingApi::Engine::getFilterModeList() const
 {
 	return var(new ScriptingObjects::ScriptingEffect::FilterModeObject(getScriptProcessor()));
@@ -1752,7 +1770,7 @@ void ScriptingApi::Engine::setAllowDuplicateSamples(bool shouldAllow)
 	getProcessor()->getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->setAllowDuplicateSamples(shouldAllow);
 }
 
-void ScriptingApi::Engine::loadAudioFilesIntoPool()
+var ScriptingApi::Engine::loadAudioFilesIntoPool()
 {
 #if USE_BACKEND
 
@@ -1760,7 +1778,43 @@ void ScriptingApi::Engine::loadAudioFilesIntoPool()
 
 	auto pool = getScriptProcessor()->getMainController_()->getCurrentAudioSampleBufferPool();
 	pool->loadAllFilesFromProjectFolder();
+
 #endif
+
+	auto allList = getScriptProcessor()->getMainController_()->getSampleManager().getProjectHandler().pool->getAudioSampleBufferPool().getListOfAllReferences(true);
+
+	Array<var> ar;
+
+	for (auto& ref : allList)
+		ar.add(ref.getReferenceString());
+
+	return var(ar);
+}
+
+var ScriptingApi::Engine::loadAudioFileIntoBufferArray(String audioFileReference)
+{
+	PoolReference ref(getScriptProcessor()->getMainController_(), audioFileReference, FileHandlerBase::AudioFiles);
+
+	auto pool = getScriptProcessor()->getMainController_()->getActiveFileHandler()->pool.get();
+
+	if (auto e = getScriptProcessor()->getMainController_()->getExpansionHandler().getExpansionForWildcardReference(ref.getReferenceString()))
+	{
+		pool = e->pool.get();
+	}
+
+	if (auto audioData = pool->getAudioSampleBufferPool().loadFromReference(ref, PoolHelpers::LoadAndCacheStrong))
+	{
+		auto& b = audioData->data;
+
+		Array<var> channels;
+
+		for (int i = 0; i < b.getNumChannels(); i++)
+			channels.add(var(new VariantBuffer(b.getWritePointer(i), b.getNumSamples())));
+
+		return channels;
+	}
+	else
+		reportScriptError("Can't load audio file " + ref.getReferenceString());
 }
 
 void ScriptingApi::Engine::loadImageIntoPool(const String& id)
@@ -1861,20 +1915,34 @@ int ScriptingApi::Engine::isControllerUsedByAutomation(int controllerNumber)
 ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList() { return new ScriptingObjects::MidiList(getScriptProcessor()); };
 
 
-
 hise::ScriptingObjects::ScriptSliderPackData* ScriptingApi::Engine::createAndRegisterSliderPackData(int index)
 {
-	return new ScriptingObjects::ScriptSliderPackData(getScriptProcessor(), index);
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		return jp->addOrReturnSliderPackObject(index);
+	}
+
+	return nullptr;
 }
 
 hise::ScriptingObjects::ScriptTableData* ScriptingApi::Engine::createAndRegisterTableData(int index)
 {
-	return new ScriptingObjects::ScriptTableData(getScriptProcessor(), index);
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		return jp->addOrReturnTableObject(index);
+	}
+
+	return nullptr;
 }
 
 hise::ScriptingObjects::ScriptAudioFile* ScriptingApi::Engine::createAndRegisterAudioFile(int index)
 {
-	return new ScriptingObjects::ScriptAudioFile(getScriptProcessor(), index);
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		return jp->addOrReturnAudioFile(index);
+	}
+
+	return nullptr;
 }
 
 ScriptingObjects::TimerObject* ScriptingApi::Engine::createTimerObject() { return new ScriptingObjects::TimerObject(getScriptProcessor()); }
@@ -2003,6 +2071,11 @@ void ScriptingApi::Engine::redo()
 
 	MessageManager::callAsync(f);
 }
+
+String ScriptingApi::Engine::getSystemTime(bool includeDividerCharacters)
+{
+	return Time::getCurrentTime().toISO8601(includeDividerCharacters);
+};
 
 #if HISE_INCLUDE_SNEX
 ApiClass::SnexWrapper* ScriptingApi::Engine::createSnexWrapper()
@@ -3150,8 +3223,8 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 	}
 	else
 	{
-		if(!parentMidiProcessor->setArtificialTimestamp(eventId, timestamp))
-			reportScriptError("NoteOn with ID" + String(eventId) + " wasn't found");
+		// The note might already be killed, but you want to change the timestamp afterwards...
+		parentMidiProcessor->setArtificialTimestamp(eventId, timestamp);
 	}
 }
 
@@ -4170,6 +4243,7 @@ struct ScriptingApi::Console::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Console, assertIsDefined);
 	API_VOID_METHOD_WRAPPER_1(Console, assertIsObjectOrArray);
 	API_VOID_METHOD_WRAPPER_1(Console, assertLegalNumber);
+	API_VOID_METHOD_WRAPPER_0(Console, breakInDebugger);
 };
 
 ScriptingApi::Console::Console(ProcessorWithScriptingContent *p) :
@@ -4187,6 +4261,8 @@ startTime(0.0)
 	ADD_API_METHOD_1(assertIsDefined);
 	ADD_API_METHOD_1(assertIsObjectOrArray);
 	ADD_API_METHOD_1(assertLegalNumber);
+
+	ADD_API_METHOD_0(breakInDebugger);
 }
 
 
@@ -4304,10 +4380,16 @@ void ScriptingApi::Console::assertLegalNumber(var value)
 	float v2 = v1;
 
 
-	if (!FloatSanitizers::sanitizeFloatNumber(v2))
+	if (v1 != FloatSanitizers::sanitizeFloatNumber(v2))
 	{
 		reportScriptError("Assertion failure: value is not a legal number. Value: " + value.toString());
 	}
+}
+
+void ScriptingApi::Console::breakInDebugger()
+{
+	// There you go...
+	jassertfalse;
 }
 
 #undef SEND_MESSAGE
@@ -4528,6 +4610,7 @@ struct ScriptingApi::FileSystem::Wrapper
 	API_METHOD_WRAPPER_3(FileSystem, findFiles);
 	API_METHOD_WRAPPER_0(FileSystem, getSystemId);
 	API_VOID_METHOD_WRAPPER_4(FileSystem, browse);
+	API_VOID_METHOD_WRAPPER_2(FileSystem, browseForDirectory);
 };
 
 ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
@@ -4550,6 +4633,7 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	ADD_API_METHOD_3(findFiles);
 	ADD_API_METHOD_0(getSystemId);
 	ADD_API_METHOD_4(browse);
+	ADD_API_METHOD_2(browseForDirectory);
 }
 
 ScriptingApi::FileSystem::~FileSystem()
@@ -4596,51 +4680,64 @@ void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wi
 	else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(startFolder.getObject()))
 		f = sf->f;
 
+	browseInternally(f, forSaving, false, wildcard, callback);
+}
+
+void ScriptingApi::FileSystem::browseForDirectory(var startFolder, var callback)
+{
+	File f;
+
+	if (startFolder.isInt())
+		f = getFile((SpecialLocations)(int)startFolder);
+	else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(startFolder.getObject()))
+		f = sf->f;
+
+	browseInternally(f, false, true, "", callback);
+}
+
+String ScriptingApi::FileSystem::getSystemId()
+{
+	return OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs()[0];
+}
+
+void ScriptingApi::FileSystem::browseInternally(File f, bool forSaving, bool isDirectory, String wildcard, var callback)
+{
 	auto p_ = p;
 
-	auto cb = [forSaving, f, wildcard, callback, p_]()
+	auto cb = [forSaving, f, wildcard, callback, p_, isDirectory]()
 	{
-    FileChooser fc(!forSaving ? "Open file" : "Save file", f, wildcard);
+		String title;
+
+		if (isDirectory)
+			title = "Browse for directory";
+		else
+			title = !forSaving ? "Open file" : "Save file";
+
+		FileChooser fc(title, f, wildcard);
 
 		var a;
 
-		if (forSaving && fc.browseForFileToSave(true))
+		if (isDirectory)
 		{
-			a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+			if (fc.browseForDirectory())
+				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
 		}
-		if (!forSaving && fc.browseForFileToOpen())
+		else
 		{
-			a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+			if (forSaving && fc.browseForFileToSave(true))
+				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+			if (!forSaving && fc.browseForFileToOpen())
+				a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
 		}
 
 		if (a.isObject())
 		{
 			WeakCallbackHolder cb(p_, callback, 1);
 			cb.call(&a, 1);
-
-#if 0
-			p_->getMainController_()->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution,
-				dynamic_cast<JavascriptProcessor*>(p_), [callback, a](JavascriptProcessor* p)
-			{
-				var::NativeFunctionArgs args({}, &a, 1);
-				auto r = Result::ok();
-				p->getScriptEngine()->callExternalFunction(callback, args, &r);
-
-				if (!r.wasOk())
-					debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
-
-				return r;
-			});
-#endif
 		}
 	};
 
 	MessageManager::callAsync(cb);
-}
-
-String ScriptingApi::FileSystem::getSystemId()
-{
-	return OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs()[0];
 }
 
 juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
@@ -4710,14 +4807,18 @@ struct ScriptingApi::Server::Wrapper
 	API_METHOD_WRAPPER_0(Server, isOnline);
 	API_VOID_METHOD_WRAPPER_1(Server, setNumAllowedDownloads);
 	API_VOID_METHOD_WRAPPER_0(Server, cleanFinishedDownloads);
+	API_VOID_METHOD_WRAPPER_1(Server, setServerCallback);
 };
 
 ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ApiClass(4),
 	ScriptingObject(dynamic_cast<ProcessorWithScriptingContent*>(jp_)),
 	jp(jp_),
-	internalThread(*this)
+	globalServer(*getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getGlobalServer()),
+	serverCallback(getScriptProcessor(), {}, 1)
 {
+	globalServer.addListener(this);
+
 	addConstant("StatusNoConnection", StatusNoConnection);
 	addConstant("StatusOK", StatusOK);
 	addConstant("StatusNotFound", StatusNotFound);
@@ -4731,25 +4832,22 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_4(downloadFile);
 	ADD_API_METHOD_0(getPendingDownloads);
 	ADD_API_METHOD_0(isOnline);
+	ADD_API_METHOD_1(setServerCallback);
 }
 
 void ScriptingApi::Server::setBaseURL(String url)
 {
-	baseURL = URL(url);
-	internalThread.startThread();
+	globalServer.setBaseURL(url);
 }
 
 void ScriptingApi::Server::callWithGET(String subURL, var parameters, var callback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		PendingCallback::Ptr p = new PendingCallback(getScriptProcessor(), callback);
+		GlobalServer::PendingCallback::Ptr p = new GlobalServer::PendingCallback(getScriptProcessor(), callback);
 		p->url = getWithParameters(subURL, parameters);
 		p->isPost = false;
-		p->extraHeader = extraHeader;
-
-		internalThread.notify();
-		internalThread.pendingCallbacks.add(p);
+		globalServer.addPendingCallback(p);
 	}
 }
 
@@ -4757,19 +4855,16 @@ void ScriptingApi::Server::callWithPOST(String subURL, var parameters, var callb
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		PendingCallback::Ptr p = new PendingCallback(getScriptProcessor(), callback);
+		GlobalServer::PendingCallback::Ptr p = new GlobalServer::PendingCallback(getScriptProcessor(), callback);
 		p->url = getWithParameters(subURL, parameters);
-		p->extraHeader = extraHeader;
 		p->isPost = true;
-
-		internalThread.notify();
-		internalThread.pendingCallbacks.add(p);
+		globalServer.addPendingCallback(p);
 	}
 }
 
 void ScriptingApi::Server::setHttpHeader(String newHeader)
 {
-	extraHeader = newHeader;
+	globalServer.setHttpHeader(newHeader);
 }
 
 var ScriptingApi::Server::downloadFile(String subURL, var parameters, var targetFile, var callback)
@@ -4787,19 +4882,7 @@ var ScriptingApi::Server::downloadFile(String subURL, var parameters, var target
 		if(urlToUse.isWellFormed())
 		{
 			ScriptingObjects::ScriptDownloadObject::Ptr p = new ScriptingObjects::ScriptDownloadObject(getScriptProcessor(), urlToUse, sf->f, callback);
-
-			ScopedLock sl(internalThread.queueLock);
-
-			for (auto ep : internalThread.pendingDownloads)
-			{
-				if (*p == *ep)
-					return var(ep);
-			}
-
-			internalThread.pendingDownloads.add(p);
-			internalThread.notify();
-
-			return var(p);
+			return globalServer.addDownload(p);
 		}
 	}
 	else
@@ -4812,19 +4895,12 @@ var ScriptingApi::Server::downloadFile(String subURL, var parameters, var target
 
 var ScriptingApi::Server::getPendingDownloads()
 {
-	Array<var> list;
-
-	for (auto p : internalThread.pendingDownloads)
-	{
-		list.add(var(p));
-	}
-
-	return list;
+	return globalServer.getPendingDownloads();
 }
 
 void ScriptingApi::Server::setNumAllowedDownloads(int maxNumberOfParallelDownloads)
 {
-	internalThread.numMaxDownloads = maxNumberOfParallelDownloads;
+	globalServer.setNumAllowedDownloads(maxNumberOfParallelDownloads);
 }
 
 bool ScriptingApi::Server::isOnline()
@@ -4836,7 +4912,7 @@ bool ScriptingApi::Server::isOnline()
 		URL u(*url);
 
 		auto ms = Time::getMillisecondCounter();
-		std::unique_ptr<InputStream> in(u.createInputStream(false, nullptr, nullptr, String(), 2000, nullptr));
+		std::unique_ptr<InputStream> in(u.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr));
 		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(Time::getMillisecondCounter() - ms);
 
 		if (in != nullptr)
@@ -4848,115 +4924,13 @@ bool ScriptingApi::Server::isOnline()
 
 void ScriptingApi::Server::cleanFinishedDownloads()
 {
-	internalThread.cleanDownloads = true;
+	globalServer.cleanFinishedDownloads();
 }
 
-juce::URL ScriptingApi::Server::getWithParameters(String subURL, var parameters)
+void ScriptingApi::Server::setServerCallback(var callback)
 {
-	auto url = baseURL.getChildURL(subURL);
-
-	if (auto d = parameters.getDynamicObject())
-	{
-		for (auto& p : d->getProperties())
-			url = url.withParameter(p.name.toString(), p.value.toString());
-	}
-
-	return url;
+	serverCallback = WeakCallbackHolder(getScriptProcessor(), callback, 1);
+	serverCallback.incRefCount();
 }
-
-void ScriptingApi::Server::WebThread::run()
-{
-	while (!threadShouldExit())
-	{
-		if (parent.getScriptProcessor()->getMainController_()->getKillStateHandler().initialised())
-		{
-			{
-				ScopedLock sl(queueLock);
-
-				int numActiveDownloads = 0;
-
-				for (int i = 0; i < pendingDownloads.size(); i++)
-				{
-					auto d = pendingDownloads[i];
-
-					if (d->isWaitingForStart && numActiveDownloads < numMaxDownloads)
-						d->start();
-
-					if (d->isWaitingForStop)
-						d->stopInternal();
-
-					if (d->isRunning())
-					{
-						if (numActiveDownloads >= numMaxDownloads)
-							d->stop();
-						else
-							numActiveDownloads++;
-					}
-					
-					if (cleanDownloads && d->isFinished)
-						pendingDownloads.remove(i--);
-				}
-
-				cleanDownloads = false;
-			}
-
-			while (auto job = pendingCallbacks.removeAndReturn(0))
-			{
-				ScopedPointer<WebInputStream> wis;
-
-				wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, 3000, nullptr, &job->status));
-
-				auto response = wis != nullptr ? wis->readEntireStreamAsString() : "{}";
-				std::array<var, 2> args;
-
-				args[0] = job->status;
-				auto r = JSON::parse(response, args[1]);
-
-				if (!r.wasOk())
-				{
-					args[0] = 500;
-					args[1] = var(new DynamicObject());
-					args[1].getDynamicObject()->setProperty("error", r.getErrorMessage());
-				}
-
-				job->f.call(args);
-#if 0
-
-				auto& pool = parent.getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
-
-				
-
-				pool.addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution, dynamic_cast<JavascriptProcessor*>(parent.getScriptProcessor()), [status, response, function](JavascriptProcessor* jp)
-				{
-					if (auto engine = jp->getScriptEngine())
-					{
-						auto r = Result::ok();
-
-						var argData[2];
-						argData[0] = status;
-
-						
-
-						
-
-						var::NativeFunctionArgs args(var(), argData, 2);
-						engine->callExternalFunction(function, args, &r);
-
-						return r;
-					}
-				});
-#endif
-			}
-
-			Thread::wait(500);
-		}
-		else
-		{
-			// We postpone each server call until the thingie is loaded...
-			Thread::wait(200);
-		}
-	}
-}
-
 
 } // namespace hise
