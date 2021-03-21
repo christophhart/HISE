@@ -1917,32 +1917,17 @@ ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList() { return new 
 
 hise::ScriptingObjects::ScriptSliderPackData* ScriptingApi::Engine::createAndRegisterSliderPackData(int index)
 {
-	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
-	{
-		return jp->addOrReturnSliderPackObject(index);
-	}
-
-	return nullptr;
+	return new ScriptingObjects::ScriptSliderPackData(getScriptProcessor(), index);
 }
 
 hise::ScriptingObjects::ScriptTableData* ScriptingApi::Engine::createAndRegisterTableData(int index)
 {
-	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
-	{
-		return jp->addOrReturnTableObject(index);
-	}
-
-	return nullptr;
+	return new ScriptingObjects::ScriptTableData(getScriptProcessor(), index);
 }
 
 hise::ScriptingObjects::ScriptAudioFile* ScriptingApi::Engine::createAndRegisterAudioFile(int index)
 {
-	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
-	{
-		return jp->addOrReturnAudioFile(index);
-	}
-
-	return nullptr;
+	return new ScriptingObjects::ScriptAudioFile(getScriptProcessor(), index);
 }
 
 ScriptingObjects::TimerObject* ScriptingApi::Engine::createTimerObject() { return new ScriptingObjects::TimerObject(getScriptProcessor()); }

@@ -399,6 +399,11 @@ public:
 		l.add("Slider Packs");
 	}
 
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<ExternalDataHolder>(moduleList);
+	}
+
 	Component* createContentComponent(int index) override;
 };
 

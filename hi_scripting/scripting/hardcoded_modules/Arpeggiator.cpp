@@ -63,35 +63,6 @@ void Arpeggiator::mpeModeChanged(bool isEnabled)
 	}
 }
 
-int Arpeggiator::getNumSliderPacks()
-{
-	return 3;
-}
-
-SliderPackData * Arpeggiator::getSliderPackData(int index)
-{
-	switch (index)
-	{
-	case 0: return semiToneSliderPack->getSliderPackData();
-	case 1: return velocitySliderPack->getSliderPackData();
-	case 2: return lengthSliderPack->getSliderPackData();
-	default: jassertfalse;
-		return semiToneSliderPack->getSliderPackData();
-	}
-}
-
-const SliderPackData * Arpeggiator::getSliderPackData(int index) const
-{
-	switch (index)
-	{
-	case 0: return semiToneSliderPack->getSliderPackData();
-	case 1: return velocitySliderPack->getSliderPackData();
-	case 2: return lengthSliderPack->getSliderPackData();
-	default: jassertfalse;
-		return semiToneSliderPack->getSliderPackData();
-	}
-}
-
 void Arpeggiator::onInit()
 {
 	Content.setWidth(800);
