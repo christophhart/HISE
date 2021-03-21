@@ -418,6 +418,9 @@ public:
 
 private:
 
+	int lastDragIndex = -1;
+	float lastDragValue = -1.0f;
+
 	bool slidersNeedRebuild = false;
 
 	void rebuildSliders();

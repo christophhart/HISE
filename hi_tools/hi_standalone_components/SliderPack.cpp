@@ -372,6 +372,8 @@ void SliderPack::mouseDown(const MouseEvent &e)
 
 		int sliderIndex = getSliderIndexForMouseEvent(e);
 
+		
+
 		getData()->setDisplayedIndex(sliderIndex);
 
 		Slider *s = sliders[sliderIndex];
@@ -386,13 +388,13 @@ void SliderPack::mouseDown(const MouseEvent &e)
 		currentlyDragged = true;
 		currentlyDraggedSlider = sliderIndex;
 
-
 		s->setValue(value, sendNotificationSync);
 
 		currentlyDraggedSliderValue = s->getValue();
-	}
 
-	
+		lastDragIndex = sliderIndex;
+		lastDragValue = currentlyDraggedSliderValue;
+	}
 
 	repaint();
 }
@@ -457,6 +459,32 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 
 			repaint();
 		}
+
+		if (std::abs(sliderIndex - lastDragIndex) > 1)
+		{
+			bool inv = sliderIndex > lastDragIndex;
+
+			auto start = inv ? lastDragIndex : sliderIndex;
+			auto end = inv ? sliderIndex : lastDragIndex;
+			auto startValue = inv ? lastDragValue : currentlyDraggedSliderValue;
+			auto endValue = inv ? currentlyDraggedSliderValue : lastDragValue;
+			auto delta = 1.0f / (float)(end - start);
+
+			float alpha = 0.0f;
+
+			for (int i = start; i < end; i++)
+			{
+				auto v = startValue + (endValue - startValue) * alpha;
+				alpha += delta;
+
+				if (auto s = sliders[i])
+					s->setValue(v, sendNotificationSync);
+			}
+
+		}
+
+		lastDragIndex = sliderIndex;
+		lastDragValue = currentlyDraggedSliderValue;
 	}
 }
 
