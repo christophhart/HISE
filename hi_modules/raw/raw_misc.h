@@ -325,6 +325,25 @@ template <typename DataType> struct Data
 		}
 	};
 
+	struct Intensity
+	{
+		static DataType save(Processor* p)
+		{
+			jassert(dynamic_cast<Modulation*>(p) != nullptr);
+
+			auto v = dynamic_cast<Modulation*>(p)->getIntensity();
+			return static_cast<DataType>(v);
+		}
+
+		static void load(Processor* p, DataType newValue)
+		{
+			jassert(dynamic_cast<Modulation*>(p) != nullptr);
+			
+			auto v = static_cast<float>(newValue);
+			dynamic_cast<Modulation*>(p)->setIntensity(v);
+		}
+	};
+
 	/** Loads / saves the bypass state. Use the template argument to invert the logic (so that true = enabled). */
 	template <bool inverted = false> struct Bypassed
 	{
@@ -636,22 +655,47 @@ public:
 		JUCE_DECLARE_NON_COPYABLE(Base);
 	};
 
+	/** A connection between a processor and a juce::Slider. 
 	
+		If you want to connect a processor's parameter, best use the subclass Slider<ParameterIndex>. 
+		Otherwise you can use this class directly and set the behaviour with a suitable datatype:
 
-	/** A connection between a Processor's parameter and a juce::Slider. */
-	template <int parameterIndex> class Slider: public Base<juce::Slider, float>
+		\code
+		// Create a slider base connection
+		UIConnection::SliderBase b(mySlider, mc, "MyProcessor");
+
+		// Set it to control the intensity ("MyProcessor" must be modulator then).
+		b.setData<raw::Data<float>::Intensity>();
+		\endcode
+	*/
+	class SliderBase : public Base<juce::Slider, float>
 	{
 	public:
 
-		Slider(juce::Slider* s, MainController* mc, const String& processorID);
+		SliderBase(juce::Slider* s, MainController* mc, const String& processorID):
+			Base(s, mc, processorID)
+		{}
 
 	private:
 
 		/** Changes the slider's value. */
-		void updateUI(float newValue) override;
+		void updateUI(float newValue) override {
+			getComponent().setValue(newValue, dontSendNotification);
+		}
 
 		/** Updates the Processor's parameter. */
-		void sliderValueChanged(juce::Slider*) override;
+		void sliderValueChanged(juce::Slider*) override
+		{
+			parameterChangedFromUI((float)getComponent().getValue());
+		}
+	};
+
+	/** A connection between a Processor's parameter and a juce::Slider. */
+	template <int parameterIndex> class Slider: public SliderBase
+	{
+	public:
+
+		Slider(juce::Slider* s, MainController* mc, const String& processorID);
 	};
 
 	/** A connection between a Processor's parameter and a juce::Button.
@@ -702,6 +746,7 @@ public:
 			Index = 0,
 			Id,
 			Text,
+			Unspecified,
 			numModes
 		};
 
@@ -712,11 +757,14 @@ public:
 
 	private:
 
-		Mode mode;
+		Mode mode = Mode::Unspecified;
 
 		/** Changes the comboboxes's value. */
 		void updateUI(var newValue) override
 		{
+			// Make sure you call setMode() with the expected data type
+			jassert(mode != Mode::Unspecified);
+
 			switch (mode)
 			{
 			case Index: getComponent().setSelectedItemIndex((int)newValue, dontSendNotification); break;
@@ -728,6 +776,9 @@ public:
 
 		void comboBoxChanged(juce::ComboBox*) override
 		{
+			// Make sure you call setMode() with the expected data type
+			jassert(mode != Mode::Unspecified);
+
 			var valueToUse;
 
 			switch (mode)

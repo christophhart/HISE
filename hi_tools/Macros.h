@@ -71,7 +71,11 @@ namespace hise { using namespace juce;
 #endif
 
 #ifndef HISE_EVENT_RASTER
+#if FRONTEND_IS_PLUGIN
+#define HISE_EVENT_RASTER 1 // Do not downsample the control rate for effect plugins
+#else
 #define HISE_EVENT_RASTER 8
+#endif
 #endif
 
 #ifndef HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR
@@ -383,6 +387,15 @@ struct HiseColourScheme
 
 		jassertfalse;
 		return Colours::transparentBlack;
+	}
+
+	static void setDefaultColours(Component& c)
+	{
+		c.setColour(ComponentBackgroundColour, Colours::transparentBlack);
+		c.setColour(ComponentFillTopColourId, Colour(0x66333333));
+		c.setColour(ComponentFillBottomColourId, Colour(0xfb111111));
+		c.setColour(ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+		c.setColour(ComponentTextColourId, Colours::white);
 	}
 
 	static void setColourScheme(Scheme s)

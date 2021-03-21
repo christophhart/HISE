@@ -294,6 +294,9 @@ void HiseSampleBuffer::burnNormalisation()
 	if (isFloatingPoint())
 		return;
 
+	if (getNumSamples() == 0)
+		return;
+
 	AudioSampleBuffer fb(getNumChannels(), getNumSamples());
 	convertToFloatWithNormalisation(fb.getArrayOfWritePointers(), getNumChannels(), 0, getNumSamples());
 
@@ -338,6 +341,9 @@ void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& sourc
 	if (numSamples <= 0)
 		return;
 
+    jassert(isPositiveAndBelow(startSampleDst + numSamples, dst.getNumSamples()+1));
+    jassert(isPositiveAndBelow(startSampleSource + numSamples, source.getNumSamples()+1));
+    
 	if (source.isFloatingPoint() == dst.isFloatingPoint())
 	{
 		if (source.isFloatingPoint())

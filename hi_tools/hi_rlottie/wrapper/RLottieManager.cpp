@@ -147,6 +147,9 @@ juce::File RLottieManager::getLibFile()
 
 #elif JUCE_MAC
     return root.getChildFile("librlottie.dylib");
+		
+#elif JUCE_LINUX
+	return root.getChildFile("librlottie.so");
 #else
 	jassertfalse;
 	return File();

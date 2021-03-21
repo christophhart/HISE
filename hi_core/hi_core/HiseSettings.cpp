@@ -92,6 +92,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(UseRawFrontend);
 	ids.add(ExpansionType);
 	ids.add(EncryptionKey);
+	ids.add(LinkExpansionsToProject);
 
 	return ids;
 }
@@ -318,6 +319,14 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("Sets the BlowFish encryption key (up to 72 characters) that will be used to encrypt the intermediate expansions.");
 		D("> If you're using the **Full** expansion type you will need to set the key here, otherwise, you can call `ExpansionHandler.setEncryptionKey()` for the same effect.");
 		D("Make sure you restart HISE after changing this setting in order to apply the change.");
+		P_();
+
+		P(HiseSettings::Project::LinkExpansionsToProject);
+		D("Redirects the expansion folder in the app data directory of the compiled plugin back to your project folder's expansion folder.  ");
+		D("A compiled plugin will look in its app data folder for the expansions, so during development, you might want it to link back to the subfolder of the project directory so that you can see the expansions that you have created.  ");
+		D("If you do not enable this, the expansion list in a compiled project will be empty unless you manually copy the Expansion folder from the project folder to the app data folder.");
+		D("> Be aware that this will only work on the development machine and has nothing to do with proper distribution of the expansions to the end user");
+		D("Be aware that this is a system-specific setting so if you load a project from another machine, make sure to tick / untick this box in order to create the expansion folder on this machine");
 		P_();
 
 		P(HiseSettings::Project::RedirectSampleFolder);
@@ -639,6 +648,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Project::EnableMidiInputFX ||
 		id == Project::VST3Support ||
 		id == Project::UseRawFrontend ||
+		id == Project::LinkExpansionsToProject ||
 		id == Project::SupportFullDynamicsHLAC ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
@@ -818,6 +828,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";
+	else if (id == Project::LinkExpansionsToProject)   return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
@@ -1065,6 +1076,22 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		}
 
 		hiseFile.replaceWithText(hc);
+	}
+	else if (id == Project::LinkExpansionsToProject)
+	{
+		auto shouldRedirect = (bool)newValue;
+
+		auto company = getSetting(User::Company).toString();
+		auto project = getSetting(Project::Name).toString();
+
+		auto expFolder = ProjectHandler::getAppDataRoot().getChildFile(company).getChildFile(project).getChildFile("Expansions");
+
+		auto expRoot = mc->getExpansionHandler().getExpansionFolder();
+
+		if (shouldRedirect)
+			ProjectHandler::createLinkFileInFolder(expFolder, expRoot);
+		else
+			ProjectHandler::createLinkFileInFolder(expFolder, {});
 	}
 
 	else if (id == Midi::MidiChannels)

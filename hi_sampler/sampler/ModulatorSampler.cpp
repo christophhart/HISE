@@ -500,11 +500,13 @@ const Processor * ModulatorSampler::getChildProcessor(int processorIndex) const
 
 void ModulatorSampler::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
+    auto prevBlockSize = getLargestBlockSize();
+    
 	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
-	if (newSampleRate != -1.0)
+	if (samplesPerBlock > 0 && prevBlockSize != samplesPerBlock)
 	{
-		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, samplesPerBlock, jmax(preloadSize, bufferSize));
+        refreshMemoryUsage();
 	}
 }
 
@@ -646,6 +648,9 @@ void ModulatorSampler::refreshMemoryUsage()
 {
 	if (sampleMap == nullptr)
 		return;
+    
+    if(getLargestBlockSize() <= 0)
+        return;
 
 	const auto temporaryBufferIsFloatingPoint = getTemporaryVoiceBuffer()->isFloatingPoint();
     
@@ -659,9 +664,7 @@ void ModulatorSampler::refreshMemoryUsage()
 	{
 		temporaryVoiceBuffer = hlac::HiseSampleBuffer(temporaryBufferShouldBeFloatingPoint, 2, 0);
 
-
-
-		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), jmax(preloadSize, bufferSize));
+		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), (double)MAX_SAMPLER_PITCH);
 
 		for (auto i = 0; i < getNumVoices(); i++)
 		{
@@ -674,6 +677,8 @@ void ModulatorSampler::refreshMemoryUsage()
 	{
 		SoundIterator sIter(this, false);
 
+        double maxPitch = (double)MAX_SAMPLER_PITCH;
+        
 		while (const auto sound = sIter.getNextSound())
 		{
 			for (int j = 0; j < numChannels; j++)
@@ -681,14 +686,15 @@ void ModulatorSampler::refreshMemoryUsage()
 				if (auto micS = sound->getReferenceToSound(j))
 				{
 					actualPreloadSize += micS->getActualPreloadSize();
+                    maxPitch = jmax(sound->getMaxPitchRatio(), maxPitch);
 				}
 			}
 		}
-	}
-
-	for (int i = 0; i < getNumVoices(); i++)
-	{
-		//actualPreloadSize += static_cast<ModulatorSamplerVoice*>(getVoice(i))->getStreamingBufferSize();
+        
+        if(maxPitch > (double)MAX_SAMPLER_PITCH)
+        {
+            StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), maxPitch * 1.2); // give it a little more to be safe...
+        }
 	}
 
 	const int64 streamBufferSizePerVoice = 2 *				// two buffers
@@ -1155,19 +1161,19 @@ void ModulatorSampler::nonRealtimeModeChanged(bool isNonRealtime)
 	}
 }
 
-void ModulatorSampler::saveSampleMap() const
+bool ModulatorSampler::saveSampleMap() const
 {
-	sampleMap->save();
+	return sampleMap->save();
 }
 
-void ModulatorSampler::saveSampleMapAsReference() const
+bool ModulatorSampler::saveSampleMapAsReference() const
 {
-	sampleMap->saveSampleMapAsReference();
+	return sampleMap->saveSampleMapAsReference();
 }
 
-void ModulatorSampler::saveSampleMapAsMonolith(Component* mainEditor) const
+bool ModulatorSampler::saveSampleMapAsMonolith(Component* mainEditor) const
 {
-	sampleMap->saveAsMonolith(mainEditor);
+	return sampleMap->saveAsMonolith(mainEditor);
 }
 
 bool ModulatorSampler::setCurrentGroupIndex(int currentIndex)

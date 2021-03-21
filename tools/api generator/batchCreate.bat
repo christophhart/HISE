@@ -32,6 +32,9 @@ xcopy "xml\classhise_1_1_script_expansion_reference.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_dsp_instance.xml" "xml\selection"
 
+
+
+
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_modulator.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_synth.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_midi_list.xml" "xml\selection"
@@ -51,6 +54,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_graphics_object.xml" "xml\selecti
 xcopy "xml\classhise_1_1_scripting_objects_1_1_path_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_midi_player.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_timer_object.xml" "xml\selection"
+xcopy "xml\structhise_1_1_scripting_objects_1_1_script_download_object.xml" "xml\selection"
 
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_button.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_combo_box.xml" "xml\selection"
@@ -84,10 +88,10 @@ ren "xml\selection\classhise_1_1_dsp_instance.xml" "DspModule.xml"
 ren "xml\selection\classhise_1_1_doxygen_string_functions.xml" "String.xml"
 ren "xml\selection\classhise_1_1_doxygen_array_functions.xml" "Array.xml"
 
+ren "xml\selection\structhise_1_1_scripting_objects_1_1_script_download_object.xml" "Download.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_file.xml" "File.xml"
 ren "xml\selection\classhise_1_1_scripting_api_1_1_file_system.xml" "FileSystem.xml"
 ren "xml\selection\classhise_1_1_scripting_api_1_1_server.xml" "Server.xml"
-
 
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_modulator.xml" "Modulator.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_midi_list.xml" "MidiList.xml"

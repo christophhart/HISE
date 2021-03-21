@@ -295,7 +295,10 @@ var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation
 
 var HiseJavascriptEngine::callExternalFunctionRaw(var function, const var::NativeFunctionArgs& args)
 {
+	
 	ScopedValueSetter<bool> svs(externalFunctionPending, true);
+
+	prepareTimeout();
 
 	if (auto fo = dynamic_cast<RootObject::FunctionObject*>(function.getObject()))
 	{

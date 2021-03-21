@@ -49,6 +49,49 @@ Arpeggiator::~Arpeggiator()
 	mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
 }
 
+void Arpeggiator::mpeModeChanged(bool isEnabled)
+{
+	try
+	{
+		mpeMode = isEnabled; reset(true, true);
+	}
+	catch (String& m)
+	{
+#if USE_BACKEND
+		debugError(this, m);
+#endif
+	}
+}
+
+int Arpeggiator::getNumSliderPacks()
+{
+	return 3;
+}
+
+SliderPackData * Arpeggiator::getSliderPackData(int index)
+{
+	switch (index)
+	{
+	case 0: return semiToneSliderPack->getSliderPackData();
+	case 1: return velocitySliderPack->getSliderPackData();
+	case 2: return lengthSliderPack->getSliderPackData();
+	default: jassertfalse;
+		return semiToneSliderPack->getSliderPackData();
+	}
+}
+
+const SliderPackData * Arpeggiator::getSliderPackData(int index) const
+{
+	switch (index)
+	{
+	case 0: return semiToneSliderPack->getSliderPackData();
+	case 1: return velocitySliderPack->getSliderPackData();
+	case 2: return lengthSliderPack->getSliderPackData();
+	default: jassertfalse;
+		return semiToneSliderPack->getSliderPackData();
+	}
+}
+
 void Arpeggiator::onInit()
 {
 	Content.setWidth(800);
@@ -856,6 +899,10 @@ void Arpeggiator::reset(bool do_all_notes_off, bool do_stop)
 	case Direction::DownUp:
 		arpDirMod = -1;
 		curHeldNoteIdx = MidiSequenceArray.size() - 1;
+		break;
+	case Direction::Random:
+		arpDirMod = 1;
+		curHeldNoteIdx = 0;
 		break;
     default:
         jassertfalse;

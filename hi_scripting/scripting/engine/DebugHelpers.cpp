@@ -72,6 +72,34 @@ String DebugInformation::varArrayToString(const Array<var> &arrayToStringify)
 }
 
 
+void DebugInformation::rightClickCallback(const MouseEvent& e, Component* componentToNotify)
+{
+	var v = getVariantCopy();
+
+
+	if (v.isBuffer())
+	{
+#if USE_BACKEND
+		auto display = new HiseAudioThumbnail();
+		display->setBuffer(v);
+
+		display->setName("Buffer Viewer");
+		display->setSize(500, 100);
+		display->setShouldScaleVertically(true);
+
+		auto e2 = e.getEventRelativeTo(componentToNotify);
+
+		GET_BACKEND_ROOT_WINDOW(componentToNotify)->getRootFloatingTile()->showComponentInRootPopup(display, componentToNotify, Point<int>(componentToNotify->getWidth() / 2, e2.getMouseDownY() + 10));
+#endif
+		return;
+	}
+
+	if (v.isObject() || v.isArray())
+	{
+		DebugableObject::Helpers::showJSONEditorForObject(e, componentToNotify, v, getTextForName());
+	}
+}
+
 void DebugInformation::doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
 {
 	if (auto cso = dynamic_cast<ScriptingObject*>(getObject()))
@@ -206,8 +234,9 @@ void DebugableObject::Helpers::showJSONEditorForObject(const MouseEvent& e, Comp
 
 	jsonEditor->setName((cleanedObject.isArray() ? "Show Array: " : "Show Object: ") + id);
 	jsonEditor->setSize(500, 500);
+	auto e2 = e.getEventRelativeTo(table);
 
-	GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(jsonEditor, table, Point<int>(table->getWidth() / 2, e.getMouseDownY() + 40));
+	GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(jsonEditor, table, Point<int>(table->getWidth() / 2, e2.getMouseDownY() + 5));
 #else
 	ignoreUnused(e, table, object, id);
 #endif
@@ -216,7 +245,11 @@ void DebugableObject::Helpers::showJSONEditorForObject(const MouseEvent& e, Comp
 
 var DebugableObject::Helpers::getCleanedObjectForJSONDisplay(const var& object)
 {
-	if (auto obj = object.getDynamicObject())
+	if (object.isBuffer())
+	{
+		return var(object.getBuffer()->toDebugString());
+	}
+	else if (auto obj = object.getDynamicObject())
 	{
 		var copy = var(new DynamicObject());
 
@@ -243,7 +276,7 @@ var DebugableObject::Helpers::getCleanedObjectForJSONDisplay(const var& object)
 
 		return var(destination);
 	}
-	else if (auto debugObject = dynamic_cast<DebugableObject*>(object.getObject()))
+	else if (auto debugObject = dynamic_cast<DebugableObjectBase*>(object.getObject()))
 	{
 		String valueText;
 		valueText << debugObject->getDebugName() << ": " << debugObject->getDebugValue();
@@ -252,8 +285,6 @@ var DebugableObject::Helpers::getCleanedObjectForJSONDisplay(const var& object)
 	}
 	else
 		return object;
-	
-
 }
 
 DebugInformationBase* DebugableObject::Helpers::getDebugInformation(ApiProviderBase* engine, DebugableObjectBase* object)

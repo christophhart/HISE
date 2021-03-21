@@ -42,15 +42,16 @@ struct ScriptExpansionHandler::Wrapper
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, setCurrentExpansion);
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, getExpansionList);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getExpansion);
+	API_METHOD_WRAPPER_0(ScriptExpansionHandler, getCurrentExpansion);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setExpansionCallback);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, encodeWithCredentials);
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, refreshExpansions);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setAllowedExpansionTypes);
-	API_METHOD_WRAPPER_1(ScriptExpansionHandler, installExpansionFromPackage);
+	API_METHOD_WRAPPER_2(ScriptExpansionHandler, installExpansionFromPackage);
 };
 
 ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
-	ApiClass(3),
+	ConstScriptingObject(dynamic_cast<ProcessorWithScriptingContent*>(jp_), 3),
 	ControlledObject(dynamic_cast<ControlledObject*>(jp_)->getMainController()),
 	jp(jp_),
 	expansionCallback(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 1),
@@ -68,8 +69,9 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ADD_API_METHOD_1(setCurrentExpansion);
 	ADD_API_METHOD_1(encodeWithCredentials);
 	ADD_API_METHOD_0(refreshExpansions);
-	ADD_API_METHOD_1(installExpansionFromPackage);
+	ADD_API_METHOD_2(installExpansionFromPackage);
 	ADD_API_METHOD_1(setAllowedExpansionTypes);
+	ADD_API_METHOD_0(getCurrentExpansion);
 
 	addConstant(Expansion::Helpers::getExpansionTypeName(Expansion::FileBased), Expansion::FileBased);
 	addConstant(Expansion::Helpers::getExpansionTypeName(Expansion::Intermediate), Expansion::Intermediate);
@@ -83,7 +85,8 @@ ScriptExpansionHandler::~ScriptExpansionHandler()
 
 void ScriptExpansionHandler::setEncryptionKey(String newKey)
 {
-	getMainController()->getExpansionHandler().setEncryptionKey(newKey);
+	reportScriptError("This function is deprecated. Use the project settings to setup the project's blowfish key");
+	//getMainController()->getExpansionHandler().setEncryptionKey(newKey);
 }
 
 void ScriptExpansionHandler::setCredentials(var newCredentials)
@@ -135,10 +138,22 @@ var ScriptExpansionHandler::getExpansion(var name)
 	return var();
 }
 
+var ScriptExpansionHandler::getCurrentExpansion()
+{
+	if (auto e = getMainController()->getExpansionHandler().getCurrentExpansion())
+		return new ScriptExpansionReference(getScriptProcessor(), e);
+
+	return {};
+}
+
 void ScriptExpansionHandler::setExpansionCallback(var expansionLoadedCallback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(expansionLoadedCallback))
+	{
 		expansionCallback = WeakCallbackHolder(getScriptProcessor(), expansionLoadedCallback, 1);
+		expansionCallback.setThisObject(this);
+		expansionCallback.incRefCount();
+	}
 
 	expansionCallback.setHighPriority();
 }
@@ -158,9 +173,18 @@ bool ScriptExpansionHandler::refreshExpansions()
 	return getMainController()->getExpansionHandler().createAvailableExpansions();
 }
 
-bool ScriptExpansionHandler::setCurrentExpansion(String expansionName)
+bool ScriptExpansionHandler::setCurrentExpansion(var expansionName)
 {
-	return getMainController()->getExpansionHandler().setCurrentExpansion(expansionName);
+	if(expansionName.isString())
+		return getMainController()->getExpansionHandler().setCurrentExpansion(expansionName);
+	
+	if (auto se = dynamic_cast<ScriptExpansionReference*>(expansionName.getObject()))
+		return setCurrentExpansion(se->exp->getProperty(ExpansionIds::Name));
+
+	
+
+	reportScriptError("can't find expansion");
+	RETURN_IF_NO_THROW(false);
 }
 
 bool ScriptExpansionHandler::encodeWithCredentials(var hxiFile)
@@ -177,13 +201,33 @@ bool ScriptExpansionHandler::encodeWithCredentials(var hxiFile)
 		reportScriptError("argument is not a file");
 		RETURN_IF_NO_THROW(false);
 	}
-
 }
 
-bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile)
+bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile, var sampleDirectory)
 {
 	if (auto f = dynamic_cast<ScriptingObjects::ScriptFile*>(packageFile.getObject()))
-		return getMainController()->getExpansionHandler().installFromResourceFile(f->f);
+	{
+		File targetFolder;
+
+		if (sampleDirectory.isInt())
+		{
+			auto target = (ScriptingApi::FileSystem::SpecialLocations)(int)sampleDirectory;
+
+			if (target == ScriptingApi::FileSystem::Expansions)
+				targetFolder = getMainController()->getExpansionHandler().getExpansionFolder();
+			if (target == ScriptingApi::FileSystem::Samples)
+				targetFolder = getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Samples);
+		}
+		else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(sampleDirectory.getObject()))
+		{
+			targetFolder = sf->f;
+		}
+
+		if (!targetFolder.isDirectory())
+			reportScriptError("The sample directory does not exist");
+		
+		return getMainController()->getExpansionHandler().installFromResourceFile(f->f, targetFolder);
+	}
 	else
 	{
 		reportScriptError("argument is not a file");
@@ -215,8 +259,18 @@ void ScriptExpansionHandler::expansionPackCreated(Expansion* newExpansion)
 {
 	if (expansionCallback)
 	{
-		var args(new ScriptExpansionReference(getScriptProcessor(), newExpansion));
-		expansionCallback.call(&args, 1);
+		if (newExpansion != nullptr)
+		{
+			var args(new ScriptExpansionReference(getScriptProcessor(), newExpansion));
+			expansionCallback.call(&args, 1);
+		}
+		else
+		{
+			var args;
+			expansionCallback.call(&args, 1);
+		}
+
+		
 	}
 }
 
@@ -243,12 +297,15 @@ struct ScriptExpansionReference::Wrapper
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getImageList);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getAudioFileList);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getMidiFileList);
+	API_METHOD_WRAPPER_0(ScriptExpansionReference, getDataFileList);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getProperties);
 	API_METHOD_WRAPPER_1(ScriptExpansionReference, loadDataFile);
 	API_METHOD_WRAPPER_2(ScriptExpansionReference, writeDataFile);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getRootFolder);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getExpansionType);
 	API_METHOD_WRAPPER_1(ScriptExpansionReference, getWildcardReference);
+	API_METHOD_WRAPPER_0(ScriptExpansionReference, getSampleFolder);
+	API_METHOD_WRAPPER_1(ScriptExpansionReference, setSampleFolder);
 };
 
 ScriptExpansionReference::ScriptExpansionReference(ProcessorWithScriptingContent* p, Expansion* e) :
@@ -259,12 +316,15 @@ ScriptExpansionReference::ScriptExpansionReference(ProcessorWithScriptingContent
 	ADD_API_METHOD_0(getImageList);
 	ADD_API_METHOD_0(getAudioFileList);
 	ADD_API_METHOD_0(getMidiFileList);
+	ADD_API_METHOD_0(getDataFileList);
 	ADD_API_METHOD_0(getProperties);
 	ADD_API_METHOD_1(loadDataFile);
 	ADD_API_METHOD_2(writeDataFile);
 	ADD_API_METHOD_0(getRootFolder);
 	ADD_API_METHOD_0(getExpansionType);
 	ADD_API_METHOD_1(getWildcardReference);
+	ADD_API_METHOD_1(setSampleFolder);
+	ADD_API_METHOD_0(getSampleFolder);
 }
 
 juce::BlowFish* ScriptExpansionReference::createBlowfish()
@@ -363,11 +423,96 @@ var ScriptExpansionReference::getMidiFileList() const
 	RETURN_IF_NO_THROW({});
 }
 
+var ScriptExpansionReference::getDataFileList() const
+{
+	if (objectExists())
+	{
+		auto refList = exp->pool->getAdditionalDataPool().getListOfAllReferences(true);
+
+		Array<var> list;
+
+		for (auto& ref : refList)
+			list.add(ref.getReferenceString());
+
+		return list;
+	}
+
+	reportScriptError("Expansion was deleted");
+	RETURN_IF_NO_THROW({});
+}
+
+var ScriptExpansionReference::getSampleFolder()
+{
+	File sampleFolder = exp->getSubDirectory(FileHandlerBase::Samples);
+
+	return new ScriptingObjects::ScriptFile(getScriptProcessor(), sampleFolder);
+}
+
+bool ScriptExpansionReference::setSampleFolder(var newSampleFolder)
+{
+	if (auto f = dynamic_cast<ScriptingObjects::ScriptFile*>(newSampleFolder.getObject()))
+	{
+		auto newTarget = f->f;
+
+		if (!newTarget.isDirectory())
+			reportScriptError(newTarget.getFullPathName() + " is not an existing directory");
+
+		if (newTarget != exp->getSubDirectory(FileHandlerBase::Samples))
+		{
+			exp->createLinkFile(FileHandlerBase::Samples, newTarget);
+			exp->checkSubDirectories();
+			return true;
+		}
+	}
+
+	return false;
+}
+
 var ScriptExpansionReference::loadDataFile(var relativePath)
 {
-	auto fileToLoad = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
+	if (objectExists())
+	{
+		if (exp->getExpansionType() == Expansion::FileBased)
+		{
+			auto fileToLoad = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
 
-	return JSON::parse(fileToLoad.loadFileAsString());
+			if(fileToLoad.existsAsFile())
+				return JSON::parse(fileToLoad.loadFileAsString());
+
+			reportScriptError("Can't find data file " + fileToLoad.getFullPathName());
+		}
+		else
+		{
+			String rs;
+
+			auto wc = exp->getWildcard();
+			auto path = relativePath.toString();
+
+			if (!path.contains(wc))
+				rs << wc;
+
+			rs << path;
+
+			PoolReference ref(getScriptProcessor()->getMainController_(), rs, FileHandlerBase::AdditionalSourceCode);
+			
+			if (auto o = exp->pool->getAdditionalDataPool().loadFromReference(ref, PoolHelpers::LoadAndCacheStrong))
+			{
+				var obj;
+				auto ok = JSON::parse(o->data.getFile(), obj);
+
+				if (ok.wasOk())
+					return obj;
+
+				reportScriptError("Error at parsing JSON: " + ok.getErrorMessage());
+			}
+			else
+			{
+				reportScriptError("Can't find data file " + ref.getReferenceString());
+			}
+		}
+	}
+
+	return {};
 }
 
 String ScriptExpansionReference::getWildcardReference(var relativePath)
@@ -415,7 +560,7 @@ hise::Expansion::ExpansionType ScriptEncryptedExpansion::getExpansionType() cons
 	return getExpansionTypeFromFolder(getRootFolder());
 }
 
-void ScriptEncryptedExpansion::encodeExpansion()
+Result ScriptEncryptedExpansion::encodeExpansion()
 {
 	if (getExpansionType() == Expansion::FileBased)
 	{
@@ -423,8 +568,7 @@ void ScriptEncryptedExpansion::encodeExpansion()
 
 		if (handler.getEncryptionKey().isEmpty())
 		{
-			PresetHandler::showMessageWindow("No key available", "You have to set an encryption key using `ExpansionHandler.setEncryptionKey()` before using this method.", PresetHandler::IconType::Error);
-			return;
+			return Result::fail("You have to set an encryption key using `ExpansionHandler.setEncryptionKey()` before using this method.");
 		}
 
 		String s;
@@ -440,12 +584,9 @@ void ScriptEncryptedExpansion::encodeExpansion()
 			metadata.setProperty(ExpansionIds::Hash, handler.getEncryptionKey().hashCode64(), nullptr);
 
 			hxiData.addChild(metadata, -1, nullptr);
-
-
-			encodePoolAndUserPresets(hxiData, true);
+			encodePoolAndUserPresets(hxiData, false);
 
 #if HISE_USE_XML_FOR_HXI
-
 			ScopedPointer<XmlElement> xml = hxiData.createXml();
 			hxiFile.replaceWithText(xml->createDocument(""));
 #else
@@ -461,8 +602,10 @@ void ScriptEncryptedExpansion::encodeExpansion()
 	}
 	else
 	{
-		PresetHandler::showMessageWindow("Already encoded", "The expansion " + getProperty(ExpansionIds::Name) + " is already encoded");
+		return Result::fail("The expansion " + getProperty(ExpansionIds::Name) + " is already encoded");
 	}
+
+	return Result::ok();
 }
 
 juce::Array<hise::FileHandlerBase::SubDirectories> ScriptEncryptedExpansion::getSubDirectoryIds() const
@@ -521,11 +664,13 @@ Result ScriptEncryptedExpansion::initialise()
 
 		zstd::ZDefaultCompressor comp;
 		auto f = Helpers::getExpansionInfoFile(getRootFolder(), type);
-		ValueTree hxpData;
-		auto r = comp.expand(f, hxpData);
 
-		if (r.failed())
-			return r;
+		FileInputStream fis(f);
+
+		auto hxpData = ValueTree::readFromStream(fis);
+
+		if (!hxpData.isValid())
+			return Result::fail("Can't parse expansion data file");
 
 		auto credTree = hxpData.getChildWithName(ExpansionIds::Credentials);
 		auto base64Obj = credTree[ExpansionIds::Data].toString();
@@ -639,6 +784,7 @@ bool ScriptEncryptedExpansion::encryptIntermediateFile(MainController* mc, const
 
 	FileOutputStream fos(hxpFile);
 	hxiData.writeToStream(fos);
+	fos.flush();
 	h.createAvailableExpansions();
 	return true;
 }
@@ -724,6 +870,7 @@ Result ScriptEncryptedExpansion::initialiseFromValueTree(const ValueTree& hxiDat
 
 	pool->getSampleMapPool().loadAllFilesFromDataProvider();
 	pool->getMidiFilePool().loadAllFilesFromDataProvider();
+	pool->getAdditionalDataPool().loadAllFilesFromDataProvider();
 	checkSubDirectories();
 	return Result::ok();
 }
@@ -1026,9 +1173,16 @@ Result FullInstrumentExpansion::lazyLoad()
 	return r;
 }
 
+juce::Result ScriptEncryptedExpansion::returnFail(const String& errorMessage)
+{
+	auto& h = getMainController()->getExpansionHandler();
+	h.setErrorMessage(errorMessage, false);
+	return Result::fail(errorMessage);
+}
 
 
-void FullInstrumentExpansion::encodeExpansion()
+
+Result FullInstrumentExpansion::encodeExpansion()
 {
 	ValueTree allData(ExpansionIds::FullData);
 
@@ -1037,8 +1191,7 @@ void FullInstrumentExpansion::encodeExpansion()
 
 	if (key.isEmpty())
 	{
-		h.setErrorMessage("The encryption key has not been set", false);
-		return;
+		return returnFail("The encryption key has not been set");
 	}
 
 	auto hxiFile = Expansion::Helpers::getExpansionInfoFile(getRootFolder(), Expansion::Intermediate);
@@ -1172,12 +1325,15 @@ void FullInstrumentExpansion::encodeExpansion()
 
 	if(!isProjectExport)
 		h.forceReinitialisation();
+
+	return Result::ok();
 }
 
 ExpansionEncodingWindow::ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport) :
 	DialogWindowWithBackgroundThread(isProjectExport ? "Encode project as Full Expansion" : "Encode Expansion"),
 	ControlledObject(mc),
 	e(eToEncode),
+	encodeResult(Result::ok()),
 	projectExport(isProjectExport)
 {
 	if (isProjectExport)
@@ -1193,9 +1349,10 @@ ExpansionEncodingWindow::ExpansionEncodingWindow(MainController* mc, Expansion* 
 
 		addComboBox("expansion", expList, "Expansion to encode");
 
+		getComboBoxComponent("expansion")->addItem("All expansions", AllExpansionId);
+
 		if (e != nullptr)
 			getComboBoxComponent("expansion")->setText(e->getProperty(ExpansionIds::Name), dontSendNotification);
-
 	}
 
 	getMainController()->getExpansionHandler().addListener(this);
@@ -1231,11 +1388,32 @@ void ExpansionEncodingWindow::run()
 		ScopedPointer<FullInstrumentExpansion> e = new FullInstrumentExpansion(getMainController(), h.getWorkDirectory());
 		e->initialise();
 		e->setIsProjectExporter();
-		e->encodeExpansion();
+		encodeResult = e->encodeExpansion();
 		f.deleteFile();
 	}
 	else
 	{
+		if (getComboBoxComponent("expansion")->getSelectedId() == AllExpansionId)
+		{
+			auto& h = getMainController()->getExpansionHandler();
+
+			for (int i = 0; i < h.getNumExpansions(); i++)
+			{
+				if (auto e = h.getExpansion(i))
+				{
+					showStatusMessage("Encoding " + e->getProperty(ExpansionIds::Name));
+					setProgress((double)i / (double)h.getNumExpansions());
+
+					encodeResult = e->encodeExpansion();
+
+					if (encodeResult.failed())
+						break;
+				}
+			}
+
+			return;
+		}
+
 		if (e == nullptr)
 		{
 			auto n = getComboBoxComponent("expansion")->getText();
@@ -1243,7 +1421,9 @@ void ExpansionEncodingWindow::run()
 		}
 
 		if (e != nullptr)
-			e->encodeExpansion();
+			encodeResult = e->encodeExpansion();
+		else
+			encodeResult = Result::fail("No expansion to encode");
 	}
 #endif
 }
@@ -1258,14 +1438,10 @@ void ExpansionEncodingWindow::threadFinished()
 		return;
 	}
 
-	if (e != nullptr)
-	{
+	if (encodeResult.wasOk())
 		PresetHandler::showMessageWindow("Expansion encoded", "The expansion was encoded successfully");
-	}
 	else
-	{
-		PresetHandler::showMessageWindow("No expansion selected", "Select an expansion to encode", PresetHandler::IconType::Error);
-	}
+		PresetHandler::showMessageWindow("Expansion encoding failed", encodeResult.getErrorMessage(), PresetHandler::IconType::Error);
 #endif
 }
 

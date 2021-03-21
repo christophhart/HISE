@@ -243,18 +243,14 @@ public:
 
 	struct Listener
 	{
-		virtual ~Listener()
-		{
-			masterReference.clear();
-		};
+		virtual ~Listener() {};
 
 		/** Whenever a project is changed, this method is called on its registered Listeners. */
 		virtual void projectChanged(const File& newRootDirectory) = 0;
 
 	private:
 
-		friend class WeakReference<Listener>;
-		WeakReference<Listener>::Master masterReference;
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
 	void createNewProject(File &workingDirectory, Component* mainEditor);
@@ -382,6 +378,7 @@ public:
 	static String getVersionString();
 	static String getAppGroupId();
 	static String getExpansionKey();
+	static String getExpansionType();
 
 	static String checkSampleReferences(MainController* mc, bool returnTrueIfOneSampleFound);
 

@@ -83,3 +83,18 @@ tools/snex_playground/test_files/CppTest/Builds/
 tools/snex_playground/test_files/node.xml
 extras/demo_project/DspNetworks/DspNetworkLibrary/
 extras/demo_project/DspNetworks/Binaries/
+projects/standalone/HISE Standalone.jucer
+projects/standalone/JuceLibraryCode/AppConfig.h
+projects/standalone/JuceLibraryCode/JuceHeader.h
+tools/projucer/Projucer.app/Contents/_CodeSignature/CodeResources
+tools/projucer/Projucer.app/Contents/CodeResources
+tools/projucer/Projucer.app/Contents/Info.plist
+tools/projucer/Projucer.app/Contents/JUCECompileEngine.dylib
+tools/projucer/Projucer.app/Contents/MacOS/Projucer
+tools/projucer/Projucer.app/Contents/Resources/Icon.icns
+tools/projucer/ProjucerBAK.app/Contents/Info.plist
+tools/projucer/ProjucerBAK.app/Contents/MacOS/Projucer
+tools/projucer/ProjucerBAK.app/Contents/PkgInfo
+tools/projucer/ProjucerBAK.app/Contents/Resources/Icon.icns
+tools/projucer/ProjucerBAK.app/Contents/Resources/RecentFilesMenuTemplate.nib
+projects/standalone/HISE Standalone.jucer

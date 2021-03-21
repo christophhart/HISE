@@ -216,6 +216,9 @@ public:
 		/** Replaces the file content with the JSON data. */
 		bool writeObject(var jsonData);
 
+		/** Writes the given data (either a Buffer or Array of Buffers) to a audio file. */
+		bool writeAudioFile(var audioData, double sampleRate, int bitDepth);
+
 		/** Replaces the file content with the given text. */
 		bool writeString(String text);
 
@@ -262,6 +265,9 @@ public:
 		/** Resumes the download. */
 		bool resume();
 
+		/** Aborts the download and deletes the file that was downloaded. */
+		bool abort();
+
 		/** Checks if the download is currently active. */
 		bool isRunning();
 
@@ -283,8 +289,8 @@ public:
 		/** Returns the target file if the download has succeeded. */
 		var getDownloadedTarget();
 
-		/** Sets the maximum amount of allowed downloads. */
-		void setNumAllowedDownloads(int maxNumber);
+		/** Returns a descriptive text of the current download state (eg. "Downloading" or "Paused"). */
+		String getStatusText();
 
 		// ============================================================================================= End of API
 
@@ -307,24 +313,35 @@ public:
 		std::atomic<bool> isWaitingForStart = { true };
 		std::atomic<bool> isRunning_ = { false };
 		std::atomic<bool> isFinished = { false };
-		std::atomic<bool> callbackPending = { false };
+		std::atomic<bool> shouldAbort = { false };
 
 		struct Wrapper;
 
-		bool stopInternal();
+		bool stopInternal(bool forceUpdate=false);
+
+		void copyCallBackFrom(ScriptDownloadObject* other)
+		{
+			callback = std::move(other->callback);
+			callback.setThisObject(this);
+		}
+
+		URL getURL() const { return downloadURL; }
+
+		File getTargetFile() const { return targetFile; }
 
 	private:
 
 		bool resumeInternal();
 
-
-
 		int64 bytesInLastSecond = 0;
 		int64 bytesInCurrentSecond = 0;
 		int64 lastBytesDownloaded = 0;
 
+		int64 bytesDownloaded_ = 0;
+		int64 totalLength_ = 0;
+
 		int64 existingBytesBeforeResuming = 0;
-		ScopedPointer<TemporaryFile> resumeFile;
+		File resumeFile;
 
 		uint32 lastTimeMs = 0;
 		uint32 lastSpeedMeasure = 0;
@@ -698,6 +715,9 @@ public:
 		/** Returns the ID of the modulator. */
 		String getId() const;
 
+		/** Returns the Type of the modulator. */
+		String getType() const;
+		
 		/** Sets the attribute of the Modulator. You can look up the specific parameter indexes in the manual. */
 		void setAttribute(int index, float value);
 
@@ -1715,6 +1735,10 @@ public:
 			Image createIcon(PresetHandler::IconType type) override;
 
 			bool functionDefined(const String& s);
+
+			static Identifier getIdOfParentFloatingTile(Component& c);
+
+			static bool addParentFloatingTile(Component& c, DynamicObject* obj);
 		};
 
 		struct Wrapper;

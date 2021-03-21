@@ -342,7 +342,7 @@ public:
 
 		bool initialised = false;
 
-		Array<WeakReference<PreloadListener>> preloadListeners;
+		Array<WeakReference<PreloadListener>, CriticalSection> preloadListeners;
 
 		using SampleFunction = SuspendHelpers::Suspended<SafeFunctionCall, SuspendHelpers::ScopedTicket>;
 		static constexpr auto config = MultithreadedQueueHelpers::Configuration::AllocationsAllowedAndTokenlessUsageAllowed;
@@ -1553,8 +1553,10 @@ protected:
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
 
-	
-	
+	void setMaxEventTimestamp(int newMaxTimestamp)
+	{
+		maxEventTimestamp = newMaxTimestamp;
+	}
 
 private:
 
@@ -1572,6 +1574,8 @@ private:
 #endif
 
 	Array<WeakReference<ControlledObject>> registeredObjects;
+
+	int maxEventTimestamp = 0;
 
 	PooledUIUpdater globalUIUpdater;
 

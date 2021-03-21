@@ -357,8 +357,11 @@ public:
 		/** Sets whether the samples are allowed to be duplicated. Set this to false if you operate on the same samples differently. */
 		void setAllowDuplicateSamples(bool shouldAllow);
 
-		/** Calling this makes sure that all audio files are loaded into the pool and will be available in the compiled plugin. */
-		void loadAudioFilesIntoPool();
+		/** Calling this makes sure that all audio files are loaded into the pool and will be available in the compiled plugin. Returns a list of all references. */
+		var loadAudioFilesIntoPool();
+
+		/** Loads a file and returns its content as array of Buffers. */
+		var loadAudioFileIntoBufferArray(String audioFileReference);
 
 		/** Loads an image into the pool. You can use a wildcard to load multiple images at once. */
 		void loadImageIntoPool(const String& id);
@@ -416,6 +419,9 @@ public:
 
 		/** Sets the new zoom level (1.0 = 100%) */
 		void setZoomLevel(double newLevel);
+
+		/** Sets the Streaming Mode (0 -> Fast-SSD, 1 -> Slow-HDD) */
+		void setDiskMode(int mode);
 
 		/** Returns an object that contains all filter modes. */
 		var getFilterModeList() const;
@@ -479,6 +485,9 @@ public:
 
 		/** Redo the last controller change. */
 		void redo();
+
+		/** Returns a fully described string of this date and time in ISO-8601 format (using the local timezone) with or without divider characters. */
+		String getSystemTime(bool includeDividerCharacters);
 
 		// ============================================================================================================
 
@@ -929,6 +938,9 @@ public:
 		/** Throws an error message if the value is not a legal number (eg. string or array or infinity or NaN). */
 		void assertLegalNumber(var value);
 
+		/** Throws an assertion in the attached debugger. */
+		void breakInDebugger();
+
 		struct Wrapper;
 
 	private:
@@ -958,9 +970,12 @@ public:
 	};
 
 	class Server : public ApiClass,
-				   public ScriptingObject
+				   public ScriptingObject,
+				   public GlobalServer::Listener
 	{
 	public:
+
+		using WeakPtr = WeakReference<Server>;
 
 		enum StatusCodes
 		{
@@ -976,7 +991,7 @@ public:
 
 		~Server()
 		{
-			internalThread.stopThread(3000);
+			globalServer.removeListener(this);
 		}
 		
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Server"); }
@@ -1008,56 +1023,39 @@ public:
 		/** Removes all finished downloads from the list. */
 		void cleanFinishedDownloads();
 
+		/** This function will be called whenever there is server activity. */
+		void setServerCallback(var callback);
+
+		void queueChanged(int numItems) override
+		{
+			if (serverCallback)
+			{
+				if(numItems < 2)
+					serverCallback.call1(numItems == 1);
+			}
+		}
+
+		void downloadQueueChanged(int) override
+		{
+
+		}
+
+		juce::URL getWithParameters(String subURL, var parameters)
+		{
+			return globalServer.getWithParameters(subURL, parameters);
+		}
+
 	private:
 
-		struct PendingCallback: public ReferenceCountedObject
-		{
-			using Ptr = ReferenceCountedObjectPtr<PendingCallback>;
+		GlobalServer& globalServer;
 
-			PendingCallback(ProcessorWithScriptingContent* p, const var& function):
-				f(p, function, 2)
-			{
-				f.setHighPriority();
-				f.incRefCount();
-			}
-
-			WeakCallbackHolder f;
-
-			URL url;
-			String extraHeader;
-			bool isPost;
-			int status = 0;
-		};
-
-		struct WebThread : public Thread
-		{
-			WebThread(Server& p) :
-				Thread("Server Thread"),
-				parent(p)
-			{};
-
-			Server& parent;
-
-			void run() override;
-
-			CriticalSection queueLock;
-
-			std::atomic<bool> cleanDownloads = { false };
-
-			int numMaxDownloads = 1;
-			ReferenceCountedArray<PendingCallback> pendingCallbacks;
-			ReferenceCountedArray<ScriptingObjects::ScriptDownloadObject> pendingDownloads;
-
-		} internalThread;
+		WeakCallbackHolder serverCallback;
 
 		JavascriptProcessor* jp;
 
-		URL getWithParameters(String subURL, var parameters);
-
-		URL baseURL;
-		String extraHeader;
-
 		struct Wrapper;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Server);
 	};
 
 	class FileSystem : public ApiClass,
@@ -1099,16 +1097,19 @@ public:
 		/** Opens a file browser to choose a file. */
 		void browse(var startFolder, bool forSaving, String wildcard, var callback);
 
+		/** Opens a file browser to choose a directory. */
+		void browseForDirectory(var startFolder, var callback);
+
 		/** Returns a unique machine ID that can be used to identify the computer. */
 		String getSystemId();
 
 		// ========================================================= End of API calls
 
-		
-
 		ProcessorWithScriptingContent* p;
 
 	private:
+
+		void browseInternally(File startFolder, bool forSaving, bool isDirectory, String wildcard, var callback);
 
 		File getFile(SpecialLocations l);
 

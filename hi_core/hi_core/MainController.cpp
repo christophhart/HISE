@@ -106,7 +106,9 @@ MainController::MainController() :
 
 MainController::~MainController()
 {
-	PresetHandler::setCurrentMainController(this);
+	//getControlUndoManager()->clearUndoHistory();
+
+	PresetHandler::setCurrentMainController(nullptr);
 
 	notifyShutdownToRegisteredObjects();
 
@@ -231,6 +233,7 @@ void MainController::clearPreset()
 
 		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().clear();
 		mc->getScriptComponentEditBroadcaster()->getUndoManager().clearUndoHistory();
+		mc->getControlUndoManager()->clearUndoHistory();
 		mc->getMainSynthChain()->reset();
 		mc->globalVariableObject->clear();
 
@@ -771,8 +774,15 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages); // TODO_BUFFER: Move this after the next line...
 
 	masterEventBuffer.addEvents(midiMessages);
-
 	masterEventBuffer.alignEventsToRaster<HISE_EVENT_RASTER>(numSamplesThisBlock);
+	
+	if (maxEventTimestamp != 0)
+	{
+		int maxAligned = maxEventTimestamp - maxEventTimestamp % HISE_EVENT_RASTER;
+
+		for (auto& e : masterEventBuffer)
+			e.setTimeStamp(jmin(maxAligned, e.getTimeStamp()));
+	}
 
 	handleSuspendedNoteOffs();
 

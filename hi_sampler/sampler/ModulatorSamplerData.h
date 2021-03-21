@@ -131,9 +131,9 @@ public:
 	/** Saves all data with the mode depending on the file extension. */
 	bool save(const File& fileToUse = File());
 
-	void saveSampleMapAsReference();
+	bool saveSampleMapAsReference();
 
-	void saveAsMonolith(Component* mainEditor);
+	bool saveAsMonolith(Component* mainEditor);
 
 	void setIsMonolith() noexcept { mode = SaveMode::Monolith; }
 

@@ -15,3 +15,9 @@ macOS:
 tba
 ```
 
+GNU/Linux:
+
+```
+/usr/lib/
+```
+

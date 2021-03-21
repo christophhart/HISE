@@ -1049,6 +1049,773 @@ bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)
 	return false;
 }
 
+juce::Identifier ServerControllerPanel::getProcessorTypeId() const
+{
+	return JavascriptProcessor::getConnectorId();
+}
+
+namespace ServerIcons
+{
+static const unsigned char response[] = { 110,109,25,132,45,66,51,179,228,66,108,25,132,45,66,199,139,14,67,108,0,0,0,0,4,86,198,66,108,25,132,45,66,240,39,95,66,108,25,132,45,66,82,248,167,66,108,188,52,235,66,82,248,167,66,108,188,52,235,66,51,179,228,66,108,25,132,45,66,51,179,228,66,99,109,
+229,208,89,66,78,98,240,64,98,223,207,89,66,190,159,238,64,229,208,89,66,47,221,236,64,236,209,89,66,111,18,235,64,98,246,40,90,66,143,194,117,64,74,140,101,66,199,75,23,63,197,160,115,66,53,94,186,61,98,252,169,118,66,150,67,139,188,100,59,120,66,10,
+215,35,188,66,96,121,66,111,18,131,60,108,70,150,65,67,111,18,131,60,98,68,203,65,67,205,204,204,60,66,0,66,67,2,43,7,61,254,52,66,67,49,8,44,61,98,213,248,69,67,229,208,2,63,164,240,72,67,106,188,108,64,23,25,73,67,47,221,240,64,108,23,25,73,67,254,
+148,213,66,98,217,238,72,67,147,152,221,66,90,164,69,67,156,68,228,66,70,150,65,67,35,155,228,66,108,92,15,255,66,35,155,228,66,108,92,15,255,66,92,143,198,66,108,117,19,58,67,92,143,198,66,108,117,19,58,67,205,204,182,65,108,164,176,254,66,102,102,141,
+66,108,51,243,138,66,244,253,186,65,108,51,243,138,66,127,234,147,66,108,223,207,89,66,127,234,147,66,108,223,207,89,66,47,221,240,64,108,229,208,89,66,78,98,240,64,99,109,72,225,43,67,190,159,112,65,108,168,6,166,66,190,159,112,65,108,219,185,254,66,
+100,59,77,66,108,72,225,43,67,190,159,112,65,99,101,0,0 };
+
+static const unsigned char downloads[] = { 110,109,25,4,114,66,63,53,246,65,108,143,194,59,66,63,53,246,65,108,59,223,97,65,41,156,191,66,108,117,51,24,67,41,156,191,66,108,137,193,238,66,63,53,246,65,108,12,66,210,66,63,53,246,65,108,12,66,210,66,113,61,177,65,108,53,94,249,66,113,61,177,65,
+108,150,163,36,67,72,161,202,66,98,49,168,37,67,104,81,203,66,90,100,38,67,250,62,205,66,90,100,38,67,25,132,207,66,108,90,100,38,67,100,123,254,66,98,90,100,38,67,252,169,0,67,172,60,37,67,170,209,1,67,98,208,35,67,170,209,1,67,108,145,237,36,64,170,
+209,1,67,98,10,215,147,63,170,209,1,67,0,0,0,0,252,169,0,67,0,0,0,0,100,123,254,66,108,0,0,0,0,25,132,207,66,98,0,0,0,0,98,80,205,66,96,229,48,63,27,111,203,66,47,221,212,63,45,178,202,66,108,55,137,38,66,113,61,177,65,108,25,4,114,66,113,61,177,65,108,
+25,4,114,66,63,53,246,65,99,109,16,24,198,66,29,90,44,66,108,119,254,233,66,29,90,44,66,108,143,66,166,66,225,58,174,66,108,80,13,69,66,29,90,44,66,108,14,109,134,66,29,90,44,66,108,14,109,134,66,0,0,0,0,108,16,24,198,66,0,0,0,0,108,16,24,198,66,29,90,
+44,66,99,101,0,0 };
+
+static const unsigned char requests[] = { 110,109,51,243,249,66,137,1,211,66,108,51,243,249,66,55,73,158,66,108,197,160,22,66,55,73,158,66,108,197,160,22,66,2,171,90,66,108,0,0,0,0,96,165,184,66,108,197,160,22,66,225,250,1,67,108,197,160,22,66,137,1,211,66,108,51,243,249,66,137,1,211,66,99,109,
+193,202,105,66,16,88,75,66,108,193,202,105,66,229,208,195,65,108,106,188,12,67,229,208,195,65,108,106,188,12,67,0,0,0,0,108,90,100,50,67,197,160,22,66,108,106,188,12,67,66,160,150,66,108,106,188,12,67,16,88,75,66,108,193,202,105,66,16,88,75,66,99,101,
+0,0 };
+
+static const unsigned char pause[] = { 110,109,231,59,6,67,115,104,145,61,98,41,28,29,67,207,247,147,62,135,86,50,67,133,235,159,65,236,145,50,67,197,160,49,66,98,61,170,50,67,176,178,148,66,61,170,50,67,129,149,208,66,236,145,50,67,231,59,6,67,98,29,90,50,67,41,28,29,67,168,166,30,67,135,
+86,50,67,231,59,6,67,236,145,50,67,98,129,149,208,66,61,170,50,67,176,178,148,66,61,170,50,67,197,160,49,66,236,145,50,67,98,125,63,172,65,29,90,50,67,209,34,155,62,168,166,30,67,115,104,145,61,231,59,6,67,98,166,155,196,188,129,149,208,66,166,155,196,
+188,176,178,148,66,115,104,145,61,197,160,49,66,98,207,247,147,62,125,63,172,65,133,235,159,65,209,34,155,62,197,160,49,66,115,104,145,61,98,176,178,148,66,166,155,196,188,129,149,208,66,166,155,196,188,231,59,6,67,115,104,145,61,99,109,96,229,50,66,
+43,135,144,65,98,137,65,247,65,72,225,144,65,215,163,145,65,121,233,238,65,43,135,144,65,135,22,50,66,98,82,184,143,65,168,198,148,66,82,184,143,65,137,129,208,66,43,135,144,65,119,30,6,67,98,104,145,145,65,178,221,19,67,154,153,240,65,33,112,32,67,129,
+21,50,66,51,147,32,67,98,37,198,148,66,8,172,32,67,12,130,208,66,8,172,32,67,184,30,6,67,51,147,32,67,98,84,227,19,67,236,113,32,67,92,111,32,67,14,141,20,67,51,147,32,67,250,30,6,67,98,55,169,32,67,12,130,208,66,55,169,32,67,37,198,148,66,51,147,32,
+67,123,20,50,66,98,229,112,32,67,55,137,245,65,61,138,20,67,190,159,145,65,184,30,6,67,43,135,144,65,98,90,164,208,66,156,196,143,65,199,11,149,66,43,135,144,65,96,229,50,66,43,135,144,65,99,109,252,105,162,66,213,152,3,67,108,137,65,77,66,213,152,3,
+67,108,137,65,77,66,14,45,60,66,108,252,105,162,66,14,45,60,66,108,252,105,162,66,213,152,3,67,99,109,109,167,254,66,213,152,3,67,108,53,222,194,66,213,152,3,67,108,53,222,194,66,14,45,60,66,108,109,167,254,66,14,45,60,66,108,109,167,254,66,213,152,3,
+67,99,101,0,0 };
+
+static const unsigned char play[] = { 110,109,231,59,6,67,115,104,145,61,98,41,28,29,67,207,247,147,62,135,86,50,67,133,235,159,65,236,145,50,67,197,160,49,66,98,61,170,50,67,176,178,148,66,61,170,50,67,129,149,208,66,236,145,50,67,231,59,6,67,98,29,90,50,67,41,28,29,67,168,166,30,67,135,
+86,50,67,231,59,6,67,236,145,50,67,98,129,149,208,66,61,170,50,67,176,178,148,66,61,170,50,67,197,160,49,66,236,145,50,67,98,125,63,172,65,29,90,50,67,209,34,155,62,168,166,30,67,115,104,145,61,231,59,6,67,98,166,155,196,188,129,149,208,66,166,155,196,
+188,176,178,148,66,115,104,145,61,197,160,49,66,98,207,247,147,62,125,63,172,65,133,235,159,65,209,34,155,62,197,160,49,66,115,104,145,61,98,176,178,148,66,166,155,196,188,129,149,208,66,166,155,196,188,231,59,6,67,115,104,145,61,99,109,96,229,50,66,
+43,135,144,65,98,39,49,247,65,72,225,144,65,203,161,145,65,68,139,239,65,43,135,144,65,123,20,50,66,98,180,200,143,65,37,198,148,66,180,200,143,65,12,130,208,66,43,135,144,65,250,30,6,67,98,117,147,145,65,121,233,19,67,154,153,240,65,33,112,32,67,129,
+21,50,66,51,147,32,67,98,37,198,148,66,8,172,32,67,12,130,208,66,8,172,32,67,184,30,6,67,51,147,32,67,98,178,253,19,67,170,113,32,67,223,111,32,67,184,94,20,67,51,147,32,67,119,30,6,67,98,68,171,32,67,137,129,208,66,68,171,32,67,168,198,148,66,51,147,
+32,67,135,22,50,66,98,39,113,32,67,76,55,246,65,33,144,20,67,203,161,145,65,184,30,6,67,43,135,144,65,98,90,164,208,66,156,196,143,65,199,11,149,66,43,135,144,65,96,229,50,66,43,135,144,65,99,109,244,221,7,67,90,164,178,66,108,8,44,101,66,147,184,8,67,
+108,8,44,101,66,20,174,39,66,108,244,221,7,67,90,164,178,66,99,101,0,0 };
+
+static const unsigned char resend[] = { 110,109,63,53,160,65,6,129,27,65,98,82,184,148,65,78,98,240,64,16,88,128,65,180,200,194,64,86,14,85,65,248,83,195,64,98,82,184,234,64,170,241,198,64,2,43,63,64,84,227,107,65,84,227,253,64,141,151,156,65,98,104,145,55,65,113,61,184,65,205,204,148,65,246,
+40,170,65,72,225,165,65,223,79,134,65,108,78,98,216,65,223,79,134,65,98,193,202,214,65,244,253,142,65,49,8,212,65,203,161,151,65,207,247,207,65,98,16,160,65,98,119,190,177,65,119,190,222,65,61,10,37,65,100,59,242,65,92,143,114,64,188,116,192,65,98,217,
+206,119,192,12,2,134,65,217,206,247,62,217,206,119,62,242,210,83,65,111,18,131,58,98,57,180,86,65,0,0,0,0,33,176,86,65,0,0,0,0,104,145,89,65,111,18,131,58,98,147,24,142,65,10,215,163,61,240,167,172,65,182,243,21,64,145,237,192,65,197,32,180,64,108,250,
+126,233,65,23,217,14,63,108,45,178,234,65,131,192,102,65,108,0,0,172,65,90,100,101,65,108,168,198,170,65,90,100,101,65,108,168,198,170,65,66,96,101,65,108,104,145,119,65,29,90,100,65,108,63,53,160,65,6,129,27,65,99,101,0,0 };
+
+static const unsigned char parameters[] = { 110,109,160,26,92,66,121,233,3,66,108,160,26,92,66,236,81,82,65,108,25,132,139,66,236,81,82,65,108,117,211,135,66,0,0,0,0,108,51,243,181,66,250,126,184,65,108,117,211,135,66,244,125,56,66,108,25,132,139,66,121,233,3,66,108,160,26,92,66,121,233,3,66,99,
+109,205,204,141,65,141,23,36,66,108,76,55,249,64,141,23,36,66,108,76,55,249,64,55,9,1,66,108,205,204,141,65,55,9,1,66,108,205,204,141,65,141,23,36,66,99,109,162,197,71,66,137,65,4,66,108,16,88,3,66,137,65,4,66,108,16,88,3,66,152,110,201,65,108,162,197,
+71,66,152,110,201,65,108,162,197,71,66,137,65,4,66,99,109,98,16,139,65,16,88,238,65,108,20,174,1,65,16,88,238,65,108,20,174,1,65,133,235,230,65,98,20,174,1,65,186,73,218,65,92,143,4,65,61,10,208,65,186,73,10,65,246,40,200,65,98,25,4,16,65,174,71,192,
+65,68,139,24,65,135,22,185,65,59,223,35,65,117,147,178,65,98,51,51,47,65,98,16,172,65,240,167,72,65,166,155,160,65,113,61,112,65,51,51,144,65,98,252,169,130,65,166,155,135,65,158,239,135,65,188,116,127,65,158,239,135,65,209,34,113,65,98,158,239,135,65,
+229,208,98,65,242,210,133,65,20,174,87,65,141,151,129,65,119,190,79,65,98,82,184,122,65,193,202,71,65,84,227,109,65,242,210,67,65,57,180,92,65,242,210,67,65,98,63,53,74,65,242,210,67,65,121,233,58,65,182,243,73,65,205,204,46,65,39,49,86,65,98,33,176,
+34,65,152,110,98,65,170,241,26,65,168,198,119,65,104,145,23,65,197,32,139,65,108,0,0,0,0,131,192,129,65,98,121,233,166,62,168,198,75,65,227,165,203,63,121,233,30,65,170,241,114,64,35,219,249,64,98,98,16,192,64,84,227,181,64,197,32,22,65,109,231,147,64,
+61,10,95,65,109,231,147,64,98,121,233,139,65,109,231,147,64,242,210,162,65,178,157,171,64,162,69,180,65,12,2,219,64,98,207,247,203,65,55,137,13,65,242,210,215,65,113,61,56,65,242,210,215,65,203,161,109,65,98,242,210,215,65,72,225,129,65,143,194,212,65,
+92,143,140,65,215,163,206,65,10,215,150,65,98,31,133,200,65,197,32,161,65,37,6,188,65,45,178,173,65,221,36,169,65,55,137,188,65,98,244,253,155,65,182,243,198,65,33,176,147,65,236,81,207,65,113,61,144,65,215,163,213,65,98,193,202,140,65,182,243,219,65,
+98,16,139,65,27,47,228,65,98,16,139,65,16,88,238,65,99,109,162,197,71,66,229,208,168,65,108,16,88,3,66,229,208,168,65,108,16,88,3,66,8,172,82,65,108,162,197,71,66,8,172,82,65,108,162,197,71,66,229,208,168,65,99,101,0,0 };
+
+}
+
+struct ServerController: public Component,
+						 public ControlledObject,
+						 public PooledUIUpdater::SimpleTimer,
+						 public GlobalServer::Listener,
+						 public ButtonListener
+{
+	struct StateComponent : public Component
+	{
+		StateComponent(ServerController& p) :
+			parent(p)
+		{};
+
+		void refresh()
+		{
+			if (auto s = parent.getServerClass())
+			{
+				auto thisState = s->getServerState();
+
+				if (thisState != currentState)
+				{
+					currentState = thisState;
+					repaint();
+				}
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			Colour stateColours[(int)GlobalServer::State::numStates+1] = 
+			{ 
+				Colours::grey,				// Inactive
+				Colours::yellow,			// Pause
+				Colours::green,				// Idle
+				Colours::blue,				// Pending
+				Colours::transparentBlack	// uninitialised
+			};
+
+			auto c = stateColours[(int)currentState];
+
+			auto circle = getLocalBounds().withSizeKeepingCentre(10, 10).toFloat();
+
+			g.setColour(c);
+			g.fillEllipse(circle);
+			g.setColour(Colours::white.withAlpha(0.3f));
+			g.drawEllipse(circle, 1.0f);
+		}
+
+		ServerController& parent;
+		GlobalServer::State currentState = GlobalServer::State::numStates;
+	};
+
+	struct Factory : public PathFactory
+	{
+		String getId() const override { return {}; }
+		Path createPath(const String& url) const override
+		{
+			Path p;
+
+			LOAD_PATH_IF_URL("clear", SampleMapIcons::deleteSamples);
+			LOAD_PATH_IF_URL("edit", ServerIcons::parameters);
+			LOAD_PATH_IF_URL("web", MainToolbarIcons::web);
+			LOAD_PATH_IF_URL("response", ServerIcons::response);
+			LOAD_PATH_IF_URL("resend", ServerIcons::resend);
+			LOAD_PATH_IF_URL("downloads", ServerIcons::downloads);
+			LOAD_PATH_IF_URL("requests", ServerIcons::requests);
+			LOAD_PATH_IF_URL("start", ServerIcons::play);
+			LOAD_PATH_IF_URL("stop", ServerIcons::pause);
+			LOAD_PATH_IF_URL("file", SampleMapIcons::loadSampleMap);
+
+			return p;
+		}
+	};
+
+	struct DownloadModel : public TableListBoxModel,
+					       public ButtonListener
+	{
+		using DataPtr = ScriptingObjects::ScriptDownloadObject::Ptr;
+
+		enum class Columns
+		{
+			StatusLed = 1,
+			Status,
+			URL,
+			DownloadSize,
+			DownloadSpeed,
+			Pause,
+			Abort,
+			ShowFile,
+			numColumns
+		};
+
+		DownloadModel(ServerController& p) :
+			parent(p)
+		{};
+
+		int getNumRows() override
+		{
+			auto l = parent.getServerClass()->getPendingDownloads();
+
+			SimpleReadWriteLock::ScopedWriteLock sl(dataLock);
+
+			downloads.clear();
+
+			for (auto i : *l.getArray())
+				downloads.add(dynamic_cast<ScriptingObjects::ScriptDownloadObject*>(i.getObject()));
+
+			return downloads.size();
+		}
+
+		DataPtr getData(int index)
+		{
+			SimpleReadWriteLock::ScopedReadLock sl(dataLock);
+			return downloads[index];
+		}
+
+		Component* refreshComponentForCell(int rowNumber, int columnId, bool isRowSelected,
+			Component* existingComponentToUpdate) override
+		{
+			if (existingComponentToUpdate != nullptr)
+				return existingComponentToUpdate;
+
+			if (columnId == (int)Columns::Pause)
+			{
+				auto b = new HiseShapeButton("start", this, parent.f, "stop");
+				b->setToggleModeWithColourChange(true);
+				return b;
+			}
+			if (columnId == (int)Columns::Abort)
+			{
+				return new HiseShapeButton("clear", this, parent.f);
+			}
+			if (columnId == (int)Columns::ShowFile)
+			{
+				return new HiseShapeButton("file", this, parent.f);
+			}
+
+			return nullptr;
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			auto n = b->getName();
+
+			auto index = parent.downloadTable.getRowNumberOfComponent(b->getParentComponent()->getParentComponent());
+
+			if (auto d = getData(index))
+			{
+				if (n == "start")
+				{
+					if (!b->getToggleState())
+						d->resume();
+					else
+						d->stop();
+				}
+
+				if (n == "file")
+					d->getTargetFile().revealToUser();
+
+				if (n == "clear")
+					d->abort();
+			}
+		}
+
+		void paintRowBackground(Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
+		{
+			Rectangle<float> area(0.0f, 0.0f, (float)width, (float)height);
+
+			if (rowIsSelected)
+			{
+				g.setColour(Colours::white.withAlpha(0.05f));
+				g.fillRect(area);
+			}
+		}
+
+		void paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool rowIsSelected)
+		{
+			Rectangle<float> area(0.0f, 0.0f, (float)width, (float)height);
+
+			if (auto obj = getData(rowNumber))
+			{
+				auto alpha = obj->isFinished ? 0.9f : 0.2f;
+
+				switch ((Columns)columnId)
+				{
+				case Columns::URL:
+				{
+					String text = obj->getURL().toString(false);
+					g.setFont(GLOBAL_MONOSPACE_FONT());
+					g.setColour(Colours::white.withAlpha(alpha));
+					g.drawText(text, area, Justification::centredLeft);
+					break;
+				}
+				case Columns::Status:
+				{
+					auto text = obj->getStatusText();
+					g.setFont(GLOBAL_BOLD_FONT());
+					g.setColour(Colours::white.withAlpha(alpha));
+					g.drawText(text, area, Justification::centredLeft);
+					break;
+				}
+				case Columns::DownloadSize:
+				{
+					if (auto s = parent.getServerClass())
+					{
+						String text;
+						text << String((double)obj->getNumBytesDownloaded() / 1024.0 / 1024.0, 1) << "MB";
+						text << " / ";
+						text << String((double)obj->getDownloadSize() / 1024.0 / 1024.0, 2) << "MB";
+						g.setFont(GLOBAL_BOLD_FONT());
+						g.setColour(Colours::white.withAlpha(alpha));
+						g.drawText(text, area, Justification::centredLeft);
+						break;
+					}
+				}
+				case Columns::DownloadSpeed:
+				{
+					String text;
+					text << String((double)obj->getDownloadSpeed() / 1024.0 / 1024.0, 1) << "MB/s";
+					g.setFont(GLOBAL_BOLD_FONT());
+					g.setColour(Colours::white.withAlpha(alpha));
+					g.drawText(text, area, Justification::centredLeft);
+					break;
+				}
+				case Columns::StatusLed:
+				{
+					g.setColour(Colours::green);
+					auto circle = area.withSizeKeepingCentre(12.0f, 12.0f);
+					g.fillEllipse(circle);
+					g.setColour(Colours::white.withAlpha(0.4f));
+					g.drawEllipse(circle, 1.0f);
+					break;
+				}
+				}
+			}
+		}
+
+		SimpleReadWriteLock dataLock;
+		ReferenceCountedArray<ScriptingObjects::ScriptDownloadObject> downloads;
+		ServerController& parent;
+	};
+
+	struct RequestModel : public TableListBoxModel
+	{
+		enum class Columns
+		{
+			StatusLed = 1,
+			Status,
+			URL,
+			CreationTime,
+			Duration,
+			Parameters,
+			Response,
+			Resend,
+			numColumns
+		};
+
+		RequestModel(ServerController& p):
+			parent(p)
+		{
+
+		}
+
+		Component* refreshComponentForCell(int rowNumber, int columnId, bool isRowSelected,
+			Component* existingComponentToUpdate) override
+		{
+			if (existingComponentToUpdate != nullptr)
+				return existingComponentToUpdate;
+
+			if (columnId == (int)Columns::Response)
+			{
+				return new HiseShapeButton("response", &parent, parent.f);
+			}
+			if (columnId == (int)Columns::Parameters)
+			{
+				return new HiseShapeButton("edit", &parent, parent.f);
+			}
+			if (columnId == (int)Columns::Resend)
+			{
+				return new HiseShapeButton("resend", &parent, parent.f);
+			}
+
+			return nullptr;
+		}
+
+		void clearUnusedData()
+		{
+			for (int i = 0; i < objects.size(); i++)
+			{
+				if (auto d = getData(i))
+				{
+					if (!d->f)
+					{
+						objects.remove(i--);
+						continue;
+					}
+				}
+			}
+		}
+
+		void deleteKeyPressed(int lastRowSelected) override
+		{
+			auto selected = parent.requestTable.getSelectedRows();
+
+			for (int i = selected.getNumRanges() - 1; i >= 0; i--)
+			{
+				auto r = selected.getRange(i);
+
+				objects.removeRange(r.getStart(), r.getLength());
+			}
+
+			parent.requestTable.updateContent();
+		}
+
+		int getNumRows() override
+		{
+			return objects.size();
+		}
+
+		void paintRowBackground(Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
+		{
+			Rectangle<float> area(0.0f, 0.0f, (float)width, (float)height);
+
+			if (rowIsSelected)
+			{
+				g.setColour(Colours::white.withAlpha(0.05f));
+				g.fillRect(area);
+			}
+		}
+
+		void paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool rowIsSelected)
+		{
+			Rectangle<float> area(0.0f, 0.0f, (float)width, (float)height);
+
+			if (auto obj = getData(rowNumber))
+			{
+				auto alpha = obj->f ? 0.9f : 0.2f;
+
+				switch ((Columns)columnId)
+				{
+				case Columns::URL:
+				{
+					String text = obj->url.toString(false);
+					g.setFont(GLOBAL_MONOSPACE_FONT());
+					g.setColour(Colours::white.withAlpha(alpha));
+					g.drawText(text, area, Justification::centredLeft);
+					break;
+				}
+				case Columns::Status:
+				{
+					String text = String(obj->status);
+					g.setFont(GLOBAL_BOLD_FONT());
+					g.setColour(Colours::white.withAlpha(alpha));
+					g.drawText(text, area, Justification::centredLeft);
+					break;
+				}
+				case Columns::CreationTime:
+				{
+					if (auto s = parent.getServerClass())
+					{
+						String text;
+						text << String(obj->requestTimeMs - s->startTime) << "ms";
+						g.setFont(GLOBAL_BOLD_FONT());
+						g.setColour(Colours::white.withAlpha(alpha));
+						g.drawText(text, area, Justification::centredLeft);
+						break;
+					}
+				}
+				case Columns::Duration:
+				{
+					String text;
+					text << String(obj->completionTimeMs - obj->requestTimeMs) << "ms";
+					g.setFont(GLOBAL_BOLD_FONT());
+					g.setColour(Colours::white.withAlpha(alpha));
+					g.drawText(text, area, Justification::centredLeft);
+					break;
+				}
+				case Columns::StatusLed:
+				{
+					g.setColour(getColourForState(obj).withMultipliedSaturation(0.7f));
+					auto circle = area.withSizeKeepingCentre(12.0f, 12.0f);
+					g.fillEllipse(circle);
+					g.setColour(Colours::white.withAlpha(0.4f));
+					g.drawEllipse(circle, 1.0f);
+					break;
+				}
+				}
+			}
+		}
+
+		GlobalServer::PendingCallback::Ptr getData(int index)
+		{
+			SimpleReadWriteLock::ScopedReadLock sl(dataLock);
+			return objects[index];
+		}
+
+		SimpleReadWriteLock dataLock;
+		ServerController& parent;
+		ReferenceCountedArray<GlobalServer::PendingCallback> objects;
+	};
+
+	ServerController(JavascriptProcessor* p) :
+		ControlledObject(dynamic_cast<Processor*>(p)->getMainController()),
+		SimpleTimer(getMainController()->getGlobalUIUpdater()),
+		jp(p),
+		state(*this),
+		requestModel(*this),
+		downloadModel(*this),
+		downloadButton("downloads", this, f),
+		requestButton("requests", this, f),
+		pauseButton("stop", this, f, "start"),
+		clearButton("clear", this, f)
+	{
+		addAndMakeVisible(requestTable);
+		
+
+		getMainController()->getJavascriptThreadPool().getGlobalServer()->addListener(this);
+
+		addAndMakeVisible(state);
+		addButton(requestButton);
+		addButton(downloadButton);
+		addButton(pauseButton);
+		addButton(clearButton);
+
+		requestButton.setToggleStateAndUpdateIcon(true);
+		downloadButton.setToggleStateAndUpdateIcon(true);
+
+		requestTable.getHeader().addColumn("StatusLED", (int)RequestModel::Columns::StatusLed, 30, 30, 30, TableHeaderComponent::notResizable);
+		requestTable.getHeader().addColumn("Status", (int)RequestModel::Columns::Status, 50, 50, 50, TableHeaderComponent::notResizable);
+		requestTable.getHeader().addColumn("URL", (int)RequestModel::Columns::URL, 200, 200, 9000);
+		requestTable.getHeader().addColumn("Timestamp", (int)RequestModel::Columns::CreationTime, 120, 120, 120, TableHeaderComponent::notResizable);
+		requestTable.getHeader().addColumn("Duration", (int)RequestModel::Columns::Duration, 70, 70, 70, TableHeaderComponent::notResizable);
+		requestTable.getHeader().addColumn("Parameters", (int)RequestModel::Columns::Parameters, 60, 60, 60, TableHeaderComponent::notResizable);
+		requestTable.getHeader().addColumn("Response", (int)RequestModel::Columns::Response, 60, 60, 60, TableHeaderComponent::notResizable);
+		requestTable.getHeader().addColumn("Resend", (int)RequestModel::Columns::Resend, 60, 60, 60, TableHeaderComponent::notResizable);
+		requestTable.setModel(&requestModel);
+		skinTable(requestTable);
+
+		downloadTable.getHeader().addColumn("StatusLED", (int)DownloadModel::Columns::StatusLed, 30, 30, 30, TableHeaderComponent::notResizable);
+		downloadTable.getHeader().addColumn("Status", (int)DownloadModel::Columns::Status, 50, 50, 50, TableHeaderComponent::notResizable);
+		downloadTable.getHeader().addColumn("URL", (int)DownloadModel::Columns::URL, 200, 200, 9000);
+		downloadTable.getHeader().addColumn("Size", (int)DownloadModel::Columns::DownloadSize, 120, 120, 120, TableHeaderComponent::notResizable);
+		downloadTable.getHeader().addColumn("Speed", (int)DownloadModel::Columns::DownloadSpeed, 70, 70, 70, TableHeaderComponent::notResizable);
+		downloadTable.getHeader().addColumn("Pause", (int)DownloadModel::Columns::Pause, 60, 60, 60, TableHeaderComponent::notResizable);
+		downloadTable.getHeader().addColumn("Abort", (int)DownloadModel::Columns::Abort, 60, 60, 60, TableHeaderComponent::notResizable);
+		downloadTable.getHeader().addColumn("Show File", (int)DownloadModel::Columns::ShowFile, 60, 60, 60, TableHeaderComponent::notResizable);
+		downloadTable.setModel(&downloadModel);
+		skinTable(downloadTable);
+
+		addAndMakeVisible(downloadTable);
+
+		start();
+	};
+
+	void skinTable(TableListBox& table)
+	{
+		table.getHeader().setStretchToFitActive(true);
+		table.setColour(TableListBox::ColourIds::backgroundColourId, Colours::transparentBlack);
+		table.getViewport()->setScrollBarsShown(true, false, true, false);
+		table.setMultipleSelectionEnabled(true);
+		table.setLookAndFeel(&tlaf);
+	}
+
+	void timerCallback() override
+	{
+		if (requestDirty)
+		{
+			requestTable.updateContent();
+			requestDirty.store(false);
+		}
+
+		if (downloadsDirty)
+		{
+			downloadTable.updateContent();
+			downloadsDirty.store(false);
+		}
+		
+		state.refresh();
+
+		if (requestTable.isVisible())
+			requestTable.repaint();
+
+		if (downloadTable.isVisible())
+			downloadTable.repaint();
+	}
+	
+	static Colour getColourForState(GlobalServer::PendingCallback* data)
+	{
+		if (data->completionTimeMs == 0)
+		{
+			return Colours::grey;
+		}
+
+		if (data->status == 200)
+			return Colours::green;
+
+		if (data->status == 0 && data->requestTimeMs != 0)
+		{
+			return Colours::blue;
+		}
+
+		return Colours::red;
+	}
+
+	~ServerController()
+	{
+		getMainController()->getJavascriptThreadPool().getGlobalServer()->removeListener(this);
+	}
+	
+	void queueChanged(int numItemsInQueue) override
+	{
+		if (auto s = getServerClass())
+		{
+			for (int i = 0; i < s->getNumPendingRequests(); i++)
+			{
+				auto r = s->getPendingCallback(i);
+
+				SimpleReadWriteLock::ScopedWriteLock sl(requestModel.dataLock);
+				requestModel.objects.addIfNotAlreadyThere(r.get());
+			}
+		}
+
+		requestDirty.store(true);
+	}
+
+	void downloadQueueChanged(int numItemsToDownload) override
+	{
+		downloadsDirty.store(true);
+	}
+
+	void buttonClicked(Button* b) override
+	{
+		auto name = b->getName();
+
+		if (name == "response" || name == "edit")
+		{
+			auto index = requestTable.getRowNumberOfComponent(b->getParentComponent()->getParentComponent());
+
+			if (auto d = requestModel.getData(index))
+			{
+				var obj = d->responseObj;
+
+				String title = "JSON Response Viewer";
+				bool isEditable = false;
+
+				if (name == "edit")
+				{
+					auto n = new DynamicObject();
+					auto keys = d->url.getParameterNames();
+					auto values = d->url.getParameterValues();
+
+					for (int i = 0; i < keys.size(); i++)
+					{
+						n->setProperty(keys[i], values[i]);
+					}
+
+					obj = var(n);
+					title = "URL Parameter Editor";
+					isEditable = true;
+				}
+
+				auto ed = new JSONEditor(obj);
+				ed->setEditable(isEditable);
+				ed->setName(title);
+				ed->setSize(500, 500);
+
+				ed->setCallback([d](const var& o)
+				{
+					if (auto obj = o.getDynamicObject())
+					{
+						StringPairArray newParameters;
+
+						for (auto nv : obj->getProperties())
+							newParameters.set(nv.name.toString(), nv.value.toString());
+
+						juce::URL newURL(d->url.toString(false));
+						newURL = newURL.withParameters(newParameters);
+						d->url = newURL;
+					}
+				});
+
+				findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(ed, b, { b->getWidth() / 2, b->getHeight() });
+			}
+		}
+
+		if (name == "resend")
+		{
+			if (auto s = getServerClass())
+			{
+				auto index = requestTable.getRowNumberOfComponent(b->getParentComponent()->getParentComponent());
+
+				if (auto data = requestModel.getData(index))
+				{
+					auto ok = s->resendCallback(data);
+
+					if (!ok.wasOk())
+					{
+						PresetHandler::showMessageWindow("Resend error", ok.getErrorMessage(), PresetHandler::IconType::Error);
+					}
+				}
+			}
+		}
+
+		if (b == &pauseButton)
+		{
+			if (auto s = getServerClass())
+			{
+				if (b->getToggleState())
+					s->stop();
+				else
+					s->resume();
+			}
+		}
+		if (b == &requestButton || b == &downloadButton)
+		{
+			resized();
+		}
+		if (b == &clearButton)
+		{
+			if (auto s = getServerClass())
+			{
+				s->cleanFinishedDownloads();
+				requestModel.clearUnusedData();
+				requestDirty.store(true);
+			}
+		}
+	}
+
+	void addButton(HiseShapeButton& b)
+	{
+		addAndMakeVisible(b);
+		b.setToggleModeWithColourChange(true);
+		HiseColourScheme::setDefaultColours(b);
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.fillAll(Colour(0xFF262626));
+		auto b = getLocalBounds();
+		auto topRow = b.removeFromTop(28);
+		GlobalHiseLookAndFeel::drawFake3D(g, topRow);
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+
+		auto topRow = b.removeFromTop(28);
+		
+		
+
+		state.setBounds(topRow.removeFromLeft(28).reduced(2));
+
+		bool showRequests = requestButton.getToggleState();
+		bool showDownloads = downloadButton.getToggleState();
+
+		downloadTable.setVisible(showDownloads);
+		requestTable.setVisible(showRequests);
+
+		if (showDownloads && showRequests)
+		{
+			requestTable.setBounds(b.removeFromTop(b.getHeight() / 2));
+			downloadTable.setBounds(b);
+		}
+		else if (showDownloads)
+			downloadTable.setBounds(b);
+		else if (showRequests)
+			requestTable.setBounds(b);
+		
+
+		pauseButton.setBounds(topRow.removeFromLeft(28).reduced(2));
+		clearButton.setBounds(topRow.removeFromLeft(28).reduced(2));
+
+		topRow.removeFromLeft(20);
+
+		requestButton.setBounds(topRow.removeFromLeft(24));
+		downloadButton.setBounds(topRow.removeFromLeft(24));
+	}
+
+	GlobalServer* getServerClass()
+	{
+		return getMainController()->getJavascriptThreadPool().getGlobalServer();
+	}
+
+	std::atomic<bool> requestDirty = { true };
+	std::atomic<bool> downloadsDirty = { true };
+
+	Factory f;
+
+	WeakReference<JavascriptProcessor> jp;
+
+	GlobalHiseLookAndFeel glaf;
+
+	DownloadModel downloadModel;
+	RequestModel requestModel;
+	TableListBox requestTable, downloadTable;
+	
+	TableHeaderLookAndFeel tlaf;
+
+	HiseShapeButton downloadButton, requestButton, pauseButton, clearButton;
+
+	StateComponent state;
+
+};
+
+Component* ServerControllerPanel::createContentComponent(int)
+{
+	return new ServerController(dynamic_cast<JavascriptProcessor*>(getProcessor()));
+}
+
 Identifier ScriptWatchTablePanel::getProcessorTypeId() const
 {
 	return JavascriptProcessor::getConnectorId();

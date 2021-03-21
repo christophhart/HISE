@@ -322,9 +322,8 @@ ValueTree ScriptingApi::Content::ScriptComponent::exportAsValueTree() const
 void ScriptingApi::Content::ScriptComponent::restoreFromValueTree(const ValueTree &v)
 {
 	const var data = v.getProperty("value", var::undefined());
-
-	value = Content::Helpers::getCleanedComponentValue(data);
-
+	bool allowStrings = dynamic_cast<Label*>(this) != nullptr;
+	value = Content::Helpers::getCleanedComponentValue(data, allowStrings);
 }
 
 void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEvent &, Component* /*componentToNotify*/)
@@ -1099,7 +1098,9 @@ maximum(1.0f)
 	ADD_NUMBER_PROPERTY(i11, "mouseSensitivity");
 	ADD_SCRIPT_PROPERTY(i12, "dragDirection");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i13, "showValuePopup"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	ADD_SCRIPT_PROPERTY(i14, "showTextBox"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i14, "showTextBox"); 	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i15, "scrollWheel"); 	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i16, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 #if 0
 	componentProperties->setProperty(getIdFor(Mode), 0);
@@ -1138,6 +1139,8 @@ maximum(1.0f)
 	setDefaultValue(ScriptSlider::Properties::dragDirection, "Diagonal");
 	setDefaultValue(ScriptSlider::Properties::showValuePopup, "No");
 	setDefaultValue(ScriptSlider::Properties::showTextBox, true);
+	setDefaultValue(ScriptSlider::Properties::scrollWheel, true);
+	setDefaultValue(ScriptSlider::Properties::enableMidiLearn, true);
 
 	ScopedValueSetter<bool> svs(removePropertyIfDefault, false);
 
@@ -1578,6 +1581,7 @@ ScriptComponent(base, name)
 	ADD_NUMBER_PROPERTY(i03, "scaleFactor");
 	ADD_NUMBER_PROPERTY(i05, "radioGroup");
 	ADD_SCRIPT_PROPERTY(i04, "isMomentary");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i06, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	handleDefaultDeactivatedProperties();
 
@@ -1591,6 +1595,7 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptButton::Properties::scaleFactor, 1.0f);
 	setDefaultValue(ScriptButton::Properties::radioGroup, 0);
 	setDefaultValue(ScriptButton::Properties::isMomentary, 0);
+	setDefaultValue(ScriptButton::Properties::enableMidiLearn, true);
 
 	initInternalPropertyFromValueTreeOrDefault(filmstripImage);
 
@@ -1785,6 +1790,7 @@ ScriptComponent(base, name)
 	ADD_SCRIPT_PROPERTY(i01, "fontName");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_NUMBER_PROPERTY(i02, "fontSize");	ADD_AS_SLIDER_TYPE(1, 200, 1);
 	ADD_SCRIPT_PROPERTY(i03, "fontStyle");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i04, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	priorityProperties.add(getIdFor(Items));
 
@@ -1798,6 +1804,7 @@ ScriptComponent(base, name)
 	setDefaultValue(FontName, "Default");
 	setDefaultValue(ScriptComponent::Properties::defaultValue, 1);
 	setDefaultValue(ScriptComponent::min, 1.0f);
+	setDefaultValue(ScriptComboBox::Properties::enableMidiLearn, false);
 	
 	handleDefaultDeactivatedProperties();
 	initInternalPropertyFromValueTreeOrDefault(Items);
@@ -2520,17 +2527,16 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 	if (absoluteFileName.isEmpty())
 	{
-		setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 		image.clear();
+		setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 		return;
 	}
-
-	setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
-
 
 	PoolReference ref(getProcessor()->getMainController(), absoluteFileName, ProjectHandler::SubDirectories::Images);
 	image.clear();
 	image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
+
+	setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 };
 
 
@@ -2944,10 +2950,18 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 {
 	PoolReference ref(getProcessor()->getMainController(), imageName, ProjectHandler::SubDirectories::Images);
 
-	for (const auto& img : loadedImages)
+	for (auto& img : loadedImages)
 	{
-		if (img.image.getRef() == ref)
+		if (img.prettyName == prettyName)
+		{
+			if (img.image.getRef() != ref)
+			{
+				HiseJavascriptEngine::TimeoutExtender xt(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine());
+				img.image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
+			}
+
 			return;
+		}
 	}
 
 	HiseJavascriptEngine::TimeoutExtender xt(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine());
@@ -3256,6 +3270,12 @@ void ScriptingApi::Content::ScriptPanel::setAnimation(String base64LottieAnimati
 	}
 
 	setAnimationFrame(0);
+
+	for (auto l : animationListeners)
+	{
+		if (l.get() != nullptr)
+			l->animationChanged();
+	}
 }
 
 void ScriptingApi::Content::ScriptPanel::setAnimationFrame(int numFrame)
@@ -3322,6 +3342,20 @@ var ScriptingApi::Content::ScriptPanel::getParentPanel()
 		return var(parentPanel);
 
 	return {};
+}
+
+void ScriptingApi::Content::ScriptPanel::addAnimationListener(AnimationListener* l)
+{
+#if HISE_INCLUDE_RLOTTIE
+	animationListeners.addIfNotAlreadyThere(l);
+#endif
+}
+
+void ScriptingApi::Content::ScriptPanel::removeAnimationListener(AnimationListener* l)
+{
+#if HISE_INCLUDE_RLOTTIE
+	animationListeners.removeAllInstancesOf(l);
+#endif
 }
 
 #endif
@@ -4144,8 +4178,9 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 		{
 			static const Identifier value_("value");
 
-			v = Helpers::getCleanedComponentValue(presetChild.getProperty(value_));
+			auto allowStrings = dynamic_cast<ScriptLabel*>(components[i].get()) != nullptr;
 
+			v = Helpers::getCleanedComponentValue(presetChild.getProperty(value_), allowStrings);
 		}
 		else
 		{
@@ -5078,13 +5113,19 @@ juce::Colour ScriptingApi::Content::Helpers::getCleanedObjectColour(const var& v
 	return Colour((uint32)colourValue);
 }
 
-var ScriptingApi::Content::Helpers::getCleanedComponentValue(const var& data)
+var ScriptingApi::Content::Helpers::getCleanedComponentValue(const var& data, bool allowStrings)
 {
-	if (data.isString() && data.toString().startsWith("JSON"))
+	if (data.isString() && (data.toString().startsWith("JSON") || allowStrings))
 	{
-		String jsonData = data.toString().fromFirstOccurrenceOf("JSON", false, false);
-
-		return JSON::fromString(jsonData);
+		if (data.toString().startsWith("JSON"))
+		{
+			String jsonData = data.toString().fromFirstOccurrenceOf("JSON", false, false);
+			return JSON::fromString(jsonData);
+		}
+		else
+		{
+			return data;
+		}
 	}
 	else
 	{

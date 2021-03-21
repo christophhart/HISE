@@ -89,6 +89,34 @@ void ScriptCreatedComponentWrapper::changed(var newValue)
 	dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
 }
 
+bool ScriptCreatedComponentWrapper::setMouseCursorFromParentPanel(ScriptComponent* sc, MouseCursor& c)
+{
+	if (sc == nullptr)
+		return false;
+
+	if (auto sp = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(sc))
+	{
+		auto cursor = sp->getMouseCursorPath();
+
+		if (!cursor.path.isEmpty())
+		{
+			auto s = 80;
+
+			Image icon(Image::ARGB, s, s, true);
+			Graphics g(icon);
+
+			PathFactory::scalePath(cursor.path, { 0.0f, 0.0f, (float)s, (float)s });
+
+			g.setColour(cursor.c);
+			g.fillPath(cursor.path);
+			c = MouseCursor(icon, roundToInt(cursor.hitPoint.x * s), roundToInt(cursor.hitPoint.y * s));
+			return true;
+		}
+	}
+
+	return setMouseCursorFromParentPanel(sc->getParentScriptComponent(), c);
+}
+
 void ScriptCreatedComponentWrapper::asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
 {
 	if (v != getScriptComponent()->getPropertyValueTree())
@@ -165,6 +193,9 @@ ScriptCreatedComponentWrapper(content, index)
 
 	s = new HiSlider(sc->name.toString());
 
+	MouseCursor cursor;
+
+	
 	
 	s->addListener(this);
 	s->setValue(sc->value, dontSendNotification);
@@ -176,6 +207,9 @@ ScriptCreatedComponentWrapper(content, index)
 	initAllProperties();
 
 	s->updateValue(dontSendNotification);
+
+	if (setMouseCursorFromParentPanel(sc, cursor))
+		s->setMouseCursor(cursor);
 }
 
 void ScriptCreatedComponentWrappers::SliderWrapper::updateFilmstrip()
@@ -228,12 +262,12 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateColours(HiSlider * s)
 	s->setColour(Slider::backgroundColourId, GET_OBJECT_COLOUR(bgColour));
 	s->setColour(Slider::thumbColourId, GET_OBJECT_COLOUR(itemColour));
 	s->setColour(Slider::trackColourId, GET_OBJECT_COLOUR(itemColour2));
+	s->setColour(Slider::textBoxTextColourId, GET_OBJECT_COLOUR(textColour));
 
 	s->setColour(HiseColourScheme::ComponentOutlineColourId, GET_OBJECT_COLOUR(bgColour));
 	s->setColour(HiseColourScheme::ComponentFillTopColourId, GET_OBJECT_COLOUR(itemColour));
 	s->setColour(HiseColourScheme::ComponentFillBottomColourId, GET_OBJECT_COLOUR(itemColour2));
-
-	s->setColour(Slider::textBoxTextColourId, GET_OBJECT_COLOUR(textColour));
+	s->setColour(HiseColourScheme::ComponentTextColourId, GET_OBJECT_COLOUR(textColour));
 }
 
 
@@ -384,13 +418,14 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int property
 		PROPERTY_CASE::ScriptComponent::text:			s->setName(GET_SCRIPT_PROPERTY(text)); break;
 		PROPERTY_CASE::ScriptComponent::enabled:		s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled)); break;
 		PROPERTY_CASE::ScriptComponent::tooltip :		s->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
-		PROPERTY_CASE::ScriptComponent::saveInPreset:   s->setCanBeMidiLearned(newValue); break;
+		PROPERTY_CASE::ScriptSlider::enableMidiLearn:   s->setCanBeMidiLearned(newValue); break;
 		PROPERTY_CASE::ScriptComponent::bgColour:
 		PROPERTY_CASE::ScriptComponent::itemColour :
 		PROPERTY_CASE::ScriptComponent::itemColour2 :
 		PROPERTY_CASE::ScriptComponent::textColour :	updateColours(s); break;
 		PROPERTY_CASE::ScriptSlider::dragDirection:
 		PROPERTY_CASE::ScriptSlider::showTextBox:
+		PROPERTY_CASE::ScriptSlider::scrollWheel:		s->setScrollWheelEnabled(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::scrollWheel));
 		PROPERTY_CASE::ScriptSlider::Style:				updateSliderStyle(sc, s); break;
 		PROPERTY_CASE::ScriptSlider::Mode:
 		PROPERTY_CASE::ScriptComponent::min :
@@ -674,6 +709,10 @@ ScriptCreatedComponentWrapper(content, index)
 	initAllProperties();
 
 	cb->updateValue(dontSendNotification);
+
+	MouseCursor cursor;
+	if (setMouseCursorFromParentPanel(scriptComboBox, cursor))
+		cb->setMouseCursor(cursor);
 }
 
 void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent()
@@ -695,7 +734,7 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent(int proper
 		PROPERTY_CASE::ScriptComponent::useUndoManager: cb->setUseUndoManagerForEvents(newValue); break;
 		PROPERTY_CASE::ScriptComponent::enabled:		cb->enableMacroControlledComponent(newValue); break;
 		PROPERTY_CASE::ScriptComponent::text:			cb->setTextWhenNothingSelected(newValue); break;
-		PROPERTY_CASE::ScriptComponent::saveInPreset:   cb->setCanBeMidiLearned(newValue); break;
+		PROPERTY_CASE::ScriptComboBox::enableMidiLearn:   cb->setCanBeMidiLearned(newValue); break;
 		PROPERTY_CASE::ScriptComponent::bgColour:
 		PROPERTY_CASE::ScriptComponent::itemColour :
 			PROPERTY_CASE::ScriptComponent::itemColour2 :
@@ -792,6 +831,9 @@ ScriptCreatedComponentWrapper(content, index)
 
 	initAllProperties();
 
+	MouseCursor cursor;
+	if (setMouseCursorFromParentPanel(sb, cursor))
+		b->setMouseCursor(cursor);
 }
 
 
@@ -857,6 +899,7 @@ void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent(int property
 		PROPERTY_CASE::ScriptComponent::text:			b->setButtonText(GET_SCRIPT_PROPERTY(text)); break;
 		PROPERTY_CASE::ScriptComponent::enabled:		b->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled)); break;
 		PROPERTY_CASE::ScriptComponent::tooltip :		b->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
+		PROPERTY_CASE::ScriptButton::enableMidiLearn:   b->setCanBeMidiLearned(newValue); break;
 		PROPERTY_CASE::ScriptComponent::bgColour:
 		PROPERTY_CASE::ScriptComponent::itemColour :
 		PROPERTY_CASE::ScriptComponent::itemColour2 :
@@ -1540,9 +1583,6 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->alignPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::popupMenuAlign));
 
 	bpc->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
-
-	
-
 	bpc->setTouchEnabled(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::holdIsRightClick));
 
 	// TODO: in updateValue
@@ -1551,7 +1591,6 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 
 	updateRange(bpc);
 
-
 	bpc->setInterceptsMouseClicks(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::enabled), true);
 
 	bpc->repaint();
@@ -1559,8 +1598,6 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->setAllowCallback(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowCallbacks).toString());
 
 	contentComponent->repaint();
-
-	
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent(int propertyIndex, var newValue)
@@ -1653,13 +1690,15 @@ void ScriptCreatedComponentWrappers::PanelWrapper::boundsChanged(const Rectangle
 
 ScriptCreatedComponentWrappers::PanelWrapper::~PanelWrapper()
 {
-	if (auto c = getScriptComponent())
+	if (auto c = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent()))
+	{
 		c->removeSubComponentListener(this);
+		c->removeAnimationListener(this);
+	}
 
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
 
 	bpc->removeCallbackListener(this);
-	
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::subComponentAdded(ScriptComponent* newComponent)
@@ -1689,10 +1728,20 @@ void ScriptCreatedComponentWrappers::PanelWrapper::subComponentRemoved(ScriptCom
 		if (childPanelWrappers[i]->getScriptComponent() == componentAboutToBeRemoved)
 		{
 			bpc->removeChildComponent(childPanelWrappers[i]->getComponent());
-			childPanelWrappers.remove(i);
-			return;
+			childPanelWrappers.remove(i--);
 		}
 	}
+}
+
+
+
+void ScriptCreatedComponentWrappers::PanelWrapper::animationChanged()
+{
+#if HISE_INCLUDE_RLOTTIE
+	auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+	auto bp = dynamic_cast<BorderPanel*>(getComponent());
+	bp->setAnimation(panel->getAnimation());
+#endif
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Content::ScriptPanel* panel)
@@ -1700,12 +1749,11 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 	BorderPanel *bp = new BorderPanel(panel->getDrawActionHandler());
 
 	panel->addSubComponentListener(this);
+	panel->addAnimationListener(this);
 
 	bp->setName(panel->name.toString());
 
-#if HISE_INCLUDE_RLOTTIE
-	bp->setAnimation(panel->getAnimation());
-#endif
+
 
 	bp->addMouseCallbackListener(this);
 	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
@@ -1716,24 +1764,18 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 	bp->setup(getProcessor(), getIndex(), panel->name.toString());
 	bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
 
-	auto cursor = panel->getMouseCursorPath();
+	MouseCursor cursor;
 
-	if (!cursor.path.isEmpty())
+	if (setMouseCursorFromParentPanel(panel, cursor))
 	{
-		auto s = 80;
-
-		Image icon(Image::ARGB, s, s, true);
-		Graphics g(icon);
-
-		PathFactory::scalePath(cursor.path, { 0.0f, 0.0f, (float)s, (float)s });
-
-		g.setColour(cursor.c);
-		g.fillPath(cursor.path);
-		MouseCursor c(icon, roundToInt(cursor.hitPoint.x * s), roundToInt(cursor.hitPoint.y * s));
-		bp->setMouseCursor(c);
+		bp->setMouseCursor(cursor);
 	}
 
 	component = bp;
+
+#if HISE_INCLUDE_RLOTTIE
+	animationChanged();
+#endif
 
 	initAllProperties();
 
@@ -1872,16 +1914,14 @@ public:
 
 	SamplerListener(ModulatorSampler* s_, SamplerSoundWaveform* waveform_) :
 		s(s_),
+		samplemap(s->getSampleMap()),
 		waveform(waveform_)
 	{
-		s->getSampleMap()->addListener(this);
-
+		samplemap->addListener(this);
 		s->addChangeListener(this);
 
 		if (auto v = s->getLastStartedVoice())
-		{
 			lastSound = v->getCurrentlyPlayingSound();
-		}
 	}
 
 	~SamplerListener()
@@ -1889,18 +1929,26 @@ public:
 		lastSound = nullptr;
 
 		if (s != nullptr)
-		{
-			s->getSampleMap()->removeListener(this);
 			s->removeChangeListener(this);
-		}
+
+		if (samplemap.get() != nullptr)
+			samplemap->removeListener(this);
 	}
 
 	void refreshAfterSampleMapChange()
 	{
 		if (displayedIndex != -1)
 		{
-			if(auto newSound =  s->getSound(displayedIndex))
+			if (auto newSound = s->getSound(displayedIndex))
+			{
 				waveform->setSoundToDisplay(dynamic_cast<ModulatorSamplerSound*>(newSound), 0);
+				lastSound = newSound;
+			}
+			else
+			{
+				waveform->setSoundToDisplay(nullptr, 0);
+				lastSound = nullptr;
+			}
 		}
 	}
 
@@ -1945,8 +1993,9 @@ public:
 
 	int displayedIndex = -1;
 
-	bool active = true;
-	ModulatorSampler* s;
+    bool active = true;
+	WeakReference<ModulatorSampler> s;
+	WeakReference<SampleMap> samplemap;
 	Component::SafePointer<SamplerSoundWaveform> waveform;
 	SynthesiserSound::Ptr lastSound;
 

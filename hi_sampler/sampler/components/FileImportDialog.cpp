@@ -88,6 +88,9 @@ FileImportDialog::FileImportDialog (Processor *p)
 	p->getMainController()->skin(*dropPointButton);
 	p->getMainController()->skin(*fileNameButton);
 
+	// Prevent the return key to activate any buttons
+	for (int i = 0; i < getNumChildComponents(); i++)
+		getChildComponent(i)->setWantsKeyboardFocus(false);
 
     //[/UserPreSize]
 

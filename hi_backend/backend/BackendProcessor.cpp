@@ -155,7 +155,8 @@ void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
 
 void BackendProcessor::refreshExpansionType()
 {
-	auto expType = dynamic_cast<GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Project::ExpansionType);
+	getSettingsObject().refreshProjectData();
+	auto expType = dynamic_cast<GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Project::ExpansionType).toString();
 
 	if (expType == "Disabled")
 	{
@@ -164,6 +165,7 @@ void BackendProcessor::refreshExpansionType()
 	else if (expType == "FilesOnly" || expType == "Custom")
 	{
 		getExpansionHandler().setExpansionType<Expansion>();
+		getExpansionHandler().setEncryptionKey({}, dontSendNotification);
 	}
 	else if (expType == "Full")
 	{
@@ -184,10 +186,13 @@ void BackendProcessor::refreshExpansionType()
 	}
 	else if (expType == "Encrypted")
 	{
+		auto key = dynamic_cast<GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Project::EncryptionKey).toString();
+		
 		getExpansionHandler().setExpansionType<ScriptEncryptedExpansion>();
+		getExpansionHandler().setEncryptionKey(key, dontSendNotification);
 	}
 
-	getExpansionHandler().createAvailableExpansions();
+	getExpansionHandler().resetAfterProjectSwitch();
 }
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)

@@ -81,6 +81,18 @@ void VariantBuffer::setSample(int sampleIndex, float newValue)
 	buffer.setSample(0, sampleIndex, FloatSanitizers::sanitizeFloatNumber(newValue));
 }
 
+String VariantBuffer::toDebugString() const
+{
+	String description;
+
+	description << "Buffer (size: " << size << ")";
+
+	description << ", Max: " << String(buffer.getMagnitude(0, size), 3);
+	description << ", RMS: " << String(buffer.getRMSLevel(0, 0, size), 3);
+
+	return description;
+}
+
 void VariantBuffer::operator>>(VariantBuffer &destinationBuffer) const
 {
 	CHECK_CONDITION((destinationBuffer.size >= size), "destination buffer too small: " + String(size));

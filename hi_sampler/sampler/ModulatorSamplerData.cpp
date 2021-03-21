@@ -577,15 +577,60 @@ bool SampleMap::save(const File& fileToUse)
 			{
 				f = fc.getResult();
 
-				if (!f.isAChildOf(rootDirectory))
+				Identifier id;
+
+				File rootToUse;
+
+				if (f.isAChildOf(rootDirectory))
 				{
-					PresetHandler::showMessageWindow("Invalid Path", "You need to store the samplemap in the samplemap directory", PresetHandler::IconType::Error);
-					return false;
+					rootToUse = rootDirectory;
+				}
+				else
+				{
+					auto projectRoot = sampler->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::SampleMaps);
+
+					if (f.isAChildOf(projectRoot))
+					{
+						// We're in an expansion trying to save a samplemap to the root directory
+						rootToUse = projectRoot;
+					}
+					else
+					{
+						// We're in the project root (or any other expansion) and trying to save an expansion
+						// to a(nother) expansion
+						auto& exp = sampler->getMainController()->getExpansionHandler();
+
+						if (f.isAChildOf(exp.getExpansionFolder()))
+						{
+							for (int i = 0; i < exp.getNumExpansions(); i++)
+							{
+								if (auto e = exp.getExpansion(i))
+								{
+									auto expansionSampleMapFolder = e->getSubDirectory(FileHandlerBase::SampleMaps);
+
+									if (f.isAChildOf(expansionSampleMapFolder))
+									{
+										rootToUse = expansionSampleMapFolder;
+										break;
+									}
+								}
+							}
+						}
+					}
 				}
 
-				auto id = f.getRelativePathFrom(rootDirectory).upToFirstOccurrenceOf(".xml", false, false);
+				if (!rootToUse.isDirectory())
+				{
+					PresetHandler::showMessageWindow("Invalid Path", "You need to save samplemaps in a samplemap directory", PresetHandler::IconType::Error);
+					return false;
+				}
+				
+				id = f.getRelativePathFrom(rootToUse).upToFirstOccurrenceOf(".xml", false, false);
+
 				setId(Identifier(id));
 			}
+			else
+				return false;
 		}
 		else
 		{
@@ -612,7 +657,12 @@ bool SampleMap::save(const File& fileToUse)
 
 	PoolReference ref(getSampler()->getMainController(), f.getFullPathName(), FileHandlerBase::SubDirectories::SampleMaps);
 
+	
+
 	auto pool = getSampler()->getMainController()->getCurrentSampleMapPool();
+
+	if (auto e = getSampler()->getMainController()->getExpansionHandler().getExpansionForWildcardReference(ref.getReferenceString()))
+		pool = &e->pool->getSampleMapPool();
 
 	auto reloadedMap = pool->loadFromReference(ref, PoolHelpers::LoadingType::ForceReloadStrong);
 
@@ -635,24 +685,24 @@ bool SampleMap::save(const File& fileToUse)
 }
 
 
-void SampleMap::saveSampleMapAsReference()
+bool SampleMap::saveSampleMapAsReference()
 {
 	sampleMapData = {};
 	data.setProperty("MonolithReference", data.getProperty("ID"), nullptr);
-	save();
+	return save();
 }
 
-void SampleMap::saveAsMonolith(Component* mainEditor)
+bool SampleMap::saveAsMonolith(Component* mainEditor)
 {
 #if HI_ENABLE_EXPANSION_EDITING
-	mode = SaveMode::Monolith;
-
 	auto m = new MonolithExporter(this);
 
 	m->setModalBaseWindowComponent(mainEditor);
 
 	changeWatcher = new ChangeWatcher(data);
+	return true;
 #else
+	return false;
 	ignoreUnused(mainEditor);
 #endif
 }
@@ -951,11 +1001,12 @@ void MonolithExporter::run()
 
 	PoolReference ref(sampleMap->getSampler()->getMainController(), sampleMapFile.getFullPathName(), ProjectHandler::SampleMaps);
 
-	auto name = ref.getReferenceString().fromFirstOccurrenceOf("}", false, false).upToFirstOccurrenceOf(".xml", false, true);
+	auto name = ref.getReferenceString();
 
-	//auto name = sampleMapFile.getRelativePathFrom(sampleMapDirectory).upToFirstOccurrenceOf(".xml", false, true);
-
-	//name = name.replace(File::getSeparatorString(), "/");
+	// The expansion wildcard will be part of the ID
+	// so we need to strip it for getting the correct ID
+	if (name.contains("{EXP::"))
+		name = name.fromFirstOccurrenceOf("}", false, false);
 
 	sampleMap->setId(name);
 

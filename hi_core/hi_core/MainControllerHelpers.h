@@ -77,8 +77,10 @@ public:
 	{
 #if JUCE_WINDOWS
 		return File::getSpecialLocation(File::windowsSystemDirectory);
+#elif JUCE_LINUX
+	return File("/usr/lib/");
 #else
-        return File("/usr/local/lib/");
+	return File("/usr/local/lib/");
 #endif
 	}
 };
@@ -531,7 +533,9 @@ private:
 	int sampleIndexInternal = 0;
 	int sampleIndexExternal = 0;
 
-	
+	float leftOverData[HISE_NUM_PLUGIN_CHANNELS * HISE_EVENT_RASTER];
+	float* leftOverChannels[HISE_NUM_PLUGIN_CHANNELS];
+	int numLeftOvers = 0;
 };
 
 

@@ -684,6 +684,14 @@ expHandler(mc->getExpansionHandler())
 
 	setSize(width, height);
 
+	defaultRoot = rootFile;
+
+	if (auto e = getMainController()->getExpansionHandler().getCurrentExpansion())
+	{
+		rootFile = e->getSubDirectory(FileHandlerBase::UserPresets);
+		currentlySelectedExpansion = e;
+	}
+
 	rebuildAllPresets();
 
 	showLoadedPreset();
@@ -696,7 +704,7 @@ expHandler(mc->getExpansionHandler())
 	if(getMainController()->getExpansionHandler().isEnabled())
 		expHandler.addListener(this); //Setup expansion handler listener
 	
-	defaultRoot = rootFile;
+	
 
 }
 
@@ -1143,6 +1151,15 @@ void PresetBrowser::showLoadedPreset()
 		categoryColumn->setSelectedFile(category, dontSendNotification);
 		presetColumn->setNewRootDirectory(category);
 		presetColumn->setSelectedFile(f, dontSendNotification);
+
+		if (expansionColumn != nullptr)
+		{
+			if (auto e = getMainController()->getExpansionHandler().getCurrentExpansion())
+			{
+				expansionColumn->setSelectedFile(e->getRootFolder(), dontSendNotification);
+			}
+				
+		}
 	}
 }
 
@@ -1155,6 +1172,8 @@ void PresetBrowser::setOptions(const Options& newOptions)
 		expansionColumn->setModel(new PresetBrowserColumn::ExpansionColumnModel(this), expRoot);
 
 		expansionColumn->update();
+
+		showLoadedPreset();
 	}
 		
 	else
@@ -1272,8 +1291,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 	}
 	else if (columnIndex == 2)
 	{
-		if (currentlySelectedExpansion != nullptr)
-			getMainController()->getExpansionHandler().setCurrentExpansion(currentlySelectedExpansion, sendNotificationSync);
+		getMainController()->getExpansionHandler().setCurrentExpansion(currentlySelectedExpansion, sendNotificationSync);
 
 		loadPreset(file);
 
@@ -1550,7 +1568,8 @@ void PresetBrowser::DataBaseHelpers::cleanFileList(MainController* mc, Array<Fil
 	{
 		const bool isNoPresetFile = filesToClean[i].isHidden() || filesToClean[i].getFileName().startsWith(".") || filesToClean[i].getFileExtension() != ".preset";
 		const bool isNoDirectory = !filesToClean[i].isDirectory();
-		const bool requiresMissingExpansions = !matchesAvailableExpansions(mc, filesToClean[i]);
+
+		const bool requiresMissingExpansions = mc != nullptr && !matchesAvailableExpansions(mc, filesToClean[i]);
 
 		if ((isNoPresetFile && isNoDirectory) || requiresMissingExpansions)
 		{

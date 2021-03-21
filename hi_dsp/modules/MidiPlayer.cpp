@@ -1227,6 +1227,14 @@ void MidiPlayer::sendSequenceUpdateMessage(NotificationType notification)
 					l->sequenceLoaded(seq);
 			}
 		}
+		else
+		{
+			for (auto l : mp->sequenceListeners)
+			{
+				if (l != nullptr)
+					l->sequencesCleared();
+			}
+		}
 	};
 
 	if (notification == sendNotificationAsync)
