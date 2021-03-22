@@ -197,13 +197,16 @@ void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& t
 		{
 			if (text[i] == '\t')
 			{
-				int width = numSpacePerTab - (column) % 4;
-                
 #if JUCE_WINDOWS
-                width--; // Don't ask why...
+				int width = numSpacePerTab - column % 4;
+				auto numToAdd = (width - 1) * spaceWidth;
+#else
+				int width = numSpacePerTab - (column) % 4;
+				auto numToAdd = (width)* spaceWidth;
 #endif
-                
-				auto numToAdd = (width) * spaceWidth;
+
+
+				
 
 				for (int j = i+1; j < textLen+1; j++)
 					xOffsets.set(j, xOffsets[j] + numToAdd);

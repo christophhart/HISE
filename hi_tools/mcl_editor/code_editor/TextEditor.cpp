@@ -457,11 +457,7 @@ void mcl::TextEditor::translateToEnsureCaretIsVisible()
     {
         translateView (0.f, -b.y + getHeight());
     }
-    else
-    {
-        // refresh the transform because the gutter might have changed
-        translateView(0.0f, 0.0f);
-    }
+    
 
 	if (document.getFoldableLineRangeHolder().isFolded(i.x))
 	{
