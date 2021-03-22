@@ -1080,13 +1080,13 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 			int numChannels = c.tp[0].constant;
 
 			numChannelF.inliner = Inliner::createHighLevelInliner(numChannelF.id, [numChannels](InlineData* b)
-				{
-					auto d = b->toSyntaxTreeData();
+			{
+				auto d = b->toSyntaxTreeData();
 
-					d->target = new Operations::Immediate(d->location, numChannels);
+				d->target = new Operations::Immediate(d->location, numChannels);
 
-					return Result::ok();
-				});
+				return Result::ok();
+			});
 
 			pType->addJitCompiledMemberFunction(numChannelF);
 		}

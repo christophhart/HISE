@@ -158,7 +158,13 @@ int PluginFactory::getNumNodes() const
 bool PluginFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index)
 {
 	items[index].f(n);
+	memcpy(n->numDataObjects, items[index].numDataObjects, sizeof(int) * 3);
 	return true;
+}
+
+int PluginFactory::getNumDataObjects(int index, int dataTypeAsInt) const
+{
+	return items[index].numDataObjects[dataTypeAsInt];
 }
 
 HostFactory::HostFactory(ProjectDll::Ptr dll_) :
@@ -196,10 +202,26 @@ bool HostFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index)
 	return false;
 }
 
+int HostFactory::getNumDataObjects(int index, int dataTypeAsInt) const
+{
+	if (projectDll != nullptr)
+		return projectDll->getNumDataObjects(index, dataTypeAsInt);
+
+	return 0;
+}
+
 int ProjectDll::getNumNodes() const
 {
 	if (gnnf != nullptr)
 		return gnnf();
+
+	return 0;
+}
+
+int ProjectDll::getNumDataObjects(int nodeIndex, int dataTypeAsInt) const
+{
+	if (gndo != nullptr)
+		return gndo(nodeIndex, dataTypeAsInt);
 
 	return 0;
 }
@@ -222,6 +244,11 @@ bool ProjectDll::initNode(OpaqueNode* n, int index)
 	if (inf != nullptr)
 	{
 		inf(n, index);
+
+		n->numDataObjects[0] = gndo(index, 0);
+		n->numDataObjects[1] = gndo(index, 1);
+		n->numDataObjects[2] = gndo(index, 2);
+
 		return true;
 	}
 
@@ -238,7 +265,7 @@ ProjectDll::ProjectDll(const File& f)
 		gnnf = (GetNumNodesFunc)dll->getFunction("getNumNodes");
 		gnif = (GetNodeIdFunc)dll->getFunction("getNodeId");
 		inf = (InitNodeFunc)dll->getFunction("initOpaqueNode");
-
+		gndo = (GetNumDataObjects)dll->getFunction("getNumDataObjects");
 
 		if (auto f = (int(*)())dll->getFunction("getHash"))
 			hash = f();

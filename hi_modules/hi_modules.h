@@ -78,6 +78,8 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #define ENABLE_PEAK_METERS_FOR_GAIN_EFFECT 1
 #endif
 
+#include "nodes/HardcodedNetworkModuleBase.h"
+
 
 /** @defgroup modulatorTypes HISE Modulators
 *	@ingroup types
@@ -100,6 +102,7 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "modulators/mods/ArrayModulator.h"
 #include "modulators/mods/MPEModulators.h"
 #include "modulators/mods/MPEComponents.h"
+#include "modulators/mods/HardcodedNetworkModulators.h"
 
 
 #if USE_BACKEND
@@ -171,6 +174,7 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "effects/fx/Analyser.h"
 #include "effects/fx/ShapeFX.h"
 #include "effects/fx/SlotFX.h"
+#include "effects/fx/HardcodedNetworkEffect.h"
 
 
 #if USE_BACKEND
@@ -216,6 +220,7 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 
 #include "synthesisers/synths/WavetableSynth.h"
 #include "synthesisers/synths/AudioLooper.h"
+#include "synthesisers/synths/HardcodedNetworkSynth.h"
 
 #if USE_BACKEND
 

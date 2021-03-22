@@ -128,6 +128,11 @@ DialogWindowWithBackgroundThread::~DialogWindowWithBackgroundThread()
 
 void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 {
+	for (int i = 0; i < getNumChildComponents(); i++)
+	{
+		GlobalHiseLookAndFeel::setDefaultColours(*getChildComponent(i));
+	}
+
 	addTextEditor("state", "", "Status", false);
 
 	getTextEditor("state")->setReadOnly(true);

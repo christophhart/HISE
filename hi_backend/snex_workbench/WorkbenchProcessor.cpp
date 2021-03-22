@@ -46,35 +46,36 @@ juce::PopupMenu SnexWorkbenchEditor::getMenuForIndex(int topLevelMenuIndex, cons
 	{
 		m.addCommandItem(&mainManager, MenuCommandIds::FileNew);
 		m.addCommandItem(&mainManager, MenuCommandIds::FileOpen);
-		m.addCommandItem(&mainManager, MenuCommandIds::FileSave);
-		m.addCommandItem(&mainManager, MenuCommandIds::FileSaveAll);
 
 		PopupMenu allFiles;
 
-		auto root = getProjectHandler().getSubDirectory(FileHandlerBase::DspNetworks);
+		auto root = BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks);
 
-		auto fileList = root.findChildFiles(File::findFiles, true, "*.xml");
+		networkFiles = root.findChildFiles(File::findFiles, true, "*.xml");
 		int i = 0;
 
-		for (auto& f : fileList)
+		for (auto& f : networkFiles)
 		{
 			allFiles.addItem(MenuCommandIds::FileOffset + i++, f.getRelativePathFrom(root), true, activeFiles.contains(f));
 		}
 
 		m.addSubMenu("Open from Project", allFiles);
 
+		m.addCommandItem(&mainManager, MenuCommandIds::FileSave);
+		m.addCommandItem(&mainManager, MenuCommandIds::FileSaveAll);
 		m.addSeparator();
 
+		m.addCommandItem(&mainManager, MenuCommandIds::FileShowNetworkFolder);
 		m.addCommandItem(&mainManager, MenuCommandIds::FileSetProject);
 
 		PopupMenu recentProjects;
 		auto current = getProjectHandler().getWorkDirectory();
 
-		auto s = ProjectHandler::getRecentWorkDirectories();
+		recentProjectFiles = ProjectHandler::getRecentWorkDirectories();
 
 		i = 0;
 
-		for (auto& p : s)
+		for (auto& p : recentProjectFiles)
 			recentProjects.addItem(MenuCommandIds::ProjectOffset + i++, p, true, p == current.getFullPathName());
 
 		m.addSubMenu("Recent projects", recentProjects);
@@ -105,6 +106,7 @@ void SnexWorkbenchEditor::getAllCommands(Array<CommandID>& commands)
 		MenuCommandIds::FileSave,
 		MenuCommandIds::FileSaveAll,
 		MenuCommandIds::FileSetProject,
+		MenuCommandIds::FileShowNetworkFolder,
 		MenuCommandIds::ToolsAudioConfig,
 		MenuCommandIds::ToolsCompileNetworks,
 		MenuCommandIds::ToolsClearDlls,
@@ -123,12 +125,14 @@ void SnexWorkbenchEditor::getCommandInfo(CommandID commandID, ApplicationCommand
 	case MenuCommandIds::FileOpen: setCommandTarget(result, "Open File", true, false, 'O', true, ModifierKeys::commandModifier); break;
 	case MenuCommandIds::FileSave: setCommandTarget(result, "Save Network", true, false, 'S', true, ModifierKeys::commandModifier); break;
 	case MenuCommandIds::FileSaveAll: setCommandTarget(result, "Save Network & Testdata", true, false, 'x', false); break;
-	case MenuCommandIds::FileSetProject: setCommandTarget(result, "Set Project", true, false, 0, false); break;
+	case MenuCommandIds::FileSetProject: setCommandTarget(result, "Load Project", true, false, 0, false); break;
+	case MenuCommandIds::FileShowNetworkFolder: setCommandTarget(result, "Show Network folder", true, false, 'x', false); break;
 	case MenuCommandIds::ToolsEditTestData: setCommandTarget(result, "Manage Test Files", true, false, 0, false); break;
 	case MenuCommandIds::ToolsCompileNetworks: setCommandTarget(result, "Compile DSP networks", true, false, 'x', false); break;
 	case MenuCommandIds::ToolsClearDlls: setCommandTarget(result, "Clear DLL build folder", true, false, 'x', false); break;
 	case MenuCommandIds::ToolsAudioConfig: setCommandTarget(result, "Settings", true, false, 0, false); break;
 	case MenuCommandIds::TestsRunAll: setCommandTarget(result, "Run all tests", true, false, 0, false); break;
+	
 	default: jassertfalse;
 	}
 }
@@ -144,20 +148,39 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 
 		if (!fileName.isEmpty())
 		{
-			auto f = getSubFolder(getProcessor(), FolderSubType::Networks).getChildFile(fileName + ".xml");
+			auto f = BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks).getChildFile(fileName + ".xml");
 			addFile(f);
 		}
 
 		return true;
 	};
+	case FileShowNetworkFolder:
+	{
+		BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks).revealToUser();
+		return true;
+	}
 	case FileOpen:
 	{
-		FileChooser fc("Open File", getSubFolder(getProcessor(), FolderSubType::Networks), "*.xml", true);
+		FileChooser fc("Open File", BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks), "*.xml", true);
 
 		if (fc.browseForFileToOpen())
 		{
 			auto f = fc.getResult();
 			addFile(f);
+		}
+
+		return true;
+	}
+	case FileSetProject:
+	{
+		FileChooser fc("Set Project", getProcessor()->getActiveFileHandler()->getRootFolder());
+
+		if(fc.browseForDirectory())
+		{
+			auto f = fc.getResult();
+
+			if(f.getChildFile("Images").isDirectory())
+				getProcessor()->getSampleManager().getProjectHandler().setWorkingProject(f);
 		}
 
 		return true;
@@ -197,13 +220,13 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 	}
 	case ToolsClearDlls:
 	{
-		if (projectDll != nullptr)
+		if (dllManager->projectDll != nullptr)
 		{
 			PresetHandler::showMessageWindow("Dll already loaded", "You can't delete the build folder when the dll is already loaded");
 			return true;
 		}
 
-		getSubFolder(getProcessor(), FolderSubType::Binaries).deleteRecursively();
+		BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Binaries).deleteRecursively();
 
 		return true;
 	}
@@ -219,13 +242,63 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 	return false;
 }
 
+void SnexWorkbenchEditor::recompiled(snex::ui::WorkbenchData::Ptr p)
+{
+	if (auto dnp = dynamic_cast<DspNetworkCodeProvider*>(p->getCodeProvider()))
+	{
+		if (dnp->source == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
+		{
+			auto h1 = dllManager->getHash(true);
+			auto h2 = dllManager->getHash(false);
+
+			if (h1 != h2)
+			{
+				PresetHandler::showMessageWindow("DLL mismatch", "The dll is different than the source files. Recompile it");
+			}
+
+			dgp->getParentShell()->setOverlayComponent(new DspNetworkCodeProvider::OverlayComponent(dnp->source, p), 300);
+		}
+		else if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
+		{
+			dgp->getParentShell()->setOverlayComponent(nullptr, 300);
+		}
+		else
+		{
+			ep->getParentShell()->setOverlayComponent(nullptr, 300);
+		}
+	}
+}
+
 using namespace snex::Types;
 
+
+void SnexWorkbenchEditor::menuItemSelected(int menuItemID, int topLevelMenuIndex)
+{
+	if (menuItemID >= MenuCommandIds::ProjectOffset)
+	{
+		auto idx = menuItemID - (int)MenuCommandIds::ProjectOffset;
+
+		File pd(recentProjectFiles[idx]);
+
+		if(pd.isDirectory())
+			getProcessor()->getSampleManager().getProjectHandler().setWorkingProject(pd);
+
+		return;
+	}
+	if (menuItemID >= MenuCommandIds::FileOffset)
+	{
+		auto idx = menuItemID - (int)MenuCommandIds::FileOffset;
+		addFile(networkFiles[idx]);
+		return;
+	}
+}
 
 //==============================================================================
 SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 	standaloneProcessor()
 {
+	dllManager = new BackendDllManager(getProcessor());
+
 #if 0
 	UnitTestRunner runner;
 	runner.setPassesAreLogged(true);
@@ -233,6 +306,8 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 	runner.runTestsInCategory("node_tests");
 #endif
+
+	
 
 	rootTile = new FloatingTile(getProcessor(), nullptr);
 
@@ -396,54 +471,6 @@ void SnexWorkbenchEditor::requestQuit()
 	standaloneProcessor.requestQuit();
 }
 
-juce::File SnexWorkbenchEditor::getBestProjectDll(DllType t) const
-{
-	auto dllFolder = getSubFolder(getProcessor(), FolderSubType::DllLocation);
-
-#if JUCE_WINDOWS
-    String extension = "*.dll";
-#else
-    String extension = "*.dylib";
-#endif
-    
-	auto files = dllFolder.findChildFiles(File::findFiles, false, extension);
-
-
-	auto removeWildcard = "Never";
-
-	if (t == DllType::Debug)
-		removeWildcard = "release";
-	if (t == DllType::Release)
-		removeWildcard = "debug";
-
-	for (int i = 0; i < files.size(); i++)
-	{
-		if(files[i].getFileName().contains(removeWildcard))
-			files.remove(i--);
-	}
-
-	if (files.isEmpty())
-		return File();
-
-	struct FileDateComparator
-	{
-		int compareElements(const File& first, const File& second)
-		{
-			auto t1 = first.getCreationTime();
-			auto t2 = second.getCreationTime();
-
-			if (t1 < t2) return 1;
-			if (t2 < t1) return -1;
-			return 0;
-		}
-	};
-
-	FileDateComparator c;
-	files.sort(c);
-
-	return files.getFirst();
-}
-
 void SnexWorkbenchEditor::saveCurrentFile()
 {
 	if (df != nullptr)
@@ -454,68 +481,6 @@ void SnexWorkbenchEditor::saveCurrentFile()
 			df->getXmlFile().replaceWithText(xml->createDocument(""));
 		}
 	}
-}
-
-bool SnexWorkbenchEditor::loadDll(bool forceUnload)
-{
-	if (forceUnload)
-		unloadDll();
-
-	if (projectDll == nullptr)
-	{
-		auto dllFile = getBestProjectDll(DllType::Latest);
-
-		bool ok = false;
-
-		if (dllFile.existsAsFile())
-		{
-			projectDll = new scriptnode::dll::ProjectDll(dllFile);
-
-			return *projectDll;
-		}
-
-		return ok;
-	}
-
-	return false;
-}
-
-int SnexWorkbenchEditor::getHash(bool getDllHash)
-{
-	int hash = 0;
-
-	if (!getDllHash)
-	{
-		auto nr = getSubFolder(getProcessor(), FolderSubType::Networks);
-
-		auto list = nr.findChildFiles(File::findFiles, false, "*.xml");
-		
-		for (auto f : list)
-		{
-			if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
-			{
-				auto v = ValueTree::fromXml(*xml);
-
-				zstd::ZDefaultCompressor comp;
-
-				MemoryBlock mb;
-				comp.compress(v, mb);
-
-				hash += mb.toBase64Encoding().hashCode();
-			}
-		}
-	}
-	else
-	{
-		loadDll(false);
-
-		if (projectDll != nullptr)
-		{
-			return projectDll->getHash();
-		}
-	}
-
-	return hash;
 }
 
 void SnexWorkbenchEditor::addFile(const File& f)
@@ -543,14 +508,15 @@ void SnexWorkbenchEditor::addFile(const File& f)
 
 	}
 
-	loadDll(false);
+	if (dllManager == nullptr)
+		dllManager = new BackendDllManager(getProcessor());
+
+	dllManager->loadDll(false);
 
 	auto fh = ProcessorHelpers::getFirstProcessorWithType<scriptnode::DspNetwork::Holder>(getMainController()->getMainSynthChain());
 
 	if (fh != nullptr)
-	{
-		fh->setProjectDll(projectDll);
-	}
+		fh->setProjectDll(dllManager->projectDll);
 
 	df = new hise::DspNetworkCodeProvider(nullptr, getMainController(), f);
 
@@ -558,11 +524,13 @@ void SnexWorkbenchEditor::addFile(const File& f)
 	wb->getTestData().setMultichannelDataProvider(new PooledAudioFileDataProvider(getMainController()));
 	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb, getMainController()));
 
+	wb->setIsCppPreview(true);
+
 	ep->setWorkbenchData(wb.get());
 
-	auto testRoot = getSubFolder(getProcessor(), FolderSubType::Tests);
+	auto testRoot = BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Tests);
 	
-	wb->getTestData().setTestRootDirectory(createIfNotDirectory(testRoot.getChildFile(f.getFileNameWithoutExtension())));
+	wb->getTestData().setTestRootDirectory(BackendDllManager::createIfNotDirectory(testRoot.getChildFile(f.getFileNameWithoutExtension())));
 	wb->getTestData().setUpdater(getProcessor()->getGlobalUIUpdater());
 
 	wb->addListener(this);
@@ -658,13 +626,13 @@ void DspNetworkCompileExporter::run()
 	showStatusMessage("Unload DLL");
 
 	editor->saveCurrentFile();
-	editor->unloadDll();
+	editor->dllManager->unloadDll();
 
 	showStatusMessage("Create files");
 
-	auto buildFolder = getFolder(SnexWorkbenchEditor::FolderSubType::Binaries);
+	auto buildFolder = getFolder(BackendDllManager::FolderSubType::Binaries);
 
-	auto networkRoot = getFolder(SnexWorkbenchEditor::FolderSubType::Networks);
+	auto networkRoot = getFolder(BackendDllManager::FolderSubType::Networks);
 	auto unsortedList = networkRoot.findChildFiles(File::findFiles, false, "*.xml");
 
 	showStatusMessage("Sorting include dependencies");
@@ -681,7 +649,7 @@ void DspNetworkCompileExporter::run()
 
 	jassert(list.size() == unsortedList.size());
 
-	auto sourceDir = getFolder(SnexWorkbenchEditor::FolderSubType::ProjucerSourceFolder);
+	auto sourceDir = getFolder(BackendDllManager::FolderSubType::ProjucerSourceFolder);
 
 	using namespace snex::cppgen;
 
@@ -694,6 +662,8 @@ void DspNetworkCompileExporter::run()
 			auto id = v[scriptnode::PropertyIds::ID].toString();
 
 			ValueTreeBuilder b(v, ValueTreeBuilder::Format::CppDynamicLibrary);
+
+			b.setCodeProvider(new BackendDllManager::FileCodeProvider(getMainController()));
 
 			auto f = sourceDir.getChildFile(id).withFileExtension(".h");
 
@@ -758,11 +728,11 @@ void DspNetworkCompileExporter::threadFinished()
 
 		PresetHandler::showMessageWindow("Compilation OK", "Press OK to reload the project dll.");
 
-		auto loadedOk = editor->loadDll(true);
+		auto loadedOk = editor->dllManager->loadDll(true);
 
 		if (loadedOk)
 		{
-			scriptnode::dll::HostFactory f(editor->projectDll);
+			scriptnode::dll::HostFactory f(editor->dllManager->projectDll);
 
 			StringArray list;
 			
@@ -776,7 +746,7 @@ void DspNetworkCompileExporter::threadFinished()
 			c << "Included DSP networks:\n  > `";
 			c << list.joinIntoString(", ") << "`";
 
-			PresetHandler::showMessageWindow("Loaded DLL " + editor->getBestProjectDll(SnexWorkbenchEditor::DllType::Latest).getFileName(), c);
+			PresetHandler::showMessageWindow("Loaded DLL " + editor->dllManager->getBestProjectDll(BackendDllManager::DllType::Latest).getFileName(), c);
 			return;
 		}
 	}
@@ -784,7 +754,7 @@ void DspNetworkCompileExporter::threadFinished()
 
 juce::File DspNetworkCompileExporter::getBuildFolder() const
 {
-	return getFolder(SnexWorkbenchEditor::FolderSubType::Binaries);
+	return getFolder(BackendDllManager::FolderSubType::Binaries);
 }
 
 juce::Array<juce::File> DspNetworkCompileExporter::getIncludedNetworkFiles(const File& networkFile)
@@ -828,9 +798,7 @@ void DspNetworkCompileExporter::createProjucerFile()
 
 	auto projectName = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name).toString();
 
-	auto dllFolder = getFolder(SnexWorkbenchEditor::FolderSubType::DllLocation);
-
-
+	auto dllFolder = getFolder(BackendDllManager::FolderSubType::DllLocation);
 	auto dbgFile = dllFolder.getChildFile("project_debug").withFileExtension(".dll");
 	auto rlsFile = dllFolder.getChildFile("project").withFileExtension(".dll");
 
@@ -844,14 +812,14 @@ void DspNetworkCompileExporter::createProjucerFile()
 	REPLACE_WILDCARD_WITH_STRING("%HISE_PATH%", hisePath.getFullPathName());
 	REPLACE_WILDCARD_WITH_STRING("%JUCE_PATH%", jucePath.getFullPathName());
 
-	auto targetFile = getFolder(SnexWorkbenchEditor::FolderSubType::Binaries).getChildFile("AutogeneratedProject.jucer");
+	auto targetFile = getFolder(BackendDllManager::FolderSubType::Binaries).getChildFile("AutogeneratedProject.jucer");
 
 	targetFile.replaceWithText(templateProject);
 }
 
 void DspNetworkCompileExporter::createMainCppFile()
 {
-	auto sourceDirectory = getFolder(SnexWorkbenchEditor::FolderSubType::ProjucerSourceFolder);
+	auto sourceDirectory = getFolder(BackendDllManager::FolderSubType::ProjucerSourceFolder);
 	auto f = sourceDirectory.getChildFile("Main.cpp");
 
 	using namespace cppgen;
@@ -919,6 +887,14 @@ void DspNetworkCompileExporter::createMainCppFile()
 	b.addEmptyLine();
 
 	{
+		b << "DLL_EXPORT int getNumDataObjects(int nodeIndex, int dataTypeAsInt)";
+		StatementBlock bk(b);
+		b << "return f.getNumDataObjects(nodeIndex, dataTypeAsInt);";
+	}
+
+	b.addEmptyLine();
+
+	{
 		b << "DLL_EXPORT void initOpaqueNode(scriptnode::OpaqueNode* n, int index)";
 		StatementBlock bk(b);
 		b << "f.initOpaqueNode(n, index);";
@@ -928,7 +904,7 @@ void DspNetworkCompileExporter::createMainCppFile()
 		b << "DLL_EXPORT int getHash()";
 		StatementBlock bk(b);
 		String def;
-		def << "return " << editor->getHash(false) << ";";
+		def << "return " << editor->dllManager->getHash(false) << ";";
 		b << def;
 	}
 
@@ -973,14 +949,13 @@ void TestRunWindow::run()
 
 		if (c == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
 		{
-			editor->loadDll(false);
+			editor->dllManager->loadDll(false);
 
-			if (editor->getHash(true) != editor->getHash(false))
+			if (editor->dllManager->getHash(true) != editor->dllManager->getHash(false))
 			{
 				writeConsoleMessage(" skipping dll test because the compiled dll hash is out of date");
 				return;
 			}
-				
 		}
 		
 		writeConsoleMessage(cMessage);
@@ -1001,7 +976,7 @@ void TestRunWindow::runTest(const File& f, DspNetworkCodeProvider::SourceMode m)
 	fileMessage << " Testing Network " << f.getFileName();
 	getMainController()->getConsoleHandler().writeToConsole(fileMessage, 0, nullptr, Colours::white);
 
-	auto testRoot = editor->getSubFolder(getMainController(), SnexWorkbenchEditor::FolderSubType::Tests).getChildFile(f.getFileNameWithoutExtension());
+	auto testRoot = editor->dllManager->getSubFolder(getMainController(), BackendDllManager::FolderSubType::Tests).getChildFile(f.getFileNameWithoutExtension());
 	Array<File> testFiles = testRoot.findChildFiles(File::findFiles, false, "*.json");
 
 	if (testFiles.isEmpty())
@@ -1090,6 +1065,119 @@ void TestRunWindow::threadFinished()
 		PresetHandler::showMessageWindow("Test failed", "Some tests failed. Check the console output");
 	else
 		PresetHandler::showMessageWindow("Sucess", "All tests were sucessful");
+}
+
+int BackendDllManager::getHash(bool getDllHash)
+{
+	int hash = 0;
+
+	if (!getDllHash)
+	{
+		auto nr = getSubFolder(getMainController(), FolderSubType::Networks);
+
+		auto list = nr.findChildFiles(File::findFiles, false, "*.xml");
+
+		for (auto f : list)
+		{
+			if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
+			{
+				auto v = ValueTree::fromXml(*xml);
+
+				zstd::ZDefaultCompressor comp;
+
+				MemoryBlock mb;
+				comp.compress(v, mb);
+
+				hash += mb.toBase64Encoding().hashCode();
+			}
+		}
+	}
+	else
+	{
+		loadDll(false);
+
+		if (projectDll != nullptr)
+		{
+			return projectDll->getHash();
+		}
+	}
+
+	return hash;
+}
+
+bool BackendDllManager::unloadDll()
+{
+	if (auto fh = ProcessorHelpers::getFirstProcessorWithType<scriptnode::DspNetwork::Holder>(getMainController()->getMainSynthChain()))
+	{
+		fh->setProjectDll(nullptr);
+	}
+
+	if (projectDll != nullptr)
+	{
+		projectDll = nullptr;
+		return true;
+	}
+
+	return false;
+}
+
+bool BackendDllManager::loadDll(bool forceUnload)
+{
+	if (forceUnload)
+		unloadDll();
+
+	if (projectDll == nullptr)
+	{
+		auto dllFile = getBestProjectDll(DllType::Latest);
+
+		bool ok = false;
+
+		if (dllFile.existsAsFile())
+		{
+			projectDll = new scriptnode::dll::ProjectDll(dllFile);
+
+			return *projectDll;
+		}
+
+		return ok;
+	}
+
+	return false;
+}
+
+juce::File BackendDllManager::createIfNotDirectory(const File& f)
+{
+	if (!f.isDirectory())
+		f.createDirectory();
+
+	return f;
+}
+
+juce::File BackendDllManager::getSubFolder(const MainController* mc, FolderSubType t)
+{
+	auto f = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::DspNetworks);
+
+	switch (t)
+	{
+	case FolderSubType::Root:					return createIfNotDirectory(f);
+	case FolderSubType::Networks:				return createIfNotDirectory(f.getChildFile("Networks"));
+	case FolderSubType::Tests:					return createIfNotDirectory(f.getChildFile("Tests"));
+	case FolderSubType::CustomNodes:			return createIfNotDirectory(f.getChildFile("CustomNodes"));
+	case FolderSubType::AdditionalCode:			return createIfNotDirectory(f.getChildFile("AdditionalCode"));
+	case FolderSubType::CodeLibrary:			return createIfNotDirectory(f.getChildFile("CodeLibrary"));
+	case FolderSubType::DllLocation:
+#if JUCE_WINDOWS
+		return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("dll").getChildFile("Dynamic Library"));
+#else
+		return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("dll"));
+#endif
+	case FolderSubType::Binaries:				return createIfNotDirectory(f.getChildFile("Binaries"));
+	case FolderSubType::Layouts:				return createIfNotDirectory(f.getChildFile("Layouts"));
+	case FolderSubType::ProjucerSourceFolder:	return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("Source"));
+	}
+
+	jassertfalse;
+	return {};
 }
 
 }

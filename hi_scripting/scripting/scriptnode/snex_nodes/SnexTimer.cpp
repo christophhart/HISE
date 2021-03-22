@@ -45,6 +45,8 @@ namespace control
 
 		cppgen::Struct s(c, id, {}, {});
 
+		c << "SNEX_NODE;";
+
 		c.addComment("Calculate a new timer value here", snex::cppgen::Base::CommentType::Raw);
 		c << "double getTimerValue()\n";
 		c << "{\n    return 0.0;\n}\n";
@@ -53,6 +55,8 @@ namespace control
 		c.addEmptyLine();
 		addDefaultParameterFunction(pf);
 		c << pf;
+
+		s.flushIfNot();
 
 		return c.toString();
 	}

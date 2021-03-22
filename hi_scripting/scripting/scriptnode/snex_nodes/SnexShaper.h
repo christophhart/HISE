@@ -46,7 +46,7 @@ struct dynamic : public SnexSource
 {
 	SN_GET_SELF_AS_OBJECT(dynamic);
 
-	using NodeType = core::waveshaper<dynamic>;
+	using NodeType = core::snex_shaper<dynamic>;
 
 	struct ShaperCallbacks: public SnexSource::CallbackHandlerBase
 	{
@@ -58,7 +58,7 @@ struct dynamic : public SnexSource
 		{
 			auto newProcessFunction = getFunctionAsObjectCallback("process");
 			auto newProcessFrameFunction = getFunctionAsObjectCallback("processFrame");
-			auto newPrepareFunc = getFunctionAsObjectCallback("processFrame");
+			auto newPrepareFunc = getFunctionAsObjectCallback("prepare");
 			auto newResetFunc = getFunctionAsObjectCallback("reset");
 
 			auto r = newProcessFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });

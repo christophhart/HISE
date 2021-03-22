@@ -86,6 +86,9 @@ snex::jit::BlockParser::StatementPtr ClassParser::addConstructorToComplexTypeDef
 
 BlockParser::StatementPtr ClassParser::parseStatement(bool mustHaveSemicolon)
 {
+	while (matchIf(JitTokens::semicolon))
+		;
+
 	if (auto noop = parseVisibilityStatement())
 		return noop;
 

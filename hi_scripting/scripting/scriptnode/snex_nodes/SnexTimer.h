@@ -101,7 +101,7 @@ struct snex_timer : public SnexSource
 
 	String getEmptyText(const Identifier& id) const override;
 
-	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("snex_timer"); };
+	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("timer"); };
 
 	SnexTestBase* createTester() override
 	{

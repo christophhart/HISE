@@ -188,6 +188,8 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 #endif // defined(_MSC_VER) && _MSC_VER >= 1900 && _MSC_FULL_VER >= 190023918 && _MSC_VER < 2000
 
 
+// Use this in every node to add the boiler plate for C++ compilation
+#define SNEX_NODE HISE_EMPTY_INITIALISE; hmath Math;
 
 
 }

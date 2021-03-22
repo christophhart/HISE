@@ -67,6 +67,8 @@ void SnexSource::recompiled(WorkbenchData::Ptr wb)
 		lastCompiledObject = getWorkbench()->getLastJitObject();
 	}
 
+	throwScriptnodeErrorIfCompileFail();
+
 	for (auto l : compileListeners)
 	{
 		if(l != nullptr)
@@ -85,7 +87,7 @@ void SnexSource::throwScriptnodeErrorIfCompileFail()
 		else
 			eh.removeError(parentNode, Error::NodeDebuggerEnabled);
 
-		auto ok = wb->getLastResult().compileResult.wasOk();
+		auto ok = lastResult.wasOk();
 
 		processingEnabled = wb->getGlobalScope().isDebugModeEnabled() && ok;
 
@@ -93,6 +95,8 @@ void SnexSource::throwScriptnodeErrorIfCompileFail()
 			parentNode->getRootNetwork()->getExceptionHandler().removeError(parentNode, Error::CompileFail);
 		else
 		{
+			wb->getLastResult().compileResult = lastResult;
+
 			auto e = lastResult.getErrorMessage();
 
 			auto s = e.fromFirstOccurrenceOf("Line ", false, false);

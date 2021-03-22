@@ -98,6 +98,7 @@ struct ExternalPreprocessorDefinition
 	{
 		Definition,
 		Macro,
+		Empty,
 		numTypes
 	};
 

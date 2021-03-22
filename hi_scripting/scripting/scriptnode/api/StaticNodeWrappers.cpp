@@ -371,5 +371,85 @@ void NewHero::prepare(PrepareSpecs ps)
 	}
 }
 
+void OpaqueNodeDataHolder::setExternalData(const snex::ExternalData& d, int index)
+{
+	base::setExternalData(d, index);
+	opaqueNode.setExternalData(d, index);
+}
+
+OpaqueNodeDataHolder::OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn) :
+	opaqueNode(n),
+	parentNode(pn)
+{
+	auto numTables = opaqueNode.numDataObjects[(int)ExternalData::DataType::Table];
+
+	for (int i = 0; i < numTables; i++)
+		data.add(new data::dynamic::table(*this, i));
+
+	auto numSliderPacks = opaqueNode.numDataObjects[(int)ExternalData::DataType::SliderPack];
+
+	for (int i = 0; i < numSliderPacks; i++)
+		data.add(new data::dynamic::sliderpack(*this, i));
+
+	auto numAudioFiles = opaqueNode.numDataObjects[(int)ExternalData::DataType::AudioFile];
+
+	for (int i = 0; i < numAudioFiles; i++)
+		data.add(new data::dynamic::audiofile(*this, i));
+
+	int index = 0;
+
+	for (auto d : data)
+	{
+		d->initialise(parentNode);
+		
+		ExternalData ed(d->currentlyUsedData, index);
+
+		opaqueNode.setExternalData(ed, index++);
+	}
+		
+
+	
+}
+
+OpaqueNodeDataHolder::Editor::Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater* u) :
+	ScriptnodeExtraComponent<OpaqueNodeDataHolder>(obj, u),
+	updater(u)
+{
+	for (auto d : obj->data)
+		addEditor(d);
+
+	setSize(512, height);
+
+	stop();
+}
+
+void OpaqueNodeDataHolder::Editor::addEditor(data::pimpl::dynamic_base* d)
+{
+	auto dt = ExternalData::getDataTypeForClass(d->getInternalData());
+
+	data::ui::pimpl::editor_base* e;
+
+	if (dt == snex::ExternalData::DataType::Table)
+		e = new data::ui::table_editor_without_mod(updater, dynamic_cast<data::dynamic::table*>(d));
+
+	if (dt == snex::ExternalData::DataType::SliderPack)
+		e = new data::ui::sliderpack_editor_without_mod(updater, dynamic_cast<data::dynamic::sliderpack*>(d));
+
+	if (dt == snex::ExternalData::DataType::AudioFile)
+		e = new data::ui::audiofile_editor_with_mod(updater, dynamic_cast<data::dynamic::audiofile*>(d));
+
+	addAndMakeVisible(e);
+
+	height += e->getHeight();
+}
+
+void OpaqueNodeDataHolder::Editor::resized()
+{
+	auto b = getLocalBounds();
+
+	for (auto e : editors)
+		e->setBounds(b.removeFromTop(e->getHeight()));
+}
+
 }
 

@@ -735,7 +735,7 @@ template <class T, int Size> struct span
 		clear();
 	}
 
-	span(const std::initializer_list<T>& l)
+	constexpr span(const std::initializer_list<T>& l)
 	{
 		if (l.size() == 1)
 		{

@@ -903,6 +903,12 @@ void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
 {
 	auto r = p->getLastResult();
 
+	if (p->isCppPreview())
+	{
+		doc.replaceAllContent(p->getCode());
+		return;
+	}
+
 	assemblyDoc.replaceAllContent(getWorkbench()->getLastAssembly());
 
 	if (r.compiledOk())

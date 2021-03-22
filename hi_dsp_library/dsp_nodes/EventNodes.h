@@ -250,7 +250,14 @@ public:
 	{
 		DEF_PARAMETER(Active, timer_impl);
 		DEF_PARAMETER(Interval, timer_impl);
+
+		if (P > 1)
+		{
+			auto typed = static_cast<timer_impl*>(obj);
+			typed->tType.setParameter<P - 2>(value);
+		}
 	}
+	PARAMETER_MEMBER_FUNCTION;
 
 	static constexpr bool isNormalisedModulation() { return false; }
 	constexpr static int NumVoices = NV;
@@ -369,6 +376,8 @@ public:
 		for (auto& ti : t)
 			ti.samplesBetweenCallbacks = newTime;
 	}
+
+	
 
 private:
 

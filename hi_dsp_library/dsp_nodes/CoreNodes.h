@@ -450,12 +450,11 @@ public:
 
 
 
-template <class ShaperType> struct waveshaper
+template <class ShaperType> struct snex_shaper
 {
-	SET_HISE_NODE_ID("waveshaper");
-	SN_GET_SELF_AS_OBJECT(waveshaper);
+	SET_HISE_NODE_ID("snex_shaper");
+	SN_GET_SELF_AS_OBJECT(snex_shaper);
 
-	
 	HISE_EMPTY_HANDLE_EVENT;
 	
 	void prepare(PrepareSpecs ps)
@@ -470,7 +469,8 @@ template <class ShaperType> struct waveshaper
 
 	void initialise(NodeBase* n)
 	{
-		shaper.getWrappedObject().initialise(n);
+		if constexpr (prototypes::check::initialise<ShaperType>::value)
+			shaper.initialise(n);
 	}
 
 	static constexpr bool isPolyphonic() { return false; }
@@ -487,28 +487,13 @@ template <class ShaperType> struct waveshaper
 		shaper.processFrame(data);
 	}
 
-	HISE_EMPTY_CREATE_PARAM;
-
-#if 0
-	void createParameters(ParameterDataList& data)
+	void setExternalData(const ExternalData& d, int index)
 	{
-		{
-			parameter::data p("Parameter1"); 
-			p.callback = parameter::inner<waveshaper, 0>(*this);
-			p.setRange({ 0.0, 1.0 });
-			p.setDefaultValue(1.0);
-			data.add(std::move(p));
-		}
-
-		{
-			parameter::data p("Parameter2");
-			p.callback = parameter::inner<waveshaper, 1>(*this);
-			p.setRange({ 0.0, 1.0 });
-			p.setDefaultValue(1.0);
-			data.add(std::move(p));
-		}
+		if constexpr (prototypes::check::setExternalData<ShaperType>::value)
+			shaper.setExternalData(d, index);
 	}
-#endif
+
+	HISE_EMPTY_CREATE_PARAM;
 };
 
 template <int NV> class ramp_impl : public HiseDspBase
@@ -1260,6 +1245,142 @@ public:
 };
 
 DEFINE_EXTERN_NODE_TEMPLATE(ramp_envelope, ramp_envelope_poly, ramp_envelope_impl);
+
+
+template <typename T> struct snex_osc_base
+{
+	void initialise(NodeBase* n)
+	{
+		if constexpr (prototypes::check::initialise<T>::value)
+			oscType.initialise(n);
+	}
+
+	void setExternalData(const ExternalData& d, int index)
+	{
+		if constexpr (prototypes::check::setExternalData<T>::value)
+			oscType.setExternalData(d, index);
+	}
+
+	T oscType;
+};
+
+template <int NV, typename T> struct snex_osc_impl : snex_osc_base<T>
+{
+	enum class Parameters
+	{
+		Frequency,
+		PitchMultiplier
+	};
+
+	static constexpr int NumVoices = NV;
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Frequency, snex_osc_impl);
+		DEF_PARAMETER(PitchMultiplier, snex_osc_impl);
+
+		if (P > 1)
+		{
+			auto typed = static_cast<snex_osc_impl*>(obj);
+			typed->oscType.setParameter<P - 2>(value);
+		}
+	}
+
+	PARAMETER_MEMBER_FUNCTION;
+
+	SET_HISE_POLY_NODE_ID("snex_osc");
+	SN_GET_SELF_AS_OBJECT(snex_osc_impl);
+
+	void prepare(PrepareSpecs ps)
+	{
+		sampleRate = ps.sampleRate;
+		voiceIndex = ps.voiceIndex;
+		oscData.prepare(ps);
+		reset();
+	}
+
+	void reset()
+	{
+		for (auto& o : oscData)
+			o.reset();
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		auto& thisData = oscData.get();
+		auto uptime = thisData.tick();
+		data[0] += this->oscType.tick(uptime);
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		auto& thisData = oscData.get();
+
+		OscProcessData op;
+
+		op.data.referToRawData(data.getRawDataPointers()[0], data.getNumSamples());
+		op.uptime = thisData.uptime;
+		op.delta = thisData.uptimeDelta * thisData.multiplier;
+		op.voiceIndex = voiceIndex->getVoiceIndex();
+
+		this->oscType.process(op);
+		thisData.uptime += op.delta * (double)data.getNumSamples();
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (e.isNoteOn())
+			setFrequency(e.getFrequency());
+	}
+
+	void setFrequency(double newValue)
+	{
+		if (sampleRate > 0.0)
+		{
+			auto cyclesPerSecond = newValue;
+			auto cyclesPerSample = cyclesPerSecond / sampleRate;
+
+			for (auto& o : oscData)
+				o.uptimeDelta = cyclesPerSample;
+		}
+	}
+
+	void setPitchMultiplier(double newMultiplier)
+	{
+		newMultiplier = jlimit(0.01, 100.0, newMultiplier);
+
+		for (auto& o : oscData)
+			o.multiplier = newMultiplier;
+	}
+
+	
+
+	double sampleRate = 0.0;
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(snex_osc_impl, Frequency);
+			p.setRange({ 20.0, 20000.0, 0.1 });
+			p.setSkewForCentre(1000.0);
+			p.setDefaultValue(220.0);
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(snex_osc_impl, PitchMultiplier);
+			p.setRange({ 1.0, 16.0, 1.0 });
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
+	}
+
+	PolyHandler* voiceIndex = nullptr;
+	PolyData<OscData, NumVoices> oscData;
+};
+
+template <typename OscType> using snex_osc = snex_osc_impl<1, OscType>;
+template <typename OscType> using snex_osc_poly = snex_osc_impl<NUM_POLYPHONIC_VOICES, OscType>;
 
 } // namespace core
 

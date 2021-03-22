@@ -291,6 +291,27 @@ void DspNetworkCodeProvider::initNetwork()
 	setRootValueTree(currentTree);
 }
 
+String DspNetworkCodeProvider::createCppForNetwork() const
+{
+	auto chain = currentTree.getChildWithName(scriptnode::PropertyIds::Node);
+
+	if (ScopedPointer<XmlElement> xml = chain.createXml())
+	{
+		getTestNodeFile().replaceWithText(xml->createDocument(""));
+
+		snex::cppgen::ValueTreeBuilder v(chain, snex::cppgen::ValueTreeBuilder::Format::JitCompiledInstance);
+
+		v.setCodeProvider(new BackendDllManager::FileCodeProvider(getMainController()));
+
+		auto r = v.createCppCode();
+
+		if (r.r.wasOk())
+			return r.code;
+	}
+
+	return {};
+}
+
 }
 
 

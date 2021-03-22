@@ -35,6 +35,112 @@
 namespace hise {
 using namespace juce;
 
+struct BackendDllManager: public ReferenceCountedObject,
+						  public ControlledObject
+{
+	struct FileCodeProvider: public snex::cppgen::ValueTreeBuilder::CodeProvider,
+							 public ControlledObject
+	{
+		FileCodeProvider(const MainController* mc) :
+			ControlledObject(const_cast<MainController*>(mc))
+		{};
+
+		String getCode(const snex::NamespacedIdentifier& path, const Identifier& classId) const override
+		{
+			auto codeFolder = getSubFolder(getMainController(), FolderSubType::CodeLibrary);
+			auto pathFolder = codeFolder.getChildFile(path.getIdentifier().toString());
+			auto f = pathFolder.getChildFile(classId.toString()).withFileExtension("h");
+			jassert(f.existsAsFile());
+			return f.loadFileAsString();
+		}
+	};
+
+	enum class DllType
+	{
+		Debug,
+		Release,
+		Latest,
+		numDllTypes
+	};
+
+	enum class FolderSubType
+	{
+		Root,
+		Networks,
+		Tests,
+		CustomNodes,
+		CodeLibrary,
+		AdditionalCode,
+		Binaries,
+		DllLocation,
+		ProjucerSourceFolder,
+		Layouts,
+		numFolderSubTypes
+	};
+
+	BackendDllManager(MainController* mc) :
+		ControlledObject(mc)
+	{}
+
+	using Ptr = ReferenceCountedObjectPtr<BackendDllManager>;
+
+	int getHash(bool getDllHash);
+	bool unloadDll();
+	bool loadDll(bool forceUnload);
+
+	static File createIfNotDirectory(const File& f);
+	static File getSubFolder(const MainController* mc, FolderSubType t);
+
+	File getBestProjectDll(DllType t) const
+	{
+		auto dllFolder = getSubFolder(getMainController(), FolderSubType::DllLocation);
+
+#if JUCE_WINDOWS
+		String extension = "*.dll";
+#else
+		String extension = "*.dylib";
+#endif
+
+		auto files = dllFolder.findChildFiles(File::findFiles, false, extension);
+
+
+		auto removeWildcard = "Never";
+
+		if (t == DllType::Debug)
+			removeWildcard = "release";
+		if (t == DllType::Release)
+			removeWildcard = "debug";
+
+		for (int i = 0; i < files.size(); i++)
+		{
+			if (files[i].getFileName().contains(removeWildcard))
+				files.remove(i--);
+		}
+
+		if (files.isEmpty())
+			return File();
+
+		struct FileDateComparator
+		{
+			int compareElements(const File& first, const File& second)
+			{
+				auto t1 = first.getCreationTime();
+				auto t2 = second.getCreationTime();
+
+				if (t1 < t2) return 1;
+				if (t2 < t1) return -1;
+				return 0;
+			}
+		};
+
+		FileDateComparator c;
+		files.sort(c);
+
+		return files.getFirst();
+	}
+
+	scriptnode::dll::ProjectDll::Ptr projectDll;
+};
 
 class SnexWorkbenchEditor : public Component,
 	public juce::MenuBarModel,
@@ -59,12 +165,13 @@ public:
 		FileSave,
 		FileSaveAll,
 		FileSetProject,
+		FileShowNetworkFolder,
 		ToolsEditTestData,
 		ToolsAudioConfig,
 		ToolsCompileNetworks,
 		ToolsClearDlls,
 		TestsRunAll,
-		ProjectOffset = 9000,
+		ProjectOffset = 10000,
 		FileOffset = 9000,
 		numCommandIds
 	};
@@ -88,32 +195,7 @@ public:
 
 	bool perform(const InvocationInfo &info) override;
 
-	void recompiled(snex::ui::WorkbenchData::Ptr p)
-	{
-		if (auto dnp = dynamic_cast<DspNetworkCodeProvider*>(p->getCodeProvider()))
-		{
-			if (dnp->source == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
-			{
-				auto h1 = getHash(true);
-				auto h2 = getHash(false);
-
-				if (h1 != h2)
-				{
-					PresetHandler::showMessageWindow("DLL mismatch", "The dll is different than the source files. Recompile it");
-				}
-
-				dgp->getParentShell()->setOverlayComponent(new DspNetworkCodeProvider::OverlayComponent(dnp->source, p), 300);
-			}
-			else if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
-			{
-				dgp->getParentShell()->setOverlayComponent(nullptr, 300);
-			}
-			else
-			{
-				ep->getParentShell()->setOverlayComponent(nullptr, 300);
-			}
-		}
-	}
+	void recompiled(snex::ui::WorkbenchData::Ptr p);
 
 	const MainController* getMainControllerToUse() const override
 	{
@@ -171,8 +253,7 @@ public:
 									on more than one of the popup menus)
 	*/
 	virtual void menuItemSelected(int menuItemID,
-		int topLevelMenuIndex)
-	{}
+		int topLevelMenuIndex);
 
 	//==============================================================================
 	SnexWorkbenchEditor(const String &commandLine);
@@ -183,89 +264,14 @@ public:
 	void resized();
 	void requestQuit();
 
-	enum class DllType
-	{
-		Debug,
-		Release,
-		Latest,
-		numDllTypes
-	};
-
-	enum class FolderSubType
-	{
-		Root,
-		Networks,
-		Tests,
-		CustomNodes,
-		AdditionalCode,
-		Binaries,
-		DllLocation,
-		ProjucerSourceFolder,
-		Layouts,
-		numFolderSubTypes
-	};
-
-	static File createIfNotDirectory(const File& f)
-	{
-		if (!f.isDirectory())
-			f.createDirectory();
-
-		return f;
-	}
-
-	static File getSubFolder(const MainController* mc, FolderSubType t)
-	{
-		auto f = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::DspNetworks);
-
-		switch (t)
-		{
-		case FolderSubType::Root:					return createIfNotDirectory(f);
-		case FolderSubType::Networks:				return createIfNotDirectory(f.getChildFile("Networks"));
-		case FolderSubType::Tests:					return createIfNotDirectory(f.getChildFile("Tests"));
-		case FolderSubType::CustomNodes:			return createIfNotDirectory(f.getChildFile("CustomNodes"));
-		case FolderSubType::AdditionalCode:			return createIfNotDirectory(f.getChildFile("AdditionalCode"));
-		case FolderSubType::DllLocation:
-#if JUCE_WINDOWS
-                return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("dll").getChildFile("Dynamic Library"));
-#else
-                return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("dll"));
-#endif
-		case FolderSubType::Binaries:				return createIfNotDirectory(f.getChildFile("Binaries"));
-		case FolderSubType::Layouts:				return createIfNotDirectory(f.getChildFile("Layouts"));
-		case FolderSubType::ProjucerSourceFolder:	return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("Source"));
-		}
-
-		jassertfalse;
-		return {};
-	}
-
-	File getBestProjectDll(DllType t) const;
-
 	void saveCurrentFile();
 
-	bool unloadDll()
-	{
-		if (auto fh = ProcessorHelpers::getFirstProcessorWithType<scriptnode::DspNetwork::Holder>(getMainController()->getMainSynthChain()))
-		{
-			fh->setProjectDll(nullptr);
-		}
-
-		if (projectDll != nullptr)
-		{
-			projectDll = nullptr;
-			return true;
-		}
-
-		return false;
-	}
-
-	bool loadDll(bool forceUnload);
-
-	int getHash(bool getDllHash);
+	BackendDllManager::Ptr dllManager;
 
 private:
 
-	scriptnode::dll::ProjectDll::Ptr projectDll;
+	Array<File> networkFiles;
+	StringArray recentProjectFiles;
 
 	void addFile(const File& f);
 	
@@ -363,7 +369,7 @@ struct TestRunWindow : public hise::DialogWindowWithBackgroundThread,
 
 	StringArray collectNetworks()
 	{
-		auto root = SnexWorkbenchEditor::getSubFolder(getMainController(), SnexWorkbenchEditor::FolderSubType::Networks);
+		auto root = BackendDllManager::getSubFolder(getMainController(), BackendDllManager::FolderSubType::Networks);
 
 		filesToTest = root.findChildFiles(File::findFiles, false, "*.xml");
 
@@ -404,7 +410,7 @@ struct TestRunWindow : public hise::DialogWindowWithBackgroundThread,
 			c.add(DspNetworkCodeProvider::SourceMode::InterpretedNode);
 			c.add(DspNetworkCodeProvider::SourceMode::JitCompiledNode);
 
-			if (editor->getBestProjectDll(SnexWorkbenchEditor::DllType::Latest).existsAsFile())
+			if (editor->dllManager->getBestProjectDll(BackendDllManager::DllType::Latest).existsAsFile())
 				c.add(DspNetworkCodeProvider::SourceMode::DynamicLibrary);
 		}
 		else
@@ -432,8 +438,6 @@ struct TestRunWindow : public hise::DialogWindowWithBackgroundThread,
 
 	Array<File> filesToTest;
 
-	
-
 	SnexWorkbenchEditor* editor;
 	WorkbenchData::Ptr data;
 };
@@ -458,9 +462,9 @@ private:
 
 	ErrorCodes ok = ErrorCodes::UserAbort;
 
-	File getFolder(SnexWorkbenchEditor::FolderSubType t) const
+	File getFolder(BackendDllManager::FolderSubType t) const
 	{
-		return SnexWorkbenchEditor::getSubFolder(getMainController(), t);
+		return BackendDllManager::getSubFolder(getMainController(), t);
 	}
 
 	void createProjucerFile();

@@ -35,6 +35,11 @@
 namespace scriptnode
 {
 
+namespace data { 
+namespace ui { namespace pimpl { struct editor_base; } }
+namespace pimpl { struct dynamic_base; }
+}
+
 namespace scriptnode_initialisers
 {
 	struct no
@@ -58,6 +63,36 @@ struct ComponentHelpers
 struct NoExtraComponent
 {
 	static Component* createExtraComponent(void* , PooledUIUpdater*) { return nullptr; }
+};
+
+
+
+struct OpaqueNodeDataHolder: public data::base
+{
+	struct Editor : public ScriptnodeExtraComponent<OpaqueNodeDataHolder>
+	{
+		Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater* u);
+
+		void timerCallback() override {}
+
+		void addEditor(data::pimpl::dynamic_base* d);
+
+		void resized() override;
+
+		OwnedArray<data::ui::pimpl::editor_base> editors;
+		PooledUIUpdater* updater;
+		int height = 0;
+	};
+
+	void setExternalData(const snex::ExternalData& d, int index) override;
+
+	OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn);
+
+	OpaqueNode& opaqueNode;
+	WeakReference<NodeBase> parentNode;
+	OwnedArray<data::pimpl::dynamic_base> data;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(OpaqueNodeDataHolder);
 };
 
 template <class WType> class InterpretedNodeBase
@@ -88,6 +123,19 @@ public:
 	{
 		f.initOpaqueNode(&obj.getWrappedObject(), index);
 		this->obj.initialise(asWrapperNode());
+
+		OpaqueNode& n = obj.getWrappedObject();
+
+		if (n.numDataObjects[0] + n.numDataObjects[1] + n.numDataObjects[2] != 0)
+		{
+			opaqueDataHolder = new OpaqueNodeDataHolder(n, asWrapperNode());
+
+			asWrapperNode()->extraComponentFunction = [&](void* , PooledUIUpdater* u)
+			{
+				return new OpaqueNodeDataHolder::Editor(opaqueDataHolder.get(), u);
+			};
+		}
+		
 		postInit();
 	}
 
@@ -117,6 +165,8 @@ protected:
 	}
 
 private:
+
+	ScopedPointer<OpaqueNodeDataHolder> opaqueDataHolder;
 
 	WrapperNode* asWrapperNode()
 	{

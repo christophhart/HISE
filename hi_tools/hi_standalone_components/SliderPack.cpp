@@ -151,7 +151,7 @@ void SliderPackData::fromBase64(const String &encodedValues)
 
 		memcpy(newBuffer->buffer.getWritePointer(0), mb.getData(), mb.getSize());
 
-		swapBuffer(dataBuffer);
+		swapBuffer(newBuffer);
 	}
 }
 

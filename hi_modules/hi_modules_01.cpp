@@ -25,7 +25,7 @@ namespace wdl
 
 #include "effects/fx/chunkware_simple_dynamics/chunkware_simple_dynamics.cpp"
 
-
+#include "nodes/HardcodedNetworkModuleBase.cpp"
 
 
 #include "modulators/mods/ConstantModulator.cpp"
@@ -43,6 +43,7 @@ namespace wdl
 #include "modulators/mods/GlobalModulators.cpp"
 #include "modulators/mods/MPEModulators.cpp"
 #include "modulators/mods/MPEComponents.cpp"
+#include "modulators/mods/HardcodedNetworkModulators.cpp"
 
 #if USE_BACKEND
 
@@ -106,6 +107,7 @@ namespace wdl
 #include "effects/fx/Analyser.cpp"
 #include "effects/fx/WaveShapers.cpp"
 #include "effects/fx/ShapeFX.cpp"
+#include "effects/fx/HardcodedNetworkEffect.cpp"
 
 #if USE_BACKEND
 
@@ -147,6 +149,7 @@ namespace wdl
 #include "synthesisers/editors/WavetableComponents.cpp"
 #include "synthesisers/synths/WavetableSynth.cpp"
 #include "synthesisers/synths/AudioLooper.cpp"
+#include "synthesisers/synths/HardcodedNetworkSynth.cpp"
 
 #if USE_BACKEND
 

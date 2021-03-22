@@ -60,6 +60,8 @@ public:
 		uiOffset = o;
 	}
 
+	std::function<Component*(void*, PooledUIUpdater* updater)> extraComponentFunction;
+
 protected:
 
 	WrapperNode(DspNetwork* parent, ValueTree d);;
@@ -68,10 +70,6 @@ protected:
 
 	Component* createExtraComponent();
 
-	
-
-	std::function<Component*(void*, PooledUIUpdater* updater)> extraComponentFunction;
-
 	Rectangle<int> getExtraComponentBounds() const;
 
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
@@ -79,8 +77,6 @@ protected:
 
 	virtual void* getObjectPtr() = 0;
 	
-	
-
 private:
 
 	size_t uiOffset = 0;

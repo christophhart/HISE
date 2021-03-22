@@ -272,6 +272,15 @@ using namespace Types;
 /** A wrapper around one of the complex data types with a update message. */
 struct ExternalData
 {
+	enum class DataType
+	{
+		Table,
+		SliderPack,
+		AudioFile,
+		numDataTypes,
+		ConstantLookUp
+	};
+
 	ExternalData():
 		dataType(DataType::numDataTypes),
 		data(nullptr),
@@ -284,8 +293,8 @@ struct ExternalData
 	ExternalData(ComplexDataUIBase* b, int absoluteIndex);
 
 	/** Creates an external data object from a constant value class. */
-	template <typename T> ExternalData(T& other):
-		dataType(DataType::ConstantLookUp),
+	template <typename T> ExternalData(T& other, DataType type=DataType::ConstantLookUp):
+		dataType(type),
 		obj(nullptr)
 	{
 		data = other.begin();
@@ -293,16 +302,7 @@ struct ExternalData
 		numChannels = 1;
 	}
 
-	enum class DataType
-	{
-		Table,
-		SliderPack,
-		AudioFile,
-		numDataTypes,
-		ConstantLookUp
-	};
-
-	static String getDataTypeName(DataType t);
+	static String getDataTypeName(DataType t, bool plural=false);
 	static Identifier getNumIdentifier(DataType t);
 
 	static void forEachType(const std::function<void(DataType)>& f);
@@ -557,36 +557,150 @@ template <int Index, ExternalData::DataType DType> struct plain : index_type_bas
 	}
 };
 
-template <typename T, ExternalData::DataType DType> struct embedded : public index_type_base<-1, DType>
+template <typename DataClass, ExternalData::DataType DType> struct embedded : public index_type_base<-1, DType>
 {
+private:
 	static constexpr int getNum(ExternalData::DataType t) { return t == DType ? 1 : 0; }
+
+public:
 
 	static constexpr int NumTables = getNum(ExternalData::DataType::Table);
 	static constexpr int NumSliderPacks = getNum(ExternalData::DataType::SliderPack);
 	static constexpr int NumAudioFiles = getNum(ExternalData::DataType::AudioFile);
 
-	template <typename NodeType> embedded(NodeType& n) {};
-
-	template <typename NodeType> void setExternalData(NodeType& n, const ExternalData& b, int index)
+	template <typename NodeType> embedded(NodeType& n) 
 	{
 		ExternalData d(obj.data);
 		n.setExternalData(d, 0);
+	};
+
+	template <typename NodeType> void setExternalData(NodeType& , const ExternalData&, int)
+	{
+		
 	}
 
-	T obj;
+	DataClass obj;
 };
+struct example_matrix
+{
+	static constexpr int NumSliderPacks = 1;
+	static constexpr int NumTables = 2;
+	static constexpr int NumAudioFiles = 3;
+
+	static constexpr int matrix[3][3] =
+	{
+		{ 1000, 0, -1 },  // 0->e[0] || 1->0
+		{ 1001, -1, -1 }, // 0->e[1] ||
+		{ 2, 2, 1002 },	  // 0->2 || 1->2 || 2->e[2]
+	};
+
+private:
+
+	// Embedded Data ==========================================
+
+	const span<float, 5> d0 = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
+	const span<float, 5> d1 = { 1.0f, 1.0f, 1.0f, 1.0f, 5.0f };
+	const span<float, 5> d2 = { 1.0f, 1.0f, 1.0f, 1.0f, 5.0f };
+
+	// End of embedded Data ===================================
+
+public:
+
+	const span<dyn<float>, 3> embeddedData = { d0, d1, d2 };
+};
+
 }
+
+/** This data type will be used when there are multiple data slots used in the node.
+
+	The template argument must be a class with the following properties:
+
+	- static int constants for `NumSliderPacks`, `NumTables` and `NumAudioFiles`
+	- a (constexpr) int[3][max(NumSliderPacks, NumTables, NumAudioFiles)] member that contains the index mapping
+	- a const span<dyn<float>, NumEmbeddedDataSlots> member called embeddedData that points to
+	  static lookup tables
+
+	Take a look at the pimpl::example_matrix above how it works.
+*/
+template <typename MatrixType> struct matrix: public pimpl::base
+{
+	static constexpr int NumTables = MatrixType::NumTables;
+	static constexpr int NumSliderPacks = MatrixType::NumSliderPacks;
+	static constexpr int NumAudioFiles = MatrixType::NumAudioFiles;
+
+	static bool getEmbeddedIndex(int& idx)
+	{
+		static constexpr int EmbeddedOffset = 1000;
+
+		if (idx >= EmbeddedOffset)
+		{
+			idx -= EmbeddedOffset;
+			return true;
+		}
+
+		return false;
+	}
+
+	static constexpr int getNumSlots(ExternalData::DataType dt)
+	{
+		if (dt == ExternalData::DataType::Table)
+			return MatrixType::NumTables;
+		if (dt == ExternalData::DataType::SliderPack)
+			return MatrixType::NumSliderPacks;
+		if (dt == ExternalData::DataType::AudioFile)
+			return MatrixType::NumAudioFiles;
+
+		return 0;
+	}
+
+	template <typename NodeType> matrix(NodeType& n)
+	{
+		ExternalData::forEachType([&](ExternalData::DataType dt)
+			{
+				for (int i = 0; i < getNumSlots(dt); i++)
+				{
+					int idx = m.matrix[(int)dt][i];
+
+					if (getEmbeddedIndex(idx))
+					{
+						ExternalData d(m.embeddedData[idx], dt);
+						n.setExternalData(d, i);
+					}
+				}
+			});
+	};
+
+	template <typename NodeType> void setExternalData(NodeType& n, const ExternalData& d, int index)
+	{
+		auto dt = d.dataType;
+
+		for (int i = 0; i < getNumSlots(dt); i++)
+		{
+			auto idx = m.matrix[(int)dt][i];
+
+			if (getEmbeddedIndex(idx))
+				continue;
+
+			if (idx == index)
+				n.setExternalData(d, i);
+		}
+	}
+
+private:
+
+	const MatrixType m;
+};
 
 namespace external
 {
-	template <int Index> using table =		 pimpl::plain<Index, ExternalData::DataType::Table>;
+	template <int Index> using table =		pimpl::plain<Index, ExternalData::DataType::Table>;
 	template <int Index> using sliderpack = pimpl::plain<Index, ExternalData::DataType::SliderPack>;
 	template <int Index> using audiofile =  pimpl::plain<Index, ExternalData::DataType::AudioFile>;
 }
 
 namespace embedded
 {
-	template <typename DataClass> using table =		   pimpl::embedded<DataClass, ExternalData::DataType::Table>;
+	template <typename DataClass> using table =		  pimpl::embedded<DataClass, ExternalData::DataType::Table>;
 	template <typename DataClass> using sliderpack =  pimpl::embedded<DataClass, ExternalData::DataType::SliderPack>;
 	template <typename DataClass> using audiofile =   pimpl::embedded<DataClass, ExternalData::DataType::AudioFile>;
 }

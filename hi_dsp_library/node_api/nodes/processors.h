@@ -290,8 +290,6 @@ public:
 
 	init() : obj(), i(obj) {};
 
-	
-	
 	HISE_DEFAULT_PREPARE(T);
 	HISE_DEFAULT_RESET(T);
 	HISE_DEFAULT_HANDLE_EVENT(T);
@@ -301,11 +299,15 @@ public:
 
 	void initialise(NodeBase* n)
 	{
-		obj.initialise(n);
+		if constexpr(prototypes::check::initialise<T>::value)
+			obj.initialise(n);
+
 		i.initialise(n);
 	}
 
 	bool isPolyphonic() const { return obj.isPolyphonic(); };
+
+	constexpr bool isNormalisedModulation() { return obj.isNormalisedModulation(); }
 
 	void createParameters(ParameterDataList& list)
 	{
@@ -661,6 +663,11 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 	void setExternalData(const snex::ExternalData& data, int index)
 	{
 		this->i.setExternalData(this->obj, data, index);
+	}
+
+	template <int P> void setParameter(double v)
+	{
+		T::setParameterStatic<P>(&this->obj, v);
 	}
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(data);
@@ -1020,7 +1027,12 @@ template <class T, class PropertyClass = properties::none> struct node : public 
 {
 	using MetadataClass = typename T::metadata;
 	static constexpr bool isModulationSource = T::isModulationSource;
-	static constexpr int NumChannels = MetadataClass::NumChannels;
+	static constexpr bool isNormalisedModulation() { return false; };
+
+	static constexpr int NumChannels =	  MetadataClass::NumChannels;
+	static constexpr int NumTables =	  MetadataClass::NumTables;
+	static constexpr int NumSliderPacks = MetadataClass::NumSliderPacks;
+	static constexpr int NumAudioFiles =  MetadataClass::NumAudioFiles;
 
 	// We treat everything in this node as opaque...
 	SN_GET_SELF_AS_OBJECT(node);

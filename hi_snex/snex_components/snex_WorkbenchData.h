@@ -1081,7 +1081,19 @@ struct WorkbenchData : public ReferenceCountedObject,
 		}
 	}
 
+	void setIsCppPreview(bool shouldBeCppPreview)
+	{
+		cppPreview = shouldBeCppPreview;
+	}
+
+	bool isCppPreview() const
+	{
+		return cppPreview;
+	}
+
 private:
+
+	bool cppPreview = false;
 
 	hise::UnorderedStack<int> pendingBlinks;
 

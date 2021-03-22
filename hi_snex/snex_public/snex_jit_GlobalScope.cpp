@@ -326,6 +326,13 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 	}
 
 	{
+		ExternalPreprocessorDefinition son;
+		son.name = "SNEX_NODE";
+		son.t = ExternalPreprocessorDefinition::Type::Empty;
+		defaultMacros.add(son);
+	}
+
+	{
 		ExternalPreprocessorDefinition dpe;
 		dpe.name = "DECLARE_PARAMETER_EXPRESSION(name, expression)";
 		dpe.value = "struct name { static double op(double input) { return expression; }};";

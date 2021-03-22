@@ -93,6 +93,12 @@ struct ValueTreeIterator
 
 	static bool isComplexDataNode(const ValueTree& nodeTree);
 
+	static int getNumDataTypes(const ValueTree& nodeTree, ExternalData::DataType t);
+
+	static int getMaxDataTypeIndex(const ValueTree& rootTree, ExternalData::DataType t);
+
+	static int getDataIndex(const ValueTree& nodeTree, ExternalData::DataType t, int slotIndex);
+
 	static bool isAutomated(const ValueTree& parameterTree);
 
 	static String getSnexCode(const ValueTree& nodeTree);
@@ -439,6 +445,12 @@ struct HeaderBuilder : public Base
 
 struct ValueTreeBuilder: public Base
 {
+	struct CodeProvider
+	{
+		virtual ~CodeProvider() {};
+		virtual String getCode(const NamespacedIdentifier& nodePath, const Identifier& classId) const = 0;
+	};
+
 	struct BuildResult
 	{
 		BuildResult() :
@@ -490,7 +502,14 @@ struct ValueTreeBuilder: public Base
 		return br;
 	}
 
+	void setCodeProvider(CodeProvider* p)
+	{
+		codeProvider = p;
+	}
+
 private:
+
+	ScopedPointer<CodeProvider> codeProvider;
 
 	void setHeaderForFormat();
 
@@ -587,16 +606,42 @@ private:
 
 		Node::Ptr parse();
 
-		static ExternalData::DataType getType(const ValueTree& v);
+		
+		static Array<float> getEmbeddedData(const ValueTree& nodeTree, ExternalData::DataType t, int slotIndex);
 
 	private:
 
-		Node::Ptr parseDataClass();
+		Node::Ptr parseEmbeddedDataNode(ExternalData::DataType t);
+		Node::Ptr parseExternalDataNode(ExternalData::DataType t, int slotIndex);
+		Node::Ptr parseMatrixDataNode();
 
-		
+		ValueTreeBuilder& parent;
+		Node::Ptr n;
+	};
 
-		Array<float> getEmbeddedData() const;
-		
+	struct SnexNodeBuilder
+	{
+		SnexNodeBuilder(ValueTreeBuilder& parent_, Node::Ptr nodeToWrap) :
+			parent(parent_),
+			n(nodeToWrap)
+		{};
+
+		Node::Ptr parse();
+
+	private:
+
+		static bool needsWrapper(const NamespacedIdentifier& p)
+		{
+			return p != NamespacedIdentifier::fromString("core::snex_node");
+		}
+
+		Node::Ptr parseWrappedSnexNode();
+
+		Node::Ptr parseUnwrappedSnexNode();
+
+		String classId;
+		String code;
+		NamespacedIdentifier p;
 
 		ValueTreeBuilder& parent;
 		Node::Ptr n;
@@ -669,151 +714,7 @@ private:
 		return pooledParameters.add(p);
 	}
 
-	PooledParameter::Ptr createParameterFromConnection(const Connection& c, const Identifier& pName, int parameterIndexInChain)
-	{
-		if (auto existing = pooledParameters.getExisting(c))
-			return existing;
-
-		String p = pName.toString();
-
-		if (parameterIndexInChain != -1)
-			p << "_" << parameterIndexInChain;
-
-		if (!c)
-		{
-			auto up = makeParameter(p, "empty", {});
-			return addParameterAndReturn(up);
-		}
-
-		
-
-		
-
-		if (!c)
-		{
-			Error e;
-			e.errorMessage = "Can't find connection for " + pName.toString();
-			throw e;
-		}
-
-		auto t = c.getType();
-
-		switch (t)
-		{
-		case Connection::ConnectionType::Bypass:
-		{
-			auto up = makeParameter(p, "bypass", c);
-			*up << *c.n;
-
-			return addParameterAndReturn(up);
-		}
-		case Connection::ConnectionType::Expression:
-		{
-			// parameter::expression<T, P, Expression>;
-
-			auto up = makeParameter(p, "expression", c);
-			*up << *c.n;
-			*up << c.index;
-
-			String fWhat;
-			fWhat << up->scopedId.getIdentifier();
-			fWhat << "Expression";
-
-			if (auto existing = pooledExpressions.getExisting(c.expressionCode))
-			{
-				*up << existing->id.toExpression();
-			}
-			else
-			{
-				auto r = new PooledExpression({ *this, fWhat });
-
-				r->expression = c.expressionCode;
-
-				//DECLARE_PARAMETER_EXPRESSION(fWhat, x)
-				Macro(*this, "DECLARE_PARAMETER_EXPRESSION", { StringHelpers::withToken(IntendMarker, fWhat), StringHelpers::withToken(IntendMarker, c.expressionCode) });
-				addEmptyLine();
-				*up << r->id.toExpression();
-
-				pooledExpressions.add(r);
-			}
-
-			up->flushIfNot();
-			addEmptyLine();
-
-			return addParameterAndReturn(up);
-		}
-		case Connection::ConnectionType::RangeWithSkew:
-		case Connection::ConnectionType::RangeWithStep:
-		case Connection::ConnectionType::Range:
-		{
-			auto up = makeParameter(p, "from0To1", c);
-			*up << *c.n;
-			*up << c.index;
-
-			String fWhat;
-
-			fWhat << up->scopedId.getIdentifier();
-			fWhat << "Range";
-
-			auto parseRange = [&](const NormalisableRange<double>& r)
-			{
-				if (auto existing = pooledRanges.getExisting(r))
-				{
-					return existing;
-				}
-				else
-				{
-					auto r = new PooledRange({ *this, fWhat });
-					r->c = c;
-
-					StringArray args;
-
-					args.add(fWhat);
-
-					args.add(Helpers::getCppValueString(c.targetRange.start, Types::ID::Double));
-					args.add(Helpers::getCppValueString(c.targetRange.end, Types::ID::Double));
-
-					String macroName = "DECLARE_PARAMETER_RANGE";
-
-					if (t == Connection::ConnectionType::RangeWithSkew)
-					{
-						macroName << "_SKEW";
-						args.add(Helpers::getCppValueString(c.targetRange.skew, Types::ID::Double));
-					}
-					else if (t == Connection::ConnectionType::RangeWithStep)
-					{
-						macroName << "_STEP";
-						args.add(Helpers::getCppValueString(c.targetRange.interval, Types::ID::Double));
-					}
-
-					for (auto& a : args)
-						a = StringHelpers::withToken(IntendMarker, a);
-
-					Macro(*this, macroName, args);
-					addEmptyLine();
-					return pooledRanges.add(r);
-				}
-			};
-
-			auto r = parseRange(c.targetRange);
-
-			*up << r->id.toExpression();
-
-			up->flushIfNot();
-			addEmptyLine();
-
-			return addParameterAndReturn(up);
-		}
-		default:
-		{
-			auto up = makeParameter(p, "plain", c);
-			*up << *c.n;
-			*up << c.index;
-			
-			return addParameterAndReturn(up);
-		}
-		}
-	}
+	PooledParameter::Ptr createParameterFromConnection(const Connection& c, const Identifier& pName, int parameterIndexInChain);
 
 	PoolBase<Node> pooledTypeDefinitions;
 	PoolBase<PooledRange> pooledRanges;

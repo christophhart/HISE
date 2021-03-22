@@ -197,7 +197,7 @@ struct dynamic : public SnexSource
 
 	bool getMidiValueWrapped(HiseEvent& e, double& v);
 
-	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("snex_midi"); };
+	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("midi"); };
 
 	SnexTestBase* createTester() override
 	{

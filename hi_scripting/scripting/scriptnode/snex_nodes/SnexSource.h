@@ -711,6 +711,11 @@ struct SnexSource : public WorkbenchData::Listener
 
 	Identifier getCurrentClassId() const { return Identifier(classId.getValue()); }
 
+	void setExternalData(const ExternalData& d, int index)
+	{
+		
+	}
+
 protected:
 
 	void setCallbackHandler(CallbackHandlerBase* nonOwnedHandler)
@@ -722,6 +727,11 @@ protected:
 
 	static void addDefaultParameterFunction(String& code)
 	{
+		code << "void setExternalData(const ExternalData& d, int index)\n";
+		code << "{\n";
+		code << "\t\n";
+		code << "}\n";
+		code << "\n";
 		code << "template <int P> void setParameter(double v)\n";
 		code << "{\n";
 		code << "\t\n";

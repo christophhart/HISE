@@ -370,24 +370,7 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 		return root.getChildFile("tools/snex_playground/test_files/node.xml");
 	}
 
-	String createCppForNetwork() const
-	{
-		auto chain = currentTree.getChildWithName(scriptnode::PropertyIds::Node);
-
-		if (ScopedPointer<XmlElement> xml = chain.createXml())
-		{
-			getTestNodeFile().replaceWithText(xml->createDocument(""));
-
-			snex::cppgen::ValueTreeBuilder v(chain, snex::cppgen::ValueTreeBuilder::Format::JitCompiledInstance);
-
-			auto r = v.createCppCode();
-
-			if (r.r.wasOk())
-				return r.code;
-		}
-		
-		return {};
-	}
+	String createCppForNetwork() const;
 
 	File getXmlFile() const
 	{

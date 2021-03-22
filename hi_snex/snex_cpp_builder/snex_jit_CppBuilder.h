@@ -317,8 +317,9 @@ struct UsingNamespace : public Op
 
 struct StatementBlock: public Op
 {
-	StatementBlock(Base& parent) :
-		Op(parent)
+	StatementBlock(Base& parent, bool addSemicolon=false) :
+		Op(parent),
+		addSemi(addSemicolon)
 	{
 		parent << "{";
 	};
@@ -332,9 +333,11 @@ private:
 
 	void flush() override
 	{
-		parent << "}";
+		parent << (addSemi ? "};" : "}");
 		Op::flush();
 	}
+
+	const bool addSemi;
 };
 
 struct Function: public Op

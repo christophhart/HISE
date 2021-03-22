@@ -46,6 +46,8 @@ String dynamic::getEmptyText(const Identifier& id) const
 
 	cppgen::Struct s(c, id, {}, {});
 
+	c << "SNEX_NODE;";
+
 	c << "void prepare(PrepareSpecs ps)";
 
 	{

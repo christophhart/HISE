@@ -36,11 +36,8 @@ using namespace juce;
 using namespace hise;
 using namespace snex;
 
-
-
 namespace waveshapers
 {
-
 	String dynamic::getEmptyText(const Identifier& id) const
 	{
 		using namespace snex::cppgen;
@@ -48,6 +45,8 @@ namespace waveshapers
 		Base c(Base::OutputType::AddTabs);
 
 		Struct s(c, id, {}, {});
+
+		c << "SNEX_NODE;";
 
 		c.addComment("Implement the Waveshaper here...", Base::CommentType::RawWithNewLine);
 		c << "float getSample(float input)";
@@ -119,10 +118,16 @@ namespace waveshapers
 		for (int i = 0; i < 128; i++)
 			tData[i] = 2.0f * (float)i / 127.0f - 1.0f;
 
+		auto n = getObject()->getParentNode()->getNumChannelsToProcess();
+
+		float** d = (float**)alloca(sizeof(float*) * n);
 
 		float* x = tData.begin();
 
-		ProcessDataDyn pd(&x, 128, 1);
+		for (int i = 0; i < n; i++)
+			d[i] = x;
+
+		ProcessDataDyn pd(d, 128, n);
 
 		SnexSource::Tester<ShaperCallbacks> tester(*getObject());
 

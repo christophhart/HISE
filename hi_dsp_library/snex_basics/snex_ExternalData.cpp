@@ -146,13 +146,13 @@ ExternalData::ExternalData(ComplexDataUIBase* b, int absoluteIndex) :
 	}
 }
 
-String ExternalData::getDataTypeName(DataType t)
+String ExternalData::getDataTypeName(DataType t, bool plural)
 {
 	switch (t)
 	{
-	case DataType::AudioFile: return "AudioFile";
-	case DataType::SliderPack: return "SliderPack";
-	case DataType::Table: return "Table";
+	case DataType::AudioFile: return plural ? "AudioFiles" : "AudioFile";
+	case DataType::SliderPack: return plural ? "SliderPacks" : "SliderPack";
+	case DataType::Table: return plural ? "Tables" : "Table";
 	case DataType::ConstantLookUp: return "ConstantLookup";
 	default: jassertfalse; return {};
 	}

@@ -191,6 +191,7 @@ public:
 	span<void*, NumMaxParameters> parameterObjects;
 
 	int numParameters = 0;
+	int numDataObjects[(int)ExternalData::DataType::numDataTypes];
 };
 
 
@@ -207,8 +208,11 @@ namespace dll
 		typedef size_t(*GetNodeIdFunc)(int, char*);
 		typedef void(*InitNodeFunc)(scriptnode::OpaqueNode*, int);
 		typedef void(*DeleteNodeFunc)(void* obj);
+		typedef int(*GetNumDataObjects)(int, int);
 
 		int getNumNodes() const;
+
+		int getNumDataObjects(int nodeIndex, int dataTypeAsInt) const;
 
 		String getNodeId(int index) const;
 
@@ -237,6 +241,7 @@ namespace dll
 		GetNodeIdFunc gnif;
 		InitNodeFunc inf;
 		DeleteNodeFunc dnf;
+		GetNumDataObjects gndo;
 
 		ScopedPointer<DynamicLibrary> dll;
 	};
@@ -248,6 +253,7 @@ namespace dll
 		virtual int getNumNodes() const = 0;
 		virtual String getId(int index) const = 0;
 		virtual bool initOpaqueNode(OpaqueNode* n, int index) = 0;
+		virtual int getNumDataObjects(int index, int dataTypeAsInt) const = 0;
 
 	};
 
@@ -262,6 +268,7 @@ namespace dll
 		{
 			String id;
 			std::function<void(scriptnode::OpaqueNode* n)> f;
+			int numDataObjects[3];
 		};
 
 		Array<Item> items;
@@ -270,11 +277,17 @@ namespace dll
 		int getNumNodes() const override;
 		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index) override;
 
+		int getNumDataObjects(int index, int dataTypeAsInt) const override;
+
 		template <typename T> void registerNode()
 		{
 			Item i;
 			i.id = T::MetadataClass::getStaticId().toString();
 			i.f = [](scriptnode::OpaqueNode* n) { n->create<T>(); };
+
+			i.numDataObjects[(int)ExternalData::DataType::Table] = T::NumTables;
+			i.numDataObjects[(int)ExternalData::DataType::SliderPack] = T::NumSliderPacks;
+			i.numDataObjects[(int)ExternalData::DataType::AudioFile] = T::NumAudioFiles;
 
 			items.add(i);
 		}
@@ -299,6 +312,8 @@ namespace dll
 		String getId(int index) const override;
 
 		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index) override;
+
+		int getNumDataObjects(int index, int dataTypeAsInt) const override;
 
 	private:
 

@@ -54,29 +54,29 @@ namespace prototypes
 
 	namespace check
 	{
-		template <typename T>
-		class setExternalData
+		template <typename T> class setExternalData
 		{
-			typedef char one;
-			struct two { char x[2]; };
-
+			typedef char one; struct two { char x[2]; };
 			template <typename C> static one test(decltype(&C::setExternalData));
 			template <typename C> static two test(...);
-
 		public:
-
 			enum { value = sizeof(test<T>(0)) == sizeof(char) };
 		};
 
-		template <typename T>
-		class handleModulation
+		template <typename T> class initialise
 		{
-			typedef char one;
-			struct two { char x[2]; };
+			typedef char one; struct two { char x[2]; };
+			template <typename C> static one test(decltype(&C::initialise));
+			template <typename C> static two test(...);
+		public:
+			enum { value = sizeof(test<T>(0)) == sizeof(char) };
+		};
 
+		template <typename T> class handleModulation
+		{
+			typedef char one; struct two { char x[2]; };
 			template <typename C> static one test(decltype(&C::handleModulation));
 			template <typename C> static two test(...);
-
 		public:
 			enum { value = sizeof(test<T>(0)) == sizeof(char) };
 		};
