@@ -59,7 +59,7 @@ String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 	s << emptyBody;
 	s << "\t" << "template <int C> void processFrame(span<float, C>& data)" << nl;
 	s << emptyBody;
-	s << "\t" << "void handleEvent(HiseEvent& e)" << nl;
+	s << "\t" << "void handleHiseEvent(HiseEvent& e)" << nl;
 	s << emptyBody;
 
 	s << "};" << nl;
@@ -100,7 +100,7 @@ String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 
 	c.addEmptyLine();
 	c.addComment("Process the MIDI events here", cppgen::Base::CommentType::Raw);
-	c << "void handleEvent(HiseEvent& e)";
+	c << "void handleHiseEvent(HiseEvent& e)";
 	{
 		StatementBlock sb(c); c.addEmptyLine();
 	}

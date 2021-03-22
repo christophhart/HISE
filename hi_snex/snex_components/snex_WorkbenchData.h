@@ -75,7 +75,7 @@ struct Node
 		callbacks[Types::ScriptnodeCallbacks::PrepareFunction].callVoid(&ps);
 	}
 
-	void handleEvent(HiseEvent& e)
+	void handleHiseEvent(HiseEvent& e)
 	{
 		callbacks[Types::ScriptnodeCallbacks::HandleEventFunction].callVoid(&e);
 	}

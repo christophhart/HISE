@@ -248,7 +248,7 @@ juce::Array<snex::NamespacedIdentifier> ScriptnodeCallbacks::getIds(const Namesp
 
 	ids.add(p.getChildId("prepare"));
 	ids.add(p.getChildId("reset"));
-	ids.add(p.getChildId("handleEvent"));
+	ids.add(p.getChildId("handleHiseEvent"));
 	ids.add(p.getChildId("process"));
 	ids.add(p.getChildId("processFrame"));
 
@@ -311,7 +311,7 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler& c, ID id, in
 	}
 	case HandleEventFunction:
 	{
-		f.id = NamespacedIdentifier("handleEvent");
+		f.id = NamespacedIdentifier("handleHiseEvent");
 		f.returnType = TypeInfo(Types::ID::Void);
 		f.addArgs("e", TypeInfo(c.getComplexType(NamespacedIdentifier("HiseEvent"), {}), false, true));
 		break;

@@ -70,7 +70,7 @@ void CallbackCollection::setupCallbacks()
 	if (!resetFunction.matchesNativeArgumentTypes(ID::Void, {}))
 		resetFunction = {};
 
-	eventFunction = obj["handleEvent"];
+	eventFunction = obj["handleHiseEvent"];
 
 	callbacks[CallbackTypes::Sample] = obj[cIds[CallbackTypes::Sample]];
 

@@ -343,7 +343,7 @@ struct WrapLibraryBuilder : public LibraryBuilderBase
 		struct core_midi
 		{
 			static Result prepare(InlineData* b);
-			static Result handleEvent(InlineData* b);
+			static Result handleHiseEvent(InlineData* b);
 			static Result handleModulation(InlineData* b);
 		};
 

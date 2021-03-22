@@ -148,7 +148,7 @@ struct SnexNodeBase : public snex::ComplexType
 			static_cast<OT*>(obj)->reset();
 		}
 
-		static void handleEvent(void* obj, HiseEvent* e)
+		static void handleHiseEvent(void* obj, HiseEvent* e)
 		{
 			static_cast<OT*>(obj)->handleHiseEvent(*e);
 		}
@@ -241,13 +241,13 @@ struct SnexNodeBase : public snex::ComplexType
 		template <typename OT> static FunctionData* createHandleEventFunction(const SnexTypeConstructData& cd)
 		{
 			FunctionData* he = new FunctionData();
-			he->id = cd.id.getChildId("handleEvent");
+			he->id = cd.id.getChildId("handleHiseEvent");
 
 			Symbol s(he->id.getChildId("e"), TypeInfo(cd.c.getComplexType(NamespacedIdentifier("HiseEvent")), false, true));
 			he->args.add(s);
 
 			he->returnType = TypeInfo(Types::ID::Void);
-			he->function = &DefaultWrappers<OT>::handleEvent;
+			he->function = &DefaultWrappers<OT>::handleHiseEvent;
 
 			return he;
 		}

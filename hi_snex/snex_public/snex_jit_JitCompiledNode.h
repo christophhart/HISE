@@ -101,7 +101,7 @@ struct JitCompiledNode : public ReferenceCountedObject,
 		callbacks[Types::ScriptnodeCallbacks::ResetFunction].callVoid();
 	}
 
-	void handleEvent(HiseEvent& e)
+	void handleHiseEvent(HiseEvent& e)
 	{
 		callbacks[Types::ScriptnodeCallbacks::HandleEventFunction].callVoid(&e);
 	}

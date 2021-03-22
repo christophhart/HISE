@@ -1063,7 +1063,7 @@ void WrapLibraryBuilder::registerCoreTemplates()
 	coreMidi.setEmptyCallback(ScriptnodeCallbacks::ProcessFrameFunction);
 	coreMidi.setEmptyCallback(ScriptnodeCallbacks::ResetFunction);
 	coreMidi.setInlinerForCallback(ScriptnodeCallbacks::PrepareFunction, {}, Inliner::HighLevel, Callbacks::core_midi::prepare);
-	coreMidi.setInlinerForCallback(ScriptnodeCallbacks::HandleEventFunction, {}, Inliner::HighLevel, Callbacks::core_midi::handleEvent);
+	coreMidi.setInlinerForCallback(ScriptnodeCallbacks::HandleEventFunction, {}, Inliner::HighLevel, Callbacks::core_midi::handleHiseEvent);
 
 	coreMidi.flush();
 
@@ -1313,7 +1313,7 @@ juce::Result WrapLibraryBuilder::Callbacks::core_midi::prepare(InlineData* b)
 	return SyntaxTreeInlineParser(b, { "ps" }, c).flush();
 }
 
-juce::Result WrapLibraryBuilder::Callbacks::core_midi::handleEvent(InlineData* b)
+juce::Result WrapLibraryBuilder::Callbacks::core_midi::handleHiseEvent(InlineData* b)
 {
 	cppgen::Base c;
 

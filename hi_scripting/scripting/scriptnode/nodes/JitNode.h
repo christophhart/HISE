@@ -115,7 +115,7 @@ struct CompiledNodeBase: public ReferenceCountedObject
 		callbacks[Types::ScriptnodeCallbacks::ResetFunction].callVoidUnchecked(getObject());
 	}
 
-	void handleEvent(HiseEvent& e)
+	void handleHiseEvent(HiseEvent& e)
 	{
 		jassert(r.wasOk());
 		callbacks[Types::ScriptnodeCallbacks::HandleEventFunction].callVoidUnchecked(getObject(), &e);
@@ -201,7 +201,7 @@ struct new_jit: public SnexSource,
 	void handleHiseEvent(HiseEvent& e)
 	{
 		if (compiledNode)
-			compiledNode->handleEvent(e);
+			compiledNode->handleHiseEvent(e);
 	}
 
 	void initialise(NodeBase* n) override
@@ -383,7 +383,7 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 
 	void handleHiseEvent(HiseEvent& e) final override
 	{
-		obj.get().handleEvent(e);
+		obj.get().handleHiseEvent(e);
 	}
 
 	void reset()
