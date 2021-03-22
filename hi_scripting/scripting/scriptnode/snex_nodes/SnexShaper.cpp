@@ -46,7 +46,7 @@ namespace waveshapers
 
 		Struct s(c, id, {}, {});
 
-		c << "SNEX_NODE;";
+		addSnexNodeId(c, id);
 
 		c.addComment("Implement the Waveshaper here...", Base::CommentType::RawWithNewLine);
 		c << "float getSample(float input)";

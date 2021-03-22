@@ -189,7 +189,7 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 
 
 // Use this in every node to add the boiler plate for C++ compilation
-#define SNEX_NODE HISE_EMPTY_INITIALISE; hmath Math;
+#define SNEX_NODE(className) hmath Math; SN_GET_SELF_AS_OBJECT(className);
 
 
 }

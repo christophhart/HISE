@@ -45,7 +45,7 @@ namespace control
 
 		cppgen::Struct s(c, id, {}, {});
 
-		c << "SNEX_NODE;";
+		addSnexNodeId(c, id);
 
 		c.addComment("Calculate a new timer value here", snex::cppgen::Base::CommentType::Raw);
 		c << "double getTimerValue()\n";

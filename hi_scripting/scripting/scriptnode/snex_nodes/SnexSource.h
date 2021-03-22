@@ -716,6 +716,13 @@ struct SnexSource : public WorkbenchData::Listener
 		
 	}
 
+	template <int P> void setParameter(double v)
+	{
+		
+
+		getParameterHandler().setParameterStatic<P>(&getParameterHandler(), v);
+	}
+
 protected:
 
 	void setCallbackHandler(CallbackHandlerBase* nonOwnedHandler)
@@ -724,6 +731,14 @@ protected:
 	}
 
 	Array<WeakReference<SnexSourceListener>> compileListeners;
+
+	static void addSnexNodeId(cppgen::Base& c, const Identifier& id)
+	{
+		String l;
+		l << "SNEX_NODE(" << id << ");";
+		c << l;
+		c.addEmptyLine();
+	}
 
 	static void addDefaultParameterFunction(String& code)
 	{

@@ -71,6 +71,11 @@ String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 
 	Struct st(c, mainClass, {}, {});
 
+	String ld;
+	ld << "SNEX_NODE(" << mainClass << ");";
+	c << ld;
+	c.addEmptyLine();
+
 	c.addComment("Initialise the processing specs here", cppgen::Base::CommentType::Raw);
 	c << "void prepare(PrepareSpecs ps)";
 	{
@@ -101,6 +106,13 @@ String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 	c.addEmptyLine();
 	c.addComment("Process the MIDI events here", cppgen::Base::CommentType::Raw);
 	c << "void handleHiseEvent(HiseEvent& e)";
+	{
+		StatementBlock sb(c); c.addEmptyLine();
+	}
+
+	c.addEmptyLine();
+	c.addComment("Use this function to setup the external data", cppgen::Base::CommentType::Raw);
+	c << "void setExternalData(const ExternalData& d, int index)";
 	{
 		StatementBlock sb(c); c.addEmptyLine();
 	}

@@ -157,7 +157,8 @@ public:
 
 	void initialise(NodeBase* n)
 	{
-		mType.initialise(n);
+		if constexpr (prototypes::check::initialise<MidiType>::value)
+			mType.initialise(n);
 	}
 
 	void prepare(PrepareSpecs ps)
@@ -228,7 +229,8 @@ template <typename TimerType> struct timer_base
 
 	void initialise(NodeBase* n)
 	{
-		tType.initialise(n);
+		if constexpr (prototypes::check::initialise<TimerType>::value)
+			tType.initialise(n);
 	}
 
 	TimerType tType;
@@ -275,7 +277,10 @@ public:
 	void prepare(PrepareSpecs ps)
 	{
 		this->sr = ps.sampleRate;
-		this->tType.prepare(ps);
+
+		if constexpr (prototypes::check::prepare<TimerType>::value)
+			this->tType.prepare(ps);
+
 		t.prepare(ps);
 	}
 

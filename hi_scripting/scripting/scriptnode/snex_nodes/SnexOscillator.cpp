@@ -103,7 +103,7 @@ String core::SnexOscillator::getEmptyText(const Identifier& id) const
 	cppgen::Struct s(c, id, {}, {});
 
 	c.addComment("This macro enables C++ compilation to a snex_osc", snex::cppgen::Base::CommentType::Raw);
-	c << "SNEX_NODE;";
+	addSnexNodeId(c, id);
 
 	c.addComment("This function will be called once per sample", cppgen::Base::CommentType::Raw);
 	c << "float tick(double uptime)\n";

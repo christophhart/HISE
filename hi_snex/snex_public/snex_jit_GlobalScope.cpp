@@ -327,8 +327,9 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 
 	{
 		ExternalPreprocessorDefinition son;
-		son.name = "SNEX_NODE";
-		son.t = ExternalPreprocessorDefinition::Type::Empty;
+		son.name = "SNEX_NODE(className)";
+		son.value = "__internal_property(\"NodeId\", className);";
+		son.t = ExternalPreprocessorDefinition::Type::Macro;
 		defaultMacros.add(son);
 	}
 
