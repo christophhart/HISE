@@ -863,6 +863,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
 	API_VOID_METHOD_WRAPPER_1(Engine, setZoomLevel);
+	API_VOID_METHOD_WRAPPER_1(Engine, setDiskMode);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
 	API_METHOD_WRAPPER_0(Engine, getName);
 	API_METHOD_WRAPPER_0(Engine, getFilterModeList);
@@ -966,6 +967,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getPreloadMessage);
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_1(setZoomLevel);
+	ADD_API_METHOD_1(setDiskMode);
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getName);
 	ADD_API_METHOD_0(getFilterModeList);
@@ -1282,6 +1284,16 @@ void ScriptingApi::Engine::setZoomLevel(double newLevel)
 	gm->setGlobalScaleFactor(newLevel, sendNotificationAsync);
 }
 
+void ScriptingApi::Engine::setDiskMode(int mode)
+{
+	auto mc = dynamic_cast<MainController*>(getScriptProcessor()->getMainController_());
+
+	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
+
+	driver->diskMode = mode;
+	mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)mode);
+}
+	
 var ScriptingApi::Engine::getFilterModeList() const
 {
 	return var(new ScriptingObjects::ScriptingEffect::FilterModeObject(getScriptProcessor()));

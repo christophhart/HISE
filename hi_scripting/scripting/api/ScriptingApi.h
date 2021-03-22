@@ -420,6 +420,9 @@ public:
 		/** Sets the new zoom level (1.0 = 100%) */
 		void setZoomLevel(double newLevel);
 
+		/** Sets the Streaming Mode (0 -> Fast-SSD, 1 -> Slow-HDD) */
+		void setDiskMode(int mode);
+
 		/** Returns an object that contains all filter modes. */
 		var getFilterModeList() const;
 
