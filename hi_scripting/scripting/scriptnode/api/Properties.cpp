@@ -247,8 +247,8 @@ struct SliderWithLimit : public PropertyComponent
 
 		auto v = data.getProperty(id);
 
-		auto min = jmin(v, data.getProperty(LowerLimit, 0.0));
-		auto max = jmax(v, data.getProperty(UpperLimit, 1.0));
+		auto min = jmin(0.0, (double)v, (double)data.getProperty(MinValue, 0.0));
+		auto max = jmax(v, data.getProperty(MaxValue, 1.0));
 		auto stepSize = data.getProperty(StepSize, 0.01);
 		
 		c.setScrollWheelEnabled(false);
@@ -328,9 +328,9 @@ struct SliderWithLimit : public PropertyComponent
 			setColour(Slider::ColourIds::thumbColourId, Colour(0xFF666666));
 			setColour(Slider::ColourIds::textBoxTextColourId, Colours::white);
 			setColour(TextEditor::ColourIds::textColourId, Colours::white);
+			setColour(juce::Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
+			setColour(juce::Slider::textBoxHighlightColourId, Colour(SIGNAL_COLOUR));
 		}
-
-		
 
 		String getTextFromValue(double v) override
 		{

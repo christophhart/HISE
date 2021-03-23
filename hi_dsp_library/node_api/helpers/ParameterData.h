@@ -64,8 +64,7 @@ struct RangeHelpers
 
 	static Array<Identifier> getHiddenIds()
 	{
-		return { PropertyIds::NodeId, PropertyIds::ParameterId,
-				PropertyIds::UpperLimit, PropertyIds::LowerLimit,
+		return { PropertyIds::NodeId, PropertyIds::ParameterId, 
 				PropertyIds::Inverted };
 	}
 };

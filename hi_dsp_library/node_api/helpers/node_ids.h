@@ -71,7 +71,6 @@ DECLARE_ID(MidPoint);
 DECLARE_ID(MinValue);
 DECLARE_ID(MaxValue);
 DECLARE_ID(Inverted);
-DECLARE_ID(LowerLimit);
 DECLARE_ID(UpperLimit);
 DECLARE_ID(SkewFactor);
 DECLARE_ID(ShowParameters);

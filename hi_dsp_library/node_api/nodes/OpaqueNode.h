@@ -112,6 +112,7 @@ struct OpaqueNode
 			parameters[i] = pList[i].info;
 			parameterFunctions[i] = pList[i].callback.getFunction();
 			parameterObjects[i] = pList[i].callback.getObjectPtr();
+			parameterNames[i] = pList[i].parameterNames;
 		}
 	}
 
@@ -189,6 +190,7 @@ public:
 	span<parameter::pod, NumMaxParameters> parameters;
 	span<prototypes::setParameter, NumMaxParameters> parameterFunctions;
 	span<void*, NumMaxParameters> parameterObjects;
+	span<StringArray, NumMaxParameters> parameterNames;
 
 	int numParameters = 0;
 	int numDataObjects[(int)ExternalData::DataType::numDataTypes];

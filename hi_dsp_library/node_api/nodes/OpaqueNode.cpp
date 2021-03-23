@@ -92,6 +92,7 @@ void OpaqueNode::createParameters(ParameterDataList& l)
 		parameter::data d;
 		d.info = parameters[i];
 		d.callback.referTo(parameterObjects[i], parameterFunctions[i]);
+		d.parameterNames = parameterNames[i];
 		l.add(d);
 	}
 }

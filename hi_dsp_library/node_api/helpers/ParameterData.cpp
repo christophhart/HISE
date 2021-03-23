@@ -84,8 +84,6 @@ void RangeHelpers::storeDoubleRange(ValueTree& d, bool isInverted, NormalisableR
 	d.setProperty(Inverted, isInverted, um);
 	d.setProperty(MinValue, r.start, um);
 	d.setProperty(MaxValue, r.end, um);
-	d.setProperty(LowerLimit, r.start, um);
-	d.setProperty(UpperLimit, r.end, um);
 	d.setProperty(StepSize, r.interval, um);
 	d.setProperty(SkewFactor, r.skew, um);
 }

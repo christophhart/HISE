@@ -248,6 +248,12 @@ bool ParameterSlider::matchesConnection(ValueTree& c) const
 
 void ParameterSlider::mouseDown(const MouseEvent& e)
 {
+	if (e.mods.isShiftDown())
+	{
+		Slider::showTextBox();
+		return;
+	}
+
 	if (e.mods.isRightButtonDown())
 	{
 		auto pe = new MacroPropertyEditor(node, pTree);
