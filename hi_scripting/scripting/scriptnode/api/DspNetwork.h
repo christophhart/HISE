@@ -39,6 +39,29 @@ using namespace hise;
 
 class NodeFactory;
 
+struct DeprecationChecker
+{
+	enum class DeprecationId
+	{
+		OK,
+		OpTypeNonSet,
+		ConverterNotIdentity,
+		numDeprecationIds
+	};
+
+	DeprecationChecker(DspNetwork* n_, ValueTree v_);
+
+	static String getErrorMessage(int id);
+
+	DspNetwork* n;
+	ValueTree v;
+	bool notOk = false;
+
+	void throwIf(DeprecationId id);
+
+	bool check(DeprecationId id);
+};
+
 struct Error
 {
 	enum ErrorCode
@@ -53,6 +76,7 @@ struct Error
 		InitialisationError,
 		CompileFail,
 		NodeDebuggerEnabled,
+		DeprecatedNode,
 		numErrorCodes
 	};
 
@@ -111,18 +135,15 @@ public:
 
 	void removeError(NodeBase* n, Error::ErrorCode errorToRemove=Error::numErrorCodes)
 	{
-		if (errorToRemove == Error::numErrorCodes)
+		for (int i = 0; i < items.size(); i++)
 		{
-			Item i = { n, Error::OK };
-			items.removeAllInstancesOf(i);
-		}
-		else
-		{
-			for (int i = 0; i < items.size(); i++)
-			{
-				if (items[i].node == n && items[i].error.error == errorToRemove)
-					items.remove(i--);
-			}
+			auto e = items[i].error.error;
+
+			auto isErrorCode = e == errorToRemove ||
+				(errorToRemove == Error::numErrorCodes && e != Error::ErrorCode::DeprecatedNode);
+
+			if (items[i].node == n && isErrorCode)
+				items.remove(i--);
 		}
 	}
 
@@ -140,8 +161,9 @@ public:
 		case Error::IllegalBlockSize: s << "Illegal block size: " << String(e.actual); return s;
 		case Error::SampleRateMismatch: s << "Samplerate mismatch"; break;
 		case Error::InitialisationError: return "Initialisation error";
-		case Error::NoMatchingParent:	return "Can't find suitable parent node";
+		case Error::NoMatchingParent:	 return "Can't find suitable parent node";
 		case Error::NodeDebuggerEnabled: return "Node is being debugged";
+		case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
 		case Error::CompileFail:	s << "Compilation error** at Line " << e.expected << ", Column " << e.actual; return s;
 		default:
 			break;
@@ -577,6 +599,8 @@ public:
 	PrepareSpecs getCurrentSpecs() const { return currentSpecs; }
 
 	NodeBase* getNodeWithId(const String& id) const;
+
+	void checkIfDeprecated();
 
 	struct SelectionListener
 	{

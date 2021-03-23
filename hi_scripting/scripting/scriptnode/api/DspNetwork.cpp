@@ -132,6 +132,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 			changeNodeId(data, oldId, newId, getUndoManager());
 		}
 	});
+
+	checkIfDeprecated();
 }
 
 DspNetwork::~DspNetwork()
@@ -558,6 +560,17 @@ scriptnode::NodeBase* DspNetwork::getNodeWithId(const String& id) const
 	return dynamic_cast<NodeBase*>(get(id).getObject());
 }
 
+void DspNetwork::checkIfDeprecated()
+{
+	using namespace cppgen;
+
+	ValueTreeIterator::forEach(getValueTree(), ValueTreeIterator::IterationType::Forward, [&](ValueTree v)
+	{
+		DeprecationChecker d(this, v);
+		return d.notOk;
+	});
+}
+
 void DspNetwork::addToSelection(NodeBase* node, ModifierKeys mods)
 {
 	auto pNode = node->getParentNode();
@@ -933,6 +946,71 @@ bool DspNetwork::CodeManager::SnexSourceCompileHandler::triggerCompilation()
 	return false;
 }
 #endif
+
+DeprecationChecker::DeprecationChecker(DspNetwork* n_, ValueTree v_) :
+	n(n_),
+	v(v_)
+{
+	auto isConnection = v.getType() == PropertyIds::Connection ||
+		v.getType() == PropertyIds::ModulationTarget;
+
+	if (isConnection)
+	{
+		throwIf(DeprecationId::ConverterNotIdentity);
+		throwIf(DeprecationId::OpTypeNonSet);
+	}
+}
+
+String DeprecationChecker::getErrorMessage(int id)
+{
+	switch ((DeprecationId)id)
+	{
+	case DeprecationId::ConverterNotIdentity:
+		return "The Converter is not identity\n(use the control.xfader instead)";
+	case DeprecationId::OpTypeNonSet:
+		return "The OpType is not SetValue\n(use control.pma instead)";
+	default:
+		break;
+	}
+
+	return {};
+}
+
+void DeprecationChecker::throwIf(DeprecationId id)
+{
+	if (notOk)
+		return;
+
+	if (!check(id))
+	{
+		Error e;
+		e.error = Error::ErrorCode::DeprecatedNode;
+		e.actual = (int)id;
+
+		auto nodeTree = cppgen::ValueTreeIterator::findParentWithType(v, PropertyIds::Node);
+		auto nId = nodeTree[PropertyIds::ID].toString();
+
+		if (auto node = n->getNodeWithId(nId))
+		{
+			n->getExceptionHandler().addError(node, e);
+		}
+
+		notOk = true;
+	}
+}
+
+bool DeprecationChecker::check(DeprecationId id)
+{
+	switch (id)
+	{
+	case DeprecationId::OpTypeNonSet:
+		return !v.hasProperty("OpType") || v["OpType"] == var("SetValue");
+	case DeprecationId::ConverterNotIdentity:
+		return !v.hasProperty("Converter") || v["Converter"] == var("Identity");
+	}
+
+	return false;
+}
 
 }
 
