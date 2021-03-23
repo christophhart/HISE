@@ -74,6 +74,7 @@ struct Error
 		IllegalBlockSize,
 		SampleRateMismatch,
 		InitialisationError,
+		TooManyChildNodes,
 		CompileFail,
 		NodeDebuggerEnabled,
 		DeprecatedNode,
@@ -161,6 +162,7 @@ public:
 		case Error::IllegalBlockSize: s << "Illegal block size: " << String(e.actual); return s;
 		case Error::SampleRateMismatch: s << "Samplerate mismatch"; break;
 		case Error::InitialisationError: return "Initialisation error";
+		case Error::TooManyChildNodes: s << "Number of child nodes (" << e.actual << ") exceed channels (" << e.expected << ")."; return s;
 		case Error::NoMatchingParent:	 return "Can't find suitable parent node";
 		case Error::NodeDebuggerEnabled: return "Node is being debugged";
 		case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);

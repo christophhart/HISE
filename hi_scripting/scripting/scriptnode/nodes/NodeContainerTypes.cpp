@@ -490,6 +490,19 @@ void MultiChannelNode::prepare(PrepareSpecs ps)
 {
 	ScopedLock sl(getRootNetwork()->getConnectionLock());
 
+	auto numNodes = this->nodes.size();
+	auto numChannels = ps.numChannels;
+
+	if (numNodes > numChannels)
+	{
+		Error e;
+		e.error = Error::TooManyChildNodes;
+		e.expected = numChannels;
+		e.actual = numNodes;
+		getRootNetwork()->getExceptionHandler().addError(this, e);
+	}
+		
+
 	NodeBase::prepare(ps);
 	NodeContainer::prepareContainer(ps);
 	int channelIndex = 0;
