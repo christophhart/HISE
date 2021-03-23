@@ -104,22 +104,6 @@ DspNetwork* NodeBase::getRootNetwork() const
 	return static_cast<DspNetwork*>(parent.get());
 }
 
-
-
-
-
-juce::String NodeBase::createCppClass(bool isOuterClass)
-{
-	ignoreUnused(isOuterClass);
-
-	auto className = v_data[PropertyIds::FactoryPath].toString().replace(".", "::");
-
-	if (isPolyphonic())
-		className << "_poly";
-
-	return className;
-}
-
 void NodeBase::setValueTreeProperty(const Identifier& id, const var value)
 {
 	v_data.setProperty(id, value, getUndoManager());
@@ -130,9 +114,6 @@ void NodeBase::setDefaultValue(const Identifier& id, var newValue)
 	if (!v_data.hasProperty(id))
 		v_data.setProperty(id, newValue, nullptr);
 }
-
-
-
 
 void NodeBase::setNodeProperty(const Identifier& id, const var& newValue)
 {

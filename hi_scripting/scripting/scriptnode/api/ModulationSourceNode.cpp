@@ -175,16 +175,6 @@ var ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 	return var(targets.getLast());
 }
 
-juce::String ModulationSourceNode::createCppClass(bool isOuterClass)
-{
-	auto s = NodeBase::createCppClass(isOuterClass);
-
-	if (getModulationTargetTree().getNumChildren() > 0)
-		return CppGen::Emitter::wrapIntoTemplate(s, "wrap::mod");
-	else
-		return s;
-}
-
 scriptnode::NodeBase* ModulationSourceNode::getTargetNode(const ValueTree& m) const
 {
 	jassert(m.getType() == PropertyIds::ModulationTarget);

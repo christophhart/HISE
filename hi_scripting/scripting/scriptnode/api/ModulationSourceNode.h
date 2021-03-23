@@ -119,8 +119,6 @@ public:
 
 	var addModulationTarget(NodeBase::Parameter* n);
 
-	String createCppClass(bool isOuterClass) override;
-	
 	NodeBase* getTargetNode(const ValueTree& m) const;
 
 	parameter::data getParameterData(const ValueTree& m) const;

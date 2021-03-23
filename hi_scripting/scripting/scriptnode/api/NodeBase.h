@@ -237,8 +237,6 @@ public:
 	/** Reset the node's internal state (eg. at voice start). */
 	virtual void reset() = 0;
 
-	virtual String createCppClass(bool isOuterClass);
-
 	virtual NodeComponent* createComponent();
 
 	virtual Rectangle<int> getPositionInCanvas(Point<int> topLeft) const;

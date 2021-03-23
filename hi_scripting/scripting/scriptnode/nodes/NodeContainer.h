@@ -69,7 +69,6 @@ struct NodeContainer : public AssignableObject
 			valuetree::PropertyListener exprSyncer;
 
 			String expressionCode;
-			Identifier conversion = ConverterIds::Identity;
 		};
 
 		ValueTree getConnectionTree();
@@ -100,8 +99,6 @@ struct NodeContainer : public AssignableObject
 			ValueTree newC(PropertyIds::Connection);
 			newC.setProperty(PropertyIds::NodeId, p->parent->getId(), nullptr);
 			newC.setProperty(PropertyIds::ParameterId, p->getId(), nullptr);
-			newC.setProperty(PropertyIds::Converter, ConverterIds::Identity.toString(), nullptr);
-			newC.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
 			RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(p->data), nullptr);
 			newC.setProperty(PropertyIds::Expression, "", nullptr);
 
@@ -160,12 +157,7 @@ struct NodeContainer : public AssignableObject
 
 	void clear();
 
-	String createCppClassForNodes(bool isOuterClass);
-	String createTemplateAlias();
-	String createJitClasses();
 	NodeBase::List getChildNodesRecursive();
-	void fillAccessors(Array<CppGen::Accessor>& accessors, Array<int> currentPath);
-	virtual String getCppCode(CppGen::CodeLocation location);
 	ValueTree getNodeTree() { return asNode()->getValueTree().getOrCreateChildWithName(PropertyIds::Nodes, asNode()->getUndoManager()); }
 
 	NodeBase::List& getNodeList() { return nodes; }
@@ -243,9 +235,6 @@ public:
 
 	NodeComponent* createComponent() override;
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
-
-	String createCppClass(bool isOuterClass) override;
-	String getCppCode(CppGen::CodeLocation location) override;
 };
 
 class ParallelNode : public NodeBase,
@@ -254,8 +243,6 @@ class ParallelNode : public NodeBase,
 public:
 
 	ParallelNode(DspNetwork* root, ValueTree data);
-	String createCppClass(bool isOuterClass) override;
-	String getCppCode(CppGen::CodeLocation location) override;
 	NodeComponent* createComponent() override;
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
 };

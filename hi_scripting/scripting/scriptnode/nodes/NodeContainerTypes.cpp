@@ -95,19 +95,6 @@ void ChainNode::handleHiseEvent(HiseEvent& e)
 	wrapper.handleHiseEvent(e);
 }
 
-String ChainNode::getCppCode(CppGen::CodeLocation location)
-{
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s = NodeContainer::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-
-		return s;
-	}
-	else
-		return SerialNode::getCppCode(location);
-}
-
 SplitNode::SplitNode(DspNetwork* root, ValueTree data) :
 	ParallelNode(root, data)
 {
@@ -127,12 +114,6 @@ void SplitNode::prepare(PrepareSpecs ps)
 		DspHelpers::increaseBuffer(workBuffer, ps);
 	}
 }
-
-juce::String SplitNode::getCppCode(CppGen::CodeLocation location)
-{
-	return ParallelNode::getCppCode(location);
-}
-
 
 void SplitNode::handleHiseEvent(HiseEvent& e)
 {
@@ -260,11 +241,6 @@ void ModulationChainNode::reset()
 scriptnode::NodeComponent* ModulationChainNode::createComponent()
 {
 	return new ModChainNodeComponent(this);
-}
-
-juce::String ModulationChainNode::createCppClass(bool isOuterClass)
-{
-	return createCppClassForNodes(isOuterClass);
 }
 
 int ModulationChainNode::getBlockSizeForChildNodes() const
@@ -639,19 +615,6 @@ void SingleSampleBlockX::handleHiseEvent(HiseEvent& e)
 	obj.handleHiseEvent(e);
 }
 
-juce::String SingleSampleBlockX::getCppCode(CppGen::CodeLocation location)
-{
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s;
-		s << SerialNode::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-		return s;
-	}
-
-	return SerialNode::getCppCode(location);
-}
-
 MidiChainNode::MidiChainNode(DspNetwork* n, ValueTree t):
 	SerialNode(n, t)
 {
@@ -697,19 +660,6 @@ void MidiChainNode::reset()
 	obj.reset();
 }
 
-juce::String MidiChainNode::getCppCode(CppGen::CodeLocation location)
-{
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s;
-		s << SerialNode::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-		return s;
-	}
-    else
-        return SerialNode::getCppCode(location);
-}
-
 OfflineChainNode::OfflineChainNode(DspNetwork* n, ValueTree t) :
 	SerialNode(n, t)
 {
@@ -735,11 +685,6 @@ void OfflineChainNode::handleHiseEvent(HiseEvent& e)
 
 void OfflineChainNode::reset()
 {
-}
-
-String OfflineChainNode::getCppCode(CppGen::CodeLocation location)
-{
-	return {};
 }
 
 FixedBlockXNode::FixedBlockXNode(DspNetwork* network, ValueTree d) :

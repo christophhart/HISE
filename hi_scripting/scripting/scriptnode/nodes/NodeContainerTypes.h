@@ -46,7 +46,6 @@ public:
 	SCRIPTNODE_FACTORY(ChainNode, "chain");
 
 	ChainNode(DspNetwork* n, ValueTree t);
-	String getCppCode(CppGen::CodeLocation location) override;
 
 	void process(ProcessDataDyn& data) final override;
 	void processFrame(FrameType& data) final override;
@@ -80,7 +79,6 @@ public:
 	void reset() final override;
 
 	NodeComponent* createComponent() override;
-	String createCppClass(bool isOuterClass) override;
 
 	int getBlockSizeForChildNodes() const override;
 	double getSampleRateForChildNodes() const override;
@@ -105,7 +103,6 @@ public:
 	void prepare(PrepareSpecs ps) override;
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override;
-	String getCppCode(CppGen::CodeLocation location) override;
 	
 private:
 
@@ -125,7 +122,6 @@ public:
 	void prepare(PrepareSpecs ps) override;
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override;
-	String getCppCode(CppGen::CodeLocation location) override;
 
 private:
 
@@ -306,7 +302,6 @@ public:
 
 	SCRIPTNODE_FACTORY(SplitNode, "split");
 
-	String getCppCode(CppGen::CodeLocation location) override;
 	void prepare(PrepareSpecs ps) override;
 	void reset() final override;
 	void handleHiseEvent(HiseEvent& e) final override;
@@ -399,8 +394,6 @@ public:
 	int getBlockSizeForChildNodes() const override;;
 	void handleHiseEvent(HiseEvent& e) override;
 
-	String getCppCode(CppGen::CodeLocation location);
-
 	valuetree::PropertyListener bypassListener;
 	wrap::frame_x<SerialNode::DynamicSerialProcessor> obj;
 	AudioSampleBuffer leftoverBuffer;
@@ -421,19 +414,6 @@ public:
 	};
 
 	SCRIPTNODE_FACTORY(SingleSampleBlock<NumChannels>, "frame" + String(NumChannels) + "_block");
-
-	String getCppCode(CppGen::CodeLocation location)
-	{
-		if (location == CppGen::CodeLocation::Definitions)
-		{
-			String s;
-			s << SerialNode::getCppCode(location);
-			CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-			return s;
-		}
-		
-		return SerialNode::getCppCode(location);
-	}
 
 	void reset() final override
 	{

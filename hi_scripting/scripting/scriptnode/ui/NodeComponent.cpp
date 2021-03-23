@@ -427,9 +427,6 @@ void NodeComponent::selectionChanged(const NodeBase::List& selection)
 
 void NodeComponent::fillContextMenu(PopupMenu& m)
 {
-	m.addItem((int)MenuActions::ExportAsCpp, "Export module to Custom folder", CodeHelpers::customFolderIsDefined());
-	m.addItem((int)MenuActions::ExportAsCppProject, "Export module to Project folder", CodeHelpers::projectFolderIsDefined());
-
 	m.addItem((int)MenuActions::ExportAsSnippet, "Export as snippet");
 	m.addItem((int)MenuActions::EditProperties, "Edit Properties");
 
@@ -459,23 +456,6 @@ void NodeComponent::fillContextMenu(PopupMenu& m)
 
 void NodeComponent::handlePopupMenuResult(int result)
 {
-	if (result == (int)MenuActions::ExportAsCpp)
-	{
-		const String c = node->createCppClass(true);
-
-		CodeHelpers::addFileToCustomFolder(node->getId(), c);
-
-		SystemClipboard::copyTextToClipboard(c);
-
-		String cppClassName = "custom." + node->getId();
-		node->setValueTreeProperty(PropertyIds::FreezedPath, cppClassName);
-	}
-	if (result == (int)MenuActions::ExportAsCppProject)
-	{
-		const String c = node->createCppClass(true);
-		CodeHelpers::addFileToProjectFolder(node->getId(), c);
-		SystemClipboard::copyTextToClipboard(c);
-	}
 	if (result == (int)MenuActions::CreateScreenShot)
 	{
 		auto mc = node->getScriptProcessor()->getMainController_();
