@@ -133,8 +133,6 @@ struct ParameterSlider : public Slider,
     
 	void updateOnConnectionChange(ValueTree p, bool wasAdded);
 
-	void updateOnOpTypeChange(Identifier id, var newValue);
-
 	void checkEnabledState();
 	void updateRange(Identifier, var);
 	void paint(Graphics& g) override;
@@ -150,8 +148,6 @@ struct ParameterSlider : public Slider,
 
 	valuetree::RecursiveTypedChildListener connectionListener;
 	
-	OwnedArray<valuetree::PropertyListener> opTypeListeners;
-
 	valuetree::PropertyListener valueListener;
 	valuetree::PropertyListener rangeListener;
 

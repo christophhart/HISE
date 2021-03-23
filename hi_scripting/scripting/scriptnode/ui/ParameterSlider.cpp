@@ -72,21 +72,6 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index) :
 		nl->updateText();
 	}
 
-	for (auto m : getConnectedMacroParameters())
-	{
-		for (auto c : m->getConnectionTree())
-		{
-			if (matchesConnection(c))
-			{
-				auto newOpListener = new valuetree::PropertyListener();
-				newOpListener->setCallback(c, { PropertyIds::OpType }, valuetree::AsyncMode::Asynchronously,
-					BIND_MEMBER_FUNCTION_2(ParameterSlider::updateOnOpTypeChange));
-
-				opTypeListeners.add(newOpListener);
-			}
-		}
-	}
-
 	checkEnabledState();
 
 	setScrollWheelEnabled(false);
@@ -102,47 +87,11 @@ void ParameterSlider::updateOnConnectionChange(ValueTree p, bool wasAdded)
 	if (!matchesConnection(p))
 		return;
 
-	if (wasAdded)
-	{
-		auto newOpListener = new valuetree::PropertyListener();
-		newOpListener->setCallback(p, { PropertyIds::OpType }, valuetree::AsyncMode::Asynchronously,
-		BIND_MEMBER_FUNCTION_2(ParameterSlider::updateOnOpTypeChange));
-
-		opTypeListeners.add(newOpListener);
-	}
-	else
-	{
-		for (auto l : opTypeListeners)
-		{
-			if (l->isRegisteredTo(p))
-			{
-				opTypeListeners.removeObject(l);
-				break;
-			}
-		}
-	}
-
-	checkEnabledState();
-}
-
-void ParameterSlider::updateOnOpTypeChange(Identifier id, var newValue)
-{
 	checkEnabledState();
 }
 
 void ParameterSlider::checkEnabledState()
 {
-#if 0
-	auto macroList = getConnectedMacroParameters();
-
-
-
-	bool isModulated = (bool)pTree[PropertyIds::ModulationTarget];
-	bool isConnectedToMacro = macroList.size() > 0;
-	
-	modulationActive = isModulated || isConnectedToMacro;
-#endif
-
 	modulationActive = getConnectionSourceTree().isValid();
 
 	setEnabled(!modulationActive);

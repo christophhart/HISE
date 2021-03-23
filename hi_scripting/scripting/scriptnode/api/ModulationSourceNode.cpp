@@ -160,7 +160,6 @@ var ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 
 	m.setProperty(PropertyIds::NodeId, n->parent->getId(), nullptr);
 	m.setProperty(PropertyIds::ParameterId, n->getId(), nullptr);
-	m.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
 	m.setProperty(PropertyIds::Enabled, true, nullptr);
 
 	n->getTreeWithValue().setProperty(PropertyIds::ModulationTarget, true, getUndoManager());

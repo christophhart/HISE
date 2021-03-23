@@ -71,19 +71,7 @@ struct DspHelpers
 
 	static void increaseBuffer(snex::Types::heap<float>& b, const PrepareSpecs& ps);
 
-	using ConverterFunction = std::function<double(double)>;
 	using ParameterCallback = std::function<void(double)>;
-
-	struct ConverterFunctions
-	{
-		static double decibel2Gain(double input);
-		static double gain2Decibel(double input);
-		static double dryAmount(double input);
-		static double wetAmount(double input);
-		static double subtractFromOne(double input);
-
-		static ConverterFunction getFunction(const Identifier& id);
-	};
 
 	static void setErrorIfFrameProcessing(const PrepareSpecs& ps);
 
@@ -91,12 +79,6 @@ struct DspHelpers
 
 	/** Returns a ParameterCallback with the given range. */
 	static ParameterCallback getFunctionFrom0To1ForRange(NormalisableRange<double> range, bool inverted, const ParameterCallback& originalFunction);
-
-	/** Wraps the ParameterCallback into a conversion function based on the converterId. */
-	static ParameterCallback wrapIntoConversionLambda(const Identifier& converterId,
-		const ParameterCallback& originalFunction,
-		NormalisableRange<double> range,
-		bool inverted);
 
 	forcedinline static double findPeak(const float* data, int numSamples)
 	{
@@ -117,9 +99,6 @@ struct DspHelpers
 
 		return max;
 	}
-
-	
-
 };
 
 

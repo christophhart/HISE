@@ -625,8 +625,6 @@ void NodeBase::addConnectionToBypass(var dragDetails)
 		ValueTree newC(PropertyIds::Connection);
 		newC.setProperty(PropertyIds::NodeId, getId(), nullptr);
 		newC.setProperty(PropertyIds::ParameterId, PropertyIds::Bypassed.toString(), nullptr);
-		newC.setProperty(PropertyIds::Converter, ConverterIds::Identity.toString(), nullptr);
-		newC.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
 
 		NormalisableRange<double> r(0.5, 1.1, 0.5);
 
@@ -673,8 +671,6 @@ var NodeBase::Parameter::addConnectionFrom(var dragDetails)
 				ValueTree newC(PropertyIds::Connection);
 				newC.setProperty(PropertyIds::NodeId, parent->getId(), nullptr);
 				newC.setProperty(PropertyIds::ParameterId, getId(), nullptr);
-				newC.setProperty(PropertyIds::Converter, ConverterIds::Identity.toString(), nullptr);
-				newC.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
 				RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(data), nullptr);
 				newC.setProperty(PropertyIds::Expression, "", nullptr);
 

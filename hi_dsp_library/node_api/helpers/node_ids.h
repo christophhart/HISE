@@ -66,7 +66,6 @@ DECLARE_ID(Connection);
 DECLARE_ID(Properties);
 DECLARE_ID(Property);
 DECLARE_ID(Public);
-DECLARE_ID(Converter);
 DECLARE_ID(StepSize);
 DECLARE_ID(MidPoint);
 DECLARE_ID(MinValue);
@@ -100,7 +99,6 @@ DECLARE_ID(ModulationTargets);
 DECLARE_ID(ModulationTarget);
 DECLARE_ID(ModulationChain);
 DECLARE_ID(ValueTarget);
-DECLARE_ID(OpType);
 DECLARE_ID(Expression);
 DECLARE_ID(Callback);
 DECLARE_ID(undefined);
@@ -137,25 +135,6 @@ enum EditType
 
 }
 
-namespace ConverterIds
-{
-DECLARE_ID(Identity);
-DECLARE_ID(Decibel2Gain);
-DECLARE_ID(Gain2Decibel);
-DECLARE_ID(SubtractFromOne);
-DECLARE_ID(WetAmount);
-DECLARE_ID(DryAmount);
-}
-
-namespace OperatorIds
-{
-DECLARE_ID(SetValue);
-DECLARE_ID(Multiply);
-DECLARE_ID(Add);
-}
-
 #undef DECLARE_ID
-
-
 
 }

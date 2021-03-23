@@ -704,28 +704,6 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 
 	Identifier propId = Identifier(name.fromLastOccurrenceOf(".", false, false));
 
-	if (propId == Converter || propId == OpType)
-	{
-		Array<Identifier> ids;
-
-		if (id == Converter)
-			ids = { ConverterIds::Identity, ConverterIds::Decibel2Gain, ConverterIds::Gain2Decibel,
-								  ConverterIds::DryAmount, ConverterIds::WetAmount, ConverterIds::SubtractFromOne, };
-		else
-			ids = { OperatorIds::SetValue, OperatorIds::Multiply, OperatorIds::Add };
-
-		StringArray sa;
-		Array<var> values;
-
-		for (auto cId : ids)
-		{
-			sa.add(cId.toString());
-			values.add(cId.toString());
-		}
-
-		return new juce::ChoicePropertyComponent(value, name, sa, values);
-	}
-
 	if (id == NodeColour)
 		return new ColourSelectorPropertyComponent(d, id, um);
 

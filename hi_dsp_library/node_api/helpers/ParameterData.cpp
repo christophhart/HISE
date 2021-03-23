@@ -43,7 +43,7 @@ using namespace hise;
 bool RangeHelpers::isRangeId(const Identifier& id)
 {
 	using namespace PropertyIds;
-	return id == MinValue || id == MaxValue || id == StepSize || id == SkewFactor || id == Converter || id == OpType;
+	return id == MinValue || id == MaxValue || id == StepSize || id == SkewFactor;
 }
 
 
@@ -60,7 +60,7 @@ juce::Array<juce::Identifier> RangeHelpers::getRangeIds()
 {
 	using namespace PropertyIds;
 
-	return { MinValue, MaxValue, StepSize, SkewFactor, Converter, OpType };
+	return { MinValue, MaxValue, StepSize, SkewFactor};
 }
 
 bool RangeHelpers::checkInversion(ValueTree& data, ValueTree::Listener* listenerToExclude, UndoManager* um)
