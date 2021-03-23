@@ -545,29 +545,5 @@ template <class... Parameters> struct list: public advanced_tuple<Parameters...>
 }
 
 
-namespace properties
-{
-using namespace juce;
-using namespace hise;
-
-/** A property that returns a compile-time constant. */
-template <int Value> struct constant
-{
-	constant(const Identifier&, bool) {};
-
-	void initialise(NodeBase* ) {}
-
-	constexpr int getValue() { return Value; }
-};
-
-/** This template is a dummy property that is being used if the node does not have any public
-	properties that you want to change dynamically.
-*/
-struct none
-{
-	template <class RootObject> void initWithRoot(NodeBase* , RootObject& )
-	{}
-};
-}
 
 }

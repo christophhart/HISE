@@ -40,18 +40,6 @@ using namespace hise;
 
 
 
-struct VoiceData
-{
-	bool operator==(const VoiceData& other) const noexcept
-	{
-		return voiceIndex == other.voiceIndex && noteOnEvent == other.noteOnEvent;
-	}
-
-	int voiceIndex = -1;
-	HiseEvent noteOnEvent;
-};
-
-
 
 
 using PrepareSpecs = snex::Types::PrepareSpecs;
@@ -101,14 +89,8 @@ struct DspHelpers
 	}
 };
 
-
-
-
-
 struct CodeHelpers
 {
-	
-
 	static void setIncludeDirectory(String filePath);
 
 	static File getIncludeDirectory();

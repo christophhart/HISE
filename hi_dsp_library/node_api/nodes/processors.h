@@ -1028,7 +1028,7 @@ struct DummyMetadata
 };
 
 
-template <class T, class PropertyClass = properties::none> struct node : public HiseDspBase
+template <class T> struct node : public HiseDspBase
 {
 	using MetadataClass = typename T::metadata;
 	static constexpr bool isModulationSource = T::isModulationSource;
@@ -1055,7 +1055,6 @@ template <class T, class PropertyClass = properties::none> struct node : public 
 	void initialise(NodeBase* n)
 	{
 		obj.initialise(n);
-		props.initWithRoot(n, obj);
 	}
 
 	template <int P> static void setParameterStatic(void* ptr, double v)
@@ -1137,7 +1136,6 @@ template <class T, class PropertyClass = properties::none> struct node : public 
 
 
 	T obj;
-	PropertyClass props;
 };
 
 
