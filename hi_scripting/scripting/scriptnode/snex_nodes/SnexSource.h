@@ -723,7 +723,19 @@ struct SnexSource : public WorkbenchData::Listener
 		getParameterHandler().setParameterStatic<P>(&getParameterHandler(), v);
 	}
 
+	void rebuildCallbacksAfterChannelChange(int numChannelsToProcess);
+
+	int getNumChannelsToProcess() const
+	{
+		if (numChannels == -1)
+			return parentNode->getNumChannelsToProcess();
+
+		return numChannels;
+	}
+
 protected:
+
+	int numChannels = -1;
 
 	void setCallbackHandler(CallbackHandlerBase* nonOwnedHandler)
 	{
@@ -731,6 +743,8 @@ protected:
 	}
 
 	Array<WeakReference<SnexSourceListener>> compileListeners;
+
+	void addDummyProcessFunctions(String& s);
 
 	static void addSnexNodeId(cppgen::Base& c, const Identifier& id)
 	{

@@ -168,6 +168,7 @@ struct dynamic : public SnexSource
 
 	void prepare(PrepareSpecs ps)
 	{
+		rebuildCallbacksAfterChannelChange(ps.numChannels);
 		callbacks.prepare(ps);
 	}
 
@@ -185,29 +186,9 @@ struct dynamic : public SnexSource
 	{
 		SnexSource::preprocess(c);
 
-		if (auto pn = getParentNode())
-		{
-			int nc = pn->getNumChannelsToProcess();
-			using namespace snex::cppgen;
-			Base b(Base::OutputType::AddTabs);
+		SnexSource::addDummyProcessFunctions(c);
 
-			String def1, def2;
-
-			def1 << "void process(ProcessData<" << String(nc) << ">& data)";	  b << def1;
-			{														 StatementBlock body(b);
-				b << (getCurrentClassId().toString() + " instance;");
-				b << "instance.process(data);";
-			}
-
-			def2 << "void processFrame(span<float, " << String(nc) << ">& data)"; b << def2;
-			{														 StatementBlock body(b);
-				b << (getCurrentClassId().toString() + " instance;");
-				b << "instance.processFrame(data);";
-			}
-
-			c << b.toString();
-		}
-
+		
 		return true;
 	}
 

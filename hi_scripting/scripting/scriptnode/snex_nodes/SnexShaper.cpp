@@ -118,7 +118,7 @@ namespace waveshapers
 		for (int i = 0; i < 128; i++)
 			tData[i] = 2.0f * (float)i / 127.0f - 1.0f;
 
-		auto n = getObject()->getParentNode()->getNumChannelsToProcess();
+		auto n = getObject()->getNumChannelsToProcess();
 
 		float** d = (float**)alloca(sizeof(float*) * n);
 

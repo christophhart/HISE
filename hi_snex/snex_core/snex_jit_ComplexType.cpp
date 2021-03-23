@@ -274,6 +274,52 @@ snex::jit::FunctionData ComplexType::getNonOverloadedFunction(const Identifier& 
 	return fc->getNonOverloadedFunction(NamespacedIdentifier(id));
 }
 
+snex::jit::FunctionData ComplexType::getNodeCallback(const Identifier& id, int numChannels)
+{
+	auto sId = ScriptnodeCallbacks::getCallbackId(NamespacedIdentifier(id));
+
+	if (sId == ScriptnodeCallbacks::ProcessFrameFunction ||
+		sId == ScriptnodeCallbacks::ProcessFunction)
+	{
+		FunctionClass::Ptr fc = getFunctionClass();
+		Array<FunctionData> matches;
+		fc->addMatchingFunctions(matches, fc->getClassName().getChildId(id));
+
+		for (auto f : matches)
+		{
+			auto t = f.templateParameters[0];
+
+			if (t.isTemplateArgument())
+				continue;
+
+			int channelAmount = -1;
+
+			if (t.constantDefined)
+				channelAmount = t.constant;
+			else
+			{
+				jassert(t.type.isComplexType());
+
+				if (auto asSpan = t.type.getTypedIfComplexType<SpanType>())
+					channelAmount = asSpan->getNumElements();
+
+				if (auto st = t.type.getTypedIfComplexType<StructType>())
+				{
+					jassert(channelAmount = st->getTemplateInstanceParameters()[0].constantDefined);
+					channelAmount = st->getTemplateInstanceParameters()[0].constant;
+				}
+			}
+
+			if (channelAmount == numChannels)
+				return f;
+		}
+
+		return {};
+	}
+	else
+		return getNonOverloadedFunction(id);
+}
+
 bool ComplexType::isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const
 {
 	if (complexSourceType == this)

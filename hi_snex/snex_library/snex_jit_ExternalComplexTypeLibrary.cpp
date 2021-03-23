@@ -845,6 +845,12 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 					if (indexReg->isMemoryLocation())
 					{
 						int value = indexReg->getImmediateIntValue();
+
+						auto numChannels = pType->getTemplateInstanceParameters()[0].constant;
+
+						if (value >= numChannels)
+							return Result::fail("channel index out of bounds");
+
 						cc.mov(tmp, x86::ptr(tmp, value * sizeof(float*), 8));
 					}
 					else

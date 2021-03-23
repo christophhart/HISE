@@ -229,6 +229,7 @@ struct snex_node : public SnexSource
 
 	void prepare(PrepareSpecs ps)
 	{
+		rebuildCallbacksAfterChannelChange(ps.numChannels);
 		callbacks.prepare(ps);
 	}
 

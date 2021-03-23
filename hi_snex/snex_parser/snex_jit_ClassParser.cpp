@@ -143,7 +143,7 @@ BlockParser::StatementPtr ClassParser::parseStatement(bool mustHaveSemicolon)
 
 		match(JitTokens::openBrace);
 
-		auto sb = new Operations::StatementBlock(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
+		StatementPtr sb = new Operations::StatementBlock(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
 
 		while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
 		{

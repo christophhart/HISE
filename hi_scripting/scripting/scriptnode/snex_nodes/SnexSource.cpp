@@ -124,6 +124,50 @@ void SnexSource::debugModeChanged(bool isEnabled)
 	throwScriptnodeErrorIfCompileFail();
 }
 
+void SnexSource::rebuildCallbacksAfterChannelChange(int numChannelsToProcess)
+{
+	if (wb != nullptr && numChannels != numChannelsToProcess)
+	{
+		numChannels = numChannelsToProcess;
+		
+		if (auto objPtr = wb->getLastResult().mainClassPtr)
+		{
+			if (lastResult.wasOk())
+				lastResult = getCallbackHandler().recompiledOk(objPtr);
+		}
+	}
+}
+
+void SnexSource::addDummyProcessFunctions(String& s)
+{
+	using namespace cppgen;
+
+	if (auto pn = getParentNode())
+	{
+		int nc = pn->getRootNetwork()->getCurrentSpecs().numChannels;
+		Base b(Base::OutputType::AddTabs);
+
+		for (int i = 1; i <= nc; i++)
+		{
+			String def1, def2;
+
+			def1 << "void process(ProcessData<" << String(i) << ">& data)";	  b << def1;
+			{														 StatementBlock body(b);
+			b << (getCurrentClassId().toString() + " instance;");
+			b << "instance.process(data);";
+			}
+
+			def2 << "void processFrame(span<float, " << String(i) << ">& data)"; b << def2;
+			{														 StatementBlock body(b);
+			b << (getCurrentClassId().toString() + " instance;");
+			b << "instance.processFrame(data);";
+			}
+		}
+
+		s << b.toString();
+	}
+}
+
 void SnexSource::ParameterHandler::addParameterCode(String& code)
 {
 	using namespace snex::cppgen;
@@ -440,12 +484,18 @@ snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(con
 	{
 		if (auto obj = wb->getLastResult().mainClassPtr)
 		{
-			auto f = obj->getNonOverloadedFunction(Identifier(id));
+			auto numChannels = parent.getNumChannelsToProcess();
+
+			auto f = obj->getNodeCallback(Identifier(id), numChannels);
 
 			if (f.isResolved())
 			{
 				addObjectPtrToFunction(f);
 				return f;
+			}
+			else
+			{
+				
 			}
 		}
 	}
