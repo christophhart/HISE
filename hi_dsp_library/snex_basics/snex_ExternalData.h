@@ -468,11 +468,11 @@ struct base
 	struct DataReadLock: hise::SimpleReadWriteLock::ScopedReadLock
 	{
 		DataReadLock(base* d) :
-			SimpleReadWriteLock::ScopedReadLock(d->externalData.obj != nullptr ? d->externalData.obj->getDataLock() : dummy)
+			SimpleReadWriteLock::ScopedReadLock(d->externalData.obj != nullptr ? d->externalData.obj->getDataLock() : dummy, d->externalData.obj != nullptr)
 		{}
 
 		DataReadLock(snex::ExternalData& d) :
-			SimpleReadWriteLock::ScopedReadLock(d.obj != nullptr ? d.obj->getDataLock() : dummy)
+			SimpleReadWriteLock::ScopedReadLock(d.obj != nullptr ? d.obj->getDataLock() : dummy, d.obj != nullptr)
 		{}
 
 		SimpleReadWriteLock dummy;

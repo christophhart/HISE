@@ -111,6 +111,11 @@ struct dynamic_base_holder
 		base = b;
 	}
 
+	bool isConnected() const
+	{
+		return base != nullptr;
+	}
+
 	ScopedPointer<dynamic_base> base;
 
 	SimpleRingBuffer* buffer = nullptr;

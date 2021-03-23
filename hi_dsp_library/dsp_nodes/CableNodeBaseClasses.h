@@ -268,7 +268,7 @@ namespace smoothers
 		Smoother s;
 	};
 
-	struct ramp : public base
+	struct linear_ramp : public base
 	{
 		void reset()final override
 		{

@@ -279,11 +279,17 @@ Node::Ptr ValueTreeBuilder::parseNode(const ValueTree& n)
 
 Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
 {
-	if (getNodePath(u->nodeTree).getParent().toString() == "routing")
-	{
-		PooledCableType::TemplateConstants c;
+	auto np = getNodePath(u->nodeTree);
 
-		
+	if (np.getParent().toString() == "routing")
+	{
+		if (np.getIdentifier() == Identifier("matrix"))
+		{
+			// TODO: Implement routing::matrix with static matrix
+			jassertfalse;
+		}
+
+		PooledCableType::TemplateConstants c;
 
 		c.numChannels = (int)u->nodeTree[PropertyIds::NumChannels];
 		c.isFrame = ValueTreeIterator::forEachParent(u->nodeTree, [&](ValueTree& v)
@@ -545,12 +551,40 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 	{
 		cTree = p.getChildWithName(PropertyIds::Connections);
 	}
+	else if (connectionType == Connection::CableType::SwitchTarget)
+	{
+		cTree = p.getChildWithName(PropertyIds::Connections);
+
+		pId = p.getParent().getParent()[PropertyIds::ID].toString();
+		pId << "_c" << p.getParent().indexOf(p);
+	}
+	else if (connectionType == Connection::CableType::SwitchTargets)
+	{
+		cTree = p.getChildWithName(PropertyIds::SwitchTargets);
+
+		pId << "_multimod";
+
+		PooledParameter::List parameterList;
+
+		for (auto c : cTree)
+			parameterList.add(parseParameter(c, Connection::CableType::SwitchTarget));
+
+		auto l = makeParameter(pId, "list", {});
+
+		for (auto p : parameterList)
+		{
+			//p->flushIfNot();
+			*l << *p;
+		}
+
+		l->flushIfNot();
+		addEmptyLine();
+		return addParameterAndReturn(l);
+	}
 	else
 	{
 		cTree = p.getChildWithName(PropertyIds::ModulationTargets);
-
 		jassert(cTree.isValid());
-
 		pId << "_mod";
 	}
 
@@ -684,11 +718,17 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 {
 	auto modTree = u->nodeTree.getChildWithName(PropertyIds::ModulationTargets);
 
-	if (modTree.isValid() && modTree.getNumChildren() > 0)
+	auto multiModTree = u->nodeTree.getChildWithName(PropertyIds::SwitchTargets);
+
+	auto hasSingleModTree = modTree.isValid() && modTree.getNumChildren() > 0;
+	auto hasMultiModTree = multiModTree.isValid() && multiModTree.getNumChildren() > 0;
+
+	if (hasSingleModTree || hasMultiModTree)
 	{
 		addEmptyLine();
 
-		auto mod = parseParameter(u->nodeTree, Connection::CableType::Modulation);
+		auto mod = parseParameter(u->nodeTree, hasSingleModTree ? Connection::CableType::Modulation :
+																  Connection::CableType::SwitchTargets);
 
 		mod->flushIfNot();
 
@@ -697,10 +737,26 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 		if (!ValueTreeIterator::needsModulationWrapper(u->nodeTree))
 		{
 			*u << *mod;
+
+			if (getNodePath(u->nodeTree) == NamespacedIdentifier::fromString("control::xfader"))
+			{
+				auto fadeType = ValueTreeIterator::getNodeProperty(u->nodeTree, PropertyIds::Mode).toString().toLowerCase();
+				auto fId = NamespacedIdentifier("faders").getChildId(fadeType);
+				*u << fId.toString();
+			}
 		}
 		else
 		{
 			auto inner = u;
+
+			if (getNodePath(u->nodeTree) == NamespacedIdentifier::fromString("control::smoothed_parameter"))
+			{
+				auto smoothType = ValueTreeIterator::getNodeProperty(u->nodeTree, PropertyIds::Mode).toString().toLowerCase().replaceCharacter(' ', '_');
+				auto sId = NamespacedIdentifier("smoothers").getChildId(smoothType);
+				
+				*u << sId.toString();
+			}
+
 			u = createNode(u->nodeTree, id.getIdentifier(), "wrap::mod");
 			*u << *mod;
 			*u << *inner;
@@ -997,15 +1053,7 @@ bool ValueTreeIterator::needsModulationWrapper(ValueTree& v)
 	if (v.getChildWithName(PropertyIds::ModulationTargets).getNumChildren() == 0)
 		return false;
 
-	auto id = v.getProperty(PropertyIds::FactoryPath).toString();
-
-	if (id == "core.pma")
-		return false;
-
-	if (id == "core.cable_table")
-		return false;
-
-	return true;
+	return !isControlNode(v);
 }
 
 bool ValueTreeIterator::getNodePath(Array<int>& path, ValueTree& root, const Identifier& id)
@@ -1135,6 +1183,18 @@ bool ValueTreeIterator::isAutomated(const ValueTree& parameterTree)
 
 		return false;
 	});
+}
+
+bool ValueTreeIterator::isControlNode(const ValueTree& nodeTree)
+{
+	static const StringArray controlNodes{ "control.pma",
+											"control.cable_table",
+											"control.cable_pack",
+											"control.xfader",
+											"control.sliderbank" };
+
+	auto p = nodeTree[PropertyIds::FactoryPath].toString();
+	return controlNodes.contains(p);
 }
 
 String ValueTreeIterator::getSnexCode(const ValueTree& nodeTree)
@@ -1506,54 +1566,96 @@ void ValueTreeBuilder::RootContainerBuilder::addModulationConnections()
 		{
 			Array<int> path;
 
-			auto sourceId = m->nodeTree[PropertyIds::ID].toString();
-			auto ms = getChildNodeAsStackVariable(m->nodeTree);
 			auto mtargetTree = m->nodeTree.getChildWithName(PropertyIds::ModulationTargets);
-
-			auto needsModWrapper = ValueTreeIterator::needsModulationWrapper(m->nodeTree);
-
+			
 			for (auto t : mtargetTree)
+				addModConnection(t, m);
+
+			auto stargetTree = m->nodeTree.getChildWithName(PropertyIds::SwitchTargets);
+
+			if (stargetTree.getNumChildren() > 0)
 			{
-				auto cn = parent.getConnection(t);
+				auto mId = getChildNodeAsStackVariable(m->nodeTree)->toExpression();
 
-				if (!cn.n->nodeTree.isValid())
+				StackVariable sv(parent, mId + "_p", TypeInfo(Types::ID::Dynamic, false, true));
+
+				sv << mId << ".getWrappedObject().getParameter()";
+
+				sv.flushIfNot();
+
+				int pIndex = 0;
+
+				for (auto st : stargetTree)
 				{
-					Error e;
-					e.errorMessage = "No ValueTree for node " + cn.n->toString();
-					throw e;
+					for (auto c : st.getChildWithName(PropertyIds::Connections))
+					{
+						addModConnection(c, m, pIndex++);
+					}
 				}
-
-				String def;
-
-				def << ms->toExpression();
-				
-				if (!needsModWrapper)
-					def << ".getWrappedObject()";
-
-				def << ".getParameter().connect<" << ValueTreeIterator::getIndexInParent(t) << ">(";
-				auto targetId = cn.n->nodeTree[PropertyIds::ID].toString();
-				auto mt = getChildNodeAsStackVariable(cn.n->nodeTree);
-
-				if (mt->getLength() > 20)
-				{
-					mt->flushIfNot();
-					parent.addComment(targetId, Base::CommentType::AlignOnSameLine);
-				}
-
-				def << mt->toExpression();
-				def << ");";
-
-				parent << def;
-
-				String comment;
-				comment << sourceId << " -> " << targetId << "::" << t[PropertyIds::ParameterId].toString();
-
-				parent.addComment(comment, CommentType::AlignOnSameLine);
 			}
+
+			
+				
 		}
 	}
 
 	parent.addEmptyLine();
+}
+
+void ValueTreeBuilder::RootContainerBuilder::addModConnection(ValueTree& t, Node::Ptr m, int pIndex)
+{
+	auto sourceId = m->nodeTree[PropertyIds::ID].toString();
+	auto ms = getChildNodeAsStackVariable(m->nodeTree);
+
+	auto cn = parent.getConnection(t);
+
+	if (cn.n == nullptr || !cn.n->nodeTree.isValid())
+	{
+		Error e;
+		e.errorMessage = "No ValueTree for node " + cn.n->toString();
+		throw e;
+	}
+
+	String def;
+
+	auto needsModWrapper = ValueTreeIterator::needsModulationWrapper(m->nodeTree);
+
+	def << ms->toExpression();
+
+	if (pIndex != -1)
+	{
+		def << "_p.getParameter";
+		
+		if (pIndex != -1)
+			def << "<" << pIndex << ">()";
+	}
+	else
+	{
+		if (!needsModWrapper)
+			def << ".getWrappedObject()";
+
+		def << ".getParameter()";
+	}
+
+	def << ".connect<" << ValueTreeIterator::getIndexInParent(t) << ">(";
+	auto targetId = cn.n->nodeTree[PropertyIds::ID].toString();
+	auto mt = getChildNodeAsStackVariable(cn.n->nodeTree);
+
+	if (mt->getLength() > 20)
+	{
+		mt->flushIfNot();
+		//parent.addComment(targetId, Base::CommentType::AlignOnSameLine);
+	}
+
+	def << mt->toExpression();
+	def << ");";
+
+	parent << def;
+
+	String comment;
+	comment << sourceId << " -> " << targetId << "::" << t[PropertyIds::ParameterId].toString();
+
+	parent.addComment(comment, CommentType::AlignOnSameLine);
 }
 
 void ValueTreeBuilder::RootContainerBuilder::addSendConnections()
@@ -1653,6 +1755,9 @@ snex::cppgen::Node::List ValueTreeBuilder::RootContainerBuilder::getModulationNo
 	for (auto u : parent.pooledTypeDefinitions)
 	{
 		if (u->nodeTree.getChildWithName(PropertyIds::ModulationTargets).getNumChildren() > 0)
+			l.addIfNotAlreadyThere(u);
+
+		if (u->nodeTree.getChildWithName(PropertyIds::SwitchTargets).getNumChildren() > 0)
 			l.addIfNotAlreadyThere(u);
 	}
 

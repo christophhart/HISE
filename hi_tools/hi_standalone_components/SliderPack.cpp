@@ -232,7 +232,7 @@ dummyData(new SliderPackData(nullptr, nullptr))
 	setColour(Slider::textBoxOutlineColourId, Colours::white.withAlpha(0.2f));
 	setColour(Slider::thumbColourId, Colours::white.withAlpha(0.6f));
 
-	setNumSliders(data->getNumSliders());
+	rebuildSliders();
 }
 
 void SliderPack::setNumSliders(int numSliders)

@@ -89,7 +89,7 @@ void dynamic_base::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType d, var
 	if (d == ComplexDataUIUpdaterBase::EventType::ContentChange ||
 		d == ComplexDataUIUpdaterBase::EventType::ContentRedirected)
 	{
-		if (currentlyUsedData == getInternalData())
+		if (currentlyUsedData == getInternalData() && parentNode != nullptr)
 		{
 			auto s = getInternalData()->toBase64String();
 			cTree.setProperty(PropertyIds::EmbeddedData, s, parentNode->getUndoManager());

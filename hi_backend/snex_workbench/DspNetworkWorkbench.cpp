@@ -116,6 +116,7 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 		}
 		else
 		{
+#if 0
 			auto instanceId = dcg->getInstanceId();
 
 			if (instanceId.isValid())
@@ -137,6 +138,7 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 			}
 
 			lastResult.compileResult = Result::fail("Didn't specify file");
+#endif
 		}
 	}
 

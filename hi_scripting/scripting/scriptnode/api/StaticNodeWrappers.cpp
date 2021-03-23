@@ -404,6 +404,8 @@ OpaqueNodeDataHolder::OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn) :
 		
 		ExternalData ed(d->currentlyUsedData, index);
 
+		SimpleReadWriteLock::ScopedWriteLock sl(d->currentlyUsedData->getDataLock());
+
 		opaqueNode.setExternalData(ed, index++);
 	}
 		

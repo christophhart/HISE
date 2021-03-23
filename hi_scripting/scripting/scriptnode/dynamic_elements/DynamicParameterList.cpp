@@ -471,7 +471,16 @@ namespace parameter
 				return;
 			}
 
-			if (auto container = findParentComponentOfClass<DragAndDropContainer>())
+			auto container = findParentComponentOfClass<ContainerComponent>();
+
+			auto root = pdl->parentNode->getRootNetwork()->getRootNode();
+
+			while (container != nullptr && container->node != root)
+			{
+				container = container->findParentComponentOfClass<ContainerComponent>();
+			}
+
+			if (container != nullptr)
 			{
 				var d;
 

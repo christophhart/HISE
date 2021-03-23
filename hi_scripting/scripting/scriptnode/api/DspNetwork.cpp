@@ -315,15 +315,24 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 	{
 		ScopedLock sl(getConnectionLock());
 
-		originalSampleRate = sampleRate;
+		try
+		{
 
-		currentSpecs.sampleRate = sampleRate;
-		currentSpecs.blockSize = (int)blockSize;
-		currentSpecs.numChannels = signalPath->getNumChannelsToProcess();
-		currentSpecs.voiceIndex = &voiceIndex;
 
-		signalPath->prepare(currentSpecs);
-		signalPath->reset();
+			originalSampleRate = sampleRate;
+
+			currentSpecs.sampleRate = sampleRate;
+			currentSpecs.blockSize = (int)blockSize;
+			currentSpecs.numChannels = signalPath->getNumChannelsToProcess();
+			currentSpecs.voiceIndex = &voiceIndex;
+
+			signalPath->prepare(currentSpecs);
+			signalPath->reset();
+		}
+		catch (String& errorMessage)
+		{
+			jassertfalse;
+		}
 	}
 }
 

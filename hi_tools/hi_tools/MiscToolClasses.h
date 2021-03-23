@@ -1024,15 +1024,17 @@ struct SimpleReadWriteLock
 
 	struct ScopedReadLock
 	{
-		ScopedReadLock(SimpleReadWriteLock& l):
+		ScopedReadLock(SimpleReadWriteLock& l, bool tryToAquireLock=true):
 			lock(l)
 		{
-			holdsLock = l.enterReadLock();
+			if(tryToAquireLock)
+				holdsLock = l.enterReadLock();
 		}
 
 		~ScopedReadLock()
 		{
-			lock.exitReadLock(holdsLock);
+			if(holdsLock)
+				lock.exitReadLock(holdsLock);
 		}
 
 	private:

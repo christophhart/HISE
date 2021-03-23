@@ -67,7 +67,33 @@ namespace control
 		WeakReference<pimpl::combined_parameter_base> obj;
 	};
 
-	using dynamic_sliderbank = wrap::data<sliderbank<parameter::dynamic_list>, data::dynamic::sliderpack>;
+	struct sliderbank_pack : public data::dynamic::sliderpack
+	{
+		sliderbank_pack(data::base& t, int index=0) :
+			data::dynamic::sliderpack(t, index)
+		{};
+
+		void initialise(NodeBase* n) override
+		{
+			sliderpack::initialise(n);
+
+			outputListener.setCallback(n->getValueTree().getChildWithName(PropertyIds::SwitchTargets), 
+									   valuetree::AsyncMode::Synchronously,
+								       BIND_MEMBER_FUNCTION_2(sliderbank_pack::updateNumSliders));
+
+			updateNumSliders({}, false);
+		}
+
+		void updateNumSliders(ValueTree v, bool wasAdded)
+		{
+			if (auto sp = dynamic_cast<SliderPackData*>(currentlyUsedData))
+				sp->setNumSliders((int)outputListener.getParentTree().getNumChildren());
+		}
+
+		valuetree::ChildListener outputListener;
+	};
+
+	using dynamic_sliderbank = wrap::data<sliderbank<parameter::dynamic_list>, sliderbank_pack>;
 
 	struct sliderbank_editor : public ScriptnodeExtraComponent<dynamic_sliderbank>
 	{
@@ -81,7 +107,7 @@ namespace control
 			addAndMakeVisible(p);
 			addAndMakeVisible(r);
 
-			setSize(256, 150);
+			setSize(256, 200);
 			stop();
 		};
 
@@ -89,7 +115,7 @@ namespace control
 		{
 			auto b = getLocalBounds();
 
-			p.setBounds(b.removeFromTop(70));
+			p.setBounds(b.removeFromTop(130));
 			r.setBounds(b);
 		}
 
@@ -195,7 +221,7 @@ struct dynamic : public base
 	ModValue lastValue;
 
 	smoothers::no n;
-	smoothers::ramp r;
+	smoothers::linear_ramp r;
 	smoothers::low_pass l;
 	smoothers::base* b = nullptr;
 

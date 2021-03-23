@@ -101,6 +101,8 @@ struct ValueTreeIterator
 
 	static bool isAutomated(const ValueTree& parameterTree);
 
+	static bool isControlNode(const ValueTree& nodeTree);
+	
 	static String getSnexCode(const ValueTree& nodeTree);
 };
 
@@ -147,6 +149,8 @@ struct Connection
 	{
 		Parameter,
 		Modulation,
+		SwitchTargets,
+		SwitchTarget,
 		numCableTypes
 	};
 
@@ -576,6 +580,8 @@ private:
 		void addParameterConnections();
 
 		void addModulationConnections();
+
+		void addModConnection(ValueTree& t, Node::Ptr modSource, int index=-1);
 
 		void addSendConnections();
 

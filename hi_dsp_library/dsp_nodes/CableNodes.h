@@ -55,6 +55,7 @@ namespace control
 			if (d.numSamples > 0)
 			{
 				d.referBlockTo(b, 0);
+
 				setValue(lastValue);
 			}
 		}
@@ -72,7 +73,10 @@ namespace control
 				IndexType index(v);
 
 				v = b[index];
-				this->getParameter().call(v);
+
+				if(this->getParameter().isConnected())
+					this->getParameter().call(v);
+
 				lastValue = v;
 
 				externalData.setDisplayedValue((double)index.getIndex(b.size()));
@@ -86,7 +90,8 @@ namespace control
 
 	template <typename ParameterClass> struct sliderbank : public data::base,
 														   public pimpl::parameter_node_base<ParameterClass>,
-														   public pimpl::no_processing
+														   public pimpl::no_processing,
+														   public hise::ComplexDataUIUpdaterBase::EventListener
 	{
 		SET_HISE_NODE_ID("sliderbank");
 		SN_GET_SELF_AS_OBJECT(sliderbank);
@@ -98,13 +103,50 @@ namespace control
 			this->p.initialise(n);
 		}
 
+		void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType t, var data) override
+		{
+			if (t == ComplexDataUIUpdaterBase::EventType::ContentChange)
+			{
+				switch ((int)data)
+				{
+					case 0: callSlider<0>(lastValue); break;
+					case 1: callSlider<1>(lastValue); break;
+					case 2: callSlider<2>(lastValue); break;
+					case 3: callSlider<3>(lastValue); break;
+					case 4: callSlider<4>(lastValue); break;
+					case 5: callSlider<5>(lastValue); break;
+					case 6: callSlider<6>(lastValue); break;
+					case 7: callSlider<7>(lastValue); break; 
+				}
+			}
+		}
+
 		void setExternalData(const ExternalData& d, int index) override
 		{
+			if (this->externalData.obj != nullptr)
+			{
+				this->externalData.obj->getUpdater().removeEventListener(this);
+			}
+
 			base::setExternalData(d, index);
 
 			if (d.numSamples > 0)
 			{
+				if (auto sp = dynamic_cast<SliderPackData*>(d.obj))
+				{
+					d.obj->getUpdater().addEventListener(this);
+
+					if constexpr (ParameterClass::isStaticList())
+					{
+						if (d.numSamples != ParameterClass::getNumParameters())
+						{
+							sp->setNumSliders(ParameterClass::getNumParameters());
+						}
+					}
+				}
+
 				d.referBlockTo(b, 0);
+
 				setValue(lastValue);
 			}
 		}
@@ -113,8 +155,16 @@ namespace control
 
 		template <int P> void callSlider(double v)
 		{
-			if (P < b.size() && P < this->getParameter().getNumParameters())
-				this->getParameter().template getParameter<P>().call(v * b[P]);
+			if constexpr (ParameterClass::isStaticList())
+			{
+				if constexpr (P <ParameterClass::getNumParameters())
+					this->getParameter().template getParameter<P>().call(v * b[P]);
+			}
+			else
+			{
+				if (P < b.size() && P < this->getParameter().getNumParameters())
+					this->getParameter().template getParameter<P>().call(v * b[P]);
+			}
 		}
 
 		void setValue(double v)
@@ -123,14 +173,17 @@ namespace control
 
 			DataReadLock l(this);
 
-			callSlider<0>(v);
-			callSlider<1>(v);
-			callSlider<2>(v);
-			callSlider<3>(v);
-			callSlider<4>(v);
-			callSlider<5>(v);
-			callSlider<6>(v);
-			callSlider<7>(v);
+			if (b.size() > 0)
+			{
+				callSlider<0>(v);
+				callSlider<1>(v);
+				callSlider<2>(v);
+				callSlider<3>(v);
+				callSlider<4>(v);
+				callSlider<5>(v);
+				callSlider<6>(v);
+				callSlider<7>(v);
+			}
 		}
 
 	private:
@@ -142,6 +195,11 @@ namespace control
 															public pimpl::parameter_node_base<ParameterClass>,
 															public pimpl::no_processing
 	{
+		cable_table()
+		{
+
+		}
+
 		SET_HISE_NODE_ID("cable_table");
 		SN_GET_SELF_AS_OBJECT(cable_table);
 
@@ -151,17 +209,24 @@ namespace control
 		{
 			base::setExternalData(d, index);
 			this->externalData.referBlockTo(tableData, 0);
+
+			setValue(lastValue);
+
 		}
 
 		void setValue(double input)
 		{
 			if (!tableData.isEmpty())
 			{
+				lastValue = input;
+
 				InterpolatorType ip(input);
 
 				auto tv = tableData.interpolate(ip);
 
-				this->getParameter().call(tv);
+				if(this->getParameter().isConnected())
+					this->getParameter().call(tv);
+
 				this->externalData.setDisplayedValue(input);
 			}
 		}
@@ -170,6 +235,7 @@ namespace control
 		using InterpolatorType = index::lerp<index::normalised<double, TableClampType>>;
 
 		block tableData;
+		double lastValue = 0.0;
 	};
 
 	
@@ -183,7 +249,7 @@ namespace control
 
 		void initialise(NodeBase* n) override
 		{
-			p.initialise(n);
+			this->p.initialise(n);
 			fader.initialise(n);
 		}
 
@@ -206,13 +272,20 @@ namespace control
 
 		template <int P> void callFadeValue(double v)
 		{
-			if (P < p.getNumParameters())
-				p.template call<P>(fader.template getFadeValue<P>(p.getNumParameters(), v));
+			if constexpr (ParameterClass::isStaticList())
+			{
+				if constexpr (P < ParameterClass::getNumParameters())
+					this->p.template call<P>(fader.template getFadeValue<P>(this->p.getNumParameters(), v));
+			}
+			else
+			{
+				if (P < this->p.getNumParameters())
+					this->p.template call<P>(fader.template getFadeValue<P>(this->p.getNumParameters(), v));
+			}
 		}
 
 		ModValue lastValue;
 
-		ParameterClass p;
 		FaderClass fader;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(xfader);
@@ -303,7 +376,8 @@ namespace control
 
 		void sendParameterChange(control::pimpl::combined_parameter_base::Data& d)
 		{
-			this->getParameter().call(d.getPmaValue());
+			if(this->getParameter().isConnected())
+				this->getParameter().call(d.getPmaValue());
 		}
 	};
 

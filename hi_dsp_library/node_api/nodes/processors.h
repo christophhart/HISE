@@ -665,6 +665,11 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 		this->i.setExternalData(this->obj, data, index);
 	}
 
+	template <int P> static void setParameterStatic(void* obj, double value)
+	{
+		static_cast<data*>(obj)->setParameter<P>(value);
+	}
+
 	template <int P> void setParameter(double v)
 	{
 		T::setParameterStatic<P>(&this->obj, v);
@@ -1059,6 +1064,8 @@ template <class T, class PropertyClass = properties::none> struct node : public 
 		T::setParameter<P>(objPtr, v);
 	}
 
+	PARAMETER_MEMBER_FUNCTION;
+
 	void process(FixBlockType& d)
 	{
 		obj.process(d);
@@ -1126,6 +1133,8 @@ template <class T, class PropertyClass = properties::none> struct node : public 
 
 		data.addArray(l);
 	}
+
+
 
 	T obj;
 	PropertyClass props;

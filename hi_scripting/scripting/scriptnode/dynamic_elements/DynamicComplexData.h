@@ -154,6 +154,8 @@ struct sliderpack : public data::pimpl::dynamicT<hise::SliderPackData>
 		this->internalData->setNumSliders(16);
 	}
 
+	virtual ~sliderpack() {};
+
 	void initialise(NodeBase* p) override;
 
 	void updateNumParameters(Identifier id, var newValue);
@@ -260,7 +262,7 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 		if(AddDragger)
 			addAndMakeVisible(dragger = new ModulationSourceBaseComponent(updater));
 
-		setSize(512, 130);
+		setSize(512, 130 + AddDragger * 23);
 
 		sourceHasChanged(nullptr, b->currentlyUsedData);
 	};

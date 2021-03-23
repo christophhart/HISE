@@ -44,9 +44,13 @@ namespace parameter
 
 	struct dynamic_list
 	{
+		static constexpr bool isStaticList() { return false; }
+
 		dynamic_list() :
 			numParameters(PropertyIds::NumParameters, 0)
 		{};
+
+		virtual ~dynamic_list() {};
 
 		struct MultiOutputConnection : public ConnectionBase
 		{

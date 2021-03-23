@@ -148,8 +148,6 @@ template <class T, int P> struct single_base
 
 	template <int Index, class OtherType> void connect(OtherType& element)
 	{
-		
-
 		static_assert(Index == 0, "Index must be zero");
         static_assert(std::is_same<typename OtherType::ObjectType, typename T::ObjectType>(), "target type mismatch");
 
@@ -158,9 +156,14 @@ template <class T, int P> struct single_base
 
 	void* getObjectPtr() { return obj; }
 
+	bool isConnected() const noexcept
+	{
+		return obj != nullptr;
+	}
+
 protected:
 
-	void* obj;
+	void* obj = nullptr;
 };
 
 /** A dummy class that can be used when the container does not have any macro parameters.
@@ -177,6 +180,8 @@ struct empty
 	}
 
 	static void callStatic(void*, double) {};
+
+	bool isConnected() const { return true; }
 
 	void addToList(ParameterDataList& )
 	{
@@ -237,7 +242,13 @@ template <typename T, int P> struct inner
 
 	void call(double v)
 	{
+		jassert(isConnected());
 		callStatic(obj, v);
+	}
+
+	bool isConnected() const noexcept
+	{
+		return true;
 	}
 
 	static void callStatic(void* obj_, double v)
@@ -258,12 +269,14 @@ template <class T, int P> struct plain : public single_base<T, P>
 {
 	void call(double v)
 	{
+		jassert(isConnected());
 		callStatic(this->obj, v);
 	}
 
 	static void callStatic(void* o, double v)
 	{
         using ObjectType = typename T::ObjectType;
+		jassert(o != nullptr);
 
 		ObjectType::template setParameterStatic<P>(o, v);
 	}
@@ -293,7 +306,7 @@ template <class T, int P, class Expression> struct expression : public single_ba
 {
 	void call(double v)
 	{
-		jassert(this->obj != nullptr);
+		jassert(isConnected());
 
         using ObjectType = typename T::ObjectType;
 
@@ -342,6 +355,7 @@ template <class T, int P, class RangeType> struct from0To1 : public single_base<
 {
 	void call(double v)
 	{
+		jassert(isConnected());
 		callStatic(this->obj, v);
 	}
 
@@ -520,7 +534,11 @@ template <class... Parameters> struct list: public advanced_tuple<Parameters...>
 		}
 	}
 
-    constexpr int getNumParameters() const { return sizeof...(Parameters); }
+    static constexpr int getNumParameters() { return sizeof...(Parameters); }
+
+
+
+	static constexpr bool isStaticList() { return true; }
 };
 
 
