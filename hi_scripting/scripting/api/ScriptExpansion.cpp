@@ -216,7 +216,7 @@ bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile, var sa
 			if (target == ScriptingApi::FileSystem::Expansions)
 				targetFolder = getMainController()->getExpansionHandler().getExpansionFolder();
 			if (target == ScriptingApi::FileSystem::Samples)
-				targetFolder = getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Samples);
+				targetFolder = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);
 		}
 		else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(sampleDirectory.getObject()))
 		{
@@ -978,7 +978,7 @@ bool FullInstrumentExpansion::isEnabled(const MainController* mc)
 	return dynamic_cast<const GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Project::ExpansionType) == "Full";
 #else
 	ignoreUnused(mc);
-	return FrontendHandler::getExpansionKey().isNotEmpty();
+	return FrontendHandler::getExpansionType() == "Full";
 #endif
 }
 

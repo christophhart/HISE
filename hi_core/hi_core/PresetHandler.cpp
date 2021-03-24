@@ -672,6 +672,19 @@ bool PresetHandler::showYesNoWindow(const String &title, const String &message, 
 #endif
 };
 
+bool PresetHandler::showYesNoWindowIfMessageThread(const String &title, const String &message, bool defaultReturnValue, IconType icon /*= IconType::Question*/)
+{
+	if (auto mm = MessageManager::getInstanceWithoutCreating())
+	{
+		if (mm->currentThreadHasLockedMessageManager())
+		{
+			return showYesNoWindow(title, message, icon);
+		}
+	}
+
+	return defaultReturnValue;
+}
+
 void PresetHandler::showMessageWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
 	if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
@@ -2502,7 +2515,7 @@ void FileHandlerBase::createLinkFileInFolder(const File& source, const File& tar
 			return;
 		}
 
-		if (!PresetHandler::showYesNoWindow("Already there", "Link redirect file exists. Do you want to replace it?"))
+		if (!PresetHandler::showYesNoWindowIfMessageThread("Already there", "Link redirect file exists. Do you want to replace it?", true))
 		{
 			return;
 		}

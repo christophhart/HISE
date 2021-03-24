@@ -526,6 +526,9 @@ public:
 	/** Opens a Yes/No box (HI Style) */
 	static bool showYesNoWindow(const String &title, const String &message, IconType icon=IconType::Question);
 
+	/** Opens a Yes/No box (HI Style) or uses the defaultReturnValue if the thread is not the message thread. */
+	static bool showYesNoWindowIfMessageThread(const String &title, const String &message, bool defaultReturnValue, IconType icon = IconType::Question);
+
 	/** Opens a message box (HI Style) */
 	static void showMessageWindow(const String &title, const String &message, IconType icon=IconType::Info);
 
