@@ -81,18 +81,6 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 					}
 				}
 			}
-
-#if USE_FRONTEND
-
-			if (c->isAutomatable() &&
-				c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter) &&
-				getMainController_()->getPluginParameterUpdateState())
-			{
-				dynamic_cast<PluginParameterAudioProcessor*>(getMainController_())->setScriptedPluginParameter(c->getName(), newValue);
-			}
-
-#endif
-
 			controlCallback(c, newValue);
 		}
 	}
@@ -114,6 +102,19 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 	Processor* thisAsProcessor = dynamic_cast<Processor*>(this);
 
 	
+#if USE_FRONTEND
+    
+    if (component->isAutomatable() &&
+        component->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter) &&
+        getMainController_()->getPluginParameterUpdateState())
+    {
+        float newValue = (float)controllerValue;
+        FloatSanitizers::sanitizeFloatNumber(newValue);
+        
+        dynamic_cast<PluginParameterAudioProcessor*>(getMainController_())->setScriptedPluginParameter(component->getName(), newValue);
+    }
+    
+#endif
 
     if (component->isConnectedToMacroControll())
     {
