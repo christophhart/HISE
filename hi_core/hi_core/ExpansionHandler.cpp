@@ -425,7 +425,14 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 			data.partProgress = &unused;
 			data.sourceFile = resourceFile;
 
-			hlac::HlacArchiver a(Thread::getCurrentThread());
+			auto currentThread = Thread::getCurrentThread();
+
+			if (currentThread == nullptr)
+			{
+				currentThread = &getMainController()->getJavascriptThreadPool();
+			}
+
+			hlac::HlacArchiver a(currentThread);
 			a.setListener(this);
 			auto ok = a.extractSampleData(data);
 

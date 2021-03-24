@@ -296,7 +296,13 @@ updater(*this)
 	if (expansionType == "FilesOnly")
 		getExpansionHandler().setExpansionType<Expansion>();
 	else if (expansionType == "Encrypted")
+	{
 		getExpansionHandler().setExpansionType<ScriptEncryptedExpansion>();
+
+		auto key = FrontendHandler::getExpansionKey();
+
+		getExpansionHandler().setEncryptionKey(key, sendNotification);
+	}
 	else if (expansionType == "Disabled")
 		getExpansionHandler().setExpansionType<ExpansionHandler::Disabled>();
 	else
