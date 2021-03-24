@@ -359,13 +359,19 @@ struct HiseColourScheme
 		return Colours::transparentBlack;
 	}
 
-	static void setDefaultColours(Component& c)
+	static void setDefaultColours(Component& c, bool recursive=false)
 	{
 		c.setColour(ComponentBackgroundColour, Colours::transparentBlack);
 		c.setColour(ComponentFillTopColourId, Colour(0x66333333));
 		c.setColour(ComponentFillBottomColourId, Colour(0xfb111111));
 		c.setColour(ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 		c.setColour(ComponentTextColourId, Colours::white);
+
+		if (recursive)
+		{
+			for (int i = 0; i < c.getNumChildComponents(); i++)
+				setDefaultColours(*c.getChildComponent(i), true);
+		}
 	}
 
 	static void setColourScheme(Scheme s)

@@ -138,6 +138,9 @@ void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 		addButton("OK", 1, KeyPress(KeyPress::returnKey));
 	
 	addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
+
+	for (int i = 0; i < getNumChildComponents(); i++)
+		HiseColourScheme::setDefaultColours(*getChildComponent(i), true);
 }
 
 bool DialogWindowWithBackgroundThread::threadShouldExit() const
