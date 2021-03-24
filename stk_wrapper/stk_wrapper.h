@@ -72,7 +72,7 @@
 
 #include "../hi_scripting/hi_scripting.h"
 
-#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
+#if 0
 
 #if JUCE_LITTLE_ENDIAN && ! defined (__LITTLE_ENDIAN__)
 #define __LITTLE_ENDIAN__

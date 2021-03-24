@@ -172,6 +172,7 @@ void DspHelpers::throwIfFrame(PrepareSpecs ps)
 	}
 }
 
+#if 0
 juce::String CodeHelpers::createIncludeFile(File targetDirectory)
 {
 	if (!targetDirectory.isDirectory())
@@ -297,7 +298,7 @@ void CodeHelpers::addFileToProjectFolder(const String& filename, const String& c
 {
 	addFileInternal(filename, content, projectIncludeDirectory);
 }
-
+#endif
 
 }
 

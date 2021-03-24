@@ -163,20 +163,6 @@ class Factory : public NodeFactory
 public:
 	Factory(DspNetwork* n);
 
-#if 0
-	static StringArray getSourceNodeList(NodeBase* n)
-	{
-		StringArray sa;
-
-		auto list = n->getRootNetwork()->getListOfNodesWithType<HiseDspNodeBase<ReceiveNode>>(false);
-
-		for (auto rn : list)
-			sa.add(rn->getId());
-
-		return sa;
-	}
-#endif
-
 	Identifier getId() const override { return "routing"; }
 };
 }

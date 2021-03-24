@@ -71,14 +71,10 @@ Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
 	registerNode<reverb>();
-
-#if NOT_JUST_OSC
-	registerPolyNode<sampleandhold, sampleandhold_poly>({});
-	registerPolyNode<bitcrush, bitcrush_poly>({});
-	registerPolyNode<fix<2, haas>, fix<2, haas_poly>>({});
-	registerPolyNode<phase_delay, phase_delay_poly>({});
-	
-#endif
+	registerPolyNode<sampleandhold, sampleandhold_poly>();
+	registerPolyNode<bitcrush, bitcrush_poly>();
+	registerPolyNode<wrap::fix<2, haas>, wrap::fix<2, haas_poly>>();
+	registerPolyNode<phase_delay, phase_delay_poly>();
 }
 
 }
@@ -90,14 +86,9 @@ Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
 	registerPolyNode<add, add_poly>();
-
 	registerNode<clear>();
-
 	registerPolyNode<tanh, tanh_poly>();
-
 	registerPolyNode<mul, mul_poly>();
-
-	
 	registerPolyNode<sub, sub_poly>();
 	registerPolyNode<div, div_poly>();
 	
@@ -126,7 +117,6 @@ namespace control
 	{
 		registerNoProcessNode<pma_editor::NodeType, pma_editor>();
 		registerNoProcessNode<control::sliderbank_editor::NodeType, control::sliderbank_editor, false>();
-
 		registerNoProcessNode<dynamic_cable_pack, data::ui::sliderpack_editor>();
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();
 		
@@ -160,20 +150,13 @@ Factory::Factory(DspNetwork* network) :
 	registerNode<core::snex_node, core::snex_node::editor>();
 #endif
 
-
-
 	registerModNode<hise_mod>();
 	
 	registerModNode<peak>();
 	registerPolyModNode<ramp, ramp_poly>();
 	registerNode<core::mono2stereo>();
 	registerPolyNode<core::oscillator, core::oscillator_poly, OscDisplay>();
-
-	
-
 	registerNode<waveshapers::dynamic::NodeType, waveshapers::dynamic::editor>();
-	
-	
 }
 }
 

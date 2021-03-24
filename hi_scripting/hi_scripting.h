@@ -57,7 +57,7 @@ compilation process. This will obviously slow down the compilation, so if you're
 compile / debug cycle and don't need all nodes in scriptnode you might want to turn this off during development.
 */
 #ifndef INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
-#define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 0
+#define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 1
 #endif
 
 // Periodically dumps the value tree of a dsp network

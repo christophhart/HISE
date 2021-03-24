@@ -47,7 +47,7 @@
 
 #include "stk_wrapper.h"
 
-#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
+#if 0
 
 // stops a warning with clang
 #ifdef __clang__

@@ -38,7 +38,7 @@ using namespace hise;
 using namespace snex;
 using namespace snex::Types;
 
-#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
+#if 0
 namespace container
 {
 

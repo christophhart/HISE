@@ -334,7 +334,7 @@ struct SliderWithLimit : public PropertyComponent
 
 		String getTextFromValue(double v) override
 		{
-			return CppGen::Emitter::createPrettyNumber(v, false);
+			return snex::Types::Helpers::getCppValueString(var(v), snex::Types::ID::Double);
 		}
 
 		double getValueFromText(const String& text) override
@@ -474,8 +474,8 @@ struct ExpressionPropertyComponent : public PropertyComponent
 					
 					auto f = GLOBAL_BOLD_FONT();
 
-					auto s = CppGen::Emitter::createPrettyNumber(range.getStart(), false);
-					auto e = CppGen::Emitter::createPrettyNumber(range.getEnd(), false);
+					auto s = snex::Types::Helpers::getCppValueString(var(range.getStart()), snex::Types::ID::Double);
+					auto e = snex::Types::Helpers::getCppValueString(var(range.getEnd()), snex::Types::ID::Double);
 
 					auto sw = f.getStringWidthFloat(s) + 15.0f;
 					auto ew = f.getStringWidthFloat(e) + 15.0f;
@@ -520,7 +520,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 
 						posText << String(hoverPos.getX(), 2);
 						posText << " | ";
-						posText << CppGen::Emitter::createPrettyNumber(va, false);
+						posText << snex::Types::Helpers::getCppValueString(var(va), snex::Types::ID::Double); 
 
 						auto w = f.getStringWidthFloat(posText) + 10.0f;
 

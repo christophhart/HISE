@@ -68,11 +68,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ownedFactories.add(new fx::Factory(this));
 	ownedFactories.add(new control::Factory(this));
 	ownedFactories.add(new examples::Factory(this));
-
 	ownedFactories.add(new dynamics::Factory(this));
-
 	ownedFactories.add(new filters::Factory(this));
-
 
 #if HISE_INCLUDE_SNEX
 	if (auto ah = dynamic_cast<Holder*>(p))
@@ -84,22 +81,12 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	}
 #endif
 
-#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
-	
+#if 0
 	ownedFactories.add(new stk::StkFactory(this));
 #endif
 
 	for (auto nf : ownedFactories)
 		nodeFactories.add(nf);
-
-#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
-	//nodeFactories.add(meta::Factory::getInstance(this));
-#endif
-
-#if HI_ENABLE_CUSTOM_NODE_LOCATION
-	nodeFactories.add(custom::Factory::getInstance(this));
-	nodeFactories.add(project::Factory::getInstance(this));
-#endif
 
 	loader = new DspFactory::LibraryLoader(dynamic_cast<Processor*>(p));
 

@@ -42,115 +42,6 @@ using namespace hise;
 namespace core
 {
 
-
-#if 0
-struct file_base
-{
-	virtual ~file_base() {};
-
-	CriticalSection fileLock;
-	std::atomic<bool> writeFlag;
-	AudioSampleBuffer displayBuffer;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(file_base);
-};
-
-struct FileDisplay : public ScriptnodeExtraComponent<file_base>
-{
-	FileDisplay(file_base* b, PooledUIUpdater* u):
-		ScriptnodeExtraComponent<file_base>(b, u)
-	{
-		setSize(400, 100);
-	}
-
-	static Component* createExtraComponent(file_base* b, PooledUIUpdater* u)
-	{
-
-	}
-
-
-};
-
-template <typename T, int C> struct file_node: public file_base
-{
-	GET_SELF_OBJECT(obj);
-	GET_WRAPPED_OBJECT(obj);
-
-	void initialise(NodeBase* n)
-	{
-		fileProperty.initWithRoot(n, nullptr, *this);
-		obj.initialise(n);
-	}
-
-	static Identifier getStaticId() { return T::getStaticId(); }
-
-	void reset() 
-	{ 
-		ScopedLock sl(fileLock);
-		obj.reset();
-	}
-	void prepare(PrepareSpecs ps) 
-	{ 
-		ScopedLock sl(fileLock);
-		obj.prepare(ps); 
-	}
-	
-	void handleHiseEvent(HiseEvent& e)
-	{
-		if(!writeFlag)
-			obj.handleHiseEvent(e);
-	}
-
-	template <typename ProcessDataType> void process(ProcessDataType& data)
-	{
-		if(!writeFlag)
-            obj.process(data.template as<ProcessData<C>>());
-	}
-
-	template <typename FrameDataType> void processFrame(FrameDataType& data)
-	{
-		if(!writeFlag)
-			obj.processFrame(data);
-	}
-
-	void createParameters(ParameterDataList& data)
-	{
-		obj.createParameters(data);
-	}
-
-	T obj;
-
-	struct PropClass
-	{
-		using FileType = typename properties::file<PropClass, C>::type;
-
-		static Identifier getId()
-		{
-			return PropertyIds::File;
-		}
-
-		void setFile(file_node& obj, FileType& file)
-		{
-            jassertfalse;
-#if 0
-			int numSamples = file.data[0].size();
-
-			for (int i = 0; i < C; i++)
-				displayBuffer.copyFrom(i, 0, file.data[i].begin(), numSamples);
-
-			
-			writeFlag.store(true);
-			ScopedLock sl(fileLock);
-			obj.setFile(file.data, file.sampleRate);
-			writeFlag.store(false);
-#endif
-		}
-	};
-
-	properties::file<PropClass, C> fileProperty;
-};
-#endif
-
 struct file_player : public data::base
 {
 	using IndexType = index::normalised<float, index::wrapped<0, true>>;
@@ -235,17 +126,6 @@ private:
 	PrepareSpecs lastSpecs;
 };
 
-
-
 }
-
-namespace core
-{
-
-
-}
-
-
-
 
 }

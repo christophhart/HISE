@@ -1062,21 +1062,6 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		for (int i = 0; i < midiNames.size(); i++)
 			driver->toggleMidiInput(midiNames[i], state[i]);
 	}
-	if (id == Compiler::CustomNodePath)
-	{
-		auto hisePath = File(getSetting(Compiler::HisePath).toString());
-		auto hiseFile = hisePath.getChildFile("hi_modules/nodes/CustomNodeInclude.cpp");
-
-		String hc;
-
-		if (hisePath.isDirectory())
-		{
-			scriptnode::CodeHelpers::setIncludeDirectory(newValue.toString());
-			hc << scriptnode::CodeHelpers::createIncludeFile(scriptnode::CodeHelpers::getIncludeDirectory());
-		}
-
-		hiseFile.replaceWithText(hc);
-	}
 	else if (id == Project::LinkExpansionsToProject)
 	{
 		auto shouldRedirect = (bool)newValue;

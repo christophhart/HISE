@@ -60,6 +60,7 @@ public:
 
 	SET_HISE_POLY_NODE_ID("sampleandhold");
 	SN_GET_SELF_AS_OBJECT(sampleandhold_impl);
+	HISE_EMPTY_HANDLE_EVENT;
 
 	sampleandhold_impl();
 
@@ -171,6 +172,8 @@ public:
 	SET_HISE_POLY_NODE_ID("bitcrush");
 	SN_GET_SELF_AS_OBJECT(bitcrush_impl);
 
+	HISE_EMPTY_HANDLE_EVENT;
+
 	bitcrush_impl();
 
 	void initialise(NodeBase* n);
@@ -187,6 +190,7 @@ public:
 	{
 		getBitcrushedValue(data, bitDepth.get());
 	}
+
 
 	void reset() noexcept;;
 	bool handleModulation(double&) noexcept;;
@@ -228,7 +232,7 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto i = IndexType::clamped(delays);
+		index::clamped<2> i;
 
 		for (auto ch : data)
 		{
@@ -241,7 +245,7 @@ public:
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		auto i = IndexType::clamped(delays);
+		index::clamped<2> i;
 
 		for (auto& s : data)
 			s = delays[i++].get().getNextSample(s);
@@ -328,7 +332,7 @@ template <int V> class haas_impl : public HiseDspBase
 public:
 
 	static const int NumChannels = 2;
-	using DelayType = span<DelayLine<2048, DummyCriticalSection>, NumChannels>;
+	using DelayType = std::array<DelayLine<2048, DummyCriticalSection>, NumChannels>;
 	using FrameType = span<float, NumChannels>;
 	using ProcessType = snex::Types::ProcessData<NumChannels>;
 
@@ -346,6 +350,7 @@ public:
 
 	SET_HISE_POLY_NODE_ID("haas");
 	SN_GET_SELF_AS_OBJECT(haas_impl);
+	HISE_EMPTY_HANDLE_EVENT;
 
 	void createParameters(ParameterDataList& data) override;
 	void prepare(PrepareSpecs ps);

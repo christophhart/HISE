@@ -87,21 +87,6 @@ viewUndoManager(new UndoManager())
 
 		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 	}
-
-	scriptnode::CodeHelpers::initCustomCodeFolder(synthChain);
-
-#if 0
-	workbenches.setLogFunction([this](int l, const String& message)
-	{
-		if (auto wb = workbenches.currentWb)
-		{
-			auto m = wb->convertToLogMessage(l, message);
-
-			if(m.isNotEmpty())
-				getConsoleHandler().writeToConsole(m, 0, nullptr, Colours::white);
-		}
-	});
-#endif
 }
 
 
@@ -146,8 +131,6 @@ void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
 	};
 
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
-
-	scriptnode::CodeHelpers::initCustomCodeFolder(synthChain);
 
 	refreshExpansionType();
 	

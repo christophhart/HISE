@@ -45,105 +45,6 @@ void ComponentHelpers::addExtraComponentToDefault(NodeComponent* nc, Component* 
     dynamic_cast<DefaultParameterNodeComponent*>(nc)->setExtraComponent(c);
 }
 
-#if OLD_SCRIPTNODE_CPP
-    
-scriptnode::HardcodedNode::CombinedParameterValue* HardcodedNode::getCombinedParameter(const String& id, NormalisableRange<double> range, Identifier opType)
-{
-	auto p = getParameter(id, range);
-
-	for (auto c : combinedParameterValues)
-	{
-		if (c->matches(p))
-		{
-			c->updateRangeForOpType(opType, p.range);
-			return c;
-		}
-	}
-
-	auto c = new CombinedParameterValue(p);
-	c->updateRangeForOpType(opType, p.range);
-	combinedParameterValues.add(c);
-	return c;
-}
-
-void HardcodedNode::setNodeProperty(const String& id, const var& newValue, bool isPublic)
-{
-	auto propTree = getNodePropertyTree(id);
-
-	if (propTree.isValid())
-	{
-		propTree.setProperty(PropertyIds::Value, newValue, um);
-		propTree.setProperty(PropertyIds::Public, isPublic, um);
-	}
-}
-
-var HardcodedNode::getNodeProperty(const String& id, const var& defaultValue) const
-{
-	auto propTree = getNodePropertyTree(id);
-
-	if (propTree.isValid())
-		return propTree[PropertyIds::Value];
-
-	return defaultValue;
-}
-
-juce::ValueTree HardcodedNode::getNodePropertyTree(const String& id) const
-{
-	return nodeData.getChildWithName(PropertyIds::Properties).getChildWithProperty(PropertyIds::ID, id);
-}
-
-void HardcodedNode::setParameterDefault(const String& parameterId, double value)
-{
-	for (auto& parameter : internalParameterList)
-	{
-		if (parameter.id == parameterId)
-		{
-			parameter.setDefaultValue(value);
-			parameter.dbNew(value);
-			break;
-		}
-	}
-}
-
-scriptnode::HiseDspBase::ParameterData HardcodedNode::getParameter(const String& id)
-{
-	for (auto& c : internalParameterList)
-		if (c.id == id)
-			return c;
-
-	return HiseDspBase::ParameterData("undefined");
-}
-
-
-scriptnode::HiseDspBase::ParameterData HardcodedNode::getParameter(const String& id, NormalisableRange<double> d)
-{
-	return getParameter(id).withRange(d);
-}
-
-juce::String HardcodedNode::getNodeId(const HiseDspBase* internalNode) const
-{
-	for (const auto& n : internalNodes)
-	{
-		if (n.node == internalNode)
-			return n.id;
-	}
-
-	return {};
-}
-
-scriptnode::HiseDspBase* HardcodedNode::getNode(const String& id) const
-{
-	for (const auto& n : internalNodes)
-	{
-		if (n.id == id)
-			return n.node;
-	}
-
-	return nullptr;
-}
-
-#endif
-
 WrapperNode::WrapperNode(DspNetwork* parent, ValueTree d) :
 	NodeBase(parent, d, 0)
 {
@@ -270,6 +171,30 @@ void InterpretedNode::handleHiseEvent(HiseEvent& e)
 	this->obj.handleHiseEvent(e);
 }
 
+InterpretedModNode::InterpretedModNode(DspNetwork* parent, ValueTree d) :
+	ModulationSourceNode(parent, d),
+	Base()
+{
+
+}
+
+void InterpretedModNode::postInit()
+{
+	getParameterHolder()->setRingBuffer(ringBuffer.get());
+	stop();
+	Base::postInit();
+}
+
+void* InterpretedModNode::getObjectPtr()
+{
+	return getObjectPtrFromWrapper();
+}
+
+scriptnode::ParameterDataList InterpretedModNode::createInternalParameterList()
+{
+	return createInternalParameterListFromWrapper();
+}
+
 void InterpretedModNode::timerCallback()
 {
 	getParameterHolder()->updateUI();
@@ -354,7 +279,15 @@ void InterpretedModNode::handleHiseEvent(HiseEvent& e)
 	this->obj.handleHiseEvent(e);
 }
 
-void NewHero::prepare(PrepareSpecs ps)
+scriptnode::parameter::dynamic_base_holder* InterpretedCableNode::getParameterHolder()
+{
+	if (getParameterFunction)
+		return getParameterFunction(getObjectPtr());
+
+	return nullptr;
+}
+
+void InterpretedCableNode::prepare(PrepareSpecs ps)
 {
 	auto& exceptionHandler = getRootNetwork()->getExceptionHandler();
 

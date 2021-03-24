@@ -96,7 +96,9 @@ struct OpaqueNode
 		if constexpr (prototypes::check::handleModulation<T>::value)
 		{
 			modFunc = prototypes::static_wrappers<T>::handleModulation;
-			isNormalised = T::WrappedObjectType::isNormalisedModulation();
+
+			if constexpr (prototypes::check::isNormalisedModulation<T::WrappedObjectType>::value)
+				isNormalised = T::WrappedObjectType::isNormalisedModulation();
 		}
 		else
 			modFunc = prototypes::noop::handleModulation;

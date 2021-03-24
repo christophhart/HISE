@@ -89,6 +89,7 @@ struct DspHelpers
 	}
 };
 
+#if 0
 struct CodeHelpers
 {
 	static void setIncludeDirectory(String filePath);
@@ -114,6 +115,7 @@ private:
 	static File includeDirectory;
 	static File projectIncludeDirectory;
 };
+#endif
 
 
 }
