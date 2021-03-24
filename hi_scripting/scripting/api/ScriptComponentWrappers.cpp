@@ -100,7 +100,11 @@ bool ScriptCreatedComponentWrapper::setMouseCursorFromParentPanel(ScriptComponen
 
 		if (!cursor.path.isEmpty())
 		{
+#if JUCE_WINDOWS
 			auto s = 80;
+#else
+            auto s = 30; // go easy on the cursor size, Stevie...
+#endif
 
 			Image icon(Image::ARGB, s, s, true);
 			Graphics g(icon);
