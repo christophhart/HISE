@@ -431,8 +431,14 @@ public:
 		/** Returns the current value. */
 		virtual var getValue() const
         {
+			var rv;
+			{
+				SimpleReadWriteLock::ScopedReadLock sl(valueLock);
+				rv = value;
+			}
+			
             jassert(!value.isString());
-            return value;
+            return rv;
         }
 
 		/** Sets the current value
@@ -666,6 +672,7 @@ public:
 		Array<Identifier> scriptChangedProperties;
 
 		Array<WeakReference<SubComponentListener>> subComponentListeners;
+		mutable hise::SimpleReadWriteLock valueLock;
 
 		bool countJsonSetProperties = true;
 		Identifier searchedProperty;
@@ -1412,7 +1419,6 @@ public:
 
 		void forcedRepaint()
 		{
-			
 		};
 
 		MouseCursorInfo getMouseCursorPath() const
@@ -2197,7 +2203,6 @@ private:
 
 	ScopedPointer<ValueTreeUpdateWatcher> updateWatcher;
 
-	CriticalSection lock;
 	bool allowGuiCreation;
 	int width, height;
 	ReferenceCountedArray<ScriptComponent> components; // This is ref counted to allow anonymous controls

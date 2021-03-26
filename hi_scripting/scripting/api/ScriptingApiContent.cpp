@@ -639,8 +639,8 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 	}
 	else if (parent != nullptr)
 	{
-		ScopedLock sl(parent->lock);
-		value = controlValue;
+		SimpleReadWriteLock::ScopedWriteLock sl(getValueLock());
+		std::swap(value, controlValue);
 	}
 
 	if (parent->allowGuiCreation)
