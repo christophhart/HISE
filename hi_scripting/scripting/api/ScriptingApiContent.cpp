@@ -641,7 +641,7 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 	}
 	else if (parent != nullptr)
 	{
-		SimpleReadWriteLock::ScopedWriteLock sl(getValueLock());
+		SimpleReadWriteLock::ScopedWriteLock sl(valueLock);
 		std::swap(value, controlValue);
 	}
 
