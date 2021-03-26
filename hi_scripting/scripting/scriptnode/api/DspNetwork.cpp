@@ -70,6 +70,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ownedFactories.add(new examples::Factory(this));
 	ownedFactories.add(new dynamics::Factory(this));
 	ownedFactories.add(new filters::Factory(this));
+	ownedFactories.add(new stk_factory::Factory(this));
 
 #if HISE_INCLUDE_SNEX
 	if (auto ah = dynamic_cast<Holder*>(p))
@@ -81,9 +82,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	}
 #endif
 
-#if 0
-	ownedFactories.add(new stk::StkFactory(this));
-#endif
+	
 
 	for (auto nf : ownedFactories)
 		nodeFactories.add(nf);

@@ -44,6 +44,8 @@ class Granulate: public Generator
   */
   void openFile( std::string fileName, bool typeRaw = false );
 
+  void setExternalData(const snex::Types::ExternalData& d, int index);
+
   //! Reset the file pointer and all existing grains to the file start.
   /*!
     Multiple grains are offset from one another in time by grain

@@ -79,6 +79,19 @@ Factory::Factory(DspNetwork* network) :
 
 }
 
+namespace stk_factory
+{
+Factory::Factory(DspNetwork* n):
+	NodeFactory(n)
+{
+	registerNode<stk::nodes::JCRev>();
+	registerNode<stk::nodes::DelayA>();
+	registerNode<stk::nodes::BiQuad>();
+}
+
+
+}
+
 namespace math
 {
 

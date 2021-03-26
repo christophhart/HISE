@@ -47,8 +47,6 @@
 
 #include "stk_wrapper.h"
 
-#if 0
-
 // stops a warning with clang
 #ifdef __clang__
  #pragma clang diagnostic ignored "-Wtautological-compare"
@@ -58,9 +56,6 @@
  #pragma warning (push)
  #pragma warning (disable: 4127 4702 4244 4305 4100 4996 4309 4267)
 #endif
-
-
-
 
 #include "stk/ADSR.cpp"
 #include "stk/Asymp.cpp"
@@ -148,13 +143,14 @@
 #endif
 
 
+#include "hise_wrapper/stk_new_wrapper.cpp"
+#include "hise_wrapper/stk_effect_nodes.cpp"
+
+#if 0
 #if JUCE_WINDOWS
 #include "hise_wrapper/stk_wrapper_base.cpp"
 #include "hise_wrapper/stk_effect_wrapper.cpp"
 #include "hise_wrapper/stk_instrument_wrapper.cpp"
 #endif
-
-
 #include "hise_wrapper/stk_factory.cpp"
-
 #endif
