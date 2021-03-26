@@ -1118,6 +1118,9 @@ bool ValueTreeIterator::isComplexDataNode(const ValueTree& nodeTree)
 		numData += getNumDataTypes(nodeTree, ExternalData::DataType::Table);
 		numData += getNumDataTypes(nodeTree, ExternalData::DataType::SliderPack);
 		numData += getNumDataTypes(nodeTree, ExternalData::DataType::AudioFile);
+		
+		// Only count the external slots for filters
+		numData += getMaxDataTypeIndex(nodeTree, ExternalData::DataType::FilterCoefficients);
 
 		return numData != 0;
 	}
@@ -1813,14 +1816,16 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parse()
 	auto numTables = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::Table);
 	auto numSliderPacks = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::SliderPack);
 	auto numAudioFiles = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::AudioFile);
+	auto numFilters = ValueTreeIterator::getMaxDataTypeIndex(n->nodeTree, ExternalData::DataType::FilterCoefficients);
 
-	bool isSingleData = (numTables + numSliderPacks + numAudioFiles) == 1;
+	bool isSingleData = (numTables + numSliderPacks + numAudioFiles + numFilters) == 1;
 
 	if (isSingleData)
 	{
 		auto t = numTables == 1 ?	   ExternalData::DataType::Table :
 				 numSliderPacks == 1 ? ExternalData::DataType::SliderPack :
-									   ExternalData::DataType::AudioFile;
+				 numAudioFiles == 1 ?  ExternalData::DataType::AudioFile :
+									   ExternalData::DataType::FilterCoefficients;
 
 		auto idx = ValueTreeIterator::getDataIndex(n->nodeTree, t, 0);
 
@@ -1891,7 +1896,8 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseMatrixDataNode()
 	auto numTables = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::Table);
 	auto numSliderPacks = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::SliderPack);
 	auto numAudioFiles = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::AudioFile);
-	auto numMax = jmax(numTables, numSliderPacks, numAudioFiles);
+	auto numFilters = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::FilterCoefficients);
+	auto numMax = jmax(numTables, numSliderPacks, numAudioFiles, numFilters);
 
 	auto sId = n->scopedId;
 	StringHelpers::addSuffix(sId, "_matrix");
@@ -1902,12 +1908,11 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseMatrixDataNode()
 	l1 << "static const int NumTables = " << numTables << ";";
 	l2 << "static const int NumSliderPacks = " << numSliderPacks << ";";
 	l3 << "static const int NumAudioFiles = " << numAudioFiles << ";";
+	l3 << "static const int NumFilters = " << numFilters << ";";
 	l4 << "const int matrix[3][" << numMax << "] =";
 
 	parent << l1 << l2 << l3;
-	
 	parent.addEmptyLine();
-
 	parent.addComment("Index mapping matrix", Base::CommentType::FillTo80Light);
 	parent << l4;
 
@@ -2031,6 +2036,8 @@ Array<float> ValueTreeBuilder::ComplexDataBuilder::getEmbeddedData(const ValueTr
 {
 	if (ValueTreeIterator::getDataIndex(nodeTree, t, slotIndex) != -1)
 		return {};
+
+	jassert(t != ExternalData::DataType::FilterCoefficients);
 
 	auto cTree = nodeTree.getChildWithName(PropertyIds::ComplexData);
 	auto dTree = cTree.getChildWithName(ExternalData::getDataTypeName(t, true));

@@ -255,6 +255,188 @@ void OscilloscopeBase::drawWaveform(Graphics& g)
 	}
 }
 
+/** a component that plots a collection of filters.
+@ingroup floating_tile_objects.
+
+Just connect it to a PolyphonicFilterEffect or a CurveEQ and it will automatically update
+the filter graph.
+*/
+class FilterGraph::Panel : public PanelWithProcessorConnection,
+	public SafeChangeListener,
+	public Timer
+{
+public:
+
+	enum SpecialPanelIds
+	{
+		showLines,
+		numSpecialPanelIds
+	};
+
+	SET_PANEL_NAME("FilterDisplay");
+
+	Panel(FloatingTile* parent) :
+		PanelWithProcessorConnection(parent)
+	{
+		setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF333333));
+		setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white);
+		setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.5f));
+		setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour3, Colours::white.withAlpha(0.2f));
+		setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, Colours::white);
+	};
+
+	~Panel()
+	{
+		if (auto p = getProcessor())
+		{
+			p->removeChangeListener(this);
+		}
+	}
+
+	juce::Identifier getProcessorTypeId() const
+	{
+		return PolyFilterEffect::getClassType();
+	}
+
+
+
+	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
+	{
+		updateCoefficients();
+	}
+
+	void timerCallback() override
+	{
+		if (auto filter = dynamic_cast<FilterEffect*>(getProcessor()))
+		{
+			if (auto filterGraph = getContent<FilterGraph>())
+			{
+				filterGraph->setBypassed(getProcessor()->isBypassed());
+
+				IIRCoefficients c = filter->getCurrentCoefficients();
+
+				if (!sameCoefficients(c, currentCoefficients))
+				{
+					currentCoefficients = c;
+
+					filterGraph->setCoefficients(0, getProcessor()->getSampleRate(), dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients());
+				}
+			}
+		}
+	}
+
+
+
+	Component* createContentComponent(int /*index*/) override
+	{
+		if (auto p = getProcessor())
+		{
+			p->addChangeListener(this);
+
+			auto c = new FilterGraph(1);
+
+			c->useFlatDesign = true;
+			c->showLines = false;
+
+
+			c->setColour(ColourIds::bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+			c->setColour(ColourIds::lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
+			c->setColour(ColourIds::fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
+			c->setColour(ColourIds::gridColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour3));
+			c->setColour(ColourIds::textColour, findPanelColour(FloatingTileContent::PanelColourId::textColour));
+
+			c->setOpaque(c->findColour(bgColour).isOpaque());
+
+			if (dynamic_cast<FilterEffect*>(p) != nullptr)
+			{
+				c->addFilter(FilterType::LowPass);
+				startTimer(30);
+			}
+			else if (auto eq = dynamic_cast<CurveEq*>(p))
+			{
+				stopTimer();
+				updateEq(eq, c);
+			}
+
+			return c;
+		}
+
+		return nullptr;
+	}
+
+	void fillModuleList(StringArray& moduleList)
+	{
+		fillModuleListWithType<CurveEq>(moduleList);
+		fillModuleListWithType<FilterEffect>(moduleList);
+	}
+
+private:
+
+	bool sameCoefficients(IIRCoefficients c1, IIRCoefficients c2)
+	{
+		for (int i = 0; i < 5; i++)
+		{
+			if (c1.coefficients[i] != c2.coefficients[i]) return false;
+		}
+
+		return true;
+	};
+
+	void updateCoefficients()
+	{
+		if (auto filterGraph = getContent<FilterGraph>())
+		{
+			if (auto c = dynamic_cast<CurveEq*>(getProcessor()))
+			{
+				for (int i = 0; i < c->getNumFilterBands(); i++)
+				{
+					IIRCoefficients ic = c->getCoefficients(i);
+
+					filterGraph->enableBand(i, c->getFilterBand(i)->isEnabled());
+					filterGraph->setCoefficients(i, getProcessor()->getSampleRate(), ic);
+				}
+			}
+		}
+	}
+
+	void updateEq(CurveEq* eq, FilterGraph* c)
+	{
+		c->clearBands();
+
+		for (int i = 0; i < eq->getNumFilterBands(); i++)
+		{
+			auto t = CurveEq::StereoFilter::SubType::getFilterType();
+			addFilter(c, i, (int)t);
+		}
+
+		int numFilterBands = eq->getNumFilterBands();
+
+		if (numFilterBands == 0)
+		{
+			c->repaint();
+		}
+	}
+
+	void addFilter(FilterGraph* filterGraph, int filterIndex, int filterType)
+	{
+		if (auto c = dynamic_cast<CurveEq*>(getProcessor()))
+		{
+			switch (filterType)
+			{
+			case CurveEq::LowPass:		filterGraph->addFilter(FilterType::LowPass); break;
+			case CurveEq::HighPass:		filterGraph->addFilter(FilterType::HighPass); break;
+			case CurveEq::LowShelf:		filterGraph->addEqBand(BandType::LowShelf); break;
+			case CurveEq::HighShelf:	filterGraph->addEqBand(BandType::HighShelf); break;
+			case CurveEq::Peak:			filterGraph->addEqBand(BandType::Peak); break;
+			}
+
+			filterGraph->setCoefficients(filterIndex, c->getSampleRate(), c->getCoefficients(filterIndex));
+		}
+	}
+
+	IIRCoefficients currentCoefficients;
+
+};
 
 struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 {

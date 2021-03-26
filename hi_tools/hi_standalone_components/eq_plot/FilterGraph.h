@@ -41,7 +41,9 @@ namespace hise { using namespace juce;
 
 class FilterGraph    : public Component,
                        public SettableTooltipClient,
-					   public SafeChangeListener
+					   public SafeChangeListener,
+					   public ComplexDataUIUpdaterBase::EventListener,
+					   public ComplexDataUIBase::EditorBase
 {
 public:
 
@@ -62,7 +64,7 @@ public:
 		Icon
 	};
 
-    FilterGraph (int numFilters, int type=Line);
+    FilterGraph (int numFilters=0, int type=Line);
     ~FilterGraph();
 
     enum TraceType
@@ -80,20 +82,32 @@ public:
 
 	void changeListenerCallback(SafeChangeBroadcaster *b);
 	
+	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var newValue) override
+	{
+		if (e == ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+		{
+			jassert(numFilters == 1);
+			filterVector[0]->setCoefficients(0, filterData->getSamplerate(), filterData->getCoefficients());
+
+			fs = filterData->getSamplerate();
+			repaint();
+		}
+	}
+
 	void clearBands()
 	{
-		numFilters = 0;
 		filterVector.clear();
+		numFilters = 0;
+		repaint();
 	}
 
 	/** Activates the given filter band. */
 	void enableBand(int index, bool shouldBeEnabled)
 	{
-		if(index < filterVector.size())
-		{
-			filterVector[index]->setEnabled(shouldBeEnabled);
-			repaint();
-		}
+		if(auto p = filterVector[index])
+			p->setEnabled(shouldBeEnabled);
+
+		repaint();
 	}
 
     void setNumHorizontalLines (int newValue);
@@ -131,6 +145,22 @@ public:
     
 	class Panel;
 
+	void setComplexDataUIBase(ComplexDataUIBase* newData) override
+	{
+		if (filterData != nullptr)
+			filterData->getUpdater().removeEventListener(this);
+
+		filterData = dynamic_cast<FilterDataObject*>(newData);
+
+		numFilters = 1;
+
+		if(filterVector.isEmpty())
+			filterVector.add(new FilterInfo());
+
+		if (filterData != nullptr)
+			filterData->getUpdater().addEventListener(this);
+	}
+
 private:
 
 	void paintBackground(Graphics &g)
@@ -146,16 +176,10 @@ private:
 				Colour(0xFF222222), 0.0f, (float)getHeight(), false);
 
 			g.setGradientFill(grad);
-
 			g.fillAll();
-
 			g.setColour(Colours::lightgrey.withAlpha(0.4f));
 			g.drawRect(getLocalBounds(), 1);
 		}
-		
-    
-
-
 	}
 
 	void paintGridLines(Graphics &g)
@@ -196,7 +220,6 @@ private:
 
 	void clearFilterPath()
 	{
-
 		float width = (float) getWidth();
 		float height = (float) getHeight();
 
@@ -211,25 +234,17 @@ private:
 		else if( drawType == Icon)
 		{
 			tracePath.startNewSubPath (0, height);
-
 			tracePath.lineTo (0, (height / 2));
-
 			tracePath.lineTo (width, (height / 2));
-
 			tracePath.lineTo (width, height);
-
 			tracePath.closeSubPath();
 		}
 		else
 		{
 			tracePath.startNewSubPath (-1, height+1);
-
 			tracePath.lineTo (-1, (height / 2));
-
 			tracePath.lineTo (width+1, (height / 2));
-
 			tracePath.lineTo (width+1, height+1);
-
 			tracePath.closeSubPath();
 		}
 	}
@@ -237,20 +252,19 @@ private:
     int numHorizontalLines;
     float lowFreq, highFreq;   
     double fs;
-    int numFilters;
     
 	DrawType drawType;
 
     void mouseMove (const MouseEvent &event);
     
-    OwnedArray<FilterInfo> filterVector;
-    
+	FilterDataObject::Ptr filterData;
+	OwnedArray<FilterInfo> filterVector;
+
     Path gridPath, tracePath;
-    
+	int numFilters = 0;
 	bool bypassed = false;
 	bool showLines = true;
 	bool useFlatDesign = false;
-	
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FilterGraph)
 };

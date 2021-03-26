@@ -609,6 +609,7 @@ template <class T> class default_data
 	static const int NumTables = T::NumTables;
 	static const int NumSliderPacks = T::NumSliderPacks;
 	static const int NumAudioFiles = T::NumAudioFiles;
+	static const int NumFilters = T::NumFilters;
 
 	default_data(T& obj)
 	{
@@ -654,6 +655,7 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 	static const int NumTables = DataHandler::NumTables;
 	static const int NumSliderPacks = DataHandler::NumSliderPacks;
 	static const int NumAudioFiles = DataHandler::NumAudioFiles;
+	static const int NumFilters = DataHandler::NumFilters;
 
 	scriptnode::data::pimpl::base* getDataObject() override
 	{
@@ -688,6 +690,7 @@ public:
 	static const int NumTables = 0;
 	static const int NumSliderPacks = 0;
 	static const int NumAudioFiles = 1;
+	static const int NumFilters = 0;
 
 	SN_SELF_AWARE_WRAPPER(offline, T);
 
@@ -1038,6 +1041,7 @@ template <class T> struct node : public HiseDspBase
 	static constexpr int NumTables =	  MetadataClass::NumTables;
 	static constexpr int NumSliderPacks = MetadataClass::NumSliderPacks;
 	static constexpr int NumAudioFiles =  MetadataClass::NumAudioFiles;
+	static constexpr int NumFilters =  MetadataClass::NumFilters;
 
 	// We treat everything in this node as opaque...
 	SN_GET_SELF_AS_OBJECT(node);

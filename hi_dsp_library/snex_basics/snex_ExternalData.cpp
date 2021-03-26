@@ -60,6 +60,13 @@ ExternalData ExternalDataHolder::getData(ExternalData::DataType t, int index)
 			return ExternalData(bf, index);
 		}
 	}
+	if (t == DataType::FilterCoefficients)
+	{
+		if (auto fd = getFilterData(index))
+		{
+			return ExternalData(fd, index);
+		}
+	}
 
 	return ExternalData();
 }
@@ -83,6 +90,7 @@ void ExternalDataProviderBase::initExternalData()
 	initAll(ExternalData::DataType::Table);
 	initAll(ExternalData::DataType::SliderPack);
 	initAll(ExternalData::DataType::AudioFile);
+	initAll(ExternalData::DataType::FilterCoefficients);
 }
 
 int ExternalDataHolder::getAbsoluteIndex(ExternalData::DataType t, int dataIndex) const
@@ -95,6 +103,9 @@ int ExternalDataHolder::getAbsoluteIndex(ExternalData::DataType t, int dataIndex
 	if (t > ExternalData::DataType::SliderPack)
 		offset += getNumDataObjects(ExternalData::DataType::SliderPack);
 
+	if (t > ExternalData::DataType::AudioFile)
+		offset += getNumDataObjects(ExternalData::DataType::AudioFile);
+
 	return offset + dataIndex;
 }
 
@@ -105,6 +116,7 @@ hise::ComplexDataUIBase* ExternalDataHolder::getComplexBaseType(ExternalData::Da
 	case ExternalData::DataType::Table:		 return getTable(index);
 	case ExternalData::DataType::SliderPack: return getSliderPack(index);
 	case ExternalData::DataType::AudioFile:  return getAudioFile(index);
+	case ExternalData::DataType::FilterCoefficients: return getFilterData(index);
 	}
 
 	return nullptr;
@@ -143,6 +155,14 @@ ExternalData::ExternalData(ComplexDataUIBase* b, int absoluteIndex) :
 		numChannels = 1;
 		break;
 	}
+	case DataType::FilterCoefficients:
+	{
+		auto t = dynamic_cast<FilterDataObject*>(obj);
+		data = nullptr;
+		numSamples = 0;
+		numChannels = 0;
+		break;
+	}
 	}
 }
 
@@ -153,6 +173,7 @@ String ExternalData::getDataTypeName(DataType t, bool plural)
 	case DataType::AudioFile: return plural ? "AudioFiles" : "AudioFile";
 	case DataType::SliderPack: return plural ? "SliderPacks" : "SliderPack";
 	case DataType::Table: return plural ? "Tables" : "Table";
+	case DataType::FilterCoefficients: return plural ? "Filters" : "Filter";
 	case DataType::ConstantLookUp: return "ConstantLookup";
 	default: jassertfalse; return {};
 	}
@@ -174,6 +195,7 @@ void ExternalData::forEachType(const std::function<void(DataType)>& f)
 	f(DataType::Table);
 	f(DataType::SliderPack);
 	f(DataType::AudioFile);
+	f(DataType::FilterCoefficients);
 }
 
 void ExternalData::referBlockTo(block& b, int channelIndex) const
@@ -199,7 +221,7 @@ void ExternalData::setDisplayedValue(double valueToDisplay)
 
 juce::AudioSampleBuffer ExternalData::toAudioSampleBuffer() const
 {
-	if (isEmpty())
+	if (isEmpty() || dataType == DataType::FilterCoefficients)
 		return {};
 
 	if (dataType == DataType::AudioFile)
@@ -216,6 +238,8 @@ snex::ExternalData::DataType ExternalData::getDataTypeForClass(ComplexDataUIBase
 		return DataType::Table;
 	if (auto f = dynamic_cast<MultiChannelAudioBuffer*>(d))
 		return DataType::AudioFile;
+	if (auto f = dynamic_cast<FilterDataObject*>(d))
+		return DataType::FilterCoefficients;
 
 	return DataType::numDataTypes;
 }
@@ -235,6 +259,10 @@ hise::ComplexDataUIBase::EditorBase* ExternalData::createEditor(ComplexDataUIBas
 	if (auto t = dynamic_cast<hise::MultiChannelAudioBuffer*>(dataObject))
 	{
 		c = new hise::MultiChannelAudioBufferDisplay();
+	}
+	if (auto t = dynamic_cast<hise::FilterDataObject*>(dataObject))
+	{
+		c = new hise::FilterGraph(0);
 	}
 
 	c->setComplexDataUIBase(dataObject);

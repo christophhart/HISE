@@ -85,6 +85,9 @@ public:
 
 	void setCoefficients(int filterNum, double sampleRate, IIRCoefficients newCoefficients);
 
+	Array<double> toDoubleArray() const;
+	void fromDoubleArray(Array<double>& d);
+
 	bool isEnabled()
 	{
 		return enabled;
@@ -96,6 +99,7 @@ public:
 	};
     
 private:
+
     double fs;
     int numNumeratorCoeffs, numDenominatorCoeffs;
 
@@ -104,6 +108,50 @@ private:
     double gainValue;
 
 	bool enabled;
+};
+
+/** This data object holds a number of IIR coefficients and manages the notification / external management. */
+struct FilterDataObject : public ComplexDataUIBase
+{
+	using Ptr = ReferenceCountedObjectPtr<FilterDataObject>;
+
+	FilterDataObject() :
+		ComplexDataUIBase()
+	{};
+
+	bool fromBase64String(const String& b64) override { return true; };
+	String toBase64String() const override { return ""; };
+
+	void setCoefficients(IIRCoefficients newCoefficients)
+	{
+		jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+		coefficients = newCoefficients;
+
+		if(sampleRate > 0.0)
+			getUpdater().sendDisplayChangeMessage(sampleRate, sendNotificationSync, true);
+	}
+
+	void setSampleRate(double sr)
+	{
+		if (sampleRate != sr)
+		{
+			sampleRate = sr;
+			getUpdater().sendDisplayChangeMessage(sampleRate, sendNotificationAsync);
+		}
+	}
+
+	IIRCoefficients getCoefficients() const { return coefficients; }
+
+	double getSamplerate() const { return sampleRate; }
+
+private:
+
+	double sampleRate = -1.0;
+
+	IIRCoefficients coefficients;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(FilterDataObject);
 };
 
 } // namespace hise

@@ -167,6 +167,16 @@ struct OpaqueNode
 
 	void* getObjectPtr() const { return this->object.getObjectPtr(); }
 
+	bool hasComplexData() const
+	{
+		int numData = 0;
+
+		for (int i = 0; i < (int)ExternalData::DataType::numDataTypes; i++)
+			numData += numDataObjects[i];
+
+		return numData > 0;
+	}
+
 private:
 
 	void allocateObjectSize(int numBytes);
@@ -272,7 +282,7 @@ namespace dll
 		{
 			String id;
 			std::function<void(scriptnode::OpaqueNode* n)> f;
-			int numDataObjects[3];
+			int numDataObjects[(int)ExternalData::DataType::numDataTypes];
 		};
 
 		Array<Item> items;
@@ -292,6 +302,7 @@ namespace dll
 			i.numDataObjects[(int)ExternalData::DataType::Table] = T::NumTables;
 			i.numDataObjects[(int)ExternalData::DataType::SliderPack] = T::NumSliderPacks;
 			i.numDataObjects[(int)ExternalData::DataType::AudioFile] = T::NumAudioFiles;
+			i.numDataObjects[(int)ExternalData::DataType::FilterCoefficients] = T::NumFilters;
 
 			items.add(i);
 		}

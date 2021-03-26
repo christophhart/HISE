@@ -68,6 +68,7 @@ struct dynamic_base : public base,
 	Table* getTable(int index) override { return dynamic_cast<Table*>(currentlyUsedData); }
 	SliderPackData* getSliderPack(int index) override { return dynamic_cast<SliderPackData*>(currentlyUsedData); }
 	MultiChannelAudioBuffer* getAudioFile(int index) override { return dynamic_cast<MultiChannelAudioBuffer*>(currentlyUsedData); }
+	FilterDataObject* getFilterData(int index) override { return dynamic_cast<FilterDataObject*>(currentlyUsedData); }
 
 	bool removeDataObject(ExternalData::DataType t, int index) { return true; }
 
@@ -119,6 +120,7 @@ template <typename T> struct dynamicT : public dynamic_base
 	static const int NumTables = ExternalData::getDataTypeForClass<T>() == ExternalData::DataType::Table ? 1 : 0;
 	static const int NumSliderPacks = ExternalData::getDataTypeForClass<T>() == ExternalData::DataType::SliderPack ? 1 : 0;
 	static const int NumAudioFiles = ExternalData::getDataTypeForClass<T>() == ExternalData::DataType::AudioFile ? 1 : 0;
+	static const int NumFilters = ExternalData::getDataTypeForClass<T>() == ExternalData::DataType::FilterCoefficients ? 1 : 0;
 
 	dynamicT(data::base& t, int index=0) :
 		dynamic_base(t, ExternalData::getDataTypeForClass<T>(), index)
@@ -139,6 +141,7 @@ template <typename T> struct dynamicT : public dynamic_base
 namespace dynamic
 {
 using table = data::pimpl::dynamicT<hise::SampleLookupTable>;
+using filter = data::pimpl::dynamicT<hise::FilterDataObject>;
 
 /** This needs some additional functionality:
 
@@ -347,6 +350,8 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 
 
 }
+
+using filter_editor = data::ui::pimpl::editorT<data::dynamic::filter, hise::FilterDataObject, hise::FilterGraph, false>;
 
 using table_editor_without_mod = data::ui::pimpl::editorT<data::dynamic::table, hise::Table, hise::TableEditor, false>;
 using sliderpack_editor_without_mod = data::ui::pimpl::editorT<data::dynamic::sliderpack, hise::SliderPackData, hise::SliderPack, false>;

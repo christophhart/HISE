@@ -118,7 +118,7 @@ public:
 
 		OpaqueNode& n = obj.getWrappedObject();
 
-		if (n.numDataObjects[0] + n.numDataObjects[1] + n.numDataObjects[2] != 0)
+		if (n.hasComplexData())
 		{
 			opaqueDataHolder = new OpaqueNodeDataHolder(n, asWrapperNode());
 

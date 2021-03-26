@@ -496,9 +496,9 @@ public:
 		}
 	}
 
-	void sendDisplayChangeMessage(float newIndexValue, NotificationType notify) const
+	void sendDisplayChangeMessage(float newIndexValue, NotificationType notify, bool forceUpdate=false) const
 	{
-		sendMessageToListeners(EventType::DisplayIndex, var(newIndexValue), notify);
+		sendMessageToListeners(EventType::DisplayIndex, var(newIndexValue), notify, forceUpdate);
 	}
 
 	void sendContentChangeMessage(NotificationType notify, int indexThatChanged)

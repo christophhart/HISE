@@ -277,6 +277,7 @@ struct ExternalData
 		Table,
 		SliderPack,
 		AudioFile,
+		FilterCoefficients,
 		numDataTypes,
 		ConstantLookUp
 	};
@@ -332,6 +333,9 @@ struct ExternalData
 		if (isSameOrBase<MultiChannelAudioBuffer, DataClass>())
 			return DataType::AudioFile;
 
+		if (isSameOrBase<FilterDataObject, DataClass>())
+			return DataType::FilterCoefficients;
+
 		return DataType::numDataTypes;
 	}
 
@@ -357,6 +361,8 @@ struct ExternalData
 			return new SliderPackData();
 		if (t == DataType::AudioFile)
 			return new MultiChannelAudioBuffer();
+		if (t == DataType::FilterCoefficients)
+			return new FilterDataObject();
 
 		return nullptr;
 	}
@@ -395,10 +401,9 @@ struct ExternalDataHolder
 	virtual Table* getTable(int index) = 0;
 	virtual SliderPackData* getSliderPack(int index) = 0;
 	virtual MultiChannelAudioBuffer* getAudioFile(int index) = 0;
+	virtual FilterDataObject* getFilterData(int index) = 0;
 
 	ComplexDataUIBase* getComplexBaseType(ExternalData::DataType t, int index);
-
-	
 
 	/** Override this method and remove the object in question. Return true if successful. */
 	virtual bool removeDataObject(ExternalData::DataType t, int index) = 0;
@@ -539,6 +544,7 @@ public:
 	static constexpr int NumTables = getNum(ExternalData::DataType::Table);
 	static constexpr int NumSliderPacks = getNum(ExternalData::DataType::SliderPack);
 	static constexpr int NumAudioFiles = getNum(ExternalData::DataType::AudioFile);
+	static constexpr int NumFilters = getNum(ExternalData::DataType::FilterCoefficients);
 	
 private:
 
@@ -567,6 +573,7 @@ public:
 	static constexpr int NumTables = getNum(ExternalData::DataType::Table);
 	static constexpr int NumSliderPacks = getNum(ExternalData::DataType::SliderPack);
 	static constexpr int NumAudioFiles = getNum(ExternalData::DataType::AudioFile);
+	static constexpr int NumFilters = getNum(ExternalData::DataType::FilterCoefficients);
 
 	template <typename NodeType> embedded(NodeType& n) 
 	{
@@ -586,12 +593,14 @@ struct example_matrix
 	static constexpr int NumSliderPacks = 1;
 	static constexpr int NumTables = 2;
 	static constexpr int NumAudioFiles = 3;
+	static constexpr int NumFilters = 0;
 
-	static constexpr int matrix[3][3] =
+	static constexpr int matrix[4][3] =
 	{
 		{ 1000, 0, -1 },  // 0->e[0] || 1->0
 		{ 1001, -1, -1 }, // 0->e[1] ||
 		{ 2, 2, 1002 },	  // 0->2 || 1->2 || 2->e[2]
+	    { -1, -1, -1 }
 	};
 
 private:
@@ -627,6 +636,7 @@ template <typename MatrixType> struct matrix: public pimpl::base
 	static constexpr int NumTables = MatrixType::NumTables;
 	static constexpr int NumSliderPacks = MatrixType::NumSliderPacks;
 	static constexpr int NumAudioFiles = MatrixType::NumAudioFiles;
+	static constexpr int NumFilters = MatrixType::NumFilters;
 
 	static bool getEmbeddedIndex(int& idx)
 	{
@@ -649,6 +659,8 @@ template <typename MatrixType> struct matrix: public pimpl::base
 			return MatrixType::NumSliderPacks;
 		if (dt == ExternalData::DataType::AudioFile)
 			return MatrixType::NumAudioFiles;
+		if (dt == ExternalData::DataType::FilterCoefficients)
+			return MatrixType::NumFilters;
 
 		return 0;
 	}
@@ -696,6 +708,7 @@ namespace external
 	template <int Index> using table =		pimpl::plain<Index, ExternalData::DataType::Table>;
 	template <int Index> using sliderpack = pimpl::plain<Index, ExternalData::DataType::SliderPack>;
 	template <int Index> using audiofile =  pimpl::plain<Index, ExternalData::DataType::AudioFile>;
+	template <int Index> using filter =		pimpl::plain<Index, ExternalData::DataType::FilterCoefficients>;
 }
 
 namespace embedded
@@ -703,6 +716,7 @@ namespace embedded
 	template <typename DataClass> using table =		  pimpl::embedded<DataClass, ExternalData::DataType::Table>;
 	template <typename DataClass> using sliderpack =  pimpl::embedded<DataClass, ExternalData::DataType::SliderPack>;
 	template <typename DataClass> using audiofile =   pimpl::embedded<DataClass, ExternalData::DataType::AudioFile>;
+	template <typename DataClass> using filter =	  pimpl::embedded<DataClass, ExternalData::DataType::FilterCoefficients>;
 }
 
 }

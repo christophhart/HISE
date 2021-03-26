@@ -534,8 +534,6 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		PrepareSpecs getPrepareSpecs() { return ps; }
 
-		
-
 		Table* getTable(int index) override
 		{
 			if (isPositiveAndBelow(index, tables.size()))
@@ -581,6 +579,17 @@ struct WorkbenchData : public ReferenceCountedObject,
 			return buffers.getLast();
 		}
 
+		FilterDataObject* getFilterData(int index) override
+		{
+			if (isPositiveAndBelow(index, filterData.size()))
+				return filterData[index];
+
+			auto fd = new FilterDataObject();
+			filterData.add(fd);
+			sendMessageToListeners(true);
+			return filterData.getLast();
+		}
+
 		int getNumDataObjects(ExternalData::DataType t) const override
 		{
 			if (t == ExternalData::DataType::SliderPack)
@@ -589,6 +598,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 				return tables.size();
 			if (t == ExternalData::DataType::AudioFile)
 				return buffers.size();
+			if (t == ExternalData::DataType::FilterCoefficients)
+				return filterData.size();
 		}
 
 		bool removeDataObject(ExternalData::DataType t, int index) override
@@ -711,6 +722,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 		ReferenceCountedArray<Table> tables;
 		ReferenceCountedArray<SliderPackData> sliderPacks;
 		ReferenceCountedArray<MultiChannelAudioBuffer> buffers;
+		ReferenceCountedArray<FilterDataObject> filterData;
 
 		File testRootDirectory;
 

@@ -542,6 +542,7 @@ public:
 		DEF_PARAMETER(LoopStart, ramp_impl);
 		DEF_PARAMETER(Gate, ramp_impl);
 	}
+	PARAMETER_MEMBER_FUNCTION;
 
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{

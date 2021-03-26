@@ -195,5 +195,9 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/SampleDisplayComponent.h"
 
 
+#include "hi_standalone_components/eq_plot/FilterInfo.h"
+#include "hi_standalone_components/eq_plot/FilterGraph.h"
+
+
 #include "hi_rlottie/hi_rlottie.h"
 

@@ -52,6 +52,12 @@ public:
 		return true;
 	}
 
+	FilterDataObject* getFilterData(int index) override
+	{
+		jassertfalse; // soon...
+		return nullptr;
+	}
+
 protected:
 
 	ComplexDataUIBase* createAndInit(ExternalData::DataType t, bool useSampleLookup)

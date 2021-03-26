@@ -298,6 +298,7 @@ struct SnexSource : public WorkbenchData::Listener
 
 		int getNumDataObjects(ExternalData::DataType t) const override;
 
+		FilterDataObject* getFilterData(int index) override;
 		Table* getTable(int index) override;
 		SliderPackData* getSliderPack(int index) override;
 		MultiChannelAudioBuffer* getAudioFile(int index) override;

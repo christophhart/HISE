@@ -111,13 +111,12 @@ Set to 1 to enable all workbench tools. (This is disabled in the lightweight sne
 
 
 
-#include "eq_plot/FilterInfo.h"
-#include "eq_plot/FilterGraph.h"
-#include "eq_plot/EqComponent.h"
 
 #include "floating_layout/FloatingLayout.h"
 #include "plugin_components/PanelTypes.h"
-#include "wave_components/SampleComponents.h"
+
+#include "audio_components/SampleComponents.h"
+#include "audio_components/EqComponent.h"
 
 #include "markdown_components/MarkdownPreview.h"
 #include "markdown_components/MarkdownComponents.h"

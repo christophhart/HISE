@@ -89,7 +89,11 @@ constexpr const auto& getWrappedObject() const { return x; }
 
 /** Use these for default forwarding to the wrapped element. */
 #define HISE_DEFAULT_RESET(ObjectType) void reset() { obj.reset(); }
-#define HISE_DEFAULT_MOD(ObjectType) bool handleModulation(double& v) { return obj.handleModulation(v); }
+#define HISE_DEFAULT_MOD(ObjectType) bool handleModulation(double& v) { \
+	if constexpr(prototypes::check::handleModulation<ObjectType>::value) \
+		return obj.handleModulation(v); \
+	return false; }
+
 #define HISE_DEFAULT_HANDLE_EVENT(ObjectType) void handleHiseEvent(HiseEvent& e) { obj.handleHiseEvent(e); }
 #define HISE_DEFAULT_INIT(ObjectType) void initialise(NodeBase* n) { obj.initialise(n); }
 #define HISE_DEFAULT_PROCESS(ObjectType) template <typename ProcessDataType> void process(ProcessDataType& d) { obj.process(d); }

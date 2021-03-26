@@ -854,6 +854,8 @@ struct TestComplexDataManager : public TestDataComponentBase,
 			return ExternalData::DataType::SliderPack;
 		if (comboBoxIndex >= 3000 && comboBoxIndex < 4000)
 			return ExternalData::DataType::AudioFile;
+		if (comboBoxIndex >= 4000 && comboBoxIndex < 5000)
+			return ExternalData::DataType::FilterCoefficients;
 
 		jassertfalse;
 		return  ExternalData::DataType::numDataTypes;
@@ -880,6 +882,8 @@ struct TestComplexDataManager : public TestDataComponentBase,
 			return index + 2000;
 		if (t == ExternalData::DataType::AudioFile)
 			return index + 3000;
+		if (t == ExternalData::DataType::FilterCoefficients)
+			return index + 4000;
 	}
 
 	void setComponent(int cbIndex)
@@ -910,6 +914,13 @@ struct TestComplexDataManager : public TestDataComponentBase,
 				auto t = td.getAudioFile(i);
 				auto b = new hise::MultiChannelAudioBufferDisplay();
 				b->setAudioFile(t);
+				currentDataComponent = b;
+			}
+			if (d == ExternalData::DataType::FilterCoefficients)
+			{
+				auto t = td.getFilterData(i);
+				auto b = new hise::FilterGraph();
+				b->setComplexDataUIBase(t);
 				currentDataComponent = b;
 			}
 		}

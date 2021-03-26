@@ -329,6 +329,11 @@ OpaqueNodeDataHolder::OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn) :
 	for (int i = 0; i < numAudioFiles; i++)
 		data.add(new data::dynamic::audiofile(*this, i));
 
+	auto numFilters = opaqueNode.numDataObjects[(int)ExternalData::DataType::FilterCoefficients];
+
+	for (int i = 0; i < numFilters; i++)
+		data.add(new data::dynamic::filter(*this, i));
+
 	int index = 0;
 
 	for (auto d : data)
@@ -336,14 +341,9 @@ OpaqueNodeDataHolder::OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn) :
 		d->initialise(parentNode);
 		
 		ExternalData ed(d->currentlyUsedData, index);
-
 		SimpleReadWriteLock::ScopedWriteLock sl(d->currentlyUsedData->getDataLock());
-
 		opaqueNode.setExternalData(ed, index++);
 	}
-		
-
-	
 }
 
 OpaqueNodeDataHolder::Editor::Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater* u) :
@@ -372,6 +372,9 @@ void OpaqueNodeDataHolder::Editor::addEditor(data::pimpl::dynamic_base* d)
 
 	if (dt == snex::ExternalData::DataType::AudioFile)
 		e = new data::ui::audiofile_editor_with_mod(updater, dynamic_cast<data::dynamic::audiofile*>(d));
+
+	if (dt == snex::ExternalData::DataType::FilterCoefficients)
+		e = new data::ui::filter_editor(updater, dynamic_cast<data::dynamic::filter*>(d));
 
 	addAndMakeVisible(e);
 

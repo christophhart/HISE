@@ -32,6 +32,9 @@
 
 namespace hise { using namespace juce;
 
+
+
+
 void EmptyComponent::paint(Graphics& g)
 {
 	g.fillAll(c);

@@ -39,19 +39,9 @@ using namespace hise;
 namespace filters
 {
 
-struct CoefficientProvider
-{
-	virtual ~CoefficientProvider() {};
-	virtual IIRCoefficients getCoefficients() = 0;
-
-	double sr = 44100.0;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(CoefficientProvider);
-};
-
-
 template <class FilterType, int NV> 
-class FilterNodeBase : public CoefficientProvider
+class FilterNodeBase : public data::base,
+					   public hise::ComplexDataUIUpdaterBase::EventListener
 {
 public:
 
@@ -80,6 +70,26 @@ public:
 	void prepare(PrepareSpecs ps);
 	void reset();
 
+	void setExternalData(const ExternalData& d, int index) override
+	{
+		if (this->externalData.obj != nullptr)
+			d.obj->getUpdater().removeEventListener(this);
+
+		jassert(d.dataType == ExternalData::DataType::FilterCoefficients);
+
+		base::setExternalData(d, index);
+
+		if (auto fd = dynamic_cast<FilterDataObject*>(d.obj))
+		{
+			fd->getUpdater().addEventListener(this);
+			
+			if(sr > 0.0)
+				fd->setSampleRate(sr);
+		}
+	}
+
+	void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType e, var newValue) override;
+
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
 		auto b = data.toAudioSampleBuffer();
@@ -92,7 +102,14 @@ public:
 		filter.get().processFrame(data.begin(), data.size());
 	}
 
-	IIRCoefficients getCoefficients() override;
+	void sendCoefficientUpdateMessage()
+	{
+		DataReadLock l(this);
+
+		if (this->externalData.obj != nullptr)
+			this->externalData.obj->getUpdater().sendContentChangeMessage(sendNotificationAsync, 0);
+	}
+
 	void setFrequency(double newFrequency);
 	void setGain(double newGain);
 	void setQ(double newQ);
@@ -108,8 +125,8 @@ public:
 		DEF_PARAMETER(Smoothing, FilterNodeBase);
 	}
 
-	AudioSampleBuffer buffer;
 	PolyData<FilterObject, NumVoices> filter;
+	double sr = -1.0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(FilterNodeBase);
 };

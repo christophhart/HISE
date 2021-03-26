@@ -1034,6 +1034,12 @@ public:
 			return static_cast<MultiChannelAudioBuffer*>(getUsedData(snex::ExternalData::DataType::AudioFile));
 		}
 
+		FilterDataObject* getFilterData(int index) override
+		{
+			jassertfalse;
+			return nullptr; // soon;
+		}
+
 		int getNumDataObjects(ExternalData::DataType t) const override
 		{
 			return t == type ? 1 : 0;

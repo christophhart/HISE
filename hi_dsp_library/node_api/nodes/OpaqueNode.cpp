@@ -115,9 +115,7 @@ void OpaqueNode::initExternalData(ExternalDataHolder* externalDataHolder)
 		}
 	};
 
-	initAll(ExternalData::DataType::Table);
-	initAll(ExternalData::DataType::SliderPack);
-	initAll(ExternalData::DataType::AudioFile);
+	ExternalData::forEachType(initAll);
 }
 
 void OpaqueNode::setExternalPtr(void* externPtr)
@@ -249,6 +247,7 @@ bool ProjectDll::initNode(OpaqueNode* n, int index)
 		n->numDataObjects[0] = gndo(index, 0);
 		n->numDataObjects[1] = gndo(index, 1);
 		n->numDataObjects[2] = gndo(index, 2);
+		n->numDataObjects[3] = gndo(index, 3);
 
 		return true;
 	}

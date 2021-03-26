@@ -38,6 +38,7 @@ namespace filters
 using namespace juce;
 using namespace hise;
 
+#if 0
 FilterNodeGraph::FilterNodeGraph(CoefficientProvider* d, PooledUIUpdater* h) :
 	ScriptnodeExtraComponent<CoefficientProvider>(d, h),
 	filterGraph(1)
@@ -85,6 +86,7 @@ void FilterNodeGraph::resized()
 	if (this->getWidth() > 0)
 		filterGraph.setBounds(this->getLocalBounds());
 }
+#endif
 
 }
 

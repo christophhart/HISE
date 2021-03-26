@@ -48,6 +48,8 @@ void FilterNodeBase<FilterType, NV>::setMode(double newMode)
 {
 	for (auto& f : filter)
 		f.setType((int)newMode);
+
+	sendCoefficientUpdateMessage();
 }
 
 template <class FilterType, int NV>
@@ -55,6 +57,8 @@ void FilterNodeBase<FilterType, NV>::setQ(double newQ)
 {
 	for (auto& f : filter)
 		f.setQ(newQ);
+
+	sendCoefficientUpdateMessage();
 }
 
 template <class FilterType, int NV>
@@ -64,6 +68,8 @@ void FilterNodeBase<FilterType, NV>::setGain(double newGain)
 
 	for (auto& f : filter)
 		f.setGain(gainValue);
+
+	sendCoefficientUpdateMessage();
 }
 
 template <class FilterType, int NV>
@@ -71,6 +77,8 @@ void FilterNodeBase<FilterType, NV>::setFrequency(double newFrequency)
 {
 	for (auto& f : filter)
 		f.setFrequency(newFrequency);
+
+	sendCoefficientUpdateMessage();
 }
 
 template <class FilterType, int NV>
@@ -80,22 +88,30 @@ void FilterNodeBase<FilterType, NV>::reset()
 		f.reset();
 }
 
-template <class FilterType, int NV>
-IIRCoefficients FilterNodeBase<FilterType, NV>::getCoefficients()
-{
-	for(auto& f: filter)
-		return f.getApproximateCoefficients();
 
-	return {};
+template <class FilterType, int NV>
+void scriptnode::filters::FilterNodeBase<FilterType, NV>::onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType e, var newValue)
+{
+	if (e == ComplexDataUIUpdaterBase::EventType::ContentChange)
+	{
+		if (auto fd = dynamic_cast<FilterDataObject*>(this->externalData.obj))
+		{
+			for (auto& f : filter)
+			{
+				auto c = f.getApproximateCoefficients();
+				fd->setCoefficients(c);
+				break;
+			}
+		}
+	}
 }
 
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::prepare(PrepareSpecs ps)
 {
-	sr = ps.sampleRate;
-
 	auto c = ps.numChannels;
 	auto s = ps.sampleRate;
+	sr = s;
 
 	filter.prepare(ps);
 
@@ -104,6 +120,9 @@ void FilterNodeBase<FilterType, NV>::prepare(PrepareSpecs ps)
 		f.setNumChannels(c);
 		f.setSampleRate(s);
 	};
+
+	if (auto fd = dynamic_cast<FilterDataObject*>(this->externalData.obj))
+		fd->setSampleRate(ps.sampleRate);
 }
 
 template <class FilterType, int NV>

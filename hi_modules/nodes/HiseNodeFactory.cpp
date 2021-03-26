@@ -175,19 +175,23 @@ Factory::Factory(DspNetwork* network) :
 
 namespace filters
 {
+template <typename FilterType> using df = wrap::data<FilterType, data::dynamic::filter>;
 
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
-	registerPolyNode<one_pole, one_pole_poly, FilterNodeGraph>();
-	registerPolyNode<svf, svf_poly, FilterNodeGraph>();
-	registerPolyNode<svf_eq, svf_eq_poly, FilterNodeGraph>();
-	registerPolyNode<biquad, biquad_poly, FilterNodeGraph>();
-	registerPolyNode<ladder, ladder_poly, FilterNodeGraph>();
-	registerPolyNode<ring_mod, ring_mod_poly, FilterNodeGraph>();
-	registerPolyNode<moog, moog_poly, FilterNodeGraph>();
-	registerPolyNode<allpass, allpass_poly, FilterNodeGraph>();
-	registerPolyNode<linkwitzriley, linkwitzriley_poly, FilterNodeGraph>();
+	using namespace data::ui;
+
+	registerPolyNode<df<one_pole>,		df<one_pole_poly>,		filter_editor>();
+	registerPolyNode<df<svf>,			df<svf_poly>,			filter_editor>();
+	registerPolyNode<df<svf_eq>,		df<svf_eq_poly>,		filter_editor>();
+	registerPolyNode<df<biquad>,		df<biquad_poly>,		filter_editor>();
+	registerPolyNode<df<ladder>,		df<ladder_poly>,		filter_editor>();
+	registerPolyNode<df<ring_mod>,		df<ring_mod_poly>,		filter_editor>();
+	registerPolyNode<df<moog>,			df<moog_poly>,			filter_editor>();
+	registerPolyNode<df<allpass>,		df<allpass_poly>,		filter_editor>();
+	registerPolyNode<df<linkwitzriley>,	df<linkwitzriley_poly>, filter_editor>();
+
 	registerNode<wrap::data<convolution, data::dynamic::audiofile>, data::ui::audiofile_editor>();
 	//registerPolyNode<fir, fir_poly>();
 }

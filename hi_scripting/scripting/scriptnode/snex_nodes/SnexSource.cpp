@@ -300,7 +300,13 @@ int SnexSource::ComplexDataHandler::getNumDataObjects(ExternalData::DataType t) 
 	case snex::ExternalData::DataType::Table: return tables.size();
 	case snex::ExternalData::DataType::AudioFile: return audioFiles.size();
 	case snex::ExternalData::DataType::SliderPack: return sliderPacks.size();
+	case snex::ExternalData::DataType::FilterCoefficients: return 0;
 	}
+}
+
+hise::FilterDataObject* SnexSource::ComplexDataHandler::getFilterData(int index) 
+{
+	return nullptr;
 }
 
 hise::Table* SnexSource::ComplexDataHandler::getTable(int index)
