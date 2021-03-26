@@ -293,6 +293,24 @@ public:
 			JUCE_DECLARE_WEAK_REFERENCEABLE(SubComponentListener);
 		};
 
+		struct ZLevelListener
+		{
+			enum class ZLevel
+			{
+				Back,
+				Default,
+				Front,	     
+				AlwaysOnTop,
+				numZLevels
+			};
+
+			virtual ~ZLevelListener() {};
+
+			virtual void zLevelChanged(ZLevel newZLevel) = 0;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(ZLevelListener);
+		};
+
 		ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants = 0);
 
 		virtual ~ScriptComponent();
@@ -499,6 +517,9 @@ public:
 		/** Returns a list of all property IDs as array. */
 		var getAllProperties();
 
+		/** Changes the depth hierarchy (z-axis) of sibling components (Back, Default, Front or AlwaysOnTop). */
+		void setZLevel(String zLevel);
+
 		// End of API Methods ============================================================================================
 
 
@@ -603,6 +624,16 @@ public:
 			controlSender.cancelMessage();
 		}
 
+		void addZLevelListener(ZLevelListener* l)
+		{
+			zLevelListeners.addIfNotAlreadyThere(l);
+		}
+
+		void removeZLevelListener(ZLevelListener* l)
+		{
+			zLevelListeners.removeAllInstancesOf(l);
+		}
+
 	protected:
 
 		bool isCorrectlyInitialised(int p) const
@@ -621,6 +652,8 @@ public:
 
 		void setDefaultValue(int p, const var &defaultValue);
 		
+		
+
 		void addLinkedTarget(ScriptComponent* newTarget)
 		{
 			linkedComponentTargets.addIfNotAlreadyThere(newTarget);
@@ -643,7 +676,7 @@ public:
 
 	private:
 
-        struct AsyncControlCallbackSender : private UpdateDispatcher::Listener
+		struct AsyncControlCallbackSender : private UpdateDispatcher::Listener
         {
 		public:
 
@@ -672,6 +705,10 @@ public:
 		Array<Identifier> scriptChangedProperties;
 
 		Array<WeakReference<SubComponentListener>> subComponentListeners;
+		Array<WeakReference<ZLevelListener>> zLevelListeners;
+
+		ZLevelListener::ZLevel currentZLevel = ZLevelListener::ZLevel::Default;
+
 		mutable hise::SimpleReadWriteLock valueLock;
 
 		bool countJsonSetProperties = true;

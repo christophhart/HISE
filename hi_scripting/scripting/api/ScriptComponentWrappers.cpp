@@ -58,6 +58,9 @@ ScriptCreatedComponentWrapper::~ScriptCreatedComponentWrapper()
 	if (auto c = getComponent())
 		c->setLookAndFeel(nullptr);
 
+	if (auto sp = getScriptComponent())
+		sp->removeZLevelListener(this);
+
 	currentPopup = nullptr;
 }
 
@@ -151,6 +154,8 @@ ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentCompon
 	index(index_)
 {
 	scriptComponent = content->contentData->getComponent(index_);
+
+	scriptComponent->addZLevelListener(this);
 }
 
 ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentComponent* content, ScriptComponent* sc):
@@ -160,7 +165,7 @@ ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentCompon
 	index(-1),
 	scriptComponent(sc)
 {
-	
+	scriptComponent->addZLevelListener(this);
 }
 
 Processor * ScriptCreatedComponentWrapper::getProcessor()
@@ -543,6 +548,44 @@ void ScriptCreatedComponentWrapper::updatePopupPosition()
 void ScriptCreatedComponentWrapper::closeValuePopupAfterDelay()
 {
 	valuePopupHandler.startTimer(200);
+}
+
+void ScriptCreatedComponentWrapper::zLevelChanged(ScriptingApi::Content::ScriptComponent::ZLevelListener::ZLevel newLevel)
+{
+	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::AsyncUpdater);
+
+	Component::SafePointer<Component> c = getComponent();
+
+	MessageManager::callAsync([c, newLevel]()
+	{
+		using Z = ScriptingApi::Content::ScriptComponent::ZLevelListener::ZLevel;
+
+		if (c.getComponent() != nullptr)
+		{
+			bool shouldBeAlwaysOnTop = newLevel == Z::AlwaysOnTop;
+
+			c.getComponent()->setAlwaysOnTop(shouldBeAlwaysOnTop);
+
+			if(newLevel == Z::Front)
+				c.getComponent()->toFront(false);
+			else if (newLevel == Z::Back)
+				c.getComponent()->toBack();
+			else if (newLevel == Z::Default)
+			{
+				if (auto p = c.getComponent()->getParentComponent())
+				{
+					for (int i = 0; i < p->getNumChildComponents()-1; i++)
+					{
+						if (p->getChildComponent(i-1) == c.getComponent())
+						{
+							c.getComponent()->toBehind(p->getChildComponent(i));
+							break;
+						}
+					}
+				}
+			}
+		}
+	});
 }
 
 void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* s)
