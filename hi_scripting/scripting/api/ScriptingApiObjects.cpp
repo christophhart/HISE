@@ -789,7 +789,10 @@ void ScriptingObjects::ScriptDownloadObject::start()
 
 	int status = 0;
 
-	ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
+	ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &status);
+
+	if (Thread::currentThreadShouldExit())
+		return;
 
 	if (status == 200)
 	{
