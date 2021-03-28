@@ -291,6 +291,13 @@ struct ExternalData
 		sampleRate(0.0)
 	{}
 
+	struct Factory : public hise::PathFactory
+	{
+		String getId() const override { return {}; };
+
+		Path createPath(const String& id) const override;
+	};
+
 	ExternalData(ComplexDataUIBase* b, int absoluteIndex);
 
 	/** Creates an external data object from a constant value class. */

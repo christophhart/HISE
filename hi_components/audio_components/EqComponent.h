@@ -37,80 +37,12 @@ namespace hise { using namespace juce;
 
 class ModulatorSynth;
 
-struct AnalyserRingBuffer: public AsyncUpdater
-{
-	void handleAsyncUpdate()
-	{
-		if (auto l = SingleWriteLockfreeMutex::ScopedWriteLock(lock))
-		{
-			analyseBufferSize = currentSize;
-			indexInBuffer = 0;
-
-			internalBuffer.setSize(2, analyseBufferSize);
-			internalBuffer.clear();
-		}
-		else
-			triggerAsyncUpdate();
-	}
-
-	bool isActive() const
-	{
-		return currentSize != 0;
-	}
-
-	void setAnalyserBufferSize(int newValue)
-	{
-		jassert(isPowerOfTwo(newValue));
-
-		currentSize = newValue;
-
-		handleAsyncUpdate();
-	}
-
-	void pushSamples(const AudioSampleBuffer& b, int startSample, int numSamples)
-	{
-		if (internalBuffer.getNumSamples() == 0)
-			return;
-
-		if (auto sl = SingleWriteLockfreeMutex::ScopedReadLock(lock))
-		{
-			auto l = b.getReadPointer(0, startSample);
-			auto r = b.getReadPointer(1, startSample);
-
-			const int numToCopy = jmin<int>(internalBuffer.getNumSamples(), numSamples);
-
-			const int numBeforeWrap = jmin<int>(numToCopy, internalBuffer.getNumSamples() - indexInBuffer);
-
-			FloatVectorOperations::copy(internalBuffer.getWritePointer(0, indexInBuffer), l, numBeforeWrap);
-			FloatVectorOperations::copy(internalBuffer.getWritePointer(1, indexInBuffer), r, numBeforeWrap);
-
-			const int numAfterWrap = numToCopy - numBeforeWrap;
-
-			if (numAfterWrap > 0)
-			{
-				FloatVectorOperations::copy(internalBuffer.getWritePointer(0, 0), l, numAfterWrap);
-				FloatVectorOperations::copy(internalBuffer.getWritePointer(1, 0), r, numAfterWrap);
-			}
-
-			indexInBuffer = (indexInBuffer + numToCopy) % internalBuffer.getNumSamples();
-		}
-	}
-
-	mutable SingleWriteLockfreeMutex lock;
-
-	int indexInBuffer = 0;
-	int currentSize = 0;
-	int analyseBufferSize = -1;
-
-	AudioSampleBuffer internalBuffer;
-};
-
-class OscilloscopeBase
+class OscilloscopeBase: public RingBufferComponentBase
 {
 protected:
 
-	OscilloscopeBase(const AnalyserRingBuffer& ringBuffer_) :
-		ringBuffer(ringBuffer_)
+	OscilloscopeBase() :
+		RingBufferComponentBase()
 	{};
 
     virtual ~OscilloscopeBase() {};
@@ -119,9 +51,12 @@ protected:
 
 	void drawWaveform(Graphics& g);
 
-private:
+	void refresh() override
+	{
+		dynamic_cast<Component*>(this)->repaint();
+	}
 
-	const AnalyserRingBuffer& ringBuffer;
+private:
 
 	void drawPath(const float* l_, int numSamples, int width, Path& p)
 	{
@@ -164,22 +99,9 @@ private:
 
 	void drawOscilloscope(Graphics &g, const AudioSampleBuffer &b)
 	{
-		AudioSampleBuffer b2(2, b.getNumSamples());
-
-		auto dataL = b2.getWritePointer(0);
-		auto dataR = b2.getWritePointer(1);
+		auto dataL = b.getReadPointer(0);
+		auto dataR = b.getReadPointer(1);
 		int size = b.getNumSamples();
-
-		auto readIndex = ringBuffer.indexInBuffer;
-
-		int numBeforeWrap = size - readIndex;
-		int numAfterWrap = size - numBeforeWrap;
-
-		FloatVectorOperations::copy(dataL, b.getReadPointer(0, readIndex), numBeforeWrap);
-		FloatVectorOperations::copy(dataL + numBeforeWrap, b.getReadPointer(0, 0), numAfterWrap);
-
-		FloatVectorOperations::copy(dataR, b.getReadPointer(1, readIndex), numBeforeWrap);
-		FloatVectorOperations::copy(dataR + numBeforeWrap, b.getReadPointer(1, 0), numAfterWrap);
 
 		auto asComponent = dynamic_cast<Component*>(this);
 
@@ -195,11 +117,9 @@ private:
 
 	Path lPath;
 	Path rPath;
-
-
 };
 
-class FFTDisplayBase
+class FFTDisplayBase: public RingBufferComponentBase
 {
 public:
 
@@ -232,14 +152,16 @@ public:
 
 	Properties fftProperties;
 
+	void refresh() override
+	{
+		dynamic_cast<Component*>(this)->repaint();
+	}
+
 protected:
 
-
-
-	FFTDisplayBase(const AnalyserRingBuffer& ringBuffer_):
-		ringBuffer(ringBuffer_)
+	FFTDisplayBase()
 #if USE_IPP
-		, fftObject(IppFFT::DataType::RealFloat)
+		:fftObject(IppFFT::DataType::RealFloat)
 #endif
 	{}
 
@@ -252,19 +174,13 @@ protected:
 
     virtual ~FFTDisplayBase() {};
     
-	
-	
-
 	void drawSpectrum(Graphics& g);
-
-	const AnalyserRingBuffer& ringBuffer;
 
 	Path lPath;
 	Path rPath;
 
 	WindowType lastWindowType = numWindowTypes;
 	
-
 	AudioSampleBuffer windowBuffer;
 	AudioSampleBuffer fftBuffer;
 };

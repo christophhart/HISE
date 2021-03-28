@@ -240,23 +240,19 @@ struct editor_base : public ScriptnodeExtraComponent<data::pimpl::dynamic_base>,
 };
 
 template <class DynamicDataType, class DataType, class ComponentType, bool AddDragger> struct editorT : public editor_base,
-																										public ComboBoxListener
+																										public ButtonListener
 {
 	editorT(PooledUIUpdater* updater, ObjectType* b) :
 		editor_base(b, updater),
-		u(updater)
+		u(updater),
+		externalButton(getButtonName(), this, f)
 	{
 		static_assert(std::is_base_of<ComplexDataUIBase, DataType>(), "not a complex data type");
 		static_assert(std::is_base_of<ComplexDataUIBase::EditorBase, ComponentType>(), "not a complex data editor type");
 		static_assert(std::is_base_of<juce::Component, ComponentType>(), "not a component type");
 		static_assert(std::is_base_of<ObjectType, DynamicDataType>(), "not a dynamic data type");
 
-		addAndMakeVisible(slotSelector);
-		slotSelector.setLookAndFeel(&plaf);
-
-		GlobalHiseLookAndFeel::setDefaultColours(slotSelector);
-
-		slotSelector.addListener(this);
+		addAndMakeVisible(externalButton);
 
 		rebuildSelectorItems();
 
@@ -270,16 +266,26 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 		sourceHasChanged(nullptr, b->currentlyUsedData);
 	};
 
-	void rebuildSelectorItems()
+	String getButtonName() const
+	{
+		auto dt = ExternalData::getDataTypeForClass(getObject()->currentlyUsedData);
+		return ExternalData::getDataTypeName(dt, false).toLowerCase();
+	}
+
+	void buttonClicked(Button* b) override
 	{
 		auto type = ExternalData::getDataTypeForClass<DataType>();
+
+		PopupLookAndFeel plaf;
+		PopupMenu m;
+		m.setLookAndFeel(&plaf);
 
 		StringArray list;
 
 		list.add("Embedded");
-		
+
 		slotSelector.clear(dontSendNotification);
-		
+
 		if (auto eh = getObject()->parentNode->getRootNetwork()->getExternalDataHolder())
 		{
 			for (int i = 0; i < eh->getNumDataObjects(type); i++)
@@ -295,14 +301,24 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 			list.add(s);
 		}
 
-		slotSelector.addItemList(list, 1);
 		auto index = getObject()->getIndex();
-		slotSelector.setSelectedItemIndex(index + 1, dontSendNotification);
+
+		for (int i = 0; i < list.size(); i++)
+			m.addItem(i + 1, list[i], true, (i-1) == (index));
+
+		if (auto r = m.show())
+			getObject()->getValueTree().setProperty(PropertyIds::Index, r - 2, getObject()->parentNode->getUndoManager());
 	}
 
-	void comboBoxChanged(ComboBox*) override
+	void rebuildSelectorItems()
 	{
-		getObject()->getValueTree().setProperty(PropertyIds::Index, slotSelector.getSelectedItemIndex() - 1, getObject()->parentNode->getUndoManager());
+		auto index = getObject()->getIndex();
+		externalButton.setToggleStateAndUpdateIcon(index != -1);
+	}
+
+	void paint(Graphics& g) override
+	{
+		
 	}
 
 	~editorT() {};
@@ -310,17 +326,45 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 	void resized() override
 	{
 		auto b = getLocalBounds();
+		auto top = b.removeFromBottom(28);
 
-		slotSelector.setBounds(b.removeFromTop(24));
-		
+		externalButton.setBounds(top.removeFromRight(28).reduced(3));
+
 		if (dragger != nullptr)
 		{
-			b.removeFromTop(3);
-			dragger->setBounds(b.removeFromBottom(20));
+			top.removeFromLeft(28);
+			dragger->setBounds(top.reduced(2));
 		}
-			
+
+		b.removeFromBottom(10);
 		b.removeFromTop(3);
 		editor.setBounds(b);
+
+		Path src;
+		src.addRectangle(b.toFloat());
+
+		PathStrokeType ps(1.0f);
+		float d[2] = { 3.0f, 2.0f };
+		ps.createDashedStroke(dashPath, src, d, 2);
+	}
+
+	void paintOverChildren(Graphics& g) override
+	{
+		auto idx = getObject()->getIndex();
+
+		if (idx != -1)
+		{
+			auto b = editor.getBounds().toFloat();
+
+			String x;
+			x << "#";
+			x << (idx+1);
+
+			g.setColour(Colours::white.withAlpha(0.9f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.fillPath(dashPath);
+			g.drawText(x, b.reduced(5.0f), Justification::topLeft);
+		}
 	}
 
 	void sourceHasChanged(ComplexDataUIBase* oldSource, ComplexDataUIBase* newSource) override
@@ -331,6 +375,7 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 
 		rebuildSelectorItems();
 		resized();
+		repaint();
 	}
 
 	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
@@ -340,6 +385,11 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 
 		return new editorT<DynamicDataType, DataType, ComponentType, AddDragger>(updater, t);
 	}
+
+	ExternalData::Factory f;
+	HiseShapeButton externalButton;
+
+	Path dashPath;
 
 	PooledUIUpdater* u;
 	PopupLookAndFeel plaf;

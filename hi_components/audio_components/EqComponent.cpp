@@ -39,198 +39,205 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 #if USE_IPP
 
-	if (auto l_ = SingleWriteLockfreeMutex::ScopedReadLock(ringBuffer.lock))
+	if (rb != nullptr)
 	{
-		const auto& b = ringBuffer.internalBuffer;
-
-		int size = b.getNumSamples();
-
-		if (windowBuffer.getNumSamples() == 0 || windowBuffer.getNumSamples() != size)
+		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(rb->getDataLock()))
 		{
-			windowBuffer = AudioSampleBuffer(1, size);
-			fftBuffer = AudioSampleBuffer(1, size);
-			fftBuffer.clear();
-		}
-			
-		if(lastWindowType != fftProperties.window)
-		{
-			auto d = windowBuffer.getWritePointer(0);
+			const auto& b = rb->getReadBuffer();
 
-			switch (fftProperties.window)
+			int size = b.getNumSamples();
+
+			if (windowBuffer.getNumSamples() == 0 || windowBuffer.getNumSamples() != size)
 			{
-			case BlackmannHarris: icstdsp::VectorFunctions::bhw4(d, size); break;
-
-			case Hann:			  icstdsp::VectorFunctions::hann(d, size); break;
-			case Flattop:		  icstdsp::VectorFunctions::flattop(d, size); break;
-			case Rectangle:
-			default:			  FloatVectorOperations::fill(d, 1.0f, size); break;
+				windowBuffer = AudioSampleBuffer(1, size);
+				fftBuffer = AudioSampleBuffer(1, size);
+				fftBuffer.clear();
 			}
 
-			lastWindowType = fftProperties.window;
-		}
-
-		AudioSampleBuffer b2(2, b.getNumSamples());
-
-		auto data = b2.getWritePointer(0);
-		auto lastValues = fftBuffer.getWritePointer(0);
-
-		auto readIndex = ringBuffer.indexInBuffer;
-
-		int numBeforeWrap = size - readIndex;
-		int numAfterWrap = size - numBeforeWrap;
-
-		FloatVectorOperations::copy(data, b.getReadPointer(0, readIndex), numBeforeWrap);
-		FloatVectorOperations::copy(data + numBeforeWrap, b.getReadPointer(0, 0), numAfterWrap);
-
-		FloatVectorOperations::add(data, b.getReadPointer(1, readIndex), numBeforeWrap);
-		FloatVectorOperations::add(data + numBeforeWrap, b.getReadPointer(1, 0), numAfterWrap);
-
-		FloatVectorOperations::multiply(data, 0.5f, size);
-		FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), size);
-
-		auto sampleRate = getSamplerate();
-
-		fftObject.realFFTInplace(data, size);
-
-		if (fftProperties.domain == Amplitude)
-		{
-			for (int i = 2; i < size; i += 2)
+			if (lastWindowType != fftProperties.window)
 			{
-				data[i] = sqrt(data[i] * data[i] + data[i + 1] * data[i + 1]);
-				data[i + 1] = data[i];
-			}
-		}
-		else
-		{
-			auto threshhold = FloatVectorOperations::findMaximum(data, size) / 10000.0;
+				auto d = windowBuffer.getWritePointer(0);
 
-			data[0] = 0.0f;
-			data[1] = 0.0f;
+				switch (fftProperties.window)
+				{
+				case BlackmannHarris: icstdsp::VectorFunctions::bhw4(d, size); break;
 
-			for (int i = 2; i < size; i += 2)
-			{
-				auto real = data[i];
-				auto img = data[i + 1];
-				
-				if (real < threshhold) real = 0.0f;
-				if (img < threshhold) img = 0.0f;
+				case Hann:			  icstdsp::VectorFunctions::hann(d, size); break;
+				case Flattop:		  icstdsp::VectorFunctions::flattop(d, size); break;
+				case Rectangle:
+				default:			  FloatVectorOperations::fill(d, 1.0f, size); break;
+				}
 
-				auto phase = atan2f(img, real);
-
-				data[i] = phase;
-				data[i + 1] = phase;
-			}	
-		}
-		
-
-		//fftObject.realFFT(b.getReadPointer(1), b2.getWritePointer(1), b2.getNumSamples());
-
-		FloatVectorOperations::abs(data, b2.getReadPointer(0), size);
-		FloatVectorOperations::multiply(data, 1.0f / 95.0f, size);
-
-		auto asComponent = dynamic_cast<Component*>(this);
-
-		int stride = roundToInt((float)size / asComponent->getWidth());
-		stride *= 2;
-
-		lPath.clear();
-
-		lPath.startNewSubPath(0.0f, (float)asComponent->getHeight());
-		//lPath.lineTo(0.0f, -1.0f);
-
-		if (sampleRate == 0.0)
-			sampleRate = 44100.0;
-
-		int log10Offset = (int)(10.0 / (sampleRate * 0.5) * (double)size + 1.0);
-
-		auto maxPos = log10f((float)(size));
-
-		float lastIndex = 0.0f;
-		float value = 0.0f;
-		int lastI = 0;
-		int sumAmount = 0;
-
-		int lastLineLog = 1;
-
-		g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::lineColour));
-
-		int xLog10Pos = roundToInt(log10((float)log10Offset) / maxPos * (float)asComponent->getWidth());
-
-		for (int i = log10Offset; i < size; i += 2)
-		{
-			auto f = (double)i / (double)size * sampleRate / 2.0;
-
-			auto thisLineLog = (int)log10(f);
-
-			if (thisLineLog == 0)
-				continue;
-
-			float xPos;
-			
-			if (fftProperties.freq2x)
-				xPos = (float)fftProperties.freq2x((float)f);
-			else
-				xPos = (float)log10((float)i) / maxPos * (float)(asComponent->getWidth() + xLog10Pos) - xLog10Pos;
-
-			auto diff = xPos - lastIndex;
-
-			if ((int)thisLineLog != lastLineLog)
-			{
-				g.drawVerticalLine((int)xPos, 0.0f, (float)asComponent->getHeight());
-
-				lastLineLog = (int)thisLineLog;
+				lastWindowType = fftProperties.window;
 			}
 
-			auto indexDiff = i - lastI;
+			AudioSampleBuffer b2(2, b.getNumSamples());
 
-			float v = fabsf(data[i]);
+			b2.makeCopyOf(rb->getReadBuffer());
 
-			if (fftProperties.gain2y)
-				v = fftProperties.gain2y(v);
+			auto data = b2.getWritePointer(0);
+			auto lastValues = fftBuffer.getWritePointer(0);
+
+#if 0
+			auto readIndex = ringBuffer.indexInBuffer;
+
+			int numBeforeWrap = size - readIndex;
+			int numAfterWrap = size - numBeforeWrap;
+
+			FloatVectorOperations::copy(data, b.getReadPointer(0, readIndex), numBeforeWrap);
+			FloatVectorOperations::copy(data + numBeforeWrap, b.getReadPointer(0, 0), numAfterWrap);
+
+			FloatVectorOperations::add(data, b.getReadPointer(1, readIndex), numBeforeWrap);
+			FloatVectorOperations::add(data + numBeforeWrap, b.getReadPointer(1, 0), numAfterWrap);
+
+			FloatVectorOperations::multiply(data, 0.5f, size);
+			FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), size);
+#endif
+
+			auto sampleRate = getSamplerate();
+
+			fftObject.realFFTInplace(data, size);
+
+			if (fftProperties.domain == Amplitude)
+			{
+				for (int i = 2; i < size; i += 2)
+				{
+					data[i] = sqrt(data[i] * data[i] + data[i + 1] * data[i + 1]);
+					data[i + 1] = data[i];
+				}
+			}
 			else
 			{
+				auto threshhold = FloatVectorOperations::findMaximum(data, size) / 10000.0;
 
-				v = Decibels::gainToDecibels(v);
-				v = jlimit<float>(-90.0f, 0.0f, v);
-				v = 1.0f + v / 90.0f;
-				v = powf(v, 0.707f);
+				data[0] = 0.0f;
+				data[1] = 0.0f;
+
+				for (int i = 2; i < size; i += 2)
+				{
+					auto real = data[i];
+					auto img = data[i + 1];
+
+					if (real < threshhold) real = 0.0f;
+					if (img < threshhold) img = 0.0f;
+
+					auto phase = atan2f(img, real);
+
+					data[i] = phase;
+					data[i + 1] = phase;
+				}
 			}
 
-			value += v;
-			sumAmount++;
 
-			if (diff > 1.0f && indexDiff > 4)
+			//fftObject.realFFT(b.getReadPointer(1), b2.getWritePointer(1), b2.getNumSamples());
+
+			FloatVectorOperations::abs(data, b2.getReadPointer(0), size);
+			FloatVectorOperations::multiply(data, 1.0f / 95.0f, size);
+
+			auto asComponent = dynamic_cast<Component*>(this);
+
+			int stride = roundToInt((float)size / asComponent->getWidth());
+			stride *= 2;
+
+			lPath.clear();
+
+			lPath.startNewSubPath(0.0f, (float)asComponent->getHeight());
+			//lPath.lineTo(0.0f, -1.0f);
+
+			if (sampleRate == 0.0)
+				sampleRate = 44100.0;
+
+			int log10Offset = (int)(10.0 / (sampleRate * 0.5) * (double)size + 1.0);
+
+			auto maxPos = log10f((float)(size));
+
+			float lastIndex = 0.0f;
+			float value = 0.0f;
+			int lastI = 0;
+			int sumAmount = 0;
+
+			int lastLineLog = 1;
+
+			g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::lineColour));
+
+			int xLog10Pos = roundToInt(log10((float)log10Offset) / maxPos * (float)asComponent->getWidth());
+
+			for (int i = log10Offset; i < size; i += 2)
 			{
-				value /= (float)(sumAmount);
+				auto f = (double)i / (double)size * sampleRate / 2.0;
 
-				sumAmount = 0;
+				auto thisLineLog = (int)log10(f);
 
-				lastIndex = xPos;
-				lastI = i;
+				if (thisLineLog == 0)
+					continue;
 
-				value = 0.6f * value + 0.4f * lastValues[i];
+				float xPos;
 
-				if (value > lastValues[i])
-					lastValues[i] = value;
+				if (fftProperties.freq2x)
+					xPos = (float)fftProperties.freq2x((float)f);
 				else
-					lastValues[i] = jmax<float>(0.0f, lastValues[i] - 0.02f);
+					xPos = (float)log10((float)i) / maxPos * (float)(asComponent->getWidth() + xLog10Pos) - xLog10Pos;
 
-				auto yPos = lastValues[i];
-				yPos = 1.0f - yPos;
+				auto diff = xPos - lastIndex;
 
-				yPos *= asComponent->getHeight();
+				if ((int)thisLineLog != lastLineLog)
+				{
+					g.drawVerticalLine((int)xPos, 0.0f, (float)asComponent->getHeight());
 
-				lPath.lineTo(xPos, yPos);
+					lastLineLog = (int)thisLineLog;
+				}
 
-				value = 0.0f;
+				auto indexDiff = i - lastI;
+
+				float v = fabsf(data[i]);
+
+				if (fftProperties.gain2y)
+					v = fftProperties.gain2y(v);
+				else
+				{
+
+					v = Decibels::gainToDecibels(v);
+					v = jlimit<float>(-90.0f, 0.0f, v);
+					v = 1.0f + v / 90.0f;
+					v = powf(v, 0.707f);
+				}
+
+				value += v;
+				sumAmount++;
+
+				if (diff > 1.0f && indexDiff > 4)
+				{
+					value /= (float)(sumAmount);
+
+					sumAmount = 0;
+
+					lastIndex = xPos;
+					lastI = i;
+
+					value = 0.6f * value + 0.4f * lastValues[i];
+
+					if (value > lastValues[i])
+						lastValues[i] = value;
+					else
+						lastValues[i] = jmax<float>(0.0f, lastValues[i] - 0.02f);
+
+					auto yPos = lastValues[i];
+					yPos = 1.0f - yPos;
+
+					yPos *= asComponent->getHeight();
+
+					lPath.lineTo(xPos, yPos);
+
+					value = 0.0f;
+				}
 			}
+
+			lPath.lineTo((float)asComponent->getWidth(), (float)asComponent->getHeight());
+			lPath.closeSubPath();
+
+			g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::fillColour));
+			g.fillPath(lPath);
 		}
-
-		lPath.lineTo((float)asComponent->getWidth(), (float)asComponent->getHeight());
-		lPath.closeSubPath();
-
-		g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::fillColour));
-		g.fillPath(lPath);
 	}
 
 #else
@@ -245,13 +252,14 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 void OscilloscopeBase::drawWaveform(Graphics& g)
 {
-	if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(ringBuffer.lock))
+	if (rb != nullptr)
 	{
-		g.fillAll(getColourForAnalyserBase(AudioAnalyserComponent::bgColour));
-
-		g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::fillColour));
-
-		drawOscilloscope(g, ringBuffer.internalBuffer);
+		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(rb->getDataLock()))
+		{
+			g.fillAll(getColourForAnalyserBase(AudioAnalyserComponent::bgColour));
+			g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::fillColour));
+			drawOscilloscope(g, rb->getReadBuffer());
+		}
 	}
 }
 
@@ -736,7 +744,7 @@ void FilterDragOverlay::fillPopupMenu(PopupMenu& m, int handleIndex)
 	else
 	{
 		m.addItem(1, "Delete all bands", true, false);
-		m.addItem(2, "Enable Spectrum Analyser", true, eq->getFFTBuffer().isActive());
+		m.addItem(2, "Enable Spectrum Analyser", true, eq->getFFTBuffer()->isActive());
 		m.addItem(3, "Cancel");
 	}
 
@@ -795,7 +803,7 @@ void FilterDragOverlay::popupMenuAction(int result, int handleIndex)
 				eq->removeFilterBand(0);
 		}
 		else if (result == 2)
-			eq->enableSpectrumAnalyser(!eq->getFFTBuffer().isActive());
+			eq->enableSpectrumAnalyser(!eq->getFFTBuffer()->isActive());
 	}
 }
 
@@ -981,15 +989,17 @@ void FilterDragOverlay::FilterDragComponent::setIndex(int newIndex)
 }
 
 FilterDragOverlay::FFTDisplay::FFTDisplay(FilterDragOverlay& parent_) :
-	FFTDisplayBase(parent_.eq->getFFTBuffer()),
+	FFTDisplayBase(),
 	parent(parent_)
 {
+	setComplexDataUIBase(parent_.eq->getFFTBuffer());
+
 	fftProperties.freq2x = std::bind(&FilterGraph::freqToX, &parent.filterGraph, std::placeholders::_1);
 }
 
 void FilterDragOverlay::FFTDisplay::paint(Graphics& g)
 {
-	if (ringBuffer.isActive() && !parent.eq->isBypassed())
+	if (rb->isActive() && !parent.eq->isBypassed())
 		FFTDisplayBase::drawSpectrum(g);
 }
 

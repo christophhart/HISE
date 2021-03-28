@@ -188,6 +188,8 @@ END_JUCE_MODULE_DECLARATION
 
 #include "hi_standalone_components/Plotter.h"
 
+#include "hi_standalone_components/RingBuffer.h"
+
 #include "hi_standalone_components/SliderPack.h"
 #include "hi_standalone_components/TableEditor.h"
 

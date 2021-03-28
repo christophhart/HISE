@@ -39,23 +39,4 @@ using namespace hise;
 
 
 
-
-struct SimpleRingBuffer
-{
-	static constexpr int RingBufferSize = 65536;
-
-	SimpleRingBuffer();
-
-	void clear();
-	int read(AudioSampleBuffer& b);
-	void write(double value, int numSamples);
-
-	bool isBeingWritten = false;
-
-	int numAvailable = 0;
-	int writeIndex = 0;
-	float buffer[RingBufferSize];
-};
-
-
 }

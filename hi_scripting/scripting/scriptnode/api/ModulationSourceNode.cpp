@@ -117,6 +117,7 @@ ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
 	SimpleTimer(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
 {
 	ringBuffer = new SimpleRingBuffer();
+	ringBuffer->setGlobalUIUpdater(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
 
 	targetListener.setCallback(getModulationTargetTree(),
 		valuetree::AsyncMode::Synchronously,
@@ -336,33 +337,42 @@ void ModulationSourceNode::checkTargets()
 }
 
 ModulationSourceBaseComponent::ModulationSourceBaseComponent(PooledUIUpdater* updater) :
-	SimpleTimer(updater)
+	SimpleTimer(updater, true)
 {
 
 }
 
 void ModulationSourceBaseComponent::paint(Graphics& g)
 {
-	g.setColour(Colours::white.withAlpha(0.1f));
-	g.drawRect(getLocalBounds(), 1);
-	g.setColour(Colours::white.withAlpha(0.1f));
-	g.setFont(GLOBAL_BOLD_FONT());
-	g.drawText("Drag to modulation target", getLocalBounds().toFloat(), Justification::centred);
+	drawDragArea(g, getLocalBounds().toFloat());
 }
 
 juce::Image ModulationSourceBaseComponent::createDragImage()
 {
-	Image img(Image::ARGB, 100, 60, true);
+	Image img(Image::ARGB, getWidth(), getHeight(), true);
 	Graphics g(img);
 
-	g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.4f));
-	g.fillAll();
-	g.setColour(Colours::black);
-	g.setFont(GLOBAL_BOLD_FONT());
+	auto b = getLocalBounds().toFloat();
 
-	g.drawText(getSourceNodeFromParent()->getId(), 0, 0, 128, 48, Justification::centred);
+	g.setColour(Colours::black.withAlpha(0.7f));
+	g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
+
+	drawDragArea(g, b, getSourceNodeFromParent()->getId());
 
 	return img;
+}
+
+void ModulationSourceBaseComponent::drawDragArea(Graphics& g, Rectangle<float> b, String text)
+{
+	g.setColour(Colours::white.withAlpha(0.1f));
+	g.drawRoundedRectangle(b, b.getHeight() / 2.0f, 1.0f);
+	g.setColour(Colours::white.withAlpha(0.1f));
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	if (text.isEmpty())
+		text = "Drag to modulation target";
+
+	g.drawText(text, b, Justification::centred);
 }
 
 void ModulationSourceBaseComponent::mouseDrag(const MouseEvent&)
@@ -428,152 +438,22 @@ ModulationSourcePlotter::ModulationSourcePlotter(PooledUIUpdater* updater) :
 {
 	setOpaque(true);
 	setSize(256, ModulationSourceNode::ModulationBarHeight);
-
-	buffer.setSize(1, SimpleRingBuffer::RingBufferSize);
+	addAndMakeVisible(p);
 }
 
 void ModulationSourcePlotter::timerCallback()
 {
+	p.setComplexDataUIBase(getSourceNodeFromParent()->ringBuffer);
+	stop();
+		
 	skip = !skip;
 
 	if (skip)
 		return;
 
-	if (getSourceNodeFromParent() != nullptr)
-	{
-		jassert(getSamplesPerPixel() > 0);
-
-		auto numNew = sourceNode->fillAnalysisBuffer(buffer);
-
-		pixelCounter += (float)numNew / (float)getSamplesPerPixel();
-
-		
-
-		rebuildPath();
-
-		if (pixelCounter > 4.0f)
-		{
-			pixelCounter = fmod(pixelCounter, 4.0f);
-			repaint();
-		}	
-	}
+	//p.refresh();
 }
 
-void ModulationSourcePlotter::rebuildPath()
-{
-	float offset = 2.0f;
-
-	float rectangleWidth = 1.0f;
-
-	auto width = (float)getWidth() - 2.0f * offset;
-	auto maxHeight = (float)getHeight() - 2.0f * offset;
-
-	int samplesPerPixel = getSamplesPerPixel();
-
-	rectangles.clear();
-
-	int sampleIndex = 0;
-
-	for (float i = 0.0f; i < width; i += rectangleWidth)
-	{
-		float maxValue = jlimit(0.0f, 1.0f, buffer.getMagnitude(0, sampleIndex, samplesPerPixel));
-		FloatSanitizers::sanitizeFloatNumber(maxValue);
-		float height = maxValue * maxHeight;
-		float y = offset + maxHeight - height;
-
-		sampleIndex += samplesPerPixel;
-
-		rectangles.add({ i + offset, y, rectangleWidth, height });
-	}
-}
-
-void ModulationSourcePlotter::paint(Graphics& g)
-{
-	g.fillAll(Colour(0xFF333333));
-
-	g.setColour(Colour(0xFF999999));
-	g.fillRectList(rectangles);
-
-	ModulationSourceBaseComponent::paint(g);
-}
-
-int ModulationSourcePlotter::getSamplesPerPixel() const
-{
-	float offset = 2.0f;
-
-	float rectangleWidth = 1.0f;
-
-	auto width = (float)getWidth() - 2.0f * offset;
-
-	int samplesPerPixel = SimpleRingBuffer::RingBufferSize / jmax((int)(width / rectangleWidth), 1);
-	return samplesPerPixel;
-}
-
-SimpleRingBuffer::SimpleRingBuffer()
-{
-	clear();
-}
-
-void SimpleRingBuffer::clear()
-{
-	memset(buffer, 0, sizeof(float) * RingBufferSize);
-}
-
-int SimpleRingBuffer::read(AudioSampleBuffer& b)
-{
-	while (isBeingWritten) // busy wait, but OK
-	{
-		return 0;
-	}
-
-	jassert(b.getNumSamples() == RingBufferSize && b.getNumChannels() == 1);
-
-	auto dst = b.getWritePointer(0);
-	int thisWriteIndex = writeIndex;
-	int numBeforeIndex = thisWriteIndex;
-	int offsetBeforeIndex = RingBufferSize - numBeforeIndex;
-
-	FloatVectorOperations::copy(dst + offsetBeforeIndex, buffer, numBeforeIndex);
-	FloatVectorOperations::copy(dst, buffer + thisWriteIndex, offsetBeforeIndex);
-
-	int numToReturn = numAvailable;
-	numAvailable = 0;
-	return numToReturn;
-}
-
-void SimpleRingBuffer::write(double value, int numSamples)
-{
-	ScopedValueSetter<bool> svs(isBeingWritten, true);
-
-	if (numSamples == 1)
-	{
-		buffer[writeIndex++] = (float)value;
-
-		if (writeIndex >= RingBufferSize)
-			writeIndex = 0;
-
-		numAvailable++;
-		return;
-	}
-	else
-	{
-		int numBeforeWrap = jmin(numSamples, RingBufferSize - writeIndex);
-		int numAfterWrap = numSamples - numBeforeWrap;
-
-		if (numBeforeWrap > 0)
-			FloatVectorOperations::fill(buffer + writeIndex, (float)value, numBeforeWrap);
-
-		writeIndex += numBeforeWrap;
-
-		if (numAfterWrap > 0)
-		{
-			FloatVectorOperations::fill(buffer, (float)value, numAfterWrap);
-			writeIndex = numAfterWrap;
-		}
-
-		numAvailable += numSamples;
-	}
-}
 
 juce::Component* WrapperNode::createExtraComponent()
 {

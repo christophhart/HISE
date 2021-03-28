@@ -154,7 +154,7 @@ public:
 
 	void setInternalAttribute(int index, float newValue) override;;
 
-	const AnalyserRingBuffer& getFFTBuffer() const
+	SimpleRingBuffer::Ptr getFFTBuffer() const
 	{
 		return fftBuffer;
 	}
@@ -164,12 +164,10 @@ public:
 		FilterHelpers::RenderData r(buffer, startSample, numSamples);
 
 		for (auto filter : filterBands)
-		{
 			filter->renderIfEnabled(r);
-		}
 
-		if (fftBuffer.isActive())
-			fftBuffer.pushSamples(buffer, startSample, numSamples);
+		if (fftBuffer->isActive())
+			fftBuffer->write(buffer, startSample, numSamples);
 
 #if OLD_EQ_FFT
 		if(fftBufferIndex < FFT_SIZE_FOR_EQ)
@@ -207,7 +205,7 @@ public:
 
 	void enableSpectrumAnalyser(bool shouldBeEnabled)
 	{
-		fftBuffer.setAnalyserBufferSize(shouldBeEnabled ? 16384 : 0);
+		fftBuffer->setActive(shouldBeEnabled);
 	}
 
 	void addFilterBand(double freq, double gain)
@@ -263,7 +261,7 @@ public:
 			v.setProperty("Band" + String(i), getAttribute(i), nullptr);
 		}
 
-		v.setProperty("FFTEnabled", fftBuffer.isActive(), nullptr);
+		v.setProperty("FFTEnabled", fftBuffer->isActive(), nullptr);
 
 		return v;
 	};
@@ -312,7 +310,7 @@ public:
 
 private:
 
-	AnalyserRingBuffer fftBuffer;
+	SimpleRingBuffer::Ptr fftBuffer;
 
 #if OLD_EQ_FFT
 	float fftData[FFT_SIZE_FOR_EQ];

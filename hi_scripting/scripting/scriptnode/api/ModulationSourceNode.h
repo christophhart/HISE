@@ -132,7 +132,6 @@ public:
 
 	void prepare(PrepareSpecs ps) override;
 
-
 	void logMessage(int level, const String& s) override;
 
 	int fillAnalysisBuffer(AudioSampleBuffer& b);
@@ -148,7 +147,7 @@ public:
 
 	int ringBufferSize = 0;
 
-	ScopedPointer<SimpleRingBuffer> ringBuffer;
+	SimpleRingBuffer::Ptr ringBuffer;
 	bool ok = false;
 
 	valuetree::ChildListener targetListener;
@@ -203,6 +202,8 @@ struct ModulationSourceBaseComponent : public Component,
 	void paint(Graphics& g) override;
 	Image createDragImage();
 
+	void drawDragArea(Graphics& g, Rectangle<float> area, String text=String());
+
 	void mouseDown(const MouseEvent& e) override;
 	void mouseDrag(const MouseEvent&) override;
 
@@ -210,6 +211,9 @@ protected:
 
 	mutable WeakReference<ModulationSourceNode> sourceNode;
 };
+
+
+
 
 
 struct ModulationSourcePlotter : ModulationSourceBaseComponent
@@ -224,16 +228,15 @@ struct ModulationSourcePlotter : ModulationSourceBaseComponent
 	ModulationSourcePlotter(PooledUIUpdater* updater);
 
 	void timerCallback() override;
-	void rebuildPath();
-	void paint(Graphics& g) override;
 
-	int getSamplesPerPixel() const;
+	void resized() override
+	{
+		p.setBounds(getLocalBounds());
+	}
 
-	float pixelCounter = 0.0f;
 	bool skip = false;
 
-	RectangleList<float> rectangles;
-	AudioSampleBuffer buffer;
+	ModPlotter p;
 };
 
 template <typename T> struct TypedModulationSourcePlotter: public ModulationSourcePlotter

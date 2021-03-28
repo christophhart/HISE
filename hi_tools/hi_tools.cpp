@@ -97,6 +97,7 @@
 
 #include "hi_standalone_components/VuMeter.cpp"
 #include "hi_standalone_components/Plotter.cpp"
+#include "hi_standalone_components/RingBuffer.cpp"
 #include "hi_standalone_components/SliderPack.cpp"
 #include "hi_standalone_components/TableEditor.cpp"
 

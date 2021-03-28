@@ -160,34 +160,38 @@ void AudioAnalyserComponent::Panel::fillIndexList(StringArray& indexList)
 
 void GoniometerBase::paintSpacialDots(Graphics& g)
 {
-	if (auto l_ = SingleWriteLockfreeMutex::ScopedReadLock(buffer.lock))
+	if (rb != nullptr)
 	{
-		auto asComponent = dynamic_cast<Component*>(this);
+		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(rb->getDataLock()))
+		{
+			auto asComponent = dynamic_cast<Component*>(this);
 
-		auto size = jmin<int>(asComponent->getWidth(), asComponent->getHeight());
+			auto size = jmin<int>(asComponent->getWidth(), asComponent->getHeight());
 
-		Rectangle<int> area = { (asComponent->getWidth() - size) / 2, (asComponent->getHeight() - size) / 2, size, size };
+			Rectangle<int> area = { (asComponent->getWidth() - size) / 2, (asComponent->getHeight() - size) / 2, size, size };
 
-		g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::bgColour));
-		g.fillRect(area);
+			g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::bgColour));
+			g.fillRect(area);
 
-		g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::lineColour));
+			g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::lineColour));
 
-		g.drawLine((float)area.getX(), (float)area.getY(), (float)area.getRight(), (float)area.getBottom(), 1.0f);
-		g.drawLine((float)area.getX(), (float)area.getBottom(), (float)area.getRight(), (float)area.getY(), 1.0f);
+			g.drawLine((float)area.getX(), (float)area.getY(), (float)area.getRight(), (float)area.getBottom(), 1.0f);
+			g.drawLine((float)area.getX(), (float)area.getBottom(), (float)area.getRight(), (float)area.getY(), 1.0f);
 
-		shapeIndex = (shapeIndex + 1) % 6;
-		shapes[shapeIndex] = Shape(buffer.internalBuffer, area);
+			shapeIndex = (shapeIndex + 1) % 6;
+			shapes[shapeIndex] = Shape(rb->getReadBuffer(), area);
 
-		Colour c = getColourForAnalyserBase(AudioAnalyserComponent::fillColour);
+			Colour c = getColourForAnalyserBase(AudioAnalyserComponent::fillColour);
 
-		shapes[shapeIndex].draw(g, c.withAlpha(1.0f));
-		shapes[(shapeIndex + 1) % 6].draw(g, c.withAlpha(0.5f));
-		shapes[(shapeIndex + 2) % 6].draw(g, c.withAlpha(0.3f));
-		shapes[(shapeIndex + 3) % 6].draw(g, c.withAlpha(0.2f));
-		shapes[(shapeIndex + 4) % 6].draw(g, c.withAlpha(0.1f));
-		shapes[(shapeIndex + 5) % 6].draw(g, c.withAlpha(0.05f));
+			shapes[shapeIndex].draw(g, c.withAlpha(1.0f));
+			shapes[(shapeIndex + 1) % 6].draw(g, c.withAlpha(0.5f));
+			shapes[(shapeIndex + 2) % 6].draw(g, c.withAlpha(0.3f));
+			shapes[(shapeIndex + 3) % 6].draw(g, c.withAlpha(0.2f));
+			shapes[(shapeIndex + 4) % 6].draw(g, c.withAlpha(0.1f));
+			shapes[(shapeIndex + 5) % 6].draw(g, c.withAlpha(0.05f));
+		}
 	}
+	
 }
 
 }

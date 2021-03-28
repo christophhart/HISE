@@ -319,10 +319,11 @@ public:
 	class SimpleTimer
 	{
 	public:
-		SimpleTimer(PooledUIUpdater* h):
+		SimpleTimer(PooledUIUpdater* h, bool shouldStart=true):
 			updater(h)
 		{
-			start();
+			if(shouldStart)
+				start();
 		}
 
 		virtual ~SimpleTimer()
@@ -536,7 +537,6 @@ private:
 			if (parent.lastChange != EventType::Idle)
 			{
 				parent.sendMessageToListeners(parent.lastChange, parent.lastValue, sendNotificationSync, true);
-				parent.lastChange = EventType::Idle;
 			}
 		}
 
@@ -573,12 +573,12 @@ private:
 						l->onComplexDataEvent(t, v);
 				}
 			}
+
+			lastChange = EventType::Idle;
 		}
 		else
 		{
-			bool isMoreImportantChange = t >= lastChange;
-			
-			if (isMoreImportantChange)
+			if (t >= lastChange)
 			{
 				lastChange = jmax(lastChange, t);
 				lastValue = v;

@@ -65,7 +65,7 @@ public:
 		parameterNames.add("BufferSize");
 		parameterDescriptions.add("The buffer size of the internal ring buffer.");
 
-		ringBuffer.setAnalyserBufferSize(8192);
+		ringBuffer->setRingBufferSize(2, 8192);
 	};
 
 	void setInternalAttribute(int index, float newValue)
@@ -73,7 +73,7 @@ public:
 		switch (index)
 		{
 		case Parameters::PreviewType: currentType = (int)newValue; break;
-		case Parameters::BufferSize: ringBuffer.setAnalyserBufferSize((int)newValue); break;
+		case Parameters::BufferSize:  ringBuffer->setRingBufferSize(2, (int)newValue); break;
 		}
 	}
 
@@ -82,7 +82,7 @@ public:
 		switch (index)
 		{
 		case Parameters::PreviewType: return (float)currentType;
-		case Parameters::BufferSize: return (float)ringBuffer.analyseBufferSize;
+		case Parameters::BufferSize: return (float)ringBuffer->getReadBuffer().getNumSamples();
 		default: jassertfalse; return -1;
 		}
 	}
@@ -129,26 +129,33 @@ public:
 
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 	{
-		ringBuffer.pushSamples(b, startSample, numSamples);
+		if (ringBuffer != nullptr && ringBuffer->isActive())
+			ringBuffer->write(b, startSample, numSamples);
 	}
 
 	const AudioSampleBuffer& getAnalyseBuffer() const
 	{
-		return ringBuffer.internalBuffer;
+		jassertfalse;
+		return ringBuffer->getReadBuffer();
 	}
 	
 	int getCurrentReadIndex() const
 	{
-		return ringBuffer.indexInBuffer;
+		jassertfalse;
+		return 0;
 	}
 
-	SingleWriteLockfreeMutex& getBufferLock() { return ringBuffer.lock; }
+	SimpleReadWriteLock& getBufferLock() 
+	{
+		jassertfalse;
+		return ringBuffer->getDataLock(); 
+	}
 
-	const AnalyserRingBuffer& getRingBuffer() const { return ringBuffer; }
+	const SimpleRingBuffer::Ptr getRingBuffer() const { return ringBuffer; }
 
 private:
 
-	AnalyserRingBuffer ringBuffer;
+	SimpleRingBuffer::Ptr ringBuffer;
 
 	int currentType = 1;
 
@@ -231,9 +238,11 @@ class FFTDisplay : public FFTDisplayBase,
 public:
 
 	FFTDisplay(Processor* p) :
-	   FFTDisplayBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer()),
+	   FFTDisplayBase(),
        AudioAnalyserComponent(p)
-	{};
+	{
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer());
+	};
 
 	void paint(Graphics& g) override
 	{
@@ -252,8 +261,10 @@ public:
 
 	Oscilloscope(Processor* p) :
 		AudioAnalyserComponent(p),
-		OscilloscopeBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer())
-	{};
+		OscilloscopeBase()
+	{
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer());
+	};
 
 	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((AudioAnalyserComponent::ColourId)colourId); }
 
@@ -263,14 +274,15 @@ public:
 	}
 };
 
-class GoniometerBase
+class GoniometerBase: public RingBufferComponentBase
 {
 public:
 
-	GoniometerBase(const AnalyserRingBuffer& buffer_):
-		buffer(buffer_)
-	{
+	GoniometerBase() = default;
 
+	void refresh() override
+	{
+		dynamic_cast<Component*>(this)->repaint();
 	}
 
 	virtual Colour getColourForAnalyserBase(int colourId) = 0;
@@ -280,8 +292,6 @@ protected:
 	void paintSpacialDots(Graphics& g);
 
 private:
-
-	const AnalyserRingBuffer& buffer;
 
 	struct Shape
 	{
@@ -307,8 +317,10 @@ public:
 
 	Goniometer(Processor* p) :
 		AudioAnalyserComponent(p),
-		GoniometerBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer())
-	{}
+		GoniometerBase()
+	{
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer());
+	}
 
 	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((AudioAnalyserComponent::ColourId)colourId); }
 

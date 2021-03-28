@@ -43,11 +43,31 @@ struct Helpers
 {
 	struct AnalyserDataProvider
 	{
+		AnalyserDataProvider()
+		{
+			rb = new SimpleRingBuffer();
+		}
+
+		SimpleRingBuffer::Ptr rb;
+
+		SimpleRingBuffer::Ptr getRingBuffer() { return rb; }
+
 		virtual ~AnalyserDataProvider() {};
 
-		virtual double getSampleRate() const = 0;
+		void prepare(PrepareSpecs ps)
+		{
+			sr = ps.sampleRate;
 
-		virtual AnalyserRingBuffer& getRingBuffer() = 0;
+			if (rb != nullptr)
+			{
+				auto numSamples = rb->getReadBuffer().getNumSamples();
+				rb->setRingBufferSize(ps.numChannels, numSamples);
+			}
+		}
+
+		double getSampleRate() const { return sr; }
+
+		double sr = 0.0;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(AnalyserDataProvider);
 	};
@@ -90,21 +110,6 @@ public:
     SN_GET_SELF_AS_OBJECT(analyse_base);
     
 	HISE_EMPTY_CREATE_PARAM;
-	
-	AnalyserRingBuffer& getRingBuffer() override
-	{
-		return buffer;
-	}
-
-	double getSampleRate() const override
-	{
-		return sr;
-	}
-
-	void prepare(PrepareSpecs  ps)
-	{
-		sr = ps.sampleRate;
-	}
 
 	HISE_EMPTY_HANDLE_EVENT;
 	HISE_EMPTY_INITIALISE;
@@ -112,24 +117,20 @@ public:
 
 	void reset()
 	{
-		buffer.internalBuffer.clear();
+		if (rb != nullptr)
+			rb->clear();
 	}
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		buffer.pushSamples(data.toAudioSampleBuffer(), 0, data.getNumSamples());
+		if (rb != nullptr && rb->isActive())
+			rb->write(const_cast<const float**>(data.getRawDataPointers()), data.getNumChannels(), data.getNumSamples());
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		AudioSampleBuffer b;
-		float* cpy[1] = { data.begin() };
-		b.setDataToReferTo(cpy, data.size(), 1);
-		buffer.pushSamples(b, 0, 1);
+	
 	}
-
-	double sr = 0.0;
-	AnalyserRingBuffer buffer;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(analyse_base);
 };
@@ -151,9 +152,12 @@ struct fft_display : public ScriptnodeExtraComponent<fft>,
 {
 	fft_display(fft* obj, PooledUIUpdater* updater) :
 		ScriptnodeExtraComponent<fft>(obj, updater),
-		FFTDisplayBase(obj->getRingBuffer())
+		FFTDisplayBase()
 	{
-		obj->getRingBuffer().setAnalyserBufferSize(16384);
+		obj->getRingBuffer()->setRingBufferSize(1, 16384);
+		obj->getRingBuffer()->setGlobalUIUpdater(updater);
+		setComplexDataUIBase(obj->getRingBuffer());
+		
 		setSize(512, 100);
 	}
 
@@ -186,9 +190,11 @@ struct osc_display : public ScriptnodeExtraComponent<oscilloscope>,
 {
 	osc_display(oscilloscope* obj, PooledUIUpdater* updater) :
 		ScriptnodeExtraComponent<oscilloscope>(obj, updater),
-		OscilloscopeBase(obj->getRingBuffer())
+		OscilloscopeBase()
 	{
-		obj->getRingBuffer().setAnalyserBufferSize(2048);
+		setComplexDataUIBase(obj->getRingBuffer());
+		obj->getRingBuffer()->setGlobalUIUpdater(updater);
+		obj->getRingBuffer()->setRingBufferSize(2, 2048);
 		setSize(512, 100);
 	}
 
@@ -216,9 +222,11 @@ struct gonio_display : public ScriptnodeExtraComponent<goniometer>,
 {
 	gonio_display(goniometer* obj, PooledUIUpdater* updater) :
 		ScriptnodeExtraComponent<goniometer>(obj, updater),
-		GoniometerBase(obj->getRingBuffer())
+		GoniometerBase()
 	{
-		obj->getRingBuffer().setAnalyserBufferSize(8192);
+		setComplexDataUIBase(obj->getRingBuffer());
+		obj->getRingBuffer()->setRingBufferSize(2, 8192);
+		obj->getRingBuffer()->setGlobalUIUpdater(updater);
 		setSize(256, 256);
 	}
 

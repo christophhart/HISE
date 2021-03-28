@@ -1615,7 +1615,11 @@ void ValueTreeBuilder::RootContainerBuilder::addModConnection(ValueTree& t, Node
 	if (cn.n == nullptr || !cn.n->nodeTree.isValid())
 	{
 		Error e;
-		e.errorMessage = "No ValueTree for node " + cn.n->toString();
+		if (cn.n == nullptr)
+			e.errorMessage = "No node";
+		else
+			e.errorMessage = "No ValueTree for node " + cn.n->toString();
+
 		throw e;
 	}
 
