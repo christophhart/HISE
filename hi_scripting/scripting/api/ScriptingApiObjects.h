@@ -201,6 +201,9 @@ public:
 		/** Returns the parent directory as File. */
 		var getParentDirectory();
 
+		/** Returns the new directory created at the file location, if directory doesn't already exist */
+		var createDirectory(String directoryName);
+
 		/** Returns a String representation of that file. */
 		String toString(int formatType) const;
 		
