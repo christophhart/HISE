@@ -80,7 +80,9 @@ enum class ParameterType
 {
 	Single,
 	Chain,
-	List
+	List,
+	Dupli,
+	DupliChain
 };
 
 /** This class wraps one of the other classes into an opaque pointer and is used by the data class. */

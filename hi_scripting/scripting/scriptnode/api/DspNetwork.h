@@ -201,9 +201,22 @@ class SnexSource;
 
 /** A network of multiple DSP objects that are connected using a graph. */
 class DspNetwork : public ConstScriptingObject,
-				   public Timer
+				   public Timer,
+				   public NodeBase::Holder
 {
 public:
+
+	struct AnonymousNodeCloner
+	{
+		AnonymousNodeCloner(DspNetwork& p, NodeBase::Holder* other);
+
+		~AnonymousNodeCloner();
+
+		NodeBase::Ptr clone(NodeBase::Ptr p);
+
+		DspNetwork& parent;
+		WeakReference<NodeBase::Holder> prevHolder;
+	};
 
 	struct VoiceSetter
 	{
@@ -504,6 +517,8 @@ public:
 	StringArray getListOfUnusedNodeIds() const;
 	StringArray getFactoryList() const;
 
+	NodeBase::Holder* getCurrentHolder() const;
+
 	void registerOwnedFactory(NodeFactory* ownedFactory);
 
 	NodeBase::List getListOfNodesWithPath(const NamespacedIdentifier& id, bool includeUnusedNodes)
@@ -538,13 +553,7 @@ public:
 
 	bool isPolyphonic() const { return isPoly; }
 
-	NodeBase* getRootNode() { return signalPath.get(); }
-	const NodeBase* getRootNode() const { return signalPath.get(); }
-
-	void setRootNode(NodeBase::Ptr newRootNode)
-	{
-		signalPath = newRootNode;
-	}
+	
 
 	Identifier getParameterIdentifier(int parameterIndex);
 
@@ -775,11 +784,11 @@ private:
 
 	DynamicObject::Ptr loader;
 
-	ReferenceCountedArray<NodeBase> nodes;
-
-	ReferenceCountedObjectPtr<NodeBase> signalPath;
+	WeakReference<NodeBase::Holder> currentNodeHolder;
 
 	
+
+	bool createAnonymousNodes = false;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetwork);
 };

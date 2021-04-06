@@ -62,6 +62,12 @@ public:
 
 	std::function<Component*(void*, PooledUIUpdater* updater)> extraComponentFunction;
 
+	void setCachedSize(int extraWidth, int extraHeight)
+	{ 
+		cachedExtraWidth = extraWidth;
+		cachedExtraHeight = extraHeight;
+	}
+
 protected:
 
 	WrapperNode(DspNetwork* parent, ValueTree d);;
@@ -201,12 +207,20 @@ struct ModulationSourceBaseComponent : public Component,
 	void paint(Graphics& g) override;
 	Image createDragImage();
 
-	void drawDragArea(Graphics& g, Rectangle<float> area, String text=String());
+	static Image createDragImageStatic(bool fill=true);
+
+	void drawDragArea(Graphics& g, Rectangle<float> area, Colour c, String text=String());
+
+	static MouseCursor createMouseCursor();
 
 	void mouseDown(const MouseEvent& e) override;
 	void mouseDrag(const MouseEvent&) override;
+	void mouseUp(const MouseEvent& e) override;
+	void resized() override;
 
 protected:
+
+	Path dragPath;
 
 	mutable WeakReference<ModulationSourceNode> sourceNode;
 };

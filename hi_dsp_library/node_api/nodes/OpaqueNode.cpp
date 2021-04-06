@@ -49,10 +49,15 @@ void OpaqueNode::allocateObjectSize(int numBytes)
 	object.setSize(numBytes);
 }
 
+
+
 void OpaqueNode::prepare(PrepareSpecs ps)
 {
-	prepareFunc(getObjectPtr(), &ps);
-	resetFunc(getObjectPtr());
+	if (prepareFunc)
+	{
+		prepareFunc(getObjectPtr(), &ps);
+		resetFunc(getObjectPtr());
+	}
 }
 
 void OpaqueNode::process(ProcessDataDyn& data)
@@ -157,7 +162,7 @@ int PluginFactory::getNumNodes() const
 bool PluginFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index)
 {
 	items[index].f(n);
-	memcpy(n->numDataObjects, items[index].numDataObjects, sizeof(int) * 3);
+	memcpy(n->numDataObjects, items[index].numDataObjects, sizeof(int) * (int)ExternalData::DataType::numDataTypes);
 	return true;
 }
 
@@ -244,10 +249,8 @@ bool ProjectDll::initNode(OpaqueNode* n, int index)
 	{
 		inf(n, index);
 
-		n->numDataObjects[0] = gndo(index, 0);
-		n->numDataObjects[1] = gndo(index, 1);
-		n->numDataObjects[2] = gndo(index, 2);
-		n->numDataObjects[3] = gndo(index, 3);
+		for(int i = 0; i < (int)ExternalData::DataType::numDataTypes; i++)
+			n->numDataObjects[i] = gndo(index, i);
 
 		return true;
 	}

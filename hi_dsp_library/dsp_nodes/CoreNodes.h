@@ -712,8 +712,6 @@ public:
 	SET_HISE_POLY_NODE_ID("oscillator");
 	SN_GET_SELF_AS_OBJECT(oscillator_impl);
 
-	oscillator_impl() = default;
-
 	HISE_EMPTY_INITIALISE;
 
 	void reset()
@@ -758,12 +756,9 @@ public:
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		if (useMidi && e.isNoteOn())
-		{
+		if (e.isNoteOn())
 			setFrequency(e.getFrequency());
-		}
 	}
-
 
 	void createParameters(ParameterDataList& data)
 	{

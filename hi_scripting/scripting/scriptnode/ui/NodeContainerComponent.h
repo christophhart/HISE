@@ -420,8 +420,24 @@ struct MacroPropertyEditor : public Component,
 };
 
 
+struct NodeDropTarget
+{
+	virtual ~NodeDropTarget() {};
 
-class ContainerComponent : public NodeComponent,
+	Component* asComponent() { return dynamic_cast<Component*>(this); }
+
+	virtual void setDropTarget(Point<int> position) = 0;
+	virtual void removeDraggedNode(NodeComponent* draggedNode) = 0;
+	virtual void insertDraggedNode(NodeComponent* newNode, bool copyNode) = 0;
+	virtual void clearDropTarget() = 0;
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeDropTarget);
+};
+
+class ContainerComponent :  public NodeComponent,
+							public NodeDropTarget,
 							public DragAndDropContainer,
 							public HelpManager::Listener
 {
@@ -461,6 +477,7 @@ public:
 			dragButton.setToggleModeWithColourChange(true);
 
 			rebuildParameters();
+			setSize(500, UIValues::ParameterHeight);
 		}
 
 		~ParameterComponent()
@@ -604,7 +621,7 @@ public:
 		}
 	}
 
-	void setDropTarget(Point<int> position);
+	void setDropTarget(Point<int> position) override;
 	void clearDropTarget();
 
 	virtual Rectangle<float> getInsertRuler(int ) const { jassertfalse; return {}; }
@@ -613,20 +630,28 @@ public:
 	{
 		NodeComponent::resized();
 
-		if (dataReference[PropertyIds::ShowParameters])
-		{
-			parameters.setVisible(true);
-		}
-		else
-			parameters.setVisible(false);
+		Component* topComponent = parameters != nullptr ? parameters.get() : extraComponent.get();
+
+		jassert(topComponent != nullptr);
+
+		topComponent->setVisible(dataReference[PropertyIds::ShowParameters]);
 
 		auto b = getLocalBounds();
 		b.expand(-UIValues::NodeMargin, 0);
 		b.removeFromTop(UIValues::HeaderHeight);
-		parameters.setBounds(b.removeFromTop(UIValues::ParameterHeight));
+		topComponent->setSize(b.getWidth(), topComponent->getHeight());
+		topComponent->setTopLeftPosition(b.getTopLeft());
 	}
 
 	int getCurrentAddPosition() const { return addPosition; }
+
+	void setExtraComponent(Component* newExtraComponent)
+	{
+		extraComponent = newExtraComponent;
+		addAndMakeVisible(extraComponent);
+		parameters = nullptr;
+		resized();
+	}
 
 protected:
 
@@ -661,7 +686,8 @@ private:
 
 	void rebuildNodes();
 
-	ParameterComponent parameters;
+	ScopedPointer<ParameterComponent> parameters;
+	ScopedPointer<Component> extraComponent;
 };
 
 struct SerialNodeComponent : public ContainerComponent

@@ -123,7 +123,29 @@ protected:
 #define tuple_iteratorT2(name, ta, t1, a1, t2, a2)			_pre_tupleT_(name, ta) t1 a1, t2 a2, _post_tuple_(name(a1, a2))
 #define tuple_iteratorT3(name, ta, t1, a1, t2, a2, t3, a3)	_pre_tupleT_(name, ta) t1 a1, t2 a2, t3 a3, _post_tuple_(name(a1, a2, a3))
 
+template <typename T> struct duplicate_node_reference
+{
+	using ObjectType = T;
 
+	duplicate_node_reference() = default;
+
+	template <int P> auto get()
+	{
+		auto& o = firstObj->template get<P>();
+		using TType = std::remove_reference<decltype(o)>::type;
+		duplicate_node_reference<TType> hn;
+
+		hn.firstObj = &o;
+		hn.objectDelta = objectDelta;
+		hn.sizePtr = sizePtr;
+
+		return hn;
+	}
+
+	T* firstObj = nullptr;
+	int* sizePtr = nullptr;
+	size_t objectDelta = 0;
+};
 
 /** This namespace contains different parameter templates that can be used to create compile time callbacks with the same
 	behaviour as the connections in scriptnode.
@@ -144,6 +166,8 @@ namespace parameter
 */
 template <class T, int P> struct single_base
 {
+	using TargetType = T;
+
 	PARAMETER_SPECS(ParameterType::Single, 1);
 
 	template <int Index, class OtherType> void connect(OtherType& element)
@@ -436,6 +460,75 @@ template <class T, int P, class RangeType> struct to0To1 : public single_base<T,
 	}
 };
 
+template <typename T> struct voice_multiplier: public single_base<T, 18000>
+{
+	PARAMETER_SPECS(ParameterType::Single, 1);
+
+	void call(double v)
+	{
+		callStatic(this->obj, v);
+	}
+
+	void addToList(ParameterDataList&)
+	{
+
+	}
+
+	static void callStatic(void*  obj, double v)
+	{
+		T::setVoiceAmountStatic(obj, v);
+	}
+
+	template <int P> auto& getParameter()
+	{
+		return *this;
+	}
+
+	template <int P> NormalisableRange<double> createParameterRange()
+	{
+		return NormalisableRange<double>(0.0, 1.0);
+	}
+};
+
+template <typename PType> struct duplispread
+{
+	static constexpr int size = PType::size;
+	static constexpr ParameterType type = PType::type;
+	static constexpr bool isRange() { return PType::isRange(); };
+
+	void call(double v)
+	{
+		auto startValue = v - (double)(numUsed / 2) * stepSize;
+
+		for (int i = 0; i < numUsed; i++)
+		{
+			parameters[i].call(startValue);
+			startValue += stepSize;
+		}
+	}
+
+	template <int P, typename T> void connect(const duplicate_node_reference<T>& other)
+	{
+		numUsed = 0;
+
+		for (auto& t : other)
+			parameters[numUsed++].connect<P>(*t);
+	}
+
+	template <int P> auto& getParameter()
+	{
+		return *this;
+	}
+
+	void setDelta(double d)
+	{
+		stepSize = d / (double)numUsed;
+	}
+
+	PType parameters[16];
+	int numUsed = 0;
+	double stepSize = 0.0;
+};
 
 
 /** A parameter chain is a list of parameter callbacks that are processed serially.
@@ -487,6 +580,32 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 	}
 };
 
+
+template <class... DupliParameters> struct duplichain : public advanced_tuple<DupliParameters...>
+{
+	using Type = advanced_tuple<DupliParameters...>;
+
+	PARAMETER_SPECS(ParameterType::DupliChain, 1);
+
+	template <int P> auto& getParameter()
+	{
+		return *this;
+	}
+
+	void* getObjectPtr() { return this; }
+
+	tuple_iterator2(call, int, index, double, v);
+
+	void call(int index, double v)
+	{
+		call_tuple_iterator2(call, index, v);
+	}
+
+	template <int Index, class Target> void connect(Target& t)
+	{
+		this->template get<Index>().template connect<0>(t);
+	}
+};
 
 
 /** The parameter list is a collection of multiple parameters that can be called individually.

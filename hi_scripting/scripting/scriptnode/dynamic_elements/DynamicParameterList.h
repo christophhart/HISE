@@ -39,7 +39,112 @@ using namespace hise;
 
 namespace parameter
 {
+	struct dynamic_duplispread : public dynamic_base
+	{
+		static dynamic_base_holder* getParameterFunctionStatic(void* b)
+		{
+			using Type = control::spread<dynamic_base_holder>;
+			auto typed = static_cast<Type*>(b);
+			return &typed->getParameter();
+		};
+
+		double getDisplayValue() const override
+		{
+			if (originalCallback != nullptr)
+				return originalCallback->getDisplayValue();
+
+			return lastValue;
+		}
+
+		void call(double v) final override
+		{
+			lastValue = v;
+
+			auto startValue = v - offset;
+
+			for (int i = 0; i < numUsedInt; i++)
+			{
+				originalCallback->obj = targets[i];
+				originalCallback->call(startValue);
+				startValue += stepSize;
+			}
+		}
+
+		void updateUI() override
+		{
+
+		}
+
+		void setDelta(double newDelta) override
+		{
+			delta = newDelta;
+			stepSize = delta / numUsed;
+			offset = stepSize * numUsed * 0.5;
+
+			call(lastValue);
+		}
+
+		void connect(NodeBase* newUnisonoMode, dynamic_base* cb);
+
+		void updateNumVoiceChange(Identifier, var)
+		{
+			rebuildTargets();
+		}
+
+		void rebuildTargets();
+
+		ScopedPointer<dynamic_base> originalCallback;
+		
+		NodeBase::Ptr unisonoNode;
+
+		void* targets[NUM_MAX_UNISONO_VOICES];
+
+		valuetree::PropertyListener voiceUpdater;
+
+		double delta = 0.0;
+		double stepSize = 0.0;
+		double offset = 0.0;
+		double numUsed = 1.0;
+		int numUsedInt = 1;
+	};
+
+	using dynamic_duplispread_node = control::spread<dynamic_base_holder>;
 	
+	struct duplispread_editor : public ScriptnodeExtraComponent<dynamic_duplispread_node>
+	{
+		duplispread_editor(dynamic_duplispread_node* obj, PooledUIUpdater* u) :
+			ScriptnodeExtraComponent<dynamic_duplispread_node>(obj, u),
+			dragger(u)
+		{
+			setSize(200, 200 + 28 + UIValues::NodeMargin);
+			addAndMakeVisible(dragger);
+		};
+
+		void timerCallback() override
+		{
+			repaint();
+		}
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			auto typed = static_cast<dynamic_duplispread_node*>(obj);
+
+			return new duplispread_editor(typed, updater);
+		}
+
+		void paint(Graphics& g) override;
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			dragger.setBounds(b.removeFromBottom(28));
+			b.removeFromBottom(UIValues::NodeMargin);
+			area = b.toFloat();
+		}
+
+		Rectangle<float> area;
+		ModulationSourceBaseComponent dragger;
+	};
 
 
 	struct dynamic_list

@@ -279,6 +279,184 @@ public:
 };
 
 
+struct UnisonoNodeBase: public NodeBase::Holder
+{
+	using InterpretedObjectType = wrap::unisono<UnisonoNodeBase, true>;
+
+	SN_GET_SELF_AS_OBJECT(UnisonoNodeBase);
+
+	UnisonoNodeBase() = default;
+
+	void clear()
+	{
+		setRootNode(nullptr);
+		nodes.clear();
+	}
+
+	~UnisonoNodeBase()
+	{
+		clear();
+	}
+
+	UnisonoNodeBase(const UnisonoNodeBase& other)
+	{
+		if (other.getRootNode() != nullptr)
+			clone(other.getRootNode());
+	}
+
+	UnisonoNodeBase& operator=(const UnisonoNodeBase& other)
+	{
+		clone(other.getRootNode());
+
+		return *this;
+	}
+
+	UnisonoNodeBase& operator=(UnisonoNodeBase&& other)
+	{
+		std::swap(nodes, other.nodes);
+		std::swap(root, other.root);
+
+		return *this;
+	}
+
+	bool clone(NodeBase* other)
+	{
+		clear();
+
+		if (other != nullptr)
+		{
+			DspNetwork::AnonymousNodeCloner cloner(*other->getRootNetwork(), this);
+			setRootNode(cloner.clone(other));
+
+			if (getRootNode() != nullptr)
+				getRootNode()->setParentNode(other->getParentNode());
+
+			return getRootNode() != nullptr;
+		}
+		
+		return false;
+	}
+
+	void process(ProcessDataDyn& d)
+	{
+		if (getRootNode() != nullptr)
+			getRootNode()->process(d);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		if (getRootNode() != nullptr)
+			getRootNode()->prepare(ps);
+	}
+
+	void reset()
+	{
+		if (getRootNode() != nullptr)
+			getRootNode()->reset();
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (getRootNode() != nullptr)
+			getRootNode()->handleHiseEvent(e);
+	}
+
+	HISE_EMPTY_CREATE_PARAM;
+
+	template <typename T> void processFrame(T& data)
+	{
+		if (getRootNode() == nullptr)
+			return;
+
+		if (data.size() == 1)
+			getRootNode()->processMonoFrame(span<float, 1>::as(data.begin()));
+		if (data.size() == 2)
+			getRootNode()->processStereoFrame(span<float, 2>::as(data.begin()));
+	}
+};
+
+struct InterpretedUnisonoWrapperNode : public WrapperNode,
+									   public InterpretedNodeBase<UnisonoNodeBase::InterpretedObjectType>,
+								       public AssignableObject
+{
+	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("unisono2"); }
+
+	using Base = UnisonoNodeBase::InterpretedObjectType;
+
+	InterpretedUnisonoWrapperNode(DspNetwork* n, ValueTree d);;
+
+	Base& getUnisonoObject() { return obj; }
+
+	ReferenceCountedArray<Parameter> getParameterList(const ValueTree& pTree);
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree d)
+	{
+		auto mn = new InterpretedUnisonoWrapperNode(n, d);
+		
+		mn->extraComponentFunction = createWrapperSlot;
+		return mn;
+	};
+
+	static Component* createWrapperSlot(void* obj, PooledUIUpdater* updater);
+
+	void process(ProcessDataDyn& data) override
+	{
+		NodeProfiler n(this);
+		obj.process(data);
+	}
+	
+	void* getObjectPtr() override { return this; }
+
+	void prepare(PrepareSpecs specs) override
+	{
+		obj.prepare(specs);
+	}
+
+	void reset() override
+	{
+		obj.reset();
+	}
+
+	void processFrame(NodeBase::FrameType& data) final override
+	{
+		obj.processFrame(data);
+	}
+
+	void processMonoFrame(MonoFrameType& data) final override
+	{
+		obj.processFrame(data);
+	}
+
+	virtual void assign(int index, var newValue) override;
+
+	var getAssignedValue(int index) const override;
+
+	virtual int getCachedIndex(const var &indexExpression) const override;
+	
+
+	void processStereoFrame(StereoFrameType& data) final override
+	{
+		obj.processFrame(data);
+	}
+
+	void handleHiseEvent(HiseEvent& e) override
+	{
+		obj.handleHiseEvent(e);
+	}
+
+	void updateChildNode(ValueTree v, bool wasAdded);
+
+	ParameterDataList createInternalParameterList() override;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(InterpretedUnisonoWrapperNode);
+
+	NodeBase::Ptr wrappedNode;
+
+	bool skipTreeListener = false;
+
+	valuetree::ChildListener nodeListener;
+};
+
 struct InterpretedCableNode : public ModulationSourceNode,
 							  public InterpretedNodeBase<OpaqueNode>
 {
@@ -295,11 +473,15 @@ struct InterpretedCableNode : public ModulationSourceNode,
 	{
 		constexpr bool isBaseOfDynamicParameterHolder = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_base_holder>, typename T::WrappedObjectType>();
 
+		constexpr bool isSpread = std::is_same<T, parameter::dynamic_duplispread_node>();
+
 		static_assert(std::is_base_of<control::pimpl::no_processing, typename T::WrappedObjectType>(), "not a base of no_processing");
 
 		auto mn = new InterpretedCableNode(n, d);
 
-		if constexpr (isBaseOfDynamicParameterHolder)
+		if constexpr (isSpread)
+			mn->getParameterFunction = parameter::dynamic_duplispread::getParameterFunctionStatic;
+		else if constexpr (isBaseOfDynamicParameterHolder)
 			mn->getParameterFunction = InterpretedCableNode::getParameterFunctionStatic<T>;
 		else
 		{

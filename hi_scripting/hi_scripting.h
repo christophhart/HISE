@@ -136,7 +136,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/snex_nodes/SnexSource.h"
 #endif
 
-#include "scripting/scriptnode/api/StaticNodeWrappers.h"
+
 
 
 
@@ -179,6 +179,8 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 
 #include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.h"
+
+#include "scripting/scriptnode/api/StaticNodeWrappers.h"
 
 #if HISE_INCLUDE_SNEX
 #include "scripting/scriptnode/snex_nodes/SnexShaper.h"

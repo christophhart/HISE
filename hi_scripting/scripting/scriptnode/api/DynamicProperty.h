@@ -57,12 +57,14 @@ struct dynamic_base
 
 	virtual void updateUI()
 	{
-		if (displayValuePointer != nullptr)
-			*displayValuePointer = lastValue;
-
 		if (dataTree.isValid())
 			dataTree.setProperty(PropertyIds::Value, lastValue, nullptr);
 	};
+
+	virtual void setDelta(double v)
+	{
+
+	}
 
 	void setDataTree(ValueTree d) { dataTree = d; }
 
@@ -70,8 +72,19 @@ struct dynamic_base
 	void* obj;
 
 	ValueTree dataTree;
+
+	virtual double getDisplayValue() const 
+	{ 
+		return lastValue; 
+	}
+
+protected:
+
 	double lastValue = 0.0;
-	double* displayValuePointer = nullptr;
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic_base);
 };
 
 
@@ -85,19 +98,12 @@ struct dynamic_base_holder
 
 		if (base != nullptr)
 			base->call(v);
-
-		if (buffer != nullptr)
-			buffer->write(lastValue, numSamples);
 	}
 
-	void setRingBuffer(SimpleRingBuffer* r)
+	void setDelta(double v)
 	{
-		buffer = r;
-	}
-
-	void setSamplesToWrite(int numSamplesThisTime)
-	{
-		numSamples = numSamplesThisTime;
+		if (base != nullptr)
+			base->setDelta(v);
 	}
 
 	void updateUI()
@@ -109,6 +115,7 @@ struct dynamic_base_holder
 	void setParameter(dynamic_base* b)
 	{
 		base = b;
+		call(lastValue);
 	}
 
 	bool isConnected() const
@@ -116,11 +123,24 @@ struct dynamic_base_holder
 		return base != nullptr;
 	}
 
-	ScopedPointer<dynamic_base> base;
+	double getDisplayValue() const
+	{
+		if (displaySource.get() != nullptr)
+			return displaySource->getDisplayValue();
 
-	SimpleRingBuffer* buffer = nullptr;
-	int numSamples = 1;
-	double lastValue = 0.0f;
+		return lastValue;
+	}
+
+	void setDisplaySource(dynamic_base* src)
+	{
+		displaySource = src;
+	}
+
+	WeakReference<dynamic_base> displaySource;
+
+	ScopedPointer<dynamic_base> base;
+	double lastValue = 0.0;
+	
 };
 
 
@@ -139,8 +159,9 @@ struct dynamic_from0to1 : public dynamic_base
 	}
 
 	const NormalisableRange<double> range;
-
 };
+
+
 
 struct dynamic_to0to1 : public dynamic_base
 {
@@ -212,6 +233,12 @@ struct dynamic_chain : public dynamic_base
 	{
 		for (auto& t : targets)
 			t->call(v);
+	}
+
+	void setDelta(double v)
+	{
+		for (auto& t : targets)
+			t->setDelta(v);
 	}
 
 	void updateUI() override

@@ -39,6 +39,7 @@ using namespace juce;
 using namespace hise;
 
 class DspNetwork;
+struct NodeHolder;
 class NodeComponent;
 class HardcodedNode;
 class RestorableNode;
@@ -144,22 +145,22 @@ public:
 
 	bool isProbed = false;
 
+	void ensureAfterValueCallback(valuetree::PropertyListener& l)
+	{
+		l.setHighPriorityListener(&valuePropertyUpdater);
+	}
+
 private:
-
-
 
 	ValueTree treeThatStoresValue;
 	parameter::dynamic_base_holder dbNew;
 
 	struct Wrapper;
 
-	double lastValue = 0.0;
-
 	valuetree::PropertyListener opTypeListener;
 	valuetree::PropertyListener valuePropertyUpdater;
 	valuetree::PropertyListener idUpdater;
 	valuetree::PropertyListener modulationStorageBypasser;
-	DspHelpers::ParameterCallback dbOld;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Parameter);
 };
@@ -170,6 +171,33 @@ class NodeBase : public ConstScriptingObject
 public:
 
 	using Parameter = Parameter;
+
+	using FrameType = snex::Types::dyn<float>;
+	using MonoFrameType = snex::Types::span<float, 1>;
+	using StereoFrameType = snex::Types::span<float, 2>;
+	using Ptr = WeakReference<NodeBase>;
+	using List = Array<WeakReference<NodeBase>>;
+
+	struct Holder
+	{
+		virtual ~Holder() 
+		{
+			root = nullptr;
+			nodes.clear();
+		}
+
+		NodeBase* getRootNode() const { return root.get(); }
+
+		void setRootNode(NodeBase::Ptr newRootNode)
+		{
+			root = newRootNode;
+		}
+
+		ReferenceCountedObjectPtr<NodeBase> root;
+		ReferenceCountedArray<NodeBase> nodes;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Holder);
+	};
 
 	struct DynamicBypassParameter : public parameter::dynamic_base
 	{
@@ -200,14 +228,10 @@ public:
 		Range<double> enabledRange;
 	};
 
-	using FrameType = snex::Types::dyn<float>;
-	using MonoFrameType = snex::Types::span<float, 1>;
-	using StereoFrameType = snex::Types::span<float, 2>;
-	using Ptr = WeakReference<NodeBase>;
-	using List = Array<WeakReference<NodeBase>>;
+	
 
 	NodeBase(DspNetwork* rootNetwork, ValueTree data, int numConstants);;
-	virtual ~NodeBase() {}
+	virtual ~NodeBase();
 
 	virtual void process(ProcessDataDyn& data) = 0;
 
@@ -217,10 +241,30 @@ public:
 
 	virtual void processFrame(FrameType& data) = 0;
 	
+	virtual bool forEach(const std::function<bool(NodeBase::Ptr)>& f)
+	{
+		return f(this);
+	}
+
 	virtual void processMonoFrame(MonoFrameType& data)
 	{
 		FrameType dynData(data);
 		processFrame(dynData);
+	}
+
+	template <typename T> T* findParentNodeOfType()
+	{
+		NodeBase* p = parentNode.get();
+
+		while (p != nullptr)
+		{
+			if (auto asT = dynamic_cast<T*>(p))
+				return asT;
+
+			p = p->parentNode;
+		}
+
+		return nullptr;
 	}
 
 	virtual void processStereoFrame(StereoFrameType& data)
@@ -268,12 +312,6 @@ public:
 	/** Inserts the node into the given parent container. */
 	void setParent(var parentNode, int indexInParent);
 
-	/** Writes the modulation signal into the given buffer. */
-	void writeModulationSignal(var buffer);
-
-	/** Creates a buffer object that can be used to display the modulation values. */
-	var createRingBuffer();
-	
 	/** Returns a reference to a parameter.*/
 	var getParameterReference(var indexOrId) const;
 
@@ -309,6 +347,11 @@ public:
 	void addConnectionToBypass(var dragDetails);
 
 	DspNetwork* getRootNetwork() const;
+
+	/** Not necessarily the DSP network. */
+	NodeBase::Holder* getNodeHolder() const;
+
+
 	ValueTree getParameterTree() { return v_data.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager()); }
 	
 	ValueTree getPropertyTree() { return v_data.getOrCreateChildWithName(PropertyIds::Properties, getUndoManager()); }
@@ -378,20 +421,32 @@ public:
 
 	String getCpuUsageInPercent() const;
 
-private:
+	void setIsUINodeOfDuplicates(bool on)
+	{
+		uiNodeOfDuplicates = on;
+		forEach([&](NodeBase::Ptr p)
+		{
+			if (p == this)
+				return false;
 
-	WeakReference<ConstScriptingObject> parent;
+			p->setIsUINodeOfDuplicates(on); return false; 
+		});
+	}
+
+	bool isUINodeOfDuplicate() const { return uiNodeOfDuplicates; }
 
 protected:
 
 	ValueTree v_data;
-
 	PrepareSpecs lastSpecs;
 
 private:
 
-	
+	bool uiNodeOfDuplicates = false;
 
+	WeakReference<NodeBase::Holder> parent;
+	WeakReference<NodeBase::Holder> subHolder;
+	
 	double cpuUsage = 0.0;
 
 	bool isCurrentlyMoved = false;
@@ -405,6 +460,7 @@ private:
 
 	ReferenceCountedArray<Parameter> parameters;
 	WeakReference<NodeBase> parentNode;
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeBase);
 };

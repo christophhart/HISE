@@ -69,6 +69,8 @@ struct OpaqueNode
 	OpaqueNode(OpaqueNode&& other) = default;
 	OpaqueNode& operator=(OpaqueNode&& other) = default;
 
+	OpaqueNode(const OpaqueNode& other) = default;
+
 	virtual ~OpaqueNode();
 
 	template <typename T> void create()
@@ -130,7 +132,8 @@ struct OpaqueNode
 
 	void initialise(NodeBase* n)
 	{
-		initFunc(this->getObjectPtr(), n);
+		if (initFunc)
+			initFunc(this->getObjectPtr(), n);
 	}
 
 	bool isPolyphonic() const { return isPoly; };
@@ -303,6 +306,7 @@ namespace dll
 			i.numDataObjects[(int)ExternalData::DataType::SliderPack] = T::NumSliderPacks;
 			i.numDataObjects[(int)ExternalData::DataType::AudioFile] = T::NumAudioFiles;
 			i.numDataObjects[(int)ExternalData::DataType::FilterCoefficients] = T::NumFilters;
+			i.numDataObjects[(int)ExternalData::DataType::DisplayBuffer] = T::NumDisplayBuffers;
 
 			items.add(i);
 		}

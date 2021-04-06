@@ -356,11 +356,13 @@ namespace control
 			}
 			{
 				DEFINE_PARAMETERDATA(pma, Multiply);
+				p.setRange({ -1.0, 1.0 });
 				p.setDefaultValue(1.0);
 				data.add(std::move(p));
 			}
 			{
 				DEFINE_PARAMETERDATA(pma, Add);
+				p.setRange({ -1.0, 1.0 });
 				p.setDefaultValue(0.0);
 				data.add(std::move(p));
 			}
@@ -379,6 +381,83 @@ namespace control
 			if(this->getParameter().isConnected())
 				this->getParameter().call(d.getPmaValue());
 		}
+	};
+
+
+	struct spread_logic
+	{
+		double getValue(int index, double input)
+		{
+
+		}
+
+		template <int P> void setParameter(double v)
+		{
+
+		}
+
+		void setSizePtr(int& sizePtr)
+		{
+
+		}
+
+		int* sizePtr = nullptr;
+		double delta = 0.0;
+	};
+
+	template <typename ParameterType> struct spread : public control::pimpl::no_processing,
+		public control::pimpl::parameter_node_base<ParameterType>
+	{
+		SN_GET_SELF_AS_OBJECT(spread);
+		SET_HISE_NODE_ID("spread");
+
+		enum class Parameters
+		{
+			Value,
+			Delta,
+			numParameters
+		};
+
+		DEFINE_PARAMETERS
+		{
+			DEF_PARAMETER(Value, spread);
+			DEF_PARAMETER(Delta, spread);
+		};
+		PARAMETER_MEMBER_FUNCTION;
+
+		void setDelta(double d)
+		{
+			delta = d;
+			getParameter().setDelta(d);
+		}
+
+		void setValue(double v)
+		{
+			value = v;
+			getParameter().call(v);
+		}
+
+		void createParameters(ParameterDataList& data)
+		{
+			{
+				DEFINE_PARAMETERDATA(spread, Value);
+				p.setRange({ 0.0, 1.0 });
+				p.setDefaultValue(0.0);
+				data.add(std::move(p));
+			}
+			{
+				DEFINE_PARAMETERDATA(spread, Delta);
+				p.setRange({ 0.0, 1.0 });
+				p.setDefaultValue(0.0);
+				data.add(std::move(p));
+			}
+		}
+
+		double value = 0.0;
+		double delta = 0.0;
+
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(spread);
 	};
 
 	template <typename SmootherClass> struct smoothed_parameter

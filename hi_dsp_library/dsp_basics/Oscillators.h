@@ -120,6 +120,12 @@ struct OscillatorDisplayProvider
 		modes = { "Sine", "Saw", "Triangle", "Square", "Noise" };
 	}
 
+	OscillatorDisplayProvider(const OscillatorDisplayProvider& other) :
+		modes(other.modes),
+		currentMode(other.currentMode),
+		sinTable(other.sinTable)
+	{}
+
 	virtual ~OscillatorDisplayProvider() {};
 
 	float tickNoise(OscData& d)
@@ -146,8 +152,6 @@ struct OscillatorDisplayProvider
 	{
 		return (float)(1 - (int)std::signbit(tickSaw(d))) * 2.0f - 1.0f;
 	}
-
-	bool useMidi = false;
 
 	Random r;
 	SharedResourcePointer<SineLookupTable<2048>> sinTable;

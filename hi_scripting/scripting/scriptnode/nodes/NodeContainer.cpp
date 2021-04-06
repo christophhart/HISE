@@ -91,6 +91,8 @@ void NodeContainer::prepareNodes(PrepareSpecs ps)
 		if (n == nullptr)
 			continue;
 
+		
+
 		auto& eHandler = asNode()->getRootNetwork()->getExceptionHandler();
 
 		eHandler.removeError(n);
@@ -132,6 +134,9 @@ bool NodeContainer::shouldCreatePolyphonicClass() const
 void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 {
 	auto n = asNode();
+
+	DspNetwork::AnonymousNodeCloner cloner(*n->getRootNetwork(), n->getNodeHolder());
+	
 	if (auto nodeToProcess = n->getRootNetwork()->getNodeForValueTree(child))
 	{
 		if (wasAdded)
@@ -140,6 +145,10 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 				return;
 
 			nodeToProcess->setParentNode(asNode());
+
+			auto isDuplicate = asNode()->isUINodeOfDuplicate();
+
+			nodeToProcess->setIsUINodeOfDuplicates(isDuplicate);
 
 			int insertIndex = getNodeTree().indexOf(child);
 
@@ -151,6 +160,8 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 		else
 		{
 			nodeToProcess->setParentNode(nullptr);
+
+			nodeToProcess->setIsUINodeOfDuplicates(false);
 
 			ScopedLock sl(n->getRootNetwork()->getConnectionLock());
 			nodes.removeAllInstancesOf(nodeToProcess);
@@ -188,7 +199,7 @@ void NodeContainer::updateChannels(ValueTree v, Identifier id)
 	{
 		channelLayoutChanged(nullptr);
 
-		if (originalSampleRate > 0.0)
+		if (originalSampleRate > 0.0 && !asNode()->isUINodeOfDuplicate())
 		{
 			PrepareSpecs ps;
 			ps.numChannels = asNode()->getNumChannelsToProcess();
@@ -272,20 +283,37 @@ int NodeContainer::getCachedIndex(const var &indexExpression) const
 	return (int)indexExpression;
 }
 
+bool NodeContainer::forEachNode(const std::function<bool(NodeBase::Ptr)> & f)
+{
+	if (f(asNode()))
+		return true;
+
+	for (auto n : nodes)
+	{
+		if (n->forEach(f))
+			return true;
+	}
+
+	return false;
+}
+
 void NodeContainer::clear()
 {
 	getNodeTree().removeAllChildren(asNode()->getUndoManager());
 }
 
-void NodeContainer::initListeners()
+void NodeContainer::initListeners(bool initParameterListener)
 {
 	nodeListener.setCallback(getNodeTree(),
 		valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(NodeContainer::nodeAddedOrRemoved));
 
-	parameterListener.setCallback(asNode()->getParameterTree(),
-		valuetree::AsyncMode::Synchronously,
-		BIND_MEMBER_FUNCTION_2(NodeContainer::parameterAddedOrRemoved));
+	if (initParameterListener)
+	{
+		parameterListener.setCallback(asNode()->getParameterTree(),
+			valuetree::AsyncMode::Synchronously,
+			BIND_MEMBER_FUNCTION_2(NodeContainer::parameterAddedOrRemoved));
+	}
 
 	channelListener.setCallback(asNode()->getValueTree(), { PropertyIds::NumChannels },
 		valuetree::AsyncMode::Synchronously,
@@ -338,6 +366,11 @@ juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
 }
 
 
+
+SerialNode::DynamicSerialProcessor::DynamicSerialProcessor(const DynamicSerialProcessor& other)
+{
+	jassertfalse;
+}
 
 bool SerialNode::DynamicSerialProcessor::handleModulation(double&)
 {

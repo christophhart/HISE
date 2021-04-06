@@ -94,7 +94,7 @@ juce::Rectangle<int> WrapperNode::createRectangleForParameterSliders(int numColu
 	int w = 0;
 
 	if (numColumns == 0)
-		w = UIValues::NodeWidth * 2;
+		w = eb.getWidth() > 0 ? eb.getWidth() : UIValues::NodeWidth * 2;
 	else
 	{
 		int numParameters = getNumParameters();
@@ -180,7 +180,6 @@ InterpretedModNode::InterpretedModNode(DspNetwork* parent, ValueTree d) :
 
 void InterpretedModNode::postInit()
 {
-	getParameterHolder()->setRingBuffer(ringBuffer.get());
 	stop();
 	Base::postInit();
 }
@@ -237,16 +236,6 @@ void InterpretedModNode::prepare(PrepareSpecs specs)
 	}
 }
 
-void InterpretedModNode::writeToRingBuffer(double value, int numSamplesForAnalysis)
-{
-	if (ringBuffer != nullptr &&
-		numSamplesForAnalysis > 0 &&
-		getRootNetwork()->isRenderingFirstVoice())
-	{
-		ringBuffer->write(value, (int)(jmax(1.0, sampleRateFactor * (double)numSamplesForAnalysis)));
-	}
-}
-
 void InterpretedModNode::processFrame(NodeBase::FrameType& data)
 {
 	if (data.size() == 1)
@@ -257,20 +246,17 @@ void InterpretedModNode::processFrame(NodeBase::FrameType& data)
 
 void InterpretedModNode::processMonoFrame(MonoFrameType& data)
 {
-	this->obj.p.setSamplesToWrite(1);
 	this->obj.processFrame(data);
 }
 
 void InterpretedModNode::processStereoFrame(StereoFrameType& data)
 {
-	this->obj.p.setSamplesToWrite(1);
 	this->obj.processFrame(data);
 }
 
 void InterpretedModNode::process(ProcessDataDyn& data) noexcept
 {
 	NodeProfiler np(this);
-	this->obj.p.setSamplesToWrite(data.getNumSamples());
 	this->obj.process(data);
 }
 
@@ -334,6 +320,11 @@ OpaqueNodeDataHolder::OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn) :
 	for (int i = 0; i < numFilters; i++)
 		data.add(new data::dynamic::filter(*this, i));
 
+	auto numDisplayBuffers = opaqueNode.numDataObjects[(int)ExternalData::DataType::DisplayBuffer];
+
+	for (int i = 0; i < numDisplayBuffers; i++)
+		data.add(new data::dynamic::displaybuffer(*this, i));
+
 	int index = 0;
 
 	for (auto d : data)
@@ -353,7 +344,7 @@ OpaqueNodeDataHolder::Editor::Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater*
 	for (auto d : obj->data)
 		addEditor(d);
 
-	setSize(512, height);
+	setSize(width, height);
 
 	stop();
 }
@@ -376,9 +367,14 @@ void OpaqueNodeDataHolder::Editor::addEditor(data::pimpl::dynamic_base* d)
 	if (dt == snex::ExternalData::DataType::FilterCoefficients)
 		e = new data::ui::filter_editor(updater, dynamic_cast<data::dynamic::filter*>(d));
 
+	if (dt == snex::ExternalData::DataType::DisplayBuffer)
+		e = new data::ui::displaybuffer_editor(updater, dynamic_cast<data::dynamic::displaybuffer*>(d));
+
 	addAndMakeVisible(e);
+	editors.add(e);
 
 	height += e->getHeight();
+	width = jmax(width, e->getWidth());
 }
 
 void OpaqueNodeDataHolder::Editor::resized()
@@ -387,6 +383,468 @@ void OpaqueNodeDataHolder::Editor::resized()
 
 	for (auto e : editors)
 		e->setBounds(b.removeFromTop(e->getHeight()));
+}
+
+static bool randomiser = false;
+
+struct WrapperSlot : public ScriptnodeExtraComponent<InterpretedUnisonoWrapperNode>,
+					 public NodeDropTarget
+{
+	bool isChain;
+
+	WrapperSlot(InterpretedUnisonoWrapperNode* obj, PooledUIUpdater * updater) :
+		ScriptnodeExtraComponent<InterpretedUnisonoWrapperNode>(obj, updater)
+	{
+		wrappedNodeListener.setCallback(getObject()->getValueTree().getOrCreateChildWithName(PropertyIds::Nodes, getObject()->getUndoManager()), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(WrapperSlot::rebuild));
+
+		duplicateListener.setCallback(getObject()->getParameter(0)->data, {PropertyIds::Value}, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(WrapperSlot::updateVoiceAmount));
+
+		initialised = true;
+
+		isChain = randomiser;
+
+		randomiser = !randomiser;
+
+		refreshNode();
+
+		setRepaintsOnMouseActivity(true);
+	};
+
+	void refreshNode()
+	{
+		if (getObject()->wrappedNode != nullptr)
+		{
+			nc = getObject()->wrappedNode->createComponent();
+
+			addAndMakeVisible(nc);
+
+			Point<int> startPos(UIValues::NodeMargin, UIValues::NodeMargin);
+
+			auto bounds = nc->node->getPositionInCanvas(startPos);
+			bounds = nc->node->getBoundsWithoutHelp(bounds);
+
+			nc->setSize(bounds.getWidth(), bounds.getHeight());
+
+			auto w = bounds.getWidth() + 2 * UIValues::NodeMargin;
+			auto h = bounds.getHeight() + 2 * UIValues::NodeMargin;
+
+			ncBounds = bounds;
+
+			setSize(w, h);
+
+			getObject()->setCachedSize(w, h);
+		}
+		else
+		{
+			nc = nullptr;
+
+			auto w = 256;
+			auto h = 20 + 2 * UIValues::NodeMargin;
+
+			setSize(w, h);
+			getObject()->setCachedSize(w, h);
+		}
+	}
+
+	void rebuild(ValueTree v, bool wasAdded)
+	{
+		if (!initialised)
+			return;
+
+		ScopedValueSetter<bool> svs(initialised, false);
+
+		if (auto dn = findParentComponentOfClass<DspNetworkGraph>())
+		{
+			dn->resizeNodes();
+		}
+			
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+
+		if (nc != nullptr)
+		{
+			if (isChain)
+			{
+				auto y = getHeight() - UIValues::NodeMargin - nc->getHeight();
+				nc->setTopLeftPosition(UIValues::NodeMargin, y);
+				ncBounds = nc->getBoundsInParent();
+			}
+			else
+			{
+				auto x = getWidth() - UIValues::NodeMargin - nc->getWidth();
+				auto y = getHeight() - UIValues::NodeMargin - nc->getHeight();
+				nc->setTopLeftPosition(x, y);
+				ncBounds = nc->getBoundsInParent();
+			}
+		}
+	}
+
+	void mouseDown(const MouseEvent& e) override
+	{
+		if (auto n = findParentComponentOfClass<DspNetworkGraph>())
+		{
+			KeyboardPopup* newPopup = new KeyboardPopup(getObject(), 0);
+
+			auto midPoint = getLocalBounds().getCentre();
+			auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+			auto r = sp->getLocalArea(this, getLocalBounds());
+
+			sp->setCurrentModalWindow(newPopup, r);
+		}
+	}
+
+	virtual void setDropTarget(Point<int> position)
+	{
+		insideDrag = getLocalBounds().contains(position);
+		repaint();
+	}
+
+	void insertDraggedNode(NodeComponent* newNode, bool copyNode)
+	{
+		auto nodeTree = getObject()->nodeListener.getParentTree();
+		nodeTree.removeAllChildren(getObject()->getUndoManager());
+
+		auto newTree = newNode->node->getValueTree();
+		newTree.getParent().removeChild(newTree, getObject()->getUndoManager());
+		nodeTree.addChild(newTree, 0, getObject()->getUndoManager());
+	}
+
+	void clearDropTarget()
+	{
+		insideDrag = false;
+		repaint();
+	}
+
+	void mouseExit(const MouseEvent& e) override
+	{
+		insideDrag = false;
+		repaint();
+	}
+
+	void removeDraggedNode(NodeComponent* draggedNode) override
+	{
+		auto oldOne = nc.release();
+
+		removeChildComponent(oldOne);
+
+		nc = new DeactivatedComponent(oldOne->node);
+
+		addAndMakeVisible(nc);
+
+		resized();
+		repaint();
+	}
+
+	void updateVoiceAmount(Identifier, var)
+	{
+		if (nc != nullptr)
+		{
+			numVoices = getObject()->getUnisonoObject().numDuplicates;
+			auto b = ncBounds;
+
+			auto w = (float)(b.getWidth() + 2 * UIValues::NodeMargin);
+			auto h = (float)(b.getHeight() + 2 * UIValues::NodeMargin);
+
+			float scale = 0.98f;
+
+			float delta = scale * (float)UIValues::NodeMargin;
+
+			for (int i = 1; i < numVoices; i++)
+			{
+				if (isChain)
+					h += delta;
+				else
+					w += delta;
+
+				delta *= scale;
+			}
+
+			auto b2 = nc->getLocalBounds().reduced(1);
+			
+			if (isChain)
+				b2 = b2.removeFromTop(UIValues::NodeMargin);
+			else
+				b2 = b2.removeFromLeft(UIValues::NodeMargin);
+
+			snapshot1 = nc->createComponentSnapshot(b2, true);
+
+			{
+				Graphics g(snapshot1);
+				g.setGradientFill(ColourGradient(Colours::transparentBlack, 0.0f, 0.0f, Colours::black.withAlpha(0.5f), 0.0f, b2.getHeight(), false));
+				g.fillAll();
+				g.setColour(Colours::black.withAlpha(0.4f));
+				g.drawRect(b2.toFloat(), 1.0f);
+			}
+
+			{
+				PostGraphicsRenderer::DataStack st;
+				PostGraphicsRenderer g2(st, snapshot1);
+				g2.desaturate();
+			}
+			
+			setSize((int)w, (int)h);
+
+			getObject()->setCachedSize(w, (int)h);
+
+			ScopedValueSetter<bool> svs(initialised, false);
+
+			if (auto dn = findParentComponentOfClass<DspNetworkGraph>())
+				dn->resizeNodes();
+		}
+	}
+
+	void timerCallback() override
+	{
+
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.fillAll(Colours::black.withAlpha(0.4f));
+
+		auto cVar = getObject()->getValueTree()[PropertyIds::NodeColour];
+		Colour c = PropertyHelpers::getColourFromVar(cVar);
+
+		float alpha = 0.05f;
+
+		if (isMouseOver(false))
+			alpha += 0.03f;
+
+		if (c == Colours::transparentBlack)
+		{
+			g.setColour(Colours::white.withAlpha(alpha));
+		}
+		else
+		{
+			alpha += 0.05f;
+			g.setColour(c.withAlpha(alpha));
+		}
+
+		if (insideDrag)
+		{
+			alpha += 0.1f;
+			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(alpha));
+		}
+
+		auto b = getLocalBounds().toFloat().reduced(2.0f);
+
+		for (int i = 0; i < getHeight(); i += 10)
+		{
+			auto x = b.removeFromTop(9.0f);
+			g.fillRect(x);
+			b.removeFromTop(1.0f);
+		}
+
+		g.setColour(Colours::white.withAlpha(0.2f));
+		g.drawRect(getLocalBounds().toFloat(), 1.0f);
+
+		if (nc == nullptr)
+		{
+			g.setColour(Colours::white.withAlpha(0.7f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(insideDrag ? "Drop Node here" : "Click to add node", getLocalBounds().toFloat(), Justification::centred);
+		}
+
+		auto pos = ncBounds.toFloat();
+
+		alpha = 1.0f;
+
+		float delta = 10.0f;
+		float scaleFactor = 0.98f;
+		
+		float startX, startY, startHeight, startWidth;
+
+		if (isChain)
+		{
+			startHeight = 10.0 * scaleFactor;
+			startY = pos.getY() - 10.0 * scaleFactor;
+			startX = pos.getX();
+			startWidth = pos.getWidth() * scaleFactor;
+			startX += (pos.getWidth() - startWidth) / 2.0f;
+		}
+		else
+		{
+			startHeight = pos.getHeight() * scaleFactor;
+			startY = pos.getY();
+			startX = pos.getX() - 10.0 * scaleFactor;
+			startWidth = 10.0 * scaleFactor;
+			startY += (pos.getHeight() - startHeight) / 2.0f;
+		}
+
+		g.setColour(Colours::black);
+
+		for (int i = 0; i < numVoices-1; i++)
+		{
+			Rectangle<float> a(startX, startY, startWidth, startHeight);
+
+			g.setColour(Colours::black);
+
+			g.drawImage(snapshot1, a, RectanglePlacement::stretchToFit);
+
+			auto b = (float)i * JUCE_LIVE_CONSTANT_OFF(0.2f);
+
+			g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x751f1f1f)).withMultipliedAlpha(b));
+			g.fillRect(a);
+
+			if (isChain)
+			{
+				startHeight *= scaleFactor;
+				startX += (startWidth - startWidth * scaleFactor) / 2.0f;
+				startWidth *= scaleFactor;
+				startY -= startHeight;
+			}
+			else
+			{
+				startHeight *= scaleFactor;
+				startY += (startHeight - startHeight * scaleFactor) / 2.0f;
+				startWidth *= scaleFactor;
+				startX -= startWidth;
+			}
+		}
+	}
+
+	valuetree::ChildListener wrappedNodeListener;
+	valuetree::PropertyListener duplicateListener;
+
+	Image snapshot1;
+
+	ScopedPointer<NodeComponent> nc;
+
+	Rectangle<int> ncBounds;
+
+	bool initialised = false;
+	int numVoices = 1;
+	bool insideDrag = false;
+};
+
+InterpretedUnisonoWrapperNode::InterpretedUnisonoWrapperNode(DspNetwork* n, ValueTree d) :
+	WrapperNode(n, d),
+	InterpretedNodeBase<Base>()
+{
+
+	for (auto p : createInternalParameterList())
+	{
+		auto n = p.info.toString();
+
+		auto pTree = getParameterTree().getChildWithProperty(PropertyIds::ID, n);
+
+		if (!pTree.isValid())
+		{
+			pTree = p.createValueTree();
+			getParameterTree().addChild(pTree, -1, getUndoManager());
+		}
+
+		auto np = new Parameter(this, pTree);
+
+		addParameter(np);
+		np->getReferenceToCallback().setParameter(new parameter::dynamic_base(p.callback));
+	}
+
+	obj.initialise(this);
+
+	auto nodeTree = getValueTree().getOrCreateChildWithName(PropertyIds::Nodes, getUndoManager());
+	nodeListener.setCallback(nodeTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(InterpretedUnisonoWrapperNode::updateChildNode));
+}
+
+ReferenceCountedArray<Parameter> InterpretedUnisonoWrapperNode::getParameterList(const ValueTree& pTree)
+{
+	ReferenceCountedArray<Parameter> list;
+
+	SimpleReadWriteLock::ScopedReadLock sl(obj.voiceMultiplyLock);
+
+	for (auto& o : obj)
+	{
+		o.getRootNode()->forEach([&list, &pTree](NodeBase::Ptr nb)
+		{
+			for (int i = 0; i < nb->getNumParameters(); i++)
+			{
+				auto p = nb->getParameter(i);
+
+				if (p->data == pTree)
+				{
+					list.add(p);
+					return true;
+				}
+			}
+
+			return false;
+		});
+	}
+
+	return list;
+}
+
+Component* InterpretedUnisonoWrapperNode::createWrapperSlot(void* obj, PooledUIUpdater* updater)
+{
+	auto typed = static_cast<InterpretedUnisonoWrapperNode*>(obj);
+	return new WrapperSlot(typed, updater);
+}
+
+void InterpretedUnisonoWrapperNode::assign(int index, var newValue)
+{
+	if (auto n = dynamic_cast<NodeBase*>(newValue.getObject()))
+	{
+		auto nodeTree = nodeListener.getParentTree();
+		nodeTree.removeAllChildren(getUndoManager());
+		nodeTree.addChild(n->getValueTree(), -1, getUndoManager());
+	}
+}
+
+var InterpretedUnisonoWrapperNode::getAssignedValue(int index) const
+{
+	return var(wrappedNode.get());
+}
+
+int InterpretedUnisonoWrapperNode::getCachedIndex(const var &indexExpression) const
+{
+	return (int)indexExpression;
+}
+
+void InterpretedUnisonoWrapperNode::updateChildNode(ValueTree v, bool wasAdded)
+{
+	if (skipTreeListener)
+		return;
+
+	if (wasAdded)
+	{
+		wrappedNode = getRootNetwork()->createFromValueTree(getRootNetwork()->isPolyphonic(), v);
+		wrappedNode->setParentNode(this);
+		wrappedNode->setIsUINodeOfDuplicates(true);
+
+		obj.getWrappedObject().clone(wrappedNode);
+		obj.refreshFromFirst();
+
+		auto isContainer = dynamic_cast<NodeContainer*>(wrappedNode.get());
+
+		obj.setDuplicateSignal(isContainer);
+	}
+	else
+	{
+		if (wrappedNode != nullptr)
+		{
+			wrappedNode->setParentNode(nullptr);
+			wrappedNode->setIsUINodeOfDuplicates(false);
+			wrappedNode = nullptr;
+		}
+
+		obj.getWrappedObject().clear();
+		obj.refreshFromFirst();
+	}
+}
+
+scriptnode::ParameterDataList InterpretedUnisonoWrapperNode::createInternalParameterList()
+{
+	ParameterDataList l;
+
+	parameter::data p("NumVoices", { 1.0, 16.0, 1.0, 1.0 });
+	p.setDefaultValue(1.0);
+	p.callback.referTo(&obj, Base::setParameterStatic<0>);
+
+	l.add(p);
+	return l;
 }
 
 }

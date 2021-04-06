@@ -53,7 +53,8 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	parent(rootNetwork),
 	v_data(data_),
 	helpManager(this, data_),
-	currentId(v_data[PropertyIds::ID].toString())
+	currentId(v_data[PropertyIds::ID].toString()),
+	subHolder(rootNetwork->getCurrentHolder())
 {
 	setDefaultValue(PropertyIds::NumChannels, 2);
 	setDefaultValue(PropertyIds::LockNumChannels, false);
@@ -81,10 +82,19 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	{
 		addConstant(c[PropertyIds::ID].toString(), c[PropertyIds::ID]);
 	}
+
+	DBG("Add " + getId());
+}
+
+NodeBase::~NodeBase()
+{
+	DBG("Remove " + getId());
 }
 
 void NodeBase::prepare(PrepareSpecs specs)
 {
+	jassert(!isUINodeOfDuplicate());
+
 	lastSpecs = specs;
 	cpuUsage = 0.0;
 
@@ -97,6 +107,14 @@ void NodeBase::prepare(PrepareSpecs specs)
 
 DspNetwork* NodeBase::getRootNetwork() const
 {
+	return static_cast<DspNetwork*>(parent.get());
+}
+
+scriptnode::NodeBase::Holder* NodeBase::getNodeHolder() const
+{
+	if (subHolder != nullptr)
+		return subHolder;
+
 	return static_cast<DspNetwork*>(parent.get());
 }
 

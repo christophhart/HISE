@@ -129,12 +129,19 @@ ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
 		}
 		else
 		{
+
+
 			for (auto t : targets)
 			{
 				if (t->data == c)
 				{
-					if (t->targetParameter != nullptr)
-						t->targetParameter->data.removeProperty(PropertyIds::ModulationTarget, getUndoManager());
+					if (auto tp = t->targetParameter)
+					{
+						auto v = tp->getValue();
+						tp->data.removeProperty(PropertyIds::ModulationTarget, getUndoManager());
+						tp->getReferenceToCallback().setDisplaySource(nullptr);
+						tp->setValueAndStoreAsync(v);
+					}
 
 					targets.removeObject(t);
 					break;
@@ -167,7 +174,7 @@ var ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 	RangeHelpers::storeDoubleRange(m, false, range, nullptr);
 
 	m.setProperty(PropertyIds::Expression, "", nullptr);
-
+	
 	getModulationTargetTree().addChild(m, -1, getUndoManager());
 
 	return var(targets.getLast());
@@ -233,11 +240,21 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 			np = new parameter::dynamic_from0to1(p.callback, range);
 		else
 			np = new parameter::dynamic_base(p.callback);
+		
+		if (auto tp = targetNode->getParameter(p.info.parameterName))
+		{
+			tp->getReferenceToCallback().setDisplaySource(np);
 
-		double* lValue = &targetNode->getParameter(p.info.getId())->getReferenceToCallback().lastValue;
+			if (auto uWrapper = targetNode->findParentNodeOfType<InterpretedUnisonoWrapperNode>())
+			{
+				auto dd = new parameter::dynamic_duplispread();
+				dd->setDataTree(tp->data);
+				dd->connect(uWrapper, np.release());
+				np = dd;
 
-		np->displayValuePointer = lValue;
-
+				tp->getReferenceToCallback().setDisplaySource(np);
+			}
+		}
 
 		//np->setDataTree(targetNode->getParameter(p.id)->data);
 

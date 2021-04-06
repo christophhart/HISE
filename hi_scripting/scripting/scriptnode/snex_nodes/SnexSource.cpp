@@ -235,13 +235,13 @@ void SnexSource::ComplexDataHandler::initialise(NodeBase* n)
 	dataTree = n->getValueTree().getOrCreateChildWithName(PropertyIds::ComplexData, n->getUndoManager());
 
 	ExternalData::forEachType([this, n](ExternalData::DataType t)
-		{
-			auto name = ExternalData::getDataTypeName(t);
+	{
+		auto name = ExternalData::getDataTypeName(t);
 
-			auto typeTree = dataTree.getOrCreateChildWithName(name + "s", n->getUndoManager());
+		auto typeTree = dataTree.getOrCreateChildWithName(name + "s", n->getUndoManager());
 
-			dataListeners[(int)t].setCallback(typeTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(SnexSource::ComplexDataHandler::dataAddedOrRemoved));
-		});
+		dataListeners[(int)t].setCallback(typeTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(SnexSource::ComplexDataHandler::dataAddedOrRemoved));
+	});
 
 }
 
@@ -266,11 +266,14 @@ void SnexSource::ComplexDataHandler::dataAddedOrRemoved(ValueTree v, bool wasAdd
 {
 	auto typeId = v.getType().toString();
 
+	
+
 	ExternalData::DataType t = ExternalData::DataType::numDataTypes;
 
 	if (typeId == ExternalData::getDataTypeName(ExternalData::DataType::Table)) t = ExternalData::DataType::Table;
 	if (typeId == ExternalData::getDataTypeName(ExternalData::DataType::SliderPack)) t = ExternalData::DataType::SliderPack;
 	if (typeId == ExternalData::getDataTypeName(ExternalData::DataType::AudioFile)) t = ExternalData::DataType::AudioFile;
+	if (typeId == ExternalData::getDataTypeName(ExternalData::DataType::DisplayBuffer)) t = ExternalData::DataType::DisplayBuffer;
 
 	if (t != ExternalData::DataType::numDataTypes)
 	{
@@ -297,10 +300,11 @@ int SnexSource::ComplexDataHandler::getNumDataObjects(ExternalData::DataType t) 
 {
 	switch (t)
 	{
-	case snex::ExternalData::DataType::Table: return tables.size();
-	case snex::ExternalData::DataType::AudioFile: return audioFiles.size();
-	case snex::ExternalData::DataType::SliderPack: return sliderPacks.size();
-	case snex::ExternalData::DataType::FilterCoefficients: return 0;
+	case snex::ExternalData::DataType::Table:				return tables.size();
+	case snex::ExternalData::DataType::AudioFile:			return audioFiles.size();
+	case snex::ExternalData::DataType::SliderPack:			return sliderPacks.size();
+	case snex::ExternalData::DataType::DisplayBuffer:		return displayBuffers.size();
+	case snex::ExternalData::DataType::FilterCoefficients:  return 0;
 	}
 }
 
@@ -389,6 +393,32 @@ hise::MultiChannelAudioBuffer* SnexSource::ComplexDataHandler::getAudioFile(int 
 	return n->getAudioFile(0);
 }
 
+hise::SimpleRingBuffer* SnexSource::ComplexDataHandler::getDisplayBuffer(int index)
+{
+	if (isPositiveAndBelow(index, sliderPacks.size()))
+		return displayBuffers[index]->getDisplayBuffer(0);
+
+	auto n = new data::dynamic::displaybuffer(*this, index);
+	n->initialise(getNode());
+	displayBuffers.add(n);
+
+	WeakReference<SnexSource> safeThis(&parent);
+
+	MessageManager::callAsync([safeThis, index]()
+		{
+			if (safeThis != nullptr)
+			{
+				for (auto l : safeThis.get()->compileListeners)
+				{
+					if (l != nullptr)
+						l->complexDataAdded(ExternalData::DataType::DisplayBuffer, index);
+				}
+			}
+		});
+
+	return n->getDisplayBuffer(0);
+}
+
 bool SnexSource::ComplexDataHandler::removeDataObject(ExternalData::DataType t, int index)
 {
 	ExternalData empty;
@@ -406,6 +436,7 @@ bool SnexSource::ComplexDataHandler::removeDataObject(ExternalData::DataType t, 
 		case ExternalData::DataType::Table: pendingDelete = tables.removeAndReturn(index); break;
 		case ExternalData::DataType::SliderPack: pendingDelete = sliderPacks.removeAndReturn(index); break;
 		case ExternalData::DataType::AudioFile: pendingDelete = audioFiles.removeAndReturn(index); break;
+		case ExternalData::DataType::DisplayBuffer: pendingDelete = displayBuffers.removeAndReturn(index); break;
 		}
 	}
 
@@ -421,6 +452,7 @@ snex::ExternalDataHolder* SnexSource::ComplexDataHandler::getDynamicDataHolder(s
 	case snex::ExternalData::DataType::Table: return tables[index];
 	case snex::ExternalData::DataType::SliderPack: return sliderPacks[index];
 	case snex::ExternalData::DataType::AudioFile: return audioFiles[index];
+	case snex::ExternalData::DataType::DisplayBuffer: return displayBuffers[index];
 	}
 }
 

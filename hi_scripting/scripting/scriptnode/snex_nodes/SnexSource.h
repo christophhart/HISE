@@ -302,6 +302,7 @@ struct SnexSource : public WorkbenchData::Listener
 		Table* getTable(int index) override;
 		SliderPackData* getSliderPack(int index) override;
 		MultiChannelAudioBuffer* getAudioFile(int index) override;
+		SimpleRingBuffer* getDisplayBuffer(int index) override;
 		bool removeDataObject(ExternalData::DataType t, int index) override;
 
 		ExternalDataHolder* getDynamicDataHolder(snex::ExternalData::DataType t, int index);
@@ -364,6 +365,7 @@ struct SnexSource : public WorkbenchData::Listener
 
 		OwnedArray<snex::ExternalDataHolder> tables;
 		OwnedArray<snex::ExternalDataHolder> sliderPacks;
+		OwnedArray<snex::ExternalDataHolder> displayBuffers;
 		OwnedArray<snex::ExternalDataHolder> audioFiles;
 	};
 

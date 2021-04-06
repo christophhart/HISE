@@ -333,6 +333,11 @@ public:
 	HISE_EMPTY_HANDLE_EVENT;
 	HISE_EMPTY_INITIALISE;
 
+	OpNode() = default;
+	OpNode(const OpNode& other) = default;
+
+	
+
 	template <typename PD> void process(PD& d)
 	{
         OpType::template op<PD>(d, value.get());

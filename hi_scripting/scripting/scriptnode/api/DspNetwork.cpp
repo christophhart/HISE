@@ -89,10 +89,9 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 	loader = new DspFactory::LibraryLoader(dynamic_cast<Processor*>(p));
 
-	signalPath = createFromValueTree(true, data.getChild(0), true);
+	setRootNode(createFromValueTree(true, data.getChild(0), true));
 
-    
-	networkParameterHandler.root = signalPath;
+	networkParameterHandler.root = getRootNode();
 
 	ADD_API_METHOD_1(processBlock);
 	ADD_API_METHOD_2(prepareToPlay);
@@ -132,7 +131,7 @@ DspNetwork::~DspNetwork()
 
 void DspNetwork::setNumChannels(int newNumChannels)
 {
-	signalPath->getValueTree().setProperty(PropertyIds::NumChannels, newNumChannels, nullptr);
+	getRootNode()->getValueTree().setProperty(PropertyIds::NumChannels, newNumChannels, nullptr);
 }
 
 void DspNetwork::rightClickCallback(const MouseEvent& e, Component* c)
@@ -159,11 +158,16 @@ NodeBase* DspNetwork::getNodeForValueTree(const ValueTree& v)
 	if (!v.isValid())
 		return {};
 
-	for (auto n : nodes)
+	auto& nodeListToUse = currentNodeHolder != nullptr ? currentNodeHolder->nodes : nodes;
+
+	for (auto n : nodeListToUse)
 	{
 		if (n->getValueTree() == v)
 			return n;
 	}
+
+	if (currentNodeHolder != nullptr)
+		return createFromValueTree(isPolyphonic(), v, true);
 
 	return nullptr;
 }
@@ -266,6 +270,15 @@ juce::StringArray DspNetwork::getFactoryList() const
 
 
 
+scriptnode::NodeBase::Holder* DspNetwork::getCurrentHolder() const
+{
+	if (currentNodeHolder != nullptr)
+		return currentNodeHolder.get();
+
+
+	return const_cast<DspNetwork*>(this);
+}
+
 void DspNetwork::registerOwnedFactory(NodeFactory* ownedFactory)
 {
 	ownedFactories.add(ownedFactory);
@@ -281,13 +294,13 @@ void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
 		ProcessDataDyn d(b.getArrayOfWritePointers(), b.getNumSamples(), b.getNumChannels());
 		d.setEventBuffer(*e);
 
-		signalPath->process(d);
+		getRootNode()->process(d);
 	}
 }
 
 juce::Identifier DspNetwork::getParameterIdentifier(int parameterIndex)
 {
-	return signalPath->getParameter(parameterIndex)->getId();
+	return getRootNode()->getParameter(parameterIndex)->getId();
 }
 
 void DspNetwork::setForwardControlsToParameters(bool shouldForward)
@@ -311,16 +324,18 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 
 			currentSpecs.sampleRate = sampleRate;
 			currentSpecs.blockSize = (int)blockSize;
-			currentSpecs.numChannels = signalPath->getNumChannelsToProcess();
+			currentSpecs.numChannels = getRootNode()->getNumChannelsToProcess();
 			currentSpecs.voiceIndex = &voiceIndex;
 
-			signalPath->prepare(currentSpecs);
-			signalPath->reset();
+			getRootNode()->prepare(currentSpecs);
+			getRootNode()->reset();
 		}
 		catch (String& errorMessage)
 		{
 			jassertfalse;
 		}
+
+		
 	}
 }
 
@@ -353,8 +368,7 @@ void DspNetwork::processBlock(var pData)
 			}
 
 			ProcessDataDyn d(currentData, numSamplesToUse, numChannelsToUse);
-			signalPath->process(d);
-
+			getRootNode()->process(d);
 		}
 	}
 }
@@ -399,9 +413,11 @@ var DspNetwork::get(var idOrNode) const
 		return {};
 
 	if (id == getId())
-		return var(signalPath);
+		return var(getRootNode());
 
-	for (auto n : nodes)
+	auto& listToUse = currentNodeHolder != nullptr ? currentNodeHolder->nodes : nodes;
+
+	for (auto n : listToUse)
 	{
 		if (n->getId() == id)
 			return var(n);
@@ -492,7 +508,13 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 
 	for (auto c : childNodes)
 	{
-		createFromValueTree(createPolyIfAvailable, c, forceCreate);
+		auto n = createFromValueTree(createPolyIfAvailable, c, forceCreate);
+
+		if (currentNodeHolder != nullptr)
+		{
+			currentNodeHolder->nodes.addIfNotAlreadyThere(n);
+		}
+			
 	}
 
 	NodeBase::Ptr newNode;
@@ -513,10 +535,16 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 			if(originalSampleRate > 0.0)
 				newNode->prepare(currentSpecs);
 
-			StringArray sa;
-			auto newId = getNonExistentId(id, sa);
-			newNode->setValueTreeProperty(PropertyIds::ID, newId);
-			nodes.add(newNode);
+			if (currentNodeHolder == nullptr)
+			{
+				StringArray sa;
+				auto newId = getNonExistentId(id, sa);
+				newNode->setValueTreeProperty(PropertyIds::ID, newId);
+				nodes.add(newNode);
+			}
+			else
+				currentNodeHolder->nodes.add(newNode);
+			
 			return newNode.get();
 		}
 	}
@@ -528,16 +556,16 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 
 bool DspNetwork::isInSignalPath(NodeBase* b) const
 {
-	if (signalPath == nullptr)
+	if (getRootNode() == nullptr)
 		return false;
 
 	if (b == nullptr)
 		return false;
 
-	if (b == signalPath.get())
+	if (b == getRootNode())
 		return true;
 
-	return b->getValueTree().isAChildOf(signalPath->getValueTree());
+	return b->getValueTree().isAChildOf(getRootNode()->getValueTree());
 }
 
 
@@ -579,7 +607,7 @@ bool DspNetwork::updateIdsInValueTree(ValueTree& v, StringArray& usedIds)
 	auto newId = getNonExistentId(oldId, usedIds);
 
 	if (oldId != newId)
-		v.setProperty(PropertyIds::ID, newId, signalPath->getUndoManager());
+		v.setProperty(PropertyIds::ID, newId, getUndoManager());
 
 	auto nodeTree = v.getChildWithName(PropertyIds::Nodes);
 
@@ -594,7 +622,7 @@ bool DspNetwork::updateIdsInValueTree(ValueTree& v, StringArray& usedIds)
 
 juce::String DspNetwork::getNonExistentId(String id, StringArray& usedIds) const
 {
-	if (signalPath == nullptr)
+	if (getRootNode() == nullptr)
 	{
 		usedIds.add(id);
 		return id;
@@ -996,6 +1024,26 @@ bool DeprecationChecker::check(DeprecationId id)
 	}
 
 	return false;
+}
+
+DspNetwork::AnonymousNodeCloner::AnonymousNodeCloner(DspNetwork& p, NodeBase::Holder* other):
+	parent(p)
+{
+	if (other == &parent)
+		other = nullptr;
+
+	prevHolder = p.currentNodeHolder;
+	p.currentNodeHolder = other;
+}
+
+DspNetwork::AnonymousNodeCloner::~AnonymousNodeCloner()
+{
+	parent.currentNodeHolder = prevHolder.get();
+}
+
+scriptnode::NodeBase::Ptr DspNetwork::AnonymousNodeCloner::clone(NodeBase::Ptr p)
+{
+	return parent.createFromValueTree(parent.isPolyphonic(), p->getValueTree(), false);
 }
 
 }

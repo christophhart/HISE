@@ -37,6 +37,7 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+
 struct NodeContainer : public AssignableObject
 {
 	struct MacroParameter : public NodeBase::Parameter,
@@ -87,6 +88,8 @@ struct NodeContainer : public AssignableObject
 		{
 			getReferenceToCallback().updateUI();
 		}
+
+		
 
 		var addParameterTarget(NodeBase::Parameter* p)
 		{
@@ -153,6 +156,8 @@ struct NodeContainer : public AssignableObject
 
 	virtual int getCachedIndex(const var &indexExpression) const override;
 
+	bool forEachNode(const std::function<bool(NodeBase::Ptr)> & f);
+
 	// ===================================================================================
 
 	void clear();
@@ -165,7 +170,7 @@ struct NodeContainer : public AssignableObject
 
 protected:
 
-	void initListeners();
+	void initListeners(bool initParameterListener=true);
 
 	friend class ContainerComponent;
 
@@ -176,15 +181,15 @@ protected:
 
 	virtual void channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange) { ignoreUnused(nodeThatCausedLayoutChange); };
 
+	valuetree::ChildListener nodeListener;
+	valuetree::ChildListener parameterListener;
+	valuetree::RecursivePropertyListener channelListener;
+
 private:
 
 	void nodeAddedOrRemoved(ValueTree v, bool wasAdded);
 	void parameterAddedOrRemoved(ValueTree v, bool wasAdded);
 	void updateChannels(ValueTree v, Identifier id);
-
-	valuetree::ChildListener nodeListener;
-	valuetree::ChildListener parameterListener;
-	valuetree::RecursivePropertyListener channelListener;
 
 	PolyHandler* lastVoiceIndex = nullptr;
 	bool channelRecursionProtection = false;
@@ -200,6 +205,10 @@ public:
 	public:
 
 		SN_GET_SELF_AS_OBJECT(DynamicSerialProcessor);
+
+		DynamicSerialProcessor() = default;
+
+		DynamicSerialProcessor(const DynamicSerialProcessor& other);
 
 		bool handleModulation(double&);
 		void handleHiseEvent(HiseEvent& e);
@@ -231,6 +240,11 @@ public:
 		NodeContainer* parent;
 	};
 
+	bool forEach(const std::function<bool(NodeBase::Ptr)>& f) override
+	{
+		return forEachNode(f);
+	}
+
 	SerialNode(DspNetwork* root, ValueTree data);
 
 	NodeComponent* createComponent() override;
@@ -245,6 +259,11 @@ public:
 	ParallelNode(DspNetwork* root, ValueTree data);
 	NodeComponent* createComponent() override;
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+
+	bool forEach(const std::function<bool(NodeBase::Ptr)>& f) override
+	{
+		return forEachNode(f);
+	}
 };
 
 class NodeContainerFactory : public NodeFactory

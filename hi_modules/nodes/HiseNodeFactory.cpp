@@ -135,20 +135,27 @@ namespace control
 		registerNoProcessNode<dynamic_cable_pack, data::ui::sliderpack_editor>();
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();
 		
+		registerNoProcessNode<parameter::dynamic_duplispread_node, parameter::duplispread_editor>();
+
 		registerNoProcessNode<faders::dynamic::NodeType, faders::dynamic::editor>();
 		registerModNode<midi_logic::dynamic::NodeType, midi_logic::dynamic::editor>();
 		registerModNode<smoothers::dynamic::NodeType, smoothers::dynamic::editor>();
 
 		registerPolyModNode<control::timer<snex_timer>, timer_poly<snex_timer>, snex_timer::editor>();
+
+		registerNodeRaw<InterpretedUnisonoWrapperNode>();
 	}
 }
 
 namespace core
 {
+template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
 
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
+	
+
 	registerNode<fix_delay>();
 	registerNode<fm>();
 	

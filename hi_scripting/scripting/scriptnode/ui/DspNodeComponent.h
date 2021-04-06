@@ -51,9 +51,6 @@ public:
 	{
 		extraComponent = newExtraComponent;
 		addAndMakeVisible(extraComponent);
-		
-		if (extraComponent != nullptr)
-			extraWidth = extraComponent->getWidth();
 	}
 
 	void updateSliders(ValueTree , bool )
@@ -82,7 +79,6 @@ public:
 
 	void resized() override;
 
-	int extraWidth = -1;
 	ScopedPointer<Component> extraComponent;
 	OwnedArray<ParameterSlider> sliders;
 

@@ -1020,6 +1020,7 @@ public:
 			addButton("export");
 			addButton("deselect");
 			addButton("fold");
+			addButton("foldunselected");
 			addButton("bypass");
 			addButton("colour");
 			addButton("properties");
@@ -1089,6 +1090,7 @@ public:
 		static bool toggleCpuProfiling(DspNetworkGraph& g);
 		static bool editNodeProperty(DspNetworkGraph& g);
 		static bool foldSelection(DspNetworkGraph& g);
+		static bool foldUnselectedNodes(DspNetworkGraph& g);
 		static bool arrowKeyAction(DspNetworkGraph& g, const KeyPress& k);
 		static bool showKeyboardPopup(DspNetworkGraph& g, KeyboardPopup::Mode mode);
 		static bool duplicateSelection(DspNetworkGraph& g);
@@ -1180,6 +1182,9 @@ public:
 
 	static void paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha=1.0f, Colour holeColour=Colour(0xFFAAAAAA))
 	{
+		if (start.getCentreY() > end.getCentreY())
+			std::swap(start, end);
+
 		if (alpha != 1.0f)
 		{
 			holeColour = c;
@@ -1218,7 +1223,7 @@ public:
 		{
 			float width = 6.0f;
 			float height = 6.0f;
-			float y = getKnobCircle ? 66.0f : c->getHeight();
+			float y = getKnobCircle ? 66.0f : (c->getHeight());
 
 			float offsetY = (float)c->getProperties()["circleOffsetY"];
 			float offsetX = (float)c->getProperties()["circleOffsetX"];
@@ -1283,7 +1288,7 @@ public:
 
 	ScopedPointer<PeriodicRepainter> periodicRepainter;
 
-	Component::SafePointer<ContainerComponent> currentDropTarget;
+	WeakReference<NodeDropTarget> currentDropTarget;
 	ScopedPointer<NodeComponent> currentlyDraggedComponent;
 
 	WeakReference<DspNetwork> network;

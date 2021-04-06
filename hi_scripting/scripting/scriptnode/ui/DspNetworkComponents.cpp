@@ -74,6 +74,13 @@ namespace ScriptnodeIcons
 	151,178,65,99,109,250,126,11,66,233,38,77,65,108,250,126,11,66,100,59,141,65,108,0,0,0,0,100,59,141,65,108,0,0,0,0,233,38,77,65,108,250,126,11,66,233,38,77,65,99,109,135,22,139,65,164,112,189,64,108,176,114,186,65,0,0,0,0,108,211,77,204,65,121,233,14,
 	64,108,182,243,156,65,152,110,2,65,108,135,22,139,65,246,40,38,65,108,41,92,21,65,66,96,21,64,108,135,22,57,65,23,217,206,61,108,135,22,139,65,164,112,189,64,99,101,0,0 };
 
+	static const unsigned char foldUnselected[] = { 110,109,86,206,13,67,90,228,219,66,108,33,48,29,67,197,32,189,66,108,35,27,29,67,45,146,16,67,108,51,51,214,66,233,166,16,67,108,221,36,243,66,20,46,2,67,108,86,206,13,67,20,46,2,67,108,86,206,13,67,90,228,219,66,99,109,172,28,118,65,90,228,219,66,108,
+0,0,0,0,197,32,189,66,108,158,239,167,61,45,146,16,67,108,29,90,72,66,233,166,16,67,108,201,118,14,66,20,46,2,67,108,172,28,118,65,20,46,2,67,108,172,28,118,65,90,228,219,66,99,109,254,84,250,66,4,22,142,66,108,240,39,227,66,4,22,142,66,108,240,39,227,
+66,35,27,204,66,108,172,156,53,66,35,27,204,66,108,172,156,53,66,4,22,142,66,108,113,189,4,66,4,22,142,66,108,113,189,4,66,162,5,228,66,108,254,84,250,66,162,5,228,66,108,254,84,250,66,4,22,142,66,99,109,74,204,254,66,80,13,133,66,108,74,204,254,66,133,
+235,252,65,108,178,157,247,65,133,235,252,65,108,178,157,247,65,80,13,133,66,108,74,204,254,66,80,13,133,66,99,109,86,206,13,67,242,210,10,66,108,33,48,29,67,29,90,72,66,108,35,27,29,67,158,239,167,61,108,51,51,214,66,0,0,0,0,108,221,36,243,66,80,141,
+103,65,108,86,206,13,67,80,141,103,65,108,86,206,13,67,242,210,10,66,99,109,172,28,118,65,242,210,10,66,108,0,0,0,0,29,90,72,66,108,158,239,167,61,158,239,167,61,108,29,90,72,66,0,0,0,0,108,201,118,14,66,80,141,103,65,108,172,28,118,65,80,141,103,65,
+108,172,28,118,65,242,210,10,66,99,101,0,0 };
+
 	static const unsigned char gotoIcon[] = { 110,109,111,146,38,66,106,188,168,64,108,35,91,38,66,106,188,168,64,108,35,91,38,66,41,92,217,65,108,215,35,38,66,41,92,217,65,108,215,35,38,66,227,165,218,65,108,57,180,102,65,227,165,218,65,108,57,180,102,65,213,120,176,65,108,150,67,17,66,213,120,
 	176,65,108,150,67,17,66,106,188,168,64,108,152,110,104,65,106,188,168,64,108,152,110,104,65,0,0,0,0,108,111,146,38,66,0,0,0,0,108,111,146,38,66,106,188,168,64,99,109,0,0,0,0,219,249,132,65,108,0,0,0,0,199,75,31,65,108,236,81,12,65,199,75,31,65,108,236,
 	81,12,65,37,6,113,64,108,16,88,146,65,190,159,84,65,108,236,81,12,65,250,126,182,65,108,236,81,12,65,219,249,132,65,108,0,0,0,0,219,249,132,65,99,101,0,0 };
@@ -123,6 +130,7 @@ juce::Path DspNetworkGraph::WrapperWithMenuBar::ActionButton::createPath(const S
 	LOAD_PATH_IF_URL("colour", ScriptnodeIcons::colourIcon);
 	LOAD_PATH_IF_URL("cable", ScriptnodeIcons::cableIcon);
 	LOAD_PATH_IF_URL("fold", ScriptnodeIcons::foldIcon);
+	LOAD_PATH_IF_URL("foldunselected", ScriptnodeIcons::foldUnselected);
 	LOAD_PATH_IF_URL("deselect", EditorIcons::cancelIcon);
 	LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
 	LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
@@ -164,8 +172,8 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 	rebuildListener.setCallback(dataReference, valuetree::AsyncMode::Synchronously,
 		[this](ValueTree c, bool)
 	{
-		if (c.getType() == PropertyIds::Node)
-			triggerAsyncUpdate();
+			if (c.getType() == PropertyIds::Node)
+			    triggerAsyncUpdate();
 	});
 
 	macroListener.setTypeToWatch(PropertyIds::Parameters);
@@ -239,13 +247,13 @@ void DspNetworkGraph::handleAsyncUpdate()
 
 void DspNetworkGraph::rebuildNodes()
 {
-	addAndMakeVisible(root = dynamic_cast<NodeComponent*>(network->signalPath->createComponent()));
+	addAndMakeVisible(root = dynamic_cast<NodeComponent*>(network->getRootNode()->createComponent()));
 	resizeNodes();
 }
 
 void DspNetworkGraph::resizeNodes()
 {
-	auto b = network->signalPath->getPositionInCanvas({ UIValues::NodeMargin, UIValues::NodeMargin });
+	auto b = network->getRootNode()->getPositionInCanvas({ UIValues::NodeMargin, UIValues::NodeMargin });
 	setSize(b.getWidth() + 2 * UIValues::NodeMargin, b.getHeight() + 2 * UIValues::NodeMargin);
 	resized();
 }
@@ -254,23 +262,25 @@ void DspNetworkGraph::updateDragging(Point<int> position, bool copyNode)
 {
 	copyDraggedNode = copyNode;
 
-	if (auto c = dynamic_cast<ContainerComponent*>(root.get()))
+	if (auto c = dynamic_cast<NodeDropTarget*>(root.get()))
 	{
 		c->setDropTarget({});
 	}
 
 	if (auto hoveredComponent = root->getComponentAt(position))
 	{
-		auto container = dynamic_cast<ContainerComponent*>(hoveredComponent);
+		auto container = dynamic_cast<NodeDropTarget*>(hoveredComponent);
 
 		if (container == nullptr)
-			container = hoveredComponent->findParentComponentOfClass<ContainerComponent>();
+			container = hoveredComponent->findParentComponentOfClass<NodeDropTarget>();
 
 		if (container != nullptr)
 		{
+			if (currentDropTarget != nullptr && currentDropTarget != container)
+				currentDropTarget->setDropTarget({ -1, -1 });
+
 			currentDropTarget = container;
-			DBG(container->getName());
-			auto pointInContainer = container->getLocalPoint(this, position);
+			auto pointInContainer = container->asComponent()->getLocalPoint(this, position);
 			container->setDropTarget(pointInContainer);
 		}
 	}
@@ -359,12 +369,31 @@ Colour getSpecialColour(Component* c, Colour defaultColour)
 
 void DspNetworkGraph::paintOverChildren(Graphics& g)
 {
+	Array<DragAndDropContainer::DragImageComponentBase*> draggers;
+	fillChildComponentList(draggers, this);
+
+	for (auto e : draggers)
+	{
+		auto asC = dynamic_cast<Component*>(e);
+
+		asC->getProperties().set("circleOffsetX", JUCE_LIVE_CONSTANT_OFF(0));
+		asC->getProperties().set("circleOffsetY", JUCE_LIVE_CONSTANT_OFF(0));
+
+		auto end = getCircle(asC, false);
+		auto start = getCircle(e->getDetails().sourceComponent, false);
+
+		paintCable(g, start, end, Colours::white, 0.6f);
+	}
+
 	Array<ModulationSourceBaseComponent*> modSourceList;
 	fillChildComponentList(modSourceList, this);
 
+#if 0
 	for (auto modSource : modSourceList)
 	{
-		if (!modSource->getSourceNodeFromParent()->isBodyShown())
+		auto ms = modSource->getSourceNodeFromParent();
+
+		if (ms == nullptr || !ms->isBodyShown())
 			continue;
 
 		auto start = getCircle(modSource, false);
@@ -374,6 +403,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		g.setColour(Colour(0xFFAAAAAA));
 		g.drawEllipse(start, 2.0f);
 	}
+#endif
 
 	float alpha = showCables ? 1.0f : 0.1f;
 
@@ -593,15 +623,8 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 				{
 					if (&sn->cable == rn->source)
 					{
-						float deltaY = JUCE_LIVE_CONSTANT_OFF(-11.5f);
-						float deltaXS = JUCE_LIVE_CONSTANT_OFF(-127.0f);
-						float deltaXE = JUCE_LIVE_CONSTANT_OFF(-49.0f);
-
-						auto start = getCircle(s, false).translated(deltaXS, deltaY);
-						auto end = getCircle(r, false).translated(deltaXE, deltaY);
-
-						if (start.getY() > end.getY())
-							std::swap(start, end);
+						auto start = getCircle(s, false);
+						auto end = getCircle(r, false);
 
 						Colour hc = r->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
@@ -629,10 +652,10 @@ scriptnode::NodeComponent* DspNetworkGraph::getComponent(NodeBase::Ptr node)
 
 bool DspNetworkGraph::setCurrentlyDraggedComponent(NodeComponent* n)
 {
-	if (auto parentContainer = dynamic_cast<ContainerComponent*>(n->getParentComponent()))
+	if (auto parentContainer = dynamic_cast<NodeDropTarget*>(n->getParentComponent()))
 	{
 		n->setBufferedToImage(true);
-		auto b = n->getLocalArea(parentContainer, n->getBounds());
+		auto b = n->getLocalArea(parentContainer->asComponent(), n->getBounds());
 		parentContainer->removeDraggedNode(n);
 		addAndMakeVisible(currentlyDraggedComponent = n);
 
@@ -962,6 +985,42 @@ bool DspNetworkGraph::Actions::foldSelection(DspNetworkGraph& g)
 
 	for (auto n : selection)
 		n->setValueTreeProperty(PropertyIds::Folded, shouldBeFolded);
+
+	return true;
+}
+
+bool DspNetworkGraph::Actions::foldUnselectedNodes(DspNetworkGraph& g)
+{
+	auto l = g.network->getListOfNodesWithType<NodeBase>(false);
+
+	auto selection = g.network->getSelection();
+
+	auto isParentNode = [](NodeBase*n, NodeBase* possibleParent)
+	{
+		if (n == possibleParent)
+			return true;
+
+		while (n != nullptr)
+		{
+			n = n->getParentNode();
+			if (n == possibleParent)
+				return true;
+		}
+
+		return false;
+	};
+
+	for (auto n : l)
+	{
+
+		bool shouldBeVisible = false;
+
+		for (auto s : selection)
+			shouldBeVisible |= isParentNode(n, s);
+
+		if(g.network->getRootNode() != n)
+			n->setValueTreeProperty(PropertyIds::Folded, !shouldBeVisible);
+	}
 
 	return true;
 }
@@ -1443,7 +1502,7 @@ void KeyboardPopup::addNodeAndClose(String path)
 {
 	auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
 
-	auto container = dynamic_cast<NodeContainer*>(node.get());
+	auto container = node.get();
 	auto ap = addPosition;
 
 	if (path.startsWith("ScriptNode"))
@@ -1459,11 +1518,12 @@ void KeyboardPopup::addNodeAndClose(String path)
 			if (newTree.isValid())
 			{
 				var newNode;
-				auto network = container->asNode()->getRootNetwork();
+				auto network = container->getRootNetwork();
 
 				newNode = network->createFromValueTree(network->isPolyphonic(), newTree, true);
 
-				container->assign(ap, newNode);
+				auto as = dynamic_cast<AssignableObject*>(container);
+				as->assign(ap, newNode);
 
 				network->deselectAll();
 				network->addToSelection(dynamic_cast<NodeBase*>(newNode.getObject()), ModifierKeys());
@@ -1482,14 +1542,16 @@ void KeyboardPopup::addNodeAndClose(String path)
 			{
 				var newNode;
 
-				auto network = container->asNode()->getRootNetwork();
+				auto network = container->getRootNetwork();
 
 				newNode = network->get(path);
 
 				if (!newNode.isObject())
 					newNode = network->create(path, {});
 
-				container->assign(ap, newNode);
+				auto as = dynamic_cast<AssignableObject*>(container);
+
+				as->assign(ap, newNode);
 
 				network->deselectAll();
 				network->addToSelection(dynamic_cast<NodeBase*>(newNode.getObject()), ModifierKeys());
@@ -1752,6 +1814,12 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 		};
 		b->enabledFunction = selectionEmpty;
 		b->setTooltip("Fold the selected nodes [F]");
+	}
+	if (name == "foldunselected")
+	{
+		b->actionFunction = Actions::foldUnselectedNodes;
+		b->enabledFunction = selectionEmpty;
+		b->setTooltip("Folds all unselected nodes");
 	}
 	if (name == "deselect")
 	{
