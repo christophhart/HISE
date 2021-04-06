@@ -498,6 +498,11 @@ public:
 		/** Returns a fully described string of this date and time in ISO-8601 format (using the local timezone) with or without divider characters. */
 		String getSystemTime(bool includeDividerCharacters);
 
+		/** Returns available buffer sizes for the selected audio device. */
+		var getBufferSizesForDevice();
+		
+		/** Sets the buffer block size for the selected audio device. */
+		void setCurrentBlockSize(int newBlockSize);
 		// ============================================================================================================
 
 		struct Wrapper;

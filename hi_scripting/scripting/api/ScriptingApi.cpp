@@ -899,6 +899,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 	API_METHOD_WRAPPER_1(Engine, getSystemTime);
 	API_METHOD_WRAPPER_1(Engine, loadAudioFileIntoBufferArray);
+	API_METHOD_WRAPPER_0(Engine, getBufferSizesForDevice);
+	API_VOID_METHOD_WRAPPER_1(Engine, setCurrentBlockSize);
 };
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
@@ -1007,6 +1009,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(createExpansionHandler);
 	ADD_API_METHOD_3(showYesNoWindow);
 	ADD_API_METHOD_1(getSystemTime);
+	ADD_API_METHOD_0(getBufferSizesForDevice);
+	ADD_API_METHOD_1(setCurrentBlockSize);
 }
 
 
@@ -2065,6 +2069,29 @@ String ScriptingApi::Engine::getSystemTime(bool includeDividerCharacters)
 {
 	return Time::getCurrentTime().toISO8601(includeDividerCharacters);
 };
+
+var ScriptingApi::Engine::getBufferSizesForDevice()
+{
+	auto mc = dynamic_cast<MainController*>(getScriptProcessor()->getMainController_());
+	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
+	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+	
+	Array<var> result;
+	Array<int> bufferSizes = HiseSettings::ConversionHelpers::getBufferSizesForDevice(currentDevice);
+	
+			for (auto bs : bufferSizes)
+				result.add(bs);
+	
+	return result;
+}
+
+void ScriptingApi::Engine::setCurrentBlockSize(int newBlockSize)
+{
+	auto mc = dynamic_cast<MainController*>(getScriptProcessor()->getMainController_());
+	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
+	
+	driver->setCurrentBlockSize(newBlockSize);
+}
 
 // ====================================================================================================== Sampler functions
 
