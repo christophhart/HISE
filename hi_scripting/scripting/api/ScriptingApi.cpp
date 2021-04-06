@@ -856,6 +856,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getRegexMatches);
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
 	API_METHOD_WRAPPER_0(Engine, getOS);
+	API_METHOD_WRAPPER_0(Engine, getMidiInputDevices);
+	API_VOID_METHOD_WRAPPER_2(Engine, toggleMidiInput);
 	API_METHOD_WRAPPER_0(Engine, isPlugin);
 	API_METHOD_WRAPPER_0(Engine, getPreloadProgress);
 	API_METHOD_WRAPPER_0(Engine, getPreloadMessage);
@@ -939,7 +941,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_2(showErrorMessage);
 	ADD_API_METHOD_1(showMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
-    ADD_API_METHOD_1(openWebsite);
+	ADD_API_METHOD_1(openWebsite);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_0(getExpansionList);
@@ -959,6 +961,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_2(getRegexMatches);
 	ADD_API_METHOD_2(doubleToString);
 	ADD_API_METHOD_1(getMasterPeakLevel);
+	ADD_API_METHOD_0(getMidiInputDevices);
+	ADD_API_METHOD_2(toggleMidiInput);
 	ADD_API_METHOD_0(getOS);
 	ADD_API_METHOD_0(getDeviceType);
 	ADD_API_METHOD_0(getDeviceResolution);
@@ -1226,6 +1230,19 @@ String ScriptingApi::Engine::getOS()
 #else
 	return "OSX";
 #endif
+}
+
+var ScriptingApi::Engine::getMidiInputDevices()
+{
+	return MidiInput::getDevices();
+}
+
+void ScriptingApi::Engine::toggleMidiInput(const String &midiInputName, bool enableInput)
+{
+	auto mc = dynamic_cast<MainController*>(getScriptProcessor()->getMainController_());
+
+	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
+	driver->toggleMidiInput(midiInputName, enableInput);
 }
 
 String ScriptingApi::Engine::getDeviceType()

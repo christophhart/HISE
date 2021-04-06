@@ -396,8 +396,14 @@ public:
 		/** Enables the macro system to be used by the end user. */
 		void setFrontendMacros(var nameList);
 
-		/** Returns the current operating system ("OSX" or ("WIN"). */
+		/** Returns the current operating system ("OSX", "LINUX", or ("WIN"). */
 		String getOS();
+				
+		/** Returns an array of available MIDI input devices. */
+		var getMidiInputDevices();
+		
+		/** Enables or disables named MIDI input device. */
+		void toggleMidiInput(const String &midiInputName, bool enableInput);
 
 		/** Returns the mobile device that this software is running on. */
 		String getDeviceType();
