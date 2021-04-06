@@ -42,6 +42,8 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 
 	using Ptr = ReferenceCountedObjectPtr<SimpleRingBuffer>;
 
+	using TransformFunction = std::function<void(SimpleRingBuffer::Ptr p)>;
+
 	SimpleRingBuffer();
 
 	bool fromBase64String(const String& b64) override
@@ -49,13 +51,22 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		return true;
 	}
 
-	void setRingBufferSize(int numChannels, int numSamples)
+	void setRingBufferSize(int numChannels, int numSamples, bool acquireLock=true)
 	{
-		SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
-		internalBuffer.setSize(numChannels, numSamples);
-		internalBuffer.clear();
+		if (numChannels != internalBuffer.getNumChannels() ||
+			numSamples != internalBuffer.getNumSamples())
+		{
+			jassert(!isBeingWritten);
 
-		getUpdater().sendContentRedirectMessage();
+			SimpleReadWriteLock::ScopedWriteLock sl(getDataLock(), acquireLock);
+			internalBuffer.setSize(numChannels, numSamples);
+			internalBuffer.clear();
+			numAvailable = 0;
+			writeIndex = 0;
+			updateCounter = 0;
+
+			getUpdater().sendContentRedirectMessage();
+		}
 	}
 
 	void setupReadBuffer(AudioSampleBuffer& b)
@@ -90,7 +101,26 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 
 	const AudioSampleBuffer& getReadBuffer() const { return externalBuffer; }
 
+	AudioSampleBuffer& getWriteBuffer() { return internalBuffer; }
+
+	void setSamplerate(double newSampleRate)
+	{
+		sr = newSampleRate;
+	}
+
+	double getSamplerate() const { return sr; }
+
+	void setTransformFunction(const TransformFunction& tf)
+	{
+		transformFunction = tf;
+		getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+	}
+
 private:
+
+	TransformFunction transformFunction;
+
+	double sr = -1.0;
 
 	bool active = true;
 
@@ -119,14 +149,25 @@ protected:
 	SimpleRingBuffer::Ptr rb;
 };
 
+struct ComponentWithDefinedSize
+{
+	virtual ~ComponentWithDefinedSize() {}
+
+	/** Override this and return a rectangle for the desired size (it only uses width & height). */
+	virtual Rectangle<int> getFixedBounds() const = 0;
+};
+
 struct ModPlotter : public Component,
-					public RingBufferComponentBase
+					public RingBufferComponentBase,
+					public ComponentWithDefinedSize
 {
 	ModPlotter();
 
 	void paint(Graphics& g) override;
 	
-	int getSamplesPerPixel() const;
+	Rectangle<int> getFixedBounds() const override { return { 0, 0, 256, 80 }; }
+
+	int getSamplesPerPixel(float rectangleWidth) const;
 	
 	void refresh() override;
 

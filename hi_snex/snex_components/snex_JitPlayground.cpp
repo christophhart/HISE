@@ -275,7 +275,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	addAndMakeVisible(resultLabel);
 	resultLabel.setFont(GLOBAL_MONOSPACE_FONT());
-	resultLabel.setColour(juce::Label::ColourIds::backgroundColourId, Colour(0xFF444444));
+	resultLabel.setColour(juce::Label::ColourIds::backgroundColourId, Colour(0x22444444));
 	resultLabel.setColour(juce::Label::ColourIds::textColourId, Colours::white);
 	resultLabel.setEditable(false);
 
@@ -378,8 +378,11 @@ SnexPlayground::~SnexPlayground()
 
 void SnexPlayground::paint(Graphics& g)
 {
-	g.fillAll(Colour(0xFF333336));
-    snexIcon.scaleToFit(10.0f, 0.0f, 50.0f, 32.0f, true);
+	g.fillAll(Colour(0xFF1d1d1d));
+	auto b = getLocalBounds();
+	GlobalHiseLookAndFeel::drawFake3D(g, b.removeFromTop(24));
+	GlobalHiseLookAndFeel::drawFake3D(g, b.removeFromBottom(24));
+    snexIcon.scaleToFit(10.0f, 0.0f, 50.0f, 24.0f, true);
     g.setColour(Colours::white.withAlpha(0.5f));
     g.fillPath(snexIcon);
     
@@ -389,7 +392,7 @@ void SnexPlayground::resized()
 {
 	auto area = getLocalBounds();
 
-    auto top = area.removeFromTop(28);
+    auto top = area.removeFromTop(24);
 
 	auto bottom = area.removeFromBottom(24);
 
@@ -411,10 +414,10 @@ void SnexPlayground::resized()
 	
 	auto buttonWidth = topRight.getHeight();
 
-	showInfo.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
-	showAssembly.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
-	showConsole.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
-	bugButton.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
+	showInfo.setBounds(topRight.removeFromLeft(buttonWidth).reduced(2));
+	showAssembly.setBounds(topRight.removeFromLeft(buttonWidth).reduced(2));
+	showConsole.setBounds(topRight.removeFromLeft(buttonWidth).reduced(2));
+	bugButton.setBounds(topRight.removeFromLeft(buttonWidth).reduced(2));
 	
 	top.removeFromLeft(100);
 

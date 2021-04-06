@@ -1122,6 +1122,9 @@ bool ValueTreeIterator::isComplexDataNode(const ValueTree& nodeTree)
 		// Only count the external slots for filters
 		numData += getMaxDataTypeIndex(nodeTree, ExternalData::DataType::FilterCoefficients);
 
+		// Count the embedded display buffers (they will be handled by the ComplexDataParser later).
+		numData += getNumDataTypes(nodeTree, ExternalData::DataType::DisplayBuffer);
+
 		return numData != 0;
 	}
 
@@ -1821,17 +1824,21 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parse()
 	auto numSliderPacks = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::SliderPack);
 	auto numAudioFiles = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::AudioFile);
 	auto numFilters = ValueTreeIterator::getMaxDataTypeIndex(n->nodeTree, ExternalData::DataType::FilterCoefficients);
+	auto numDisplayBuffers = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::DisplayBuffer);
 
-	bool isSingleData = (numTables + numSliderPacks + numAudioFiles + numFilters) == 1;
+	bool isSingleData = (numTables + numSliderPacks + numAudioFiles + numFilters + numDisplayBuffers) == 1;
 
 	if (isSingleData)
 	{
 		auto t = numTables == 1 ?	   ExternalData::DataType::Table :
 				 numSliderPacks == 1 ? ExternalData::DataType::SliderPack :
 				 numAudioFiles == 1 ?  ExternalData::DataType::AudioFile :
-									   ExternalData::DataType::FilterCoefficients;
+				 numFilters == 1	?  ExternalData::DataType::FilterCoefficients:
+									   ExternalData::DataType::DisplayBuffer;
 
 		auto idx = ValueTreeIterator::getDataIndex(n->nodeTree, t, 0);
+
+		
 
 		if (idx == -1)
 		{
@@ -1848,9 +1855,26 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parse()
 	}
 }
 
+Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseSingleDisplayBufferNode(bool enableBuffer)
+{
+	bool skipTemplateParameter = getNodePath(n->nodeTree).getParent() == NamespacedIdentifier("project");
+
+	if (skipTemplateParameter)
+		return n;
+
+	*n << (enableBuffer ? "true" : "false");
+
+	return n;
+}
+
+
+
 Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseEmbeddedDataNode(ExternalData::DataType t)
 {
-	// wrap::data<NodeType, data::embedded::table<TableClass>>;
+	if (t == ExternalData::DataType::DisplayBuffer)
+	{
+		return parseSingleDisplayBufferNode(false);
+	}
 
 	Node::Ptr wn = new Node(parent, n->scopedId.id, NamespacedIdentifier("wrap::data"));
 	wn->nodeTree = n->nodeTree;
@@ -1878,6 +1902,9 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseExternalDataNode(ExternalDa
 {
 	// wrap::data<NodeType, data::external::table<idx>>;
 
+	if (t == ExternalData::DataType::DisplayBuffer)
+		n = parseSingleDisplayBufferNode(true);
+
 	Node::Ptr wn = new Node(parent, n->scopedId.id, NamespacedIdentifier("wrap::data"));
 	wn->nodeTree = n->nodeTree;
 	NamespacedIdentifier edId = NamespacedIdentifier::fromString("data::external");
@@ -1892,39 +1919,65 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseExternalDataNode(ExternalDa
 
 Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseMatrixDataNode()
 {
+	if (ValueTreeIterator::getMaxDataTypeIndex(n->nodeTree, ExternalData::DataType::DisplayBuffer) > 0)
+		n = parseSingleDisplayBufferNode(true);
+
 	Node::Ptr wn = new Node(parent, n->scopedId.id, NamespacedIdentifier("wrap::data"));
 	wn->nodeTree = n->nodeTree;
 	NamespacedIdentifier edId = NamespacedIdentifier::fromString("data::matrix");
 	
 	UsingTemplate ed(parent, "unused", edId);
+
+	int numMax = 0;
+
+	ExternalData::forEachType([&](ExternalData::DataType t)
+	{
+		numMax = jmax(numMax, ValueTreeIterator::getNumDataTypes(n->nodeTree, t));
+	});
+
+#if 0
 	auto numTables = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::Table);
 	auto numSliderPacks = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::SliderPack);
 	auto numAudioFiles = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::AudioFile);
 	auto numFilters = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::FilterCoefficients);
-	auto numMax = jmax(numTables, numSliderPacks, numAudioFiles, numFilters);
+	auto numDisplayBuffers = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::DisplayBuffer);
+	auto numMax = jmax(numTables, numSliderPacks, numAudioFiles, numFilters, numDisplayBuffers);
+#endif
 
 	auto sId = n->scopedId;
 	StringHelpers::addSuffix(sId, "_matrix");
 
 	Struct s(parent, sId.getIdentifier(), {}, {});
 
-	String l1, l2, l3, l4;
+	ExternalData::forEachType([&](ExternalData::DataType t)
+	{
+		String l;
+		auto num = ValueTreeIterator::getNumDataTypes(n->nodeTree, t);
+		l << "static const int " << ExternalData::getNumIdentifier(t) << " = " << num << ";";
+		parent << l;
+	});
+
+#if 0
+	String l1, l2, l3, l4, l5;
 	l1 << "static const int NumTables = " << numTables << ";";
 	l2 << "static const int NumSliderPacks = " << numSliderPacks << ";";
 	l3 << "static const int NumAudioFiles = " << numAudioFiles << ";";
 	l3 << "static const int NumFilters = " << numFilters << ";";
-	l4 << "const int matrix[3][" << numMax << "] =";
+	l4 << "static const int NumDisplayBuffers = " << numDisplayBuffers << ";";
+#endif
 
-	parent << l1 << l2 << l3;
+	String l5;
+	l5 << "const int matrix[3][" << numMax << "] =";
+
 	parent.addEmptyLine();
 	parent.addComment("Index mapping matrix", Base::CommentType::FillTo80Light);
-	parent << l4;
+	parent << l5;
 
 	int embeddedCounter = 0;
 
 	{
 		StatementBlock m(parent, true);
-		String r[3], c[3];
+		String r[5], c[5];
 
 		auto getCell = [&](ExternalData::DataType t, int column)
 		{

@@ -349,9 +349,6 @@ namespace parameter
 			}
 		}
 
-
-		
-
 		dynamic_list_editor::dynamic_list_editor(parameter::dynamic_list* l, PooledUIUpdater* updater) :
 			ScriptnodeExtraComponent<parameter::dynamic_list>(l, updater),
 			addButton("add", this, f),
@@ -441,6 +438,8 @@ namespace parameter
 			p = Factory().createPath("drag");
 
 			setRepaintsOnMouseActivity(true);
+
+			setMouseCursor(ModulationSourceBaseComponent::createMouseCursor());
 		}
 
 		bool dynamic_list_editor::DragComponent::matchesParameter(NodeBase::Parameter* p) const
@@ -492,15 +491,30 @@ namespace parameter
 				details->setProperty(PropertyIds::ParameterId, index);
 				details->setProperty(PropertyIds::SwitchTarget, true);
 
-				container->startDragging(var(details), this);
+				container->startDragging(var(details), this, ModulationSourceBaseComponent::createDragImageStatic(false));
+				findParentComponentOfClass<DspNetworkGraph>()->repaint();
 			}
+		}
+
+		void dynamic_list_editor::DragComponent::mouseUp(const MouseEvent& event)
+		{
+			findParentComponentOfClass<DspNetworkGraph>()->repaint();
 		}
 
 		void dynamic_list_editor::DragComponent::resized()
 		{
-			auto b = getLocalBounds();
-			b.removeFromTop(15);
-			Factory::scalePath(p, b.toFloat().reduced(2.0f));
+			auto b = getLocalBounds().withSizeKeepingCentre(24, 24);
+
+
+			auto pathBounds = b.toFloat().reduced(2.0f).translated(-12.0f, 0.0f);
+
+			Factory::scalePath(p, pathBounds);
+
+			auto xOffset = pathBounds.getCentreX() - (float)getWidth() / 2.0f;
+			auto yOffset = pathBounds.getCentreY() - (float)getHeight() - JUCE_LIVE_CONSTANT(3.f);
+
+			getProperties().set("circleOffsetX", xOffset);
+			getProperties().set("circleOffsetY", yOffset);
 		}
 
 		void dynamic_list_editor::DragComponent::paint(Graphics& g)
@@ -508,8 +522,7 @@ namespace parameter
 			auto b = getLocalBounds().toFloat().reduced(1.0f);
 
 			g.setColour(Colours::black.withAlpha(0.1f));
-
-			g.fillRoundedRectangle(b, 2.0f);
+			g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
 
 			float alpha = 0.5f;
 

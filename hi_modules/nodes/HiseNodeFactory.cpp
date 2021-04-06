@@ -43,9 +43,9 @@ namespace analyse
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-	registerNode<fft, ui::fft_display>();
-	registerNode<oscilloscope, ui::osc_display>();
-	registerNode<goniometer, ui::gonio_display>();
+	registerNode<wrap::data<fft, data::dynamic::displaybuffer>, ui::fft_display>();
+	registerNode<wrap::data<oscilloscope, data::dynamic::displaybuffer>, ui::osc_display>();
+	registerNode<wrap::data<goniometer, data::dynamic::displaybuffer>, ui::gonio_display>();
 }
 
 }
@@ -53,13 +53,15 @@ Factory::Factory(DspNetwork* network) :
 
 namespace dynamics
 {
+template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
+
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-	registerModNode<gate>();
-	registerModNode<comp>();
-	registerModNode<limiter>();
-	registerModNode<envelope_follower>();
+	registerModNode<dp<gate>, data::ui::displaybuffer_editor>();
+	registerModNode<dp<comp>, data::ui::displaybuffer_editor >();
+	registerModNode<dp<limiter>, data::ui::displaybuffer_editor >();
+	registerModNode<dp<envelope_follower>, data::ui::displaybuffer_editor >();
 }
 
 }
@@ -165,8 +167,9 @@ Factory::Factory(DspNetwork* network) :
 
 	registerModNode<hise_mod>();
 	
-	registerModNode<peak>();
-	registerPolyModNode<ramp, ramp_poly>();
+	registerModNode<dp<peak>, data::ui::displaybuffer_editor>();
+	registerPolyModNode<dp<ramp>, dp<ramp_poly>, data::ui::displaybuffer_editor>();
+
 	registerNode<core::mono2stereo>();
 	registerPolyNode<core::oscillator, core::oscillator_poly, OscDisplay>();
 	registerNode<waveshapers::dynamic::NodeType, waveshapers::dynamic::editor>();

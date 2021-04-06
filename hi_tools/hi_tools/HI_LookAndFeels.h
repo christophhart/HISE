@@ -1275,6 +1275,8 @@ public:
 
 	int getSliderThumbRadius(Slider& ) override { return 0; }
 
+	void drawVectorRotaryKnob(Graphics& g, Rectangle<float> area, double value, bool bipolar, bool hover, bool down, bool enabled, float modValue);
+
 	void drawLinearSlider (Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPos*/, float minSliderPos, float maxSliderPos, const Slider::SliderStyle style, Slider &s) override
 	{
 		if (style == Slider::TwoValueHorizontal)
@@ -1289,7 +1291,6 @@ public:
 			Rectangle<float> area(leftBoxPos, 0.0f, rightBoxPos - leftBoxPos, (float)height);
 
 			area.reduce(-1.0f, -1.0f);
-
 			
 			g.setColour(s.findColour(Slider::ColourIds::thumbColourId));
 			g.fillRect(area);
@@ -1384,6 +1385,8 @@ private:
 	Image ring_yellow;
 	Image ring_blue;
 	Image ring_modulated;
+
+	Path ring, ring2;
 
 };
 

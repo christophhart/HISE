@@ -510,6 +510,12 @@ template <int BSize, int Alignment> struct ObjectStorage
 		free();
 	}
 
+	ObjectStorage(const ObjectStorage& other)
+	{
+		setSize(other.allocatedSize);
+		memcpy(getObjectPtr(), other.getObjectPtr(), allocatedSize);
+	}
+
 	void free()
 	{
 		bigBuffer.free();

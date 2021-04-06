@@ -278,6 +278,7 @@ struct ExternalData
 		SliderPack,
 		AudioFile,
 		FilterCoefficients,
+		DisplayBuffer,
 		numDataTypes,
 		ConstantLookUp
 	};
@@ -343,6 +344,9 @@ struct ExternalData
 		if (isSameOrBase<FilterDataObject, DataClass>())
 			return DataType::FilterCoefficients;
 
+		if (isSameOrBase<SimpleRingBuffer, DataClass>())
+			return DataType::DisplayBuffer;
+
 		return DataType::numDataTypes;
 	}
 
@@ -370,6 +374,8 @@ struct ExternalData
 			return new MultiChannelAudioBuffer();
 		if (t == DataType::FilterCoefficients)
 			return new FilterDataObject();
+		if (t == DataType::DisplayBuffer)
+			return new SimpleRingBuffer();
 
 		return nullptr;
 	}
@@ -409,6 +415,7 @@ struct ExternalDataHolder
 	virtual SliderPackData* getSliderPack(int index) = 0;
 	virtual MultiChannelAudioBuffer* getAudioFile(int index) = 0;
 	virtual FilterDataObject* getFilterData(int index) = 0;
+	virtual SimpleRingBuffer* getDisplayBuffer(int index) = 0;
 
 	ComplexDataUIBase* getComplexBaseType(ExternalData::DataType t, int index);
 
@@ -519,6 +526,52 @@ struct base
 };
 
 
+template <bool EnableBuffer> struct display_buffer_base : public base
+{
+	void setExternalData(const snex::ExternalData& d, int index) override
+	{
+		base::setExternalData(d, index);
+
+		if constexpr (EnableBuffer)
+		{
+			rb = dynamic_cast<SimpleRingBuffer*>(d.obj);
+
+			if (rb != nullptr)
+				rb->setRingBufferSize(requiredNumChannels, requiredNumSamples, false);
+		}
+	}
+
+	void updateBuffer(double v, int numSamples)
+	{
+		if constexpr (EnableBuffer)
+		{
+			DataReadLock sl(this);
+
+			if (rb != nullptr && rb->isActive())
+				rb->write(v, numSamples);
+		}
+	}
+
+	SimpleRingBuffer* rb = nullptr;
+	int requiredNumChannels = 1;
+	int requiredNumSamples = SimpleRingBuffer::RingBufferSize;
+
+	void setRequiredBufferSize(int numChannels, int numSamples)
+	{
+		if (requiredNumChannels != numChannels ||
+			requiredNumSamples != numSamples)
+		{
+			requiredNumChannels = numChannels;
+			requiredNumSamples = numSamples;
+
+			if (rb != nullptr)
+			{
+				rb->setRingBufferSize(numChannels, numSamples);
+			}
+		}
+	}
+};
+
 
 using namespace snex;
 
@@ -552,6 +605,7 @@ public:
 	static constexpr int NumSliderPacks = getNum(ExternalData::DataType::SliderPack);
 	static constexpr int NumAudioFiles = getNum(ExternalData::DataType::AudioFile);
 	static constexpr int NumFilters = getNum(ExternalData::DataType::FilterCoefficients);
+	static constexpr int NumDisplayBuffers = getNum(ExternalData::DataType::DisplayBuffer);
 	
 private:
 
@@ -581,6 +635,7 @@ public:
 	static constexpr int NumSliderPacks = getNum(ExternalData::DataType::SliderPack);
 	static constexpr int NumAudioFiles = getNum(ExternalData::DataType::AudioFile);
 	static constexpr int NumFilters = getNum(ExternalData::DataType::FilterCoefficients);
+	static constexpr int NumDisplayBuffers = getNum(ExternalData::DataType::DisplayBuffer);
 
 	template <typename NodeType> embedded(NodeType& n) 
 	{
@@ -601,13 +656,15 @@ struct example_matrix
 	static constexpr int NumTables = 2;
 	static constexpr int NumAudioFiles = 3;
 	static constexpr int NumFilters = 0;
+	static constexpr int NumDisplayBuffers = 0;
 
-	static constexpr int matrix[4][3] =
+	static constexpr int matrix[5][3] =
 	{
 		{ 1000, 0, -1 },  // 0->e[0] || 1->0
 		{ 1001, -1, -1 }, // 0->e[1] ||
 		{ 2, 2, 1002 },	  // 0->2 || 1->2 || 2->e[2]
-	    { -1, -1, -1 }
+	    { -1, -1, -1 },
+		{ -1, -1, -1 }
 	};
 
 private:
@@ -644,6 +701,7 @@ template <typename MatrixType> struct matrix: public pimpl::base
 	static constexpr int NumSliderPacks = MatrixType::NumSliderPacks;
 	static constexpr int NumAudioFiles = MatrixType::NumAudioFiles;
 	static constexpr int NumFilters = MatrixType::NumFilters;
+	static constexpr int NumDisplayBuffers = MatrixType::NumDisplayBuffers;
 
 	static bool getEmbeddedIndex(int& idx)
 	{
@@ -668,6 +726,8 @@ template <typename MatrixType> struct matrix: public pimpl::base
 			return MatrixType::NumAudioFiles;
 		if (dt == ExternalData::DataType::FilterCoefficients)
 			return MatrixType::NumFilters;
+		if (dt == ExternalData::DataType::DisplayBuffer)
+			return MatrixType::NumDisplayBuffers;
 
 		return 0;
 	}
@@ -712,10 +772,11 @@ private:
 
 namespace external
 {
-	template <int Index> using table =		pimpl::plain<Index, ExternalData::DataType::Table>;
-	template <int Index> using sliderpack = pimpl::plain<Index, ExternalData::DataType::SliderPack>;
-	template <int Index> using audiofile =  pimpl::plain<Index, ExternalData::DataType::AudioFile>;
-	template <int Index> using filter =		pimpl::plain<Index, ExternalData::DataType::FilterCoefficients>;
+	template <int Index> using table =			pimpl::plain<Index, ExternalData::DataType::Table>;
+	template <int Index> using sliderpack =		pimpl::plain<Index, ExternalData::DataType::SliderPack>;
+	template <int Index> using audiofile =		pimpl::plain<Index, ExternalData::DataType::AudioFile>;
+	template <int Index> using filter =			pimpl::plain<Index, ExternalData::DataType::FilterCoefficients>;
+	template <int Index> using displaybuffer =	pimpl::plain<Index, ExternalData::DataType::DisplayBuffer>;
 }
 
 namespace embedded
@@ -723,7 +784,6 @@ namespace embedded
 	template <typename DataClass> using table =		  pimpl::embedded<DataClass, ExternalData::DataType::Table>;
 	template <typename DataClass> using sliderpack =  pimpl::embedded<DataClass, ExternalData::DataType::SliderPack>;
 	template <typename DataClass> using audiofile =   pimpl::embedded<DataClass, ExternalData::DataType::AudioFile>;
-	template <typename DataClass> using filter =	  pimpl::embedded<DataClass, ExternalData::DataType::FilterCoefficients>;
 }
 
 }

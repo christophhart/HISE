@@ -69,6 +69,7 @@ struct dynamic_base : public base,
 	SliderPackData* getSliderPack(int index) override { return dynamic_cast<SliderPackData*>(currentlyUsedData); }
 	MultiChannelAudioBuffer* getAudioFile(int index) override { return dynamic_cast<MultiChannelAudioBuffer*>(currentlyUsedData); }
 	FilterDataObject* getFilterData(int index) override { return dynamic_cast<FilterDataObject*>(currentlyUsedData); }
+	SimpleRingBuffer* getDisplayBuffer(int index) override { return dynamic_cast<SimpleRingBuffer*>(currentlyUsedData); }
 
 	bool removeDataObject(ExternalData::DataType t, int index) { return true; }
 
@@ -121,6 +122,7 @@ template <typename T> struct dynamicT : public dynamic_base
 	static const int NumSliderPacks = ExternalData::getDataTypeForClass<T>() == ExternalData::DataType::SliderPack ? 1 : 0;
 	static const int NumAudioFiles = ExternalData::getDataTypeForClass<T>() == ExternalData::DataType::AudioFile ? 1 : 0;
 	static const int NumFilters = ExternalData::getDataTypeForClass<T>() == ExternalData::DataType::FilterCoefficients ? 1 : 0;
+	static const int NumDisplayBuffers = ExternalData::getDataTypeForClass<T>() == ExternalData::DataType::DisplayBuffer ? 1 : 0;
 
 	dynamicT(data::base& t, int index=0) :
 		dynamic_base(t, ExternalData::getDataTypeForClass<T>(), index)
@@ -142,6 +144,7 @@ namespace dynamic
 {
 using table = data::pimpl::dynamicT<hise::SampleLookupTable>;
 using filter = data::pimpl::dynamicT<hise::FilterDataObject>;
+using displaybuffer = data::pimpl::dynamicT<hise::SimpleRingBuffer>;
 
 /** This needs some additional functionality:
 
@@ -258,10 +261,20 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 
 		addAndMakeVisible(editor);
 
+		int w = 512;
+		int h = 130;
+
+		if (auto cd = dynamic_cast<ComponentWithDefinedSize*>(&editor))
+		{
+			auto a = cd->getFixedBounds();
+			w = a.getWidth();
+			h = a.getHeight();
+		}
+
 		if(AddDragger)
 			addAndMakeVisible(dragger = new ModulationSourceBaseComponent(updater));
 
-		setSize(512, 130 + AddDragger * 23);
+		setSize(w, h + 41);
 
 		sourceHasChanged(nullptr, b->currentlyUsedData);
 	};
@@ -402,6 +415,7 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 }
 
 using filter_editor = data::ui::pimpl::editorT<data::dynamic::filter, hise::FilterDataObject, hise::FilterGraph, false>;
+using displaybuffer_editor = data::ui::pimpl::editorT<data::dynamic::displaybuffer, hise::SimpleRingBuffer, hise::ModPlotter, true>;
 
 using table_editor_without_mod = data::ui::pimpl::editorT<data::dynamic::table, hise::Table, hise::TableEditor, false>;
 using sliderpack_editor_without_mod = data::ui::pimpl::editorT<data::dynamic::sliderpack, hise::SliderPackData, hise::SliderPack, false>;

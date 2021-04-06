@@ -45,7 +45,12 @@ SimpleRingBuffer::SimpleRingBuffer()
 void SimpleRingBuffer::clear()
 {
 	if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getDataLock()))
+	{
 		internalBuffer.clear();
+		numAvailable = 0;
+		writeIndex = 0;
+		updateCounter = 0;
+	}
 }
 
 int SimpleRingBuffer::read(AudioSampleBuffer& b)
@@ -143,39 +148,42 @@ void SimpleRingBuffer::write(double value, int numSamples)
 
 void SimpleRingBuffer::write(const float** data, int numChannels, int numSamples)
 {
-	isBeingWritten = true;
-
-	jassert(numChannels == internalBuffer.getNumChannels());
-
-	int numBeforeWrap = jmin(numSamples, internalBuffer.getNumSamples() - writeIndex);
-	int numAfterWrap = numSamples - numBeforeWrap;
-
-	if (numBeforeWrap > 0)
+	if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getDataLock()))
 	{
-		for (int i = 0; i < numChannels; i++)
-		{
-			auto buffer = internalBuffer.getWritePointer(i);
-			FloatVectorOperations::copy(buffer + writeIndex, data[i], numBeforeWrap);
-		}
-	}
+		isBeingWritten = true;
 
-	writeIndex += numBeforeWrap;
+		jassert(numChannels == internalBuffer.getNumChannels());
 
-	if (numAfterWrap > 0)
-	{
-		for (int i = 0; i < numChannels; i++)
+		int numBeforeWrap = jmin(numSamples, internalBuffer.getNumSamples() - writeIndex);
+		int numAfterWrap = numSamples - numBeforeWrap;
+
+		if (numBeforeWrap > 0)
 		{
-			auto buffer = internalBuffer.getWritePointer(i);
-			FloatVectorOperations::copy(buffer, data[i], numAfterWrap);
+			for (int i = 0; i < numChannels; i++)
+			{
+				auto buffer = internalBuffer.getWritePointer(i);
+				FloatVectorOperations::copy(buffer + writeIndex, data[i], numBeforeWrap);
+			}
 		}
 
-		writeIndex = numAfterWrap;
+		writeIndex += numBeforeWrap;
+
+		if (numAfterWrap > 0)
+		{
+			for (int i = 0; i < numChannels; i++)
+			{
+				auto buffer = internalBuffer.getWritePointer(i);
+				FloatVectorOperations::copy(buffer, data[i], numAfterWrap);
+			}
+
+			writeIndex = numAfterWrap;
+		}
+
+		numAvailable += numSamples;
+		isBeingWritten = false;
+
+		getUpdater().sendDisplayChangeMessage((int)numAvailable, sendNotificationAsync, true);
 	}
-
-	numAvailable += numSamples;
-	isBeingWritten = false;
-
-	getUpdater().sendDisplayChangeMessage((int)numAvailable, sendNotificationAsync, true);
 }
 
 void SimpleRingBuffer::write(const AudioSampleBuffer& b, int startSample, int numSamples)
@@ -202,6 +210,13 @@ void SimpleRingBuffer::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t,
 	else
 	{
 		read(externalBuffer);
+
+		if (transformFunction && getReferenceCount() > 1)
+		{
+			Ptr p(this);
+			jassert(p->getReferenceCount() > 1);
+			transformFunction(p);
+		}
 	}
 }
 
@@ -213,17 +228,16 @@ ModPlotter::ModPlotter()
 
 void ModPlotter::paint(Graphics& g)
 {
-	g.fillAll(Colour(0xFF333333));
-	g.setColour(Colour(0xFF999999));
+	g.fillAll(Colour(0xFF313131));
+	g.setColour(Colour(0xFF717171));
 	g.drawRect(getLocalBounds(), 1);
+	g.setColour(Colour(0xFF999999));
 	g.fillRectList(rectangles);
 }
 
-int ModPlotter::getSamplesPerPixel() const
+int ModPlotter::getSamplesPerPixel(float rectangleWidth) const
 {
 	float offset = 2.0f;
-
-	float rectangleWidth = 1.0f;
 
 	auto width = (float)getWidth() - 2.0f * offset;
 
@@ -253,23 +267,28 @@ void ModPlotter::refresh()
 {
 	if (rb != nullptr)
 	{
-		jassert(getSamplesPerPixel() > 0);
+		jassert(getSamplesPerPixel(1.0f) > 0);
 		
 		float offset = 2.0f;
 
 		float rectangleWidth = 1.0f;
 
+		rectangleWidth = std::ceil((float)getWidth() / 256.0f);
+		rectangleWidth = jmax(1.0f, rectangleWidth);
+
 		auto width = (float)getWidth() - 2.0f * offset;
 		auto maxHeight = (float)getHeight() - 2.0f * offset;
 
-		int samplesPerPixel = getSamplesPerPixel();
+		int samplesPerPixel = getSamplesPerPixel(rectangleWidth);
 		rectangles.clear();
 		int sampleIndex = 0;
 		const auto& buffer = rb->getReadBuffer();
 
 		for (float i = 0.0f; i < width; i += rectangleWidth)
 		{
-			float maxValue = jlimit(0.0f, 1.0f, buffer.getMagnitude(0, sampleIndex, samplesPerPixel));
+			auto numThisTime = jmin(samplesPerPixel, buffer.getNumSamples() - sampleIndex);
+
+			float maxValue = jlimit(0.0f, 1.0f, buffer.getMagnitude(0, sampleIndex, numThisTime));
 			FloatSanitizers::sanitizeFloatNumber(maxValue);
 			float height = maxValue * maxHeight;
 			float y = offset + maxHeight - height;

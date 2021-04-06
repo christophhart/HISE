@@ -74,6 +74,8 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index) :
 
 	checkEnabledState();
 
+	setColour(Slider::ColourIds::textBoxTextColourId, Colours::white);
+
 	setScrollWheelEnabled(false);
 }
     
@@ -156,6 +158,15 @@ void ParameterSlider::itemDragExit(const SourceDetails& )
 void ParameterSlider::itemDropped(const SourceDetails& dragSourceDetails)
 {
 	macroHoverIndex = -1;
+
+	if (auto wc = findParentComponentOfClass<WrapperSlot>())
+	{
+		auto copy = SourceDetails(dragSourceDetails);
+		copy.description.getDynamicObject()->setProperty("NumVoices", 8);
+		
+		parameterToControl->addConnectionFrom(copy.description);
+	}
+
 	parameterToControl->addConnectionFrom(dragSourceDetails.description);
 	repaint();	
 }
@@ -309,8 +320,13 @@ void ParameterSlider::mouseDoubleClick(const MouseEvent&)
 	{
 		auto c = getConnectionSourceTree();
 
+		auto v = parameterToControl->getValue();
+
 		if (c.isValid())
 			c.getParent().removeChild(c, parameterToControl->parent->getUndoManager());
+		
+		
+		setValue(v, dontSendNotification);
 	}
 }
 
@@ -393,10 +409,12 @@ juce::Label* ParameterKnobLookAndFeel::createSliderTextBox(Slider& slider)
 	l->setJustificationType(Justification::centred);
 	l->setKeyboardType(TextInputTarget::decimalKeyboard);
 
-	l->setColour(Label::textColourId, Colours::white);
+	auto tf = slider.findColour(Slider::ColourIds::textBoxTextColourId);
+
+	l->setColour(Label::textColourId, tf);
 	l->setColour(Label::backgroundColourId, Colours::transparentBlack);
 	l->setColour(Label::outlineColourId, Colours::transparentBlack);
-	l->setColour(TextEditor::textColourId, Colours::white);
+	l->setColour(TextEditor::textColourId, tf);
 	l->setColour(TextEditor::backgroundColourId, Colours::transparentBlack);
 	l->setColour(TextEditor::outlineColourId, Colours::transparentBlack);
 	l->setColour(TextEditor::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.5f));
@@ -408,6 +426,29 @@ juce::Label* ParameterKnobLookAndFeel::createSliderTextBox(Slider& slider)
 
 void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int width, int height, float , float , float , Slider& s)
 {
+	
+
+	const double value = s.getValue();
+	const double normalizedValue = (value - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
+	const double proportion = pow(normalizedValue, s.getSkewFactor());
+
+	auto ps = dynamic_cast<ParameterSlider*>(&s);
+	auto modValue = ps->parameterToControl->getValue();
+	const double normalisedModValue = (modValue - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
+	float modProportion = jlimit<float>(0.0f, 1.0f, pow((float)normalisedModValue, (float)s.getSkewFactor()));
+
+	modProportion = FloatSanitizers::sanitizeFloatNumber(modProportion);
+
+	bool isBipolar = -1.0 * s.getMinimum() == s.getMaximum();
+
+	auto b = s.getLocalBounds();
+	b = b.removeFromTop(48);
+	b = b.withSizeKeepingCentre(48, 48).translated(0.0f, 3.0f);
+
+	drawVectorRotaryKnob(g, b.toFloat(), modProportion, isBipolar, s.isMouseOverOrDragging(true), s.isMouseButtonDown(), s.isEnabled(), modProportion);
+
+
+#if 0
 	height = s.getHeight();
 	width = s.getWidth();
 
@@ -450,6 +491,7 @@ void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int wid
 		//g.setColour(Colours::black.withAlpha(s.isEnabled() ? 1.0f : 0.5f));
 		g.drawImage(clipRing, xOffset, 3, 48, 48, 0, 0, filmstripHeight, filmstripHeight);
 	}
+#endif
 }
 
 MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
@@ -474,22 +516,42 @@ void MacroParameterSlider::mouseDrag(const MouseEvent& )
 		{
 			auto details = DragHelpers::createDescription(slider.node->getId(), slider.parameterToControl->getId());
 
-			container->startDragging(details, &slider);
+			container->startDragging(details, &slider, ModulationSourceBaseComponent::createDragImageStatic(false));
+
+			findParentComponentOfClass<DspNetworkGraph>()->repaint();
 		}
 	}
+}
+
+void MacroParameterSlider::mouseUp(const MouseEvent& e)
+{
+	findParentComponentOfClass<DspNetworkGraph>()->repaint();
 }
 
 void MacroParameterSlider::paintOverChildren(Graphics& g)
 {
 	if (editEnabled)
 	{
-		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.2f));
-		g.fillRoundedRectangle(getLocalBounds().reduced(2).toFloat(), 3.0f);
+		Path p;
+		p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
+
+		auto pa = getLocalBounds().toFloat().withSizeKeepingCentre(20.0f, 20.0f).translated(0.0, -8);
+
+		PathFactory::scalePath(p, pa);
+
+		g.setColour(Colours::white.withAlpha(0.3f));
+		g.fillPath(p);
+
+		auto b = getLocalBounds().reduced(2).toFloat();
+		b.removeFromBottom(8.0f);
+
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.05f));
+		g.fillRoundedRectangle(b, 3);
 
 		if (hasKeyboardFocus(true))
 		{
 			g.setColour(Colour(SIGNAL_COLOUR));
-			g.drawRect(getLocalBounds().reduced(2), 1);
+			g.drawRoundedRectangle(b, 3, 1.0f);
 		}
 	}
 }
@@ -503,6 +565,13 @@ void MacroParameterSlider::setEditEnabled(bool shouldBeEnabled)
 		slider.addMouseListener(this, true);
 	else
 		slider.removeMouseListener(this);
+
+	if (shouldBeEnabled)
+	{
+		slider.setMouseCursor(ModulationSourceBaseComponent::createMouseCursor());
+	}
+	else
+		slider.setMouseCursor({});
 
 	repaint();
 }

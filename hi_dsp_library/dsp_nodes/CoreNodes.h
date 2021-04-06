@@ -152,7 +152,7 @@ struct table: public scriptnode::data::base
 	JUCE_DECLARE_WEAK_REFERENCEABLE(table);
 };
 
-class peak
+class peak: public data::display_buffer_base<true>
 {
 public:
 
@@ -187,6 +187,8 @@ public:
 			auto range = FloatVectorOperations::findMinAndMax(data.toChannelData(ch).begin(), data.getNumSamples());
 			max = jmax<float>(max, Math.abs(range.getStart()), Math.abs(range.getEnd()));
 		}
+
+		updateBuffer(max, data.getNumSamples());
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
@@ -197,6 +199,8 @@ public:
 
 		for (auto& s : data)
 			max = Math.max(max, Math.abs((double)s));
+
+		updateBuffer(max, 1);
 	}
 
 	// This is no state variable, so we don't need it to be polyphonic...
@@ -496,7 +500,7 @@ template <class ShaperType> struct snex_shaper
 	HISE_EMPTY_CREATE_PARAM;
 };
 
-template <int NV> class ramp_impl : public HiseDspBase
+template <int NV> class ramp_impl : public data::display_buffer_base<true>
 {
 public:
 
@@ -571,6 +575,8 @@ public:
 			thisState.data.uptime = thisUptime;
 			thisState.modValue.setModValue(thisUptime);
 		}
+
+		updateBuffer(thisState.data.uptime, d.getNumSamples());
 	}
 
 	bool handleModulation(double& v)
@@ -596,10 +602,12 @@ public:
 				s += (float)newValue;
 			
 			s.modValue.setModValue(newValue);
+
+			updateBuffer(newValue, 1);
 		}
 	}
 
-	void createParameters(ParameterDataList& data) override
+	void createParameters(ParameterDataList& data)
 	{
 		{
 			DEFINE_PARAMETERDATA(ramp_impl, PeriodTime);

@@ -620,6 +620,7 @@ private:
 		Node::Ptr parseEmbeddedDataNode(ExternalData::DataType t);
 		Node::Ptr parseExternalDataNode(ExternalData::DataType t, int slotIndex);
 		Node::Ptr parseMatrixDataNode();
+		Node::Ptr parseSingleDisplayBufferNode(bool enableBuffer);
 
 		ValueTreeBuilder& parent;
 		Node::Ptr n;

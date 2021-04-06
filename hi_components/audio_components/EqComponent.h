@@ -148,6 +148,8 @@ public:
 		Domain domain = Amplitude;
 		ConverterFunction freq2x;
 		ConverterFunction gain2y;
+
+		void applyFFT(SimpleRingBuffer::Ptr p);
 	};
 
 	Properties fftProperties;
@@ -175,6 +177,8 @@ protected:
     virtual ~FFTDisplayBase() {};
     
 	void drawSpectrum(Graphics& g);
+
+	
 
 	Path lPath;
 	Path rPath;

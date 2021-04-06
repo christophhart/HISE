@@ -172,6 +172,8 @@ struct dynamic_list_editor : public ScriptnodeExtraComponent<parameter::dynamic_
 
 		void mouseDrag(const MouseEvent& e);
 
+		void mouseUp(const MouseEvent& event) override;
+
 		void resized() override;
 
 		void paint(Graphics& g) override;

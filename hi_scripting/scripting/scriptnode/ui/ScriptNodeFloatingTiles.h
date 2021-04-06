@@ -57,6 +57,8 @@ struct DspNetworkGraphPanel : public NetworkPanel
 
 	SET_PANEL_NAME("DspNetworkGraph");
 
+	void paint(Graphics& g) override;
+
 	Component* createComponentForNetwork(DspNetwork* p) override;
 };
 

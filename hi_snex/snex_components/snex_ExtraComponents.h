@@ -648,6 +648,8 @@ struct TestDataComponent : public TestDataComponentBase
 
 		auto top = b.removeFromTop(24);
 
+		g.fillAll(Colour(0xFF262626));
+
 		GlobalHiseLookAndFeel::drawFake3D(g, top);
 
 		top = b.removeFromTop(24);
@@ -777,6 +779,8 @@ struct TestComplexDataManager : public TestDataComponentBase,
 
 	void paint(Graphics& g) override
 	{
+		g.fillAll(Colour(0xFF262626));
+
 		auto b = getLocalBounds();
 		GlobalHiseLookAndFeel::drawFake3D(g, b.removeFromTop(24));
 	}
@@ -848,17 +852,7 @@ struct TestComplexDataManager : public TestDataComponentBase,
 
 	static ExternalData::DataType getDataType(int comboBoxIndex)
 	{
-		if (comboBoxIndex >= 1000 && comboBoxIndex < 2000)
-			return ExternalData::DataType::Table;
-		if (comboBoxIndex >= 2000 && comboBoxIndex < 3000)
-			return ExternalData::DataType::SliderPack;
-		if (comboBoxIndex >= 3000 && comboBoxIndex < 4000)
-			return ExternalData::DataType::AudioFile;
-		if (comboBoxIndex >= 4000 && comboBoxIndex < 5000)
-			return ExternalData::DataType::FilterCoefficients;
-
-		jassertfalse;
-		return  ExternalData::DataType::numDataTypes;
+		return (ExternalData::DataType)(comboBoxIndex / 1000 - 1);
 	}
 
 	bool getDataTypeAndIndex(const int comboBoxIndex, ExternalData::DataType& d, int& dataIndex)
@@ -876,14 +870,7 @@ struct TestComplexDataManager : public TestDataComponentBase,
 
 	int getComboboxIndex(ExternalData::DataType t, int index)
 	{
-		if (t == ExternalData::DataType::Table)
-			return index + 1000;
-		if (t == ExternalData::DataType::SliderPack)
-			return index + 2000;
-		if (t == ExternalData::DataType::AudioFile)
-			return index + 3000;
-		if (t == ExternalData::DataType::FilterCoefficients)
-			return index + 4000;
+		return index + (((int)t + 1) * 1000);
 	}
 
 	void setComponent(int cbIndex)
@@ -920,6 +907,13 @@ struct TestComplexDataManager : public TestDataComponentBase,
 			{
 				auto t = td.getFilterData(i);
 				auto b = new hise::FilterGraph();
+				b->setComplexDataUIBase(t);
+				currentDataComponent = b;
+			}
+			if (d == ExternalData::DataType::DisplayBuffer)
+			{
+				auto t = td.getDisplayBuffer(i);
+				auto b = new hise::ModPlotter();
 				b->setComplexDataUIBase(t);
 				currentDataComponent = b;
 			}

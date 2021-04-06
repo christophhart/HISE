@@ -32,6 +32,12 @@
 
 namespace hise { using namespace juce;
 
+void FFTDisplayBase::Properties::applyFFT(SimpleRingBuffer::Ptr p)
+{
+
+}
+
+
 
 void FFTDisplayBase::drawSpectrum(Graphics& g)
 {
@@ -75,24 +81,13 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 			b2.makeCopyOf(rb->getReadBuffer());
 
+			
+
 			auto data = b2.getWritePointer(0);
+
+			FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), b2.getNumSamples());
+
 			auto lastValues = fftBuffer.getWritePointer(0);
-
-#if 0
-			auto readIndex = ringBuffer.indexInBuffer;
-
-			int numBeforeWrap = size - readIndex;
-			int numAfterWrap = size - numBeforeWrap;
-
-			FloatVectorOperations::copy(data, b.getReadPointer(0, readIndex), numBeforeWrap);
-			FloatVectorOperations::copy(data + numBeforeWrap, b.getReadPointer(0, 0), numAfterWrap);
-
-			FloatVectorOperations::add(data, b.getReadPointer(1, readIndex), numBeforeWrap);
-			FloatVectorOperations::add(data + numBeforeWrap, b.getReadPointer(1, 0), numAfterWrap);
-
-			FloatVectorOperations::multiply(data, 0.5f, size);
-			FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), size);
-#endif
 
 			auto sampleRate = getSamplerate();
 
@@ -128,9 +123,6 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 				}
 			}
 
-
-			//fftObject.realFFT(b.getReadPointer(1), b2.getWritePointer(1), b2.getNumSamples());
-
 			FloatVectorOperations::abs(data, b2.getReadPointer(0), size);
 			FloatVectorOperations::multiply(data, 1.0f / 95.0f, size);
 
@@ -142,7 +134,6 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 			lPath.clear();
 
 			lPath.startNewSubPath(0.0f, (float)asComponent->getHeight());
-			//lPath.lineTo(0.0f, -1.0f);
 
 			if (sampleRate == 0.0)
 				sampleRate = 44100.0;
@@ -196,9 +187,11 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 				else
 				{
 
+					
+
 					v = Decibels::gainToDecibels(v);
-					v = jlimit<float>(-90.0f, 0.0f, v);
-					v = 1.0f + v / 90.0f;
+					v = jlimit<float>(fftProperties.dbRange.getStart(), 0.0f, v);
+					v = 1.0f + v / fftProperties.dbRange.getLength();
 					v = powf(v, 0.707f);
 				}
 

@@ -58,6 +58,12 @@ public:
 		return nullptr;
 	}
 
+	SimpleRingBuffer* getDisplayBuffer(int index) override
+	{
+		jassertfalse; // soon...
+		return nullptr;
+	}
+
 protected:
 
 	ComplexDataUIBase* createAndInit(ExternalData::DataType t, bool useSampleLookup)

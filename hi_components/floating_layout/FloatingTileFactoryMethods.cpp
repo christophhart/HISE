@@ -54,7 +54,6 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<SnexWorkbenchPanel<snex::ui::Graph>>(PopupMenuOptions::SnexGraph);
 	registerType<SnexWorkbenchPanel<snex::ui::ParameterList>>(PopupMenuOptions::SnexParameterList);
 	registerType<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(PopupMenuOptions::SnexTestDataInfo);
-	registerType<SnexWorkbenchPanel<hise::WorkbenchInfoComponent>>(PopupMenuOptions::SnexWorkbenchInfo);
 	registerType<SnexWorkbenchPanel<snex::ui::TestComplexDataManager>>(PopupMenuOptions::SnexComplexTestData);
 	//registerType<snex::ui::Console>();
 	//registerType<snex::ui::AssemblyViewer>();
@@ -279,7 +278,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	case PopupMenuOptions::DspNodeList:
 	case PopupMenuOptions::DspNodeParameterEditor:
 	{
-		path.loadPathFromData(ScriptnodeIcons::splitIcon, sizeof(ScriptnodeIcons::splitIcon));
+		path.loadPathFromData(ScriptnodeIcons::pinIcon, sizeof(ScriptnodeIcons::pinIcon));
 		break;
 	}
 	case PopupMenuOptions::PresetBrowser:
@@ -397,6 +396,11 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	{
 		path.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape));
 
+		return path;
+	}
+	case FloatingTileContent::Factory::PopupMenuOptions::SnexTestDataInfo:
+	{
+		path.loadPathFromData(HnodeIcons::testIcon, sizeof(HnodeIcons::testIcon));
 		return path;
 	}
 

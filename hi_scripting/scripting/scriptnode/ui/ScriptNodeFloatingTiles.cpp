@@ -43,6 +43,11 @@ DspNetworkGraphPanel::DspNetworkGraphPanel(FloatingTile* parent) :
 }
 
 
+void DspNetworkGraphPanel::paint(Graphics& g)
+{
+	g.fillAll(Colour(0xFF1D1D1D));
+}
+
 Component* DspNetworkGraphPanel::createComponentForNetwork(DspNetwork* p)
 {
 	return new DspNetworkGraph::WrapperWithMenuBar(p);

@@ -74,6 +74,7 @@ struct OpaqueNodeDataHolder: public data::base
 		OwnedArray<data::ui::pimpl::editor_base> editors;
 		PooledUIUpdater* updater;
 		int height = 0;
+		int width = 0;
 	};
 
 	void setExternalData(const snex::ExternalData& d, int index) override;
@@ -222,10 +223,12 @@ public:
 	valuetree::PropertyListener bypassListener;
 };
 
+using ModWrapType_ = wrap::mod<parameter::dynamic_base_holder, OpaqueNode>;
+
 class InterpretedModNode : public ModulationSourceNode,
-						   public InterpretedNodeBase<wrap::mod<parameter::dynamic_base_holder, OpaqueNode>>
+						   public InterpretedNodeBase<ModWrapType_>
 {
-	using Base = InterpretedNodeBase<wrap::mod<parameter::dynamic_base_holder, OpaqueNode>>;
+	using Base = InterpretedNodeBase<ModWrapType_>;
 
 public:
 
@@ -244,6 +247,14 @@ public:
 		return mn;
 	};
 
+	static Component* createModPlotter(void* obj, PooledUIUpdater* updater)
+	{
+		auto b = static_cast<data::base*>(obj);
+		auto n = new ModPlotter();
+		n->setComplexDataUIBase(b->getUIPointer());
+		return n;
+	}
+
 	void* getObjectPtr() override;
 
 	ParameterDataList createInternalParameterList() override;
@@ -258,7 +269,6 @@ public:
 
 	void reset();
 	void prepare(PrepareSpecs specs) final override;
-	void writeToRingBuffer(double value, int numSamplesForAnalysis);
 	void processFrame(NodeBase::FrameType& data) final override;
 	void processMonoFrame(MonoFrameType& data) final override;
 	void processStereoFrame(StereoFrameType& data) final override;

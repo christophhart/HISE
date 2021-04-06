@@ -34,4 +34,9 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+analyse::ui::simple_fft_display::simple_fft_display()
+{
+	fftProperties.window = FFTDisplayBase::BlackmannHarris;
+}
+
 }

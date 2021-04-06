@@ -41,33 +41,35 @@ namespace analyse
 
 struct Helpers
 {
-	struct AnalyserDataProvider
+	struct AnalyserDataProvider: public data::display_buffer_base<true>
 	{
 		AnalyserDataProvider()
 		{
-			rb = new SimpleRingBuffer();
 		}
 
-		SimpleRingBuffer::Ptr rb;
-
-		SimpleRingBuffer::Ptr getRingBuffer() { return rb; }
+		SimpleRingBuffer::Ptr getRingBuffer() { return dynamic_cast<SimpleRingBuffer*>(externalData.obj); }
 
 		virtual ~AnalyserDataProvider() {};
 
 		void prepare(PrepareSpecs ps)
 		{
-			sr = ps.sampleRate;
+			channelsToProcess = ps.numChannels;
 
-			if (rb != nullptr)
+			if (getRingBuffer() != nullptr)
 			{
-				auto numSamples = rb->getReadBuffer().getNumSamples();
-				rb->setRingBufferSize(ps.numChannels, numSamples);
+				auto numSamples = getRingBuffer()->getReadBuffer().getNumSamples();
+				getRingBuffer()->setRingBufferSize(ps.numChannels, numSamples);
+				getRingBuffer()->setSamplerate(ps.sampleRate);
 			}
 		}
 
-		double getSampleRate() const { return sr; }
+		template <typename ProcessDataType> void updateBuffer(ProcessDataType& data)
+		{
+			if (rb != nullptr && rb->isActive())
+				rb->write(const_cast<const float**>(data.getRawDataPointers()), data.getNumChannels(), data.getNumSamples());
+		}
 
-		double sr = 0.0;
+		int channelsToProcess = 0;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(AnalyserDataProvider);
 	};
@@ -87,33 +89,78 @@ struct Helpers
 	struct FFT
 	{
 		SET_HISE_NODE_ID("fft");
+		
+		static constexpr int NumChannels = 1;
+		static constexpr int NumSamples = 16384;
+
+		static int getValidBufferSize(int desiredSize)
+		{
+			auto capped = jlimit<int>(512, 32768, desiredSize);
+			return nextPowerOfTwo(capped);
+		}
+
+		static constexpr int getValidChannelSize(int numChannels)
+		{
+			return 1;
+		}
 	};
 
 	struct Oscilloscope
 	{
 		SET_HISE_NODE_ID("oscilloscope");
+
+		static constexpr int NumChannels = 2;
+		static constexpr int NumSamples = 2048;
+
+		static int getValidBufferSize(int desiredSize)
+		{
+			return jlimit<int>(512, 32768 * 4, desiredSize);
+		}
+
+		static constexpr int getValidChannelSize(int numChannels)
+		{
+			return numChannels;
+		}
 	};
 
 	struct GonioMeter
 	{
 		SET_HISE_NODE_ID("goniometer");
+
+		static constexpr int NumChannels = 2;
+		static constexpr int NumSamples = 8192;
+
+		static int getValidBufferSize(int desiredSize)
+		{
+			return 8192;
+		}
+
+		static constexpr int getValidChannelSize(int numChannels)
+		{
+			return 2;
+		}
 	};
 
 };
 
-template <class T> class analyse_base : public HiseDspBase,
-										public Helpers::AnalyserDataProvider
+template <class T> class analyse_base : public Helpers::AnalyserDataProvider
 {
 public:
 
 	SET_HISE_NODE_ID(T::getStaticId());
     SN_GET_SELF_AS_OBJECT(analyse_base);
     
-	HISE_EMPTY_CREATE_PARAM;
-
+	
 	HISE_EMPTY_HANDLE_EVENT;
 	HISE_EMPTY_INITIALISE;
 	HISE_EMPTY_MOD;
+
+	analyse_base()
+	{
+		setRequiredBufferSize(T::NumChannels, T::NumSamples);
+	}
+
+	virtual ~analyse_base() {};
 
 	void reset()
 	{
@@ -123,8 +170,8 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		if (rb != nullptr && rb->isActive())
-			rb->write(const_cast<const float**>(data.getRawDataPointers()), data.getNumChannels(), data.getNumSamples());
+		ProcessData<T::NumChannels> pd(data.getRawDataPointers(), data.getNumSamples());
+		updateBuffer(pd);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
@@ -147,107 +194,90 @@ using goniometer = analyse_base<Helpers::GonioMeter>;
 
 namespace ui
 {
-struct fft_display : public ScriptnodeExtraComponent<fft>,
-				public hise::FFTDisplayBase
+
+struct simple_osc_display : public OscilloscopeBase,
+						    public Component,
+							public ComponentWithDefinedSize
 {
-	fft_display(fft* obj, PooledUIUpdater* updater) :
-		ScriptnodeExtraComponent<fft>(obj, updater),
-		FFTDisplayBase()
+	Colour getColourForAnalyserBase(int colourId) override
 	{
-		obj->getRingBuffer()->setRingBufferSize(1, 16384);
-		obj->getRingBuffer()->setGlobalUIUpdater(updater);
-		setComplexDataUIBase(obj->getRingBuffer());
-		
-		setSize(512, 100);
+		return Helpers::getColourBase(colourId);
 	}
+	
+	Rectangle<int> getFixedBounds() const override { return { 0, 0, 512, 200 }; }
+
+	void paint(Graphics& g) override
+	{
+		g.setColour(Colour(0xFF717171));
+		g.drawRect(getLocalBounds(), 1.0f);
+		OscilloscopeBase::drawWaveform(g);
+	}
+};
+
+
+struct simple_fft_display : public FFTDisplayBase,
+							public Component,
+							public ComponentWithDefinedSize
+{
+	simple_fft_display();
+
+	Colour getColourForAnalyserBase(int colourId) override
+	{
+		return Helpers::getColourBase(colourId);
+
+	}
+
+	juce::Rectangle<int> getFixedBounds() const override { return { 0, 0, 512, 100 }; }
 
 	double getSamplerate() const override
 	{
-		return getObject()->getSampleRate();
-	}
+		if (rb != nullptr)
+			return rb->getSamplerate();
 
-	Colour getColourForAnalyserBase(int colourId)
-	{
-		return Helpers::getColourBase(colourId);
+		return 44100.0;
 	}
-
-	void timerCallback() override { repaint(); }
 
 	void paint(Graphics& g) override
 	{
+		g.setColour(Colour(0xFF717171));
+		g.drawRect(getLocalBounds(), 1.0f);
 		FFTDisplayBase::drawSpectrum(g);
 	}
-
-	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
-	{
-		auto typed = static_cast<fft*>(obj);
-		return new fft_display(typed, updater);
-	}
 };
 
-struct osc_display : public ScriptnodeExtraComponent<oscilloscope>,
-					 public OscilloscopeBase
+struct simple_gon_display : public GoniometerBase,
+						    public Component,
+							public ComponentWithDefinedSize
 {
-	osc_display(oscilloscope* obj, PooledUIUpdater* updater) :
-		ScriptnodeExtraComponent<oscilloscope>(obj, updater),
-		OscilloscopeBase()
-	{
-		setComplexDataUIBase(obj->getRingBuffer());
-		obj->getRingBuffer()->setGlobalUIUpdater(updater);
-		obj->getRingBuffer()->setRingBufferSize(2, 2048);
-		setSize(512, 100);
-	}
-
-	Colour getColourForAnalyserBase(int colourId)
-	{
-		return Helpers::getColourBase(colourId);
-	}
-
-	void timerCallback() override { repaint(); }
-
-	void paint(Graphics& g) override
-	{
-		OscilloscopeBase::drawWaveform(g);
-	}
-
-	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
-	{
-		auto typed = static_cast<oscilloscope*>(obj);
-		return new osc_display(typed, updater);
-	}
-};
-
-struct gonio_display : public ScriptnodeExtraComponent<goniometer>,
-					   public hise::GoniometerBase
-{
-	gonio_display(goniometer* obj, PooledUIUpdater* updater) :
-		ScriptnodeExtraComponent<goniometer>(obj, updater),
-		GoniometerBase()
-	{
-		setComplexDataUIBase(obj->getRingBuffer());
-		obj->getRingBuffer()->setRingBufferSize(2, 8192);
-		obj->getRingBuffer()->setGlobalUIUpdater(updater);
-		setSize(256, 256);
-	}
-
 	Colour getColourForAnalyserBase(int colourId) override
 	{
 		return Helpers::getColourBase(colourId);
 	}
 
-	void timerCallback() override { repaint(); }
+	Rectangle<int> getFixedBounds() const override { return { 0, 0, 256, 256 }; }
 
 	void paint(Graphics& g) override
 	{
+		g.setColour(Colour(0xFF717171));
+		g.drawRect(getLocalBounds(), 1.0f);
 		GoniometerBase::paintSpacialDots(g);
 	}
-
-	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
-	{
-		auto typed = static_cast<goniometer*>(obj);
-		return new gonio_display(typed, updater);
-	}
 };
+
+using osc_display = data::ui::pimpl::editorT<data::dynamic::displaybuffer, 
+											 hise::SimpleRingBuffer, 
+											 simple_osc_display,
+											 false>; 
+
+using fft_display = data::ui::pimpl::editorT<data::dynamic::displaybuffer, 
+											 hise::SimpleRingBuffer, 
+											 simple_fft_display,
+											 false>; 
+
+using gonio_display = data::ui::pimpl::editorT<data::dynamic::displaybuffer,
+											   hise::SimpleRingBuffer,
+											   simple_gon_display,
+											   false>;
 
 	
 }

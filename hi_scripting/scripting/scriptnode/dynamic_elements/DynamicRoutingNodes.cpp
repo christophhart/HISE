@@ -255,6 +255,9 @@ dynamic::editor::editor(routing::base* b, PooledUIUpdater* u) :
 	levelDisplay.setColour(VuMeter::ColourId::ledColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xFFAAAAAA)));
 
 	setSize(50, 18);
+
+	setMouseCursor(ModulationSourceBaseComponent::createMouseCursor());
+
 	start();
 }
 
@@ -263,6 +266,15 @@ void dynamic::editor::resized()
 	auto b = getLocalBounds();
 	b.removeFromLeft(7);
 	levelDisplay.setBounds(b.reduced(1));
+
+	bool isSend = getAsSendNode() != nullptr;
+
+	float deltaY = JUCE_LIVE_CONSTANT_OFF(-11.5f);
+	float deltaXS = JUCE_LIVE_CONSTANT_OFF(-127.0f);
+	float deltaXE = JUCE_LIVE_CONSTANT_OFF(-49.0f);
+
+	getProperties().set("circleOffsetX", isSend ? deltaXS : deltaXE);
+	getProperties().set("circleOffsetY", deltaY);
 }
 
 Error dynamic::editor::checkConnectionWhileDragging(const SourceDetails& dragSourceDetails)
@@ -330,8 +342,6 @@ void dynamic::editor::itemDragEnter(const SourceDetails& dragSourceDetails)
 	if (currentDragError.error != Error::OK)
 	{
 		auto dd = getDragAndDropContainer();
-
-		dd->setCurrentDragImage(createDragImage(ScriptnodeExceptionHandler::getErrorMessage(currentDragError), Colours::red.withAlpha(0.7f)));
 	}
 
 	repaint();
@@ -339,8 +349,6 @@ void dynamic::editor::itemDragEnter(const SourceDetails& dragSourceDetails)
 
 void dynamic::editor::itemDragExit(const SourceDetails& dragSourceDetails)
 {
-	getDragAndDropContainer()->setCurrentDragImage(createDragImage("Drag to connect", Colours::transparentBlack));
-
 	dragOver = false;
 	repaint();
 }
@@ -520,20 +528,16 @@ void dynamic::editor::mouseDown(const MouseEvent& e)
 			if (rn->isConnected())
 			{
 				rn->source->setConnection(*rn, false);
-
-				dynamic_cast<Component*>(getDragAndDropContainer())->repaint();
+				findParentComponentOfClass<DspNetworkGraph>()->repaint();
 			}
 		}
 	}
 	else
 	{
 		auto dd = getDragAndDropContainer();
+		dd->startDragging(var(), this, ModulationSourceBaseComponent::createDragImageStatic(false));
 
-		auto img = createDragImage("Drag to connect", Colours::transparentBlack);
-
-		Point<int> offset(-15, -13);
-
-		dd->startDragging(var(), this, img, false, &offset);
+		findParentComponentOfClass<DspNetworkGraph>()->repaint();
 
 		auto f = [this](editor* fc)
 		{
@@ -558,13 +562,35 @@ void dynamic::editor::mouseUp(const MouseEvent& e)
 			fc->dragMode = false;
 			fc->repaint();
 		});
+
+	findParentComponentOfClass<DspNetworkGraph>()->repaint();
+}
+
+void dynamic::editor::mouseDrag(const MouseEvent& event)
+{
+	findParentComponentOfClass<DspNetworkGraph>()->repaint();
+}
+
+
+
+void dynamic::editor::mouseDoubleClick(const MouseEvent& event)
+{
+	if (auto rn = getAsReceiveNode())
+	{
+		if (rn->isConnected())
+		{
+			rn->source->setConnection(*rn, false);
+			findParentComponentOfClass<DspNetworkGraph>()->repaint();
+		}
+	}
 }
 
 void dynamic::editor::paint(Graphics& g)
 {
 	if (dragOver)
 	{
-		g.setColour(Colour(SIGNAL_COLOUR));
+		auto c = currentDragError.error != Error::OK ? Colours::red : Colour(SIGNAL_COLOUR);
+		g.setColour(c);
 		g.drawRect(getLocalBounds().toFloat(), 1.0f);
 	}
 }

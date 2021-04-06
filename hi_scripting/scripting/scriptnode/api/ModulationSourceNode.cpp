@@ -116,9 +116,6 @@ ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
 	WrapperNode(n, d),
 	SimpleTimer(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
 {
-	ringBuffer = new SimpleRingBuffer();
-	ringBuffer->setGlobalUIUpdater(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
-
 	targetListener.setCallback(getModulationTargetTree(),
 		valuetree::AsyncMode::Synchronously,
 		[this](ValueTree c, bool wasAdded)
@@ -315,14 +312,6 @@ void ModulationSourceNode::rebuildModulationConnections()
 		p->setParameter(chain.release());
 }
 
-int ModulationSourceNode::fillAnalysisBuffer(AudioSampleBuffer& b)
-{
-	if (ringBuffer != nullptr)
-		return ringBuffer->read(b);
-
-	return 0;
-}
-
 void ModulationSourceNode::checkTargets()
 {
 	// We need to skip this if the node wasn't initialised properly
@@ -339,40 +328,71 @@ void ModulationSourceNode::checkTargets()
 ModulationSourceBaseComponent::ModulationSourceBaseComponent(PooledUIUpdater* updater) :
 	SimpleTimer(updater, true)
 {
+	dragPath.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
 
+	setRepaintsOnMouseActivity(true);
+	setMouseCursor(createMouseCursor());
 }
 
 void ModulationSourceBaseComponent::paint(Graphics& g)
 {
-	drawDragArea(g, getLocalBounds().toFloat());
+	Colour c = Colour(0xFF717171);
+
+	if (isMouseOver(true))
+		c = c.withMultipliedBrightness(1.4f);
+
+	if (isMouseButtonDown(true))
+		c = c.withMultipliedBrightness(1.4f);
+
+	drawDragArea(g, getLocalBounds().toFloat(), c);
 }
 
 juce::Image ModulationSourceBaseComponent::createDragImage()
 {
-	Image img(Image::ARGB, getWidth(), getHeight(), true);
+	auto img = createDragImageStatic(false);
+	return img;
+}
+
+juce::Image ModulationSourceBaseComponent::createDragImageStatic(bool shouldFill)
+{
+	auto sf = Desktop::getInstance().getDisplays().getMainDisplay().scale;
+
+	Image img(Image::ARGB, roundToInt(sf * 28.0), roundToInt(sf * 28.0), true);
 	Graphics g(img);
 
-	auto b = getLocalBounds().toFloat();
-
-	g.setColour(Colours::black.withAlpha(0.7f));
-	g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
-
-	drawDragArea(g, b, getSourceNodeFromParent()->getId());
+	if (shouldFill)
+	{
+		Path p;
+		p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
+		p.scaleToFit(0.0f, 0.0f, 28.0f * sf, 28.0f * sf, true);
+		g.setColour(Colours::white.withAlpha(0.9f));
+		g.fillPath(p);
+	}
 
 	return img;
 }
 
-void ModulationSourceBaseComponent::drawDragArea(Graphics& g, Rectangle<float> b, String text)
+void ModulationSourceBaseComponent::drawDragArea(Graphics& g, Rectangle<float> b, Colour c, String text)
 {
-	g.setColour(Colours::white.withAlpha(0.1f));
+	b = b.reduced(1.0f);
+
+	g.setColour(c);
 	g.drawRoundedRectangle(b, b.getHeight() / 2.0f, 1.0f);
-	g.setColour(Colours::white.withAlpha(0.1f));
 	g.setFont(GLOBAL_BOLD_FONT());
+
+	g.fillPath(dragPath);
 
 	if (text.isEmpty())
 		text = "Drag to modulation target";
 
 	g.drawText(text, b, Justification::centred);
+}
+
+juce::MouseCursor ModulationSourceBaseComponent::createMouseCursor()
+{
+	auto c = createDragImageStatic(true);
+	MouseCursor mc(c, 14, 14);
+	return mc;
 }
 
 void ModulationSourceBaseComponent::mouseDrag(const MouseEvent&)
@@ -394,9 +414,27 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent&)
 		details->setProperty(PropertyIds::ModulationTarget, true);
 
 		container->startDragging(var(details), this, createDragImage());
+
+		findParentComponentOfClass<DspNetworkGraph>()->repaint();
 	}
 }
 
+
+void ModulationSourceBaseComponent::mouseUp(const MouseEvent& e)
+{
+	findParentComponentOfClass<DspNetworkGraph>()->repaint();
+}
+
+void ModulationSourceBaseComponent::resized()
+{
+	auto b = getLocalBounds();
+	auto p = b.removeFromLeft(b.getHeight()).toFloat().reduced(4.0f);
+	PathFactory::scalePath(dragPath, p);
+
+	getProperties().set("circleOffsetX", p.getCentreX() - (float)(getWidth() / 2));
+	getProperties().set("circleOffsetY", -0.5f * (float)getHeight() -3.0f);
+
+}
 
 void ModulationSourceBaseComponent::mouseDown(const MouseEvent& e)
 {
@@ -425,7 +463,6 @@ scriptnode::ModulationSourceNode* ModulationSourceBaseComponent::getSourceNodeFr
 		if (auto pc = findParentComponentOfClass<NodeComponent>())
 		{
 			sourceNode = dynamic_cast<ModulationSourceNode*>(pc->node.get());
-			jassert(sourceNode != nullptr);
 		}
 	}
 
@@ -436,6 +473,8 @@ scriptnode::ModulationSourceNode* ModulationSourceBaseComponent::getSourceNodeFr
 ModulationSourcePlotter::ModulationSourcePlotter(PooledUIUpdater* updater) :
 	ModulationSourceBaseComponent(updater)
 {
+	
+
 	setOpaque(true);
 	setSize(256, ModulationSourceNode::ModulationBarHeight);
 	addAndMakeVisible(p);
@@ -443,7 +482,6 @@ ModulationSourcePlotter::ModulationSourcePlotter(PooledUIUpdater* updater) :
 
 void ModulationSourcePlotter::timerCallback()
 {
-	p.setComplexDataUIBase(getSourceNodeFromParent()->ringBuffer);
 	stop();
 		
 	skip = !skip;

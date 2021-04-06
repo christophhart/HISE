@@ -39,7 +39,7 @@ using namespace hise;
 
 
 
-struct ParameterKnobLookAndFeel : public LookAndFeel_V3
+struct ParameterKnobLookAndFeel : public GlobalHiseLookAndFeel
 {
 	ParameterKnobLookAndFeel();
 
@@ -191,6 +191,8 @@ struct MacroParameterSlider : public Component
 	void resized() override;
 
 	void mouseDrag(const MouseEvent& event) override;
+
+	void mouseUp(const MouseEvent& e) override;
 
 	void paintOverChildren(Graphics& g) override;
 

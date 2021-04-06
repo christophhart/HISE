@@ -1040,6 +1040,12 @@ public:
 			return nullptr; // soon;
 		}
 
+		SimpleRingBuffer* getDisplayBuffer(int index) override
+		{
+			jassertfalse;
+			return nullptr; // soon
+		}
+
 		int getNumDataObjects(ExternalData::DataType t) const override
 		{
 			return t == type ? 1 : 0;

@@ -134,8 +134,6 @@ public:
 
 	void logMessage(int level, const String& s) override;
 
-	int fillAnalysisBuffer(AudioSampleBuffer& b);
-
 	void checkTargets();
 
 	double sampleRateFactor = 1.0;
@@ -145,14 +143,15 @@ public:
 
 	bool scaleModulationValue = true;
 
-	int ringBufferSize = 0;
-
-	SimpleRingBuffer::Ptr ringBuffer;
+	
 	bool ok = false;
 
 	valuetree::ChildListener targetListener;
 
 	ReferenceCountedArray<ModulationTarget> targets;
+
+private:
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ModulationSourceNode);
 };
 

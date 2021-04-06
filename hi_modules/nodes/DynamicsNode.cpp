@@ -134,6 +134,9 @@ template <class DynamicProcessorType>
 bool dynamics_wrapper<DynamicProcessorType>::handleModulation(double& max) noexcept
 {
 	max = jlimit(0.0, 1.0, 1.0 - obj.getGainReduction());
+
+	updateBuffer(max, lastNumSamples);
+
 	return true;
 }
 

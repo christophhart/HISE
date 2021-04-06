@@ -590,6 +590,18 @@ struct WorkbenchData : public ReferenceCountedObject,
 			return filterData.getLast();
 		}
 
+		SimpleRingBuffer* getDisplayBuffer(int index) override
+		{
+			if (isPositiveAndBelow(index, displayBuffers.size()))
+				return displayBuffers[index];
+
+			auto fd = new SimpleRingBuffer();
+			displayBuffers.add(fd);
+			sendMessageToListeners(true);
+			return displayBuffers.getLast();
+		}
+
+
 		int getNumDataObjects(ExternalData::DataType t) const override
 		{
 			if (t == ExternalData::DataType::SliderPack)
@@ -600,6 +612,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 				return buffers.size();
 			if (t == ExternalData::DataType::FilterCoefficients)
 				return filterData.size();
+			if (t == ExternalData::DataType::DisplayBuffer)
+				return displayBuffers.size();
 		}
 
 		bool removeDataObject(ExternalData::DataType t, int index) override
@@ -636,6 +650,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 				return false;
 			}
+
 		}
 
 		void setUpdater(PooledUIUpdater* nonOwnedUpdater)
@@ -723,6 +738,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 		ReferenceCountedArray<SliderPackData> sliderPacks;
 		ReferenceCountedArray<MultiChannelAudioBuffer> buffers;
 		ReferenceCountedArray<FilterDataObject> filterData;
+		ReferenceCountedArray<SimpleRingBuffer> displayBuffers;
 
 		File testRootDirectory;
 
@@ -1257,6 +1273,14 @@ struct WorkbenchManager final
 	WorkbenchData::Ptr getCurrentWorkbench() { return currentWb; }
 	
 	WorkbenchData::Ptr getRootWorkbench() { return rootWb; }
+
+	void removeWorkbench(WorkbenchData::Ptr p)
+	{
+		data.removeObject(p);
+
+		if (currentWb == p || p == rootWb)
+			setCurrentWorkbench(nullptr, p == rootWb);
+	}
 
 private:
 

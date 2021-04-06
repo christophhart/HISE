@@ -44,8 +44,6 @@ struct NodeBase::Wrapper
 	API_METHOD_WRAPPER_1(NodeBase, get);
 	API_VOID_METHOD_WRAPPER_2(NodeBase, setParent);
 	API_METHOD_WRAPPER_1(NodeBase, getParameterReference);
-	API_METHOD_WRAPPER_0(NodeBase, createRingBuffer);
-	API_VOID_METHOD_WRAPPER_1(NodeBase, writeModulationSignal);
 };
 
 
@@ -69,8 +67,6 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_2(setParent);
-	ADD_API_METHOD_0(createRingBuffer);
-	ADD_API_METHOD_1(writeModulationSignal);
 	ADD_API_METHOD_1(getParameterReference);
 
 	bypassListener.setCallback(v_data, { PropertyIds::Bypassed }, valuetree::AsyncMode::Synchronously, [this](Identifier id, var newValue)
@@ -411,34 +407,6 @@ void NodeBase::setParent(var parentNode, int indexInParent)
 	}
 }
 
-void NodeBase::writeModulationSignal(var buffer)
-{
-	checkValid();
-
-	if (auto b = buffer.getBuffer())
-	{
-		if (b->size == SimpleRingBuffer::RingBufferSize)
-		{
-			if (auto modSource = dynamic_cast<ModulationSourceNode*>(this))
-			{
-				modSource->fillAnalysisBuffer(b->buffer);
-			}
-			else
-				reportScriptError("No modulation node");
-		}
-		else
-			reportScriptError("buffer size mismatch. Expected: " + String(SimpleRingBuffer::RingBufferSize));
-	}
-	else
-		reportScriptError("the argument is not a buffer.");
-}
-
-var NodeBase::createRingBuffer()
-{
-	VariantBuffer::Ptr p = new VariantBuffer(SimpleRingBuffer::RingBufferSize);
-	return var(p);
-}
-
 var NodeBase::getParameterReference(var indexOrId) const
 {
 	Parameter* p = nullptr;
@@ -498,7 +466,7 @@ juce::String Parameter::getId() const
 
 double Parameter::getValue() const
 {
-	return dbNew.lastValue;
+	return dbNew.getDisplayValue();
 }
 
 void Parameter::setCallbackNew(parameter::dynamic_base* ownedNew)

@@ -39,7 +39,8 @@ using namespace hise;
 namespace dynamics
 {
     
-template <class DynamicProcessorType> class dynamics_wrapper : public HiseDspBase
+template <class DynamicProcessorType> class dynamics_wrapper : public HiseDspBase,
+															   public data::display_buffer_base<true>
 {
 public:
 
@@ -74,9 +75,13 @@ public:
 	void prepare(PrepareSpecs ps);
 	void reset() noexcept;
 
+
+
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
         snex::Types::FrameConverters::forwardToFrameStereo(this, data);
+
+		lastNumSamples = data.getNumSamples();
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
@@ -96,6 +101,8 @@ public:
 			obj.process(values[0], values[1]);
 			data[0] = (float)values[0];
 		}
+
+		lastNumSamples = 1;
 	}
 
 	void setThreshhold(double v);
@@ -104,10 +111,10 @@ public:
 	void setRatio(double v);
 
 	DynamicProcessorType obj;
+	int lastNumSamples = 0;
 };
 
-
-class envelope_follower : public HiseDspBase
+class envelope_follower: public data::display_buffer_base<true>
 {
 public:
 
@@ -134,7 +141,12 @@ public:
 
 	HISE_EMPTY_HANDLE_EVENT;
 
-	bool handleModulation(double& v) noexcept { return modValue.getChangedValue(v); };
+	bool handleModulation(double& v) noexcept 
+	{ 
+		updateBuffer(modValue.getModValue(), lastNumSamples);
+		return modValue.getChangedValue(v); 
+	};
+
 	void prepare(PrepareSpecs ps);
 	void reset() noexcept;
 
@@ -144,6 +156,8 @@ public:
 			snex::Types::FrameConverters::forwardToFrameMono(this, data);
 		if(data.getNumChannels() == 2)
 			snex::Types::FrameConverters::forwardToFrameStereo(this, data);
+
+		lastNumSamples = data.getNumSamples();
 	}
 
 	template <typename FrameType> void processFrame(FrameType& data)
@@ -162,6 +176,7 @@ public:
 		}
 
 		modValue.setModValue(output);
+		lastNumSamples = 1;
 	}
 
 	void setAttack(double v);
@@ -177,6 +192,7 @@ public:
 	EnvelopeFollower::AttackRelease envelope;
 
 	ModValue modValue;
+	int lastNumSamples = 0;
 
 	hmath Math;
 	
