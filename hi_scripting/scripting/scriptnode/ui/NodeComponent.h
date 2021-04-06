@@ -47,17 +47,17 @@ public:
 
 	using ObjectType = T;
 
+	ObjectType* getObject() const
+	{
+		return object.get();
+	}
+
 protected:
 
 	ScriptnodeExtraComponent(ObjectType* t, PooledUIUpdater* updater) :
 		SimpleTimer(updater),
 		object(t)
 	{};
-
-	ObjectType* getObject() const
-	{
-		return object.get();
-	}
 
 private:
 

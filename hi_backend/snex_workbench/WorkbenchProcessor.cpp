@@ -63,6 +63,8 @@ juce::PopupMenu SnexWorkbenchEditor::getMenuForIndex(int topLevelMenuIndex, cons
 
 		m.addCommandItem(&mainManager, MenuCommandIds::FileSave);
 		m.addCommandItem(&mainManager, MenuCommandIds::FileSaveAll);
+		m.addCommandItem(&mainManager, MenuCommandIds::FileCloseCurrentNetwork);
+		
 		m.addSeparator();
 
 		m.addCommandItem(&mainManager, MenuCommandIds::FileShowNetworkFolder);
@@ -84,6 +86,9 @@ juce::PopupMenu SnexWorkbenchEditor::getMenuForIndex(int topLevelMenuIndex, cons
 	}
 	case MenuItems::ToolsMenu:
 	{
+		m.addCommandItem(&mainManager, MenuCommandIds::ToolsSynthMode);
+		m.addCommandItem(&mainManager, MenuCommandIds::ToolsEffectMode);
+		m.addSeparator();
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsAudioConfig);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsEditTestData);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsCompileNetworks);
@@ -105,8 +110,11 @@ void SnexWorkbenchEditor::getAllCommands(Array<CommandID>& commands)
 		MenuCommandIds::FileOpen,
 		MenuCommandIds::FileSave,
 		MenuCommandIds::FileSaveAll,
+		MenuCommandIds::FileCloseCurrentNetwork,
 		MenuCommandIds::FileSetProject,
 		MenuCommandIds::FileShowNetworkFolder,
+		MenuCommandIds::ToolsEffectMode,
+		MenuCommandIds::ToolsSynthMode,
 		MenuCommandIds::ToolsAudioConfig,
 		MenuCommandIds::ToolsCompileNetworks,
 		MenuCommandIds::ToolsClearDlls,
@@ -125,10 +133,14 @@ void SnexWorkbenchEditor::getCommandInfo(CommandID commandID, ApplicationCommand
 	case MenuCommandIds::FileOpen: setCommandTarget(result, "Open File", true, false, 'O', true, ModifierKeys::commandModifier); break;
 	case MenuCommandIds::FileSave: setCommandTarget(result, "Save Network", true, false, 'S', true, ModifierKeys::commandModifier); break;
 	case MenuCommandIds::FileSaveAll: setCommandTarget(result, "Save Network & Testdata", true, false, 'x', false); break;
+	case MenuCommandIds::FileCloseCurrentNetwork: setCommandTarget(result, "Close current File", true, false, 0, false); break;
 	case MenuCommandIds::FileSetProject: setCommandTarget(result, "Load Project", true, false, 0, false); break;
 	case MenuCommandIds::FileShowNetworkFolder: setCommandTarget(result, "Show Network folder", true, false, 'x', false); break;
 	case MenuCommandIds::ToolsEditTestData: setCommandTarget(result, "Manage Test Files", true, false, 0, false); break;
 	case MenuCommandIds::ToolsCompileNetworks: setCommandTarget(result, "Compile DSP networks", true, false, 'x', false); break;
+	case MenuCommandIds::ToolsSynthMode: setCommandTarget(result, "Polyphonic Synth Mode", true, synthMode, 'x', false); break;
+	case MenuCommandIds::ToolsEffectMode: setCommandTarget(result, "Stereo Effect Mode", true, !synthMode, 'x', false); 
+	  break;
 	case MenuCommandIds::ToolsClearDlls: setCommandTarget(result, "Clear DLL build folder", true, false, 'x', false); break;
 	case MenuCommandIds::ToolsAudioConfig: setCommandTarget(result, "Settings", true, false, 0, false); break;
 	case MenuCommandIds::TestsRunAll: setCommandTarget(result, "Run all tests", true, false, 0, false); break;
@@ -143,14 +155,7 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 	{
 	case FileNew:
 	{
-		auto fileName = PresetHandler::getCustomName("DspNetwork", "Enter the name of the new dsp network.");
-		fileName = fileName.upToFirstOccurrenceOf(".", false, false);
-
-		if (!fileName.isEmpty())
-		{
-			auto f = BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks).getChildFile(fileName + ".xml");
-			addFile(f);
-		}
+		createNewFile();
 
 		return true;
 	};
@@ -169,6 +174,11 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 			addFile(f);
 		}
 
+		return true;
+	}
+	case FileCloseCurrentNetwork:
+	{
+		closeCurrentNetwork();
 		return true;
 	}
 	case FileSetProject:
@@ -210,6 +220,8 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 		window->activateSearchBox();
 		return true;
 	}
+	case ToolsEffectMode: setSynthMode(false); return true;
+	case ToolsSynthMode: setSynthMode(true); return true;
 	case ToolsCompileNetworks:
 	{
 		auto window = new DspNetworkCompileExporter(this);
@@ -272,6 +284,18 @@ void SnexWorkbenchEditor::recompiled(snex::ui::WorkbenchData::Ptr p)
 using namespace snex::Types;
 
 
+void SnexWorkbenchEditor::createNewFile()
+{
+	auto fileName = PresetHandler::getCustomName("DspNetwork", "Enter the name of the new dsp network.");
+	fileName = fileName.upToFirstOccurrenceOf(".", false, false);
+
+	if (!fileName.isEmpty())
+	{
+		auto f = BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks).getChildFile(fileName + ".xml");
+		addFile(f);
+	}
+}
+
 void SnexWorkbenchEditor::menuItemSelected(int menuItemID, int topLevelMenuIndex)
 {
 	if (menuItemID >= MenuCommandIds::ProjectOffset)
@@ -295,7 +319,9 @@ void SnexWorkbenchEditor::menuItemSelected(int menuItemID, int topLevelMenuIndex
 
 //==============================================================================
 SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
-	standaloneProcessor()
+	standaloneProcessor(),
+	infoComponent(nullptr),
+	keyboard(getProcessor())
 {
 	dllManager = new BackendDllManager(getProcessor());
 
@@ -307,7 +333,7 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 	runner.runTestsInCategory("node_tests");
 #endif
 
-	
+	addAndMakeVisible(infoComponent);
 
 	rootTile = new FloatingTile(getProcessor(), nullptr);
 
@@ -315,7 +341,13 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 		raw::Builder b(getProcessor());
 
 		auto mc = getProcessor();
+
+		b.add(new WorkbenchSynthesiser(mc), mc->getMainSynthChain(), raw::IDs::Chains::Direct);
+
 		dnp = b.add(new DspNetworkProcessor(mc, "internal"), mc->getMainSynthChain(), raw::IDs::Chains::FX);
+
+
+
 	}
 	
 
@@ -328,12 +360,13 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 	addKeyListener(mainManager.getKeyMappings());
 
 	menuBar.setModel(this);
-	menuBar.setLookAndFeel(&getProcessor()->getGlobalLookAndFeel());
+	menuBar.setLookAndFeel(&mlaf);
 
-    
-    
     addAndMakeVisible(menuBar);
+	addAndMakeVisible(keyboard);
     
+	keyboard.setUseVectorGraphics(true, false);
+
 #if JUCE_MAC
     MenuBarModel::setMacMainMenu(this);
     menuBar.setVisible(false);
@@ -349,26 +382,27 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 	{
 		FloatingInterfaceBuilder builder(rootTile.get());
 
-		auto r = 0;
+		auto v = 0;
 
-		builder.setNewContentType<HorizontalTile>(r);
-		builder.setDynamic(r, false);
+		builder.setNewContentType<VerticalTile>(v);
 
 		//auto topBar = builder.addChild<VerticalTile>(r);
 
 		//builder.addChild<TooltipPanel>(topBar);
 		//auto htb = builder.addChild<VisibilityToggleBar>(topBar);
 		
-		auto info = builder.addChild<SnexWorkbenchPanel<hise::WorkbenchInfoComponent>>(r);
-
 		//builder.setSizes(topBar, { 250, -1.0, 250 });
 		//builder.setDynamic(topBar, false);
 		//builder.setFoldable(topBar, false, { false, false, false });
 
-		auto v = builder.addChild<VerticalTile>(r);
-
 		int vtb = builder.addChild<VisibilityToggleBar>(v);
 		
+		builder.getContent<VisibilityToggleBar>(vtb)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF363636));
+		
+		builder.getContent<VerticalTile>(v)->setPanelColour(ResizableFloatingTileContainer::PanelColourId::itemColour1, Colour(0xFF1D1D1D));
+
+		builder.getContent<VerticalTile>(v)->setPanelColour(ResizableFloatingTileContainer::PanelColourId::bgColour, Colour(0xFF1D1D1D));
+
 		auto dg = builder.addChild<scriptnode::DspNetworkGraphPanel>(v);
 
 		int editor = builder.addChild<SnexEditorPanel>(v);
@@ -377,7 +411,9 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 		ep->setCustomTitle("SNEX Code Editor");
 		
-		builder.setVisibility(v, true, { true, true, false });
+		auto testTab = builder.addChild<HorizontalTile>(v);
+
+		builder.setVisibility(v, true, { true, true, false, false });
 		//auto t = builder.addChild<FloatingTabComponent>(v);
 		//builder.getPanel(t)->setCustomIcon((int)FloatingTileContent::Factory::PopupMenuOptions::ScriptEditor);
 		//auto rightColumn = builder.addChild<HorizontalTile>(v);
@@ -386,26 +422,25 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 		dgp = builder.getContent<scriptnode::DspNetworkGraphPanel>(dg);
 		dgp->setCustomTitle("Scriptnode DSP Graph");
-
 		dgp->setForceHideSelector(true);
 		
+		builder.getContent<HorizontalTile>(testTab)->setPanelColour(ResizableFloatingTileContainer::PanelColourId::bgColour, Colour(0xFF1D1D1D));
 
+		builder.setDynamic(testTab, false);
 
-		auto pl = builder.addChild<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(r);
-		auto cpl = builder.addChild<SnexWorkbenchPanel<snex::ui::TestComplexDataManager>>(r);
-		auto uig = builder.addChild<SnexWorkbenchPanel<snex::ui::Graph>>(r);
+		auto pl = builder.addChild<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(testTab);
+		auto cpl = builder.addChild<SnexWorkbenchPanel<snex::ui::TestComplexDataManager>>(testTab);
+		auto uig = builder.addChild<SnexWorkbenchPanel<snex::ui::Graph>>(testTab);
 
 		builder.getContent<FloatingTileContent>(pl)->setCustomTitle("Test Events");
 		builder.getContent<FloatingTileContent>(cpl)->setCustomTitle("Test Complex Data");
 		builder.getContent<FloatingTileContent>(uig)->setCustomTitle("Test Signal Display");
+		builder.setFoldable(v, false, { false, false, false, false });
+
+		builder.setSizes(v, {30.0, -0.4, -0.4, -0.2 });
+		builder.setDynamic(v, false);
 
 		
-		builder.getContent< SnexWorkbenchPanel<hise::WorkbenchInfoComponent>>(info)->forceShowTitle = false;
-
-		builder.setFoldable(v, false, { false, false, false });
-
-		builder.setSizes(v, {30.0, -0.33, -0.33 });
-		builder.setDynamic(v, false);
 
 #if 0
 		builder.addChild<ScriptWatchTablePanel>(rightColumn);
@@ -413,13 +448,7 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 #endif
 		
 
-		auto c = builder.addChild<ConsolePanel>(r);
-
 		//builder.getContent<VisibilityToggleBar>(htb)->setControlledContainer(builder.getContainer(r));
-
-		builder.setFolded(r, { false, false, true, true, true, true });
-
-		builder.setSizes(r, { 30.0, -0.4, -0.2, -0.2, -0.2, -0.2 });
 
 		builder.getContent<VisibilityToggleBar>(vtb)->refreshButtons();;
 
@@ -460,9 +489,20 @@ void SnexWorkbenchEditor::resized()
 {
 	auto b = getLocalBounds();
 
+	auto top = b.removeFromTop(45);
+
+	infoComponent.setBounds(top);
+
 #if !JUCE_MAC
-	menuBar.setBounds(b.removeFromTop(24));
+	menuBar.setBounds(top.removeFromLeft(300).reduced(5, 5));
 #endif
+
+	if (synthMode)
+	{
+		keyboard.setBounds(b.removeFromBottom(72).withSizeKeepingCentre(800, 72));
+		b.removeFromBottom(3);
+	}
+
 	rootTile->setBounds(b);
 }
 
@@ -481,6 +521,55 @@ void SnexWorkbenchEditor::saveCurrentFile()
 			df->getXmlFile().replaceWithText(xml->createDocument(""));
 		}
 	}
+}
+
+void SnexWorkbenchEditor::setSynthMode(bool shouldBeSynthMode)
+{
+	synthMode = shouldBeSynthMode;
+
+	auto np = getNetworkHolderForNewFile(getProcessor(), synthMode);
+
+	if (np == nullptr)
+	{
+		if(PresetHandler::showYesNoWindow("Load file", "Do you want to load a file"))
+			createNewFile();
+	}
+	else
+	{
+		dgp->setContentWithUndo(dynamic_cast<Processor*>(np), 0);
+	}
+
+
+	resized();
+}
+
+scriptnode::DspNetwork::Holder* SnexWorkbenchEditor::getNetworkHolderForNewFile(MainController* mc, bool getSynthHolder)
+{
+	if (getSynthHolder)
+		return ProcessorHelpers::getFirstProcessorWithType<WorkbenchSynthesiser>(mc->getMainSynthChain());
+	else
+		return ProcessorHelpers::getFirstProcessorWithType<DspNetworkProcessor>(mc->getMainSynthChain());
+}
+
+void SnexWorkbenchEditor::closeCurrentNetwork()
+{
+	dgp->setContentWithUndo(nullptr, 0);
+
+	auto n = getNetworkHolderForNewFile(getProcessor(), synthMode);
+
+	ValueTree v("N");
+	v.addChild(ValueTree("Networks"), -1, nullptr);
+
+	n->restoreNetworks(v);
+
+	snex::ui::WorkbenchData::Ptr p(wb.get());
+
+	static_cast<WorkbenchManager*>(getProcessor()->getWorkbenchManager())->removeWorkbench(p);
+
+	wb = nullptr;
+	p = nullptr;
+
+	resized();
 }
 
 void SnexWorkbenchEditor::addFile(const File& f)
@@ -513,16 +602,16 @@ void SnexWorkbenchEditor::addFile(const File& f)
 
 	dllManager->loadDll(false);
 
-	auto fh = ProcessorHelpers::getFirstProcessorWithType<scriptnode::DspNetwork::Holder>(getMainController()->getMainSynthChain());
+	auto fh = getNetworkHolderForNewFile(getProcessor(), synthMode);
 
 	if (fh != nullptr)
 		fh->setProjectDll(dllManager->projectDll);
 
-	df = new hise::DspNetworkCodeProvider(nullptr, getMainController(), f);
+	df = new hise::DspNetworkCodeProvider(nullptr, getMainController(), fh, f);
 
 	wb = dynamic_cast<BackendProcessor*>(getMainController())->workbenches.getWorkbenchDataForCodeProvider(df, true);
 	wb->getTestData().setMultichannelDataProvider(new PooledAudioFileDataProvider(getMainController()));
-	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb, getMainController()));
+	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb, getMainController(), fh));
 
 	wb->setIsCppPreview(true);
 
@@ -541,7 +630,7 @@ void SnexWorkbenchEditor::addFile(const File& f)
 
 	wb->triggerRecompile();
 
-	dgp->setContentWithUndo(dnp, dnp->getActiveNetworkIndex());
+	dgp->setContentWithUndo(dynamic_cast<Processor*>(fh), 0);
 }
 
 
@@ -986,12 +1075,12 @@ void TestRunWindow::runTest(const File& f, DspNetworkCodeProvider::SourceMode m)
 
 	WorkbenchData::Ptr d = new snex::ui::WorkbenchData();
 
-	ScopedPointer<DspNetworkCodeProvider> dnp = new DspNetworkCodeProvider(d, getMainController(), f);
+	auto nh = SnexWorkbenchEditor::getNetworkHolderForNewFile(getMainController(), false);
 
-	
+	ScopedPointer<DspNetworkCodeProvider> dnp = new DspNetworkCodeProvider(d, getMainController(), nh, f);
 
 	d->setCodeProvider(dnp);
-	auto dch = new DspNetworkCompileHandler(d, getMainController());
+	auto dch = new DspNetworkCompileHandler(d, getMainController(), nh);
 	d->setCompileHandler(dch);
 
 	d->getTestData().setTestRootDirectory(testRoot);
@@ -1178,6 +1267,26 @@ juce::File BackendDllManager::getSubFolder(const MainController* mc, FolderSubTy
 
 	jassertfalse;
 	return {};
+}
+
+void SnexWorkbenchEditor::MenuLookAndFeel::drawMenuBarBackground(Graphics& g, int width, int height, bool, MenuBarComponent& menuBar)
+{
+
+}
+
+void SnexWorkbenchEditor::MenuLookAndFeel::drawMenuBarItem(Graphics& g, int width, int height, int /*itemIndex*/, const String& itemText, bool isMouseOverItem, bool isMenuOpen, bool /*isMouseOverBar*/, MenuBarComponent& menuBar)
+{
+	Rectangle<float> ar(0.0f, 0.0f, (float)width, (float)height);
+
+	g.setColour(Colours::white.withAlpha(0.1f));
+
+	if(isMouseOverItem)
+		g.fillRoundedRectangle(ar, 2.0f);
+
+	g.setColour(Colour(0xFFAAAAAA));
+
+	g.setFont(GLOBAL_FONT());
+	g.drawText(itemText, ar, Justification::centred);
 }
 
 }

@@ -166,6 +166,9 @@ public:
 		FileSaveAll,
 		FileSetProject,
 		FileShowNetworkFolder,
+		FileCloseCurrentNetwork,
+		ToolsEffectMode,
+		ToolsSynthMode,
 		ToolsEditTestData,
 		ToolsAudioConfig,
 		ToolsCompileNetworks,
@@ -225,6 +228,8 @@ public:
 		return getProcessor()->getSampleManager().getProjectHandler();
 	}
 
+	void createNewFile();
+
 	File getLayoutFile()
 	{
 		return getProjectHandler().getWorkDirectory().getChildFile("SnexWorkbenchLayout.js");
@@ -268,7 +273,30 @@ public:
 
 	BackendDllManager::Ptr dllManager;
 
+	void setSynthMode(bool shouldBeSynthMode);
+
+	static DspNetwork::Holder* getNetworkHolderForNewFile(MainController* mc, bool getSynthHolder);
+
+	void closeCurrentNetwork();
+
 private:
+
+	bool synthMode = false;
+
+	struct MenuLookAndFeel : public PopupLookAndFeel
+	{
+		void drawMenuBarBackground(Graphics& g, int width, int height,
+			bool, MenuBarComponent& menuBar);
+
+		void drawMenuBarItem(Graphics& g, int width, int height,
+			int /*itemIndex*/, const String& itemText,
+			bool isMouseOverItem, bool isMenuOpen,
+			bool /*isMouseOverBar*/, MenuBarComponent& menuBar);
+	} mlaf;
+
+	hise::WorkbenchInfoComponent infoComponent;
+
+	
 
 	Array<File> networkFiles;
 	StringArray recentProjectFiles;
@@ -291,6 +319,8 @@ private:
 	ApplicationCommandManager mainManager;
 	ScopedPointer<FloatingTile> rootTile;
 	MenuBarComponent menuBar;
+
+	hise::CustomKeyboard keyboard;
 
 	WeakReference<snex::ui::WorkbenchData> wb;
 

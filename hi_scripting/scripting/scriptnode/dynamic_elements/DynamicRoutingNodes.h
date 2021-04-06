@@ -160,6 +160,10 @@ struct dynamic
 		void mouseEnter(const MouseEvent&) override { repaint(); }
 		void mouseExit(const MouseEvent&) override { repaint(); }
 
+		void mouseDrag(const MouseEvent& event) override;
+
+		void mouseDoubleClick(const MouseEvent& event) override;
+
 		dynamic_send* getAsSendNode();
 		dynamic_receive* getAsReceiveNode();
 

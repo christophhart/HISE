@@ -238,37 +238,19 @@ void NodeComponent::Header::paint(Graphics& g)
 
 	auto textWidth = GLOBAL_BOLD_FONT().getStringWidthFloat(s) + 10.0f;
 
-#if 0
-	auto colourBounds = getLocalBounds().reduced(3, 6);
-
-	if (powerButton.isVisible())
-		colourBounds.removeFromLeft(powerButton.getWidth() + 6);
-
-	if (parameterButton.isVisible())
-		colourBounds.removeFromLeft(parameterButton.getWidth() + 6);
-
-	if (deleteButton.isVisible())
-		colourBounds.removeFromRight(deleteButton.getWidth() + 6);
-
-
-	if (!colour.isTransparent())
-	{
-		g.setColour(colour);
-		
-		auto textBounds = getLocalBounds().toFloat().withSizeKeepingCentre(textWidth, (float)getHeight());
-
-		auto colourL = colourBounds.toFloat().withRight(textBounds.getX());
-		auto colourR = colourBounds.toFloat().withLeft(textBounds.getRight());
-
-		g.fillRoundedRectangle(colourL, 2.0f);
-		g.fillRoundedRectangle(colourR, 2.0f);
-	}
-#endif
-	
-
-
 	g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.5f : 1.0f));
 	g.drawText(s, getLocalBounds(), Justification::centred);
+
+	if (parent.node->isUINodeOfDuplicate())
+	{
+		g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.1f : 0.3f));
+		Path p;
+		p.loadPathFromData(SampleMapIcons::copySamples, sizeof(SampleMapIcons::copySamples));
+
+		PathFactory::scalePath(p, deleteButton.getBoundsInParent().translated(-getHeight(), 0).reduced(2).toFloat());
+
+		g.fillPath(p);
+	}
 
 	if (isHoveringOverBypass)
 	{
@@ -289,10 +271,16 @@ NodeComponent::NodeComponent(NodeBase* b) :
 	addAndMakeVisible(header);
 	setOpaque(false);
 
-	repaintListener.setCallback(dataReference, {PropertyIds::ID, PropertyIds::NumChannels},
+	repaintListener.setCallback(dataReference, {PropertyIds::ID, PropertyIds::NumChannels, PropertyIds::NodeColour},
 		valuetree::AsyncMode::Asynchronously,
 		[this](Identifier id, var)
 	{
+		if (id == PropertyIds::NodeColour)
+		{
+			if (auto dng = findParentComponentOfClass<DspNetworkGraph>())
+				dng->repaint();
+		}
+
 		repaint();
 		
 		if (id == PropertyIds::NumChannels && getParentComponent() != nullptr)

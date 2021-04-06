@@ -48,8 +48,10 @@ namespace control
 			ModulationSourceBaseComponent(u),
 			obj(b)
 		{
-			setSize(140, 80);
+			setSize(100 * 3, 120);
 		};
+
+		void resized() override;
 
 		void timerCallback() override
 		{
@@ -65,6 +67,8 @@ namespace control
 		void paint(Graphics& g) override;
 
 		WeakReference<pimpl::combined_parameter_base> obj;
+		bool colourOk = false;
+		Path dragPath;
 	};
 
 	struct sliderbank_pack : public data::dynamic::sliderpack

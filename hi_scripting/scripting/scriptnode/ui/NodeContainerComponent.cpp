@@ -99,7 +99,7 @@ void ContainerComponent::Updater::valueTreeParentChanged(ValueTree&)
 ContainerComponent::ContainerComponent(NodeContainer* b) :
 	NodeComponent(b->asNode()),
 	updater(*this),
-	parameters(*this)
+	parameters(new ParameterComponent(*this))
 {
 	addAndMakeVisible(parameters);
 	setOpaque(true);

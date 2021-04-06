@@ -60,6 +60,17 @@ using namespace juce;
 
 
 
+struct WorkbenchSynthesiser : public JavascriptSynthesiser
+{
+	WorkbenchSynthesiser(MainController* mc) :
+		JavascriptSynthesiser(mc, "internal", NUM_POLYPHONIC_VOICES)
+	{
+		
+	};
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(WorkbenchSynthesiser);
+};
+
 
 
 struct DspNetworkProcessor : public ProcessorWithScriptingContent,
@@ -165,19 +176,15 @@ struct DspNetworkSubBase: public ControlledObject,
 {
 	virtual ~DspNetworkSubBase() {}
 
-	DspNetworkSubBase(WorkbenchData* d, MainController* mc):
+	DspNetworkSubBase(WorkbenchData* d, MainController* mc, DspNetwork::Holder* np_):
 		ControlledObject(mc),
-		AnyListener(valuetree::AsyncMode::Synchronously)
+		AnyListener(valuetree::AsyncMode::Synchronously),
+		np(np_)
 	{
 		
 	}
 
-	void initRoot()
-	{
-		np = ProcessorHelpers::getFirstProcessorWithType<DspNetworkProcessor>(getMainController()->getMainSynthChain());
-	}
-
-	WeakReference<DspNetworkProcessor> np;
+	WeakReference<DspNetwork::Holder> np;
 };
 
 
@@ -219,10 +226,11 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 			auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 
-			LOAD_PATH_IF_URL("dll", HnodeIcons::exportIcon);
+			LOAD_PATH_IF_URL("dll", HnodeIcons::dllIcon);
 			LOAD_PATH_IF_URL("code", HiBinaryData::SpecialSymbols::scriptProcessor);
 			LOAD_PATH_IF_URL("jit", HnodeIcons::jit);
-			LOAD_PATH_IF_URL("scriptnode", ScriptnodeIcons::splitIcon);
+			LOAD_PATH_IF_URL("scriptnode", ScriptnodeIcons::pinIcon);
+			LOAD_PATH_IF_URL("main_logo", ScriptnodeIcons::mainLogo);
 			LOAD_PATH_IF_URL("parameters", HiBinaryData::SpecialSymbols::macros);
 
 			if(url == "console")
@@ -318,7 +326,7 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 		Path p;
 	};
 
-	DspNetworkCodeProvider(WorkbenchData* d, MainController* mc, const File& fileToWriteTo);
+	DspNetworkCodeProvider(WorkbenchData* d, MainController* mc, DspNetwork::Holder* np_, const File& fileToWriteTo);
 
 	void initNetwork();
 
@@ -377,20 +385,7 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 		return connectedFile;
 	}
 
-	void anythingChanged()
-	{
-		if (getParent() != nullptr)
-		{
-			if (source == SourceMode::InterpretedNode)
-			{
-				getParent()->triggerRecompile();
-			}
-			else
-			{
-				getParent()->triggerPostCompileActions();
-			}
-		}
-	}
+	void anythingChanged(valuetree::AnyListener::CallbackType d);
 
 #if 0
 	void setProjectFactory(DynamicLibrary* dll, scriptnode::DspNetwork* n)
@@ -421,11 +416,10 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 };
 
 
-struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
-	public valuetree::AnyListener,
-	public ButtonListener
+struct WorkbenchInfoComponent : public Component,
+								public valuetree::AnyListener,
+								public ButtonListener
 {
-
 	struct CompileSourceButton : public Component
 	{
 		CompileSourceButton(DspNetworkCodeProvider::SourceMode m) :
@@ -434,17 +428,17 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 		{
 			DspNetworkCodeProvider::IconFactory f;
 			p = f.createPath(getName());
-
 			setRepaintsOnMouseActivity(true);
 		}
 
 		void mouseDown(const MouseEvent& e)
 		{
-			auto dnp = findParentComponentOfClass<WorkbenchComponent>()->getWorkbench()->getCodeProvider();
+			auto pc = findParentComponentOfClass<WorkbenchInfoComponent>();
+
+			auto dnp = pc->getWorkbench()->getCodeProvider();
 			
 			dynamic_cast<DspNetworkCodeProvider*>(dnp)->setSource(mode);
 		}
-
 
 		void paint(Graphics& g) override
 		{
@@ -474,8 +468,6 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 
 		Path p;
 
-		
-
 		void setMode(DspNetworkCodeProvider::SourceMode m)
 		{
 			active = m == mode;
@@ -496,91 +488,55 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 
 	DspNetworkCodeProvider::IconFactory f;
 
-	WorkbenchInfoComponent(WorkbenchData* d) :
-		WorkbenchComponent(d),
-		AnyListener(valuetree::AsyncMode::Synchronously),
-		codeButton(DspNetworkCodeProvider::SourceMode::CustomCode),
-		jitNodeButton(DspNetworkCodeProvider::SourceMode::JitCompiledNode),
-		scriptnodeButton(DspNetworkCodeProvider::SourceMode::InterpretedNode),
-		dllButton(DspNetworkCodeProvider::SourceMode::DynamicLibrary),
-		consoleButton("console", this, f),
-		parameterButton("parameters", this, f),
-		signalButton("signal", this, f)
-	{
-		signalButton.setToggleModeWithColourChange(true);
-		consoleButton.setToggleModeWithColourChange(true);
-		consoleButton.setToggleStateAndUpdateIcon(true);
-		signalButton.setToggleStateAndUpdateIcon(true);
+	WorkbenchInfoComponent(WorkbenchData* d);
 
-		addAndMakeVisible(consoleButton);
-		addAndMakeVisible(parameterButton);
-		addAndMakeVisible(signalButton);
-
-		addAndMakeVisible(tooltips);
-		addAndMakeVisible(scriptnodeButton);
-		addAndMakeVisible(jitNodeButton);
-		addAndMakeVisible(codeButton);
-		addAndMakeVisible(dllButton);
-		addAndMakeVisible(cpuMeter);
-
-		d->addListener(this);
-
-#if 0
-		cpuMeter.setColour(VuMeter::backgroundColour, Colours::transparentBlack);
-		cpuMeter.setColour(VuMeter::ColourId::ledColour, Colours::white.withAlpha(0.45f));
-		cpuMeter.setColour(VuMeter::ColourId::outlineColour, Colours::white.withAlpha(0.4f));
-		cpuMeter.setOpaque(false);
-#endif
-	}
-
-	void anythingChanged() override
+	void anythingChanged(valuetree::AnyListener::CallbackType d) override
 	{
 		scriptnodeButton.setChanged(true);
 	}
 
 	~WorkbenchInfoComponent()
 	{
-		if (getWorkbench() != nullptr)
-			getWorkbench()->removeListener(this);
 	}
 
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("SnexWorkbenchInfo"); }
 
-	void postPostCompile(WorkbenchData::Ptr wb) override
-	{
-		auto& r = wb->getTestData();
-
-		repaint();
-	}
-
-	void paint(Graphics& g) override
-	{
-	}
+	void paint(Graphics& g) override;
 
 	void paintOverChildren(Graphics& g) override
 	{
 		
 	}
 
+#if 0
 	void recompiled(WorkbenchData::Ptr wb) override
 	{
 		if (auto dncp = dynamic_cast<DspNetworkCodeProvider*>(wb->getCodeProvider()))
 		{
-			if (cpuMeter == nullptr)
-			{
-				if (auto mc = dncp->getMainController())
-				{
-					addAndMakeVisible(cpuMeter = new VoiceCpuBpmComponent(mc));
-					resized();
-				}
-			}
-
 			codeButton.setMode(dncp->source);
 			jitNodeButton.setMode(dncp->source);
 			scriptnodeButton.setMode(dncp->source);
 
 			setRootValueTree(dncp->currentTree);
 		}
+	}
+#endif
+
+	void setWorkbench(WorkbenchData::Ptr)
+	{
+
+	}
+
+	WorkbenchData::Ptr getWorkbench()
+	{
+		if (auto pc = findParentComponentOfClass<ComponentWithBackendConnection>())
+		{
+			auto bp = pc->getBackendRootWindow()->getBackendProcessor();
+			auto r = static_cast<WorkbenchManager*>(bp->getWorkbenchManager());
+			return r->getRootWorkbench();
+		}
+		
+		return nullptr;
 	}
 
 	void buttonClicked(Button* b) override
@@ -625,28 +581,7 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 		}
 	}
 
-	void resized() override
-	{
-		auto b = getLocalBounds();
-
-		tooltips.setBounds(b.removeFromLeft(250));
-
-		auto mid = b.withSizeKeepingCentre((getHeight() + 10) * 3, getHeight());
-
-		signalButton.setBounds(mid.removeFromLeft(getHeight() + 10));
-		consoleButton.setBounds(mid.removeFromRight(getHeight() + 10));
-		parameterButton.setBounds(mid);
-
-		auto r = b.removeFromRight(250);
-
-		scriptnodeButton.setBounds(r.removeFromLeft(b.getHeight()));
-		jitNodeButton.setBounds(r.removeFromLeft(b.getHeight()));
-		codeButton.setBounds(r.removeFromLeft(b.getHeight()));
-		dllButton.setBounds(r.removeFromLeft(b.getHeight()));
-
-		if(cpuMeter != nullptr)
-			cpuMeter->setBounds(r);
-	}
+	void resized() override;
 
 	Path scriptnodePath;
 	Path codePath;
@@ -661,29 +596,25 @@ struct WorkbenchInfoComponent : public snex::ui::WorkbenchComponent,
 	HiseShapeButton parameterButton;
 	HiseShapeButton signalButton;
 
-	ScopedPointer<hise::VoiceCpuBpmComponent> cpuMeter;
+	ScopedPointer<Drawable> mainLogoColoured;
+	
 
 	TooltipBar tooltips;
+	Path mainLogo;
 };
 
 struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 							      public DspNetworkSubBase
 {
-	DspNetworkCompileHandler(WorkbenchData* d, MainController* mc):
+	DspNetworkCompileHandler(WorkbenchData* d, MainController* mc, DspNetwork::Holder* np_):
 		CompileHandler(d),
-		DspNetworkSubBase(d, mc)
+		DspNetworkSubBase(d, mc, np_)
 	{
-		initRoot();
-
-		holder = ProcessorHelpers::getFirstProcessorWithType<scriptnode::DspNetwork::Holder>(getMainController()->getMainSynthChain());
 	}
 
-	void anythingChanged() override
+	void anythingChanged(valuetree::AnyListener::CallbackType ) override
 	{
-		jassertfalse;
-
-		if(auto p = getParent() && getParent()->getCompileHandler() == this)
-			getParent()->triggerPostCompileActions();
+		
 	}
 
 	WorkbenchData::CompileResult compile(const String& codeToCompile) override;
@@ -697,8 +628,6 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 	void processTest(ProcessDataDyn& data) override;
 
 	void postCompile(WorkbenchData::CompileResult& lastResult) override;;
-
-	WeakReference<scriptnode::DspNetwork::Holder> holder;
 
 	WeakReference<scriptnode::DspNetwork> interpreter;
 

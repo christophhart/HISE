@@ -126,7 +126,7 @@ template <typename C> struct SnexWorkbenchPanel : public FloatingTileContent,
 	{
 		auto wb = static_cast<snex::ui::WorkbenchManager*>(getMainController()->getWorkbenchManager());
 
-		if (newWorkbench == wb->getRootWorkbench())
+		if (newWorkbench == wb->getRootWorkbench() || newWorkbench == nullptr)
 			setWorkbench(newWorkbench);
 	}
 
@@ -148,6 +148,8 @@ template <typename C> struct SnexWorkbenchPanel : public FloatingTileContent,
 
 	void setWorkbench(Ptr wb)
 	{
+		content = nullptr;
+
 		if (wb != nullptr)
 		{
 			content = new C(wb);
@@ -155,9 +157,9 @@ template <typename C> struct SnexWorkbenchPanel : public FloatingTileContent,
 
 			asComponent->setLookAndFeel(&getMainController()->getGlobalLookAndFeel());
 			addAndMakeVisible(asComponent);
-			
-			resized();
 		}
+
+		resized();
 	}
 
 #if 0
@@ -204,10 +206,14 @@ struct SnexEditorPanel : public Component,
 			wb->removeListener(this);
 
 		wb = newWorkbench;
-		addAndMakeVisible(playground = new snex::jit::SnexPlayground(newWorkbench, false));
-		playground->setFullTokenProviders();
-		wb->addListener(this);
-		
+
+		if (wb != nullptr)
+		{
+			addAndMakeVisible(playground = new snex::jit::SnexPlayground(newWorkbench, false));
+			playground->setFullTokenProviders();
+			wb->addListener(this);
+		}
+
 		resized();
 	}
 
@@ -223,28 +229,11 @@ struct SnexEditorPanel : public Component,
 	void resized() override
 	{
 		auto b = FloatingTileContent::getParentShell()->getContentBounds();
-		b.removeFromTop(24);
-
 		if (playground != nullptr)
 			playground->setBounds(b);
 	}
 
-	void paint(Graphics& g) override
-	{
-		auto b = FloatingTileContent::getParentShell()->getContentBounds();
-
-		if (playground != nullptr)
-		{
-			auto top = b.removeFromTop(24);
-			GlobalHiseLookAndFeel::drawFake3D(g, top);
-		}
-		else
-		{
-			g.setColour(Colours::white.withAlpha(0.3f));
-			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText("No code to display", b.toFloat(), Justification::centred);
-		}
-	}
+	void paint(Graphics& g) override;
 
 	WeakReference<snex::ui::WorkbenchData> wb;
 

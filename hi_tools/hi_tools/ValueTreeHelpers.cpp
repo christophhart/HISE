@@ -105,6 +105,21 @@ void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier&
 {
 	if (v == v_ && ids.contains(id))
 	{
+		auto thisValue = v[id];
+
+		if (lastValue == thisValue)
+		{
+			//probably priorised
+			return;
+		}
+
+		lastValue = thisValue;
+
+		if (auto pb = dynamic_cast<PropertyListener*>(priorisedListener.get()))
+		{
+			pb->valueTreePropertyChanged(v_, id);
+		}
+
 		switch (mode)
 		{
 		case AsyncMode::Unregistered:
@@ -482,19 +497,28 @@ AnyListener::AnyListener(AsyncMode mode_) :
 
 void AnyListener::handleAsyncUpdate()
 {
-	anythingChanged();
+	anythingChanged(lastCallbackType);
+
+	lastCallbackType = Nothing;
 }
 
-void AnyListener::triggerUpdate()
+void AnyListener::triggerUpdate(CallbackType t)
 {
-	if (mode == AsyncMode::Synchronously)
-		handleAsyncUpdate();
-	else if (mode == AsyncMode::Coallescated)
+	auto thisCallbackType = jmax(lastCallbackType, t);
+
+	if (lastCallbackType != thisCallbackType)
 	{
-		startTimer(milliSecondsBetweenUpdate);
+		lastCallbackType = thisCallbackType;
+
+		if (mode == AsyncMode::Synchronously)
+			handleAsyncUpdate();
+		else if (mode == AsyncMode::Coallescated)
+		{
+			startTimer(milliSecondsBetweenUpdate);
+		}
+		else
+			triggerAsyncUpdate();
 	}
-	else
-		triggerAsyncUpdate();
 }
 
 void AnyListener::timerCallback()

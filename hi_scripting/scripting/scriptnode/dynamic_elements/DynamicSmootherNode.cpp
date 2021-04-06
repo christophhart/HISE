@@ -36,8 +36,29 @@ using namespace hise;
 
 namespace control
 {
+
+	void pma_editor::resized()
+	{
+		setRepaintsOnMouseActivity(true);
+
+		dragPath.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
+
+		auto b = getLocalBounds().toFloat();
+		b = b.withSizeKeepingCentre(28.0f, 28.0f);
+
+		b = b.translated(0.0f, JUCE_LIVE_CONSTANT_OFF(5.0f));
+		
+		getProperties().set("circleOffsetY", -0.5f * (float)getHeight() +2.0f);
+
+		PathFactory::scalePath(dragPath, b);
+	}
+
 void pma_editor::paint(Graphics& g)
 {
+
+	
+	
+
 	g.setFont(GLOBAL_BOLD_FONT());
 
 	auto r = obj->currentRange;
@@ -54,7 +75,7 @@ void pma_editor::paint(Graphics& g)
 
 	auto b = getLocalBounds().toFloat();
 
-	float w = JUCE_LIVE_CONSTANT_OFF(55.0f);
+	float w = JUCE_LIVE_CONSTANT_OFF(85.0f);
 
 	auto midCircle = b.withSizeKeepingCentre(w, w).translated(0.0f, 5.0f);
 
@@ -64,7 +85,7 @@ void pma_editor::paint(Graphics& g)
 	float startArc = JUCE_LIVE_CONSTANT_OFF(-2.5f);
 	float endArc = JUCE_LIVE_CONSTANT_OFF(2.5f);
 
-	Colour trackColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF888888));
+	Colour trackColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xff4f4f4f));
 
 	auto createArc = [startArc, endArc](Rectangle<float> b, float startNormalised, float endNormalised)
 	{
@@ -89,11 +110,19 @@ void pma_editor::paint(Graphics& g)
 	auto midTrack = createArc(mc, 0.0f, 1.0f);
 	auto innerTrack = createArc(ic, 0.0f, 1.0f);
 
+	if (isMouseOver())
+		trackColour = trackColour.withMultipliedBrightness(1.1f);
+
+	if (isMouseButtonDown())
+		trackColour = trackColour.withMultipliedBrightness(1.1f);
+
 	g.setColour(trackColour);
 
 	g.strokePath(outerTrack, PathStrokeType(r1));
 	g.strokePath(midTrack, PathStrokeType(r2));
 	g.strokePath(innerTrack, PathStrokeType(r1));
+
+	g.fillPath(dragPath);
 
 	auto data = obj->getUIData();
 
@@ -110,24 +139,37 @@ void pma_editor::paint(Graphics& g)
 	auto innerRing = createArc(ic, 0.0f, mulValue);
 	auto valueRing = createArc(ic, 0.0f, nrm(data.value));
 
-	g.setColour(Colour(0xFF0051FF));
-	g.strokePath(outerRing, PathStrokeType(r1));
-	g.setColour(Colours::white);
-	g.strokePath(midRing, PathStrokeType(r2));
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x88ff7277)));
-	g.strokePath(valueRing, PathStrokeType(r1));
-	g.setColour(Colour(0xFFE5353C));
+	auto c1 = MultiOutputDragSource::getFadeColour(0, 2).withAlpha(0.8f);
+	auto c2 = MultiOutputDragSource::getFadeColour(1, 2).withAlpha(0.8f);
+
+	auto ab = getLocalBounds().removeFromBottom(5).toFloat();
+	ab.removeFromLeft(ab.getWidth() / 3.0f);
+	auto ar2 = ab.removeFromLeft(ab.getWidth() / 2.0f).withSizeKeepingCentre(5.0f, 5.0f);
+	auto ar1 = ab.withSizeKeepingCentre(5.0f, 5.0f);
+
+	g.setColour(Colour(c1));
+	g.strokePath(outerRing, PathStrokeType(r1-1.0f));
+	g.setColour(c1.withMultipliedAlpha(data.addValue == 0.0 ? 0.2f : 1.0f));
+	g.fillEllipse(ar1);
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xffd7d7d7)));
+	g.strokePath(midRing, PathStrokeType(r2 - 1.0f));
+
+	g.setColour(c2.withMultipliedAlpha(JUCE_LIVE_CONSTANT_OFF(0.4f)));
+	g.strokePath(valueRing, PathStrokeType(r1-1.0f));
+	g.setColour(c2.withMultipliedAlpha(data.mulValue == 1.0 ? 0.2f : 1.0f));
+	g.fillEllipse(ar2);
+	g.setColour(c2);
 	g.strokePath(innerRing, PathStrokeType(r1));
 
 	b.removeFromTop(18.0f);
 
-	g.setColour(Colours::white.withAlpha(0.7f));
+	g.setColour(Colours::white.withAlpha(0.3f));
 
 	Rectangle<float> t((float)getWidth() / 2.0f - 35.0f, 0.0f, 70.0f, 15.0f);
 
-	g.drawText(start, t.translated(-50.0f, 60.0f), Justification::centred);
+	g.drawText(start, t.translated(-70.0f, 80.0f), Justification::centred);
 	g.drawText(mid, t, Justification::centred);
-	g.drawText(end, t.translated(50.0f, 60.0f), Justification::centred);
+	g.drawText(end, t.translated(70.0f, 80.0f), Justification::centred);
 }
 }
 

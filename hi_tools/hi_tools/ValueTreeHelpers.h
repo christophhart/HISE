@@ -77,8 +77,14 @@ public:
 
 	virtual ~Base() {};
 
+	void setHighPriorityListener(Base* listenerToPriorise)
+	{
+		priorisedListener = listenerToPriorise;
+	}
 
 protected:
+
+	WeakReference<Base> priorisedListener = false;
 
 	// Grab this lock whenever you push or process an async queue
 	CriticalSection asyncLock;
@@ -90,6 +96,8 @@ protected:
 	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override { }
 	void valueTreePropertyChanged(ValueTree&, const Identifier&) override {};
 	void valueTreeParentChanged(ValueTree&) override {}
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Base);
 };
 
 /** A simple listener that redirects *anything* to a single method. */
@@ -98,10 +106,11 @@ struct AnyListener : private Base,
 {
 	enum CallbackType
 	{
+		Nothing,
+		ChildOrderChanged,
 		PropertyChange,
 		ChildAdded,
 		ChildDeleted,
-		ChildOrderChanged,
 		ValueTreeRedirected,
 		numCallbackTypes
 	};
@@ -123,7 +132,8 @@ struct AnyListener : private Base,
 	{
 		data = d;
 		data.addListener(this);
-		anythingChanged();
+
+		anythingChanged(lastCallbackType);
 	}
 
 	void setForwardCallback(CallbackType c, bool shouldForward)
@@ -133,17 +143,17 @@ struct AnyListener : private Base,
 
 protected:	
 
-	virtual void anythingChanged() = 0;
-
-
+	virtual void anythingChanged(CallbackType cb) = 0;
 
 private:
+
+	CallbackType lastCallbackType = CallbackType::Nothing;
 
 	bool forwardCallbacks[CallbackType::numCallbackTypes];
 
 	ValueTree data;
 
-	void triggerUpdate();
+	void triggerUpdate(CallbackType t);
 
 	void timerCallback() override;
 
@@ -151,11 +161,11 @@ private:
 
 	int milliSecondsBetweenUpdate = 500;
 
-	void valueTreeChildAdded(ValueTree&, ValueTree&) override { if(forwardCallbacks[ChildAdded]) triggerUpdate(); }
-	void valueTreeChildOrderChanged(ValueTree&, int, int) override { if (forwardCallbacks[ChildOrderChanged])triggerUpdate(); }
-	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override { if (forwardCallbacks[ChildDeleted]) triggerUpdate(); }
-	void valueTreePropertyChanged(ValueTree&, const Identifier&) override { if (forwardCallbacks[PropertyChange]) triggerUpdate(); };
-	void valueTreeParentChanged(ValueTree&) override { if (forwardCallbacks[ValueTreeRedirected]) triggerUpdate(); }
+	void valueTreeChildAdded(ValueTree&, ValueTree&) override { if(forwardCallbacks[ChildAdded]) triggerUpdate(ChildAdded); }
+	void valueTreeChildOrderChanged(ValueTree&, int, int) override { if (forwardCallbacks[ChildOrderChanged])triggerUpdate(ChildOrderChanged); }
+	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override { if (forwardCallbacks[ChildDeleted]) triggerUpdate(ChildDeleted); }
+	void valueTreePropertyChanged(ValueTree&, const Identifier&) override { if (forwardCallbacks[PropertyChange]) triggerUpdate(PropertyChange); };
+	void valueTreeParentChanged(ValueTree&) override { if (forwardCallbacks[ValueTreeRedirected]) triggerUpdate(ValueTreeRedirected); }
 };
 
 /** A small helper function that will catch illegal operations during a child

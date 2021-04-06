@@ -38,11 +38,15 @@ void SnexTileBase::setCurrentFile(const File& f)
 {
 	currentFile = f;
 
-	auto df = new hise::DspNetworkCodeProvider(nullptr, getMainController(), f);
+	auto nh = SnexWorkbenchEditor::getNetworkHolderForNewFile(getMainController(), false);
+
+	auto df = new hise::DspNetworkCodeProvider(nullptr, getMainController(), nh, f);
 
 	auto wb = dynamic_cast<BackendProcessor*>(getMainController())->workbenches.getWorkbenchDataForCodeProvider(df, true);
 
-	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb, getMainController()));
+	
+
+	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb, getMainController(), nh));
 
 	//wb->setCompileHandler(new snex::JitNodeCompileThread(wb, getMainController()->getGlobalUIUpdater()));
 
@@ -79,6 +83,20 @@ void SnexEditorPanel::recompiled(snex::ui::WorkbenchData::Ptr)
 		{
 			//playground->updateTextFromCodeProvider();
 		}
+	}
+}
+
+void SnexEditorPanel::paint(Graphics& g)
+{
+	auto b = FloatingTileContent::getParentShell()->getContentBounds();
+
+	g.fillAll(Colour(0xFF1d1d1d));
+
+	if (playground == nullptr)
+	{
+		g.setColour(Colours::white.withAlpha(0.3f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("No code to display", b.toFloat(), Justification::centred);
 	}
 }
 
