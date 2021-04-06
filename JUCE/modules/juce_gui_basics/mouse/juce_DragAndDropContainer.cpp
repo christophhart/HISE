@@ -33,7 +33,9 @@ bool juce_performDragDropText (const String&, bool& shouldStop);
 
 //==============================================================================
 class DragAndDropContainer::DragImageComponent  : public Component,
+												  public DragAndDropContainer::DragImageComponentBase,
                                                   private Timer
+												  
 {
 public:
     DragImageComponent (const Image& im,
@@ -228,7 +230,10 @@ public:
     // (overridden to avoid beeps when dragging)
     void inputAttemptWhenModal() override {}
 
+	DragAndDropTarget::SourceDetails getDetails() const override { return sourceDetails; }
+
     DragAndDropTarget::SourceDetails sourceDetails;
+
 
 private:
     Image image;

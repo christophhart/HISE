@@ -40,6 +40,9 @@ private:
 
     Value v;
 
+	hise::GlobalHiseLookAndFeel laf;
+	Slider funkSlider;
+
 	ScopedPointer<snex::jit::SnexPlayground> playground;
 	ScopedPointer<snex::ui::Graph> graph1;
 	ScopedPointer<snex::ui::Graph> graph2;

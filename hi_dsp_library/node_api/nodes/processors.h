@@ -1208,6 +1208,8 @@ template <typename T, bool CopySignal, bool AllowResizing, int NumDuplicates> st
 			begin()->initialise(parentNode);
 	}
 
+	
+
 	void refreshFromFirst()
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(voiceMultiplyLock);

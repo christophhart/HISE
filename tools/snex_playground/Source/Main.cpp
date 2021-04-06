@@ -27,8 +27,8 @@ public:
     {
 		
 		runner.setAssertOnFailure(true);
-        runner.runTestsInCategory("snex");
-		runner.runTestsInCategory("node_tests");
+        //runner.runTestsInCategory("snex");
+		//runner.runTestsInCategory("node_tests");
 
         // This method is where you should put your application's initialisation code..
 

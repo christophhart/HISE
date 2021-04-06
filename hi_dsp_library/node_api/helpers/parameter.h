@@ -131,7 +131,7 @@ template <typename T> struct duplicate_node_reference
 
 	template <int P> auto get()
 	{
-		auto& o = firstObj->template get<P>();
+		auto& o = firstObj->get<P>();
 		using TType = std::remove_reference<decltype(o)>::type;
 		duplicate_node_reference<TType> hn;
 
@@ -183,6 +183,11 @@ template <class T, int P> struct single_base
 	bool isConnected() const noexcept
 	{
 		return obj != nullptr;
+	}
+
+	void setObjPtr(void* o)
+	{
+		obj = o;
 	}
 
 protected:
@@ -604,6 +609,11 @@ template <class... DupliParameters> struct duplichain : public advanced_tuple<Du
 	template <int Index, class Target> void connect(Target& t)
 	{
 		this->template get<Index>().template connect<0>(t);
+	}
+
+	int getNumVoices() const
+	{
+		return this->template get<0>().getNumVoices();
 	}
 };
 
