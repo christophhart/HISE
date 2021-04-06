@@ -901,6 +901,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, loadAudioFileIntoBufferArray);
 	API_METHOD_WRAPPER_0(Engine, getBufferSizesForDevice);
 	API_VOID_METHOD_WRAPPER_1(Engine, setCurrentBlockSize);
+	API_METHOD_WRAPPER_0(Engine, getCurrentBlockSize);
 };
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
@@ -1011,6 +1012,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getSystemTime);
 	ADD_API_METHOD_0(getBufferSizesForDevice);
 	ADD_API_METHOD_1(setCurrentBlockSize);
+	ADD_API_METHOD_0(getCurrentBlockSize);
 }
 
 
@@ -2091,6 +2093,14 @@ void ScriptingApi::Engine::setCurrentBlockSize(int newBlockSize)
 	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
 	
 	driver->setCurrentBlockSize(newBlockSize);
+}
+
+int ScriptingApi::Engine::getCurrentBlockSize()
+{
+	auto mc = dynamic_cast<MainController*>(getScriptProcessor()->getMainController_());
+	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
+	
+	return driver->getCurrentBlockSize();
 }
 
 // ====================================================================================================== Sampler functions

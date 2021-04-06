@@ -503,6 +503,10 @@ public:
 		
 		/** Sets the buffer block size for the selected audio device. */
 		void setCurrentBlockSize(int newBlockSize);
+		
+		/** Returns the current buffer block size. */
+		int getCurrentBlockSize();
+		
 		// ============================================================================================================
 
 		struct Wrapper;
