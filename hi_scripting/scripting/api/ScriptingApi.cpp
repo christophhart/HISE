@@ -1271,6 +1271,7 @@ String ScriptingApi::Engine::getPreloadMessage()
 
 var ScriptingApi::Engine::getZoomLevel() const
 {
+	logSettingWarning("getZoomLevel");
 	auto gm = dynamic_cast<const GlobalSettingManager*>(getScriptProcessor()->getMainController_());
 	
 	return gm->getGlobalScaleFactor();
@@ -1278,6 +1279,7 @@ var ScriptingApi::Engine::getZoomLevel() const
 
 void ScriptingApi::Engine::setZoomLevel(double newLevel)
 {
+	logSettingWarning("setZoomLevel");
 	newLevel = jlimit(0.25, 2.0, newLevel);
 
 	auto gm = dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_());
@@ -1286,6 +1288,8 @@ void ScriptingApi::Engine::setZoomLevel(double newLevel)
 
 void ScriptingApi::Engine::setDiskMode(int mode)
 {
+	logSettingWarning("setDiskMode");
+
 	auto mc = dynamic_cast<MainController*>(getScriptProcessor()->getMainController_());
 
 	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
@@ -1606,6 +1610,45 @@ void ScriptingApi::Engine::saveUserPreset(var presetName)
 	{
 		getProcessor()->getMainController()->getUserPresetHandler().savePreset(presetName);
 	}
+}
+
+struct ScriptingApi::Settings::Wrapper
+{
+	API_METHOD_WRAPPER_0(Settings, getZoomLevel);
+	API_VOID_METHOD_WRAPPER_1(Settings, setZoomLevel);
+	API_VOID_METHOD_WRAPPER_1(Settings, setDiskMode);
+};
+
+ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
+	ScriptingObject(s),
+	ApiClass(0)
+{
+	// Gonna save you some typing...
+	mc = dynamic_cast<MainController*>(getScriptProcessor()->getMainController_());
+	gm = dynamic_cast<GlobalSettingManager*>(mc);
+	driver = dynamic_cast<AudioProcessorDriver*>(mc);
+
+	ADD_API_METHOD_0(getZoomLevel);
+	ADD_API_METHOD_1(setZoomLevel);
+	ADD_API_METHOD_1(setDiskMode);
+}
+
+
+double ScriptingApi::Settings::getZoomLevel() const
+{
+	return gm->getGlobalScaleFactor();
+}
+
+void ScriptingApi::Settings::setZoomLevel(double newLevel)
+{
+	newLevel = jlimit(0.25, 2.0, newLevel);
+	gm->setGlobalScaleFactor(newLevel, sendNotificationAsync);
+}
+
+void ScriptingApi::Settings::setDiskMode(int mode)
+{
+	driver->diskMode = mode;
+	mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)mode);
 }
 
 struct DynamicArrayComparator
@@ -2048,6 +2091,17 @@ String ScriptingApi::Engine::getSystemTime(bool includeDividerCharacters)
 {
 	return Time::getCurrentTime().toISO8601(includeDividerCharacters);
 };
+
+void ScriptingApi::Engine::logSettingWarning(const String& methodName) const
+{
+	auto p = dynamic_cast<const Processor*>(getScriptProcessor());
+
+	auto unconst = const_cast<Processor*>(p);
+
+	String s;
+	s << "Engine." << methodName << "() is deprecated. Use Settings." << methodName << "() instead.";
+	debugToConsole(unconst, s);
+}
 
 // ====================================================================================================== Sampler functions
 
@@ -4863,6 +4917,8 @@ void ScriptingApi::Server::setServerCallback(var callback)
 	serverCallback = WeakCallbackHolder(getScriptProcessor(), callback, 1);
 	serverCallback.incRefCount();
 }
+
+
 
 
 
