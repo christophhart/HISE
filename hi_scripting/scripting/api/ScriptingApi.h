@@ -494,11 +494,46 @@ public:
 
 		// ============================================================================================================
 
+		/** This warning will show up in the console so people can migrate in the next years... */
+		void logSettingWarning(const String& methodName) const;
+
 		struct Wrapper;
 
 		ScriptBaseMidiProcessor* parentMidiProcessor;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Engine);
+	};
+
+	/** This class takes over a few of the Engine methods in order to break down this gigantomanic object. */
+	class Settings : public ApiClass,
+					 public ScriptingObject
+	{
+	public:
+
+		Settings(ProcessorWithScriptingContent* s);;
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Settings"); }
+
+		// ================================================================================================== API Calls
+
+		/** Returns the UI Zoom factor. */
+		double getZoomLevel() const;
+
+		/** Changes the UI zoom (1.0 = 100%). */
+		void setZoomLevel(double newLevel);
+
+		/** Sets the Streaming Mode (0 -> Fast-SSD, 1 -> Slow-HDD) */
+		void setDiskMode(int mode);
+
+		// ============================================================================================================
+
+	private:
+
+		GlobalSettingManager* gm;
+		AudioProcessorDriver* driver;
+		MainController* mc;
+
+		struct Wrapper;
 	};
 
 	/** All scripting functions for sampler specific functionality. */
