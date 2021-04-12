@@ -186,6 +186,7 @@ void JavascriptMidiProcessor::registerApiClasses()
 	scriptEngine->registerNativeObject("Content", getScriptingContent());
 	scriptEngine->registerApiClass(currentMidiMessage);
 	scriptEngine->registerApiClass(engineObject);
+	scriptEngine->registerApiClass(new ScriptingApi::Settings(this));
 	scriptEngine->registerApiClass(new ScriptingApi::FileSystem(this));
 	scriptEngine->registerApiClass(serverObject = new ScriptingApi::Server(this));
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));

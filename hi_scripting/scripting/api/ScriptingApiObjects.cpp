@@ -190,6 +190,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 {
 	API_METHOD_WRAPPER_0(ScriptFile, getParentDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, getChildFile);
+	API_METHOD_WRAPPER_1(ScriptFile, createDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, toString);
 	API_METHOD_WRAPPER_0(ScriptFile, isFile);
 	API_METHOD_WRAPPER_0(ScriptFile, isDirectory);
@@ -228,6 +229,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 
 	ADD_API_METHOD_0(getParentDirectory);
 	ADD_API_METHOD_1(getChildFile);
+	ADD_API_METHOD_1(createDirectory);
 	ADD_API_METHOD_1(toString);
 	ADD_API_METHOD_0(isFile);
 	ADD_API_METHOD_0(isDirectory);
@@ -251,6 +253,14 @@ var ScriptingObjects::ScriptFile::getChildFile(String childFileName)
 var ScriptingObjects::ScriptFile::getParentDirectory()
 {
 	return new ScriptFile(getScriptProcessor(), f.getParentDirectory());
+}
+
+var ScriptingObjects::ScriptFile::createDirectory(String directoryName)
+{
+	if (!f.getChildFile(directoryName).isDirectory())
+		f.getChildFile(directoryName).createDirectory();
+
+	return new ScriptFile(getScriptProcessor(), f.getChildFile(directoryName));
 }
 
 String ScriptingObjects::ScriptFile::toString(int formatType) const
@@ -789,7 +799,10 @@ void ScriptingObjects::ScriptDownloadObject::start()
 
 	int status = 0;
 
-	ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
+	ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &status);
+
+	if (Thread::currentThreadShouldExit())
+		return;
 
 	if (status == 200)
 	{

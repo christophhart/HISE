@@ -122,6 +122,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setControlCallback);
 	API_METHOD_WRAPPER_0(ScriptComponent, getAllProperties);
+	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setZLevel);
 };
 
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
@@ -216,6 +217,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(getGlobalPositionY);
 	ADD_API_METHOD_1(setControlCallback);
 	ADD_API_METHOD_0(getAllProperties);
+	ADD_API_METHOD_1(setZLevel);
 
 	//setName(name_.toString());
 
@@ -639,8 +641,8 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 	}
 	else if (parent != nullptr)
 	{
-		ScopedLock sl(parent->lock);
-		value = controlValue;
+		SimpleReadWriteLock::ScopedWriteLock sl(valueLock);
+		std::swap(value, controlValue);
 	}
 
 	if (parent->allowGuiCreation)
@@ -1062,6 +1064,29 @@ void ScriptingApi::Content::ScriptComponent::sendSubComponentChangeMessage(Scrip
 		f();
 	else
 		MessageManager::callAsync(f);
+}
+
+void ScriptingApi::Content::ScriptComponent::setZLevel(String zLevelToUse)
+{
+	static const StringArray validNames = { "Back", "Default", "Front", "AlwaysOnTop" };
+
+	auto idx = validNames.indexOf(zLevelToUse);
+
+	if (idx == -1)
+		reportScriptError("Invalid z-Index: " + zLevelToUse);
+
+	auto newLevel = (ZLevelListener::ZLevel)idx;
+
+	if (newLevel != currentZLevel)
+	{
+		currentZLevel = newLevel;
+
+		for (auto l : zLevelListeners)
+		{
+			if (l != nullptr)
+				l->zLevelChanged(currentZLevel);
+		}
+	}
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
