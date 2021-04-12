@@ -219,7 +219,7 @@ private:
 
 		std::atomic<bool> running = { true };
 
-		int numMaxDownloads = 2;
+		int numMaxDownloads = 1;
 		ReferenceCountedArray<PendingCallback> pendingCallbacks;
 		ReferenceCountedArray<ScriptingObjects::ScriptDownloadObject> pendingDownloads;
 

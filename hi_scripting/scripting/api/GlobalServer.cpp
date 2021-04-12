@@ -109,15 +109,21 @@ void GlobalServer::WebThread::run()
 		if (parent.getMainController()->getKillStateHandler().initialised())
 		{
 			{
-				ScopedLock sl(queueLock);
+				ReferenceCountedArray<ScriptingObjects::ScriptDownloadObject> thisList;
+
+				{
+					ScopedLock sl(queueLock);
+					thisList.addArray(pendingDownloads);
+				}
+				
 
 				int numActiveDownloads = 0;
 
 				bool fireCallback = false;
 
-				for (int i = 0; i < pendingDownloads.size(); i++)
+				for (int i = 0; i < thisList.size(); i++)
 				{
-					auto d = pendingDownloads[i];
+					auto d = thisList[i];
 
 					if (d->isWaitingForStart && numActiveDownloads < numMaxDownloads)
 					{
@@ -154,10 +160,10 @@ void GlobalServer::WebThread::run()
 
 					if (cleanDownloads && d->isFinished)
 					{
-						pendingDownloads.remove(i--);
+						ScopedLock sl(queueLock);
+						pendingDownloads.removeObject(d);
 						fireCallback = true;
 					}
-						
 				}
 
 				cleanDownloads = false;

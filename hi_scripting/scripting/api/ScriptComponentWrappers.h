@@ -144,7 +144,8 @@ DECLARE_ID(height);
 *	They usually contain the component and are subclassed from their listener. In their listener callback
 *	you simply call changed() with whatever new value comes in.
 */
-class ScriptCreatedComponentWrapper: public AsyncValueTreePropertyListener
+class ScriptCreatedComponentWrapper: public AsyncValueTreePropertyListener,
+									 public ScriptingApi::Content::ScriptComponent::ZLevelListener
 {
 public:
 
@@ -353,6 +354,8 @@ protected:
 	ScriptContentComponent *contentComponent;
 
 	void closeValuePopupAfterDelay();
+
+	void zLevelChanged(ScriptingApi::Content::ScriptComponent::ZLevelListener::ZLevel newLevel) override;
 
 private:
 
