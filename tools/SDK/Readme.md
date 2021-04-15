@@ -10,6 +10,7 @@ Then download the SDK archives and extract them into this directory so that this
 tools/SDK/
 tools/SDK/VSTSDK/
 tools/SDK/AAX/
+```
 
 If you already have the SDKs, just copy them here. HISE is using the relative paths from the main 
 HISE source code folder to save you setup hazzleness.
