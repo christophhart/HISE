@@ -32,7 +32,7 @@ struct table_test
 	{	
 	}
 	
-	void handleEvent(HiseEvent& e)
+	void handleHiseEvent(HiseEvent& e)
 	{
 		
 	}

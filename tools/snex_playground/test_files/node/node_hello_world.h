@@ -26,7 +26,7 @@ struct processor
 		
 	}
 	
-	void handleEvent(HiseEvent& e)
+	void handleHiseEvent(HiseEvent& e)
 	{
 		
 	}

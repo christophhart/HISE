@@ -25,7 +25,7 @@ struct X
     
     void reset() {}
     
-    void handleEvent(HiseEvent& e) {}
+    void handleHiseEvent(HiseEvent& e) {}
     
     void processFrame(span<float, 1>& d) {}
     

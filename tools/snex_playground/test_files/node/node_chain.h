@@ -44,7 +44,7 @@ struct dc
 			s += v;
 	}
 	
-	void handleEvent(HiseEvent& e)
+	void handleHiseEvent(HiseEvent& e)
 	{
 		
 	}

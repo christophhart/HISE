@@ -37,7 +37,7 @@ struct dc_add
 		}
 	}
 	
-	void handleEvent(HiseEvent& e)
+	void handleHiseEvent(HiseEvent& e)
 	{
 		value = (float)e.getVelocity() / 127.0f;
 	}
