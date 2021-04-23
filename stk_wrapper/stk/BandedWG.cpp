@@ -43,6 +43,7 @@ BandedWG :: BandedWG( void )
   adsr_.setAllTimes( 0.02, 0.005, 0.9, 0.01 );
 
   frequency_ = 220.0;
+  ratio = 1.0;
   this->setPreset(0);
 
   bowPosition_ = 0;
@@ -169,8 +170,51 @@ void BandedWG :: setPreset( int preset )
   setFrequency( frequency_ );
 }
 
+
+void BandedWG::setFreqRatio(StkFloat newRatio)
+{
+	ratio = newRatio;
+}
+
+void BandedWG::updateFrequency()
+{
+	auto freqToUse = jlimit<StkFloat>(0, 1568.0, frequency_ * ratio);
+
+	StkFloat radius;
+	StkFloat base = Stk::sampleRate() / freqToUse;
+	StkFloat length;
+	for (int i = 0; i < presetModes_; i++) {
+		// Calculate the delay line lengths for each mode.
+		length = (int)(base / modes_[i]);
+		if (length > 2.0) {
+			delay_[i].setDelay(length);
+			gains_[i] = basegains_[i];
+			//	  gains_[i]=(StkFloat) pow(basegains_[i], 1/((StkFloat)delay_[i].getDelay()));
+			//	  std::cerr << gains_[i];
+		}
+		else {
+			nModes_ = i;
+			break;
+		}
+		//	std::cerr << std::endl;
+
+		// Set the bandpass filter resonances
+		radius = 1.0 - PI * 32 / Stk::sampleRate(); //frequency_ * modes_[i] / Stk::sampleRate()/32;
+		if (radius < 0.0) radius = 0.0;
+		bandpass_[i].setResonance(freqToUse * modes_[i], radius, true);
+
+		delay_[i].clear();
+		bandpass_[i].clear();
+	}
+
+	//int olen = (int)(delay_[0].getDelay());
+	//strikePosition_ = (int)(strikePosition_*(length/modes_[0])/olen);
+}
+
 void BandedWG :: setFrequency( StkFloat frequency )
 {
+	frequency_ = frequency;
+
 #if defined(_STK_DEBUG_)
   if ( frequency <= 0.0 ) {
     oStream_ << "BandedWG::setFrequency: parameter is less than or equal to zero!";
@@ -178,37 +222,12 @@ void BandedWG :: setFrequency( StkFloat frequency )
   }
 #endif
 
-  if (frequency > 1568.0) frequency = 1568.0;
+  
 
-  StkFloat radius;
-  StkFloat base = Stk::sampleRate() / frequency;
-  StkFloat length;
-  for (int i=0; i<presetModes_; i++) {
-    // Calculate the delay line lengths for each mode.
-    length = (int)(base / modes_[i]);
-    if ( length > 2.0) {
-      delay_[i].setDelay( length );
-      gains_[i]=basegains_[i];
-      //	  gains_[i]=(StkFloat) pow(basegains_[i], 1/((StkFloat)delay_[i].getDelay()));
-      //	  std::cerr << gains_[i];
-    }
-    else	{
-      nModes_ = i;
-      break;
-    }
-    //	std::cerr << std::endl;
+  
 
-    // Set the bandpass filter resonances
-    radius = 1.0 - PI * 32 / Stk::sampleRate(); //frequency_ * modes_[i] / Stk::sampleRate()/32;
-    if ( radius < 0.0 ) radius = 0.0;
-    bandpass_[i].setResonance(frequency * modes_[i], radius, true);
+  updateFrequency();
 
-    delay_[i].clear();
-    bandpass_[i].clear();
-  }
-
-  //int olen = (int)(delay_[0].getDelay());
-  //strikePosition_ = (int)(strikePosition_*(length/modes_[0])/olen);
 }
 
 void BandedWG :: setStrikePosition( StkFloat position )
@@ -360,5 +379,7 @@ void BandedWG :: controlChange( int number, StkFloat value )
   }
 #endif
 }
+
+
 
 } // stk namespace

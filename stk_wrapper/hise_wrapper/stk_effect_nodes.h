@@ -60,9 +60,9 @@ using namespace hise;
 using namespace scriptnode;
 using namespace snex;
 	
-struct JCRev : public StkEffectWrapper<stk::JCRev, 2>
+struct jcrev : public StkEffectWrapper<stk::JCRev, 2>
 {
-	STK_NODE(JCRev, 1);
+	STK_NODE(jcrev, 1);
 
 	enum class Parameters
 	{
@@ -72,8 +72,8 @@ struct JCRev : public StkEffectWrapper<stk::JCRev, 2>
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(EffectMix, JCRev);
-		DEF_PARAMETER(T60, JCRev);
+		DEF_PARAMETER(EffectMix, jcrev);
+		DEF_PARAMETER(T60, jcrev);
 	}
 	PARAMETER_MEMBER_FUNCTION;
 
@@ -82,12 +82,12 @@ struct JCRev : public StkEffectWrapper<stk::JCRev, 2>
 	void createParameters(ParameterDataList& data)
 	{
 		{
-			DEFINE_PARAMETERDATA(JCRev, EffectMix);
+			DEFINE_PARAMETERDATA(jcrev, EffectMix);
 			data.add(std::move(p));
 		}
 
 		{
-			DEFINE_PARAMETERDATA(JCRev, T60);
+			DEFINE_PARAMETERDATA(jcrev, T60);
 			p.setRange({ 0.0, 16.0, 0.01 });
 			data.add(std::move(p));
 		}
@@ -95,9 +95,9 @@ struct JCRev : public StkEffectWrapper<stk::JCRev, 2>
 };
 
 
-struct DelayA : public StkFilterWrapper<stk::DelayA, 2>
+struct delay_a : public StkFilterWrapper<stk::DelayA, 2>
 {
-	STK_NODE(DelayA, 1);
+	STK_NODE(delay_a, 1);
 
 	enum class Parameters
 	{
@@ -107,8 +107,8 @@ struct DelayA : public StkFilterWrapper<stk::DelayA, 2>
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(Delay, DelayA);
-		DEF_PARAMETER(MaximumDelay, DelayA);
+		DEF_PARAMETER(Delay, delay_a);
+		DEF_PARAMETER(MaximumDelay, delay_a);
 	}
 	PARAMETER_MEMBER_FUNCTION;
 
@@ -118,13 +118,13 @@ struct DelayA : public StkFilterWrapper<stk::DelayA, 2>
 	void createParameters(ParameterDataList& data)
 	{
 		{
-			DEFINE_PARAMETERDATA(DelayA, Delay);
+			DEFINE_PARAMETERDATA(delay_a, Delay);
 			p.setRange({ 0.0, 100.0, 0.01 });
 			data.add(std::move(p));
 		}
 
 		{
-			DEFINE_PARAMETERDATA(DelayA, MaximumDelay);
+			DEFINE_PARAMETERDATA(delay_a, MaximumDelay);
 			p.setRange({ 0.0, 100.0, 0.01 });
 			data.add(std::move(p));
 		}
@@ -132,56 +132,65 @@ struct DelayA : public StkFilterWrapper<stk::DelayA, 2>
 };
 
 
-struct BiQuad : public StkFilterWrapper<stk::BiQuad, 2>
+struct banded_wg
 {
-	STK_NODE(BiQuad, 1);
-
 	enum class Parameters
 	{
-		Frequency,
-		Resonance
+		Dynamics,
+		Pressure,
+		Position,
+		Active,
+		FreqRatio
 	};
-
-	void setFrequency(double v)
-	{
-		freq = v;
-
-		for (auto& o : obj)
-			o.setResonance(freq, q);
-	}
-
-	void setResonance(double v)
-	{
-		q = v;
-
-		for (auto& o : obj)
-			o.setResonance(freq, q);
-	}
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(Frequency, BiQuad);
-		DEF_PARAMETER(Resonance, BiQuad);
+		DEF_PARAMETER(Dynamics, banded_wg);
+		DEF_PARAMETER(Pressure, banded_wg);
+		DEF_PARAMETER(Position, banded_wg);
+		DEF_PARAMETER(Active, banded_wg);
+		DEF_PARAMETER(FreqRatio, banded_wg);
 	}
 	PARAMETER_MEMBER_FUNCTION;
 
-	void createParameters(ParameterDataList& data)
-	{
-		{
-			DEFINE_PARAMETERDATA(BiQuad, Frequency);
-			p.setRange({ 20.0, 20000.0, 0.1 });
-			data.add(std::move(p));
-		}
+	static const int NumVoices = 1;
 
-		{
-			DEFINE_PARAMETERDATA(BiQuad, Resonance);
-			p.setRange({ 0.0, 1.0, 0.01 });
-			data.add(std::move(p));
-		}
+	STK_NODE(banded_wg, NumVoices);
+
+	HISE_EMPTY_INITIALISE;
+
+	void prepare(PrepareSpecs ps);
+
+	void reset();
+
+	void handleHiseEvent(HiseEvent& e);
+
+	void setDynamics(double newValue);
+
+	void setPressure(double newPressure);
+
+	void setFreqRatio(double ratio);
+
+	void setPosition(double ratio);
+
+	void setActive(double a);
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		auto& v = voices.get();
+
+		for (auto& s : d[0])
+			s += v.tick();
 	}
 
-	double freq = 0.0;
-	double q = 0.0;
+	template <typename FrameDataType> void processFrame(FrameDataType& d)
+	{
+		d[0] += voices.get().tick();
+	}
+
+	void createParameters(ParameterDataList& data);
+
+	PolyData<stk::Bowed, NumVoices> voices;
 };
 
 

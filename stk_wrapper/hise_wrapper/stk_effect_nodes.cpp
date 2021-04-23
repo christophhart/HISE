@@ -53,4 +53,101 @@ namespace stk
 
 
 
+	void nodes::banded_wg::prepare(PrepareSpecs ps)
+	{
+		voices.prepare(ps);
+
+		for (auto& v : voices)
+			v.setSampleRate(ps.sampleRate);
+
+		reset();
+	}
+
+	void nodes::banded_wg::reset()
+	{
+		for (auto& v : voices)
+			v.clear();
+	}
+
+	void nodes::banded_wg::handleHiseEvent(HiseEvent& e)
+	{
+		if (e.isNoteOn())
+			voices.get().setFrequency(e.getFrequency());
+			
+
+		if (e.isNoteOff())
+			voices.get().noteOff(e.getFloatVelocity());
+	}
+
+	void nodes::banded_wg::setDynamics(double newValue)
+	{
+		for (auto& v : voices)
+			v.controlChange(100, newValue * 128.0);
+	}
+
+	void nodes::banded_wg::setPressure(double newPressure)
+	{
+		for (auto& v : voices)
+			v.controlChange(2, newPressure * 128.0);
+	}
+
+	void nodes::banded_wg::setFreqRatio(double ratio)
+	{
+		
+	}
+
+	void nodes::banded_wg::setPosition(double newValue)
+	{
+		for (auto& v : voices)
+			v.controlChange(4, newValue * 128.0);
+	}
+
+	void nodes::banded_wg::setActive(double a)
+	{
+		if (a > 0.5)
+		{
+			for (auto& v : voices)
+				v.startBowing(a-0.5 * 2.0, JUCE_LIVE_CONSTANT(0.0f));
+		}
+		else
+		{
+			for (auto& v : voices)
+				v.stopBowing(a * 2.0);
+		}
+
+		
+	}
+
+	void nodes::banded_wg::createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(banded_wg, Dynamics);
+			p.setRange({ 0.0, 1.0, 0.01 });
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(banded_wg, Pressure);
+			p.setRange({ 0.0, 1.0, 0.01 });
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(banded_wg, Position);
+			p.setRange({ 0.0, 1.0, 0.01 });
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(banded_wg, Active);
+			p.setRange({ 0.0, 1.0, 1.0 });
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(banded_wg, FreqRatio);
+			p.setRange({ 1.0, 16.0, 1.0 });
+			data.add(std::move(p));
+		}
+	}
+
 }
