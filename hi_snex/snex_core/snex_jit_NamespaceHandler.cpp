@@ -375,9 +375,11 @@ juce::Result NamespaceHandler::resolve(NamespacedIdentifier& id, bool allowZeroM
 
 	auto existing = get(parent);
 
-	if (existing == nullptr)
+	auto possibleOtherParent = currentNamespace->id;
+
+	while(existing == nullptr && possibleOtherParent.isValid())
 	{
-		auto subParent = parent.relocate({}, currentNamespace->id);
+		auto subParent = parent.relocate({}, possibleOtherParent);
 
 		existing = get(subParent);
 
@@ -396,6 +398,8 @@ juce::Result NamespaceHandler::resolve(NamespacedIdentifier& id, bool allowZeroM
 				}
 			}
 		}
+
+		possibleOtherParent = possibleOtherParent.getParent();
 	}
 
 	if (existing != nullptr)
@@ -1406,6 +1410,21 @@ bool NamespaceHandler::SymbolToken::matches(const String& input, const String& p
 	}
 	
 	return false;
+}
+
+void NamespaceHandler::ScopedNamespaceSetter::clearCurrentNamespace()
+{
+	if (auto c = handler.currentNamespace.get())
+	{
+		for (int i = 0; i < c->aliases.size(); i++)
+		{
+			auto t = c->aliases[i].symbolType;
+
+			if (t == SymbolType::Variable)
+				c->aliases.remove(i--);
+		}
+		
+	}
 }
 
 }

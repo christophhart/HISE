@@ -272,6 +272,8 @@ public:
 			h.pushNamespace(prevNamespace.getChildId(id));
 		}
 
+		void clearCurrentNamespace();
+
 		~ScopedNamespaceSetter()
 		{
 			handler.pushNamespace(prevNamespace);

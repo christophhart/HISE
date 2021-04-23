@@ -289,6 +289,33 @@ snex::jit::FunctionData ComplexType::getNodeCallback(const Identifier& id, int n
 		{
 			auto t = f.templateParameters[0];
 
+ 			if (f.templateParameters.isEmpty())
+			{
+				auto dArgType = f.args[0].typeInfo;
+
+				if (auto ar = dArgType.getTypedComplexType<SpanType>())
+				{
+					if (sId == ScriptnodeCallbacks::ProcessFrameFunction && ar->getNumElements() == numChannels)
+						return f;
+				}
+
+				if (auto st = dArgType.getTypedComplexType<StructType>())
+				{
+					if (auto st = dArgType.getTypedComplexType<StructType>())
+					{
+						auto tArg = st->getTemplateInstanceParameters()[0];
+
+						if (sId == ScriptnodeCallbacks::ProcessFunction &&
+							st->id == NamespacedIdentifier("ProcessData") &&
+							tArg.constantDefined &&
+							tArg.constant == numChannels)
+							return f;
+					}
+				}
+
+				continue;
+			}
+
 			if (t.isTemplateArgument())
 				continue;
 

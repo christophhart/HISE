@@ -141,7 +141,7 @@ String IndexBuilder::MetaDataExtractor::getWithLimit(const String& v, const Stri
 #if SNEX_WRAP_ALL_NEGATIVE_INDEXES
 			String formula = "(!v >= 0) ? !v % !limit : (!limit - Math.abs(!v) % !limit) % !limit";
 #else
-			String formula = "(!v + 9000 * !limit) % !limit";
+			String formula = "(!v + !limit) % !limit";
 #endif
 			expression << formula.replace("!v", v).replace("!limit", l);
 		}
@@ -584,13 +584,33 @@ snex::jit::FunctionData IndexBuilder::constructorFunction(StructType* st)
 	c.setDefaultParameter("initValue", VariableStorage(mt.getIndexType(), var(0)));
 
 	c.inliner = Inliner::createHighLevelInliner({}, [](InlineData* b)
+	{
+		auto d = b->toSyntaxTreeData();
+
+		auto numArgs = d->args.size();
+
+		if (numArgs == 0)
+		{
+			d->target = new Operations::Noop(d->location);
+			d->replaceIfSuccess();
+			return Result::ok();
+		}
+
+		if (numArgs != 0)
 		{
 			cppgen::Base cb(cppgen::Base::OutputType::AddTabs);
 
 			cb << "this->assignInternal(initValue);";
 
 			return SyntaxTreeInlineParser(b, { "initValue" }, cb).flush();
-		});
+		}
+
+
+		jassertfalse;
+
+		return Result::fail("TUT");
+		
+	});
 
 	return c;
 }

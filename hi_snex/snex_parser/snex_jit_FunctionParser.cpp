@@ -464,6 +464,9 @@ juce::Result SyntaxTreeInlineParser::flush()
 
 	try
 	{
+		if (d->expression->currentCompiler == nullptr)
+			d->location.throwError("Internal compiler error");
+
 		BaseCompiler::ScopedPassSwitcher sps1(d->expression->currentCompiler, BaseCompiler::FunctionTemplateParsing);
 		f->process(d->expression->currentCompiler, d->expression->currentScope);
 

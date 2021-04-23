@@ -130,7 +130,9 @@ private:
 			// Test List =======================================================
 
 			testWithValue(0.5);
+#if SNEX_WRAP_ALL_NEGATIVE_INDEXES
 			testWithValue(-1.5);
+#endif
 			testWithValue(20.0);
 			testWithValue(Limit * 0.99);
 			testWithValue(Limit * 1.2);
@@ -217,7 +219,7 @@ private:
 				testWithValue(0.5);
 				testWithValue(Limit + 0.5);
 				testWithValue(Limit / 3.f);
-				testWithValue(-12.215 * Limit);
+				testWithValue(-0.5 * Limit);
 			}
 			else
 			{
@@ -228,7 +230,7 @@ private:
 				testWithValue(0);
 				testWithValue(1);
 				testWithValue(Limit + 1);
-				testWithValue(-Limit - 1);
+				testWithValue(-Limit + 1);
 			}
 		}
 	}
@@ -317,7 +319,7 @@ private:
 				testWithValue(0);
 				testWithValue(1);
 				testWithValue(Limit + 1);
-				testWithValue(-Limit - 1);
+				testWithValue(-Limit + 1);
 			}
 		}
 	}

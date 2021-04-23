@@ -87,9 +87,6 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 
 		if (value->isZero())
 		{
-			// Will be a nullptr call...
-			
-
 			IF_(float)  FP_OP(cc.xorps, target, target);
 			IF_(double) FP_OP(cc.xorps, target, target);
 			IF_(int)    INT_OP(cc.xor_, target, target);
@@ -105,6 +102,10 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 					jassertfalse;
 				}
 			}
+
+			if (target->shouldWriteToMemoryAfterStore())
+				writeRegisterToMemory(target);
+
 			return;
 		}
 		else
@@ -196,7 +197,6 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 	
 	if (target->shouldWriteToMemoryAfterStore())
 		writeRegisterToMemory(target);
-
 }
 
 

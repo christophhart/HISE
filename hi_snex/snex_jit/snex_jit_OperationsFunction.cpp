@@ -84,7 +84,12 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 				{
 					NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, data.id);
 
+					
+					sns.clearCurrentNamespace();
+
 					auto fNamespace = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
+
+					
 
 					for (auto arg : classData->args)
 					{
@@ -640,6 +645,29 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 			auto id = scope->getRootData()->getClassName().getChildId(function.id.getIdentifier());
 
+			if (!function.id.isExplicit())
+			{
+				auto scopeId = scope->getScopeSymbol();
+				auto fP = function.id.getParent();
+
+				if (fP.isParentOf(scopeId))
+				{
+					if (auto cs = dynamic_cast<ClassScope*>(scope->getScopeForSymbol(function.id)))
+					{
+						fc = cs->typePtr->getFunctionClass();
+						ownedFc = fc;
+						fc->addMatchingFunctions(possibleMatches, function.id);
+						callType = MemberFunction;
+
+						TypeInfo thisType(cs->typePtr.get());
+
+						setObjectExpression(new ThisPointer(location, thisType));
+
+						return;
+					}
+				}
+			}
+
 			if (auto nfc = compiler->getInbuiltFunctionClass())
 			{
 				if (nfc->hasFunction(function.id))
@@ -678,28 +706,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				callType = ApiFunction;
 				return;
 			}
-			else if (!function.id.isExplicit())
-			{
-				auto scopeId = scope->getScopeSymbol();
-				auto fP = function.id.getParent();
-
-				if (fP.isParentOf(scopeId))
-				{
-					if (auto cs = dynamic_cast<ClassScope*>(scope->getScopeForSymbol(function.id)))
-					{
-						fc = cs->typePtr->getFunctionClass();
-						ownedFc = fc;
-						fc->addMatchingFunctions(possibleMatches, function.id);
-						callType = MemberFunction;
-
-						TypeInfo thisType(cs->typePtr.get());
-
-						setObjectExpression(new ThisPointer(location, thisType));
-
-						return;
-					}
-				}
-			}
+			
 
 			if (function.returnType.isStatic())
 			{

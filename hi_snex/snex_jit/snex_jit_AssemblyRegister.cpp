@@ -245,7 +245,7 @@ juce::int64 AssemblyRegister::getImmediateIntValue()
 
 	jassert(state == LoadedMemoryLocation || state == UnloadedMemoryLocation);
 	jassert(getType() == Types::ID::Integer);
-	jassert(!hasCustomMem);
+ 	jassert(!hasCustomMem);
 	jassert(hasImmediateValue);
 
 	return static_cast<int64>(immediateIntValue);
