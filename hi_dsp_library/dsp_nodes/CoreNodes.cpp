@@ -84,7 +84,8 @@ void fm::createParameters(ParameterDataList& data)
 
 void fm::handleHiseEvent(HiseEvent& e)
 {
-	setFrequency(e.getFrequency());
+	if(e.isNoteOn())
+		setFrequency(e.getFrequency());
 }
 
 void fm::setFreqMultiplier(double input)
