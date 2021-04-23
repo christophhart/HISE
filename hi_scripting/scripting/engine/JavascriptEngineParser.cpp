@@ -714,7 +714,7 @@ private:
 		{
 			try
 			{
-				String fileContent = getFileContent(currentValue.toString(), refFileName);
+				String fileContent = getFileContent(currentValue.toString(), refFileName, true);
 
 				ExpressionTreeBuilder ftb(fileContent, refFileName);
 
