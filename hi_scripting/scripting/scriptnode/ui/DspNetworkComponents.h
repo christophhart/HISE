@@ -45,9 +45,6 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-
-
-
 class KeyboardPopup : public Component,
 					  public TextEditor::Listener,
 					  public KeyListener,
@@ -94,6 +91,8 @@ public:
 			void setActive(float alpha_)
 			{
 				alpha = alpha_;
+				active = alpha > 0.5f;
+				
 				repaint();
 			}
 
@@ -103,7 +102,7 @@ public:
 
 				setName(t);
 
-				auto w = GLOBAL_BOLD_FONT().getStringWidth(t) + 15;
+				auto w = GLOBAL_BOLD_FONT().getStringWidth(t) + 25;
 				setSize(w, 28);
 			}
 
@@ -113,34 +112,9 @@ public:
 			}
 
 			float alpha = 0.5f;
+			bool active = false;
 
-			void paint(Graphics& g) override
-			{
-				auto c1 = Colour(SIGNAL_COLOUR).withAlpha(alpha);
-				auto c2 = Colour(SIGNAL_COLOUR).withAlpha(alpha * 0.8f);
-
-				g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false));
-
-				auto area = getLocalBounds().toFloat().reduced(2.0f);
-
-				g.fillRoundedRectangle(area, 3.0f);
-				g.setColour(Colours::black);
-
-				float a = 0.0f;
-
-				if (isMouseOver())
-					a += 0.1f;
-
-				if (isMouseButtonDown())
-					a += 0.2f;
-
-				g.setColour(Colours::white.withAlpha(a));
-				g.fillRoundedRectangle(area, 3.0f);
-
-				g.setFont(GLOBAL_BOLD_FONT());
-				g.setColour(Colours::black);
-				g.drawText(getName(), getLocalBounds().toFloat(), Justification::centred);
-			}
+			void paint(Graphics& g) override;
 		};
 
 		TagList(DspNetwork* n)
@@ -156,6 +130,7 @@ public:
 			{
 				x += t->getWidth();
 				addAndMakeVisible(t);
+				x += 3;
 			}
 
 			tagWidth = x;
@@ -179,7 +154,7 @@ public:
 			{
 				t->setTopLeftPosition(x, 2);
 
-				x += t->getWidth();
+				x += t->getWidth() + 3;
 			}
 		}
 
@@ -203,6 +178,26 @@ public:
 
 	int addPosition;
 
+	Image screenshot;
+
+	struct ImagePreviewCreator: public Timer
+	{
+		ImagePreviewCreator(KeyboardPopup& kp, const String& path);
+
+		~ImagePreviewCreator();
+
+		void timerCallback();
+
+		KeyboardPopup& kp;
+		NodeBase::Holder holder;
+		DspNetwork* network;
+		WeakReference<NodeBase> createdNode;
+		ScopedPointer<Component> createdComponent;
+		String path;
+	};
+
+	ScopedPointer<ImagePreviewCreator> currentPreview;
+
 	KeyboardPopup(NodeBase* container, int addPosition_):
 		node(container),
 		network(node->getRootNetwork()),
@@ -211,6 +206,9 @@ public:
 		addPosition(addPosition_),
 		helpButton("help", this, factory)
 	{
+		laf.bg = Colours::transparentBlack;
+		viewport.setLookAndFeel(&laf);
+
 		setName("Create Node");
 
 		addAndMakeVisible(helpButton);
@@ -219,20 +217,22 @@ public:
 		addAndMakeVisible(nodeEditor);
 
 		nodeEditor.setFont(GLOBAL_MONOSPACE_FONT());
-		nodeEditor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.6f));
+		nodeEditor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.8f));
+		nodeEditor.setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.5f));
 		nodeEditor.setSelectAllWhenFocused(true);
 		nodeEditor.setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 
 		nodeEditor.addListener(this);
 		addAndMakeVisible(viewport);
-		addAndMakeVisible(helpViewport);
 		viewport.setViewedComponent(&list, false);
+
+		viewport.setScrollBarThickness(14);
 
 		viewport.setScrollOnDragEnabled(true);
 		helpViewport.setScrollOnDragEnabled(true);
 
 		helpButton.addListener(this);
-		setSize(tagList.getWidth(), 64 + 200);
+		setSize(tagList.getWidth(), 64 + 200 + 2 * UIValues::NodeMargin);
 		nodeEditor.addKeyListener(this);
 		list.rebuild(getWidthForListItems());
 	}
@@ -322,7 +322,7 @@ public:
 
 	int getWidthForListItems() const
 	{
-		return help != nullptr ? 0 : tagList.getWidth() - viewport.getScrollBarThickness();
+		return help != nullptr ? 0 : tagList.getWidth() / 2 - viewport.getScrollBarThickness();
 	}
 
 	void updateHelp()
@@ -345,7 +345,7 @@ public:
 			height = jmax(400, height);
 		
 
-		setSize(tagList.getWidth(), minY + height);
+		//setSize(tagList.getWidth(), minY + height);
 
 		updateHelp();
 
@@ -360,11 +360,15 @@ public:
 
 		helpButton.setBounds(top.removeFromRight(top.getHeight()).reduced(2));
 		top.removeFromLeft(top.getHeight());
-		nodeEditor.setBounds(top);
+		nodeEditor.setBounds(top.reduced(8, 0));
+
+		b.removeFromTop(UIValues::NodeMargin);
 
 		tagList.setBounds(b.removeFromTop(32));
 		list.rebuild(getWidthForListItems());
 		
+		b.removeFromTop(UIValues::NodeMargin);
+
 		if (help != nullptr)
 		{
 			viewport.setBounds(b.removeFromLeft(list.getWidth() + viewport.getScrollBarThickness()));
@@ -374,26 +378,14 @@ public:
 		else
 		{
 			helpViewport.setVisible(false);
-			viewport.setBounds(b);
+
+			viewport.setBounds(b.removeFromLeft(getWidth() / 2));
 		}
 	}
 
-	void paint(Graphics& g) override
-	{
-		static const unsigned char searchIcon[] = { 110, 109, 0, 0, 144, 68, 0, 0, 48, 68, 98, 7, 31, 145, 68, 198, 170, 109, 68, 78, 223, 103, 68, 148, 132, 146, 68, 85, 107, 42, 68, 146, 2, 144, 68, 98, 54, 145, 219, 67, 43, 90, 143, 68, 66, 59, 103, 67, 117, 24, 100, 68, 78, 46, 128, 67, 210, 164, 39, 68, 98, 93, 50, 134, 67, 113, 58, 216, 67, 120, 192, 249, 67, 83, 151,
-				103, 67, 206, 99, 56, 68, 244, 59, 128, 67, 98, 72, 209, 112, 68, 66, 60, 134, 67, 254, 238, 144, 68, 83, 128, 238, 67, 0, 0, 144, 68, 0, 0, 48, 68, 99, 109, 0, 0, 208, 68, 0, 0, 0, 195, 98, 14, 229, 208, 68, 70, 27, 117, 195, 211, 63, 187, 68, 146, 218, 151, 195, 167, 38, 179, 68, 23, 8, 77, 195, 98, 36, 92, 165, 68, 187, 58,
-				191, 194, 127, 164, 151, 68, 251, 78, 102, 65, 0, 224, 137, 68, 0, 0, 248, 66, 98, 186, 89, 77, 68, 68, 20, 162, 194, 42, 153, 195, 67, 58, 106, 186, 193, 135, 70, 41, 67, 157, 224, 115, 67, 98, 13, 96, 218, 193, 104, 81, 235, 67, 243, 198, 99, 194, 8, 94, 78, 68, 70, 137, 213, 66, 112, 211, 134, 68, 98, 109, 211, 138, 67,
-				218, 42, 170, 68, 245, 147, 37, 68, 128, 215, 185, 68, 117, 185, 113, 68, 28, 189, 169, 68, 98, 116, 250, 155, 68, 237, 26, 156, 68, 181, 145, 179, 68, 76, 44, 108, 68, 16, 184, 175, 68, 102, 10, 33, 68, 98, 249, 118, 174, 68, 137, 199, 2, 68, 156, 78, 169, 68, 210, 27, 202, 67, 0, 128, 160, 68, 0, 128, 152, 67, 98, 163,
-				95, 175, 68, 72, 52, 56, 67, 78, 185, 190, 68, 124, 190, 133, 66, 147, 74, 205, 68, 52, 157, 96, 194, 98, 192, 27, 207, 68, 217, 22, 154, 194, 59, 9, 208, 68, 237, 54, 205, 194, 0, 0, 208, 68, 0, 0, 0, 195, 99, 101, 0, 0 };
+	Rectangle<float> getPreviewBounds();
 
-		Path path;
-		path.loadPathFromData(searchIcon, sizeof(searchIcon));
-		path.applyTransform(AffineTransform::rotation(float_Pi));
-		path.scaleToFit(8.0f, 8.0f, 16.0f, 16.0f, true);
-
-		g.setColour(Colours::white.withAlpha(0.5f));
-		g.fillPath(path);
-	}
+	void paint(Graphics& g) override;
 
 	struct PopupList : public Component
 	{
@@ -497,19 +489,23 @@ public:
 
 			rebuild(maxWidth);
 
+			setSelected(items[selectedIndex]);
+
 			return selectedIndex * ItemHeight;
 		}
 
 		void setSearchText(const String& text)
 		{
-			selectedIndex = 0;
 			searchTerm = text.toLowerCase();
 			rebuild(maxWidth);
+
+			selectedIndex = 0;
+			setSelected(items[selectedIndex]);
 		}
 
 		void paint(Graphics& g) override
 		{
-			g.fillAll(Colours::black.withAlpha(0.2f));
+			//g.fillAll(Colours::black.withAlpha(0.2f));
 		}
 
 		struct Item : public Component,
@@ -535,14 +531,7 @@ public:
 			HiseShapeButton deleteButton;
 		};
 
-		void setSelected(Item* i)
-		{
-			for (auto item : items)
-			{
-				item->selected = item == i;
-				item->repaint();
-			}
-		}
+		void setSelected(Item* i);
 
 		void resized() override
 		{
@@ -597,6 +586,9 @@ public:
 	TagList tagList;
 	PopupList list;
 	Viewport viewport;
+
+	ZoomableViewport::Laf laf;
+
 	ScopedPointer<Help> help;
 	Viewport helpViewport;
 	
@@ -606,410 +598,67 @@ public:
 	
 };
 
+
+
+struct DspNetworkPathFactory : public PathFactory
+{
+	String getId() const override { return {}; }
+
+	Path createPath(const String& url) const override;
+};
+
+
 class DspNetworkGraph : public Component,
 	public AsyncUpdater,
 	public DspNetwork::SelectionListener
 {
 public:
 
-	struct ScrollableParent : public Component
+	struct ActionButton : public WrapperWithMenuBarBase::ActionButtonBase<DspNetworkGraph, DspNetworkPathFactory>,
+						  public DspNetwork::SelectionListener
 	{
-		ScrollableParent(DspNetwork* n);
-
-		~ScrollableParent();
-
-		void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel) override;
-		void resized() override;
-
-		void paint(Graphics& g) override
+		ActionButton(DspNetworkGraph* parent_, const String& name) :
+			ActionButtonBase<DspNetworkGraph, DspNetworkPathFactory>(parent_, name)
 		{
-			g.fillAll(Colour(0xff1d1d1d));
+			parent.getComponent()->network->addSelectionListener(this);
 		}
 
-		DspNetworkGraph* getGraph() const
+		~ActionButton()
 		{
-			return dynamic_cast<DspNetworkGraph*>(viewport.getViewedComponent());
+			if (parent.getComponent() != nullptr)
+				parent.getComponent()->network->removeSelectionListener(this);
 		}
 
-		
-		Rectangle<int> getCurrentTarget() const
+
+		void selectionChanged(const NodeBase::List& l) override
 		{
-			return dark.ruler.toNearestInt();
+			repaint();
 		}
-
-		void setCurrentModalWindow(Component* newComponent, Rectangle<int> target)
-		{
-			currentModalWindow = nullptr;
-
-			if (newComponent == nullptr)
-			{
-				removeChildComponent(&dark);
-				viewport.getViewedComponent()->grabKeyboardFocus();
-			}
-				
-			else
-				addChildComponent(dark);
-
-			Rectangle<int> cBounds;
-
-			if (newComponent != nullptr)
-			{
-				currentModalWindow = new Holder(newComponent, target);
-
-				
-				addAndMakeVisible(currentModalWindow);
-
-				currentModalWindow->updatePosition();
-
-				currentModalWindow->setVisible(false);
-				auto img = createComponentSnapshot(currentModalWindow->getBounds(), true);
-				currentModalWindow->setVisible(true);
-
-				currentModalWindow->setBackground(img);
-
-				cBounds = currentModalWindow->getBounds();
-
-				currentModalWindow->grabKeyboardFocus();
-			}
-
-			dark.setRuler(target, cBounds);
-			dark.setVisible(currentModalWindow != nullptr);
-		}
-
-		struct Holder : public Component,
-						public ComponentListener
-		{
-			static constexpr int margin = 20;
-			static constexpr int headerHeight = 32;
-
-			Holder(Component* content_, Rectangle<int> targetArea_):
-				content(content_),
-				target(targetArea_)
-			{
-				addAndMakeVisible(content);
-
-				content->addComponentListener(this);
-
-				updateSize();
-			}
-
-			Image bg;
-
-			void setBackground(Image img)
-			{
-				bg = img;
-				
-				ImageConvolutionKernel kernel(7);
-				kernel.createGaussianBlur(60.0f);
-				kernel.applyToImage(bg, bg, { 0, 0, bg.getWidth(), bg.getHeight() });
-
-				jassert(getWidth() == img.getWidth());
-				repaint();
-			}
-
-			void updateSize()
-			{
-				setSize(content->getWidth() + margin, content->getHeight() + margin + headerHeight);
-			}
-
-			void componentMovedOrResized(Component&, bool , bool wasResized)
-			{
-				if (wasResized)
-				{
-					updateSize();
-					updatePosition();
-				}
-			}
-
-			void updatePosition()
-			{
-				if (getParentComponent() == nullptr)
-				{
-					jassertfalse;
-					return;
-				}
-
-				auto parentBounds = getParentComponent()->getLocalBounds();
-
-				if (parentBounds.getWidth() - 150 > getWidth() || parentBounds.getHeight() - 150)
-				{
-					lockPosition = true;
-					
-					auto newBounds = parentBounds.withSizeKeepingCentre(getWidth(), getHeight());
-					setTopLeftPosition(newBounds.getX(), newBounds.getY());
-					updateShadow();
-					return;
-				}
-
-				bool alignY = target.getWidth() > target.getHeight();
-
-				auto rect = target.withSizeKeepingCentre(getWidth(), getHeight());
-
-				if (alignY)
-				{
-					auto delta = target.getHeight()/2 + 20;
-
-					auto yRatio = (float)target.getY() / (float)getParentComponent()->getHeight();
-
-					if (yRatio > 0.5f)
-					{
-						if (lockPosition) // this prevents jumping around...
-						{
-							updateShadow();
-							return;
-						}
-
-						rect.translate(0, -rect.getHeight() / 2 - delta);
-						lockPosition = true;
-					}
-					else
-						rect.translate(0, rect.getHeight() / 2 + delta);
-				}
-				else
-				{
-					auto delta = target.getWidth() / 2 + 20;
-
-					auto xRatio = (float)target.getX() / (float)getParentComponent()->getWidth();
-
-					if (xRatio > 0.5f)
-					{
-						if (lockPosition) // this prevents jumping around...
-						{
-							updateShadow();
-							return;
-						}
-
-						rect.translate(-rect.getWidth() / 2 - delta, 0);
-						lockPosition = true;
-					}
-					else
-						rect.translate(rect.getWidth() / 2 + delta, 0);
-
-					rect.setY(target.getY());
-				}
-
-				setTopLeftPosition(rect.getTopLeft());
-				updateShadow();
-			}
-
-			void updateShadow()
-			{
-				findParentComponentOfClass<ScrollableParent>()->dark.setRuler(target, getBoundsInParent());
-			}
-
-			void paint(Graphics& g) override
-			{
-				g.setColour(Colour(0xFF333333));
-
-				auto b = getLocalBounds().toFloat();
-				
-				//g.fillRoundedRectangle(b, 3.0f);
-
-				g.drawImageAt(bg, 0, 0);
-
-				g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xb8383838)));
-
-				g.setColour(Colours::white.withAlpha(0.1f));
-				
-				g.drawRect(b, 1.0f);
-
-				b = b.removeFromTop((float)headerHeight).reduced(1.0f);
-
-
-
-				g.fillRect(b);
-
-				g.setColour(Colours::white.withAlpha(0.6f));
-				g.setFont(GLOBAL_BOLD_FONT().withHeight(16.0f));
-				g.drawText(content->getName(), b, Justification::centred);
-
-			}
-
-			void mouseDown(const MouseEvent& event) override
-			{
-				dragger.startDraggingComponent(this, event);
-			}
-
-			void mouseDrag(const MouseEvent& event) override
-			{
-				dragger.dragComponent(this, event, nullptr);
-				updateShadow();
-			}
-
-			void resized()
-			{
-				auto b = getLocalBounds();
-				b.removeFromTop(headerHeight);
-				b = b.reduced(margin / 2);
-				content->setBounds(b);
-			}
-
-			Rectangle<int> target;
-
-			ScopedPointer<Component> content;
-
-			bool lockPosition = false;
-
-			ComponentDragger dragger;
-		};
-		
-		struct Dark : public Component
-		{
-			void paint(Graphics& g) override
-			{
-				g.fillAll(Colour(0xFF262626).withAlpha(0.5f));
-
-				g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.3f));
-
-				float width = 2.0f;
-
-				g.fillRoundedRectangle(ruler, width);
-
-				DropShadow sh;
-				sh.colour = Colours::black.withAlpha(0.3f);
-				sh.radius = 40;
-				sh.drawForRectangle(g, shadow);
-			}
-
-			void setRuler(Rectangle<int> area, Rectangle<int> componentArea)
-			{
-				ruler = area.toFloat();
-				shadow = componentArea;
-				repaint();
-			}
-
-			void mouseDown(const MouseEvent& ) override
-			{
-				findParentComponentOfClass<ScrollableParent>()->setCurrentModalWindow(nullptr, {});
-			}
-
-			Rectangle<float> ruler;
-			Rectangle<int> shadow;
-
-		} dark;
-
-		void centerCanvas();
-
-		float zoomFactor = 1.0f;
-		Viewport viewport;
-		OpenGLContext context;
-
-		ScopedPointer<Holder> currentModalWindow;
 	};
 
-	struct WrapperWithMenuBar : public Component
+	struct WrapperWithMenuBar : public WrapperWithMenuBarBase
 	{
-		constexpr static int MenuHeight = 24;
-
-		struct Spacer : public Component
+		static bool selectionEmpty(DspNetworkGraph& g)
 		{
-			Spacer(int width)
-			{
-				setSize(width, MenuHeight);
-			}
-		};
+			return !g.network->getSelection().isEmpty();
+		}
 
-		struct ActionButton: public PathFactory,
-							 public Component,
-							 public DspNetwork::SelectionListener,
-						     public SettableTooltipClient,
-							 public Timer
+		WrapperWithMenuBar(DspNetworkGraph* g):
+			WrapperWithMenuBarBase(g),
+			n(g->network)
 		{
-			ActionButton(DspNetworkGraph* parent_, const String& name):
-				parent(parent_)
-			{
-				parent->network->addSelectionListener(this);
-
-				p = createPath(name);
-				setSize(MenuHeight, MenuHeight);
-				setRepaintsOnMouseActivity(true);
-
-				setColour(TextButton::ColourIds::buttonOnColourId, Colour(SIGNAL_COLOUR));
-				setColour(TextButton::ColourIds::buttonColourId, Colour(0xFFAAAAAA));
-			}
-
-			~ActionButton()
-			{
-				if (parent.getComponent() != nullptr)
-					parent.getComponent()->network->removeSelectionListener(this);
-			}
-
-			void selectionChanged(const NodeBase::List& l) override
-			{
-				repaint();
-			}
-
-			void timerCallback() override
-			{
-				if (lastState != stateFunction(*parent))
-				{
-					lastState = !lastState;
-					repaint();
-				}
-			}
-
-			void paint(Graphics& g) override
-			{
-				auto on = stateFunction ? stateFunction(*parent) : false;
-				auto enabled = enabledFunction ? enabledFunction(*parent) : true;
-				auto over = isMouseOver(false);
-				auto down = isMouseButtonDown(false);
-
-				Colour c = findColour(on ? TextButton::ColourIds::buttonOnColourId :  TextButton::ColourIds::buttonColourId);
-				
-				float alpha = 1.0f;
-
-				if (!enabled)
-					alpha *= 0.6f;
-
-				if (!over)
-					alpha *= 0.9f;
-				if (!down)
-					alpha *= 0.9f;
-
-				c = c.withAlpha(alpha);
-
-				g.setColour(c);
-
-				scalePath(p, getLocalBounds().toFloat().reduced(down && enabled ? 5.0f : 4.0f));
-
-				g.fillPath(p);
-			}
-
-			String getId() const override { return ""; }
-
-			void mouseDown(const MouseEvent& e) override
-			{
-				if(actionFunction)
-					actionFunction(*parent);
-
-				repaint();
-			}
-
-			Path createPath(const String& name) const override;
-
-			void resized() override
-			{
-				scalePath(p, this, 2.0f);
-			}
-
-			Path p;
-
-			using Callback = std::function<bool(DspNetworkGraph& g)>;
-			
-			Component::SafePointer<DspNetworkGraph> parent;
-			Callback stateFunction;
-			Callback enabledFunction;
-			Callback actionFunction;
-			bool lastState = false;
-		};
-
-		WrapperWithMenuBar(DspNetwork* n):
-			canvas(n)
-		{
-			addAndMakeVisible(canvas);
-
 			addButton("zoom");
+
+			addBookmarkComboBox();
+
+			addSpacer(10);
+
+			addButton("fold");
+			addButton("foldunselected");
+			addButton("swap-orientation");
+
+			addSpacer(10);
+
 			addButton("error");
 			addButton("goto");
 			addButton("cable");
@@ -1019,13 +668,12 @@ public:
 			addButton("wrap");
 			addButton("export");
 			addButton("deselect");
-			addButton("fold");
-			addButton("foldunselected");
+
 			addButton("bypass");
 			addButton("colour");
 			addButton("properties");
 			addButton("profile");
-			
+
 			addSpacer(10);
 			addButton("undo");
 			addButton("redo");
@@ -1033,48 +681,40 @@ public:
 			addButton("copy");
 			addButton("duplicate");
 			addButton("delete");
-		}
+		};
 
-		void addSpacer(int width)
+		virtual void bookmarkUpdated(const StringArray& idsToShow)
 		{
-			auto p = new Spacer(width);
-			actionButtons.add(p);
-			addAndMakeVisible(p);
-		}
+			n->deselectAll();
 
-		static bool selectionEmpty(DspNetworkGraph& g)
-		{
-			return !g.network->getSelection().isEmpty();
-		}
+			NodeBase::List newSelection;
 
-		void addButton(const String& name);
-
-		void paint(Graphics& g) override
-		{
-			GlobalHiseLookAndFeel::drawFake3D(g, getLocalBounds().removeFromTop(MenuHeight));
-		}
-
-		void resized() override
-		{
-			auto b = getLocalBounds();
-			auto menuBar = b.removeFromTop(MenuHeight);
-
-			for (auto ab : actionButtons)
+			for (const auto& s : idsToShow)
 			{
-				ab->setTopLeftPosition(menuBar.getTopLeft());
-				menuBar.removeFromLeft(ab->getWidth() + 3);
+				auto nv = n->get(s);
+
+				if (auto no = dynamic_cast<NodeBase*>(nv.getObject()))
+					n->addToSelection(no, ModifierKeys::shiftModifier);
 			}
 
-			canvas.setBounds(b);
+			Actions::foldUnselectedNodes(*canvas.getContent<DspNetworkGraph>());
 		}
 
-		ScrollableParent canvas;
-		OwnedArray<Component> actionButtons;
+		virtual ValueTree getBookmarkValueTree()
+		{
+			return n->getValueTree().getOrCreateChildWithName(PropertyIds::Bookmarks, n->getUndoManager());
+		}
+
+		void addButton(const String& b) override;
+
+		DspNetwork* n;
 	};
 
 	struct Actions
 	{
 		static void selectAndScrollToNode(DspNetworkGraph& g, NodeBase::Ptr node);
+
+		static bool swapOrientation(DspNetworkGraph& g);
 
 		static bool freezeNode(NodeBase::Ptr node);
 		static bool unfreezeNode(NodeBase::Ptr node);
@@ -1099,14 +739,18 @@ public:
 		static bool showJSONEditorForSelection(DspNetworkGraph& g);
 		static bool undo(DspNetworkGraph& g);
 		static bool redo(DspNetworkGraph& g);
+
+		static bool addBookMark(DspNetworkGraph& g);
+
+		static bool zoomIn(DspNetworkGraph& g);
+		static bool zoomOut(DspNetworkGraph& g);
+		static bool zoomFit(DspNetworkGraph& g);
 	};
 
 	void selectionChanged(const NodeBase::List&) override
 	{
 		
 	}
-
-	
 
 	DspNetworkGraph(DspNetwork* n);
 	~DspNetworkGraph();
@@ -1119,6 +763,24 @@ public:
 	void finishDrag();
 	void paint(Graphics& g) override;
 	void resized() override;
+
+	template <class T> static void fillChildComponentList(Array<T*>& list, Component* c)
+	{
+		for (int i = 0; i < c->getNumChildComponents(); i++)
+		{
+			auto child = c->getChildComponent(i);
+
+			if (!child->isShowing())
+				continue;
+
+			if (auto typed = dynamic_cast<T*>(child))
+			{
+				list.add(typed);
+			}
+
+			fillChildComponentList(list, child);
+		}
+	}
 
 	void paintOverChildren(Graphics& g) override;
 
@@ -1190,16 +852,29 @@ public:
 			holeColour = c;
 		}
 
+		static const unsigned char pathData[] = { 110,109,233,38,145,63,119,190,39,64,108,0,0,0,0,227,165,251,63,108,0,0,0,0,20,174,39,63,108,174,71,145,63,0,0,0,0,108,174,71,17,64,20,174,39,63,108,174,71,17,64,227,165,251,63,108,115,104,145,63,119,190,39,64,108,115,104,145,63,143,194,245,63,98,55,137,
+145,63,143,194,245,63,193,202,145,63,143,194,245,63,133,235,145,63,143,194,245,63,98,164,112,189,63,143,194,245,63,96,229,224,63,152,110,210,63,96,229,224,63,180,200,166,63,98,96,229,224,63,43,135,118,63,164,112,189,63,178,157,47,63,133,235,145,63,178,
+157,47,63,98,68,139,76,63,178,157,47,63,84,227,5,63,43,135,118,63,84,227,5,63,180,200,166,63,98,84,227,5,63,14,45,210,63,168,198,75,63,66,96,245,63,233,38,145,63,143,194,245,63,108,233,38,145,63,119,190,39,64,99,101,0,0 };
+
+		Path plug;
+
+		plug.loadPathFromData(pathData, sizeof(pathData));
+		PathFactory::scalePath(plug, start.expanded(1.5f));
 
 		g.setColour(Colours::black);
 		g.fillEllipse(start);
 		g.setColour(Colour(0xFFAAAAAA));
-		g.drawEllipse(start, 2.0f);
+
+		g.fillPath(plug);
+
+		//g.drawEllipse(start, 2.0f);
 
 		g.setColour(Colours::black);
 		g.fillEllipse(end);
 		g.setColour(holeColour);
-		g.drawEllipse(end, 2.0f);
+		PathFactory::scalePath(plug, end.expanded(1.5f));
+		g.fillPath(plug);
+		//g.drawEllipse(end, 2.0f);
 
 		
 
@@ -1212,9 +887,9 @@ public:
 		p.quadraticTo(controlPoint, end.getCentre());
 
 		g.setColour(Colours::black.withMultipliedAlpha(alpha));
-		g.strokePath(p, PathStrokeType(3.0f));
+		g.strokePath(p, PathStrokeType(3.0f, PathStrokeType::curved, PathStrokeType::rounded));
 		g.setColour(c.withMultipliedAlpha(alpha));
-		g.strokePath(p, PathStrokeType(2.0f));
+		g.strokePath(p, PathStrokeType(2.0f, PathStrokeType::curved, PathStrokeType::rounded));
 	};
 
 	static Rectangle<float> getCircle(Component* c, bool getKnobCircle=true)
@@ -1273,6 +948,47 @@ public:
 	bool probeSelectionEnabled = false;
 
 	bool setCurrentlyDraggedComponent(NodeComponent* n);
+
+	struct DragOverlay : public Timer
+	{
+		DragOverlay(DspNetworkGraph& g) :
+			parent(g)
+		{};
+
+		void timerCallback() override
+		{
+			float onDelta = JUCE_LIVE_CONSTANT(.1f);
+			float offDelta = JUCE_LIVE_CONSTANT(.1f);
+
+			if (enabled)
+				alpha += onDelta;
+			else
+				alpha -= offDelta;
+
+			if (alpha >= 1.0f || alpha <= 0.0f)
+				stopTimer();
+
+			alpha = jlimit(0.0f, 1.0f, alpha);
+
+			parent.repaint();
+		}
+
+		void setEnabled(bool shouldBeEnabled)
+		{
+			if (shouldBeEnabled != enabled)
+			{
+				enabled = shouldBeEnabled;
+
+				startTimer(30);
+			}
+
+			parent.repaint();
+		}
+
+		DspNetworkGraph& parent;
+		bool enabled = false;
+		float alpha = 0.0f;
+	} dragOverlay;
 
 	ValueTree dataReference;
 

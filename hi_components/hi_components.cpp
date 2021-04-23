@@ -53,6 +53,7 @@
 
 #include "audio_components/SampleComponents.cpp"
 #include "audio_components/EqComponent.cpp"
+#include "floating_layout/ZoomableViewport.cpp"
 #include "floating_layout/FloatingLayout.cpp"
 #include "hi_expansion/ExpansionFloatingTiles.cpp"
 

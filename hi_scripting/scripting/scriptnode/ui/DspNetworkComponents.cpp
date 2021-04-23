@@ -37,6 +37,61 @@ using namespace hise;
 
 namespace ScriptnodeIcons
 {
+	static const unsigned char zoomFit[] = { 110,109,0,0,0,0,27,95,166,67,108,172,92,218,66,168,214,165,67,108,176,114,136,63,223,143,95,67,108,0,0,0,0,27,95,166,67,99,109,23,57,182,67,27,95,166,67,108,215,67,127,67,168,214,165,67,108,164,176,181,67,223,143,95,67,108,23,57,182,67,27,95,166,67,99,
+109,188,212,138,67,29,154,136,67,108,35,27,109,67,162,165,104,67,98,213,56,84,67,225,186,122,67,160,250,51,67,113,125,129,67,211,13,21,67,190,63,125,67,98,164,112,206,66,137,193,116,67,164,48,129,66,27,239,77,67,195,117,102,66,145,77,30,67,98,70,54,78,
+66,41,220,233,66,147,88,140,66,18,195,145,66,98,144,210,66,209,34,66,66,98,68,75,247,66,45,50,15,66,47,189,17,67,45,178,229,65,70,86,40,67,172,28,227,65,98,45,242,40,67,86,14,227,65,20,142,41,67,49,8,227,65,252,41,42,67,61,10,227,65,98,178,157,83,67,
+166,155,228,65,137,225,123,67,197,32,84,66,129,117,135,67,246,232,180,66,98,131,16,144,67,123,148,248,66,188,100,143,67,168,166,38,67,35,155,133,67,0,192,71,67,108,254,148,154,67,182,179,113,67,108,188,212,138,67,29,154,136,67,99,109,102,134,41,67,166,
+27,101,66,98,109,103,20,67,6,129,101,66,27,239,254,66,41,92,131,66,233,38,224,66,164,48,160,66,98,47,93,172,66,33,176,208,66,188,180,155,66,244,93,17,67,86,14,187,66,143,34,50,67,98,2,171,218,66,14,45,83,67,139,236,19,67,78,194,103,67,233,70,57,67,4,
+214,96,67,98,100,123,91,67,125,127,90,67,10,87,120,67,160,90,61,67,145,109,125,67,219,217,25,67,98,86,158,128,67,74,140,254,66,125,127,119,67,162,69,198,66,242,18,100,67,106,60,161,66,98,104,177,84,67,240,231,131,66,231,187,63,67,180,200,101,66,213,88,
+42,67,172,28,101,66,98,176,18,42,67,166,27,101,66,139,204,41,67,160,26,101,66,102,134,41,67,166,27,101,66,99,109,0,0,0,0,0,0,0,0,108,172,92,218,66,176,114,136,63,108,176,114,136,63,172,92,218,66,108,0,0,0,0,0,0,0,0,99,109,23,57,182,67,0,0,0,0,108,215,
+67,127,67,176,114,136,63,108,164,176,181,67,172,92,218,66,108,23,57,182,67,0,0,0,0,99,101,0,0 };
+
+
+	static const unsigned char zoomIn[] = { 110,109,125,159,52,67,90,68,76,67,98,47,189,27,67,154,89,94,67,244,253,246,66,154,153,102,67,90,36,185,66,119,222,96,67,98,176,242,58,66,66,96,88,67,193,202,1,65,211,141,49,67,37,6,145,63,74,236,1,67,98,143,194,157,192,154,25,177,66,61,10,91,65,6,1,50,
+66,45,50,67,66,100,59,161,65,98,248,83,134,66,115,104,237,64,18,131,178,66,231,251,169,62,63,181,223,66,188,116,19,60,98,14,237,224,66,111,18,3,59,221,36,226,66,111,18,131,186,172,92,227,66,0,0,0,0,98,12,34,27,67,57,180,72,62,37,102,67,67,76,55,197,65,
+92,111,86,67,205,76,120,66,98,96,165,103,67,236,209,191,66,211,77,102,67,96,69,10,67,160,186,82,67,184,94,43,67,108,238,236,148,67,250,62,129,67,108,172,44,133,67,27,255,144,67,108,125,159,52,67,90,68,76,67,99,109,129,21,226,66,2,43,231,65,98,141,215,
+183,66,207,247,231,65,82,248,141,66,51,51,21,66,59,95,94,66,41,220,78,66,98,141,151,237,65,145,237,151,66,195,245,170,65,88,249,233,66,20,46,20,66,72,193,21,67,98,109,103,83,66,199,203,54,67,203,225,182,66,6,97,75,67,133,203,0,67,188,116,68,67,98,190,
+255,34,67,53,30,62,67,100,219,63,67,88,249,32,67,236,241,68,67,39,241,250,66,98,6,193,72,67,186,201,197,66,215,3,63,67,18,131,141,66,76,151,43,67,182,243,80,66,98,195,53,28,67,193,74,22,66,66,64,7,67,43,135,232,65,94,186,227,66,27,47,231,65,98,20,46,
+227,66,2,43,231,65,203,161,226,66,2,43,231,65,129,21,226,66,2,43,231,65,99,109,246,72,2,67,61,138,198,66,108,113,29,49,67,61,138,198,66,108,113,29,49,67,143,66,3,67,108,246,72,2,67,143,66,3,67,108,246,72,2,67,160,154,49,67,108,61,74,198,66,160,154,49,
+67,108,61,74,198,66,143,66,3,67,108,119,190,81,66,143,66,3,67,108,119,190,81,66,61,138,198,66,108,61,74,198,66,61,138,198,66,108,61,74,198,66,51,179,83,66,108,246,72,2,67,51,179,83,66,108,246,72,2,67,61,138,198,66,99,101,0,0 };
+
+	static const unsigned char zoomOriginal[] = { 110,109,125,159,52,67,90,68,76,67,98,47,189,27,67,154,89,94,67,244,253,246,66,154,153,102,67,90,36,185,66,119,222,96,67,98,176,242,58,66,66,96,88,67,193,202,1,65,211,141,49,67,37,6,145,63,74,236,1,67,98,143,194,157,192,154,25,177,66,61,10,91,65,6,1,50,
+66,45,50,67,66,100,59,161,65,98,248,83,134,66,115,104,237,64,18,131,178,66,231,251,169,62,63,181,223,66,188,116,19,60,98,14,237,224,66,111,18,3,59,221,36,226,66,111,18,131,186,172,92,227,66,0,0,0,0,98,12,34,27,67,57,180,72,62,37,102,67,67,76,55,197,65,
+92,111,86,67,205,76,120,66,98,96,165,103,67,236,209,191,66,211,77,102,67,96,69,10,67,160,186,82,67,184,94,43,67,108,238,236,148,67,250,62,129,67,108,172,44,133,67,27,255,144,67,108,125,159,52,67,90,68,76,67,99,109,129,21,226,66,2,43,231,65,98,141,215,
+183,66,207,247,231,65,82,248,141,66,51,51,21,66,59,95,94,66,41,220,78,66,98,141,151,237,65,145,237,151,66,195,245,170,65,88,249,233,66,20,46,20,66,72,193,21,67,98,109,103,83,66,199,203,54,67,203,225,182,66,6,97,75,67,133,203,0,67,188,116,68,67,98,190,
+255,34,67,53,30,62,67,100,219,63,67,88,249,32,67,236,241,68,67,39,241,250,66,98,6,193,72,67,186,201,197,66,215,3,63,67,18,131,141,66,76,151,43,67,182,243,80,66,98,195,53,28,67,193,74,22,66,66,64,7,67,43,135,232,65,94,186,227,66,27,47,231,65,98,20,46,
+227,66,2,43,231,65,203,161,226,66,2,43,231,65,129,21,226,66,2,43,231,65,99,101,0,0 };
+
+	static const unsigned char zoomOut[] = { 110,109,125,159,52,67,90,68,76,67,98,47,189,27,67,154,89,94,67,244,253,246,66,154,153,102,67,90,36,185,66,119,222,96,67,98,176,242,58,66,66,96,88,67,193,202,1,65,211,141,49,67,37,6,145,63,74,236,1,67,98,143,194,157,192,154,25,177,66,61,10,91,65,6,1,50,
+66,45,50,67,66,100,59,161,65,98,248,83,134,66,115,104,237,64,18,131,178,66,231,251,169,62,63,181,223,66,188,116,19,60,98,14,237,224,66,111,18,3,59,221,36,226,66,111,18,131,186,172,92,227,66,0,0,0,0,98,12,34,27,67,57,180,72,62,37,102,67,67,76,55,197,65,
+92,111,86,67,205,76,120,66,98,96,165,103,67,236,209,191,66,211,77,102,67,96,69,10,67,160,186,82,67,184,94,43,67,108,238,236,148,67,250,62,129,67,108,172,44,133,67,27,255,144,67,108,125,159,52,67,90,68,76,67,99,109,129,21,226,66,2,43,231,65,98,141,215,
+183,66,207,247,231,65,82,248,141,66,51,51,21,66,59,95,94,66,41,220,78,66,98,141,151,237,65,145,237,151,66,195,245,170,65,88,249,233,66,20,46,20,66,72,193,21,67,98,109,103,83,66,199,203,54,67,203,225,182,66,6,97,75,67,133,203,0,67,188,116,68,67,98,190,
+255,34,67,53,30,62,67,100,219,63,67,88,249,32,67,236,241,68,67,39,241,250,66,98,6,193,72,67,186,201,197,66,215,3,63,67,18,131,141,66,76,151,43,67,182,243,80,66,98,195,53,28,67,193,74,22,66,66,64,7,67,43,135,232,65,94,186,227,66,27,47,231,65,98,20,46,
+227,66,2,43,231,65,203,161,226,66,2,43,231,65,129,21,226,66,2,43,231,65,99,109,221,196,39,67,190,255,7,67,108,246,40,129,66,190,255,7,67,108,246,40,129,66,51,115,204,66,108,221,196,39,67,51,115,204,66,108,221,196,39,67,190,255,7,67,99,101,0,0 };
+
+	static const unsigned char zoomSelection[] = { 110,109,16,152,150,66,135,214,171,67,108,16,152,150,66,39,225,183,67,98,150,3,131,66,39,225,183,67,47,221,94,66,106,236,183,67,57,180,55,66,197,224,183,67,98,80,141,214,65,203,193,183,67,80,141,5,65,137,65,177,67,96,229,16,64,84,179,167,67,98,96,229,
+16,64,84,179,167,67,82,184,201,65,205,12,164,67,82,184,201,65,205,12,164,67,98,106,188,201,65,113,13,164,67,119,190,201,65,20,14,164,67,143,194,201,65,184,14,164,67,98,45,178,224,65,182,131,168,67,201,118,19,66,78,210,171,67,135,22,58,66,135,214,171,
+67,108,16,152,150,66,135,214,171,67,99,109,203,161,43,67,39,225,183,67,108,18,195,198,66,39,225,183,67,108,18,195,198,66,135,214,171,67,108,203,161,43,67,135,214,171,67,108,203,161,43,67,39,225,183,67,99,109,199,251,133,67,39,225,183,67,108,76,183,67,
+67,39,225,183,67,108,76,183,67,67,135,214,171,67,108,199,251,133,67,135,214,171,67,108,199,251,133,67,39,225,183,67,99,109,233,22,184,67,117,195,171,67,98,57,36,180,67,61,250,178,67,51,51,172,67,252,217,183,67,82,184,163,67,39,225,183,67,98,82,184,163,
+67,39,225,183,67,135,6,146,67,39,225,183,67,135,6,146,67,39,225,183,67,108,135,6,146,67,135,214,171,67,98,141,247,151,67,135,214,171,67,180,232,157,67,123,228,171,67,186,217,163,67,70,214,171,67,98,117,195,167,67,70,198,171,67,240,135,171,67,201,134,
+169,67,63,117,173,67,35,27,166,67,108,168,134,173,67,166,251,165,67,98,8,12,177,67,213,232,167,67,137,145,180,67,37,214,169,67,233,22,184,67,117,195,171,67,99,109,78,130,91,67,37,102,117,67,98,0,160,66,67,178,189,131,67,12,98,34,67,145,221,135,67,254,
+116,3,67,33,0,133,67,98,250,62,171,66,229,192,128,67,250,254,59,66,158,175,90,67,117,19,32,66,211,13,43,67,98,242,210,7,66,86,174,1,67,211,77,82,66,150,67,171,66,59,95,175,66,221,36,117,66,98,29,26,212,66,51,51,66,66,90,36,0,67,35,219,37,66,113,189,22,
+67,92,143,36,66,98,88,89,23,67,55,137,36,66,63,245,23,67,37,134,36,66,104,145,24,67,43,135,36,66,98,221,4,66,67,217,78,37,66,246,72,106,67,104,145,131,66,45,82,125,67,252,105,206,66,98,57,68,135,67,193,10,9,67,82,152,134,67,43,103,51,67,113,157,121,67,
+131,128,84,67,108,86,94,168,67,190,207,149,67,108,20,158,152,67,0,144,165,67,108,78,130,91,67,37,102,117,67,99,109,213,232,186,67,20,46,157,67,108,20,222,174,67,20,46,157,67,108,20,222,174,67,166,27,114,67,108,213,232,186,67,166,27,114,67,108,213,232,
+186,67,20,46,157,67,99,109,127,106,193,65,227,229,153,67,108,201,118,190,61,227,229,153,67,108,201,118,190,61,133,139,107,67,108,127,106,193,65,133,139,107,67,108,127,106,193,65,227,229,153,67,99,109,145,237,23,67,86,14,140,66,98,217,206,2,67,137,65,
+140,66,244,189,219,66,47,221,156,66,63,245,188,66,39,177,185,66,98,133,43,137,66,39,49,234,66,37,6,113,66,53,30,30,67,47,221,151,66,18,227,62,67,98,219,121,183,66,145,237,95,67,182,83,2,67,143,130,116,67,86,174,39,67,135,150,109,67,98,143,226,73,67,190,
+63,103,67,53,190,102,67,225,26,74,67,188,212,107,67,29,154,38,67,98,215,163,111,67,102,6,12,67,168,230,101,67,168,198,223,66,94,122,82,67,238,188,186,66,98,147,24,67,67,115,104,157,66,84,35,46,67,96,101,140,66,0,192,24,67,217,14,140,66,98,219,121,24,
+67,86,14,140,66,182,51,24,67,86,14,140,66,145,237,23,67,86,14,140,66,99,109,213,232,186,67,102,6,90,67,108,20,222,174,67,102,6,90,67,108,20,222,174,67,227,197,17,67,108,213,232,186,67,227,197,17,67,108,213,232,186,67,102,6,90,67,99,109,127,106,193,65,
+4,118,83,67,108,201,118,190,61,4,118,83,67,108,201,118,190,61,195,53,11,67,108,127,106,193,65,195,53,11,67,108,127,106,193,65,4,118,83,67,99,109,213,232,186,67,72,97,243,66,108,20,222,174,67,72,97,243,66,108,20,222,174,67,131,192,69,66,108,213,232,186,
+67,131,192,69,66,108,213,232,186,67,72,97,243,66,99,109,127,106,193,65,131,64,230,66,108,201,118,190,61,131,64,230,66,98,201,118,190,61,92,15,184,66,70,182,243,189,47,221,137,66,240,167,198,61,23,89,55,66,98,252,169,241,61,74,140,48,66,104,145,173,62,
+250,126,38,66,104,145,173,62,250,126,38,66,98,104,145,173,62,250,126,38,66,16,88,194,65,219,121,48,66,16,88,194,65,219,121,48,66,98,162,69,194,65,35,219,48,66,51,51,194,65,106,60,49,66,197,32,194,65,178,157,49,66,98,252,169,193,65,229,80,52,66,152,110,
+193,65,31,5,55,66,127,106,193,65,100,187,57,66,108,127,106,193,65,131,64,230,66,99,109,82,184,163,67,111,18,131,59,98,195,133,175,67,158,239,167,61,178,189,186,67,18,131,156,65,82,232,186,67,23,89,55,66,98,180,232,186,67,86,142,56,66,213,232,186,67,250,
+126,57,66,213,232,186,67,250,126,57,66,108,20,222,174,67,223,207,57,66,98,55,217,174,67,8,44,11,66,176,210,169,67,178,157,193,65,43,199,163,67,70,182,192,65,98,43,199,163,67,70,182,192,65,111,146,154,67,57,180,192,65,111,146,154,67,57,180,192,65,108,
+111,146,154,67,111,18,131,59,98,27,159,157,67,111,18,131,59,166,171,160,67,166,155,196,187,82,184,163,67,111,18,131,59,99,109,174,199,184,66,57,180,192,65,98,119,254,153,66,57,180,192,65,127,106,118,66,104,145,191,65,16,216,56,66,82,184,192,65,98,205,
+204,34,66,139,108,193,65,231,251,12,66,37,6,211,65,190,159,249,65,223,79,241,65,108,158,239,247,65,133,235,242,65,108,160,26,101,65,168,198,79,65,98,94,186,182,65,133,235,153,64,90,228,9,66,88,57,52,61,90,228,57,66,111,18,131,59,98,90,228,57,66,111,18,
+131,59,174,199,184,66,111,18,131,59,174,199,184,66,111,18,131,59,98,174,199,184,66,18,131,0,65,174,199,184,66,225,122,128,65,174,199,184,66,57,180,192,65,99,109,174,135,142,67,57,180,192,65,108,27,207,84,67,57,180,192,65,108,27,207,84,67,111,18,131,59,
+108,174,135,142,67,111,18,131,59,108,174,135,142,67,57,180,192,65,99,109,154,185,60,67,57,180,192,65,108,176,242,232,66,57,180,192,65,108,176,242,232,66,111,18,131,59,108,154,185,60,67,111,18,131,59,108,154,185,60,67,57,180,192,65,99,101,0,0 };
+
 	static const unsigned char probeIcon[] = { 110,109,176,114,160,64,164,112,173,63,108,180,200,54,64,164,112,173,63,108,180,200,54,64,0,0,0,0,108,115,104,205,64,0,0,0,0,98,109,231,215,64,0,0,0,0,215,163,224,64,143,194,117,62,113,61,226,64,123,20,14,63,108,211,77,226,64,123,20,14,63,108,211,77,226,
 64,59,223,15,63,98,152,110,226,64,98,16,24,63,43,135,226,64,18,131,32,63,43,135,226,64,195,245,40,63,108,43,135,226,64,164,112,173,63,108,211,77,226,64,164,112,173,63,108,211,77,226,64,219,249,202,64,98,205,204,172,64,18,131,22,65,141,151,110,64,31,133,
 71,65,227,165,3,64,68,139,120,65,98,246,40,252,63,51,51,123,65,66,96,5,64,225,122,126,65,156,196,16,64,82,184,126,65,98,41,92,247,64,18,131,129,65,238,124,83,65,129,149,129,65,225,122,149,65,33,176,126,65,98,250,126,154,65,59,223,125,65,84,227,157,65,
@@ -62,6 +117,12 @@ namespace ScriptnodeIcons
 	82,184,234,64,37,6,129,61,4,86,146,64,80,141,71,64,121,233,146,64,119,190,203,64,98,51,51,163,64,18,131,200,64,59,223,179,64,23,217,198,64,106,188,196,64,219,249,198,64,98,133,235,249,64,158,239,199,64,84,227,21,65,86,14,221,64,14,45,42,65,43,135,254,
 	64,98,43,135,64,65,182,243,217,64,209,34,93,65,246,40,196,64,12,2,123,65,18,131,196,64,98,236,81,128,65,106,188,196,64,160,26,131,65,35,219,197,64,254,212,133,65,217,206,199,64,99,101,0,0 };
 
+	static const unsigned char swapOrientationIcon[] = { 110,109,176,186,20,68,113,237,218,67,98,127,106,24,68,113,237,218,67,197,104,27,68,252,233,224,67,197,104,27,68,154,73,232,67,108,197,104,27,68,27,47,8,68,98,197,104,27,68,233,222,11,68,127,106,24,68,31,221,14,68,176,186,20,68,47,221,14,68,108,248,51,
+18,67,47,221,14,68,98,188,116,3,67,47,221,14,68,76,247,238,66,233,222,11,68,76,247,238,66,27,47,8,68,108,76,247,238,66,154,73,232,67,98,76,247,238,66,252,233,224,67,188,116,3,67,113,237,218,67,248,51,18,67,113,237,218,67,108,176,186,20,68,113,237,218,
+67,99,109,92,207,237,66,0,0,0,0,98,180,8,254,66,0,0,0,0,219,153,5,67,82,184,210,64,219,153,5,67,209,34,107,65,108,219,153,5,67,248,243,195,67,108,236,145,223,66,248,243,195,67,98,227,165,184,66,25,244,195,67,205,12,153,66,94,218,203,67,205,12,153,66,
+96,149,213,67,98,205,12,153,66,96,149,213,67,184,94,153,66,254,68,255,67,55,137,153,66,141,167,6,68,98,223,143,153,66,203,193,7,68,129,149,153,66,205,132,8,68,154,153,153,66,4,206,8,68,108,209,34,107,65,45,202,8,68,98,82,184,210,64,45,202,8,68,0,0,0,
+0,188,36,7,68,0,0,0,0,162,29,5,68,108,0,0,0,0,209,34,107,65,98,0,0,0,0,82,184,210,64,82,184,210,64,0,0,0,0,209,34,107,65,0,0,0,0,108,92,207,237,66,0,0,0,0,99,109,96,133,221,67,92,111,91,67,108,170,201,6,68,233,166,246,66,108,170,201,6,68,111,18,192,67,
+108,0,16,139,67,14,45,192,67,108,18,163,177,67,252,153,153,67,108,109,135,66,67,63,117,18,67,108,4,38,141,67,143,194,106,66,108,96,133,221,67,92,111,91,67,99,101,0,0 };
 
 	static const unsigned char cableIcon[] = { 110,109,174,71,121,65,139,108,156,65,98,76,55,113,65,252,169,157,65,240,167,104,65,236,81,158,65,168,198,95,65,186,73,158,65,98,131,192,48,65,221,36,158,65,229,208,10,65,158,239,138,65,160,26,11,65,23,217,102,65,98,90,100,11,65,242,210,55,65,242,210,
 	49,65,84,227,17,65,23,217,96,65,14,45,18,65,98,158,239,135,65,201,118,18,65,109,231,154,65,72,225,56,65,131,192,154,65,109,231,103,65,98,57,180,154,65,98,16,120,65,115,104,152,65,104,145,131,65,188,116,148,65,231,251,137,65,108,244,253,203,65,233,38,
@@ -122,7 +183,7 @@ namespace ScriptnodeIcons
 
 }
 
-juce::Path DspNetworkGraph::WrapperWithMenuBar::ActionButton::createPath(const String& url) const
+juce::Path DspNetworkPathFactory::createPath(const String& url) const
 {
 	Path p;
 
@@ -139,12 +200,16 @@ juce::Path DspNetworkGraph::WrapperWithMenuBar::ActionButton::createPath(const S
 	LOAD_PATH_IF_URL("properties", ScriptnodeIcons::propertyIcon);
 	LOAD_PATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
 	LOAD_PATH_IF_URL("profile", ScriptnodeIcons::profileIcon);
-
+	LOAD_PATH_IF_URL("swap-orientation", ScriptnodeIcons::swapOrientationIcon);
 	LOAD_PATH_IF_URL("copy", SampleMapIcons::copySamples);
 	LOAD_PATH_IF_URL("delete", SampleMapIcons::deleteSamples);
 	LOAD_PATH_IF_URL("duplicate", SampleMapIcons::duplicateSamples);
 	LOAD_PATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
-	LOAD_PATH_IF_URL("zoom", ScriptnodeIcons::zoom);
+	LOAD_PATH_IF_URL("zoom", ScriptnodeIcons::zoomOriginal);
+	LOAD_PATH_IF_URL("zoom-in", ScriptnodeIcons::zoomIn);
+	LOAD_PATH_IF_URL("zoom-out", ScriptnodeIcons::zoomOut);
+	LOAD_PATH_IF_URL("zoom-fit", ScriptnodeIcons::zoomFit);
+	LOAD_PATH_IF_URL("zoom-sel", ScriptnodeIcons::zoomSelection);
 	LOAD_PATH_IF_URL("error", ScriptnodeIcons::errorIcon);
 	LOAD_PATH_IF_URL("export", HnodeIcons::freezeIcon);
 	LOAD_PATH_IF_URL("wrap", HnodeIcons::mapIcon);
@@ -155,7 +220,8 @@ juce::Path DspNetworkGraph::WrapperWithMenuBar::ActionButton::createPath(const S
 
 DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 	network(n),
-	dataReference(n->getValueTree())
+	dataReference(n->getValueTree()),
+	dragOverlay(*this)
 {
 	network->addSelectionListener(this);
 	rebuildNodes();
@@ -224,10 +290,23 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		return Actions::showKeyboardPopup(*this, KeyboardPopup::Mode::New);
 	if ((key).isKeyCode('f') || key.isKeyCode('F'))
 		return Actions::foldSelection(*this);
+	if (key.getKeyCode() == KeyPress::F11Key)
+	{
+		if (key.getModifiers().isCommandDown())
+			return Actions::addBookMark(*this);
+		if(key.getModifiers().isShiftDown())
+			return Actions::zoomFit(*this);
+		else
+			return Actions::foldUnselectedNodes(*this);
+	}
 	if ((key).isKeyCode('u') || key.isKeyCode('U'))
 		return Actions::toggleFreeze(*this);
 	if ((key).isKeyCode('p') || key.isKeyCode('P'))
 		return Actions::editNodeProperty(*this);
+	if ((key).isKeyCode('+') && key.getModifiers().isCommandDown())
+		return Actions::zoomIn(*this);
+	if ((key).isKeyCode('-') && key.getModifiers().isCommandDown())
+		return Actions::zoomOut(*this);
 	if ((key).isKeyCode('q') || key.isKeyCode('Q'))
 		return Actions::toggleBypass(*this);
 	if (((key).isKeyCode('c') || key.isKeyCode('C')))
@@ -322,29 +401,11 @@ void DspNetworkGraph::resized()
 	{
 		root->setBounds(getLocalBounds().reduced(UIValues::NodeMargin));
 		root->setTopLeftPosition({ UIValues::NodeMargin, UIValues::NodeMargin });
-	}
-
-	if (auto sp = findParentComponentOfClass<ScrollableParent>())
-		sp->centerCanvas();
-}
-
-template <class T> void fillChildComponentList(Array<T*>& list, Component* c)
-{
-	for (int i = 0; i < c->getNumChildComponents(); i++)
-	{
-		auto child = c->getChildComponent(i);
-
-		if (!child->isShowing())
-			continue;
-
-		if (auto typed = dynamic_cast<T*>(child))
-		{
-			list.add(typed);
-		}
-
-		fillChildComponentList(list, child);
+		root->resized();
 	}
 }
+
+
 
 static Colour getFadeColour(int index, int numPaths)
 {
@@ -369,6 +430,25 @@ Colour getSpecialColour(Component* c, Colour defaultColour)
 
 void DspNetworkGraph::paintOverChildren(Graphics& g)
 {
+	if (dragOverlay.alpha != 0.0f);
+	{
+		g.saveState();
+		Array<ParameterSlider*> pSliders;
+
+		fillChildComponentList(pSliders, this);
+
+		for (auto& s : pSliders)
+		{
+			auto a = getLocalArea(s, s->getLocalBounds()).reduced(1);
+			g.excludeClipRegion(a);
+		}
+
+		g.fillAll(Colour(0xff1d1d1d).withAlpha(JUCE_LIVE_CONSTANT(0.4f) * hmath::pow(dragOverlay.alpha, 1.5f)));
+		g.restoreState();
+	}
+
+	jassert(!findParentComponentOfClass<ZoomableViewport>()->swapImage.isValid());
+
 	Array<DragAndDropContainer::DragImageComponentBase*> draggers;
 	fillChildComponentList(draggers, this);
 
@@ -415,6 +495,9 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 	for (auto sourceSlider : sliderList)
 	{
+		if (sourceSlider->parameterToControl == nullptr)
+			continue;
+
 		if (probeSelectionEnabled || sourceSlider->parameterToControl->isProbed)
 		{
 			auto b = getLocalArea(sourceSlider, sourceSlider->getLocalBounds()).reduced(1).toFloat();
@@ -468,8 +551,14 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 	for (auto multiSource : multiOutputList)
 	{
+		if (!multiSource->getNode()->isBodyShown())
+			continue;
+
 		for (auto s : sliderList)
 		{
+			if (!s->node->isBodyShown())
+				continue;
+
 			if (multiSource->matchesParameter(s->parameterToControl))
 			{
 				auto start = getCircle(multiSource->asComponent(), false);
@@ -703,6 +792,22 @@ void DspNetworkGraph::Actions::selectAndScrollToNode(DspNetworkGraph& g, NodeBas
 
 
 	}
+}
+
+bool DspNetworkGraph::Actions::swapOrientation(DspNetworkGraph& g)
+{
+	auto l = g.network->getSelection();
+
+	for (auto n : l)
+	{
+		if (auto sn = dynamic_cast<ChainNode*>(n.get()))
+			sn->isVertical.storeValue(!sn->isVertical.getValue(), sn->getUndoManager());
+	}
+
+	g.setTransform({});
+	g.findParentComponentOfClass<ZoomableViewport>()->centerCanvas();
+
+	return true;
 }
 
 bool DspNetworkGraph::Actions::freezeNode(NodeBase::Ptr node)
@@ -991,6 +1096,10 @@ bool DspNetworkGraph::Actions::foldSelection(DspNetworkGraph& g)
 
 bool DspNetworkGraph::Actions::foldUnselectedNodes(DspNetworkGraph& g)
 {
+	auto parent = g.findParentComponentOfClass<ZoomableViewport>();
+
+	parent->makeSwapSnapshot(JUCE_LIVE_CONSTANT(1.005));
+
 	auto l = g.network->getListOfNodesWithType<NodeBase>(false);
 
 	auto selection = g.network->getSelection();
@@ -1012,15 +1121,64 @@ bool DspNetworkGraph::Actions::foldUnselectedNodes(DspNetworkGraph& g)
 
 	for (auto n : l)
 	{
-
 		bool shouldBeVisible = false;
 
 		for (auto s : selection)
+		{
+			shouldBeVisible |= isParentNode(s, n);
 			shouldBeVisible |= isParentNode(n, s);
+		}
+			
 
 		if(g.network->getRootNode() != n)
 			n->setValueTreeProperty(PropertyIds::Folded, !shouldBeVisible);
 	}
+
+	
+
+	auto f = [&g]()
+	{
+		g.findParentComponentOfClass<ZoomableViewport>()->clearSwapSnapshot();
+
+		auto selection = g.network->getSelection();
+
+		RectangleList<int> nBounds;
+		Array<NodeComponent*> list;
+
+		fillChildComponentList(list, &g);
+
+		Array<MacroParameterSlider*> sliderList;
+
+		fillChildComponentList(sliderList, &g);
+
+		for (auto nc : list)
+		{
+			if (selection.contains(nc->node))
+			{
+				auto b = g.getLocalArea(nc, nc->getLocalBounds());
+				nBounds.addWithoutMerging(b);
+			}
+		}
+
+		for (auto sl : sliderList)
+		{
+			if (sl->editEnabled)
+			{
+				auto b = g.getLocalArea(sl, sl->getLocalBounds());
+				nBounds.addWithoutMerging(b);
+			}
+		}
+
+		auto selectionBounds = nBounds.getBounds().expanded(UIValues::NodeMargin);
+
+		g.findParentComponentOfClass<ZoomableViewport>()->zoomToRectangle(selectionBounds);
+		g.repaint();
+		g.grabKeyboardFocus();
+	};
+
+	
+
+	Timer::callAfterDelay(JUCE_LIVE_CONSTANT(300), f);
 
 	return true;
 }
@@ -1198,7 +1356,7 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 
 			auto midPoint = nc->getInsertRuler(addPosition);
 
-			auto sp = g.findParentComponentOfClass<ScrollableParent>();
+			auto sp = g.findParentComponentOfClass<ZoomableViewport>();
 
 			auto r = sp->getLocalArea(nc, midPoint.toNearestInt());
 
@@ -1313,7 +1471,7 @@ bool DspNetworkGraph::Actions::showJSONEditorForSelection(DspNetworkGraph& g)
 		}
 	}
 
-	auto p = g.findParentComponentOfClass<ScrollableParent>();
+	auto p = g.findParentComponentOfClass<ZoomableViewport>();
 	auto b = p->getLocalArea(componentToPointTo, componentToPointTo->getLocalBounds());
 
 	p->setCurrentModalWindow(editor, b);
@@ -1337,60 +1495,71 @@ bool DspNetworkGraph::Actions::redo(DspNetworkGraph& g)
 	return false;
 }
 
-DspNetworkGraph::ScrollableParent::ScrollableParent(DspNetwork* n)
-{
 
-	addAndMakeVisible(viewport);
-	viewport.setViewedComponent(new DspNetworkGraph(n), true);
-	addAndMakeVisible(dark);
-	dark.setVisible(false);
-	//context.attachTo(*this);
-	setOpaque(true);
-}
-
-DspNetworkGraph::ScrollableParent::~ScrollableParent()
+bool DspNetworkGraph::Actions::addBookMark(DspNetworkGraph& g)
 {
-	//context.detach();
-}
+	auto name = PresetHandler::getCustomName("Bookmark", "Enter the name for the bookmark");
 
-void DspNetworkGraph::ScrollableParent::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel)
-{
-	if (e.mods.isCommandDown())
+	if (name.isEmpty())
+		return true;
+
+	auto um = g.network->getUndoManager();
+	auto bms = g.network->getValueTree().getOrCreateChildWithName(PropertyIds::Bookmarks, um);
+
+	StringArray sa;
+
+	for (auto n : g.network->getSelection())
 	{
-		if (wheel.deltaY > 0)
-			zoomFactor += 0.1f;
-		else
-			zoomFactor -= 0.1f;
-
-		zoomFactor = jlimit(0.25f, 2.0f, zoomFactor);
-		auto trans = AffineTransform::scale(zoomFactor);
-		viewport.getViewedComponent()->setTransform(trans);
-		centerCanvas();
+		sa.add(n->getId());
 	}
+
+	auto bValue = sa.joinIntoString(";");
+
+	for (auto b : bms)
+	{
+		if (b[PropertyIds::ID].toString() == name)
+		{
+			b.setProperty(PropertyIds::Value, bValue, um);
+			return false;
+		}
+	}
+
+	ValueTree bm(PropertyIds::Bookmark);
+	bm.setProperty(PropertyIds::ID, name, nullptr);
+	bm.setProperty(PropertyIds::Value, bValue, nullptr);
+	bms.addChild(bm, -1, nullptr);
+
+	return true;
 }
 
-void DspNetworkGraph::ScrollableParent::resized()
+bool DspNetworkGraph::Actions::zoomIn(DspNetworkGraph& g)
 {
-	viewport.setBounds(getLocalBounds());
-	dark.setBounds(getLocalBounds());
-	centerCanvas();
+	return g.findParentComponentOfClass<ZoomableViewport>()->changeZoom(true);
 }
 
-void DspNetworkGraph::ScrollableParent::centerCanvas()
+bool DspNetworkGraph::Actions::zoomOut(DspNetworkGraph& g)
 {
-	auto contentBounds = viewport.getViewedComponent()->getLocalBounds();
-	auto sb = getLocalBounds();
+	return g.findParentComponentOfClass<ZoomableViewport>()->changeZoom(false);
+}
 
-	int x = 0;
-	int y = 0;
+bool DspNetworkGraph::Actions::zoomFit(DspNetworkGraph& g)
+{
+	g.findParentComponentOfClass<ZoomableViewport>()->makeSwapSnapshot(JUCE_LIVE_CONSTANT(0.998));
 
-	if (contentBounds.getWidth() < sb.getWidth())
-		x = (sb.getWidth() - contentBounds.getWidth()) / 2;
+	for (auto& n : g.network->getListOfNodesWithType<NodeBase>(false))
+		n->setValueTreeProperty(PropertyIds::Folded, false);
 
-	if (contentBounds.getHeight() < sb.getHeight())
-		y = (sb.getHeight() - contentBounds.getHeight()) / 2;
+	auto f = [&g]()
+	{
+		g.findParentComponentOfClass<ZoomableViewport>()->clearSwapSnapshot();
+		g.findParentComponentOfClass<ZoomableViewport>()->zoomToRectangle(g.root->getBoundsInParent());
+		g.repaint();
+		g.grabKeyboardFocus();
+	};
 
-	viewport.setTopLeftPosition(x, y);
+	Timer::callAfterDelay(JUCE_LIVE_CONSTANT(400), f);
+
+	return true;
 }
 
 juce::Identifier NetworkPanel::getProcessorTypeId() const
@@ -1459,6 +1628,8 @@ void KeyboardPopup::Help::showDoc(const String& text)
 {
 	ignoreUnused(text);
 
+	return;
+
 #if USE_BACKEND
 	if (text.isEmpty())
 	{
@@ -1484,6 +1655,8 @@ void KeyboardPopup::Help::initGenerator(const File& root, MainController* mc)
 {
 	ignoreUnused(root, mc);
 
+	return;
+
 #if USE_BACKEND
 	if (initialised)
 		return;
@@ -1500,7 +1673,7 @@ void KeyboardPopup::Help::initGenerator(const File& root, MainController* mc)
 
 void KeyboardPopup::addNodeAndClose(String path)
 {
-	auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+	auto sp = findParentComponentOfClass<ZoomableViewport>();
 
 	auto container = node.get();
 	auto ap = addPosition;
@@ -1568,6 +1741,44 @@ void KeyboardPopup::addNodeAndClose(String path)
 
 }
 
+
+juce::Rectangle<float> KeyboardPopup::getPreviewBounds()
+{
+	return viewport.getBoundsInParent().withX(getWidth() / 2).reduced(UIValues::NodeMargin).toFloat();
+}
+
+void KeyboardPopup::paint(Graphics& g)
+{
+	static const unsigned char searchIcon[] = { 110, 109, 0, 0, 144, 68, 0, 0, 48, 68, 98, 7, 31, 145, 68, 198, 170, 109, 68, 78, 223, 103, 68, 148, 132, 146, 68, 85, 107, 42, 68, 146, 2, 144, 68, 98, 54, 145, 219, 67, 43, 90, 143, 68, 66, 59, 103, 67, 117, 24, 100, 68, 78, 46, 128, 67, 210, 164, 39, 68, 98, 93, 50, 134, 67, 113, 58, 216, 67, 120, 192, 249, 67, 83, 151,
+			103, 67, 206, 99, 56, 68, 244, 59, 128, 67, 98, 72, 209, 112, 68, 66, 60, 134, 67, 254, 238, 144, 68, 83, 128, 238, 67, 0, 0, 144, 68, 0, 0, 48, 68, 99, 109, 0, 0, 208, 68, 0, 0, 0, 195, 98, 14, 229, 208, 68, 70, 27, 117, 195, 211, 63, 187, 68, 146, 218, 151, 195, 167, 38, 179, 68, 23, 8, 77, 195, 98, 36, 92, 165, 68, 187, 58,
+			191, 194, 127, 164, 151, 68, 251, 78, 102, 65, 0, 224, 137, 68, 0, 0, 248, 66, 98, 186, 89, 77, 68, 68, 20, 162, 194, 42, 153, 195, 67, 58, 106, 186, 193, 135, 70, 41, 67, 157, 224, 115, 67, 98, 13, 96, 218, 193, 104, 81, 235, 67, 243, 198, 99, 194, 8, 94, 78, 68, 70, 137, 213, 66, 112, 211, 134, 68, 98, 109, 211, 138, 67,
+			218, 42, 170, 68, 245, 147, 37, 68, 128, 215, 185, 68, 117, 185, 113, 68, 28, 189, 169, 68, 98, 116, 250, 155, 68, 237, 26, 156, 68, 181, 145, 179, 68, 76, 44, 108, 68, 16, 184, 175, 68, 102, 10, 33, 68, 98, 249, 118, 174, 68, 137, 199, 2, 68, 156, 78, 169, 68, 210, 27, 202, 67, 0, 128, 160, 68, 0, 128, 152, 67, 98, 163,
+			95, 175, 68, 72, 52, 56, 67, 78, 185, 190, 68, 124, 190, 133, 66, 147, 74, 205, 68, 52, 157, 96, 194, 98, 192, 27, 207, 68, 217, 22, 154, 194, 59, 9, 208, 68, 237, 54, 205, 194, 0, 0, 208, 68, 0, 0, 0, 195, 99, 101, 0, 0 };
+
+	Path path;
+	path.loadPathFromData(searchIcon, sizeof(searchIcon));
+	path.applyTransform(AffineTransform::rotation(float_Pi));
+	path.scaleToFit(6.0f, 6.0f, 20.0f, 20.0f, true);
+
+	g.setColour(Colours::white.withAlpha(0.8f));
+	g.fillPath(path);
+
+	auto b = getPreviewBounds().toFloat();
+
+	if (screenshot.isValid())
+	{
+		g.drawImage(screenshot, b, Justification::centred);
+	}
+	else
+	{
+		g.setColour(Colours::black.withAlpha(0.05f));
+		g.fillRoundedRectangle(b.reduced(3.0f), UIValues::NodeMargin);
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colours::white.withAlpha(0.3f));
+		g.drawText("Nothing selected", b, Justification::centred);
+	}
+}
+
 bool KeyboardPopup::keyPressed(const KeyPress& k, Component*)
 {
 	if (k == KeyPress::F1Key)
@@ -1609,6 +1820,8 @@ KeyboardPopup::PopupList::Item::Item(const Entry& entry_, bool isSelected_) :
 	selected(isSelected_),
 	deleteButton("delete", this, f)
 {
+	setRepaintsOnMouseActivity(true);
+
 	if (entry.t == ExistingNode)
 		addAndMakeVisible(deleteButton);
 
@@ -1644,11 +1857,22 @@ void KeyboardPopup::PopupList::Item::mouseUp(const MouseEvent& event)
 
 void KeyboardPopup::PopupList::Item::paint(Graphics& g)
 {
+	float alpha = 0.0f;
+
+	if (isMouseOver(true))
+		alpha += 0.02f;
+
+	if (isMouseButtonDown(true))
+		alpha += 0.05f;
+
+
 	if (selected)
+		alpha += 0.06f;
+
+	if(alpha != 0.0f)
 	{
-		g.fillAll(Colours::white.withAlpha(0.2f));
-		g.setColour(Colours::white.withAlpha(0.1f));
-		g.drawRect(getLocalBounds(), 1);
+		g.setColour(Colours::white.withAlpha(alpha));
+		g.fillRoundedRectangle(getLocalBounds().toFloat(), getHeight() / 2);
 	}
 
 	auto b = getLocalBounds().toFloat();
@@ -1660,14 +1884,11 @@ void KeyboardPopup::PopupList::Item::paint(Graphics& g)
 	b.removeFromLeft(10.0f);
 
 	g.setFont(GLOBAL_BOLD_FONT());
-	g.setColour(Colours::white.withAlpha(0.8f));
+	g.setColour(Colours::white.withAlpha(selected ? 1.0f : 0.7f));
 	g.drawText(entry.displayName, b.reduced(3.0f), Justification::centredLeft);
 
-	g.setColour(Colours::white.withAlpha(0.3f));
+	g.setColour(Colours::white.withAlpha(selected ? 0.6f : 0.3f));
 	g.fillPath(p);
-
-	g.setColour(Colours::black.withAlpha(0.1f));
-	g.drawHorizontalLine(getHeight() - 1, 0.0f, (float)getWidth());
 }
 
 void KeyboardPopup::PopupList::Item::resized()
@@ -1679,7 +1900,7 @@ void KeyboardPopup::PopupList::Item::resized()
 
 void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 {
-	auto p = dynamic_cast<DspNetworkGraph*>(canvas.viewport.getViewedComponent());
+	auto p = canvas.getContent<DspNetworkGraph>();
 
 	ActionButton* b = new ActionButton(p, name);
 
@@ -1701,6 +1922,12 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 		b->actionFunction = Actions::toggleCableDisplay;
 		b->stateFunction = [](DspNetworkGraph& g) { return g.showCables; };
 		b->setTooltip("Show / Hide cables [C]");
+	}
+	if (name == "swap-orientation")
+	{
+		b->actionFunction = Actions::swapOrientation;
+		b->enabledFunction = selectionEmpty;
+		b->setTooltip("Swap the orientation of the selected containers");
 	}
 	if (name == "profile")
 	{
@@ -1769,8 +1996,6 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 
 		b->enabledFunction = b->stateFunction;
 
-		b->startTimer(1000);
-
 		b->actionFunction = [](DspNetworkGraph& g)
 		{
 			auto& exceptionHandler = g.network->getExceptionHandler();
@@ -1792,13 +2017,8 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 	}
 	if (name == "zoom")
 	{
-		b->actionFunction = [](DspNetworkGraph& g)
-		{
-			g.setTransform({});
-			return true;
-		};
-
-		b->setTooltip("Reset Zoom");
+		b->actionFunction = Actions::zoomFit;
+		b->setTooltip("Reset Zoom (Ctrl+Backspace)");
 	}
 	if (name == "fold")
 	{
@@ -1906,6 +2126,136 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 
 	actionButtons.add(b);
 	addAndMakeVisible(b);
+}
+
+
+
+void KeyboardPopup::TagList::Tag::paint(Graphics& g)
+{
+	auto& tl = findParentComponentOfClass<TagList>()->tags;
+
+	auto i = tl.indexOf(this);
+
+	auto c = MultiOutputDragSource::getFadeColour(i, tl.size()).withAlpha(1.0f);
+
+	auto area = getLocalBounds().toFloat().reduced(2.0f);
+
+	g.setColour(c);
+
+	if (active)
+	{
+		g.fillRoundedRectangle(area, area.getHeight() / 2.0f);
+		g.setColour(Colours::black);
+	}
+	else
+	{
+		g.setColour(c.withAlpha(0.7f));
+		g.drawRoundedRectangle(area, area.getHeight() / 2.0f, JUCE_LIVE_CONSTANT(1.5f));
+	}
+
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.drawText(getName(), getLocalBounds().toFloat(), Justification::centred);
+}
+
+void KeyboardPopup::PopupList::setSelected(Item* i)
+{
+	auto kp = findParentComponentOfClass<KeyboardPopup>();
+
+	if (i != nullptr)
+	{
+		kp->currentPreview = new ImagePreviewCreator(*kp, i->entry.displayName);
+	}
+	else
+	{
+		kp->currentPreview = nullptr;
+		kp->screenshot = {};
+		kp->repaint();
+	}
+
+	for (auto item : items)
+	{
+		item->selected = item == i;
+		item->repaint();
+	}
+}
+
+KeyboardPopup::ImagePreviewCreator::ImagePreviewCreator(KeyboardPopup& kp_, const String& path_):
+	kp(kp_),
+	network(kp.network),
+	path(path_)
+{
+	if (path.contains("."))
+	{
+		DspNetwork::AnonymousNodeCloner an(*network, &holder);
+
+		createdNode = dynamic_cast<NodeBase*>(network->create(path, path.fromFirstOccurrenceOf(".", false, false)).getObject());
+		network->getExceptionHandler().removeError(createdNode);
+
+		for (int i = 0; i < createdNode->getNumParameters(); i++)
+		{
+			auto p = createdNode->getParameter(i);
+			auto nr = RangeHelpers::getDoubleRange(p->data);
+			auto v = nr.convertFrom0to1(Random::getSystemRandom().nextDouble());
+			p->setValueAndStoreAsync(v);
+		}
+	}
+	else
+	{
+		createdNode = dynamic_cast<NodeBase*>(network->get(path).getObject());
+	}
+
+	if (createdNode != nullptr)
+	{
+		createdComponent = createdNode->createComponent();
+		auto r = createdNode->getPositionInCanvas({ 0, 0 });
+		createdComponent->setBounds(r);
+
+		startTimer(60);
+	}
+}
+
+KeyboardPopup::ImagePreviewCreator::~ImagePreviewCreator()
+{
+	createdComponent = nullptr;
+	holder.nodes.clear();
+	holder.root = nullptr;
+}
+
+void KeyboardPopup::ImagePreviewCreator::timerCallback()
+{
+	auto pb = kp.getPreviewBounds();
+
+	auto h = kp.findParentComponentOfClass<ZoomableViewport>();
+	auto b = h->getLocalArea(&kp, pb.toNearestInt());
+	auto srw = (float)createdComponent->getWidth() / ((float)b.getWidth());
+	auto srh = (float)createdComponent->getHeight() / ((float)b.getHeight());
+
+	auto sr = jmax(srw, srh);
+
+	if (path.contains("."))
+	{
+		auto& tl = kp.tagList.tags;
+		auto factoryId = path.upToFirstOccurrenceOf(".", false, false);
+		Colour c = Colours::transparentBlack;
+
+		for (auto t : tl)
+		{
+			if (t->getName() == factoryId)
+			{
+				auto i = tl.indexOf(t);
+				c = MultiOutputDragSource::getFadeColour(i, tl.size()).withAlpha(1.0f);
+				c = c.withMultipliedBrightness(0.6f);
+				break;
+			}
+		}
+
+		dynamic_cast<NodeComponent*>(createdComponent.get())->header.colour = c;
+	}
+
+	kp.screenshot = createdComponent->createComponentSnapshot(createdComponent->getLocalBounds(), true, 1.0f / sr);
+	kp.repaint();
+
+	stopTimer();
 }
 
 }
