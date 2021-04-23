@@ -49,7 +49,7 @@ using namespace juce;
 struct audio_spin_mutex 
 {
 	void lock() noexcept {
-		constexpr std::array iterations = { 5, 10, 3000 };
+		constexpr std::array<int, 3> iterations = { 5, 10, 3000 };
 
 		for (int i = 0; i < iterations[0]; ++i) {
 			if (try_lock())
@@ -446,10 +446,21 @@ public:
 
 	void timerCallback() override
 	{
-		for (auto st : simpleTimers)
 		{
-			if (st != nullptr)
-				st->timerCallback();
+			ScopedLock sl(simpleTimers.getLock());
+
+			int x = 0;
+
+			for (int i = 0; i < simpleTimers.size(); i++)
+			{
+				auto st = simpleTimers[i];
+
+				x++;
+				if (st.get() != nullptr)
+					st->timerCallback();
+				else
+					jassertfalse;
+			}
 		}
 
 		WeakReference<Broadcaster> b;
@@ -471,7 +482,7 @@ public:
 
 private:
 
-	Array<WeakReference<SimpleTimer>> simpleTimers;
+	Array<WeakReference<SimpleTimer>, CriticalSection> simpleTimers;
 	LockfreeQueue<WeakReference<Broadcaster>> pendingHandlers;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(PooledUIUpdater);
@@ -1120,10 +1131,7 @@ struct SimpleReadWriteLock
 		
 		operator bool() const 
 		{
-			if (holdsLock)
-				return true;
-
-			return lock.writer == std::this_thread::get_id();
+			return ok();
 		};
 
 		void unlock()
@@ -1133,6 +1141,16 @@ struct SimpleReadWriteLock
 				lock.mutex.unlock_shared();
 				holdsLock = false;
 			}
+		}
+
+	protected:
+
+		bool ok() const
+		{
+			if (holdsLock)
+				return true;
+
+			return lock.writer == std::this_thread::get_id();
 		}
 
 	private:
@@ -1308,8 +1326,6 @@ struct ComplexDataUIBase : public ReferenceCountedObject
 	{
 		internalUpdater.setUpdater(updater);
 	}
-
-	
 
 	void sendDisplayIndexMessage(float n)
 	{
