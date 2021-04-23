@@ -3226,4 +3226,60 @@ juce::String RealPaintProfiler::Manager::Entry::toString(double totalDuration) c
 	
 }
 
+UnblurryGraphics::UnblurryGraphics(Graphics& g_, Component& componentToDrawOn, bool correctTopLevelOnly/*=false*/) :
+	g(g_),
+	c(componentToDrawOn),
+	tl(c.getTopLevelComponent())
+{
+	if (correctTopLevelOnly)
+	{
+		juceScaleFactor = UnblurryGraphics::getScaleFactorForComponent(&c, false);
+		sf = g.getInternalContext().getPhysicalPixelScaleFactor();
+		physicalScaleFactor = sf / juceScaleFactor;
+
+		// Now for some reason a small rounding error is introduced, so we make
+		// sure that the physical scale factor is a multiple of 0.25.
+		// (I am not aware of OS that use a smaller resolution for their scale factor
+		// steps).
+		physicalScaleFactor -= fmod(physicalScaleFactor, 0.25f);
+		sf = juceScaleFactor * physicalScaleFactor;
+
+		pixelSizeInFloat = 1.0f / sf;
+
+		
+
+		if (pixelSizeInFloat == 0.0f)
+			pixelSizeInFloat = 1.0f;
+
+		// For the position calculation we just need the physical scale factor
+		subOffsetDivisor = 1.0f / physicalScaleFactor;
+	}
+	else
+	{
+		juceScaleFactor = UnblurryGraphics::getScaleFactorForComponent(&c, correctTopLevelOnly);
+		sf = g.getInternalContext().getPhysicalPixelScaleFactor();
+		physicalScaleFactor = sf / juceScaleFactor;
+
+		// Now for some reason a small rounding error is introduced, so we make
+		// sure that the physical scale factor is a multiple of 0.25.
+		// (I am not aware of OS that use a smaller resolution for their scale factor
+		// steps).
+		physicalScaleFactor -= fmod(physicalScaleFactor, 0.25f);
+		sf = juceScaleFactor * physicalScaleFactor;
+
+		pixelSizeInFloat = 1.0f / sf;
+
+		// On retina images, this will make sure that it draws actually px wide thingies.
+		pixelSizeInFloat *= std::floor(sf);
+
+		if (pixelSizeInFloat == 0.0f)
+			pixelSizeInFloat = 1.0f;
+
+		// For the position calculation we just need the physical scale factor
+		subOffsetDivisor = 1.0f / physicalScaleFactor;
+	}
+
+	
+}
+
 } // namespace juce
