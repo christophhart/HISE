@@ -498,6 +498,22 @@ struct base
 	};
 
 	/** Use this in order to lock the access to the external data. */
+	struct DataTryReadLock : hise::SimpleReadWriteLock::ScopedTryReadLock
+	{
+		DataTryReadLock(base* d) :
+			SimpleReadWriteLock::ScopedTryReadLock(d->externalData.obj != nullptr ? d->externalData.obj->getDataLock() : dummy)
+		{}
+
+		operator bool() const { return this->ok(); }
+
+		DataTryReadLock(snex::ExternalData& d) :
+			SimpleReadWriteLock::ScopedTryReadLock(d.obj != nullptr ? d.obj->getDataLock() : dummy)
+		{}
+
+		SimpleReadWriteLock dummy;
+	};
+
+	/** Use this in order to lock the access to the external data. */
 	struct DataWriteLock : hise::SimpleReadWriteLock::ScopedWriteLock
 	{
 		DataWriteLock(base* d) :
@@ -535,9 +551,6 @@ template <bool EnableBuffer> struct display_buffer_base : public base
 		if constexpr (EnableBuffer)
 		{
 			rb = dynamic_cast<SimpleRingBuffer*>(d.obj);
-
-			if (rb != nullptr)
-				rb->setRingBufferSize(requiredNumChannels, requiredNumSamples, false);
 		}
 	}
 
@@ -553,23 +566,7 @@ template <bool EnableBuffer> struct display_buffer_base : public base
 	}
 
 	SimpleRingBuffer* rb = nullptr;
-	int requiredNumChannels = 1;
-	int requiredNumSamples = SimpleRingBuffer::RingBufferSize;
 
-	void setRequiredBufferSize(int numChannels, int numSamples)
-	{
-		if (requiredNumChannels != numChannels ||
-			requiredNumSamples != numSamples)
-		{
-			requiredNumChannels = numChannels;
-			requiredNumSamples = numSamples;
-
-			if (rb != nullptr)
-			{
-				rb->setRingBufferSize(numChannels, numSamples);
-			}
-		}
-	}
 };
 
 

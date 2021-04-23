@@ -150,9 +150,9 @@ template <int UpperLimit> struct wrapped_logic
 				return (input >= 0) ? input % UpperLimit : (UpperLimit - abs(input) % UpperLimit) % UpperLimit;
 #else
 			if constexpr (hasDynamicBounds())
-				return (input + 9000 * limit) % limit;
+				return (input + limit) % limit;
 			else
-				return (input + 9000 * UpperLimit) % UpperLimit;
+				return (input + UpperLimit) % UpperLimit;
 #endif
 		}
 	}
@@ -1015,8 +1015,6 @@ template <class T, int Size> struct span
 		}
 	}
 
-	
-
 	/** Morphs any pointer of the data type into this type. */
 	constexpr static Type& as(T* ptr)
 	{
@@ -1227,6 +1225,80 @@ template <class T> struct dyn
 			s = DataType();
 	}
 
+
+	template<typename IndexType> typename std::enable_if<index::Helpers::canReturnReference<IndexType>(), const T&>::type
+		operator[](const IndexType& t) const
+	{
+		if constexpr (std::is_integral<IndexType>())
+		{
+			jassert(isPositiveAndBelow((int)t, size()));
+			return data[t];
+		}
+		else
+		{
+			return t.getFrom(*this);
+		}
+	}
+
+	template<typename IndexType> typename std::enable_if<!index::Helpers::canReturnReference<IndexType>(), T>::type
+		operator[](const IndexType& t) const
+	{
+		return t.getFrom(*this);
+	}
+
+	template<typename IndexType> typename std::enable_if<!index::Helpers::canReturnReference<IndexType>(), T>::type
+		operator[](const IndexType& t)
+	{
+		return t.getFrom(*this);
+	}
+
+	template<typename IndexType> typename std::enable_if<index::Helpers::canReturnReference<IndexType>(), T&>::type
+		operator[](const IndexType& t)
+	{
+		if constexpr (std::is_integral<IndexType>())
+		{
+			jassert(isPositiveAndBelow((int)t, size()));
+			return data[t];
+		}
+		else
+		{
+			return *const_cast<T*>(&t.getFrom(*this));
+		}
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if 0
 	template <class InterpolatorType> DataType interpolate(const InterpolatorType& i) const
 	{
 		if (isEmpty())
@@ -1263,6 +1335,7 @@ template <class T> struct dyn
 			return *const_cast<T*>(&t.getFrom(*this));
 		}
 	}
+#endif
 
 	template <class Other> bool valid(Other& t)
 	{

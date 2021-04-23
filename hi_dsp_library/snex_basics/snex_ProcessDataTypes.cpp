@@ -110,10 +110,7 @@ template <int C> struct ProcessDataHelpers
 
 		jassert(t.size() >= numToCopy);
 	}
-
-	
 };
-
 
 }
 }

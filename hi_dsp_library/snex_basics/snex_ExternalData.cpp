@@ -208,8 +208,12 @@ void ExternalData::referBlockTo(block& b, int channelIndex) const
 {
 	if (dataType == DataType::AudioFile || dataType == DataType::DisplayBuffer)
 	{
-		if (isPositiveAndBelow(channelIndex, numChannels))
+		channelIndex = jmin(channelIndex, numChannels-1);
+
+		if (numSamples > 0)
+		{
 			b.referToRawData(((float**)data)[channelIndex], numSamples);
+		}
 		else
 			b.referToNothing();
 	}

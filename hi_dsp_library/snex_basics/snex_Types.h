@@ -6,6 +6,32 @@ using namespace juce;
 using FloatType = float;
 
 
+struct options
+{
+	static constexpr int no = 0;
+	static constexpr int yes = 1;
+	static constexpr int dynamic = 2;
+
+	static constexpr bool isTrue(bool value, int optionValue)
+	{
+		if (optionValue == dynamic)
+			return value;
+
+		return static_cast<bool>(optionValue);
+	}
+
+	static constexpr bool isTrueOrDynamic(int optionValue)
+	{
+		return optionValue == yes || optionValue == dynamic;
+	}
+
+	static constexpr bool isDynamic(int optionValue)
+	{
+		return optionValue == dynamic;
+	}
+};
+
+
 struct CallbackTypes
 {
 	static constexpr int Channel = 0;
@@ -27,6 +53,9 @@ enum ID
 	Block =			0b10000000,
 	Dynamic =		0b11111111
 };
+
+
+
 
 template <typename T> ID getTypeFromTypeId()
 {
@@ -367,6 +396,11 @@ struct PrepareSpecs
 		return copy;
 	}
 
+	operator bool() const
+	{
+		return numChannels > 0 && sampleRate > 0.0 && blockSize > 0;
+	}
+
 	PrepareSpecs withNumChannels(int newNumChannels) const
 	{
 		PrepareSpecs copy(*this);
@@ -414,7 +448,8 @@ template <typename T, int NumVoices> struct PolyData
 
 	PolyData()
 	{
-		
+		if(std::is_arithmetic<T>::value)
+			memset(data, 0, sizeof(T) * NumVoices);
 	}
 
 	/** Call this method with a PrepareSpecs objet and it will setup the handling of

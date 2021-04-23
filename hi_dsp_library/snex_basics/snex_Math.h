@@ -64,6 +64,8 @@ namespace snex {
             FloatVectorOperations::max(b1.begin(), b1.begin(), s, b1.size());
             return b1;
         }
+
+		
         
         static forcedinline block& max(block& b1, const block& b2)
         {
@@ -209,6 +211,13 @@ return b1; \
 	static forcedinline float floor(float a) { return std_::floorf(a); }
 	static forcedinline float db2gain(float a) { return Decibels::decibelsToGain(a); }
 	static forcedinline float gain2db(float a) { return Decibels::gainToDecibels(a); }
+
+	static forcedinline float peakStatic(void* b) { return peak(*static_cast<block*>(b)); }
+	static forcedinline float peak(const block& b) 
+	{ 
+		auto r = FloatVectorOperations::findMinAndMax(b.begin(), b.size());
+		return max(abs(r.getStart()), abs(r.getEnd()));
+	}
 
 	struct wrapped
 	{

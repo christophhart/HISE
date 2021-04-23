@@ -510,7 +510,7 @@ struct FrameConverters
     
 	template <int NumChannels, typename DspClass, typename ProcessDataType> static void processFix(DspClass* ptr, ProcessDataType& data)
 	{
-		jassert(data.getNumEvents() == 0);
+		//jassert(data.getNumEvents() == 0);
 
 		auto& obj = *static_cast<DspClass*>(ptr);
         auto& fixData = data.template as<snex::Types::ProcessData<NumChannels>>();
