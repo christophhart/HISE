@@ -35,7 +35,7 @@
 
 namespace hise { using namespace juce;
 
-#define CONVOLUTION_RAMPING_TIME_MS 30
+#define CONVOLUTION_RAMPING_TIME_MS 60
 
 
 #define USE_FFT_CONVOLVER 1
@@ -230,9 +230,11 @@ private:
 class ConvolutionEffect: public MasterEffectProcessor,
 						 public AudioSampleProcessor,
 						 public NonRealtimeProcessor,
-						 public MultiChannelAudioBuffer::Listener
+						 public MultiChannelAudioBuffer::Listener,
+						 public AsyncUpdater
 {
 
+#if 0
 	class LoadingThread : public Thread
 	{
 	public:
@@ -240,16 +242,12 @@ class ConvolutionEffect: public MasterEffectProcessor,
 		LoadingThread(ConvolutionEffect& parent_) :
 			Thread("Convolution Impulse Calculation"),
 			parent(parent_)
-		{
-			
-		}
+		{}
 
 		~LoadingThread()
 		{
 			stopThread(1000);
 		}
-
-		
 
 		void run() override;
 
@@ -264,49 +262,23 @@ class ConvolutionEffect: public MasterEffectProcessor,
 			return;
 
 			if (!isThreadRunning())
-			{
 				startThread(5);
-			}
 
 			if (pending)
 				shouldRestart = true;
 			else
 				pending = true;
-
-			//startTimer(30);
 		};
-
 		
 	private:
 
-		bool pending = false;
-
 		bool reloadInternal();
 
-#if 0
-		void timerCallback() override
-		{
-			if (parent.rampFlag)
-				return;
-
-			if (isReloading)
-			{
-				shouldRestart = true;
-			}
-
-			shouldReload = true;
-
-			ScopedLock sl(parent.getImpulseLock());
-
-			parent.convolverL->reset();
-			parent.convolverR->reset();
-		}
-#endif
-
-		bool shouldRestart = false;
-		bool shouldReload = false;
-
+		std::atomic<bool> pending = { false };
+		std::atomic<bool> shouldRestart = { false };
+		std::atomic<bool> shouldReload = { false };
 	};
+#endif
 
 public:
 
@@ -337,15 +309,15 @@ public:
 
 	void bufferWasLoaded() override
 	{
-		setImpulse();
+		setImpulse(false);
 	}
 
 	void bufferWasModified() override
 	{
-		setImpulse();
+		setImpulse(false);
 	}
 
-	void setImpulse();
+	void setImpulse(bool sync);
 
 	// ============================================================================================= MasterEffect methods
 
@@ -360,13 +332,7 @@ public:
 	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override;;
 	bool hasTail() const override {return true; };
 
-	void voicesKilled() override
-	{
-		convolverL->cleanPipeline();
-		convolverR->cleanPipeline();
-		leftPredelay.clear();
-		rightPredelay.clear();
-	}
+	void voicesKilled() override;
 
 	int getNumChildProcessors() const override { return 0; };
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
@@ -378,26 +344,28 @@ public:
 	{
 		nonRealtime = isNonRealtime;
 
+		SimpleReadWriteLock::ScopedReadLock sl(swapLock);
 		convolverL->setUseBackgroundThread(!nonRealtime && useBackgroundThread);
 		convolverR->setUseBackgroundThread(!nonRealtime && useBackgroundThread);
 	}
-
-	
 	
 private:
 
+	void handleAsyncUpdate()
+	{
+		reloadInternal();
+	}
+
+	SimpleReadWriteLock swapLock;
+
+	bool reloadInternal();
 	bool useBackgroundThread = false;
 	bool nonRealtime = false;
-
 	bool processingEnabled = true;
 
 	audiofft::ImplementationType currentType = audiofft::ImplementationType::numImplementationTypes;
 
 	MultithreadedConvolver* createNewEngine(audiofft::ImplementationType fftType);
-
-	SpinLock swapLock;
-
-	LoadingThread loadingThread;
 
 	double getResampleFactor() const
 	{
@@ -406,8 +374,6 @@ private:
 
 		return MultithreadedConvolver::getResampleFactor(renderingSampleRate, bufferSampleRate);
 	}
-
-	CriticalSection unusedFileLock;
 
 	GainSmoother smoothedGainerWet;
 	GainSmoother smoothedGainerDry;
