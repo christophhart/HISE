@@ -42,87 +42,291 @@ using namespace hise;
 namespace core
 {
 
-struct file_player : public data::base
+template <int NV> struct file_player : public data::base
 {
-	using IndexType = index::normalised<float, index::wrapped<0, true>>;
-	using InterpolatorType = index::lerp<IndexType>;
+	static constexpr int NumVoices = NV;
 
 	SET_HISE_NODE_ID("file_player");
 	SN_GET_SELF_AS_OBJECT(file_player);
 
-	static constexpr bool isPolyphonic() { return false; }
-	static constexpr bool isNormalisedModulation() { return false; }
+	enum class PlaybackModes
+	{
+		Static,
+		SignalInput,
+		MidiFreq
+	};
 
-	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_CREATE_PARAM;
-	HISE_EMPTY_INITIALISE;
-	
-	file_player();;
+	enum class Parameters
+	{
+		PlaybackMode,
+		Gate,
+		RootFrequency,
+		FreqRatio
+	};
 
-	bool handleModulation(double& v) 
-	{ 
-		return lastLength.getChangedValue(v);
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(PlaybackMode, file_player);
+		DEF_PARAMETER(Gate, file_player);
+		DEF_PARAMETER(RootFrequency, file_player);
+		DEF_PARAMETER(FreqRatio, file_player);
 	}
 
-	void prepare(PrepareSpecs specs);
-	void reset();
+	static constexpr bool isPolyphonic() { return NumVoices > 1; }
+
+	HISE_EMPTY_INITIALISE;
+	HISE_EMPTY_MOD;
+
+	file_player() = default;
+
+	void prepare(PrepareSpecs specs)
+	{
+		lastSpecs = specs;
+
+		auto fileSampleRate = this->externalData.sampleRate;
+
+		if (lastSpecs.sampleRate > 0.0)
+			globalRatio = fileSampleRate / lastSpecs.sampleRate;
+
+		state.prepare(specs);
+
+		reset();
+	}
+
+	void reset()
+	{
+		
+	}
 
 	void setExternalData(const snex::ExternalData& d, int index) override
 	{
-		DataWriteLock l(this);
-
 		base::setExternalData(d, index);
 
 		d.referBlockTo(currentData[0], 0);
 		d.referBlockTo(currentData[1], 1);
 
-		if (lastSpecs.sampleRate > 0.0)
-			lastLength.setModValueIfChanged((double)d.numSamples / lastSpecs.sampleRate * 1000.0);
+		if(lastSpecs)
+			prepare(lastSpecs);
 
-		prepare(lastSpecs);
-		reset();
+		for (OscData& s : state)
+		{
+			s.uptime = 0.0;
+			s.uptimeDelta = 0.0;
+		}
 	}
 
-	span<dyn<float>, 2> currentData;
+	span<block, 2> currentData;
+
+	
+
+	template <int C> void processFix(ProcessData<C>& data)
+	{
+		if (auto dt = DataTryReadLock(this))
+		{
+			if (!externalData.isEmpty())
+			{
+				auto fd = data.toFrameData();
+
+				if (mode == PlaybackModes::SignalInput)
+				{
+					auto pos = jlimit(0.0, 1.0, (double)data[0][0]);
+					externalData.setDisplayedValue(pos * (double)externalData.numSamples);
+
+					while (fd.next())
+						processWithSignalInput(fd.toSpan());
+				}
+				else
+				{
+					externalData.setDisplayedValue(hmath::fmod(state.get().uptime * globalRatio, (double)externalData.numSamples));
+
+					while (fd.next())
+						processWithPitchRatio(fd.toSpan());
+				}
+			}
+			else if (mode == PlaybackModes::SignalInput)
+			{
+				for (auto& ch : data)
+				{
+					auto b = data.toChannelData(ch);
+						FloatVectorOperations::clear(b.begin(), b.size());
+				}
+			};
+		}
+	}
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		DataReadLock l(this);
-
-		if (!externalData.isEmpty())
+		if constexpr (!ProcessDataType::hasCompileTimeSize())
 		{
-			auto pos = data[0][0];
+			if (data.getNumChannels() == 2)
+				processFix(data.as<ProcessData<2>>());
+			if (data.getNumChannels() == 1)
+				processFix(data.as<ProcessData<1>>());
+		}
+		else
+		{
+			processFix(data);
+		}
+	}
 
-			if ((data.getNumChannels() == 1 && externalData.numChannels > 0) ||
-				externalData.numChannels == 1)
-			{
-				FrameConverters::forwardToFrameMono(this, data);
-			}
+	template <int C> void processWithSignalInput(span<float, C>& data)
+	{
+		using IndexType = index::normalised<float, index::clamped<0, true>>;
+		using InterpolatorType = index::lerp<IndexType>;
 
-			IndexType p(data[0][0]);
+		auto s = data[0];
 
-			externalData.setDisplayedValue(p.getIndex(externalData.numSamples));
+		InterpolatorType ip(s);
 
-			if (data.getNumChannels() >= 2 && externalData.numChannels >= 2)
-			{
-				FrameConverters::forwardToFrameStereo(this, data);
-			}
+		for (int i = 0; i < data.size(); i++)
+			data[i] = currentData[i][ip];
+	}
+
+	template <int C> void processWithPitchRatio(span<float, C>& data)
+	{
+		using IndexType = index::unscaled<double, index::wrapped<0, false>>;
+		using InterpolatorType = index::lerp<IndexType>;
+
+		OscData& s = state.get();
+
+		if (s.uptimeDelta != 0)
+		{
+			auto uptime = s.tick();
+
+			InterpolatorType ip(uptime * globalRatio);
+
+			for (int i = 0; i < data.size(); i++)
+				data[i] += currentData[i][ip];
 		}
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		DataReadLock l(this);
+		if (auto dt = DataTryReadLock(this))
+		{
+			switch (mode)
+			{
+			case PlaybackModes::SignalInput:
+			{
+				if (this->externalData.numSamples == 0)
+					data = 0.0f;
+				else
+				{
+					if (frameUpdateCounter++ >= 1024)
+					{
+						frameUpdateCounter = 0;
+						auto pos = jlimit(0.0, 1.0, (double)data[0]);
+						externalData.setDisplayedValue(pos * (double)(externalData.numSamples));
+					}
 
-		InterpolatorType ip(data[0]);
+					processWithSignalInput(data);
+				}
 
-		for (int i = 0; i < data.size(); i++)
-			data[i] = currentData[i].interpolate(ip);
+				break;
+			}
+			case PlaybackModes::Static:
+			case PlaybackModes::MidiFreq:
+			{
+				if (frameUpdateCounter++ >= 1024)
+				{
+					frameUpdateCounter = 0;
+					externalData.setDisplayedValue(hmath::fmod(state.get().uptime * globalRatio, (double)externalData.numSamples));
+				}
+
+				processWithPitchRatio(data);
+				break;
+			}
+			}
+		}
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (mode != PlaybackModes::SignalInput)
+		{
+			auto& s = state.get();
+
+			if (e.isNoteOn())
+			{
+				if (mode == PlaybackModes::MidiFreq)
+					s.uptimeDelta = e.getFrequency() / rootFreq;
+				s.uptime = 0.0;
+			}
+		}
+	}
+
+	void setPlaybackMode(double v)
+	{
+		mode = (PlaybackModes)(int)v;
+		reset();
+	}
+
+	void setRootFrequency(double rv)
+	{
+		rootFreq = jlimit(20.0, 8000.0, rv);
+	}
+
+	void setFreqRatio(double fr)
+	{
+		for (OscData& s : state)
+			s.multiplier = fr;
+	}
+
+	void setGate(double v)
+	{
+		bool on = v > 0.5;
+
+		if (on)
+		{
+			for (OscData& s : state)
+			{
+				s.uptimeDelta = 1.0;
+				s.uptime = 0.0;
+			}
+		}
+		else
+		{
+			for (OscData& s : state)
+				s.uptimeDelta = 0.0;
+		}
+	}
+
+	void createParameters(ParameterDataList& d)
+	{
+		{
+			DEFINE_PARAMETERDATA(file_player, PlaybackMode);
+			p.setParameterValueNames({ "Static", "Signal in", "MIDI" });
+			d.add(p);
+		}
+		{
+			DEFINE_PARAMETERDATA(file_player, Gate);
+			p.setRange({ 0.0, 1.0, 1.0 });
+			p.setDefaultValue(1.0f);
+			d.add(p);
+		}
+		{
+			DEFINE_PARAMETERDATA(file_player, RootFrequency);
+			p.setRange({ 20.0, 2000.0 });
+			p.setDefaultValue(440.0);
+			d.add(p);
+		}
+		{
+			DEFINE_PARAMETERDATA(file_player, FreqRatio);
+			p.setRange({ 0.0, 2.0, 0.01 });
+			p.setDefaultValue(1.0f);
+			d.add(p);
+		}
 	}
 
 private:
 
-	ModValue lastLength;
+	double globalRatio = 1.0;
+	double rootFreq = 440.0;
+
+	int frameUpdateCounter = 0;
+	PlaybackModes mode;
+
+	PolyData<OscData, NumVoices> state;
 	PrepareSpecs lastSpecs;
 };
 

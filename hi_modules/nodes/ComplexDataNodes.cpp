@@ -39,21 +39,9 @@ using namespace hise;
 
 
 
-core::file_player::file_player()
-{
 
-}
 
-void core::file_player::prepare(PrepareSpecs specs)
-{
-	lastSpecs = specs;
 
-}
-
-void core::file_player::reset()
-{
-	
-}
 
 }
 
