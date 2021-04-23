@@ -385,13 +385,10 @@ void OpaqueNodeDataHolder::Editor::resized()
 		e->setBounds(b.removeFromTop(e->getHeight()));
 }
 
-static bool randomiser = false;
-
 struct WrapperSlot : public ScriptnodeExtraComponent<InterpretedUnisonoWrapperNode>,
-					 public NodeDropTarget
+					 public NodeDropTarget,
+					 public Value::Listener
 {
-	bool isChain;
-
 	WrapperSlot(InterpretedUnisonoWrapperNode* obj, PooledUIUpdater * updater) :
 		ScriptnodeExtraComponent<InterpretedUnisonoWrapperNode>(obj, updater)
 	{
@@ -399,16 +396,32 @@ struct WrapperSlot : public ScriptnodeExtraComponent<InterpretedUnisonoWrapperNo
 
 		duplicateListener.setCallback(getObject()->getParameter(0)->data, {PropertyIds::Value}, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(WrapperSlot::updateVoiceAmount));
 
+		duplicateValue.referTo(getObject()->getNodePropertyAsValue(PropertyIds::SplitSignal));
+		duplicateValue.addListener(this);
+
+		isChain = !(bool)duplicateValue.getValue();
+
 		initialised = true;
-
-		isChain = randomiser;
-
-		randomiser = !randomiser;
 
 		refreshNode();
 
 		setRepaintsOnMouseActivity(true);
 	};
+
+	Value duplicateValue;
+
+	~WrapperSlot()
+	{
+		if (getObject() != nullptr)
+			getObject()->getNodePropertyAsValue(PropertyIds::SplitSignal).removeListener(this);
+	}
+
+	void valueChanged(Value& v)
+	{
+		isChain = !(bool)v.getValue();
+		
+		updateVoiceAmount({}, {});
+	}
 
 	void refreshNode()
 	{
@@ -489,7 +502,7 @@ struct WrapperSlot : public ScriptnodeExtraComponent<InterpretedUnisonoWrapperNo
 			KeyboardPopup* newPopup = new KeyboardPopup(getObject(), 0);
 
 			auto midPoint = getLocalBounds().getCentre();
-			auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+			auto sp = findParentComponentOfClass<ZoomableViewport>();
 			auto r = sp->getLocalArea(this, getLocalBounds());
 
 			sp->setCurrentModalWindow(newPopup, r);
@@ -542,7 +555,7 @@ struct WrapperSlot : public ScriptnodeExtraComponent<InterpretedUnisonoWrapperNo
 	{
 		if (nc != nullptr)
 		{
-			numVoices = getObject()->getUnisonoObject().numDuplicates;
+			numVoices = getObject()->getUnisonoObject()->getNumVoices();
 			auto b = ncBounds;
 
 			auto w = (float)(b.getWidth() + 2 * UIValues::NodeMargin);
@@ -708,12 +721,14 @@ struct WrapperSlot : public ScriptnodeExtraComponent<InterpretedUnisonoWrapperNo
 
 	valuetree::ChildListener wrappedNodeListener;
 	valuetree::PropertyListener duplicateListener;
-
+	
 	Image snapshot1;
 
 	ScopedPointer<NodeComponent> nc;
 
 	Rectangle<int> ncBounds;
+
+	bool isChain = false;
 
 	bool initialised = false;
 	int numVoices = 1;
@@ -722,12 +737,20 @@ struct WrapperSlot : public ScriptnodeExtraComponent<InterpretedUnisonoWrapperNo
 
 InterpretedUnisonoWrapperNode::InterpretedUnisonoWrapperNode(DspNetwork* n, ValueTree d) :
 	WrapperNode(n, d),
-	InterpretedNodeBase<Base>()
+	InterpretedNodeBase<Base>(),
+	duplicateProperty(PropertyIds::SplitSignal, false)
 {
+	obj.initialise(this);
+
+	duplicateProperty.initialise(this);
+	duplicateProperty.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(InterpretedUnisonoWrapperNode::updateDuplicateMode), true);
+
+	auto nodeTree = getValueTree().getOrCreateChildWithName(PropertyIds::Nodes, getUndoManager());
+	nodeListener.setCallback(nodeTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(InterpretedUnisonoWrapperNode::updateChildNode));
 
 	for (auto p : createInternalParameterList())
 	{
-		auto n = p.info.toString();
+		auto n = p.info.getId();
 
 		auto pTree = getParameterTree().getChildWithProperty(PropertyIds::ID, n);
 
@@ -742,18 +765,13 @@ InterpretedUnisonoWrapperNode::InterpretedUnisonoWrapperNode(DspNetwork* n, Valu
 		addParameter(np);
 		np->getReferenceToCallback().setParameter(new parameter::dynamic_base(p.callback));
 	}
-
-	obj.initialise(this);
-
-	auto nodeTree = getValueTree().getOrCreateChildWithName(PropertyIds::Nodes, getUndoManager());
-	nodeListener.setCallback(nodeTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(InterpretedUnisonoWrapperNode::updateChildNode));
 }
 
 ReferenceCountedArray<Parameter> InterpretedUnisonoWrapperNode::getParameterList(const ValueTree& pTree)
 {
 	ReferenceCountedArray<Parameter> list;
 
-	SimpleReadWriteLock::ScopedReadLock sl(obj.voiceMultiplyLock);
+	SimpleReadWriteLock::ScopedReadLock sl(obj.getVoiceLock());
 
 	for (auto& o : obj)
 	{
@@ -835,15 +853,23 @@ void InterpretedUnisonoWrapperNode::updateChildNode(ValueTree v, bool wasAdded)
 	}
 }
 
+void InterpretedUnisonoWrapperNode::updateDuplicateMode(Identifier, var value)
+{
+	auto shouldBeEnabled = (bool)value;
+	obj.setDuplicateSignal(shouldBeEnabled);
+}
+
 scriptnode::ParameterDataList InterpretedUnisonoWrapperNode::createInternalParameterList()
 {
 	ParameterDataList l;
 
-	parameter::data p("NumVoices", { 1.0, 16.0, 1.0, 1.0 });
-	p.setDefaultValue(1.0);
-	p.callback.referTo(&obj, Base::setParameterStatic<0>);
-
-	l.add(p);
+	{
+		parameter::data p("NumVoices", { 1.0, 16.0, 1.0, 1.0 });
+		p.setDefaultValue(1.0);
+		p.callback.referTo(&obj, Base::setWrapParameterStatic<0>);
+		l.add(p);
+	}
+	
 	return l;
 }
 

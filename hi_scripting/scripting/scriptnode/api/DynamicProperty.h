@@ -37,9 +37,10 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+using DupliListener = wrap::duplicate_sender::Listener;
+
 namespace parameter
 {
-
 
 struct dynamic_base
 {
@@ -49,10 +50,17 @@ struct dynamic_base
 
 	dynamic_base();
 
+	virtual ~dynamic_base() {};
+
 	virtual void call(double value)
 	{
 		lastValue = value;
 		f(obj, value);
+	}
+
+	virtual void callWithDuplicateIndex(int index, double value) 
+	{
+
 	}
 
 	virtual void updateUI()
@@ -66,7 +74,11 @@ struct dynamic_base
 
 	}
 
+	virtual int getNumDuplicates() const { return 1; }
+
 	void setDataTree(ValueTree d) { dataTree = d; }
+
+	static dynamic_base* createFromConnectionTree(const ValueTree& v, parameter::dynamic& callback, bool allowRange=true);
 
 	parameter::dynamic::Function f;
 	void* obj;
@@ -78,6 +90,8 @@ struct dynamic_base
 		return lastValue; 
 	}
 
+	virtual void setParentNumVoiceListener(DupliListener* ) {}
+
 protected:
 
 	double lastValue = 0.0;
@@ -88,20 +102,47 @@ private:
 };
 
 
+
+
 struct dynamic_base_holder
 {
 	PARAMETER_SPECS(ParameterType::Single, 1);
 
 	void call(double v)
 	{
+		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
 		lastValue = v;
 
 		if (base != nullptr)
 			base->call(v);
 	}
 
+	void call(int index, double v)
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
+		lastValue = v;
+
+		if (base != nullptr)
+			base->callWithDuplicateIndex(index, v);
+	}
+
+	int getNumVoices() const
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
+		if (base != nullptr)
+			return base->getNumDuplicates();
+
+		return 1;
+	}
+
+
 	void setDelta(double v)
 	{
+		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
 		if (base != nullptr)
 			base->setDelta(v);
 	}
@@ -114,7 +155,15 @@ struct dynamic_base_holder
 
 	void setParameter(dynamic_base* b)
 	{
-		base = b;
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(connectionLock);
+			base = b;
+		}
+		
+
+		if (base != nullptr)
+			setParentNumVoiceListener(parentNumVoiceListener);
+
 		call(lastValue);
 	}
 
@@ -125,6 +174,8 @@ struct dynamic_base_holder
 
 	double getDisplayValue() const
 	{
+		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
 		if (displaySource.get() != nullptr)
 			return displaySource->getDisplayValue();
 
@@ -133,17 +184,63 @@ struct dynamic_base_holder
 
 	void setDisplaySource(dynamic_base* src)
 	{
+		SimpleReadWriteLock::ScopedWriteLock sl(connectionLock);
+
 		displaySource = src;
+	}
+
+	void setParentNumVoiceListener(DupliListener* l)
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
+		parentNumVoiceListener = l;
+
+		if (isConnected())
+			base->setParentNumVoiceListener(l);
 	}
 
 	WeakReference<dynamic_base> displaySource;
 
+	WeakReference<DupliListener> parentNumVoiceListener;
+
 	ScopedPointer<dynamic_base> base;
 	double lastValue = 0.0;
 	
+private:
+
+	mutable SimpleReadWriteLock connectionLock;
 };
 
+struct dynamic_inv : public dynamic_base
+{
+	dynamic_inv(parameter::dynamic& obj) :
+		dynamic_base(obj)
+	{}
 
+	void call(double v) final override
+	{
+		auto inv = 1.0 - v;
+		lastValue = inv;
+		f(obj, inv);
+	}
+};
+
+struct dynamic_from0to1_inv : public dynamic_base
+{
+	dynamic_from0to1_inv(parameter::dynamic& obj, const NormalisableRange<double>& r) :
+		dynamic_base(obj),
+		range(r)
+	{}
+
+	void call(double v) final override
+	{
+		auto inv = 1.0 - v;
+		lastValue = range.convertFrom0to1(inv);
+		f(obj, lastValue);
+	}
+
+	const NormalisableRange<double> range;
+};
 
 struct dynamic_from0to1 : public dynamic_base
 {
@@ -223,7 +320,7 @@ struct dynamic_chain : public dynamic_base
 
 	dynamic_base* getFirstIfSingle()
 	{
-		if (targets.size() == 1)
+		if (targets.size() == 1 && RangeHelpers::isIdentity(inputRange))
 			return targets.removeAndReturn(0);
 
 		return nullptr;
@@ -231,14 +328,36 @@ struct dynamic_chain : public dynamic_base
 
 	void call(double v)
 	{
+		auto nv = inputRange.convertTo0to1(v);
+
 		for (auto& t : targets)
-			t->call(v);
+			t->call(nv);
+	}
+
+	int getNumDuplicates() const override
+	{
+		if (targets.isEmpty())
+			return 0;
+
+		return targets[0]->getNumDuplicates();
+	}
+
+	void callWithDuplicateIndex(int index, double value) final override
+	{
+		for (auto& t : targets)
+			t->callWithDuplicateIndex(index, value);
 	}
 
 	void setDelta(double v)
 	{
 		for (auto& t : targets)
 			t->setDelta(v);
+	}
+
+	void setParentNumVoiceListener(DupliListener* l)
+	{
+		for (auto& t : targets)
+			t->setParentNumVoiceListener(l);
 	}
 
 	void updateUI() override
@@ -248,6 +367,7 @@ struct dynamic_chain : public dynamic_base
 	}
 
 	OwnedArray<dynamic_base> targets;
+	NormalisableRange<double> inputRange;
 };
 
 

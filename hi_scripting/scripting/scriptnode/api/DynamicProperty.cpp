@@ -53,6 +53,38 @@ dynamic_base::dynamic_base() :
 }
 
 
+scriptnode::parameter::dynamic_base* dynamic_base::createFromConnectionTree(const ValueTree& c, parameter::dynamic& callback, bool allowRange)
+{
+	ScopedPointer<dynamic_base> b;
+
+	auto r = RangeHelpers::getDoubleRange(c);
+	auto e = c[PropertyIds::Expression].toString();
+	auto inv = RangeHelpers::isInverted(c);
+
+#
+	if (e.isNotEmpty())
+	{
+#if USE_BACKEND
+		b = new parameter::dynamic_expression(callback, new snex::JitExpression(e));
+#else
+		b = new parameter::dynamic_base(callback);
+#endif
+	}
+	else if (inv && allowRange)
+	{
+		if (RangeHelpers::isIdentity(r))
+			b = new parameter::dynamic_inv(callback);
+		else
+			b = new parameter::dynamic_from0to1_inv(callback, r);
+	}
+	else if (allowRange && !RangeHelpers::isIdentity(r))
+		b = new parameter::dynamic_from0to1(callback, r);
+	else
+		b = new parameter::dynamic_base(callback);
+
+	return b.release();
+}
+
 }
 
 }

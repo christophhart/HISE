@@ -98,14 +98,22 @@ public:
 
 	InterpretedNodeBase() = default;
 
-	template <typename T, bool AddDataOffsetToUIPtr> void init()
+	template <typename T, bool AddDataOffsetToUIPtr, bool UseNodeBaseAsUI=false> void init()
 	{
 		obj.getWrappedObject().template create<T>();
 
-		if constexpr (AddDataOffsetToUIPtr && std::is_base_of<data::pimpl::provider_base, T>())
+		if constexpr (AddDataOffsetToUIPtr && std::is_base_of<data::pimpl::provider_base, T::ObjectType>())
 		{
-			auto offset = T::getDataOffset();
+			auto offset = T::ObjectType::getDataOffset();
 			asWrapperNode()->setUIOffset(offset);	
+		}
+		else if constexpr (UseNodeBaseAsUI)
+		{
+			auto asUint8Ptr = reinterpret_cast<uint8*>(this);
+			auto objPtr = reinterpret_cast<uint8*>(getObjectPtrFromWrapper());
+
+			auto offset = asUint8Ptr - objPtr;
+			asWrapperNode()->setUIOffset(offset);
 		}
 
 		this->obj.initialise(asWrapperNode());
@@ -186,12 +194,13 @@ public:
 		Base::postInit();
 	}
 
-    template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr> static NodeBase* createNode(DspNetwork* n, ValueTree d) 
+    template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr, bool UseNodeBaseAsUI> static NodeBase* createNode(DspNetwork* n, ValueTree d) 
 	{ 
 		auto newNode = new InterpretedNode(n, d); 
 
-		newNode->template init<T, AddDataOffsetToUIPtr>();
+		newNode->template init<T, AddDataOffsetToUIPtr, UseNodeBaseAsUI>();
 		newNode->extraComponentFunction = ComponentType::createExtraComponent;
+
 		return newNode;
 	}; 
 
@@ -238,7 +247,7 @@ public:
 
 	void postInit() override;
 
-	template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr> static NodeBase* createNode(DspNetwork* n, ValueTree d)
+	template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr, bool Unused> static NodeBase* createNode(DspNetwork* n, ValueTree d)
 	{ 
 		auto mn = new InterpretedModNode(n, d); 
 		mn->init<T, AddDataOffsetToUIPtr>();
@@ -281,7 +290,7 @@ public:
 
 struct UnisonoNodeBase: public NodeBase::Holder
 {
-	using InterpretedObjectType = wrap::unisono<UnisonoNodeBase, true>;
+	using InterpretedObjectType = wrap::duplicate_base<UnisonoNodeBase, options::dynamic, options::yes, NUM_MAX_UNISONO_VOICES>;
 
 	SN_GET_SELF_AS_OBJECT(UnisonoNodeBase);
 
@@ -337,6 +346,12 @@ struct UnisonoNodeBase: public NodeBase::Holder
 		return false;
 	}
 
+	template <int C> void process(ProcessData<C>& d)
+	{
+		if (getRootNode() != nullptr)
+			getRootNode()->process(d.as<ProcessDataDyn>());
+	}
+
 	void process(ProcessDataDyn& d)
 	{
 		if (getRootNode() != nullptr)
@@ -385,7 +400,7 @@ struct InterpretedUnisonoWrapperNode : public WrapperNode,
 
 	InterpretedUnisonoWrapperNode(DspNetwork* n, ValueTree d);;
 
-	Base& getUnisonoObject() { return obj; }
+	wrap::duplicate_sender* getUnisonoObject() { return static_cast<wrap::duplicate_sender*>(&obj); }
 
 	ReferenceCountedArray<Parameter> getParameterList(const ValueTree& pTree);
 
@@ -417,14 +432,14 @@ struct InterpretedUnisonoWrapperNode : public WrapperNode,
 		obj.reset();
 	}
 
-	void processFrame(NodeBase::FrameType& data) final override
+	void processMonoFrame(MonoFrameType& data) final override
 	{
 		obj.processFrame(data);
 	}
 
-	void processMonoFrame(MonoFrameType& data) final override
+	void processFrame(FrameType& data) final override
 	{
-		obj.processFrame(data);
+		jassertfalse;
 	}
 
 	virtual void assign(int index, var newValue) override;
@@ -445,12 +460,15 @@ struct InterpretedUnisonoWrapperNode : public WrapperNode,
 	}
 
 	void updateChildNode(ValueTree v, bool wasAdded);
+	void updateDuplicateMode(Identifier, var);
 
 	ParameterDataList createInternalParameterList() override;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(InterpretedUnisonoWrapperNode);
 
 	NodeBase::Ptr wrappedNode;
+
+	NodePropertyT<bool> duplicateProperty;
 
 	bool skipTreeListener = false;
 
@@ -469,11 +487,11 @@ struct InterpretedCableNode : public ModulationSourceNode,
 		
 	};
 
-	template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr> static NodeBase* createNode(DspNetwork* n, ValueTree d)
+	template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr, bool Unused> static NodeBase* createNode(DspNetwork* n, ValueTree d)
 	{
 		constexpr bool isBaseOfDynamicParameterHolder = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_base_holder>, typename T::WrappedObjectType>();
 
-		constexpr bool isSpread = std::is_same<T, parameter::dynamic_duplispread_node>();
+		constexpr bool isSpread = std::is_same<T, duplilogic::dynamic::NodeType>();
 
 		static_assert(std::is_base_of<control::pimpl::no_processing, typename T::WrappedObjectType>(), "not a base of no_processing");
 
@@ -626,11 +644,12 @@ public:
     template <class T, 
 				class ComponentType=NoExtraComponent, 
 				typename WrapperType=InterpretedNode, 
-				bool AddDataOffsetToUIPtr=true> 
+				bool AddDataOffsetToUIPtr=true,
+				bool UseNodeBaseAsUI=false> 
 		void registerNode()
     {
 		Item newItem;
-        newItem.cb = WrapperType::template createNode<T, ComponentType, AddDataOffsetToUIPtr>;
+        newItem.cb = WrapperType::template createNode<T, ComponentType, AddDataOffsetToUIPtr, UseNodeBaseAsUI>;
         newItem.id = T::getStaticId();
 			
         monoNodes.add(newItem);
@@ -640,7 +659,8 @@ public:
 				class PolyT, 
 				class ComponentType=NoExtraComponent, 
 				typename WrapperType=InterpretedNode,
-				bool AddDataOffsetToUIPtr=true>
+				bool AddDataOffsetToUIPtr=true,
+				bool UseFullNodeAsUIPtr=false>
 		void registerPolyNode()
     {
         using WrappedPolyT = InterpretedNode;
@@ -648,7 +668,7 @@ public:
             
         {
             Item newItem;
-            newItem.cb = WrapperType::template createNode<PolyT, ComponentType, AddDataOffsetToUIPtr>;
+            newItem.cb = WrapperType::template createNode<PolyT, ComponentType, AddDataOffsetToUIPtr, UseFullNodeAsUIPtr>;
             newItem.id = PolyT::getStaticId();
                 
             polyNodes.add(newItem);
@@ -656,7 +676,7 @@ public:
             
         {
             Item newItem;
-            newItem.cb = WrapperType::template createNode<MonoT, ComponentType, AddDataOffsetToUIPtr>;
+            newItem.cb = WrapperType::template createNode<MonoT, ComponentType, AddDataOffsetToUIPtr, UseFullNodeAsUIPtr>;
             newItem.id = MonoT::getStaticId();
                 
             monoNodes.add(newItem);
@@ -670,12 +690,12 @@ public:
 
 	template <class MonoT, class ComponentType = ModulationSourcePlotter, bool AddDataOffsetToUIPtr=true> void registerModNode()
 	{
-		registerNode<MonoT, ComponentType, InterpretedModNode, AddDataOffsetToUIPtr>();
+		registerNode<MonoT, ComponentType, InterpretedModNode, AddDataOffsetToUIPtr, false>();
 	}
 
 	template <class MonoT, class ComponentType = ModulationSourcePlotter, bool AddDataOffsetToUIPtr = true> void registerNoProcessNode()
 	{
-		registerNode<MonoT, ComponentType, InterpretedCableNode, AddDataOffsetToUIPtr>();
+		registerNode<MonoT, ComponentType, InterpretedCableNode, AddDataOffsetToUIPtr, false>();
 	}
 
     virtual Identifier getId() const = 0;
