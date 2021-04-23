@@ -1869,8 +1869,9 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 			// There are some nodes which need to setup some properties before
 			// calling reset based on the incoming event
 			auto event = getCurrentHiseEvent();
-			rootNode->handleHiseEvent(event);
 			rootNode->reset();
+			rootNode->handleHiseEvent(event);
+			
 
 			isVoiceStart = false;
 		}
