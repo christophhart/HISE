@@ -38,6 +38,34 @@ using namespace juce;
 using namespace hise;
 using namespace snex;
 
+struct FlashingModKnob : public Component,
+						 public PooledUIUpdater::SimpleTimer
+{
+	FlashingModKnob(PooledUIUpdater* u, ModValue* mv) :
+		SimpleTimer(u, true),
+		modValue(mv)
+	{};
+
+	void timerCallback() override
+	{
+		double unused;
+
+		auto ui_led = modValue->getChangedValue(unused);
+
+		if (ui_led)
+		{
+			on = !on;
+			repaint();
+		}
+	}
+
+	void paint(Graphics& g) override;
+
+	ModValue* modValue;
+	
+	bool on = false;
+};
+
 namespace control
 {
 
@@ -111,9 +139,11 @@ struct snex_timer : public SnexSource
 	double getTimerValue();
 
 	TimerCallbackHandler callbacks;
-	ModValue lastValue;
+	mutable ModValue lastValue;
 
 	HISE_EMPTY_PREPARE;
+
+	
 
 	class editor : public ScriptnodeExtraComponent<snex_timer>,
 				  SnexSource::SnexSourceListener
@@ -136,10 +166,9 @@ struct snex_timer : public SnexSource
 		void timerCallback() override;
 
 		SnexMenuBar menuBar;
-		VuMeterWithModValue meter;
+		
+		FlashingModKnob modKnob;
 
-		Rectangle<float> flashDot;
-		float alpha = 0.0f;
 		ModulationSourceBaseComponent dragger;
 	};
 

@@ -57,11 +57,24 @@ public:
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override { wrapper.reset(); }
 
+	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+	{
+ 		return getBoundsToDisplay(getContainerPosition(isVertical.getValue(), topLeft));
+	}
+
+	NodeComponent* createComponent() override;
+
+	NodePropertyT<bool> isVertical;
+
 private:
+
+	
 
 	InternalWrapper wrapper;
 	valuetree::PropertyListener bypassListener;
 };
+
+
 
 
 class ModulationChainNode : public SerialNode

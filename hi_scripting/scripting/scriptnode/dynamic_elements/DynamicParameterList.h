@@ -37,16 +37,112 @@ using namespace juce;
 using namespace hise;
 
 
+namespace duplilogic
+{
+	struct dynamic
+	{
+		enum class DupliMode
+		{
+			Spread,
+			Scale,
+			Harmonics,
+			Random,
+			Triangle
+		};
+
+		using NodeType = control::dupli_cable<parameter::dynamic_base_holder, dynamic>;
+
+		dynamic() :
+			mode(PropertyIds::Mode, "Spread")
+		{};
+
+		void initialise(NodeBase* n)
+		{
+			mode.initialise(n);
+			mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::updateMode), true);
+		}
+
+		void updateMode(Identifier id, var newValue)
+		{
+			auto m = newValue.toString();
+			currentMode = (DupliMode)getSpreadModes().indexOf(m);
+		}
+
+		double getValue(int index, int numDuplicates, double input, double gamma)
+		{
+			switch (currentMode)
+			{
+			case DupliMode::Spread: return spread().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Scale: return scale().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Harmonics: return harmonics().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Random: return random().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Triangle: return triangle().getValue(index, numDuplicates, input, gamma);
+			}
+		}
+
+		static StringArray getSpreadModes()
+		{
+			return { "Spread", "Scale", "Harmonics", "Random", "Triangle"};
+		}
+
+		NodePropertyT<String> mode;
+		DupliMode currentMode;
+
+		struct editor : public ScriptnodeExtraComponent<NodeType>
+		{
+			editor(NodeType* obj, PooledUIUpdater* u);;
+
+			void timerCallback() override;
+
+			static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+			{
+				auto typed = static_cast<NodeType*>(obj);
+
+				return new editor(typed, updater);
+			}
+
+			void paint(Graphics& g) override;
+
+			void resized() override
+			{
+				auto b = getLocalBounds();
+
+				mode.setBounds(b.removeFromTop(28));
+				b.removeFromTop(UIValues::NodeMargin);
+
+				b.removeFromBottom(UIValues::NodeMargin);
+				dragger.setBounds(b.removeFromBottom(28));
+				b.removeFromBottom(UIValues::NodeMargin);
+				area = b.toFloat();
+			}
+
+			Rectangle<float> area;
+			ModulationSourceBaseComponent dragger;
+			ComboBoxWithModeProperty mode;
+			bool initialised = false;
+		};
+	};
+}
+
 namespace parameter
 {
-	struct dynamic_duplispread : public dynamic_base
+	struct dynamic_duplispread : public dynamic_base,
+								 public scriptnode::wrap::duplicate_sender::Listener
 	{
 		static dynamic_base_holder* getParameterFunctionStatic(void* b)
 		{
-			using Type = control::spread<dynamic_base_holder>;
+			using Type = control::dupli_cable<dynamic_base_holder, duplilogic::dynamic>;
 			auto typed = static_cast<Type*>(b);
 			return &typed->getParameter();
 		};
+
+		~dynamic_duplispread()
+		{
+			originalCallback = nullptr;
+
+			if (connectedDuplicateObject != nullptr)
+				connectedDuplicateObject->removeNumVoiceListener(this);
+		}
 
 		double getDisplayValue() const override
 		{
@@ -56,18 +152,20 @@ namespace parameter
 			return lastValue;
 		}
 
-		void call(double v) final override
+		void callWithDuplicateIndex(int index, double v) final override
 		{
 			lastValue = v;
 
-			auto startValue = v - offset;
-
-			for (int i = 0; i < numUsedInt; i++)
+			if (auto obj = targets[index])
 			{
-				originalCallback->obj = targets[i];
-				originalCallback->call(startValue);
-				startValue += stepSize;
+				originalCallback->obj = obj;
+				originalCallback->call(v);
 			}
+		}
+
+		void call(double v) final override
+		{
+			lastValue = v;
 		}
 
 		void updateUI() override
@@ -75,77 +173,39 @@ namespace parameter
 
 		}
 
-		void setDelta(double newDelta) override
-		{
-			delta = newDelta;
-			stepSize = delta / numUsed;
-			offset = stepSize * numUsed * 0.5;
-
-			call(lastValue);
-		}
-
 		void connect(NodeBase* newUnisonoMode, dynamic_base* cb);
 
-		void updateNumVoiceChange(Identifier, var)
+		int getNumDuplicates() const
+		{
+			if (connectedDuplicateObject != nullptr)
+			{
+				return connectedDuplicateObject->getNumVoices();
+			}
+
+			return 1;
+		}
+
+		void numVoicesChanged(int newNumVoices) override
 		{
 			rebuildTargets();
+
+			if (parentListener != nullptr)
+				parentListener->numVoicesChanged(newNumVoices);
+		}
+
+		void setParentNumVoiceListener(DupliListener* l) override
+		{
+			parentListener = l;
 		}
 
 		void rebuildTargets();
 
+		NodeBase::Ptr duplicateParentNode;
 		ScopedPointer<dynamic_base> originalCallback;
-		
-		NodeBase::Ptr unisonoNode;
-
-		void* targets[NUM_MAX_UNISONO_VOICES];
-
-		valuetree::PropertyListener voiceUpdater;
-
-		double delta = 0.0;
-		double stepSize = 0.0;
-		double offset = 0.0;
-		double numUsed = 1.0;
-		int numUsedInt = 1;
+		Array<void*> targets;
+		WeakReference<scriptnode::wrap::duplicate_sender> connectedDuplicateObject;
+		WeakReference<DupliListener> parentListener;
 	};
-
-	using dynamic_duplispread_node = control::spread<dynamic_base_holder>;
-	
-	struct duplispread_editor : public ScriptnodeExtraComponent<dynamic_duplispread_node>
-	{
-		duplispread_editor(dynamic_duplispread_node* obj, PooledUIUpdater* u) :
-			ScriptnodeExtraComponent<dynamic_duplispread_node>(obj, u),
-			dragger(u)
-		{
-			setSize(200, 200 + 28 + UIValues::NodeMargin);
-			addAndMakeVisible(dragger);
-		};
-
-		void timerCallback() override
-		{
-			repaint();
-		}
-
-		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
-		{
-			auto typed = static_cast<dynamic_duplispread_node*>(obj);
-
-			return new duplispread_editor(typed, updater);
-		}
-
-		void paint(Graphics& g) override;
-
-		void resized() override
-		{
-			auto b = getLocalBounds();
-			dragger.setBounds(b.removeFromBottom(28));
-			b.removeFromBottom(UIValues::NodeMargin);
-			area = b.toFloat();
-		}
-
-		Rectangle<float> area;
-		ModulationSourceBaseComponent dragger;
-	};
-
 
 	struct dynamic_list
 	{
@@ -283,6 +343,12 @@ struct dynamic_list_editor : public ScriptnodeExtraComponent<parameter::dynamic_
 
 		void paint(Graphics& g) override;
 
+		static String getDefaultText(int index)
+		{
+			return String(index + 1);
+		}
+
+		std::function<String(int)> textFunction = DragComponent::getDefaultText;
 		const int index;
 		Path p;
 		WeakReference<parameter::dynamic_list> pdl;

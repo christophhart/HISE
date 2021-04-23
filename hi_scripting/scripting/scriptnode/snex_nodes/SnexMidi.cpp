@@ -203,7 +203,7 @@ void dynamic::editor::paint(Graphics& g)
 {
 	auto b = getLocalBounds();
 
-	g.setColour(Colours::white.withAlpha(0.6f));
+	g.setColour(Colours::white.withAlpha(0.2f));
 	g.setFont(GLOBAL_BOLD_FONT());
 
 	b.removeFromTop(menuBar.getHeight());

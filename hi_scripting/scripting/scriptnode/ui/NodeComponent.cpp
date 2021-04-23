@@ -331,9 +331,10 @@ void NodeComponent::paintOverChildren(Graphics& g)
 {
 	if (isSelected())
 	{
-		g.setColour(Colour(SIGNAL_COLOUR));
-		g.drawRect(getLocalBounds(), 1);
+		UnblurryGraphics ug(g, *this, true);
 
+		g.setColour(Colour(SIGNAL_COLOUR));
+		ug.draw1PxRect(getLocalBounds().toFloat());
 	}
 
 	if (isBeingCopied())
@@ -476,7 +477,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 	{
 		auto n = new NodePopupEditor(this);
 		
-		auto g = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+		auto g = findParentComponentOfClass<ZoomableViewport>();
 		auto b = g->getLocalArea(this, getLocalBounds());
 
 		g->setCurrentModalWindow(n, b);
@@ -749,6 +750,7 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 
 	return p;
 }
+
 
 
 

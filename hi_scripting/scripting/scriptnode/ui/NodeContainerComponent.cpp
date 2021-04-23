@@ -101,6 +101,12 @@ ContainerComponent::ContainerComponent(NodeContainer* b) :
 	updater(*this),
 	parameters(new ParameterComponent(*this))
 {
+	if (auto sn = dynamic_cast<SerialNode*>(b))
+	{
+		verticalValue.referTo(sn->getNodePropertyAsValue(PropertyIds::IsVertical));
+		verticalValue.addListener(this);
+	}
+
 	addAndMakeVisible(parameters);
 	setOpaque(true);
 	rebuildNodes();
@@ -331,6 +337,20 @@ void ContainerComponent::clearDropTarget()
 	}
 }
 
+void ContainerComponent::valueChanged(Value& v)
+{
+	if (auto dnp = findParentComponentOfClass<DspNetworkGraph>())
+	{
+		Component::SafePointer<DspNetworkGraph> safeDnp(dnp);
+
+		MessageManager::callAsync([safeDnp]()
+		{
+			if(safeDnp.getComponent() != nullptr)
+				safeDnp.getComponent()->rebuildNodes();
+		});
+	}
+}
+
 juce::Point<int> ContainerComponent::getStartPosition() const
 {
 	int y = UIValues::NodeMargin;
@@ -381,7 +401,7 @@ void ContainerComponent::rebuildNodes()
 }
 
 
-SerialNodeComponent::SerialNodeComponent(SerialNode* node) :
+SerialNodeComponent::SerialNodeComponent(NodeContainer* node) :
 	ContainerComponent(node)
 {
 
@@ -487,12 +507,31 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 	auto pin1 = Rectangle<float>(start, start).withSizeKeepingCentre(10.0f, 10.0f);
 	auto pin2 = Rectangle<float>(end, end).withSizeKeepingCentre(10.0f, 10.0f);
 
+	static const unsigned char pathData[] = { 110,109,233,38,145,63,119,190,39,64,108,0,0,0,0,227,165,251,63,108,0,0,0,0,20,174,39,63,108,174,71,145,63,0,0,0,0,108,174,71,17,64,20,174,39,63,108,174,71,17,64,227,165,251,63,108,115,104,145,63,119,190,39,64,108,115,104,145,63,143,194,245,63,98,55,137,
+145,63,143,194,245,63,193,202,145,63,143,194,245,63,133,235,145,63,143,194,245,63,98,164,112,189,63,143,194,245,63,96,229,224,63,152,110,210,63,96,229,224,63,180,200,166,63,98,96,229,224,63,43,135,118,63,164,112,189,63,178,157,47,63,133,235,145,63,178,
+157,47,63,98,68,139,76,63,178,157,47,63,84,227,5,63,43,135,118,63,84,227,5,63,180,200,166,63,98,84,227,5,63,14,45,210,63,168,198,75,63,66,96,245,63,233,38,145,63,143,194,245,63,108,233,38,145,63,119,190,39,64,99,101,0,0 };
+
+	Path plug;
+
+	plug.loadPathFromData(pathData, sizeof(pathData));
+	
+
 	Path p;
 
-	p.addPieSegment(pin1, 0.0, float_Pi*2.0f, 0.5f);
-	p.addPieSegment(pin2, 0.0, float_Pi*2.0f, 0.5f);
-	p.addLineSegment({ start, start1 }, 2.0f);
-	p.addLineSegment({ end, end1 }, 2.0f);
+	g.setColour(Colour(0xFF888888));
+
+	PathFactory::scalePath(plug, pin1);
+	g.fillPath(plug);
+	PathFactory::scalePath(plug, pin2);
+	g.fillPath(plug);
+
+	//p.addPieSegment(pin1, 0.0, float_Pi*2.0f, 0.5f);
+	//p.addPieSegment(pin2, 0.0, float_Pi*2.0f, 0.5f);
+	p.startNewSubPath(start);
+	p.lineTo(start1);//  addLineSegment({ start, start1 }, 2.0f);
+	p.startNewSubPath(end);
+	p.lineTo(end1);
+					 //p.addLineSegment({ end, end1 }, 2.0f);
 
     DropShadow sh;
 	sh.colour = Colours::black.withAlpha(0.5f);
@@ -509,13 +548,30 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 
 		Line<float> l(start_.toFloat().translated(xOffset, 0.0f), end_.toFloat().translated(xOffset, 0.0f));
 
-		p.addLineSegment(l, 2.0f);
+		p.startNewSubPath(l.getStart());
+		p.lineTo(l.getEnd());
+
+		//p.addLineSegment(l, 2.0f);
 	}
 
 	//sh.drawForPath(g, p);
-	g.setColour(Colour(0xFFAAAAAA));
+	
+	auto sf = 1.0f / UnblurryGraphics::getScaleFactorForComponent(this);
 
-	g.fillPath(p);
+	g.setColour(Colour(0xFF262626));
+	g.strokePath(p, PathStrokeType(4.0f, PathStrokeType::curved, PathStrokeType::rounded));
+
+	auto c = header.colour.withMultipliedBrightness(0.7f);
+
+	if (c == Colours::transparentBlack)
+		c = Colour(0xFFAAAAAA);
+
+	g.setColour(c);
+
+	
+
+	
+	g.strokePath(p, PathStrokeType(2.0f, PathStrokeType::curved, PathStrokeType::rounded));
 }
 
 void SerialNodeComponent::paint(Graphics& g)
@@ -582,7 +638,7 @@ void SerialNodeComponent::paint(Graphics& g)
 	}
 }
 
-ParallelNodeComponent::ParallelNodeComponent(ParallelNode* node) :
+ParallelNodeComponent::ParallelNodeComponent(NodeContainer* node) :
 	ContainerComponent(node)
 {
 
@@ -715,6 +771,8 @@ void ParallelNodeComponent::paint(Graphics& g)
 
 void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 {
+	Path p;
+
 	auto xOffset = getCableXOffset(cableIndex, 1);
 
 	auto b2 = getLocalBounds();
@@ -729,65 +787,133 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 
 	auto start = b2.removeFromTop(UIValues::PinHeight).getCentre().toFloat().translated(xOffset, 0.0f);
 	auto end = b2.removeFromBottom(UIValues::PinHeight).getCentre().toFloat().translated(xOffset, 0.0f);
-
-	Path p;
-
 	auto pin1 = Rectangle<float>(start, start).withSizeKeepingCentre(10.0f, 10.0f);
 	auto pin2 = Rectangle<float>(end, end).withSizeKeepingCentre(10.0f, 10.0f);
 
-	p.addPieSegment(pin1, 0.0f, float_Pi * 2.0f, 0.5f);
-	p.addPieSegment(pin2, 0.0f, float_Pi * 2.0f, 0.5f);
+	static const unsigned char pathData[] = { 110,109,233,38,145,63,119,190,39,64,108,0,0,0,0,227,165,251,63,108,0,0,0,0,20,174,39,63,108,174,71,145,63,0,0,0,0,108,174,71,17,64,20,174,39,63,108,174,71,17,64,227,165,251,63,108,115,104,145,63,119,190,39,64,108,115,104,145,63,143,194,245,63,98,55,137,
+145,63,143,194,245,63,193,202,145,63,143,194,245,63,133,235,145,63,143,194,245,63,98,164,112,189,63,143,194,245,63,96,229,224,63,152,110,210,63,96,229,224,63,180,200,166,63,98,96,229,224,63,43,135,118,63,164,112,189,63,178,157,47,63,133,235,145,63,178,
+157,47,63,98,68,139,76,63,178,157,47,63,84,227,5,63,43,135,118,63,84,227,5,63,180,200,166,63,98,84,227,5,63,14,45,210,63,168,198,75,63,66,96,245,63,233,38,145,63,143,194,245,63,108,233,38,145,63,119,190,39,64,99,101,0,0 };
 
-	if (isMultiChannelNode())
+	Path plug;
+
+	plug.loadPathFromData(pathData, sizeof(pathData));
+
+	g.setColour(Colour(0xFF888888));
+
+	PathFactory::scalePath(plug, pin1);
+	g.fillPath(plug);
+	PathFactory::scalePath(plug, pin2);
+	g.fillPath(plug);
+
+	//p.addPieSegment(pin1, 0.0f, float_Pi * 2.0f, 0.5f);
+	//p.addPieSegment(pin2, 0.0f, float_Pi * 2.0f, 0.5f);
+
+	if (auto sn = dynamic_cast<SerialNode*>(node.get()))
 	{
-		int currentChannelIndex = 0;
-		int channelInTarget = -1;
-		NodeComponent* targetNode = nullptr;
+		int numChannels = node->getNumChannelsToProcess();
 
-		for (auto c : childNodeComponents)
+		DspNetworkPathFactory df;
+
+		auto icon = df.createPath("swap-orientation");
+
+		auto iconBounds = getLocalBounds().toFloat().removeFromLeft(UIValues::PinHeight).removeFromTop(UIValues::PinHeight).reduced(2.0f);
+
+		df.scalePath(icon, iconBounds);
+
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.fillPath(icon);
+
+		if (auto f = childNodeComponents.getFirst())
 		{
-			int numChannelsForThisNode = c->node->getNumChannelsToProcess();
-
-			if (currentChannelIndex + numChannelsForThisNode > cableIndex)
-			{
-				channelInTarget = cableIndex - currentChannelIndex;
-				targetNode = c;
-				break;
-			}
-
-			currentChannelIndex += numChannelsForThisNode;
+			auto b = f->getBounds().toFloat();
+			Point<float> p1(b.getCentreX() + xOffset, b.getY());
+			p.addLineSegment({ start, p1 }, 2.0f);
 		}
 
-		if (targetNode != nullptr && !targetNode->node->isBypassed())
+		if (auto l = childNodeComponents.getLast())
 		{
-			auto targetOffsetX = getCableXOffset(channelInTarget);
-
-			auto b = targetNode->getBounds().toFloat();
-
-			Point<float> p1(b.getCentreX() + targetOffsetX, b.getY());
-			Point<float> p2(b.getCentreX() + targetOffsetX, b.getBottom());
-
-			p.addLineSegment({ start, p1 }, 2.0f);
+			auto b = l->getBounds().toFloat();
+			Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
 			p.addLineSegment({ p2, end }, 2.0f);
+		}
+
+		for (int i = 0; i < childNodeComponents.size()-1; i++)
+		{
+			auto t = childNodeComponents[i];
+			auto n = childNodeComponents[i + 1];
+
+			auto tr = t->getBounds().getRight();
+			auto tyc = t->getBounds().getCentreY();
+
+			auto nx = n->getBounds().getX();
+			auto nyc = n->getBounds().getCentreY(); // if you can make it here
+
+			Point<float> t1(tr, tyc);
+			Point<float> n1(nx, nyc);
+
+			p.addLineSegment({ t1, n1 }, 2.0f);
 		}
 	}
 	else
 	{
-		for (auto n : childNodeComponents)
+		if (isMultiChannelNode())
 		{
-			auto b = n->getBounds().toFloat();
+			int currentChannelIndex = 0;
+			int channelInTarget = -1;
+			NodeComponent* targetNode = nullptr;
 
-			Point<float> p1(b.getCentreX() + xOffset, b.getY());
-			Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
+			for (auto c : childNodeComponents)
+			{
+				int numChannelsForThisNode = c->node->getNumChannelsToProcess();
 
-			p.addLineSegment({ start, p1 }, 2.0f);
-			p.addLineSegment({ p2, end }, 2.0f);
+				if (currentChannelIndex + numChannelsForThisNode > cableIndex)
+				{
+					channelInTarget = cableIndex - currentChannelIndex;
+					targetNode = c;
+					break;
+				}
+
+				currentChannelIndex += numChannelsForThisNode;
+			}
+
+			if (targetNode != nullptr && !targetNode->node->isBypassed())
+			{
+				auto targetOffsetX = getCableXOffset(channelInTarget);
+
+				auto b = targetNode->getBounds().toFloat();
+
+				Point<float> p1(b.getCentreX() + targetOffsetX, b.getY());
+				Point<float> p2(b.getCentreX() + targetOffsetX, b.getBottom());
+
+				p.addLineSegment({ start, p1 }, 2.0f);
+				p.addLineSegment({ p2, end }, 2.0f);
+			}
+		}
+		else
+		{
+			for (auto n : childNodeComponents)
+			{
+				auto b = n->getBounds().toFloat();
+
+				Point<float> p1(b.getCentreX() + xOffset, b.getY());
+				Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
+
+				p.addLineSegment({ start, p1 }, 2.0f);
+				p.addLineSegment({ p2, end }, 2.0f);
+			}
 		}
 	}
 
+	
+
 	if (!node->isBypassed())
 	{
-		g.setColour(Colour(0xFFAAAAAA));
+		auto c = header.colour.withMultipliedBrightness(0.7f);
+
+		if (c == Colours::transparentBlack)
+			c = Colour(Colour(0xFFAAAAAA));
+
+		g.setColour(c);
 		g.fillPath(p);
 	}
 }
@@ -916,13 +1042,13 @@ void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
 	{
 		if (auto targetNode = node->getRootNetwork()->getNodeWithId(data[PropertyIds::NodeId].toString()))
 		{
-			auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+			auto sp = findParentComponentOfClass<ZoomableViewport>();
 
 			auto gotoNode = [sp, targetNode]()
 			{
 				sp->setCurrentModalWindow(nullptr, {});
 
-				if (auto nc = sp->getGraph()->getComponent(targetNode))
+				if (auto nc = sp->getContent<DspNetworkGraph>()->getComponent(targetNode))
 				{
 					nc->grabKeyboardFocus();
 				}

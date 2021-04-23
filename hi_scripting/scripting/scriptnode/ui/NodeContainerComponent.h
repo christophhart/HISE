@@ -439,7 +439,8 @@ private:
 class ContainerComponent :  public NodeComponent,
 							public NodeDropTarget,
 							public DragAndDropContainer,
-							public HelpManager::Listener
+							public HelpManager::Listener,
+							public Value::Listener
 {
 public:
 
@@ -624,6 +625,8 @@ public:
 	void setDropTarget(Point<int> position) override;
 	void clearDropTarget();
 
+	void valueChanged(Value& v) override;
+
 	virtual Rectangle<float> getInsertRuler(int ) const { jassertfalse; return {}; }
 
 	void resized() override
@@ -654,6 +657,8 @@ public:
 	}
 
 protected:
+
+	Value verticalValue;
 
 	Point<int> getStartPosition() const;
 	float getCableXOffset(int cableIndex, int factor = 1) const;
@@ -692,7 +697,7 @@ private:
 
 struct SerialNodeComponent : public ContainerComponent
 {
-	SerialNodeComponent(SerialNode* node);
+	SerialNodeComponent(NodeContainer* node);
 
 	int getInsertPosition(Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
@@ -706,7 +711,7 @@ struct SerialNodeComponent : public ContainerComponent
 
 struct ParallelNodeComponent : public ContainerComponent
 {
-	ParallelNodeComponent(ParallelNode* node);;
+	ParallelNodeComponent(NodeContainer* node);;
 
 	bool isMultiChannelNode() const;
 	int getInsertPosition(Point<int> position) const override;

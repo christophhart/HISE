@@ -151,16 +151,16 @@ void SnexSource::addDummyProcessFunctions(String& s)
 		{
 			String def1, def2;
 
-			def1 << "void process(ProcessData<" << String(i) << ">& data)";	  b << def1;
-			{														 StatementBlock body(b);
-			b << (getCurrentClassId().toString() + " instance;");
-			b << "instance.process(data);";
-			}
-
 			def2 << "void processFrame(span<float, " << String(i) << ">& data)"; b << def2;
 			{														 StatementBlock body(b);
 			b << (getCurrentClassId().toString() + " instance;");
 			b << "instance.processFrame(data);";
+			}
+
+			def1 << "void process(ProcessData<" << String(i) << ">& data)";	  b << def1;
+			{														 StatementBlock body(b);
+			b << (getCurrentClassId().toString() + " instance;");
+			b << "instance.process(data);";
 			}
 		}
 
@@ -647,6 +647,7 @@ SnexMenuBar::SnexMenuBar(SnexSource* s) :
 	s->addCompileListener(this);
 
 	addAndMakeVisible(classSelector);
+	classSelector.setColour(ComboBox::ColourIds::textColourId, Colour(0xFFAAAAAA));
 	//addAndMakeVisible(popupButton);
 	addAndMakeVisible(editButton);
 	//addAndMakeVisible(debugButton);

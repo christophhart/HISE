@@ -84,6 +84,8 @@ struct NodeContainer : public AssignableObject
 			rebuildCallback();
 		}
 
+		void updateInputRange(Identifier, var);
+
 		void timerCallback() override
 		{
 			getReferenceToCallback().updateUI();
@@ -118,14 +120,15 @@ struct NodeContainer : public AssignableObject
 		bool matchesTarget(const Parameter* target) const;
 
 
-		NormalisableRange<double> inputRange;
 
 		valuetree::ChildListener connectionListener;
 		valuetree::RecursivePropertyListener rangeListener;
 		valuetree::RecursivePropertyListener expressionListener;
+		valuetree::PropertyListener inputRangeListener;
 
 		ReferenceCountedArray<Connection> connections;
 		bool initialised = false;
+		bool editEnabled = false;
 	};
 
 	NodeContainer();
@@ -167,6 +170,8 @@ struct NodeContainer : public AssignableObject
 
 	NodeBase::List& getNodeList() { return nodes; }
 	const NodeBase::List& getNodeList() const { return nodes; }
+
+	Rectangle<int> getContainerPosition(bool isVerticalContainer, Point<int> topLeft) const;
 
 protected:
 

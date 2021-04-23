@@ -44,7 +44,6 @@ ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* p
 		valuetree::AsyncMode::Coallescated,
 		[this](Identifier, var)
 	{
-		inverted = RangeHelpers::checkInversion(data, &rangeUpdater, parent->getUndoManager());
 		parent->rebuildModulationConnections();
 		
 		connectionRange = RangeHelpers::getDoubleRange(data);
@@ -225,8 +224,9 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 
 	if (auto p = getParameterData(m))
 	{
-		ScopedPointer<parameter::dynamic_base> np;
+		ScopedPointer<parameter::dynamic_base> np = parameter::dynamic_base::createFromConnectionTree(m, p.callback, allowRangeConversion);
 
+#if 0
 		if (expression.isNotEmpty())
 		{
 #if HISE_INCLUDE_SNEX
@@ -240,6 +240,7 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 			np = new parameter::dynamic_from0to1(p.callback, range);
 		else
 			np = new parameter::dynamic_base(p.callback);
+#endif
 		
 		if (auto tp = targetNode->getParameter(p.info.parameterName))
 		{
@@ -255,8 +256,6 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 				tp->getReferenceToCallback().setDisplaySource(np);
 			}
 		}
-
-		//np->setDataTree(targetNode->getParameter(p.id)->data);
 
 		return np.release();
 	}
@@ -432,14 +431,14 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent&)
 
 		container->startDragging(var(details), this, createDragImage());
 
-		findParentComponentOfClass<DspNetworkGraph>()->repaint();
+		findParentComponentOfClass<DspNetworkGraph>()->dragOverlay.setEnabled(true);
 	}
 }
 
 
 void ModulationSourceBaseComponent::mouseUp(const MouseEvent& e)
 {
-	findParentComponentOfClass<DspNetworkGraph>()->repaint();
+	findParentComponentOfClass<DspNetworkGraph>()->dragOverlay.setEnabled(false);
 }
 
 void ModulationSourceBaseComponent::resized()
@@ -465,7 +464,7 @@ void ModulationSourceBaseComponent::mouseDown(const MouseEvent& e)
 		pe->setName("Edit Modulation Targets");
         
         
-        auto g = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+        auto g = findParentComponentOfClass<ZoomableViewport>();
         auto b = g->getLocalArea(this, getLocalBounds());
         
 		g->setCurrentModalWindow(pe, b);
@@ -491,7 +490,7 @@ ModulationSourcePlotter::ModulationSourcePlotter(PooledUIUpdater* updater) :
 	ModulationSourceBaseComponent(updater)
 {
 	
-
+	start();
 	setOpaque(true);
 	setSize(256, ModulationSourceNode::ModulationBarHeight);
 	addAndMakeVisible(p);
@@ -499,8 +498,13 @@ ModulationSourcePlotter::ModulationSourcePlotter(PooledUIUpdater* updater) :
 
 void ModulationSourcePlotter::timerCallback()
 {
+	if (auto nc = findParentComponentOfClass<NodeComponent>())
+		p.setColour(ModPlotter::ColourIds::pathColour, nc->header.colour);
+
 	stop();
 		
+	Colour(0).withMultipliedSaturation(2.0);
+
 	skip = !skip;
 
 	if (skip)

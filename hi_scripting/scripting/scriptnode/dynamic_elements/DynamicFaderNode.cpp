@@ -50,17 +50,16 @@ namespace faders
 
 	void dynamic::editor::FaderGraph::paint(Graphics& g)
 	{
-		g.setColour(Colours::white.withAlpha(0.2f));
-		g.drawRect(getLocalBounds().toFloat(), 1.0f);
+		ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, getLocalBounds().toFloat(), false);
 
 		auto xPos = (float)getWidth() * inputValue;
 
-		Line<float> posLine(xPos, 0.0f, xPos, (float)getHeight());
+		Line<float> posLine(xPos, 2.0f, xPos, (float)getHeight() - 2.0f);
 		Line<float> scanLine(xPos, 5.0f, xPos, (float)getHeight() - 5.0f);
 
 		int index = 0;
 
-		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setColour(Colours::white.withAlpha(0.3f));
 		g.drawLine(posLine);
 
 		for (auto& p : faderCurves)
@@ -183,7 +182,7 @@ namespace faders
 
 		addAndMakeVisible(graph);
 
-		setSize(256, 24 + 10 + parameter::ui::UIConstants::ButtonHeight + parameter::ui::UIConstants::DragHeight + parameter::ui::UIConstants::GraphHeight);
+		setSize(256, 24 + 10 + parameter::ui::UIConstants::ButtonHeight + parameter::ui::UIConstants::DragHeight + parameter::ui::UIConstants::GraphHeight + UIValues::NodeMargin);
 
 		setRepaintsOnMouseActivity(true);
 
@@ -195,6 +194,8 @@ namespace faders
 		auto b = getLocalBounds();
 
 		auto top = b.removeFromTop(24);
+		
+		b.removeFromTop(UIValues::NodeMargin);
 
 		faderSelector.setBounds(top);
 		graph.setBounds(b.removeFromTop(parameter::ui::UIConstants::GraphHeight));
@@ -208,5 +209,6 @@ namespace faders
 	}
 
 }
+
 
 }

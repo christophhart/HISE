@@ -37,9 +37,12 @@ using namespace hise;
 
 
 ChainNode::ChainNode(DspNetwork* n, ValueTree t) :
-	SerialNode(n, t)
+	SerialNode(n, t),
+	isVertical(PropertyIds::IsVertical, true)
 {
 	initListeners();
+
+	isVertical.initialise(this);
 
 	wrapper.getObject().initialise(this);
 
@@ -93,6 +96,14 @@ void ChainNode::prepare(PrepareSpecs ps)
 void ChainNode::handleHiseEvent(HiseEvent& e)
 {
 	wrapper.handleHiseEvent(e);
+}
+
+scriptnode::NodeComponent* ChainNode::createComponent()
+{
+	if (!isVertical.getValue())
+		return new ParallelNodeComponent(this);
+	else
+		return new SerialNodeComponent(this);
 }
 
 SplitNode::SplitNode(DspNetwork* root, ValueTree data) :

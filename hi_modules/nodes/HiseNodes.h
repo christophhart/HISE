@@ -172,7 +172,7 @@ struct TempoDisplay : public ModulationSourceBaseComponent
 		ModulationSourceBaseComponent(updater),
 		p(p_)
 	{
-		setSize(256, 40);
+		setSize(200, 40);
 	}
 
 	static Component* createExtraComponent(void *p, PooledUIUpdater* updater)
@@ -192,19 +192,57 @@ struct TempoDisplay : public ModulationSourceBaseComponent
 			lastValue = thisValue;
 			repaint();
 		}
+
+		auto now = Time::getMillisecondCounter();
+
+		if (now - lastTime > thisValue)
+		{
+			on = !on;
+			repaint();
+			lastTime = now;
+		}
 	}
 
 	void paint(Graphics& g) override
 	{
-		g.setColour(Colours::white);
-		g.setFont(GLOBAL_FONT());
-
 		String n = String((int)lastValue) + " ms";
 
-		g.drawText(n, getLocalBounds().toFloat(), Justification::centred);
+		auto b = getLocalBounds().toFloat().reduced(6.0f);
+
+		g.setColour(Colours::black.withAlpha(0.1f));
+		g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
+		
+		auto c = findParentComponentOfClass<NodeComponent>()->header.colour;
+
+		if (c == Colours::transparentBlack)
+			c = Colour(0xFFAAAAAA);
+
+		g.setColour(c);
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		Path p;
+		p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
+
+		PathFactory::scalePath(p, b.removeFromLeft(b.getHeight()).reduced(3));
+
+		g.fillPath(p);
+
+		auto r = b.removeFromRight(b.getHeight()).reduced(6.0f);
+
+		g.drawText(n, b, Justification::centred);
+		
+		g.drawEllipse(r, 2.0f);
+
+		if (on)
+			g.fillEllipse(r.reduced(4.0f));
 	}
 
 	double lastValue = 0.0;
+	
+	bool on = false;
+
+	uint32_t lastTime;
+
 	WeakReference<tempo_sync> p;
 };
 

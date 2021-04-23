@@ -36,6 +36,104 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+namespace file_analysers
+{
+struct dynamic
+{
+	using NodeType = wrap::data<control::file_analyser<parameter::dynamic_base_holder, dynamic>, data::dynamic::audiofile>;
+
+	enum AnalyserMode
+	{
+		Peak,
+		Pitch,
+		Length,
+		numAnalyserModes
+	};
+
+	static StringArray getAnalyserModes()
+	{
+		return { "Peak", "Pitch", "Length" };
+	}
+
+	dynamic() :
+		mode(PropertyIds::Mode, "Peak")
+	{};
+
+	void initialise(NodeBase* n)
+	{
+		mode.initialise(n);
+		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::updateMode), true);
+
+		parentNode = n;
+	}
+
+	void updateMode(Identifier, var newValue)
+	{
+		m = (AnalyserMode)getAnalyserModes().indexOf(newValue.toString());
+		
+		if (auto o = lastData.obj)
+			o->getUpdater().sendContentChangeMessage(sendNotificationAsync, 90);
+	}
+
+	double getValue(const ExternalData& d)
+	{
+		lastData = d;
+
+		switch (m)
+		{
+		case Length: lastValue = file_analysers::milliseconds().getValue(d); break;
+		case Pitch: lastValue = file_analysers::pitch().getValue(d); break;
+		case Peak: lastValue = file_analysers::peak().getValue(d); break;
+		}
+
+		return lastValue;
+	}
+
+	double lastValue = 0.0;
+	ExternalData lastData;
+	NodePropertyT<String> mode;
+	AnalyserMode m;
+	WeakReference<NodeBase> parentNode;
+
+	struct editor : public ScriptnodeExtraComponent<NodeType>
+	{
+		editor(NodeType* n, PooledUIUpdater* u) :
+			ScriptnodeExtraComponent<NodeType>(n, u),
+			audioEditor(u, &n->i),
+			modeSelector("Peak")
+		{
+			addAndMakeVisible(audioEditor);
+			addAndMakeVisible(modeSelector);
+
+			modeSelector.initModes(dynamic::getAnalyserModes(), getObject()->obj.analyser.parentNode.get());
+
+			setSize(500, 128);
+			stop();
+		};
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			modeSelector.setBounds(b.removeFromTop(28));
+			audioEditor.setBounds(b);
+		}
+
+		void timerCallback() override
+		{}
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			auto typed = static_cast<NodeType*>(obj);
+			return new editor(typed, updater);
+		}
+
+		ComboBoxWithModeProperty modeSelector;
+		data::ui::audiofile_editor_with_mod audioEditor;
+	};
+};
+}
+
+
 namespace faders
 {
 struct dynamic
@@ -163,7 +261,7 @@ struct dynamic
 
 		ComboBoxWithModeProperty faderSelector;
 
-		PopupLookAndFeel plaf;
+		ScriptnodeComboBoxLookAndFeel plaf;
 		FaderGraph graph;
 	};
 };

@@ -940,7 +940,7 @@ struct SnexMenuBar : public Component,
 
 	void resized() override;;
 
-	PopupLookAndFeel plaf;
+	ScriptnodeComboBoxLookAndFeel plaf;
 	Path snexIcon;
 	Colour iconColour = Colours::white.withAlpha(0.2f);
 

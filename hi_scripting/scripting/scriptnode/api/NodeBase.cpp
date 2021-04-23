@@ -100,6 +100,9 @@ void NodeBase::prepare(PrepareSpecs specs)
 
 	for (auto p : parameters)
 	{
+		if (p->isModulated())
+			continue;
+
 		auto v = p->getValue();
 		p->setValueAndStoreAsync(v);
 	}
@@ -366,7 +369,7 @@ void NodeBase::setParentNode(Ptr newParentNode)
 
 void NodeBase::showPopup(Component* childOfGraph, Component* c)
 {
-	auto g = childOfGraph->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+	auto g = childOfGraph->findParentComponentOfClass<ZoomableViewport>();
 	auto b = g->getLocalArea(childOfGraph, childOfGraph->getLocalBounds());
 	g->setCurrentModalWindow(c, b);
 }
@@ -802,6 +805,8 @@ scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnect
 
 	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
 
+	chain->inputRange = RangeHelpers::getDoubleRange(connectionTree.getParent());
+
 	for (auto c : connectionTree)
 	{
 		auto nId = c[PropertyIds::NodeId].toString();
@@ -822,19 +827,8 @@ scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnect
 			if (auto sn = dynamic_cast<SnexSource::SnexParameter*>(param))
 			{
 				ScopedPointer<parameter::dynamic_base> b;
-
-				auto r = RangeHelpers::getDoubleRange(c);
-				auto e = c[PropertyIds::Expression].toString();
-
-				if (e.isNotEmpty())
-					b = new parameter::dynamic_expression(sn->p, new snex::JitExpression(e));
-				else if (!RangeHelpers::isIdentity(r))
-					b = new parameter::dynamic_from0to1(sn->p, r);
-				else
-					b = new parameter::dynamic_base(sn->p);
-
+				b = parameter::dynamic_base::createFromConnectionTree(c, sn->p);
 				b->setDataTree(sn->getTreeWithValue());
-
 				chain->addParameter(b.release());
 			}
 			else
@@ -846,19 +840,8 @@ scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnect
 					if (p.info.getId() == pId)
 					{
 						ScopedPointer<parameter::dynamic_base> b;
-
-						auto r = RangeHelpers::getDoubleRange(c);
-						auto e = c[PropertyIds::Expression].toString();
-
-						if (e.isNotEmpty())
-							b = new parameter::dynamic_expression(p.callback, new snex::JitExpression(e));
-						else if (!RangeHelpers::isIdentity(r))
-							b = new parameter::dynamic_from0to1(p.callback, r);
-						else
-							b = new parameter::dynamic_base(p.callback);
-
+						b = parameter::dynamic_base::createFromConnectionTree(c, p.callback);
 						b->setDataTree(param->getTreeWithValue());
-
 						chain->addParameter(b.release());
 					}
 				}

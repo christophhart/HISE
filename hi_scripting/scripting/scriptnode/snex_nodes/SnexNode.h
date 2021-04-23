@@ -78,6 +78,14 @@ struct snex_node : public SnexSource
 			{
 				auto i = (int)ScriptnodeCallbacks::getCallbackId(id);
 				nf[i] = getFunctionAsObjectCallback(id.toString());
+
+				if (!nf[i].isResolved())
+				{
+					for (int i = 0; i < (int)ScriptnodeCallbacks::numFunctions; i++)
+						f[i] = {};
+
+					return Result::fail(id.toString() + " wasn't found");
+				}
 			}
 
 			{

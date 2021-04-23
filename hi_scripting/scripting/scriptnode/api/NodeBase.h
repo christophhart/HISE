@@ -150,6 +150,8 @@ public:
 		l.setHighPriorityListener(&valuePropertyUpdater);
 	}
 
+	bool isModulated() const { return (bool)data.getProperty(PropertyIds::ModulationTarget, false); }
+
 private:
 
 	ValueTree treeThatStoresValue;
@@ -560,7 +562,6 @@ public:
 	valuetree::RemoveListener nodeRemoveUpdater;
 
 	NormalisableRange<double> connectionRange;
-	bool inverted = false;
 
 	ReferenceCountedObjectPtr<NodeBase::Parameter> targetParameter;
 

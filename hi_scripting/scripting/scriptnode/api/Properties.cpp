@@ -131,7 +131,7 @@ struct ColourSelectorPropertyComponent : public PropertyComponent
 		{
 			auto p = new Popup(this);
 
-			Component* root = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+			Component* root = findParentComponentOfClass<ZoomableViewport>();
 
 			if (root == nullptr)
 				root = findParentComponentOfClass<PropertyPanel>();
@@ -247,10 +247,13 @@ struct SliderWithLimit : public PropertyComponent
 
 		auto v = data.getProperty(id);
 
-		auto min = jmin(0.0, (double)v, (double)data.getProperty(MinValue, 0.0));
-		auto max = jmax(v, data.getProperty(MaxValue, 1.0));
+		auto min = (double)jmin(0.0, (double)v, (double)data.getProperty(MinValue, 0.0));
+		auto max = (double)jmax(v, data.getProperty(MaxValue, 1.0));
 		auto stepSize = data.getProperty(StepSize, 0.01);
 		
+		if (min > max)
+			std::swap(min, max);
+
 		c.setScrollWheelEnabled(false);
 		c.setRange(min, max, stepSize);
 		c.getValueObject().referTo(data.getPropertyAsValue(id, um, true));
@@ -687,7 +690,7 @@ void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& )
 	Display* bigOne = new Display(value, false);
 	bigOne->setSize(300, 300);
 
-	auto pc = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+	auto pc = findParentComponentOfClass<ZoomableViewport>();
 
 	auto b = pc->getLocalArea(this, getLocalBounds());
 
@@ -720,9 +723,8 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 
 		return new FileNameValuePropertyComponent(id.toString(), file, value);
 	}
-		
 
-	if (propId == LockNumChannels || propId == Enabled)
+	if (propId == LockNumChannels || propId == Enabled || propId == SplitSignal)
 		return new ToggleButtonPropertyComponent(d, id, um);
     
 #if HISE_INCLUDE_SNEX

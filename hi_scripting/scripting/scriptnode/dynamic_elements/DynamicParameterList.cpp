@@ -34,6 +34,122 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+namespace duplilogic
+{
+
+duplilogic::dynamic::editor::editor(NodeType* obj, PooledUIUpdater* u) :
+	ScriptnodeExtraComponent<NodeType>(obj, u),
+	dragger(u),
+	mode("Spread")
+{
+	addAndMakeVisible(mode);
+
+	
+
+	setSize(150, 150 + 2 * 28 + 3 * UIValues::NodeMargin);
+	addAndMakeVisible(dragger);
+}
+
+void duplilogic::dynamic::editor::paint(Graphics& g)
+{
+	ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, area, false);
+
+	auto numVoices = getObject()->getParameter().getNumVoices();
+	auto v = getObject()->lastValue;
+	auto gm = getObject()->lastGamma;
+	auto b = area.reduced(5.0f);
+
+	Colour lineColour = Colours::white.withAlpha(0.6f);
+
+	if (auto nc = findParentComponentOfClass<NodeComponent>())
+	{
+		lineColour = nc->header.colour;
+
+		if (lineColour == Colours::transparentBlack)
+			lineColour = Colour(0xFFDADADA);
+	}
+
+	auto minY = (float)getHeight();
+	auto maxY = 0.0f;
+
+	UnblurryGraphics ug(g, *this, false);
+
+	Array<Line<float>> lines;
+
+	for (int i = 0; i < numVoices; i++)
+	{
+		auto thisV = getObject()->obj.getValue(i, numVoices, v, gm);
+
+		auto thisY = (1.0f - (float)thisV) * b.getHeight() + b.getY();
+
+		maxY = jmax(maxY, thisY);
+		minY = jmin(minY, thisY);
+
+		lines.add({ b.getX(), thisY, b.getRight(), thisY });
+
+		g.setColour(Colours::white.withAlpha(0.03f));
+		ug.draw1PxHorizontalLine(thisY, b.getX(), b.getRight());
+
+		//g.drawLine(lines.getLast());
+	}
+
+	Rectangle<float> ar(b.getX(), minY, b.getWidth(), (maxY - minY));
+
+	g.setColour(Colours::white.withAlpha(0.02f));
+	g.fillRect(ar);
+
+
+	if (numVoices > 1)
+	{
+		auto xWidth = b.getWidth() / (float)(numVoices - 1);
+
+		int i = 0;
+
+		Path linePath;
+
+		for (float x = b.getX(); x < getWidth(); x += xWidth)
+		{
+			Line<float> pos(x, b.getY(), x, b.getBottom());
+
+			g.setColour(Colours::white.withAlpha(0.03f));
+
+			ug.draw1PxVerticalLine(x, b.getY(), b.getBottom());
+
+			//g.drawLine(pos, 1.0f);
+
+			auto p = pos.getIntersection(lines[i++]);
+
+			if (i == 1)
+				linePath.startNewSubPath(p);
+			else
+				linePath.lineTo(p);
+
+			auto circle = Rectangle<float>(p, p).withSizeKeepingCentre(4.0f, 4.0f);
+
+			g.setColour(lineColour);
+			g.fillEllipse(circle);
+		}
+
+		g.strokePath(linePath, PathStrokeType(1.0f));
+	}
+}
+
+void dynamic::editor::timerCallback()
+{
+	if (!initialised)
+	{
+		if (auto nc = findParentComponentOfClass<NodeComponent>())
+		{
+			mode.initModes(duplilogic::dynamic::getSpreadModes(), nc->node);
+			initialised = true;
+		}
+	}
+
+	repaint();
+}
+
+}
+
 namespace parameter
 {
 
@@ -149,7 +265,7 @@ namespace parameter
 		rebuildMultiOutputConnections();
 	}
 
-	void dynamic_list::updateParameterAmount(Identifier id, var newValue)
+	void dynamic_list::updateParameterAmount(Identifier, var newValue)
 	{
 		auto numToUse = numParameters.getValue();
 
@@ -501,12 +617,16 @@ namespace parameter
 			findParentComponentOfClass<DspNetworkGraph>()->repaint();
 		}
 
+		
+
+		
+
 		void dynamic_list_editor::DragComponent::resized()
 		{
 			auto b = getLocalBounds().withSizeKeepingCentre(24, 24);
 
-
-			auto pathBounds = b.toFloat().reduced(2.0f).translated(-12.0f, 0.0f);
+			auto isHigher = getWidth() > getHeight();
+			auto pathBounds = b.toFloat().reduced(2.0f).translated(isHigher ? -12.0f : 0, isHigher ? 0.0f : -12.0f);
 
 			Factory::scalePath(p, pathBounds);
 
@@ -522,7 +642,10 @@ namespace parameter
 			auto b = getLocalBounds().toFloat().reduced(1.0f);
 
 			g.setColour(Colours::black.withAlpha(0.1f));
-			g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
+
+			auto cornerSize = jmin(b.getWidth(), b.getHeight()) / 2.0f;
+
+			g.fillRoundedRectangle(b, cornerSize);
 
 			float alpha = 0.5f;
 
@@ -537,25 +660,23 @@ namespace parameter
 			g.setColour(c.withAlpha(alpha));
 			g.fillPath(p);
 			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText(String(index + 1), p.getBounds().translated(24.0f, 0.0f), Justification::centred);
+
+			auto isHigher = getWidth() > getHeight();
+
+			g.drawText(textFunction(index), p.getBounds().translated(isHigher ? 24.0f : 0.0f, isHigher ? 0.0f : 24.0f), Justification::centred);
 		}
-
 	}
-
 
 	void dynamic_duplispread::rebuildTargets()
 	{
-		if (auto un = dynamic_cast<InterpretedUnisonoWrapperNode*>(unisonoNode.get()))
-		{
-			auto numVoices = un->getUnisonoObject().numDuplicates;
+		targets.clear();
 
-			numUsedInt = 0;
-			memset(targets, 0, sizeof(void*)*NUM_MAX_UNISONO_VOICES);
+		if (auto un = dynamic_cast<InterpretedUnisonoWrapperNode*>(duplicateParentNode.get()))
+		{
+			auto numVoices = getNumDuplicates();
 
 			if (numVoices > 0)
 			{
-				numUsed = (double)numVoices;
-
 				auto dTree = dataTree;
 				auto l = un->getParameterList(dTree);
 
@@ -565,110 +686,27 @@ namespace parameter
 				{
 					auto tp = l[i];
 					auto obj = tp->getReferenceToCallback().base->obj;
-					targets[i] = obj;
+					targets.add(obj);
 				}
-
-				numUsedInt = numVoices;
 			}
-
-			//setDelta(delta);
 		}
 	}
 
 	void dynamic_duplispread::connect(NodeBase* newUnisonoMode, dynamic_base* cb)
 	{
-		unisonoNode = newUnisonoMode;
+		if (connectedDuplicateObject != nullptr)
+			connectedDuplicateObject->removeNumVoiceListener(this);
+
+		duplicateParentNode = newUnisonoMode;
+		connectedDuplicateObject = dynamic_cast<InterpretedUnisonoWrapperNode*>(newUnisonoMode)->getUnisonoObject();
+
+		if (connectedDuplicateObject != nullptr)
+			connectedDuplicateObject->addNumVoiceListener(this);
+
 		originalCallback = cb;
-
-		if (auto np = newUnisonoMode->getParameter("NumVoices"))
-		{
-			voiceUpdater.setCallback(np->data, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(dynamic_duplispread::updateNumVoiceChange));
-
-			np->ensureAfterValueCallback(voiceUpdater);
-		}
-
 		originalCallback->obj = nullptr;
-
+		
 		rebuildTargets();
-	}
-
-	void duplispread_editor::paint(Graphics& g)
-	{
-		g.setColour(Colours::black.withAlpha(0.2f));
-		g.fillRect(area);
-		g.setColour(Colours::white.withAlpha(0.2f));
-		g.drawRect(area);
-
-		auto v = getObject()->value;
-		auto d = getObject()->delta;
-
-		auto b = area.reduced(4.0f);
-
-		auto y = b.getY() + b.getHeight() * (1.0 - v);
-
-		g.setColour(Colours::white.withAlpha(0.1f));
-
-		g.drawHorizontalLine(y, b.getX(), b.getRight());
-
-		auto halfDelta = (d / 2.0) * b.getHeight();
-
-		auto y1 = jlimit<float>(b.getY(), b.getBottom(), y + halfDelta);
-		auto y2 = jlimit<float>(b.getY(), b.getBottom(), y - halfDelta);
-
-		g.setColour(Colours::white.withAlpha(0.3f));
-
-		Line<float> l(b.getX(), y1, b.getRight(), y2);
-
-		g.drawLine(l, 2.0f);
-
-		Rectangle<float> ar (b.getX(), y1, b.getWidth(), y2 - y1);
-
-		g.setColour(Colours::white.withAlpha(0.02f));
-
-		g.fillRect(ar);
-
-		if (auto p = dynamic_cast<dynamic_duplispread*>(getObject()->getParameter().base.get()))
-		{
-			auto un = dynamic_cast<InterpretedUnisonoWrapperNode*>(p->unisonoNode.get());
-
-			auto numDots = p->numUsedInt;
-
-			if (numDots > 1)
-			{
-				auto delta = (b.getWidth()-0.5f) / (float)(numDots - 1);
-
-				for (float x = b.getX(); x <= b.getRight(); x += delta)
-				{
-					Line<float> cross(x, b.getY(), x, b.getBottom());
-
-					g.setColour(Colours::white.withAlpha(0.02f));
-
-					g.drawLine(cross, 1.0f);
-
-					auto dot = l.getIntersection(cross);
-					Rectangle<float> circle(dot, dot);
-					g.setColour(Colours::white.withAlpha(0.7f));
-					g.fillEllipse(circle.withSizeKeepingCentre(4.0f, 4.0f));
-				}
-			}
-			else
-			{
-				Line<float> cross(b.getCentreX(), b.getY(), b.getCentreX(), b.getBottom());
-
-				g.setColour(Colours::white.withAlpha(0.02f));
-
-				g.drawLine(cross, 1.0f);
-
-				auto dot = l.getIntersection(cross);
-
-				Rectangle<float> circle(dot, dot);
-
-				g.setColour(Colours::white.withAlpha(0.7f));
-				g.fillEllipse(circle.withSizeKeepingCentre(4.0f, 4.0f));
-			}
-
-			
-		}
 	}
 }
 

@@ -128,6 +128,49 @@ struct ParameterSlider : public Slider,
 	public DragAndDropTarget,
 	public PooledUIUpdater::SimpleTimer
 {
+	struct RangeButton : public Component
+	{
+		RangeButton()
+		{
+			setRepaintsOnMouseActivity(true);
+		};
+
+		void mouseUp(const MouseEvent& e) override
+		{
+			findParentComponentOfClass<ParameterSlider>()->showRangeComponent(false);
+		}
+
+		void paint(Graphics& g) override
+		{
+			static const unsigned char pathData[] = { 110,109,246,40,170,65,102,102,214,65,108,246,40,170,65,240,39,42,66,108,0,0,0,0,246,40,170,65,108,246,40,170,65,0,0,0,0,108,246,40,170,65,242,210,123,65,108,147,24,34,66,242,210,123,65,108,147,24,34,66,0,0,0,0,108,14,45,119,66,246,40,170,65,108,147,24,
+34,66,240,39,42,66,108,147,24,34,66,102,102,214,65,108,246,40,170,65,102,102,214,65,99,101,0,0 };
+
+			auto over = isMouseOver(true);
+			auto down = isMouseButtonDown(true);
+
+			Path p;
+			p.loadPathFromData(pathData, sizeof(pathData));
+			PathFactory::scalePath(p, getLocalBounds().toFloat().reduced(isMouseButtonDown() ? 2.0f : 1.0f));
+
+			float alpha = 0.0f;
+			
+			if (getParentComponent()->isMouseOverOrDragging(true))
+				alpha += 0.05f;
+
+			if (over)
+				alpha = 0.4f;
+
+			if (down)
+				alpha += 0.2f;
+
+			g.setColour(Colours::white.withAlpha(alpha));
+
+			g.fillPath(p);
+		}
+	} rangeButton;
+
+	struct RangeComponent;
+
 	ParameterSlider(NodeBase* node_, int index);
     ~ParameterSlider();
     
@@ -160,7 +203,13 @@ struct ParameterSlider : public Slider,
 
 	void mouseEnter(const MouseEvent& e) override;
 
+	void mouseMove(const MouseEvent& e) override;
+
 	void mouseExit(const MouseEvent& e) override;
+
+	void resized() override;
+
+	void showRangeComponent(bool temporary);
 
 	void mouseDoubleClick(const MouseEvent&) override;
 
@@ -181,6 +230,8 @@ struct ParameterSlider : public Slider,
 	ValueTree pTree;
 	ParameterKnobLookAndFeel laf;
 	NodeBase::Ptr node;
+	ScopedPointer<RangeComponent> currentRangeComponent;
+	var currentConnection;
 };
 
 
@@ -194,6 +245,8 @@ struct MacroParameterSlider : public Component
 
 	void mouseUp(const MouseEvent& e) override;
 
+	
+
 	void paintOverChildren(Graphics& g) override;
 
 	void setEditEnabled(bool shouldBeEnabled);
@@ -204,9 +257,11 @@ struct MacroParameterSlider : public Component
 
 	void focusLost(FocusChangeType) override { repaint(); }
 
+	bool editEnabled = false;
+
 private:
 
-	bool editEnabled = false;
+	
 
 	ParameterSlider slider;
 };

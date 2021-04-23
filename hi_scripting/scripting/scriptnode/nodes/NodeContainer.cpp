@@ -302,6 +302,70 @@ void NodeContainer::clear()
 	getNodeTree().removeAllChildren(asNode()->getUndoManager());
 }
 
+juce::Rectangle<int> NodeContainer::getContainerPosition(bool isVerticalContainer, Point<int> topLeft) const
+{
+	using namespace UIValues;
+	auto an = asNode();
+
+	if (isVerticalContainer)
+	{
+		const int minWidth = jmax(NodeWidth, 100 * an->getNumParameters() + 50);
+		int maxW = minWidth;
+		int h = 0;
+
+		h += UIValues::NodeMargin;
+		h += UIValues::HeaderHeight; // the input
+
+		if (asNode()->getValueTree()[PropertyIds::ShowParameters])
+			h += UIValues::ParameterHeight;
+
+		h += PinHeight; // the "hole" for the cable
+
+		Point<int> childPos(NodeMargin, NodeMargin);
+
+		for (auto n : nodes)
+		{
+			auto bounds = n->getPositionInCanvas(childPos);
+			//bounds = n->getBoundsToDisplay(bounds);
+			maxW = jmax<int>(maxW, bounds.getWidth());
+			h += bounds.getHeight() + NodeMargin;
+			childPos = childPos.translated(0, bounds.getHeight());
+		}
+
+		h += PinHeight; // the "hole" for the cable
+
+		return { topLeft.getX(), topLeft.getY(), maxW + 2 * NodeMargin, h };
+	}
+	else
+	{
+
+		int y = UIValues::NodeMargin;
+		y += UIValues::HeaderHeight;
+		y += UIValues::PinHeight;
+
+		if (an->getValueTree()[PropertyIds::ShowParameters])
+			y += UIValues::ParameterHeight;
+
+		Point<int> startPos(UIValues::NodeMargin, y);
+
+		int maxy = startPos.getY();
+		int maxWidth = NodeWidth + NodeMargin;
+
+		for (auto n : nodes)
+		{
+			auto b = n->getPositionInCanvas(startPos);
+			maxy = jmax(b.getBottom(), maxy);
+			startPos = startPos.translated(b.getWidth() + UIValues::NodeMargin, 0);
+			maxWidth = startPos.getX();
+		}
+
+		maxy += UIValues::PinHeight;
+		maxy += UIValues::NodeMargin;
+
+		return { topLeft.getX(), topLeft.getY(), maxWidth, maxy };
+	}
+}
+
 void NodeContainer::initListeners(bool initParameterListener)
 {
 	nodeListener.setCallback(getNodeTree(),
@@ -335,34 +399,7 @@ NodeComponent* SerialNode::createComponent()
 
 juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
 {
-	using namespace UIValues;
-
-	const int minWidth = jmax(NodeWidth, 100 * getNumParameters() + 50);
-	int maxW = minWidth;
-	int h = 0;
-
-	h += UIValues::NodeMargin;
-	h += UIValues::HeaderHeight; // the input
-
-	if (v_data[PropertyIds::ShowParameters])
-		h += UIValues::ParameterHeight;
-
-	h += PinHeight; // the "hole" for the cable
-
-	Point<int> childPos(NodeMargin, NodeMargin);
-
-	for (auto n : nodes)
-	{
-		auto bounds = n->getPositionInCanvas(childPos);
-		//bounds = n->getBoundsToDisplay(bounds);
-		maxW = jmax<int>(maxW, bounds.getWidth());
-		h += bounds.getHeight() + NodeMargin;
-		childPos = childPos.translated(0, bounds.getHeight());
-	}
-
-	h += PinHeight; // the "hole" for the cable
-
-	return getBoundsToDisplay({ topLeft.getX(), topLeft.getY(), maxW + 2 * NodeMargin, h });
+	return getBoundsToDisplay(getContainerPosition(true, topLeft));
 }
 
 
@@ -414,33 +451,7 @@ NodeComponent* ParallelNode::createComponent()
 
 juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
 {
-	using namespace UIValues;
-
-	int y = UIValues::NodeMargin;
-	y += UIValues::HeaderHeight;
-	y += UIValues::PinHeight;
-
-	if (v_data[PropertyIds::ShowParameters])
-		y += UIValues::ParameterHeight;
-
-	Point<int> startPos(UIValues::NodeMargin, y);
-
-	int maxy = startPos.getY();
-	int maxWidth = NodeWidth + NodeMargin;
-
-	for (auto n : nodes)
-	{
-		auto b = n->getPositionInCanvas(startPos);
-		maxy = jmax(b.getBottom(), maxy);
-		startPos = startPos.translated(b.getWidth() + UIValues::NodeMargin, 0);
-		maxWidth = startPos.getX();
-
-	}
-
-	maxy += UIValues::PinHeight;
-	maxy += UIValues::NodeMargin;
-
-	return getBoundsToDisplay({ topLeft.getX(), topLeft.getY(), maxWidth, maxy });
+	return getBoundsToDisplay(getContainerPosition(false, topLeft));
 }
 
 
@@ -510,7 +521,6 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 	}
 
 	connectionRange = RangeHelpers::getDoubleRange(d);
-	inverted = d[PropertyIds::Inverted];
 }
 
 
@@ -544,6 +554,8 @@ NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree da
 		valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(MacroParameter::updateRangeForConnection));
 
+	inputRangeListener.setCallback(data, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Synchronously,
+		BIND_MEMBER_FUNCTION_2(MacroParameter::updateInputRange));
 	
 	connectionListener.setCallback(getConnectionTree(),
 		valuetree::AsyncMode::Synchronously,
@@ -570,7 +582,7 @@ NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree da
 
 void NodeContainer::MacroParameter::rebuildCallback()
 {
-	inputRange = RangeHelpers::getDoubleRange(data);
+	
 
 	connections.clear();
 	auto cTree = data.getChildWithName(PropertyIds::Connections);
@@ -640,7 +652,12 @@ void NodeContainer::MacroParameter::rebuildCallback()
 
 void NodeContainer::MacroParameter::updateRangeForConnection(ValueTree v, Identifier)
 {
-	RangeHelpers::checkInversion(v, &rangeListener, parent->getUndoManager());
+	//RangeHelpers::checkInversion(v, &rangeListener, parent->getUndoManager());
+	rebuildCallback();
+}
+
+void NodeContainer::MacroParameter::updateInputRange(Identifier, var)
+{
 	rebuildCallback();
 }
 

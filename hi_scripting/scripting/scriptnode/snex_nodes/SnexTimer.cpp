@@ -72,18 +72,15 @@ namespace control
 		ScriptnodeExtraComponent<snex_timer>(t, updater),
 		menuBar(t),
 		dragger(updater),
-		meter(updater)
+		modKnob(updater, &t->lastValue)
 	{
 		t->addCompileListener(this);
 
+		addAndMakeVisible(modKnob);
 		addAndMakeVisible(menuBar);
 		this->addAndMakeVisible(dragger);
 
-		meter.setModValue(t->lastValue);
-
-		addAndMakeVisible(meter);
-
-		this->setSize(256, 90);
+		this->setSize(200, 140);
 	}
 
 	juce::Component* snex_timer::editor::createExtraComponent(void* obj, PooledUIUpdater* updater)
@@ -97,35 +94,21 @@ namespace control
 
 		auto top = b.removeFromTop(24);
 		
-
 		menuBar.setBounds(top);
 
-		b.removeFromTop(12);
+		b.removeFromTop(UIValues::NodeMargin);
+		b.removeFromBottom(UIValues::NodeMargin);
+		
 
-		auto r = b.removeFromTop(20);
+		dragger.setBounds(b.removeFromBottom(28));
 
-		flashDot = r.removeFromRight(20).toFloat().reduced(2.0f);
+		modKnob.setBounds(b);
 
-		r.removeFromRight(5);
-
-		meter.setBounds(r.reduced(0, 2));
-
-		b.removeFromTop(12);
-
-		dragger.setBounds(b);
 	}
 
 	void snex_timer::editor::paint(Graphics& g)
 	{
-		auto b = this->getLocalBounds().removeFromTop(32);
-
-		auto ledArea = b.removeFromLeft(24).removeFromTop(24);
-
-		g.setColour(Colours::white.withAlpha(0.7f));
-		g.drawEllipse(flashDot, 1.0f);
-
-		g.setColour(Colours::white.withAlpha(alpha));
-		g.fillEllipse(flashDot.reduced(2.0f));
+		
 	}
 
 	void snex_timer::editor::timerCallback()
@@ -136,21 +119,36 @@ namespace control
 			return;
 		}
 
-		float lastAlpha = alpha;
-
-		auto& ui_led = getObject()->lastValue.changed;
-
-		if (ui_led)
-		{
-			alpha = 1.0f;
-		}
-		else
-			alpha = jmax(0.0f, alpha - 0.1f);
-
-		if (lastAlpha != alpha)
-			repaint();
+		
 	}
 
+}
+
+void FlashingModKnob::paint(Graphics& g)
+{
+	auto v = modValue->getModValue();
+
+	auto maxSize = (float)jmin(getWidth(), getHeight()) - 2.0f;
+
+	auto c = Colour(0xFFDADADA);
+
+	auto flashDot = getLocalBounds().toFloat().withSizeKeepingCentre(maxSize, maxSize);
+
+	Path p;
+
+	const double s = 2.4;
+
+	p.addPieSegment(flashDot.reduced(maxSize * 0.02f), -s, s, JUCE_LIVE_CONSTANT_OFF(0.93f));
+	p.addPieSegment(flashDot, -s, -s + s * 2.0 * v, JUCE_LIVE_CONSTANT_OFF(0.85f));
+
+	g.setColour(c);
+
+	g.fillPath(p);
+
+	g.drawEllipse(flashDot.reduced(maxSize * 0.2f), 1.0f);
+
+	if(on)
+		g.fillEllipse(flashDot.reduced(maxSize * 0.25f));
 }
 
 }

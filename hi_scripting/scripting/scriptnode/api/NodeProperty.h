@@ -174,7 +174,7 @@ struct ComboBoxWithModeProperty : public ComboBox,
 	{
 		addListener(this);
 		setLookAndFeel(&plaf);
-		GlobalHiseLookAndFeel::setDefaultColours(*this);
+		setColour(ColourIds::textColourId, Colour(0xFFAAAAAA));
 	}
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged)
@@ -205,7 +205,7 @@ struct ComboBoxWithModeProperty : public ComboBox,
 	bool initialised = false;
 	UndoManager* um;
 	NodePropertyT<String> mode;
-	PopupLookAndFeel plaf;
+	ScriptnodeComboBoxLookAndFeel plaf;
 };
 
 
