@@ -63,27 +63,25 @@ juce::Array<juce::Identifier> RangeHelpers::getRangeIds()
 	return { MinValue, MaxValue, StepSize, SkewFactor};
 }
 
-bool RangeHelpers::checkInversion(ValueTree& data, ValueTree::Listener* listenerToExclude, UndoManager* um)
-{
-	using namespace PropertyIds;
 
-	if (data[MinValue] > data[MaxValue])
-	{
-		data.setPropertyExcludingListener(listenerToExclude, Inverted, true, um);
-		return true;
-	}
-	else
-		data.setPropertyExcludingListener(listenerToExclude, Inverted, false, um);
-	return false;
+bool RangeHelpers::isInverted(const ValueTree& v)
+{
+	if (!v.isValid())
+		return false;
+
+	using namespace PropertyIds;
+	auto max = (double)v[MaxValue];
+	auto min = (double)v[MinValue];
+
+	return min > max;
 }
 
 void RangeHelpers::storeDoubleRange(ValueTree& d, bool isInverted, NormalisableRange<double> r, UndoManager* um)
 {
 	using namespace PropertyIds;
 
-	d.setProperty(Inverted, isInverted, um);
-	d.setProperty(MinValue, r.start, um);
-	d.setProperty(MaxValue, r.end, um);
+	d.setProperty(isInverted ? MaxValue : MinValue, r.start, um);
+	d.setProperty(isInverted ? MinValue : MaxValue, r.end, um);
 	d.setProperty(StepSize, r.interval, um);
 	d.setProperty(SkewFactor, r.skew, um);
 }
@@ -100,10 +98,11 @@ juce::NormalisableRange<double> RangeHelpers::getDoubleRange(const ValueTree& t)
 	if (minValue == maxValue)
 		maxValue += 0.01;
 
-	bool inverted = (double)t.getProperty(Inverted, false) || (minValue > maxValue);
+	if (minValue > maxValue)
+		std::swap(minValue, maxValue);
 
-	r.start = inverted ? maxValue : minValue;
-	r.end = inverted ? minValue : maxValue;
+	r.start = minValue;
+	r.end = maxValue;
 	r.interval = jlimit(0.0001, 1.0, (double)t.getProperty(StepSize, 0.01));
 	r.skew = jlimit(0.001, 100.0, (double)t.getProperty(SkewFactor, 1.0));
 

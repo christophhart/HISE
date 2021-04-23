@@ -59,6 +59,16 @@ struct fix_delay : public HiseDspBase
 
 	fix_delay() {};
 
+	fix_delay& operator=(const fix_delay& other)
+	{
+		delayTimeSeconds = other.delayTimeSeconds;
+
+		for (auto d : other.delayLines)
+			delayLines.add(new DelayLine());
+
+		return *this;
+	}
+
 	HISE_EMPTY_HANDLE_EVENT;
 
 	void prepare(PrepareSpecs ps);

@@ -358,6 +358,21 @@ template <class ParameterType> struct parameter_node_base
 
 	ParameterType p;
 };
+
+template <class ParameterType> struct duplicate_parameter_node_base : public parameter_node_base<ParameterType>,
+																	  public wrap::duplicate_sender::Listener
+{
+	duplicate_parameter_node_base()
+	{
+		getParameter().setParentNumVoiceListener(this);
+	}
+
+	~duplicate_parameter_node_base()
+	{
+		getParameter().setParentNumVoiceListener(nullptr);
+	}
+};
+
 }
 	
 }

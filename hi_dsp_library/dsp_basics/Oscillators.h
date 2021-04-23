@@ -115,16 +115,21 @@ struct OscillatorDisplayProvider
 		numModes
 	};
 
-	OscillatorDisplayProvider()
-	{
-		modes = { "Sine", "Saw", "Triangle", "Square", "Noise" };
-	}
+	OscillatorDisplayProvider():
+		modes({ "Sine", "Saw", "Triangle", "Square", "Noise" })
+	{}
 
 	OscillatorDisplayProvider(const OscillatorDisplayProvider& other) :
 		modes(other.modes),
 		currentMode(other.currentMode),
 		sinTable(other.sinTable)
 	{}
+
+	OscillatorDisplayProvider& operator=(const OscillatorDisplayProvider& other)
+	{
+		currentMode = other.currentMode;
+		return *this;
+	}
 
 	virtual ~OscillatorDisplayProvider() {};
 
@@ -155,7 +160,7 @@ struct OscillatorDisplayProvider
 
 	Random r;
 	SharedResourcePointer<SineLookupTable<2048>> sinTable;
-	StringArray modes;
+	const StringArray modes;
 	Mode currentMode = Mode::Sine;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(OscillatorDisplayProvider);

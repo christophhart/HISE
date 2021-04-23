@@ -122,7 +122,7 @@ struct table: public scriptnode::data::base
 	void processFloat(float& s)
 	{
 		InterpolatorType ip(hmath::abs(s));
-		s *= tableData.interpolate(ip);
+		s *= tableData[ip];
 	}
 
 	void setExternalData(const ExternalData& d, int) override
@@ -725,6 +725,7 @@ public:
 		voiceData.prepare(ps);
 		sr = ps.sampleRate;
 		setFrequency(freqValue);
+		setPitchMultiplier(pitchMultiplier);
 	}
 	
 	void process(snex::Types::ProcessData<1>& data)
@@ -803,7 +804,7 @@ public:
 
 	void setPitchMultiplier(double newMultiplier)
 	{
-		auto pitchMultiplier = jlimit(0.01, 100.0, newMultiplier);
+		pitchMultiplier = jlimit(0.001, 100.0, newMultiplier);
 
 		for (auto& d : voiceData)
 			d.multiplier = pitchMultiplier;
@@ -824,6 +825,7 @@ public:
 	OscData* currentVoiceData = nullptr;
 
 	double freqValue = 220.0;
+	double pitchMultiplier = 1.0;
 };
 
 using oscillator = wrap::fix<1, oscillator_impl<1>>;

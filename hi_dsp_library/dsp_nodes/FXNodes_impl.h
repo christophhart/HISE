@@ -217,27 +217,30 @@ void haas_impl<V>::setPosition(double newValue)
 
 	auto d = hmath::abs(position) * 0.02;
 
-	auto& l = delay.get()[0];
-	auto& r = delay.get()[1];
+	for (auto& d_ : delay)
+	{
+		auto& l = d_[0];
+		auto& r = d_[1];
 
-	// We don't allow fade times in polyphonic effects because there is no constant flow of signal that
-		// causes issues with the fade time logic...
-	int fadeTime = NumVoices == 1 ? 2048 : 0;
+		// We don't allow fade times in polyphonic effects because there is no constant flow of signal that
+			// causes issues with the fade time logic...
+		int fadeTime = NumVoices == 1 ? 2048 : 0;
 
-	if (position == 0.0)
-	{
-		l.setDelayTimeSamples(0);
-		r.setDelayTimeSamples(0);
-	}
-	else if (position > 0.0)
-	{
-		l.setDelayTimeSeconds(d);
-		r.setDelayTimeSamples(0);
-	}
-	else if (position < 0.0)
-	{
-		l.setDelayTimeSamples(0);
-		r.setDelayTimeSeconds(d);
+		if (position == 0.0)
+		{
+			l.setDelayTimeSamples(0);
+			r.setDelayTimeSamples(0);
+		}
+		else if (position > 0.0)
+		{
+			l.setDelayTimeSeconds(d);
+			r.setDelayTimeSamples(0);
+		}
+		else if (position < 0.0)
+		{
+			l.setDelayTimeSamples(0);
+			r.setDelayTimeSeconds(d);
+		}
 	}
 }
 

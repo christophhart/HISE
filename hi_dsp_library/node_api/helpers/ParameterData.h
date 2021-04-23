@@ -46,8 +46,8 @@ struct RangeHelpers
 
 	static Array<Identifier> getRangeIds();
 
-	/** Checks if the MinValue and MaxValue are inverted, sets the property Inverted and returns the result. */
-	static bool checkInversion(ValueTree& data, ValueTree::Listener* listenerToExclude, UndoManager* um);
+	/** Checks if the range should be inverted. */
+	static bool isInverted(const ValueTree& v);
 
 	/** Creates a NormalisableRange from the ValueTree properties. It doesn't update the Inverted property. */
 	static NormalisableRange<double> getDoubleRange(const ValueTree& t);
@@ -65,7 +65,7 @@ struct RangeHelpers
 	static Array<Identifier> getHiddenIds()
 	{
 		return { PropertyIds::NodeId, PropertyIds::ParameterId, 
-				PropertyIds::Inverted };
+				PropertyIds::Enabled };
 	}
 };
 
