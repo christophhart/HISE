@@ -574,6 +574,9 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 	{
 		Component* c = componentWrappers[i]->getComponent();
 
+		if (componentWrappers[i]->getScriptComponent()->isLocked())
+			continue;
+
 		Component* parentOfC = c->getParentComponent();
 
 		if (getLocalArea(parentOfC, c->getBounds()).contains(pos))
@@ -600,8 +603,13 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 
 		auto cBounds = getLocalArea(parentOfC, c->getBounds());
 
+		if (sc->isLocked())
+			continue;
 
-		if (area.contains(cBounds))
+		if (cBounds.contains(area))
+			continue;
+
+		if (area.intersects(cBounds))
 		{
 			arrayToFill.addIfNotAlreadyThere(sc);
 		}

@@ -136,7 +136,7 @@ void NodePopupEditor::buttonClicked(Button* b)
 		mode = 2;
 
 	auto tmp = nc.getComponent();
-	auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+	auto sp = findParentComponentOfClass<ZoomableViewport>();
 
 	Component::SafePointer<Component> tmp2 = b;
 
@@ -212,7 +212,7 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 
 	Identifier propId = Identifier(d[PropertyIds::ID].toString().fromLastOccurrenceOf(".", false, false));
 
-	if (propId == PropertyIds::FillMode || propId == PropertyIds::UseMidi || propId == PropertyIds::UseResetValue || propId == PropertyIds::UseFreqDomain)
+	if (propId == PropertyIds::FillMode || propId == PropertyIds::UseResetValue || propId == PropertyIds::UseFreqDomain)
 	{
 		TextButton* t = new TextButton();
 		t->setButtonText("Enabled");
@@ -254,7 +254,7 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 				auto pTree = n->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString());
 				if (pTree.isValid())
 				{
-					if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
+					if (auto sp = this->findParentComponentOfClass<ZoomableViewport>())
 					{
 						if (auto m = static_cast<snex::ui::WorkbenchManager*>(n->getScriptProcessor()->getMainController_()->getWorkbenchManager()))
 						{

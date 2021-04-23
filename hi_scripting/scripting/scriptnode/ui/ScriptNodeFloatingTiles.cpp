@@ -50,7 +50,9 @@ void DspNetworkGraphPanel::paint(Graphics& g)
 
 Component* DspNetworkGraphPanel::createComponentForNetwork(DspNetwork* p)
 {
-	return new DspNetworkGraph::WrapperWithMenuBar(p);
+	auto n = new DspNetworkGraph(p);
+
+	return new DspNetworkGraph::WrapperWithMenuBar(n);
 }
 
 NodePropertyPanel::NodePropertyPanel(FloatingTile* parent):

@@ -258,6 +258,7 @@ public:
 			text = 0,
 			visible,
 			enabled,
+			locked,
 			x,
 			y,
 			width,
@@ -329,6 +330,11 @@ public:
 		String getDebugDataType() const override { return getObjectName().toString(); }
 		virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
+		bool isLocked() const
+		{
+			return getScriptObjectProperty(locked);
+		}
+
 		var getAssignedValue(int index) const override;
 		void assign(const int index, var newValue) override;
 		int getCachedIndex(const var &indexExpression) const override;
@@ -344,6 +350,8 @@ public:
 		virtual bool isAutomatable() const { return false; }
 
 		virtual bool isClickable() const { return getScriptObjectProperty(enabled); };
+
+		
 
 		virtual void handleDefaultDeactivatedProperties();
 
@@ -2385,14 +2393,15 @@ struct ContentValueTreeHelpers
 
 		auto parent = v.getParent();
 
-		if (parent.isValid() && parent.getType() != root)
+		bool ok = parent.isValid() && parent.getType() != root;
+
+		while (parent.isValid() && parent.getType() != root)
 		{
 			offset.addXY((int)parent.getProperty(x), (int)parent.getProperty(y));
-
-			return getAbsolutePosition(parent, offset);
+			parent = parent.getParent();
 		}
 
-		return false;
+		return ok;
 	}
 };
 
