@@ -1663,6 +1663,14 @@ void ScriptingObjects::ScriptingModulator::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
+		auto vt = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
+
+		if (!vt.isValid())
+		{
+			reportScriptError("Can't load module state");
+			RETURN_IF_NO_THROW();
+		}
+
 		ProcessorHelpers::restoreFromBase64String(mod, base64State);
 	}
 }
@@ -1948,14 +1956,18 @@ void ScriptingObjects::ScriptingEffect::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
+		auto vt = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
+
+		if (!vt.isValid())
+		{
+			reportScriptError("Can't load module state");
+			RETURN_IF_NO_THROW();
+		}
+
 		SuspendHelpers::ScopedTicket ticket(effect->getMainController());
-
 		effect->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(dynamic_cast<JavascriptProcessor*>(getScriptProcessor()));
-
 		LockHelpers::freeToGo(effect->getMainController());
-
 		ProcessorHelpers::restoreFromBase64String(effect, base64State);
-
 	}
 }
 
@@ -2179,6 +2191,12 @@ void ScriptingObjects::ScriptingSlotFX::clear()
 
 ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(String effectName)
 {
+	if (effectName == "undefined")
+	{
+		reportScriptError("Invalid effectName");
+		RETURN_IF_NO_THROW(new ScriptingEffect(getScriptProcessor(), nullptr))
+	}
+
 	if(auto slot = getSlotFX())
     {
 		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
@@ -2505,6 +2523,14 @@ void ScriptingObjects::ScriptingSynth::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
+		auto vt = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
+
+		if (!vt.isValid())
+		{
+			reportScriptError("Can't load module state");
+			RETURN_IF_NO_THROW();
+		}
+
 		ProcessorHelpers::restoreFromBase64String(synth, base64State);
 	}
 }
@@ -2790,6 +2816,14 @@ void ScriptingObjects::ScriptingMidiProcessor::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
+		auto vt = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
+
+		if (!vt.isValid())
+		{
+			reportScriptError("Can't load module state");
+			RETURN_IF_NO_THROW();
+		}
+
 		ProcessorHelpers::restoreFromBase64String(mp, base64State, false);
 	}
 }

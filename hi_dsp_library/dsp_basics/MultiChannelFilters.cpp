@@ -89,7 +89,9 @@ template <class FilterSubType>
 void MultiChannelFilter<FilterSubType>::setSmoothingTime(double newSmoothingTimeSeconds)
 {
 	smoothingTimeSeconds = newSmoothingTimeSeconds;
-	setSampleRate(sampleRate);
+
+	if(sampleRate > 0.0)
+		setSampleRate(sampleRate);
 }
 
 template <class FilterSubType>

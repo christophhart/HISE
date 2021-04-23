@@ -576,6 +576,7 @@ scriptnode::NodeBase* DspNetwork::getNodeWithId(const String& id) const
 
 void DspNetwork::checkIfDeprecated()
 {
+#if USE_BACKEND
 	using namespace cppgen;
 
 	ValueTreeIterator::forEach(getValueTree(), ValueTreeIterator::IterationType::Forward, [&](ValueTree v)
@@ -583,6 +584,7 @@ void DspNetwork::checkIfDeprecated()
 		DeprecationChecker d(this, v);
 		return d.notOk;
 	});
+#endif
 }
 
 void DspNetwork::addToSelection(NodeBase* node, ModifierKeys mods)
@@ -992,6 +994,7 @@ String DeprecationChecker::getErrorMessage(int id)
 
 void DeprecationChecker::throwIf(DeprecationId id)
 {
+#if USE_BACKEND
 	if (notOk)
 		return;
 
@@ -1011,6 +1014,7 @@ void DeprecationChecker::throwIf(DeprecationId id)
 
 		notOk = true;
 	}
+#endif
 }
 
 bool DeprecationChecker::check(DeprecationId id)

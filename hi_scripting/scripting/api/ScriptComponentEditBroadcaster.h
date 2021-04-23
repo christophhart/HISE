@@ -319,6 +319,9 @@ public:
 
 	static String getTransactionName(ScriptComponent* sc, const Identifier& id, const var& newValue);
 
+	/* @internal. */
+	void sendSelectionChangeMessage();
+
 private:
 
 	ScopedPointer<ValueTreeUpdateWatcher> updateWatcher;
@@ -333,8 +336,7 @@ private:
 	/* @internal. */
 	void sendPropertyChangeMessage(ScriptComponent* sc, const Identifier& id, const var& newValue);
 
-	/* @internal. */
-	void sendSelectionChangeMessage();
+	
 
 
 	Array<WeakReference<ScriptComponentEditListener>> listeners;

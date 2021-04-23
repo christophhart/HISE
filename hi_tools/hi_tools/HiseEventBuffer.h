@@ -127,6 +127,9 @@ public:
 		bit-equality. */
 	bool operator==(const HiseEvent &other) const;
 
+	/** Clears the event (so that isEmpty() returns true. */
+	void clear();
+
 	/** Swaps the event with another. */
 	void swapWith(HiseEvent &other);
 

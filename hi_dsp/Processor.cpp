@@ -1006,9 +1006,10 @@ ValueTree ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(const
 {
 	MemoryBlock mb;
 
-	mb.fromBase64Encoding(base64State);
+	if (mb.fromBase64Encoding(base64State))
+		return ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
 
-	return ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
+	return {};
 }
 
 hise::MarkdownHelpButton* ProcessorDocumentation::createHelpButtonForParameter(int index, Component* componentToAttachTo)
