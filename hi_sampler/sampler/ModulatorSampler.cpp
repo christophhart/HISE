@@ -659,18 +659,16 @@ void ModulatorSampler::refreshMemoryUsage()
 #else
 	const auto temporaryBufferShouldBeFloatingPoint = !sampleMap->isMonolith();
 #endif
-
-	if (temporaryBufferIsFloatingPoint != temporaryBufferShouldBeFloatingPoint)
+	
+	if (temporaryBufferIsFloatingPoint != temporaryBufferShouldBeFloatingPoint || temporaryVoiceBuffer.getNumSamples() == 0)
 	{
 		temporaryVoiceBuffer = hlac::HiseSampleBuffer(temporaryBufferShouldBeFloatingPoint, 2, 0);
 
-		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), (double)MAX_SAMPLER_PITCH);
-
 		for (auto i = 0; i < getNumVoices(); i++)
-		{
 			static_cast<ModulatorSamplerVoice*>(getVoice(i))->setStreamingBufferDataType(temporaryBufferShouldBeFloatingPoint);
-		}
 	}
+
+	StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), (double)MAX_SAMPLER_PITCH);
 
 	int64 actualPreloadSize = 0;
 
