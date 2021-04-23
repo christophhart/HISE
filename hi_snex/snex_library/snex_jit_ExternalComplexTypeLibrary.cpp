@@ -397,83 +397,100 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, setVelocity);
 	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, setNoteNumber);
 	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, getTimeStamp);
+	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, isNoteOn);
+	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, getFrequency);
+	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, isEmpty);
+	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, getEventId);
+	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, clear);
 
 	obj->setCustomDumpFunction([](void* ptr)
-		{
-			auto e = static_cast<HiseEvent*>(ptr);
+	{
+		auto e = static_cast<HiseEvent*>(ptr);
 
-			String s;
+		String s;
 
-			s << "| HiseEvent { " << e->toDebugString() + " }\n";
-			return s;
-		});
+		s << "| HiseEvent { " << e->toDebugString() + " }\n";
+		return s;
+	});
+
+	
 
 	FunctionClass::Ptr fc = obj->getFunctionClass();
 
 	ADD_INLINER(getChannel,
-		{
-			SETUP_INLINER(int);
-			d->target->createRegister(cc);
-			auto n = base.cloneAdjustedAndResized(0x01, 1);
-			cc.movsx(INT_REG_W(d->target), n);
-			return Result::ok();
-		});
+	{
+		SETUP_INLINER(int);
+		d->target->createRegister(cc);
+		auto n = base.cloneAdjustedAndResized(0x01, 1);
+		cc.movsx(INT_REG_W(d->target), n);
+		return Result::ok();
+	});
+
+	ADD_INLINER(isEmpty,
+	{
+		SETUP_INLINER(int);
+		d->target->createRegister(cc);
+
+		auto n1 = base.cloneAdjustedAndResized(0, 8);
+		auto n2 = base.cloneAdjustedAndResized(1, 8);
+		cc.or_(INT_REG_W(d->target), n1);
+		cc.or_(INT_REG_W(d->target), n2);
+		return Result::ok();
+	});
 
 	ADD_INLINER(getNoteNumber,
-		{
-			SETUP_INLINER(int);
-			d->target->createRegister(cc);
-			auto n = base.cloneAdjustedAndResized(0x02, 1);
-			cc.movsx(INT_REG_W(d->target), n);
-			return Result::ok();
-		});
+	{
+		SETUP_INLINER(int);
+		d->target->createRegister(cc);
+		auto n = base.cloneAdjustedAndResized(0x02, 1);
+		cc.movsx(INT_REG_W(d->target), n);
+		return Result::ok();
+	});
 
 	ADD_INLINER(getVelocity,
-		{
-			SETUP_INLINER(int);
-			d->target->createRegister(cc);
-			auto n = base.cloneAdjustedAndResized(0x03, 1);
-			cc.movsx(INT_REG_W(d->target), n);
-			return Result::ok();
-		});
+	{
+		SETUP_INLINER(int);
+		d->target->createRegister(cc);
+		auto n = base.cloneAdjustedAndResized(0x03, 1);
+		cc.movsx(INT_REG_W(d->target), n);
+		return Result::ok();
+	});
 
 	ADD_INLINER(setChannel,
-		{
-			SETUP_INLINER(int);
-			auto n = base.cloneAdjustedAndResized(0x01, 1);
+	{
+		SETUP_INLINER(int);
+		auto n = base.cloneAdjustedAndResized(0x01, 1);
 
-			auto v = d->args[0];
-			if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
-			else cc.mov(n, INT_REG_R(v));
+		auto v = d->args[0];
+		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		else cc.mov(n, INT_REG_R(v));
 
-			return Result::ok();
-		});
+		return Result::ok();
+	});
 
 	ADD_INLINER(setNoteNumber,
-		{
-			SETUP_INLINER(int);
-			auto n = base.cloneAdjustedAndResized(0x02, 1);
+	{
+		SETUP_INLINER(int);
+		auto n = base.cloneAdjustedAndResized(0x02, 1);
 
-			auto v = d->args[0];
-			if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
-			else cc.mov(n, INT_REG_R(v));
+		auto v = d->args[0];
+		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		else cc.mov(n, INT_REG_R(v));
 
-			return Result::ok();
-		});
+		return Result::ok();
+	});
 
 	ADD_INLINER(setVelocity,
-		{
-			SETUP_INLINER(int);
-			auto n = base.cloneAdjustedAndResized(0x03, 1);
+	{
+		SETUP_INLINER(int);
+		auto n = base.cloneAdjustedAndResized(0x03, 1);
 
-			auto v = d->args[0];
-			if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
-			else cc.mov(n, INT_REG_R(v));
+		auto v = d->args[0];
+		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		else cc.mov(n, INT_REG_R(v));
 
-			return Result::ok();
-		});
-
-	
+		return Result::ok();
+	});
 
 	return obj->finaliseAndReturn();
 }
@@ -495,6 +512,7 @@ snex::jit::ComplexType::Ptr ModValueJit::createComplexType(Compiler& c, const Id
 
 	return st->finaliseAndReturn();
 }
+
 
 snex::jit::ComplexType::Ptr DataReadLockJIT::createComplexType(Compiler& c, const Identifier& id)
 {

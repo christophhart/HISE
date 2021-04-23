@@ -72,6 +72,11 @@ struct EventWrapper
 		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setChannel, int);
 		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setNoteNumber, int);
 		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getTimeStamp);
+		JIT_MEMBER_WRAPPER_0(bool, HiseEvent, isNoteOn);
+		JIT_MEMBER_WRAPPER_0(double, HiseEvent, getFrequency);
+		JIT_MEMBER_WRAPPER_0(bool, HiseEvent, isEmpty);
+		JIT_MEMBER_WRAPPER_0(void, HiseEvent, clear);
+		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getEventId);
 	};
 
 	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);

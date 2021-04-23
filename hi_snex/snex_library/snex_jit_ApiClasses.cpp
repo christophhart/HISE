@@ -120,6 +120,17 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	HNODE_JIT_VECTOR_FUNCTION_S(max);
 	HNODE_JIT_VECTOR_FUNCTION_1(abs);
 #endif
+
+	{
+		auto p = new FunctionData();
+		p->id = getClassName().getChildId("peak");
+		p->returnType = Types::ID::Float;
+		p->addArgs("b", TypeInfo(blockType, true, true));
+		p->function = (void*)hmath::peakStatic;
+		p->description = "Calculate the absolute peak value of the given block";
+		p->object = nullptr;
+		addFunction(p);
+	}
     
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::min, int, int, "min");		DESCRIPTION(int, smaller);
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::max, int, int, "max");		DESCRIPTION(int, bigger);
