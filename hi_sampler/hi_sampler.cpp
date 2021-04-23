@@ -36,8 +36,6 @@
 
 #include <regex>
 
-#include "sampler/dywapitchtrack/dywapitchtrack.c"
-
 #include "sampler/ModulatorSamplerData.cpp"
 #include "sampler/ModulatorSamplerSound.cpp"
 #include "sampler/ModulatorSamplerVoice.cpp"

@@ -61,17 +61,10 @@ END_JUCE_MODULE_DECLARATION
 */
 
 
-
-
-#include "sampler/dywapitchtrack/dywapitchtrack.h"
-#include "sampler/PitchDetection.h"
-
 #include "sampler/ModulatorSamplerData.h"
 #include "sampler/ModulatorSamplerSound.h"
 #include "sampler/ModulatorSamplerVoice.h"
 #include "sampler/ModulatorSampler.h"
-
-
 
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 #include "sampler/SampleImporter.h"

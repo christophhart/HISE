@@ -40,6 +40,38 @@ class PitchDetection
 {
 public:
 
+	static double detectPitch(float* fullData, int numSamples, double sampleRate)
+	{
+		dywapitchtracker tracker;
+		dywapitch_inittracking(&tracker);
+
+		auto numPerCheck = dywapitch_neededsamplecount((int)(50.0 * (44100.0 / sampleRate)));
+
+		Array<double> pitchResults;
+
+		int startSample = 0;
+
+		auto ptr = fullData;
+
+		while ((startSample + numPerCheck) < numSamples)
+		{
+			const double pitchResult = dywapitch_computepitch(&tracker, fullData, startSample, numPerCheck);
+
+			auto thisPitch = pitchResult * (sampleRate / 44100.0);
+
+			pitchResults.add(thisPitch);
+			startSample += numPerCheck / 2;
+		}
+
+		if (!pitchResults.isEmpty())
+		{
+			pitchResults.sort();
+			return pitchResults[pitchResults.size() / 2];
+		}
+
+		return 0.0;
+	}
+
 	/** Scans a whole file and returns the pitch. 
 	*
 	*	You have to supply a working buffer that is used to read the data from the file.
@@ -55,22 +87,29 @@ public:
 		ScopedPointer<AudioFormatReader> afr = afm.createReaderFor(new FileInputStream(File(fileToScan)));
 
 		int64 startSample = 0;
-		double pitch = 0.0;
 
-		while(pitch == 0.0 && (startSample + numSamplesPerDetection < afr->lengthInSamples))
+		Array<double> pitchResults;
+
+		while(startSample + numSamplesPerDetection < afr->lengthInSamples)
 		{
 			afr->read(&workingBuffer, 0, workingBuffer.getNumSamples(), startSample, true, true);
-			pitch = detectPitch(workingBuffer, 0, numSamplesPerDetection, sampleRate);
-			startSample += numSamplesPerDetection;
+			auto thisPitch = detectPitch(workingBuffer, 0, numSamplesPerDetection, sampleRate);
+			pitchResults.add(thisPitch);
+			startSample += numSamplesPerDetection / 2;
 		}
 
-		return pitch;
+		if (pitchResults.size() > 0)
+		{
+			return pitchResults[pitchResults.size() / 2];
+		}
+
+		return 0.0;
 	};
 
 	/** detects the pitch in the audio buffer. */
 	static double detectPitch(const AudioSampleBuffer &buffer, int startSample, int numSamples, double sampleRate)
 	{
-		Array<double> doubleSamples;
+		Array<DywaFloat> doubleSamples;
 
 		doubleSamples.ensureStorageAllocated(numSamples);
 
@@ -86,8 +125,6 @@ public:
 				const double value = (double)(buffer.getSample(0, startSample + i));
 				doubleSamples.set(i, value);
 			}
-
-			
 		}
 
 		dywapitchtracker tracker;
