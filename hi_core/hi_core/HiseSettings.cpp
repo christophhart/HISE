@@ -142,6 +142,7 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 {
 	Array<Identifier> ids;
 
+	ids.add(UseOpenGL);
 	ids.add(GlobalSamplePath);
 	ids.add(EnableAutosave);
 	ids.add(AutosaveInterval);
@@ -463,6 +464,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("It's the same functionality as found in the compiled plugins.");
 		P_();
 
+		P(HiseSettings::Other::UseOpenGL);
+		D("Enable this in order to use OpenGL for the UI rendering of the HISE app. This might drastically accelerate the UI performance, so if you have a laggy UI in HISE, try this option");
+		D("> Be aware that this does not affect whether your compiled project uses OpenGL (as this can be defined separately).");
+		P_();
+
 		P(HiseSettings::Other::GlobalSamplePath);
 		D("If you want to redirect all sample locations to a global sample path (eg. on a dedicated hard drive or the Dropbox folder), you can set it here.")
 		D("Then you can just put a redirection file using the `{GLOBAL_SAMPLE_FOLDER}` wildcard into each sample folder that you want to redirect");
@@ -642,6 +648,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Other::EnableAutosave ||
 		id == Scripting::EnableDebugMode ||
 		id == Other::AudioThreadGuardEnabled ||
+		id == Other::UseOpenGL ||
 		id == Compiler::RebuildPoolFiles ||
 		id == Compiler::Support32BitMacOS ||
 		id == Project::SupportMonoFX ||
@@ -829,6 +836,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";
 	else if (id == Project::LinkExpansionsToProject)   return "No";
+	else if (id == Other::UseOpenGL)				return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
@@ -976,7 +984,8 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 
 	else if (id == Scripting::CodeFontSize)
 		mc->getFontSizeChangeBroadcaster().sendChangeMessage();
-
+	else if (id == Other::UseOpenGL)
+		PresetHandler::showMessageWindow("Reopen HISE window", "Restart HISE (or reopen this window) in order to apply the new OpenGL setting", PresetHandler::IconType::Info);
 	else if (id == Other::EnableAutosave || id == Other::AutosaveInterval)
 		mc->getAutoSaver().updateAutosaving();
 	else if (id == Other::AudioThreadGuardEnabled)

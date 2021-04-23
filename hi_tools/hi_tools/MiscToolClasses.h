@@ -202,6 +202,47 @@ struct LambdaWithComponent
 
 #define CALL_ASYNC_WITH_COMPONENT(ComponentClass, component) LambdaWithComponent::callAsync<ComponentClass>(closeButton, [](ComponentClass* component)
 
+/** A small helper interface class that allows you to find the topmost component
+	that might have a OpenGL context attached.
+
+	This */
+struct TopLevelWindowWithOptionalOpenGL
+{
+	virtual ~TopLevelWindowWithOptionalOpenGL()
+	{
+		// Must call detachOpenGL() in derived destructor!
+		jassert(!enabled);
+	}
+
+	/** Use this method instead of getTopLevelComponent() to find the topmost component that might have an OpenGL context attached. */
+	static Component* findRoot(Component* c)
+	{
+		return dynamic_cast<Component*>(c->findParentComponentOfClass<TopLevelWindowWithOptionalOpenGL>());
+	}
+
+protected:
+
+	void detachOpenGl()
+	{
+		if(enabled)
+		    context.detach();
+
+		enabled = false;
+	}
+
+	void setEnableOpenGL(Component* c)
+	{
+		context.attachTo(*c);
+		enabled = true;
+	}
+
+private:
+
+	bool enabled = false;
+	OpenGLContext context;
+};
+
+
 class SuspendableTimer
 {
 public:

@@ -234,6 +234,11 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 	startTimer(1000);
 
 	updateCommands();
+
+	auto useOpenGL = GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Other::UseOpenGL).toString() == "1";
+
+	if (useOpenGL)
+		setEnableOpenGL(this);
 }
 
 
@@ -270,7 +275,7 @@ BackendRootWindow::~BackendRootWindow()
 
 	mainEditor = nullptr;
 
-
+	detachOpenGl();
 }
 
 bool BackendRootWindow::isFullScreenMode() const

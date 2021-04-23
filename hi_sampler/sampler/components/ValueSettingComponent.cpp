@@ -263,11 +263,13 @@ void ValueSettingComponent::mouseDown(const MouseEvent &e)
         
         s->setSize (600, 32);
         
-		auto root = getTopLevelComponent();
+		if (auto root = TopLevelWindowWithOptionalOpenGL::findRoot(this))
+		{
+			auto rootPos = root->getLocalArea(getParentComponent(), getBoundsInParent());
 
-		auto rootPos = root->getLocalArea(getParentComponent(), getBoundsInParent());
-
-        CallOutBox::launchAsynchronously (s, rootPos, root);
+			CallOutBox::launchAsynchronously(s, rootPos, root);
+		}
+		
         
     }
     

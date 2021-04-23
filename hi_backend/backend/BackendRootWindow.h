@@ -47,7 +47,8 @@ namespace hise { using namespace juce;
 
 class BackendProcessorEditor;
 
-class BackendRootWindow : public AudioProcessorEditor,
+class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
+						  public AudioProcessorEditor,
 						  public BackendCommandTarget,
 						  public Timer,
 						  public ComponentWithKeyboard,

@@ -1107,7 +1107,8 @@ DialogWindowWithBackgroundThread::AdditionalRow::Column::Column(Component* t, co
 		addAndMakeVisible(infoButton = new MarkdownHelpButton());
 	}
 
-	infoButton->setVisible(false);
+	if(infoButton != nullptr)
+		infoButton->setVisible(false);
 }
 
 void DialogWindowWithBackgroundThread::AdditionalRow::Column::resized()

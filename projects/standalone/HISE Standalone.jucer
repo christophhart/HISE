@@ -2,7 +2,7 @@
 
 <JUCERPROJECT id="jUHBuI" name="HISE Standalone" projectType="guiapp" version="2.1.0"
               bundleIdentifier="com.hartinstruments.HISEStandalone" includeBinaryInAppConfig="1"
-              jucerVersion="5.4.5" companyName="Hart Instruments" companyWebsite="http://hise.audio"
+              jucerVersion="5.4.3" companyName="Hart Instruments" companyWebsite="http://hise.audio"
               companyCopyright="Hart Instruments" displaySplashScreen="0" reportAppUsage="0"
               splashScreenColour="Dark" cppLanguageStandard="17">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
