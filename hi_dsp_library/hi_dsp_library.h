@@ -158,6 +158,8 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "node_api/helpers/range.h"
 #include "node_api/helpers/range_impl.h"
 
+#include "node_api/nodes/duplicate.h"
+
 #include "node_api/nodes/Base.h"
 #include "node_api/nodes/Bypass.h"
 #include "node_api/nodes/container_base.h"
@@ -169,6 +171,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "node_api/nodes/prototypes.h"
 #include "node_api/nodes/OpaqueNode.h"
 #include "node_api/nodes/processors.h"
+#include "node_api/nodes/duplicate.h"
 
 #include "dsp_nodes/CoreNodes.h"
 #include "dsp_nodes/CableNodeBaseClasses.h"

@@ -204,7 +204,13 @@ public:
 	/** The frame data type to use for this node. */
 	using FixFrameType = snex::Types::span<float, NumChannels>;
 
-	constexpr bool isPolyphonic() const { return this->obj.getWrappedObject().isPolyphonic(); }
+	constexpr bool isPolyphonic() const 
+	{ 
+		if constexpr (prototypes::check::isPolyphonic<T::WrappedObjectType>::value)
+			return this->obj.getWrappedObject().isPolyphonic(); 
+
+		return false;
+	}
 
 	static Identifier getStaticId() { return T::getStaticId(); }
 
@@ -1153,235 +1159,14 @@ template <class T> struct node : public HiseDspBase
 
 
 
-template <typename T, bool CopySignal, bool AllowResizing, int NumDuplicates> struct duplicate_base
-{
-	constexpr auto& getObject() { return *this; }
-	constexpr const auto& getObject() const { return *this; }
 
-	constexpr auto& getWrappedObject() { return *begin(); }
-	constexpr const auto& getWrappedObject() const { return *begin(); }
+using namespace snex;
+using namespace Types;
 
-	using ObjectType = duplicate_base;
-	using WrappedObjectType = typename T::WrappedObjectType;
-
-	duplicate_base()
-	{
-
-	}
-
-	~duplicate_base()
-	{
-
-	}
-
-	void setDuplicateSignal(bool shouldDuplicateSignal)
-	{
-		if constexpr (CopySignal)
-		{
-			if (shouldDuplicateSignal != copySignal)
-			{
-				copySignal = shouldDuplicateSignal;
-				resetCopyBuffer();
-			}
-		}
-	}
-
-	template <int P> static void setParameterStatic(void* obj, double v)
-	{
-		if (P == 0)
-		{
-			int numVoices = roundToInt(v);
-			static_cast<duplicate_base*>(obj)->setVoiceAmount(numVoices);
-		}
-
-	}
-
-	PARAMETER_MEMBER_FUNCTION;
-
-	void initialise(NodeBase* n)
-	{
-		jassert(numDuplicates == 1);
-
-		parentNode = n;
-
-		if constexpr (prototypes::check::initialise<T>::value)
-			begin()->initialise(parentNode);
-	}
-
-	
-
-	void refreshFromFirst()
-	{
-		SimpleReadWriteLock::ScopedWriteLock sl(voiceMultiplyLock);
-
-		auto& first = *begin();
-
-		auto ptr = begin() + 1;
-
-		while (ptr != end())
-		{
-			*ptr = std::move(T(first));
-			ptr++;
-		}
-	}
-
-	int* getSizePtr()
-	{
-		return &numDuplicates;
-	}
-
-	void resize(int delta)
-	{
-		jassert(parentNode != nullptr);
-
-		{
-			SimpleReadWriteLock::ScopedWriteLock sl(voiceMultiplyLock);
-
-			auto start = begin();
-
-			auto ptr = end();
-
-			if (delta > 0)
-			{
-				for (int i = 0; i < delta; i++)
-				{
-					*ptr = *begin();
-
-					if constexpr (prototypes::check::initialise<T>::value)
-						ptr->initialise(parentNode);
-
-					ptr++;
-				}
-			}
-			if (delta < 0)
-			{
-				ptr--;
-
-				for (int i = 0; i < -delta; i++)
-				{
-					*ptr = T();
-					ptr--;
-				}
-			}
-
-			numDuplicates += delta;
-		}
-
-		prepare(lastSpecs);
-	}
-
-	void setVoiceAmount(int numVoices)
-	{
-		int newNumDuplicates = jlimit(1, MaxNumDuplicates, numVoices);
-
-		if (newNumDuplicates != numDuplicates)
-		{
-			auto delta = newNumDuplicates - numDuplicates;
-			resize(delta);
-		}
-	}
-
-	bool shouldCopySignal() const
-	{
-		return copySignal && copySignal;
-	}
-
-	void resetCopyBuffer()
-	{
-		SimpleReadWriteLock::ScopedWriteLock sl(voiceMultiplyLock);
-
-		if (shouldCopySignal())
-			FrameConverters::increaseBuffer(signalCopy, lastSpecs);
-		else
-			signalCopy.setSize(0);
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		lastSpecs = ps;
-
-		resetCopyBuffer();
-
-		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(voiceMultiplyLock))
-		{
-			for (auto& obj : *this)
-				obj.prepare(ps);
-		}
-	}
-
-	void reset()
-	{
-		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(voiceMultiplyLock))
-		{
-			for (auto& obj : *this)
-				obj.reset();
-		}
-	}
-
-	template <typename T> void processFrame(T& frameData)
-	{
-		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(voiceMultiplyLock))
-		{
-			for (auto& obj : *this)
-				obj.processFrame(frameData);
-		}
-	}
-
-	template <typename T> void process(T& data)
-	{
-		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(voiceMultiplyLock))
-		{
-			for (auto& obj : *this)
-				obj.process(data);
-		}
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(voiceMultiplyLock))
-		{
-			for (auto& obj : *this)
-				obj.handleHiseEvent(e);
-		}
-	}
-
-	template <int P> auto get()
-	{
-		auto d = begin();
-		auto& o = d->get<P>();
-		using TType = std::remove_reference<decltype(o)>::type;
-
-		duplicate_node_reference<TType> hn;
-
-		hn.objectDelta = sizeof(T);
-		hn.sizePtr = &numDuplicates;
-		hn.firstObj = &o;
-
-		return hn;
-	}
-
-	T* begin() const
-	{
-		return const_cast<T*>(data);
-	}
-
-	T* end() const
-	{
-		return begin() + numDuplicates;
-	}
-
-	T data[NumDuplicates];
-	int numDuplicates = 1;
-
-	hise::SimpleReadWriteLock voiceMultiplyLock;
-	PrepareSpecs lastSpecs;
-	NodeBase* parentNode = nullptr;
-
-	heap<float> signalCopy;
-	bool copySignal;
-};
-
-template <typename T, int NumDuplicates=16> using duplichain = duplicate_base<T, false, true, NumDuplicates>;
+template <typename T, int NumDuplicates=16>	  using duplichain = duplicate_base<T, options::no, options::yes, NumDuplicates>;
+template <typename T, int NumDuplicates = 16> using duplisplit = duplicate_base<T, options::yes, options::yes, NumDuplicates>;
+template <typename T, int NumDuplicates>	  using fix_duplichain = duplicate_base<T, options::no, options::no, NumDuplicates>;
+template <typename T, int NumDuplicates>	  using fix_duplisplit = duplicate_base<T, options::yes, options::no, NumDuplicates>;
 
 }
 

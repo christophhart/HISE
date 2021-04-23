@@ -59,6 +59,7 @@
 #include "node_api/nodes/Base.cpp"
 #include "node_api/nodes/OpaqueNode.cpp"
 #include "node_api/nodes/prototypes.cpp"
+#include "node_api/nodes/duplicate.cpp"
 
 #include "dsp_basics/AllpassDelay.cpp"
 #include "dsp_basics/Oscillators.cpp"
