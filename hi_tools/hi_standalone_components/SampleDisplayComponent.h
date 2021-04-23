@@ -54,6 +54,16 @@ class HiseAudioThumbnail: public Component,
 {
 public:
 
+	struct LookAndFeelMethods
+	{
+		virtual void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area);
+		virtual void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path);
+		virtual void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleList<float>& rectList);
+		virtual void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area);
+	};
+
+	
+
 	static Image createPreview(const AudioSampleBuffer* buffer, int width)
 	{
 		jassert(buffer != nullptr);
@@ -88,6 +98,8 @@ public:
 	HiseAudioThumbnail();;
 
 	~HiseAudioThumbnail();
+
+	void setBufferAndSampleRate(double sampleRate, var bufferL, var bufferR = var(), bool synchronously = false);
 
 	void setBuffer(var bufferL, var bufferR = var(), bool synchronously=false);
 
@@ -157,6 +169,8 @@ public:
 
 	void setRange(const int left, const int right);
 private:
+
+	double sampleRate = 44100.0;
 
 	bool scaleVertically = false;
 	bool rebuildOnResize = true;
@@ -498,6 +512,8 @@ public:
 		afm.registerBasicFormats();
 
 		addAndMakeVisible(preview = new HiseAudioThumbnail());
+
+		preview->setLookAndFeel(&defaultLaf);
 	};
 
 	/** Removes all listeners. */
@@ -532,11 +548,13 @@ public:
 
 	void refreshSampleAreaBounds(SampleArea* areaToSkip=nullptr)
 	{
-		if(getTotalSampleAmount() == 0) return;
+		bool somethingVisible = getTotalSampleAmount() != 0;
 
 		for(int i=0; i < areas.size(); i++)
 		{
 			if(areas[i] == areaToSkip) continue;
+
+			areas[i]->setVisible(somethingVisible);
 
 			Range<int> sampleRange = areas[i]->getSampleRange();
 
@@ -580,6 +598,7 @@ public:
 	void resized() override
 	{
 		preview->setBounds(getLocalBounds());
+		preview->resized();
 		refreshSampleAreaBounds();
 	}
 
@@ -620,6 +639,12 @@ public:
 	}
 
 protected:
+
+	struct DefaultLookAndFeel : public LookAndFeel_V3,
+								public HiseAudioThumbnail::LookAndFeelMethods
+	{
+
+	} defaultLaf;
 
 	OwnedArray<SampleArea> areas;
 
@@ -801,7 +826,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 
 				SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
 				bufferRange = sampleRange;
-				setDataBuffer(currentData);
+				setDataBuffer(nb);
 			}
 		}
 	}
@@ -1020,6 +1045,18 @@ public:
 		numAreas
 	};
 
+	struct BufferLookAndFeel : public LookAndFeel_V3,
+							   public HiseAudioThumbnail::LookAndFeelMethods
+	{
+
+	};
+
+	virtual void setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn=false)
+	{
+		preview->setLookAndFeel(l);
+		EditorBase::setSpecialLookAndFeel(l, shouldOwn);
+	}
+
 	MultiChannelAudioBufferDisplay();
 	virtual ~MultiChannelAudioBufferDisplay();
 
@@ -1072,7 +1109,14 @@ public:
 	const String &getCurrentlyLoadedFileName() const
 	{
 		if (connectedBuffer != nullptr)
-			return connectedBuffer->toBase64String();
+		{
+			auto a = connectedBuffer->toBase64String();
+
+			if (a == "-1")
+				return {};
+
+			return a;
+		}
 
 		return {};
 	}
@@ -1098,7 +1142,7 @@ public:
 	void bufferWasLoaded() override
 	{
 		if (connectedBuffer != nullptr)
-			preview->setBuffer(connectedBuffer->getChannelBuffer(0, true), connectedBuffer->getChannelBuffer(1, true));
+			preview->setBufferAndSampleRate(connectedBuffer->sampleRate, connectedBuffer->getChannelBuffer(0, true), connectedBuffer->getChannelBuffer(1, true));
 		else
 			preview->setBuffer({}, {});
 		

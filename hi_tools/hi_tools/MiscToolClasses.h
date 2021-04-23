@@ -1245,6 +1245,27 @@ struct ComplexDataUIBase : public ReferenceCountedObject
 		virtual ~EditorBase() {};
 
 		virtual void setComplexDataUIBase(ComplexDataUIBase* newData) = 0;
+
+		virtual void setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn = false)
+		{
+			laf = l;
+
+			if (shouldOwn)
+				ownedLaf = l;
+
+			if (auto asComponent = dynamic_cast<Component*>(this))
+				asComponent->setLookAndFeel(l);
+		}
+
+		template <typename T> T* getSpecialLookAndFeel()
+		{
+			return dynamic_cast<T*>(laf);
+		}
+
+	private:
+
+		ScopedPointer<LookAndFeel> ownedLaf;
+		LookAndFeel* laf;
 	};
 
 	/** A SourceWatcher notifies its registered listeners about changes to a source. */

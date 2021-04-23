@@ -152,10 +152,14 @@ public:
 	struct LookAndFeelMethods
 	{
         virtual ~LookAndFeelMethods() {};
-        
+     
+		virtual bool shouldClosePath() const { return true; }
+
 		virtual void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) = 0;
 		virtual void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) = 0;
 		virtual void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) = 0;
+
+		virtual void drawTableValueLabel(Graphics& g, TableEditor& te, Font f, const String& text, Rectangle<int> textBox);
 	};
 
 	struct HiseTableLookAndFeel : public LookAndFeel_V3,
@@ -328,17 +332,25 @@ public:
 		drag_points.getLast()->setConstantValue(constantRightEdge);
 	};
 
+	void setMargin(float newMargin)
+	{
+		margin = newMargin;
+	}
+
+	Rectangle<float> getTableArea() const 
+	{
+		return getLocalBounds().toFloat().reduced(margin);
+	}
 
 	void setUseFlatDesign(bool shouldUseFlatDesign)
 	{
 		if (shouldUseFlatDesign)
-			currentLAF = new FlatTableLookAndFeel();
+			setSpecialLookAndFeel(new FlatTableLookAndFeel(), true);
 		else
-			currentLAF = new HiseTableLookAndFeel();
+			setSpecialLookAndFeel(new HiseTableLookAndFeel(), true);
 
-		setLookAndFeel(currentLAF.get());
-		setTableLookAndFeel(dynamic_cast<LookAndFeelMethods*>(currentLAF.get()), false);
-
+		setLookAndFeel(getSpecialLookAndFeel<LookAndFeel>());
+		
 		repaint();
 	}
 
@@ -381,6 +393,10 @@ public:
 	/** Updates the graph and the points. If the table size is smaller than 5000, it also refreshes the look up table. */
 	void mouseDrag(const MouseEvent &e) override;
 
+	void mouseMove(const MouseEvent& e) override;
+
+	void mouseExit(const MouseEvent& e) override;
+
 	UndoManager* getUndoManager(bool useUndoManager = true)
 	{
 		if (!useUndoManager)
@@ -420,9 +436,19 @@ public:
 	/** If you move the mouse wheel over a point, you can adjust the curve to the left of the point */
 	void mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &wheel)  override;
 
+	void setScrollModifiers(ModifierKeys newScrollModifiers)
+	{
+		scrollModifiers = newScrollModifiers;
+	}
+
 	void setScrollWheelEnabled(bool shouldBeEnabled)
 	{
-		allowScrollWheel = shouldBeEnabled;
+		ModifierKeys mod;
+
+		if (!shouldBeEnabled)
+			mod.withFlags(ModifierKeys::commandModifier);
+
+		setScrollModifiers(mod);
 	}
 
 	void updateCurve(int x, int y, float newCurveValue, bool useUndoManager);
@@ -441,8 +467,8 @@ public:
 	*/
 	void setDisplayedIndex(float newIndex)
 	{
+		lastIndex = newIndex;
 		ruler->setIndex(newIndex);
-		
 	};
 
 	/** \brief Sets the point at the left or right edge to the new value
@@ -472,19 +498,32 @@ public:
 
 	void setTableLookAndFeel(LookAndFeelMethods* lm, bool isExternalLaf)
 	{
-		if(isExternalLaf || !externalLaf)
-		{
-			lafToUse = lm;
-			externalLaf = isExternalLaf;
-		}
+		setSpecialLookAndFeel(dynamic_cast<LookAndFeel*>(lm), !isExternalLaf);
+	}
+
+	float getLastIndex() const { return jlimit(0.0f, 1.0f, lastIndex); }
+
+	Rectangle<int> getPointAreaBetweenMouse() const;
+
+	LookAndFeelMethods* getTableLookAndFeel()
+	{
+		if (auto lm = getSpecialLookAndFeel<LookAndFeelMethods>())
+			return lm;
+
+		return &defaultLaf;
 	}
 
 private:
 
-	bool externalLaf = false;
-	LookAndFeelMethods* lafToUse = nullptr;
+	float margin = 0.0f;
 
-	ScopedPointer<LookAndFeel> currentLAF;
+	HiseTableLookAndFeel defaultLaf;
+
+	Rectangle<int> pointAreaBetweenMouse;
+
+	ModifierKeys scrollModifiers;
+
+	float lastIndex = 0.0f;
 
 	class Ruler : public Component
 	{
@@ -618,8 +657,20 @@ private:
 			dragPlotSize = Rectangle<int>(width, height);
 		}
 
-		void mouseEnter(const MouseEvent &){over = true;repaint();};
-		void mouseExit(const MouseEvent &){over = false;repaint();};
+		void mouseEnter(const MouseEvent &)
+		{
+			if (auto te = findParentComponentOfClass<TableEditor>())
+				te->pointAreaBetweenMouse = {};
+
+			over = true;
+			repaint();
+		};
+
+		void mouseExit(const MouseEvent &)
+		{
+			over = false;
+			repaint();
+		};
 
 		bool isStartOrEnd() const { return ( isStart || isEnd ); };
 
@@ -690,6 +741,23 @@ private:
 		return nullptr;
 	}
 
+	TableEditor::DragPoint* getPrevPointFor(int x) const
+	{
+		for (int i = 0; i < drag_points.size() - 1; i++)
+		{
+			auto dp = drag_points[i];
+
+			auto next = drag_points[i + 1];
+
+			if (x >= dp->getX() && x <= next->getX())
+			{
+				return dp;
+			}
+		}
+
+		return nullptr;
+	}
+
 	
 
 	// Adds a new DragPoint and selects it.
@@ -698,7 +766,8 @@ private:
 	// Add a drag point directly from a GraphPoint
 	void addNormalizedDragPoint(Table::GraphPoint normalizedPoint, bool isStart=false, bool isEnd=false)
 	{
-		addDragPoint((int)(normalizedPoint.x * getWidth()), (int)((1.0f - normalizedPoint.y) * getHeight()), normalizedPoint.curve, isStart, isEnd);
+		auto a = getTableArea();
+		addDragPoint((int)(a.getX() + normalizedPoint.x * a.getWidth()), (int)(a.getY() + (1.0f - normalizedPoint.y) * a.getHeight()), normalizedPoint.curve, isStart, isEnd);
 	}
 
 	// Recreates the drag points from the given Table. It automatically adds the start / end flags.
@@ -745,6 +814,7 @@ private:
 
 	MidiTable dummyTable;
 
+	float lastRightDragValue = 0.0f;
 	
 	Font fontToUse;
 

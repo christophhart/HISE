@@ -95,15 +95,15 @@ void Goniometer::Shape::draw(Graphics& g, Colour c)
 
 
 
-Colour AudioAnalyserComponent::getColourForAnalyser(ColourId id)
+Colour AudioAnalyserComponent::getColourForAnalyser(RingBufferComponentBase::ColourId id)
 {
 	if (auto panel = findParentComponentOfClass<Panel>())
 	{
 		switch (id)
 		{
-		case hise::AudioAnalyserComponent::bgColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::bgColour);
-		case hise::AudioAnalyserComponent::fillColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::itemColour1);
-		case hise::AudioAnalyserComponent::lineColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::itemColour2);
+		case RingBufferComponentBase::bgColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::bgColour);
+		case RingBufferComponentBase::fillColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::itemColour1);
+		case RingBufferComponentBase::lineColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::itemColour2);
             default: break;
 		}
 	}
@@ -111,9 +111,9 @@ Colour AudioAnalyserComponent::getColourForAnalyser(ColourId id)
 	{
 		switch (id)
 		{
-		case hise::AudioAnalyserComponent::bgColour:   return findColour(AudioAnalyserComponent::ColourId::bgColour);
-		case hise::AudioAnalyserComponent::fillColour: return Colour(0xFF555555);
-		case hise::AudioAnalyserComponent::lineColour: return Colour(0xFF555555);
+		case RingBufferComponentBase::bgColour:   return findColour(RingBufferComponentBase::ColourId::bgColour);
+		case RingBufferComponentBase::fillColour: return Colour(0xFF555555);
+		case RingBufferComponentBase::lineColour: return Colour(0xFF555555);
             default: break;
 		}
 	}
@@ -170,25 +170,32 @@ void GoniometerBase::paintSpacialDots(Graphics& g)
 
 			Rectangle<int> area = { (asComponent->getWidth() - size) / 2, (asComponent->getHeight() - size) / 2, size, size };
 
-			g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::bgColour));
-			g.fillRect(area);
+			auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
 
-			g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::lineColour));
+			Array<Line<float>> lines;
 
-			g.drawLine((float)area.getX(), (float)area.getY(), (float)area.getRight(), (float)area.getBottom(), 1.0f);
-			g.drawLine((float)area.getX(), (float)area.getBottom(), (float)area.getRight(), (float)area.getY(), 1.0f);
+			lines.add({ (float)area.getX(), (float)area.getY(), (float)area.getRight(), (float)area.getBottom() });
+			lines.add({ (float)area.getX(), (float)area.getBottom(), (float)area.getRight(), (float)area.getY() });
+
+			Path grid;
+
+			for (auto l : lines)
+			{
+				grid.startNewSubPath(l.getStart());
+				grid.lineTo(l.getEnd());
+			}
+
+			laf->drawAnalyserGrid(g, *this, grid);
 
 			shapeIndex = (shapeIndex + 1) % 6;
 			shapes[shapeIndex] = Shape(rb->getReadBuffer(), area);
 
-			Colour c = getColourForAnalyserBase(AudioAnalyserComponent::fillColour);
+			for (int i = 0; i < 6; i++)
+			{
+				auto& p = shapes[(shapeIndex + i) % 6].points;
+				laf->drawGonioMeterDots(g, *this, p, i);
+			}
 
-			shapes[shapeIndex].draw(g, c.withAlpha(1.0f));
-			shapes[(shapeIndex + 1) % 6].draw(g, c.withAlpha(0.5f));
-			shapes[(shapeIndex + 2) % 6].draw(g, c.withAlpha(0.3f));
-			shapes[(shapeIndex + 3) % 6].draw(g, c.withAlpha(0.2f));
-			shapes[(shapeIndex + 4) % 6].draw(g, c.withAlpha(0.1f));
-			shapes[(shapeIndex + 5) % 6].draw(g, c.withAlpha(0.05f));
 		}
 	}
 	

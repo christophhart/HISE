@@ -106,29 +106,13 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 
 #include "scripting/scriptnode/api/RangeHelpers.h"
-
-
 #include "scripting/scriptnode/api/DynamicProperty.h"
 #include "scripting/scriptnode/api/DspHelpers.h"
-
 #include "scripting/scriptnode/api/Properties.h"
 #include "scripting/scriptnode/api/NodeBase.h"
-
-
-
-
 #include "scripting/scriptnode/api/DspNetwork.h"
-
-
-
-
 #include "scripting/scriptnode/ui/NodeComponent.h"
-
-
-
-
 #include "scripting/scriptnode/ui/PropertyEditor.h"
-
 #include "scripting/scriptnode/api/ModulationSourceNode.h"
 #include "scripting/scriptnode/api/NodeProperty.h"
 
@@ -136,20 +120,10 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/snex_nodes/SnexSource.h"
 #endif
 
-
-
-
-
-
-
-
 #include "scripting/scriptnode/soul/soul_includes.h"
 #include "scripting/scriptnode/nodes/JitNode.h"
-
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.h"
 #include "scripting/scriptnode/ui/FeedbackNodeComponents.h"
-
-
 
 #include "scripting/engine/HiseJavascriptEngine.h"
 
@@ -161,8 +135,6 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/api/ScriptingApiContent.h"
 #include "scripting/api/ScriptComponentEditBroadcaster.h"
 
-
-
 #include "scripting/ScriptProcessor.h"
 #include "scripting/ScriptProcessorModules.h"
 #include "scripting/HardcodedScriptProcessor.h"
@@ -172,14 +144,8 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/components/ScriptingContentComponent.h"
 
 #include "scripting/scriptnode/dynamic_elements/DynamicParameterList.h"
-
-
 #include "scripting/scriptnode/dynamic_elements/DynamicComplexData.h"
-
-
-
 #include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.h"
-
 #include "scripting/scriptnode/api/StaticNodeWrappers.h"
 
 #if HISE_INCLUDE_SNEX
@@ -197,17 +163,10 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/nodes/AudioFileNodeBase.h"
 
 #if USE_BACKEND
-
 #include "scripting/components/ScriptingPanelTypes.h"
 #include "scripting/components/PopupEditors.h"
 #include "scripting/components/ScriptingCodeEditor.h"
 #include "scripting/components/AutoCompletePopup.h"
 #include "scripting/components/ScriptingContentOverlay.h"
 #include "scripting/components/ScriptingEditor.h"
-
 #endif 
-
-
-
-
-

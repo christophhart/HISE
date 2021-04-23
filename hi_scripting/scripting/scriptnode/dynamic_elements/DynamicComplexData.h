@@ -136,6 +136,8 @@ template <typename T> struct dynamicT : public dynamic_base
 	ComplexDataUIBase* getInternalData() override { return internalData.get(); }
 
 	ReferenceCountedObjectPtr<T> internalData;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(dynamicT);
 };
 
 }
@@ -144,7 +146,6 @@ namespace dynamic
 {
 using table = data::pimpl::dynamicT<hise::SampleLookupTable>;
 using filter = data::pimpl::dynamicT<hise::FilterDataObject>;
-using displaybuffer = data::pimpl::dynamicT<hise::SimpleRingBuffer>;
 
 /** This needs some additional functionality:
 
@@ -190,38 +191,34 @@ struct audiofile : public data::pimpl::dynamicT<hise::MultiChannelAudioBuffer>,
 		sourceWatcher.removeSourceListener(this);
 	}
 
-	void initialise(NodeBase* n)
-	{
-		auto fileProvider = new PooledAudioFileDataProvider(n->getScriptProcessor()->getMainController_());
+	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType d, var data) override;
 
-		internalData->setProvider(fileProvider);
-
-		dynamicT<hise::MultiChannelAudioBuffer>::initialise(n);
-		
-		rangeSyncer.setCallback(getValueTree(), { PropertyIds::MinValue, PropertyIds::MaxValue }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(audiofile::updateRange));
-	}
+	void initialise(NodeBase* n);
 	
-	void sourceHasChanged(ComplexDataUIBase* oldSource, ComplexDataUIBase* newSource) override
-	{
-		if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(newSource))
-		{
-			auto r = af->getCurrentRange();
-			getValueTree().setProperty(PropertyIds::MinValue, r.getStart(), newSource->getUndoManager());
-			getValueTree().setProperty(PropertyIds::MaxValue, r.getEnd(), newSource->getUndoManager());
-		}
-	}
+	void sourceHasChanged(ComplexDataUIBase* oldSource, ComplexDataUIBase* newSource) override;
 
-	void updateRange(Identifier id, var newValue)
-	{
-		if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(currentlyUsedData))
-		{
-			auto min = (int)getValueTree()[PropertyIds::MinValue];
-			auto max = (int)getValueTree()[PropertyIds::MaxValue];
-			af->setRange({ min, max });
-		}
-	}
+	void updateRange(Identifier id, var newValue);
 
 	valuetree::PropertyListener rangeSyncer;
+	bool allowRangeChange = false;
+};
+
+struct displaybuffer : public data::pimpl::dynamicT<hise::SimpleRingBuffer>
+{
+	displaybuffer(data::base& t, int index = 0);
+
+	void initialise(NodeBase* n) override;
+
+	SimpleRingBuffer* getCurrentRingBuffer()
+	{
+		return dynamic_cast<SimpleRingBuffer*>(currentlyUsedData);
+	}
+
+	void updateProperty(const Identifier& id, const var& newValue);
+
+	valuetree::PropertyListener propertyListener;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(displaybuffer);
 };
 
 }
@@ -237,9 +234,119 @@ struct editor_base : public ScriptnodeExtraComponent<data::pimpl::dynamic_base>,
 
 	virtual ~editor_base();;
 
-	void timerCallback() override;
+};
+
+struct RingBufferPropertyEditor: public Component
+{
+	RingBufferPropertyEditor(dynamic::displaybuffer* b, RingBufferComponentBase* e);
+
+	void addItem(const Identifier& id, const StringArray& entries)
+	{
+		auto v = buffer->getCurrentRingBuffer()->getProperty(id);
+
+		auto c = new Item(buffer, id, entries, v);
+		items.add(c);
+		addAndMakeVisible(c);
+	}
+
+	SimpleRingBuffer* getCurrentRingBuffer()
+	{
+		return dynamic_cast<SimpleRingBuffer*>(buffer->currentlyUsedData);
+	}
+
+	struct Item: public Component,
+				 public ComboBox::Listener
+	{
+		Item(dynamic::displaybuffer* b_, Identifier id_, const StringArray& entries, const String& value);
+
+		void resized() override
+		{
+			auto w = f.getStringWidthFloat(id.toString()) + 10.0f;
+
+			auto b = getLocalBounds();
+			b.removeFromLeft(w);
+
+			cb.setBounds(b.reduced(1.0f));
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().removeFromLeft(cb.getX());
+
+			g.setFont(f);
+			g.setColour(Colours::white.withAlpha(0.3f));
+			g.drawText(id.toString(), b.toFloat(), Justification::centred);
+		}
+
+		void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
+		{
+			auto um = db->parentNode->getUndoManager();
+			db->getValueTree().setProperty(id, cb.getText(), um);
+		}
+		
+		Font f;
+		Identifier id;
+		ScriptnodeComboBoxLookAndFeel laf;
+		ComboBox cb;
+		dynamic::displaybuffer* db;
+	};
+
+	void paint(Graphics& g) override
+	{
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+
+		for (auto i : items)
+		{
+			auto pos = b.removeFromLeft(i->getWidth());
+			i->setBounds(pos);
+		}
+	}
 
 	
+
+	WeakReference<dynamic::displaybuffer> buffer;
+	RingBufferComponentBase* editor;
+
+	OwnedArray<Component> items;
+};
+
+struct complex_ui_laf : public BiPolarSliderLookAndFeel,
+						public TableEditor::LookAndFeelMethods,
+						public SliderPack::LookAndFeelMethods,
+						public HiseAudioThumbnail::LookAndFeelMethods,
+						public FilterGraph::LookAndFeelMethods,
+						public RingBufferComponentBase::LookAndFeelMethods
+{
+	void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
+	void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
+	void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
+	void drawTableValueLabel(Graphics& g, TableEditor& te, Font f, const String& text, Rectangle<int> textBox) override;
+
+	void drawFilterBackground(Graphics &g, FilterGraph& fg) override;
+	void drawFilterGridLines(Graphics &g, FilterGraph& fg, const Path& gridPath) override;
+	void drawFilterPath(Graphics& g, FilterGraph& fg, const Path& p) override;
+
+	bool shouldClosePath() const override { return false; }
+
+	void drawLinearSlider(Graphics&, int x, int y, int width, int height, float sliderPos, float minSliderPos, float maxSliderPos, const Slider::SliderStyle, Slider&) override;
+
+	void drawSliderPackBackground(Graphics& g, SliderPack& s) override;
+	void drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity) override;
+
+	void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override;
+	void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
+	void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
+
+	Colour getNodeColour(Component* c);
+
+	void drawOscilloscopeBackground(Graphics& g, RingBufferComponentBase& ac) override;
+	void drawOscilloscopePath(Graphics& g, RingBufferComponentBase& ac, const Path& p) override;
+	void drawGonioMeterDots(Graphics& g, RingBufferComponentBase& ac, const RectangleList<float>& dots, int index) override;
+	void drawAnalyserGrid(Graphics& g, RingBufferComponentBase& ac, const Path& p) override;
 };
 
 template <class DynamicDataType, class DataType, class ComponentType, bool AddDragger> struct editorT : public editor_base,
@@ -271,13 +378,42 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 			h = a.getHeight();
 		}
 
+		editor.setSpecialLookAndFeel(&laf, false);
+
+		if (auto te = dynamic_cast<TableEditor*>(&editor))
+			te->setScrollModifiers(ModifierKeys().withFlags(ModifierKeys::commandModifier | ModifierKeys::shiftModifier));
+
 		if(AddDragger)
 			addAndMakeVisible(dragger = new ModulationSourceBaseComponent(updater));
+		else if constexpr (std::is_same<DynamicDataType, data::dynamic::displaybuffer>())
+			addAndMakeVisible(dragger = new RingBufferPropertyEditor(dynamic_cast<DynamicDataType*>(b), &editor));
 
 		setSize(w, h + 41);
 
 		sourceHasChanged(nullptr, b->currentlyUsedData);
 	};
+
+	bool initialised = false;
+
+	void timerCallback() override
+	{
+		if (auto pc = findParentComponentOfClass<NodeComponent>())
+		{
+			auto nColour = pc->header.colour;
+			editor.setColour(HiseColourScheme::ColourIds::ComponentBackgroundColour, nColour);
+			
+			if (dragger != nullptr)
+				dragger->setColour(ModPlotter::ColourIds::pathColour, nColour);
+
+			auto thisScaleFactor = UnblurryGraphics::getScaleFactorForComponent(this, false);
+
+			if (thisScaleFactor != lastScaleFactor)
+			{
+				lastScaleFactor = thisScaleFactor;
+				editor.resized();
+			}
+		}
+	}
 
 	String getButtonName() const
 	{
@@ -345,7 +481,9 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 
 		if (dragger != nullptr)
 		{
-			top.removeFromLeft(28);
+			if(dynamic_cast<ModulationSourceBaseComponent*>(dragger.get()) != nullptr)
+				top.removeFromLeft(28);
+
 			dragger->setBounds(top.reduced(2));
 		}
 
@@ -408,7 +546,11 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 	PopupLookAndFeel plaf;
 	ComboBox slotSelector;
 	ComponentType editor;
-	ScopedPointer<ModulationSourceBaseComponent> dragger;
+	ScopedPointer<Component> dragger;
+
+	float lastScaleFactor = 1.0f;
+
+	complex_ui_laf laf;
 };
 
 

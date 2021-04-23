@@ -873,6 +873,48 @@ void PopupLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isB
 	g.fillPath(path);
 }
 
+
+void ScriptnodeComboBoxLookAndFeel::drawComboBox(Graphics& g, int width, int height, bool isButtonDown, int buttonX, int buttonY, int buttonW, int buttonH, ComboBox& cb)
+{
+	auto area = cb.getLocalBounds().toFloat();
+
+	drawScriptnodeDarkBackground(g, area, true);
+
+	auto b = area.removeFromRight(area.getHeight()).reduced(area.getHeight() / 3.0f);
+
+	Path p;
+	p.addTriangle({ 0.0f, 0.0f }, { 0.5f, 1.0f }, { 1.0f, 0.0f });
+
+	PathFactory::scalePath(p, b);
+	g.setColour(cb.findColour(ComboBox::ColourIds::textColourId));
+	g.fillPath(p);
+}
+
+Label* ScriptnodeComboBoxLookAndFeel::createComboBoxTextBox(ComboBox& c)
+{
+	auto l = PopupLookAndFeel::createComboBoxTextBox(c);
+	l->setColour(Label::ColourIds::textColourId, Colour(0xFFAAAAAA));
+	return l;
+}
+
+void ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(Graphics& g, Rectangle<float> area, bool roundedCorners)
+{
+	g.setColour(Colour(0xFF262626));
+
+	if (roundedCorners)
+	{
+		g.fillRoundedRectangle(area, area.getHeight() / 2.0f);
+		g.setColour(Colour(0xFF060609));
+		g.drawRoundedRectangle(area.reduced(0.5f), area.getHeight() / 2.0f, 1.0f);
+	}
+	else
+	{
+		g.fillRect(area);
+		g.setColour(Colour(0xFF060609));
+		g.drawRect(area, 1.0f);
+	}
+}
+
 Rectangle<int> getTextBoundsForComboBox(ComboBox& c)
 {
 	if (c.getHeight() < 20)

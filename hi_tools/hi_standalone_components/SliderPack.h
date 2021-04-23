@@ -286,8 +286,19 @@ public:
 
 	using Listener = SliderPackData::Listener;
 
-	struct SliderLookAndFeel : public BiPolarSliderLookAndFeel
+	struct LookAndFeelMethods
 	{
+		virtual ~LookAndFeelMethods() {};
+
+		virtual void drawSliderPackBackground(Graphics& g, SliderPack& s);
+
+		virtual void drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity);
+	};
+
+	struct SliderLookAndFeel : public BiPolarSliderLookAndFeel,
+							   public LookAndFeelMethods
+	{
+
 		void drawLinearSlider(Graphics &g, int /*x*/, int /*y*/, int width,
 			int height, float /*sliderPos*/, float /*minSliderPos*/,
 			float /*maxSliderPos*/, const Slider::SliderStyle style, Slider &s) override;
@@ -357,6 +368,7 @@ public:
 	void mouseUp(const MouseEvent &e) override;
 	void mouseDoubleClick(const MouseEvent &e) override;
 	void mouseExit(const MouseEvent &e) override;
+	void mouseMove(const MouseEvent&) override { repaint(); }
 
 	void update();
 
@@ -389,6 +401,13 @@ public:
 
 	/** Returns the number of slider. */
 	int getNumSliders();
+
+	void setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn /* = false */) override
+	{
+		EditorBase::setSpecialLookAndFeel(l, shouldOwn);
+		sliders.clear();
+		rebuildSliders();
+	}
 
 	void setFlashActive(bool setFlashActive);
 	void setShowValueOverlay(bool shouldShowValueOverlay);
@@ -445,8 +464,6 @@ private:
 	int currentlyDraggedSlider;
 
 	double currentlyDraggedSliderValue;
-
-	SliderLookAndFeel laf;
 
 	WeakReference<SliderPackData> data;
 	OwnedArray<Slider> sliders;

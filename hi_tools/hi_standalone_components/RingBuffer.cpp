@@ -42,6 +42,18 @@ SimpleRingBuffer::SimpleRingBuffer()
 	clear();
 }
 
+void SimpleRingBuffer::setValidateFunctions(const ValidateFunction& cf, const ValidateFunction& lf)
+{
+	validateLengthFunction = lf ? lf : dontChange;
+	validateChannelFunction = cf ? cf : dontChange;
+
+	auto nc = internalBuffer.getNumChannels();
+	auto ns = internalBuffer.getNumSamples();
+
+	if (validateChannelFunction(nc) || validateLengthFunction(nc))
+		setRingBufferSize(nc, ns);
+}
+
 void SimpleRingBuffer::clear()
 {
 	if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getDataLock()))
@@ -60,7 +72,9 @@ int SimpleRingBuffer::read(AudioSampleBuffer& b)
 		while (isBeingWritten.load()) // busy wait, but OK
 			;
 
-		int thisWriteIndex = writeIndex.load();
+		bool shortBuffer = internalBuffer.getNumSamples() < 4096;
+
+		int thisWriteIndex = shortBuffer ? 0 : writeIndex.load();
 		int numBeforeIndex = thisWriteIndex;
 		int offsetBeforeIndex = internalBuffer.getNumSamples() - numBeforeIndex;
 
@@ -74,8 +88,20 @@ int SimpleRingBuffer::read(AudioSampleBuffer& b)
 			auto buffer = internalBuffer.getReadPointer(i);
 			auto dst = b.getWritePointer(i);
 
-			FloatVectorOperations::copy(dst + offsetBeforeIndex, buffer, numBeforeIndex);
-			FloatVectorOperations::copy(dst, buffer + thisWriteIndex, offsetBeforeIndex);
+			if (shortBuffer)
+			{
+				FloatVectorOperations::multiply(dst, 0.5f, b.getNumSamples());
+
+				FloatVectorOperations::addWithMultiply(dst + offsetBeforeIndex, buffer, 0.5f, numBeforeIndex);
+				FloatVectorOperations::addWithMultiply(dst, buffer + thisWriteIndex, 0.5f, offsetBeforeIndex);
+			}
+			else
+			{
+				FloatVectorOperations::copy(dst + offsetBeforeIndex, buffer, numBeforeIndex);
+				FloatVectorOperations::copy(dst, buffer + thisWriteIndex, offsetBeforeIndex);
+			}
+
+			
 			FloatSanitizers::sanitizeArray(dst, numSamples);
 		}
 
@@ -150,36 +176,49 @@ void SimpleRingBuffer::write(const float** data, int numChannels, int numSamples
 {
 	if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getDataLock()))
 	{
+		if (internalBuffer.getNumSamples() == 0)
+			return;
+
 		isBeingWritten = true;
 
-		jassert(numChannels == internalBuffer.getNumChannels());
-
-		int numBeforeWrap = jmin(numSamples, internalBuffer.getNumSamples() - writeIndex);
-		int numAfterWrap = numSamples - numBeforeWrap;
-
-		if (numBeforeWrap > 0)
+		if (numSamples > 0)
 		{
-			for (int i = 0; i < numChannels; i++)
-			{
-				auto buffer = internalBuffer.getWritePointer(i);
-				FloatVectorOperations::copy(buffer + writeIndex, data[i], numBeforeWrap);
-			}
-		}
+			jassert(numChannels == internalBuffer.getNumChannels());
 
-		writeIndex += numBeforeWrap;
+			int numBeforeWrap = jmin(numSamples, internalBuffer.getNumSamples() - writeIndex);
 
-		if (numAfterWrap > 0)
-		{
-			for (int i = 0; i < numChannels; i++)
+			if (numBeforeWrap > 0)
 			{
-				auto buffer = internalBuffer.getWritePointer(i);
-				FloatVectorOperations::copy(buffer, data[i], numAfterWrap);
+				for (int i = 0; i < numChannels; i++)
+				{
+					auto buffer = internalBuffer.getWritePointer(i);
+					FloatVectorOperations::copy(buffer + writeIndex, data[i], numBeforeWrap);
+				}
 			}
 
-			writeIndex = numAfterWrap;
+			
+
+			writeIndex += numBeforeWrap;
+
+			int numAfterWrap = numSamples - numBeforeWrap;
+
+			while(numAfterWrap > 0)
+			{
+				auto numThisTime = jmin(internalBuffer.getNumSamples(), numAfterWrap);
+
+				for (int i = 0; i < numChannels; i++)
+				{
+					auto buffer = internalBuffer.getWritePointer(i);
+					FloatVectorOperations::copy(buffer, data[i], numThisTime);
+				}
+
+				writeIndex = numThisTime;
+				numAfterWrap -= numThisTime;
+			}
+
+			numAvailable += numSamples;
 		}
 
-		numAvailable += numSamples;
 		isBeingWritten = false;
 
 		getUpdater().sendDisplayChangeMessage((int)numAvailable, sendNotificationAsync, true);
@@ -220,19 +259,56 @@ void SimpleRingBuffer::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t,
 	}
 }
 
+void SimpleRingBuffer::setProperty(const Identifier& id, const var& newValue)
+{
+	if ((id.toString() == "BufferLength") && (int)newValue > 0)
+		setRingBufferSize(internalBuffer.getNumChannels(), (int)newValue);
+
+	if ((id.toString() == "NumChannels") && (int)newValue > 0)
+		setRingBufferSize((int)newValue,  internalBuffer.getNumSamples());
+}
+
+var SimpleRingBuffer::getProperty(const Identifier& id) const
+{
+	if (id.toString() == "BufferLength")
+		return internalBuffer.getNumSamples();
+
+	if (id.toString() == "NumChannels")
+		return internalBuffer.getNumChannels();
+
+	return {};
+}
+
+juce::Array<juce::Identifier> SimpleRingBuffer::getIdentifiers() const
+{
+	return { "BufferLength" };
+}
+
 ModPlotter::ModPlotter()
 {
+	//setColour(backgroundColour, Colour(0xFF313131));
+	//setColour(outlineColour, Colour(0xFF717171));
+
+	setColour(backgroundColour, Colours::black.withAlpha(0.3f));
+	setColour(outlineColour, Colours::black.withAlpha(0.3f));
+
+	setColour(pathColour, Colour(0xFF999999));
+
 	setOpaque(true);
 	setInterceptsMouseClicks(false, false);
 }
 
 void ModPlotter::paint(Graphics& g)
 {
-	g.fillAll(Colour(0xFF313131));
-	g.setColour(Colour(0xFF717171));
-	g.drawRect(getLocalBounds(), 1);
-	g.setColour(Colour(0xFF999999));
-	g.fillRectList(rectangles);
+	ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, getLocalBounds().toFloat(), false);
+
+
+
+	g.setColour(findColour(pathColour));
+
+	g.strokePath(p, PathStrokeType(1.5f));
+
+	//g.fillRectList(rectangles);
 }
 
 int ModPlotter::getSamplesPerPixel(float rectangleWidth) const
@@ -273,9 +349,16 @@ void ModPlotter::refresh()
 
 		float rectangleWidth = 1.0f;
 
-		rectangleWidth = std::ceil((float)getWidth() / 256.0f);
+		rectangleWidth = 1.0f; 
+
+		auto sf = jmin(1.0f, 1.0f / UnblurryGraphics::getScaleFactorForComponent(this, false));
+
+		rectangleWidth *= sf;
+
 		rectangleWidth = jmax(1.0f, rectangleWidth);
 
+		
+		
 		auto width = (float)getWidth() - 2.0f * offset;
 		auto maxHeight = (float)getHeight() - 2.0f * offset;
 
@@ -284,7 +367,11 @@ void ModPlotter::refresh()
 		int sampleIndex = 0;
 		const auto& buffer = rb->getReadBuffer();
 
-		for (float i = 0.0f; i < width; i += rectangleWidth)
+		p.clear();
+		p.startNewSubPath(offset, offset + maxHeight);
+
+
+		for (float i = 0; i <= width; i += rectangleWidth)
 		{
 			auto numThisTime = jmin(samplesPerPixel, buffer.getNumSamples() - sampleIndex);
 
@@ -295,13 +382,44 @@ void ModPlotter::refresh()
 
 			sampleIndex += samplesPerPixel;
 
-			rectangles.add({ i + offset, y, rectangleWidth, height });
+			p.lineTo(i + offset, maxHeight - height + offset);
+
+			rectangles.addWithoutMerging({ i + offset, y, rectangleWidth, height});
 		}
+
+		p.lineTo(width + offset, offset + maxHeight);
 
 		repaint();
 	}
 }
 
 
+
+void RingBufferComponentBase::LookAndFeelMethods::drawOscilloscopeBackground(Graphics& g, RingBufferComponentBase& ac)
+{
+	g.fillAll(ac.getColourForAnalyserBase(RingBufferComponentBase::bgColour));
+}
+
+void RingBufferComponentBase::LookAndFeelMethods::drawOscilloscopePath(Graphics& g, RingBufferComponentBase& ac, const Path& p)
+{
+	g.setColour(ac.getColourForAnalyserBase(RingBufferComponentBase::fillColour));
+	g.fillPath(p);
+}
+
+void RingBufferComponentBase::LookAndFeelMethods::drawGonioMeterDots(Graphics& g, RingBufferComponentBase& ac, const RectangleList<float>& dots, int index)
+{
+	auto c = ac.getColourForAnalyserBase(RingBufferComponentBase::fillColour);
+
+	const float alphas[6] = { 1.0f, 0.5f, 0.3f, 0.2f, 0.1f, 0.05f };
+	g.setColour(c.withAlpha(alphas[index]));
+	g.fillRectList(dots);
+
+}
+
+void RingBufferComponentBase::LookAndFeelMethods::drawAnalyserGrid(Graphics& g, RingBufferComponentBase& ac, const Path& p)
+{
+	g.setColour(ac.getColourForAnalyserBase(RingBufferComponentBase::lineColour));
+	g.strokePath(p, PathStrokeType(1.0f));
+}
 
 } // namespace hise

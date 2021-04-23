@@ -120,30 +120,7 @@ public:
 		bool enabled = true;
 	};
 
-	CurveEq(MainController *mc, const String &id):
-		MasterEffectProcessor(mc, id)
-	{
-		finaliseModChains();
-
-		parameterNames.add("Gain");			
-		parameterDescriptions.add("The gain in decibels if supported from the filter type.");
-
-		parameterNames.add("Freq");
-		parameterDescriptions.add("The frequency in Hz.");
-
-		parameterNames.add("Q");
-		parameterDescriptions.add("The bandwidth of the filter if supported.");
-
-		parameterNames.add("Enabled");
-		parameterDescriptions.add("the state of the filter band.");
-
-		parameterNames.add("Type");
-		parameterDescriptions.add("the filter type of the filter band.");
-
-		parameterNames.add("BandOffset");
-		parameterDescriptions.add("the offset that can be used to get the desired formula.");
-
-	};
+	CurveEq(MainController *mc, const String &id);;
 
 	int getParameterIndex(int filterIndex, int parameterType) const
 	{
@@ -166,7 +143,7 @@ public:
 		for (auto filter : filterBands)
 			filter->renderIfEnabled(r);
 
-		if (fftBuffer->isActive())
+		if (fftBuffer != nullptr && fftBuffer->isActive())
 			fftBuffer->write(buffer, startSample, numSamples);
 
 #if OLD_EQ_FFT

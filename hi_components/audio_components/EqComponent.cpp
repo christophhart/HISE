@@ -41,7 +41,9 @@ void FFTDisplayBase::Properties::applyFFT(SimpleRingBuffer::Ptr p)
 
 void FFTDisplayBase::drawSpectrum(Graphics& g)
 {
-	g.fillAll(getColourForAnalyserBase(AudioAnalyserComponent::bgColour));
+	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+
+	laf->drawOscilloscopeBackground(g, *this);
 
 #if USE_IPP
 
@@ -149,7 +151,7 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 			int lastLineLog = 1;
 
-			g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::lineColour));
+			Path grid;
 
 			int xLog10Pos = roundToInt(log10((float)log10Offset) / maxPos * (float)asComponent->getWidth());
 
@@ -173,7 +175,8 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 				if ((int)thisLineLog != lastLineLog)
 				{
-					g.drawVerticalLine((int)xPos, 0.0f, (float)asComponent->getHeight());
+					grid.startNewSubPath(xPos, 0.0f);
+					grid.lineTo(xPos, asComponent->getHeight());
 
 					lastLineLog = (int)thisLineLog;
 				}
@@ -228,8 +231,8 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 			lPath.lineTo((float)asComponent->getWidth(), (float)asComponent->getHeight());
 			lPath.closeSubPath();
 
-			g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::fillColour));
-			g.fillPath(lPath);
+			laf->drawAnalyserGrid(g, *this, grid);
+			laf->drawOscilloscopePath(g, *this, lPath);
 		}
 	}
 
@@ -249,10 +252,89 @@ void OscilloscopeBase::drawWaveform(Graphics& g)
 	{
 		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(rb->getDataLock()))
 		{
-			g.fillAll(getColourForAnalyserBase(AudioAnalyserComponent::bgColour));
-			g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::fillColour));
+			auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+			
+			laf->drawOscilloscopeBackground(g, *this);
+
+			Path grid;
+
+			auto b = dynamic_cast<Component*>(this)->getLocalBounds().toFloat();
+
+			auto top = b.removeFromTop(b.getHeight()/2.0f).reduced(2.0f);
+			auto bottom = b.reduced(2.0f);
+
+			grid.startNewSubPath(top.getX(), top.getCentreY());
+			grid.lineTo(top.getRight(), top.getCentreY());
+			grid.startNewSubPath(bottom.getX(), bottom.getCentreY());
+			grid.lineTo(bottom.getRight(), bottom.getCentreY());
+
+			grid.startNewSubPath(bottom.getX(), bottom.getY() - 2.0f);
+			grid.lineTo(bottom.getRight(), bottom.getY() - 2.0f);
+
+
+			laf->drawAnalyserGrid(g, *this, grid);
+
+
+
+
 			drawOscilloscope(g, rb->getReadBuffer());
 		}
+	}
+}
+
+void OscilloscopeBase::drawPath(const float* l_, int numSamples, int width, Path& p)
+{
+	int stride = roundToInt((float)numSamples / width);
+	stride = jmax<int>(1, stride * 2);
+
+	if (numSamples != 0)
+	{
+		p.clear();
+
+		p.startNewSubPath(0.0f, 1.0f);
+		p.startNewSubPath(0.0f, -1.0f);
+		p.startNewSubPath(0.0f, 0.0f);
+
+		float x;
+
+		bool mirrorMode = stride > 100;
+
+		for (int i = 0; i < numSamples; i += stride)
+		{
+			const int numToCheck = jmin<int>(stride, numSamples - i);
+
+			auto value = FloatVectorOperations::findMaximum(l_ + i, numToCheck);
+
+			if (mirrorMode)
+				value = jmax(0.0f, value);
+
+			x = (float)i;
+			p.lineTo(x, -1.0f * value);
+		};
+
+		if (mirrorMode)
+		{
+			for (int i = numSamples - 1; i >= 0; i -= stride)
+			{
+				const int numToCheck = jmin<int>(stride, numSamples - i);
+
+				auto value = jmin<float>(0.0f, FloatVectorOperations::findMinimum(l_ + i, numToCheck));
+
+				x = (float)i;
+
+				p.lineTo(x, -1.0f * value);
+			};
+
+			p.lineTo(x, 0.0f);
+		}
+		else
+		{
+			p.lineTo(x, 0.0f);
+		}
+	}
+	else
+	{
+		p.clear();
 	}
 }
 
@@ -468,7 +550,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 			c->setColour(ColourIds::textColour, findPanelColour(PanelColourId::textColour));
 			c->filterGraph.setColour(FilterGraph::ColourIds::fillColour, findPanelColour(PanelColourId::itemColour1));
 			c->filterGraph.setColour(FilterGraph::ColourIds::lineColour, findPanelColour(PanelColourId::itemColour2));
-			c->fftAnalyser.setColour(AudioAnalyserComponent::ColourId::fillColour, findPanelColour(PanelColourId::itemColour3));
+			c->fftAnalyser.setColour(RingBufferComponentBase::ColourId::fillColour, findPanelColour(PanelColourId::itemColour3));
 
 			c->setOpaque(c->findColour(ColourIds::bgColour).isOpaque());
 
@@ -511,7 +593,7 @@ FilterDragOverlay::FilterDragOverlay(CurveEq* eq_, bool isInFloatingTile_ /*= fa
 	filterGraph.setOpaque(false);
 	filterGraph.setColour(FilterGraph::ColourIds::bgColour, Colours::transparentBlack);
 
-	fftAnalyser.setColour(AudioAnalyserComponent::ColourId::fillColour, Colours::black.withAlpha(0.15f));
+	//fftAnalyser.setColour(AudioAnalyserComponent::ColourId::fillColour, Colours::black.withAlpha(0.15f));
 	fftAnalyser.setInterceptsMouseClicks(false, false);
 	filterGraph.setInterceptsMouseClicks(false, false);
 
@@ -987,12 +1069,13 @@ FilterDragOverlay::FFTDisplay::FFTDisplay(FilterDragOverlay& parent_) :
 {
 	setComplexDataUIBase(parent_.eq->getFFTBuffer());
 
+	setColour(RingBufferComponentBase::ColourId::fillColour, Colours::white.withAlpha(0.6f));
 	fftProperties.freq2x = std::bind(&FilterGraph::freqToX, &parent.filterGraph, std::placeholders::_1);
 }
 
 void FilterDragOverlay::FFTDisplay::paint(Graphics& g)
 {
-	if (rb->isActive() && !parent.eq->isBypassed())
+	if (rb != nullptr && rb->isActive() && !parent.eq->isBypassed())
 		FFTDisplayBase::drawSpectrum(g);
 }
 
@@ -1003,11 +1086,11 @@ double FilterDragOverlay::FFTDisplay::getSamplerate() const
 
 juce::Colour FilterDragOverlay::FFTDisplay::getColourForAnalyserBase(int colourId)
 {
-	if (colourId == AudioAnalyserComponent::bgColour)
+	if (colourId == RingBufferComponentBase::bgColour)
 		return Colours::transparentBlack;
-	if (colourId == AudioAnalyserComponent::ColourId::fillColour)
+	if (colourId == RingBufferComponentBase::ColourId::fillColour)
 		return findColour(colourId);
-	if (colourId == AudioAnalyserComponent::ColourId::lineColour)
+	if (colourId == RingBufferComponentBase::ColourId::lineColour)
 		return Colours::white.withAlpha(0.2f);
 
 	return Colours::blue;

@@ -220,6 +220,8 @@ currentlyDraggedSliderValue(0.0),
 defaultValue(0.0),
 dummyData(new SliderPackData(nullptr, nullptr))
 {
+	setSpecialLookAndFeel(new SliderLookAndFeel(), true);
+
 	if (data == nullptr)
 	{
 		data = dummyData;
@@ -227,6 +229,8 @@ dummyData(new SliderPackData(nullptr, nullptr))
 	}
 		
 	getData()->addListener(this);
+
+	setRepaintsOnMouseActivity(true);
 
 	setColour(Slider::backgroundColourId, Colour(0x22000000));
 	setColour(Slider::textBoxOutlineColourId, Colours::white.withAlpha(0.2f));
@@ -513,7 +517,6 @@ void SliderPack::paintOverChildren(Graphics &g)
 
 	if (displayAlphas.size() != sliders.size())
 	{
-		//jassertfalse;
 		return;
 	}
 
@@ -525,7 +528,7 @@ void SliderPack::paintOverChildren(Graphics &g)
 			{
 				const bool biPolar = sliders[i]->getMinimum() < 0;
 
-				g.setColour(Colours::white.withAlpha(displayAlphas[i]));
+				
 
 				auto v = (int)sliders[i]->getPositionOfValue(sliders[i]->getValue());
 
@@ -549,11 +552,8 @@ void SliderPack::paintOverChildren(Graphics &g)
 					h = sliders[i]->getHeight() - v;
 				}
 
-				Rectangle<int> r(x, y, w, h);
-
-				
-
-				g.fillRect(r);
+				if (auto l = getSpecialLookAndFeel<LookAndFeelMethods>())
+					l->drawSliderPackFlashOverlay(g, *this, i, { x, y, w, h }, displayAlphas[i]);
 			}
 		}
 	}
@@ -687,18 +687,11 @@ void SliderPack::mouseDoubleClick(const MouseEvent &e)
 
 void SliderPack::paint(Graphics &g)
 {
-	Colour background = findColour(Slider::ColourIds::backgroundColourId);
-
-	g.setGradientFill(ColourGradient(background, 0.0f, 0.0f,
-		background.withMultipliedBrightness(0.8f), 0.0f, (float)getHeight(), false));
-
-	g.fillAll();
-
-	Colour outline = findColour(Slider::ColourIds::textBoxOutlineColourId);
-
-	g.setColour(outline);
-
-	g.drawRect(getLocalBounds(), 1);
+	if (auto l = getSpecialLookAndFeel<LookAndFeelMethods>())
+	{
+		l->drawSliderPackBackground(g, *this);
+	}
+	
 }
 
 void SliderPack::setSuffix(const String &suffix_)
@@ -710,6 +703,7 @@ int SliderPack::getNumSliders()
 {
 	return sliders.size();
 }
+
 
 
 void SliderPack::setFlashActive(bool flashShouldBeActive)
@@ -766,7 +760,7 @@ void SliderPack::rebuildSliders()
 			Slider *s = new Slider();
 			addAndMakeVisible(s);
 			sliders.add(s);
-			s->setLookAndFeel(&laf);
+			s->setLookAndFeel(getSpecialLookAndFeel<LookAndFeel>());
 			s->setInterceptsMouseClicks(false, false);
 			s->addListener(this);
 			s->setSliderStyle(Slider::SliderStyle::LinearBarVertical);
@@ -899,6 +893,25 @@ void SliderPack::SliderLookAndFeel::drawLinearSlider(Graphics &g, int /*x*/, int
 			false));
 		g.fillRect(leftX, 2.0f, actualWidth, (float)(height - 2));
 	}
+}
+
+void SliderPack::LookAndFeelMethods::drawSliderPackBackground(Graphics& g, SliderPack& s)
+{
+	Colour background = s.findColour(Slider::ColourIds::backgroundColourId);
+
+	g.setGradientFill(ColourGradient(background, 0.0f, 0.0f,
+		background.withMultipliedBrightness(0.8f), 0.0f, (float)s.getHeight(), false));
+
+	g.fillAll();
+	Colour outline = s.findColour(Slider::ColourIds::textBoxOutlineColourId);
+	g.setColour(outline);
+	g.drawRect(s.getLocalBounds(), 1);
+}
+
+void SliderPack::LookAndFeelMethods::drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity)
+{
+	g.setColour(Colours::white.withAlpha(intensity));
+	g.fillRect(sliderBounds);
 }
 
 } // namespace hise

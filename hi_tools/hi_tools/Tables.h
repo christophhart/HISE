@@ -235,7 +235,7 @@ public:
 	*
 	*	This is called by the editor to draw the path under the DragPoints.
 	*/
-	void createPath(Path &normalizedPath) const;
+	void createPath(Path &normalizedPath, bool fillPath) const;
 
 	/** Fills the look up table with the graph points generated from calculateGraphPoints()
 	*

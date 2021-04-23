@@ -40,6 +40,8 @@ FilterGraph::FilterGraph (int numFiltersInit, int drawType_):
 	drawType((DrawType)drawType_),
 	numFilters(numFiltersInit)
 {
+	setSpecialLookAndFeel(new DefaultLookAndFeel(), true);
+
 	setOpaque(true);
 	setEnablePaintProfiling("FilterGraph");
 
@@ -168,7 +170,7 @@ void FilterGraph::refreshFilterPath()
 
 void FilterGraph::changeListenerCallback(SafeChangeBroadcaster *b)
 {
-	jassertfalse;
+	
 
 #if 0
 	CurveEq *eq = dynamic_cast<CurveEq*>(b);
@@ -214,36 +216,26 @@ void FilterGraph::paint (Graphics& g)
 
 		g.fillPath(tracePath);
 
-
 		g.drawRect(getLocalBounds(), 1);
-
 	}
 	else
 	{
-		paintBackground(g);
+		auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+		
+		jassert(laf != nullptr);
 
-		if(showLines)
-			paintGridLines(g);
+		laf->drawFilterBackground(g, *this);
+
+		if (showLines)
+		{
+			createGridPath();
+			laf->drawFilterGridLines(g, *this, gridPath);
+		}
 		
 		refreshFilterPath();
 
-		if (useFlatDesign)
-		{
-			g.setColour(findColour(ColourIds::fillColour));
-			g.fillPath(tracePath);
-			g.setColour(findColour(ColourIds::lineColour));
-			g.strokePath(tracePath, PathStrokeType(1.0f));
-		}
-		else
-		{
-			GlobalHiseLookAndFeel::fillPathHiStyle(g, tracePath, getWidth(), getHeight());
-		}
-
-		
+		laf->drawFilterPath(g, *this, tracePath);
 	}
-
-	
-    
 }
 
 void FilterGraph::addFilter(FilterType filterType){
@@ -260,6 +252,31 @@ void FilterGraph::addEqBand(BandType eqType){
 
 void FilterGraph::resized()
 {
+}
+
+void FilterGraph::createGridPath()
+{
+	float width = (float)getWidth();
+	float height = (float)getHeight();
+
+
+
+	gridPath.clear();
+	for (int lineNum = 1; lineNum < numHorizontalLines + 1; lineNum++)
+	{
+		float yPos = lineNum * (height - 5) / (numHorizontalLines + 1) + 2.5f;
+		gridPath.startNewSubPath(0, yPos);
+		gridPath.lineTo(width, yPos);
+	}
+
+	float order = (float)(pow(10, floor(log10(lowFreq))));
+	float rounded = order * (floor(lowFreq / order) + 1);
+	for (float freq = rounded; freq < highFreq; freq += (float)(pow(10, floor(log10(freq)))))
+	{
+		float xPos = freqToX(freq);
+		gridPath.startNewSubPath(xPos, 2.5f);
+		gridPath.lineTo(xPos, height - 2.5f);
+	}
 }
 
 void FilterGraph::setNumHorizontalLines (int newValue)
@@ -425,5 +442,54 @@ void FilterGraph::mouseMove (const MouseEvent &)
     }
 }
 
+
+void FilterGraph::LookAndFeelMethods::drawFilterBackground(Graphics &g, FilterGraph& fg)
+{
+	if (fg.useFlatDesign)
+	{
+		g.fillAll(fg.findColour(ColourIds::bgColour));
+	}
+	else
+	{
+		ColourGradient grad = ColourGradient(Colour(0xFF444444), 0.0f, 0.0f,
+			Colour(0xFF222222), 0.0f, (float)fg.getHeight(), false);
+
+		g.setGradientFill(grad);
+		g.fillAll();
+		g.setColour(Colours::lightgrey.withAlpha(0.4f));
+		g.drawRect(fg.getLocalBounds(), 1);
+	}
+}
+
+void FilterGraph::LookAndFeelMethods::drawFilterPath(Graphics& g, FilterGraph& fg, const Path& p)
+{
+	if (fg.useFlatDesign)
+	{
+		g.setColour(fg.findColour(ColourIds::fillColour));
+		g.fillPath(p);
+		g.setColour(fg.findColour(ColourIds::lineColour));
+		g.strokePath(p, PathStrokeType(1.0f));
+	}
+	else
+	{
+		GlobalHiseLookAndFeel::fillPathHiStyle(g, p, fg.getWidth(), fg.getHeight());
+	}
+}
+
+void FilterGraph::LookAndFeelMethods::drawFilterGridLines(Graphics &g, FilterGraph& fg, const Path& gridPath)
+{
+	g.setColour(Colour(0x22ffffff));
+	String axisLabel;
+	axisLabel = String(fg.maxdB, 1) + "dB";
+
+	auto b = fg.getLocalBounds().toFloat().removeFromLeft(300).reduced(4.0f);
+
+	g.setFont(GLOBAL_FONT());
+	g.drawText(axisLabel, b.removeFromTop(18.0f), Justification::left, false);
+	g.drawText(String("-") + axisLabel, b.removeFromBottom(18.0f), Justification::left, false);
+
+	g.setColour(Colour(0x22ffffff));
+	g.strokePath(gridPath, PathStrokeType(0.5f));
+}
 
 } // namespace hise

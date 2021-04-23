@@ -76,11 +76,11 @@ struct Helpers
 
 	static Colour getColourBase(int colourId)
 	{
-		if (colourId == AudioAnalyserComponent::ColourId::bgColour)
+		if (colourId == RingBufferComponentBase::ColourId::bgColour)
 			return Colour(0xFF333333);
-		if (colourId == AudioAnalyserComponent::ColourId::fillColour)
+		if (colourId == RingBufferComponentBase::ColourId::fillColour)
 			return Colours::white.withAlpha(0.7f);
-		if (colourId == AudioAnalyserComponent::ColourId::lineColour)
+		if (colourId == RingBufferComponentBase::ColourId::lineColour)
 			return Colours::white;
 
 		return Colours::transparentBlack;
@@ -93,15 +93,25 @@ struct Helpers
 		static constexpr int NumChannels = 1;
 		static constexpr int NumSamples = 16384;
 
-		static int getValidBufferSize(int desiredSize)
+		static bool validateLength(int& desiredSize)
 		{
 			auto capped = jlimit<int>(512, 32768, desiredSize);
-			return nextPowerOfTwo(capped);
+			auto ns = nextPowerOfTwo(capped);
+
+			if (ns != desiredSize)
+			{
+				desiredSize = ns;
+				return true;
+			}
+
+			return false;
 		}
 
-		static constexpr int getValidChannelSize(int numChannels)
+		static bool validateChannels(int& numChannels)
 		{
-			return 1;
+			auto ok = numChannels == 1;
+			numChannels = 1;
+			return ok;
 		}
 	};
 
@@ -112,14 +122,14 @@ struct Helpers
 		static constexpr int NumChannels = 2;
 		static constexpr int NumSamples = 2048;
 
-		static int getValidBufferSize(int desiredSize)
+		static bool validateLength(int& desiredSize)
 		{
-			return jlimit<int>(512, 32768 * 4, desiredSize);
+			return SimpleRingBuffer::withinRange<128, 32768>(desiredSize);
 		}
 
-		static constexpr int getValidChannelSize(int numChannels)
+		static bool validateChannels(int& numChannels)
 		{
-			return numChannels;
+			return SimpleRingBuffer::withinRange<1, 2>(numChannels);
 		}
 	};
 
@@ -130,20 +140,23 @@ struct Helpers
 		static constexpr int NumChannels = 2;
 		static constexpr int NumSamples = 8192;
 
-		static int getValidBufferSize(int desiredSize)
+		static bool validateLength(int& desiredSize)
 		{
-			return 8192;
+			return SimpleRingBuffer::withinRange<512, 32768>(desiredSize);
 		}
 
-		static constexpr int getValidChannelSize(int numChannels)
+		static bool validateChannels(int& numChannels)
 		{
-			return 2;
+			auto ok = numChannels == 2;
+			numChannels = 2;
+			return ok;
 		}
 	};
 
 };
 
-template <class T> class analyse_base : public Helpers::AnalyserDataProvider
+template <class T> class analyse_base : public Helpers::AnalyserDataProvider,
+				                        public AsyncUpdater
 {
 public:
 
@@ -151,13 +164,13 @@ public:
     SN_GET_SELF_AS_OBJECT(analyse_base);
     
 	
-	HISE_EMPTY_HANDLE_EVENT;
 	HISE_EMPTY_INITIALISE;
 	HISE_EMPTY_MOD;
+	
 
 	analyse_base()
 	{
-		setRequiredBufferSize(T::NumChannels, T::NumSamples);
+		
 	}
 
 	virtual ~analyse_base() {};
@@ -166,6 +179,37 @@ public:
 	{
 		if (rb != nullptr)
 			rb->clear();
+	}
+
+	void setExternalData(const ExternalData& d, int index) override
+	{
+		Helpers::AnalyserDataProvider::setExternalData(d, index);
+
+		if (rb != nullptr)
+			rb->setValidateFunctions(T::validateChannels, T::validateLength);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (rb != nullptr && e.isNoteOn())
+		{
+			auto sr = rb->getSamplerate();
+			auto l = rb->getReadBuffer().getNumSamples();
+
+			auto numSamplesForCycle = 1.0 / e.getFrequency() * sr;
+
+			while (numSamplesForCycle < 128.0 && numSamplesForCycle != 0.0)
+				numSamplesForCycle *= 2.0;
+
+			syncSamples = roundToInt(numSamplesForCycle);
+
+			triggerAsyncUpdate();
+		}
+	}
+
+	void handleAsyncUpdate() override
+	{
+		rb->setRingBufferSize(2, syncSamples);
 	}
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
@@ -178,6 +222,8 @@ public:
 	{
 	
 	}
+
+	int syncSamples = 0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(analyse_base);
 };
@@ -208,8 +254,6 @@ struct simple_osc_display : public OscilloscopeBase,
 
 	void paint(Graphics& g) override
 	{
-		g.setColour(Colour(0xFF717171));
-		g.drawRect(getLocalBounds(), 1.0f);
 		OscilloscopeBase::drawWaveform(g);
 	}
 };
@@ -258,8 +302,9 @@ struct simple_gon_display : public GoniometerBase,
 
 	void paint(Graphics& g) override
 	{
-		g.setColour(Colour(0xFF717171));
-		g.drawRect(getLocalBounds(), 1.0f);
+		auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+		laf->drawOscilloscopeBackground(g, *this);
+
 		GoniometerBase::paintSpacialDots(g);
 	}
 };

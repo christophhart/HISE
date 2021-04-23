@@ -67,6 +67,19 @@ public:
     FilterGraph (int numFilters=0, int type=Line);
     ~FilterGraph();
 
+	struct LookAndFeelMethods
+	{
+		virtual void drawFilterBackground(Graphics &g, FilterGraph& fg);
+		virtual void drawFilterPath(Graphics& g, FilterGraph& fg, const Path& p);
+		virtual void drawFilterGridLines(Graphics &g, FilterGraph& fg, const Path& gridPath);
+	};
+
+	struct DefaultLookAndFeel : public PopupLookAndFeel,
+		public LookAndFeelMethods
+	{
+
+	};
+
     enum TraceType
     {
         Magnitude,
@@ -109,6 +122,8 @@ public:
 
 		repaint();
 	}
+
+	void createGridPath();
 
     void setNumHorizontalLines (int newValue);
     void setFreqRange (float newLowFreq, float newHighFreq);
@@ -163,58 +178,9 @@ public:
 
 private:
 
-	void paintBackground(Graphics &g)
-	{
-		
-		if (useFlatDesign)
-		{
-			g.fillAll(findColour(ColourIds::bgColour));
-		}
-		else
-		{
-			ColourGradient grad = ColourGradient(Colour(0xFF444444), 0.0f, 0.0f,
-				Colour(0xFF222222), 0.0f, (float)getHeight(), false);
+	
 
-			g.setGradientFill(grad);
-			g.fillAll();
-			g.setColour(Colours::lightgrey.withAlpha(0.4f));
-			g.drawRect(getLocalBounds(), 1);
-		}
-	}
-
-	void paintGridLines(Graphics &g)
-	{
-		float width = (float) getWidth();
-		float height = (float) getHeight();
-
-		g.setColour (Colour (0x22ffffff));
-		String axisLabel;
-		axisLabel = String (maxdB, 1) + "dB";
-    
-		g.setFont (Font ("Arial Rounded MT", 10.0f, Font::plain));
-		g.drawText (axisLabel, 6, (int) ((height - 5) / (numHorizontalLines + 1) -9.5f), 45, 12, Justification::left, false);
-		g.drawText (String ("-") + axisLabel, 6, (int) (numHorizontalLines * (height - 5) / (numHorizontalLines + 1) + 3.5f), 45, 12, Justification::left, false);
-    
-		gridPath.clear();
-		for (int lineNum = 1; lineNum < numHorizontalLines + 1; lineNum++)
-		{
-			float yPos = lineNum * (height - 5) / (numHorizontalLines + 1) + 2.5f;
-			gridPath.startNewSubPath (0, yPos);
-			gridPath.lineTo (width, yPos);
-		}
-    
-		float order = (float)(pow (10, floor (log10 (lowFreq))));
-		float rounded = order * (floor(lowFreq / order) + 1);
-		for (float freq = rounded; freq < highFreq; freq += (float)(pow (10, floor (log10 (freq)))))
-		{
-			float xPos = freqToX (freq);
-			gridPath.startNewSubPath (xPos, 2.5f);
-			gridPath.lineTo (xPos, height - 2.5f);
-		}
-
-		g.setColour (Colour (0x22ffffff));   
-		g.strokePath (gridPath, PathStrokeType (0.5f));
-	}
+	
 
 	void refreshFilterPath();
 

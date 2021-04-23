@@ -484,6 +484,20 @@ protected:
 };
 
 
+struct ScriptnodeComboBoxLookAndFeel : public PopupLookAndFeel
+{
+	void drawComboBox(Graphics&, int width, int height, bool isButtonDown,
+		int buttonX, int buttonY, int buttonW, int buttonH,
+		ComboBox&) override;
+
+	Font getComboBoxFont(ComboBox&) override { return GLOBAL_BOLD_FONT(); }
+
+	Label* createComboBoxTextBox(ComboBox&) override;
+
+	static void drawScriptnodeDarkBackground(Graphics& g, Rectangle<float> area, bool roundedCorners);
+};
+
+
 class TableHeaderLookAndFeel: public PopupLookAndFeel
 {
 public:

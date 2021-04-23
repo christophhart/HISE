@@ -92,6 +92,7 @@ AudioDisplayComponent::SampleArea::SampleArea(int area_, AudioDisplayComponent *
 		useConstrainer(false),
 		parentWaveform(parentWaveform_)
 {
+	
 	setInterceptsMouseClicks(false, true);
 	edgeLaf = new EdgeLookAndFeel(this);
 		
@@ -181,6 +182,7 @@ void AudioDisplayComponent::SampleArea::mouseDrag(const MouseEvent &)
 
 void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 {
+	UnblurryGraphics ug(g, *this, true);
 	
 	if(area == AreaTypes::LoopCrossfadeArea)
 	{
@@ -204,7 +206,7 @@ void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 		g.fillAll();
 
 		g.setColour(getAreaColour().withAlpha(0.3f));
-		g.drawRect(getLocalBounds(), 1);
+		ug.draw1PxRect(getLocalBounds().toFloat());
 	}
 	else
 	{
@@ -212,13 +214,13 @@ void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 		g.fillAll();
 
 		g.setColour(getAreaColour().withAlpha(0.3f));
-		g.drawRect(getLocalBounds(), 1);
+		ug.draw1PxRect(getLocalBounds().toFloat());
 
 		g.setColour(getAreaColour());
+
 		g.drawVerticalLine(0, 0.0, (float)getHeight());
 		g.drawVerticalLine(getWidth() - 1, 0.0, (float)getHeight());
 	}
-
 }
 
 void AudioDisplayComponent::SampleArea::checkBounds()
@@ -334,6 +336,8 @@ MultiChannelAudioBufferDisplay::MultiChannelAudioBufferDisplay() :
 	bgColour(Colour(0xFF555555))
 {
 	setColour(ColourIds::bgColour, Colour(0xFF555555));
+
+	setSpecialLookAndFeel(new BufferLookAndFeel());
 
 	setOpaque(true);
 
@@ -470,42 +474,37 @@ void MultiChannelAudioBufferDisplay::paint(Graphics &g)
 
 void MultiChannelAudioBufferDisplay::paintOverChildren(Graphics& g)
 {
+	auto laf = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(&preview->getLookAndFeel());
 
-	Font f = GLOBAL_BOLD_FONT();
+	jassert(laf != nullptr);
 
-	g.setFont(f);
-
-
+	
     static const String text = "Drop audio file or Right click to open browser";
     
+	auto f = GLOBAL_BOLD_FONT();
+
     const int w = f.getStringWidth(text) + 20;
 
 	if (getWidth() > (w+10) && (connectedBuffer == nullptr || connectedBuffer->getBuffer().getNumSamples() == 0))
 	{
-		g.setColour(Colours::white.withAlpha(0.3f));
-		g.setColour(Colours::black.withAlpha(0.5f));
 		Rectangle<int> r((getWidth() - w) / 2, (getHeight() - 20) / 2, w, 20);
-		g.fillRect(r);
-		g.setColour(Colours::white.withAlpha(0.5f));
-		g.drawRect(r, 1);
-
-		g.drawText(text, getLocalBounds(), Justification::centred);
+		laf->drawTextOverlay(g, *preview, text, r.toFloat());
 	}
 
 	AudioDisplayComponent::paint(g);
 
-	const String fileNameToShow = getCurrentlyLoadedFileName();
+	String fileNameToShow = getCurrentlyLoadedFileName();
 
 	if (showFileName && fileNameToShow.isNotEmpty())
 	{
+		fileNameToShow = fileNameToShow.replace("\\", "/");
+		fileNameToShow = fileNameToShow.fromLastOccurrenceOf("}", false, false);
+		fileNameToShow = fileNameToShow.fromLastOccurrenceOf("/", false, false);
+		
+
 		const int w2 = f.getStringWidth(fileNameToShow) + 20;
-		g.setColour(Colours::black.withAlpha(0.5f));
 		Rectangle<int> r(getWidth() - w2 - 5, 5, w2, 20);
-		g.fillRect(r);
-		g.setColour(Colours::white.withAlpha(0.2f));
-		g.drawRect(r, 1);
-		g.setColour(Colours::white.withAlpha(0.6f));
-		g.drawText(fileNameToShow, r, Justification::centred);
+		laf->drawTextOverlay(g, *preview, fileNameToShow, r.toFloat());
 	}
 
 	if (showLoop)
@@ -615,8 +614,8 @@ void HiseAudioThumbnail::LoadingThread::run()
 
 	RectangleList<float> lRects, rRects;
 
-	float width = (float)bounds.getWidth();
-
+	auto sf = UnblurryGraphics::getScaleFactorForComponent(parent, false);
+	float width = (float)bounds.getWidth() * sf;
 
 	VariantBuffer::Ptr r = rb.getBuffer();
 	VariantBuffer::Ptr l = lb.getBuffer();
@@ -863,6 +862,14 @@ HiseAudioThumbnail::~HiseAudioThumbnail()
 	loadingThread.stopThread(400);
 }
 
+void HiseAudioThumbnail::setBufferAndSampleRate(double newSampleRate, var bufferL, var bufferR /*= var()*/, bool synchronously /*= false*/)
+{
+	if(newSampleRate > 0.0)
+		sampleRate = newSampleRate;
+
+	setBuffer(bufferL, bufferR, synchronously);
+}
+
 void HiseAudioThumbnail::setBuffer(var bufferL, var bufferR /*= var()*/, bool synchronously)
 {
 	currentReader = nullptr;
@@ -878,11 +885,13 @@ void HiseAudioThumbnail::setBuffer(var bufferL, var bufferR /*= var()*/, bool sy
 
 	if (auto l = bufferL.getBuffer())
 	{
-		lengthInSeconds = l->size / 44100.0;
+		lengthInSeconds = l->size / sampleRate;
 	}
 
 	rebuildPaths(synchronously);
 }
+
+
 
 void HiseAudioThumbnail::paint(Graphics& g)
 {
@@ -893,10 +902,7 @@ void HiseAudioThumbnail::paint(Graphics& g)
 
 	if (sl.isLocked())
 	{
-
-
 		auto bounds = getLocalBounds();
-
 
 		if (leftBound > 0 || rightBound > 0)
 		{
@@ -907,8 +913,6 @@ void HiseAudioThumbnail::paint(Graphics& g)
 
 			g.excludeClipRegion(left);
 			g.excludeClipRegion(right);
-
-
 
 			drawSection(g, true);
 
@@ -922,52 +926,118 @@ void HiseAudioThumbnail::paint(Graphics& g)
 			drawSection(g, true);
 		}
 	}
-	
+}
+
+void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area)
+{
+	Colour fillColour = th.findColour(AudioDisplayComponent::ColourIds::fillColour);
+	Colour outlineColour = th.findColour(AudioDisplayComponent::ColourIds::outlineColour);
+
+	if (!areaIsEnabled)
+	{
+		fillColour = fillColour.withMultipliedAlpha(0.3f);
+		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
+	}
+
+	g.setColour(fillColour.withAlpha(0.05f));
+
+	if (th.drawHorizontalLines)
+	{
+		g.drawHorizontalLine(area.getY() + area.getHeight() / 4, 0.0f, (float)th.getWidth());
+		g.drawHorizontalLine(area.getY() + 3 * area.getHeight() / 4, 0.0f, (float)th.getWidth());
+	}
+}
+
+void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path)
+{
+	Colour fillColour = th.findColour(AudioDisplayComponent::ColourIds::fillColour);
+	Colour outlineColour = th.findColour(AudioDisplayComponent::ColourIds::outlineColour);
+
+	if (!areaIsEnabled)
+	{
+		fillColour = fillColour.withMultipliedAlpha(0.3f);
+		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
+	}
+
+	g.setColour(fillColour);
+	g.fillPath(path);
+
+	if (!outlineColour.isTransparent())
+	{
+		g.setColour(outlineColour);
+		g.strokePath(path, PathStrokeType(1.0f));
+	}
+}
+
+void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleList<float>& rectList)
+{
+	Colour fillColour = th.findColour(AudioDisplayComponent::ColourIds::fillColour);
+	Colour outlineColour = th.findColour(AudioDisplayComponent::ColourIds::outlineColour);
+
+	if (!areaIsEnabled)
+	{
+		fillColour = fillColour.withMultipliedAlpha(0.3f);
+		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
+	}
+
+	g.setColour(fillColour);
+	g.fillRectList(rectList);
+}
+
+
+void HiseAudioThumbnail::LookAndFeelMethods::drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area)
+{
+	Font f = GLOBAL_BOLD_FONT();
+	g.setFont(f);
+
+	g.setColour(Colours::white.withAlpha(0.3f));
+	g.setColour(Colours::black.withAlpha(0.5f));
+	g.fillRect(area);
+	g.setColour(Colours::white.withAlpha(0.5f));
+	g.drawRect(area, 1);
+	g.drawText(text, area, Justification::centred);
 }
 
 void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 {
 	bool isStereo = rBuffer.isBuffer();
 
-	Colour fillColour = findColour(AudioDisplayComponent::ColourIds::fillColour);
-	Colour outlineColour = findColour(AudioDisplayComponent::ColourIds::outlineColour);
+	auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel());
 
-	if (!enabled)
-	{
-		fillColour = fillColour.withMultipliedAlpha(0.3f);
-		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
-	}
-		
+	if (laf == nullptr)
+		return;
 
 	if (!isStereo)
 	{
-		g.setColour(fillColour.withAlpha(0.05f));
+		auto a = getLocalBounds();
 
-		int h = getHeight();
-
-		if (drawHorizontalLines)
-		{
-			g.drawHorizontalLine(h / 4, 0.0f, (float)getWidth());
-			g.drawHorizontalLine(3 * h / 4, 0.0f, (float)getWidth());
-		}
-
-		g.setColour(fillColour);
+		laf->drawHiseThumbnailBackground(g, *this, enabled, a);
 
 		if (!leftWaveform.isEmpty())
-			g.fillPath(leftWaveform);
+			laf->drawHiseThumbnailPath(g, *this, enabled, leftWaveform);
 		else if (!leftPeaks.isEmpty())
-			g.fillRectList(leftPeaks);
-
-		if (!outlineColour.isTransparent() && !leftWaveform.isEmpty())
-		{
-			g.setColour(outlineColour);
-			g.strokePath(leftWaveform, PathStrokeType(1.0f));
-		}
+			laf->drawHiseThumbnailRectList(g, *this, enabled, leftPeaks);
 	}
 	else
 	{
-		g.setColour(fillColour.withAlpha(0.08f));
+		auto a1 = getLocalBounds();
+		auto a2 = a1.removeFromBottom(a1.getHeight() / 2);
 
+		laf->drawHiseThumbnailBackground(g, *this, enabled, a1);
+
+		if (!leftWaveform.isEmpty())
+			laf->drawHiseThumbnailPath(g, *this, enabled, leftWaveform);
+		else if (!leftPeaks.isEmpty())
+			laf->drawHiseThumbnailRectList(g, *this, enabled, leftPeaks);
+
+		laf->drawHiseThumbnailBackground(g, *this, enabled, a2);
+
+		if (!rightWaveform.isEmpty())
+			laf->drawHiseThumbnailPath(g, *this, enabled, rightWaveform);
+		else if (!rightPeaks.isEmpty())
+			laf->drawHiseThumbnailRectList(g, *this, enabled, rightPeaks);
+
+#if 0
 		int h = getHeight()/2;
 
 		if (drawHorizontalLines)
@@ -997,6 +1067,7 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 			g.strokePath(leftWaveform, PathStrokeType(1.0f));
 			g.strokePath(rightWaveform, PathStrokeType(1.0f));
 		}
+#endif
 	}
 }
 
@@ -1038,5 +1109,6 @@ void HiseAudioThumbnail::setRange(const int left, const int right)
 	rightBound = getWidth() - right;
 	repaint();
 }
+
 
 } // namespace hise

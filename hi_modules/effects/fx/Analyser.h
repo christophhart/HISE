@@ -58,6 +58,8 @@ public:
 	AnalyserEffect(MainController *mc, const String &uid) :
 		MasterEffectProcessor(mc, uid)
 	{
+		ringBuffer = new SimpleRingBuffer();
+		ringBuffer->setGlobalUIUpdater(mc->getGlobalUIUpdater());
 		finaliseModChains();
 
 		parameterNames.add("PreviewType"); 
@@ -170,23 +172,17 @@ class AudioAnalyserComponent : public Component,
 {
 public:
 
-	enum ColourId
-	{
-		bgColour = 12,
-		fillColour,
-		lineColour,
-		numColourIds
-	};
+	
 
 	AudioAnalyserComponent(Processor* p) :
 		processor(p)
 	{
-		setColour(AudioAnalyserComponent::ColourId::bgColour, Colours::transparentBlack);
+		setColour(RingBufferComponentBase::ColourId::bgColour, Colours::transparentBlack);
 
 		startTimer(30);
 	};
 
-	Colour getColourForAnalyser(ColourId id);
+	Colour getColourForAnalyser(RingBufferComponentBase::ColourId id);
 
 	void timerCallback() override { repaint(); }
 
@@ -250,7 +246,7 @@ public:
 	}
 
 	double getSamplerate() const override { return getAnalyser()->getSampleRate(); }
-	Colour getColourForAnalyserBase(int colourId) override { return AudioAnalyserComponent::getColourForAnalyser((AudioAnalyserComponent::ColourId)colourId); }
+	Colour getColourForAnalyserBase(int colourId) override { return AudioAnalyserComponent::getColourForAnalyser((RingBufferComponentBase::ColourId)colourId); }
 };
 
 
@@ -266,7 +262,7 @@ public:
 		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer());
 	};
 
-	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((AudioAnalyserComponent::ColourId)colourId); }
+	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((RingBufferComponentBase::ColourId)colourId); }
 
 	void paint(Graphics& g) override
 	{
@@ -322,7 +318,7 @@ public:
 		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer());
 	}
 
-	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((AudioAnalyserComponent::ColourId)colourId); }
+	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((RingBufferComponentBase::ColourId)colourId); }
 
 	void paint(Graphics& g) override
 	{

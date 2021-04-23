@@ -52,7 +52,7 @@ void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoint
 	internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
 };
 
-void Table::createPath(Path &normalizedPath) const
+void Table::createPath(Path &normalizedPath, bool fillPath) const
 {
 	normalizedPath.clear();
 	normalizedPath.startNewSubPath(-0.00000001f, 1.0000001f);
@@ -83,8 +83,12 @@ void Table::createPath(Path &normalizedPath) const
 	}
 
 	normalizedPath.lineTo(1.0000001f, 0.0000001f); // fix wrong scaling if greatest value is < 1
-	normalizedPath.lineTo(1.0000001f, 1.0000001f);
-	normalizedPath.closeSubPath();
+
+	if (fillPath)
+	{
+		normalizedPath.lineTo(1.0000001f, 1.0000001f);
+		normalizedPath.closeSubPath();
+	}
 };
 
 void Table::fillLookUpTable()
@@ -94,7 +98,7 @@ void Table::fillLookUpTable()
 
 	Path renderPath;
 
-	createPath(renderPath);
+	createPath(renderPath, true);
 
 	renderPath.applyTransform(AffineTransform::scale((float)getTableSize(), 1.0f));
 

@@ -56,46 +56,10 @@ protected:
 		dynamic_cast<Component*>(this)->repaint();
 	}
 
+
 private:
 
-	void drawPath(const float* l_, int numSamples, int width, Path& p)
-	{
-		int stride = roundToInt((float)numSamples / width);
-		stride = jmax<int>(1, stride * 2);
-
-		if (numSamples != 0)
-		{
-			p.clear();
-			p.startNewSubPath(0.0f, 0.0f);
-			p.lineTo(0.0f, 1.0f);
-			p.lineTo(0.0f, -1.0f);
-
-			for (int i = stride; i < numSamples; i += stride)
-			{
-				const int numToCheck = jmin<int>(stride, numSamples - i);
-
-				auto value = jmax<float>(0.0f, FloatVectorOperations::findMaximum(l_ + i, numToCheck));
-
-				p.lineTo((float)i, -1.0f * value);
-
-			};
-
-			for (int i = numSamples - 1; i > 0; i -= stride)
-			{
-				const int numToCheck = jmin<int>(stride, numSamples - i);
-
-				auto value = jmin<float>(0.0f, FloatVectorOperations::findMinimum(l_ + i, numToCheck));
-
-				p.lineTo((float)i, -1.0f * value);
-			};
-
-			p.closeSubPath();
-		}
-		else
-		{
-			p.clear();
-		}
-	}
+	void drawPath(const float* l_, int numSamples, int width, Path& p);
 
 	void drawOscilloscope(Graphics &g, const AudioSampleBuffer &b)
 	{
@@ -108,11 +72,19 @@ private:
 		drawPath(dataL, b.getNumSamples(), asComponent->getWidth(), lPath);
 		drawPath(dataR, b.getNumSamples(), asComponent->getWidth(), rPath);
 
-		lPath.scaleToFit(0.0f, 0.0f, (float)asComponent->getWidth(), (float)(asComponent->getHeight() / 2), false);
-		rPath.scaleToFit(0.0f, (float)(asComponent->getHeight() / 2), (float)asComponent->getWidth(), (float)(asComponent->getHeight() / 2), false);
+		auto lb = asComponent->getLocalBounds().toFloat();
+		auto top = lb.removeFromTop(lb.getHeight() / 2.0f).reduced(2.0f);
+		auto bottom = lb.reduced(2.0f);
 
-		g.fillPath(lPath);
-		g.fillPath(rPath);
+		lPath.scaleToFit(top.getX(), top.getY(), top.getWidth(), top.getHeight(), false);
+		rPath.scaleToFit(bottom.getX(), bottom.getY(), bottom.getWidth(), bottom.getHeight(), false);
+
+		auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+
+		jassert(laf != nullptr);
+
+		laf->drawOscilloscopePath(g, *this, lPath);
+		laf->drawOscilloscopePath(g, *this, rPath);
 	}
 
 	Path lPath;
@@ -177,8 +149,6 @@ protected:
     virtual ~FFTDisplayBase() {};
     
 	void drawSpectrum(Graphics& g);
-
-	
 
 	Path lPath;
 	Path rPath;
