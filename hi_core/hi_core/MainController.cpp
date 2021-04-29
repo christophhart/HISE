@@ -800,11 +800,14 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 #if ENABLE_HOST_INFO
 	AudioPlayHead::CurrentPositionInfo newTime;
 
-	if ( thisAsProcessor->getPlayHead() != nullptr && thisAsProcessor->getPlayHead()->getCurrentPosition(newTime))
+	if (thisAsProcessor->getPlayHead() != nullptr && thisAsProcessor->getPlayHead()->getCurrentPosition(newTime))
 	{
+		handleTransportCallbacks(newTime);
+
 		lastPosInfo = newTime;
 	}
-	else lastPosInfo.resetToDefault();
+	else
+		lastPosInfo.resetToDefault();
 
 	storePlayheadIntoDynamicObject(lastPosInfo);
 	
@@ -1239,19 +1242,75 @@ bool MainController::isSyncedToHost() const
 #endif
 }
 
+void MainController::handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo)
+{
+	if (lastPosInfo.isPlaying != newInfo.isPlaying)
+	{
+		for (auto tl : tempoListeners)
+			tl->onTransportChange(newInfo.isPlaying);
+	}
+
+	if (lastPosInfo.timeSigNumerator != newInfo.timeSigNumerator ||
+		lastPosInfo.timeSigDenominator != newInfo.timeSigDenominator)
+	{
+		for (auto tl : tempoListeners)
+			tl->onSignatureChange(newInfo.timeSigNumerator, newInfo.timeSigDenominator);
+	}
+
+	if (!pulseListener.isEmpty())
+	{
+		auto timeMultiplier = (double)newInfo.timeSigDenominator / 4.0;
+
+		auto realPos = newInfo.ppqPosition * timeMultiplier;
+		auto lastPos = (int)(lastPosInfo.ppqPosition * (double)timeMultiplier);
+
+
+		int beats = (int)realPos;
+		if (beats != lastPos)
+		{
+			bool isBar = false;
+
+			if (newInfo.ppqPositionOfLastBarStart != 0.0)
+				isBar = (newInfo.ppqPosition - newInfo.ppqPositionOfLastBarStart) < (1.0 / timeMultiplier);
+			else
+			{
+				isBar = beats % newInfo.timeSigDenominator == 0;
+			}
+
+			for (auto tl : pulseListener)
+				tl->onBeatChange(beats, isBar);
+		}
+	}
+}
+
 void MainController::addTempoListener(TempoListener *t)
 {
-	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
-
-	tempoListeners.addIfNotAlreadyThere(t);
+	{
+		LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+		tempoListeners.addIfNotAlreadyThere(t);
+	}
+	
 	t->tempoChanged(getBpm());
+	t->onSignatureChange(lastPosInfo.timeSigNumerator, lastPosInfo.timeSigDenominator);
+	t->onTransportChange(lastPosInfo.isPlaying);
 }
 
 void MainController::removeTempoListener(TempoListener *t)
 {
 	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
-
 	tempoListeners.removeAllInstancesOf(t);
+}
+
+void MainController::addMusicalUpdateListener(TempoListener* t)
+{
+	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+	pulseListener.addIfNotAlreadyThere(t);
+}
+
+void MainController::removeMusicalUpdateListener(TempoListener* t)
+{
+	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+	pulseListener.removeAllInstancesOf(t);
 }
 
 juce::Typeface* MainController::getFont(const String &fontName) const
@@ -1261,9 +1320,7 @@ juce::Typeface* MainController::getFont(const String &fontName) const
 		auto nameToUse = tf.id.isValid() ? tf.id.toString() : tf.typeface->getName();
 
 		if (nameToUse == fontName)
-		{
 			return tf.typeface.get();
-		}
 	}
 
 	return nullptr;

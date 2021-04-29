@@ -848,6 +848,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
 	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
+	API_METHOD_WRAPPER_0(Engine, createTransportHandler);
 	API_METHOD_WRAPPER_0(Engine, getPlayHead);
 	API_VOID_METHOD_WRAPPER_2(Engine, dumpAsJSON);
 	API_METHOD_WRAPPER_1(Engine, loadFromJSON);
@@ -997,6 +998,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(rebuildCachedPools);
 	ADD_API_METHOD_1(loadImageIntoPool);
 	ADD_API_METHOD_1(createDspNetwork);
+	ADD_API_METHOD_0(createTransportHandler);
 	ADD_API_METHOD_1(setLatencySamples);
 	ADD_API_METHOD_0(getLatencySamples);
 	ADD_API_METHOD_2(getDspNetworkReference);
@@ -1965,6 +1967,11 @@ ScriptingObjects::TimerObject* ScriptingApi::Engine::createTimerObject() { retur
 ScriptingObjects::ScriptingMessageHolder* ScriptingApi::Engine::createMessageHolder()
 {
 	return new ScriptingObjects::ScriptingMessageHolder(getScriptProcessor());
+}
+
+var ScriptingApi::Engine::createTransportHandler()
+{
+	return new TransportHandler(getScriptProcessor());
 }
 
 void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)
@@ -4921,10 +4928,162 @@ void ScriptingApi::Server::setServerCallback(var callback)
 
 
 
+ScriptingApi::TransportHandler::Callback::Callback(TransportHandler* p, const var& f, bool sync, int numArgs_) :
+	callback(p->getScriptProcessor(), f, numArgs_),
+	jp(dynamic_cast<JavascriptProcessor*>(p->getScriptProcessor())),
+	synchronous(sync),
+	th(p),
+	numArgs(numArgs_)
+{
+	if (synchronous)
+	{
+		auto fObj = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(f.getObject());
 
+		if (fObj == nullptr)
+			throw String("Must use inline functions for synchronous callback");
 
+		if (fObj->parameterNames.size() != numArgs)
+		{
+			throw String("Parameter amount mismatch for callback. Expected " + String(numArgs));
+		}
+	}
 
+	setHandler(th->getMainController()->getGlobalUIUpdater());
+	addPooledChangeListener(th);
 
+	callback.incRefCount();
 
+	if(!sync)
+		callback.setHighPriority();
+	
+}
+
+void ScriptingApi::TransportHandler::Callback::call(var arg1, var arg2, bool forceSync)
+{
+	args[0] = arg1;
+	args[1] = arg2;
+
+	if (synchronous || forceSync)
+		callSync();
+	else
+		sendPooledChangeMessage();
+}
+
+void ScriptingApi::TransportHandler::Callback::callAsync()
+{
+	callback.call(args, numArgs);
+}
+
+bool ScriptingApi::TransportHandler::Callback::matches(const var& f) const
+{
+	return callback.matches(f);
+}
+
+void ScriptingApi::TransportHandler::Callback::callSync()
+{
+	callback.callSync(args, numArgs);
+}
+
+struct ScriptingApi::TransportHandler::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnTempoChange);
+	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnBeatChange);
+	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnSignatureChange);
+	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnTransportChange);
+};
+
+ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* sp) :
+	ConstScriptingObject(sp, 0),
+	ControlledObject(sp->getMainController_())
+{
+	getMainController()->addTempoListener(this);
+
+	ADD_API_METHOD_2(setOnTempoChange);
+	ADD_API_METHOD_2(setOnBeatChange);
+	ADD_API_METHOD_2(setOnSignatureChange);
+	ADD_API_METHOD_2(setOnTransportChange);
+}
+
+ScriptingApi::TransportHandler::~TransportHandler()
+{
+	getMainController()->removeTempoListener(this);
+	getMainController()->removeMusicalUpdateListener(this);
+}
+
+void ScriptingApi::TransportHandler::setOnTempoChange(bool sync, var f)
+{
+	if (sync)
+	{
+		clearIf(tempoChangeCallbackAsync, f);
+
+		tempoChangeCallback = new Callback(this, f, sync, 1);
+		tempoChangeCallback->call(bpm, {}, true);
+	}
+	else
+	{
+		clearIf(tempoChangeCallback, f);
+
+		tempoChangeCallbackAsync = new Callback(this, f, sync, 1);
+		tempoChangeCallbackAsync->call(bpm, {}, true);
+	}
+}
+
+void ScriptingApi::TransportHandler::setOnTransportChange(bool sync, var f)
+{
+	if (sync)
+	{
+		clearIf(tempoChangeCallbackAsync, f);
+
+		transportChangeCallback = new Callback(this, f, sync, 1);
+		transportChangeCallback->call(play, {}, true);
+	}
+	else
+	{
+		clearIf(transportChangeCallback, f);
+
+		transportChangeCallbackAsync = new Callback(this, f, sync, 1);
+		transportChangeCallbackAsync->call(play, {}, true);
+	}
+	
+}
+
+void ScriptingApi::TransportHandler::setOnSignatureChange(bool sync, var f)
+{
+	if (sync)
+	{
+		clearIf(timeSignatureCallbackAsync, f);
+
+		timeSignatureCallback = new Callback(this, f, sync, 2);
+		timeSignatureCallback->call(nom, denom, true);
+	}
+	else
+	{
+		clearIf(timeSignatureCallback, f);
+
+		timeSignatureCallbackAsync = new Callback(this, f, sync, 2);
+		timeSignatureCallbackAsync->call(nom, denom, true);
+	}
+}
+
+void ScriptingApi::TransportHandler::setOnBeatChange(bool sync, var f)
+{
+	if (f.isUndefined())
+		getMainController()->removeMusicalUpdateListener(this);
+	else
+	{
+		getMainController()->addMusicalUpdateListener(this);
+
+		if (sync)
+		{
+			clearIf(beatCallbackAsync, f);
+			beatCallback = new Callback(this, f, sync, 2);
+		}
+		else
+		{
+			clearIf(beatCallback, f);
+			beatCallbackAsync = new Callback(this, f, sync, 2);
+		}
+	}
+}
 
 } // namespace hise

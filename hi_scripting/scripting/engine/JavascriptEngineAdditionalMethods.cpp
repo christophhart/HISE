@@ -288,6 +288,8 @@ var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation
 	if (var* m = findRootClassProperty(ObjectClass::getClassName(), functionName))
 		return *m;
 
+	AudioThreadGuard::Suspender ss(true);
+
 	location.throwError("Unknown function '" + functionName.toString() + "'");
 	return var();
 }

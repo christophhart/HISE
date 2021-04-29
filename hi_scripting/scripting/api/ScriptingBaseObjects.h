@@ -246,6 +246,9 @@ struct WeakCallbackHolder : private ScriptingObject
 	/** Call the function with the given arguments. */
 	void call(var* arguments, int numArgs);
 
+	/** Call the functions synchronously. */
+	Result callSync(var* arguments, int numArgs);
+
 	/** Call the function with one argument that can be converted to a var. */
 	template <typename T> void call1(const T& arg1)
 	{
@@ -298,6 +301,8 @@ struct WeakCallbackHolder : private ScriptingObject
 		thisObject = dynamic_cast<DebugableObjectBase*>(thisObj);
 	}
 
+	bool matches(const var& f) const;
+
 private:
 
 	bool highPriority = false;
@@ -307,6 +312,7 @@ private:
 	var anonymousFunctionRef;
 	WeakReference<DebugableObjectBase> weakCallback;
 	WeakReference<DebugableObjectBase> thisObject;
+	ReferenceCountedObject* castedObj = nullptr;
 	WeakReference<HiseJavascriptEngine> engineToUse;
 };
 
