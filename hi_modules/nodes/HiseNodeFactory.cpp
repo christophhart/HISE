@@ -33,6 +33,421 @@
 namespace scriptnode
 {
 
+namespace core
+{
+using namespace hise;
+using namespace juce;
+using namespace snex;
+using namespace snex::Types;
+
+struct granulator: public data::base
+{
+	static const int NumGrains = 128;
+	static const int NumAudioFiles = 1;
+
+	SNEX_NODE(granulator);
+
+	using IndexType = index::lerp<index::unscaled<double, index::clamped<0>>>;
+	//using IndexType = index::unscaled<double, index::clamped<0>>;
+
+	struct Grain
+	{
+		hmath Math;
+
+		enum State
+		{
+			ATTACK,
+			SUSTAIN,
+			RELEASE,
+			IDLE,
+			numStates
+		};
+
+		void reset()
+		{
+			fadeState = IDLE;
+		}
+
+		void setFadeTime(int newFadeTimeSamples)
+		{
+			if (newFadeTimeSamples != fadeTimeSamples)
+			{
+				fadeTimeSamples = newFadeTimeSamples;
+				fadeDelta = fadeTimeSamples == 0 ? 1.0f : 1.0f / (float)fadeTimeSamples;
+			}
+		}
+
+		void setSpread(float alpha, float gain, double detune)
+		{
+			gainValue = gain;//gain * ((1.0f - alpha) + alpha *Math.random());
+			auto balance = 2.0f * (Math.random() - 0.5f);
+			lGain = 1.0f + alpha * balance;
+			rGain = 1.0f - alpha * balance;
+
+			float att = (1.0f - Math.min(0.8f, alpha)) * 0.5f;
+			att *= 2.0f;
+
+			const double pf = (2.0 * Math.randomDouble() - 1.0) * detune;
+			uptimeDelta *= Math.pow(2.0, pf);
+		}
+
+		bool startIfIdle(const span<block, 2>& data, int index, int grainSize)
+		{
+			if (fadeState == 3)
+			{
+				fadeState = 0;
+
+				fadeValue = 0.0f;
+				idx = 0.0;
+
+				grainData[0].referTo(data[0], grainSize, index);
+				grainData[1].referTo(data[1], grainSize, index);
+
+				setFadeTime(grainSize / 4);
+
+				return true;
+			}
+
+			return false;
+		}
+
+		void updateFadeState()
+		{
+			auto grainLimit = grainData[0].size();
+			auto atkLimit = fadeTimeSamples;
+			auto susLimit = grainLimit - fadeTimeSamples;
+			auto idx_ = (int)idx;
+
+			fadeState = 0;
+			fadeState += idx_ >= atkLimit;
+			fadeState += idx_ >= susLimit;
+			fadeState += idx_ >= grainLimit;
+
+			if (fadeState == 0)
+			{
+				fadeValue += fadeDelta * uptimeDelta;
+			}
+			if (fadeState == 2)
+			{
+				fadeValue -= fadeDelta * uptimeDelta;
+			}
+			if (fadeState == 1)
+			{
+				fadeValue = 1.0;
+			}
+		}
+
+		void tick(span<float, 2>& output)
+		{
+			if (fadeState < 3)
+			{
+				IndexType i(idx);
+
+				auto thisGain = gainValue * (fadeValue * fadeValue);
+
+				output[0] += lGain * thisGain * grainData[0][i];
+				output[1] += rGain * thisGain * grainData[1][i];
+
+				idx += uptimeDelta;
+
+				updateFadeState();
+			}
+		}
+
+		void setPitchRatio(double delta)
+		{
+			uptimeDelta = delta;
+			gainValue *= Math.pow(delta, 0.3);
+		}
+
+
+		double idx = 0.0;
+
+		double uptimeDelta = 1.0;
+
+		int fadeTimeSamples = 0;
+		float fadeDelta = 1.0f;
+		float fadeValue = 0.0f;
+		int fadeState = 3;
+
+		float gainValue = 1.0f;
+		float lGain = 1.0f;
+		float rGain = 1.0f;
+
+		span<dyn<float>, 2> grainData;
+	};
+
+
+
+	// Reset the processing pipeline here
+	void reset()
+	{
+
+	}
+
+	void startNextGrain(int numSamples)
+	{
+		uptime += numSamples;
+
+		auto delta = uptime - timeOfLastGrainStart;
+
+		if (delta > timeBetweenGrains)
+		{
+			auto idx = (int)(currentPosition * (double)(audioData[0].size() - grainLengthSamples));
+
+			idx += (double)spread * Math.randomDouble() * grainLengthSamples;
+
+			auto offset = idx % 4;
+			idx -= offset;
+			auto delta = ((Math.randomDouble() - 0.5) * (double)timeBetweenGrains * 0.3);
+			timeOfLastGrainStart = uptime + delta;
+
+			double thisPitch = pitchRatio * 44100.0 / sampleRate;
+			auto thisGain = 1.0f;
+
+			if (activeEvents.size() > 0)
+			{
+				index::wrapped<0> eIdx(eventIndex);
+				auto eFreq = activeEvents[eIdx].getFrequency();
+				eventIndex = (int)(Math.random() * 190.0f);
+				thisPitch *= eFreq / sampleFrequency;
+				//thisGain = (float)activeEvents[eIdx].getVelocity() / 127.0f;
+			}
+
+			for (auto& grain : grains)
+			{
+				if (grain.startIfIdle(audioData, idx, (int)grainLengthSamples))
+				{
+					grain.setPitchRatio(thisPitch);
+					grain.setSpread(spread, thisGain, detune);
+
+					break;
+				}
+			}
+		}
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		if (data.size() == 2)
+		{
+			if (voiceCounter != 0)
+				startNextGrain(1);
+
+
+			span<float, 2> sum;
+
+			for (auto& g : grains)
+				g.tick(sum);
+
+			data[0] += totalGrainGain * sum[0];
+			data[1] += totalGrainGain * sum[1];
+		}
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		if (audioData[0].size() > 0 && d.getNumChannels() == 2)
+			processFix(d.as<ProcessData<2>>());
+	}
+
+	void processFix(ProcessData<2>& d)
+	{
+		auto fd = d.toFrameData();
+
+		while (fd.next())
+			processFrame(fd.toSpan());
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (e.isNoteOn())
+		{
+			voices[voiceCounter] = e;
+			voiceCounter++;
+		}
+		else
+		{
+			for (auto& v : voices)
+			{
+				if (v.getEventId() == e.getEventId())
+				{
+					voiceCounter = Math.max(0, voiceCounter - 1);
+
+					v = voices[voiceCounter];
+
+					voices[voiceCounter].clear();
+
+					break;
+				}
+			}
+		}
+
+		if (voiceCounter == 0)
+			activeEvents.referToNothing();
+		else
+			activeEvents.referTo(voices, voiceCounter, 0);
+	}
+
+	void updateGrainLength()
+	{
+		grainLengthSamples = grainLength * 0.001 * sampleRate;
+		timeBetweenGrains = (int)(grainLengthSamples * pitchRatio * (1.0 - density)) / 2;
+
+		auto gainDelta = (float)timeBetweenGrains / (float)grainLengthSamples;
+
+		totalGrainGain = Math.pow(gainDelta, 0.3f);
+	}
+
+	void setExternalData(const ExternalData& d, int index)
+	{
+		base::setExternalData(d, index);
+
+		ed = d;
+
+		d.referBlockTo(audioData[0], 0);
+		d.referBlockTo(audioData[1], 1);
+
+		if (d.numSamples != 0)
+		{
+			sampleFrequency = PitchDetection::detectPitch(audioData[0].begin(), d.numSamples, sampleRate);
+		}
+
+		updateGrainLength();
+
+		for (auto& g : grains)
+			g.reset();
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		sampleRate = ps.sampleRate;
+		updateGrainLength();
+	}
+
+
+	template <int P> void setParameter(double v)
+	{
+		if (P == 0) // Position
+		{
+			currentPosition = Math.range(v, 0.0, 1.0);
+
+			auto dv = currentPosition * (double)(audioData[0].size() - 2.0 * grainLengthSamples);
+
+			//block analyseBlock;
+			//analyseBlock.referTo(audioData[0], (int)dv, 2 * (int)grainLengthSamples);
+			//maxGainInGrain = Math.peak(analyseBlock);
+			//maxGainInGrain = Math.range(maxGainInGrain, 0.001f, 1.0f);
+
+			//updateGrainLength();
+
+			ed.setDisplayedValue(dv);
+		}
+		if (P == 1) // PitchRatio
+		{
+			pitchRatio = v;
+
+			updateGrainLength();
+
+			for (auto& g : grains)
+			{
+				g.setPitchRatio(v);
+			}
+		}
+		if (P == 2) // GrainSize
+		{
+			grainLength = (int)Math.range(v, 20.0, 800.0);
+			updateGrainLength();
+		}
+		if (P == 3) // Density
+		{
+			density = Math.range(v, 0.0, 0.99);
+			updateGrainLength();
+		}
+		if (P == 4) // Spread
+		{
+			spread = (float)v;
+		}
+		if (P == 5) // Detune
+		{
+			detune = Math.range(v, 0.0, 1.0);
+		}
+	}
+
+	FORWARD_PARAMETER_TO_MEMBER(granulator);
+
+	void createParameters(ParameterDataList& l)
+	{
+		{
+			parameter::data d("Position", { 0.0, 1.0 });
+			d.callback = parameter::inner<granulator, 0>(*this);
+			l.add(d);
+		}
+		{
+			parameter::data d("Pitch", { 0.5, 2.0 });
+			d.setSkewForCentre(1.0);
+			d.callback = parameter::inner<granulator, 1>(*this);
+			d.setDefaultValue(1.0);
+			l.add(d);
+		}
+		{
+			parameter::data d("GrainSize", { 20.0, 800.0 });
+			d.callback = parameter::inner<granulator, 2>(*this);
+			d.setDefaultValue(80.0);
+			l.add(d);
+		}
+		{
+			parameter::data d("Density", { 0.0, 1.0 });
+			d.callback = parameter::inner<granulator, 3>(*this);
+			l.add(d);
+		}
+		{
+			parameter::data d("Spread", { 0.0, 1.0 });
+			d.callback = parameter::inner<granulator, 4>(*this);
+			l.add(d);
+		}
+		{
+			parameter::data d("Detune", { 0.0, 1.0 });
+			d.callback = parameter::inner<granulator, 5>(*this);
+			l.add(d);
+		}
+	}
+
+	ExternalData ed;
+	span<block, 2> audioData;
+	span<Grain, NumGrains> grains;
+
+	float totalGrainGain = 1.0f;
+
+	int simpleLock = false;
+	int timeSinceLastStart = 0;
+	int uptime = 0;
+	int timeOfLastGrainStart = 0;
+
+	int timeBetweenGrains = 20.0;
+	int grainLength = 9000;
+	double grainLengthSamples = 2000.0;
+
+	double sampleFrequency = 440.0;
+	double pitchRatio = 1.0;
+	double sampleRate = 44100.0;
+
+	double density = 1.0;
+	double detune = 0.0;
+	float spread = 0.0f;
+
+	span<HiseEvent, 8> voices;
+	int voiceCounter = 0;
+	dyn<HiseEvent> activeEvents;
+	int eventIndex = 0;
+
+	float maxGainInGrain = 1.0f;
+
+	double currentPosition = 0.0;
+};
+
+}
+
 
 namespace control
 {
@@ -635,6 +1050,9 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyModNode<dp<ramp>, dp<ramp_poly>, data::ui::displaybuffer_editor>();
 
 	registerNode<core::mono2stereo>();
+
+	registerNode<wrap::data<granulator, data::dynamic::audiofile>, data::ui::audiofile_editor>();
+
 	registerPolyNode<core::oscillator, core::oscillator_poly, OscDisplay>();
 }
 }
