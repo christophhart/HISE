@@ -268,6 +268,14 @@ void ModulatorSampler::setNumChannels(int numNewChannels)
 
 }
 
+int ModulatorSampler::getNumActiveGroups() const
+{
+	if (crossfadeGroups)
+		return rrGroupAmount;
+
+	return jmax(1, multiRRGroupState.numSet);
+}
+
 void ModulatorSampler::setNumMicPositions(StringArray &micPositions)
 {
 	if (micPositions.size() == 0) return;
@@ -934,7 +942,11 @@ bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChan
 
 	if (!messageFits) return false;
 	
-	const bool rrGroupApplies = crossfadeGroups || static_cast<ModulatorSamplerSound*>(sound)->appliesToRRGroup(currentRRGroupIndex);
+	
+	auto soundGroup = static_cast<ModulatorSamplerSound*>(sound)->getRRGroup();
+
+	const bool rrGroupApplies = (!multiRRGroupState && (crossfadeGroups || currentRRGroupIndex == soundGroup)) ||
+								multiRRGroupState[soundGroup];
 
 	if (!rrGroupApplies) return false;
 
@@ -1019,6 +1031,11 @@ void ModulatorSampler::preHiseEventCallback(const HiseEvent &m)
 
 float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex)
 {
+	// If we have set multiple groups to be active manually
+	// we want to use only as much tables as there are active groups...
+	if (multiRRGroupState)
+		groupIndex %= multiRRGroupState.numSet;
+
 	if (groupIndex > 8) return nullptr;
 
 	if (auto compressedValues = modChains[Chains::XFade].getWritePointerForManualExpansion(startSample))
@@ -1195,6 +1212,26 @@ bool ModulatorSampler::setCurrentGroupIndex(int currentIndex)
 	{
 		return false;
 	}
+}
+
+bool ModulatorSampler::setMultiGroupState(int groupIndex, bool shouldBeEnabled)
+{
+	if (groupIndex == -1)
+	{
+		multiRRGroupState.setAll(shouldBeEnabled);
+		return true;
+	}
+	else
+	{
+		multiRRGroupState.set(groupIndex, shouldBeEnabled);
+		return (groupIndex - 1) < rrGroupAmount;
+	}
+}
+
+bool ModulatorSampler::setMultiGroupState(const int* data128, int numSet)
+{
+	multiRRGroupState.copyFromIntArray(data128, 128, numSet);
+	return true;
 }
 
 void ModulatorSampler::setRRGroupAmount(int newGroupLimit)

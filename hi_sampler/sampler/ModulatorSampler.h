@@ -425,6 +425,11 @@ public:
 	void setUseRoundRobinLogic(bool shouldUseRoundRobinLogic) noexcept { useRoundRobinCycleLogic = shouldUseRoundRobinLogic; };
 	/** Sets the current index to the group. */
 	bool setCurrentGroupIndex(int currentIndex);
+
+	bool setMultiGroupState(int groupIndex, bool shouldBeEnabled);
+	
+	bool setMultiGroupState(const int* data128, int numSet);
+
 	bool isRoundRobinEnabled() const noexcept { return useRoundRobinCycleLogic; };
 	void setRRGroupAmount(int newGroupLimit);
 
@@ -601,6 +606,8 @@ public:
 
 	int getCurrentRRGroup() const noexcept { return currentRRGroupIndex; }
 
+	int getNumActiveGroups() const;
+
 	void setNumMicPositions(StringArray &micPositions);
 	
 	String getStringForMicPositions() const
@@ -717,6 +724,50 @@ private:
 	bool deactivateUIUpdate;
 	int rrGroupAmount;
 	int currentRRGroupIndex;
+	
+	struct MultiGroupState
+	{
+		MultiGroupState()
+		{
+			memset(state, 0, 256);
+			numSet = 0;
+		}
+
+		bool operator[](int index) const
+		{
+			index = (index-1) & 0xFF;
+			return state[index];
+		}
+
+		void copyFromIntArray(const int* values, int numToCopy, int numSetValues)
+		{
+			for (int i = 0; i < numToCopy; i++)
+			{
+				state[i] = (uint8)(values[i] != -1);
+			}
+
+			numSet = numSetValues;
+		}
+
+		void setAll(bool enabled)
+		{
+			memset(state, (int)enabled, 256);
+			numSet = enabled * 256;
+		}
+
+		void set(int index, bool enabled)
+		{
+			index = (index-1) & 0xFF;
+			state[index] = (uint8)enabled;
+			numSet = jmax(0, numSet + ((int)enabled) * 2 - 1);
+		}
+
+		operator bool() const { return numSet != 0; }
+
+		uint8 state[256];
+		int numSet = 0;
+	} multiRRGroupState;
+
 	bool useRoundRobinCycleLogic;
 	RepeatMode repeatMode;
 	int voiceAmount;

@@ -2116,6 +2116,8 @@ struct ScriptingApi::Sampler::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(Sampler, enableRoundRobin);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setActiveGroup);
+	API_VOID_METHOD_WRAPPER_2(Sampler, setMultiGroupIndex);
+	API_METHOD_WRAPPER_0(Sampler, getActiveRRGroup);
 	API_METHOD_WRAPPER_2(Sampler, getRRGroupsForMessage);
 	API_VOID_METHOD_WRAPPER_0(Sampler, refreshRRMap);
 	API_VOID_METHOD_WRAPPER_1(Sampler, selectSounds);
@@ -2156,6 +2158,8 @@ sampler(sampler_)
 {
 	ADD_API_METHOD_1(enableRoundRobin);
 	ADD_API_METHOD_1(setActiveGroup);
+	ADD_API_METHOD_0(getActiveRRGroup);
+	ADD_API_METHOD_2(setMultiGroupIndex);
 	ADD_API_METHOD_2(getRRGroupsForMessage);
 	ADD_API_METHOD_0(refreshRRMap);
 	ADD_API_METHOD_1(selectSounds);
@@ -2256,6 +2260,77 @@ void ScriptingApi::Sampler::setActiveGroup(int activeGroupIndex)
 	{
 		reportScriptError(String(activeGroupIndex) + " is not a valid group index.");
 	}
+}
+
+void ScriptingApi::Sampler::setMultiGroupIndex(var groupIndex, bool enabled)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setActiveGroup() only works with Samplers.");
+		return;
+	}
+
+	if (s->isRoundRobinEnabled())
+	{
+		reportScriptError("Round Robin is not disabled. Call 'Synth.enableRoundRobin(false)' before calling this method.");
+		return;
+	}
+
+	bool ok = true;
+
+	if (groupIndex.isArray())
+	{
+		for (const auto& v : *groupIndex.getArray())
+		{
+			auto gIndex = (int)v;
+			auto ok = s->setMultiGroupState(gIndex, enabled);
+
+			if (!ok)
+				reportScriptError(String(gIndex) + " is not a valid group index.");
+		}
+	}
+	else if (groupIndex.isObject())
+	{
+		if (auto ml = dynamic_cast<ScriptingObjects::MidiList*>(groupIndex.getObject()))
+			s->setMultiGroupState(ml->getRawDataPointer(), ml->getNumSetValues());
+	}
+	else
+	{
+		auto ok = s->setMultiGroupState(groupIndex, enabled);
+
+		if (!ok)
+			reportScriptError(groupIndex.toString() + " is not a valid group index.");
+	}
+}
+
+
+
+int ScriptingApi::Sampler::getActiveRRGroup()
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("getActiveRRGroup() only works with Samplers.");
+		return 0;
+	}
+
+	return s->getCurrentRRGroup();
+}
+
+int ScriptingApi::Sampler::getNumActiveGroups() const
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("getActiveRRGroup() only works with Samplers.");
+		return 0;
+	}
+
+	return s->getNumActiveGroups();
 }
 
 int ScriptingApi::Sampler::getRRGroupsForMessage(int noteNumber, int velocity)

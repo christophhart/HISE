@@ -45,6 +45,7 @@ struct ScriptingObjects::MidiList::Wrapper
 	API_METHOD_WRAPPER_1(MidiList, getIndex);
 	API_METHOD_WRAPPER_0(MidiList, isEmpty);
 	API_METHOD_WRAPPER_0(MidiList, getNumSetValues);
+	API_VOID_METHOD_WRAPPER_3(MidiList, setRange);
 	API_VOID_METHOD_WRAPPER_2(MidiList, setValue);
 	API_VOID_METHOD_WRAPPER_1(MidiList, restoreFromBase64String);
 	API_METHOD_WRAPPER_0(MidiList, getBase64String);
@@ -59,6 +60,7 @@ ConstScriptingObject(p, 0)
 	ADD_API_METHOD_1(getValueAmount);
 	ADD_API_METHOD_1(getIndex);
 	ADD_API_METHOD_0(isEmpty);
+	ADD_API_METHOD_3(setRange);
 	ADD_API_METHOD_0(getNumSetValues);
 	ADD_API_METHOD_2(setValue);
 	ADD_API_METHOD_1(restoreFromBase64String);
@@ -73,61 +75,45 @@ var ScriptingObjects::MidiList::getAssignedValue(int index) const				 { return g
 
 void ScriptingObjects::MidiList::fill(int valueToFill)
 {
-	for (int i = 0; i < 128; i++) data[i] = valueToFill;
-
-	if (valueToFill == -1)
-	{
-		empty = true;
-		numValues = 0;
-	}
-	else
-	{
-		empty = false;
-		numValues = 128;
-	}
+	memset(data, valueToFill, sizeof(int) * 128);
+	numValues = (int)(valueToFill != -1) * 128;
 }
 
 void ScriptingObjects::MidiList::clear()
 {
 	fill(-1);
-	empty = true;
-	numValues = 0;
 }
 
 int ScriptingObjects::MidiList::getValue(int index) const
 {
-	if (index <= 127 && index >= 0) return (int)data[index]; else return -1;
+	if (isPositiveAndBelow(index, 128))
+		return (int)data[index];
+
+	return -1;
 }
 
 int ScriptingObjects::MidiList::getValueAmount(int valueToCheck)
 {
-	if (empty)
-	{
-		if (valueToCheck == -1)
-			return 128;
-
-	 	return 0;
-	}
+	if (isEmpty())
+		return (int)(valueToCheck == -1) * 128;
 
 	int amount = 0;
 
 	for (int i = 0; i < 128; i++)
-	{
-		if (data[i] == valueToCheck) amount++;
-	}
+		amount += (int)(data[i] == valueToCheck);
 
 	return amount;
 }
 
 int ScriptingObjects::MidiList::getIndex(int value) const
 {
-	if (empty) return -1;
+	if (isEmpty()) 
+		return -1;
+
 	for (int i = 0; i < 128; i++)
 	{
 		if (data[i] == value)
-		{
 			return i;
-		}
 	}
 
 	return -1;
@@ -135,27 +121,34 @@ int ScriptingObjects::MidiList::getIndex(int value) const
 
 void ScriptingObjects::MidiList::setValue(int index, int value)
 {
-	if (index >= 0 && index < 128)
+	if (isPositiveAndBelow(index, 128))
 	{
-        if (value == -1)
-		{
-            if(data[index] != -1)
-            {
-                numValues--;
-                if (numValues == 0) empty = true;
-            }
-		}
-		else
-		{
-            if(data[index] == -1)
-            {
-                numValues++;
-                empty = false;
-            }
-		}
-
+		auto isClearing = value == -1;
+		auto elementIsClear = data[index] == -1;
+		auto doSomething = isClearing != elementIsClear;
+		numValues += (int)doSomething * ((int)elementIsClear * 2 - 1);
 		data[index] = value;
 	}
+}
+
+void ScriptingObjects::MidiList::setRange(int startIndex, int numToFill, int value)
+{
+	startIndex = jlimit(0, 127, startIndex);
+	numToFill = jmin(numToFill, 127 - startIndex);
+
+	bool isClearing = value == -1;
+	int delta = 0;
+
+	for (int i = startIndex; i < numToFill; i++)
+	{
+		auto elementIsClear = data[i] == -1;
+		auto doSomething = isClearing != elementIsClear;
+		delta += (int)doSomething * ((int)elementIsClear * 2 - 1);
+
+		data[i] = value;
+	}
+
+	numValues += delta;
 }
 
 String ScriptingObjects::MidiList::getBase64String() const

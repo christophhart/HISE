@@ -561,6 +561,15 @@ public:
 		/** Enables the group with the given index (one-based). Works only with samplers and `enableRoundRobin(false)`. */
 		void setActiveGroup(int activeGroupIndex);
 
+		/** Enables the group with the given index (one-based). Allows multiple groups to be active. */
+		void setMultiGroupIndex(var groupIndex, bool enabled);
+
+		/** Returns the currently (single) active RR group. */
+		int getActiveRRGroup();
+
+		/** Returns the number of currently active groups. */
+		int getNumActiveGroups() const;
+
 		/** Returns the amount of actual RR groups for the notenumber and velocity*/
 		int getRRGroupsForMessage(int noteNumber, int velocity);
 
