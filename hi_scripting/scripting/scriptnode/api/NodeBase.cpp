@@ -830,23 +830,21 @@ scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnect
 				b = parameter::dynamic_base::createFromConnectionTree(c, sn->p);
 				b->setDataTree(sn->getTreeWithValue());
 				chain->addParameter(b.release());
-			}
-			else
-			{
-				auto pList = tn->createInternalParameterList();
-
-				for (auto p : pList)
-				{
-					if (p.info.getId() == pId)
-					{
-						ScopedPointer<parameter::dynamic_base> b;
-						b = parameter::dynamic_base::createFromConnectionTree(c, p.callback);
-						b->setDataTree(param->getTreeWithValue());
-						chain->addParameter(b.release());
-					}
-				}
+				continue;
 			}
 #endif
+			auto pList = tn->createInternalParameterList();
+
+			for (auto p : pList)
+			{
+				if (p.info.getId() == pId)
+				{
+					ScopedPointer<parameter::dynamic_base> b;
+					b = parameter::dynamic_base::createFromConnectionTree(c, p.callback);
+					b->setDataTree(param->getTreeWithValue());
+					chain->addParameter(b.release());
+				}
+			}
 		}
 	}
 
