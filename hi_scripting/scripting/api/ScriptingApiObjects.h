@@ -139,13 +139,16 @@ public:
 		int getIndex(int value) const;
 
 		/** Checks if the list contains any data. */
-		bool isEmpty() const { return empty; }
+		bool isEmpty() const { return numValues == 0; }
 
 		/** Returns the number of values that are not -1. */
 		int getNumSetValues() const { return numValues; }
 
 		/** Sets the number to something between -127 and 128. */
 		void setValue(int index, int value);;
+
+		/** Sets a range of items to the same value. */
+		void setRange(int startIndex, int numToFill, int value);
 
 		/** Encodes all values into a base64 encoded string for storage. */
 		String getBase64String() const;
@@ -157,11 +160,12 @@ public:
 
 		struct Wrapper;
 
+		const int* getRawDataPointer() const { return data; }
+
 	private:
 
 		int data[128];
-		bool empty;
-		int numValues;
+		int numValues = 0;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiList);
 

@@ -848,6 +848,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
 	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
+	API_METHOD_WRAPPER_0(Engine, createTransportHandler);
 	API_METHOD_WRAPPER_0(Engine, getPlayHead);
 	API_VOID_METHOD_WRAPPER_2(Engine, dumpAsJSON);
 	API_METHOD_WRAPPER_1(Engine, loadFromJSON);
@@ -1004,6 +1005,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(rebuildCachedPools);
 	ADD_API_METHOD_1(loadImageIntoPool);
 	ADD_API_METHOD_1(createDspNetwork);
+	ADD_API_METHOD_0(createTransportHandler);
 	ADD_API_METHOD_1(setLatencySamples);
 	ADD_API_METHOD_0(getLatencySamples);
 	ADD_API_METHOD_2(getDspNetworkReference);
@@ -1990,6 +1992,11 @@ ScriptingObjects::ScriptingMessageHolder* ScriptingApi::Engine::createMessageHol
 	return new ScriptingObjects::ScriptingMessageHolder(getScriptProcessor());
 }
 
+var ScriptingApi::Engine::createTransportHandler()
+{
+	return new TransportHandler(getScriptProcessor());
+}
+
 void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)
 {
 	if (!object.isObject())
@@ -2163,6 +2170,8 @@ struct ScriptingApi::Sampler::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(Sampler, enableRoundRobin);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setActiveGroup);
+	API_VOID_METHOD_WRAPPER_2(Sampler, setMultiGroupIndex);
+	API_METHOD_WRAPPER_0(Sampler, getActiveRRGroup);
 	API_METHOD_WRAPPER_2(Sampler, getRRGroupsForMessage);
 	API_VOID_METHOD_WRAPPER_0(Sampler, refreshRRMap);
 	API_VOID_METHOD_WRAPPER_1(Sampler, selectSounds);
@@ -2203,6 +2212,8 @@ sampler(sampler_)
 {
 	ADD_API_METHOD_1(enableRoundRobin);
 	ADD_API_METHOD_1(setActiveGroup);
+	ADD_API_METHOD_0(getActiveRRGroup);
+	ADD_API_METHOD_2(setMultiGroupIndex);
 	ADD_API_METHOD_2(getRRGroupsForMessage);
 	ADD_API_METHOD_0(refreshRRMap);
 	ADD_API_METHOD_1(selectSounds);
@@ -2303,6 +2314,77 @@ void ScriptingApi::Sampler::setActiveGroup(int activeGroupIndex)
 	{
 		reportScriptError(String(activeGroupIndex) + " is not a valid group index.");
 	}
+}
+
+void ScriptingApi::Sampler::setMultiGroupIndex(var groupIndex, bool enabled)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setActiveGroup() only works with Samplers.");
+		return;
+	}
+
+	if (s->isRoundRobinEnabled())
+	{
+		reportScriptError("Round Robin is not disabled. Call 'Synth.enableRoundRobin(false)' before calling this method.");
+		return;
+	}
+
+	bool ok = true;
+
+	if (groupIndex.isArray())
+	{
+		for (const auto& v : *groupIndex.getArray())
+		{
+			auto gIndex = (int)v;
+			auto ok = s->setMultiGroupState(gIndex, enabled);
+
+			if (!ok)
+				reportScriptError(String(gIndex) + " is not a valid group index.");
+		}
+	}
+	else if (groupIndex.isObject())
+	{
+		if (auto ml = dynamic_cast<ScriptingObjects::MidiList*>(groupIndex.getObject()))
+			s->setMultiGroupState(ml->getRawDataPointer(), ml->getNumSetValues());
+	}
+	else
+	{
+		auto ok = s->setMultiGroupState(groupIndex, enabled);
+
+		if (!ok)
+			reportScriptError(groupIndex.toString() + " is not a valid group index.");
+	}
+}
+
+
+
+int ScriptingApi::Sampler::getActiveRRGroup()
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("getActiveRRGroup() only works with Samplers.");
+		return 0;
+	}
+
+	return s->getCurrentRRGroup();
+}
+
+int ScriptingApi::Sampler::getNumActiveGroups() const
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("getActiveRRGroup() only works with Samplers.");
+		return 0;
+	}
+
+	return s->getNumActiveGroups();
 }
 
 int ScriptingApi::Sampler::getRRGroupsForMessage(int noteNumber, int velocity)
@@ -4870,6 +4952,7 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_4(downloadFile);
 	ADD_API_METHOD_0(getPendingDownloads);
 	ADD_API_METHOD_0(isOnline);
+	ADD_API_METHOD_1(setNumAllowedDownloads);
 	ADD_API_METHOD_1(setServerCallback);
 	ADD_API_METHOD_1(setNumAllowedDownloads);
 	ADD_API_METHOD_0(cleanFinishedDownloads);
@@ -4976,10 +5059,162 @@ void ScriptingApi::Server::setServerCallback(var callback)
 
 
 
+ScriptingApi::TransportHandler::Callback::Callback(TransportHandler* p, const var& f, bool sync, int numArgs_) :
+	callback(p->getScriptProcessor(), f, numArgs_),
+	jp(dynamic_cast<JavascriptProcessor*>(p->getScriptProcessor())),
+	synchronous(sync),
+	th(p),
+	numArgs(numArgs_)
+{
+	if (synchronous)
+	{
+		auto fObj = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(f.getObject());
 
+		if (fObj == nullptr)
+			throw String("Must use inline functions for synchronous callback");
 
+		if (fObj->parameterNames.size() != numArgs)
+		{
+			throw String("Parameter amount mismatch for callback. Expected " + String(numArgs));
+		}
+	}
 
+	setHandler(th->getMainController()->getGlobalUIUpdater());
+	addPooledChangeListener(th);
 
+	callback.incRefCount();
 
+	if(!sync)
+		callback.setHighPriority();
+	
+}
+
+void ScriptingApi::TransportHandler::Callback::call(var arg1, var arg2, bool forceSync)
+{
+	args[0] = arg1;
+	args[1] = arg2;
+
+	if (synchronous || forceSync)
+		callSync();
+	else
+		sendPooledChangeMessage();
+}
+
+void ScriptingApi::TransportHandler::Callback::callAsync()
+{
+	callback.call(args, numArgs);
+}
+
+bool ScriptingApi::TransportHandler::Callback::matches(const var& f) const
+{
+	return callback.matches(f);
+}
+
+void ScriptingApi::TransportHandler::Callback::callSync()
+{
+	callback.callSync(args, numArgs);
+}
+
+struct ScriptingApi::TransportHandler::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnTempoChange);
+	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnBeatChange);
+	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnSignatureChange);
+	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnTransportChange);
+};
+
+ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* sp) :
+	ConstScriptingObject(sp, 0),
+	ControlledObject(sp->getMainController_())
+{
+	getMainController()->addTempoListener(this);
+
+	ADD_API_METHOD_2(setOnTempoChange);
+	ADD_API_METHOD_2(setOnBeatChange);
+	ADD_API_METHOD_2(setOnSignatureChange);
+	ADD_API_METHOD_2(setOnTransportChange);
+}
+
+ScriptingApi::TransportHandler::~TransportHandler()
+{
+	getMainController()->removeTempoListener(this);
+	getMainController()->removeMusicalUpdateListener(this);
+}
+
+void ScriptingApi::TransportHandler::setOnTempoChange(bool sync, var f)
+{
+	if (sync)
+	{
+		clearIf(tempoChangeCallbackAsync, f);
+
+		tempoChangeCallback = new Callback(this, f, sync, 1);
+		tempoChangeCallback->call(bpm, {}, true);
+	}
+	else
+	{
+		clearIf(tempoChangeCallback, f);
+
+		tempoChangeCallbackAsync = new Callback(this, f, sync, 1);
+		tempoChangeCallbackAsync->call(bpm, {}, true);
+	}
+}
+
+void ScriptingApi::TransportHandler::setOnTransportChange(bool sync, var f)
+{
+	if (sync)
+	{
+		clearIf(tempoChangeCallbackAsync, f);
+
+		transportChangeCallback = new Callback(this, f, sync, 1);
+		transportChangeCallback->call(play, {}, true);
+	}
+	else
+	{
+		clearIf(transportChangeCallback, f);
+
+		transportChangeCallbackAsync = new Callback(this, f, sync, 1);
+		transportChangeCallbackAsync->call(play, {}, true);
+	}
+	
+}
+
+void ScriptingApi::TransportHandler::setOnSignatureChange(bool sync, var f)
+{
+	if (sync)
+	{
+		clearIf(timeSignatureCallbackAsync, f);
+
+		timeSignatureCallback = new Callback(this, f, sync, 2);
+		timeSignatureCallback->call(nom, denom, true);
+	}
+	else
+	{
+		clearIf(timeSignatureCallback, f);
+
+		timeSignatureCallbackAsync = new Callback(this, f, sync, 2);
+		timeSignatureCallbackAsync->call(nom, denom, true);
+	}
+}
+
+void ScriptingApi::TransportHandler::setOnBeatChange(bool sync, var f)
+{
+	if (f.isUndefined())
+		getMainController()->removeMusicalUpdateListener(this);
+	else
+	{
+		getMainController()->addMusicalUpdateListener(this);
+
+		if (sync)
+		{
+			clearIf(beatCallbackAsync, f);
+			beatCallback = new Callback(this, f, sync, 2);
+		}
+		else
+		{
+			clearIf(beatCallback, f);
+			beatCallbackAsync = new Callback(this, f, sync, 2);
+		}
+	}
+}
 
 } // namespace hise
