@@ -433,7 +433,16 @@ class TempoListener
 {
 public:
 
-	virtual ~TempoListener() { masterReference.clear(); };
+	enum CallbackTypes
+	{
+		TempoChange,
+		TranportChange,
+		MusicalPositionChange,
+		SignatureChange,
+		numCallbackTypes
+	};
+
+	virtual ~TempoListener() {};
 
 	/** The callback function that will be called if the tempo was changed.
 	*
@@ -442,15 +451,26 @@ public:
 	*
 	*	It will be called once per block, so you can't do sample synchronous tempo stuff, but that should be enough.
 	*/
-	virtual void tempoChanged(double newTempo) = 0;
+	virtual void tempoChanged(double newTempo) {};
+
+	/** The callback function that will be called when the transport state changes (=the user presses play on the DAW). */
+	virtual void onTransportChange(bool isPlaying) {};
+
+	/** The callback function that will be called for each musical pulse.
+
+		It takes the denominator from the time signature into account so if the host time signature is set to 6/8, it will
+		be called twice as often as with 3/4. 
+		
+		By default, this function is disabled, so you need to call addPulseListener() to activate this feature. 
+		*/
+	virtual void onBeatChange(int beatIndex, bool isNewBar) {};
+
+	/** Called whenever a time signature change occurs. */
+	virtual void onSignatureChange(int newNominator, int numDenominator) {};
 
 private:
 
-	friend class WeakReference<TempoListener>;
-	WeakReference<TempoListener>::Master masterReference;
-
-	
-
+	JUCE_DECLARE_WEAK_REFERENCEABLE(TempoListener);
 };
 
 
