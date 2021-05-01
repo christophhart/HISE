@@ -74,11 +74,18 @@ scriptnode::parameter::dynamic_base* dynamic_base::createFromConnectionTree(cons
 	{
 		if (RangeHelpers::isIdentity(r))
 			b = new parameter::dynamic_inv(callback);
+		else if (r.interval > 0.01)
+			b = new parameter::dynamic_step_inv(callback, r);
 		else
 			b = new parameter::dynamic_from0to1_inv(callback, r);
 	}
 	else if (allowRange && !RangeHelpers::isIdentity(r))
-		b = new parameter::dynamic_from0to1(callback, r);
+	{
+		if (r.interval > 0.01)
+			b = new parameter::dynamic_step(callback, r);
+		else
+			b = new parameter::dynamic_from0to1(callback, r);
+	}
 	else
 		b = new parameter::dynamic_base(callback);
 

@@ -242,6 +242,41 @@ struct dynamic_from0to1_inv : public dynamic_base
 	const NormalisableRange<double> range;
 };
 
+struct dynamic_step : public dynamic_base
+{
+	dynamic_step(parameter::dynamic& obj, const NormalisableRange<double>& r) :
+		dynamic_base(obj),
+		range(r)
+	{};
+
+	void call(double v) final override
+	{
+		lastValue = range.convertFrom0to1(v);
+		lastValue = range.snapToLegalValue(lastValue);
+		f(obj, lastValue);
+	}
+
+	NormalisableRange<double> range;
+};
+
+struct dynamic_step_inv : public dynamic_base
+{
+	dynamic_step_inv(parameter::dynamic& obj, const NormalisableRange<double>& r) :
+		dynamic_base(obj),
+		range(r)
+	{};
+
+	void call(double v) final override
+	{
+		auto inv = 1.0 - v;
+		lastValue = range.convertFrom0to1(inv);
+		lastValue = range.snapToLegalValue(lastValue);
+		f(obj, lastValue);
+	}
+
+	NormalisableRange<double> range;
+};
+
 struct dynamic_from0to1 : public dynamic_base
 {
 	dynamic_from0to1(parameter::dynamic& obj, const NormalisableRange<double>& r) :
