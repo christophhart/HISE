@@ -113,6 +113,15 @@ void dynamic_base::updateExternalData()
 		ExternalData ed(currentlyUsedData, 0);
 
 		{
+			if (currentlyUsedData->getDataLock().writeAccessIsLocked())
+			{
+				if (dataNode->externalData.data == ed.data)
+				{
+					sourceWatcher.setNewSource(currentlyUsedData);
+					return;
+				}
+			}
+
 			SimpleReadWriteLock::ScopedWriteLock sl(currentlyUsedData->getDataLock());
 			setExternalData(*dataNode, ed, 0);
 		}

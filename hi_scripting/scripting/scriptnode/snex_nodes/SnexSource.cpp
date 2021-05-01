@@ -722,8 +722,11 @@ void SnexMenuBar::workbenchChanged(snex::ui::WorkbenchData::Ptr newWb)
 			lastBench->removeListener(this);
 
 		lastBench = newWb;
-		lastBench->addListener(this);
-		debugModeChanged(lastBench->getGlobalScope().isDebugModeEnabled());
+		if (lastBench != nullptr)
+		{
+			lastBench->addListener(this);
+			debugModeChanged(lastBench->getGlobalScope().isDebugModeEnabled());
+		}
 	}
 
 	editButton.setToggleStateAndUpdateIcon(source->getWorkbench() == newWb && newWb != nullptr, true);

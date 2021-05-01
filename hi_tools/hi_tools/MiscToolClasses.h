@@ -459,7 +459,7 @@ public:
 				if (st.get() != nullptr)
 					st->timerCallback();
 				else
-					jassertfalse;
+					simpleTimers.remove(i--);
 			}
 		}
 
