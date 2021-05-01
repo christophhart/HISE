@@ -62,29 +62,7 @@ struct DeprecationChecker
 	bool check(DeprecationId id);
 };
 
-struct Error
-{
-	enum ErrorCode
-	{
-		OK,
-		NoMatchingParent,
-		ChannelMismatch,
-		BlockSizeMismatch,
-		IllegalFrameCall,
-		IllegalBlockSize,
-		SampleRateMismatch,
-		InitialisationError,
-		TooManyChildNodes,
-		CompileFail,
-		NodeDebuggerEnabled,
-		DeprecatedNode,
-		numErrorCodes
-	};
 
-	ErrorCode error = ErrorCode::OK;
-	int expected = 0;
-	int actual = 0;
-};
 
 class ScriptnodeExceptionHandler
 {
@@ -164,6 +142,7 @@ public:
 		case Error::InitialisationError: return "Initialisation error";
 		case Error::TooManyChildNodes: s << "Number of child nodes (" << e.actual << ") exceed channels (" << e.expected << ")."; return s;
 		case Error::NoMatchingParent:	 return "Can't find suitable parent node";
+		case Error::RingBufferMultipleWriters: return "Buffer used multiple times";
 		case Error::NodeDebuggerEnabled: return "Node is being debugged";
 		case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
 		case Error::CompileFail:	s << "Compilation error** at Line " << e.expected << ", Column " << e.actual; return s;

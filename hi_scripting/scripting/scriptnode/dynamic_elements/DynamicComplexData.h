@@ -460,7 +460,23 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 			m.addItem(i + 1, list[i], true, (i-1) == (index));
 
 		if (auto r = m.show())
-			getObject()->getValueTree().setProperty(PropertyIds::Index, r - 2, getObject()->parentNode->getUndoManager());
+		{
+			auto& eh = getObject()->parentNode->getRootNetwork()->getExceptionHandler();
+
+			eh.removeError(getObject()->parentNode, Error::RingBufferMultipleWriters);
+
+			try
+			{
+				getObject()->getValueTree().setProperty(PropertyIds::Index, r - 2, getObject()->parentNode->getUndoManager());
+			}
+			catch (scriptnode::Error& e)
+			{
+				eh.addError(getObject()->parentNode, e);
+			}
+
+			findParentComponentOfClass<NodeComponent>()->repaint();
+		}
+			
 	}
 
 	void rebuildSelectorItems()
