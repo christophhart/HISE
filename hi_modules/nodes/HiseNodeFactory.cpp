@@ -37,6 +37,61 @@ namespace scriptnode
 namespace control
 {
 
+struct input_toggle_editor : public ScriptnodeExtraComponent<input_toggle<parameter::dynamic_base_holder>>
+{
+	using ObjType = input_toggle<parameter::dynamic_base_holder>;
+
+	input_toggle_editor(ObjType* t, PooledUIUpdater* u) :
+		ScriptnodeExtraComponent<ObjType>(t, u),
+		dragger(u)
+	{
+		setSize(300, 24 + 3* UIValues::NodeMargin + 5);
+		addAndMakeVisible(dragger);
+	};
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		b.removeFromTop(UIValues::NodeMargin);
+		dragger.setBounds(b.removeFromTop(24));
+	}
+
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* u)
+	{
+		auto typed = static_cast<ObjType*>(obj);
+		return new input_toggle_editor(typed, u);
+	}
+
+	void timerCallback() override 
+	{
+		repaint();
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = getLocalBounds().toFloat();
+		b = b.removeFromBottom(5.0f + UIValues::NodeMargin * 2).reduced(0, UIValues::NodeMargin);
+		
+		b.removeFromLeft(b.getWidth() / 3.0f);
+
+		auto l = b.removeFromLeft(b.getWidth() / 2.0f).reduced(3.0f, 0.0f);
+		auto r = b.reduced(3.0f, 0.0f);
+
+		auto c = findParentComponentOfClass<NodeComponent>()->header.colour;
+		if (c == Colours::transparentBlack)
+			c = Colour(0xFFADADAD);
+
+		g.setColour(c.withAlpha(getObject()->useValue1 ? 1.0f : 0.2f));
+		g.fillRoundedRectangle(l, l.getHeight() / 2.0f);
+		g.setColour(c.withAlpha(!getObject()->useValue1 ? 1.0f : 0.2f));
+		g.fillRoundedRectangle(r, r.getHeight() / 2.0f);
+
+		
+	}
+
+	ModulationSourceBaseComponent dragger;
+};
+
 struct xy : 
 	public pimpl::parameter_node_base<parameter::dynamic_list>,
 	public pimpl::no_processing
@@ -579,6 +634,8 @@ namespace control
 		registerNoProcessNode<dynamic_cable_pack, data::ui::sliderpack_editor>();
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();
 		
+		registerNoProcessNode<control::input_toggle<parameter::dynamic_base_holder>, input_toggle_editor>();
+
 		registerNoProcessNode<duplilogic::dynamic::NodeType, duplilogic::dynamic::editor>();
 		registerNoProcessNode<dynamic_dupli_pack, data::ui::sliderpack_editor>();
 
@@ -602,6 +659,60 @@ namespace control
 namespace core
 {
 template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
+
+
+struct osc_display : public Component,
+					 public RingBufferComponentBase,
+					 public ComponentWithDefinedSize
+{
+	void refresh() override
+	{
+		waveform.clear();
+
+		if (rb != nullptr)
+		{
+			auto b = getLocalBounds().reduced(70, 3).toFloat();
+
+			waveform.startNewSubPath(0.0f, 0.0f);
+
+			const auto& bf = rb->getReadBuffer();
+
+			for (int i = 0; i < 256; i++)
+			{
+				waveform.lineTo((float)i, -1.0f * bf.getSample(0, i));
+			}
+
+			waveform.lineTo(255.0f, 0.0f);
+
+			if (!waveform.getBounds().isEmpty())
+				waveform.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), false);
+		}
+
+		repaint();
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto laf = getSpecialLookAndFeel<RingBufferComponentBase::LookAndFeelMethods>();
+		auto b = getLocalBounds().reduced(70, 3).toFloat();
+
+		laf->drawOscilloscopeBackground(g, *this, b.expanded(3.0f));
+
+		Path grid;
+		grid.addRectangle(b);
+
+		laf->drawAnalyserGrid(g, *this, grid);
+
+		if(!waveform.getBounds().isEmpty())
+			laf->drawOscilloscopePath(g, *this, waveform);
+	}
+
+	Rectangle<int> getFixedBounds() const override { return { 0, 0, 300, 60 }; }
+
+	Colour getColourForAnalyserBase(int colourId) override { return Colours::transparentBlack; }
+
+	Path waveform;
+};
 
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
@@ -635,7 +746,13 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyModNode<dp<ramp>, dp<ramp_poly>, data::ui::displaybuffer_editor>();
 
 	registerNode<core::mono2stereo>();
-	registerPolyNode<core::oscillator, core::oscillator_poly, OscDisplay>();
+
+	using osc_display_ = data::ui::pimpl::editorT<data::dynamic::displaybuffer,
+		hise::SimpleRingBuffer,
+		osc_display,
+		false>;
+
+	registerPolyNode<dp<core::oscillator>, dp<core::oscillator_poly>, osc_display_>();
 }
 }
 

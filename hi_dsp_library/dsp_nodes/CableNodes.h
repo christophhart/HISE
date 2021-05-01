@@ -274,6 +274,88 @@ namespace control
 		AnalyserType analyser;
 	};
 
+	template <typename ParameterClass> struct input_toggle : public pimpl::parameter_node_base<ParameterClass>,
+															 public pimpl::no_processing
+	{
+		SET_HISE_NODE_ID("input_toggle");
+		SN_GET_SELF_AS_OBJECT(input_toggle);
+
+		enum class Parameters
+		{
+			Input,
+			Value1,
+			Value2
+		};
+
+		DEFINE_PARAMETERS
+		{
+			DEF_PARAMETER(Input, input_toggle);
+			DEF_PARAMETER(Value1, input_toggle);
+			DEF_PARAMETER(Value2, input_toggle);
+		};
+		PARAMETER_MEMBER_FUNCTION;
+
+		static constexpr bool isNormalisedModulation() { return false; };
+
+		void setInput(double input)
+		{
+			useValue1 = input < 0.5;
+
+			if (this->getParameter().isConnected())
+				this->getParameter().call(useValue1 ? v1 : v2);
+		}
+
+		void setValue1(double input)
+		{
+			v1 = input;
+
+			if (useValue1)
+			{
+				if (this->getParameter().isConnected())
+					this->getParameter().call(v1);
+			}
+		}
+
+		void setValue2(double input)
+		{
+			v2 = input;
+
+			if (!useValue1)
+			{
+				if (this->getParameter().isConnected())
+					this->getParameter().call(v2);
+			}
+		}
+
+		void createParameters(ParameterDataList& data)
+		{
+			{
+				DEFINE_PARAMETERDATA(input_toggle, Input);
+				p.setRange({ 0.0, 1.0, 1.0, 1.0 });
+				p.setDefaultValue(0.0);
+				data.add(std::move(p));
+			}
+			{
+				DEFINE_PARAMETERDATA(input_toggle, Value1);
+				p.setRange({ 0.0, 1.0 });
+				p.setDefaultValue(0.0);
+				data.add(std::move(p));
+			}
+			{
+				DEFINE_PARAMETERDATA(input_toggle, Value2);
+				p.setRange({ 0.0, 1.0 });
+				p.setDefaultValue(0.0);
+				data.add(std::move(p));
+			}
+		}
+
+		bool useValue1 = false;
+		double v1 = 0.0;
+		double v2 = 0.0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(input_toggle);
+	};
+
 	template <typename ParameterClass> struct cable_table : public scriptnode::data::base,
 															public pimpl::parameter_node_base<ParameterClass>,
 															public pimpl::no_processing
