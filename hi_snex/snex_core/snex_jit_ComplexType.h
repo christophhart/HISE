@@ -144,7 +144,7 @@ struct ComplexType : public ReferenceCountedObject
 	FunctionData getNonOverloadedFunction(const Identifier& id);
 
 	/** Returns the node callback with the given channel amount. */
-	FunctionData getNodeCallback(const Identifier& id, int numChannels);
+	FunctionData getNodeCallback(const Identifier& id, int numChannels, bool checkProcessFunctions=true);
 
 	virtual var getInternalProperty(const Identifier& id, const var& defaultValue) { return defaultValue; }
 

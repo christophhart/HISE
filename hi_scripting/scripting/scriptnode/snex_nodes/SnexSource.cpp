@@ -306,6 +306,8 @@ int SnexSource::ComplexDataHandler::getNumDataObjects(ExternalData::DataType t) 
 	case snex::ExternalData::DataType::DisplayBuffer:		return displayBuffers.size();
 	case snex::ExternalData::DataType::FilterCoefficients:  return 0;
 	}
+
+	return 0;
 }
 
 hise::FilterDataObject* SnexSource::ComplexDataHandler::getFilterData(int index) 
@@ -395,7 +397,7 @@ hise::MultiChannelAudioBuffer* SnexSource::ComplexDataHandler::getAudioFile(int 
 
 hise::SimpleRingBuffer* SnexSource::ComplexDataHandler::getDisplayBuffer(int index)
 {
-	if (isPositiveAndBelow(index, sliderPacks.size()))
+	if (isPositiveAndBelow(index, displayBuffers.size()))
 		return displayBuffers[index]->getDisplayBuffer(0);
 
 	auto n = new data::dynamic::displaybuffer(*this, index);
@@ -454,6 +456,8 @@ snex::ExternalDataHolder* SnexSource::ComplexDataHandler::getDynamicDataHolder(s
 	case snex::ExternalData::DataType::AudioFile: return audioFiles[index];
 	case snex::ExternalData::DataType::DisplayBuffer: return displayBuffers[index];
 	}
+
+	return nullptr;
 }
 
 SnexSource::SnexParameter::SnexParameter(SnexSource* n, NodeBase* parent, ValueTree dataTree) :
@@ -516,7 +520,7 @@ void SnexSource::SnexParameter::sendValueChangeToParentListeners(Identifier id, 
 	}
 }
 
-snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(const String& id)
+snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(const String& id, bool checkProcessFunctions)
 {
 	if (auto wb = parent.getWorkbench())
 	{
@@ -524,7 +528,7 @@ snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(con
 		{
 			auto numChannels = parent.getNumChannelsToProcess();
 
-			auto f = obj->getNodeCallback(Identifier(id), numChannels);
+			auto f = obj->getNodeCallback(Identifier(id), numChannels, checkProcessFunctions);
 
 			if (f.isResolved())
 			{
@@ -750,7 +754,7 @@ void SnexMenuBar::refreshButtonState()
 
 	ExternalData::forEachType([&](ExternalData::DataType t)
 	{
-		shouldShowPopupButton |= source->getComplexDataHandler().getNumDataObjects(t);
+		shouldShowPopupButton |= source->getComplexDataHandler().getNumDataObjects(t) > 0;
 	});
 	
 	cdp.setVisible(shouldShowPopupButton);

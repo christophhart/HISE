@@ -52,38 +52,11 @@ struct dynamic : public SnexSource
 	{
 		ShaperCallbacks(SnexSource& s, ObjectStorageType& o) :
 			CallbackHandlerBase(s, o)
-		{};
-
-		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override
 		{
-			auto newProcessFunction = getFunctionAsObjectCallback("process");
-			auto newProcessFrameFunction = getFunctionAsObjectCallback("processFrame");
-			auto newPrepareFunc = getFunctionAsObjectCallback("prepare");
-			auto newResetFunc = getFunctionAsObjectCallback("reset");
+			
+		};
 
-			auto r = newProcessFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
-
-			if(r.wasOk())
-				r = newProcessFrameFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
-
-			if (r.wasOk())
-				r = newPrepareFunc.validateWithArgs("void", { "PrepareSpecs" });
-
-			if (r.wasOk())
-				r = newResetFunc.validateWithArgs(Types::ID::Void, {});
-
-			{
-				SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
-
-				ok = r.wasOk();
-				std::swap(processFunction, newProcessFunction);
-				std::swap(processFrameFunction, newProcessFrameFunction);
-				std::swap(prepareFunc, newPrepareFunc);
-				std::swap(resetFunc, newResetFunc);
-			}
-
-			return r;
-		}
+		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override;
 
 		void reset() override
 		{
@@ -191,6 +164,8 @@ struct dynamic : public SnexSource
 		
 		return true;
 	}
+
+	
 
 	String getEmptyText(const Identifier& id) const override;
 

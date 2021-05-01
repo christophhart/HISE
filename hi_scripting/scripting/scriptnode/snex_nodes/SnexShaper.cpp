@@ -102,6 +102,11 @@ namespace waveshapers
 		t->addCompileListener(this);
 		addAndMakeVisible(menuBar);
 
+		connectWaveformUpdaterToComplexUI(t->getMainDisplayBuffer(), true);
+
+		waveform.setSpecialLookAndFeel(new data::ui::pimpl::complex_ui_laf(), true);
+		waveform.setComplexDataUIBase(t->getMainDisplayBuffer());
+
 		addAndMakeVisible(waveform);
 		addWaveformListener(&waveform);
 
@@ -110,6 +115,7 @@ namespace waveshapers
 
 	dynamic::editor::~editor()
 	{
+		connectWaveformUpdaterToComplexUI(getObject()->getMainDisplayBuffer(), false);
 		getObject()->removeCompileListener(this);
 	}
 
@@ -133,8 +139,6 @@ namespace waveshapers
 
 		tester.callbacks.process(pd);
 
-		
-
 		*tableValues = tData.begin();
 		numValues = 128;
 		normalizeValue = 1.0f;
@@ -145,7 +149,9 @@ namespace waveshapers
 		double v1, v2 = 0.0;
 
 		if (rebuild)
-			Broadcaster::updateData();
+		{
+			getObject()->getMainDisplayBuffer()->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationSync, true);
+		}
 
 		rebuild = false;
 	}
@@ -163,6 +169,37 @@ namespace waveshapers
 		menuBar.setBounds(b.removeFromTop(24));
 		b.removeFromTop(16);
 		waveform.setBounds(b);
+	}
+
+	juce::Result dynamic::ShaperCallbacks::recompiledOk(snex::jit::ComplexType::Ptr objectClass)
+	{
+		auto newProcessFunction = getFunctionAsObjectCallback("process");
+		auto newProcessFrameFunction = getFunctionAsObjectCallback("processFrame");
+		auto newPrepareFunc = getFunctionAsObjectCallback("prepare");
+		auto newResetFunc = getFunctionAsObjectCallback("reset");
+
+		auto r = newProcessFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
+
+		if (r.wasOk())
+			r = newProcessFrameFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
+
+		if (r.wasOk())
+			r = newPrepareFunc.validateWithArgs("void", { "PrepareSpecs" });
+
+		if (r.wasOk())
+			r = newResetFunc.validateWithArgs(Types::ID::Void, {});
+
+		{
+			SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
+
+			ok = r.wasOk();
+			std::swap(processFunction, newProcessFunction);
+			std::swap(processFrameFunction, newProcessFrameFunction);
+			std::swap(prepareFunc, newPrepareFunc);
+			std::swap(resetFunc, newResetFunc);
+		}
+
+		return r;
 	}
 
 }

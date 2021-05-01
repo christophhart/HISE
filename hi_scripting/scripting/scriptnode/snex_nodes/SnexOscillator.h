@@ -118,7 +118,8 @@ struct SnexOscillator : public SnexSource
 
 
 struct NewSnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator>,
-	public SnexSource::SnexSourceListener
+								  public SnexSource::SnexSourceListener,
+								  public RingBufferComponentBase
 {
 	NewSnexOscillatorDisplay(SnexOscillator* osc, PooledUIUpdater* updater);
 	~NewSnexOscillatorDisplay();
@@ -128,16 +129,37 @@ struct NewSnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator
 	void complexDataTypeChanged() override;
 	void wasCompiled(bool ok);
 
+	void refresh() { rebuildPath = true; }
+
 	void timerCallback() override;
 	void resized() override;
 	void paint(Graphics& g) override;
+
+	Colour getColourForAnalyserBase(int colourId) override { return Colours::transparentBlack; };
 
 	static Component* createExtraComponent(void* obj, PooledUIUpdater* u);
 
 private:
 
-	heap<float> buffer;
-	OscProcessData od;
+	struct SnexOscPropertyObject : public SimpleRingBuffer::PropertyObject
+	{
+		SnexOscPropertyObject(SnexOscillator* o) :
+			osc(o)
+		{};
+
+		bool validateInt(const Identifier& id, int& v) const override
+		{
+			if (id == RingBufferIds::BufferLength)
+				return SimpleRingBuffer::toFixSize<256>(v);
+
+			if (id == RingBufferIds::NumChannels)
+				return SimpleRingBuffer::toFixSize<1>(v);
+		}
+
+		void transformReadBuffer(AudioSampleBuffer& b) override;
+
+		WeakReference<SnexOscillator> osc;
+	};
 
 	bool rebuildPath = false;
 

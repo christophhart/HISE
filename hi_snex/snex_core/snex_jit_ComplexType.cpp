@@ -274,12 +274,13 @@ snex::jit::FunctionData ComplexType::getNonOverloadedFunction(const Identifier& 
 	return fc->getNonOverloadedFunction(NamespacedIdentifier(id));
 }
 
-snex::jit::FunctionData ComplexType::getNodeCallback(const Identifier& id, int numChannels)
+snex::jit::FunctionData ComplexType::getNodeCallback(const Identifier& id, int numChannels, bool checkProcessFunctions)
 {
 	auto sId = ScriptnodeCallbacks::getCallbackId(NamespacedIdentifier(id));
 
-	if (sId == ScriptnodeCallbacks::ProcessFrameFunction ||
-		sId == ScriptnodeCallbacks::ProcessFunction)
+	if (checkProcessFunctions && 
+		(sId == ScriptnodeCallbacks::ProcessFrameFunction ||
+		sId == ScriptnodeCallbacks::ProcessFunction))
 	{
 		FunctionClass::Ptr fc = getFunctionClass();
 		Array<FunctionData> matches;
@@ -332,7 +333,7 @@ snex::jit::FunctionData ComplexType::getNodeCallback(const Identifier& id, int n
 
 				if (auto st = t.type.getTypedIfComplexType<StructType>())
 				{
-					jassert(channelAmount = st->getTemplateInstanceParameters()[0].constantDefined);
+					jassert(st->getTemplateInstanceParameters()[0].constantDefined);
 					channelAmount = st->getTemplateInstanceParameters()[0].constant;
 				}
 			}

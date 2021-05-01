@@ -55,7 +55,7 @@ juce::Result core::SnexOscillator::OscillatorCallbacks::recompiledOk(snex::jit::
 	auto r = Result::ok();
 
 	auto newTickFunction = getFunctionAsObjectCallback("tick");
-	auto newProcessFunction = getFunctionAsObjectCallback("process");
+	auto newProcessFunction = getFunctionAsObjectCallback("process", false);
 
 	r = newTickFunction.validateWithArgs(Types::ID::Float, { Types::ID::Double });
 
@@ -158,9 +158,15 @@ core::NewSnexOscillatorDisplay::NewSnexOscillatorDisplay(SnexOscillator* osc, Po
 	ScriptnodeExtraComponent<SnexOscillator>(osc, updater),
 	menuBar(osc)
 {
+	setComplexDataUIBase(osc->getMainDisplayBuffer());
+
+	setSpecialLookAndFeel(new data::ui::pimpl::complex_ui_laf(), true);
+
 	addAndMakeVisible(menuBar);
 	setSize(256, 144);
 	getObject()->addCompileListener(this);
+
+	rb->setPropertyObject(new SnexOscPropertyObject(osc));
 }
 
 core::NewSnexOscillatorDisplay::~NewSnexOscillatorDisplay()
@@ -170,17 +176,17 @@ core::NewSnexOscillatorDisplay::~NewSnexOscillatorDisplay()
 
 void core::NewSnexOscillatorDisplay::complexDataAdded(snex::ExternalData::DataType t, int index)
 {
-	rebuildPath = true;
+	rb->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
 }
 
 void core::NewSnexOscillatorDisplay::parameterChanged(int snexParameterId, double newValue)
 {
-	rebuildPath = true;
+	rb->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
 }
 
 void core::NewSnexOscillatorDisplay::complexDataTypeChanged()
 {
-	rebuildPath = true;
+	rb->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
 }
 
 void core::NewSnexOscillatorDisplay::wasCompiled(bool ok)
@@ -188,7 +194,12 @@ void core::NewSnexOscillatorDisplay::wasCompiled(bool ok)
 	if (ok)
 	{
 		errorMessage = {};
-		rebuildPath = true;
+
+		if (rb != nullptr)
+		{
+			rb->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+		}
+		
 		repaint();
 	}
 	else
@@ -201,8 +212,14 @@ void core::NewSnexOscillatorDisplay::wasCompiled(bool ok)
 
 void core::NewSnexOscillatorDisplay::paint(Graphics& g)
 {
-	g.setColour(Colours::white.withAlpha(0.2f));
-	g.drawRect(pathBounds, 1.0f);
+	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+
+	Path grid;
+	grid.addRectangle(pathBounds.reduced(4.0f));
+
+	laf->drawAnalyserGrid(g, *this, grid);
+
+	laf->drawOscilloscopeBackground(g, *this, pathBounds);
 
 	if (errorMessage.isNotEmpty())
 	{
@@ -212,7 +229,7 @@ void core::NewSnexOscillatorDisplay::paint(Graphics& g)
 	}
 	else if (!p.getBounds().isEmpty())
 	{
-		GlobalHiseLookAndFeel::fillPathHiStyle(g, p, (int)pathBounds.getWidth(), (int)pathBounds.getHeight());
+		laf->drawOscilloscopePath(g, *this, p);
 	}
 }
 
@@ -222,40 +239,30 @@ void core::NewSnexOscillatorDisplay::timerCallback()
 	{
 		if (!pathBounds.isEmpty())
 		{
-			buffer.setSize((int)pathBounds.getWidth());
-
-			for (auto& s : buffer)
-				s = 0.0f;
-
-			od.data.referTo(buffer);
-			od.uptime = 0.0;
-			od.delta = 1.0 / (double)buffer.size();
-			od.voiceIndex = 0;
-
-			SnexOscillator::OscTester tester(*getObject());
-
-			tester.callbacks.process(od);
-
 			p.clear();
+			p.startNewSubPath(0.0f, -1.0f);
+			p.startNewSubPath(0.0f, 1.0f);
 			p.startNewSubPath(0.0f, 0.0f);
 
 			float i = 0.0f;
 
-			for (auto& s : buffer)
+			auto& buffer = rb->getReadBuffer();
+
+			for(i = 0.0f; i < buffer.getNumSamples(); i += 1.0f)
 			{
-				FloatSanitizers::sanitizeFloatNumber(s);
-				jlimit(-10.0f, 10.0f, s);
-				p.lineTo(i, -1.0f * s);
-				i += 1.0f;
+				float v = buffer.getSample(0, i);
+				FloatSanitizers::sanitizeFloatNumber(v);
+				v = jlimit(-10.0f, 10.0f, v);
+				p.lineTo(i, -1.0f * v);
 			}
 
 			p.lineTo(i - 1.0f, 0.0f);
-			p.closeSubPath();
+			//p.closeSubPath();
+
+			auto pb = pathBounds.reduced(4.0f);
 
 			if (p.getBounds().getHeight() > 0.0f && p.getBounds().getWidth() > 0.0f)
-			{
-				p.scaleToFit(pathBounds.getX(), pathBounds.getY(), pathBounds.getWidth(), pathBounds.getHeight(), false);
-			}
+				p.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), false);
 		}
 
 		rebuildPath = false;
@@ -275,6 +282,22 @@ void core::NewSnexOscillatorDisplay::resized()
 Component* core::NewSnexOscillatorDisplay::createExtraComponent(void* obj, PooledUIUpdater* u)
 {
 	return new NewSnexOscillatorDisplay(static_cast<SnexOscillator*>(obj), u);
+}
+
+void core::NewSnexOscillatorDisplay::SnexOscPropertyObject::transformReadBuffer(AudioSampleBuffer& b)
+{
+	if (osc != nullptr)
+	{
+		OscProcessData d;
+		d.delta = 1.0 / b.getNumSamples();
+
+		d.data.referToRawData(b.getWritePointer(0), b.getNumSamples());
+		d.uptime = 0.0;
+		d.voiceIndex = 0;
+
+		SnexOscillator::OscTester tester(*osc);
+		tester.callbacks.process(d);
+	}
 }
 
 }

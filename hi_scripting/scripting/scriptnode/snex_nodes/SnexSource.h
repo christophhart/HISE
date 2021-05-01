@@ -84,7 +84,7 @@ struct SnexSource : public WorkbenchData::Listener
 		virtual Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) = 0;
 		virtual ~HandlerBase() {};
 
-		snex::jit::FunctionData getFunctionAsObjectCallback(const String& id);
+		snex::jit::FunctionData getFunctionAsObjectCallback(const String& id, bool checkProcessFunctions=true);
 
 		void addObjectPtrToFunction(FunctionData& f);;
 
@@ -565,6 +565,8 @@ struct SnexSource : public WorkbenchData::Listener
 			{
 				return callbacks.runTest(lastResult);
 			}
+
+			return Result::ok();
 		}
 
 		SnexSource& original;
@@ -616,6 +618,19 @@ struct SnexSource : public WorkbenchData::Listener
 
 	void debugModeChanged(bool isEnabled) override;
 
+	SimpleRingBuffer::Ptr getMainDisplayBuffer()
+	{
+		if (mainDisplayBuffer == nullptr)
+		{
+			if (getParentNode() != nullptr)
+			{
+				mainDisplayBuffer = getComplexDataHandler().getDisplayBuffer(0);
+			}
+		}
+
+		return mainDisplayBuffer;
+	}
+
 	bool preprocess(String& code) override
 	{
 		jassert(code.contains("setParameter("));
@@ -631,6 +646,8 @@ struct SnexSource : public WorkbenchData::Listener
 		{
 			return parentNode->getId();
 		}
+
+		return {};
 	}
 
 	bool allowProcessing()
@@ -775,6 +792,8 @@ protected:
 	ObjectStorage<OpaqueNode::SmallObjectSize, 16> object;
 
 private:
+
+	SimpleRingBuffer::Ptr mainDisplayBuffer;
 
 	valuetree::ParentListener compileChecker;
 	bool processingEnabled = true;
