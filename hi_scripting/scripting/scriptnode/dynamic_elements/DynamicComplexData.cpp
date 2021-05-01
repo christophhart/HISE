@@ -263,9 +263,7 @@ void dynamic::displaybuffer::initialise(NodeBase* n)
 	propertyListener.setCallback(getValueTree(), getCurrentRingBuffer()->getIdentifiers(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(displaybuffer::updateProperty));
 }
 
-
-
-void dynamic::displaybuffer::updateProperty(const Identifier& id, const var& newValue)
+void dynamic::displaybuffer::updateProperty(Identifier id, const var& newValue)
 {
 	getCurrentRingBuffer()->setProperty(id, newValue);
 }
@@ -641,9 +639,9 @@ namespace pimpl
 		return c;
 	}
 
-	void complex_ui_laf::drawOscilloscopeBackground(Graphics& g, RingBufferComponentBase& ac)
+	void complex_ui_laf::drawOscilloscopeBackground(Graphics& g, RingBufferComponentBase& ac, Rectangle<float> area)
 	{
-		ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, dynamic_cast<Component*>(&ac)->getLocalBounds().toFloat(), false);
+		ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, area, false);
 	}
 
 	void complex_ui_laf::drawOscilloscopePath(Graphics& g, RingBufferComponentBase& ac, const Path& p)
@@ -706,8 +704,11 @@ namespace pimpl
 		jassert(buffer != nullptr);
 		jassert(editor != nullptr);
 
-		addItem("BufferLength", { "512", "1024", "2048", "4096", "8192", "16384", "32768" });
-		addItem("NumChannels", { "1", "2" });
+		if (auto rb = b->getCurrentRingBuffer())
+		{
+			for (auto& id : rb->getIdentifiers())
+				addItem(id, { "1", "2" });
+		}
 	}
 
 }

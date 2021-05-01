@@ -97,8 +97,22 @@ void WaveformComponent::paint(Graphics &g)
 	}
 	else
 	{
-		GlobalHiseLookAndFeel::fillPathHiStyle(g, path, (int)w, (int)h);
+		auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+
+		laf->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
+		laf->drawOscilloscopePath(g, *this, path);
 	}
+}
+
+void WaveformComponent::refresh()
+{
+	if (rb != nullptr)
+	{
+		const auto& s = rb->getReadBuffer();
+		setTableValues(s.getReadPointer(0), s.getNumSamples(), 1.0f);
+	}
+
+	rebuildPath();
 }
 
 juce::Path WaveformComponent::WaveformFactory::createPath(const String& url) const
@@ -202,7 +216,7 @@ void WaveformComponent::rebuildPath()
 
 	path.lineTo(w, h / 2.0f);
 
-	path.closeSubPath();
+	//path.closeSubPath();
 
 	repaint();
 }
@@ -233,6 +247,22 @@ Component* WaveformComponent::Panel::createContentComponent(int index)
 void WaveformComponent::Panel::fillModuleList(StringArray& moduleList)
 {
 	fillModuleListWithType<WavetableSynth>(moduleList);
+}
+
+void WaveformComponent::Broadcaster::connectWaveformUpdaterToComplexUI(ComplexDataUIBase* d, bool enableUpdate)
+{
+	if (d == nullptr)
+		return;
+
+	if (enableUpdate)
+	{
+		d->getUpdater().addEventListener(&updater);
+
+		if (auto rb = dynamic_cast<SimpleRingBuffer*>(d))
+			rb->setPropertyObject(new BroadcasterPropertyObject(this));
+	}
+	else
+		d->getUpdater().removeEventListener(&updater);
 }
 
 void WaveformComponent::Broadcaster::updateData()

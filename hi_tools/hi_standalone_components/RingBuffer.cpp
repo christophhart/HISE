@@ -36,22 +36,7 @@ namespace hise { using namespace juce;
 SimpleRingBuffer::SimpleRingBuffer()
 {
 	getUpdater().addEventListener(this);
-
-	setRingBufferSize(1, RingBufferSize);
-	
-	clear();
-}
-
-void SimpleRingBuffer::setValidateFunctions(const ValidateFunction& cf, const ValidateFunction& lf)
-{
-	validateLengthFunction = lf ? lf : dontChange;
-	validateChannelFunction = cf ? cf : dontChange;
-
-	auto nc = internalBuffer.getNumChannels();
-	auto ns = internalBuffer.getNumSamples();
-
-	if (validateChannelFunction(nc) || validateLengthFunction(nc))
-		setRingBufferSize(nc, ns);
+	setPropertyObject(new PropertyObject());
 }
 
 void SimpleRingBuffer::clear()
@@ -90,10 +75,9 @@ int SimpleRingBuffer::read(AudioSampleBuffer& b)
 
 			if (shortBuffer)
 			{
-				FloatVectorOperations::multiply(dst, 0.5f, b.getNumSamples());
-
-				FloatVectorOperations::addWithMultiply(dst + offsetBeforeIndex, buffer, 0.5f, numBeforeIndex);
-				FloatVectorOperations::addWithMultiply(dst, buffer + thisWriteIndex, 0.5f, offsetBeforeIndex);
+				FloatVectorOperations::copy(dst, buffer, offsetBeforeIndex);
+				//FloatVectorOperations::multiply(dst, 0.5f, b.getNumSamples());
+				//FloatVectorOperations::addWithMultiply(dst, buffer, 0.5f, offsetBeforeIndex);
 			}
 			else
 			{
@@ -109,6 +93,8 @@ int SimpleRingBuffer::read(AudioSampleBuffer& b)
 		numAvailable = 0;
 		return numToReturn;
 	}
+
+	return 0;
 }
 
 void SimpleRingBuffer::write(double value, int numSamples)
@@ -196,24 +182,21 @@ void SimpleRingBuffer::write(const float** data, int numChannels, int numSamples
 				}
 			}
 
-			
-
 			writeIndex += numBeforeWrap;
 
 			int numAfterWrap = numSamples - numBeforeWrap;
 
-			while(numAfterWrap > 0)
+			if(numAfterWrap > 0)
 			{
 				auto numThisTime = jmin(internalBuffer.getNumSamples(), numAfterWrap);
 
 				for (int i = 0; i < numChannels; i++)
 				{
 					auto buffer = internalBuffer.getWritePointer(i);
-					FloatVectorOperations::copy(buffer, data[i], numThisTime);
+					FloatVectorOperations::copy(buffer, data[i] + numBeforeWrap, numThisTime);
 				}
 
-				writeIndex = numThisTime;
-				numAfterWrap -= numThisTime;
+				writeIndex = (writeIndex + numAfterWrap) % internalBuffer.getNumSamples();
 			}
 
 			numAvailable += numSamples;
@@ -250,45 +233,74 @@ void SimpleRingBuffer::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t,
 	{
 		read(externalBuffer);
 
-		if (transformFunction && getReferenceCount() > 1)
-		{
-			Ptr p(this);
-			jassert(p->getReferenceCount() > 1);
-			transformFunction(p);
-		}
+		if (properties != nullptr && getReferenceCount() > 1)
+			properties->transformReadBuffer(externalBuffer);
 	}
 }
 
 void SimpleRingBuffer::setProperty(const Identifier& id, const var& newValue)
 {
-	if ((id.toString() == "BufferLength") && (int)newValue > 0)
-		setRingBufferSize(internalBuffer.getNumChannels(), (int)newValue);
-
-	if ((id.toString() == "NumChannels") && (int)newValue > 0)
-		setRingBufferSize((int)newValue,  internalBuffer.getNumSamples());
+	if (properties != nullptr)
+		properties->setProperty(id, newValue);
 }
 
 var SimpleRingBuffer::getProperty(const Identifier& id) const
 {
-	if (id.toString() == "BufferLength")
-		return internalBuffer.getNumSamples();
-
-	if (id.toString() == "NumChannels")
-		return internalBuffer.getNumChannels();
+	if (properties != nullptr)
+		return properties->getProperty(id);
 
 	return {};
 }
 
 juce::Array<juce::Identifier> SimpleRingBuffer::getIdentifiers() const
 {
-	return { "BufferLength" };
+	if (properties != nullptr)
+		return properties->getPropertyList();
+
+	return {};
+}
+
+void SimpleRingBuffer::setPropertyObject(PropertyObject* newObject)
+{
+	if (properties != nullptr)
+	{
+		if (!properties->canBeReplaced(newObject))
+			throw String("Incompatible Buffer");
+	}
+
+	properties = newObject;
+
+	properties->initialiseRingBuffer(this);
+
+	auto ns = internalBuffer.getNumSamples();
+	auto nc = internalBuffer.getNumChannels();
+
+	if (validateChannels(nc) ||
+		validateLength(ns))
+		setRingBufferSize(nc, ns);
+
+	getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+	clear();
+}
+
+bool SimpleRingBuffer::validateChannels(int& v)
+{
+	if (properties != nullptr)
+		return properties->validateInt("NumChannels", v);
+
+	return false;
+}
+
+bool SimpleRingBuffer::validateLength(int& v)
+{
+	if (properties != nullptr)
+		return properties->validateInt("BufferLength", v);
+
+	return false;
 }
 
 ModPlotter::ModPlotter()
 {
-	//setColour(backgroundColour, Colour(0xFF313131));
-	//setColour(outlineColour, Colour(0xFF717171));
-
 	setColour(backgroundColour, Colours::black.withAlpha(0.3f));
 	setColour(outlineColour, Colours::black.withAlpha(0.3f));
 
@@ -300,15 +312,11 @@ ModPlotter::ModPlotter()
 
 void ModPlotter::paint(Graphics& g)
 {
-	ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, getLocalBounds().toFloat(), false);
+	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
 
+	laf->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
+	laf->drawOscilloscopePath(g, *this, p);
 
-
-	g.setColour(findColour(pathColour));
-
-	g.strokePath(p, PathStrokeType(1.5f));
-
-	//g.fillRectList(rectangles);
 }
 
 int ModPlotter::getSamplesPerPixel(float rectangleWidth) const
@@ -395,9 +403,10 @@ void ModPlotter::refresh()
 
 
 
-void RingBufferComponentBase::LookAndFeelMethods::drawOscilloscopeBackground(Graphics& g, RingBufferComponentBase& ac)
+void RingBufferComponentBase::LookAndFeelMethods::drawOscilloscopeBackground(Graphics& g, RingBufferComponentBase& ac, Rectangle<float> areaToFill)
 {
-	g.fillAll(ac.getColourForAnalyserBase(RingBufferComponentBase::bgColour));
+	g.setColour(ac.getColourForAnalyserBase(RingBufferComponentBase::bgColour));
+	g.fillRect(areaToFill);
 }
 
 void RingBufferComponentBase::LookAndFeelMethods::drawOscilloscopePath(Graphics& g, RingBufferComponentBase& ac, const Path& p)

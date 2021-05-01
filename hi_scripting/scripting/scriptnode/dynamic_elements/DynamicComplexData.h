@@ -214,7 +214,7 @@ struct displaybuffer : public data::pimpl::dynamicT<hise::SimpleRingBuffer>
 		return dynamic_cast<SimpleRingBuffer*>(currentlyUsedData);
 	}
 
-	void updateProperty(const Identifier& id, const var& newValue);
+	void updateProperty(Identifier id, const var& newValue);
 
 	valuetree::PropertyListener propertyListener;
 
@@ -321,6 +321,8 @@ struct complex_ui_laf : public BiPolarSliderLookAndFeel,
 						public FilterGraph::LookAndFeelMethods,
 						public RingBufferComponentBase::LookAndFeelMethods
 {
+	complex_ui_laf() = default;
+
 	void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
 	void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
 	void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
@@ -343,10 +345,12 @@ struct complex_ui_laf : public BiPolarSliderLookAndFeel,
 
 	Colour getNodeColour(Component* c);
 
-	void drawOscilloscopeBackground(Graphics& g, RingBufferComponentBase& ac) override;
+	void drawOscilloscopeBackground(Graphics& g, RingBufferComponentBase& ac, Rectangle<float> area) override;
 	void drawOscilloscopePath(Graphics& g, RingBufferComponentBase& ac, const Path& p) override;
 	void drawGonioMeterDots(Graphics& g, RingBufferComponentBase& ac, const RectangleList<float>& dots, int index) override;
 	void drawAnalyserGrid(Graphics& g, RingBufferComponentBase& ac, const Path& p) override;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(complex_ui_laf);
 };
 
 template <class DynamicDataType, class DataType, class ComponentType, bool AddDragger> struct editorT : public editor_base,
@@ -378,7 +382,7 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 			h = a.getHeight();
 		}
 
-		editor.setSpecialLookAndFeel(&laf, false);
+		editor.setSpecialLookAndFeel(new complex_ui_laf(), true);
 
 		if (auto te = dynamic_cast<TableEditor*>(&editor))
 			te->setScrollModifiers(ModifierKeys().withFlags(ModifierKeys::commandModifier | ModifierKeys::shiftModifier));
@@ -550,7 +554,7 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 
 	float lastScaleFactor = 1.0f;
 
-	complex_ui_laf laf;
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(editorT);
 };
 
 

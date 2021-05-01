@@ -36,6 +36,7 @@ namespace hise {
 using namespace juce;
 
 class WaveformComponent : public Component,
+	public RingBufferComponentBase,
 	public SafeChangeListener
 {
 public:
@@ -102,6 +103,37 @@ public:
 			Broadcaster& parent;
 		};
 
+		struct BroadcasterPropertyObject : public SimpleRingBuffer::PropertyObject
+		{
+			BroadcasterPropertyObject(Broadcaster* br_):
+				br(br_)
+			{};
+
+			bool validateInt(const Identifier& id, int& v) const override
+			{
+				if (id == RingBufferIds::BufferLength)
+					return SimpleRingBuffer::toFixSize<128>(v);
+
+				if (id == RingBufferIds::NumChannels)
+					return SimpleRingBuffer::toFixSize<1>(v);
+			}
+
+			void transformReadBuffer(AudioSampleBuffer& b) override
+			{
+				if (br != nullptr)
+				{
+					const float* d[1] = { nullptr };
+					int numSamples = 0;
+					float nv;
+					br->getWaveformTableValues(0, d, numSamples, nv);
+
+					if (numSamples == 128)
+						FloatVectorOperations::copy(b.getWritePointer(0), d[0], numSamples);
+				}
+			}
+
+			WeakReference<Broadcaster> br;
+		};
 
 	public:
 
@@ -112,13 +144,7 @@ public:
 		virtual ~Broadcaster() {};
 
 		/** If you want to display a complex UI in the waveform, just connect the updaters here. */
-		void connectWaveformUpdaterToComplexUI(ComplexDataUIBase* d, bool enableUpdate)
-		{
-			if (enableUpdate)
-				d->getUpdater().addEventListener(&updater);
-			else
-				d->getUpdater().removeEventListener(&updater);
-		}
+		void connectWaveformUpdaterToComplexUI(ComplexDataUIBase* d, bool enableUpdate);
 
 		void suspendStateChanged(bool shouldBeSuspended) override
 		{
@@ -194,7 +220,9 @@ public:
 
 	void paint(Graphics &g);
 
+	void refresh() override;
 
+	Colour getColourForAnalyserBase(int colourId) override { return Colours::transparentBlack; }
 
 	void resized() override
 	{

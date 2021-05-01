@@ -43,7 +43,7 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 {
 	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
 
-	laf->drawOscilloscopeBackground(g, *this);
+	laf->drawOscilloscopeBackground(g, *this, dynamic_cast<Component*>(this)->getLocalBounds().toFloat());
 
 #if USE_IPP
 
@@ -254,11 +254,13 @@ void OscilloscopeBase::drawWaveform(Graphics& g)
 		{
 			auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
 			
-			laf->drawOscilloscopeBackground(g, *this);
+			auto b = dynamic_cast<Component*>(this)->getLocalBounds().toFloat();
+
+			laf->drawOscilloscopeBackground(g, *this, b);
 
 			Path grid;
 
-			auto b = dynamic_cast<Component*>(this)->getLocalBounds().toFloat();
+			
 
 			auto top = b.removeFromTop(b.getHeight()/2.0f).reduced(2.0f);
 			auto bottom = b.reduced(2.0f);

@@ -34,13 +34,20 @@
 
 namespace hise { using namespace juce;
 
+#define  DECLARE_ID(x) static const Identifier x(#x);
+
+namespace RingBufferIds
+{
+	DECLARE_ID(BufferLength);
+	DECLARE_ID(NumChannels);
+	DECLARE_ID(Active);
+}
+
+#undef DECLARE_ID
+
 struct SimpleRingBuffer: public ComplexDataUIBase,
 						 public ComplexDataUIUpdaterBase::EventListener
 {
-	// Use this function to validate the processing specs within the given
-	// context.
-	using ValidateFunction = std::function<bool(int&)>;
-
 	/** Use this function as ValidateFunction template. */
 	template <int LowerLimit, int UpperLimit> static bool withinRange(int& r)
 	{
@@ -50,12 +57,102 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		r = jlimit(LowerLimit, UpperLimit, r);
 		return true;
 	}
+
+	template <int FixSize> static bool toFixSize(int& v)
+	{
+		auto ok = v == FixSize;
+		v = FixSize;
+		return ok;
+	}
 	
+	struct PropertyObject: public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<PropertyObject>;
+
+		virtual ~PropertyObject() {};
+
+		/** Override this method and "sanitize the int number (eg. power of two for FFT). 
+			
+			Return true if you changed the number. 
+		*/
+		virtual bool validateInt(const Identifier& id, int& v) const
+		{
+			if (id == RingBufferIds::BufferLength)
+				return withinRange<512, 65536>(v);
+
+			if (id == RingBufferIds::NumChannels)
+				return withinRange<1, 2>(v);
+
+			return false;
+		}
+
+		virtual bool canBeReplaced(PropertyObject* other) const
+		{
+			return true;
+		}
+
+		virtual void initialiseRingBuffer(SimpleRingBuffer* b)
+		{
+			buffer = b;
+
+			setProperty(RingBufferIds::BufferLength, RingBufferSize);
+			setProperty(RingBufferIds::NumChannels, 1);
+		}
+
+		virtual var getProperty(const Identifier& id) const
+		{
+			jassert(properties.contains(id));
+
+			if (buffer != nullptr)
+			{
+				if (id.toString() == "BufferLength")
+					return var(buffer->internalBuffer.getNumSamples());
+
+				if (id.toString() == "NumChannels")
+					return var(buffer->internalBuffer.getNumChannels());
+			}
+
+			return {};
+		}
+
+		virtual void setProperty(const Identifier& id, const var& newValue)
+		{
+			properties.set(id, newValue);
+
+			if (buffer != nullptr)
+			{
+				if ((id.toString() == "BufferLength") && (int)newValue > 0)
+					buffer->setRingBufferSize(buffer->internalBuffer.getNumChannels(), (int)newValue);
+
+				if ((id.toString() == "NumChannels") && (int)newValue > 0)
+					buffer->setRingBufferSize((int)newValue, buffer->internalBuffer.getNumSamples());
+			}
+		}
+
+		NamedValueSet properties;
+
+		virtual void transformReadBuffer(AudioSampleBuffer& b)
+		{
+		}
+
+		Array<Identifier> getPropertyList() const
+		{
+			Array<Identifier> ids;
+
+			for (const auto& nv : properties)
+				ids.add(nv.name);
+
+			return ids;
+		}
+
+	private:
+
+		WeakReference<SimpleRingBuffer> buffer;
+	};
+
 	static constexpr int RingBufferSize = 65536;
 
 	using Ptr = ReferenceCountedObjectPtr<SimpleRingBuffer>;
-
-	using TransformFunction = std::function<void(SimpleRingBuffer::Ptr p)>;
 
 	SimpleRingBuffer();
 
@@ -66,8 +163,8 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 
 	void setRingBufferSize(int numChannels, int numSamples, bool acquireLock=true)
 	{
-		validateLengthFunction(numSamples);
-		validateChannelFunction(numChannels);
+		validateLength(numSamples);
+		validateChannels(numChannels);
 
 		if (numChannels != internalBuffer.getNumChannels() ||
 			numSamples != internalBuffer.getNumSamples())
@@ -92,8 +189,6 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		b.setSize(internalBuffer.getNumChannels(), internalBuffer.getNumSamples());
 		b.clear();
 	}
-
-	void setValidateFunctions(const ValidateFunction& cf, const ValidateFunction& lf);
 
 	String toBase64String() const override { return {}; }
 
@@ -128,25 +223,35 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 
 	double getSamplerate() const { return sr; }
 
-	void setTransformFunction(const TransformFunction& tf)
-	{
-		transformFunction = tf;
-		getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
-	}
+	void setProperty(const Identifier& id, const var& newValue);
+	var getProperty(const Identifier& id) const;
+	Array<Identifier> getIdentifiers() const;
 
-	virtual void setProperty(const Identifier& id, const var& newValue);
-	virtual var getProperty(const Identifier& id) const;
-	virtual Array<Identifier> getIdentifiers() const;
+	void setPropertyObject(PropertyObject* newObject);
+
+	PropertyObject::Ptr getPropertyObject() const { return properties; }
+
+	void setUsedByWriter(bool shouldBeUsed)
+	{
+		if ((numWriters != 0) && shouldBeUsed)
+			throw String("Multiple Writers");
+
+		if (shouldBeUsed)
+			numWriters++;
+		else
+			numWriters--;
+	}
 
 private:
 
-	static bool dontChange(int&) { return false; }
+	int numWriters = 0;
 
-	TransformFunction transformFunction;
+	bool validateChannels(int& v);
+	bool validateLength(int& v);
 
-	ValidateFunction validateChannelFunction = dontChange;
-	ValidateFunction validateLengthFunction = dontChange;
+	
 
+	PropertyObject::Ptr properties;
 
 	double sr = -1.0;
 
@@ -163,6 +268,8 @@ private:
 	AudioSampleBuffer internalBuffer;
 	
 	int updateCounter = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SimpleRingBuffer);
 };
 
 
@@ -182,7 +289,8 @@ struct RingBufferComponentBase : public ComplexDataUIBase::EditorBase,
 
 	struct LookAndFeelMethods
 	{
-		virtual void drawOscilloscopeBackground(Graphics& g, RingBufferComponentBase& ac);
+		virtual ~LookAndFeelMethods() {};
+		virtual void drawOscilloscopeBackground(Graphics& g, RingBufferComponentBase& ac, Rectangle<float> areaToFill);
 		virtual void drawOscilloscopePath(Graphics& g, RingBufferComponentBase& ac, const Path& p);
 		virtual void drawGonioMeterDots(Graphics& g, RingBufferComponentBase& ac, const RectangleList<float>& dots, int index);
 		virtual void drawAnalyserGrid(Graphics& g, RingBufferComponentBase& ac, const Path& p);
@@ -196,7 +304,7 @@ struct RingBufferComponentBase : public ComplexDataUIBase::EditorBase,
 
 	RingBufferComponentBase()
 	{
-		setSpecialLookAndFeel(new DefaultLookAndFeel());
+		setSpecialLookAndFeel(new DefaultLookAndFeel(), true);
 	}
 
 	virtual void refresh() = 0;
@@ -243,6 +351,8 @@ struct ModPlotter : public Component,
 	Path p;
 
 	RectangleList<float> rectangles;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModPlotter);
 };
 
 

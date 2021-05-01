@@ -86,70 +86,119 @@ struct Helpers
 		return Colours::transparentBlack;
 	}
 
-	struct FFT
+	struct FFT: public SimpleRingBuffer::PropertyObject
 	{
 		SET_HISE_NODE_ID("fft");
-		
+
 		static constexpr int NumChannels = 1;
-		static constexpr int NumSamples = 16384;
-
-		static bool validateLength(int& desiredSize)
+		
+		bool canBeReplaced(PropertyObject* other) const override
 		{
-			auto capped = jlimit<int>(512, 32768, desiredSize);
-			auto ns = nextPowerOfTwo(capped);
+			return dynamic_cast<FFT*>(other) != nullptr;
+		}
 
-			if (ns != desiredSize)
+		void initialiseRingBuffer(SimpleRingBuffer* b) override
+		{
+			PropertyObject::initialiseRingBuffer(b);
+
+			setProperty(RingBufferIds::NumChannels, 1);
+			setProperty(RingBufferIds::BufferLength, 16384);
+		}
+
+		bool validateInt(const Identifier& id, int& desiredSize) const override
+		{
+			if (id == RingBufferIds::BufferLength)
 			{
-				desiredSize = ns;
-				return true;
-			}
+				auto capped = jlimit<int>(512, 32768, desiredSize);
+				auto ns = nextPowerOfTwo(capped);
 
+				if (ns != desiredSize)
+				{
+					desiredSize = ns;
+					return true;
+				}
+
+				return false;
+			}
+			if (id == RingBufferIds::NumChannels)
+			{
+				auto ok = desiredSize == 1;
+				desiredSize = 1;
+				return ok;
+			}
+			
 			return false;
 		}
 
-		static bool validateChannels(int& numChannels)
+		void transformReadBuffer(AudioSampleBuffer& b) override
 		{
-			auto ok = numChannels == 1;
-			numChannels = 1;
-			return ok;
+			// put the window function stuff here...
 		}
 	};
 
-	struct Oscilloscope
+	struct Oscilloscope: public SimpleRingBuffer::PropertyObject
 	{
 		SET_HISE_NODE_ID("oscilloscope");
 
 		static constexpr int NumChannels = 2;
-		static constexpr int NumSamples = 2048;
 
-		static bool validateLength(int& desiredSize)
+		bool canBeReplaced(PropertyObject* other) const override
 		{
-			return SimpleRingBuffer::withinRange<128, 32768>(desiredSize);
+			return dynamic_cast<Oscilloscope*>(other) != nullptr;
 		}
 
-		static bool validateChannels(int& numChannels)
+		void initialiseRingBuffer(SimpleRingBuffer* b) override
 		{
-			return SimpleRingBuffer::withinRange<1, 2>(numChannels);
+			PropertyObject::initialiseRingBuffer(b);
+
+			setProperty(RingBufferIds::NumChannels, 2);
+			setProperty(RingBufferIds::BufferLength, 32768);
+		}
+
+		bool validateInt(const Identifier& id, int& v) const override
+		{
+			if(id == RingBufferIds::BufferLength)
+				return SimpleRingBuffer::withinRange<128, 32768*2>(v);
+
+			if(id == RingBufferIds::NumChannels)
+				return SimpleRingBuffer::withinRange<1, 2>(v);
+
+			return false;
 		}
 	};
 
-	struct GonioMeter
+	struct GonioMeter : public SimpleRingBuffer::PropertyObject
 	{
 		SET_HISE_NODE_ID("goniometer");
 
 		static constexpr int NumChannels = 2;
-		static constexpr int NumSamples = 8192;
 
-		static bool validateLength(int& desiredSize)
+		bool canBeReplaced(PropertyObject* other) const override
 		{
-			return SimpleRingBuffer::withinRange<512, 32768>(desiredSize);
+			return dynamic_cast<GonioMeter*>(other) != nullptr;
 		}
 
-		static bool validateChannels(int& numChannels)
+		void initialiseRingBuffer(SimpleRingBuffer* b) override
 		{
-			auto ok = numChannels == 2;
-			numChannels = 2;
-			return ok;
+			PropertyObject::initialiseRingBuffer(b);
+
+			setProperty(RingBufferIds::NumChannels, 2);
+			setProperty(RingBufferIds::BufferLength, 4096);
+		}
+
+		bool validateInt(const Identifier& id, int& v) const override
+		{
+			if(id == RingBufferIds::BufferLength)
+				return SimpleRingBuffer::withinRange<512, 32768>(v);
+
+			if (id == RingBufferIds::NumChannels)
+			{
+				auto ok = v == 2;
+				v = 2;
+				return ok;
+			}
+
+			return false;
 		}
 	};
 
@@ -163,10 +212,9 @@ public:
 	SET_HISE_NODE_ID(T::getStaticId());
     SN_GET_SELF_AS_OBJECT(analyse_base);
     
-	
-	HISE_EMPTY_INITIALISE;
 	HISE_EMPTY_MOD;
 	
+	constexpr bool isProcessingHiseEvent() const { return std::is_same<T, Helpers::Oscilloscope>(); }
 
 	analyse_base()
 	{
@@ -183,15 +231,34 @@ public:
 
 	void setExternalData(const ExternalData& d, int index) override
 	{
-		Helpers::AnalyserDataProvider::setExternalData(d, index);
+		if (d.obj != this->externalData.obj)
+		{
+			if (rb != nullptr)
+				rb->setUsedByWriter(false);
 
-		if (rb != nullptr)
-			rb->setValidateFunctions(T::validateChannels, T::validateLength);
+			Helpers::AnalyserDataProvider::setExternalData(d, index);
+
+			try
+			{
+				if (rb != nullptr)
+				{
+					rb->setUsedByWriter(true);
+					rb->setPropertyObject(new T());
+				}
+					
+			}
+			catch (String& errorMessage)
+			{
+				scriptnode::Error e;
+				e.error = Error::RingBufferMultipleWriters;
+				throw e;
+			}
+		}
 	}
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		if (rb != nullptr && e.isNoteOn())
+		if(isProcessingHiseEvent() && rb != nullptr && e.isNoteOn())
 		{
 			auto sr = rb->getSamplerate();
 			auto l = rb->getReadBuffer().getNumSamples();
@@ -245,6 +312,8 @@ struct simple_osc_display : public OscilloscopeBase,
 						    public Component,
 							public ComponentWithDefinedSize
 {
+	simple_osc_display() = default;
+
 	Colour getColourForAnalyserBase(int colourId) override
 	{
 		return Helpers::getColourBase(colourId);
@@ -256,6 +325,8 @@ struct simple_osc_display : public OscilloscopeBase,
 	{
 		OscilloscopeBase::drawWaveform(g);
 	}
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(simple_osc_display);
 };
 
 
@@ -287,12 +358,16 @@ struct simple_fft_display : public FFTDisplayBase,
 		g.drawRect(getLocalBounds(), 1.0f);
 		FFTDisplayBase::drawSpectrum(g);
 	}
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(simple_fft_display);
 };
 
 struct simple_gon_display : public GoniometerBase,
 						    public Component,
 							public ComponentWithDefinedSize
 {
+	simple_gon_display() = default;
+
 	Colour getColourForAnalyserBase(int colourId) override
 	{
 		return Helpers::getColourBase(colourId);
@@ -303,10 +378,12 @@ struct simple_gon_display : public GoniometerBase,
 	void paint(Graphics& g) override
 	{
 		auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
-		laf->drawOscilloscopeBackground(g, *this);
+		laf->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
 
 		GoniometerBase::paintSpacialDots(g);
 	}
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(simple_gon_display);
 };
 
 using osc_display = data::ui::pimpl::editorT<data::dynamic::displaybuffer, 
