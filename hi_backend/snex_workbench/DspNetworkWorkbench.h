@@ -75,7 +75,9 @@ struct WorkbenchSynthesiser : public JavascriptSynthesiser
 
 struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 							 public MasterEffectProcessor,
-							 public scriptnode::DspNetwork::Holder
+							 public scriptnode::DspNetwork::Holder,
+							 public WorkbenchManager::WorkbenchChangeListener,
+							 public WorkbenchData::Listener
 {
 	SET_PROCESSOR_NAME("DspNetworkProcessor", "DspNetworkProcessor", "Internally used by the SNEX workbench");
 
@@ -84,7 +86,46 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 		MasterEffectProcessor(mc, id)
 	{
 		finaliseModChains();
+
+		auto wb = static_cast<WorkbenchManager*>(mc->getWorkbenchManager());
+
+		wb->addListener(this);
 	};
+
+	~DspNetworkProcessor()
+	{
+		if (rootWb != nullptr)
+			rootWb->removeListener(this);
+
+		if (auto wb = static_cast<WorkbenchManager*>(mc->getWorkbenchManager()))
+		{
+			wb->removeListener(this);
+		}
+	}
+
+	void workbenchChanged(WorkbenchData::Ptr newWorkbench) override
+	{
+		if (newWorkbench != nullptr)
+		{
+			auto wb = static_cast<WorkbenchManager*>(mc->getWorkbenchManager());
+			auto isRoot = wb->getRootWorkbench() == newWorkbench;
+
+			if (isRoot)
+			{
+				rootWb = newWorkbench;
+				rootWb->addListener(this);
+			}
+		}
+	}
+
+	void debugModeChanged(bool isEnabled) override
+	{
+		setSoftBypass(isEnabled);
+
+		if (!isEnabled)
+			prepareToPlay(getSampleRate(), getLargestBlockSize());
+
+	}
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
@@ -141,6 +182,8 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 
 		if (auto p = activeNetwork->getRootNode()->getParameter(parameterIndex))
 			return p->getValue();
+
+		return 0.0f;
 	}
 
 	void restoreFromValueTree(const ValueTree &v) override
@@ -166,6 +209,8 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 	}
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkProcessor);
+
+	WorkbenchData::WeakPtr rootWb;
 };
 
 using namespace snex::ui;
@@ -216,6 +261,8 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 			if (m == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
 				return "dll";
+
+			return {};
 		}
 
 		String getId() const override { return {}; }
@@ -330,6 +377,8 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 	void initNetwork();
 
+	
+
 	void setSource(SourceMode m)
 	{
 		if (m == SourceMode::InterpretedNode)
@@ -384,6 +433,8 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 	{
 		return connectedFile;
 	}
+
+	
 
 	void anythingChanged(valuetree::AnyListener::CallbackType d);
 

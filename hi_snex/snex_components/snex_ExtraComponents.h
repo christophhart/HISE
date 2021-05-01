@@ -557,7 +557,7 @@ struct TestDataComponent : public TestDataComponentBase
 		addSpacer();
 
 		compareButton = addButton("compare");
-		testIcon = addButton("test");
+		testIcon = addButton("test", "test");
 
 		eventViewport.setViewedComponent(&eventHolder, false);
 		parameterViewport.setViewedComponent(&parameterHolder, false);

@@ -267,7 +267,7 @@ DspNetworkCodeProvider::DspNetworkCodeProvider(WorkbenchData* d, MainController*
 	DspNetworkSubBase(d, mc, networkHolder),
 	connectedFile(fileToWriteTo)
 {
-	setMillisecondsBetweenUpdate(300);
+	setMillisecondsBetweenUpdate(100);
 }
 
 void DspNetworkCodeProvider::initNetwork()
@@ -318,7 +318,8 @@ String DspNetworkCodeProvider::createCppForNetwork() const
 
 void DspNetworkCodeProvider::anythingChanged(valuetree::AnyListener::CallbackType d)
 {
-	return;
+	if (!getParent()->getGlobalScope().isDebugModeEnabled())
+		return;
 
 	if (getParent() != nullptr)
 	{

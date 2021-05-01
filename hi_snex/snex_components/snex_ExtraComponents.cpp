@@ -651,7 +651,9 @@ juce::Path Graph::Icons::createPath(const String& t) const
 	LOAD_PATH_IF_URL("log-scale", GraphIcons::logIcon);
 	LOAD_PATH_IF_URL("markers", GraphIcons::markerIcons);
 	LOAD_PATH_IF_URL("compare", GraphIcons::compareIcon);
-	LOAD_PATH_IF_URL("test", GraphIcons::testIcon);
+
+
+	LOAD_PATH_IF_URL("test", SnexIcons::bugIcon);
 	return p;
 }
 
@@ -1010,6 +1012,8 @@ void TestDataComponent::buttonClicked(Button* b)
 		td.addTestEvent(HiseEvent(HiseEvent::Type::NoteOn, 64, 127, 1));
 	else if (b == testIcon)
 	{
+		getWorkbench()->setDebugMode(b->getToggleState(), sendNotificationAsync);
+
 		return;
 	}
 	else if (b == compareButton)
