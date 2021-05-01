@@ -87,12 +87,68 @@ ZoomableViewport::ZoomableViewport(Component* n) :
 
 	hBar.setRangeLimits({ 0.0, 1.2 }, sendNotificationSync);
 	vBar.setRangeLimits({ 0.0, 1.2 }, sendNotificationSync);
+
+	setScrollOnDragEnabled(true);
+
+	xDragger.addListener(this);
+	yDragger.addListener(this);
+
+	
 }
 
 ZoomableViewport::~ZoomableViewport()
 {
 	mouseWatcher = nullptr;
 	content = nullptr;
+}
+
+void ZoomableViewport::mouseDown(const MouseEvent& e)
+{
+	auto cBounds = content->getBoundsInParent().toDouble();
+	auto tBounds = getLocalBounds().toDouble();
+
+	auto normX = Helpers::pixelToNorm((double)e.getPosition().getX(), cBounds.getWidth(), tBounds.getWidth());
+	auto normY = Helpers::pixelToNorm((double)e.getPosition().getY(), cBounds.getHeight(), tBounds.getHeight());
+
+	normDragStart = { normX, normY };
+	scrollPosDragStart = { hBar.getCurrentRangeStart(), vBar.getCurrentRangeStart() };
+
+	xDragger.setPosition(hBar.getCurrentRangeStart());
+	yDragger.setPosition(vBar.getCurrentRangeStart());
+	xDragger.beginDrag();
+	yDragger.beginDrag();
+
+
+	auto fr = JUCE_LIVE_CONSTANT_OFF(0.08);
+	auto mv = JUCE_LIVE_CONSTANT_OFF(0.12);
+
+	xDragger.behaviour.setFriction(fr);
+	yDragger.behaviour.setFriction(fr);
+	xDragger.behaviour.setMinimumVelocity(mv);
+	yDragger.behaviour.setMinimumVelocity(mv);
+
+
+}
+
+void ZoomableViewport::mouseDrag(const MouseEvent& e)
+{
+	auto cBounds = content->getBoundsInParent().toDouble();
+	auto tBounds = getLocalBounds().toDouble();
+
+	auto deltaX = Helpers::pixelToNorm((double)e.getPosition().getX(), cBounds.getWidth(), tBounds.getWidth());
+	auto deltaY = Helpers::pixelToNorm((double)e.getPosition().getY(), cBounds.getHeight(), tBounds.getHeight());
+
+	deltaX -= normDragStart.getX();
+	deltaY -= normDragStart.getY();
+
+	xDragger.drag(deltaX);
+	yDragger.drag(deltaY);
+}
+
+void ZoomableViewport::mouseUp(const MouseEvent& e)
+{
+	xDragger.endDrag();
+	yDragger.endDrag();
 }
 
 void ZoomableViewport::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel)
@@ -115,7 +171,11 @@ void ZoomableViewport::mouseWheelMove(const MouseEvent& e, const MouseWheelDetai
 		if (e.mods.isShiftDown())
 			hBar.setCurrentRangeStart(hBar.getCurrentRangeStart() - wheel.deltaY * 0.1 / zDelta);
 		else
+		{
+			hBar.setCurrentRangeStart(hBar.getCurrentRangeStart() - wheel.deltaX * 0.1 / zDelta);
 			vBar.setCurrentRangeStart(vBar.getCurrentRangeStart() - wheel.deltaY * 0.1 / zDelta);
+		}
+			
 	}
 }
 
@@ -148,6 +208,14 @@ void ZoomableViewport::paint(Graphics& g)
 		g.setColour(Colours::black.withAlpha(swapAlpha));
 		g.drawImage(swapImage, swapBounds);
 	}
+}
+
+void ZoomableViewport::positionChanged(DragAnimator& p, double newPosition)
+{
+	if(&p == &xDragger)
+		hBar.setCurrentRangeStart(newPosition, sendNotificationAsync);
+	else
+		vBar.setCurrentRangeStart(newPosition, sendNotificationAsync);
 }
 
 void ZoomableViewport::zoomToRectangle(Rectangle<int> areaToShow)
@@ -323,6 +391,9 @@ void ZoomableViewport::refreshScrollbars()
 
 	hBar.setRangeLimits({ 0.0, 1.0 + hSize }, sendNotificationSync);
 	hBar.setCurrentRange({ hStart, hStart + hSize }, sendNotificationSync);
+
+	xDragger.setLimits(hBar.getRangeLimit());
+	yDragger.setLimits(vBar.getRangeLimit());
 }
 
 void ZoomableViewport::refreshPosition()

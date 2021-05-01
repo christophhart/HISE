@@ -37,10 +37,13 @@ namespace hise
 {
 using namespace juce;
 
+using DragAnimator = juce::AnimatedPosition<juce::AnimatedPositionBehaviours::ContinuousWithMomentum>;
+
 struct ZoomableViewport : public Component,
 	public ScrollBar::Listener,
 	public ComponentListener,
-	public Timer
+	public Timer,
+	public DragAnimator::Listener
 {
 	struct Laf : public LookAndFeel_V4
 	{
@@ -80,12 +83,19 @@ struct ZoomableViewport : public Component,
 
 	virtual ~ZoomableViewport();
 
-	
+
+	void mouseDown(const MouseEvent& e) override;
+
+	void mouseDrag(const MouseEvent& e) override;
+
+	void mouseUp(const MouseEvent& e) override;
 
 	void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel) override;
 	void resized() override;
 
 	void paint(Graphics& g) override;
+
+	void positionChanged(DragAnimator&, double newPosition) override;
 
 	void timerCallback() override
 	{
@@ -390,8 +400,27 @@ struct ZoomableViewport : public Component,
 		listeners.removeAllInstancesOf(l);
 	}
 
+	void setScrollOnDragEnabled(bool shouldBeEnabled)
+	{
+		if (shouldBeEnabled != dragToScroll)
+		{
+			dragToScroll = shouldBeEnabled;
+
+			setMouseCursor(shouldBeEnabled ? MouseCursor::DraggingHandCursor : MouseCursor::NormalCursor);
+		}
+	}
+
 private:
 
+	bool dragToScroll = false;
+
+	Point<double> normDragStart;
+	Point<double> scrollPosDragStart;
+
+	
+	
+	DragAnimator xDragger, yDragger;
+	
 	Array<WeakReference<ZoomListener>> listeners;
 
 	ScopedPointer<Component> content;
