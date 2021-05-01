@@ -1814,7 +1814,10 @@ var ScriptingApi::Engine::loadAudioFileIntoBufferArray(String audioFileReference
 		return channels;
 	}
 	else
+	{
 		reportScriptError("Can't load audio file " + ref.getReferenceString());
+		RETURN_IF_NO_THROW(var());
+	}
 }
 
 void ScriptingApi::Engine::loadImageIntoPool(const String& id)

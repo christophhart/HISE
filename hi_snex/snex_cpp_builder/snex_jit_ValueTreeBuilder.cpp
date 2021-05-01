@@ -1799,6 +1799,8 @@ bool ValueTreeBuilder::RootContainerBuilder::hasComplexTypes() const
 	{
 		if(ValueTreeIterator::isComplexDataNode(v))
 			return true;
+
+		return false;
 	});
 }
 

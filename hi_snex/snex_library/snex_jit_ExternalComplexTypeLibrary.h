@@ -146,7 +146,7 @@ struct ModValueJit : public ModValue
 		static int getChangedValue(void* obj, double* d)
 		{
 			auto typed = static_cast<ModValue*>(obj);
-			return typed->getChangedValue(*d) > 0;
+			return (int)typed->getChangedValue(*d);
 		}
 
 		static double getModValue(void *obj)

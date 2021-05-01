@@ -119,7 +119,7 @@ String Preprocessor::TextBlock::subString(String::CharPointerType location) cons
 {
 	if (*location)
 	{
-		jassert(location - start < length);
+		jassert((location - start) < (int)length);
 		auto end = start + length;
 		return { location, end };
 	}
@@ -357,7 +357,7 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 	auto start = code.getCharPointer();
 	auto currentLine = start;
 	auto defaultNewLine = NewLine::getDefault();
-	auto firstNewLineChar = '\n';
+	uint8 firstNewLineChar = '\n';
 	auto lineNumber = 0;
 
 	while (start != end)

@@ -176,7 +176,7 @@ public:
 
 		c << "namespace " << className << "\n{";
 		c << code.fromFirstOccurrenceOf("*/", false, false);
-		c << "\};\n";
+		c << "\n};\n";
 
 		for (auto& ns : id.getParent().getIdList())
 		{

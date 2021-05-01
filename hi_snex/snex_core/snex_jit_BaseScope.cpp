@@ -368,7 +368,7 @@ juce::Result RootClassData::callRootConstructors()
 					{
 						if (auto st = dynamic_cast<StructType*>(typePtr))
 						{
-							if (st = ph->st)
+							if (st == ph->st)
 							{
 								auto offset = st->getMemberOffset(ph->variableId);
 								auto dataToUse = reinterpret_cast<void*>((uint8*)ts.data + offset);

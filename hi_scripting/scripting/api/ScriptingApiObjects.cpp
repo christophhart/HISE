@@ -404,7 +404,10 @@ bool ScriptingObjects::ScriptFile::writeAudioFile(var audioData, double sampleRa
 		return w->writeFromAudioSampleBuffer(b, 0, numSamples);
 	}
 	else
+	{
 		reportScriptError("Can't find audio format for file extension " + fileFormat);
+		RETURN_IF_NO_THROW(var());
+	}
 }
 
 bool ScriptingObjects::ScriptFile::writeString(String text)
@@ -1057,6 +1060,8 @@ float ScriptingObjects::ScriptSliderPackData::getValue(int index) const
 {
 	if(auto data = getSliderPackData())
 		return data->getValue((int)index);
+
+	return 0.0f;
 }
 
 void ScriptingObjects::ScriptSliderPackData::setRange(double minValue, double maxValue, double stepSize)

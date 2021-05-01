@@ -294,7 +294,7 @@ struct ParserHelpers
 			{
 				skip();
 			}
-			catch (Error& e)
+			catch (Error& )
 			{
 
 			}

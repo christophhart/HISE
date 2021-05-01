@@ -552,7 +552,7 @@ template <int BSize, int Alignment> struct ObjectStorage
 				objPtr = &smallBuffer;
 			}
 
-			if (Alignment != 0)
+			if constexpr (Alignment != 0)
 			{
 				if (auto o = reinterpret_cast<uint64_t>(objPtr) % Alignment)
 					objPtr = (static_cast<uint8*>(objPtr) + (Alignment - o));

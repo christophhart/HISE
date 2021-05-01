@@ -2961,8 +2961,6 @@ private:
 
 	template <typename T> juce::String getLiteral(double value)
 	{
-		asmjit::Type::TypeData d;
-
 		VariableStorage v(Types::Helpers::getTypeFromTypeId<T>(), value);
 
 		return Types::Helpers::getCppValueString(v);

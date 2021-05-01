@@ -614,6 +614,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 				return filterData.size();
 			if (t == ExternalData::DataType::DisplayBuffer)
 				return displayBuffers.size();
+
+			return 0;
 		}
 
 		bool removeDataObject(ExternalData::DataType t, int index) override
@@ -888,6 +890,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 			auto parent = getParent();
 			if (parent != nullptr && f.existsAsFile())
 				return f.replaceWithText(s);
+
+			return false;
 		}
 
 		Identifier getInstanceId() const override

@@ -2045,6 +2045,7 @@ struct MathOp
 		case Inst::kIdMulsd: return Types::ID::Double;
 		}
 
+		return Types::ID::Void;
 	}
 
 	static int getNoopValue(BaseNode* node)

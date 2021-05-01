@@ -1459,8 +1459,6 @@ void InbuiltTypeLibraryBuilder::registerRangeFunctions()
 		addRangeFunction(bf, "to0To1", { "min", "max", "value" },
 							 "{ return (value - min) / (max - min); }");
 
-		NormalisableRange<double>;
-
 		// static constexpr T from0To1Skew(T min, T max, T skew, T value) { return from0To1(min, max, hmath::pow(value, skew)); }
 		addRangeFunction(bf, "from0To1Skew", { "min", "max", "skew", "value" },
 							 "{ return min + (max - min) * Math.exp(Math.log(value) / skew); }");

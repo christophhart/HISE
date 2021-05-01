@@ -69,6 +69,7 @@ public:
 
 	struct LookAndFeelMethods
 	{
+		virtual ~LookAndFeelMethods() {};
 		virtual void drawFilterBackground(Graphics &g, FilterGraph& fg);
 		virtual void drawFilterPath(Graphics& g, FilterGraph& fg, const Path& p);
 		virtual void drawFilterGridLines(Graphics &g, FilterGraph& fg, const Path& gridPath);

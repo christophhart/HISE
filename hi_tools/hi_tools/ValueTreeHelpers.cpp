@@ -103,7 +103,9 @@ void PropertyListener::handleAsyncUpdate()
 
 void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier& id)
 {
-	if (v == v_ && ids.contains(id))
+	Identifier id2(id.toString());
+
+	if (v == v_ && ids.contains(id2))
 	{
 		auto thisValue = v[id];
 

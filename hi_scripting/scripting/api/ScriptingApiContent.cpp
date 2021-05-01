@@ -2082,6 +2082,8 @@ float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 			return st->getInterpolatedValue(inputValue, sendNotificationAsync);
 		}
 	}
+
+	return 0.0f;
 };
 
 
@@ -2226,6 +2228,8 @@ int ScriptingApi::Content::ScriptSliderPack::getNumSliders() const
 {
 	if (auto d = getCachedSliderPack())
 		return d->getNumSliders();
+
+	return 0;
 }
 
 StringArray ScriptingApi::Content::ScriptSliderPack::getOptionsFor(const Identifier &id)

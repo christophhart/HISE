@@ -416,9 +416,9 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 	}
 
 	{
-		//#define DECLARE_PARAMETER_RANGE_SKEW(name, min, max, skew) struct name {\
+		/* #define DECLARE_PARAMETER_RANGE_SKEW(name, min, max, skew) struct name {\
 		static constexpr double to0To1(double input) {  return RANGE_BASE::to0To1Skew(min, max, skew, input); }\
-		static constexpr double from0To1(double input){ return RANGE_BASE::from0To1Skew(min, max, skew, input);} \
+		static constexpr double from0To1(double input){ return RANGE_BASE::from0To1Skew(min, max, skew, input);} */
 	
 		ExternalPreprocessorDefinition dprs;
 		dprs.t = ExternalPreprocessorDefinition::Type::Macro;

@@ -172,9 +172,8 @@ snex::jit::IndexBuilder::MetaDataExtractor::WrapLogicType IndexBuilder::MetaData
 	if (i == IndexIds::previous)
 		return WrapLogicType::Previous;
 
-	
-
 	jassertfalse;
+	return WrapLogicType::numWrapLogicTypes;
 }
 
 snex::jit::TypeInfo IndexBuilder::MetaDataExtractor::getContainerElementType(InlineData* b) const

@@ -259,7 +259,7 @@ private:
 
 		bool replace(String::CharPointerType startRep, String::CharPointerType endRep, const String& newText)
 		{
-			jassert(startRep - start < length);
+			jassert(startRep - start < (int)length);
 
 			String newCode;
 

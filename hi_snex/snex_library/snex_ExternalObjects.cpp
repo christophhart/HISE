@@ -37,13 +37,6 @@ using namespace juce;
 using namespace asmjit;
 
 
-
-
-static void funkyWasGeht(void* obj, void* data)
-{
-	jassertfalse;
-}
-
 void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 {
 	NamespaceHandler::InternalSymbolSetter iss(c.getNamespaceHandler());

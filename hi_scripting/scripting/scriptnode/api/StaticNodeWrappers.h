@@ -221,6 +221,11 @@ public:
 
 	bool isPolyphonic() const override { return this->obj.isPolyphonic(); }
 
+	bool isProcessingHiseEvent() const override
+	{
+		return this->obj.isProcessingHiseEvent();
+	}
+
 	void prepare(PrepareSpecs specs) final override;
 	void processFrame(NodeBase::FrameType& data) final override;
 	void processMonoFrame(MonoFrameType& data) final override;
@@ -246,6 +251,11 @@ public:
 	InterpretedModNode(DspNetwork* parent, ValueTree d);
 
 	void postInit() override;
+
+	bool isProcessingHiseEvent() const override
+	{
+		return obj.isProcessingHiseEvent();
+	}
 
 	template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr, bool Unused> static NodeBase* createNode(DspNetwork* n, ValueTree d)
 	{ 

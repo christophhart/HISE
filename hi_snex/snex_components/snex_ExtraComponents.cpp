@@ -484,18 +484,14 @@ float Graph::InternalGraph::getXPosition(float normalisedIndex) const
 	case GraphType::Signal: return normalisedIndex;
 	case GraphType::FFT:
 	{
-		
-
 		if (scaleFreq)
-		{
 			return std::exp(std::log(normalisedIndex) * 0.2f);
-		}
 		else
-		{
 			return normalisedIndex;
-		}
 	}
 	}
+
+	return 0.0f;
 }
 
 float Graph::InternalGraph::getYPosition(float level) const
@@ -527,6 +523,8 @@ float Graph::InternalGraph::getYPosition(float level) const
 			return 1.0f - jlimit(0.0f, 1.0f, level);
 	}
 	}
+
+	return 0.0f;
 }
 
 void Graph::InternalGraph::rebuildSpectrumRectangles()

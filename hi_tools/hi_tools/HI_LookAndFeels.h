@@ -935,6 +935,8 @@ class BiPolarSliderLookAndFeel: public LookAndFeel_V3
 	{
 		return GLOBAL_FONT();
 	}
+
+	JUCE_LEAK_DETECTOR(BiPolarSliderLookAndFeel);
 };
 
 

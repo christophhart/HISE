@@ -183,7 +183,11 @@ public:
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
 		for (auto ch : d)
-			getBitcrushedValue(d.toChannelData(ch), bitDepth.get());
+		{
+			auto b = d.toChannelData(ch);
+			getBitcrushedValue(b, bitDepth.get());
+		}
+			
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)

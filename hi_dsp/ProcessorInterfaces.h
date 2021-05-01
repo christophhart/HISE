@@ -182,6 +182,8 @@ public:
 		case ExternalData::DataType::SliderPack: return sliderPacks.size();
 		case ExternalData::DataType::AudioFile: return audioFiles.size();
 		}
+
+		return 0;
 	}
 
 	Table* getTable(int index) final override

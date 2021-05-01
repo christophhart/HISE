@@ -78,6 +78,8 @@ namespace duplilogic
 			case DupliMode::Random: return random().getValue(index, numDuplicates, input, gamma);
 			case DupliMode::Triangle: return triangle().getValue(index, numDuplicates, input, gamma);
 			}
+
+			return 0.0;
 		}
 
 		static StringArray getSpreadModes()

@@ -1354,6 +1354,8 @@ private:
 		}
 
 		location.throwError("Unknown SNEX expression: " + commandId);
+
+		RETURN_IF_NO_THROW(nullptr);
 	}
 
 	Statement* parseSnexStatement()
@@ -1479,6 +1481,8 @@ private:
 		}
 		
 		location.throwError("Unknown SNEX statement: " + commandId);
+
+		RETURN_IF_NO_THROW(nullptr);
 	}
 #endif
 
