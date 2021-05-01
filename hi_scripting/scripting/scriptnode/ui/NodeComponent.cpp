@@ -241,14 +241,30 @@ void NodeComponent::Header::paint(Graphics& g)
 	g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.5f : 1.0f));
 	g.drawText(s, getLocalBounds(), Justification::centred);
 
+	auto ar = getLocalBounds().toFloat();
+	ar.removeFromRight(ar.getHeight());
+
 	if (parent.node->isUINodeOfDuplicate())
 	{
 		g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.1f : 0.3f));
 		Path p;
 		p.loadPathFromData(SampleMapIcons::copySamples, sizeof(SampleMapIcons::copySamples));
 
-		PathFactory::scalePath(p, deleteButton.getBoundsInParent().translated(-getHeight(), 0).reduced(2).toFloat());
+		PathFactory::scalePath(p, ar.removeFromRight(ar.getHeight()).reduced(2.0f));
 
+		g.fillPath(p);
+	}
+
+	if (parent.node->isProcessingHiseEvent())
+	{
+		auto hasMidiParent = parent.node->findParentNodeOfType<MidiChainNode>() != nullptr || parent.node->getRootNetwork()->isPolyphonic();
+
+		Path p;
+		p.loadPathFromData(HiBinaryData::SpecialSymbols::midiData, sizeof(HiBinaryData::SpecialSymbols::midiData));
+
+		PathFactory::scalePath(p, ar.removeFromRight(ar.getHeight()).reduced(4.0f));
+
+		g.setColour(Colours::white.withAlpha(hasMidiParent ? 0.5f : 0.1f));
 		g.fillPath(p);
 	}
 

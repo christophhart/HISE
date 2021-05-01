@@ -258,30 +258,32 @@ snex::ExternalData::DataType ExternalData::getDataTypeForClass(ComplexDataUIBase
 
 hise::ComplexDataUIBase::EditorBase* ExternalData::createEditor(ComplexDataUIBase* dataObject)
 {
-	hise::ComplexDataUIBase::EditorBase* c;
+	hise::ComplexDataUIBase::EditorBase* c = nullptr;
 
 	if (auto t = dynamic_cast<hise::Table*>(dataObject))
 	{
 		c = new hise::TableEditor();
 	}
-	if (auto t = dynamic_cast<hise::SliderPackData*>(dataObject))
+	else if (auto t = dynamic_cast<hise::SliderPackData*>(dataObject))
 	{
 		c = new hise::SliderPack();
 	}
-	if (auto t = dynamic_cast<hise::MultiChannelAudioBuffer*>(dataObject))
+	else if (auto t = dynamic_cast<hise::MultiChannelAudioBuffer*>(dataObject))
 	{
 		c = new hise::MultiChannelAudioBufferDisplay();
 	}
-	if (auto t = dynamic_cast<hise::FilterDataObject*>(dataObject))
+	else if (auto t = dynamic_cast<hise::FilterDataObject*>(dataObject))
 	{
 		c = new hise::FilterGraph(0);
 	}
-	if (auto t = dynamic_cast<hise::FilterDataObject*>(dataObject))
+	else if (auto t = dynamic_cast<hise::FilterDataObject*>(dataObject))
 	{
 		c = new ModPlotter();
 	}
 
-	c->setComplexDataUIBase(dataObject);
+	if(c != nullptr)
+		c->setComplexDataUIBase(dataObject);
+
 	return c;
 }
 

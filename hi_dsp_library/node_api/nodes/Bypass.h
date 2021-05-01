@@ -57,6 +57,8 @@ public:
 			this->obj.process(data);
 	}
 
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
+
 	void processFrame(snex::Types::dyn<float>& data) noexcept
 	{
 		FrameConverters::forwardToFixFrame16(this, data);

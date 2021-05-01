@@ -48,7 +48,7 @@ struct NodeBase;
 	4. Use DEFINE_PARAMETER_DATA in the createParameter callback
 */
 #define DEFINE_PARAMETERS template <int P> static void setParameterStatic(void* obj, double value)
-#define DEF_PARAMETER(ParameterName, ClassName) if (P == (int)Parameters::ParameterName) static_cast<ClassName*>(obj)->set##ParameterName(value);
+#define DEF_PARAMETER(ParameterName, ClassName) if constexpr (P == (int)Parameters::ParameterName) static_cast<ClassName*>(obj)->set##ParameterName(value);
 #define DEFINE_PARAMETERDATA(ClassName, ParameterName) parameter::data p(#ParameterName); p.callback = parameter::inner<ClassName, (int)Parameters::ParameterName>(*this);
 
 
@@ -74,6 +74,12 @@ constexpr const auto& getWrappedObject() const { return x; }
 
 #define SN_OPAQUE_WRAPPER(x, ObjectClass) GET_SELF_OBJECT(this->obj.getObject()); GET_WRAPPED_OBJECT(this->obj.getWrappedObject()); using ObjectType = typename ObjectClass::ObjectType; using WrappedObjectType= typename ObjectClass::WrappedObjectType;
 
+
+/** Use this to define an optional function that will be forwarded to the object. */
+#define OPTIONAL_BOOL_CLASS_FUNCTION(functionName) bool functionName() const { \
+		if constexpr (prototypes::check::functionName<WrappedObjectType>::value) \
+			return getWrappedObject().functionName(); \
+		return false; };
 
 
 /** Callback macros.

@@ -204,13 +204,9 @@ public:
 	/** The frame data type to use for this node. */
 	using FixFrameType = snex::Types::span<float, NumChannels>;
 
-	constexpr bool isPolyphonic() const 
-	{ 
-		if constexpr (prototypes::check::isPolyphonic<T::WrappedObjectType>::value)
-			return this->obj.getWrappedObject().isPolyphonic(); 
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isPolyphonic);
 
-		return false;
-	}
+	OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
 
 	static Identifier getStaticId() { return T::getStaticId(); }
 
@@ -309,16 +305,10 @@ public:
 		i.initialise(n);
 	}
 
-	constexpr bool isPolyphonic() const 
-	{
-		if constexpr (prototypes::check::isPolyphonic<T>::value)
-			return obj.isPolyphonic(); 
-
-		return false;
-	};
-
-	constexpr bool isNormalisedModulation() { return obj.isNormalisedModulation(); }
-
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isPolyphonic);
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isNormalisedModulation);
+	OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
+	
 	void createParameters(ParameterDataList& list)
 	{
 		if constexpr (prototypes::check::createParameters<T>::value)
@@ -379,7 +369,8 @@ public:
 
 	SN_OPAQUE_WRAPPER(event, T);
 
-	bool isPolyphonic() const { return obj.isPolyphonic(); }
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isPolyphonic);
+	OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
 
 	HISE_DEFAULT_INIT(T);
 	HISE_DEFAULT_PREPARE(T);
@@ -977,10 +968,8 @@ template <class ParameterClass, class T> struct mod
 		checkModValue();
 	}
 
-	bool isPolyphonic() const
-	{
-		return obj.isPolyphonic();
-	}
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isPolyphonic);
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
 
 	void prepare(PrepareSpecs ps)
 	{

@@ -430,7 +430,7 @@ Colour getSpecialColour(Component* c, Colour defaultColour)
 
 void DspNetworkGraph::paintOverChildren(Graphics& g)
 {
-	if (dragOverlay.alpha != 0.0f);
+	if (dragOverlay.alpha != 0.0f)
 	{
 		g.saveState();
 		Array<ParameterSlider*> pSliders;
@@ -456,10 +456,12 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 	{
 		auto asC = dynamic_cast<Component*>(e);
 
-		asC->getProperties().set("circleOffsetX", JUCE_LIVE_CONSTANT_OFF(0));
-		asC->getProperties().set("circleOffsetY", JUCE_LIVE_CONSTANT_OFF(0));
+		float zf = findParentComponentOfClass<ZoomableViewport>()->zoomFactor;
 
-		auto end = getCircle(asC, false);
+		asC->getProperties().set("circleOffsetX", zf * JUCE_LIVE_CONSTANT(1.0));
+		asC->getProperties().set("circleOffsetY", JUCE_LIVE_CONSTANT(0));
+
+		auto end = getCircle(asC, false).translated(zf * asC->getWidth(), 0.0f);
 		auto start = getCircle(e->getDetails().sourceComponent, false);
 
 		paintCable(g, start, end, Colours::white, 0.6f);

@@ -81,11 +81,12 @@ struct OpaqueNode
 		destructFunc = prototypes::static_wrappers<T>::destruct;
 		prepareFunc = prototypes::static_wrappers<T>::prepare;
 		resetFunc = prototypes::static_wrappers<T>::reset;
-		eventFunc = prototypes::static_wrappers<T>::handleHiseEvent;
+
 		processFunc = prototypes::static_wrappers<T>::template process<ProcessDataDyn>;
 		monoFrame = prototypes::static_wrappers<T>::template processFrame<MonoFrame>;
 		stereoFrame = prototypes::static_wrappers<T>::template processFrame<StereoFrame>;
 		initFunc = prototypes::static_wrappers<T>::initialise;
+		eventFunc = prototypes::static_wrappers<T>::handleHiseEvent;
 
 		auto t = prototypes::static_wrappers<T>::create(getObjectPtr());
 		isPoly = t->isPolyphonic();
@@ -94,6 +95,9 @@ struct OpaqueNode
 			externalDataFunc = prototypes::static_wrappers<T>::setExternalData;
 		else
 			externalDataFunc = prototypes::noop::setExternalData;
+
+		if constexpr (prototypes::check::isProcessingHiseEvent<T>::value)
+			shouldProcessHiseEvent = t->isProcessingHiseEvent();
 
 		if constexpr (prototypes::check::handleModulation<T>::value)
 		{
@@ -180,6 +184,8 @@ struct OpaqueNode
 		return numData > 0;
 	}
 
+	bool isProcessingHiseEvent() const { return shouldProcessHiseEvent; }
+
 private:
 
 	void allocateObjectSize(int numBytes);
@@ -201,6 +207,7 @@ private:
 
 public:
 
+	bool shouldProcessHiseEvent = false;
 	bool isNormalised = false;
 	span<parameter::pod, NumMaxParameters> parameters;
 	span<prototypes::setParameter, NumMaxParameters> parameterFunctions;

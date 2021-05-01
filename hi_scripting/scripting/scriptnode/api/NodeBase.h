@@ -275,6 +275,8 @@ public:
 		processFrame(dynData);
 	}
 
+	virtual bool isProcessingHiseEvent() const { return false; }
+
 	virtual void handleHiseEvent(HiseEvent& e)
 	{
 		ignoreUnused(e);

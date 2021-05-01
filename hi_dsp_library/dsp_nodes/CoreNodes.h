@@ -714,6 +714,8 @@ public:
 
 	HISE_EMPTY_INITIALISE;
 
+	constexpr bool isProcessingHiseEvent() const { return true; }
+
 	void reset()
 	{
 		for (auto& s : voiceData)
@@ -728,17 +730,18 @@ public:
 		setPitchMultiplier(pitchMultiplier);
 	}
 	
-	void process(snex::Types::ProcessData<1>& data)
+	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto f = data.toFrameData();
-
 		currentVoiceData = &voiceData.get();
 
-		while (f.next())
-			processFrame(f.toSpan());
+		for (auto& s : data[0])
+		{
+			auto asSpan = reinterpret_cast<span<float, 1>*>(&s);
+			processFrame(asSpan);
+		}
 	}
 
-	void processFrame(snex::Types::span<float, 1>& data)
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
 		if (currentVoiceData == nullptr)
 			currentVoiceData = &voiceData.get();
@@ -787,6 +790,9 @@ public:
 	void setMode(double newMode)
 	{
 		currentMode = (Mode)(int)newMode;
+
+		if (auto o = this->externalData.obj)
+			o->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
 	}
 
 	void setFrequency(double newFrequency)
@@ -808,6 +814,9 @@ public:
 
 		for (auto& d : voiceData)
 			d.multiplier = pitchMultiplier;
+
+		if (auto o = this->externalData.obj)
+			o->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
 	}
 
 	DEFINE_PARAMETERS
@@ -825,11 +834,11 @@ public:
 	OscData* currentVoiceData = nullptr;
 
 	double freqValue = 220.0;
-	double pitchMultiplier = 1.0;
+	
 };
 
-using oscillator = wrap::fix<1, oscillator_impl<1>>;
-using oscillator_poly = wrap::fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
+using oscillator = oscillator_impl<1>;
+using oscillator_poly = oscillator_impl<NUM_POLYPHONIC_VOICES>;
 
 class fm : public HiseDspBase
 {
@@ -851,6 +860,8 @@ public:
 
 	SET_HISE_NODE_ID("fm");
 	SN_GET_SELF_AS_OBJECT(fm);
+
+	constexpr bool isProcessingHiseEvent() const { return true; }
 
 	bool isPolyphonic() const { return true; }
 
@@ -983,8 +994,6 @@ public:
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		if (e.isNoteOn())
-			reset();
 	}
 
 
@@ -1279,6 +1288,8 @@ template <int NV, typename T> struct snex_osc_impl : snex_osc_base<T>
 	};
 
 	static constexpr int NumVoices = NV;
+
+	constexpr bool isProcessingHiseEvent() const { return true; }
 
 	DEFINE_PARAMETERS
 	{

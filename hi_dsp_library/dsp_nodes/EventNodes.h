@@ -151,6 +151,7 @@ public:
 	HISE_EMPTY_PROCESS;
 	HISE_EMPTY_CREATE_PARAM;
 
+	constexpr bool isProcessingHiseEvent() const { return true; }
 	static constexpr bool isNormalisedModulation() { return true; }
 
 	constexpr bool isPolyphonic() const { return false; }

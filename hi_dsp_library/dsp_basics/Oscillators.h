@@ -103,7 +103,7 @@ struct OscData
 	double multiplier = 1.0;
 };
 
-struct OscillatorDisplayProvider
+struct OscillatorDisplayProvider: public scriptnode::data::base
 {
 	enum class Mode
 	{
@@ -113,6 +113,58 @@ struct OscillatorDisplayProvider
 		Square,
 		Noise,
 		numModes
+	};
+
+	struct OscillatorDisplayObject : public SimpleRingBuffer::PropertyObject
+	{
+		OscillatorDisplayObject(OscillatorDisplayProvider* p):
+			provider(p)
+		{}
+
+		bool validateInt(const Identifier& id, int& v) const override
+		{
+			if (id == RingBufferIds::BufferLength)
+				return SimpleRingBuffer::toFixSize<256>(v);
+
+			if (id == RingBufferIds::NumChannels)
+				return SimpleRingBuffer::toFixSize<1>(v);
+		}
+
+		void transformReadBuffer(AudioSampleBuffer& b) override
+		{
+			if (provider != nullptr)
+			{
+				jassert(b.getNumChannels() == 1);
+				jassert(b.getNumSamples() == 256);
+
+				OscData d;
+				d.uptimeDelta = 2048.0 / 256.0;
+				d.multiplier = provider->pitchMultiplier;
+
+				for (int i = 0; i < 256; i++)
+				{
+					float v = 0.0f;
+
+					switch (provider->currentMode)
+					{
+					case Mode::Sine: v = provider->tickSine(d); break;
+					case Mode::Saw: v = provider->tickSaw(d); break;
+					case Mode::Square: v = provider->tickSquare(d); break;
+					case Mode::Triangle: v = provider->tickTriangle(d); break;
+					case Mode::Noise: v = provider->tickNoise(d); break;
+					}
+
+					b.setSample(0, i, v);
+				}
+			}
+		}
+
+		void initialiseRingBuffer(SimpleRingBuffer* b) override
+		{
+			b->setRingBufferSize(1, 256);
+		}
+
+		WeakReference<OscillatorDisplayProvider> provider;
 	};
 
 	OscillatorDisplayProvider():
@@ -136,6 +188,16 @@ struct OscillatorDisplayProvider
 	float tickNoise(OscData& d)
 	{
 		return r.nextFloat() * 2.0f - 1.0f;
+	}
+
+	void setExternalData(const ExternalData& d, int index)
+	{
+		base::setExternalData(d, index);
+
+		if (auto rb = dynamic_cast<SimpleRingBuffer*>(d.obj))
+		{
+			rb->setPropertyObject(new OscillatorDisplayObject(this));
+		}
 	}
 
 	float tickSaw(OscData& d)
@@ -162,6 +224,7 @@ struct OscillatorDisplayProvider
 	SharedResourcePointer<SineLookupTable<2048>> sinTable;
 	const StringArray modes;
 	Mode currentMode = Mode::Sine;
+	double pitchMultiplier = 1.0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(OscillatorDisplayProvider);
 };

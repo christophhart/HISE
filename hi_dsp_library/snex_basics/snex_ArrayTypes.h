@@ -458,10 +458,12 @@ template <typename FloatType, typename IntegerIndexType, bool IsNormalised> stru
 
 		if constexpr (checkBoundsOnAssign())
 			return v;
-
-		auto scaled = from0To1(v, 0);
-		auto limit = (FloatType)LogicType::getUpperLimit();
-		return LogicType::getWithDynamicLimit(scaled, limit);
+		else
+		{
+			auto scaled = from0To1(v, 0);
+			auto limit = (FloatType)LogicType::getUpperLimit();
+			return LogicType::getWithDynamicLimit(scaled, limit);
+		}
 	}
 
 	template <typename ContainerType> auto& getFrom(const ContainerType& c) const
