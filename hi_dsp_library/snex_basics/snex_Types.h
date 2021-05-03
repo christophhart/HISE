@@ -281,8 +281,37 @@ struct PolyHandler
 	    false and it will bypass the entire threading and always return 0.
 	*/
 	PolyHandler(bool enabled_):
-		enabled(enabled_)
-	{}
+		enabled(enabled_ ? 1 : 0)
+	{
+		// This byte structure is needed by the JIT compilation, so if the atomic
+		// wrappers add any overhead on a platform, this will fail compilation
+		static_assert(offsetof(PolyHandler, enabled) == 12, "misaligned poly handler");
+	}
+
+	/** Call this whenever you change something from the UI. It will make sure that
+	    the poly handler iteration will go through all voices as long as it's active.
+
+		There is a minor performance overhead when the audio render thread is fetching
+		the voice data because it has to check the thread ID against the thread that
+		created this object.
+	*/
+	struct ScopedAllVoiceSetter
+	{
+		ScopedAllVoiceSetter(PolyHandler& p) :
+			parent(p)
+		{
+			prevThread = parent.currentAllThread;
+			parent.currentAllThread = Thread::getCurrentThreadId();
+		}
+
+		~ScopedAllVoiceSetter()
+		{
+			parent.currentAllThread = prevThread;
+		}
+
+		PolyHandler & parent;
+		void* prevThread = nullptr;
+	};
 
 	/** Create an instance of this class with the given voice index and it will return this voice
 	    index for each call that happens on this thread as long as this object exists.
@@ -292,31 +321,17 @@ struct PolyHandler
 		ScopedVoiceSetter(PolyHandler& p_, int voiceIndex) :
 			p(p_)
 		{
-			if (p.enabled)
+			if (p.enabled != 0)
 			{
-				auto thisThread = Thread::getCurrentThreadId();
-
-				if (p.currentRenderThread != nullptr)
-				{
-					previousThread = p.currentRenderThread;
-					jassert(p.currentRenderThread == thisThread);
-				}
-
-				p.currentRenderThread = thisThread;
+				jassert(p.currentAllThread != Thread::getCurrentThreadId());
 				p.voiceIndex = voiceIndex;
 			}
 		}
 
 		~ScopedVoiceSetter()
 		{
-			if (p.enabled)
-			{
-				p.currentRenderThread = nullptr;
+			if (p.enabled != 0)
 				p.voiceIndex = -1;
-
-				if (previousThread != nullptr)
-					previousThread = nullptr;
-			}
 		}
 
 	private:
@@ -327,41 +342,56 @@ struct PolyHandler
 
 	/** Returns the voice index. If its disabled, it will return always zero. If the thread is the processing thread
 	    it will return the voice index that is being set with ScopedVoiceSetter, or -1 if it's called from another thread
-		(or if the voice index has not been set. */
+		(or if the voice index has not been set). */
 	int getVoiceIndex() const
 	{
-		if (!enabled)
-			return 0;
+		if (currentAllThread != nullptr && Thread::getCurrentThreadId() == currentAllThread)
+			return -1 * enabled;
 
-		if (voiceIndex.load() == -1)
-			return -1;
-
-		auto thisThread = Thread::getCurrentThreadId();
-
-		if (thisThread == currentRenderThread.load())
-			return voiceIndex.load();
-
-		return -1;
+		return voiceIndex.load() * enabled;
 	}
 
 	bool isEnabled() const { return enabled; }
 
 	void setEnabled(bool shouldBeEnabled)
 	{
-		enabled = shouldBeEnabled;
+		enabled = (int)shouldBeEnabled;
 
-		if (!shouldBeEnabled)
+		if (shouldBeEnabled == 0)
 		{
-			currentRenderThread.store(nullptr);
+			currentAllThread = nullptr;
 			voiceIndex.store(-1);
 		}
 	}
 
+	static int getVoiceIndexStatic(PolyHandler* ph)
+	{
+		if (ph == nullptr)
+			return 0;
+
+		jassert(ph->enabled != 0);
+
+		auto idx = ph->getVoiceIndex();
+	}
+
+	static int getSizeStatic(PolyHandler* ph)
+	{
+		if (ph == nullptr)
+			return 0;
+
+		jassert(ph->enabled != 0);
+
+		if (ph->getVoiceIndex() == -1)
+			return 1;
+
+		return 0;
+	}
+
 private:
 
-	std::atomic<void*> currentRenderThread = { nullptr };
-	std::atomic<int> voiceIndex = { -1 };
-	bool enabled;
+	std::atomic<void*> currentAllThread = { nullptr }; // 0 byte offset
+	std::atomic<int> voiceIndex = { -1 };			   // 8 byte offset
+	int enabled;									   // 12 byte offset
 };
 
 

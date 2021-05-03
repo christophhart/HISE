@@ -505,6 +505,7 @@ void Parameter::setTreeWithValue(ValueTree v)
 
 void Parameter::setValueAndStoreAsync(double newValue)
 {
+	DspNetwork::NoVoiceSetter nvs(*parent->getRootNetwork());
 	dbNew.call(newValue);
 }
 

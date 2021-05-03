@@ -208,6 +208,17 @@ public:
 		const snex::Types::PolyHandler::ScopedVoiceSetter internalSetter;
 	};
 
+	struct NoVoiceSetter
+	{
+		NoVoiceSetter(DspNetwork& p):
+			internalSetter(p.voiceIndex)
+		{}
+
+	private:
+
+		const snex::Types::PolyHandler::ScopedAllVoiceSetter internalSetter;
+	};
+
 	class Holder
 	{
 	public:
