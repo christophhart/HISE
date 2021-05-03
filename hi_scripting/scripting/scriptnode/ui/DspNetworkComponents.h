@@ -957,8 +957,8 @@ public:
 
 		void timerCallback() override
 		{
-			float onDelta = JUCE_LIVE_CONSTANT(.1f);
-			float offDelta = JUCE_LIVE_CONSTANT(.1f);
+			float onDelta = JUCE_LIVE_CONSTANT_OFF(.1f);
+			float offDelta = JUCE_LIVE_CONSTANT_OFF(.1f);
 
 			if (enabled)
 				alpha += onDelta;

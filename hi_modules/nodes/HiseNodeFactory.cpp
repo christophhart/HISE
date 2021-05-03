@@ -875,7 +875,7 @@ namespace fx
 			for (int i = 0; i < 100; i++)
 				x[i] = hmath::sin(float_Pi * 2.0f * (float)i / 100.0f);
 
-			auto delta = (int)(getNode()->getParameter(0)->getValue() / JUCE_LIVE_CONSTANT(10.0f));
+			auto delta = (int)(getNode()->getParameter(0)->getValue() / JUCE_LIVE_CONSTANT_OFF(10.0f));
 			int counter = 0;
 			float v = 0.0;
 
@@ -1080,6 +1080,11 @@ struct osc_display : public Component,
 					 public RingBufferComponentBase,
 					 public ComponentWithDefinedSize
 {
+	osc_display()
+	{
+		
+	}
+
 	void refresh() override
 	{
 		waveform.clear();
@@ -1120,6 +1125,11 @@ struct osc_display : public Component,
 
 		if(!waveform.getBounds().isEmpty())
 			laf->drawOscilloscopePath(g, *this, waveform);
+	}
+
+	void resized() override
+	{
+		refresh();
 	}
 
 	Rectangle<int> getFixedBounds() const override { return { 0, 0, 300, 60 }; }

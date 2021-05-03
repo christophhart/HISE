@@ -345,6 +345,8 @@ void RingBufferComponentBase::setComplexDataUIBase(ComplexDataUIBase* newData)
 	{
 		rb->getUpdater().addEventListener(this);
 	}
+
+	refresh();
 }
 
 void ModPlotter::refresh()

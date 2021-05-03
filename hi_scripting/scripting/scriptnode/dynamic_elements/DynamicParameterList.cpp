@@ -631,7 +631,7 @@ namespace parameter
 			Factory::scalePath(p, pathBounds);
 
 			auto xOffset = pathBounds.getCentreX() - (float)getWidth() / 2.0f;
-			auto yOffset = pathBounds.getCentreY() - (float)getHeight() - JUCE_LIVE_CONSTANT(3.f);
+			auto yOffset = pathBounds.getCentreY() - (float)getHeight() - JUCE_LIVE_CONSTANT_OFF(3.f);
 
 			getProperties().set("circleOffsetX", xOffset);
 			getProperties().set("circleOffsetY", yOffset);

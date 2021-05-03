@@ -443,7 +443,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 			g.excludeClipRegion(a);
 		}
 
-		g.fillAll(Colour(0xff1d1d1d).withAlpha(JUCE_LIVE_CONSTANT(0.4f) * hmath::pow(dragOverlay.alpha, 1.5f)));
+		g.fillAll(Colour(0xff1d1d1d).withAlpha(JUCE_LIVE_CONSTANT_OFF(0.4f) * hmath::pow(dragOverlay.alpha, 1.5f)));
 		g.restoreState();
 	}
 
@@ -458,8 +458,8 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 		float zf = findParentComponentOfClass<ZoomableViewport>()->zoomFactor;
 
-		asC->getProperties().set("circleOffsetX", zf * JUCE_LIVE_CONSTANT(1.0));
-		asC->getProperties().set("circleOffsetY", JUCE_LIVE_CONSTANT(0));
+		asC->getProperties().set("circleOffsetX", zf * JUCE_LIVE_CONSTANT_OFF(1.0));
+		asC->getProperties().set("circleOffsetY", JUCE_LIVE_CONSTANT_OFF(0));
 
 		auto end = getCircle(asC, false).translated(zf * asC->getWidth(), 0.0f);
 		auto start = getCircle(e->getDetails().sourceComponent, false);
@@ -1100,7 +1100,7 @@ bool DspNetworkGraph::Actions::foldUnselectedNodes(DspNetworkGraph& g)
 {
 	auto parent = g.findParentComponentOfClass<ZoomableViewport>();
 
-	parent->makeSwapSnapshot(JUCE_LIVE_CONSTANT(1.005));
+	parent->makeSwapSnapshot(JUCE_LIVE_CONSTANT_OFF(1.005));
 
 	auto l = g.network->getListOfNodesWithType<NodeBase>(false);
 
@@ -1180,7 +1180,7 @@ bool DspNetworkGraph::Actions::foldUnselectedNodes(DspNetworkGraph& g)
 
 	
 
-	Timer::callAfterDelay(JUCE_LIVE_CONSTANT(300), f);
+	Timer::callAfterDelay(JUCE_LIVE_CONSTANT_OFF(300), f);
 
 	return true;
 }
@@ -1546,7 +1546,7 @@ bool DspNetworkGraph::Actions::zoomOut(DspNetworkGraph& g)
 
 bool DspNetworkGraph::Actions::zoomFit(DspNetworkGraph& g)
 {
-	g.findParentComponentOfClass<ZoomableViewport>()->makeSwapSnapshot(JUCE_LIVE_CONSTANT(0.998));
+	g.findParentComponentOfClass<ZoomableViewport>()->makeSwapSnapshot(JUCE_LIVE_CONSTANT_OFF(0.998));
 
 	for (auto& n : g.network->getListOfNodesWithType<NodeBase>(false))
 		n->setValueTreeProperty(PropertyIds::Folded, false);
@@ -1559,7 +1559,7 @@ bool DspNetworkGraph::Actions::zoomFit(DspNetworkGraph& g)
 		g.grabKeyboardFocus();
 	};
 
-	Timer::callAfterDelay(JUCE_LIVE_CONSTANT(400), f);
+	Timer::callAfterDelay(JUCE_LIVE_CONSTANT_OFF(400), f);
 
 	return true;
 }
@@ -2152,7 +2152,7 @@ void KeyboardPopup::TagList::Tag::paint(Graphics& g)
 	else
 	{
 		g.setColour(c.withAlpha(0.7f));
-		g.drawRoundedRectangle(area, area.getHeight() / 2.0f, JUCE_LIVE_CONSTANT(1.5f));
+		g.drawRoundedRectangle(area, area.getHeight() / 2.0f, JUCE_LIVE_CONSTANT_OFF(1.5f));
 	}
 
 	g.setFont(GLOBAL_BOLD_FONT());
