@@ -431,6 +431,17 @@ void Operations::Cast::process(BaseCompiler* compiler, BaseScope* scope)
 			if (sourceReg == nullptr)
 				location.throwError("Source register not found");
 
+			auto sourceRegType = sourceReg->getTypeInfo();
+
+			AsmCodeGenerator::TemporaryRegister tmpReg(asg, scope, getSubExpr(0)->getType());
+
+			if (sourceRegType.isNativePointer())
+			{
+				sourceReg->loadMemoryIntoRegister(asg.cc);
+				tmpReg.tempReg->setCustomMemoryLocation(x86::ptr(PTR_REG_R(sourceReg)), sourceReg->isGlobalMemory());
+				sourceReg = tmpReg.tempReg;
+			}
+
 			auto sourceType = getSubExpr(0)->getType();
 			asg.emitCast(reg, sourceReg, sourceType);
 		}

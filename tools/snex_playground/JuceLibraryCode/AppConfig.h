@@ -19,6 +19,7 @@
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
 #define SNEX_STANDALONE_PLAYGROUND 1
+#define HISE_INCLUDE_SNEX 1
 
 // [END_USER_CODE_SECTION]
 
