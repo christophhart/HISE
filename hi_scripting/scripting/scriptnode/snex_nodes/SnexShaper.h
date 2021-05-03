@@ -117,9 +117,13 @@ struct dynamic : public SnexSource
 
 		void prepare(PrepareSpecs ps)
 		{
+			lastSpecs = ps;
+
 			if (auto s = ScopedCallbackChecker(*this))
-				prepareFunc.callVoidUncheckedWithObject(&ps);
+				prepareFunc.callVoidUncheckedWithObject(&lastSpecs);
 		}
+
+		PrepareSpecs lastSpecs;
 
 		FunctionData prepareFunc;
 		FunctionData resetFunc;

@@ -1045,6 +1045,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 	const GlobalScope& getGlobalScope() const { return memory; }
 
 	CompileResult getLastResult() const { return lastCompileResult; }
+
+	CompileResult& getLastResultReference() { return lastCompileResult; }
+
 	JitObject getLastJitObject() const { return lastCompileResult.obj; }
 	String getLastAssembly() const { return lastCompileResult.assembly; }
 

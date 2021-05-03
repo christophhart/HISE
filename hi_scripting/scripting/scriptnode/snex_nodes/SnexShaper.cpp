@@ -199,6 +199,8 @@ namespace waveshapers
 			std::swap(resetFunc, newResetFunc);
 		}
 
+		prepare(lastSpecs);
+
 		return r;
 	}
 

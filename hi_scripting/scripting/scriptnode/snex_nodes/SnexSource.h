@@ -682,6 +682,9 @@ struct SnexSource : public WorkbenchData::Listener
 				c->setTestBase(createTester());
 			}
 
+			if(parentNode != nullptr)
+				wb->getGlobalScope().setPolyphonic(parentNode->getRootNetwork()->isPolyphonic());
+
 			wb->addListener(this);
 			wb->triggerRecompile();
 		}

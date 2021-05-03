@@ -56,18 +56,27 @@ juce::Result core::SnexOscillator::OscillatorCallbacks::recompiledOk(snex::jit::
 
 	auto newTickFunction = getFunctionAsObjectCallback("tick");
 	auto newProcessFunction = getFunctionAsObjectCallback("process", false);
+	auto newPrepareFunction = getFunctionAsObjectCallback("prepare", false);
+
+	
 
 	r = newTickFunction.validateWithArgs(Types::ID::Float, { Types::ID::Double });
 
 	if (r.wasOk())
 		r = newProcessFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
 
+	if (r.wasOk() && newPrepareFunction.isResolved())
+		r = newPrepareFunction.validateWithArgs("void", { "PrepareSpecs" });
+
 	{
 		SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
 		ok = r.wasOk();
 		std::swap(newTickFunction, tickFunction);
 		std::swap(newProcessFunction, processFunction);
+		std::swap(newPrepareFunction, prepareFunction);
 	}
+
+	prepare(lastSpecs);
 
 	return r;
 }
@@ -86,6 +95,14 @@ void core::SnexOscillator::OscillatorCallbacks::process(OscProcessData& d)
 
 	if (auto c = ScopedCallbackChecker(*this))
 		processFunction.callVoidUncheckedWithObject(&d);
+}
+
+void core::SnexOscillator::OscillatorCallbacks::prepare(PrepareSpecs ps)
+{
+	lastSpecs = ps;
+
+	if(auto c = ScopedCallbackChecker(*this))
+		prepareFunction.callVoid(&lastSpecs);
 }
 
 core::SnexOscillator::SnexOscillator() :
@@ -125,6 +142,14 @@ String core::SnexOscillator::getEmptyText(const Identifier& id) const
 		}
 	}
 
+	c.addEmptyLine();
+	c.addComment("This can be used to initialise the processing if required.", snex::cppgen::Base::CommentType::Raw);
+	c << "void prepare(PrepareSpecs ps)\n";
+	{
+		StatementBlock sb2(c);
+	}
+	
+
 	String pf;
 
 	c.addEmptyLine();
@@ -152,6 +177,11 @@ float core::SnexOscillator::tick(double uptime)
 void core::SnexOscillator::process(OscProcessData& d)
 {
 	callbacks.process(d);
+}
+
+void core::SnexOscillator::prepare(PrepareSpecs ps)
+{
+	callbacks.prepare(ps);
 }
 
 core::NewSnexOscillatorDisplay::NewSnexOscillatorDisplay(SnexOscillator* osc, PooledUIUpdater* updater) :

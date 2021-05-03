@@ -93,9 +93,13 @@ struct SnexOscillator : public SnexSource
 		float tick(double uptime);
 		void process(OscProcessData& d);
 
+		void prepare(PrepareSpecs ps);
+
 		double lastDelta = 0.0;
 		FunctionData tickFunction;
 		FunctionData processFunction;
+		FunctionData prepareFunction;
+		PrepareSpecs lastSpecs;
 	};
 
 	using OscTester = SnexSource::Tester<OscillatorCallbacks>;
@@ -110,6 +114,8 @@ struct SnexOscillator : public SnexSource
 	void initialise(NodeBase* n);
 	float tick(double uptime);
 	void process(OscProcessData& d);
+
+	void prepare(PrepareSpecs ps);
 
 	OscillatorCallbacks callbacks;
 

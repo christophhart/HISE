@@ -1276,6 +1276,12 @@ template <typename T> struct snex_osc_base
 			oscType.setExternalData(d, index);
 	}
 
+	void prepare(PrepareSpecs ps)
+	{
+		if constexpr (prototypes::check::prepare<T>::value)
+			oscType.prepare(ps);
+	}
+
 	T oscType;
 };
 
@@ -1310,6 +1316,7 @@ template <int NV, typename T> struct snex_osc_impl : snex_osc_base<T>
 
 	void prepare(PrepareSpecs ps)
 	{
+		snex_osc_base<T>::prepare(ps);
 		sampleRate = ps.sampleRate;
 		voiceIndex = ps.voiceIndex;
 		oscData.prepare(ps);
