@@ -1294,6 +1294,8 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 {
 	target->createRegister(cc);
 
+
+
 	IF_(int) // TARGET TYPE
 	{
 		ScopedTypeSetter st(*this, sourceType);
@@ -1893,8 +1895,10 @@ void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, 
 	}
 	else
 	{
-		auto shift = log2(elementSize);
-		cc.lea(endReg.get(), x86::ptr(beginReg.get(), sizeReg.get(), shift, 0, elementSize));
+		cc.imul(sizeReg.get(), elementSize);
+
+		cc.mov(endReg.get(), beginReg.get());
+		cc.add(endReg.get(), sizeReg.get().r64());
 	}
 
 	auto loopStart = cc.newLabel();
