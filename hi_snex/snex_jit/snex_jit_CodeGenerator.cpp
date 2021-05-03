@@ -54,6 +54,24 @@ void AsmCodeGenerator::emitComment(const char* m)
 	cc.setInlineComment(m);
 }
 
+snex::jit::AsmCodeGenerator::RegPtr AsmCodeGenerator::emitLoadIfNativePointer(RegPtr source, Types::ID nativeType)
+{
+	
+
+	auto sourceRegType = source->getTypeInfo();
+
+	if (sourceRegType.isNativePointer())
+	{
+		AsmCodeGenerator::TemporaryRegister tmpReg(*this, source->getScope(), nativeType);
+
+		source->loadMemoryIntoRegister(cc);
+		tmpReg.tempReg->setCustomMemoryLocation(x86::ptr(PTR_REG_R(source)), source->isGlobalMemory());
+		source = tmpReg.tempReg;
+	}
+
+	return source;
+}
+
 void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 {
 	if (target == value)
@@ -485,6 +503,9 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 	}
 	else
 	{
+		l = emitLoadIfNativePointer(l, type);
+		r = emitLoadIfNativePointer(r, type);
+
 		jassert(l != nullptr && r != nullptr);
 		jassert(l->getType() != Types::ID::Pointer);
 
@@ -1292,9 +1313,9 @@ void AsmCodeGenerator::emitIncrement(RegPtr target, RegPtr expr, bool isPre, boo
 
 void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType)
 {
+	expr = emitLoadIfNativePointer(expr, sourceType);
+
 	target->createRegister(cc);
-
-
 
 	IF_(int) // TARGET TYPE
 	{
