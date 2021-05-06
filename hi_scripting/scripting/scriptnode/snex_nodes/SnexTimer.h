@@ -73,7 +73,7 @@ namespace control
 
 struct snex_timer : public SnexSource
 {
-	using NodeType = control::timer_impl<1, snex_timer>;
+	using NodeType = control::timer<snex_timer>;
 
 	struct TimerCallbackHandler : public SnexSource::CallbackHandlerBase
 	{
@@ -91,14 +91,27 @@ struct snex_timer : public SnexSource
 		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override
 		{
 			auto newTc = getFunctionAsObjectCallback("getTimerValue");
+			auto newReset = getFunctionAsObjectCallback("reset");
+			auto newPrepare = getFunctionAsObjectCallback("prepare");
 
 			auto r = newTc.validateWithArgs(Types::ID::Double, {});
+
+			if (r.wasOk())
+				r = newReset.validateWithArgs(Types::ID::Void, {});
+
+			if (r.wasOk())
+				r = newPrepare.validateWithArgs("void", { "PrepareSpecs" });
 
 			{
 				SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
 				std::swap(newTc, tc);
+				std::swap(prepareFunc, newPrepare);
+				std::swap(resetFunc, newReset);
 				ok = r.wasOk();
 			}
+
+			prepare(lastSpecs);
+			resetTimer();
 
 			return r;
 		}
@@ -111,12 +124,34 @@ struct snex_timer : public SnexSource
 			return 0.0;
 		}
 
+		void resetTimer()
+		{
+			if (auto s = ScopedCallbackChecker(*this))
+			{
+				resetFunc.callVoid();
+			}
+		}
+
+		void prepare(PrepareSpecs ps)
+		{
+			lastSpecs = ps;
+
+			if (auto s = ScopedCallbackChecker(*this))
+			{
+				prepareFunc.callVoid(&lastSpecs);
+			}
+		}
+
 		Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) override
 		{
 			return Result::ok();
 		}
 
+		PrepareSpecs lastSpecs;
+
 		FunctionData tc;
+		FunctionData resetFunc;
+		FunctionData prepareFunc;
 	};
 
 	snex_timer() :
@@ -138,12 +173,18 @@ struct snex_timer : public SnexSource
 
 	double getTimerValue();
 
+	void reset()
+	{
+		callbacks.resetTimer();
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		callbacks.prepare(ps);
+	}
+
 	TimerCallbackHandler callbacks;
 	mutable ModValue lastValue;
-
-	HISE_EMPTY_PREPARE;
-
-	
 
 	class editor : public ScriptnodeExtraComponent<snex_timer>,
 				  SnexSource::SnexSourceListener

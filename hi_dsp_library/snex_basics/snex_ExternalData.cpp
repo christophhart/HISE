@@ -276,9 +276,9 @@ hise::ComplexDataUIBase::EditorBase* ExternalData::createEditor(ComplexDataUIBas
 	{
 		c = new hise::FilterGraph(0);
 	}
-	else if (auto t = dynamic_cast<hise::FilterDataObject*>(dataObject))
+	else if (auto rb = dynamic_cast<hise::SimpleRingBuffer*>(dataObject))
 	{
-		c = new ModPlotter();
+		c = rb->getPropertyObject()->createComponent();
 	}
 
 	if(c != nullptr)
@@ -426,5 +426,30 @@ juce::Path ExternalData::Factory::createPath(const String& url) const
 
 	return p;
 }
+
+}
+
+void scriptnode::data::base::setExternalData(const snex::ExternalData& d, int index)
+{
+	// This function must always be called while the writer lock is active
+	jassert(d.isEmpty() || d.obj->getDataLock().writeAccessIsLocked() || d.obj->getDataLock().writeAccessIsSkipped());
+
+	if (auto currentRb = dynamic_cast<SimpleRingBuffer*>(this->externalData.obj))
+		currentRb->setCurrentWriter(nullptr);
+		
+	externalData = d;
+
+	try
+	{
+		if (auto currentRb = dynamic_cast<SimpleRingBuffer*>(this->externalData.obj))
+			currentRb->setCurrentWriter(this);
+	}
+	catch (String& errorMessage)
+	{
+		scriptnode::Error e;
+		e.error = Error::RingBufferMultipleWriters;
+		throw e;
+	}
+
 
 }

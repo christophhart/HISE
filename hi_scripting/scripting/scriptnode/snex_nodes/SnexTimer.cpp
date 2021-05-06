@@ -51,6 +51,14 @@ namespace control
 		c << "double getTimerValue()\n";
 		c << "{\n    return 0.0;\n}\n";
 
+		c.addComment("Reset any state here", snex::cppgen::Base::CommentType::Raw);
+		c << "void reset()\n";
+		c << "{\n    \n}\n";
+
+		c.addComment("Initialise the processing", snex::cppgen::Base::CommentType::Raw);
+		c << "void prepare(PrepareSpecs ps)\n";
+		c << "{\n    \n}\n";
+
 		String pf;
 		c.addEmptyLine();
 		addDefaultParameterFunction(pf);

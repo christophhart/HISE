@@ -481,7 +481,7 @@ namespace data
 
 
 /** Subclass this when you want to show a UI for the given data. */
-struct base
+struct base: public SimpleRingBuffer::WriterBase
 {
 	/** Use this in order to lock the access to the external data. */
 	struct DataReadLock: hise::SimpleReadWriteLock::ScopedReadLock
@@ -528,17 +528,19 @@ struct base
 	/** This can be used to connect the UI to the data. */
 	hise::ComplexDataUIBase* getUIPointer() { return externalData.obj; }
 
-	virtual void setExternalData(const snex::ExternalData& d, int index)
-	{
-		// This function must always be called while the writer lock is active
-		jassert(d.isEmpty() || d.obj->getDataLock().writeAccessIsLocked() || d.obj->getDataLock().writeAccessIsSkipped());
+	virtual void setExternalData(const snex::ExternalData& d, int index);
 
-		externalData = d;
+	template <typename PropertyObject> void setRingBufferPropertyObject()
+	{
+		if (auto rb = dynamic_cast<SimpleRingBuffer*>(externalData.obj))
+		{
+			rb->setPropertyObject(new PropertyObject(this));
+		}
 	}
 
 	snex::ExternalData externalData;
 
-	JUCE_DECLARE_WEAK_REFERENCEABLE(base);
+	//JUCE_DECLARE_WEAK_REFERENCEABLE(base);
 };
 
 

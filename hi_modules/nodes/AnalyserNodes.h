@@ -92,10 +92,14 @@ struct Helpers
 
 		static constexpr int NumChannels = 1;
 		
+		FFT(SimpleRingBuffer::WriterBase* w) : PropertyObject(w) {};
+
 		bool canBeReplaced(PropertyObject* other) const override
 		{
 			return dynamic_cast<FFT*>(other) != nullptr;
 		}
+
+		RingBufferComponentBase* createComponent();
 
 		void initialiseRingBuffer(SimpleRingBuffer* b) override
 		{
@@ -140,7 +144,11 @@ struct Helpers
 	{
 		SET_HISE_NODE_ID("oscilloscope");
 
+		Oscilloscope(SimpleRingBuffer::WriterBase* w) : PropertyObject(w) {};
+
 		static constexpr int NumChannels = 2;
+
+		RingBufferComponentBase* createComponent() override;
 
 		bool canBeReplaced(PropertyObject* other) const override
 		{
@@ -171,12 +179,16 @@ struct Helpers
 	{
 		SET_HISE_NODE_ID("goniometer");
 
+		GonioMeter(SimpleRingBuffer::WriterBase* w) : PropertyObject(w) {};
+
 		static constexpr int NumChannels = 2;
 
 		bool canBeReplaced(PropertyObject* other) const override
 		{
 			return dynamic_cast<GonioMeter*>(other) != nullptr;
 		}
+
+		RingBufferComponentBase* createComponent() override;
 
 		void initialiseRingBuffer(SimpleRingBuffer* b) override
 		{
@@ -233,26 +245,8 @@ public:
 	{
 		if (d.obj != this->externalData.obj)
 		{
-			if (rb != nullptr)
-				rb->setUsedByWriter(false);
-
 			Helpers::AnalyserDataProvider::setExternalData(d, index);
-
-			try
-			{
-				if (rb != nullptr)
-				{
-					rb->setUsedByWriter(true);
-					rb->setPropertyObject(new T());
-				}
-					
-			}
-			catch (String& errorMessage)
-			{
-				scriptnode::Error e;
-				e.error = Error::RingBufferMultipleWriters;
-				throw e;
-			}
+			setRingBufferPropertyObject<T>();
 		}
 	}
 
