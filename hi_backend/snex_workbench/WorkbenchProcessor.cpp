@@ -89,6 +89,7 @@ juce::PopupMenu SnexWorkbenchEditor::getMenuForIndex(int topLevelMenuIndex, cons
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsSynthMode);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsEffectMode);
 		m.addSeparator();
+		m.addCommandItem(&mainManager, MenuCommandIds::ToolsShowKeyboard);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsAudioConfig);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsEditTestData);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsCompileNetworks);
@@ -115,6 +116,7 @@ void SnexWorkbenchEditor::getAllCommands(Array<CommandID>& commands)
 		MenuCommandIds::FileShowNetworkFolder,
 		MenuCommandIds::ToolsEffectMode,
 		MenuCommandIds::ToolsSynthMode,
+		MenuCommandIds::ToolsShowKeyboard,
 		MenuCommandIds::ToolsAudioConfig,
 		MenuCommandIds::ToolsCompileNetworks,
 		MenuCommandIds::ToolsClearDlls,
@@ -141,6 +143,8 @@ void SnexWorkbenchEditor::getCommandInfo(CommandID commandID, ApplicationCommand
 	case MenuCommandIds::ToolsSynthMode: setCommandTarget(result, "Polyphonic Synth Mode", true, synthMode, 'x', false); break;
 	case MenuCommandIds::ToolsEffectMode: setCommandTarget(result, "Stereo Effect Mode", true, !synthMode, 'x', false); 
 	  break;
+	case MenuCommandIds::ToolsShowKeyboard: setCommandTarget(result, "Show Keyboard", true, bottomComoponent.isVisible(), 'x', false);
+		break;
 	case MenuCommandIds::ToolsClearDlls: setCommandTarget(result, "Clear DLL build folder", true, false, 'x', false); break;
 	case MenuCommandIds::ToolsAudioConfig: setCommandTarget(result, "Settings", true, false, 0, false); break;
 	case MenuCommandIds::TestsRunAll: setCommandTarget(result, "Run all tests", true, false, 0, false); break;
@@ -222,6 +226,7 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 	}
 	case ToolsEffectMode: setSynthMode(false); return true;
 	case ToolsSynthMode: setSynthMode(true); return true;
+	case ToolsShowKeyboard: bottomComoponent.setVisible(!bottomComoponent.isVisible()); resized(); return true;
 	case ToolsCompileNetworks:
 	{
 		auto window = new DspNetworkCompileExporter(this);
@@ -321,7 +326,7 @@ void SnexWorkbenchEditor::menuItemSelected(int menuItemID, int topLevelMenuIndex
 SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 	standaloneProcessor(),
 	infoComponent(nullptr),
-	keyboard(getProcessor())
+	bottomComoponent(getProcessor())
 {
 	dllManager = new BackendDllManager(getProcessor());
 
@@ -334,6 +339,8 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 #endif
 
 	addAndMakeVisible(infoComponent);
+
+	addAndMakeVisible(bottomComoponent);
 
 	rootTile = new FloatingTile(getProcessor(), nullptr);
 
@@ -363,9 +370,6 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 	menuBar.setLookAndFeel(&mlaf);
 
     addAndMakeVisible(menuBar);
-	addAndMakeVisible(keyboard);
-    
-	keyboard.setUseVectorGraphics(true, false);
 
 #if JUCE_MAC
     MenuBarModel::setMacMainMenu(this);
@@ -491,17 +495,17 @@ void SnexWorkbenchEditor::resized()
 
 	auto top = b.removeFromTop(45);
 
+	if (bottomComoponent.isVisible())
+	{
+		auto bottom = b.removeFromBottom(72);
+		bottomComoponent.setBounds(bottom);
+	}
+
 	infoComponent.setBounds(top);
 
 #if !JUCE_MAC
 	menuBar.setBounds(top.removeFromLeft(300).reduced(5, 5));
 #endif
-
-	if (synthMode)
-	{
-		keyboard.setBounds(b.removeFromBottom(72).withSizeKeepingCentre(800, 72));
-		b.removeFromBottom(3);
-	}
 
 	rootTile->setBounds(b);
 }
@@ -541,6 +545,11 @@ void SnexWorkbenchEditor::setSynthMode(bool shouldBeSynthMode)
 
 
 	resized();
+}
+
+bool SnexWorkbenchEditor::getSynthMode() const
+{
+	return synthMode;
 }
 
 scriptnode::DspNetwork::Holder* SnexWorkbenchEditor::getNetworkHolderForNewFile(MainController* mc, bool getSynthHolder)

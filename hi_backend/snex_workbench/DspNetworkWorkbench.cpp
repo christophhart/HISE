@@ -330,6 +330,212 @@ void DspNetworkCodeProvider::anythingChanged(valuetree::AnyListener::CallbackTyp
 	}
 }
 
+namespace RoutingIcons
+{
+	static const unsigned char monoIcon[] = { 110,109,209,34,192,66,164,112,85,65,98,51,243,195,66,193,202,181,64,92,207,209,66,0,0,0,0,205,76,226,66,0,0,0,0,98,100,187,245,66,0,0,0,0,197,192,2,67,127,106,252,64,197,192,2,67,242,210,140,65,98,197,192,2,67,80,141,218,65,100,187,245,66,248,211,12,
+66,205,76,226,66,248,211,12,66,98,53,222,210,66,248,211,12,66,244,189,197,66,23,217,241,65,244,253,192,66,43,135,186,65,108,68,75,163,66,43,135,186,65,98,68,139,158,66,23,217,241,65,2,107,145,66,248,211,12,66,106,252,129,66,248,211,12,66,98,166,27,101,
+66,248,211,12,66,35,219,74,66,23,217,241,65,35,91,65,66,43,135,186,65,108,43,7,9,66,43,135,186,65,98,86,14,255,65,23,217,241,65,80,141,202,65,248,211,12,66,242,210,140,65,248,211,12,66,98,127,106,252,64,248,211,12,66,0,0,0,0,80,141,218,65,0,0,0,0,242,
+210,140,65,98,0,0,0,0,127,106,252,64,127,106,252,64,0,0,0,0,242,210,140,65,0,0,0,0,98,193,202,206,65,0,0,0,0,172,28,3,66,193,202,181,64,119,190,10,66,164,112,85,65,108,215,163,63,66,164,112,85,65,98,162,69,71,66,193,202,181,64,238,252,98,66,0,0,0,0,106,
+252,129,66,0,0,0,0,98,219,121,146,66,0,0,0,0,4,86,160,66,193,202,181,64,102,38,164,66,164,112,85,65,108,209,34,192,66,164,112,85,65,99,101,0,0 };
+
+	static const unsigned char polyIcon[] = { 110,109,252,233,129,66,0,0,189,66,98,6,65,149,66,0,0,189,66,63,245,164,66,182,179,204,66,63,245,164,66,68,11,224,66,98,63,245,164,66,209,98,243,66,6,65,149,66,68,139,1,67,252,233,129,66,68,139,1,67,98,221,36,93,66,68,139,1,67,106,188,61,66,209,98,243,
+66,106,188,61,66,68,11,224,66,98,106,188,61,66,182,179,204,66,221,36,93,66,0,0,189,66,252,233,129,66,0,0,189,66,99,109,156,132,162,66,4,86,196,65,108,139,44,210,66,254,212,68,66,98,12,2,215,66,4,214,63,66,113,125,220,66,25,4,61,66,205,76,226,66,25,4,
+61,66,98,100,187,245,66,25,4,61,66,197,192,2,67,98,144,92,66,197,192,2,67,201,182,129,66,98,197,192,2,67,221,36,149,66,100,187,245,66,133,235,164,66,205,76,226,66,133,235,164,66,98,139,108,222,66,133,235,164,66,39,177,218,66,193,74,164,66,57,52,215,66,
+203,33,163,66,108,133,107,164,66,57,180,215,66,98,84,163,162,66,98,80,208,66,61,138,158,66,111,210,201,66,33,240,152,66,61,10,197,66,108,221,228,197,66,6,129,150,66,98,104,209,195,66,139,172,147,66,109,39,194,66,37,134,144,66,244,253,192,66,215,35,141,
+66,108,68,75,163,66,215,35,141,66,98,68,139,158,66,82,248,154,66,2,107,145,66,133,235,164,66,106,252,129,66,133,235,164,66,98,166,27,101,66,133,235,164,66,35,219,74,66,82,248,154,66,35,91,65,66,215,35,141,66,108,43,7,9,66,215,35,141,66,98,154,153,6,66,
+139,172,144,66,123,20,3,66,188,244,147,66,248,83,253,65,203,225,150,66,108,219,121,87,66,4,86,196,66,98,111,18,76,66,115,232,200,66,68,139,67,66,182,51,207,66,225,122,63,66,145,109,214,66,108,2,43,183,65,74,76,163,66,98,205,204,169,65,29,90,164,66,117,
+147,155,65,133,235,164,66,242,210,140,65,133,235,164,66,98,127,106,252,64,133,235,164,66,0,0,0,0,221,36,149,66,0,0,0,0,201,182,129,66,98,0,0,0,0,98,144,92,66,127,106,252,64,25,4,61,66,242,210,140,65,25,4,61,66,98,127,106,163,65,25,4,61,66,156,196,184,
+65,20,174,63,66,33,176,203,65,121,105,68,66,108,203,161,67,66,229,208,200,65,98,16,216,73,66,74,12,227,65,182,243,83,66,59,223,248,65,201,118,96,66,215,163,3,66,108,29,90,4,66,145,237,97,66,98,209,34,7,66,92,15,103,66,205,76,9,66,117,147,108,66,119,190,
+10,66,59,95,114,66,108,215,163,63,66,59,95,114,66,98,162,69,71,66,113,189,83,66,238,252,98,66,25,4,61,66,106,252,129,66,25,4,61,66,98,219,121,146,66,25,4,61,66,4,86,160,66,113,189,83,66,102,38,164,66,59,95,114,66,108,209,34,192,66,59,95,114,66,98,236,
+209,192,66,72,225,108,66,117,211,193,66,221,164,103,66,172,28,195,66,125,191,98,66,108,147,152,148,66,170,113,2,66,98,106,188,154,66,227,165,245,65,197,160,159,66,184,30,223,65,156,132,162,66,4,86,196,65,99,109,252,233,129,66,0,0,0,0,98,6,65,149,66,0,
+0,0,0,63,245,164,66,100,59,251,64,63,245,164,66,14,45,140,65,98,63,245,164,66,68,139,217,65,6,65,149,66,20,46,12,66,252,233,129,66,20,46,12,66,98,221,36,93,66,20,46,12,66,106,188,61,66,68,139,217,65,106,188,61,66,14,45,140,65,98,106,188,61,66,100,59,
+251,64,221,36,93,66,0,0,0,0,252,233,129,66,0,0,0,0,99,101,0,0 };
+
+	static const unsigned char arrowIcon[] = { 110,109,0,0,0,0,229,208,147,65,108,0,0,0,0,4,86,14,65,108,188,116,32,66,4,86,14,65,108,188,116,32,66,0,0,0,0,108,51,51,87,66,219,249,90,65,108,188,116,32,66,231,251,218,65,108,188,116,32,66,229,208,147,65,108,0,0,0,0,229,208,147,65,99,101,0,0 };
+
+}
+
+struct WorkbenchBottomComponent::RoutingSelector : public Component,
+												 public PathFactory
+{
+	RoutingSelector()
+	{
+		setRepaintsOnMouseActivity(true);
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds().toFloat().reduced(10.0f);
+
+		p = createPath("poly");
+		a = createPath("arrow");
+		m = createPath("mono");
+		
+		pArea = b.removeFromLeft(32.0f);
+
+		scalePath(p, pArea);
+		b.removeFromLeft(5.0f);
+		scalePath(a, b.removeFromLeft(20.0f));
+		b.removeFromLeft(5.0f);
+
+		mArea = b.removeFromLeft(32.0f);
+
+		scalePath(m, mArea);
+	};
+
+	Rectangle<float> pArea, mArea;
+
+	int hoverIndex = -1;
+
+	int getIndex(const MouseEvent& e) const
+	{
+		auto pos = e.getPosition().toFloat();
+
+		if (pArea.contains(pos))
+			return 0;
+
+		if (mArea.contains(pos))
+			return 1;
+
+		return -1;
+	}
+
+	void mouseMove(const MouseEvent& e) override
+	{
+		hoverIndex = getIndex(e);
+		repaint();
+	}
+
+	void mouseExit(const MouseEvent& e) override
+	{
+		hoverIndex = getIndex(e);
+		repaint();
+	}
+
+	bool hasPoly = false;
+	bool hasMono = false;
+
+	void mouseDown(const MouseEvent& e) override
+	{
+		auto swe = findParentComponentOfClass<SnexWorkbenchEditor>();
+
+		hoverIndex = getIndex(e);
+		repaint();
+
+		swe->setSynthMode(hoverIndex == 0);
+	}
+
+	void mouseDoubleClick(const MouseEvent& e)
+	{
+		auto isPolyClick = getIndex(e) == 0;
+
+		if (isPolyClick)
+			hasPoly = !hasPoly;
+		else
+			hasMono = !hasMono;
+
+		repaint();
+	}
+
+	bool hasSomething(bool poly) const
+	{
+		return poly ? hasPoly : hasMono;
+	}
+
+	bool isViewed(bool poly) const
+	{
+		auto swe = findParentComponentOfClass<SnexWorkbenchEditor>();
+		return swe->getSynthMode() == poly;
+	}
+
+	void paint(Graphics& g) override
+	{
+		bool over = isMouseOver(true);
+
+		auto pAlpha = 0.0f;
+		auto mAlpha = 0.0f;
+
+		if (hasSomething(true))
+			pAlpha += 0.2f;
+		
+		if (isViewed(true))
+			pAlpha *= 2.0f;
+
+		if (hasSomething(false))
+			mAlpha += 0.2f;
+
+		if (isViewed(false))
+			mAlpha *= 2.0f;
+
+		auto pc = MultiOutputDragSource::getFadeColour(0, 2).withAlpha(pAlpha);
+		auto mc = MultiOutputDragSource::getFadeColour(1, 2).withAlpha(mAlpha);
+
+		float clickAlpha = 0.05f;
+
+		if (isMouseButtonDown())
+			clickAlpha += 0.05f;
+
+		if (hoverIndex == 0)
+		{
+			g.setColour(Colours::white.withAlpha(clickAlpha));
+			g.fillRoundedRectangle(pArea, 3.0f);
+		}
+		
+		if (hoverIndex == 1)
+		{
+			g.setColour(Colours::white.withAlpha(clickAlpha));
+			g.fillRoundedRectangle(mArea, 3.0f);
+		}
+
+		g.setColour(pc);
+		g.fillPath(p);
+		g.setColour(mc);
+		g.fillPath(m);
+		
+		float alpha = 0.8f;
+
+		g.setColour(Colours::white.withAlpha(alpha));
+
+		g.fillPath(a);
+
+		g.setColour(mc.withAlpha(isViewed(false) ? 0.9f : 0.3f));
+		g.strokePath(m, PathStrokeType(1.0f));
+		g.setColour(pc.withAlpha(isViewed(true) ? 0.9f : 0.3f));
+		g.strokePath(p, PathStrokeType(1.0f));
+	}
+
+	Path p, m, a;
+
+	String getId() const override { return {}; }
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+		LOAD_PATH_IF_URL("poly", RoutingIcons::polyIcon);
+		LOAD_PATH_IF_URL("mono", RoutingIcons::monoIcon);
+		LOAD_PATH_IF_URL("arrow", RoutingIcons::arrowIcon);
+		return p;
+	}
+};
+
+WorkbenchBottomComponent::WorkbenchBottomComponent(MainController* mc) :
+	keyboard(mc),
+	routingSelector(new RoutingSelector())
+{
+	keyboard.setUseVectorGraphics(true, false);
+	addAndMakeVisible(keyboard);
+	addAndMakeVisible(routingSelector);
+}
+
+void WorkbenchBottomComponent::paint(Graphics& g)
+{
+	g.setGradientFill(ColourGradient(Colour(0xFF363636), 0.0f, 0.0f, Colour(0xFF323232), 0.0f, (float)getHeight(), false));
+
+	g.fillAll();
+	g.setColour(Colour(0xFF050505));
+	g.drawHorizontalLine(0, 0.0f, (float)getWidth());
+}
+
 WorkbenchInfoComponent::WorkbenchInfoComponent(WorkbenchData* d) :
 	AnyListener(valuetree::AsyncMode::Synchronously),
 	codeButton(DspNetworkCodeProvider::SourceMode::CustomCode),

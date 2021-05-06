@@ -62,7 +62,8 @@ ZoomableViewport::ZoomableViewport(Component* n) :
 	hBar(false),
 	vBar(true),
 	content(n),
-	mouseWatcher(new MouseWatcher(*this))
+	mouseWatcher(new MouseWatcher(*this)),
+	sf(*this)
 {
 	content->addComponentListener(this);
 
@@ -300,7 +301,9 @@ void ZoomableViewport::componentMovedOrResized(Component& component, bool wasMov
 
 void ZoomableViewport::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart)
 {
+	scrollBarThatHasMoved->setAlpha(1.0f);
 	refreshPosition();
+	sf.startFadeOut();
 }
 
 
@@ -471,6 +474,36 @@ void ZoomableViewport::Holder::paint(Graphics& g)
 	g.setColour(Colours::white);
 	g.setFont(GLOBAL_BOLD_FONT().withHeight(16.0f));
 	g.drawText(content->getName(), b, Justification::centred);
+}
+
+void ZoomableViewport::ScrollbarFader::timerCallback()
+{
+	if (!fadeOut)
+	{
+		fadeOut = true;
+		startTimer(30);
+	}
+	{
+		auto a = parent.hBar.getAlpha();
+		a = jmax(0.1f, a - 0.05f);
+
+		parent.hBar.setAlpha(a);
+		parent.vBar.setAlpha(a);
+
+		if (a <= 0.1f)
+		{
+			fadeOut = false;
+			stopTimer();
+		}
+	}
+}
+
+void ZoomableViewport::ScrollbarFader::startFadeOut()
+{
+	parent.hBar.setAlpha(1.0f);
+	parent.vBar.setAlpha(1.0f);
+	fadeOut = false;
+	startTimer(500);
 }
 
 }

@@ -169,6 +169,7 @@ public:
 		FileCloseCurrentNetwork,
 		ToolsEffectMode,
 		ToolsSynthMode,
+		ToolsShowKeyboard,
 		ToolsEditTestData,
 		ToolsAudioConfig,
 		ToolsCompileNetworks,
@@ -275,11 +276,17 @@ public:
 
 	void setSynthMode(bool shouldBeSynthMode);
 
+	bool getSynthMode() const;
+
 	static DspNetwork::Holder* getNetworkHolderForNewFile(MainController* mc, bool getSynthHolder);
 
 	void closeCurrentNetwork();
 
 private:
+
+
+	hise::StandaloneProcessor standaloneProcessor;
+	ApplicationCommandManager mainManager;
 
 	bool synthMode = false;
 
@@ -295,8 +302,7 @@ private:
 	} mlaf;
 
 	hise::WorkbenchInfoComponent infoComponent;
-
-	
+	hise::WorkbenchBottomComponent bottomComoponent;
 
 	Array<File> networkFiles;
 	StringArray recentProjectFiles;
@@ -315,12 +321,9 @@ private:
 
 	OpenGLContext context;
 
-	hise::StandaloneProcessor standaloneProcessor;
-	ApplicationCommandManager mainManager;
+	
 	ScopedPointer<FloatingTile> rootTile;
 	MenuBarComponent menuBar;
-
-	hise::CustomKeyboard keyboard;
 
 	WeakReference<snex::ui::WorkbenchData> wb;
 

@@ -411,6 +411,21 @@ struct ZoomableViewport : public Component,
 	}
 
 private:
+	
+	struct ScrollbarFader : public Timer
+	{
+		ScrollbarFader(ZoomableViewport& p) :
+			parent(p)
+		{};
+
+		void timerCallback() override;
+
+		void startFadeOut();
+
+		bool fadeOut = false;
+
+		ZoomableViewport& parent;
+	} sf;
 
 	bool dragToScroll = false;
 

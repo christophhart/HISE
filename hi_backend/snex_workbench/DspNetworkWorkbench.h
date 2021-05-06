@@ -58,56 +58,21 @@ namespace hise {
 using namespace juce;
 
 
-
-
-struct WorkbenchSynthesiser : public JavascriptSynthesiser
+struct DebuggableSnexProcessor : public snex::ui::WorkbenchManager::WorkbenchChangeListener,
+	public snex::ui::WorkbenchData::Listener
 {
-	WorkbenchSynthesiser(MainController* mc) :
-		JavascriptSynthesiser(mc, "internal", NUM_POLYPHONIC_VOICES)
+	DebuggableSnexProcessor(MainController* mc):
+		mc_(mc)
 	{
-		
-	};
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(WorkbenchSynthesiser);
-};
-
-
-
-struct DspNetworkProcessor : public ProcessorWithScriptingContent,
-							 public MasterEffectProcessor,
-							 public scriptnode::DspNetwork::Holder,
-							 public WorkbenchManager::WorkbenchChangeListener,
-							 public WorkbenchData::Listener
-{
-	SET_PROCESSOR_NAME("DspNetworkProcessor", "DspNetworkProcessor", "Internally used by the SNEX workbench");
-
-	DspNetworkProcessor(MainController* mc, const String& id) :
-		ProcessorWithScriptingContent(mc),
-		MasterEffectProcessor(mc, id)
-	{
-		finaliseModChains();
-
 		auto wb = static_cast<WorkbenchManager*>(mc->getWorkbenchManager());
-
 		wb->addListener(this);
-	};
-
-	~DspNetworkProcessor()
-	{
-		if (rootWb != nullptr)
-			rootWb->removeListener(this);
-
-		if (auto wb = static_cast<WorkbenchManager*>(mc->getWorkbenchManager()))
-		{
-			wb->removeListener(this);
-		}
 	}
 
 	void workbenchChanged(WorkbenchData::Ptr newWorkbench) override
 	{
 		if (newWorkbench != nullptr)
 		{
-			auto wb = static_cast<WorkbenchManager*>(mc->getWorkbenchManager());
+			auto wb = static_cast<WorkbenchManager*>(mc_->getWorkbenchManager());
 			auto isRoot = wb->getRootWorkbench() == newWorkbench;
 
 			if (isRoot)
@@ -118,13 +83,74 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 		}
 	}
 
+	virtual ~DebuggableSnexProcessor()
+	{
+		if (rootWb != nullptr)
+			rootWb->removeListener(this);
+
+		if (auto wb = static_cast<WorkbenchManager*>(mc_->getWorkbenchManager()))
+			wb->removeListener(this);
+	}
+
+	WorkbenchData::WeakPtr rootWb;
+private:
+
+	MainController* mc_;
+};
+
+struct WorkbenchSynthesiser : public JavascriptSynthesiser,
+							  public DebuggableSnexProcessor
+{
+	WorkbenchSynthesiser(MainController* mc) :
+		JavascriptSynthesiser(mc, "internal", NUM_POLYPHONIC_VOICES),
+		DebuggableSnexProcessor(mc)
+	{
+		
+	};
+
+	void debugModeChanged(bool isEnabled) override
+	{
+		setSoftBypass(isEnabled, false);
+
+		if (!isEnabled)
+			prepareToPlay(getSampleRate(), getLargestBlockSize());
+	}
+
+	Colour getColour() const override
+	{
+		return MultiOutputDragSource::getFadeColour(0, 2);
+	};
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(WorkbenchSynthesiser);
+};
+
+
+struct DspNetworkProcessor : public ProcessorWithScriptingContent,
+							 public MasterEffectProcessor,
+							 public scriptnode::DspNetwork::Holder,
+							 public DebuggableSnexProcessor
+{
+	SET_PROCESSOR_NAME("DspNetworkProcessor", "DspNetworkProcessor", "Internally used by the SNEX workbench");
+
+	DspNetworkProcessor(MainController* mc, const String& id) :
+		ProcessorWithScriptingContent(mc),
+		MasterEffectProcessor(mc, id),
+		DebuggableSnexProcessor(mc)
+	{
+		finaliseModChains();
+	};
+
+	~DspNetworkProcessor()
+	{
+		
+	}
+
 	void debugModeChanged(bool isEnabled) override
 	{
 		setSoftBypass(isEnabled);
 
 		if (!isEnabled)
 			prepareToPlay(getSampleRate(), getLargestBlockSize());
-
 	}
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
@@ -210,7 +236,7 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkProcessor);
 
-	WorkbenchData::WeakPtr rootWb;
+	
 };
 
 using namespace snex::ui;
@@ -550,6 +576,8 @@ struct WorkbenchInfoComponent : public Component,
 	{
 	}
 
+	
+
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("SnexWorkbenchInfo"); }
 
 	void paint(Graphics& g) override;
@@ -652,6 +680,31 @@ struct WorkbenchInfoComponent : public Component,
 
 	TooltipBar tooltips;
 	Path mainLogo;
+
+	
+};
+
+struct WorkbenchBottomComponent : public Component
+{
+	struct RoutingSelector;
+
+	WorkbenchBottomComponent(MainController* mc);
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+
+		auto kBounds = b.withSizeKeepingCentre(800, getHeight());
+		keyboard.setBounds(kBounds);
+
+		routingSelector->setBounds(getLocalBounds().removeFromLeft(getHeight() * 3));
+	}
+
+	void paint(Graphics& g) override;
+	
+	CustomKeyboard keyboard;
+
+	ScopedPointer<Component> routingSelector;
 };
 
 struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
