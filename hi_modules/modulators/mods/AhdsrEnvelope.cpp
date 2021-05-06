@@ -30,9 +30,8 @@
 *   ===========================================================================
 */
 
-namespace hise { using namespace juce;
 
-#define AHDSR_DOWNSAMPLE_FACTOR 4
+namespace hise { using namespace juce;
 
 Processor * AhdsrEnvelope::getChildProcessor(int processorIndex)
 {
@@ -48,14 +47,7 @@ const Processor * AhdsrEnvelope::getChildProcessor(int processorIndex) const
 
 AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m) :
 	EnvelopeModulator(mc, id, voiceAmount, m),
-	Modulation(m),
-	attack(getDefaultValue(Attack)),
-	attackLevel(1.0f),
-	attackCurve(0.0),
-	hold(getDefaultValue(Hold)),
-	decay(getDefaultValue(Decay)),
-	sustain(1.0f),
-	release(getDefaultValue(Release))
+	Modulation(m)
 {
 	parameterNames.add("Attack");
 	parameterNames.add("AttackLevel");
@@ -66,6 +58,12 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 	parameterNames.add("AttackCurve");
 	parameterNames.add("DecayCurve");
 	parameterNames.add("EcoMode");
+
+	displayBuffer = new SimpleRingBuffer();
+	displayBuffer->setGlobalUIUpdater(mc->getGlobalUIUpdater());
+
+	SimpleReadWriteLock::ScopedWriteLock sl(displayBuffer->getDataLock());
+	setExternalData(snex::ExternalData(displayBuffer, 0), 0);
 
 	editorStateIdentifiers.add("AttackTimeChainShown");
 	editorStateIdentifiers.add("AttackLevelChainShown");
@@ -94,9 +92,7 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 
 	setAttackCurve(0.0f);
 	setDecayCurve(0.0f);
-
 }
-
 
 void AhdsrEnvelope::restoreFromValueTree(const ValueTree &v)
 {
@@ -128,56 +124,6 @@ ValueTree AhdsrEnvelope::exportAsValueTree() const
 	saveAttribute(EcoMode, "EcoMode");
 
 	return v;
-}
-
-float AhdsrEnvelope::getSampleRateForCurrentMode() const
-{
-	auto sr = getControlRate();
-	
-	return (float)sr;
-}
-
-void AhdsrEnvelope::setAttackRate(float rate) {
-	attack = rate;
-}
-
-void AhdsrEnvelope::setHoldTime(float holdTimeMs) {
-	hold = holdTimeMs;
-
-	holdTimeSamples = holdTimeMs * ((float)getSampleRateForCurrentMode() / 1000.0f);
-}
-
-void AhdsrEnvelope::setDecayRate(float rate)
-{
-    decay = rate;
-	
-    decayCoef = calcCoef(decay, targetRatioDR);
-    decayBase = (sustain - targetRatioDR) * (1.0f - decayCoef);
-}
-
-void AhdsrEnvelope::setReleaseRate(float rate)
-{
-	release = jmax<float>(1.0f, rate);
-
-    releaseCoef = calcCoef(release, targetRatioDR);
-    releaseBase = -targetRatioDR * (1.0f - releaseCoef);
-}
-
-void AhdsrEnvelope::setSustainLevel(float level)
-{
-    sustain = level;
-    decayBase = (sustain - targetRatioDR) * (1.0f - decayCoef);
-	
-}
-
-void AhdsrEnvelope::setTargetRatioDR(float targetRatio) {
-    
-	if (targetRatio < 0.0000001f)
-        targetRatio = 0.0000001f;
-    targetRatioDR = targetRatio;
-
-    decayBase = (sustain - targetRatioDR) * (1.0f - decayCoef);
-    releaseBase = -targetRatioDR * (1.0f - releaseCoef);
 }
 
 float AhdsrEnvelope::startVoice(int voiceIndex)
@@ -328,10 +274,18 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 
 	if (isMonophonic || isActiveVoice)
 	{
+		auto uptime = getMainController()->getUptime();
+
 		if (state->current_state != stateInfo.state)
 		{
 			stateInfo.state = state->current_state;
-			stateInfo.changeTime = getMainController()->getUptime();
+			stateInfo.changeTime = uptime;
+		}
+
+		if (ballUpdater.shouldUpdate())
+		{
+			auto pos = state->getUIPosition((uptime - stateInfo.changeTime) * 1000.0);
+			displayBuffer->sendDisplayIndexMessage(pos);
 		}
 	}
 }
@@ -394,6 +348,12 @@ float AhdsrEnvelope::getDefaultValue(int parameterIndex) const
 
 void AhdsrEnvelope::setInternalAttribute(int parameterIndex, float newValue)
 {
+	if (auto s = SimpleReadWriteLock::ScopedTryReadLock(displayBuffer->getDataLock()))
+	{
+		displayBuffer->getWriteBuffer().setSample(0, parameterIndex - SpecialParameters::Attack, newValue);
+		displayBuffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, parameterIndex);
+	}
+
 	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
 	{
 		EnvelopeModulator::setInternalAttribute(parameterIndex, newValue);
@@ -444,6 +404,10 @@ void AhdsrEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 	for (auto& mb : internalChains)
 		mb.prepareToPlay(sampleRate, samplesPerBlock);
 
+	setBaseSampleRate(getControlRate());
+
+	ballUpdater.limitFromBlockSizeToFrameRate(sampleRate, samplesPerBlock);
+
 	setAttackRate(attack);
 	setDecayRate(decay);
 	setReleaseRate(release);
@@ -458,188 +422,16 @@ bool AhdsrEnvelope::isPlaying(int voiceIndex) const
 	return static_cast<AhdsrEnvelopeState*>(states[voiceIndex])->current_state != AhdsrEnvelopeState::IDLE;
 }
 
-void AhdsrEnvelope::calculateCoefficients(float timeInMilliSeconds, float base, float maximum, float &stateBase, float &stateCoeff) const
+EnvelopeModulator::ModulatorState * AhdsrEnvelope::createSubclassedState(int voiceIndex) const
 {
-	if (timeInMilliSeconds < 1.0f)
-	{
-		stateCoeff = 0.0f;
-		stateBase = 1.0f;
-		return;
-	}
-
-	const float t = (timeInMilliSeconds / 1000.0f) * (float)getSampleRateForCurrentMode();
-	const float exp1 = (powf(base, 1.0f / t));
-	const float invertedBase = 1.0f / (base - 1.0f);
-
-	stateCoeff = exp1;
-	stateBase = (exp1 *invertedBase - invertedBase) * maximum;
+	return new AhdsrEnvelopeState(voiceIndex, this);
 }
 
 float AhdsrEnvelope::calculateNewValue(int /*voiceIndex*/)
 {
-    const float thisSustain = sustain * state->modValues[SustainLevelChain];
-    
-	switch (state->current_state) 
-	{
-		case AhdsrEnvelopeState::IDLE:	    break;
-		case AhdsrEnvelopeState::ATTACK:
-		{
-			if (attack != 0.0f)
-			{
-				state->current_value = (state->attackBase + state->current_value * state->attackCoef);
-
-				if (state->attackLevel > thisSustain)
-				{
-					if (state->current_value >= state->attackLevel)
-					{
-						state->current_value = state->attackLevel;
-						state->holdCounter = 0;
-						state->current_state = AhdsrEnvelopeState::HOLD;
-					}
-				}
-				else if (state->attackLevel <= thisSustain)
-				{
-					if (state->current_value >= thisSustain)
-					{
-						state->current_value = thisSustain;
-						state->current_state = AhdsrEnvelopeState::SUSTAIN;
-					}
-				}
-
-				break;
-			}
-			else
-			{
-				state->current_value = state->attackLevel;
-				state->holdCounter = 0;
-				state->current_state = AhdsrEnvelopeState::HOLD;
-			}
-		}
-		case AhdsrEnvelopeState::HOLD:
-			{
-				state->holdCounter++;
-
-				if (state->holdCounter >= holdTimeSamples)
-				{
-					state->current_state = AhdsrEnvelopeState::DECAY;
-				}
-				else
-				{
-					state->current_value = state->attackLevel;
-					break;
-				}
-			}
-		
-		case AhdsrEnvelopeState::DECAY:
-		{
-			if (decay != 0.0f)
-			{
-				state->current_value = state->decayBase + state->current_value * state->decayCoef;
-				if ((state->current_value - thisSustain) < 0.001f)
-				{
-					state->lastSustainValue = state->current_value;
-					state->current_state = AhdsrEnvelopeState::SUSTAIN;
-
-					if (thisSustain == 0.0f)  state->current_state = AhdsrEnvelopeState::IDLE;
-				}
-			}
-			else
-			{
-				state->current_state = AhdsrEnvelopeState::SUSTAIN;
-				state->current_value = thisSustain;
-
-				if (thisSustain == 0.0f)  state->current_state = AhdsrEnvelopeState::IDLE;
-			}
-			break;
-		}
-		case AhdsrEnvelopeState::SUSTAIN: state->current_value = thisSustain; break;
-		case AhdsrEnvelopeState::RELEASE:
-		{
-			if (release != 0.0f)
-			{
-				state->current_value = state->releaseBase + state->current_value * state->releaseCoef;
-				if (state->current_value <= 0.001f)
-				{
-					state->current_value = 0.0f;
-					state->current_state = AhdsrEnvelopeState::IDLE;
-				}
-			}
-			else
-			{
-				state->current_value = 0.0f;
-				state->current_state = AhdsrEnvelopeState::IDLE;
-			}
-
-			break;
-		}
-		case AhdsrEnvelopeState::RETRIGGER:
-		{
-
-#if HISE_RAMP_RETRIGGER_ENVELOPES_FROM_ZERO
-			const bool down = attack > 0.0f;
-
-			if (down)
-			{
-				state->current_value -= 0.005f;
-				if (state->current_value <= 0.0f)
-				{
-					state->current_value = 0.0f;
-					state->current_state = AhdsrEnvelopeState::ATTACK;
-				}
-			}
-			else
-			{
-				state->current_value += 0.005f;
-
-				if (state->current_value >= state->attackLevel)
-				{
-					state->current_value = state->attackLevel;
-					state->holdCounter = 0;
-					state->current_state = AhdsrEnvelopeState::HOLD;
-				}
-			}
-			break;
-#else
-			state->current_state = AhdsrEnvelopeState::ATTACK;
-			return calculateNewValue(-1);
-#endif
-		}
-	}
-
-	return state->current_value;
+	return state->tick();
 }
 
-
-void AhdsrEnvelope::setAttackCurve(float newValue)
-{
-	attackCurve = newValue;
-
-	if (newValue > 0.5001f)
-	{
-		const float r1 = (newValue - 0.5f)*2.0f;
-		attackBase = r1 * 100.0f;
-	}
-	else if (newValue < 0.4999f)
-	{
-		const float r1 = 1.0f - (newValue *2.0f);
-		attackBase = 1.0f / (r1 * 100.0f);
-	}
-	else
-	{
-		attackBase = 1.2f;
-	}
-}
-
-void AhdsrEnvelope::setDecayCurve(float newValue)
-{
-	decayCurve = newValue;
-
-	const float newRatio = decayCurve * 0.0001f;
-
-	setTargetRatioDR(newRatio);
-	setDecayRate(decay);
-	setReleaseRate(release);
-}
 
 ProcessorEditorBody * AhdsrEnvelope::createEditor(ProcessorEditor* parentEditor)
 {
@@ -657,307 +449,8 @@ ProcessorEditorBody * AhdsrEnvelope::createEditor(ProcessorEditor* parentEditor)
 #endif
 };
 
-float AhdsrEnvelope::calcCoef(float rate, float targetRatio) const
-{
-	const float factor = (float)getSampleRateForCurrentMode() * 0.001f;
 
-	rate *= factor;
-	return expf(-logf((1.0f + targetRatio) / targetRatio) / rate);
-}
-
-void AhdsrEnvelope::AhdsrEnvelopeState::setAttackRate(float rate)
-{
-	const float modValue = modValues[AhdsrEnvelope::AttackTimeChain];
-
-	if (modValue == 0.0f)
-	{
-		attackBase = 1.0f;
-		attackCoef = 0.0f;
-	}
-	else if (modValue != 1.0f)
-	{
-		const float stateAttack = modValue * rate;
-
-		envelope->calculateCoefficients(stateAttack, envelope->attackBase, attackLevel, attackBase, attackCoef);
-	}
-	else
-	{
-		envelope->calculateCoefficients(rate, envelope->attackBase, attackLevel, attackBase, attackCoef);
-	}
-}
-
-void AhdsrEnvelope::AhdsrEnvelopeState::setDecayRate(float rate)
-{
-	const float modValue = modValues[AhdsrEnvelope::DecayTimeChain];
-
-	const float susModValue = modValues[AhdsrEnvelope::SustainLevelChain];
-
-    const float thisSustain = envelope->sustain * susModValue;
-    
-	if (modValue == 0.0f)
-	{
-        decayBase = thisSustain;
-		decayCoef = 0.0f;
-	}
-	else if (modValue != 1.0f)
-	{
-		const float stateDecay = modValue * rate;
-
-		decayCoef = envelope->calcCoef(stateDecay, envelope->targetRatioDR);
-		decayBase = (thisSustain - envelope->targetRatioDR) * (1.0f - decayCoef);
-
-	}
-	else if (susModValue != 1.0f) // the decay rates need to be recalculated when the sustain modulation is active...
-	{
-		decayCoef = envelope->calcCoef(envelope->decay, envelope->targetRatioDR);
-		decayBase = (thisSustain - envelope->targetRatioDR) * (1.0f - decayCoef);
-	}
-	else
-	{
-		decayCoef = envelope->decayCoef;
-		decayBase = envelope->decayBase;
-	}
-}
-
-void AhdsrEnvelope::AhdsrEnvelopeState::setReleaseRate(float rate)
-{
-	const float modValue = modValues[AhdsrEnvelope::ReleaseTimeChain];
-
-	if (modValue != 1.0f)
-	{
-		const float stateRelease = modValue * rate;
-
-		releaseCoef = envelope->calcCoef(stateRelease, envelope->targetRatioDR);
-		releaseBase = -envelope->targetRatioDR * (1.0f - releaseCoef);
-
-	}
-	else
-	{
-		releaseCoef = envelope->releaseCoef;
-		releaseBase = envelope->releaseBase;
-	}
-}
-
-
-
-AhdsrGraph::AhdsrGraph(Processor *p) :
-	processor(p)
-{
-	setBufferedToImage(true);
-
-	if (dynamic_cast<AhdsrEnvelope*>(p) != nullptr)
-		startTimer(50);
-	else
-		jassertfalse;
-
-	setColour(lineColour, Colours::lightgrey.withAlpha(0.3f));
-}
-
-AhdsrGraph::~AhdsrGraph()
-{
-	
-}
-
-void AhdsrGraph::paint(Graphics &g)
-{
-	if (flatDesign)
-	{
-		g.setColour(findColour(bgColour));
-		g.fillAll();
-		g.setColour(findColour(fillColour));
-		g.fillPath(envelopePath);
-		g.setColour(findColour(lineColour));
-		g.strokePath(envelopePath, PathStrokeType(1.0f));
-		g.setColour(findColour(outlineColour));
-		g.drawRect(getLocalBounds(), 1);
-	}
-	else
-	{
-		GlobalHiseLookAndFeel::fillPathHiStyle(g, envelopePath, getWidth(), getHeight());
-
-		g.setColour(findColour(lineColour));
-
-		
-		g.strokePath(envelopePath, PathStrokeType(1.0f));
-		g.setColour(Colours::lightgrey.withAlpha(0.1f));
-		g.drawRect(getLocalBounds(), 1);
-	}
-
-	g.setColour(Colours::white.withAlpha(0.1f));
-
-	float xPos = 0.0f;
-
-	float tToUse = 1.0f;
-
-	Path* pToUse = nullptr;
-
-	switch (lastState.state)
-	{
-	case AhdsrEnvelope::AhdsrEnvelopeState::ATTACK: pToUse = &attackPath; tToUse = attack; break;
-	case AhdsrEnvelope::AhdsrEnvelopeState::HOLD: pToUse = &holdPath; tToUse = hold; break;
-	case AhdsrEnvelope::AhdsrEnvelopeState::DECAY: pToUse = &decayPath; tToUse = 0.5f * decay; break;
-	case AhdsrEnvelope::AhdsrEnvelopeState::SUSTAIN: pToUse = &decayPath; 
-													 tToUse = 0.001f; // nasty hack to make the bar stick at the end...
-													 break;
-	case AhdsrEnvelope::AhdsrEnvelopeState::RELEASE: pToUse = &releasePath; tToUse = 0.8f * release; break;
-	default:
-		break;
-	}
-
-	if (pToUse != nullptr)
-	{
-		g.fillPath(*pToUse);
-		
-		auto bounds = pToUse->getBounds();
-		auto duration = (float)(processor->getMainController()->getUptime() - lastState.changeTime) * 1000.0f;
-		
-		auto normalizedDuration = 0.0f;
-
-		if (tToUse != 0.0f)
-			normalizedDuration = jlimit<float>(0.01f, 1.0f, duration / tToUse);
-
-		xPos = bounds.getX() + normalizedDuration * bounds.getWidth();
-
-		const float margin = 3.0f;
-
-		auto l = Line<float>(xPos, 0.0f, xPos, (float)getHeight()-1.0f - margin);
-
-		auto clippedLine = envelopePath.getClippedLine(l, false);
-
-		if (clippedLine.getLength() == 0.0f)
-			return;
-
-		auto circle = Rectangle<float>(clippedLine.getStart(), clippedLine.getStart()).withSizeKeepingCentre(6.0f, 6.0f);
-		
-		g.setColour(findColour(lineColour).withAlpha(1.0f));
-
-		g.fillRoundedRectangle(circle, 2.0f);
-	}
-}
-
-void AhdsrGraph::setUseFlatDesign(bool shouldUseFlatDesign)
-{
-	flatDesign = shouldUseFlatDesign;
-	repaint();
-}
-
-void AhdsrGraph::timerCallback()
-{
-	float this_attack = processor->getAttribute(AhdsrEnvelope::Attack);
-	float this_attackLevel = processor->getAttribute(AhdsrEnvelope::AttackLevel);
-	float this_hold = processor->getAttribute(AhdsrEnvelope::Hold);
-	float this_decay = processor->getAttribute(AhdsrEnvelope::Decay);
-	float this_sustain = processor->getAttribute(AhdsrEnvelope::Sustain);
-	float this_release = processor->getAttribute(AhdsrEnvelope::Release);
-	float this_attackCurve = processor->getAttribute(AhdsrEnvelope::AttackCurve);
-	lastState = dynamic_cast<AhdsrEnvelope*>(processor.get())->getStateInfo();
-
-	if (this_attack != attack ||
-		this_attackCurve != attackCurve ||
-		this_attackLevel != attackLevel ||
-		this_decay != decay ||
-		this_sustain != sustain ||
-		this_hold != hold ||
-		this_release != release)
-	{
-		attack = this_attack;
-		attackLevel = this_attackLevel;
-		hold = this_hold;
-		decay = this_decay;
-		sustain = this_sustain;
-		release = this_release;
-		attackCurve = this_attackCurve;
-
-		rebuildGraph();
-	}
-
-	repaint();
-}
-
-void AhdsrGraph::rebuildGraph()
-{
-	float aln = pow((1.0f - (attackLevel + 100.0f) / 100.0f), 0.4f);
-	const float sn = pow((1.0f - (sustain + 100.0f) / 100.0f), 0.4f);
-
-	const float margin = 3.0f;
-
-	aln = sn < aln ? sn : aln;
-
-	const float width = (float)getWidth() - 2.0f*margin;
-	const float height = (float)getHeight() - 2.0f*margin;
-
-	const float an = pow((attack / 20000.0f), 0.2f) * (0.2f * width);
-	const float hn = pow((hold / 20000.0f), 0.2f) * (0.2f * width);
-	const float dn = pow((decay / 20000.0f), 0.2f) * (0.2f * width);
-	const float rn = pow((release / 20000.0f), 0.2f) * (0.2f * width);
-
-	float x = margin;
-	float lastX = x;
-
-	envelopePath.clear();
-
-	attackPath.clear();
-	decayPath.clear();
-	holdPath.clear();
-	releasePath.clear();
-
-	envelopePath.startNewSubPath(x, margin + height);
-	attackPath.startNewSubPath(x, margin + height);
-
-	// Attack Curve
-
-	lastX = x;
-	x += an;
-
-	const float controlY = margin + aln * height + attackCurve * (height - aln * height);
-
-	envelopePath.quadraticTo((lastX + x) / 2, controlY, x, margin + aln * height);
-	
-	attackPath.quadraticTo((lastX + x) / 2, controlY, x, margin + aln * height);
-	attackPath.lineTo(x, margin + height);
-	attackPath.closeSubPath();
-
-	holdPath.startNewSubPath(x, margin + height);
-	holdPath.lineTo(x, margin + aln*height);
-
-	x += hn;
-
-	envelopePath.lineTo(x, margin + aln * height);
-	holdPath.lineTo(x, margin + aln*height);
-	holdPath.lineTo(x, margin + height);
-	holdPath.closeSubPath();
-	
-	decayPath.startNewSubPath(x, margin + height);
-	decayPath.lineTo(x, margin + aln*height);
-
-	lastX = x;
-	x = jmin<float>(x + (dn*4), 0.8f * width);
-
-	envelopePath.quadraticTo(lastX, margin + sn * height, x, margin + sn * height);
-	decayPath.quadraticTo(lastX, margin + sn * height, x, margin + sn * height);
-
-	x = 0.8f * width;
-
-	envelopePath.lineTo(x, margin + sn*height);
-	decayPath.lineTo(x, margin + sn*height);
-
-	decayPath.lineTo(x, margin + height);
-	decayPath.closeSubPath();
-
-	releasePath.startNewSubPath(x, margin + height);
-	releasePath.lineTo(x, margin + sn*height);
-
-	lastX = x;
-	x += rn;
-
-	envelopePath.quadraticTo(lastX, margin + height, x, margin + height);
-	releasePath.quadraticTo(lastX, margin + height, x, margin + height);
-
-	releasePath.closeSubPath();
-	envelopePath.closeSubPath();
-}
-
-AhdsrGraph::Panel::Panel(FloatingTile* parent) :
+AhdsrEnvelope::Panel::Panel(FloatingTile* parent) :
 	PanelWithProcessorConnection(parent)
 {
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
@@ -966,25 +459,35 @@ AhdsrGraph::Panel::Panel(FloatingTile* parent) :
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour3, Colours::white.withAlpha(0.05f));
 }
 
-juce::Component* AhdsrGraph::Panel::createContentComponent(int /*index*/)
+juce::Component* AhdsrEnvelope::Panel::createContentComponent(int /*index*/)
 {
-	auto g = new AhdsrGraph(getProcessor());
-	g->setUseFlatDesign(true);
+	if (auto b = dynamic_cast<scriptnode::data::base*>(getProcessor()))
+	{
+		if (auto rb = dynamic_cast<SimpleRingBuffer*>(b->externalData.obj))
+		{
+			auto g = new AhdsrGraph();
+			g->setComplexDataUIBase(rb);
+			g->setUseFlatDesign(true);
 
-	g->setColour(bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
-	g->setColour(fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
-	g->setColour(lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
-	g->setColour(outlineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour3));
+			g->setColour(AhdsrGraph::bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+			g->setColour(AhdsrGraph::fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
+			g->setColour(AhdsrGraph::lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
+			g->setColour(AhdsrGraph::outlineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour3));
 
-	if (g->findColour(bgColour).isOpaque())
-		g->setOpaque(true);
+			if (g->findColour(AhdsrGraph::bgColour).isOpaque())
+				g->setOpaque(true);
 
-	return g;
+			return g;
+		}
+	}
+
+	return nullptr;
 }
 
-void AhdsrGraph::Panel::fillModuleList(StringArray& moduleList)
+void AhdsrEnvelope::Panel::fillModuleList(StringArray& moduleList)
 {
 	fillModuleListWithType<AhdsrEnvelope>(moduleList);
 }
+
 
 } // namespace hise

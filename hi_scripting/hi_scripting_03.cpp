@@ -81,9 +81,8 @@
 #include "scripting/scriptnode/snex_nodes/SnexOscillator.cpp"
 #include "scripting/scriptnode/snex_nodes/SnexTimer.cpp"
 #include "scripting/scriptnode/snex_nodes/SnexMidi.cpp"
+#include "scripting/scriptnode/snex_nodes/SnexEnvelope.cpp"
 #endif
-
-
 
 #include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.cpp"
 #include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.cpp"

@@ -211,6 +211,7 @@ namespace parameter
 
 	struct dynamic_list
 	{
+		static constexpr int size = 2;
 		static constexpr bool isStaticList() { return false; }
 
 		dynamic_list() :

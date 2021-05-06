@@ -106,6 +106,7 @@ public:
 		struct BroadcasterPropertyObject : public SimpleRingBuffer::PropertyObject
 		{
 			BroadcasterPropertyObject(Broadcaster* br_):
+				PropertyObject(nullptr),
 				br(br_)
 			{};
 

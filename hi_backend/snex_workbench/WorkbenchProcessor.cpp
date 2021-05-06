@@ -513,9 +513,11 @@ void SnexWorkbenchEditor::requestQuit()
 
 void SnexWorkbenchEditor::saveCurrentFile()
 {
-	if (df != nullptr)
+	auto fh = getNetworkHolderForNewFile(getProcessor(), synthMode);
+
+	if (fh != nullptr)
 	{
-		if (auto n = dnp->getActiveNetwork())
+		if(auto n = fh->getActiveNetwork())
 		{
 			ScopedPointer<XmlElement> xml = n->getValueTree().createXml();
 			df->getXmlFile().replaceWithText(xml->createDocument(""));

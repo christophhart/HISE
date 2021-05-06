@@ -113,6 +113,7 @@ void dynamic_base::updateExternalData()
 		ExternalData ed(currentlyUsedData, 0);
 
 		{
+#if 0
 			if (currentlyUsedData->getDataLock().writeAccessIsLocked())
 			{
 				if (dataNode->externalData.data == ed.data)
@@ -121,6 +122,7 @@ void dynamic_base::updateExternalData()
 					return;
 				}
 			}
+#endif
 
 			SimpleReadWriteLock::ScopedWriteLock sl(currentlyUsedData->getDataLock());
 			setExternalData(*dataNode, ed, 0);
@@ -687,6 +689,27 @@ namespace pimpl
 
 		g.setColour(Colours::white.withAlpha(0.05f));
 		g.strokePath(p, PathStrokeType(1.0f / sf));
+	}
+
+	void complex_ui_laf::drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive)
+	{
+		if (!isActive)
+		{
+			drawOscilloscopePath(g, graph, s);
+		}
+		else
+		{
+			auto c = getNodeColour(dynamic_cast<Component*>(&graph)).withAlpha(0.05f);
+			g.setColour(c);
+			g.fillPath(s);
+		}
+	}
+
+	void complex_ui_laf::drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p)
+	{
+		g.setColour(getNodeColour(&graph).withAlpha(1.0f));
+		Rectangle<float> a(p, p);
+		g.fillEllipse(a.withSizeKeepingCentre(6.0f, 6.0f));
 	}
 
 	RingBufferPropertyEditor::Item::Item(dynamic::displaybuffer* b_, Identifier id_, const StringArray& entries, const String& value) :

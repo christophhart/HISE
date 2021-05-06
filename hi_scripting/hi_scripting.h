@@ -154,6 +154,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/snex_nodes/SnexTimer.h"
 #include "scripting/scriptnode/snex_nodes/SnexMidi.h"
 #include "scripting/scriptnode/snex_nodes/SnexNode.h"
+#include "scripting/scriptnode/snex_nodes/SnexEnvelope.h"
 #endif
 
 #include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.h"

@@ -797,11 +797,11 @@ namespace fx
 			rebuildPath(p);
 
 			auto b = getLocalBounds().toFloat().reduced(4.0f);
-			p.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), false);
 
-			
+			if(!p.getBounds().isEmpty())
+				p.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), false);
 
-			if (!original.isEmpty())
+			if (!original.getBounds().isEmpty())
 			{
 				original.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), false);
 
@@ -1044,7 +1044,7 @@ namespace control
 	Factory::Factory(DspNetwork* network) :
 		NodeFactory(network)
 	{
-		registerNoProcessNode<pma_editor::NodeType, pma_editor>();
+		registerPolyNoProcessNode<control::pma<parameter::dynamic_base_holder>, control::pma_poly<parameter::dynamic_base_holder>, pma_editor>();
 		registerNoProcessNode<control::sliderbank_editor::NodeType, control::sliderbank_editor, false>();
 		registerNoProcessNode<dynamic_cable_pack, data::ui::sliderpack_editor>();
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();
@@ -1071,73 +1071,256 @@ namespace control
 	}
 }
 
+namespace envelope
+{
+namespace dynamic
+{
+	using envelope_base = pimpl::envelope_base<parameter::dynamic_list>;
+	using simple_ar = envelope::pimpl::simple_ar_base;
+
+	struct envelope_display_base : public ScriptnodeExtraComponent<envelope_base>
+	{
+		using Dragger = parameter::ui::dynamic_list_editor::DragComponent;
+
+		virtual ~envelope_display_base() {};
+
+		envelope_display_base(envelope_base* d, PooledUIUpdater* u) :
+			ScriptnodeExtraComponent<envelope_base>(d, u),
+			modValue(&d->p, 0), //
+			activeValue(&d->p, 1)
+		{
+			addAndMakeVisible(modValue);
+			addAndMakeVisible(activeValue);
+
+			modValue.textFunction = getAxis;
+			activeValue.textFunction = getAxis;
+		};
+
+		static String getAxis(int index)
+		{
+			return index == 0 ? "CV" : "GT";
+		}
+
+		void timerCallback() override
+		{
+			for (auto o : getObject()->p.targets)
+				o->p.updateUI();
+		}
+
+		Dragger modValue, activeValue;
+	};
+
+	struct ahdsr_display : public envelope_display_base
+	{
+		struct DisplayType : public data::ui::pimpl::editorT<data::dynamic::displaybuffer, SimpleRingBuffer, AhdsrGraph, false>
+		{
+			static data::dynamic::displaybuffer* getDynamicRingBuffer(envelope_base* b)
+			{
+				if (auto mn = dynamic_cast<mothernode*>(b))
+				{
+					auto dataObject = mn->getDataProvider()->getDataObject();
+					auto typed = dynamic_cast<data::dynamic::displaybuffer*>(dataObject);
+					return typed;
+				}
+
+				return nullptr;
+			}
+
+			DisplayType(envelope_base* e, PooledUIUpdater* u) :
+				editorT(u, getDynamicRingBuffer(e))
+			{
+				dragger->setVisible(false);
+			};
+
+			void paintOverChildren(Graphics& g) override
+			{
+				auto idx = getObject()->getIndex();
+
+				if (idx != -1)
+				{
+					auto b = editor.getBounds().toFloat();
+
+					String x;
+					x << "#";
+					x << (idx + 1);
+
+					g.setColour(Colours::white.withAlpha(0.9f));
+					g.setFont(GLOBAL_BOLD_FONT());
+					g.fillPath(dashPath);
+					g.drawText(x, b.reduced(5.0f), Justification::topRight);
+				}
+			}
+
+			void resized() override
+			{
+				auto b = getLocalBounds();
+
+				externalButton.setBounds(b.removeFromRight(28).removeFromBottom(28).reduced(3));
+				editor.setBounds(b);
+				refreshDashPath();
+			}
+		};
+
+		
+
+		ahdsr_display(envelope_base* b, PooledUIUpdater* updater):
+			envelope_display_base(b, updater),
+			display(b, updater)
+		{
+			addAndMakeVisible(display);
+
+#if 0
+			auto typed = dynamic_cast<pimpl::ahdsr_base*>(b);
+			if (auto rb = dynamic_cast<SimpleRingBuffer*>(typed->externalData.obj))
+			{
+				addAndMakeVisible(graph = new AhdsrGraph(rb));
+				graph->setSpecialLookAndFeel(new data::ui::pimpl::complex_ui_laf(), true);
+			}
+#endif
+
+			setSize(200, 100);
+		}
+
+		void paint(Graphics& g) override
+		{
+			
+		}
+
+		static Component* createExtraComponent(void* o, PooledUIUpdater* updater)
+		{
+			auto t = static_cast<mothernode*>(o);
+			auto typed = dynamic_cast<envelope_base*>(t);
+
+			return new ahdsr_display(typed, updater);
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			b.removeFromBottom(UIValues::NodeMargin);
+
+			auto r = b.removeFromRight(100);
+			b.removeFromRight(UIValues::NodeMargin);
+			display.setBounds(b);
+			modValue.setBounds(r.removeFromTop(32));
+			activeValue.setBounds(r.removeFromBottom(32));
+		}
+
+		DisplayType display;
+	};
+
+	struct env_display : envelope_display_base
+	{
+		struct visualiser : public fx::simple_visualiser
+		{
+			visualiser(PooledUIUpdater* u, env_display& parent) :
+				simple_visualiser(nullptr, u),
+				p(parent)
+			{};
+
+			void rebuildPath(Path& path) override
+			{
+				auto env = dynamic_cast<pimpl::simple_ar_base*>(p.getObject());
+
+				auto modValue = p.getObject()->getParameter().getParameter<0>().getDisplayValue();
+
+				
+
+				if (auto rb = dynamic_cast<SimpleRingBuffer*>(env->externalData.obj))
+				{
+					auto isOn = rb->getUpdater().getLastDisplayValue();
+
+					path.startNewSubPath(0.0f, 1.0f);
+
+					const auto& b = rb->getReadBuffer();
+
+					int minI = INT_MAX;
+					int maxI = 0;
+					
+
+					auto lv = 0.0f;
+
+					for (int i = 0; i < b.getNumSamples(); i++)
+					{
+						auto v = b.getSample(0, i);
+						path.lineTo(i, 1.0f - v);
+
+						if (std::abs(v - modValue) < 0.01)
+						{
+							minI = jmin(minI, i);
+							maxI = jmax(maxI, i);
+						}
+
+						// put the ball at the sustain position
+						if (modValue > 0.999 && lv < v)
+						{
+							minI = i;
+							maxI = i;
+						}
+
+						lv = v;
+					}
+
+					
+					if (modValue > 0.0 && maxI != 0)
+					{
+						
+
+						auto iToUse = isOn > 0.5 ? minI : maxI;
+
+						path.startNewSubPath(iToUse, 1.0f - modValue);
+						path.lineTo(iToUse, 1.0f);
+					}
+				}
+			}
+
+			env_display& p;
+		} visualiser;
+
+		env_display(envelope_base* d, PooledUIUpdater* u):
+			envelope_display_base(d, u),
+			visualiser(u, *this)
+		{
+			addAndMakeVisible(visualiser);
+			setSize(300, 32 * 2 + 2 * UIValues::NodeMargin);
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			
+			b.removeFromBottom(UIValues::NodeMargin);
+
+			auto r = b.removeFromRight(100);
+			r.removeFromLeft(UIValues::NodeMargin);
+
+			visualiser.setBounds(b);;
+
+			modValue.setBounds(r.removeFromTop(32));
+			r.removeFromTop(UIValues::NodeMargin);
+			activeValue.setBounds(r.removeFromTop(32));
+		}
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* u)
+		{
+			auto typed = static_cast<mothernode*>(obj);
+			auto typedBase = dynamic_cast<envelope_base*>(typed);
+			return new env_display(typedBase, u);
+		}
+	};
+
+}
+}
+
 namespace core
 {
 template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
 
 
-struct osc_display : public Component,
-					 public RingBufferComponentBase,
-					 public ComponentWithDefinedSize
-{
-	osc_display()
-	{
-		
-	}
 
-	void refresh() override
-	{
-		waveform.clear();
 
-		if (rb != nullptr)
-		{
-			auto b = getLocalBounds().reduced(70, 3).toFloat();
 
-			waveform.startNewSubPath(0.0f, 0.0f);
 
-			const auto& bf = rb->getReadBuffer();
-
-			for (int i = 0; i < 256; i++)
-			{
-				waveform.lineTo((float)i, -1.0f * bf.getSample(0, i));
-			}
-
-			waveform.lineTo(255.0f, 0.0f);
-
-			if (!waveform.getBounds().isEmpty())
-				waveform.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), false);
-		}
-
-		repaint();
-	}
-
-	void paint(Graphics& g) override
-	{
-		auto laf = getSpecialLookAndFeel<RingBufferComponentBase::LookAndFeelMethods>();
-		auto b = getLocalBounds().reduced(70, 3).toFloat();
-
-		laf->drawOscilloscopeBackground(g, *this, b.expanded(3.0f));
-
-		Path grid;
-		grid.addRectangle(b);
-
-		laf->drawAnalyserGrid(g, *this, grid);
-
-		if(!waveform.getBounds().isEmpty())
-			laf->drawOscilloscopePath(g, *this, waveform);
-	}
-
-	void resized() override
-	{
-		refresh();
-	}
-
-	Rectangle<int> getFixedBounds() const override { return { 0, 0, 300, 60 }; }
-
-	Colour getColourForAnalyserBase(int colourId) override { return Colours::transparentBlack; }
-
-	Path waveform;
-};
 
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
@@ -1174,12 +1357,98 @@ Factory::Factory(DspNetwork* network) :
 
 	using osc_display_ = data::ui::pimpl::editorT<data::dynamic::displaybuffer,
 		hise::SimpleRingBuffer,
-		osc_display,
+		OscillatorDisplayProvider::osc_display,
 		false>;
 
 	registerPolyNode<dp<core::oscillator>, dp<core::oscillator_poly>, osc_display_>();
 	registerNode<wrap::data<granulator, data::dynamic::audiofile>, data::ui::audiofile_editor>();
-	
+}
+}
+
+namespace envelope
+{
+template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
+
+struct voice_viewer : public ScriptnodeExtraComponent<DspNetwork>
+{
+	voice_viewer(PooledUIUpdater* updater, DspNetwork* n) :
+		ScriptnodeExtraComponent<DspNetwork>(n, updater)
+	{
+		setSize(100, 32 + UIValues::NodeMargin);
+	};
+
+	void timerCallback() override
+	{
+		repaint();
+	}
+
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+	{
+		auto t = static_cast<killer*>(obj);
+
+		return new voice_viewer(updater, t->network);
+	}
+
+	void mouseUp(const MouseEvent& e) override
+	{
+		getObject()->setVoiceResetFlag(true);
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = getLocalBounds().toFloat();
+		b.removeFromBottom(UIValues::NodeMargin);
+
+		ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, b, true);
+
+		auto numVoices = getObject()->getNumActiveVoices();
+
+		auto alpha = 0.4f;
+
+		if (isMouseOver())
+			alpha += 0.1f;
+
+		if (isMouseButtonDown())
+			alpha += 0.1f;
+
+		if (numVoices != 0)
+			alpha += 0.2f;
+
+		g.setColour(Colours::white.withAlpha(alpha));
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		String s;
+		s << String(numVoices) << " active voice";
+
+		if (numVoices != 1)
+			s << "s";
+
+		g.drawText(s, b, Justification::centred);
+	}
+};
+
+Factory::Factory(DspNetwork* network) :
+	NodeFactory(network)
+{
+	registerPolyModNode<dp<simple_ar<parameter::dynamic_list>>, 
+						dp<simple_ar_poly<parameter::dynamic_list>>, 
+						dynamic::env_display, 
+						false>();
+
+	registerPolyModNode<dp<ahdsr<parameter::dynamic_list>>, 
+						dp<ahdsr_poly<parameter::dynamic_list>>, 
+						dynamic::ahdsr_display, 
+						false>();
+
+	registerNode<killer, voice_viewer>();
+}
+}
+
+namespace generator
+{
+Factory::Factory(DspNetwork* network) :
+	NodeFactory(network)
+{
 }
 }
 

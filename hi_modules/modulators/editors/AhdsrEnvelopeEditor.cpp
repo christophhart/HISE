@@ -105,7 +105,12 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
     sustainSlider->setColour (Slider::textBoxTextColourId, Colours::white);
     sustainSlider->addListener (this);
 
-    addAndMakeVisible (ahdsrGraph = new AhdsrGraph (getProcessor()));
+	auto b = dynamic_cast<scriptnode::data::base*>(getProcessor());
+	auto rb = dynamic_cast<SimpleRingBuffer*>(b->externalData.obj);
+
+    addAndMakeVisible (ahdsrGraph = new AhdsrGraph());
+	ahdsrGraph->setComplexDataUIBase(rb);
+
     ahdsrGraph->setName ("new component");
 
     addAndMakeVisible (attackCurveSlider = new HiSlider ("Decay"));

@@ -42,11 +42,12 @@ namespace control
 
 	struct pma_editor : public ModulationSourceBaseComponent
 	{
-		using NodeType = control::pma<parameter::dynamic_base_holder>;
+		using PmaBase = control::pimpl::combined_parameter_base;
+		using ParameterBase = control::pimpl::parameter_node_base<parameter::dynamic_base_holder>;
 
-		pma_editor(NodeType* b, PooledUIUpdater* u) :
+		pma_editor(mothernode* b, PooledUIUpdater* u) :
 			ModulationSourceBaseComponent(u),
-			obj(b)
+			obj(dynamic_cast<PmaBase*>(b))
 		{
 			setSize(100 * 3, 120);
 		};
@@ -60,13 +61,13 @@ namespace control
 
 		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
 		{
-			auto typed = static_cast<NodeType*>(obj);
+			auto typed = static_cast<mothernode*>(obj);
 			return new pma_editor(typed, updater);
 		}
 
 		void paint(Graphics& g) override;
 
-		WeakReference<pimpl::combined_parameter_base> obj;
+		WeakReference<PmaBase> obj;
 		bool colourOk = false;
 		Path dragPath;
 	};

@@ -60,6 +60,7 @@ using namespace juce;
 
 
 
+
 struct WorkbenchSynthesiser : public JavascriptSynthesiser
 {
 	WorkbenchSynthesiser(MainController* mc) :
@@ -67,6 +68,21 @@ struct WorkbenchSynthesiser : public JavascriptSynthesiser
 	{
 		
 	};
+
+	void addProcessorsWhenEmpty() override
+	{
+		LockHelpers::freeToGo(getMainController());
+
+		jassert(finalised);
+
+		auto vk = new ScriptnodeVoiceKiller(getMainController(),
+			"ScriptnodeVoiceKiller",
+			voices.size());
+
+		gainChain->getHandler()->add(vk, nullptr);
+
+		setVoiceKillerToUse(vk);
+	}
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(WorkbenchSynthesiser);
 };
