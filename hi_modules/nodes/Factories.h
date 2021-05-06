@@ -75,6 +75,28 @@ namespace control
 }
 
 
+namespace envelope
+{
+class Factory : public NodeFactory
+{
+public:
+
+	Factory(DspNetwork* network);;
+	Identifier getId() const override { return "envelope"; }
+};
+}
+
+namespace generator
+{
+	class Factory : public NodeFactory
+	{
+	public:
+
+		Factory(DspNetwork* network);;
+		Identifier getId() const override { return "generator"; }
+	};
+}
+
 
 namespace core
 {

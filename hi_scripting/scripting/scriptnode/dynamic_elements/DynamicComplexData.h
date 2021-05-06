@@ -319,7 +319,8 @@ struct complex_ui_laf : public BiPolarSliderLookAndFeel,
 						public SliderPack::LookAndFeelMethods,
 						public HiseAudioThumbnail::LookAndFeelMethods,
 						public FilterGraph::LookAndFeelMethods,
-						public RingBufferComponentBase::LookAndFeelMethods
+						public RingBufferComponentBase::LookAndFeelMethods,
+						public AhdsrGraph::LookAndFeelMethods
 {
 	complex_ui_laf() = default;
 
@@ -350,6 +351,9 @@ struct complex_ui_laf : public BiPolarSliderLookAndFeel,
 	void drawGonioMeterDots(Graphics& g, RingBufferComponentBase& ac, const RectangleList<float>& dots, int index) override;
 	void drawAnalyserGrid(Graphics& g, RingBufferComponentBase& ac, const Path& p) override;
 
+	void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive) override;
+	void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p) override;
+	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(complex_ui_laf);
 };
 
@@ -511,6 +515,12 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 		b.removeFromTop(3);
 		editor.setBounds(b);
 
+		refreshDashPath();
+	}
+
+	void refreshDashPath()
+	{
+		auto b = editor.getBounds();
 		Path src;
 		src.addRectangle(b.toFloat());
 

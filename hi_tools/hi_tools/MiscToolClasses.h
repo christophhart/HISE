@@ -569,7 +569,14 @@ public:
 		return globalUpdater;
 	}
 
+	float getLastDisplayValue() const 
+	{
+		return lastDisplayValue;
+	}
+
 private:
+
+	
 
 	void updateUpdater()
 	{
@@ -610,6 +617,9 @@ private:
 		if (n == dontSendNotification)
 			return;
 
+		if (t == EventType::DisplayIndex)
+			lastDisplayValue = (float)v;
+
 		if (n == sendNotificationSync)
 		{
 			bool isMoreImportantChange = t >= lastChange;
@@ -638,6 +648,7 @@ private:
 		}
 	}
 
+	mutable float lastDisplayValue = 1.0f;
 	mutable EventType lastChange = EventType::Idle;
 	mutable var lastValue;
 

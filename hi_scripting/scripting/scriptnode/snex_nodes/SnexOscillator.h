@@ -93,9 +93,13 @@ struct SnexOscillator : public SnexSource
 		float tick(double uptime);
 		void process(OscProcessData& d);
 
+		void prepare(PrepareSpecs ps);
+
 		double lastDelta = 0.0;
 		FunctionData tickFunction;
 		FunctionData processFunction;
+		FunctionData prepareFunction;
+		PrepareSpecs lastSpecs;
 	};
 
 	using OscTester = SnexSource::Tester<OscillatorCallbacks>;
@@ -111,6 +115,8 @@ struct SnexOscillator : public SnexSource
 	float tick(double uptime);
 	void process(OscProcessData& d);
 
+	void prepare(PrepareSpecs ps);
+
 	OscillatorCallbacks callbacks;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexOscillator);
@@ -118,9 +124,23 @@ struct SnexOscillator : public SnexSource
 
 
 struct NewSnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator>,
-								  public SnexSource::SnexSourceListener,
-								  public RingBufferComponentBase
+								  public SnexSource::SnexSourceListener
 {
+	struct SnexDisplay : public Component,
+						 public RingBufferComponentBase
+	{
+		SnexDisplay() = default;
+
+		Colour getColourForAnalyserBase(int colourId) override { return Colours::transparentBlack; };
+
+		void paint(Graphics& g) override;
+		void refresh() override;;
+		void resized() override { refresh(); }
+
+		Path p;
+		String errorMessage;
+	};
+
 	NewSnexOscillatorDisplay(SnexOscillator* osc, PooledUIUpdater* updater);
 	~NewSnexOscillatorDisplay();
 
@@ -129,13 +149,8 @@ struct NewSnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator
 	void complexDataTypeChanged() override;
 	void wasCompiled(bool ok);
 
-	void refresh() { rebuildPath = true; }
-
 	void timerCallback() override;
 	void resized() override;
-	void paint(Graphics& g) override;
-
-	Colour getColourForAnalyserBase(int colourId) override { return Colours::transparentBlack; };
 
 	static Component* createExtraComponent(void* obj, PooledUIUpdater* u);
 
@@ -143,9 +158,15 @@ private:
 
 	struct SnexOscPropertyObject : public SimpleRingBuffer::PropertyObject
 	{
-		SnexOscPropertyObject(SnexOscillator* o) :
-			osc(o)
+		SnexOscPropertyObject(SimpleRingBuffer::WriterBase* o) :
+			PropertyObject(o),
+			osc(getTypedBase<SnexOscillator>())
 		{};
+
+		RingBufferComponentBase* createComponent() override
+		{
+			return new SnexDisplay();
+		}
 
 		bool validateInt(const Identifier& id, int& v) const override
 		{
@@ -161,12 +182,8 @@ private:
 		WeakReference<SnexOscillator> osc;
 	};
 
-	bool rebuildPath = false;
-
+	SnexDisplay display;
 	SnexMenuBar menuBar;
-	Path p;
-	String errorMessage;
-	Rectangle<float> pathBounds;
 };
 
 

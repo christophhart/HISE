@@ -189,6 +189,8 @@ struct AsmCodeGenerator
 
 	void emitComment(const char* m);
 
+	RegPtr emitLoadIfNativePointer(RegPtr source, Types::ID nativeType);
+
 	void emitStore(RegPtr target, RegPtr value);
 
 	void emitMemoryWrite(RegPtr source, void* ptrToUse=nullptr);

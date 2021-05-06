@@ -101,6 +101,7 @@ struct OscData
 	double uptime = 0.0;
 	double uptimeDelta = 0.0;
 	double multiplier = 1.0;
+	int enabled = 1;
 };
 
 struct OscillatorDisplayProvider: public scriptnode::data::base
@@ -115,54 +116,32 @@ struct OscillatorDisplayProvider: public scriptnode::data::base
 		numModes
 	};
 
+	struct osc_display : public Component,
+		public RingBufferComponentBase,
+		public ComponentWithDefinedSize
+	{
+		osc_display();
+
+		void refresh() override;
+		void paint(Graphics& g) override;
+		void resized() override;
+		Rectangle<int> getFixedBounds() const override { return { 0, 0, 300, 60 }; }
+
+		Path waveform;
+	};
+
 	struct OscillatorDisplayObject : public SimpleRingBuffer::PropertyObject
 	{
-		OscillatorDisplayObject(OscillatorDisplayProvider* p):
-			provider(p)
+		OscillatorDisplayObject(SimpleRingBuffer::WriterBase* b):
+			PropertyObject(b),
+			provider(getTypedBase<OscillatorDisplayProvider>())
 		{}
 
-		bool validateInt(const Identifier& id, int& v) const override
-		{
-			if (id == RingBufferIds::BufferLength)
-				return SimpleRingBuffer::toFixSize<256>(v);
+		RingBufferComponentBase* createComponent() override;;
 
-			if (id == RingBufferIds::NumChannels)
-				return SimpleRingBuffer::toFixSize<1>(v);
-		}
-
-		void transformReadBuffer(AudioSampleBuffer& b) override
-		{
-			if (provider != nullptr)
-			{
-				jassert(b.getNumChannels() == 1);
-				jassert(b.getNumSamples() == 256);
-
-				OscData d;
-				d.uptimeDelta = 2048.0 / 256.0;
-				d.multiplier = provider->pitchMultiplier;
-
-				for (int i = 0; i < 256; i++)
-				{
-					float v = 0.0f;
-
-					switch (provider->currentMode)
-					{
-					case Mode::Sine: v = provider->tickSine(d); break;
-					case Mode::Saw: v = provider->tickSaw(d); break;
-					case Mode::Square: v = provider->tickSquare(d); break;
-					case Mode::Triangle: v = provider->tickTriangle(d); break;
-					case Mode::Noise: v = provider->tickNoise(d); break;
-					}
-
-					b.setSample(0, i, v);
-				}
-			}
-		}
-
-		void initialiseRingBuffer(SimpleRingBuffer* b) override
-		{
-			b->setRingBufferSize(1, 256);
-		}
+		bool validateInt(const Identifier& id, int& v) const override;
+		void transformReadBuffer(AudioSampleBuffer& b) override;
+		void initialiseRingBuffer(SimpleRingBuffer* b) override;
 
 		WeakReference<OscillatorDisplayProvider> provider;
 	};
@@ -193,32 +172,16 @@ struct OscillatorDisplayProvider: public scriptnode::data::base
 	void setExternalData(const ExternalData& d, int index)
 	{
 		base::setExternalData(d, index);
-
-		if (auto rb = dynamic_cast<SimpleRingBuffer*>(d.obj))
-		{
-			rb->setPropertyObject(new OscillatorDisplayObject(this));
-		}
+		setRingBufferPropertyObject<OscillatorDisplayObject>();
 	}
 
-	float tickSaw(OscData& d)
-	{
-		return 2.0f * std::fmod(d.tick() / 2048.0, 1.0) - 1.0f;
-	}
+	float tickSaw(OscData& d);
 
-	float tickTriangle(OscData& d)
-	{
-		return (1.0f - std::abs(tickSaw(d))) * 2.0f - 1.0f;
-	}
+	float tickTriangle(OscData& d);
 
-	float tickSine(OscData& d)
-	{
-		return sinTable->getInterpolatedValue(d.tick());
-	}
+	float tickSine(OscData& d);
 
-	float tickSquare(OscData& d)
-	{
-		return (float)(1 - (int)std::signbit(tickSaw(d))) * 2.0f - 1.0f;
-	}
+	float tickSquare(OscData& d);
 
 	Random r;
 	SharedResourcePointer<SineLookupTable<2048>> sinTable;

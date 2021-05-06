@@ -36,7 +36,7 @@ namespace hise { using namespace juce;
 SimpleRingBuffer::SimpleRingBuffer()
 {
 	getUpdater().addEventListener(this);
-	setPropertyObject(new PropertyObject());
+	setPropertyObject(new PropertyObject(nullptr));
 }
 
 void SimpleRingBuffer::clear()
@@ -345,6 +345,8 @@ void RingBufferComponentBase::setComplexDataUIBase(ComplexDataUIBase* newData)
 	{
 		rb->getUpdater().addEventListener(this);
 	}
+
+	refresh();
 }
 
 void ModPlotter::refresh()
@@ -429,6 +431,268 @@ void RingBufferComponentBase::LookAndFeelMethods::drawAnalyserGrid(Graphics& g, 
 {
 	g.setColour(ac.getColourForAnalyserBase(RingBufferComponentBase::lineColour));
 	g.strokePath(p, PathStrokeType(1.0f));
+}
+
+
+
+AhdsrGraph::AhdsrGraph()
+{
+	setSpecialLookAndFeel(new DefaultLookAndFeel(), true);
+	setBufferedToImage(true);
+	setColour(lineColour, Colours::lightgrey.withAlpha(0.3f));
+}
+
+AhdsrGraph::~AhdsrGraph()
+{
+
+}
+
+void AhdsrGraph::paint(Graphics &g)
+{
+	getSpecialLookAndFeel<RingBufferComponentBase::LookAndFeelMethods>()->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
+
+	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+
+	laf->drawAhdsrPathSection(g, *this, envelopePath, false);
+
+
+
+	float xPos = 0.0f;
+
+	float tToUse = 1.0f;
+
+	Path* pToUse = nullptr;
+
+	auto s = (State)(int)ballPos;
+
+	switch (s)
+	{
+	case State::ATTACK: pToUse = &attackPath; tToUse = attack; break;
+	case State::HOLD: pToUse = &holdPath; tToUse = hold; break;
+	case State::DECAY: pToUse = &decayPath; tToUse = 0.5f * decay; break;
+	case State::SUSTAIN: pToUse = &releasePath;
+
+		break;
+	case State::RELEASE: pToUse = &releasePath; tToUse = 0.8f * release; break;
+	default:
+		break;
+	}
+
+	if (pToUse != nullptr)
+	{
+		laf->drawAhdsrPathSection(g, *this, *pToUse, true);
+
+		auto bounds = pToUse->getBounds();
+		auto duration = 10.0;// (float)(processor->getMainController()->getUptime() - lastState.changeTime) * 1000.0f;
+
+		auto normalizedDuration = 0.0f;
+
+		normalizedDuration = fmod(ballPos, 1.0);
+
+		xPos = bounds.getX() + normalizedDuration * bounds.getWidth();
+
+		const float margin = 3.0f;
+
+		auto l = Line<float>(xPos, 0.0f, xPos, (float)getHeight() - 1.0f - margin);
+
+		auto clippedLine = envelopePath.getClippedLine(l, false);
+
+		if (clippedLine.getLength() == 0.0f)
+			return;
+
+		auto pos = clippedLine.getStart();
+
+		laf->drawAhdsrBallPosition(g, *this, pos);
+
+
+	}
+}
+
+void AhdsrGraph::setUseFlatDesign(bool shouldUseFlatDesign)
+{
+	flatDesign = shouldUseFlatDesign;
+	repaint();
+}
+
+void AhdsrGraph::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var newValue)
+{
+	if (e == ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+	{
+		ballPos = (float)newValue;
+		repaint();
+	}
+	else
+	{
+		refresh();
+	}
+}
+
+void AhdsrGraph::refresh()
+{
+	const auto& b = rb->getReadBuffer();
+	jassert(b.getNumSamples() == 9);
+
+	float this_attack = b.getSample(0, (int)Parameters::Attack);
+	float this_attackLevel = b.getSample(0, (int)Parameters::AttackLevel);
+	float this_hold = b.getSample(0, (int)Parameters::Hold);
+	float this_decay = b.getSample(0, (int)Parameters::Decay);
+	float this_sustain = b.getSample(0, (int)Parameters::Sustain);
+	float this_release = b.getSample(0, (int)Parameters::Release);
+	float this_attackCurve = b.getSample(0, (int)Parameters::AttackCurve);
+
+	//lastState = dynamic_cast<AhdsrEnvelope*>(processor.get())->getStateInfo();
+
+	if (this_attack != attack ||
+		this_attackCurve != attackCurve ||
+		this_attackLevel != attackLevel ||
+		this_decay != decay ||
+		this_sustain != sustain ||
+		this_hold != hold ||
+		this_release != release)
+	{
+		attack = this_attack;
+		attackLevel = this_attackLevel;
+		hold = this_hold;
+		decay = this_decay;
+		sustain = this_sustain;
+		release = this_release;
+		attackCurve = this_attackCurve;
+
+		rebuildGraph();
+	}
+
+	repaint();
+}
+
+void AhdsrGraph::rebuildGraph()
+{
+	if (getLocalBounds().isEmpty())
+		return;
+
+	float aln = pow((1.0f - (attackLevel + 100.0f) / 100.0f), 0.4f);
+	const float sn = pow((1.0f - (sustain + 100.0f) / 100.0f), 0.4f);
+
+	const float margin = 3.0f;
+
+	aln = sn < aln ? sn : aln;
+
+	const float width = (float)getWidth() - 2.0f*margin;
+	const float height = (float)getHeight() - 2.0f*margin;
+
+	const float an = pow((attack / 20000.0f), 0.2f) * (0.2f * width);
+	const float hn = pow((hold / 20000.0f), 0.2f) * (0.2f * width);
+	const float dn = pow((decay / 20000.0f), 0.2f) * (0.2f * width);
+	const float rn = pow((release / 20000.0f), 0.2f) * (0.2f * width);
+
+	float x = margin;
+	float lastX = x;
+
+	envelopePath.clear();
+
+	attackPath.clear();
+	decayPath.clear();
+	holdPath.clear();
+	releasePath.clear();
+
+	envelopePath.startNewSubPath(x, margin + height);
+	attackPath.startNewSubPath(x, margin + height);
+
+	// Attack Curve
+
+	lastX = x;
+	x += an;
+
+	const float controlY = margin + aln * height + attackCurve * (height - aln * height);
+
+	envelopePath.quadraticTo((lastX + x) / 2, controlY, x, margin + aln * height);
+
+	attackPath.quadraticTo((lastX + x) / 2, controlY, x, margin + aln * height);
+	attackPath.lineTo(x, margin + height);
+	attackPath.closeSubPath();
+
+	holdPath.startNewSubPath(x, margin + height);
+	holdPath.lineTo(x, margin + aln * height);
+
+	x += hn;
+
+	envelopePath.lineTo(x, margin + aln * height);
+	holdPath.lineTo(x, margin + aln * height);
+	holdPath.lineTo(x, margin + height);
+	holdPath.closeSubPath();
+
+	decayPath.startNewSubPath(x, margin + height);
+	decayPath.lineTo(x, margin + aln * height);
+
+	lastX = x;
+	x = jmin<float>(x + (dn * 4), 0.8f * width);
+
+	envelopePath.quadraticTo(lastX, margin + sn * height, x, margin + sn * height);
+	decayPath.quadraticTo(lastX, margin + sn * height, x, margin + sn * height);
+
+	x = 0.8f * width;
+
+	envelopePath.lineTo(x, margin + sn * height);
+	decayPath.lineTo(x, margin + sn * height);
+
+	decayPath.lineTo(x, margin + height);
+	decayPath.closeSubPath();
+
+	releasePath.startNewSubPath(x, margin + height);
+	releasePath.lineTo(x, margin + sn * height);
+
+	lastX = x;
+	x += rn;
+
+	envelopePath.quadraticTo(lastX, margin + height, x, margin + height);
+	releasePath.quadraticTo(lastX, margin + height, x, margin + height);
+
+	releasePath.closeSubPath();
+	//envelopePath.closeSubPath();
+}
+
+
+
+void AhdsrGraph::DefaultLookAndFeel::drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive)
+{
+	if (isActive)
+	{
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.fillPath(s);
+	}
+	else
+	{
+		if (graph.flatDesign)
+		{
+			g.setColour(graph.findColour(bgColour));
+			g.fillAll();
+			g.setColour(graph.findColour(fillColour));
+			g.fillPath(s);
+			g.setColour(graph.findColour(lineColour));
+			g.strokePath(s, PathStrokeType(1.0f));
+			g.setColour(graph.findColour(outlineColour));
+			g.drawRect(graph.getLocalBounds(), 1);
+		}
+		else
+		{
+			GlobalHiseLookAndFeel::fillPathHiStyle(g, s, graph.getWidth(), graph.getHeight());
+			g.setColour(graph.findColour(lineColour));
+			g.strokePath(s, PathStrokeType(1.0f));
+			g.setColour(Colours::lightgrey.withAlpha(0.1f));
+			g.drawRect(graph.getLocalBounds(), 1);
+		}
+	}
+}
+
+void AhdsrGraph::DefaultLookAndFeel::drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p)
+{
+	auto circle = Rectangle<float>(p, p).withSizeKeepingCentre(6.0f, 6.0f);
+	g.setColour(graph.findColour(lineColour).withAlpha(1.0f));
+	g.fillRoundedRectangle(circle, 2.0f);
+}
+
+hise::RingBufferComponentBase* SimpleRingBuffer::PropertyObject::createComponent()
+{
+	return new ModPlotter();
 }
 
 } // namespace hise

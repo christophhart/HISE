@@ -58,6 +58,11 @@ struct dynamic_base
 		f(obj, value);
 	}
 
+	virtual void setUIValue(double value)
+	{
+		lastValue = value;
+	}
+
 	virtual void callWithDuplicateIndex(int index, double value) 
 	{
 
@@ -116,6 +121,14 @@ struct dynamic_base_holder
 
 		if (base != nullptr)
 			base->call(v);
+	}
+
+	void setUIValue(double v)
+	{
+		lastValue = v;
+
+		if (base != nullptr)
+			base->setUIValue(v);
 	}
 
 	void call(int index, double v)
@@ -234,9 +247,14 @@ struct dynamic_from0to1_inv : public dynamic_base
 
 	void call(double v) final override
 	{
+		setUIValue(v);
+		f(obj, lastValue);
+	}
+
+	void setUIValue(double v) final override
+	{
 		auto inv = 1.0 - v;
 		lastValue = range.convertFrom0to1(inv);
-		f(obj, lastValue);
 	}
 
 	const NormalisableRange<double> range;
@@ -249,10 +267,15 @@ struct dynamic_step : public dynamic_base
 		range(r)
 	{};
 
-	void call(double v) final override
+	void setUIValue(double v) final override
 	{
 		lastValue = range.convertFrom0to1(v);
 		lastValue = range.snapToLegalValue(lastValue);
+	}
+
+	void call(double v) final override
+	{
+		setUIValue(v);
 		f(obj, lastValue);
 	}
 
@@ -266,11 +289,17 @@ struct dynamic_step_inv : public dynamic_base
 		range(r)
 	{};
 
-	void call(double v) final override
+	void setUIValue(double v) final override
 	{
 		auto inv = 1.0 - v;
 		lastValue = range.convertFrom0to1(inv);
 		lastValue = range.snapToLegalValue(lastValue);
+	}
+
+
+	void call(double v) final override
+	{
+		setUIValue(v);
 		f(obj, lastValue);
 	}
 
@@ -284,9 +313,14 @@ struct dynamic_from0to1 : public dynamic_base
 		range(r)
 	{}
 
-	void call(double v) final override
+	void setUIValue(double v) final override
 	{
 		lastValue = range.convertFrom0to1(v);
+	}
+
+	void call(double v) final override
+	{
+		setUIValue(v);
 		f(obj, lastValue);
 	}
 
@@ -302,9 +336,14 @@ struct dynamic_to0to1 : public dynamic_base
 		range(r)
 	{}
 
-	void call(double v) final override
+	void setUIValue(double v) final override
 	{
 		lastValue = range.convertTo0to1(v);
+	}
+
+	void call(double v) final override
+	{
+		setUIValue(v);
 		f(obj, lastValue);
 	}
 
@@ -322,18 +361,18 @@ struct dynamic_expression : public dynamic_base
 			p = nullptr;
 	}
 
-	void call(double v) final override
+	void setUIValue(double v) final override
 	{
 		if (p != nullptr)
-		{
 			lastValue = p->getValueUnchecked(v);
-			f(obj, lastValue);
-		}
 		else
-		{
 			lastValue = v;
-			f(obj, lastValue);
-		}
+	}
+
+	void call(double v) final override
+	{
+		setUIValue(v);
+		f(obj, lastValue);
 	}
 
 	snex::JitExpression::Ptr p;

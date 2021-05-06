@@ -103,7 +103,7 @@ struct ZoomableViewport : public Component,
 
 		if (getContentComponent()->isVisible())
 		{
-			swapAlpha *= JUCE_LIVE_CONSTANT(1.2f);
+			swapAlpha *= JUCE_LIVE_CONSTANT_OFF(1.2f);
 
 			getContentComponent()->setAlpha(swapAlpha);
 
@@ -114,7 +114,7 @@ struct ZoomableViewport : public Component,
 		}
 		else
 		{
-			swapAlpha *= JUCE_LIVE_CONSTANT(0.9f);
+			swapAlpha *= JUCE_LIVE_CONSTANT_OFF(0.9f);
 		}
 
 		repaint();

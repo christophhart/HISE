@@ -45,6 +45,8 @@ namespace RingBufferIds
 
 #undef DECLARE_ID
 
+struct RingBufferComponentBase;
+
 struct SimpleRingBuffer: public ComplexDataUIBase,
 						 public ComplexDataUIUpdaterBase::EventListener
 {
@@ -65,11 +67,27 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		return ok;
 	}
 	
+	/** Just a simple interface class for getting the writer. */
+	struct WriterBase
+	{
+		virtual ~WriterBase() {};
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(WriterBase);
+	};
+
 	struct PropertyObject: public ReferenceCountedObject
 	{
 		using Ptr = ReferenceCountedObjectPtr<PropertyObject>;
 
+		PropertyObject(WriterBase* b) :
+			writerBase(b)
+		{};
+
 		virtual ~PropertyObject() {};
+
+		virtual RingBufferComponentBase* createComponent();
 
 		/** Override this method and "sanitize the int number (eg. power of two for FFT). 
 			
@@ -95,8 +113,14 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		{
 			buffer = b;
 
-			setProperty(RingBufferIds::BufferLength, RingBufferSize);
-			setProperty(RingBufferIds::NumChannels, 1);
+			int numSamples = RingBufferSize;
+			int numChannels = 1;
+
+			validateInt(RingBufferIds::BufferLength, numSamples);
+			validateInt(RingBufferIds::NumChannels, numChannels);
+
+			setProperty(RingBufferIds::BufferLength, numSamples);
+			setProperty(RingBufferIds::NumChannels, numChannels);
 		}
 
 		virtual var getProperty(const Identifier& id) const
@@ -145,8 +169,11 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 			return ids;
 		}
 
+		template <typename T> T* getTypedBase() { return dynamic_cast<T*>(writerBase.get()); }
+
 	private:
 
+		WeakReference<WriterBase> writerBase;
 		WeakReference<SimpleRingBuffer> buffer;
 	};
 
@@ -227,29 +254,26 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 	var getProperty(const Identifier& id) const;
 	Array<Identifier> getIdentifiers() const;
 
+	bool isConnectedToWriter(WriterBase* b) const { return currentWriter == b; }
+
 	void setPropertyObject(PropertyObject* newObject);
 
 	PropertyObject::Ptr getPropertyObject() const { return properties; }
 
-	void setUsedByWriter(bool shouldBeUsed)
+	void setCurrentWriter(WriterBase* newWriter)
 	{
-		if ((numWriters != 0) && shouldBeUsed)
-			throw String("Multiple Writers");
+		if (currentWriter != nullptr && currentWriter != newWriter && newWriter != nullptr)
+			throw String("multiple writers");
 
-		if (shouldBeUsed)
-			numWriters++;
-		else
-			numWriters--;
+		currentWriter = newWriter;
 	}
 
 private:
 
-	int numWriters = 0;
+	WeakReference<WriterBase> currentWriter;
 
 	bool validateChannels(int& v);
 	bool validateLength(int& v);
-
-	
 
 	PropertyObject::Ptr properties;
 
@@ -309,7 +333,17 @@ struct RingBufferComponentBase : public ComplexDataUIBase::EditorBase,
 
 	virtual void refresh() = 0;
 
-	virtual Colour getColourForAnalyserBase(int colourId) = 0;
+	virtual Colour getColourForAnalyserBase(int colourId) 
+	{ 
+		switch (colourId)
+		{
+		case ColourId::bgColour: return Colours::transparentBlack;
+		case ColourId::fillColour: return Colours::white.withAlpha(0.05f);
+		case ColourId::lineColour: return Colours::white.withAlpha(0.9f);
+		}
+		
+		return Colours::transparentBlack;
+	}
 
 protected:
 
@@ -342,7 +376,7 @@ struct ModPlotter : public Component,
 	
 	Rectangle<int> getFixedBounds() const override { return { 0, 0, 256, 80 }; }
 
-	virtual Colour getColourForAnalyserBase(int colourId) { return Colours::transparentBlack; }
+	
 
 	int getSamplesPerPixel(float rectangleWidth) const;
 	
@@ -353,6 +387,101 @@ struct ModPlotter : public Component,
 	RectangleList<float> rectangles;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModPlotter);
+};
+
+class AhdsrGraph : public RingBufferComponentBase,
+	public Component
+{
+public:
+
+	enum class Parameters
+	{
+		Attack,
+		AttackLevel,
+		Hold,
+		Decay,
+		Sustain,
+		Release,
+		AttackCurve,
+		DecayCurve, // not used
+		numParameters
+	};
+
+	enum class State
+	{
+		ATTACK, 
+		HOLD, 
+		DECAY, 
+		SUSTAIN, 
+		RETRIGGER, 
+		RELEASE, 
+		IDLE 
+	};
+
+	struct LookAndFeelMethods
+	{
+		virtual ~LookAndFeelMethods() {};
+
+		virtual void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive) = 0;
+		virtual void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p) = 0;
+
+	};
+
+	struct DefaultLookAndFeel : public RingBufferComponentBase::LookAndFeelMethods,
+		public LookAndFeelMethods,
+		public LookAndFeel_V3
+	{
+		virtual void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive) override;
+		virtual void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p) override;
+	};
+
+	enum ColourIds
+	{
+		bgColour,
+		fillColour,
+		lineColour,
+		outlineColour,
+		numColourIds
+	};
+
+	AhdsrGraph();
+	~AhdsrGraph();
+
+	void paint(Graphics &g);
+	void setUseFlatDesign(bool shouldUseFlatDesign);
+
+	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var newValue) override;
+
+	void resized() override
+	{
+		rebuildGraph();
+	}
+
+	void refresh() override;
+
+	void rebuildGraph();
+
+	Path envelopePath;
+
+private:
+
+	float ballPos = -1.0f;
+
+	bool flatDesign = false;
+
+	float attack = 0.0f;
+	float attackLevel = 0.0f;
+	float hold = 0.0f;
+	float decay = 0.0f;
+	float sustain = 0.f;
+	float release = 0.f;
+	float attackCurve = 0.f;
+
+	
+	Path attackPath;
+	Path holdPath;
+	Path decayPath;
+	Path releasePath;
 };
 
 

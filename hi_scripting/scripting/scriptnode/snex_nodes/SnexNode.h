@@ -47,6 +47,7 @@ struct snex_node : public SnexSource
 	SN_GET_SELF_AS_OBJECT(snex_node);
 
 	static constexpr bool isPolyphonic() { return false; }
+	static constexpr bool isProcessingHiseEvent() { return true; };
 
 	HISE_EMPTY_CREATE_PARAM;
 
@@ -95,7 +96,11 @@ struct snex_node : public SnexSource
 					f[i] = nf[i];
 
 				ok = r.wasOk();
+
+				
 			}
+
+			prepare(lastSpecs);
 
 			return Result::ok();
 		}
@@ -204,8 +209,10 @@ struct snex_node : public SnexSource
 
 		void prepare(PrepareSpecs ps)
 		{
+			lastSpecs = ps;
+
 			if (auto s = ScopedCallbackChecker(*this))
-				f[(int)ScriptnodeCallbacks::PrepareFunction].callVoidUncheckedWithObject(&ps);
+				f[(int)ScriptnodeCallbacks::PrepareFunction].callVoidUncheckedWithObject(&lastSpecs);
 		}
 		
 		void handleHiseEvent(HiseEvent& e)
@@ -216,6 +223,8 @@ struct snex_node : public SnexSource
 		
 		FunctionData f[(int)ScriptnodeCallbacks::numFunctions];
 		
+		PrepareSpecs lastSpecs;
+
 	} callbacks;
 
 	snex_node() :
@@ -268,7 +277,7 @@ struct snex_node : public SnexSource
 			menubar(n)
 		{
 			addAndMakeVisible(menubar);
-			setSize(400, 24);
+			setSize(200, 24);
 			stop();
 		}
 

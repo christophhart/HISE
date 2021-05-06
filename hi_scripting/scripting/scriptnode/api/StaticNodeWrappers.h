@@ -155,6 +155,9 @@ protected:
 
 	void* getObjectPtrFromWrapper()
 	{
+		if (auto o = obj.getWrappedObject().getObjectAsMotherNode())
+			return o;
+
 		return obj.getWrappedObject().getObjectPtr();
 	}
 
@@ -538,7 +541,7 @@ struct InterpretedCableNode : public ModulationSourceNode,
 
 	void process(ProcessDataDyn& data) final override
 	{
-
+		this->obj.process(data);
 	}
 
 	void reset() final override
@@ -561,7 +564,7 @@ struct InterpretedCableNode : public ModulationSourceNode,
 
 	void processFrame(FrameType& data) final override
 	{
-
+		this->obj.processFrame(*reinterpret_cast<span<float, 1>*>(data.begin()));
 	}
 
 	void handleHiseEvent(HiseEvent& e) final override
@@ -706,6 +709,12 @@ public:
 	template <class MonoT, class ComponentType = ModulationSourcePlotter, bool AddDataOffsetToUIPtr = true> void registerNoProcessNode()
 	{
 		registerNode<MonoT, ComponentType, InterpretedCableNode, AddDataOffsetToUIPtr, false>();
+	}
+
+	template <class MonoT, class PolyT, class ComponentType = ModulationSourcePlotter, bool AddDataOffsetToUIPtr = true> void registerPolyNoProcessNode()
+	{
+		
+		registerPolyNode<MonoT, PolyT, ComponentType, InterpretedCableNode, AddDataOffsetToUIPtr, false>();
 	}
 
     virtual Identifier getId() const = 0;

@@ -120,6 +120,20 @@ struct WorkbenchSynthesiser : public JavascriptSynthesiser,
 	{
 		return MultiOutputDragSource::getFadeColour(0, 2);
 	};
+	void addProcessorsWhenEmpty() override
+	{
+		LockHelpers::freeToGo(getMainController());
+
+		jassert(finalised);
+
+		auto vk = new ScriptnodeVoiceKiller(getMainController(),
+			"ScriptnodeVoiceKiller",
+			voices.size());
+
+		gainChain->getHandler()->add(vk, nullptr);
+
+		setVoiceKillerToUse(vk);
+	}
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(WorkbenchSynthesiser);
 };

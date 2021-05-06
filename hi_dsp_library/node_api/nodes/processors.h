@@ -652,7 +652,11 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 
 	data()
 	{
-		static_assert(std::is_base_of<scriptnode::data::pimpl::base, DataHandler>(), "must be base class of data::base");
+		static_assert(std::is_base_of<scriptnode::data::pimpl::base, DataHandler>(), "DataHandler must be base class of data::pimpl::base");
+		static_assert(std::is_base_of<scriptnode::data::base, T>(), "T must be base class of data::base");
+
+		if constexpr (mothernode::isBaseOf<T>())
+			mothernode::getAsBase(getObject())->setDataProvider(this);
 	}
 
 	static const int NumTables = DataHandler::NumTables;

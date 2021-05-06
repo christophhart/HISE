@@ -426,13 +426,13 @@ void Operations::Cast::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		else
 		{
-			auto sourceReg = getSubRegister(0);
-
-			if (sourceReg == nullptr)
+			if (getSubRegister(0) == nullptr)
 				location.throwError("Source register not found");
 
 			auto sourceType = getSubExpr(0)->getType();
-			asg.emitCast(reg, sourceReg, sourceType);
+			
+			
+			asg.emitCast(reg, getSubRegister(0), sourceType);
 		}
 	}
 }

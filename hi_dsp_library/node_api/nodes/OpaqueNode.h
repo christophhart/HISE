@@ -40,6 +40,39 @@ using namespace snex;
 using namespace Types;
 
 
+/** mother of all nodes. */
+struct mothernode
+{
+	using DataProvider = scriptnode::data::pimpl::provider_base;
+
+	virtual ~mothernode() {};
+
+	template <typename T> static constexpr bool isBaseOf()
+	{
+		return std::is_base_of<mothernode, T::WrappedObjectType>();
+	}
+
+	template <typename T> static mothernode* getAsBase(T& obj)
+	{
+		jassert(isBaseOf<T>());
+		return dynamic_cast<mothernode*>(&obj.getWrappedObject());
+	}
+
+	void setDataProvider(DataProvider* dp)
+	{
+		data_provider = dp;
+	}
+
+	DataProvider* getDataProvider() const { return data_provider; }
+
+private:
+
+	DataProvider* data_provider = nullptr;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(mothernode);
+};
+
+
 
 /** A mysterious wrapper that will use a rather old-school, plain C API for the callbacks. 
 
@@ -90,6 +123,9 @@ struct OpaqueNode
 
 		auto t = prototypes::static_wrappers<T>::create(getObjectPtr());
 		isPoly = t->isPolyphonic();
+
+		if constexpr (mothernode::isBaseOf<T>())
+			mnPtr = mothernode::getAsBase(*static_cast<T*>(getObjectPtr()));
 
 		if constexpr (prototypes::check::setExternalData<T>::value)
 			externalDataFunc = prototypes::static_wrappers<T>::setExternalData;
@@ -174,6 +210,8 @@ struct OpaqueNode
 
 	void* getObjectPtr() const { return this->object.getObjectPtr(); }
 
+	mothernode* getObjectAsMotherNode() { return mnPtr; }
+
 	bool hasComplexData() const
 	{
 		int numData = 0;
@@ -187,6 +225,8 @@ struct OpaqueNode
 	bool isProcessingHiseEvent() const { return shouldProcessHiseEvent; }
 
 private:
+
+	mothernode* mnPtr = nullptr;
 
 	void allocateObjectSize(int numBytes);
 

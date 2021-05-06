@@ -746,8 +746,7 @@ struct TestDataComponent : public TestDataComponentBase
 };
 
 struct TestComplexDataManager : public TestDataComponentBase,
-								public SliderPack::Listener,
-								public Table::Listener
+								public hise::ComplexDataUIUpdaterBase::EventListener
 {
 	TestComplexDataManager(WorkbenchData::Ptr d) :
 		TestDataComponentBase(d)
@@ -762,14 +761,10 @@ struct TestComplexDataManager : public TestDataComponentBase,
 
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("TestComplexData"); };
 
-	void sliderPackChanged(SliderPackData *, int ) override
+	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override
 	{
-		getWorkbench()->triggerPostCompileActions();
-	}
-
-	void graphHasChanged(int) override
-	{
-		getWorkbench()->triggerPostCompileActions();
+		if (t != ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+			getWorkbench()->triggerPostCompileActions();
 	}
 
 	void testEventsChanged()
@@ -882,6 +877,13 @@ struct TestComplexDataManager : public TestDataComponentBase,
 		{
 			auto& td = getWorkbench()->getTestData();
 
+			auto obj = td.getComplexBaseType(d, i);
+
+			obj->getUpdater().addEventListener(this);
+
+			currentDataComponent = dynamic_cast<Component*>(ExternalData::createEditor(obj));
+
+#if 0
 			if (d == ExternalData::DataType::Table)
 			{
 				auto t = td.getTable(i);
@@ -917,6 +919,7 @@ struct TestComplexDataManager : public TestDataComponentBase,
 				b->setComplexDataUIBase(t);
 				currentDataComponent = b;
 			}
+#endif
 		}
 
 		if (currentDataComponent != nullptr)

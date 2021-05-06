@@ -4,22 +4,24 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 90
+  output: 12
   error: ""
   filename: "polydata/polydata_2"
 END_TEST_DATA
 */
 
-PolyData<int, 1> data;
+PolyData<int, 18> data;
 
 int main(int input)
 {
-	for(auto& e: data)
-	    e = 90;
+	int counter = 0;
 	
 
-	//Console.print(data);
-	    
+	for(auto& s: data)
+	{
+		counter++;
+	}
+
 	return data.get();
 }
 

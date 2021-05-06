@@ -122,7 +122,7 @@ constexpr const auto& getWrappedObject() const { return x; }
 
 /** Node definition macros. */
 
-#define SET_HISE_POLY_NODE_ID(id) SET_HISE_NODE_ID(id); bool isPolyphonic() const { return NumVoices > 1; };
+#define SET_HISE_POLY_NODE_ID(id) SET_HISE_NODE_ID(id); static constexpr bool isPolyphonic() { return NumVoices > 1; };
 
 #define SET_HISE_NODE_ID(id) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(id); };
 //#define SET_HISE_NODE_EXTRA_HEIGHT(x) int getExtraHeight() const final override { return x; };

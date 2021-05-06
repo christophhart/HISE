@@ -49,11 +49,20 @@ void SnexSource::recompiled(WorkbenchData::Ptr wb)
 
 	lastResult = wb->getLastResult().compileResult;
 
+	
+
 	throwScriptnodeErrorIfCompileFail();
 
 	if (auto objPtr = wb->getLastResult().mainClassPtr)
 	{
 		objPtr->initialiseObjectStorage(object);
+
+		String s;
+		int l = 0;
+
+		objPtr->dumpTable(s, l, object.getObjectPtr(), object.getObjectPtr());
+
+		DBG(s);
 
 		if (lastResult.wasOk())
 			lastResult = getCallbackHandler().recompiledOk(objPtr);
@@ -69,6 +78,9 @@ void SnexSource::recompiled(WorkbenchData::Ptr wb)
 
 	throwScriptnodeErrorIfCompileFail();
 
+	if (!lastResult.wasOk())
+		getWorkbench()->getLastResultReference().compileResult = lastResult;
+		
 	for (auto l : compileListeners)
 	{
 		if(l != nullptr)
@@ -571,6 +583,15 @@ juce::Result SnexSource::ParameterHandlerLight::recompiledOk(snex::jit::ComplexT
 
 	for (int index = 0; index < matches.size(); index++)
 	{
+		auto& object = parent.object;
+		auto objPtr = parent.wb->getLastResult().mainClassPtr;
+		String s;
+		int l = 0;
+
+		objPtr->dumpTable(s, l, object.getObjectPtr(), object.getObjectPtr());
+
+		DBG(s);
+
 		pFunctions[index] = matches[index];
 
 		if (pFunctions[index].templateParameters[0].constant != index)

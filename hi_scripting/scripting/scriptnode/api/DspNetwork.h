@@ -37,6 +37,8 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+
+
 class NodeFactory;
 
 struct DeprecationChecker
@@ -175,7 +177,52 @@ private:
 
 class SnexSource;
 
+class ScriptnodeVoiceKiller : public EnvelopeModulator
+{
+public:
 
+
+	SET_PROCESSOR_NAME("ScriptnodeVoiceKiller", "Scriptnode Voice Killer", "kills the voices from a scriptnode envelope's gate output")
+
+	ScriptnodeVoiceKiller(MainController* mc, const String& id, int numVoices) :
+		EnvelopeModulator(mc, id, numVoices, Modulation::GainMode),
+		Modulation(Modulation::GainMode)
+	{
+		for (int i = 0; i < polyManager.getVoiceAmount(); i++) states.add(createSubclassedState(i));
+	};
+
+	void setInternalAttribute(int parameter_index, float newValue) override {}
+	float getDefaultValue(int parameterIndex) const override { return 0.0f; }
+	float getAttribute(int parameter_index) const { return 0.0f; }
+
+	int getNumInternalChains() const override { return 0; };
+	int getNumChildProcessors() const override { return 0; };
+	Processor *getChildProcessor(int) override { return nullptr; };
+	const Processor *getChildProcessor(int) const override { return nullptr; };
+
+	float startVoice(int voiceIndex) override { getState(voiceIndex)->active = true; return 1.0f; }
+	void stopVoice(int voiceIndex) override {}
+	void reset(int voiceIndex) override { getState(voiceIndex)->active = false; }
+	bool isPlaying(int voiceIndex) const override { return getState(voiceIndex)->active; }
+
+	void calculateBlock(int startSample, int numSamples) override { FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 1.0f, numSamples); }
+	void handleHiseEvent(const HiseEvent& m) override {}
+
+	struct State : public ModulatorState
+	{
+		State(int v) : ModulatorState(v) {};
+		bool active = false;
+	};
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override { return nullptr; }
+
+	State* getState(int i) { return  static_cast<State*>(states[i]); }
+	const State* getState(int i) const { return  static_cast<const State*>(states[i]); }
+
+	ModulatorState *createSubclassedState(int voiceIndex) const override { return new State(voiceIndex); };
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptnodeVoiceKiller);
+};
 
 
 /** A network of multiple DSP objects that are connected using a graph. */
@@ -206,6 +253,17 @@ public:
 	private:
 
 		const snex::Types::PolyHandler::ScopedVoiceSetter internalSetter;
+	};
+
+	struct NoVoiceSetter
+	{
+		NoVoiceSetter(DspNetwork& p):
+			internalSetter(p.voiceIndex)
+		{}
+
+	private:
+
+		const snex::Types::PolyHandler::ScopedAllVoiceSetter internalSetter;
 	};
 
 	class Holder
@@ -261,7 +319,15 @@ public:
 			dataHolder = newHolder;
 		}
 
+		void setVoiceKillerToUse(ScriptnodeVoiceKiller* vk_)
+		{
+			if (isPolyphonic())
+				vk = vk_;
+		}
+
 	protected:
+
+		WeakReference<ScriptnodeVoiceKiller> vk;
 
 		ExternalDataHolder* dataHolder = nullptr;
 
@@ -666,6 +732,22 @@ public:
 		um.beginNewTransaction();
 	}
 
+	int getNumActiveVoices() const
+	{
+		int counter = 0;
+
+		if (voiceKiller != nullptr)
+		{
+			for (int i = 0; i < voiceKiller->polyManager.getVoiceAmount(); i++)
+			{
+				if (voiceKiller->getState(i)->active)
+					counter++;
+			}
+		}
+		
+		return counter;
+	}
+
 	void changeNodeId(ValueTree& c, const String& oldId, const String& newId, UndoManager* um);
 
 	UndoManager* getUndoManager()
@@ -695,9 +777,37 @@ public:
 
 	bool& getCpuProfileFlag() { return enableCpuProfiling; };
 
+	void setVoiceKiller(ScriptnodeVoiceKiller* newVoiceKiller)
+	{
+		voiceKiller = newVoiceKiller;
+	}
+
+	void setVoiceResetFlag(bool killAllVoices = false)
+	{
+		if (isPolyphonic() && voiceKiller != nullptr)
+		{
+			if (killAllVoices)
+			{
+				jassert(voiceIndex.getVoiceIndex() == -1);
+
+				for (int i = 0; i < voiceKiller->polyManager.getVoiceAmount(); i++)
+					voiceKiller->getState(i)->active = false;
+			}
+			else
+			{
+				auto currentVoice = voiceIndex.getVoiceIndex();
+				jassert(currentVoice != -1);
+				if (auto s = voiceKiller->getState(currentVoice))
+					s->active = false;
+			}
+		}
+	}
+
 private:
 
 	bool enableCpuProfiling = false;
+
+	WeakReference<ScriptnodeVoiceKiller> voiceKiller;
 
 	WeakReference<ExternalDataHolder> dataHolder;
 
@@ -772,6 +882,59 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetwork);
 };
 
+
+namespace envelope
+{
+	struct killer
+	{
+		SET_HISE_NODE_ID("killer");
+		SN_GET_SELF_AS_OBJECT(killer);
+
+		static constexpr bool isPolyphonic() { return false; }
+
+		HISE_EMPTY_HANDLE_EVENT;
+		HISE_EMPTY_MOD;
+		HISE_EMPTY_RESET;
+		HISE_EMPTY_PROCESS;
+		HISE_EMPTY_PROCESS_SINGLE;
+
+		void prepare(PrepareSpecs ps)
+		{
+			p = ps.voiceIndex;
+		}
+
+		void initialise(NodeBase* n)
+		{
+			network = n->getRootNetwork();
+		}
+
+		template <int P> void setParameter(double v)
+		{
+			auto voiceIndex = p != nullptr ? p->getVoiceIndex() : -1;
+
+			if (P == 0 && v < 0.5 && voiceIndex != -1)
+				network->setVoiceResetFlag(false);
+
+			if (P == 1 && v < 0.5)
+				network->setVoiceResetFlag(true);
+		}
+
+		FORWARD_PARAMETER_TO_MEMBER(killer);
+
+		void createParameters(ParameterDataList& data)
+		{
+			{
+				parameter::data d("Kill Voice", { 0.0, 1.0, 1.0 });
+				d.callback = parameter::inner<killer, 0>(*this);
+				d.setDefaultValue(1.0f);
+				data.add(d);
+			}
+		}
+
+		PolyHandler* p;
+		WeakReference<DspNetwork> network;
+	};
+}
 
 
 }

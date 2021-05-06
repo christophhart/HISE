@@ -39,7 +39,8 @@ using namespace hise;
 using namespace snex;
 using namespace snex::ui;
 
-struct SnexSource : public WorkbenchData::Listener
+struct SnexSource : public WorkbenchData::Listener,
+					public SimpleRingBuffer::WriterBase
 {
 	using SnexTestBase = snex::ui::WorkbenchData::TestRunnerBase;
 
@@ -681,6 +682,9 @@ struct SnexSource : public WorkbenchData::Listener
 			{
 				c->setTestBase(createTester());
 			}
+
+			if(parentNode != nullptr)
+				wb->getGlobalScope().setPolyphonic(parentNode->getRootNetwork()->isPolyphonic());
 
 			wb->addListener(this);
 			wb->triggerRecompile();

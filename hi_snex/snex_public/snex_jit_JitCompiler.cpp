@@ -152,7 +152,6 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 	compileCount++;
 	lastCode = code;
 	
-	
 	try
 	{
 		Preprocessor p(lastCode);

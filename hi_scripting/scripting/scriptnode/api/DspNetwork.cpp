@@ -63,11 +63,11 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ownedFactories.add(new NodeContainerFactory(this));
 	ownedFactories.add(new core::Factory(this));
 	ownedFactories.add(new math::Factory(this));
+	ownedFactories.add(new envelope::Factory(this));
 	ownedFactories.add(new routing::Factory(this));
 	ownedFactories.add(new analyse::Factory(this));
 	ownedFactories.add(new fx::Factory(this));
 	ownedFactories.add(new control::Factory(this));
-	ownedFactories.add(new examples::Factory(this));
 	ownedFactories.add(new dynamics::Factory(this));
 	ownedFactories.add(new filters::Factory(this));
 	ownedFactories.add(new stk_factory::Factory(this));
@@ -759,6 +759,9 @@ DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)
 
 	auto newNetwork = new DspNetwork(asScriptProcessor, v, isPolyphonic());
 
+	if (vk != nullptr)
+		newNetwork->setVoiceKiller(vk);
+
 	networks.add(newNetwork);
 
 	setActiveNetwork(newNetwork);
@@ -780,6 +783,10 @@ scriptnode::DspNetwork* DspNetwork::Holder::getOrCreate(const ValueTree& v)
 	}
 
 	auto newNetwork = new DspNetwork(dynamic_cast<ProcessorWithScriptingContent*>(this), v, isPolyphonic());
+
+	if (vk != nullptr)
+		newNetwork->setVoiceKiller(vk);
+
 
 	networks.add(newNetwork);
 	setActiveNetwork(newNetwork);

@@ -605,12 +605,15 @@ namespace control
 
 	
 
-	template <class ParameterType, int NumVoices=1> struct pma : public pimpl::combined_parameter_base,
-																 public pimpl::parameter_node_base<ParameterType>,
-																 public pimpl::no_processing
+	template <class ParameterType, int NV> struct pma_impl : public mothernode,
+																	public pimpl::combined_parameter_base,
+																	public pimpl::parameter_node_base<ParameterType>,
+																	public pimpl::no_processing
 	{
-		SET_HISE_NODE_ID("pma");
-		SN_GET_SELF_AS_OBJECT(pma);
+		static constexpr int NumVoices = NV;
+
+		SET_HISE_POLY_NODE_ID("pma");
+		SN_GET_SELF_AS_OBJECT(pma_impl);
 
 		enum class Parameters
 		{
@@ -621,9 +624,9 @@ namespace control
 
 		DEFINE_PARAMETERS
 		{
-			DEF_PARAMETER(Value, pma);
-			DEF_PARAMETER(Multiply, pma);
-			DEF_PARAMETER(Add, pma);
+			DEF_PARAMETER(Value, pma_impl);
+			DEF_PARAMETER(Multiply, pma_impl);
+			DEF_PARAMETER(Add, pma_impl);
 		};
 		PARAMETER_MEMBER_FUNCTION;
 
@@ -632,8 +635,10 @@ namespace control
 			for (auto& s : this->data)
 			{
 				s.value = v;
-				sendParameterChange(s);
+				s.dirty = true;
 			}
+
+			sendPending();
 		}
 
 		void setAdd(double v)
@@ -641,13 +646,10 @@ namespace control
 			for (auto& s : this->data)
 			{
 				s.addValue = v;
-				sendParameterChange(s);
+				s.dirty = true;
 			}
-		}
-
-		void prepare(PrepareSpecs ps)
-		{
-			this->data.prepare(ps);
+				
+			sendPending();
 		}
 
 		void setMultiply(double v)
@@ -655,26 +657,69 @@ namespace control
 			for (auto& s : this->data)
 			{
 				s.mulValue = v;
-				sendParameterChange(s);
+				s.dirty = true;
+			}
+
+			sendPending();
+		}
+		
+
+		void sendPending()
+		{
+			if constexpr (isPolyphonic())
+			{
+				if (polyHandler == nullptr || 
+					!this->getParameter().isConnected() ||
+					polyHandler->getVoiceIndex() == -1)
+					return;
+
+				auto& d = data.get();
+
+				this->getParameter().call(d.getPmaValue());
+			}
+			else
+			{
+				auto& d = data.get();
+
+				if(d.dirty && this->getParameter().isConnected())
+					this->getParameter().call(d.getPmaValue());
 			}
 		}
+
+		template <typename T> void process(T&)
+		{
+			sendPending();
+		}
+
+		template <typename T> void processFrame(T&)
+		{
+			sendPending();
+		}
+
+		void prepare(PrepareSpecs ps)
+		{
+			this->data.prepare(ps);
+			polyHandler = ps.voiceIndex;
+		}
+
+		
 
 		void createParameters(ParameterDataList& data)
 		{
 			{
-				DEFINE_PARAMETERDATA(pma, Value);
+				DEFINE_PARAMETERDATA(pma_impl, Value);
 				p.setRange({ 0.0, 1.0 });
 				p.setDefaultValue(0.0);
 				data.add(std::move(p));
 			}
 			{
-				DEFINE_PARAMETERDATA(pma, Multiply);
+				DEFINE_PARAMETERDATA(pma_impl, Multiply);
 				p.setRange({ -1.0, 1.0 });
 				p.setDefaultValue(1.0);
 				data.add(std::move(p));
 			}
 			{
-				DEFINE_PARAMETERDATA(pma, Add);
+				DEFINE_PARAMETERDATA(pma_impl, Add);
 				p.setRange({ -1.0, 1.0 });
 				p.setDefaultValue(0.0);
 				data.add(std::move(p));
@@ -687,14 +732,12 @@ namespace control
 
 	private:
 
+		snex::Types::PolyHandler* polyHandler;
 		PolyData<Data, NumVoices> data;
-
-		void sendParameterChange(control::pimpl::combined_parameter_base::Data& d)
-		{
-			if(this->getParameter().isConnected())
-				this->getParameter().call(d.getPmaValue());
-		}
 	};
+
+	template <typename ParameterType> using pma = pma_impl<ParameterType, 1>;
+	template <typename ParameterType> using pma_poly = pma_impl<ParameterType, NUM_POLYPHONIC_VOICES>;
 
 	template <typename SmootherClass> struct smoothed_parameter
 	{

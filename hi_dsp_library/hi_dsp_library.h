@@ -174,6 +174,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "node_api/nodes/duplicate.h"
 
 #include "dsp_nodes/CoreNodes.h"
+
 #include "dsp_nodes/CableNodeBaseClasses.h"
 #include "dsp_nodes/CableNodes.h"
 #include "dsp_nodes/RoutingNodes.h"
@@ -182,6 +183,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_nodes/FXNodes.h"
 #include "dsp_nodes/FilterNode.h"
 #include "dsp_nodes/EventNodes.h"
+#include "dsp_nodes/EnvelopeNodes.h"
 
 #include "dsp_nodes/FXNodes_impl.h"
 

@@ -14,8 +14,6 @@ PolyData<int, 18> data;
 
 int main(int input)
 {
-	Console.print(8);
-	    
-	return 12;
+	return data.get();
 }
 

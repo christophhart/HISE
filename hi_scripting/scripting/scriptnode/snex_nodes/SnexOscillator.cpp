@@ -56,18 +56,27 @@ juce::Result core::SnexOscillator::OscillatorCallbacks::recompiledOk(snex::jit::
 
 	auto newTickFunction = getFunctionAsObjectCallback("tick");
 	auto newProcessFunction = getFunctionAsObjectCallback("process", false);
+	auto newPrepareFunction = getFunctionAsObjectCallback("prepare", false);
+
+	
 
 	r = newTickFunction.validateWithArgs(Types::ID::Float, { Types::ID::Double });
 
 	if (r.wasOk())
 		r = newProcessFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
 
+	if (r.wasOk() && newPrepareFunction.isResolved())
+		r = newPrepareFunction.validateWithArgs("void", { "PrepareSpecs" });
+
 	{
 		SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
 		ok = r.wasOk();
 		std::swap(newTickFunction, tickFunction);
 		std::swap(newProcessFunction, processFunction);
+		std::swap(newPrepareFunction, prepareFunction);
 	}
+
+	prepare(lastSpecs);
 
 	return r;
 }
@@ -86,6 +95,14 @@ void core::SnexOscillator::OscillatorCallbacks::process(OscProcessData& d)
 
 	if (auto c = ScopedCallbackChecker(*this))
 		processFunction.callVoidUncheckedWithObject(&d);
+}
+
+void core::SnexOscillator::OscillatorCallbacks::prepare(PrepareSpecs ps)
+{
+	lastSpecs = ps;
+
+	if(auto c = ScopedCallbackChecker(*this))
+		prepareFunction.callVoid(&lastSpecs);
 }
 
 core::SnexOscillator::SnexOscillator() :
@@ -125,6 +142,14 @@ String core::SnexOscillator::getEmptyText(const Identifier& id) const
 		}
 	}
 
+	c.addEmptyLine();
+	c.addComment("This can be used to initialise the processing if required.", snex::cppgen::Base::CommentType::Raw);
+	c << "void prepare(PrepareSpecs ps)\n";
+	{
+		StatementBlock sb2(c);
+	}
+	
+
 	String pf;
 
 	c.addEmptyLine();
@@ -154,17 +179,25 @@ void core::SnexOscillator::process(OscProcessData& d)
 	callbacks.process(d);
 }
 
+void core::SnexOscillator::prepare(PrepareSpecs ps)
+{
+	callbacks.prepare(ps);
+}
+
 core::NewSnexOscillatorDisplay::NewSnexOscillatorDisplay(SnexOscillator* osc, PooledUIUpdater* updater) :
 	ScriptnodeExtraComponent<SnexOscillator>(osc, updater),
-	menuBar(osc)
+	menuBar(osc),
+	display()
 {
-	setComplexDataUIBase(osc->getMainDisplayBuffer());
+	display.setComplexDataUIBase(osc->getMainDisplayBuffer());
+	display.setSpecialLookAndFeel(new data::ui::pimpl::complex_ui_laf(), true);
 
-	setSpecialLookAndFeel(new data::ui::pimpl::complex_ui_laf(), true);
-
+	addAndMakeVisible(display);
 	addAndMakeVisible(menuBar);
 	setSize(256, 144);
 	getObject()->addCompileListener(this);
+
+	auto rb = osc->getMainDisplayBuffer();
 
 	rb->setPropertyObject(new SnexOscPropertyObject(osc));
 }
@@ -176,56 +209,53 @@ core::NewSnexOscillatorDisplay::~NewSnexOscillatorDisplay()
 
 void core::NewSnexOscillatorDisplay::complexDataAdded(snex::ExternalData::DataType t, int index)
 {
-	rb->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+	getObject()->getMainDisplayBuffer()->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
 }
 
 void core::NewSnexOscillatorDisplay::parameterChanged(int snexParameterId, double newValue)
 {
-	rb->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+	getObject()->getMainDisplayBuffer()->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
 }
 
 void core::NewSnexOscillatorDisplay::complexDataTypeChanged()
 {
-	rb->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+	getObject()->getMainDisplayBuffer()->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
 }
 
 void core::NewSnexOscillatorDisplay::wasCompiled(bool ok)
 {
 	if (ok)
 	{
-		errorMessage = {};
+		display.errorMessage = {};
 
-		if (rb != nullptr)
-		{
+		if (auto rb = getObject()->getMainDisplayBuffer())
 			rb->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
-		}
 		
 		repaint();
 	}
 	else
 	{
-		p = {};
-		errorMessage = getObject()->getWorkbench()->getLastResult().compileResult.getErrorMessage();
+		display.p = {};
+		display.errorMessage = getObject()->getWorkbench()->getLastResult().compileResult.getErrorMessage();
 		repaint();
 	}
 }
 
-void core::NewSnexOscillatorDisplay::paint(Graphics& g)
+void core::NewSnexOscillatorDisplay::SnexDisplay::paint(Graphics& g)
 {
 	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
 
 	Path grid;
-	grid.addRectangle(pathBounds.reduced(4.0f));
+	grid.addRectangle(getLocalBounds().toFloat().reduced(4.0f));
 
 	laf->drawAnalyserGrid(g, *this, grid);
-
-	laf->drawOscilloscopeBackground(g, *this, pathBounds);
+	laf->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
 
 	if (errorMessage.isNotEmpty())
 	{
 		g.setColour(Colours::white.withAlpha(0.7f));
 		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText(errorMessage, pathBounds, Justification::centred);
+		g.drawText(errorMessage, getLocalBounds().toFloat(), Justification::centred);
 	}
 	else if (!p.getBounds().isEmpty())
 	{
@@ -233,41 +263,43 @@ void core::NewSnexOscillatorDisplay::paint(Graphics& g)
 	}
 }
 
-void core::NewSnexOscillatorDisplay::timerCallback()
+void core::NewSnexOscillatorDisplay::SnexDisplay::refresh()
 {
-	if (rebuildPath)
+	if (!getLocalBounds().isEmpty())
 	{
-		if (!pathBounds.isEmpty())
+		auto pathBounds = getLocalBounds().toFloat();
+
+		p.clear();
+		p.startNewSubPath(0.0f, -1.0f);
+		p.startNewSubPath(0.0f, 1.0f);
+		p.startNewSubPath(0.0f, 0.0f);
+
+		float i = 0.0f;
+
+		auto& buffer = rb->getReadBuffer();
+
+		for (i = 0.0f; i < buffer.getNumSamples(); i += 1.0f)
 		{
-			p.clear();
-			p.startNewSubPath(0.0f, -1.0f);
-			p.startNewSubPath(0.0f, 1.0f);
-			p.startNewSubPath(0.0f, 0.0f);
-
-			float i = 0.0f;
-
-			auto& buffer = rb->getReadBuffer();
-
-			for(i = 0.0f; i < buffer.getNumSamples(); i += 1.0f)
-			{
-				float v = buffer.getSample(0, i);
-				FloatSanitizers::sanitizeFloatNumber(v);
-				v = jlimit(-10.0f, 10.0f, v);
-				p.lineTo(i, -1.0f * v);
-			}
-
-			p.lineTo(i - 1.0f, 0.0f);
-			//p.closeSubPath();
-
-			auto pb = pathBounds.reduced(4.0f);
-
-			if (p.getBounds().getHeight() > 0.0f && p.getBounds().getWidth() > 0.0f)
-				p.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), false);
+			float v = buffer.getSample(0, i);
+			FloatSanitizers::sanitizeFloatNumber(v);
+			v = jlimit(-10.0f, 10.0f, v);
+			p.lineTo(i, -1.0f * v);
 		}
 
-		rebuildPath = false;
-		repaint();
+		p.lineTo(i - 1.0f, 0.0f);
+		//p.closeSubPath();
+
+		auto pb = pathBounds.reduced(4.0f);
+
+		if (p.getBounds().getHeight() > 0.0f && p.getBounds().getWidth() > 0.0f)
+			p.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), false);
 	}
+
+	repaint();
+}
+
+void core::NewSnexOscillatorDisplay::timerCallback()
+{
 }
 
 void core::NewSnexOscillatorDisplay::resized()
@@ -276,7 +308,7 @@ void core::NewSnexOscillatorDisplay::resized()
 	menuBar.setBounds(t.removeFromTop(24));
 	t.removeFromTop(20);
 
-	pathBounds = t.reduced(2).toFloat();
+	display.setBounds(t.reduced(2));
 }
 
 Component* core::NewSnexOscillatorDisplay::createExtraComponent(void* obj, PooledUIUpdater* u)

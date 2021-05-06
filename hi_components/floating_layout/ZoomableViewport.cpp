@@ -95,6 +95,7 @@ ZoomableViewport::ZoomableViewport(Component* n) :
 	yDragger.addListener(this);
 
 	
+	
 }
 
 ZoomableViewport::~ZoomableViewport()
@@ -192,7 +193,14 @@ void ZoomableViewport::resized()
 	if (!positionInitialised)
 	{
 		positionInitialised = true;
-		centerCanvas();
+
+		Component::SafePointer<ZoomableViewport> safeThis(this);
+
+		MessageManager::callAsync([safeThis]()
+		{
+			if (safeThis.getComponent() != nullptr)
+				safeThis.getComponent()->centerCanvas();
+		});
 	}
 	else
 	{
@@ -465,7 +473,7 @@ void ZoomableViewport::Holder::paint(Graphics& g)
 	g.setColour(Colour(0xFF262626));
 	auto b = getLocalBounds().toFloat();
 	g.drawImage(bg, b, RectanglePlacement::fillDestination);
-	g.fillAll(JUCE_LIVE_CONSTANT(Colour(0xe12b2b2b)));
+	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xe12b2b2b)));
 	g.setColour(Colours::white.withAlpha(0.2f));
 	g.drawRect(b, 1.0f);
 	b = b.removeFromTop((float)headerHeight).reduced(1.0f);
