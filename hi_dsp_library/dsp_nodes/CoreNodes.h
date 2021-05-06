@@ -704,6 +704,7 @@ public:
 		Mode,
 		Frequency,
 		PitchMultiplier,
+		Gate,
 		numParameters
 	};
 
@@ -734,6 +735,9 @@ public:
 	{
 		currentVoiceData = &voiceData.get();
 
+		if (currentVoiceData->enabled == 0)
+			return;
+
 		for (auto& s : data[0])
 		{
 			auto asSpan = reinterpret_cast<span<float, 1>*>(&s);
@@ -745,6 +749,9 @@ public:
 	{
 		if (currentVoiceData == nullptr)
 			currentVoiceData = &voiceData.get();
+
+		if (currentVoiceData->enabled == 0)
+			return;
 
 		auto& s = data[0];
 
@@ -785,6 +792,12 @@ public:
 			p.callback = parameter::inner<oscillator_impl, (int)Parameters::PitchMultiplier>(*this);
 			data.add(std::move(p));
 		}
+		{
+			DEFINE_PARAMETERDATA(oscillator_impl, Gate);
+			p.setRange({ 0.0, 1.0, 1.0 });
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
 	}
 
 	void setMode(double newMode)
@@ -808,6 +821,18 @@ public:
 		}
 	}
 
+	void setGate(double v)
+	{
+		auto shouldBeOn = (int)(v > 0.5);
+		v = (double)shouldBeOn;
+
+		for (auto& d : voiceData)
+		{
+			d.enabled = shouldBeOn;
+			d.uptime *= v;
+		}
+	}
+
 	void setPitchMultiplier(double newMultiplier)
 	{
 		pitchMultiplier = jlimit(0.001, 100.0, newMultiplier);
@@ -824,6 +849,7 @@ public:
 		DEF_PARAMETER(Mode, oscillator_impl);
 		DEF_PARAMETER(Frequency, oscillator_impl);
 		DEF_PARAMETER(PitchMultiplier, oscillator_impl);
+		DEF_PARAMETER(Gate, oscillator_impl);
 	}
 
 	PARAMETER_MEMBER_FUNCTION;
@@ -848,7 +874,8 @@ public:
 	{
 		Frequency,
 		Modulator,
-		FreqMultiplier
+		FreqMultiplier,
+		Gate
 	};
 
 	DEFINE_PARAMETERS
@@ -856,6 +883,7 @@ public:
 		DEF_PARAMETER(Frequency, fm);
 		DEF_PARAMETER(Modulator, fm);
 		DEF_PARAMETER(FreqMultiplier, fm);
+		DEF_PARAMETER(Gate, fm);
 	}
 
 	SET_HISE_NODE_ID("fm");
@@ -870,12 +898,19 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
+		if (oscData.get().enabled == 0)
+			return;
+
 		FrameConverters::forwardToFrameMono(this, data);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& d)
 	{
 		auto& od = oscData.get();
+
+		if (!od.enabled)
+			return;
+
 		double modValue = (double)d[0];
 		d[0] = sinTable->getInterpolatedValue(od.tick());
 		od.uptime += modGain.get() * modValue;
@@ -888,6 +923,7 @@ public:
 	void setFreqMultiplier(double input);
 	void setModulator(double newGain);
 	void setFrequency(double newFrequency);
+	void setGate(double v);
 
 private:
 

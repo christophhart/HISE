@@ -80,6 +80,12 @@ void fm::createParameters(ParameterDataList& data)
 		p.setDefaultValue(1.0);
 		data.add(std::move(p));
 	}
+	{
+		DEFINE_PARAMETERDATA(fm, Gate);
+		p.setRange({ 0.0, 1.0, 1.0 });
+		p.setDefaultValue(1.0);
+		data.add(std::move(p));
+	}
 }
 
 void fm::handleHiseEvent(HiseEvent& e)
@@ -112,6 +118,18 @@ void fm::setFrequency(double newFrequency)
 }
 
 
+
+void fm::setGate(double v)
+{
+	auto shouldBeOn = (int)(v > 0.5);
+	v = double(shouldBeOn);
+
+	for (auto& d : oscData)
+	{
+		d.enabled = shouldBeOn;
+		d.uptime *= v;
+	}
+}
 
 } // namespace core
 

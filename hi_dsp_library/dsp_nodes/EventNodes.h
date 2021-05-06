@@ -195,17 +195,17 @@ struct TimerInfo
 	bool active = false;
 	int samplesBetweenCallbacks = 22050;
 	int samplesLeft = 22050;
-	double lastValue = 0.0f;
+	ModValue lastValue;
 
 	bool getChangedValue(double& v)
 	{
-		if (samplesBetweenCallbacks >= samplesLeft)
-		{
-			v = lastValue;
-			return true;
-		}
+		return lastValue.getChangedValue(v);
+	}
 
-		return false;
+	bool tick(int numSamples)
+	{
+		samplesLeft -= numSamples;
+		return samplesLeft <= 0;
 	}
 
 	bool tick()
@@ -216,7 +216,7 @@ struct TimerInfo
 	void reset()
 	{
 		samplesLeft = samplesBetweenCallbacks;
-		lastValue = 0.0;
+		lastValue.setModValue(0.0);
 	}
 };
 
@@ -262,7 +262,7 @@ public:
 	}
 	PARAMETER_MEMBER_FUNCTION;
 
-	static constexpr bool isNormalisedModulation() { return false; }
+	static constexpr bool isNormalisedModulation() { return true; }
 	constexpr static int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("timer");
@@ -287,12 +287,15 @@ public:
 
 	void reset()
 	{
+		if constexpr (prototypes::check::reset<TimerType>::value)
+			this->tType.reset();
+
 		auto v = this->tType.getTimerValue();
 
 		for (auto& ti : t)
 		{
 			ti.reset();
-			ti.lastValue = v;
+			ti.lastValue.setModValue(v);
 		}
 	}
 
@@ -305,9 +308,10 @@ public:
 
 		if (thisInfo.tick())
 		{
-			thisInfo.reset();
-			thisInfo.lastValue = this->tType.getTimerValue();
+			thisInfo.lastValue.setModValue(this->tType.getTimerValue());
+			thisInfo.samplesLeft += thisInfo.samplesBetweenCallbacks;
 		}
+			
 	}
 
 	
@@ -321,28 +325,16 @@ public:
 
 		const int numSamples = d.getNumSamples();
 
-		if (numSamples < thisInfo.samplesLeft)
+		if (thisInfo.tick(numSamples))
 		{
-			thisInfo.samplesLeft -= numSamples;
-		}
-		else
-		{
-			const int numRemaining = numSamples - thisInfo.samplesLeft;
-
-			t.get().lastValue = this->tType.getTimerValue();
-			const int numAfter = numSamples - numRemaining;
-			thisInfo.samplesLeft = thisInfo.samplesBetweenCallbacks + numRemaining;
+			thisInfo.lastValue.setModValue(this->tType.getTimerValue());
+			thisInfo.samplesLeft += thisInfo.samplesBetweenCallbacks;
 		}
 	}
 
 	bool handleModulation(double& value)
 	{
-		bool ok = false;
-
-		for (auto& ti : t)
-			ok |= ti.getChangedValue(value);
-
-		return ok;
+		return t.get().getChangedValue(value);
 	}
 
 	void createParameters(ParameterDataList& data)
@@ -365,12 +357,15 @@ public:
 	{
 		bool thisActive = value > 0.5;
 
+		auto v = this->tType.getTimerValue();
+
 		for (auto& ti : t)
 		{
 			if (ti.active != thisActive)
 			{
 				ti.active = thisActive;
-				ti.reset();
+				ti.samplesLeft = ti.samplesBetweenCallbacks;
+				ti.lastValue.setModValue(v);
 			}
 		}
 	}
