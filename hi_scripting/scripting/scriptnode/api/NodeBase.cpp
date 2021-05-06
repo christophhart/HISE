@@ -505,8 +505,84 @@ void Parameter::setTreeWithValue(ValueTree v)
 
 void Parameter::setValueAndStoreAsync(double newValue)
 {
-	DspNetwork::NoVoiceSetter nvs(*parent->getRootNetwork());
-	dbNew.call(newValue);
+	if (!connectionSourceTree.isValid()) // prevent overriding all voice parameters
+	{
+		DspNetwork::NoVoiceSetter nvs(*parent->getRootNetwork());
+		dbNew.call(newValue);
+	}
+	else
+		dbNew.setUIValue(newValue);
+}
+
+juce::ValueTree Parameter::getConnectionSourceTree(bool forceUpdate)
+{
+	if (forceUpdate)
+	{
+		auto pId = getId();
+		auto nId = parent->getId();
+		auto n = parent->getRootNetwork();
+
+		{
+			auto containers = n->getListOfNodesWithType<NodeContainer>(true);
+
+			for (auto c : containers)
+			{
+				for (auto p : c->getParameterTree())
+				{
+					auto cTree = p.getChildWithName(PropertyIds::Connections);
+
+					for (auto c : cTree)
+					{
+						if (c[PropertyIds::NodeId].toString() == nId &&
+							c[PropertyIds::ParameterId].toString() == pId)
+						{
+							connectionSourceTree = c;
+							return c;
+						}
+					}
+				}
+			}
+		}
+
+		{
+			auto modNodes = n->getListOfNodesWithType<ModulationSourceNode>(true);
+
+			for (auto mn : modNodes)
+			{
+				auto mTree = mn->getValueTree().getChildWithName(PropertyIds::ModulationTargets);
+
+				for (auto mt : mTree)
+				{
+					if (mt[PropertyIds::NodeId].toString() == nId &&
+						mt[PropertyIds::ParameterId].toString() == pId)
+					{
+						connectionSourceTree = mt;
+						return mt;
+					}
+				}
+
+				auto sTree = mn->getValueTree().getChildWithName(PropertyIds::SwitchTargets);
+
+				for (auto sts : sTree)
+				{
+					for (auto st : sts.getChildWithName(PropertyIds::Connections))
+					{
+						if (st[PropertyIds::NodeId].toString() == nId &&
+							st[PropertyIds::ParameterId].toString() == pId)
+						{
+							connectionSourceTree = st;
+							return st;
+						}
+					}
+				}
+			}
+		}
+
+		return {};
+	}
+
+	return connectionSourceTree;
+	
 }
 
 struct DragHelpers

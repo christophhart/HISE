@@ -98,7 +98,7 @@ struct ParameterKnobLookAndFeel : public GlobalHiseLookAndFeel
 
 		void updateText()
 		{
-			if (parent->isMouseOverOrDragging(true) || isMouseOver())
+			if (parent->isMouseButtonDown(true))
 				setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
 			else
 				setText(parent->getName(), dontSendNotification);

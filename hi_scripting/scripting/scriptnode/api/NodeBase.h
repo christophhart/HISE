@@ -112,6 +112,8 @@ public:
 
 	// ================================================================== End of API Calls
 
+	ValueTree getConnectionSourceTree(bool forceUpdate);
+
 	bool matchesConnection(const ValueTree& c) const;
 
 	Array<Parameter*> getConnectedMacroParameters() const;
@@ -156,6 +158,8 @@ private:
 
 	ValueTree treeThatStoresValue;
 	parameter::dynamic_base_holder dbNew;
+
+	ValueTree connectionSourceTree;
 
 	struct Wrapper;
 

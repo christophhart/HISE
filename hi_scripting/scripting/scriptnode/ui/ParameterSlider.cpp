@@ -1089,64 +1089,7 @@ Array<NodeContainer::MacroParameter*> ParameterSlider::getConnectedMacroParamete
 
 juce::ValueTree ParameterSlider::getConnectionSourceTree()
 {
-	auto pId = parameterToControl->getId();
-	auto nId = parameterToControl->parent->getId();
-	auto n = parameterToControl->parent->getRootNetwork();
-
-	{
-		auto containers = n->getListOfNodesWithType<NodeContainer>(true);
-
-		for (auto c : containers)
-		{
-			for (auto p : c->getParameterTree())
-			{
-				auto cTree = p.getChildWithName(PropertyIds::Connections);
-
-				for (auto c : cTree)
-				{
-					if (c[PropertyIds::NodeId].toString() == nId &&
-						c[PropertyIds::ParameterId].toString() == pId)
-					{
-						return c;
-					}
-				}
-			}
-		}
-	}
-
-	{
-		auto modNodes = n->getListOfNodesWithType<ModulationSourceNode>(true);
-
-		for (auto mn : modNodes)
-		{
-			auto mTree = mn->getValueTree().getChildWithName(PropertyIds::ModulationTargets);
-
-			for (auto mt : mTree)
-			{
-				if (mt[PropertyIds::NodeId].toString() == nId &&
-					mt[PropertyIds::ParameterId].toString() == pId)
-				{
-					return mt;
-				}
-			}
-
-			auto sTree = mn->getValueTree().getChildWithName(PropertyIds::SwitchTargets);
-
-			for (auto sts : sTree)
-			{
-				for (auto st : sts.getChildWithName(PropertyIds::Connections))
-				{
-					if (st[PropertyIds::NodeId].toString() == nId &&
-						st[PropertyIds::ParameterId].toString() == pId)
-					{
-						return st;
-					}
-				}
-			}
-		}
-	}
-
-	return {};
+	return parameterToControl->getConnectionSourceTree(true);
 }
 
 bool ParameterSlider::matchesConnection(ValueTree& c) const

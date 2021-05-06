@@ -308,14 +308,17 @@ namespace pimpl
 {
 struct combined_parameter_base
 {
+	virtual ~combined_parameter_base() {};
+
 	struct Data
 	{
-		double getPmaValue() const { return value * mulValue + addValue; }
-		double getPamValue() const { return (value + addValue) * mulValue; }
+		double getPmaValue() const { dirty = false; return value * mulValue + addValue; }
+		double getPamValue() const { dirty = false; return (value + addValue) * mulValue; }
 
 		double value = 0.0;
 		double mulValue = 1.0;
 		double addValue = 0.0;
+		mutable bool dirty = false;
 	};
 
 	virtual Data getUIData() const = 0;
@@ -328,6 +331,8 @@ struct combined_parameter_base
 /** Use this baseclass for nodes that do not process the signal. */
 struct no_processing
 {
+	virtual ~no_processing() {};
+
 	static constexpr bool isPolyphonic() { return false; };
 	virtual HISE_EMPTY_INITIALISE;
 	virtual HISE_EMPTY_PREPARE;
@@ -343,6 +348,8 @@ struct no_processing
 
 template <class ParameterType> struct parameter_node_base
 {
+	virtual ~parameter_node_base() {};
+
 	/** This method can be used to connect a target to the combined output of this
 		node.
 	*/
@@ -367,7 +374,7 @@ template <class ParameterType> struct duplicate_parameter_node_base : public par
 		getParameter().setParentNumVoiceListener(this);
 	}
 
-	~duplicate_parameter_node_base()
+	virtual ~duplicate_parameter_node_base()
 	{
 		getParameter().setParentNumVoiceListener(nullptr);
 	}
