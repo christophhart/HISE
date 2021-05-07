@@ -638,7 +638,7 @@ public:
 
 	ValueTree getValueTree() const { return data; };
 
-	CriticalSection& getConnectionLock() { return connectLock; }
+	SimpleReadWriteLock& getConnectionLock() { return connectLock; }
 	bool updateIdsInValueTree(ValueTree& v, StringArray& usedIds);
 	NodeBase* createFromValueTree(bool createPolyIfAvailable, ValueTree d, bool forceCreate=false);
 	bool isInSignalPath(NodeBase* b) const;
@@ -860,7 +860,7 @@ private:
 
 	valuetree::RecursivePropertyListener idUpdater;
 
-	CriticalSection connectLock;
+	SimpleReadWriteLock connectLock;
 
 	WeakReference<Holder> parentHolder;
 

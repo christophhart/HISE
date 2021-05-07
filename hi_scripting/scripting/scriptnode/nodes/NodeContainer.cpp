@@ -66,17 +66,9 @@ const scriptnode::NodeBase* NodeContainer::asNode() const
 
 void NodeContainer::prepareContainer(PrepareSpecs& ps)
 {
-	auto& lock = asNode()->getRootNetwork()->getConnectionLock();
-	ScopedTryLock sl(lock);
-
-	// You need to lock this before anyway...
-	jassert(sl.isLocked());
-
 	originalSampleRate = ps.sampleRate;
 	originalBlockSize = ps.blockSize;
 	lastVoiceIndex = ps.voiceIndex;
-
-	
 
 	ps.sampleRate = getSampleRateForChildNodes();
 	ps.blockSize = getBlockSizeForChildNodes();
@@ -152,7 +144,7 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 
 			int insertIndex = getNodeTree().indexOf(child);
 
-			ScopedLock sl(n->getRootNetwork()->getConnectionLock());
+			SimpleReadWriteLock::ScopedWriteLock sl(n->getRootNetwork()->getConnectionLock());
 
 			nodes.insert(insertIndex, nodeToProcess);
 			updateChannels(n->getValueTree(), PropertyIds::NumChannels);
@@ -163,7 +155,8 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 
 			nodeToProcess->setIsUINodeOfDuplicates(false);
 
-			ScopedLock sl(n->getRootNetwork()->getConnectionLock());
+			SimpleReadWriteLock::ScopedWriteLock sl(n->getRootNetwork()->getConnectionLock());
+			
 			nodes.removeAllInstancesOf(nodeToProcess);
 			updateChannels(n->getValueTree(), PropertyIds::NumChannels);
 		}
@@ -245,7 +238,7 @@ bool NodeContainer::isPolyphonic() const
 
 void NodeContainer::assign(const int index, var newValue)
 {
-	ScopedLock sl(asNode()->getRootNetwork()->getConnectionLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(asNode()->getRootNetwork()->getConnectionLock());
 
 	auto un = asNode()->getUndoManager();
 

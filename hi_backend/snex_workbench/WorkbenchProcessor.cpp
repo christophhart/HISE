@@ -296,6 +296,8 @@ void SnexWorkbenchEditor::createNewFile()
 
 	if (!fileName.isEmpty())
 	{
+		closeCurrentNetwork();
+
 		auto f = BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks).getChildFile(fileName + ".xml");
 		addFile(f);
 	}

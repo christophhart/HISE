@@ -1084,8 +1084,11 @@ void JavascriptTimeVariantModulator::calculateBlock(int startSample, int numSamp
 
 		snex::Types::ProcessDataDyn d(&ptr, 1, numSamples);
 
-		ScopedLock sl(n->getConnectionLock());
-		n->getRootNode()->process(d);
+		if (auto s = SimpleReadWriteLock::ScopedTryReadLock(n->getConnectionLock()))
+		{
+			if(n->getExceptionHandler().isOk())
+				n->getRootNode()->process(d);
+		}
 	}
 	else if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
@@ -1253,12 +1256,16 @@ void JavascriptEnvelopeModulator::calculateBlock(int startSample, int numSamples
 
 		scriptnode::ProcessDataDyn d(&ptr, 1, numSamples);
 
-		ScopedLock sl(n->getConnectionLock());
-		n->getRootNode()->process(d);
+		if (auto s = SimpleReadWriteLock::ScopedTryReadLock(n->getConnectionLock()))
+		{
+			if(n->getExceptionHandler().isOk())
+				n->getRootNode()->process(d);
+		}
 
+		// Whenever you hit this, make this envelope use the envelope.killer node
+		jassertfalse;
 		if (d.getResetFlag())
 			reset(polyManager.getCurrentVoice());
-			
 	}
 
 #if ENABLE_ALL_PEAK_METERS

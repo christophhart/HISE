@@ -465,8 +465,11 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 
 		if (auto r = m.show())
 		{
-			auto& eh = getObject()->parentNode->getRootNetwork()->getExceptionHandler();
+			auto network = getObject()->parentNode->getRootNetwork();
 
+			SimpleReadWriteLock::ScopedWriteLock sl(network->getConnectionLock());
+
+			auto& eh = network->getExceptionHandler();
 			eh.removeError(getObject()->parentNode, Error::RingBufferMultipleWriters);
 
 			try

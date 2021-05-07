@@ -492,7 +492,7 @@ double Parameter::getValue() const
 
 void Parameter::setCallbackNew(parameter::dynamic_base* ownedNew)
 {
-	ScopedLock sl(parent->getRootNetwork()->getConnectionLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(parent->getRootNetwork()->getConnectionLock());
 	dbNew.setParameter(ownedNew);
 }
 

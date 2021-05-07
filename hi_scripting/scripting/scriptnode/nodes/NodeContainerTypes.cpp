@@ -86,8 +86,6 @@ void ChainNode::processStereoFrame(StereoFrameType& data)
 
 void ChainNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
-
 	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
 	wrapper.prepare(ps);
@@ -114,8 +112,6 @@ SplitNode::SplitNode(DspNetwork* root, ValueTree data) :
 
 void SplitNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
-
 	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
 
@@ -227,9 +223,6 @@ void ModulationChainNode::process(ProcessDataDyn& data) noexcept
 
 void ModulationChainNode::prepare(PrepareSpecs ps)
 {
-	
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
-
 	DspHelpers::setErrorIfFrameProcessing(ps);
 	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 
@@ -499,8 +492,6 @@ void MultiChannelNode::channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange
 
 void MultiChannelNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
-
 	auto numNodes = this->nodes.size();
 	auto numChannels = ps.numChannels;
 
@@ -603,8 +594,6 @@ SingleSampleBlockX::SingleSampleBlockX(DspNetwork* n, ValueTree d) :
 
 void SingleSampleBlockX::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
-
 	NodeBase::prepare(ps);
 	prepareNodes(ps);
 }
@@ -665,8 +654,6 @@ void MidiChainNode::process(ProcessDataDyn& data) noexcept
 
 void MidiChainNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
-
 	DspHelpers::setErrorIfFrameProcessing(ps);
 	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 

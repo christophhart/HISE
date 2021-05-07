@@ -208,7 +208,7 @@ void DspNetworkCompileHandler::processTest(ProcessDataDyn& data)
 		dllNode.process(data);
 	else if (interpreter != nullptr)
 	{
-		ScopedLock sl(interpreter->getConnectionLock());
+		SimpleReadWriteLock::ScopedReadLock sl(interpreter->getConnectionLock());
 
 		DspNetwork::VoiceSetter svs(*interpreter, 0);
 

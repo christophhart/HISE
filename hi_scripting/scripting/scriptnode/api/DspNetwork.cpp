@@ -287,14 +287,15 @@ void DspNetwork::registerOwnedFactory(NodeFactory* ownedFactory)
 
 void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
 {
-	ScopedLock sl(getConnectionLock());
-
-	if (exceptionHandler.isOk())
+	if(auto s = SimpleReadWriteLock::ScopedTryReadLock(getConnectionLock()))
 	{
-		ProcessDataDyn d(b.getArrayOfWritePointers(), b.getNumSamples(), b.getNumChannels());
-		d.setEventBuffer(*e);
+		if (exceptionHandler.isOk())
+		{
+			ProcessDataDyn d(b.getArrayOfWritePointers(), b.getNumSamples(), b.getNumChannels());
+			d.setEventBuffer(*e);
 
-		getRootNode()->process(d);
+			getRootNode()->process(d);
+		}
 	}
 }
 
@@ -314,7 +315,7 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 {
 	if (sampleRate > 0.0)
 	{
-		ScopedLock sl(getConnectionLock());
+		SimpleReadWriteLock::ScopedWriteLock sl(getConnectionLock());
 
 		try
 		{
@@ -341,34 +342,35 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 
 void DspNetwork::processBlock(var pData)
 {
-	ScopedLock sl(getConnectionLock());
-
-	if (exceptionHandler.isOk())
+	if (auto s = SimpleReadWriteLock::ScopedTryReadLock(getConnectionLock()))
 	{
-		if (auto ar = pData.getArray())
+		if (exceptionHandler.isOk())
 		{
-			int numChannelsToUse = ar->size();
-			int numSamplesToUse = 0;
-
-			int index = 0;
-
-			for (const auto& v : *ar)
+			if (auto ar = pData.getArray())
 			{
-				if (auto bf = v.getBuffer())
+				int numChannelsToUse = ar->size();
+				int numSamplesToUse = 0;
+
+				int index = 0;
+
+				for (const auto& v : *ar)
 				{
-					int thisSamples = bf->buffer.getNumSamples();
+					if (auto bf = v.getBuffer())
+					{
+						int thisSamples = bf->buffer.getNumSamples();
 
-					if (numSamplesToUse == 0)
-						numSamplesToUse = thisSamples;
-					else if (numSamplesToUse != thisSamples)
-						reportScriptError("Buffer mismatch");
+						if (numSamplesToUse == 0)
+							numSamplesToUse = thisSamples;
+						else if (numSamplesToUse != thisSamples)
+							reportScriptError("Buffer mismatch");
 
-					currentData[index++] = bf->buffer.getWritePointer(0);
+						currentData[index++] = bf->buffer.getWritePointer(0);
+					}
 				}
-			}
 
-			ProcessDataDyn d(currentData, numSamplesToUse, numChannelsToUse);
-			getRootNode()->process(d);
+				ProcessDataDyn d(currentData, numSamplesToUse, numChannelsToUse);
+				getRootNode()->process(d);
+			}
 		}
 	}
 }
