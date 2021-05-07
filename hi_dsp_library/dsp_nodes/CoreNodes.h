@@ -176,6 +176,8 @@ public:
 
 	static constexpr bool isNormalisedModulation() { return true; }
 
+	SimpleRingBuffer::PropertyObject* createPropertyObject() override { return new ModPlotter::ModPlotterPropertyObject(this); }
+
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
 		snex::hmath Math;
@@ -663,6 +665,8 @@ public:
 			}
 		}
 	}
+
+	SimpleRingBuffer::PropertyObject* createPropertyObject() override { return new ModPlotter::ModPlotterPropertyObject(this); }
 
 	void setLoopStart(double newLoopStart)
 	{

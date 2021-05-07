@@ -104,7 +104,7 @@ struct OscData
 	int enabled = 1;
 };
 
-struct OscillatorDisplayProvider: public scriptnode::data::base
+struct OscillatorDisplayProvider: public scriptnode::data::display_buffer_base<true>
 {
 	enum class Mode
 	{
@@ -169,10 +169,9 @@ struct OscillatorDisplayProvider: public scriptnode::data::base
 		return r.nextFloat() * 2.0f - 1.0f;
 	}
 
-	void setExternalData(const ExternalData& d, int index)
+	SimpleRingBuffer::PropertyObject* createPropertyObject() override
 	{
-		base::setExternalData(d, index);
-		setRingBufferPropertyObject<OscillatorDisplayObject>();
+		return new OscillatorDisplayObject(this);
 	}
 
 	float tickSaw(OscData& d);

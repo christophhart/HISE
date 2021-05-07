@@ -48,18 +48,7 @@ void ahdsr_base::refreshUIPath(Path& p, Point<float>& position)
 {
 }
 
-void ahdsr_base::setExternalData(const snex::ExternalData& d, int index)
-{
-	if (recursiveSetter)
-		return;
 
-	base::setExternalData(d, index);
-
-	rb = dynamic_cast<SimpleRingBuffer*>(d.obj);
-
-	ScopedValueSetter<bool> svs(recursiveSetter, true);
-	setRingBufferPropertyObject<AhdsrRingBufferProperties>();
-}
 
 void ahdsr_base::setAttackRate(float rate) {
 	attack = rate;
@@ -570,17 +559,6 @@ void simple_ar_base::PropertyObject::transformReadBuffer(AudioSampleBuffer& b)
 #endif
 
 	// Make the path...
-}
-
-void simple_ar_base::setExternalData(const snex::ExternalData& d, int index)
-{
-	if (recursiveSetter)
-		return;
-
-	base::setExternalData(d, index);
-
-	ScopedValueSetter<bool> svs(recursiveSetter, true);
-	setRingBufferPropertyObject<PropertyObject>();
 }
 
 void simple_ar_base::setDisplayValue(int index, double value)

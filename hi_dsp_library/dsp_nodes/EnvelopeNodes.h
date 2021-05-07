@@ -110,7 +110,7 @@ private:
 };
 
 struct ahdsr_base: public mothernode,
-				   public data::base
+				   public data::display_buffer_base<true>
 {
 	struct AhdsrRingBufferProperties : public SimpleRingBuffer::PropertyObject
 	{
@@ -237,7 +237,7 @@ struct ahdsr_base: public mothernode,
 
 	void refreshUIPath(Path& p, Point<float>& position);
 
-	void setExternalData(const snex::ExternalData& d, int index) override;
+	SimpleRingBuffer::PropertyObject* createPropertyObject() override { return new AhdsrRingBufferProperties(this); }
 
 	void setAttackRate(float rate);
 	void setDecayRate(float rate);
@@ -273,15 +273,11 @@ struct ahdsr_base: public mothernode,
 
 	float uiValues[9];
 
-	SimpleRingBuffer::Ptr rb;
-
-	bool recursiveSetter = false;
-
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ahdsr_base);
 };
 
 struct simple_ar_base : public mothernode,
-					    public data::base
+					    public data::display_buffer_base<true>
 {
 	struct PropertyObject : public hise::SimpleRingBuffer::PropertyObject
 	{
@@ -300,7 +296,11 @@ struct simple_ar_base : public mothernode,
 
 	virtual ~simple_ar_base() {};
 
-	void setExternalData(const snex::ExternalData& d, int index) override;
+	SimpleRingBuffer::PropertyObject* createPropertyObject() override
+	{
+		return new PropertyObject(this);
+	}
+
 	void setDisplayValue(int index, double value);
 
 protected:
@@ -337,11 +337,7 @@ protected:
 
 private:
 
-	bool recursiveSetter = false;
-
 	double uiValues[2];
-
-	SimpleRingBuffer::Ptr rb;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(simple_ar_base);
 };

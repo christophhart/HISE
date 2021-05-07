@@ -262,12 +262,6 @@ juce::Array<juce::Identifier> SimpleRingBuffer::getIdentifiers() const
 
 void SimpleRingBuffer::setPropertyObject(PropertyObject* newObject)
 {
-	if (properties != nullptr)
-	{
-		if (!properties->canBeReplaced(newObject))
-			throw String("Incompatible Buffer");
-	}
-
 	properties = newObject;
 
 	properties->initialiseRingBuffer(this);

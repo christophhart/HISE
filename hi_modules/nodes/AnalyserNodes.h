@@ -51,25 +51,13 @@ struct Helpers
 
 		virtual ~AnalyserDataProvider() {};
 
-		void prepare(PrepareSpecs ps)
-		{
-			channelsToProcess = ps.numChannels;
-
-			if (getRingBuffer() != nullptr)
-			{
-				auto numSamples = getRingBuffer()->getReadBuffer().getNumSamples();
-				getRingBuffer()->setRingBufferSize(ps.numChannels, numSamples);
-				getRingBuffer()->setSamplerate(ps.sampleRate);
-			}
-		}
-
 		template <typename ProcessDataType> void updateBuffer(ProcessDataType& data)
 		{
 			if (rb != nullptr && rb->isActive())
 				rb->write(const_cast<const float**>(data.getRawDataPointers()), data.getNumChannels(), data.getNumSamples());
 		}
 
-		int channelsToProcess = 0;
+		PrepareSpecs lastSpecs;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(AnalyserDataProvider);
 	};
@@ -94,20 +82,7 @@ struct Helpers
 		
 		FFT(SimpleRingBuffer::WriterBase* w) : PropertyObject(w) {};
 
-		bool canBeReplaced(PropertyObject* other) const override
-		{
-			return dynamic_cast<FFT*>(other) != nullptr;
-		}
-
 		RingBufferComponentBase* createComponent();
-
-		void initialiseRingBuffer(SimpleRingBuffer* b) override
-		{
-			PropertyObject::initialiseRingBuffer(b);
-
-			setProperty(RingBufferIds::NumChannels, 1);
-			setProperty(RingBufferIds::BufferLength, 16384);
-		}
 
 		bool validateInt(const Identifier& id, int& desiredSize) const override
 		{
@@ -125,11 +100,7 @@ struct Helpers
 				return false;
 			}
 			if (id == RingBufferIds::NumChannels)
-			{
-				auto ok = desiredSize == 1;
-				desiredSize = 1;
-				return ok;
-			}
+				return SimpleRingBuffer::toFixSize<1>(desiredSize);
 			
 			return false;
 		}
@@ -150,24 +121,10 @@ struct Helpers
 
 		RingBufferComponentBase* createComponent() override;
 
-		bool canBeReplaced(PropertyObject* other) const override
-		{
-			return dynamic_cast<Oscilloscope*>(other) != nullptr;
-		}
-
-		void initialiseRingBuffer(SimpleRingBuffer* b) override
-		{
-			PropertyObject::initialiseRingBuffer(b);
-
-			setProperty(RingBufferIds::NumChannels, 2);
-			setProperty(RingBufferIds::BufferLength, 32768);
-		}
-
 		bool validateInt(const Identifier& id, int& v) const override
 		{
 			if(id == RingBufferIds::BufferLength)
 				return SimpleRingBuffer::withinRange<128, 32768*2>(v);
-
 			if(id == RingBufferIds::NumChannels)
 				return SimpleRingBuffer::withinRange<1, 2>(v);
 
@@ -183,32 +140,14 @@ struct Helpers
 
 		static constexpr int NumChannels = 2;
 
-		bool canBeReplaced(PropertyObject* other) const override
-		{
-			return dynamic_cast<GonioMeter*>(other) != nullptr;
-		}
-
 		RingBufferComponentBase* createComponent() override;
-
-		void initialiseRingBuffer(SimpleRingBuffer* b) override
-		{
-			PropertyObject::initialiseRingBuffer(b);
-
-			setProperty(RingBufferIds::NumChannels, 2);
-			setProperty(RingBufferIds::BufferLength, 4096);
-		}
 
 		bool validateInt(const Identifier& id, int& v) const override
 		{
 			if(id == RingBufferIds::BufferLength)
 				return SimpleRingBuffer::withinRange<512, 32768>(v);
-
 			if (id == RingBufferIds::NumChannels)
-			{
-				auto ok = v == 2;
-				v = 2;
-				return ok;
-			}
+				return SimpleRingBuffer::toFixSize<2>(v);
 
 			return false;
 		}
@@ -241,14 +180,7 @@ public:
 			rb->clear();
 	}
 
-	void setExternalData(const ExternalData& d, int index) override
-	{
-		if (d.obj != this->externalData.obj)
-		{
-			Helpers::AnalyserDataProvider::setExternalData(d, index);
-			setRingBufferPropertyObject<T>();
-		}
-	}
+	SimpleRingBuffer::PropertyObject* createPropertyObject() override { return new T(this); }
 
 	void handleHiseEvent(HiseEvent& e)
 	{

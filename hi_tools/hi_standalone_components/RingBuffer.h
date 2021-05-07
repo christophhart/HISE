@@ -54,17 +54,17 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 	template <int LowerLimit, int UpperLimit> static bool withinRange(int& r)
 	{
 		if (r >= LowerLimit && r <= UpperLimit)
-			return false;
+			return true;
 
 		r = jlimit(LowerLimit, UpperLimit, r);
-		return true;
+		return false;
 	}
 
 	template <int FixSize> static bool toFixSize(int& v)
 	{
-		auto ok = v == FixSize;
+		auto mustChange = v != FixSize;
 		v = FixSize;
-		return ok;
+		return mustChange;
 	}
 	
 	/** Just a simple interface class for getting the writer. */
@@ -104,23 +104,23 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 			return false;
 		}
 
-		virtual bool canBeReplaced(PropertyObject* other) const
-		{
-			return true;
-		}
-
 		virtual void initialiseRingBuffer(SimpleRingBuffer* b)
 		{
 			buffer = b;
 
-			int numSamples = RingBufferSize;
-			int numChannels = 1;
+#if 0
+			if (buffer != nullptr)
+			{
+				int numSamples = b->getReadBuffer().getNumSamples();
+				int numChannels = b->getReadBuffer().getNumChannels();
 
-			validateInt(RingBufferIds::BufferLength, numSamples);
-			validateInt(RingBufferIds::NumChannels, numChannels);
-
-			setProperty(RingBufferIds::BufferLength, numSamples);
-			setProperty(RingBufferIds::NumChannels, numChannels);
+				validateInt(RingBufferIds::BufferLength, numSamples);
+				validateInt(RingBufferIds::NumChannels, numChannels);
+				 
+				setProperty(RingBufferIds::BufferLength, numSamples);
+				setProperty(RingBufferIds::NumChannels, numChannels);
+			}
+#endif
 		}
 
 		virtual var getProperty(const Identifier& id) const
@@ -205,7 +205,11 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 			writeIndex = 0;
 			updateCounter = 0;
 
-			getUpdater().sendContentRedirectMessage();
+			if (!currentlyChanged)
+			{
+				ScopedValueSetter<bool> svs(currentlyChanged, true);
+				getUpdater().sendContentRedirectMessage();
+			}
 		}
 	}
 
@@ -260,15 +264,16 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 
 	PropertyObject::Ptr getPropertyObject() const { return properties; }
 
+	WriterBase* getCurrentWriter() const { return currentWriter.get(); }
+
 	void setCurrentWriter(WriterBase* newWriter)
 	{
-		if (currentWriter != nullptr && currentWriter != newWriter && newWriter != nullptr)
-			throw String("multiple writers");
-
 		currentWriter = newWriter;
 	}
 
 private:
+
+	bool currentlyChanged = false;
 
 	WeakReference<WriterBase> currentWriter;
 
@@ -368,6 +373,29 @@ struct ModPlotter : public Component,
 		pathColour,
 		outlineColour,
 		numColourIds
+	};
+
+	struct ModPlotterPropertyObject : public SimpleRingBuffer::PropertyObject
+	{
+		ModPlotterPropertyObject(SimpleRingBuffer::WriterBase* wb) :
+			PropertyObject(wb)
+		{};
+		
+		virtual bool validateInt(const Identifier& id, int& v) const
+		{
+			if (id == RingBufferIds::BufferLength)
+				return SimpleRingBuffer::toFixSize<32768 * 2>(v);
+
+			if (id == RingBufferIds::NumChannels)
+				return SimpleRingBuffer::toFixSize<1>(v);
+
+			return false;
+		}
+
+		RingBufferComponentBase* createComponent() override
+		{
+			return new ModPlotter();
+		}
 	};
 
 	ModPlotter();

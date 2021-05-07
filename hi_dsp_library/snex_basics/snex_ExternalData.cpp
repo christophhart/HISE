@@ -428,28 +428,3 @@ juce::Path ExternalData::Factory::createPath(const String& url) const
 }
 
 }
-
-void scriptnode::data::base::setExternalData(const snex::ExternalData& d, int index)
-{
-	// This function must always be called while the writer lock is active
-	jassert(d.isEmpty() || d.obj->getDataLock().writeAccessIsLocked() || d.obj->getDataLock().writeAccessIsSkipped());
-
-	if (auto currentRb = dynamic_cast<SimpleRingBuffer*>(this->externalData.obj))
-		currentRb->setCurrentWriter(nullptr);
-		
-	externalData = d;
-
-	try
-	{
-		if (auto currentRb = dynamic_cast<SimpleRingBuffer*>(this->externalData.obj))
-			currentRb->setCurrentWriter(this);
-	}
-	catch (String& errorMessage)
-	{
-		scriptnode::Error e;
-		e.error = Error::RingBufferMultipleWriters;
-		throw e;
-	}
-
-
-}

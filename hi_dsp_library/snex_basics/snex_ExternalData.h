@@ -481,7 +481,7 @@ namespace data
 
 
 /** Subclass this when you want to show a UI for the given data. */
-struct base: public SimpleRingBuffer::WriterBase
+struct base
 {
 	/** Use this in order to lock the access to the external data. */
 	struct DataReadLock: hise::SimpleReadWriteLock::ScopedReadLock
@@ -528,14 +528,16 @@ struct base: public SimpleRingBuffer::WriterBase
 	/** This can be used to connect the UI to the data. */
 	hise::ComplexDataUIBase* getUIPointer() { return externalData.obj; }
 
-	virtual void setExternalData(const snex::ExternalData& d, int index);
-
-	template <typename PropertyObject> void setRingBufferPropertyObject()
+	virtual void setExternalData(const snex::ExternalData& d, int index)
 	{
-		if (auto rb = dynamic_cast<SimpleRingBuffer*>(externalData.obj))
-		{
-			rb->setPropertyObject(new PropertyObject(this));
-		}
+		// This function must always be called while the writer lock is active
+		jassert(d.isEmpty() || d.obj->getDataLock().writeAccessIsLocked() || d.obj->getDataLock().writeAccessIsSkipped());
+
+		
+
+		externalData = d;
+
+		
 	}
 
 	snex::ExternalData externalData;
@@ -544,15 +546,47 @@ struct base: public SimpleRingBuffer::WriterBase
 };
 
 
-template <bool EnableBuffer> struct display_buffer_base : public base
+template <bool EnableBuffer> struct display_buffer_base : public base,
+														  public SimpleRingBuffer::WriterBase
 {
+	virtual ~display_buffer_base() {};
+
 	void setExternalData(const snex::ExternalData& d, int index) override
 	{
+		if constexpr (EnableBuffer)
+		{
+			if (rb != nullptr && rb->getCurrentWriter() == this)
+				rb->setCurrentWriter(nullptr);
+		}
+
 		base::setExternalData(d, index);
 
 		if constexpr (EnableBuffer)
 		{
 			rb = dynamic_cast<SimpleRingBuffer*>(d.obj);
+
+			if (rb->getCurrentWriter() != nullptr)
+			{
+				scriptnode::Error e;
+				e.error = Error::RingBufferMultipleWriters;
+				throw e;
+			}
+
+			rb->setCurrentWriter(this);
+			rb->setPropertyObject(createPropertyObject());
+			prepare(lastSpecs);
+		}
+	}
+
+	virtual void prepare(snex::Types::PrepareSpecs ps)
+	{
+		lastSpecs = ps;
+
+		if (rb != nullptr)
+		{
+			auto numSamples = rb->getReadBuffer().getNumSamples();
+			rb->setRingBufferSize(ps.numChannels, numSamples);
+			rb->setSamplerate(ps.sampleRate);
 		}
 	}
 
@@ -567,8 +601,10 @@ template <bool EnableBuffer> struct display_buffer_base : public base
 		}
 	}
 
-	SimpleRingBuffer* rb = nullptr;
+	virtual SimpleRingBuffer::PropertyObject* createPropertyObject() = 0;
 
+	SimpleRingBuffer::Ptr rb = nullptr;
+	snex::Types::PrepareSpecs lastSpecs;
 };
 
 
