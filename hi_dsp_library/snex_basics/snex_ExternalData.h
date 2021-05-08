@@ -574,7 +574,9 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 
 			rb->setCurrentWriter(this);
 			rb->setPropertyObject(createPropertyObject());
-			prepare(lastSpecs);
+
+			if(lastSpecs.sampleRate > 0.0)
+				prepare(lastSpecs);
 		}
 	}
 

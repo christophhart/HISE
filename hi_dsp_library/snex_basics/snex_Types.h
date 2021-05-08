@@ -262,6 +262,15 @@ struct ModValue
 	float modValue = 0.0f;
 };
 
+struct VoiceResetter
+{
+	virtual ~VoiceResetter() {};
+	virtual void onVoiceReset(bool allVoices, int voiceIndex) = 0;
+	virtual int getNumActiveVoices() const = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(VoiceResetter);
+};
+
 /** The PolyHandler can be used in order to create data structures that can be used
     in a polyphonic context.
 	
@@ -387,11 +396,28 @@ struct PolyHandler
 		return 0;
 	}
 
+	void sendVoiceResetMessage(bool allVoices)
+	{
+		if (vr.get() != nullptr)
+			vr->onVoiceReset(allVoices, getVoiceIndex());
+	}
+
+	void setVoiceResetter(VoiceResetter* newVr)
+	{
+		vr = newVr;
+	}
+
+	VoiceResetter* getVoiceResetter() const
+	{
+		return vr.get();
+	}
+
 private:
 
 	std::atomic<void*> currentAllThread = { nullptr }; // 0 byte offset
 	std::atomic<int> voiceIndex = { -1 };			   // 8 byte offset
 	int enabled;									   // 12 byte offset
+	WeakReference<VoiceResetter> vr = nullptr;					   // 16 byte offset
 };
 
 

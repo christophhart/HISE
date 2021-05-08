@@ -813,6 +813,119 @@ template <int NV, typename ParameterType> struct ahdsr_impl : public pimpl::enve
 template <typename ParameterType> using ahdsr = ahdsr_impl<1, ParameterType>;
 template <typename ParameterType> using ahdsr_poly = ahdsr_impl<NUM_POLYPHONIC_VOICES, ParameterType>;
 
+struct voice_manager
+{
+	struct editor : public Component,
+		public PooledUIUpdater::SimpleTimer
+	{
+		editor(PooledUIUpdater* updater, VoiceResetter* n) :
+			SimpleTimer(updater),
+			vr(n)
+		{
+			setSize(100, 32 + 10);
+		};
+
+		void timerCallback() override
+		{
+			auto thisVoice = vr != nullptr ? vr->getNumActiveVoices() : 0;
+
+			if (lastVoiceAmount != thisVoice)
+			{
+				lastVoiceAmount = thisVoice;
+				repaint();
+			}
+		}
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			auto t = static_cast<voice_manager*>(obj);
+
+			return new editor(updater, t->p->getVoiceResetter());
+		}
+
+		void mouseUp(const MouseEvent& e) override
+		{
+			if (vr != nullptr)
+				vr->onVoiceReset(true, -1);
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().toFloat();
+			b.removeFromBottom(10);
+
+			ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, b, true);
+
+			auto alpha = 0.4f;
+
+			if (isMouseOver())
+				alpha += 0.1f;
+
+			if (isMouseButtonDown())
+				alpha += 0.1f;
+
+			if (lastVoiceAmount != 0)
+				alpha += 0.2f;
+
+			g.setColour(Colours::white.withAlpha(alpha));
+			g.setFont(GLOBAL_BOLD_FONT());
+
+			String s;
+			s << String(lastVoiceAmount) << " active voice";
+
+			if (lastVoiceAmount != 1)
+				s << "s";
+
+			g.drawText(s, b, Justification::centred);
+		}
+
+		int lastVoiceAmount = 0;
+		WeakReference<VoiceResetter> vr;
+	};
+
+	SET_HISE_NODE_ID("voice_manager");
+	SN_GET_SELF_AS_OBJECT(voice_manager);
+
+	static constexpr bool isPolyphonic() { return false; }
+
+	HISE_EMPTY_HANDLE_EVENT;
+	HISE_EMPTY_MOD;
+	HISE_EMPTY_RESET;
+	HISE_EMPTY_PROCESS;
+	HISE_EMPTY_PROCESS_SINGLE;
+	HISE_EMPTY_INITIALISE;
+
+	void prepare(PrepareSpecs ps)
+	{
+		p = ps.voiceIndex;
+	}
+
+	template <int P> void setParameter(double v)
+	{
+		auto voiceIndex = p != nullptr ? p->getVoiceIndex() : -1;
+
+		if (P == 0 && v < 0.5 && voiceIndex != -1)
+			p->sendVoiceResetMessage(false);
+
+		if (P == 1 && v < 0.5)
+			p->sendVoiceResetMessage(true);
+	}
+
+	FORWARD_PARAMETER_TO_MEMBER(voice_manager);
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			parameter::data d("Kill Voice", { 0.0, 1.0, 1.0 });
+			d.callback = parameter::inner<voice_manager, 0>(*this);
+			d.setDefaultValue(1.0f);
+			data.add(d);
+		}
+	}
+
+	PolyHandler* p;
+};
+
 };
 
 }

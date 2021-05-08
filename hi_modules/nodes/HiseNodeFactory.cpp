@@ -1369,63 +1369,7 @@ namespace envelope
 {
 template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
 
-struct voice_viewer : public ScriptnodeExtraComponent<DspNetwork>
-{
-	voice_viewer(PooledUIUpdater* updater, DspNetwork* n) :
-		ScriptnodeExtraComponent<DspNetwork>(n, updater)
-	{
-		setSize(100, 32 + UIValues::NodeMargin);
-	};
 
-	void timerCallback() override
-	{
-		repaint();
-	}
-
-	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
-	{
-		auto t = static_cast<killer*>(obj);
-
-		return new voice_viewer(updater, t->network);
-	}
-
-	void mouseUp(const MouseEvent& e) override
-	{
-		getObject()->setVoiceResetFlag(true);
-	}
-
-	void paint(Graphics& g) override
-	{
-		auto b = getLocalBounds().toFloat();
-		b.removeFromBottom(UIValues::NodeMargin);
-
-		ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, b, true);
-
-		auto numVoices = getObject()->getNumActiveVoices();
-
-		auto alpha = 0.4f;
-
-		if (isMouseOver())
-			alpha += 0.1f;
-
-		if (isMouseButtonDown())
-			alpha += 0.1f;
-
-		if (numVoices != 0)
-			alpha += 0.2f;
-
-		g.setColour(Colours::white.withAlpha(alpha));
-		g.setFont(GLOBAL_BOLD_FONT());
-
-		String s;
-		s << String(numVoices) << " active voice";
-
-		if (numVoices != 1)
-			s << "s";
-
-		g.drawText(s, b, Justification::centred);
-	}
-};
 
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
@@ -1440,7 +1384,7 @@ Factory::Factory(DspNetwork* network) :
 						dynamic::ahdsr_display, 
 						false>();
 
-	registerNode<killer, voice_viewer>();
+	registerNode<voice_manager, voice_manager::editor>();
 }
 }
 
