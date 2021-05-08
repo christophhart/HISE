@@ -266,7 +266,7 @@ public:
 	*/
 	virtual bool areVoicesActive() const;
 
-	void setVoiceLimit(int newVoiceLimit);
+	virtual void setVoiceLimit(int newVoiceLimit);
 
 	void setKillFadeOutTime(double fadeTimeSeconds);
 
