@@ -95,12 +95,14 @@ struct OscData
 	{
 		auto rv = uptime;
 		uptime += (uptimeDelta * multiplier);
-		return rv;
+		return rv + phase;
 	}
 
 	double uptime = 0.0;
 	double uptimeDelta = 0.0;
 	double multiplier = 1.0;
+	double phase = 0.0f;
+	float gain = 1.0f;
 	int enabled = 1;
 };
 
@@ -186,7 +188,8 @@ struct OscillatorDisplayProvider: public scriptnode::data::display_buffer_base<t
 	SharedResourcePointer<SineLookupTable<2048>> sinTable;
 	const StringArray modes;
 	Mode currentMode = Mode::Sine;
-	double pitchMultiplier = 1.0;
+
+	OscData uiData;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(OscillatorDisplayProvider);
 };

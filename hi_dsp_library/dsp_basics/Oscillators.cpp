@@ -93,9 +93,8 @@ void OscillatorDisplayProvider::OscillatorDisplayObject::transformReadBuffer(Aud
 		jassert(b.getNumChannels() == 1);
 		jassert(b.getNumSamples() == 256);
 
-		OscData d;
+		auto d = provider->uiData;
 		d.uptimeDelta = 2048.0 / 256.0;
-		d.multiplier = provider->pitchMultiplier;
 
 		for (int i = 0; i < 256; i++)
 		{

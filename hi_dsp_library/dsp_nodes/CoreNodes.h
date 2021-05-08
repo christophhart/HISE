@@ -709,6 +709,8 @@ public:
 		Frequency,
 		PitchMultiplier,
 		Gate,
+		Gain,
+		Phase,
 		numParameters
 	};
 
@@ -732,7 +734,7 @@ public:
 		voiceData.prepare(ps);
 		sr = ps.sampleRate;
 		setFrequency(freqValue);
-		setPitchMultiplier(pitchMultiplier);
+		setPitchMultiplier(uiData.multiplier);
 	}
 	
 	template <typename ProcessDataType> void process(ProcessDataType& data)
@@ -759,13 +761,15 @@ public:
 
 		auto& s = data[0];
 
+		auto g = currentVoiceData->gain;
+
 		switch (currentMode)
 		{
-		case Mode::Sine:	 s += tickSine(*currentVoiceData); break;
-		case Mode::Triangle: s += tickTriangle(*currentVoiceData); break;
-		case Mode::Saw:		 s += tickSaw(*currentVoiceData); break;
-		case Mode::Square:	 s += tickSquare(*currentVoiceData); break;
-		case Mode::Noise:	 s += Random::getSystemRandom().nextFloat() * 2.0f - 1.0f;
+		case Mode::Sine:	 s += g * tickSine(*currentVoiceData); break;
+		case Mode::Triangle: s += g * tickTriangle(*currentVoiceData); break;
+		case Mode::Saw:		 s += g * tickSaw(*currentVoiceData); break;
+		case Mode::Square:	 s += g * tickSquare(*currentVoiceData); break;
+		case Mode::Noise:	 s += g * Random::getSystemRandom().nextFloat() * 2.0f - 1.0f;
 		}
 	}
 
@@ -802,6 +806,20 @@ public:
 			p.setDefaultValue(1.0);
 			data.add(std::move(p));
 		}
+
+		{
+			DEFINE_PARAMETERDATA(oscillator_impl, Phase);
+			p.setRange({ 0.0, 1.0 });
+			p.setDefaultValue(0.0);
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(oscillator_impl, Gain);
+			p.setRange({ 0.0, 1.0 });
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
 	}
 
 	void setMode(double newMode)
@@ -814,11 +832,11 @@ public:
 
 	void setFrequency(double newFrequency)
 	{
-		freqValue = newFrequency;
-
 		if (sr > 0.0)
 		{
 			auto newUptimeDelta = (double)(freqValue / sr * (double)sinTable->getTableSize());
+
+			uiData.uptimeDelta = newUptimeDelta;
 
 			for (auto& d : voiceData)
 				d.uptimeDelta = newUptimeDelta;
@@ -837,12 +855,38 @@ public:
 		}
 	}
 
+	void setPhase(double v)
+	{
+		v *= (double)sinTable->getTableSize();
+
+		uiData.phase = v;
+
+		for (auto& s : voiceData)
+			s.phase = v;
+
+		if (auto o = this->externalData.obj)
+			o->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+	}
+
+	void setGain(double gain)
+	{
+		uiData.gain = gain;
+
+		for (auto& s : voiceData)
+			s.gain = gain;
+
+		if (auto o = this->externalData.obj)
+			o->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+	}
+
 	void setPitchMultiplier(double newMultiplier)
 	{
-		pitchMultiplier = jlimit(0.001, 100.0, newMultiplier);
+		auto pitchMultiplier = jlimit(0.001, 100.0, newMultiplier);
 
 		for (auto& d : voiceData)
 			d.multiplier = pitchMultiplier;
+
+		uiData.multiplier = pitchMultiplier;
 
 		if (auto o = this->externalData.obj)
 			o->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
@@ -854,6 +898,8 @@ public:
 		DEF_PARAMETER(Frequency, oscillator_impl);
 		DEF_PARAMETER(PitchMultiplier, oscillator_impl);
 		DEF_PARAMETER(Gate, oscillator_impl);
+		DEF_PARAMETER(Gain, oscillator_impl);
+		DEF_PARAMETER(Phase, oscillator_impl);
 	}
 
 	PARAMETER_MEMBER_FUNCTION;
