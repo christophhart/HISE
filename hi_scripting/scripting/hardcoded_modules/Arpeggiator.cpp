@@ -442,11 +442,8 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 	}
 	else if (c == bypassButton)
 	{
-		if ((double)value > 0.5)
-		{
-			clearUserHeldKeys();
-			reset(true, true);
-		}
+		clearUserHeldKeys();
+		reset(true, true);
 	}
 	else if (c == resetButton)
 	{
