@@ -43,7 +43,8 @@ namespace hise { using namespace juce;
 */
 class Arpeggiator : public HardcodedScriptProcessor,
 	public SliderPackProcessor,
-	public MidiControllerAutomationHandler::MPEData::Listener
+	public MidiControllerAutomationHandler::MPEData::Listener,
+	public Processor::BypassListener
 {
 public:
 
@@ -89,6 +90,14 @@ public:
 
 	const SliderPackData *getSliderPackData(int index) const override;
 
+	void bypassStateChanged(Processor*, bool isBypassed) override
+	{
+		if (!isBypassed)
+		{
+			clearUserHeldKeys();
+			reset(true, true);
+		}
+	}
 
 	void onInit() override;
 

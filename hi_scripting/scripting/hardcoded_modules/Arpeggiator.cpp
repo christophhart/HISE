@@ -37,6 +37,8 @@ namespace hise { using namespace juce;
 Arpeggiator::Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms) :
 	HardcodedScriptProcessor(mc, id, ms)
 {
+	addBypassListener(this);
+
 	ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher());
 
 	onInit();
@@ -46,6 +48,8 @@ Arpeggiator::Arpeggiator(MainController *mc, const String &id, ModulatorSynth *m
 
 Arpeggiator::~Arpeggiator()
 {
+	removeBypassListener(this);
+
 	mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
 }
 
