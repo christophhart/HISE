@@ -386,6 +386,8 @@ public:
 	float* calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
 	const float *getCrossfadeModValues() const;
 
+	void setVoiceLimit(int newVoiceLimit) override;
+
 	float getConstantCrossFadeModulationValue() const noexcept;
 
 	float getCrossfadeValue(int groupIndex, float inputValue) const;
@@ -665,6 +667,8 @@ public:
 	bool& getIterationFlag() { return abortIteration; };
 
 private:
+
+	int realVoiceAmount = NUM_POLYPHONIC_VOICES;
 
 	SimpleReadWriteLock iteratorLock;
 

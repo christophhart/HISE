@@ -113,6 +113,7 @@ numChannels(1),
 repeatMode(RepeatMode::KillSecondOldestNote),
 deactivateUIUpdate(false),
 samplePreloadPending(false),
+realVoiceAmount(numVoices),
 temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 {
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
@@ -250,11 +251,11 @@ void ModulatorSampler::setNumChannels(int numNewChannels)
 	}
 
 	const int prevVoiceAmount = voiceAmount;
-	const int prevVoiceLimit = (int)getAttribute(ModulatorSynth::VoiceLimit);
+	
 
 	voiceAmount = -1;
 	setVoiceAmount(prevVoiceAmount);
-	setVoiceLimit(prevVoiceLimit);
+	ModulatorSynth::setVoiceLimit(realVoiceAmount * getNumActiveGroups());
 
 	if (numChannels < 1) numChannels = 1;
 	if (numChannels > NUM_MIC_POSITIONS) numChannels = NUM_MIC_POSITIONS;
@@ -298,7 +299,7 @@ bool ModulatorSampler::checkAndLogIsSoftBypassed(DebugLogger::Location location)
 
 void ModulatorSampler::refreshCrossfadeTables()
 {
-	
+	ModulatorSynth::setVoiceLimit(realVoiceAmount * getNumActiveGroups());
 }
 
 void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
@@ -426,6 +427,8 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 
 float ModulatorSampler::getAttribute(int parameterIndex) const
 {
+	if (parameterIndex == ModulatorSynth::VoiceLimit) return realVoiceAmount;
+
 	if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getAttribute(parameterIndex);
 
 	switch (parameterIndex)
@@ -1094,6 +1097,13 @@ const float * ModulatorSampler::getCrossfadeModValues() const
 	return crossfadeGroups ? modChains[Chains::XFade].getReadPointerForVoiceValues(0) : nullptr;
 }
 
+void ModulatorSampler::setVoiceLimit(int newVoiceLimit)
+{
+	realVoiceAmount = jmax(2, newVoiceLimit);
+
+	ModulatorSynth::setVoiceLimit(realVoiceAmount * getNumActiveGroups());
+}
+
 float ModulatorSampler::getConstantCrossFadeModulationValue() const noexcept
 {
 #if HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY
@@ -1245,6 +1255,8 @@ void ModulatorSampler::setRRGroupAmount(int newGroupLimit)
 
 	while (auto sound = sIter.getNextSound())
 		sound->setMaxRRGroupIndex(rrGroupAmount);
+
+	ModulatorSynth::setVoiceLimit(realVoiceAmount * getNumActiveGroups());
 }
 
 
