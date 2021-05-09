@@ -1715,7 +1715,11 @@ void ModulatorSynth::setVoiceLimit(int newVoiceLimit)
 
 	voiceLimit = jlimit<int>(2, NUM_POLYPHONIC_VOICES, newVoiceLimit);
 
-	internalVoiceLimit = jmax<int>(2, (int)(getMainController()->getVoiceAmountMultiplier() * (float)voiceLimit));
+	// If the voice amount is less tha
+	if (voiceLimit > 8)
+		internalVoiceLimit = jmax<int>(8, (int)(getMainController()->getVoiceAmountMultiplier() * (float)voiceLimit));
+	else
+		internalVoiceLimit = voiceLimit;
 }
 
 void ModulatorSynth::setKillFadeOutTime(double fadeTimeMilliSeconds)
