@@ -174,6 +174,7 @@ public:
 		ToolsAudioConfig,
 		ToolsCompileNetworks,
 		ToolsClearDlls,
+		ToolsRecompile,
 		TestsRunAll,
 		ProjectOffset = 10000,
 		FileOffset = 9000,
@@ -284,6 +285,9 @@ public:
 
 private:
 
+	bool isCppPreviewEnabled();
+
+	DebuggableSnexProcessor* getCurrentSnexProcessor();
 
 	hise::StandaloneProcessor standaloneProcessor;
 	ApplicationCommandManager mainManager;

@@ -93,6 +93,9 @@ struct DebuggableSnexProcessor : public snex::ui::WorkbenchManager::WorkbenchCha
 	}
 
 	WorkbenchData::WeakPtr rootWb;
+
+	bool enableCppPreview = false;
+
 private:
 
 	MainController* mc_;
@@ -429,14 +432,7 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 	String loadCode() const override
 	{
-		if (source == SourceMode::CustomCode)
-		{
-			if (customCode.isNotEmpty())
-				return customCode;
-		}
-
 		auto s = createCppForNetwork();
-
 		return s;
 	}
 

@@ -89,6 +89,7 @@ juce::PopupMenu SnexWorkbenchEditor::getMenuForIndex(int topLevelMenuIndex, cons
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsSynthMode);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsEffectMode);
 		m.addSeparator();
+		m.addCommandItem(&mainManager, MenuCommandIds::ToolsRecompile);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsShowKeyboard);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsAudioConfig);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsEditTestData);
@@ -120,6 +121,7 @@ void SnexWorkbenchEditor::getAllCommands(Array<CommandID>& commands)
 		MenuCommandIds::ToolsAudioConfig,
 		MenuCommandIds::ToolsCompileNetworks,
 		MenuCommandIds::ToolsClearDlls,
+		MenuCommandIds::ToolsRecompile,
 		MenuCommandIds::ToolsEditTestData,
 		MenuCommandIds::TestsRunAll
 	};
@@ -141,7 +143,9 @@ void SnexWorkbenchEditor::getCommandInfo(CommandID commandID, ApplicationCommand
 	case MenuCommandIds::ToolsEditTestData: setCommandTarget(result, "Manage Test Files", true, false, 0, false); break;
 	case MenuCommandIds::ToolsCompileNetworks: setCommandTarget(result, "Compile DSP networks", true, false, 'x', false); break;
 	case MenuCommandIds::ToolsSynthMode: setCommandTarget(result, "Polyphonic Synth Mode", true, synthMode, 'x', false); break;
-	case MenuCommandIds::ToolsEffectMode: setCommandTarget(result, "Stereo Effect Mode", true, !synthMode, 'x', false); 
+	case MenuCommandIds::ToolsEffectMode: setCommandTarget(result, "Stereo Effect Mode", true, !synthMode, 'x', false); break;
+	case MenuCommandIds::ToolsRecompile: setCommandTarget(result, "Recompile C++ preview", true, false, 'x', false);
+		result.addDefaultKeypress(KeyPress::F5Key, ModifierKeys());
 	  break;
 	case MenuCommandIds::ToolsShowKeyboard: setCommandTarget(result, "Show Keyboard", true, bottomComoponent.isVisible(), 'x', false);
 		break;
@@ -245,6 +249,12 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 
 		BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Binaries).deleteRecursively();
 
+		return true;
+	}
+	case ToolsRecompile:
+	{
+		if (wb != nullptr)
+			wb->triggerRecompile();
 		return true;
 	}
 	case TestsRunAll:
@@ -583,6 +593,19 @@ void SnexWorkbenchEditor::closeCurrentNetwork()
 	p = nullptr;
 
 	resized();
+}
+
+bool SnexWorkbenchEditor::isCppPreviewEnabled()
+{
+	auto f = getCurrentSnexProcessor();
+	jassert(f != nullptr);
+
+	return f->enableCppPreview;
+}
+
+hise::DebuggableSnexProcessor* SnexWorkbenchEditor::getCurrentSnexProcessor()
+{
+	return dynamic_cast<DebuggableSnexProcessor*>(getNetworkHolderForNewFile(getProcessor(), synthMode));
 }
 
 void SnexWorkbenchEditor::addFile(const File& f)
