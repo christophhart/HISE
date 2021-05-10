@@ -1015,6 +1015,9 @@ public:
 
 		bool handleBufferDuringSuspension(AudioSampleBuffer& b);
 
+		/** Calls the function later on the same thread (either message thread or sample loading thread. */
+		void callLater(const std::function<void()>& f);
+
 	private:
 
 		friend class SuspendHelpers::ScopedTicket;

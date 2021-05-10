@@ -117,16 +117,6 @@ public:
 		return data;
 	}
 
-	void setResetFlag() noexcept
-	{
-		shouldReset = 1;
-	}
-
-	int getResetFlag() const noexcept
-	{
-		return shouldReset;
-	}
-
 	template <typename ContainerType> void setEventBuffer(const ContainerType& b)
 	{
 		events = b.begin();
@@ -147,7 +137,6 @@ public:
 	{
 		events = other.events;
 		numEvents = other.numEvents;
-		shouldReset = other.shouldReset;
 	}
 
 	AudioSampleBuffer toAudioSampleBuffer() const
@@ -168,8 +157,7 @@ protected:
 	int numSamples = 0;					// 4 bytes
 	int numEvents = 0;					// 4 bytes
 	int numChannels = 0;				// 4 byte
-	int shouldReset = 0;				// 4 byte
-
+	
 	JUCE_DECLARE_NON_COPYABLE(InternalData);
 };
 

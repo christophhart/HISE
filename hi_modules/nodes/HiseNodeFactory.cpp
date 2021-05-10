@@ -1384,7 +1384,9 @@ Factory::Factory(DspNetwork* network) :
 						dynamic::ahdsr_display, 
 						false>();
 
-	registerNode<voice_manager, voice_manager::editor>();
+	registerNode<voice_manager, voice_manager_base::editor>();
+
+	registerPolyNode<silent_killer, silent_killer_poly, voice_manager_base::editor>();
 }
 }
 

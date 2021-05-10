@@ -177,81 +177,7 @@ private:
 
 class SnexSource;
 
-class ScriptnodeVoiceKiller : public EnvelopeModulator,
-							  public snex::Types::VoiceResetter
-{
-public:
 
-
-	SET_PROCESSOR_NAME("ScriptnodeVoiceKiller", "Scriptnode Voice Killer", "kills the voices from a scriptnode envelope's gate output")
-
-	ScriptnodeVoiceKiller(MainController* mc, const String& id, int numVoices) :
-		EnvelopeModulator(mc, id, numVoices, Modulation::GainMode),
-		Modulation(Modulation::GainMode)
-	{
-		for (int i = 0; i < polyManager.getVoiceAmount(); i++) states.add(createSubclassedState(i));
-	};
-
-	void setInternalAttribute(int parameter_index, float newValue) override {}
-	float getDefaultValue(int parameterIndex) const override { return 0.0f; }
-	float getAttribute(int parameter_index) const { return 0.0f; }
-
-	int getNumInternalChains() const override { return 0; };
-	int getNumChildProcessors() const override { return 0; };
-	Processor *getChildProcessor(int) override { return nullptr; };
-	const Processor *getChildProcessor(int) const override { return nullptr; };
-
-	float startVoice(int voiceIndex) override { getState(voiceIndex)->active.store(true); return 1.0f; }
-	void stopVoice(int voiceIndex) override {}
-	void reset(int voiceIndex) override { getState(voiceIndex)->active = false; }
-	bool isPlaying(int voiceIndex) const override { return getState(voiceIndex)->active; }
-
-	void calculateBlock(int startSample, int numSamples) override { FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 1.0f, numSamples); }
-	void handleHiseEvent(const HiseEvent& m) override {}
-
-	struct State : public ModulatorState
-	{
-		State(int v) : ModulatorState(v) {};
-		std::atomic<bool> active = { false };
-	};
-
-	int getNumActiveVoices() const
-	{
-		int counter = 0;
-
-		for (int i = 0; i < polyManager.getVoiceAmount(); i++)
-		{
-			if (getState(i)->active)
-				counter++;
-		}
-
-		return counter;
-	}
-
-	void onVoiceReset(bool allVoices, int voiceIndex) override
-	{
-		if (allVoices)
-		{
-			for (int i = 0; i < polyManager.getVoiceAmount(); i++)
-				getState(i)->active.store(false);
-		}
-		else
-		{
-			jassert(voiceIndex != -1);
-			if (auto s = getState(voiceIndex))
-				s->active.store(false);
-		}
-	}
-
-	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override { return nullptr; }
-
-	State* getState(int i) { return  static_cast<State*>(states[i]); }
-	const State* getState(int i) const { return  static_cast<const State*>(states[i]); }
-
-	ModulatorState *createSubclassedState(int voiceIndex) const override { return new State(voiceIndex); };
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptnodeVoiceKiller);
-};
 
 
 /** A network of multiple DSP objects that are connected using a graph. */
@@ -348,7 +274,7 @@ public:
 			dataHolder = newHolder;
 		}
 
-		void setVoiceKillerToUse(ScriptnodeVoiceKiller* vk_)
+		void setVoiceKillerToUse(snex::Types::VoiceResetter* vk_)
 		{
 			if (isPolyphonic())
 				vk = vk_;
@@ -356,7 +282,7 @@ public:
 
 	protected:
 
-		WeakReference<ScriptnodeVoiceKiller> vk;
+		WeakReference<snex::Types::VoiceResetter> vk;
 
 		ExternalDataHolder* dataHolder = nullptr;
 

@@ -1169,6 +1169,8 @@ JavascriptProcessor(mc),
 EnvelopeModulator(mc, id, numVoices, m),
 Modulation(m)
 {
+	setVoiceKillerToUse(this);
+
 	initContent();
 
 	onInitCallback = new SnippetDocument("onInit");
@@ -1193,6 +1195,22 @@ JavascriptEnvelopeModulator::~JavascriptEnvelopeModulator()
 Path JavascriptEnvelopeModulator::getSpecialSymbol() const
 {
 	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
+}
+
+int JavascriptEnvelopeModulator::getNumActiveVoices() const
+{
+	int counter = 0;
+
+	for (int i = 0; i < polyManager.getVoiceAmount(); i++)
+	{
+		if (auto ses = static_cast<ScriptEnvelopeState*>(states[i]))
+		{
+			if (ses->isPlaying)
+				counter++;
+		}
+	}
+
+	return counter;
 }
 
 ProcessorEditorBody * JavascriptEnvelopeModulator::createEditor(ProcessorEditor *parentEditor)
@@ -1254,18 +1272,13 @@ void JavascriptEnvelopeModulator::calculateBlock(int startSample, int numSamples
 
 		memset(ptr, 0, sizeof(float)*numSamples);
 
-		scriptnode::ProcessDataDyn d(&ptr, 1, numSamples);
+		scriptnode::ProcessDataDyn d(&ptr, numSamples, 1);
 
 		if (auto s = SimpleReadWriteLock::ScopedTryReadLock(n->getConnectionLock()))
 		{
 			if(n->getExceptionHandler().isOk())
 				n->getRootNode()->process(d);
 		}
-
-		// Whenever you hit this, make this envelope use the envelope.killer node
-		jassertfalse;
-		if (d.getResetFlag())
-			reset(polyManager.getCurrentVoice());
 	}
 
 #if ENABLE_ALL_PEAK_METERS

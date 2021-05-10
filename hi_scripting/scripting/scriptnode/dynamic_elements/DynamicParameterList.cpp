@@ -192,17 +192,6 @@ namespace parameter
 		}
 		catch (String& s)
 		{
-			if (tryAgainIfFail)
-			{
-				ReferenceCountedObjectPtr<MultiOutputConnection> safeThis = this;
-
-				MessageManager::callAsync([safeThis]()
-					{
-						if (safeThis.get() != nullptr)
-							safeThis.get()->rebuildConnections(false);
-					});
-			}
-
 			return false;
 		}
 	}
@@ -241,15 +230,32 @@ namespace parameter
 		numParameters.initialise(n);
 		numParameters.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic_list::updateParameterAmount));
 
-		rebuildMultiOutputConnections();
+		if (!rebuildMultiOutputConnections())
+		{
+			WeakReference<dynamic_list> safeThis(this);
+
+			n->getRootNetwork()->getScriptProcessor()->getMainController_()->getKillStateHandler().callLater([safeThis]()
+			{
+				if (safeThis.get() != nullptr)
+					safeThis.get()->rebuildMultiOutputConnections();
+			});
+		}
 	}
 
-	void dynamic_list::rebuildMultiOutputConnections()
+	bool dynamic_list::rebuildMultiOutputConnections()
 	{
 		targets.clear();
 
 		for (auto c : switchTree)
 			targets.add(new MultiOutputConnection(parentNode, c));
+
+		for (auto t : targets)
+		{
+			if (!t->ok)
+				return false;
+		}
+
+		return true;
 	}
 
 	int dynamic_list::getNumParameters() const

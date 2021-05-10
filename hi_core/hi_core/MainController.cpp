@@ -1608,4 +1608,26 @@ void MainController::SampleManager::handleNonRealtimeState()
 	}
 }
 
+void MainController::KillStateHandler::callLater(const std::function<void()>& f)
+{
+	auto t = KillStateHandler::getCurrentThread();
+
+	if (t == SampleLoadingThread)
+	{
+		mc->getSampleManager().addDeferredFunction(mc->getMainSynthChain(), [f](Processor* p)
+		{
+			f();
+			return SafeFunctionCall::OK;
+		});
+	}
+	if (t == MessageThread)
+	{
+		MessageManager::callAsync(f);
+	}
+	if (t == ScriptingThread)
+	{
+		jassertfalse;
+	}
+}
+
 } // namespace hise

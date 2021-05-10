@@ -813,7 +813,7 @@ template <int NV, typename ParameterType> struct ahdsr_impl : public pimpl::enve
 template <typename ParameterType> using ahdsr = ahdsr_impl<1, ParameterType>;
 template <typename ParameterType> using ahdsr_poly = ahdsr_impl<NUM_POLYPHONIC_VOICES, ParameterType>;
 
-struct voice_manager
+struct voice_manager_base : public mothernode
 {
 	struct editor : public Component,
 		public PooledUIUpdater::SimpleTimer
@@ -838,9 +838,10 @@ struct voice_manager
 
 		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
 		{
-			auto t = static_cast<voice_manager*>(obj);
+			auto t = static_cast<mothernode*>(obj);
+			auto t2 = dynamic_cast<voice_manager_base*>(t);
 
-			return new editor(updater, t->p->getVoiceResetter());
+			return new editor(updater, t2->p->getVoiceResetter());
 		}
 
 		void mouseUp(const MouseEvent& e) override
@@ -883,6 +884,119 @@ struct voice_manager
 		WeakReference<VoiceResetter> vr;
 	};
 
+	virtual ~voice_manager_base() {};
+
+	virtual void prepare(PrepareSpecs ps)
+	{
+		p = ps.voiceIndex;
+	}
+
+	PolyHandler* p = nullptr;
+};
+
+template <int NV> struct silent_killer_impl: public voice_manager_base
+{
+	enum Parameters
+	{
+		Threshold,
+		Active
+	};
+
+	static constexpr int NumVoices = NV;
+
+	SET_HISE_POLY_NODE_ID("silent_killer");
+	SN_GET_SELF_AS_OBJECT(silent_killer_impl);
+
+	HISE_EMPTY_INITIALISE;
+	HISE_EMPTY_MOD;
+	HISE_EMPTY_RESET;
+	
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Threshold, silent_killer_impl);
+		DEF_PARAMETER(Active, silent_killer_impl);
+	}
+	PARAMETER_MEMBER_FUNCTION;
+
+	void prepare(PrepareSpecs ps) override
+	{
+		p = ps.voiceIndex;
+		state.prepare(ps);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& d)
+	{
+		
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		auto& s = state.get();
+
+		if (active && s && activeEvents.isEmpty())
+		{
+			auto bToLook = d[0];
+			auto max = FloatVectorOperations::findMaximum(bToLook.begin(), bToLook.size());
+			auto isEmpty = max < threshold;
+
+			if (isEmpty)
+			{
+				s = false;
+				p->sendVoiceResetMessage(false);
+			}
+		}
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (e.isNoteOn())
+		{
+			activeEvents.insertWithoutSearch(e.getEventId());
+			state.get() = true;
+		}
+		if (e.isNoteOff())
+			activeEvents.remove(e.getEventId());
+	}
+	
+	void setThreshold(double gainDb)
+	{
+		threshold = Decibels::decibelsToGain(gainDb);
+	}
+
+	void setActive(double a)
+	{
+		active = a > 0.5;
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(silent_killer_impl, Active);
+			p.setRange({ 0.0, 1.0, 1.0 });
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(silent_killer_impl, Threshold);
+			p.setRange({ -120.0, -60, 1.0 });
+			p.setDefaultValue(-100.0);
+			data.add(std::move(p));
+		}
+	}
+
+	hise::UnorderedStack<int16, NUM_POLYPHONIC_VOICES> activeEvents;
+	PolyData<bool, NumVoices> state;
+	bool isEmpty = false;
+	bool active = false;
+	double threshold;
+};
+
+using silent_killer = silent_killer_impl<1>;
+using silent_killer_poly = silent_killer_impl<NUM_POLYPHONIC_VOICES>;
+
+struct voice_manager: public voice_manager_base
+{
 	SET_HISE_NODE_ID("voice_manager");
 	SN_GET_SELF_AS_OBJECT(voice_manager);
 
@@ -894,11 +1008,6 @@ struct voice_manager
 	HISE_EMPTY_PROCESS;
 	HISE_EMPTY_PROCESS_SINGLE;
 	HISE_EMPTY_INITIALISE;
-
-	void prepare(PrepareSpecs ps)
-	{
-		p = ps.voiceIndex;
-	}
 
 	template <int P> void setParameter(double v)
 	{
@@ -922,8 +1031,6 @@ struct voice_manager
 			data.add(d);
 		}
 	}
-
-	PolyHandler* p;
 };
 
 };

@@ -227,6 +227,11 @@ namespace parameter
 
 			MultiOutputConnection(NodeBase* n, ValueTree switchTarget);
 
+			virtual ~MultiOutputConnection()
+			{
+
+			}
+
 			void updateConnectionProperty(ValueTree, Identifier);
 
 			bool rebuildConnections(bool tryAgainIfFail);
@@ -239,7 +244,9 @@ namespace parameter
 			ValueTree connectionTree;
 			NodeBase::Ptr parentNode;
 			parameter::dynamic_base_holder p;
-	};
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(MultiOutputConnection);
+		};
 
 		valuetree::ChildListener connectionUpdater;
 
@@ -247,7 +254,7 @@ namespace parameter
 
 		void initialise(NodeBase* n);
 
-		void rebuildMultiOutputConnections();
+		bool rebuildMultiOutputConnections();
 
 		int getNumParameters() const;
 

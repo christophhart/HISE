@@ -833,6 +833,9 @@ void DspNetwork::Holder::restoreNetworks(const ValueTree& d)
 			auto newNetwork = new DspNetwork(dynamic_cast<ProcessorWithScriptingContent*>(this),
 				c.createCopy(), isPolyphonic());
 
+			if (vk != nullptr)
+				newNetwork->setVoiceKiller(vk);
+
 			networks.add(newNetwork);
 			setActiveNetwork(newNetwork);
 		}
