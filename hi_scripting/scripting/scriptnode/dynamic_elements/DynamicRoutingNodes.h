@@ -164,6 +164,10 @@ struct dynamic
 
 		void mouseDoubleClick(const MouseEvent& event) override;
 
+		bool isConnected();
+
+		void updatePeakMeter();
+
 		dynamic_send* getAsSendNode();
 		dynamic_receive* getAsReceiveNode();
 
@@ -191,6 +195,8 @@ struct dynamic
 
 		bool dragOver = false;
 		bool dragMode = false;
+
+		Path icon;
 
 		VuMeter levelDisplay;
 		Error currentDragError;

@@ -254,24 +254,39 @@ dynamic::editor::editor(routing::base* b, PooledUIUpdater* u) :
 	levelDisplay.setColour(VuMeter::backgroundColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xff383838)));
 	levelDisplay.setColour(VuMeter::ColourId::ledColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xFFAAAAAA)));
 
-	setSize(50, 18);
+	setSize(100, 18);
 
 	setMouseCursor(ModulationSourceBaseComponent::createMouseCursor());
 
 	start();
+
+	updatePeakMeter();
 }
 
 void dynamic::editor::resized()
 {
-	auto b = getLocalBounds();
-	b.removeFromLeft(7);
-	levelDisplay.setBounds(b.reduced(1));
+
 
 	bool isSend = getAsSendNode() != nullptr;
 
+	auto b = getLocalBounds();
+
+	b.removeFromRight(15);
+	b.removeFromLeft(15);
+
+	levelDisplay.setBounds(b.reduced(1));
+
 	float deltaY = JUCE_LIVE_CONSTANT_OFF(-11.5f);
-	float deltaXS = JUCE_LIVE_CONSTANT_OFF(-127.0f);
-	float deltaXE = JUCE_LIVE_CONSTANT_OFF(-49.0f);
+	float deltaXS = JUCE_LIVE_CONSTANT_OFF(41.0f);
+	float deltaXE = JUCE_LIVE_CONSTANT_OFF(-41.0f);
+
+	b = getLocalBounds();
+
+	auto iconBounds = isSend ? b.removeFromRight(getHeight()) : b.removeFromLeft(getHeight());
+
+	icon.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
+
+	PathFactory::scalePath(icon, iconBounds.toFloat().reduced(2.0f));
 
 	getProperties().set("circleOffsetX", isSend ? deltaXS : deltaXE);
 	getProperties().set("circleOffsetY", deltaY);
@@ -358,16 +373,8 @@ void dynamic::editor::paintOverChildren(Graphics& g)
 {
 	if (dragMode)
 	{
-		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(.2f));
-		g.fillAll();
-
-		Path p;
-
-		p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
-		p.scaleToFit(2.0f, 2.0f, (float)getHeight() - 4.0f, (float)getHeight() - 4.0f, true);
-
-		g.setColour(Colours::white);
-		g.fillPath(p);
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(.1f));
+		g.fillRoundedRectangle(getLocalBounds().toFloat(), getHeight() / 2);
 	}
 
 	if (isMouseOver(true))
@@ -377,7 +384,7 @@ void dynamic::editor::paintOverChildren(Graphics& g)
 			if (rn->isConnected())
 			{
 				g.setColour(Colours::red.withAlpha(0.2f));
-				g.fillAll();
+				g.fillRoundedRectangle(getLocalBounds().toFloat(), getHeight() / 2);
 			}
 		}
 	}
@@ -502,6 +509,8 @@ void dynamic::editor::itemDropped(const SourceDetails& dragSourceDetails)
 
 	jassert(src != nullptr);
 
+	
+
 	if (auto thisAsCable = getAsSendNode())
 	{
 		if (auto srcAsReceive = src->getAsReceiveNode())
@@ -514,9 +523,10 @@ void dynamic::editor::itemDropped(const SourceDetails& dragSourceDetails)
 	}
 
 	dynamic_cast<Component*>(getDragAndDropContainer())->repaint();
-
 	dragOver = false;
-	repaint();
+	
+	src->updatePeakMeter();
+	updatePeakMeter();
 }
 
 void dynamic::editor::mouseDown(const MouseEvent& e)
@@ -583,10 +593,45 @@ void dynamic::editor::mouseDoubleClick(const MouseEvent& event)
 			findParentComponentOfClass<DspNetworkGraph>()->repaint();
 		}
 	}
+
+	updatePeakMeter();
+}
+
+bool dynamic::editor::isConnected()
+{
+	if (auto rn = getAsReceiveNode())
+		return rn->isConnected();
+
+	if (auto sn = getAsSendNode())
+		return sn->cable.receiveIds.getValue().isNotEmpty();
+}
+
+void dynamic::editor::updatePeakMeter()
+{
+	levelDisplay.setVisible(isConnected());
+	repaint();
 }
 
 void dynamic::editor::paint(Graphics& g)
 {
+	g.setColour(Colours::white.withAlpha(0.5f));
+	g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), getHeight() / 2, 1.0f);
+
+	g.fillPath(icon);
+
+	if (!levelDisplay.isVisible())
+	{
+		String s = "Drag to ";
+
+		if (getAsSendNode() != nullptr)
+			s << "receive";
+		else
+			s << "send";
+
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(12.0f));
+		g.drawText(s, levelDisplay.getBoundsInParent().toFloat(), Justification::centred);
+	}
+
 	if (dragOver)
 	{
 		auto c = currentDragError.error != Error::OK ? Colours::red : Colour(SIGNAL_COLOUR);
