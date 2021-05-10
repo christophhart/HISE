@@ -144,6 +144,8 @@ struct NodeContainer : public AssignableObject
 
 	bool shouldCreatePolyphonicClass() const;
 
+	virtual Colour getContainerColour() const { return Colours::transparentBlack; }
+
 	virtual bool isPolyphonic() const;
 
 	virtual void assign(const int index, var newValue) override;

@@ -86,9 +86,9 @@ void dynamic::prepare(PrepareSpecs ps)
 		auto pp = getParentNode()->getParentNode();
 		bool found = true;
 
-		bool isInMidiChain = false;
+		auto isInMidiChain = getParentNode()->getRootNetwork()->isPolyphonic();
 
-		while (pp != nullptr)
+		while (pp != nullptr && !isInMidiChain)
 		{
 			isInMidiChain |= pp->getValueTree()[PropertyIds::FactoryPath].toString().contains("midichain");
 			pp = pp->getParentNode();

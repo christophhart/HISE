@@ -242,10 +242,7 @@ void ModulationChainNode::reset()
 	obj.reset();
 }
 
-scriptnode::NodeComponent* ModulationChainNode::createComponent()
-{
-	return new ModChainNodeComponent(this);
-}
+
 
 int ModulationChainNode::getBlockSizeForChildNodes() const
 {
@@ -257,6 +254,7 @@ double ModulationChainNode::getSampleRateForChildNodes() const
 	return originalSampleRate / (double)HISE_EVENT_RASTER;
 }
 
+#if 0
 juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft) const
 {
 	using namespace UIValues;
@@ -291,6 +289,7 @@ juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft
 
 	return { topLeft.getX(), topLeft.getY(), maxW + 2 * NodeMargin, h };
 }
+#endif
 
 
 template <int OversampleFactor>
@@ -725,6 +724,39 @@ void FixedBlockXNode::reset()
 void FixedBlockXNode::handleHiseEvent(HiseEvent& e)
 {
 	obj.handleHiseEvent(e);
+}
+
+NoMidiChainNode::NoMidiChainNode(DspNetwork* n, ValueTree t):
+	SerialNode(n, t)
+{
+	initListeners();
+	obj.getObject().initialise(this);
+}
+
+void NoMidiChainNode::processFrame(FrameType& data) noexcept
+{
+	obj.processFrame(data);
+}
+
+void NoMidiChainNode::process(ProcessDataDyn& data) noexcept
+{
+	obj.process(data);
+}
+
+void NoMidiChainNode::prepare(PrepareSpecs ps)
+{
+	obj.prepare(ps);
+}
+
+void NoMidiChainNode::handleHiseEvent(HiseEvent& e)
+{
+	// let the wrapper send it to nirvana
+	obj.handleHiseEvent(e);
+}
+
+void NoMidiChainNode::reset()
+{
+	obj.reset();
 }
 
 }

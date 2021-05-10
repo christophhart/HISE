@@ -91,12 +91,14 @@ public:
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override;
 
-	NodeComponent* createComponent() override;
+	Colour getContainerColour() const override {return JUCE_LIVE_CONSTANT_OFF(Colour(0xffbe952c)); }
+
+	int getNumChannelsToProcess() const override { return 1; }
 
 	int getBlockSizeForChildNodes() const override;
 	double getSampleRateForChildNodes() const override;
 
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+	//Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
 
 private:
 	
@@ -117,9 +119,32 @@ public:
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override;
 	
+	Colour getContainerColour() const override {
+		return Colour(MIDI_PROCESSOR_COLOUR);
+	}
+
 private:
 
 	wrap::event<SerialNode::DynamicSerialProcessor> obj;
+};
+
+class NoMidiChainNode : public SerialNode
+{
+public:
+
+	SCRIPTNODE_FACTORY(NoMidiChainNode, "no_midi");
+
+	NoMidiChainNode(DspNetwork* n, ValueTree t);
+
+	void processFrame(FrameType& data) noexcept final override;
+	void process(ProcessDataDyn& data) noexcept final override;
+	void prepare(PrepareSpecs ps) override;
+	void handleHiseEvent(HiseEvent& e) final override;
+	void reset() final override;
+
+private:
+
+	wrap::no_midi<SerialNode::DynamicSerialProcessor> obj;
 };
 
 class OfflineChainNode : public SerialNode

@@ -257,7 +257,8 @@ void NodeComponent::Header::paint(Graphics& g)
 
 	if (parent.node->isProcessingHiseEvent())
 	{
-		auto hasMidiParent = parent.node->findParentNodeOfType<MidiChainNode>() != nullptr || parent.node->getRootNetwork()->isPolyphonic();
+		auto hasMidiParent = (parent.node->findParentNodeOfType<MidiChainNode>() != nullptr || parent.node->getRootNetwork()->isPolyphonic()) &&
+							 parent.node->findParentNodeOfType<NoMidiChainNode>() == nullptr;
 
 		Path p;
 		p.loadPathFromData(HiBinaryData::SpecialSymbols::midiData, sizeof(HiBinaryData::SpecialSymbols::midiData));

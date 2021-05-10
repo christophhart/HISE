@@ -439,9 +439,12 @@ juce::Rectangle<float> SerialNodeComponent::getInsertRuler(int position) const
 
 juce::Colour SerialNodeComponent::getOutlineColour() const
 {
-	if (auto c = dynamic_cast<MidiChainNode*>(node.get()))
+	if (auto c = dynamic_cast<NodeContainer*>(node.get()))
 	{
-		return Colour(MIDI_PROCESSOR_COLOUR);
+		auto c2 = c->getContainerColour();
+
+		if (!c2.isTransparent())
+			return c2;
 	}
 	
 	return NodeComponent::getOutlineColour();
