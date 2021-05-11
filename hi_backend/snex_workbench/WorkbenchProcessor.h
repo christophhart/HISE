@@ -315,8 +315,6 @@ private:
 	
 	friend class DspNetworkCompileExporter;
 
-	WeakReference<DspNetworkProcessor> dnp;
-
 	WeakReference<DspNetworkCodeProvider> df;
 
 	SnexEditorPanel* ep;

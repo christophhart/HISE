@@ -1058,7 +1058,20 @@ void ParameterSlider::itemDragExit(const SourceDetails& )
 
 void ParameterSlider::itemDropped(const SourceDetails& dragSourceDetails)
 {
+	auto sourceNode = dragSourceDetails.sourceComponent->findParentComponentOfClass<NodeComponent>();
+	auto thisNode = this->findParentComponentOfClass<NodeComponent>();
+
+	
+
 	macroHoverIndex = -1;
+
+	if (sourceNode == thisNode)
+	{
+		PresetHandler::showMessageWindow("Can't assign to itself", "You cannot modulate the node with itself", PresetHandler::IconType::Error);
+
+		repaint();
+		return;
+	}
 
 	if (auto wc = findParentComponentOfClass<WrapperSlot>())
 	{

@@ -458,11 +458,15 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 		float zf = findParentComponentOfClass<ZoomableViewport>()->zoomFactor;
 
-		asC->getProperties().set("circleOffsetX", zf * JUCE_LIVE_CONSTANT_OFF(1.0));
-		asC->getProperties().set("circleOffsetY", JUCE_LIVE_CONSTANT_OFF(0));
+		auto mousePoint = this->getMouseXYRelative().toFloat();
 
-		auto end = getCircle(asC, false).translated(zf * asC->getWidth(), 0.0f);
+		Rectangle<float> a(mousePoint, mousePoint);
+
+		//asC->getProperties().set("circleOffsetX", zf * JUCE_LIVE_CONSTANT_OFF(1.0));
+		//asC->getProperties().set("circleOffsetY", JUCE_LIVE_CONSTANT_OFF(0));
+
 		auto start = getCircle(e->getDetails().sourceComponent, false);
+		auto end = a.withSize(start.getWidth(), start.getHeight());
 
 		paintCable(g, start, end, Colours::white, 0.6f);
 	}

@@ -362,11 +362,7 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 		auto mc = getProcessor();
 
 		b.add(new WorkbenchSynthesiser(mc), mc->getMainSynthChain(), raw::IDs::Chains::Direct);
-
-		dnp = b.add(new DspNetworkProcessor(mc, "internal"), mc->getMainSynthChain(), raw::IDs::Chains::FX);
-
-
-
+		b.add(new DspNetworkProcessor(mc, "internal"), mc->getMainSynthChain(), raw::IDs::Chains::FX);
 	}
 	
 
@@ -481,6 +477,8 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 	
 
 	setSize(1680, 1050);
+
+	setSynthMode(false);
 }
 
 
@@ -576,8 +574,6 @@ scriptnode::DspNetwork::Holder* SnexWorkbenchEditor::getNetworkHolderForNewFile(
 
 void SnexWorkbenchEditor::closeCurrentNetwork()
 {
-	dgp->setContentWithUndo(nullptr, 0);
-
 	auto n = getNetworkHolderForNewFile(getProcessor(), synthMode);
 
 	ValueTree v("N");
@@ -591,6 +587,8 @@ void SnexWorkbenchEditor::closeCurrentNetwork()
 
 	wb = nullptr;
 	p = nullptr;
+
+	dgp->refreshContent();
 
 	resized();
 }
@@ -666,7 +664,8 @@ void SnexWorkbenchEditor::addFile(const File& f)
 
 	wb->triggerRecompile();
 
-	dgp->setContentWithUndo(dynamic_cast<Processor*>(fh), 0);
+	dgp->setConnectionIndex(0);
+	dgp->refreshContent();
 }
 
 
