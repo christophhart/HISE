@@ -749,6 +749,7 @@ struct SnexSource : public WorkbenchData::Listener,
 
 	void rebuildCallbacksAfterChannelChange(int numChannelsToProcess);
 
+#if 0
 	int getNumChannelsToProcess() const
 	{
 		if (numChannels == -1)
@@ -756,10 +757,11 @@ struct SnexSource : public WorkbenchData::Listener,
 
 		return numChannels;
 	}
+#endif
 
 protected:
 
-	int numChannels = -1;
+	//int numChannels = -1;
 
 	void setCallbackHandler(CallbackHandlerBase* nonOwnedHandler)
 	{

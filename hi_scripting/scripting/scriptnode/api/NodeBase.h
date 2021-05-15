@@ -390,15 +390,11 @@ public:
 
 	Rectangle<int> getBoundsWithoutHelp(Rectangle<int> originalHeight) const;
 
-	void setNumChannels(int newNumChannels)
-	{
-		if (!v_data[PropertyIds::LockNumChannels])
-			setValueTreeProperty(PropertyIds::NumChannels, newNumChannels);
-	}
+	
 
-	bool hasFixChannelAmount() const;
+	
 
-	int getNumChannelsToProcess() const { return (int)v_data[PropertyIds::NumChannels]; };
+	
 
 	int getNumParameters() const;;
 	Parameter* getParameter(const String& id) const;
@@ -443,12 +439,16 @@ public:
 
 	bool isUINodeOfDuplicate() const { return uiNodeOfDuplicates; }
 
+	int getCurrentChannelAmount() const { return numChannels.get(); };
+
 protected:
 
 	ValueTree v_data;
 	PrepareSpecs lastSpecs;
 
 private:
+
+	CachedValue<int> numChannels;
 
 	bool uiNodeOfDuplicates = false;
 
@@ -464,6 +464,7 @@ private:
 	HelpManager helpManager;
 
 	valuetree::PropertyListener bypassListener;
+	
 	bool bypassState = false;
 
 	ReferenceCountedArray<Parameter> parameters;

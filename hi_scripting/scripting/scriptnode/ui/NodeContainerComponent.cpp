@@ -365,7 +365,7 @@ juce::Point<int> ContainerComponent::getStartPosition() const
 
 float ContainerComponent::getCableXOffset(int cableIndex, int factor /*= 1*/) const
 {
-	int numCables = node->getNumChannelsToProcess() - 1;
+	int numCables = node->getCurrentChannelAmount() - 1;
 	int cableWidth = numCables * (UIValues::PinHeight * factor);
 	int cableStart = getWidth() / 2 - cableWidth / 2;
 	int cableX = cableStart + cableIndex * (UIValues::PinHeight * factor);
@@ -616,7 +616,7 @@ void SerialNodeComponent::paint(Graphics& g)
 		//g.drawHorizontalLine(i, 2.0f, (float)getWidth() - 2.0f);
 	}
 
-	for (int i = 0; i < node->getNumChannelsToProcess(); i++)
+	for (int i = 0; i < node->getCurrentChannelAmount(); i++)
 	{
 		paintSerialCable(g, i);
 	}
@@ -747,7 +747,7 @@ void ParallelNodeComponent::paint(Graphics& g)
 #endif
 	}
 
-	for (int i = 0; i < node->getNumChannelsToProcess(); i++)
+	for (int i = 0; i < node->getCurrentChannelAmount(); i++)
 	{
 		paintCable(g, i);
 	}
@@ -813,7 +813,7 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 
 	if (auto sn = dynamic_cast<SerialNode*>(node.get()))
 	{
-		int numChannels = node->getNumChannelsToProcess();
+		int numChannels = node->getCurrentChannelAmount();
 
 		DspNetworkPathFactory df;
 
@@ -867,7 +867,7 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 
 			for (auto c : childNodeComponents)
 			{
-				int numChannelsForThisNode = c->node->getNumChannelsToProcess();
+				int numChannelsForThisNode = c->node->getCurrentChannelAmount();
 
 				if (currentChannelIndex + numChannelsForThisNode > cableIndex)
 				{

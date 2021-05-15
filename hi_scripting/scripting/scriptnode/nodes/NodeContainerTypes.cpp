@@ -223,6 +223,8 @@ void ModulationChainNode::process(ProcessDataDyn& data) noexcept
 
 void ModulationChainNode::prepare(PrepareSpecs ps)
 {
+	ps.numChannels = 1;
+
 	DspHelpers::setErrorIfFrameProcessing(ps);
 	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 
@@ -314,7 +316,7 @@ void OversampleNode<OversampleFactor>::updateBypassState(Identifier, var)
 	PrepareSpecs ps;
 	ps.blockSize = originalBlockSize;
 	ps.sampleRate = originalSampleRate;
-	ps.numChannels = getNumChannelsToProcess();
+	ps.numChannels = getCurrentChannelAmount();
 	ps.voiceIndex = lastVoiceIndex;
 
 	prepare(ps);
@@ -454,45 +456,19 @@ MultiChannelNode::MultiChannelNode(DspNetwork* root, ValueTree data) :
 
 void MultiChannelNode::channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange)
 {
-	int numChannelsAvailable = getNumChannelsToProcess();
+	int numChannelsAvailable = getCurrentChannelAmount();
 	int numNodes = nodes.size();
 
 	if (numNodes == 0)
 		return;
-
-	// Use the ones with locked channel amounts first
-	for (auto n : nodes)
-	{
-		if (n->hasFixChannelAmount())
-		{
-			numChannelsAvailable -= n->getNumChannelsToProcess();
-			numNodes--;
-		}
-	}
-
-	if (numNodes > 0)
-	{
-		int numPerNode = numChannelsAvailable / numNodes;
-
-		for (auto n : nodes)
-		{
-			if (n->hasFixChannelAmount())
-				continue;
-
-			int thisNum = jmax(0, jmin(numChannelsAvailable, numPerNode));
-
-			if (n != nodeThatCausedLayoutChange)
-				n->setNumChannels(thisNum);
-
-			numChannelsAvailable -= n->getNumChannelsToProcess();
-		}
-	}
 }
 
 void MultiChannelNode::prepare(PrepareSpecs ps)
 {
 	auto numNodes = this->nodes.size();
 	auto numChannels = ps.numChannels;
+
+	getRootNetwork()->getExceptionHandler().removeError(this);
 
 	if (numNodes > numChannels)
 	{
@@ -502,8 +478,9 @@ void MultiChannelNode::prepare(PrepareSpecs ps)
 		e.actual = numNodes;
 		getRootNetwork()->getExceptionHandler().addError(this, e);
 	}
-		
 
+	int numPerChildren = jmax(1,  numNodes > 0 ? numChannels / numNodes : 0);
+	
 	NodeBase::prepare(ps);
 	NodeContainer::prepareContainer(ps);
 	int channelIndex = 0;
@@ -515,7 +492,7 @@ void MultiChannelNode::prepare(PrepareSpecs ps)
 
 	for (int i = 0; i < jmin(NUM_MAX_CHANNELS, nodes.size()); i++)
 	{
-		int numChannelsThisTime = nodes[i]->getNumChannelsToProcess();
+		int numChannelsThisTime = numPerChildren;
 		int startChannel = channelIndex;
 		int endChannel = startChannel + numChannelsThisTime;
 
@@ -566,7 +543,7 @@ void MultiChannelNode::process(ProcessDataDyn& d)
 
 	for (auto n : nodes)
 	{
-		int numChannelsThisTime = n->getNumChannelsToProcess();
+		int numChannelsThisTime = n->getCurrentChannelAmount();
 		int startChannel = channelIndex;
 		int endChannel = startChannel + numChannelsThisTime;
 
@@ -687,6 +664,7 @@ void OfflineChainNode::process(ProcessDataDyn& data) noexcept
 
 void OfflineChainNode::prepare(PrepareSpecs ps)
 {
+	NodeBase::prepare(ps);
 }
 
 void OfflineChainNode::handleHiseEvent(HiseEvent& e)
@@ -745,6 +723,7 @@ void NoMidiChainNode::process(ProcessDataDyn& data) noexcept
 
 void NoMidiChainNode::prepare(PrepareSpecs ps)
 {
+	NodeBase::prepare(ps);
 	obj.prepare(ps);
 }
 

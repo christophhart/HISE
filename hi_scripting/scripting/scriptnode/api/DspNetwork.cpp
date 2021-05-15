@@ -351,7 +351,7 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 
 			currentSpecs.sampleRate = sampleRate;
 			currentSpecs.blockSize = (int)blockSize;
-			currentSpecs.numChannels = getRootNode()->getNumChannelsToProcess();
+			currentSpecs.numChannels = getRootNode()->getCurrentChannelAmount();
 			currentSpecs.voiceIndex = &voiceIndex;
 
 			getRootNode()->prepare(currentSpecs);

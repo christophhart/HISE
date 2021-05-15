@@ -138,9 +138,10 @@ void SnexSource::debugModeChanged(bool isEnabled)
 
 void SnexSource::rebuildCallbacksAfterChannelChange(int numChannelsToProcess)
 {
-	if (wb != nullptr && numChannels != numChannelsToProcess)
+	if (wb != nullptr && parentNode->getCurrentChannelAmount() != numChannelsToProcess)
 	{
-		numChannels = numChannelsToProcess;
+		parentNode->setValueTreeProperty(PropertyIds::NumChannels, numChannelsToProcess);
+
 		
 		if (auto objPtr = wb->getLastResult().mainClassPtr)
 		{
@@ -538,7 +539,7 @@ snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(con
 	{
 		if (auto obj = wb->getLastResult().mainClassPtr)
 		{
-			auto numChannels = parent.getNumChannelsToProcess();
+			auto numChannels = parent.getParentNode()->getCurrentChannelAmount();
 
 			auto f = obj->getNodeCallback(Identifier(id), numChannels, checkProcessFunctions);
 

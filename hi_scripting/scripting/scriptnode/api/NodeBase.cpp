@@ -56,6 +56,8 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	currentId(v_data[PropertyIds::ID].toString()),
 	subHolder(rootNetwork->getCurrentHolder())
 {
+	numChannels.referTo(data_, PropertyIds::NumChannels, getUndoManager(), 2);
+
 	setDefaultValue(PropertyIds::NumChannels, 2);
 	setDefaultValue(PropertyIds::LockNumChannels, false);
 	setDefaultValue(PropertyIds::NodeColour, 0);
@@ -95,6 +97,8 @@ void NodeBase::prepare(PrepareSpecs specs)
 {
 	jassert(!isUINodeOfDuplicate());
 
+	numChannels = specs.numChannels;
+	
 	lastSpecs = specs;
 	cpuUsage = 0.0;
 
@@ -285,11 +289,6 @@ juce::Rectangle<int> NodeBase::getBoundsWithoutHelp(Rectangle<int> originalHeigh
 	{
 		return originalHeight;
 	}
-}
-
-bool NodeBase::hasFixChannelAmount() const
-{
-	return v_data[PropertyIds::LockNumChannels];
 }
 
 int NodeBase::getNumParameters() const

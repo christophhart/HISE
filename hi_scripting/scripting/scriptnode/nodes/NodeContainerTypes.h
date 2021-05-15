@@ -93,7 +93,6 @@ public:
 
 	Colour getContainerColour() const override {return JUCE_LIVE_CONSTANT_OFF(Colour(0xffbe952c)); }
 
-	int getNumChannelsToProcess() const override { return 1; }
 
 	int getBlockSizeForChildNodes() const override;
 	double getSampleRateForChildNodes() const override;
@@ -223,7 +222,7 @@ public:
 		PrepareSpecs ps;
 		ps.blockSize = originalBlockSize;
 		ps.sampleRate = originalSampleRate;
-		ps.numChannels = getNumChannelsToProcess();
+		ps.numChannels = getCurrentChannelAmount();
 		ps.voiceIndex = lastVoiceIndex;
 
 		prepare(ps);
@@ -319,7 +318,7 @@ public:
 		PrepareSpecs ps;
 		ps.blockSize = originalBlockSize;
 		ps.sampleRate = originalSampleRate;
-		ps.numChannels = getNumChannelsToProcess();
+		ps.numChannels = getCurrentChannelAmount();
 		ps.voiceIndex = lastVoiceIndex;
 
 		prepare(ps);
