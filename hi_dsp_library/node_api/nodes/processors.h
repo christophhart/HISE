@@ -1084,6 +1084,32 @@ private:
 };
 
 
+template <typename T> struct illegal_poly
+{
+	SN_GET_SELF_AS_OBJECT(illegal_poly);
+
+	static Identifier getStaticId() { return T::getStaticId(); }
+
+	static constexpr bool isPolyphonic() { return true; }
+
+	void prepare(PrepareSpecs ps)
+	{
+		scriptnode::Error e;
+		e.error = Error::IllegalPolyphony;
+		throw e;
+	}
+
+	HISE_EMPTY_PROCESS;
+	HISE_EMPTY_PROCESS_SINGLE;
+	HISE_EMPTY_RESET;
+	HISE_EMPTY_HANDLE_EVENT;
+	HISE_EMPTY_MOD;
+	
+	void initialise(NodeBase* n) { obj.initialise(n); }
+
+	void createParameters(ParameterDataList& l) { obj.createParameters(l); }
+	T obj;
+};
 
 
 

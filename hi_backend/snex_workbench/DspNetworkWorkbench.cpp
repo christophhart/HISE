@@ -744,6 +744,8 @@ scriptnode::dll::FunkyHostFactory::FunkyHostFactory(DspNetwork* n, ProjectDll::P
 					on.fillParameterList(pList);
 					t->setOpaqueDataEditor(useModWrapper);
 					
+					
+
 					t->postInit();
 
 					return dynamic_cast<NodeBase*>(t);

@@ -43,16 +43,7 @@ ChainNode::ChainNode(DspNetwork* n, ValueTree t) :
 	initListeners();
 
 	isVertical.initialise(this);
-
 	wrapper.getObject().initialise(this);
-
-	setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0);
-
-#if 0
-	bypassListener.setCallback(t, { PropertyIds::Bypassed, PropertyIds::BypassRampTimeMs },
-		valuetree::AsyncMode::Asynchronously,
-		std::bind(&InternalWrapper::setBypassedFromValueTreeCallback, &wrapper, std::placeholders::_1, std::placeholders::_2));
-#endif
 }
 
 

@@ -1164,7 +1164,7 @@ namespace fx
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-	registerNode<reverb, reverb_editor>();
+	registerPolyNode<reverb, wrap::illegal_poly<reverb>, reverb_editor>();
 	registerPolyNode<sampleandhold, sampleandhold_poly, sampleandhold_editor>();
 	registerPolyNode<bitcrush, bitcrush_poly, bitcrush_editor>();
 	registerPolyNode<wrap::fix<2, haas>, wrap::fix<2, haas_poly>>();

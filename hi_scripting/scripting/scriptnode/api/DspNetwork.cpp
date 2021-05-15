@@ -62,6 +62,12 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	voiceIndex.setTempoSyncer(&tempoSyncer);
 	getScriptProcessor()->getMainController_()->addTempoListener(&tempoSyncer);
 
+	if(!data.hasProperty(PropertyIds::AllowCompilation))
+		data.setProperty(PropertyIds::AllowCompilation, false, nullptr);
+
+	if(!data.hasProperty(PropertyIds::AllowPolyphonic))
+		data.setProperty(PropertyIds::AllowPolyphonic, isPoly, nullptr);
+
 	setExternalDataHolder(dynamic_cast<ExternalDataHolder*>(p));
 
 	ownedFactories.add(new NodeContainerFactory(this));
@@ -788,6 +794,11 @@ void DspNetwork::setEnableInterpretedGraph(bool shouldBeEnabled)
 	projectNodeHolder.setEnabled(shouldBeEnabled);
 }
 
+bool DspNetwork::hashMatches()
+{
+	return projectNodeHolder.hashMatches;
+}
+
 hise::ScriptParameterHandler* DspNetwork::getCurrentParameterHandler()
 {
 	if (projectNodeHolder.isActive())
@@ -1044,6 +1055,11 @@ DeprecationChecker::DeprecationChecker(DspNetwork* n_, ValueTree v_) :
 	n(n_),
 	v(v_)
 {
+	v.removeProperty("LockNumChannels", nullptr);
+	v.removeProperty("CommentWidth", nullptr);
+	v.removeProperty("Public", nullptr);
+	v.removeProperty("BypassRampTimeMs", nullptr);
+
 	auto isConnection = v.getType() == PropertyIds::Connection ||
 		v.getType() == PropertyIds::ModulationTarget;
 
@@ -1096,6 +1112,7 @@ void DeprecationChecker::throwIf(DeprecationId id)
 
 bool DeprecationChecker::check(DeprecationId id)
 {
+	
 	switch (id)
 	{
 	case DeprecationId::OpTypeNonSet:
@@ -1132,6 +1149,47 @@ void DspNetwork::ProjectNodeHolder::process(ProcessDataDyn& data)
 	NodeProfiler np(network.getRootNode());
 
 	n.process(data);
+}
+
+void DspNetwork::ProjectNodeHolder::init(dll::ProjectDll::Ptr dllToUse)
+{
+	dll = dllToUse;
+
+	int getNumNodes = dll->getNumNodes();
+
+	for (int i = 0; i < getNumNodes; i++)
+	{
+		auto dllId = dll->getNodeId(i);
+
+		if (dllId == network.getId())
+		{
+			dll->initNode(&n, i, network.isPolyphonic());
+			loaded = true;
+		}
+	}
+
+	if (network.data[PropertyIds::AllowCompilation])
+	{
+		auto fileHash = BackendDllManager::getHashForNetworkFile(network.getScriptProcessor()->getMainController_(), network.getId());
+
+		if (dll != nullptr)
+		{
+			auto numNodes = dll->getNumNodes();
+
+			for (int i = 0; i < numNodes; i++)
+			{
+				auto nid = dll->getNodeId(i);
+
+				if (nid == network.getId())
+				{
+					auto dllHash = dll->getHash(i);
+
+					hashMatches = dllHash == fileHash;
+					return;
+				}
+			}
+		}
+	}
 }
 
 }

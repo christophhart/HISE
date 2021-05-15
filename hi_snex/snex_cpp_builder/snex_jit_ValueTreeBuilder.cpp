@@ -113,6 +113,12 @@ void ValueTreeBuilder::rebuild()
 	{
 		//Sanitizers::setChannelAmount(v);
 		
+		if (ValueTreeIterator::hasChildNodeWithProperty(v, PropertyIds::IsPolyphonic))
+		{
+			auto polyId = v[PropertyIds::ID].toString();
+			CustomNodeProperties::addNodeIdManually(Identifier(polyId), PropertyIds::IsPolyphonic);
+		}
+
 		{
 			*this << getGlueCode(FormatGlueCode::PreNamespaceCode);
 

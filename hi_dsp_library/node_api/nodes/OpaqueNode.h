@@ -275,6 +275,7 @@ namespace dll
 	{
 		using Ptr = ReferenceCountedObjectPtr<ProjectDll>;
 
+		typedef int(*GetHashFunction)(int);
 		typedef int(*GetWrapperTypeFunc)(int);
 		typedef int(*GetNumNodesFunc)();
 		typedef size_t(*GetNodeIdFunc)(int, char*);
@@ -301,16 +302,13 @@ namespace dll
 			return ok;
 		}
 
-		int getHash() const
-		{
-			return hash;
-		}
+		int getHash(int index) const;
 
 	private:
 
-		int hash = 0;
 		bool ok = false;
 
+		GetHashFunction ghf;
 		GetNumNodesFunc gnnf;
 		GetNodeIdFunc gnif;
 		InitNodeFunc inf;

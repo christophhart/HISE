@@ -461,11 +461,15 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 		float zf = findParentComponentOfClass<ZoomableViewport>()->zoomFactor;
 
-		asC->getProperties().set("circleOffsetX", zf * JUCE_LIVE_CONSTANT_OFF(1.0));
-		asC->getProperties().set("circleOffsetY", JUCE_LIVE_CONSTANT_OFF(0));
+		auto mousePoint = this->getMouseXYRelative().toFloat();
 
-		auto end = getCircle(asC, false).translated(zf * asC->getWidth(), 0.0f);
+		Rectangle<float> a(mousePoint, mousePoint);
+
+		//asC->getProperties().set("circleOffsetX", zf * JUCE_LIVE_CONSTANT_OFF(1.0));
+		//asC->getProperties().set("circleOffsetY", JUCE_LIVE_CONSTANT_OFF(0));
+
 		auto start = getCircle(e->getDetails().sourceComponent, false);
+		auto end = a.withSize(start.getWidth(), start.getHeight());
 
 		paintCable(g, start, end, Colours::white, 0.6f);
 	}
@@ -1086,6 +1090,17 @@ bool DspNetworkGraph::Actions::editNodeProperty(DspNetworkGraph& g)
 	{
 		g.getComponent(n)->handlePopupMenuResult((int)NodeComponent::MenuActions::EditProperties);
 		return true;
+	}
+	else
+	{
+		auto nn = new PropertyEditor(g.network->getRootNode(), false, g.network->getValueTree(), {}, false);
+
+		nn->setName("Edit Network Properties");
+
+		auto z = g.findParentComponentOfClass<ZoomableViewport>();
+		auto b = z->getLocalArea(&g, g.getLocalBounds());
+
+		z->setCurrentModalWindow(nn, b);
 	}
 
 	return false;
@@ -2108,7 +2123,6 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 	{
 		b->setTooltip("Show node properties [P]");
 		b->actionFunction = Actions::editNodeProperty;
-		b->enabledFunction = selectionEmpty;
 	}
 	if (name == "goto")
 	{

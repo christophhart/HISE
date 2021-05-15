@@ -53,7 +53,6 @@ bool NodeProperty::initialise(NodeBase* n)
 		d = ValueTree(PropertyIds::Property);
 		d.setProperty(PropertyIds::ID, getValueTreePropertyId().toString(), nullptr);
 		d.setProperty(PropertyIds::Value, defaultValue, nullptr);
-		d.setProperty(PropertyIds::Public, isPublic, nullptr);
 		propTree.addChild(d, -1, n->getUndoManager());
 	}
 

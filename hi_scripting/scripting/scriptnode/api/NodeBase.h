@@ -359,7 +359,6 @@ public:
 	/** Not necessarily the DSP network. */
 	NodeBase::Holder* getNodeHolder() const;
 
-
 	ValueTree getParameterTree() { return v_data.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager()); }
 	
 	ValueTree getPropertyTree() { return v_data.getOrCreateChildWithName(PropertyIds::Properties, getUndoManager()); }

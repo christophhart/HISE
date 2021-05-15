@@ -58,14 +58,12 @@ DECLARE_ID(Node);
 DECLARE_ID(Nodes);
 DECLARE_ID(NodeColour);
 DECLARE_ID(Comment);
-DECLARE_ID(CommentWidth);
 DECLARE_ID(Parameter);
 DECLARE_ID(Parameters);
 DECLARE_ID(Connections);
 DECLARE_ID(Connection);
 DECLARE_ID(Properties);
 DECLARE_ID(Property);
-DECLARE_ID(Public);
 DECLARE_ID(StepSize);
 DECLARE_ID(MidPoint);
 DECLARE_ID(Bookmark);
@@ -79,7 +77,6 @@ DECLARE_ID(Bypassed);
 DECLARE_ID(SoulPatch);
 DECLARE_ID(DynamicBypass);
 DECLARE_ID(NumParameters);
-DECLARE_ID(BypassRampTimeMs);
 DECLARE_ID(Value);
 DECLARE_ID(ID);
 DECLARE_ID(Index);
@@ -92,7 +89,6 @@ DECLARE_ID(FreezedPath);
 DECLARE_ID(FreezedId);
 DECLARE_ID(NumChannels);
 DECLARE_ID(EmbeddedData);
-DECLARE_ID(LockNumChannels);
 DECLARE_ID(SwitchTargets);
 DECLARE_ID(SwitchTarget);
 DECLARE_ID(ModulationTargets);
@@ -136,6 +132,8 @@ DECLARE_ID(TemplateArgumentIsPolyphonic);
 DECLARE_ID(IsRoutingNode);
 DECLARE_ID(IsPublicMod);
 DECLARE_ID(UseUnnormalisedModulation);
+DECLARE_ID(AllowPolyphonic);
+DECLARE_ID(AllowCompilation);
 
 enum EditType
 {
@@ -165,6 +163,7 @@ struct Error
 		NodeDebuggerEnabled,
 		RingBufferMultipleWriters,
 		DeprecatedNode,
+		IllegalPolyphony,
 		numErrorCodes
 	};
 

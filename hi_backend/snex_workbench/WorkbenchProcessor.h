@@ -84,11 +84,18 @@ struct BackendDllManager: public ReferenceCountedObject,
 
 	using Ptr = ReferenceCountedObjectPtr<BackendDllManager>;
 
-	static Array<File> getNetworkFiles(MainController* mc);
+	static Array<File> getNetworkFiles(MainController* mc, bool includeNoCompilers=true);
 
-	int getHash(bool getDllHash);
+	int getDllHash(int index);
+
+	static int getHashForNetworkFile(MainController* mc, const String& id);
+
+
 	bool unloadDll();
 	bool loadDll(bool forceUnload);
+
+	static bool allowCompilation(const File& networkFile);
+	static bool allowPolyphonic(const File& networkFile);
 
 	static File createIfNotDirectory(const File& f);
 	static File getSubFolder(const MainController* mc, FolderSubType t);
@@ -205,7 +212,56 @@ struct PatchAutosaver : public valuetree::AnyListener
 			return;
 
 		changed = true;
-		ScopedPointer<XmlElement> xml = network->getValueTree().createXml();
+
+		auto saveCopy = network->getValueTree().createCopy();
+
+		cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, [](ValueTree& v)
+		{
+			auto propChild = v.getChildWithName(PropertyIds::Properties);
+
+			auto removeIfDefault = [](ValueTree& v, const Identifier& id, const var& defaultValue)
+			{
+				if (v[id] == defaultValue)
+					v.removeProperty(id, nullptr);
+			};
+
+			auto removePropIfDefault = [](ValueTree& v, const Identifier& id, const var& defaultValue)
+			{
+				if (v[PropertyIds::ID].toString() == id.toString() &&
+					v[PropertyIds::Value] == defaultValue)
+				{
+					return true;
+				}
+					
+				return false;
+			};
+
+			for (int i = 0; i < propChild.getNumChildren(); i++)
+			{
+				if (removePropIfDefault(propChild.getChild(i), PropertyIds::IsVertical, 1))
+					propChild.removeChild(i--, nullptr);
+			}
+
+			if (propChild.isValid() && propChild.getNumChildren() == 0)
+				v.removeChild(propChild, nullptr);
+
+			removeIfDefault(v, PropertyIds::Comment, "");
+			removeIfDefault(v, PropertyIds::NodeColour, 0);
+			removeIfDefault(v, PropertyIds::Folded, 0);
+			removeIfDefault(v, PropertyIds::Expression, "");
+			removeIfDefault(v, PropertyIds::SkewFactor, 1.0);
+			removeIfDefault(v, PropertyIds::StepSize, 0.0);
+
+			if (v.hasProperty(PropertyIds::Automated))
+				v.removeProperty(PropertyIds::Value, nullptr);
+
+			return false;
+		});
+
+		ScopedPointer<XmlElement> xml = saveCopy.createXml();
+
+
+
 		d.replaceWithText(xml->createDocument(""));
 	}
 
@@ -395,8 +451,6 @@ private:
 
 	friend class DspNetworkCompileExporter;
 
-	WeakReference<DspNetworkProcessor> dnp;
-
 	WeakReference<DspNetworkCodeProvider> df;
 
 	SnexEditorPanel* ep;
@@ -563,6 +617,13 @@ struct DspNetworkCompileExporter : public hise::DialogWindowWithBackgroundThread
 	public ControlledObject,
 	public CompileExporter
 {
+	enum class DspNetworkErrorCodes
+	{
+		OK,
+		NonCompiledInclude,
+		UninitialisedProperties
+	};
+
 	DspNetworkCompileExporter(SnexWorkbenchEditor* editor);
 
 	void run() override;
@@ -586,7 +647,10 @@ private:
 
 	void createProjucerFile();
 
+	String errorMessage;
+
 	Array<File> includedFiles;
+	
 
 	void createMainCppFile();
 };

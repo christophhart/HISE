@@ -671,7 +671,6 @@ public:
 
 			addButton("bypass");
 			addButton("colour");
-			addButton("properties");
 			addButton("profile");
 
 			addSpacer(10);
@@ -681,6 +680,8 @@ public:
 			addButton("copy");
 			addButton("duplicate");
 			addButton("delete");
+			addSpacer(10);
+			addButton("properties");
 		};
 
 		virtual void bookmarkUpdated(const StringArray& idsToShow)

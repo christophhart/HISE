@@ -202,6 +202,9 @@ struct ToggleButtonPropertyComponent : public PropertyComponent,
 		b.setClickingTogglesState(true);
 		v.addListener(this);
 		b.addListener(this);
+
+		DBG(data.createXml()->createDocument(""));
+
 		update(data[id]);
 	}
 
@@ -724,7 +727,10 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 		return new FileNameValuePropertyComponent(id.toString(), file, value);
 	}
 
-	if (propId == LockNumChannels || propId == Enabled || propId == SplitSignal)
+	if (propId == Enabled || 
+		propId == SplitSignal ||
+		propId == AllowCompilation ||
+		propId == AllowPolyphonic)
 		return new ToggleButtonPropertyComponent(d, id, um);
     
 #if HISE_INCLUDE_SNEX

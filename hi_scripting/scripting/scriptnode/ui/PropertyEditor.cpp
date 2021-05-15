@@ -204,12 +204,6 @@ void NodePopupEditor::buttonClicked(Button* b)
 NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 	v(d.getPropertyAsValue(PropertyIds::Value, n->getUndoManager()))
 {
-	publicButton.getToggleStateValue().referTo(d.getPropertyAsValue(PropertyIds::Public, n->getUndoManager()));
-	publicButton.setButtonText("Public");
-	addAndMakeVisible(publicButton);
-	publicButton.setLookAndFeel(&laf);
-	publicButton.setClickingTogglesState(true);
-
 	Identifier propId = Identifier(d[PropertyIds::ID].toString().fromLastOccurrenceOf(".", false, false));
 
 	if (propId == PropertyIds::FillMode || propId == PropertyIds::UseResetValue || propId == PropertyIds::UseFreqDomain)
@@ -380,7 +374,7 @@ int MultiColumnPropertyPanel::getTotalContentHeight() const
 
 
 
-PropertyEditor::PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds)
+PropertyEditor::PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds, bool includeProperties)
 {
 	plaf.propertyBgColour = Colours::transparentBlack;
 
@@ -399,15 +393,10 @@ PropertyEditor::PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, 
 	}
 
 	// Only add Node properties in two-column mode (aka Connection Editor)...
-	if (!useTwoColumns)
+	if (includeProperties && !useTwoColumns)
 	{
 		for (auto prop : n->getPropertyTree())
 		{
-			if (!(bool)prop[PropertyIds::Public] && prop[PropertyIds::ID].toString().contains("."))
-			{
-				continue;
-			}
-
 			auto nt = new NodePropertyComponent(n, prop);
 			newProperties.add(nt);
 		}

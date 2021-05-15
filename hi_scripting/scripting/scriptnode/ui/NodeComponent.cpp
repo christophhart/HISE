@@ -369,8 +369,17 @@ void NodeComponent::paintOverChildren(Graphics& g)
 		if (header.parameterButton.getToggleState())
 			b.removeFromTop(UIValues::ParameterHeight);
 
-		g.setColour(Colour(0xAA111111));
+		auto hashMatches = node->getRootNetwork()->hashMatches();
+
+		g.setColour(hashMatches ? Colour(0xAA111111) : Colour(0xAA221111));
 		g.fillRect(b);
+
+		if (!hashMatches)
+		{
+			g.setColour(Colours::white);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("The compiled node doesn't match the interpreted network. Recompile this node in order to ensure consistent behaviour", b.toFloat(), Justification::centred);
+		}
 	}
 
 	if (isSelected())

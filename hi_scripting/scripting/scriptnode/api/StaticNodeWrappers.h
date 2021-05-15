@@ -210,7 +210,6 @@ public:
 
 	void postInit() override
 	{
-		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
 		Base::postInit();
 	}
 

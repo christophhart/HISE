@@ -320,11 +320,9 @@ ProjectDll::ProjectDll(const File& f)
 		inf = (InitNodeFunc)dll->getFunction("initOpaqueNode");
 		gndo = (GetNumDataObjects)dll->getFunction("getNumDataObjects");
 		gwtf = (GetWrapperTypeFunc)dll->getFunction("getWrapperType");
+		ghf = (GetHashFunction)dll->getFunction("getHash");
 
-		if (auto f = (int(*)())dll->getFunction("getHash"))
-			hash = f();
-
-		ok = gnnf != nullptr && gnif != nullptr && inf != nullptr && hash != 0 && gwtf != nullptr;
+		ok = gnnf != nullptr && gnif != nullptr && inf != nullptr && ghf != nullptr && gwtf != nullptr;
 	}
 	else
 	{
@@ -332,6 +330,7 @@ ProjectDll::ProjectDll(const File& f)
 		gnif = nullptr;
 		inf = nullptr;
 		dnf = nullptr;
+		ghf = nullptr;
 
 		ok = false;
 	}
@@ -342,6 +341,17 @@ ProjectDll::~ProjectDll()
 	dll->close();
 	ok = false;
 	dll = nullptr;
+}
+
+
+
+int ProjectDll::getHash(int index) const
+{
+	if (ghf != nullptr)
+		return ghf(index);
+
+	jassertfalse;
+	return 0;
 }
 
 }

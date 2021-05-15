@@ -59,10 +59,9 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	numChannels.referTo(data_, PropertyIds::NumChannels, getUndoManager(), 2);
 
 	setDefaultValue(PropertyIds::NumChannels, 2);
-	setDefaultValue(PropertyIds::LockNumChannels, false);
 	setDefaultValue(PropertyIds::NodeColour, 0);
 	setDefaultValue(PropertyIds::Comment, "");
-	setDefaultValue(PropertyIds::CommentWidth, 300);
+	//setDefaultValue(PropertyIds::CommentWidth, 300);
 
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(set);
@@ -781,7 +780,7 @@ juce::Array<NodeBase::Parameter*> NodeBase::Parameter::getConnectedMacroParamete
 HelpManager::HelpManager(NodeBase* parent, ValueTree d) :
 	ControlledObject(parent->getScriptProcessor()->getMainController_())
 {
-	commentListener.setCallback(d, { PropertyIds::Comment, PropertyIds::NodeColour, PropertyIds::CommentWidth }, valuetree::AsyncMode::Asynchronously,
+	commentListener.setCallback(d, { PropertyIds::Comment, PropertyIds::NodeColour}, valuetree::AsyncMode::Asynchronously,
 		BIND_MEMBER_FUNCTION_2(HelpManager::update));
 }
 
@@ -809,12 +808,16 @@ void HelpManager::update(Identifier id, var newValue)
 	else if (id == PropertyIds::Comment)
 	{
 		lastText = newValue.toString();
-		rebuild();
-	}
-	else if (id == PropertyIds::CommentWidth)
-	{
-		lastWidth = (float)newValue;
 
+		auto f = GLOBAL_BOLD_FONT();
+
+		auto sa = StringArray::fromLines(lastText);
+		lastWidth = 0.0f;
+
+		for (auto s : sa)
+			lastWidth = jmax(f.getStringWidthFloat(s) + 10.0f, lastWidth);
+
+		lastWidth = jmin(300.0f, lastWidth);
 		rebuild();
 	}
 }

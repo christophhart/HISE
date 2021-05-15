@@ -94,8 +94,6 @@ struct NodePropertyComponent : public PropertyComponent
 		{
 			auto b = getLocalBounds();
 
-			publicButton.setBounds(b.removeFromRight(40));
-				
 			if(editor != nullptr)
 				editor->setBounds(b);
 		}
@@ -104,7 +102,6 @@ struct NodePropertyComponent : public PropertyComponent
 
 		ScopedPointer<Component> editor;
 		NodeBase::Ptr jitNode;
-		TextButton publicButton;
 		
 		HiPropertyPanelLookAndFeel laf;
 		
@@ -169,7 +166,7 @@ struct MultiColumnPropertyPanel : public Component
 
 struct PropertyEditor : public Component
 {
-	PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds = {});
+	PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds = {}, bool includeProperties=true);
 
 	void updateSize()
 	{

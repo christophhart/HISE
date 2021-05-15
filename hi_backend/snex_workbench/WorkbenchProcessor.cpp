@@ -289,14 +289,6 @@ void SnexWorkbenchEditor::recompiled(snex::ui::WorkbenchData::Ptr p)
 	{
 		if (dnp->source == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
 		{
-			auto h1 = dllManager->getHash(true);
-			auto h2 = dllManager->getHash(false);
-
-			if (h1 != h2)
-			{
-				PresetHandler::showMessageWindow("DLL mismatch", "The dll is different than the source files. Recompile it");
-			}
-
 			dgp->getParentShell()->setOverlayComponent(new DspNetworkCodeProvider::OverlayComponent(dnp->source, p), 300);
 		}
 		else if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
@@ -376,11 +368,7 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 		auto mc = getProcessor();
 
 		b.add(new WorkbenchSynthesiser(mc), mc->getMainSynthChain(), raw::IDs::Chains::Direct);
-
-		dnp = b.add(new DspNetworkProcessor(mc, "internal"), mc->getMainSynthChain(), raw::IDs::Chains::FX);
-
-
-
+		b.add(new DspNetworkProcessor(mc, "internal"), mc->getMainSynthChain(), raw::IDs::Chains::FX);
 	}
 	
 
@@ -495,6 +483,8 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 	
 
 	setSize(1680, 1050);
+
+	setSynthMode(false);
 }
 
 
@@ -612,27 +602,12 @@ void SnexWorkbenchEditor::closeCurrentNetwork()
 	if (auto n = getNetworkHolderForNewFile(getProcessor(), synthMode))
 	{
 		n->clearAllNetworks();
-
-#if 0
-
-		ValueTree v("N");
-		v.addChild(ValueTree("Networks"), -1, nullptr);
-
-		n->restoreNetworks(v);
-
-		snex::ui::WorkbenchData::Ptr p(wb.get());
-
-		static_cast<WorkbenchManager*>(getProcessor()->getWorkbenchManager())->removeWorkbench(p);
-
-		wb = nullptr;
-		p = nullptr;
-
-		resized();
-#endif
 	}
 
 	auto wm = static_cast<snex::ui::WorkbenchManager*>(getProcessor()->getWorkbenchManager());
 	wm->setCurrentWorkbench(nullptr, true);
+
+	resized();
 }
 
 bool SnexWorkbenchEditor::isCppPreviewEnabled()
@@ -732,8 +707,6 @@ void SnexWorkbenchEditor::loadNewNetwork(const File& f)
 	fh->setExternalDataHolderToUse(&wb->getTestData());
 	df->initNetwork();
 
-	
-
 	MessageManager::callAsync([&]()
 	{
 		auto h = getNetworkHolderForNewFile(getProcessor(), synthMode);
@@ -829,7 +802,12 @@ struct IncludeSorter
 
 void DspNetworkCompileExporter::run()
 {
-	jassert(cppgen::CustomNodeProperties::isInitialised());
+	if (!cppgen::CustomNodeProperties::isInitialised())
+	{
+		ok = ErrorCodes::CompileError;
+		errorMessage << "the node properties are not initialised. Load a DspNetwork at least once";
+		return;
+	}
 
 	showStatusMessage("Unload DLL");
 
@@ -841,7 +819,7 @@ void DspNetworkCompileExporter::run()
 	auto buildFolder = getFolder(BackendDllManager::FolderSubType::Binaries);
 
 	auto networkRoot = getFolder(BackendDllManager::FolderSubType::Networks);
-	auto unsortedList = networkRoot.findChildFiles(File::findFiles, false, "*.xml");
+	auto unsortedList = BackendDllManager::getNetworkFiles(getMainController(), false);
 
 	showStatusMessage("Sorting include dependencies");
 
@@ -854,6 +832,17 @@ void DspNetworkCompileExporter::run()
 
 		for (auto& sf : getIncludedNetworkFiles(nf))
 		{
+			if (!BackendDllManager::allowCompilation(sf))
+			{
+				ok = ErrorCodes::CompileError;
+				errorMessage << "Error at compiling `" << nf.getFileNameWithoutExtension() << "`:\n> `" << sf.getFileNameWithoutExtension() << "` can't be included because it's not flagged for compilation\n";
+				
+				errorMessage << "Enable the `AllowCompilation` flag for " << sf.getFileNameWithoutExtension() << " or remove the node from " << nf.getFileNameWithoutExtension();
+
+				return;
+			}
+				
+
 			list.addIfNotAlreadyThere(sf);
 		}
 	}
@@ -961,6 +950,8 @@ void DspNetworkCompileExporter::threadFinished()
 			return;
 		}
 	}
+	else 
+		PresetHandler::showMessageWindow("Compilation Error", errorMessage, PresetHandler::IconType::Error);
 }
 
 juce::File DspNetworkCompileExporter::getBuildFolder() const
@@ -1071,7 +1062,8 @@ void DspNetworkCompileExporter::createMainCppFile()
 			for (int i = 0; i < includedFiles.size(); i++)
 			{
 				auto isPolyNode = includedFiles[i].loadFileAsString().contains("polyphonic template declaration");
-
+				auto illegalPoly = isPolyNode && !BackendDllManager::allowPolyphonic(includedFiles[i]);
+				
 				String classId = "project::" + includedFiles[i].getFileNameWithoutExtension();
 
 				String def;
@@ -1079,7 +1071,15 @@ void DspNetworkCompileExporter::createMainCppFile()
 				if (!isPolyNode)
 					def << "registerNode<" << classId << ">();";
 				else
-					def << "registerPolyNode<" << classId << "<1>, " << classId << "<NUM_POLYPHONIC_VOICES>>();";
+				{
+					def << "registerPolyNode<" << classId << "<1>, ";
+					
+					if (illegalPoly)
+						def << "wrap::illegal_poly<" << classId << "<1>>>();";
+					else
+						def << classId << "<NUM_POLYPHONIC_VOICES>>();";
+				}
+					
 
 				b << def;
 			}
@@ -1123,11 +1123,36 @@ void DspNetworkCompileExporter::createMainCppFile()
 	}
 
 	{
-		b << "DLL_EXPORT int getHash()";
+		b << "DLL_EXPORT int getHash(int index)";
 		StatementBlock bk(b);
+
 		String def;
-		def << "return " << editor->dllManager->getHash(false) << ";";
+
+		def << "static const int hashIndexes[" << includedFiles.size() << "] =";
 		b << def;
+
+		{
+			StatementBlock l(b, true);
+
+			for (int i = 0; i < includedFiles.size(); i++)
+			{
+				String l;
+
+				auto hash = editor->dllManager->getHashForNetworkFile(getMainController(), includedFiles[i].getFileNameWithoutExtension());
+
+				if (hash == 0)
+				{
+					jassertfalse;
+				}
+
+				l << hash;
+				if (i != includedFiles.size() - 1)
+					l << ", ";
+				b << l;
+			}
+		}
+
+		b << "return hashIndexes[index];";
 	}
 
 	{
@@ -1136,28 +1161,9 @@ void DspNetworkCompileExporter::createMainCppFile()
 		b << "return f.getWrapperType(index);";
 	}
 
-#if 0
-	DLL_EXPORT int getNumNodes()
-	{
-		return f.getNumNodes();
-	}
-
-	DLL_EXPORT size_t getNodeId(int index, char* t)
-	{
-		return HelperFunctions::writeString(t, f.getId(index).getCharPointer());
-	}
-
-	DLL_EXPORT void initOpaqueNode(scriptnode::OpaqueNode* n, int index)
-	{
-		f.initOpaqueNode(n, index);
-	}
-#endif
-
 
 	f.replaceWithText(b.toString());
 }
-
-
 
 void TestRunWindow::run()
 {
@@ -1175,17 +1181,6 @@ void TestRunWindow::run()
 		case DspNetworkCodeProvider::SourceMode::DynamicLibrary: cMessage << "Dynamic Library"; break;
 		}
 
-		if (c == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
-		{
-			editor->dllManager->loadDll(false);
-
-			if (editor->dllManager->getHash(true) != editor->dllManager->getHash(false))
-			{
-				writeConsoleMessage(" skipping dll test because the compiled dll hash is out of date");
-				return;
-			}
-		}
-		
 		writeConsoleMessage(cMessage);
 
 		for (auto f : filesToTest)
@@ -1295,7 +1290,7 @@ void TestRunWindow::threadFinished()
 		PresetHandler::showMessageWindow("Sucess", "All tests were sucessful");
 }
 
-juce::Array<juce::File> BackendDllManager::getNetworkFiles(MainController* mc)
+juce::Array<juce::File> BackendDllManager::getNetworkFiles(MainController* mc, bool includeNoCompilers)
 {
 	auto networkDirectory = getSubFolder(mc, FolderSubType::Networks);
 
@@ -1304,23 +1299,40 @@ juce::Array<juce::File> BackendDllManager::getNetworkFiles(MainController* mc)
 	for (int i = 0; i < files.size(); i++)
 	{
 		if (files[i].getFileName().contains("autosave_"))
+		{
 			files.remove(i--);
+			continue;
+		}
+
+		if (!includeNoCompilers)
+		{
+			if(!allowCompilation(files[i]))
+				files.remove(i--);
+		}
 	}
 
 	return files;
 }
 
-int BackendDllManager::getHash(bool getDllHash)
+int BackendDllManager::getDllHash(int index)
 {
-	int hash = 0;
+	loadDll(false);
 
-	if (!getDllHash)
+	if (projectDll != nullptr)
 	{
-		auto nr = getSubFolder(getMainController(), FolderSubType::Networks);
+		return projectDll->getHash(index);
+	}
 
-		auto list = nr.findChildFiles(File::findFiles, false, "*.xml");
+	return 0;
+}
 
-		for (auto f : list)
+int BackendDllManager::getHashForNetworkFile(MainController* mc, const String& id)
+{
+	auto fileList = getNetworkFiles(mc, false);
+
+	for (auto f : fileList)
+	{
+		if (f.getFileNameWithoutExtension() == id)
 		{
 			if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
 			{
@@ -1331,21 +1343,13 @@ int BackendDllManager::getHash(bool getDllHash)
 				MemoryBlock mb;
 				comp.compress(v, mb);
 
-				hash += mb.toBase64Encoding().hashCode();
+				return mb.toBase64Encoding().hashCode();
 			}
 		}
 	}
-	else
-	{
-		loadDll(false);
 
-		if (projectDll != nullptr)
-		{
-			return projectDll->getHash();
-		}
-	}
-
-	return hash;
+	jassertfalse;
+	return 0;
 }
 
 bool BackendDllManager::unloadDll()
@@ -1383,6 +1387,26 @@ bool BackendDllManager::loadDll(bool forceUnload)
 		}
 
 		return ok;
+	}
+
+	return false;
+}
+
+bool BackendDllManager::allowCompilation(const File& networkFile)
+{
+	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(networkFile))
+	{
+		return xml->getBoolAttribute(PropertyIds::AllowCompilation);
+	}
+
+	return false;
+}
+
+bool BackendDllManager::allowPolyphonic(const File& networkFile)
+{
+	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(networkFile))
+	{
+		return xml->getBoolAttribute(PropertyIds::AllowPolyphonic);
 	}
 
 	return false;

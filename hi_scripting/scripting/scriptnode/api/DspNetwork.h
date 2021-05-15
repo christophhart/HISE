@@ -147,6 +147,7 @@ public:
 		case Error::RingBufferMultipleWriters: return "Buffer used multiple times";
 		case Error::NodeDebuggerEnabled: return "Node is being debugged";
 		case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
+		case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
 		case Error::CompileFail:	s << "Compilation error** at Line " << e.expected << ", Column " << e.actual; return s;
 		default:
 			break;
@@ -767,6 +768,8 @@ public:
 
 	bool isFrozen() const { return projectNodeHolder.isActive(); }
 
+	bool hashMatches();
+
 	ScriptParameterHandler* getCurrentParameterHandler();
 
 	Holder* getParentHolder() { return parentHolder; }
@@ -922,24 +925,9 @@ private:
 			}
 		}
 
-		void init(dll::ProjectDll::Ptr dllToUse)
-		{
-			dll = dllToUse;
+		void init(dll::ProjectDll::Ptr dllToUse);
 
-			int getNumNodes = dll->getNumNodes();
-
-			for (int i = 0; i < getNumNodes; i++)
-			{
-				auto dllId = dll->getNodeId(i);
-
-				if (dllId == network.getId())
-				{
-					dll->initNode(&n, i, network.isPolyphonic());
-					loaded = true;
-				}
-			}
-		}
-
+		bool hashMatches = false;
 		float parameterValues[16];
 		DspNetwork& network;
 		dll::ProjectDll::Ptr dll;
