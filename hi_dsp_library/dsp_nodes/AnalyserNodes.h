@@ -76,6 +76,8 @@ struct Helpers
 
 	struct FFT: public SimpleRingBuffer::PropertyObject
 	{
+		static constexpr int PropertyIndex = 3001;
+
 		SET_HISE_NODE_ID("fft");
 
 		static constexpr int NumChannels = 1;
@@ -113,6 +115,8 @@ struct Helpers
 
 	struct Oscilloscope: public SimpleRingBuffer::PropertyObject
 	{
+		static constexpr int PropertyIndex = 3002;
+
 		SET_HISE_NODE_ID("oscilloscope");
 
 		Oscilloscope(SimpleRingBuffer::WriterBase* w) : PropertyObject(w) {};
@@ -134,6 +138,8 @@ struct Helpers
 
 	struct GonioMeter : public SimpleRingBuffer::PropertyObject
 	{
+		static constexpr int PropertyIndex = 3003;
+
 		SET_HISE_NODE_ID("goniometer");
 
 		GonioMeter(SimpleRingBuffer::WriterBase* w) : PropertyObject(w) {};
@@ -180,7 +186,10 @@ public:
 			rb->clear();
 	}
 
-	SimpleRingBuffer::PropertyObject* createPropertyObject() override { return new T(this); }
+	void registerPropertyObject(SimpleRingBuffer::Ptr rb) override
+	{
+		rb->registerPropertyObject<T>();
+	}
 
 	void handleHiseEvent(HiseEvent& e)
 	{
@@ -234,7 +243,7 @@ using goniometer = analyse_base<Helpers::GonioMeter>;
 namespace ui
 {
 
-struct simple_osc_display : public OscilloscopeBase,
+struct simple_osc_display : public hise::OscilloscopeBase,
 						    public Component,
 							public ComponentWithDefinedSize
 {
@@ -256,7 +265,7 @@ struct simple_osc_display : public OscilloscopeBase,
 };
 
 
-struct simple_fft_display : public FFTDisplayBase,
+struct simple_fft_display : public hise::FFTDisplayBase,
 							public Component,
 							public ComponentWithDefinedSize
 {
@@ -288,7 +297,7 @@ struct simple_fft_display : public FFTDisplayBase,
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(simple_fft_display);
 };
 
-struct simple_gon_display : public GoniometerBase,
+struct simple_gon_display : public hise::GoniometerBase,
 						    public Component,
 							public ComponentWithDefinedSize
 {
@@ -311,22 +320,6 @@ struct simple_gon_display : public GoniometerBase,
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(simple_gon_display);
 };
-
-using osc_display = data::ui::pimpl::editorT<data::dynamic::displaybuffer, 
-											 hise::SimpleRingBuffer, 
-											 simple_osc_display,
-											 false>; 
-
-using fft_display = data::ui::pimpl::editorT<data::dynamic::displaybuffer, 
-											 hise::SimpleRingBuffer, 
-											 simple_fft_display,
-											 false>; 
-
-using gonio_display = data::ui::pimpl::editorT<data::dynamic::displaybuffer,
-											   hise::SimpleRingBuffer,
-											   simple_gon_display,
-											   false>;
-
 	
 }
 

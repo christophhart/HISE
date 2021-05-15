@@ -50,6 +50,19 @@ public:
 
 };
 
+struct polyphonic_base
+{
+	virtual ~polyphonic_base() {};
+
+	polyphonic_base(const Identifier& id, bool addProcessEventFlag=true)
+	{
+		cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsPolyphonic);
+
+		if(addProcessEventFlag)
+			cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsProcessingHiseEvent);
+	}
+};
+
 class HiseDspBase: public ParameterHolder
 {
 public:

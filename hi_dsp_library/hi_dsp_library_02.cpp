@@ -49,6 +49,7 @@
 #include "dsp_nodes/CableNodeBaseClasses.cpp"
 #include "dsp_nodes/CableNodes.cpp"
 #include "dsp_nodes/EnvelopeNodes.cpp"
+#include "dsp_nodes/AnalyserNodes.cpp"
 
 #endif
 

@@ -176,8 +176,6 @@ public:
 
 	static constexpr bool isNormalisedModulation() { return true; }
 
-	SimpleRingBuffer::PropertyObject* createPropertyObject() override { return new ModPlotter::ModPlotterPropertyObject(this); }
-
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
 		snex::hmath Math;
@@ -463,6 +461,11 @@ template <class ShaperType> struct snex_shaper
 
 	HISE_EMPTY_HANDLE_EVENT;
 	
+	snex_shaper()
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::TemplateArgumentIsPolyphonic);
+	}
+
 	void prepare(PrepareSpecs ps)
 	{
 		shaper.prepare(ps);
@@ -499,10 +502,16 @@ template <class ShaperType> struct snex_shaper
 			shaper.setExternalData(d, index);
 	}
 
+	template <int P> static void setParameterStatic(void* obj, double v)
+	{
+		auto t = static_cast<snex_shaper<ShaperType>*>(obj);
+		t->shaper.setParameter<P>(v);
+	}
+
 	HISE_EMPTY_CREATE_PARAM;
 };
 
-template <int NV> class ramp_impl : public data::display_buffer_base<true>
+template <int NV, bool UseRingBuffer> class ramp : public data::display_buffer_base<UseRingBuffer>
 {
 public:
 
@@ -517,11 +526,14 @@ public:
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("ramp");
-	SN_GET_SELF_AS_OBJECT(ramp_impl);
+	SN_GET_SELF_AS_OBJECT(ramp);
 
-	ramp_impl()
+	ramp()
 	{
 		setPeriodTime(100.0);
+
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsPolyphonic);
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UseRingBuffer);
 	}
 
 	void prepare(PrepareSpecs ps)
@@ -540,13 +552,15 @@ public:
 		}
 	}
 
+	HISE_EMPTY_INITIALISE;
+
 	static constexpr bool isNormalisedModulation() { return true; };
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(PeriodTime, ramp_impl);
-		DEF_PARAMETER(LoopStart, ramp_impl);
-		DEF_PARAMETER(Gate, ramp_impl);
+		DEF_PARAMETER(PeriodTime, ramp);
+		DEF_PARAMETER(LoopStart, ramp);
+		DEF_PARAMETER(Gate, ramp);
 	}
 	PARAMETER_MEMBER_FUNCTION;
 
@@ -612,20 +626,20 @@ public:
 	void createParameters(ParameterDataList& data)
 	{
 		{
-			DEFINE_PARAMETERDATA(ramp_impl, PeriodTime);
+			DEFINE_PARAMETERDATA(ramp, PeriodTime);
 			p.setRange({ 0.1, 1000.0, 0.1 });
 			p.setDefaultValue(100.0);
 			data.add(std::move(p));
 		}
 
 		{
-			DEFINE_PARAMETERDATA(ramp_impl, LoopStart);
+			DEFINE_PARAMETERDATA(ramp, LoopStart);
 			p.setDefaultValue(0.0);
 			data.add(std::move(p));
 		}
 
 		{
-			DEFINE_PARAMETERDATA(ramp_impl, Gate);
+			DEFINE_PARAMETERDATA(ramp, Gate);
 			p.setDefaultValue(1.0);
 			data.add(std::move(p));
 		}
@@ -666,8 +680,6 @@ public:
 		}
 	}
 
-	SimpleRingBuffer::PropertyObject* createPropertyObject() override { return new ModPlotter::ModPlotterPropertyObject(this); }
-
 	void setLoopStart(double newLoopStart)
 	{
 		auto v = jlimit(0.0, 1.0, newLoopStart);
@@ -692,14 +704,8 @@ private:
 };
 
 
-DEFINE_EXTERN_NODE_TEMPLATE(ramp, ramp_poly, ramp_impl);
-
-
-
-
-
-
-template <int NV> class oscillator_impl: public OscillatorDisplayProvider
+template <int NV> class oscillator: public OscillatorDisplayProvider,
+								    public polyphonic_base
 {
 public:
 
@@ -709,17 +715,19 @@ public:
 		Frequency,
 		PitchMultiplier,
 		Gate,
-		Gain,
 		Phase,
+		Gain,
 		numParameters
 	};
 
 	constexpr static int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("oscillator");
-	SN_GET_SELF_AS_OBJECT(oscillator_impl);
+	SN_GET_SELF_AS_OBJECT(oscillator);
 
 	HISE_EMPTY_INITIALISE;
+
+	oscillator(): polyphonic_base(getStaticId()) {}
 
 	constexpr bool isProcessingHiseEvent() const { return true; }
 
@@ -729,13 +737,7 @@ public:
 			s.reset();
 	}
 
-	void prepare(PrepareSpecs ps)
-	{
-		voiceData.prepare(ps);
-		sr = ps.sampleRate;
-		setFrequency(freqValue);
-		setPitchMultiplier(uiData.multiplier);
-	}
+	void prepare(PrepareSpecs ps);
 	
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
@@ -782,12 +784,12 @@ public:
 	void createParameters(ParameterDataList& data)
 	{
 		{
-			DEFINE_PARAMETERDATA(oscillator_impl, Mode);
+			DEFINE_PARAMETERDATA(oscillator, Mode);
 			p.setParameterValueNames(modes);
 			data.add(std::move(p));
 		}
 		{
-			DEFINE_PARAMETERDATA(oscillator_impl, Frequency);
+			DEFINE_PARAMETERDATA(oscillator, Frequency);
 			p.setRange({ 20.0, 20000.0, 0.1 });
 			p.setDefaultValue(220.0);
 			p.setSkewForCentre(1000.0);
@@ -797,25 +799,25 @@ public:
 			parameter::data p("Freq Ratio");
 			p.setRange({ 1.0, 16.0, 1.0 });
 			p.setDefaultValue(1.0);
-			p.callback = parameter::inner<oscillator_impl, (int)Parameters::PitchMultiplier>(*this);
+			p.callback = parameter::inner<oscillator, (int)Parameters::PitchMultiplier>(*this);
 			data.add(std::move(p));
 		}
 		{
-			DEFINE_PARAMETERDATA(oscillator_impl, Gate);
+			DEFINE_PARAMETERDATA(oscillator, Gate);
 			p.setRange({ 0.0, 1.0, 1.0 });
 			p.setDefaultValue(1.0);
 			data.add(std::move(p));
 		}
 
 		{
-			DEFINE_PARAMETERDATA(oscillator_impl, Phase);
+			DEFINE_PARAMETERDATA(oscillator, Phase);
 			p.setRange({ 0.0, 1.0 });
 			p.setDefaultValue(0.0);
 			data.add(std::move(p));
 		}
 
 		{
-			DEFINE_PARAMETERDATA(oscillator_impl, Gain);
+			DEFINE_PARAMETERDATA(oscillator, Gain);
 			p.setRange({ 0.0, 1.0 });
 			p.setDefaultValue(1.0);
 			data.add(std::move(p));
@@ -832,9 +834,11 @@ public:
 
 	void setFrequency(double newFrequency)
 	{
+		freqValue = newFrequency;
+
 		if (sr > 0.0)
 		{
-			auto newUptimeDelta = (double)(freqValue / sr * (double)sinTable->getTableSize());
+			auto newUptimeDelta = (double)(newFrequency / sr * (double)sinTable->getTableSize());
 
 			uiData.uptimeDelta = newUptimeDelta;
 
@@ -894,12 +898,12 @@ public:
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(Mode, oscillator_impl);
-		DEF_PARAMETER(Frequency, oscillator_impl);
-		DEF_PARAMETER(PitchMultiplier, oscillator_impl);
-		DEF_PARAMETER(Gate, oscillator_impl);
-		DEF_PARAMETER(Gain, oscillator_impl);
-		DEF_PARAMETER(Phase, oscillator_impl);
+		DEF_PARAMETER(Mode, oscillator);
+		DEF_PARAMETER(Frequency, oscillator);
+		DEF_PARAMETER(PitchMultiplier, oscillator);
+		DEF_PARAMETER(Gate, oscillator);
+		DEF_PARAMETER(Gain, oscillator);
+		DEF_PARAMETER(Phase, oscillator);
 	}
 
 	PARAMETER_MEMBER_FUNCTION;
@@ -913,8 +917,8 @@ public:
 	
 };
 
-using oscillator = oscillator_impl<1>;
-using oscillator_poly = oscillator_impl<NUM_POLYPHONIC_VOICES>;
+template class oscillator<1>;
+template class oscillator<NUM_POLYPHONIC_VOICES>;
 
 class fm : public HiseDspBase
 {
@@ -1348,8 +1352,10 @@ public:
 DEFINE_EXTERN_NODE_TEMPLATE(ramp_envelope, ramp_envelope_poly, ramp_envelope_impl);
 
 
-template <typename T> struct snex_osc_base
+template <typename T> struct snex_osc_base: public mothernode
 {
+	
+
 	void initialise(NodeBase* n)
 	{
 		if constexpr (prototypes::check::initialise<T>::value)
@@ -1371,7 +1377,8 @@ template <typename T> struct snex_osc_base
 	T oscType;
 };
 
-template <int NV, typename T> struct snex_osc_impl : snex_osc_base<T>
+template <int NV, typename T> struct snex_osc : public snex_osc_base<T>,
+												public polyphonic_base
 {
 	enum class Parameters
 	{
@@ -1385,12 +1392,12 @@ template <int NV, typename T> struct snex_osc_impl : snex_osc_base<T>
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(Frequency, snex_osc_impl);
-		DEF_PARAMETER(PitchMultiplier, snex_osc_impl);
+		DEF_PARAMETER(Frequency, snex_osc);
+		DEF_PARAMETER(PitchMultiplier, snex_osc);
 
 		if (P > 1)
 		{
-			auto typed = static_cast<snex_osc_impl*>(obj);
+			auto typed = static_cast<snex_osc*>(obj);
 			typed->oscType.setParameter<P - 2>(value);
 		}
 	}
@@ -1398,15 +1405,21 @@ template <int NV, typename T> struct snex_osc_impl : snex_osc_base<T>
 	PARAMETER_MEMBER_FUNCTION;
 
 	SET_HISE_POLY_NODE_ID("snex_osc");
-	SN_GET_SELF_AS_OBJECT(snex_osc_impl);
+	SN_GET_SELF_AS_OBJECT(snex_osc);
+
+	snex_osc() :
+		polyphonic_base(getStaticId(), true)
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::TemplateArgumentIsPolyphonic);
+	};
 
 	void prepare(PrepareSpecs ps)
 	{
 		snex_osc_base<T>::prepare(ps);
 		sampleRate = ps.sampleRate;
-		voiceIndex = ps.voiceIndex;
 		oscData.prepare(ps);
 		reset();
+		setFrequency(lastFreq);
 	}
 
 	void reset()
@@ -1431,7 +1444,6 @@ template <int NV, typename T> struct snex_osc_impl : snex_osc_base<T>
 		op.data.referToRawData(data.getRawDataPointers()[0], data.getNumSamples());
 		op.uptime = thisData.uptime;
 		op.delta = thisData.uptimeDelta * thisData.multiplier;
-		op.voiceIndex = voiceIndex->getVoiceIndex();
 
 		this->oscType.process(op);
 		thisData.uptime += op.delta * (double)data.getNumSamples();
@@ -1445,6 +1457,8 @@ template <int NV, typename T> struct snex_osc_impl : snex_osc_base<T>
 
 	void setFrequency(double newValue)
 	{
+		lastFreq = newValue;
+
 		if (sampleRate > 0.0)
 		{
 			auto cyclesPerSecond = newValue;
@@ -1463,14 +1477,12 @@ template <int NV, typename T> struct snex_osc_impl : snex_osc_base<T>
 			o.multiplier = newMultiplier;
 	}
 
-	
-
 	double sampleRate = 0.0;
 
 	void createParameters(ParameterDataList& data)
 	{
 		{
-			DEFINE_PARAMETERDATA(snex_osc_impl, Frequency);
+			DEFINE_PARAMETERDATA(snex_osc, Frequency);
 			p.setRange({ 20.0, 20000.0, 0.1 });
 			p.setSkewForCentre(1000.0);
 			p.setDefaultValue(220.0);
@@ -1478,19 +1490,16 @@ template <int NV, typename T> struct snex_osc_impl : snex_osc_base<T>
 		}
 
 		{
-			DEFINE_PARAMETERDATA(snex_osc_impl, PitchMultiplier);
+			DEFINE_PARAMETERDATA(snex_osc, PitchMultiplier);
 			p.setRange({ 1.0, 16.0, 1.0 });
 			p.setDefaultValue(1.0);
 			data.add(std::move(p));
 		}
 	}
 
-	PolyHandler* voiceIndex = nullptr;
+	double lastFreq = 0.0;
 	PolyData<OscData, NumVoices> oscData;
 };
-
-template <typename OscType> using snex_osc = snex_osc_impl<1, OscType>;
-template <typename OscType> using snex_osc_poly = snex_osc_impl<NUM_POLYPHONIC_VOICES, OscType>;
 
 } // namespace core
 

@@ -134,6 +134,8 @@ struct OscillatorDisplayProvider: public scriptnode::data::display_buffer_base<t
 
 	struct OscillatorDisplayObject : public SimpleRingBuffer::PropertyObject
 	{
+		static constexpr int PropertyIndex = 9000;
+
 		OscillatorDisplayObject(SimpleRingBuffer::WriterBase* b):
 			PropertyObject(b),
 			provider(getTypedBase<OscillatorDisplayProvider>())
@@ -144,6 +146,8 @@ struct OscillatorDisplayProvider: public scriptnode::data::display_buffer_base<t
 		bool validateInt(const Identifier& id, int& v) const override;
 		void transformReadBuffer(AudioSampleBuffer& b) override;
 		void initialiseRingBuffer(SimpleRingBuffer* b) override;
+
+		bool allowModDragger() const override { return false; };
 
 		WeakReference<OscillatorDisplayProvider> provider;
 	};
@@ -171,9 +175,9 @@ struct OscillatorDisplayProvider: public scriptnode::data::display_buffer_base<t
 		return r.nextFloat() * 2.0f - 1.0f;
 	}
 
-	SimpleRingBuffer::PropertyObject* createPropertyObject() override
+	void registerPropertyObject(SimpleRingBuffer::Ptr rb) override
 	{
-		return new OscillatorDisplayObject(this);
+		rb->registerPropertyObject<OscillatorDisplayObject>();
 	}
 
 	float tickSaw(OscData& d);

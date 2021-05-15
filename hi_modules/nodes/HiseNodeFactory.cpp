@@ -30,6 +30,14 @@
 *   ===========================================================================
 */
 
+#pragma once
+
+
+
+
+
+
+
 namespace scriptnode
 {
 
@@ -374,8 +382,6 @@ struct granulator: public data::base
 		}
 	}
 
-	FORWARD_PARAMETER_TO_MEMBER(granulator);
-
 	void createParameters(ParameterDataList& l)
 	{
 		{
@@ -507,12 +513,18 @@ struct input_toggle_editor : public ScriptnodeExtraComponent<input_toggle<parame
 	ModulationSourceBaseComponent dragger;
 };
 
-struct xy : 
-	public pimpl::parameter_node_base<parameter::dynamic_list>,
+
+
+
+
+template <typename ParameterClass> struct xy : 
+	public pimpl::parameter_node_base<ParameterClass>,
 	public pimpl::no_processing
 {
 	SET_HISE_NODE_ID("xy");
 	SN_GET_SELF_AS_OBJECT(xy);
+	SN_PARAMETER_NODE_CONSTRUCTOR(xy, ParameterClass);
+	
 
 	enum class Parameters
 	{
@@ -529,7 +541,6 @@ struct xy :
 			getParameter().numParameters.storeValue(2, n->getUndoManager());
 			getParameter().updateParameterAmount({}, 2);
 		}
-			
 	}
 
 	DEFINE_PARAMETERS
@@ -884,12 +895,28 @@ using namespace hise;
 
 namespace analyse
 {
+
+using osc_display = data::ui::pimpl::editorT<data::dynamic::displaybuffer,
+	hise::SimpleRingBuffer,
+	ui::simple_osc_display,
+	false>;
+
+using fft_display = data::ui::pimpl::editorT<data::dynamic::displaybuffer,
+	hise::SimpleRingBuffer,
+	ui::simple_fft_display,
+	false>;
+
+using gonio_display = data::ui::pimpl::editorT<data::dynamic::displaybuffer,
+	hise::SimpleRingBuffer,
+	ui::simple_gon_display,
+	false>;
+
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-	registerNode<wrap::data<fft, data::dynamic::displaybuffer>, ui::fft_display>();
-	registerNode<wrap::data<oscilloscope, data::dynamic::displaybuffer>, ui::osc_display>();
-	registerNode<wrap::data<goniometer, data::dynamic::displaybuffer>, ui::gonio_display>();
+	registerNode<wrap::data<fft, data::dynamic::displaybuffer>, fft_display>();
+	registerNode<wrap::data<oscilloscope, data::dynamic::displaybuffer>, osc_display>();
+	registerNode<wrap::data<goniometer, data::dynamic::displaybuffer>, gonio_display>();
 }
 
 }
@@ -1197,7 +1224,7 @@ namespace control
 	Factory::Factory(DspNetwork* network) :
 		NodeFactory(network)
 	{
-		registerPolyNoProcessNode<control::pma<parameter::dynamic_base_holder>, control::pma_poly<parameter::dynamic_base_holder>, pma_editor>();
+		registerPolyNoProcessNode<control::pma<1, parameter::dynamic_base_holder>, control::pma<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, pma_editor>();
 		registerNoProcessNode<control::sliderbank_editor::NodeType, control::sliderbank_editor, false>();
 		registerNoProcessNode<dynamic_cable_pack, data::ui::sliderpack_editor>();
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();
@@ -1209,13 +1236,15 @@ namespace control
 
 		registerNoProcessNode<faders::dynamic::NodeType, faders::dynamic::editor>();
 		
-		registerNoProcessNode<control::xy, control::xy::editor>();
+		registerNoProcessNode<control::xy_editor::NodeType, control::xy_editor>();
+
+		registerNoProcessNode<control::resetter_editor::NodeType, control::resetter_editor>();
 
 		registerModNode<smoothers::dynamic::NodeType, smoothers::dynamic::editor>();
 
 #if HISE_INCLUDE_SNEX
 		registerModNode<midi_logic::dynamic::NodeType, midi_logic::dynamic::editor>();
-		registerPolyModNode<control::timer<snex_timer>, timer_poly<snex_timer>, snex_timer::editor>();
+		registerPolyModNode<control::timer<1, snex_timer>, timer<NUM_POLYPHONIC_VOICES, snex_timer>, snex_timer::editor>();
 #endif
 
 		registerNoProcessNode<file_analysers::dynamic::NodeType, file_analysers::dynamic::editor, false>(); //>();
@@ -1284,7 +1313,10 @@ namespace dynamic
 			DisplayType(envelope_base* e, PooledUIUpdater* u) :
 				editorT(u, getDynamicRingBuffer(e))
 			{
-				dragger->setVisible(false);
+				if(dragger != nullptr)
+					dragger->setVisible(false);
+
+				resized();
 			};
 
 			void paintOverChildren(Graphics& g) override
@@ -1293,7 +1325,7 @@ namespace dynamic
 
 				if (idx != -1)
 				{
-					auto b = editor.getBounds().toFloat();
+					auto b = editor->getBounds().toFloat();
 
 					String x;
 					x << "#";
@@ -1311,7 +1343,7 @@ namespace dynamic
 				auto b = getLocalBounds();
 
 				externalButton.setBounds(b.removeFromRight(28).removeFromBottom(28).reduced(3));
-				editor.setBounds(b);
+				editor->setBounds(b);
 				refreshDashPath();
 			}
 		};
@@ -1495,9 +1527,12 @@ Factory::Factory(DspNetwork* network) :
 
 	registerPolyNode<gain, gain_poly>();
 
+	
+
+	
 
 #if HISE_INCLUDE_SNEX
-	registerPolyNode<snex_osc<SnexOscillator>, snex_osc_poly<SnexOscillator>, NewSnexOscillatorDisplay>();
+	registerPolyNode<snex_osc<1, SnexOscillator>, snex_osc<NUM_POLYPHONIC_VOICES, SnexOscillator>, NewSnexOscillatorDisplay>();
 	registerNode<core::snex_node, core::snex_node::editor>();
 	registerNode<waveshapers::dynamic::NodeType, waveshapers::dynamic::editor>();
 #endif
@@ -1505,7 +1540,7 @@ Factory::Factory(DspNetwork* network) :
 	registerModNode<hise_mod>();
 	
 	registerModNode<dp<peak>, data::ui::displaybuffer_editor>();
-	registerPolyModNode<dp<ramp>, dp<ramp_poly>, data::ui::displaybuffer_editor>();
+	registerPolyModNode<dp<ramp<1, true>>, dp<ramp<NUM_POLYPHONIC_VOICES, true>>, data::ui::displaybuffer_editor>();
 
 	registerNode<core::mono2stereo>();
 
@@ -1514,7 +1549,7 @@ Factory::Factory(DspNetwork* network) :
 		OscillatorDisplayProvider::osc_display,
 		false>;
 
-	registerPolyNode<dp<core::oscillator>, dp<core::oscillator_poly>, osc_display_>();
+	registerPolyNode<dp<core::oscillator<1>>, dp<core::oscillator<NUM_POLYPHONIC_VOICES>>, osc_display_>();
 	registerNode<wrap::data<granulator, data::dynamic::audiofile>, data::ui::audiofile_editor>();
 }
 }
@@ -1533,8 +1568,8 @@ Factory::Factory(DspNetwork* network) :
 						dynamic::env_display, 
 						false>();
 
-	registerPolyModNode<dp<ahdsr<parameter::dynamic_list>>, 
-						dp<ahdsr_poly<parameter::dynamic_list>>, 
+	registerPolyModNode<dp<ahdsr<1, parameter::dynamic_list>>, 
+						dp<ahdsr<NUM_POLYPHONIC_VOICES, parameter::dynamic_list>>, 
 						dynamic::ahdsr_display, 
 						false>();
 

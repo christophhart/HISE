@@ -137,6 +137,29 @@ void DspNetwork::setNumChannels(int newNumChannels)
 	getRootNode()->getValueTree().setProperty(PropertyIds::NumChannels, newNumChannels, nullptr);
 }
 
+void DspNetwork::createAllNodesOnce()
+{
+	if (cppgen::CustomNodeProperties::isInitialised())
+		return;
+
+	for (auto f : nodeFactories)
+	{
+		for (auto id : f->getModuleList())
+		{
+			NodeBase::Holder s;
+
+			currentNodeHolder = &s;
+			create(id, "unused");
+
+			exceptionHandler.removeError(nullptr);
+
+			currentNodeHolder = nullptr;
+		}
+	}
+
+	cppgen::CustomNodeProperties::setInitialised(true);
+}
+
 void DspNetwork::rightClickCallback(const MouseEvent& e, Component* c)
 {
 

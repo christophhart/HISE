@@ -48,6 +48,12 @@ namespace pimpl
 {
 template <typename ParameterType> struct envelope_base: public control::pimpl::parameter_node_base<ParameterType>
 {
+	envelope_base(const Identifier& id): parameter_node_base<ParameterType>(id) 
+	{
+		cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsPolyphonic);
+		cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsProcessingHiseEvent);
+	}
+
 	virtual ~envelope_base() {};
 
 	template <typename BaseType> void postProcess(BaseType& t, bool wasActive, double lastValue)
@@ -75,7 +81,7 @@ template <typename ParameterType> struct envelope_base: public control::pimpl::p
 	{
 		this->p.initialise(n);
 
-		if constexpr (!parameter::dynamic_list::isStaticList())
+		if constexpr (!ParameterType::isStaticList())
 		{
 			getParameter().numParameters.storeValue(2, n->getUndoManager());
 			getParameter().updateParameterAmount({}, 2);
@@ -114,6 +120,8 @@ struct ahdsr_base: public mothernode,
 {
 	struct AhdsrRingBufferProperties : public SimpleRingBuffer::PropertyObject
 	{
+		static constexpr int PropertyIndex = 2002;
+
 		AhdsrRingBufferProperties(SimpleRingBuffer::WriterBase* b) :
 			PropertyObject(b),
 			base(getTypedBase<ahdsr_base>())
@@ -237,7 +245,10 @@ struct ahdsr_base: public mothernode,
 
 	void refreshUIPath(Path& p, Point<float>& position);
 
-	SimpleRingBuffer::PropertyObject* createPropertyObject() override { return new AhdsrRingBufferProperties(this); }
+	void registerPropertyObject(SimpleRingBuffer::Ptr rb) override
+	{
+		rb->registerPropertyObject<AhdsrRingBufferProperties>();
+	}
 
 	void setAttackRate(float rate);
 	void setDecayRate(float rate);
@@ -281,6 +292,7 @@ struct simple_ar_base : public mothernode,
 {
 	struct PropertyObject : public hise::SimpleRingBuffer::PropertyObject
 	{
+		static constexpr int PropertyIndex = 2001;
 		PropertyObject(SimpleRingBuffer::WriterBase* p) :
 			SimpleRingBuffer::PropertyObject(p),
 			parent(getTypedBase<simple_ar_base>())
@@ -296,9 +308,9 @@ struct simple_ar_base : public mothernode,
 
 	virtual ~simple_ar_base() {};
 
-	SimpleRingBuffer::PropertyObject* createPropertyObject() override
+	void registerPropertyObject(SimpleRingBuffer::Ptr rb) override
 	{
-		return new PropertyObject(this);
+		rb->registerPropertyObject<PropertyObject>();
 	}
 
 	void setDisplayValue(int index, double value);
@@ -370,6 +382,8 @@ template <int NV, typename ParameterType> struct simple_ar_impl: public pimpl::e
 
 	SET_HISE_NODE_ID("simple_ar");
 	SN_GET_SELF_AS_OBJECT(simple_ar_impl);
+
+	simple_ar_impl(): pimpl::envelope_base<ParameterType>(getStaticId()) {}
 
 	void setAttack(double ms)
 	{
@@ -515,7 +529,7 @@ template <int NV, typename ParameterType> struct simple_ar_impl: public pimpl::e
 template <typename ParameterType> using simple_ar = simple_ar_impl<1, ParameterType>;
 template <typename ParameterType> using simple_ar_poly = simple_ar_impl<NUM_POLYPHONIC_VOICES, ParameterType>;
 
-template <int NV, typename ParameterType> struct ahdsr_impl : public pimpl::envelope_base<ParameterType>,
+template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_base<ParameterType>,
 														 public pimpl::ahdsr_base
 {
 	enum Parameters
@@ -531,7 +545,8 @@ template <int NV, typename ParameterType> struct ahdsr_impl : public pimpl::enve
 		numParameters
 	};
 
-	ahdsr_impl()
+	ahdsr():
+		pimpl::envelope_base<ParameterType>(getStaticId())
 	{
 		for (auto& s : states)
 		{
@@ -548,7 +563,7 @@ template <int NV, typename ParameterType> struct ahdsr_impl : public pimpl::enve
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("ahdsr");
-	SN_GET_SELF_AS_OBJECT(ahdsr_impl);
+	SN_GET_SELF_AS_OBJECT(ahdsr);
 
 	static constexpr bool isProcessingHiseEvent() { return true; }
 
@@ -667,19 +682,6 @@ template <int NV, typename ParameterType> struct ahdsr_impl : public pimpl::enve
 
 		setDisplayValue(P, v);
 
-#if 0
-		if (rb != nullptr)
-		{
-			auto dv = v;
-
-			if (P == Parameters::Sustain || P == Parameters::AttackLevel)
-				dv = Decibels::gainToDecibels(dv);
-
-			rb->getWriteBuffer().setSample(0, P, dv);
-			rb->getUpdater().sendContentChangeMessage(sendNotificationAsync, P);
-		}
-#endif
-
 		if (P == Parameters::AttackCurve)
 		{
 			this->setAttackCurve(v);
@@ -739,66 +741,68 @@ template <int NV, typename ParameterType> struct ahdsr_impl : public pimpl::enve
 		}
 	}
 
-	FORWARD_PARAMETER_TO_MEMBER(ahdsr_impl);
+	FORWARD_PARAMETER_TO_MEMBER(ahdsr);
 
 	void createParameters(ParameterDataList& data)
 	{
 		NormalisableRange<double> timeRange(0.0, 10000.0, 0.1);
 		timeRange.setSkewForCentre(300.0);
 
-		{
-			parameter::data p("Gate", { 0.0, 1.0, 1.0 });
-			p.callback = parameter::inner<ahdsr_impl, Parameters::Gate>(*this);
-			p.setDefaultValue(0.0);
-			data.add(p);
-		}
+		
 
 		{
 			parameter::data p("Attack", timeRange);
-			p.callback = parameter::inner<ahdsr_impl, Parameters::Attack>(*this);
+			p.callback = parameter::inner<ahdsr, Parameters::Attack>(*this);
 			p.setDefaultValue(10.0);
 			data.add(p);
 		}
-
-		{
-			parameter::data p("AttackCurve", { 0.0, 1.0, 0.01 });
-			p.callback = parameter::inner<ahdsr_impl, Parameters::AttackCurve>(*this);
-			p.setDefaultValue(0.5);
-			data.add(p);
-		}
-
+		
 		{
 			parameter::data p("AttackLevel", { 0.0, 1.0, 0.001 });
-			p.callback = parameter::inner<ahdsr_impl, Parameters::AttackLevel>(*this);
+			p.callback = parameter::inner<ahdsr, Parameters::AttackLevel>(*this);
 			p.setDefaultValue(1.0);
 			data.add(p);
 		}
 
 		{
-			parameter::data p("Hold", timeRange);
-			p.callback = parameter::inner<ahdsr_impl, Parameters::Hold>(*this);
-			p.setDefaultValue(20.0);
-			data.add(p);
-		}
-
-		{
 			parameter::data p("Decay", timeRange);
-			p.callback = parameter::inner<ahdsr_impl, Parameters::Decay>(*this);
+			p.callback = parameter::inner<ahdsr, Parameters::Decay>(*this);
 			p.setDefaultValue(300.0);
 			data.add(p);
 		}
 
 		{
+			parameter::data p("Hold", timeRange);
+			p.callback = parameter::inner<ahdsr, Parameters::Hold>(*this);
+			p.setDefaultValue(20.0);
+			data.add(p);
+		}
+
+		{
 			parameter::data p("Sustain", { 0.0, 1.0, 0.001 });
-			p.callback = parameter::inner<ahdsr_impl, Parameters::Sustain>(*this);
+			p.callback = parameter::inner<ahdsr, Parameters::Sustain>(*this);
 			p.setDefaultValue(0.5);
 			data.add(p);
 		}
 
 		{
 			parameter::data p("Release", timeRange);
-			p.callback = parameter::inner<ahdsr_impl, Parameters::Release>(*this);
+			p.callback = parameter::inner<ahdsr, Parameters::Release>(*this);
 			p.setDefaultValue(20.0);
+			data.add(p);
+		}
+
+		{
+			parameter::data p("AttackCurve", { 0.0, 1.0, 0.01 });
+			p.callback = parameter::inner<ahdsr, Parameters::AttackCurve>(*this);
+			p.setDefaultValue(0.5);
+			data.add(p);
+		}
+
+		{
+			parameter::data p("Gate", { 0.0, 1.0, 1.0 });
+			p.callback = parameter::inner<ahdsr, Parameters::Gate>(*this);
+			p.setDefaultValue(0.0);
 			data.add(p);
 		}
 	}
@@ -809,9 +813,6 @@ template <int NV, typename ParameterType> struct ahdsr_impl : public pimpl::enve
 
 	PolyData<state_base, NumVoices> states;
 };
-
-template <typename ParameterType> using ahdsr = ahdsr_impl<1, ParameterType>;
-template <typename ParameterType> using ahdsr_poly = ahdsr_impl<NUM_POLYPHONIC_VOICES, ParameterType>;
 
 struct voice_manager_base : public mothernode
 {

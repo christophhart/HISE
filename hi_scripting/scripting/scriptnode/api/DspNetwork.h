@@ -501,6 +501,8 @@ public:
 
 	void setNumChannels(int newNumChannels);
 
+	void createAllNodesOnce();
+
 	Identifier getObjectName() const override { return "DspNetwork"; };
 
 	String getDebugName() const override { return "DspNetwork"; }

@@ -40,6 +40,15 @@ namespace core
 {
 
 
+template <int NV> void oscillator<NV>::prepare(PrepareSpecs ps)
+{
+	voiceData.prepare(ps);
+	sr = ps.sampleRate;
+	setFrequency(freqValue);
+	setPitchMultiplier(uiData.multiplier);
+}
+
+
 void peak::reset() noexcept
 {
 	max = 0.0;

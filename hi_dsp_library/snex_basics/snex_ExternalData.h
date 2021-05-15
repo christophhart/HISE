@@ -563,20 +563,24 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 
 		if constexpr (EnableBuffer)
 		{
-			rb = dynamic_cast<SimpleRingBuffer*>(d.obj);
-
-			if (rb->getCurrentWriter() != nullptr)
+			if (rb = dynamic_cast<SimpleRingBuffer*>(d.obj))
 			{
-				scriptnode::Error e;
-				e.error = Error::RingBufferMultipleWriters;
-				throw e;
+				if (rb->getCurrentWriter() != nullptr)
+				{
+					scriptnode::Error e;
+					e.error = Error::RingBufferMultipleWriters;
+					throw e;
+				}
+
+				rb->setCurrentWriter(this);
+
+				registerPropertyObject(rb);
+					
+				//rb->setPropertyObject(createPropertyObject());
+
+				if (lastSpecs.sampleRate > 0.0)
+					prepare(lastSpecs);
 			}
-
-			rb->setCurrentWriter(this);
-			rb->setPropertyObject(createPropertyObject());
-
-			if(lastSpecs.sampleRate > 0.0)
-				prepare(lastSpecs);
 		}
 	}
 
@@ -603,7 +607,12 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 		}
 	}
 
-	virtual SimpleRingBuffer::PropertyObject* createPropertyObject() = 0;
+	static constexpr bool isRingBufferEnabled() { return EnableBuffer; }
+
+	virtual void registerPropertyObject(SimpleRingBuffer::Ptr rb) 
+	{
+		rb->registerPropertyObject<ModPlotter::ModPlotterPropertyObject>();
+	};
 
 	SimpleRingBuffer::Ptr rb = nullptr;
 	snex::Types::PrepareSpecs lastSpecs;

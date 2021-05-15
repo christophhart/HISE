@@ -38,6 +38,58 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+namespace timer_logic
+{
+template <int NV> struct ping
+{
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_RESET;
+
+	double getTimerValue() const { return 1.0; }
+};
+
+template <int NV> struct random
+{
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_RESET;
+
+	double getTimerValue() const
+	{
+		return hmath::randomDouble();
+	}
+};
+
+template <int NV> struct toggle
+{
+	PolyData<double, NV> state;
+
+	double getTimerValue()
+	{
+		double v = 0.0;
+
+		for (auto& s : state)
+		{
+			s = 1.0 - s;
+			v = s;
+		}
+		
+		return v;
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		state.prepare(ps);
+	}
+
+	void reset()
+	{
+		for (auto& s : state)
+			s = 0.0;
+	}
+};
+
+}
+
 namespace midi_logic
 {
 
@@ -139,13 +191,19 @@ namespace control
 
 	Take a look at the default classes defined in the
 */
-template <typename MidiType> class midi
+template <typename MidiType> class midi: public control::pimpl::templated_mode
 {
 public:
 
 	SET_HISE_NODE_ID("midi");
 	SN_GET_SELF_AS_OBJECT(midi);
 
+	midi() :
+		templated_mode(getStaticId(), "midi_logic")
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsProcessingHiseEvent);
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsOptionalSnexNode);
+	};
 	
 	HISE_EMPTY_PROCESS_SINGLE;
 	HISE_EMPTY_PROCESS;
@@ -220,13 +278,15 @@ struct TimerInfo
 	}
 };
 
-template <typename TimerType> struct timer_base
+template <typename TimerType> struct timer_base: public mothernode
 {
 	enum class Parameters
 	{
 		Active,
 		Interval
 	};
+
+	virtual ~timer_base() {};
 
 	void initialise(NodeBase* n)
 	{
@@ -238,7 +298,9 @@ template <typename TimerType> struct timer_base
 	double sr = 44100.0;
 };
 
-template <int NV, typename TimerType> class timer_impl : public timer_base<TimerType>
+template <int NV, typename TimerType> class timer : public timer_base<TimerType>,
+													public polyphonic_base,
+													public control::pimpl::templated_mode
 {
 public:
 
@@ -251,26 +313,30 @@ public:
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(Active, timer_impl);
-		DEF_PARAMETER(Interval, timer_impl);
+		DEF_PARAMETER(Active, timer);
+		DEF_PARAMETER(Interval, timer);
 
 		if (P > 1)
 		{
-			auto typed = static_cast<timer_impl*>(obj);
+			auto typed = static_cast<timer*>(obj);
 			typed->tType.setParameter<P - 2>(value);
 		}
 	}
+
 	PARAMETER_MEMBER_FUNCTION;
 
 	static constexpr bool isNormalisedModulation() { return true; }
 	constexpr static int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("timer");
-	SN_GET_SELF_AS_OBJECT(timer_impl);
+	SN_GET_SELF_AS_OBJECT(timer);
 
-	timer_impl()
+	timer():
+		polyphonic_base(getStaticId(), false),
+		templated_mode(getStaticId(), "timer_logic")
 	{
-
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::TemplateArgumentIsPolyphonic);
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsOptionalSnexNode);
 	}
 
 	HISE_EMPTY_HANDLE_EVENT;
@@ -311,10 +377,7 @@ public:
 			thisInfo.lastValue.setModValue(this->tType.getTimerValue());
 			thisInfo.samplesLeft += thisInfo.samplesBetweenCallbacks;
 		}
-			
 	}
-
-	
 
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
@@ -334,19 +397,19 @@ public:
 
 	bool handleModulation(double& value)
 	{
-		return t.get().getChangedValue(value);
+		return t.begin()->getChangedValue(value);
 	}
 
 	void createParameters(ParameterDataList& data)
 	{
 		{
-			DEFINE_PARAMETERDATA(timer_impl, Active);
+			DEFINE_PARAMETERDATA(timer, Active);
 			p.setRange({ 0.0, 1.0, 1.0 });
 			p.setDefaultValue(1.0);
 			data.add(std::move(p));
 		}
 		{
-			DEFINE_PARAMETERDATA(timer_impl, Interval);
+			DEFINE_PARAMETERDATA(timer, Interval);
 			p.setRange({ 0.0, 2000.0, 0.1 });
 			p.setDefaultValue(500.0);
 			data.add(std::move(p));
@@ -356,7 +419,6 @@ public:
 	void setActive(double value)
 	{
 		bool thisActive = value > 0.5;
-
 		auto v = this->tType.getTimerValue();
 
 		for (auto& ti : t)
@@ -378,15 +440,11 @@ public:
 			ti.samplesBetweenCallbacks = newTime;
 	}
 
-	
-
 private:
 
 	PolyData<TimerInfo, NumVoices> t;
 };
 
-template <typename TimerType> using timer = timer_impl<1, TimerType>;
-template <typename TimerType> using timer_poly = timer_impl<NUM_POLYPHONIC_VOICES, TimerType>;
 
 }
 

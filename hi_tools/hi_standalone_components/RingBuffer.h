@@ -83,7 +83,10 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 
 		PropertyObject(WriterBase* b) :
 			writerBase(b)
-		{};
+		{
+			// This object must not be created from the DLL space...
+			JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
+		};
 
 		virtual ~PropertyObject() {};
 
@@ -104,23 +107,11 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 			return false;
 		}
 
+		virtual bool allowModDragger() const { return false; };
+
 		virtual void initialiseRingBuffer(SimpleRingBuffer* b)
 		{
 			buffer = b;
-
-#if 0
-			if (buffer != nullptr)
-			{
-				int numSamples = b->getReadBuffer().getNumSamples();
-				int numChannels = b->getReadBuffer().getNumChannels();
-
-				validateInt(RingBufferIds::BufferLength, numSamples);
-				validateInt(RingBufferIds::NumChannels, numChannels);
-				 
-				setProperty(RingBufferIds::BufferLength, numSamples);
-				setProperty(RingBufferIds::NumChannels, numChannels);
-			}
-#endif
 		}
 
 		virtual var getProperty(const Identifier& id) const
@@ -271,7 +262,105 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		currentWriter = newWriter;
 	}
 
+	struct ScopedPropertyCreator
+	{
+		ScopedPropertyCreator(ComplexDataUIBase* obj):
+			p(dynamic_cast<SimpleRingBuffer*>(obj))
+		{
+			JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
+
+			if(p != nullptr)
+				p->createNewPropertyWhenBackFromUserspace = false;
+		}
+
+		~ScopedPropertyCreator()
+		{
+			JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
+			
+			if(p != nullptr)
+				p->refreshPropertyObject();
+		}
+
+	private:
+
+		SimpleRingBuffer* p;
+	};
+
 private:
+
+	static PropertyObject* createPropertyObject(int propertyIndex, WriterBase* b);
+
+#if 0
+	struct PropertyFactory
+	{
+		using CreateFunction = std::function<PropertyObject*(WriterBase*)>;
+
+		struct Item
+		{
+			bool operator==(const Item& other) const { return propertyId == other.propertyId; }
+			int propertyId;
+			CreateFunction f;
+		};
+
+		PropertyObject* createPropertyObject(int index, WriterBase* wb)
+		{
+			for (auto& p : items)
+				if (p.propertyId == index)
+					return p.f(wb);
+
+			return nullptr;
+		}
+
+		void registerPropertyObjectType(int index, const CreateFunction& f)
+		{
+			items.addIfNotAlreadyThere({ index, f });
+		}
+
+	private:
+
+		Array<Item> items;
+	};
+	juce::SharedResourcePointer<PropertyFactory> factory;
+
+#endif
+
+	
+
+	public:
+
+	template <typename T> void registerPropertyObject()
+	{
+		auto newIndex = T::PropertyIndex;
+
+		if (currentPropertyIndex != newIndex)
+		{
+			currentPropertyIndex = newIndex;
+			createNewPropertyWhenBackFromUserspace = true;
+		}
+	}
+
+	private:
+
+	void refreshPropertyObject()
+	{
+		if (createNewPropertyWhenBackFromUserspace)
+		{
+			JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
+
+			auto p = createPropertyObject(currentPropertyIndex, currentWriter.get());
+
+			if (p == nullptr)
+				p = new PropertyObject(currentWriter.get());
+
+			setPropertyObject(p);
+
+			createNewPropertyWhenBackFromUserspace = false;
+		}
+	}
+
+	int currentPropertyIndex = 0;
+	bool createNewPropertyWhenBackFromUserspace = false;
+	
 
 	bool currentlyChanged = false;
 
@@ -377,10 +466,14 @@ struct ModPlotter : public Component,
 
 	struct ModPlotterPropertyObject : public SimpleRingBuffer::PropertyObject
 	{
+		static constexpr int PropertyIndex = 1000;
+
 		ModPlotterPropertyObject(SimpleRingBuffer::WriterBase* wb) :
 			PropertyObject(wb)
 		{};
 		
+		bool allowModDragger() const override { return true; };
+
 		virtual bool validateInt(const Identifier& id, int& v) const
 		{
 			if (id == RingBufferIds::BufferLength)

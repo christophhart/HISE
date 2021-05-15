@@ -270,41 +270,6 @@ public:
 	}
 };
 
-class GoniometerBase: public RingBufferComponentBase
-{
-public:
-
-	GoniometerBase() = default;
-
-	void refresh() override
-	{
-		dynamic_cast<Component*>(this)->repaint();
-	}
-
-	virtual Colour getColourForAnalyserBase(int colourId) = 0;
-
-protected:
-
-	void paintSpacialDots(Graphics& g);
-
-private:
-
-	struct Shape
-	{
-		Shape() {};
-
-		Shape(const AudioSampleBuffer& buffer, Rectangle<int> size);
-
-		RectangleList<float> points;
-
-		static Point<float> createPointFromSample(float left, float right, float size);
-
-		void draw(Graphics& g, Colour c);
-	};
-
-	Shape shapes[6];
-	int shapeIndex = 0;
-};
 
 class Goniometer : public AudioAnalyserComponent,
 				   public GoniometerBase

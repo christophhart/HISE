@@ -237,7 +237,7 @@ struct WrapperTests : public UnitTest
 		node_test n;
 
 		testOpaqueNode<core::mono2stereo>(n, "mono2stereo");
-		testOpaqueNode<core::oscillator>(n, "oscillator");
+		testOpaqueNode<core::oscillator<1>>(n, "oscillator");
 	}
 
 	template <typename T> void testOpaqueNode(node_test& t, const String& v)

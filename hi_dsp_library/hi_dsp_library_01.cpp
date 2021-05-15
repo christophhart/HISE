@@ -84,7 +84,27 @@ namespace hise
 		return juce::String(charFromOtherHeap, length);
 	}
 
+#define CREATE_PROPERTY_OBJECT(T) if (propertyIndex == T::PropertyIndex) return new T(b);
 
+	// Add all property objects here
+	SimpleRingBuffer::PropertyObject* SimpleRingBuffer::createPropertyObject(int propertyIndex, WriterBase* b)
+	{
+		JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
+
+		CREATE_PROPERTY_OBJECT(OscillatorDisplayProvider::OscillatorDisplayObject);
+		CREATE_PROPERTY_OBJECT(ModPlotter::ModPlotterPropertyObject);
+		CREATE_PROPERTY_OBJECT(scriptnode::envelope::pimpl::simple_ar_base::PropertyObject);
+		CREATE_PROPERTY_OBJECT(scriptnode::envelope::pimpl::ahdsr_base::AhdsrRingBufferProperties);
+		CREATE_PROPERTY_OBJECT(scriptnode::analyse::Helpers::Oscilloscope);
+		CREATE_PROPERTY_OBJECT(scriptnode::analyse::Helpers::FFT);
+		CREATE_PROPERTY_OBJECT(scriptnode::analyse::Helpers::GonioMeter);
+
+
+		jassertfalse;
+		return nullptr;
+	}
+
+#undef CREATE_PROPERTY_OBJECT
 }
 
 

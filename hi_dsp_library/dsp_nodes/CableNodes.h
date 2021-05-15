@@ -93,6 +93,7 @@ namespace control
 		SET_HISE_NODE_ID("cable_pack");
 		SN_GET_SELF_AS_OBJECT(cable_pack);
 		HISE_ADD_SET_VALUE(cable_pack);
+		SN_PARAMETER_NODE_CONSTRUCTOR(cable_pack, ParameterClass);
 
 		void setExternalData(const ExternalData& d, int index) override
 		{
@@ -141,8 +142,8 @@ namespace control
 	{
 		SET_HISE_NODE_ID("sliderbank");
 		SN_GET_SELF_AS_OBJECT(sliderbank);
-
 		HISE_ADD_SET_VALUE(sliderbank);
+		SN_PARAMETER_NODE_CONSTRUCTOR(sliderbank, ParameterClass);
 
 		void initialise(NodeBase* n)
 		{
@@ -237,15 +238,18 @@ namespace control
 		double lastValue = 0.0;
 	};
 
+
 	
 
 	template <typename ParameterClass, typename AnalyserType> 
 	struct file_analyser: public scriptnode::data::base,
 						  public pimpl::no_processing,
+						  public pimpl::templated_mode,
 						  public pimpl::parameter_node_base<ParameterClass>
 	{
 		SET_HISE_NODE_ID("file_analyser");
 		SN_GET_SELF_AS_OBJECT(file_analyser);
+		SN_TEMPLATED_MODE_PARAMETER_NODE_CONSTRUCTOR(file_analyser, ParameterClass, "file_analysers");
 
 		HISE_EMPTY_CREATE_PARAM;
 
@@ -279,6 +283,7 @@ namespace control
 	{
 		SET_HISE_NODE_ID("input_toggle");
 		SN_GET_SELF_AS_OBJECT(input_toggle);
+		SN_PARAMETER_NODE_CONSTRUCTOR(input_toggle, ParameterClass);
 
 		enum class Parameters
 		{
@@ -469,6 +474,7 @@ namespace control
 		SN_GET_SELF_AS_OBJECT(cable_table);
 
 		HISE_ADD_SET_VALUE(cable_table);
+		SN_PARAMETER_NODE_CONSTRUCTOR(cable_table, ParameterClass);
 
 		void setExternalData(const ExternalData& d, int index) override
 		{
@@ -507,8 +513,10 @@ namespace control
 	{
 		SN_GET_SELF_AS_OBJECT(dupli_pack);
 		SET_HISE_NODE_ID("dupli_pack");
-		HISE_ADD_SET_VALUE(dupli_pack);
+		HISE_ADD_SET_VALUE(dupli_pack);		
 		
+		dupli_pack() : duplicate_parameter_node_base<ParameterType>(getStaticId()) {};
+
 		void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType t, var data) override
 		{
 			if (t == ComplexDataUIUpdaterBase::EventType::ContentChange)
@@ -579,11 +587,17 @@ namespace control
 		
 
 	template <typename ParameterType, typename LogicType> struct dupli_cable : public control::pimpl::no_processing,
+																			   public control::pimpl::templated_mode,
 																			   public control::pimpl::duplicate_parameter_node_base<ParameterType>
 	{
 		SN_GET_SELF_AS_OBJECT(dupli_cable);
 		SET_HISE_NODE_ID("dupli_cable");
-		
+
+		dupli_cable():
+			duplicate_parameter_node_base<ParameterType>(getStaticId()), 
+			templated_mode(getStaticId(), "duplilogic")
+		{};
+
 		enum class Parameters
 		{
 			Value,
@@ -657,10 +671,12 @@ namespace control
 
 	
 	template <typename ParameterClass, typename FaderClass> struct xfader: public pimpl::parameter_node_base<ParameterClass>,
+																		   public control::pimpl::templated_mode,
 																		   public pimpl::no_processing
 	{
 		SET_HISE_NODE_ID("xfader");
 		SN_GET_SELF_AS_OBJECT(xfader);
+		SN_TEMPLATED_MODE_PARAMETER_NODE_CONSTRUCTOR(xfader, ParameterClass, "faders");
 
 		HISE_ADD_SET_VALUE(xfader);
 
@@ -710,15 +726,21 @@ namespace control
 
 	
 
-	template <class ParameterType, int NV> struct pma_impl : public mothernode,
-																	public pimpl::combined_parameter_base,
-																	public pimpl::parameter_node_base<ParameterType>,
-																	public pimpl::no_processing
+	template <int NV, class ParameterType> struct pma : public mothernode,
+														      public polyphonic_base,
+															  public pimpl::combined_parameter_base,
+															  public pimpl::parameter_node_base<ParameterType>,
+															  public pimpl::no_processing
 	{
 		static constexpr int NumVoices = NV;
 
 		SET_HISE_POLY_NODE_ID("pma");
-		SN_GET_SELF_AS_OBJECT(pma_impl);
+		SN_GET_SELF_AS_OBJECT(pma);
+		
+		pma() : 
+			polyphonic_base(getStaticId(), false),
+			control::pimpl::parameter_node_base<ParameterType>(getStaticId()) 
+		{};
 
 		enum class Parameters
 		{
@@ -729,9 +751,9 @@ namespace control
 
 		DEFINE_PARAMETERS
 		{
-			DEF_PARAMETER(Value, pma_impl);
-			DEF_PARAMETER(Multiply, pma_impl);
-			DEF_PARAMETER(Add, pma_impl);
+			DEF_PARAMETER(Value, pma);
+			DEF_PARAMETER(Multiply, pma);
+			DEF_PARAMETER(Add, pma);
 		};
 		PARAMETER_MEMBER_FUNCTION;
 
@@ -807,24 +829,22 @@ namespace control
 			polyHandler = ps.voiceIndex;
 		}
 
-		
-
 		void createParameters(ParameterDataList& data)
 		{
 			{
-				DEFINE_PARAMETERDATA(pma_impl, Value);
+				DEFINE_PARAMETERDATA(pma, Value);
 				p.setRange({ 0.0, 1.0 });
 				p.setDefaultValue(0.0);
 				data.add(std::move(p));
 			}
 			{
-				DEFINE_PARAMETERDATA(pma_impl, Multiply);
+				DEFINE_PARAMETERDATA(pma, Multiply);
 				p.setRange({ -1.0, 1.0 });
 				p.setDefaultValue(1.0);
 				data.add(std::move(p));
 			}
 			{
-				DEFINE_PARAMETERDATA(pma_impl, Add);
+				DEFINE_PARAMETERDATA(pma, Add);
 				p.setRange({ -1.0, 1.0 });
 				p.setDefaultValue(0.0);
 				data.add(std::move(p));
@@ -841,16 +861,18 @@ namespace control
 		PolyData<Data, NumVoices> data;
 	};
 
-	template <typename ParameterType> using pma = pma_impl<ParameterType, 1>;
-	template <typename ParameterType> using pma_poly = pma_impl<ParameterType, NUM_POLYPHONIC_VOICES>;
-
-	template <typename SmootherClass> struct smoothed_parameter
+	template <typename SmootherClass> struct smoothed_parameter: public control::pimpl::templated_mode
 	{
 		enum Parameters
 		{
 			Value,
 			SmoothingTime
 		};
+
+		smoothed_parameter():
+			templated_mode(getStaticId(), "smoothers")
+		{
+		}
 
 		SET_HISE_NODE_ID("smoothed_parameter");
 		SN_GET_SELF_AS_OBJECT(smoothed_parameter);
@@ -878,8 +900,6 @@ namespace control
 		{
 			modValue.setModValueIfChanged(value.advance());
 		}
-
-
 
 		bool handleModulation(double& v)
 		{

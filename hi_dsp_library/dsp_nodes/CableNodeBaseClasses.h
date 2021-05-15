@@ -328,6 +328,36 @@ struct combined_parameter_base
 	JUCE_DECLARE_WEAK_REFERENCEABLE(combined_parameter_base);
 };
 
+/** Subclass this interface whenever you define a node that has a mode property that will be used
+	as second template argument.
+
+	Some nodes offer a compile-time-swappable logic that can be selected using the `Mode` property
+	(most likely with a ModePropertyComboBox on the interface). The text of the combobox will be used
+	to determine the template argument at the second position with the formula:
+
+	node<somethingelse, namespace_id::text_as_underscore>
+
+	In order for the cpp_generator to pick this up correctly, use this class as base-class and supply
+	the node id (usually done by getStaticId()) and a namespace string in this constructor.
+
+	Be aware that the classes inside this namespace have to match the text entries of the mode combobox
+	(as lowercase strings).
+
+	A neat way to use this class is the SN_TEMPLATED_MODE_PARAMETER_NODE_CONSTRUCTOR macro:
+
+	SN_TEMPLATED_MODE_PARAMETER_NODE_CONSTRUCTOR(myClass, ParameterClass, "my_namespace");
+*/
+struct templated_mode
+{
+	virtual ~templated_mode() {};
+
+	templated_mode(const Identifier& nodeId, const juce::String& modeNamespace)
+	{
+		cppgen::CustomNodeProperties::addNodeIdManually(nodeId, PropertyIds::HasModeTemplateArgument);
+		cppgen::CustomNodeProperties::setModeNamespace(nodeId, modeNamespace);
+	}
+};
+
 /** Use this baseclass for nodes that do not process the signal. */
 struct no_processing
 {
@@ -348,6 +378,12 @@ struct no_processing
 
 template <class ParameterType> struct parameter_node_base
 {
+	parameter_node_base(const Identifier& id)
+	{
+		// This forces any control node to bypass the wrap::mod wrapper...
+		cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsControlNode);
+	}
+
 	virtual ~parameter_node_base() {};
 
 	/** This method can be used to connect a target to the combined output of this
@@ -369,7 +405,8 @@ template <class ParameterType> struct parameter_node_base
 template <class ParameterType> struct duplicate_parameter_node_base : public parameter_node_base<ParameterType>,
 																	  public wrap::duplicate_sender::Listener
 {
-	duplicate_parameter_node_base()
+	duplicate_parameter_node_base(const Identifier& id):
+		parameter_node_base<ParameterType>(id)
 	{
 		getParameter().setParentNumVoiceListener(this);
 	}

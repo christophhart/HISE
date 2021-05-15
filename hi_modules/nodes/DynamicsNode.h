@@ -75,8 +75,6 @@ public:
 	void prepare(PrepareSpecs ps);
 	void reset() noexcept;
 
-	SimpleRingBuffer::PropertyObject* createPropertyObject() override { return new ModPlotter::ModPlotterPropertyObject(this); }
-
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
         snex::Types::FrameConverters::forwardToFrameStereo(this, data);
@@ -140,8 +138,6 @@ public:
 	static constexpr bool isNormalisedModulation() { return true; }
 
 	HISE_EMPTY_HANDLE_EVENT;
-
-	SimpleRingBuffer::PropertyObject* createPropertyObject() override { return new ModPlotter::ModPlotterPropertyObject(this); }
 
 	bool handleModulation(double& v) noexcept 
 	{ 

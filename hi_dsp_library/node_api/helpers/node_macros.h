@@ -69,6 +69,12 @@ constexpr const auto& getWrappedObject() const { return x; }
 /** Use this macro in order to create the getObject() / getWrappedObject() methods that return the object itself. */
 #define SN_GET_SELF_AS_OBJECT(x) GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(*this); using ObjectType = x; using WrappedObjectType = x;
 
+/** Use this macro to pass the static ID to the base constructor of the parameter_node class that will define the IsControlNode property to avoid the wrap::mod wrapper. */
+#define SN_PARAMETER_NODE_CONSTRUCTOR(ClassId, ParameterId) ClassId() : control::pimpl::parameter_node_base<ParameterId>(getStaticId()) {};
+
+#define SN_TEMPLATED_MODE_PARAMETER_NODE_CONSTRUCTOR(ClassId, ParameterId, namespaceId) ClassId(): \
+	control::pimpl::parameter_node_base<ParameterId>(getStaticId()),\
+    control::pimpl::templated_mode(getStaticId(), namespaceId) {};
 
 #define SN_SELF_AWARE_WRAPPER(x, ObjectClass) GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(this->obj.getWrappedObject()); using ObjectType = x; using WrappedObjectType = typename ObjectClass::WrappedObjectType;
 
@@ -199,7 +205,7 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 
 
 // Use this in every node to add the boiler plate for C++ compilation
-#define SNEX_NODE(className) hmath Math; SN_GET_SELF_AS_OBJECT(className); SET_HISE_NODE_ID(#className);
+#define SNEX_NODE(className) hmath Math; SN_GET_SELF_AS_OBJECT(className); SET_HISE_NODE_ID(#className); FORWARD_PARAMETER_TO_MEMBER(className); HISE_EMPTY_INITIALISE;
 
 
 }

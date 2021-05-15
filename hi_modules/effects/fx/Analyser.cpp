@@ -51,46 +51,7 @@ ProcessorEditorBody * AnalyserEffect::createEditor(ProcessorEditor *parentEditor
 
 }
 
-Goniometer::Shape::Shape(const AudioSampleBuffer& buffer, Rectangle<int> area)
-{
-	const int stepSize = buffer.getNumSamples() / 128;
 
-	for (int i = 0; i < 128; i++)
-	{
-		auto p = createPointFromSample(buffer.getSample(0, i * stepSize), buffer.getSample(1, i*stepSize), (float)area.getWidth());
-
-		points.addWithoutMerging({ p.x + area.getX(), p.y + area.getY(), 2.0f, 2.0f });
-	}
-}
-
-
-juce::Point<float> Goniometer::Shape::createPointFromSample(float left, float right, float size)
-{
-	float lScaled = sqrt(fabsf(left));
-	float rScaled = sqrt(fabsf(right));
-
-	if (left < 0.0f)
-		lScaled *= -1.0f;
-
-	if (right < 0.0f)
-		rScaled *= -1.0f;
-
-	float lValue = lScaled / -2.0f + 0.5f;
-	float rValue = rScaled / 2.0f + 0.5f;
-
-	float x = ((lValue + rValue) / 2.0f * size);
-	float y = ((lValue + 1.0f - rValue) / 2.0f * size);
-
-	return { x, y };
-}
-
-void Goniometer::Shape::draw(Graphics& g, Colour c)
-{
-	g.setColour(c);
-
-	g.fillRectList(points);
-
-}
 
 
 
@@ -158,47 +119,6 @@ void AudioAnalyserComponent::Panel::fillIndexList(StringArray& indexList)
 	indexList.add("Spectral Analyser");
 }
 
-void GoniometerBase::paintSpacialDots(Graphics& g)
-{
-	if (rb != nullptr)
-	{
-		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(rb->getDataLock()))
-		{
-			auto asComponent = dynamic_cast<Component*>(this);
 
-			auto size = jmin<int>(asComponent->getWidth(), asComponent->getHeight());
-
-			Rectangle<int> area = { (asComponent->getWidth() - size) / 2, (asComponent->getHeight() - size) / 2, size, size };
-
-			auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
-
-			Array<Line<float>> lines;
-
-			lines.add({ (float)area.getX(), (float)area.getY(), (float)area.getRight(), (float)area.getBottom() });
-			lines.add({ (float)area.getX(), (float)area.getBottom(), (float)area.getRight(), (float)area.getY() });
-
-			Path grid;
-
-			for (auto l : lines)
-			{
-				grid.startNewSubPath(l.getStart());
-				grid.lineTo(l.getEnd());
-			}
-
-			laf->drawAnalyserGrid(g, *this, grid);
-
-			shapeIndex = (shapeIndex + 1) % 6;
-			shapes[shapeIndex] = Shape(rb->getReadBuffer(), area);
-
-			for (int i = 0; i < 6; i++)
-			{
-				auto& p = shapes[(shapeIndex + i) % 6].points;
-				laf->drawGonioMeterDots(g, *this, p, i);
-			}
-
-		}
-	}
-	
-}
 
 }
