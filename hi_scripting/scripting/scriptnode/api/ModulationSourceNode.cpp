@@ -402,7 +402,8 @@ void ModulationSourceBaseComponent::drawDragArea(Graphics& g, Rectangle<float> b
 	if (text.isEmpty())
 		text = "Drag to modulation target";
 
-	g.drawText(text, b, Justification::centred);
+	if(GLOBAL_BOLD_FONT().getStringWidth(text) < b.getWidth() * 0.8f)
+		g.drawText(text, b, Justification::centred);
 }
 
 juce::MouseCursor ModulationSourceBaseComponent::createMouseCursor()
@@ -539,7 +540,7 @@ juce::Rectangle<int> WrapperNode::getExtraComponentBounds() const
 		if (c != nullptr)
 		{
 			cachedExtraWidth = c->getWidth();
-			cachedExtraHeight = c->getHeight();
+			cachedExtraHeight = c->getHeight() + UIValues::NodeMargin;
 		}
 		else
 		{

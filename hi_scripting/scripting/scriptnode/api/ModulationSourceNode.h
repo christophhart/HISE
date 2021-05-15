@@ -198,7 +198,7 @@ struct ModulationSourceBaseComponent : public Component,
 
 	using ObjectType = HiseDspBase;
 
-	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
 	{
 		return new ModulationSourceBaseComponent(updater);
 	}

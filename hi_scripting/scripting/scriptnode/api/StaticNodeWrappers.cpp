@@ -67,6 +67,8 @@ juce::Rectangle<int> WrapperNode::getPositionInCanvas(Point<int> topLeft) const
 {
 	int numParameters = getNumParameters();
 
+	if (numParameters == 7)
+		return createRectangleForParameterSliders(4).withPosition(topLeft);
 	if (numParameters == 0)
 		return createRectangleForParameterSliders(0).withPosition(topLeft);
 	if (numParameters % 5 == 0)
@@ -90,6 +92,7 @@ juce::Rectangle<int> WrapperNode::createRectangleForParameterSliders(int numColu
 	auto eb = getExtraComponentBounds();
 
 	h += eb.getHeight();
+	
 
 	int w = 0;
 
@@ -292,6 +295,8 @@ void InterpretedCableNode::prepare(PrepareSpecs ps)
 
 void OpaqueNodeDataHolder::setExternalData(const snex::ExternalData& d, int index)
 {
+	SimpleRingBuffer::ScopedPropertyCreator sps(d.obj);
+
 	base::setExternalData(d, index);
 	opaqueNode.setExternalData(d, index);
 }
@@ -337,12 +342,23 @@ OpaqueNodeDataHolder::OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn) :
 	}
 }
 
-OpaqueNodeDataHolder::Editor::Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater* u) :
+OpaqueNodeDataHolder::Editor::Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater* u, bool addDragger) :
 	ScriptnodeExtraComponent<OpaqueNodeDataHolder>(obj, u),
 	updater(u)
 {
 	for (auto d : obj->data)
 		addEditor(d);
+
+	if (addDragger)
+	{
+		addAndMakeVisible(dragger = new ModulationSourceBaseComponent(u));
+		
+		height += UIValues::NodeMargin;
+
+		dragger->setBounds(0, height, width, 28);
+		height += 28;
+	}
+		
 
 	setSize(width, height);
 
@@ -351,6 +367,8 @@ OpaqueNodeDataHolder::Editor::Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater*
 
 void OpaqueNodeDataHolder::Editor::addEditor(data::pimpl::dynamic_base* d)
 {
+	auto useTwoColumns = getObject()->data.size() % 2 == 0;
+
 	auto dt = ExternalData::getDataTypeForClass(d->getInternalData());
 
 	data::ui::pimpl::editor_base* e;
@@ -368,21 +386,47 @@ void OpaqueNodeDataHolder::Editor::addEditor(data::pimpl::dynamic_base* d)
 		e = new data::ui::filter_editor(updater, dynamic_cast<data::dynamic::filter*>(d));
 
 	if (dt == snex::ExternalData::DataType::DisplayBuffer)
-		e = new data::ui::displaybuffer_editor(updater, dynamic_cast<data::dynamic::displaybuffer*>(d));
+		e = new data::ui::displaybuffer_editor_nomod(updater, dynamic_cast<data::dynamic::displaybuffer*>(d));
+
+	
 
 	addAndMakeVisible(e);
 	editors.add(e);
 
-	height += e->getHeight();
-	width = jmax(width, e->getWidth());
+	if (useTwoColumns)
+	{
+		auto bumpHeight = editors.size() % 2 == 0;
+
+		if (bumpHeight)
+		{
+			auto thisE = editors.getLast();
+			auto prevE = editors[editors.size() - 2];
+
+			prevE->setBounds(0, height, 220, prevE->getHeight());
+			thisE->setBounds(220, height, 220, thisE->getHeight());
+			height += jmax(thisE->getHeight(), prevE->getHeight());
+		}
+			
+		width = 440;
+	}
+	else
+	{
+		height += e->getHeight();
+		width = jmax(width, e->getWidth());
+	}
 }
 
 void OpaqueNodeDataHolder::Editor::resized()
 {
-	auto b = getLocalBounds();
+	auto useTwoColumns = getObject()->data.size() % 2 == 0;
 
-	for (auto e : editors)
-		e->setBounds(b.removeFromTop(e->getHeight()));
+	if (!useTwoColumns)
+	{
+		auto b = getLocalBounds();
+
+		for (auto e : editors)
+			e->setBounds(b.removeFromTop(e->getHeight()));
+	}
 }
 
 struct WrapperSlot : public ScriptnodeExtraComponent<InterpretedUnisonoWrapperNode>,

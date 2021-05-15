@@ -73,7 +73,7 @@ public:
 		if (extraComponent != nullptr)
 		{
 			bounds.setWidth(jmax(bounds.getWidth(), extraComponent->getWidth()));
-			bounds.setHeight(bounds.getHeight() + extraComponent->getHeight());
+			bounds.setHeight(bounds.getHeight() + extraComponent->getHeight() + UIValues::NodeMargin);
 		}
 	}
 

@@ -83,6 +83,7 @@ Factory::Factory(DspNetwork* n) :
 	registerNode<dynamic_receive, cable::dynamic::editor>();
 	registerNode<ms_encode>();
 	registerNode<ms_decode>();
+	registerNode<public_mod>();
 }
 
 }
@@ -113,7 +114,9 @@ void cable::dynamic::prepare(PrepareSpecs ps)
 		frameData.referTo(data_, ps.numChannels);
 		DspHelpers::increaseBuffer(buffer, ps);
 
+
 		auto ptr = buffer.begin();
+		FloatVectorOperations::clear(ptr, ps.blockSize * ps.numChannels);
 
 		for (int i = 0; i < ps.numChannels; i++)
 		{
@@ -181,25 +184,30 @@ void cable::dynamic::restoreConnections(Identifier id, var newValue)
 					if (ids.contains(rn->getId()))
 					{
 						source = safePtr.get();
+						source->connect(ro.as<dynamic_receive>());
 					}
 					else
 					{
 						if (source == safePtr.get())
 							source = &(ro.as<dynamic_receive>().null);
 					}
-
-					safePtr.get()->connect(ro.as<dynamic_receive>());
 				}
 			}
 		}
 	};
 
-	MessageManager::callAsync(f);
+	parentNode->getScriptProcessor()->getMainController_()->getKillStateHandler().callLater(f);
 }
 
 void cable::dynamic::setConnection(dynamic_receive& receiveTarget, bool addAsConnection)
 {
 	receiveTarget.source = addAsConnection ? this : &receiveTarget.null;
+
+	if (currentSpecs)
+	{
+		prepare(currentSpecs);
+	}
+		
 
 	if (parentNode != nullptr)
 	{
@@ -664,8 +672,8 @@ void dynamic::initialise(NodeBase* n)
 {
 	parentNode = n;
 
-	receiveIds.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::restoreConnections));
 	receiveIds.initialise(n);
+	receiveIds.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::restoreConnections), true);
 }
 
 void dynamic::incCounter(bool incReadCounter, int delta)

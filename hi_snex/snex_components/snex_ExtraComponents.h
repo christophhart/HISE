@@ -763,9 +763,11 @@ struct TestComplexDataManager : public TestDataComponentBase,
 
 	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override
 	{
-		jassertfalse; // only in debug mode!
- 		if (t != ComplexDataUIUpdaterBase::EventType::DisplayIndex)
-			getWorkbench()->triggerPostCompileActions();
+		if (getWorkbench()->getGlobalScope().isDebugModeEnabled())
+		{
+			if (t != ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+				getWorkbench()->triggerPostCompileActions();
+		}
 	}
 
 	void testEventsChanged()

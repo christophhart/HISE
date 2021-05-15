@@ -361,6 +361,15 @@ void NodeBase::setParentNode(Ptr newParentNode)
 	if (newParentNode == nullptr && getRootNetwork() != nullptr)
 	{
 		getRootNetwork()->getExceptionHandler().removeError(this);
+
+		if (auto nc = dynamic_cast<NodeContainer*>(this))
+		{
+			nc->forEachNode([](NodeBase::Ptr b)
+			{
+				b->getRootNetwork()->getExceptionHandler().removeError(b);
+				return false;
+			});
+		}
 	}
 
 	parentNode = newParentNode;
@@ -688,45 +697,56 @@ void NodeBase::addConnectionToBypass(var dragDetails)
 
 var NodeBase::Parameter::addConnectionFrom(var dragDetails)
 {
-	DBG(JSON::toString(dragDetails));
+	auto shouldAdd = dragDetails.isObject();
 
-	auto sourceNodeId = DragHelpers::getSourceNodeId(dragDetails);
-	auto parameterId = DragHelpers::getSourceParameterId(dragDetails);
+	data.setProperty(PropertyIds::Automated, shouldAdd, parent->getUndoManager());
 
-	if (auto modSource = DragHelpers::getModulationSource(parent, dragDetails))
+	if (shouldAdd)
 	{
-		return modSource->addModulationTarget(this);
-	}
+		auto sourceNodeId = DragHelpers::getSourceNodeId(dragDetails);
+		auto parameterId = DragHelpers::getSourceParameterId(dragDetails);
 
-	if (sourceNodeId == parent->getId() && parameterId == getId())
-		return {};
+		if (auto modSource = DragHelpers::getModulationSource(parent, dragDetails))
+			return modSource->addModulationTarget(this);
 
-	if (auto sn = parent->getRootNetwork()->getNodeWithId(sourceNodeId))
-	{
-		if (auto sp = dynamic_cast<NodeContainer::MacroParameter*>(sn->getParameter(parameterId)))
+		if (sourceNodeId == parent->getId() && parameterId == getId())
+			return {};
+
+		if (auto sn = parent->getRootNetwork()->getNodeWithId(sourceNodeId))
 		{
-			return sp->addParameterTarget(this);
-		}
+			if (auto sp = dynamic_cast<NodeContainer::MacroParameter*>(sn->getParameter(parameterId)))
+				return sp->addParameterTarget(this);
 
-		if (dragDetails.getProperty(PropertyIds::SwitchTarget, false))
-		{
-			auto cTree = sn->getValueTree().getChildWithName(PropertyIds::SwitchTargets).getChild(parameterId.getIntValue()).getChildWithName(PropertyIds::Connections);
-
-			if (cTree.isValid())
+			if (dragDetails.getProperty(PropertyIds::SwitchTarget, false))
 			{
-				ValueTree newC(PropertyIds::Connection);
-				newC.setProperty(PropertyIds::NodeId, parent->getId(), nullptr);
-				newC.setProperty(PropertyIds::ParameterId, getId(), nullptr);
-				RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(data), nullptr);
-				newC.setProperty(PropertyIds::Expression, "", nullptr);
+				auto cTree = sn->getValueTree().getChildWithName(PropertyIds::SwitchTargets).getChild(parameterId.getIntValue()).getChildWithName(PropertyIds::Connections);
 
-				cTree.addChild(newC, -1, parent->getUndoManager());
+				if (cTree.isValid())
+				{
+					ValueTree newC(PropertyIds::Connection);
+					newC.setProperty(PropertyIds::NodeId, parent->getId(), nullptr);
+					newC.setProperty(PropertyIds::ParameterId, getId(), nullptr);
+					RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(data), nullptr);
+					newC.setProperty(PropertyIds::Expression, "", nullptr);
+
+					cTree.addChild(newC, -1, parent->getUndoManager());
+				}
 			}
 		}
-	}
-	
 
-	return {};
+		return {};
+	}
+	else
+	{
+		auto c = getConnectionSourceTree(false);
+
+		if (c.isValid())
+			c.getParent().removeChild(c, parent->getUndoManager());
+
+		connectionSourceTree = {};
+
+		return {};
+	}
 }
 
 bool NodeBase::Parameter::matchesConnection(const ValueTree& c) const
@@ -881,7 +901,7 @@ scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnect
 
 	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
 
-	chain->inputRange = RangeHelpers::getDoubleRange(connectionTree.getParent());
+	chain->inputRange2 = RangeHelpers::getDoubleRange(connectionTree.getParent());
 
 	for (auto c : connectionTree)
 	{

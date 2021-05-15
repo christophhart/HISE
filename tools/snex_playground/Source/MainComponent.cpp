@@ -14,6 +14,7 @@ using namespace snex::Types;
 using namespace snex::jit;
 using namespace snex;
 
+#if 0
 
 struct spreader
 {
@@ -54,41 +55,7 @@ namespace scriptnode {
 
 
 
-namespace parameter {
 
-template <class ParameterClass> struct dupli
-{
-	ParameterClass p;
-
-	void call(int index, double v)
-	{
-		jassert(isPositiveAndBelow(index, *sizePtr));
-
-		auto thisPtr = (uint8*)firstObj + index * objectDelta;
-
-		p.setObjPtr(thisPtr);
-		p.call(v);
-	}
-
-	int getNumVoices() const
-	{
-		jassert(sizePtr != nullptr);
-		return *sizePtr;
-	}
-
-	template <int P, typename DupliRefType> void connect(DupliRefType& t)
-	{
-		sizePtr = t.sizePtr;
-		objectDelta = t.objectDelta;
-		firstObj = t.firstObj;
-	}
-
-	int* sizePtr = nullptr;
-	void* firstObj = nullptr;
-	size_t objectDelta;
-};
-
-}
 
 namespace control
 {
@@ -167,7 +134,7 @@ template <typename ParameterType, typename SpreadType> struct spread : public co
 
 
 
-
+#endif
 
 
 //==============================================================================
@@ -176,11 +143,12 @@ MainComponent::MainComponent() :
 {
 
 	{
-		using DupliType = parameter::duplichain<parameter::dupli<parameter::plain<core::oscillator, 1>>,
-												parameter::dupli<parameter::plain<core::oscillator, 1>>>;
+#if 0
+		using DupliType = parameter::duplichain<parameter::dupli<parameter::plain<core::oscillator<1>, 1>>,
+												parameter::dupli<parameter::plain<core::oscillator<1>, 1>>>;
 
 
-		using ChainType = container::chain<parameter::empty, core::oscillator, core::oscillator>;
+		using ChainType = container::chain<parameter::empty, core::oscillator<1>, core::oscillator<1>>;
 
 		control::spread<DupliType, spreader> c;
 
@@ -195,7 +163,7 @@ MainComponent::MainComponent() :
 		c.setParameter<1>(0.4);
 		
 
-
+#endif
 		int x = 5;
 		
 #if 0

@@ -63,7 +63,7 @@ struct OpaqueNodeDataHolder: public data::base
 {
 	struct Editor : public ScriptnodeExtraComponent<OpaqueNodeDataHolder>
 	{
-		Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater* u);
+		Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater* u, bool addDragger);
 
 		void timerCallback() override {}
 
@@ -75,6 +75,7 @@ struct OpaqueNodeDataHolder: public data::base
 		PooledUIUpdater* updater;
 		int height = 0;
 		int width = 0;
+		ScopedPointer<ModulationSourceBaseComponent> dragger;
 	};
 
 	void setExternalData(const snex::ExternalData& d, int index) override;
@@ -692,6 +693,9 @@ public:
 				bool UseFullNodeAsUIPtr=false>
 		void registerPolyNode()
     {
+		// enable this static_assert(std::is_base_of<PolyT, polyphonic_base>(), "not a base of scriptnode::polyphonic_base");
+		// or this jassert(std::is_base_of<PolyT, polyphonic_base>(), "not a base of scriptnode::polyphonic_base");
+
         using WrappedPolyT = InterpretedNode;
         using WrappedMonoT = InterpretedNode;
             

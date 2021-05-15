@@ -2175,7 +2175,7 @@ void KeyboardPopup::PopupList::setSelected(Item* i)
 
 	if (i != nullptr)
 	{
-		kp->currentPreview = new ImagePreviewCreator(*kp, i->entry.displayName);
+		//kp->currentPreview = new ImagePreviewCreator(*kp, i->entry.displayName);
 	}
 	else
 	{
