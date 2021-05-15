@@ -724,7 +724,6 @@ snex::jit::ComplexType::Ptr OscProcessDataJit::createComplexType(Compiler& c, co
 
 	ADD_SNEX_STRUCT_MEMBER(st, d, uptime);
 	ADD_SNEX_STRUCT_MEMBER(st, d, delta);
-	ADD_SNEX_STRUCT_MEMBER(st, d, voiceIndex);
 
 	return st->finaliseAndReturn();
 }

@@ -356,6 +356,7 @@ juce::Result MathNodeLibrary::registerTypes()
 
 juce::Result CoreNodeLibrary::registerTypes()
 {
+#if 0
 	LibraryNode<core::empty> e(c, numChannels, getFactoryId());
 
 	
@@ -387,10 +388,6 @@ juce::Result CoreNodeLibrary::registerTypes()
 	LibraryNode<core::table> tb(c, numChannels, getFactoryId());
 	tb.addSetExternalFunction();
 
-	LibraryNode<core::oscillator>(c, numChannels, getFactoryId());
-	LibraryNode<core::fix_delay>(c, numChannels, getFactoryId());
-	LibraryNode<core::ramp>(c, numChannels, getFactoryId());
-	LibraryNode<core::peak> p(c, numChannels, getFactoryId());
 	p.addMember("max", Types::ID::Double, 0.0);
 
 	p.addModulationFunction([](InlineData* b)
@@ -414,7 +411,7 @@ juce::Result CoreNodeLibrary::registerTypes()
 		return SyntaxTreeInlineParser(b, { "data" }, c).flush();
 	});
 
-	
+#endif
 
 	return Result::ok();
 }

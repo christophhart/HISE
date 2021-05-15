@@ -427,7 +427,10 @@ juce::Result MathFunctions::Inliners::abs(InlineData* d_)
 	IF_(float)
 	{
 		auto c = cc.newXmmConst(asmjit::ConstPool::kScopeGlobal, Data128::fromU32(0x7fffffff));
-		cc.movss(FP_TARGET, FP_REG_R(ARGS(0)));
+
+		FP_OP(cc.movss, d->target, ARGS(0));
+
+		
 		cc.andps(FP_TARGET, c);
 	}
 	IF_(double)
