@@ -149,15 +149,9 @@ struct OpaqueNode
 
 		t->createParameters(pList);
 
-		numParameters = pList.size();
+		fillParameterList(pList);
 
-		for (int i = 0; i < numParameters; i++)
-		{
-			parameters[i] = pList[i].info;
-			parameterFunctions[i] = pList[i].callback.getFunction();
-			parameterObjects[i] = pList[i].callback.getObjectPtr();
-			parameterNames[i] = pList[i].parameterNames;
-		}
+		
 	}
 
 	template <typename T> T& as()
@@ -224,6 +218,18 @@ struct OpaqueNode
 
 	bool isProcessingHiseEvent() const { return shouldProcessHiseEvent; }
 
+	void setCanBePolyphonic()
+	{
+		isPolyPossible = true;
+	}
+
+	bool canBePolyphonic() const
+	{
+		return isPolyPossible;
+	}
+
+	void fillParameterList(ParameterDataList& d);
+
 private:
 
 	mothernode* mnPtr = nullptr;
@@ -233,6 +239,7 @@ private:
 	hise::ObjectStorage<SmallObjectSize, 16> object;
 
 	bool isPoly = false;
+	bool isPolyPossible = false;
 
 	prototypes::handleHiseEvent eventFunc = nullptr;
 	prototypes::destruct destructFunc = nullptr;
@@ -268,11 +275,14 @@ namespace dll
 	{
 		using Ptr = ReferenceCountedObjectPtr<ProjectDll>;
 
+		typedef int(*GetWrapperTypeFunc)(int);
 		typedef int(*GetNumNodesFunc)();
 		typedef size_t(*GetNodeIdFunc)(int, char*);
-		typedef void(*InitNodeFunc)(scriptnode::OpaqueNode*, int);
+		typedef void(*InitNodeFunc)(scriptnode::OpaqueNode*, int, bool);
 		typedef void(*DeleteNodeFunc)(void* obj);
 		typedef int(*GetNumDataObjects)(int, int);
+
+		int getWrapperType(int index) const;
 
 		int getNumNodes() const;
 
@@ -280,7 +290,7 @@ namespace dll
 
 		String getNodeId(int index) const;
 
-		bool initNode(OpaqueNode* n, int index);
+		bool initNode(OpaqueNode* n, int index, bool polyphonicIfPossible);
 
 		ProjectDll(const File& f);
 
@@ -306,6 +316,7 @@ namespace dll
 		InitNodeFunc inf;
 		DeleteNodeFunc dnf;
 		GetNumDataObjects gndo;
+		GetWrapperTypeFunc gwtf;
 
 		ScopedPointer<DynamicLibrary> dll;
 	};
@@ -316,8 +327,9 @@ namespace dll
 		virtual ~FactoryBase() {};
 		virtual int getNumNodes() const = 0;
 		virtual String getId(int index) const = 0;
-		virtual bool initOpaqueNode(OpaqueNode* n, int index) = 0;
+		virtual bool initOpaqueNode(OpaqueNode* n, int index, bool polyphonicIfPossible) = 0;
 		virtual int getNumDataObjects(int index, int dataTypeAsInt) const = 0;
+		virtual int getWrapperType(int index) const = 0;
 
 	};
 
@@ -331,7 +343,9 @@ namespace dll
 		struct Item
 		{
 			String id;
+			bool isModNode = false;
 			std::function<void(scriptnode::OpaqueNode* n)> f;
+			std::function<void(scriptnode::OpaqueNode* n)> pf;
 			int numDataObjects[(int)ExternalData::DataType::numDataTypes];
 		};
 
@@ -339,14 +353,24 @@ namespace dll
 
 		String getId(int index) const override;
 		int getNumNodes() const override;
-		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index) override;
+
+		int getWrapperType(int index) const override;
+
+		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible) override;
 
 		int getNumDataObjects(int index, int dataTypeAsInt) const override;
+
+		template <typename T, typename PolyT> void registerPolyNode()
+		{
+			registerNode<T>();
+			items.getReference(items.size() - 1).pf = [](scriptnode::OpaqueNode* n) { n->create<PolyT>(); };
+		}
 
 		template <typename T> void registerNode()
 		{
 			Item i;
 			i.id = T::MetadataClass::getStaticId().toString();
+			i.isModNode = T::isModNode();
 			i.f = [](scriptnode::OpaqueNode* n) { n->create<T>(); };
 
 			i.numDataObjects[(int)ExternalData::DataType::Table] = T::NumTables;
@@ -377,9 +401,11 @@ namespace dll
 
 		String getId(int index) const override;
 
-		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index) override;
+		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible) override;
 
 		int getNumDataObjects(int index, int dataTypeAsInt) const override;
+
+		int getWrapperType(int index) const override;
 
 	private:
 

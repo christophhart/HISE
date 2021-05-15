@@ -123,7 +123,7 @@ public:
 			auto isErrorCode = e == errorToRemove ||
 				(errorToRemove == Error::numErrorCodes && e != Error::ErrorCode::DeprecatedNode);
 
-			if (items[i].node == n && isErrorCode)
+			if ((n == nullptr || (items[i].node == n)) && isErrorCode)
 				items.remove(i--);
 		}
 	}
@@ -225,6 +225,8 @@ public:
 	{
 	public:
 
+		Holder();
+
 		virtual ~Holder() {};
 
 		DspNetwork* getOrCreate(const ValueTree& v);
@@ -236,8 +238,21 @@ public:
 
 		virtual bool isPolyphonic() const { return false; };
 
+		void clearAllNetworks()
+		{
+			ReferenceCountedArray<DspNetwork> oldNetworks;
+
+			{
+				SimpleReadWriteLock::ScopedWriteLock l(getNetworkLock());
+				std::swap(networks, oldNetworks);
+				networks.clear();
+				activeNetwork = nullptr;
+			}
+		}
+
 		void setActiveNetwork(DspNetwork* n)
 		{
+			SimpleReadWriteLock::ScopedWriteLock l(getNetworkLock());
 			activeNetwork = n;
 		}
 
@@ -246,7 +261,13 @@ public:
 			if (auto n = getActiveNetwork())
 			{
 				if (n->isForwardingControlsToParameters())
-					return const_cast<ScriptParameterHandler*>(static_cast<const ScriptParameterHandler*>(&n->networkParameterHandler));
+				{
+					if(n->projectNodeHolder.isActive())
+						return const_cast<ScriptParameterHandler*>(static_cast<const ScriptParameterHandler*>(&n->projectNodeHolder));
+					else
+						return const_cast<ScriptParameterHandler*>(static_cast<const ScriptParameterHandler*>(&n->networkParameterHandler));
+					
+				}
 			}
 
 			return const_cast<ScriptParameterHandler*>(contentHandler);
@@ -280,7 +301,11 @@ public:
 				vk = vk_;
 		}
 
+		SimpleReadWriteLock& getNetworkLock() { return connectLock; }
+
 	protected:
+
+		SimpleReadWriteLock connectLock;
 
 		WeakReference<snex::Types::VoiceResetter> vk;
 
@@ -551,11 +576,19 @@ public:
 		return list;
 	}
 
+	void process(ProcessDataDyn& data);
+
 	void process(AudioSampleBuffer& b, HiseEventBuffer* e);
 
 	bool isPolyphonic() const { return isPoly; }
 
-	
+	bool handleModulation(double& modValue)
+	{
+		if (isFrozen())
+			return projectNodeHolder.handleModulation(modValue);
+		else
+			return tempoSyncer.publicModValue.getChangedValue(modValue);
+	}
 
 	Identifier getParameterIdentifier(int parameterIndex);
 
@@ -595,7 +628,7 @@ public:
 
 	ValueTree getValueTree() const { return data; };
 
-	SimpleReadWriteLock& getConnectionLock() { return connectLock; }
+	SimpleReadWriteLock& getConnectionLock() { return parentHolder->getNetworkLock(); }
 	bool updateIdsInValueTree(ValueTree& v, StringArray& usedIds);
 	NodeBase* createFromValueTree(bool createPolyIfAvailable, ValueTree d, bool forceCreate=false);
 	bool isInSignalPath(NodeBase* b) const;
@@ -713,6 +746,8 @@ public:
 
 	ExternalDataHolder* getExternalDataHolder() { return dataHolder; }
 
+	
+
 	void setExternalDataHolder(ExternalDataHolder* newHolder)
 	{
 		dataHolder = newHolder;
@@ -725,6 +760,16 @@ public:
 		if (isPolyphonic())
 			voiceIndex.setVoiceResetter(newVoiceKiller);	
 	}
+
+	void setEnableInterpretedGraph(bool shouldBeEnabled);
+
+	bool canBeFrozen() const { return projectNodeHolder.loaded; }
+
+	bool isFrozen() const { return projectNodeHolder.isActive(); }
+
+	ScriptParameterHandler* getCurrentParameterHandler();
+
+	Holder* getParentHolder() { return parentHolder; }
 
 private:
 
@@ -781,8 +826,9 @@ private:
 	String getNonExistentId(String id, StringArray& usedIds) const;
 
 	valuetree::RecursivePropertyListener idUpdater;
+	valuetree::RecursiveTypedChildListener exceptionResetter;
 
-	SimpleReadWriteLock connectLock;
+	
 
 	WeakReference<Holder> parentHolder;
 
@@ -798,6 +844,109 @@ private:
 	WeakReference<NodeBase::Holder> currentNodeHolder;
 
 	bool createAnonymousNodes = false;
+
+	struct ProjectNodeHolder: public hise::ScriptParameterHandler
+	{
+		ProjectNodeHolder(DspNetwork& parent):
+			network(parent)
+		{
+
+		}
+
+		Identifier getParameterId(int index) const override { return network.networkParameterHandler.getParameterId(index); }
+		int getNumParameters() const override { return n.numParameters; }
+
+		void setParameter(int index, float newValue) override
+		{
+			if (isPositiveAndBelow(index, n.numParameters))
+			{
+				parameterValues[index] = newValue;
+				n.parameterFunctions[index](n.parameterObjects[index], (double)newValue);
+			}
+		}
+
+		float getParameter(int index) const override 
+		{ 
+			if(isPositiveAndBelow(index, 16))
+				return parameterValues[index]; 
+
+			return 0.0f;
+		};
+
+		~ProjectNodeHolder()
+		{
+			if (loaded)
+			{
+				n.callDestructor();
+			}
+		}
+
+		bool isActive() const { return forwardToNode; }
+
+		void prepare(PrepareSpecs ps)
+		{
+			n.prepare(ps);
+			n.reset();
+		}
+
+		void process(ProcessDataDyn& data);
+
+		bool handleModulation(double& modValue)
+		{
+			return n.handleModulation(modValue);
+		}
+
+		void setEnabled(bool shouldBeEnabled)
+		{
+			if (!loaded)
+				return;
+
+			if (shouldBeEnabled != forwardToNode)
+			{
+				forwardToNode = shouldBeEnabled;
+
+				auto s1 = static_cast<ScriptParameterHandler*>(&network.networkParameterHandler);
+				auto s2 = static_cast<ScriptParameterHandler*>(this);
+
+				auto oh = forwardToNode ? s1 : s2;
+				auto nh = forwardToNode ? s2 : s1;
+
+				if (forwardToNode && network.currentSpecs)
+				{
+					prepare(network.currentSpecs);
+					n.reset();
+				}
+
+				for (int i = 0; i < nh->getNumParameters(); i++)
+					nh->setParameter(i, oh->getParameter(i));
+			}
+		}
+
+		void init(dll::ProjectDll::Ptr dllToUse)
+		{
+			dll = dllToUse;
+
+			int getNumNodes = dll->getNumNodes();
+
+			for (int i = 0; i < getNumNodes; i++)
+			{
+				auto dllId = dll->getNodeId(i);
+
+				if (dllId == network.getId())
+				{
+					dll->initNode(&n, i, network.isPolyphonic());
+					loaded = true;
+				}
+			}
+		}
+
+		float parameterValues[16];
+		DspNetwork& network;
+		dll::ProjectDll::Ptr dll;
+		OpaqueNode n;
+		bool loaded = false;
+		bool forwardToNode = false;
+	} projectNodeHolder;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetwork);
 };

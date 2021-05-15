@@ -129,6 +129,11 @@ public:
 			repaint();
 		}
 
+		bool isRootHeader() const
+		{
+			return parent.node->getRootNetwork()->getRootNode() == parent.node;
+		}
+
 		void updateColour(Identifier id, var value)
 		{
 			colour = PropertyHelpers::getColourFromVar(value);
@@ -172,6 +177,7 @@ public:
 		HiseShapeButton powerButton;
 		HiseShapeButton deleteButton;
 		HiseShapeButton parameterButton;
+		HiseShapeButton freezeButton;
 		
 		bool isDragging = false;
 
@@ -196,6 +202,8 @@ public:
 	virtual void handlePopupMenuResult(int result);
 
 	virtual Colour getOutlineColour() const;
+
+	Colour getHeaderColour() const;
 
 	void drawTopBodyGradient(Graphics& g, float alpha=0.1f, float height=15.0f);
 

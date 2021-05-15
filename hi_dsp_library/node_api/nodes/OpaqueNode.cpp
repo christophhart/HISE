@@ -146,6 +146,19 @@ bool OpaqueNode::handleModulation(double& d)
 	return modFunc(getObjectPtr(), &d) > 0;
 }
 
+void OpaqueNode::fillParameterList(ParameterDataList& pList)
+{
+	numParameters = pList.size();
+
+	for (int i = 0; i < numParameters; i++)
+	{
+		parameters[i] = pList[i].info;
+		parameterFunctions[i] = pList[i].callback.getFunction();
+		parameterObjects[i] = pList[i].callback.getObjectPtr();
+		parameterNames[i] = pList[i].parameterNames;
+	}
+}
+
 namespace dll
 {
 
@@ -159,9 +172,21 @@ int PluginFactory::getNumNodes() const
 	return items.size();
 }
 
-bool PluginFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index)
+int PluginFactory::getWrapperType(int index) const
 {
-	items[index].f(n);
+	return items[index].isModNode ? 1 : 0;
+}
+
+bool PluginFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible)
+{
+	if (polyphonicIfPossible && items[index].pf)
+		items[index].pf(n);
+	else
+		items[index].f(n);
+
+	if (items[index].pf)
+		n->setCanBePolyphonic();
+
 	memcpy(n->numDataObjects, items[index].numDataObjects, sizeof(int) * (int)ExternalData::DataType::numDataTypes);
 	return true;
 }
@@ -198,10 +223,21 @@ String HostFactory::getId(int index) const
 	return {};
 }
 
-bool HostFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index)
+bool HostFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible)
 {
 	if (projectDll != nullptr)
-		return projectDll->initNode(n, index);
+	{
+		auto ok = projectDll->initNode(n, index, polyphonicIfPossible);
+
+		if (ok && n->canBePolyphonic())
+		{
+			auto id = projectDll->getNodeId(index);
+			cppgen::CustomNodeProperties::addNodeIdManually(Identifier(id), PropertyIds::IsPolyphonic);
+		}
+
+		return ok;
+	}
+		
 
 	return false;
 }
@@ -212,6 +248,20 @@ int HostFactory::getNumDataObjects(int index, int dataTypeAsInt) const
 		return projectDll->getNumDataObjects(index, dataTypeAsInt);
 
 	return 0;
+}
+
+int HostFactory::getWrapperType(int index) const
+{
+	if (projectDll != nullptr)
+		return projectDll->getWrapperType(index);
+
+	return 0;
+}
+
+int ProjectDll::getWrapperType(int i) const
+{
+	if (gwtf != nullptr)
+		return gwtf(i);
 }
 
 int ProjectDll::getNumNodes() const
@@ -243,11 +293,11 @@ String ProjectDll::getNodeId(int index) const
 	return {};
 }
 
-bool ProjectDll::initNode(OpaqueNode* n, int index)
+bool ProjectDll::initNode(OpaqueNode* n, int index, bool polyphonicIfPossible)
 {
 	if (inf != nullptr)
 	{
-		inf(n, index);
+		inf(n, index, polyphonicIfPossible);
 
 		for(int i = 0; i < (int)ExternalData::DataType::numDataTypes; i++)
 			n->numDataObjects[i] = gndo(index, i);
@@ -269,11 +319,12 @@ ProjectDll::ProjectDll(const File& f)
 		gnif = (GetNodeIdFunc)dll->getFunction("getNodeId");
 		inf = (InitNodeFunc)dll->getFunction("initOpaqueNode");
 		gndo = (GetNumDataObjects)dll->getFunction("getNumDataObjects");
+		gwtf = (GetWrapperTypeFunc)dll->getFunction("getWrapperType");
 
 		if (auto f = (int(*)())dll->getFunction("getHash"))
 			hash = f();
 
-		ok = gnnf != nullptr && gnif != nullptr && inf != nullptr && hash != 0;
+		ok = gnnf != nullptr && gnif != nullptr && inf != nullptr && hash != 0 && gwtf != nullptr;
 	}
 	else
 	{

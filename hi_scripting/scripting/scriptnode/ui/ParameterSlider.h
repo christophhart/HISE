@@ -221,6 +221,10 @@ struct ParameterSlider : public Slider,
 	String getTextFromValue(double value) override;;
 	double getValueFromText(const String& text) override;
 
+	double getValueToDisplay() const;
+
+	bool isControllingFrozenNode() const;
+
 	int macroHoverIndex = -1;
 	double lastModValue = 0.0f;
 	bool modulationActive = false;
@@ -232,6 +236,7 @@ struct ParameterSlider : public Slider,
 	NodeBase::Ptr node;
 	ScopedPointer<RangeComponent> currentRangeComponent;
 	var currentConnection;
+	const int index;
 };
 
 

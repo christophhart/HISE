@@ -56,10 +56,12 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 #if HISE_INCLUDE_SNEX
 	codeManager(*this),
 #endif
-	parentHolder(dynamic_cast<Holder*>(p))
+	parentHolder(dynamic_cast<Holder*>(p)),
+	projectNodeHolder(*this)
 {
 	voiceIndex.setTempoSyncer(&tempoSyncer);
 	getScriptProcessor()->getMainController_()->addTempoListener(&tempoSyncer);
+
 	setExternalDataHolder(dynamic_cast<ExternalDataHolder*>(p));
 
 	ownedFactories.add(new NodeContainerFactory(this));
@@ -80,11 +82,11 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 		if (ah->projectDll != nullptr)
 		{
 			ownedFactories.add(new dll::FunkyHostFactory(this, ah->projectDll));
+
+			projectNodeHolder.init(ah->projectDll);
 		}
 	}
 #endif
-
-	
 
 	for (auto nf : ownedFactories)
 		nodeFactories.add(nf);
@@ -117,6 +119,18 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 			auto newId = v[PropertyIds::ID].toString();
 
 			changeNodeId(data, oldId, newId, getUndoManager());
+		}
+	});
+
+	exceptionResetter.setTypeToWatch(PropertyIds::Node);
+	exceptionResetter.setCallback(data, valuetree::AsyncMode::Synchronously, [this](ValueTree v, bool wasRemoved)
+	{
+		if (wasRemoved)
+		{
+			if (auto n = getNodeForValueTree(v))
+			{
+				this->getExceptionHandler().removeError(n);
+			}
 		}
 	});
 
@@ -313,15 +327,24 @@ void DspNetwork::registerOwnedFactory(NodeFactory* ownedFactory)
 
 void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
 {
-	if(auto s = SimpleReadWriteLock::ScopedTryReadLock(getConnectionLock()))
+	ProcessDataDyn d(b.getArrayOfWritePointers(), b.getNumSamples(), b.getNumChannels());
+	d.setEventBuffer(*e);
+
+	process(d);
+}
+
+void DspNetwork::process(ProcessDataDyn& data)
+{
+	if (projectNodeHolder.isActive())
+	{
+		projectNodeHolder.process(data);
+		return;
+	}
+
+	if (auto s = SimpleReadWriteLock::ScopedTryReadLock(getConnectionLock()))
 	{
 		if (exceptionHandler.isOk())
-		{
-			ProcessDataDyn d(b.getArrayOfWritePointers(), b.getNumSamples(), b.getNumChannels());
-			d.setEventBuffer(*e);
-
-			getRootNode()->process(d);
-		}
+			getRootNode()->process(data);
 	}
 }
 
@@ -345,8 +368,6 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 
 		try
 		{
-
-
 			originalSampleRate = sampleRate;
 
 			currentSpecs.sampleRate = sampleRate;
@@ -356,48 +377,44 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 
 			getRootNode()->prepare(currentSpecs);
 			getRootNode()->reset();
+
+			if (projectNodeHolder.isActive())
+				projectNodeHolder.prepare(currentSpecs);
 		}
 		catch (String& errorMessage)
 		{
 			jassertfalse;
 		}
-
-		
 	}
 }
 
 void DspNetwork::processBlock(var pData)
 {
-	if (auto s = SimpleReadWriteLock::ScopedTryReadLock(getConnectionLock()))
+	if (auto ar = pData.getArray())
 	{
-		if (exceptionHandler.isOk())
+		int numChannelsToUse = ar->size();
+		int numSamplesToUse = 0;
+
+		int index = 0;
+
+		for (const auto& v : *ar)
 		{
-			if (auto ar = pData.getArray())
+			if (auto bf = v.getBuffer())
 			{
-				int numChannelsToUse = ar->size();
-				int numSamplesToUse = 0;
+				int thisSamples = bf->buffer.getNumSamples();
 
-				int index = 0;
+				if (numSamplesToUse == 0)
+					numSamplesToUse = thisSamples;
+				else if (numSamplesToUse != thisSamples)
+					reportScriptError("Buffer mismatch");
 
-				for (const auto& v : *ar)
-				{
-					if (auto bf = v.getBuffer())
-					{
-						int thisSamples = bf->buffer.getNumSamples();
-
-						if (numSamplesToUse == 0)
-							numSamplesToUse = thisSamples;
-						else if (numSamplesToUse != thisSamples)
-							reportScriptError("Buffer mismatch");
-
-						currentData[index++] = bf->buffer.getWritePointer(0);
-					}
-				}
-
-				ProcessDataDyn d(currentData, numSamplesToUse, numChannelsToUse);
-				getRootNode()->process(d);
+				currentData[index++] = bf->buffer.getWritePointer(0);
 			}
 		}
+
+		ProcessDataDyn d(currentData, numSamplesToUse, numChannelsToUse);
+
+		process(d);
 	}
 }
 
@@ -766,6 +783,28 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 	valuetree::Helpers::foreach(c, updateSendConnection);
 }
 
+void DspNetwork::setEnableInterpretedGraph(bool shouldBeEnabled)
+{
+	projectNodeHolder.setEnabled(shouldBeEnabled);
+}
+
+hise::ScriptParameterHandler* DspNetwork::getCurrentParameterHandler()
+{
+	if (projectNodeHolder.isActive())
+		return &projectNodeHolder;
+	else
+		return &networkParameterHandler;
+}
+
+DspNetwork::Holder::Holder()
+{
+	JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
+
+	SimpleRingBuffer::Ptr rb = new SimpleRingBuffer();
+
+	rb->registerPropertyObject<scriptnode::OscillatorDisplayProvider::OscillatorDisplayObject>();
+}
+
 DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)
 {
 	auto asScriptProcessor = dynamic_cast<ProcessorWithScriptingContent*>(this);
@@ -852,7 +891,7 @@ void DspNetwork::Holder::restoreNetworks(const ValueTree& d)
 
 	if (v.isValid())
 	{
-		networks.clear();
+		clearAllNetworks();
 
 		for (auto c : v)
 		{
@@ -1086,6 +1125,13 @@ DspNetwork::AnonymousNodeCloner::~AnonymousNodeCloner()
 scriptnode::NodeBase::Ptr DspNetwork::AnonymousNodeCloner::clone(NodeBase::Ptr p)
 {
 	return parent.createFromValueTree(parent.isPolyphonic(), p->getValueTree(), false);
+}
+
+void DspNetwork::ProjectNodeHolder::process(ProcessDataDyn& data)
+{
+	NodeProfiler np(network.getRootNode());
+
+	n.process(data);
 }
 
 }

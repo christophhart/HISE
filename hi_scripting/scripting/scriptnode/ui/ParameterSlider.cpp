@@ -777,8 +777,10 @@ struct ParameterSlider::RangeComponent : public Component,
 			m.addItem(3, "Save Range Preset");
 			m.addSeparator();
 			m.addItem(4, "Reset Range");
-			m.addItem(5, "Invert range", connectionSource.isValid(), RangeHelpers::isInverted(connectionSource));
 			m.addItem(6, "Reset skew", getParent().getSkewFactor() != 1.0);
+			m.addSeparator();
+			m.addItem(5, "Invert range", connectionSource.isValid(), RangeHelpers::isInverted(connectionSource));
+			m.addItem(7, "Copy range to source", connectionSource.isValid());
 
 			auto r = m.show();
 
@@ -823,6 +825,18 @@ struct ParameterSlider::RangeComponent : public Component,
 				cr.skew = 1.0;
 				auto inv = RangeHelpers::isInverted(connectionSource);
 				setNewRange(cr, inv, sendNotification);
+			}
+			if (r == 7)
+			{
+				auto cr = getParentRange();
+
+				auto sourceParameterTree = connectionSource.getParent().getParent();
+
+				if (sourceParameterTree.isValid() && sourceParameterTree.getType() == PropertyIds::Parameter)
+				{
+					auto inv = RangeHelpers::isInverted(connectionSource);
+					RangeHelpers::storeDoubleRange(sourceParameterTree, inv, cr, getParent().node->getUndoManager());
+				}
 			}
 			if (r > 9000)
 			{
@@ -934,11 +948,12 @@ struct ParameterSlider::RangeComponent : public Component,
 };
 
 
-ParameterSlider::ParameterSlider(NodeBase* node_, int index) :
+ParameterSlider::ParameterSlider(NodeBase* node_, int index_) :
 	SimpleTimer(node_->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
-	parameterToControl(node_->getParameter(index)),
+	parameterToControl(node_->getParameter(index_)),
 	node(node_),
-	pTree(node_->getParameter(index)->getTreeWithValue())
+	pTree(node_->getParameter(index_)->getTreeWithValue()),
+	index(index_)
 {
 	addAndMakeVisible(rangeButton);
 
@@ -1189,13 +1204,10 @@ void ParameterSlider::mouseDoubleClick(const MouseEvent&)
 {
 	if (!isEnabled())
 	{
-		auto c = getConnectionSourceTree();
+		parameterToControl->addConnectionFrom({});
 
-		auto v = parameterToControl->getValue();
-
-		if (c.isValid())
-			c.getParent().removeChild(c, parameterToControl->parent->getUndoManager());
 		
+		auto v = parameterToControl->getValue();
 		
 		setValue(v, dontSendNotification);
 	}
@@ -1219,8 +1231,15 @@ void ParameterSlider::sliderDragEnded(Slider*)
 
 void ParameterSlider::sliderValueChanged(Slider*)
 {
+
 	if (parameterToControl != nullptr)
 	{
+		if(isControllingFrozenNode())
+		{
+			auto n = parameterToControl->parent->getRootNetwork();
+			n->getCurrentParameterHandler()->setParameter(index, getValue());
+		}
+		
 		parameterToControl->getTreeWithValue().setProperty(PropertyIds::Value, getValue(), parameterToControl->parent->getUndoManager());
 	}
 
@@ -1252,6 +1271,35 @@ double ParameterSlider::getValueFromText(const String& text)
 		return (double)parameterToControl->valueNames.indexOf(text);
 
 	return Slider::getValueFromText(text);
+}
+
+double ParameterSlider::getValueToDisplay() const
+{
+	if (parameterToControl != nullptr)
+	{
+		if (isControllingFrozenNode())
+			return getValue();
+
+		return parameterToControl->getValue();
+	}
+	else
+	{
+		return getValue();
+	}
+	
+}
+
+bool ParameterSlider::isControllingFrozenNode() const
+{
+	if (parameterToControl != nullptr)
+	{
+		auto n = parameterToControl->parent->getRootNetwork();
+
+		return n->getRootNode() == parameterToControl->parent &&
+			n->isFrozen();
+	}
+	
+	return false;
 }
 
 ParameterKnobLookAndFeel::ParameterKnobLookAndFeel()
@@ -1304,7 +1352,10 @@ void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int wid
 	const double proportion = pow(normalizedValue, s.getSkewFactor());
 
 	auto ps = dynamic_cast<ParameterSlider*>(&s);
-	auto modValue = ps->parameterToControl->getValue();
+
+	auto modValue = ps->getValueToDisplay();
+
+	
 	const double normalisedModValue = (modValue - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
 	float modProportion = jlimit<float>(0.0f, 1.0f, pow((float)normalisedModValue, (float)s.getSkewFactor()));
 

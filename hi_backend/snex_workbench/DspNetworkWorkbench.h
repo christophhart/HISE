@@ -679,7 +679,7 @@ struct WorkbenchInfoComponent : public Component,
 	TooltipBar tooltips;
 	Path mainLogo;
 
-	
+	snex::cppgen::CustomNodeProperties data;
 };
 
 struct WorkbenchBottomComponent : public Component

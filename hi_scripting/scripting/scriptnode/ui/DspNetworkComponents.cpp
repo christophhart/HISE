@@ -430,6 +430,9 @@ Colour getSpecialColour(Component* c, Colour defaultColour)
 
 void DspNetworkGraph::paintOverChildren(Graphics& g)
 {
+	if (network->isFrozen())
+		return;
+
 	if (dragOverlay.alpha != 0.0f)
 	{
 		g.saveState();

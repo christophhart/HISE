@@ -207,6 +207,66 @@ template <int C, int AddToSignal=1> struct block
 namespace routing
 {
 
+struct public_mod_target
+{
+	virtual ~public_mod_target() {};
+
+	bool handleModulation(double& v)
+	{
+		return modValue.getChangedValue(v);
+	}
+
+	ModValue modValue;
+};
+
+struct public_mod
+{
+	SET_HISE_NODE_ID("public_mod");
+	SN_GET_SELF_AS_OBJECT(public_mod);
+
+	HISE_EMPTY_INITIALISE;
+	HISE_EMPTY_PROCESS;
+	HISE_EMPTY_PROCESS_SINGLE;
+	HISE_EMPTY_HANDLE_EVENT;
+	HISE_EMPTY_RESET;
+
+	void prepare(PrepareSpecs ps)
+	{
+		// This is beyond ugly, but somebody has tucked a mod value to the temposyncer...
+
+		if (ptr == nullptr)
+			ptr = &ps.voiceIndex->getTempoSyncer()->publicModValue;
+	}
+
+	public_mod()
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsPublicMod);
+	}
+
+	static constexpr bool isPolyphonic() { return false; }
+
+	template <int P> void setParameter(double v)
+	{
+		if (ptr != nullptr)
+			ptr->setModValueIfChanged(v);
+	}
+	FORWARD_PARAMETER_TO_MEMBER(public_mod);
+
+	void connect(public_mod_target& obj)
+	{
+		ptr = &obj.modValue;
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		parameter::data d("Value", { 0.0, 1.0 });
+		d.callback = parameter::inner<public_mod, 0>(*this);
+		data.add(d);
+	}
+
+	ModValue* ptr = nullptr;
+};
+
 struct base
 {
 	base(const Identifier& id)

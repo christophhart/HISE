@@ -120,22 +120,37 @@ public:
 		postInit();
 	}
 
-	void initFromDll(dll::HostFactory& f, int index)
+	void setOpaqueDataEditor(bool addDragger)
 	{
-		f.initOpaqueNode(&obj.getWrappedObject(), index);
-		this->obj.initialise(asWrapperNode());
-
 		OpaqueNode& n = obj.getWrappedObject();
 
 		if (n.hasComplexData())
 		{
 			opaqueDataHolder = new OpaqueNodeDataHolder(n, asWrapperNode());
 
-			asWrapperNode()->extraComponentFunction = [&](void* , PooledUIUpdater* u)
+			asWrapperNode()->extraComponentFunction = [&](void*, PooledUIUpdater* u)
 			{
-				return new OpaqueNodeDataHolder::Editor(opaqueDataHolder.get(), u);
+				return new OpaqueNodeDataHolder::Editor(opaqueDataHolder.get(), u, addDragger);
 			};
 		}
+		else if (addDragger)
+		{
+			asWrapperNode()->extraComponentFunction = [&](void*, PooledUIUpdater* u)
+			{
+				auto c = new ModulationSourceBaseComponent(u);
+				c->setSize(256, 32);
+				return c;
+			};
+
+		}
+	}
+
+	void initFromDll(dll::HostFactory& f, int index, bool addDragger)
+	{
+		f.initOpaqueNode(&obj.getWrappedObject(), index, asWrapperNode()->getRootNetwork()->isPolyphonic());
+		this->obj.initialise(asWrapperNode());
+
+		setOpaqueDataEditor(addDragger);
 		
 		postInit();
 	}
@@ -148,6 +163,7 @@ public:
 		asWrapperNode()->initParameterData(pData);
 	}
 
+	WrapperType& getWrapperType() { return obj; }
 
 protected:
 

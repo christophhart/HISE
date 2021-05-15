@@ -604,13 +604,150 @@ void WorkbenchInfoComponent::resized()
 
 }
 
+struct OpaqueNetworkHolder
+{
+	
 
+	SN_GET_SELF_AS_OBJECT(OpaqueNetworkHolder);
+
+	bool isPolyphonic() const { return false; }
+
+	HISE_EMPTY_INITIALISE;
+	HISE_EMPTY_PROCESS_SINGLE;
+
+	OpaqueNetworkHolder()
+	{
+
+	}
+
+	~OpaqueNetworkHolder()
+	{
+		ownedNetwork = nullptr;
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		ownedNetwork->getRootNode()->handleHiseEvent(e);
+	}
+
+	bool handleModulation(double& modValue)
+	{
+		return ownedNetwork->handleModulation(modValue);
+	}
+
+	void process(ProcessDataDyn& d)
+	{
+		ownedNetwork->process(d);
+	}
+
+	void reset()
+	{
+		ownedNetwork->getRootNode()->reset();
+	}
+
+	
+
+	void prepare(PrepareSpecs ps)
+	{
+		ownedNetwork->prepareToPlay(ps.sampleRate, ps.blockSize);
+	}
+
+	void createParameters(ParameterDataList& l)
+	{
+		if (ownedNetwork != nullptr)
+		{
+			auto pTree = ownedNetwork->getRootNode()->getValueTree().getChildWithName(PropertyIds::Parameters);
+
+			for (auto c : pTree)
+			{
+				parameter::data p;
+				p.info = parameter::pod(c);
+				setCallback(p, pTree.indexOf(c));
+				l.add(std::move(p));
+			}
+		}
+	}
+
+	void setCallback(parameter::data& d, int index)
+	{
+		if (index == 0) d.callback = parameter::inner<OpaqueNetworkHolder, 0>(*this);
+		if (index == 1) d.callback = parameter::inner<OpaqueNetworkHolder, 1>(*this);
+		if (index == 2) d.callback = parameter::inner<OpaqueNetworkHolder, 2>(*this);
+		if (index == 3) d.callback = parameter::inner<OpaqueNetworkHolder, 3>(*this);
+		if (index == 4) d.callback = parameter::inner<OpaqueNetworkHolder, 4>(*this);
+		if (index == 5) d.callback = parameter::inner<OpaqueNetworkHolder, 5>(*this);
+		if (index == 6) d.callback = parameter::inner<OpaqueNetworkHolder, 6>(*this);
+		if (index == 7) d.callback = parameter::inner<OpaqueNetworkHolder, 7>(*this);
+		if (index == 8) d.callback = parameter::inner<OpaqueNetworkHolder, 8>(*this);
+		if (index == 9) d.callback = parameter::inner<OpaqueNetworkHolder, 9>(*this);
+		if (index == 10) d.callback = parameter::inner<OpaqueNetworkHolder, 10>(*this);
+		if (index == 11) d.callback = parameter::inner<OpaqueNetworkHolder, 11>(*this);
+		if (index == 12) d.callback = parameter::inner<OpaqueNetworkHolder, 12>(*this);
+	}
+
+	template <int P> static void setParameterStatic(void* obj, double v)
+	{
+		auto t = static_cast<OpaqueNetworkHolder*>(obj);
+		t->ownedNetwork->getCurrentParameterHandler()->setParameter(P, (float)v);
+	}
+
+	ReferenceCountedObjectPtr<DspNetwork> ownedNetwork;
+};
 
 
 scriptnode::dll::FunkyHostFactory::FunkyHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 	NodeFactory(n),
 	dllFactory(dll)
 {
+	
+
+	
+
+	auto networks = BackendDllManager::getNetworkFiles(n->getScriptProcessor()->getMainController_());
+	auto numNodes = networks.size();
+
+	for (int i = 0; i < numNodes; i++)
+	{
+		auto f = networks[i];
+		NodeFactory::Item item;
+		item.id = f.getFileNameWithoutExtension();
+		item.cb = [this, i, f](DspNetwork* p, ValueTree v)
+		{
+			auto nodeId = f.getFileNameWithoutExtension();
+			auto networkFile = f;
+			
+
+			if (networkFile.existsAsFile())
+			{
+				if (ScopedPointer<XmlElement> xml = XmlDocument::parse(networkFile.loadFileAsString()))
+				{
+					auto nv = ValueTree::fromXml(*xml);
+
+					auto useModWrapper = cppgen::ValueTreeIterator::hasChildNodeWithProperty(nv, PropertyIds::IsPublicMod);
+
+					auto t = dynamic_cast<InterpretedModNode*>(InterpretedModNode::createNode<OpaqueNetworkHolder, NoExtraComponent, false, false>(p, v));
+
+					auto& on = t->getWrapperType().getWrappedObject();
+					auto onh = static_cast<OpaqueNetworkHolder*>(on.getObjectPtr());
+					onh->ownedNetwork = new DspNetwork(p->getScriptProcessor(), nv, p->isPolyphonic());
+
+					onh->ownedNetwork->setEnableInterpretedGraph(true);
+					ParameterDataList pList;
+					onh->createParameters(pList);
+					on.fillParameterList(pList);
+					t->setOpaqueDataEditor(useModWrapper);
+					
+					t->postInit();
+
+					return dynamic_cast<NodeBase*>(t);
+				}
+			}
+		};
+
+		monoNodes.add(item);
+	}
+
+#if 0
 	auto numNodes = dllFactory.getNumNodes();
 
 	for (int i = 0; i < numNodes; i++)
@@ -620,11 +757,55 @@ scriptnode::dll::FunkyHostFactory::FunkyHostFactory(DspNetwork* n, ProjectDll::P
 		item.id = Identifier(dllFactory.getId(i));
 		item.cb = [this, i](DspNetwork* p, ValueTree v)
 		{
-			auto t = new scriptnode::InterpretedNode(p, v);
-			t->initFromDll(dllFactory, i);
-			return t;
+			auto nodeId = dllFactory.getId(i);
+			auto networkFolder = BackendDllManager::getSubFolder(p->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Networks);
+			auto networkFile = networkFolder.getChildFile(nodeId).withFileExtension("xml");
+
+			if (networkFile.existsAsFile())
+			{
+				if (ScopedPointer<XmlElement> xml = XmlDocument::parse(networkFile.loadFileAsString()))
+				{
+					auto t = dynamic_cast<InterpretedModNode*>(InterpretedModNode::createNode<OpaqueNetworkHolder, NoExtraComponent, false, false>(p, v));
+					
+					auto& on = t->getWrapperType().getWrappedObject();
+					auto onh = static_cast<OpaqueNetworkHolder*>(on.getObjectPtr());
+					
+					auto nv = ValueTree::fromXml(*xml);
+
+					onh->ownedNetwork = new DspNetwork(p->getScriptProcessor(), nv, p->isPolyphonic());
+
+					
+
+					ParameterDataList pList;
+					onh->createParameters(pList);
+					on.fillParameterList(pList);
+
+					//onh->ownedNetwork->setEnableInterpretedGraph(true);
+
+					t->setOpaqueDataEditor(true);
+
+					t->postInit();
+
+					return dynamic_cast<NodeBase*>(t);
+				}
+			}
+
+			if (dllFactory.getWrapperType(i) == 1)
+			{
+				auto t = new scriptnode::InterpretedModNode(p, v);
+				t->initFromDll(dllFactory, i, true);
+				return dynamic_cast<NodeBase*>(t);
+			}
+				
+			else
+			{
+				auto t = new scriptnode::InterpretedNode(p, v);
+				t->initFromDll(dllFactory, i, false);
+				return dynamic_cast<NodeBase*>(t);
+			}
 		};
 
 		monoNodes.add(item);
 	}
+#endif
 }

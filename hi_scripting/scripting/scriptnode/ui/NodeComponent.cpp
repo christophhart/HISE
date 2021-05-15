@@ -66,7 +66,8 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 	parent(parent_),
 	powerButton(getPowerButtonId(false), this, f, getPowerButtonId(true)),
 	deleteButton("delete", this, f),
-	parameterButton("parameter", this, f)
+	parameterButton("parameter", this, f),
+	freezeButton("freeze", this, f)
 {
 	powerButton.setToggleModeWithColourChange(true);
 	
@@ -80,10 +81,17 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 	addAndMakeVisible(powerButton);
 	addAndMakeVisible(deleteButton);
 	addAndMakeVisible(parameterButton);
-	
+	addAndMakeVisible(freezeButton);
+
+	freezeButton.setToggleModeWithColourChange(true);
+
 	parameterButton.setToggleModeWithColourChange(true);
 	parameterButton.setToggleStateAndUpdateIcon(parent.dataReference[PropertyIds::ShowParameters]);
 	parameterButton.setVisible(dynamic_cast<NodeContainer*>(parent.node.get()) != nullptr);
+
+	freezeButton.setEnabled(parent.node->getRootNetwork()->canBeFrozen());
+	if (!freezeButton.isEnabled())
+		freezeButton.setAlpha(0.1f);
 }
 
 
@@ -99,6 +107,11 @@ void NodeComponent::Header::buttonClicked(Button* b)
 
 		parent.dataReference.getParent().removeChild(
 			parent.dataReference, parent.node->getUndoManager());
+	}
+	if (b == &freezeButton)
+	{
+		parent.node->getRootNetwork()->setEnableInterpretedGraph(b->getToggleState());
+		parent.repaint();
 	}
 	if (b == &parameterButton)
 	{
@@ -137,9 +150,11 @@ void NodeComponent::Header::resized()
 	parameterButton.setBounds(b.removeFromLeft(getHeight()).reduced(3));
 
 	deleteButton.setBounds(b.removeFromRight(getHeight()).reduced(3));
+	freezeButton.setBounds(deleteButton.getBounds());
 
 	powerButton.setVisible(!parent.isRoot());
 	deleteButton.setVisible(!parent.isRoot());
+	freezeButton.setVisible(parent.isRoot());
 }
 
 void NodeComponent::Header::mouseDown(const MouseEvent& e)
@@ -346,6 +361,18 @@ void NodeComponent::paint(Graphics& g)
 
 void NodeComponent::paintOverChildren(Graphics& g)
 {
+	if (isRoot() && node->getRootNetwork()->isFrozen())
+	{
+		auto b = getLocalBounds().reduced(1);
+		b.removeFromTop(header.getHeight());
+
+		if (header.parameterButton.getToggleState())
+			b.removeFromTop(UIValues::ParameterHeight);
+
+		g.setColour(Colour(0xAA111111));
+		g.fillRect(b);
+	}
+
 	if (isSelected())
 	{
 		UnblurryGraphics ug(g, *this, true);
@@ -516,7 +543,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 	}
 	if (result >= (int)MenuActions::WrapIntoChain && result <= (int)MenuActions::WrapIntoOversample4)
 	{
-		auto framePath = "container.frame" + String(node->getNumChannelsToProcess()) + "_block";
+		auto framePath = "container.frame" + String(node->getCurrentChannelAmount()) + "_block";
 
 		StringArray ids = { "container.chain", "container.split", "container.multi",
 						      framePath, "container.oversample4x" };
@@ -639,6 +666,14 @@ juce::Colour NodeComponent::getOutlineColour() const
 	return header.isDragging ? Colour(0x88444444) : Colour(0xFF555555);
 }
 
+juce::Colour NodeComponent::getHeaderColour() const
+{
+	if (!header.colour.isTransparent())
+		return header.colour;
+
+	return Colours::white;
+}
+
 void NodeComponent::drawTopBodyGradient(Graphics& g, float alpha/*=0.1f*/, float height/*=20.0f*/)
 {
 	auto b = getLocalBounds().toFloat();
@@ -742,6 +777,7 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("goto", ColumnIcons::targetIcon);
 	LOAD_PATH_IF_URL("parameter", HiBinaryData::SpecialSymbols::macros);
 	LOAD_PATH_IF_URL("split", ScriptnodeIcons::splitIcon);
+	LOAD_PATH_IF_URL("freeze", HnodeIcons::freezeIcon);
 	LOAD_PATH_IF_URL("chain", ScriptnodeIcons::chainIcon);
 	LOAD_PATH_IF_URL("multi", ScriptnodeIcons::multiIcon);
 	LOAD_PATH_IF_URL("modchain", ScriptnodeIcons::modIcon);
