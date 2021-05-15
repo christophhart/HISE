@@ -101,7 +101,7 @@ public:
 	{
 		// if you're hitting this assertion, it means that you haven't killed the voices properly.
 		// Use an raw::TaskAfterSuspension object for this.
-		jassert(LockHelpers::freeToGo(mc));
+		//jassert(LockHelpers::freeToGo(mc));
 
 		
 	};

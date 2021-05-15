@@ -144,7 +144,7 @@ using ParameterType = parameter::chain<ranges::Identity, FirstParameter, SecondP
 
 //using ParameterType = parameter::empty;
 
-using OscType = core::oscillator;
+using OscType = core::oscillator<1>;
 
 // We can't use the node directly, but wrap it into a container so that it can
 // use the properties and parameters (in this example it's a bit overkill)...

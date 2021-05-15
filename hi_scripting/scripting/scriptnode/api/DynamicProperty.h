@@ -394,7 +394,7 @@ struct dynamic_chain : public dynamic_base
 
 	dynamic_base* getFirstIfSingle()
 	{
-		if (targets.size() == 1 && RangeHelpers::isIdentity(inputRange))
+		if (targets.size() == 1 && (RangeHelpers::isIdentity(inputRange2) || scaleInput))
 			return targets.removeAndReturn(0);
 
 		return nullptr;
@@ -402,10 +402,11 @@ struct dynamic_chain : public dynamic_base
 
 	void call(double v)
 	{
-		auto nv = inputRange.convertTo0to1(v);
+		if (scaleInput)
+			v = inputRange2.convertTo0to1(v);
 
 		for (auto& t : targets)
-			t->call(nv);
+			t->call(v);
 	}
 
 	int getNumDuplicates() const override
@@ -440,8 +441,9 @@ struct dynamic_chain : public dynamic_base
 			t->updateUI();
 	}
 
+	bool scaleInput = true;
 	OwnedArray<dynamic_base> targets;
-	NormalisableRange<double> inputRange;
+	NormalisableRange<double> inputRange2;
 };
 
 

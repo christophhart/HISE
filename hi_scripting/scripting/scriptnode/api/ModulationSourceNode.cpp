@@ -308,6 +308,7 @@ void ModulationSourceNode::rebuildModulationConnections()
 	start();
 
 	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
+	chain->scaleInput = false;
 
 	for (auto m : modTree)
 	{

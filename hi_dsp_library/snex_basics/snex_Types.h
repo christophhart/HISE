@@ -271,6 +271,81 @@ struct VoiceResetter
 	JUCE_DECLARE_WEAK_REFERENCEABLE(VoiceResetter);
 };
 
+struct DllBoundaryTempoSyncer: public hise::TempoListener
+{
+	typedef void(*MyFunc)(void*, double);
+
+	struct Item
+	{
+		Item() :
+			obj(nullptr),
+			f(nullptr)
+		{};
+
+		Item(void* o, MyFunc f_) :
+			obj(o),
+			f(f_)
+		{};
+
+		bool operator==(const Item& other) const { return obj == other.obj; }
+		operator bool() const { return obj != nullptr; }
+		
+		void call(double newTempo)
+		{
+			if (obj != nullptr)
+				f(obj, newTempo);
+		}
+
+		void* obj = nullptr;
+		MyFunc f = nullptr;
+	};
+
+	DllBoundaryTempoSyncer()
+	{
+		
+	}
+
+	~DllBoundaryTempoSyncer()
+	{
+
+	}
+
+	/** Register an item that has a tempoChangedStatic class. */
+	template <typename T> bool registerItem(T* obj)
+	{
+		Item newItem(obj, T::tempoChangedStatic);
+		auto ok = data.insert(newItem);
+
+		if(ok)
+			newItem.call(bpm);
+
+		return ok;
+	}
+
+	/** deregisters an item with the tempo changed class. */
+	void deregisterItem(void* obj)
+	{
+		data.removeElement(Item(obj, nullptr));
+	}
+
+	void tempoChanged(double newTempo)
+	{
+		if (bpm != newTempo)
+		{
+			bpm = newTempo;
+
+			for (auto& d : data)
+				d.call(newTempo);
+		}
+	}
+
+	double bpm = 120.0;
+	hise::UnorderedStack<Item, 32> data;
+
+	// Oh boy, what a disgrace...
+	ModValue publicModValue;
+};
+
 /** The PolyHandler can be used in order to create data structures that can be used
     in a polyphonic context.
 	
@@ -412,12 +487,17 @@ struct PolyHandler
 		return vr.get();
 	}
 
+	void setTempoSyncer(DllBoundaryTempoSyncer* newTempoSyncer) { tempoSyncer = newTempoSyncer; }
+
+	DllBoundaryTempoSyncer* getTempoSyncer() { return tempoSyncer; }
+
 private:
 
 	std::atomic<void*> currentAllThread = { nullptr }; // 0 byte offset
 	std::atomic<int> voiceIndex = { -1 };			   // 8 byte offset
 	int enabled;									   // 12 byte offset
-	WeakReference<VoiceResetter> vr = nullptr;					   // 16 byte offset
+	WeakReference<VoiceResetter> vr = nullptr;		   // 16 byte offset
+	DllBoundaryTempoSyncer* tempoSyncer = nullptr;
 };
 
 

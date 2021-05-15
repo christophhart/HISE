@@ -81,7 +81,7 @@ struct audio_spin_mutex
 				_mm_pause();
 			}
 
-			jassertfalse;
+			//jassertfalse;
 		}
 	}
 
@@ -202,6 +202,7 @@ struct LambdaWithComponent
 
 #define CALL_ASYNC_WITH_COMPONENT(ComponentClass, component) LambdaWithComponent::callAsync<ComponentClass>(closeButton, [](ComponentClass* component)
 
+#if !HISE_NO_GUI_TOOLS
 /** A small helper interface class that allows you to find the topmost component
 	that might have a OpenGL context attached.
 
@@ -241,6 +242,7 @@ private:
 	bool enabled = false;
 	OpenGLContext context;
 };
+#endif
 
 
 class SuspendableTimer
@@ -1572,6 +1574,109 @@ private:
 	int64 timeOfLastCall;
 
 	int64 timeOfDebugCall;
+};
+
+/** A class that handles tempo syncing.
+*	@ingroup utility
+*
+*	All methods are static and it holds no data, so you have to get the host bpm before
+*	you can use this class.
+*
+*	You can use the slider mode TempoSync, which automatically maps the slider values
+*	to the tempo indexes and shows the corresponding text representation.
+*
+*	If the supplied hostTempo is invalid (= 0.0), a default tempo of 120.0 is used.
+*/
+class TempoSyncer
+{
+public:
+
+	/** The note values. */
+	enum Tempo
+	{
+		Whole = 0, ///< a whole note (1/1)
+		HalfDuet, ///< a half note duole (1/2D)
+		Half, ///< a half note (1/2)
+		HalfTriplet, ///< a half triplet note (1/2T)
+		QuarterDuet, ///< a quarter note duole (1/4D)
+		Quarter, ///< a quarter note (1/4)
+		QuarterTriplet, ///< a quarter triplet note (1/4T)
+		EighthDuet, ///< a eight note duole (1/8D)
+		Eighth, ///< a eighth note (1/8)
+		EighthTriplet, ///< a eighth triplet note (1/8T)
+		SixteenthDuet, ///< a sixteenth duole (1/16D)
+		Sixteenth, ///< a sixteenth note (1/16)
+		SixteenthTriplet, ///< a sixteenth triplet (1/16T)
+		ThirtyTwoDuet, ///< a 32th duole (1/32D)
+		ThirtyTwo, ///< a 32th note (1/32)
+		ThirtyTwoTriplet, ///< a 32th triplet (1/32T)
+		SixtyForthDuet, ///< a 64th duole (1/64D)
+		SixtyForth, ///< a 64th note (1/64)
+		SixtyForthTriplet, ///> a 64th triplet 1/64T)
+		numTempos
+	};
+
+	/** Returns the sample amount for the specified tempo. */
+	static int getTempoInSamples(double hostTempoBpm, double sampleRate, Tempo t);;
+
+	static int getTempoInSamples(double hostTempoBpm, double sampleRate, float tempoFactor);
+
+	static const StringArray& getTempoNames() { return tempoNames; };
+
+	/** Returns the time for the specified tempo in milliseconds. */
+	static float getTempoInMilliSeconds(double hostTempoBpm, Tempo t);;
+
+	/** Returns the tempo as frequency (in Hertz). */
+	static float getTempoInHertz(double hostTempoBpm, Tempo t);
+
+	/** Returns the name of the tempo with the index 't'. */
+	static String getTempoName(int t);;
+
+	/** Returns the next Tempo index for the given time.
+	*
+	*	This is not a super fast operation, but it helps with dealing between the
+	*	two realms.
+	*/
+	static Tempo getTempoIndexForTime(double currentBpm, double milliSeconds);
+
+	/** Returns the index of the tempo with the name 't'. */
+	static Tempo getTempoIndex(const String &t);;
+
+	/** Fills the internal arrays. Call this on application start. */
+	static void initTempoData();
+
+	static float getTempoFactor(Tempo t);;
+
+private:
+
+	static StringArray tempoNames;
+	static float tempoFactors[numTempos];
+
+};
+
+/** This class is a listener class that can react to tempo changes.
+*	@ingroup utility
+*
+*	In order to use this, subclass this and implement the behaviour in the tempoChanged callback.
+*/
+class TempoListener
+{
+public:
+
+	virtual ~TempoListener() {};
+
+	/** The callback function that will be called if the tempo was changed.
+	*
+	*	This is called synchronously in the audio callback before the processing, so make sure you don't
+	*	make something stupid here.
+	*
+	*	It will be called once per block, so you can't do sample synchronous tempo stuff, but that should be enough.
+	*/
+	virtual void tempoChanged(double newTempo) = 0;
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(TempoListener);
 };
 
 

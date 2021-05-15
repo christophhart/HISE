@@ -328,21 +328,22 @@ public:
 	}
 
 	/** Inserts an element at the end of the unordered stack. */
-	void insert(const ElementType& elementTypeToInsert)
+	bool insert(const ElementType& elementTypeToInsert)
 	{
 		Lock sl(lock);
 
 		if (contains(elementTypeToInsert))
 		{
-			return;
+			return false;
 		}
 
 		data[position] = elementTypeToInsert;
 
 		position = jmin<int>(position + 1, SIZE - 1);
+		return true;
 	}
 
-	void insertWithoutSearch(ElementType&& elementTypeToInsert)
+	bool insertWithoutSearch(ElementType&& elementTypeToInsert)
 	{
 		Lock sl(lock);
 
@@ -351,6 +352,7 @@ public:
 		data[position] = std::move(elementTypeToInsert);
 
 		position = jmin<int>(position + 1, SIZE - 1);
+		return true;
 	}
 
 	void insertWithoutSearch(const ElementType& elementTypeToInsert)

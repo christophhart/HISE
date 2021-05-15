@@ -751,6 +751,7 @@ private:
 
 	const bool isPoly;
 
+	snex::Types::DllBoundaryTempoSyncer tempoSyncer;
 	snex::Types::PolyHandler voiceIndex;
 
 	SelectedItemSet<NodeBase::Ptr> selection;

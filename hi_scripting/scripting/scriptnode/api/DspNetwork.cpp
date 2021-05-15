@@ -58,6 +58,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 #endif
 	parentHolder(dynamic_cast<Holder*>(p))
 {
+	voiceIndex.setTempoSyncer(&tempoSyncer);
+	getScriptProcessor()->getMainController_()->addTempoListener(&tempoSyncer);
 	setExternalDataHolder(dynamic_cast<ExternalDataHolder*>(p));
 
 	ownedFactories.add(new NodeContainerFactory(this));
@@ -126,6 +128,7 @@ DspNetwork::~DspNetwork()
 	selectionUpdater = nullptr;
 	nodes.clear();
     nodeFactories.clear();
+	getScriptProcessor()->getMainController_()->removeTempoListener(&tempoSyncer);
 }
 
 

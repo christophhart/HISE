@@ -728,7 +728,110 @@ void SafeChangeListener::handlePooledMessage(PooledUIUpdater::Broadcaster* b)
 	changeListenerCallback(dynamic_cast<SafeChangeBroadcaster*>(b));
 }
 
+StringArray TempoSyncer::tempoNames = StringArray();
+
+float TempoSyncer::tempoFactors[numTempos];
 
 
+int TempoSyncer::getTempoInSamples(double hostTempoBpm, double sampleRate, float tempoFactor)
+{
+	if (hostTempoBpm == 0.0) hostTempoBpm = 120.0;
+
+	const float seconds = (60.0f / (float)hostTempoBpm) * tempoFactor;
+	return (int)(seconds * (float)sampleRate);
+}
+
+int TempoSyncer::getTempoInSamples(double hostTempoBpm, double sampleRate, Tempo t)
+{
+	return getTempoInSamples(hostTempoBpm, sampleRate, getTempoFactor(t));
+}
+
+float TempoSyncer::getTempoInMilliSeconds(double hostTempoBpm, Tempo t)
+{
+	if (hostTempoBpm == 0.0) hostTempoBpm = 120.0;
+
+	const float seconds = (60.0f / (float)hostTempoBpm) * getTempoFactor(t);
+	return seconds * 1000.0f;
+}
+
+float TempoSyncer::getTempoInHertz(double hostTempoBpm, Tempo t)
+{
+	if (hostTempoBpm == 0.0) hostTempoBpm = 120.0;
+
+	const float seconds = (60.0f / (float)hostTempoBpm) * getTempoFactor(t);
+
+	return 1.0f / seconds;
+}
+
+String TempoSyncer::getTempoName(int t)
+{
+	jassert(t < numTempos);
+	return t < numTempos ? tempoNames[t] : "Invalid";
+}
+
+hise::TempoSyncer::Tempo TempoSyncer::getTempoIndexForTime(double currentBpm, double milliSeconds)
+{
+	float max = 200000.0f;
+	int index = -1;
+
+	for (int i = 0; i < numTempos; i++)
+	{
+		const float thisDelta = fabsf(getTempoInMilliSeconds((float)currentBpm, (Tempo)i) - (float)milliSeconds);
+
+		if (thisDelta < max)
+		{
+			max = thisDelta;
+			index = i;
+		}
+	}
+
+	if (index >= 0)
+		return (Tempo)index;
+
+	// Fallback Dummy
+	return Tempo::Quarter;
+}
+
+hise::TempoSyncer::Tempo TempoSyncer::getTempoIndex(const String &t)
+{
+	int index = tempoNames.indexOf(t);
+
+	if (index != -1)
+		return (Tempo)index;
+	else
+	{
+		jassertfalse;
+		return Tempo::Quarter;
+	}
+}
+
+void TempoSyncer::initTempoData()
+{
+	tempoNames.add("1/1");		tempoFactors[Whole] = 4.0f;
+	tempoNames.add("1/2D");	    tempoFactors[HalfDuet] = 2.0f * 1.5f;
+	tempoNames.add("1/2");		tempoFactors[Half] = 2.0f;
+	tempoNames.add("1/2T");		tempoFactors[HalfTriplet] = 4.0f / 3.0f;
+	tempoNames.add("1/4D");	    tempoFactors[QuarterDuet] = 1.0f * 1.5f;
+	tempoNames.add("1/4");		tempoFactors[Quarter] = 1.0f;
+	tempoNames.add("1/4T");		tempoFactors[QuarterTriplet] = 2.0f / 3.0f;
+	tempoNames.add("1/8D");	    tempoFactors[EighthDuet] = 0.5f * 1.5f;
+	tempoNames.add("1/8");		tempoFactors[Eighth] = 0.5f;
+	tempoNames.add("1/8T");		tempoFactors[EighthTriplet] = 1.0f / 3.0f;
+	tempoNames.add("1/16D");	tempoFactors[SixteenthDuet] = 0.25f * 1.5f;
+	tempoNames.add("1/16");		tempoFactors[Sixteenth] = 0.25f;
+	tempoNames.add("1/16T");	tempoFactors[SixteenthTriplet] = 0.5f / 3.0f;
+	tempoNames.add("1/32D");	tempoFactors[ThirtyTwoDuet] = 0.125f * 1.5f;
+	tempoNames.add("1/32");		tempoFactors[ThirtyTwo] = 0.125f;
+	tempoNames.add("1/32T");	tempoFactors[ThirtyTwoTriplet] = 0.25f / 3.0f;
+	tempoNames.add("1/64D");	tempoFactors[SixtyForthDuet] = 0.125f * 0.5f * 1.5f;
+	tempoNames.add("1/64");		tempoFactors[SixtyForth] = 0.125f * 0.5f;
+	tempoNames.add("1/64T");	tempoFactors[SixtyForthTriplet] = 0.125f / 3.0f;
+}
+
+float TempoSyncer::getTempoFactor(Tempo t)
+{
+	jassert(t < numTempos);
+	return t < numTempos ? tempoFactors[(int)t] : tempoFactors[(int)Tempo::Quarter];
+}
 
 }

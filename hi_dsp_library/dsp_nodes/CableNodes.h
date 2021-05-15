@@ -356,6 +356,111 @@ namespace control
 		JUCE_DECLARE_WEAK_REFERENCEABLE(input_toggle);
 	};
 
+	class tempo_sync : public mothernode,
+					   public hise::TempoListener
+	{
+	public:
+
+		enum class Parameters
+		{
+			Tempo,
+			Multiplier,
+			Enabled,
+			UnsyncedTime
+		};
+
+		DEFINE_PARAMETERS
+		{
+			DEF_PARAMETER(Tempo, tempo_sync);
+			DEF_PARAMETER(Multiplier, tempo_sync);
+			DEF_PARAMETER(Enabled, tempo_sync);
+			DEF_PARAMETER(UnsyncedTime, tempo_sync);
+		}
+		PARAMETER_MEMBER_FUNCTION;
+
+		bool isPolyphonic() const { return false; }
+
+		SET_HISE_NODE_ID("tempo_sync");
+		SN_GET_SELF_AS_OBJECT(tempo_sync);
+
+		void prepare(PrepareSpecs ps);
+
+		HISE_EMPTY_INITIALISE;
+		HISE_EMPTY_RESET;
+		HISE_EMPTY_PROCESS;
+		HISE_EMPTY_PROCESS_SINGLE;
+		HISE_EMPTY_HANDLE_EVENT;
+
+		tempo_sync();
+		~tempo_sync();
+
+		void createParameters(ParameterDataList& data);
+		void tempoChanged(double newTempo) override;
+		void setTempo(double newTempoIndex);
+		bool handleModulation(double& max);
+
+		static constexpr bool isNormalisedModulation() { return false; }
+
+		void setMultiplier(double newMultiplier);
+
+		void setEnabled(double v);
+		void setUnsyncedTime(double unsyncedTime);
+
+		static void tempoChangedStatic(void* obj, double newBpm)
+		{
+			auto s = static_cast<tempo_sync*>(obj);
+			s->tempoChanged(newBpm);
+		}
+
+		void refresh();
+
+		double currentTempoMilliseconds = 500.0;
+		double lastTempoMs = 0.0;
+		double bpm = 120.0;
+
+		bool enabled = false;
+		double unsyncedTime = false;
+
+		double multiplier = 1.0;
+		TempoSyncer::Tempo currentTempo = TempoSyncer::Tempo::Eighth;
+
+
+		DllBoundaryTempoSyncer* tempoSyncer = nullptr;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(tempo_sync);
+	};
+
+	template <typename ParameterClass> struct resetter : public mothernode,
+														 public pimpl::no_processing,
+														 public pimpl::parameter_node_base<ParameterClass>
+	{
+		SET_HISE_NODE_ID("resetter");
+		SN_GET_SELF_AS_OBJECT(resetter);
+		SN_PARAMETER_NODE_CONSTRUCTOR(resetter, ParameterClass);
+
+		template <int P> void setParameter(double v)
+		{
+			flashCounter++;
+			this->getParameter().call(0.0);
+			this->getParameter().call(1.0);
+		}
+
+		void createParameters(ParameterDataList& data)
+		{
+			{
+				parameter::data p("Value", { 0.0, 1.0 });
+				p.callback = parameter::inner<resetter, 0>(*this);
+				data.add(std::move(p));
+			}
+		}
+
+		int flashCounter = 0;
+
+		FORWARD_PARAMETER_TO_MEMBER(resetter);
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(resetter);
+	};
+
 	template <typename ParameterClass> struct cable_table : public scriptnode::data::base,
 															public pimpl::parameter_node_base<ParameterClass>,
 															public pimpl::no_processing

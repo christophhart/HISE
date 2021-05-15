@@ -567,157 +567,310 @@ struct xy :
 		}
 	}
 
-	struct editor : public ScriptnodeExtraComponent<xy>
+	
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(xy);
+};
+
+struct TempoDisplay : public ModulationSourceBaseComponent
+{
+	using ObjectType = tempo_sync;
+
+	TempoDisplay(PooledUIUpdater* updater, tempo_sync* p_) :
+		ModulationSourceBaseComponent(updater),
+		p(p_)
 	{
-		editor(xy* o, PooledUIUpdater* p) :
-			ScriptnodeExtraComponent<xy>(o, p),
-			xDragger(&o->getParameter(), 0),
-			yDragger(&o->getParameter(), 1)
+		setSize(200, 40);
+	}
+
+	static Component* createExtraComponent(void *p, PooledUIUpdater* updater)
+	{
+		auto t = static_cast<mothernode*>(p);
+
+		return new TempoDisplay(updater, dynamic_cast<ObjectType*>(t));
+	}
+
+	void timerCallback() override
+	{
+		if (p == nullptr)
+			return;
+
+		auto thisValue = p->currentTempoMilliseconds;
+
+		if (thisValue != lastValue)
 		{
-			addAndMakeVisible(xDragger);
-			addAndMakeVisible(yDragger);
-
-			xDragger.textFunction = getAxis;
-			yDragger.textFunction = getAxis;
-
-			setSize(200, 200 + UIValues::NodeMargin);
-
-			setRepaintsOnMouseActivity(true);
-		};
-
-		static String getAxis(int index)
-		{
-			return index == 0 ? "X" : "Y";
-		}
-
-		Array<Point<float>> lastPositions;
-
-		Point<float> normalisedPosition;
-
-		void mouseDrag(const MouseEvent& e) override
-		{
-			auto a = getXYArea().reduced(circleWidth / 2.0f);
-			auto pos = e.getPosition().toFloat();
-
-			auto xValue = (pos.getX() - a.getX()) / a.getWidth();
-			auto yValue = 1.0f - (pos.getY() - a.getY()) / a.getHeight();
-
-			findParentComponentOfClass<NodeComponent>()->node->getParameter(0)->setValueAndStoreAsync(xValue);
-			findParentComponentOfClass<NodeComponent>()->node->getParameter(1)->setValueAndStoreAsync(yValue);
-		}
-
-		void timerCallback() override
-		{
-			for (auto o : getObject()->p.targets)
-				o->p.updateUI();
-
-			auto x = jlimit(0.0f, 1.0f, (float)getObject()->p.getParameter<0>().lastValue);
-			auto y = jlimit(0.0f, 1.0f, (float)getObject()->p.getParameter<1>().lastValue);
-
-			lastPositions.insert(0, normalisedPosition);
-
-			if (lastPositions.size() >= 20)
-				lastPositions.removeLast();
-
-			normalisedPosition = { x, (1.0f - y) };
+			lastValue = thisValue;
 			repaint();
 		}
 
-		void resized() override
+		auto now = Time::getMillisecondCounter();
+
+		if (now - lastTime > thisValue)
 		{
-			auto b = getLocalBounds();
-			b.removeFromBottom(UIValues::NodeMargin);
-			auto y = b.removeFromRight(28);
-			y.removeFromBottom(28);
-
-			yDragger.setBounds(y.reduced(2));
-			xDragger.setBounds(b.removeFromBottom(28).reduced(2));
+			on = !on;
+			repaint();
+			lastTime = now;
 		}
+	}
 
-		static Component* createExtraComponent(void* obj, PooledUIUpdater* u)
-		{
-			auto t = static_cast<xy*>(obj);
-			return new editor(t, u);
-		}
+	void paint(Graphics& g) override
+	{
+		String n = String((int)lastValue) + " ms";
 
-		static constexpr float circleWidth = 24.0f;
+		auto b = getLocalBounds().toFloat().reduced(6.0f);
 
-		Rectangle<float> getXYArea() const
-		{
-			auto b = getLocalBounds();
-			b.removeFromRight(28);
-			b.removeFromBottom(28 + UIValues::NodeMargin);
-			
-			return b.reduced(1).toFloat();
-		}
+		g.setColour(Colours::black.withAlpha(0.1f));
+		g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
 
-		Rectangle<float> getDot(Point<float> p) const
-		{
-			auto a = getXYArea();
-			auto aCopy = a.reduced(1.0f);
-			auto c = aCopy.removeFromLeft(circleWidth).removeFromTop(circleWidth);
+		auto c = findParentComponentOfClass<NodeComponent>()->header.colour;
 
-			c = c.withX(a.getX() + p.getX() * (a.getWidth() - c.getWidth()));
-			c = c.withY(a.getY() + p.getY() * (a.getHeight() - c.getHeight()));
+		if (c == Colours::transparentBlack)
+			c = Colour(0xFFAAAAAA);
 
-			return c;
-		}
+		g.setColour(c);
+		g.setFont(GLOBAL_BOLD_FONT());
 
-		void paint(Graphics& g) override
-		{
-			auto a = getXYArea();
+		Path p;
+		p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
 
-			g.setColour(Colours::black.withAlpha(0.3f));
-			g.fillRoundedRectangle(a, circleWidth / 2.0f);
-			g.drawRoundedRectangle(a, circleWidth / 2.0f, 1.0f);
+		PathFactory::scalePath(p, b.removeFromLeft(b.getHeight()).reduced(3));
 
-			g.drawVerticalLine(a.getCentreX(), a.getY() + 4.0f, a.getBottom() - 4.0f);
-			g.drawHorizontalLine(a.getCentreY(), a.getX() + 4.0f, a.getRight() - 4.0f);
+		g.fillPath(p);
 
-			auto c = getDot(normalisedPosition);
+		auto r = b.removeFromRight(b.getHeight()).reduced(6.0f);
 
-			auto fc = findParentComponentOfClass<NodeComponent>()->header.colour;
+		g.drawText(n, b, Justification::centred);
 
-			if(fc == Colours::transparentBlack)
-				fc = Colour(0xFFAAAAAA);
+		g.drawEllipse(r, 2.0f);
 
-			g.setColour(fc);
-			g.drawEllipse(c, 2.0f);
-			g.fillEllipse(c.reduced(4.0f));
+		if (on)
+			g.fillEllipse(r.reduced(4.0f));
+	}
 
-			float alpha = 0.3f;
-			float s = 4.0f;
+	double lastValue = 0.0;
 
-			Path p;
-			p.startNewSubPath(c.getCentre());
+	bool on = false;
 
-			auto maxDistance = 0.0f;
-			auto maxP = c.getCentre();
+	uint32_t lastTime;
 
-			for (auto pos : lastPositions)
-			{
-				auto pp = getDot(pos).getCentre();
+	WeakReference<tempo_sync> p;
+};
 
-				auto d = pp.getDistanceFrom(c.getCentre());
+struct resetter_editor: public ScriptnodeExtraComponent<control::resetter<parameter::dynamic_base_holder>>
+{
+	using NodeType = control::resetter<parameter::dynamic_base_holder>;
 
-				if (d > maxDistance)
-				{
-					maxDistance = d;
-					maxP = pp;
-				}
-				
-				p.lineTo(pp);
-			}
-			
-			p = p.createPathWithRoundedCorners(circleWidth);
-			g.setGradientFill(ColourGradient(fc.withAlpha(0.5f), c.getCentre(), fc.withAlpha(0.0f), maxP, true));
-			g.strokePath(p, PathStrokeType(3.0f, PathStrokeType::curved, PathStrokeType::rounded));
-		}
+	resetter_editor(NodeType* n, PooledUIUpdater* u):
+		ScriptnodeExtraComponent<NodeType>(n, u),
+		dragger(u)
+	{
+		setSize(100, 30);
+		addAndMakeVisible(dragger);
+	}
 
-		parameter::ui::dynamic_list_editor::DragComponent xDragger, yDragger;
+	void timerCallback() override
+	{
+		auto lastAlpha = flashAlpha;
+
+		if (lastCounter != getObject()->flashCounter)
+			flashAlpha = 0.7f;
+		else
+			flashAlpha = jmax(0.1f, flashAlpha * 0.8f);
+
+		lastCounter = getObject()->flashCounter;
+
+		if(flashAlpha != lastAlpha)
+			repaint();
+	}
+
+	void paint(Graphics& g) override
+	{
+		Colour c;
+
+		if (auto nc = findParentComponentOfClass<NodeComponent>())
+			c = nc->header.colour;
+
+		if (c == Colours::transparentBlack)
+			c = Colours::white;
+
+		g.setColour(c.withAlpha(0.2f));
+		g.drawEllipse(area.reduced(2.0f), 1.0f);
+
+		g.setColour(c.withAlpha(flashAlpha));
+		g.fillEllipse(area.reduced(6.0f));
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		area = b.removeFromRight(b.getHeight()).toFloat().reduced(3.0f);
+		dragger.setBounds(getLocalBounds());
+	}
+
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* u)
+	{
+		auto mn = static_cast<mothernode*>(obj);
+		return new resetter_editor(dynamic_cast<NodeType*>(mn), u);
+	}
+
+	int lastCounter = 0;
+	float flashAlpha = 0.0f;
+	Rectangle<float> area;
+
+	ModulationSourceBaseComponent dragger;
+};
+
+
+struct xy_editor : public ScriptnodeExtraComponent<control::xy<parameter::dynamic_list>>
+{
+	using NodeType = control::xy<parameter::dynamic_list>;
+
+	xy_editor(NodeType* o, PooledUIUpdater* p) :
+		ScriptnodeExtraComponent<NodeType>(o, p),
+		xDragger(&o->getParameter(), 0),
+		yDragger(&o->getParameter(), 1)
+	{
+		addAndMakeVisible(xDragger);
+		addAndMakeVisible(yDragger);
+
+		xDragger.textFunction = getAxis;
+		yDragger.textFunction = getAxis;
+
+		setSize(200, 200 + UIValues::NodeMargin);
+
+		setRepaintsOnMouseActivity(true);
 	};
 
-	JUCE_DECLARE_WEAK_REFERENCEABLE(xy);
+	static String getAxis(int index)
+	{
+		return index == 0 ? "X" : "Y";
+	}
+
+	Array<Point<float>> lastPositions;
+
+	Point<float> normalisedPosition;
+
+	void mouseDrag(const MouseEvent& e) override
+	{
+		auto a = getXYArea().reduced(circleWidth / 2.0f);
+		auto pos = e.getPosition().toFloat();
+
+		auto xValue = (pos.getX() - a.getX()) / a.getWidth();
+		auto yValue = 1.0f - (pos.getY() - a.getY()) / a.getHeight();
+
+		findParentComponentOfClass<NodeComponent>()->node->getParameter(0)->setValueAndStoreAsync(xValue);
+		findParentComponentOfClass<NodeComponent>()->node->getParameter(1)->setValueAndStoreAsync(yValue);
+	}
+
+	void timerCallback() override
+	{
+		for (auto o : getObject()->p.targets)
+			o->p.updateUI();
+
+		auto x = jlimit(0.0f, 1.0f, (float)getObject()->p.getParameter<0>().lastValue);
+		auto y = jlimit(0.0f, 1.0f, (float)getObject()->p.getParameter<1>().lastValue);
+
+		lastPositions.insert(0, normalisedPosition);
+
+		if (lastPositions.size() >= 20)
+			lastPositions.removeLast();
+
+		normalisedPosition = { x, (1.0f - y) };
+		repaint();
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		b.removeFromBottom(UIValues::NodeMargin);
+		auto y = b.removeFromRight(28);
+		y.removeFromBottom(28);
+
+		yDragger.setBounds(y.reduced(2));
+		xDragger.setBounds(b.removeFromBottom(28).reduced(2));
+	}
+
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* u)
+	{
+		auto t = static_cast<NodeType*>(obj);
+		return new xy_editor(t, u);
+	}
+
+	static constexpr float circleWidth = 24.0f;
+
+	Rectangle<float> getXYArea() const
+	{
+		auto b = getLocalBounds();
+		b.removeFromRight(28);
+		b.removeFromBottom(28 + UIValues::NodeMargin);
+
+		return b.reduced(1).toFloat();
+	}
+
+	Rectangle<float> getDot(Point<float> p) const
+	{
+		auto a = getXYArea();
+		auto aCopy = a.reduced(1.0f);
+		auto c = aCopy.removeFromLeft(circleWidth).removeFromTop(circleWidth);
+
+		c = c.withX(a.getX() + p.getX() * (a.getWidth() - c.getWidth()));
+		c = c.withY(a.getY() + p.getY() * (a.getHeight() - c.getHeight()));
+
+		return c;
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto a = getXYArea();
+
+		g.setColour(Colours::black.withAlpha(0.3f));
+		g.fillRoundedRectangle(a, circleWidth / 2.0f);
+		g.drawRoundedRectangle(a, circleWidth / 2.0f, 1.0f);
+
+		g.drawVerticalLine(a.getCentreX(), a.getY() + 4.0f, a.getBottom() - 4.0f);
+		g.drawHorizontalLine(a.getCentreY(), a.getX() + 4.0f, a.getRight() - 4.0f);
+
+		auto c = getDot(normalisedPosition);
+
+		auto fc = findParentComponentOfClass<NodeComponent>()->header.colour;
+
+		if (fc == Colours::transparentBlack)
+			fc = Colour(0xFFAAAAAA);
+
+		g.setColour(fc);
+		g.drawEllipse(c, 2.0f);
+		g.fillEllipse(c.reduced(4.0f));
+
+		float alpha = 0.3f;
+		float s = 4.0f;
+
+		Path p;
+		p.startNewSubPath(c.getCentre());
+
+		auto maxDistance = 0.0f;
+		auto maxP = c.getCentre();
+
+		for (auto pos : lastPositions)
+		{
+			auto pp = getDot(pos).getCentre();
+
+			auto d = pp.getDistanceFrom(c.getCentre());
+
+			if (d > maxDistance)
+			{
+				maxDistance = d;
+				maxP = pp;
+			}
+
+			p.lineTo(pp);
+		}
+
+		p = p.createPathWithRoundedCorners(circleWidth);
+		g.setGradientFill(ColourGradient(fc.withAlpha(0.5f), c.getCentre(), fc.withAlpha(0.0f), maxP, true));
+		g.strokePath(p, PathStrokeType(3.0f, PathStrokeType::curved, PathStrokeType::rounded));
+	}
+
+	parameter::ui::dynamic_list_editor::DragComponent xDragger, yDragger;
 };
 
 }
@@ -1068,6 +1221,8 @@ namespace control
 		registerNoProcessNode<file_analysers::dynamic::NodeType, file_analysers::dynamic::editor, false>(); //>();
 
 		registerNodeRaw<InterpretedUnisonoWrapperNode>();
+
+		registerModNode<tempo_sync, TempoDisplay>();
 	}
 }
 
@@ -1340,7 +1495,6 @@ Factory::Factory(DspNetwork* network) :
 
 	registerPolyNode<gain, gain_poly>();
 
-	registerModNode<tempo_sync, TempoDisplay>();
 
 #if HISE_INCLUDE_SNEX
 	registerPolyNode<snex_osc<SnexOscillator>, snex_osc_poly<SnexOscillator>, NewSnexOscillatorDisplay>();
