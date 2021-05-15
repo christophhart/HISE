@@ -68,6 +68,16 @@ public:
 		numColours
 	};
 
+	struct LookAndFeelMethods
+	{
+		virtual ~LookAndFeelMethods() {};
+
+		virtual void drawMonoMeter2(Graphics& g, VuMeter& v, VuMeter::Type type, float value);
+
+		virtual void drawStereoMeter2(Graphics& g, VuMeter& v, VuMeter::Type type, float vL, float vR);
+
+	};
+
 	/** Creates a new VuMeter. */
 	VuMeter(float leftPeak=0.0f, float rightPeak=0.0f, Type t = MonoHorizontal);
 
@@ -101,6 +111,16 @@ public:
 	}
 
 private:
+
+	LookAndFeelMethods* getLaf()
+	{
+		if (auto other = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
+			return other;
+
+		return &defaultLaf;
+	}
+
+	LookAndFeelMethods defaultLaf;
 
 	bool forceLinear = false;
 

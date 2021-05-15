@@ -125,7 +125,7 @@ void dynamic_base::updateExternalData()
 #endif
 
 			SimpleReadWriteLock::ScopedWriteLock sl(currentlyUsedData->getDataLock());
-			setExternalData(*dataNode, ed, 0);
+			setExternalData(*dataNode, ed, index);
 		}
 		
 		sourceWatcher.setNewSource(currentlyUsedData);
@@ -141,6 +141,9 @@ void dynamic_base::updateData(Identifier id, var newValue)
 	if (id == PropertyIds::EmbeddedData)
 	{
 		auto b64 = newValue.toString();
+
+		if (b64 == "-1")
+			b64 = "";
 
 		if (getIndex() == -1 && b64.isNotEmpty())
 		{
@@ -160,6 +163,7 @@ int dynamic_base::getNumDataObjects(ExternalData::DataType t) const
 
 void dynamic_base::setExternalData(data::base& n, const ExternalData& b, int index)
 {
+	SimpleRingBuffer::ScopedPropertyCreator sps(b.obj);
 	n.setExternalData(b, index);
 }
 

@@ -124,6 +124,8 @@ public:
 		DEF_PARAMETER(Mode, FilterNodeBase);
 		DEF_PARAMETER(Smoothing, FilterNodeBase);
 	}
+	PARAMETER_MEMBER_FUNCTION;
+	
 
 	PolyData<FilterObject, NumVoices> filter;
 	double sr = -1.0;

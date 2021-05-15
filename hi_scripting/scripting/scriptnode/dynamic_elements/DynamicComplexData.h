@@ -367,38 +367,43 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 	{
 		static_assert(std::is_base_of<ComplexDataUIBase, DataType>(), "not a complex data type");
 		static_assert(std::is_base_of<ComplexDataUIBase::EditorBase, ComponentType>(), "not a complex data editor type");
-		static_assert(std::is_base_of<juce::Component, ComponentType>(), "not a component type");
+		//static_assert(std::is_base_of<juce::Component, ComponentType>(), "not a component type");
 		static_assert(std::is_base_of<ObjectType, DynamicDataType>(), "not a dynamic data type");
 
 		addAndMakeVisible(externalButton);
 
 		rebuildSelectorItems();
 
-		addAndMakeVisible(editor);
+		
+
+		
+
+		//setSize(w, h + 41);
+
+		sourceHasChanged(nullptr, b->currentlyUsedData);
+
+		if (AddDragger)
+			addAndMakeVisible(dragger = new ModulationSourceBaseComponent(updater));
+		else if constexpr (std::is_same<DynamicDataType, data::dynamic::displaybuffer>())
+		{
+			if (auto rb = dynamic_cast<SimpleRingBuffer*>(b->currentlyUsedData))
+			{
+				if(rb->getPropertyObject()->allowModDragger() && AddDragger)
+					addAndMakeVisible(dragger = new RingBufferPropertyEditor(dynamic_cast<DynamicDataType*>(b), editor.get()));
+			}
+		}
 
 		int w = 512;
 		int h = 130;
 
-		if (auto cd = dynamic_cast<ComponentWithDefinedSize*>(&editor))
+		if (auto cd = dynamic_cast<ComponentWithDefinedSize*>(editor.get()))
 		{
 			auto a = cd->getFixedBounds();
 			w = a.getWidth();
 			h = a.getHeight();
 		}
 
-		editor.setSpecialLookAndFeel(new complex_ui_laf(), true);
-
-		if (auto te = dynamic_cast<TableEditor*>(&editor))
-			te->setScrollModifiers(ModifierKeys().withFlags(ModifierKeys::commandModifier | ModifierKeys::shiftModifier));
-
-		if(AddDragger)
-			addAndMakeVisible(dragger = new ModulationSourceBaseComponent(updater));
-		else if constexpr (std::is_same<DynamicDataType, data::dynamic::displaybuffer>())
-			addAndMakeVisible(dragger = new RingBufferPropertyEditor(dynamic_cast<DynamicDataType*>(b), &editor));
-
-		setSize(w, h + 41);
-
-		sourceHasChanged(nullptr, b->currentlyUsedData);
+		setSize(w, h);
 	};
 
 	bool initialised = false;
@@ -408,7 +413,7 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 		if (auto pc = findParentComponentOfClass<NodeComponent>())
 		{
 			auto nColour = pc->header.colour;
-			editor.setColour(HiseColourScheme::ColourIds::ComponentBackgroundColour, nColour);
+			getEditorAsComponent()->setColour(HiseColourScheme::ColourIds::ComponentBackgroundColour, nColour);
 			
 			if (dragger != nullptr)
 				dragger->setColour(ModPlotter::ColourIds::pathColour, nColour);
@@ -418,7 +423,7 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 			if (thisScaleFactor != lastScaleFactor)
 			{
 				lastScaleFactor = thisScaleFactor;
-				editor.resized();
+				getEditorAsComponent()->resized();
 			}
 		}
 	}
@@ -499,31 +504,40 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 
 	~editorT() {};
 
+	Component* getEditorAsComponent() { return dynamic_cast<Component*>(editor.get()); }
+
 	void resized() override
 	{
 		auto b = getLocalBounds();
-		auto top = b.removeFromBottom(28);
-
-		externalButton.setBounds(top.removeFromRight(28).reduced(3));
-
-		if (dragger != nullptr)
+		
+		if (dragger != nullptr && dragger->isVisible())
 		{
+			auto top = b.removeFromBottom(28);
+
+			externalButton.setBounds(top.removeFromRight(28).reduced(3));
+
 			if(dynamic_cast<ModulationSourceBaseComponent*>(dragger.get()) != nullptr)
 				top.removeFromLeft(28);
 
 			dragger->setBounds(top.reduced(2));
-		}
 
-		b.removeFromBottom(10);
+			b.removeFromBottom(UIValues::NodeMargin);
+		}
+		else
+		{
+			b.removeFromLeft(28);
+			externalButton.setBounds(b.removeFromRight(28).removeFromBottom(28).reduced(3));
+		}
+		
 		b.removeFromTop(3);
-		editor.setBounds(b);
+		getEditorAsComponent()->setBounds(b);
 
 		refreshDashPath();
 	}
 
 	void refreshDashPath()
 	{
-		auto b = editor.getBounds();
+		auto b = getEditorAsComponent()->getBounds();
 		Path src;
 		src.addRectangle(b.toFloat());
 
@@ -538,7 +552,7 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 
 		if (idx != -1)
 		{
-			auto b = editor.getBounds().toFloat();
+			auto b = getEditorAsComponent()->getBounds().toFloat();
 
 			String x;
 			x << "#";
@@ -551,15 +565,34 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 		}
 	}
 
+	static constexpr bool isDisplayBufferBase() { return std::is_same<ComponentType, RingBufferComponentBase>(); }
+
 	void sourceHasChanged(ComplexDataUIBase* oldSource, ComplexDataUIBase* newSource) override
 	{
 		ignoreUnused(oldSource);
-		editor.setComplexDataUIBase(newSource);
+
+		if constexpr (isDisplayBufferBase())
+			editor = dynamic_cast<SimpleRingBuffer*>(newSource)->getPropertyObject()->createComponent();
+		else
+			editor = new ComponentType();
+
+		editor->setComplexDataUIBase(newSource);
+		editor->setSpecialLookAndFeel(new complex_ui_laf(), true);
+
 		newSource->setGlobalUIUpdater(u);
 
+		addAndMakeVisible(getEditorAsComponent());
+
 		rebuildSelectorItems();
-		resized();
-		repaint();
+
+		if (auto te = dynamic_cast<TableEditor*>(editor.get()))
+			te->setScrollModifiers(ModifierKeys().withFlags(ModifierKeys::commandModifier | ModifierKeys::shiftModifier));
+
+		if (!getLocalBounds().isEmpty())
+		{
+			resized();
+			repaint();
+		}
 	}
 
 	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
@@ -578,7 +611,7 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 	PooledUIUpdater* u;
 	PopupLookAndFeel plaf;
 	ComboBox slotSelector;
-	ComponentType editor;
+	ScopedPointer<ComponentType> editor;
 	ScopedPointer<Component> dragger;
 
 	float lastScaleFactor = 1.0f;
@@ -590,7 +623,8 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 }
 
 using filter_editor = data::ui::pimpl::editorT<data::dynamic::filter, hise::FilterDataObject, hise::FilterGraph, false>;
-using displaybuffer_editor = data::ui::pimpl::editorT<data::dynamic::displaybuffer, hise::SimpleRingBuffer, hise::ModPlotter, true>;
+using displaybuffer_editor = data::ui::pimpl::editorT<data::dynamic::displaybuffer, hise::SimpleRingBuffer, hise::RingBufferComponentBase, true>;
+using displaybuffer_editor_nomod = data::ui::pimpl::editorT<data::dynamic::displaybuffer, hise::SimpleRingBuffer, hise::RingBufferComponentBase, false>;
 
 using table_editor_without_mod = data::ui::pimpl::editorT<data::dynamic::table, hise::Table, hise::TableEditor, false>;
 using sliderpack_editor_without_mod = data::ui::pimpl::editorT<data::dynamic::sliderpack, hise::SliderPackData, hise::SliderPack, false>;

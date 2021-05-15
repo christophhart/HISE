@@ -534,6 +534,13 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 				{
 					auto target = targetSlider->parameterToControl;
 
+					auto colourToUse = cableColour;
+					
+					if (auto nc = targetSlider->findParentComponentOfClass<NodeComponent>())
+					{
+						colourToUse = nc->getHeaderColour();
+					}
+
 					if (target == nullptr || !target->parent->isBodyShown())
 						continue;
 
@@ -544,7 +551,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 						Colour hc = targetSlider->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
-						paintCable(g, start, end, cableColour, alpha, hc);
+						paintCable(g, start, end, colourToUse, alpha, hc);
 					}
 				}
 			}

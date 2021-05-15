@@ -60,6 +60,8 @@ struct DspNetworkGraphPanel : public NetworkPanel
 	void paint(Graphics& g) override;
 
 	Component* createComponentForNetwork(DspNetwork* p) override;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkGraphPanel);
 };
 
 

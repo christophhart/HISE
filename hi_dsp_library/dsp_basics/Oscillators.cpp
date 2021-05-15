@@ -166,7 +166,7 @@ void OscillatorDisplayProvider::osc_display::refresh()
 
 		if(bf.getNumSamples() == 256)
 		{
-			auto b = getLocalBounds().reduced(70, 3).toFloat();
+			auto b = getLocalBounds().reduced(10, 3).withSizeKeepingCentre(180, getHeight() - 6).toFloat();
 
 			waveform.startNewSubPath(0.0f, 0.0f);
 
@@ -188,7 +188,8 @@ void OscillatorDisplayProvider::osc_display::refresh()
 void OscillatorDisplayProvider::osc_display::paint(Graphics& g)
 {
 	auto laf = getSpecialLookAndFeel<RingBufferComponentBase::LookAndFeelMethods>();
-	auto b = getLocalBounds().reduced(70, 3).toFloat();
+
+	auto b = getLocalBounds().reduced(10, 3).withSizeKeepingCentre(180, getHeight() - 6).toFloat();
 
 	laf->drawOscilloscopeBackground(g, *this, b.expanded(3.0f));
 

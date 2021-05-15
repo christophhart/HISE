@@ -512,6 +512,136 @@ private:
 	Path releasePath;
 };
 
+class OscilloscopeBase : public RingBufferComponentBase
+{
+protected:
+
+	OscilloscopeBase() :
+		RingBufferComponentBase()
+	{};
+
+	virtual ~OscilloscopeBase() {};
+
+	void drawWaveform(Graphics& g);
+
+	void refresh() override
+	{
+		dynamic_cast<Component*>(this)->repaint();
+	}
+
+
+private:
+
+	void drawPath(const float* l_, int numSamples, int width, Path& p);
+
+	void drawOscilloscope(Graphics &g, const AudioSampleBuffer &b);
+
+	Path lPath;
+	Path rPath;
+};
+
+class FFTDisplayBase : public RingBufferComponentBase
+{
+public:
+
+	enum WindowType
+	{
+		Rectangle,
+		BlackmannHarris,
+		Hann,
+		Flattop,
+		numWindowTypes
+	};
+
+	enum Domain
+	{
+		Phase,
+		Amplitude,
+		numDomains
+	};
+
+	using ConverterFunction = std::function<float(float)>;
+
+	struct Properties
+	{
+		WindowType window = BlackmannHarris;
+		Range<double> dbRange = { -70.0, 0.0 };
+		Domain domain = Amplitude;
+		ConverterFunction freq2x;
+		ConverterFunction gain2y;
+
+		void applyFFT(SimpleRingBuffer::Ptr p);
+	};
+
+	Properties fftProperties;
+
+	void refresh() override
+	{
+		dynamic_cast<Component*>(this)->repaint();
+	}
+
+protected:
+
+	FFTDisplayBase()
+#if USE_IPP
+		:fftObject(IppFFT::DataType::RealFloat)
+#endif
+	{}
+
+#if USE_IPP
+	IppFFT fftObject;
+#endif
+
+	virtual double getSamplerate() const = 0;
+
+	virtual ~FFTDisplayBase() {};
+
+	void drawSpectrum(Graphics& g);
+
+	Path lPath;
+	Path rPath;
+
+	WindowType lastWindowType = numWindowTypes;
+
+	AudioSampleBuffer windowBuffer;
+	AudioSampleBuffer fftBuffer;
+};
+
+
+class GoniometerBase : public RingBufferComponentBase
+{
+public:
+
+	GoniometerBase() = default;
+
+	void refresh() override
+	{
+		dynamic_cast<Component*>(this)->repaint();
+	}
+
+protected:
+
+	void paintSpacialDots(Graphics& g);
+
+private:
+
+	struct Shape
+	{
+		Shape() {};
+
+		Shape(const AudioSampleBuffer& buffer, Rectangle<int> size);
+
+		RectangleList<float> points;
+
+		static Point<float> createPointFromSample(float left, float right, float size);
+
+		void draw(Graphics& g, Colour c);
+	};
+
+	Shape shapes[6];
+	int shapeIndex = 0;
+};
+
 
 } // namespace hise
 
