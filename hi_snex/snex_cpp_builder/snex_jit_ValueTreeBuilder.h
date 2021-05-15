@@ -32,6 +32,8 @@
 
 #pragma once
 
+#define BETTER_TEMPLATE_FORWARDING 1
+
 namespace snex {
 namespace cppgen {
 using namespace juce;
@@ -104,6 +106,15 @@ struct ValueTreeIterator
 	static bool isControlNode(const ValueTree& nodeTree);
 	
 	static String getSnexCode(const ValueTree& nodeTree);
+
+	static NamespacedIdentifier getNodeFactoryPath(const ValueTree& nodeTree);
+
+	static bool hasChildNodeWithProperty(const ValueTree& nodeTree, Identifier propId);
+
+	static bool isPolyphonicOrHasPolyphonicTemplate(const ValueTree& v)
+	{
+		return hasChildNodeWithProperty(v, PropertyIds::IsPolyphonic) || hasChildNodeWithProperty(v, PropertyIds::TemplateArgumentIsPolyphonic);
+	}
 };
 
 
@@ -137,6 +148,39 @@ struct Node : public ReferenceCountedObject,
 			return true;
 
 		return ValueTreeIterator::getIndexInParent(nodeTree) == -1;
+	}
+
+	bool isPolyphonicOrHasPolyphonicTemplate() const
+	{
+		return hasProperty(PropertyIds::IsPolyphonic) || hasProperty(PropertyIds::TemplateArgumentIsPolyphonic);
+	}
+
+	bool hasProperty(const Identifier& propId, bool searchRecursive=true) const
+	{
+		if (searchRecursive)
+			return ValueTreeIterator::hasChildNodeWithProperty(nodeTree, propId);
+		else
+			return CustomNodeProperties::nodeHasProperty(nodeTree, propId);
+	}
+
+	bool addOptionalModeTemplate()
+	{
+		if (hasProperty(PropertyIds::HasModeTemplateArgument, false))
+		{
+			auto fId = NamespacedIdentifier(CustomNodeProperties::getModeNamespace(nodeTree));
+			auto cId = ValueTreeIterator::getNodeProperty(nodeTree, PropertyIds::Mode).toString().toLowerCase().replaceCharacter(' ', '_');
+
+			UsingTemplate ud(parent, "unused", fId.getChildId(cId));
+
+			if (hasProperty(PropertyIds::TemplateArgumentIsPolyphonic))
+				ud.addTemplateIntegerArgument("NV", true);
+
+			*this << ud;// fId.getChildId(cId).toString();
+
+			return true;
+		}
+
+		return false;
 	}
 
 	ValueTree nodeTree;
@@ -197,8 +241,9 @@ struct Connection
 		auto sameExpression = expressionCode.compare(other.expressionCode) == 0;
 		auto sameIndex = index == other.index;
 		auto sameN = n == other.n;
+		auto sameInv = inverted == other.inverted;
 
-		return sameRange && sameExpression && sameIndex && sameN;
+		return sameRange && sameExpression && sameIndex && sameN && sameInv;
 	}
 
 	Node::Ptr n;
@@ -206,6 +251,7 @@ struct Connection
 	CableType cableType = CableType::numCableTypes;
 	NormalisableRange<double> targetRange;
 	String expressionCode;
+	bool inverted = false;
 };
 
 struct PooledRange : public ReferenceCountedObject
@@ -485,7 +531,7 @@ struct ValueTreeBuilder: public Base
 	ValueTreeBuilder(const ValueTree& data, Format outputFormatToUse) :
 		Base(Base::OutputType::AddTabs),
 		v(data),
-		outputFormat(outputFormatToUse),
+		outputFormat(Format::CppDynamicLibrary),
 		r(Result::ok())
 	{
 		setHeaderForFormat();
@@ -542,6 +588,8 @@ private:
 		ValueTree v;
 		String errorMessage;
 	};
+
+	bool addNumVoicesTemplate(Node::Ptr n);
 
 
 	void clear() override
@@ -669,18 +717,13 @@ private:
 	{
 		auto n = new Node(*this, id, NamespacedIdentifier::fromString(path));
 		n->nodeTree = v;
+
 		return n;
 	}
 
 	void addNodeComment(Node::Ptr n);
 
-
-	struct Sanitizers
-	{
-		static bool setChannelAmount(ValueTree& v);
-	};
-
-	Node::Ptr parseFixChannel(const ValueTree& n);
+	Node::Ptr parseFixChannel(const ValueTree& n, int numChannelsToUse);
 
 	Node::Ptr getNode(const ValueTree& n, bool allowZeroMatch);
 
@@ -698,7 +741,7 @@ private:
 	
 	Node::Ptr parseContainer(Node::Ptr u);
 
-	
+	void emitRangeDefinition(const Identifier& rangeId, NormalisableRange<double> r);
 
 	void parseContainerChildren(Node::Ptr container);
 	void parseContainerParameters(Node::Ptr container);
@@ -718,10 +761,17 @@ private:
 
 	PooledParameter::Ptr addParameterAndReturn(PooledParameter::Ptr p)
 	{
+#if !BETTER_TEMPLATE_FORWARDING
+		if (p->c.n != nullptr && p->c.n->isPolyphonicOrHasPolyphonicTemplate())
+		{
+			p->addTemplateIntegerArgument("NV");
+		}
+#endif
+
 		return pooledParameters.add(p);
 	}
 
-	PooledParameter::Ptr createParameterFromConnection(const Connection& c, const Identifier& pName, int parameterIndexInChain);
+	PooledParameter::Ptr createParameterFromConnection(const Connection& c, const Identifier& pName, int parameterIndexInChain, const ValueTree& pTree);
 
 	PoolBase<Node> pooledTypeDefinitions;
 	PoolBase<PooledRange> pooledRanges;

@@ -390,6 +390,40 @@ public:
 private:
 };
 
+template <class T> class no_data
+{
+public:
+
+	SN_SELF_AWARE_WRAPPER(no_data, T);
+
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isPolyphonic);
+	OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
+
+	HISE_DEFAULT_INIT(T);
+	HISE_DEFAULT_PREPARE(T);
+	HISE_DEFAULT_RESET(T);
+	HISE_DEFAULT_HANDLE_EVENT(T);
+	HISE_DEFAULT_PROCESS_FRAME(T);
+	HISE_DEFAULT_PROCESS(T);
+
+	constexpr auto& getParameter() { return obj.getParameter(); };
+
+	void setExternalData(const ExternalData& /*d*/, int /*index*/)
+	{
+
+	}
+
+	
+
+	template <int P> void setParameter(double v)
+	{
+		this->obj.template setParameter<P>(v);
+	}
+	FORWARD_PARAMETER_TO_MEMBER(no_data)
+
+	T obj;
+};
+
 
 template <class T> class frame_x
 {
@@ -793,6 +827,21 @@ private:
 };
 #endif
 
+template <class T> struct no_midi
+{
+	SN_OPAQUE_WRAPPER(no_midi, T);
+
+	HISE_DEFAULT_RESET(T);
+	HISE_DEFAULT_MOD(T);
+	HISE_DEFAULT_INIT(T);
+	HISE_DEFAULT_PROCESS(T);
+	HISE_DEFAULT_PROCESS_FRAME(T);
+	HISE_DEFAULT_PREPARE(T);
+	HISE_EMPTY_HANDLE_EVENT;
+
+	T obj;
+};
+
 
 template <class T, typename FixBlockClass> struct fix_blockx
 {
@@ -872,7 +921,7 @@ public:
 		singleCounter = 0;
 	}
 
-	void process(ProcessType& data)
+	template <typename T> void process(T& data)
 	{
 		int numToProcess = data.getNumSamples() / HISE_EVENT_RASTER;
 
@@ -882,20 +931,20 @@ public:
 		
 		float* d[1] = { controlBuffer.begin() };
 
-		ProcessData<1> md(d, numToProcess, 1);
+		ProcessType md(d, numToProcess, 1);
 		md.copyNonAudioDataFrom(data);
 
 		obj.process(md);
 	}
 
 	// must always be wrapped into a fix<1> node...
-	void processFrame(FrameType& d)
+	template <typename T> void processFrame(T& )
 	{
 		if (--singleCounter <= 0)
 		{
 			singleCounter = HISE_EVENT_RASTER;
-			float lastValue = 0.0f;
-			obj.processFrame(d);
+			FrameType md = { 0.0f };
+			obj.processFrame(md);
 		}
 	}
 
@@ -1014,6 +1063,12 @@ template <class ParameterClass, class T> struct mod
 		static_cast<mod*>(o)->template setParameter<P>(v);
 	}
 
+	void setExternalData(const ExternalData& d, int index)
+	{
+		if constexpr (prototypes::check::setExternalData<T>::value)
+			obj.setExternalData(d, index);
+	}
+
 	T obj;
 	ParameterClass p;
 
@@ -1041,11 +1096,11 @@ struct DummyMetadata
 };
 
 
-template <class T> struct node : public HiseDspBase
+template <class T> struct node : public scriptnode::data::base
 {
 	using MetadataClass = typename T::metadata;
 	static constexpr bool isModulationSource = T::isModulationSource;
-	static constexpr bool isNormalisedModulation() { return false; };
+	static constexpr bool isNormalisedModulation() { return true; };
 
 	static constexpr int NumChannels =	  MetadataClass::NumChannels;
 	static constexpr int NumTables =	  MetadataClass::NumTables;
@@ -1056,6 +1111,8 @@ template <class T> struct node : public HiseDspBase
 
 	// We treat everything in this node as opaque...
 	SN_GET_SELF_AS_OBJECT(node);
+
+	static bool constexpr isModNode() { return prototypes::check::handleModulation<T>::value; }
 
 	static Identifier getStaticId() { return MetadataClass::getStaticId(); };
 
@@ -1110,6 +1167,17 @@ template <class T> struct node : public HiseDspBase
 
 	bool isPolyphonic() const
 	{
+		if constexpr (prototypes::check::isPolyphonic<T>::value)
+			return obj.isPolyphonic();
+
+		return false;
+	}
+
+	static constexpr bool isProcessingHiseEvent()
+	{
+		if constexpr (prototypes::check::isProcessingHiseEvent<T>::value)
+			return T::isProcessingHiseEvent();
+
 		return false;
 	}
 
@@ -1123,7 +1191,7 @@ template <class T> struct node : public HiseDspBase
 		return false;
 	}
 
-	void setExternalData(const ExternalData& d, int index)
+	void setExternalData(const ExternalData& d, int index) override
 	{
 		if constexpr (prototypes::check::setExternalData<T>::value)
 			obj.setExternalData(d, index);

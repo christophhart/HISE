@@ -254,16 +254,14 @@ struct DefinitionBase
 				auto relocated = scopedId.removeSameParent(pScope);
 				return relocated.toString();
 			}
-			
-
 			return scopedId.toString();
-
 		}
 			
 	}
 
 	Base& parent_;
 	NamespacedIdentifier scopedId;
+	jit::TemplateParameter::List templateArguments;
 };
 
 
@@ -720,7 +718,20 @@ struct UsingTemplate: public DefinitionBase,
 
 	UsingTemplate& operator<<(const UsingTemplate& other)
 	{
+		for (auto& tp : other.templateArguments)
+			templateArguments.addIfNotAlreadyThere(tp);
+
 		args.add(other.toExpression());
+
+		return *this;
+	}
+
+	UsingTemplate& operator<<(const Struct& s)
+	{
+		for (auto& tp : s.templateArguments)
+			templateArguments.addIfNotAlreadyThere(tp);
+
+		args.add(s.toExpression());
 
 		return *this;
 	}
@@ -732,6 +743,20 @@ struct UsingTemplate: public DefinitionBase,
 	String toExpression() const override;
 
 	String getUsingExpression() const;
+
+	void addTemplateIntegerArgument(const String& id, bool addAsParameter)
+	{
+		templateArguments.addIfNotAlreadyThere(snex::jit::TemplateParameter(NamespacedIdentifier(id), 0, false));
+
+		if (addAsParameter)
+			*this << id;
+	}
+
+	void flushIfLong()
+	{
+		if (getLength() > 60)
+			flushIfNot();
+	}
 
 private:
 
@@ -750,6 +775,8 @@ private:
 
 	NamespacedIdentifier tId;
 	StringArray args;
+
+	
 };
 
 }

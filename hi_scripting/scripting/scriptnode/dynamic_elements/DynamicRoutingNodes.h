@@ -109,6 +109,11 @@ struct dynamic
 		incCounter(false, numThisTime);
 	};
 
+	void setIsNull()
+	{
+		isNull = true;
+	}
+
 	void incCounter(bool incReadCounter, int delta);
 
 	String getSendId() const
@@ -133,6 +138,7 @@ struct dynamic
 
 	bool shouldAdd = true;
 	bool useFrameDataForDisplay = false;
+	bool isNull = false;
 
 	WeakReference<NodeBase> parentNode;
 

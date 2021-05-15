@@ -208,7 +208,7 @@ int Base::getIntendDelta(int line) const
 	if (matchesStart(line, JitTokens::namespace_))
 		return -1000;
 
-	if (matchesStart(line, JitTokens::public_, JitTokens::private_, JitTokens::protected_))
+	if (matchesStart(line, "public:", "private:", "protected:"))
 		return -1;
 
 	if (matchesStart(line, "#"))
@@ -498,13 +498,14 @@ Struct::Struct(Base& parent, const Identifier& id, const Array<DefinitionBase*>&
 	Op(parent),
 	DefinitionBase(parent, id)
 {
+	templateArguments.addArray(tp);
 	parent.addIfNotEmptyLine();
 
 	String def;
 
 	if (!tp.isEmpty())
 	{
-		def << JitTokens::template_ << Space << TemplateParameter::ListOps::toString(tp, true);
+		def << JitTokens::template_ << Space << TemplateParameter::ListOps::toString(tp, true) << Space;
 	}
 
 	def << JitTokens::struct_ << Space << id;
@@ -513,13 +514,19 @@ Struct::Struct(Base& parent, const Identifier& id, const Array<DefinitionBase*>&
 	{
 		def << JitTokens::colon;
 		
+		auto useIntend = baseClasses.size() > 1;
+
 		for (auto bc : baseClasses)
 		{
-			def << Space << JitTokens::public_ << Space << bc->toExpression() << ", \n";
+			def << Space;
 			
+			if (useIntend)
+				def << AlignMarker;
+			
+			def << JitTokens::public_ << Space << bc->toExpression() << ", \n";
 		}
 
-		def = def.upToFirstOccurrenceOf(", \n", false, false);
+		def = def.upToLastOccurrenceOf(", \n", false, false);
 	}
 
 	parent << def;
@@ -553,6 +560,14 @@ Function::Function(Base& parent, const jit::FunctionData& f) :
 String UsingTemplate::toString() const
 {
 	String s;
+
+	if (!templateArguments.isEmpty())
+	{
+		s << "template ";
+		s << snex::jit::TemplateParameter::ListOps::toString(templateArguments, true);
+		s << "\n";
+	}
+
 	s << JitTokens::using_ << " ";
 	s << scopedId.getIdentifier() << " ";
 	s << JitTokens::assign_ << " ";
@@ -566,7 +581,27 @@ String UsingTemplate::toString() const
 String UsingTemplate::toExpression() const
 {
 	if (isFlushed())
-		return DefinitionBase::toExpression();
+	{
+		auto s = DefinitionBase::toExpression();
+
+		if (!templateArguments.isEmpty())
+		{
+			s << "<";
+
+			for (int i = 0; i < templateArguments.size(); i++)
+			{
+				s << templateArguments[i].argumentId.toString();
+
+				if(isPositiveAndBelow(i, templateArguments.size() - 1))
+					s << ", ";
+			}
+
+			s << ">";
+		}
+		
+		return s;
+	}
+		
 
 	return getUsingExpression();
 }

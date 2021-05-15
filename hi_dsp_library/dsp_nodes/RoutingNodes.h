@@ -100,6 +100,8 @@ template <int C, int AddToSignal=1> struct frame
 			frameData[index++] = d;
 	}
 
+	void setIsNull() {};
+
 	void incCounter(bool, int) noexcept {}
 
 	void process(BlockType& unused)
@@ -130,6 +132,8 @@ template <int C, int AddToSignal=1> struct block
 	static constexpr bool allowBlock() { return true; };
 
 	void initialise(NodeBase* n) {};
+
+	void setIsNull() {};
 
 	void validate(PrepareSpecs receiveSpecs)
 	{
@@ -205,6 +209,11 @@ namespace routing
 
 struct base
 {
+	base(const Identifier& id)
+	{
+		cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsRoutingNode);
+	}
+
 	virtual ~base() {};
 
 	virtual Colour getColour() const = 0;
@@ -221,6 +230,12 @@ template <typename CableType> struct receive: public base
 	enum class Parameters
 	{
 		Feedback
+	};
+
+	receive() :
+		base(getStaticId())
+	{
+		null.setIsNull();
 	};
 
 	constexpr bool isPolyphonic() const { return false; }
@@ -365,6 +380,10 @@ template <typename CableType> struct send: public base
 	SET_HISE_NODE_ID("send");
 
 	SN_GET_SELF_AS_OBJECT(CableType);
+
+	send() :
+		base(getStaticId())
+	{};
 
 	constexpr bool isPolyphonic() const { return false; }
 

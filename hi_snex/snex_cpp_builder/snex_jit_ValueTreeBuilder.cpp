@@ -96,13 +96,22 @@ void ValueTreeBuilder::setHeaderForFormat()
 
 }
 
+bool ValueTreeBuilder::addNumVoicesTemplate(Node::Ptr n)
+{
+#if !BETTER_TEMPLATE_FORWARDING
+	
+#endif
+
+	return false;
+}
+
 void ValueTreeBuilder::rebuild()
 {
 	clear();
 
 	try
 	{
-		Sanitizers::setChannelAmount(v);
+		//Sanitizers::setChannelAmount(v);
 		
 		{
 			*this << getGlueCode(FormatGlueCode::PreNamespaceCode);
@@ -151,6 +160,10 @@ String ValueTreeBuilder::getGlueCode(ValueTreeBuilder::FormatGlueCode c)
 				UsingTemplate instance(*this, v[PropertyIds::ID].toString(), NamespacedIdentifier::fromString("wrap::node"));
 
 				instance << *pooledTypeDefinitions.getLast();
+
+				if (!instance.templateArguments.isEmpty())
+					addComment("polyphonic template declaration", Base::CommentType::RawWithNewLine);
+
 				instance.flushIfNot();
 				return {};
 			}
@@ -185,6 +198,10 @@ String ValueTreeBuilder::getGlueCode(ValueTreeBuilder::FormatGlueCode c)
 
 			UsingTemplate instance(*this, v[PropertyIds::ID].toString(), NamespacedIdentifier::fromString("wrap::node"));
 			instance << *pooledTypeDefinitions.getLast();
+
+			if (!instance.templateArguments.isEmpty())
+				addComment("polyphonic template declaration", Base::CommentType::RawWithNewLine);
+
 			instance.flushIfNot();
 			return {};
 		}
@@ -207,13 +224,15 @@ void ValueTreeBuilder::addNodeComment(Node::Ptr n)
 	}
 }
 
-Node::Ptr ValueTreeBuilder::parseFixChannel(const ValueTree& n)
+Node::Ptr ValueTreeBuilder::parseFixChannel(const ValueTree& n, int numChannelsToUse)
 {
 	auto u = getNode(n, false);
 
 	auto wf = createNode(n, {}, "wrap::fix");
 
-	*wf << (int)n[PropertyIds::NumChannels];
+	*wf << numChannelsToUse;
+
+	//*wf << (int)n[PropertyIds::NumChannels];
 	*wf << *u;
 
 	return wf;
@@ -274,6 +293,11 @@ Node::Ptr ValueTreeBuilder::parseNode(const ValueTree& n)
 
 	Node::Ptr newNode = createNode(n, typeId.getIdentifier(), getNodePath(n).toString());
 
+	if (newNode->hasProperty(PropertyIds::IsPolyphonic, false))
+	{
+		newNode->addTemplateIntegerArgument("NV", true);
+	}
+
 	return parseRoutingNode(newNode);
 }
 
@@ -281,14 +305,12 @@ Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
 {
 	auto np = getNodePath(u->nodeTree);
 
-	if (np.getParent().toString() == "routing")
+	if (np.getIdentifier() == Identifier("matrix"))
 	{
-		if (np.getIdentifier() == Identifier("matrix"))
-		{
-			// TODO: Implement routing::matrix with static matrix
-			jassertfalse;
-		}
-
+		jassertfalse;
+	}
+	else if (u->hasProperty(PropertyIds::IsRoutingNode, false))
+	{
 		PooledCableType::TemplateConstants c;
 
 		c.numChannels = (int)u->nodeTree[PropertyIds::NumChannels];
@@ -346,18 +368,30 @@ Node::Ptr ValueTreeBuilder::parseOptionalSnexNode(Node::Ptr u)
 {
 	auto p = getNodePath(u->nodeTree).toString();
 
-	if (p.contains("snex") || p == "control::timer")
+	if (CustomNodeProperties::nodeHasProperty(u->nodeTree, PropertyIds::IsOptionalSnexNode))
+	{
+		String type = ValueTreeIterator::getNodeProperty(u->nodeTree, PropertyIds::Mode).toString().toLowerCase();
+
+		
+
+		if (type == "custom")
+			return parseSnexNode(u);
+		else
+		{
+			addNumVoicesTemplate(u);
+			u->addOptionalModeTemplate();
+			return parseMod(u);
+		}
+	}
+
+	if (p.contains("snex"))
 		return parseSnexNode(u);
 
 	if (p.endsWith("midi"))
 	{
-		String type = ValueTreeIterator::getNodeProperty(u->nodeTree, PropertyIds::Mode).toString().toLowerCase();
+		
 
-		if (type == "custom")
-		{
-			return parseSnexNode(u);
-		}
-
+#if 0
 		Node::Ptr wn = new Node(*this, u->scopedId.id, NamespacedIdentifier(p));
 
 		wn->nodeTree = u->nodeTree;
@@ -366,6 +400,7 @@ Node::Ptr ValueTreeBuilder::parseOptionalSnexNode(Node::Ptr u)
 		*wn << subName;
 
 		return parseMod(wn);
+#endif
 	}
 
 	return parseContainer(u);
@@ -375,7 +410,8 @@ Node::Ptr ValueTreeBuilder::parseOptionalSnexNode(Node::Ptr u)
 Node::Ptr ValueTreeBuilder::parseSnexNode(Node::Ptr u)
 {
 	SnexNodeBuilder s(*this, u);
-	return parseMod(s.parse());
+
+	return parseComplexDataNode(s.parse());
 }
 
 Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
@@ -408,11 +444,15 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 
 		if (needsInitialisation)
 		{
-			u = parseRootContainer(u);
+			return parseRootContainer(u);
 		}
 
 		auto realPath = u->nodeTree[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf("container.", false, false);
 
+		if (realPath.startsWith("modchain"))
+		{
+			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::control_rate"));
+		}
 		if (realPath.startsWith("frame"))
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::frame"), (int)u->nodeTree[PropertyIds::NumChannels]);
@@ -420,6 +460,10 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		if (realPath.startsWith("midi"))
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::event"));
+		}
+		if (realPath.startsWith("no_midi"))
+		{
+			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::no_midi"));
 		}
 		if (realPath.startsWith("fix"))
 		{
@@ -435,10 +479,48 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		jassert(!u->isFlushed());
 
 		addNodeComment(u);
+
+#if 0
+		if (u->hasProperty(PropertyIds::IsPolyphonic) ||
+			u->hasProperty(PropertyIds::TemplateArgumentIsPolyphonic, true))
+		{
+			u->addTemplateIntegerArgument("NV", true);
+		}
+#endif
+
 		u->flushIfNot();
+
 	}
 
 	return parseMod(u);
+}
+
+void ValueTreeBuilder::emitRangeDefinition(const Identifier& rangeId, NormalisableRange<double> r)
+{
+	StringArray args;
+
+	args.add(rangeId.toString());
+
+	args.add(Helpers::getCppValueString(r.start, Types::ID::Double));
+	args.add(Helpers::getCppValueString(r.end, Types::ID::Double));
+
+	String macroName = "DECLARE_PARAMETER_RANGE";
+
+	if (r.skew != 1.0)
+	{
+		macroName << "_SKEW";
+		args.add(Helpers::getCppValueString(r.skew, Types::ID::Double));
+	}
+	else if (r.interval > 0.001)
+	{
+		macroName << "_STEP";
+		args.add(Helpers::getCppValueString(r.interval, Types::ID::Double));
+	}
+
+	for (auto& a : args)
+		a = StringHelpers::withToken(IntendMarker, a);
+
+	Macro(*this, macroName, args);
 }
 
 void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
@@ -451,10 +533,16 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
 	{
 		auto parentPath = getNodePath(ValueTreeIterator::findParentWithType(c, PropertyIds::Node));
 
-		auto useFix = c.getParent().indexOf(c) == 0 || parentPath.getIdentifier() == Identifier("multi");
+		auto numToUse = -1;
 
-		if (useFix)
-			children.add(parseFixChannel(c));
+		if (c.getParent().indexOf(c) == 0)
+			numToUse = container->nodeTree[PropertyIds::NumChannels];
+		
+		if (parentPath.getIdentifier() == Identifier("multi"))
+			numToUse = c[PropertyIds::NumChannels];
+
+		if (numToUse != -1)
+			children.add(parseFixChannel(c, numToUse));
 		else
 			children.add(getNode(c, false));
 
@@ -468,7 +556,6 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
 		*container << u;
 	}
 		
-
 	for (auto& c : children)
 	{
 		*container << *c;
@@ -591,11 +678,19 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 	auto numConnections = cTree.getNumChildren();
 
 	if (numConnections == 0)
-		return createParameterFromConnection({}, pId, -1);
+		return createParameterFromConnection({}, pId, -1, p);
 
-	else if (numConnections == 1)
+
+	auto inputRange = RangeHelpers::getDoubleRange(p);
+
+	auto mustCreateChain = !RangeHelpers::isIdentity(inputRange) || numConnections > 1;
+
+	if (numConnections == 1 && RangeHelpers::isEqual(inputRange, RangeHelpers::getDoubleRange(cTree.getChild(0))))
+		mustCreateChain = false;
+
+	if (!mustCreateChain)
 	{
-		return createParameterFromConnection(getConnection(cTree.getChild(0)), pId, -1);
+		return createParameterFromConnection(getConnection(cTree.getChild(0)), pId, -1, p);
 	}
 	else
 	{
@@ -603,29 +698,51 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 
 		Array<Connection> chainList;
 
+		bool unEqualRange = false;
+
+		auto useUnnormalisedModulation = CustomNodeProperties::nodeHasProperty(p, PropertyIds::UseUnnormalisedModulation);
+
 		for (auto c : cTree)
 		{
+			auto cRange = RangeHelpers::getDoubleRange(c);
+
+			if(!useUnnormalisedModulation)
+				unEqualRange |= !RangeHelpers::isEqual(inputRange, cRange);
+
 			chainList.add(getConnection(c));
 		}
 
-		auto inputRange = RangeHelpers::getDoubleRange(p);
-
-		if(RangeHelpers::isIdentity(inputRange))
+		if(RangeHelpers::isIdentity(inputRange) || !unEqualRange)
 			*ch << "ranges::Identity";
 		else
 		{
 			String fWhat;
 			fWhat << pId << "_InputRange";
+
+			emitRangeDefinition(fWhat, inputRange);
+
+			*ch << fWhat;
 		}
+
+		bool isPoly = false;
 
 		int cIndex = 0;
 		for (auto& c : chainList)
 		{
-			auto up = createParameterFromConnection(c, pId, cIndex++);
+			if (c.n->isPolyphonicOrHasPolyphonicTemplate())
+				isPoly = true;
+
+			auto up = createParameterFromConnection(c, pId, cIndex++, unEqualRange ? ValueTree() : p);
 			*ch << *up;
 		}
 
+#if !BETTER_TEMPLATE_FORWARDING
+		if (isPoly)
+			ch->addTemplateIntegerArgument("NV");
+#endif
+
 		addIfNotEmptyLine();
+
 		ch->flushIfNot();
 		addEmptyLine();
 
@@ -669,7 +786,8 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 	Connection rc;
 
 	rc.targetRange = RangeHelpers::getDoubleRange(c);
-	
+	rc.inverted = RangeHelpers::isInverted(c);
+
 	if (c.getType() == PropertyIds::ModulationTarget)
 		rc.cableType = Connection::CableType::Modulation;
 	else
@@ -730,7 +848,7 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 		auto mod = parseParameter(u->nodeTree, hasSingleModTree ? Connection::CableType::Modulation :
 																  Connection::CableType::SwitchTargets);
 
-		mod->flushIfNot();
+		mod->flushIfLong();
 
 		auto id = getNodeId(u->nodeTree);
 
@@ -738,25 +856,13 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 		{
 			*u << *mod;
 
-			if (getNodePath(u->nodeTree) == NamespacedIdentifier::fromString("control::xfader"))
-			{
-				auto fadeType = ValueTreeIterator::getNodeProperty(u->nodeTree, PropertyIds::Mode).toString().toLowerCase();
-				auto fId = NamespacedIdentifier("faders").getChildId(fadeType);
-				*u << fId.toString();
-			}
+			u->addOptionalModeTemplate();
 		}
 		else
 		{
 			auto inner = u;
 
-			if (getNodePath(u->nodeTree) == NamespacedIdentifier::fromString("control::smoothed_parameter"))
-			{
-				auto smoothType = ValueTreeIterator::getNodeProperty(u->nodeTree, PropertyIds::Mode).toString().toLowerCase().replaceCharacter(' ', '_');
-				auto sId = NamespacedIdentifier("smoothers").getChildId(smoothType);
-				
-				*u << sId.toString();
-			}
-
+			u->addOptionalModeTemplate();
 			u = createNode(u->nodeTree, id.getIdentifier(), "wrap::mod");
 			*u << *mod;
 			*u << *inner;
@@ -764,11 +870,19 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 
 		addNodeComment(u);
 
+		
 		u = parseComplexDataNode(u);
+
+		addNumVoicesTemplate(u);
 
 		u->flushIfNot();
 
 		return u;
+	}
+	else if (ValueTreeIterator::isControlNode(u->nodeTree))
+	{
+		*u << "parameter::empty";
+		jassertfalse;
 	}
 
 	addNodeComment(u);
@@ -791,27 +905,13 @@ Node::Ptr ValueTreeBuilder::getTypeDefinition(const NamespacedIdentifier& id)
 
 NamespacedIdentifier ValueTreeBuilder::getNodePath(const ValueTree& n)
 {
-	auto s = n[scriptnode::PropertyIds::FactoryPath].toString().replace(".", "::");
-
-	auto fId = NamespacedIdentifier::fromString(s);
-
-	if (FactoryIds::isContainer(fId))
-	{
-		auto isSplit = fId.id.toString() == "split";
-		auto isMulti = fId.id.toString() == "multi";
-
-		if (!isSplit && !isMulti)
-		{
-			return NamespacedIdentifier::fromString("container::chain");
-		}
-	}
-
-	return NamespacedIdentifier::fromString(s);
+	return ValueTreeIterator::getNodeFactoryPath(n);
+	
 }
 
 
 
-snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnection(const Connection& c, const Identifier& pName, int parameterIndexInChain)
+snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnection(const Connection& c, const Identifier& pName, int parameterIndexInChain, const ValueTree& pTree)
 {
 	if (auto existing = pooledParameters.getExisting(c))
 		return existing;
@@ -884,63 +984,62 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 	case Connection::ConnectionType::RangeWithStep:
 	case Connection::ConnectionType::Range:
 	{
-		auto up = makeParameter(p, "from0To1", c);
-		*up << *c.n;
-		*up << c.index;
+		auto tr = c.targetRange;
+		auto sr = RangeHelpers::getDoubleRange(pTree);
 
-		String fWhat;
+		auto sourceNodeTree = ValueTreeIterator::findParentWithType(pTree, PropertyIds::Node);
 
-		fWhat << up->scopedId.getIdentifier();
-		fWhat << "Range";
+		auto n = pTree[PropertyIds::ID].toString();
 
-		auto parseRange = [&](const NormalisableRange<double>& r)
+		auto useNormalisedMod = CustomNodeProperties::nodeHasProperty(pTree, PropertyIds::UseUnnormalisedModulation);
+
+		if (RangeHelpers::isEqual(tr, sr) || useNormalisedMod)
 		{
-			if (auto existing = pooledRanges.getExisting(r))
+			// skip both ranges and just pass on the parameter;
+			auto up = makeParameter(p, "plain", c);
+			*up << *c.n;
+			*up << c.index;
+
+			return addParameterAndReturn(up);
+		}
+		else
+		{
+			auto up = makeParameter(p, c.inverted ? "from0To1_inv" : "from0To1", c);
+			*up << *c.n;
+			*up << c.index;
+
+			String fWhat;
+
+			fWhat << up->scopedId.getIdentifier();
+			fWhat << "Range";
+
+			auto parseRange = [&](const NormalisableRange<double>& r)
 			{
-				return existing;
-			}
-			else
-			{
-				auto r = new PooledRange({ *this, fWhat });
-				r->c = c;
-
-				StringArray args;
-
-				args.add(fWhat);
-
-				args.add(Helpers::getCppValueString(c.targetRange.start, Types::ID::Double));
-				args.add(Helpers::getCppValueString(c.targetRange.end, Types::ID::Double));
-
-				String macroName = "DECLARE_PARAMETER_RANGE";
-
-				if (t == Connection::ConnectionType::RangeWithSkew)
+				if (auto existing = pooledRanges.getExisting(r))
 				{
-					macroName << "_SKEW";
-					args.add(Helpers::getCppValueString(c.targetRange.skew, Types::ID::Double));
+					return existing;
 				}
-				else if (t == Connection::ConnectionType::RangeWithStep)
+				else
 				{
-					macroName << "_STEP";
-					args.add(Helpers::getCppValueString(c.targetRange.interval, Types::ID::Double));
+					auto r = new PooledRange({ *this, fWhat });
+					r->c = c;
+
+					emitRangeDefinition(fWhat, r->c.targetRange);
+
+					addEmptyLine();
+					return pooledRanges.add(r);
 				}
+			};
 
-				for (auto& a : args)
-					a = StringHelpers::withToken(IntendMarker, a);
+			auto r = parseRange(c.targetRange);
 
-				Macro(*this, macroName, args);
-				addEmptyLine();
-				return pooledRanges.add(r);
-			}
-		};
+			*up << r->id.toExpression();
 
-		auto r = parseRange(c.targetRange);
+			up->flushIfNot();
+			addEmptyLine();
 
-		*up << r->id.toExpression();
-
-		up->flushIfNot();
-		addEmptyLine();
-
-		return addParameterAndReturn(up);
+			return addParameterAndReturn(up);
+		}
 	}
 	default:
 	{
@@ -1193,6 +1292,8 @@ bool ValueTreeIterator::isAutomated(const ValueTree& parameterTree)
 
 bool ValueTreeIterator::isControlNode(const ValueTree& nodeTree)
 {
+	return CustomNodeProperties::nodeHasProperty(nodeTree, PropertyIds::IsControlNode);
+
 	static const StringArray controlNodes{ "control.pma",
 											"control.cable_table",
 											"control.cable_pack",
@@ -1210,30 +1311,41 @@ String ValueTreeIterator::getSnexCode(const ValueTree& nodeTree)
 	return c[PropertyIds::Value].toString();
 }
 
-bool ValueTreeBuilder::Sanitizers::setChannelAmount(ValueTree& v)
+snex::NamespacedIdentifier ValueTreeIterator::getNodeFactoryPath(const ValueTree& n)
 {
-	int numChannels = v[PropertyIds::NumChannels];
+	auto s = n[scriptnode::PropertyIds::FactoryPath].toString().replace(".", "::");
 
-	auto n = v.getChildWithName(PropertyIds::Nodes);
+	auto fId = NamespacedIdentifier::fromString(s);
 
-	if (n.isValid())
+	if (FactoryIds::isContainer(fId))
 	{
-		for (auto c : n)
-		{
-			if (numChannels < (int)c[PropertyIds::NumChannels])
-			{
-				c.setProperty(PropertyIds::NumChannels, numChannels, nullptr);
-			}
+		auto isSplit = fId.id.toString() == "split";
+		auto isMulti = fId.id.toString() == "multi";
 
-			setChannelAmount(c);
+		if (!isSplit && !isMulti)
+		{
+			return NamespacedIdentifier::fromString("container::chain");
 		}
 	}
 
-	return false;
+	return NamespacedIdentifier::fromString(s);
+}
+
+bool ValueTreeIterator::hasChildNodeWithProperty(const ValueTree& nodeTree, Identifier propId)
+{
+	return forEach(nodeTree, ChildrenFirst, [propId](ValueTree& v)
+	{
+		if (v.getType() != PropertyIds::Node)
+			return false;
+
+		return CustomNodeProperties::nodeHasProperty(v, propId);
+	});
 }
 
 snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 {
+	parent.addNumVoicesTemplate(root);
+
 	if (root->getLength() > 60)
 	{
 		root->scopedId = root->scopedId.getParent().getChildId(root->scopedId.getIdentifier().toString() + "_");
@@ -1245,7 +1357,23 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 	nodeClassId = Identifier(parent.getGlueCode(FormatGlueCode::MainInstanceClass));
 	parent.addComment("Root node initialiser class", Base::CommentType::FillTo80);
 
-	Struct s(parent, nodeClassId, { root }, {});
+	auto base = UsingTemplate(parent, "unused", root->scopedId);
+
+	auto hasPolyData = root->isPolyphonicOrHasPolyphonicTemplate() || root->templateArguments[0].argumentId.toString() == "NV";
+
+	if (hasPolyData)
+		base.addTemplateIntegerArgument("NV", true);
+
+	Array<DefinitionBase*> baseClasses = { &base };
+
+	auto routing_public_mod = UsingTemplate(parent, "unused", NamespacedIdentifier("routing::public_mod_target"));
+
+	auto hasPublicMod = root->hasProperty(PropertyIds::IsPublicMod, true);
+
+	if (hasPublicMod)
+		baseClasses.add(&routing_public_mod);
+
+	Struct s(parent, nodeClassId, baseClasses, root->templateArguments);
 
 	addMetadata();
 
@@ -1267,7 +1395,37 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 			addModulationConnections();
 			addSendConnections();
 
+			if (hasPublicMod)
+			{
+				parent.addEmptyLine();
+				parent.addComment("Public Mod Connection", Base::CommentType::FillTo80Light);
+
+				for (auto& sv : stackVariables)
+				{
+					if (CustomNodeProperties::nodeHasProperty(sv->nodeTree, PropertyIds::IsPublicMod))
+					{
+						String def;
+						def << sv->toExpression() << ".connect(*this);";
+						parent << def;
+					}
+				}
+
+				parent.addEmptyLine();
+			}
+
 			addDefaultParameters();
+		}
+
+		if (hasPolyData)
+		{
+			parent.addEmptyLine();
+			parent << "static constexpr bool isPolyphonic() { return NV > 1; };";
+		}
+
+		if (root->hasProperty(PropertyIds::IsProcessingHiseEvent))
+		{
+			parent.addEmptyLine();
+			parent << "static constexpr bool isProcessingHiseEvent() { return true; };";
 		}
 
 		if (hasComplexTypes())
@@ -1313,7 +1471,12 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 
 	s.flushIfNot();
 
-	return parent.createNode(root->nodeTree, nodeClassId, {});
+	auto n = parent.createNode(root->nodeTree, nodeClassId, s.scopedId.toString());
+
+	if (hasPolyData)
+		n->addTemplateIntegerArgument("NV", true);
+
+	return n;
 }
 
 
@@ -1859,9 +2022,7 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parse()
 
 Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseSingleDisplayBufferNode(bool enableBuffer)
 {
-	bool skipTemplateParameter = getNodePath(n->nodeTree).getParent() == NamespacedIdentifier("project");
-
-	if (skipTemplateParameter)
+	if (!CustomNodeProperties::nodeHasProperty(n->nodeTree, PropertyIds::UseRingBuffer))
 		return n;
 
 	*n << (enableBuffer ? "true" : "false");
@@ -1875,7 +2036,14 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseEmbeddedDataNode(ExternalDa
 {
 	if (t == ExternalData::DataType::DisplayBuffer)
 	{
-		return parseSingleDisplayBufferNode(false);
+		auto n = parseSingleDisplayBufferNode(false);
+
+		Node::Ptr wn = new Node(parent, n->scopedId.id, NamespacedIdentifier("wrap::no_data"));
+		wn->nodeTree = n->nodeTree;
+		*wn << *n;
+
+		wn->flushIfNot();
+		return wn;
 	}
 
 	Node::Ptr wn = new Node(parent, n->scopedId.id, NamespacedIdentifier("wrap::data"));
@@ -1896,6 +2064,8 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseEmbeddedDataNode(ExternalDa
 
 	*wn << *n;
 	*wn << ed;
+
+	parent.addNumVoicesTemplate(wn);
 	wn->flushIfNot();
 	return wn;
 }
@@ -1915,6 +2085,8 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseExternalDataNode(ExternalDa
 	ed << String(slotIndex);
 	*wn << *n;
 	*wn << ed;
+
+	parent.addNumVoicesTemplate(wn);
 	wn->flushIfNot();
 	return wn;
 }
@@ -2086,6 +2258,9 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseMatrixDataNode()
 
 	*wn << *n;
 	*wn << ed;
+
+	parent.addNumVoicesTemplate(wn);
+
 	wn->flushIfNot();
 
 	return wn;
@@ -2158,7 +2333,17 @@ Node::Ptr ValueTreeBuilder::SnexNodeBuilder::parseWrappedSnexNode()
 	parent << code;
 	parent.addEmptyLine();
 
-	*wn << classId;
+	if (CustomNodeProperties::nodeHasProperty(wn->nodeTree, PropertyIds::IsPolyphonic))
+		wn->addTemplateIntegerArgument("NV", true);
+
+	UsingTemplate ud(parent, "unused", NamespacedIdentifier(classId));
+
+	if (wn->hasProperty(PropertyIds::TemplateArgumentIsPolyphonic))
+	{
+		ud.addTemplateIntegerArgument("NV", true);
+	}
+
+	*wn << ud;
 
 	return wn;
 }
@@ -2167,6 +2352,8 @@ Node::Ptr ValueTreeBuilder::SnexNodeBuilder::parseUnwrappedSnexNode()
 {
 	Node::Ptr wn = new Node(parent, n->scopedId.id, NamespacedIdentifier(classId));
 	wn->nodeTree = n->nodeTree;
+
+	wn->addTemplateIntegerArgument("NV", true);
 
 	parent << code;
 	parent.addEmptyLine();

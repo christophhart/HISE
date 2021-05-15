@@ -402,6 +402,50 @@ template <class T, int P, class RangeType> struct from0To1 : public single_base<
 	}
 };
 
+template <class T, int P, class RangeType> struct from0To1_inv : public single_base<T, P>
+{
+	void call(double v)
+	{
+		jassert(isConnected());
+		callStatic(this->obj, v);
+	}
+
+	static void callStatic(void* obj_, double v)
+	{
+		v = 1.0 - v;
+
+		auto converted = RangeType::from0To1(v);
+		using ObjectType = typename T::ObjectType;
+		ObjectType::template setParameterStatic<P>(obj_, converted);
+	}
+
+	void operator()(double v)
+	{
+		call(v);
+	}
+
+	void addToList(ParameterDataList& d)
+	{
+		data p("plainUnNamed");
+		p.callback.referTo(this->obj, callStatic);
+
+		// use the default range here...
+		p.setRange({ 0.0, 1.0 });
+		d.add(p);
+	}
+
+	template <int Unused> auto& getParameter()
+	{
+		return *this;
+	}
+
+	void validate()
+	{
+		jassert(this->connected);
+		jassert(this->obj != nullptr);
+	}
+};
+
 /** A parameter that converts the input to 0...1 from the given range.
 
 	The RangeType argument must be a class created by one of the
