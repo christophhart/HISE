@@ -790,7 +790,15 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 			NamespacedIdentifier mainObjectId(getParent()->getInstanceId());
 
-			r.mainClassPtr = cc->getComplexType(mainObjectId);
+			int voiceAmount = 1;
+
+			if (auto ph = getParent()->getGlobalScope().getPolyHandler())
+				if (ph->isEnabled())
+					voiceAmount = NUM_POLYPHONIC_VOICES;
+			
+			TemplateParameter tp(voiceAmount);
+
+			r.mainClassPtr = cc->getComplexType(mainObjectId, {tp}, true);
 
 			return r;
 		}
@@ -976,8 +984,11 @@ struct WorkbenchData : public ReferenceCountedObject,
 	void triggerPostCompileActions()
 	{
 		compileHandler->postCompile(lastCompileResult);
-		
-		postPostCompile();
+
+		callAsyncWithSafeCheck([](WorkbenchData* d)
+		{
+			d->postPostCompile();
+		}, true);
 	}
 
 	void postPostCompile()
@@ -989,7 +1000,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 		}
 	}
 
-	void callAsyncWithSafeCheck(const std::function<void(WorkbenchData* d)>& f);
+	void callAsyncWithSafeCheck(const std::function<void(WorkbenchData* d)>& f, bool callSyncIfMessageThread=false);
 
 	void postCompile()
 	{
@@ -1242,7 +1253,7 @@ struct ValueTreeCodeProvider : public snex::ui::WorkbenchData::CodeProvider,
 	String customCode;
 };
 
-struct WorkbenchManager final
+struct WorkbenchManager final: public AsyncUpdater
 {
 	using LogFunction = std::function<void(int, const String&)>;
 
@@ -1290,6 +1301,8 @@ struct WorkbenchManager final
 	}
 
 private:
+
+	void handleAsyncUpdate() override;
 
 	ReferenceCountedArray<WorkbenchData> data;
 	WorkbenchData::Ptr currentWb;

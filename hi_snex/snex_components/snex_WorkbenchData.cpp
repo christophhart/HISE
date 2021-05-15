@@ -48,7 +48,7 @@ String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 	String nl = "\n";
 	String emptyBody = "\t{\n\t\t\n\t}\n\t\n";
 
-	s << "struct " << mainClass << nl;
+	s << "template <int NumVoices> struct " << mainClass << nl;
 
 	s << "{" << nl;
 	s << "\t" << "void prepare(PrepareSpecs ps)" << nl;
@@ -166,8 +166,14 @@ void ui::WorkbenchData::handleBlinks()
 	pendingBlinks.clearQuick();
 }
 
-void ui::WorkbenchData::callAsyncWithSafeCheck(const std::function<void(WorkbenchData* d)>& f)
+void ui::WorkbenchData::callAsyncWithSafeCheck(const std::function<void(WorkbenchData* d)>& f, bool callSyncIfMessageThread)
 {
+	if (callSyncIfMessageThread && MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
+	{
+		f(this);
+		return;
+	}
+		
 	WeakReference<WorkbenchData> safePtr(this);
 
 	MessageManager::callAsync([safePtr, f]()
@@ -253,13 +259,33 @@ void ui::WorkbenchManager::setCurrentWorkbench(WorkbenchData::Ptr newWorkbench, 
 
 	if (currentWb.get() != newWorkbench.get())
 	{
+		if (newWorkbench == nullptr)
+		{
+			for (int i = 0; i < codeProviders.size(); i++)
+			{
+				if (codeProviders[i]->getParent() == currentWb.get())
+					codeProviders.remove(i--);
+			}
+
+			for (int i = 0; i < data.size(); i++)
+			{
+				if (data[i].get() == currentWb.get())
+					data.remove(i--);
+			}
+		}
+
 		currentWb = newWorkbench.get();
 
-		for (auto l : listeners)
-		{
-			if (l.get() != nullptr)
-				l->workbenchChanged(newWorkbench);
-		}
+		triggerAsyncUpdate();
+	}
+}
+
+void ui::WorkbenchManager::handleAsyncUpdate()
+{
+	for (auto l : listeners)
+	{
+		if (l.get() != nullptr)
+			l->workbenchChanged(currentWb);
 	}
 }
 
@@ -490,7 +516,7 @@ void ui::WorkbenchData::TestData::rebuildTestSignal(NotificationType triggerTest
 	case TestSignalMode::OneKhzSine:
 	case TestSignalMode::OneKhzSaw:
 	{
-		scriptnode::core::oscillator osc;
+		scriptnode::core::oscillator<1> osc;
 		
 		auto psCopy = ps;
 		psCopy.numChannels = 1;
@@ -508,8 +534,8 @@ void ui::WorkbenchData::TestData::rebuildTestSignal(NotificationType triggerTest
 	case TestSignalMode::SineSweep:
 	{
 		using namespace scriptnode;
-		using PType = parameter::from0To1<core::oscillator, 1, FreqRange>;
-		using ProcessorType = container::chain<parameter::empty, wrap::fix<1, core::ramp>, wrap::mod<PType, core::peak>, math::clear, core::oscillator>;
+		using PType = parameter::from0To1<core::oscillator<1>, 1, FreqRange>;
+		using ProcessorType = container::chain<parameter::empty, wrap::fix<1, core::ramp<1, false>>, wrap::mod<PType, core::peak>, math::clear, core::oscillator<1>>;
 
 		wrap::frame<1, ProcessorType> fObj;
 

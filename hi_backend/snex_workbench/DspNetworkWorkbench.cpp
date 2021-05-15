@@ -69,7 +69,7 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 					{
 						if (id.toString() == f.getId(i))
 						{
-							found = f.initOpaqueNode(&dllNode, i);
+							found = f.initOpaqueNode(&dllNode, i, fh->isPolyphonic());
 							break;
 						}
 					}
@@ -208,14 +208,9 @@ void DspNetworkCompileHandler::processTest(ProcessDataDyn& data)
 		dllNode.process(data);
 	else if (interpreter != nullptr)
 	{
-		SimpleReadWriteLock::ScopedReadLock sl(interpreter->getConnectionLock());
-
 		DspNetwork::VoiceSetter svs(*interpreter, 0);
 
-		if (interpreter->getExceptionHandler().isOk())
-		{
-			interpreter->getRootNode()->process(data);
-		}
+		interpreter->process(data);
 	}
 	else if (jitNode != nullptr)
 		jitNode->process(data);
@@ -272,16 +267,16 @@ DspNetworkCodeProvider::DspNetworkCodeProvider(WorkbenchData* d, MainController*
 
 void DspNetworkCodeProvider::initNetwork()
 {
+	DspNetwork* n = nullptr;
+
 	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(getXmlFile()))
 	{
 		currentTree = ValueTree::fromXml(*xml);
-		np->getOrCreate(currentTree);
+		n = np->getOrCreate(currentTree);
 	}
 	else
 	{
-		np->getOrCreate(getXmlFile().getFileNameWithoutExtension());
-
-		
+		n = np->getOrCreate(getXmlFile().getFileNameWithoutExtension());
 		currentTree = np->getActiveNetwork()->getValueTree();
 	}
 
@@ -321,13 +316,25 @@ void DspNetworkCodeProvider::anythingChanged(valuetree::AnyListener::CallbackTyp
 	if (!getParent()->getGlobalScope().isDebugModeEnabled())
 		return;
 
-	if (getParent() != nullptr)
+	WeakReference<DspNetworkCodeProvider> safeThis(this);
+
+
+
+	auto f = [safeThis, d](Processor* p)
 	{
-		if (source == SourceMode::InterpretedNode && d != valuetree::AnyListener::PropertyChange)
-			getParent()->triggerRecompile();
-		else
-			getParent()->triggerPostCompileActions();
-	}
+		if (safeThis.get() == nullptr)
+			return SafeFunctionCall::OK;
+
+		auto t = safeThis.get();
+
+		if (t->getParent() != nullptr)
+		{
+			DBG("CHANGE");
+			t->getParent()->triggerPostCompileActions();
+		}
+	};
+
+	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 }
 
 namespace RoutingIcons

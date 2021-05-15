@@ -104,6 +104,8 @@ protected:
 struct AnyListener : private Base,
 					 private Timer
 {
+	using PropertyConditionFunc = std::function<bool(const ValueTree&, const Identifier&)>;
+
 	enum CallbackType
 	{
 		Nothing,
@@ -143,9 +145,16 @@ struct AnyListener : private Base,
 
 protected:	
 
+	void setPropertyCondition(const PropertyConditionFunc& f)
+	{
+		pcf = f;
+	}
+
 	virtual void anythingChanged(CallbackType cb) = 0;
 
 private:
+
+	PropertyConditionFunc pcf;
 
 	CallbackType lastCallbackType = CallbackType::Nothing;
 
@@ -164,7 +173,7 @@ private:
 	void valueTreeChildAdded(ValueTree&, ValueTree&) override { if(forwardCallbacks[ChildAdded]) triggerUpdate(ChildAdded); }
 	void valueTreeChildOrderChanged(ValueTree&, int, int) override { if (forwardCallbacks[ChildOrderChanged])triggerUpdate(ChildOrderChanged); }
 	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override { if (forwardCallbacks[ChildDeleted]) triggerUpdate(ChildDeleted); }
-	void valueTreePropertyChanged(ValueTree&, const Identifier&) override { if (forwardCallbacks[PropertyChange]) triggerUpdate(PropertyChange); };
+	void valueTreePropertyChanged(ValueTree&, const Identifier&) override;;
 	void valueTreeParentChanged(ValueTree&) override { if (forwardCallbacks[ValueTreeRedirected]) triggerUpdate(ValueTreeRedirected); }
 };
 

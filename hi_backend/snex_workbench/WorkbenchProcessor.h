@@ -84,6 +84,8 @@ struct BackendDllManager: public ReferenceCountedObject,
 
 	using Ptr = ReferenceCountedObjectPtr<BackendDllManager>;
 
+	static Array<File> getNetworkFiles(MainController* mc);
+
 	int getHash(bool getDllHash);
 	bool unloadDll();
 	bool loadDll(bool forceUnload);
@@ -104,6 +106,7 @@ struct BackendDllManager: public ReferenceCountedObject,
 		auto files = dllFolder.findChildFiles(File::findFiles, false, extension);
 
 
+
 		auto removeWildcard = "Never";
 
 		if (t == DllType::Debug)
@@ -113,7 +116,18 @@ struct BackendDllManager: public ReferenceCountedObject,
 
 		for (int i = 0; i < files.size(); i++)
 		{
-			if (files[i].getFileName().contains(removeWildcard))
+			auto fileName = files[i].getFileName();
+
+#if JUCE_DEBUG
+			if (!fileName.contains("debug"))
+				files.remove(i--);
+#else
+			if (fileName.contains("debug"))
+				files.remove(i--);
+#endif
+
+
+			if (fileName.contains(removeWildcard))
 				files.remove(i--);
 		}
 
@@ -140,6 +154,67 @@ struct BackendDllManager: public ReferenceCountedObject,
 	}
 
 	scriptnode::dll::ProjectDll::Ptr projectDll;
+};
+
+struct PatchAutosaver : public valuetree::AnyListener
+{
+	PatchAutosaver(scriptnode::DspNetwork* n, const File& directory):
+		AnyListener(valuetree::AsyncMode::Asynchronously),
+		network(n)
+	{
+		setPropertyCondition([](const ValueTree& v, const Identifier& id)
+		{
+			if (id == PropertyIds::Value)
+			{
+				return !v[PropertyIds::Automated];
+			}
+
+			return true;
+		});
+
+		auto id = "autosave_" + n->getRootNode()->getId();
+		d = directory.getChildFile(id).withFileExtension("xml");
+
+		setMillisecondsBetweenUpdate(2000);
+		setRootValueTree(n->getValueTree());
+		initialised = true;
+	}
+
+	~PatchAutosaver()
+	{
+		if(d.existsAsFile())
+			d.deleteFile();
+	}
+
+	bool isChanged() const { return changed && d.existsAsFile(); }
+
+	void closeAndDelete()
+	{
+		if (changed)
+		{
+			auto ofile = d.getSiblingFile(network->getRootNode()->getId()).withFileExtension(".xml");
+			ofile.deleteFile();
+			d.moveFileTo(ofile);
+			initialised = false;
+		}
+	}
+
+	void anythingChanged(CallbackType cb) override
+	{
+		if (!initialised)
+			return;
+
+		changed = true;
+		ScopedPointer<XmlElement> xml = network->getValueTree().createXml();
+		d.replaceWithText(xml->createDocument(""));
+	}
+
+private:
+
+	bool changed = false;
+	bool initialised = false;
+	File d;
+	WeakReference<DspNetwork> network;
 };
 
 class SnexWorkbenchEditor : public Component,
@@ -175,6 +250,7 @@ public:
 		ToolsCompileNetworks,
 		ToolsClearDlls,
 		ToolsRecompile,
+		ToolsSetBPM,
 		TestsRunAll,
 		ProjectOffset = 10000,
 		FileOffset = 9000,
@@ -285,6 +361,8 @@ public:
 
 private:
 
+	ScopedPointer<PatchAutosaver> autosaver;
+
 	bool isCppPreviewEnabled();
 
 	DebuggableSnexProcessor* getCurrentSnexProcessor();
@@ -311,8 +389,10 @@ private:
 	Array<File> networkFiles;
 	StringArray recentProjectFiles;
 
-	void addFile(const File& f);
+	void addFile(File f);
 	
+	void loadNewNetwork(const File& f);
+
 	friend class DspNetworkCompileExporter;
 
 	WeakReference<DspNetworkProcessor> dnp;
@@ -321,7 +401,7 @@ private:
 
 	SnexEditorPanel* ep;
 
-	scriptnode::DspNetworkGraphPanel* dgp = nullptr;
+	WeakReference<scriptnode::DspNetworkGraphPanel> dgp = nullptr;
 
 	OpenGLContext context;
 

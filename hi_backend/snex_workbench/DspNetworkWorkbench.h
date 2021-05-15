@@ -152,7 +152,7 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 
 	void debugModeChanged(bool isEnabled) override
 	{
-		setSoftBypass(isEnabled);
+		setBypassed(isEnabled, sendNotificationSync);
 
 		if (!isEnabled)
 			prepareToPlay(getSampleRate(), getLargestBlockSize());
@@ -406,9 +406,9 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 	DspNetworkCodeProvider(WorkbenchData* d, MainController* mc, DspNetwork::Holder* np_, const File& fileToWriteTo);
 
-	void initNetwork();
+	~DspNetworkCodeProvider() {};
 
-	
+	void initNetwork();
 
 	void setSource(SourceMode m)
 	{

@@ -504,6 +504,17 @@ void AnyListener::handleAsyncUpdate()
 	lastCallbackType = Nothing;
 }
 
+void AnyListener::valueTreePropertyChanged(ValueTree& v, const Identifier& id)
+{
+	if (!forwardCallbacks[PropertyChange])
+		return;
+	
+	if (pcf && !pcf(v, id))
+		return;
+
+	triggerUpdate(PropertyChange);
+}
+
 void AnyListener::triggerUpdate(CallbackType t)
 {
 	auto thisCallbackType = jmax(lastCallbackType, t);

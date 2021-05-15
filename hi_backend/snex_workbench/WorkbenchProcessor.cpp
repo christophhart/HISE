@@ -95,6 +95,7 @@ juce::PopupMenu SnexWorkbenchEditor::getMenuForIndex(int topLevelMenuIndex, cons
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsEditTestData);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsCompileNetworks);
 		m.addCommandItem(&mainManager, MenuCommandIds::ToolsClearDlls);
+		m.addCommandItem(&mainManager, MenuCommandIds::ToolsSetBPM);
 	}
 	case MenuItems::TestMenu:
 	{
@@ -121,6 +122,7 @@ void SnexWorkbenchEditor::getAllCommands(Array<CommandID>& commands)
 		MenuCommandIds::ToolsAudioConfig,
 		MenuCommandIds::ToolsCompileNetworks,
 		MenuCommandIds::ToolsClearDlls,
+		MenuCommandIds::ToolsSetBPM,
 		MenuCommandIds::ToolsRecompile,
 		MenuCommandIds::ToolsEditTestData,
 		MenuCommandIds::TestsRunAll
@@ -151,6 +153,7 @@ void SnexWorkbenchEditor::getCommandInfo(CommandID commandID, ApplicationCommand
 		break;
 	case MenuCommandIds::ToolsClearDlls: setCommandTarget(result, "Clear DLL build folder", true, false, 'x', false); break;
 	case MenuCommandIds::ToolsAudioConfig: setCommandTarget(result, "Settings", true, false, 0, false); break;
+	case MenuCommandIds::ToolsSetBPM: setCommandTarget(result, "Set BPM", true, false, 0, false); break;
 	case MenuCommandIds::TestsRunAll: setCommandTarget(result, "Run all tests", true, false, 0, false); break;
 	
 	default: jassertfalse;
@@ -236,6 +239,17 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 		auto window = new DspNetworkCompileExporter(this);
 		window->setOpaque(true);
 		window->setModalBaseWindowComponent(this);
+
+		return true;
+	}
+	case ToolsSetBPM:
+	{
+		auto bpm = PresetHandler::getCustomName(String(getProcessor()->getBpm()), "Enter the BPM value");
+
+		auto nBpm = bpm.getDoubleValue();
+
+		if(nBpm != 0.0)
+			getProcessor()->setHostBpm(nBpm);
 
 		return true;
 	}
@@ -524,13 +538,23 @@ void SnexWorkbenchEditor::resized()
 
 void SnexWorkbenchEditor::requestQuit()
 {
+	closeCurrentNetwork();
 	standaloneProcessor.requestQuit();
 }
 
 void SnexWorkbenchEditor::saveCurrentFile()
 {
-	auto fh = getNetworkHolderForNewFile(getProcessor(), synthMode);
+	if (autosaver != nullptr)
+	{
+		autosaver->closeAndDelete();
 
+		auto fh = getNetworkHolderForNewFile(getProcessor(), synthMode);
+
+		autosaver = new PatchAutosaver(fh->getActiveNetwork(), BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks));
+	}
+
+	
+#if 0
 	if (fh != nullptr)
 	{
 		if(auto n = fh->getActiveNetwork())
@@ -539,6 +563,7 @@ void SnexWorkbenchEditor::saveCurrentFile()
 			df->getXmlFile().replaceWithText(xml->createDocument(""));
 		}
 	}
+#endif
 }
 
 void SnexWorkbenchEditor::setSynthMode(bool shouldBeSynthMode)
@@ -576,23 +601,38 @@ scriptnode::DspNetwork::Holder* SnexWorkbenchEditor::getNetworkHolderForNewFile(
 
 void SnexWorkbenchEditor::closeCurrentNetwork()
 {
-	dgp->setContentWithUndo(nullptr, 0);
+	if (autosaver != nullptr && autosaver->isChanged() && PresetHandler::showYesNoWindow("Save changes", "Do you want to save the changes before closing"))
+		autosaver->closeAndDelete();
 
-	auto n = getNetworkHolderForNewFile(getProcessor(), synthMode);
+	autosaver = nullptr;
 
-	ValueTree v("N");
-	v.addChild(ValueTree("Networks"), -1, nullptr);
+	if(dgp != nullptr)
+		dgp->setContentWithUndo(nullptr, 0);
 
-	n->restoreNetworks(v);
+	if (auto n = getNetworkHolderForNewFile(getProcessor(), synthMode))
+	{
+		n->clearAllNetworks();
 
-	snex::ui::WorkbenchData::Ptr p(wb.get());
+#if 0
 
-	static_cast<WorkbenchManager*>(getProcessor()->getWorkbenchManager())->removeWorkbench(p);
+		ValueTree v("N");
+		v.addChild(ValueTree("Networks"), -1, nullptr);
 
-	wb = nullptr;
-	p = nullptr;
+		n->restoreNetworks(v);
 
-	resized();
+		snex::ui::WorkbenchData::Ptr p(wb.get());
+
+		static_cast<WorkbenchManager*>(getProcessor()->getWorkbenchManager())->removeWorkbench(p);
+
+		wb = nullptr;
+		p = nullptr;
+
+		resized();
+#endif
+	}
+
+	auto wm = static_cast<snex::ui::WorkbenchManager*>(getProcessor()->getWorkbenchManager());
+	wm->setCurrentWorkbench(nullptr, true);
 }
 
 bool SnexWorkbenchEditor::isCppPreviewEnabled()
@@ -608,8 +648,28 @@ hise::DebuggableSnexProcessor* SnexWorkbenchEditor::getCurrentSnexProcessor()
 	return dynamic_cast<DebuggableSnexProcessor*>(getNetworkHolderForNewFile(getProcessor(), synthMode));
 }
 
-void SnexWorkbenchEditor::addFile(const File& f)
+void SnexWorkbenchEditor::addFile(File f)
 {
+	if (f.getFileName().startsWith("autosave"))
+	{
+		if (PresetHandler::showYesNoWindow("Replace original file", "Do you want to replace the real file with this autosaved version"))
+		{
+			auto r = f.getFileNameWithoutExtension().replace("autosave_", "");
+
+			auto original = f.getSiblingFile(r).withFileExtension("xml");
+
+			if (original.existsAsFile())
+				original.deleteFile();
+
+			f.moveFileTo(original);
+			f = original;
+
+			PresetHandler::showMessageWindow("File renamed", "The file was renamed to " + original.getFileName());
+		}
+	}
+
+	closeCurrentNetwork();
+
 	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
 	{
 		auto signalPath = xml->getChildElement(0);
@@ -630,8 +690,19 @@ void SnexWorkbenchEditor::addFile(const File& f)
 				return;
 			}
 		}
-
 	}
+
+	getProcessor()->getKillStateHandler().killVoicesAndCall(getProcessor()->getMainSynthChain(), [this, f](Processor* p)
+	{
+		loadNewNetwork(f);
+		return SafeFunctionCall::OK;
+	}, MainController::KillStateHandler::SampleLoadingThread);
+}
+
+
+void SnexWorkbenchEditor::loadNewNetwork(const File& f)
+{
+	jassert(LockHelpers::freeToGo(getProcessor()));
 
 	if (dllManager == nullptr)
 		dllManager = new BackendDllManager(getProcessor());
@@ -651,24 +722,28 @@ void SnexWorkbenchEditor::addFile(const File& f)
 
 	wb->setIsCppPreview(true);
 
-	ep->setWorkbenchData(wb.get());
+	
 
 	auto testRoot = BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Tests);
-	
+
 	wb->getTestData().setTestRootDirectory(BackendDllManager::createIfNotDirectory(testRoot.getChildFile(f.getFileNameWithoutExtension())));
 	wb->getTestData().setUpdater(getProcessor()->getGlobalUIUpdater());
-
 	wb->addListener(this);
-
 	fh->setExternalDataHolderToUse(&wb->getTestData());
-
 	df->initNetwork();
 
-	wb->triggerRecompile();
+	
 
-	dgp->setContentWithUndo(dynamic_cast<Processor*>(fh), 0);
+	MessageManager::callAsync([&]()
+	{
+		auto h = getNetworkHolderForNewFile(getProcessor(), synthMode);
+
+		ep->setWorkbenchData(wb.get());
+		dgp->setContentWithUndo(dynamic_cast<Processor*>(h), 0);
+
+		autosaver = new PatchAutosaver(h->getActiveNetwork(), BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks));
+	});
 }
-
 
 DspNetworkCompileExporter::DspNetworkCompileExporter(SnexWorkbenchEditor* e) :
 	DialogWindowWithBackgroundThread("Compile DSP networks"),
@@ -677,6 +752,12 @@ DspNetworkCompileExporter::DspNetworkCompileExporter(SnexWorkbenchEditor* e) :
 	editor(e)
 {
 	addComboBox("build", { "Debug", "Release" }, "Build Configuration");
+
+	if (auto fh = editor->getNetworkHolderForNewFile(editor->getProcessor(), editor->getSynthMode()))
+	{
+		if (auto n = fh->getActiveNetwork())
+			n->createAllNodesOnce();
+	}
 
 	addBasicComponents(true);
 }
@@ -748,6 +829,8 @@ struct IncludeSorter
 
 void DspNetworkCompileExporter::run()
 {
+	jassert(cppgen::CustomNodeProperties::isInitialised());
+
 	showStatusMessage("Unload DLL");
 
 	editor->saveCurrentFile();
@@ -766,6 +849,9 @@ void DspNetworkCompileExporter::run()
 
 	for (auto& nf : unsortedList)
 	{
+		if (nf.getFileName().startsWith("autosave"))
+			continue;
+
 		for (auto& sf : getIncludedNetworkFiles(nf))
 		{
 			list.addIfNotAlreadyThere(sf);
@@ -978,12 +1064,23 @@ void DspNetworkCompileExporter::createMainCppFile()
 		{
 			cppgen::StatementBlock bk(b);
 
+			b << "TempoSyncer::initTempoData();";
+
 			b.addComment("Node registrations", snex::cppgen::Base::CommentType::FillTo80Light);
 
 			for (int i = 0; i < includedFiles.size(); i++)
 			{
+				auto isPolyNode = includedFiles[i].loadFileAsString().contains("polyphonic template declaration");
+
+				String classId = "project::" + includedFiles[i].getFileNameWithoutExtension();
+
 				String def;
-				def << "registerNode<project::" << includedFiles[i].getFileNameWithoutExtension() << ">();";
+
+				if (!isPolyNode)
+					def << "registerNode<" << classId << ">();";
+				else
+					def << "registerPolyNode<" << classId << "<1>, " << classId << "<NUM_POLYPHONIC_VOICES>>();";
+
 				b << def;
 			}
 		}
@@ -1020,9 +1117,9 @@ void DspNetworkCompileExporter::createMainCppFile()
 	b.addEmptyLine();
 
 	{
-		b << "DLL_EXPORT void initOpaqueNode(scriptnode::OpaqueNode* n, int index)";
+		b << "DLL_EXPORT void initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyIfPossible)";
 		StatementBlock bk(b);
-		b << "f.initOpaqueNode(n, index);";
+		b << "f.initOpaqueNode(n, index, polyIfPossible);";
 	}
 
 	{
@@ -1031,6 +1128,12 @@ void DspNetworkCompileExporter::createMainCppFile()
 		String def;
 		def << "return " << editor->dllManager->getHash(false) << ";";
 		b << def;
+	}
+
+	{
+		b << "DLL_EXPORT int getWrapperType(int index)";
+		StatementBlock bk(b);
+		b << "return f.getWrapperType(index);";
 	}
 
 #if 0
@@ -1190,6 +1293,21 @@ void TestRunWindow::threadFinished()
 		PresetHandler::showMessageWindow("Test failed", "Some tests failed. Check the console output");
 	else
 		PresetHandler::showMessageWindow("Sucess", "All tests were sucessful");
+}
+
+juce::Array<juce::File> BackendDllManager::getNetworkFiles(MainController* mc)
+{
+	auto networkDirectory = getSubFolder(mc, FolderSubType::Networks);
+
+	auto files = networkDirectory.findChildFiles(File::findFiles, false, "*.xml");
+
+	for (int i = 0; i < files.size(); i++)
+	{
+		if (files[i].getFileName().contains("autosave_"))
+			files.remove(i--);
+	}
+
+	return files;
 }
 
 int BackendDllManager::getHash(bool getDllHash)
