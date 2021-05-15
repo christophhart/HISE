@@ -166,13 +166,13 @@ void SnexSource::addDummyProcessFunctions(String& s)
 
 			def2 << "void processFrame(span<float, " << String(i) << ">& data)"; b << def2;
 			{														 StatementBlock body(b);
-			b << (getCurrentClassId().toString() + " instance;");
+			b << (getCurrentClassId().toString() + "<NUM_POLYPHONIC_VOICES> instance;");
 			b << "instance.processFrame(data);";
 			}
 
 			def1 << "void process(ProcessData<" << String(i) << ">& data)";	  b << def1;
 			{														 StatementBlock body(b);
-			b << (getCurrentClassId().toString() + " instance;");
+			b << (getCurrentClassId().toString() + "<NUM_POLYPHONIC_VOICES> instance;");
 			b << "instance.process(data);";
 			}
 		}
@@ -190,7 +190,7 @@ void SnexSource::ParameterHandler::addParameterCode(String& code)
 	c.addComment("Adding parameter methods", cppgen::Base::CommentType::RawWithNewLine);
 
 	String fDef;
-	fDef << "void initMainObject(" << parent.getWorkbench()->getInstanceId() << "& obj)";
+	fDef << "void initMainObject(" << parent.getWorkbench()->getInstanceId() << "<NUM_POLYPHONIC_VOICES>& obj)";
 	c << fDef;
 
 	{

@@ -44,7 +44,7 @@ namespace waveshapers
 
 		Base c(Base::OutputType::AddTabs);
 
-		Struct s(c, id, {}, {});
+		cppgen::Struct s(c, id, {}, { TemplateParameter(NamespacedIdentifier("NumVoices"), 0, false) });
 
 		addSnexNodeId(c, id);
 
@@ -124,7 +124,7 @@ namespace waveshapers
 		for (int i = 0; i < 128; i++)
 			tData[i] = 2.0f * (float)i / 127.0f - 1.0f;
 
-		auto n = getObject()->getNumChannelsToProcess();
+		auto n = getObject()->getParentNode()->getCurrentChannelAmount();
 
 		float** d = (float**)alloca(sizeof(float*) * n);
 

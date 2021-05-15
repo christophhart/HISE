@@ -101,7 +101,7 @@ ComplexType::Ptr Compiler::registerExternalComplexType(ComplexType::Ptr t)
 	return compiler->namespaceHandler.registerComplexTypeOrReturnExisting(t);
 }
 
-ComplexType::Ptr Compiler::getComplexType(const NamespacedIdentifier& s, const Array<TemplateParameter>& tp)
+ComplexType::Ptr Compiler::getComplexType(const NamespacedIdentifier& s, const Array<TemplateParameter>& tp, bool checkPreexisting)
 {
 	if (tp.isEmpty())
 	{
@@ -109,6 +109,12 @@ ComplexType::Ptr Compiler::getComplexType(const NamespacedIdentifier& s, const A
 	}
 	else
 	{
+		if (checkPreexisting)
+		{
+			if (auto c = compiler->namespaceHandler.getExistingTemplateInstantiation(s, tp))
+				return c;
+		}
+
 		auto r = Result::ok();
 		return compiler->namespaceHandler.createTemplateInstantiation({ s, {} }, tp, r);
 	}

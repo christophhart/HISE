@@ -117,7 +117,7 @@ String core::SnexOscillator::getEmptyText(const Identifier& id) const
 	using namespace snex::cppgen;
 
 	cppgen::Base c(cppgen::Base::OutputType::AddTabs);
-	cppgen::Struct s(c, id, {}, {});
+	cppgen::Struct s(c, id, {}, { TemplateParameter(NamespacedIdentifier("NumVoices"), 0, false) });
 
 	c.addComment("This macro enables C++ compilation to a snex_osc", snex::cppgen::Base::CommentType::Raw);
 	addSnexNodeId(c, id);
@@ -313,7 +313,9 @@ void core::NewSnexOscillatorDisplay::resized()
 
 Component* core::NewSnexOscillatorDisplay::createExtraComponent(void* obj, PooledUIUpdater* u)
 {
-	return new NewSnexOscillatorDisplay(static_cast<SnexOscillator*>(obj), u);
+	auto t = static_cast<mothernode*>(obj);
+	auto typed = dynamic_cast<snex_osc_base<SnexOscillator>*>(t);
+	return new NewSnexOscillatorDisplay(&typed->oscType, u);
 }
 
 void core::NewSnexOscillatorDisplay::SnexOscPropertyObject::transformReadBuffer(AudioSampleBuffer& b)
@@ -325,7 +327,6 @@ void core::NewSnexOscillatorDisplay::SnexOscPropertyObject::transformReadBuffer(
 
 		d.data.referToRawData(b.getWritePointer(0), b.getNumSamples());
 		d.uptime = 0.0;
-		d.voiceIndex = 0;
 
 		SnexOscillator::OscTester tester(*osc);
 		tester.callbacks.process(d);

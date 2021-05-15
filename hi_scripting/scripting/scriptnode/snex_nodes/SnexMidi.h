@@ -170,10 +170,7 @@ struct dynamic : public SnexSource
 
 		void resized() override;
 
-		void timerCallback() override
-		{
-			jassertfalse;
-		}
+		void timerCallback() override;
 
 		SnexMenuBar menuBar;
 
@@ -189,7 +186,7 @@ struct dynamic : public SnexSource
 
 	void prepare(PrepareSpecs ps);
 
-	void initialise(NodeBase* n);
+	void initialise(NodeBase* n) override;
 
 	void setMode(Identifier id, var newValue);
 

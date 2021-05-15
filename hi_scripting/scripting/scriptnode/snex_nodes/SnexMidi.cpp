@@ -44,7 +44,9 @@ String dynamic::getEmptyText(const Identifier& id) const
 {
 	cppgen::Base c(cppgen::Base::OutputType::AddTabs);
 
-	cppgen::Struct s(c, id, {}, {});
+	
+
+	cppgen::Struct s(c, id, {}, {TemplateParameter(NamespacedIdentifier("NumVoices"), 0, false)});
 
 	addSnexNodeId(c, id);
 
@@ -190,8 +192,7 @@ dynamic::editor::editor(dynamic* t, PooledUIUpdater* updater) :
 	addAndMakeVisible(menuBar);
 	this->addAndMakeVisible(meter);
 	this->addAndMakeVisible(dragger);
-	this->setSize(256, 140);
-	stop();
+	this->setSize(256, 100);
 }
 
 void dynamic::editor::valueChanged(Value& value)
@@ -222,12 +223,31 @@ void dynamic::editor::resized()
 	menuBar.setBounds(b.removeFromTop(24));
 
 	b.removeFromTop(18);
-	meter.setBounds(b.removeFromTop(18));
+
+	meter.setBounds(b.removeFromTop(8));
 	b.removeFromTop(18);
-	auto r = b.removeFromTop(28);
-	midiMode.setBounds(r);
+	auto r = b.removeFromTop(24);
+
+	midiMode.setBounds(r.removeFromLeft(100));
+	r.removeFromLeft(UIValues::NodeMargin);
+	dragger.setBounds(r);
 	b.removeFromTop(10);
-	dragger.setBounds(b);
+}
+
+void dynamic::editor::timerCallback()
+{
+	if (auto c = findParentComponentOfClass<NodeComponent>())
+	{
+		auto c2 = c->header.colour;
+
+		if (c2 == Colours::transparentBlack)
+			c2 = Colours::white;
+
+		meter.setColour(VuMeter::ledColour, c2);
+	}
+
+	auto snexEnabled = getObject()->currentMode == Mode::Custom;
+	menuBar.setAlpha(snexEnabled ? 1.0f : 0.1f);
 }
 
 void dynamic::CustomMidiCallback::reset()

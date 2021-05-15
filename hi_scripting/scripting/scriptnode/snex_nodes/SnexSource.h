@@ -592,7 +592,7 @@ struct SnexSource : public WorkbenchData::Listener,
 
 	virtual Identifier getTypeId() const = 0;
 
-	void initialise(NodeBase* n)
+	virtual void initialise(NodeBase* n)
 	{
 		parentNode = n;
 

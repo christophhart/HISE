@@ -197,6 +197,45 @@ snex::jit::ComplexType::Ptr NamespaceHandler::getComplexType(NamespacedIdentifie
 	return nullptr;
 }
 
+snex::jit::ComplexType::Ptr NamespaceHandler::getExistingTemplateInstantiation(NamespacedIdentifier id, const TemplateParameter::List& tp)
+{
+	for (auto c : complexTypes)
+	{
+		if (auto st = dynamic_cast<StructType*>(c))
+		{
+			if (st->id == id)
+			{
+				auto stp = st->getTemplateInstanceParameters();
+
+				if (stp.size() == tp.size())
+				{
+					bool allOk = true;
+
+					for (int i = 0; i < stp.size(); i++)
+					{
+						if (stp[i].isResolved())
+						{
+							if (stp[i].constantDefined)
+							{
+								allOk &= stp[i].constant == tp[i].constant;
+							}
+							else
+							{
+								allOk &= stp[i].type == tp[i].type;
+							}
+						}
+					}
+
+					if (allOk)
+						return c;
+				}
+			}
+		}
+	}
+	
+	return nullptr;
+}
+
 snex::jit::TypeInfo NamespaceHandler::parseTypeFromTextInput(const String& input, int lineNumber)
 {
 	ExpressionTypeParser etp(*this, input, lineNumber);

@@ -73,7 +73,14 @@ namespace control
 
 struct snex_timer : public SnexSource
 {
-	using NodeType = control::timer<snex_timer>;
+	enum class TimerMode
+	{
+		Ping,
+		Toggle,
+		Random,
+		Custom,
+		numModes
+	};
 
 	struct TimerCallbackHandler : public SnexSource::CallbackHandlerBase
 	{
@@ -156,11 +163,13 @@ struct snex_timer : public SnexSource
 
 	snex_timer() :
 		SnexSource(),
-		callbacks(*this, object)
+		callbacks(*this, object),
+		mode(PropertyIds::Mode, "Ping")
 	{
 		setCallbackHandler(&callbacks);
 	}
 
+	static StringArray getModes() { return { "Ping", "Toggle", "Random", "Custom" }; }
 
 	String getEmptyText(const Identifier& id) const override;
 
@@ -171,16 +180,48 @@ struct snex_timer : public SnexSource
 		return new Tester<TimerCallbackHandler>(*this);
 	}
 
+	void initialise(NodeBase* n)
+	{
+		SnexSource::initialise(n);
+
+		mode.initialise(n);
+		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(snex_timer::updateMode), true);
+	}
+
+	void updateMode(Identifier, var newValue)
+	{
+		currentMode = (TimerMode)getModes().indexOf(newValue.toString());
+		reset();
+	}
+
 	double getTimerValue();
 
 	void reset()
 	{
-		callbacks.resetTimer();
+		switch (currentMode)
+		{
+		case TimerMode::Ping:	pingTimer.reset(); break;
+		case TimerMode::Custom: callbacks.resetTimer(); break;
+		case TimerMode::Toggle: toggleTimer.reset(); break;
+		case TimerMode::Random: randomTimer.reset(); break;
+		}
+	}
+
+	bool preprocess(String& code) override
+	{
+		SnexSource::preprocess(code);
+
+		//code << "void tut() { " << getCurrentClassId().toString() << " <NUM_POLYPHONIC_VOICES> x;};";
+		return true;
 	}
 
 	void prepare(PrepareSpecs ps)
 	{
+
 		callbacks.prepare(ps);
+		toggleTimer.prepare(ps);
+		randomTimer.prepare(ps);
+		pingTimer.prepare(ps);
 	}
 
 	TimerCallbackHandler callbacks;
@@ -210,8 +251,17 @@ struct snex_timer : public SnexSource
 		
 		FlashingModKnob modKnob;
 
+		ComboBoxWithModeProperty modeSelector;
 		ModulationSourceBaseComponent dragger;
 	};
+
+	NodePropertyT<String> mode;
+
+	TimerMode currentMode;
+
+	timer_logic::toggle<NUM_POLYPHONIC_VOICES> toggleTimer;
+	timer_logic::random<1> randomTimer;
+	timer_logic::ping<1> pingTimer;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(snex_timer);
 };

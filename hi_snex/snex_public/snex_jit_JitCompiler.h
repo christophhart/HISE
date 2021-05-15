@@ -127,7 +127,7 @@ public:
 	so make sure you use the return value of this function for further processing. */
 	ComplexType::Ptr registerExternalComplexType(ComplexType::Ptr t);
 
-	ComplexType::Ptr getComplexType(const NamespacedIdentifier& s, const Array<TemplateParameter>& tp = {});
+	ComplexType::Ptr getComplexType(const NamespacedIdentifier& s, const Array<TemplateParameter>& tp = {}, bool checkPreExisting=false);
 
 	void addConstant(const NamespacedIdentifier& s, const VariableStorage& v);
 	void addTemplateClass(const TemplateObject& c);

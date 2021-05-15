@@ -288,6 +288,7 @@ public:
 
 	ComplexType::Ptr registerComplexTypeOrReturnExisting(ComplexType::Ptr ptr);
 	ComplexType::Ptr getComplexType(NamespacedIdentifier id);
+	ComplexType::Ptr getExistingTemplateInstantiation(NamespacedIdentifier id, const TemplateParameter::List& tp);
 
 	TypeInfo parseTypeFromTextInput(const String& input, int lineNumber);
 

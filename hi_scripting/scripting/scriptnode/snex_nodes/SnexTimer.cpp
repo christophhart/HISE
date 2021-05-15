@@ -43,7 +43,7 @@ namespace control
 	{
 		cppgen::Base c(cppgen::Base::OutputType::AddTabs);
 
-		cppgen::Struct s(c, id, {}, {});
+		cppgen::Struct s(c, id, {}, { TemplateParameter(NamespacedIdentifier("NumVoices"), 0, false) });
 
 		addSnexNodeId(c, id);
 
@@ -71,7 +71,16 @@ namespace control
 
 	double snex_timer::getTimerValue()
 	{
-		auto v = callbacks.getTimerValue();
+		double v;
+
+		switch (currentMode)
+		{
+		case TimerMode::Ping:   v = pingTimer.getTimerValue(); break;
+		case TimerMode::Custom: v = callbacks.getTimerValue(); break;
+		case TimerMode::Toggle: v = toggleTimer.getTimerValue(); break;
+		case TimerMode::Random: v = randomTimer.getTimerValue(); break;
+		}
+
 		lastValue.setModValue(v);
 		return v;
 	}
@@ -80,20 +89,25 @@ namespace control
 		ScriptnodeExtraComponent<snex_timer>(t, updater),
 		menuBar(t),
 		dragger(updater),
-		modKnob(updater, &t->lastValue)
+		modKnob(updater, &t->lastValue),
+		modeSelector("toggle")
 	{
+		modeSelector.initModes(snex_timer::getModes(), t->getParentNode());
 		t->addCompileListener(this);
 
 		addAndMakeVisible(modKnob);
 		addAndMakeVisible(menuBar);
+		addAndMakeVisible(modeSelector);
 		this->addAndMakeVisible(dragger);
 
-		this->setSize(200, 140);
+		this->setSize(200, 110);
 	}
 
 	juce::Component* snex_timer::editor::createExtraComponent(void* obj, PooledUIUpdater* updater)
 	{
-		return new editor(&static_cast<NodeType*>(obj)->tType, updater);
+		auto mn = static_cast<mothernode*>(obj);
+		auto t = dynamic_cast<timer_base<snex_timer>*>(mn);
+		return new editor(&t->tType, updater);
 	}
 
 	void snex_timer::editor::resized()
@@ -107,10 +121,13 @@ namespace control
 		b.removeFromTop(UIValues::NodeMargin);
 		b.removeFromBottom(UIValues::NodeMargin);
 		
+		auto r = b.removeFromRight(b.getHeight());
+		auto l = b;
+		
+		modeSelector.setBounds(l.removeFromTop(24));
+		dragger.setBounds(l.removeFromBottom(28));
 
-		dragger.setBounds(b.removeFromBottom(28));
-
-		modKnob.setBounds(b);
+		modKnob.setBounds(r.reduced(UIValues::NodeMargin));
 
 	}
 
@@ -121,13 +138,14 @@ namespace control
 
 	void snex_timer::editor::timerCallback()
 	{
+		auto snexEnabled = getObject()->currentMode == snex_timer::TimerMode::Custom;
+		menuBar.setAlpha(snexEnabled ? 1.0f : 0.1f);
+
 		if (getObject() == nullptr)
 		{
 			stop();
 			return;
 		}
-
-		
 	}
 
 }
