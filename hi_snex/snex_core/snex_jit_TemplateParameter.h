@@ -145,6 +145,11 @@ struct TemplateParameter
 		return variadic == VariadicType::Variadic;
 	}
 
+	bool isResolvedOrTemplateType() const
+	{
+		return isResolved() || type.isTemplateType();
+	}
+
 	bool isResolved() const
 	{
 		jassert(!isTemplateArgument());

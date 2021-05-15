@@ -312,7 +312,7 @@ TemplateParameter::List TemplateParameter::ListOps::merge(const TemplateParamete
 
 	for (auto& p : instanceParameters)
 	{
-		if (!p.isResolved())
+		if (!p.isResolvedOrTemplateType())
 		{
 			r = Result::fail("Missing template specialisation for " + p.argumentId.toString());
 		}
@@ -509,6 +509,13 @@ snex::jit::ComplexType::Ptr TemplatedComplexType::createTemplatedInstance(const 
 						instanceParameters.add(ip);
 					}
 				}
+
+				if (p.type.isTemplateType() && sp.type.isTemplateType() &&
+					p.type.getTemplateId() == sp.type.getTemplateId())
+				{
+					instanceParameters.add(sp);
+				}
+
 			}
 		}
 		else if (p.isTemplateArgument())
@@ -532,7 +539,7 @@ snex::jit::ComplexType::Ptr TemplatedComplexType::createTemplatedInstance(const 
 
 	for (auto& p : instanceParameters)
 	{
-		jassert(p.isResolved());
+		jassert(p.isResolvedOrTemplateType());
 	}
 
 	TemplateObject::ConstructData instanceData = d;

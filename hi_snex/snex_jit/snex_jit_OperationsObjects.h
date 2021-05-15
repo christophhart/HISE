@@ -57,16 +57,13 @@ struct Operations::ClassStatement : public Statement,
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
-		jassertfalse;
-		return nullptr;
+		return new ClassStatement(l, classType, getChildStatement(0)->clone(l), baseClasses);
 	}
 
 	ValueTree toValueTree() const override
 	{
 		auto t = Statement::toValueTree();
-
 		t.setProperty("Type", classType->toString(), nullptr);
-
 
 		return t;
 	}
