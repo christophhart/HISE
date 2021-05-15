@@ -155,6 +155,8 @@ public:
 
 	bool isActive() const;
 
+	bool isSameRegisterSource(Ptr other) const;
+
 	bool matchesScopeAndSymbol(BaseScope* scopeToCheck, const Symbol& symbol) const;
 
 #if 0

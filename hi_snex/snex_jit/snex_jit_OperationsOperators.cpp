@@ -209,6 +209,12 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		auto value = getSubRegister(0);
 		auto tReg = getSubRegister(1);
 
+		if (value->isSameRegisterSource(tReg))
+		{
+			// this prevents loading a nil value...
+			return;
+		}
+
 		auto acg = CREATE_ASM_COMPILER(tReg->getType());
 
 		if (overloadedAssignOperator.isResolved())

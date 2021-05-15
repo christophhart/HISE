@@ -353,6 +353,14 @@ bool AssemblyRegister::isActive() const
 	return state == ActiveRegister || state == DirtyGlobalRegister;
 }
 
+bool AssemblyRegister::isSameRegisterSource(Ptr other) const
+{
+	auto thisRef = getReferenceTargetRegister();
+	auto otherRef = other->getReferenceTargetRegister();
+
+	return thisRef == otherRef;
+}
+
 bool AssemblyRegister::matchesScopeAndSymbol(BaseScope* scopeToCheck, const Symbol& symbol) const
 {
 
