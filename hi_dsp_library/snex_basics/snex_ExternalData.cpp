@@ -102,7 +102,7 @@ int ExternalDataHolder::getAbsoluteIndex(ExternalData::DataType t, int dataIndex
 	ExternalData::forEachType([&](ExternalData::DataType dt)
 	{
 		if(t > dt)
-			offset += getNumDataObjects(t);
+			offset += getNumDataObjects(dt);
 	});
 
 	return offset + dataIndex;

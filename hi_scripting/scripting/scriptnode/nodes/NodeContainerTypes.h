@@ -379,9 +379,9 @@ public:
 				original.copyTo(wb);
 
 				if (C == 1)
-					n->processMonoFrame(MonoFrameType::as(data.begin()));
+					n->processMonoFrame(MonoFrameType::as(wb.begin()));
 				if (C == 2)
-					n->processStereoFrame(StereoFrameType::as(data.begin()));
+					n->processStereoFrame(StereoFrameType::as(wb.begin()));
 
 				wb.addTo(data);
 			}
