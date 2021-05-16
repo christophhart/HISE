@@ -399,12 +399,6 @@ public:
 		/** Returns the current operating system ("OSX", "LINUX", or ("WIN"). */
 		String getOS();
 				
-		/** Returns an array of available MIDI input devices. */
-		var getMidiInputDevices();
-		
-		/** Enables or disables named MIDI input device. */
-		void toggleMidiInput(const String &midiInputName, bool enableInput);
-
 		/** Returns the mobile device that this software is running on. */
 		String getDeviceType();
 
@@ -432,11 +426,11 @@ public:
 		/** Returns an object that contains all filter modes. */
 		var getFilterModeList() const;
 
-        /** Returns the product version (not the HISE version!). */
-        String getVersion();
+		/** Returns the product version (not the HISE version!). */
+    String getVersion();
 
-        /** Returns the product name (not the HISE name!). */
-        String getName();
+    /** Returns the product name (not the HISE name!). */
+    String getName();
 
 		/** Returns the current peak volume (0...1) for the given channel. */
 		double getMasterPeakLevel(int channel);
@@ -451,7 +445,7 @@ public:
 		int isControllerUsedByAutomation(int controllerNumber);
 
 		/** Creates a MIDI List object. */
-        ScriptingObjects::MidiList *createMidiList();
+    ScriptingObjects::MidiList *createMidiList();
 
 		/** Creates a SliderPack Data object. */
 		ScriptingObjects::ScriptSliderPackData* createSliderPackData();
@@ -486,11 +480,11 @@ public:
 		/** Matches the string against the regex token. */
 		bool matchesRegex(String stringToMatch, String regex);
 
-        /** Returns an array with all matches. */
-        var getRegexMatches(String stringToMatch, String regex);
+    /** Returns an array with all matches. */
+    var getRegexMatches(String stringToMatch, String regex);
 
-        /** Returns a string of the value with the supplied number of digits. */
-        String doubleToString(double value, int digits);
+    /** Returns a string of the value with the supplied number of digits. */
+    String doubleToString(double value, int digits);
 
 		/** Reverts the last controller change. */
 		void undo();
@@ -500,15 +494,6 @@ public:
 
 		/** Returns a fully described string of this date and time in ISO-8601 format (using the local timezone) with or without divider characters. */
 		String getSystemTime(bool includeDividerCharacters);
-
-		/** Returns available buffer sizes for the selected audio device. */
-		var getBufferSizesForDevice();
-		
-		/** Sets the buffer block size for the selected audio device. */
-		void setCurrentBlockSize(int newBlockSize);
-		
-		/** Returns the current buffer block size. */
-		int getCurrentBlockSize();
 		
 		// ============================================================================================================
 
@@ -542,6 +527,57 @@ public:
 
 		/** Sets the Streaming Mode (0 -> Fast-SSD, 1 -> Slow-HDD) */
 		void setDiskMode(int mode);
+
+		/** Returns available audio device types. */
+		var getAvailableDeviceTypes();
+		
+		/** Sets the current audio device type*/
+		void setAudioDeviceType(String deviceName);
+
+		/** Returns names of available audio devices. */
+		var getDeviceNames();
+		
+		/** Sets the current audio device */
+		void setAudioDevice(String name);
+		
+		/** Returns array of available output channel pairs. */
+		var getOutputChannelPairs();
+
+		/** Sets the output channel pair */
+		void setOutputChannelPair(int index);
+
+		/** Returns current output channel pair. */
+		int getCurrentOutputChannelPair();
+		
+		/** Returns available buffer sizes for the selected audio device. */
+		var getBufferSizesForDevice();
+		
+		/** Sets the buffer block size for the selected audio device. */
+		void setCurrentBlockSize(int newBlockSize);
+		
+		/** Returns the current buffer block size. */
+		int getCurrentBlockSize();
+		
+		/** Returns array of available sample rate. */
+		var getSampleRates();
+		
+		/** Sets the output sample rate */
+		void setCurrentSampleRate(double sampleRate);
+
+		/** Sets the voice limit multiplier (1, 2, 4, or 8). */
+		void setVoiceAmountMultiplier(int newVoiceAmount);
+
+		/** Clears all MIDI CC assignments. */
+		void clearMidiLearn();
+
+		/** Returns array of MIDI input device names. */
+		var getMidiInputDevices();
+		
+		/** Enables or disables named MIDI input device. */
+		void toggleMidiInput(const String &midiInputName, bool enableInput);
+
+		/** Enables or disables MIDI channel. */
+		void toggleMidiChannel(int index, bool value);
 
 		// ============================================================================================================
 
