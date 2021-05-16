@@ -62,6 +62,7 @@ juce::PopupMenu SnexWorkbenchEditor::getMenuForIndex(int topLevelMenuIndex, cons
 		m.addSubMenu("Open from Project", allFiles);
 
 		m.addCommandItem(&mainManager, MenuCommandIds::FileSave);
+		m.addCommandItem(&mainManager, MenuCommandIds::FileSaveAndReload);
 		m.addCommandItem(&mainManager, MenuCommandIds::FileSaveAll);
 		m.addCommandItem(&mainManager, MenuCommandIds::FileCloseCurrentNetwork);
 		
@@ -113,6 +114,7 @@ void SnexWorkbenchEditor::getAllCommands(Array<CommandID>& commands)
 		MenuCommandIds::FileOpen,
 		MenuCommandIds::FileSave,
 		MenuCommandIds::FileSaveAll,
+		MenuCommandIds::FileSaveAndReload,
 		MenuCommandIds::FileCloseCurrentNetwork,
 		MenuCommandIds::FileSetProject,
 		MenuCommandIds::FileShowNetworkFolder,
@@ -142,6 +144,7 @@ void SnexWorkbenchEditor::getCommandInfo(CommandID commandID, ApplicationCommand
 	case MenuCommandIds::FileCloseCurrentNetwork: setCommandTarget(result, "Close current File", true, false, 0, false); break;
 	case MenuCommandIds::FileSetProject: setCommandTarget(result, "Load Project", true, false, 0, false); break;
 	case MenuCommandIds::FileShowNetworkFolder: setCommandTarget(result, "Show Network folder", true, false, 'x', false); break;
+	case MenuCommandIds::FileSaveAndReload: setCommandTarget(result, "Show and reload", true, false, 'x', false); break;
 	case MenuCommandIds::ToolsEditTestData: setCommandTarget(result, "Manage Test Files", true, false, 0, false); break;
 	case MenuCommandIds::ToolsCompileNetworks: setCommandTarget(result, "Compile DSP networks", true, false, 'x', false); break;
 	case MenuCommandIds::ToolsSynthMode: setCommandTarget(result, "Polyphonic Synth Mode", true, synthMode, 'x', false); break;
@@ -190,6 +193,13 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 	case FileCloseCurrentNetwork:
 	{
 		closeCurrentNetwork();
+		return true;
+	}
+	case FileSaveAndReload:
+	{
+		auto f = getCurrentFile();
+		closeCurrentNetwork();
+		addFile(f);
 		return true;
 	}
 	case FileSetProject:
@@ -666,6 +676,8 @@ void SnexWorkbenchEditor::addFile(File f)
 			}
 		}
 	}
+
+	currentFiles[synthMode ? 1 : 0] = f;
 
 	getProcessor()->getKillStateHandler().killVoicesAndCall(getProcessor()->getMainSynthChain(), [this, f](Processor* p)
 	{

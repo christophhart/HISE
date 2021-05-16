@@ -304,7 +304,17 @@ public:
 
 		SimpleReadWriteLock& getNetworkLock() { return connectLock; }
 
+		DspNetwork* addEmbeddedNetwork(DspNetwork* parent, const ValueTree& v, ExternalDataHolder* holderToUse)
+		{
+			auto n = new DspNetwork(parent->getScriptProcessor(), v, parent->isPolyphonic(), holderToUse);
+			embeddedNetworks.add(n);
+			n->setParentNetwork(parent);
+			return n;
+		}
+
 	protected:
+
+		ReferenceCountedArray<DspNetwork> embeddedNetworks;
 
 		SimpleReadWriteLock connectLock;
 
@@ -319,7 +329,7 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Holder);
 	};
 
-	DspNetwork(ProcessorWithScriptingContent* p, ValueTree data, bool isPolyphonic);
+	DspNetwork(ProcessorWithScriptingContent* p, ValueTree data, bool isPolyphonic, ExternalDataHolder* dataHolder=nullptr);
 	~DspNetwork();
 
 #if HISE_INCLUDE_SNEX
@@ -762,7 +772,7 @@ public:
 			voiceIndex.setVoiceResetter(newVoiceKiller);	
 	}
 
-	void setEnableInterpretedGraph(bool shouldBeEnabled);
+	void setUseFrozenNode(bool shouldBeEnabled);
 
 	bool canBeFrozen() const { return projectNodeHolder.loaded; }
 
@@ -774,11 +784,19 @@ public:
 
 	Holder* getParentHolder() { return parentHolder; }
 
+	DspNetwork* getParentNetwork() { return parentNetwork.get(); }
+
+	void setParentNetwork(DspNetwork* p)
+	{
+		parentNetwork = p;
+	}
+
 private:
 
 	bool enableCpuProfiling = false;
 
 	WeakReference<ExternalDataHolder> dataHolder;
+	WeakReference<DspNetwork> parentNetwork;
 
 	PrepareSpecs currentSpecs;
 

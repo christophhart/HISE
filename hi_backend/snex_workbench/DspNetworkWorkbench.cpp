@@ -613,8 +613,6 @@ void WorkbenchInfoComponent::resized()
 
 struct OpaqueNetworkHolder
 {
-	
-
 	SN_GET_SELF_AS_OBJECT(OpaqueNetworkHolder);
 
 	bool isPolyphonic() const { return false; }
@@ -701,15 +699,63 @@ struct OpaqueNetworkHolder
 	ReferenceCountedObjectPtr<DspNetwork> ownedNetwork;
 };
 
+struct HostHelpers
+{
+	static int getNumMaxDataObjects(const ValueTree& v, snex::ExternalData::DataType t)
+	{
+		auto id = Identifier(snex::ExternalData::getDataTypeName(t, false));
+
+		int numMax = 0;
+
+		snex::cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::Forward, [&](ValueTree& v)
+			{
+				if (v.getType() == id)
+					numMax = jmax(numMax, (int)v[PropertyIds::Index] + 1);
+
+				return false;
+			});
+
+		return numMax;
+	}
+
+	static void setNumDataObjectsFromValueTree(OpaqueNode& on, const ValueTree& v)
+	{
+		snex::ExternalData::forEachType([&](snex::ExternalData::DataType dt)
+			{
+				auto numMaxDataObjects = getNumMaxDataObjects(v, dt);
+				on.numDataObjects[(int)dt] = numMaxDataObjects;
+			});
+	}
+
+	template <typename WrapperType> static NodeBase* initNodeWithNetwork(DspNetwork* p, ValueTree nodeTree, const ValueTree& embeddedNetworkTree, bool useMod)
+	{
+		auto t = dynamic_cast<WrapperType*>(WrapperType::createNode<OpaqueNetworkHolder, NoExtraComponent, false, false>(p, nodeTree));
+		
+		auto& on = t->getWrapperType().getWrappedObject();
+		setNumDataObjectsFromValueTree(on, embeddedNetworkTree);
+		auto ed = t->setOpaqueDataEditor(useMod);
+
+		auto onh = static_cast<OpaqueNetworkHolder*>(on.getObjectPtr());
+		onh->ownedNetwork = p->getParentHolder()->addEmbeddedNetwork(p, embeddedNetworkTree, ed);
+
+		ParameterDataList pList;
+		onh->createParameters(pList);
+		on.fillParameterList(pList);
+
+		t->postInit();
+		auto asNode = dynamic_cast<NodeBase*>(t);
+		asNode->setEmbeddedNetwork(onh->ownedNetwork);
+
+		return asNode;
+	}
+};
+
+
 
 scriptnode::dll::FunkyHostFactory::FunkyHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 	NodeFactory(n),
 	dllFactory(dll)
 {
-	
-
-	
-
 	auto networks = BackendDllManager::getNetworkFiles(n->getScriptProcessor()->getMainController_());
 	auto numNodes = networks.size();
 
@@ -730,25 +776,12 @@ scriptnode::dll::FunkyHostFactory::FunkyHostFactory(DspNetwork* n, ProjectDll::P
 				{
 					auto nv = ValueTree::fromXml(*xml);
 
-					auto useModWrapper = cppgen::ValueTreeIterator::hasChildNodeWithProperty(nv, PropertyIds::IsPublicMod);
+					auto useMod = cppgen::ValueTreeIterator::hasChildNodeWithProperty(nv, PropertyIds::IsPublicMod);
 
-					auto t = dynamic_cast<InterpretedModNode*>(InterpretedModNode::createNode<OpaqueNetworkHolder, NoExtraComponent, false, false>(p, v));
-
-					auto& on = t->getWrapperType().getWrappedObject();
-					auto onh = static_cast<OpaqueNetworkHolder*>(on.getObjectPtr());
-					onh->ownedNetwork = new DspNetwork(p->getScriptProcessor(), nv, p->isPolyphonic());
-
-					onh->ownedNetwork->setEnableInterpretedGraph(true);
-					ParameterDataList pList;
-					onh->createParameters(pList);
-					on.fillParameterList(pList);
-					t->setOpaqueDataEditor(useModWrapper);
-					
-					
-
-					t->postInit();
-
-					return dynamic_cast<NodeBase*>(t);
+					if (useMod)
+						return HostHelpers::initNodeWithNetwork<InterpretedModNode>(p, v, nv, useMod);
+					else
+						return HostHelpers::initNodeWithNetwork<InterpretedNode>(p, v, nv, useMod);
 				}
 			}
 		};
@@ -756,7 +789,7 @@ scriptnode::dll::FunkyHostFactory::FunkyHostFactory(DspNetwork* n, ProjectDll::P
 		monoNodes.add(item);
 	}
 
-#if 0
+#if 0 // This might be reused in the FrontendHostFactory class...
 	auto numNodes = dllFactory.getNumNodes();
 
 	for (int i = 0; i < numNodes; i++)

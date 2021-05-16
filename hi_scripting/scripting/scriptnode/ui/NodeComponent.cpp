@@ -90,6 +90,9 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 	parameterButton.setVisible(dynamic_cast<NodeContainer*>(parent.node.get()) != nullptr);
 
 	freezeButton.setEnabled(parent.node->getRootNetwork()->canBeFrozen());
+
+	freezeButton.setToggleStateAndUpdateIcon(parent.node->getRootNetwork()->isFrozen());
+	
 	if (!freezeButton.isEnabled())
 		freezeButton.setAlpha(0.1f);
 }
@@ -110,7 +113,7 @@ void NodeComponent::Header::buttonClicked(Button* b)
 	}
 	if (b == &freezeButton)
 	{
-		parent.node->getRootNetwork()->setEnableInterpretedGraph(b->getToggleState());
+		parent.node->getRootNetwork()->setUseFrozenNode(b->getToggleState());
 		parent.repaint();
 	}
 	if (b == &parameterButton)
@@ -297,6 +300,11 @@ NodeComponent::NodeComponent(NodeBase* b) :
 	node(b),
 	header(*this)
 {
+	if (auto en = node->getEmbeddedNetwork())
+	{
+		addAndMakeVisible(embeddedNetworkBar = new EmbeddedNetworkBar(b));
+	}
+
 	node->getRootNetwork()->addSelectionListener(this);
 
 	setName(b->getId());
@@ -371,8 +379,10 @@ void NodeComponent::paintOverChildren(Graphics& g)
 
 		auto hashMatches = node->getRootNetwork()->hashMatches();
 
-		g.setColour(hashMatches ? Colour(0xAA111111) : Colour(0xAA221111));
+		g.setColour(hashMatches ? Colour(0xEE171717) : Colour(0xEE221111));
 		g.fillRect(b);
+
+		g.setFont(GLOBAL_BOLD_FONT());
 
 		if (!hashMatches)
 		{
@@ -380,6 +390,22 @@ void NodeComponent::paintOverChildren(Graphics& g)
 			g.setFont(GLOBAL_BOLD_FONT());
 			g.drawText("The compiled node doesn't match the interpreted network. Recompile this node in order to ensure consistent behaviour", b.toFloat(), Justification::centred);
 		}
+
+		Path fp;
+		fp.loadPathFromData(HnodeIcons::freezeIcon, sizeof(HnodeIcons::freezeIcon));
+		auto pSize = jmin(200, getWidth(), getHeight());
+		auto bl = b.withSizeKeepingCentre(pSize, pSize).toFloat();
+		PathFactory::scalePath(fp, bl);
+
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.strokePath(fp, PathStrokeType(4.0f));
+		g.fillPath(fp);
+		
+		auto tb = bl.removeFromBottom(24.0f).translated(0.0f, 40.0f);
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawText("Using the project DLL node", tb, Justification::centred);
+
+
 	}
 
 	if (isSelected())
@@ -438,6 +464,9 @@ void NodeComponent::resized()
 	auto b = getLocalBounds();
 
 	header.setBounds(b.removeFromTop(24));
+
+	if (embeddedNetworkBar != nullptr)
+		embeddedNetworkBar->setBounds(b.removeFromTop(24));
 }
 
 
@@ -549,6 +578,37 @@ void NodeComponent::handlePopupMenuResult(int result)
 	if (result == (int)MenuActions::FreezeNode)
 	{
 		DspNetworkGraph::Actions::freezeNode(node);
+	}
+	if (result == (int)MenuActions::WrapIntoDspNetwork)
+	{
+		ValueTree nData(PropertyIds::Network);
+
+		auto rootTree = node->getRootNetwork()->getValueTree();
+
+		// mirror all properties from the parent network;
+		for (int i = 0; i < rootTree.getNumProperties(); i++)
+			nData.setProperty(rootTree.getPropertyName(i), rootTree.getProperty(rootTree.getPropertyName(i)), nullptr);
+
+		nData.setProperty(PropertyIds::ID, node->getId(), nullptr);
+		nData.addChild(node->getValueTree().createCopy(), -1, nullptr);
+
+		
+
+		auto ndir = BackendDllManager::getSubFolder(node->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Networks);
+
+		auto tFile = ndir.getChildFile(node->getId()).withFileExtension("xml");
+
+		if (!tFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite file", "Do you want to overwrite the file " + tFile.getFileName()))
+		{
+			ScopedPointer<XmlElement> xml = nData.createXml();
+			tFile.replaceWithText(xml->createDocument(""));
+			
+			auto newPath = "project." + node->getId();
+			node->setValueTreeProperty(PropertyIds::FactoryPath, newPath);
+
+			PresetHandler::showMessageWindow("Exported chain as new network", "Reload this patch to apply the change");
+			return;
+		}
 	}
 	if (result >= (int)MenuActions::WrapIntoChain && result <= (int)MenuActions::WrapIntoOversample4)
 	{
@@ -815,7 +875,77 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 
 
 
+juce::Path NodeComponent::EmbeddedNetworkBar::Factory::createPath(const String& url) const
+{
+	Path p;
+	LOAD_PATH_IF_URL("freeze", HnodeIcons::freezeIcon);
+	LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
+	LOAD_PATH_IF_URL("warning", EditorIcons::warningIcon);
+	return p;
+}
 
+NodeComponent::EmbeddedNetworkBar::EmbeddedNetworkBar(NodeBase* n) :
+	parentNode(n),
+	embeddedNetwork(n->getEmbeddedNetwork()),
+	warningButton("warning", this, f),
+	freezeButton("freeze", this, f),
+	gotoButton("goto", this, f)
+{
+	jassert(embeddedNetwork != nullptr);
 
+	addAndMakeVisible(warningButton);
+
+	warningButton.setVisible(!n->getEmbeddedNetwork()->hashMatches() & embeddedNetwork->canBeFrozen());
+
+	addAndMakeVisible(gotoButton);
+	addAndMakeVisible(freezeButton);
+
+	if (!embeddedNetwork->canBeFrozen())
+	{
+		freezeButton.setEnabled(false);
+		freezeButton.setAlpha(0.1f);
+	}
+	else
+	{
+		freezeUpdater.setCallback(parentNode->getValueTree(), { PropertyIds::Frozen }, valuetree::AsyncMode::Asynchronously,
+			BIND_MEMBER_FUNCTION_2(EmbeddedNetworkBar::updateFreezeState));
+	}
+	
+	freezeButton.setToggleModeWithColourChange(true);
+	freezeButton.setToggleStateAndUpdateIcon(parentNode->getValueTree()[PropertyIds::Frozen]);
+
+	setSize(100, 24);
+}
+
+void NodeComponent::EmbeddedNetworkBar::buttonClicked(Button* b)
+{
+	if (b == &warningButton)
+	{
+
+	}
+	if (b == &freezeButton)
+	{
+		parentNode->setValueTreeProperty(PropertyIds::Frozen, b->getToggleState());
+	}
+	if (b == &gotoButton)
+	{
+		findParentComponentOfClass<ZoomableViewport>()->setNewContent(new DspNetworkGraph(embeddedNetwork), getParentComponent());
+	}
+}
+
+void NodeComponent::EmbeddedNetworkBar::resized()
+{
+	auto b = getLocalBounds();
+	freezeButton.setBounds(b.removeFromRight(b.getHeight()).reduced(2));
+	if (warningButton.isVisible())
+		warningButton.setBounds(b.removeFromRight(b.getHeight()).reduced(2));
+
+	gotoButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(4));
+}
+
+void NodeComponent::EmbeddedNetworkBar::updateFreezeState(const Identifier& id, const var& newValue)
+{
+	freezeButton.setToggleStateAndUpdateIcon((bool)newValue);
+}
 
 }

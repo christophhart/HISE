@@ -59,7 +59,8 @@ struct NoExtraComponent
 	static Component* createExtraComponent(void* , PooledUIUpdater*) { return nullptr; }
 };
 
-struct OpaqueNodeDataHolder: public data::base
+struct OpaqueNodeDataHolder: public data::base,
+						     public ExternalDataHolder
 {
 	struct Editor : public ScriptnodeExtraComponent<OpaqueNodeDataHolder>
 	{
@@ -82,9 +83,21 @@ struct OpaqueNodeDataHolder: public data::base
 
 	OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn);
 
+	data::pimpl::dynamic_base* create(ExternalData::DataType dt, int index);
+
+	void createDataType(ExternalData::DataType dt);
+
 	OpaqueNode& opaqueNode;
 	WeakReference<NodeBase> parentNode;
 	OwnedArray<data::pimpl::dynamic_base> data;
+
+	virtual int getNumDataObjects(ExternalData::DataType t) const override;
+	virtual Table* getTable(int index) override;
+	virtual SliderPackData* getSliderPack(int index) override;
+	virtual MultiChannelAudioBuffer* getAudioFile(int index) override;
+	virtual FilterDataObject* getFilterData(int index) override;
+	virtual SimpleRingBuffer* getDisplayBuffer(int index) override;
+	virtual bool removeDataObject(ExternalData::DataType t, int index) override;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(OpaqueNodeDataHolder);
 };
@@ -121,7 +134,7 @@ public:
 		postInit();
 	}
 
-	void setOpaqueDataEditor(bool addDragger)
+	ExternalDataHolder* setOpaqueDataEditor(bool addDragger)
 	{
 		OpaqueNode& n = obj.getWrappedObject();
 
@@ -129,10 +142,12 @@ public:
 		{
 			opaqueDataHolder = new OpaqueNodeDataHolder(n, asWrapperNode());
 
-			asWrapperNode()->extraComponentFunction = [&](void*, PooledUIUpdater* u)
+			asWrapperNode()->extraComponentFunction = [this, addDragger](void*, PooledUIUpdater* u)
 			{
-				return new OpaqueNodeDataHolder::Editor(opaqueDataHolder.get(), u, addDragger);
+				return new OpaqueNodeDataHolder::Editor(this->opaqueDataHolder.get(), u, addDragger);
 			};
+
+			return opaqueDataHolder.get();
 		}
 		else if (addDragger)
 		{
@@ -144,6 +159,8 @@ public:
 			};
 
 		}
+
+		return nullptr;
 	}
 
 	void initFromDll(dll::HostFactory& f, int index, bool addDragger)

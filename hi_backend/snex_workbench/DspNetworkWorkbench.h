@@ -74,7 +74,7 @@ struct DebuggableSnexProcessor : public snex::ui::WorkbenchManager::WorkbenchCha
 		{
 			auto wb = static_cast<WorkbenchManager*>(mc_->getWorkbenchManager());
 			auto isRoot = wb->getRootWorkbench() == newWorkbench;
-
+			
 			if (isRoot)
 			{
 				rootWb = newWorkbench;
@@ -133,6 +133,7 @@ struct WorkbenchSynthesiser : public JavascriptSynthesiser,
 struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 							 public MasterEffectProcessor,
 							 public scriptnode::DspNetwork::Holder,
+							 public snex::ExternalDataHolder,
 							 public DebuggableSnexProcessor
 {
 	SET_PROCESSOR_NAME("DspNetworkProcessor", "DspNetworkProcessor", "Internally used by the SNEX workbench");
@@ -167,6 +168,13 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 
 		SimpleReadWriteLock::ScopedReadLock sl(lock);
 		activeNetwork->prepareToPlay(sampleRate, samplesPerBlock);
+	}
+
+	void workbenchChanged(WorkbenchData::Ptr newWorkbench) override
+	{
+		DebuggableSnexProcessor::workbenchChanged(newWorkbench);
+
+		testData = &rootWb->getTestData();
 	}
 
 	SET_PROCESSOR_CONNECTOR_TYPE_ID("ScriptProcessor");
@@ -238,6 +246,26 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 	{
 		return  activeNetwork;
 	}
+
+	int getNumDataObjects(ExternalData::DataType t) const override
+	{
+		return testData != nullptr ? testData->getNumDataObjects(t) : 0;
+	}
+
+	Table* getTable(int index) override { return testData != nullptr ? testData->getTable(index) : nullptr; };
+	SliderPackData* getSliderPack(int index) override { return testData != nullptr ? testData->getSliderPack(index) : nullptr; };
+	MultiChannelAudioBuffer* getAudioFile(int index) override { return testData != nullptr ? testData->getAudioFile(index) : nullptr; };
+	FilterDataObject* getFilterData(int index)  override { return testData != nullptr ? testData->getFilterData(index) : nullptr; };
+	SimpleRingBuffer* getDisplayBuffer(int index)  override { return testData != nullptr ? testData->getDisplayBuffer(index) : nullptr; };
+
+	bool removeDataObject(ExternalData::DataType t, int index) override
+	{
+		if(testData != nullptr)
+			return testData->removeDataObject(t, index);
+		return false;
+	}
+
+	WeakReference<ExternalDataHolder> testData;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkProcessor);
 

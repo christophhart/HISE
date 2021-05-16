@@ -48,7 +48,7 @@ struct DspNetwork::Wrapper
 	//API_VOID_METHOD_WRAPPER_3(DspNetwork, injectAfter);
 };
 
-DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, bool poly) :
+DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, bool poly, ExternalDataHolder* dataHolder_) :
 	ConstScriptingObject(p, 2),
 	data(data_),
 	isPoly(poly),
@@ -68,7 +68,10 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	if(!data.hasProperty(PropertyIds::AllowPolyphonic))
 		data.setProperty(PropertyIds::AllowPolyphonic, isPoly, nullptr);
 
-	setExternalDataHolder(dynamic_cast<ExternalDataHolder*>(p));
+	if (dataHolder_ != nullptr)
+		setExternalDataHolder(dataHolder_);
+	else
+		setExternalDataHolder(dynamic_cast<ExternalDataHolder*>(p));
 
 	ownedFactories.add(new NodeContainerFactory(this));
 	ownedFactories.add(new core::Factory(this));
@@ -789,7 +792,7 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 	valuetree::Helpers::foreach(c, updateSendConnection);
 }
 
-void DspNetwork::setEnableInterpretedGraph(bool shouldBeEnabled)
+void DspNetwork::setUseFrozenNode(bool shouldBeEnabled)
 {
 	projectNodeHolder.setEnabled(shouldBeEnabled);
 }

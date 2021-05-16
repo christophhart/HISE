@@ -440,6 +440,11 @@ public:
 
 	int getCurrentChannelAmount() const { return numChannels.get(); };
 
+	void setEmbeddedNetwork(NodeBase::Holder* n);
+
+	DspNetwork* getEmbeddedNetwork();
+	const DspNetwork* getEmbeddedNetwork() const;
+
 protected:
 
 	ValueTree v_data;
@@ -447,10 +452,17 @@ protected:
 
 private:
 
+	void updateFrozenState(Identifier id, var newValue);
+
+	bool containsNetwork = false;
+
+	valuetree::PropertyListener frozenListener;
+
 	CachedValue<int> numChannels;
 
 	bool uiNodeOfDuplicates = false;
 
+	WeakReference<NodeBase::Holder> embeddedNetwork;
 	WeakReference<NodeBase::Holder> parent;
 	WeakReference<NodeBase::Holder> subHolder;
 	

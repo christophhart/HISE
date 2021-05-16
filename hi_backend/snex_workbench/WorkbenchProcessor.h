@@ -201,7 +201,8 @@ struct PatchAutosaver : public valuetree::AnyListener
 		{
 			auto ofile = d.getSiblingFile(network->getRootNode()->getId()).withFileExtension(".xml");
 			ofile.deleteFile();
-			d.moveFileTo(ofile);
+			auto ok = d.moveFileTo(ofile);
+			jassert(ok);
 			initialised = false;
 		}
 	}
@@ -224,6 +225,14 @@ struct PatchAutosaver : public valuetree::AnyListener
 				if (v[id] == defaultValue)
 					v.removeProperty(id, nullptr);
 			};
+
+			if (v.getType() == PropertyIds::Node && v[PropertyIds::FactoryPath].toString().startsWith("project"))
+			{
+				v.removeChild(v.getChildWithName(PropertyIds::Nodes), nullptr);
+
+				for (auto p : v.getChildWithName(PropertyIds::Parameters))
+					p.removeChild(p.getChildWithName(PropertyIds::Connections), nullptr);
+			}
 
 			auto removePropIfDefault = [](ValueTree& v, const Identifier& id, const var& defaultValue)
 			{
@@ -294,6 +303,7 @@ public:
 		FileNew = 1,
 		FileOpen,
 		FileSave,
+		FileSaveAndReload,
 		FileSaveAll,
 		FileSetProject,
 		FileShowNetworkFolder,
@@ -416,6 +426,10 @@ public:
 	void closeCurrentNetwork();
 
 private:
+
+	File getCurrentFile() { return currentFiles[synthMode ? 1 : 0]; }
+
+	File currentFiles[2];
 
 	ScopedPointer<PatchAutosaver> autosaver;
 

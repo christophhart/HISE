@@ -89,6 +89,9 @@ juce::Rectangle<int> WrapperNode::createRectangleForParameterSliders(int numColu
 {
 	int h = UIValues::HeaderHeight;
 	
+	if (getEmbeddedNetwork() != nullptr)
+		h += 24;
+
 	auto eb = getExtraComponentBounds();
 
 	h += eb.getHeight();
@@ -305,6 +308,9 @@ OpaqueNodeDataHolder::OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn) :
 	opaqueNode(n),
 	parentNode(pn)
 {
+	ExternalData::forEachType(BIND_MEMBER_FUNCTION_1(OpaqueNodeDataHolder::createDataType));
+
+#if 0
 	auto numTables = opaqueNode.numDataObjects[(int)ExternalData::DataType::Table];
 
 	for (int i = 0; i < numTables; i++)
@@ -319,16 +325,7 @@ OpaqueNodeDataHolder::OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn) :
 
 	for (int i = 0; i < numAudioFiles; i++)
 		data.add(new data::dynamic::audiofile(*this, i));
-
-	auto numFilters = opaqueNode.numDataObjects[(int)ExternalData::DataType::FilterCoefficients];
-
-	for (int i = 0; i < numFilters; i++)
-		data.add(new data::dynamic::filter(*this, i));
-
-	auto numDisplayBuffers = opaqueNode.numDataObjects[(int)ExternalData::DataType::DisplayBuffer];
-
-	for (int i = 0; i < numDisplayBuffers; i++)
-		data.add(new data::dynamic::displaybuffer(*this, i));
+#endif
 
 	int index = 0;
 
@@ -341,6 +338,81 @@ OpaqueNodeDataHolder::OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn) :
 		opaqueNode.setExternalData(ed, index++);
 	}
 }
+
+scriptnode::data::pimpl::dynamic_base* OpaqueNodeDataHolder::create(ExternalData::DataType dt, int i)
+{
+	switch (dt)
+	{
+	case ExternalData::DataType::Table: return new data::dynamic::table(*this, i);
+	case ExternalData::DataType::SliderPack: return new data::dynamic::sliderpack(*this, i);
+	case ExternalData::DataType::AudioFile: return new data::dynamic::audiofile(*this, i);
+	case ExternalData::DataType::FilterCoefficients: return new data::dynamic::filter(*this, i);
+	case ExternalData::DataType::DisplayBuffer: return new data::dynamic::displaybuffer(*this, i);
+	}
+
+	jassertfalse;
+	return nullptr;
+}
+
+void OpaqueNodeDataHolder::createDataType(ExternalData::DataType dt)
+{
+	auto numObjects = opaqueNode.numDataObjects[(int)dt];
+
+	for (int i = 0; i < numObjects; i++)
+		data.add(create(dt, i));
+}
+
+int OpaqueNodeDataHolder::getNumDataObjects(ExternalData::DataType t) const
+{
+	return opaqueNode.numDataObjects[(int)t];
+}
+
+hise::Table* OpaqueNodeDataHolder::getTable(int index)
+{
+	auto dIndex = getAbsoluteIndex(ExternalData::DataType::Table, index);
+	auto t = data[dIndex]->getTable(0);
+	jassert(t != nullptr);
+	return t;
+}
+
+hise::SliderPackData* OpaqueNodeDataHolder::getSliderPack(int index)
+{
+	auto dIndex = getAbsoluteIndex(ExternalData::DataType::SliderPack, index);
+	auto t = data[dIndex]->getSliderPack(0);
+	jassert(t != nullptr);
+	return t;
+}
+
+hise::MultiChannelAudioBuffer* OpaqueNodeDataHolder::getAudioFile(int index)
+{
+	auto dIndex = getAbsoluteIndex(ExternalData::DataType::AudioFile, index);
+	auto t = data[dIndex]->getAudioFile(0);
+	jassert(t != nullptr);
+	return t;
+}
+
+hise::FilterDataObject* OpaqueNodeDataHolder::getFilterData(int index)
+{
+	auto dIndex = getAbsoluteIndex(ExternalData::DataType::FilterCoefficients, index);
+	auto t = data[dIndex]->getFilterData(0);
+	jassert(t != nullptr);
+	return t;
+}
+
+hise::SimpleRingBuffer* OpaqueNodeDataHolder::getDisplayBuffer(int index)
+{
+	auto dIndex = getAbsoluteIndex(ExternalData::DataType::DisplayBuffer, index);
+	auto t = data[dIndex]->getDisplayBuffer(0);
+	jassert(t != nullptr);
+	return t;
+}
+
+bool OpaqueNodeDataHolder::removeDataObject(ExternalData::DataType t, int index)
+{
+	return false;
+}
+
+
 
 OpaqueNodeDataHolder::Editor::Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater* u, bool addDragger) :
 	ScriptnodeExtraComponent<OpaqueNodeDataHolder>(obj, u),

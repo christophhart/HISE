@@ -56,7 +56,7 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	currentId(v_data[PropertyIds::ID].toString()),
 	subHolder(rootNetwork->getCurrentHolder())
 {
-	numChannels.referTo(data_, PropertyIds::NumChannels, getUndoManager(), 2);
+	numChannels.referTo(data_, PropertyIds::NumChannels, nullptr, 2);
 
 	setDefaultValue(PropertyIds::NumChannels, 2);
 	setDefaultValue(PropertyIds::NodeColour, 0);
@@ -394,6 +394,37 @@ String NodeBase::getCpuUsageInPercent() const
 	}
 
 	return s;
+}
+
+void NodeBase::setEmbeddedNetwork(NodeBase::Holder* n)
+{
+	embeddedNetwork = n;
+
+	if (getEmbeddedNetwork()->canBeFrozen())
+	{
+		setDefaultValue(PropertyIds::Frozen, true);
+		frozenListener.setCallback(v_data, { PropertyIds::Frozen }, valuetree::AsyncMode::Synchronously,
+			BIND_MEMBER_FUNCTION_2(NodeBase::updateFrozenState));
+	}
+}
+
+scriptnode::DspNetwork* NodeBase::getEmbeddedNetwork()
+{
+	return static_cast<DspNetwork*>(embeddedNetwork.get());
+}
+
+const scriptnode::DspNetwork* NodeBase::getEmbeddedNetwork() const
+{
+	return static_cast<const DspNetwork*>(embeddedNetwork.get());
+}
+
+void NodeBase::updateFrozenState(Identifier id, var newValue)
+{
+	if (auto n = getEmbeddedNetwork())
+	{
+		if (n->canBeFrozen())
+			n->setUseFrozenNode((bool)newValue);
+	}
 }
 
 var NodeBase::get(var id)
