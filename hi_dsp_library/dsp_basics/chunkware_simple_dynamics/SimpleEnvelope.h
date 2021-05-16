@@ -102,19 +102,7 @@ namespace chunkware_simple
 		virtual SimpleDataType getSampleRate( void ) const { return att_.getSampleRate(); }
 
 		// runtime function
-		INLINE void run(SimpleDataType in, SimpleDataType &state ) {
-
-			/* assumes that:
-			* positive delta = attack
-			* negative delta = release
-			* good for linear & log values
-			*/
-
-			if ( in > state )
-				att_.run( in, state );	// attack
-			else
-				rel_.run( in, state );	// release
-		}
+		void run(SimpleDataType in, SimpleDataType &state );
 
 	private:
 			

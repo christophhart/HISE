@@ -61,6 +61,7 @@
 #include "node_api/nodes/prototypes.cpp"
 #include "node_api/nodes/duplicate.cpp"
 
+#include "dsp_basics/chunkware_simple_dynamics/chunkware_simple_dynamics.cpp"
 #include "dsp_basics/AllpassDelay.cpp"
 #include "dsp_basics/Oscillators.cpp"
 #include "dsp_basics/MultiChannelFilters.cpp"

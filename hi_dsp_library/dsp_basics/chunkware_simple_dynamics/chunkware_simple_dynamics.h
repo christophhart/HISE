@@ -26,17 +26,16 @@
 *	FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 */
 
-#ifndef CHUNKWARE_SIMPLE_DYNAMICS_H_INCLUDED
-#define CHUNKWARE_SIMPLE_DYNAMICS_H_INCLUDED
+#pragma once
+
+using namespace juce;
 
 #include "SimpleHeader.h"		// common header
 #include "SimpleEnvelope.h"		// for base class of FastEnvelope
 #include "SimpleGain.h"			// for gain functions
-#include <vector>
 
 #include "SimpleLimit.h"
 #include "SimpleComp.h"
 #include "SimpleGate.h"
 
 
-#endif  // CHUNKWARE_SIMPLE_DYNAMICS_H_INCLUDED

@@ -59,6 +59,7 @@ public:
 		DEF_PARAMETER(Release, dynamics_wrapper);
 		DEF_PARAMETER(Ratio, dynamics_wrapper);
 	}
+	PARAMETER_MEMBER_FUNCTION;
 
 	static Identifier getStaticId();
 
@@ -111,6 +112,14 @@ public:
 	DynamicProcessorType obj;
 	int lastNumSamples = 0;
 };
+
+template struct dynamics_wrapper<chunkware_simple::SimpleGate>;
+template struct dynamics_wrapper<chunkware_simple::SimpleComp>;
+template struct dynamics_wrapper<chunkware_simple::SimpleLimit>;
+
+using gate = dynamics_wrapper<chunkware_simple::SimpleGate>;
+using comp = dynamics_wrapper<chunkware_simple::SimpleComp>;
+using limiter = dynamics_wrapper<chunkware_simple::SimpleLimit>;
 
 class envelope_follower: public data::display_buffer_base<true>
 {
@@ -197,11 +206,6 @@ public:
 	bool processSignal = false;
 };
 
-
-DEFINE_EXTERN_MONO_TEMPLATE(gate, dynamics_wrapper<chunkware_simple::SimpleGate>);
-DEFINE_EXTERN_MONO_TEMPLATE(comp, dynamics_wrapper<chunkware_simple::SimpleComp>);
-DEFINE_EXTERN_MONO_TEMPLATE(limiter, dynamics_wrapper<chunkware_simple::SimpleLimit>);
-;
 }
 
 

@@ -142,6 +142,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_library/DspFactory.h"
 
 
+#include "dsp_basics/chunkware_simple_dynamics/chunkware_simple_dynamics.h"
 #include "dsp_basics/AllpassDelay.h"
 
 #include "dsp_basics/DelayLine.h"
@@ -184,6 +185,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_nodes/FilterNode.h"
 #include "dsp_nodes/EventNodes.h"
 #include "dsp_nodes/EnvelopeNodes.h"
+#include "dsp_nodes/DynamicsNode.h"
 #include "dsp_nodes/AnalyserNodes.h"
 
 #include "dsp_nodes/FXNodes_impl.h"

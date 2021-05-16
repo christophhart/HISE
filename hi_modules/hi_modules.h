@@ -60,7 +60,7 @@ END_JUCE_MODULE_DECLARATION
 
 #include "synthesisers/synths/PolyBlep.h"
 
-#include "effects/fx/chunkware_simple_dynamics/chunkware_simple_dynamics.h"
+
 
 #include "synthesisers/synths/WavetableTools.h"
 #include "synthesisers/editors/WavetableComponents.h"
@@ -252,7 +252,7 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 
 #include "nodes/HiseNodes.h"
 #include "nodes/ComplexDataNodes.h"
-#include "nodes/DynamicsNode.h"
+
 
 
 #include "nodes/MetaNodes.h"

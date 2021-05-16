@@ -929,9 +929,9 @@ template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-	registerModNode<dp<gate>, data::ui::displaybuffer_editor>();
-	registerModNode<dp<comp>, data::ui::displaybuffer_editor >();
-	registerModNode<dp<limiter>, data::ui::displaybuffer_editor >();
+	registerPolyModNode<dp<gate>, wrap::illegal_poly<dp<gate>>, data::ui::displaybuffer_editor>();
+	registerPolyModNode<dp<comp>, wrap::illegal_poly<dp<comp>>, data::ui::displaybuffer_editor>();
+	registerPolyModNode<dp<limiter>, wrap::illegal_poly<dp<limiter>>, data::ui::displaybuffer_editor>();
 	registerModNode<dp<envelope_follower>, data::ui::displaybuffer_editor >();
 }
 

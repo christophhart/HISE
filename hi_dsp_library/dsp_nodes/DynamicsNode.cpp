@@ -155,12 +155,11 @@ void dynamics_wrapper<DynamicProcessorType>::reset() noexcept
 template <class DynamicProcessorType>
 dynamics_wrapper<DynamicProcessorType>::dynamics_wrapper()
 {
-
 }
 
-DEFINE_EXTERN_MONO_TEMPIMPL(dynamics_wrapper<chunkware_simple::SimpleGate>);
-DEFINE_EXTERN_MONO_TEMPIMPL(dynamics_wrapper<chunkware_simple::SimpleComp>);
-DEFINE_EXTERN_MONO_TEMPIMPL(dynamics_wrapper<chunkware_simple::SimpleLimit>);
+//DEFINE_EXTERN_MONO_TEMPIMPL(dynamics_wrapper<chunkware_simple::SimpleGate>);
+//DEFINE_EXTERN_MONO_TEMPIMPL(dynamics_wrapper<chunkware_simple::SimpleComp>);
+//DEFINE_EXTERN_MONO_TEMPIMPL(dynamics_wrapper<chunkware_simple::SimpleLimit>);
 
 envelope_follower::envelope_follower() :
 	envelope(20.0, 50.0)

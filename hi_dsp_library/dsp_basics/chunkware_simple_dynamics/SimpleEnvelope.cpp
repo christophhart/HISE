@@ -1,10 +1,10 @@
 /*
- *	Simple Gate (source)
+ *	Simple Envelope Detectors (source)
  *
- *  File		: SimpleGate.cpp
+ *  File		: SimpleEnvelope.cpp
  *	Library		: SimpleSource
  *  Version		: 1.12
- *  Implements	: SimpleGate, SimpleGateRms
+ *  Implements	: EnvelopeDetector, AttRelEnvelope
  *
  *	© 2006, ChunkWare Music Software, OPEN-SOURCE
  *
@@ -28,61 +28,84 @@
  */
 
 
-#include "SimpleGate.h"
-
-#include "SimpleGateProcess.inl"
-
 namespace chunkware_simple
 {
 	//-------------------------------------------------------------
-	SimpleGate::SimpleGate()
-		: AttRelEnvelope( 1.0, 100.0 )
-		, threshdB_( 0.0 )
-		, thresh_( 1.0 )
-		, env_( DC_OFFSET )
+	// envelope detector
+	//-------------------------------------------------------------
+	EnvelopeDetector::EnvelopeDetector(SimpleDataType ms, SimpleDataType sampleRate )
+	{
+		assert( sampleRate > 0.0 );
+		assert( ms > 0.0 );
+		sampleRate_ = sampleRate;
+		ms_ = ms;
+		setCoef();
+	}
+
+	//-------------------------------------------------------------
+	void EnvelopeDetector::setTc(SimpleDataType ms )
+	{
+		ms = jmax<SimpleDataType>(ms, (SimpleDataType)0.01);
+
+		assert( ms > 0.0 );
+		ms_ = ms;
+		setCoef();
+	}
+
+	//-------------------------------------------------------------
+	void EnvelopeDetector::setSampleRate(SimpleDataType sampleRate )
+	{
+		assert( sampleRate > 0.0 );
+		sampleRate_ = sampleRate;
+		setCoef();
+	}
+
+	//-------------------------------------------------------------
+	void EnvelopeDetector::setCoef( void )
+	{
+		coef_ = exp( -1000.0 / ( ms_ * sampleRate_ ) );
+	}
+
+	//-------------------------------------------------------------
+	// attack/release envelope
+	//-------------------------------------------------------------
+	AttRelEnvelope::AttRelEnvelope( SimpleDataType att_ms, SimpleDataType rel_ms, SimpleDataType sampleRate )
+		: att_( att_ms, sampleRate )
+		, rel_( rel_ms, sampleRate )
 	{
 	}
 
 	//-------------------------------------------------------------
-	void SimpleGate::setThresh( SimpleDataType dB )
+	void AttRelEnvelope::setAttack( SimpleDataType ms )
 	{
-		threshdB_ = dB;
-		thresh_ = dB2lin( dB );
+		att_.setTc( ms );
 	}
 
 	//-------------------------------------------------------------
-	void SimpleGate::initRuntime( void )
+	void AttRelEnvelope::setRelease( SimpleDataType ms )
 	{
-		env_ = DC_OFFSET;
+		rel_.setTc( ms );
 	}
 
 	//-------------------------------------------------------------
-	// simple gate with RMS detection
-	//-------------------------------------------------------------
-	SimpleGateRms::SimpleGateRms()
-		: ave_( 5.0 )
-		, aveOfSqrs_( DC_OFFSET )
+	void AttRelEnvelope::setSampleRate( SimpleDataType sampleRate )
 	{
+		att_.setSampleRate( sampleRate );
+		rel_.setSampleRate( sampleRate );
 	}
 
-	//-------------------------------------------------------------
-	void SimpleGateRms::setSampleRate( SimpleDataType sampleRate )
+	void AttRelEnvelope::run(SimpleDataType in, SimpleDataType &state)
 	{
-		SimpleGate::setSampleRate( sampleRate );
-		ave_.setSampleRate( sampleRate );
-	}
+		/* assumes that:
+		* positive delta = attack
+		* negative delta = release
+		* good for linear & log values
+		*/
 
-	//-------------------------------------------------------------
-	void SimpleGateRms::setWindow( SimpleDataType ms )
-	{
-		ave_.setTc( ms );
-	}
-
-	//-------------------------------------------------------------
-	void SimpleGateRms::initRuntime( void )
-	{
-		SimpleGate::initRuntime();
-		aveOfSqrs_ = DC_OFFSET;
+		if (in > state)
+			att_.run(in, state);	// attack
+		else
+			rel_.run(in, state);	// release
 	}
 
 }	// end namespace chunkware_simple
