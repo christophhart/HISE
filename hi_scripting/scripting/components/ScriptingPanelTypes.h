@@ -113,6 +113,8 @@ public:
 
 		Editor(Canvas* c);
 
+		void rebuildAfterContentChange() override;
+
 		ValueTree getBookmarkValueTree() override { return {}; }
 
 		void bookmarkUpdated(const StringArray& idsToShow) override

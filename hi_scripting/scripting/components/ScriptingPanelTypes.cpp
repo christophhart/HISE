@@ -501,6 +501,12 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 	zoomSelector->setSize(100, 24);
 	klaf.setDefaultColours(*zoomSelector);
 
+	rebuildAfterContentChange();
+}
+
+
+void ScriptContentPanel::Editor::rebuildAfterContentChange()
+{
 	addCustomComponent(zoomSelector);
 
 	addButton("edit");
@@ -527,7 +533,6 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 	updateUndoDescription();
 	refreshContent();
 }
-
 
 void ScriptContentPanel::Editor::addButton(const String& name)
 {

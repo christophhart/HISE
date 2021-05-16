@@ -636,6 +636,84 @@ public:
 		}
 	};
 
+	struct BreadcrumbComponent: public Component
+	{
+		struct NetworkButton : public TextButton
+		{
+			NetworkButton(DspNetwork* n, bool current_):
+				TextButton(n->getId()),
+				network(n),
+				current(current_)
+			{
+				w = GLOBAL_BOLD_FONT().getStringWidth(getName()) + 30;
+
+				onClick = BIND_MEMBER_FUNCTION_0(NetworkButton::click);
+			}
+
+			void click();
+
+
+
+			void paintButton(Graphics& g, bool isOver, bool isDown)
+			{
+				g.setFont(GLOBAL_BOLD_FONT());
+
+				float alpha = 0.5f;
+
+				if (isOver)
+					alpha += 0.2f;
+
+				if (isDown)
+					alpha += 0.2f;
+
+				if (current)
+					alpha = 0.8f;
+
+				g.setColour(Colours::white.withAlpha(alpha));
+				g.drawText(getName(), getLocalBounds().toFloat().reduced(10.0f, 0), Justification::left);
+
+				if (!current)
+				{
+					g.setColour(Colours::white.withAlpha(0.2f));
+					g.drawText(">", getLocalBounds().removeFromRight(20).toFloat(), Justification::centred);
+				}
+			}
+
+			const bool current;
+			int w = 0;
+			WeakReference<DspNetwork> network;
+		};
+
+		BreadcrumbComponent(DspNetwork* n)
+		{
+			bool current = true;
+			int w = 0;
+
+			while (n != nullptr)
+			{
+				buttons.add(new NetworkButton(n, current));
+				addAndMakeVisible(buttons.getLast());
+				n = n->getParentNetwork();
+				current = false;
+				w += buttons.getLast()->w;
+			}
+
+			setSize(w, 24);
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			for (auto nb : buttons)
+			{
+				nb->setBounds(b.removeFromRight(nb->w));
+			}
+		}
+
+		OwnedArray<NetworkButton> buttons;
+
+	};
+
 	struct WrapperWithMenuBar : public WrapperWithMenuBarBase
 	{
 		static bool selectionEmpty(DspNetworkGraph& g)
@@ -643,46 +721,9 @@ public:
 			return !g.network->getSelection().isEmpty();
 		}
 
-		WrapperWithMenuBar(DspNetworkGraph* g):
-			WrapperWithMenuBarBase(g),
-			n(g->network)
-		{
-			addButton("zoom");
+		WrapperWithMenuBar(DspNetworkGraph* g);;
 
-			addBookmarkComboBox();
-
-			addSpacer(10);
-
-			addButton("fold");
-			addButton("foldunselected");
-			addButton("swap-orientation");
-
-			addSpacer(10);
-
-			addButton("error");
-			addButton("goto");
-			addButton("cable");
-			addButton("probe");
-			addSpacer(10);
-			addButton("add");
-			addButton("wrap");
-			addButton("export");
-			addButton("deselect");
-
-			addButton("bypass");
-			addButton("colour");
-			addButton("profile");
-
-			addSpacer(10);
-			addButton("undo");
-			addButton("redo");
-			addSpacer(10);
-			addButton("copy");
-			addButton("duplicate");
-			addButton("delete");
-			addSpacer(10);
-			addButton("properties");
-		};
+		void rebuildAfterContentChange() override;
 
 		virtual void bookmarkUpdated(const StringArray& idsToShow)
 		{

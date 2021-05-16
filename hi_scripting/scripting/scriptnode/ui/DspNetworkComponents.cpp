@@ -828,6 +828,7 @@ bool DspNetworkGraph::Actions::swapOrientation(DspNetworkGraph& g)
 
 bool DspNetworkGraph::Actions::freezeNode(NodeBase::Ptr node)
 {
+#if 0
 	auto freezedId = node->getValueTree()[PropertyIds::FreezedId].toString();
 
 	if (freezedId.isNotEmpty())
@@ -901,12 +902,59 @@ bool DspNetworkGraph::Actions::freezeNode(NodeBase::Ptr node)
 
 		return true;
 	}
+#endif
 
 	return false;
 }
 
 bool DspNetworkGraph::Actions::unfreezeNode(NodeBase::Ptr node)
 {
+	if (auto fn = node->getEmbeddedNetwork())
+	{
+		auto newTree = fn->getRootNode()->getValueTree();
+		newTree = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree);
+
+		{
+			auto oldTree = node->getValueTree();
+			auto um = node->getUndoManager();
+
+			auto newNode = node->getRootNetwork()->createFromValueTree(true, newTree, true);
+
+			auto f = [oldTree, newTree, um]()
+			{
+				auto p = oldTree.getParent();
+
+				int position = p.indexOf(oldTree);
+				p.removeChild(oldTree, um);
+				p.addChild(newTree, position, um);
+			};
+
+			MessageManager::callAsync(f);
+
+			auto nw = node->getRootNetwork();
+
+			auto s = [newNode, nw]()
+			{
+				nw->deselectAll();
+				nw->addToSelection(newNode, ModifierKeys());
+			};
+
+			MessageManager::callAsync(s);
+		}
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
 #if 0
 	if (auto hc = node->getAsRestorableNode())
 	{
@@ -1013,22 +1061,33 @@ bool DspNetworkGraph::Actions::toggleFreeze(DspNetworkGraph& g)
 	auto selection = g.network->getSelection();
 
 	if (selection.isEmpty())
-		return false;
-
-	auto f = selection.getFirst();
-
-#if 0
-	if (auto r = f->getAsRestorableNode())
 	{
-		unfreezeNode(f);
+		if (g.network->canBeFrozen())
+			g.network->setUseFrozenNode(!g.network->isFrozen());
+
+		g.repaint();
+
 		return true;
 	}
-	else if (freezeNode(f))
+	else
 	{
+		auto f = selection.getFirst();
+
+
+		if (auto fn = f->getEmbeddedNetwork())
+		{
+			if (fn->canBeFrozen())
+			{
+				auto state = !fn->isFrozen();
+
+				for (auto s : selection)
+					s->setValueTreeProperty(PropertyIds::Frozen, state);
+			}
+		}
+
 		return true;
 	}
-#endif
-
+		
 	return false;
 }
 
@@ -1080,6 +1139,8 @@ bool DspNetworkGraph::Actions::toggleCpuProfiling(DspNetworkGraph& g)
 	b = !b;
 	
 	g.enablePeriodicRepainting(b);
+
+	g.repaint();
 
 	return true;
 }
@@ -1925,6 +1986,66 @@ void KeyboardPopup::PopupList::Item::resized()
 
 
 
+DspNetworkGraph::WrapperWithMenuBar::WrapperWithMenuBar(DspNetworkGraph* g) :
+	WrapperWithMenuBarBase(g),
+	n(g->network)
+{
+	rebuildAfterContentChange();
+}
+
+void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
+{
+	n = dynamic_cast<DspNetworkGraph*>(canvas.getContentComponent())->network.get();
+
+	jassert(n != nullptr);
+
+	auto id = n->getId();
+
+	if (n->getParentNetwork() != nullptr)
+	{
+		addCustomComponent(new BreadcrumbComponent(n));
+	}
+
+	if(n->canBeFrozen())
+		addButton("export");
+
+	addButton("zoom");
+
+	addBookmarkComboBox();
+
+	addSpacer(10);
+
+	addButton("fold");
+	addButton("foldunselected");
+	addButton("swap-orientation");
+
+	addSpacer(10);
+
+	addButton("error");
+	addButton("goto");
+	addButton("cable");
+	addButton("probe");
+	addSpacer(10);
+	addButton("add");
+	addButton("wrap");
+	
+	addButton("deselect");
+
+	addButton("bypass");
+	addButton("colour");
+	addButton("profile");
+
+	addSpacer(10);
+	addButton("undo");
+	addButton("redo");
+	addSpacer(10);
+	addButton("copy");
+	addButton("duplicate");
+	addButton("delete");
+	addSpacer(10);
+	addButton("properties");
+}
+
 void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 {
 	auto p = canvas.getContent<DspNetworkGraph>();
@@ -1949,6 +2070,39 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 		b->actionFunction = Actions::toggleCableDisplay;
 		b->stateFunction = [](DspNetworkGraph& g) { return g.showCables; };
 		b->setTooltip("Show / Hide cables [C]");
+	}
+	if (name == "export")
+	{
+		b->actionFunction = Actions::toggleFreeze;
+		b->enabledFunction = [](DspNetworkGraph& g) 
+		{
+			auto s = g.network->getSelection();
+
+			if (s.isEmpty())
+				return g.network->canBeFrozen();
+			else
+			{
+				if (auto fn = s.getFirst()->getEmbeddedNetwork())
+					return fn->canBeFrozen();
+
+				return false;
+			}
+		};
+
+		b->stateFunction = [](DspNetworkGraph& g)
+		{
+			auto s = g.network->getSelection();
+
+			if (s.isEmpty())
+				return g.network->isFrozen();
+			else
+			{
+				if (auto fn = s.getFirst()->getEmbeddedNetwork())
+					return fn->isFrozen();
+
+				return false;
+			}
+		};
 	}
 	if (name == "swap-orientation")
 	{
@@ -1983,6 +2137,10 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 			PopupMenu m;
 			m.setLookAndFeel(&plaf);
 
+			auto s = g.network->getSelection().getFirst();
+
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoDspNetwork, "Wrap into DSP Network", s != nullptr && s->getValueTree()[PropertyIds::FactoryPath].toString() == "container.chain");
+
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoChain, "Wrap into chain");
 
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoFrame, "Wrap into frame processing container");
@@ -1992,6 +2150,8 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoSplit, "Wrap into split container");
 
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoOversample4, "Wrap into 4x oversample container");
+
+			m.addItem((int)NodeComponent::MenuActions::UnfreezeNode, "Explode DSP Network", s != nullptr && s->getEmbeddedNetwork() != nullptr);
 
 			int result = m.show();
 
@@ -2282,6 +2442,11 @@ void KeyboardPopup::ImagePreviewCreator::timerCallback()
 	kp.repaint();
 
 	stopTimer();
+}
+
+void DspNetworkGraph::BreadcrumbComponent::NetworkButton::click()
+{
+	findParentComponentOfClass<WrapperWithMenuBarBase>()->canvas.setNewContent(new DspNetworkGraph(network), nullptr);
 }
 
 }

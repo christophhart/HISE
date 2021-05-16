@@ -57,7 +57,25 @@ struct ZoomableViewport : public Component,
 		MouseWatcher(ZoomableViewport& p) :
 			parent(p)
 		{
-			p.getContentComponent()->addMouseListener(this, true);
+			refreshListener();
+		}
+
+		void refreshListener()
+		{
+			if (auto c = parent.getContentComponent())
+			{
+				c->addMouseListener(this, true);
+				
+			}
+		}
+
+		void setToMidAfterResize()
+		{
+			if (auto c = parent.getContentComponent())
+			{
+				mousePos = parent.getLocalBounds().toFloat().getCentre();
+				graphMousePos = parent.getContentComponent()->getLocalBounds().getCentre().toFloat();
+			}
 		}
 
 		void mouseMove(const MouseEvent& e) override
@@ -159,6 +177,8 @@ struct ZoomableViewport : public Component,
 	}
 
 	void setCurrentModalWindow(Component* newComponent, Rectangle<int> target);
+
+	void setNewContent(Component* newContentToDisplay, Component* target);
 
 	struct Holder : public Component,
 		public ComponentListener
@@ -358,6 +378,8 @@ struct ZoomableViewport : public Component,
 	void refreshPosition();
 
 	ScopedPointer<Holder> currentModalWindow;
+
+	ScopedPointer<Component> pendingNewComponent;
 
 	bool positionInitialised = false;
 
@@ -568,6 +590,17 @@ struct WrapperWithMenuBarBase : public Component,
 		startTimer(100);
 	}
 
+	/** Override this method and initialise the menu bar here. */
+	virtual void rebuildAfterContentChange() = 0;
+
+	void setContentComponent(Component* newContent)
+	{
+		actionButtons.clear();
+		bookmarkBox = nullptr;
+		rebuildAfterContentChange();
+		resized();
+	}
+
 	void timerCallback() override
 	{
 		for (auto a : actionButtons)
@@ -667,6 +700,7 @@ struct WrapperWithMenuBarBase : public Component,
 
 	ZoomableViewport canvas;
 	OwnedArray<Component> actionButtons;
+
 	GlobalHiseLookAndFeel glaf;
 	ComboBox* bookmarkBox;
 

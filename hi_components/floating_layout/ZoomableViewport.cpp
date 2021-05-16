@@ -199,7 +199,10 @@ void ZoomableViewport::resized()
 		MessageManager::callAsync([safeThis]()
 		{
 			if (safeThis.getComponent() != nullptr)
+			{
 				safeThis.getComponent()->centerCanvas();
+				
+			}
 		});
 	}
 	else
@@ -360,6 +363,37 @@ void ZoomableViewport::setCurrentModalWindow(Component* newComponent, Rectangle<
 	dark.setVisible(currentModalWindow != nullptr);
 }
 
+void ZoomableViewport::setNewContent(Component* newContentToDisplay, Component* target)
+{
+	makeSwapSnapshot(JUCE_LIVE_CONSTANT_OFF(1.005));
+
+	pendingNewComponent = newContentToDisplay;
+
+	auto f = [this]()
+	{
+		content->removeComponentListener(this);
+		addAndMakeVisible(content = pendingNewComponent.release());
+		content->addComponentListener(this);
+		this->findParentComponentOfClass<WrapperWithMenuBarBase>()->setContentComponent(content);
+		clearSwapSnapshot();
+		mouseWatcher->refreshListener();
+		zoomToRectangle(content->getLocalBounds());
+	};
+
+	if (target != nullptr)
+	{
+		auto b = getLocalArea(target, target->getLocalBounds());
+		Timer::callAfterDelay(300, [this, b]() {zoomToRectangle(b); });
+	}
+	else
+	{
+		auto b = content->getBoundsInParent();
+		Timer::callAfterDelay(300, [this, b]() {zoomToRectangle(b); });
+	}
+
+	Timer::callAfterDelay(500, f);
+}
+
 void ZoomableViewport::centerCanvas()
 {
 	setZoomFactor(1.0f, {});
@@ -374,6 +408,8 @@ void ZoomableViewport::centerCanvas()
 
 	hBar.setCurrentRange({ 0.5, 0.7 }, dontSendNotification);
 	vBar.setCurrentRange({ 0.5, 0.7 }, dontSendNotification);
+
+	mouseWatcher->setToMidAfterResize();
 }
 
 
