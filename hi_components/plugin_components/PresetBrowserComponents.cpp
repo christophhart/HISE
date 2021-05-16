@@ -441,7 +441,6 @@ void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::refreshShape()
 
 	const bool on = PresetBrowser::DataBaseHelpers::isFavorite(parent.database, f);
 
-
 	static const unsigned char onShape[] = "nm\xac&=Ca\xee<Cl\x12\x96?C%\xaf""CCl\xde\xc2""FC\xd0\xe9""CClZ\x17""AC\xebPHCl(\x17""CC\xf1""5OCl\xad&=C\xc4-KCl267C\xf1""5OCl\0""69C\xebPHCl}\x8a""3C\xd0\xe9""CClH\xb7:C%\xaf""CCce";
 
 	static const unsigned char offShape[] = { 110,109,0,144,89,67,0,103,65,67,108,0,159,88,67,0,3,68,67,108,129,106,86,67,0,32,74,67,108,1,38,77,67,0,108,74,67,108,1,121,84,67,0,28,80,67,108,129,227,81,67,255,3,89,67,108,1,144,89,67,127,206,83,67,108,1,60,97,67,255,3,89,67,108,129,166,94,67,0,28,
@@ -450,15 +449,17 @@ void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::refreshShape()
 
 	Path path;
 
+	auto c = parent.getPresetBrowserLookAndFeel().highlightColour;
+
 	if (on)
 	{
-		b->setColours(Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white);
+		b->setColours(c.withAlpha(0.5f), c.withAlpha(0.8f), c);
 		path.loadPathFromData(onShape, sizeof(onShape));
 	}
 
 	else
 	{
-		b->setColours(Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.8f), Colours::white);
+		b->setColours(c.withAlpha(0.2f), c.withAlpha(0.8f), c);
 		path.loadPathFromData(offShape, sizeof(offShape));
 	}
 
