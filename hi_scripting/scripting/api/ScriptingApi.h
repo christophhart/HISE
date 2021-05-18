@@ -525,47 +525,62 @@ public:
 		/** Changes the UI zoom (1.0 = 100%). */
 		void setZoomLevel(double newLevel);
 
+		/** Gets the Streaming Mode (0 -> Fast-SSD, 1 -> Slow-HDD) */
+		int getDiskMode();
+
 		/** Sets the Streaming Mode (0 -> Fast-SSD, 1 -> Slow-HDD) */
 		void setDiskMode(int mode);
 
 		/** Returns available audio device types. */
 		var getAvailableDeviceTypes();
 		
+		/** Returns the current audio device type. */
+		String getCurrentAudioDeviceType();
+		
 		/** Sets the current audio device type*/
 		void setAudioDeviceType(String deviceName);
 
 		/** Returns names of available audio devices. */
-		var getDeviceNames();
-		
+		var getAvailableDeviceNames();
+
+		/** Gets the current audio device name*/
+		String getCurrentAudioDevice();
+				
 		/** Sets the current audio device */
 		void setAudioDevice(String name);
 		
 		/** Returns array of available output channel pairs. */
-		var getOutputChannelPairs();
-
-		/** Sets the output channel pair */
-		void setOutputChannelPair(int index);
+		var getAvailableOutputChannels();
 
 		/** Returns current output channel pair. */
-		int getCurrentOutputChannelPair();
+		int getCurrentOutputChannel();
+		
+		/** Sets the output channel pair */
+		void setOutputChannel(int index);
 		
 		/** Returns available buffer sizes for the selected audio device. */
-		var getBufferSizesForDevice();
-		
-		/** Sets the buffer block size for the selected audio device. */
-		void setCurrentBlockSize(int newBlockSize);
+		var getAvailableBufferSizes();
 		
 		/** Returns the current buffer block size. */
-		int getCurrentBlockSize();
+		int getCurrentBufferSize();
+		
+		/** Sets the buffer block size for the selected audio device. */
+		void setBufferSize(int newBlockSize);
 		
 		/** Returns array of available sample rate. */
-		var getSampleRates();
-		
+		var getAvailableSampleRates();
+
+		/** Returns the current output sample rate (-1 if no audio device selected)*/
+		double getCurrentSampleRate();
+				
 		/** Sets the output sample rate */
-		void setCurrentSampleRate(double sampleRate);
+		void setSampleRate(double sampleRate);
+		
+		/** Returns current voice amount multiplier setting. */
+		int getCurrentVoiceMultiplier();
 
 		/** Sets the voice limit multiplier (1, 2, 4, or 8). */
-		void setVoiceAmountMultiplier(int newVoiceAmount);
+		void setVoiceMultiplier(int newVoiceAmount);
 
 		/** Clears all MIDI CC assignments. */
 		void clearMidiLearn();

@@ -1618,20 +1618,25 @@ struct ScriptingApi::Settings::Wrapper
 {
 	API_METHOD_WRAPPER_0(Settings, getZoomLevel);
 	API_VOID_METHOD_WRAPPER_1(Settings, setZoomLevel);
+	API_METHOD_WRAPPER_0(Settings, getDiskMode);
 	API_VOID_METHOD_WRAPPER_1(Settings, setDiskMode);
 	API_METHOD_WRAPPER_0(Settings, getAvailableDeviceTypes);
+	API_METHOD_WRAPPER_0(Settings, getCurrentAudioDeviceType)
 	API_VOID_METHOD_WRAPPER_1(Settings, setAudioDeviceType)
-	API_METHOD_WRAPPER_0(Settings, getDeviceNames);
+	API_METHOD_WRAPPER_0(Settings, getAvailableDeviceNames);
+	API_METHOD_WRAPPER_0(Settings, getCurrentAudioDevice);
 	API_VOID_METHOD_WRAPPER_1(Settings, setAudioDevice);
-	API_METHOD_WRAPPER_0(Settings, getOutputChannelPairs);
-	API_VOID_METHOD_WRAPPER_1(Settings, setOutputChannelPair);
-	API_METHOD_WRAPPER_0(Settings, getCurrentOutputChannelPair);
-	API_METHOD_WRAPPER_0(Settings, getBufferSizesForDevice);
-	API_VOID_METHOD_WRAPPER_1(Settings, setCurrentBlockSize);
-	API_METHOD_WRAPPER_0(Settings, getCurrentBlockSize);
-	API_METHOD_WRAPPER_0(Settings, getSampleRates);
-	API_VOID_METHOD_WRAPPER_1(Settings, setCurrentSampleRate);
-	API_VOID_METHOD_WRAPPER_1(Settings, setVoiceAmountMultiplier);
+	API_METHOD_WRAPPER_0(Settings, getAvailableOutputChannels);
+	API_METHOD_WRAPPER_0(Settings, getCurrentOutputChannel);
+	API_VOID_METHOD_WRAPPER_1(Settings, setOutputChannel);
+	API_METHOD_WRAPPER_0(Settings, getAvailableBufferSizes);
+	API_METHOD_WRAPPER_0(Settings, getCurrentBufferSize);
+	API_VOID_METHOD_WRAPPER_1(Settings, setBufferSize);
+	API_METHOD_WRAPPER_0(Settings, getAvailableSampleRates);
+	API_METHOD_WRAPPER_0(Settings, getCurrentSampleRate);
+	API_VOID_METHOD_WRAPPER_1(Settings, setSampleRate);
+	API_METHOD_WRAPPER_0(Settings, getCurrentVoiceMultiplier);
+	API_VOID_METHOD_WRAPPER_1(Settings, setVoiceMultiplier);
 	API_VOID_METHOD_WRAPPER_0(Settings, clearMidiLearn);
 	API_METHOD_WRAPPER_0(Settings, getMidiInputDevices);
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiInput);
@@ -1650,20 +1655,25 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_1(setZoomLevel);
+	ADD_API_METHOD_0(getDiskMode);
 	ADD_API_METHOD_1(setDiskMode);
 	ADD_API_METHOD_0(getAvailableDeviceTypes);
+	ADD_API_METHOD_0(getCurrentAudioDeviceType);
 	ADD_API_METHOD_1(setAudioDeviceType);
-	ADD_API_METHOD_0(getDeviceNames);
+	ADD_API_METHOD_0(getAvailableDeviceNames);
+	ADD_API_METHOD_0(getCurrentAudioDevice);
 	ADD_API_METHOD_1(setAudioDevice);
-	ADD_API_METHOD_0(getOutputChannelPairs);
-	ADD_API_METHOD_1(setOutputChannelPair);
-	ADD_API_METHOD_0(getCurrentOutputChannelPair);
-	ADD_API_METHOD_0(getBufferSizesForDevice);
-	ADD_API_METHOD_1(setCurrentBlockSize);
-	ADD_API_METHOD_0(getCurrentBlockSize);
-	ADD_API_METHOD_0(getSampleRates);
-	ADD_API_METHOD_1(setCurrentSampleRate);
-	ADD_API_METHOD_1(setVoiceAmountMultiplier);
+	ADD_API_METHOD_0(getAvailableOutputChannels);
+	ADD_API_METHOD_0(getCurrentOutputChannel);
+	ADD_API_METHOD_1(setOutputChannel);
+	ADD_API_METHOD_0(getAvailableBufferSizes);
+	ADD_API_METHOD_0(getCurrentBufferSize);
+	ADD_API_METHOD_1(setBufferSize);
+	ADD_API_METHOD_0(getAvailableSampleRates);
+	ADD_API_METHOD_0(getCurrentSampleRate);
+	ADD_API_METHOD_1(setSampleRate);
+	ADD_API_METHOD_0(getCurrentVoiceMultiplier);
+	ADD_API_METHOD_1(setVoiceMultiplier);
 	ADD_API_METHOD_0(clearMidiLearn);
 	ADD_API_METHOD_0(getMidiInputDevices);
 	ADD_API_METHOD_2(toggleMidiInput);
@@ -1680,6 +1690,11 @@ void ScriptingApi::Settings::setZoomLevel(double newLevel)
 {
 	newLevel = jlimit(0.25, 2.0, newLevel);
 	gm->setGlobalScaleFactor(newLevel, sendNotificationAsync);
+}
+
+int ScriptingApi::Settings::getDiskMode()
+{
+	return driver->diskMode;
 }
 
 void ScriptingApi::Settings::setDiskMode(int mode)
@@ -1700,12 +1715,22 @@ var ScriptingApi::Settings::getAvailableDeviceTypes()
 	return result;
 }
 
+String ScriptingApi::Settings::getCurrentAudioDeviceType()
+{
+	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+	
+	if (currentDevice != nullptr)
+		return currentDevice->getTypeName();
+	
+	return "";
+}
+
 void ScriptingApi::Settings::setAudioDeviceType(String deviceName)
 {
 	driver->setAudioDeviceType(deviceName);
 }
 
-var ScriptingApi::Settings::getDeviceNames()
+var ScriptingApi::Settings::getAvailableDeviceNames()
 {
 	const OwnedArray<AudioIODeviceType> *devices = &driver->deviceManager->getAvailableDeviceTypes();
 	const int thisDevice = devices->indexOf(driver->deviceManager->getCurrentDeviceTypeObject());
@@ -1721,12 +1746,18 @@ var ScriptingApi::Settings::getDeviceNames()
 	return result;
 }
 
+String ScriptingApi::Settings::getCurrentAudioDevice()
+{
+	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+	return currentDevice->getName();
+}
+
 void ScriptingApi::Settings::setAudioDevice(String name)
 {
 	driver->setAudioDevice(name);
 }
 
-var ScriptingApi::Settings::getOutputChannelPairs()
+var ScriptingApi::Settings::getAvailableOutputChannels()
 {
 	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
 	StringArray outputPairs = HiseSettings::ConversionHelpers::getChannelPairs(currentDevice);
@@ -1739,18 +1770,18 @@ var ScriptingApi::Settings::getOutputChannelPairs()
 	return result;
 }
 
-int ScriptingApi::Settings::getCurrentOutputChannelPair()
+int ScriptingApi::Settings::getCurrentOutputChannel()
 {
 	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
 	return (currentDevice->getActiveOutputChannels().getHighestBit() - 1) / 2;
 }
 
-void ScriptingApi::Settings::setOutputChannelPair(int index)
+void ScriptingApi::Settings::setOutputChannel(int index)
 {
 	CustomSettingsWindow::flipEnablement(driver->deviceManager, index);
 }
 
-var ScriptingApi::Settings::getBufferSizesForDevice()
+var ScriptingApi::Settings::getAvailableBufferSizes()
 {
 	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
 
@@ -1763,17 +1794,17 @@ var ScriptingApi::Settings::getBufferSizesForDevice()
 	return result;
 }
 
-void ScriptingApi::Settings::setCurrentBlockSize(int newBlockSize)
-{	
-	driver->setCurrentBlockSize(newBlockSize);
-}
-
-int ScriptingApi::Settings::getCurrentBlockSize()
+int ScriptingApi::Settings::getCurrentBufferSize()
 {	
 	return driver->getCurrentBlockSize();
 }
 
-var ScriptingApi::Settings::getSampleRates()
+void ScriptingApi::Settings::setBufferSize(int newBlockSize)
+{	
+	driver->setCurrentBlockSize(newBlockSize);
+}
+
+var ScriptingApi::Settings::getAvailableSampleRates()
 {
 	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
 	auto samplerates = HiseSettings::ConversionHelpers::getSampleRates(currentDevice);
@@ -1785,12 +1816,27 @@ var ScriptingApi::Settings::getSampleRates()
 	return result;
 }
 
-void ScriptingApi::Settings::setCurrentSampleRate(double sampleRate)
+double ScriptingApi::Settings::getCurrentSampleRate()
+{
+	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+	
+	if (currentDevice != nullptr)
+		return currentDevice->getCurrentSampleRate();
+	
+	return -1;
+}
+
+void ScriptingApi::Settings::setSampleRate(double sampleRate)
 {
 	driver->setCurrentSampleRate(sampleRate);
 }
 
-void ScriptingApi::Settings::setVoiceAmountMultiplier(int newVoiceAmount)
+int ScriptingApi::Settings::getCurrentVoiceMultiplier()
+{
+	return driver->voiceAmountMultiplier;	
+}
+
+void ScriptingApi::Settings::setVoiceMultiplier(int newVoiceAmount)
 {
 	driver->voiceAmountMultiplier = newVoiceAmount;
 }
