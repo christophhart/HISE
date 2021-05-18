@@ -591,6 +591,9 @@ public:
 		/** Enables or disables named MIDI input device. */
 		void toggleMidiInput(const String &midiInputName, bool enableInput);
 
+		/** Returns enabled state of midi input device. */
+		bool isMidiInputEnabled(const String &midiInputName);
+		
 		/** Enables or disables MIDI channel. */
 		void toggleMidiChannel(int index, bool value);
 

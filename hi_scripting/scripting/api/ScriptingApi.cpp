@@ -1640,6 +1640,7 @@ struct ScriptingApi::Settings::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Settings, clearMidiLearn);
 	API_METHOD_WRAPPER_0(Settings, getMidiInputDevices);
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiInput);
+	API_METHOD_WRAPPER_1(Settings, isMidiInputEnabled);
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiChannel);
 };
 
@@ -1676,6 +1677,7 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 	ADD_API_METHOD_0(clearMidiLearn);
 	ADD_API_METHOD_0(getMidiInputDevices);
 	ADD_API_METHOD_2(toggleMidiInput);
+	ADD_API_METHOD_1(isMidiInputEnabled);
 	ADD_API_METHOD_2(toggleMidiChannel);
 }
 
@@ -1852,6 +1854,11 @@ var ScriptingApi::Settings::getMidiInputDevices()
 void ScriptingApi::Settings::toggleMidiInput(const String &midiInputName, bool enableInput)
 {
 	driver->toggleMidiInput(midiInputName, enableInput);
+}
+
+bool ScriptingApi::Settings::isMidiInputEnabled(const String &midiInputName)
+{
+	return driver->deviceManager->isMidiInputEnabled(midiInputName);
 }
 
 void ScriptingApi::Settings::toggleMidiChannel(int index, bool value)
