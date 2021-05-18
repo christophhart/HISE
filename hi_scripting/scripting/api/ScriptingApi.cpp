@@ -1642,6 +1642,7 @@ struct ScriptingApi::Settings::Wrapper
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiInput);
 	API_METHOD_WRAPPER_1(Settings, isMidiInputEnabled);
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiChannel);
+	API_METHOD_WRAPPER_1(Settings, isMidiChannelEnabled);
 };
 
 ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
@@ -1679,6 +1680,7 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 	ADD_API_METHOD_2(toggleMidiInput);
 	ADD_API_METHOD_1(isMidiInputEnabled);
 	ADD_API_METHOD_2(toggleMidiChannel);
+	ADD_API_METHOD_1(isMidiChannelEnabled);
 }
 
 double ScriptingApi::Settings::getZoomLevel() const
@@ -1869,6 +1871,16 @@ void ScriptingApi::Settings::toggleMidiChannel(int index, bool value)
 		newData->setEnableAllChannels(value);
 	else
 		newData->setEnableMidiChannel(index - 1, value);	
+}
+
+bool ScriptingApi::Settings::isMidiChannelEnabled(int index)
+{
+	HiseEvent::ChannelFilterData* channelFilterData = mc->getMainSynthChain()->getActiveChannelData();
+	
+	if (index == 0)
+		return channelFilterData->areAllChannelsEnabled();
+	else 
+		return channelFilterData->isChannelEnabled(index - 1);
 }
 
 struct DynamicArrayComparator
