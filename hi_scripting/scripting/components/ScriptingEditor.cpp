@@ -500,7 +500,7 @@ void ScriptingEditor::gotoChar(int character)
 
 bool ScriptingEditor::keyPressed(const KeyPress &k)
 {
-#if JUCE_WINDOWS
+#if JUCE_WINDOWS || JUCE_LINUX
 	if ((k.isKeyCode(KeyPress::leftKey) || k.isKeyCode(KeyPress::rightKey)) && k.getModifiers().isCtrlDown() && k.getModifiers().isAltDown())
 #else
     if ((k.isKeyCode(KeyPress::leftKey) || k.isKeyCode(KeyPress::rightKey)) && k.getModifiers().isCtrlDown() && k.getModifiers().isCommandDown())

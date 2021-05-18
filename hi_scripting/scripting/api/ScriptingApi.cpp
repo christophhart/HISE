@@ -856,7 +856,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, matchesRegex);
 	API_METHOD_WRAPPER_2(Engine, getRegexMatches);
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
-	API_METHOD_WRAPPER_0(Engine, getOS);
+	API_METHOD_WRAPPER_0(Engine, getOS);	
 	API_METHOD_WRAPPER_0(Engine, isPlugin);
 	API_METHOD_WRAPPER_0(Engine, getPreloadProgress);
 	API_METHOD_WRAPPER_0(Engine, getPreloadMessage);
@@ -940,7 +940,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_2(showErrorMessage);
 	ADD_API_METHOD_1(showMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
-    ADD_API_METHOD_1(openWebsite);
+	ADD_API_METHOD_1(openWebsite);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_0(getExpansionList);
@@ -1618,7 +1618,30 @@ struct ScriptingApi::Settings::Wrapper
 {
 	API_METHOD_WRAPPER_0(Settings, getZoomLevel);
 	API_VOID_METHOD_WRAPPER_1(Settings, setZoomLevel);
+	API_METHOD_WRAPPER_0(Settings, getDiskMode);
 	API_VOID_METHOD_WRAPPER_1(Settings, setDiskMode);
+	API_METHOD_WRAPPER_0(Settings, getAvailableDeviceTypes);
+	API_METHOD_WRAPPER_0(Settings, getCurrentAudioDeviceType)
+	API_VOID_METHOD_WRAPPER_1(Settings, setAudioDeviceType)
+	API_METHOD_WRAPPER_0(Settings, getAvailableDeviceNames);
+	API_METHOD_WRAPPER_0(Settings, getCurrentAudioDevice);
+	API_VOID_METHOD_WRAPPER_1(Settings, setAudioDevice);
+	API_METHOD_WRAPPER_0(Settings, getAvailableOutputChannels);
+	API_METHOD_WRAPPER_0(Settings, getCurrentOutputChannel);
+	API_VOID_METHOD_WRAPPER_1(Settings, setOutputChannel);
+	API_METHOD_WRAPPER_0(Settings, getAvailableBufferSizes);
+	API_METHOD_WRAPPER_0(Settings, getCurrentBufferSize);
+	API_VOID_METHOD_WRAPPER_1(Settings, setBufferSize);
+	API_METHOD_WRAPPER_0(Settings, getAvailableSampleRates);
+	API_METHOD_WRAPPER_0(Settings, getCurrentSampleRate);
+	API_VOID_METHOD_WRAPPER_1(Settings, setSampleRate);
+	API_METHOD_WRAPPER_0(Settings, getCurrentVoiceMultiplier);
+	API_VOID_METHOD_WRAPPER_1(Settings, setVoiceMultiplier);
+	API_VOID_METHOD_WRAPPER_0(Settings, clearMidiLearn);
+	API_METHOD_WRAPPER_0(Settings, getMidiInputDevices);
+	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiInput);
+	API_METHOD_WRAPPER_1(Settings, isMidiInputEnabled);
+	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiChannel);
 };
 
 ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
@@ -1632,9 +1655,31 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_1(setZoomLevel);
+	ADD_API_METHOD_0(getDiskMode);
 	ADD_API_METHOD_1(setDiskMode);
+	ADD_API_METHOD_0(getAvailableDeviceTypes);
+	ADD_API_METHOD_0(getCurrentAudioDeviceType);
+	ADD_API_METHOD_1(setAudioDeviceType);
+	ADD_API_METHOD_0(getAvailableDeviceNames);
+	ADD_API_METHOD_0(getCurrentAudioDevice);
+	ADD_API_METHOD_1(setAudioDevice);
+	ADD_API_METHOD_0(getAvailableOutputChannels);
+	ADD_API_METHOD_0(getCurrentOutputChannel);
+	ADD_API_METHOD_1(setOutputChannel);
+	ADD_API_METHOD_0(getAvailableBufferSizes);
+	ADD_API_METHOD_0(getCurrentBufferSize);
+	ADD_API_METHOD_1(setBufferSize);
+	ADD_API_METHOD_0(getAvailableSampleRates);
+	ADD_API_METHOD_0(getCurrentSampleRate);
+	ADD_API_METHOD_1(setSampleRate);
+	ADD_API_METHOD_0(getCurrentVoiceMultiplier);
+	ADD_API_METHOD_1(setVoiceMultiplier);
+	ADD_API_METHOD_0(clearMidiLearn);
+	ADD_API_METHOD_0(getMidiInputDevices);
+	ADD_API_METHOD_2(toggleMidiInput);
+	ADD_API_METHOD_1(isMidiInputEnabled);
+	ADD_API_METHOD_2(toggleMidiChannel);
 }
-
 
 double ScriptingApi::Settings::getZoomLevel() const
 {
@@ -1647,10 +1692,183 @@ void ScriptingApi::Settings::setZoomLevel(double newLevel)
 	gm->setGlobalScaleFactor(newLevel, sendNotificationAsync);
 }
 
+int ScriptingApi::Settings::getDiskMode()
+{
+	return driver->diskMode;
+}
+
 void ScriptingApi::Settings::setDiskMode(int mode)
 {
 	driver->diskMode = mode;
 	mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)mode);
+}
+
+var ScriptingApi::Settings::getAvailableDeviceTypes()
+{
+	const OwnedArray<AudioIODeviceType> *devices = &driver->deviceManager->getAvailableDeviceTypes();
+	
+	Array<var> result;
+
+	for (int i = 0; i < devices->size(); i++)
+		result.add(devices->getUnchecked(i)->getTypeName());
+	
+	return result;
+}
+
+String ScriptingApi::Settings::getCurrentAudioDeviceType()
+{
+	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+	
+	if (currentDevice != nullptr)
+		return currentDevice->getTypeName();
+	
+	return "";
+}
+
+void ScriptingApi::Settings::setAudioDeviceType(String deviceName)
+{
+	driver->setAudioDeviceType(deviceName);
+}
+
+var ScriptingApi::Settings::getAvailableDeviceNames()
+{
+	const OwnedArray<AudioIODeviceType> *devices = &driver->deviceManager->getAvailableDeviceTypes();
+	const int thisDevice = devices->indexOf(driver->deviceManager->getCurrentDeviceTypeObject());
+	
+	AudioIODeviceType *currentDeviceType = devices->getUnchecked(thisDevice);	
+	StringArray soundCardNames = currentDeviceType->getDeviceNames(false);
+	
+	Array<var> result;
+
+	for (auto x : soundCardNames)
+		result.add(x);
+		
+	return result;
+}
+
+String ScriptingApi::Settings::getCurrentAudioDevice()
+{
+	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+	return currentDevice->getName();
+}
+
+void ScriptingApi::Settings::setAudioDevice(String name)
+{
+	driver->setAudioDevice(name);
+}
+
+var ScriptingApi::Settings::getAvailableOutputChannels()
+{
+	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+	StringArray outputPairs = HiseSettings::ConversionHelpers::getChannelPairs(currentDevice);
+
+	Array<var> result;
+
+	for (auto x : outputPairs)
+		result.add(x);
+		
+	return result;
+}
+
+int ScriptingApi::Settings::getCurrentOutputChannel()
+{
+	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+	return (currentDevice->getActiveOutputChannels().getHighestBit() - 1) / 2;
+}
+
+void ScriptingApi::Settings::setOutputChannel(int index)
+{
+	CustomSettingsWindow::flipEnablement(driver->deviceManager, index);
+}
+
+var ScriptingApi::Settings::getAvailableBufferSizes()
+{
+	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+
+	Array<var> result;
+	Array<int> bufferSizes = HiseSettings::ConversionHelpers::getBufferSizesForDevice(currentDevice);
+	
+	for (auto x : bufferSizes)
+		result.add(x);
+	
+	return result;
+}
+
+int ScriptingApi::Settings::getCurrentBufferSize()
+{	
+	return driver->getCurrentBlockSize();
+}
+
+void ScriptingApi::Settings::setBufferSize(int newBlockSize)
+{	
+	driver->setCurrentBlockSize(newBlockSize);
+}
+
+var ScriptingApi::Settings::getAvailableSampleRates()
+{
+	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+	auto samplerates = HiseSettings::ConversionHelpers::getSampleRates(currentDevice);
+	Array<var> result;
+
+	for (auto x : samplerates)
+		result.add(String(x, 0));
+		
+	return result;
+}
+
+double ScriptingApi::Settings::getCurrentSampleRate()
+{
+	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+	
+	if (currentDevice != nullptr)
+		return currentDevice->getCurrentSampleRate();
+	
+	return -1;
+}
+
+void ScriptingApi::Settings::setSampleRate(double sampleRate)
+{
+	driver->setCurrentSampleRate(sampleRate);
+}
+
+int ScriptingApi::Settings::getCurrentVoiceMultiplier()
+{
+	return driver->voiceAmountMultiplier;	
+}
+
+void ScriptingApi::Settings::setVoiceMultiplier(int newVoiceAmount)
+{
+	driver->voiceAmountMultiplier = newVoiceAmount;
+}
+
+void ScriptingApi::Settings::clearMidiLearn()
+{
+	mc->getMacroManager().getMidiControlAutomationHandler()->clear();
+}
+
+var ScriptingApi::Settings::getMidiInputDevices()
+{
+	return MidiInput::getDevices();
+}
+
+void ScriptingApi::Settings::toggleMidiInput(const String &midiInputName, bool enableInput)
+{
+	driver->toggleMidiInput(midiInputName, enableInput);
+}
+
+bool ScriptingApi::Settings::isMidiInputEnabled(const String &midiInputName)
+{
+	return driver->deviceManager->isMidiInputEnabled(midiInputName);
+}
+
+void ScriptingApi::Settings::toggleMidiChannel(int index, bool value)
+{
+	HiseEvent::ChannelFilterData *newData = mc->getMainSynthChain()->getActiveChannelData();
+	
+	if (index == 0)
+		newData->setEnableAllChannels(value);
+	else
+		newData->setEnableMidiChannel(index - 1, value);	
 }
 
 struct DynamicArrayComparator
@@ -4898,7 +5116,9 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_4(downloadFile);
 	ADD_API_METHOD_0(getPendingDownloads);
 	ADD_API_METHOD_0(isOnline);
+	ADD_API_METHOD_1(setNumAllowedDownloads);
 	ADD_API_METHOD_1(setServerCallback);
+	ADD_API_METHOD_1(setNumAllowedDownloads);
 	ADD_API_METHOD_0(cleanFinishedDownloads);
 }
 

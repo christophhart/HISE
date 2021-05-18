@@ -194,6 +194,8 @@ juce::File ExpansionHandler::getExpansionFolder() const
 
 #if JUCE_WINDOWS
 		auto linkFile = f.getChildFile("LinkWindows");
+#elif JUCE_LINUX
+		auto linkFile = f.getChildFile("LinkLinux");
 #else
 		auto linkFile = f.getChildFile("LinkOSX");
 #endif
