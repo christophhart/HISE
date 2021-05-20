@@ -725,7 +725,11 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		auto tempVoiceBuffer = getTemporaryVoiceBuffer();
 
 		jassert(tempVoiceBuffer != nullptr);
-        jassert(isPositiveAndBelow(pitchCounter+startAlpha, (double)tempVoiceBuffer->getNumSamples()));
+		if (!isPositiveAndBelow(pitchCounter + startAlpha, (double)tempVoiceBuffer->getNumSamples()))
+		{
+			jassertfalse;
+			tempVoiceBuffer->setSize(tempVoiceBuffer->getNumChannels(), roundToInt((pitchCounter + startAlpha) * 1.5));
+		}
 
 		// Copy the not resampled values into the voice buffer.
 		StereoChannelData data = loader.fillVoiceBuffer(*tempVoiceBuffer, pitchCounter + startAlpha);
