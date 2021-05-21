@@ -87,7 +87,8 @@ void OpaqueNode::handleHiseEvent(HiseEvent& e)
 
 void OpaqueNode::setExternalData(const ExternalData& b, int index)
 {
-	externalDataFunc(getObjectPtr(), &b, index);
+	if(externalDataFunc != nullptr)
+		externalDataFunc(getObjectPtr(), &b, index);
 }
 
 void OpaqueNode::createParameters(ParameterDataList& l)

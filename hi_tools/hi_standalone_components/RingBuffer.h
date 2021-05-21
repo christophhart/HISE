@@ -88,6 +88,8 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 			JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
 		};
 
+		virtual int getClassIndex() const { return 0; }
+
 		virtual ~PropertyObject() {};
 
 		virtual RingBufferComponentBase* createComponent();
@@ -196,6 +198,8 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 			writeIndex = 0;
 			updateCounter = 0;
 
+			setupReadBuffer(externalBuffer);
+
 			if (!currentlyChanged)
 			{
 				ScopedValueSetter<bool> svs(currentlyChanged, true);
@@ -269,8 +273,6 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		{
 			JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
 
-			if(p != nullptr)
-				p->createNewPropertyWhenBackFromUserspace = false;
 		}
 
 		~ScopedPropertyCreator()
@@ -330,20 +332,16 @@ private:
 
 	template <typename T> void registerPropertyObject()
 	{
-		auto newIndex = T::PropertyIndex;
-
-		if (currentPropertyIndex != newIndex)
-		{
-			currentPropertyIndex = newIndex;
-			createNewPropertyWhenBackFromUserspace = true;
-		}
+		currentPropertyIndex = T::PropertyIndex;
 	}
 
 	private:
 
 	void refreshPropertyObject()
 	{
-		if (createNewPropertyWhenBackFromUserspace)
+		auto pIndex = properties != nullptr ? properties->getClassIndex() : 0;
+
+		if (currentPropertyIndex != pIndex)
 		{
 			JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
 
@@ -353,15 +351,11 @@ private:
 				p = new PropertyObject(currentWriter.get());
 
 			setPropertyObject(p);
-
-			createNewPropertyWhenBackFromUserspace = false;
 		}
 	}
 
 	int currentPropertyIndex = 0;
-	bool createNewPropertyWhenBackFromUserspace = false;
 	
-
 	bool currentlyChanged = false;
 
 	WeakReference<WriterBase> currentWriter;
@@ -472,6 +466,8 @@ struct ModPlotter : public Component,
 			PropertyObject(wb)
 		{};
 		
+		int getClassIndex() const override { return PropertyIndex; }
+
 		bool allowModDragger() const override { return true; };
 
 		virtual bool validateInt(const Identifier& id, int& v) const

@@ -78,6 +78,8 @@ struct Helpers
 	{
 		static constexpr int PropertyIndex = 3001;
 
+		int getClassIndex() const override { return PropertyIndex; }
+
 		SET_HISE_NODE_ID("fft");
 
 		static constexpr int NumChannels = 1;
@@ -117,6 +119,8 @@ struct Helpers
 	{
 		static constexpr int PropertyIndex = 3002;
 
+		int getClassIndex() const override { return PropertyIndex; }
+
 		SET_HISE_NODE_ID("oscilloscope");
 
 		Oscilloscope(SimpleRingBuffer::WriterBase* w) : PropertyObject(w) {};
@@ -139,6 +143,8 @@ struct Helpers
 	struct GonioMeter : public SimpleRingBuffer::PropertyObject
 	{
 		static constexpr int PropertyIndex = 3003;
+
+		int getClassIndex() const override { return PropertyIndex; }
 
 		SET_HISE_NODE_ID("goniometer");
 

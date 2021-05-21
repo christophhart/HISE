@@ -122,6 +122,8 @@ struct ahdsr_base: public mothernode,
 	{
 		static constexpr int PropertyIndex = 2002;
 
+		int getClassIndex() const override { return PropertyIndex; }
+
 		AhdsrRingBufferProperties(SimpleRingBuffer::WriterBase* b) :
 			PropertyObject(b),
 			base(getTypedBase<ahdsr_base>())
@@ -297,6 +299,8 @@ struct simple_ar_base : public mothernode,
 			SimpleRingBuffer::PropertyObject(p),
 			parent(getTypedBase<simple_ar_base>())
 		{};
+
+		int getClassIndex() const override { return PropertyIndex; }
 
 		RingBufferComponentBase* createComponent() override { return nullptr; }
 

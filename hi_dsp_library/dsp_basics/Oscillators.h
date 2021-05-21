@@ -141,6 +141,8 @@ struct OscillatorDisplayProvider: public scriptnode::data::display_buffer_base<t
 			provider(getTypedBase<OscillatorDisplayProvider>())
 		{}
 
+		int getClassIndex() const override { return PropertyIndex; }
+
 		RingBufferComponentBase* createComponent() override;;
 
 		bool validateInt(const Identifier& id, int& v) const override;

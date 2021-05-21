@@ -545,11 +545,15 @@ struct base
 	//JUCE_DECLARE_WEAK_REFERENCEABLE(base);
 };
 
+#define SNEX_THROW_IF_MULTIPLE_WRITERS 0
 
 template <bool EnableBuffer> struct display_buffer_base : public base,
 														  public SimpleRingBuffer::WriterBase
 {
-	virtual ~display_buffer_base() {};
+	virtual ~display_buffer_base() 
+	{
+		setExternalData({}, -1);
+	};
 
 	void setExternalData(const snex::ExternalData& d, int index) override
 	{
@@ -565,12 +569,14 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 		{
 			if (rb = dynamic_cast<SimpleRingBuffer*>(d.obj))
 			{
+#if SNEX_THROW_IF_MULTIPLE_WRITERS
 				if (rb->getCurrentWriter() != nullptr)
 				{
 					scriptnode::Error e;
 					e.error = Error::RingBufferMultipleWriters;
 					throw e;
 				}
+#endif
 
 				rb->setCurrentWriter(this);
 
@@ -602,7 +608,13 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 		{
 			DataReadLock sl(this);
 
-			if (rb != nullptr && rb->isActive())
+			auto shouldWrite = rb != nullptr && rb->isActive();
+
+#if !SNEX_THROW_IF_MULTIPLE_WRITERS
+			shouldWrite |= rb != nullptr &&  rb->getCurrentWriter() == this;
+#endif
+
+			if(shouldWrite)
 				rb->write(v, numSamples);
 		}
 	}
