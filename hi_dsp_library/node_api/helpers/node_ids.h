@@ -66,6 +66,7 @@ DECLARE_ID(Properties);
 DECLARE_ID(Property);
 DECLARE_ID(StepSize);
 DECLARE_ID(MidPoint);
+DECLARE_ID(Inverted);
 DECLARE_ID(Bookmark);
 DECLARE_ID(Bookmarks);
 DECLARE_ID(MinValue);
@@ -133,6 +134,64 @@ DECLARE_ID(IsPublicMod);
 DECLARE_ID(UseUnnormalisedModulation);
 DECLARE_ID(AllowPolyphonic);
 DECLARE_ID(AllowCompilation);
+
+
+struct Helpers
+{
+	static Array<Identifier> getDefaultableIds()
+	{
+		static const Array<Identifier> dIds =
+		{
+			Comment,
+			NodeColour,
+			Folded,
+			Expression,
+			SkewFactor,
+			StepSize,
+			Inverted,
+			EmbeddedData,
+			NumChannels,
+			AllowPolyphonic,
+			AllowCompilation
+		};
+
+		return dIds;
+	}
+
+#define returnIfDefault(id_, v) if(id == id_) return v;
+
+	static var getDefaultValue(const Identifier& id)
+	{
+		returnIfDefault(Comment, "");
+		returnIfDefault(NodeColour, 0x000000);
+		returnIfDefault(Folded, false);
+		returnIfDefault(Expression, "");
+		returnIfDefault(SkewFactor, 1.0);
+		returnIfDefault(StepSize, 0.0);
+		returnIfDefault(Inverted, false);
+		returnIfDefault(EmbeddedData, -1);
+		returnIfDefault(NumChannels, 2);
+		returnIfDefault(AllowCompilation, false);
+		returnIfDefault(AllowPolyphonic, false);
+
+		jassertfalse;
+	}
+
+#undef returnIfDefault
+
+	static var getWithDefault(const ValueTree& v, const Identifier& id)
+	{
+		if (v.hasProperty(id))
+			return v[id];
+
+		return getDefaultValue(id);
+	}
+
+	static void setToDefault(ValueTree& v, const Identifier& id, UndoManager* um = nullptr)
+	{
+		v.setProperty(id, getDefaultValue(id), um);
+	}
+};
 
 enum EditType
 {

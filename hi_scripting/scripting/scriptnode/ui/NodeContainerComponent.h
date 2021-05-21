@@ -505,8 +505,10 @@ public:
 					p.setProperty(PropertyIds::ID, name, nullptr);
 					p.setProperty(PropertyIds::MinValue, 0.0, nullptr);
 					p.setProperty(PropertyIds::MaxValue, 1.0, nullptr);
-					p.setProperty(PropertyIds::StepSize, 0.01, nullptr);
-					p.setProperty(PropertyIds::SkewFactor, 1.0, nullptr);
+
+					PropertyIds::Helpers::setToDefault(p, PropertyIds::StepSize);
+					PropertyIds::Helpers::setToDefault(p, PropertyIds::SkewFactor);
+
 					p.setProperty(PropertyIds::Value, 1.0, nullptr);
 					parameterTree.addChild(p, -1, parent.node->getUndoManager());
 				}

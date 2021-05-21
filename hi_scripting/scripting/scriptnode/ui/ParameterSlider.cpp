@@ -1269,7 +1269,15 @@ juce::String ParameterSlider::getTextFromValue(double value)
 		return "Empty";
 
 	if (parameterToControl->valueNames.isEmpty())
-		return Slider::getTextFromValue(value);
+	{
+		auto min = getMinimum();
+		auto max = getMaximum();
+
+		auto numDecimals = max - min > 4.0 ? 1 : 2;
+
+		return String(value, numDecimals);
+	}
+		
 
 	int index = (int)value;
 	return parameterToControl->valueNames[index];

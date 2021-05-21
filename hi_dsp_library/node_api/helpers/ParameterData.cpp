@@ -103,8 +103,8 @@ juce::NormalisableRange<double> RangeHelpers::getDoubleRange(const ValueTree& t)
 
 	r.start = minValue;
 	r.end = maxValue;
-	r.interval = jlimit(0.0001, 1.0, (double)t.getProperty(StepSize, 0.01));
-	r.skew = jlimit(0.001, 100.0, (double)t.getProperty(SkewFactor, 1.0));
+	r.interval = jlimit(0.0, 1.0, (double)PropertyIds::Helpers::getWithDefault(t, PropertyIds::StepSize));
+	r.skew = jlimit(0.001, 100.0, (double)PropertyIds::Helpers::getWithDefault(t, PropertyIds::SkewFactor));
 
 	return r;
 }
