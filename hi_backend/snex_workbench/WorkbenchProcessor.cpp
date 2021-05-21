@@ -546,11 +546,11 @@ void SnexWorkbenchEditor::saveCurrentFile()
 {
 	if (autosaver != nullptr)
 	{
-		autosaver->closeAndDelete();
+		autosaver->closeAndDelete(true);
 
 		auto fh = getNetworkHolderForNewFile(getProcessor(), synthMode);
 
-		autosaver = new PatchAutosaver(fh->getActiveNetwork(), BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks));
+		autosaver = new DspNetworkListeners::PatchAutosaver(fh->getActiveNetwork(), BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks));
 	}
 
 	
@@ -602,7 +602,7 @@ scriptnode::DspNetwork::Holder* SnexWorkbenchEditor::getNetworkHolderForNewFile(
 void SnexWorkbenchEditor::closeCurrentNetwork()
 {
 	if (autosaver != nullptr && autosaver->isChanged() && PresetHandler::showYesNoWindow("Save changes", "Do you want to save the changes before closing"))
-		autosaver->closeAndDelete();
+		autosaver->closeAndDelete(true);
 
 	autosaver = nullptr;
 
@@ -726,7 +726,7 @@ void SnexWorkbenchEditor::loadNewNetwork(const File& f)
 		ep->setWorkbenchData(wb.get());
 		dgp->setContentWithUndo(dynamic_cast<Processor*>(h), 0);
 
-		autosaver = new PatchAutosaver(h->getActiveNetwork(), BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks));
+		autosaver = new DspNetworkListeners::PatchAutosaver(h->getActiveNetwork(), BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks));
 	});
 }
 

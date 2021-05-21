@@ -163,69 +163,144 @@ struct BackendDllManager: public ReferenceCountedObject,
 	scriptnode::dll::ProjectDll::Ptr projectDll;
 };
 
-struct PatchAutosaver : public valuetree::AnyListener
+struct DspNetworkListeners
 {
-	PatchAutosaver(scriptnode::DspNetwork* n, const File& directory):
-		AnyListener(valuetree::AsyncMode::Asynchronously),
-		network(n)
+	struct Base: public valuetree::AnyListener
 	{
-		setPropertyCondition([](const ValueTree& v, const Identifier& id)
+		static bool isValueProperty(const ValueTree& v, const Identifier& id)
 		{
-			if (id == PropertyIds::Value)
+			if (v.getType() == PropertyIds::Parameter && id == PropertyIds::Value)
 			{
 				return !v[PropertyIds::Automated];
 			}
 
+			if (id == PropertyIds::NumChannels)
+				return false;
+
 			return true;
-		});
-
-		auto id = "autosave_" + n->getRootNode()->getId();
-		d = directory.getChildFile(id).withFileExtension("xml");
-
-		setMillisecondsBetweenUpdate(2000);
-		setRootValueTree(n->getValueTree());
-		initialised = true;
-	}
-
-	~PatchAutosaver()
-	{
-		if(d.existsAsFile())
-			d.deleteFile();
-	}
-
-	bool isChanged() const { return changed && d.existsAsFile(); }
-
-	void closeAndDelete()
-	{
-		if (changed)
-		{
-			auto ofile = d.getSiblingFile(network->getRootNode()->getId()).withFileExtension(".xml");
-			ofile.deleteFile();
-			auto ok = d.moveFileTo(ofile);
-			jassert(ok);
-			initialised = false;
 		}
-	}
 
-	void anythingChanged(CallbackType cb) override
-	{
-		if (!initialised)
-			return;
-
-		changed = true;
-
-		auto saveCopy = network->getValueTree().createCopy();
-
-		cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, [](ValueTree& v)
+		Base(DspNetwork* n):
+			AnyListener(valuetree::AsyncMode::Asynchronously),
+			network(n)
 		{
-			auto propChild = v.getChildWithName(PropertyIds::Properties);
+			setPropertyCondition(isValueProperty);
 
-			auto removeIfDefault = [](ValueTree& v, const Identifier& id, const var& defaultValue)
+			setMillisecondsBetweenUpdate(2000);
+			setRootValueTree(n->getValueTree());
+			initialised = true;
+		}
+
+		virtual ~Base()
+		{
+
+		}
+
+		void anythingChanged(CallbackType cb) override
+		{
+			if (!initialised)
+				return;
+
+			changed = true;
+			networkChanged();
+		}
+
+		virtual bool isChanged() const { return changed; }
+
+		virtual void networkChanged() = 0;
+
+	protected:
+
+		bool changed = false;
+		bool initialised = false;
+		WeakReference<DspNetwork> network;
+	};
+
+	struct NestedNetworkChangeWarning : public Base
+	{
+		NestedNetworkChangeWarning(scriptnode::DspNetwork* n):
+			Base(n)
+		{}
+
+		void networkChanged() override {}
+	};
+
+	struct PatchAutosaver : public Base
+	{
+		PatchAutosaver(scriptnode::DspNetwork* n, const File& directory) :
+			Base(n)
+		{
+			auto id = "autosave_" + n->getRootNode()->getId();
+			d = directory.getChildFile(id).withFileExtension("xml");
+		}
+
+		~PatchAutosaver()
+		{
+			if (d.existsAsFile())
+				d.deleteFile();
+		}
+
+		bool isChanged() const override { return Base::isChanged() && d.existsAsFile(); }
+
+		void closeAndDelete(bool forceDelete)
+		{
+			if (changed || forceDelete)
 			{
-				if (v[id] == defaultValue)
-					v.removeProperty(id, nullptr);
-			};
+				anythingChanged(valuetree::AnyListener::PropertyChange);
+				auto ofile = d.getSiblingFile(network->getRootNode()->getId()).withFileExtension(".xml");
+				ofile.deleteFile();
+				auto ok = d.moveFileTo(ofile);
+				jassert(ok);
+				initialised = false;
+			}
+		}
 
+		void networkChanged() override
+		{
+			auto saveCopy = network->getValueTree().createCopy();
+
+			cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, stripValueTree);
+
+			ScopedPointer<XmlElement> xml = saveCopy.createXml();
+
+			d.replaceWithText(xml->createDocument(""));
+		}
+
+	private:
+		
+		static void removeIfDefault(ValueTree& v, const Identifier& id, const var& defaultValue)
+		{
+			if (v[id] == defaultValue)
+				v.removeProperty(id, nullptr);
+		};
+
+		static bool removePropIfDefault(ValueTree& v, const Identifier& id, const var& defaultValue)
+		{
+			if (v[PropertyIds::ID].toString() == id.toString() &&
+				v[PropertyIds::Value] == defaultValue)
+			{
+				return true;
+			}
+
+			return false;
+		};
+
+		static void removeIfNoChildren(ValueTree& v)
+		{
+			if (v.isValid() && v.getNumChildren() == 0)
+				v.getParent().removeChild(v, nullptr);
+		}
+
+		static void removeIfDefined(ValueTree& v, const Identifier& id, const Identifier& definedId)
+		{
+			if (v.hasProperty(definedId))
+				v.removeProperty(id, nullptr);
+		}
+
+		static bool stripValueTree(ValueTree& v)
+		{
+			// Remove all child nodes from a project node
+			// (might be a leftover from the extraction process)
 			if (v.getType() == PropertyIds::Node && v[PropertyIds::FactoryPath].toString().startsWith("project"))
 			{
 				v.removeChild(v.getChildWithName(PropertyIds::Nodes), nullptr);
@@ -234,53 +309,35 @@ struct PatchAutosaver : public valuetree::AnyListener
 					p.removeChild(p.getChildWithName(PropertyIds::Connections), nullptr);
 			}
 
-			auto removePropIfDefault = [](ValueTree& v, const Identifier& id, const var& defaultValue)
-			{
-				if (v[PropertyIds::ID].toString() == id.toString() &&
-					v[PropertyIds::Value] == defaultValue)
-				{
-					return true;
-				}
-					
-				return false;
-			};
-
+			auto propChild = v.getChildWithName(PropertyIds::Properties);
+			
+			// Remove all properties with the default value
 			for (int i = 0; i < propChild.getNumChildren(); i++)
 			{
 				if (removePropIfDefault(propChild.getChild(i), PropertyIds::IsVertical, 1))
 					propChild.removeChild(i--, nullptr);
 			}
 
-			if (propChild.isValid() && propChild.getNumChildren() == 0)
-				v.removeChild(propChild, nullptr);
+			removeIfNoChildren(propChild);
 
-			removeIfDefault(v, PropertyIds::Comment, "");
-			removeIfDefault(v, PropertyIds::NodeColour, 0);
-			removeIfDefault(v, PropertyIds::Folded, 0);
-			removeIfDefault(v, PropertyIds::Expression, "");
-			removeIfDefault(v, PropertyIds::SkewFactor, 1.0);
-			removeIfDefault(v, PropertyIds::StepSize, 0.0);
+			for (auto id : PropertyIds::Helpers::getDefaultableIds())
+				removeIfDefault(v, id, PropertyIds::Helpers::getDefaultValue(id));
 
-			if (v.hasProperty(PropertyIds::Automated))
-				v.removeProperty(PropertyIds::Value, nullptr);
+			removeIfDefined(v, PropertyIds::Value, PropertyIds::Automated);
+
+			removeIfNoChildren(v.getChildWithName(PropertyIds::Bookmarks));
+			removeIfNoChildren(v.getChildWithName(PropertyIds::ModulationTargets));
 
 			return false;
-		});
+		}
 
-		ScopedPointer<XmlElement> xml = saveCopy.createXml();
-
-
-
-		d.replaceWithText(xml->createDocument(""));
-	}
-
-private:
-
-	bool changed = false;
-	bool initialised = false;
-	File d;
-	WeakReference<DspNetwork> network;
+		File d;
+	};
 };
+
+
+
+
 
 class SnexWorkbenchEditor : public Component,
 	public juce::MenuBarModel,
@@ -431,7 +488,7 @@ private:
 
 	File currentFiles[2];
 
-	ScopedPointer<PatchAutosaver> autosaver;
+	ScopedPointer<DspNetworkListeners::PatchAutosaver> autosaver;
 
 	bool isCppPreviewEnabled();
 

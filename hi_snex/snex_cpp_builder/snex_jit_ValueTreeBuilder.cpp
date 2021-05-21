@@ -319,7 +319,7 @@ Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
 	{
 		PooledCableType::TemplateConstants c;
 
-		c.numChannels = (int)u->nodeTree[PropertyIds::NumChannels];
+		c.numChannels = (int)PropertyIds::Helpers::getWithDefault(u->nodeTree, PropertyIds::NumChannels);
 		c.isFrame = ValueTreeIterator::forEachParent(u->nodeTree, [&](ValueTree& v)
 		{
 			if (v.getType() == PropertyIds::Node)
@@ -461,7 +461,8 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		}
 		if (realPath.startsWith("frame"))
 		{
-			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::frame"), (int)u->nodeTree[PropertyIds::NumChannels]);
+			auto numChannels = (int)PropertyIds::Helpers::getWithDefault(u->nodeTree, PropertyIds::NumChannels);
+			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::frame"), numChannels);
 		}
 		if (realPath.startsWith("midi"))
 		{
@@ -542,10 +543,10 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
 		auto numToUse = -1;
 
 		if (c.getParent().indexOf(c) == 0)
-			numToUse = container->nodeTree[PropertyIds::NumChannels];
+			numToUse = PropertyIds::Helpers::getWithDefault(container->nodeTree, PropertyIds::NumChannels);
 		
 		if (parentPath.getIdentifier() == Identifier("multi"))
-			numToUse = c[PropertyIds::NumChannels];
+			numToUse = PropertyIds::Helpers::getWithDefault(c, PropertyIds::NumChannels);
 
 		if (numToUse != -1)
 			children.add(parseFixChannel(c, numToUse));
@@ -1608,8 +1609,10 @@ void ValueTreeBuilder::RootContainerBuilder::addMetadata()
 
 	parent.addEmptyLine();
 
+	auto numChannels = PropertyIds::Helpers::getWithDefault(root->nodeTree, PropertyIds::NumChannels);
+
 	Macro(parent, "SNEX_METADATA_ID", { root->nodeTree[PropertyIds::ID].toString() });
-	Macro(parent, "SNEX_METADATA_NUM_CHANNELS", { root->nodeTree[PropertyIds::NumChannels].toString() });
+	Macro(parent, "SNEX_METADATA_NUM_CHANNELS", { numChannels.toString() });
 
 	auto pCopy = root->nodeTree.getChildWithName(PropertyIds::Parameters).createCopy();
 
