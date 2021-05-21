@@ -41,7 +41,7 @@ ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* p
 	active(data, PropertyIds::Enabled, parent->getUndoManager(), true)
 {
 	rangeUpdater.setCallback(data, RangeHelpers::getRangeIds(),
-		valuetree::AsyncMode::Coallescated,
+		valuetree::AsyncMode::Synchronously,
 		[this](Identifier, var)
 	{
 		parent->rebuildModulationConnections();

@@ -780,6 +780,8 @@ public:
 
 	bool hashMatches();
 
+	void setExternalData(const snex::ExternalData & d, int index);
+
 	ScriptParameterHandler* getCurrentParameterHandler();
 
 	Holder* getParentHolder() { return parentHolder; }

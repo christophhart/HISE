@@ -133,7 +133,7 @@ struct WorkbenchSynthesiser : public JavascriptSynthesiser,
 struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 							 public MasterEffectProcessor,
 							 public scriptnode::DspNetwork::Holder,
-							 public snex::ExternalDataHolder,
+							 public snex::ExternalDataHolderWithForcedUpdate,
 							 public DebuggableSnexProcessor
 {
 	SET_PROCESSOR_NAME("DspNetworkProcessor", "DspNetworkProcessor", "Internally used by the SNEX workbench");

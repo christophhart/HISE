@@ -51,12 +51,20 @@ dynamic_base::dynamic_base(data::base& b, ExternalData::DataType t, int index_) 
 
 dynamic_base::~dynamic_base()
 {
-
+	if (forcedUpdateSource != nullptr)
+		forcedUpdateSource->removeForcedUpdateListener(this);
 }
 
 void dynamic_base::initialise(NodeBase* p)
 {
 	parentNode = p;
+
+	auto h = parentNode->getRootNetwork()->getExternalDataHolder();
+
+	if (forcedUpdateSource = dynamic_cast<ExternalDataHolderWithForcedUpdate*>(h))
+	{
+		forcedUpdateSource->addForcedUpdateListener(this);
+	}
 
 	auto dataTree = parentNode->getValueTree().getOrCreateChildWithName(PropertyIds::ComplexData, parentNode->getUndoManager());
 	auto dataName = ExternalData::getDataTypeName(dt);
@@ -98,6 +106,14 @@ void dynamic_base::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType d, var
 		if(d == ComplexDataUIUpdaterBase::EventType::ContentRedirected)
 			updateExternalData();
 	}
+}
+
+void dynamic_base::forceRebuild(ExternalData::DataType dt_, int index)
+{
+	auto indexToUse = getIndex();
+
+	if(indexToUse != -1 && dt_ == dt)
+		setIndex(indexToUse, false);
 }
 
 void dynamic_base::updateExternalData()
@@ -154,6 +170,10 @@ void dynamic_base::updateData(Identifier id, var newValue)
 		}
 	}
 	
+	if (forcedUpdateSource != nullptr)
+	{
+		forcedUpdateSource->sendForceUpdateMessage(this, dt, getIndex());
+	}
 }
 
 int dynamic_base::getNumDataObjects(ExternalData::DataType t) const

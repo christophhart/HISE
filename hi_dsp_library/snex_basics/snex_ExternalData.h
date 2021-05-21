@@ -292,6 +292,9 @@ struct ExternalData
 		sampleRate(0.0)
 	{}
 
+
+	ExternalData(const ExternalData& d) = default;
+
 	struct Factory : public hise::PathFactory
 	{
 		String getId() const override { return {}; };
@@ -302,7 +305,7 @@ struct ExternalData
 	ExternalData(ComplexDataUIBase* b, int absoluteIndex);
 
 	/** Creates an external data object from a constant value class. */
-	template <typename T> ExternalData(T& other, DataType type=DataType::ConstantLookUp):
+	template <typename T> ExternalData(T& other, DataType type):
 		dataType(type),
 		obj(nullptr)
 	{
@@ -435,6 +438,52 @@ struct ExternalDataHolder
 	}
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ExternalDataHolder);
+};
+
+/** This interface class adds the ability to send a "force update" message
+    to all its registered listeners. 
+*/
+struct ExternalDataHolderWithForcedUpdate : public ExternalDataHolder
+{
+	virtual ~ExternalDataHolderWithForcedUpdate() {};
+
+	struct ForcedUpdateListener
+	{
+		virtual ~ForcedUpdateListener() 
+		{
+		};
+
+		virtual void forceRebuild(ExternalData::DataType dt, int index) = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ForcedUpdateListener);
+	};
+
+	void addForcedUpdateListener(ForcedUpdateListener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeForcedUpdateListener(ForcedUpdateListener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
+	void sendForceUpdateMessage(ForcedUpdateListener* listenerToExclude, ExternalData::DataType dt, int index)
+	{
+		for (auto l : listeners)
+		{
+			if (l != nullptr && l != listenerToExclude)
+				l->forceRebuild(dt, index);
+		}
+	}
+
+private:
+
+	Array<WeakReference<ForcedUpdateListener>> listeners;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ExternalDataHolderWithForcedUpdate);
 };
 
 

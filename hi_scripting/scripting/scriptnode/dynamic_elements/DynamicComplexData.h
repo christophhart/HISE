@@ -44,6 +44,7 @@ namespace pimpl
 {
 struct dynamic_base : public base,
 	public ExternalDataHolder,
+	public ExternalDataHolderWithForcedUpdate::ForcedUpdateListener,
 	public ComplexDataUIUpdaterBase::EventListener
 {
 
@@ -54,6 +55,8 @@ struct dynamic_base : public base,
 	void initialise(NodeBase* p) override;
 
 	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType d, var data) override;
+
+	void forceRebuild(ExternalData::DataType dt_, int index) override;
 
 	void updateExternalData();
 
@@ -87,6 +90,8 @@ struct dynamic_base : public base,
 	ValueTree getValueTree() { return cTree; }
 
 private:
+
+	WeakReference<ExternalDataHolderWithForcedUpdate> forcedUpdateSource;
 
 	Identifier getDataIndexPropertyId() const
 	{

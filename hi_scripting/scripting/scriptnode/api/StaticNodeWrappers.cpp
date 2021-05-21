@@ -310,6 +310,11 @@ OpaqueNodeDataHolder::OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn) :
 {
 	ExternalData::forEachType(BIND_MEMBER_FUNCTION_1(OpaqueNodeDataHolder::createDataType));
 
+	if (auto fu = dynamic_cast<ExternalDataHolderWithForcedUpdate*>(pn->getRootNetwork()->getExternalDataHolder()))
+	{
+		fu->addForcedUpdateListener(this);
+	}
+
 #if 0
 	auto numTables = opaqueNode.numDataObjects[(int)ExternalData::DataType::Table];
 
@@ -336,6 +341,17 @@ OpaqueNodeDataHolder::OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn) :
 		ExternalData ed(d->currentlyUsedData, index);
 		SimpleReadWriteLock::ScopedWriteLock sl(d->currentlyUsedData->getDataLock());
 		opaqueNode.setExternalData(ed, index++);
+	}
+}
+
+OpaqueNodeDataHolder::~OpaqueNodeDataHolder()
+{
+	if (parentNode != nullptr)
+	{
+		if (auto fu = dynamic_cast<ExternalDataHolderWithForcedUpdate*>(parentNode->getRootNetwork()->getExternalDataHolder()))
+		{
+			fu->removeForcedUpdateListener(this);
+		}
 	}
 }
 

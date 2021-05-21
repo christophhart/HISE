@@ -103,7 +103,6 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	loader = new DspFactory::LibraryLoader(dynamic_cast<Processor*>(p));
 
 	setRootNode(createFromValueTree(true, data.getChild(0), true));
-
 	networkParameterHandler.root = getRootNode();
 
 	ADD_API_METHOD_1(processBlock);
@@ -800,6 +799,11 @@ void DspNetwork::setUseFrozenNode(bool shouldBeEnabled)
 bool DspNetwork::hashMatches()
 {
 	return projectNodeHolder.hashMatches;
+}
+
+void DspNetwork::setExternalData(const snex::ExternalData& d, int index)
+{
+	projectNodeHolder.n.setExternalData(d, index);
 }
 
 hise::ScriptParameterHandler* DspNetwork::getCurrentParameterHandler()

@@ -627,6 +627,7 @@ struct OpaqueNetworkHolder
 
 	~OpaqueNetworkHolder()
 	{
+		changeWarning = nullptr;
 		ownedNetwork = nullptr;
 	}
 
@@ -649,8 +650,6 @@ struct OpaqueNetworkHolder
 	{
 		ownedNetwork->getRootNode()->reset();
 	}
-
-	
 
 	void prepare(PrepareSpecs ps)
 	{
@@ -696,6 +695,44 @@ struct OpaqueNetworkHolder
 		t->ownedNetwork->getCurrentParameterHandler()->setParameter(P, (float)v);
 	}
 
+	void setNetwork(DspNetwork* n)
+	{
+		ownedNetwork = n;
+		changeWarning = new DspNetworkListeners::NestedNetworkChangeWarning(n);
+
+		for (const auto& d : deferredData)
+		{
+			if (d.d.obj != nullptr)
+			{
+				SimpleReadWriteLock::ScopedWriteLock sl(d.d.obj->getDataLock());
+				ownedNetwork->setExternalData(d.d, d.index);
+			}
+		}
+	}
+
+	DspNetwork* getNetwork() {
+		return ownedNetwork;
+	}
+
+	void setExternalData(const ExternalData& d, int index)
+	{
+		if (ownedNetwork != nullptr)
+			ownedNetwork->setExternalData(d, index);
+		else
+			deferredData.add({ d, index });
+	}
+
+private:
+
+	struct DeferedDataInitialiser
+	{
+		ExternalData d;
+		int index;
+	};
+
+	Array<DeferedDataInitialiser> deferredData;
+
+	ScopedPointer<DspNetworkListeners::NestedNetworkChangeWarning> changeWarning;
 	ReferenceCountedObjectPtr<DspNetwork> ownedNetwork;
 };
 
@@ -708,12 +745,12 @@ struct HostHelpers
 		int numMax = 0;
 
 		snex::cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::Forward, [&](ValueTree& v)
-			{
-				if (v.getType() == id)
-					numMax = jmax(numMax, (int)v[PropertyIds::Index] + 1);
+		{
+			if (v.getType() == id)
+				numMax = jmax(numMax, (int)v[PropertyIds::Index] + 1);
 
-				return false;
-			});
+			return false;
+		});
 
 		return numMax;
 	}
@@ -736,7 +773,7 @@ struct HostHelpers
 		auto ed = t->setOpaqueDataEditor(useMod);
 
 		auto onh = static_cast<OpaqueNetworkHolder*>(on.getObjectPtr());
-		onh->ownedNetwork = p->getParentHolder()->addEmbeddedNetwork(p, embeddedNetworkTree, ed);
+		onh->setNetwork(p->getParentHolder()->addEmbeddedNetwork(p, embeddedNetworkTree, ed));
 
 		ParameterDataList pList;
 		onh->createParameters(pList);
@@ -744,7 +781,7 @@ struct HostHelpers
 
 		t->postInit();
 		auto asNode = dynamic_cast<NodeBase*>(t);
-		asNode->setEmbeddedNetwork(onh->ownedNetwork);
+		asNode->setEmbeddedNetwork(onh->getNetwork());
 
 		return asNode;
 	}

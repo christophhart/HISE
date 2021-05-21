@@ -60,7 +60,8 @@ struct NoExtraComponent
 };
 
 struct OpaqueNodeDataHolder: public data::base,
-						     public ExternalDataHolder
+						     public ExternalDataHolderWithForcedUpdate,
+							 public ExternalDataHolderWithForcedUpdate::ForcedUpdateListener
 {
 	struct Editor : public ScriptnodeExtraComponent<OpaqueNodeDataHolder>
 	{
@@ -82,6 +83,13 @@ struct OpaqueNodeDataHolder: public data::base,
 	void setExternalData(const snex::ExternalData& d, int index) override;
 
 	OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn);
+
+	~OpaqueNodeDataHolder();
+
+	void forceRebuild(ExternalData::DataType dt, int index) override
+	{
+		sendForceUpdateMessage(this, dt, index);
+	}
 
 	data::pimpl::dynamic_base* create(ExternalData::DataType dt, int index);
 
