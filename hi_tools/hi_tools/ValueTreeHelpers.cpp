@@ -504,6 +504,33 @@ void AnyListener::handleAsyncUpdate()
 	lastCallbackType = Nothing;
 }
 
+void AnyListener::valueTreeChildAdded(ValueTree&, ValueTree& c)
+{
+	if (forwardCallbacks[ChildAdded])
+	{
+		logIfEnabled(ChildAdded, c, {});
+		triggerUpdate(ChildAdded);
+	}
+}
+
+void AnyListener::valueTreeChildOrderChanged(ValueTree& c, int, int)
+{
+	if (forwardCallbacks[ChildOrderChanged])
+	{
+		logIfEnabled(ChildAdded, c, {});
+		triggerUpdate(ChildOrderChanged);
+	}
+}
+
+void AnyListener::valueTreeChildRemoved(ValueTree&, ValueTree& c, int)
+{
+	if (forwardCallbacks[ChildDeleted])
+	{
+		logIfEnabled(ChildDeleted, c, {});
+		triggerUpdate(ChildDeleted);
+	}
+}
+
 void AnyListener::valueTreePropertyChanged(ValueTree& v, const Identifier& id)
 {
 	if (!forwardCallbacks[PropertyChange])
@@ -511,8 +538,47 @@ void AnyListener::valueTreePropertyChanged(ValueTree& v, const Identifier& id)
 	
 	if (pcf && !pcf(v, id))
 		return;
-
+	
+	logIfEnabled(PropertyChange, v, id);
 	triggerUpdate(PropertyChange);
+}
+
+void AnyListener::valueTreeParentChanged(ValueTree&)
+{
+	if (forwardCallbacks[ValueTreeRedirected]) triggerUpdate(ValueTreeRedirected);
+}
+
+void AnyListener::logIfEnabled(CallbackType b, ValueTree& v, const Identifier& id)
+{
+	if (!loggingEnabled)
+		return;
+
+	String s;
+
+	switch (b)
+	{
+	case CallbackType::ChildAdded:
+		s << "Add child " << v.getType(); break;
+	case CallbackType::ChildDeleted:
+		s << "Remove child " << v.getType(); break;
+	case CallbackType::PropertyChange:
+		s << "Set property " << id << " for " << v.getType(); break;
+	case CallbackType::ValueTreeRedirected:
+		s << "redirected " << v.getType(); break;
+	default:
+		break;
+	}
+
+	s << "\n";
+	ValueTree copy = v.createCopy();
+	copy.removeAllChildren(nullptr);
+	ScopedPointer<XmlElement> xml = copy.createXml();
+	s << xml->createDocument("", true);
+	s << "\n--------------------------------------------------------------------";
+
+	DBG(s);
+
+	
 }
 
 void AnyListener::triggerUpdate(CallbackType t)

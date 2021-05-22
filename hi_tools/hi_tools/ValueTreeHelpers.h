@@ -130,6 +130,11 @@ struct AnyListener : private Base,
 		}
 	}
 
+	void setEnableLogging(bool shouldLog)
+	{
+		loggingEnabled = shouldLog;
+	}
+
 	void setRootValueTree(const ValueTree& d)
 	{
 		data = d;
@@ -154,6 +159,10 @@ protected:
 
 private:
 
+	void logIfEnabled(CallbackType b, ValueTree& v, const Identifier& id);
+
+	bool loggingEnabled = false;
+
 	PropertyConditionFunc pcf;
 
 	CallbackType lastCallbackType = CallbackType::Nothing;
@@ -170,11 +179,11 @@ private:
 
 	int milliSecondsBetweenUpdate = 500;
 
-	void valueTreeChildAdded(ValueTree&, ValueTree&) override { if(forwardCallbacks[ChildAdded]) triggerUpdate(ChildAdded); }
-	void valueTreeChildOrderChanged(ValueTree&, int, int) override { if (forwardCallbacks[ChildOrderChanged])triggerUpdate(ChildOrderChanged); }
-	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override { if (forwardCallbacks[ChildDeleted]) triggerUpdate(ChildDeleted); }
+	void valueTreeChildAdded(ValueTree&, ValueTree&) override;
+	void valueTreeChildOrderChanged(ValueTree&, int, int) override;
+	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override;
 	void valueTreePropertyChanged(ValueTree&, const Identifier&) override;;
-	void valueTreeParentChanged(ValueTree&) override { if (forwardCallbacks[ValueTreeRedirected]) triggerUpdate(ValueTreeRedirected); }
+	void valueTreeParentChanged(ValueTree&) override;
 };
 
 /** A small helper function that will catch illegal operations during a child

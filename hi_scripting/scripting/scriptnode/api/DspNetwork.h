@@ -960,6 +960,203 @@ private:
 };
 
 
+struct DspNetworkListeners
+{
+	struct Base : public valuetree::AnyListener
+	{
+		template <bool AllowRootParameterChange> static bool isValueProperty(const ValueTree& v, const Identifier& id)
+		{
+			if (v.getType() == PropertyIds::Parameter && id == PropertyIds::Value)
+			{
+				if (AllowRootParameterChange)
+				{
+					auto possibleRoot = v.getParent().getParent().getParent();
+
+					if (possibleRoot.getType() == PropertyIds::Network)
+						return false;
+				}
+
+				return !v[PropertyIds::Automated];
+			}
+
+			if (id == PropertyIds::NumChannels)
+				return false;
+
+			return true;
+		}
+
+		Base(DspNetwork* n, bool isSync) :
+			AnyListener(isSync ? valuetree::AsyncMode::Synchronously : valuetree::AsyncMode::Asynchronously),
+			network(n),
+			creationTime(Time::getMillisecondCounter())
+		{}
+
+		void postInit(bool sync)
+		{
+			if(!sync)
+				setMillisecondsBetweenUpdate(1000);
+
+			setRootValueTree(network->getValueTree());
+		}
+
+		virtual ~Base()
+		{
+
+		}
+
+		void anythingChanged(CallbackType cb) override
+		{
+			auto t = Time::getMillisecondCounter();
+
+			if ((t - creationTime) < 2000)
+				return;
+
+			changed = true;
+			networkChanged();
+		}
+
+		virtual bool isChanged() const { return changed; }
+		virtual void networkChanged() = 0;
+
+	protected:
+
+		uint32 creationTime;
+
+		bool changed = false;
+		WeakReference<DspNetwork> network;
+	};
+
+	struct LambdaAtNetworkChange : public Base
+	{
+		LambdaAtNetworkChange(scriptnode::DspNetwork* n) :
+			Base(n, true)
+		{
+			setPropertyCondition(Base::isValueProperty<true>);
+			postInit(true);
+		}
+
+		void networkChanged() override
+		{
+			if (additionalCallback)
+				additionalCallback();
+		}
+
+		std::function<void()> additionalCallback;
+	};
+
+	struct PatchAutosaver : public Base
+	{
+		PatchAutosaver(scriptnode::DspNetwork* n, const File& directory) :
+			Base(n, false)
+		{
+			setPropertyCondition(Base::isValueProperty<false>);
+			postInit(false);
+
+			auto id = "autosave_" + n->getRootNode()->getId();
+			d = directory.getChildFile(id).withFileExtension("xml");
+		}
+
+		~PatchAutosaver()
+		{
+			if (d.existsAsFile())
+				d.deleteFile();
+		}
+
+		bool isChanged() const override { return Base::isChanged() && d.existsAsFile(); }
+
+		void closeAndDelete(bool forceDelete)
+		{
+			if (changed || forceDelete)
+			{
+				anythingChanged(valuetree::AnyListener::PropertyChange);
+				auto ofile = d.getSiblingFile(network->getRootNode()->getId()).withFileExtension(".xml");
+				ofile.deleteFile();
+				auto ok = d.moveFileTo(ofile);
+				jassert(ok);
+				creationTime = Time::getMillisecondCounter();
+			}
+		}
+
+		void networkChanged() override
+		{
+			auto saveCopy = network->getValueTree().createCopy();
+
+			cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, stripValueTree);
+
+			ScopedPointer<XmlElement> xml = saveCopy.createXml();
+
+			d.replaceWithText(xml->createDocument(""));
+		}
+
+	private:
+
+		static void removeIfDefault(ValueTree& v, const Identifier& id, const var& defaultValue)
+		{
+			if (v[id] == defaultValue)
+				v.removeProperty(id, nullptr);
+		};
+
+		static bool removePropIfDefault(ValueTree& v, const Identifier& id, const var& defaultValue)
+		{
+			if (v[PropertyIds::ID].toString() == id.toString() &&
+				v[PropertyIds::Value] == defaultValue)
+			{
+				return true;
+			}
+
+			return false;
+		};
+
+		static void removeIfNoChildren(ValueTree& v)
+		{
+			if (v.isValid() && v.getNumChildren() == 0)
+				v.getParent().removeChild(v, nullptr);
+		}
+
+		static void removeIfDefined(ValueTree& v, const Identifier& id, const Identifier& definedId)
+		{
+			if (v.hasProperty(definedId))
+				v.removeProperty(id, nullptr);
+		}
+
+		static bool stripValueTree(ValueTree& v)
+		{
+			// Remove all child nodes from a project node
+			// (might be a leftover from the extraction process)
+			if (v.getType() == PropertyIds::Node && v[PropertyIds::FactoryPath].toString().startsWith("project"))
+			{
+				v.removeChild(v.getChildWithName(PropertyIds::Nodes), nullptr);
+
+				for (auto p : v.getChildWithName(PropertyIds::Parameters))
+					p.removeChild(p.getChildWithName(PropertyIds::Connections), nullptr);
+			}
+
+			auto propChild = v.getChildWithName(PropertyIds::Properties);
+
+			// Remove all properties with the default value
+			for (int i = 0; i < propChild.getNumChildren(); i++)
+			{
+				if (removePropIfDefault(propChild.getChild(i), PropertyIds::IsVertical, 1))
+					propChild.removeChild(i--, nullptr);
+			}
+
+			removeIfNoChildren(propChild);
+
+			for (auto id : PropertyIds::Helpers::getDefaultableIds())
+				removeIfDefault(v, id, PropertyIds::Helpers::getDefaultValue(id));
+
+			removeIfDefined(v, PropertyIds::Value, PropertyIds::Automated);
+
+			removeIfNoChildren(v.getChildWithName(PropertyIds::Bookmarks));
+			removeIfNoChildren(v.getChildWithName(PropertyIds::ModulationTargets));
+
+			return false;
+		}
+
+		File d;
+	};
+};
+
 
 
 }

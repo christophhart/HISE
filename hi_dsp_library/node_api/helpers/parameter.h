@@ -545,6 +545,12 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 		static_cast<chain*>(obj)->call(value);
 	}
 
+	constexpr bool isConnected() const
+	{
+		// there's no way a compile time chain can have an unconnected element
+		return true;
+	}
+
 	void* getObjectPtr() { return this; }
 
 	tuple_iterator1(call, double, v);

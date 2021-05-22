@@ -2444,8 +2444,39 @@ void KeyboardPopup::ImagePreviewCreator::timerCallback()
 	stopTimer();
 }
 
+DspNetworkGraph::BreadcrumbComponent::NetworkButton::NetworkButton(DspNetwork* n, bool current_) :
+	TextButton(n->getId()),
+	network(n),
+	current(current_)
+{
+	w = GLOBAL_BOLD_FONT().getStringWidth(getName()) + 30;
+
+	if (current)
+	{
+		changeWarning = new DspNetworkListeners::LambdaAtNetworkChange(n);
+		changeWarning->additionalCallback = [this]() { this->repaint(); };
+
+		auto td = BackendDllManager::getSubFolder(n->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Networks);
+
+		currentSaver = new DspNetworkListeners::PatchAutosaver(n, td);
+	}
+
+
+	onClick = BIND_MEMBER_FUNCTION_0(NetworkButton::click);
+}
+
 void DspNetworkGraph::BreadcrumbComponent::NetworkButton::click()
 {
+	auto bc = findParentComponentOfClass<BreadcrumbComponent>();
+
+	for (auto nb : bc->buttons)
+	{
+		if (nb == this)
+			continue;
+
+		nb->requestClose();
+	}
+
 	findParentComponentOfClass<WrapperWithMenuBarBase>()->canvas.setNewContent(new DspNetworkGraph(network), nullptr);
 }
 

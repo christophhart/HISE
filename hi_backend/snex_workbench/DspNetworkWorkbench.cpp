@@ -627,7 +627,6 @@ struct OpaqueNetworkHolder
 
 	~OpaqueNetworkHolder()
 	{
-		changeWarning = nullptr;
 		ownedNetwork = nullptr;
 	}
 
@@ -698,8 +697,7 @@ struct OpaqueNetworkHolder
 	void setNetwork(DspNetwork* n)
 	{
 		ownedNetwork = n;
-		changeWarning = new DspNetworkListeners::NestedNetworkChangeWarning(n);
-
+		
 		for (const auto& d : deferredData)
 		{
 			if (d.d.obj != nullptr)
@@ -731,8 +729,6 @@ private:
 	};
 
 	Array<DeferedDataInitialiser> deferredData;
-
-	ScopedPointer<DspNetworkListeners::NestedNetworkChangeWarning> changeWarning;
 	ReferenceCountedObjectPtr<DspNetwork> ownedNetwork;
 };
 

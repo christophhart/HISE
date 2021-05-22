@@ -640,14 +640,27 @@ public:
 	{
 		struct NetworkButton : public TextButton
 		{
-			NetworkButton(DspNetwork* n, bool current_):
-				TextButton(n->getId()),
-				network(n),
-				current(current_)
-			{
-				w = GLOBAL_BOLD_FONT().getStringWidth(getName()) + 30;
+			NetworkButton(DspNetwork* n, bool current_);
 
-				onClick = BIND_MEMBER_FUNCTION_0(NetworkButton::click);
+			void requestClose()
+			{
+				if (changeWarning != nullptr && changeWarning->isChanged())
+				{
+					if (PresetHandler::showYesNoWindow("Change detected", "The DSP Network " + network->getId() + " has changed. Do you want to save the changes to the file?"))
+					{
+						currentSaver->closeAndDelete(true);
+
+						PresetHandler::showMessageWindow("Saved " + network->getId(), "The nested network was saved. Make sure to reload the root network if you used this network multiple times");
+					}
+				}
+
+				changeWarning = nullptr;
+				currentSaver = nullptr;
+			}
+
+			~NetworkButton()
+			{
+				
 			}
 
 			void click();
@@ -669,8 +682,20 @@ public:
 				if (current)
 					alpha = 0.8f;
 
+				auto showWarning = false;
+
+				if (changeWarning != nullptr && changeWarning->isChanged())
+				{
+					showWarning = true;
+				}
+
+				auto s = getName();
+
+				if (showWarning)
+					s << "*";
+
 				g.setColour(Colours::white.withAlpha(alpha));
-				g.drawText(getName(), getLocalBounds().toFloat().reduced(10.0f, 0), Justification::left);
+				g.drawText(s, getLocalBounds().toFloat().reduced(10.0f, 0), Justification::left);
 
 				if (!current)
 				{
@@ -682,6 +707,10 @@ public:
 			const bool current;
 			int w = 0;
 			WeakReference<DspNetwork> network;
+
+			ScopedPointer<DspNetworkListeners::LambdaAtNetworkChange> changeWarning;
+			ScopedPointer<DspNetworkListeners::PatchAutosaver> currentSaver;
+			
 		};
 
 		BreadcrumbComponent(DspNetwork* n)

@@ -151,6 +151,7 @@ struct Helpers
 			Inverted,
 			EmbeddedData,
 			NumChannels,
+			Automated,
 			AllowPolyphonic,
 			AllowCompilation
 		};
@@ -171,6 +172,7 @@ struct Helpers
 		returnIfDefault(Inverted, false);
 		returnIfDefault(EmbeddedData, -1);
 		returnIfDefault(NumChannels, 2);
+		returnIfDefault(Automated, false);
 		returnIfDefault(AllowCompilation, false);
 		returnIfDefault(AllowPolyphonic, false);
 
