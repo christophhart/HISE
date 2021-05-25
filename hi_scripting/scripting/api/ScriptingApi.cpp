@@ -2819,7 +2819,7 @@ var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 		RETURN_IF_NO_THROW(var())
 	}
 
-	if (auto sound = s->getSampleMap()->getSound(soundIndex))
+	if (auto sound = soundSelection.getSelectedItem(soundIndex).get())
 	{
 		auto id = sampleIds[propertyIndex];
 		return sound->getSampleProperty(id);
