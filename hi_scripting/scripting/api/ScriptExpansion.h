@@ -78,6 +78,9 @@ public:
 	/** Set a function that will be called whenever a expansion is being loaded. */
 	void setExpansionCallback(var expansionLoadedCallback);
 
+	/** Set a function that will be called during installation of a new expansion. */
+	void setInstallCallback(var installationCallback);
+
 	/** Returns a list of all expansions that aren't loaded properly yet. */
 	var getUninitialisedExpansions();
 
@@ -92,6 +95,9 @@ public:
 
 	/** Decompresses the samples and installs the .hxi / .hxp file. */
 	bool installExpansionFromPackage(var packageFile, var sampleDirectory);
+
+	/** Checks if the expansion is already installed and returns a reference to the expansion if it exists. */
+	var getExpansionForInstallPackage(var packageFile);
 
 	/** Sets a list of allowed expansion types that can be loaded. */
 	void setAllowedExpansionTypes(var typeList);
@@ -116,6 +122,38 @@ public:
 
 private:
 
+	struct InstallState: public Timer,
+						 public ExpansionHandler::Listener
+	{
+		InstallState(ScriptExpansionHandler& parent_);
+
+		~InstallState();
+
+		void expansionPackCreated(Expansion* newExpansion) override;
+
+		void expansionInstallStarted(const File& targetRoot, const File& packageFile, const File& sampleDirectory);
+
+		void expansionInstalled(Expansion* newExpansion) override;
+
+		void call();
+
+		void timerCallback() override;
+
+		var getObject();
+
+		double getProgress();
+
+		ScriptExpansionHandler& parent;
+
+		int status = 0;
+		File sourceFile;
+		File targetFolder;
+		File sampleFolder;
+		Expansion* createdExpansion = nullptr;
+
+		SimpleReadWriteLock timerLock;
+	};
+
 	ProcessorWithScriptingContent* getScriptProcessor();
 
 	void reportScriptError(const String& error)
@@ -129,7 +167,10 @@ private:
 
 	WeakCallbackHolder errorFunction;
 	WeakCallbackHolder expansionCallback;
+	WeakCallbackHolder installCallback;
 	WeakReference<JavascriptProcessor> jp;
+
+	ScopedPointer<InstallState> currentInstaller;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptExpansionHandler);
 };
@@ -140,6 +181,8 @@ class ScriptEncryptedExpansion : public Expansion
 public:
 
 	ScriptEncryptedExpansion(MainController* mc, const File& f);
+
+	Result loadValueTree(ValueTree& v);
 
 	virtual ExpansionType getExpansionType() const;
 
@@ -152,6 +195,8 @@ public:
 	static BlowFish* createBlowfish(MainController* mc);
 	static bool encryptIntermediateFile(MainController* mc, const File& f, File expansionRoot=File());
 
+	void extractUserPresetsIfEmpty(ValueTree encryptedTree, bool forceExtraction = false);
+
 protected:
 
 	void encodePoolAndUserPresets(ValueTree &hxiData, bool encodeAdditionalData);
@@ -162,7 +207,6 @@ protected:
 	void addDataType(ValueTree& parent, SubDirectories fileType);
 	void restorePool(ValueTree encryptedTree, SubDirectories fileType);
 	void addUserPresets(ValueTree encryptedTree);
-	void extractUserPresetsIfEmpty(ValueTree encryptedTree);
 
 	Result returnFail(const String& errorMessage);
 };
@@ -319,7 +363,9 @@ public:
 	/** returns the expansion type. Use the constants of ExpansionHandler to resolve the integer number. */
 	int getExpansionType() const;
 
-	
+	/** Reextracts (and overrides) the user presets from the given expansion. Only works with intermediate / encrypted expansions. */
+	bool rebuildUserPresets();
+
 private:
 
 	friend class ScriptExpansionHandler;
