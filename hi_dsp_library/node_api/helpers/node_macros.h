@@ -69,6 +69,8 @@ constexpr const auto& getWrappedObject() const { return x; }
 /** Use this macro in order to create the getObject() / getWrappedObject() methods that return the object itself. */
 #define SN_GET_SELF_AS_OBJECT(x) GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(*this); using ObjectType = x; using WrappedObjectType = x;
 
+#define SN_DESCRIPTION(x) constexpr char* getDescription() const { return x; }
+
 /** Use this macro to pass the static ID to the base constructor of the parameter_node class that will define the IsControlNode property to avoid the wrap::mod wrapper. */
 #define SN_PARAMETER_NODE_CONSTRUCTOR(ClassId, ParameterId) ClassId() : control::pimpl::parameter_node_base<ParameterId>(getStaticId()) {};
 

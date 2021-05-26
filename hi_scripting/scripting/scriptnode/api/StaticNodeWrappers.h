@@ -191,6 +191,8 @@ public:
 
 	WrapperType& getWrapperType() { return obj; }
 
+	
+
 protected:
 
 	WrapperType obj;
@@ -261,6 +263,8 @@ public:
 		return createInternalParameterListFromWrapper();
 	}
 
+	String getNodeDescription() const override { return obj.getWrappedObject().getDescription(); }
+
 	void reset();
 
 	bool isPolyphonic() const override { return this->obj.isPolyphonic(); }
@@ -300,6 +304,8 @@ public:
 	{
 		return obj.isProcessingHiseEvent();
 	}
+
+	String getNodeDescription() const override { return obj.getWrappedObject().getDescription(); }
 
 	template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr, bool Unused> static NodeBase* createNode(DspNetwork* n, ValueTree d)
 	{ 
@@ -572,6 +578,8 @@ struct InterpretedCableNode : public ModulationSourceNode,
 	{
 		return getObjectPtrFromWrapper();
 	}
+
+	String getNodeDescription() const override { return obj.getWrappedObject().getDescription(); }
 
 	ParameterDataList createInternalParameterList() override
 	{

@@ -196,6 +196,20 @@ public:
 		String path;
 	};
 
+	struct OneLiner : public Component
+	{
+		String description;
+
+		void paint(Graphics& g) override
+		{
+			g.fillAll(Colours::black.withAlpha(0.1f));
+			g.setColour(Colours::white);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(description, getLocalBounds().toFloat(), Justification::centred);
+		}
+	};
+
+	ScopedPointer<OneLiner> oneLiner;
 	ScopedPointer<ImagePreviewCreator> currentPreview;
 
 	KeyboardPopup(NodeBase* container, int addPosition_):
@@ -232,7 +246,7 @@ public:
 		helpViewport.setScrollOnDragEnabled(true);
 
 		helpButton.addListener(this);
-		setSize(tagList.getWidth(), 64 + 200 + 2 * UIValues::NodeMargin);
+		setSize(tagList.getWidth(), 64 + 240 + 2 * UIValues::NodeMargin);
 		nodeEditor.addKeyListener(this);
 		list.rebuild(getWidthForListItems());
 	}
@@ -369,6 +383,8 @@ public:
 		
 		b.removeFromTop(UIValues::NodeMargin);
 
+		
+
 		if (help != nullptr)
 		{
 			viewport.setBounds(b.removeFromLeft(list.getWidth() + viewport.getScrollBarThickness()));
@@ -380,6 +396,9 @@ public:
 			helpViewport.setVisible(false);
 
 			viewport.setBounds(b.removeFromLeft(getWidth() / 2));
+
+			if (oneLiner != nullptr)
+				oneLiner->setBounds(b.removeFromBottom(32));
 		}
 	}
 

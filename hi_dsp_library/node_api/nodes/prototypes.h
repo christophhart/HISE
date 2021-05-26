@@ -108,6 +108,15 @@ namespace prototypes
 			enum { value = sizeof(test<T>(0)) == sizeof(char) };
 		};
 
+		template <typename T> class getDescription
+		{
+			typedef char one; struct two { char x[2]; };
+			template <typename C> static one test(decltype(&C::getDescription));
+			template <typename C> static two test(...);
+		public:
+			enum { value = sizeof(test<T>(0)) == sizeof(char) };
+		};
+
 		template <typename T> class isNormalisedModulation
 		{
 			typedef char one; struct two { char x[2]; };

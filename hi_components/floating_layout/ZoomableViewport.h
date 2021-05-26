@@ -200,6 +200,8 @@ struct ZoomableViewport : public Component,
 		Image bg;
 		PostGraphicsRenderer::DataStack stack;
 
+		bool recursive = false;
+
 		void setBackground(Image img);
 
 		void updateSize()

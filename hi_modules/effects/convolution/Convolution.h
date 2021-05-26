@@ -438,6 +438,7 @@ struct convolution : public data::base
 {
 	SET_HISE_NODE_ID("convolution");
 	SN_GET_SELF_AS_OBJECT(convolution);
+	SN_DESCRIPTION("A convolution reverb node");
 
 	HISE_EMPTY_SET_PARAMETER;
 	HISE_EMPTY_HANDLE_EVENT;

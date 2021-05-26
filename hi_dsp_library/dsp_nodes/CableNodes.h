@@ -94,6 +94,7 @@ namespace control
 		SN_GET_SELF_AS_OBJECT(cable_pack);
 		HISE_ADD_SET_VALUE(cable_pack);
 		SN_PARAMETER_NODE_CONSTRUCTOR(cable_pack, ParameterClass);
+		SN_DESCRIPTION("Uses a slider pack to modify a modulation signal");
 
 		void setExternalData(const ExternalData& d, int index) override
 		{
@@ -144,6 +145,7 @@ namespace control
 		SN_GET_SELF_AS_OBJECT(sliderbank);
 		HISE_ADD_SET_VALUE(sliderbank);
 		SN_PARAMETER_NODE_CONSTRUCTOR(sliderbank, ParameterClass);
+		SN_DESCRIPTION("Scale a value with a slider pack and send it to multiple targets");
 
 		void initialise(NodeBase* n)
 		{
@@ -250,6 +252,7 @@ namespace control
 		SET_HISE_NODE_ID("file_analyser");
 		SN_GET_SELF_AS_OBJECT(file_analyser);
 		SN_TEMPLATED_MODE_PARAMETER_NODE_CONSTRUCTOR(file_analyser, ParameterClass, "file_analysers");
+		SN_DESCRIPTION("Extracts file information (pitch, length, etc) and sends it as modulation signal on file load");
 
 		HISE_EMPTY_CREATE_PARAM;
 
@@ -284,6 +287,7 @@ namespace control
 		SET_HISE_NODE_ID("input_toggle");
 		SN_GET_SELF_AS_OBJECT(input_toggle);
 		SN_PARAMETER_NODE_CONSTRUCTOR(input_toggle, ParameterClass);
+		SN_DESCRIPTION("Switch between two input values as modulation signal");
 
 		enum class Parameters
 		{
@@ -387,6 +391,7 @@ namespace control
 
 		SET_HISE_NODE_ID("tempo_sync");
 		SN_GET_SELF_AS_OBJECT(tempo_sync);
+		SN_DESCRIPTION("Sends the tempo duration as modulation signal");
 
 		void prepare(PrepareSpecs ps);
 
@@ -442,6 +447,7 @@ namespace control
 		SET_HISE_NODE_ID("resetter");
 		SN_GET_SELF_AS_OBJECT(resetter);
 		SN_PARAMETER_NODE_CONSTRUCTOR(resetter, ParameterClass);
+		SN_DESCRIPTION("Sends an inverted impulse (0,1) to reset gate-like parameters");
 
 		template <int P> void setParameter(double v)
 		{
@@ -472,6 +478,7 @@ namespace control
 	{
 		SET_HISE_NODE_ID("cable_table");
 		SN_GET_SELF_AS_OBJECT(cable_table);
+		SN_DESCRIPTION("Modify a modulation signal using a lookup table");
 
 		HISE_ADD_SET_VALUE(cable_table);
 		SN_PARAMETER_NODE_CONSTRUCTOR(cable_table, ParameterClass);
@@ -514,6 +521,7 @@ namespace control
 		SN_GET_SELF_AS_OBJECT(dupli_pack);
 		SET_HISE_NODE_ID("dupli_pack");
 		HISE_ADD_SET_VALUE(dupli_pack);		
+		SN_DESCRIPTION("Scale unisono values using a slider pack");
 		
 		dupli_pack() : duplicate_parameter_node_base<ParameterType>(getStaticId()) {};
 
@@ -592,6 +600,7 @@ namespace control
 	{
 		SN_GET_SELF_AS_OBJECT(dupli_cable);
 		SET_HISE_NODE_ID("dupli_cable");
+		SN_DESCRIPTION("Send different values to unisono nodes");
 
 		dupli_cable():
 			duplicate_parameter_node_base<ParameterType>(getStaticId()), 
@@ -677,6 +686,7 @@ namespace control
 		SET_HISE_NODE_ID("xfader");
 		SN_GET_SELF_AS_OBJECT(xfader);
 		SN_TEMPLATED_MODE_PARAMETER_NODE_CONSTRUCTOR(xfader, ParameterClass, "faders");
+		SN_DESCRIPTION("Apply a crossfade to multiple outputs");
 
 		HISE_ADD_SET_VALUE(xfader);
 
@@ -736,6 +746,7 @@ namespace control
 
 		SET_HISE_POLY_NODE_ID("pma");
 		SN_GET_SELF_AS_OBJECT(pma);
+		SN_DESCRIPTION("Scales and offsets a modulation signal");
 		
 		pma() : 
 			polyphonic_base(getStaticId(), false),
@@ -876,6 +887,7 @@ namespace control
 
 		SET_HISE_NODE_ID("smoothed_parameter");
 		SN_GET_SELF_AS_OBJECT(smoothed_parameter);
+		SN_DESCRIPTION("Smoothes an incoming modulation signal");
 
 		DEFINE_PARAMETERS
 		{

@@ -54,6 +54,7 @@ struct granulator: public data::base
 	static const int NumAudioFiles = 1;
 
 	SNEX_NODE(granulator);
+	SN_DESCRIPTION("A granular synthesiser");
 
 	using IndexType = index::lerp<index::unscaled<double, index::clamped<0>>>;
 	//using IndexType = index::unscaled<double, index::clamped<0>>;

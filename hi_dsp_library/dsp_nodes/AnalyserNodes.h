@@ -82,6 +82,8 @@ struct Helpers
 
 		SET_HISE_NODE_ID("fft");
 
+		static char* getDescription() { return "A FFT analyser"; };
+
 		static constexpr int NumChannels = 1;
 		
 		FFT(SimpleRingBuffer::WriterBase* w) : PropertyObject(w) {};
@@ -123,6 +125,10 @@ struct Helpers
 
 		SET_HISE_NODE_ID("oscilloscope");
 
+		static char* getDescription() { return "an oscilloscope with optional MIDI input sync"; };
+
+		
+
 		Oscilloscope(SimpleRingBuffer::WriterBase* w) : PropertyObject(w) {};
 
 		static constexpr int NumChannels = 2;
@@ -145,6 +151,8 @@ struct Helpers
 		static constexpr int PropertyIndex = 3003;
 
 		int getClassIndex() const override { return PropertyIndex; }
+
+		static char* getDescription() { return "A goniometer (stereo correlation display)."; };
 
 		SET_HISE_NODE_ID("goniometer");
 
@@ -183,6 +191,8 @@ public:
 	{
 		
 	}
+
+	SN_DESCRIPTION(T::getDescription());
 
 	virtual ~analyse_base() {};
 

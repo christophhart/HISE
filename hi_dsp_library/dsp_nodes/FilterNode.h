@@ -62,6 +62,7 @@ public:
 	SET_HISE_POLY_NODE_ID(FilterType::getFilterTypeId());
 
 	SN_GET_SELF_AS_OBJECT(FilterNodeBase);
+	SN_DESCRIPTION("A filter node");
 
 	HISE_EMPTY_HANDLE_EVENT;
 	HISE_EMPTY_INITIALISE;

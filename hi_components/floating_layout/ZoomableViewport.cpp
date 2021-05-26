@@ -496,12 +496,18 @@ void ZoomableViewport::Holder::setBackground(Image img)
 {
 	bg = img.rescaled(img.getWidth() / 2, img.getHeight() / 2);
 
+	PostGraphicsRenderer g2(stack, bg);
+	g2.stackBlur(JUCE_LIVE_CONSTANT_OFF(20));
+	
+#if 0
 	stack.clear();
 
 	ImageConvolutionKernel kernel(7);
 	kernel.createGaussianBlur(30.0f);
 	kernel.applyToImage(bg, bg, { 0, 0, bg.getWidth(), bg.getHeight() });
+#endif
 	repaint();
+	
 }
 
 void ZoomableViewport::Holder::paint(Graphics& g)
@@ -509,7 +515,7 @@ void ZoomableViewport::Holder::paint(Graphics& g)
 	g.setColour(Colour(0xFF262626));
 	auto b = getLocalBounds().toFloat();
 	g.drawImage(bg, b, RectanglePlacement::fillDestination);
-	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xe12b2b2b)));
+	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xaf2b2b2b)));
 	g.setColour(Colours::white.withAlpha(0.2f));
 	g.drawRect(b, 1.0f);
 	b = b.removeFromTop((float)headerHeight).reduced(1.0f);

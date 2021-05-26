@@ -386,6 +386,7 @@ template <int NV, typename ParameterType> struct simple_ar_impl: public pimpl::e
 
 	SET_HISE_NODE_ID("simple_ar");
 	SN_GET_SELF_AS_OBJECT(simple_ar_impl);
+	SN_DESCRIPTION("A simple attack / release envelope");
 
 	simple_ar_impl(): pimpl::envelope_base<ParameterType>(getStaticId()) {}
 
@@ -568,6 +569,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 
 	SET_HISE_POLY_NODE_ID("ahdsr");
 	SN_GET_SELF_AS_OBJECT(ahdsr);
+	SN_DESCRIPTION("The AHDSR envelope from HISE");
 
 	static constexpr bool isProcessingHiseEvent() { return true; }
 
@@ -911,6 +913,7 @@ template <int NV> struct silent_killer_impl: public voice_manager_base
 
 	SET_HISE_POLY_NODE_ID("silent_killer");
 	SN_GET_SELF_AS_OBJECT(silent_killer_impl);
+	SN_DESCRIPTION("Send a voice reset message as soon when silence is detected");
 
 	HISE_EMPTY_INITIALISE;
 	HISE_EMPTY_MOD;
@@ -1004,6 +1007,7 @@ struct voice_manager: public voice_manager_base
 {
 	SET_HISE_NODE_ID("voice_manager");
 	SN_GET_SELF_AS_OBJECT(voice_manager);
+	SN_DESCRIPTION("Sends a voice reset message when `Value > 0.5`");
 
 	static constexpr bool isPolyphonic() { return false; }
 

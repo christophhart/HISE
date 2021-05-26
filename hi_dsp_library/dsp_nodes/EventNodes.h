@@ -197,6 +197,7 @@ public:
 
 	SET_HISE_NODE_ID("midi");
 	SN_GET_SELF_AS_OBJECT(midi);
+	SN_DESCRIPTION("Create a modulation signal from MIDI input");
 
 	midi() :
 		templated_mode(getStaticId(), "midi_logic")
@@ -330,6 +331,7 @@ public:
 
 	SET_HISE_POLY_NODE_ID("timer");
 	SN_GET_SELF_AS_OBJECT(timer);
+	SN_DESCRIPTION("Create a periodic modulation signal if active");
 
 	timer():
 		polyphonic_base(getStaticId(), false),

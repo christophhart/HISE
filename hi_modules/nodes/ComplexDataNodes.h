@@ -76,6 +76,7 @@ template <int NV> struct file_player : public data::base
 
 	HISE_EMPTY_INITIALISE;
 	HISE_EMPTY_MOD;
+	SN_DESCRIPTION("A simple file player with multiple playback modes");
 
 	file_player() = default;
 

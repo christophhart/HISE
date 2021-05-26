@@ -67,6 +67,7 @@ struct table: public scriptnode::data::base
 {
 	SET_HISE_NODE_ID("table");
 	SN_GET_SELF_AS_OBJECT(table);
+	SN_DESCRIPTION("a (symmetrical) lookup table based waveshaper");
 
 	HISE_EMPTY_HANDLE_EVENT;
 	HISE_EMPTY_SET_PARAMETER;
@@ -158,6 +159,7 @@ public:
 
 	SET_HISE_NODE_ID("peak");
 	SN_GET_SELF_AS_OBJECT(peak);
+	SN_DESCRIPTION("create a modulation signal from the input peak");
 
 	HISE_EMPTY_CREATE_PARAM;
 	HISE_EMPTY_HANDLE_EVENT;
@@ -233,6 +235,7 @@ public:
 
 	SET_HISE_NODE_ID("recorder");
 	SN_GET_SELF_AS_OBJECT(recorder);
+	SN_DESCRIPTION("Record the signal input into a audio file slot");
 
 	static constexpr bool isPolyphonic() { return false; }
 
@@ -410,6 +413,7 @@ public:
 
 	SET_HISE_NODE_ID("mono2stereo");
 	SN_GET_SELF_AS_OBJECT(mono2stereo);
+	SN_DESCRIPTION("converts a mono signal to a stereo signal (`L->L+R`)");
 
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
@@ -457,6 +461,7 @@ template <class ShaperType> struct snex_shaper
 {
 	SET_HISE_NODE_ID("snex_shaper");
 	SN_GET_SELF_AS_OBJECT(snex_shaper);
+	SN_DESCRIPTION("A custom waveshaper using SNEX");
 
 	HISE_EMPTY_HANDLE_EVENT;
 	
@@ -526,6 +531,7 @@ public:
 
 	SET_HISE_POLY_NODE_ID("ramp");
 	SN_GET_SELF_AS_OBJECT(ramp);
+	SN_DESCRIPTION("Creates a ramp signal that can be used as modulation source");
 
 	ramp()
 	{
@@ -723,6 +729,7 @@ public:
 
 	SET_HISE_POLY_NODE_ID("oscillator");
 	SN_GET_SELF_AS_OBJECT(oscillator);
+	SN_DESCRIPTION("A tone generator with multiple waveforms");
 
 	HISE_EMPTY_INITIALISE;
 
@@ -941,6 +948,7 @@ public:
 
 	SET_HISE_NODE_ID("fm");
 	SN_GET_SELF_AS_OBJECT(fm);
+	SN_DESCRIPTION("A FM oscillator that uses the signal input as FM source");
 
 	constexpr bool isProcessingHiseEvent() const { return true; }
 
@@ -1011,6 +1019,7 @@ public:
 
 	SET_HISE_POLY_NODE_ID("gain");
 	SN_GET_SELF_AS_OBJECT(gain_impl);
+	SN_DESCRIPTION("A gain module with decibel range and parameter smoothing");
 
 	void prepare(PrepareSpecs ps)
 	{
@@ -1144,6 +1153,7 @@ public:
 
 	SET_HISE_POLY_NODE_ID("smoother");
 	SN_GET_SELF_AS_OBJECT(smoother_impl);
+	SN_DESCRIPTION("Smoothes the input signal using a low pass filter");
 
 	smoother_impl();
 
@@ -1237,124 +1247,8 @@ public:
 DEFINE_EXTERN_NODE_TEMPLATE(smoother, smoother_poly, smoother_impl);
 
 
-template <int V> class ramp_envelope_impl : public HiseDspBase
-{
-public:
-
-	enum class Parameters
-	{
-		Gate,
-		RampTime
-	};
-
-	DEFINE_PARAMETERS
-	{
-		DEF_PARAMETER(Gate, ramp_envelope_impl);
-		DEF_PARAMETER(RampTime, ramp_envelope_impl);
-	}
-
-	static constexpr int NumVoices = V;
-
-	SET_HISE_POLY_NODE_ID("ramp_envelope");
-	SN_GET_SELF_AS_OBJECT(ramp_envelope_impl);
-
-	/* ============================================================================ ramp_impl */
-	ramp_envelope_impl()
-	{
-
-	}
-
-	void createParameters(ParameterDataList& data) override
-	{
-		{
-			DEFINE_PARAMETERDATA(ramp_envelope_impl, Gate);
-			p.setParameterValueNames({ "On", "Off" });
-			data.add(std::move(p));
-		}
-
-		{
-			DEFINE_PARAMETERDATA(ramp_envelope_impl, RampTime);
-			p.setRange({ 0.0, 2000.0, 0.1 });
-			data.add(std::move(p));
-		}
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		gainer.prepare(ps);
-		sr = ps.sampleRate;
-		setRampTime(attackTimeSeconds * 1000.0);
-	}
-
-	void reset()
-	{
-		for (auto& g : gainer)
-			g.setValueWithoutSmoothing(0.0f);
-	}
-
-	template <typename FrameDataType> void processFrame(FrameDataType& data)
-	{
-		auto& thisG = gainer.get();
-		auto v = thisG.getNextValue();
-
-		for (auto& s : data)
-			s *= v;
-	}
-
-	template <typename ProcessDataType> void process(ProcessDataType& data)
-	{
-		auto& thisG = gainer.get();
-
-		if (thisG.isSmoothing())
-			snex::Types::FrameConverters::forwardToFrame16(this, data);
-		else
-		{
-			auto v = thisG.getTargetValue();
-
-			for (auto ch : data)
-				hmath::vmuls(data.toChannelData(ch), v);
-
-			if (thisG.getCurrentValue() == 0.0)
-				data.setResetFlag();
-		}
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		if (e.isNoteOnOrOff())
-			gainer.get().setTargetValue(e.isNoteOn() ? 1.0f : 0.0f);
-	}
-
-	void setGate(double newValue)
-	{
-		for (auto& g : gainer)
-			g.setTargetValue(newValue > 0.5 ? 1.0f : 0.0f);
-	}
-
-	void setRampTime(double newAttackTimeMs)
-	{
-		attackTimeSeconds = newAttackTimeMs * 0.001;
-
-		if (sr > 0.0)
-		{
-			for (auto& g : gainer)
-				g.reset(sr, attackTimeSeconds);
-		}
-	}
-
-	double attackTimeSeconds = 0.01;
-	double sr = 0.0;
-
-	PolyData<LinearSmoothedValue<float>, NumVoices> gainer;
-};
-
-DEFINE_EXTERN_NODE_TEMPLATE(ramp_envelope, ramp_envelope_poly, ramp_envelope_impl);
-
-
 template <typename T> struct snex_osc_base: public mothernode
 {
-	
-
 	void initialise(NodeBase* n)
 	{
 		if constexpr (prototypes::check::initialise<T>::value)
@@ -1405,6 +1299,7 @@ template <int NV, typename T> struct snex_osc : public snex_osc_base<T>,
 
 	SET_HISE_POLY_NODE_ID("snex_osc");
 	SN_GET_SELF_AS_OBJECT(snex_osc);
+	SN_DESCRIPTION("A custom oscillator node using SNEX");
 
 	snex_osc() :
 		polyphonic_base(getStaticId(), true)

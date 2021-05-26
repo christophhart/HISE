@@ -3255,36 +3255,46 @@ void PostGraphicsRenderer::boxBlur(int blur)
 
 void PostGraphicsRenderer::stackBlur(int blur)
 {
-	static constexpr int DownsamplingFactor = 2;
+	static constexpr int DownsamplingFactor = 1;
 	static constexpr int NumBytesPerPixel = 4;
-	auto f = img.rescaled(img.getWidth() / DownsamplingFactor, img.getHeight() / DownsamplingFactor, Graphics::ResamplingQuality::lowResamplingQuality);
 
-	gin::applyStackBlurARGB(f, blur / DownsamplingFactor);
-
-	juce::Image::BitmapData srcData(f, juce::Image::BitmapData::readOnly);
-	juce::Image::BitmapData dstData(img, juce::Image::BitmapData::writeOnly);
-
-	for (int y = 0; y < f.getHeight(); y++)
+	if (DownsamplingFactor != 1)
 	{
-		auto yDst = y * DownsamplingFactor;
-		auto s = srcData.getLinePointer(y);
-		
+		auto f = img.rescaled(img.getWidth() / DownsamplingFactor, img.getHeight() / DownsamplingFactor, Graphics::ResamplingQuality::lowResamplingQuality);
 
-		for (int yd = 0; yd < DownsamplingFactor; yd++)
+		gin::applyStackBlurARGB(f, blur / DownsamplingFactor);
+
+		juce::Image::BitmapData srcData(f, juce::Image::BitmapData::readOnly);
+		juce::Image::BitmapData dstData(img, juce::Image::BitmapData::writeOnly);
+
+		for (int y = 0; y < f.getHeight(); y++)
 		{
-			auto d = dstData.getLinePointer(yDst + yd);
+			auto yDst = y * DownsamplingFactor;
+			auto s = srcData.getLinePointer(y);
 
-			for (int x = 0; x < f.getWidth(); x++)
+
+			for (int yd = 0; yd < DownsamplingFactor; yd++)
 			{
-				auto xDst = x * DownsamplingFactor;
+				auto d = dstData.getLinePointer(yDst + yd);
 
-				for (int xd = 0; xd < DownsamplingFactor; xd++)
+				for (int x = 0; x < f.getWidth(); x++)
 				{
-					memcpy(d + (xDst + xd)*NumBytesPerPixel, s + x* NumBytesPerPixel, NumBytesPerPixel);
+					auto xDst = x * DownsamplingFactor;
+
+					for (int xd = 0; xd < DownsamplingFactor; xd++)
+					{
+						memcpy(d + (xDst + xd)*NumBytesPerPixel, s + x * NumBytesPerPixel, NumBytesPerPixel);
+					}
 				}
 			}
 		}
 	}
+	else
+	{
+		gin::applyStackBlur(img, blur);
+	}
+
+	
 }
 
 void PostGraphicsRenderer::applyHSL(float h, float s, float l)

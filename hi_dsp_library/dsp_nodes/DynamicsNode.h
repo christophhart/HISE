@@ -63,6 +63,8 @@ public:
 
 	static Identifier getStaticId();
 
+	constexpr char* getDescription() const;
+
 	static constexpr bool isNormalisedModulation() { return true; };
 
 	SN_GET_SELF_AS_OBJECT(dynamics_wrapper);

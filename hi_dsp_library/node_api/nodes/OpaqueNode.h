@@ -106,6 +106,14 @@ struct OpaqueNode
 
 	virtual ~OpaqueNode();
 
+	template <typename T> static String getDescription(const T& t)
+	{
+		if constexpr (prototypes::check::getDescription<T::WrappedObjectType>::value)
+			return t.getWrappedObject().getDescription();
+
+		return {};
+	}
+
 	template <typename T> void create()
 	{
 		callDestructor();
@@ -123,6 +131,8 @@ struct OpaqueNode
 
 		auto t = prototypes::static_wrappers<T>::create(getObjectPtr());
 		isPoly = t->isPolyphonic();
+
+		description = getDescription(*t);
 
 		if constexpr (mothernode::isBaseOf<T>())
 			mnPtr = mothernode::getAsBase(*static_cast<T*>(getObjectPtr()));
@@ -230,7 +240,11 @@ struct OpaqueNode
 
 	void fillParameterList(ParameterDataList& d);
 
+	String getDescription() const { return description; }
+
 private:
+
+	String description;
 
 	mothernode* mnPtr = nullptr;
 

@@ -1832,7 +1832,9 @@ void KeyboardPopup::addNodeAndClose(String path)
 
 juce::Rectangle<float> KeyboardPopup::getPreviewBounds()
 {
-	return viewport.getBoundsInParent().withX(getWidth() / 2).reduced(UIValues::NodeMargin).toFloat();
+	auto b = viewport.getBoundsInParent().withX(getWidth() / 2).reduced(UIValues::NodeMargin).toFloat();
+	b.removeFromBottom(32.0f);
+	return b;
 }
 
 void KeyboardPopup::paint(Graphics& g)
@@ -2349,7 +2351,16 @@ void KeyboardPopup::PopupList::setSelected(Item* i)
 
 	if (i != nullptr)
 	{
-		//kp->currentPreview = new ImagePreviewCreator(*kp, i->entry.displayName);
+		kp->currentPreview = new ImagePreviewCreator(*kp, i->entry.displayName);
+
+		kp->oneLiner = new OneLiner();
+
+		if (kp->currentPreview->createdNode != nullptr)
+			kp->oneLiner->description = kp->currentPreview->createdNode->getNodeDescription();
+
+		kp->addAndMakeVisible(kp->oneLiner);
+
+		kp->resized();
 	}
 	else
 	{

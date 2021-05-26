@@ -44,6 +44,8 @@ struct DynamicHelpers
 		RETURN_STATIC_IDENTIFIER("gate");
 	}
 
+	
+
 	static Identifier getId(chunkware_simple::SimpleComp*)
 	{
 		RETURN_STATIC_IDENTIFIER("comp");
@@ -58,7 +60,29 @@ struct DynamicHelpers
 	{
 		RETURN_STATIC_IDENTIFIER("limiter");
 	}
+
+	static char* getDescription(const chunkware_simple::SimpleGate*)
+	{
+		return "A gate effect with the ducking amount as modulation signal";
+	}
+
+	static char* getDescription(const chunkware_simple::SimpleComp*)
+	{
+		return "A compressor with the ducking amount as modulation signal";
+	}
+
+	static char* getDescription(const chunkware_simple::SimpleLimit*)
+	{
+		return "A limiter with the ducking amount as modulation signal";
+	}
 };
+
+
+template <class DynamicProcessorType>
+constexpr char* scriptnode::dynamics::dynamics_wrapper<DynamicProcessorType>::getDescription() const
+{
+	return DynamicHelpers::getDescription(&obj);
+}
 
 
 template <class DynamicProcessorType>

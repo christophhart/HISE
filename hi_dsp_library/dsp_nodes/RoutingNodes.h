@@ -223,6 +223,7 @@ struct public_mod
 {
 	SET_HISE_NODE_ID("public_mod");
 	SN_GET_SELF_AS_OBJECT(public_mod);
+	SN_DESCRIPTION("Creates a modulation signal slot in the compiled node / nested network");
 
 	HISE_EMPTY_INITIALISE;
 	HISE_EMPTY_PROCESS;
@@ -286,6 +287,7 @@ template <typename CableType> struct receive: public base
 	SET_HISE_NODE_ID("receive");
 
 	SN_GET_SELF_AS_OBJECT(receive);
+	SN_DESCRIPTION("A signal target for a send node with adjustable feedback");
 
 	enum class Parameters
 	{
@@ -440,6 +442,7 @@ template <typename CableType> struct send: public base
 	SET_HISE_NODE_ID("send");
 
 	SN_GET_SELF_AS_OBJECT(CableType);
+	SN_DESCRIPTION("Send the signal to one or more targets");
 
 	send() :
 		base(getStaticId())
@@ -496,6 +499,7 @@ struct ms_encode: public HiseDspBase
 {
 	SET_HISE_NODE_ID("ms_encode");
 	SN_GET_SELF_AS_OBJECT(ms_encode);
+	SN_DESCRIPTION("A MS encoder (`L-R -> M-S`)");
 
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_PREPARE;
@@ -529,6 +533,7 @@ struct ms_decode: public HiseDspBase
 {
 	SET_HISE_NODE_ID("ms_decode");
 	SN_GET_SELF_AS_OBJECT(ms_decode);
+	SN_DESCRIPTION("A MS decoder (`M-S -> L-R`)");
 
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_PREPARE;
@@ -564,6 +569,7 @@ template <class MatrixType> struct matrix
 	SET_HISE_NODE_ID("matrix");
 
 	SN_GET_SELF_AS_OBJECT(matrix);
+	SN_DESCRIPTION("A dynamic routing matrix for any arbitrary channel routing");
 
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_SET_PARAMETER;

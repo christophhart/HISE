@@ -291,6 +291,8 @@ public:
 
 	virtual NodeComponent* createComponent();
 
+	virtual String getNodeDescription() const { return {}; }
+
 	virtual Rectangle<int> getPositionInCanvas(Point<int> topLeft) const;
 	
 	virtual ParameterDataList createInternalParameterList() { return {}; }

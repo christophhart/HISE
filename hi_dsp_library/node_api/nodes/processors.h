@@ -1099,6 +1099,8 @@ template <typename T> struct illegal_poly
 		throw e;
 	}
 
+	SN_DESCRIPTION("(not available in a poly network)");
+
 	HISE_EMPTY_PROCESS;
 	HISE_EMPTY_PROCESS_SINGLE;
 	HISE_EMPTY_RESET;
