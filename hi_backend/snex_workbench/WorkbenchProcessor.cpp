@@ -944,7 +944,7 @@ void DspNetworkCompileExporter::threadFinished()
 
 		if (loadedOk)
 		{
-			scriptnode::dll::HostFactory f(editor->dllManager->projectDll);
+			scriptnode::dll::DynamicLibraryHostFactory f(editor->dllManager->projectDll);
 
 			StringArray list;
 			

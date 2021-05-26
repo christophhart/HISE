@@ -163,22 +163,22 @@ void OpaqueNode::fillParameterList(ParameterDataList& pList)
 namespace dll
 {
 
-String PluginFactory::getId(int index) const
+String StaticLibraryHostFactory::getId(int index) const
 {
 	return items[index].id;
 }
 
-int PluginFactory::getNumNodes() const
+int StaticLibraryHostFactory::getNumNodes() const
 {
 	return items.size();
 }
 
-int PluginFactory::getWrapperType(int index) const
+int StaticLibraryHostFactory::getWrapperType(int index) const
 {
 	return items[index].isModNode ? 1 : 0;
 }
 
-bool PluginFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible)
+bool StaticLibraryHostFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible)
 {
 	if (polyphonicIfPossible && items[index].pf)
 		items[index].pf(n);
@@ -192,23 +192,23 @@ bool PluginFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool po
 	return true;
 }
 
-int PluginFactory::getNumDataObjects(int index, int dataTypeAsInt) const
+int StaticLibraryHostFactory::getNumDataObjects(int index, int dataTypeAsInt) const
 {
 	return items[index].numDataObjects[dataTypeAsInt];
 }
 
-HostFactory::HostFactory(ProjectDll::Ptr dll_) :
+DynamicLibraryHostFactory::DynamicLibraryHostFactory(ProjectDll::Ptr dll_) :
 	projectDll(dll_)
 {
 	jassert(projectDll != nullptr);
 }
 
-HostFactory::~HostFactory()
+DynamicLibraryHostFactory::~DynamicLibraryHostFactory()
 {
 	projectDll = nullptr;
 }
 
-int HostFactory::getNumNodes() const
+int DynamicLibraryHostFactory::getNumNodes() const
 {
 	if (projectDll != nullptr)
 		return projectDll->getNumNodes();
@@ -216,7 +216,7 @@ int HostFactory::getNumNodes() const
 	return 0;
 }
 
-String HostFactory::getId(int index) const
+String DynamicLibraryHostFactory::getId(int index) const
 {
 	if (projectDll != nullptr)
 		return projectDll->getNodeId(index);
@@ -224,7 +224,7 @@ String HostFactory::getId(int index) const
 	return {};
 }
 
-bool HostFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible)
+bool DynamicLibraryHostFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible)
 {
 	if (projectDll != nullptr)
 	{
@@ -243,7 +243,7 @@ bool HostFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool poly
 	return false;
 }
 
-int HostFactory::getNumDataObjects(int index, int dataTypeAsInt) const
+int DynamicLibraryHostFactory::getNumDataObjects(int index, int dataTypeAsInt) const
 {
 	if (projectDll != nullptr)
 		return projectDll->getNumDataObjects(index, dataTypeAsInt);
@@ -251,7 +251,7 @@ int HostFactory::getNumDataObjects(int index, int dataTypeAsInt) const
 	return 0;
 }
 
-int HostFactory::getWrapperType(int index) const
+int DynamicLibraryHostFactory::getWrapperType(int index) const
 {
 	if (projectDll != nullptr)
 		return projectDll->getWrapperType(index);

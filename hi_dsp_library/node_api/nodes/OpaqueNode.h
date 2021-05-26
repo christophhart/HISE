@@ -269,8 +269,72 @@ public:
 
 namespace dll
 {
+	
+
+	/** The base class for both factory types. */
+	struct FactoryBase
+	{
+		virtual ~FactoryBase() {};
+		virtual int getNumNodes() const = 0;
+		virtual String getId(int index) const = 0;
+		virtual bool initOpaqueNode(OpaqueNode* n, int index, bool polyphonicIfPossible) = 0;
+		virtual int getNumDataObjects(int index, int dataTypeAsInt) const = 0;
+		virtual int getWrapperType(int index) const = 0;
+
+	};
+
+	/** A Factory that initialises the nodes using the templated OpaqueNode::create function.
+	
+		This will be used inside the project DLL (or the compiled plugin when the project nodes
+		are embedded into the code. 
+	*/
+	struct StaticLibraryHostFactory : public FactoryBase
+	{
+		struct Item
+		{
+			String id;
+			bool isModNode = false;
+			std::function<void(scriptnode::OpaqueNode* n)> f;
+			std::function<void(scriptnode::OpaqueNode* n)> pf;
+			int numDataObjects[(int)ExternalData::DataType::numDataTypes];
+		};
+
+		Array<Item> items;
+
+		String getId(int index) const override;
+		int getNumNodes() const override;
+
+		int getWrapperType(int index) const override;
+
+		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible) override;
+
+		int getNumDataObjects(int index, int dataTypeAsInt) const override;
+
+		template <typename T, typename PolyT> void registerPolyNode()
+		{
+			registerNode<T>();
+			items.getReference(items.size() - 1).pf = [](scriptnode::OpaqueNode* n) { n->create<PolyT>(); };
+		}
+
+		template <typename T> void registerNode()
+		{
+			Item i;
+			i.id = T::MetadataClass::getStaticId().toString();
+			i.isModNode = T::isModNode();
+			i.f = [](scriptnode::OpaqueNode* n) { n->create<T>(); };
+
+			i.numDataObjects[(int)ExternalData::DataType::Table] = T::NumTables;
+			i.numDataObjects[(int)ExternalData::DataType::SliderPack] = T::NumSliderPacks;
+			i.numDataObjects[(int)ExternalData::DataType::AudioFile] = T::NumAudioFiles;
+			i.numDataObjects[(int)ExternalData::DataType::FilterCoefficients] = T::NumFilters;
+			i.numDataObjects[(int)ExternalData::DataType::DisplayBuffer] = T::NumDisplayBuffers;
+
+			items.add(i);
+		}
+	};
+
 	/** A reference counted object around a dynamic library and functions
-	    for creating / querying node specs. */
+		for creating / querying node specs. */
 	struct ProjectDll : public ReferenceCountedObject
 	{
 		using Ptr = ReferenceCountedObjectPtr<ProjectDll>;
@@ -319,68 +383,6 @@ namespace dll
 		ScopedPointer<DynamicLibrary> dll;
 	};
 
-	/** The base class for both factory types. */
-	struct FactoryBase
-	{
-		virtual ~FactoryBase() {};
-		virtual int getNumNodes() const = 0;
-		virtual String getId(int index) const = 0;
-		virtual bool initOpaqueNode(OpaqueNode* n, int index, bool polyphonicIfPossible) = 0;
-		virtual int getNumDataObjects(int index, int dataTypeAsInt) const = 0;
-		virtual int getWrapperType(int index) const = 0;
-
-	};
-
-	/** A Factory that initialises the nodes using the templated OpaqueNode::create function.
-	
-		This will be used inside the project DLL (or the compiled plugin when the project nodes
-		are embedded into the code. 
-	*/
-	struct PluginFactory : public FactoryBase
-	{
-		struct Item
-		{
-			String id;
-			bool isModNode = false;
-			std::function<void(scriptnode::OpaqueNode* n)> f;
-			std::function<void(scriptnode::OpaqueNode* n)> pf;
-			int numDataObjects[(int)ExternalData::DataType::numDataTypes];
-		};
-
-		Array<Item> items;
-
-		String getId(int index) const override;
-		int getNumNodes() const override;
-
-		int getWrapperType(int index) const override;
-
-		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible) override;
-
-		int getNumDataObjects(int index, int dataTypeAsInt) const override;
-
-		template <typename T, typename PolyT> void registerPolyNode()
-		{
-			registerNode<T>();
-			items.getReference(items.size() - 1).pf = [](scriptnode::OpaqueNode* n) { n->create<PolyT>(); };
-		}
-
-		template <typename T> void registerNode()
-		{
-			Item i;
-			i.id = T::MetadataClass::getStaticId().toString();
-			i.isModNode = T::isModNode();
-			i.f = [](scriptnode::OpaqueNode* n) { n->create<T>(); };
-
-			i.numDataObjects[(int)ExternalData::DataType::Table] = T::NumTables;
-			i.numDataObjects[(int)ExternalData::DataType::SliderPack] = T::NumSliderPacks;
-			i.numDataObjects[(int)ExternalData::DataType::AudioFile] = T::NumAudioFiles;
-			i.numDataObjects[(int)ExternalData::DataType::FilterCoefficients] = T::NumFilters;
-			i.numDataObjects[(int)ExternalData::DataType::DisplayBuffer] = T::NumDisplayBuffers;
-
-			items.add(i);
-		}
-	};
-
 	/** The factory that creates the nodes on the host side.
 	
 		It will call into the provided dll and initialise the given opaque node using
@@ -389,27 +391,22 @@ namespace dll
 		It uses a reference counted pointer to the given DLL object, so creating and
 		using these is very lightweight.
 	*/
-	struct HostFactory : public FactoryBase
+	struct DynamicLibraryHostFactory : public FactoryBase
 	{
-		HostFactory(ProjectDll::Ptr dll_);
+		DynamicLibraryHostFactory(ProjectDll::Ptr dll_);
 
-		~HostFactory();
+		~DynamicLibraryHostFactory();
 
 		int getNumNodes() const override;
-
 		String getId(int index) const override;
-
 		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible) override;
-
 		int getNumDataObjects(int index, int dataTypeAsInt) const override;
-
 		int getWrapperType(int index) const override;
 
 	private:
 
 		ProjectDll::Ptr projectDll;
 	};
-
 }
 
 } 

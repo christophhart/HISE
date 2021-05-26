@@ -75,3 +75,4 @@
 
 #include "snex_workbench/DspNetworkWorkbench.cpp"
 #include "snex_workbench/WorkbenchProcessor.cpp"
+#include "snex_workbench/BackendHostFactory.cpp"

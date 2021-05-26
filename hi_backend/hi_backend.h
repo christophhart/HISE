@@ -89,6 +89,7 @@ END_JUCE_MODULE_DECLARATION
 
 #include "snex_workbench/DspNetworkWorkbench.h"
 #include "snex_workbench/WorkbenchProcessor.h"
+#include "snex_workbench/BackendHostFactory.h"
 
 
 

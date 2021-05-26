@@ -171,7 +171,7 @@ public:
 		return nullptr;
 	}
 
-	void initFromDll(dll::HostFactory& f, int index, bool addDragger)
+	void initFromDll(dll::DynamicLibraryHostFactory& f, int index, bool addDragger)
 	{
 		f.initOpaqueNode(&obj.getWrappedObject(), index, asWrapperNode()->getRootNetwork()->isPolyphonic());
 		this->obj.initialise(asWrapperNode());

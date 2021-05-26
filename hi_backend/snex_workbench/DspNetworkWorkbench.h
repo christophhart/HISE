@@ -33,24 +33,6 @@
 #pragma once
 
 
-namespace scriptnode
-{
-	namespace dll
-	{
-		struct FunkyHostFactory : public scriptnode::NodeFactory
-		{
-			FunkyHostFactory(DspNetwork* n, dll::ProjectDll::Ptr dll);
-
-			Identifier getId() const override
-			{
-				RETURN_STATIC_IDENTIFIER("project");
-			}
-
-			HostFactory dllFactory;
-		};
-
-	}
-}
 
 
 

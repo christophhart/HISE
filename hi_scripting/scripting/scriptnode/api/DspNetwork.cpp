@@ -90,7 +90,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	{
 		if (ah->projectDll != nullptr)
 		{
-			ownedFactories.add(new dll::FunkyHostFactory(this, ah->projectDll));
+			ownedFactories.add(new dll::BackendHostFactory(this, ah->projectDll));
 
 			projectNodeHolder.init(ah->projectDll);
 		}
