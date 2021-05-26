@@ -122,9 +122,25 @@ struct PostGraphicsRenderer
 
 	void addNoise(float noiseAmount);
 
+	void addPerlinNoise(float freq, float octave, float z, float gain);
+
 	void gaussianBlur(int blur);
 
 	void boxBlur(int blur);
+
+	void stackBlur(int blur);
+
+	void applyHSL(float h, float s, float l);
+
+	void applyGamma(float g);
+
+	void applyGradientMap(ColourGradient g);
+
+	void applySharpness(int delta);
+
+	void applySepia();
+
+	void applyVignette(float amount, float radius, float falloff);
 
 private:
 
@@ -133,6 +149,7 @@ private:
 	DataStack& stack;
 	int stackIndex = 0;
 	Image::BitmapData bd;
+	Image img;
 };
 
 

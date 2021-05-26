@@ -3747,6 +3747,7 @@ colour(Colour(0xff777777))
 	setMethod("setColour", Wrapper::setColour);
 	setMethod("clear", Wrapper::clear);
 	setMethod("createPath", Wrapper::createPath);
+	setMethod("createShader", Wrapper::createShader);
 }
 
 ScriptingApi::Content::~Content()
@@ -4505,6 +4506,13 @@ void ScriptingApi::Content::suspendPanelTimers(bool shouldBeSuspended)
 			sp->suspendTimer(shouldBeSuspended);
 		}
 	}
+}
+
+var ScriptingApi::Content::createShader(const String& fileName)
+{
+	auto f = new ScriptingObjects::ScriptShader(getScriptProcessor());
+	f->setFragmentShader(fileName);
+	return var(f);
 }
 
 #undef ADD_TO_TYPE_SELECTOR

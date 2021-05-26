@@ -162,6 +162,7 @@ END_JUCE_MODULE_DECLARATION
 
 #if !HISE_NO_GUI_TOOLS
 
+#include "gin_images/gin_imageeffects.h"
 #include "hi_tools/PostGraphicsRenderer.h"
 
 #include "hi_markdown/MarkdownHeader.h"

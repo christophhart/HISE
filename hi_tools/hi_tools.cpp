@@ -65,6 +65,12 @@
 
 #if !HISE_NO_GUI_TOOLS
 
+
+#include "gin_images/gin_imageutilities.h"
+#include "gin_images/gin_imageeffects_blending.cpp"
+#include "gin_images/gin_imageeffects_stackblur.cpp"
+#include "gin_images/gin_imageeffects.cpp"
+#include "gin_images/gin_imageutilities.cpp"
 #include "hi_tools/PostGraphicsRenderer.cpp"
 
 #include "hi_standalone_components/CodeEditorApiBase.cpp"

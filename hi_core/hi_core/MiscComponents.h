@@ -260,6 +260,8 @@ struct DrawActions
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ActionBase);
 	};
 
+	
+
 	class ActionLayer : public ActionBase
 	{
 	public:
@@ -308,13 +310,35 @@ struct DrawActions
 			postActions.add(a);
 		}
 
-	private:
+	protected:
 
 		bool drawOnParent = false;
 
 		OwnedArray<ActionBase> internalActions;
 		OwnedArray<PostActionBase> postActions;
 		PostGraphicsRenderer::DataStack stack;
+	};
+
+	class BlendingLayer : public ActionLayer
+	{
+	public:
+
+		BlendingLayer(gin::BlendMode m, float alpha_) :
+			ActionLayer(true),
+			blendMode(m),
+			alpha(alpha_)
+		{
+
+		}
+
+		bool wantsCachedImage() const override { return true; }
+
+		void perform(Graphics& g) override;
+
+		float alpha;
+		ReferenceCountedArray<ActionBase> actions;
+		Image blendSource;
+		gin::BlendMode blendMode;
 	};
 
 	struct Handler: private AsyncUpdater
@@ -349,6 +373,15 @@ struct DrawActions
 				return false;
 			}
 
+			bool wantsToDrawOnParent() const
+			{
+				for (auto action : actionsInIterator)
+					if (action != nullptr && action->wantsToDrawOnParent())
+						return true;
+
+				return false;
+			}
+
 			int index = 0;
 			ReferenceCountedArray<ActionBase> actionsInIterator;
 		};
@@ -365,6 +398,8 @@ struct DrawActions
 		{
 			currentActions.clear();
 		}
+
+		bool beginBlendLayer(const Identifier& blendMode, float alpha);
 
 		void beginLayer(bool drawOnParent)
 		{
@@ -437,6 +472,7 @@ class BorderPanel : public MouseCallbackComponent,
                     public SafeChangeListener,
 					public SettableTooltipClient,
 				    public ButtonListener,
+					public OpenGLRenderer,
 					public DrawActions::Handler::Listener
 {
 public:
@@ -446,13 +482,43 @@ public:
 	BorderPanel(DrawActions::Handler* drawHandler);
 	~BorderPanel();
 
+	void newOpenGLContextCreated() override
+	{
+		jassertfalse;
+	}
+
+	void renderOpenGL() override
+	{
+		auto& ctx = srs->t.contextHolder->context;
+
+		
+		
+		
+	}
+
+	void openGLContextClosing() override
+	{
+		jassertfalse;
+	}
+
 	void newPaintActionsAvailable() override { repaint(); }
 
 	void paint(Graphics &g);
 	Colour c1, c2, borderColour;
 
+	void registerToTopLevelComponent()
+	{
+		if (srs == nullptr)
+		{
+			if (auto tc = findParentComponentOfClass<TopLevelWindowWithOptionalOpenGL>())
+				srs = new TopLevelWindowWithOptionalOpenGL::ScopedRegisterState(*tc, this);
+		}
+	}
+
 	void resized() override
 	{
+		registerToTopLevelComponent();
+
 		if (isPopupPanel)
 		{
 			closeButton.setBounds(getWidth() - 24, 0, 24, 24);
@@ -477,6 +543,8 @@ public:
 
 	// ================================================================================================================
 
+	ScopedPointer<TopLevelWindowWithOptionalOpenGL::ScopedRegisterState> srs;
+
 	bool recursion = false;
 
 	float borderRadius;
@@ -490,6 +558,7 @@ public:
 
 	WeakReference<DrawActions::Handler> drawHandler;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(BorderPanel);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BorderPanel);
 	
 	// ================================================================================================================

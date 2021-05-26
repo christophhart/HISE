@@ -2591,6 +2591,8 @@ public:
 
 	float getPixelSize() const { return pixelSizeInFloat; }
 
+	float getTotalScaleFactor() const { return sf; }
+
 private:
 
 

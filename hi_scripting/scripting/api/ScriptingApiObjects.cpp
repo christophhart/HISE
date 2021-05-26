@@ -3407,6 +3407,16 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyMask);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, beginLayer);
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, endLayer);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, beginBlendLayer);
+
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyHSL);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, applyGamma);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, applyGradientMap);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, applySharpness);
+	API_VOID_METHOD_WRAPPER_0(GraphicsObject, applySepia);
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyVignette);
+	API_VOID_METHOD_WRAPPER_4(GraphicsObject, addPerlinNoise);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, applyShader);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -3444,7 +3454,18 @@ rectangleResult(Result::ok())
 	ADD_API_METHOD_0(desaturate);
 	ADD_API_METHOD_1(addNoise);
 	ADD_API_METHOD_3(applyMask);
+
+	ADD_API_METHOD_4(addPerlinNoise);
+	ADD_API_METHOD_3(applyHSL);
+	ADD_API_METHOD_1(applyGamma);
+	ADD_API_METHOD_2(applyGradientMap);
+	ADD_API_METHOD_1(applySharpness);
+	ADD_API_METHOD_0(applySepia);
+	ADD_API_METHOD_3(applyVignette);
+	ADD_API_METHOD_2(applyShader);
+
 	ADD_API_METHOD_0(endLayer);
+	ADD_API_METHOD_2(beginBlendLayer);
 }
 
 struct ScriptedPostDrawActions
@@ -3501,6 +3522,125 @@ struct ScriptedPostDrawActions
 		float noise;
 	};
 
+	struct applyHSL : public DrawActions::PostActionBase
+	{
+		applyHSL(float hue, float sat, float light) :
+			h(hue),
+			s(sat),
+			l(light)
+		{}
+
+		bool needsStackData() const override { return false; }
+
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.applyHSL(h, s, l);
+			
+		}
+
+		float h, s, l;
+	};
+
+	struct applyGradientMap : public DrawActions::PostActionBase
+	{
+		applyGradientMap(Colour c1_, Colour c2_) :
+			c1(c1_),
+			c2(c2_)
+		{}
+
+		bool needsStackData() const override { return false; }
+
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.applyGradientMap(ColourGradient(c1, {}, c2, {}, false));
+		}
+
+		Colour c1, c2;
+	};
+
+	struct applyGamma : public DrawActions::PostActionBase
+	{
+		applyGamma(float gamma_) :
+			gamma(gamma_)
+		{}
+
+		bool needsStackData() const override { return false; }
+
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.applyGamma(gamma);
+		}
+
+		float gamma;
+	};
+
+	struct applySharpness : public DrawActions::PostActionBase
+	{
+		applySharpness(int d) :
+			delta(d)
+		{}
+
+		bool needsStackData() const override { return false; }
+
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.applySharpness(delta);
+		}
+
+		int delta;
+	};
+
+	struct applyVignette : public DrawActions::PostActionBase
+	{
+		applyVignette(float amount_, float radius_, float falloff_) :
+			amount(amount_),
+			radius(radius_),
+			falloff(falloff_)
+		{}
+
+		bool needsStackData() const override { return false; }
+
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.applyVignette(amount, radius, falloff);
+		}
+
+		float amount, radius, falloff;
+	};
+
+	struct applySepia : public DrawActions::PostActionBase
+	{
+		applySepia() = default;
+
+		bool needsStackData() const override { return false; }
+
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.applySepia();
+		}
+	};
+
+	struct addPerlinNoise : public DrawActions::PostActionBase
+	{
+		addPerlinNoise(float freq, float octave, float z_, float amount) :
+			f(freq),
+			o(octave),
+			z(z_),
+			a(amount)
+		{};
+
+		bool needsStackData() const override { return false; }
+
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.addPerlinNoise(f, o, z, a);
+		}
+
+		float f, o, z, a;
+	};
+
+	
+
 	struct applyMask : public DrawActions::PostActionBase
 	{
 		applyMask(const Path& p, bool i) : path(p), invert(i) {};
@@ -3526,6 +3666,11 @@ void ScriptingObjects::GraphicsObject::beginLayer(bool drawOnParent)
 	drawActionHandler.beginLayer(drawOnParent);
 }
 
+void ScriptingObjects::GraphicsObject::beginBlendLayer(String blendMode, float alpha)
+{
+	drawActionHandler.beginBlendLayer(Identifier(blendMode), alpha);
+}
+
 void ScriptingObjects::GraphicsObject::endLayer()
 {
 	drawActionHandler.endLayer();
@@ -3549,6 +3694,65 @@ void ScriptingObjects::GraphicsObject::boxBlur(var blurAmount)
 	}
 	else
 		reportScriptError("You need to create a layer for box blur");
+}
+
+void ScriptingObjects::GraphicsObject::applyHSL(float hue, float saturation, float lightness)
+{
+	if (auto cl = drawActionHandler.getCurrentLayer())
+		cl->addPostAction(new ScriptedPostDrawActions::applyHSL(hue, saturation, lightness));
+	else
+		reportScriptError("You need to create a layer for applying HSL");
+}
+
+void ScriptingObjects::GraphicsObject::applyGamma(float gamma)
+{
+	if (auto cl = drawActionHandler.getCurrentLayer())
+		cl->addPostAction(new ScriptedPostDrawActions::applyGamma(gamma));
+	else
+		reportScriptError("You need to create a layer for applying gamma");
+}
+
+void ScriptingObjects::GraphicsObject::applyGradientMap(var darkColour, var brightColour)
+{
+	auto c1 = ScriptingApi::Content::Helpers::getCleanedObjectColour(darkColour);
+	auto c2 = ScriptingApi::Content::Helpers::getCleanedObjectColour(brightColour);
+
+	if (auto cl = drawActionHandler.getCurrentLayer())
+		cl->addPostAction(new ScriptedPostDrawActions::applyGradientMap(c1, c2));
+	else
+		reportScriptError("You need to create a layer for applyGradientMap");
+}
+
+void ScriptingObjects::GraphicsObject::applySharpness(int delta)
+{
+	if (auto cl = drawActionHandler.getCurrentLayer())
+		cl->addPostAction(new ScriptedPostDrawActions::applySharpness(delta));
+	else
+		reportScriptError("You need to create a layer for applySharpness");
+}
+
+void ScriptingObjects::GraphicsObject::applySepia()
+{
+	if (auto cl = drawActionHandler.getCurrentLayer())
+		cl->addPostAction(new ScriptedPostDrawActions::applySepia());
+	else
+		reportScriptError("You need to create a layer for applySepia");
+}
+
+void ScriptingObjects::GraphicsObject::addPerlinNoise(double freq, double octave, double z, float amount)
+{
+	if (auto cl = drawActionHandler.getCurrentLayer())
+		cl->addPostAction(new ScriptedPostDrawActions::addPerlinNoise(freq, octave, z, amount));
+	else
+		reportScriptError("You need to create a layer for addPerlinNoise");
+}
+
+void ScriptingObjects::GraphicsObject::applyVignette(float amount, float radius, float falloff)
+{
+	if (auto cl = drawActionHandler.getCurrentLayer())
+		cl->addPostAction(new ScriptedPostDrawActions::applyVignette(amount, radius, falloff));
+	else
+		reportScriptError("You need to create a layer for applySepia");
 }
 
 void ScriptingObjects::GraphicsObject::addNoise(var noiseAmount)
@@ -3785,6 +3989,36 @@ struct ScriptedDrawActions
 
 		DropShadow shadow;
 	};
+
+	struct addShader : public DrawActions::ActionBase
+	{
+		addShader(ScriptingObjects::ScriptShader* o, Rectangle<int> b):
+			obj(o),
+			bounds(b)
+		{
+
+		}
+
+		void perform(Graphics& g) override
+		{
+			if (obj != nullptr && obj->shader != nullptr)
+			{
+				if (obj->dirty)
+				{
+					obj->r = obj->shader->checkCompilation(g.getInternalContext());
+					obj->dirty = false;
+				}
+
+				if (obj->r.wasOk())
+				{
+					obj->shader->fillRect(g.getInternalContext(), bounds);
+				}
+			}
+		}
+
+		WeakReference<ScriptingObjects::ScriptShader> obj;
+		Rectangle<int> bounds;
+	};
 };
 
 
@@ -3900,6 +4134,8 @@ void ScriptingObjects::GraphicsObject::drawEllipse(var area, float lineThickness
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawEllipse(getRectangleFromVar(area), lineThickness));
 }
 
+
+
 void ScriptingObjects::GraphicsObject::fillEllipse(var area)
 {
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillEllipse(getRectangleFromVar(area)));
@@ -3991,6 +4227,15 @@ void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(var colour, int ra
 	shadow.radius = radius;
 
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::addDropShadowFromAlpha(shadow));
+}
+
+void ScriptingObjects::GraphicsObject::applyShader(var shader, var area)
+{
+	if (auto obj = dynamic_cast<ScriptingObjects::ScriptShader*>(shader.getObject()))
+	{
+		Rectangle<int> b = getRectangleFromVar(area).toNearestInt();
+		drawActionHandler.addDrawAction(new ScriptedDrawActions::addShader(obj, b));
+	}
 }
 
 void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
@@ -5595,6 +5840,71 @@ juce::ValueTree ApiHelpers::getApiTree()
 
 
 
+struct ScriptingObjects::ScriptShader::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptShader, setFragmentShader);
+	API_VOID_METHOD_WRAPPER_2(ScriptShader, setUniformData);
+};
 
+ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) :
+	ConstScriptingObject(sp, 0),
+	r(Result::fail("uncompiled"))
+{
+	ADD_API_METHOD_1(setFragmentShader);
+	ADD_API_METHOD_2(setUniformData);
+}
+
+void ScriptingObjects::ScriptShader::setFragmentShader(const String& shaderFile)
+{
+	auto f = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(getScriptProcessor())).getSubDirectory(FileHandlerBase::Scripts).getChildFile(shaderFile).withFileExtension("glsl");
+
+	shaderCode = f.loadFileAsString();
+
+	shader = new OpenGLGraphicsContextCustomShader(shaderCode);
+
+	WeakReference<ScriptShader> safeShader(this);
+
+	shader->onShaderActivated = [safeShader](juce::OpenGLShaderProgram& pr)
+	{
+		if (safeShader == nullptr)
+			return;
+
+		for (const auto& p : safeShader->uniformData)
+		{
+			const auto& v = p.value;
+
+			auto name = p.name.toString().getCharPointer().getAddress();
+
+			if (v.isArray())
+			{
+				if (v.getArray()->size() == 2)
+					pr.setUniform(name, (float)v[0], (float)v[1]);
+				if (v.getArray()->size() == 3)
+				{
+					pr.setUniform(name, (float)v[0], (float)v[1], (float)v[2]);
+				}
+				if (v.getArray()->size() == 4)
+				{
+					pr.setUniform(name, (float)v[0], (float)v[1], (float)v[2], (float)v[3]);
+				}
+			}
+			if (v.isDouble())
+			{
+				pr.setUniform(name, (float)v);
+			}
+			if (v.isBuffer())
+			{
+				pr.setUniform(name, v.getBuffer()->buffer.getReadPointer(0), v.getBuffer()->size);
+			}
+		}
+	};
+
+	dirty = true;
+}
+
+void ScriptingObjects::ScriptShader::setUniformData(const String& id, var data)
+{
+	uniformData.set(Identifier(id), data);
+}
 
 } // namespace hise

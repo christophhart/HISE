@@ -3246,8 +3246,6 @@ UnblurryGraphics::UnblurryGraphics(Graphics& g_, Component& componentToDrawOn, b
 
 		pixelSizeInFloat = 1.0f / sf;
 
-		
-
 		if (pixelSizeInFloat == 0.0f)
 			pixelSizeInFloat = 1.0f;
 

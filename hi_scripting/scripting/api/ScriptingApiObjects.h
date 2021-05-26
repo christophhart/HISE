@@ -432,6 +432,36 @@ public:
 		struct Wrapper;
 	};
 
+	class ScriptShader : public ConstScriptingObject
+	{
+	public:
+
+		ScriptShader(ProcessorWithScriptingContent* sp);;
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptShader"); }
+
+		// =============================================================== API Methods
+
+		void setFragmentShader(const String& shaderFile);
+
+		/** Sets an uniform variable to be used in the shader code. */
+		void setUniformData(const String& id, var data);
+
+		// ===========================================================================
+
+		struct Wrapper;
+
+		String shaderCode;
+		NamedValueSet uniformData;
+
+		ScopedPointer<juce::OpenGLGraphicsContextCustomShader> shader;
+		bool dirty = false;
+
+		Result r;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptShader);
+	};
+
 	class ScriptTableData : public ScriptComplexDataReferenceBase
 	{
 	public:
@@ -1538,8 +1568,11 @@ public:
 		
 		// ============================================================================================================ API Methods
 
-		/** Starts a new Layer. If cre */
+		/** Starts a new Layer. */
 		void beginLayer(bool drawOnParent);
+
+		/** Begins a new layer that will use the given blend effect. */
+		void beginBlendLayer(String blendMode, float alpha);
 
 		/** flushes the current layer. */
 		void endLayer();
@@ -1601,6 +1634,27 @@ public:
 		/** Draws a ellipse in the given area. */
 		void drawEllipse(var area, float lineThickness);
 		
+		/** Applies a HSL grading on the current layer. */
+		void applyHSL(float hue, float saturation, float lightness);
+
+		/** Applies a gamma correction to the current layer. */
+		void applyGamma(float gamma);
+
+		/** Applies a gradient map to the brightness level of the current layer. */
+		void applyGradientMap(var darkColour, var brightColour);
+
+		/** Applies a sharpen / soften filter on the current layer. */
+		void applySharpness(int delta);
+
+		/** Applies an oldschool sepia filter on the current layer. */
+		void applySepia();
+
+		/** Applies Perlin Noise to the current layer. */
+		void addPerlinNoise(double freq, double octave, double z, float amount);
+
+		/** Applies a vignette (dark corners on the current layer. */
+		void applyVignette(float amount, float radius, float falloff);
+
 		/** Fills a ellipse in the given area. */
 		void fillEllipse(var area);
 
@@ -1618,6 +1672,10 @@ public:
 
 		/** Adds a drop shadow based on the alpha values of the current image. */
 		void addDropShadowFromAlpha(var colour, int radius);
+
+		/** Applies an OpenGL shader to the panel. */
+		void applyShader(var shader, var area);
+		
 
 		/** Fills a Path. */
 		void fillPath(var path, var area);

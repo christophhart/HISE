@@ -1950,6 +1950,9 @@ public:
 	/** Creates a Path that can be drawn to a ScriptPanel. */
 	var createPath();
 
+	/** Creates an OpenGL framgent shader. */
+	var createShader(const String& fileName);
+
 	/** Sets the colour for the panel. */
 	void setColour(int red, int green, int blue) { colour = Colour((uint8)red, (uint8)green, (uint8)blue); };
 
