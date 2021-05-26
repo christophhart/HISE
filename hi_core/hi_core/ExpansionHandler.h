@@ -373,6 +373,17 @@ public:
 			ignoreUnused(currentExpansion);
 		};
 
+		/** This callback will be called whenever a new expansion has been installed (and initialised). */
+		virtual void expansionInstalled(Expansion* newExpansion)
+		{
+			ignoreUnused(newExpansion);
+		}
+
+		virtual void expansionInstallStarted(const File& targetRoot, const File& packageFile, const File& sampleDirectory)
+		{
+			ignoreUnused(targetRoot, packageFile, sampleDirectory);
+		}
+
 		/** Can be used to handle error messages. */
 		virtual void logMessage(const String& message, bool isCritical) 
 		{
@@ -453,6 +464,8 @@ public:
 	}
 
 	bool installFromResourceFile(const File& f, const File& sampleDirectoryToUse);
+
+	File getExpansionTargetFolder(const File& resourceFile);
 
 	PooledAudioFile loadAudioFileReference(const PoolReference& sampleId);
 
