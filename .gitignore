@@ -98,3 +98,6 @@ tools/projucer/ProjucerBAK.app/Contents/PkgInfo
 tools/projucer/ProjucerBAK.app/Contents/Resources/Icon.icns
 tools/projucer/ProjucerBAK.app/Contents/Resources/RecentFilesMenuTemplate.nib
 projects/standalone/HISE Standalone.jucer
+tools/snex_workbench_plugin/Builds/
+tools/snex_workbench_plugin/JuceLibraryCode/include_hi_backend.cpp
+tools/snex_workbench_plugin/JuceLibraryCode/

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="ZPbsMp" name="snex_workbench_plugin" projectType="audioplug"
+              jucerVersion="5.4.3" pluginCharacteristicsValue="pluginEditorRequiresKeys,pluginWantsMidiIn"
+              cppLanguageStandard="17" companyName="HISE" pluginFormats="buildVST">
+  <MAINGROUP id="WqFEx6" name="snex_workbench_plugin">
+    <GROUP id="{4ABEF564-A84F-20B0-A154-FD0E9A4812B6}" name="Source">
+      <FILE id="sllGCI" name="balanceKnob_200.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/balanceKnob_200.png"/>
+      <FILE id="d13Fu5" name="FrontendKnob_Bipolar.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/FrontendKnob_Bipolar.png"/>
+      <FILE id="CTBTlm" name="FrontendKnob_Unipolar.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/FrontendKnob_Unipolar.png"/>
+      <FILE id="HWtLoD" name="infoError.png" compile="0" resource="1" file="../../hi_core/hi_images/infoError.png"/>
+      <FILE id="hZ3DXg" name="infoInfo.png" compile="0" resource="1" file="../../hi_core/hi_images/infoInfo.png"/>
+      <FILE id="iON4fp" name="infoQuestion.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/infoQuestion.png"/>
+      <FILE id="QR49hC" name="infoWarning.png" compile="0" resource="1" file="../../hi_core/hi_images/infoWarning.png"/>
+      <FILE id="VHw0yO" name="knob_without_arrow.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/knob_without_arrow.png"/>
+      <FILE id="tOxXza" name="knobEmpty_200.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/knobEmpty_200.png"/>
+      <FILE id="aVY5n1" name="knobModulated_200.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/knobModulated_200.png"/>
+      <FILE id="vVlufy" name="knobUnmodulated_200.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/knobUnmodulated_200.png"/>
+      <FILE id="CtggWf" name="logo_mini.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_mini.png"/>
+      <FILE id="ElvLV3" name="logo_new.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_new.png"/>
+      <FILE id="RM3RAv" name="oxygen.bold.ttf" compile="0" resource="1" file="../../hi_core/hi_images/oxygen.bold.ttf"/>
+      <FILE id="PTD3ie" name="oxygen.mono.regular.otf" compile="0" resource="1"
+            file="../../hi_core/hi_images/oxygen.mono.regular.otf"/>
+      <FILE id="S8S4JK" name="oxygen.regular.ttf" compile="0" resource="1"
+            file="../../hi_core/hi_images/oxygen.regular.ttf"/>
+      <FILE id="vox0Bd" name="toggle_200.png" compile="0" resource="1" file="../../hi_core/hi_images/toggle_200.png"/>
+      <FILE id="BR3LIG" name="PluginProcessor.cpp" compile="1" resource="0"
+            file="Source/PluginProcessor.cpp"/>
+      <FILE id="imSp1S" name="PluginProcessor.h" compile="0" resource="0"
+            file="Source/PluginProcessor.h"/>
+      <FILE id="cj8rY3" name="PluginEditor.cpp" compile="1" resource="0"
+            file="Source/PluginEditor.cpp"/>
+      <FILE id="JehO8e" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
+    </GROUP>
+  </MAINGROUP>
+  <EXPORTFORMATS>
+    <XCODE_MAC targetFolder="Builds/MacOSX">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug"/>
+        <CONFIGURATION isDebug="0" name="Release"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_core" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
+        <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_components" path="../../"/>
+        <MODULEPATH id="hi_sampler" path="../../"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_modules" path="../../"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="stk_wrapper" path="../../"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+    <VS2017 targetFolder="Builds/VisualStudio2017" extraDefs="USE_IPP=1&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1"
+            IPPLibrary="Sequential">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" headerPath="../../../SDK/VST3 SDK"/>
+        <CONFIGURATION isDebug="0" name="Release"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_core" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
+        <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_components" path="../../"/>
+        <MODULEPATH id="hi_sampler" path="../../"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_modules" path="../../"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="stk_wrapper" path="../../"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+      </MODULEPATHS>
+    </VS2017>
+  </EXPORTFORMATS>
+  <MODULES>
+    <MODULE id="hi_backend" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_components" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_cryptography" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="stk_wrapper" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+  <LIVE_SETTINGS>
+    <WINDOWS/>
+  </LIVE_SETTINGS>
+  <JUCEOPTIONS JUCE_VST3_CAN_REPLACE_VST2="0" USE_BACKEND="1" IS_STANDALONE_APP="0"
+               USE_FRONTEND="0" USE_RAW_FRONTEND="0" HI_EXPORT_DSP_LIBRARY="0"
+               HISE_INCLUDE_SNEX="1" FORCE_INPUT_CHANNELS="1" USE_WORKBENCH_EDITOR="1"/>
+</JUCERPROJECT>
