@@ -160,9 +160,9 @@ template <int NV> struct file_player : public data::base
 		if constexpr (!ProcessDataType::hasCompileTimeSize())
 		{
 			if (data.getNumChannels() == 2)
-				processFix(data.as<ProcessData<2>>());
+				processFix(data.template as<ProcessData<2>>());
 			if (data.getNumChannels() == 1)
-				processFix(data.as<ProcessData<1>>());
+				processFix(data.template as<ProcessData<1>>());
 		}
 		else
 		{

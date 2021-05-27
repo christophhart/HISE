@@ -54,10 +54,7 @@ struct ComponentHelpers
     static void addExtraComponentToDefault(NodeComponent* nc, Component* c);
 };
 
-struct NoExtraComponent
-{
-	static Component* createExtraComponent(void* , PooledUIUpdater*) { return nullptr; }
-};
+
 
 struct OpaqueNodeDataHolder: public data::base,
 						     public ExternalDataHolderWithForcedUpdate,
@@ -124,7 +121,7 @@ public:
 	{
 		obj.getWrappedObject().template create<T>();
 
-		if constexpr (AddDataOffsetToUIPtr && std::is_base_of<data::pimpl::provider_base, T::ObjectType>())
+		if constexpr (AddDataOffsetToUIPtr && std::is_base_of<data::pimpl::provider_base, typename T::ObjectType>())
 		{
 			auto offset = T::ObjectType::getDataOffset();
 			asWrapperNode()->setUIOffset(offset);	
@@ -409,7 +406,7 @@ struct UnisonoNodeBase: public NodeBase::Holder
 	template <int C> void process(ProcessData<C>& d)
 	{
 		if (getRootNode() != nullptr)
-			getRootNode()->process(d.as<ProcessDataDyn>());
+			getRootNode()->process(d.template as<ProcessDataDyn>());
 	}
 
 	void process(ProcessDataDyn& d)
@@ -704,7 +701,7 @@ public:
         
 
     template <class T, 
-				class ComponentType=NoExtraComponent, 
+             class ComponentType=HostHelpers::NoExtraComponent,
 				typename WrapperType=InterpretedNode, 
 				bool AddDataOffsetToUIPtr=true,
 				bool UseNodeBaseAsUI=false> 
@@ -719,7 +716,7 @@ public:
 
     template <class MonoT, 
 				class PolyT, 
-				class ComponentType=NoExtraComponent, 
+				class ComponentType=HostHelpers::NoExtraComponent, 
 				typename WrapperType=InterpretedNode,
 				bool AddDataOffsetToUIPtr=true,
 				bool UseFullNodeAsUIPtr=false>

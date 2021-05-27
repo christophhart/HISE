@@ -274,7 +274,7 @@ namespace control
 				auto v = analyser.getValue(d);
 
 				if (v != 0.0)
-					getParameter().call(v);
+					this->getParameter().call(v);
 			}
 		}
 
@@ -523,7 +523,7 @@ namespace control
 		HISE_ADD_SET_VALUE(dupli_pack);		
 		SN_DESCRIPTION("Scale unisono values using a slider pack");
 		
-		dupli_pack() : duplicate_parameter_node_base<ParameterType>(getStaticId()) {};
+        dupli_pack() : pimpl::duplicate_parameter_node_base<ParameterType>(getStaticId()) {};
 
 		void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType t, var data) override
 		{
@@ -534,7 +534,7 @@ namespace control
 				if (auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
 				{
 					auto v = sp->getValue(changedIndex) * lastValue;
-					getParameter().call(changedIndex, v);
+					this->getParameter().call(changedIndex, v);
 				}
 			}
 
@@ -542,7 +542,7 @@ namespace control
 			{
 				if (auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
 				{
-					if (p.getNumVoices() != sp->getNumSliders())
+					if (this->p.getNumVoices() != sp->getNumSliders())
 						jassertfalse; // resize here?
 				}
 			}
@@ -580,14 +580,14 @@ namespace control
 		{
 			lastValue = newValue;
 
-			int numVoices = p.getNumVoices();
+			int numVoices = this->p.getNumVoices();
 
 			if (numVoices == sliderData.size())
 			{
 				for (int i = 0; i < numVoices; i++)
 				{
 					auto valueToSend = sliderData[i] * lastValue;
-					getParameter().call(i, valueToSend);
+					this->getParameter().call(i, valueToSend);
 				}
 			}
 		}
@@ -603,8 +603,8 @@ namespace control
 		SN_DESCRIPTION("Send different values to unisono nodes");
 
 		dupli_cable():
-			duplicate_parameter_node_base<ParameterType>(getStaticId()), 
-			templated_mode(getStaticId(), "duplilogic")
+            control::pimpl::duplicate_parameter_node_base<ParameterType>(getStaticId()),
+            control::pimpl::templated_mode(getStaticId(), "duplilogic")
 		{};
 
 		enum class Parameters
@@ -646,12 +646,12 @@ namespace control
 
 		void sendValue()
 		{
-			int numVoices = p.getNumVoices();
+			int numVoices = this->p.getNumVoices();
 
 			for (int i = 0; i < numVoices; i++)
 			{
 				auto valueToSend = obj.getValue(i, numVoices, lastValue, lastGamma);
-				getParameter().call(i, valueToSend);
+				this->getParameter().call(i, valueToSend);
 			}
 		}
 

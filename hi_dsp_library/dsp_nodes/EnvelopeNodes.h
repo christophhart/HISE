@@ -48,7 +48,7 @@ namespace pimpl
 {
 template <typename ParameterType> struct envelope_base: public control::pimpl::parameter_node_base<ParameterType>
 {
-	envelope_base(const Identifier& id): parameter_node_base<ParameterType>(id) 
+    envelope_base(const Identifier& id): control::pimpl::parameter_node_base<ParameterType>(id)
 	{
 		cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsPolyphonic);
 		cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsProcessingHiseEvent);
@@ -67,13 +67,13 @@ template <typename ParameterType> struct envelope_base: public control::pimpl::p
 			auto mv = t.getModValue();
 
 			if(mv != lastValue)
-				getParameter().call<0>(mv);
+				this->getParameter().template call<0>(mv);
 		}
 
 		if (thisActive != wasActive)
 		{
-			getParameter().call<1>((double)(int)thisActive);
-			getParameter().call<0>(0.0);
+			this->getParameter().template call<1>((double)(int)thisActive);
+			this->getParameter().template call<0>(0.0);
 		}
 	}
 
@@ -83,8 +83,8 @@ template <typename ParameterType> struct envelope_base: public control::pimpl::p
 
 		if constexpr (!ParameterType::isStaticList())
 		{
-			getParameter().numParameters.storeValue(2, n->getUndoManager());
-			getParameter().updateParameterAmount({}, 2);
+			this->getParameter().numParameters.storeValue(2, nullptr);
+			this->getParameter().updateParameterAmount({}, 2);
 		}
 	}
 
@@ -433,7 +433,7 @@ template <int NV, typename ParameterType> struct simple_ar: public pimpl::envelo
 		{
 			bool value;
 
-			if (handleKeyEvent(e, value))
+			if (this->handleKeyEvent(e, value))
 				setGate(value ? 1.0 : 0.0);
 		}
 	}
@@ -450,7 +450,7 @@ template <int NV, typename ParameterType> struct simple_ar: public pimpl::envelo
 		for (auto& v : d)
 			v *= modValue;
 
-		postProcess(*this, thisActive, thisValue);
+		this->postProcess(*this, thisActive, thisValue);
 	}
 
 	template <typename ProcessDataType> void process(ProcessDataType& d)
@@ -467,7 +467,7 @@ template <int NV, typename ParameterType> struct simple_ar: public pimpl::envelo
 		}
 		else
 		{
-			auto fd = d.as<ProcessData<2>>().toFrameData();
+			auto fd = d.template as<ProcessData<2>>().toFrameData();
 
 			while (fd.next())
 			{
@@ -477,7 +477,7 @@ template <int NV, typename ParameterType> struct simple_ar: public pimpl::envelo
 			}
 		}
 
-		postProcess(*this, thisActive, thisValue);
+		this->postProcess(*this, thisActive, thisValue);
 	}
 
 	void setGate(double v)
@@ -595,7 +595,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		{
 			bool value;
 
-			if (handleKeyEvent(e, value))
+			if (this->handleKeyEvent(e, value))
 				setGate(value ? 1.0 : 0.0);
 		}
 	}
@@ -614,7 +614,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		}
 		else
 		{
-			auto fd = data.as<ProcessData<2>>().toFrameData();
+			auto fd = data.template as<ProcessData<2>>().toFrameData();
 
 			while (fd.next())
 			{
@@ -624,7 +624,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 			}
 		}
 
-		postProcess(*this, thisActive, thisValue);
+		this->postProcess(*this, thisActive, thisValue);
 		updateBallPosition(data.getNumSamples());
 	}
 
@@ -639,7 +639,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		for (auto& v : data)
 			v *= modValue;
 
-		postProcess(*this, thisActive, thisValue);
+		this->postProcess(*this, thisActive, thisValue);
 		updateBallPosition(1);
 	}
 

@@ -13,10 +13,10 @@ namespace gin {
 
 //==============================================================================
 // Run a for loop split between each core.
-// for (int i = 0; i < 10; i++) becomes multiThreadedFor<int> (0, 10, 1, threadPool, [&] (int i) {});
+// for (int i = 0; i < 10; i++) becomes multiThreadedFor (0, 10, 1, threadPool, [&] (int i) {});
 // Make sure each iteration of the loop is independant
-template <typename T>
-void multiThreadedFor(T start, T end, T interval, juce::ThreadPool* threadPool, std::function<void(T idx)> callback)
+
+void multiThreadedFor(int start, int end, int interval, juce::ThreadPool* threadPool, std::function<void(int idx)> callback)
 {
 	if (threadPool == nullptr)
 	{
@@ -116,7 +116,7 @@ void applyVignette (juce::Image& img, float amountIn, float radiusIn, float fall
     Ellipse<double> outE { outA, outB };
     Ellipse<double> inE  { inA,  inB  };
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor (0, h, 1, threadPool, [&] (int y)
     {
         uint8_t* p = data.getLinePointer (y);
 
@@ -182,7 +182,7 @@ void applySepia (juce::Image& img, juce::ThreadPool* threadPool)
 
     juce::Image::BitmapData data (img, juce::Image::BitmapData::readWrite);
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor (0, h, 1, threadPool, [&] (int y)
     {
         uint8_t* p = data.getLinePointer (y);
 
@@ -224,7 +224,7 @@ void applyGreyScale (juce::Image& img, juce::ThreadPool* threadPool)
 
     juce::Image::BitmapData data (img, juce::Image::BitmapData::readWrite);
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor(0, h, 1, threadPool, [&] (int y)
     {
         uint8_t* p = data.getLinePointer (y);
 
@@ -270,7 +270,7 @@ void applySoften (juce::Image& img, juce::ThreadPool* threadPool)
     juce::Image::BitmapData srcData (img, juce::Image::BitmapData::readOnly);
     juce::Image::BitmapData dstData (dst, juce::Image::BitmapData::writeOnly);
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor(0, h, 1, threadPool, [&] (int y)
     {
         for (int x = 0; x < w; x++)
         {
@@ -322,7 +322,7 @@ void applySharpen (juce::Image& img, juce::ThreadPool* threadPool)
     juce::Image::BitmapData srcData (img, juce::Image::BitmapData::readOnly);
     juce::Image::BitmapData dstData (dst, juce::Image::BitmapData::writeOnly);
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor(0, h, 1, threadPool, [&] (int y)
     {
         for (int x = 0; x < w; x++)
         {
@@ -388,7 +388,7 @@ void applyGamma (juce::Image& img, float gamma, juce::ThreadPool* threadPool)
 
     juce::Image::BitmapData data (img, juce::Image::BitmapData::readWrite);
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor(0, h, 1, threadPool, [&] (int y)
     {
         uint8_t* p = data.getLinePointer (y);
 
@@ -428,7 +428,7 @@ void applyInvert (juce::Image& img, juce::ThreadPool* threadPool)
 
     juce::Image::BitmapData data (img, juce::Image::BitmapData::readWrite);
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor(0, h, 1, threadPool, [&] (int y)
     {
         uint8_t* p = data.getLinePointer (y);
 
@@ -471,7 +471,7 @@ void applyContrast (juce::Image& img, float contrast, juce::ThreadPool* threadPo
 
     juce::Image::BitmapData data (img, juce::Image::BitmapData::readWrite);
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor(0, h, 1, threadPool, [&] (int y)
     {
         uint8_t* p = data.getLinePointer (y);
 
@@ -587,7 +587,7 @@ void applyBrightnessContrast (juce::Image& img, float brightness, float contrast
         }
     }
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor(0, h, 1, threadPool, [&] (int y)
     {
         uint8_t* p = data.getLinePointer (y);
 
@@ -652,7 +652,7 @@ void applyHueSaturationLightness (juce::Image& img, float hueIn, float saturatio
 
     juce::Image::BitmapData data (img, juce::Image::BitmapData::readWrite);
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor(0, h, 1, threadPool, [&] (int y)
     {
         uint8_t* p = data.getLinePointer (y);
 
@@ -776,7 +776,7 @@ void applyGradientMap (juce::Image& img, const juce::ColourGradient& gradient, j
 
     juce::Image::BitmapData data (img, juce::Image::BitmapData::readWrite);
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor (0, h, 1, threadPool, [&] (int y)
                            {
                                uint8_t* p = data.getLinePointer (y);
 
@@ -837,7 +837,7 @@ void applyColour (juce::Image& img, juce::Colour c, juce::ThreadPool* threadPool
 
     juce::Image::BitmapData data (img, juce::Image::BitmapData::readWrite);
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor (0, h, 1, threadPool, [&] (int y)
                            {
                                uint8_t* p = data.getLinePointer (y);
 

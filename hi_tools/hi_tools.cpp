@@ -67,9 +67,10 @@
 
 
 #include "gin_images/gin_imageutilities.h"
+#include "gin_images/gin_imageeffects.cpp"
 #include "gin_images/gin_imageeffects_blending.cpp"
 #include "gin_images/gin_imageeffects_stackblur.cpp"
-#include "gin_images/gin_imageeffects.cpp"
+
 #include "gin_images/gin_imageutilities.cpp"
 #include "hi_tools/PostGraphicsRenderer.cpp"
 

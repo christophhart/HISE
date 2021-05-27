@@ -1518,7 +1518,7 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 			}
 
 			String v;
-			v << sv->toExpression() << ".setParameter<" << pTree.indexOf(p) << ">(";
+			v << sv->toExpression() << ".template setParameter<" << pTree.indexOf(p) << ">(";
 			v << Types::Helpers::getCppValueString(p[PropertyIds::Value], Types::ID::Double);
 			v << ");";
 			parent << v;
@@ -1544,7 +1544,7 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 
 	if (outputFormat == Format::CppDynamicLibrary && hasComplexTypes())
 	{
-		parent << "setExternalData({}, -1);";
+		parent << "this->setExternalData({}, -1);";
 	}
 }
 
@@ -1566,7 +1566,7 @@ PooledStackVariable::Ptr ValueTreeBuilder::RootContainerBuilder::getChildNodeAsS
 
 	for (auto i : path)
 	{
-		*e << "get<" << i << ">()";
+		*e << "template get<" << i << ">()";
 
 		if (++index != path.size())
 			*e << JitTokens::dot;

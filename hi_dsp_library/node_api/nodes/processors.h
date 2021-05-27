@@ -687,8 +687,8 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 	data()
 	{
 		static_assert(std::is_base_of<scriptnode::data::pimpl::base, DataHandler>(), "DataHandler must be base class of data::pimpl::base");
-		static_assert(std::is_base_of<scriptnode::data::base, T::WrappedObjectType>() ||
-					  std::is_base_of<scriptnode::data::base, T::ObjectType>(), "T must be base class of data::base");
+		static_assert(std::is_base_of<scriptnode::data::base, typename T::WrappedObjectType>() ||
+					  std::is_base_of<scriptnode::data::base, typename T::ObjectType>(), "T must be base class of data::base");
 
 		if constexpr (mothernode::isBaseOf<T>())
 			mothernode::getAsBase(getObject())->setDataProvider(this);
@@ -921,7 +921,7 @@ public:
 		singleCounter = 0;
 	}
 
-	template <typename T> void process(T& data)
+	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
 		int numToProcess = data.getNumSamples() / HISE_EVENT_RASTER;
 
@@ -938,7 +938,7 @@ public:
 	}
 
 	// must always be wrapped into a fix<1> node...
-	template <typename T> void processFrame(T& )
+	template <typename FrameDataType> void processFrame(FrameDataType& )
 	{
 		if (--singleCounter <= 0)
 		{

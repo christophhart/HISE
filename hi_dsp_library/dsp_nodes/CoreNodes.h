@@ -597,7 +597,7 @@ public:
 			thisState.modValue.setModValue(thisUptime);
 		}
 
-		updateBuffer(thisState.data.uptime, d.getNumSamples());
+		this->updateBuffer(thisState.data.uptime, d.getNumSamples());
 	}
 
 	bool handleModulation(double& v)
@@ -624,7 +624,7 @@ public:
 			
 			s.modValue.setModValue(newValue);
 
-			updateBuffer(newValue, 1);
+			this->updateBuffer(newValue, 1);
 		}
 	}
 
@@ -1292,7 +1292,7 @@ template <int NV, typename T> struct snex_osc : public snex_osc_base<T>,
 		if (P > 1)
 		{
 			auto typed = static_cast<snex_osc*>(obj);
-			typed->oscType.setParameter<P - 2>(value);
+			typed->oscType.template setParameter<P - 2>(value);
 		}
 	}
 

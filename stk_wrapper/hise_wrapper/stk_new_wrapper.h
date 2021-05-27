@@ -89,7 +89,7 @@ template <typename T, int NumChannels> struct StkWrapperBase
 		if constexpr (ProcessDataType::hasCompileTimeSize())
 		{
 			constexpr int NumChannelsToUse = jmin(NumChannels, d.getNumChannels());
-			auto fd = d.toFrameData<NumChannels>();
+			auto fd = d.template toFrameData<NumChannels>();
 
 			while (fd.next())
 				processFrame(fd.toSpan());
@@ -141,7 +141,7 @@ template <typename T, int NumChannels> struct MultiChannelWrapperBase
 		if constexpr (ProcessDataType::hasCompileTimeSize())
 		{
 			constexpr int NumChannelsToUse = jmin(NumChannels, d.getNumChannels());
-			auto fd = d.toFrameData<NumChannels>();
+			auto fd = d.template toFrameData<NumChannels>();
 
 			while (fd.next())
 				processFrame(fd.toSpan());
@@ -164,7 +164,7 @@ template <typename T, int NumChannels> struct StkEffectWrapper: public StkWrappe
 {
 	void setEffectMix(double v)
 	{
-		obj.setEffectMix((StkFloat)v);
+		this->obj.setEffectMix((StkFloat)v);
 	}
 };
 

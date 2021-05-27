@@ -198,14 +198,13 @@ template <typename T> struct duplicate_node_reference
 
 	template <int P> auto get()
 	{
-		auto& o = firstObj->get<P>();
-		using TType = std::remove_reference<decltype(o)>::type;
+		auto& o = firstObj->template get<P>();
+        using TType = typename std::remove_reference<decltype(o)>::type;
 		duplicate_node_reference<TType> hn;
 
 		hn.firstObj = &o;
 		hn.objectDelta = objectDelta;
-		hn.sizePtr = sizePtr;
-
+		
 		return hn;
 	}
 
@@ -301,7 +300,7 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 				{
 					*ptr = *begin();
 
-					if constexpr (prototypes::check::initialise<T>::value)
+                    if constexpr (scriptnode::prototypes::check::initialise<T>::value)
 					{
 						if (parentNode != nullptr)
 							ptr->initialise(parentNode);
@@ -389,16 +388,16 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 		}
 	}
 
-	template <typename T> void processFrame(T& frameData)
+	template <typename FrameDataType> void processFrame(FrameDataType& frameData)
 	{
-		static_assert(T::hasCompileTimeSize(), "Can't use this with dynamic data");
+		static_assert(FrameDataType::hasCompileTimeSize(), "Can't use this with dynamic data");
 
 		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getVoiceLock()))
 		{
 			if (shouldCopySignal() && getNumVoices() > 1)
 			{
-				T work;
-				T original = frameData;
+				FrameDataType work;
+				FrameDataType original = frameData;
 
 				data[0].processFrame(frameData);
 
@@ -457,13 +456,13 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 				{
 					switch (d.getNumChannels())
 					{
-					case 1: processSplitFix(d.as<ProcessData<1>>()); break;
-					case 2: processSplitFix(d.as<ProcessData<2>>()); break;
-					case 3: processSplitFix(d.as<ProcessData<3>>()); break;
-					case 4: processSplitFix(d.as<ProcessData<4>>()); break;
-					case 6: processSplitFix(d.as<ProcessData<6>>()); break;
-					case 8: processSplitFix(d.as<ProcessData<8>>()); break;
-					case 16: processSplitFix(d.as<ProcessData<16>>()); break;
+					case 1: processSplitFix(d.template as<ProcessData<1>>()); break;
+					case 2: processSplitFix(d.template as<ProcessData<2>>()); break;
+					case 3: processSplitFix(d.template as<ProcessData<3>>()); break;
+					case 4: processSplitFix(d.template as<ProcessData<4>>()); break;
+					case 6: processSplitFix(d.template as<ProcessData<6>>()); break;
+					case 8: processSplitFix(d.template as<ProcessData<8>>()); break;
+					case 16: processSplitFix(d.template as<ProcessData<16>>()); break;
 					}
 				}
 			}
@@ -487,8 +486,8 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 	template <int P> auto get()
 	{
 		auto d = begin();
-		auto& o = d->get<P>();
-		using TType = std::remove_reference<decltype(o)>::type;
+		auto& o = d->template get<P>();
+		using TType = typename std::remove_reference<decltype(o)>::type;
 
 		duplicate_node_reference<TType> hn;
 

@@ -78,7 +78,10 @@ public:
 			int i = 0;
 
 			for (auto c : d)
-				hmath::vset(d.toChannelData(c), v.currentValues[i++]);
+            {
+                auto b = d.toChannelData(c);
+				hmath::vset(b, v.currentValues[i++]);
+            }
 
 			v.counter -= d.getNumSamples();
 		}

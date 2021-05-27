@@ -224,7 +224,7 @@ private:
 
 				cc.mov(tPtr, oPtr);
 				cc.imul(vPtr, elementSize);
-				cc.add(tPtr, dataOffset);
+				cc.add(tPtr, (int)dataOffset);
 				cc.add(tPtr, vPtr.r64());
 				
 				return Result::ok();
@@ -298,7 +298,7 @@ private:
 
 			FunctionData f;
 			f.returnType = Types::ID::Integer;
-			f.function = PolyHandler::getVoiceIndexStatic;
+			f.function = (void*)PolyHandler::getVoiceIndexStatic;
 			f.setConst(true);
 			AssemblyRegister::List l;
 			auto ok = gen.emitFunctionCall(retReg, f, objReg, l);

@@ -159,6 +159,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "node_api/helpers/range.h"
 #include "node_api/helpers/range_impl.h"
 
+#include "node_api/nodes/prototypes.h"
 #include "node_api/nodes/duplicate.h"
 
 #include "node_api/nodes/Base.h"
@@ -169,7 +170,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "node_api/nodes/Container_Chain.h"
 #include "node_api/nodes/Container_Split.h"
 #include "node_api/nodes/Container_Multi.h"
-#include "node_api/nodes/prototypes.h"
+
 #include "node_api/nodes/OpaqueNode.h"
 #include "node_api/nodes/processors.h"
 #include "node_api/nodes/duplicate.h"
@@ -186,6 +187,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_nodes/EventNodes.h"
 #include "dsp_nodes/EnvelopeNodes.h"
 #include "dsp_nodes/DynamicsNode.h"
+#include "dsp_nodes/DynamicsNode.cpp"
 #include "dsp_nodes/AnalyserNodes.h"
 
 #include "dsp_nodes/FXNodes_impl.h"

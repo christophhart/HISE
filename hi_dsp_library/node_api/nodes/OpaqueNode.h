@@ -49,7 +49,7 @@ struct mothernode
 
 	template <typename T> static constexpr bool isBaseOf()
 	{
-		return std::is_base_of<mothernode, T::WrappedObjectType>();
+		return std::is_base_of<mothernode, typename T::WrappedObjectType>();
 	}
 
 	template <typename T> static mothernode* getAsBase(T& obj)
@@ -108,7 +108,7 @@ struct OpaqueNode
 
 	template <typename T> static String getDescription(const T& t)
 	{
-		if constexpr (prototypes::check::getDescription<T::WrappedObjectType>::value)
+		if constexpr (prototypes::check::getDescription<typename T::WrappedObjectType>::value)
 			return t.getWrappedObject().getDescription();
 
 		return {};
@@ -151,7 +151,7 @@ struct OpaqueNode
 		{
 			modFunc = prototypes::static_wrappers<T>::handleModulation;
 
-			if constexpr (prototypes::check::isNormalisedModulation<T::WrappedObjectType>::value)
+			if constexpr (prototypes::check::isNormalisedModulation<typename T::WrappedObjectType>::value)
 				isNormalised = T::WrappedObjectType::isNormalisedModulation();
 		}
 		else

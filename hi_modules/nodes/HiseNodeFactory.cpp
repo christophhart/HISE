@@ -257,7 +257,7 @@ struct granulator: public data::base
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
 		if (audioData[0].size() > 0 && d.getNumChannels() == 2)
-			processFix(d.as<ProcessData<2>>());
+			processFix(d.template as<ProcessData<2>>());
 	}
 
 	void processFix(ProcessData<2>& d)
@@ -539,8 +539,8 @@ template <typename ParameterClass> struct xy :
 		
 		if constexpr (!parameter::dynamic_list::isStaticList())
 		{
-			getParameter().numParameters.storeValue(2, n->getUndoManager());
-			getParameter().updateParameterAmount({}, 2);
+			this->getParameter().numParameters.storeValue(2, n->getUndoManager());
+			this->getParameter().updateParameterAmount({}, 2);
 		}
 	}
 
@@ -553,14 +553,14 @@ template <typename ParameterClass> struct xy :
 
 	void setX(double v)
 	{
-		if(getParameter().getNumParameters() > 0)
-			getParameter().call<0>(v);
+		if(this->getParameter().getNumParameters() > 0)
+			this->getParameter().template call<0>(v);
 	}
 
 	void setY(double v)
 	{
-		if (getParameter().getNumParameters() > 1)
-			getParameter().call<1>(v);
+		if (this->getParameter().getNumParameters() > 1)
+			this->getParameter().template call<1>(v);
 	}
 
 	void createParameters(ParameterDataList& data)

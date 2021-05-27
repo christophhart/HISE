@@ -1065,13 +1065,18 @@ private:
 
 struct HostHelpers
 {
+    struct NoExtraComponent
+    {
+        static Component* createExtraComponent(void* , PooledUIUpdater*) { return nullptr; }
+    };
+    
 	static int getNumMaxDataObjects(const ValueTree& v, snex::ExternalData::DataType t);
 
 	static void setNumDataObjectsFromValueTree(OpaqueNode& on, const ValueTree& v);
 
 	template <typename WrapperType> static NodeBase* initNodeWithNetwork(DspNetwork* p, ValueTree nodeTree, const ValueTree& embeddedNetworkTree, bool useMod)
 	{
-		auto t = dynamic_cast<WrapperType*>(WrapperType::createNode<OpaqueNetworkHolder, NoExtraComponent, false, false>(p, nodeTree));
+		auto t = dynamic_cast<WrapperType*>(WrapperType::template createNode<OpaqueNetworkHolder, NoExtraComponent, false, false>(p, nodeTree));
 
 		auto& on = t->getWrapperType().getWrappedObject();
 		setNumDataObjectsFromValueTree(on, embeddedNetworkTree);
@@ -1223,13 +1228,13 @@ struct DspNetworkListeners
 
 	private:
 
-		static void removeIfDefault(ValueTree& v, const Identifier& id, const var& defaultValue)
+		static void removeIfDefault(ValueTree v, const Identifier& id, const var& defaultValue)
 		{
 			if (v[id] == defaultValue)
 				v.removeProperty(id, nullptr);
 		};
 
-		static bool removePropIfDefault(ValueTree& v, const Identifier& id, const var& defaultValue)
+		static bool removePropIfDefault(ValueTree v, const Identifier& id, const var& defaultValue)
 		{
 			if (v[PropertyIds::ID].toString() == id.toString() &&
 				v[PropertyIds::Value] == defaultValue)
@@ -1240,13 +1245,13 @@ struct DspNetworkListeners
 			return false;
 		};
 
-		static void removeIfNoChildren(ValueTree& v)
+		static void removeIfNoChildren(ValueTree v)
 		{
 			if (v.isValid() && v.getNumChildren() == 0)
 				v.getParent().removeChild(v, nullptr);
 		}
 
-		static void removeIfDefined(ValueTree& v, const Identifier& id, const Identifier& definedId)
+		static void removeIfDefined(ValueTree v, const Identifier& id, const Identifier& definedId)
 		{
 			if (v.hasProperty(definedId))
 				v.removeProperty(id, nullptr);

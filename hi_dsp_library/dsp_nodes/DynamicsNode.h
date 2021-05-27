@@ -39,6 +39,46 @@ using namespace hise;
 namespace dynamics
 {
     
+struct DynamicHelpers
+{
+    static Identifier getId(chunkware_simple::SimpleGate*)
+    {
+        RETURN_STATIC_IDENTIFIER("gate");
+    }
+    
+    
+    
+    static Identifier getId(chunkware_simple::SimpleComp*)
+    {
+        RETURN_STATIC_IDENTIFIER("comp");
+    }
+    
+    static Identifier getId(chunkware_simple::SimpleCompRms*)
+    {
+        RETURN_STATIC_IDENTIFIER("comp_rms");
+    }
+    
+    static Identifier getId(chunkware_simple::SimpleLimit*)
+    {
+        RETURN_STATIC_IDENTIFIER("limiter");
+    }
+    
+    static char* getDescription(const chunkware_simple::SimpleGate*)
+    {
+        return "A gate effect with the ducking amount as modulation signal";
+    }
+    
+    static char* getDescription(const chunkware_simple::SimpleComp*)
+    {
+        return "A compressor with the ducking amount as modulation signal";
+    }
+    
+    static char* getDescription(const chunkware_simple::SimpleLimit*)
+    {
+        return "A limiter with the ducking amount as modulation signal";
+    }
+};
+    
 template <class DynamicProcessorType> class dynamics_wrapper : public HiseDspBase,
 															   public data::display_buffer_base<true>
 {
@@ -61,22 +101,81 @@ public:
 	}
 	PARAMETER_MEMBER_FUNCTION;
 
-	static Identifier getStaticId();
+	static Identifier getStaticId()
+    {
+        DynamicProcessorType* t = nullptr;
+        return DynamicHelpers::getId(t);
+    }
 
-	constexpr char* getDescription() const;
+	constexpr char* getDescription() const
+    {
+        return DynamicHelpers::getDescription(&obj);
+    }
 
 	static constexpr bool isNormalisedModulation() { return true; };
 
 	SN_GET_SELF_AS_OBJECT(dynamics_wrapper);
 
-	dynamics_wrapper();
+	dynamics_wrapper()
+    {
+        
+    };
 
 	HISE_EMPTY_HANDLE_EVENT;
 
-	void createParameters(ParameterDataList& data);
-	bool handleModulation(double& max) noexcept;;
-	void prepare(PrepareSpecs ps);
-	void reset() noexcept;
+	void createParameters(ParameterDataList& data)
+    {
+        {
+            DEFINE_PARAMETERDATA(dynamics_wrapper, Threshhold);
+            p.setRange({ -100.0, 0.0, 0.1 });
+            p.setSkewForCentre(-12.0);
+            p.setDefaultValue(0.0);
+            data.add(std::move(p));
+        }
+        
+        {
+            DEFINE_PARAMETERDATA(dynamics_wrapper, Attack);
+            p.setRange({ 0.0, 250.0, 0.1 });
+            p.setSkewForCentre(50.0);
+            p.setDefaultValue(50.0);
+            data.add(std::move(p));
+        }
+        
+        {
+            DEFINE_PARAMETERDATA(dynamics_wrapper, Release);
+            p.setRange({ 0.0, 250.0, 0.1 });
+            p.setSkewForCentre(50.0);
+            p.setDefaultValue(50.0);
+            data.add(std::move(p));
+        }
+        
+        {
+            DEFINE_PARAMETERDATA(dynamics_wrapper, Ratio);
+            p.setRange({ 1.0, 32.0, 0.1 });
+            p.setSkewForCentre(4.0);
+            p.setDefaultValue(1.0);
+            data.add(std::move(p));
+        }
+    }
+    
+	bool handleModulation(double& max) noexcept
+    {
+        max = jlimit(0.0, 1.0, 1.0 - obj.getGainReduction());
+        
+        updateBuffer(max, lastNumSamples);
+        
+        return true;
+    }
+    
+	void prepare(PrepareSpecs ps)
+    {
+        obj.setSampleRate(ps.sampleRate);
+    }
+    
+	void reset() noexcept
+    {
+        obj.initRuntime();
+    }
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
@@ -106,10 +205,26 @@ public:
 		lastNumSamples = 1;
 	}
 
-	void setThreshhold(double v);
-	void setAttack(double v);
-	void setRelease(double v);
-	void setRatio(double v);
+	void setThreshhold(double v)
+    {
+        obj.setThresh(v);
+    }
+    
+	void setAttack(double v)
+    {
+        obj.setAttack(v);
+    }
+    
+	void setRelease(double v)
+    {
+        obj.setRelease(v);
+    }
+    
+	void setRatio(double v)
+    {
+        auto ratio = (v != 0.0) ? 1.0 / v : 1.0;
+        obj.setRatio(ratio);
+    }
 
 	DynamicProcessorType obj;
 	int lastNumSamples = 0;
@@ -123,6 +238,11 @@ using gate = dynamics_wrapper<chunkware_simple::SimpleGate>;
 using comp = dynamics_wrapper<chunkware_simple::SimpleComp>;
 using limiter = dynamics_wrapper<chunkware_simple::SimpleLimit>;
 
+    
+    
+    
+    
+    
 class envelope_follower: public data::display_buffer_base<true>
 {
 public:
@@ -144,7 +264,11 @@ public:
 	SET_HISE_NODE_ID("envelope_follower");
 	SN_GET_SELF_AS_OBJECT(envelope_follower);
 
-	envelope_follower();
+    envelope_follower() :
+      envelope(20.0, 50.0)
+    {
+        
+    }
 
 	static constexpr bool isNormalisedModulation() { return true; }
 
@@ -156,8 +280,15 @@ public:
 		return modValue.getChangedValue(v); 
 	};
 
-	void prepare(PrepareSpecs ps);
-	void reset() noexcept;
+	void prepare(PrepareSpecs ps)
+    {
+        envelope.setSampleRate(ps.sampleRate);
+    }
+    
+	void reset() noexcept
+    {
+        envelope.reset();
+    }
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
@@ -188,15 +319,46 @@ public:
 		lastNumSamples = 1;
 	}
 
-	void setAttack(double v);
-	void setRelease(double v);
+	void setAttack(double v)
+    {
+        envelope.setAttackDouble(v);
+    }
+    
+	void setRelease(double v)
+    {
+        envelope.setReleaseDouble(v);
+    }
 
 	void setProcessSignal(double v)
 	{
 		processSignal = v > 0.5;
 	}
 
-	void createParameters(ParameterDataList& data);
+	void createParameters(ParameterDataList& data)
+    {
+        {
+            DEFINE_PARAMETERDATA(envelope_follower, Attack);
+            p.setRange({ 0.0, 1000.0, 0.1 });
+            p.setSkewForCentre(50.0);
+            p.setDefaultValue(20.0);
+            
+            data.add(std::move(p));
+        }
+        
+        {
+            DEFINE_PARAMETERDATA(envelope_follower, Release);
+            p.setRange({ 0.0, 1000.0, 0.1 });
+            p.setSkewForCentre(50.0);
+            p.setDefaultValue(20.0);
+            
+            data.add(std::move(p));
+        }
+        
+        {
+            DEFINE_PARAMETERDATA(envelope_follower, ProcessSignal);
+            data.add(std::move(p));
+        }
+    }
 
 	EnvelopeFollower::AttackRelease envelope;
 

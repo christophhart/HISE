@@ -320,7 +320,7 @@ public:
 		if (P > 1)
 		{
 			auto typed = static_cast<timer*>(obj);
-			typed->tType.setParameter<P - 2>(value);
+			typed->tType.template setParameter<P - 2>(value);
 		}
 	}
 

@@ -1916,7 +1916,7 @@ void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, 
 	}
 	else
 	{
-		cc.imul(sizeReg.get(), elementSize);
+		cc.imul(sizeReg.get(), (int)elementSize);
 
 		cc.mov(endReg.get(), beginReg.get());
 		cc.add(endReg.get(), sizeReg.get().r64());

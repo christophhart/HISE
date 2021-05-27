@@ -84,7 +84,7 @@ public:
 
 protected:
 
-	WeakReference<Base> priorisedListener = false;
+	WeakReference<Base> priorisedListener;
 
 	// Grab this lock whenever you push or process an async queue
 	CriticalSection asyncLock;

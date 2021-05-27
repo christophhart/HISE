@@ -59,7 +59,7 @@ void applyBlend (juce::Image& dst, const juce::Image& src, float alpha, juce::Po
     juce::Image::BitmapData srcData (src, juce::Image::BitmapData::readOnly);
     juce::Image::BitmapData dstData (dst, juce::Image::BitmapData::readWrite);
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor (0, h, 1, threadPool, [&] (int y)
                            {
                                uint8_t* pSrc = srcData.getLinePointer (cropY + y);
                                uint8_t* pDst = dstData.getLinePointer (rcOverlap.getY() + y);
@@ -190,7 +190,7 @@ void applyBlend (juce::Image& dst, juce::Colour c, juce::ThreadPool* threadPool)
     uint8_t ab = c.getBlue();
     uint8_t aa = c.getAlpha();
 
-    multiThreadedFor<int> (0, h, 1, threadPool, [&] (int y)
+    multiThreadedFor(0, h, 1, threadPool, [&] (int y)
                            {
                                uint8_t* pDst = dstData.getLinePointer (y);
 

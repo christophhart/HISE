@@ -274,9 +274,9 @@ template <typename T, int P> struct inner
 /** The most simple parameter type without any range conversion. */
 template <class T, int P> struct plain : public single_base<T, P>
 {
-	void call(double v)
+    void call(double v)
 	{
-		jassert(isConnected());
+		jassert(this->isConnected());
 		callStatic(this->obj, v);
 	}
 
@@ -311,9 +311,9 @@ template <class T, int P> struct plain : public single_base<T, P>
 */
 template <class T, int P, class Expression> struct expression : public single_base<T, P>
 {
-	void call(double v)
+    void call(double v)
 	{
-		jassert(isConnected());
+		jassert(this->isConnected());
 
         using ObjectType = typename T::ObjectType;
 
@@ -362,7 +362,7 @@ template <class T, int P, class RangeType> struct from0To1 : public single_base<
 {
 	void call(double v)
 	{
-		jassert(isConnected());
+		jassert(this->isConnected());
 		callStatic(this->obj, v);
 	}
 
@@ -406,7 +406,7 @@ template <class T, int P, class RangeType> struct from0To1_inv : public single_b
 {
 	void call(double v)
 	{
-		jassert(isConnected());
+		jassert(this->isConnected());
 		callStatic(this->obj, v);
 	}
 
@@ -492,7 +492,7 @@ template <class T, int P> struct wrap : public single_base<T, P>
 {
 	void call(double v)
 	{
-		jassert(isConnected());
+		jassert(this->isConnected());
 		callStatic(this->obj, v);
 	}
 
@@ -500,7 +500,7 @@ template <class T, int P> struct wrap : public single_base<T, P>
 	{
 		using ObjectType = typename T::ObjectType;
 
-		static_assert(std::is_same<T, T::ObjectType>(), "must be self-aware wrapper");
+		static_assert(std::is_same<T, typename T::ObjectType>(), "must be self-aware wrapper");
 
 		jassert(o != nullptr);
 
