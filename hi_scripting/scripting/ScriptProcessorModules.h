@@ -458,7 +458,7 @@ public:
 			reset(voiceIndex);
 	}
 
-	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override { return nullptr; }
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	State* getState(int i) { return  static_cast<State*>(states[i]); }
 	const State* getState(int i) const { return  static_cast<const State*>(states[i]); }
@@ -1056,8 +1056,12 @@ public:
 	int getNumChildProcessors() const override { return getNumInternalChains(); };
 
 	ValueTree exportAsValueTree() const override { ValueTree v = ModulatorSynth::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
-	void restoreFromValueTree(const ValueTree &v) override
-	{ ModulatorSynth::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+	void restoreFromValueTree(const ValueTree &v) override;
+
+	int getNumParameters() const override
+	{
+		return getCurrentNetworkParameterHandler(&contentParameterHandler)->getNumParameters() + (int)ModulatorSynth::Parameters::numModulatorSynthParameters;
+	}
 
 	float getAttribute(int index) const override
 	{

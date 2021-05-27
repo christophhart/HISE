@@ -210,10 +210,9 @@ int Processor::getNumParameters() const
 		if (auto n = jp->getActiveNetwork())
 			return n->networkParameterHandler.getNumParameters();
 	}
+
 	if (auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this))
-	{
 		return pwsc->getNumScriptParameters();
-	}
 	else
 		return parameterNames.size();
 }

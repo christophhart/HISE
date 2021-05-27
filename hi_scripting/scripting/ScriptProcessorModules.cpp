@@ -1877,6 +1877,17 @@ float JavascriptSynthesiser::getModValueAtVoiceStart(int modIndex) const
 	return getModValueForNode(modIndex, currentVoiceStartSample);
 }
 
+void JavascriptSynthesiser::restoreFromValueTree(const ValueTree &v)
+{
+	ModulatorSynth::restoreFromValueTree(v); 
+
+	if (auto vk = ProcessorHelpers::getFirstProcessorWithType<ScriptnodeVoiceKiller>(gainChain))
+		setVoiceKillerToUse(vk);
+
+	restoreScript(v); 
+	restoreContent(v);
+}
+
 void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSamples)
 {
 	if (auto n = synth->getActiveNetwork())
@@ -1928,6 +1939,16 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 
 		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
 	}
+}
+
+hise::ProcessorEditorBody * ScriptnodeVoiceKiller::createEditor(ProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+	return new EmptyProcessorEditorBody(parentEditor);;
+#else
+	ignoreUnused(parentEditor);
+	return nullptr;
+#endif
 }
 
 } // namespace hise

@@ -784,7 +784,7 @@ public:
 	}
 
 	/** This returns the number of (named) parameters. */
-	int getNumParameters() const;; 
+	virtual int getNumParameters() const;; 
 
 	/** Call this method after inserting the processor in the signal chain.
 	*

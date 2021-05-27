@@ -603,6 +603,7 @@ Processor *EnvelopeModulatorFactoryType::createProcessor(int typeIndex, const St
 	case tableEnvelope:		return new TableEnvelope(m, id, numVoices, mode);
 	case scriptEnvelope:	return new JavascriptEnvelopeModulator(m, id, numVoices, mode);
 	case mpeModulator:		return new MPEModulator(m, id, numVoices, mode);
+	case voiceKillEnvelope: return new ScriptnodeVoiceKiller(m, id, numVoices);
 	default: jassertfalse;	return nullptr;
 
 	}
