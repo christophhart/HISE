@@ -841,7 +841,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 #if !FRONTEND_IS_PLUGIN
 
+#if !FORCE_INPUT_CHANNELS
 	buffer.clear();
+#endif
 
 	checkAllNotesOff();
 
@@ -939,7 +941,15 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	jassert(thisMultiChannelBuffer.getNumSamples() <= multiChannelBuffer.getNumSamples());
 
+#if FORCE_INPUT_CHANNELS
+	jassert(thisMultiChannelBuffer.getNumSamples() >= buffer.getNumSamples());
+	jassert(thisMultiChannelBuffer.getNumChannels() >= buffer.getNumChannels());
+	thisMultiChannelBuffer.makeCopyOf(buffer, true);
+#else
 	thisMultiChannelBuffer.clear();
+#endif
+
+	
 
 	if (previewBufferIndex != -1)
 	{
@@ -986,6 +996,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		
 		thisMultiChannelBuffer.setDataToReferTo(d, (int)osOutput.getNumChannels(), (int)osOutput.getNumSamples());
 	}
+
+
 
 
 	synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
