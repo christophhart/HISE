@@ -60,6 +60,8 @@ viewUndoManager(new UndoManager())
 
 	GET_PROJECT_HANDLER(synthChain).checkSubDirectories();
 
+	dllManager = new BackendDllManager(this);
+
 	refreshExpansionType();
 
 	//getExpansionHandler().createAvailableExpansions();
@@ -269,7 +271,11 @@ void BackendProcessor::setStateInformation(const void *data, int sizeInBytes)
 
 AudioProcessorEditor* BackendProcessor::createEditor()
 {
+#if USE_WORKBENCH_EDITOR
+	return new SnexWorkbenchEditor(this);
+#else
 	return new BackendRootWindow(this, editorInformation);
+#endif
 }
 
 void BackendProcessor::registerItemGenerators()
@@ -347,6 +353,8 @@ void BackendProcessor::setEditorData(var editorState)
 {
 	editorInformation = editorState;
 }
+
+
 
 } // namespace hise
 

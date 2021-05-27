@@ -71,17 +71,26 @@ public:
 			Colours::lightgrey,
 			DocumentWindow::TitleBarButtons::closeButton | DocumentWindow::maximiseButton | DocumentWindow::TitleBarButtons::minimiseButton)
 		{
-			setContentOwned(new SnexWorkbenchEditor(commandLine), true);
+			setContentOwned(standaloneProcessor.createEditor(), true);
 			setResizable(true, true);
 			setUsingNativeTitleBar(true);
 			centreWithSize(getWidth(), getHeight() - 28);
 			setVisible(true);
 		}
 
+		~MainWindow()
+		{
+			clearContentComponent();
+			
+			
+		}
+
 		void closeButtonPressed()
 		{
 			auto mw = dynamic_cast<SnexWorkbenchEditor*>(getContentComponent());
 			mw->requestQuit();
+			standaloneProcessor.requestQuit();
+			
 		}
 
 		/* Note: Be careful if you override any DocumentWindow methods - the base
@@ -92,7 +101,9 @@ public:
 		*/
 
 	private:
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainWindow)
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainWindow);
+
+		hise::StandaloneProcessor standaloneProcessor;
 	};
 
 private:

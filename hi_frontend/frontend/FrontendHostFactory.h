@@ -30,123 +30,20 @@
 *   ===========================================================================
 */
 
-#ifndef __CONSOLE_H_8FBBF4D7__
-#define __CONSOLE_H_8FBBF4D7__
+#pragma once
 
-namespace hise { using namespace juce;
+namespace hise {
+using namespace juce;
 
-class Processor;
-class BaseDebugArea;
-
-class BackendRootWindow;
-class BackendProcessorEditor;
-
-
-#if USE_BACKEND
-
-/** A textbox that acts as console (read only / autoscrolling)
-*	@ingroup debugComponents
-*    
-*   The console has a clear button that deletes the content.*
-*	Use the (addLine) method to write something to the console.
-*    
-*	For Modulators there is the macro function debugMod(String &t)
-*/
-class Console: public Component,
-			   public CodeDocument::Listener
+struct FrontendHostFactory : public scriptnode::NodeFactory
 {
-public:
+	FrontendHostFactory(DspNetwork* n);
 
-	Console(MainController* mc);
+	virtual Identifier getId() const override { RETURN_STATIC_IDENTIFIER("project"); }
 
-	~Console();
-    
-    void mouseDown(const MouseEvent &e) override;
-    void mouseMove(const MouseEvent &e) override;
-	void mouseDoubleClick(const MouseEvent& event) override;
+	static scriptnode::dll::FactoryBase* createStaticFactory();
 
-	void resized() override;
-
-	void codeDocumentTextInserted(const String &/*newText*/, int /*insertIndex*/) override
-	{
-		int numLinesVisible = jmax<int>(0, newTextConsole->getDocument().getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));
-
-		newTextConsole->scrollToLine(numLinesVisible);
-	}
-
-	void codeDocumentTextDeleted(int /*startIndex*/, int /*endIndex*/) override {}
-
-    void clear();
-
-	/** Adds a new line to the console.
-    *
-	*   This can be called in the audio thread. It stores all text in an internal String buffer and writes it periodically
-	*   on the timer callback.
-	*/
-
-	void setTokeniser(CodeTokeniser* newTokeniser)
-	{
-		tokeniser = newTokeniser;
-		addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleHandler().getConsoleData(), tokeniser.get()));
-		newTextConsole->addMouseListener(this, true);
-	}
-
-private:
-
-	class ConsoleTokeniser : public CodeTokeniser
-	{
-	public:
-
-		ConsoleTokeniser();
-
-		int readNextToken(CodeDocument::Iterator& source);
-
-		CodeEditorComponent::ColourScheme getDefaultColourScheme() override { return s; }
-
-
-	private:
-
-		int state = 0;
-
-		CodeEditorComponent::ColourScheme s;
-
-	};
-
-
-	class ConsoleEditorComponent : public CodeEditorComponent
-	{
-	public:
-
-		ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser *tok);
-
-		void addPopupMenuItems(PopupMenu &/*menuToAddTo*/, const MouseEvent *) override {};
-	};
-
-	friend class WeakReference<Console>;
-	WeakReference<Console>::Master masterReference;
-	
-	ScopedPointer<ConsoleEditorComponent> newTextConsole;
-	ScopedPointer<CodeTokeniser> tokeniser;
-
-	MainController* mc;
-
+	ScopedPointer<scriptnode::dll::StaticLibraryHostFactory> staticFactory;
 };
-
-#else
-
-class Console
-{
-
-	virtual ~Console() { masterReference.clear(); }
-
-private:
-
-	friend class WeakReference<Console>;
-	WeakReference<Console>::Master masterReference;
-};
-
-#endif
 
 } // namespace hise
-
-#endif  // __CONSOLE_H_8FBBF4D7__

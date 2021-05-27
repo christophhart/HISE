@@ -171,9 +171,9 @@ public:
 		return nullptr;
 	}
 
-	void initFromDll(dll::DynamicLibraryHostFactory& f, int index, bool addDragger)
+	void initFromDll(dll::FactoryBase* f, int index, bool addDragger)
 	{
-		f.initOpaqueNode(&obj.getWrappedObject(), index, asWrapperNode()->getRootNetwork()->isPolyphonic());
+		f->initOpaqueNode(&obj.getWrappedObject(), index, asWrapperNode()->getRootNetwork()->isPolyphonic());
 		this->obj.initialise(asWrapperNode());
 
 		setOpaqueDataEditor(addDragger);

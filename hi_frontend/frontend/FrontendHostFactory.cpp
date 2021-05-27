@@ -32,246 +32,62 @@
 
 namespace hise { using namespace juce;
 
-#if USE_BACKEND
-
-
-Console::ConsoleEditorComponent::ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser* tok) :
-CodeEditorComponent(doc, tok)
+FrontendHostFactory::FrontendHostFactory(DspNetwork* n) :
+	NodeFactory(n)
 {
-	setReadOnly(true);
-	setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF282828));
-	getDocument().getUndoManager().setMaxNumberOfStoredUnits(0, 0);
-
-#if JUCE_MAC
-    setFont(GLOBAL_MONOSPACE_FONT().withHeight(12.0f)); // other font sizes disappear on OSX Sierra, yeah!
-#else
-    setFont(GLOBAL_MONOSPACE_FONT());
-#endif
-    
-	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colours::white.withBrightness(0.7f));
-	setLineNumbersShown(false);
-}
-
-
-Console::Console(MainController* mc_):
-	mc(mc_)
-{
-	setName("Console");
-
-	auto consoleDoc = mc->getConsoleHandler().getConsoleData();
-
-	consoleDoc->addListener(this);
-
-	setTokeniser(new ConsoleTokeniser());
-}
-
-Console::~Console()
-{
-	mc->getConsoleHandler().getConsoleData()->removeListener(this);
-
-	newTextConsole = nullptr;
-	tokeniser = nullptr;
-
-	masterReference.clear();
-};
-
-
-void Console::resized()
-{
-	newTextConsole->setBounds(getLocalBounds());
-}
-
-
-
-void Console::clear()
-{
-	mc->getConsoleHandler().clearConsole();
-
+	staticFactory = dynamic_cast<scriptnode::dll::StaticLibraryHostFactory*>(createStaticFactory());
 	
-}
+	int numNodes = staticFactory->getNumNodes();
 
-void Console::mouseDown(const MouseEvent &e)
-{
+	for (int i = 0; i < numNodes; i++)
+	{
+		NodeFactory::Item item;
 
-    if(e.mods.isRightButtonDown())
-    {
-        PopupLookAndFeel plaf;
-        PopupMenu m;
-        
-        m.setLookAndFeel(&plaf);
-        
-        m.addItem(1, "Clear Console");
-        m.addItem(2, "Scroll down");
-		
-		const String id = newTextConsole->getDocument().getLine(newTextConsole->getCaretPos().getLineNumber()).upToFirstOccurrenceOf(":", false, false);
-
-		if (id.isNotEmpty() && findParentComponentOfClass<ComponentWithBackendConnection>() != nullptr)
+		item.id = Identifier(staticFactory->getId(i));
+		item.cb = [this, i](DspNetwork* p, ValueTree v)
 		{
-			JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getMainSynthChain(), id));
-
-			const int SNIPPET_OFFSET = 1000;
-			const int FILE_OFFSET = 2000;
-
-			if (jsp != nullptr)
+			if (staticFactory->isInterpretedNetwork(i))
 			{
-				const String selectedText = newTextConsole->getTextInRange(newTextConsole->getHighlightedRegion());
+				zstd::ZDefaultCompressor comp;
+				ValueTree cv;
+				MemoryBlock mb;
+				mb.fromBase64Encoding(staticFactory->items[i].networkData);
+				comp.expand(mb, cv);
+				
+				jassert(cv.isValid());
+				
+				auto useMod = staticFactory->items[i].isModNode;
 
-				int snippet = -1;
+				if(useMod)
+					return scriptnode::HostHelpers::initNodeWithNetwork<InterpretedModNode>(p, v, cv, useMod);
+				else
+					return scriptnode::HostHelpers::initNodeWithNetwork<InterpretedNode>(p, v, cv, useMod);
+			}
+			else
+			{
+				auto nodeId = staticFactory->getId(i);
 
-				for (int i = 0; i < jsp->getNumSnippets(); i++)
+				if (staticFactory->getWrapperType(i) == 1)
 				{
-					if (jsp->getSnippet(i)->getCallbackName().toString() == selectedText)
-					{
-						snippet = i;
-						break;
-					}
+					auto t = new scriptnode::InterpretedModNode(p, v);
+					t->initFromDll(staticFactory, i, true);
+					return dynamic_cast<NodeBase*>(t);
 				}
 
-				if (snippet != -1)
+				else
 				{
-					m.addItem(SNIPPET_OFFSET + snippet, "Go to callback " + selectedText);
-				}
-
-				int fileIndex = -1;
-
-				for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
-				{
-					if (jsp->getWatchedFile(i).getFileName() == selectedText)
-					{
-						fileIndex = i;
-						break;
-					}
-				}
-
-				if (fileIndex != -1)
-				{
-					m.addItem(FILE_OFFSET + fileIndex, "Go to file " + selectedText);
+					auto t = new scriptnode::InterpretedNode(p, v);
+					t->initFromDll(staticFactory, i, false);
+					return dynamic_cast<NodeBase*>(t);
 				}
 			}
+		};
 
-			const int result = m.show();
-
-			if (result == 1)
-			{
-				newTextConsole->getDocument().replaceAllContent("");
-				newTextConsole->scrollToLine(0);
-
-			}
-			else if (result == 2)
-			{
-				newTextConsole->moveCaretToEnd(false);
-			}
-			else if (result >= FILE_OFFSET)
-			{
-				jsp->showPopupForFile(result - FILE_OFFSET);
-			}
-			else if (result >= SNIPPET_OFFSET)
-			{
-				Processor *js = dynamic_cast<Processor*>(jsp);
-
-				const int editorStateOffset = dynamic_cast<ProcessorWithScriptingContent*>(js)->getCallbackEditorStateOffset() + 1;
-
-				const int editorStateIndex = (result - SNIPPET_OFFSET);
-
-				for (int i = 0; i < jsp->getNumSnippets(); i++)
-				{
-					js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
-				}
-
-				GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->setRootProcessorWithUndo(js);
-			}
-		}
-    }
-    else if (e.mods.isAltDown())
-    {
-#if USE_BACKEND
-        
-		CodeDocument::Position pos = newTextConsole->getCaretPos();
-
-		String name = newTextConsole->getDocument().getLine(pos.getLineNumber()).upToFirstOccurrenceOf(":", false, false);
-
-        if(name.isNotEmpty())
-        {
-			auto editor = GET_BACKEND_ROOT_WINDOW(this)->getMainPanel();
-
-            Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), name);
-            
-            if(p != nullptr)
-            {
-                editor->setRootProcessorWithUndo(p);
-            }
-        }
-#endif
-        
-    }
+		monoNodes.add(item);
+	}
 }
 
 
-void Console::mouseMove(const MouseEvent &e)
-{
-	if (e.mods.isAltDown())
-	{
-		setMouseCursor(MouseCursor::PointingHandCursor);
-	}
-}
-
-void Console::mouseDoubleClick(const MouseEvent& /*e*/)
-{
-	CodeDocument::Position selectionStart = newTextConsole->getSelectionStart();
-
-	const String line = newTextConsole->getDocument().getLine(selectionStart.getLineNumber());
-
-	DebugableObject::Helpers::gotoLocation(mc->getMainSynthChain(), line);
-
-	
-};;
-
-Console::ConsoleTokeniser::ConsoleTokeniser()
-{
-	s.set("id", Colours::white);
-	s.set("default", Colours::white.withBrightness(0.75f));
-	s.set("error", JUCE_LIVE_CONSTANT_OFF(Colour(0xffff3939)));
-	s.set("url", Colour(0xFF555555));
-	s.set("callstack", JUCE_LIVE_CONSTANT_OFF(Colour(0xffAA3939)));
-}
-
-int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
-{
-	while (state == 0 && source.nextChar() != ':')
-	{
-		return state;
-	}
-
-	auto c = source.nextChar();
-
-	switch (c)
-	{
-	case '!':
-	{
-		state = 2;
-		break;
-	}
-	case '{':
-	{
-		state = 3;
-		break;
-	}
-	case '\t':
-	{
-		state = 4;
-		break;
-	}
-	case '\n':
-	{
-		state = 0;
-		break;
-	}
-	}
-	
-	return state;
-}
-
-
-#endif
 
 } // namespace hise
+

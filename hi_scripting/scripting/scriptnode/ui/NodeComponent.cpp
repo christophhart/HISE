@@ -527,6 +527,7 @@ void NodeComponent::fillContextMenu(PopupMenu& m)
 
 void NodeComponent::handlePopupMenuResult(int result)
 {
+#if USE_BACKEND
 	if (result == (int)MenuActions::CreateScreenShot)
 	{
 		auto mc = node->getScriptProcessor()->getMainController_();
@@ -609,6 +610,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 			PresetHandler::showMessageWindow("Exported chain as new network", "Reload this patch to apply the change");
 			return;
 		}
+
 	}
 	if (result >= (int)MenuActions::WrapIntoChain && result <= (int)MenuActions::WrapIntoOversample4)
 	{
@@ -711,6 +713,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 			sn->setNodeProperty(PropertyIds::Connection, firstId);
 		}
 	}
+#endif
 	
 }
 

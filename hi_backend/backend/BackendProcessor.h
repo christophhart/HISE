@@ -192,9 +192,13 @@ public:
 	virtual void* getWorkbenchManager() override { return reinterpret_cast<void*>(&workbenches); }
 #endif
 
+	BackendDllManager::Ptr dllManager;
+
+	
+
+	
+
 private:
-
-
 
 	File databaseRoot;
 

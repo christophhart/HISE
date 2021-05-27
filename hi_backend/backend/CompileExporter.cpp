@@ -1808,7 +1808,7 @@ XmlElement* createXmlElementForFile(ModulatorSynthChain* chainToExport, String& 
 		if (f.getFileName() == "Icon.png")
 			templateProject = templateProject.replace("%ICON_FILE%", "smallIcon=\"" + fileId + "\" bigIcon=\"" + fileId + "\"");
 
-		bool isSourceFile = allowCompilation && f.hasFileExtension(".cpp");
+		bool isSourceFile = (allowCompilation && f.hasFileExtension(".cpp")) || f.getFileName() == "factory.cpp";
 		bool isSplashScreen = f.getFileName().contains("SplashScreen");
 
 		xml->setAttribute("compile", isSourceFile ? 1 : 0);

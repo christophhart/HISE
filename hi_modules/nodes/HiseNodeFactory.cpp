@@ -1564,8 +1564,8 @@ template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-	registerPolyModNode<dp<simple_ar<parameter::dynamic_list>>, 
-						dp<simple_ar_poly<parameter::dynamic_list>>, 
+	registerPolyModNode<dp<simple_ar<1, parameter::dynamic_list>>, 
+						dp<simple_ar<NUM_POLYPHONIC_VOICES, parameter::dynamic_list>>, 
 						dynamic::env_display, 
 						false>();
 

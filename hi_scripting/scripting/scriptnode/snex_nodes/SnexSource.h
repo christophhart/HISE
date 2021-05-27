@@ -313,10 +313,13 @@ struct SnexSource : public WorkbenchData::Listener,
 			ComplexDataHandlerLight::reset();
 
 			ExternalData::forEachType([this](ExternalData::DataType t)
+			{
+				for (int i = 0; i < getNumDataObjects(t); i++)
 				{
-					for (int i = 0; i < getNumDataObjects(t); i++)
-						getComplexBaseType(t, i)->getUpdater().removeEventListener(this);
-				});
+					if(auto ct = getComplexBaseType(t, i))
+						ct->getUpdater().removeEventListener(this);
+				}
+			});
 		}
 
 		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override

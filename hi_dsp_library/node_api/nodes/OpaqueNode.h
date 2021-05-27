@@ -308,6 +308,7 @@ namespace dll
 	{
 		struct Item
 		{
+			String networkData;
 			String id;
 			bool isModNode = false;
 			std::function<void(scriptnode::OpaqueNode* n)> f;
@@ -322,6 +323,8 @@ namespace dll
 
 		int getWrapperType(int index) const override;
 
+		bool isInterpretedNetwork(int index) const { return items[index].networkData.isNotEmpty(); }
+
 		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible) override;
 
 		int getNumDataObjects(int index, int dataTypeAsInt) const override;
@@ -330,6 +333,18 @@ namespace dll
 		{
 			registerNode<T>();
 			items.getReference(items.size() - 1).pf = [](scriptnode::OpaqueNode* n) { n->create<PolyT>(); };
+		}
+
+		template <typename T> void registerDataNode()
+		{
+			Item i;
+			T obj;
+
+			i.id = obj.getId();
+			i.isModNode = obj.isModNode();
+			i.networkData = obj.getNetworkData();
+
+			items.add(i);
 		}
 
 		template <typename T> void registerNode()
@@ -422,6 +437,15 @@ namespace dll
 	private:
 
 		ProjectDll::Ptr projectDll;
+	};
+
+	struct InterpretedNetworkData
+	{
+		virtual ~InterpretedNetworkData() {};
+
+		virtual String getId() const = 0;
+		virtual bool isModNode() const = 0;
+		virtual String getNetworkData() const = 0;
 	};
 }
 

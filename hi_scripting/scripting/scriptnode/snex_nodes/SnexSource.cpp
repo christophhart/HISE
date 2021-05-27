@@ -332,7 +332,10 @@ hise::Table* SnexSource::ComplexDataHandler::getTable(int index)
 {
 	if (isPositiveAndBelow(index, tables.size()))
 	{
-		return tables[index]->getTable(0);
+		if (auto t = tables[index])
+			return t->getTable(0);
+
+		return nullptr;
 	}
 
 	auto n = new data::dynamic::table(*this, index);
@@ -342,16 +345,16 @@ hise::Table* SnexSource::ComplexDataHandler::getTable(int index)
 	WeakReference<SnexSource> safeThis(&parent);
 
 	MessageManager::callAsync([safeThis, index]()
+	{
+		if (safeThis != nullptr)
 		{
-			if (safeThis != nullptr)
+			for (auto l : safeThis.get()->compileListeners)
 			{
-				for (auto l : safeThis.get()->compileListeners)
-				{
-					if (l != nullptr)
-						l->complexDataAdded(ExternalData::DataType::Table, index);
-				}
+				if (l != nullptr)
+					l->complexDataAdded(ExternalData::DataType::Table, index);
 			}
-		});
+		}
+	});
 
 	return n->getTable(0);
 }

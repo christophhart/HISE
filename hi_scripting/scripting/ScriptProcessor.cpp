@@ -564,6 +564,13 @@ JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 	callStackEnabled(mc->isCallStackEnabled()),
 	repaintDispatcher(mc)
 {
+#if USE_BACKEND
+
+	dynamic_cast<BackendProcessor*>(mc)->dllManager->loadDll(false);
+	setProjectDll(dynamic_cast<BackendProcessor*>(mc)->dllManager->projectDll);
+#endif
+
+
 	allInterfaceData = ValueTree("UIData");
 	auto defaultContent = ValueTree("ContentProperties");
 	defaultContent.setProperty("DeviceType", "Desktop", nullptr);

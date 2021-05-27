@@ -56,3 +56,133 @@ struct BackendHostFactory : public scriptnode::NodeFactory
 }
 
 }
+
+namespace hise
+{
+using namespace juce;
+
+struct BackendDllManager : public ReferenceCountedObject,
+	public ControlledObject
+{
+	struct FileCodeProvider : public snex::cppgen::ValueTreeBuilder::CodeProvider,
+		public ControlledObject
+	{
+		FileCodeProvider(const MainController* mc) :
+			ControlledObject(const_cast<MainController*>(mc))
+		{};
+
+		String getCode(const snex::NamespacedIdentifier& path, const Identifier& classId) const override
+		{
+			auto codeFolder = getSubFolder(getMainController(), FolderSubType::CodeLibrary);
+			auto pathFolder = codeFolder.getChildFile(path.getIdentifier().toString());
+			auto f = pathFolder.getChildFile(classId.toString()).withFileExtension("h");
+			jassert(f.existsAsFile());
+			return f.loadFileAsString();
+		}
+	};
+
+	enum class DllType
+	{
+		Debug,
+		Release,
+		Latest,
+		numDllTypes
+	};
+
+	enum class FolderSubType
+	{
+		Root,
+		Networks,
+		Tests,
+		CustomNodes,
+		CodeLibrary,
+		AdditionalCode,
+		Binaries,
+		DllLocation,
+		ProjucerSourceFolder,
+		Layouts,
+		numFolderSubTypes
+	};
+
+	BackendDllManager(MainController* mc) :
+		ControlledObject(mc)
+	{}
+
+	using Ptr = ReferenceCountedObjectPtr<BackendDllManager>;
+
+	static Array<File> getNetworkFiles(MainController* mc, bool includeNoCompilers = true);
+
+	int getDllHash(int index);
+
+	static int getHashForNetworkFile(MainController* mc, const String& id);
+
+	bool unloadDll();
+	bool loadDll(bool forceUnload);
+
+	static bool allowCompilation(const File& networkFile);
+	static bool allowPolyphonic(const File& networkFile);
+
+	static File createIfNotDirectory(const File& f);
+	static File getSubFolder(const MainController* mc, FolderSubType t);
+
+	File getBestProjectDll(DllType t) const
+	{
+		auto dllFolder = getSubFolder(getMainController(), FolderSubType::DllLocation);
+
+#if JUCE_WINDOWS
+		String extension = "*.dll";
+#else
+		String extension = "*.dylib";
+#endif
+
+		auto files = dllFolder.findChildFiles(File::findFiles, false, extension);
+
+		auto removeWildcard = "Never";
+
+		if (t == DllType::Debug)
+			removeWildcard = "release";
+		if (t == DllType::Release)
+			removeWildcard = "debug";
+
+		for (int i = 0; i < files.size(); i++)
+		{
+			auto fileName = files[i].getFileName();
+
+#if JUCE_DEBUG
+			if (!fileName.contains("debug"))
+				files.remove(i--);
+#else
+			if (fileName.contains("debug"))
+				files.remove(i--);
+#endif
+
+
+			if (fileName.contains(removeWildcard))
+				files.remove(i--);
+		}
+
+		if (files.isEmpty())
+			return File();
+
+		struct FileDateComparator
+		{
+			int compareElements(const File& first, const File& second)
+			{
+				auto t1 = first.getCreationTime();
+				auto t2 = second.getCreationTime();
+
+				if (t1 < t2) return 1;
+				if (t2 < t1) return -1;
+				return 0;
+			}
+		};
+
+		FileDateComparator c;
+		files.sort(c);
+
+		return files.getFirst();
+	}
+
+	scriptnode::dll::ProjectDll::Ptr projectDll;
+};
+}

@@ -2005,7 +2005,7 @@ void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
 
 	if (n->getParentNetwork() != nullptr)
 	{
-		addCustomComponent(new BreadcrumbComponent(n));
+		BACKEND_ONLY(addCustomComponent(new BreadcrumbComponent(n)));
 	}
 
 	if(n->canBeFrozen())
@@ -2360,7 +2360,13 @@ void KeyboardPopup::PopupList::setSelected(Item* i)
 
 		kp->addAndMakeVisible(kp->oneLiner);
 
-		kp->resized();
+		Component::SafePointer<PopupList> safeThis(this);
+
+		MessageManager::callAsync([safeThis]()
+		{
+		if (safeThis.getComponent() != nullptr)
+			safeThis.getComponent()->resized();
+		});
 	}
 	else
 	{
@@ -2383,17 +2389,20 @@ KeyboardPopup::ImagePreviewCreator::ImagePreviewCreator(KeyboardPopup& kp_, cons
 {
 	if (path.contains("."))
 	{
-		DspNetwork::AnonymousNodeCloner an(*network, &holder);
-
-		createdNode = dynamic_cast<NodeBase*>(network->create(path, path.fromFirstOccurrenceOf(".", false, false)).getObject());
-		network->getExceptionHandler().removeError(createdNode);
-
-		for (int i = 0; i < createdNode->getNumParameters(); i++)
+		if (!path.startsWith("project"))
 		{
-			auto p = createdNode->getParameter(i);
-			auto nr = RangeHelpers::getDoubleRange(p->data);
-			auto v = nr.convertFrom0to1(Random::getSystemRandom().nextDouble());
-			p->setValueAndStoreAsync(v);
+			DspNetwork::AnonymousNodeCloner an(*network, &holder);
+
+			createdNode = dynamic_cast<NodeBase*>(network->create(path, path.fromFirstOccurrenceOf(".", false, false)).getObject());
+			network->getExceptionHandler().removeError(createdNode);
+
+			for (int i = 0; i < createdNode->getNumParameters(); i++)
+			{
+				auto p = createdNode->getParameter(i);
+				auto nr = RangeHelpers::getDoubleRange(p->data);
+				auto v = nr.convertFrom0to1(Random::getSystemRandom().nextDouble());
+				p->setValueAndStoreAsync(v);
+			}
 		}
 	}
 	else
@@ -2455,6 +2464,7 @@ void KeyboardPopup::ImagePreviewCreator::timerCallback()
 	stopTimer();
 }
 
+#if USE_BACKEND
 DspNetworkGraph::BreadcrumbComponent::NetworkButton::NetworkButton(DspNetwork* n, bool current_) :
 	TextButton(n->getId()),
 	network(n),
@@ -2471,7 +2481,6 @@ DspNetworkGraph::BreadcrumbComponent::NetworkButton::NetworkButton(DspNetwork* n
 
 		currentSaver = new DspNetworkListeners::PatchAutosaver(n, td);
 	}
-
 
 	onClick = BIND_MEMBER_FUNCTION_0(NetworkButton::click);
 }
@@ -2490,5 +2499,7 @@ void DspNetworkGraph::BreadcrumbComponent::NetworkButton::click()
 
 	findParentComponentOfClass<WrapperWithMenuBarBase>()->canvas.setNewContent(new DspNetworkGraph(network), nullptr);
 }
+
+#endif
 
 }

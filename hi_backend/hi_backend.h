@@ -56,8 +56,15 @@ END_JUCE_MODULE_DECLARATION
 #include "../stk_wrapper/stk_wrapper.h"
 
 
+/** Config: USE_WORKBENCH_EDITOR
+
+If true, the backend processor will create a workbench editor instead of the HISE app. */
+#ifndef USE_WORKBENCH_EDITOR
+#define USE_WORKBENCH_EDITOR 0
+#endif
 
 
+#include "snex_workbench/BackendHostFactory.h"
 #include "backend/BackendProcessor.h"
 #include "backend/BackendComponents.h"
 #include "backend/BackendToolbar.h"
@@ -89,7 +96,7 @@ END_JUCE_MODULE_DECLARATION
 
 #include "snex_workbench/DspNetworkWorkbench.h"
 #include "snex_workbench/WorkbenchProcessor.h"
-#include "snex_workbench/BackendHostFactory.h"
+
 
 
 

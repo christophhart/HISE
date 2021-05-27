@@ -655,6 +655,7 @@ public:
 		}
 	};
 
+#if USE_BACKEND
 	struct BreadcrumbComponent: public Component
 	{
 		struct NetworkButton : public TextButton
@@ -761,6 +762,7 @@ public:
 		OwnedArray<NetworkButton> buttons;
 
 	};
+#endif
 
 	struct WrapperWithMenuBar : public WrapperWithMenuBarBase
 	{

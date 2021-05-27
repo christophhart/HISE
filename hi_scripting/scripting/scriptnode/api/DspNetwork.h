@@ -32,6 +32,13 @@
 
 #pragma once
 
+namespace hise
+{
+#if !USE_BACKEND
+	struct FrontendHostFactory;
+#endif
+}
+
 namespace scriptnode
 {
 using namespace juce;
@@ -184,6 +191,7 @@ class SnexSource;
 /** A network of multiple DSP objects that are connected using a graph. */
 class DspNetwork : public ConstScriptingObject,
 				   public Timer,
+				   public ControlledObject,
 				   public NodeBase::Holder
 {
 public:
@@ -203,7 +211,7 @@ public:
 	struct VoiceSetter
 	{
 		VoiceSetter(DspNetwork& p, int newVoiceIndex):
-			internalSetter(p.voiceIndex, newVoiceIndex)
+			internalSetter(*p.getPolyHandler(), newVoiceIndex)
 		{}
 
 	private:
@@ -214,7 +222,7 @@ public:
 	struct NoVoiceSetter
 	{
 		NoVoiceSetter(DspNetwork& p):
-			internalSetter(p.voiceIndex)
+			internalSetter(*p.getPolyHandler())
 		{}
 
 	private:
@@ -587,6 +595,10 @@ public:
 		return list;
 	}
 
+	void reset();
+
+	void handleHiseEvent(HiseEvent& e);
+
 	void process(ProcessDataDyn& data);
 
 	void process(AudioSampleBuffer& b, HiseEventBuffer* e);
@@ -644,9 +656,9 @@ public:
 	NodeBase* createFromValueTree(bool createPolyIfAvailable, ValueTree d, bool forceCreate=false);
 	bool isInSignalPath(NodeBase* b) const;
 
-	bool isCurrentlyRenderingVoice() const noexcept { return isPolyphonic() && voiceIndex.getVoiceIndex() != -1; }
+	bool isCurrentlyRenderingVoice() const noexcept { return isPolyphonic() && getPolyHandler()->getVoiceIndex() != -1; }
 
-	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || voiceIndex.getVoiceIndex() == 0; }
+	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || getPolyHandler()->getVoiceIndex() == 0; }
 
 	bool isForwardingControlsToParameters() const
 	{
@@ -769,7 +781,7 @@ public:
 	void setVoiceKiller(VoiceResetter* newVoiceKiller)
 	{
 		if (isPolyphonic())
-			voiceIndex.setVoiceResetter(newVoiceKiller);	
+			getPolyHandler()->setVoiceResetter(newVoiceKiller);	
 	}
 
 	void setUseFrozenNode(bool shouldBeEnabled);
@@ -787,10 +799,27 @@ public:
 	Holder* getParentHolder() { return parentHolder; }
 
 	DspNetwork* getParentNetwork() { return parentNetwork.get(); }
+	const DspNetwork* getParentNetwork() const { return parentNetwork.get(); }
 
 	void setParentNetwork(DspNetwork* p)
 	{
 		parentNetwork = p;
+	}
+
+	PolyHandler* getPolyHandler()
+	{
+		if (auto pn = getParentNetwork())
+			return pn->getPolyHandler();
+
+		return &polyHandler;
+	}
+
+	const PolyHandler* getPolyHandler() const
+	{
+		if (auto pn = getParentNetwork())
+			return pn->getPolyHandler();
+
+		return &polyHandler;
 	}
 
 private:
@@ -822,7 +851,7 @@ private:
 	const bool isPoly;
 
 	snex::Types::DllBoundaryTempoSyncer tempoSyncer;
-	snex::Types::PolyHandler voiceIndex;
+	snex::Types::PolyHandler polyHandler;
 
 	SelectedItemSet<NodeBase::Ptr> selection;
 
@@ -960,6 +989,110 @@ private:
 };
 
 
+struct OpaqueNetworkHolder
+{
+	SN_GET_SELF_AS_OBJECT(OpaqueNetworkHolder);
+
+	bool isPolyphonic() const { return false; }
+
+	HISE_EMPTY_INITIALISE;
+	HISE_EMPTY_PROCESS_SINGLE;
+
+	OpaqueNetworkHolder()
+	{
+
+	}
+
+	~OpaqueNetworkHolder()
+	{
+		ownedNetwork = nullptr;
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		ownedNetwork->handleHiseEvent(e);
+	}
+
+	bool handleModulation(double& modValue)
+	{
+		return ownedNetwork->handleModulation(modValue);
+	}
+
+	void process(ProcessDataDyn& d)
+	{
+		ownedNetwork->process(d);
+	}
+
+	void reset()
+	{
+		ownedNetwork->reset();
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		ownedNetwork->prepareToPlay(ps.sampleRate, ps.blockSize);
+	}
+
+	void createParameters(ParameterDataList& l);
+
+	void setCallback(parameter::data& d, int index);
+
+	template <int P> static void setParameterStatic(void* obj, double v)
+	{
+		auto t = static_cast<OpaqueNetworkHolder*>(obj);
+		t->ownedNetwork->getCurrentParameterHandler()->setParameter(P, (float)v);
+	}
+
+	void setNetwork(DspNetwork* n);
+
+	DspNetwork* getNetwork() {
+		return ownedNetwork;
+	}
+
+	void setExternalData(const ExternalData& d, int index);
+
+private:
+
+	struct DeferedDataInitialiser
+	{
+		ExternalData d;
+		int index;
+	};
+
+	Array<DeferedDataInitialiser> deferredData;
+	ReferenceCountedObjectPtr<DspNetwork> ownedNetwork;
+};
+
+struct HostHelpers
+{
+	static int getNumMaxDataObjects(const ValueTree& v, snex::ExternalData::DataType t);
+
+	static void setNumDataObjectsFromValueTree(OpaqueNode& on, const ValueTree& v);
+
+	template <typename WrapperType> static NodeBase* initNodeWithNetwork(DspNetwork* p, ValueTree nodeTree, const ValueTree& embeddedNetworkTree, bool useMod)
+	{
+		auto t = dynamic_cast<WrapperType*>(WrapperType::createNode<OpaqueNetworkHolder, NoExtraComponent, false, false>(p, nodeTree));
+
+		auto& on = t->getWrapperType().getWrappedObject();
+		setNumDataObjectsFromValueTree(on, embeddedNetworkTree);
+		auto ed = t->setOpaqueDataEditor(useMod);
+
+		auto onh = static_cast<OpaqueNetworkHolder*>(on.getObjectPtr());
+		onh->setNetwork(p->getParentHolder()->addEmbeddedNetwork(p, embeddedNetworkTree, ed));
+
+		ParameterDataList pList;
+		onh->createParameters(pList);
+		on.fillParameterList(pList);
+
+		t->postInit();
+		auto asNode = dynamic_cast<NodeBase*>(t);
+		asNode->setEmbeddedNetwork(onh->getNetwork());
+
+		return asNode;
+	}
+};
+
+#if USE_BACKEND
 struct DspNetworkListeners
 {
 	struct Base : public valuetree::AnyListener
@@ -1156,6 +1289,7 @@ struct DspNetworkListeners
 		File d;
 	};
 };
+#endif
 
 
 
