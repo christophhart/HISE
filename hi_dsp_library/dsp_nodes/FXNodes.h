@@ -292,6 +292,7 @@ public:
 		DEF_PARAMETER(Width, reverb);
 		DEF_PARAMETER(Size, reverb);
 	}
+	PARAMETER_MEMBER_FUNCTION;
 
 	SET_HISE_NODE_ID("reverb");
 	SN_GET_SELF_AS_OBJECT(reverb);

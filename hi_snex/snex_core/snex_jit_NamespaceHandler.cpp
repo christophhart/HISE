@@ -725,6 +725,9 @@ snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const 
 
 	auto copy = TemplateInstance(id);
 
+	if (!isTemplateClass(copy))
+		return nullptr;
+
 	jassert(isTemplateClass(copy));
 
 	bool createTemplatedComplexType = false;

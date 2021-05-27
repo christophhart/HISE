@@ -1767,8 +1767,10 @@ void ValueTreeBuilder::RootContainerBuilder::addModulationConnections()
 				{
 					for (auto c : st.getChildWithName(PropertyIds::Connections))
 					{
-						addModConnection(c, m, pIndex++);
+						addModConnection(c, m, pIndex);
 					}
+
+					pIndex++;
 				}
 			}
 

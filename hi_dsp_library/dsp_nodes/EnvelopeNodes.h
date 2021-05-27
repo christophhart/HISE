@@ -362,7 +362,7 @@ private:
 
 
 
-template <int NV, typename ParameterType> struct simple_ar_impl: public pimpl::envelope_base<ParameterType>,
+template <int NV, typename ParameterType> struct simple_ar: public pimpl::envelope_base<ParameterType>,
 															     public pimpl::simple_ar_base
 {
 	static constexpr int NumVoices = NV;
@@ -376,19 +376,19 @@ template <int NV, typename ParameterType> struct simple_ar_impl: public pimpl::e
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(Attack, simple_ar_impl);
-		DEF_PARAMETER(Release, simple_ar_impl);
-		DEF_PARAMETER(Gate, simple_ar_impl);
+		DEF_PARAMETER(Attack, simple_ar);
+		DEF_PARAMETER(Release, simple_ar);
+		DEF_PARAMETER(Gate, simple_ar);
 	}
 	PARAMETER_MEMBER_FUNCTION;
 
 	static constexpr bool isPolyphonic() { return NumVoices > 1; }
 
 	SET_HISE_NODE_ID("simple_ar");
-	SN_GET_SELF_AS_OBJECT(simple_ar_impl);
+	SN_GET_SELF_AS_OBJECT(simple_ar);
 	SN_DESCRIPTION("A simple attack / release envelope");
 
-	simple_ar_impl(): pimpl::envelope_base<ParameterType>(getStaticId()) {}
+	simple_ar(): pimpl::envelope_base<ParameterType>(getStaticId()) {}
 
 	void setAttack(double ms)
 	{
@@ -503,7 +503,7 @@ template <int NV, typename ParameterType> struct simple_ar_impl: public pimpl::e
 	void createParameters(ParameterDataList& data)
 	{
 		{
-			DEFINE_PARAMETERDATA(simple_ar_impl, Attack);
+			DEFINE_PARAMETERDATA(simple_ar, Attack);
 			p.setRange({ 0.0, 1000.0, 0.1 });
 			p.setSkewForCentre(100.0);
 			p.setDefaultValue(10.0);
@@ -511,7 +511,7 @@ template <int NV, typename ParameterType> struct simple_ar_impl: public pimpl::e
 		}
 
 		{
-			DEFINE_PARAMETERDATA(simple_ar_impl, Release);
+			DEFINE_PARAMETERDATA(simple_ar, Release);
 			p.setRange({ 0.0, 1000.0, 0.1 });
 			p.setSkewForCentre(100.0);
 			p.setDefaultValue(10.0);
@@ -519,7 +519,7 @@ template <int NV, typename ParameterType> struct simple_ar_impl: public pimpl::e
 		}
 
 		{
-			DEFINE_PARAMETERDATA(simple_ar_impl, Gate);
+			DEFINE_PARAMETERDATA(simple_ar, Gate);
 			p.setRange({ 0.0, 1.0, 1.0 });
 			p.setDefaultValue(0.0);
 			data.add(std::move(p));
@@ -530,9 +530,6 @@ template <int NV, typename ParameterType> struct simple_ar_impl: public pimpl::e
 	
 	PolyData<State, NumVoices> states;
 };
-
-template <typename ParameterType> using simple_ar = simple_ar_impl<1, ParameterType>;
-template <typename ParameterType> using simple_ar_poly = simple_ar_impl<NUM_POLYPHONIC_VOICES, ParameterType>;
 
 template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_base<ParameterType>,
 														 public pimpl::ahdsr_base

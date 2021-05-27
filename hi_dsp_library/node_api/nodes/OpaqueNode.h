@@ -132,7 +132,9 @@ struct OpaqueNode
 		auto t = prototypes::static_wrappers<T>::create(getObjectPtr());
 		isPoly = t->isPolyphonic();
 
+#if !HISE_NO_GUI_TOOLS
 		description = getDescription(*t);
+#endif
 
 		if constexpr (mothernode::isBaseOf<T>())
 			mnPtr = mothernode::getAsBase(*static_cast<T*>(getObjectPtr()));

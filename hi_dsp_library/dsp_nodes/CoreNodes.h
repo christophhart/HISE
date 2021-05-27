@@ -945,6 +945,7 @@ public:
 		DEF_PARAMETER(FreqMultiplier, fm);
 		DEF_PARAMETER(Gate, fm);
 	}
+	PARAMETER_MEMBER_FUNCTION;
 
 	SET_HISE_NODE_ID("fm");
 	SN_GET_SELF_AS_OBJECT(fm);
