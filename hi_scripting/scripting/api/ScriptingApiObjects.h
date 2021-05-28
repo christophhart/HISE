@@ -449,8 +449,20 @@ public:
 
 		// ===========================================================================
 
+		void setGlobalBounds(Rectangle<int> b, float sf)
+		{
+			auto gb = b.toFloat();
+			pos[0] = gb.getX();
+			pos[1] = gb.getY();
+			pos[2] = gb.getWidth();
+			pos[3] = gb.getHeight();
+			scaleFactor = sf;
+		}
+
 		struct Wrapper;
 
+		float scaleFactor = 1.0f;
+		float pos[4];
 		String shaderCode;
 		NamedValueSet uniformData;
 

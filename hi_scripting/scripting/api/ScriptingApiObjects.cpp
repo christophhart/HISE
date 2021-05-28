@@ -3992,8 +3992,9 @@ struct ScriptedDrawActions
 
 	struct addShader : public DrawActions::ActionBase
 	{
-		addShader(ScriptingObjects::ScriptShader* o, Rectangle<int> b):
+		addShader(DrawActions::Handler* h, ScriptingObjects::ScriptShader* o, Rectangle<int> b):
 			obj(o),
+			handler(h),
 			bounds(b)
 		{
 
@@ -4011,11 +4012,13 @@ struct ScriptedDrawActions
 
 				if (obj->r.wasOk())
 				{
+					obj->setGlobalBounds(handler->getGlobalBounds(), handler->getScaleFactor());
 					obj->shader->fillRect(g.getInternalContext(), bounds);
 				}
 			}
 		}
 
+		WeakReference<DrawActions::Handler> handler;
 		WeakReference<ScriptingObjects::ScriptShader> obj;
 		Rectangle<int> bounds;
 	};
@@ -4234,7 +4237,7 @@ void ScriptingObjects::GraphicsObject::applyShader(var shader, var area)
 	if (auto obj = dynamic_cast<ScriptingObjects::ScriptShader*>(shader.getObject()))
 	{
 		Rectangle<int> b = getRectangleFromVar(area).toNearestInt();
-		drawActionHandler.addDrawAction(new ScriptedDrawActions::addShader(obj, b));
+		drawActionHandler.addDrawAction(new ScriptedDrawActions::addShader(&drawActionHandler, obj, b));
 	}
 }
 
@@ -5868,6 +5871,10 @@ void ScriptingObjects::ScriptShader::setFragmentShader(const String& shaderFile)
 	{
 		if (safeShader == nullptr)
 			return;
+
+		pr.setUniform("uOffset", safeShader->pos[0], safeShader->pos[1]);
+		pr.setUniform("uSize", safeShader->pos[2], safeShader->pos[3]);
+		pr.setUniform("uScale", safeShader->scaleFactor);
 
 		for (const auto& p : safeShader->uniformData)
 		{

@@ -292,7 +292,7 @@ struct DrawActions
 					if (p->needsStackData())
 						numDataRequired++;
 				}
-
+				
 				r.reserveStackOperations(numDataRequired);
 
 				for (auto p : postActions)
@@ -443,7 +443,19 @@ struct DrawActions
 		void addDrawActionListener(Listener* l) { listeners.addIfNotAlreadyThere(l); }
 		void removeDrawActionListener(Listener* l) { listeners.removeAllInstancesOf(l); }
 
+		void setGlobalBounds(Rectangle<int> gb, float sf)
+		{
+			globalBounds = gb;
+			scaleFactor = sf;
+		}
+
+		Rectangle<int> getGlobalBounds() const { return globalBounds; }
+		float getScaleFactor() const { return scaleFactor; }
+
 	private:
+
+		Rectangle<int> globalBounds;
+		float scaleFactor = 1.0f;
 
 		void handleAsyncUpdate() override
 		{
@@ -484,7 +496,6 @@ public:
 
 	void newOpenGLContextCreated() override
 	{
-		jassertfalse;
 	}
 
 	void renderOpenGL() override
@@ -498,7 +509,6 @@ public:
 
 	void openGLContextClosing() override
 	{
-		jassertfalse;
 	}
 
 	void newPaintActionsAvailable() override { repaint(); }
@@ -508,6 +518,8 @@ public:
 
 	void registerToTopLevelComponent()
 	{
+		return;
+
 		if (srs == nullptr)
 		{
 			if (auto tc = findParentComponentOfClass<TopLevelWindowWithOptionalOpenGL>())

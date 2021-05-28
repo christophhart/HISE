@@ -655,7 +655,7 @@ void BorderPanel::paint(Graphics &g)
 
 	registerToTopLevelComponent();
 
-	return;
+	
 
 #if HISE_INCLUDE_RLOTTIE
 	if (animation != nullptr)
@@ -672,6 +672,17 @@ void BorderPanel::paint(Graphics &g)
 		if (isOpaque())
 			g.fillAll(Colours::black);
 
+		UnblurryGraphics ug(g, *this);
+
+		auto sf = ug.getTotalScaleFactor();
+		auto sf2 = UnblurryGraphics::getScaleFactorForComponent(this, false);
+		auto st = AffineTransform::scale(jmin<double>(2.0, sf));
+		auto st2 = AffineTransform::scale(sf);
+
+		auto gb = getLocalArea(getTopLevelComponent(), getLocalBounds()).transformed(st2);
+		
+		drawHandler->setGlobalBounds(gb, sf);
+
 		DrawActions::Handler::Iterator it(drawHandler.get());
 
 		if (it.wantsCachedImage())
@@ -679,9 +690,7 @@ void BorderPanel::paint(Graphics &g)
 			// We are creating one master image before the loop
 			Image cachedImg;
 			
-			UnblurryGraphics ug(g, *this);
-
-			auto sf = jmin(2.0f, ug.getTotalScaleFactor());
+			
 			
 			if (!isOpaque() && (getParentComponent() != nullptr && it.wantsToDrawOnParent()))
 			{
@@ -696,7 +705,7 @@ void BorderPanel::paint(Graphics &g)
 			}
 
 			Graphics g2(cachedImg);
-			g2.addTransform(AffineTransform::scale(sf));
+			g2.addTransform(st);
 
 			while (auto action = it.getNextAction())
 			{
@@ -718,10 +727,6 @@ void BorderPanel::paint(Graphics &g)
 					if (!action->wantsToDrawOnParent())
 					{
 						GraphicHelpers::quickDraw(cachedImg, actionImage);
-
-						
-
-						//g2.drawImageAt(actionImage, 0, 0);
 					}
 				}
 				else
@@ -730,7 +735,7 @@ void BorderPanel::paint(Graphics &g)
 				}
 			}
 			
-			g.drawImageTransformed(cachedImg, AffineTransform::scale(1.0f / sf));
+			g.drawImageTransformed(cachedImg, st.inverted());
 		}
 		else
 		{
