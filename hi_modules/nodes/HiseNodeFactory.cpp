@@ -1222,7 +1222,7 @@ namespace control
 
 	using dynamic_dupli_pack = wrap::data<control::dupli_pack<parameter::dynamic_base_holder>, data::dynamic::sliderpack>;
 
-	Factory::Factory(DspNetwork* network) :
+ 	Factory::Factory(DspNetwork* network) :
 		NodeFactory(network)
 	{
 		registerPolyNoProcessNode<control::pma<1, parameter::dynamic_base_holder>, control::pma<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, pma_editor>();
