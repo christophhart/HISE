@@ -510,6 +510,8 @@ ImageProvider::DisplayScaleFactor ImageProvider::getScaleFactor()
 
 Image ImageProvider::getImage(ImageType type)
 {
+	
+
 #if HISE_NO_GUI_TOOLS
 	return {};
 #else
@@ -517,22 +519,19 @@ Image ImageProvider::getImage(ImageType type)
 	{
 	case ImageProvider::KnobEmpty:
 
-		return ImageCache::getFromMemory(BinaryData::knobEmpty_200_png, BinaryData::knobEmpty_200_pngSize);
 
 
 	case ImageProvider::KnobUnmodulated:
 
-		return ImageCache::getFromMemory(BinaryData::knobUnmodulated_200_png, BinaryData::knobUnmodulated_200_pngSize);
 
 	case ImageProvider::KnobModulated:
 
-		return ImageCache::getFromMemory(BinaryData::knobModulated_200_png, BinaryData::knobModulated_200_pngSize);
 
 	case ImageProvider::MacroKnob:
-		
+
 
 	case ImageProvider::BalanceKnob:
-
+		return {};
 	case ImageProvider::ImageType::ToggleButton:
 		
 		return ImageCache::getFromMemory(BinaryData::toggle_200_png, BinaryData::toggle_200_pngSize);
@@ -948,8 +947,8 @@ numStrips(127),
 useCustomStrip(false)
 {
 #if !HISE_NO_GUI_TOOLS
-	volumeFilmStrip = ImageCache::getFromMemory(BinaryData::FrontendKnob_Unipolar_png, BinaryData::FrontendKnob_Unipolar_pngSize);
-	balanceFilmStrip = ImageCache::getFromMemory(BinaryData::FrontendKnob_Bipolar_png, BinaryData::FrontendKnob_Bipolar_pngSize);
+	//volumeFilmStrip = ImageCache::getFromMemory(BinaryData::FrontendKnob_Unipolar_png, BinaryData::FrontendKnob_Unipolar_pngSize);
+	//balanceFilmStrip = ImageCache::getFromMemory(BinaryData::FrontendKnob_Bipolar_png, BinaryData::FrontendKnob_Bipolar_pngSize);
 #endif
 }
 

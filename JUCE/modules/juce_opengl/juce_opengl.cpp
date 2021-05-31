@@ -213,7 +213,7 @@ static void checkGLError (const char* file, const int line)
             continue;
 
         DBG ("***** " << getGLErrorMessage (e) << "  at " << file << " : " << line);
-        jassertfalse;
+        //jassertfalse;
     }
 }
 

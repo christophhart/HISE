@@ -31,6 +31,8 @@
 */
 
 
+
+
 #if USE_VDSP_FFT
 #define Point DummyPoint
 #define Component DummyComponent
@@ -62,6 +64,8 @@
 
 #include "hi_tools/PathFactory.cpp"
 #include "hi_tools/HI_LookAndFeels.cpp"
+
+#include "hi_tools/PerlinNoise.cpp"
 
 #if !HISE_NO_GUI_TOOLS
 
