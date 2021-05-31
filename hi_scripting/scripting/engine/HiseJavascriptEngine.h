@@ -207,6 +207,8 @@ public:
 
 	var getScriptVariableFromRootNamespace(const Identifier & id) const;
 
+	void addShaderFile(const File& f);
+
 	int getNumIncludedFiles() const;
 	File getIncludedFile(int fileIndex) const;
 	Result getIncludedFileResult(int fileIndex) const;

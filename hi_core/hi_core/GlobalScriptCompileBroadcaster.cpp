@@ -163,4 +163,83 @@ ExternalScriptFile::Ptr GlobalScriptCompileBroadcaster::getExternalScriptFile(co
 	return includedFiles.getLast();
 }
 
+void ExternalScriptFile::setRuntimeErrors(const Result& r)
+{
+	runtimeErrors.clearQuick();
+
+	if (!r.wasOk())
+	{
+		StringArray sa = StringArray::fromLines(r.getErrorMessage());
+
+		for (const auto& s : sa)
+			runtimeErrors.add(RuntimeError(s));
+	}
+
+	WeakReference<ExternalScriptFile> safeThis(this);
+
+	MessageManager::callAsync([safeThis]()
+	{
+		if (safeThis.get() != nullptr)
+		{
+			for (auto s : safeThis.get()->runtimeErrorListeners)
+			{
+				if (s.get() != nullptr)
+					s->runTimeErrorsOccured(safeThis->runtimeErrors);
+			}
+		}
+	});
+}
+
+void ExternalScriptFile::addRuntimeErrorListener(RuntimeErrorListener* l)
+{
+	runtimeErrorListeners.addIfNotAlreadyThere(l);
+
+	WeakReference<ExternalScriptFile> safeThis(this);
+	WeakReference<RuntimeErrorListener> safeL(l);
+
+	if (!runtimeErrors.isEmpty())
+	{
+		MessageManager::callAsync([safeThis, safeL]()
+		{
+			if (safeL == nullptr || safeThis == nullptr)
+				return;
+
+			safeL.get()->runTimeErrorsOccured(safeThis->runtimeErrors);
+		});
+	}
+}
+
+ExternalScriptFile::RuntimeError::RuntimeError(const String& e)
+{
+	auto fileName = e.upToFirstOccurrenceOf("(", false, false);
+	lineNumber = e.fromFirstOccurrenceOf("(", false, false).getIntValue();
+
+	auto tokens = StringArray::fromTokens(e.fromFirstOccurrenceOf(")", false, false), ":", "");
+	tokens.removeEmptyStrings();
+	
+	bool isWarning = tokens[0].trim() == "warning";
+
+	errorLevel = isWarning ? ErrorLevel::Warning : ErrorLevel::Error;
+
+	errorMessage = tokens[1].trim();
+
+	if (errorMessage.isEmpty())
+		errorLevel = ErrorLevel::Invalid;
+
+}
+
+String ExternalScriptFile::RuntimeError::toString() const
+{
+	/** Invert this: 
+	auto s = e.fromFirstOccurrenceOf("Line ", false, false);
+	auto l = s.getIntValue() - 1;
+	auto c = s.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false).getIntValue();
+	errorMessage = s.fromFirstOccurrenceOf(": ", false, false);
+	*/
+
+	String e;
+	e << "Line " << String(lineNumber) << "(-1): " << errorMessage;
+	return e;
+}
+
 } // namespace hise

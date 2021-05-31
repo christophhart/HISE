@@ -69,10 +69,8 @@ struct MatrixEditor : public ScriptnodeExtraComponent<matrix<dynamic_matrix>>
 	hise::RouterComponent editor;
 };
 #else
-using MatrixEditor = NoExtraComponent;
+using MatrixEditor = HostHelpers::NoExtraComponent;
 #endif
-
-
 
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)

@@ -552,7 +552,7 @@ void mcl::TextEditor::paint (Graphics& g)
 		currentError->paintLines(g, transform, Colours::red);
 
 	for (auto w : warnings)
-		w->paintLines(g, transform, Colours::yellow);
+		w->paintLines(g, transform, w->isWarning ? Colours::yellow : Colours::red);
 
 	if (currentAutoComplete != nullptr)
 	{

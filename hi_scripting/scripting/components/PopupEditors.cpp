@@ -32,6 +32,73 @@
 
 namespace hise { using namespace juce;
 
+struct GLSLKeywordProvider : public mcl::TokenCollection::Provider
+{
+	struct GLSLKeyword : public mcl::TokenCollection::Token
+	{
+		GLSLKeyword(const String& name) :
+			Token(name)
+		{
+			c = Colours::lightcoral;
+			priority = 40;
+		}
+	};
+
+	struct GLSLToken : public mcl::TokenCollection::Token
+	{
+		GLSLToken(const String& codeToInsert, const String& typeString) :
+			Token(typeString + " " + codeToInsert),
+			code(codeToInsert)
+		{
+			c = Colours::magenta;
+			priority = 50;
+		}
+
+		bool matches(const String& input, const String& previousToken, int lineNumber) const
+		{
+			return previousToken.isEmpty() && matchesInput(input, code);
+		}
+
+		String getCodeToInsert(const String& input) const override { return code; }
+
+		String code;
+	};
+
+	void addKeyword(mcl::TokenCollection::List& tokens, const String& word, const String& description)
+	{
+		auto c = new GLSLKeyword(word);
+		c->markdownDescription = description;
+		tokens.add(c);
+	}
+
+	void addGlobalVariable(mcl::TokenCollection::List& tokens, const String& word, const String& type, const String& description)
+	{
+		auto c = new GLSLToken(word, type);
+
+		c->markdownDescription = description;
+
+		tokens.add(c);
+	}
+
+	void addTokens(mcl::TokenCollection::List& tokens) override
+	{
+		addGlobalVariable(tokens, "iResolution", "vec2", "The actual pixel size of the canvas");
+		addGlobalVariable(tokens, "pixelPos", "vec2", "The unscaled pixel position on the monitor");
+		addGlobalVariable(tokens, "fragCoord", "vec2", "The scaled pixel coordinate relative to the bottom left");
+		addGlobalVariable(tokens, "iTime", "float", "The time in seconds since compilation");
+		addGlobalVariable(tokens, "fragColor", "vec4", "The output colour for the given pixel");
+		addGlobalVariable(tokens, "pixelAlpha", "float", "The alpha value that needs to be multiplied with the output colour");
+
+		addKeyword(tokens, "vec2", "A two dimensional vector");
+		addKeyword(tokens, "vec3", "A three dimensional vector");
+		addKeyword(tokens, "vec4", "A four dimensional vector");
+		addKeyword(tokens, "float", "A single precision float number");
+
+		addKeyword(tokens, "uniform", "A keyword for specifying uniform data");
+		addKeyword(tokens, "main", "The main entry function");
+	}
+};
+
 PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit) :
 	sp(s),
 	callback(Identifier()),
@@ -41,10 +108,33 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 
 	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit);
 
-	const Identifier snippetId = Identifier("File_" + fileToEdit.getFileNameWithoutExtension());
+	
 
-	tokeniser = new JavascriptTokeniser();
-	addAndMakeVisible(editor = new JavascriptCodeEditor(externalFile->getFileDocument(), tokeniser, s, snippetId));
+	if (externalFile->getFile().hasFileExtension("glsl"))
+	{
+		
+
+		doc = new mcl::TextDocument(externalFile->getFileDocument());
+		
+		auto med = new mcl::TextEditor(*doc);
+
+		med->tokenCollection.addTokenProvider(new GLSLKeywordProvider());
+
+		editor = med;
+
+		med->setLineRangeFunction(snex::debug::Helpers::createLineRanges);
+
+		addAndMakeVisible(editor);
+
+		externalFile->addRuntimeErrorListener(this);
+
+	}
+	else
+	{
+		const Identifier snippetId = Identifier("File_" + fileToEdit.getFileNameWithoutExtension());
+		tokeniser = new JavascriptTokeniser();
+		addAndMakeVisible(editor = new JavascriptCodeEditor(externalFile->getFileDocument(), tokeniser, s, snippetId));
+	}
 
 	addButtonAndCompileLabel();
 }
@@ -75,6 +165,9 @@ void PopupIncludeEditor::addButtonAndCompileLabel()
 
 PopupIncludeEditor::~PopupIncludeEditor()
 {
+	if (externalFile != nullptr)
+		externalFile->removeRuntimeErrorListener(this);
+
 	editor = nullptr;
 	resultLabel = nullptr;
 
@@ -107,6 +200,31 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 	return false;
 }
 
+void PopupIncludeEditor::runTimeErrorsOccured(const Array<ExternalScriptFile::RuntimeError>& errors)
+{
+	if (auto asmcl = dynamic_cast<mcl::TextEditor*>(editor.get()))
+	{
+		for (const auto& e : errors)
+		{
+			if (e.errorLevel == ExternalScriptFile::RuntimeError::ErrorLevel::Warning)
+				asmcl->addWarning(e.toString(), true);
+			if (e.errorLevel == ExternalScriptFile::RuntimeError::ErrorLevel::Error)
+			{
+				asmcl->addWarning(e.toString(), false);
+				lastCompileOk = false;
+				startTimer(200);
+
+				if(resultLabel != nullptr)
+					resultLabel->setText("GLSL Compile Error", dontSendNotification);
+			}
+		}
+
+		asmcl->repaint();
+	}
+
+	
+}
+
 void PopupIncludeEditor::resized()
 {
 	bool isInPanel = findParentComponentOfClass<FloatingTile>() != nullptr;
@@ -124,13 +242,16 @@ void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
 {
 	CodeDocument::Position pos;
 
-	pos = lineNumber != -1 ? CodeDocument::Position(editor->getDocument(), lineNumber, character) :
-		CodeDocument::Position(editor->getDocument(), character);
+	if (auto ed = getEditor())
+	{
+		pos = lineNumber != -1 ? CodeDocument::Position(ed->getDocument(), lineNumber, character) :
+			CodeDocument::Position(ed->getDocument(), character);
 
-	editor->scrollToLine(jmax<int>(0, pos.getLineNumber() - 1));
-	editor->moveCaretTo(pos, false);
-	editor->moveCaretToStartOfLine(false);
-	editor->moveCaretToEndOfLine(true);
+		ed->scrollToLine(jmax<int>(0, pos.getLineNumber() - 1));
+		ed->moveCaretTo(pos, false);
+		ed->moveCaretToStartOfLine(false);
+		ed->moveCaretToEndOfLine(true);
+	}
 }
 
 void PopupIncludeEditor::buttonClicked(Button* /*b*/)
@@ -160,6 +281,11 @@ void PopupIncludeEditor::compileInternal()
 	};
 
 	sp->compileScript(rf);
+
+	if (auto asmcl = dynamic_cast<mcl::TextEditor*>(editor.get()))
+	{
+		asmcl->clearWarningsAndErrors();
+	}
 }
 
 } // namespace hise

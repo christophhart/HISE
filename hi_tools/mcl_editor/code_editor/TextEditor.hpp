@@ -134,9 +134,9 @@ public:
 		repaint();
 	}
 
-	void addWarning(const String& errorMessage)
+	void addWarning(const String& errorMessage, bool isWarning=true)
 	{
-		warnings.add(new Error(document, errorMessage));
+		warnings.add(new Error(document, errorMessage, isWarning));
 		repaint();
 	}
 
@@ -145,7 +145,7 @@ public:
 		if (errorMessage.isEmpty())
 			currentError = nullptr;
 		else
-			currentError = new Error(document, errorMessage);
+			currentError = new Error(document, errorMessage, false);
 
 		repaint();
 	}
@@ -610,22 +610,40 @@ private:
 
 	struct Error
 	{
-		Error(TextDocument& doc_, const String& e):
-			document(doc_)
+		Error(TextDocument& doc_, const String& e, bool isWarning_):
+			document(doc_),
+			isWarning(isWarning_)
 		{
 			auto s = e.fromFirstOccurrenceOf("Line ", false, false);
 			auto l = s.getIntValue() - 1;
 			auto c = s.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false).getIntValue();
 			errorMessage = s.fromFirstOccurrenceOf(": ", false, false);
 
-			Point<int> pos(l, c);
-			
-			document.navigate(pos, TextDocument::Target::subwordWithPoint, TextDocument::Direction::backwardCol);
-			auto endPoint = pos;
-			document.navigate(endPoint, TextDocument::Target::subwordWithPoint, TextDocument::Direction::forwardCol);
+			Point<int> pos, endPoint;
 
-			if (pos == endPoint)
-				endPoint.y += 1;
+			if (c == -1)
+			{
+				isEntireLine = true;
+				pos = Point<int>(l, 0);
+				
+				document.navigate(pos, TextDocument::Target::line, mcl::TextDocument::Direction::forwardCol);
+
+				endPoint = pos;
+				
+
+				document.navigate(pos, TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
+			}
+			else
+			{
+				pos = Point<int>(l, c);
+
+				document.navigate(pos, TextDocument::Target::subwordWithPoint, TextDocument::Direction::backwardCol);
+				endPoint = pos;
+				document.navigate(endPoint, TextDocument::Target::subwordWithPoint, TextDocument::Direction::forwardCol);
+
+				if (pos == endPoint)
+					endPoint.y += 1;
+			}
 
 			start = CodeDocument::Position(document.getCodeDocument(), pos.x, pos.y);
 			end = CodeDocument::Position(document.getCodeDocument(), endPoint.x, endPoint.y);
@@ -695,10 +713,23 @@ private:
 
 		void rebuild()
 		{
-			Selection errorWord(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
-			errorLines = document.getUnderlines(errorWord, mcl::TextDocument::Metric::baseline);
-			area = document.getSelectionRegion(errorWord).getRectangle(0);
+			if (isEntireLine)
+			{
+				Selection errorWord(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
+				errorLines = document.getUnderlines(errorWord, mcl::TextDocument::Metric::baseline);
+				area = document.getSelectionRegion(errorWord).getRectangle(0).withWidth(errorLines[0].getLength());
+			}
+			else
+			{
+				Selection errorWord(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
+				errorLines = document.getUnderlines(errorWord, mcl::TextDocument::Metric::baseline);
+				area = document.getSelectionRegion(errorWord).getRectangle(0);
+			}
+
+			
 		}
+
+		bool isEntireLine = false;
 
 		TextDocument& document;
 
@@ -709,6 +740,7 @@ private:
 		Array<Line<float>> errorLines;
 
 		String errorMessage;
+		bool isWarning;
 	};
 
 	TooltipWithArea tooltipManager;

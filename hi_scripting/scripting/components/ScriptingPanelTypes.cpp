@@ -81,7 +81,9 @@ Component* CodeEditorPanel::createContentComponent(int index)
 
 		auto pe = new PopupIncludeEditor(p, f);
 		pe->addMouseListener(this, true);
-		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
+
+		if(auto ed = pe->getEditor())
+			getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 
 		return pe;
 	}

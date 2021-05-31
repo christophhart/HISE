@@ -17,6 +17,7 @@
 // [BEGIN_USER_CODE_SECTION]
 
 #define JUCE_ENABLE_AUDIO_GUARD 0
+#define JUCE_DONT_ASSERT_ON_GLSL_COMPILE_ERROR 1
 
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
@@ -48,8 +49,6 @@
 // END SECTION A
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
-
-#define JUCE_PROJUCER_VERSION 0x50405
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                  1
@@ -85,10 +84,17 @@
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
 
 //==============================================================================
+// hi_backend flags:
+
+#ifndef    USE_WORKBENCH_EDITOR
+ //#define USE_WORKBENCH_EDITOR 0
+#endif
+
+//==============================================================================
 // hi_components flags:
 
 #ifndef    HISE_INCLUDE_SNEX_FLOATING_TILES
- //#define HISE_INCLUDE_SNEX_FLOATING_TILES 1
+ //#define HISE_INCLUDE_SNEX_FLOATING_TILES 0
 #endif
 
 //==============================================================================
@@ -124,6 +130,10 @@
 
 #ifndef    FRONTEND_IS_PLUGIN
  //#define FRONTEND_IS_PLUGIN 0
+#endif
+
+#ifndef    FORCE_INPUT_CHANNELS
+ //#define FORCE_INPUT_CHANNELS 0
 #endif
 
 #ifndef    HISE_MIDIFX_PLUGIN
@@ -263,7 +273,7 @@
 // hi_scripting flags:
 
 #ifndef    INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
- //#define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 0
+ //#define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 1
 #endif
 
 //==============================================================================

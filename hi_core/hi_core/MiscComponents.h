@@ -440,6 +440,12 @@ struct DrawActions
 			triggerAsyncUpdate();
 		}
 
+		void logError(const String& message)
+		{
+			if (errorLogger)
+				errorLogger(message);
+		}
+
 		void addDrawActionListener(Listener* l) { listeners.addIfNotAlreadyThere(l); }
 		void removeDrawActionListener(Listener* l) { listeners.removeAllInstancesOf(l); }
 
@@ -451,6 +457,8 @@ struct DrawActions
 
 		Rectangle<int> getGlobalBounds() const { return globalBounds; }
 		float getScaleFactor() const { return scaleFactor; }
+
+		std::function<void(const String& m)> errorLogger;
 
 	private:
 

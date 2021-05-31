@@ -947,6 +947,11 @@ var HiseJavascriptEngine::getScriptVariableFromRootNamespace(const Identifier & 
 	return var();
 }
 
+void HiseJavascriptEngine::addShaderFile(const File& f)
+{
+	root->hiseSpecialData.includedFiles.addIfNotAlreadyThere(new ExternalFileData(ExternalFileData::Type::EmbeddedScript, f, f.getFileName()));
+}
+
 int HiseJavascriptEngine::getNumIncludedFiles() const
 {
 	return root->hiseSpecialData.includedFiles.size();
@@ -1081,6 +1086,8 @@ juce::String HiseJavascriptEngine::getHoverString(const String& token)
 		return "";
 	}
 }
+
+
 
 HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :
 callbackName(id),

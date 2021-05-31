@@ -334,11 +334,13 @@ FileChangeListener::~FileChangeListener()
 	masterReference.clear();
 }
 
-void FileChangeListener::addFileWatcher(const File &file)
+ExternalScriptFile::Ptr FileChangeListener::addFileWatcher(const File &file)
 {
 	auto p = dynamic_cast<Processor*>(this)->getMainController()->getExternalScriptFile(file);
 
 	watchers.add(p);
+
+	return p;
 }
 
 void FileChangeListener::setFileResult(const File &file, Result r)

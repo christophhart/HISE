@@ -38,6 +38,11 @@ using namespace juce;
 namespace debug
 {
 
+struct Helpers
+{
+	static mcl::FoldableLineRange::List createLineRanges(const CodeDocument& doc);
+};
+
 using namespace mcl;
 
 struct ApiDatabase

@@ -814,6 +814,9 @@ mcl::TextDocument::TextDocument(CodeDocument& doc_) :
 	foldManager(doc_)
 {
 	addFoldListener(this);
+
+	if (doc.getNumCharacters() > 0)
+		codeChanged(true, 0, doc.getNumCharacters());
 }
 
 

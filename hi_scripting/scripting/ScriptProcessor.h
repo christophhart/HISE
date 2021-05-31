@@ -249,7 +249,7 @@ public:
 
 	virtual void fileChanged() = 0;
 
-	void addFileWatcher(const File &file);
+	ExternalScriptFile::Ptr addFileWatcher(const File &file);
 
 	void setFileResult(const File &file, Result r);
 
