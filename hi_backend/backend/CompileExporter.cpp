@@ -2543,6 +2543,12 @@ void CompileExporter::HeaderHelpers::addStaticDspFactoryRegistration(String& plu
 	}
     
 	pluginDataHeaderFile << "}" << "\n";
+
+	auto nodeIncludeFile = GET_PROJECT_HANDLER(exporter->chainToExport).getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile("nodes").getChildFile("includes.h");
+	
+	// We need to add this function body or the linker will complain (if the file exists, it'll be defined
+	if(!nodeIncludeFile.existsAsFile())
+		pluginDataHeaderFile << "scriptnode::dll::FactoryBase* hise::FrontendHostFactory::createStaticFactory() { return nullptr; }\n";
 }
 
 void CompileExporter::HeaderHelpers::addCopyProtectionHeaderLines(const String &publicKey, String& pluginDataHeaderFile)
