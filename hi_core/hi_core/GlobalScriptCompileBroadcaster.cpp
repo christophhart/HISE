@@ -211,7 +211,7 @@ void ExternalScriptFile::addRuntimeErrorListener(RuntimeErrorListener* l)
 
 ExternalScriptFile::RuntimeError::RuntimeError(const String& e)
 {
-	auto fileName = e.upToFirstOccurrenceOf("(", false, false);
+	file = e.upToFirstOccurrenceOf("(", false, false);
 	lineNumber = e.fromFirstOccurrenceOf("(", false, false).getIntValue();
 
 	auto tokens = StringArray::fromTokens(e.fromFirstOccurrenceOf(")", false, false), ":", "");
@@ -226,6 +226,11 @@ ExternalScriptFile::RuntimeError::RuntimeError(const String& e)
 	if (errorMessage.isEmpty())
 		errorLevel = ErrorLevel::Invalid;
 
+}
+
+bool ExternalScriptFile::RuntimeError::matches(const String& fileNameWithoutExtension) const
+{
+	return file.compareIgnoreCase(fileNameWithoutExtension) == 0;
 }
 
 String ExternalScriptFile::RuntimeError::toString() const

@@ -206,11 +206,16 @@ void PopupIncludeEditor::runTimeErrorsOccured(const Array<ExternalScriptFile::Ru
 	{
 		for (const auto& e : errors)
 		{
-			if (e.errorLevel == ExternalScriptFile::RuntimeError::ErrorLevel::Warning)
+			auto matchesFile = e.matches(externalFile->getFile().getFileNameWithoutExtension());
+
+			if (matchesFile && e.errorLevel == ExternalScriptFile::RuntimeError::ErrorLevel::Warning)
 				asmcl->addWarning(e.toString(), true);
+
 			if (e.errorLevel == ExternalScriptFile::RuntimeError::ErrorLevel::Error)
 			{
-				asmcl->addWarning(e.toString(), false);
+				if(matchesFile)
+					asmcl->addWarning(e.toString(), false);
+
 				lastCompileOk = false;
 				startTimer(200);
 
@@ -221,8 +226,6 @@ void PopupIncludeEditor::runTimeErrorsOccured(const Array<ExternalScriptFile::Ru
 
 		asmcl->repaint();
 	}
-
-	
 }
 
 void PopupIncludeEditor::resized()
