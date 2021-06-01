@@ -418,13 +418,11 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 				}
 			}
             
-            
+			if (start >= end)
+				break;
 
 			start++;
 
-            if(start >= end)
-                break;
-            
 			if (*start == firstNewLineChar)
 				lineNumber++;
 

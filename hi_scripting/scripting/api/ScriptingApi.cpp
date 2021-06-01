@@ -844,6 +844,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterSliderPackData);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterTableData);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterAudioFile);
+	API_METHOD_WRAPPER_1(Engine, createAndRegisterRingBuffer);
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
 	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
@@ -1007,6 +1008,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(createAndRegisterSliderPackData);
 	ADD_API_METHOD_1(createAndRegisterTableData);
 	ADD_API_METHOD_1(createAndRegisterAudioFile);
+	ADD_API_METHOD_1(createAndRegisterRingBuffer);
 	ADD_API_METHOD_1(loadFont);
 	ADD_API_METHOD_2(loadFontAs);
 	ADD_API_METHOD_1(loadAudioFileIntoBufferArray);
@@ -1931,6 +1933,11 @@ hise::ScriptingObjects::ScriptTableData* ScriptingApi::Engine::createAndRegister
 hise::ScriptingObjects::ScriptAudioFile* ScriptingApi::Engine::createAndRegisterAudioFile(int index)
 {
 	return new ScriptingObjects::ScriptAudioFile(getScriptProcessor(), index);
+}
+
+hise::ScriptingObjects::ScriptRingBuffer* ScriptingApi::Engine::createAndRegisterRingBuffer(int index)
+{
+	return new ScriptingObjects::ScriptRingBuffer(getScriptProcessor(), index);
 }
 
 ScriptingObjects::TimerObject* ScriptingApi::Engine::createTimerObject() { return new ScriptingObjects::TimerObject(getScriptProcessor()); }
@@ -3044,6 +3051,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, removeEffect);
 	API_METHOD_WRAPPER_1(Synth, getModulator);
 	API_METHOD_WRAPPER_1(Synth, getAudioSampleProcessor);
+	API_METHOD_WRAPPER_1(Synth, getDisplayBufferSource);
 	API_METHOD_WRAPPER_1(Synth, getTableProcessor);
 	API_METHOD_WRAPPER_1(Synth, getRoutingMatrix);
 	API_METHOD_WRAPPER_1(Synth, getSampler);
@@ -3114,6 +3122,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(removeModulator);
 	ADD_API_METHOD_1(getModulator);
 	ADD_API_METHOD_1(getAudioSampleProcessor);
+	ADD_API_METHOD_1(getDisplayBufferSource);
 	ADD_API_METHOD_1(getTableProcessor);
 	ADD_API_METHOD_1(getSampler);
 	ADD_API_METHOD_1(getSlotFX);
@@ -3770,6 +3779,37 @@ ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcesso
 	{
 		reportIllegalCall("getScriptingTableProcessor()", "onInit");
 		RETURN_IF_NO_THROW(new ScriptTableProcessor(getScriptProcessor(), nullptr));
+	}
+}
+
+hise::ScriptingObjects::ScriptDisplayBufferSource* ScriptingApi::Synth::getDisplayBufferSource(const String& name)
+{
+	using namespace snex;
+
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
+	if (getScriptProcessor()->objectsCanBeCreated())
+	{
+		Processor::Iterator<ExternalDataHolder> it(owner);
+
+		while (ExternalDataHolder *eh = it.getNextProcessor())
+		{
+			if (dynamic_cast<Processor*>(eh)->getId() == name)
+			{
+				if (eh->getNumDataObjects(ExternalData::DataType::DisplayBuffer) > 0)
+					return new ScriptingObjects::ScriptDisplayBufferSource(getScriptProcessor(), eh);
+				else
+					reportScriptError("No display buffer available");
+			}
+		}
+
+		reportScriptError(name + " was not found. ");
+		RETURN_IF_NO_THROW(new ScriptingObjects::ScriptDisplayBufferSource(getScriptProcessor(), nullptr));
+	}
+	else
+	{
+		reportIllegalCall("getScriptingTableProcessor()", "onInit");
+		RETURN_IF_NO_THROW(new ScriptingObjects::ScriptDisplayBufferSource(getScriptProcessor(), nullptr));
 	}
 }
 

@@ -524,7 +524,9 @@ void AhdsrGraph::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var n
 void AhdsrGraph::refresh()
 {
 	const auto& b = rb->getReadBuffer();
-	jassert(b.getNumSamples() == 9);
+	
+	if (b.getNumSamples() != 9)
+		return;
 
 	float this_attack = b.getSample(0, (int)Parameters::Attack);
 	float this_attackLevel = b.getSample(0, (int)Parameters::AttackLevel);

@@ -127,8 +127,13 @@ public:
 	{
 		ahdsr_base::setExternalData(d, index);
 
-		for (int i = 0; i < SpecialParameters::DecayCurve - SpecialParameters::Attack; i++)
-			displayBuffer->getWriteBuffer().setSample(0, i, getAttribute(i + SpecialParameters::Attack));
+		if (displayBuffer->getWriteBuffer().getNumSamples() > 0)
+		{
+			for (int i = 0; i < SpecialParameters::DecayCurve - SpecialParameters::Attack; i++)
+			{
+				displayBuffer->getWriteBuffer().setSample(0, i, getAttribute(i + SpecialParameters::Attack));
+			}
+		}
 	}
 
 	/** @brief returns \c true, if the envelope is not IDLE and not bypassed. */
