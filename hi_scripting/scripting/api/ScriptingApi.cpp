@@ -1738,20 +1738,27 @@ var ScriptingApi::Settings::getAvailableDeviceNames()
 	const int thisDevice = devices->indexOf(driver->deviceManager->getCurrentDeviceTypeObject());
 	
 	AudioIODeviceType *currentDeviceType = devices->getUnchecked(thisDevice);	
-	StringArray soundCardNames = currentDeviceType->getDeviceNames(false);
-	
 	Array<var> result;
+	
+	if (currentDeviceType != nullptr)
+	{
+		StringArray soundCardNames = currentDeviceType->getDeviceNames(false);
 
-	for (auto x : soundCardNames)
-		result.add(x);
-		
+		for (auto x : soundCardNames)
+			result.add(x);
+	}	
+	
 	return result;
 }
 
 String ScriptingApi::Settings::getCurrentAudioDevice()
 {
 	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
-	return currentDevice->getName();
+	
+	if (currentDevice != nullptr)
+		return currentDevice->getName();
+		
+	return "";
 }
 
 void ScriptingApi::Settings::setAudioDevice(String name)
@@ -1762,20 +1769,27 @@ void ScriptingApi::Settings::setAudioDevice(String name)
 var ScriptingApi::Settings::getAvailableOutputChannels()
 {
 	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
-	StringArray outputPairs = HiseSettings::ConversionHelpers::getChannelPairs(currentDevice);
+	Array<var> result;	
+	
+	if (currentDevice != nullptr) 
+	{
+		StringArray outputPairs = HiseSettings::ConversionHelpers::getChannelPairs(currentDevice);
 
-	Array<var> result;
+		for (auto x : outputPairs)
+			result.add(x);
+	}
 
-	for (auto x : outputPairs)
-		result.add(x);
-		
 	return result;
 }
 
 int ScriptingApi::Settings::getCurrentOutputChannel()
 {
 	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
-	return (currentDevice->getActiveOutputChannels().getHighestBit() - 1) / 2;
+	
+	if (currentDevice != nullptr)
+		return (currentDevice->getActiveOutputChannels().getHighestBit() - 1) / 2;
+	
+	return 0;
 }
 
 void ScriptingApi::Settings::setOutputChannel(int index)
@@ -1788,40 +1802,52 @@ var ScriptingApi::Settings::getAvailableBufferSizes()
 	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
 
 	Array<var> result;
-	Array<int> bufferSizes = HiseSettings::ConversionHelpers::getBufferSizesForDevice(currentDevice);
 	
-	for (auto x : bufferSizes)
-		result.add(x);
+	if (currentDevice != nullptr)
+	{
+		Array<int> bufferSizes = HiseSettings::ConversionHelpers::getBufferSizesForDevice(currentDevice);
+		
+		for (auto x : bufferSizes)
+			result.add(x);
+	}
 	
 	return result;
 }
 
 int ScriptingApi::Settings::getCurrentBufferSize()
 {	
-	return driver->getCurrentBlockSize();
+	if (driver->deviceManager == nullptr)
+		return driver->getCurrentBlockSize();		
+
+	return false;
 }
 
 void ScriptingApi::Settings::setBufferSize(int newBlockSize)
 {	
-	driver->setCurrentBlockSize(newBlockSize);
+	if (driver->deviceManager == nullptr)
+		driver->setCurrentBlockSize(newBlockSize);
 }
 
 var ScriptingApi::Settings::getAvailableSampleRates()
 {
 	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
-	auto samplerates = HiseSettings::ConversionHelpers::getSampleRates(currentDevice);
 	Array<var> result;
+	
+	if (currentDevice != nullptr)
+	{
+		auto samplerates = HiseSettings::ConversionHelpers::getSampleRates(currentDevice);
 
-	for (auto x : samplerates)
-		result.add(String(x, 0));
-		
+		for (auto x : samplerates)
+			result.add(String(x, 0));
+	}
+	
 	return result;
 }
 
 double ScriptingApi::Settings::getCurrentSampleRate()
 {
 	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
-	
+
 	if (currentDevice != nullptr)
 		return currentDevice->getCurrentSampleRate();
 	
@@ -1860,7 +1886,10 @@ void ScriptingApi::Settings::toggleMidiInput(const String &midiInputName, bool e
 
 bool ScriptingApi::Settings::isMidiInputEnabled(const String &midiInputName)
 {
-	return driver->deviceManager->isMidiInputEnabled(midiInputName);
+	if (driver->deviceManager == nullptr)
+		return driver->deviceManager->isMidiInputEnabled(midiInputName);
+
+	return false;
 }
 
 void ScriptingApi::Settings::toggleMidiChannel(int index, bool value)
