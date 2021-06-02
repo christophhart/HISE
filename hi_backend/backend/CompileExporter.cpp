@@ -1163,11 +1163,13 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
 #elif JUCE_LINUX
 	if (!isUsingCIMode())
 	{
-		PresetHandler::showMessageWindow("Batch file created.", "The batch file was created in the build directory.Click OK to open the location");
 		String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
 	  system(permissionCommand.getCharPointer());
-
-		batchFile.getParentDirectory().revealToUser();
+		
+		if (PresetHandler::showYesNoWindow("Batch file created.", "The batch file was created in the build directory. Do you want to open the location?"))
+		{
+			batchFile.getParentDirectory().revealToUser();	
+		}		
 	}
 #else
     

@@ -478,6 +478,11 @@ void FrontendProcessor::getStateInformation(MemoryBlock &destData)
 
 	auto mpeData = getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
 
+	// Reload the macro connections before restoring the preset values
+		// so that it will update the correct connections with `setMacroControl()` in a control callback
+	if (getMacroManager().isMacroEnabledOnFrontend())
+		getMacroManager().getMacroChain()->saveMacrosToValueTree(v);
+
 	v.addChild(mpeData, -1, nullptr);
 
 	v.writeToStream(output);
@@ -525,6 +530,11 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 		getExpansionHandler().setCurrentExpansion(nullptr, sendNotificationSync);
 
 	currentlyLoadedProgram = v.getProperty("Program");
+
+	// Reload the macro connections before restoring the preset values
+		// so that it will update the correct connections with `setMacroControl()` in a control callback
+	if (getMacroManager().isMacroEnabledOnFrontend())
+		getMacroManager().getMacroChain()->loadMacrosFromValueTree(v, false);
 
 	getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
 
