@@ -1816,7 +1816,7 @@ var ScriptingApi::Settings::getAvailableBufferSizes()
 
 int ScriptingApi::Settings::getCurrentBufferSize()
 {	
-	if (driver->deviceManager == nullptr)
+	if (driver->deviceManager != nullptr)
 		return driver->getCurrentBlockSize();		
 
 	return false;
@@ -1824,7 +1824,7 @@ int ScriptingApi::Settings::getCurrentBufferSize()
 
 void ScriptingApi::Settings::setBufferSize(int newBlockSize)
 {	
-	if (driver->deviceManager == nullptr)
+	if (driver->deviceManager != nullptr)
 		driver->setCurrentBlockSize(newBlockSize);
 }
 
@@ -1886,7 +1886,7 @@ void ScriptingApi::Settings::toggleMidiInput(const String &midiInputName, bool e
 
 bool ScriptingApi::Settings::isMidiInputEnabled(const String &midiInputName)
 {
-	if (driver->deviceManager == nullptr)
+	if (driver->deviceManager != nullptr)
 		return driver->deviceManager->isMidiInputEnabled(midiInputName);
 
 	return false;
