@@ -242,13 +242,72 @@ void dynamic::audiofile::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType 
 	}
 }
 
+#if 0
+struct XYZSampleMapProvider : public XYZMultiChannelAudioBuffer::XYZProvider,
+						      public ControlledObject
+{
+	XYZSampleMapProvider(MainController* mc):
+		ControlledObject(mc)
+	{
 
+	}
+
+	bool parse(const String& v, XYZMultiChannelAudioBuffer::MetadataItem::List& list) override
+	{
+		PoolReference r(getMainController(), v, FileHandlerBase::SampleMaps);
+
+		SampleMapPool::ManagedPtr p;
+
+		if (auto e = getMainController()->getExpansionHandler().getExpansionForWildcardReference(v))
+		{
+			p = e->pool->getSampleMapPool().loadFromReference(r, PoolHelpers::DontCreateNewEntry);
+		}
+		else
+		{
+			p = getMainController()->getActiveFileHandler()->pool->getSampleMapPool().loadFromReference(r, PoolHelpers::DontCreateNewEntry);
+		}
+
+		if (p != nullptr)
+		{
+			auto treeData = p->data;
+
+			for (auto s : treeData)
+			{
+				auto d = hise::StreamingHelpers::getBasicMappingDataFromSample(s);
+				XYZMultiChannelAudioBuffer::MetadataItem mi;
+
+				mi.keyRange = { d.lowKey, d.highKey };
+				mi.veloRange = { d.lowVelocity, d.highVelocity };
+				mi.root = d.rootNote;
+				mi.rrGroup = (int)s[SampleIds::RRGroup];
+				
+				auto fileName = s[SampleIds::FileName].toString();
+
+				auto lr = loadFileFromReference(fileName);
+				mi.sampleIndex = lr.reference.hash();
+				list.add(std::move(mi));
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+};
+#endif
 
 void dynamic::audiofile::initialise(NodeBase* n)
 {
 	auto fileProvider = new PooledAudioFileDataProvider(n->getScriptProcessor()->getMainController_());
 
 	internalData->setProvider(fileProvider);
+
+#if 0
+	if (auto xyz = dynamic_cast<XYZMultiChannelAudioBuffer*>(internalData.get()))
+	{
+		xyz->addXYZProvider(new XYZSampleMapProvider(fileProvider->getMainController()));
+	}
+#endif
 
 	dynamicT<hise::MultiChannelAudioBuffer>::initialise(n);
 

@@ -672,6 +672,7 @@ private:
 
 };
 
+
 /** This is a multichannel buffer type used by SNEX and scriptnode for audio files. 
 
 	The buffer will contain two versions of the data, one is used as read-only resource
@@ -683,11 +684,17 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 	{
 		struct LoadResult
 		{
-			LoadResult() :
-				r(Result::ok())
+			LoadResult(bool ok=true, const String& ref=String()) :
+				r(ok ? Result::ok() : Result::fail(ref + " not found")),
+				reference(ref)
 			{};
 
 			operator bool() { return r.wasOk(); }
+
+			bool operator==(const LoadResult& other) const
+			{
+				return reference == other.reference;
+			}
 
 			AudioSampleBuffer buffer;
 			Result r;
@@ -962,6 +969,126 @@ private:
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(MultiChannelAudioBuffer);
 };
+
+
+
+#if 0
+struct XYZMultiChannelAudioBuffer : public MultiChannelAudioBuffer
+{
+	struct MetadataItem
+	{
+		using List = Array<MetadataItem>;
+
+		bool matches(int n, int v, int r)
+		{
+			return veloRange.contains(v) &&
+				keyRange.contains(n) &&
+				rrGroup == r;
+		}
+
+		Range<int> veloRange;
+		Range<int> keyRange;
+		int root;
+		int rrGroup;
+		int sampleIndex = -1;
+	};
+
+	struct Pool : public DataProvider
+	{
+		DataProvider::LoadResult loadFile(const String& ref) override
+		{
+			auto hash = ref.hash();
+
+			for (const auto& i : pool)
+			{
+				if (i.reference == ref)
+					return i;
+			}
+
+			return LoadResult(false, ref);
+		}
+
+		Array<LoadResult> pool;
+	};
+
+	struct XYZProvider: public ReferenceCountedObject
+	{
+		XYZProvider(XYZMultiChannelAudioBuffer& buffer) :
+			parent(buffer)
+		{
+
+		}
+
+		DataProvider::LoadResult loadFileFromReference(const String& f)
+		{
+			if (parent.pool != nullptr)
+			{
+				if (auto pr = parent.pool->loadFile(f))
+					return pr;
+			}
+
+			for (auto dp : dataProviders)
+			{
+				if (auto lr = dp->loadFile(f))
+				{
+					if (parent.pool != nullptr)
+						parent.pool->pool.addIfNotAlreadyThere(lr);
+
+					return lr;
+				}
+			}
+
+			return {};
+		}
+
+		virtual bool parse(const String& v, MetadataItem::List& list) = 0;
+		
+		ReferenceCountedArray<DataProvider> dataProviders;
+		XYZMultiChannelAudioBuffer& parent;
+	};
+
+	bool fromBase64String(const String& b64) override
+	{
+		if (b64.compare(currentB64) != 0)
+		{
+			currentB64 = b64;
+
+			items.clear();
+
+			for (auto b : xyzProviders)
+			{
+				if (b->parse(currentB64, items))
+					return true;
+			}
+		}
+	}
+
+	void addXYZProvider(XYZProvider* newProvider)
+	{
+		xyzProviders.add(newProvider);
+	}
+
+	void setPoolToUse(Pool* p)
+	{
+		pool = p;
+	};
+
+	String toBase64String() const override { return currentB64; }
+
+	String currentB64;
+	MetadataItem::List items;
+	ReferenceCountedArray<XYZProvider> xyzProviders;
+	ReferenceCountedObjectPtr<Pool> pool;
+};
+
+struct XYZMultiChannelAudioBufferEditor : public ComplexDataUIBase::EditorBase
+{
+	void paint(Graphics& g) override
+	{
+
+	}
+};
+#endif
 
 #if 0
 struct MultiChannelAudioBufferDisplay : public AudioDisplayComponent,

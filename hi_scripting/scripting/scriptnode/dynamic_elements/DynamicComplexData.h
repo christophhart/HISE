@@ -640,6 +640,8 @@ using audiofile_editor = data::ui::pimpl::editorT<data::dynamic::audiofile, hise
 using audiofile_editor_with_mod = data::ui::pimpl::editorT<data::dynamic::audiofile, hise::MultiChannelAudioBuffer, hise::MultiChannelAudioBufferDisplay, true>;
 
 
+//using xyz_audio_editor = data::ui::pimpl::editorT < data::dynamic::audiofile, hise::XYZMultiChannelAudioBuffer, hise::XYZMultiChannelAudioBufferEditor>;
+
 }
 
 }
