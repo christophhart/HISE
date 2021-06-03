@@ -4511,7 +4511,10 @@ void ScriptingApi::Content::suspendPanelTimers(bool shouldBeSuspended)
 var ScriptingApi::Content::createShader(const String& fileName)
 {
 	auto f = new ScriptingObjects::ScriptShader(getScriptProcessor());
-	f->setFragmentShader(fileName);
+
+	if(!fileName.isEmpty())
+		f->setFragmentShader(fileName);
+
 	return var(f);
 }
 

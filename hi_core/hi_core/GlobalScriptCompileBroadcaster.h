@@ -85,7 +85,11 @@ public:
 
 		ErrorLevel errorLevel = ErrorLevel::Invalid;
 
+		bool matches(const String& fileNameWithoutExtension) const;
+
 	private:
+
+		String file;
 
 		int lineNumber = -1;
 		

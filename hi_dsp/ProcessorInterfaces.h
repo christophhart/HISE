@@ -58,12 +58,6 @@ public:
 		return nullptr;
 	}
 
-	SimpleRingBuffer* getDisplayBuffer(int index) override
-	{
-		jassertfalse; // soon...
-		return nullptr;
-	}
-
 protected:
 
 	ComplexDataUIBase* createAndInit(ExternalData::DataType t, bool useSampleLookup)
@@ -131,6 +125,11 @@ public:
 		return static_cast<MultiChannelAudioBuffer*>(getWithoutCreating(ExternalData::DataType::AudioFile, index));
 	}
 
+	SimpleRingBuffer* getDisplayBuffer(int index) final override
+	{
+		return static_cast<SimpleRingBuffer*>(getWithoutCreating(ExternalData::DataType::DisplayBuffer, index));
+	}
+
 	int getNumDataObjects(ExternalData::DataType t) const  final override
 	{
 		return t == dataType ? ownedObjects.size() : 0;
@@ -161,17 +160,20 @@ class ProcessorWithStaticExternalData : public ProcessorWithExternalData
 {
 public:
 
-	ProcessorWithStaticExternalData(MainController* mc, int numTables, int numSliderPacks, int numAudioFiles, bool useSampleLookup=true):
+	ProcessorWithStaticExternalData(MainController* mc, int numTables, int numSliderPacks, int numAudioFiles, int numDisplayBuffers, bool useSampleLookup):
 		ProcessorWithExternalData(mc)
 	{
 		for (int i = 0; i < numTables; i++)
 			tables.add(static_cast<Table*>(createAndInit(ExternalData::DataType::Table, useSampleLookup)));
 
 		for (int i = 0; i < numSliderPacks; i++)
-			sliderPacks.add(static_cast<SliderPackData*>(createAndInit(ExternalData::DataType::SliderPack, useSampleLookup)));
+			sliderPacks.add(static_cast<SliderPackData*>(createAndInit(ExternalData::DataType::SliderPack, true)));
 
 		for (int i = 0; i < numAudioFiles; i++)
-			audioFiles.add(static_cast<MultiChannelAudioBuffer*>(createAndInit(ExternalData::DataType::AudioFile, useSampleLookup)));
+			audioFiles.add(static_cast<MultiChannelAudioBuffer*>(createAndInit(ExternalData::DataType::AudioFile, true)));
+
+		for (int i = 0; i < numDisplayBuffers; i++)
+			displayBuffers.add(static_cast<SimpleRingBuffer*>(createAndInit(ExternalData::DataType::DisplayBuffer, true)));
 	}
 
 	int getNumDataObjects(ExternalData::DataType t) const final override
@@ -181,6 +183,7 @@ public:
 		case ExternalData::DataType::Table: return tables.size();
 		case ExternalData::DataType::SliderPack: return sliderPacks.size();
 		case ExternalData::DataType::AudioFile: return audioFiles.size();
+		case ExternalData::DataType::DisplayBuffer: return displayBuffers.size();
 		}
 
 		return 0;
@@ -206,6 +209,14 @@ public:
 	{
 		if (isPositiveAndBelow(index, audioFiles.size()))
 			return audioFiles[index];
+
+		return nullptr;
+	}
+
+	SimpleRingBuffer* getDisplayBuffer(int index) final override
+	{
+		if (isPositiveAndBelow(index, displayBuffers.size()))
+			return displayBuffers[index];
 
 		return nullptr;
 	}
@@ -240,11 +251,22 @@ public:
 		return *(audioFiles.getRawDataPointer() + index);
 	}
 
+	SimpleRingBuffer* getDisplayBufferUnchecked(int index = 0)
+	{
+		return *(displayBuffers.getRawDataPointer() + index);
+	}
+
+	const SimpleRingBuffer* getDisplayBufferUnchecked(int index = 0) const
+	{
+		return *(displayBuffers.getRawDataPointer() + index);
+	}
+
 private:
 
 	ReferenceCountedArray<SliderPackData> sliderPacks;
 	ReferenceCountedArray<Table> tables;
 	ReferenceCountedArray<MultiChannelAudioBuffer> audioFiles;
+	ReferenceCountedArray<SimpleRingBuffer> displayBuffers;
 };
 
 /** A baseclass for processors with multiple data types that can be resized
@@ -294,6 +316,17 @@ public:
 		return audioFiles[index];
 	}
 
+	SimpleRingBuffer* getDisplayBuffer(int index) final override
+	{
+		if (auto d = ringBuffers[index])
+			return d;
+
+		auto s = createAndInit(snex::ExternalData::DataType::DisplayBuffer, true);
+
+		ringBuffers.set(index, static_cast<SimpleRingBuffer*>(s));
+		return ringBuffers[index];
+	}
+
 	int getNumDataObjects(ExternalData::DataType t) const
 	{
 		switch (t)
@@ -301,6 +334,7 @@ public:
 		case ExternalData::DataType::SliderPack: return sliderPacks.size();
 		case ExternalData::DataType::Table: return tables.size();
 		case ExternalData::DataType::AudioFile: return audioFiles.size();
+		case ExternalData::DataType::DisplayBuffer: return ringBuffers.size();
 		}
 
 		return 0;
@@ -342,6 +376,8 @@ public:
 			sliderPacks.set(index, dynamic_cast<SliderPackData*>(obj)); break;
 		case ExternalData::DataType::AudioFile:
 			audioFiles.set(index, dynamic_cast<MultiChannelAudioBuffer*>(obj)); break;
+		case ExternalData::DataType::DisplayBuffer:
+			ringBuffers.set(index, dynamic_cast<SimpleRingBuffer*>(obj)); break;
 		}
 	}
 
@@ -353,6 +389,7 @@ private:
 	ReferenceCountedArray<SliderPackData> sliderPacks;
 	ReferenceCountedArray<Table> tables;
 	ReferenceCountedArray<MultiChannelAudioBuffer> audioFiles;
+	ReferenceCountedArray<SimpleRingBuffer> ringBuffers;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessorWithDynamicExternalData);
 };

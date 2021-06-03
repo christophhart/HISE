@@ -35,17 +35,23 @@ xcopy "xml\classhise_1_1_dsp_instance.xml" "xml\selection"
 
 
 
+
+
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_modulator.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_synth.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_midi_list.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_slider_pack_data.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_table_data.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_script_ring_buffer.xml" "xml\selection"
+
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_shader.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_audio_file.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_sampler_sound.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_message_holder.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_audio_sample_processor.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_table_processor.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_script_display_buffer_source.xml" "xml\selection"
+
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_effect.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_routing_matrix.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_midi_processor.xml" "xml\selection"
@@ -99,6 +105,8 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_modulator.xml" 
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_midi_list.xml" "MidiList.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_slider_pack_data.xml" "SliderPackData.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_table_data.xml" "Table.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_ring_buffer.xml" "DisplayBuffer.xml"
+
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_audio_file.xml" "AudioFile.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_sampler_sound.xml" "Sample.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_message_holder.xml" "MessageHolder.xml"
@@ -106,6 +114,10 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_effect.xml" "Ef
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_midi_processor.xml" "MidiProcessor.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_audio_sample_processor.xml" "AudioSampleProcessor.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_table_processor.xml" "TableProcessor.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_display_buffer_source.xml" "DisplayBufferSource.xml"
+
+
+
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_synth.xml" "ChildSynth.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_slot_f_x.xml" "SlotFX.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_routing_matrix.xml" "RoutingMatrix.xml"
@@ -121,6 +133,10 @@ ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_slider.xm
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_label.xml" "ScriptLabel.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_modulator_meter.xml" "ModulatorMeter.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_table.xml" "ScriptTable.xml"
+
+
+
+
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_shader.xml" "ScriptShader.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_image.xml" "ScriptImage.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_panel.xml" "ScriptPanel.xml"

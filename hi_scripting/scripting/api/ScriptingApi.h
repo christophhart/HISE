@@ -456,6 +456,9 @@ public:
 		/** Creates a audio file holder and registers it so you can access it from other modules. */
 		ScriptingObjects::ScriptAudioFile* createAndRegisterAudioFile(int index);
 
+		/** Creates a ring buffer and registers it so you can access it from other modules. */
+		ScriptingObjects::ScriptRingBuffer* createAndRegisterRingBuffer(int index);
+
 		/** Creates a new timer object. */
 		ScriptingObjects::TimerObject* createTimerObject();
 
@@ -810,6 +813,9 @@ public:
 
 		/** Returns the table processor with the given name. */
 		ScriptTableProcessor *getTableProcessor(const String &name);
+
+		/** Returns a reference to a processor that holds a display buffer. */
+		ScriptingObjects::ScriptDisplayBufferSource* getDisplayBufferSource(const String& name);
 
 		/** Returns the first sampler with the name name. */
 		Sampler *getSampler(const String &name);

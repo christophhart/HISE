@@ -948,6 +948,136 @@ juce::String ScriptingObjects::ScriptAudioFile::getCurrentlyLoadedFile() const
 	return {};
 }
 
+struct ScriptingObjects::ScriptRingBuffer::Wrapper
+{
+	API_METHOD_WRAPPER_0(ScriptRingBuffer, getReadBuffer);
+	API_METHOD_WRAPPER_3(ScriptRingBuffer, createPath);
+	API_METHOD_WRAPPER_2(ScriptRingBuffer, getResizedBuffer);
+};
+
+ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* other/*=nullptr*/):
+	ScriptComplexDataReferenceBase(pwsc, index, snex::ExternalData::DataType::DisplayBuffer, other)
+{
+	ADD_API_METHOD_0(getReadBuffer);
+	ADD_API_METHOD_3(createPath);
+	ADD_API_METHOD_2(getResizedBuffer);
+}
+
+var ScriptingObjects::ScriptRingBuffer::getReadBuffer()
+{
+	auto& rb = getRingBuffer()->getReadBuffer();
+	return  var(new VariantBuffer(const_cast<float*>(rb.getArrayOfReadPointers()[0]), rb.getNumSamples()));
+}
+
+
+var ScriptingObjects::ScriptRingBuffer::getResizedBuffer(int numDestSamples, int resampleMode)
+{
+	if (numDestSamples > 0)
+	{
+		auto& rb = getRingBuffer()->getReadBuffer();
+
+		if (rb.getNumSamples() == numDestSamples)
+			return getReadBuffer();
+
+		VariantBuffer::Ptr b = new VariantBuffer(numDestSamples);
+
+		float stride = (float)rb.getNumSamples() / (float)numDestSamples;
+
+		int dstIndex = 0;
+
+		if (stride < 2.0)
+		{
+			for (float i = 0.0f; i < (float)rb.getNumSamples(); i += stride)
+			{
+				auto idx = (int)i;
+				auto c = rb.getSample(0, i);
+				b->setSample(dstIndex++, c);
+			}
+		}
+		else
+		{
+			for (float i = 0.0f; i < (float)rb.getNumSamples(); i += stride)
+			{
+				auto idx = (int)i;
+				auto numThisTime = jmin(rb.getNumSamples() - idx, roundToInt(stride));
+				auto v = FloatVectorOperations::findMinAndMax(rb.getReadPointer(0, idx), numThisTime);
+
+				auto c = v.getStart() + v.getLength() * 0.5f;
+				b->setSample(dstIndex++, c);
+			}
+		}
+
+		
+
+		return var(b);
+	}
+	else
+		return var(new VariantBuffer(0));
+}
+
+var ScriptingObjects::ScriptRingBuffer::createPath(var dstArea, var sourceRange, var startValue)
+{
+	auto r = Result::ok();
+
+	auto dst = ApiHelpers::getRectangleFromVar(dstArea, &r);
+
+	if (!r.wasOk())
+		reportScriptError(r.getErrorMessage());
+
+	auto src = ApiHelpers::getRectangleFromVar(sourceRange, &r);
+
+	if (!r.wasOk())
+		reportScriptError(r.getErrorMessage());
+	
+	auto b = *getReadBuffer().getBuffer();
+
+	auto hToUse = (int)src.getHeight();
+
+	if (hToUse == -1)
+		hToUse = b.size;
+
+	Range<int> s_range(jmax<int>(0, (int)src.getWidth()), jmin<int>(b.size, hToUse));
+	Range<float> valueRange(jmax<float>(-1.0f, src.getX()), jmin<float>(1.0f, src.getY()));
+
+	int numValues = s_range.getLength();
+	int numPixels = dst.getWidth();
+	auto stride = roundToInt((float)numValues / (float)numPixels);
+
+	auto sp = new PathObject(getScriptProcessor());
+	
+	auto& p = sp->getPath();
+
+	auto startv = valueRange.getEnd() - (double)startValue * valueRange.getLength();
+
+	p.startNewSubPath(0.0f, valueRange.getStart());
+	p.startNewSubPath(0.0f, valueRange.getEnd());
+
+	bool first = true;
+	float firstValue = 0.0f;
+
+	p.startNewSubPath(0.0f, startv);
+
+	for (int i = 0; i < numValues; i += stride)
+	{
+		int numToLook = jmin(stride, numValues - i);
+
+		auto avg = FloatVectorOperations::findMinAndMax(b.buffer.getReadPointer(0, i), numToLook);
+
+		auto value = avg.getEnd();
+
+		if(std::abs(avg.getStart()) > std::abs(avg.getEnd()))
+			value = avg.getStart();
+
+		p.lineTo((float)i, valueRange.getEnd() - valueRange.clipValue(value));
+	};
+
+	p.lineTo(numValues, startv);
+
+	PathFactory::scalePath(p, dst);
+
+	return var(sp);
+}
+
 struct ScriptingObjects::ScriptTableData::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_0(ScriptTableData, reset);
@@ -4757,5 +4887,31 @@ juce::ValueTree ApiHelpers::getApiTree()
 }
 #endif
 
+struct ScriptingObjects::ScriptDisplayBufferSource::Wrapper
+{
+	API_METHOD_WRAPPER_1(ScriptDisplayBufferSource, getDisplayBuffer);
+};
+
+ScriptingObjects::ScriptDisplayBufferSource::ScriptDisplayBufferSource(ProcessorWithScriptingContent *p, ExternalDataHolder *h):
+	ConstScriptingObject(p, 0),
+	source(h)
+{
+	ADD_API_METHOD_1(getDisplayBuffer);
+}
+
+var ScriptingObjects::ScriptDisplayBufferSource::getDisplayBuffer(int index)
+{
+	if (objectExists())
+	{
+		auto numObjects = source->getNumDataObjects(ExternalData::DataType::DisplayBuffer);
+
+		if (isPositiveAndBelow(index, numObjects))
+			return var(new ScriptingObjects::ScriptRingBuffer(getScriptProcessor(), index, source));
+
+		reportScriptError("Can't find buffer at index " + String(index));
+	}
+	
+	RETURN_IF_NO_THROW(var());
+}
 
 } // namespace hise

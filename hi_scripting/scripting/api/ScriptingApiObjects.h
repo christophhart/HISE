@@ -430,7 +430,32 @@ namespace ScriptingObjects
 		struct Wrapper;
 	};
 
-	
+	class ScriptRingBuffer : public ScriptComplexDataReferenceBase
+	{
+	public:
+
+		ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* other=nullptr);
+
+		// ============================================================================================================
+
+		/** Returns a reference to the internal read buffer. */
+		var getReadBuffer();
+
+		/** Resamples the buffer to a fixed size. */
+		var getResizedBuffer(int numDestSamples, int resampleMode);
+
+		/** Creates a path objects scaled to the given bounds and sourceRange */
+		var createPath(var dstArea, var sourceRange, var normalisedStartValue);
+
+		// ============================================================================================================
+
+	private:
+
+		SimpleRingBuffer* getRingBuffer() { return static_cast<SimpleRingBuffer*>(complexObject.get()); }
+		const SimpleRingBuffer* getRingBuffer() const { return static_cast<SimpleRingBuffer*>(complexObject.get()); }
+
+		struct Wrapper;
+	};
 
 	class ScriptTableData : public ScriptComplexDataReferenceBase
 	{
@@ -1230,6 +1255,30 @@ namespace ScriptingObjects
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptingAudioSampleProcessor);
 
 		// ============================================================================================================
+	};
+
+	class ScriptDisplayBufferSource : public ConstScriptingObject
+	{
+	public:
+
+		ScriptDisplayBufferSource(ProcessorWithScriptingContent *p, ExternalDataHolder *h);
+		~ScriptDisplayBufferSource() {};
+
+		// =============================================================================================
+
+		/** Returns a reference to the display buffer at the given index. */
+		var getDisplayBuffer(int index);
+
+		// =============================================================================================
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("DisplayBufferSource"); };
+		bool objectDeleted() const override { return source.get() == nullptr; }
+		bool objectExists() const override { return source != nullptr; }
+
+	private:
+
+		struct Wrapper;
+		WeakReference<ExternalDataHolder> source;
 	};
 
 	class ScriptingTableProcessor : public ConstScriptingObject

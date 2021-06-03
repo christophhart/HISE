@@ -33,12 +33,194 @@
 namespace hise { using namespace juce;
 
 
+ScriptingObjects::ScriptShader::FileParser::FileParser(ProcessorWithScriptingContent* p, String& fileNameWithoutExtension_, FileList& listToUse):
+	ControlledObject(p->getMainController_()),
+	sp(p),
+	includedFiles(listToUse),
+	fileNameWithoutExtension(fileNameWithoutExtension_)
+{
+
+}
+
+StringArray ScriptingObjects::ScriptShader::FileParser::getLines()
+{
+	static const String incl = "#include";
+
+	s << createLinePointer(0) << "\n";
+	s << loadFileContent();
+
+	if (s.contains(incl))
+	{
+		auto lines = StringArray::fromLines(s);
+
+		for (int i = 0; i < lines.size(); i++)
+		{
+			auto s = lines[i];
+
+			if (s.startsWith(incl))
+			{
+				auto fileNameToInclude = s.fromFirstOccurrenceOf(incl, false, false).trim().unquoted();
+				FileParser includeParser(sp, fileNameToInclude, includedFiles);
+
+				auto includedLines = includeParser.getLines();
+
+				lines.remove(i);
+				
+				for (int j = includedLines.size(); j >= 0; --j)
+					lines.insert(i, includedLines[j]);
+
+				int lineToUse = i + 1;
+
+				i += includedLines.size();
+
+				lines.insert(i +1, createLinePointer(lineToUse-1));
+			}
+		}
+
+		return lines;
+	}
+	
+	return StringArray::fromLines(s);
+}
+
+String ScriptingObjects::ScriptShader::FileParser::createLinePointer(int i) const
+{
+	String l;
+	l << "#line " << String(i) <<  " \"" << fileNameWithoutExtension << "\"";
+	return l;
+}
+
+String ScriptingObjects::ScriptShader::FileParser::loadFileContent()
+{
+#if USE_BACKEND
+	auto f = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts).getChildFile(fileNameWithoutExtension).withFileExtension("glsl");
+
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(sp))
+	{
+		auto ef = jp->addFileWatcher(f);
+
+		if (includedFiles.contains(ef))
+			throw String("Trying to include " + fileNameWithoutExtension + " multiple times");
+
+		includedFiles.add(ef);
+		jp->getScriptEngine()->addShaderFile(f);
+	}
+
+	return f.loadFileAsString();
+#else
+	return getMainController()->getExternalScriptFromCollection(fileNameWithoutExtension + ".glsl");
+#endif
+}
+
+
+ScriptingObjects::ScriptShader::PreviewComponent::PreviewComponent(ScriptShader* s) :
+	obj(s)
+{
+	setSize(600, 400);
+	startTimer(15);
+	setName("Shader preview");
+}
+
+void ScriptingObjects::ScriptShader::PreviewComponent::paint(Graphics& g)
+{
+	if (obj != nullptr && obj->shader != nullptr)
+	{
+		if (obj->dirty)
+		{
+			auto r = obj->shader->checkCompilation(g.getInternalContext());
+
+			obj->setCompileResult(r);
+			obj->dirty = false;
+		}
+
+		if (obj->compiledOk())
+		{
+			auto gb = getLocalArea(getTopLevelComponent(), getLocalBounds());
+
+			obj->setGlobalBounds(gb, 1.0f);
+
+			obj->localRect = getLocalBounds().toFloat();
+
+			auto enabled = obj->enableBlending;
+
+			auto wasEnabled = glIsEnabled(GL_BLEND);
+
+			int blendSrc;
+			int blendDst;
+
+			glGetIntegerv(GL_BLEND_SRC, &blendSrc);
+			glGetIntegerv(GL_BLEND_DST, &blendDst);
+
+			if (enabled)
+			{
+				glEnable(GL_BLEND);
+				glBlendFunc((int)obj->src, (int)obj->dst);
+			}
+
+			auto time = Time::getMillisecondCounterHiRes();
+
+			obj->shader->fillRect(g.getInternalContext(), getLocalBounds());
+
+			time = Time::getMillisecondCounterHiRes() - time;
+
+			auto fps = 1.0 / (time * 0.001);
+
+			if (fps < lastFps)
+				lastFps = fps;
+			else
+			{
+				fps = 0.999 * lastFps + 0.001 * fps;
+			}
+			
+			g.setColour(Colours::white);
+			g.setFont(GLOBAL_BOLD_FONT());
+
+			auto f = GLOBAL_BOLD_FONT();
+
+			auto fpsString = String((int)fps) + "FPS";
+
+			auto textArea = getLocalBounds().toFloat().reduced(4.0f).removeFromLeft(f.getStringWidthFloat(fpsString) + 10.0f).removeFromBottom(20.0f);
+
+			g.setColour(Colours::black.withAlpha(0.7f));
+			g.fillRect(textArea);
+
+			g.setColour(Colours::white);
+			g.drawText(fpsString, textArea, Justification::centred);
+
+			// reset it to default
+			if (enabled)
+			{
+				if (!wasEnabled)
+					glDisable(GL_BLEND);
+
+				glBlendFunc(blendSrc, blendDst);
+			}
+		}
+		else
+		{
+			String s;
+			s << "### Compilation Error: \n";
+			s << "```\n";
+			s << obj->getErrorMessage();
+			s << "```\n";
+
+
+			MarkdownRenderer r(s);
+			r.parse();
+			r.getHeightForWidth(getWidth() - 20.0f);
+
+			r.draw(g, getLocalBounds().toFloat().reduced(10.0f));
+		}
+	}
+}
 
 struct ScriptingObjects::ScriptShader::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptShader, setFragmentShader);
 	API_VOID_METHOD_WRAPPER_2(ScriptShader, setUniformData);
 	API_VOID_METHOD_WRAPPER_3(ScriptShader, setBlendFunc);
+	API_VOID_METHOD_WRAPPER_1(ScriptShader, fromBase64);
+	API_METHOD_WRAPPER_0(ScriptShader, toBase64);
 };
 
 ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) :
@@ -60,51 +242,104 @@ ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) 
 	ADD_API_METHOD_1(setFragmentShader);
 	ADD_API_METHOD_2(setUniformData);
 	ADD_API_METHOD_3(setBlendFunc);
+	ADD_API_METHOD_1(fromBase64);
+	ADD_API_METHOD_0(toBase64);
 }
+
+String ScriptingObjects::ScriptShader::getHeader()
+{
+	String s;
+
+	s << "uniform float uScale;";
+	s << "uniform float iTime;";
+	s << "uniform vec2 iMouse;";
+	s << "uniform vec2 uOffset;";
+	s << "uniform vec3 iResolution;";
+	s << "";
+	s << "vec2 gl_fc()";
+	s << "{";
+	s << "vec2 p = vec2(pixelPos.x + uOffset.x,";
+	s << "	pixelPos.y + uOffset.y) / uScale;";
+	s << "p.y = iResolution.y - p.y;";
+	s << "return p;";
+	s << "}";
+	s << "\n#define fragCoord gl_fc()\n";
+	s << "#define fragColor gl_FragColor\n";
+
+	return s;
+}
+
+
 
 void ScriptingObjects::ScriptShader::setFragmentShader(String shaderFile)
 {
-#if USE_BACKEND
-	auto f = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(getScriptProcessor())).getSubDirectory(FileHandlerBase::Scripts).getChildFile(shaderFile).withFileExtension("glsl");
+	FileParser p(getScriptProcessor(), shaderFile, includedFiles);
 
-	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	compileRawCode(p.getLines().joinIntoString("\n"));
+
+	
+}
+
+void ScriptingObjects::ScriptShader::setUniformData(const String& id, var data)
+{
+	uniformData.set(Identifier(id), data);
+}
+
+void ScriptingObjects::ScriptShader::setBlendFunc(bool enabled, int sFactor, int dFactor)
+{
+	enableBlending = enabled;
+	src = (BlendMode)sFactor;
+	dst = (BlendMode)dFactor;
+}
+
+String ScriptingObjects::ScriptShader::toBase64()
+{
+	zstd::ZDefaultCompressor comp;
+	
+	MemoryBlock mb;
+	comp.compress(compiledCode, mb);
+	return mb.toBase64Encoding();
+}
+
+void ScriptingObjects::ScriptShader::fromBase64(String b64)
+{
+	zstd::ZDefaultCompressor comp;
+
+	MemoryBlock mb;
+	if (mb.fromBase64Encoding(b64))
 	{
-		currentShaderFile = jp->addFileWatcher(f).get();
-		jp->getScriptEngine()->addShaderFile(f);
+		String c;
+		comp.expand(mb, c);
+		compileRawCode(c);
 	}
+}
 
-	auto codeToUse = f.loadFileAsString();
+void ScriptingObjects::ScriptShader::rightClickCallback(const MouseEvent& e, Component* componentToNotify)
+{
+#if USE_BACKEND
+
+	auto *editor = GET_BACKEND_ROOT_WINDOW(componentToNotify);
+
+	auto content = new PreviewComponent(this);
+
+	MouseEvent ee = e.getEventRelativeTo(editor);
+
+	editor->getRootFloatingTile()->showComponentInRootPopup(content, editor, ee.getMouseDownPosition());
 
 #else
-	
-	auto codeToUse = getScriptProcessor()->getMainController_()->getExternalScriptFromCollection(shaderFile + ".glsl");
 
+	ignoreUnused(e, componentToNotify);
 
 #endif
+}
 
-	
+void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
+{
+	compiledCode = code;
 
-	shaderCode = {};
+	shaderCode = getHeader();
 
-	shaderCode << "uniform float uScale;";
-	shaderCode << "uniform float iTime;";
-	shaderCode << "uniform vec2 iMouse;";
-	shaderCode << "uniform vec2 uOffset;";
-	shaderCode << "uniform vec3 iResolution;";
-	shaderCode << "";
-	shaderCode << "vec2 gl_fc()";
-	shaderCode << "{";
-	shaderCode << "vec2 p = vec2(pixelPos.x + uOffset.x,";
-	shaderCode << "	pixelPos.y + uOffset.y) / uScale;";
-	shaderCode << "p.y = iResolution.y - p.y;";
-	shaderCode << "return p;";
-	shaderCode << "}";
-
-	shaderCode << "\n#define fragCoord gl_fc()\n";
-	shaderCode << "#define fragColor gl_FragColor\n";
-	shaderCode << "\n#line 0 \"" << shaderFile << "\"\n";
-
-	shaderCode << codeToUse;
+	shaderCode << compiledCode;
 
 	shader = new OpenGLGraphicsContextCustomShader(shaderCode);
 
@@ -155,6 +390,12 @@ void ScriptingObjects::ScriptShader::setFragmentShader(String shaderFile)
 			{
 				pr.setUniform(name, (float)v);
 			}
+			if (v.isInt() || v.isInt64())
+			{
+				auto u = (int64)v;
+				auto u_ = *reinterpret_cast<GLint*>(&u);
+				pr.setUniform(name, u_);
+			}
 			if (v.isBuffer()) // static float array
 			{
 				pr.setUniform(name, v.getBuffer()->buffer.getReadPointer(0), v.getBuffer()->size);
@@ -164,20 +405,6 @@ void ScriptingObjects::ScriptShader::setFragmentShader(String shaderFile)
 
 	dirty = true;
 }
-
-void ScriptingObjects::ScriptShader::setUniformData(const String& id, var data)
-{
-	uniformData.set(Identifier(id), data);
-}
-
-
-void ScriptingObjects::ScriptShader::setBlendFunc(bool enabled, int sFactor, int dFactor)
-{
-	enableBlending = enabled;
-	src = (BlendMode)sFactor;
-	dst = (BlendMode)dFactor;
-}
-
 
 struct Result ScriptingObjects::ScriptShader::processErrorMessage(const Result& r)
 {
@@ -858,5 +1085,6 @@ Rectangle<int> ScriptingObjects::GraphicsObject::getIntRectangleFromVar(const va
 
 	return f;
 }
+
 
 } 

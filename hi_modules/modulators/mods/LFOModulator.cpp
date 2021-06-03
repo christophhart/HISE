@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mode m):
 	TimeVariantModulator(mc, id, m),
 	Modulation(m),
-	ProcessorWithStaticExternalData(mc, 1, 1, 0, true),
+	ProcessorWithStaticExternalData(mc, 1, 1, 0, 0, true),
 	frequency(getDefaultValue(Frequency)),
 	run(false),
 	currentValue(1.0f),

@@ -40,6 +40,45 @@ namespace ScriptingObjects
 	{
 	public:
 
+		struct PreviewComponent : public Component,
+								  public Timer
+		{
+			PreviewComponent(ScriptShader* s);;
+
+			void timerCallback() override
+			{
+				repaint();
+			}
+
+			void paint(Graphics& g) override;
+
+			WeakReference<ScriptShader> obj;
+
+			double lastFps = DBL_MAX;
+		};
+
+		struct FileParser: public ControlledObject
+		{
+			using FileList = ReferenceCountedArray<ExternalScriptFile>;
+
+			FileParser(ProcessorWithScriptingContent* p, String& fileNameWithoutExtension, FileList& listToUse);
+
+			StringArray getLines();
+
+		private:
+
+			String createLinePointer(int i) const;
+
+			ProcessorWithScriptingContent* sp;
+
+			String loadFileContent();;
+
+			ReferenceCountedArray<ExternalScriptFile>& includedFiles;
+
+			String s;
+			String fileNameWithoutExtension;
+		};
+
 		enum class BlendMode
 		{
 			_GL_ZERO = GL_ZERO, //< (0, 0, 0, 0)
@@ -71,7 +110,15 @@ namespace ScriptingObjects
 		/** Sets the blend mode for the shader. */
 		void setBlendFunc(bool enabled, int sFactor, int dFactor);
 
+		/** Compresses the GLSL code and returns a encoded string snippet. */
+		String toBase64();
+
+		/** Compiles the code from the given base64 string. */
+		void fromBase64(String b64);
+
 		// ===========================================================================
+
+		void rightClickCallback(const MouseEvent& e, Component* componentToNotifiy) override;
 
 		bool compiledOk() const { return r.wasOk(); }
 
@@ -81,8 +128,8 @@ namespace ScriptingObjects
 		{
 			r = processErrorMessage(compileResult);
 
-			if (currentShaderFile != nullptr)
-				currentShaderFile->setRuntimeErrors(r);
+			for (auto f : includedFiles)
+				f->setRuntimeErrors(r);
 		}
 
 		void setGlobalBounds(Rectangle<int> b, float sf)
@@ -105,13 +152,21 @@ namespace ScriptingObjects
 		Rectangle<float> globalRect;
 		Rectangle<float> localRect;
 
-		WeakReference<ExternalScriptFile> currentShaderFile;
+		ReferenceCountedArray<ExternalScriptFile> includedFiles;
 		
 		bool enableBlending = false;
 		BlendMode src = BlendMode::_GL_SRC_ALPHA;
 		BlendMode dst = BlendMode::_GL_ONE_MINUS_SRC_ALPHA;
 
 	private:
+
+		String compiledCode;
+
+		String getHeader();
+
+		void compileRawCode(const String& code);
+
+		
 
 		struct Result processErrorMessage(const Result& r);
 
