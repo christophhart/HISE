@@ -106,7 +106,7 @@ struct audio_spin_mutex_shared
 	{
 		w.lock();
 
-		constexpr std::array iterations = { 5, 10, 3000 };
+		constexpr std::array<int, 3> iterations = { 5, 10, 3000 };
 
 		for (int i = 0; i < iterations[0]; ++i) {
 			if (sharedCounter.load() == 0)
