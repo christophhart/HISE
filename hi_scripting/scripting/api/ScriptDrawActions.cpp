@@ -431,8 +431,30 @@ namespace ScriptedDrawActions
 			{
 				if (obj->dirty)
 				{
-					auto r = obj->shader->checkCompilation(g.getInternalContext());
+					{
+						auto d = new DynamicObject();
 
+						int major = 0, minor = 0;
+						glGetIntegerv(GL_MAJOR_VERSION, &major);
+						glGetIntegerv(GL_MINOR_VERSION, &minor);
+
+						auto vendor = String((const char*)glGetString(GL_VENDOR));
+
+						auto renderer = String((const char*)glGetString(GL_RENDERER));
+						auto version = String((const char*)glGetString(GL_VERSION));
+						auto shaderVersion = OpenGLShaderProgram::getLanguageVersion();
+
+						d->setProperty("VersionString", version);
+						d->setProperty("Major", major);
+						d->setProperty("Minor", minor);
+						d->setProperty("Vendor", vendor);
+						d->setProperty("Renderer", renderer);
+						d->setProperty("GLSL Version", shaderVersion);
+
+						obj->openGLStats = var(d);
+					}
+
+					auto r = obj->shader->checkCompilation(g.getInternalContext());
 					obj->setCompileResult(r);
 					obj->dirty = false;
 
@@ -446,6 +468,9 @@ namespace ScriptedDrawActions
 						handler->logError(obj->getErrorMessage());
 					}
 #endif
+
+					
+
 				}
 
 				if (obj->compiledOk())
@@ -469,6 +494,8 @@ namespace ScriptedDrawActions
 						glEnable(GL_BLEND);
 						glBlendFunc((int)obj->src, (int)obj->dst);
 					}
+
+					
 
 					obj->shader->fillRect(g.getInternalContext(), bounds);
 

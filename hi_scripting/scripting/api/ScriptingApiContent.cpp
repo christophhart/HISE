@@ -4508,9 +4508,17 @@ void ScriptingApi::Content::suspendPanelTimers(bool shouldBeSuspended)
 	}
 }
 
+#ifndef HISE_SUPPORT_GLSL_LINE_NUMBERS
+#define HISE_SUPPORT_GLSL_LINE_NUMBERS 0
+#endif
+
 var ScriptingApi::Content::createShader(const String& fileName)
 {
 	auto f = new ScriptingObjects::ScriptShader(getScriptProcessor());
+
+#if HISE_SUPPORT_GLSL_LINE_NUMBERS
+	f->setEnableLineNumbers(true);
+#endif
 
 	if(!fileName.isEmpty())
 		f->setFragmentShader(fileName);

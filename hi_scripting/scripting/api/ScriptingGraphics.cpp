@@ -33,11 +33,12 @@
 namespace hise { using namespace juce;
 
 
-ScriptingObjects::ScriptShader::FileParser::FileParser(ProcessorWithScriptingContent* p, String& fileNameWithoutExtension_, FileList& listToUse):
+ScriptingObjects::ScriptShader::FileParser::FileParser(ProcessorWithScriptingContent* p, bool addLineNumbers_, String& fileNameWithoutExtension_, FileList& listToUse):
 	ControlledObject(p->getMainController_()),
 	sp(p),
 	includedFiles(listToUse),
-	fileNameWithoutExtension(fileNameWithoutExtension_)
+	fileNameWithoutExtension(fileNameWithoutExtension_),
+	addLineNumbers(addLineNumbers_)
 {
 
 }
@@ -46,7 +47,9 @@ StringArray ScriptingObjects::ScriptShader::FileParser::getLines()
 {
 	static const String incl = "#include";
 
-	s << createLinePointer(0) << "\n";
+	if(addLineNumbers)
+		s << createLinePointer(0) << "\n";
+
 	s << loadFileContent();
 
 	if (s.contains(incl))
@@ -60,7 +63,7 @@ StringArray ScriptingObjects::ScriptShader::FileParser::getLines()
 			if (s.startsWith(incl))
 			{
 				auto fileNameToInclude = s.fromFirstOccurrenceOf(incl, false, false).trim().unquoted();
-				FileParser includeParser(sp, fileNameToInclude, includedFiles);
+				FileParser includeParser(sp, addLineNumbers, fileNameToInclude, includedFiles);
 
 				auto includedLines = includeParser.getLines();
 
@@ -73,7 +76,8 @@ StringArray ScriptingObjects::ScriptShader::FileParser::getLines()
 
 				i += includedLines.size();
 
-				lines.insert(i +1, createLinePointer(lineToUse-1));
+				if(addLineNumbers)
+					lines.insert(i +1, createLinePointer(lineToUse-1));
 			}
 		}
 
@@ -221,6 +225,7 @@ struct ScriptingObjects::ScriptShader::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptShader, setBlendFunc);
 	API_VOID_METHOD_WRAPPER_1(ScriptShader, fromBase64);
 	API_METHOD_WRAPPER_0(ScriptShader, toBase64);
+	API_METHOD_WRAPPER_0(ScriptShader, getOpenGLStatistics);
 };
 
 ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) :
@@ -244,6 +249,7 @@ ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) 
 	ADD_API_METHOD_3(setBlendFunc);
 	ADD_API_METHOD_1(fromBase64);
 	ADD_API_METHOD_0(toBase64);
+	ADD_API_METHOD_0(getOpenGLStatistics);
 }
 
 String ScriptingObjects::ScriptShader::getHeader()
@@ -273,7 +279,7 @@ String ScriptingObjects::ScriptShader::getHeader()
 
 void ScriptingObjects::ScriptShader::setFragmentShader(String shaderFile)
 {
-	FileParser p(getScriptProcessor(), shaderFile, includedFiles);
+	FileParser p(getScriptProcessor(), useLineNumbers, shaderFile, includedFiles);
 
 	compileRawCode(p.getLines().joinIntoString("\n"));
 
@@ -312,6 +318,11 @@ void ScriptingObjects::ScriptShader::fromBase64(String b64)
 		comp.expand(mb, c);
 		compileRawCode(c);
 	}
+}
+
+var ScriptingObjects::ScriptShader::getOpenGLStatistics()
+{
+	return openGLStats;
 }
 
 void ScriptingObjects::ScriptShader::rightClickCallback(const MouseEvent& e, Component* componentToNotify)

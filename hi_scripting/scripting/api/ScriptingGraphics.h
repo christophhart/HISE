@@ -61,12 +61,13 @@ namespace ScriptingObjects
 		{
 			using FileList = ReferenceCountedArray<ExternalScriptFile>;
 
-			FileParser(ProcessorWithScriptingContent* p, String& fileNameWithoutExtension, FileList& listToUse);
+			FileParser(ProcessorWithScriptingContent* p, bool addLineNumbers_, String& fileNameWithoutExtension, FileList& listToUse);
 
 			StringArray getLines();
 
 		private:
 
+			const bool addLineNumbers = false;
 			String createLinePointer(int i) const;
 
 			ProcessorWithScriptingContent* sp;
@@ -116,7 +117,15 @@ namespace ScriptingObjects
 		/** Compiles the code from the given base64 string. */
 		void fromBase64(String b64);
 
+		/** Returns a JSON object with the current OpenGL statistics. */
+		var getOpenGLStatistics();
+
 		// ===========================================================================
+
+		void setEnableLineNumbers(bool shouldUseLineNumbers)
+		{
+			useLineNumbers = shouldUseLineNumbers;
+		}
 
 		void rightClickCallback(const MouseEvent& e, Component* componentToNotifiy) override;
 
@@ -143,9 +152,10 @@ namespace ScriptingObjects
 		float scaleFactor = 1.0f;
 		String shaderCode;
 		NamedValueSet uniformData;
-
+		var openGLStats;
 		ScopedPointer<juce::OpenGLGraphicsContextCustomShader> shader;
 		bool dirty = false;
+		bool useLineNumbers = false;
 
 		double iTime = 0;
 
