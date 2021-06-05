@@ -262,14 +262,14 @@ String ScriptingObjects::ScriptShader::getHeader()
 	s << "uniform vec2 uOffset;";
 	s << "uniform vec3 iResolution;";
 	s << "";
-	s << "vec2 gl_fc()";
+	s << "vec2 _gl_fc()";
 	s << "{";
 	s << "vec2 p = vec2(pixelPos.x + uOffset.x,";
 	s << "	pixelPos.y + uOffset.y) / uScale;";
 	s << "p.y = iResolution.y - p.y;";
 	s << "return p;";
 	s << "}";
-	s << "\n#define fragCoord gl_fc()\n";
+	s << "\n#define fragCoord _gl_fc()\n";
 	s << "#define fragColor gl_FragColor\n";
 
 	return s;
