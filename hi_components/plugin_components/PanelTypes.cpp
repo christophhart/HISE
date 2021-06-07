@@ -213,6 +213,13 @@ MidiChannelPanel::MidiChannelPanel(FloatingTile* parent) :
 
 	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
 
+	if (getMainController()->getCurrentScriptLookAndFeel() != nullptr)
+	{
+		slaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(getMainController());
+		viewport->setLookAndFeel(slaf);
+		channelList->setLookAndFeel(slaf);
+	}
+
 	//channelList->setLookAndFeel(&tblaf);
 
 	HiseEvent::ChannelFilterData* channelFilterData = getMainController()->getMainSynthChain()->getActiveChannelData();
