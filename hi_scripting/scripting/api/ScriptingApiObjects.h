@@ -166,6 +166,86 @@ namespace ScriptingObjects
 		// ============================================================================================================
 	};
 
+	class ScriptUnorderedStack : public ConstScriptingObject
+	{
+	public:
+
+		ScriptUnorderedStack(ProcessorWithScriptingContent *p);
+		~ScriptUnorderedStack() {};
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("UnorderedStack"); }
+
+		// ============================================================================================================
+
+		/** Inserts a number at the end of the stack. */
+		bool insert(float value)
+		{
+			auto ok = data.insert(value);
+			updateElementBuffer();
+			return ok;
+		}
+
+		/** removes the given number and fills the gap. */
+		bool remove(float value)
+		{
+			return data.remove(value);
+			updateElementBuffer();
+		}
+
+		/** Clears the stack. */
+		bool clear()
+		{
+			auto wasEmpty = isEmpty();
+			data.clear();
+			updateElementBuffer();
+
+			return !wasEmpty;
+		}
+
+		/** Returns the number of values in the stack. */
+		int size() const
+		{
+			return data.size();
+		}
+
+		/** Checks if any number is present in the stack. */
+		bool isEmpty() const
+		{
+			return data.isEmpty();
+		}
+
+		/** checks if the number is in the stack. */
+		bool contains(float value) const
+		{
+			return data.contains(value);
+		}
+
+		/** Returns a buffer that refers the data. */
+		var asBuffer(bool getAllElements)
+		{
+			if (getAllElements)
+				return var(wholeBf);
+			else
+			{
+				return var(elementBuffer);
+			}
+		}
+
+		// ============================================================================================================
+
+	private:
+
+		struct Wrapper;
+
+		void updateElementBuffer()
+		{
+			elementBuffer->referToData(data.begin(), data.size());
+		}
+
+		VariantBuffer::Ptr wholeBf, elementBuffer;
+		hise::UnorderedStack<float, 128> data;
+	};
+
 	class ScriptFile : public ConstScriptingObject
 	{
 	public:

@@ -43,6 +43,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_midi_list.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_slider_pack_data.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_table_data.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_ring_buffer.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_script_unordered_stack.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_shader.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_audio_file.xml" "xml\selection"
@@ -103,6 +104,9 @@ ren "xml\selection\classhise_1_1_scripting_api_1_1_server.xml" "Server.xml"
 
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_modulator.xml" "Modulator.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_midi_list.xml" "MidiList.xml"
+
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_unordered_stack.xml" "UnorderedStack.xml"
+
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_slider_pack_data.xml" "SliderPackData.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_table_data.xml" "Table.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_ring_buffer.xml" "DisplayBuffer.xml"

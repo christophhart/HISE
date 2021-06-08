@@ -4914,4 +4914,29 @@ var ScriptingObjects::ScriptDisplayBufferSource::getDisplayBuffer(int index)
 	RETURN_IF_NO_THROW(var());
 }
 
+
+struct ScriptingObjects::ScriptUnorderedStack::Wrapper
+{
+	API_METHOD_WRAPPER_0(ScriptUnorderedStack, isEmpty);
+	API_METHOD_WRAPPER_0(ScriptUnorderedStack, size);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, asBuffer);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, insert);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, remove);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, contains);
+};
+
+ScriptingObjects::ScriptUnorderedStack::ScriptUnorderedStack(ProcessorWithScriptingContent *p):
+	ConstScriptingObject(p, 0)
+{
+	ADD_API_METHOD_0(isEmpty);
+	ADD_API_METHOD_0(size);
+	ADD_API_METHOD_1(asBuffer);
+	ADD_API_METHOD_1(insert);
+	ADD_API_METHOD_1(remove);
+	ADD_API_METHOD_1(contains);
+
+	elementBuffer = new VariantBuffer(data.begin(), 0);
+	wholeBf = new VariantBuffer(data.begin(), 128);
+}
+
 } // namespace hise

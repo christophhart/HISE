@@ -368,13 +368,13 @@ public:
 
 	/** Removes the given element and puts the last element into its slot. */
 
-	void remove(const ElementType& elementTypeToRemove)
+	bool remove(const ElementType& elementTypeToRemove)
 	{
 		Lock sl(lock);
 
 		if (!contains(elementTypeToRemove))
 		{
-			return;
+			return false;
 		}
 
 		for (int i = 0; i < position; i++)
@@ -382,10 +382,11 @@ public:
 			if (data[i] == elementTypeToRemove)
 			{
 				jassert(position > 0);
-
 				removeElement(i);
 			}
 		}
+
+		return true;
 	}
 
 	void removeElement(int index)

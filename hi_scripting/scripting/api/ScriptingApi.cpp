@@ -846,6 +846,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterAudioFile);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterRingBuffer);
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
+	API_METHOD_WRAPPER_0(Engine, createUnorderedStack);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
 	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
 	API_METHOD_WRAPPER_0(Engine, getPlayHead);
@@ -978,6 +979,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getUserPresetList);
 	ADD_API_METHOD_0(isMpeEnabled);
 	ADD_API_METHOD_0(createMidiList);
+	ADD_API_METHOD_0(createUnorderedStack);
 	ADD_API_METHOD_0(getPlayHead);
 	ADD_API_METHOD_2(dumpAsJSON);
 	ADD_API_METHOD_1(loadFromJSON);
@@ -1919,6 +1921,11 @@ int ScriptingApi::Engine::isControllerUsedByAutomation(int controllerNumber)
 
 ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList() { return new ScriptingObjects::MidiList(getScriptProcessor()); };
 
+
+hise::ScriptingObjects::ScriptUnorderedStack* ScriptingApi::Engine::createUnorderedStack()
+{
+	return new ScriptingObjects::ScriptUnorderedStack(getScriptProcessor());
+}
 
 hise::ScriptingObjects::ScriptSliderPackData* ScriptingApi::Engine::createAndRegisterSliderPackData(int index)
 {
