@@ -710,7 +710,24 @@ juce::String ScriptCreatedComponentWrappers::SliderWrapper::getTextForValuePopup
 {
 	if (auto slider = dynamic_cast<Slider*>(getComponent()))
 	{
-		return slider->getTextFromValue(slider->getValue());;
+		ScriptingApi::Content::ScriptSlider *sl = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
+		
+		if (HiseJavascriptEngine::isJavascriptFunction(sl->sliderValueFunction))
+		{
+			if (auto jp = dynamic_cast<JavascriptProcessor*>(sl->getScriptProcessor()))
+			{
+				var data[1] = { slider->getValue() };
+				var::NativeFunctionArgs args(sl, data, 2);
+				Result r = Result::ok();
+	
+				auto text = jp->getScriptEngine()->callExternalFunction(sl->sliderValueFunction, args, &r, true);
+	
+				if (r.wasOk())
+					return text;	
+			}
+		}	
+
+		return slider->getTextFromValue(slider->getValue());
 	}
 	
 	return "";

@@ -800,6 +800,9 @@ public:
 		/** Sets the knob to the specified mode. */
 		void setMode(String mode);
 
+		/** Pass a function that takes a double and returns a String in order to override the popup display text. */
+		void setValuePopupFunction(var newFunction);
+
 		/** Sets the value that is shown in the middle position. */
 		void setMidPoint(double valueForMidPoint);
 
@@ -828,6 +831,7 @@ public:
 		HiSlider::Mode m = HiSlider::Mode::Linear;
 		Slider::SliderStyle styleId;
 		Image getImage() const { return image ? *image.getData() : Image(); };
+		var sliderValueFunction;
 
 	private:
 
@@ -1197,14 +1201,14 @@ public:
 		/** Returns the number of sliders. */
 		int getNumSliders() const;
 
-        /** Sets a non-uniform width per slider using an array in the form [0.0, ... a[i], ... 1.0]. */
-        void setWidthArray(var normalizedWidths);
+    /** Sets a non-uniform width per slider using an array in the form [0.0, ... a[i], ... 1.0]. */
+    void setWidthArray(var normalizedWidths);
         
 		// ========================================================================================================
 
 		struct Wrapper;
 
-        Array<var> widthArray;
+		Array<var> widthArray;
         
 	private:
 
