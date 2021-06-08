@@ -2404,6 +2404,8 @@ struct ScriptingObjects::ScriptRoutingMatrix::Wrapper
 {
 	API_METHOD_WRAPPER_2(ScriptRoutingMatrix, addConnection);
 	API_METHOD_WRAPPER_2(ScriptRoutingMatrix, removeConnection);
+	API_METHOD_WRAPPER_2(ScriptRoutingMatrix, addSendConnection);
+	API_METHOD_WRAPPER_2(ScriptRoutingMatrix, removeSendConnection);
 	API_VOID_METHOD_WRAPPER_0(ScriptRoutingMatrix, clear);
 	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getSourceGainValue);
 };
@@ -2414,6 +2416,8 @@ ScriptingObjects::ScriptRoutingMatrix::ScriptRoutingMatrix(ProcessorWithScriptin
 {
 	ADD_API_METHOD_2(addConnection);
 	ADD_API_METHOD_2(removeConnection);
+	ADD_API_METHOD_2(addSendConnection);
+	ADD_API_METHOD_2(removeSendConnection);
 	ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_1(getSourceGainValue);
 
@@ -2437,6 +2441,36 @@ bool ScriptingObjects::ScriptRoutingMatrix::addConnection(int sourceIndex, int d
 		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
 		{
 			return r->getMatrix().addConnection(sourceIndex, destinationIndex);
+		}
+		else
+			return false;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptRoutingMatrix::addSendConnection(int sourceIndex, int destinationIndex)
+{
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			return r->getMatrix().addSendConnection(sourceIndex, destinationIndex);
+		}
+		else
+			return false;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptRoutingMatrix::removeSendConnection(int sourceIndex, int destinationIndex)
+{
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			return r->getMatrix().removeSendConnection(sourceIndex, destinationIndex);
 		}
 		else
 			return false;

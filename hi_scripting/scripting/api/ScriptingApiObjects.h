@@ -1085,6 +1085,12 @@ namespace ScriptingObjects
 		/** adds a connection to the given channels. */
 		bool addConnection(int sourceIndex, int destinationIndex);
 
+		/** adds a send connection to the given channels. */
+		bool addSendConnection(int sourceIndex, int destinationIndex);
+
+		/** removes the send connection. */
+		bool removeSendConnection(int sourceIndex, int destinationIndex);
+
 		/** Removes the connection from the given channels. */
 		bool removeConnection(int sourceIndex, int destinationIndex);
 
