@@ -143,6 +143,8 @@ MainComponent::MainComponent() :
 {
 
 	{
+		
+
 #if 0
 		using DupliType = parameter::duplichain<parameter::dupli<parameter::plain<core::oscillator<1>, 1>>,
 												parameter::dupli<parameter::plain<core::oscillator<1>, 1>>>;
@@ -164,7 +166,6 @@ MainComponent::MainComponent() :
 		
 
 #endif
-		int x = 5;
 		
 #if 0
 		float data[1024];
@@ -181,9 +182,6 @@ MainComponent::MainComponent() :
 
 	bool useValueTrees = false;
 	
-	addAndMakeVisible(funkSlider);
-	funkSlider.setLookAndFeel(&laf);
-	funkSlider.setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	laf.setDefaultColours(funkSlider);
 
 
@@ -249,8 +247,6 @@ void MainComponent::resized()
 {
 	auto b = getLocalBounds();
 
-	funkSlider.setBounds(b.removeFromTop(148).removeFromLeft(228).reduced(50));
-	funkSlider.setRange(0.0, 2.0, 0.01);
 	if (parameters != nullptr)
 		parameters->setBounds(b.removeFromTop(50));
 
