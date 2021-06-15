@@ -1341,6 +1341,16 @@ struct SimpleReadWriteLock
 		SimpleReadWriteLock& lock;
 	};
 
+	bool enterTryReadLock()
+	{
+		if (enabled && std::this_thread::get_id() != writer)
+		{
+			return mutex.try_lock_shared();
+		}
+
+		return false;
+	}
+
 	bool enterReadLock()
 	{
 		if (enabled && std::this_thread::get_id() != writer)

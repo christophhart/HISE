@@ -62,6 +62,16 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 	displayBuffer = new SimpleRingBuffer();
 	displayBuffer->setGlobalUIUpdater(mc->getGlobalUIUpdater());
 
+	displayBuffer->setPropertyObject(new AhdsrEnvelope::AhdsrRingBufferProperties(this));
+
+	auto s = displayBuffer->getReadBuffer().getNumSamples();
+
+	for(int i = 0; i < s; i++)
+	{
+		auto newValue = getAttribute(i + SpecialParameters::Attack);
+		setDisplayValue(i, newValue, false);
+	}
+
 	SimpleReadWriteLock::ScopedWriteLock sl(displayBuffer->getDataLock());
 	setExternalData(snex::ExternalData(displayBuffer, 0), 0);
 
@@ -348,10 +358,12 @@ float AhdsrEnvelope::getDefaultValue(int parameterIndex) const
 
 void AhdsrEnvelope::setInternalAttribute(int parameterIndex, float newValue)
 {
-	if (auto s = SimpleReadWriteLock::ScopedTryReadLock(displayBuffer->getDataLock()))
+	if (parameterIndex >= SpecialParameters::Attack)
 	{
-		displayBuffer->getWriteBuffer().setSample(0, parameterIndex - SpecialParameters::Attack, newValue);
-		displayBuffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, parameterIndex);
+		if (auto s = SimpleReadWriteLock::ScopedTryReadLock(displayBuffer->getDataLock()))
+		{
+			setDisplayValue(parameterIndex - SpecialParameters::Attack, newValue, false);
+		}
 	}
 
 	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)

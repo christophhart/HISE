@@ -232,9 +232,9 @@ struct ahdsr_base: public mothernode,
 		sampleRate = sr;
 	}
 
-	void setDisplayValue(int index, float value)
+	void setDisplayValue(int index, float value, bool convertDbValues=true)
 	{
-		if (index == 1 || index == 4)
+		if (convertDbValues && (index == 1 || index == 4))
 			value = Decibels::gainToDecibels(value);
 
 		if(rb != nullptr)

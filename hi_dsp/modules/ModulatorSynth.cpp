@@ -343,9 +343,16 @@ void ModulatorSynth::addProcessorsWhenEmpty()
 	LockHelpers::freeToGo(getMainController());
 
 	jassert(finalised);
+
 	
+
 	if (dynamic_cast<ModulatorSynthChain*>(this) == nullptr)
 	{
+		auto envList = ProcessorHelpers::getListOfAllProcessors<EnvelopeModulator>(gainChain);
+		
+		if (envList.size() > 1) // the chain itself is an envelope...
+			return;
+
 		ScopedPointer<SimpleEnvelope> newEnvelope = new SimpleEnvelope(getMainController(),
 			"DefaultEnvelope",
 			voices.size(),

@@ -1022,6 +1022,8 @@ private:
 		uint64 data[2];
 		int8 numBitsSet = 0;
 	} monophonicKeymap;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(EnvelopeModulator);
 };
 
 /** This class only exists for the Iterator. */
