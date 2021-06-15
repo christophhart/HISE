@@ -67,6 +67,7 @@ END_JUCE_MODULE_DECLARATION
 #include "sampler/ModulatorSampler.h"
 
 #include "sampler/SfzImporter.h"
+#include "sampler/MultiSampleDataProviders.h"
 
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 #include "sampler/SampleImporter.h"

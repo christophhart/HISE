@@ -48,15 +48,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
 END_JUCE_MODULE_DECLARATION
 
-******************************************************************************/
-
-
-/* TODO Roadmap:
-
-- use JitCompiledNode with the boilerplate code for scriptnode library nodes et al... b
-- add scriptnode node classes to SNEX
-
-*/
+***************************************************************************** */
 
 #pragma once
 
@@ -70,11 +62,10 @@ END_JUCE_MODULE_DECLARATION
 
 
 
-
 /** Config: HISE_INCLUDE_SNEX
  
 Set to 0 to disable SNEX compilation (default on iOS).
- */
+*/
 #ifndef HISE_INCLUDE_SNEX
 #if HISE_IOS
 #define HISE_INCLUDE_SNEX 0
@@ -88,7 +79,10 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #endif
 
 
-/** Config: Enables SIMD processing for consecutive float spans (not functional yet). */
+/** Config: SNEX_ENABLE_SIMD
+
+Enables SIMD processing for consecutive float spans (not functional yet). 
+*/
 #ifndef SNEX_ENABLE_SIMD
 #define SNEX_ENABLE_SIMD 0
 #endif

@@ -41,6 +41,7 @@
 #include "sampler/ModulatorSamplerVoice.cpp"
 #include "sampler/ModulatorSampler.cpp"
 
+#include "sampler/MultiSampleDataProviders.cpp"
 #include "sampler/SfzImporter.cpp"
 
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
