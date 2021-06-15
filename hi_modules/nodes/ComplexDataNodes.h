@@ -90,6 +90,8 @@ template <int NV> struct file_player : public data::base
 			globalRatio = fileSampleRate / lastSpecs.sampleRate;
 
 		state.prepare(specs);
+		currentXYZSample.prepare(specs);
+
 
 		reset();
 	}
@@ -101,10 +103,10 @@ template <int NV> struct file_player : public data::base
 
 	void setExternalData(const snex::ExternalData& d, int index) override
 	{
-		base::setExternalData(d, index);
+		if (auto b = dynamic_cast<MultiChannelAudioBuffer*>(d.obj))
+			b->setDisabledXYZProviders({ scriptnode::data::XYZSampleMapProvider::getStaticId(), scriptnode::data::XYZSFZProvider::getStaticId() });
 
-		d.referBlockTo(currentData[0], 0);
-		d.referBlockTo(currentData[1], 1);
+		base::setExternalData(d, index);
 
 		if(lastSpecs)
 			prepare(lastSpecs);
@@ -116,29 +118,38 @@ template <int NV> struct file_player : public data::base
 		}
 	}
 
-	span<block, 2> currentData;
+	PolyData<StereoSample, NUM_POLYPHONIC_VOICES> currentXYZSample;
 
-	
+	StereoSample& getCurrentAudioSample()
+	{
+		return currentXYZSample.get();
+	}
 
 	template <int C> void processFix(ProcessData<C>& data)
 	{
 		if (auto dt = DataTryReadLock(this))
 		{
-			if (!externalData.isEmpty())
+			auto& s = getCurrentAudioSample();
+
+			if (!externalData.isEmpty() && !s.data[0].isEmpty())
 			{
 				auto fd = data.toFrameData();
+
+				
+				auto maxIndex = (double)s.data[0].size();
 
 				if (mode == PlaybackModes::SignalInput)
 				{
 					auto pos = jlimit(0.0, 1.0, (double)data[0][0]);
-					externalData.setDisplayedValue(pos * (double)externalData.numSamples);
+					externalData.setDisplayedValue(pos * maxIndex);
 
 					while (fd.next())
 						processWithSignalInput(fd.toSpan());
 				}
 				else
 				{
-					externalData.setDisplayedValue(hmath::fmod(state.get().uptime * globalRatio, (double)externalData.numSamples));
+					
+					//externalData.setDisplayedValue((double)(int)idx);
 
 					while (fd.next())
 						processWithPitchRatio(fd.toSpan());
@@ -179,13 +190,15 @@ template <int NV> struct file_player : public data::base
 
 		InterpolatorType ip(s);
 
+		auto fd = getCurrentAudioSample()[ip];
+
 		for (int i = 0; i < data.size(); i++)
-			data[i] = currentData[i][ip];
+			data[i] = fd[i];
 	}
 
 	template <int C> void processWithPitchRatio(span<float, C>& data)
 	{
-		using IndexType = index::unscaled<double, index::wrapped<0, false>>;
+		using IndexType = index::unscaled<double, index::looped<0>>;
 		using InterpolatorType = index::lerp<IndexType>;
 
 		OscData& s = state.get();
@@ -194,10 +207,14 @@ template <int NV> struct file_player : public data::base
 		{
 			auto uptime = s.tick();
 
-			InterpolatorType ip(uptime * globalRatio);
+			auto& cs = getCurrentAudioSample();
 
-			for (int i = 0; i < data.size(); i++)
-				data[i] += currentData[i][ip];
+			InterpolatorType ip(uptime * globalRatio);
+			ip.setLoopRange(cs.loopRange[0], cs.loopRange[1]);
+
+			auto fd = cs[ip];
+
+			data += fd;
 		}
 	}
 
@@ -205,11 +222,14 @@ template <int NV> struct file_player : public data::base
 	{
 		if (auto dt = DataTryReadLock(this))
 		{
+			auto& cd = getCurrentAudioSample().data;
+			int numSamples = cd[0].size();
+
 			switch (mode)
 			{
 			case PlaybackModes::SignalInput:
 			{
-				if (this->externalData.numSamples == 0)
+				if (numSamples == 0)
 					data = 0.0f;
 				else
 				{
@@ -217,7 +237,7 @@ template <int NV> struct file_player : public data::base
 					{
 						frameUpdateCounter = 0;
 						auto pos = jlimit(0.0, 1.0, (double)data[0]);
-						externalData.setDisplayedValue(pos * (double)(externalData.numSamples));
+						externalData.setDisplayedValue(pos * (double)(numSamples));
 					}
 
 					processWithSignalInput(data);
@@ -231,7 +251,7 @@ template <int NV> struct file_player : public data::base
 				if (frameUpdateCounter++ >= 1024)
 				{
 					frameUpdateCounter = 0;
-					externalData.setDisplayedValue(hmath::fmod(state.get().uptime * globalRatio, (double)externalData.numSamples));
+					externalData.setDisplayedValue(hmath::fmod(state.get().uptime * globalRatio, (double)numSamples));
 				}
 
 				processWithPitchRatio(data);
@@ -249,8 +269,14 @@ template <int NV> struct file_player : public data::base
 
 			if (e.isNoteOn())
 			{
+				auto& cd = getCurrentAudioSample();
+
+				if (this->externalData.getStereoSample(cd, e))
+					s.uptimeDelta = cd.getPitchFactor();
+
 				if (mode == PlaybackModes::MidiFreq)
-					s.uptimeDelta = e.getFrequency() / rootFreq;
+						s.uptimeDelta = e.getFrequency() / rootFreq;
+				
 				s.uptime = 0.0;
 			}
 		}

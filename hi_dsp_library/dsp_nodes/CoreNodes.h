@@ -1015,6 +1015,7 @@ public:
 		DEF_PARAMETER(Smoothing, gain_impl);
 		DEF_PARAMETER(ResetValue, gain_impl);
 	}
+	PARAMETER_MEMBER_FUNCTION;
 
 	static constexpr int NumVoices = V;
 

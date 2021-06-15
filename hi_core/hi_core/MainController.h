@@ -1493,6 +1493,11 @@ public:
 		return currentPreview;
 	}
 
+	MultiChannelAudioBuffer::XYZPool* getXYZPool()
+	{
+		return xyzPool.get();
+	}
+
 #if HISE_INCLUDE_RLOTTIE
 	RLottieManager::Ptr getRLottieManager();
 #endif
@@ -1561,7 +1566,11 @@ protected:
 		maxEventTimestamp = newMaxTimestamp;
 	}
 
+	
+
 private:
+
+	ReferenceCountedObjectPtr<MultiChannelAudioBuffer::XYZPool> xyzPool;
 
 	bool refreshOversampling();
 

@@ -80,7 +80,8 @@ MainController::MainController() :
 	debugLogger(this),
 	globalAsyncModuleHandler(this),
 	//presetLoadRampFlag(OldUserPresetHandler::Active),
-	controlUndoManager(new UndoManager())
+	controlUndoManager(new UndoManager()),
+	xyzPool(new MultiChannelAudioBuffer::XYZPool())
 {
 	PresetHandler::setCurrentMainController(this);
 

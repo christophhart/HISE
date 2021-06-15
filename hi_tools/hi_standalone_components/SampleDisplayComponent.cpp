@@ -337,7 +337,7 @@ MultiChannelAudioBufferDisplay::MultiChannelAudioBufferDisplay() :
 {
 	setColour(ColourIds::bgColour, Colour(0xFF555555));
 
-	setSpecialLookAndFeel(new BufferLookAndFeel());
+	setSpecialLookAndFeel(new BufferLookAndFeel(), true);
 
 	setOpaque(true);
 
@@ -1110,5 +1110,249 @@ void HiseAudioThumbnail::setRange(const int left, const int right)
 	repaint();
 }
 
+
+void XYZMultiChannelAudioBufferEditor::setComplexDataUIBase(ComplexDataUIBase* newData)
+{
+	if (auto df = dynamic_cast<MultiChannelAudioBuffer*>(newData))
+	{
+		currentBuffer = df;
+		rebuildButtons();
+		rebuildEditor();
+	}
+}
+
+void XYZMultiChannelAudioBufferEditor::addButton(const Identifier& id, const Identifier& currentId)
+{
+	auto tb = new TextButton(id.toString());
+	tb->setClickingTogglesState(true);
+	tb->setRadioGroupId(912451, dontSendNotification);
+
+	bool shouldBeOn = currentId == id ||
+		id == Identifier("Single Sample") && currentId.isNull();
+
+	tb->setToggleState(shouldBeOn, dontSendNotification);
+	addAndMakeVisible(tb);
+	tb->addListener(this);
+
+	tb->setLookAndFeel(getSpecialLookAndFeel<LookAndFeel>());
+
+	buttons.add(tb);
+}
+
+void XYZMultiChannelAudioBufferEditor::buttonClicked(Button* b)
+{
+	Identifier id(b->getName());
+
+	if (currentBuffer != nullptr)
+	{
+		currentBuffer->setXYZProvider(id);
+		rebuildEditor();
+	}
+}
+
+void XYZMultiChannelAudioBufferEditor::rebuildButtons()
+{
+	buttons.clear();
+
+	if (currentBuffer != nullptr)
+	{
+		auto l = currentBuffer->getAvailableXYZProviders();
+		auto cId = currentBuffer->getCurrentXYZId();
+
+		addButton("Single Sample", cId);
+
+		for (auto id : l)
+			addButton(id, cId);
+	}
+}
+
+void XYZMultiChannelAudioBufferEditor::rebuildEditor()
+{
+	if (currentBuffer != nullptr)
+	{
+		currentEditor = dynamic_cast<Component*>(currentBuffer->createEditor());
+
+		addAndMakeVisible(currentEditor);
+		resized();
+	}
+}
+
+void XYZMultiChannelAudioBufferEditor::paint(Graphics& g)
+{
+}
+
+void XYZMultiChannelAudioBufferEditor::resized()
+{
+	auto b = getLocalBounds();
+	auto top = b.removeFromTop(24);
+
+	if (!buttons.isEmpty())
+	{
+		int bWidth = getWidth() / buttons.size();
+
+		for (auto tb : buttons)
+			tb->setBounds(top.removeFromLeft(bWidth));
+	}
+
+	if (currentEditor != nullptr)
+		currentEditor->setBounds(b);
+}
+
+void MultiChannelAudioBuffer::setXYZProvider(const Identifier& id)
+{
+	if (id.isNull() || id.toString() == "Single Sample" || deactivatedXYZIds.contains(id))
+	{
+		xyzProvider = nullptr;
+	}
+	else
+	{
+		if (xyzProvider == nullptr || xyzProvider->getId() != id)
+			xyzProvider = factory->create(id);
+	}
+}
+
+bool MultiChannelAudioBuffer::fromBase64String(const String& b64)
+{
+
+	if (b64 != referenceString)
+	{
+		referenceString = b64;
+		
+		if (referenceString.isEmpty() && xyzProvider != nullptr)
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+			xyzItems.clear();
+			getUpdater().sendContentRedirectMessage();
+			return true;
+		}
+
+		Identifier xyzId = XYZProviderFactory::parseID(referenceString);
+
+		if (xyzId.isValid())
+		{
+			setXYZProvider(xyzId);
+
+			if (xyzProvider != nullptr)
+			{
+				SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+				xyzItems.clear();
+
+				try
+				{
+					auto ok = xyzProvider->parse(b64, xyzItems);
+
+					getUpdater().sendContentRedirectMessage();
+
+					return ok;
+				}
+				catch (String& errorMessage)
+				{
+					jassertfalse;
+					return false;
+				}
+			}
+
+			return false;
+		}
+		else
+		{
+			xyzProvider = nullptr;
+
+			jassert(provider != nullptr);
+
+			if (provider != nullptr)
+			{
+				if (auto lr = provider->loadFile(referenceString))
+				{
+					originalBuffer = lr->buffer;
+					auto nb = createNewDataBuffer({ 0, originalBuffer.getNumSamples() });
+
+					referenceString = lr->reference;
+
+					{
+						SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+						bufferRange = { 0, originalBuffer.getNumSamples() };
+						sampleRate = lr->sampleRate;
+						setDataBuffer(nb);
+					}
+
+					setLoopRange(lr->loopRange, dontSendNotification);
+
+					return true;
+				}
+				else
+				{
+					SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+					originalBuffer = {};
+					bufferRange = {};
+					currentData = {};
+					getUpdater().sendContentRedirectMessage();
+					return false;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+hise::ComplexDataUIBase::EditorBase* MultiChannelAudioBuffer::createEditor()
+{
+	if (xyzProvider != nullptr)
+	{
+		auto c = xyzProvider->createEditor(this);
+		c->setComplexDataUIBase(this);
+		return c;
+	}
+	else
+	{
+		auto c = new MultiChannelAudioBufferDisplay();
+		c->setComplexDataUIBase(this);
+		return c;
+	}
+}
+
+hise::MultiChannelAudioBuffer::LoadResult::Ptr MultiChannelAudioBuffer::XYZProviderBase::loadFileFromReference(const String& f)
+{
+	if (pool != nullptr)
+	{
+		if (auto pr = pool->loadFile(f))
+		{
+			if (*pr)
+				return pr;
+		}
+	}
+
+	auto lr = getDataProvider()->loadFile(f);
+
+	if (!lr->r.wasOk())
+		throw lr->r.getErrorMessage();
+
+	pool->pool.add(lr);
+
+	return lr;
+}
+
+hise::MultiChannelAudioBuffer::LoadResult::Ptr MultiChannelAudioBuffer::DataProvider::loadAbsoluteFile(const File& f, const String& refString)
+{
+	// call registerBasicFormats and thank me later...
+	jassert(afm.getNumKnownFormats() > 0);
+
+	auto fis = new FileInputStream(f);
+
+	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(fis);
+
+	if (reader != nullptr)
+	{
+		MultiChannelAudioBuffer::LoadResult::Ptr lr = new MultiChannelAudioBuffer::LoadResult();
+		lr->buffer.setSize(reader->numChannels, (int)reader->lengthInSamples);
+		reader->read(&lr->buffer, 0, (int)reader->lengthInSamples, 0, true, true);
+		lr->reference = refString;
+		lr->sampleRate = reader->sampleRate;
+		return lr;
+	}
+
+	return new MultiChannelAudioBuffer::LoadResult(false, f.getFileName() + " can't be loaded");
+}
 
 } // namespace hise

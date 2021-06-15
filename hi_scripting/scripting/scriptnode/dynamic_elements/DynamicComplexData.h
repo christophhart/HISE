@@ -319,7 +319,7 @@ struct RingBufferPropertyEditor: public Component
 	OwnedArray<Component> items;
 };
 
-struct complex_ui_laf : public BiPolarSliderLookAndFeel,
+struct complex_ui_laf : public ScriptnodeComboBoxLookAndFeel,
 						public TableEditor::LookAndFeelMethods,
 						public SliderPack::LookAndFeelMethods,
 						public HiseAudioThumbnail::LookAndFeelMethods,
@@ -348,6 +348,10 @@ struct complex_ui_laf : public BiPolarSliderLookAndFeel,
 	void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override;
 	void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
 	void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
+
+	void drawButtonBackground(Graphics&, Button&, const Colour& backgroundColour, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+
+	void drawButtonText(Graphics&, TextButton&, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
 
 	Colour getNodeColour(Component* c);
 
@@ -491,7 +495,8 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 				eh.addError(getObject()->parentNode, e);
 			}
 
-			findParentComponentOfClass<NodeComponent>()->repaint();
+			if(auto nc = findParentComponentOfClass<NodeComponent>())
+				nc->repaint();
 		}
 			
 	}
@@ -636,11 +641,11 @@ using sliderpack_editor_without_mod = data::ui::pimpl::editorT<data::dynamic::sl
 
 using table_editor = data::ui::pimpl::editorT<data::dynamic::table, hise::Table, hise::TableEditor, true>;
 using sliderpack_editor = data::ui::pimpl::editorT<data::dynamic::sliderpack, hise::SliderPackData, hise::SliderPack, true>;
-using audiofile_editor = data::ui::pimpl::editorT<data::dynamic::audiofile, hise::MultiChannelAudioBuffer, hise::MultiChannelAudioBufferDisplay, false>;
+using audiofile_editor = data::ui::pimpl::editorT<data::dynamic::audiofile, hise::MultiChannelAudioBuffer, hise::XYZMultiChannelAudioBufferEditor, false>;
 using audiofile_editor_with_mod = data::ui::pimpl::editorT<data::dynamic::audiofile, hise::MultiChannelAudioBuffer, hise::MultiChannelAudioBufferDisplay, true>;
 
 
-//using xyz_audio_editor = data::ui::pimpl::editorT < data::dynamic::audiofile, hise::XYZMultiChannelAudioBuffer, hise::XYZMultiChannelAudioBufferEditor>;
+using xyz_audio_editor = data::ui::pimpl::editorT<data::dynamic::audiofile, hise::MultiChannelAudioBuffer, hise::XYZMultiChannelAudioBufferEditor, false>;
 
 }
 

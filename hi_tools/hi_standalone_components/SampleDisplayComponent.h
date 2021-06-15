@@ -677,47 +677,204 @@ private:
 
 	The buffer will contain two versions of the data, one is used as read-only resource
 	and the other one is used for the data.
+
+	The buffer has also the capability to host multiple files that are mapped in an XYZ
+	coordinate system (like the samplemaps).
 */
 struct MultiChannelAudioBuffer : public ComplexDataUIBase
 {
+	struct LoadResult : public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<LoadResult>;
+
+		LoadResult(bool ok = true, const String& ref = String()) :
+			r(ok ? Result::ok() : Result::fail(ref + " not found")),
+			reference(ref)
+		{};
+
+		operator bool() { return r.wasOk(); }
+
+		bool operator==(const LoadResult& other) const
+		{
+			return reference == other.reference;
+		}
+
+		AudioSampleBuffer buffer;
+		Result r;
+		String reference = {};
+		Range<int> loopRange = {};
+		double sampleRate = 0.0;
+
+	private:
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LoadResult);
+	};
+
 	struct DataProvider: public ReferenceCountedObject
 	{
-		struct LoadResult
-		{
-			LoadResult(bool ok=true, const String& ref=String()) :
-				r(ok ? Result::ok() : Result::fail(ref + " not found")),
-				reference(ref)
-			{};
-
-			operator bool() { return r.wasOk(); }
-
-			bool operator==(const LoadResult& other) const
-			{
-				return reference == other.reference;
-			}
-
-			AudioSampleBuffer buffer;
-			Result r;
-			String reference = {};
-			Range<int> loopRange = {};
-			double sampleRate = 0.0;
-		};
-
 		using Ptr = ReferenceCountedObjectPtr<DataProvider>;
 
 		virtual ~DataProvider() = default;
 
 		/** Override this function and load the content and process the string to be displayed. */
-		virtual LoadResult loadFile(const String& referenceString) = 0;
+		virtual LoadResult::Ptr loadFile(const String& referenceString) = 0;
 
 		/** This directory will be used as default directory when opening files. */
 		virtual File getRootDirectory() { return File(); }
+
+	protected:
+
+		/** Use this to load a file that you have resolved to an absolute path. */
+		MultiChannelAudioBuffer::LoadResult::Ptr loadAbsoluteFile(const File& f, const String& refString);
+
+		AudioFormatManager afm;
 
 	private:
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(DataProvider);
 	};
 
+	struct XYZItem
+	{
+		using List = Array<XYZItem>;
+
+		bool matches(int n, int v, int r)
+		{
+			return veloRange.contains(v) &&
+				keyRange.contains(n) &&
+				rrGroup == r;
+		}
+
+		Range<int> veloRange;
+		Range<int> keyRange;
+		double root;
+		int rrGroup;
+		LoadResult::Ptr data;
+	};
+
+	struct XYZPool : public DataProvider
+	{
+		int indexOf(const String& ref) const
+		{
+			for (int i = 0; i < pool.size(); i++)
+				if (pool[i]->reference == ref)
+					return i;
+
+			return -1;
+		}
+
+		LoadResult::Ptr loadFile(const String& ref) override
+		{
+			for (auto i : pool)
+			{
+				if (i->reference == ref)
+					return i;
+			}
+
+			return new LoadResult(false, ref);
+		}
+
+		ReferenceCountedArray<LoadResult> pool;
+	};
+
+	struct XYZProviderBase : public ReferenceCountedObject
+	{
+		XYZProviderBase(XYZPool* pool_) : pool(pool_) {}
+
+		virtual ComplexDataUIBase::EditorBase* createEditor(MultiChannelAudioBuffer* ed) = 0;
+
+		LoadResult::Ptr loadFileFromReference(const String& f);
+
+		void removeFromPool(LoadResult::Ptr p)
+		{
+			if(pool != nullptr)
+				pool->pool.removeObject(p);
+		}
+
+		virtual Identifier getId() const = 0;
+
+		String getWildcard() const 
+		{ 
+			String s;
+			s << "{XYZ::" << getId() << "}";
+			return s;
+		}
+
+		virtual bool parse(const String& v, XYZItem::List& list) = 0;
+
+		virtual DataProvider* getDataProvider() = 0;
+
+		LoadResult::Ptr getPooledItem(int idx) const
+		{
+			if (pool != nullptr)
+			{
+				if (isPositiveAndBelow(idx, pool->pool.size()))
+					return pool->pool[idx];
+			}
+			
+			return nullptr;
+		}
+
+	protected:
+		
+		ReferenceCountedObjectPtr<XYZPool> pool;
+	};
+
+	struct XYZProviderFactory
+	{
+		struct Item
+		{
+			Identifier id;
+			std::function<XYZProviderBase*()> f;
+		};
+
+		static Identifier parseID(const String& referenceString)
+		{
+			static const String wildcard("{XYZ::");
+			if (referenceString.startsWith(wildcard))
+			{
+				auto wc = referenceString.upToFirstOccurrenceOf("}", false, false);
+				return Identifier(wc.fromLastOccurrenceOf(":", false, false));
+			}
+
+			return Identifier();
+		}
+
+		void registerXYZProvider(const Identifier& id, const std::function<XYZProviderBase*()>& f)
+		{
+			for (const auto& i : items)
+				if (i.id == id)
+					return;
+
+			items.add({ id, f });
+		}
+
+		XYZProviderBase* create(const Identifier& id)
+		{
+			for (const auto& i : items)
+				if (i.id == id)
+					return i.f();
+
+			return nullptr;
+		}
+		
+		Array<Identifier> getIds()
+		{
+			Array<Identifier> ids;
+
+			for (auto& i : items)
+			{
+				ids.add(i.id);
+			}
+
+			return ids;
+		}
+
+	private:
+
+		Array<Item> items;
+	};
+	
 	/** A Listener will be notified about changes to the sample content. 
 	
 		By default the content change notifications are synchronous
@@ -776,50 +933,9 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		return referenceString;
 	}
 	
-	bool fromBase64String(const String& b64) override 
-	{ 
-		if (b64 != referenceString)
-		{
-			referenceString = b64;
+	void setXYZProvider(const Identifier& id);
 
-			jassert(provider != nullptr);
-
-			if (provider != nullptr)
-			{
-				if (auto lr = provider->loadFile(referenceString))
-				{
-					originalBuffer = lr.buffer;
-					auto nb = createNewDataBuffer({ 0, originalBuffer.getNumSamples() });
-
-					referenceString = lr.reference;
-
-					{
-						SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
-						bufferRange = { 0, originalBuffer.getNumSamples() };
-						sampleRate = lr.sampleRate;
-						setDataBuffer(nb);
-					}
-
-					setLoopRange(lr.loopRange, dontSendNotification);
-
-					return true;
-				}
-				else
-				{
-					
-					originalBuffer = {};
-
-					SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
-					bufferRange = {};
-					currentData = {};
-					getUpdater().sendContentRedirectMessage();
-					return false;
-				}
-			}
-		}
-		
-		return false; 
-	}
+	bool fromBase64String(const String& b64) override;
 
 	
 	/** Set the range of the buffer. The notification to the listeners will always be synchronous. */
@@ -925,10 +1041,63 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 
 	float** getDataPtrs()
 	{
+		jassert(!isXYZ());
 		return currentData.getArrayOfWritePointers();
 	}
 
+	Array<Identifier> getAvailableXYZProviders()
+	{
+		auto ids = factory->getIds();
+
+		for (int i = 0; i < ids.size(); i++)
+		{
+			if (deactivatedXYZIds.contains(ids[i]))
+				ids.remove(i--);
+		}
+
+		return ids;
+	}
+
+	Identifier getCurrentXYZId() const
+	{
+		if (xyzProvider != nullptr)
+			return xyzProvider->getId();
+
+		return Identifier();
+	}
+
+	bool isXYZ() const
+	{
+		return xyzProvider != nullptr;
+	}
+
+	void registerXYZProvider(const Identifier& id, const std::function<XYZProviderBase*()> & f)
+	{
+		factory->registerXYZProvider(id, f);
+	}
+
+	ComplexDataUIBase::EditorBase* createEditor();
+
+	const XYZItem::List& getXYZItems() const { return xyzItems; }
+
+	LoadResult::Ptr getFirstXYZData()
+	{
+		if (xyzItems.isEmpty())
+			return nullptr;
+
+		return xyzItems[0].data;
+	}
+
+	void setDisabledXYZProviders(const Array<Identifier>& ids)
+	{
+		deactivatedXYZIds = ids;
+	}
+
 private:
+
+	Array<Identifier> deactivatedXYZIds;
+
+	SharedResourcePointer<XYZProviderFactory> factory;
 
 	void setDataBuffer(AudioSampleBuffer& newBuffer)
 	{
@@ -942,9 +1111,7 @@ private:
 	AudioSampleBuffer createNewDataBuffer(Range<int> newRange)
 	{
 		if (newRange.isEmpty())
-		{
 			return {};
-		}
 		
 		SimpleReadWriteLock::ScopedReadLock l(getDataLock());
 
@@ -967,128 +1134,37 @@ private:
 	AudioSampleBuffer currentData;
 	DataProvider::Ptr provider;
 
+	XYZItem::List xyzItems;
+	ReferenceCountedObjectPtr<XYZProviderBase> xyzProvider;
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(MultiChannelAudioBuffer);
 };
 
 
-
-#if 0
-struct XYZMultiChannelAudioBuffer : public MultiChannelAudioBuffer
+struct XYZMultiChannelAudioBufferEditor : public ComplexDataUIBase::EditorBase,
+										  public Component,
+										  public ButtonListener
 {
-	struct MetadataItem
-	{
-		using List = Array<MetadataItem>;
+	void setComplexDataUIBase(ComplexDataUIBase* newData) override;
 
-		bool matches(int n, int v, int r)
-		{
-			return veloRange.contains(v) &&
-				keyRange.contains(n) &&
-				rrGroup == r;
-		}
+	void addButton(const Identifier& id, const Identifier& currentId);
 
-		Range<int> veloRange;
-		Range<int> keyRange;
-		int root;
-		int rrGroup;
-		int sampleIndex = -1;
-	};
+	void buttonClicked(Button* b);
 
-	struct Pool : public DataProvider
-	{
-		DataProvider::LoadResult loadFile(const String& ref) override
-		{
-			auto hash = ref.hash();
+	void rebuildButtons();
 
-			for (const auto& i : pool)
-			{
-				if (i.reference == ref)
-					return i;
-			}
+	void rebuildEditor();
 
-			return LoadResult(false, ref);
-		}
+	void paint(Graphics& g) override;
 
-		Array<LoadResult> pool;
-	};
+	void resized() override;
 
-	struct XYZProvider: public ReferenceCountedObject
-	{
-		XYZProvider(XYZMultiChannelAudioBuffer& buffer) :
-			parent(buffer)
-		{
+	OwnedArray<TextButton> buttons;
 
-		}
+	ScopedPointer<Component> currentEditor;
 
-		DataProvider::LoadResult loadFileFromReference(const String& f)
-		{
-			if (parent.pool != nullptr)
-			{
-				if (auto pr = parent.pool->loadFile(f))
-					return pr;
-			}
-
-			for (auto dp : dataProviders)
-			{
-				if (auto lr = dp->loadFile(f))
-				{
-					if (parent.pool != nullptr)
-						parent.pool->pool.addIfNotAlreadyThere(lr);
-
-					return lr;
-				}
-			}
-
-			return {};
-		}
-
-		virtual bool parse(const String& v, MetadataItem::List& list) = 0;
-		
-		ReferenceCountedArray<DataProvider> dataProviders;
-		XYZMultiChannelAudioBuffer& parent;
-	};
-
-	bool fromBase64String(const String& b64) override
-	{
-		if (b64.compare(currentB64) != 0)
-		{
-			currentB64 = b64;
-
-			items.clear();
-
-			for (auto b : xyzProviders)
-			{
-				if (b->parse(currentB64, items))
-					return true;
-			}
-		}
-	}
-
-	void addXYZProvider(XYZProvider* newProvider)
-	{
-		xyzProviders.add(newProvider);
-	}
-
-	void setPoolToUse(Pool* p)
-	{
-		pool = p;
-	};
-
-	String toBase64String() const override { return currentB64; }
-
-	String currentB64;
-	MetadataItem::List items;
-	ReferenceCountedArray<XYZProvider> xyzProviders;
-	ReferenceCountedObjectPtr<Pool> pool;
+	WeakReference<MultiChannelAudioBuffer> currentBuffer;
 };
-
-struct XYZMultiChannelAudioBufferEditor : public ComplexDataUIBase::EditorBase
-{
-	void paint(Graphics& g) override
-	{
-
-	}
-};
-#endif
 
 #if 0
 struct MultiChannelAudioBufferDisplay : public AudioDisplayComponent,

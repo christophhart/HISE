@@ -66,9 +66,11 @@ END_JUCE_MODULE_DECLARATION
 #include "sampler/ModulatorSamplerVoice.h"
 #include "sampler/ModulatorSampler.h"
 
+#include "sampler/SfzImporter.h"
+
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 #include "sampler/SampleImporter.h"
-#include "sampler/SfzImporter.h"
+
 #include "sampler/MachFiveImporter.h"
 
 #include "sampler/components/FileNamePartComponent.h"

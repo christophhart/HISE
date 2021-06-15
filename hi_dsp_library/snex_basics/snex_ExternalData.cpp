@@ -133,10 +133,34 @@ ExternalData::ExternalData(ComplexDataUIBase* b, int absoluteIndex) :
 	case DataType::AudioFile:
 	{
 		auto buffer = dynamic_cast<MultiChannelAudioBuffer*>(obj);
-		data = buffer->getDataPtrs();
-		numChannels = buffer->getBuffer().getNumChannels();
-		numSamples = buffer->getCurrentRange().getLength();
-		sampleRate = buffer->sampleRate;
+
+		if (buffer->isXYZ())
+		{
+			isXYZAudioData = true;
+			data = buffer->getXYZItems().begin();
+			numSamples = buffer->getXYZItems().size();
+
+			if (numSamples > 0)
+			{
+				auto fb = buffer->getFirstXYZData();
+
+				sampleRate = fb->sampleRate;
+				numChannels = fb->buffer.getNumChannels();
+			}
+			else
+			{
+				sampleRate = 44100.0;
+				numChannels = 0;
+			}
+		}
+		else
+		{
+			data = buffer->getDataPtrs();
+			numChannels = buffer->getBuffer().getNumChannels();
+			numSamples = buffer->getCurrentRange().getLength();
+			sampleRate = buffer->sampleRate;
+		}
+		
 		break;
 	}
 	case DataType::Table:

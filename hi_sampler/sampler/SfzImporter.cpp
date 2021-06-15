@@ -50,7 +50,12 @@ static const char * sfz_opcodeNames[SfzImporter::numSupportedOpcodes] =
 		"group_volume",
 		"pan",
 		"group_label",
-		"key"
+		"key",
+		"default_path",
+		"lorand",
+		"hirand",
+		"seq_length",
+		"seq_position"
 };
 
 Identifier SfzImporter::getSamplerProperty(Opcode opcode)
@@ -72,6 +77,11 @@ Identifier SfzImporter::getSamplerProperty(Opcode opcode)
 	case volume:			return SampleIds::Volume;
 	case group_volume:		return SampleIds::Volume; // increases the Volume Property.
 	case pan:				return SampleIds::Pan;
+	case default_path:		
+	case lorand:			
+	case hirand:			
+	case seq_length:
+	case seq_position:		return SampleIds::Unused;
     case numSupportedOpcodes: jassertfalse; 
 	default:				jassertfalse; 
 	};
@@ -98,21 +108,41 @@ int getNoteNumberFromNameOrNumber(const String &data)
     return data.getIntValue();
 }
 
+var SfzImporter::combineOpcodeValue(Opcode o, var prevValue, var thisValue)
+{
+	return thisValue;
+}
+
 var SfzImporter::getOpcodeValue(Opcode o, const String &valueString) const
 {
 	switch(o)
 	{
-	case sample:		return var(fileToImport.getParentDirectory().getFullPathName() + "/" + valueString);
+	case sample:		return valueString.replaceCharacter('\\', '/');
 	case loop_mode:		return (valueString == "loop_continuous") ? var(1) : var(0);
     case lokey:
     case hikey:
     case pitch_keycenter: return var(getNoteNumberFromNameOrNumber(valueString));
+	case default_path:  return valueString.replaceCharacter('\\', '/');
+	case lorand:
+	case hirand:		return var(valueString.getDoubleValue());
 	default:			return var(valueString.getIntValue());
 	}
 }
 
 const char **SfzImporter::opcodeNames = sfz_opcodeNames;
 
+
+void SfzImporter::debugRoot()
+{
+#if JUCE_DEBUG
+	if (root != nullptr)
+	{
+		String s;
+		int il = 0;
+		root->toDbgString(s, il);
+	}
+#endif
+}
 
 void SfzImporter::parseTagLine(const String &restOfLine)
 {
@@ -139,7 +169,6 @@ StringArray SfzImporter::getOpcodeTokens(const String &line) const
 			if (i == 0) throw SfzParsingError(currentParseNumber, "Invalid token!");
 
 			tokens.set(i - 1, tokens[i - 1] + " " + tokens[i]);
-
 			tokens.remove(i--);
 
 			continue;
@@ -159,21 +188,18 @@ void SfzImporter::parseOpcode(const String &opcode)
 
 		if(opcodeIndex == Opcode::groupName)
 		{
-			if(dynamic_cast<Group*>(currentTarget) != nullptr) dynamic_cast<Group*>(currentTarget)->groupName = opcodeTokens[1];
-			else throw SfzParsingError(currentParseNumber, "group name opcode outside of group definition");
+			if(auto g = currentTarget->as<Group>())
+				g->groupName = opcodeTokens[1];
+			else
+				throw SfzParsingError(currentParseNumber, "group name opcode outside of group definition");
 		}
 		else if(opcodeIndex != -1)
 		{
 			if(currentTarget != nullptr)
-			{
 				currentTarget->setOpcodeValue(opcodeIndex, getOpcodeValue((Opcode)opcodeIndex, opcodeTokens[1]));
-			}
 			else
-			{
 				throw SfzParsingError(currentParseNumber, "No Region for opcode");
-			}
 		}
-				
 	}
 	else
 	{
@@ -187,7 +213,6 @@ void SfzImporter::parseOpcodes()
 
 	fileToImport.readLines(fileData);
 
-
 	for (int i = 0; i < fileData.size(); i++)
 	{
 		String currentLine = fileData[i].trimStart().upToFirstOccurrenceOf("//", false, false);
@@ -197,19 +222,30 @@ void SfzImporter::parseOpcodes()
 		if (currentLine.isEmpty() || !currentLine.containsNonWhitespaceChars()) continue; // Skip empty lines
 		if (currentLine.startsWith("//")) continue; // Skip comments
 
+		if (currentLine.startsWith(Control::getTag()))
+		{
+			currentTarget = new Control(currentTarget);
+
+			setIfRoot(currentTarget);
+		}
 		if (currentLine.startsWith(Global::getTag()))
 		{
-			currentTarget = globalSfzObject;
+			navigateToParent<Control>(AllowNoParent);
+			
+			currentTarget = new Global(currentTarget);
+
+			setIfRoot(currentTarget);
 		}
 		else if (currentLine.startsWith(Group::getTag()))
 		{
+			navigateToParent<Global>(ThrowErrorIfNotFound);
+
 			if (i < fileData.size() - 1)
 			{
-				globalSfzObject->groups.add(new Group());
-
-				currentTarget = globalSfzObject->groups.getLast();
-
-				globalSfzObject->groups.getLast()->groupName = "Group " + String(globalSfzObject->groups.size());
+				auto g = new Group(currentTarget);
+				currentTarget = g;
+				auto groupIndex = currentTarget->parent->children.size();
+				g->groupName = "Group " + String(groupIndex);
 
 			}
 			else
@@ -219,15 +255,9 @@ void SfzImporter::parseOpcodes()
 		}
 		else if (currentLine.startsWith(Region::getTag()))
 		{
-			if (globalSfzObject->groups.size() > 0)
-			{
-				globalSfzObject->groups.getLast()->addRegion(new Region());
-				currentTarget = globalSfzObject->groups.getLast()->regions.getLast();
-			}
-			else
-			{
-				throw SfzParsingError(i, "No Group for region");
-			}
+			navigateToParent<Group>(ThrowErrorIfNotFound, "No Group for region");
+
+			currentTarget = new Region(currentTarget);
 		}
 
 		parseTagLine(currentLine);
@@ -237,23 +267,27 @@ void SfzImporter::parseOpcodes()
 
 void SfzImporter::applyGlobalOpcodesToRegion()
 {
-	NamedValueSet *globalSet = &globalSfzObject->opcodes;
+	auto currentControl = currentTarget->findParentTargetOfType<Control>();
+	auto currentGlobal = currentTarget->findParentTargetOfType<Global>();
 
-	for (int i = 0; i < globalSfzObject->groups.size(); i++)
+	NamedValueSet *globalSet = &currentGlobal->opcodes;
+
+	for (auto c: currentGlobal->children)
 	{
-		NamedValueSet *groupSet = &globalSfzObject->groups[i]->opcodes;
+		NamedValueSet *groupSet = &c->opcodes;
 
-		ScopedPointer<XmlElement> xml = new XmlElement("a");
-
-		groupSet->copyToXmlAttributes(*xml);
-
-		for (int j = 0; j < globalSfzObject->groups[i]->regions.size(); j++)
+		for (auto r : c->children)
 		{
-			Region *r = globalSfzObject->groups[i]->regions[j];
-			applyValueSetOnRegion(*globalSet, r);
-			applyValueSetOnRegion(*groupSet, r);
+			// Apply Control properties
+			if (currentControl != nullptr)
+				applyValueSetOnRegion(currentControl->opcodes, r->as<Region>());
 
-			
+			// Apply global properties
+			if (currentGlobal != nullptr)
+				applyValueSetOnRegion(currentGlobal->opcodes, r->as<Region>());
+
+			// Apply group properties
+			applyValueSetOnRegion(c->opcodes, r->as<Region>());
 		}
 	}
 }
@@ -261,17 +295,26 @@ void SfzImporter::applyGlobalOpcodesToRegion()
 
 void SfzImporter::applyValueSetOnRegion(const NamedValueSet &setToApply, Region * r)
 {
-	
-
 	for (int i = 0; i < setToApply.size(); i++)
 	{
 		Identifier opcodeId = setToApply.getName(i);
 
-		if (setToApply[opcodeId].isUndefined()) continue;
-
-		if (r->opcodes[opcodeId].isUndefined())
+		if (setToApply[opcodeId].isUndefined())
 		{
+			jassertfalse;
+			continue;
+		}
+			
+
+		if (!r->opcodes.contains(opcodeId))
 			r->opcodes.set(opcodeId, setToApply[opcodeId]);	
+		else
+		{
+			auto prevValue = r->opcodes[opcodeId];
+			auto thisValue = setToApply[opcodeId];
+			//
+			auto combinedValue = combineOpcodeValue((Opcode)getOpcode(opcodeId.toString()), prevValue, thisValue);
+			r->opcodes.set(opcodeId, combinedValue);
 		}
 	}
 }
@@ -282,17 +325,18 @@ fileToImport(sfzFileToImport),
 currentTarget(nullptr),
 currentParseNumber(0)
 {
-	globalSfzObject = new Global();
-
-	currentTarget = globalSfzObject;
+	
 }
 
-void SfzImporter::importSfzFile()
+ValueTree SfzImporter::importSfzFile()
 {
 	parseOpcodes();
 
+	debugRoot();
+
 	applyGlobalOpcodesToRegion();
 
+	debugRoot();
 
 	ValueTree v("samplemap");
 
@@ -302,76 +346,24 @@ void SfzImporter::importSfzFile()
 	
 	v.setProperty("SaveMode", 1, nullptr);
 
-	OwnedArray<SfzGroupSelectorComponent> groupSelectors;
+	auto firstGlobal = root->findFirstChildOfType<Global>();
 
-	if (globalSfzObject->groups.size() > 1)
-	{
-		AlertWindow w("Group Import Settings", String(), AlertWindow::AlertIconType::NoIcon);
-
-		ScopedPointer<Viewport> viewport = new Viewport();
-
-		Component *c = new Component();
-
-		viewport->setViewedComponent(c, true);
-
-		int y = 0;
-
-		
-
-		for (int i = 0; i < globalSfzObject->groups.size(); i++)
-		{
-			SfzGroupSelectorComponent *g = new SfzGroupSelectorComponent();
-
-			g->setData(i, globalSfzObject->groups[i]->groupName, globalSfzObject->groups.size());
-
-			c->addAndMakeVisible(g);
-
-			g->setBounds(0, y, 500, 30);
-
-			groupSelectors.add(g);
-
-			y = g->getBottom();
-		}
-
-		c->setSize(500, y);
-
-		viewport->setSize(530, 200);
-		viewport->setVisible(true);
-
-		w.setLookAndFeel(&alaf);
-
-		w.setColour(AlertWindow::backgroundColourId, Colour(0xff222222));
-		w.setColour(AlertWindow::textColourId, Colours::white);
-		w.addButton("OK", 1, KeyPress(KeyPress::returnKey));
-		w.addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
-
-		w.addCustomComponent(viewport);
-
-		if (w.runModalLoop() == 0) return;
-
-		
-	}
-	else
-	{
-		groupSelectors.add(new SfzGroupSelectorComponent());
-
-		groupSelectors.getLast()->setFixedReturnValue();
-	}
-
-	jassert(groupSelectors.size() == globalSfzObject->groups.size());
 	
-    
 	int id = 0;
 
-	for (int i = 0; i < globalSfzObject->groups.size(); i++)
+	int groupAmount = 0;
+
+	for (int i = 0; i < firstGlobal->children.size(); i++)
 	{
-		const int rrGroup = groupSelectors[i]->getGroupIndex();
+		const int rrGroup = i+1;
+
+		groupAmount = jmax(rrGroup, groupAmount);
 
 		if(rrGroup == -1) continue;
 
-		for (int j = 0; j < globalSfzObject->groups[i]->regions.size(); j++)
+		for (int j = 0; j < firstGlobal->children[i]->children.size(); j++)
 		{
-			Region *region = globalSfzObject->groups[i]->regions[j];
+			Region *region = firstGlobal->children[i]->children[j]->as<Region>();
 
 			ValueTree sample("sample");
 
@@ -388,33 +380,51 @@ void SfzImporter::importSfzFile()
 
 				if (k == Opcode::groupName) continue;
 
-				if ( !region->opcodes[opcode].isUndefined() )
+				auto opValue = region->opcodes[opcode];
+
+				bool isEmpty = opValue.isUndefined() || opValue.isVoid();
+
+				if (!isEmpty)
 				{
 					if (k == Opcode::key)
 					{
-						sample.setProperty(SampleIds::Root, region->opcodes[opcode], nullptr);
-						sample.setProperty(SampleIds::LoKey, region->opcodes[opcode], nullptr);
-						sample.setProperty(SampleIds::HiKey, region->opcodes[opcode], nullptr);
+						auto v = region->opcodes[opcode];
+
+						sample.setProperty(SampleIds::Root, opValue, nullptr);
+						sample.setProperty(SampleIds::LoKey, opValue, nullptr);
+						sample.setProperty(SampleIds::HiKey, opValue, nullptr);
 
 						continue;
 					}
-					
-					
 
 					auto p = getSamplerProperty((Opcode)k);
 
+					if (p == SampleIds::Unused)
+						continue;
+
+					
+
 					if (p == SampleIds::FileName)
 					{
-						auto path = region->opcodes[opcode];
-						PoolReference ref(sampler->getMainController(), path, FileHandlerBase::Samples);
-						sample.setProperty(p, ref.getReferenceString(), nullptr);
+						auto path = region->getRelativeFilePath();
+						auto dir = fileToImport.getParentDirectory();
+
+						auto f = dir.getChildFile(path);
+
+						if (sampler != nullptr)
+						{
+							PoolReference ref(sampler->getMainController(), f.getFullPathName(), FileHandlerBase::Samples);
+							sample.setProperty(p, ref.getReferenceString(), nullptr);
+						}
+						else
+						{
+							sample.setProperty(p, f.getFullPathName(), nullptr);
+						}
 					}
 					else
 					{
-						sample.setProperty(p, region->opcodes[opcode], nullptr);
+						sample.setProperty(p, opValue, nullptr);
 					}
-
-					
 				}
 			}
 
@@ -432,29 +442,88 @@ void SfzImporter::importSfzFile()
 
 			}
 
-			// Add the group properties
-			sample.setProperty(SampleIds::RRGroup, rrGroup, nullptr);
+			if (auto customRRGroup = region->getRRGroup())
+			{
+				sample.setProperty(SampleIds::RRGroup, customRRGroup, nullptr);
+				groupAmount = jmax(groupAmount, customRRGroup);
+			}
+			else
+				sample.setProperty(SampleIds::RRGroup, rrGroup, nullptr);
 
 			v.addChild(sample, -1, nullptr);
 		}
 
 	}
 
-	int groupAmount = 0;
+	v.setProperty("RRGroupAmount", jmax(1, groupAmount), nullptr);
 
-	for (int i = 0; i < groupSelectors.size(); i++)
+	if (sampler != nullptr)
 	{
-		groupAmount = jmax(groupAmount, groupSelectors[i]->getGroupIndex());
+		sampler->getSampleMap()->loadUnsavedValueTree(v);
+		sampler->refreshPreloadSizes();
+		sampler->refreshMemoryUsage();
 	}
 
-	sampler->setRRGroupAmount(groupAmount);
-
-	sampler->getSampleMap()->loadUnsavedValueTree(v);
-
-	//sampler->getSampleMap()->setRelativeSaveMode(true);
-
-	sampler->refreshPreloadSizes();
-	sampler->refreshMemoryUsage();
+	return v;
 };
+
+void SfzImporter::SfzOpcodeTarget::toDbgString(String& s, int& intLevel)
+{
+	String intendation;
+	for (int i = 0; i < intLevel; i++)
+		intendation << ' ';
+
+	s << intendation << getTagVirtual() << "\n";
+
+	for (const auto& kv : opcodes)
+		s << intendation << '-' << kv.name << ":" << kv.value.toString() << "\n";
+
+	intLevel++;
+
+	for (auto c : children)
+		c->toDbgString(s, intLevel);
+
+	intLevel--;
+}
+
+int SfzImporter::Region::getRRGroup() const
+{
+	Range<double> randomRange((*this)[Opcode::lorand], (*this)[Opcode::hirand]);
+
+	if (!randomRange.isEmpty())
+	{
+		auto numRR = 1.0 / randomRange.getLength();
+		return roundToInt(randomRange.getStart() * numRR) + 1;
+	}
+
+	if (auto slength = (int)(*this)[Opcode::seq_length])
+	{
+		return (int)(*this)[Opcode::seq_position];
+	}
+	
+	return 0;
+}
+
+String SfzImporter::Region::getRelativeFilePath() const
+{
+	String s;
+
+	s << (*this)[Opcode::default_path].toString().replaceCharacter('\\', '/');
+
+	if (!s.endsWithChar('/'))
+		s << '/';
+
+	auto fn = (*this)[Opcode::sample].toString().replaceCharacter('\\', '/');
+
+	if (fn.startsWithChar('/'))
+		fn = fn.fromFirstOccurrenceOf("/", false, false);
+
+	s << fn;
+
+	if(s.startsWithChar('/'))
+		s = s.fromFirstOccurrenceOf("/", false, false);
+
+	return s;
+}
 
 } // namespace hise

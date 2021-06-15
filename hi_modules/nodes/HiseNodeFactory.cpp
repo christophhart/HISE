@@ -56,8 +56,9 @@ struct granulator: public data::base
 	SNEX_NODE(granulator);
 	SN_DESCRIPTION("A granular synthesiser");
 
+	using AudioDataType = span<block, 2>;
+
 	using IndexType = index::lerp<index::unscaled<double, index::clamped<0>>>;
-	//using IndexType = index::unscaled<double, index::clamped<0>>;
 
 	struct Grain
 	{
@@ -99,6 +100,8 @@ struct granulator: public data::base
 			const double pf = (2.0 * Math.randomDouble() - 1.0) * detune;
 			uptimeDelta *= Math.pow(2.0, pf);
 		}
+
+		bool operator==(const Grain& other) const { return false; };
 
 		bool startIfIdle(const span<block, 2>& data, int index, int grainSize)
 		{
@@ -183,7 +186,7 @@ struct granulator: public data::base
 		float lGain = 1.0f;
 		float rGain = 1.0f;
 
-		span<dyn<float>, 2> grainData;
+		AudioDataType grainData;
 	};
 
 
@@ -194,6 +197,11 @@ struct granulator: public data::base
 
 	}
 
+	bool isXYZ() const
+	{
+		return this->externalData.isXYZ();
+	}
+
 	void startNextGrain(int numSamples)
 	{
 		uptime += numSamples;
@@ -202,35 +210,63 @@ struct granulator: public data::base
 
 		if (delta > timeBetweenGrains)
 		{
-			auto idx = (int)(currentPosition * (double)(audioData[0].size() - grainLengthSamples));
-
-			idx += (double)spread * Math.randomDouble() * grainLengthSamples;
-
-			auto offset = idx % 4;
-			idx -= offset;
+			
 			auto delta = ((Math.randomDouble() - 0.5) * (double)timeBetweenGrains * 0.3);
 			timeOfLastGrainStart = uptime + delta;
 
 			double thisPitch = pitchRatio * 44100.0 / sampleRate;
 			auto thisGain = 1.0f;
 
+			StereoSample nextSample;
+
 			if (activeEvents.size() > 0)
 			{
 				index::wrapped<0> eIdx(eventIndex);
-				auto eFreq = activeEvents[eIdx].getFrequency();
+
+				auto e = activeEvents[eIdx];
+
+				ed.getStereoSample(nextSample, e);
+
+				if (!ed.isXYZ())
+					nextSample.rootNote = 64;
+
+				thisPitch *= nextSample.getPitchFactor();
+
 				eventIndex = (int)(Math.random() * 190.0f);
-				thisPitch *= eFreq / sampleFrequency;
-				//thisGain = (float)activeEvents[eIdx].getVelocity() / 127.0f;
+
+#if 0
+				if (isXYZ())
+				{
+					
+					//this->externalData.getXYZData<2>();
+				}
+				else
+				{
+					auto eFreq = e.getFrequency();
+					
+					//thisPitch *= eFreq / sampleFrequency;
+					//thisGain = (float)activeEvents[eIdx].getVelocity() / 127.0f;
+				}
+#endif
 			}
 
-			for (auto& grain : grains)
+			if (!nextSample.isEmpty())
 			{
-				if (grain.startIfIdle(audioData, idx, (int)grainLengthSamples))
-				{
-					grain.setPitchRatio(thisPitch);
-					grain.setSpread(spread, thisGain, detune);
+				auto idx = (int)(currentPosition * (double)(nextSample.data[0].size() - 2.0 * grainLengthSamples));
 
-					break;
+				idx += (double)spread * Math.randomDouble() * grainLengthSamples;
+
+				auto offset = idx % 4;
+				idx -= offset;
+
+				for (auto& grain : grains)
+				{
+					if (grain.startIfIdle(nextSample.data, idx, (int)grainLengthSamples))
+					{
+						grain.setPitchRatio(thisPitch);
+						grain.setSpread(spread, thisGain, detune);
+						break;
+					}
 				}
 			}
 		}
@@ -246,7 +282,7 @@ struct granulator: public data::base
 
 			span<float, 2> sum;
 
-			for (auto& g : grains)
+			for(auto& g: grains)
 				g.tick(sum);
 
 			data[0] += totalGrainGain * sum[0];
@@ -256,7 +292,7 @@ struct granulator: public data::base
 
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
-		if (audioData[0].size() > 0 && d.getNumChannels() == 2)
+		if (!ed.isEmpty() && d.getNumChannels() == 2)
 			processFix(d.template as<ProcessData<2>>());
 	}
 
@@ -273,7 +309,7 @@ struct granulator: public data::base
 		if (e.isNoteOn())
 		{
 			voices[voiceCounter] = e;
-			voiceCounter++;
+			voiceCounter = Math.min(voices.size()-1, voiceCounter + 1);
 		}
 		else
 		{
@@ -303,6 +339,8 @@ struct granulator: public data::base
 		grainLengthSamples = grainLength * 0.001 * sampleRate;
 		timeBetweenGrains = (int)(grainLengthSamples * pitchRatio * (1.0 - density)) / 2;
 
+		timeBetweenGrains = jmax(400, timeBetweenGrains);
+
 		auto gainDelta = (float)timeBetweenGrains / (float)grainLengthSamples;
 
 		totalGrainGain = Math.pow(gainDelta, 0.3f);
@@ -314,18 +352,26 @@ struct granulator: public data::base
 
 		ed = d;
 
-		d.referBlockTo(audioData[0], 0);
-		d.referBlockTo(audioData[1], 1);
 
+
+		//d.referBlockTo(audioData[0], 0);
+		//d.referBlockTo(audioData[1], 1);
+
+		/*
 		if (d.numSamples != 0)
 		{
 			sampleFrequency = PitchDetection::detectPitch(audioData[0].begin(), d.numSamples, sampleRate);
 		}
+		*/
 
 		updateGrainLength();
 
 		for (auto& g : grains)
 			g.reset();
+
+		voices.clear();
+		voiceCounter = 0;
+		activeEvents.referToNothing();
 	}
 
 	void prepare(PrepareSpecs ps)
@@ -341,8 +387,11 @@ struct granulator: public data::base
 		{
 			currentPosition = Math.range(v, 0.0, 1.0);
 
-			auto dv = currentPosition * (double)(audioData[0].size() - 2.0 * grainLengthSamples);
-
+			if (!ed.isXYZ())
+			{
+				auto dv = currentPosition * ed.numSamples - grainLengthSamples;
+				ed.setDisplayedValue(dv);
+			}
 			//block analyseBlock;
 			//analyseBlock.referTo(audioData[0], (int)dv, 2 * (int)grainLengthSamples);
 			//maxGainInGrain = Math.peak(analyseBlock);
@@ -350,7 +399,7 @@ struct granulator: public data::base
 
 			//updateGrainLength();
 
-			ed.setDisplayedValue(dv);
+			
 		}
 		if (P == 1) // PitchRatio
 		{
@@ -421,7 +470,7 @@ struct granulator: public data::base
 	}
 
 	ExternalData ed;
-	span<block, 2> audioData;
+	//span<block, 2> audioData;
 	span<Grain, NumGrains> grains;
 
 	float totalGrainGain = 1.0f;
@@ -1523,7 +1572,7 @@ Factory::Factory(DspNetwork* network) :
 	using mono_file_player = wrap::data<core::file_player<1>, data::dynamic::audiofile>;
 	using poly_file_player = wrap::data<core::file_player<NUM_POLYPHONIC_VOICES>, data::dynamic::audiofile>;
 
-	registerPolyNode<mono_file_player, poly_file_player, data::ui::audiofile_editor>();
+	registerPolyNode<mono_file_player, poly_file_player, data::ui::xyz_audio_editor>();
 	registerNode   <wrap::data<core::recorder,    data::dynamic::audiofile>, data::ui::audiofile_editor>();
 
 	registerPolyNode<gain, gain_poly>();
@@ -1551,7 +1600,7 @@ Factory::Factory(DspNetwork* network) :
 		false>;
 
 	registerPolyNode<dp<core::oscillator<1>>, dp<core::oscillator<NUM_POLYPHONIC_VOICES>>, osc_display_>();
-	registerNode<wrap::data<granulator, data::dynamic::audiofile>, data::ui::audiofile_editor>();
+	registerNode<wrap::data<granulator, data::dynamic::audiofile>, data::ui::xyz_audio_editor>();
 }
 }
 

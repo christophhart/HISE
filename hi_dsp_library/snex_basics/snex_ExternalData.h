@@ -268,11 +268,67 @@ using namespace Types;
         
         ChildBase::List root;
     };
-    
+
+template <int NumChannels> struct SampleData
+{
+	bool isEmpty() const
+	{
+		return data[0].size() == 0;
+	}
+
+	double getPitchFactor() const
+	{
+		return hmath::pow(2.0, (noteNumber - rootNote) / 12.0);
+	}
+
+	void clear()
+	{
+		for (auto& bl : data)
+			bl.referToNothing();
+		rootNote = -1;
+	}
+
+	template <typename IndexType> span<float, NumChannels> operator[](const IndexType& d) const
+	{
+		span<float, NumChannels> fd;
+
+		if (!isEmpty())
+		{
+			for (int i = 0; i < NumChannels; i++)
+				fd[i] = data[i][d];
+		}
+
+		return fd;
+	}
+
+	void fromHiseEvent(const HiseEvent& e)
+	{
+		clear();
+		noteNumber = e.getNoteNumberIncludingTransposeAmount();
+		velocity = e.getVelocity();
+	}
+
+	void setLoopRange(Range<int> lr)
+	{
+		loopRange[0] = lr.getStart();
+		loopRange[1] = lr.getEnd();
+	}
+
+	double rootNote = -1.0;
+	double noteNumber = 0.0;
+	int velocity = 0;
+	int roundRobin = 1;
+	span<int, 2> loopRange;
+	span<block, NumChannels> data;
+};
+
+using StereoSample = SampleData<2>;
+using MonoSample = SampleData<1>;
+
 /** A wrapper around one of the complex data types with a update message. */
 struct ExternalData
 {
-	enum class DataType
+	enum class DataType: int
 	{
 		Table,
 		SliderPack,
@@ -383,14 +439,86 @@ struct ExternalData
 		return nullptr;
 	}
 
+	bool isXYZ() const { return isXYZAudioData; };
+
+	template <int NumChannels> static int getXYZData(const void* obj_, SampleData<NumChannels>* dataToFill, const HiseEvent& e)
+	{
+		dataToFill->fromHiseEvent(e);
+
+		auto ed = static_cast<const ExternalData*>(obj_);
+
+		if (ed->obj != nullptr)
+		{
+			if (auto st = SimpleReadWriteLock::ScopedTryReadLock(ed->obj->getDataLock()))
+			{
+				if (ed->isXYZ())
+				{
+					auto xyzData = static_cast<MultiChannelAudioBuffer::XYZItem*>(ed->data);
+
+					int n = (int)dataToFill->noteNumber;
+					int v = dataToFill->velocity;
+					int r = dataToFill->roundRobin;
+
+					for (int i = 0; i < ed->numSamples; i++)
+					{
+						if (xyzData[i].matches(n, v, r))
+						{
+							dataToFill->rootNote = (double)xyzData[i].root;
+
+							auto ptrs = xyzData[i].data->buffer.getArrayOfWritePointers();
+							auto nc = xyzData[i].data->buffer.getNumChannels();
+							auto ns = xyzData[i].data->buffer.getNumSamples();
+
+							dataToFill->setLoopRange(xyzData[i].data->loopRange);
+
+							for (int c = 0; c < NumChannels; c++)
+							{
+								auto srcIndex = c * (nc > 1);
+								dataToFill->data[c].referToRawData(ptrs[srcIndex], ns);
+							}
+
+							return 1;
+						}
+					}
+				}
+				else
+				{
+					dataToFill->rootNote = dataToFill->noteNumber;
+
+					for (int c = 0; c < NumChannels; c++)
+						ed->referBlockTo(dataToFill->data[c], c);
+
+					auto lr = static_cast<MultiChannelAudioBuffer*>(ed->obj)->getLoopRange();
+					dataToFill->setLoopRange(lr);
+
+					return 1;
+				}
+			}
+		}
+
+		return 0;
+	}
+
+	int getStereoSample(StereoSample& d, const HiseEvent& e) const
+	{
+		return getXYZData<2>(this, &d, e);
+	}
+
+	int getMonoSample(MonoSample& d, const HiseEvent& e) const
+	{
+		return getXYZData<1>(this, &d, e);
+	}
+
 	static ComplexDataUIBase::EditorBase* createEditor(ComplexDataUIBase* dataObject);
 	
 	DataType dataType = DataType::numDataTypes;
 	int numSamples = 0;
 	int numChannels = 0;
+	int isXYZAudioData = 0;
 	void* data = nullptr;
 	hise::ComplexDataUIBase* obj = nullptr;
 	double sampleRate = 0.0;
+	
 };
 
 /** A interface class that handles the communication between a SNEX node and externally defined complex data types of HISE.
@@ -525,6 +653,8 @@ namespace scriptnode
 {
 
 
+
+
 namespace data
 {
 
@@ -532,45 +662,7 @@ namespace data
 /** Subclass this when you want to show a UI for the given data. */
 struct base
 {
-	/** Use this in order to lock the access to the external data. */
-	struct DataReadLock: hise::SimpleReadWriteLock::ScopedReadLock
-	{
-		DataReadLock(base* d) :
-			SimpleReadWriteLock::ScopedReadLock(d->externalData.obj != nullptr ? d->externalData.obj->getDataLock() : dummy, d->externalData.obj != nullptr)
-		{}
-
-		DataReadLock(snex::ExternalData& d) :
-			SimpleReadWriteLock::ScopedReadLock(d.obj != nullptr ? d.obj->getDataLock() : dummy, d.obj != nullptr)
-		{}
-
-		SimpleReadWriteLock dummy;
-	};
-
-	/** Use this in order to lock the access to the external data. */
-	struct DataTryReadLock : hise::SimpleReadWriteLock::ScopedTryReadLock
-	{
-		DataTryReadLock(base* d) :
-			SimpleReadWriteLock::ScopedTryReadLock(d->externalData.obj != nullptr ? d->externalData.obj->getDataLock() : dummy)
-		{}
-
-		operator bool() const { return this->ok(); }
-
-		DataTryReadLock(snex::ExternalData& d) :
-			SimpleReadWriteLock::ScopedTryReadLock(d.obj != nullptr ? d.obj->getDataLock() : dummy)
-		{}
-
-		SimpleReadWriteLock dummy;
-	};
-
-	/** Use this in order to lock the access to the external data. */
-	struct DataWriteLock : hise::SimpleReadWriteLock::ScopedWriteLock
-	{
-		DataWriteLock(base* d) :
-			SimpleReadWriteLock::ScopedWriteLock(d->externalData.obj != nullptr ? d->externalData.obj->getDataLock() : dummy)
-		{}
-
-		SimpleReadWriteLock dummy;
-	};
+	
 
 	virtual ~base() {};
 
@@ -593,6 +685,78 @@ struct base
 
 	//JUCE_DECLARE_WEAK_REFERENCEABLE(base);
 };
+
+}
+
+/** Use this in order to lock the access to the external data. */
+struct DataReadLock
+{
+	DataReadLock(data::base* d, bool tryRead=false) :
+		lockToUse(d->externalData.obj != nullptr ? &d->externalData.obj->getDataLock() : nullptr)
+	{
+		if (lockToUse != nullptr)
+		{
+			if (tryRead)
+				holdsLock = lockToUse->enterReadLock();
+			else
+				holdsLock = lockToUse->enterTryReadLock();
+		}
+	}
+
+	DataReadLock(snex::ExternalData& d, bool tryRead=false) :
+		lockToUse(d.obj != nullptr ? &d.obj->getDataLock() : nullptr)
+	{
+		if (lockToUse != nullptr)
+		{
+			if (tryRead)
+				holdsLock = lockToUse->enterReadLock();
+			else
+				holdsLock = lockToUse->enterTryReadLock();
+		}
+	}
+
+	operator bool() const { return isLocked(); }
+
+	bool isLocked() const { return lockToUse != nullptr && holdsLock; };
+
+	~DataReadLock()
+	{
+		if (lockToUse != nullptr)
+			lockToUse->exitReadLock(holdsLock);
+	}
+
+	SimpleReadWriteLock* lockToUse;
+	bool holdsLock = false;
+};
+
+/** Use this in order to lock the access to the external data. */
+struct DataTryReadLock : hise::SimpleReadWriteLock::ScopedTryReadLock
+{
+	DataTryReadLock(data::base* d) :
+		SimpleReadWriteLock::ScopedTryReadLock(d->externalData.obj != nullptr ? d->externalData.obj->getDataLock() : dummy)
+	{}
+
+	DataTryReadLock(snex::ExternalData& d) :
+		SimpleReadWriteLock::ScopedTryReadLock(d.obj != nullptr ? d.obj->getDataLock() : dummy)
+	{}
+
+	operator bool() const { return this->ok(); }
+
+	SimpleReadWriteLock dummy;
+};
+
+/** Use this in order to lock the access to the external data. */
+struct DataWriteLock : hise::SimpleReadWriteLock::ScopedWriteLock
+{
+	DataWriteLock(data::base* d) :
+		SimpleReadWriteLock::ScopedWriteLock(d->externalData.obj != nullptr ? d->externalData.obj->getDataLock() : dummy)
+	{}
+
+	SimpleReadWriteLock dummy;
+};
+
+namespace data
+{
 
 #define SNEX_THROW_IF_MULTIPLE_WRITERS 0
 

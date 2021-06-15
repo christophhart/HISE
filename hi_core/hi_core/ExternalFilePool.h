@@ -1226,7 +1226,7 @@ struct PooledAudioFileDataProvider : public hise::MultiChannelAudioBuffer::DataP
 		ControlledObject(mc)
 	{}
 
-	LoadResult loadFile(const String& ref) override;
+	MultiChannelAudioBuffer::LoadResult::Ptr loadFile(const String& ref) override;
 
 	File getRootDirectory() override;
 

@@ -2115,6 +2115,7 @@ struct ScriptingApi::Sampler::Wrapper
     API_METHOD_WRAPPER_1(Sampler, getAttributeId);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setUseStaticMatrix);
     API_METHOD_WRAPPER_1(Sampler, loadSampleForAnalysis);
+	API_METHOD_WRAPPER_1(Sampler, loadSfzFile);
 	API_METHOD_WRAPPER_1(Sampler, createSelection);
 	API_METHOD_WRAPPER_1(Sampler, createSelectionFromIndexes);
 	API_METHOD_WRAPPER_0(Sampler, createListFromGUISelection);
@@ -2154,6 +2155,7 @@ sampler(sampler_)
     ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(isNoteNumberMapped);
     ADD_API_METHOD_1(loadSampleForAnalysis);
+	ADD_API_METHOD_1(loadSfzFile);
 	ADD_API_METHOD_1(setUseStaticMatrix);
 	ADD_API_METHOD_1(setSortByRRGroup);
 	ADD_API_METHOD_1(createSelection);
@@ -2692,6 +2694,68 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 
 		s->killAllVoicesAndCall([ref](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->loadSampleMap(ref); return SafeFunctionCall::OK; }, true);
 	}
+}
+
+var ScriptingApi::Sampler::loadSfzFile(var sfzFile)
+{
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
+	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock));
+
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s != nullptr)
+	{
+		File f;
+
+		if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(sfzFile.getObject()))
+			f = sf->f;
+
+		if (sfzFile.isString())
+		{
+			auto fn = sfzFile.toString();
+
+			if (File::isAbsolutePath(fn))
+				f = File(fn);
+		}
+
+		if(f.existsAsFile())
+		{
+			SfzImporter imp(nullptr, f);
+
+			try
+			{
+				auto delta = Time::getMillisecondCounter();
+				auto v = imp.importSfzFile();
+				delta = Time::getMillisecondCounter() - delta;
+				dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(delta);
+
+				if (v.isValid())
+				{
+					s->killAllVoicesAndCall([v](Processor* p)
+						{
+							auto sampler = static_cast<ModulatorSampler*>(p);
+
+							sampler->getSampleMap()->loadUnsavedValueTree(v);
+							sampler->refreshPreloadSizes();
+							sampler->refreshMemoryUsage();
+							return SafeFunctionCall::OK;
+						});
+
+					return var();
+				}
+
+				return var("No sample content");
+			}
+			catch (SfzImporter::SfzParsingError& p)
+			{
+				return var(p.getErrorMessage());
+			}
+			
+		}
+	}
+
+	return var("Unknown error");
 }
 
 var ScriptingApi::Sampler::importSamples(var fileNameList, bool skipExistingSamples)

@@ -595,6 +595,9 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
+		/** Loads an SFZ file into the sampler. */
+		var loadSfzFile(var sfzFile);
+
 		/** Loads a few samples in the current samplemap and returns a list of references to these samples. */
 		var importSamples(var fileNameList, bool skipExistingSamples);
 

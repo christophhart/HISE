@@ -1224,9 +1224,9 @@ ModulatorSamplerSoundPool* PoolCollection::getSamplePool()
 	return static_cast<ModulatorSamplerSoundPool*>(dataPools[FileHandlerBase::Samples]);
 }
 
-hise::MultiChannelAudioBuffer::DataProvider::LoadResult PooledAudioFileDataProvider::loadFile(const String& reference)
+hise::MultiChannelAudioBuffer::LoadResult::Ptr PooledAudioFileDataProvider::loadFile(const String& reference)
 {
-	LoadResult lr;
+	MultiChannelAudioBuffer::LoadResult::Ptr lr;
 
 	if (reference.isEmpty())
 		return lr;
@@ -1237,21 +1237,23 @@ hise::MultiChannelAudioBuffer::DataProvider::LoadResult PooledAudioFileDataProvi
 
 	if (auto dataPtr = lastHandler->pool->getAudioSampleBufferPool().loadFromReference(ref, PoolHelpers::LoadAndCacheWeak))
 	{
+		lr = new MultiChannelAudioBuffer::LoadResult();
+
 		auto metadata = dataPtr->additionalData;
 		
-		lr.sampleRate = metadata.getProperty(MetadataIDs::SampleRate, 0.0);
+		lr->sampleRate = metadata.getProperty(MetadataIDs::SampleRate, 0.0);
 
 		if (metadata.getProperty(MetadataIDs::LoopEnabled, false))
 		{
 			// add 1 because of the offset
-			lr.loopRange = { (int)metadata.getProperty(MetadataIDs::LoopStart, 0), (int)metadata.getProperty(MetadataIDs::LoopEnd, 0) + 1 };
+			lr->loopRange = { (int)metadata.getProperty(MetadataIDs::LoopStart, 0), (int)metadata.getProperty(MetadataIDs::LoopEnd, 0) + 1 };
 		}
 
-		lr.buffer = dataPtr->data;
-		lr.reference = ref.getReferenceString();
+		lr->buffer = dataPtr->data;
+		lr->reference = ref.getReferenceString();
 	}
 	else
-		lr.r = Result::fail("Can't load file " + reference);
+		lr->r = Result::fail("Can't load file " + reference);
 
 	return lr;
 }
