@@ -1677,6 +1677,14 @@ void ScriptCreatedComponentWrappers::PanelWrapper::mouseCallback(const var &mous
 		sp->mouseCallback(mouseInformation);
 }
 
+void ScriptCreatedComponentWrappers::PanelWrapper::fileDropCallback(const var& dropInformation)
+{
+	auto sp = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+
+	if (sp != nullptr)
+		sp->fileDropCallback(dropInformation);
+}
+
 void ScriptCreatedComponentWrappers::PanelWrapper::boundsChanged(const Rectangle<int> &newBounds)
 {
 	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
@@ -1763,6 +1771,8 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 	bp->setJSONPopupData(panel->getJSONPopupData(), panel->getPopupSize());
 	bp->setup(getProcessor(), getIndex(), panel->name.toString());
 	bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
+
+	bp->setEnableFileDrop(panel->fileDropLevel, panel->fileDropExtension);
 
 	MouseCursor cursor;
 

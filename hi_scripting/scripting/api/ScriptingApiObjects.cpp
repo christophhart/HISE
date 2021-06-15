@@ -201,6 +201,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsObject);
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
+	API_VOID_METHOD_WRAPPER_3(ScriptFile, extractZipFile);
 	API_VOID_METHOD_WRAPPER_0(ScriptFile, show);
 };
 
@@ -240,6 +241,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_0(loadAsObject);
 	ADD_API_METHOD_1(loadEncryptedObject);
 	ADD_API_METHOD_0(show);
+	ADD_API_METHOD_3(extractZipFile);
 }
 
 
@@ -480,6 +482,121 @@ void ScriptingObjects::ScriptFile::show()
 	{
 		f_.revealToUser();
 	});
+}
+
+void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool overwriteFiles, var callback)
+{
+	File tf;
+
+	if (targetDirectory.isString() && File::isAbsolutePath(targetDirectory.toString()))
+		tf = File(targetDirectory.toString());
+	else if (auto sf = dynamic_cast<ScriptFile*>(targetDirectory.getObject()))
+	{
+		tf = sf->f;
+	}
+
+	ReferenceCountedObjectPtr<ScriptFile> safeThis(this);
+
+	auto cb = [safeThis, tf, targetDirectory, overwriteFiles, callback](Processor* p)
+	{
+		if (safeThis == nullptr)
+			return SafeFunctionCall::OK;
+
+		juce::ZipFile zipFile(safeThis->f);
+
+		DynamicObject::Ptr data = new DynamicObject();
+
+		data->setProperty("Status", 0);
+		data->setProperty("Progress", 0.0);
+		data->setProperty("TotalBytesWritten", 0);
+		data->setProperty("Cancel", false);
+		data->setProperty("Target", tf.getFullPathName());
+		data->setProperty("CurrentFile", "");
+		data->setProperty("Error", "");
+		
+		int64 numBytesWritten = 0;
+
+		WeakCallbackHolder cb(safeThis.get()->getScriptProcessor(), callback, 1);
+		cb.setThisObject(safeThis.get());
+		cb.incRefCount();
+
+		if (cb)
+		{
+			cb.call1(var(data->clone()));
+		}
+
+		data->setProperty("Status", 1);
+		int numEntries = zipFile.getNumEntries();
+		bool callForEachFile = numEntries < 500;
+
+
+		for (int i = 0; i < numEntries; i++)
+		{
+			if (Thread::getCurrentThread()->threadShouldExit())
+				return SafeFunctionCall::OK;
+
+			if (safeThis == nullptr)
+				return SafeFunctionCall::OK;
+
+			auto progress = (double)i / (double)zipFile.getNumEntries();
+
+			safeThis.get()->getScriptProcessor()->getMainController_()->getSampleManager().getPreloadProgress() = progress;
+
+			auto c = data->clone();
+
+			c->setProperty("Progress", progress);
+			c->setProperty("TotalBytesWritten", numBytesWritten);
+			c->setProperty("CurrentFile", zipFile.getEntry(i)->filename);
+
+			if (callForEachFile && cb)
+				cb.call1(var(c));
+
+			auto result = zipFile.uncompressEntry(i, tf, overwriteFiles);
+
+			numBytesWritten += zipFile.getEntry(i)->uncompressedSize;
+
+			if (result.failed())
+			{
+				c->setProperty("Error", result.getErrorMessage());
+
+				data = c;
+
+				if (cb)
+					cb.call1(var(c));
+
+				break;
+			}
+
+			if (c->getProperty("Cancel"))
+			{
+				c->setProperty("Error", "User abort");
+
+				data = c;
+
+				if (cb)
+					cb.call1(var(c));
+
+				break;
+			}
+		}
+
+		if (cb)
+		{
+			auto c = data->clone();
+
+			c->setProperty("Status", 2);
+			c->setProperty("Progress", 1.0);
+			c->setProperty("TotalBytesWritten", numBytesWritten);
+			c->setProperty("CurrentFile", "");
+			cb.call1(var(c));
+		}
+
+		return SafeFunctionCall::OK;
+	};
+
+	auto p = dynamic_cast<Processor*>(getScriptProcessor());
+
+	getScriptProcessor()->getMainController_()->getKillStateHandler().killVoicesAndCall(p, cb, MainController::KillStateHandler::SampleLoadingThread);
 }
 
 struct ScriptingObjects::ScriptDownloadObject::Wrapper

@@ -1103,6 +1103,9 @@ public:
 		/** Returns the current sample folder as File object. */
 		var getFolder(var locationType);
 
+		/** Returns a file object from an absolute path (eg. C:/Windows/MyProgram.exe). */
+		var fromAbsolutePath(String path);
+
 		/** Returns a list of all child files of a directory that match the wildcard. */
 		var findFiles(var directory, String wildcard, bool recursive);
 

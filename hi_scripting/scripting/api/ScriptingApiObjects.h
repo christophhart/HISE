@@ -315,6 +315,9 @@ namespace ScriptingObjects
 		/** Opens a Explorer / Finder window that points to the file. */
 		void show();
 
+		/** Extracts the ZIP archive if this file is a .zip file. */
+		void extractZipFile(var targetDirectory, bool overwriteFiles, var callback);
+
 		// ================================================= End of API calls
 
 		File f;
@@ -322,6 +325,8 @@ namespace ScriptingObjects
 	private:
 
 		struct Wrapper;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptFile);
 	};
 
 	struct ScriptDownloadObject : public ConstScriptingObject,

@@ -42,15 +42,26 @@ constrainer(new RectangleConstrainer())
 
 
 
-StringArray MouseCallbackComponent::getCallbackLevels()
+StringArray MouseCallbackComponent::getCallbackLevels(bool getFileCallbacks)
 {
 	StringArray sa;
-	sa.add("No Callbacks");
-	sa.add("Context Menu");
-	sa.add("Clicks Only");
-	sa.add("Clicks & Hover");
-	sa.add("Clicks, Hover & Dragging");
-	sa.add("All Callbacks");
+
+	if (getFileCallbacks)
+	{
+		sa.add("No Callbacks");
+		sa.add("Drop Only");
+		sa.add("Drop & Hover");
+		sa.add("All Callbacks");
+	}
+	else
+	{
+		sa.add("No Callbacks");
+		sa.add("Context Menu");
+		sa.add("Clicks Only");
+		sa.add("Clicks & Hover");
+		sa.add("Clicks, Hover & Dragging");
+		sa.add("All Callbacks");
+	}
 
 	return sa;
 }
@@ -130,6 +141,26 @@ void MouseCallbackComponent::mouseDoubleClick(const MouseEvent &event)
     if (callbackLevel < CallbackLevel::ClicksOnly) return;
     
     sendMessage(event, Action::DoubleClicked);
+}
+
+void MouseCallbackComponent::setEnableFileDrop(const String& newCallbackLevel, const String& allowedWildcards)
+{
+	if (newCallbackLevel.isEmpty() || allowedWildcards.isEmpty())
+	{
+		fileCallbackLevel = FileCallbackLevel::NoCallbacks;
+		fileDropExtensions.clear();
+		return;
+	}
+
+	fileCallbackLevel = (FileCallbackLevel)getCallbackLevels(true).indexOf(newCallbackLevel);
+
+	if (fileCallbackLevel > FileCallbackLevel::NoCallbacks)
+	{
+		fileDropExtensions.clear();
+		fileDropExtensions.addTokens(allowedWildcards, ";,", "\"'");
+		fileDropExtensions.trim();
+		fileDropExtensions.removeEmptyStrings();
+	}
 }
 
 void MouseCallbackComponent::mouseDown(const MouseEvent& event)
@@ -389,6 +420,48 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 	sendToListeners(var(obj));
 }
 
+bool MouseCallbackComponent::isInterestedInFileDrag(const StringArray& files)
+{
+	if (fileCallbackLevel == FileCallbackLevel::NoCallbacks)
+		return false;
+	
+	if (fileDropExtensions.isEmpty())
+		return false;
+
+	if (files.size() > 1)
+		return false;
+
+	File f(files[0]);
+
+	for (auto& ex : fileDropExtensions)
+	{
+		if (files[0].matchesWildcard(ex, true))
+			return true;
+	}
+
+	return false;
+}
+
+void MouseCallbackComponent::fileDragEnter(const StringArray& files, int x, int y)
+{
+	sendFileMessage(Action::FileEnter, files[0], Point<int>(x, y));
+}
+
+void MouseCallbackComponent::fileDragMove(const StringArray& files, int x, int y)
+{
+	sendFileMessage(Action::FileMove, files[0], Point<int>(x, y));
+}
+
+void MouseCallbackComponent::fileDragExit(const StringArray& files)
+{
+	sendFileMessage(Action::FileExit, files[0], Point<int>());
+}
+
+void MouseCallbackComponent::filesDropped(const StringArray& files, int x, int y)
+{
+	sendFileMessage(Action::FileDrop, files[0], Point<int>(x, y));
+}
+
 void MouseCallbackComponent::setAllowCallback(const String &newCallbackLevel) noexcept
 {
 	const int index = callbackLevels.indexOf(newCallbackLevel);
@@ -450,6 +523,42 @@ void MouseCallbackComponent::mouseUp(const MouseEvent &event)
 	if (callbackLevel < CallbackLevel::ClicksOnly) return;
 
 	sendMessage(event, Action::MouseUp);
+}
+
+void MouseCallbackComponent::sendFileMessage(Action a, const String& f, Point<int> pos)
+{
+	FileCallbackLevel requiredLevel = FileCallbackLevel::NoCallbacks;
+
+	switch (a)
+	{
+	case Action::FileDrop: requiredLevel = FileCallbackLevel::DropOnly; break;
+	case Action::FileEnter:
+	case Action::FileExit: requiredLevel = FileCallbackLevel::DropHover; break;
+	case Action::FileMove: requiredLevel = FileCallbackLevel::AllCallbacks; break;
+	}
+
+	if (fileCallbackLevel < requiredLevel)
+		return;
+
+	static const Identifier x("x");
+	static const Identifier y("y");
+	static const Identifier hover("hover");
+	static const Identifier drop("drop");
+	static const Identifier file("fileName");
+
+	DynamicObject::Ptr e = new DynamicObject();
+	e->setProperty(x, pos.getX());
+	e->setProperty(y, pos.getY());
+	e->setProperty(hover, a != Action::FileExit);
+	e->setProperty(drop, a == Action::FileDrop);
+	e->setProperty(file, f);
+
+	var fileInformation(e);
+
+	for(auto l: listenerList)
+	{
+		l->fileDropCallback(fileInformation);
+	}
 }
 
 void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action, EnterState state)

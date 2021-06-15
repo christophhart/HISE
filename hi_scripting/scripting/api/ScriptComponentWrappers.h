@@ -669,6 +669,8 @@ public:
 
 		void updatePopupMenu(ScriptingApi::Content::ScriptImage * si, ImageComponentWithMouseCallback * ic);
 
+		void fileDropCallback(const var& dropInformation) override {};
+
         void mouseCallback(const var &mouseInformation) override;
         
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ImageWrapper)
@@ -712,6 +714,8 @@ public:
 		void updateValue(var newValue) override;
 
 		void mouseCallback(const var &mouseInformation) override;
+
+		void fileDropCallback(const var& dropInformation) override;
 
 		void boundsChanged(const Rectangle<int> &newBounds) override;
 

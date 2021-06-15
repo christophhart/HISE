@@ -4708,6 +4708,7 @@ struct ScriptingApi::FileSystem::Wrapper
 	API_METHOD_WRAPPER_1(FileSystem, getFolder);
 	API_METHOD_WRAPPER_3(FileSystem, findFiles);
 	API_METHOD_WRAPPER_0(FileSystem, getSystemId);
+	API_METHOD_WRAPPER_1(FileSystem, fromAbsolutePath);
 	API_VOID_METHOD_WRAPPER_4(FileSystem, browse);
 	API_VOID_METHOD_WRAPPER_2(FileSystem, browseForDirectory);
 };
@@ -4733,6 +4734,7 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	ADD_API_METHOD_0(getSystemId);
 	ADD_API_METHOD_4(browse);
 	ADD_API_METHOD_2(browseForDirectory);
+	ADD_API_METHOD_1(fromAbsolutePath);
 }
 
 ScriptingApi::FileSystem::~FileSystem()
@@ -4750,6 +4752,14 @@ var ScriptingApi::FileSystem::getFolder(var locationType)
 		return new ScriptingObjects::ScriptFile(p, f);
 
 	return {};
+}
+
+var ScriptingApi::FileSystem::fromAbsolutePath(String path)
+{
+	if (File::isAbsolutePath(path))
+		return var(new ScriptingObjects::ScriptFile(getScriptProcessor(), File(path)));
+
+	return var();
 }
 
 var ScriptingApi::FileSystem::findFiles(var directory, String wildcard, bool recursive)

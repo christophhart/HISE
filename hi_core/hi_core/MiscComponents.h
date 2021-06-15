@@ -37,7 +37,8 @@ namespace hise { using namespace juce;
 
 class MouseCallbackComponent : public Component,
 							   public MacroControlledObject,
-							   public TouchAndHoldComponent
+							   public TouchAndHoldComponent,
+						       public FileDragAndDropTarget
 {
 	// ================================================================================================================
 
@@ -57,6 +58,10 @@ class MouseCallbackComponent : public Component,
         DoubleClicked,
 		MouseUp,
 		Entered,
+		FileMove,
+		FileEnter,
+		FileExit,
+		FileDrop,
 		Nothing
 	};
 
@@ -72,6 +77,14 @@ public:
 		AllCallbacks
 	};
 
+	enum class FileCallbackLevel
+	{
+		NoCallbacks = 0,
+		DropOnly,
+		DropHover,
+		AllCallbacks
+	};
+
 	// ================================================================================================================
 
 	class Listener
@@ -81,6 +94,8 @@ public:
 		Listener() {}
 		virtual ~Listener() { masterReference.clear(); }
 		virtual void mouseCallback(const var &mouseInformation) = 0;
+
+		virtual void fileDropCallback(const var& dropInformation) = 0;
 
 	private:
 
@@ -121,7 +136,7 @@ public:
 	MouseCallbackComponent();;
 	virtual ~MouseCallbackComponent() {};
 
-	static StringArray getCallbackLevels();
+	static StringArray getCallbackLevels(bool getFileCallbacks=false);
 	static StringArray getCallbackPropertyNames();
 
 	void setJSONPopupData(var jsonData, Rectangle<int> popupSize_) 
@@ -153,6 +168,12 @@ public:
 
 	void fillPopupMenu(const MouseEvent &event);
 
+	bool isInterestedInFileDrag(const StringArray& files) override;
+	void fileDragEnter(const StringArray& files, int x, int y) override;
+	void fileDragMove(const StringArray& files, int x, int y) override;
+	void fileDragExit(const StringArray& files) override;
+	void filesDropped(const StringArray& files, int x, int y) override;
+
 	void mouseMove(const MouseEvent& event) override;
 
 	void mouseDrag(const MouseEvent& event) override;
@@ -161,9 +182,12 @@ public:
 	void mouseUp(const MouseEvent &event) override;
     void mouseDoubleClick(const MouseEvent &event) override;
 
+	void setEnableFileDrop(const String& newCallbackLevel, const String& allowedWildcards);
+
+
+
 	void setAllowCallback(const String &newCallbackLevel) noexcept;
 	CallbackLevel getCallbackLevel() const;
-
 
 	/** overwrite this method and update the Component to display the current value of the controlled attribute. */
 	virtual void updateValue(NotificationType /*sendAttributeChange=sendNotification*/)
@@ -191,6 +215,9 @@ public:
 
 private:
 
+	FileCallbackLevel fileCallbackLevel = FileCallbackLevel::NoCallbacks;
+	StringArray fileDropExtensions;
+
 	var jsonPopupData;
 	Rectangle<int> popupSize;
 
@@ -203,6 +230,8 @@ private:
 	bool midiLearnEnabled = false;
 
 	using SubMenuList = std::tuple < String, StringArray > ;
+
+	void sendFileMessage(Action a, const String& f, Point<int> pos);
 
 	void sendMessage(const MouseEvent &event, Action action, EnterState state = Nothing);
 	void sendToListeners(var clickInformation);

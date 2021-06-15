@@ -2600,6 +2600,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setMouseCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setLoadingCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setTimerCallback);
+	API_VOID_METHOD_WRAPPER_3(ScriptPanel, setFileDropCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, startTimer);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, stopTimer);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, changed);
@@ -2631,7 +2632,8 @@ graphics(new ScriptingObjects::GraphicsObject(base, this)),
 isChildPanel(true),
 loadRoutine(base, var(), 1),
 timerRoutine(base, var(), 0),
-mouseRoutine(base, var(), 1)
+mouseRoutine(base, var(), 1),
+fileDropRoutine(base, var(), 1)
 {
 	init();
 }
@@ -2643,7 +2645,8 @@ ScriptingApi::Content::ScriptPanel::ScriptPanel(ScriptPanel* parent) :
 	parentPanel(parent),
 	loadRoutine(parent->getScriptProcessor(), var(), 1),
 	mouseRoutine(parent->getScriptProcessor(), var(), 1),
-	timerRoutine(parent->getScriptProcessor(), var(), 0)
+	timerRoutine(parent->getScriptProcessor(), var(), 0),
+	fileDropRoutine(parent->getScriptProcessor(), var(), 1)
 {
 	
 	init();
@@ -2703,6 +2706,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_1(setMouseCallback);
 	ADD_API_METHOD_1(setLoadingCallback);
 	ADD_API_METHOD_1(setTimerCallback);
+	ADD_API_METHOD_3(setFileDropCallback);
 	ADD_API_METHOD_1(startTimer);
 	ADD_API_METHOD_0(stopTimer);
 	ADD_API_METHOD_2(loadImage);
@@ -2893,7 +2897,16 @@ void ScriptingApi::Content::ScriptPanel::preloadStateChanged(bool isPreloading)
 		loadRoutine.call1(isPreloading);
 }
 
+void ScriptingApi::Content::ScriptPanel::setFileDropCallback(String callbackLevel, String wildcard, var dropFunction)
+{
+	fileDropLevel = callbackLevel;
+	fileDropExtension = wildcard;
+	fileDropRoutine = WeakCallbackHolder(getScriptProcessor(), dropFunction, 1);
+	fileDropRoutine.incRefCount();
+	fileDropRoutine.setThisObject(this);
+	fileDropRoutine.setHighPriority();
 
+}
 
 void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunction)
 {
@@ -2901,6 +2914,17 @@ void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunct
 	mouseRoutine.incRefCount();
 	mouseRoutine.setThisObject(this);
 	mouseRoutine.setHighPriority();
+}
+
+void ScriptingApi::Content::ScriptPanel::fileDropCallback(var fileInformation)
+{
+	const bool parentHasMovedOn = !isChildPanel && !parent->hasComponent(this);
+
+	if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
+		return;
+
+	if (fileDropRoutine)
+		fileDropRoutine.call1(fileInformation);
 }
 
 void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
@@ -3363,6 +3387,9 @@ void ScriptingApi::Content::ScriptPanel::removeAnimationListener(AnimationListen
 	animationListeners.removeAllInstancesOf(l);
 #endif
 }
+
+
+
 
 #endif
 

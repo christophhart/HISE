@@ -1495,6 +1495,9 @@ public:
 		/** Sets a mouse callback. */
 		void setMouseCallback(var mouseCallbackFunction);
 
+		/** Sets a file drop callback. */
+		void setFileDropCallback(String callbackLevel, String wildcard, var dropFunction);
+
 		/** Sets a timer callback. */
 		void setTimerCallback(var timerCallback);
 
@@ -1617,6 +1620,8 @@ public:
 
 		void scaleFactorChanged(float /*newScaleFactor*/) override {} // Do nothing until fixed...
 
+		void fileDropCallback(var fileInformation);
+
 		void mouseCallback(var mouseInformation);
 
 		void mouseCallbackInternal(const var& mouseInformation, Result& r);
@@ -1680,6 +1685,9 @@ public:
 
 		void removeAnimationListener(AnimationListener* l);
 
+		String fileDropExtension;
+		String fileDropLevel;
+
 	private:
 
 #if HISE_INCLUDE_RLOTTIE
@@ -1715,6 +1723,7 @@ public:
 		WeakCallbackHolder timerRoutine;
 		WeakCallbackHolder loadRoutine;
 		WeakCallbackHolder mouseRoutine;
+		WeakCallbackHolder fileDropRoutine;
 
 		var dragBounds;
 

@@ -1004,6 +1004,11 @@ public:
 
 		jassert(finalised);
 
+		auto envList = ProcessorHelpers::getListOfAllProcessors<ScriptnodeVoiceKiller>(gainChain);
+
+		if (!envList.isEmpty())
+			return;
+
 		auto vk = new ScriptnodeVoiceKiller(getMainController(),
 			"ScriptnodeVoiceKiller",
 			voices.size());
