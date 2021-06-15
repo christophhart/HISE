@@ -431,8 +431,8 @@ snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(O
 {
 	if (functionCall->callType == Operations::FunctionCall::ApiFunction)
 	{
-		auto bType = functionCall->currentCompiler->namespaceHandler.getComplexType(NamespacedIdentifier("block"));
-		MathFunctions m(false, bType);
+		
+		auto& m = functionCall->currentCompiler->getMathFunctionClass();
 
 		if (auto t = dynamic_cast<Operations::VariableReference*>(functionCall->getObjectExpression().get()))
 		{

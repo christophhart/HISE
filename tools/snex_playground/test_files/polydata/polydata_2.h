@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 12
+  output: 1
   error: ""
   filename: "polydata/polydata_2"
 END_TEST_DATA
@@ -18,10 +18,8 @@ int main(int input)
 	
 
 	for(auto& s: data)
-	{
 		counter++;
-	}
 
-	return data.get();
+	return counter;
 }
 

@@ -320,18 +320,18 @@ void AsmCodeGenerator::emitComplexTypeCopy(RegPtr target, RegPtr source, Complex
 {
 	jassert(target->hasCustomMemoryLocation());
 	jassert(type != nullptr);
-	jassert(source->getTypeInfo().getComplexType() == type);
+	auto sType = source->getTypeInfo().getComplexType();
 
-	
+	jassert(sType == type);
+
+	const bool allow16ByteCopy = false;
 
 	auto ptr = target->getAsMemoryLocation();
 	auto numBytesToCopy = type->getRequiredByteSize();
 
-	auto canUse128bitForCopy = numBytesToCopy % 16 == 0;
-
 	int wordSize = 0;
 
-	if (numBytesToCopy % 16 == 0)
+	if (allow16ByteCopy && numBytesToCopy % 16 == 0)
 		wordSize = 16;
 	else if (numBytesToCopy % 8 == 0)
 		wordSize = 8;
@@ -438,6 +438,11 @@ void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, Variab
 	}
 	else
 	{
+		if (!parent->isActive())
+		{
+			location.throwError("this pointer is unresolved");
+		}
+
 		auto ptr = x86::ptr(PTR_REG_R(parent), memberOffset.toInt());
 		target->setCustomMemoryLocation(ptr.cloneResized(byteSize), parent->isGlobalMemory());
 	}
@@ -1209,7 +1214,15 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(TypeInfo returnType, Opera
 		auto dummy = c->registerPool.getNextFreeRegister(s, TypeInfo(Types::ID::Integer));
 		dummy->createRegister(cc);
 
-		cc.mov(dummy->getRegisterForWriteOp().as<X86Gp>(), imm2ptr(condition->reg->getImmediateIntValue()));
+		if (condition->reg->hasCustomMemoryLocation())
+		{
+			cc.mov(dummy->getRegisterForWriteOp().as<X86Gp>(), condition->reg->getAsMemoryLocation());
+		}
+		else
+		{
+			cc.mov(dummy->getRegisterForWriteOp().as<X86Gp>(), imm2ptr(condition->reg->getImmediateIntValue()));
+		}
+
 		cc.cmp(dummy->getRegisterForReadOp().as<X86Gp>(), 0);
 
 #if REMOVE_REUSABLE_REG
@@ -1415,15 +1428,27 @@ Result AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& 
 		return f.inlineFunction(&d);
 	}
 
-	if (!f.isConst())
+	if (!f.isConstOrHasConstArgs())
 	{
 		for (auto vr : registerPool->getListOfAllNamedRegisters())
 		{
 			RegPtr p(vr);
 
-			// Native global types might be changed in the function call...
-			if (p->isGlobalMemory() && p->getType() != Types::ID::Pointer)
-				p->clearAfterReturn();
+			// Not loaded yet
+			if (!vr->isActive())
+				continue;
+
+			// Pointers can't be changed
+			if (p->getType() == Types::ID::Pointer)
+				continue;
+
+			// most likely a parameter register or a local native type
+			if (!p->hasCustomMemoryLocation() && !p->isGlobalMemory())
+				continue;
+
+			// We don't know if the function might alter this register, 
+			// so we have to free it
+			p->clearAfterReturn();
 		}
 	}
 

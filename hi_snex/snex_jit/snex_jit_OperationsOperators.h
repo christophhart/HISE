@@ -115,10 +115,10 @@ struct Operations::VectorOp : public Expression
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
-		auto c1 = getSubExpr(0)->clone(l);
-		auto c2 = getSubExpr(1)->clone(l);
+		auto cOp = getSubExpr(0)->clone(l);
+		auto cTarget = getSubExpr(1)->clone(l);
 
-		return new VectorOp(l, c1, opType, c2);
+		return new VectorOp(l, cTarget, opType, cOp);
 	}
 
 	TypeInfo getTypeInfo() const override
@@ -136,6 +136,8 @@ struct Operations::VectorOp : public Expression
 	void initChildOps();
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
+
+	static uint32 getFunctionSignatureId(const String& functionName, bool isSimd);
 
 	struct SerialisedVectorOp;
 

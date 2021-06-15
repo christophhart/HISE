@@ -488,7 +488,7 @@ juce::Result SyntaxTreeInlineParser::flush()
 
 		d->expression->currentCompiler->namespaceHandler.removeNamespace(f->classData->id);
 
-		return r;
+ 		return r;
 	}
 
 	

@@ -565,34 +565,31 @@ public:
 
 	template <typename IntegerIndexType> void testIntegerIndex(int dynamicSize=0)
 	{
-		IndexTester<IntegerIndexType>(this, optimizations, dynamicSize);
-
 		using ScaledFloatType	 = index::normalised<float, IntegerIndexType>;
-		using UnscaledFloatType  = index::normalised<float, IntegerIndexType>;
-		using ScaledDoubleType   = index::unscaled<double, IntegerIndexType>;
+		using UnscaledFloatType  = index::unscaled<float, IntegerIndexType>;
+		using ScaledDoubleType   = index::normalised<double, IntegerIndexType>;
 		using UnscaledDoubleType = index::unscaled<double, IntegerIndexType>;
-
-		
-
-		IndexTester<ScaledFloatType>(this, optimizations, dynamicSize);
-		IndexTester<ScaledDoubleType>(this, optimizations, dynamicSize);
-		IndexTester<UnscaledFloatType>(this, optimizations, dynamicSize);
-		IndexTester<UnscaledDoubleType>(this, optimizations, dynamicSize);
-
-		using UnscaledLerpFloatType  = index::lerp<UnscaledFloatType>;
-		using ScaledLerpFloatType	 = index::lerp<ScaledFloatType>;
+		using UnscaledLerpFloatType = index::lerp<UnscaledFloatType>;
+		using ScaledLerpFloatType = index::lerp<ScaledFloatType>;
 		using UnscaledLerpDoubleType = index::lerp<UnscaledDoubleType>;
-		using ScaledLerpDoubleType   = index::lerp<ScaledDoubleType>;
-
-		IndexTester<UnscaledLerpFloatType>(this, optimizations, dynamicSize);
-		IndexTester<ScaledLerpFloatType>(this, optimizations, dynamicSize);
-		IndexTester<UnscaledLerpDoubleType>(this, optimizations, dynamicSize);
-		IndexTester<ScaledLerpDoubleType>(this, optimizations, dynamicSize);
-
+		using ScaledLerpDoubleType = index::lerp<ScaledDoubleType>;
 		using UnscaledHermiteFloatType = index::hermite<UnscaledFloatType>;
 		using ScaledHermiteFloatType = index::hermite<ScaledFloatType>;
 		using UnscaledHermiteDoubleType = index::hermite<UnscaledDoubleType>;
 		using ScaledHermiteDoubleType = index::hermite<ScaledDoubleType>;
+
+		IndexTester<IntegerIndexType>(this, optimizations, dynamicSize);
+
+		IndexTester<UnscaledFloatType>(this, optimizations, dynamicSize);
+		IndexTester<UnscaledDoubleType>(this, optimizations, dynamicSize);
+
+		IndexTester<ScaledFloatType>(this, optimizations, dynamicSize);
+		IndexTester<ScaledDoubleType>(this, optimizations, dynamicSize);
+		
+		IndexTester<UnscaledLerpFloatType>(this, optimizations, dynamicSize);
+		IndexTester<ScaledLerpFloatType>(this, optimizations, dynamicSize);
+		IndexTester<UnscaledLerpDoubleType>(this, optimizations, dynamicSize);
+		IndexTester<ScaledLerpDoubleType>(this, optimizations, dynamicSize);
 
 		IndexTester<UnscaledHermiteFloatType>(this, optimizations, dynamicSize);
 		IndexTester<ScaledHermiteFloatType>(this, optimizations, dynamicSize);
@@ -602,11 +599,13 @@ public:
 
 	void testIndexTypes()
 	{
-		
-
-		testIntegerIndex<index::wrapped<32, false>>();
+		testIntegerIndex<index::looped<9, false>>();
+		testIntegerIndex<index::looped<64, false>>();
+		testIntegerIndex<index::looped<32, true>>();
+		testIntegerIndex<index::looped<51, true>>();
 
 #if TEST_ALL_INDEXES
+		testIntegerIndex<index::wrapped<32, false>>();
 		testIntegerIndex<index::wrapped<91, false>>();
 		testIntegerIndex<index::wrapped<64, true>>();
 		testIntegerIndex<index::wrapped<51, true>>();
@@ -624,7 +623,25 @@ public:
 	void runTest() override
 	{
 		beginTest("Funky");
+		optimizations = OptimizationIds::getAllIds();
+		testIndexTypes();
+		runTestFiles("");
+		return;
 
+		optimizations = OptimizationIds::getAllIds();
+		testIndexTypes();
+		runTestFiles("mono_sample2");
+		//runTestFiles("");
+		
+		
+		return;
+
+		testSpanOperators();
+
+		optimizations = OptimizationIds::getDefaultIds();
+		
+
+		return;
 #if INCLUDE_SNEX_BIG_TESTSUITE
 		
 		optimizations = {};
@@ -3431,6 +3448,129 @@ private:
 
 		CREATE_TEST("float test(float input){ return (true ? false : true) ? 12.0f : 4.0f; }; ");
 		EXPECT("Nested ternary operator", 0.0f, 4.0f);
+	}
+
+	template <typename OpType, int SizeA, int SizeB> void testSpanOperatorWith2Spans()
+	{
+		Random r;
+
+		span<float, SizeA> d1;
+		span<float, SizeB> d2;
+
+		for (auto& s : d1)
+			s = r.nextFloat();
+		for (auto& s : d2)
+			s = r.nextFloat();
+
+		span<float, SizeA> e1;
+		span<float, SizeB> e2;
+
+		FloatVectorOperations::copy(e2.begin(), d2.begin(), SizeB);
+		FloatVectorOperations::copy(e1.begin(), d1.begin(), SizeA);
+
+		d1.performOp<OpType>(d2);
+
+		for (int i = 0; i < SizeA; i++)
+		{
+			auto srcIndex = jmin(SizeB - 1, i);
+
+			OpType::op(e1[i], e2[srcIndex]);
+			expectEquals<float>(d1[i], e1[i], "not equal");
+		}
+	}
+
+	template <typename OpType, int SizeA> void testSpanOperatorWithScalar()
+	{
+		Random r;
+
+		span<float, SizeA> d1;
+		
+		float s = r.nextFloat();
+
+		for (auto& s : d1)
+			s = r.nextFloat();
+		
+		span<float, SizeA> e1;
+		
+		FloatVectorOperations::copy(e1.begin(), d1.begin(), SizeA);
+
+		d1.performOp<OpType>(s);
+
+		for (int i = 0; i < SizeA; i++)
+		{
+			OpType::op(e1[i], s);
+			expectEquals<float>(d1[i], e1[i], "not equal");
+		}
+
+	}
+
+	template <typename OpType> void testSpanOperator()
+	{
+		testSpanOperatorWithScalar<OpType, 2>();
+		testSpanOperatorWithScalar<OpType, 4>();
+		testSpanOperatorWithScalar<OpType, 1>();
+		testSpanOperatorWithScalar<OpType, 18>();
+		testSpanOperatorWithScalar<OpType, 17>();
+		testSpanOperatorWithScalar<OpType, 32>();
+		testSpanOperatorWithScalar<OpType, 256>();
+
+		testSpanOperatorWith2Spans<OpType, 8, 4>();
+		testSpanOperatorWith2Spans<OpType, 4, 4>();
+		testSpanOperatorWith2Spans<OpType, 4, 8>();
+		testSpanOperatorWith2Spans<OpType, 16, 3>();
+		testSpanOperatorWith2Spans<OpType, 3, 16>();
+		testSpanOperatorWith2Spans<OpType, 128, 256>();
+		testSpanOperatorWith2Spans<OpType, 128, 47>();
+		testSpanOperatorWith2Spans<OpType, 128, 1>();
+		testSpanOperatorWith2Spans<OpType, 1, 128>();
+		testSpanOperatorWith2Spans<OpType, 21, 16>();
+		testSpanOperatorWith2Spans<OpType, 2, 3>();
+		testSpanOperatorWith2Spans<OpType, 3, 2>();
+		testSpanOperatorWith2Spans<OpType, 3, 3>();
+		testSpanOperatorWith2Spans<OpType, 1, 3>();
+		testSpanOperatorWith2Spans<OpType, 3, 1>();
+		testSpanOperatorWith2Spans<OpType, 1, 1>();
+	}
+
+	void testSpanOperators()
+	{
+		beginTest("Testing span operators");
+
+		span<float, 2> d1 = { 5.0f, 6.0f };
+		span<float, 3> d2 = { 5.0f, 6.0f };
+		float s = 0.8;
+		expectEquals<float>(d1[0], 5.0f, "init assign1");
+		expectEquals<float>(d1[1], 6.0f, "init assign2");
+
+		// These will fire compile errors
+		d1 *= d2;
+		d1 += d2;
+		d1 /= d2;
+		d1 = d2;
+		d1 -= d2;
+
+		d1 *= s;
+		d1 += s;
+		d1 /= s;
+		d1 -= s;
+		d1 = s;
+
+		testSpanOperator<SpanOperators<float>::add>();
+		testSpanOperator<SpanOperators<float>::multiply>();
+		testSpanOperator<SpanOperators<float>::divide>();
+		testSpanOperator<SpanOperators<float>::sub>();
+		testSpanOperator<SpanOperators<float>::assign>();
+
+		span<span<float, 4>, 2> md;
+		span<float, 4> sd = { 1.0 };
+
+		span<float, 4> mul = { 1.0, 2.0, 3.0, 4.0 };
+
+		md = sd;
+		md += sd;
+
+		md *= mul;
+
 	}
 
 	void testBigFunctionBuffer()

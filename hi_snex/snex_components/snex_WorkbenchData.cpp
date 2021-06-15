@@ -69,7 +69,10 @@ String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 
 	Base c(Base::OutputType::AddTabs);
 
-	Struct st(c, mainClass, {}, {});
+	TemplateParameter::List tp;
+	tp.add(TemplateParameter(NamespacedIdentifier("NV"), 0, false));
+
+	Struct st(c, mainClass, {}, tp);
 
 	String ld;
 	ld << "SNEX_NODE(" << mainClass << ");";

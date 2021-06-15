@@ -76,8 +76,6 @@ snex::jit::ComplexType::Ptr Operations::TemplateDefinition::createTemplate(const
 
 	auto c = new ClassStatement(location, p, cb, {});
 
-	
-
 	addStatement(c);
 
 	c->forEachRecursive([ipToUse, c, d](Ptr p)

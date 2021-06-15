@@ -62,6 +62,9 @@ void Operations::InlinedParameter::process(BaseCompiler* compiler, BaseScope* sc
 		if (reg == nullptr)
 			reg = source->reg;
 
+		if (reg == nullptr)
+			location.throwError("Can't find source reg");
+
 		jassert(reg != nullptr);
 	}
 }
@@ -603,6 +606,13 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 
 				auto p = getSubRegister(0);
 				auto c = getSubRegister(1);
+
+				if (!p->isActive() && !p->isMemoryLocation())
+				{
+					auto dp = getDotParent();
+					location.throwError("dot parent is unresolved");
+				}
+					
 
 				acg.emitMemberAcess(reg, p, c);
 

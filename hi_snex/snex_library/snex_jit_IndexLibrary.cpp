@@ -114,6 +114,18 @@ String IndexBuilder::MetaDataExtractor::getScaledExpression(const String& v, boo
 	return s;
 }
 
+bool IndexBuilder::MetaDataExtractor::isLoopType() const
+{
+	if (mainStruct->id.getIdentifier() == IndexIds::looped)
+		return true;
+
+	if (floatIndexStruct != nullptr)
+		return false;
+
+	if (indexStruct != nullptr && indexStruct->id.getIdentifier() == IndexIds::looped)
+		return true;
+}
+
 String IndexBuilder::MetaDataExtractor::getWithLimit(const String& v, const String& l, Types::ID dataType/*=Types::ID::Void*/) const
 {
 	if (dataType == Types::ID::Void)
@@ -136,18 +148,18 @@ String IndexBuilder::MetaDataExtractor::getWithLimit(const String& v, const Stri
 	}
 	case WrapLogicType::Wrapped:
 	{
-		if (dataType == Types::ID::Integer)
-		{
-#if SNEX_WRAP_ALL_NEGATIVE_INDEXES
-			String formula = "(!v >= 0) ? !v % !limit : (!limit - Math.abs(!v) % !limit) % !limit";
-#else
-			String formula = "(!v + !limit) % !limit";
-#endif
-			expression << formula.replace("!v", v).replace("!limit", l);
-		}
-		else
-			expression << "Math.fmod(" << v << ", " << l << ")";
+		expression << "Math.wrap(" << v << ", " << l << ")";
 
+		break;
+	}
+	case WrapLogicType::Looped:
+	{
+		String formula = "!v < !s ? Math.max(!z, !v) : Math.wrap(!v - !s, this->length != 0 ? !length : !limit) + !s";
+		expression << formula.replace("!v", v)
+						     .replace("!s", getWithCast("this->start", dataType))
+							 .replace("!limit", l)
+							 .replace("!length", getWithCast("this->length", dataType))
+							 .replace("!z", getTypedLiteral(0, dataType));
 		break;
 	}
 	default: jassertfalse;
@@ -171,6 +183,9 @@ snex::jit::IndexBuilder::MetaDataExtractor::WrapLogicType IndexBuilder::MetaData
 
 	if (i == IndexIds::previous)
 		return WrapLogicType::Previous;
+
+	if (i == IndexIds::looped)
+		return WrapLogicType::Looped;
 
 	jassertfalse;
 	return WrapLogicType::numWrapLogicTypes;
@@ -214,6 +229,7 @@ IndexBuilder::IndexBuilder(Compiler& c, const Identifier& indexId, Type indexTyp
 	addFunction(IndexBuilder::nativeTypeCast);
 	addFunction(IndexBuilder::assignOp);
 	addFunction(IndexBuilder::getFrom);
+	addFunction(IndexBuilder::setLoopRange);
 
 	switch (indexType)
 	{
@@ -516,6 +532,39 @@ snex::jit::FunctionData IndexBuilder::nativeTypeCast(StructType* st)
 	return d;
 }
 
+snex::jit::FunctionData IndexBuilder::setLoopRange(StructType* st)
+{
+	FunctionData lr;
+	lr.id = st->id.getChildId("setLoopRange");
+	lr.returnType = Types::ID::Void;
+	lr.addArgs("loopStart", Types::ID::Integer);
+	lr.addArgs("loopEnd", Types::ID::Integer);
+
+	lr.inliner = Inliner::createHighLevelInliner({}, [st](InlineData* b)
+	{
+		MetaDataExtractor mt(st);
+
+		cppgen::Base cb(cppgen::Base::OutputType::StatementListWithoutSemicolon);
+
+		if (mt.isInterpolationType())
+		{
+			cb << "this->idx.setLoopRange(loopStart, loopEnd);";
+		}
+		else
+		{
+			if (mt.isLoopType())
+			{
+				cb << "this->start = loopStart;";
+				cb << "this->length = loopEnd - loopStart;";
+			}
+		}
+
+		return SyntaxTreeInlineParser(b, { "loopStart", "loopEnd" }, cb).flush();
+	});
+
+	return lr;
+}
+
 snex::jit::FunctionData IndexBuilder::getInterpolated(StructType* st)
 {
 	MetaDataExtractor mt(st);
@@ -649,6 +698,18 @@ void IndexBuilder::initialise(const TemplateObject::ConstructData&, StructType* 
 		st->addMember("value", TypeInfo(metadata.getIndexType()));
 		st->setDefaultValue("value", InitialiserList::makeSingleList(VariableStorage(metadata.getIndexType(), var(0))));
 		st->setVisibility("value", NamespaceHandler::Visibility::Private);
+	}
+
+	if (metadata.isLoopType())
+	{
+		st->addMember("start", TypeInfo(Types::ID::Integer));
+		st->addMember("length", TypeInfo(Types::ID::Integer));
+		
+		st->setDefaultValue("start", InitialiserList::makeSingleList(VariableStorage(0)));
+		st->setDefaultValue("length", InitialiserList::makeSingleList(VariableStorage(0)));
+
+		st->setVisibility("start", NamespaceHandler::Visibility::Public);
+		st->setVisibility("length", NamespaceHandler::Visibility::Public);
 	}
 
 	

@@ -134,34 +134,58 @@ return b1; \
     constexpr static double FORTYTWO = 42.0; // just for unit test purposes, the other ones choke because of
     // String conversion imprecisions...
     
-	static forcedinline double sign(double value) { return value > 0.0 ? 1.0 : -1.0; };
-	static forcedinline double abs(double value) { return value * sign(value); };
+	static constexpr double sign(double value) { return (double)(value >= 0.0) * 2.0 - 1.0; };
+	static constexpr double abs(double value) { return value * sign(value); };
 	static forcedinline double round(double value) { return roundf((float)value); };
 	static forcedinline double range(double value, double lower, double upper) { return jlimit<double>(lower, upper, value); };
-	static forcedinline double min(double value1, double value2) { return jmin<double>(value1, value2); };
-	static forcedinline double max(double value1, double value2) { return jmax<double>(value1, value2); };
+	static constexpr double min(double value1, double value2) { return jmin<double>(value1, value2); };
+	static constexpr double max(double value1, double value2) { return jmax<double>(value1, value2); };
 	static forcedinline double randomDouble() { return Random::getSystemRandom().nextDouble(); };
 
-	static forcedinline float sign(float value) { return value > 0.0f ? 1.0f : -1.0f; };
-	static forcedinline float abs(float value) { return value * sign(value); };
+	static constexpr float sign(float value) { return value > 0.0f ? 1.0f : -1.0f; };
+	static constexpr float abs(float value) { return value * sign(value); };
 	static forcedinline float round(float value) { return roundf((float)value); };
 	static forcedinline float range(float value, float lower, float upper) { return jlimit<float>(lower, upper, value); };
-	static forcedinline float min(float value1, float value2) { return jmin<float>(value1, value2); };
-	static forcedinline float max(float value1, float value2) { return jmax<float>(value1, value2); };
+	static constexpr float min(float value1, float value2) { return jmin<float>(value1, value2); };
+	static constexpr float max(float value1, float value2) { return jmax<float>(value1, value2); };
 	static forcedinline float random() { return Random::getSystemRandom().nextFloat(); };
 	static forcedinline float fmod(float x, float y) { return std::fmod(x, y); };
 
+	static constexpr int fmod(int x, int y) { return x % y; };
+
+#if SNEX_WRAP_ALL_NEGATIVE_INDEXES
+
+	static constexpr int wrap(int value, int limit)
+	{
+		return (value >= 0) ? fmod(value, limit) : fmod(limit - fmod(abs(value), limit), limit);
+	}
+
+	static constexpr double wrap(double value, double limit)
+	{
+		return (value >= 0.0) ? fmod(value, limit) : fmod(limit - fmod(abs(value), limit), limit);
+	}
+
+	static constexpr float wrap(float value, float limit)
+	{
+		return (value >= 0.0f) ? fmod(value, limit) : fmod(limit - fmod(abs(value), limit), limit);
+	}
+
+#else
+
+	static constexpr int wrap(int value, int limit) { return fmod(value + limit, limit); }
+	static constexpr double wrap(double value, double limit) { return fmod(value + limit, limit); }
+	static constexpr float wrap(float value, float limit) { return fmod(value + limit, limit); }
+
+#endif
+
 	template <class SpanT> static auto sumSpan(const SpanT& t) { return t.accumulate(); };
 
-
 	static constexpr int abs(int value) { return value > 0 ? value : -value; };
-	static forcedinline int min(int value1, int value2) { return jmin<int>(value1, value2); };
-	static forcedinline int max(int value1, int value2) { return jmax<int>(value1, value2); };
-	static forcedinline int range(int value, int lower, int upper)
-	{
-		return jlimit<int>(lower, upper, value);
-	};
-	static int round(int value) { return value; };
+	static constexpr int min(int value1, int value2) { return jmin<int>(value1, value2); };
+	static constexpr int max(int value1, int value2) { return jmax<int>(value1, value2); };
+	
+	static forcedinline int range(int value, int lower, int upper) { return jlimit<int>(lower, upper, value); };
+	static constexpr int round(int value) { return value; };
 	static forcedinline int randInt(int low = 0, int high = INT_MAX) { return  Random::getSystemRandom().nextInt(Range<int>((int)low, (int)high)); }
 
 	static forcedinline double map(double normalisedInput, double start, double end) { return jmap<double>(normalisedInput, start, end); }

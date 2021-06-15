@@ -266,6 +266,8 @@ public:
 
 		static Result fmod(InlineData* b);
 		static Result sin(InlineData* b);
+
+		static Result wrap(InlineData* b);
 	};
 
 	MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockType);;

@@ -57,12 +57,14 @@ void SnexSource::recompiled(WorkbenchData::Ptr wb)
 	{
 		objPtr->initialiseObjectStorage(object);
 
+#if 0
 		String s;
 		int l = 0;
 
 		objPtr->dumpTable(s, l, object.getObjectPtr(), object.getObjectPtr());
 
 		DBG(s);
+#endif
 
 		if (lastResult.wasOk())
 			lastResult = getCallbackHandler().recompiledOk(objPtr);
@@ -158,7 +160,13 @@ void SnexSource::addDummyProcessFunctions(String& s)
 	if (auto pn = getParentNode())
 	{
 		int nc = pn->getRootNetwork()->getCurrentSpecs().numChannels;
+
+		if (nc == 0)
+			nc = 2;
+
 		Base b(Base::OutputType::AddTabs);
+
+		b << (getCurrentClassId().toString() + "<NUM_POLYPHONIC_VOICES> instance;");
 
 		for (int i = 1; i <= nc; i++)
 		{
@@ -166,19 +174,21 @@ void SnexSource::addDummyProcessFunctions(String& s)
 
 			def2 << "void processFrame(span<float, " << String(i) << ">& data)"; b << def2;
 			{														 StatementBlock body(b);
-			b << (getCurrentClassId().toString() + "<NUM_POLYPHONIC_VOICES> instance;");
+			
 			b << "instance.processFrame(data);";
 			}
 
 			def1 << "void process(ProcessData<" << String(i) << ">& data)";	  b << def1;
 			{														 StatementBlock body(b);
-			b << (getCurrentClassId().toString() + "<NUM_POLYPHONIC_VOICES> instance;");
+			//b << (getCurrentClassId().toString() + "<NUM_POLYPHONIC_VOICES> instance;");
 			b << "instance.process(data);";
 			}
 		}
 
 		s << b.toString();
 	}
+	else
+		jassertfalse;
 }
 
 void SnexSource::ParameterHandler::addParameterCode(String& code)

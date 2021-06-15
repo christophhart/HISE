@@ -575,16 +575,20 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 
 	SerialisedVectorOp(Statement::Ptr s, x86::Compiler& cc)
 	{
-		if (auto fc = as<FunctionCall>(s))
+		auto fc = as<FunctionCall>(s);
+		String id = fc != nullptr ? fc->function.id.getIdentifier().toString() : "";
+
+		if (getFunctionSignatureId(id, false) != 0)
 		{
 			readerType = Type::VectorFunction;
+			opType = id.getCharPointer();
 			dbgString << "func " << fc->function.getSignature();
-			opType = fc->function.id.getIdentifier().toString().getCharPointer();
 
 			if (String(opType) == "abs")
 				immConst = cc.newXmmConst(ConstPool::kScopeGlobal, Data128::fromU32(0x7fffffff));
 		}
-		else if (s->getType() == Types::ID::Float)
+		
+		if (s->getType() == Types::ID::Float)
 		{
 			if (s->isConstExpr())
 			{
@@ -692,8 +696,20 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 			}
 		}
 
-		for (auto c : *s)
-			childOps.add(new SerialisedVectorOp(c, cc));
+		bool processChildOps = true;
+
+		if (as<StatementBlock>(s) != nullptr)
+			processChildOps = false;
+
+		if (fc != nullptr && !fc->isVectorOpFunction())
+			processChildOps = false;
+
+		// don't process child statements of inlined functions as vector op...
+		if (processChildOps)
+		{
+			for (auto c : *s)
+				childOps.add(new SerialisedVectorOp(c, cc));
+		}
 	}
 
 	RegPtr getAddressReg(Statement::Ptr p)
@@ -722,7 +738,10 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 
 		if (auto fc = as<FunctionCall>(p))
 		{
-			return fc->getSubRegister(0);
+			if (getFunctionSignatureId(fc->function.id.getIdentifier().toString(), false) != 0)
+				return fc->getSubRegister(0);
+			else
+				return fc->reg;
 		}
 
 		return nullptr;
@@ -846,9 +865,14 @@ private:
 	x86::Xmm getDataRegToUse() const
 	{
 		if (readerType == Type::VectorFunction)
-			return childOps[0]->getDataRegToUse();
+		{
+			if (getFunctionSignatureId(opType, false))
+				return childOps[0]->getDataRegToUse();
+			else
+				jassertfalse;
+		}
 
-		if (isOp())
+		else if (isOp())
 			return childOps[1]->getDataRegToUse();
 
 		jassert(dataReg.isValid());
@@ -857,44 +881,45 @@ private:
 		return dataReg;
 	}
 
+	
+
 	void emitOp(x86::Compiler& cc, bool isSimd)
 	{
-		auto r = childOps[0];
-		jassert(r != nullptr);
-		jassert(getDataRegToUse().isValid());
+		auto instId = getFunctionSignatureId(opType, isSimd);
 
-		HashMap<String, std::array<uint32, 2>> opMap;
-
-		using namespace asmjit::x86;
-
-		opMap.set(JitTokens::plus, { Inst::kIdAddss, Inst::kIdAddps });
-		opMap.set(JitTokens::assign_, { Inst::kIdMovss, Inst::kIdMovaps });
-		opMap.set(JitTokens::times, { Inst::kIdMulss, Inst::kIdMulps });
-		opMap.set(JitTokens::minus, { Inst::kIdSubss, Inst::kIdSubps });
-		opMap.set("min", { Inst::kIdMinss, Inst::kIdMinps });
-		opMap.set("max", { Inst::kIdMaxss, Inst::kIdMaxps });
-		opMap.set("abs", { Inst::kIdAndps,  Inst::kIdAndps });
-
-		auto instId = opMap[opType][(int)isSimd];
-
-		if (r->readerType == Type::ImmediateScalar)
-			cc.emit(instId, getDataRegToUse(), isSimd ? r->immConst : r->immConst.cloneResized(4));
-		else if (readerType == Type::VectorFunction)
+		if (instId != 0)
 		{
-			jassert(r->getDataRegToUse().isValid());
-			bool isAbs = String(opType) == "abs";
-			r = isAbs ? this : childOps[1].get();
+			auto r = childOps[0];
+			jassert(r != nullptr);
+			jassert(getDataRegToUse().isValid());
 
-			if (r->readerType == Type::ImmediateScalar || isAbs)
+
+
+			if (r->readerType == Type::ImmediateScalar)
 				cc.emit(instId, getDataRegToUse(), isSimd ? r->immConst : r->immConst.cloneResized(4));
+			else if (readerType == Type::VectorFunction)
+			{
+				jassert(r->getDataRegToUse().isValid());
+				bool isAbs = String(opType) == "abs";
+				r = isAbs ? this : childOps[1].get();
+
+				if (r->readerType == Type::ImmediateScalar || isAbs)
+					cc.emit(instId, getDataRegToUse(), isSimd ? r->immConst : r->immConst.cloneResized(4));
+				else
+					cc.emit(instId, getDataRegToUse(), r->getDataRegToUse());
+			}
 			else
+			{
+				jassert(r->getDataRegToUse().isValid());
 				cc.emit(instId, getDataRegToUse(), r->getDataRegToUse());
+			}
 		}
 		else
 		{
-			jassert(r->getDataRegToUse().isValid());
-			cc.emit(instId, getDataRegToUse(), r->getDataRegToUse());
+			jassertfalse;
 		}
+
+		
 	}
 
 	Type readerType;
@@ -926,7 +951,7 @@ void Operations::VectorOp::initChildOps()
 				pt->isChildOp = true;
 
 			return false;
-		}, IterationType::AllChildStatements);
+		}, IterationType::NoChildInlineFunctionBlocks);
 	}
 }
 
@@ -949,11 +974,14 @@ void Operations::VectorOp::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (auto fChild = as<FunctionCall>(getSubExpr(1)))
 		{
-			// Pass the first argument as target vector...
-			reg = fChild->getSubRegister(0);
-			
-			jassert(reg != nullptr);
-			jassert(reg->getTypeInfo().getTypedIfComplexType<ArrayTypeBase>() != nullptr);
+			if (fChild->isVectorOpFunction())
+			{
+				// Pass the first argument as target vector...
+				reg = fChild->getSubRegister(0);
+
+				jassert(reg != nullptr);
+				jassert(reg->getTypeInfo().getTypedIfComplexType<ArrayTypeBase>() != nullptr);
+			}
 		}
 
 		jassert(reg != nullptr);
@@ -986,6 +1014,10 @@ void Operations::VectorOp::emitVectorOp(BaseCompiler* compiler, BaseScope* scope
 	else
 	{
 		SerialisedVectorOp::Ptr root = new SerialisedVectorOp(this, cc);
+
+		int l = 0;
+		DBG(root->toString(l));
+
 		auto sizeReg = cc.newGpd();
 
 		auto simdLoop = cc.newLabel();
@@ -1042,6 +1074,23 @@ void Operations::VectorOp::emitVectorOp(BaseCompiler* compiler, BaseScope* scope
 		cc.jmp(leftOverLoop);
 		cc.bind(loopEnd);
 	}
+}
+
+juce::uint32 Operations::VectorOp::getFunctionSignatureId(const String& functionName, bool isSimd)
+{
+	HashMap<String, std::array<uint32, 2>> opMap;
+
+	using namespace asmjit::x86;
+
+	opMap.set(JitTokens::plus, { Inst::kIdAddss, Inst::kIdAddps });
+	opMap.set(JitTokens::assign_, { Inst::kIdMovss, Inst::kIdMovaps });
+	opMap.set(JitTokens::times, { Inst::kIdMulss, Inst::kIdMulps });
+	opMap.set(JitTokens::minus, { Inst::kIdSubss, Inst::kIdSubps });
+	opMap.set("min", { Inst::kIdMinss, Inst::kIdMinps });
+	opMap.set("max", { Inst::kIdMaxss, Inst::kIdMaxps });
+	opMap.set("abs", { Inst::kIdAndps,  Inst::kIdAndps });
+
+	return opMap[functionName][(int)isSimd];
 }
 
 void Operations::Increment::process(BaseCompiler* compiler, BaseScope* scope)
@@ -1266,6 +1315,7 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 		List args;
 		args.add(getSubExpr(0));
 
+		if(subscriptType != ArrayStatementBase::CustomObject)
 		{
 			BaseCompiler::ScopedUnsafeBoundChecker sb(compiler);
 

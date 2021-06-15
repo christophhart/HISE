@@ -7,7 +7,7 @@ BEGIN_TEST_DATA
   output: "half2.wav"
   error: ""
   compile_flags: Inlining
-  loop_count: 5
+  loop_count: 2
   filename: "loop/loop_combine5"
 END_TEST_DATA
 */

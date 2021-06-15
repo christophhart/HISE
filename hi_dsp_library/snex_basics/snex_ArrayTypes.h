@@ -41,7 +41,7 @@
 #include <stdint.h>
 
 #ifndef SNEX_WRAP_ALL_NEGATIVE_INDEXES
-#define SNEX_WRAP_ALL_NEGATIVE_INDEXES 0
+#define SNEX_WRAP_ALL_NEGATIVE_INDEXES 1
 #endif
 
 namespace snex {
@@ -134,27 +134,10 @@ template <int UpperLimit> struct wrapped_logic
 
 	template <typename T> static T getWithDynamicLimit(T input, T limit)
 	{
-		if constexpr (std::is_floating_point<T>())
-		{
-			if constexpr (hasDynamicBounds())
-				return std::fmod(input, limit);
-			else
-				return std::fmod(input, (T)UpperLimit);
-		}
+		if constexpr (hasDynamicBounds())
+			return hmath::wrap(input, limit);
 		else
-		{
-#if SNEX_WRAP_ALL_NEGATIVE_INDEXES
-			if constexpr (hasDynamicBounds())
-				return (input >= 0) ? input % limit : (limit - abs(input) % limit) % limit;
-			else
-				return (input >= 0) ? input % UpperLimit : (UpperLimit - abs(input) % UpperLimit) % UpperLimit;
-#else
-			if constexpr (hasDynamicBounds())
-				return (input + limit) % limit;
-			else
-				return (input + UpperLimit) % UpperLimit;
-#endif
-		}
+			return hmath::wrap(input, (T)UpperLimit);
 	}
 
 	template <typename ContainerType> static auto& getRedirected(ContainerType& c, int index)
@@ -213,13 +196,65 @@ template <int UpperLimit, int Offset> struct unsafe_logic
 		return input;
 	}
 
-	template <typename ContainerType> static auto& getRedirected(ContainerType& c, int index)
+	template <typename ContainerType> static auto& getRedirected(const ContainerType& c, int index)
 	{
 		jassert(isPositiveAndBelow(index + Offset, c.size()));
 		return *(c.begin() + (index + Offset));
 	}
 };
 
+template <int UpperLimit> struct looped_logic
+{
+	using LogicType = looped_logic;
+
+	using WrapType = wrapped_logic<0>;
+
+	static constexpr bool hasBoundCheck() { return true; };
+	static constexpr bool hasDynamicBounds() { return UpperLimit == 0; }
+	static constexpr int getUpperLimit() { return UpperLimit; }
+
+	static String toString() { return "looped"; };
+
+	template <typename T> T getWithDynamicLimit(T input, T limit) const
+	{
+		if constexpr (!hasDynamicBounds())
+			limit = (T)getUpperLimit();
+
+
+		if (length != 0)
+		{
+			jassert(T(length + start) <= limit);
+		}
+
+		if (input < start)
+			return hmath::max(T(0), input);
+
+		auto v = hmath::wrap(input - (T)start, length != 0 ? (T)length : limit) + start;
+
+		jassert(v >= T(0));
+
+		return v;
+	}
+
+	template <typename ContainerType> auto& getRedirected(const ContainerType& c, int index) const
+	{
+		
+
+		jassert(isPositiveAndBelow(index, c.size()));
+		return *(c.begin() + (index));
+	}
+
+	void setLoopRange(Range<int> r)
+	{
+		start = r.getStart();
+		length = r.getLength();
+	}
+
+private:
+
+	int start = 0;
+	int length = 0;
+};
 
 /** The base class for integer indexes. */
 template <typename LT, bool CheckOnAssign> struct integer_index
@@ -250,7 +285,7 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		value = v; 
 
 		if constexpr (checkBoundsOnAssign())
-			value = LogicType::getWithDynamicLimit(v, LogicType::getUpperLimit());
+			value = t.getWithDynamicLimit(v, LogicType::getUpperLimit());
 
 		return *this;
 	}
@@ -259,7 +294,7 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 	integer_index& operator++()
 	{
 		if constexpr (checkBoundsOnAssign())
-			value = LogicType::getWithDynamicLimit(++value, LogicType::getUpperLimit());
+			value = t.getWithDynamicLimit(++value, LogicType::getUpperLimit());
 		else
 			++value;
 
@@ -272,12 +307,12 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		if constexpr (checkBoundsOnAssign())
 		{
 			auto v = value;
-			value = LogicType::getWithDynamicLimit(v + 1, LogicType::getUpperLimit());
+			value = t.getWithDynamicLimit(v + 1, LogicType::getUpperLimit());
 			return v;
 		}
 		else
 		{
-			auto v = LogicType::getWithDynamicLimit(value, LogicType::getUpperLimit());
+			auto v = t.getWithDynamicLimit(value, LogicType::getUpperLimit());
 			++value;
 			return v;
 		}
@@ -287,7 +322,7 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 	integer_index& operator--()
 	{
 		if constexpr (checkBoundsOnAssign())
-			value = LogicType::getWithDynamicLimit(--value, LogicType::getUpperLimit());
+			value = t.getWithDynamicLimit(--value, LogicType::getUpperLimit());
 		else
 			--value;
 
@@ -300,12 +335,12 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		if constexpr (checkBoundsOnAssign())
 		{
 			auto v = value;
-			value = LogicType::getWithDynamicLimit(v - 1, LogicType::getUpperLimit());
+			value = t.getWithDynamicLimit(v - 1, LogicType::getUpperLimit());
 			return v;
 		}
 		else
 		{
-			auto v = LogicType::getWithDynamicLimit(value, LogicType::getUpperLimit());
+			auto v = t.getWithDynamicLimit(value, LogicType::getUpperLimit());
 			--value;
 			return v;
 		}
@@ -352,7 +387,7 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		if constexpr (checkBoundsOnAssign())
 			return value;
 
-		return LogicType::getWithDynamicLimit(value, LogicType::getUpperLimit());
+		return t.getWithDynamicLimit(value, LogicType::getUpperLimit());
 	}
 
 	template <typename ContainerType> auto& getFrom(const ContainerType& c) const
@@ -363,15 +398,31 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		{
 			// We need to pass in at least 1 into the function or the wrapping might
 			// lead to a division by zero exception for empty dynamic containers
-			idx = LogicType::getWithDynamicLimit(idx, jmax(1, c.size()));
+			idx = t.getWithDynamicLimit(idx, jmax(1, c.size()));
 		}
 
-		return LogicType::getRedirected(c, idx);
+		return t.getRedirected(c, idx);
+	}
+
+	LogicType& getLogicType()
+	{
+		return t;
+	}
+
+	const LogicType& getLogicType() const
+	{
+		return t;
+	}
+
+	void setLoopRange(int start, int end)
+	{
+		getLogicType().setLoopRange({ start, end });
 	}
 
 private:
 
 	Type value = Type(0);
+	LogicType t;
 };
 
 
@@ -380,6 +431,8 @@ template <int UpperLimit, bool CheckOnAssign=false> using wrapped = integer_inde
 template <int UpperLimit, bool CheckOnAssign=false> using clamped = integer_index<clamped_logic<UpperLimit>, CheckOnAssign>;
 template <int UpperLimit, bool CheckOnAssign=false> using unsafe = integer_index<unsafe_logic<UpperLimit, 0>, false>;
 template <int UpperLimit, bool CheckOnAssign = false> using previous = integer_index<unsafe_logic<UpperLimit, -1>, false>;
+
+template <int UpperLimit, bool CheckOnAssign = false> using looped = integer_index<looped_logic<UpperLimit>, CheckOnAssign>;
 
 
 template <typename FloatType, typename IntegerIndexType, bool IsNormalised> struct float_index
@@ -425,17 +478,17 @@ template <typename FloatType, typename IntegerIndexType, bool IsNormalised> stru
 		jassert(!hasDynamicBounds() || limit > 0);
 
 		auto scaled = (int)from0To1(v, limit) + delta;
-		return LogicType::getWithDynamicLimit(scaled, jmax(1, limit));
+		return t.getWithDynamicLimit(scaled, jmax(1, limit));
 	}
 
-	float_index& operator=(FloatType t)
+	float_index& operator=(FloatType v_)
 	{
-		v = t;
+		v = v_;
 
 		if constexpr (checkBoundsOnAssign())
 		{
 			auto scaled = from0To1(v, 0);
-			auto checked = LogicType::getWithDynamicLimit(scaled, FloatType(0));
+			auto checked = t.getWithDynamicLimit(scaled, FloatType(0));
 			v = to0To1(checked, 0);
 		}
 
@@ -462,18 +515,34 @@ template <typename FloatType, typename IntegerIndexType, bool IsNormalised> stru
 		{
 			auto scaled = from0To1(v, 0);
 			auto limit = (FloatType)LogicType::getUpperLimit();
-			return LogicType::getWithDynamicLimit(scaled, limit);
+			return t.getWithDynamicLimit(scaled, limit);
 		}
 	}
 
 	template <typename ContainerType> auto& getFrom(const ContainerType& c) const
 	{
 		auto idx = getIndex(c.size());
-		return LogicType::getRedirected(c, idx);
+		return t.getRedirected(c, idx);
+	}
+
+	LogicType& getLogicType()
+	{
+		return t;
+	}
+
+	const LogicType& getLogicType() const
+	{
+		return t;
+	}
+
+	void setLoopRange(int start, int end)
+	{
+		getLogicType().setLoopRange({ start, end });
 	}
 
 private:
 
+	LogicType t;
 	FloatType v = FloatType(0);
 
 	FloatType from0To1(FloatType v, int limit) const
@@ -501,6 +570,8 @@ private:
 		else
 			return v;
 	}
+
+	
 };
 
 template <typename FloatType, typename IntegerIndexType> using normalised = float_index<FloatType, IntegerIndexType, true>;
@@ -541,12 +612,25 @@ template <typename IndexType> struct interpolator_base
 		return interpolator_base((FloatType)idx - t);
 	}
 
+	void setLoopRange(int start, int end)
+	{
+		getLogicType().setLoopRange({ start, end });
+	}
+
+	const LogicType& getLogicType() const
+	{
+		return idx.getLogicType();
+	}
+
+	LogicType& getLogicType()
+	{
+		return idx.getLogicType();
+	}
+
 	explicit operator Type() const
 	{
 		return (Type)idx;
 	}
-
-protected:
 
 	IndexType idx;
 };
@@ -559,6 +643,12 @@ template <typename IndexType> struct lerp: public interpolator_base<IndexType>
 	lerp(Type initValue=Type(0)):
 		interpolator_base<IndexType>(initValue)
 	{}
+
+	lerp& operator=(Type v)
+	{
+		idx = v;
+		return *this;
+	}
 
 	static String toString()
 	{
@@ -585,8 +675,10 @@ private:
 	{
 		using ElementType = typename ContainerType::DataType;
 
-        auto v1 = LogicType::getRedirected(t, i1);
-        auto v2 = LogicType::getRedirected(t, i2);
+		const LogicType& lt = this->getLogicType();
+
+        auto v1 = lt.getRedirected(t, i1);
+        auto v2 = lt.getRedirected(t, i2);
 
 		return interpolate(v1, v2, (ElementType)alpha);
 	}
@@ -626,6 +718,12 @@ template <typename IndexType> struct hermite : public interpolator_base<IndexTyp
 		interpolator_base<IndexType>(initValue)
 	{}
 
+	hermite& operator=(Type v)
+	{
+		idx = v;
+		return *this;
+	}
+
 	static String toString()
 	{
 		String s;
@@ -651,10 +749,10 @@ private:
 	{
 		using ElementType = typename ContainerType::DataType;
 
-		const auto v0 = LogicType::getRedirected(t, i0);
-		const auto v1 = LogicType::getRedirected(t, i1);
-		const auto v2 = LogicType::getRedirected(t, i2);
-		const auto v3 = LogicType::getRedirected(t, i3);
+		const auto v0 = this->getLogicType().getRedirected(t, i0);
+		const auto v1 = this->getLogicType().getRedirected(t, i1);
+		const auto v2 = this->getLogicType().getRedirected(t, i2);
+		const auto v3 = this->getLogicType().getRedirected(t, i3);
 
 		return interpolate(v0, v1, v2, v3, (ElementType)alpha);
 	}
@@ -691,6 +789,48 @@ private:
 
 }
 
+template <typename T> struct SpanOperators
+{
+	struct add
+	{
+		using DataType = T;
+		static constexpr bool shouldLoadSource() { return true; }
+		static forcedinline void op(T& dst, const T& src) { dst += src; }
+		static forcedinline void vOp(__m128& dst, const __m128& src) { dst = _mm_add_ps(dst, src); }
+	};
+
+	struct multiply 
+	{ 
+		using DataType = T;
+		static constexpr bool shouldLoadSource() { return true; }
+		static forcedinline void op(T& dst, const T& src) { dst *= src; } 
+		static forcedinline void vOp(__m128& dst, const __m128& src) { dst = _mm_mul_ps(dst, src); }
+	};
+
+	struct assign 
+	{ 
+		using DataType = T;
+		static constexpr bool shouldLoadSource() { return false; }
+		static forcedinline void op(T& dst, const T& src) { dst = src; } 
+		static forcedinline void vOp(__m128& dst, const __m128& src) { dst = src; }
+	};
+	
+	struct divide 
+	{ 
+		using DataType = T;
+		static constexpr bool shouldLoadSource() { return true; }
+		static forcedinline void op(T& dst, const T& src) { dst /= src; } 
+		static forcedinline void vOp(__m128& dst, const __m128& src) { dst = _mm_div_ps(dst, src); }
+	};
+
+	struct sub 
+	{ 
+		using DataType = T;
+		static constexpr bool shouldLoadSource() { return true; }
+		static forcedinline void op(T& dst, const T& src) { dst -= src; } 
+		static forcedinline void vOp(__m128& dst, const __m128& src) { dst = _mm_sub_ps(dst, src); }
+	};
+};
 
 
 /** A fixed-size array type for SNEX. 
@@ -719,19 +859,6 @@ template <class T, int Size> struct span
 
 	static constexpr bool hasCompileTimeSize() { return true; }
 
-	struct zeroed
-	{
-		operator int() const
-		{
-			if (isPositiveAndBelow(this->value, Size - 1))
-				return this->value;
-
-			return 0;
-		}
-	};
-
-	
-
 	span()
 	{
 		clear();
@@ -748,7 +875,6 @@ template <class T, int Size> struct span
 		}
 		else
 			memcpy(data, l.begin(), sizeof(T)*Size);
-
 	}
 
 	static Type& fromExternalData(T* data, int numElements)
@@ -772,17 +898,21 @@ template <class T, int Size> struct span
 
 	Type& operator=(const std::initializer_list<T>& l)
 	{
-		if (isSimdable())
+		*this = (float)*l.begin();
+		return *this;
+	}
+
+#if 0
+	Type& operator=(const T& t)
+	{
+		if constexpr (isSimdable())
 		{
 			constexpr int numLoop = Size / getSimdSize();
 
 			if (std::is_same<DataType, float>())
 			{
-				float t_ = (float)*l.begin();
-
 				auto dst = (float*)data;
-
-				auto v = _mm_load_ps1(&t_);
+				auto v = _mm_load_ps1(&t);
 
 				for (int i = 0; i < numLoop; i++)
 				{
@@ -794,68 +924,191 @@ template <class T, int Size> struct span
 		else
 		{
 			for (auto& v : *this)
-				v = *l.begin();
+				v = t;
 		}
 
 		return *this;
-
 	}
-
-	Type& operator=(const T& t)
-	{
-		for (auto& v : *this)
-			v = t;
-
-		return *this;
-	}
+#endif
 
 	operator T()
 	{
-		static_assert(Size == 1, "not a single elemnet span");
+		static_assert(Size == 1, "not a single element span");
 		return *begin();
 	}
 
-	Type& operator+=(const T& scalar)
-	{
-		return *this + scalar;
-	}
+	
 
-	Type& operator+(const T& scalar)
+	template <typename OpType, typename OperandType> Type& performOp(const OperandType& op)
 	{
-		static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
-		
-		for (auto& s : *this)
-			s += scalar;
+		if constexpr (std::is_same<T, OperandType>())
+		{
+			// OperandType is a number
+			//static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
+
+			if constexpr (isSimdable())
+			{
+				// We can use SSE instructions
+
+				static constexpr int numLoop = Size / getSimdSize();
+
+				if (std::is_same<DataType, float>())
+				{
+					auto ptr = (float*)data;
+					auto v = _mm_load_ps1(&op);
+
+					for (int i = 0; i < numLoop; i++)
+					{
+						__m128 dst;
+
+						if constexpr (OpType::shouldLoadSource())
+							dst = _mm_load_ps(ptr);
+
+						OpType::vOp(dst, v);
+						_mm_store_ps(ptr, dst);
+						ptr += getSimdSize();
+					}
+				}
+			}
+			else
+			{
+				for (auto& s : *this)
+					OpType::op(s, op);
+			}
+		}
+		else
+		{
+			// OperandType is a span with the same element type
+
+			static_assert(OperandType::hasCompileTimeSize(), "not a compile time array");
+			static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
+			static_assert(std::is_same<OperandType::DataType, T>(), "type mismatch");
+
+			static constexpr int ThisSize = s;
+			static constexpr int OtherSize = OperandType::s;
+
+			if constexpr (isSimdable() && OperandType::isSimdable())
+			{
+				// We can use SSE instructions for both spans
+
+				if constexpr (ThisSize == OtherSize)
+				{
+					// same size, simple loop
+					auto p1 = begin();
+					auto p2 = op.begin();
+
+					for (int i = 0; i < size(); i += getSimdSize())
+					{
+						__m128 dst;
+
+						if constexpr (OpType::shouldLoadSource())
+							dst = _mm_load_ps(p1);
+
+						__m128 src = _mm_load_ps(p2);
+
+						OpType::vOp(dst, src);
+
+						_mm_store_ps(p1, dst);
+
+						p1 += getSimdSize();
+						p2 += getSimdSize();
+					}
+				}
+				else
+				{
+					static constexpr int MaxIndex = jmin(ThisSize, OtherSize) / getSimdSize();
+					index::clamped<MaxIndex, true> idx;
+
+					using SSESpanType = span<span<float, getSimdSize()>, ThisSize / getSimdSize()>;
+					using OpSSESpanType = span<span<float, getSimdSize()>, OtherSize / getSimdSize()>;
+
+					auto& thisSSE = *reinterpret_cast<SSESpanType*>(this);
+					auto& opSSE = *reinterpret_cast<const OpSSESpanType*>(&op);
+
+					for (int i = 0; i < MaxIndex; i++)
+					{
+						auto* dPtr = thisSSE[i].begin();
+						__m128 dst;
+
+						if constexpr (OpType::shouldLoadSource())
+							dst = _mm_load_ps(dPtr);
+
+						__m128 src = _mm_load_ps(opSSE[i].begin());
+						OpType::vOp(dst, src);
+						_mm_store_ps(dPtr, dst);
+					}
+
+					if constexpr (ThisSize > OtherSize)
+					{
+						auto lastValue = _mm_load_ps1(&op[OtherSize - 1]);
+						static constexpr int NumLeftOver = (ThisSize - OtherSize) / getSimdSize();
+
+						for (int i = 0; i < NumLeftOver; i++)
+						{
+							auto dPtr = thisSSE[i + MaxIndex].begin();
+
+							__m128 dst;
+							
+							if constexpr (OpType::shouldLoadSource())
+								dst = _mm_load_ps(dPtr);
+
+							OpType::vOp(dst, lastValue);
+							_mm_store_ps(dPtr, dst);
+						}
+					}
+				}
+			}
+			else
+			{
+				if constexpr (ThisSize == OtherSize)
+				{
+					for (int i = 0; i < size(); i++)
+						OpType::op((*this)[i], op[i]);
+				}
+				else
+				{
+					index::clamped<jmin(ThisSize, OtherSize), true> idx;
+
+					for (int i = 0; i < size(); i++)
+						OpType::op((*this)[i], op[idx++]);
+				}
+			}
+
+			return *this;
+		}
 
 		return *this;
 	}
 
+	template <typename OperandType> Type& operator+(const OperandType& op) { return this->performOp<SpanOperators<T>::add>(op); }
+	template <typename OperandType> Type& operator+=(const OperandType& t) { return *this + t; }
+
+	template <typename OperandType> Type& operator*(const OperandType& op) { return this->performOp<SpanOperators<T>::multiply>(op); }
+	template <typename OperandType> Type& operator*=(const OperandType& t) { return *this * t; }
+
+	template <typename OperandType> Type& operator/(const OperandType& op) { return this->performOp<SpanOperators<T>::divide>(op); }
+	template <typename OperandType> Type& operator/=(const OperandType& t) { return *this / t; }
+
+	template <typename OperandType> Type& operator-(const OperandType& op) { return this->performOp<SpanOperators<T>::sub>(op); }
+	template <typename OperandType> Type& operator-=(const OperandType& t) { return *this - t; }
+
+	template <typename OperandType> Type& operator=(const OperandType& t) { return this->performOp<SpanOperators<T>::assign>(t); };
+
+
+#if 0
 	Type& operator=(const Type& other)
 	{
 		memcpy(data, other.begin(), size() * sizeof(T));
 		return *this;
 	}
-
-	Type& operator+ (const Type& other)
-	{
-		static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
-
-		for (int i = 0; i < size(); i++)
-			data[i] += other.data[i];
-
-		return *this;
-	}
-
-	Type& operator +=(const Type& other)
-	{
-		return *this + other;
-	}
+#endif
 
 	constexpr bool isFloatType()
 	{
 		return std::is_same<float, T>() || std::is_same<double, T>();
 	}
 
+#if 0
 	Type& operator* (const Type& other)
 	{
 		static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
@@ -887,6 +1140,7 @@ template <class T, int Size> struct span
 
 		return *this;
 	}
+#endif
 
 	void clear()
 	{
@@ -908,14 +1162,12 @@ template <class T, int Size> struct span
 
 	static constexpr bool isSimdType()
 	{
-		return (std::is_same<T, float>() && Size == 4) ||
-			(std::is_same<T, double>() && Size == 2);
+		return isSimdable();
 	}
 
 	static constexpr bool isSimdable()
 	{
-		return (std::is_same<T, float>() && Size % 4 == 0) ||
-			(std::is_same<T, double>() && Size % 2 == 0);
+		return (std::is_same<T, float>() && Size % 4 == 0);
 	}
 
 	bool isAlignedTo16Byte() const

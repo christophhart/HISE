@@ -43,6 +43,11 @@ template <typename IndexType> struct IndexTester
 	using Type = typename IndexType::Type;
 	static constexpr int Limit = IndexType::LogicType::getUpperLimit();
 
+	static constexpr bool isLoopTest()
+	{
+		return std::is_same<index::looped_logic<Limit>, IndexType::LogicType>();
+	}
+
 	IndexTester(UnitTest* test_, StringArray opt, int dynamicSize = 0) :
 		test(*test_),
 		indexName(IndexType::toString()),
@@ -63,6 +68,11 @@ private:
 
 	void runTest()
 	{
+		testLoopRange(0.0, 0.0);
+		testLoopRange(0.0, 1.0);
+		testLoopRange(0.5, 1.0);
+		testLoopRange(0.3, 0.6);
+
 #if TEST_ALL_INDEXES
 		testIncrementors(FunctionClass::SpecialSymbols::IncOverload);
 		testIncrementors(FunctionClass::SpecialSymbols::DecOverload);
@@ -72,15 +82,89 @@ private:
 		testFloatAlphaAndIndex();
 		testSpanAccess();
 		testDynAccess();
-		
 #endif
 		testInterpolators();
+	}
 
-		testSpanAccess();
+	Range<int> getLoopRange(double nStart, double nEnd)
+	{
+		auto s = roundToInt(jlimit(0.0, 1.0, nStart) * (double)Limit);
+		auto e = roundToInt(jlimit(0.0, 1.0, nEnd) * (double)Limit);
 
-		
+		return Range<int>(s, e);
+	}
+
+	String getLoopRangeCode(double start, double end)
+	{
+		auto l = getLoopRange(start, end);
+
+		String c;
+		c << ".setLoopRange(" << l.getStart() << ", " << l.getEnd() << ");";
+		return c;
+	}
+
+	void testLoopRange(double normalisedStart, double normalisedEnd)
+	{
+		if constexpr (isLoopTest() && IndexType::LogicType::hasBoundCheck())
+		{
+			cppgen::Base c(cppgen::Base::OutputType::AddTabs);
+
+			span<Type, Limit> data;
+			String spanCode;
+
+			initialiseSpan(spanCode, data);
+
+			c << indexName << " i;";
+			c << spanCode;
+			c << "T test(T input)";
+			{
+				cppgen::StatementBlock sb(c);
+				c << "i" << getLoopRangeCode(normalisedStart, normalisedEnd);
+				c << "i = input;";
+				c << "return data[i];";
+			}
+
+			test.logMessage("Testing loop range " + indexName + getLoopRangeCode(normalisedStart, normalisedEnd));
+
+			c.replaceWildcard("T", Types::Helpers::getTypeNameFromTypeId<Type>());
+
+			auto obj = compile(c.toString());
+
+			// Test Routine ==============================================
+
+			auto testWithValue = [&](Type testValue)
+			{
+				IndexType i;
+				auto lr = getLoopRange(normalisedStart, normalisedEnd);
+				i.setLoopRange(lr.getStart(), lr.getEnd());
+				i = testValue;
+
+				auto expected = data[i];
+				auto actual = obj["test"].template call<Type>(testValue);
+				String message = indexName;
+
+				message << " with value " << String(testValue);
+				test.expectWithinAbsoluteError(actual, expected, Type(0.0001), message);
+			};
+
+			// Test List =======================================================
 
 
+			testWithValue(0.5);
+#if SNEX_WRAP_ALL_NEGATIVE_INDEXES
+			testWithValue(-1.5);
+#endif
+			testWithValue(20.0);
+			testWithValue(-1);
+			testWithValue(Limit * 0.99);
+			testWithValue(Limit * 1.2);
+			testWithValue(Limit * 141.2);
+			testWithValue(Limit * 8141.92);
+
+			testWithValue(0.3);
+			testWithValue(8.0);
+			testWithValue(Limit / 3);
+		}
 	}
 
 	void testInterpolators()
@@ -104,10 +188,11 @@ private:
 			{
 				cppgen::StatementBlock sb(c);
 				c << "i = input;";
+				c << "i.setLoopRange(0, 0);";
 				c << "return data[i];";
 			}
 
-			test.logMessage("Testing interpolator" + indexName);
+			test.logMessage("Testing interpolator " + indexName);
 
 			c.replaceWildcard("T", Types::Helpers::getTypeNameFromTypeId<Type>());
 

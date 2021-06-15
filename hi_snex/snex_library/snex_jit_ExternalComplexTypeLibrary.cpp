@@ -700,6 +700,8 @@ snex::jit::ComplexType::Ptr DataReadLockJIT::createComplexType(Compiler& c, cons
 	FunctionData cf;
 	cf.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
 	cf.addArgs("data", TypeInfo(ed, false, true));
+	cf.addArgs("tryRead", Types::ID::Integer);
+	cf.setDefaultParameter("tryRead", VariableStorage(0));
 	cf.returnType = Types::ID::Void;
 	cf.function = (void*)Wrappers::constructor;
 	st->addExternalMemberFunction(cf);
@@ -709,6 +711,19 @@ snex::jit::ComplexType::Ptr DataReadLockJIT::createComplexType(Compiler& c, cons
 	df.returnType = Types::ID::Void;
 	df.function = (void*)Wrappers::destructor;
 	st->addExternalMemberFunction(df);
+
+	FunctionData lf;
+	lf.id = st->id.getChildId("isLocked");
+	lf.returnType = Types::ID::Integer;
+	lf.setConst(true);
+	lf.inliner = Inliner::createHighLevelInliner(lf.id, [](InlineData* b)
+	{
+		cppgen::Base c;
+		c << "return this->holdsLock;";
+		return SyntaxTreeInlineParser(b, {}, c).flush();
+	});
+
+	st->addJitCompiledMemberFunction(lf);
 
 	return st->finaliseAndReturn();
 }
@@ -1329,7 +1344,7 @@ void InbuiltTypeLibraryBuilder::createFrameProcessor()
 		if (!c.expectNotIntegerValue(0, 0))
 			return p;
 
-		NamespacedIdentifier fId("FrameProcessor");
+		static const NamespacedIdentifier fId("FrameProcessor");
 
 		TemplateParameter::List l;
 		l.add(c.tp[0]);
@@ -1705,6 +1720,10 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 	REGISTER_ORIGINAL_CPP_CLASS(c, OscProcessDataJit, OscProcessData);
 	REGISTER_ORIGINAL_CPP_CLASS(c, PrepareSpecsJIT, PrepareSpecs);
 	REGISTER_ORIGINAL_CPP_CLASS(c, EventWrapper, HiseEvent);
+
+	REGISTER_ORIGINAL_CPP_CLASS(c, SampleDataJIT, MonoSample);
+	REGISTER_ORIGINAL_CPP_CLASS(c, SampleDataJIT, StereoSample);
+
 	REGISTER_ORIGINAL_CPP_CLASS(c, ExternalDataJIT, ExternalData);
 	REGISTER_ORIGINAL_CPP_CLASS(c, DataReadLockJIT, DataReadLock);
 
@@ -1726,6 +1745,8 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 
 	return Result::ok();
 }
+
+
 
 
 

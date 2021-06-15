@@ -87,6 +87,165 @@ snex::jit::ComplexType::Ptr PrepareSpecsJIT::createComplexType(Compiler& c, cons
 	return st;
 }
 
+snex::jit::ComplexType::Ptr SampleDataJIT::createComplexType(Compiler& c, const Identifier& id)
+{
+	bool isMono = id == Identifier("MonoSample");
+
+	auto st = new StructType(NamespacedIdentifier(id));
+
+	auto blockType = c.getComplexType(NamespacedIdentifier("block"));
+
+	
+
+	ComplexType::Ptr spanType = new SpanType(TypeInfo(blockType, false, false), isMono ? 1 : 2);
+	spanType = c.getNamespaceHandler().registerComplexTypeOrReturnExisting(spanType);
+
+	ComplexType::Ptr loopRangeType = new SpanType(TypeInfo(Types::ID::Integer), 2);
+	loopRangeType = c.getNamespaceHandler().registerComplexTypeOrReturnExisting(loopRangeType);
+
+	st->addMember("rootNote", TypeInfo(Types::ID::Integer));
+	st->addMember("noteNumber", Types::ID::Integer);
+	st->addMember("velocity", Types::ID::Integer);
+	st->addMember("roundRobin", Types::ID::Integer);
+	st->addMember("loopRange", TypeInfo(loopRangeType));
+	st->addMember("data", TypeInfo(spanType));
+
+	st->setDefaultValue("rootNote", InitialiserList::makeSingleList(VariableStorage(-1)));
+	st->setDefaultValue("noteNumber", InitialiserList::makeSingleList(VariableStorage(0)));
+	st->setDefaultValue("velocity", InitialiserList::makeSingleList(VariableStorage(0)));
+	st->setDefaultValue("roundRobin", InitialiserList::makeSingleList(VariableStorage(1)));
+	
+
+	st->setVisibility("rootNote", NamespaceHandler::Visibility::Public);
+	st->setVisibility("noteNumber", NamespaceHandler::Visibility::Public);
+	st->setVisibility("velocity", NamespaceHandler::Visibility::Public);
+	st->setVisibility("roundRobin", NamespaceHandler::Visibility::Public);
+	st->setVisibility("data", NamespaceHandler::Visibility::Public);
+	st->setVisibility("loopRange", NamespaceHandler::Visibility::Public);
+
+	FunctionData gpf;
+	gpf.id = st->id.getChildId("getPitchFactor");
+	gpf.setConst(true);
+	gpf.returnType = TypeInfo(Types::ID::Double);
+
+	gpf.inliner = Inliner::createHighLevelInliner(gpf.id, [](InlineData* b)
+	{
+		cppgen::Base c;
+		c << "return Math.pow(2.0, (double)(this->noteNumber - this->rootNote) / 12.0);";
+		return SyntaxTreeInlineParser(b, {}, c).flush();
+	});
+
+	st->addJitCompiledMemberFunction(gpf);
+	
+	{
+		FunctionData ef;
+		ef.id = st->id.getChildId("isEmpty");
+		ef.setConst(true);
+		ef.returnType = TypeInfo(Types::ID::Integer);
+
+		ef.inliner = Inliner::createHighLevelInliner(ef.id, [](InlineData* b)
+			{
+				cppgen::Base c;
+				c << "return this->data[0].size() == 0;";
+				return SyntaxTreeInlineParser(b, {}, c).flush();
+			});
+
+		st->addJitCompiledMemberFunction(ef);
+	}
+
+	{
+		FunctionData lr;
+		lr.id = st->id.getChildId("setLoopRange");
+		lr.setConst(true);
+		lr.returnType = Types::ID::Void;
+		lr.addArgs("idx", TypeInfo(Types::ID::Dynamic, false, true));
+
+		lr.inliner = Inliner::createHighLevelInliner(lr.id, [](InlineData* b)
+		{
+			cppgen::Base c;
+			c << "idx.setLoopRange(this->loopRange[0], this->loopRange[1]);";
+			return SyntaxTreeInlineParser(b, {"idx"}, c).flush();
+		});
+
+		st->addJitCompiledMemberFunction(lr);
+	}
+	
+	{
+		auto eType = c.getComplexType(NamespacedIdentifier("HiseEvent"));
+
+		FunctionData fhe;
+		fhe.id = st->id.getChildId("fromHiseEvent");
+		fhe.addArgs("e", TypeInfo(eType, true, true));
+		fhe.returnType = TypeInfo(Types::ID::Void);
+
+		st->addJitCompiledMemberFunction(fhe);
+
+		if (isMono)
+			st->injectMemberFunctionPointer(fhe, (void*)fromHiseEventStatic<1>);
+		else
+			st->injectMemberFunctionPointer(fhe, (void*)fromHiseEventStatic<2>);
+	}
+
+	{
+		FunctionData cf;
+		cf.id = st->id.getChildId("clear");
+		cf.returnType = TypeInfo(Types::ID::Void);
+
+		st->addJitCompiledMemberFunction(cf);
+
+		if (isMono)
+			st->injectMemberFunctionPointer(cf, (void*)clear<1>);
+		else
+			st->injectMemberFunctionPointer(cf, (void*)clear<2>);
+	}
+	
+
+
+	ComplexType::Ptr frameType = new SpanType(Types::ID::Float, isMono ? 1 : 2);
+	frameType = c.getNamespaceHandler().registerComplexTypeOrReturnExisting(frameType);
+
+	FunctionData subscript;
+	subscript.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::SpecialSymbols::Subscript));
+	//subscript.addArgs("idx", TypeInfo(Types::ID::Dynamic, false, false));
+	subscript.addArgs("idx", TypeInfo(Types::ID::Dynamic, false, false));
+	subscript.returnType = TypeInfo(frameType, false, false);
+	subscript.setConst(true);
+
+	subscript.inliner = Inliner::createHighLevelInliner(subscript.id, [frameType, isMono](InlineData* b)
+	{
+		cppgen::Base c;
+		String def;
+
+		def << frameType->toString() << "d = { 0.0f };";
+		c << def;
+
+		c << "if(this->data[0].size() != 0)";
+
+		{
+			cppgen::StatementBlock sb(c);
+
+				c << "d[0] = this->data[0][idx];";
+
+			if (!isMono)
+				c << "d[1] = this->data[1][idx];";
+		}
+		
+
+		c << "return d;";
+		
+		return SyntaxTreeInlineParser(b, {"idx"}, c).flush();
+	});
+
+	st->addJitCompiledMemberFunction(subscript);
+
+
+	st->finaliseExternalDefinition();
+
+	auto originalSize = isMono ? sizeof(MonoSample) : sizeof(StereoSample);
+
+	jassert(st->getRequiredByteSize() == originalSize);
+	return st;
+}
 
 snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, const Identifier& id)
 {
@@ -94,14 +253,14 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 
 	auto st = new StructType(NamespacedIdentifier(id));
 
-
-
 	st->addMember("dataType",		TypeInfo(Types::ID::Integer));
 	st->addMember("numSamples",		TypeInfo(Types::ID::Integer));
 	st->addMember("numChannels",	TypeInfo(Types::ID::Integer));
+	st->addMember("isXYZAudioData", TypeInfo(Types::ID::Integer));
 	st->addMember("data",			TypeInfo(Types::ID::Pointer, true));
 	st->addMember("obj",			TypeInfo(Types::ID::Pointer, true));
 	st->addMember("sampleRate",     TypeInfo(Types::ID::Double));
+	
 	
 	st->setDefaultValue("dataType",		InitialiserList::makeSingleList(VariableStorage(0)));
 	st->setDefaultValue("numSamples",	InitialiserList::makeSingleList(VariableStorage(0)));
@@ -109,6 +268,7 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 	st->setDefaultValue("data",			InitialiserList::makeSingleList(VariableStorage(nullptr, 0)));
 	st->setDefaultValue("obj",			InitialiserList::makeSingleList(VariableStorage(nullptr, 0)));
 	st->setDefaultValue("sampleRate",	InitialiserList::makeSingleList(VariableStorage(0.0)));
+	st->setDefaultValue("isXYZAudioData", InitialiserList::makeSingleList(VariableStorage(0)));
 	
 	st->setVisibility("dataType",	 NamespaceHandler::Visibility::Public);
 	st->setVisibility("numSamples",	 NamespaceHandler::Visibility::Public);
@@ -116,82 +276,9 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 	st->setVisibility("data",		 NamespaceHandler::Visibility::Public);
 	st->setVisibility("obj",		 NamespaceHandler::Visibility::Public);
 	st->setVisibility("sampleRate",	 NamespaceHandler::Visibility::Public);
+	st->setVisibility("isXYZAudioData", NamespaceHandler::Visibility::Private);
 	
 	auto blockType = c.getNamespaceHandler().getComplexType(NamespacedIdentifier("block"));
-
-#if 0
-	FunctionData constructor;
-	constructor.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
-	constructor.addArgs("obj", TypeInfo(Types::ID::Dynamic));
-	constructor.returnType = TypeInfo(Types::ID::Void);
-
-	constructor.inliner = Inliner::createAsmInliner(constructor.id, [](InlineData* b)
-	{
-		auto d = b->toAsmInlineData();
-
-		if (auto argType = d->args[0]->getTypeInfo().getTypedIfComplexType<StructType>())
-		{
-			if (auto dataType = argType->getMemberComplexType("data"))
-			{
-				if (auto st = dynamic_cast<SpanType*>(dataType.get()))
-				{
-					auto& cc = d->gen.cc;
-
-					auto thisType = d->object->getTypeInfo().getComplexType();
-					auto thisSize = thisType->getRequiredByteSize();
-					auto thisAlign = thisType->getRequiredAlignment();
-
-					auto thisMem = cc.newStack(thisSize, thisAlign);
-
-					int sizeToUse = st->getNumElements();
-					
-					auto spanTarget = d->args[0];
-					auto spanOffset = argType->getMemberOffset("data");
-
-					cc.mov(thisMem.cloneResized(4), (int)ExternalData::DataType::ConstantLookUp);
-					cc.mov(thisMem.cloneAdjustedAndResized(4, 4), sizeToUse);
-					cc.mov(thisMem.cloneAdjustedAndResized(8, 4), 1);
-
-					
-					auto spanLocReg = cc.newGpq();
-
-					if (spanTarget->isMemoryLocation())
-					{
-						auto mem = spanTarget->getMemoryLocationForReference().cloneAdjustedAndResized(spanOffset, 8);
-						cc.lea(spanLocReg, mem);
-					}
-					else
-					{
-						auto mem = x86::ptr(PTR_REG_R(spanTarget)).cloneAdjustedAndResized(spanOffset, 8);
-						cc.lea(spanLocReg, mem);
-					}
-
-					cc.mov(thisMem.cloneAdjustedAndResized(16, 8), spanLocReg);
-					cc.mov(thisMem.cloneAdjustedAndResized(24, 8), 0);
-					cc.mov(thisMem.cloneAdjustedAndResized(32, 8), 0);
-
-					d->object->setCustomMemoryLocation(thisMem, false);
-
-					return Result::ok();
-				}
-				else
-					return Result::fail(argType->id.getChildId("data").toString() + " is not a span<float, x> type");
-
-				
-			}
-			else
-				return Result::fail(argType->id.getChildId("data").toString() + " is not defined");
-		}
-		else
-		{
-			return Result::fail("ExternalData constructor requires object argument");
-		}
-
-		
-	});
-
-	st->addJitCompiledMemberFunction(constructor);
-#endif
 
 	FunctionData rf;
 	rf.id = st->id.getChildId("referBlockTo");
@@ -207,12 +294,59 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 	df.addArgs("value", TypeInfo(Types::ID::Double));
 	df.returnType = TypeInfo(Types::ID::Void);
 
-
+	
 
 	st->addJitCompiledMemberFunction(df);
 	st->injectMemberFunctionPointer(df, (void*)setDisplayValueStatic);
+	
+	FunctionData xyz;
+	xyz.id = st->id.getChildId("isXYZ");
+	xyz.setConst(true);
+	xyz.returnType = Types::ID::Integer;
+	xyz.inliner = Inliner::createHighLevelInliner(xyz.id, [](InlineData* b)
+	{
+		cppgen::Base c;
+		c << "return this->isXYZAudioData != 0;";
+		return SyntaxTreeInlineParser(b, {}, c).flush();
+	});
+
+	st->addJitCompiledMemberFunction(xyz);
+
+
+
+
+
+
+
+	auto eType = c.getComplexType(NamespacedIdentifier("HiseEvent"));
+	
+	
+	{
+		auto monoType = c.getComplexType(NamespacedIdentifier("MonoSample"));
+		FunctionData getMono;
+		getMono.id = st->id.getChildId("getMonoSample");
+		getMono.returnType = Types::ID::Integer;
+		getMono.addArgs("d", TypeInfo(monoType, false, true));
+		getMono.addArgs("e", TypeInfo(eType, true, true));
+		st->addJitCompiledMemberFunction(getMono);
+		st->injectMemberFunctionPointer(getMono, (void*)ExternalData::getXYZData<1>);
+	}
+
+	{
+		auto stereoType = c.getComplexType(NamespacedIdentifier("StereoSample"));
+		jassert(stereoType != nullptr);
+		FunctionData getStereo;
+		getStereo.id = st->id.getChildId("getStereoSample");
+		getStereo.returnType = Types::ID::Integer;
+		getStereo.addArgs("d", TypeInfo(stereoType, false, true));
+		getStereo.addArgs("e", TypeInfo(eType, true, true));
+		st->addJitCompiledMemberFunction(getStereo);
+		st->injectMemberFunctionPointer(getStereo, (void*)ExternalData::getXYZData<2>);
+	}
 
 	st->finaliseExternalDefinition();
+
+
 
 	auto originalSize = sizeof(ExternalData);
 

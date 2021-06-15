@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 12
+  output: 90
   error: ""
   filename: "polydata/polydata_3"
 END_TEST_DATA

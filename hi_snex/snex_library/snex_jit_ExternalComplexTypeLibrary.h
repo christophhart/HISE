@@ -91,7 +91,7 @@ struct DataReadLockJIT
 {
 	struct Wrappers
 	{
-		static void constructor(void* obj, void* externalData)
+		static void constructor(void* obj, void* externalData, int tryRead)
 		{
 			if (auto thisPtr = static_cast<DataReadLockJIT*>(obj))
 			{
@@ -101,7 +101,12 @@ struct DataReadLockJIT
 				thisPtr->complexDataPtr = cd;
 
 				if (cd != nullptr)
-					thisPtr->holdsLock = (int)cd->getDataLock().enterReadLock();
+				{
+					if(tryRead)
+						thisPtr->holdsLock = (int)cd->getDataLock().enterTryReadLock();
+					else
+						thisPtr->holdsLock = (int)cd->getDataLock().enterReadLock();
+				}
 			}
 		}
 
@@ -122,6 +127,23 @@ struct DataReadLockJIT
 
 	void* complexDataPtr = nullptr;
 	int holdsLock = 0;
+};
+
+struct SampleDataJIT : public MonoSample
+{
+	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
+
+	template <int C> static void clear(void* obj)
+	{
+		auto typed = static_cast<SampleData<C>*>(obj);
+		typed->clear();
+	}
+
+	template <int C> static void fromHiseEventStatic(void* obj, HiseEvent* e)
+	{
+		auto typed = static_cast<SampleData<C>*>(obj);
+		typed->fromHiseEvent(*e);
+	}
 };
 
 struct ExternalDataJIT : public ExternalData

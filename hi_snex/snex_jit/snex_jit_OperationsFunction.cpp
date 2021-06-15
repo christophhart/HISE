@@ -182,8 +182,11 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 							data.returnType = newT;
 							compiler->namespaceHandler.setTypeInfo(fNamespace, NamespaceHandler::Function, newT);
 
-							if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
-								st->setTypeForDynamicReturnFunction(data);
+							if (auto cs = dynamic_cast<ClassScope*>(scope))
+							{
+								if (auto st = dynamic_cast<StructType*>(cs->typePtr.get()))
+									st->setTypeForDynamicReturnFunction(data);
+							}
 
 							break;
 						}
@@ -930,6 +933,16 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			for (int i = 0; i < getNumArguments(); i++)
 			{
+				if (auto arg = getArgument(i))
+				{
+					if (arg->reg != nullptr && !arg->reg->getVariableId())
+					{
+						parameterRegs.add(arg->reg);
+						continue;
+					}
+				}
+
+#if 0
 				if (auto subReg = getSubRegister(i))
 				{
 					if (!subReg->getVariableId())
@@ -938,6 +951,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 						continue;
 					}
 				}
+#endif
 
 				tryToResolveType(compiler);
 
@@ -1420,7 +1434,8 @@ void Operations::FunctionCall::addDefaultParameterExpressions(const FunctionData
 
 bool Operations::FunctionCall::isVectorOpFunction() const
 {
-	return findParentStatementOfType<VectorOp>(this) != nullptr;
+	return findParentStatementOfType<VectorOp>(this) != nullptr &&
+		   VectorOp::getFunctionSignatureId(function.id.getIdentifier().toString(), false) != 0;
 }
 
 void Operations::FunctionCall::adjustBaseClassPointer(BaseCompiler* compiler, BaseScope* scope)

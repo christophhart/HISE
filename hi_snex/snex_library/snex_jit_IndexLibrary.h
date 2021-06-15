@@ -49,6 +49,7 @@ namespace IndexIds
 	DECLARE_ID(previous);
 	DECLARE_ID(lerp);
 	DECLARE_ID(hermite);
+	DECLARE_ID(looped);
 #undef DECLARE_ID;
 }
 
@@ -72,6 +73,7 @@ struct IndexBuilder : public TemplateClassBuilder
 			Clamped,
 			Wrapped,
 			Previous,
+			Looped,
 			numWrapLogicTypes
 		};
 
@@ -143,6 +145,8 @@ struct IndexBuilder : public TemplateClassBuilder
 		{
 			return  hasDynamicBounds() ? getWithCast(dynamicLimit, t) : String(getTypedLiteral(getStaticBounds(), t));
 		}
+
+		bool isLoopType() const;
 
 		String getWithLimit(const String& v, const String& l, Types::ID dataType=Types::ID::Void) const;
 
@@ -362,6 +366,8 @@ struct IndexBuilder : public TemplateClassBuilder
 
 	static FunctionData nativeTypeCast(StructType* st);
 
+	static FunctionData setLoopRange(StructType* st);
+
 	static FunctionData getIndexFunction(StructType* st)
 	{
 		MetaDataExtractor mt(st);
@@ -454,6 +460,7 @@ struct IndexLibrary : public LibraryBuilderBase
 
 	Result registerTypes() override
 	{
+		IndexBuilder lb(c, "looped", IndexBuilder::Type::Integer);			lb.flush();
 		IndexBuilder wb(c, "wrapped", IndexBuilder::Type::Integer);			wb.flush();
 		IndexBuilder cb(c, "clamped", IndexBuilder::Type::Integer);			cb.flush();
 		IndexBuilder ub(c, "unsafe", IndexBuilder::Type::Integer);			ub.flush();

@@ -809,7 +809,8 @@ bool NamespaceHandler::rootHasNamespace(const NamespacedIdentifier& id) const
 	auto type = getSymbolType(id);
 	auto ns = get(id);
 	
-	return type == Unknown || type == Struct && ns != nullptr;
+	return type == Unknown || (type == Struct && ns != nullptr) ||
+							  (type == Function);
 }
 
 

@@ -136,6 +136,16 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::max, int, int, "max");		DESCRIPTION(int, bigger);
 	HNODE_JIT_ADD_C_FUNCTION_1(int, hmath::abs, int, "abs");			DESCRIPTION(int, positive);
 	HNODE_JIT_ADD_C_FUNCTION_3(int, hmath::range, int, int, int, "range");		DESCRIPTION(int, clamped);
+	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::fmod, int, int, "fmod");
+	setDescription("Calculates the modulo (just a replacement for a % b", { "a", "b" });
+	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::wrap, int, int, "wrap");
+	setDescription("Wraps the first around the second limit (supports negative values)", { "a", "b" });
+
+	HNODE_JIT_ADD_C_FUNCTION_2(float, hmath::wrap, float, float, "wrap");
+	setDescription("Wraps the first around the second limit (supports negative values)", { "a", "b" });
+
+	HNODE_JIT_ADD_C_FUNCTION_2(double, hmath::wrap, double, double, "wrap");
+	setDescription("Wraps the first around the second limit (supports negative values)", { "a", "b" });
 
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sin, double, "sin");		DESCRIPTION(double, sin);
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::asin, double, "asin");	DESCRIPTION(double, asin);
@@ -235,8 +245,21 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	addInliner("map", Inliners::map);
 	addInliner("fmod", Inliners::fmod);
 	addInliner("sin", Inliners::sin);
+	addInliner("wrap", Inliners::wrap, Inliner::InlineType::HighLevel);
 
-	
+	for (auto& f : functions)
+	{
+		if (f->id.getIdentifier() == Identifier("fmod") && f->returnType == Types::ID::Integer)
+		{
+			f->inliner = Inliner::createHighLevelInliner(f->id, [](InlineData* b)
+			{
+				cppgen::Base c;
+				c << "return a % b;";
+				return SyntaxTreeInlineParser(b, { "a", "b" }, c).flush();
+			});
+		}
+
+	}
 }
 
 
@@ -716,6 +739,32 @@ juce::Result MathFunctions::Inliners::sin(InlineData* d_)
 	}
 
 	return Result::ok();
+}
+
+juce::Result MathFunctions::Inliners::wrap(InlineData* b)
+{
+	cppgen::Base c;
+	
+
+
+	String def;
+	
+	String zero;
+
+	auto st = b->toSyntaxTreeData();
+
+	switch (b->toSyntaxTreeData()->args[0]->getType())
+	{
+	case Types::ID::Integer: zero << "0"; break;
+	case Types::ID::Float: zero << "0.0f"; break;
+	case Types::ID::Double: zero << "0.0"; break;
+	}
+
+	def << "return (value >= " << zero << ") ? Math.fmod(value, limit) : Math.fmod(limit - Math.fmod(Math.abs(value), limit), limit);";
+
+	c << def;
+
+	return SyntaxTreeInlineParser(b, { "value", "limit" }, c).flush();
 }
 
 }
