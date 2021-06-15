@@ -184,27 +184,6 @@ struct ScriptedPostDrawActions
 		}
 	};
 
-	struct addPerlinNoise : public DrawActions::PostActionBase
-	{
-		addPerlinNoise(float freq, float octave, float z_, float amount) :
-			f(freq),
-			o(octave),
-			z(z_),
-			a(amount)
-		{};
-
-		bool needsStackData() const override { return false; }
-
-		void perform(PostGraphicsRenderer& r) override
-		{
-			r.addPerlinNoise(f, o, z, a);
-		}
-
-		float f, o, z, a;
-	};
-
-
-
 	struct applyMask : public DrawActions::PostActionBase
 	{
 		applyMask(const Path& p, bool i) : path(p), invert(i) {};

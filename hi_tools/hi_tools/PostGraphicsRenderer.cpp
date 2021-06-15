@@ -222,39 +222,6 @@ void PostGraphicsRenderer::addNoise(float noiseAmount)
 	}
 }
 
-static siv::BasicPerlinNoise<float> pn;
-
-void PostGraphicsRenderer::addPerlinNoise(float freq, float octave, float z, float gain)
-{
-	auto xDelta = 1.0f / bd.width;
-	auto yDelta = 1.0f / bd.height;
-
-	
-
-	int index = 0;
-
-	int x = 0;
-	int y = 0;
-	
-
-	for (int x = 0; x < bd.width; x++)
-	{
-		for (int y = 0; y < bd.height; y++)
-		{
-			Pixel p(bd.getPixelPointer(x, y));
-
-			auto thisNoiseDelta = pn.accumulatedOctaveNoise3D((float)x / freq, (float)y / freq, z, octave);
-
-			auto delta = roundToInt(gain * thisNoiseDelta * 128.0f);
-
-			*p.r = (uint8)jlimit(0, 255, (int)*p.r + delta);
-			*p.g = (uint8)jlimit(0, 255, (int)*p.g + delta);
-			*p.b = (uint8)jlimit(0, 255, (int)*p.b + delta);
-		}
-	}
-
-}
-
 void PostGraphicsRenderer::gaussianBlur(int blur)
 {
 	

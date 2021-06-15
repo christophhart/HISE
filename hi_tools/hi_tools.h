@@ -160,8 +160,6 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_tools/IppFFT.h"
 #endif
 
-#include "hi_tools/PerlinNoise.h"
-
 #if !HISE_NO_GUI_TOOLS
 
 #include "gin_images/gin_imageeffects.h"

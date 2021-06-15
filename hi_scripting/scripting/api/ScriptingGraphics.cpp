@@ -609,7 +609,6 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, applySharpness);
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, applySepia);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyVignette);
-	API_VOID_METHOD_WRAPPER_4(GraphicsObject, addPerlinNoise);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, applyShader);
 };
 
@@ -649,7 +648,6 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_1(addNoise);
 	ADD_API_METHOD_3(applyMask);
 
-	ADD_API_METHOD_4(addPerlinNoise);
 	ADD_API_METHOD_3(applyHSL);
 	ADD_API_METHOD_1(applyGamma);
 	ADD_API_METHOD_2(applyGradientMap);
@@ -751,14 +749,6 @@ void ScriptingObjects::GraphicsObject::applySepia()
 		cl->addPostAction(new ScriptedPostDrawActions::applySepia());
 	else
 		reportScriptError("You need to create a layer for applySepia");
-}
-
-void ScriptingObjects::GraphicsObject::addPerlinNoise(double freq, double octave, double z, float amount)
-{
-	if (auto cl = drawActionHandler.getCurrentLayer())
-		cl->addPostAction(new ScriptedPostDrawActions::addPerlinNoise(freq, octave, z, amount));
-	else
-		reportScriptError("You need to create a layer for addPerlinNoise");
 }
 
 void ScriptingObjects::GraphicsObject::applyVignette(float amount, float radius, float falloff)

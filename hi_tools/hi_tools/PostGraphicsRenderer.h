@@ -122,8 +122,6 @@ struct PostGraphicsRenderer
 
 	void addNoise(float noiseAmount);
 
-	void addPerlinNoise(float freq, float octave, float z, float gain);
-
 	void gaussianBlur(int blur);
 
 	void boxBlur(int blur);

@@ -346,9 +346,6 @@ namespace ScriptingObjects
 		/** Applies an oldschool sepia filter on the current layer. */
 		void applySepia();
 
-		/** Applies Perlin Noise to the current layer. */
-		void addPerlinNoise(double freq, double octave, double z, float amount);
-
 		/** Applies a vignette (dark corners on the current layer. */
 		void applyVignette(float amount, float radius, float falloff);
 
