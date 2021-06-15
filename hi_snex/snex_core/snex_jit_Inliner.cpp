@@ -109,6 +109,7 @@ struct SyntaxTreeInlineData : public InlineData
 		
 		auto fc = as<FunctionCall>(expression);
 
+
 		if (syntaxTree->getReturnType() == TypeInfo(Types::ID::Dynamic))
 		{
 			return Result::fail("must set return type before passing here");
@@ -127,6 +128,8 @@ struct SyntaxTreeInlineData : public InlineData
 			auto e = object->clone(location);
 
 			cs->addInlinedParameter(-1, thisSymbol, e);
+
+			e = new InlinedParameter(location, thisSymbol, e);
 
 			if (auto b = as<StatementBlock>(e))
 			{
@@ -171,11 +174,13 @@ struct SyntaxTreeInlineData : public InlineData
 							auto canBeMember = st->canBeMember(v->id.id);
 							auto hasMember = canBeMember && st->hasMember(v->id.id.getIdentifier());
 
+							
+
 							if (hasMember)
 							{
-								auto newParent = e->clone(v->location);
-								auto newChild = v->clone(v->location);
-								auto newDot = new Operations::DotOperator(v->location, newParent, newChild);
+								Statement::Ptr newParent = e->clone(v->location);
+								Statement::Ptr newChild = v->clone(v->location);
+								Statement::Ptr newDot = new Operations::DotOperator(v->location, newParent, newChild);
 
 								Operations::Statement::Ptr statementToReplace = v;
 

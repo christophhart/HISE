@@ -658,7 +658,8 @@ void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(
 			if (v != nullptr && v->isClassVariable(s))
 				v->forceLoadData = true;
 
-			p->process(c, s);
+			if (p->reg == nullptr)
+				p->process(c, s);
 
 			if (p->reg != nullptr)
 			{

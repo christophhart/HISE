@@ -51,22 +51,26 @@ SpanType::~SpanType()
 
 bool SpanType::isSimdType(const TypeInfo& t)
 {
+#if SNEX_ENABLE_SIMD
 	if (auto st = t.getTypedIfComplexType<SpanType>())
 	{
 		return st->isSimd();
 	}
+#endif
 
 	return false;
 }
 
 bool SpanType::isSimd() const
 {
+#if SNEX_ENABLE_SIMD
 	if (getElementType() == Types::ID::Float && getNumElements() == 4)
 	{
 		jassert(hasAlias());
 		jassert(toString() == "float4");
 		return true;
 	}
+#endif
 
 	return false;
 }
@@ -476,7 +480,9 @@ void DynType::dumpTable(juce::String& s, int& intentLevel, void* dataStart, void
 
 	intentLevel++;
 
-	for (int i = 0; i < numElements; i++)
+	auto numElementsToDump = jmin(64, numElements);
+
+	for (int i = 0; i < numElementsToDump; i++)
 	{
 		if (elementType.isComplexType())
 		{
@@ -488,9 +494,16 @@ void DynType::dumpTable(juce::String& s, int& intentLevel, void* dataStart, void
 			idx << juce::String(i) << "]";
 
 			Types::Helpers::dumpNativeData(s, intentLevel, idx, dataStart, actualDataPointer, elementType.getRequiredByteSize(), elementType.getType());
+			if (!s.endsWithChar('\n'))
+				s << '\n';
 		}
-		
+
 		actualDataPointer += elementType.getRequiredByteSize();
+	}
+
+	if (numElementsToDump != numElements)
+	{
+		s << "[...]\n";
 	}
 
 	intentLevel--;
@@ -1554,6 +1567,7 @@ snex::jit::TypeInfo StructType::getMemberTypeInfo(const Identifier& id) const
 		if (m->id == id)
 			return m->typeInfo;
 	}
+
 
 	jassertfalse;
 	return {};

@@ -142,6 +142,17 @@ using namespace asmjit;
 		inbuildFunctions = new InbuiltFunctions(this);
 	}
 
+	snex::jit::MathFunctions& BaseCompiler::getMathFunctionClass()
+	{
+		if (mathFunctions == nullptr)
+		{
+			auto bType = namespaceHandler.getComplexType(NamespacedIdentifier("block"));
+			mathFunctions = new MathFunctions(false, bType);
+		}
+		
+		return *dynamic_cast<MathFunctions*>(mathFunctions.get());
+	}
+
 	BaseCompiler::BaseCompiler(NamespaceHandler& handler) :
 		namespaceHandler(handler),
 		registerPool(this)
@@ -203,6 +214,9 @@ using namespace asmjit;
 
 	void BaseCompiler::executePass(Pass p, BaseScope* scope, ReferenceCountedObject* statement)
     {
+		if (scope->getGlobalScope()->getBreakpointHandler().shouldAbort())
+			jassertfalse;
+
 		auto st = dynamic_cast<Operations::Statement*>(statement);
 
         if (isOptimizationPass(p) && passes.isEmpty())

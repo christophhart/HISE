@@ -132,6 +132,20 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds, b
 	return s;
 }
 
+bool FunctionData::isConstOrHasConstArgs() const
+{
+	if (!isConst())
+		return false;
+
+	for (auto a : args)
+	{
+		if (a.isReference() && !a.isConst())
+			return false;
+	}
+
+	return true;
+}
+
 bool FunctionData::hasTemplatedArgumentOrReturnType() const
 {
 	if (returnType.isTemplateType())
@@ -214,6 +228,9 @@ bool argumentMatch(const TypeInfo& functionArgs, const TypeInfo& actualArgs)
 
 bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 {
+	if (args.isEmpty())
+		return true;
+
 	if (args.size() != typeList.size())
 		return false;
 

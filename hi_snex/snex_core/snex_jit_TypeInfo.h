@@ -118,7 +118,7 @@ private:
 
 	void updateDebugName();
 
-#if JUCE_DEBUG
+#if SNEX_ENABLE_DEBUG_TYPENAMES
 	std::string debugName;
 #endif
 

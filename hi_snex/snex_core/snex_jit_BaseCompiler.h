@@ -240,7 +240,11 @@ public:
 		return unsafeIndexAllowed;
 	}
 
+	MathFunctions& getMathFunctionClass();
+
 private:
+
+	FunctionClass::Ptr mathFunctions;
 
 	bool unsafeIndexAllowed = false;
 

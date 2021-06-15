@@ -736,6 +736,12 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 		int cIndex = 0;
 		for (auto& c : chainList)
 		{
+			if (c.n == nullptr)
+			{
+				jassertfalse;
+				continue;
+			}
+
 			if (c.n->isPolyphonicOrHasPolyphonicTemplate())
 				isPoly = true;
 

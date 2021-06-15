@@ -155,7 +155,7 @@ snex::jit::Operations::InlinedArgument* Operations::StatementBlock::findInlinedP
 				}
 			}
 
-			return nullptr;
+			//return nullptr;
 		}
 	}
 

@@ -386,9 +386,7 @@ snex::jit::ComplexType* TypeInfo::getRawComplexTypePtr() const
 
 void TypeInfo::updateDebugName()
 {
-#if JUCE_DEBUG
-	debugName = toString().toStdString();
-#endif
+	SNEX_TYPEDEBUG(debugName = toString().toStdString());
 
 	jassert(!(type == Types::ID::Void && isRef()));
 }

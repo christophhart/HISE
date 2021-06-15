@@ -90,7 +90,7 @@ Result ComplexType::callConstructor(InitData& d)
 			{
 				VariableStorage v;
 				if (b->getValue(v))
-					providedArgs.add(TypeInfo(v.getType()));
+					providedArgs.add(TypeInfo(v.getType(), v.getType() == Types::ID::Pointer ? true : false));
 			}
 			return false;
 		});

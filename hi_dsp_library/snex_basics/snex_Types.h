@@ -5,6 +5,19 @@ using namespace juce;
 
 using FloatType = float;
 
+#define SNEX_ENABLE_DEBUG_TYPENAMES 0
+
+/** This will skip the string creation of type identifiers which takes up the most time in compiling in Debug mode. */
+#ifndef SNEX_ENABLE_DEBUG_TYPENAMES
+#define SNEX_ENABLE_DEBUG_TYPENAMES JUCE_DEBUG
+#endif
+
+
+#if SNEX_ENABLE_DEBUG_TYPENAMES
+#define SNEX_TYPEDEBUG(x) x
+#else
+#define SNEX_TYPEDEBUG(x)
+#endif
 
 struct options
 {
@@ -18,7 +31,7 @@ struct options
 			return value;
 
 		return static_cast<bool>(optionValue);
-	}
+}
 
 	static constexpr bool isTrueOrDynamic(int optionValue)
 	{

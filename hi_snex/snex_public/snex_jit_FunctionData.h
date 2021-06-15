@@ -175,6 +175,9 @@ struct FunctionData
 
 	operator bool() const noexcept { return function != nullptr; };
 
+	/** Returns false if the function is not const or has a non-const reference argument. */
+	bool isConstOrHasConstArgs() const;
+
 	bool isConst() const noexcept
 	{
 		return const_;

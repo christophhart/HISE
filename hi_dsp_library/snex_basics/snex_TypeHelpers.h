@@ -151,7 +151,10 @@ struct NamespacedIdentifier
 		return l;
 	}
 
+#if SNEX_ENABLE_DEBUG_TYPENAMES
 	std::string debugName;
+#endif
+
 	Array<Identifier> namespaces;
 	Identifier id;
 
@@ -216,7 +219,7 @@ struct NamespacedIdentifier
 
 		jassert(newParent.isParentOf(s));
 
-		debugName = s.debugName;
+		SNEX_TYPEDEBUG(debugName = s.debugName);
 		namespaces = s.namespaces;
 		id = s.id;
 	}
@@ -296,7 +299,7 @@ struct NamespacedIdentifier
 
 		id = newId;
 
-		debugName = toString().toStdString();
+		SNEX_TYPEDEBUG(debugName = toString().toStdString());
 	}
 
 	Result pop()
@@ -307,7 +310,7 @@ struct NamespacedIdentifier
 		id = namespaces.getLast();
 		namespaces.removeLast();
 
-		debugName = toString().toStdString();
+		SNEX_TYPEDEBUG(debugName = toString().toStdString());
 
 		return Result::ok();
 	}

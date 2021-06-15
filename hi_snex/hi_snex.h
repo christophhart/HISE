@@ -87,6 +87,16 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #endif
 #endif
 
+
+/** Config: Enables SIMD processing for consecutive float spans (not functional yet). */
+#ifndef SNEX_ENABLE_SIMD
+#define SNEX_ENABLE_SIMD 0
+#endif
+
+
+
+
+
 #include "../hi_lac/hi_lac.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
