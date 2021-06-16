@@ -1224,9 +1224,9 @@ ModulatorSamplerSoundPool* PoolCollection::getSamplePool()
 	return static_cast<ModulatorSamplerSoundPool*>(dataPools[FileHandlerBase::Samples]);
 }
 
-hise::MultiChannelAudioBuffer::LoadResult::Ptr PooledAudioFileDataProvider::loadFile(const String& reference)
+hise::MultiChannelAudioBuffer::SampleReference::Ptr PooledAudioFileDataProvider::loadFile(const String& reference)
 {
-	MultiChannelAudioBuffer::LoadResult::Ptr lr;
+	MultiChannelAudioBuffer::SampleReference::Ptr lr;
 
 	if (reference.isEmpty())
 		return lr;
@@ -1237,7 +1237,7 @@ hise::MultiChannelAudioBuffer::LoadResult::Ptr PooledAudioFileDataProvider::load
 
 	if (auto dataPtr = lastHandler->pool->getAudioSampleBufferPool().loadFromReference(ref, PoolHelpers::LoadAndCacheWeak))
 	{
-		lr = new MultiChannelAudioBuffer::LoadResult();
+		lr = new MultiChannelAudioBuffer::SampleReference();
 
 		auto metadata = dataPtr->additionalData;
 		

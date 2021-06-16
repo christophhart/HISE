@@ -683,18 +683,18 @@ private:
 */
 struct MultiChannelAudioBuffer : public ComplexDataUIBase
 {
-	struct LoadResult : public ReferenceCountedObject
+	struct SampleReference : public ReferenceCountedObject
 	{
-		using Ptr = ReferenceCountedObjectPtr<LoadResult>;
+		using Ptr = ReferenceCountedObjectPtr<SampleReference>;
 
-		LoadResult(bool ok = true, const String& ref = String()) :
+		SampleReference(bool ok = true, const String& ref = String()) :
 			r(ok ? Result::ok() : Result::fail(ref + " not found")),
 			reference(ref)
 		{};
 
 		operator bool() { return r.wasOk(); }
 
-		bool operator==(const LoadResult& other) const
+		bool operator==(const SampleReference& other) const
 		{
 			return reference == other.reference;
 		}
@@ -707,7 +707,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 
 	private:
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LoadResult);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleReference);
 	};
 
 	struct DataProvider: public ReferenceCountedObject
@@ -717,7 +717,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		virtual ~DataProvider() = default;
 
 		/** Override this function and load the content and process the string to be displayed. */
-		virtual LoadResult::Ptr loadFile(const String& referenceString) = 0;
+		virtual SampleReference::Ptr loadFile(const String& referenceString) = 0;
 
 		/** This directory will be used as default directory when opening files. */
 		virtual File getRootDirectory() { return File(); }
@@ -725,7 +725,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 	protected:
 
 		/** Use this to load a file that you have resolved to an absolute path. */
-		MultiChannelAudioBuffer::LoadResult::Ptr loadAbsoluteFile(const File& f, const String& refString);
+		MultiChannelAudioBuffer::SampleReference::Ptr loadAbsoluteFile(const File& f, const String& refString);
 
 		AudioFormatManager afm;
 
@@ -749,7 +749,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		Range<int> keyRange;
 		double root;
 		int rrGroup;
-		LoadResult::Ptr data;
+		SampleReference::Ptr data;
 	};
 
 	struct XYZPool : public DataProvider
@@ -763,7 +763,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 			return -1;
 		}
 
-		LoadResult::Ptr loadFile(const String& ref) override
+		SampleReference::Ptr loadFile(const String& ref) override
 		{
 			for (auto i : pool)
 			{
@@ -771,10 +771,10 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 					return i;
 			}
 
-			return new LoadResult(false, ref);
+			return new SampleReference(false, ref);
 		}
 
-		ReferenceCountedArray<LoadResult> pool;
+		ReferenceCountedArray<SampleReference> pool;
 	};
 
 	struct XYZProviderBase : public ReferenceCountedObject
@@ -783,9 +783,9 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 
 		virtual ComplexDataUIBase::EditorBase* createEditor(MultiChannelAudioBuffer* ed) = 0;
 
-		LoadResult::Ptr loadFileFromReference(const String& f);
+		SampleReference::Ptr loadFileFromReference(const String& f);
 
-		void removeFromPool(LoadResult::Ptr p)
+		void removeFromPool(SampleReference::Ptr p)
 		{
 			if(pool != nullptr)
 				pool->pool.removeObject(p);
@@ -804,7 +804,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 
 		virtual DataProvider* getDataProvider() = 0;
 
-		LoadResult::Ptr getPooledItem(int idx) const
+		SampleReference::Ptr getPooledItem(int idx) const
 		{
 			if (pool != nullptr)
 			{
@@ -1080,7 +1080,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 
 	const XYZItem::List& getXYZItems() const { return xyzItems; }
 
-	LoadResult::Ptr getFirstXYZData()
+	SampleReference::Ptr getFirstXYZData()
 	{
 		if (xyzItems.isEmpty())
 			return nullptr;

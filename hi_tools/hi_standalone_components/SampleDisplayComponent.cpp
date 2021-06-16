@@ -1312,7 +1312,7 @@ hise::ComplexDataUIBase::EditorBase* MultiChannelAudioBuffer::createEditor()
 	}
 }
 
-hise::MultiChannelAudioBuffer::LoadResult::Ptr MultiChannelAudioBuffer::XYZProviderBase::loadFileFromReference(const String& f)
+hise::MultiChannelAudioBuffer::SampleReference::Ptr MultiChannelAudioBuffer::XYZProviderBase::loadFileFromReference(const String& f)
 {
 	if (pool != nullptr)
 	{
@@ -1333,7 +1333,7 @@ hise::MultiChannelAudioBuffer::LoadResult::Ptr MultiChannelAudioBuffer::XYZProvi
 	return lr;
 }
 
-hise::MultiChannelAudioBuffer::LoadResult::Ptr MultiChannelAudioBuffer::DataProvider::loadAbsoluteFile(const File& f, const String& refString)
+hise::MultiChannelAudioBuffer::SampleReference::Ptr MultiChannelAudioBuffer::DataProvider::loadAbsoluteFile(const File& f, const String& refString)
 {
 	// call registerBasicFormats and thank me later...
 	jassert(afm.getNumKnownFormats() > 0);
@@ -1344,7 +1344,7 @@ hise::MultiChannelAudioBuffer::LoadResult::Ptr MultiChannelAudioBuffer::DataProv
 
 	if (reader != nullptr)
 	{
-		MultiChannelAudioBuffer::LoadResult::Ptr lr = new MultiChannelAudioBuffer::LoadResult();
+		MultiChannelAudioBuffer::SampleReference::Ptr lr = new MultiChannelAudioBuffer::SampleReference();
 		lr->buffer.setSize(reader->numChannels, (int)reader->lengthInSamples);
 		reader->read(&lr->buffer, 0, (int)reader->lengthInSamples, 0, true, true);
 		lr->reference = refString;
@@ -1352,7 +1352,7 @@ hise::MultiChannelAudioBuffer::LoadResult::Ptr MultiChannelAudioBuffer::DataProv
 		return lr;
 	}
 
-	return new MultiChannelAudioBuffer::LoadResult(false, f.getFileName() + " can't be loaded");
+	return new MultiChannelAudioBuffer::SampleReference(false, f.getFileName() + " can't be loaded");
 }
 
 } // namespace hise
