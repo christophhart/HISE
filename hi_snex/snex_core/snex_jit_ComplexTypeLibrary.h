@@ -162,8 +162,6 @@ struct DynType : public ArrayTypeBase
 		return false;
 	}
 
-	static IndexType getIndexType(const TypeInfo& t);
-
 	TypeInfo getElementType() const override { return elementType; }
 
 	size_t getRequiredByteSize() const override;
@@ -174,7 +172,6 @@ struct DynType : public ArrayTypeBase
 	Result initialise(InitData data) override;
 	bool forEach(const TypeFunction&, Ptr, void*) override { return false; }
 	juce::String toStringInternal() const override;
-
 
 	bool matchesOtherType(const ComplexType& other) const override
 	{

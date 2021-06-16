@@ -197,58 +197,6 @@ private:
 
 };
 
-
-
-
-struct IndexType
-{
-	template <int I> static auto wrapped(const FrameProcessor<I>& f, int initValue=0)
-	{
-		return typename span<float, I>::wrapped(initValue);
-	}
-
-	template <int I> static auto clamped(const FrameProcessor<I>& f, int initValue=0)
-	{
-		return typename span<float, I>::clamped(initValue);
-	}
-
-	template <typename E, int I> static auto clamped(const span<E, I>& obj, int index=0)
-	{
-		return typename span<E, I>::clamped(index);
-	}
-
-	template <typename E, int I> static auto wrapped(const span<E, I>& obj, int index=0)
-	{
-		return typename span<E, I>::wrapped(index);
-	}
-
-	template <typename T> static auto clamped(const dyn<T>& obj, int initValue=0)
-	{
-		return index::clamped<0>(initValue);
-	}
-
-	template <typename T> static auto wrapped(const dyn<T>& obj, int initValue=0)
-	{
-		return index::wrapped<0>(initValue);
-	}
-
-
-
-#if 0
-	template <typename E> static auto clamped(const dyn<E>& obj)
-	{
-		return typename dyn<E>::<clamped>(obj, 0);
-	}
-
-	
-
-	template <typename E> static auto wrapped(const dyn<E>& obj)
-	{
-		return typename dyn<E>::wrapped(obj, 0);
-	}
-#endif
-};
-
 /** This data structure is useful if you're writing any kind of oscillator.
 
 	It contains the buffer that the signal is supposed to be added to as well

@@ -316,9 +316,9 @@ template <int NumChannels> struct SampleData
 
 	double rootNote = -1.0;
 	double noteNumber = 0.0;
+	span<int, 2, 8> loopRange;
 	int velocity = 0;
 	int roundRobin = 1;
-	span<int, 2> loopRange;
 	span<block, NumChannels> data;
 };
 

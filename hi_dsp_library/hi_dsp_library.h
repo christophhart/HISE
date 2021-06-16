@@ -117,8 +117,9 @@ Set this to 1 if you want to embed the libraries created with this module into y
 
 #include "snex_basics/snex_TypeHelpers.h"
 
-
+#include "snex_basics/snex_IndexTypes.h"
 #include "snex_basics/snex_ArrayTypes.h"
+#include "snex_basics/snex_IndexLogic.h"
 #include "snex_basics/snex_Math.h"
 #include "snex_basics/snex_DynamicType.h"
 

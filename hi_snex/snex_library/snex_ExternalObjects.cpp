@@ -103,11 +103,11 @@ snex::jit::ComplexType::Ptr SampleDataJIT::createComplexType(Compiler& c, const 
 	ComplexType::Ptr loopRangeType = new SpanType(TypeInfo(Types::ID::Integer), 2);
 	loopRangeType = c.getNamespaceHandler().registerComplexTypeOrReturnExisting(loopRangeType);
 
-	st->addMember("rootNote", TypeInfo(Types::ID::Integer));
-	st->addMember("noteNumber", Types::ID::Integer);
+	st->addMember("rootNote", TypeInfo(Types::ID::Double));
+	st->addMember("noteNumber", Types::ID::Double);
+	st->addMember("loopRange", TypeInfo(loopRangeType));
 	st->addMember("velocity", Types::ID::Integer);
 	st->addMember("roundRobin", Types::ID::Integer);
-	st->addMember("loopRange", TypeInfo(loopRangeType));
 	st->addMember("data", TypeInfo(spanType));
 
 	st->setDefaultValue("rootNote", InitialiserList::makeSingleList(VariableStorage(-1)));
@@ -243,7 +243,9 @@ snex::jit::ComplexType::Ptr SampleDataJIT::createComplexType(Compiler& c, const 
 
 	auto originalSize = isMono ? sizeof(MonoSample) : sizeof(StereoSample);
 
-	jassert(st->getRequiredByteSize() == originalSize);
+	auto objSize = st->getRequiredByteSize();
+
+	jassert(objSize == originalSize);
 	return st;
 }
 
