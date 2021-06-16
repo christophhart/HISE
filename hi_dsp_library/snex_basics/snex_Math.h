@@ -160,12 +160,12 @@ return b1; \
 		return (value >= 0) ? fmod(value, limit) : fmod(limit - fmod(abs(value), limit), limit);
 	}
 
-	static constexpr double wrap(double value, double limit)
+	static forcedinline double wrap(double value, double limit)
 	{
 		return (value >= 0.0) ? fmod(value, limit) : fmod(limit - fmod(abs(value), limit), limit);
 	}
 
-	static constexpr float wrap(float value, float limit)
+	static forcedinline float wrap(float value, float limit)
 	{
 		return (value >= 0.0f) ? fmod(value, limit) : fmod(limit - fmod(abs(value), limit), limit);
 	}
@@ -173,8 +173,8 @@ return b1; \
 #else
 
 	static constexpr int wrap(int value, int limit) { return fmod(value + limit, limit); }
-	static constexpr double wrap(double value, double limit) { return fmod(value + limit, limit); }
-	static constexpr float wrap(float value, float limit) { return fmod(value + limit, limit); }
+	static forcedinline double wrap(double value, double limit) { return fmod(value + limit, limit); }
+	static forcedinline float wrap(float value, float limit) { return fmod(value + limit, limit); }
 
 #endif
 

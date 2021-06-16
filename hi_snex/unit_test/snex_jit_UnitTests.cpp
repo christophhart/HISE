@@ -3468,7 +3468,7 @@ private:
 		FloatVectorOperations::copy(e2.begin(), d2.begin(), SizeB);
 		FloatVectorOperations::copy(e1.begin(), d1.begin(), SizeA);
 
-		d1.performOp<OpType>(d2);
+		d1.template performOp<OpType>(d2);
 
 		for (int i = 0; i < SizeA; i++)
 		{
@@ -3494,7 +3494,7 @@ private:
 		
 		FloatVectorOperations::copy(e1.begin(), d1.begin(), SizeA);
 
-		d1.performOp<OpType>(s);
+		d1.template performOp<OpType>(s);
 
 		for (int i = 0; i < SizeA; i++)
 		{

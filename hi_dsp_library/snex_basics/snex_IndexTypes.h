@@ -452,7 +452,7 @@ template <typename IndexType> struct lerp: public interpolator_base<IndexType>
 
 	lerp& operator=(Type v)
 	{
-		idx = v;
+		this->idx = v;
 		return *this;
 	}
 
@@ -495,7 +495,7 @@ private:
 
 		ElementType d;
 
-		index::unsafe<0> j;
+		int j = 0;
 
 		for (auto& s : d)
 		{
@@ -526,7 +526,7 @@ template <typename IndexType> struct hermite : public interpolator_base<IndexTyp
 
 	hermite& operator=(Type v)
 	{
-		idx = v;
+		this->idx = v;
 		return *this;
 	}
 
@@ -568,7 +568,7 @@ private:
 		using ElementType = typename ContainerType::DataType;
 
 		ElementType d;
-		index::unsafe<0> j;
+        int j = 0;
 
 		for(auto& s: d)
 		{

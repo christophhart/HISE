@@ -235,7 +235,7 @@ template <class T, int Size, int Alignment=16> struct span
 
 			static_assert(OperandType::hasCompileTimeSize(), "not a compile time array");
 			static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
-			static_assert(std::is_same<OperandType::DataType, T>(), "type mismatch");
+            static_assert(std::is_same<typename OperandType::DataType, T>(), "type mismatch");
 
 			static constexpr int ThisSize = s;
 			static constexpr int OtherSize = OperandType::s;
@@ -270,7 +270,7 @@ template <class T, int Size, int Alignment=16> struct span
 				else
 				{
 					static constexpr int MaxIndex = jmin(ThisSize, OtherSize) / getSimdSize();
-					index::clamped<MaxIndex, true> idx;
+					
 
 					using SSESpanType = span<span<float, getSimdSize()>, ThisSize / getSimdSize()>;
 					using OpSSESpanType = span<span<float, getSimdSize()>, OtherSize / getSimdSize()>;
@@ -320,10 +320,8 @@ template <class T, int Size, int Alignment=16> struct span
 				}
 				else
 				{
-					index::clamped<jmin(ThisSize, OtherSize), true> idx;
-
 					for (int i = 0; i < size(); i++)
-						OpType::op((*this)[i], op[idx++]);
+						OpType::op((*this)[i], op[jmin<int>(i, OtherSize)]);
 				}
 			}
 
@@ -333,19 +331,19 @@ template <class T, int Size, int Alignment=16> struct span
 		return *this;
 	}
 
-	template <typename OperandType> Type& operator+(const OperandType& op) { return this->performOp<SpanOperators<T>::add>(op); }
+	template <typename OperandType> Type& operator+(const OperandType& op) { return this->performOp<typename SpanOperators<T>::add>(op); }
 	template <typename OperandType> Type& operator+=(const OperandType& t) { return *this + t; }
 
-	template <typename OperandType> Type& operator*(const OperandType& op) { return this->performOp<SpanOperators<T>::multiply>(op); }
+	template <typename OperandType> Type& operator*(const OperandType& op) { return this->performOp<typename SpanOperators<T>::multiply>(op); }
 	template <typename OperandType> Type& operator*=(const OperandType& t) { return *this * t; }
 
-	template <typename OperandType> Type& operator/(const OperandType& op) { return this->performOp<SpanOperators<T>::divide>(op); }
+	template <typename OperandType> Type& operator/(const OperandType& op) { return this->performOp<typename SpanOperators<T>::divide>(op); }
 	template <typename OperandType> Type& operator/=(const OperandType& t) { return *this / t; }
 
-	template <typename OperandType> Type& operator-(const OperandType& op) { return this->performOp<SpanOperators<T>::sub>(op); }
+	template <typename OperandType> Type& operator-(const OperandType& op) { return this->performOp<typename SpanOperators<T>::sub>(op); }
 	template <typename OperandType> Type& operator-=(const OperandType& t) { return *this - t; }
 
-	template <typename OperandType> Type& operator=(const OperandType& t) { return this->performOp<SpanOperators<T>::assign>(t); };
+	template <typename OperandType> Type& operator=(const OperandType& t) { return this->performOp<typename SpanOperators<T>::assign>(t); };
 
 
 #if 0

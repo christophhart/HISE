@@ -22,7 +22,7 @@ namespace mcl
 #define TEST_MULTI_CARET_EDITING true
 #define TEST_SYNTAX_SUPPORT true
 
-#define PROFILE_PAINTS true
+#define PROFILE_PAINTS false
 static bool DEBUG_TOKENS = false;
 
 

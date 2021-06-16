@@ -45,7 +45,7 @@ template <typename IndexType> struct IndexTester
 
 	static constexpr bool isLoopTest()
 	{
-		return std::is_same<index::looped_logic<Limit>, IndexType::LogicType>();
+		return std::is_same<index::looped_logic<Limit>, typename IndexType::LogicType>();
 	}
 
 	IndexTester(UnitTest* test_, StringArray opt, int dynamicSize = 0) :
