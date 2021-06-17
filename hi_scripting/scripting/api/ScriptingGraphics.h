@@ -375,7 +375,7 @@ namespace ScriptingObjects
 		void fillPath(var path, var area);
 
 		/** Draws the given path. */
-		void drawPath(var path, var area, var thickNess);
+		void drawPath(var path, var area, var strokeStyle);
 
 		/** Rotates the canvas around center `[x, y]` by the given amount in radian. */
 		void rotate(var angleInRadian, var center);

@@ -692,7 +692,7 @@ void ScriptingObjects::GraphicsObject::gaussianBlur(var blurAmount)
 {
 	if (auto cl = drawActionHandler.getCurrentLayer())
 	{
-		cl->addPostAction(new ScriptedPostDrawActions::guassianBlur(jlimit(1, 100, (int)blurAmount)));
+		cl->addPostAction(new ScriptedPostDrawActions::guassianBlur(jlimit(0, 100, (int)blurAmount)));
 	}
 	else
 		reportScriptError("You need to create a layer for gaussian blur");
@@ -702,7 +702,7 @@ void ScriptingObjects::GraphicsObject::boxBlur(var blurAmount)
 {
 	if (auto cl = drawActionHandler.getCurrentLayer())
 	{
-		cl->addPostAction(new ScriptedPostDrawActions::boxBlur(jlimit(1, 100, (int)blurAmount)));
+		cl->addPostAction(new ScriptedPostDrawActions::boxBlur(jlimit(0, 100, (int)blurAmount)));
 	}
 	else
 		reportScriptError("You need to create a layer for box blur");
@@ -979,7 +979,7 @@ void ScriptingObjects::GraphicsObject::drawTriangle(var area, float angle, float
 	auto r = getRectangleFromVar(area);
 	p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
 
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawPath(p, lineThickness));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawPath(p, PathStrokeType(lineThickness)));
 }
 
 void ScriptingObjects::GraphicsObject::fillTriangle(var area, float angle)
@@ -1034,7 +1034,7 @@ void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
 	}
 }
 
-void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var thickness)
+void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var strokeType)
 {
 	if (PathObject* pathObject = dynamic_cast<PathObject*>(path.getObject()))
 	{
@@ -1046,8 +1046,26 @@ void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var thicknes
 			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
 		}
 
-		auto t = (float)thickness;
-		drawActionHandler.addDrawAction(new ScriptedDrawActions::drawPath(p, SANITIZED(t)));
+		PathStrokeType s(1.0f);
+
+		if (auto obj = strokeType.getDynamicObject())
+		{
+			static const StringArray endcaps = { "butt", "square", "rounded" };
+			static const StringArray jointStyles = { "mitered", "curved","beveled" };
+
+			auto endCap = (PathStrokeType::EndCapStyle)endcaps.indexOf(obj->getProperty("EndCapStyle").toString());
+			auto jointStyle = (PathStrokeType::JointStyle)jointStyles.indexOf(obj->getProperty("JointStyle").toString());
+			auto thickness = (float)obj->getProperty("Thickness");
+
+			s = PathStrokeType(SANITIZED(thickness), jointStyle, endCap);
+		}
+		else
+		{
+			auto t = (float)strokeType;
+			s = PathStrokeType(SANITIZED(t));
+		}
+
+		drawActionHandler.addDrawAction(new ScriptedDrawActions::drawPath(p, s));
 	}
 }
 

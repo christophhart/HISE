@@ -231,14 +231,13 @@ namespace ScriptedDrawActions
 
 	struct drawPath : public DrawActions::ActionBase
 	{
-		drawPath(const Path& p_, float thickness_) : p(p_), thickness(thickness_) {};
+		drawPath(const Path& p_, PathStrokeType strokeType) : p(p_), s(strokeType) {};
 		void perform(Graphics& g) override
 		{
-			PathStrokeType s(thickness);
 			g.strokePath(p, s);
 		}
 		Path p;
-		float thickness;
+		PathStrokeType s;
 	};
 
 	struct fillRect : public DrawActions::ActionBase
