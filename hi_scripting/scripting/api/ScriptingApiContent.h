@@ -471,6 +471,9 @@ public:
         /** Returns the absolute y-position relative to the interface. */
         int getGlobalPositionY();
         
+		/** Returns a [x, y, w, h] array that was reduced by the given amount. */
+		var getLocalBounds(float reduceAmount);
+
 		/** Restores all properties from a JSON object. */
 		void setPropertiesFromJSON(const var &jsonData);
 

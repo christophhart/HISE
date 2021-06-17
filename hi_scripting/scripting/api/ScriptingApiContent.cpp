@@ -117,6 +117,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, addToMacroControl);
 	API_METHOD_WRAPPER_0(ScriptComponent, getWidth);
 	API_METHOD_WRAPPER_0(ScriptComponent, getHeight);
+	API_METHOD_WRAPPER_1(ScriptComponent, getLocalBounds);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, changed);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionX);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
@@ -213,6 +214,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_1(addToMacroControl);
 	ADD_API_METHOD_0(getWidth);
 	ADD_API_METHOD_0(getHeight);
+	ADD_API_METHOD_1(getLocalBounds);
 	ADD_API_METHOD_0(changed);
 	ADD_API_METHOD_0(getGlobalPositionX);
 	ADD_API_METHOD_0(getGlobalPositionY);
@@ -1064,6 +1066,16 @@ void ScriptingApi::Content::ScriptComponent::sendSubComponentChangeMessage(Scrip
 		f();
 	else
 		MessageManager::callAsync(f);
+}
+
+var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
+{
+	Rectangle<float> ar(0.0f, 0.0f, (float)getScriptObjectProperty(Properties::width), (float)getScriptObjectProperty(Properties::height));
+	ar = ar.reduced(reduceAmount);
+
+	Array<var> b;
+	b.add(ar.getX()); b.add(ar.getY()); b.add(ar.getWidth()); b.add(ar.getHeight());
+	return var(b);
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
