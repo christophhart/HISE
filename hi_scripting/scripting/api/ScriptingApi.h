@@ -1149,6 +1149,30 @@ public:
 		/** Returns a colour value with the specified alpha value. */
 		int withAlpha(int colour, float alpha);
 
+		/** Returns a colour with the specified hue. */
+		int withHue(int colour, float hue);
+
+		/** Returns a colour with the specified saturation. */
+		int withSaturation(int colour, float saturation);
+
+		/** Returns a colour with the specified brightness. */
+		int withBrightness(int colour, float brightness);
+
+		/** Returns a colour with a multiplied alpha value. */
+		int withMultipliedAlpha(int colour, float factor);
+
+		/** Returns a colour with a multiplied saturation value. */
+		int withMultipliedSaturation(int colour, float factor);
+
+		/** Returns a colour with a multiplied brightness value. */
+		int withMultipliedBrightness(int colour, float factor);
+
+		/** Converts a colour to a [r, g, b, a] array that can be passed to GLSL as vec4. */
+		var toVec4(int colour);
+
+		/** Converts a colour from a [r, g, b, a] float array to a uint32 value. */
+		int fromVec4(var vec4);
+
 		// ============================================================================================================
 
 		struct Wrapper;

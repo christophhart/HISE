@@ -4507,6 +4507,14 @@ m(dynamic_cast<Modulation*>(mod_))
 struct ScriptingApi::Colours::Wrapper
 {
 	API_METHOD_WRAPPER_2(Colours, withAlpha);
+	API_METHOD_WRAPPER_2(Colours, withHue);
+	API_METHOD_WRAPPER_2(Colours, withBrightness);
+	API_METHOD_WRAPPER_2(Colours, withSaturation);
+	API_METHOD_WRAPPER_2(Colours, withMultipliedAlpha);
+	API_METHOD_WRAPPER_2(Colours, withMultipliedBrightness);
+	API_METHOD_WRAPPER_2(Colours, withMultipliedSaturation);
+	API_METHOD_WRAPPER_1(Colours, fromVec4);
+	API_METHOD_WRAPPER_1(Colours, toVec4);
 };
 
 ScriptingApi::Colours::Colours() :
@@ -4653,13 +4661,84 @@ ApiClass(139)
 	addConstant("yellowgreen", (int64)0xff9acd32);
 
 	ADD_API_METHOD_2(withAlpha);
+	ADD_API_METHOD_2(withHue);
+	ADD_API_METHOD_2(withBrightness);
+	ADD_API_METHOD_2(withSaturation);
+	ADD_API_METHOD_2(withMultipliedAlpha);
+	ADD_API_METHOD_2(withMultipliedBrightness);
+	ADD_API_METHOD_2(withMultipliedSaturation);
+	ADD_API_METHOD_1(toVec4);
+	ADD_API_METHOD_1(fromVec4);
 }
 
 int ScriptingApi::Colours::withAlpha(int colour, float alpha)
 {
 	Colour c((uint32)colour);
-
 	return (int)c.withAlpha(alpha).getARGB();
+}
+
+int ScriptingApi::Colours::withHue(int colour, float hue)
+{
+	Colour c((uint32)colour);
+	return (int)c.withHue(hue).getARGB();
+}
+
+int ScriptingApi::Colours::withSaturation(int colour, float saturation)
+{
+	Colour c((uint32)colour);
+	return (int)c.withSaturation(saturation).getARGB();
+}
+
+int ScriptingApi::Colours::withBrightness(int colour, float brightness)
+{
+	Colour c((uint32)colour);
+	return (int)c.withBrightness(brightness).getARGB();
+}
+
+int ScriptingApi::Colours::withMultipliedAlpha(int colour, float factor)
+{
+	Colour c((uint32)colour);
+	return (int)c.withMultipliedAlpha(factor).getARGB();
+}
+
+int ScriptingApi::Colours::withMultipliedSaturation(int colour, float factor)
+{
+	Colour c((uint32)colour);
+	return (int)c.withMultipliedSaturation(factor).getARGB();
+}
+
+int ScriptingApi::Colours::withMultipliedBrightness(int colour, float factor)
+{
+	Colour c((uint32)colour);
+	return (int)c.withMultipliedBrightness(factor).getARGB();
+}
+
+var ScriptingApi::Colours::toVec4(int colour)
+{
+	Colour c((uint32)colour);
+
+	Array<var> v4;
+	v4.add(c.getFloatRed());
+	v4.add(c.getFloatGreen());
+	v4.add(c.getFloatBlue());
+	v4.add(c.getFloatAlpha());
+
+	return v4;
+}
+
+int ScriptingApi::Colours::fromVec4(var vec4)
+{
+	if (vec4.isArray() && vec4.size() == 4)
+	{
+		auto r = (uint8)roundToInt((float)vec4[0] * 255.0f);
+		auto g = (uint8)roundToInt((float)vec4[1] * 255.0f);
+		auto b = (uint8)roundToInt((float)vec4[2] * 255.0f);
+		auto a = (uint8)roundToInt((float)vec4[3] * 255.0f);
+
+		return Colour(r, g, b, a).getARGB();
+	}
+
+	return 0;
 }
 
 ScriptingApi::ModuleIds::ModuleIds(ModulatorSynth* s):
