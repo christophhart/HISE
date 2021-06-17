@@ -748,7 +748,7 @@ struct GraphicHelpers
 			auto s = srcData.getLinePointer(y);
 			auto d = dstData.getLinePointer(y);
 
-			auto w = src.getWidth();
+			auto w = src.getWidth() * 4;
 
 			for (int x = 0; x < w; x++)
 				d[x] = jmin(255, s[x] + d[x]);
@@ -830,6 +830,7 @@ void BorderPanel::paint(Graphics &g)
 					}
 
 					Graphics g3(actionImage);
+					g3.addTransform(st);
 					action->setCachedImage(actionImage);
 					action->perform(g3);
 
