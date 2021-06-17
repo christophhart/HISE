@@ -1720,6 +1720,20 @@ void ScriptCreatedComponentWrappers::PanelWrapper::subComponentAdded(ScriptCompo
 		{
 			if (newComponent == sp)
 			{
+				bool found = false;
+
+				for (int j = 0; j < childPanelWrappers.size(); j++)
+				{
+					if (childPanelWrappers[j]->getScriptComponent() == newComponent)
+					{
+						found = true;
+						break;
+					}
+				}
+
+				if (found)
+					continue;
+
 				childPanelWrappers.add(new PanelWrapper(contentComponent, sp));
 				bpc->addAndMakeVisible(childPanelWrappers.getLast()->getComponent());
 			}
