@@ -69,6 +69,8 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		ADD_API_METHOD_1(sqrt);
 		ADD_API_METHOD_1(ceil);
 		ADD_API_METHOD_1(floor);
+		ADD_API_METHOD_2(fmod);
+		ADD_API_METHOD_2(wrap);
 
 		addConstant("PI", double_Pi);
 		addConstant("E", exp(1.0));
@@ -114,6 +116,8 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		API_METHOD_WRAPPER_1(MathClass, sqrt);
 		API_METHOD_WRAPPER_1(MathClass, ceil);
 		API_METHOD_WRAPPER_1(MathClass, floor);
+		API_METHOD_WRAPPER_2(MathClass, fmod);
+		API_METHOD_WRAPPER_2(MathClass, wrap);
 	};
 
 	/** Returns a random number between 0.0 and 1.0. */
@@ -235,6 +239,12 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 
 	/** Rounds down the value. */
 	var floor(var value) { return std::floor((double)value); }
+
+	/** Returns the remainder when dividing value with limit. */
+	var fmod(var value, var limit) { return hmath::fmod((double)value, (double)limit); }
+
+	/** Wraps the value around the limit (always positive). */
+	var wrap(var value, var limit) { return hmath::wrap((double)value, (double)limit); }
 
 	template <typename Type> static Type sign_(Type n) noexcept{ return n > 0 ? (Type)1 : (n < 0 ? (Type)-1 : 0); }
 };
