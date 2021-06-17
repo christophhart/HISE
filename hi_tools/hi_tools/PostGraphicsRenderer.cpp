@@ -224,24 +224,16 @@ void PostGraphicsRenderer::addNoise(float noiseAmount)
 
 void PostGraphicsRenderer::gaussianBlur(int blur)
 {
-	
-#if USE_IPP && JUCE_WINDOWS
-	auto& bf = getNextData();
+	if(blur != 0)
+		stackBlur(blur);
 
-	blur /= 2;
-	int kernelSize = blur * 2 + 1;
-
-	bf.initGaussianBlur(kernelSize, (float)blur, bd.width, bd.height);
-
-	Data::WithoutAlphaConverter wac(bf, bd);
-
-	auto status = ippiFilterGaussianBorder_8u_C3R(wac.getWithoutAlpha(), 3 * bd.width, wac.getWithoutAlpha(), 3 * bd.width, { bd.width, bd.height }, NULL, reinterpret_cast<IppFilterGaussianSpec*>(bf.pSpec), bf.pBuffer);
-#endif
+	return;
 }
 
 void PostGraphicsRenderer::boxBlur(int blur)
 {
-	stackBlur(blur);
+	if(blur != 0)
+		stackBlur(blur);
 	return;
 
 #if USE_IPP

@@ -38,7 +38,7 @@ struct ScriptedPostDrawActions
 	{
 		guassianBlur(int b) : blurAmount(b) {};
 
-		bool needsStackData() const override { return true; }
+		bool needsStackData() const override { return false; }
 		void perform(PostGraphicsRenderer& r) override
 		{
 			r.gaussianBlur(blurAmount);
@@ -51,7 +51,7 @@ struct ScriptedPostDrawActions
 	{
 		boxBlur(int b) : blurAmount(b) {};
 
-		bool needsStackData() const override { return true; }
+		bool needsStackData() const override { return false; }
 		void perform(PostGraphicsRenderer& r) override
 		{
 			r.boxBlur(blurAmount);
