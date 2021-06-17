@@ -175,6 +175,8 @@ namespace ScriptingObjects
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("UnorderedStack"); }
 
+		void rightClickCallback(const MouseEvent& e, Component *c) override;
+
 		// ============================================================================================================
 
 		/** Inserts a number at the end of the stack. */
@@ -188,8 +190,9 @@ namespace ScriptingObjects
 		/** removes the given number and fills the gap. */
 		bool remove(float value)
 		{
-			return data.remove(value);
+			auto ok = data.remove(value);
 			updateElementBuffer();
+			return ok;
 		}
 
 		/** Clears the stack. */
@@ -235,6 +238,8 @@ namespace ScriptingObjects
 
 	private:
 
+		struct Display;
+
 		struct Wrapper;
 
 		void updateElementBuffer()
@@ -244,6 +249,8 @@ namespace ScriptingObjects
 
 		VariantBuffer::Ptr wholeBf, elementBuffer;
 		hise::UnorderedStack<float, 128> data;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUnorderedStack);
 	};
 
 	class ScriptFile : public ConstScriptingObject

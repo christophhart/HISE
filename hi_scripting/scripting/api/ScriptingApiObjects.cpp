@@ -5090,4 +5090,71 @@ ScriptingObjects::ScriptUnorderedStack::ScriptUnorderedStack(ProcessorWithScript
 	wholeBf = new VariantBuffer(data.begin(), 128);
 }
 
+struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
+														 public Timer
+{
+	static constexpr int CellWidth = 70;
+	static constexpr int CellHeight = 22;
+	static constexpr int NumRows = 16;
+	static constexpr int NumColumns = 128 / NumRows;
+
+	void timerCallback() override { repaint(); }
+
+	Display(ScriptUnorderedStack* p):
+		parent(p)
+	{
+		setSize(NumColumns * CellWidth, NumRows * CellHeight);
+		setName("Unordered Stack Viewer");
+		startTimer(30);
+	}
+
+	void paint(Graphics& g) override
+	{
+		int index = 0;
+
+		for (int y = 0; y < NumRows; y++)
+		{
+			for (int x = 0; x < NumColumns; x++)
+			{
+				Rectangle<int> ar(x * CellWidth, y * CellHeight, CellWidth, CellHeight);
+				
+				if (index < parent->size())
+				{
+					g.setColour(Colours::white.withAlpha(0.2f));
+					g.fillRect(ar.reduced(1));
+
+					float v = *(parent->data.begin() + index);
+					g.setColour(Colours::white.withAlpha(0.8f));
+					g.setFont(GLOBAL_MONOSPACE_FONT());
+					g.drawText(String(v, 1), ar.toFloat(), Justification::centred);
+				}
+				else
+				{
+					g.setColour(Colours::white.withAlpha(0.05f));
+					g.fillRect(ar.reduced(1));
+				}
+
+				index++;
+			}
+		}
+	}
+
+	WeakReference<ScriptUnorderedStack> parent;
+};
+
+void ScriptingObjects::ScriptUnorderedStack::rightClickCallback(const MouseEvent& e, Component *c)
+{
+#if USE_BACKEND
+
+	auto te = new Display(this);
+	auto editor = GET_BACKEND_ROOT_WINDOW(c);
+	MouseEvent ee = e.getEventRelativeTo(editor);
+	editor->getRootFloatingTile()->showComponentInRootPopup(te, editor, ee.getMouseDownPosition());
+#else
+	ignoreUnused(e, c);
+#endif
+}
+
+
+
 } // namespace hise
