@@ -397,9 +397,7 @@ void ScriptExpansionHandler::InstallState::call()
 
 void ScriptExpansionHandler::InstallState::timerCallback()
 {
-	SimpleReadWriteLock::ScopedTryReadLock sl(timerLock);
-
-	if (sl.hasLock())
+	if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(timerLock))
 	{
 		status = 1;
 		call();

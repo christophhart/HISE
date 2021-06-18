@@ -504,11 +504,6 @@ public:
 		/** This warning will show up in the console so people can migrate in the next years... */
 		void logSettingWarning(const String& methodName) const;
 
-#if HISE_INCLUDE_SNEX
-		SnexWrapper* createSnexWrapper() override;
-		struct Snex;
-#endif
-
 		struct Wrapper;
 
 		double unused = 0.0;
@@ -992,12 +987,6 @@ public:
 		void setSustainPedal(bool shouldBeDown) { sustainState = shouldBeDown; };
 
 		struct Wrapper;
-
-#if HISE_INCLUDE_SNEX
-		struct Snex;
-
-		SnexWrapper* createSnexWrapper() override;
-#endif
 
 	private:
 

@@ -1308,14 +1308,16 @@ public:
 		/** Returns the number of sliders. */
 		int getNumSliders() const;
 
-    /** Sets a non-uniform width per slider using an array in the form [0.0, ... a[i], ... 1.0]. */
-    void setWidthArray(var normalizedWidths);
+		/** Sets a non-uniform width per slider using an array in the form [0.0, ... a[i], ... 1.0]. */
+		void setWidthArray(var normalizedWidths);
         
 		// ========================================================================================================
 
 		struct Wrapper;
 
 		SliderPackData* getSliderPackData() { return getCachedSliderPack(); };
+
+		Array<var> widthArray;
 
 	private:
 

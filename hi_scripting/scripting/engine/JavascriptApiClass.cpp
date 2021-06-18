@@ -400,63 +400,6 @@ void ApiClass::getAllConstants(Array<Identifier> &ids) const
 	}
 }
 
-#if HISE_INCLUDE_SNEX
-struct ApiClass::SnexWrapper: public snex::jit::FunctionClass
-{
-	/** Use this function to create a sub type.. */
-	template <typename T, typename S> static T* create(S* typedSubClass)
-	{
-		static_assert(std::is_base_of<SnexWrapper, T>(), "not a base class");
-		return new T(typedSubClass, reinterpret_cast<void*>(typedSubClass));
-	}
-
-protected:
-
-	virtual ~SnexWrapper() {};
-
-	void addApiCall(snex::Types::ID returnType, const Identifier& id, void* funcPointer, Array<snex::Types::ID> argTypes)
-	{
-		using namespace snex;
-		using namespace snex::jit;
-		FunctionData* f = new FunctionData();
-		f->returnType = TypeInfo(returnType, false, false);
-		f->id = getClassName().getChildId(id);
-		f->object = obj;
-		f->function = funcPointer;
-
-		int i = 1;
-
-		for (auto a : argTypes)
-			f->addArgs("a" + String(i++), TypeInfo(a, false, false));
-
-		addFunction(f);
-	}
-
-protected:
-
-	SnexWrapper(ApiClass* c, void* obj_) :
-		FunctionClass(snex::NamespacedIdentifier(c->getObjectName())),
-		obj(obj_)
-	{
-		using namespace snex;
-
-		for (auto& cc : c->constants)
-		{
-			bool isInt = cc.value.isInt() || cc.value.isInt64() || cc.value.isBool();
-			bool isDouble = cc.value.isDouble();
-
-			if (isInt)
-				FunctionClass::addFunctionConstant(cc.id, VariableStorage(Types::ID::Integer, cc.value));
-			else if (isDouble)
-				FunctionClass::addFunctionConstant(cc.id, VariableStorage(Types::ID::Double, cc.value));
-
-		}
-	};
-
-	void* obj;
-};
-#endif
-
 ApiClass::Constant::Constant(const Identifier &id_, var value_) :
 id(id_),
 value(value_)

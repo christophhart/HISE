@@ -773,15 +773,6 @@ void HiseJavascriptEngine::registerApiClass(ApiClass *apiClass)
 {
 	root->hiseSpecialData.apiClasses.add(apiClass);
 	root->hiseSpecialData.apiIds.add(apiClass->getObjectName());
-
-#if HISE_INCLUDE_SNEX
-	snex::jit::FunctionClass::Ptr p = apiClass->createSnexWrapper();
-
-	if (p != nullptr)
-	{
-		root->snexGlobalScope.addFunctionClass(p);
-	}
-#endif
 }
 
 #if 0

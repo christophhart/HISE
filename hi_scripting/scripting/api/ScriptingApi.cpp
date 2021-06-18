@@ -1010,6 +1010,11 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 }
 
 
+ScriptingApi::Engine::~Engine()
+{
+
+}
+
 void ScriptingApi::Engine::allNotesOff()
 {
 	getProcessor()->getMainController()->allNotesOff();

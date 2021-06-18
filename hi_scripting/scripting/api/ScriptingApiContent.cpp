@@ -1092,8 +1092,9 @@ void ScriptingApi::Content::ScriptComponent::setZLevel(String zLevelToUse)
 				l->zLevelChanged(currentZLevel);
 		}
 	}
+}
 
-  var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
+var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
 {
 	Rectangle<float> ar(0.0f, 0.0f, (float)getScriptObjectProperty(Properties::width), (float)getScriptObjectProperty(Properties::height));
 	ar = ar.reduced(reduceAmount);
