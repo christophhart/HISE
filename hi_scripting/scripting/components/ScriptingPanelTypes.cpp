@@ -503,6 +503,9 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 	zoomSelector->setSize(100, 24);
 	klaf.setDefaultColours(*zoomSelector);
 
+	canvas.setScrollOnDragEnabled(!canvas.getContent<Canvas>()->overlay->isEditModeEnabled());
+	canvas.setColour(ZoomableViewport::ColourIds::backgroundColourId, Colour(0xff262626));
+
 	rebuildAfterContentChange();
 }
 
@@ -829,6 +832,8 @@ bool ScriptContentPanel::Editor::Actions::zoomOut(Editor& e)
 bool ScriptContentPanel::Editor::Actions::toggleEditMode(Editor& e)
 {
 	e.canvas.getContent<Canvas>()->overlay->toggleEditMode();
+	e.canvas.setScrollOnDragEnabled(!e.canvas.getContent<Canvas>()->overlay->isEditModeEnabled());
+
 	return true;
 }
 

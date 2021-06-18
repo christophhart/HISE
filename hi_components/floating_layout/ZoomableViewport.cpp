@@ -65,6 +65,8 @@ ZoomableViewport::ZoomableViewport(Component* n) :
 	mouseWatcher(new MouseWatcher(*this)),
 	sf(*this)
 {
+	setColour(ColourIds::backgroundColourId, Colour(0xff1d1d1d));
+
 	content->addComponentListener(this);
 
 	hBar.setLookAndFeel(&slaf);
@@ -134,23 +136,30 @@ void ZoomableViewport::mouseDown(const MouseEvent& e)
 
 void ZoomableViewport::mouseDrag(const MouseEvent& e)
 {
-	auto cBounds = content->getBoundsInParent().toDouble();
-	auto tBounds = getLocalBounds().toDouble();
+	if (dragToScroll)
+	{
+		auto cBounds = content->getBoundsInParent().toDouble();
+		auto tBounds = getLocalBounds().toDouble();
 
-	auto deltaX = Helpers::pixelToNorm((double)e.getPosition().getX(), cBounds.getWidth(), tBounds.getWidth());
-	auto deltaY = Helpers::pixelToNorm((double)e.getPosition().getY(), cBounds.getHeight(), tBounds.getHeight());
+		auto deltaX = Helpers::pixelToNorm((double)e.getPosition().getX(), cBounds.getWidth(), tBounds.getWidth());
+		auto deltaY = Helpers::pixelToNorm((double)e.getPosition().getY(), cBounds.getHeight(), tBounds.getHeight());
 
-	deltaX -= normDragStart.getX();
-	deltaY -= normDragStart.getY();
+		deltaX -= normDragStart.getX();
+		deltaY -= normDragStart.getY();
 
-	xDragger.drag(deltaX);
-	yDragger.drag(deltaY);
+		xDragger.drag(deltaX);
+		yDragger.drag(deltaY);
+	}
+	
 }
 
 void ZoomableViewport::mouseUp(const MouseEvent& e)
 {
-	xDragger.endDrag();
-	yDragger.endDrag();
+	if (dragToScroll)
+	{
+		xDragger.endDrag();
+		yDragger.endDrag();
+	}
 }
 
 void ZoomableViewport::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel)
@@ -213,7 +222,7 @@ void ZoomableViewport::resized()
 
 void ZoomableViewport::paint(Graphics& g)
 {
-	g.fillAll(Colour(0xff1d1d1d));
+	g.fillAll(findColour(ColourIds::backgroundColourId));
 
 	if (!content->isVisible())
 	{

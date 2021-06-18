@@ -649,7 +649,7 @@ void ScriptingContentOverlay::mouseDrag(const MouseEvent& e)
 	}
 	else
 	{
-		if (e.mouseWasDraggedSinceMouseDown())
+		if (e.mouseWasDraggedSinceMouseDown() && isEditModeEnabled())
 		{
 			lassoSet.deselectAll();
 

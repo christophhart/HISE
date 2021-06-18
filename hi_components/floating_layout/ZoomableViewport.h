@@ -45,6 +45,11 @@ struct ZoomableViewport : public Component,
 	public Timer,
 	public DragAnimator::Listener
 {
+	enum ColourIds
+	{
+		backgroundColourId = 9000
+	};
+
 	struct Laf : public LookAndFeel_V4
 	{
 		void drawScrollbar(Graphics& g, ScrollBar&, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown);
