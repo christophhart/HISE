@@ -42,7 +42,6 @@ namespace hise { using namespace juce;
 *	This code is based on a script by Elan Hickler.
 */
 class Arpeggiator : public HardcodedScriptProcessor,
-          public SliderPackProcessor,
           public MidiControllerAutomationHandler::MPEData::Listener,
           public Processor::BypassListener
 {
@@ -83,13 +82,6 @@ public:
 	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
 
 	SET_PROCESSOR_NAME("Arpeggiator", "Arpeggiator", "A arpeggiator module");
-
-
-	int getNumSliderPacks();
-
-	SliderPackData *getSliderPackData(int index) override;
-
-	const SliderPackData *getSliderPackData(int index) const override;
 
 	void bypassStateChanged(Processor*, bool isBypassed) override
 	{
@@ -326,10 +318,10 @@ private:
 
 	static float getSliderValueWithoutDisplay(ScriptingApi::Content::ScriptSliderPack* sp, int index)
 	{
-		auto array = static_cast<SliderPackData*>(sp->getCachedDataObject())->getDataArray();
+		auto bf = static_cast<SliderPackData*>(sp->getCachedDataObject())->getDataArray().getBuffer();
 
-		if (index < array.size())
-			return (float)array[index];
+		if (bf != nullptr && index < bf->size)
+			return bf->getSample(index);
 		else
 		{
 			//jassertfalse;

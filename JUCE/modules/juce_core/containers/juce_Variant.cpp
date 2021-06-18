@@ -769,6 +769,8 @@ var var::call (const Identifier& method, const var& arg1, const var& arg2, const
 //==============================================================================
 int var::size() const
 {
+	jassert(!isBuffer());
+
     if (auto array = getArray())
         return array->size();
 
@@ -777,6 +779,8 @@ int var::size() const
 
 const var& var::operator[] (int arrayIndex) const
 {
+	jassert(!isBuffer());
+
     auto array = getArray();
 
     // When using this method, the var must actually be an array, and the index
@@ -788,6 +792,8 @@ const var& var::operator[] (int arrayIndex) const
 
 var& var::operator[] (int arrayIndex)
 {
+	jassert(!isBuffer());
+
     auto array = getArray();
 
     // When using this method, the var must actually be an array, and the index
