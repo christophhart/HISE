@@ -1,0 +1,2726 @@
+From 256125f033d751a64b4ecc3a39c2a1fa4dfb730f Mon Sep 17 00:00:00 2001
+From: chrisboy2000 <christoph-hart@gmx.de>
+Date: Fri, 18 Jun 2021 15:45:06 +0200
+Subject: [PATCH] - working 608 patch
+
+---
+ .../buffers/juce_AudioSampleBuffer.h          |  11 +-
+ .../midi/juce_MidiKeyboardState.cpp           |  25 ++
+ .../midi/juce_MidiKeyboardState.h             |   6 +
+ .../synthesisers/juce_Synthesiser.h           |   4 +-
+ .../utilities/juce_IIRFilter.cpp              |  17 +
+ .../utilities/juce_IIRFilter.h                |   2 +
+ .../utilities/juce_SmoothedValue.h            |  51 ++-
+ .../audio_io/juce_AudioDeviceManager.cpp      |   6 +
+ .../juce_audio_devices/juce_audio_devices.h   |   2 +-
+ .../processors/juce_AudioProcessor.cpp        |   7 +
+ .../processors/juce_AudioProcessor.h          |   2 +
+ modules/juce_core/containers/juce_Array.h     |   7 +
+ .../containers/juce_DynamicObject.cpp         |   5 +
+ .../juce_core/containers/juce_DynamicObject.h |   5 +
+ .../containers/juce_ReferenceCountedArray.h   |   2 +-
+ modules/juce_core/containers/juce_Variant.cpp |  87 +++++
+ modules/juce_core/containers/juce_Variant.h   |   9 +
+ modules/juce_core/juce_core.cpp               |   1 +
+ modules/juce_core/juce_core.h                 |  19 ++
+ .../logging/juce_AudioThreadGuard.cpp         | 272 ++++++++++++++++
+ .../juce_core/logging/juce_AudioThreadGuard.h | 299 ++++++++++++++++++
+ modules/juce_core/logging/juce_Logger.cpp     |   4 +
+ .../juce_core/maths/juce_NormalisableRange.h  |   2 +-
+ modules/juce_core/memory/juce_HeapBlock.h     |   8 +
+ .../juce_core/streams/juce_InputStream.cpp    |   2 +
+ modules/juce_core/streams/juce_InputStream.h  |   2 +-
+ modules/juce_core/text/juce_String.cpp        |   2 +
+ .../containers/juce_SIMDRegister_Impl.h       |   8 +-
+ .../broadcasters/juce_AsyncUpdater.cpp        |   6 +-
+ .../messages/juce_MessageManager.cpp          |   3 +
+ .../fonts/juce_GlyphArrangement.cpp           |  38 ++-
+ .../components/juce_Component.cpp             | 286 +++++++++++++++++
+ .../components/juce_Component.h               | 226 +++++++++++++
+ .../juce_gui_basics/desktop/juce_Desktop.cpp  |   2 +-
+ .../keyboard/juce_ModifierKeys.h              |  12 +-
+ .../lookandfeel/juce_LookAndFeel.cpp          |  10 +-
+ .../lookandfeel/juce_LookAndFeel_V2.cpp       |   1 +
+ .../juce_gui_basics/menus/juce_PopupMenu.h    |  10 +
+ .../mouse/juce_DragAndDropContainer.cpp       |  38 ++-
+ .../mouse/juce_DragAndDropContainer.h         |   7 +
+ .../juce_gui_basics/widgets/juce_Label.cpp    |   1 +
+ .../juce_gui_basics/widgets/juce_ListBox.cpp  |   2 +
+ .../juce_gui_basics/widgets/juce_Slider.cpp   |  11 +
+ modules/juce_gui_basics/widgets/juce_Slider.h |   6 +
+ .../windows/juce_AlertWindow.cpp              |   1 +
+ .../windows/juce_AlertWindow.h                |   5 +-
+ .../juce_CPlusPlusCodeTokeniserFunctions.h    |  14 +-
+ .../code_editor/juce_CodeDocument.cpp         |  56 +++-
+ .../code_editor/juce_CodeDocument.h           |  15 +-
+ .../code_editor/juce_CodeEditorComponent.cpp  |   5 +
+ .../code_editor/juce_CodeEditorComponent.h    |   2 +
+ modules/juce_opengl/juce_opengl.cpp           |   2 +-
+ .../native/juce_MissingGLDefinitions.h        |   7 +
+ 53 files changed, 1594 insertions(+), 39 deletions(-)
+ create mode 100644 modules/juce_core/logging/juce_AudioThreadGuard.cpp
+ create mode 100644 modules/juce_core/logging/juce_AudioThreadGuard.h
+
+diff --git a/modules/juce_audio_basics/buffers/juce_AudioSampleBuffer.h b/modules/juce_audio_basics/buffers/juce_AudioSampleBuffer.h
+index acd165ff0..051b2a3de 100644
+--- a/modules/juce_audio_basics/buffers/juce_AudioSampleBuffer.h
++++ b/modules/juce_audio_basics/buffers/juce_AudioSampleBuffer.h
+@@ -103,7 +103,16 @@ public:
+          size (numSamplesToAllocate)
+     {
+         jassert (size >= 0 && numChannels >= 0);
+-        allocateData();
++
++		if(numChannelsToAllocate >= 1)
++			allocateData();
++		else
++		{
++			jassert(numSamplesToAllocate == 0);
++			channels = static_cast<Type**> (preallocatedChannelSpace);
++			isClear = false;
++			allocatedBytes = 0;
++		}
+     }
+ 
+     /** Creates a buffer using a pre-allocated block of memory.
+diff --git a/modules/juce_audio_basics/midi/juce_MidiKeyboardState.cpp b/modules/juce_audio_basics/midi/juce_MidiKeyboardState.cpp
+index de83ae851..c11da957d 100644
+--- a/modules/juce_audio_basics/midi/juce_MidiKeyboardState.cpp
++++ b/modules/juce_audio_basics/midi/juce_MidiKeyboardState.cpp
+@@ -26,6 +26,7 @@ namespace juce
+ MidiKeyboardState::MidiKeyboardState()
+ {
+     zerostruct (noteStates);
++	eventsToAdd.ensureSize(128 * 3);
+ }
+ 
+ MidiKeyboardState::~MidiKeyboardState()
+@@ -94,6 +95,15 @@ void MidiKeyboardState::noteOff (const int midiChannel, const int midiNoteNumber
+     }
+ }
+ 
++void MidiKeyboardState::injectMessage(const MidiMessage& m)
++{
++	jassert(!m.isNoteOnOrOff());
++
++	const int timeNow = (int)Time::getMillisecondCounter();
++	eventsToAdd.addEvent(m, timeNow);
++	eventsToAdd.clear(0, timeNow - 500);
++}
++
+ void MidiKeyboardState::noteOffInternal  (const int midiChannel, const int midiNoteNumber, const float velocity)
+ {
+     if (isNoteOn (midiChannel, midiNoteNumber))
+@@ -103,6 +113,12 @@ void MidiKeyboardState::noteOffInternal  (const int midiChannel, const int midiN
+     }
+ }
+ 
++void MidiKeyboardState::sendMessageInternal(const MidiMessage& m)
++{
++	for (int i = listeners.size(); --i >= 0;)
++		listeners.getListeners().getUnchecked(i)->handleMessage(m);
++}
++
+ void MidiKeyboardState::allNotesOff (const int midiChannel)
+ {
+     const ScopedLock sl (lock);
+@@ -134,6 +150,10 @@ void MidiKeyboardState::processNextMidiEvent (const MidiMessage& message)
+         for (int i = 0; i < 128; ++i)
+             noteOffInternal (message.getChannel(), i, 0.0f);
+     }
++	else if (message.isChannelPressure() || message.isControllerOfType(74) || message.isPitchWheel() || message.isControllerOfType(1))
++	{
++		sendMessageInternal(message);
++	}
+ }
+ 
+ void MidiKeyboardState::processNextMidiBuffer (MidiBuffer& buffer,
+@@ -143,6 +163,11 @@ void MidiKeyboardState::processNextMidiBuffer (MidiBuffer& buffer,
+ {
+     const ScopedLock sl (lock);
+ 
++#if JUCE_ENABLE_AUDIO_GUARD
++    // Don't fire here until this is sorted out.
++    AudioThreadGuard::Suspender suspender;
++#endif
++
+     for (const auto metadata : buffer)
+         processNextMidiEvent (metadata.getMessage());
+ 
+diff --git a/modules/juce_audio_basics/midi/juce_MidiKeyboardState.h b/modules/juce_audio_basics/midi/juce_MidiKeyboardState.h
+index 61011dd61..8598b5d1c 100644
+--- a/modules/juce_audio_basics/midi/juce_MidiKeyboardState.h
++++ b/modules/juce_audio_basics/midi/juce_MidiKeyboardState.h
+@@ -94,6 +94,8 @@ public:
+     */
+     void noteOff (int midiChannel, int midiNoteNumber, float velocity);
+ 
++	void injectMessage(const MidiMessage& m);
++
+     /** This will turn off any currently-down notes for the given midi channel.
+ 
+         If you pass 0 for the midi channel, it will in fact turn off all notes on all channels.
+@@ -166,6 +168,8 @@ public:
+         */
+         virtual void handleNoteOff (MidiKeyboardState* source,
+                                     int midiChannel, int midiNoteNumber, float velocity) = 0;
++
++		virtual void handleMessage(const MidiMessage& /*m*/) {};
+     };
+ 
+     /** Registers a listener for callbacks when keys go up or down.
+@@ -188,6 +192,8 @@ private:
+     void noteOnInternal  (int midiChannel, int midiNoteNumber, float velocity);
+     void noteOffInternal (int midiChannel, int midiNoteNumber, float velocity);
+ 
++	void sendMessageInternal(const MidiMessage& m);
++
+     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiKeyboardState)
+ };
+ 
+diff --git a/modules/juce_audio_basics/synthesisers/juce_Synthesiser.h b/modules/juce_audio_basics/synthesisers/juce_Synthesiser.h
+index aa8e33ab1..0a5c434f6 100644
+--- a/modules/juce_audio_basics/synthesisers/juce_Synthesiser.h
++++ b/modules/juce_audio_basics/synthesisers/juce_Synthesiser.h
+@@ -347,7 +347,9 @@ public:
+     int getNumSounds() const noexcept                               { return sounds.size(); }
+ 
+     /** Returns one of the sounds. */
+-    SynthesiserSound::Ptr getSound (int index) const noexcept       { return sounds[index]; }
++    SynthesiserSound* getSound (int index) const noexcept       { return sounds[index].get(); }
++
++	SynthesiserSound::Ptr getSoundRefCounted(int index) const noexcept { return sounds[index]; }
+ 
+     /** Adds a new sound to the synthesiser.
+ 
+diff --git a/modules/juce_audio_basics/utilities/juce_IIRFilter.cpp b/modules/juce_audio_basics/utilities/juce_IIRFilter.cpp
+index a1dc2526e..3d4b3a8e1 100644
+--- a/modules/juce_audio_basics/utilities/juce_IIRFilter.cpp
++++ b/modules/juce_audio_basics/utilities/juce_IIRFilter.cpp
+@@ -233,6 +233,23 @@ IIRCoefficients IIRCoefficients::makeHighShelf (double sampleRate,
+                             aplus1 - aminus1TimesCoso - beta);
+ }
+ 
++juce::IIRCoefficients IIRCoefficients::makeResoLowPass(double sampleRate, double cutoff, double q)
++{
++	const double c = 1.0 / (tan(double_Pi * (cutoff / sampleRate)));
++	const double csq = c * c;
++
++	q = 1 / (3 * q);
++
++	double c1 = 1.0 / (1.0 + (q * c) + (csq));
++
++	return IIRCoefficients(c1,
++		2.0 * c1,
++		c1,
++		1.0,
++		(2.0 * c1) * (1.0 - csq),
++		c1 * (1.0 - (q * c) + csq));
++}
++
+ IIRCoefficients IIRCoefficients::makePeakFilter (double sampleRate,
+                                                  double frequency,
+                                                  double Q,
+diff --git a/modules/juce_audio_basics/utilities/juce_IIRFilter.h b/modules/juce_audio_basics/utilities/juce_IIRFilter.h
+index 2246d8724..593d0c57e 100644
+--- a/modules/juce_audio_basics/utilities/juce_IIRFilter.h
++++ b/modules/juce_audio_basics/utilities/juce_IIRFilter.h
+@@ -93,6 +93,8 @@ public:
+                                             double frequency,
+                                             double Q) noexcept;
+ 
++	static IIRCoefficients makeResoLowPass(double sampleRate, double cutoff, double q);
++
+     //==============================================================================
+     /** Returns the coefficients for an all-pass filter. */
+     static IIRCoefficients makeAllPass (double sampleRate, double frequency) noexcept;
+diff --git a/modules/juce_audio_basics/utilities/juce_SmoothedValue.h b/modules/juce_audio_basics/utilities/juce_SmoothedValue.h
+index 7bcd5a180..b504bfd3a 100644
+--- a/modules/juce_audio_basics/utilities/juce_SmoothedValue.h
++++ b/modules/juce_audio_basics/utilities/juce_SmoothedValue.h
+@@ -290,6 +290,51 @@ public:
+         setStepSize();
+     }
+ 
++	/** Set a new target value without ramping.
++	@param newValue New target value
++	*/
++	void setValueWithoutSmoothing(FloatType newValue) noexcept
++	{
++		this->target = newValue;
++		this->currentValue = this->target;
++		this->countdown = 0;
++	}
++
++	void setValueAndRampTime(FloatType newValue, double sampleRateToUse, double rampLengthInSeconds) noexcept
++	{
++		if (this->target != newValue)
++		{
++			this->target = newValue;
++
++			jassert(sampleRateToUse > 0 && rampLengthInSeconds >= 0);
++			this->stepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
++			this->countdown = this->stepsToTarget;
++
++			if (this->countdown <= 0)
++				this->currentValue = this->target;
++			else
++				this->step = (this->target - this->currentValue) / (FloatType)this->countdown;
++		}
++		else // might be possible that it still wants the same target but at a different speed
++		{
++			jassert(sampleRateToUse > 0 && rampLengthInSeconds >= 0);
++			const auto thisStepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
++
++			if (stepsToTarget != thisStepsToTarget)
++			{
++				// Readjust the ramp speed
++				stepsToTarget = thisStepsToTarget;
++				this->countdown = this->stepsToTarget;
++
++				if (this->countdown <= 0)
++					this->currentValue = this->target;
++				else
++					this->step = (this->target - this->currentValue) / (FloatType)this->countdown;
++			}
++
++		}
++	}
++
+     //==============================================================================
+     /** Compute the next value.
+         @returns Smoothed value
+@@ -340,7 +385,7 @@ public:
+         @param newValue     The new target value
+         @param force        If true, the value will be set immediately, bypassing the ramp
+     */
+-    JUCE_DEPRECATED_WITH_BODY (void setValue (FloatType newValue, bool force = false) noexcept,
++    void setValue (FloatType newValue, bool force = false) noexcept
+     {
+         if (force)
+         {
+@@ -349,7 +394,7 @@ public:
+         }
+ 
+         setTargetValue (newValue);
+-    })
++    }
+ 
+ private:
+     //==============================================================================
+@@ -403,10 +448,12 @@ private:
+     int stepsToTarget = 0;
+ };
+ 
++
+ template <typename FloatType>
+ using LinearSmoothedValue = SmoothedValue <FloatType, ValueSmoothingTypes::Linear>;
+ 
+ 
++
+ //==============================================================================
+ //==============================================================================
+ #if JUCE_UNIT_TESTS
+diff --git a/modules/juce_audio_devices/audio_io/juce_AudioDeviceManager.cpp b/modules/juce_audio_devices/audio_io/juce_AudioDeviceManager.cpp
+index 07903f3f2..16ace53a0 100644
+--- a/modules/juce_audio_devices/audio_io/juce_AudioDeviceManager.cpp
++++ b/modules/juce_audio_devices/audio_io/juce_AudioDeviceManager.cpp
+@@ -609,6 +609,12 @@ String AudioDeviceManager::setAudioDeviceSetup (const AudioDeviceSetup& newSetup
+     currentSetup.sampleRate = chooseBestSampleRate (currentSetup.sampleRate);
+     currentSetup.bufferSize = chooseBestBufferSize (currentSetup.bufferSize);
+ 
++    if (currentSetup.bufferSize == 441)
++    {
++        // Nope...
++         currentSetup.bufferSize = 512;
++    }
++
+     error = currentAudioDevice->open (currentSetup.inputChannels,
+                                       currentSetup.outputChannels,
+                                       currentSetup.sampleRate,
+diff --git a/modules/juce_audio_devices/juce_audio_devices.h b/modules/juce_audio_devices/juce_audio_devices.h
+index e27163c1e..19e667433 100644
+--- a/modules/juce_audio_devices/juce_audio_devices.h
++++ b/modules/juce_audio_devices/juce_audio_devices.h
+@@ -112,7 +112,7 @@
+     Enables JACK audio devices (Linux only).
+ */
+ #ifndef JUCE_JACK
+- #define JUCE_JACK 0
++ #define JUCE_JACK 1
+ #endif
+ 
+ /** Config: JUCE_BELA
+diff --git a/modules/juce_audio_processors/processors/juce_AudioProcessor.cpp b/modules/juce_audio_processors/processors/juce_AudioProcessor.cpp
+index 040accf2e..7aef9222d 100644
+--- a/modules/juce_audio_processors/processors/juce_AudioProcessor.cpp
++++ b/modules/juce_audio_processors/processors/juce_AudioProcessor.cpp
+@@ -835,6 +835,13 @@ void AudioProcessor::editorBeingDeleted (AudioProcessorEditor* const editor) noe
+         activeEditor = nullptr;
+ }
+ 
++
++
++juce::AudioProcessor::WrapperType AudioProcessor::getWrapperTypeBeingCreated() const
++{
++	return wrapperTypeBeingCreated.get();
++}
++
+ AudioProcessorEditor* AudioProcessor::getActiveEditor() const noexcept
+ {
+     const ScopedLock sl (activeEditorLock);
+diff --git a/modules/juce_audio_processors/processors/juce_AudioProcessor.h b/modules/juce_audio_processors/processors/juce_AudioProcessor.h
+index 39eac8211..d9bea763a 100644
+--- a/modules/juce_audio_processors/processors/juce_AudioProcessor.h
++++ b/modules/juce_audio_processors/processors/juce_AudioProcessor.h
+@@ -1204,6 +1204,8 @@ public:
+         wrapperType_Unity
+     };
+ 
++	WrapperType getWrapperTypeBeingCreated() const;
++
+     /** When loaded by a plugin wrapper, this flag will be set to indicate the type
+         of plugin within which the processor is running.
+     */
+diff --git a/modules/juce_core/containers/juce_Array.h b/modules/juce_core/containers/juce_Array.h
+index 64013f11d..1ef48ddd4 100644
+--- a/modules/juce_core/containers/juce_Array.h
++++ b/modules/juce_core/containers/juce_Array.h
+@@ -1065,6 +1065,13 @@ public:
+         values.ensureAllocatedSize (minNumElements);
+     }
+ 
++	/** Returns the number of allocated elements. */
++	int getNumAllocated() const noexcept
++	{
++		const ScopedLockType lock(getLock());
++		return values.capacity();
++	}
++
+     //==============================================================================
+     /** Sorts the array using a default comparison operation.
+         If the type of your elements isn't supported by the DefaultElementComparator class
+diff --git a/modules/juce_core/containers/juce_DynamicObject.cpp b/modules/juce_core/containers/juce_DynamicObject.cpp
+index e8d1289d8..e00d27f8d 100644
+--- a/modules/juce_core/containers/juce_DynamicObject.cpp
++++ b/modules/juce_core/containers/juce_DynamicObject.cpp
+@@ -129,4 +129,9 @@ void DynamicObject::writeAsJSON (OutputStream& out, const int indentLevel, const
+     out << '}';
+ }
+ 
++void DynamicObject::swapProperties(NamedValueSet&& newProperties)
++{
++	std::swap(properties, newProperties);
++}
++
+ } // namespace juce
+diff --git a/modules/juce_core/containers/juce_DynamicObject.h b/modules/juce_core/containers/juce_DynamicObject.h
+index debc5d450..4c09ae95c 100644
+--- a/modules/juce_core/containers/juce_DynamicObject.h
++++ b/modules/juce_core/containers/juce_DynamicObject.h
+@@ -98,6 +98,8 @@ public:
+     /** Returns the NamedValueSet that holds the object's properties. */
+     NamedValueSet& getProperties() noexcept     { return properties; }
+ 
++	const NamedValueSet& getProperties() const noexcept { return properties; }
++
+     /** Calls var::clone() on all the properties that this object contains. */
+     void cloneAllProperties();
+ 
+@@ -117,6 +119,9 @@ public:
+     */
+     virtual void writeAsJSON (OutputStream&, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces);
+ 
++	/** Swaps the properties. */
++	void swapProperties(NamedValueSet&& newProperties);
++
+ private:
+     //==============================================================================
+     NamedValueSet properties;
+diff --git a/modules/juce_core/containers/juce_ReferenceCountedArray.h b/modules/juce_core/containers/juce_ReferenceCountedArray.h
+index 13fa55d33..7bb62c1bc 100644
+--- a/modules/juce_core/containers/juce_ReferenceCountedArray.h
++++ b/modules/juce_core/containers/juce_ReferenceCountedArray.h
+@@ -233,7 +233,7 @@ public:
+     */
+     inline ObjectClass** getRawDataPointer() const noexcept
+     {
+-        return values.begin();
++        return const_cast<ObjectClass**>(values.begin());
+     }
+ 
+     //==============================================================================
+diff --git a/modules/juce_core/containers/juce_Variant.cpp b/modules/juce_core/containers/juce_Variant.cpp
+index dbb57b288..956f6167b 100644
+--- a/modules/juce_core/containers/juce_Variant.cpp
++++ b/modules/juce_core/containers/juce_Variant.cpp
+@@ -50,6 +50,7 @@ struct var::VariantType
+     struct ArrayTag     {};
+     struct BinaryTag    {};
+     struct MethodTag    {};
++	struct BufferTag    {};
+ 
+     // members =====================================================================
+     bool isVoid         = false;
+@@ -64,6 +65,7 @@ struct var::VariantType
+     bool isBinary       = false;
+     bool isMethod       = false;
+     bool isComparable   = false;
++	bool isBuffer       = false;
+ 
+     int                     (*toInt)         (const ValueUnion&)                 = defaultToInt;
+     int64                   (*toInt64)       (const ValueUnion&)                 = defaultToInt64;
+@@ -351,6 +353,54 @@ struct var::VariantType
+           equals        (objectEquals),
+           writeToStream (objectWriteToStream) {}
+ 
++	// buffer ======================================================================
++
++	static void bufferCleanUp(ValueUnion& data) noexcept { if (data.objectValue != nullptr) data.objectValue->decReferenceCount();; }
++
++	static void bufferCreateCopy(ValueUnion& dest, const ValueUnion& source) {
++		dest.objectValue = source.objectValue;
++		if (dest.objectValue != nullptr)
++			dest.objectValue->incReferenceCount();
++	}
++
++	static String bufferToString(const ValueUnion& data) { return "Object 0x" + String::toHexString((pointer_sized_int)data.objectValue); }
++
++	static bool bufferToBool(const ValueUnion& data) noexcept { return data.objectValue != nullptr; }
++
++	static ReferenceCountedObject* bufferToObject(const ValueUnion& data) noexcept { return data.objectValue; }
++
++	static bool bufferEquals(const ValueUnion& data, const ValueUnion& otherData, const VariantType& otherType) noexcept
++	{
++		return otherType.toObject(otherData) == data.objectValue;
++	}
++
++	static var bufferClone(const var& original)
++	{
++		if (DynamicObject* d = original.getDynamicObject())
++			return d->clone().get();
++
++		jassertfalse; // can only clone DynamicObjects!
++		return var();
++	}
++
++	static void bufferWriteToStream(const ValueUnion&, OutputStream& output)
++	{
++		jassertfalse; // Can't write an object to a stream!
++		output.writeCompressedInt(0);
++	}
++
++	constexpr explicit VariantType(BufferTag) noexcept
++		: isObject(true),
++		  isBuffer(true),
++		  toString(bufferToString),
++		  toBool(bufferToBool),
++		  toObject(bufferToObject),
++		  clone(bufferClone),
++		  cleanUp(bufferCleanUp),
++		  createCopy(bufferCreateCopy),
++		  equals(bufferEquals),
++		  writeToStream(bufferWriteToStream) {}
++
+     // array =======================================================================
+     static String                  arrayToString (const ValueUnion&)            { return "[Array]"; }
+     static ReferenceCountedObject* arrayToObject (const ValueUnion&) noexcept   { return nullptr; }
+@@ -478,6 +528,10 @@ struct var::VariantType
+           writeToStream (methodWriteToStream) {}
+ };
+ 
++
++
++
++
+ struct var::Instance
+ {
+     static constexpr VariantType attributesVoid           { VariantType::VoidTag{} };
+@@ -491,6 +545,7 @@ struct var::Instance
+     static constexpr VariantType attributesString         { VariantType::StringTag{} };
+     static constexpr VariantType attributesBinary         { VariantType::BinaryTag{} };
+     static constexpr VariantType attributesObject         { VariantType::ObjectTag{} };
++	static constexpr VariantType attributesBuffer         { VariantType::BufferTag{} };
+ };
+ 
+ constexpr var::VariantType var::Instance::attributesVoid;
+@@ -501,6 +556,7 @@ constexpr var::VariantType var::Instance::attributesBool;
+ constexpr var::VariantType var::Instance::attributesDouble;
+ constexpr var::VariantType var::Instance::attributesMethod;
+ constexpr var::VariantType var::Instance::attributesArray;
++constexpr var::VariantType var::Instance::attributesBuffer;
+ constexpr var::VariantType var::Instance::attributesString;
+ constexpr var::VariantType var::Instance::attributesBinary;
+ constexpr var::VariantType var::Instance::attributesObject;
+@@ -508,6 +564,9 @@ constexpr var::VariantType var::Instance::attributesObject;
+ //==============================================================================
+ var::var() noexcept : type (&Instance::attributesVoid) {}
+ var::var (const VariantType& t) noexcept  : type (&t) {}
++
++
++
+ var::~var() noexcept  { type->cleanUp (value); }
+ 
+ JUCE_DECLARE_DEPRECATED_STATIC (const var var::null;)
+@@ -519,11 +578,13 @@ var::var (const var& valueToCopy)  : type (valueToCopy.type)
+ }
+ 
+ var::var (const int v) noexcept       : type (&Instance::attributesInt)    { value.intValue = v; }
++var::var (uint32 v) noexcept          : type (&Instance::attributesInt64)  { value.int64Value = v; }
+ var::var (const int64 v) noexcept     : type (&Instance::attributesInt64)  { value.int64Value = v; }
+ var::var (const bool v) noexcept      : type (&Instance::attributesBool)   { value.boolValue = v; }
+ var::var (const double v) noexcept    : type (&Instance::attributesDouble) { value.doubleValue = v; }
+ var::var (NativeFunction m) noexcept  : type (&Instance::attributesMethod) { value.methodValue = new NativeFunction (m); }
+ var::var (const Array<var>& v)        : type (&Instance::attributesArray)  { value.objectValue = new VariantType::RefCountedArray (v); }
++
+ var::var (const String& v)            : type (&Instance::attributesString) { new (value.stringValue) String (v); }
+ var::var (const char* const v)        : type (&Instance::attributesString) { new (value.stringValue) String (v); }
+ var::var (const wchar_t* const v)     : type (&Instance::attributesString) { new (value.stringValue) String (v); }
+@@ -541,6 +602,14 @@ var::var (const StringArray& v)       : type (&Instance::attributesArray)
+     value.objectValue = new VariantType::RefCountedArray (strings);
+ }
+ 
++var::var(VariantBuffer *b) : type(&Instance::attributesBuffer) 
++{ 
++	value.objectValue = (ReferenceCountedObject*)b;
++
++	if (value.objectValue != nullptr)
++		value.objectValue->incReferenceCount();
++}
++
+ var::var (ReferenceCountedObject* const object)  : type (&Instance::attributesObject)
+ {
+     value.objectValue = object;
+@@ -563,6 +632,7 @@ bool var::isObject() const noexcept     { return type->isObject; }
+ bool var::isArray() const noexcept      { return type->isArray; }
+ bool var::isBinaryData() const noexcept { return type->isBinary; }
+ bool var::isMethod() const noexcept     { return type->isMethod; }
++bool var::isBuffer() const noexcept     { return type->isBuffer; }
+ 
+ var::operator int() const noexcept                      { return type->toInt (value); }
+ var::operator int64() const noexcept                    { return type->toInt64 (value); }
+@@ -576,6 +646,14 @@ Array<var>* var::getArray() const noexcept              { return type->toArray (
+ MemoryBlock* var::getBinaryData() const noexcept        { return type->toBinary (value); }
+ DynamicObject* var::getDynamicObject() const noexcept   { return dynamic_cast<DynamicObject*> (getObject()); }
+ 
++VariantBuffer* var::getBuffer() const noexcept
++{
++	// All because this line...
++	if (isBuffer()) return (VariantBuffer*)getObject();
++	else return nullptr;
++}
++
++
+ //==============================================================================
+ void var::swapWith (var& other) noexcept
+ {
+@@ -595,6 +673,7 @@ var& var::operator= (const MemoryBlock& v)       { type->cleanUp (value); type =
+ var& var::operator= (const Array<var>& v)        { var v2 (v); swapWith (v2); return *this; }
+ var& var::operator= (ReferenceCountedObject* v)  { var v2 (v); swapWith (v2); return *this; }
+ var& var::operator= (NativeFunction v)           { var v2 (v); swapWith (v2); return *this; }
++var& var::operator= (VariantBuffer *buffer)  { var v2(buffer); swapWith(v2); return *this; }
+ 
+ var::var (var&& other) noexcept
+     : type (other.type),
+@@ -760,6 +839,8 @@ var var::call (const Identifier& method, const var& arg1, const var& arg2, const
+ //==============================================================================
+ int var::size() const
+ {
++	jassert(!isBuffer());
++
+     if (auto array = getArray())
+         return array->size();
+ 
+@@ -768,6 +849,8 @@ int var::size() const
+ 
+ const var& var::operator[] (int arrayIndex) const
+ {
++	jassert(!isBuffer());
++
+     auto array = getArray();
+ 
+     // When using this method, the var must actually be an array, and the index
+@@ -779,6 +862,8 @@ const var& var::operator[] (int arrayIndex) const
+ 
+ var& var::operator[] (int arrayIndex)
+ {
++	jassert(!isBuffer());
++
+     auto array = getArray();
+ 
+     // When using this method, the var must actually be an array, and the index
+@@ -895,4 +980,6 @@ var::NativeFunctionArgs::NativeFunctionArgs (const var& t, const var* args, int
+ {
+ }
+ 
++
++
+ } // namespace juce
+diff --git a/modules/juce_core/containers/juce_Variant.h b/modules/juce_core/containers/juce_Variant.h
+index e5a933fdf..fdc90a48f 100644
+--- a/modules/juce_core/containers/juce_Variant.h
++++ b/modules/juce_core/containers/juce_Variant.h
+@@ -23,6 +23,8 @@
+ namespace juce
+ {
+ 
++class VariantBuffer;
++
+ //==============================================================================
+ /**
+     A variant class, that can be used to hold a range of primitive values.
+@@ -65,6 +67,7 @@ public:
+ 
+     var (const var& valueToCopy);
+     var (int value) noexcept;
++	var (uint32 value) noexcept;
+     var (int64 value) noexcept;
+     var (bool value) noexcept;
+     var (double value) noexcept;
+@@ -77,6 +80,7 @@ public:
+     var (NativeFunction method) noexcept;
+     var (const void* binaryData, size_t dataSize);
+     var (const MemoryBlock& binaryData);
++	var (VariantBuffer *buffer);
+ 
+     var& operator= (const var& valueToCopy);
+     var& operator= (int value);
+@@ -90,6 +94,7 @@ public:
+     var& operator= (const Array<var>& value);
+     var& operator= (ReferenceCountedObject* object);
+     var& operator= (NativeFunction method);
++	var& operator= (VariantBuffer *buffer);
+ 
+     var (var&&) noexcept;
+     var (String&&);
+@@ -131,6 +136,8 @@ public:
+     ReferenceCountedObject* getObject() const noexcept;
+     DynamicObject* getDynamicObject() const noexcept;
+ 
++	VariantBuffer *getBuffer() const noexcept;
++
+     //==============================================================================
+     bool isVoid() const noexcept;
+     bool isUndefined() const noexcept;
+@@ -144,6 +151,8 @@ public:
+     bool isBinaryData() const noexcept;
+     bool isMethod() const noexcept;
+ 
++	bool isBuffer() const noexcept;
++
+     /** Returns true if this var has the same value as the one supplied.
+         Note that this ignores the type, so a string var "123" and an integer var with the
+         value 123 are considered to be equal.
+diff --git a/modules/juce_core/juce_core.cpp b/modules/juce_core/juce_core.cpp
+index 84ded5f5f..c7641681c 100644
+--- a/modules/juce_core/juce_core.cpp
++++ b/modules/juce_core/juce_core.cpp
+@@ -177,6 +177,7 @@
+ #include "threads/juce_ThreadPool.cpp"
+ #include "threads/juce_TimeSliceThread.cpp"
+ #include "time/juce_PerformanceCounter.cpp"
++#include "logging/juce_AudioThreadGuard.cpp"
+ #include "time/juce_RelativeTime.cpp"
+ #include "time/juce_Time.cpp"
+ #include "unit_tests/juce_UnitTest.cpp"
+diff --git a/modules/juce_core/juce_core.h b/modules/juce_core/juce_core.h
+index e81165710..99bf2bd7a 100644
+--- a/modules/juce_core/juce_core.h
++++ b/modules/juce_core/juce_core.h
+@@ -189,6 +189,13 @@
+  #define JUCE_STRING_UTF_TYPE 8
+ #endif
+ 
++/** Config: JUCE_ENABLE_AUDIO_GUARD
++	If enabled, this will watch for calls considered evil in the audio thread and fire a warning
++*/
++#ifndef JUCE_ENABLE_AUDIO_GUARD
++#define JUCE_ENABLE_AUDIO_GUARD 0
++#endif
++
+ //==============================================================================
+ //==============================================================================
+ 
+@@ -218,6 +225,17 @@ namespace juce
+     extern JUCE_API void JUCE_CALLTYPE logAssertion (const char* file, int line) noexcept;
+ }
+ 
++
++#if JUCE_ENABLE_AUDIO_GUARD
++/** This little macro just calls DBG() with suspended audio guard (otherwise the string creation would fire). */
++#define DBG_WITH_AUDIO_GUARD(x) { juce::AudioThreadGuard::Suspender s; DBG(x); }
++#define WARN_IF_AUDIO_THREAD(condition, operationType) juce::AudioThreadGuard::warnIf(condition, operationType)
++#else
++#define WARN_IF_AUDIO_THREAD(condition, operationType)
++#define DBG_WITH_AUDIO_GUARD(x)
++#endif
++
++
+ #include "memory/juce_Memory.h"
+ #include "maths/juce_MathsFunctions.h"
+ #include "memory/juce_ByteOrder.h"
+@@ -236,6 +254,7 @@ JUCE_END_IGNORE_WARNINGS_MSVC
+ #include "text/juce_String.h"
+ #include "text/juce_StringRef.h"
+ #include "logging/juce_Logger.h"
++#include "logging/juce_AudioThreadGuard.h"
+ #include "memory/juce_LeakedObjectDetector.h"
+ #include "memory/juce_ContainerDeletePolicy.h"
+ #include "memory/juce_HeapBlock.h"
+diff --git a/modules/juce_core/logging/juce_AudioThreadGuard.cpp b/modules/juce_core/logging/juce_AudioThreadGuard.cpp
+new file mode 100644
+index 000000000..ef111ce40
+--- /dev/null
++++ b/modules/juce_core/logging/juce_AudioThreadGuard.cpp
+@@ -0,0 +1,272 @@
++/*
++==============================================================================
++
++This file is part of the JUCE library.
++Copyright (c) 2017 - ROLI Ltd.
++
++JUCE is an open source library subject to commercial or open-source
++licensing.
++
++The code included in this file is provided under the terms of the ISC license
++http://www.isc.org/downloads/software-support-policy/isc-license. Permission
++To use, copy, modify, and/or distribute this software for any purpose with or
++without fee is hereby granted provided that the above copyright notice and
++this permission notice appear in all copies.
++
++JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
++EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
++DISCLAIMED.
++
++==============================================================================
++*/
++
++
++namespace juce
++{
++
++#if JUCE_ENABLE_AUDIO_GUARD
++
++
++struct AudioThreadGuard::GlobalData
++{
++	GlobalData():
++		suspended(false),
++		currentHandler(nullptr)
++	{
++		audioThreadIds.ensureStorageAllocated(32);
++	}
++
++	~GlobalData()
++	{
++		jassert(audioThreadIds.size() == 0);
++		jassert(currentHandler == nullptr);
++	}
++
++	bool suspended = false;
++	Handler* currentHandler = nullptr;
++	Array<void*, DummyCriticalSection, 32> audioThreadIds;
++	ReadWriteLock arrayLock;
++
++	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlobalData);
++};
++
++juce::AudioThreadGuard::GlobalData& AudioThreadGuard::getGlobalData()
++{
++	if (instance == nullptr)
++	{
++		instance = new GlobalData();
++	}
++	
++	return *instance;
++}
++
++AudioThreadGuard::GlobalData* AudioThreadGuard::instance = nullptr;
++
++AudioThreadGuard::AudioThreadGuard()
++{
++	auto id = Thread::getCurrentThreadId();
++	auto& d = getGlobalData();
++
++	d.audioThreadIds.ensureStorageAllocated(32);
++	d.audioThreadIds.addIfNotAlreadyThere(id);
++}
++
++AudioThreadGuard::AudioThreadGuard(Handler* currentInstance)
++{
++	if (currentInstance != nullptr && previousInstance == currentInstance)
++	{
++		// Either you didn't clean up correctly or you're hitting
++		jassertfalse;
++	}
++
++	auto& d = getGlobalData();
++
++	previousInstance = d.currentHandler;
++	useCustomInstance = true;
++	setHandler(currentInstance);
++
++	auto id = Thread::getCurrentThreadId();
++	d.audioThreadIds.addIfNotAlreadyThere(id);
++}
++
++AudioThreadGuard::~AudioThreadGuard()
++{
++	if (useCustomInstance)
++		setHandler(previousInstance);
++
++	auto id = Thread::getCurrentThreadId();
++	getGlobalData().audioThreadIds.removeAllInstancesOf(id);
++}
++
++void AudioThreadGuard::warnIf(bool condition, int op)
++{
++	if (condition)
++	{
++		warn(op);
++	}
++}
++
++void AudioThreadGuard::warn(int op)
++{
++	if (instance == nullptr)
++	{
++		// Prevent recursive calls during initialisation
++		return;
++	}
++
++	auto& d = getGlobalData();
++
++	if (d.suspended)
++		return;
++
++	if (d.currentHandler == nullptr)
++		return;
++
++	if (!isAudioThread())
++		return;
++
++	if (d.currentHandler->test())
++	{
++		// You might want to do log something so we turn of the guard for this method.
++		Suspender suspender;
++		d.currentHandler->warn((int)op);
++	}
++}
++
++void AudioThreadGuard::setHandler(Handler* newInstance)
++{
++	getGlobalData().currentHandler = newInstance;
++}
++
++bool AudioThreadGuard::isAudioThread()
++{
++	auto threadId = Thread::getCurrentThreadId();
++	return getGlobalData().audioThreadIds.contains(threadId);
++}
++
++void AudioThreadGuard::deleteInstance()
++{
++	if (instance != nullptr)
++	{
++		// Use a temporary pointer and reset instance so that there are no recursive calls
++		auto tmpInstance = instance;
++		instance = nullptr;
++		deleteAndZero(tmpInstance);
++	}
++}
++
++AudioThreadGuard::Suspender::Suspender(bool shouldDoSomething /*= true*/)
++{
++	auto& d = AudioThreadGuard::getGlobalData();
++
++	if (shouldDoSomething && isAudioThread() && d.currentHandler != nullptr && d.currentHandler->test())
++	{
++		d.suspended = true;
++		isSuspended = true;
++	}
++}
++
++AudioThreadGuard::Suspender::~Suspender()
++{
++	if (isSuspended)
++		AudioThreadGuard::getGlobalData().suspended = false;
++}
++
++AudioThreadGuard::Handler::~Handler()
++{
++	jassert(AudioThreadGuard::getGlobalData().currentHandler != this);
++}
++
++juce::String AudioThreadGuard::Handler::getOperationName(int operationType)
++{
++	switch (operationType)
++	{
++	case IllegalAudioThreadOps::Unspecified:			return "Unspecified";
++	case IllegalAudioThreadOps::HeapBlockAllocation:	return "HeapBlock allocation";
++	case IllegalAudioThreadOps::HeapBlockDeallocation:	return "HeapBlock free";
++	case IllegalAudioThreadOps::StringCreation:			return "String creation";
++	case IllegalAudioThreadOps::AsyncUpdater:			return "AsyncUpdater call";
++	case IllegalAudioThreadOps::MessageManagerLock:		return "MessageManager lock";
++	case IllegalAudioThreadOps::BadLock:				return "Bad locking";
++	default:
++		break;
++	}
++
++	return {};
++}
++
++AudioThreadGuard::ScopedHandlerSetter::ScopedHandlerSetter(Handler* handler, bool doSomething) :
++	previousHandler(AudioThreadGuard::getGlobalData().currentHandler)
++{
++	if (doSomething && isAudioThread())
++	{
++		isActive = true;
++		AudioThreadGuard::setHandler(handler);
++	}
++	
++}
++
++AudioThreadGuard::ScopedHandlerSetter::~ScopedHandlerSetter()
++{
++	if(isActive && isAudioThread())
++		AudioThreadGuard::setHandler(previousHandler);
++}
++
++AudioThreadGuard::ScopedLockType::ScopedLockType(const CriticalSection& lock, 
++												 bool assertIfPriorityInversion /*= true*/) : 
++	lock_(lock)
++{
++	// If you hit this assertion, it means you didn't create an AudioThreadGuard object
++	// before creating this object.
++	jassert(AudioThreadGuard::isAudioThread());
++
++	if (assertIfPriorityInversion)
++	{
++		bool holdsLock = lock_.tryEnter();
++
++		if (!holdsLock)
++		{
++			// If you hit this assertion, it means that you tried to gain the
++			// lock in the audio thread but failed to do so because something
++			// else is blocking.
++			jassertfalse;
++			
++			lock_.enter();
++		}
++	}
++	else
++	{
++		lock_.enter();
++	}
++}
++
++AudioThreadGuard::ScopedLockType::~ScopedLockType()
++{
++	lock_.exit();
++}
++
++
++AudioThreadGuard::ScopedTryLockType::ScopedTryLockType(const CriticalSection& lock, bool assertIfPriorityInversion /*= true*/):
++	lock_(lock)
++{
++	ignoreUnused(assertIfPriorityInversion);
++
++	// If you hit this assertion, it means you didn't create an AudioThreadGuard object
++	// before creating this object.
++	jassert(AudioThreadGuard::isAudioThread());
++
++	// Let's try this first
++	holdsLock = lock_.tryEnter();
++}
++
++AudioThreadGuard::ScopedTryLockType::~ScopedTryLockType()
++{
++	if (holdsLock)
++		lock_.exit();
++}
++
++
++
++#endif
++
++} // namespace juce
+\ No newline at end of file
+diff --git a/modules/juce_core/logging/juce_AudioThreadGuard.h b/modules/juce_core/logging/juce_AudioThreadGuard.h
+new file mode 100644
+index 000000000..af302d300
+--- /dev/null
++++ b/modules/juce_core/logging/juce_AudioThreadGuard.h
+@@ -0,0 +1,299 @@
++/*
++==============================================================================
++
++This file is part of the JUCE library.
++Copyright (c) 2017 - ROLI Ltd.
++
++JUCE is an open source library subject to commercial or open-source
++licensing.
++
++The code included in this file is provided under the terms of the ISC license
++http://www.isc.org/downloads/software-support-policy/isc-license. Permission
++To use, copy, modify, and/or distribute this software for any purpose with or
++without fee is hereby granted provided that the above copyright notice and
++this permission notice appear in all copies.
++
++JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
++EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
++DISCLAIMED.
++
++==============================================================================
++*/
++
++namespace juce 
++{
++
++
++namespace IllegalAudioThreadOps
++{
++	enum ID
++	{
++		Unspecified = 0,
++		HeapBlockAllocation,
++		HeapBlockDeallocation,
++		StringCreation,
++		AsyncUpdater,
++		MessageManagerLock,
++		BadLock,
++		numIllegalOperationTypes
++	};
++}
++
++
++    
++#if JUCE_ENABLE_AUDIO_GUARD
++
++class CriticalSection;
++    
++/** This class watches certain methods that are not supposed to be called in the
++audio thread.
++
++Eg: HeapBlock methods, String allocations, AsyncUpdates, dynamic Array
++operations, OS calls
++
++If you want to use this class:
++1. enable JUCE_ENABLE_AUDIO_GUARD
++2. inherit from AudioThreadGuard::Instance and implement a test() function
++and a warn() function depending on your plugin architecture.
++3. in your processBlock method, create a AudioThreadGuard so it
++will just look in your code.
++
++If you want to suspend the guard (eg. during printing debug strings), just create
++a AudioThreadGuard::Suspender,
++which will suspend the tests for its lifetime (@see DEBUG_WITH_AUDIO_GUARD())
++
++You can exclude your own methods from being called on the audio thread by calling
++the public methods warn() and warnIf()
++*/
++class JUCE_API AudioThreadGuard
++{
++public:
++
++	//==============================================================================
++
++	/** This is the base class for the implementation of your AudioThreadGuard. */
++	struct Handler
++	{
++		/** Make sure you call setInstance(nullptr) before deleting this instance. */
++		virtual ~Handler();;
++
++		/** This method will be called when there's a illegal operation going on in
++		the audio thread.
++
++		You can log this, throw an assertion, delete C:\, whatever you think is appropriate.
++		*/
++		virtual void warn(int operationType) = 0;
++
++		/** This method will be called on the audio thread if there is an illegal
++		operation going on and can be used to run additional tests before firing
++		the warning. You can use this to prevent false positives during
++		initialisation.
++		*/
++		virtual bool test() const noexcept { return true; };
++
++		/** If you use the AudioThreadGuard::warn() function in your own code, you
++		can supply it with a custom code that will be resolved to a String in the
++		case of a warning using this method.
++
++		Make sure you call the base class method as it returns the Strings defined
++		in AudioThreadGuard::IllegalOperationType
++		*/
++		virtual String getOperationName(int operationType);
++	};
++
++	//==============================================================================
++
++	//==============================================================================
++
++	/** Creates an AudioThreadGuard. Make sure you have set an instance before this.
++	*/
++	AudioThreadGuard();
++
++	/** Creates an AudioThreadGuard and uses the given instance for the lifetime of
++		the object.
++	*/
++	AudioThreadGuard(Handler* handler);
++
++	~AudioThreadGuard();
++
++	//==============================================================================
++
++	/** This can be used to lock a CriticalSection with additional safety measures.
++	
++		It's a dropin-replacement for the standard ScopedLock, but offers a assertion
++		if you're running into a priority inversion.
++		It will also temporarily enable the same rules as the audio thread for the
++		lifetime of this object. This means that you can't call any of the operations
++		considered illegal in the thread that has created this object until it goes 
++		out of scope (and releases the audio thread lock).
++
++		Note that if you use this object, the method AudioThreadGuard::isAudioThread()
++		will return true for the lifetime of the object (this indicates that you are
++		in real-time-safe area)
++	*/
++	class ScopedLockType
++	{
++	public:
++
++		/** Locks the given CriticalSection and increases the warning level for the 
++			current thread until it goes out of scope.
++			
++			If you want to catch priority inversions during development, call
++			assertIfPriorityInversion set to true.
++		*/
++		explicit ScopedLockType(const CriticalSection& lock, bool assertIfPriorityInversion=true);
++
++		~ScopedLockType();
++
++	private:
++
++		const CriticalSection& lock_;
++	};
++
++	class ScopedTryLockType
++	{
++	public:
++
++		explicit ScopedTryLockType(const CriticalSection& lock, bool assertIfPriorityInversion = true);
++
++		~ScopedTryLockType();
++
++		/** Returns true if the lock could be acquired.
++		If you created this object with forceLock=true, this will always
++		return true, but if not, this mimics the behaviour of
++		ScopedTryLock::isLocked(). */
++		bool isLocked() const noexcept { return holdsLock; }
++
++	private:
++
++		const CriticalSection& lock_;
++		bool holdsLock = false;
++
++	};
++
++	//==============================================================================
++
++	/** A RAII object that suspends the tests until it goes out of scope. */
++	struct Suspender
++	{
++		/** Creates a suspender. 
++			
++			You can pass in false to bypass the suspension which is handy because
++			it might prevent unnecessary branching
++		*/
++		Suspender(bool shouldDoSomething = true);
++
++		~Suspender();
++
++	private:
++
++		bool isSuspended = false;
++		JUCE_DECLARE_NON_COPYABLE(Suspender)
++	};
++
++	//==============================================================================
++
++	/** This object can be used to temporarily switch the AudioThreadGuard logic
++	during the lifetime of this object.
++
++	You can use this to change the behaviour within a certain code path.
++	It will restore the old handler when it goes out of scope.
++	*/
++	struct ScopedHandlerSetter
++	{
++		ScopedHandlerSetter(Handler* newHandler, bool doSomething=true);
++		~ScopedHandlerSetter();
++
++	private:
++
++		bool isActive = false;
++		Handler * previousHandler = nullptr;
++		JUCE_DECLARE_NON_COPYABLE(ScopedHandlerSetter);
++	};
++
++	//==============================================================================
++
++	/** This checks the condition and warns if it's called on the audio thread.
++
++	Some operations are not necesserily evil (eg. calling free with a nullptr),
++	so this gives you the possibility to avoid false positives.
++	*/
++	static void JUCE_CALLTYPE warnIf(bool condition, int operationType = 0);
++
++	/** This checks if the method is executed on the audio thread. */
++	static void JUCE_CALLTYPE warn(int operationType = 0);
++
++	/** This sets the current AudioThreadGuard. Be aware that this is using a global
++	static variable, so it's not super smart to do this in a multi-instance environment.
++	*/
++	static void JUCE_CALLTYPE setHandler(Handler* newInstance);
++
++	/** Checks if we're rolling in the audio thread. */
++	static bool JUCE_CALLTYPE isAudioThread();
++
++	//==============================================================================
++
++	/** Call this at the app shutdown to delete the global data object. */
++	static void deleteInstance();
++
++private:
++
++	bool useCustomInstance = false;
++	Handler* previousInstance = nullptr;
++
++	//==============================================================================
++
++	struct GlobalData;
++	static GlobalData& getGlobalData();
++	static GlobalData* instance;
++
++	JUCE_DECLARE_NON_COPYABLE(AudioThreadGuard);
++
++	//==============================================================================
++};
++
++using GuardedScopedLock = AudioThreadGuard::ScopedLockType;
++using GuardedScopedTryLock = AudioThreadGuard::ScopedTryLockType;
++
++#else
++
++/** A dummy object that will most likely be compiled out of existence above O0. */
++struct DummyAudioGuard
++{
++	struct Handler
++	{
++        virtual ~Handler() {};
++        
++		virtual bool test() const noexcept { jassertfalse; return false; }
++		virtual void warn(int /*operationType*/)  { jassertfalse; }
++		virtual String getOperationName(int /*operationType*/) { jassertfalse;  return {}; }
++	};
++	struct Suspender 
++	{ 
++		Suspender(bool /*unused*/) {}; 
++		Suspender() = default;
++	};
++
++	struct ScopedHandlerSetter {};
++
++	DummyAudioGuard() {};
++	DummyAudioGuard(Handler* /*s*/) {};
++	~DummyAudioGuard() {};
++
++	static void deleteInstance() {};
++
++	/** Checks if we're rolling in the audio thread. */
++	static bool JUCE_CALLTYPE isAudioThread()
++	{
++		return false;
++	}
++
++	void warn(int /*operationType*/=0) {};
++	void warnIf(bool /*condition*/, int /*operationType*/=0) {}
++};
++
++using AudioThreadGuard = DummyAudioGuard;
++
++#endif
++
++}
+diff --git a/modules/juce_core/logging/juce_Logger.cpp b/modules/juce_core/logging/juce_Logger.cpp
+index 73f8c2520..d63d8962f 100644
+--- a/modules/juce_core/logging/juce_Logger.cpp
++++ b/modules/juce_core/logging/juce_Logger.cpp
+@@ -48,6 +48,10 @@ void Logger::writeToLog (const String& message)
+ #if JUCE_LOG_ASSERTIONS || JUCE_DEBUG
+ void JUCE_API JUCE_CALLTYPE logAssertion (const char* const filename, const int lineNum) noexcept
+ {
++#if JUCE_ENABLE_AUDIO_GUARD
++    AudioThreadGuard::Suspender suspender;
++#endif
++
+     String m ("JUCE Assertion failure in ");
+     m << File::createFileWithoutCheckingPath (CharPointer_UTF8 (filename)).getFileName() << ':' << lineNum;
+ 
+diff --git a/modules/juce_core/maths/juce_NormalisableRange.h b/modules/juce_core/maths/juce_NormalisableRange.h
+index 1375bb398..d7ac8d2c5 100644
+--- a/modules/juce_core/maths/juce_NormalisableRange.h
++++ b/modules/juce_core/maths/juce_NormalisableRange.h
+@@ -250,7 +250,7 @@ private:
+ 
+         // If you hit this assertion then either your normalisation function is not working
+         // correctly or your input is out of the expected bounds.
+-        jassert (clampedValue == value);
++        //jassert (clampedValue == value);
+ 
+         return clampedValue;
+     }
+diff --git a/modules/juce_core/memory/juce_HeapBlock.h b/modules/juce_core/memory/juce_HeapBlock.h
+index 9092529d7..8ed566e51 100644
+--- a/modules/juce_core/memory/juce_HeapBlock.h
++++ b/modules/juce_core/memory/juce_HeapBlock.h
+@@ -111,6 +111,8 @@ public:
+     explicit HeapBlock (SizeType numElements)
+         : data (static_cast<ElementType*> (std::malloc (static_cast<size_t> (numElements) * sizeof (ElementType))))
+     {
++		WARN_IF_AUDIO_THREAD(numElements > 0, IllegalAudioThreadOps::HeapBlockAllocation);
++
+         throwOnAllocationFailure();
+     }
+ 
+@@ -125,6 +127,8 @@ public:
+                                                ? std::calloc (static_cast<size_t> (numElements), sizeof (ElementType))
+                                                : std::malloc (static_cast<size_t> (numElements) * sizeof (ElementType))))
+     {
++		WARN_IF_AUDIO_THREAD(numElements > 0, IllegalAudioThreadOps::HeapBlockAllocation);
++
+         throwOnAllocationFailure();
+     }
+ 
+@@ -262,6 +266,8 @@ public:
+     template <typename SizeType>
+     void calloc (SizeType newNumElements, const size_t elementSize = sizeof (ElementType))
+     {
++		WARN_IF_AUDIO_THREAD(newNumElements > 0 || data != nullptr, IllegalAudioThreadOps::HeapBlockAllocation);
++
+         std::free (data);
+         data = static_cast<ElementType*> (std::calloc (static_cast<size_t> (newNumElements), elementSize));
+         throwOnAllocationFailure();
+@@ -289,6 +295,8 @@ public:
+     template <typename SizeType>
+     void realloc (SizeType newNumElements, size_t elementSize = sizeof (ElementType))
+     {
++		WARN_IF_AUDIO_THREAD(newNumElements > 0 || data != nullptr, IllegalAudioThreadOps::HeapBlockAllocation);
++
+         data = static_cast<ElementType*> (data == nullptr ? std::malloc (static_cast<size_t> (newNumElements) * elementSize)
+                                                           : std::realloc (data, static_cast<size_t> (newNumElements) * elementSize));
+         throwOnAllocationFailure();
+diff --git a/modules/juce_core/streams/juce_InputStream.cpp b/modules/juce_core/streams/juce_InputStream.cpp
+index d68b3ded2..4bc0e4b1c 100644
+--- a/modules/juce_core/streams/juce_InputStream.cpp
++++ b/modules/juce_core/streams/juce_InputStream.cpp
+@@ -33,6 +33,7 @@ int64 InputStream::getNumBytesRemaining()
+     return len;
+ }
+ 
++#if 0
+ ssize_t InputStream::read (void* destBuffer, size_t size)
+ {
+     ssize_t totalRead = 0;
+@@ -52,6 +53,7 @@ ssize_t InputStream::read (void* destBuffer, size_t size)
+ 
+     return totalRead;
+ }
++#endif
+ 
+ char InputStream::readByte()
+ {
+diff --git a/modules/juce_core/streams/juce_InputStream.h b/modules/juce_core/streams/juce_InputStream.h
+index 95e69294a..f2e46c633 100644
+--- a/modules/juce_core/streams/juce_InputStream.h
++++ b/modules/juce_core/streams/juce_InputStream.h
+@@ -77,7 +77,7 @@ public:
+     */
+     virtual int read (void* destBuffer, int maxBytesToRead) = 0;
+ 
+-    ssize_t read (void* destBuffer, size_t maxBytesToRead);
++    //ssize_t read (void* destBuffer, size_t maxBytesToRead);
+ 
+     /** Reads a byte from the stream.
+         If the stream is exhausted, this will return zero.
+diff --git a/modules/juce_core/text/juce_String.cpp b/modules/juce_core/text/juce_String.cpp
+index 2f1b2aeed..eef63210f 100644
+--- a/modules/juce_core/text/juce_String.cpp
++++ b/modules/juce_core/text/juce_String.cpp
+@@ -67,6 +67,8 @@ public:
+     //==============================================================================
+     static CharPointerType createUninitialisedBytes (size_t numBytes)
+     {
++        WARN_IF_AUDIO_THREAD(numBytes > 0, IllegalAudioThreadOps::StringCreation);
++
+         numBytes = (numBytes + 3) & ~(size_t) 3;
+         auto s = unalignedPointerCast<StringHolder*> (new char [sizeof (StringHolder) - sizeof (CharType) + numBytes]);
+         s->refCount.value = 0;
+diff --git a/modules/juce_dsp/containers/juce_SIMDRegister_Impl.h b/modules/juce_dsp/containers/juce_SIMDRegister_Impl.h
+index 8b0d1a1b6..0dad56235 100644
+--- a/modules/juce_dsp/containers/juce_SIMDRegister_Impl.h
++++ b/modules/juce_dsp/containers/juce_SIMDRegister_Impl.h
+@@ -168,10 +168,4 @@ struct CmplxSIMDOps<std::complex<Scalar>>
+ 
+ } // namespace dsp
+ 
+-// Extend some common used global functions to SIMDRegister types
+-template <typename Type>
+-inline dsp::SIMDRegister<Type> JUCE_VECTOR_CALLTYPE jmin (dsp::SIMDRegister<Type> a, dsp::SIMDRegister<Type> b) { return dsp::SIMDRegister<Type>::min (a, b); }
+-template <typename Type>
+-inline dsp::SIMDRegister<Type> JUCE_VECTOR_CALLTYPE jmax (dsp::SIMDRegister<Type> a, dsp::SIMDRegister<Type> b) { return dsp::SIMDRegister<Type>::max (a, b); }
+-
+-} // namespace juce
++} // namespace juce
+\ No newline at end of file
+diff --git a/modules/juce_events/broadcasters/juce_AsyncUpdater.cpp b/modules/juce_events/broadcasters/juce_AsyncUpdater.cpp
+index 2daa2b92d..1f40b646b 100644
+--- a/modules/juce_events/broadcasters/juce_AsyncUpdater.cpp
++++ b/modules/juce_events/broadcasters/juce_AsyncUpdater.cpp
+@@ -61,9 +61,13 @@ AsyncUpdater::~AsyncUpdater()
+ 
+ void AsyncUpdater::triggerAsyncUpdate()
+ {
++	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::AsyncUpdater);
++
++#if !HISE_HEADLESS
+     // If you're calling this before (or after) the MessageManager is
+     // running, then you're not going to get any callbacks!
+-    JUCE_ASSERT_MESSAGE_MANAGER_EXISTS
++    jassert (MessageManager::getInstanceWithoutCreating() != nullptr);
++#endif
+ 
+     if (activeMessage->shouldDeliver.compareAndSetBool (1, 0))
+         if (! activeMessage->post())
+diff --git a/modules/juce_events/messages/juce_MessageManager.cpp b/modules/juce_events/messages/juce_MessageManager.cpp
+index 883045248..7612a5175 100644
+--- a/modules/juce_events/messages/juce_MessageManager.cpp
++++ b/modules/juce_events/messages/juce_MessageManager.cpp
+@@ -410,6 +410,8 @@ MessageManagerLock::MessageManagerLock (ThreadPoolJob* jobToCheck)
+ 
+ bool MessageManagerLock::attemptLock (Thread* threadToCheck, ThreadPoolJob* jobToCheck)
+ {
++	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::MessageManagerLock);
++
+     jassert (threadToCheck == nullptr || jobToCheck == nullptr);
+ 
+     if (threadToCheck != nullptr)
+@@ -467,6 +469,7 @@ JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI()
+     {
+         DeletedAtShutdown::deleteAll();
+         MessageManager::deleteInstance();
++		AudioThreadGuard::deleteInstance();
+     }
+ }
+ 
+diff --git a/modules/juce_graphics/fonts/juce_GlyphArrangement.cpp b/modules/juce_graphics/fonts/juce_GlyphArrangement.cpp
+index 50984ac17..268103ef5 100644
+--- a/modules/juce_graphics/fonts/juce_GlyphArrangement.cpp
++++ b/modules/juce_graphics/fonts/juce_GlyphArrangement.cpp
+@@ -146,10 +146,46 @@ void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& t
+ {
+     if (text.isNotEmpty())
+     {
+-        Array<int> newGlyphs;
++		Array<int> newGlyphs;
+         Array<float> xOffsets;
+         font.getGlyphPositions (text, newGlyphs, xOffsets);
++
+         auto textLen = newGlyphs.size();
++
++		constexpr int numSpacePerTab = 4;
++
++		auto spaceWidth = font.getStringWidthFloat(" ");
++
++		int column = 0;
++
++		for (int i = 0; i < textLen; i++)
++		{
++			if (text[i] == '\t')
++			{
++#if JUCE_WINDOWS
++				int width = numSpacePerTab - column % 4;
++				auto numToAdd = (width - 1) * spaceWidth;
++#else
++				int width = numSpacePerTab - (column) % 4;
++				auto numToAdd = (width)* spaceWidth;
++#endif
++
++
++				
++
++				for (int j = i+1; j < textLen+1; j++)
++					xOffsets.set(j, xOffsets[j] + numToAdd);
++
++				column += width;
++			}
++			else
++			{
++				column++;
++			}
++			
++			
++		}
++
+         glyphs.ensureStorageAllocated (glyphs.size() + textLen);
+ 
+         auto t = text.getCharPointer();
+diff --git a/modules/juce_gui_basics/components/juce_Component.cpp b/modules/juce_gui_basics/components/juce_Component.cpp
+index c4404c637..60a3692cf 100644
+--- a/modules/juce_gui_basics/components/juce_Component.cpp
++++ b/modules/juce_gui_basics/components/juce_Component.cpp
+@@ -1790,6 +1790,15 @@ void Component::updateMouseCursor() const
+     Desktop::getInstance().getMainMouseSource().forceMouseCursorUpdate();
+ }
+ 
++void Component::setEnablePaintProfiling(Identifier id)
++{
++	ignoreUnused(id);
++
++#if JUCE_ENABLE_REPAINT_PROFILING
++	profileId = id;
++#endif
++}
++
+ //==============================================================================
+ void Component::setRepaintsOnMouseActivity (bool shouldRepaint) noexcept
+ {
+@@ -1918,6 +1927,8 @@ void Component::paintWithinParentContext (Graphics& g)
+ 
+ void Component::paintComponentAndChildren (Graphics& g)
+ {
++	PaintProfiler paintProfiler(profileId);
++
+     auto clipBounds = g.getClipBounds();
+ 
+     if (flags.dontClipGraphicsFlag)
+@@ -3029,4 +3040,279 @@ bool Component::BailOutChecker::shouldBailOut() const noexcept
+     return safePointer == nullptr;
+ }
+ 
++
++int getTabCount(const String& s)
++{
++	int charCount = 0;
++
++	for (int i = 0; i < s.length(); i++)
++	{
++		if (s[i] == '\t')
++		{
++			int numToNextTab = 4 - charCount % 4;
++			charCount += numToNextTab;
++		}
++		else
++			charCount++;
++	}
++
++	return charCount / 4;
++}
++
++void fillStringWithTabs(String& s, int tabIndex)
++{
++	auto tabCount = getTabCount(s);
++
++	for (int i = tabCount; i < tabIndex; i++)
++	{
++		s << "\t";
++	}
++}
++
++
++RealPaintProfiler::Manager::~Manager()
++{
++	auto endTime = Time::getMillisecondCounterHiRes();
++
++	auto delta = endTime - startTime;
++
++	auto pFile = File::getSpecialLocation(File::userDesktopDirectory).getChildFile("PaintProfiles");
++	pFile.createDirectory();
++
++	auto tFile = pFile.getNonexistentChildFile("Profile", ".log", false);
++
++	String s;
++	String nl = "\n";
++	s << "Profile results" << nl;
++	s << "---------------" << nl;
++	s << nl;
++	s << Time::getCurrentTime().toString(true, true, true, true) << nl;
++	s << "Duration of test: " << String(delta * 0.001, 2) << " seconds" << nl;
++	s << nl;
++
++	struct Sorter
++	{
++		static int compareElements(const Entry& first, const Entry& second)
++		{
++			if (first.milliseconds < second.milliseconds)
++				return 1;
++			else if (first.milliseconds > second.milliseconds)
++				return -1;
++			else
++				return 0;
++		}
++	} sorter;
++
++	entries.sort(sorter);
++
++	s << "## Sorted by total runtime ====================================================" << nl << nl;
++
++	s << "ID					Total Time		Total %		Count	Exclusive	Exclusive %	" << nl;
++	s << "-------------------------------------------------------------------------------" << nl;
++
++	for (const auto& e : entries)
++	{
++		s << e.toString(delta);
++		
++	}
++
++	s << nl;
++	s << nl;
++
++	s << "## Sorted by exclusive runtime ================================================" << nl << nl;
++
++	s << "ID					Total Time		Total %		Count	Exclusive	Exclusive %	" << nl;
++	s << "-------------------------------------------------------------------------------" << nl;
++
++	struct ExclusiveSorter
++	{
++		static int compareElements(const Entry& first, const Entry& second)
++		{
++			auto firstExclusive = first.milliseconds - first.millisecondsInChildCalls;
++			auto secondExclusive = second.milliseconds - second.millisecondsInChildCalls;
++
++			if (firstExclusive < secondExclusive)
++				return 1;
++			else if (firstExclusive > secondExclusive)
++				return -1;
++			else
++				return 0;
++		}
++	} exclusiveSorter;
++
++	entries.sort(exclusiveSorter);
++
++	for (const auto& e : entries)
++	{
++		s << e.toString(delta);
++	}
++	
++	tFile.replaceWithText(s);
++}
++
++RealPaintProfiler::Manager* RealPaintProfiler::manager = nullptr;
++
++RealPaintProfiler::RealPaintProfiler(Identifier id_) :
++	id(id_)
++{
++	if (id.isValid())
++		startTime = Time::getMillisecondCounterHiRes();
++	else
++		startTime = 0.0;
++}
++
++RealPaintProfiler::~RealPaintProfiler()
++{
++	if (!id.isValid() || manager == nullptr)
++		return;
++
++	auto endTime = Time::getMillisecondCounterHiRes();
++
++	auto delta = endTime - startTime;
++	auto childDelta = childEndTime - childStartTime;
++
++	auto& entries = manager->entries;
++
++	for (auto& e : entries)
++	{
++		if (e.id == id)
++		{
++			e.milliseconds += delta;
++			e.millisecondsInChildCalls += childDelta;
++			e.counter++;
++			return;
++		}
++	}
++
++	Manager::Entry e;
++	e.id = id;
++	e.milliseconds = delta;
++	e.millisecondsInChildCalls = childDelta;
++	e.counter = 1;
++
++	entries.add(e);
++}
++
++void RealPaintProfiler::setIsRenderingChildComponents(bool renderingChildComponents)
++{
++	if (manager != nullptr)
++	{
++		if (renderingChildComponents)
++			childStartTime = Time::getMillisecondCounterHiRes();
++		else
++			childEndTime = Time::getMillisecondCounterHiRes();
++	}
++}
++
++void RealPaintProfiler::profile(bool start)
++{
++	MessageManagerLock mm;
++
++	if (start && manager != nullptr)
++		return;
++
++	if (!start && manager == nullptr)
++		return;
++
++	if (start)
++		manager = new Manager();
++	else
++	{
++		delete manager;
++		manager = nullptr;
++	}
++		
++}
++
++juce::String RealPaintProfiler::Manager::Entry::toString(double totalDuration) const
++{
++	String s;
++
++	auto percentage = milliseconds / totalDuration * 100.0;
++
++	auto exclusive = milliseconds - millisecondsInChildCalls;
++	auto exclusiveP = exclusive / totalDuration * 100.0;
++
++	s << id;
++	
++	fillStringWithTabs(s, 5);
++
++	s << String(milliseconds, 2) << "ms";
++
++	fillStringWithTabs(s, 9);
++	
++	s << String(percentage, 1) << "%";
++	
++	fillStringWithTabs(s, 12);
++
++	s << String(counter);
++	
++	fillStringWithTabs(s, 14);
++
++	s << String(exclusive, 2) << "ms";
++
++	fillStringWithTabs(s, 17);
++
++	s << String(exclusiveP, 1) << "%";
++
++	s << "\n";
++
++	return s;
++	
++}
++
++UnblurryGraphics::UnblurryGraphics(Graphics& g_, Component& componentToDrawOn, bool correctTopLevelOnly/*=false*/) :
++	g(g_),
++	c(componentToDrawOn),
++	tl(c.getTopLevelComponent())
++{
++	if (correctTopLevelOnly)
++	{
++		juceScaleFactor = UnblurryGraphics::getScaleFactorForComponent(&c, false);
++		sf = g.getInternalContext().getPhysicalPixelScaleFactor();
++		physicalScaleFactor = sf / juceScaleFactor;
++
++		// Now for some reason a small rounding error is introduced, so we make
++		// sure that the physical scale factor is a multiple of 0.25.
++		// (I am not aware of OS that use a smaller resolution for their scale factor
++		// steps).
++		physicalScaleFactor -= fmod(physicalScaleFactor, 0.25f);
++		sf = juceScaleFactor * physicalScaleFactor;
++
++		pixelSizeInFloat = 1.0f / sf;
++
++		if (pixelSizeInFloat == 0.0f)
++			pixelSizeInFloat = 1.0f;
++
++		// For the position calculation we just need the physical scale factor
++		subOffsetDivisor = 1.0f / physicalScaleFactor;
++	}
++	else
++	{
++		juceScaleFactor = UnblurryGraphics::getScaleFactorForComponent(&c, correctTopLevelOnly);
++		sf = g.getInternalContext().getPhysicalPixelScaleFactor();
++		physicalScaleFactor = sf / juceScaleFactor;
++
++		// Now for some reason a small rounding error is introduced, so we make
++		// sure that the physical scale factor is a multiple of 0.25.
++		// (I am not aware of OS that use a smaller resolution for their scale factor
++		// steps).
++		physicalScaleFactor -= fmod(physicalScaleFactor, 0.25f);
++		sf = juceScaleFactor * physicalScaleFactor;
++
++		pixelSizeInFloat = 1.0f / sf;
++
++		// On retina images, this will make sure that it draws actually px wide thingies.
++		pixelSizeInFloat *= std::floor(sf);
++
++		if (pixelSizeInFloat == 0.0f)
++			pixelSizeInFloat = 1.0f;
++
++		// For the position calculation we just need the physical scale factor
++		subOffsetDivisor = 1.0f / physicalScaleFactor;
++	}
++
++	
++}
++
+ } // namespace juce
+diff --git a/modules/juce_gui_basics/components/juce_Component.h b/modules/juce_gui_basics/components/juce_Component.h
+index 69dfcf11b..33c3f5a45 100644
+--- a/modules/juce_gui_basics/components/juce_Component.h
++++ b/modules/juce_gui_basics/components/juce_Component.h
+@@ -26,6 +26,76 @@
+ namespace juce
+ {
+ 
++
++struct DummyPaintProfiler
++{
++	DummyPaintProfiler(Identifier id)
++	{
++		ignoreUnused(id);
++	}
++
++	void setIsRenderingChildComponents(bool unused)
++	{
++		ignoreUnused(unused);
++	}
++
++	static void profile(bool start) { ignoreUnused(start); }
++
++};
++
++struct RealPaintProfiler
++{
++	RealPaintProfiler(Identifier id_);
++	~RealPaintProfiler();
++
++	struct Manager: public DeletedAtShutdown
++	{
++		struct Entry
++		{
++			Identifier id;
++			double milliseconds = 0.0;
++			double millisecondsInChildCalls = 0.0;
++			int counter = 0;
++
++			String toString(double totalDuration) const;
++		};
++
++		Manager()
++		{
++			startTime = Time::getMillisecondCounterHiRes();
++		}
++
++		~Manager();
++
++		double startTime;
++		Array<Entry> entries;
++	};
++
++	void setIsRenderingChildComponents(bool renderingChildComponents);
++
++	static void profile(bool start);
++
++private:
++
++	Identifier id;
++	double startTime = 0.0;
++
++	double childStartTime = 0.0;
++	double childEndTime = 0.0;
++
++	static Manager* manager;
++
++};
++
++
++
++
++#if JUCE_ENABLE_REPAINT_PROFILING
++using PaintProfiler = RealPaintProfiler;
++#else
++using PaintProfiler = DummyPaintProfiler;
++#endif
++
+ //==============================================================================
+ /**
+     The base class for all JUCE user-interface objects.
+@@ -1457,6 +1527,10 @@ public:
+     */
+     void updateMouseCursor() const;
+ 
++	/** If this is true, it will use a profiler and create a list of where the most time
++	    was spend in the repainting. */
++	void setEnablePaintProfiling(Identifier id);
++
+     //==============================================================================
+     /** Components can override this method to draw their content.
+ 
+@@ -2311,6 +2385,8 @@ private:
+     friend class WeakReference<Component>;
+     WeakReference<Component>::Master masterReference;
+ 
++	Identifier profileId;
++
+     struct ComponentFlags
+     {
+         bool hasHeavyweightPeerFlag     : 1;
+@@ -2407,4 +2483,154 @@ protected:
+    #endif
+ };
+ 
++
++/** A small helper class that will draw pixel-aligned shapes without blurrying the edges. */
++class UnblurryGraphics
++{
++public:
++
++	/** Creates an object for drawing unblurred stuff.
++
++		You need to supply the Graphics as well as the component you're about to draw onto.
++		It will calculate the ratios on construction, so if you're about to use this multiple
++		times within one paint() callback it saves a few CPU cycles.
++
++		It's intended to be used as drop-in replacement for the Graphics object:
++
++			void paint(Graphics& g) override
++			{
++				UnblurryGraphics ug(g, *this);
++
++				ug.draw1PxRect(getLocalBounds().toFloat().reduced(5.0f));
++			}
++
++		Be aware that it accepts float values as argument to each method as it tries to
++		postpone the rounding as much as possible.
++	*/
++	UnblurryGraphics(Graphics& g_, Component& componentToDrawOn, bool correctTopLevelOnly=false);
++
++	/** Draws a 1px horizontal line without blurrying the edges. */
++	void draw1PxHorizontalLine(float y, float startX, float endX)
++	{
++		auto x = getRoundedXValue(startX);
++		auto w = getRoundedXValue(endX) - x;
++
++		g.fillRect(x,
++			getRoundedYValue(y),
++			w,
++			pixelSizeInFloat);
++	}
++
++	/** Draws a 1px thick vertical line without blurrying the edges. */
++	void draw1PxVerticalLine(float x, float startY, float endY)
++	{
++		auto y = getRoundedYValue(startY);
++		auto h = getRoundedYValue(endY) - y;
++
++		g.fillRect(getRoundedXValue(x),
++			y,
++			pixelSizeInFloat,
++			h);
++	}
++
++	/** Draws a 1px wide rectangle without blurrying the lines. */
++	void draw1PxRect(Rectangle<float> rect)
++	{
++		auto x = getRoundedXValue(rect.getX());
++		auto y = getRoundedYValue(rect.getY());
++		auto w = getRoundedXValue(rect.getRight()) - x;
++		auto h = getRoundedYValue(rect.getBottom()) - y;
++
++		if (std::isnan(x))
++		{
++			g.drawRect(rect, 1.0f);
++		}
++		else
++		{
++			g.drawRect(x, y, w, h, pixelSizeInFloat);
++		}
++	}
++
++	/* fills a float rectangle without blurrying the edges. */
++	void fillUnblurryRect(Rectangle<float> rect)
++	{
++		auto x = getRoundedXValue(rect.getX());
++		auto y = getRoundedYValue(rect.getY());
++		auto w = getRoundedXValue(rect.getRight()) - x;
++		auto h = getRoundedYValue(rect.getBottom()) - y;
++
++		g.fillRect(x, y, w, h);
++	}
++
++	/** Creates a rectangle with the given target pixel width without aliasing. */
++	Rectangle<float> getRectangleWithFixedPixelWidth(Rectangle<float> a, int pixelWidth) const
++	{
++		auto x = getRoundedXValue(a.getX());
++		auto y = a.getY();
++		auto right = x + pixelWidth * pixelSizeInFloat;
++		auto w = right - x;
++		auto h = a.getHeight();
++
++		return { x, y, w, h };
++	}
++
++	static float getScaleFactorForComponent(const Component* c, bool correctTopLevelOnly=false)
++	{
++		if (correctTopLevelOnly)
++			return c->getTopLevelComponent()->getTransform().getScaleFactor();
++
++		float sf = c->getTransform().getScaleFactor();
++		auto pc = c->getParentComponent();
++
++		while (pc != nullptr)
++		{
++			sf *= pc->getTransform().getScaleFactor();
++			pc = pc->getParentComponent();
++		}
++
++		return sf;
++	}
++
++
++	float getRoundedXValue(float xValue) const
++	{
++		// Get the point relative to the top-level component
++		// this will factor in any scale factor we've set.
++		auto xToUse = tl->getLocalPoint(&c, Point<float>(xValue, 0.0f)).getX();
++		auto tmp = roundToInt(xToUse / subOffsetDivisor);
++		auto xInTopLevel = (float)tmp * subOffsetDivisor;
++		return c.getLocalPoint(tl, Point<float>(xInTopLevel, 0.0f)).getX();
++	}
++
++	float getRoundedYValue(float yValue) const
++	{
++		// Get the point relative to the top-level component
++		// this will factor in any scale factor we've set.
++		auto yToUse = tl->getLocalPoint(&c, Point<float>(0.0f, yValue)).getY();
++		auto tmp = roundToInt(yToUse / subOffsetDivisor);
++		auto yInTopLevel = (float)tmp * subOffsetDivisor;
++		return c.getLocalPoint(tl, Point<float>(0.0f, yInTopLevel)).getY();
++	}
++
++	float getPixelSize() const { return pixelSizeInFloat; }
++
++	float getTotalScaleFactor() const { return sf; }
++
++private:
++
++
++
++
++	Graphics& g;
++	Component& c;
++	Component* tl;
++
++	float juceScaleFactor;
++	float sf;
++	float physicalScaleFactor;
++	float pixelSizeInFloat;
++	float subOffsetDivisor;
++};
++
++
+ } // namespace juce
+diff --git a/modules/juce_gui_basics/desktop/juce_Desktop.cpp b/modules/juce_gui_basics/desktop/juce_Desktop.cpp
+index 047bf1b15..ba6a54e3b 100644
+--- a/modules/juce_gui_basics/desktop/juce_Desktop.cpp
++++ b/modules/juce_gui_basics/desktop/juce_Desktop.cpp
+@@ -94,7 +94,7 @@ LookAndFeel& Desktop::getDefaultLookAndFeel() noexcept
+         return *lf;
+ 
+     if (defaultLookAndFeel == nullptr)
+-        defaultLookAndFeel.reset (new LookAndFeel_V4());
++        defaultLookAndFeel.reset (new LookAndFeel_V3());
+ 
+     auto lf = defaultLookAndFeel.get();
+     jassert (lf != nullptr);
+diff --git a/modules/juce_gui_basics/keyboard/juce_ModifierKeys.h b/modules/juce_gui_basics/keyboard/juce_ModifierKeys.h
+index b4eb4488c..4e462eb7e 100644
+--- a/modules/juce_gui_basics/keyboard/juce_ModifierKeys.h
++++ b/modules/juce_gui_basics/keyboard/juce_ModifierKeys.h
+@@ -89,6 +89,10 @@ public:
+ 
+     inline bool isMiddleButtonDown() const noexcept     { return testFlags (middleButtonModifier); }
+ 
++	inline bool isX1ButtonDown() const noexcept { return testFlags(x1ButtonModifier); }
++
++	inline bool isX2ButtonDown() const noexcept { return testFlags(x2ButtonModifier); }
++
+     /** Tests for any of the mouse-button flags. */
+     inline bool isAnyMouseButtonDown() const noexcept   { return testFlags (allMouseButtonModifiers); }
+ 
+@@ -135,6 +139,12 @@ public:
+         /** Middle mouse button flag. */
+         middleButtonModifier                    = 64,
+ 
++        /** First additional mouse button */
++        x1ButtonModifier                        = 128,
++
++        /** Second additional mouse button. */
++        x2ButtonModifier                        = 256,
++
+        #if JUCE_MAC || JUCE_IOS
+         /** Command key flag - on windows this is the same as the CTRL key flag. */
+         commandModifier                         = 8,
+@@ -155,7 +165,7 @@ public:
+         allKeyboardModifiers                    = shiftModifier | ctrlModifier | altModifier | commandModifier,
+ 
+         /** Represents a combination of all the mouse buttons at once. */
+-        allMouseButtonModifiers                 = leftButtonModifier | rightButtonModifier | middleButtonModifier,
++        allMouseButtonModifiers                 = leftButtonModifier | rightButtonModifier | middleButtonModifier | x1ButtonModifier | x2ButtonModifier,
+ 
+         /** Represents a combination of all the alt, ctrl and command key modifiers. */
+         ctrlAltCommandModifiers                 = ctrlModifier | altModifier | commandModifier
+diff --git a/modules/juce_gui_basics/lookandfeel/juce_LookAndFeel.cpp b/modules/juce_gui_basics/lookandfeel/juce_LookAndFeel.cpp
+index f0bd1e124..006d3547b 100644
+--- a/modules/juce_gui_basics/lookandfeel/juce_LookAndFeel.cpp
++++ b/modules/juce_gui_basics/lookandfeel/juce_LookAndFeel.cpp
+@@ -68,9 +68,11 @@ LookAndFeel::~LookAndFeel()
+        safe WeakReference to it, but it could cause some unexpected graphical behaviour,
+        so it's advisable to clear up any references before destroying them!
+     */
+-    jassert (masterReference.getNumActiveWeakReferences() == 0
+-              || (masterReference.getNumActiveWeakReferences() == 1
+-                   && this == &getDefaultLookAndFeel()));
++#if 0
++	jassert(masterReference.getNumActiveWeakReferences() == 0
++		|| (masterReference.getNumActiveWeakReferences() == 1
++			&& this == &getDefaultLookAndFeel()));
++#endif
+ }
+ 
+ //==============================================================================
+@@ -82,7 +84,7 @@ Colour LookAndFeel::findColour (int colourID) const noexcept
+     if (index >= 0)
+         return colours[index].colour;
+ 
+-    jassertfalse;
++    
+     return Colours::black;
+ }
+ 
+diff --git a/modules/juce_gui_basics/lookandfeel/juce_LookAndFeel_V2.cpp b/modules/juce_gui_basics/lookandfeel/juce_LookAndFeel_V2.cpp
+index 7e888ea9d..db239492a 100644
+--- a/modules/juce_gui_basics/lookandfeel/juce_LookAndFeel_V2.cpp
++++ b/modules/juce_gui_basics/lookandfeel/juce_LookAndFeel_V2.cpp
+@@ -1620,6 +1620,7 @@ Label* LookAndFeel_V2::createSliderTextBox (Slider& slider)
+                                         ? 0.7f : 1.0f));
+     l->setColour (TextEditor::outlineColourId, slider.findColour (Slider::textBoxOutlineColourId));
+     l->setColour (TextEditor::highlightColourId, slider.findColour (Slider::textBoxHighlightColourId));
++	l->setColour(Label::ColourIds::outlineWhenEditingColourId, slider.findColour(Label::ColourIds::outlineWhenEditingColourId));
+ 
+     return l;
+ }
+diff --git a/modules/juce_gui_basics/menus/juce_PopupMenu.h b/modules/juce_gui_basics/menus/juce_PopupMenu.h
+index 56db43b96..16261712f 100644
+--- a/modules/juce_gui_basics/menus/juce_PopupMenu.h
++++ b/modules/juce_gui_basics/menus/juce_PopupMenu.h
+@@ -106,6 +106,8 @@ public:
+     /** Resets the menu, removing all its items. */
+     void clear();
+ 
++	
++
+     /** Describes a popup menu item. */
+     struct JUCE_API  Item
+     {
+@@ -427,6 +429,14 @@ public:
+     */
+     int getNumItems() const noexcept;
+ 
++	const Item* getItem(int index) const 
++	{ 
++		if(isPositiveAndBelow(index, items.size()))
++			return &items.getReference(index);
++			
++		return nullptr;
++	}
++
+     /** Returns true if the menu contains a command item that triggers the given command. */
+     bool containsCommandItem (int commandID) const;
+ 
+diff --git a/modules/juce_gui_basics/mouse/juce_DragAndDropContainer.cpp b/modules/juce_gui_basics/mouse/juce_DragAndDropContainer.cpp
+index 77ef59434..0331f4bd0 100644
+--- a/modules/juce_gui_basics/mouse/juce_DragAndDropContainer.cpp
++++ b/modules/juce_gui_basics/mouse/juce_DragAndDropContainer.cpp
+@@ -32,7 +32,9 @@ bool juce_performDragDropText (const String&, bool& shouldStop);
+ 
+ //==============================================================================
+ class DragAndDropContainer::DragImageComponent  : public Component,
++												  public DragAndDropContainer::DragImageComponentBase,
+                                                   private Timer
++												  
+ {
+ public:
+     DragImageComponent (const Image& im,
+@@ -83,7 +85,19 @@ public:
+             g.fillAll (Colours::white);
+ 
+         g.setOpacity (1.0f);
+-        g.drawImageAt (image, 0, 0);
++
++		auto scaleFactor = getScaleFactorForComponent(sourceDetails.sourceComponent);
++
++		if (scaleFactor == 1.0f)
++		{
++			g.drawImageAt(image, 0, 0);
++		}
++		else
++		{
++			g.drawImageTransformed(image, AffineTransform::scale(1.0f / scaleFactor));
++		}
++
++        
+     }
+ 
+     void mouseUp (const MouseEvent& e) override
+@@ -215,8 +229,11 @@ public:
+     // (overridden to avoid beeps when dragging)
+     void inputAttemptWhenModal() override {}
+ 
++	DragAndDropTarget::SourceDetails getDetails() const override { return sourceDetails; }
++
+     DragAndDropTarget::SourceDetails sourceDetails;
+ 
++
+ private:
+     Image image;
+     DragAndDropContainer& owner;
+@@ -227,9 +244,26 @@ private:
+     int originalInputSourceIndex;
+     MouseInputSource::InputSourceType originalInputSourceType;
+ 
++	static float getScaleFactorForComponent(Component* c)
++	{
++		float sf = c->getTransform().getScaleFactor();
++		auto pc = c->getParentComponent();
++
++		while (pc != nullptr)
++		{
++			sf *= pc->getTransform().getScaleFactor();
++			pc = pc->getParentComponent();
++		}
++
++		return sf;
++	}
++
+     void updateSize()
+     {
+-        setSize (image.getWidth(), image.getHeight());
++		auto scaleFactor = getScaleFactorForComponent(sourceDetails.sourceComponent);
++
++        setSize (roundToInt(image.getWidth() * scaleFactor), 
++			     roundToInt(image.getHeight() * scaleFactor));
+     }
+ 
+     void forceMouseCursorUpdate()
+diff --git a/modules/juce_gui_basics/mouse/juce_DragAndDropContainer.h b/modules/juce_gui_basics/mouse/juce_DragAndDropContainer.h
+index f1c6d5ad7..153c72d26 100644
+--- a/modules/juce_gui_basics/mouse/juce_DragAndDropContainer.h
++++ b/modules/juce_gui_basics/mouse/juce_DragAndDropContainer.h
+@@ -193,6 +193,13 @@ public:
+     static bool performExternalDragDropOfText (const String& text, Component* sourceComponent = nullptr,
+                                                std::function<void()> callback = nullptr);
+ 
++	struct DragImageComponentBase
++	{
++		virtual ~DragImageComponentBase() {};
++
++		virtual DragAndDropTarget::SourceDetails getDetails() const = 0;
++	};
++
+ protected:
+     /** Override this if you want to be able to perform an external drag of a set of files
+         when the user drags outside of this container component.
+diff --git a/modules/juce_gui_basics/widgets/juce_Label.cpp b/modules/juce_gui_basics/widgets/juce_Label.cpp
+index 8459d9e92..a95cad4d3 100644
+--- a/modules/juce_gui_basics/widgets/juce_Label.cpp
++++ b/modules/juce_gui_basics/widgets/juce_Label.cpp
+@@ -226,6 +226,7 @@ void Label::showEditor()
+         editor->setKeyboardType (keyboardType);
+         editor->addListener (this);
+         editor->grabKeyboardFocus();
++		editor->setJustification(getJustificationType());
+ 
+         if (editor == nullptr) // may be deleted by a callback
+             return;
+diff --git a/modules/juce_gui_basics/widgets/juce_ListBox.cpp b/modules/juce_gui_basics/widgets/juce_ListBox.cpp
+index 6cd138d35..7bf70e0f4 100644
+--- a/modules/juce_gui_basics/widgets/juce_ListBox.cpp
++++ b/modules/juce_gui_basics/widgets/juce_ListBox.cpp
+@@ -113,6 +113,8 @@ public:
+             {
+                 SparseSet<int> rowsToDrag;
+ 
++				selectRowOnMouseUp = false;
++
+                 if (owner.selectOnMouseDown || owner.isRowSelected (row))
+                     rowsToDrag = owner.getSelectedRows();
+                 else
+diff --git a/modules/juce_gui_basics/widgets/juce_Slider.cpp b/modules/juce_gui_basics/widgets/juce_Slider.cpp
+index 731193ff1..35b60e0b7 100644
+--- a/modules/juce_gui_basics/widgets/juce_Slider.cpp
++++ b/modules/juce_gui_basics/widgets/juce_Slider.cpp
+@@ -1081,6 +1081,10 @@ public:
+                     auto delta = getMouseWheelDelta (value, (std::abs (wheel.deltaX) > std::abs (wheel.deltaY)
+                                                                   ? -wheel.deltaX : wheel.deltaY)
+                                                                * (wheel.isReversed ? -1.0f : 1.0f));
++
++					if (e.mods.isCommandDown())
++						delta *= 0.1;
++
+                     if (delta != 0.0)
+                     {
+                         auto newValue = value + jmax (normRange.interval, std::abs (delta)) * (delta < 0 ? -1.0 : 1.0);
+@@ -1209,6 +1213,11 @@ public:
+         }
+     }
+ 
++	Label* getTextBox()
++	{
++		return valueBox.get();
++	}
++
+     //==============================================================================
+ 
+     void resizeIncDecButtons()
+@@ -1475,6 +1484,8 @@ void Slider::setTextBoxIsEditable (const bool shouldBeEditable)     { pimpl->set
+ void Slider::showTextBox()                                          { pimpl->showTextBox(); }
+ void Slider::hideTextBox (bool discardCurrentEditorContents)        { pimpl->hideTextBox (discardCurrentEditorContents); }
+ 
++Label* Slider::getTextBox() { return pimpl->getTextBox(); }
++
+ void Slider::setChangeNotificationOnlyOnRelease (bool onlyNotifyOnRelease)
+ {
+     pimpl->sendChangeOnlyOnRelease = onlyNotifyOnRelease;
+diff --git a/modules/juce_gui_basics/widgets/juce_Slider.h b/modules/juce_gui_basics/widgets/juce_Slider.h
+index 5b5679351..73ffdc05b 100644
+--- a/modules/juce_gui_basics/widgets/juce_Slider.h
++++ b/modules/juce_gui_basics/widgets/juce_Slider.h
+@@ -369,6 +369,7 @@ public:
+     */
+     void hideTextBox (bool discardCurrentEditorContents);
+ 
++	
+ 
+     //==============================================================================
+     /** Changes the slider's current value.
+@@ -968,6 +969,11 @@ public:
+     /** @internal */
+     void mouseEnter (const MouseEvent&) override;
+ 
++protected:
++
++	/** returns the current textbox label. */
++	Label* getTextBox();
++
+ private:
+     //==============================================================================
+     JUCE_PUBLIC_IN_DLL_BUILD (class Pimpl)
+diff --git a/modules/juce_gui_basics/windows/juce_AlertWindow.cpp b/modules/juce_gui_basics/windows/juce_AlertWindow.cpp
+index f45630f0c..c6ccccf55 100644
+--- a/modules/juce_gui_basics/windows/juce_AlertWindow.cpp
++++ b/modules/juce_gui_basics/windows/juce_AlertWindow.cpp
+@@ -111,6 +111,7 @@ void AlertWindow::addButton (const String& name,
+     b->addShortcut (shortcutKey1);
+     b->addShortcut (shortcutKey2);
+     b->onClick = [this, b] { exitAlert (b); };
++	b->addListener(this);
+ 
+     Array<TextButton*> buttonsArray (buttons.begin(), buttons.size());
+     auto& lf = getLookAndFeel();
+diff --git a/modules/juce_gui_basics/windows/juce_AlertWindow.h b/modules/juce_gui_basics/windows/juce_AlertWindow.h
+index d73eb07b4..6a267d4e5 100644
+--- a/modules/juce_gui_basics/windows/juce_AlertWindow.h
++++ b/modules/juce_gui_basics/windows/juce_AlertWindow.h
+@@ -41,7 +41,8 @@ namespace juce
+ 
+     @tags{GUI}
+ */
+-class JUCE_API  AlertWindow  : public TopLevelWindow
++class JUCE_API  AlertWindow  : public TopLevelWindow,
++							   public Button::Listener
+ {
+ public:
+     //==============================================================================
+@@ -189,6 +190,8 @@ public:
+     */
+     void addProgressBarComponent (double& progressValue);
+ 
++	void buttonClicked(Button* ) override {};
++
+     //==============================================================================
+     /** Adds a user-defined component to the dialog box.
+ 
+diff --git a/modules/juce_gui_extra/code_editor/juce_CPlusPlusCodeTokeniserFunctions.h b/modules/juce_gui_extra/code_editor/juce_CPlusPlusCodeTokeniserFunctions.h
+index 896dc9e23..a0c61fe71 100644
+--- a/modules/juce_gui_extra/code_editor/juce_CPlusPlusCodeTokeniserFunctions.h
++++ b/modules/juce_gui_extra/code_editor/juce_CPlusPlusCodeTokeniserFunctions.h
+@@ -356,6 +356,8 @@ struct CppTokeniserFunctions
+         {
+             auto c = source.peekNextChar();
+ 
++			auto asString = String::charToString(c);
++
+             if (c == '"')
+             {
+                 skipQuotedString (source);
+@@ -377,10 +379,14 @@ struct CppTokeniserFunctions
+ 
+             if (c == '\n' || c == '\r')
+             {
+-                source.skipToEndOfLine();
+-
+-                if (lastWasBackslash)
+-                    skipPreprocessorLine (source);
++				source.skipToEndOfLine();
++
++				if (lastWasBackslash)
++				{
++					source.skip();
++					skipPreprocessorLine(source);
++				}
++                    
+ 
+                 break;
+             }
+diff --git a/modules/juce_gui_extra/code_editor/juce_CodeDocument.cpp b/modules/juce_gui_extra/code_editor/juce_CodeDocument.cpp
+index c4e32fbe5..e01b839f1 100644
+--- a/modules/juce_gui_extra/code_editor/juce_CodeDocument.cpp
++++ b/modules/juce_gui_extra/code_editor/juce_CodeDocument.cpp
+@@ -712,6 +712,14 @@ bool CodeDocument::writeToStream (OutputStream& stream)
+     return true;
+ }
+ 
++void CodeDocument::setDisableUndo(bool shouldBeDisabled)
++{
++	if (shouldBeDisabled)
++		clearUndoHistory();
++
++	undoDisabled = shouldBeDisabled;
++}
++
+ void CodeDocument::setNewLineCharacters (const String& newChars) noexcept
+ {
+     jassert (newChars == "\r\n" || newChars == "\n" || newChars == "\r");
+@@ -720,23 +728,33 @@ void CodeDocument::setNewLineCharacters (const String& newChars) noexcept
+ 
+ void CodeDocument::newTransaction()
+ {
+-    undoManager.beginNewTransaction (String());
++	if(!undoDisabled)
++		undoManager.beginNewTransaction (String());
+ }
+ 
+ void CodeDocument::undo()
+ {
+-    newTransaction();
+-    undoManager.undo();
++	if (!undoDisabled)
++	{
++		newTransaction();
++		undoManager.undo();
++	}
++    
+ }
+ 
+ void CodeDocument::redo()
+ {
+-    undoManager.redo();
++	if (!undoDisabled)
++	{
++		undoManager.redo();
++	}
++    
+ }
+ 
+ void CodeDocument::clearUndoHistory()
+ {
+-    undoManager.clearUndoHistory();
++	if(!undoDisabled)
++		undoManager.clearUndoHistory();
+ }
+ 
+ void CodeDocument::setSavePoint() noexcept
+@@ -854,6 +872,30 @@ void CodeDocument::findLineContaining  (const Position& pos, Position& s, Positi
+     e.setLineAndIndex (pos.getLineNumber() + 1, 0);
+ }
+ 
++bool CodeDocument::endsWithNewLine(int lineIndex) const noexcept
++{
++	if (isPositiveAndBelow(lineIndex, lines.size()))
++	{
++		return lines[lineIndex]->endsWithLineBreak();
++	}
++
++	return false;
++}
++
++String CodeDocument::getLineWithoutLinebreak(int lineIndex) const noexcept
++{
++	if (isPositiveAndBelow(lineIndex, lines.size()))
++	{
++		auto l = lines[lineIndex];
++
++		auto start = l->line.getCharPointer();
++		auto end = start + l->lineLengthWithoutNewLines;
++		return String(start, end);
++	}
++
++	return {};
++}
++
+ void CodeDocument::checkLastLineStatus()
+ {
+     while (lines.size() > 0
+@@ -913,7 +955,7 @@ void CodeDocument::insert (const String& text, const int insertPos, const bool u
+ {
+     if (text.isNotEmpty())
+     {
+-        if (undoable)
++        if (undoable && !undoDisabled)
+         {
+             undoManager.perform (new InsertAction (*this, text, insertPos));
+         }
+@@ -1004,7 +1046,7 @@ void CodeDocument::remove (const int startPos, const int endPos, const bool undo
+     if (endPos <= startPos)
+         return;
+ 
+-    if (undoable)
++    if (undoable && !undoDisabled)
+     {
+         undoManager.perform (new DeleteAction (*this, startPos, endPos));
+     }
+diff --git a/modules/juce_gui_extra/code_editor/juce_CodeDocument.h b/modules/juce_gui_extra/code_editor/juce_CodeDocument.h
+index 21eda6415..d5a2597ec 100644
+--- a/modules/juce_gui_extra/code_editor/juce_CodeDocument.h
++++ b/modules/juce_gui_extra/code_editor/juce_CodeDocument.h
+@@ -49,7 +49,7 @@ public:
+     CodeDocument();
+ 
+     /** Destructor. */
+-    ~CodeDocument();
++    virtual ~CodeDocument();
+ 
+     //==============================================================================
+     /** A position in a code document.
+@@ -251,6 +251,9 @@ public:
+     /** Writes the editor's current contents to a stream. */
+     bool writeToStream (OutputStream& stream);
+ 
++	/** Disables the undo manger and directly calls the functions. */
++	void setDisableUndo(bool shouldBeDisabled);
++
+     //==============================================================================
+     /** Returns the preferred new-line characters for the document.
+         This will be either "\\n", "\\r\\n", or (rarely) "\\r".
+@@ -320,6 +323,11 @@ public:
+     /** Finds the line that contains the given position. */
+     void findLineContaining  (const Position& pos, Position& start, Position& end) const noexcept;
+ 
++	/** Checks whether the line contains a newline character at the end. */
++	bool endsWithNewLine(int lineIndex) const noexcept;
++
++	String getLineWithoutLinebreak(int lineIndex) const noexcept;
++
+     //==============================================================================
+     /** An object that receives callbacks from the CodeDocument when its text changes.
+         @see CodeDocument::addListener, CodeDocument::removeListener
+@@ -427,11 +435,16 @@ public:
+ 
+ private:
+     //==============================================================================
++
++	JUCE_DECLARE_WEAK_REFERENCEABLE(CodeDocument);
++
+     struct InsertAction;
+     struct DeleteAction;
+     friend class Iterator;
+     friend class Position;
+ 
++	bool undoDisabled = false;
++
+     OwnedArray<CodeDocumentLine> lines;
+     Array<Position*> positionsToMaintain;
+     UndoManager undoManager;
+diff --git a/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.cpp b/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.cpp
+index 08f4546bf..0d2bc6ed7 100644
+--- a/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.cpp
++++ b/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.cpp
+@@ -493,6 +493,11 @@ void CodeEditorComponent::paint (Graphics& g)
+         lines.getUnchecked(i)->draw (*this, g, font, rightClip, x, lineHeight * i, lineHeight, charWidth);
+ }
+ 
++Component* CodeEditorComponent::getGutterComponent()
++{
++	return gutter.get();
++}
++
+ void CodeEditorComponent::setScrollbarThickness (const int thickness)
+ {
+     if (scrollbarThickness != thickness)
+diff --git a/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.h b/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.h
+index 29617a153..4140135b4 100644
+--- a/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.h
++++ b/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.h
+@@ -281,6 +281,8 @@ public:
+         lineNumberTextId            = 0x1004505,  /**< The colour to use for drawing the line numbers. */
+     };
+ 
++	Component* getGutterComponent();
++
+     //==============================================================================
+     /** Changes the size of the scrollbars. */
+     void setScrollbarThickness (int thickness);
+diff --git a/modules/juce_opengl/juce_opengl.cpp b/modules/juce_opengl/juce_opengl.cpp
+index b6b4e6dae..a836d2689 100644
+--- a/modules/juce_opengl/juce_opengl.cpp
++++ b/modules/juce_opengl/juce_opengl.cpp
+@@ -214,7 +214,7 @@ static void checkGLError (const char* file, const int line)
+             continue;
+ 
+         DBG ("***** " << getGLErrorMessage (e) << "  at " << file << " : " << line);
+-        jassertfalse;
++        //jassertfalse;
+     }
+ }
+ 
+diff --git a/modules/juce_opengl/native/juce_MissingGLDefinitions.h b/modules/juce_opengl/native/juce_MissingGLDefinitions.h
+index c23ec097a..f90cdbef5 100644
+--- a/modules/juce_opengl/native/juce_MissingGLDefinitions.h
++++ b/modules/juce_opengl/native/juce_MissingGLDefinitions.h
+@@ -95,6 +95,13 @@ enum MissingOpenGLDefinitions
+     GL_MAX_ELEMENTS_INDICES         = 0x80E9,
+    #endif
+ 
++  #if JUCE_WINDOWS && !defined(GL_MAJOR_VERSION)
++      GL_MAJOR_VERSION              = 0x821b,
++  #endif
++  #if JUCE_WINDOWS && !defined(GL_MINOR_VERSION)
++      GL_MINOR_VERSION              = 0x821c,
++  #endif
++
+    #ifndef GL_POINT_SPRITE
+     GL_POINT_SPRITE                 = 0x8861,
+    #endif
+-- 
+2.20.1.windows.1
+
