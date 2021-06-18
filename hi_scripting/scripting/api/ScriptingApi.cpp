@@ -1075,7 +1075,7 @@ void ScriptingApi::Engine::loadFontAs(String fileName, String fontId)
 
 	const String absolutePath = GET_PROJECT_HANDLER(getProcessor()).getFilePath(fileName, ProjectHandler::SubDirectories::Images);
 	File f(absolutePath);
-	ScopedPointer<FileInputStream> fis = f.createInputStream();
+	auto fis = f.createInputStream();
 
 	if (fis == nullptr)
 	{

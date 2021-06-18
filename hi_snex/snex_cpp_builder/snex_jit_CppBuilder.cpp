@@ -132,7 +132,7 @@ void Base::addComment(const String& comment, CommentType commentType)
 	}
 }
 
-String Base::parseUglified() const
+String Base::parseUglified()
 {
 	String s;
 	for (auto& l : lines)
@@ -176,7 +176,7 @@ String Base::toString() const
 {
 	switch (t)
 	{
-	case OutputType::Uglify:       return parseUglified();
+	case OutputType::Uglify:       return const_cast<Base*>(this)->parseUglified();
 	case OutputType::WrapInBlock:  return wrapInBlock();
 	case OutputType::StatementListWithoutSemicolon: return parseRawAndAddSemicolon();
 	default:					   return parseLines();

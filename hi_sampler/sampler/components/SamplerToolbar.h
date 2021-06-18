@@ -51,11 +51,8 @@ public:
 	
 	struct ToolbarPaths
 	{
-		static Drawable *createPath(int id, bool isOn);
-		
+		static std::unique_ptr<Drawable> createPath(int id, bool isOn);
 	};
-
-	
 
 private:
 
@@ -81,11 +78,8 @@ public:
 	
 	struct ToolbarPaths
 	{
-		static Drawable *createPath(int id, bool isOn);
-		
+		static std::unique_ptr<Drawable> createPath(int id, bool isOn);
 	};
-
-	
 
 private:
 

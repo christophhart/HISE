@@ -452,7 +452,7 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 							juce::ToggleButton blinkButton;
 						};
 
-						auto& cb = CallOutBox::launchAsynchronously(new Popup(bp), calloutBounds, nullptr);
+						auto& cb = CallOutBox::launchAsynchronously(std::unique_ptr<Popup>(new Popup(bp)), calloutBounds, nullptr);
 
 						cb.setColour(LookAndFeel_V4::ColourScheme::UIColour::widgetBackground, Colours::white);
 
@@ -483,7 +483,7 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 						t->setSize(GLOBAL_MONOSPACE_FONT().getStringWidth(line) + 20.0f, 24.0f);
 						t->setText(line, dontSendNotification);
 						t->setReadOnly(true);
-						auto& cb = CallOutBox::launchAsynchronously(t, calloutBounds, nullptr);
+						auto& cb = CallOutBox::launchAsynchronously(std::unique_ptr<Component>(t), calloutBounds, nullptr);
 					}
 				}
 				else

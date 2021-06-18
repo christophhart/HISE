@@ -64,7 +64,7 @@ END_MARKDOWN_CHAPTER()
 
 static bool canConnectToWebsite(const URL& url)
 {
-	ScopedPointer<InputStream> in(url.createInputStream(false, nullptr, nullptr, String(), 2000, nullptr));
+	auto in = url.createInputStream(false, nullptr, nullptr, String(), 2000, nullptr);
 	return in != nullptr;
 }
 
@@ -171,7 +171,7 @@ public:
 
 		URL url(webFolder + downloadFileName);
 
-		ScopedPointer<InputStream> stream = url.createInputStream(false, &downloadProgress, this);
+		auto stream = url.createInputStream(false, &downloadProgress, this);
 
 		target = File(filePicker->getCurrentFile().getChildFile(downloadFileName));
 
@@ -271,7 +271,7 @@ private:
 
 		String content;
 
-		ScopedPointer<InputStream> stream = url.createInputStream(false);
+		auto stream = url.createInputStream(false);
 
 		if (stream != nullptr)
 		{
@@ -360,7 +360,7 @@ struct XmlBackupFunctions
 			{
 				if (auto child = XmlDocument::parse(f))
 				{
-					uiData->addChildElement(child);
+					uiData->addChildElement(child.get());
 				}
 			}
 
@@ -1326,7 +1326,7 @@ public:
 
 		showStatusMessage("Downloading the project");
 
-		ScopedPointer<InputStream> stream = downloadLocation.createInputStream(false, &downloadProgress, this, String(), 0, nullptr, &httpStatusCode, 20);
+		auto stream = downloadLocation.createInputStream(false, &downloadProgress, this, String(), 0, nullptr, &httpStatusCode, 20);
 
 		if (stream == nullptr || stream->getTotalLength() <= 0)
 		{
@@ -1340,7 +1340,7 @@ public:
 		tempFile.deleteFile();
 		tempFile.create();
 
-		ScopedPointer<OutputStream> fos = tempFile.createOutputStream();
+		auto fos = tempFile.createOutputStream();
 
 		MemoryBlock mb;
 		mb.setSize(8192);

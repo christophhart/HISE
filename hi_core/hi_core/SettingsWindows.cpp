@@ -557,11 +557,11 @@ void addChildWithValue(ValueTree& v, const Identifier& id, const var& newValue)
 
 juce::ValueTree HiseSettings::ConversionHelpers::loadValueTreeFromFile(const File& f, const Identifier& settingId)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+	auto xml = XmlDocument::parse(f);
 
 	if (xml != nullptr)
 	{
-		return loadValueTreeFromXml(xml, settingId);
+		return loadValueTreeFromXml(xml.get(), settingId);
 	}
 
 	return ValueTree();
@@ -642,7 +642,7 @@ juce::XmlElement* HiseSettings::ConversionHelpers::getConvertedXml(const ValueTr
 	}
 
 
-	return copy.createXml();
+	return copy.createXml().release();
 }
 
 Array<int> HiseSettings::ConversionHelpers::getBufferSizesForDevice(AudioIODevice* currentDevice)

@@ -2248,7 +2248,7 @@ void StructType::addBaseClass(StructType* b)
 {
 	jassert(!isFinalised());
 
-	baseClasses.addIfNotAlreadyThere(new BaseClass(b));
+	baseClasses.add(new BaseClass(b));
 
 	for (auto& p : b->internalProperties)
 	{

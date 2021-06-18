@@ -325,7 +325,12 @@ struct StructType : public ComplexType,
 		nm->id = id;
 		nm->typeInfo = TypeInfo(type, type == Types::ID::Pointer);
 		nm->offset = reinterpret_cast<uint64>(&defaultValue) - reinterpret_cast<uint64>(&obj);
-		nm->defaultList = InitialiserList::makeSingleList(VariableStorage(type, var(defaultValue)));
+
+		if constexpr (!std::is_same<ArgumentType, void*>())
+			nm->defaultList = InitialiserList::makeSingleList(VariableStorage(type, var(defaultValue)));
+		else
+			nm->defaultList = InitialiserList::makeSingleList(VariableStorage(nullptr));
+
 		nm->visibility = v;
 
 		memberData.add(nm);

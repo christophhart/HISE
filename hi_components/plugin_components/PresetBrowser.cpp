@@ -152,7 +152,7 @@ private:
 				{
 					auto relativePath = c.getProperty("FilePath").toString();
 
-					ScopedPointer<XmlElement> xml = c.createXml();
+					auto xml = c.createXml();
 
 					xml->removeAttribute("FilePath");
 
@@ -198,7 +198,7 @@ private:
 
 			for (auto f : presetList)
 			{
-				ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+				auto xml = XmlDocument::parse(f);
 
 				if (xml != nullptr)
 				{
@@ -1583,7 +1583,7 @@ void PresetBrowser::DataBaseHelpers::writeTagsInXml(const File& currentPreset, c
 {
 	if (currentPreset.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+		auto xml = XmlDocument::parse(currentPreset);
 
 		if (xml != nullptr)
 		{
@@ -1617,7 +1617,7 @@ void PresetBrowser::DataBaseHelpers::writeNoteInXml(const File& currentPreset, c
 {
 	if (currentPreset.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+		auto xml = XmlDocument::parse(currentPreset);
 
 		if (xml != nullptr)
 		{
@@ -1654,12 +1654,10 @@ juce::String PresetBrowser::DataBaseHelpers::getNoteFromXml(const File& currentP
 {
 	if (currentPreset.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+		auto xml = XmlDocument::parse(currentPreset);
 
 		if (xml != nullptr)
-		{
 			return xml->getStringAttribute("Notes", "");
-		}
 	}
 
 	return String();

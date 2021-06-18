@@ -136,7 +136,7 @@ struct ColourSelectorPropertyComponent : public PropertyComponent
 			if (root == nullptr)
 				root = findParentComponentOfClass<PropertyPanel>();
 
-			CallOutBox::launchAsynchronously(p, root->getLocalArea(this, getLocalBounds()), root);
+			CallOutBox::launchAsynchronously(std::unique_ptr<Component>(p), root->getLocalArea(this, getLocalBounds()), root);
 		}
 
 		void changeListenerCallback(ChangeBroadcaster* b)
@@ -697,7 +697,7 @@ void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& )
 
 	auto b = pc->getLocalArea(this, getLocalBounds());
 
-	CallOutBox::launchAsynchronously(bigOne, b, pc);
+	CallOutBox::launchAsynchronously(std::unique_ptr<Component>(bigOne), b, pc);
 }
 #endif
     

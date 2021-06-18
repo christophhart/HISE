@@ -28,7 +28,7 @@ void PopupLabel::showPopup()
 	{
 		if (isTicked == 0)
 		{
-			p.addCustomItem(i + 1, new TooltipPopupComponent(options[i], toolTips[i], getWidth() - 4));
+			p.addCustomItem(i + 1, std::unique_ptr<TooltipPopupComponent>(new TooltipPopupComponent(options[i], toolTips[i], getWidth() - 4)));
 		}
 		else
 		{

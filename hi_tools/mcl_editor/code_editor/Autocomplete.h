@@ -143,8 +143,10 @@ public:
 	};
 
 	/** Make it iteratable. */
-	Token** begin() const { return tokens.begin(); }
-	Token** end() const { return tokens.end(); }
+	Token* const* begin() const { return tokens.begin(); }
+	Token* const* end() const { return tokens.end(); }
+	Token** begin() { return tokens.begin(); }
+	Token** end() { return tokens.end(); }
 
 	using List = ReferenceCountedArray<Token>;
 	using TokenPtr = ReferenceCountedObjectPtr<Token>;

@@ -212,7 +212,7 @@ void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v, bool l
 {
 	ValueTree macroData = v.getChildWithName("macro_controls");
 
-	ScopedPointer<XmlElement> data = macroData.createXml();
+	auto data = macroData.createXml();
 
 	if(data != nullptr && data->getNumChildElements() == 8)
 	{
@@ -244,7 +244,7 @@ void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v, bool l
 
 void MacroControlBroadcaster::loadMacroValuesFromValueTree(const ValueTree &v)
 {
-	ScopedPointer<XmlElement> data = v.getChildWithName("macro_controls").createXml();
+	auto data = v.getChildWithName("macro_controls").createXml();
 
     if(data == nullptr)
     {

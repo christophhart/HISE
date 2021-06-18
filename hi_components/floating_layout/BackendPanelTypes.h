@@ -458,7 +458,7 @@ public:
 				auto b2 = table.getScreenPosition();
 				Rectangle<int> b3({ b.getX() + b2.getX(), b.getY() + b2.getY(), b.getWidth(), b.getHeight() });
 
-				CallOutBox::launchAsynchronously(pc, b3, nullptr);
+				CallOutBox::launchAsynchronously(std::unique_ptr<Component>(pc), b3, nullptr);
 				break;
 			}
 			case MenuItems::LoadAllData:

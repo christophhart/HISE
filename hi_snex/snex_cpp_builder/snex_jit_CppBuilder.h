@@ -107,7 +107,7 @@ public:
 
 	void addComment(const String& comment, CommentType commentType);
 
-	String parseUglified() const;
+	String parseUglified();
 
 	void replaceWildcard(const String& wc, const String& expression);
 

@@ -468,7 +468,7 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 	return blocks;
 }
 
-juce::String Preprocessor::toString(const Array<TextBlock>& blocks)
+juce::String Preprocessor::toString(Array<TextBlock>& blocks)
 {
 	String s;
 

@@ -72,7 +72,7 @@ hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const Addi
 
 void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 /*hashCode*/, AudioSampleBuffer& data, var* additionalData)
 {
-	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(ownedStream);
+	auto reader = afm.createReaderFor(std::unique_ptr<InputStream>(ownedStream));
 
 	if (reader != nullptr)
 	{
@@ -164,7 +164,7 @@ void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream
 
 	if (auto fis = dynamic_cast<FileInputStream*>(inputStream.get()))
 	{
-		if (ScopedPointer<XmlElement> xml = XmlDocument::parse(fis->getFile()))
+		if (auto xml = XmlDocument::parse(fis->getFile()))
 		{
 			data = ValueTree::fromXml(*xml);
 		}
@@ -555,7 +555,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 			{
 				auto eInfoFile = Expansion::Helpers::getExpansionInfoFile(eFolder, Expansion::FileBased);
 				jassert(eInfoFile.existsAsFile());
-				ScopedPointer<XmlElement> xml = XmlDocument::parse(eInfoFile);
+				auto xml = XmlDocument::parse(eInfoFile);
 				jassert(xml != nullptr);
 				expansionName = xml->getStringAttribute(ExpansionIds::Name.toString());
 			}

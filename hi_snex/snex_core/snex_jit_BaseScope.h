@@ -313,15 +313,11 @@ private:
 		return nullptr;
 	}
 
-	TableEntry* begin() const
-	{
-		return symbolTable.begin();
-	}
+	TableEntry* begin() { return symbolTable.begin(); }
+	TableEntry* end() { return symbolTable.end(); }
 
-	TableEntry* end() const
-	{
-		return symbolTable.end();
-	}
+	const TableEntry* begin() const { return symbolTable.begin(); }
+	const TableEntry* end() const { return symbolTable.end(); }
 
 	Array<TableEntry> symbolTable;
 	

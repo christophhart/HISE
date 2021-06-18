@@ -32,10 +32,7 @@
 
 
 
-#ifndef VARIANTBUFFER_H_INCLUDED
-#define VARIANTBUFFER_H_INCLUDED
-
-#include <cmath>
+#pragma once
 
 namespace juce { using namespace hise;
 
@@ -45,6 +42,8 @@ namespace juce { using namespace hise;
 
 #define CHECK_CONDITION(condition, errorMessage) if(!(condition)) throw String(errorMessage);
 #define CHECK_CONDITION_WITH_LOCATION(condition, errorMessage) if(!(condition)) location.throwError(errorMessage);
+
+
 
 /** A buffer of floating point data for use in scripted environments.
 *
@@ -91,8 +90,6 @@ public:
 
 	static Identifier getName() { RETURN_STATIC_IDENTIFIER("Buffer") };
 
-	
-
 	/** Removes Nan numbers from a array of float data. */
     static void sanitizeFloatArray(float** channels, int numChannels, int numSamples)
     {
@@ -120,9 +117,6 @@ public:
                 
             }
         }
-        
-        
-        
     }
     
 	// ================================================================================================================
@@ -188,10 +182,5 @@ public:
 	VariantBuffer::Ptr referencedBuffer;
 };
 
-
 void operator >> (float f, VariantBuffer &b);
-
-
 } // namespace juce
-
-#endif  // VARIANTBUFFER_H_INCLUDED

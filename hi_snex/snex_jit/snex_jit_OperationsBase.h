@@ -251,9 +251,11 @@ namespace Operations
 		void logWarning(const juce::String& m);
 		void logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const juce::String& message);
 
-		Statement** begin() const { return childStatements.begin(); }
+		Statement** begin() { return childStatements.begin(); }
+		Statement** end() { return childStatements.end(); }
 
-		Statement** end() const { return childStatements.end(); }
+		Statement* const* begin() const { return childStatements.begin(); }
+		Statement* const* end() const { return childStatements.end(); }
 
 		Statement::Ptr getLastStatement() const
 		{

@@ -294,7 +294,7 @@ void ProcessorEditor::pasteAction()
 {
 	if (getProcessorAsChain() != nullptr)
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
+		auto xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
 
 		if (xml != nullptr)
 		{

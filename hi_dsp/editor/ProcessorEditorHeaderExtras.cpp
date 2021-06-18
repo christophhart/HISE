@@ -232,7 +232,7 @@ void ChainIcon::mouseDown(const MouseEvent &)
 
 		colourSelector->addChangeListener(this);
 
-		CallOutBox::launchAsynchronously(colourSelector, getScreenBounds(), nullptr);
+		CallOutBox::launchAsynchronously(std::unique_ptr<Component>(colourSelector), getScreenBounds(), nullptr);
 	}
 }
 

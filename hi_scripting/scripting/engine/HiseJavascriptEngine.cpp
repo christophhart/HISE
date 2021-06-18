@@ -940,7 +940,7 @@ var HiseJavascriptEngine::getScriptVariableFromRootNamespace(const Identifier & 
 
 void HiseJavascriptEngine::addShaderFile(const File& f)
 {
-	root->hiseSpecialData.includedFiles.addIfNotAlreadyThere(new ExternalFileData(ExternalFileData::Type::EmbeddedScript, f, f.getFileName()));
+	root->hiseSpecialData.includedFiles.add(new ExternalFileData(ExternalFileData::Type::EmbeddedScript, f, f.getFileName()));
 }
 
 int HiseJavascriptEngine::getNumIncludedFiles() const

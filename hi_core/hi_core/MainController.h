@@ -616,6 +616,7 @@ public:
 			const StringArray& getTagList() const { return tagList; }
 
 			const Array<CachedTag>& getCachedTags() const { return cachedTags; }
+			Array<CachedTag>& getCachedTags() { return cachedTags; }
 
 		private:
 

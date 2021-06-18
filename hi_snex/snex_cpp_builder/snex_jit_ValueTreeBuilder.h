@@ -411,15 +411,11 @@ template <typename ItemType> struct PoolBase
 		return nullptr;
 	}
 
-	ItemType** begin() const
-	{
-		return items.begin();
-	}
+	ItemType** begin() { return items.begin(); }
+	ItemType** end() { return items.end(); }
 
-	ItemType** end() const
-	{
-		return items.end();
-	}
+	ItemType* const* begin() const { return items.begin(); }
+	ItemType* const* end() const { return items.end(); }
 
 	ReferenceCountedObjectPtr<ItemType> getLast()
 	{
@@ -576,7 +572,7 @@ private:
 		{
 			String s;
 
-			if (ScopedPointer<XmlElement> xml = v.createXml())
+			if (auto xml = v.createXml())
 			{
 				s << errorMessage;
 				s << "\nValueTree: \n";

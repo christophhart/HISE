@@ -28,8 +28,8 @@ void AudioDeviceDialog::buttonClicked(Button *b)
 	if (b == applyAndCloseButton)
 	{
 		ownerProcessor->saveDeviceSettingsAsXml();
-		ScopedPointer<XmlElement> deviceData = ownerProcessor->deviceManager->createStateXml();
-		ownerProcessor->initialiseAudioDriver(deviceData);
+		auto deviceData = ownerProcessor->deviceManager->createStateXml();
+		ownerProcessor->initialiseAudioDriver(deviceData.get());
 	}
 
 #if USE_BACKEND
@@ -56,7 +56,7 @@ void AudioProcessorDriver::restoreSettings(MainController* /*mc*/)
 void AudioProcessorDriver::saveDeviceSettingsAsXml()
 {
     
-	ScopedPointer<XmlElement> deviceData = deviceManager != nullptr ?
+	std::unique_ptr<XmlElement> deviceData = deviceManager != nullptr ?
                                            deviceManager->createStateXml():
                                            nullptr;
 
@@ -181,7 +181,7 @@ XmlElement * AudioProcessorDriver::getSettings()
 {
 	File savedDeviceData = getDeviceSettingsFile();
 
-	return XmlDocument::parse(savedDeviceData);
+	return XmlDocument::parse(savedDeviceData).release();
 }
 
 void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
@@ -341,7 +341,7 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 	File savedDeviceData = getGlobalSettingsFile();
 
-	ScopedPointer<XmlElement> globalSettings = XmlDocument::parse(savedDeviceData);
+	auto globalSettings = XmlDocument::parse(savedDeviceData);
 
 	if (globalSettings != nullptr)
 	{

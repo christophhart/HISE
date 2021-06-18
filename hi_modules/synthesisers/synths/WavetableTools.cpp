@@ -1295,9 +1295,7 @@ Array<juce::AudioSampleBuffer> SampleMapToWavetableConverter::splitSample(const 
 
 juce::Result SampleMapToWavetableConverter::loadSampleMapFromFile(File sampleMapFile)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFile);
-
-	if (xml != nullptr)
+	if (auto  xml = XmlDocument::parse(sampleMapFile))
 	{
 		sampleMap = ValueTree::fromXml(*xml);
 		return Result::ok();

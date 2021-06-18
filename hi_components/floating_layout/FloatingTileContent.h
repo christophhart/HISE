@@ -719,7 +719,7 @@ public:
 		void registerExternalPanelTypes();
 #endif
 
-		Drawable* getIcon(PopupMenuOptions type) const;
+		std::unique_ptr<Drawable> getIcon(PopupMenuOptions type) const;
 
 		static Path getPath(PopupMenuOptions path);
 

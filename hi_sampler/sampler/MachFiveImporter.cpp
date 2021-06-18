@@ -3,9 +3,7 @@ namespace hise { using namespace juce;
 
 StringArray MachFiveImporter::getLayerNames(const File &machFiveFile)
 {
-	ScopedPointer<XmlElement> rootXml = XmlDocument::parse(machFiveFile);
-
-	if (rootXml != nullptr)
+	if (auto rootXml = XmlDocument::parse(machFiveFile))
 	{
 
 		ValueTree root = ValueTree::fromXml(*rootXml);
@@ -26,9 +24,7 @@ StringArray MachFiveImporter::getLayerNames(const File &machFiveFile)
 
 ValueTree MachFiveImporter::getSampleMapValueTree(const File &machFiveFile, const String &layerName)
 {
-	ScopedPointer<XmlElement> rootXml = XmlDocument::parse(machFiveFile);
-	
-	if (rootXml != nullptr)
+	if (auto rootXml = XmlDocument::parse(machFiveFile))
 	{
 		ValueTree root = ValueTree::fromXml(*rootXml);
 

@@ -59,9 +59,7 @@ ValueTree BaseExporter::exportUserPresetFiles()
 
 		XmlDocument doc(f);
 
-		ScopedPointer<XmlElement> xml = doc.getDocumentElement();
-
-		if (xml != nullptr)
+		if (auto xml = doc.getDocumentElement())
 		{
 			File pd = f.getParentDirectory();
 
@@ -136,9 +134,7 @@ ValueTree BaseExporter::collectAllSampleMapsInDirectory()
         if(sampleMapFiles[i].isHidden() || sampleMapFiles[i].getFileName().startsWith("."))
             continue;
         
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFiles[i]);
-
-		if (xml != nullptr)
+		if (auto xml = XmlDocument::parse(sampleMapFiles[i]))
 		{
 			ValueTree sampleMap = ValueTree::fromXml(*xml);
 			sampleMaps.addChild(sampleMap, -1, nullptr);
@@ -1925,7 +1921,7 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 		for (int i = 0; i < additionalSourceFiles.size(); i++)
 		{
-			ScopedPointer<XmlElement> fileEntry = createXmlElementForFile(chainToExport, templateProject, additionalSourceFiles[i], true);
+			auto fileEntry = createXmlElementForFile(chainToExport, templateProject, additionalSourceFiles[i], true);
 
 			String newAditionalSourceLine = fileEntry->createDocument("", false, false);
             
@@ -2095,7 +2091,7 @@ int CppBuilder::exportValueTreeAsCpp(const File &sourceDirectory, const File &de
 	Array<File> files;
 	sourceDirectory.findChildFiles(files, File::findFiles, false, "*");
 
-	ScopedPointer<OutputStream> header(headerFile.createOutputStream());
+	auto header = headerFile.createOutputStream();
 
 	if (header == nullptr)
 	{
@@ -2104,7 +2100,7 @@ int CppBuilder::exportValueTreeAsCpp(const File &sourceDirectory, const File &de
 		return 0;
 	}
 
-	ScopedPointer<OutputStream> cpp(cppFile.createOutputStream());
+	auto cpp = cppFile.createOutputStream();
 
 	if (cpp == nullptr)
 	{
@@ -2450,11 +2446,7 @@ CompileExporter::ErrorCodes CompileExporter::HelperClasses::saveProjucerFile(Str
 {
 	XmlDocument doc(templateProject);
 
-	ScopedPointer<XmlElement> xml = doc.getDocumentElement();
-
-	jassert(xml != nullptr);
-
-	if (xml != nullptr)
+	if (auto xml = doc.getDocumentElement())
 	{
 		File projectFile = exporter->getProjucerProjectFile();
 

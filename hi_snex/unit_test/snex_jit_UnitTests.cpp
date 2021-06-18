@@ -679,10 +679,9 @@ public:
 	{
 		File f = JitFileTestCase::getTestFileDirectory().getChildFile("node.xml");
 
-		if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
+		if (auto xml = XmlDocument::parse(f))
 		{
 			auto v = ValueTree::fromXml(*xml);
-
 			cppgen::ValueTreeBuilder b(v, cppgen::ValueTreeBuilder::Format::TestCaseFile);
 		}
 	}

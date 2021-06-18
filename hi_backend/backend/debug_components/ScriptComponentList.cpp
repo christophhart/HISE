@@ -302,7 +302,7 @@ void ScriptComponentListItem::moveItems(TreeView& treeView, const OwnedArray<Val
 
 	if (items.size() > 0)
 	{
-		ScopedPointer<XmlElement> oldOpenness(treeView.getOpennessState(false));
+		auto oldOpenness = treeView.getOpennessState(false);
 
         auto c = dynamic_cast<ScriptComponentListItem*>(treeView.getRootItem())->content.get();
         

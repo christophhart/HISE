@@ -296,7 +296,7 @@ void ui::ValueTreeCodeProvider::timerCallback()
 {
 	auto f = snex::JitFileTestCase::getTestFileDirectory().getChildFile("node.xml");
 
-	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
+	if (auto xml = XmlDocument::parse(f))
 	{
 		ValueTree v = ValueTree::fromXml(*xml);
 

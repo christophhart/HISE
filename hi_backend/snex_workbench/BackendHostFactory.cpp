@@ -62,7 +62,7 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 
 			if (networkFile.existsAsFile())
 			{
-				if (ScopedPointer<XmlElement> xml = XmlDocument::parse(networkFile.loadFileAsString()))
+				if (auto xml = XmlDocument::parse(networkFile.loadFileAsString()))
 				{
 					auto nv = ValueTree::fromXml(*xml);
 
@@ -132,7 +132,7 @@ int BackendDllManager::getHashForNetworkFile(MainController* mc, const String& i
 	{
 		if (f.getFileNameWithoutExtension() == id)
 		{
-			if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
+			if (auto xml = XmlDocument::parse(f))
 			{
 				auto v = ValueTree::fromXml(*xml);
 
@@ -192,7 +192,7 @@ bool BackendDllManager::loadDll(bool forceUnload)
 
 bool BackendDllManager::allowCompilation(const File& networkFile)
 {
-	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(networkFile))
+	if (auto xml = XmlDocument::parse(networkFile))
 	{
 		return xml->getBoolAttribute(PropertyIds::AllowCompilation);
 	}
@@ -202,7 +202,7 @@ bool BackendDllManager::allowCompilation(const File& networkFile)
 
 bool BackendDllManager::allowPolyphonic(const File& networkFile)
 {
-	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(networkFile))
+	if (auto xml = XmlDocument::parse(networkFile))
 	{
 		return xml->getBoolAttribute(PropertyIds::AllowPolyphonic);
 	}

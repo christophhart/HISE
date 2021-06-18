@@ -267,7 +267,7 @@ void ValueSettingComponent::mouseDown(const MouseEvent &e)
 		{
 			auto rootPos = root->getLocalArea(getParentComponent(), getBoundsInParent());
 
-			CallOutBox::launchAsynchronously(s, rootPos, root);
+			CallOutBox::launchAsynchronously(std::unique_ptr<Component>(s), rootPos, root);
 		}
 		
         

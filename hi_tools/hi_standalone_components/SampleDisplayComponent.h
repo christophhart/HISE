@@ -1079,6 +1079,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 	ComplexDataUIBase::EditorBase* createEditor();
 
 	const XYZItem::List& getXYZItems() const { return xyzItems; }
+	XYZItem::List& getXYZItems() { return xyzItems; }
 
 	SampleReference::Ptr getFirstXYZData()
 	{

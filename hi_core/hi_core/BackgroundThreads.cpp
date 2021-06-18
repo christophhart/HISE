@@ -677,7 +677,7 @@ String SampleDataExporter::getMetadataJSON() const
 
 		if (Expansion::Helpers::isXmlFile(hxiFile->getCurrentFile()))
 		{
-			ScopedPointer<XmlElement> xml = XmlDocument::parse(hxiFile->getCurrentFile());
+			auto xml = XmlDocument::parse(hxiFile->getCurrentFile());
 
 			if (xml != nullptr)
 			{

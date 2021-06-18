@@ -269,7 +269,7 @@ void DspNetworkCodeProvider::initNetwork()
 {
 	DspNetwork* n = nullptr;
 
-	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(getXmlFile()))
+	if (auto xml = XmlDocument::parse(getXmlFile()))
 	{
 		currentTree = ValueTree::fromXml(*xml);
 		n = np->getOrCreate(currentTree);
@@ -294,7 +294,7 @@ String DspNetworkCodeProvider::createCppForNetwork() const
 {
 	auto chain = currentTree.getChildWithName(scriptnode::PropertyIds::Node);
 
-	if (ScopedPointer<XmlElement> xml = chain.createXml())
+	if (auto xml = chain.createXml())
 	{
 		getTestNodeFile().replaceWithText(xml->createDocument(""));
 
@@ -576,9 +576,9 @@ WorkbenchInfoComponent::WorkbenchInfoComponent(WorkbenchData* d) :
 	ValueTree v;
 	comp.expand(mb, v);
 
-	ScopedPointer<XmlElement> xml = v.createXml();
+	auto xml = v.createXml();
 
-	mainLogoColoured = juce::Drawable::createFromSVG(*xml);
+	mainLogoColoured = juce::Drawable::createFromSVG(*xml).release();
 }
 
 void WorkbenchInfoComponent::paint(Graphics& g)

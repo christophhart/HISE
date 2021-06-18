@@ -4094,7 +4094,7 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName, con
 
 	if (f.existsAsFile())
 	{
-		ScopedPointer<XmlElement> existingData = XmlDocument::parse(f);
+		auto existingData = XmlDocument::parse(f);
 
         if(existingData != nullptr)
         {
@@ -4133,7 +4133,7 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName, con
 
 		preset.addChild(automationData, -1, nullptr);
 
-		ScopedPointer<XmlElement> xml = preset.createXml();
+		auto xml = preset.createXml();
 
 		f.replaceWithText(xml->createDocument(""));
 	}
@@ -4188,7 +4188,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 
 	if (f.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+		auto xml = XmlDocument::parse(f);
 
 		ValueTree parent = ValueTree::fromXml(*xml);
 

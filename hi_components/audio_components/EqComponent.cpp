@@ -505,7 +505,7 @@ void FilterDragOverlay::fillPopupMenu(PopupMenu& m, int handleIndex)
 				auto dp = new DrawablePath();
 				dp->setPath(p);
 
-				m.addItem(typeOffset + i, sa[i], true, isSelected, dp);
+				m.addItem(typeOffset + i, sa[i], true, isSelected, std::unique_ptr<Drawable>(dp));
 			}
 
 			m.addSeparator();

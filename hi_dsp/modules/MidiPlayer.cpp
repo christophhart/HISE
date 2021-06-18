@@ -628,7 +628,7 @@ bool MidiPlayer::EditAction::undo()
 	return false;
 }
 
-void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destination, const Array<HiseEvent>& arrayToWrite, double bpm, double sampleRate)
+void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destination, Array<HiseEvent>& arrayToWrite, double bpm, double sampleRate)
 {
 	if (destination == nullptr)
 		return;

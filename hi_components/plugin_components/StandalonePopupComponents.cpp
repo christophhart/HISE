@@ -693,7 +693,7 @@ void CombinedSettingsWindow::buttonClicked(Button* )
 {
     
     dynamic_cast<AudioProcessorDriver*>(mc)->saveDeviceSettingsAsXml();
-    ScopedPointer<XmlElement> deviceData = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager->createStateXml();
+    ScopedPointer<XmlElement> deviceData = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager->createStateXml().release();
     dynamic_cast<AudioProcessorDriver*>(mc)->initialiseAudioDriver(deviceData);
 
     

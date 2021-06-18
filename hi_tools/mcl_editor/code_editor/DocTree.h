@@ -35,8 +35,8 @@ public:
 		String name;
 		Identifier type;
 
-		Item** begin() const { return children.begin(); }
-		Item** end() const { return children.end(); }
+		Item** begin() const { return const_cast<Item**>(children.begin()); }
+		Item** end() const { return const_cast<Item**>(children.end()); }
 
 		/* Removes all children. */
 		void clearChildren();

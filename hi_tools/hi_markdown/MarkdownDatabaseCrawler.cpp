@@ -67,13 +67,13 @@ juce::Image DatabaseCrawler::Provider::findImageRecursive(ValueTree& t, const Ma
 		{
 			if (auto mb = t.getProperty(MarkdownContentIds::Data).getBinaryData())
 			{
-				ScopedPointer<XmlElement> xml = XmlDocument::parse(mb->toString());
+				auto xml = XmlDocument::parse(mb->toString());
 
 				if (xml != nullptr)
 				{
-					ScopedPointer<Drawable> d = Drawable::createFromSVG(*xml);
+					auto d = Drawable::createFromSVG(*xml);
 
-					return MarkdownParser::FileBasedImageProvider::createImageFromSvg(d, width);
+					return MarkdownParser::FileBasedImageProvider::createImageFromSvg(d.get(), width);
 				}
 			}
 			else

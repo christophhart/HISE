@@ -359,7 +359,7 @@ void PresetBrowserColumn::ColumnListModel::updateTags(const StringArray& newSele
 
 	
 
-	const auto& cachedTags = parent->getMainController()->getUserPresetHandler().getTagDataBase().getCachedTags();
+	auto& cachedTags = parent->getMainController()->getUserPresetHandler().getTagDataBase().getCachedTags();
 
 	for (auto& t : cachedTags)
 	{

@@ -601,7 +601,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 		if (!tFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite file", "Do you want to overwrite the file " + tFile.getFileName()))
 		{
-			ScopedPointer<XmlElement> xml = nData.createXml();
+			auto xml = nData.createXml();
 			tFile.replaceWithText(xml->createDocument(""));
 			
 			auto newPath = "project." + node->getId();

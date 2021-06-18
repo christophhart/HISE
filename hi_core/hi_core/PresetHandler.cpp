@@ -88,7 +88,7 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		if (preset.isValid())
 		{
-			ScopedPointer<XmlElement> xml = preset.createXml();
+			auto xml = preset.createXml();
 
 			presetFile.replaceWithText(xml->createDocument(""));
 
@@ -213,7 +213,7 @@ juce::ValueTree UserPresetHelpers::createModuleStateTree(ModulatorSynthChain* ch
 
 void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
+	auto xml = XmlDocument::parse(fileToLoad);
     
     if(xml != nullptr)
     {
@@ -272,7 +272,7 @@ Identifier UserPresetHelpers::getAutomationIndexFromOldVersion(const String& /*o
 
 bool UserPresetHelpers::updateVersionNumber(ModulatorSynthChain* chain, const File& fileToUpdate)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToUpdate);
+	auto xml = XmlDocument::parse(fileToUpdate);
 
 	const String thisVersion = getCurrentVersionNumber(chain);
 
@@ -349,7 +349,7 @@ ValueTree parseUserPreset(const File& f)
 	if (!f.hasFileExtension(".preset") || f.getFileName().startsWith("."))
 		return {};
 
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+	auto xml = XmlDocument::parse(f);
 
 	if (xml != nullptr)
 	{
@@ -444,7 +444,7 @@ ValueTree UserPresetHelpers::collectAllUserPresets(ModulatorSynthChain* chain, F
 
 juce::StringArray UserPresetHelpers::getExpansionsForUserPreset(const File& userpresetFile)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(userpresetFile);
+	auto xml = XmlDocument::parse(userpresetFile);
 
 	if (xml != nullptr)
 	{
@@ -549,7 +549,7 @@ String PresetHandler::getProcessorNameFromClipboard(const FactoryType *t)
 	if(SystemClipboard::getTextFromClipboard() == String()) return String();
 
 	String x = SystemClipboard::getTextFromClipboard();
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(x);
+	auto xml = XmlDocument::parse(x);
 
 	if(xml == nullptr) return String();
 	
@@ -575,7 +575,7 @@ String PresetHandler::getProcessorNameFromClipboard(const FactoryType *t)
 
 void PresetHandler::copyProcessorToClipboard(Processor *p)
 {
-	ScopedPointer<XmlElement> xml = p->exportAsValueTree().createXml();
+	auto xml = p->exportAsValueTree().createXml();
 	String x = xml->createDocument(String());
 	SystemClipboard::copyTextToClipboard(x);
 
@@ -845,7 +845,7 @@ juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, boo
 
 void ProjectHandler::restoreWorkingProjects()
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(getAppDataDirectory().getChildFile("projects.xml"));
+	auto xml = XmlDocument::parse(getAppDataDirectory().getChildFile("projects.xml"));
 
 	if (xml != nullptr)
 	{
@@ -993,7 +993,7 @@ String ProjectHandler::getPrivateKey() const
 
 juce::String ProjectHandler::getPublicKeyFromFile(const File& f)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+	auto xml = XmlDocument::parse(f);
 
 	if (xml == nullptr) return "";
 
@@ -1003,7 +1003,7 @@ juce::String ProjectHandler::getPublicKeyFromFile(const File& f)
 
 juce::String ProjectHandler::getPrivateKeyFromFile(const File& f)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+	auto xml = XmlDocument::parse(f);
 
 	if (xml == nullptr) return "";
 
@@ -1762,7 +1762,7 @@ Processor* PresetHandler::createProcessorFromClipBoard(Processor *parent)
 	try
 	{
 		String x = SystemClipboard::getTextFromClipboard();
-		ScopedPointer<XmlElement> parsedXml = XmlDocument::parse(x);
+		auto parsedXml = XmlDocument::parse(x);
 		ValueTree v = ValueTree::fromXml(*parsedXml);
 
 		if(parsedXml->getStringAttribute("ID") != v.getProperty("ID", String()).toString() )
@@ -1848,7 +1848,7 @@ juce::ValueTree PresetHandler::changeFileStructureToNewFormat(const ValueTree &v
 
 	newTree.setProperty("Type", v.getType().toString(), nullptr);
 
-	ScopedPointer<XmlElement> editorValueSet = XmlDocument::parse(v.getProperty("EditorState", var::undefined()));
+	auto editorValueSet = XmlDocument::parse(v.getProperty("EditorState", var::undefined()));
 
 	if (newTree.hasProperty("Content"))
 	{
@@ -1867,7 +1867,7 @@ juce::ValueTree PresetHandler::changeFileStructureToNewFormat(const ValueTree &v
 		newTree.addChild(editorStateValueTree, -1, nullptr);
 	}
 
-	ScopedPointer<XmlElement> macroControlData = XmlDocument::parse(v.getProperty("MacroControls", String()));
+	auto macroControlData = XmlDocument::parse(v.getProperty("MacroControls", String()));
 
 	if (macroControlData != nullptr)
 	{
@@ -2038,7 +2038,7 @@ AudioFormatReader * PresetHandler::getReaderForInputStream(InputStream *stream)
 	afm.registerBasicFormats();
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
 
-	return afm.createReaderFor(stream);
+	return afm.createReaderFor(std::unique_ptr<InputStream>(stream));
 }
 
 bool forEachScriptComponent(ScriptingApi::Content* c, DynamicObject* obj, const std::function<bool(DynamicObject* obj, ScriptComponent*)>& f, ScriptComponent* toSkip=nullptr)
@@ -2617,7 +2617,7 @@ void FileHandlerBase::checkAllSampleMaps()
 
 	for (int i = 0; i < sampleMaps.size(); i++)
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMaps[i]);
+		auto xml = XmlDocument::parse(sampleMaps[i]);
 
 		if (xml != nullptr)
 		{
@@ -2658,7 +2658,7 @@ juce::Result FileHandlerBase::updateSampleMapIds(bool silentMode)
 
 	for (int i = 0; i < sampleMapFiles.size(); i++)
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFiles[i]);
+		auto xml = XmlDocument::parse(sampleMapFiles[i]);
 
 		if (xml != nullptr && xml->hasAttribute("ID"))
 		{

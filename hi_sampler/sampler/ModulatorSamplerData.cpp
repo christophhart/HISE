@@ -399,7 +399,7 @@ void SampleMap::saveAndReloadMap()
 {
 	auto f = getReference().getFile();
 
-	ScopedPointer<XmlElement> xml = data.createXml();
+	auto xml = data.createXml();
 	xml->writeToFile(f, "");
 
 	auto pool = sampler->getMainController()->getCurrentSampleMapPool();
@@ -652,7 +652,7 @@ bool SampleMap::save(const File& fileToUse)
 
 	}
 
-	ScopedPointer<XmlElement> xml = data.createXml();
+	auto xml = data.createXml();
 	f.replaceWithText(xml->createDocument(""));
 
 	PoolReference ref(getSampler()->getMainController(), f.getFullPathName(), FileHandlerBase::SubDirectories::SampleMaps);
@@ -1080,7 +1080,7 @@ void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
 {
 	showStatusMessage("Saving Samplemap file");
 	
-	ScopedPointer<XmlElement> xml = v.createXml();
+	auto xml = v.createXml();
 
 	sampleMapFile.getParentDirectory().createDirectory();
 

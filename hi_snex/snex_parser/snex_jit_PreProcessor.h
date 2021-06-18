@@ -301,7 +301,7 @@ private:
 
 	};
 
-	static juce::String toString(const Array<TextBlock>& blocks);
+	static juce::String toString(Array<TextBlock>& blocks);
 
 	Array<TextBlock> parseTextBlocks();
 

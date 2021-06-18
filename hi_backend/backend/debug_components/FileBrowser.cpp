@@ -51,7 +51,7 @@ ToolbarItemComponent * FileBrowserToolbarFactory::createItem(int itemId)
 	return b;
 }
 
-Drawable * FileBrowserToolbarFactory::FileBrowserToolbarPaths::createPath(int id, bool isOn)
+std::unique_ptr<Drawable> FileBrowserToolbarFactory::FileBrowserToolbarPaths::createPath(int id, bool isOn)
 {
 	Path path;
 
@@ -175,7 +175,7 @@ Drawable * FileBrowserToolbarFactory::FileBrowserToolbarPaths::createPath(int id
 	p->setFill(FillType(!isOn ? Colours::white.withAlpha(0.6f) : Colours::white.withAlpha(0.8f)));
 	p->setPath(path);
 
-	return p;
+	return std::unique_ptr<Drawable>(p);
 }
 
 

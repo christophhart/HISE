@@ -188,7 +188,7 @@ void GlobalServer::WebThread::run()
 
 					job->requestTimeMs = Time::getMillisecondCounter();
 
-					wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &job->status));
+					wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &job->status).release());
 
 					if (threadShouldExit())
 						return;

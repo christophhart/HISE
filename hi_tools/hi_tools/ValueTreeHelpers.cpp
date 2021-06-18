@@ -572,7 +572,7 @@ void AnyListener::logIfEnabled(CallbackType b, ValueTree& v, const Identifier& i
 	s << "\n";
 	ValueTree copy = v.createCopy();
 	copy.removeAllChildren(nullptr);
-	ScopedPointer<XmlElement> xml = copy.createXml();
+	auto xml = copy.createXml();
 	s << xml->createDocument("", true);
 	s << "\n--------------------------------------------------------------------";
 

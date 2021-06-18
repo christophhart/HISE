@@ -1352,7 +1352,7 @@ juce::ValueTree FullInstrumentExpansion::getValueTreeFromFile(Expansion::Expansi
 
 	if (fis.readByte() == '<')
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(hxiFile);
+		auto xml = XmlDocument::parse(hxiFile);
 
 		if (xml == nullptr)
 			return ValueTree();
@@ -1636,7 +1636,7 @@ void ExpansionEncodingWindow::run()
 		mData.setProperty(ExpansionIds::UUID, GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::BundleIdentifier), nullptr);
 		mData.setProperty(ExpansionIds::HiseVersion, HISE_VERSION, nullptr);
 
-		ScopedPointer<XmlElement> xml = mData.createXml();
+		auto xml = mData.createXml();
 		f.replaceWithText(xml->createDocument(""));
 		ScopedPointer<FullInstrumentExpansion> e = new FullInstrumentExpansion(getMainController(), h.getWorkDirectory());
 		e->initialise();

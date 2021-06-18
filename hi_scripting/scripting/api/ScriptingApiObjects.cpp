@@ -709,7 +709,7 @@ bool ScriptingObjects::ScriptDownloadObject::resumeInternal()
 
 			int status = 0;
 
-			ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
+			auto wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
 
 			auto numTotal = wis != nullptr ? wis->getTotalLength() : 0;
 
@@ -737,7 +737,7 @@ bool ScriptingObjects::ScriptDownloadObject::resumeInternal()
 				String rangeHeader;
 				rangeHeader << "Range: bytes=" << existingBytesBeforeResuming << "-" << numTotal;
 
-				download = downloadURL.downloadToFile(resumeFile, rangeHeader, this);
+				download = downloadURL.downloadToFile(resumeFile, rangeHeader, this).release();
 
 				data->setProperty("numTotal", numTotal);
 				data->setProperty("numDownloaded", existingBytesBeforeResuming);
@@ -912,7 +912,7 @@ void ScriptingObjects::ScriptDownloadObject::start()
 
 	int status = 0;
 
-	ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &status);
+	auto wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &status);
 
 	if (Thread::currentThreadShouldExit())
 		return;
@@ -920,7 +920,7 @@ void ScriptingObjects::ScriptDownloadObject::start()
 	if (status == 200)
 	{
 		isRunning_ = true;
-		download = downloadURL.downloadToFile(targetFile, {}, this);
+		download = downloadURL.downloadToFile(targetFile, {}, this).release();
 
 		data->setProperty("numTotal", 0);
 		data->setProperty("numDownloaded", 0);

@@ -448,7 +448,7 @@ var SnexComplexVarObject::DynamicFunction::call(const var::NativeFunctionArgs& v
 				case Types::ID::Integer: return var(v.toInt());
 				case Types::ID::Double: return var(v.toDouble());
 				case Types::ID::Float: return var(v.toFloat());
-				case Types::ID::Pointer: return var(v.toPtr());
+				
 				}
 			}
 		}

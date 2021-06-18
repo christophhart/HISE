@@ -560,7 +560,7 @@ void SnexWorkbenchEditor::saveCurrentFile()
 	{
 		if(auto n = fh->getActiveNetwork())
 		{
-			ScopedPointer<XmlElement> xml = n->getValueTree().createXml();
+			auto xml = n->getValueTree().createXml();
 			df->getXmlFile().replaceWithText(xml->createDocument(""));
 		}
 	}
@@ -656,7 +656,7 @@ void SnexWorkbenchEditor::addFile(File f)
 
 	closeCurrentNetwork();
 
-	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
+	if (auto xml = XmlDocument::parse(f))
 	{
 		auto signalPath = xml->getChildElement(0);
 
@@ -757,8 +757,8 @@ struct IncludeSorter
 		using namespace scriptnode;
 		using namespace snex::cppgen;
 
-		ScopedPointer<XmlElement> xml1 = XmlDocument::parse(f1);
-		ScopedPointer<XmlElement> xml2 = XmlDocument::parse(f2);
+		auto xml1 = XmlDocument::parse(f1);
+		auto xml2 = XmlDocument::parse(f2);
 
 		if (xml1 != nullptr && xml2 != nullptr)
 		{
@@ -889,7 +889,7 @@ void DspNetworkCompileExporter::run()
 
 	for (auto e : list)
 	{
-		if (ScopedPointer<XmlElement> xml = XmlDocument::parse(e))
+		if (auto xml = XmlDocument::parse(e))
 		{
 			auto v = ValueTree::fromXml(*xml).getChild(0);
 
@@ -914,7 +914,7 @@ void DspNetworkCompileExporter::run()
 
 	for (auto u : unsortedListU)
 	{
-		if (ScopedPointer<XmlElement> xml = XmlDocument::parse(u))
+		if (auto xml = XmlDocument::parse(u))
 		{
 			auto v = ValueTree::fromXml(*xml);
 
@@ -1066,7 +1066,7 @@ juce::Array<juce::File> DspNetworkCompileExporter::getIncludedNetworkFiles(const
 
 	Array<File> list;
 
-	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(networkFile))
+	if (auto xml = XmlDocument::parse(networkFile))
 	{
 		ValueTree v = ValueTree::fromXml(*xml);
 

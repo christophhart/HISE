@@ -2,9 +2,9 @@
 
 <JUCERPROJECT id="jUHBuI" name="HISE Standalone" projectType="guiapp" version="2.1.0"
               bundleIdentifier="com.hartinstruments.HISEStandalone" includeBinaryInAppConfig="1"
-              jucerVersion="5.4.3" companyName="Hart Instruments" companyWebsite="http://hise.audio"
+              companyName="Hart Instruments" companyWebsite="http://hise.audio"
               companyCopyright="Hart Instruments" displaySplashScreen="0" reportAppUsage="0"
-              splashScreenColour="Dark" cppLanguageStandard="17">
+              splashScreenColour="Dark" cppLanguageStandard="17" jucerFormatVersion="1">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
       <FILE id="Fw455d" name="ScriptNodeTestSuite.cpp" compile="1" resource="0"
@@ -93,10 +93,12 @@
         <MODULEPATH id="hi_snex" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
-    <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
+    <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="UIInterfaceOrientationLandscapeLeft,UIInterfaceOrientationLandscapeRight"
+                  extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
                   extraLinkerFlags="" smallIcon="BNfj8p" bigIcon="BNfj8p" iosBackgroundAudio="1"
                   UIStatusBarHidden="1" extraDefs="USE_IPP=0&#10;HISE_IOS=1" customPList="&lt;key&gt;NSAppTransportSecurity&lt;/key&gt;&#10;&lt;dict&gt;&#10;    &lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&#10;    &lt;true/&gt;&#10;&lt;/dict&gt;"
-                  iPadScreenOrientation="landscape" iosDeviceFamily="1,2">
+                  iPadScreenOrientation="UIInterfaceOrientationLandscapeLeft,UIInterfaceOrientationLandscapeRight"
+                  iosDeviceFamily="1,2">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" iosCompatibility="8.0" isDebug="1" optimisation="1"
                        targetName="HISE Standalone" cppLanguageStandard="c++11" cppLibType="libc++"

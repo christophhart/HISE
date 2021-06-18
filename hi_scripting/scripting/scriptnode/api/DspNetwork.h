@@ -493,7 +493,7 @@ public:
 				wb->setCodeProvider(cp, dontSendNotification);
 				wb->setCompileHandler(new SnexSourceCompileHandler(wb, sp));
 
-				if (ScopedPointer<XmlElement> xml = XmlDocument::parse(parameterFile))
+				if (auto xml = XmlDocument::parse(parameterFile))
 					parameterTree = ValueTree::fromXml(*xml);
 				else
 					parameterTree = ValueTree(PropertyIds::Parameters);
@@ -527,7 +527,7 @@ public:
 
 			void updateFile()
 			{
-				ScopedPointer<XmlElement> xml = parameterTree.createXml();
+				auto xml = parameterTree.createXml();
 				parameterFile.replaceWithText(xml->createDocument(""));
 			}
 
@@ -1221,7 +1221,7 @@ struct DspNetworkListeners
 
 			cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, stripValueTree);
 
-			ScopedPointer<XmlElement> xml = saveCopy.createXml();
+			auto xml = saveCopy.createXml();
 
 			d.replaceWithText(xml->createDocument(""));
 		}

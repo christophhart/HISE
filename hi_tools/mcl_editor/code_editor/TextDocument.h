@@ -697,6 +697,8 @@ public:
 	/** Return the current selection state. */
 	const juce::Array<Selection>& getSelections() const;
 
+	Array<Selection>& getSelections();
+
 	Rectangle<float> getCharacterRectangle() const
 	{
 		return lines.characterRectangle;

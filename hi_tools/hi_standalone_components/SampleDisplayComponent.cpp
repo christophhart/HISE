@@ -1340,7 +1340,7 @@ hise::MultiChannelAudioBuffer::SampleReference::Ptr MultiChannelAudioBuffer::Dat
 
 	auto fis = new FileInputStream(f);
 
-	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(fis);
+	auto reader = afm.createReaderFor(std::unique_ptr<InputStream>(fis));
 
 	if (reader != nullptr)
 	{

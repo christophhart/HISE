@@ -680,6 +680,11 @@ const Array<mcl::Selection>& mcl::TextDocument::getSelections() const
 	return selections;
 }
 
+juce::Array<mcl::Selection>& mcl::TextDocument::getSelections()
+{
+	return selections;
+}
+
 String mcl::TextDocument::getSelectionContent(Selection s) const
 {
 	s = s.oriented();

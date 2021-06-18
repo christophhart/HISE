@@ -957,7 +957,7 @@ void DocUpdater::downloadAndTestFile(const String& targetFileName)
 
 	setTimeoutMs(-1);
 
-	currentDownload = contentURL.downloadToFile(tmpFile, {}, this);
+	currentDownload = contentURL.downloadToFile(tmpFile, {}, this).release();
 
 	if (threadShouldExit())
 	{

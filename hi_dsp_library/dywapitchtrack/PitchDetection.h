@@ -84,7 +84,7 @@ public:
 		AudioFormatManager afm;
 		afm.registerBasicFormats();
 
-		ScopedPointer<AudioFormatReader> afr = afm.createReaderFor(new FileInputStream(File(fileToScan)));
+		ScopedPointer<AudioFormatReader> afr = afm.createReaderFor(std::unique_ptr<InputStream>(new FileInputStream(File(fileToScan))));
 
 		int64 startSample = 0;
 

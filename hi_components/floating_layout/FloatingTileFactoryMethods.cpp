@@ -169,7 +169,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 
 
 
-Drawable* FloatingTileContent::Factory::getIcon(PopupMenuOptions type) const
+std::unique_ptr<Drawable> FloatingTileContent::Factory::getIcon(PopupMenuOptions type) const
 {
 	Path path = getPath(type);
 
@@ -178,10 +178,10 @@ Drawable* FloatingTileContent::Factory::getIcon(PopupMenuOptions type) const
 		auto d = new DrawablePath();
 		d->setPath(path);
 
-		return d;
+		return std::unique_ptr<Drawable>(d);
 	}
 	else
-		return nullptr;
+		return {};
 }
 
 namespace FloatingTileIcons
@@ -566,7 +566,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 void FloatingTileContent::Factory::addToPopupMenu(PopupMenu& m, PopupMenuOptions type, const String& name, bool isEnabled, bool isTicked)
 {
-	m.addItem((int)type, name, isEnabled, isTicked, getIcon(type));
+	m.addItem((int)type, name, isEnabled, isTicked, std::unique_ptr<Drawable>(getIcon(type)));
 }
 
 void addCommandIcon(FloatingTile* /*parent*/, PopupMenu& , int /*commandID*/)

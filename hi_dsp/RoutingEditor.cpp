@@ -314,14 +314,14 @@ void RouterComponent::mouseDown(const MouseEvent &e)
 		}
 		else if (result == Copy)
 		{
-			ScopedPointer<XmlElement> xml = data->exportAsValueTree().createXml();
+			auto xml = data->exportAsValueTree().createXml();
 
 			SystemClipboard::copyTextToClipboard(xml->createDocument(""));
 
 		}
 		else if (result == Paste)
 		{
-			ScopedPointer<XmlElement> xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
+			auto xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
 			if (xml != nullptr)
 			{
 				ValueTree v = ValueTree::fromXml(*xml);

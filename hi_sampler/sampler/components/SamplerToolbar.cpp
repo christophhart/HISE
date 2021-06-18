@@ -41,8 +41,8 @@ ToolbarItemComponent * SampleMapEditorToolbarFactory::createItem(int itemId)
 {
 	ApplicationCommandManager *a = editor->getCommandManager();
 
-	ToolbarButton *tb = new ToolbarButton(itemId, "", ToolbarPaths::createPath(itemId, false),
-															 ToolbarPaths::createPath(itemId, true));
+	ToolbarButton *tb = new ToolbarButton(itemId, "", std::unique_ptr<Drawable>(ToolbarPaths::createPath(itemId, false)),
+													  std::unique_ptr<Drawable>(ToolbarPaths::createPath(itemId, true)));
 	
 	tb->setCommandToTrigger(a, itemId, true);
 	return tb;
@@ -89,7 +89,7 @@ void SampleMapEditorToolbarFactory::getAllToolbarItemIds(Array<int> &ids)
 };
 
 
-Drawable *SampleMapEditorToolbarFactory::ToolbarPaths::createPath(int id, bool /*isOn*/)
+std::unique_ptr<Drawable> SampleMapEditorToolbarFactory::ToolbarPaths::createPath(int id, bool /*isOn*/)
 {
 	Path path;
 
@@ -314,8 +314,7 @@ Drawable *SampleMapEditorToolbarFactory::ToolbarPaths::createPath(int id, bool /
 	p->setFill(FillType(Colours::white.withAlpha(0.8f)));
 	p->setPath(path);
 
-	return p;
-	
+	return std::unique_ptr<DrawablePath>(p);
 };
 
 
@@ -362,7 +361,7 @@ void SampleEditorToolbarFactory::getAllToolbarItemIds(Array<int> &ids)
 		
 };
 
-Drawable *SampleEditorToolbarFactory::ToolbarPaths::createPath(int id, bool isOn)
+std::unique_ptr<Drawable> SampleEditorToolbarFactory::ToolbarPaths::createPath(int id, bool isOn)
 {
 	Path path;
 
@@ -526,13 +525,9 @@ Drawable *SampleEditorToolbarFactory::ToolbarPaths::createPath(int id, bool isOn
 		}
 	}
 	
-	
-
-	
 	p->setPath(path);
 
-	return p;
-	
+	return std::unique_ptr<Drawable>(p);
 };
 
 

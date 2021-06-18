@@ -424,7 +424,7 @@ private:
 	juce::Array<Client, juce::CriticalSection> clients;
 
 	//==============================================================================
-	int findClientIndexForComponent(juce::Component* comp) const
+	int findClientIndexForComponent(juce::Component* comp)
 	{
 		const int n = clients.size();
 		for (int i = 0; i < n; ++i)
@@ -434,7 +434,7 @@ private:
 		return -1;
 	}
 
-	Client* findClientForComponent(juce::Component* comp) const
+	Client* findClientForComponent(juce::Component* comp)
 	{
 		const int index = findClientIndexForComponent(comp);
 		if (index >= 0)

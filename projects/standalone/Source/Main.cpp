@@ -293,7 +293,7 @@ public:
 
 		if (compilerSettings.existsAsFile())
 		{
-			xml = XmlDocument::parse(compilerSettings);
+			xml = XmlDocument::parse(compilerSettings).release();
 		}
 		else
 		{

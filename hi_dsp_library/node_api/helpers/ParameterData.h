@@ -251,15 +251,11 @@ struct encoder
 
 	encoder(const MemoryBlock& m);
 
-	pod* begin() const
-	{
-		return items.begin();
-	}
+	pod* begin() { return items.begin(); }
+	pod* end() { return items.end();}
 
-	pod* end() const
-	{
-		return items.end();
-	}
+	const pod* begin() const { return items.begin(); }
+	const pod* end() const { return items.end(); }
 
 	MemoryBlock writeItems();
 

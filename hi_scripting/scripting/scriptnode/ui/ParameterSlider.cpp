@@ -47,7 +47,7 @@ struct RangePresets
 	RangePresets(const File& fileToLoad_):
 		fileToLoad(fileToLoad_)
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
+		auto xml = XmlDocument::parse(fileToLoad);
 
 		if (xml != nullptr)
 		{
@@ -99,7 +99,7 @@ struct RangePresets
 		for (const auto& p : presets)
 			v.addChild(p.exportAsValueTree(), -1, nullptr);
 
-		ScopedPointer<XmlElement> xml = v.createXml();
+		auto xml = v.createXml();
 		fileToLoad.replaceWithText(xml->createDocument(""));
 	}
 
