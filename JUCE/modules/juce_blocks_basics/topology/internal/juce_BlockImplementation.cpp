@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -30,7 +30,7 @@ struct BlockImplementation  : public Block,
 {
 public:
     struct ControlButtonImplementation;
-    struct TouchSurfaceImsplementation;
+    struct TouchSurfaceImplementation;
     struct LEDGridImplementation;
     struct LEDRowImplementation;
 
@@ -40,7 +40,8 @@ public:
                  deviceInfo.name.asString()),
           modelData (deviceInfo.serial),
           remoteHeap (modelData.programAndHeapSize),
-          detector (&detectorToUse)
+          detector (&detectorToUse),
+          config (modelData.defaultConfig)
     {
         markReconnected (deviceInfo);
 
@@ -61,13 +62,9 @@ public:
         updateMidiConnectionListener();
     }
 
-    ~BlockImplementation()
+    ~BlockImplementation() override
     {
-        if (listenerToMidiConnection != nullptr)
-        {
-            config.setDeviceComms (nullptr);
-            listenerToMidiConnection->removeListener (this);
-        }
+        markDisconnected();
     }
 
     void markDisconnected()
@@ -75,6 +72,7 @@ public:
         if (auto surface = dynamic_cast<TouchSurfaceImplementation*> (touchSurface.get()))
             surface->disableTouchSurface();
 
+        disconnectMidiConnectionListener();
         connectionTime = Time();
     }
 
@@ -86,6 +84,20 @@ public:
         if (connectionTime == Time())
             connectionTime = Time::getCurrentTime();
 
+        updateDeviceInfo (deviceInfo);
+
+        remoteHeap.reset();
+
+        setProgram (nullptr);
+
+        if (auto surface = dynamic_cast<TouchSurfaceImplementation*> (touchSurface.get()))
+            surface->activateTouchSurface();
+
+        updateMidiConnectionListener();
+    }
+
+    void updateDeviceInfo (const DeviceInfo& deviceInfo)
+    {
         versionNumber = deviceInfo.version.asString();
         name = deviceInfo.name.asString();
         isMaster = deviceInfo.isMaster;
@@ -93,14 +105,6 @@ public:
         batteryCharging = deviceInfo.batteryCharging;
         batteryLevel = deviceInfo.batteryLevel;
         topologyIndex = deviceInfo.index;
-
-        setProgram (nullptr);
-        remoteHeap.resetDeviceStateToUnknown();
-
-        if (auto surface = dynamic_cast<TouchSurfaceImplementation*> (touchSurface.get()))
-            surface->activateTouchSurface();
-
-        updateMidiConnectionListener();
     }
 
     void setToMaster (bool shouldBeMaster)
@@ -121,6 +125,32 @@ public:
         config.setDeviceComms (listenerToMidiConnection);
     }
 
+    void disconnectMidiConnectionListener()
+    {
+        if (listenerToMidiConnection != nullptr)
+        {
+            config.setDeviceComms (nullptr);
+            listenerToMidiConnection->removeListener (this);
+            listenerToMidiConnection = nullptr;
+        }
+    }
+
+    bool isConnected() const override
+    {
+        if (detector != nullptr)
+            return detector->isConnected (uid);
+
+        return false;
+    }
+
+    bool isConnectedViaBluetooth() const override
+    {
+        if (detector != nullptr)
+            return detector->isConnectedViaBluetooth (*this);
+
+        return false;
+    }
+
     Type getType() const override                                   { return modelData.apiType; }
     String getDeviceDescription() const override                    { return modelData.description; }
     int getWidth() const override                                   { return modelData.widthUnits; }
@@ -128,7 +158,6 @@ public:
     float getMillimetersPerUnit() const override                    { return 47.0f; }
     bool isHardwareBlock() const override                           { return true; }
     juce::Array<Block::ConnectionPort> getPorts() const override    { return modelData.ports; }
-    bool isConnected() const override                               { return detector && detector->isConnected (uid); }
     Time getConnectionTime() const override                         { return connectionTime; }
     bool isMasterBlock() const override                             { return isMaster; }
     Block::UID getConnectedMasterUID() const override               { return masterUID; }
@@ -205,6 +234,11 @@ public:
                                        { return p.deviceControlMessage (commandID); });
     }
 
+    void handleProgramEvent (const ProgramEventMessage& message)
+    {
+        programEventListeners.call ([&] (ProgramEventListener& l) { l.handleProgramEvent(*this, message); });
+    }
+
     void handleCustomMessage (Block::Timestamp, const int32* data)
     {
         ProgramEventMessage m;
@@ -212,7 +246,7 @@ public:
         for (uint32 i = 0; i < BlocksProtocol::numProgramMessageInts; ++i)
             m.values[i] = data[i];
 
-        programEventListeners.call ([&] (ProgramEventListener& l) { l.handleProgramEvent (*this, m); });
+        handleProgramEvent (m);
     }
 
     static BlockImplementation* getFrom (Block* b) noexcept
@@ -227,51 +261,90 @@ public:
     }
 
     //==============================================================================
-    std::function<void(const String&)> logger;
+    std::function<void (const Block& block, const String&)> logger;
 
-    void setLogger (std::function<void(const String&)> newLogger) override
+    void setLogger (std::function<void (const Block& block, const String&)> newLogger) override
     {
-        logger = newLogger;
+        logger = std::move (newLogger);
     }
 
     void handleLogMessage (const String& message) const
     {
         if (logger != nullptr)
-            logger (message);
+            logger (*this, message);
     }
 
     //==============================================================================
-    Result setProgram (Program* newProgram) override
+    Result setProgram (std::unique_ptr<Program> newProgram,
+                       ProgramPersistency persistency = ProgramPersistency::setAsTemp) override
     {
-        if (newProgram != nullptr && program.get() == newProgram)
+        auto doProgramsMatch = [&]
         {
-            jassertfalse;
+            if (program == nullptr || newProgram == nullptr)
+                return false;
+
+            return program->getLittleFootProgram() == newProgram->getLittleFootProgram()
+                && program->getSearchPaths() == newProgram->getSearchPaths();
+        }();
+
+        if (doProgramsMatch)
+        {
+            if (isProgramLoaded)
+            {
+                MessageManager::callAsync ([blockRef = Block::Ptr (this), this]
+                {
+                    programLoadedListeners.call ([&] (ProgramLoadedListener& l) { l.handleProgramLoaded (*this); });
+                });
+            }
+
             return Result::ok();
         }
 
+        program = std::move (newProgram);
+        return loadProgram (persistency);
+    }
+
+    Result loadProgram (ProgramPersistency persistency)
+    {
         stopTimer();
-
-        {
-            std::unique_ptr<Program> p (newProgram);
-
-            if (program != nullptr
-                && newProgram != nullptr
-                && program->getLittleFootProgram() == newProgram->getLittleFootProgram())
-                return Result::ok();
-
-            std::swap (program, p);
-        }
 
         programSize = 0;
         isProgramLoaded = shouldSaveProgramAsDefault = false;
 
         if (program == nullptr)
         {
-            remoteHeap.clear();
+            remoteHeap.clearTargetData();
             return Result::ok();
         }
 
-        littlefoot::Compiler compiler;
+        auto res = compileProgram();
+
+        if (res.failed())
+            return res;
+
+        programSize = (uint32) compiler.compiledObjectCode.size();
+
+        remoteHeap.resetDataRangeToUnknown (0, remoteHeap.blockSize);
+        remoteHeap.clearTargetData();
+        remoteHeap.sendChanges (*this, true);
+
+        remoteHeap.resetDataRangeToUnknown (0, programSize);
+        remoteHeap.setBytes (0, compiler.compiledObjectCode.begin(), programSize);
+        remoteHeap.sendChanges (*this, true);
+
+        this->resetConfigListActiveStatus();
+
+        const auto legacyProgramChangeConfigIndex = getMaxConfigIndex();
+        handleConfigItemChanged ({ legacyProgramChangeConfigIndex }, legacyProgramChangeConfigIndex);
+
+        shouldSaveProgramAsDefault = persistency == ProgramPersistency::setAsDefault;
+        startTimer (20);
+
+        return Result::ok();
+    }
+
+    Result compileProgram()
+    {
         compiler.addNativeFunctions (PhysicalTopologySource::getStandardLittleFootFunctions());
 
         const auto err = compiler.compile (program->getLittleFootProgram(), 512, program->getSearchPaths());
@@ -284,24 +357,6 @@ public:
 
         if (compiler.getCompiledProgram().getTotalSpaceNeeded() > getMemorySize())
             return Result::fail ("Program too large!");
-
-        const auto size = (size_t) compiler.compiledObjectCode.size();
-        programSize = (uint32) size;
-
-        remoteHeap.resetDataRangeToUnknown (0, remoteHeap.blockSize);
-        remoteHeap.clear();
-        remoteHeap.sendChanges (*this, true);
-
-        remoteHeap.resetDataRangeToUnknown (0, (uint32) size);
-        remoteHeap.setBytes (0, compiler.compiledObjectCode.begin(), size);
-        remoteHeap.sendChanges (*this, true);
-
-        this->resetConfigListActiveStatus();
-
-        if (auto changeCallback = this->configChangedCallback)
-            changeCallback (*this, {}, this->getMaxConfigIndex());
-
-        startTimer (20);
 
         return Result::ok();
     }
@@ -330,8 +385,7 @@ public:
             if (shouldSaveProgramAsDefault)
                 doSaveProgramAsDefault();
 
-            if (programLoadedCallback != nullptr)
-                programLoadedCallback (*this);
+            programLoadedListeners.call([&] (ProgramLoadedListener& l) { l.handleProgramLoaded (*this); });
         }
         else
         {
@@ -345,6 +399,15 @@ public:
 
         if (! isTimerRunning() && isProgramLoaded)
             doSaveProgramAsDefault();
+    }
+
+    void resetProgramToDefault() override
+    {
+        if (! shouldSaveProgramAsDefault)
+            setProgram (nullptr);
+
+        sendCommandMessage (BlocksProtocol::endAPIMode);
+        sendCommandMessage (BlocksProtocol::beginAPIMode);
     }
 
     uint32 getMemorySize() override
@@ -386,7 +449,7 @@ public:
 
     bool sendFirmwareUpdatePacket (const uint8* data, uint8 size, std::function<void (uint8, uint32)> callback) override
     {
-        firmwarePacketAckCallback = {};
+        firmwarePacketAckCallback = nullptr;
 
         if (buildAndSendPacket<256> ([data, size] (BlocksProtocol::HostPacketBuilder<256>& p)
                                      { return p.addFirmwareUpdatePacket (data, size); }))
@@ -403,7 +466,7 @@ public:
         if (firmwarePacketAckCallback != nullptr)
         {
             firmwarePacketAckCallback (resultCode, resultDetail);
-            firmwarePacketAckCallback = {};
+            firmwarePacketAckCallback = nullptr;
         }
     }
 
@@ -412,7 +475,7 @@ public:
         config.handleConfigUpdateMessage (item, value, min, max);
     }
 
-    void handleConfigSetMessage(int32 item, int32 value)
+    void handleConfigSetMessage (int32 item, int32 value)
     {
         config.handleConfigSetMessage (item, value);
     }
@@ -422,12 +485,41 @@ public:
         lastMessageReceiveTime = Time::getCurrentTime();
     }
 
+    MIDIDeviceConnection* getDeviceConnection()
+    {
+        return dynamic_cast<MIDIDeviceConnection*> (detector->getDeviceConnectionFor (*this));
+    }
+
     void addDataInputPortListener (DataInputPortListener* listener) override
     {
-        Block::addDataInputPortListener (listener);
+        if (auto deviceConnection = getDeviceConnection())
+        {
+            {
+                ScopedLock scopedLock (deviceConnection->criticalSecton);
+                Block::addDataInputPortListener (listener);
+            }
 
-        if (auto midiInput = getMidiInput())
-            midiInput->start();
+            deviceConnection->midiInput->start();
+        }
+        else
+        {
+            Block::addDataInputPortListener (listener);
+        }
+    }
+
+    void removeDataInputPortListener (DataInputPortListener* listener) override
+    {
+        if (auto deviceConnection = getDeviceConnection())
+        {
+            {
+                ScopedLock scopedLock (deviceConnection->criticalSecton);
+                Block::removeDataInputPortListener (listener);
+            }
+        }
+        else
+        {
+            Block::removeDataInputPortListener (listener);
+        }
     }
 
     void sendMessage (const void* message, size_t messageSize) override
@@ -444,11 +536,26 @@ public:
 
         remoteHeap.sendChanges (*this, false);
 
-        if (lastMessageSendTime < Time::getCurrentTime() - RelativeTime::milliseconds (pingIntervalMs))
+        if (lastMessageSendTime < Time::getCurrentTime() - getPingInterval())
             sendCommandMessage (BlocksProtocol::ping);
     }
 
+    RelativeTime getPingInterval()
+    {
+        return RelativeTime::milliseconds (isMaster ? masterPingIntervalMs : dnaPingIntervalMs);
+    }
+
     //==============================================================================
+    void handleConfigItemChanged (const ConfigMetaData& data, uint32 index)
+    {
+        configItemListeners.call([&] (ConfigItemListener& l) { l.handleConfigItemChanged (*this, data, index); });
+    }
+
+    void handleConfigSyncEnded()
+    {
+        configItemListeners.call([&] (ConfigItemListener& l) { l.handleConfigSyncEnded (*this); });
+    }
+
     int32 getLocalConfigValue (uint32 item) override
     {
         initialiseDeviceIndexAndConnection();
@@ -508,16 +615,6 @@ public:
         config.resetConfigListActiveStatus();
     }
 
-    void setConfigChangedCallback (std::function<void(Block&, const ConfigMetaData&, uint32)> configChanged) override
-    {
-        configChangedCallback = std::move (configChanged);
-    }
-
-    void setProgramLoadedCallback (std::function<void(Block&)> programLoaded) override
-    {
-        programLoadedCallback = std::move (programLoaded);
-    }
-
     bool setName (const String& newName) override
     {
         return buildAndSendPacket<128> ([&newName] (BlocksProtocol::HostPacketBuilder<128>& p)
@@ -528,12 +625,31 @@ public:
     {
         buildAndSendPacket<32> ([] (BlocksProtocol::HostPacketBuilder<32>& p)
                                 { return p.addFactoryReset(); });
+
+        juce::Timer::callAfterDelay (5, [ref = WeakReference<BlockImplementation>(this)]
+        {
+            if (ref != nullptr)
+                ref->blockReset();
+        });
     }
 
     void blockReset() override
     {
-        if (buildAndSendPacket<32> ([] (BlocksProtocol::HostPacketBuilder<32>& p)
-                                    { return p.addBlockReset(); }))
+        bool messageSent = false;
+
+        if (isMasterBlock())
+        {
+            sendMessage (BlocksProtocol::SpecialMessageFromHost::resetMaster,
+                         sizeof (BlocksProtocol::SpecialMessageFromHost::resetMaster));
+            messageSent = true;
+        }
+        else
+        {
+            messageSent = buildAndSendPacket<32> ([] (BlocksProtocol::HostPacketBuilder<32>& p)
+                                                  { return p.addBlockReset(); });
+        }
+
+        if (messageSent)
         {
             hasBeenPowerCycled = true;
 
@@ -556,7 +672,8 @@ public:
 
     MIDIDeviceConnection* listenerToMidiConnection = nullptr;
 
-    static constexpr int pingIntervalMs = 400;
+    static constexpr int masterPingIntervalMs = 400;
+    static constexpr int dnaPingIntervalMs = 1666;
 
     static constexpr uint32 maxBlockSize = BlocksProtocol::padBlockProgramAndHeapSize;
     static constexpr uint32 maxPacketCounter = BlocksProtocol::PacketCounter::maxValue;
@@ -571,15 +688,13 @@ public:
     Time lastMessageSendTime, lastMessageReceiveTime;
 
     BlockConfigManager config;
-    std::function<void(Block&, const ConfigMetaData&, uint32)> configChangedCallback;
-
-    std::function<void(Block&)> programLoadedCallback;
 
 private:
+    littlefoot::Compiler compiler;
     std::unique_ptr<Program> program;
     uint32 programSize = 0;
 
-    std::function<void(uint8, uint32)> firmwarePacketAckCallback;
+    std::function<void (uint8, uint32)> firmwarePacketAckCallback;
 
     bool isMaster = false;
     Block::UID masterUID = {};
@@ -645,9 +760,7 @@ private:
     {
         jassert (listenerToMidiConnection == &c);
         ignoreUnused (c);
-        listenerToMidiConnection->removeListener (this);
-        listenerToMidiConnection = nullptr;
-        config.setDeviceComms (nullptr);
+        disconnectMidiConnectionListener();
     }
 
     void doSaveProgramAsDefault()
@@ -655,7 +768,7 @@ private:
         sendCommandMessage (BlocksProtocol::saveProgramAsDefault);
     }
 
-    template<int packetBytes, typename PacketBuilderFn>
+    template <int packetBytes, typename PacketBuilderFn>
     bool buildAndSendPacket (PacketBuilderFn buildFn)
     {
         auto index = getDeviceIndex();
@@ -686,7 +799,7 @@ public:
             activateTouchSurface();
         }
 
-        ~TouchSurfaceImplementation()
+        ~TouchSurfaceImplementation() override
         {
             disableTouchSurface();
         }
@@ -787,8 +900,8 @@ public:
                 if (t.value.isActive)
                     killTouch (t.touch, t.value, now);
 
-                    touches.clear();
-                    }
+            touches.clear();
+        }
 
         BlockImplementation& blockImpl;
         TouchList<TouchStatus> touches;
@@ -804,7 +917,7 @@ public:
         {
         }
 
-        ~ControlButtonImplementation()
+        ~ControlButtonImplementation() override
         {
         }
 
@@ -951,7 +1064,7 @@ public:
         {
             if (block.getProgram() == nullptr)
             {
-                auto err = block.setProgram (new DefaultLEDGridProgram (block));
+                auto err = block.setProgram (std::make_unique <DefaultLEDGridProgram> (block));
 
                 if (err.failed())
                 {
@@ -970,9 +1083,9 @@ public:
 
         void write565Colour (uint32 bitIndex, LEDColour colour)
         {
-            block.setDataBits (bitIndex,      5, colour.getRed()   >> 3);
-            block.setDataBits (bitIndex + 5,  6, colour.getGreen() >> 2);
-            block.setDataBits (bitIndex + 11, 5, colour.getBlue()  >> 3);
+            block.setDataBits (bitIndex,      5, (uint32) (colour.getRed()   >> 3));
+            block.setDataBits (bitIndex + 5,  6, (uint32) (colour.getGreen() >> 2));
+            block.setDataBits (bitIndex + 11, 5, (uint32) (colour.getBlue()  >> 3));
         }
 
         struct DefaultLEDGridProgram  : public Block::Program
@@ -1032,6 +1145,7 @@ public:
 
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BlockImplementation)
+    JUCE_DECLARE_WEAK_REFERENCEABLE (BlockImplementation)
 };
 
 } // namespace juce

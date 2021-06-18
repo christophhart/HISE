@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -184,6 +183,8 @@ public:
         CodeDocument* owner = nullptr;
         int characterPos = 0, line = 0, indexInLine = 0;
         bool positionMaintained = false;
+
+        friend class CodeDocument;
     };
 
     //==============================================================================
@@ -366,18 +367,36 @@ public:
     class JUCE_API  Iterator
     {
     public:
+        /** Creates an uninitialised iterator.
+            Don't attempt to call any methods on this until you've given it an
+            owner document to refer to!
+         */
+        Iterator() noexcept;
+
         Iterator (const CodeDocument& document) noexcept;
-        Iterator (const Iterator&) = default;
-        Iterator& operator= (const Iterator&) = default;
+        Iterator (CodeDocument::Position) noexcept;
         ~Iterator() noexcept;
 
-        /** Reads the next character and returns it.
-            @see peekNextChar
+        Iterator (const Iterator&) = default;
+        Iterator& operator= (const Iterator&) = default;
+
+        /** Reads the next character and returns it. Returns 0 if you try to
+            read past the document's end.
+            @see peekNextChar, previousChar
         */
         juce_wchar nextChar() noexcept;
 
-        /** Reads the next character without advancing the current position. */
+        /** Reads the next character without moving the current position. */
         juce_wchar peekNextChar() const noexcept;
+
+        /** Reads the previous character and returns it. Returns 0 if you try to
+            read past the document's start.
+            @see isSOF, peekPreviousChar, nextChar
+         */
+        juce_wchar previousChar() noexcept;
+
+        /** Reads the next character without moving the current position. */
+        juce_wchar peekPreviousChar() const noexcept;
 
         /** Advances the position by one character. */
         void skip() noexcept;
@@ -391,13 +410,24 @@ public:
         /** Skips forward until the next character will be the first character on the next line */
         void skipToEndOfLine() noexcept;
 
+        /** Skips backward until the next character will be the first character on this line */
+        void skipToStartOfLine() noexcept;
+
         /** Returns the line number of the next character. */
         int getLine() const noexcept            { return line; }
 
         /** Returns true if the iterator has reached the end of the document. */
         bool isEOF() const noexcept;
 
+        /** Returns true if the iterator is at the start of the document. */
+        bool isSOF() const noexcept;
+
+        /** Convert this iterator to a CodeDocument::Position. */
+        CodeDocument::Position toPosition() const;
+
     private:
+        bool reinitialiseCharPtr() const;
+
         const CodeDocument* document;
         mutable String::CharPointerType charPointer { nullptr };
         int line = 0, position = 0;

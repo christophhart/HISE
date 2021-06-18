@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -164,7 +164,7 @@ private:
     JUCE_DECLARE_NON_COPYABLE (AsyncFunctionCallback)
 };
 
-void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* const func, void* const parameter)
+void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* func, void* parameter)
 {
     if (isThisTheMessageThread())
         return func (parameter);
@@ -182,6 +182,18 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* cons
 
     jassertfalse; // the OS message queue failed to send the message!
     return nullptr;
+}
+
+bool MessageManager::callAsync (std::function<void()> fn)
+{
+    struct AsyncCallInvoker  : public MessageBase
+    {
+        AsyncCallInvoker (std::function<void()> f) : callback (std::move (f)) {}
+        void messageCallback() override  { callback(); }
+        std::function<void()> callback;
+    };
+
+    return (new AsyncCallInvoker (std::move (fn)))->post();
 }
 
 //==============================================================================
@@ -261,8 +273,8 @@ bool MessageManager::existsAndIsCurrentThread() noexcept
 struct MessageManager::Lock::BlockingMessage   : public MessageManager::MessageBase
 {
     BlockingMessage (const MessageManager::Lock* parent) noexcept
-    // need a const_cast here as VS2013 doesn't like a const pointer to be in an atomic
-        : owner (const_cast<MessageManager::Lock*> (parent)) {}
+        : owner (parent)
+    {}
 
     void messageCallback() override
     {
@@ -277,7 +289,7 @@ struct MessageManager::Lock::BlockingMessage   : public MessageManager::MessageB
     }
 
     CriticalSection ownerCriticalSection;
-    Atomic<MessageManager::Lock*> owner;
+    Atomic<const MessageManager::Lock*> owner;
     WaitableEvent releaseEvent;
 
     JUCE_DECLARE_NON_COPYABLE (BlockingMessage)
@@ -443,7 +455,6 @@ void MessageManagerLock::exitSignalSent()
 }
 
 //==============================================================================
-JUCE_API void JUCE_CALLTYPE initialiseJuce_GUI();
 JUCE_API void JUCE_CALLTYPE initialiseJuce_GUI()
 {
     JUCE_AUTORELEASEPOOL
@@ -452,7 +463,6 @@ JUCE_API void JUCE_CALLTYPE initialiseJuce_GUI()
     }
 }
 
-JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI();
 JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI()
 {
     JUCE_AUTORELEASEPOOL

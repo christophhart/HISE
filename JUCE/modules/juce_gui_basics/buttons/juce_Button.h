@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -107,10 +106,12 @@ public:
     */
     bool getToggleState() const noexcept                        { return isOn.getValue(); }
 
-    /** Returns the Value object that represents the botton's toggle state.
+    /** Returns the Value object that represents the button's toggle state.
+
         You can use this Value object to connect the button's state to external values or setters,
         either by taking a copy of the Value, or by using Value::referTo() to make it point to
         your own Value object.
+
         @see getToggleState, Value
     */
     Value& getToggleStateValue() noexcept                       { return isOn; }
@@ -391,13 +392,6 @@ public:
 
         virtual void drawDrawableButton (Graphics&, DrawableButton&,
                                          bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) = 0;
-
-    private:
-       #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
-        // These method have been deprecated: see their replacements above.
-        virtual int getTextButtonFont (TextButton&) { return 0; }
-        virtual int changeTextButtonWidthToFitText (TextButton&, int) { return 0; }
-       #endif
     };
 
     // This method's parameters have changed - see the new version.
@@ -517,7 +511,7 @@ private:
     void sendStateMessage();
     void setToggleState (bool shouldBeOn, NotificationType click, NotificationType state);
 
-    bool isMouseOrTouchOver (const MouseEvent& e);
+    bool isMouseSourceOver (const MouseEvent& e);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Button)
 };

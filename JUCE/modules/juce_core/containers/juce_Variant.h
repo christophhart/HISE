@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -50,9 +50,6 @@ public:
     struct JUCE_API  NativeFunctionArgs
     {
         NativeFunctionArgs (const var& thisObject, const var* args, int numArgs) noexcept;
-
-        // Suppress a VS2013 compiler warning
-        NativeFunctionArgs& operator= (const NativeFunctionArgs&) = delete;
 
         const var& thisObject;
         const var* arguments;
@@ -295,20 +292,8 @@ public:
 
 private:
     //==============================================================================
-    class VariantType;            friend class VariantType;
-    class VariantType_Void;       friend class VariantType_Void;
-    class VariantType_Undefined;  friend class VariantType_Undefined;
-    class VariantType_Int;        friend class VariantType_Int;
-    class VariantType_Int64;      friend class VariantType_Int64;
-    class VariantType_Double;     friend class VariantType_Double;
-    class VariantType_Bool;       friend class VariantType_Bool;
-    class VariantType_String;     friend class VariantType_String;
-    class VariantType_Object;     friend class VariantType_Object;
-    class VariantType_Array;      friend class VariantType_Array;
-    class VariantType_Binary;     friend class VariantType_Binary;
-    class VariantType_Method;     friend class VariantType_Method;
-	class VariantType_Buffer;	  friend class VariantType_Buffer;
-
+    struct VariantType;
+    struct Instance;
 
     union ValueUnion
     {
@@ -316,7 +301,7 @@ private:
         int64 int64Value;
         bool boolValue;
         double doubleValue;
-        char stringValue [sizeof (String)];
+        char stringValue[sizeof (String)];
         ReferenceCountedObject* objectValue;
         MemoryBlock* binaryValue;
         NativeFunction* methodValue;
@@ -333,6 +318,8 @@ private:
     // This is needed to prevent the wrong constructor/operator being called
     var (const ReferenceCountedObject*) = delete;
     var& operator= (const ReferenceCountedObject*) = delete;
+    var (const void*) = delete;
+    var& operator= (const void*) = delete;
 };
 
 /** Compares the values of two var objects, using the var::equals() comparison. */

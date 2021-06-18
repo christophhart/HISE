@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -26,7 +25,7 @@
 
 #if JUCE_MAC || JUCE_IOS
 
-#include "../../juce_audio_basics/native/juce_mac_CoreAudioLayouts.h"
+#include <juce_audio_basics/native/juce_mac_CoreAudioLayouts.h>
 
 namespace juce
 {
@@ -352,9 +351,9 @@ public:
 
         auto status = AudioFileOpenWithCallbacks (this,
                                                   &readCallback,
-                                                  nullptr,  // write needs to be null to avoid permisisions errors
+                                                  nullptr,  // write needs to be null to avoid permissions errors
                                                   &getSizeCallback,
-                                                  nullptr,  // setSize needs to be null to avoid permisisions errors
+                                                  nullptr,  // setSize needs to be null to avoid permissions errors
                                                   0,        // AudioFileTypeID inFileTypeHint
                                                   &audioFileID);
         if (status == noErr)
@@ -475,7 +474,7 @@ public:
         while (numSamples > 0)
         {
             auto numThisTime = jmin (8192, numSamples);
-            auto numBytes = sizeof (float) * (size_t) numThisTime;
+            auto numBytes = (size_t) numThisTime * sizeof (float);
 
             audioDataBlock.ensureSize (numBytes * numChannels, false);
             auto* data = static_cast<float*> (audioDataBlock.getData());
@@ -493,6 +492,15 @@ public:
 
             if (status != noErr)
                 return false;
+
+            if (numFramesToRead == 0)
+                break;
+
+            if ((int) numFramesToRead < numThisTime)
+            {
+                numThisTime = (int) numFramesToRead;
+                numBytes    = (size_t) numThisTime * sizeof (float);
+            }
 
             for (int i = numDestChannels; --i >= 0;)
             {
@@ -592,8 +600,8 @@ AudioFormatWriter* CoreAudioFormat::createWriterFor (OutputStream*,
     return nullptr;
 }
 
+
 //==============================================================================
-// Unit tests for Core Audio layout conversions
 //==============================================================================
 #if JUCE_UNIT_TESTS
 
@@ -603,9 +611,11 @@ AudioFormatWriter* CoreAudioFormat::createWriterFor (OutputStream*,
 class CoreAudioLayoutsUnitTest  : public UnitTest
 {
 public:
-    CoreAudioLayoutsUnitTest() : UnitTest ("Core Audio Layout <-> JUCE channel layout conversion", "Audio") {}
+    CoreAudioLayoutsUnitTest()
+        : UnitTest ("Core Audio Layout <-> JUCE channel layout conversion", UnitTestCategories::audio)
+    {}
 
-    // some ambisonic tags which are not explicitely defined
+    // some ambisonic tags which are not explicitly defined
     enum
     {
         kAudioChannelLayoutTag_HOA_ACN_SN3D_0Order = (190U<<16) | 1,

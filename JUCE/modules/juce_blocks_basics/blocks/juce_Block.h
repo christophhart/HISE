@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -46,7 +46,8 @@ public:
         loopBlock,             /**< Loop control block type.      */
         developerControlBlock, /**< Developer control block type. */
         touchBlock,            /**< Touch control block type.     */
-        seaboardBlock          /**< Seaboard block type.          */
+        seaboardBlock,         /**< Seaboard block type.          */
+        lumiKeysBlock          /**< LUMI Keys block type          */
     };
 
     /** The Block class is reference-counted, so always use a Block::Ptr when
@@ -110,14 +111,23 @@ public:
     /** Returns the time this block object was connected to the topology.
         Only valid when isConnected == true.
 
-        @see isConnected
+        @see Block::isConnected
      */
     virtual Time getConnectionTime() const = 0;
+
+    /** Returns true if this block or the master block this block is connected to,
+        is connected via bluetooth.
+
+        Only valid when isConnected == true.
+
+        @see Block::isConnected, Block::isMasterBlock
+     */
+    virtual bool isConnectedViaBluetooth() const = 0;
 
     /** Returns true if this block is directly connected to the application,
         as opposed to only being connected to a different block via a connection port.
 
-        @see ConnectionPort
+        @see Block::ConnectionPort
     */
     virtual bool isMasterBlock() const = 0;
 
@@ -138,7 +148,10 @@ public:
     virtual float getMillimetersPerUnit() const = 0;
 
     /** A simple struct representing the area of a block. */
-    struct BlockArea  { int x, y, width, height; };
+    struct BlockArea
+    {
+        int x, y, width, height;
+    };
 
     /** Returns the area that this block covers within the layout of the group as a whole.
         The coordinates are in logical block units, and are relative to the origin, which is the master block's top-left corner.
@@ -222,11 +235,8 @@ public:
     /** A program that can be loaded onto a block. */
     struct Program
     {
-        /** Creates a Program for the corresponding LEDGrid. */
         Program (Block&);
-
-        /** Destructor. */
-        virtual ~Program();
+        virtual ~Program() = default;
 
         /** Returns the LittleFoot program to execute on the BLOCKS device. */
         virtual String getLittleFootProgram() = 0;
@@ -241,11 +251,31 @@ public:
 
         The supplied Program's lifetime will be managed by this class, so do not
         use the Program in other places in your code.
+
+        Optional parameter to determine if program is set temporarily or saved
+        to flash as the default prgram./
     */
-    virtual Result setProgram (Program*) = 0;
+    enum class ProgramPersistency { setAsTemp, setAsDefault };
+    virtual Result setProgram (std::unique_ptr<Program>,
+                               ProgramPersistency persistency = ProgramPersistency::setAsTemp) = 0;
 
     /** Returns a pointer to the currently loaded program. */
     virtual Program* getProgram() const = 0;
+
+    /** Listener interface to be informed of program loaded events*/
+    struct ProgramLoadedListener
+    {
+        virtual ~ProgramLoadedListener() = default;
+
+        /** Called whenever a program has been loaded. */
+        virtual void handleProgramLoaded (Block&) = 0;
+    };
+
+    /** Adds a new listener for program load completions. */
+    void addProgramLoadedListener (ProgramLoadedListener*);
+
+    /** Removes a listener for program load completions. */
+    void removeProgramLoadedListener (ProgramLoadedListener*);
 
     //==============================================================================
     /** A message that can be sent to the currently loaded program. */
@@ -277,10 +307,10 @@ public:
     };
 
     /** Adds a new listener for custom program events from the block. */
-    virtual void addProgramEventListener (ProgramEventListener*);
+    void addProgramEventListener (ProgramEventListener*);
 
     /** Removes a listener for custom program events from the block. */
-    virtual void removeProgramEventListener (ProgramEventListener*);
+    void removeProgramEventListener (ProgramEventListener*);
 
     //==============================================================================
     /** Returns the overall memory of the block. */
@@ -298,17 +328,34 @@ public:
     /** Sets multiple bits on the littlefoot heap. */
     virtual void setDataBits (uint32 startBit, uint32 numBits, uint32 value) = 0;
 
+    /** Sets a single, 32 bit or less, value on the littlefoot heap. */
+    template <typename Type>
+    void setData (uint32 offset, Type value)
+    {
+        const auto numBytes = sizeof (Type);
+
+        for (auto byte = numBytes; --byte > 0u;)
+        {
+            auto v = *reinterpret_cast<unsigned*> (&value);
+            v = (v >> (numBytes - byte) * 8) & 0xFF;
+            setDataByte (offset + byte, uint8 (v));
+        }
+    }
+
     /** Gets a byte from the littlefoot heap. */
     virtual uint8 getDataByte (size_t offset) = 0;
 
     /** Sets the current program as the block's default state. */
     virtual void saveProgramAsDefault() = 0;
 
+    /** Resets the loaded program to the block's default state. */
+    virtual void resetProgramToDefault() = 0;
+
     //==============================================================================
     /** Metadata for a given config item */
     struct ConfigMetaData
     {
-        static constexpr int32 numOptionNames = 8;
+        static constexpr int32 numOptionNames = 16;
 
         enum class ConfigType
         {
@@ -319,7 +366,9 @@ public:
             options
         };
 
-        ConfigMetaData() = default;
+        ConfigMetaData (uint32 itemIndex)
+          :  item (itemIndex)
+        {}
 
         // Constructor to work around VS2015 bugs...
         ConfigMetaData (uint32 itemIndex,
@@ -395,6 +444,24 @@ public:
         String group;
     };
 
+    /** Listener interface to be informed of block config changes */
+    struct ConfigItemListener
+    {
+        virtual ~ConfigItemListener() = default;
+
+        /** Called whenever a config changes. */
+        virtual void handleConfigItemChanged (Block&, const ConfigMetaData&, uint32 index) = 0;
+
+        /*-* Callled following a config sync request*/
+        virtual void handleConfigSyncEnded (Block&) = 0;
+    };
+
+    /** Adds a new listener for config item changes. */
+    void addConfigItemListener (ConfigItemListener*);
+
+    /** Removes a listener for config item changes. */
+    void removeConfigItemListener (ConfigItemListener*);
+
     /** Returns the maximum number of config items available */
     virtual uint32 getMaxConfigIndex() = 0;
 
@@ -436,17 +503,11 @@ public:
 
     //==============================================================================
     /** Allows the user to provide a function that will receive log messages from the block. */
-    virtual void setLogger (std::function<void(const String&)> loggingCallback) = 0;
+    virtual void setLogger (std::function<void (const Block& block, const String&)> loggingCallback) = 0;
 
     /** Sends a firmware update packet to a block, and waits for a reply. Returns an error code. */
     virtual bool sendFirmwareUpdatePacket (const uint8* data, uint8 size,
                                            std::function<void (uint8, uint32)> packetAckCallback) = 0;
-
-    /** Provides a callback that will be called when a config changes. */
-    virtual void setConfigChangedCallback (std::function<void(Block&, const ConfigMetaData&, uint32)>) = 0;
-
-    /** Provides a callback that will be called when a prgoram has been loaded. */
-    virtual void setProgramLoadedCallback (std::function<void(Block&)> programLoaded) = 0;
 
     //==============================================================================
     /** Interface for objects listening to input data port. */
@@ -478,8 +539,10 @@ protected:
     Block (const String& serialNumberToUse);
     Block (const String& serial, const String& version, const String& name);
 
+    ListenerList<ProgramLoadedListener> programLoadedListeners;
+    ListenerList<ProgramEventListener>  programEventListeners;
+    ListenerList<ConfigItemListener>    configItemListeners;
     ListenerList<DataInputPortListener> dataInputPortListeners;
-    ListenerList<ProgramEventListener> programEventListeners;
 
 private:
     //==============================================================================

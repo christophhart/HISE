@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -51,13 +51,6 @@ public:
         @param source the ChangeBroadcaster that triggered the callback.
     */
     virtual void changeListenerCallback (ChangeBroadcaster* source) = 0;
-
-
-    //==============================================================================
-   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
-    // This method's signature has changed to take a ChangeBroadcaster parameter - please update your code!
-    private: virtual int changeListenerCallback (void*) { return 0; }
-   #endif
 };
 
 } // namespace juce

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -130,14 +130,14 @@ public:
     TouchEntry* end() noexcept                 { return touches.end(); }
     const TouchEntry* end() const noexcept     { return touches.end(); }
 
-    /** Retrieve a reference to particular item in the list of touch entires. */
+    /** Retrieve a reference to particular item in the list of touch entries. */
     TouchEntry& operator[] (const int index)   { return touches.getReference (index); }
 
     /** Resets all contents, doest not generate any call-backs. */
     void clear() noexcept                      { touches.clear(); }
 
 private:
-    //==========================================================================
+    //==============================================================================
     static bool matches (const TouchSurface::Touch& t1,
                          const TouchSurface::Touch& t2) noexcept
     {

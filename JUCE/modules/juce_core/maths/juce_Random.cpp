@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -58,7 +58,7 @@ void Random::combineSeed (const int64 seedValue) noexcept
 
 void Random::setSeedRandomly()
 {
-    static int64 globalSeed = 0;
+    static std::atomic<int64> globalSeed { 0 };
 
     combineSeed (globalSeed ^ (int64) (pointer_sized_int) this);
     combineSeed (Time::getMillisecondCounter());
@@ -105,7 +105,9 @@ bool Random::nextBool() noexcept
 
 float Random::nextFloat() noexcept
 {
-    return static_cast<uint32> (nextInt()) / (std::numeric_limits<uint32>::max() + 1.0f);
+    auto result = static_cast<float> (static_cast<uint32> (nextInt()))
+                  / (static_cast<float> (std::numeric_limits<uint32>::max()) + 1.0f);
+    return result == 1.0f ? 1.0f - std::numeric_limits<float>::epsilon() : result;
 }
 
 double Random::nextDouble() noexcept
@@ -161,13 +163,17 @@ void Random::fillBitsRandomly (BigInteger& arrayToChange, int startBit, int numB
         arrayToChange.setBit (startBit + numBits, nextBool());
 }
 
+
+//==============================================================================
 //==============================================================================
 #if JUCE_UNIT_TESTS
 
 class RandomTests  : public UnitTest
 {
 public:
-    RandomTests() : UnitTest ("Random", "Maths") {}
+    RandomTests()
+        : UnitTest ("Random", UnitTestCategories::maths)
+    {}
 
     void runTest() override
     {

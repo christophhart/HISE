@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -203,7 +203,7 @@ public:
     }
 
     //==============================================================================
-    /** Returns true if the map contains an item with the specied key. */
+    /** Returns true if the map contains an item with the specified key. */
     bool contains (KeyTypeParameter keyToLookFor) const
     {
         const ScopedLockType sl (getLock());
@@ -489,7 +489,7 @@ private:
         return hash;
     }
 
-    static inline HashEntry* getEntry (HashEntry* firstEntry, KeyType keyToLookFor) noexcept
+    static HashEntry* getEntry (HashEntry* firstEntry, KeyType keyToLookFor) noexcept
     {
         for (auto* entry = firstEntry; entry != nullptr; entry = entry->nextEntry)
             if (entry->key == keyToLookFor)

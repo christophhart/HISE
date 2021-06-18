@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -725,7 +724,7 @@ bool ListBox::keyPressed (const KeyPress& key)
         if (multiple)
             selectRangeOfRows (lastRowSelected, lastRowSelected + 1);
         else
-            selectRow (jmin (totalItems - 1, jmax (0, lastRowSelected) + 1));
+            selectRow (jmin (totalItems - 1, jmax (0, lastRowSelected + 1)));
     }
     else if (key.isKeyCode (KeyPress::pageUpKey))
     {
@@ -858,14 +857,11 @@ void ListBox::setOutlineThickness (int newThickness)
     resized();
 }
 
-void ListBox::setHeaderComponent (Component* newHeaderComponent)
+void ListBox::setHeaderComponent (std::unique_ptr<Component> newHeaderComponent)
 {
-    if (headerComponent.get() != newHeaderComponent)
-    {
-        headerComponent.reset (newHeaderComponent);
-        addAndMakeVisible (newHeaderComponent);
-        ListBox::resized();
-    }
+    headerComponent = std::move (newHeaderComponent);
+    addAndMakeVisible (headerComponent.get());
+    ListBox::resized();
 }
 
 void ListBox::repaintRow (const int rowNumber) noexcept
@@ -895,7 +891,11 @@ Image ListBox::createSnapshotOfRows (const SparseSet<int>& rows, int& imageX, in
     imageX = imageArea.getX();
     imageY = imageArea.getY();
 
-    Image snapshot (Image::ARGB, imageArea.getWidth(), imageArea.getHeight(), true);
+    auto listScale = Component::getApproximateScaleFactorForComponent (this);
+    Image snapshot (Image::ARGB,
+                    roundToInt ((float) imageArea.getWidth() * listScale),
+                    roundToInt ((float) imageArea.getHeight() * listScale),
+                    true);
 
     for (int i = getNumRowsOnScreen() + 2; --i >= 0;)
     {
@@ -906,9 +906,12 @@ Image ListBox::createSnapshotOfRows (const SparseSet<int>& rows, int& imageX, in
                 Graphics g (snapshot);
                 g.setOrigin (getLocalPoint (rowComp, Point<int>()) - imageArea.getPosition());
 
-                if (g.reduceClipRegion (rowComp->getLocalBounds()))
+                auto rowScale = Component::getApproximateScaleFactorForComponent (rowComp);
+
+                if (g.reduceClipRegion (rowComp->getLocalBounds() * rowScale))
                 {
                     g.beginTransparencyLayer (0.6f);
+                    g.addTransform (AffineTransform::scale (rowScale));
                     rowComp->paintEntireComponent (g, false);
                     g.endTransparencyLayer();
                 }

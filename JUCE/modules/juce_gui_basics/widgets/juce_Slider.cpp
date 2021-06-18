@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -686,8 +685,8 @@ public:
     //==============================================================================
     void handleRotaryDrag (const MouseEvent& e)
     {
-        auto dx = e.position.x - sliderRect.getCentreX();
-        auto dy = e.position.y - sliderRect.getCentreY();
+        auto dx = e.position.x - (float) sliderRect.getCentreX();
+        auto dy = e.position.y - (float) sliderRect.getCentreY();
 
         if (dx * dx + dy * dy > 25.0f)
         {
@@ -769,13 +768,15 @@ public:
         }
         else
         {
-            newPos = (mousePos - sliderRegionStart) / (double) sliderRegionSize;
+            newPos = (mousePos - (float) sliderRegionStart) / (double) sliderRegionSize;
 
             if (isVertical())
                 newPos = 1.0 - newPos;
         }
 
-        valueWhenLastDragged = owner.proportionOfLengthToValue (jlimit (0.0, 1.0, newPos));
+        newPos = (isRotary() && ! rotaryParams.stopAtEnd) ? newPos - std::floor (newPos)
+                                                          : jlimit (0.0, 1.0, newPos);
+        valueWhenLastDragged = owner.proportionOfLengthToValue (newPos);
     }
 
     void handleVelocityDrag (const MouseEvent& e)
@@ -806,8 +807,10 @@ public:
                  || (style == IncDecButtons && ! incDecDragDirectionIsHorizontal()))
                 speed = -speed;
 
-            auto currentPos = owner.valueToProportionOfLength (valueWhenLastDragged);
-            valueWhenLastDragged = owner.proportionOfLengthToValue (jlimit (0.0, 1.0, currentPos + speed));
+            auto newPos = owner.valueToProportionOfLength (valueWhenLastDragged) + speed;
+            newPos = (isRotary() && ! rotaryParams.stopAtEnd) ? newPos - std::floor (newPos)
+                                                              : jlimit (0.0, 1.0, newPos);
+            valueWhenLastDragged = owner.proportionOfLengthToValue (newPos);
 
             e.source.enableUnboundedMouseMovement (true, false);
         }
@@ -1051,7 +1054,10 @@ public:
 
         auto proportionDelta = wheelAmount * 0.15;
         auto currentPos = owner.valueToProportionOfLength (value);
-        return owner.proportionOfLengthToValue (jlimit (0.0, 1.0, currentPos + proportionDelta)) - value;
+        auto newPos = currentPos + proportionDelta;
+        newPos = (isRotary() && ! rotaryParams.stopAtEnd) ? newPos - std::floor (newPos)
+                                                          : jlimit (0.0, 1.0, newPos);
+        return owner.proportionOfLengthToValue (newPos) - value;
     }
 
     bool mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& wheel)
@@ -1138,8 +1144,8 @@ public:
                 {
                     auto pixelPos = (float) getLinearSliderPos (pos);
 
-                    mousePos = owner.localPointToGlobal (Point<float> (isHorizontal() ? pixelPos : (owner.getWidth() / 2.0f),
-                                                                       isVertical()   ? pixelPos : (owner.getHeight() / 2.0f)));
+                    mousePos = owner.localPointToGlobal (Point<float> (isHorizontal() ? pixelPos : ((float) owner.getWidth()  / 2.0f),
+                                                                       isVertical()   ? pixelPos : ((float) owner.getHeight() / 2.0f)));
                 }
 
                 const_cast <MouseInputSource&> (ms).setScreenPosition (mousePos);
@@ -1300,7 +1306,7 @@ public:
               font (s.getLookAndFeel().getSliderPopupFont (s))
         {
             if (isOnDesktop)
-                setTransform (AffineTransform::scale (getApproximateScaleFactor (&s)));
+                setTransform (AffineTransform::scale (Component::getApproximateScaleFactorForComponent (&s)));
 
             setAlwaysOnTop (true);
             setAllowedPlacement (owner.getLookAndFeel().getSliderPopupPlacement (s));
@@ -1340,21 +1346,6 @@ public:
         }
 
     private:
-        static float getApproximateScaleFactor (Component* targetComponent)
-        {
-            AffineTransform transform;
-
-            for (Component* target = targetComponent; target != nullptr; target = target->getParentComponent())
-            {
-                transform = transform.followedBy (target->getTransform());
-
-                if (target->isOnDesktop())
-                    transform = transform.scaled (target->getDesktopScaleFactor());
-            }
-
-            return (transform.getScaleFactor() / Desktop::getInstance().getGlobalScaleFactor());
-        }
-
         //==============================================================================
         Slider& owner;
         Font font;

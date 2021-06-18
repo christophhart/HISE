@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -156,7 +155,6 @@ public:
     */
     bool areScrollbarsShown() const noexcept                        { return scrollbarVisible; }
 
-
     /** Changes the password character used to disguise the text.
 
         @param passwordCharacter    if this is not zero, this character will be used as a replacement
@@ -172,7 +170,6 @@ public:
         @see setPasswordCharacter
     */
     juce_wchar getPasswordCharacter() const noexcept                { return passwordCharacter; }
-
 
     //==============================================================================
     /** Allows a right-click menu to appear for the editor.
@@ -252,7 +249,7 @@ public:
 
         @see setFont
     */
-    const Font& getFont() const noexcept            { return currentFont; }
+    const Font& getFont() const noexcept  { return currentFont; }
 
     /** Applies a colour to all the text in the editor.
 
@@ -260,6 +257,18 @@ public:
         new colour as the colour to be used for any new text that's added.
     */
     void applyColourToAllText (const Colour& newColour, bool changeCurrentTextColour = true);
+
+    /** Sets whether whitespace should be underlined when the editor font is underlined.
+
+        @see isWhitespaceUnderlined
+    */
+    void setWhitespaceUnderlined (bool shouldUnderlineWhitespace) noexcept  { underlineWhitespace = shouldUnderlineWhitespace; }
+
+    /** Returns true if whitespace is underlined for underlined fonts.
+
+        @see setWhitespaceIsUnderlined
+    */
+    bool isWhitespaceUnderlined() const noexcept                            { return underlineWhitespace; }
 
     //==============================================================================
     /** If set to true, focusing on the editor will highlight all its text.
@@ -278,6 +287,12 @@ public:
         the editor.
     */
     void setTextToShowWhenEmpty (const String& text, Colour colourToUse);
+
+    /** Returns the text that will be shown when the text editor is empty.
+
+        @see setTextToShowWhenEmpty
+    */
+    String getTextToShowWhenEmpty() const noexcept    { return textToShowWhenEmpty; }
 
     //==============================================================================
     /** Changes the size of the scrollbars that are used.
@@ -476,7 +491,7 @@ public:
     /** Changes the size of border left around the edge of the component.
         @see getBorder
     */
-    void setBorder (const BorderSize<int>& border);
+    void setBorder (BorderSize<int> border);
 
     /** Returns the size of border around the edge of the component.
         @see setBorder
@@ -490,8 +505,11 @@ public:
     */
     void setScrollToShowCursor (bool shouldScrollToShowCaret);
 
-    /** Modifies the horizontal justification of the text within the editor window. */
+    /** Modifies the justification of the text within the editor window. */
     void setJustification (Justification newJustification);
+
+    /** Returns the type of justification, as set in setJustification(). */
+    Justification getJustificationType() const noexcept             { return justification; }
 
     /** Sets the line spacing of the TextEditor.
         The default (and minimum) value is 1.0 and values > 1.0 will increase the line spacing as a
@@ -707,7 +725,7 @@ private:
     std::unique_ptr<Viewport> viewport;
     TextHolderComponent* textHolder;
     BorderSize<int> borderSize { 1, 1, 1, 3 };
-    Justification justification { Justification::left };
+    Justification justification { Justification::topLeft };
 
     bool readOnly = false;
     bool caretVisible = true;
@@ -723,6 +741,7 @@ private:
     bool menuActive = false;
     bool valueTextNeedsUpdating = false;
     bool consumeEscAndReturnKeys = true;
+    bool underlineWhitespace = true;
 
     UndoManager undoManager;
     std::unique_ptr<CaretComponent> caret;
@@ -773,9 +792,10 @@ private:
     int findWordBreakBefore (int position) const;
     bool moveCaretWithTransaction (int newPos, bool selecting);
     void drawContent (Graphics&);
-    void updateTextHolderSize();
-    float getWordWrapWidth() const;
-    float getJustificationWidth() const;
+    void checkLayout();
+    int getWordWrapWidth() const;
+    int getMaximumTextWidth() const;
+    int getMaximumTextHeight() const;
     void timerCallbackInt();
     void checkFocus();
     void repaintText (Range<int>);

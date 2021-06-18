@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -139,14 +138,16 @@ public:
 
         This will break the text onto a new line where there's a new-line or
         carriage-return character, or at a word-boundary when the text becomes wider
-        than the size specified by the maximumLineWidth parameter.
+        than the size specified by the maximumLineWidth parameter. New-lines
+        will be vertically separated by the specified leading.
 
         @see setFont, drawSingleLineText, drawFittedText, GlyphArrangement::addJustifiedText
     */
     void drawMultiLineText (const String& text,
                             int startX, int baselineY,
                             int maximumLineWidth,
-                            Justification justification = Justification::left) const;
+                            Justification justification = Justification::left,
+                            float leading = 0.0f) const;
 
     /** Draws a line of text within a specified rectangle.
 
@@ -193,7 +194,7 @@ public:
     /** Tries to draw a text string inside a given space.
 
         This does its best to make the given text readable within the specified rectangle,
-        so it useful for labelling things.
+        so it's useful for labelling things.
 
         If the text is too big, it'll be squashed horizontally or broken over multiple lines
         if the maximumLinesToUse value allows this. If the text just won't fit into the space,
@@ -218,7 +219,7 @@ public:
     /** Tries to draw a text string inside a given space.
 
         This does its best to make the given text readable within the specified rectangle,
-        so it useful for labelling things.
+        so it's useful for labelling things.
 
         If the text is too big, it'll be squashed horizontally or broken over multiple lines
         if the maximumLinesToUse value allows this. If the text just won't fit into the space,
@@ -490,7 +491,7 @@ public:
     /** Draws part of an image, rescaling it to fit in a given target region.
 
         The specified area of the source image is rescaled and drawn to fill the
-        specifed destination rectangle.
+        specified destination rectangle.
 
         Images are composited using the context's current opacity, so if you
         don't want it to be drawn semi-transparently, be sure to call setOpacity (1.0f)
@@ -739,8 +740,8 @@ public:
 
 private:
     //==============================================================================
+    std::unique_ptr<LowLevelGraphicsContext> contextHolder;
     LowLevelGraphicsContext& context;
-    std::unique_ptr<LowLevelGraphicsContext> contextToDelete;
 
     bool saveStatePending = false;
     void saveStateIfPending();

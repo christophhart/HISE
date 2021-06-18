@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -47,6 +46,8 @@ public:
         owner.moveScrollbarInSteps ((direction == 1 || direction == 2) ? 1 : -1);
     }
 
+    using Button::clicked;
+
     int direction;
 
 private:
@@ -80,15 +81,15 @@ void ScrollBar::setRangeLimits (Range<double> newRangeLimit, NotificationType no
     }
 }
 
-void ScrollBar::setRangeLimits (const double newMinimum, const double newMaximum, NotificationType notification)
+void ScrollBar::setRangeLimits (double newMinimum, double newMaximum, NotificationType notification)
 {
     jassert (newMaximum >= newMinimum); // these can't be the wrong way round!
     setRangeLimits (Range<double> (newMinimum, newMaximum), notification);
 }
 
-bool ScrollBar::setCurrentRange (Range<double> newRange, const NotificationType notification)
+bool ScrollBar::setCurrentRange (Range<double> newRange, NotificationType notification)
 {
-    const Range<double> constrainedRange (totalRange.constrainRange (newRange));
+    auto constrainedRange = totalRange.constrainRange (newRange);
 
     if (visibleRange != constrainedRange)
     {
@@ -108,27 +109,27 @@ bool ScrollBar::setCurrentRange (Range<double> newRange, const NotificationType 
     return false;
 }
 
-void ScrollBar::setCurrentRange (const double newStart, const double newSize, NotificationType notification)
+void ScrollBar::setCurrentRange (double newStart, double newSize, NotificationType notification)
 {
     setCurrentRange (Range<double> (newStart, newStart + newSize), notification);
 }
 
-void ScrollBar::setCurrentRangeStart (const double newStart, NotificationType notification)
+void ScrollBar::setCurrentRangeStart (double newStart, NotificationType notification)
 {
     setCurrentRange (visibleRange.movedToStartAt (newStart), notification);
 }
 
-void ScrollBar::setSingleStepSize (const double newSingleStepSize) noexcept
+void ScrollBar::setSingleStepSize (double newSingleStepSize) noexcept
 {
     singleStepSize = newSingleStepSize;
 }
 
-bool ScrollBar::moveScrollbarInSteps (const int howManySteps, NotificationType notification)
+bool ScrollBar::moveScrollbarInSteps (int howManySteps, NotificationType notification)
 {
     return setCurrentRange (visibleRange + howManySteps * singleStepSize, notification);
 }
 
-bool ScrollBar::moveScrollbarInPages (const int howManyPages, NotificationType notification)
+bool ScrollBar::moveScrollbarInPages (int howManyPages, NotificationType notification)
 {
     return setCurrentRange (visibleRange + howManyPages * visibleRange.getLength(), notification);
 }
@@ -143,9 +144,9 @@ bool ScrollBar::scrollToBottom (NotificationType notification)
     return setCurrentRange (visibleRange.movedToEndAt (getMaximumRangeLimit()), notification);
 }
 
-void ScrollBar::setButtonRepeatSpeed (const int newInitialDelay,
-                                      const int newRepeatDelay,
-                                      const int newMinimumDelay)
+void ScrollBar::setButtonRepeatSpeed (int newInitialDelay,
+                                      int newRepeatDelay,
+                                      int newMinimumDelay)
 {
     initialDelayInMillisecs = newInitialDelay;
     repeatDelayInMillisecs  = newRepeatDelay;
@@ -159,12 +160,12 @@ void ScrollBar::setButtonRepeatSpeed (const int newInitialDelay,
 }
 
 //==============================================================================
-void ScrollBar::addListener (Listener* const listener)
+void ScrollBar::addListener (Listener* listener)
 {
     listeners.add (listener);
 }
 
-void ScrollBar::removeListener (Listener* const listener)
+void ScrollBar::removeListener (Listener* listener)
 {
     listeners.remove (listener);
 }
@@ -172,7 +173,7 @@ void ScrollBar::removeListener (Listener* const listener)
 void ScrollBar::handleAsyncUpdate()
 {
     auto start = visibleRange.getStart(); // (need to use a temp variable for VC7 compatibility)
-    listeners.call ([=] (Listener& l) { l.scrollBarMoved (this, start); });
+    listeners.call ([this, start] (Listener& l) { l.scrollBarMoved (this, start); });
 }
 
 //==============================================================================
@@ -199,8 +200,8 @@ void ScrollBar::updateThumbPosition()
 
     if (thumbStart != newThumbStart  || thumbSize != newThumbSize)
     {
-        const int repaintStart = jmin (thumbStart, newThumbStart) - 4;
-        const int repaintSize = jmax (thumbStart + thumbSize, newThumbStart + newThumbSize) + 8 - repaintStart;
+        auto repaintStart = jmin (thumbStart, newThumbStart) - 4;
+        auto repaintSize = jmax (thumbStart + thumbSize, newThumbStart + newThumbSize) + 8 - repaintStart;
 
         if (vertical)
             repaint (0, repaintStart, getWidth(), repaintSize);
@@ -212,7 +213,7 @@ void ScrollBar::updateThumbPosition()
     }
 }
 
-void ScrollBar::setOrientation (const bool shouldBeVertical)
+void ScrollBar::setOrientation (bool shouldBeVertical)
 {
     if (vertical != shouldBeVertical)
     {
@@ -228,7 +229,7 @@ void ScrollBar::setOrientation (const bool shouldBeVertical)
     }
 }
 
-void ScrollBar::setAutoHide (const bool shouldHideWhenFullRange)
+void ScrollBar::setAutoHide (bool shouldHideWhenFullRange)
 {
     autohides = shouldHideWhenFullRange;
     updateThumbPosition();
@@ -246,8 +247,8 @@ void ScrollBar::paint (Graphics& g)
     {
         auto& lf = getLookAndFeel();
 
-        const int thumb = (thumbAreaSize > lf.getMinimumScrollbarThumbSize (*this))
-                             ? thumbSize : 0;
+        auto thumb = (thumbAreaSize > lf.getMinimumScrollbarThumbSize (*this))
+                       ? thumbSize : 0;
 
         if (vertical)
             lf.drawScrollbar (g, *this, 0, thumbAreaStart, getWidth(), thumbAreaSize,
@@ -271,7 +272,7 @@ void ScrollBar::resized()
     auto length = vertical ? getHeight() : getWidth();
 
     auto& lf = getLookAndFeel();
-    const bool buttonsVisible = lf.areScrollbarButtonsVisible();
+    bool buttonsVisible = lf.areScrollbarButtonsVisible();
     int buttonSize = 0;
 
     if (buttonsVisible)
@@ -356,11 +357,11 @@ void ScrollBar::mouseDown (const MouseEvent& e)
 
 void ScrollBar::mouseDrag (const MouseEvent& e)
 {
-    const int mousePos = vertical ? e.y : e.x;
+    auto mousePos = vertical ? e.y : e.x;
 
     if (isDraggingThumb && lastMousePos != mousePos && thumbAreaSize > thumbSize)
     {
-        const int deltaPixels = mousePos - dragStartMousePos;
+        auto deltaPixels = mousePos - dragStartMousePos;
 
         setCurrentRangeStart (dragStartRange
                                 + deltaPixels * (totalRange.getLength() - visibleRange.getLength())

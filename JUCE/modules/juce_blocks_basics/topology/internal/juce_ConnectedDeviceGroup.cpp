@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -41,8 +41,6 @@ struct ConnectedDeviceGroup  : private AsyncUpdater,
     {
         if (auto midiDeviceConnection = static_cast<MIDIDeviceConnection*> (deviceConnection.get()))
         {
-            depreciatedVersionReader = std::make_unique<DepreciatedVersionReader> (*midiDeviceConnection);
-
             ScopedLock lock (midiDeviceConnection->criticalSecton);
             setMidiMessageCallback();
         }
@@ -51,11 +49,13 @@ struct ConnectedDeviceGroup  : private AsyncUpdater,
             setMidiMessageCallback();
         }
 
+        initialiseSerialReader();
+
         startTimer (200);
         sendTopologyRequest();
     }
 
-    ~ConnectedDeviceGroup()
+    ~ConnectedDeviceGroup() override
     {
         for (const auto& device : currentDeviceInfo)
             detector.handleDeviceRemoved (device);
@@ -167,9 +167,9 @@ struct ConnectedDeviceGroup  : private AsyncUpdater,
             TouchSurface::Touch touch;
 
             touch.index             = (int) touchIndex.get();
-            touch.x                 = position.x.toUnipolarFloat();
-            touch.y                 = position.y.toUnipolarFloat();
-            touch.z                 = position.z.toUnipolarFloat();
+            touch.x                 = (float) position.x.toUnipolarFloat();
+            touch.y                 = (float) position.y.toUnipolarFloat();
+            touch.z                 = (float) position.z.toUnipolarFloat();
             touch.xVelocity         = velocity.vx.toBipolarFloat();
             touch.yVelocity         = velocity.vy.toBipolarFloat();
             touch.zVelocity         = velocity.vz.toBipolarFloat();
@@ -296,11 +296,13 @@ private:
     Array<MemoryBlock> incomingPackets;
 
     std::unique_ptr<DepreciatedVersionReader> depreciatedVersionReader;
+    std::unique_ptr<BlockSerialReader> masterSerialReader;
 
     struct TouchStart { float x, y; };
     TouchList<TouchStart> touchStartPositions;
 
-    Block::UID masterBlock = 0;
+    static constexpr Block::UID invalidUid = 0;
+    Block::UID masterBlockUid = invalidUid;
 
     //==============================================================================
     void timerCallback() override
@@ -314,7 +316,8 @@ private:
 
         checkApiTimeouts (now);
         startApiModeOnConnectedBlocks();
-        requestMasterBlockVersionIfNeeded();
+        checkMasterBlockVersion();
+        checkMasterSerial();
     }
 
     //==============================================================================
@@ -395,7 +398,7 @@ private:
     }
 
     //==============================================================================
-    void requestMasterBlockVersionIfNeeded()
+    void checkMasterBlockVersion()
     {
         if (depreciatedVersionReader == nullptr)
             return;
@@ -404,7 +407,7 @@ private:
 
         if (masterVersion.isNotEmpty())
         {
-            const auto masterIndex = getIndexFromDeviceID (masterBlock);
+            const auto masterIndex = getIndexFromDeviceID (masterBlockUid);
 
             if (masterIndex >= 0)
                 setVersion (BlocksProtocol::TopologyIndex (masterIndex), masterVersion);
@@ -423,12 +426,78 @@ private:
             if (info->version == versionNumber)
                 return;
 
-            if (info->uid == masterBlock)
+            if (info->uid == masterBlockUid)
                 depreciatedVersionReader.reset();
 
             info->version = versionNumber;
             detector.handleDeviceUpdated (*info);
         }
+    }
+
+    //==============================================================================
+    void checkMasterSerial()
+    {
+        if (masterSerialReader == nullptr)
+            initialiseSerialReader();
+
+        if (masterSerialReader == nullptr)
+            return;
+
+        if (masterBlockUid != invalidUid && masterSerialReader->hasSerial())
+        {
+            auto uid = getBlockUIDFromSerialNumber (masterSerialReader->getSerial());
+
+            if (uid != masterBlockUid)
+                updateMasterUid (uid);
+        }
+    }
+
+    void updateMasterUid (const Block::UID newMasterUid)
+    {
+        LOG_CONNECTIVITY ("Updating master from " + String (masterBlockUid) + " to " + String (newMasterUid));
+
+        masterBlockUid = newMasterUid;
+
+        Array<DeviceInfo> devicesToUpdate;
+
+        for (auto& info : currentDeviceInfo)
+        {
+            if (info.masterUid != masterBlockUid)
+            {
+                info.masterUid = masterBlockUid;
+
+                info.isMaster = info.uid == masterBlockUid;
+
+                devicesToUpdate.add (info);
+            }
+        }
+
+        detector.handleDevicesUpdated (devicesToUpdate);
+    }
+
+    Block::UID determineMasterBlockUid (Array<BlocksProtocol::DeviceStatus> devices)
+    {
+        if (masterSerialReader != nullptr && masterSerialReader->hasSerial())
+        {
+            auto foundSerial = masterSerialReader->getSerial();
+            for (const auto& device : incomingTopologyDevices)
+            {
+                if (device.serialNumber.asString() == foundSerial)
+                {
+                    LOG_CONNECTIVITY ("Found master from serial " + foundSerial);
+                    return getBlockUIDFromSerialNumber (foundSerial);
+                }
+            }
+        }
+
+        if (devices.size() > 0)
+        {
+            LOG_CONNECTIVITY ("Found master from first device " + devices[0].serialNumber.asString());
+            return getBlockUIDFromSerialNumber (incomingTopologyDevices[0].serialNumber);
+        }
+
+        jassertfalse;
+        return invalidUid;
     }
 
     //==============================================================================
@@ -492,12 +561,16 @@ private:
 
     void forceApiDisconnected (Block::UID uid)
     {
-        Array<Block::UID> toRemove;
-
         for (auto dependentUID : detector.getDnaDependentDeviceUIDs (uid))
             removeDevice (dependentUID);
 
         removeDevice (uid);
+
+        if (uid == masterBlockUid)
+        {
+            masterBlockUid = invalidUid;
+            masterSerialReader.reset();
+        }
 
         scheduleNewTopologyRequest();
     }
@@ -553,7 +626,7 @@ private:
         return -1;
     }
 
-    DeviceInfo* getDeviceInfoFromUID (Block::UID uid) const noexcept
+    DeviceInfo* getDeviceInfoFromUID (Block::UID uid) noexcept
     {
         for (auto& d : currentDeviceInfo)
             if (d.uid == uid)
@@ -562,7 +635,7 @@ private:
         return nullptr;
     }
 
-    DeviceInfo* getDeviceInfoFromIndex (BlocksProtocol::TopologyIndex index) const noexcept
+    DeviceInfo* getDeviceInfoFromIndex (BlocksProtocol::TopologyIndex index) noexcept
     {
         for (auto& d : currentDeviceInfo)
             if (d.index == index)
@@ -635,17 +708,19 @@ private:
         for (const auto& uid : toRemove)
             removeDevice (uid);
 
+        if (masterBlockUid == invalidUid)
+        {
+            masterBlockUid = determineMasterBlockUid (incomingTopologyDevices);
+            initialiseVersionReader();
+        }
+
         //Add new devices
         for (const auto& device : incomingTopologyDevices)
         {
             const auto uid = getBlockUIDFromSerialNumber (device.serialNumber);
 
-            if (! getDeviceInfoFromUID (uid))
+            if (getDeviceInfoFromUID (uid) == nullptr)
             {
-                // For backwards compatibility we assume the first device we see in a group is the master and won't change
-                if (masterBlock == 0)
-                    masterBlock = uid;
-
                 currentDeviceInfo.add ({ uid,
                                          device.index,
                                          device.serialNumber,
@@ -653,7 +728,7 @@ private:
                                          BlocksProtocol::BlockName(),
                                          device.batteryLevel,
                                          device.batteryCharging,
-                                         masterBlock });
+                                         masterBlockUid });
             }
         }
     }
@@ -690,6 +765,18 @@ private:
         currentDeviceConnections.swapWith (incomingTopologyConnections);
 
         detector.handleConnectionsChanged();
+    }
+
+    void initialiseVersionReader()
+    {
+        if (auto midiDeviceConnection = static_cast<MIDIDeviceConnection*> (deviceConnection.get()))
+            depreciatedVersionReader = std::make_unique<DepreciatedVersionReader> (*midiDeviceConnection);
+    }
+
+    void initialiseSerialReader()
+    {
+        if (auto midiDeviceConnection = static_cast<MIDIDeviceConnection*> (deviceConnection.get()))
+            masterSerialReader = std::make_unique<BlockSerialReader> (*midiDeviceConnection);
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ConnectedDeviceGroup)

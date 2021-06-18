@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -23,7 +23,7 @@
 namespace juce
 {
 
-/** Describes a phyiscal connection between two ports of two block devices.
+/** Describes a physical connection between two ports of two block devices.
 
     @tags{Blocks}
 */
@@ -102,7 +102,7 @@ struct BlockTopology
             }
         }
 
-        return {};
+        return blockConnections;
     }
 
     int getNumberOfConnectionsToBlock (Block::UID uid) const

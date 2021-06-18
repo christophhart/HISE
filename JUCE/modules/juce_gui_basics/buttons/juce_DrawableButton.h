@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -44,14 +43,16 @@ public:
     //==============================================================================
     enum ButtonStyle
     {
-        ImageFitted,                /**< The button will just display the images, but will resize and centre them to fit inside it. */
-        ImageRaw,                   /**< The button will just display the images in their normal size and position.
-                                         This leaves it up to the caller to make sure the images are the correct size and position for the button. */
-        ImageAboveTextLabel,        /**< Draws the button as a text label across the bottom with the image resized and scaled to fit above it. */
-        ImageOnButtonBackground,    /**< Draws the button as a standard rounded-rectangle button with the image on top.
-                                         Note that if you use this style, the colour IDs that control the button colour are
-                                         TextButton::buttonColourId and TextButton::buttonOnColourId. */
-        ImageStretched              /**< Fills the button with a stretched version of the image. */
+        ImageFitted,                            /**< The button will just display the images, but will resize and centre them to fit inside it. */
+        ImageRaw,                               /**< The button will just display the images in their normal size and position.
+                                                     This leaves it up to the caller to make sure the images are the correct size and position for the button. */
+        ImageAboveTextLabel,                    /**< Draws the button as a text label across the bottom with the image resized and scaled to fit above it. */
+        ImageOnButtonBackground,                /**< Draws the button as a standard rounded-rectangle button with the image on top. The image will be resized
+                                                     to match the button's proportions.
+                                                     Note that if you use this style, the colour IDs that control the button colour are
+                                                     TextButton::buttonColourId and TextButton::buttonOnColourId. */
+        ImageOnButtonBackgroundOriginalSize,    /** Same as ImageOnButtonBackground, but keeps the original image size. */
+        ImageStretched                          /**< Fills the button with a stretched version of the image. */
     };
 
     //==============================================================================
@@ -181,9 +182,12 @@ public:
 
 private:
     //==============================================================================
+    bool shouldDrawButtonBackground() const  { return style == ImageOnButtonBackground || style == ImageOnButtonBackgroundOriginalSize; }
+
+    //==============================================================================
     ButtonStyle style;
     std::unique_ptr<Drawable> normalImage, overImage, downImage, disabledImage,
-                            normalImageOn, overImageOn, downImageOn, disabledImageOn;
+                              normalImageOn, overImageOn, downImageOn, disabledImageOn;
     Drawable* currentImage = nullptr;
     int edgeIndent = 3;
 

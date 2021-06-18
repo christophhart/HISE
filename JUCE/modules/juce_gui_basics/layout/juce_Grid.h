@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -67,35 +66,37 @@ public:
     {
         /** Creates a track with auto dimension. */
         TrackInfo() noexcept;
-        /** */
+
         TrackInfo (Px sizeInPixels) noexcept;
-        /** */
         TrackInfo (Fr fractionOfFreeSpace) noexcept;
 
-        /** */
-        TrackInfo (Px sizeInPixels, const juce::String& endLineNameToUse) noexcept;
-        /** */
-        TrackInfo (Fr fractionOfFreeSpace, const juce::String& endLineNameToUse) noexcept;
+        TrackInfo (Px sizeInPixels, const String& endLineNameToUse) noexcept;
+        TrackInfo (Fr fractionOfFreeSpace, const String& endLineNameToUse) noexcept;
 
-        /** */
-        TrackInfo (const juce::String& startLineNameToUse, Px sizeInPixels) noexcept;
-        /** */
-        TrackInfo (const juce::String& startLineNameToUse, Fr fractionOfFreeSpace) noexcept;
+        TrackInfo (const String& startLineNameToUse, Px sizeInPixels) noexcept;
+        TrackInfo (const String& startLineNameToUse, Fr fractionOfFreeSpace) noexcept;
 
-        /** */
-        TrackInfo (const juce::String& startLineNameToUse, Px sizeInPixels, const juce::String& endLineNameToUse) noexcept;
-        /** */
-        TrackInfo (const juce::String& startLineNameToUse, Fr fractionOfFreeSpace, const juce::String& endLineNameToUse) noexcept;
+        TrackInfo (const String& startLineNameToUse, Px sizeInPixels, const String& endLineNameToUse) noexcept;
+        TrackInfo (const String& startLineNameToUse, Fr fractionOfFreeSpace, const String& endLineNameToUse) noexcept;
+
+        bool isAuto() const noexcept { return hasKeyword; }
+        bool isFractional() const noexcept { return isFraction; }
+        bool isPixels() const noexcept { return ! isFraction; }
+        const String& getStartLineName() const noexcept { return startLineName; }
+        const String& getEndLineName() const noexcept { return endLineName; }
+
+        /** Get the track's size - which might mean an absolute pixels value or a fractional ratio. */
+        float getSize() const noexcept { return size; }
 
     private:
         friend class Grid;
-        friend class GridItem;
+        float getAbsoluteSize (float relativeFractionalUnit) const;
 
         float size = 0; // Either a fraction or an absolute size in pixels
         bool isFraction = false;
         bool hasKeyword = false;
 
-        juce::String startLineName, endLineName;
+        String startLineName, endLineName;
     };
 
     //==============================================================================
@@ -177,13 +178,13 @@ public:
 
     //==============================================================================
     /** The set of column tracks to lay out. */
-    juce::Array<TrackInfo> templateColumns;
+    Array<TrackInfo> templateColumns;
 
     /** The set of row tracks to lay out. */
-    juce::Array<TrackInfo> templateRows;
+    Array<TrackInfo> templateRows;
 
     /** Template areas */
-    juce::StringArray templateAreas;
+    StringArray templateAreas;
 
     /** The row track for auto dimension. */
     TrackInfo autoRows;
@@ -201,11 +202,11 @@ public:
 
     //==============================================================================
     /** The set of items to lay-out. */
-    juce::Array<GridItem> items;
+    Array<GridItem> items;
 
     //==============================================================================
     /** Lays-out the grid's items within the given rectangle. */
-    void performLayout (juce::Rectangle<int>);
+    void performLayout (Rectangle<int>);
 
     //==============================================================================
     /** Returns the number of columns. */

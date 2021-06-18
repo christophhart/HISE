@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -58,6 +57,14 @@ public:
     /** Changes the text in the panel's options button. */
     void setOptionsButtonText (const String& newText);
 
+    /** Returns a pop-up menu that contains all the options for scanning and updating the list. */
+    PopupMenu createOptionsMenu();
+
+    /** Returns a menu that can be shown if a row is right-clicked, containing actions
+        like "remove plugin" or "show folder" etc.
+    */
+    PopupMenu createMenuForRow (int rowNumber);
+
     /** Changes the text in the progress dialog box that is shown when scanning. */
     void setScanDialogText (const String& textForProgressWindowTitle,
                             const String& textForProgressWindowDescription);
@@ -92,10 +99,15 @@ public:
     /** Sets a custom table model to be used.
         This will take ownership of the model and delete it when no longer needed.
      */
-    void setTableModel (TableListBoxModel* model);
+    void setTableModel (TableListBoxModel*);
 
     /** Returns the table used to display the plugin list. */
     TableListBox& getTableListBox() noexcept            { return table; }
+
+    /** Returns the button used to display the options menu - you can make this invisible
+        if you want to hide it and use some other method for showing the menu.
+    */
+    TextButton& getOptionsButton()                      { return optionsButton; }
 
 private:
     //==============================================================================
@@ -116,14 +128,9 @@ private:
     std::unique_ptr<Scanner> currentScanner;
 
     void scanFinished (const StringArray&);
-    static void optionsMenuStaticCallback (int, PluginListComponent*);
-    void optionsMenuCallback (int);
     void updateList();
-    void showSelectedFolder();
-    bool canShowSelectedFolder() const;
     void removeMissingPlugins();
     void removePluginItem (int index);
-    void showOptionsMenu();
 
     void resized() override;
     bool isInterestedInFileDrag (const StringArray&) override;

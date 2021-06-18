@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -33,12 +33,13 @@ struct BlockDataSheet
 {
     BlockDataSheet (const BlocksProtocol::BlockSerialNumber& serial)  : serialNumber (serial)
     {
-        if (serialNumber.isPadBlock())      initialiseForPadBlock2x2();
-        if (serialNumber.isLiveBlock())     initialiseForControlBlockLive();
-        if (serialNumber.isLoopBlock())     initialiseForControlBlockLoop();
-        if (serialNumber.isDevCtrlBlock())  initialiseForControlBlockDeveloper();
-        if (serialNumber.isTouchBlock())    initialiseForControlBlockTouch();
-        if (serialNumber.isSeaboardBlock()) initialiseForSeaboardBlock();
+        if (serialNumber.isPadBlock())          initialiseForPadBlock2x2();
+        if (serialNumber.isLiveBlock())         initialiseForControlBlockLive();
+        if (serialNumber.isLoopBlock())         initialiseForControlBlockLoop();
+        if (serialNumber.isDevCtrlBlock())      initialiseForControlBlockDeveloper();
+        if (serialNumber.isTouchBlock())        initialiseForControlBlockTouch();
+        if (serialNumber.isSeaboardBlock())     initialiseForSeaboardBlock();
+        if (serialNumber.isLumiKeysBlock())     initialiseForLumiKeysBlock();
     }
 
     Block::ConnectionPort convertPortIndexToConnectorPort (BlocksProtocol::ConnectorPort port) const noexcept
@@ -78,6 +79,7 @@ struct BlockDataSheet
     Array<StatusLEDInfo> statusLEDs;
     Array<Block::ConnectionPort> ports;
     Array<const char*> dials;
+    Array<BlockConfigManager::ConfigDescription> defaultConfig;
 
 private:
     //==============================================================================
@@ -224,6 +226,45 @@ private:
         addModeButton();
     }
 
+    void initialiseForLumiKeysBlock()
+    {
+        apiType = Block::Type::lumiKeysBlock;
+
+        description = "LUMI Keys BLOCK (6x3)";
+
+        widthUnits = 6;
+        heightUnits = 3;
+
+        lightGridWidth = 0;
+        lightGridHeight = 0;
+        numKeywaves = 24;
+
+        addButtons (ControlButton::ButtonFunction::mode, 0.2f, 0.2f,
+                    ControlButton::ButtonFunction::down, 0.6f, 0.2f,
+                    ControlButton::ButtonFunction::up, 1.0f, 0.2f);
+
+        addPortsSW (Block::ConnectionPort::DeviceEdge::west, 2);
+        addPortsNE (Block::ConnectionPort::DeviceEdge::north, 4);
+        addPortsNE (Block::ConnectionPort::DeviceEdge::east, 2);
+
+        hasTouchSurface = true;
+        programAndHeapSize = BlocksProtocol::padBlockProgramAndHeapSize;
+
+        defaultConfig.add ({ mode, 0, 0, 3, false,
+                           "Color Mode", ConfigType::options,
+                           { "Multi-color Mode",
+                             "Single Color Mode",
+                             "Piano Mode",
+                             "Night Mode"
+                           },
+                           BlockConfigManager::playGroup });
+
+        defaultConfig.add ({ zTrackingMode, 0, 0, 1, false,
+                            "Pressure Tracking Mode", ConfigType::options,
+                            { "Poly Aftertouch", "Channel Pressure" },
+                            BlockConfigManager::playGroup });
+    }
+
     //==============================================================================
     void addStatusLED (const char* name, float x, float y)
     {
@@ -304,14 +345,16 @@ static const char* getButtonNameForFunction (ControlButton::ButtonFunction fn) n
         case BF::button6:       return "6";
         case BF::button7:       return "7";
 
-        case BF::velocitySensitivity:   return "Velocity Sensitivity";
-        case BF::glideSensitivity:      return "Glide Sensitivity";
-        case BF::slideSensitivity:      return "Slide Sensitivity";
-        case BF::pressSensitivity:      return "Press Sensitivity";
-        case BF::liftSensitivity:       return "Lift Sensitivity";
-        case BF::fixedVelocity: return "Fixed Velocity";
-        case BF::glideLock:     return "Glide Lock";
-        case BF::pianoMode:     return "Piano Mode";
+        case BF::velocitySensitivity:  return "Velocity Sensitivity";
+        case BF::glideSensitivity:     return "Glide Sensitivity";
+        case BF::slideSensitivity:     return "Slide Sensitivity";
+        case BF::pressSensitivity:     return "Press Sensitivity";
+        case BF::liftSensitivity:      return "Lift Sensitivity";
+        case BF::fixedVelocity:        return "Fixed Velocity";
+        case BF::glideLock:            return "Glide Lock";
+        case BF::pianoMode:            return "Piano Mode";
+
+        default:  break;
     }
 
     jassertfalse;

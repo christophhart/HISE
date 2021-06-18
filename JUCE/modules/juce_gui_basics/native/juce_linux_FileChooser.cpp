@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -27,16 +26,18 @@
 namespace juce
 {
 
-static bool exeIsAvailable (const char* const executable)
+static bool exeIsAvailable (String executable)
 {
     ChildProcess child;
-    const bool ok = child.start ("which " + String (executable))
-                      && child.readAllProcessOutput().trim().isNotEmpty();
 
-    child.waitForProcessToFinish (60 * 1000);
-    return ok;
+    if (child.start ("which " + executable))
+    {
+        child.waitForProcessToFinish (60 * 1000);
+        return (child.getExitCode() == 0);
+    }
+
+    return false;
 }
-
 
 class FileChooser::Native    : public FileChooser::Pimpl,
                                private Timer
@@ -46,7 +47,8 @@ public:
         : owner (fileChooser),
           isDirectory         ((flags & FileBrowserComponent::canSelectDirectories)   != 0),
           isSave              ((flags & FileBrowserComponent::saveMode)               != 0),
-          selectMultipleFiles ((flags & FileBrowserComponent::canSelectMultipleItems) != 0)
+          selectMultipleFiles ((flags & FileBrowserComponent::canSelectMultipleItems) != 0),
+          warnAboutOverwrite  ((flags & FileBrowserComponent::warnAboutOverwriting)   != 0)
     {
         const File previousWorkingDirectory (File::getCurrentWorkingDirectory());
 
@@ -57,20 +59,24 @@ public:
             addZenityArgs();
     }
 
-    ~Native()
+    ~Native() override
     {
         finish (true);
     }
 
     void runModally() override
     {
+       #if JUCE_MODAL_LOOPS_PERMITTED
         child.start (args, ChildProcess::wantStdOut);
 
         while (child.isRunning())
-            if (! MessageManager::getInstance()->runDispatchLoopUntil(20))
+            if (! MessageManager::getInstance()->runDispatchLoopUntil (20))
                 break;
 
         finish (false);
+       #else
+        jassertfalse;
+       #endif
     }
 
     void launch() override
@@ -81,7 +87,7 @@ public:
 
 private:
     FileChooser& owner;
-    bool isDirectory, isSave, selectMultipleFiles;
+    bool isDirectory, isSave, selectMultipleFiles, warnAboutOverwrite;
 
     ChildProcess child;
     StringArray args;
@@ -186,13 +192,16 @@ private:
         }
 
         args.add (startPath.getFullPathName());
-        args.add (owner.filters.replaceCharacter (';', ' '));
+        args.add ("(" + owner.filters.replaceCharacter (';', ' ') + ")");
     }
 
     void addZenityArgs()
     {
         args.add ("zenity");
         args.add ("--file-selection");
+
+        if (warnAboutOverwrite)
+            args.add("--confirm-overwrite");
 
         if (owner.title.isNotEmpty())
             args.add ("--title=" + owner.title);
@@ -214,8 +223,7 @@ private:
             StringArray tokens;
             tokens.addTokens (owner.filters, ";,|", "\"");
 
-            for (int i = 0; i < tokens.size(); ++i)
-                args.add ("--file-filter=" + tokens[i]);
+            args.add ("--file-filter=" + tokens.joinIntoString (" "));
         }
 
         if (owner.startingFile.isDirectory())
@@ -248,9 +256,9 @@ bool FileChooser::isPlatformDialogAvailable()
    #endif
 }
 
-FileChooser::Pimpl* FileChooser::showPlatformDialog (FileChooser& owner, int flags, FilePreviewComponent*)
+std::shared_ptr<FileChooser::Pimpl> FileChooser::showPlatformDialog (FileChooser& owner, int flags, FilePreviewComponent*)
 {
-    return new Native (owner, flags);
+    return std::make_shared<Native> (owner, flags);
 }
 
 } // namespace juce

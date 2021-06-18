@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -105,10 +105,7 @@ public:
     operator ObjectType*() const noexcept                       { return get(); }
 
     /** Returns the object that this pointer refers to, or null if the object no longer exists. */
-    ObjectType* operator->() noexcept                           { return get(); }
-
-    /** Returns the object that this pointer refers to, or null if the object no longer exists. */
-    const ObjectType* operator->() const noexcept               { return get(); }
+    ObjectType* operator->() const noexcept                     { return get(); }
 
     /** This returns true if this reference has been pointing at an object, but that object has
         since been deleted.
@@ -204,7 +201,7 @@ public:
 private:
     SharedRef holder;
 
-    static inline SharedRef getRef (ObjectType* o)
+    static SharedRef getRef (ObjectType* o)
     {
         if (o != nullptr)
             return o->masterReference.getSharedPointer (o);

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -43,7 +43,9 @@ namespace ASIODebugging
     {
         message = "ASIO: " + message;
         DBG (message);
-        Logger::writeToLog (message);
+
+        if (Logger::getCurrentLogger() != nullptr)
+            Logger::writeToLog (message);
     }
 
     static void logError (const String& context, long error)
@@ -336,7 +338,9 @@ public:
 
         close();
         JUCE_ASIO_LOG ("closed");
-        removeCurrentDriver();
+
+        if (! removeCurrentDriver())
+            JUCE_ASIO_LOG ("** Driver crashed while being closed");
     }
 
     void updateSampleRates()
@@ -451,13 +455,17 @@ public:
         if (needToReset)
         {
             JUCE_ASIO_LOG (" Resetting");
-            removeCurrentDriver();
+
+            if (! removeCurrentDriver())
+                JUCE_ASIO_LOG ("** Driver crashed while being closed");
 
             loadDriver();
             String initError = initDriver();
 
             if (initError.isNotEmpty())
                 JUCE_ASIO_LOG ("ASIOInit: " + initError);
+
+            setSampleRate (getSampleRate());
 
             needToReset = false;
         }
@@ -496,7 +504,7 @@ public:
                 {
                     inBuffers[n] = ioBufferSpace + (currentBlockSizeSamples * n);
 
-                    ASIOChannelInfo channelInfo = { 0 };
+                    ASIOChannelInfo channelInfo = {};
                     channelInfo.channel = i;
                     channelInfo.isInput = 1;
                     asioObject->getChannelInfo (&channelInfo);
@@ -518,7 +526,7 @@ public:
                 {
                     outBuffers[n] = ioBufferSpace + (currentBlockSizeSamples * (numActiveInputChans + n));
 
-                    ASIOChannelInfo channelInfo = { 0 };
+                    ASIOChannelInfo channelInfo = {};
                     channelInfo.channel = i;
                     channelInfo.isInput = 0;
                     asioObject->getChannelInfo (&channelInfo);
@@ -638,8 +646,8 @@ public:
     BigInteger getActiveOutputChannels() const override    { return currentChansOut; }
     BigInteger getActiveInputChannels() const override     { return currentChansIn; }
 
-    int getOutputLatencyInSamples() override     { return outputLatency + currentBlockSizeSamples / 4; }
-    int getInputLatencyInSamples() override      { return inputLatency + currentBlockSizeSamples / 4; }
+    int getOutputLatencyInSamples() override     { return outputLatency; }
+    int getInputLatencyInSamples() override      { return inputLatency; }
 
     void start (AudioIODeviceCallback* callback) override
     {
@@ -665,10 +673,10 @@ public:
             lastCallback->audioDeviceStopped();
     }
 
-    String getLastError()           { return error; }
-    bool hasControlPanel() const    { return true; }
+    String getLastError() override           { return error; }
+    bool hasControlPanel() const override    { return true; }
 
-    bool showControlPanel()
+    bool showControlPanel() override
     {
         JUCE_ASIO_LOG ("showing control panel");
 
@@ -759,7 +767,7 @@ private:
 
     bool deviceIsOpen = false, isStarted = false, buffersCreated = false;
     std::atomic<bool> calledback { false };
-    bool littleEndian = false, postOutput = true, needToReset = false;
+    bool postOutput = true, needToReset = false;
     bool insideControlPanelModalLoop = false;
     bool shouldUsePreferredSize = false;
     int xruns = 0;
@@ -777,7 +785,7 @@ private:
 
     String getChannelName (int index, bool isInput) const
     {
-        ASIOChannelInfo channelInfo = { 0 };
+        ASIOChannelInfo channelInfo = {};
         channelInfo.channel = index;
         channelInfo.isInput = isInput ? 1 : 0;
         asioObject->getChannelInfo (&channelInfo);
@@ -1057,7 +1065,7 @@ private:
 
         for (int i = 0; i < totalNumOutputChans; ++i)
         {
-            ASIOChannelInfo channelInfo = { 0 };
+            ASIOChannelInfo channelInfo = {};
             channelInfo.channel = i;
             channelInfo.isInput = 0;
             asioObject->getChannelInfo (&channelInfo);
@@ -1073,18 +1081,32 @@ private:
         }
     }
 
-    void removeCurrentDriver()
+    bool removeCurrentDriver()
     {
+        bool releasedOK = true;
+
         if (asioObject != nullptr)
         {
-            asioObject->Release();
+           #if ! JUCE_MINGW
+            __try
+           #endif
+            {
+                asioObject->Release();
+            }
+           #if ! JUCE_MINGW
+            __except (EXCEPTION_EXECUTE_HANDLER) { releasedOK = false; }
+           #endif
+
             asioObject = nullptr;
         }
+
+        return releasedOK;
     }
 
     bool loadDriver()
     {
-        removeCurrentDriver();
+        if (! removeCurrentDriver())
+            JUCE_ASIO_LOG ("** Driver crashed while being closed");
 
         bool crashed = false;
         bool ok = tryCreatingDriver (crashed);
@@ -1125,7 +1147,7 @@ private:
         if (asioObject == nullptr)
             return "No Driver";
 
-        const bool initOk = !! asioObject->init (juce_messageWindowHandle);
+        auto initOk = (asioObject->init (juce_messageWindowHandle) > 0);
         String driverError;
 
         // Get error message if init() failed, or if it's a buggy Denon driver,
@@ -1244,7 +1266,9 @@ private:
         {
             JUCE_ASIO_LOG_ERROR (error, err);
             disposeBuffers();
-            removeCurrentDriver();
+
+            if (! removeCurrentDriver())
+                JUCE_ASIO_LOG ("** Driver crashed while being closed");
         }
         else
         {
@@ -1566,7 +1590,7 @@ private:
     //==============================================================================
     static bool isBlacklistedDriver (const String& driverName)
     {
-        return driverName == "ASIO DirectX Full Duplex Driver" || driverName == "ASIO Multimedia Driver";
+        return driverName.startsWith ("ASIO DirectX Full Duplex") || driverName == "ASIO Multimedia Driver";
     }
 
     void addDriverInfo (const String& keyName, HKEY hk)
@@ -1614,11 +1638,6 @@ void sendASIODeviceChangeToListeners (ASIOAudioIODeviceType* type)
 {
     if (type != nullptr)
         type->sendDeviceChangeToListeners();
-}
-
-AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_ASIO()
-{
-    return new ASIOAudioIODeviceType();
 }
 
 } // namespace juce

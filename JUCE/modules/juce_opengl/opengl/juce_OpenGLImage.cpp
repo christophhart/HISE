@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -40,20 +39,29 @@ public:
 
     bool initialise()
     {
-        return frameBuffer.initialise (context, width, height);
+        if (! frameBuffer.initialise (context, width, height))
+            return false;
+
+        frameBuffer.clear (Colours::transparentBlack);
+        return true;
     }
 
-    LowLevelGraphicsContext* createLowLevelContext() override
+    std::unique_ptr<LowLevelGraphicsContext> createLowLevelContext() override
     {
         sendDataChangeMessage();
         return createOpenGLGraphicsContext (context, frameBuffer);
     }
 
-    ImageType* createType() const override     { return new OpenGLImageType(); }
+    std::unique_ptr<ImageType> createType() const override     { return std::make_unique<OpenGLImageType>(); }
 
     ImagePixelData::Ptr clone() override
     {
-        Image newImage (*new OpenGLFrameBufferImage (context, width, height));
+        std::unique_ptr<OpenGLFrameBufferImage> im (new OpenGLFrameBufferImage (context, width, height));
+
+        if (! im->initialise())
+            return ImagePixelData::Ptr();
+
+        Image newImage (im.release());
         Graphics g (newImage);
         g.drawImageAt (Image (*this), 0, 0, false);
 
@@ -104,7 +112,7 @@ private:
         static void verticalRowFlip (PixelARGB* const data, const int w, const int h)
         {
             HeapBlock<PixelARGB> tempRow (w);
-            auto rowSize = sizeof (PixelARGB) * (size_t) w;
+            auto rowSize = (size_t) w * sizeof (PixelARGB);
 
             for (int y = 0; y < h / 2; ++y)
             {
@@ -126,7 +134,7 @@ private:
         void write (const PixelARGB* const data) const noexcept
         {
             HeapBlock<PixelARGB> invertedCopy (area.getWidth() * area.getHeight());
-            auto rowSize = sizeof (PixelARGB) * (size_t) area.getWidth();
+            auto rowSize = (size_t) area.getWidth() * sizeof (PixelARGB);
 
             for (int y = 0; y < area.getHeight(); ++y)
                 memcpy (invertedCopy + area.getWidth() * y,
@@ -192,7 +200,6 @@ ImagePixelData::Ptr OpenGLImageType::create (Image::PixelFormat, int width, int 
     if (! im->initialise())
         return ImagePixelData::Ptr();
 
-    im->frameBuffer.clear (Colours::transparentBlack);
     return *im.release();
 }
 

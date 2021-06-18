@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -167,12 +167,15 @@ AbstractFifo::ScopedWrite AbstractFifo::write (int numToWrite) noexcept    { ret
 
 
 //==============================================================================
+//==============================================================================
 #if JUCE_UNIT_TESTS
 
 class AbstractFifoTests  : public UnitTest
 {
 public:
-    AbstractFifoTests() : UnitTest ("Abstract Fifo", "Containers") {}
+    AbstractFifoTests()
+        : UnitTest ("Abstract Fifo", UnitTestCategories::containers)
+    {}
 
     struct WriteThread  : public Thread
     {

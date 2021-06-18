@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -100,10 +99,10 @@ namespace DirectWriteTypeLayout
                 if (currentLine >= layout->getNumLines())
                 {
                     jassert (currentLine == layout->getNumLines());
-                    auto line = new TextLayout::Line();
-                    layout->addLine (line);
-
+                    auto line = std::make_unique<TextLayout::Line>();
                     line->lineOrigin = Point<float> (baselineOriginX, baselineOriginY);
+
+                    layout->addLine (std::move (line));
                 }
             }
 
@@ -218,6 +217,7 @@ namespace DirectWriteTypeLayout
 
         switch (text.getJustification().getOnlyHorizontalFlags())
         {
+            case 0:
             case Justification::left:                   break;
             case Justification::right:                  alignment = DWRITE_TEXT_ALIGNMENT_TRAILING; break;
             case Justification::horizontallyCentred:    alignment = DWRITE_TEXT_ALIGNMENT_CENTER; break;
@@ -241,6 +241,7 @@ namespace DirectWriteTypeLayout
 
             switch (text.getJustification().getOnlyHorizontalFlags())
             {
+                case 0:
                 case Justification::left:      alignment = DWRITE_TEXT_ALIGNMENT_TRAILING; break;
                 case Justification::right:     alignment = DWRITE_TEXT_ALIGNMENT_LEADING;  break;
                 default: break;
@@ -301,7 +302,7 @@ namespace DirectWriteTypeLayout
                                                               col.getFloatAlpha()),
                                                 d2dBrush.resetAndGetPointerAddress());
 
-            // We need to call SetDrawingEffect with a legimate brush to get DirectWrite to break text based on colours
+            // We need to call SetDrawingEffect with a legitimate brush to get DirectWrite to break text based on colours
             textLayout.SetDrawingEffect (d2dBrush, range);
         }
     }
@@ -439,7 +440,10 @@ bool TextLayout::createNativeLayout (const AttributedString& text)
 
     SharedResourcePointer<Direct2DFactories> factories;
 
-    if (factories->d2dFactory != nullptr && factories->systemFonts != nullptr)
+    if (factories->d2dFactory != nullptr
+        && factories->directWriteFactory != nullptr
+        && factories->systemFonts != nullptr
+        && factories->directWriteRenderTarget != nullptr)
     {
         DirectWriteTypeLayout::createLayout (*this, text,
                                              *factories->directWriteFactory,

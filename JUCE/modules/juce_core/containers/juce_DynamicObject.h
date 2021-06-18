@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -78,7 +78,7 @@ public:
         call, then it invokes it.
 
         This method is virtual to allow more dynamic invocation to used for objects
-        where the methods may not already be set as properies.
+        where the methods may not already be set as properties.
     */
     virtual var invokeMethod (Identifier methodName,
                               const var::NativeFunctionArgs& args);
@@ -87,7 +87,7 @@ public:
 
         This is basically the same as calling setProperty (methodName, (var::NativeFunction) myFunction), but
         helps to avoid accidentally invoking the wrong type of var constructor. It also makes
-        the code easier to read,
+        the code easier to read.
     */
     void setMethod (Identifier methodName, var::NativeFunction function);
 

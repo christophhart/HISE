@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -47,13 +47,24 @@ struct PhysicalTopologySource::DetectorHolder  : private Timer
 
     void handleTimerTick()
     {
-        for (auto& b : detector->currentTopology.blocks)
-            if (auto bi = BlockImplementation<Detector>::getFrom (*b))
-                bi->handleTimerTick();
+        auto blocks = detector->currentTopology.blocks;
+
+        if (blocks.size() == 0)
+            return;
+
+        if (nextIndexToTick >= blocks.size())
+            nextIndexToTick = 0;
+
+        if (auto* bi = BlockImplementation<Detector>::getFrom (*blocks [nextIndexToTick]))
+            bi->handleTimerTick();
+
+        nextIndexToTick = (nextIndexToTick + 1) % blocks.size();
     }
 
     PhysicalTopologySource& topologySource;
     Detector::Ptr detector;
+
+    int nextIndexToTick {0};
 };
 
 } // namespace juce

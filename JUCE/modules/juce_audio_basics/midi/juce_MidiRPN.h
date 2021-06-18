@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -142,7 +142,7 @@ public:
 
         @param use14BitValue     If true (default), the value will have 14-bit precision
                                  (two MIDI bytes). If false, instead the value will have
-                                 7-bit presision (a single MIDI byte).
+                                 7-bit precision (a single MIDI byte).
     */
     static MidiBuffer generate (int channel,
                                 int parameterNumber,

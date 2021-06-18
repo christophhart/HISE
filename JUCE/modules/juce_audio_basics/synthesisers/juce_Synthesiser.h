@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -273,11 +273,6 @@ private:
     bool keyIsDown = false, sustainPedalDown = false, sostenutoPedalDown = false;
 
     AudioBuffer<float> tempBuffer;
-
-   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
-    // Note the new parameters for this method.
-    virtual int stopNote (bool) { return 0; }
-   #endif
 
     JUCE_LEAK_DETECTOR (SynthesiserVoice)
 };

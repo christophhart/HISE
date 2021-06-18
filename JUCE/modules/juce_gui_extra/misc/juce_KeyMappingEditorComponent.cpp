@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -30,8 +29,8 @@ namespace juce
 class KeyMappingEditorComponent::ChangeKeyButton  : public Button
 {
 public:
-    ChangeKeyButton (KeyMappingEditorComponent& kec, const CommandID command,
-                     const String& keyName, const int keyIndex)
+    ChangeKeyButton (KeyMappingEditorComponent& kec, CommandID command,
+                     const String& keyName, int keyIndex)
         : Button (keyName),
           owner (kec),
           commandID (command),
@@ -50,31 +49,31 @@ public:
                                                  keyNum >= 0 ? getName() : String());
     }
 
-    static void menuCallback (int result, ChangeKeyButton* button)
-    {
-        if (button != nullptr)
-        {
-            switch (result)
-            {
-                case 1: button->assignNewKey(); break;
-                case 2: button->owner.getMappings().removeKeyPress (button->commandID, button->keyNum); break;
-                default: break;
-            }
-        }
-    }
-
     void clicked() override
     {
         if (keyNum >= 0)
         {
-            // existing key clicked..
+            Component::SafePointer<ChangeKeyButton> button (this);
             PopupMenu m;
-            m.addItem (1, TRANS("Change this key-mapping"));
-            m.addSeparator();
-            m.addItem (2, TRANS("Remove this key-mapping"));
 
-            m.showMenuAsync (PopupMenu::Options(),
-                             ModalCallbackFunction::forComponent (menuCallback, this));
+            m.addItem (TRANS("Change this key-mapping"),
+                       [button]
+                       {
+                           if (button != nullptr)
+                               button.getComponent()->assignNewKey();
+                       });
+
+            m.addSeparator();
+
+            m.addItem (TRANS("Remove this key-mapping"),
+                       [button]
+                       {
+                           if (button != nullptr)
+                               button->owner.getMappings().removeKeyPress (button->commandID,
+                                                                           button->keyNum);
+                       });
+
+            m.showMenuAsync (PopupMenu::Options().withTargetComponent (this));
         }
         else
         {
@@ -82,12 +81,14 @@ public:
         }
     }
 
+    using Button::clicked;
+
     void fitToContent (const int h) noexcept
     {
         if (keyNum < 0)
             setSize (h, h);
         else
-            setSize (jlimit (h * 4, h * 8, 6 + Font (h * 0.6f).getStringWidth (getName())), h);
+            setSize (jlimit (h * 4, h * 8, 6 + Font ((float) h * 0.6f).getStringWidth (getName())), h);
     }
 
     //==============================================================================
@@ -239,7 +240,7 @@ public:
 
     void paint (Graphics& g) override
     {
-        g.setFont (getHeight() * 0.7f);
+        g.setFont ((float) getHeight() * 0.7f);
         g.setColour (owner.findColour (KeyMappingEditorComponent::textColourId));
 
         g.drawFittedText (TRANS (owner.getCommandManager().getNameOfCommand (commandID)),
@@ -306,7 +307,7 @@ public:
 
     void paintItem (Graphics& g, int width, int height) override
     {
-        g.setFont (Font (height * 0.7f, Font::bold));
+        g.setFont (Font ((float) height * 0.7f, Font::bold));
         g.setColour (owner.findColour (KeyMappingEditorComponent::textColourId));
 
         g.drawText (TRANS (categoryName), 2, 0, width - 2, height, Justification::centredLeft, true);

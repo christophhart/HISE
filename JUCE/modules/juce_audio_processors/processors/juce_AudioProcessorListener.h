@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -58,6 +57,28 @@ public:
                                                  int parameterIndex,
                                                  float newValue) = 0;
 
+    /** Provides details about aspects of an AudioProcessor which have changed.
+    */
+    struct JUCE_API  ChangeDetails
+    {
+        bool latencyChanged = false;
+        bool parameterInfoChanged = false;
+        bool programChanged = false;
+
+        ChangeDetails withLatencyChanged       (bool b) const noexcept { return with (&ChangeDetails::latencyChanged,       b); }
+        ChangeDetails withParameterInfoChanged (bool b) const noexcept { return with (&ChangeDetails::parameterInfoChanged, b); }
+        ChangeDetails withProgramChanged       (bool b) const noexcept { return with (&ChangeDetails::programChanged,       b); }
+
+    private:
+        template <typename Member, typename Value>
+        ChangeDetails with (Member&& member, Value&& value) const noexcept
+        {
+            auto copy = *this;
+            copy.*member = std::forward<Value> (value);
+            return copy;
+        }
+    };
+
     /** Called to indicate that something else in the plugin has changed, like its
         program, number of parameters, etc.
 
@@ -68,7 +89,7 @@ public:
         to trigger an AsyncUpdater or ChangeBroadcaster which you can respond to later on the
         message thread.
     */
-    virtual void audioProcessorChanged (AudioProcessor* processor) = 0;
+    virtual void audioProcessorChanged (AudioProcessor* processor, const ChangeDetails& details) = 0;
 
     /** Indicates that a parameter change gesture has started.
 

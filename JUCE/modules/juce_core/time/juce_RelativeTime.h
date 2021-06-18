@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -137,6 +137,13 @@ public:
     */
     String getDescription (const String& returnValueForZeroTime = "0") const;
 
+    //==============================================================================
+    /** This returns a string that roughly describes how long ago this time was, which
+        can be handy for showing ages of files, etc.
+        This will only attempt to be accurate to within the nearest order of magnitude
+        so returns strings such as "5 years", "2 weeks", "< 1 minute", "< 1 sec" etc.
+    */
+    String getApproximateDescription() const;
 
     //==============================================================================
     /** Adds another RelativeTime to this one. */

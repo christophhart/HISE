@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -23,10 +23,7 @@
 namespace juce
 {
 
-#if JUCE_MSVC
- #pragma warning (push)
- #pragma warning (disable: 4512)
-#endif
+JUCE_BEGIN_IGNORE_WARNINGS_MSVC (4512)
 
 //==============================================================================
 /**
@@ -58,22 +55,19 @@ class SortedSet
 public:
     //==============================================================================
     /** Creates an empty set. */
-    // VS2013 doesn't allow defaulted noexcept constructors.
     SortedSet() = default;
 
     /** Creates a copy of another set. */
     SortedSet (const SortedSet&) = default;
 
     /** Creates a copy of another set. */
-    // VS2013 doesn't allow defaulted noexcept constructors.
-    SortedSet (SortedSet&& other) noexcept : data (std::move (other.data)) {}
+    SortedSet (SortedSet&&) noexcept = default;
 
     /** Makes a copy of another set. */
     SortedSet& operator= (const SortedSet&) = default;
 
     /** Makes a copy of another set. */
-    // VS2013 doesn't allow defaulted noexcept constructors.
-    SortedSet& operator= (SortedSet&& other) noexcept { data = std::move (other.data); return *this; }
+    SortedSet& operator= (SortedSet&&) noexcept = default;
 
     /** Destructor. */
     ~SortedSet() = default;
@@ -169,7 +163,16 @@ public:
 
         @param index    the index of the element being requested (0 is the first element in the array)
     */
-    inline ElementType& getReference (const int index) const noexcept
+    inline ElementType& getReference (const int index) noexcept
+    {
+        return data.getReference (index);
+    }
+
+    /** Returns a direct reference to one of the elements in the set, without checking the index passed in.
+
+        @param index    the index of the element being requested (0 is the first element in the array)
+    */
+    inline const ElementType& getReference (const int index) const noexcept
     {
         return data.getReference (index);
     }
@@ -194,7 +197,7 @@ public:
     /** Returns a pointer to the first element in the set.
         This method is provided for compatibility with standard C++ iteration mechanisms.
     */
-    inline ElementType* begin() const noexcept
+    inline const ElementType* begin() const noexcept
     {
         return data.begin();
     }
@@ -202,7 +205,7 @@ public:
     /** Returns a pointer to the element which follows the last element in the set.
         This method is provided for compatibility with standard C++ iteration mechanisms.
     */
-    inline ElementType* end() const noexcept
+    inline const ElementType* end() const noexcept
     {
         return data.end();
     }
@@ -374,7 +377,7 @@ public:
         @param valueToRemove   the object to try to remove
         @see remove, removeRange
     */
-    void removeValue (const ElementType valueToRemove) noexcept
+    void removeValue (const ElementType& valueToRemove) noexcept
     {
         const ScopedLockType lock (getLock());
         data.remove (indexOf (valueToRemove));
@@ -481,8 +484,6 @@ private:
     Array<ElementType, TypeOfCriticalSectionToUse> data;
 };
 
-#if JUCE_MSVC
- #pragma warning (pop)
-#endif
+JUCE_END_IGNORE_WARNINGS_MSVC
 
 } // namespace juce

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -51,16 +51,18 @@ public:
         Linux           = 0x0400,
         Android         = 0x0800,
         iOS             = 0x1000,
+        WASM            = 0x2000,
 
-        MacOSX_10_4     = MacOSX | 4,
-        MacOSX_10_5     = MacOSX | 5,
-        MacOSX_10_6     = MacOSX | 6,
         MacOSX_10_7     = MacOSX | 7,
         MacOSX_10_8     = MacOSX | 8,
         MacOSX_10_9     = MacOSX | 9,
         MacOSX_10_10    = MacOSX | 10,
         MacOSX_10_11    = MacOSX | 11,
         MacOSX_10_12    = MacOSX | 12,
+        MacOSX_10_13    = MacOSX | 13,
+        MacOSX_10_14    = MacOSX | 14,
+        MacOSX_10_15    = MacOSX | 15,
+        MacOS_11        = MacOSX | 16,
 
         Win2000         = Windows | 1,
         WinXP           = Windows | 2,
@@ -170,6 +172,8 @@ public:
 
     static bool hasMMX() noexcept;             /**< Returns true if Intel MMX instructions are available. */
     static bool has3DNow() noexcept;           /**< Returns true if AMD 3DNOW instructions are available. */
+    static bool hasFMA3() noexcept;            /**< Returns true if AMD FMA3 instructions are available. */
+    static bool hasFMA4() noexcept;            /**< Returns true if AMD FMA4 instructions are available. */
     static bool hasSSE() noexcept;             /**< Returns true if Intel SSE instructions are available. */
     static bool hasSSE2() noexcept;            /**< Returns true if Intel SSE2 instructions are available. */
     static bool hasSSE3() noexcept;            /**< Returns true if Intel SSE3 instructions are available. */

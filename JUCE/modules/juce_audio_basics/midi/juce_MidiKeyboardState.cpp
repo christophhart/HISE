@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -43,7 +43,7 @@ void MidiKeyboardState::reset()
 
 bool MidiKeyboardState::isNoteOn (const int midiChannel, const int n) const noexcept
 {
-    jassert (midiChannel >= 0 && midiChannel <= 16);
+    jassert (midiChannel > 0 && midiChannel <= 16);
 
     return isPositiveAndBelow (n, 128)
             && (noteStates[n] & (1 << (midiChannel - 1))) != 0;
@@ -57,7 +57,7 @@ bool MidiKeyboardState::isNoteOnForChannels (const int midiChannelMask, const in
 
 void MidiKeyboardState::noteOn (const int midiChannel, const int midiNoteNumber, const float velocity)
 {
-    jassert (midiChannel >= 0 && midiChannel <= 16);
+    jassert (midiChannel > 0 && midiChannel <= 16);
     jassert (isPositiveAndBelow (midiNoteNumber, 128));
 
     const ScopedLock sl (lock);
@@ -76,10 +76,8 @@ void MidiKeyboardState::noteOnInternal  (const int midiChannel, const int midiNo
 {
     if (isPositiveAndBelow (midiNoteNumber, 128))
     {
-        noteStates [midiNoteNumber] |= (1 << (midiChannel - 1));
-
-        for (int i = listeners.size(); --i >= 0;)
-            listeners.getUnchecked(i)->handleNoteOn (this, midiChannel, midiNoteNumber, velocity);
+        noteStates[midiNoteNumber] = static_cast<uint16> (noteStates[midiNoteNumber] | (1 << (midiChannel - 1)));
+        listeners.call ([&] (Listener& l) { l.handleNoteOn (this, midiChannel, midiNoteNumber, velocity); });
     }
 }
 
@@ -110,17 +108,15 @@ void MidiKeyboardState::noteOffInternal  (const int midiChannel, const int midiN
 {
     if (isNoteOn (midiChannel, midiNoteNumber))
     {
-        noteStates [midiNoteNumber] &= ~(1 << (midiChannel - 1));
-
-        for (int i = listeners.size(); --i >= 0;)
-            listeners.getUnchecked(i)->handleNoteOff (this, midiChannel, midiNoteNumber, velocity);
+        noteStates[midiNoteNumber] = static_cast<uint16> (noteStates[midiNoteNumber] & ~(1 << (midiChannel - 1)));
+        listeners.call ([&] (Listener& l) { l.handleNoteOff (this, midiChannel, midiNoteNumber, velocity); });
     }
 }
 
 void MidiKeyboardState::sendMessageInternal(const MidiMessage& m)
 {
 	for (int i = listeners.size(); --i >= 0;)
-		listeners.getUnchecked(i)->handleMessage(m);
+		listeners.getListeners().getUnchecked(i)->handleMessage(m);
 }
 
 void MidiKeyboardState::allNotesOff (const int midiChannel)
@@ -165,30 +161,25 @@ void MidiKeyboardState::processNextMidiBuffer (MidiBuffer& buffer,
                                                const int numSamples,
                                                const bool injectIndirectEvents)
 {
-    MidiBuffer::Iterator i (buffer);
-    MidiMessage message;
-    int time;
-
     const ScopedLock sl (lock);
 
 #if JUCE_ENABLE_AUDIO_GUARD
-	// Don't fire here until this is sorted out.
-	AudioThreadGuard::Suspender suspender;
+    // Don't fire here until this is sorted out.
+    AudioThreadGuard::Suspender suspender;
 #endif
 
-    while (i.getNextEvent (message, time))
-        processNextMidiEvent (message);
+    for (const auto metadata : buffer)
+        processNextMidiEvent (metadata.getMessage());
 
     if (injectIndirectEvents)
     {
-        MidiBuffer::Iterator i2 (eventsToAdd);
         const int firstEventToAdd = eventsToAdd.getFirstEventTime();
         const double scaleFactor = numSamples / (double) (eventsToAdd.getLastEventTime() + 1 - firstEventToAdd);
 
-        while (i2.getNextEvent (message, time))
+        for (const auto metadata : eventsToAdd)
         {
-            const int pos = jlimit (0, numSamples - 1, roundToInt ((time - firstEventToAdd) * scaleFactor));
-            buffer.addEvent (message, startSample + pos);
+            const auto pos = jlimit (0, numSamples - 1, roundToInt ((metadata.samplePosition - firstEventToAdd) * scaleFactor));
+            buffer.addEvent (metadata.getMessage(), startSample + pos);
         }
     }
 
@@ -196,16 +187,16 @@ void MidiKeyboardState::processNextMidiBuffer (MidiBuffer& buffer,
 }
 
 //==============================================================================
-void MidiKeyboardState::addListener (MidiKeyboardStateListener* const listener)
+void MidiKeyboardState::addListener (Listener* listener)
 {
     const ScopedLock sl (lock);
-    listeners.addIfNotAlreadyThere (listener);
+    listeners.add (listener);
 }
 
-void MidiKeyboardState::removeListener (MidiKeyboardStateListener* const listener)
+void MidiKeyboardState::removeListener (Listener* listener)
 {
     const ScopedLock sl (lock);
-    listeners.removeFirstMatchingValue (listener);
+    listeners.remove (listener);
 }
 
 } // namespace juce

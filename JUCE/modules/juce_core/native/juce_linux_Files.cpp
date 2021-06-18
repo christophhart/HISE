@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -136,7 +136,8 @@ File File::getSpecialLocation (const SpecialLocationType type)
         case invokedExecutableFile:
             if (juce_argv != nullptr && juce_argc > 0)
                 return File (CharPointer_UTF8 (juce_argv[0]));
-            // deliberate fall-through...
+            // Falls through
+            JUCE_FALLTHROUGH
 
         case currentExecutableFile:
         case currentApplicationFile:
@@ -144,6 +145,7 @@ File File::getSpecialLocation (const SpecialLocationType type)
             return juce_getExecutableFile();
            #endif
             // deliberate fall-through if this is not a shared-library
+            JUCE_FALLTHROUGH
 
         case hostApplicationPath:
         {
@@ -201,13 +203,13 @@ bool Process::openDocument (const String& fileName, const String& parameters)
         for (auto browserName : { "xdg-open", "/etc/alternatives/x-www-browser", "firefox", "mozilla",
                                   "google-chrome", "chromium-browser", "opera", "konqueror" })
         {
-            cmdLines.add (String (browserName) + " " + cmdString.trim());
+            cmdLines.add (String (browserName) + " " + cmdString.trim().quoted());
         }
 
         cmdString = cmdLines.joinIntoString (" || ");
     }
 
-    const char* const argv[4] = { "/bin/sh", "-c", cmdString.toUTF8(), 0 };
+    const char* const argv[4] = { "/bin/sh", "-c", cmdString.toUTF8(), nullptr };
 
     auto cpid = fork();
 

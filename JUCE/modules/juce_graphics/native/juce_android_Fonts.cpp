@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -353,7 +352,7 @@ public:
             LocalRef<jobject> bitmap (env->CallStaticObjectMethod (AndroidBitmap, AndroidBitmap.createBitmap, w, h, bitmapConfig.get()));
             LocalRef<jobject> canvas (env->NewObject (AndroidCanvas, AndroidCanvas.create, bitmap.get()));
 
-            env->CallBooleanMethod (matrix.get(), AndroidMatrix.postTranslate, bounds.getX() * -1.0f, bounds.getY() * -1.0f);
+            env->CallBooleanMethod (matrix.get(), AndroidMatrix.postTranslate, (float) -bounds.getX(), (float) -bounds.getY());
             env->CallVoidMethod (canvas.get(), AndroidCanvas.setMatrix, matrix.get());
             env->CallVoidMethod (canvas.get(), AndroidCanvas.drawPath, path.get(), paint.get());
 
@@ -374,7 +373,7 @@ public:
         {
             et = new EdgeTable (bounds);
 
-            jint* const maskDataElements = env->GetIntArrayElements ((jintArray) cachedRenderArray.get(), 0);
+            jint* const maskDataElements = env->GetIntArrayElements ((jintArray) cachedRenderArray.get(), nullptr);
             const jint* mask = maskDataElements;
 
             for (int y = bounds.getY(); y < bounds.getBottom(); ++y)
@@ -425,12 +424,12 @@ private:
         return file;
     }
 
-    static File getFontFile (const String& family, const String& style)
+    static File getFontFile (const String& family, const String& fontStyle)
     {
         String path ("/system/fonts/" + family);
 
-        if (style.isNotEmpty())
-            path << '-' << style;
+        if (fontStyle.isNotEmpty())
+            path << '-' << fontStyle;
 
         return File (path + ".ttf");
     }
@@ -459,7 +458,7 @@ private:
 
     static File getCacheDirectory()
     {
-        static File result = [] ()
+        static File result = []()
         {
             auto appContext = getAppContext();
 
@@ -494,7 +493,7 @@ private:
         String key;
         {
             LocalRef<jobject> digest (env->CallStaticObjectMethod (JavaMessageDigest, JavaMessageDigest.getInstance, javaString("MD5").get()));
-            LocalRef<jbyteArray> bytes(env->NewByteArray(size));
+            LocalRef<jbyteArray> bytes(env->NewByteArray ((int) size));
 
             jboolean ignore;
             auto* jbytes = env->GetByteArrayElements(bytes.get(), &ignore);

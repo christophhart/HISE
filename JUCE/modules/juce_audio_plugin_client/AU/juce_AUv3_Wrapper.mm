@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -24,14 +23,10 @@
   ==============================================================================
 */
 
-#include "../../juce_core/system/juce_TargetPlatform.h"
+#include <juce_core/system/juce_TargetPlatform.h>
 #include "../utility/juce_CheckSettingMacros.h"
 
 #if JucePlugin_Build_AUv3
-
-#import <CoreAudioKit/CoreAudioKit.h>
-#import <AudioToolbox/AudioToolbox.h>
-#import <AVFoundation/AVFoundation.h>
 
 #if JUCE_MAC
  #if (! defined MAC_OS_X_VERSION_MIN_REQUIRED) || (! defined MAC_OS_X_VERSION_10_11) || (MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_11)
@@ -44,9 +39,6 @@
 #endif
 
 #if JUCE_IOS
- #if (! defined __IPHONE_OS_VERSION_MIN_REQUIRED) || (! defined __IPHONE_9_0) || (__IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0)
-  #error AUv3 needs Deployment Target iOS 9.0 or higher to compile
- #endif
  #if (defined __IPHONE_11_0) && (__IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_11_0)
   #define JUCE_AUV3_MIDI_OUTPUT_SUPPORTED 1
   #define JUCE_AUV3_VIEW_CONFIG_SUPPORTED 1
@@ -61,11 +53,15 @@
 
 #include "../utility/juce_IncludeSystemHeaders.h"
 #include "../utility/juce_IncludeModuleHeaders.h"
-#include "../../juce_graphics/native/juce_mac_CoreGraphicsHelpers.h"
 
-#include "../../juce_audio_basics/native/juce_mac_CoreAudioLayouts.h"
-#include "../../juce_audio_processors/format_types/juce_LegacyAudioParameter.cpp"
-#include "../../juce_audio_processors/format_types/juce_AU_Shared.h"
+#import <CoreAudioKit/CoreAudioKit.h>
+#import <AudioToolbox/AudioToolbox.h>
+#import <AVFoundation/AVFoundation.h>
+
+#include <juce_graphics/native/juce_mac_CoreGraphicsHelpers.h>
+#include <juce_audio_basics/native/juce_mac_CoreAudioLayouts.h>
+#include <juce_audio_processors/format_types/juce_LegacyAudioParameter.cpp>
+#include <juce_audio_processors/format_types/juce_AU_Shared.h>
 
 #define JUCE_VIEWCONTROLLER_OBJC_NAME(x) JUCE_JOIN_MACRO (x, FactoryAUv3)
 
@@ -77,8 +73,9 @@
 
 #define JUCE_AUDIOUNIT_OBJC_NAME(x) JUCE_JOIN_MACRO (x, AUv3)
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnullability-completeness"
+#include <future>
+
+JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wnullability-completeness")
 
 using namespace juce;
 
@@ -116,13 +113,12 @@ public:
     JuceAudioUnitv3Base (const AudioComponentDescription& descr,
                          AudioComponentInstantiationOptions options,
                          NSError** error)
-       #pragma clang diagnostic push
-       #pragma clang diagnostic ignored "-Wobjc-method-access"
+        JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wobjc-method-access")
         : au ([audioUnitObjCClass.createInstance() initWithComponentDescription: descr
                                                                         options: options
                                                                           error: error
                                                                       juceClass: this])
-       #pragma clang diagnostic pop
+        JUCE_END_IGNORE_WARNINGS_GCC_LIKE
     {}
 
     JuceAudioUnitv3Base (AUAudioUnit* audioUnit) : au (audioUnit)
@@ -131,7 +127,7 @@ public:
         initialiseJuce_GUI();
     }
 
-    virtual ~JuceAudioUnitv3Base() {}
+    virtual ~JuceAudioUnitv3Base() = default;
 
     //==============================================================================
     AUAudioUnit* getAudioUnit() noexcept                                   { return au; }
@@ -146,14 +142,12 @@ public:
 
     virtual NSDictionary<NSString*, id>* getFullState()
     {
-        objc_super s = { getAudioUnit(), [AUAudioUnit class] };
-        return ObjCMsgSendSuper<NSDictionary<NSString*, id>*> (&s, @selector (fullState));
+        return ObjCMsgSendSuper<AUAudioUnit, NSDictionary<NSString*, id>*> (getAudioUnit(), @selector (fullState));
     }
 
     virtual void setFullState (NSDictionary<NSString*, id>* state)
     {
-        objc_super s = { getAudioUnit(), [AUAudioUnit class] };
-        ObjCMsgSendSuper<void, NSDictionary<NSString*, id>*> (&s, @selector (setFullState:), state);
+        ObjCMsgSendSuper<AUAudioUnit, void> (getAudioUnit(), @selector (setFullState:), state);
     }
 
     virtual AUParameterTree* getParameterTree()                            = 0;
@@ -182,14 +176,12 @@ public:
 
     virtual bool getShouldBypassEffect()
     {
-        objc_super s = { getAudioUnit(), [AUAudioUnit class] };
-        return (ObjCMsgSendSuper<BOOL> (&s, @selector (shouldBypassEffect)) == YES);
+        return (ObjCMsgSendSuper<AUAudioUnit, BOOL> (getAudioUnit(), @selector (shouldBypassEffect)) == YES);
     }
 
     virtual void setShouldBypassEffect (bool shouldBypass)
     {
-        objc_super s = { getAudioUnit(), [AUAudioUnit class] };
-        ObjCMsgSendSuper<void, BOOL> (&s, @selector (setShouldBypassEffect:), shouldBypass ? YES : NO);
+        ObjCMsgSendSuper<AUAudioUnit, void> (getAudioUnit(), @selector (setShouldBypassEffect:), shouldBypass ? YES : NO);
     }
 
     //==============================================================================
@@ -198,14 +190,12 @@ public:
 
     virtual bool allocateRenderResourcesAndReturnError (NSError **outError)
     {
-        objc_super s = { getAudioUnit(), [AUAudioUnit class] };
-        return (ObjCMsgSendSuper<BOOL, NSError**> (&s, @selector (allocateRenderResourcesAndReturnError:), outError) == YES);
+        return (ObjCMsgSendSuper<AUAudioUnit, BOOL, NSError**> (getAudioUnit(), @selector (allocateRenderResourcesAndReturnError:), outError) == YES);
     }
 
     virtual void deallocateRenderResources()
     {
-        objc_super s = { getAudioUnit(), [AUAudioUnit class] };
-        ObjCMsgSendSuper<void> (&s, @selector (deallocateRenderResources));
+        ObjCMsgSendSuper<AUAudioUnit, void> (getAudioUnit(), @selector (deallocateRenderResources));
     }
 
     //==============================================================================
@@ -221,13 +211,12 @@ private:
         {
             addIvar<JuceAudioUnitv3Base*> ("cppObject");
 
-           #pragma clang diagnostic push
-           #pragma clang diagnostic ignored "-Wundeclared-selector"
+            JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wundeclared-selector")
             addMethod (@selector (initWithComponentDescription:options:error:juceClass:),
                        initWithComponentDescriptionAndJuceClass, "@@:",
                        @encode (AudioComponentDescription),
                        @encode (AudioComponentInstantiationOptions), "^@@");
-           #pragma clang diagnostic pop
+            JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 
             addMethod (@selector (initWithComponentDescription:options:error:),
                        initWithComponentDescription, "@@:",
@@ -298,9 +287,8 @@ private:
         {
             AUAudioUnit* self = _self;
 
-            objc_super s = { self, [AUAudioUnit class] };
-            self = ObjCMsgSendSuper<AUAudioUnit*, AudioComponentDescription,
-                                    AudioComponentInstantiationOptions, NSError**> (&s, @selector(initWithComponentDescription:options:error:), descr, options, error);
+            self = ObjCMsgSendSuper<AUAudioUnit, AUAudioUnit*, AudioComponentDescription,
+                                    AudioComponentInstantiationOptions, NSError**> (self, @selector (initWithComponentDescription:options:error:), descr, options, error);
 
             JuceAudioUnitv3Base* juceAU = JuceAudioUnitv3Base::create (self, descr, options, error);
 
@@ -312,9 +300,8 @@ private:
         {
             AUAudioUnit* self = _self;
 
-            objc_super s = { self, [AUAudioUnit class] };
-            self = ObjCMsgSendSuper<AUAudioUnit*, AudioComponentDescription,
-                                    AudioComponentInstantiationOptions, NSError**> (&s, @selector(initWithComponentDescription:options:error:), descr, options, error);
+            self = ObjCMsgSendSuper<AUAudioUnit, AUAudioUnit*, AudioComponentDescription,
+                                    AudioComponentInstantiationOptions, NSError**> (self, @selector(initWithComponentDescription:options:error:), descr, options, error);
 
 
             setThis (self, juceAU);
@@ -441,7 +428,7 @@ public:
         init();
     }
 
-    ~JuceAudioUnitv3()
+    ~JuceAudioUnitv3() override
     {
         auto& processor = getAudioProcessor();
         processor.removeListener (this);
@@ -566,7 +553,12 @@ public:
         }
 
         juce::MemoryBlock state;
+
+       #if JUCE_AU_WRAPPERS_SAVE_PROGRAM_STATES
         getAudioProcessor().getCurrentProgramStateInformation (state);
+       #else
+        getAudioProcessor().getStateInformation (state);
+       #endif
 
         if (state.getSize() > 0)
         {
@@ -612,7 +604,13 @@ public:
                 const juce::uint8* const rawBytes = reinterpret_cast< const juce::uint8* const> ([data bytes]);
 
                 if (numBytes > 0)
+                {
+                   #if JUCE_AU_WRAPPERS_SAVE_PROGRAM_STATES
                     getAudioProcessor().setCurrentProgramStateInformation (rawBytes, numBytes);
+                   #else
+                    getAudioProcessor().setStateInformation (rawBytes, numBytes);
+                   #endif
+                }
             }
         }
 
@@ -916,7 +914,7 @@ public:
    #endif
 
     //==============================================================================
-    void audioProcessorChanged (AudioProcessor* processor) override
+    void audioProcessorChanged (AudioProcessor* processor, const ChangeDetails&) override
     {
         ignoreUnused (processor);
 
@@ -959,16 +957,19 @@ public:
 
         switch (lastTimeStamp.mSMPTETime.mType)
         {
-            case kSMPTETimeType2398:        info.frameRate = AudioPlayHead::fps23976; break;
-            case kSMPTETimeType24:          info.frameRate = AudioPlayHead::fps24; break;
-            case kSMPTETimeType25:          info.frameRate = AudioPlayHead::fps25; break;
-            case kSMPTETimeType2997:        info.frameRate = AudioPlayHead::fps2997; break;
+            case kSMPTETimeType2398:        info.frameRate = AudioPlayHead::fps23976;    break;
+            case kSMPTETimeType24:          info.frameRate = AudioPlayHead::fps24;       break;
+            case kSMPTETimeType25:          info.frameRate = AudioPlayHead::fps25;       break;
+            case kSMPTETimeType2997:        info.frameRate = AudioPlayHead::fps2997;     break;
             case kSMPTETimeType2997Drop:    info.frameRate = AudioPlayHead::fps2997drop; break;
-            case kSMPTETimeType30Drop:      info.frameRate = AudioPlayHead::fps30drop; break;
-            case kSMPTETimeType30:          info.frameRate = AudioPlayHead::fps30; break;
-            case kSMPTETimeType60Drop:      info.frameRate = AudioPlayHead::fps60drop; break;
-            case kSMPTETimeType60:          info.frameRate = AudioPlayHead::fps60; break;
-            default:                        info.frameRate = AudioPlayHead::fpsUnknown; break;
+            case kSMPTETimeType30Drop:      info.frameRate = AudioPlayHead::fps30drop;   break;
+            case kSMPTETimeType30:          info.frameRate = AudioPlayHead::fps30;       break;
+            case kSMPTETimeType60Drop:      info.frameRate = AudioPlayHead::fps60drop;   break;
+            case kSMPTETimeType60:          info.frameRate = AudioPlayHead::fps60;       break;
+            case kSMPTETimeType5994:
+            case kSMPTETimeType5994Drop:
+            case kSMPTETimeType50:
+            default:                        info.frameRate = AudioPlayHead::fpsUnknown;  break;
         }
 
         double num;
@@ -1116,7 +1117,7 @@ private:
         AudioBufferList* bufferList = nullptr;
         int maxFrames, numberOfChannels;
         bool isInterleaved;
-        AudioBuffer<float> scratchBuffer;
+        juce::AudioBuffer<float> scratchBuffer;
     };
 
     //==============================================================================
@@ -1167,8 +1168,9 @@ private:
                                                   | kAudioUnitParameterFlag_HasCFNameString
                                                   | kAudioUnitParameterFlag_ValuesHaveStrings);
 
-        if (! forceLegacyParamIDs)
-            flags |= (UInt32) kAudioUnitParameterFlag_IsHighResolution;
+       #if ! JUCE_FORCE_LEGACY_PARAMETER_AUTOMATION_TYPE
+        flags |= (UInt32) kAudioUnitParameterFlag_IsHighResolution;
+       #endif
 
         // Set whether the param is automatable (unnamed parameters aren't allowed to be automated).
         if (name.isEmpty() || ! parameter->isAutomatable())
@@ -1193,24 +1195,23 @@ private:
         }
         else
         {
-            if (! forceLegacyParamIDs)
+           #if ! JUCE_FORCE_LEGACY_PARAMETER_AUTOMATION_TYPE
+            if (parameter->isDiscrete())
             {
-                if (parameter->isDiscrete())
-                {
-                    unit = parameter->isBoolean() ? kAudioUnitParameterUnit_Boolean : kAudioUnitParameterUnit_Indexed;
-                    auto maxValue = getMaximumParameterValue (parameter);
-                    auto numSteps = parameter->getNumSteps();
+                unit = parameter->isBoolean() ? kAudioUnitParameterUnit_Boolean : kAudioUnitParameterUnit_Indexed;
+                auto maxValue = getMaximumParameterValue (parameter);
+                auto numSteps = parameter->getNumSteps();
 
-                    // Some hosts can't handle the huge numbers of discrete parameter values created when
-                    // using the default number of steps.
-                    jassert (numSteps != AudioProcessor::getDefaultNumParameterSteps());
+                // Some hosts can't handle the huge numbers of discrete parameter values created when
+                // using the default number of steps.
+                jassert (numSteps != AudioProcessor::getDefaultNumParameterSteps());
 
-                    valueStrings.reset ([NSMutableArray new]);
+                valueStrings.reset ([NSMutableArray new]);
 
-                    for (int i = 0; i < numSteps; ++i)
-                        [valueStrings.get() addObject: juceStringToNS (parameter->getText ((float) i / maxValue, 0))];
-                }
+                for (int i = 0; i < numSteps; ++i)
+                    [valueStrings.get() addObject: juceStringToNS (parameter->getText ((float) i / maxValue, 0))];
             }
+           #endif
         }
 
         AUParameterAddress address = generateAUParameterAddress (parameter);
@@ -1412,10 +1413,14 @@ private:
                     const AUParameterEvent& paramEvent = event->parameter;
 
                     if (auto* p = getJuceParameterForAUAddress (paramEvent.parameterAddress))
-                        setAudioProcessorParameter (p, paramEvent.value);
+                    {
+                        auto normalisedValue = paramEvent.value / getMaximumParameterValue (p);
+                        setAudioProcessorParameter (p, normalisedValue);
+                    }
                 }
                 break;
 
+                case AURenderEventMIDISysEx:
                 default:
                     break;
             }
@@ -1522,12 +1527,11 @@ private:
 
             // send MIDI
            #if JucePlugin_ProducesMidiOutput && JUCE_AUV3_MIDI_OUTPUT_SUPPORTED
-            auto midiOut = [au MIDIOutputEventBlock];
-            MidiMessage msg;
-            int samplePosition;
-
-            for (MidiBuffer::Iterator it (midiMessages); it.getNextEvent (msg, samplePosition);)
-                midiOut (samplePosition, 0, msg.getRawDataSize(), msg.getRawData());
+            if (auto midiOut = [au MIDIOutputEventBlock])
+            {
+                for (const auto metadata : midiMessages)
+                    midiOut (metadata.samplePosition, 0, metadata.numBytes, metadata.data);
+            }
            #endif
 
             midiMessages.clear();
@@ -1540,7 +1544,7 @@ private:
         return noErr;
     }
 
-    void processBlock (AudioBuffer<float>& buffer, MidiBuffer& midiBuffer) noexcept
+    void processBlock (juce::AudioBuffer<float>& buffer, MidiBuffer& midiBuffer) noexcept
     {
         auto& processor = getAudioProcessor();
         const ScopedLock sl (processor.getCallbackLock());
@@ -1748,7 +1752,7 @@ public:
     {
         JUCE_ASSERT_MESSAGE_THREAD
 
-        if (processorHolder != nullptr)
+        if (processorHolder.get() != nullptr)
             JuceAudioUnitv3::removeEditor (getAudioProcessor());
     }
 
@@ -1793,22 +1797,25 @@ public:
 
     void viewDidLayoutSubviews()
     {
-        if (processorHolder != nullptr && [myself view] != nullptr)
+        if (auto holder = processorHolder.get())
         {
-            if (AudioProcessorEditor* editor = getAudioProcessor().getActiveEditor())
+            if ([myself view] != nullptr)
             {
-                if (processorHolder->viewConfiguration != nullptr)
-                    editor->hostMIDIControllerIsAvailable (processorHolder->viewConfiguration->hostHasMIDIController);
-
-                editor->setBounds (convertToRectInt ([[myself view] bounds]));
-
-                if (JUCE_IOS_MAC_VIEW* peerView = [[[myself view] subviews] objectAtIndex: 0])
+                if (AudioProcessorEditor* editor = getAudioProcessor().getActiveEditor())
                 {
-                   #if JUCE_IOS
-                    [peerView setNeedsDisplay];
-                   #else
-                    [peerView setNeedsDisplay: YES];
-                   #endif
+                    if (holder->viewConfiguration != nullptr)
+                        editor->hostMIDIControllerIsAvailable (holder->viewConfiguration->hostHasMIDIController);
+
+                    editor->setBounds (convertToRectInt ([[myself view] bounds]));
+
+                    if (JUCE_IOS_MAC_VIEW* peerView = [[[myself view] subviews] objectAtIndex: 0])
+                    {
+                       #if JUCE_IOS
+                        [peerView setNeedsDisplay];
+                       #else
+                        [peerView setNeedsDisplay: YES];
+                       #endif
+                    }
                 }
             }
         }
@@ -1816,21 +1823,21 @@ public:
 
     void didReceiveMemoryWarning()
     {
-        if (processorHolder != nullptr)
-            if (auto* processor = processorHolder->get())
+        if (auto ptr = processorHolder.get())
+            if (auto* processor = ptr->get())
                 processor->memoryWarningReceived();
     }
 
     void viewDidAppear (bool)
     {
-        if (processorHolder != nullptr)
+        if (processorHolder.get() != nullptr)
             if (AudioProcessorEditor* editor = getAudioProcessor().getActiveEditor())
                 editor->setVisible (true);
     }
 
     void viewDidDisappear (bool)
     {
-        if (processorHolder != nullptr)
+        if (processorHolder.get() != nullptr)
             if (AudioProcessorEditor* editor = getAudioProcessor().getActiveEditor())
                 editor->setVisible (false);
     }
@@ -1844,65 +1851,72 @@ public:
     //==============================================================================
     AUAudioUnit* createAudioUnit (const AudioComponentDescription& descr, NSError** error)
     {
-        AUAudioUnit* retval = nil;
-
-        if (! MessageManager::getInstance()->isThisTheMessageThread())
+        const auto holder = [&]
         {
-            WaitableEvent creationEvent;
+            if (auto initialisedHolder = processorHolder.get())
+                return initialisedHolder;
 
-            // AUv3 headers say that we may block this thread and that the message thread is guaranteed
-            // to be unblocked
-            struct AUCreator  : public CallbackMessage
-            {
-                JuceAUViewController& owner;
-                AudioComponentDescription pDescr;
-                NSError** pError;
-                AUAudioUnit*& outAU;
-                WaitableEvent& e;
+            waitForExecutionOnMainThread ([this] { [myself view]; });
+            return processorHolder.get();
+        }();
 
-                AUCreator (JuceAUViewController& parent, const AudioComponentDescription& paramDescr, NSError** paramError,
-                           AUAudioUnit*& outputAU, WaitableEvent& event)
-                    : owner (parent), pDescr (paramDescr), pError (paramError), outAU (outputAU), e (event)
-                {}
+        if (holder == nullptr)
+            return nullptr;
 
-                void messageCallback() override
-                {
-                    outAU = owner.createAudioUnitOnMessageThread (pDescr, pError);
-                    e.signal();
-                }
-            };
-
-            (new AUCreator (*this, descr, error, retval, creationEvent))->post();
-            creationEvent.wait (-1);
-        }
-        else
-        {
-            retval = createAudioUnitOnMessageThread (descr, error);
-        }
-
-        return [retval autorelease];
+        return (new JuceAudioUnitv3 (holder, descr, 0, error))->getAudioUnit();
     }
 
 private:
+    template <typename Callback>
+    static void waitForExecutionOnMainThread (Callback&& callback)
+    {
+        if (MessageManager::getInstance()->isThisTheMessageThread())
+        {
+            callback();
+            return;
+        }
+
+        std::promise<void> promise;
+
+        MessageManager::callAsync ([&]
+        {
+            callback();
+            promise.set_value();
+        });
+
+        promise.get_future().get();
+    }
+
+    // There's a chance that createAudioUnit will be called from a background
+    // thread while the processorHolder is being updated on the main thread.
+    class LockedProcessorHolder
+    {
+    public:
+        AudioProcessorHolder::Ptr get() const
+        {
+            const ScopedLock lock (mutex);
+            return holder;
+        }
+
+        LockedProcessorHolder& operator= (const AudioProcessorHolder::Ptr& other)
+        {
+            const ScopedLock lock (mutex);
+            holder = other;
+            return *this;
+        }
+
+    private:
+        mutable CriticalSection mutex;
+        AudioProcessorHolder::Ptr holder;
+    };
+
     //==============================================================================
     AUViewController<AUAudioUnitFactory>* myself;
-    AudioProcessorHolder::Ptr processorHolder = nullptr;
+    LockedProcessorHolder processorHolder;
     Rectangle<int> preferredSize { 1, 1 };
 
     //==============================================================================
-    AUAudioUnit* createAudioUnitOnMessageThread (const AudioComponentDescription& descr, NSError** error)
-    {
-        JUCE_ASSERT_MESSAGE_THREAD
-
-        [myself view];  // this will call [view load] and ensure that the AudioProcessor has been instantiated
-
-        if (processorHolder == nullptr)
-            return nullptr;
-
-        return (new JuceAudioUnitv3 (processorHolder, descr, 0, error))->getAudioUnit();
-    }
-
-    AudioProcessor& getAudioProcessor() const noexcept       { return **processorHolder; }
+    AudioProcessor& getAudioProcessor() const noexcept       { return **processorHolder.get(); }
 };
 
 //==============================================================================
@@ -1919,7 +1933,11 @@ private:
 - (void) loadView                { cpp->loadView(); }
 - (AUAudioUnit *) createAudioUnitWithComponentDescription: (AudioComponentDescription) desc error: (NSError **) error { return cpp->createAudioUnit (desc, error); }
 - (CGSize) preferredContentSize  { return cpp->getPreferredContentSize(); }
+
+// NSViewController and UIViewController have slightly different names for this function
 - (void) viewDidLayoutSubviews   { cpp->viewDidLayoutSubviews(); }
+- (void) viewDidLayout           { cpp->viewDidLayoutSubviews(); }
+
 - (void) didReceiveMemoryWarning { cpp->didReceiveMemoryWarning(); }
 #if JUCE_IOS
 - (void) viewDidAppear: (BOOL) animated { cpp->viewDidAppear (animated); [super viewDidAppear:animated]; }
@@ -1931,10 +1949,8 @@ private:
 #if JUCE_IOS
 bool JUCE_CALLTYPE juce_isInterAppAudioConnected() { return false; }
 void JUCE_CALLTYPE juce_switchToHostApplication()  {}
-#if JUCE_MODULE_AVAILABLE_juce_gui_basics
 Image JUCE_CALLTYPE juce_getIAAHostIcon (int)      { return {}; }
 #endif
-#endif
 
-#pragma clang diagnostic pop
+JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 #endif

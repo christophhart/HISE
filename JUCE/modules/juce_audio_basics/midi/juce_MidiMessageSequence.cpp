@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -87,8 +87,10 @@ MidiMessageSequence::MidiEventHolder* MidiMessageSequence::getEventPointer (int 
     return list[index];
 }
 
-MidiMessageSequence::MidiEventHolder** MidiMessageSequence::begin() const noexcept          { return list.begin(); }
-MidiMessageSequence::MidiEventHolder** MidiMessageSequence::end() const noexcept            { return list.end(); }
+MidiMessageSequence::MidiEventHolder** MidiMessageSequence::begin() noexcept               { return list.begin(); }
+MidiMessageSequence::MidiEventHolder* const* MidiMessageSequence::begin() const noexcept   { return list.begin(); }
+MidiMessageSequence::MidiEventHolder** MidiMessageSequence::end() noexcept                 { return list.end(); }
+MidiMessageSequence::MidiEventHolder* const* MidiMessageSequence::end() const noexcept     { return list.end(); }
 
 double MidiMessageSequence::getTimeOfMatchingKeyUp (int index) const noexcept
 {
@@ -344,11 +346,16 @@ void MidiMessageSequence::createControllerUpdatesForTime (int channelNumber, dou
     }
 }
 
+
+//==============================================================================
+//==============================================================================
 #if JUCE_UNIT_TESTS
 
-struct MidiMessageSequenceTest  : public juce::UnitTest
+struct MidiMessageSequenceTest  : public UnitTest
 {
-    MidiMessageSequenceTest() : juce::UnitTest ("MidiMessageSequence") {}
+    MidiMessageSequenceTest()
+        : UnitTest ("MidiMessageSequence", UnitTestCategories::midi)
+    {}
 
     void runTest() override
     {
@@ -371,7 +378,7 @@ struct MidiMessageSequenceTest  : public juce::UnitTest
         expectEquals (s.getIndexOfMatchingKeyUp (0), 2);
         expectEquals (s.getIndexOfMatchingKeyUp (1), 3);
 
-        beginTest ("Time & indeces");
+        beginTest ("Time & indices");
         expectEquals (s.getNextIndexAtTime (0.5), 1);
         expectEquals (s.getNextIndexAtTime (2.5), 2);
         expectEquals (s.getNextIndexAtTime (9.0), 4);

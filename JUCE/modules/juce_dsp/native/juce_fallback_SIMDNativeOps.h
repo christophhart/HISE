@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -43,8 +42,8 @@ namespace SIMDInternal
     template <> struct MaskTypeFor <std::complex<float>>    { using type = uint32_t; };
     template <> struct MaskTypeFor <std::complex<double>>   { using type = uint64_t; };
 
-    template <typename Primitive> struct PrimitiveType                           { using type = Primitive; };
-    template <typename Primitive> struct PrimitiveType<std::complex<Primitive>>  { using type = Primitive; };
+    template <typename Primitive> struct PrimitiveType                           { using type = typename std::remove_cv<Primitive>::type; };
+    template <typename Primitive> struct PrimitiveType<std::complex<Primitive>>  { using type = typename std::remove_cv<Primitive>::type; };
 
     template <int n>    struct Log2Helper    { enum { value = Log2Helper<n/2>::value + 1 }; };
     template <>         struct Log2Helper<1> { enum { value = 0 }; };
@@ -115,9 +114,22 @@ struct SIMDFallbackOps
         auto retval = static_cast<ScalarType> (0);
 
         for (size_t i = 0; i < n; ++i)
-            retval += a.s[i];
+            retval = static_cast<ScalarType> (retval + a.s[i]);
 
         return retval;
+    }
+
+    static forcedinline vSIMDType truncate (vSIMDType av) noexcept
+    {
+        UnionType a {av};
+
+        for (size_t i = 0; i < n; ++i)
+        {
+            jassert (a.s[i] >= ScalarType (0));
+            a.s[i] = static_cast <ScalarType> (static_cast<int> (a.s[i]));
+        }
+
+        return a.v;
     }
 
     static forcedinline vSIMDType multiplyAdd (vSIMDType av, vSIMDType bv, vSIMDType cv) noexcept

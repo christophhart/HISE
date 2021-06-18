@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -29,18 +29,7 @@ namespace juce
  #define JUCE_COREAUDIOLOG(a)
 #endif
 
-#ifdef __clang__
- #pragma clang diagnostic push
- #pragma clang diagnostic ignored "-Wnonnull" // aovid some spurious 10.11 SDK warnings
-
- // The AudioHardwareService stuff was deprecated in 10.11 but there's no replacement yet,
- // so we'll have to silence the warnings here and revisit it in a future OS version..
- #if ((defined (MAC_OS_X_VERSION_10_13) && MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_13) \
-   || (defined (MAC_OS_X_VERSION_10_12) && MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_12) \
-   || (defined (MAC_OS_X_VERSION_10_11) && MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_11))
-  #pragma clang diagnostic ignored "-Wdeprecated-declarations"
- #endif
-#endif
+JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wnonnull")
 
 //==============================================================================
 struct SystemVol
@@ -52,11 +41,10 @@ struct SystemVol
         addr.mElement  = kAudioObjectPropertyElementMaster;
         addr.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
 
-        if (AudioHardwareServiceHasProperty (kAudioObjectSystemObject, &addr))
+        if (AudioObjectHasProperty (kAudioObjectSystemObject, &addr))
         {
             UInt32 deviceIDSize = sizeof (outputDeviceID);
-            OSStatus status = AudioHardwareServiceGetPropertyData (kAudioObjectSystemObject, &addr, 0,
-                                                                   nullptr, &deviceIDSize, &outputDeviceID);
+            OSStatus status = AudioObjectGetPropertyData (kAudioObjectSystemObject, &addr, 0, nullptr, &deviceIDSize, &outputDeviceID);
 
             if (status == noErr)
             {
@@ -64,7 +52,7 @@ struct SystemVol
                 addr.mSelector = selector;
                 addr.mScope    = kAudioDevicePropertyScopeOutput;
 
-                if (! AudioHardwareServiceHasProperty (outputDeviceID, &addr))
+                if (! AudioObjectHasProperty (outputDeviceID, &addr))
                     outputDeviceID = kAudioObjectUnknown;
             }
         }
@@ -77,8 +65,7 @@ struct SystemVol
         if (outputDeviceID != kAudioObjectUnknown)
         {
             UInt32 size = sizeof (gain);
-            AudioHardwareServiceGetPropertyData (outputDeviceID, &addr,
-                                                 0, nullptr, &size, &gain);
+            AudioObjectGetPropertyData (outputDeviceID, &addr,  0, nullptr, &size, &gain);
         }
 
         return (float) gain;
@@ -91,8 +78,7 @@ struct SystemVol
             Float32 newVolume = gain;
             UInt32 size = sizeof (newVolume);
 
-            return AudioHardwareServiceSetPropertyData (outputDeviceID, &addr, 0, nullptr,
-                                                        size, &newVolume) == noErr;
+            return AudioObjectSetPropertyData (outputDeviceID, &addr, 0, nullptr, size, &newVolume) == noErr;
         }
 
         return false;
@@ -105,8 +91,7 @@ struct SystemVol
         if (outputDeviceID != kAudioObjectUnknown)
         {
             UInt32 size = sizeof (muted);
-            AudioHardwareServiceGetPropertyData (outputDeviceID, &addr,
-                                                 0, nullptr, &size, &muted);
+            AudioObjectGetPropertyData (outputDeviceID, &addr, 0, nullptr, &size, &muted);
         }
 
         return muted != 0;
@@ -119,8 +104,7 @@ struct SystemVol
             UInt32 newMute = mute ? 1 : 0;
             UInt32 size = sizeof (newMute);
 
-            return AudioHardwareServiceSetPropertyData (outputDeviceID, &addr, 0, nullptr,
-                                                        size, &newMute) == noErr;
+            return AudioObjectSetPropertyData (outputDeviceID, &addr, 0, nullptr, size, &newMute) == noErr;
         }
 
         return false;
@@ -133,14 +117,11 @@ private:
     bool canSetVolume() const noexcept
     {
         Boolean isSettable = NO;
-        return AudioHardwareServiceIsPropertySettable (outputDeviceID, &addr, &isSettable) == noErr
-                 && isSettable;
+        return AudioObjectIsPropertySettable (outputDeviceID, &addr, &isSettable) == noErr && isSettable;
     }
 };
 
-#ifdef __clang__
- #pragma clang diagnostic pop
-#endif
+JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 
 #define JUCE_SYSTEMAUDIOVOL_IMPLEMENTED 1
 float JUCE_CALLTYPE SystemAudioVolume::getGain()              { return SystemVol (kAudioHardwareServiceDeviceProperty_VirtualMasterVolume).getGain(); }
@@ -547,7 +528,7 @@ public:
             if (OK (AudioObjectGetPropertyData (deviceID, &pa, 0, nullptr, &size, &currentSourceID)))
             {
                 HeapBlock<OSType> types;
-                const int num = getAllDataSourcesForDevice (deviceID, types);
+                auto num = getAllDataSourcesForDevice (deviceID, types);
 
                 for (int i = 0; i < num; ++i)
                 {
@@ -568,7 +549,7 @@ public:
         if (deviceID != 0)
         {
             HeapBlock<OSType> types;
-            const int num = getAllDataSourcesForDevice (deviceID, types);
+            auto num = getAllDataSourcesForDevice (deviceID, types);
 
             if (isPositiveAndBelow (index, num))
             {
@@ -816,8 +797,8 @@ public:
         JUCE_COREAUDIOLOG ("Device changed");
 
         stopTimer();
-        const double oldSampleRate = sampleRate;
-        const int oldBufferSize = bufferSize;
+        auto oldSampleRate = sampleRate;
+        auto oldBufferSize = bufferSize;
 
         if (! updateDetailsFromDevice())
             owner.stopInternal();
@@ -866,15 +847,17 @@ private:
         return noErr;
     }
 
-    static OSStatus deviceListenerProc (AudioDeviceID /*inDevice*/, UInt32 /*inLine*/, const AudioObjectPropertyAddress* pa, void* inClientData)
+    static OSStatus deviceListenerProc (AudioDeviceID /*inDevice*/, UInt32 /*inLine*/,
+                                        const AudioObjectPropertyAddress* pa, void* inClientData)
     {
-        CoreAudioInternal* const intern = static_cast<CoreAudioInternal*> (inClientData);
+        auto intern = static_cast<CoreAudioInternal*> (inClientData);
 
         switch (pa->mSelector)
         {
             case kAudioDeviceProcessorOverload:
                 intern->xruns++;
                 break;
+
             case kAudioDevicePropertyBufferSize:
             case kAudioDevicePropertyBufferFrameSize:
             case kAudioDevicePropertyNominalSampleRate:
@@ -950,8 +933,8 @@ class CoreAudioIODevice   : public AudioIODevice,
 public:
     CoreAudioIODevice (CoreAudioIODeviceType* dt,
                        const String& deviceName,
-                       AudioDeviceID inputDeviceId, const int inputIndex_,
-                       AudioDeviceID outputDeviceId, const int outputIndex_)
+                       AudioDeviceID inputDeviceId, int inputIndex_,
+                       AudioDeviceID outputDeviceId, int outputIndex_)
         : AudioIODevice (deviceName, "CoreAudio"),
           deviceType (dt),
           inputIndex (inputIndex_),
@@ -1027,11 +1010,12 @@ public:
 
         inputChannelsRequested = inputChannels;
         outputChannelsRequested = outputChannels;
-        sampleRateRequested = sampleRate;
-        bufferSizeSamplesRequested = bufferSizeSamples;
 
         if (bufferSizeSamples <= 0)
             bufferSizeSamples = getDefaultBufferSize();
+
+        if (sampleRate <= 0)
+            sampleRate = internal->getNominalSampleRate();
 
         lastError = internal->reopen (inputChannels, outputChannels, sampleRate, bufferSizeSamples);
         JUCE_COREAUDIOLOG ("Opened: " << getName());
@@ -1086,7 +1070,7 @@ public:
 
         if (isStarted)
         {
-            AudioIODeviceCallback* const lastCallback = internal->callback;
+            auto lastCallback = internal->callback;
 
             isStarted = false;
             internal->stop (true);
@@ -1167,8 +1151,6 @@ private:
     AudioIODeviceCallback* previousCallback = nullptr;
     std::function<void()> deviceWrapperRestartCallback = nullptr;
     BigInteger inputChannelsRequested, outputChannelsRequested;
-    double sampleRateRequested;
-    int bufferSizeSamplesRequested;
     CriticalSection closeLock;
 
     void timerCallback() override
@@ -1681,11 +1663,16 @@ private:
     void readInput (AudioBuffer<float>& buffer, const int numSamples, const int blockSizeMs)
     {
         for (auto* d : devices)
-            d->done = (d->numInputChans == 0);
+            d->done = (d->numInputChans == 0 || d->isWaitingForInput);
 
-        for (int tries = 5;;)
+        float totalWaitTimeMs = blockSizeMs * 5.0f;
+        constexpr int numReadAttempts = 6;
+        auto sumPower2s = [] (int maxPower) { return (1 << (maxPower + 1)) - 1; };
+        float waitTime = totalWaitTimeMs / (float) sumPower2s (numReadAttempts - 2);
+
+        for (int numReadAttemptsRemaining = numReadAttempts;;)
         {
-            bool anyRemaining = false;
+            bool anySamplesRemaining = false;
 
             for (auto* d : devices)
             {
@@ -1697,17 +1684,20 @@ private:
                         d->done = true;
                     }
                     else
-                        anyRemaining = true;
+                    {
+                        anySamplesRemaining = true;
+                    }
                 }
             }
 
-            if (! anyRemaining)
+            if (! anySamplesRemaining)
                 return;
 
-            if (--tries == 0)
+            if (--numReadAttemptsRemaining == 0)
                 break;
 
-            wait (blockSizeMs);
+            wait (jmax (1, roundToInt (waitTime)));
+            waitTime *= 2.0f;
         }
 
         for (auto* d : devices)
@@ -1735,7 +1725,9 @@ private:
                         d->done = true;
                     }
                     else
+                    {
                         anyRemaining = true;
+                    }
                 }
             }
 
@@ -1826,6 +1818,8 @@ private:
             numInputChans  = useInputs  ? device->getActiveInputChannels().countNumberOfSetBits()  : 0;
             numOutputChans = useOutputs ? device->getActiveOutputChannels().countNumberOfSetBits() : 0;
 
+            isWaitingForInput = numInputChans > 0;
+
             inputIndex = channelIndex;
             outputIndex = channelIndex + numInputChans;
 
@@ -1910,6 +1904,8 @@ private:
         {
             if (numInputChannels > 0)
             {
+                isWaitingForInput = false;
+
                 int start1, size1, start2, size2;
                 inputFifo.prepareToWrite (numSamples, start1, size1, start2, size2);
 
@@ -1991,6 +1987,7 @@ private:
         std::unique_ptr<CoreAudioIODevice> device;
         int inputIndex = 0, numInputChans = 0, outputIndex = 0, numOutputChans = 0;
         bool useInputs = false, useOutputs = false;
+        std::atomic<bool> isWaitingForInput { false };
         AbstractFifo inputFifo { 32 }, outputFifo { 32 };
         bool done = false;
 
@@ -2251,12 +2248,6 @@ private:
 };
 
 };
-
-//==============================================================================
-AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_CoreAudio()
-{
-    return new CoreAudioClasses::CoreAudioIODeviceType();
-}
 
 #undef JUCE_COREAUDIOLOG
 

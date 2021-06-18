@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -79,10 +78,10 @@ namespace KeyPressHelpers
         { "return",         KeyPress::returnKey },
         { "escape",         KeyPress::escapeKey },
         { "backspace",      KeyPress::backspaceKey },
-        { "left",    KeyPress::leftKey },
-        { "right",   KeyPress::rightKey },
-        { "up",      KeyPress::upKey },
-        { "down",    KeyPress::downKey },
+        { "cursor left",    KeyPress::leftKey },
+        { "cursor right",   KeyPress::rightKey },
+        { "cursor up",      KeyPress::upKey },
+        { "cursor down",    KeyPress::downKey },
         { "page up",        KeyPress::pageUpKey },
         { "page down",      KeyPress::pageDownKey },
         { "home",           KeyPress::homeKey },
@@ -146,7 +145,7 @@ namespace KeyPressHelpers
         return 0;
     }
 
-   #if JUCE_MAC
+   #if JUCE_MAC || JUCE_IOS
     struct OSXSymbolReplacement
     {
         const char* text;
@@ -241,7 +240,7 @@ String KeyPress::getTextDescription() const
         if (mods.isCtrlDown())      desc << "ctrl + ";
         if (mods.isShiftDown())     desc << "shift + ";
 
-       #if JUCE_MAC
+       #if JUCE_MAC || JUCE_IOS
         if (mods.isAltDown())       desc << "option + ";
         if (mods.isCommandDown())   desc << "command + ";
        #else
@@ -274,7 +273,7 @@ String KeyPress::getTextDescription() const
 
 String KeyPress::getTextDescriptionWithIcons() const
 {
-   #if JUCE_MAC
+   #if JUCE_MAC || JUCE_IOS
     auto s = getTextDescription();
 
     for (int i = 0; i < numElementsInArray (KeyPressHelpers::osxSymbols); ++i)

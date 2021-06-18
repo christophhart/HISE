@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -104,7 +104,7 @@ struct HostPacketDecoder
 
     static bool handleTopology (Handler& handler, Packed7BitArrayReader& reader, bool newTopology)
     {
-        if (reader.getRemainingBits() < DeviceCount::bits + ConnectionCount::bits)
+        if (reader.getRemainingBits() < (int) DeviceCount::bits + (int) ConnectionCount::bits)
         {
             jassertfalse; // not enough data available for this message type!
             return false;
@@ -220,7 +220,7 @@ struct HostPacketDecoder
     static bool handleTouch (Handler& handler, Packed7BitArrayReader& reader, TopologyIndex deviceIndex,
                              PacketTimestamp packetTimestamp, bool isStart, bool isEnd)
     {
-        if (reader.getRemainingBits() < BitSizes::touchMessage - MessageType::bits)
+        if (reader.getRemainingBits() < (int) BitSizes::touchMessage - (int) MessageType::bits)
         {
             jassertfalse; // not enough data available for this message type!
             return false;
@@ -240,7 +240,7 @@ struct HostPacketDecoder
     static bool handleTouchWithVelocity (Handler& handler, Packed7BitArrayReader& reader, TopologyIndex deviceIndex,
                                          PacketTimestamp packetTimestamp, bool isStart, bool isEnd)
     {
-        if (reader.getRemainingBits() < BitSizes::touchMessageWithVelocity - MessageType::bits)
+        if (reader.getRemainingBits() < (int) BitSizes::touchMessageWithVelocity - (int) MessageType::bits)
         {
             jassertfalse; // not enough data available for this message type!
             return false;
@@ -269,7 +269,7 @@ struct HostPacketDecoder
     static bool handleButtonDownOrUp (Handler& handler, Packed7BitArrayReader& reader, TopologyIndex deviceIndex,
                                       PacketTimestamp packetTimestamp, bool isDown)
     {
-        if (reader.getRemainingBits() < BitSizes::controlButtonMessage - MessageType::bits)
+        if (reader.getRemainingBits() < (int) BitSizes::controlButtonMessage - (int) MessageType::bits)
         {
             jassertfalse; // not enough data available for this message type!
             return false;
@@ -285,7 +285,7 @@ struct HostPacketDecoder
     static bool handleCustomMessage (Handler& handler, Packed7BitArrayReader& reader,
                                      TopologyIndex deviceIndex, PacketTimestamp packetTimestamp)
     {
-        if (reader.getRemainingBits() < BitSizes::programEventMessage - MessageType::bits)
+        if (reader.getRemainingBits() < BitSizes::programEventMessage - (int) MessageType::bits)
         {
             jassertfalse; // not enough data available for this message type!
             return false;
@@ -302,7 +302,7 @@ struct HostPacketDecoder
 
     static bool handlePacketACK (Handler& handler, Packed7BitArrayReader& reader, TopologyIndex deviceIndex)
     {
-        if (reader.getRemainingBits() < BitSizes::packetACK - MessageType::bits)
+        if (reader.getRemainingBits() < BitSizes::packetACK - (int) MessageType::bits)
         {
             jassertfalse; // not enough data available for this message type!
             return false;

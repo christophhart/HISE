@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -41,6 +40,8 @@
 #define JUCE_CORE_INCLUDE_NATIVE_HEADERS 1
 #define JUCE_EVENTS_INCLUDE_WIN32_MESSAGE_WINDOW 1
 #define JUCE_GRAPHICS_INCLUDE_COREGRAPHICS_HELPERS 1
+#define JUCE_GUI_BASICS_INCLUDE_XHEADERS 1
+#define JUCE_GUI_BASICS_INCLUDE_SCOPED_THREAD_DPI_AWARENESS_SETTER 1
 
 #include "juce_gui_basics.h"
 
@@ -86,51 +87,6 @@
    #pragma comment (lib, "Dwrite.lib")
    #pragma comment (lib, "D2d1.lib")
   #endif
- #endif
-
-//==============================================================================
-#elif JUCE_LINUX
-#include <unistd.h>
- #if JUCE_HEADLESS_PLUGIN_CLIENT
-  #include "native/juce_linux_headless_X_keysymdef.h"
- #else
-  #include <X11/Xlib.h>
-  #include <X11/Xatom.h>
-  #include <X11/Xresource.h>
-  #include <X11/Xutil.h>
-  #include <X11/Xmd.h>
-  #include <X11/keysym.h>
-  #include <X11/XKBlib.h>
-  #include <X11/cursorfont.h>
-  #if JUCE_USE_XRANDR
-   /* If you're trying to use Xrandr, you'll need to install the "libxrandr-dev" package..  */
-   #include <X11/extensions/Xrandr.h>
-  #endif
-
-  #if JUCE_USE_XINERAMA
-   /* If you're trying to use Xinerama, you'll need to install the "libxinerama-dev" package..  */
-   #include <X11/extensions/Xinerama.h>
-  #endif
-
-  #if JUCE_USE_XSHM
-   #include <X11/extensions/XShm.h>
-   #include <sys/shm.h>
-   #include <sys/ipc.h>
-  #endif
-
-  #if JUCE_USE_XRENDER
-   // If you're missing these headers, try installing the libxrender-dev and libxcomposite-dev
-   #include <X11/extensions/Xrender.h>
-   #include <X11/extensions/Xcomposite.h>
-  #endif
-
-  #if JUCE_USE_XCURSOR
-   // If you're missing this header, try installing the libxcursor-dev package
-   #include <X11/Xcursor/Xcursor.h>
-  #endif
-
-  #undef SIZEOF
-  #undef KeyPress
  #endif
 #endif
 
@@ -266,39 +222,28 @@ namespace juce
 #include "misc/juce_JUCESplashScreen.cpp"
 
 #include "layout/juce_FlexBox.cpp"
-#if JUCE_HAS_CONSTEXPR
- #include "layout/juce_GridItem.cpp"
- #include "layout/juce_Grid.cpp"
- #if JUCE_UNIT_TESTS
-  #include "layout/juce_GridUnitTests.cpp"
- #endif
-#endif
+#include "layout/juce_GridItem.cpp"
+#include "layout/juce_Grid.cpp"
 
 #if JUCE_IOS || JUCE_WINDOWS
  #include "native/juce_MultiTouchMapper.h"
 #endif
 
 #if JUCE_MAC || JUCE_IOS
-
- #if JUCE_CLANG
-  #pragma clang diagnostic push
-  #pragma clang diagnostic ignored "-Wundeclared-selector"
- #endif
-
  #if JUCE_IOS
   #include "native/juce_ios_UIViewComponentPeer.mm"
   #include "native/juce_ios_Windowing.mm"
   #include "native/juce_ios_FileChooser.mm"
-  #include "native/juce_ios_ContentSharer.cpp"
+
+  #if JUCE_CONTENT_SHARING
+   #include "native/juce_ios_ContentSharer.cpp"
+  #endif
+
  #else
   #include "native/juce_mac_NSViewComponentPeer.mm"
   #include "native/juce_mac_Windowing.mm"
   #include "native/juce_mac_MainMenu.mm"
   #include "native/juce_mac_FileChooser.mm"
- #endif
-
- #if JUCE_CLANG
-  #pragma clang diagnostic pop
  #endif
 
  #include "native/juce_mac_MouseCursor.mm"
@@ -309,21 +254,25 @@ namespace juce
  #include "native/juce_win32_FileChooser.cpp"
 
 #elif JUCE_LINUX
- #if JUCE_HEADLESS_PLUGIN_CLIENT
-  #include "native/juce_linux_headless_Windowing.cpp"
-  #include "native/juce_linux_headless_Clipboard.cpp"
-  #include "native/juce_linux_headless_FileChooser.cpp"
- #else
-  #include "native/juce_linux_X11.cpp"
-  #include "native/juce_linux_X11_Clipboard.cpp"
-  #include "native/juce_linux_X11_Windowing.cpp"
-  #include "native/juce_linux_FileChooser.cpp"
- #endif
+ #include "native/x11/juce_linux_X11_Symbols.cpp"
+ #include "native/x11/juce_linux_X11_DragAndDrop.cpp"
+
+ JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wzero-as-null-pointer-constant")
+
+ #include "native/juce_linux_Windowing.cpp"
+ #include "native/x11/juce_linux_XWindowSystem.cpp"
+
+ JUCE_END_IGNORE_WARNINGS_GCC_LIKE
+
+ #include "native/juce_linux_FileChooser.cpp"
 
 #elif JUCE_ANDROID
  #include "native/juce_android_Windowing.cpp"
  #include "native/juce_common_MimeTypes.cpp"
  #include "native/juce_android_FileChooser.cpp"
- #include "native/juce_android_ContentSharer.cpp"
+
+ #if JUCE_CONTENT_SHARING
+  #include "native/juce_android_ContentSharer.cpp"
+ #endif
 
 #endif

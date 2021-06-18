@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -73,19 +73,10 @@
 
  #include "native/juce_osx_MessageQueue.h"
 
- #if JUCE_CLANG
-  #pragma clang diagnostic push
-  #pragma clang diagnostic ignored "-Wundeclared-selector"
- #endif
-
  #if JUCE_MAC
   #include "native/juce_mac_MessageManager.mm"
  #else
   #include "native/juce_ios_MessageManager.mm"
- #endif
-
- #if JUCE_CLANG
-  #pragma clang diagnostic pop
  #endif
 
 #elif JUCE_WINDOWS

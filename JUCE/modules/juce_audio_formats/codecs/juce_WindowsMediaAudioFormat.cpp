@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -30,11 +29,11 @@ namespace juce
 namespace WindowsMediaCodec
 {
 
-class JuceIStream   : public ComBaseClassHelper <IStream>
+class JuceIStream   : public ComBaseClassHelper<IStream>
 {
 public:
     JuceIStream (InputStream& in) noexcept
-        : ComBaseClassHelper <IStream> (0), source (in)
+        : ComBaseClassHelper<IStream> (0), source (in)
     {
     }
 
@@ -48,10 +47,10 @@ public:
 
     JUCE_COMRESULT Read (void* dest, ULONG numBytes, ULONG* bytesRead)
     {
-        auto numRead = source.read (dest, numBytes);
+        auto numRead = source.read (dest, (size_t) numBytes);
 
         if (bytesRead != nullptr)
-            *bytesRead = numRead;
+            *bytesRead = (ULONG) numRead;
 
         return (numRead == (int) numBytes) ? S_OK : S_FALSE;
     }
@@ -206,7 +205,7 @@ public:
                     if (hasJumped)
                         bufferedRange.setStart ((int64) ((sampleTime * (int64) sampleRate) / 10000000));
                     else
-                        bufferedRange.setStart (bufferedRange.getEnd()); // (because the positions returned often aren't continguous)
+                        bufferedRange.setStart (bufferedRange.getEnd()); // (because the positions returned often aren't contiguous)
 
                     bufferedRange.setLength ((int64) (dataLength / stride));
 
@@ -266,32 +265,23 @@ private:
 
     void scanFileForDetails()
     {
-        ComSmartPtr<IWMHeaderInfo> wmHeaderInfo;
-        HRESULT hr = wmSyncReader.QueryInterface (wmHeaderInfo);
-
-        if (SUCCEEDED (hr))
+        if (auto wmHeaderInfo = wmSyncReader.getInterface<IWMHeaderInfo>())
         {
             QWORD lengthInNanoseconds = 0;
             WORD lengthOfLength = sizeof (lengthInNanoseconds);
             WORD streamNum = 0;
             WMT_ATTR_DATATYPE wmAttrDataType;
-            hr = wmHeaderInfo->GetAttributeByName (&streamNum, L"Duration", &wmAttrDataType,
-                                                   (BYTE*) &lengthInNanoseconds, &lengthOfLength);
+            wmHeaderInfo->GetAttributeByName (&streamNum, L"Duration", &wmAttrDataType,
+                                              (BYTE*) &lengthInNanoseconds, &lengthOfLength);
 
-            ComSmartPtr<IWMProfile> wmProfile;
-            hr = wmSyncReader.QueryInterface (wmProfile);
-
-            if (SUCCEEDED (hr))
+            if (auto wmProfile = wmSyncReader.getInterface<IWMProfile>())
             {
                 ComSmartPtr<IWMStreamConfig> wmStreamConfig;
-                hr = wmProfile->GetStream (0, wmStreamConfig.resetAndGetPointerAddress());
+                auto hr = wmProfile->GetStream (0, wmStreamConfig.resetAndGetPointerAddress());
 
                 if (SUCCEEDED (hr))
                 {
-                    ComSmartPtr<IWMMediaProps> wmMediaProperties;
-                    hr = wmStreamConfig.QueryInterface (wmMediaProperties);
-
-                    if (SUCCEEDED (hr))
+                    if (auto wmMediaProperties = wmStreamConfig.getInterface<IWMMediaProps>())
                     {
                         DWORD sizeMediaType;
                         hr = wmMediaProperties->GetMediaType (0, &sizeMediaType);

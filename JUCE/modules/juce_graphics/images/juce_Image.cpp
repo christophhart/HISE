@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -55,7 +54,7 @@ ImageType::~ImageType() {}
 
 Image ImageType::convert (const Image& source) const
 {
-    if (source.isNull() || getTypeID() == (std::unique_ptr<ImageType> (source.getPixelData()->createType())->getTypeID()))
+    if (source.isNull() || getTypeID() == source.getPixelData()->createType()->getTypeID())
         return source;
 
     const Image::BitmapData src (source, Image::BitmapData::readOnly);
@@ -90,10 +89,10 @@ public:
         imageData.allocate ((size_t) lineStride * (size_t) jmax (1, h), clearImage);
     }
 
-    LowLevelGraphicsContext* createLowLevelContext() override
+    std::unique_ptr<LowLevelGraphicsContext> createLowLevelContext() override
     {
         sendDataChangeMessage();
-        return new LowLevelGraphicsSoftwareRenderer (Image (*this));
+        return std::make_unique<LowLevelGraphicsSoftwareRenderer> (Image (*this));
     }
 
     void initialiseBitmapData (Image::BitmapData& bitmap, int x, int y, Image::BitmapData::ReadWriteMode mode) override
@@ -114,7 +113,7 @@ public:
         return *s;
     }
 
-    ImageType* createType() const override    { return new SoftwareImageType(); }
+    std::unique_ptr<ImageType> createType() const override    { return std::make_unique<SoftwareImageType>(); }
 
 private:
     HeapBlock<uint8> imageData;
@@ -162,9 +161,9 @@ public:
     {
     }
 
-    LowLevelGraphicsContext* createLowLevelContext() override
+    std::unique_ptr<LowLevelGraphicsContext> createLowLevelContext() override
     {
-        LowLevelGraphicsContext* g = sourceImage->createLowLevelContext();
+        auto g = sourceImage->createLowLevelContext();
         g->clipToRectangle (area);
         g->setOrigin (area.getPosition());
         return g;
@@ -181,7 +180,7 @@ public:
     ImagePixelData::Ptr clone() override
     {
         jassert (getReferenceCount() > 0); // (This method can't be used on an unowned pointer, as it will end up self-deleting)
-        const std::unique_ptr<ImageType> type (createType());
+        auto type = createType();
 
         Image newImage (type->create (pixelFormat, area.getWidth(), area.getHeight(), pixelFormat != Image::RGB));
 
@@ -193,7 +192,7 @@ public:
         return *newImage.getPixelData();
     }
 
-    ImageType* createType() const override          { return sourceImage->createType(); }
+    std::unique_ptr<ImageType> createType() const override          { return sourceImage->createType(); }
 
     /* as we always hold a reference to image, don't double count */
     int getSharedCount() const noexcept override    { return getReferenceCount() + sourceImage->getSharedCount() - 1; }
@@ -278,9 +277,12 @@ bool Image::isRGB() const noexcept                      { return getFormat() == 
 bool Image::isSingleChannel() const noexcept            { return getFormat() == SingleChannel; }
 bool Image::hasAlphaChannel() const noexcept            { return getFormat() != RGB; }
 
-LowLevelGraphicsContext* Image::createLowLevelContext() const
+std::unique_ptr<LowLevelGraphicsContext> Image::createLowLevelContext() const
 {
-    return image == nullptr ? nullptr : image->createLowLevelContext();
+    if (image != nullptr)
+        return image->createLowLevelContext();
+
+    return {};
 }
 
 void Image::duplicateIfShared()
@@ -302,13 +304,13 @@ Image Image::rescaled (int newWidth, int newHeight, Graphics::ResamplingQuality 
     if (image == nullptr || (image->width == newWidth && image->height == newHeight))
         return *this;
 
-    const std::unique_ptr<ImageType> type (image->createType());
+    auto type = image->createType();
     Image newImage (type->create (image->pixelFormat, newWidth, newHeight, hasAlphaChannel()));
 
     Graphics g (newImage);
     g.setImageResamplingQuality (quality);
-    g.drawImageTransformed (*this, AffineTransform::scale (newWidth  / (float) image->width,
-                                                           newHeight / (float) image->height), false);
+    g.drawImageTransformed (*this, AffineTransform::scale ((float) newWidth  / (float) image->width,
+                                                           (float) newHeight / (float) image->height), false);
     return newImage;
 }
 
@@ -319,7 +321,7 @@ Image Image::convertedToFormat (PixelFormat newFormat) const
 
     auto w = image->width, h = image->height;
 
-    const std::unique_ptr<ImageType> type (image->createType());
+    auto type = image->createType();
     Image newImage (type->create (newFormat, w, h, false));
 
     if (newFormat == SingleChannel)
@@ -423,6 +425,7 @@ Colour Image::BitmapData::getPixelColour (int x, int y) const noexcept
         case Image::ARGB:           return Colour ( ((const PixelARGB*)  pixel)->getUnpremultiplied());
         case Image::RGB:            return Colour (*((const PixelRGB*)   pixel));
         case Image::SingleChannel:  return Colour (*((const PixelAlpha*) pixel));
+        case Image::UnknownFormat:
         default:                    jassertfalse; break;
     }
 
@@ -441,6 +444,7 @@ void Image::BitmapData::setPixelColour (int x, int y, Colour colour) const noexc
         case Image::ARGB:           ((PixelARGB*)  pixel)->set (col); break;
         case Image::RGB:            ((PixelRGB*)   pixel)->set (col); break;
         case Image::SingleChannel:  ((PixelAlpha*) pixel)->set (col); break;
+        case Image::UnknownFormat:
         default:                    jassertfalse; break;
     }
 }
@@ -450,7 +454,7 @@ void Image::clear (const Rectangle<int>& area, Colour colourToClearTo)
 {
     if (image != nullptr)
     {
-        const std::unique_ptr<LowLevelGraphicsContext> g (image->createLowLevelContext());
+        auto g = image->createLowLevelContext();
         g->setFill (colourToClearTo);
         g->fillRect (area, true);
     }
@@ -518,6 +522,7 @@ static void performPixelOp (const Image::BitmapData& data, const PixelOperation&
         case Image::ARGB:           PixelIterator<PixelARGB> ::iterate (data, pixelOp); break;
         case Image::RGB:            PixelIterator<PixelRGB>  ::iterate (data, pixelOp); break;
         case Image::SingleChannel:  PixelIterator<PixelAlpha>::iterate (data, pixelOp); break;
+        case Image::UnknownFormat:
         default:                    jassertfalse; break;
     }
 }
@@ -657,7 +662,7 @@ void Image::moveImageSection (int dx, int dy,
         auto dst = destData.getPixelPointer (dx - minX, dy - minY);
         auto src = destData.getPixelPointer (sx - minX, sy - minY);
 
-        auto lineSize = (size_t) (destData.pixelStride * w);
+        auto lineSize = (size_t) destData.pixelStride * (size_t) w;
 
         if (dy > sy)
         {

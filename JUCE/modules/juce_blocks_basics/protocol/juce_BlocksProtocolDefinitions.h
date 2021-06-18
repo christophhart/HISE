@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -87,6 +87,11 @@ enum class MessageFromHost
     setName                 = 0x20
 };
 
+/** Messages that the host may send to a device that do not have the usual message format */
+namespace SpecialMessageFromHost
+{
+    constexpr uint8 resetMaster[6] = { 0xf0, 0x00, 0x21, 0x10, 0x49, 0xf7 };
+}
 
 /** This is the first item in a BLOCKS message, identifying the message type. */
 using MessageType = IntegerWithBitSize<7>;
@@ -180,7 +185,7 @@ struct BlockSerialNumber : public BlockStringData<16>
             if (c == 0)
                 return false;
 
-        return isAnyControlBlock() || isPadBlock() || isSeaboardBlock();
+        return isAnyControlBlock() || isPadBlock() || isSeaboardBlock() || isLumiKeysBlock();
     }
 
     bool isPadBlock() const noexcept            { return hasPrefix ("LPB") || hasPrefix ("LPM"); }
@@ -189,6 +194,7 @@ struct BlockSerialNumber : public BlockStringData<16>
     bool isDevCtrlBlock() const noexcept        { return hasPrefix ("DCB"); }
     bool isTouchBlock() const noexcept          { return hasPrefix ("TCB"); }
     bool isSeaboardBlock() const noexcept       { return hasPrefix ("SBB"); }
+    bool isLumiKeysBlock() const noexcept       { return hasPrefix ("LKB"); }
 
     bool isAnyControlBlock() const noexcept     { return isLiveBlock() || isLoopBlock() || isDevCtrlBlock() || isTouchBlock(); }
 
@@ -298,12 +304,17 @@ enum ConfigItemId
     chord               = 24,
     arpPattern          = 25,
     tempo               = 26,
+    key                 = 27,
+    autoTransposeToKey  = 28,
     // Tracking
     xTrackingMode       = 30,
     yTrackingMode       = 31,
     zTrackingMode       = 32,
     // Graphics
     gammaCorrection     = 33,
+    globalKeyColour     = 34,
+    rootKeyColour       = 35,
+    brightness          = 36,
     // User
     user0               = 64,
     user1               = 65,
@@ -343,7 +354,7 @@ static constexpr uint8 numberOfUserConfigs = 32;
 static constexpr uint8 maxConfigIndex = uint8 (ConfigItemId::user0) + numberOfUserConfigs;
 
 static constexpr uint8 configUserConfigNameLength = 32;
-static constexpr uint8 configMaxOptions = 8;
+static constexpr uint8 configMaxOptions = 16;
 static constexpr uint8 configOptionNameLength = 16;
 
 //==============================================================================
@@ -466,25 +477,25 @@ static constexpr uint32 controlBlockStackSize = 800;
 /** Contains the number of bits required to encode various items in the packets */
 enum BitSizes
 {
-    topologyMessageHeader    = MessageType::bits + ProtocolVersion::bits + DeviceCount::bits + ConnectionCount::bits,
-    topologyDeviceInfo       = BlockSerialNumber::maxLength * 7 + BatteryLevel::bits + BatteryCharging::bits,
-    topologyConnectionInfo   = topologyIndexBits + ConnectorPort::bits + topologyIndexBits + ConnectorPort::bits,
+    topologyMessageHeader    = (int) MessageType::bits + (int) ProtocolVersion::bits + (int) DeviceCount::bits + (int) ConnectionCount::bits,
+    topologyDeviceInfo       = (int) BlockSerialNumber::maxLength * 7 + (int) BatteryLevel::bits + (int) BatteryCharging::bits,
+    topologyConnectionInfo   = topologyIndexBits + (int) ConnectorPort::bits + topologyIndexBits + (int) ConnectorPort::bits,
 
-    typeDeviceAndTime        = MessageType::bits + PacketTimestampOffset::bits,
+    typeDeviceAndTime        = (int) MessageType::bits + (int) PacketTimestampOffset::bits,
 
-    touchMessage             = typeDeviceAndTime + TouchIndex::bits + TouchPosition::bits,
-    touchMessageWithVelocity = touchMessage + TouchVelocity::bits,
+    touchMessage             = (int) typeDeviceAndTime + (int) TouchIndex::bits + (int) TouchPosition::bits,
+    touchMessageWithVelocity = (int) touchMessage + (int) TouchVelocity::bits,
 
-    programEventMessage      = MessageType::bits + 32 * numProgramMessageInts,
-    packetACK                = MessageType::bits + PacketCounter::bits,
+    programEventMessage      = (int) MessageType::bits + 32 * numProgramMessageInts,
+    packetACK                = (int) MessageType::bits + (int) PacketCounter::bits,
 
-    firmwareUpdateACK        = MessageType::bits + FirmwareUpdateACKCode::bits + FirmwareUpdateACKDetail::bits,
+    firmwareUpdateACK        = (int) MessageType::bits + (int) FirmwareUpdateACKCode::bits + (int) FirmwareUpdateACKDetail::bits,
 
-    controlButtonMessage     = typeDeviceAndTime + ControlButtonID::bits,
+    controlButtonMessage     = (int) typeDeviceAndTime + (int) ControlButtonID::bits,
 
-    configSetMessage         = MessageType::bits + ConfigCommand::bits + ConfigItemIndex::bits + ConfigItemValue::bits,
-    configRespMessage        = MessageType::bits + ConfigCommand::bits + ConfigItemIndex::bits + (ConfigItemValue::bits * 3),
-    configSyncEndMessage     = MessageType::bits + ConfigCommand::bits,
+    configSetMessage         = (int) MessageType::bits + (int) ConfigCommand::bits + (int) ConfigItemIndex::bits + (int) ConfigItemValue::bits,
+    configRespMessage        = (int) MessageType::bits + (int) ConfigCommand::bits + (int) ConfigItemIndex::bits + ((int) ConfigItemValue::bits * 3),
+    configSyncEndMessage     = (int) MessageType::bits + (int) ConfigCommand::bits,
 };
 
 //==============================================================================
@@ -586,6 +597,14 @@ static constexpr const char* ledProgramLittleFootFunctions[] =
     "setButtonMinMaxDefault/viiii",
     "setButtonColours/viii",
     "setButtonTriState/vii",
+    "padControllerInitDefault/vb",
+    "padControllerReset/v",
+    "padControllerRegenDefault/v",
+    "padControllerRepaint/v",
+    "padControllerDrawPad/vi",
+    "setUseDefaultKeyHandler/vb",
+    "setUseDefaultKeyHandler/vbb",
+
     nullptr
 };
 

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -22,6 +22,53 @@
 
 namespace juce
 {
+
+#ifndef DOXYGEN
+/** The contents of this namespace are used to implement AudioBuffer and should
+    not be used elsewhere. Their interfaces (and existence) are liable to change!
+*/
+namespace detail
+{
+    /** On iOS/arm7 the alignment of `double` is greater than the alignment of
+        `std::max_align_t`, so we can't trust max_align_t. Instead, we query
+        lots of primitive types and use the maximum alignment of all of them.
+
+        We're putting this stuff outside AudioBuffer itself to avoid creating
+        unnecessary copies for each distinct template instantiation of
+        AudioBuffer.
+
+        MSVC 2015 doesn't like when we write getMaxAlignment as a loop which
+        accumulates the max alignment (declarations not allowed in constexpr
+        function body) so instead we use this recursive version which
+        instantiates a zillion templates.
+    */
+
+    template <typename> struct Type {};
+
+    constexpr size_t getMaxAlignment() noexcept { return 0; }
+
+    template <typename Head, typename... Tail>
+    constexpr size_t getMaxAlignment (Type<Head>, Type<Tail>... tail) noexcept
+    {
+        return jmax (alignof (Head), getMaxAlignment (tail...));
+    }
+
+    constexpr size_t maxAlignment = getMaxAlignment (Type<std::max_align_t>{},
+                                                     Type<void*>{},
+                                                     Type<float>{},
+                                                     Type<double>{},
+                                                     Type<long double>{},
+                                                     Type<short int>{},
+                                                     Type<int>{},
+                                                     Type<long int>{},
+                                                     Type<long long int>{},
+                                                     Type<bool>{},
+                                                     Type<char>{},
+                                                     Type<char16_t>{},
+                                                     Type<char32_t>{},
+                                                     Type<wchar_t>{});
+} // namespace detail
+#endif
 
 //==============================================================================
 /**
@@ -125,7 +172,7 @@ public:
     /** Copies another buffer.
 
         This buffer will make its own copy of the other's data, unless the buffer was created
-        using an external data buffer, in which case boths buffers will just point to the same
+        using an external data buffer, in which case both buffers will just point to the same
         shared block of data.
     */
     AudioBuffer (const AudioBuffer& other)
@@ -189,7 +236,7 @@ public:
           size (other.size),
           allocatedBytes (other.allocatedBytes),
           allocatedData (std::move (other.allocatedData)),
-          isClear (other.isClear)
+          isClear (other.isClear.load())
     {
         if (numChannels < (int) numElementsInArray (preallocatedChannelSpace))
         {
@@ -215,7 +262,7 @@ public:
         size = other.size;
         allocatedBytes = other.allocatedBytes;
         allocatedData = std::move (other.allocatedData);
-        isClear = other.isClear;
+        isClear = other.isClear.load();
 
         if (numChannels < (int) numElementsInArray (preallocatedChannelSpace))
         {
@@ -349,7 +396,7 @@ public:
         if (newNumSamples != size || newNumChannels != numChannels)
         {
             auto allocatedSamplesPerChannel = ((size_t) newNumSamples + 3) & ~3u;
-            auto channelListSize = ((sizeof (Type*) * (size_t) (newNumChannels + 1)) + 15) & ~15u;
+            auto channelListSize = ((static_cast<size_t> (1 + newNumChannels) * sizeof (Type*)) + 15) & ~15u;
             auto newTotalBytes = ((size_t) newNumChannels * (size_t) allocatedSamplesPerChannel * sizeof (Type))
                                     + channelListSize + 32;
 
@@ -361,38 +408,31 @@ public:
                 }
                 else
                 {
-					if (avoidReallocating && newTotalBytes <= allocatedBytes && newNumChannels <= numChannels)
-					{
-						// no need to remap the pointers as long as the sample size changes
-					}
-					else
-					{
-						HeapBlock<char, true> newData;
-						newData.allocate(newTotalBytes, clearExtraSpace || isClear);
+                    HeapBlock<char, true> newData;
+                    newData.allocate (newTotalBytes, clearExtraSpace || isClear);
 
-						auto numSamplesToCopy = (size_t)jmin(newNumSamples, size);
+                    auto numSamplesToCopy = (size_t) jmin (newNumSamples, size);
 
-						auto newChannels = reinterpret_cast<Type**> (newData.get());
-						auto newChan = reinterpret_cast<Type*> (newData + channelListSize);
+                    auto newChannels = unalignedPointerCast<Type**> (newData.get());
+                    auto newChan     = unalignedPointerCast<Type*> (newData + channelListSize);
 
-						for (int j = 0; j < newNumChannels; ++j)
-						{
-							newChannels[j] = newChan;
-							newChan += allocatedSamplesPerChannel;
-						}
+                    for (int j = 0; j < newNumChannels; ++j)
+                    {
+                        newChannels[j] = newChan;
+                        newChan += allocatedSamplesPerChannel;
+                    }
 
-						if (!isClear)
-						{
-							auto numChansToCopy = jmin(numChannels, newNumChannels);
+                    if (! isClear)
+                    {
+                        auto numChansToCopy = jmin (numChannels, newNumChannels);
 
-							for (int i = 0; i < numChansToCopy; ++i)
-								FloatVectorOperations::copy(newChannels[i], channels[i], (int)numSamplesToCopy);
-						}
+                        for (int i = 0; i < numChansToCopy; ++i)
+                            FloatVectorOperations::copy (newChannels[i], channels[i], (int) numSamplesToCopy);
+                    }
 
-						allocatedData.swapWith(newData);
-						allocatedBytes = newTotalBytes;
-						channels = newChannels;
-					}
+                    allocatedData.swapWith (newData);
+                    allocatedBytes = newTotalBytes;
+                    channels = newChannels;
                 }
             }
             else
@@ -406,10 +446,10 @@ public:
                 {
                     allocatedBytes = newTotalBytes;
                     allocatedData.allocate (newTotalBytes, clearExtraSpace || isClear);
-                    channels = reinterpret_cast<Type**> (allocatedData.get());
+                    channels = unalignedPointerCast<Type**> (allocatedData.get());
                 }
 
-                auto* chan = reinterpret_cast<Type*> (allocatedData + channelListSize);
+                auto* chan = unalignedPointerCast<Type*> (allocatedData + channelListSize);
 
                 for (int i = 0; i < newNumChannels; ++i)
                 {
@@ -1087,16 +1127,27 @@ private:
     Type** channels;
     HeapBlock<char, true> allocatedData;
     Type* preallocatedChannelSpace[32];
-    bool isClear = false;
+    std::atomic<bool> isClear { false };
 
     void allocateData()
     {
+       #if ! JUCE_PROJUCER_LIVE_BUILD && (! JUCE_GCC || (__GNUC__ * 100 + __GNUC_MINOR__) >= 409)
+        static_assert (alignof (Type) <= detail::maxAlignment,
+                       "AudioBuffer cannot hold types with alignment requirements larger than that guaranteed by malloc");
+       #endif
         jassert (size >= 0);
-        auto channelListSize = sizeof (Type*) * (size_t) (numChannels + 1);
+
+        auto channelListSize = (size_t) (numChannels + 1) * sizeof (Type*);
+        auto requiredSampleAlignment = std::alignment_of<Type>::value;
+        size_t alignmentOverflow = channelListSize % requiredSampleAlignment;
+
+        if (alignmentOverflow != 0)
+            channelListSize += requiredSampleAlignment - alignmentOverflow;
+
         allocatedBytes = (size_t) numChannels * (size_t) size * sizeof (Type) + channelListSize + 32;
         allocatedData.malloc (allocatedBytes);
-        channels = reinterpret_cast<Type**> (allocatedData.get());
-        auto chan = reinterpret_cast<Type*> (allocatedData + channelListSize);
+        channels = unalignedPointerCast<Type**> (allocatedData.get());
+        auto chan = unalignedPointerCast<Type*> (allocatedData + channelListSize);
 
         for (int i = 0; i < numChannels; ++i)
         {
@@ -1120,7 +1171,7 @@ private:
         else
         {
             allocatedData.malloc (numChannels + 1, sizeof (Type*));
-            channels = reinterpret_cast<Type**> (allocatedData.get());
+            channels = unalignedPointerCast<Type**> (allocatedData.get());
         }
 
         for (int i = 0; i < numChannels; ++i)

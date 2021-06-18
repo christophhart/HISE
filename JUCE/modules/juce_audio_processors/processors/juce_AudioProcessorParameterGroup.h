@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -61,28 +60,22 @@ public:
     {
     public:
         //==============================================================================
+        AudioProcessorParameterNode (AudioProcessorParameterNode&&);
+        ~AudioProcessorParameterNode();
+
         /** Returns the parent group or nullptr if this is a top-level group. */
-        AudioProcessorParameterGroup* getParent() const              { return parent; }
+        AudioProcessorParameterGroup* getParent() const;
 
         /** Returns a pointer to a parameter if this node contains a parameter, nullptr otherwise. */
-        AudioProcessorParameter* getParameter() const                { return parameter.get(); }
+        AudioProcessorParameter* getParameter() const;
 
         /** Returns a pointer to a group if this node contains a group, nullptr otherwise. */
-        AudioProcessorParameterGroup* getGroup() const               { return group.get(); }
+        AudioProcessorParameterGroup* getGroup() const;
 
     private:
         //==============================================================================
-        AudioProcessorParameterNode (std::unique_ptr<AudioProcessorParameter> param,
-                                     AudioProcessorParameterGroup* parentGroup)
-            : parameter (std::move (param)), parent (parentGroup)
-        {}
-
-        AudioProcessorParameterNode (std::unique_ptr<AudioProcessorParameterGroup> grp,
-                                     AudioProcessorParameterGroup* parentGroup)
-            : group (std::move (grp)), parent (parentGroup)
-        {
-            group->parent = parent;
-        }
+        AudioProcessorParameterNode (std::unique_ptr<AudioProcessorParameter>, AudioProcessorParameterGroup*);
+        AudioProcessorParameterNode (std::unique_ptr<AudioProcessorParameterGroup>, AudioProcessorParameterGroup*);
 
         std::unique_ptr<AudioProcessorParameterGroup> group;
         std::unique_ptr<AudioProcessorParameter> parameter;
@@ -94,6 +87,9 @@ public:
     };
 
     //==============================================================================
+    /** Creates an empty AudioProcessorParameterGroup with no name or ID. */
+    AudioProcessorParameterGroup();
+
     /** Creates an empty AudioProcessorParameterGroup.
 
         @param groupID             A unique identifier for the group. Keep it basic; don't use any special
@@ -105,10 +101,7 @@ public:
                                    layers of nested subgroups, but AU plug-ins cannot have any subgroups.
 
     */
-    AudioProcessorParameterGroup (const String& groupID, const String& groupName, const String& subgroupSeparator)
-        : identifier (groupID), name (groupName), separator (subgroupSeparator)
-    {
-    }
+    AudioProcessorParameterGroup (String groupID, String groupName, String subgroupSeparator);
 
     /** Creates an AudioProcessorParameterGroup with a single child.
 
@@ -121,9 +114,9 @@ public:
                                    layers of nested subgroups, but AU plug-ins cannot have any subgroups.
         @param child               An AudioProcessorParameter or an AudioProcessorParameterGroup to add to the group.
     */
-    template <typename ChildType>
-    AudioProcessorParameterGroup (const String& groupID, const String& groupName, const String& subgroupSeparator,
-                                  std::unique_ptr<ChildType> child)
+    template <typename ParameterOrGroup>
+    AudioProcessorParameterGroup (String groupID, String groupName, String subgroupSeparator,
+                                  std::unique_ptr<ParameterOrGroup> child)
         : AudioProcessorParameterGroup (groupID, groupName, subgroupSeparator)
     {
         addChild (std::move (child));
@@ -141,47 +134,50 @@ public:
         @param firstChild          An AudioProcessorParameter or an AudioProcessorParameterGroup to add to the group.
         @param remainingChildren   A list of more AudioProcessorParameters or AudioProcessorParameterGroups to add to the group.
     */
-    template <typename ChildType, typename... Args>
-    AudioProcessorParameterGroup (const String& groupID, const String& groupName, const String& subgroupSeparator,
-                                  std::unique_ptr<ChildType> firstChild, Args&&... remainingChildren)
+    template <typename ParameterOrGroup, typename... Args>
+    AudioProcessorParameterGroup (String groupID, String groupName, String subgroupSeparator,
+                                  std::unique_ptr<ParameterOrGroup> firstChild, Args&&... remainingChildren)
         : AudioProcessorParameterGroup (groupID, groupName, subgroupSeparator, std::move (firstChild))
     {
         addChild (std::forward<Args> (remainingChildren)...);
     }
 
+    /** Once a group has been added to an AudioProcessor don't try to mutate it by
+        moving or swapping it - this will crash most hosts.
+    */
+    AudioProcessorParameterGroup (AudioProcessorParameterGroup&&);
+
+    /** Once a group has been added to an AudioProcessor don't try to mutate it by
+        moving or swapping it - this will crash most hosts.
+    */
+    AudioProcessorParameterGroup& operator= (AudioProcessorParameterGroup&&);
+
+    /** Destructor. */
+    ~AudioProcessorParameterGroup();
+
     //==============================================================================
     /** Returns the group's ID. */
-    String getID() const                                                     { return identifier; }
+    String getID() const;
 
     /** Returns the group's name. */
-    String getName() const                                                   { return name; }
+    String getName() const;
 
     /** Returns the group's separator string. */
-    String getSeparator() const                                              { return separator; }
+    String getSeparator() const;
 
-    /** Returns the parent of the group, or nullptr if this is a top-levle group. */
-    const AudioProcessorParameterGroup* getParent() const noexcept           { return parent; }
-
-    //==============================================================================
-    const AudioProcessorParameterNode** begin() const noexcept               { return children.begin(); }
-    const AudioProcessorParameterNode** end()   const noexcept               { return children.end(); }
+    /** Returns the parent of the group, or nullptr if this is a top-level group. */
+    const AudioProcessorParameterGroup* getParent() const noexcept;
 
     //==============================================================================
-    /** Swaps the content of this group with another. */
-    void swapWith (AudioProcessorParameterGroup& other) noexcept
-    {
-        children.swapWith (other.children);
+    /** Changes the name of the group. If you do this after the group has been added
+        to an AudioProcessor, call updateHostDisplay() to inform the host of the
+        change. Not all hosts support dynamic group name changes.
+    */
+    void setName (String newName);
 
-        auto refreshParentPtr = [] (AudioProcessorParameterGroup& parentGroup)
-        {
-            for (auto* child : parentGroup)
-                if (auto* group = child->getGroup())
-                    group->parent = &parentGroup;
-        };
-
-        refreshParentPtr (*this);
-        refreshParentPtr (other);
-    }
+    //==============================================================================
+    const AudioProcessorParameterNode* const* begin() const noexcept;
+    const AudioProcessorParameterNode* const* end()   const noexcept;
 
     //==============================================================================
     /** Returns all subgroups of this group.
@@ -189,108 +185,67 @@ public:
         @param recursive   If this is true then this method will fetch all nested
                            subgroups using a depth first search.
     */
-    Array<const AudioProcessorParameterGroup*> getSubgroups (bool recursive) const
-    {
-        Array<const AudioProcessorParameterGroup*> groups;
-        getSubgroups (groups, recursive);
-        return groups;
-    }
+    Array<const AudioProcessorParameterGroup*> getSubgroups (bool recursive) const;
 
     /** Returns all the parameters in this group.
 
         @param recursive   If this is true then this method will fetch all nested
                            parameters using a depth first search.
     */
-    Array<AudioProcessorParameter*> getParameters (bool recursive) const
-    {
-        Array<AudioProcessorParameter*> parameters;
-        getParameters (parameters, recursive);
-        return parameters;
-    }
+    Array<AudioProcessorParameter*> getParameters (bool recursive) const;
 
     /** Searches this group recursively for a parameter and returns a depth ordered
         list of the groups it belongs to.
     */
-    Array<const AudioProcessorParameterGroup*> getGroupsForParameter (AudioProcessorParameter* parameter) const
-    {
-        Array<const AudioProcessorParameterGroup*> groups;
-
-        if (auto* group = getGroupForParameter (parameter))
-        {
-            while (group != this)
-            {
-                groups.insert (0, group);
-                group = group->getParent();
-            }
-        }
-
-        return groups;
-    }
+    Array<const AudioProcessorParameterGroup*> getGroupsForParameter (AudioProcessorParameter*) const;
 
     //==============================================================================
-    /** Adds a child to the group. */
-    template <typename ChildType>
-    void addChild (std::unique_ptr<ChildType> child)
+    /** Adds a child to the group.
+
+        Do not add children to a group which has itself already been added to the
+        AudioProcessor - the new elements will be ignored.
+    */
+    template <typename ParameterOrGroup>
+    void addChild (std::unique_ptr<ParameterOrGroup> child)
     {
         // If you hit a compiler error here then you are attempting to add a
         // child that is neither a pointer to an AudioProcessorParameterGroup
         // nor a pointer to an AudioProcessorParameter.
-        children.add (new AudioProcessorParameterNode (std::move (child), this));
+        append (std::move (child));
     }
 
-    /** Adds multiple children to the group. */
-    template <typename ChildType, typename... Args>
-    void addChild (std::unique_ptr<ChildType> firstChild, Args&&... remainingChildren)
+    /** Adds multiple parameters or sub-groups to this group.
+
+        Do not add children to a group which has itself already been added to the
+        AudioProcessor - the new elements will be ignored.
+    */
+    template <typename ParameterOrGroup, typename... Args>
+    void addChild (std::unique_ptr<ParameterOrGroup> firstChild, Args&&... remainingChildren)
     {
         addChild (std::move (firstChild));
         addChild (std::forward<Args> (remainingChildren)...);
     }
 
+   #ifndef DOXYGEN
+    // This class now has a move operator, so if you're trying to move them around, you
+    // should use that, or if you really need to swap two groups, just call std::swap.
+    // However, remember that swapping a group that's already owned by an AudioProcessor
+    // will most likely crash the host, so don't do that.
+    JUCE_DEPRECATED_WITH_BODY (void swapWith (AudioProcessorParameterGroup& other), { std::swap (*this, other); })
+   #endif
+
 private:
     //==============================================================================
-    void getSubgroups (Array<const AudioProcessorParameterGroup*>& previousGroups, bool recursive) const
-    {
-        for (auto* child : children)
-        {
-            if (auto* group = child->getGroup())
-            {
-                previousGroups.add (group);
-
-                if (recursive)
-                    group->getSubgroups (previousGroups, true);
-            }
-        }
-    }
-
-    void getParameters (Array<AudioProcessorParameter*>& previousParameters, bool recursive) const
-    {
-        for (auto* child : children)
-        {
-            if (auto* parameter = child->getParameter())
-                previousParameters.add (parameter);
-            else if (recursive)
-                child->getGroup()->getParameters (previousParameters, true);
-        }
-    }
-
-    const AudioProcessorParameterGroup* getGroupForParameter (AudioProcessorParameter* parameter) const
-    {
-        for (auto* child : children)
-        {
-            if (child->getParameter() == parameter)
-                return this;
-
-            if (auto* group = child->getGroup())
-                if (auto* foundGroup = group->getGroupForParameter (parameter))
-                    return foundGroup;
-        }
-
-        return nullptr;
-    }
+    void getSubgroups (Array<const AudioProcessorParameterGroup*>&, bool recursive) const;
+    void getParameters (Array<AudioProcessorParameter*>&, bool recursive) const;
+    const AudioProcessorParameterGroup* getGroupForParameter (AudioProcessorParameter*) const;
+    void updateChildParentage();
+    void append (std::unique_ptr<AudioProcessorParameter>);
+    void append (std::unique_ptr<AudioProcessorParameterGroup>);
 
     //==============================================================================
-    const String identifier, name, separator;
-    OwnedArray<const AudioProcessorParameterNode> children;
+    String identifier, name, separator;
+    OwnedArray<AudioProcessorParameterNode> children;
     AudioProcessorParameterGroup* parent = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioProcessorParameterGroup)

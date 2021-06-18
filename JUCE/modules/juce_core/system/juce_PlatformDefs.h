@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -19,6 +19,8 @@
 
   ==============================================================================
 */
+
+#pragma once
 
 namespace juce
 {
@@ -37,7 +39,7 @@ namespace juce
 #endif
 
 /** This macro defines the C calling convention used as the standard for JUCE calls. */
-#if JUCE_MSVC
+#if JUCE_WINDOWS
  #define JUCE_CALLTYPE   __stdcall
  #define JUCE_CDECL      __cdecl
 #else
@@ -57,7 +59,7 @@ namespace juce
 #endif
 
 //==============================================================================
-#if JUCE_IOS || JUCE_LINUX
+#if JUCE_IOS || (JUCE_MAC && JUCE_ARM) || JUCE_LINUX
   /** This will try to break into the debugger if the app is currently being debugged.
       If called by an app that's not being debugged, the behaviour isn't defined - it may
       crash or not, depending on the platform.
@@ -69,7 +71,7 @@ namespace juce
     #pragma intrinsic (__debugbreak)
   #endif
   #define JUCE_BREAK_IN_DEBUGGER        { __debugbreak(); }
-#elif JUCE_GCC || JUCE_MAC
+#elif JUCE_INTEL && (JUCE_GCC || JUCE_MAC)
   #if JUCE_NO_INLINE_ASM
    #define JUCE_BREAK_IN_DEBUGGER       { }
   #else
@@ -90,6 +92,26 @@ namespace juce
 
 #ifndef JUCE_ANALYZER_NORETURN
  #define JUCE_ANALYZER_NORETURN
+#endif
+
+/** Used to silence Wimplicit-fallthrough on Clang and GCC where available
+    as there are a few places in the codebase where we need to do this
+    deliberately and want to ignore the warning.
+*/
+#if JUCE_CLANG
+ #if __has_cpp_attribute(clang::fallthrough)
+  #define JUCE_FALLTHROUGH [[clang::fallthrough]];
+ #else
+  #define JUCE_FALLTHROUGH
+ #endif
+#elif JUCE_GCC
+ #if __GNUC__ >= 7
+  #define JUCE_FALLTHROUGH [[gnu::fallthrough]];
+ #else
+  #define JUCE_FALLTHROUGH
+ #endif
+#else
+ #define JUCE_FALLTHROUGH
 #endif
 
 //==============================================================================
@@ -168,7 +190,8 @@ namespace juce
 #define JUCE_STRINGIFY(item)  JUCE_STRINGIFY_MACRO_HELPER (item)
 
 //==============================================================================
-/** This is a shorthand macro for declaring stubs for a class's copy constructor and operator=.
+/** This is a shorthand macro for deleting a class's copy constructor and
+    copy assignment operator.
 
     For example, instead of
     @code
@@ -195,6 +218,13 @@ namespace juce
 #define JUCE_DECLARE_NON_COPYABLE(className) \
     className (const className&) = delete;\
     className& operator= (const className&) = delete;
+
+/** This is a shorthand macro for deleting a class's move constructor and
+    move assignment operator.
+*/
+#define JUCE_DECLARE_NON_MOVEABLE(className) \
+    className (className&&) = delete;\
+    className& operator= (className&&) = delete;
 
 /** This is a shorthand way of writing both a JUCE_DECLARE_NON_COPYABLE and
     JUCE_LEAK_DETECTOR macro for a class.

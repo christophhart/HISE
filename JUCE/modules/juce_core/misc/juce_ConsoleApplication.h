@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -32,6 +32,8 @@ namespace juce
     main() function to parse.
 
     @see ConsoleApplication
+
+    @tags{Core}
 */
 struct ArgumentList
 {
@@ -50,6 +52,8 @@ struct ArgumentList
     //==============================================================================
     /**
         One of the arguments in an ArgumentList.
+
+        @tags{Core}
     */
     struct Argument
     {
@@ -120,8 +124,16 @@ struct ArgumentList
 
     /** Returns true if the given string matches one of the arguments.
         The option can also be a list of different versions separated by pipes, e.g. "--help|-h"
+        @see removeOptionIfFound
     */
     bool containsOption (StringRef option) const;
+
+    /** Returns true if the given string matches one of the arguments, and also removes the
+        argument from the list if found.
+        The option can also be a list of different versions separated by pipes, e.g. "--help|-h"
+        @see containsOption
+    */
+    bool removeOptionIfFound (StringRef option);
 
     /** Returns the index of the given string if it matches one of the arguments, or -1 if it doesn't.
         The option can also be a list of different versions separated by pipes, e.g. "--help|-h"
@@ -142,22 +154,47 @@ struct ArgumentList
     */
     String getValueForOption (StringRef option) const;
 
-    /** Looks for the value of argument using getValueForOption() and tries to parse that value
-        as a file.
-        If the option isn't found, or if the value can't be parsed as a filename, it will throw
-        an error.
+    /** Looks for a given argument and returns either its assigned value (for long options) or the
+        string that follows it (for short options).
+        This works like getValueForOption() but also removes the option argument (and any value arguments)
+        from the list if they are found.
+    */
+    String removeValueForOption (StringRef option);
+
+    /** Looks for the value of argument using getValueForOption() and tries to parse that value as a file.
+        If the option isn't found, or if the value can't be parsed as a filename, it will throw an error.
     */
     File getFileForOption (StringRef option) const;
+
+    /** Looks for the value of argument using getValueForOption() and tries to parse that value as a file.
+        This works like getFileForOption() but also removes the option argument (and any value arguments)
+        from the list if they are found.
+    */
+    File getFileForOptionAndRemove (StringRef option);
 
     /** Looks for a file argument using getFileForOption() and fails with a suitable error if
         the file doesn't exist.
     */
     File getExistingFileForOption (StringRef option) const;
 
+    /** Looks for a file argument using getFileForOption() and fails with a suitable error if
+        the file doesn't exist.
+        This works like getExistingFileForOption() but also removes the option argument (and any
+        value arguments) from the list if they are found.
+    */
+    File getExistingFileForOptionAndRemove (StringRef option);
+
     /** Looks for a filename argument using getFileForOption() and fails with a suitable error if
         the file isn't a folder that exists.
     */
     File getExistingFolderForOption (StringRef option) const;
+
+    /** Looks for a filename argument using getFileForOption() and fails with a suitable error if
+        the file isn't a folder that exists.
+        This works like getExistingFolderForOption() but also removes the option argument (and any
+        value arguments) from the list if they are found.
+    */
+    File getExistingFolderForOptionAndRemove (StringRef option);
 
     /** The name or path of the executable that was invoked, as it was specified on the command-line. */
     String executableName;
@@ -193,13 +230,18 @@ struct ArgumentList
     @endcode
 
     @see ArgumentList
+
+    @tags{Core}
 */
 struct ConsoleApplication
 {
     //==============================================================================
     /**
         Represents a command that can be executed if its command-line arguments are matched.
+
         @see ConsoleApplication::addCommand(), ConsoleApplication::findAndRunCommand()
+
+        @tags{Core}
     */
     struct Command
     {
@@ -222,7 +264,7 @@ struct ConsoleApplication
         String longDescription;
 
         /** The actual command that should be invoked to perform this action. */
-        std::function<void(const ArgumentList&)> command;
+        std::function<void (const ArgumentList&)> command;
     };
 
     //==============================================================================
@@ -247,6 +289,11 @@ struct ConsoleApplication
         suitable for use as help.
     */
     void printCommandList (const ArgumentList&) const;
+
+    /** Prints out a longer description of a particular command, based on its
+        longDescription member.
+    */
+    void printCommandDetails (const ArgumentList&, const Command&) const;
 
     //==============================================================================
     /** Throws a failure exception to cause a command-line app to terminate.

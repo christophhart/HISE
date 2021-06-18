@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -46,14 +45,13 @@ typename FIR::Coefficients<FloatType>::Ptr
 
     for (size_t i = 0; i <= order; ++i)
     {
-        if (i == order * 0.5)
+        if (i == order / 2)
         {
             c[i] = static_cast<FloatType> (normalisedFrequency * 2);
         }
         else
         {
             auto indice = MathConstants<double>::pi * (static_cast<double> (i) - 0.5 * static_cast<double> (order));
-
             c[i] = static_cast<FloatType> (std::sin (2.0 * indice * normalisedFrequency) / indice);
         }
     }
@@ -81,7 +79,6 @@ typename FIR::Coefficients<FloatType>::Ptr
         beta = static_cast<FloatType> (0.1102 * (-amplitudedB - 8.7));
     else if (amplitudedB <= -21)
         beta = static_cast<FloatType> (0.5842 * std::pow (-amplitudedB - 21, 0.4) + 0.07886 * (-amplitudedB - 21));
-
 
     int order = amplitudedB < -21 ? roundToInt (std::ceil ((-amplitudedB - 7.95) / (2.285 * normalisedTransitionWidth * MathConstants<double>::twoPi)))
                                     : roundToInt (std::ceil (5.79 / (normalisedTransitionWidth * MathConstants<double>::twoPi)));
@@ -116,8 +113,8 @@ typename FIR::Coefficients<FloatType>::Ptr
         }
         else
         {
-            auto indice  = MathConstants<double>::pi * (i - 0.5 * order);
-            auto indice2 = MathConstants<double>::pi * normalisedTransitionWidth * (i - 0.5 * order) / spline;
+            auto indice  = MathConstants<double>::pi * ((double) i - 0.5 * (double) order);
+            auto indice2 = MathConstants<double>::pi * normalisedTransitionWidth * ((double) i - 0.5 * (double) order) / spline;
             c[i] = static_cast<FloatType> (std::sin (2 * indice * normalisedFrequency)
                                             / indice * std::pow (std::sin (indice2) / indice2, spline));
         }
@@ -156,19 +153,19 @@ typename FIR::Coefficients<FloatType>::Ptr
         Matrix<double> b (M + 1, 1),
                        q (2 * M + 1, 1);
 
-        auto sinc = [](double x) { return x == 0 ? 1 : std::sin (x * MathConstants<double>::pi)
-                                                         / (MathConstants<double>::pi * x); };
+        auto sinc = [] (double x) { return x == 0 ? 1 : std::sin (x * MathConstants<double>::pi)
+                                                          / (MathConstants<double>::pi * x); };
 
         auto factorp = wp / MathConstants<double>::pi;
         auto factors = ws / MathConstants<double>::pi;
 
         for (size_t i = 0; i <= M; ++i)
-            b (i, 0) = factorp * sinc (factorp * i);
+            b (i, 0) = factorp * sinc (factorp * (double) i);
 
         q (0, 0) = factorp + stopBandWeight * (1.0 - factors);
 
         for (size_t i = 1; i <= 2 * M; ++i)
-            q (i, 0) = factorp * sinc (factorp * i) - stopBandWeight * factors * sinc (factors * i);
+            q (i, 0) = factorp * sinc (factorp * (double) i) - stopBandWeight * factors * sinc (factors * (double) i);
 
         auto Q1 = Matrix<double>::toeplitz (q, M + 1);
         auto Q2 = Matrix<double>::hankel (q, M + 1, 0);
@@ -194,19 +191,19 @@ typename FIR::Coefficients<FloatType>::Ptr
         Matrix<double> qp (2 * M, 1);
         Matrix<double> qs (2 * M, 1);
 
-        auto sinc = [](double x) { return x == 0 ? 1 : std::sin (x * MathConstants<double>::pi)
-                                                         / (MathConstants<double>::pi * x); };
+        auto sinc = [] (double x) { return x == 0 ? 1 : std::sin (x * MathConstants<double>::pi)
+                                                          / (MathConstants<double>::pi * x); };
 
         auto factorp = wp / MathConstants<double>::pi;
         auto factors = ws / MathConstants<double>::pi;
 
         for (size_t i = 0; i < M; ++i)
-            b (i, 0) = factorp * sinc (factorp * (i + 0.5));
+            b (i, 0) = factorp * sinc (factorp * ((double) i + 0.5));
 
         for (size_t i = 0; i < 2 * M; ++i)
         {
-            qp (i, 0) = 0.25 * factorp * sinc (factorp * i);
-            qs (i, 0) = -0.25 * stopBandWeight * factors * sinc (factors * i);
+            qp (i, 0) = 0.25 * factorp * sinc (factorp * (double) i);
+            qs (i, 0) = -0.25 * stopBandWeight * factors * sinc (factors * (double) i);
         }
 
         auto Q1p = Matrix<double>::toeplitz (qp, M);
@@ -273,19 +270,19 @@ typename FIR::Coefficients<FloatType>::Ptr
     for (int i = 0; i < hh.size(); ++i)
         c[i] = (float) hh[i];
 
-    double NN;
+    auto NN = [&]
+    {
+        if (n % 2 == 0)
+            return 2.0 * result->getMagnitudeForFrequency (0.5, 1.0);
 
-    if (n % 2 == 0)
-    {
-        NN = 2.0 * result->getMagnitudeForFrequency (0.5, 1.0);
-    }
-    else
-    {
         auto w01 = std::sqrt (kp * kp + (1 - kp * kp) * std::pow (std::cos (MathConstants<double>::pi / (2.0 * n + 1.0)), 2.0));
-        auto om01 = std::acos (-w01);
 
-        NN = -2.0 * result->getMagnitudeForFrequency (om01 / MathConstants<double>::twoPi, 1.0);
-    }
+        if (std::abs (w01) > 1.0)
+            return 2.0 * result->getMagnitudeForFrequency (0.5, 1.0);
+
+        auto om01 = std::acos (-w01);
+        return -2.0 * result->getMagnitudeForFrequency (om01 / MathConstants<double>::twoPi, 1.0);
+    }();
 
     for (int i = 0; i < hh.size(); ++i)
         c[i] = static_cast<FloatType> ((A * hn[i] + B * hnm[i]) / NN);
@@ -541,7 +538,7 @@ ReferenceCountedArray<IIR::Coefficients<FloatType>>
 }
 
 template <typename FloatType>
-Array<IIR::Coefficients<FloatType>>
+ReferenceCountedArray<IIR::Coefficients<FloatType>>
     FilterDesign<FloatType>::designIIRLowpassHighOrderButterworthMethod (FloatType frequency,
                                                                          double sampleRate, int order)
 {
@@ -549,13 +546,13 @@ Array<IIR::Coefficients<FloatType>>
     jassert (frequency > 0 && frequency <= sampleRate * 0.5);
     jassert (order > 0);
 
-    Array<IIR::Coefficients<FloatType>> arrayFilters;
+    ReferenceCountedArray<IIR::Coefficients<FloatType>> arrayFilters;
 
     if (order % 2 == 1)
     {
         arrayFilters.add (*IIR::Coefficients<FloatType>::makeFirstOrderLowPass (sampleRate, frequency));
 
-        for (auto i = 0; i < order / 2; ++i)
+        for (int i = 0; i < order / 2; ++i)
         {
             auto Q = 1.0 / (2.0 * std::cos ((i + 1.0) * MathConstants<double>::pi / order));
             arrayFilters.add (*IIR::Coefficients<FloatType>::makeLowPass (sampleRate, frequency,
@@ -564,7 +561,7 @@ Array<IIR::Coefficients<FloatType>>
     }
     else
     {
-        for (auto i = 0; i < order / 2; ++i)
+        for (int i = 0; i < order / 2; ++i)
         {
             auto Q = 1.0 / (2.0 * std::cos ((2.0 * i + 1.0) * MathConstants<double>::pi / (order * 2.0)));
             arrayFilters.add (*IIR::Coefficients<FloatType>::makeLowPass (sampleRate, frequency,
@@ -576,7 +573,7 @@ Array<IIR::Coefficients<FloatType>>
 }
 
 template <typename FloatType>
-Array<IIR::Coefficients<FloatType>>
+ReferenceCountedArray<IIR::Coefficients<FloatType>>
     FilterDesign<FloatType>::designIIRHighpassHighOrderButterworthMethod (FloatType frequency,
                                                                           double sampleRate, int order)
 {
@@ -584,13 +581,13 @@ Array<IIR::Coefficients<FloatType>>
     jassert (frequency > 0 && frequency <= sampleRate * 0.5);
     jassert (order > 0);
 
-    Array<IIR::Coefficients<FloatType>> arrayFilters;
+    ReferenceCountedArray<IIR::Coefficients<FloatType>> arrayFilters;
 
     if (order % 2 == 1)
     {
         arrayFilters.add (*IIR::Coefficients<FloatType>::makeFirstOrderHighPass (sampleRate, frequency));
 
-        for (auto i = 0; i < order / 2; ++i)
+        for (int i = 0; i < order / 2; ++i)
         {
             auto Q = 1.0 / (2.0 * std::cos ((i + 1.0) * MathConstants<double>::pi / order));
             arrayFilters.add (*IIR::Coefficients<FloatType>::makeHighPass (sampleRate, frequency,
@@ -599,7 +596,7 @@ Array<IIR::Coefficients<FloatType>>
     }
     else
     {
-        for (auto i = 0; i < order / 2; ++i)
+        for (int i = 0; i < order / 2; ++i)
         {
             auto Q = 1.0 / (2.0 * std::cos ((2.0 * i + 1.0) * MathConstants<double>::pi / (order * 2.0)));
             arrayFilters.add (*IIR::Coefficients<FloatType>::makeHighPass (sampleRate, frequency,

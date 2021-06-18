@@ -718,7 +718,7 @@ inline void b2Sweep::Advance(float32 alpha)
 inline void b2Sweep::Normalize()
 {
 	float32 twoPi = 2.0f * b2_pi;
-	float32 d =  twoPi * floor(a0 / twoPi);
+	float32 d =  twoPi * floorf(a0 / twoPi);
 	a0 -= d;
 	a -= d;
 }

@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -132,6 +131,8 @@ public:
     private:
         //==============================================================================
         friend class AudioProcessorGraph;
+        template <typename Float>
+        friend struct GraphRenderSequence;
 
         struct Connection
         {
@@ -141,15 +142,32 @@ public:
             bool operator== (const Connection&) const noexcept;
         };
 
-        const std::unique_ptr<AudioProcessor> processor;
+        std::unique_ptr<AudioProcessor> processor;
         Array<Connection> inputs, outputs;
-        bool isPrepared = false, bypassed = false;
+        bool isPrepared = false;
+        std::atomic<bool> bypassed { false };
 
-        Node (NodeID, AudioProcessor*) noexcept;
+        Node (NodeID, std::unique_ptr<AudioProcessor>) noexcept;
 
         void setParentGraph (AudioProcessorGraph*) const;
         void prepare (double newSampleRate, int newBlockSize, AudioProcessorGraph*, ProcessingPrecision);
         void unprepare();
+
+        template <typename Sample>
+        void processBlock (AudioBuffer<Sample>& audio, MidiBuffer& midi)
+        {
+            const ScopedLock lock (processorLock);
+            processor->processBlock (audio, midi);
+        }
+
+        template <typename Sample>
+        void processBlockBypassed (AudioBuffer<Sample>& audio, MidiBuffer& midi)
+        {
+            const ScopedLock lock (processorLock);
+            processor->processBlockBypassed (audio, midi);
+        }
+
+        CriticalSection processorLock;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Node)
     };
@@ -162,6 +180,7 @@ public:
     struct JUCE_API  Connection
     {
         //==============================================================================
+        Connection() = default;
         Connection (NodeAndChannel source, NodeAndChannel destination) noexcept;
 
         Connection (const Connection&) = default;
@@ -173,10 +192,10 @@ public:
 
         //==============================================================================
         /** The channel and node which is the input source for this connection. */
-        NodeAndChannel source;
+        NodeAndChannel source { {}, 0 };
 
         /** The channel and node which is the input source for this connection. */
-        NodeAndChannel destination;
+        NodeAndChannel destination { {}, 0 };
     };
 
     //==============================================================================
@@ -209,22 +228,22 @@ public:
         added a processor to the graph, the graph owns it and will delete it later when
         it is no longer needed.
 
-        The optional nodeId parameter lets you specify an ID to use for the node, but
-        if the value is already in use, this new node will overwrite the old one.
+        The optional nodeId parameter lets you specify a unique ID to use for the node.
+        If the value is already in use, this method will fail and return an empty node.
 
         If this succeeds, it returns a pointer to the newly-created node.
     */
-    Node::Ptr addNode (AudioProcessor* newProcessor, NodeID nodeId = {});
+    Node::Ptr addNode (std::unique_ptr<AudioProcessor> newProcessor, NodeID nodeId = {});
 
     /** Deletes a node within the graph which has the specified ID.
         This will also delete any connections that are attached to this node.
     */
-    bool removeNode (NodeID);
+    Node::Ptr removeNode (NodeID);
 
     /** Deletes a node within the graph.
         This will also delete any connections that are attached to this node.
     */
-    bool removeNode (Node*);
+    Node::Ptr removeNode (Node*);
 
     /** Returns the list of connections in the graph. */
     std::vector<Connection> getConnections() const;
@@ -384,6 +403,24 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
 private:
+    struct PrepareSettings
+    {
+        ProcessingPrecision precision = ProcessingPrecision::singlePrecision;
+        double sampleRate             = 0.0;
+        int blockSize                 = 0;
+        bool valid                    = false;
+
+        using Tied = std::tuple<const ProcessingPrecision&,
+                                const double&,
+                                const int&,
+                                const bool&>;
+
+        Tied tie() const noexcept { return std::tie (precision, sampleRate, blockSize, valid); }
+
+        bool operator== (const PrepareSettings& other) const noexcept { return tie() == other.tie(); }
+        bool operator!= (const PrepareSettings& other) const noexcept { return tie() != other.tie(); }
+    };
+
     //==============================================================================
     ReferenceCountedArray<Node> nodes;
     NodeID lastNodeID = {};
@@ -393,11 +430,14 @@ private:
     std::unique_ptr<RenderSequenceFloat> renderSequenceFloat;
     std::unique_ptr<RenderSequenceDouble> renderSequenceDouble;
 
+    PrepareSettings prepareSettings;
+
     friend class AudioGraphIOProcessor;
 
-    Atomic<int> isPrepared { 0 };
+    std::atomic<bool> isPrepared { false };
 
     void topologyChanged();
+    void unprepare();
     void handleAsyncUpdate() override;
     void clearRenderingSequence();
     void buildRenderingSequence();

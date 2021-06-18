@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -992,9 +991,9 @@ void ValueTree::sendPropertyChangeMessage (const Identifier& property)
 }
 
 //==============================================================================
-XmlElement* ValueTree::createXml() const
+std::unique_ptr<XmlElement> ValueTree::createXml() const
 {
-    return object != nullptr ? object->createXml() : nullptr;
+    return std::unique_ptr<XmlElement> (object != nullptr ? object->createXml() : nullptr);
 }
 
 ValueTree ValueTree::fromXml (const XmlElement& xml)
@@ -1004,7 +1003,7 @@ ValueTree ValueTree::fromXml (const XmlElement& xml)
         ValueTree v (xml.getTagName());
         v.object->properties.setFromXmlAttributes (xml);
 
-        forEachXmlChildElement (xml, e)
+        for (auto* e : xml.getChildIterator())
             v.appendChild (fromXml (*e), nullptr);
 
         return v;
@@ -1015,12 +1014,18 @@ ValueTree ValueTree::fromXml (const XmlElement& xml)
     return {};
 }
 
-String ValueTree::toXmlString() const
+ValueTree ValueTree::fromXml (const String& xmlText)
 {
-    std::unique_ptr<XmlElement> xml (createXml());
+    if (auto xml = parseXML (xmlText))
+        return fromXml (*xml);
 
-    if (xml != nullptr)
-        return xml->createDocument ({});
+    return {};
+}
+
+String ValueTree::toXmlString (const XmlElement::TextFormat& format) const
+{
+    if (auto xml = createXml())
+        return xml->toString (format);
 
     return {};
 }
@@ -1088,15 +1093,24 @@ ValueTree ValueTree::readFromGZIPData (const void* data, size_t numBytes)
     return readFromStream (gzipStream);
 }
 
-void ValueTree::Listener::valueTreeRedirected (ValueTree&) {}
+void ValueTree::Listener::valueTreePropertyChanged   (ValueTree&, const Identifier&) {}
+void ValueTree::Listener::valueTreeChildAdded        (ValueTree&, ValueTree&)        {}
+void ValueTree::Listener::valueTreeChildRemoved      (ValueTree&, ValueTree&, int)   {}
+void ValueTree::Listener::valueTreeChildOrderChanged (ValueTree&, int, int)          {}
+void ValueTree::Listener::valueTreeParentChanged     (ValueTree&)                    {}
+void ValueTree::Listener::valueTreeRedirected        (ValueTree&)                    {}
 
+
+//==============================================================================
 //==============================================================================
 #if JUCE_UNIT_TESTS
 
 class ValueTreeTests  : public UnitTest
 {
 public:
-    ValueTreeTests() : UnitTest ("ValueTrees", "Values") {}
+    ValueTreeTests()
+        : UnitTest ("ValueTrees", UnitTestCategories::values)
+    {}
 
     static String createRandomIdentifier (Random& r)
     {
@@ -1179,8 +1193,8 @@ public:
                 }
                 expect (v1.isEquivalentTo (ValueTree::readFromGZIPData (zipped.getData(), zipped.getDataSize())));
 
-                std::unique_ptr<XmlElement> xml1 (v1.createXml());
-                std::unique_ptr<XmlElement> xml2 (v2.createCopy().createXml());
+                auto xml1 = v1.createXml();
+                auto xml2 = v2.createCopy().createXml();
                 expect (xml1->isEquivalentTo (xml2.get(), false));
 
                 auto v4 = v2.createCopy();

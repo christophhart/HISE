@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -59,10 +59,8 @@ void JUCEApplicationBase::appWillTerminateByForce()
                 app->shutdownApp();
         }
 
-		
         DeletedAtShutdown::deleteAll();
         MessageManager::deleteInstance();
-		AudioThreadGuard::deleteInstance();
     }
 }
 
@@ -177,7 +175,7 @@ StringArray JUCE_CALLTYPE JUCEApplicationBase::getCommandLineParameterArray()
 
 #else
 
-#if JUCE_IOS
+#if JUCE_IOS && JUCE_MODULE_AVAILABLE_juce_gui_basics
  extern int juce_iOSMain (int argc, const char* argv[], void* classPtr);
 #endif
 
@@ -230,12 +228,12 @@ int JUCEApplicationBase::main (int argc, const char* argv[])
         initialiseNSApplication();
        #endif
 
-       #if JUCE_LINUX && !JUCE_HEADLESS_PLUGIN_CLIENT && JUCE_MODULE_AVAILABLE_juce_gui_extra && (! defined(JUCE_WEB_BROWSER) || JUCE_WEB_BROWSER)
+       #if JUCE_LINUX && JUCE_MODULE_AVAILABLE_juce_gui_extra && (! defined(JUCE_WEB_BROWSER) || JUCE_WEB_BROWSER)
         if (argc >= 2 && String (argv[1]) == "--juce-gtkwebkitfork-child")
             return juce_gtkWebkitMain (argc, argv);
        #endif
 
-       #if JUCE_IOS
+       #if JUCE_IOS && JUCE_MODULE_AVAILABLE_juce_gui_basics
         return juce_iOSMain (argc, argv, iOSCustomDelegate);
        #else
 

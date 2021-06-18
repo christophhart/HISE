@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -105,7 +105,8 @@ private:
     float* outputChans[128];
     const float* inputChans[128];
     AudioBuffer<float> tempBuffer;
-    float lastGain = 1.0f, gain = 1.0f;
+    float lastGain = 1.0f;
+    std::atomic<float> gain { 1.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioSourcePlayer)
 };

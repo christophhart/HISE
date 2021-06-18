@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -461,7 +460,7 @@ void Button::mouseUp (const MouseEvent& e)
 {
     const bool wasDown = isDown();
     const bool wasOver = isOver();
-    updateState (isMouseOrTouchOver (e), false);
+    updateState (isMouseSourceOver (e), false);
 
     if (wasDown && wasOver && ! triggerOnMouseDown)
     {
@@ -475,15 +474,15 @@ void Button::mouseUp (const MouseEvent& e)
 void Button::mouseDrag (const MouseEvent& e)
 {
     auto oldState = buttonState;
-    updateState (isMouseOrTouchOver (e), true);
+    updateState (isMouseSourceOver (e), true);
 
     if (autoRepeatDelay >= 0 && buttonState != oldState && isDown())
         callbackHelper->startTimer (autoRepeatSpeed);
 }
 
-bool Button::isMouseOrTouchOver (const MouseEvent& e)
+bool Button::isMouseSourceOver (const MouseEvent& e)
 {
-    if (e.source.isTouch())
+    if (e.source.isTouch() || e.source.isPen())
         return getLocalBounds().toFloat().contains (e.position);
 
     return isMouseOver();

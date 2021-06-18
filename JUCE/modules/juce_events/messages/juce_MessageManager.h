@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -27,11 +27,6 @@ class MessageManagerLock;
 class ThreadPoolJob;
 class ActionListener;
 class ActionBroadcaster;
-
-//==============================================================================
-#if JUCE_MODULE_AVAILABLE_juce_opengl
-class OpenGLContext;
-#endif
 
 //==============================================================================
 /** See MessageManager::callFunctionOnMessageThread() for use of this function type. */
@@ -94,12 +89,12 @@ public:
    #endif
 
     //==============================================================================
-    /** Asynchronously invokes a function or C++11 lambda on the message thread. */
-    template <typename FunctionType>
-    static void callAsync (FunctionType functionToCall)
-    {
-        new AsyncCallInvoker<FunctionType> (functionToCall);
-    }
+    /** Asynchronously invokes a function or C++11 lambda on the message thread.
+
+        @returns  true if the message was successfully posted to the message queue,
+                  or false otherwise.
+    */
+    static bool callAsync (std::function<void()> functionToCall);
 
     /** Calls a function using the message-thread.
 
@@ -201,7 +196,7 @@ public:
     /** A lock you can use to lock the message manager. You can use this class with
         the RAII-based ScopedLock classes.
     */
-    class Lock
+    class JUCE_API  Lock
     {
     public:
         /**
@@ -223,14 +218,14 @@ public:
             If another thread is currently using the MessageManager, this will wait until that
             thread releases the lock to the MessageManager.
 
-            This call will only exit if the lock was accquired by this thread. Calling abort while
+            This call will only exit if the lock was acquired by this thread. Calling abort while
             a thread is waiting for enter to finish, will have no effect.
 
             @see exit, abort
          */
          void enter() const noexcept;
 
-         /** Attempts to lock the meesage manager and exits if abort is called.
+         /** Attempts to lock the message manager and exits if abort is called.
 
             This method behaves identically to enter, except that it will abort waiting for
             the lock if the abort method is called.
@@ -270,7 +265,7 @@ public:
                  messageManagerLock.abort();
             }
 
-            @returns false if waiting for a lock was aborted, true if the lock was accquired.
+            @returns false if waiting for a lock was aborted, true if the lock was acquired.
             @see enter, abort, ScopedTryLock
         */
         bool tryEnter() const noexcept;
@@ -283,7 +278,7 @@ public:
         /** Unblocks a thread which is waiting in tryEnter
             Call this method if you want to unblock a thread which is waiting for the
             MessageManager lock in tryEnter.
-            This method does not have any effetc on a thread waiting for a lock in enter.
+            This method does not have any effect on a thread waiting for a lock in enter.
             @see tryEnter
         */
         void abort() const noexcept;
@@ -339,16 +334,6 @@ private:
     static void doPlatformSpecificInitialisation();
     static void doPlatformSpecificShutdown();
     static bool dispatchNextMessageOnSystemQueue (bool returnIfNoPendingMessages);
-
-    template <typename FunctionType>
-    struct AsyncCallInvoker  : public MessageBase
-    {
-        AsyncCallInvoker (FunctionType f) : callback (f)  { post(); }
-        void messageCallback() override                   { callback(); }
-        FunctionType callback;
-
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AsyncCallInvoker)
-    };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MessageManager)
 };

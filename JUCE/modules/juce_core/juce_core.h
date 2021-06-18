@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -25,24 +25,24 @@
  The block below describes the properties of this module, and is read by
  the Projucer to automatically generate project code that uses it.
  For details about the syntax and how to create or use a module, see the
- JUCE Module Format.txt file.
+ JUCE Module Format.md file.
 
 
  BEGIN_JUCE_MODULE_DECLARATION
 
-  ID:               juce_core
-  vendor:           juce
-  version:          5.4.3
-  name:             JUCE core classes
-  description:      The essential set of basic JUCE classes, as required by all the other JUCE modules. Includes text, container, memory, threading and i/o functionality.
-  website:          http://www.juce.com/juce
-  license:          ISC
+  ID:                 juce_core
+  vendor:             juce
+  version:            6.0.8
+  name:               JUCE core classes
+  description:        The essential set of basic JUCE classes, as required by all the other JUCE modules. Includes text, container, memory, threading and i/o functionality.
+  website:            http://www.juce.com/juce
+  license:            ISC
 
   dependencies:
-  OSXFrameworks:    Cocoa IOKit
-  iOSFrameworks:    Foundation
-  linuxLibs:        rt dl pthread
-  mingwLibs:        uuid wsock32 wininet version ole32 ws2_32 oleaut32 imm32 comdlg32 shlwapi rpcrt4 winmm
+  OSXFrameworks:      Cocoa Foundation IOKit
+  iOSFrameworks:      Foundation
+  linuxLibs:          rt dl pthread
+  mingwLibs:          uuid wsock32 wininet version ole32 ws2_32 oleaut32 imm32 comdlg32 shlwapi rpcrt4 winmm
 
  END_JUCE_MODULE_DECLARATION
 
@@ -134,19 +134,15 @@
     Enables http/https support via libcurl (Linux only). Enabling this will add an additional
     run-time dynamic dependency to libcurl.
 
-    If you disable this then https/ssl support will not be available on linux.
+    If you disable this then https/ssl support will not be available on Linux.
 */
 #ifndef JUCE_USE_CURL
- #if JUCE_LINUX
-  #define JUCE_USE_CURL 1
- #else
-  #define JUCE_USE_CURL 0
- #endif
+ #define JUCE_USE_CURL 1
 #endif
 
 /** Config: JUCE_LOAD_CURL_SYMBOLS_LAZILY
     If enabled, JUCE will load libcurl lazily when required (for example, when WebInputStream
-    is used). Enabling this flag may also help with library dependency erros as linking
+    is used). Enabling this flag may also help with library dependency errors as linking
     libcurl at compile-time may instruct the linker to hard depend on a specific version
     of libcurl. It's also useful if you want to limit the amount of JUCE dependencies and
     you are not using WebInputStream or the URL classes.
@@ -155,13 +151,12 @@
  #define JUCE_LOAD_CURL_SYMBOLS_LAZILY 0
 #endif
 
-
 /** Config: JUCE_CATCH_UNHANDLED_EXCEPTIONS
     If enabled, this will add some exception-catching code to forward unhandled exceptions
     to your JUCEApplicationBase::unhandledException() callback.
 */
 #ifndef JUCE_CATCH_UNHANDLED_EXCEPTIONS
- //#define JUCE_CATCH_UNHANDLED_EXCEPTIONS 1
+ #define JUCE_CATCH_UNHANDLED_EXCEPTIONS 0
 #endif
 
 /** Config: JUCE_ALLOW_STATIC_NULL_VARIABLES
@@ -170,7 +165,7 @@
     constructor code.
 */
 #ifndef JUCE_ALLOW_STATIC_NULL_VARIABLES
- #define JUCE_ALLOW_STATIC_NULL_VARIABLES 1
+ #define JUCE_ALLOW_STATIC_NULL_VARIABLES 0
 #endif
 
 /** Config: JUCE_STRICT_REFCOUNTEDPOINTER
@@ -182,6 +177,13 @@
  #define JUCE_STRICT_REFCOUNTEDPOINTER 0
 #endif
 
+/** Config: JUCE_ENABLE_ALLOCATION_HOOKS
+    If enabled, this will add global allocation functions with built-in assertions, which may
+    help when debugging allocations in unit tests.
+*/
+#ifndef JUCE_ENABLE_ALLOCATION_HOOKS
+ #define JUCE_ENABLE_ALLOCATION_HOOKS 0
+#endif
 
 #ifndef JUCE_STRING_UTF_TYPE
  #define JUCE_STRING_UTF_TYPE 8
@@ -240,19 +242,14 @@ namespace juce
 #include "memory/juce_Atomic.h"
 #include "text/juce_CharacterFunctions.h"
 
-#if JUCE_MSVC
- #pragma warning (push)
- #pragma warning (disable: 4514 4996)
-#endif
+JUCE_BEGIN_IGNORE_WARNINGS_MSVC (4514 4996)
 
 #include "text/juce_CharPointer_UTF8.h"
 #include "text/juce_CharPointer_UTF16.h"
 #include "text/juce_CharPointer_UTF32.h"
 #include "text/juce_CharPointer_ASCII.h"
 
-#if JUCE_MSVC
- #pragma warning (pop)
-#endif
+JUCE_END_IGNORE_WARNINGS_MSVC
 
 #include "text/juce_String.h"
 #include "text/juce_StringRef.h"
@@ -288,6 +285,8 @@ namespace juce
 #include "text/juce_StringPool.h"
 #include "text/juce_Identifier.h"
 #include "text/juce_StringArray.h"
+#include "system/juce_SystemStats.h"
+#include "memory/juce_HeavyweightLeakedObjectDetector.h"
 #include "text/juce_StringPairArray.h"
 #include "text/juce_TextDiff.h"
 #include "text/juce_LocalisedStrings.h"
@@ -299,8 +298,6 @@ namespace juce
 #include "containers/juce_NamedValueSet.h"
 #include "containers/juce_DynamicObject.h"
 #include "containers/juce_HashMap.h"
-#include "system/juce_SystemStats.h"
-#include "memory/juce_HeavyweightLeakedObjectDetector.h"
 #include "time/juce_RelativeTime.h"
 #include "time/juce_Time.h"
 #include "streams/juce_InputStream.h"
@@ -312,6 +309,7 @@ namespace juce
 #include "streams/juce_InputSource.h"
 #include "files/juce_File.h"
 #include "files/juce_DirectoryIterator.h"
+#include "files/juce_RangedDirectoryIterator.h"
 #include "files/juce_FileInputStream.h"
 #include "files/juce_FileOutputStream.h"
 #include "files/juce_FileSearchPath.h"
@@ -358,6 +356,7 @@ namespace juce
 #include "zip/juce_ZipFile.h"
 #include "containers/juce_PropertySet.h"
 #include "memory/juce_SharedResourcePointer.h"
+#include "memory/juce_AllocationHooks.h"
 
 #if JUCE_CORE_INCLUDE_OBJC_HELPERS && (JUCE_MAC || JUCE_IOS)
  #include "native/juce_osx_ObjCHelpers.h"
@@ -370,6 +369,10 @@ namespace juce
 #if JUCE_CORE_INCLUDE_JNI_HELPERS && JUCE_ANDROID
  #include <jni.h>
  #include "native/juce_android_JNIHelpers.h"
+#endif
+
+#if JUCE_UNIT_TESTS
+ #include "unit_tests/juce_UnitTestCategories.h"
 #endif
 
 #ifndef DOXYGEN
@@ -395,11 +398,9 @@ namespace juce
 }
 #endif
 
-#if JUCE_MSVC
- #pragma warning (pop)
+JUCE_END_IGNORE_WARNINGS_MSVC
 
- // In DLL builds, need to disable this warnings for other modules
- #if defined (JUCE_DLL_BUILD) || defined (JUCE_DLL)
-  #pragma warning (disable: 4251)
- #endif
+// In DLL builds, need to disable this warnings for other modules
+#if defined (JUCE_DLL_BUILD) || defined (JUCE_DLL)
+ JUCE_IGNORE_MSVC (4251)
 #endif
