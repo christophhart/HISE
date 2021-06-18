@@ -594,8 +594,11 @@ public:
 		/** Returns enabled state of midi input device. */
 		bool isMidiInputEnabled(const String &midiInputName);
 		
-		/** Enables or disables MIDI channel. */
+		/** Enables or disables MIDI channel (0 = All channels). */
 		void toggleMidiChannel(int index, bool value);
+		
+		/** Returns enabled state of midi channel (0 = All channels). */
+		bool isMidiChannelEnabled(int index);
 
 		// ============================================================================================================
 

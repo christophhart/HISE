@@ -1091,6 +1091,7 @@ void ScriptingApi::Content::ScriptComponent::setZLevel(String zLevelToUse)
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
 {
+	API_VOID_METHOD_WRAPPER_1(ScriptSlider, setValuePopupFunction);
 	API_VOID_METHOD_WRAPPER_1(ScriptSlider, setMidPoint);
 	API_VOID_METHOD_WRAPPER_3(ScriptSlider, setRange);
 	API_VOID_METHOD_WRAPPER_1(ScriptSlider, setMode);
@@ -1182,6 +1183,7 @@ maximum(1.0f)
 	initInternalPropertyFromValueTreeOrDefault(Properties::filmstripImage);
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::linkedTo);
 
+	ADD_API_METHOD_1(setValuePopupFunction);
 	ADD_API_METHOD_1(setMidPoint);
 	ADD_API_METHOD_3(setRange);
 	ADD_API_METHOD_1(setMode);
@@ -1344,6 +1346,12 @@ StringArray ScriptingApi::Content::ScriptSlider::getOptionsFor(const Identifier 
 	}
 
 	return sa;
+}
+
+void ScriptingApi::Content::ScriptSlider::setValuePopupFunction(var newFunction)
+{
+	sliderValueFunction = newFunction;
+	getPropertyValueTree().sendPropertyChangeMessage(getIdFor(parameterId));
 }
 
 void ScriptingApi::Content::ScriptSlider::setMidPoint(double valueForMidPoint)

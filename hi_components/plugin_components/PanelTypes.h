@@ -161,14 +161,18 @@ public:
 
 	SET_PANEL_NAME("MidiChannelList");
 
-	void toggleButtonWasClicked(ToggleButtonList* /*list*/, int index, bool value) override;
-	void periodicCheckCallback(ToggleButtonList* /*list*/) override;
 	void resized() override;
+
+	void periodicCheckCallback(ToggleButtonList* /*list*/) override;
+	void toggleButtonWasClicked(ToggleButtonList* /*list*/, int index, bool value) override;
+	
+	ToggleButtonList* getList() { return channelList; };
 
 private:
 
 	ScopedPointer<Viewport> viewport;
 	ScopedPointer<ToggleButtonList> channelList;
+	ScopedPointer<LookAndFeel> slaf;
 };
 
 /** Type-ID: `MidiSources`
