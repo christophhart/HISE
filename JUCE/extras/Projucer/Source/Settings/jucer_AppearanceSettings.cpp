@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -32,27 +31,22 @@
 AppearanceSettings::AppearanceSettings (bool updateAppWhenChanged)
     : settings ("COLOUR_SCHEME")
 {
-    if (! ProjucerApplication::getApp().isRunningCommandLine)
+    CodeDocument doc;
+    CPlusPlusCodeTokeniser tokeniser;
+    CodeEditorComponent editor (doc, &tokeniser);
+
+    CodeEditorComponent::ColourScheme cs (editor.getColourScheme());
+
+    for (int i = cs.types.size(); --i >= 0;)
     {
-        ProjucerLookAndFeel lf;
-
-        CodeDocument doc;
-        CPlusPlusCodeTokeniser tokeniser;
-        CodeEditorComponent editor (doc, &tokeniser);
-
-        CodeEditorComponent::ColourScheme cs (editor.getColourScheme());
-
-        for (int i = cs.types.size(); --i >= 0;)
-        {
-            auto& t = cs.types.getReference(i);
-            getColourValue (t.name) = t.colour.toString();
-        }
-
-        getCodeFontValue() = getDefaultCodeFont().toString();
-
-        if (updateAppWhenChanged)
-            settings.addListener (this);
+        auto& t = cs.types.getReference(i);
+        getColourValue (t.name) = t.colour.toString();
     }
+
+    getCodeFontValue() = getDefaultCodeFont().toString();
+
+    if (updateAppWhenChanged)
+        settings.addListener (this);
 }
 
 File AppearanceSettings::getSchemesFolder()
@@ -138,8 +132,10 @@ bool AppearanceSettings::readFromFile (const File& file)
 
 bool AppearanceSettings::writeToFile (const File& file) const
 {
-    const std::unique_ptr<XmlElement> xml (settings.createXml());
-    return xml != nullptr && xml->writeToFile (file, String());
+    if (auto xml = settings.createXml())
+        return xml->writeTo (file, {});
+
+    return false;
 }
 
 Font AppearanceSettings::getDefaultCodeFont()
@@ -151,13 +147,9 @@ StringArray AppearanceSettings::getColourNames() const
 {
     StringArray s;
 
-    for (int i = 0; i < settings.getNumChildren(); ++i)
-    {
-        const ValueTree c (settings.getChild(i));
-
+    for (auto c : settings)
         if (c.hasType ("COLOUR"))
-            s.add (c [Ids::name]);
-    }
+            s.add (c[Ids::name]);
 
     return s;
 }

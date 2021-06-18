@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -37,6 +36,7 @@
 #include "jucer_CompileEngineClient.h"
 #include "jucer_CompileEngineServer.h"
 #include "jucer_CompileEngineSettings.h"
+#include "../Project/UI/jucer_ProjectContentComponent.h"
 
 #ifndef RUN_CLANG_IN_CHILD_PROCESS
  #error
@@ -69,7 +69,7 @@ class ClientIPC  : public MessageHandler,
                    private Timer
 {
 public:
-    ClientIPC (CompileEngineChildProcess& cp)
+    explicit ClientIPC (CompileEngineChildProcess& cp)
        : InterprocessConnection (true), owner (cp)
     {
         launchServer();
@@ -216,8 +216,6 @@ public:
 
         if (isRunningApp && server != nullptr)
             server->killServerWithoutMercy();
-
-        server.reset();
     }
 
     void restartServer()
@@ -256,7 +254,7 @@ public:
         build.setGlobalDefs (getGlobalDefs());
         build.setCompileFlags (project.getCompileEngineSettings().getExtraCompilerFlagsString());
         build.setExtraDLLs (getExtraDLLs());
-        build.setJuceModulesFolder (EnabledModuleList::findDefaultModulesFolder (project).getFullPathName());
+        build.setJuceModulesFolder (project.getEnabledModules().getDefaultModulesFolder().getFullPathName());
 
         build.setUtilsCppInclude (project.getAppIncludeFile().getFullPathName());
 
@@ -310,36 +308,39 @@ private:
     void valueTreeChildAdded (ValueTree&, ValueTree&) override                   { projectStructureChanged(); }
     void valueTreeChildRemoved (ValueTree&, ValueTree&, int) override            { projectStructureChanged(); }
     void valueTreeParentChanged (ValueTree&) override                            { projectStructureChanged(); }
-    void valueTreeChildOrderChanged (ValueTree&, int, int) override              {}
 
     String getGlobalDefs()
     {
-        StringArray defs;
-
-        defs.add (project.getCompileEngineSettings().getExtraPreprocessorDefsString());
-
+        auto mergeDefs = [] (const StringPairArray& inDefs) -> String
         {
-            auto projectDefines = project.getPreprocessorDefs();
+            StringArray outDefs;
 
-            for (int i = 0; i < projectDefines.size(); ++i)
+            for (int i = 0; i < inDefs.size(); ++i)
             {
-                auto def = projectDefines.getAllKeys()[i];
-                auto value = projectDefines.getAllValues()[i];
+                auto def = inDefs.getAllKeys()[i];
+                auto value = inDefs.getAllValues()[i];
 
                 if (value.isNotEmpty())
                     def << "=" << value;
 
-                 defs.add (def);
+                 outDefs.add (def);
             }
-        }
+
+            return outDefs.joinIntoString (" ");
+        };
+
+        StringArray defs;
+
+        if (! project.shouldUseAppConfig())
+            defs.add (mergeDefs (project.getAppConfigDefs()));
+
+        defs.add (project.getCompileEngineSettings().getExtraPreprocessorDefsString());
+        defs.add (mergeDefs (project.getPreprocessorDefs()));
 
         for (Project::ExporterIterator exporter (project); exporter.next();)
             if (exporter->canLaunchProject())
                 defs.add (exporter->getExporterIdentifierMacro() + "=1");
 
-        // Use the JUCE implementation of std::function until the live build
-        // engine can compile the one from the standard library
-        defs.add (" _LIBCPP_FUNCTIONAL=1");
         defs.removeEmptyStrings();
 
         return defs.joinIntoString (" ");
@@ -379,9 +380,9 @@ private:
 
         {
             auto isVSTHost = project.getEnabledModules().isModuleEnabled ("juce_audio_processors")
-                   && (project.isConfigFlagEnabled ("JUCE_PLUGINHOST_VST3") || project.isConfigFlagEnabled ("JUCE_PLUGINHOST_VST"));
+                   && (project.isConfigFlagEnabled ("JUCE_PLUGINHOST_VST3", false) || project.isConfigFlagEnabled ("JUCE_PLUGINHOST_VST", false));
 
-            auto isPluginProject = proj.getProjectType().isAudioPlugin();
+            auto isPluginProject = proj.isAudioPluginProject();
 
             OwnedArray<LibraryModule> modules;
             proj.getEnabledModules().createRequiredModules (modules);
@@ -392,17 +393,18 @@ private:
                 {
                     for (auto* m : modules)
                     {
-                        auto localModuleFolder = proj.getEnabledModules().shouldCopyModuleFilesLocally (m->moduleInfo.getID()).getValue()
-                                                        ? proj.getLocalModuleFolder (m->moduleInfo.getID())
-                                                        : m->moduleInfo.getFolder();
+                        auto copyLocally = proj.getEnabledModules().shouldCopyModuleFilesLocally (m->moduleInfo.getID());
 
+                        auto localModuleFolder = copyLocally ? proj.getLocalModuleFolder (m->moduleInfo.getID())
+                                                             : m->moduleInfo.getFolder();
 
                         m->findAndAddCompiledUnits (*exporter, nullptr, compileUnits,
-                                                    isPluginProject || isVSTHost ? ProjectType::Target::SharedCodeTarget
-                                                                                 : ProjectType::Target::unspecified);
+                                                    isPluginProject || isVSTHost ? build_tools::ProjectType::Target::SharedCodeTarget
+                                                                                 : build_tools::ProjectType::Target::unspecified);
 
                         if (isPluginProject || isVSTHost)
-                            m->findAndAddCompiledUnits (*exporter, nullptr, compileUnits, ProjectType::Target::StandalonePlugIn);
+                            m->findAndAddCompiledUnits (*exporter, nullptr, compileUnits,
+                                                        build_tools::ProjectType::Target::StandalonePlugIn);
                     }
 
                     break;
@@ -430,14 +432,13 @@ private:
     {
         auto liveModules = project.getProjectRoot().getChildWithName (Ids::MODULES);
 
-        auto xml = parseXML (project.getFile());
+        if (auto xml = parseXMLIfTagMatches (project.getFile(), Ids::JUCERPROJECT.toString()))
+        {
+            auto diskModules = ValueTree::fromXml (*xml).getChildWithName (Ids::MODULES);
+            return liveModules.isEquivalentTo (diskModules);
+        }
 
-        if (xml == nullptr || ! xml->hasTagName (Ids::JUCERPROJECT.toString()))
-            return false;
-
-        auto diskModules = ValueTree::fromXml (*xml).getChildWithName (Ids::MODULES);
-
-        return liveModules.isEquivalentTo (diskModules);
+        return false;
     }
 
     static bool areAnyModulesMissing (Project& project)
@@ -464,16 +465,12 @@ private:
     StringArray getSystemIncludePaths()
     {
         StringArray paths;
+        paths.add (project.getGeneratedCodeFolder().getFullPathName());
         paths.addArray (getSearchPathsFromString (project.getCompileEngineSettings().getSystemHeaderPathString()));
 
         auto isVSTHost = project.getEnabledModules().isModuleEnabled ("juce_audio_processors")
-                       && (project.isConfigFlagEnabled ("JUCE_PLUGINHOST_VST3")
-                             || project.isConfigFlagEnabled ("JUCE_PLUGINHOST_VST"));
-
-        auto customVst3Path = getAppSettings().getStoredPath (Ids::vst3Path, TargetOS::getThisOS()).get().toString();
-
-        if (customVst3Path.isNotEmpty() && (project.getProjectType().isAudioPlugin() || isVSTHost))
-            paths.add (customVst3Path);
+                       && (project.isConfigFlagEnabled ("JUCE_PLUGINHOST_VST3", false)
+                             || project.isConfigFlagEnabled ("JUCE_PLUGINHOST_VST", false));
 
         OwnedArray<LibraryModule> modules;
         project.getEnabledModules().createRequiredModules (modules);
@@ -482,9 +479,11 @@ private:
         {
             paths.addIfNotAlreadyThere (module->getFolder().getParentDirectory().getFullPathName());
 
-            if (customVst3Path.isEmpty() && (project.getProjectType().isAudioPlugin() || isVSTHost))
-                if (module->getID() == "juce_audio_processors")
-                    paths.addIfNotAlreadyThere (module->getFolder().getChildFile ("format_types").getChildFile ("VST3_SDK").getFullPathName());
+            if (module->getID() == "juce_audio_processors" && ((project.isAudioPluginProject() || isVSTHost)
+                                                                && ! project.isConfigFlagEnabled ("JUCE_CUSTOM_VST3_SDK")))
+            {
+                paths.addIfNotAlreadyThere (module->getFolder().getChildFile ("format_types").getChildFile ("VST3_SDK").getFullPathName());
+            }
         }
 
         return convertSearchPathsToAbsolute (paths);
@@ -525,9 +524,6 @@ CompileEngineChildProcess::CompileEngineChildProcess (Project& p)
 CompileEngineChildProcess::~CompileEngineChildProcess()
 {
     ProjucerApplication::getApp().openDocumentManager.removeListener (this);
-
-    process.reset();
-    lastComponentList.clear();
 }
 
 void CompileEngineChildProcess::createProcess()
@@ -723,7 +719,7 @@ private:
 
     struct TransactionTimer   : public Timer
     {
-        TransactionTimer (CodeDocument& doc) : document (doc) {}
+        explicit TransactionTimer (CodeDocument& doc) : document (doc) {}
 
         void timerCallback() override
         {
