@@ -58,6 +58,9 @@ ScriptCreatedComponentWrapper::~ScriptCreatedComponentWrapper()
 	if (auto c = getComponent())
 		c->setLookAndFeel(nullptr);
 
+	if (auto sp = getScriptComponent())
+		sp->removeZLevelListener(this);
+
 	currentPopup = nullptr;
 }
 
@@ -100,7 +103,11 @@ bool ScriptCreatedComponentWrapper::setMouseCursorFromParentPanel(ScriptComponen
 
 		if (!cursor.path.isEmpty())
 		{
+#if JUCE_WINDOWS
 			auto s = 80;
+#else
+            auto s = 30; // go easy on the cursor size, Stevie...
+#endif
 
 			Image icon(Image::ARGB, s, s, true);
 			Graphics g(icon);
@@ -147,6 +154,8 @@ ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentCompon
 	index(index_)
 {
 	scriptComponent = content->contentData->getComponent(index_);
+
+	scriptComponent->addZLevelListener(this);
 }
 
 ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentComponent* content, ScriptComponent* sc):
@@ -156,7 +165,7 @@ ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentCompon
 	index(-1),
 	scriptComponent(sc)
 {
-	
+	scriptComponent->addZLevelListener(this);
 }
 
 Processor * ScriptCreatedComponentWrapper::getProcessor()
@@ -567,6 +576,44 @@ void ScriptCreatedComponentWrapper::closeValuePopupAfterDelay()
 	valuePopupHandler.startTimer(200);
 }
 
+void ScriptCreatedComponentWrapper::zLevelChanged(ScriptingApi::Content::ScriptComponent::ZLevelListener::ZLevel newLevel)
+{
+	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::AsyncUpdater);
+
+	Component::SafePointer<Component> c = getComponent();
+
+	MessageManager::callAsync([c, newLevel]()
+	{
+		using Z = ScriptingApi::Content::ScriptComponent::ZLevelListener::ZLevel;
+
+		if (c.getComponent() != nullptr)
+		{
+			bool shouldBeAlwaysOnTop = newLevel == Z::AlwaysOnTop;
+
+			c.getComponent()->setAlwaysOnTop(shouldBeAlwaysOnTop);
+
+			if(newLevel == Z::Front)
+				c.getComponent()->toFront(false);
+			else if (newLevel == Z::Back)
+				c.getComponent()->toBack();
+			else if (newLevel == Z::Default)
+			{
+				if (auto p = c.getComponent()->getParentComponent())
+				{
+					for (int i = 0; i < p->getNumChildComponents()-1; i++)
+					{
+						if (p->getChildComponent(i-1) == c.getComponent())
+						{
+							c.getComponent()->toBehind(p->getChildComponent(i));
+							break;
+						}
+					}
+				}
+			}
+		}
+	});
+}
+
 void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* s)
 {
 	auto direction = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::showValuePopup).toString();
@@ -689,7 +736,24 @@ juce::String ScriptCreatedComponentWrappers::SliderWrapper::getTextForValuePopup
 {
 	if (auto slider = dynamic_cast<Slider*>(getComponent()))
 	{
-		return slider->getTextFromValue(slider->getValue());;
+		ScriptingApi::Content::ScriptSlider *sl = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
+		
+		if (HiseJavascriptEngine::isJavascriptFunction(sl->sliderValueFunction))
+		{
+			if (auto jp = dynamic_cast<JavascriptProcessor*>(sl->getScriptProcessor()))
+			{
+				var data[1] = { slider->getValue() };
+				var::NativeFunctionArgs args(sl, data, 2);
+				Result r = Result::ok();
+	
+				auto text = jp->getScriptEngine()->callExternalFunction(sl->sliderValueFunction, args, &r, true);
+	
+				if (r.wasOk())
+					return text;	
+			}
+		}	
+
+		return slider->getTextFromValue(slider->getValue());
 	}
 	
 	return "";

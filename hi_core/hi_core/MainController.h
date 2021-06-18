@@ -1259,6 +1259,8 @@ public:
 
 	bool isSyncedToHost() const;
 
+	void handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo);
+
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
 	
@@ -1267,6 +1269,10 @@ public:
 
 	/** removes a TempoListener. */
 	void removeTempoListener(TempoListener *t);;
+
+	void addMusicalUpdateListener(TempoListener* t);
+
+	void removeMusicalUpdateListener(TempoListener* t);
 
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
@@ -1510,7 +1516,6 @@ private: // Never call this directly, but wrap it through DelayedRenderer...
 	/** Sets the sample rate for the cpu meter. */
 	void prepareToPlay(double sampleRate_, int samplesPerBlock);
 
-
 protected:
 
 	bool deletePendingFlag = false;
@@ -1725,6 +1730,8 @@ private:
     
 	Array<WeakReference<BufferPreviewListener>> previewListeners;
 	Array<WeakReference<TempoListener>> tempoListeners;
+
+	Array<WeakReference<TempoListener>> pulseListener;
 
     std::atomic<float> usagePercent;
 

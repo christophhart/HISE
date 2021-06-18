@@ -294,6 +294,24 @@ public:
 			JUCE_DECLARE_WEAK_REFERENCEABLE(SubComponentListener);
 		};
 
+		struct ZLevelListener
+		{
+			enum class ZLevel
+			{
+				Back,
+				Default,
+				Front,	     
+				AlwaysOnTop,
+				numZLevels
+			};
+
+			virtual ~ZLevelListener() {};
+
+			virtual void zLevelChanged(ZLevel newZLevel) = 0;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(ZLevelListener);
+		};
+
 		ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants = 0);
 
 		virtual ~ScriptComponent();
@@ -439,8 +457,14 @@ public:
 		/** Returns the current value. */
 		virtual var getValue() const
         {
+			var rv;
+			{
+				SimpleReadWriteLock::ScopedReadLock sl(valueLock);
+				rv = value;
+			}
+			
             jassert(!value.isString());
-            return value;
+            return rv;
         }
 
 		/** Sets the current value
@@ -503,6 +527,9 @@ public:
 
 		/** Returns a list of all property IDs as array. */
 		var getAllProperties();
+
+		/** Changes the depth hierarchy (z-axis) of sibling components (Back, Default, Front or AlwaysOnTop). */
+		void setZLevel(String zLevel);
 
 		// End of API Methods ============================================================================================
 
@@ -608,6 +635,16 @@ public:
 			controlSender.cancelMessage();
 		}
 
+		void addZLevelListener(ZLevelListener* l)
+		{
+			zLevelListeners.addIfNotAlreadyThere(l);
+		}
+
+		void removeZLevelListener(ZLevelListener* l)
+		{
+			zLevelListeners.removeAllInstancesOf(l);
+		}
+
 	protected:
 
 		bool isCorrectlyInitialised(int p) const
@@ -626,6 +663,8 @@ public:
 
 		void setDefaultValue(int p, const var &defaultValue);
 		
+		
+
 		void addLinkedTarget(ScriptComponent* newTarget)
 		{
 			linkedComponentTargets.addIfNotAlreadyThere(newTarget);
@@ -648,7 +687,7 @@ public:
 
 	private:
 
-        struct AsyncControlCallbackSender : private UpdateDispatcher::Listener
+		struct AsyncControlCallbackSender : private UpdateDispatcher::Listener
         {
 		public:
 
@@ -677,6 +716,11 @@ public:
 		Array<Identifier> scriptChangedProperties;
 
 		Array<WeakReference<SubComponentListener>> subComponentListeners;
+		Array<WeakReference<ZLevelListener>> zLevelListeners;
+
+		ZLevelListener::ZLevel currentZLevel = ZLevelListener::ZLevel::Default;
+
+		mutable hise::SimpleReadWriteLock valueLock;
 
 		bool countJsonSetProperties = true;
 		Identifier searchedProperty;
@@ -767,6 +811,9 @@ public:
 		/** Sets the knob to the specified mode. */
 		void setMode(String mode);
 
+		/** Pass a function that takes a double and returns a String in order to override the popup display text. */
+		void setValuePopupFunction(var newFunction);
+
 		/** Sets the value that is shown in the middle position. */
 		void setMidPoint(double valueForMidPoint);
 
@@ -795,6 +842,7 @@ public:
 		HiSlider::Mode m = HiSlider::Mode::Linear;
 		Slider::SliderStyle styleId;
 		Image getImage() const { return image ? *image.getData() : Image(); };
+		var sliderValueFunction;
 
 	private:
 
@@ -1260,15 +1308,12 @@ public:
 		/** Returns the number of sliders. */
 		int getNumSliders() const;
 
-        /** Sets a non-uniform width per slider using an array in the form [0.0, ... a[i], ... 1.0]. */
-        void setWidthArray(var normalizedWidths);
+    /** Sets a non-uniform width per slider using an array in the form [0.0, ... a[i], ... 1.0]. */
+    void setWidthArray(var normalizedWidths);
         
 		// ========================================================================================================
 
 		struct Wrapper;
-
-        
-		Array<var> widthArray;
 
 		SliderPackData* getSliderPackData() { return getCachedSliderPack(); };
 
@@ -1568,7 +1613,6 @@ public:
 
 		void forcedRepaint()
 		{
-			
 		};
 
 		MouseCursorInfo getMouseCursorPath() const
@@ -2309,7 +2353,6 @@ private:
 
 	ScopedPointer<ValueTreeUpdateWatcher> updateWatcher;
 
-	CriticalSection lock;
 	bool allowGuiCreation;
 	int width, height;
 	ReferenceCountedArray<ScriptComponent> components; // This is ref counted to allow anonymous controls

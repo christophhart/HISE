@@ -194,6 +194,8 @@ juce::File ExpansionHandler::getExpansionFolder() const
 
 #if JUCE_WINDOWS
 		auto linkFile = f.getChildFile("LinkWindows");
+#elif JUCE_LINUX
+		auto linkFile = f.getChildFile("LinkLinux");
 #else
 		auto linkFile = f.getChildFile("LinkOSX");
 #endif
@@ -384,41 +386,51 @@ void ExpansionHandler::setCurrentExpansion(Expansion* e, NotificationType notify
 
 bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const File& sampleDirectoryToUse)
 {
-	hlac::HlacArchiver a(nullptr);
+	auto expRoot = getExpansionTargetFolder(resourceFile);
 
-	auto obj = a.readMetadataFromArchive(resourceFile);
-	auto expansionName = obj.getProperty("HxiName", "").toString();
-
-	if (expansionName.isNotEmpty())
+	if (expRoot != File())
 	{
-		auto f = [this, expansionName, resourceFile, sampleDirectoryToUse](Processor* p)
+		auto f = [this, expRoot, resourceFile, sampleDirectoryToUse](Processor* p)
 		{
 			jassert(LockHelpers::freeToGo(getMainController()));
-
-			auto expRoot = getExpansionFolder().getChildFile(expansionName);
 
 			expRoot.createDirectory();
 			auto samplesDir = expRoot.getChildFile("Samples");
 			samplesDir.createDirectory();
 
-			if (sampleDirectoryToUse != getExpansionFolder())
-			{
+			if (sampleDirectoryToUse != getExpansionFolder() && 
+				sampleDirectoryToUse != getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples))
 				FileHandlerBase::createLinkFileInFolder(samplesDir, sampleDirectoryToUse);
-				samplesDir = sampleDirectoryToUse;
+			else
+				FileHandlerBase::getLinkFile(samplesDir).deleteFile();
+
+			samplesDir = sampleDirectoryToUse;
+
+			for (auto l : listeners)
+			{
+				if (l.get() != nullptr)
+					l->expansionInstallStarted(expRoot, resourceFile, sampleDirectoryToUse);
 			}
 
 			hlac::HlacArchiver::DecompressData data;
 
 			double unused = 0.0;
 
-			data.option = hlac::HlacArchiver::OverwriteOption::OverwriteIfNewer;
+			data.option = hlac::HlacArchiver::OverwriteOption::ForceOverwrite;
 			data.targetDirectory = samplesDir;
 			data.progress = &getMainController()->getSampleManager().getPreloadProgress();
 			data.totalProgress = &unused;
 			data.partProgress = &unused;
 			data.sourceFile = resourceFile;
 
-			hlac::HlacArchiver a(Thread::getCurrentThread());
+			auto currentThread = Thread::getCurrentThread();
+
+			if (currentThread == nullptr)
+			{
+				currentThread = &getMainController()->getJavascriptThreadPool();
+			}
+
+			hlac::HlacArchiver a(currentThread);
 			a.setListener(this);
 			auto ok = a.extractSampleData(data);
 
@@ -426,6 +438,8 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 
 			auto headerFile = samplesDir.getChildFile("header.dat");
 			jassert(headerFile.existsAsFile());
+
+			bool shouldSendCompleteMessage = true;
 
 			if (getCredentials().isObject())
 				ScriptEncryptedExpansion::encryptIntermediateFile(getMainController(), headerFile, expRoot);
@@ -439,6 +453,19 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 					setErrorMessage("Can't override expansion metadata file", false);
 			}
 
+			forceReinitialisation();
+
+			auto expToSend = getExpansionFromRootFile(expRoot);
+			
+			if(expToSend != nullptr)
+				expToSend->initialise();
+
+			for (auto l : listeners)
+			{
+				if (l.get() != nullptr)
+					l->expansionInstalled(expToSend);
+			}
+
 			return SafeFunctionCall::OK;
 		};
 
@@ -448,6 +475,21 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 	}
 
 	return false;
+}
+
+juce::File ExpansionHandler::getExpansionTargetFolder(const File& resourceFile)
+{
+	hlac::HlacArchiver a(nullptr);
+
+	auto obj = a.readMetadataFromArchive(resourceFile);
+	auto expansionName = obj.getProperty("HxiName", "").toString();
+
+	if (expansionName.isNotEmpty())
+	{
+		return getExpansionFolder().getChildFile(expansionName);
+	}
+
+	return File();
 }
 
 PooledAudioFile ExpansionHandler::loadAudioFileReference(const PoolReference& sampleId)

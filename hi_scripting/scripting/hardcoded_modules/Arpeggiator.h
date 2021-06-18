@@ -42,7 +42,9 @@ namespace hise { using namespace juce;
 *	This code is based on a script by Elan Hickler.
 */
 class Arpeggiator : public HardcodedScriptProcessor,
-					public MidiControllerAutomationHandler::MPEData::Listener
+          public SliderPackProcessor,
+          public MidiControllerAutomationHandler::MPEData::Listener,
+          public Processor::BypassListener
 {
 public:
 
@@ -81,6 +83,23 @@ public:
 	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
 
 	SET_PROCESSOR_NAME("Arpeggiator", "Arpeggiator", "A arpeggiator module");
+
+
+	int getNumSliderPacks();
+
+	SliderPackData *getSliderPackData(int index) override;
+
+	const SliderPackData *getSliderPackData(int index) const override;
+
+	void bypassStateChanged(Processor*, bool isBypassed) override
+	{
+		if (!isBypassed)
+		{
+			clearUserHeldKeys();
+			reset(true, true);
+		}
+	}
+
 
 	void onInit() override;
 	void onNoteOn() override;;

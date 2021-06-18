@@ -123,6 +123,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setControlCallback);
 	API_METHOD_WRAPPER_0(ScriptComponent, getAllProperties);
+	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setZLevel);
 };
 
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
@@ -220,6 +221,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(getGlobalPositionY);
 	ADD_API_METHOD_1(setControlCallback);
 	ADD_API_METHOD_0(getAllProperties);
+	ADD_API_METHOD_1(setZLevel);
 
 	//setName(name_.toString());
 
@@ -643,8 +645,8 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 	}
 	else if (parent != nullptr)
 	{
-		ScopedLock sl(parent->lock);
-		value = controlValue;
+		SimpleReadWriteLock::ScopedWriteLock sl(valueLock);
+		std::swap(value, controlValue);
 	}
 
 	if (parent->allowGuiCreation)
@@ -1068,7 +1070,30 @@ void ScriptingApi::Content::ScriptComponent::sendSubComponentChangeMessage(Scrip
 		MessageManager::callAsync(f);
 }
 
-var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
+
+void ScriptingApi::Content::ScriptComponent::setZLevel(String zLevelToUse)
+{
+	static const StringArray validNames = { "Back", "Default", "Front", "AlwaysOnTop" };
+
+	auto idx = validNames.indexOf(zLevelToUse);
+
+	if (idx == -1)
+		reportScriptError("Invalid z-Index: " + zLevelToUse);
+
+	auto newLevel = (ZLevelListener::ZLevel)idx;
+
+	if (newLevel != currentZLevel)
+	{
+		currentZLevel = newLevel;
+
+		for (auto l : zLevelListeners)
+		{
+			if (l != nullptr)
+				l->zLevelChanged(currentZLevel);
+		}
+	}
+
+  var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
 {
 	Rectangle<float> ar(0.0f, 0.0f, (float)getScriptObjectProperty(Properties::width), (float)getScriptObjectProperty(Properties::height));
 	ar = ar.reduced(reduceAmount);
@@ -1080,6 +1105,7 @@ var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
 {
+	API_VOID_METHOD_WRAPPER_1(ScriptSlider, setValuePopupFunction);
 	API_VOID_METHOD_WRAPPER_1(ScriptSlider, setMidPoint);
 	API_VOID_METHOD_WRAPPER_3(ScriptSlider, setRange);
 	API_VOID_METHOD_WRAPPER_1(ScriptSlider, setMode);
@@ -1171,6 +1197,7 @@ maximum(1.0f)
 	initInternalPropertyFromValueTreeOrDefault(Properties::filmstripImage);
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::linkedTo);
 
+	ADD_API_METHOD_1(setValuePopupFunction);
 	ADD_API_METHOD_1(setMidPoint);
 	ADD_API_METHOD_3(setRange);
 	ADD_API_METHOD_1(setMode);
@@ -1333,6 +1360,12 @@ StringArray ScriptingApi::Content::ScriptSlider::getOptionsFor(const Identifier 
 	}
 
 	return sa;
+}
+
+void ScriptingApi::Content::ScriptSlider::setValuePopupFunction(var newFunction)
+{
+	sliderValueFunction = newFunction;
+	getPropertyValueTree().sendPropertyChangeMessage(getIdFor(parameterId));
 }
 
 void ScriptingApi::Content::ScriptSlider::setMidPoint(double valueForMidPoint)

@@ -44,10 +44,12 @@ struct ScriptExpansionHandler::Wrapper
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getExpansion);
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, getCurrentExpansion);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setExpansionCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setInstallCallback);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, encodeWithCredentials);
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, refreshExpansions);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setAllowedExpansionTypes);
 	API_METHOD_WRAPPER_2(ScriptExpansionHandler, installExpansionFromPackage);
+	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getExpansionForInstallPackage);
 };
 
 ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
@@ -55,7 +57,8 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ControlledObject(dynamic_cast<ControlledObject*>(jp_)->getMainController()),
 	jp(jp_),
 	expansionCallback(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 1),
-	errorFunction(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 2)
+	errorFunction(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 2),
+	installCallback(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 1)
 {
 	getMainController()->getExpansionHandler().addListener(this);
 
@@ -72,6 +75,10 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ADD_API_METHOD_2(installExpansionFromPackage);
 	ADD_API_METHOD_1(setAllowedExpansionTypes);
 	ADD_API_METHOD_0(getCurrentExpansion);
+	ADD_API_METHOD_1(setInstallCallback);
+	ADD_API_METHOD_1(getExpansionForInstallPackage);
+
+	
 
 	addConstant(Expansion::Helpers::getExpansionTypeName(Expansion::FileBased), Expansion::FileBased);
 	addConstant(Expansion::Helpers::getExpansionTypeName(Expansion::Intermediate), Expansion::Intermediate);
@@ -158,6 +165,16 @@ void ScriptExpansionHandler::setExpansionCallback(var expansionLoadedCallback)
 	expansionCallback.setHighPriority();
 }
 
+void ScriptExpansionHandler::setInstallCallback(var installationCallback)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(installationCallback))
+	{
+		installCallback = WeakCallbackHolder(getScriptProcessor(), installationCallback, 1);
+		installCallback.setThisObject(this);
+		installCallback.incRefCount();
+	}
+}
+
 var ScriptExpansionHandler::getUninitialisedExpansions()
 {
 	Array<var> list;
@@ -216,7 +233,7 @@ bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile, var sa
 			if (target == ScriptingApi::FileSystem::Expansions)
 				targetFolder = getMainController()->getExpansionHandler().getExpansionFolder();
 			if (target == ScriptingApi::FileSystem::Samples)
-				targetFolder = getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Samples);
+				targetFolder = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);
 		}
 		else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(sampleDirectory.getObject()))
 		{
@@ -226,6 +243,11 @@ bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile, var sa
 		if (!targetFolder.isDirectory())
 			reportScriptError("The sample directory does not exist");
 		
+		if (installCallback)
+		{
+			currentInstaller = new InstallState(*this);
+		}
+
 		return getMainController()->getExpansionHandler().installFromResourceFile(f->f, targetFolder);
 	}
 	else
@@ -233,6 +255,33 @@ bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile, var sa
 		reportScriptError("argument is not a file");
 		RETURN_IF_NO_THROW(false);
 	}
+}
+
+var ScriptExpansionHandler::getExpansionForInstallPackage(var packageFile)
+{
+	if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(packageFile.getObject()))
+	{
+		auto& eh = getMainController()->getExpansionHandler();
+		auto tf = eh.getExpansionTargetFolder(sf->f);
+
+		if (tf == File())
+			logMessage("Can't read metadata of package", false);
+
+		if (auto e = eh.getExpansionFromRootFile(tf))
+		{
+			//  In order to simulate the end user process, we do not detect file based expansions
+			//  with this call.
+			if (e->getExpansionType() != Expansion::FileBased)
+			{
+				return var(new ScriptExpansionReference(getScriptProcessor(), e));
+			}
+		}
+
+		return var();
+	}
+
+	reportScriptError("getExpansionForInstallPackage requires a file as parameter");
+	RETURN_IF_NO_THROW(var());
 }
 
 void ScriptExpansionHandler::setAllowedExpansionTypes(var typeList)
@@ -291,6 +340,91 @@ hise::ProcessorWithScriptingContent* ScriptExpansionHandler::getScriptProcessor(
 	return dynamic_cast<ProcessorWithScriptingContent*>(jp.get());
 }
 
+
+ScriptExpansionHandler::InstallState::InstallState(ScriptExpansionHandler& parent_) :
+	parent(parent_),
+	status(-1)
+{
+	parent.getMainController()->getExpansionHandler().addListener(this);
+}
+
+ScriptExpansionHandler::InstallState::~InstallState()
+{
+	parent.getMainController()->getExpansionHandler().removeListener(this);
+}
+
+void ScriptExpansionHandler::InstallState::expansionPackCreated(Expansion* newExpansion)
+{
+	
+}
+
+void ScriptExpansionHandler::InstallState::expansionInstallStarted(const File& targetRoot, const File& packageFile, const File& sampleDirectory)
+{
+	sourceFile = packageFile;
+	targetFolder = targetRoot;
+	sampleFolder = sampleDirectory;
+	createdExpansion = nullptr;
+	status = 0;
+	call();
+	startTimer(300);
+}
+
+void ScriptExpansionHandler::InstallState::expansionInstalled(Expansion* newExpansion)
+{
+	SimpleReadWriteLock::ScopedWriteLock sl(timerLock);
+
+	stopTimer();
+	status = 2;
+
+	if (newExpansion != nullptr && newExpansion->getRootFolder() == targetFolder)
+		createdExpansion = newExpansion;
+
+	call();
+
+	WeakReference<ScriptExpansionHandler> safeParent(&parent);
+
+	auto f = [safeParent]()
+	{
+		if (safeParent != nullptr)
+			safeParent.get()->currentInstaller = nullptr;
+	};
+}
+
+void ScriptExpansionHandler::InstallState::call()
+{
+	parent.installCallback.call1(getObject());
+}
+
+void ScriptExpansionHandler::InstallState::timerCallback()
+{
+	SimpleReadWriteLock::ScopedTryReadLock sl(timerLock);
+
+	if (sl.hasLock())
+	{
+		status = 1;
+		call();
+	}
+}
+
+var ScriptExpansionHandler::InstallState::getObject()
+{
+	DynamicObject::Ptr newObj = new DynamicObject();
+	newObj->setProperty("Status", status);
+	newObj->setProperty("Progress", getProgress());
+	newObj->setProperty("SourceFile", new ScriptingObjects::ScriptFile(parent.getScriptProcessor(), sourceFile));
+	newObj->setProperty("TargetFolder", new ScriptingObjects::ScriptFile(parent.getScriptProcessor(), targetFolder));
+	newObj->setProperty("SampleFolder", new ScriptingObjects::ScriptFile(parent.getScriptProcessor(), sampleFolder));
+	newObj->setProperty("Expansion", (createdExpansion != nullptr) ? var(new ScriptExpansionReference(parent.getScriptProcessor(), createdExpansion)) : var());
+
+	return var(newObj);
+}
+
+double ScriptExpansionHandler::InstallState::getProgress()
+{
+	return parent.getMainController()->getSampleManager().getPreloadProgress();
+}
+
+
 struct ScriptExpansionReference::Wrapper
 {
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getSampleMapList);
@@ -306,6 +440,7 @@ struct ScriptExpansionReference::Wrapper
 	API_METHOD_WRAPPER_1(ScriptExpansionReference, getWildcardReference);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getSampleFolder);
 	API_METHOD_WRAPPER_1(ScriptExpansionReference, setSampleFolder);
+	API_METHOD_WRAPPER_0(ScriptExpansionReference, rebuildUserPresets);
 };
 
 ScriptExpansionReference::ScriptExpansionReference(ProcessorWithScriptingContent* p, Expansion* e) :
@@ -325,6 +460,7 @@ ScriptExpansionReference::ScriptExpansionReference(ProcessorWithScriptingContent
 	ADD_API_METHOD_1(getWildcardReference);
 	ADD_API_METHOD_1(setSampleFolder);
 	ADD_API_METHOD_0(getSampleFolder);
+	ADD_API_METHOD_0(rebuildUserPresets);
 }
 
 juce::BlowFish* ScriptExpansionReference::createBlowfish()
@@ -548,11 +684,34 @@ int ScriptExpansionReference::getExpansionType() const
 	return -1;
 }
 
+bool ScriptExpansionReference::rebuildUserPresets()
+{
+	if (auto sf = dynamic_cast<ScriptEncryptedExpansion*>(exp.get()))
+	{
+		ValueTree v;
+		auto ok = sf->loadValueTree(v);
+
+		if (ok.wasOk())
+		{
+			sf->extractUserPresetsIfEmpty(v, true);
+			return true;
+		}
+		else
+		{
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), "Error at extracting user presets: ");
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), ok.getErrorMessage());
+		}
+	}
+
+	return false;
+}
+
 ScriptEncryptedExpansion::ScriptEncryptedExpansion(MainController* mc, const File& f) :
 	Expansion(mc, f)
 {
 
 }
+
 
 hise::Expansion::ExpansionType ScriptEncryptedExpansion::getExpansionType() const
 {
@@ -622,6 +781,71 @@ juce::Array<hise::FileHandlerBase::SubDirectories> ScriptEncryptedExpansion::get
 
 }
 
+
+juce::Result ScriptEncryptedExpansion::loadValueTree(ValueTree& v)
+{
+	if(getExpansionType() == Expansion::Intermediate)
+	{
+		auto& handler = getMainController()->getExpansionHandler();
+
+		if (handler.getEncryptionKey().isEmpty())
+		{
+			v = ValueTree(ExpansionIds::ExpansionInfo);
+			v.setProperty(ExpansionIds::Name, getRootFolder().getFileName(), nullptr);
+			return Result::ok(); // will fail later
+		}
+
+		auto fileToLoad = Helpers::getExpansionInfoFile(getRootFolder(), Intermediate);
+
+	#if HISE_USE_XML_FOR_HXI
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
+
+		if (xml != nullptr)
+		{
+			v = ValueTree::fromXml(*xml);
+			return Result::ok();
+		}
+
+		return Result::fail("Can't parse XML");
+	#else
+		FileInputStream fis(fileToLoad);
+		v = ValueTree::readFromStream(fis);
+
+		if (v.isValid())
+			return Result::ok();
+		else
+			return Result::fail("Can't parse ValueTree");
+	#endif
+	}
+	if (getExpansionType() == Expansion::Encrypted)
+	{
+		auto& handler = getMainController()->getExpansionHandler();
+
+		if (handler.getEncryptionKey().isEmpty() || !handler.getCredentials().isObject())
+		{
+			v = ValueTree(ExpansionIds::ExpansionInfo);
+			v.setProperty(ExpansionIds::Name, getRootFolder().getFileName(), nullptr);
+			return Result::ok(); // will fail later
+		}
+
+		zstd::ZDefaultCompressor comp;
+		auto f = Helpers::getExpansionInfoFile(getRootFolder(), Encrypted);
+
+		FileInputStream fis(f);
+
+		v = ValueTree::readFromStream(fis);
+
+		if (!v.isValid())
+			return Result::fail("Can't parse expansion data file");
+
+		return Result::ok();
+	}
+}
+
+
+
+
+
 Result ScriptEncryptedExpansion::initialise()
 {
 	auto type = getExpansionType();
@@ -630,6 +854,17 @@ Result ScriptEncryptedExpansion::initialise()
 		return Expansion::initialise();
 	else if (type == Expansion::Intermediate)
 	{
+		ValueTree v;
+		auto ok = loadValueTree(v);
+
+		if (v.isValid())
+			return initialiseFromValueTree(v);
+
+		return ok;
+
+
+
+#if 0
 		auto& handler = getMainController()->getExpansionHandler();
 
 		if (handler.getEncryptionKey().isEmpty())
@@ -653,11 +888,14 @@ Result ScriptEncryptedExpansion::initialise()
 		else
 			return Result::fail("Can't parse ValueTree");
 #endif
+#endif
 
 	}
 	else if (type == ExpansionType::Encrypted)
 	{
 		auto& handler = getMainController()->getExpansionHandler();
+#if 0
+		
 
 		if (handler.getEncryptionKey().isEmpty() || !handler.getCredentials().isObject())
 			return skipEncryptedExpansionWithoutKey();
@@ -671,6 +909,17 @@ Result ScriptEncryptedExpansion::initialise()
 
 		if (!hxpData.isValid())
 			return Result::fail("Can't parse expansion data file");
+#endif
+
+		ValueTree hxpData;
+
+		auto ok = loadValueTree(hxpData);
+
+		if (hxpData.getNumChildren() == 0)
+		{
+			data = new Data(getRootFolder(), hxpData, getMainController());
+			return Result::fail("no encryption key set for scripted encryption");
+		}
 
 		auto credTree = hxpData.getChildWithName(ExpansionIds::Credentials);
 		auto base64Obj = credTree[ExpansionIds::Data].toString();
@@ -853,6 +1102,12 @@ juce::Result ScriptEncryptedExpansion::skipEncryptedExpansionWithoutKey()
 
 Result ScriptEncryptedExpansion::initialiseFromValueTree(const ValueTree& hxiData)
 {
+	if (hxiData.getNumChildren() == 0)
+	{
+		data = new Data(getRootFolder(), hxiData, getMainController());
+		return Result::fail("no encryption key set for scripted encryption");
+	}
+
 	data = new Data(getRootFolder(), hxiData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy(), getMainController());
 
 	extractUserPresetsIfEmpty(hxiData);
@@ -943,14 +1198,14 @@ void ScriptEncryptedExpansion::addUserPresets(ValueTree encryptedTree)
 	encryptedTree.addChild(v, -1, nullptr);
 }
 
-void ScriptEncryptedExpansion::extractUserPresetsIfEmpty(ValueTree encryptedTree)
+void ScriptEncryptedExpansion::extractUserPresetsIfEmpty(ValueTree encryptedTree, bool forceExtraction)
 {
 	auto presetTree = encryptedTree.getChildWithName("UserPresets");
 
 	// the directory might not have been created yet...
 	auto targetDirectory = getRootFolder().getChildFile(FileHandlerBase::getIdentifier(FileHandlerBase::UserPresets));
 
-	if (!targetDirectory.isDirectory())
+	if (!targetDirectory.isDirectory() || forceExtraction)
 	{
 		MemoryBlock mb;
 		mb.fromBase64Encoding(presetTree.getProperty(ExpansionIds::Data).toString());
@@ -978,7 +1233,7 @@ bool FullInstrumentExpansion::isEnabled(const MainController* mc)
 	return dynamic_cast<const GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Project::ExpansionType) == "Full";
 #else
 	ignoreUnused(mc);
-	return FrontendHandler::getExpansionKey().isNotEmpty();
+	return FrontendHandler::getExpansionType() == "Full";
 #endif
 }
 
