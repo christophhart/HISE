@@ -70,9 +70,7 @@
 
 #pragma once
 
-#include "../hi_scripting/hi_scripting.h"
-
-#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
+#include "hi_dsp_library/hi_dsp_library.h"
 
 #if JUCE_LITTLE_ENDIAN && ! defined (__LITTLE_ENDIAN__)
 #define __LITTLE_ENDIAN__
@@ -88,8 +86,6 @@
 #endif
 
 //=============================================================================
-
-
 
 #include "stk/ADSR.h"
 #include "stk/Asymp.h"
@@ -179,6 +175,10 @@
 #include "stk/WvIn.h"
 #include "stk/WvOut.h"
 
+#include "hise_wrapper/stk_new_wrapper.h"
+#include "hise_wrapper/stk_effect_nodes.h"
+
+#if 0
 #if JUCE_MSVC
 #pragma warning (pop)
 #endif

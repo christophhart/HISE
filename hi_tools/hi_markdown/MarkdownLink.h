@@ -175,19 +175,9 @@ public:
 			if (path.startsWith("http"))
 				return path;
 
-
-
-
 			auto p = removeLeadingNumbers(path);
 
-			p = p.removeCharacters("():,;?");
-
-			if (!p.isEmpty() && p.endsWith("/"))
-				p = p.upToLastOccurrenceOf("/", false, false);
-
-			p = p.replace(".md", "");
-
-			return p.replaceCharacter(' ', '-').toLowerCase();
+			return StringSanitizer::get(p);
 		}
 
 		static String getSanitizedURL(const String& path)

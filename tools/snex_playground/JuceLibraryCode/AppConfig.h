@@ -18,6 +18,9 @@
 
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
+#define SNEX_STANDALONE_PLAYGROUND 1
+#define HISE_INCLUDE_SNEX 1
+
 // [END_USER_CODE_SECTION]
 
 /*
@@ -48,6 +51,7 @@
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
 //==============================================================================
+#define JUCE_MODULE_AVAILABLE_hi_dsp_library             1
 #define JUCE_MODULE_AVAILABLE_hi_lac                     1
 #define JUCE_MODULE_AVAILABLE_hi_snex                    1
 #define JUCE_MODULE_AVAILABLE_hi_tools                   1
@@ -59,6 +63,7 @@
 #define JUCE_MODULE_AVAILABLE_juce_core                  1
 #define JUCE_MODULE_AVAILABLE_juce_cryptography          1
 #define JUCE_MODULE_AVAILABLE_juce_data_structures       1
+#define JUCE_MODULE_AVAILABLE_juce_dsp                   1
 #define JUCE_MODULE_AVAILABLE_juce_events                1
 #define JUCE_MODULE_AVAILABLE_juce_graphics              1
 #define JUCE_MODULE_AVAILABLE_juce_gui_basics            1
@@ -66,6 +71,21 @@
 #define JUCE_MODULE_AVAILABLE_juce_opengl                1
 
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
+
+//==============================================================================
+// hi_dsp_library flags:
+
+#ifndef    HI_EXPORT_AS_PROJECT_DLL
+ //#define HI_EXPORT_AS_PROJECT_DLL 0
+#endif
+
+#ifndef    HI_EXPORT_DSP_LIBRARY
+ #define   HI_EXPORT_DSP_LIBRARY 0
+#endif
+
+#ifndef    IS_STATIC_DSP_LIBRARY
+ //#define IS_STATIC_DSP_LIBRARY 1
+#endif
 
 //==============================================================================
 // hi_lac flags:
@@ -91,6 +111,13 @@
 
 #ifndef    HISE_INCLUDE_SNEX
  //#define HISE_INCLUDE_SNEX 0
+#endif
+
+//==============================================================================
+// hi_tools flags:
+
+#ifndef    HISE_NO_GUI_TOOLS
+ //#define HISE_NO_GUI_TOOLS 0
 #endif
 
 //==============================================================================
@@ -121,7 +148,7 @@
 #endif
 
 #ifndef    JUCE_JACK
- //#define JUCE_JACK 0
+ //#define JUCE_JACK 1
 #endif
 
 #ifndef    JUCE_BELA
@@ -227,6 +254,29 @@
 
 #ifndef    JUCE_ENABLE_AUDIO_GUARD
  //#define JUCE_ENABLE_AUDIO_GUARD 0
+#endif
+
+//==============================================================================
+// juce_dsp flags:
+
+#ifndef    JUCE_ASSERTION_FIRFILTER
+ //#define JUCE_ASSERTION_FIRFILTER 1
+#endif
+
+#ifndef    JUCE_DSP_USE_INTEL_MKL
+ //#define JUCE_DSP_USE_INTEL_MKL 0
+#endif
+
+#ifndef    JUCE_DSP_USE_SHARED_FFTW
+ //#define JUCE_DSP_USE_SHARED_FFTW 0
+#endif
+
+#ifndef    JUCE_DSP_USE_STATIC_FFTW
+ //#define JUCE_DSP_USE_STATIC_FFTW 0
+#endif
+
+#ifndef    JUCE_DSP_ENABLE_SNAP_TO_ZERO
+ //#define JUCE_DSP_ENABLE_SNAP_TO_ZERO 1
 #endif
 
 //==============================================================================

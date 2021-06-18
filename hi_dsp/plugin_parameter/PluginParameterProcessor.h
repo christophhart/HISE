@@ -95,7 +95,7 @@ public:
 auto busProp = BusesProperties();
 
 		// Protools is behaving really nasty and hiding the instrument plugin if it hasn't at least one input bus...
-		if (getWrapperTypeBeingCreated() == wrapperType_AAX)
+		if (getWrapperTypeBeingCreated() == wrapperType_AAX || FORCE_INPUT_CHANNELS)
 			busProp = busProp.withInput("Input", AudioChannelSet::stereo());
 		
 #if IS_STANDALONE_FRONTEND

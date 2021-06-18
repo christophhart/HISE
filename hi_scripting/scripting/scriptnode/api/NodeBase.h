@@ -39,249 +39,247 @@ using namespace juce;
 using namespace hise;
 
 class DspNetwork;
+struct NodeHolder;
 class NodeComponent;
 class HardcodedNode;
 class RestorableNode;
 class NodeBase;
 
+struct HelpManager : ControlledObject
+{
+	HelpManager(NodeBase* parent, ValueTree d);
 
+	struct Listener
+	{
+		virtual ~Listener() {};
+
+		virtual void helpChanged(float newWidth, float newHeight) = 0;
+
+		virtual void repaintHelp() = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
+
+	void update(Identifier id, var newValue);
+	void render(Graphics& g, Rectangle<float> area);
+	void addHelpListener(Listener* l);
+	void removeHelpListener(Listener* l);
+
+	Rectangle<float> getHelpSize() const;
+
+private:
+
+	void rebuild();
+
+	String lastText;
+	Colour highlightColour = Colour(SIGNAL_COLOUR);
+
+	float lastWidth = 300.0f;
+	float lastHeight = 0.0f;
+
+	Array<WeakReference<HelpManager::Listener>> listeners;
+	ScopedPointer<hise::MarkdownRenderer> helpRenderer;
+	valuetree::PropertyListener commentListener;
+	valuetree::PropertyListener colourListener;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(HelpManager);
+};
+
+/** A parameter of a node. */
+class Parameter : public ConstScriptingObject
+{
+public:
+
+	Identifier getObjectName() const override { return PropertyIds::Parameter; }
+
+	Parameter(NodeBase* parent_, ValueTree& data_);;
+
+	// ======================================================================== API Calls
+
+	/** Adds (and/or) returns a connection from the given data. */
+	var addConnectionFrom(var connectionData);
+
+	/** Returns the name of the parameter. */
+	String getId() const;
+
+	/** Returns the current value. */
+	double getValue() const;
+
+	/** Sets the value immediately and stores it asynchronously. */
+	void setValueAndStoreAsync(double newValue);
+
+	// ================================================================== End of API Calls
+
+	ValueTree getConnectionSourceTree(bool forceUpdate);
+
+	bool matchesConnection(const ValueTree& c) const;
+
+	Array<Parameter*> getConnectedMacroParameters() const;
+
+	parameter::dynamic_base_holder& getReferenceToCallback()
+	{
+		return dbNew;
+	}
+
+	const parameter::dynamic_base_holder& getCallback() const
+	{
+		return dbNew;
+	}
+
+	void setCallbackNew(parameter::dynamic_base* ownedNew);
+
+	StringArray valueNames;
+	NodeBase* parent;
+	
+
+	void updateFromValueTree(Identifier, var newValue)
+	{
+		setValueAndStoreAsync((double)newValue);
+	}
+
+	void setTreeWithValue(ValueTree v);
+
+	ValueTree getTreeWithValue() const { return treeThatStoresValue; }
+
+	ValueTree data;
+
+	bool isProbed = false;
+
+	void ensureAfterValueCallback(valuetree::PropertyListener& l)
+	{
+		l.setHighPriorityListener(&valuePropertyUpdater);
+	}
+
+	bool isModulated() const { return (bool)data.getProperty(PropertyIds::ModulationTarget, false); }
+
+private:
+
+	ValueTree treeThatStoresValue;
+	parameter::dynamic_base_holder dbNew;
+
+	ValueTree connectionSourceTree;
+
+	struct Wrapper;
+
+	valuetree::PropertyListener opTypeListener;
+	valuetree::PropertyListener valuePropertyUpdater;
+	valuetree::PropertyListener idUpdater;
+	valuetree::PropertyListener modulationStorageBypasser;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Parameter);
+};
 
 /** A node in the DSP network. */
 class NodeBase : public ConstScriptingObject
 {
 public:
 
-	struct HelpManager: ControlledObject
-	{
-		HelpManager(NodeBase& parent, ValueTree d);
+	using Parameter = Parameter;
 
-		struct Listener
-		{
-			virtual ~Listener() {};
-
-			virtual void helpChanged(float newWidth, float newHeight) = 0;
-
-			virtual void repaintHelp() = 0;
-
-		private:
-
-			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
-		};
-
-		void update(Identifier id, var newValue)
-		{
-			if (id == PropertyIds::NodeColour)
-			{
-				highlightColour = PropertyHelpers::getColourFromVar(newValue);
-				if (highlightColour.isTransparent())
-					highlightColour = Colour(SIGNAL_COLOUR);
-
-				if (helpRenderer != nullptr)
-				{
-					helpRenderer->getStyleData().headlineColour = highlightColour;
-					
-					helpRenderer->setNewText(lastText);
-
-					for (auto l : listeners)
-					{
-						if (l != nullptr)
-							l->repaintHelp();
-					}
-				}
-			}
-			else if (id == PropertyIds::Comment)
-			{
-				lastText = newValue.toString();
-				rebuild();
-			}
-			else if (id == PropertyIds::CommentWidth)
-			{
-				lastWidth = (float)newValue;
-
-				rebuild();
-			}
-		}
-
-		void render(Graphics& g, Rectangle<float> area)
-		{
-			if (helpRenderer != nullptr && !area.isEmpty())
-			{
-				area.removeFromLeft(10.0f);
-				g.setColour(Colours::black.withAlpha(0.1f));
-				g.fillRoundedRectangle(area, 2.0f);
-				helpRenderer->draw(g, area.reduced(10.0f));
-			}
-				
-		}
-
-		void addHelpListener(Listener* l)
-		{
-			listeners.addIfNotAlreadyThere(l);
-			l->helpChanged(lastWidth + 30.0f, lastHeight + 20.0f);
-		}
-
-		void removeHelpListener(Listener* l)
-		{
-			listeners.removeAllInstancesOf(l);
-		}
-
-		Rectangle<float> getHelpSize() const
-		{
-			return { 0.0f, 0.0f, lastHeight > 0.0f ? lastWidth + 30.0f : 0.0f, lastHeight + 20.0f };
-		}
-
-	private:
-
-		void rebuild()
-		{
-			if (lastText.isNotEmpty())
-			{
-				helpRenderer = new MarkdownRenderer(lastText);
-				helpRenderer->setDatabaseHolder(dynamic_cast<MarkdownDatabaseHolder*>(getMainController()));
-				helpRenderer->getStyleData().headlineColour = highlightColour;
-				helpRenderer->setDefaultTextSize(15.0f);
-				helpRenderer->parse();
-				lastHeight = helpRenderer->getHeightForWidth(lastWidth);
-			}
-			else
-			{
-				helpRenderer = nullptr;
-				lastHeight = 0.0f;
-			}
-
-			for (auto l : listeners)
-			{
-				if (l != nullptr)
-					l->helpChanged(lastWidth + 30.0f, lastHeight);
-			}
-		}
-
-		String lastText;
-		Colour highlightColour = Colour(SIGNAL_COLOUR);
-
-		float lastWidth = 300.0f;
-		float lastHeight = 0.0f;
-
-		Array<WeakReference<HelpManager::Listener>> listeners;
-		ScopedPointer<hise::MarkdownRenderer> helpRenderer;
-		valuetree::PropertyListener commentListener;
-		valuetree::PropertyListener colourListener;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(HelpManager);
-	};
-
+	using FrameType = snex::Types::dyn<float>;
+	using MonoFrameType = snex::Types::span<float, 1>;
+	using StereoFrameType = snex::Types::span<float, 2>;
 	using Ptr = WeakReference<NodeBase>;
 	using List = Array<WeakReference<NodeBase>>;
 
-	/** A parameter of a node. */
-	class Parameter: public ConstScriptingObject
+	struct Holder
 	{
-	public:
-
-		Identifier getObjectName() const override { return PropertyIds::Parameter; }
-
-		Parameter(NodeBase* parent_, ValueTree& data_);;
-		
-		void addModulationValue(double newValue);
-		void multiplyModulationValue(double newValue);
-
-		void clearModulationValues();
-
-		// ======================================================================== API Calls
-
-		/** Adds (and/or) returns a connection from the given data. */
-		var addConnectionFrom(var connectionData);
-
-		/** Returns the name of the parameter. */
-		String getId() const;
-
-		/** Returns the current value (without modulation). */
-		double getValue() const;
-
-		/** Returns the last value including modulation. */
-		double getModValue() const;
-
-		/** Sets the value immediately and stores it asynchronously. */
-		void setValueAndStoreAsync(double newValue);
-
-		// ================================================================== End of API Calls
-
-		bool matchesConnection(const ValueTree& c) const;
-
-		Array<Parameter*> getConnectedMacroParameters() const;
-
-		void prepare(PrepareSpecs specs)
+		virtual ~Holder() 
 		{
-			value.prepare(specs);
+			root = nullptr;
+			nodes.clear();
 		}
 
-		DspHelpers::ParameterCallback& getReferenceToCallback();
-		DspHelpers::ParameterCallback getCallback() const;
-		void setCallback(const DspHelpers::ParameterCallback& newCallback);
+		NodeBase* getRootNode() const { return root.get(); }
 
-		StringArray valueNames;
-		NodeBase::Ptr parent;
-		ValueTree data;
-
-		void updateFromValueTree(Identifier, var newValue)
+		void setRootNode(NodeBase::Ptr newRootNode)
 		{
-			setValueAndStoreAsync((double)newValue);
+			root = newRootNode;
 		}
 
-	private:
+		ReferenceCountedObjectPtr<NodeBase> root;
+		ReferenceCountedArray<NodeBase> nodes;
 
-		struct Wrapper;
-
-		double lastValue = 0.0;
-
-		static void nothing(double) {};
-		void storeValue();
-
-		valuetree::PropertyListener opTypeListener;
-		valuetree::PropertyListener valuePropertyUpdater;
-		valuetree::PropertyListener idUpdater;
-		valuetree::PropertyListener modulationStorageBypasser;
-		DspHelpers::ParameterCallback db = nothing;
-		LockFreeUpdater valueUpdater;
-
-		struct ParameterValue
-		{
-			double modAddValue = 0.0;
-			double modMulValue = 1.0;
-			double value = 0.0;
-			double lastValue = 0.0;
-
-			bool updateLastValue()
-			{
-				auto thisValue = getModValue();
-				std::swap(thisValue, lastValue);
-				return thisValue != lastValue;
-			}
-
-			double getModValue() const
-			{
-				return (value + modAddValue) * modMulValue;
-			}
-
-		};
-		
-		PolyData<ParameterValue, NUM_POLYPHONIC_VOICES> value;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Parameter);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Holder);
 	};
 
+	struct DynamicBypassParameter : public parameter::dynamic_base
+	{
+		DynamicBypassParameter(NodeBase* n, Range<double> enabledRange_) :
+			node(n),
+			enabledRange(enabledRange_)
+		{
+			jassert(n != nullptr);
+
+			if (n != nullptr)
+				dataTree = n->getValueTree();
+		};
+
+		void call(double v) final override
+		{
+			bypassed = !enabledRange.contains(v) && enabledRange.getEnd() != v;
+			node->setBypassed(bypassed);
+		}
+
+		virtual void updateUI()
+		{
+			if (dataTree.isValid())
+				dataTree.setProperty(PropertyIds::Bypassed, bypassed, nullptr);
+		};
+
+		bool bypassed = false;
+		WeakReference<NodeBase> node;
+		Range<double> enabledRange;
+	};
+
+	
+
 	NodeBase(DspNetwork* rootNetwork, ValueTree data, int numConstants);;
-	virtual ~NodeBase() {}
+	virtual ~NodeBase();
 
-	virtual void process(ProcessData& data) = 0;
+	virtual void process(ProcessDataDyn& data) = 0;
 
-	virtual void prepare(PrepareSpecs specs) = 0;
+	virtual void prepare(PrepareSpecs specs);
 
 	Identifier getObjectName() const final override { return PropertyIds::Node; };
 
-	void prepareParameters(PrepareSpecs specs);
+	virtual void processFrame(FrameType& data) = 0;
+	
+	virtual bool forEach(const std::function<bool(NodeBase::Ptr)>& f)
+	{
+		return f(this);
+	}
 
-	virtual void processSingle(float* frameData, int numChannels);
+	virtual void processMonoFrame(MonoFrameType& data)
+	{
+		FrameType dynData(data);
+		processFrame(dynData);
+	}
+
+	template <typename T> T* findParentNodeOfType()
+	{
+		NodeBase* p = parentNode.get();
+
+		while (p != nullptr)
+		{
+			if (auto asT = dynamic_cast<T*>(p))
+				return asT;
+
+			p = p->parentNode;
+		}
+
+		return nullptr;
+	}
+
+	virtual void processStereoFrame(StereoFrameType& data)
+	{
+		FrameType dynData(data);
+		processFrame(dynData);
+	}
+
+	virtual bool isProcessingHiseEvent() const { return false; }
 
 	virtual void handleHiseEvent(HiseEvent& e)
 	{
@@ -291,20 +289,20 @@ public:
 	/** Reset the node's internal state (eg. at voice start). */
 	virtual void reset() = 0;
 
-	virtual String createCppClass(bool isOuterClass);
-
 	virtual NodeComponent* createComponent();
+
+	virtual String getNodeDescription() const { return {}; }
 
 	virtual Rectangle<int> getPositionInCanvas(Point<int> topLeft) const;
 	
-	virtual HardcodedNode* getAsHardcodedNode() { return nullptr; }
+	virtual ParameterDataList createInternalParameterList() { return {}; }
 
-	virtual RestorableNode* getAsRestorableNode() { return nullptr; }
+	NamespacedIdentifier getPath() const;
 
 	// ============================================================================================= BEGIN NODE API
 
 	/** Bypasses the node. */
-	void setBypassed(bool shouldBeBypassed);
+	virtual void setBypassed(bool shouldBeBypassed);
 
 	/** Checks if the node is bypassed. */
 	bool isBypassed() const noexcept;
@@ -324,25 +322,18 @@ public:
 	/** Inserts the node into the given parent container. */
 	void setParent(var parentNode, int indexInParent);
 
-	/** Writes the modulation signal into the given buffer. */
-	void writeModulationSignal(var buffer);
-
-	/** Creates a buffer object that can be used to display the modulation values. */
-	var createRingBuffer();
-	
 	/** Returns a reference to a parameter.*/
 	var getParameterReference(var indexOrId) const;
 
 	// ============================================================================================= END NODE API
 
 	void setValueTreeProperty(const Identifier& id, const var value);
-
 	void setDefaultValue(const Identifier& id, var newValue);
-
 	void setNodeProperty(const Identifier& id, const var& newValue);
-
 	
 	var getNodeProperty(const Identifier& id) ;
+
+	bool hasNodeProperty(const Identifier& id) const;
 
 	Value getNodePropertyAsValue(const Identifier& id);
 
@@ -366,6 +357,10 @@ public:
 	void addConnectionToBypass(var dragDetails);
 
 	DspNetwork* getRootNetwork() const;
+
+	/** Not necessarily the DSP network. */
+	NodeBase::Holder* getNodeHolder() const;
+
 	ValueTree getParameterTree() { return v_data.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager()); }
 	
 	ValueTree getPropertyTree() { return v_data.getOrCreateChildWithName(PropertyIds::Properties, getUndoManager()); }
@@ -391,37 +386,25 @@ public:
 	ValueTree getValueTree() const;
 	String getId() const;
 	UndoManager* getUndoManager() const;
-
-    
-    virtual void postInit() {};
     
 	Rectangle<int> getBoundsToDisplay(Rectangle<int> originalHeight) const;
 
 	Rectangle<int> getBoundsWithoutHelp(Rectangle<int> originalHeight) const;
 
-	void setNumChannels(int newNumChannels)
-	{
-		if (!v_data[PropertyIds::LockNumChannels])
-			setValueTreeProperty(PropertyIds::NumChannels, newNumChannels);
-	}
+	
 
-	bool hasFixChannelAmount() const;
+	
 
-	int getNumChannelsToProcess() const { return (int)v_data[PropertyIds::NumChannels]; };
+	
 
 	int getNumParameters() const;;
 	Parameter* getParameter(const String& id) const;
 	Parameter* getParameter(int index) const;
 
-	
-
 	void addParameter(Parameter* p);
 	void removeParameter(int index);
 
-	void setParentNode(Ptr newParentNode)
-	{
-		parentNode = newParentNode;
-	}
+	void setParentNode(Ptr newParentNode);
 
 	void setCurrentId(const String& newId)
 	{
@@ -430,19 +413,62 @@ public:
 
 	String getCurrentId() const { return currentId; }
 
+	static void showPopup(Component* childOfGraph, Component* c);
+
 	struct Wrapper;
 
-private:
+	virtual Rectangle<int> getExtraComponentBounds() const
+	{
+		return {};
+	}
 
-	WeakReference<ConstScriptingObject> parent;
+	double& getCpuFlag() { return cpuUsage; }
+
+	String getCpuUsageInPercent() const;
+
+	void setIsUINodeOfDuplicates(bool on)
+	{
+		uiNodeOfDuplicates = on;
+		forEach([&](NodeBase::Ptr p)
+		{
+			if (p == this)
+				return false;
+
+			p->setIsUINodeOfDuplicates(on); return false; 
+		});
+	}
+
+	bool isUINodeOfDuplicate() const { return uiNodeOfDuplicates; }
+
+	int getCurrentChannelAmount() const { return numChannels.get(); };
+
+	void setEmbeddedNetwork(NodeBase::Holder* n);
+
+	DspNetwork* getEmbeddedNetwork();
+	const DspNetwork* getEmbeddedNetwork() const;
 
 protected:
 
-	
-
 	ValueTree v_data;
+	PrepareSpecs lastSpecs;
 
 private:
+
+	void updateFrozenState(Identifier id, var newValue);
+
+	bool containsNetwork = false;
+
+	valuetree::PropertyListener frozenListener;
+
+	CachedValue<int> numChannels;
+
+	bool uiNodeOfDuplicates = false;
+
+	WeakReference<NodeBase::Holder> embeddedNetwork;
+	WeakReference<NodeBase::Holder> parent;
+	WeakReference<NodeBase::Holder> subHolder;
+	
+	double cpuUsage = 0.0;
 
 	bool isCurrentlyMoved = false;
 
@@ -450,18 +476,50 @@ private:
 
 	HelpManager helpManager;
 
-	CachedValue<bool> bypassed;
-	bool pendingBypassState;
-	LockFreeUpdater bypassUpdater;
+	valuetree::PropertyListener bypassListener;
+	
+	bool bypassState = false;
 
 	ReferenceCountedArray<Parameter> parameters;
-
-	
 	WeakReference<NodeBase> parentNode;
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeBase);
 };
 
+#define ENABLE_NODE_PROFILING 1
+
+struct DummyNodeProfiler
+{
+	DummyNodeProfiler(NodeBase* unused)
+	{
+		ignoreUnused(unused);
+	}
+};
+
+struct RealNodeProfiler
+{
+	RealNodeProfiler(NodeBase* n);
+
+	~RealNodeProfiler()
+	{
+		if (enabled)
+		{
+			auto delta = Time::getMillisecondCounterHiRes() - start;
+			profileFlag = profileFlag * 0.9 + 0.1 * delta;
+		}
+	}
+
+	bool enabled;
+	double& profileFlag;
+	double start;
+};
+
+#if ENABLE_NODE_PROFILING
+using NodeProfiler = RealNodeProfiler;
+#else
+using NodeProfiler = DummyNodeProfiler;
+#endif
 
 /** A connection between two parameters or a parameter and a modulation source. */
 class ConnectionBase : public ConstScriptingObject
@@ -507,22 +565,6 @@ public:
 
 	// ============================================================================== End of API Calls
 
-	void setOpTypeFromId(const Identifier& id)
-	{
-		if (id == OperatorIds::SetValue)
-			opType = SetValue;
-		else if (id == OperatorIds::Add)
-			opType = Add;
-		else if (id == OperatorIds::Multiply)
-			opType = Multiply;
-	}
-
-	Identifier getOpType() const
-	{
-		static const Identifier ids[OpType::numOpTypes] = { OperatorIds::SetValue, OperatorIds::Multiply, OperatorIds::Add };
-		return ids[opType];
-	}
-
 	bool objectDeleted() const override
 	{
 		return !data.getParent().isValid();
@@ -533,15 +575,13 @@ public:
 		return data.getParent().isValid();
 	}
 
+	static parameter::dynamic_chain* createParameterFromConnectionTree(NodeBase* n, const ValueTree& connectionTree, bool throwIfNotFound=false);
+
 	ValueTree data;
 
-	valuetree::PropertyListener opTypeListener;
 	valuetree::RemoveListener nodeRemoveUpdater;
 
-	OpType opType = SetValue;
-
 	NormalisableRange<double> connectionRange;
-	bool inverted = false;
 
 	ReferenceCountedObjectPtr<NodeBase::Parameter> targetParameter;
 

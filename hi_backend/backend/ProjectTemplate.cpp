@@ -48,7 +48,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "              pluginAAXCategory=\"%AAX_CATEGORY%\" jucerVersion=\"5.2.0\"\r\n"
 "              companyName=\"%COMPANY%\" companyWebsite=\"%COMPANY_WEBSITE%\" companyCopyright=\"%COMPANY_COPYRIGHT%\""
 "   displaySplashScreen=\"0\""
-"     reportAppUsage=\"0\" splashScreenColour=\"Dark\" enableIAA=\"1\" cppLanguageStandard=\"14\">\r\n"
+"     reportAppUsage=\"0\" splashScreenColour=\"Dark\" enableIAA=\"1\" cppLanguageStandard=\"17\">\r\n"
 "  <MAINGROUP id=\"SLR7uY\" name=\"%NAME%\">\r\n"
 "    <GROUP id=\"{122C85F1-8B09-257A-B636-113E3EAC258A}\" name=\"Source\">\r\n"
 "      <FILE id=\"eLP6Ii\" name=\"balanceKnob_200.png\" compile=\"0\" resource=\"1\"\r\n"

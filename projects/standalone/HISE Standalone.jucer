@@ -2,11 +2,13 @@
 
 <JUCERPROJECT id="jUHBuI" name="HISE Standalone" projectType="guiapp" version="2.1.0"
               bundleIdentifier="com.hartinstruments.HISEStandalone" includeBinaryInAppConfig="1"
-              jucerVersion="5.4.5" companyName="Hart Instruments" companyWebsite="http://hise.audio"
+              jucerVersion="5.4.3" companyName="Hart Instruments" companyWebsite="http://hise.audio"
               companyCopyright="Hart Instruments" displaySplashScreen="0" reportAppUsage="0"
-              splashScreenColour="Dark" cppLanguageStandard="14">
+              splashScreenColour="Dark" cppLanguageStandard="17">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
+      <FILE id="Fw455d" name="ScriptNodeTestSuite.cpp" compile="1" resource="0"
+            file="../../hi_scripting/scripting/scriptnode/ScriptNodeTestSuite.cpp"/>
       <FILE id="ho3qQy" name="logo_new.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_new.png"/>
       <FILE id="YnIt9L" name="logo_mini.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_mini.png"/>
       <FILE id="yjZXfQ" name="DspUnitTests.cpp" compile="1" resource="0"
@@ -36,6 +38,8 @@
       <FILE id="h7HW4R" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="btXzOW" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
     </GROUP>
+    <FILE id="OLb0nc" name="knob_without_arrow.png" compile="0" resource="1"
+          file="../../hi_core/hi_images/knob_without_arrow.png"/>
   </MAINGROUP>
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="ho3qQy" bigIcon="ho3qQy"

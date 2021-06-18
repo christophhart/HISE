@@ -642,7 +642,7 @@ void reset()
     uptime = 0.0;
 }
 
-void handleEvent(event e)
+void handleHiseEvent(event e)
 {
     // get the frequency (in Hz) from the event
     const double cyclesPerSecond = e.getFrequency();

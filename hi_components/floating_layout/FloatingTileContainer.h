@@ -147,8 +147,7 @@ private:
 
 /** A tab component that sits within a floating tile. */
 class FloatingTabComponent : public FloatingTileContainer,
-	public TabbedComponent,
-	public ButtonListener
+	public TabbedComponent
 {
 public:
 
@@ -206,7 +205,10 @@ public:
 	void paint(Graphics& g) override;
 
 	void resized();
-	void buttonClicked(Button* b) override;
+
+	void addButtonClicked();
+
+	void setAddButtonCallback(const std::function<void()>& f);
 
 private:
 
@@ -303,7 +305,9 @@ public:
 
 	void enableAnimationForNextLayout()
 	{
+#if HISE_FLOATING_TILE_ALLOW_RESIZE_ANIMATION
 		animate = true;
+#endif
 	}
 
 	void resized() override;

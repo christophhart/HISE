@@ -2370,6 +2370,7 @@ juce::String FileHandlerBase::getIdentifier(SubDirectories dir)
 	case SubDirectories::SampleMaps:		return "SampleMaps/";
 	case SubDirectories::MidiFiles:			return "MidiFiles/";
 	case SubDirectories::Documentation:		return "Documentation/";
+	case SubDirectories::DspNetworks:		return "DspNetworks";
 	case SubDirectories::numSubDirectories:
 	default:								jassertfalse; return String();
 	}
@@ -2567,6 +2568,7 @@ juce::String FileHandlerBase::getWildcardForFiles(SubDirectories directory)
 	case hise::FileHandlerBase::Presets:				return "*.hip";
 	case hise::FileHandlerBase::XMLPresetBackups:		return "*.xml";
 	case hise::FileHandlerBase::MidiFiles:				return "*.mid;*.MID";
+	case hise::FileHandlerBase::DspNetworks:			return "*.xml";
 	case hise::FileHandlerBase::Binaries:				
 	case hise::FileHandlerBase::AdditionalSourceCode:
 	case hise::FileHandlerBase::numSubDirectories:		

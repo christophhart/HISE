@@ -39,12 +39,13 @@ using namespace hise;
 
 
 
-struct ParameterKnobLookAndFeel : public LookAndFeel_V3
+struct ParameterKnobLookAndFeel : public GlobalHiseLookAndFeel
 {
 	ParameterKnobLookAndFeel();
 
 	Image cachedImage_smalliKnob_png;
 	Image cachedImage_knobRing_png;
+	Image withoutArrow;
 
 	Font getLabelFont(Label&) override;
 
@@ -97,7 +98,7 @@ struct ParameterKnobLookAndFeel : public LookAndFeel_V3
 
 		void updateText()
 		{
-			if (parent->isMouseOverOrDragging(true) || isMouseOver())
+			if (parent->isMouseButtonDown(true))
 				setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
 			else
 				setText(parent->getName(), dontSendNotification);
@@ -127,18 +128,59 @@ struct ParameterSlider : public Slider,
 	public DragAndDropTarget,
 	public PooledUIUpdater::SimpleTimer
 {
+	struct RangeButton : public Component
+	{
+		RangeButton()
+		{
+			setRepaintsOnMouseActivity(true);
+		};
+
+		void mouseUp(const MouseEvent& e) override
+		{
+			findParentComponentOfClass<ParameterSlider>()->showRangeComponent(false);
+		}
+
+		void paint(Graphics& g) override
+		{
+			static const unsigned char pathData[] = { 110,109,246,40,170,65,102,102,214,65,108,246,40,170,65,240,39,42,66,108,0,0,0,0,246,40,170,65,108,246,40,170,65,0,0,0,0,108,246,40,170,65,242,210,123,65,108,147,24,34,66,242,210,123,65,108,147,24,34,66,0,0,0,0,108,14,45,119,66,246,40,170,65,108,147,24,
+34,66,240,39,42,66,108,147,24,34,66,102,102,214,65,108,246,40,170,65,102,102,214,65,99,101,0,0 };
+
+			auto over = isMouseOver(true);
+			auto down = isMouseButtonDown(true);
+
+			Path p;
+			p.loadPathFromData(pathData, sizeof(pathData));
+			PathFactory::scalePath(p, getLocalBounds().toFloat().reduced(isMouseButtonDown() ? 2.0f : 1.0f));
+
+			float alpha = 0.0f;
+			
+			if (getParentComponent()->isMouseOverOrDragging(true))
+				alpha += 0.05f;
+
+			if (over)
+				alpha = 0.4f;
+
+			if (down)
+				alpha += 0.2f;
+
+			g.setColour(Colours::white.withAlpha(alpha));
+
+			g.fillPath(p);
+		}
+	} rangeButton;
+
+	struct RangeComponent;
+
 	ParameterSlider(NodeBase* node_, int index);
     ~ParameterSlider();
     
 	void updateOnConnectionChange(ValueTree p, bool wasAdded);
 
-	void updateOnOpTypeChange(Identifier id, var newValue);
-
 	void checkEnabledState();
 	void updateRange(Identifier, var);
-	void timerCallback() override;
-
 	void paint(Graphics& g) override;
+
+	void timerCallback() override { repaint(); }
 
 	bool isInterestedInDragSource(const SourceDetails& details) override;
 	void itemDragEnter(const SourceDetails& dragSourceDetails) override;
@@ -149,14 +191,27 @@ struct ParameterSlider : public Slider,
 
 	valuetree::RecursiveTypedChildListener connectionListener;
 	
-	OwnedArray<valuetree::PropertyListener> opTypeListeners;
-
 	valuetree::PropertyListener valueListener;
 	valuetree::PropertyListener rangeListener;
+
+	/** Returns either the Connection or the ModulationTarget, or SwitchTarget tree if it's connected. */
+	ValueTree getConnectionSourceTree();
 
 	bool matchesConnection(ValueTree& c) const;
 
 	void mouseDown(const MouseEvent& e) override;
+
+	void mouseEnter(const MouseEvent& e) override;
+
+	void mouseMove(const MouseEvent& e) override;
+
+	void mouseExit(const MouseEvent& e) override;
+
+	void resized() override;
+
+	void showRangeComponent(bool temporary);
+
+	void mouseDoubleClick(const MouseEvent&) override;
 
 	void sliderDragStarted(Slider*) override;
 	void sliderDragEnded(Slider*) override;
@@ -165,6 +220,10 @@ struct ParameterSlider : public Slider,
 
 	String getTextFromValue(double value) override;;
 	double getValueFromText(const String& text) override;
+
+	double getValueToDisplay() const;
+
+	bool isControllingFrozenNode() const;
 
 	int macroHoverIndex = -1;
 	double lastModValue = 0.0f;
@@ -175,6 +234,9 @@ struct ParameterSlider : public Slider,
 	ValueTree pTree;
 	ParameterKnobLookAndFeel laf;
 	NodeBase::Ptr node;
+	ScopedPointer<RangeComponent> currentRangeComponent;
+	var currentConnection;
+	const int index;
 };
 
 
@@ -186,6 +248,10 @@ struct MacroParameterSlider : public Component
 
 	void mouseDrag(const MouseEvent& event) override;
 
+	void mouseUp(const MouseEvent& e) override;
+
+	
+
 	void paintOverChildren(Graphics& g) override;
 
 	void setEditEnabled(bool shouldBeEnabled);
@@ -196,9 +262,11 @@ struct MacroParameterSlider : public Component
 
 	void focusLost(FocusChangeType) override { repaint(); }
 
+	bool editEnabled = false;
+
 private:
 
-	bool editEnabled = false;
+	
 
 	ParameterSlider slider;
 };

@@ -37,7 +37,7 @@ namespace hise {
 
 	juce::Path ChainBarPathFactory::createPath(const String& id) const
 	{
-		auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
+		auto url = StringSanitizer::get(id);
 
 		Path p;
 
@@ -60,7 +60,7 @@ namespace hise {
 	}
 
 	PathFactory::Description::Description(const String& name, const String& description_) :
-		url(MarkdownLink::Helpers::getSanitizedFilename(name)),
+		url(StringSanitizer::get(name)),
 		description(description_.trim())
 	{
 
@@ -72,7 +72,7 @@ namespace hise {
 
 		if (mappings.size() > 0)
 		{
-			auto url = MarkdownLink::Helpers::getSanitizedFilename(info.shortName);
+			auto url = StringSanitizer::get(info.shortName);
 
 			for (const auto& m : mappings)
 			{
@@ -87,7 +87,7 @@ namespace hise {
 
 	PathFactory::KeyMapping::KeyMapping(const String& name, int keyCode, ModifierKeys::Flags mods)
 	{
-		url = MarkdownLink::Helpers::getSanitizedFilename(name);
+		url = StringSanitizer::get(name);
 		k = KeyPress(keyCode, mods, 0);
 	}
 

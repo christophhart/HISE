@@ -343,7 +343,7 @@ public:
 					 
 	{
 		setInternalAttribute(parameterIndex, newValue);
-		if(notifyEditor == sendNotification) sendChangeMessage();
+		if(notifyEditor == sendNotification) sendPooledChangeMessage();
 	}
 
 	/** returns the attribute with the specified index (use a enum in the derived class). */
@@ -784,7 +784,7 @@ public:
 	}
 
 	/** This returns the number of (named) parameters. */
-	int getNumParameters() const;; 
+	virtual int getNumParameters() const;; 
 
 	/** Call this method after inserting the processor in the signal chain.
 	*
@@ -995,6 +995,8 @@ public:
 	static Array<WeakReference<Processor>> getListOfAllGlobalModulators(const Processor* rootProcessor);
 
 	template <class ProcessorType> static int getAmountOf(const Processor *rootProcessor, const Processor *upTochildProcessor = nullptr);
+
+	static StringArray getAllIdsForDataType(const Processor* rootProcessor, snex::ExternalData::DataType dataType);
 
 	template <class ProcessorType> static StringArray getAllIdsForType(const Processor *rootProcessor)
 	{

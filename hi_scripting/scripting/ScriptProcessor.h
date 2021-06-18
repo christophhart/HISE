@@ -249,7 +249,7 @@ public:
 
 	virtual void fileChanged() = 0;
 
-	void addFileWatcher(const File &file);
+	ExternalScriptFile::Ptr addFileWatcher(const File &file);
 
 	void setFileResult(const File &file, Result r);
 
@@ -314,126 +314,12 @@ private:
 	static void addFileContentToValueTree(ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport);
 };
 
+using namespace snex;
 
-class ComplexDataHolder: public SliderPackProcessor,
-						 public LookupTableProcessor
-{
-public:
 
-	virtual ~ComplexDataHolder() {};
 
-	SliderPackData* getSliderPackData(int index) override
-	{
-		if (auto d = sliderPacks[index])
-			return d->getSliderPackData();
 
-		return nullptr;
-	}
 
-	const SliderPackData* getSliderPackData(int index) const override
-	{
-		if (auto d = sliderPacks[index])
-			return d->getSliderPackData();
-
-		return nullptr;
-	}
-
-	Table* getTable(int index) const override
-	{
-		if (auto d = tables[index])
-			return d->getTable();
-
-		return nullptr;
-	}
-
-	int getNumTables() const override { return tables.size(); };
-
-	int getNumSliderPacks() const override { return sliderPacks.size(); }
-
-	int getNumAudioFiles() const { return audioFiles.size(); };
-
-	void saveComplexDataTypeAmounts(ValueTree& v) const
-	{
-		if (!sliderPacks.isEmpty())
-			v.setProperty("NumSliderPacks", sliderPacks.size(), nullptr);
-
-		if (!tables.isEmpty())
-			v.setProperty("NumTables", sliderPacks.size(), nullptr);
-
-		if (!audioFiles.isEmpty())
-			v.setProperty("NumAudioFiles", audioFiles.size(), nullptr);
-	}
-
-	void restoreComplexDataTypes(const ValueTree& v)
-	{
-		auto pc = dynamic_cast<ProcessorWithScriptingContent*>(this);
-
-		int numSliderPacks = v.getProperty("NumSliderPacks", 0);
-
-		if (numSliderPacks > 0)
-		{
-			sliderPacks.ensureStorageAllocated(numSliderPacks);
-
-			for (int i = 0; i < numSliderPacks; i++)
-				sliderPacks.add(new ScriptingObjects::ScriptSliderPackData(pc));
-		}
-
-		int numTables = v.getProperty("NumTables", 0);
-
-		if (numTables > 0)
-		{
-			tables.ensureStorageAllocated(numTables);
-
-			for (int i = 0; i < numTables; i++)
-				tables.add(new ScriptingObjects::ScriptTableData(pc));
-		}
-
-		int numAudioFiles = v.getProperty("NumAudioFiles", 0);
-
-		if (numAudioFiles > 0)
-		{
-			audioFiles.ensureStorageAllocated(numAudioFiles);
-
-			for (int i = 0; i < numAudioFiles; i++)
-				audioFiles.add(new ScriptingObjects::ScriptAudioFile(pc));
-		}
-	}
-
-	ScriptingObjects::ScriptSliderPackData* addOrReturnSliderPackObject(int index)
-	{
-		if (auto d = sliderPacks[index])
-			return d;
-
-		sliderPacks.set(index, new ScriptingObjects::ScriptSliderPackData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		return sliderPacks[index];
-	}
-
-	ScriptingObjects::ScriptAudioFile* addOrReturnAudioFile(int index)
-	{
-		if (auto d = audioFiles[index])
-			return d;
-
-		audioFiles.set(index, new ScriptingObjects::ScriptAudioFile(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		return audioFiles[index];
-	}
-
-	ScriptingObjects::ScriptTableData* addOrReturnTableObject(int index)
-	{
-		if (auto d = tables[index])
-			return d;
-
-		tables.set(index, new ScriptingObjects::ScriptTableData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		return tables[index];
-	}
-
-protected:
-
-	
-
-	ReferenceCountedArray<ScriptingObjects::ScriptSliderPackData> sliderPacks;
-	ReferenceCountedArray<ScriptingObjects::ScriptTableData> tables;
-	ReferenceCountedArray<ScriptingObjects::ScriptAudioFile> audioFiles;
-};
 
 
 /** The base class for modules that can be scripted. 
@@ -443,7 +329,7 @@ protected:
 class JavascriptProcessor :	public FileChangeListener,
 							public HiseJavascriptEngine::Breakpoint::Listener,
 							public Dispatchable,
-							public ComplexDataHolder,
+							public ProcessorWithDynamicExternalData,
 							public ApiProviderBase::Holder,
 							public scriptnode::DspNetwork::Holder
 {
@@ -663,7 +549,8 @@ public:
 			}
 		}
 
-		repaintUpdater.update(index);
+		if(index != -1)
+			repaintUpdater.triggerAsyncUpdate();
 	}
 
 	
@@ -1022,4 +909,100 @@ private:
 
 
 } // namespace hise
+
+
+namespace scriptnode
+{
+using namespace juce;
+using namespace hise;
+
+namespace properties
+{
+
+template <class PropertyClass> struct table : public NodePropertyT<int>
+{
+	table() :
+		NodePropertyT<int>(PropertyClass::getId(), -1)
+	{};
+
+	template <class RootObject> void initWithRoot(NodeBase* n, RootObject& r)
+	{
+		if (n != nullptr)
+		{
+			holder = dynamic_cast<ProcessorWithDynamicExternalData*>(n->getScriptProcessor());
+
+			setAdditionalCallback([&r, this](Identifier id, var newValue)
+			{
+				if (id == PropertyIds::Value)
+				{
+					auto index = (int)newValue;
+					changed(r, index);
+				}
+			});
+
+			initialise(n);
+		}
+	}
+	
+private:
+
+	template <class RootObject> void changed(RootObject& r, int index)
+	{
+		if (index == -1)
+			usedTable = &ownedTable;
+		else
+			usedTable = holder->getTable(index);
+
+		if (usedTable == nullptr)
+			usedTable = &ownedTable;
+
+		snex::Types::dyn<float> tableData(usedTable->getWritePointer(), usedTable->getTableSize());
+		PropertyClass p;
+		p.setTableData(r, tableData);
+	}
+
+	WeakReference<hise::ProcessorWithDynamicExternalData> holder;
+	hise::SampleLookupTable ownedTable;
+	WeakReference<hise::Table> usedTable = nullptr;
+};
+
+
+
+#if 0
+template <class PropertyClass> struct slider_pack : public complex_base<PropertyClass>,
+													public SliderPack::Listener
+{
+	// TODO: REWRITE THE FUCKING SLIDER PACK LISTENER CLASS...
+	void sliderPackChanged(SliderPack *s, int index) override
+	{
+
+	}
+
+	void changed(int index) override
+	{
+		if (index >= 0)
+		{
+			if (data = holder->getSliderPackData(index))
+			{
+				data->addPooledChangeListener(this)
+			}
+		}
+			
+		snex::Types::dyn<float> tableData(usedPack->getCachedData());
+		PropertyClass p;
+
+		p.setSliderPackData(r, tableData);
+	}
+
+	WeakReference<SliderPackData> data;
+	HeapBlock<float> dataCopy;
+};
+#endif
+
+
+
+}
+}
+
+
 #endif  // SCRIPTPROCESSOR_H_INCLUDED

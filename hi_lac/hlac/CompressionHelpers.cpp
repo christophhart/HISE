@@ -233,7 +233,7 @@ AudioSampleBuffer CompressionHelpers::loadFile(const File& f, double& speed)
 
 		speed = sampleLength / delta;
 
-		Logger::writeToLog("PCM Decoding Performance: " + String(speed, 1) + "x realtime");
+		
 
 		return b;
 	}

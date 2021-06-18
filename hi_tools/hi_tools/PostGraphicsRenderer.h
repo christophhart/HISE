@@ -126,6 +126,20 @@ struct PostGraphicsRenderer
 
 	void boxBlur(int blur);
 
+	void stackBlur(int blur);
+
+	void applyHSL(float h, float s, float l);
+
+	void applyGamma(float g);
+
+	void applyGradientMap(ColourGradient g);
+
+	void applySharpness(int delta);
+
+	void applySepia();
+
+	void applyVignette(float amount, float radius, float falloff);
+
 private:
 
 	Data& getNextData();
@@ -133,6 +147,7 @@ private:
 	DataStack& stack;
 	int stackIndex = 0;
 	Image::BitmapData bd;
+	Image img;
 };
 
 

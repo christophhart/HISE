@@ -499,7 +499,7 @@ void JavascriptPolyphonicEffect::renderVoice(int voiceIndex, AudioSampleBuffer &
 		for (int i = 0; i < numChannels; i++)
 			channels[i] += startSample;
 
-		scriptnode::ProcessData d(channels, numChannels, numSamples);
+		scriptnode::ProcessDataDyn d(channels, numChannels, numSamples);
 
 		scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
 		n->getRootNode()->process(d);
@@ -1083,10 +1083,13 @@ void JavascriptTimeVariantModulator::calculateBlock(int startSample, int numSamp
 		auto ptr = internalBuffer.getWritePointer(0, startSample);
 		FloatVectorOperations::clear(ptr, numSamples);
 
-		scriptnode::ProcessData d(&ptr, 1, numSamples);
+		snex::Types::ProcessDataDyn d(&ptr, 1, numSamples);
 
-		ScopedLock sl(n->getConnectionLock());
-		n->getRootNode()->process(d);
+		if (auto s = SimpleReadWriteLock::ScopedTryReadLock(n->getConnectionLock()))
+		{
+			if(n->getExceptionHandler().isOk())
+				n->getRootNode()->process(d);
+		}
 	}
 	else if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
@@ -1167,6 +1170,8 @@ JavascriptProcessor(mc),
 EnvelopeModulator(mc, id, numVoices, m),
 Modulation(m)
 {
+	setVoiceKillerToUse(this);
+
 	initContent();
 
 	onInitCallback = new SnippetDocument("onInit");
@@ -1191,6 +1196,22 @@ JavascriptEnvelopeModulator::~JavascriptEnvelopeModulator()
 Path JavascriptEnvelopeModulator::getSpecialSymbol() const
 {
 	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
+}
+
+int JavascriptEnvelopeModulator::getNumActiveVoices() const
+{
+	int counter = 0;
+
+	for (int i = 0; i < polyManager.getVoiceAmount(); i++)
+	{
+		if (auto ses = static_cast<ScriptEnvelopeState*>(states[i]))
+		{
+			if (ses->isPlaying)
+				counter++;
+		}
+	}
+
+	return counter;
 }
 
 ProcessorEditorBody * JavascriptEnvelopeModulator::createEditor(ProcessorEditor *parentEditor)
@@ -1252,16 +1273,13 @@ void JavascriptEnvelopeModulator::calculateBlock(int startSample, int numSamples
 
 		memset(ptr, 0, sizeof(float)*numSamples);
 
-		scriptnode::ProcessData d(&ptr, 1, numSamples);
+		scriptnode::ProcessDataDyn d(&ptr, numSamples, 1);
 
-		d.shouldReset = false;
-
-		ScopedLock sl(n->getConnectionLock());
-		n->getRootNode()->process(d);
-
-		if (d.shouldReset)
-			reset(polyManager.getCurrentVoice());
-			
+		if (auto s = SimpleReadWriteLock::ScopedTryReadLock(n->getConnectionLock()))
+		{
+			if(n->getExceptionHandler().isOk())
+				n->getRootNode()->process(d);
+		}
 	}
 
 #if ENABLE_ALL_PEAK_METERS
@@ -1860,6 +1878,17 @@ float JavascriptSynthesiser::getModValueAtVoiceStart(int modIndex) const
 	return getModValueForNode(modIndex, currentVoiceStartSample);
 }
 
+void JavascriptSynthesiser::restoreFromValueTree(const ValueTree &v)
+{
+	ModulatorSynth::restoreFromValueTree(v); 
+
+	if (auto vk = ProcessorHelpers::getFirstProcessorWithType<ScriptnodeVoiceKiller>(gainChain))
+		setVoiceKillerToUse(vk);
+
+	restoreScript(v); 
+	restoreContent(v);
+}
+
 void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSamples)
 {
 	if (auto n = synth->getActiveNetwork())
@@ -1872,8 +1901,9 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 			// There are some nodes which need to setup some properties before
 			// calling reset based on the incoming event
 			auto event = getCurrentHiseEvent();
-			rootNode->handleHiseEvent(event);
 			rootNode->reset();
+			rootNode->handleHiseEvent(event);
+			
 
 			isVoiceStart = false;
 		}
@@ -1888,7 +1918,7 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 		for (int i = 0; i < numChannels; i++)
 			channels[i] += startSample;
 
-		scriptnode::ProcessData d(channels, numChannels, numSamples);
+		scriptnode::ProcessDataDyn d(channels, numSamples, numChannels);
 
 		{
 			scriptnode::DspNetwork::VoiceSetter vs(*n, getVoiceIndex());
@@ -1910,6 +1940,16 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 
 		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
 	}
+}
+
+hise::ProcessorEditorBody * ScriptnodeVoiceKiller::createEditor(ProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+	return new EmptyProcessorEditorBody(parentEditor);;
+#else
+	ignoreUnused(parentEditor);
+	return nullptr;
+#endif
 }
 
 } // namespace hise

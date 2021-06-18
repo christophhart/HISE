@@ -55,7 +55,7 @@ X(rightShiftUnsigned, ">>>") X(rightShiftEquals, ">>=") X(rightShift,   ">>")   
     X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")  X(register_var, "reg") \
 	X(in, 		"in")		X(inline_, "inline") X(const_, "const")	 X(global_,   "global")	  X(local_,	   "local") \
 	X(include_,  "include") X(rLock_,   "readLock") X(wLock_,"writeLock") 	X(extern_, "extern") X(namespace_, "namespace") \
-	X(loadJit_, "loadJITModule") X(isDefined_, "isDefined");
+	X(isDefined_, "isDefined"); X(snex_, "snex")
 
 namespace TokenTypes
 {
@@ -773,6 +773,15 @@ void HiseJavascriptEngine::registerApiClass(ApiClass *apiClass)
 {
 	root->hiseSpecialData.apiClasses.add(apiClass);
 	root->hiseSpecialData.apiIds.add(apiClass->getObjectName());
+
+#if HISE_INCLUDE_SNEX
+	snex::jit::FunctionClass::Ptr p = apiClass->createSnexWrapper();
+
+	if (p != nullptr)
+	{
+		root->snexGlobalScope.addFunctionClass(p);
+	}
+#endif
 }
 
 #if 0
@@ -794,7 +803,6 @@ ApiClass::Constant ApiClass::Constant::null;
 #if JUCE_MSVC
 #pragma warning (pop)
 #endif
-
 
 
 var HiseJavascriptEngine::callFunction(const Identifier& function, const var::NativeFunctionArgs& args, Result* result)
@@ -939,6 +947,11 @@ var HiseJavascriptEngine::getScriptVariableFromRootNamespace(const Identifier & 
 	return var();
 }
 
+void HiseJavascriptEngine::addShaderFile(const File& f)
+{
+	root->hiseSpecialData.includedFiles.addIfNotAlreadyThere(new ExternalFileData(ExternalFileData::Type::EmbeddedScript, f, f.getFileName()));
+}
+
 int HiseJavascriptEngine::getNumIncludedFiles() const
 {
 	return root->hiseSpecialData.includedFiles.size();
@@ -1074,6 +1087,8 @@ juce::String HiseJavascriptEngine::getHoverString(const String& token)
 	}
 }
 
+
+
 HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :
 callbackName(id),
 bufferTime(bufferTime_),
@@ -1111,6 +1126,58 @@ NativeJITCompiler* HiseJavascriptEngine::RootObject::HiseSpecialData::getNativeC
 			return jitModules[i];
 		}
 	}
+
+	return nullptr;
+}
+#endif
+
+#if HISE_INCLUDE_SNEX
+var HiseJavascriptEngine::RootObject::JavascriptNamespace::createSnexInstance(const Identifier& sId, const var::NativeFunctionArgs& args)
+{
+	for (auto s : snexClasses)
+	{
+		if (s->classId == sId)
+			return s->create(args);
+	}
+
+	String e;
+
+	e << "Can't find SNEX struct ";
+
+	if (id.isValid())
+		e << id << ".";
+
+	e << sId.toString();
+
+	throw e;
+}
+
+bool HiseJavascriptEngine::RootObject::JavascriptNamespace::hasSnexClass(const Identifier& sId) const
+{
+	for (auto s : snexClasses)
+		if (s->classId == sId)
+			return true;
+
+	return false;
+}
+
+void HiseJavascriptEngine::RootObject::JavascriptNamespace::addSnexClass(HiseJavascriptEngine::RootObject* root, const String& code, const Identifier& classId)
+{
+	using namespace snex::jit;
+
+	SnexStructSriptingWrapper::Ptr p = new SnexStructSriptingWrapper(root->snexGlobalScope, code, classId);
+
+	if (p->r.failed())
+		throw p->r.getErrorMessage();
+
+	snexClasses.add(p);
+}
+
+snex::jit::SnexStructSriptingWrapper::Ptr HiseJavascriptEngine::RootObject::JavascriptNamespace::getSnexStruct(const Identifier& classId)
+{
+	for (auto s : snexClasses)
+		if (s->classId == classId)
+			return s;
 
 	return nullptr;
 }

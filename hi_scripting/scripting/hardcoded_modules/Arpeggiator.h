@@ -42,9 +42,9 @@ namespace hise { using namespace juce;
 *	This code is based on a script by Elan Hickler.
 */
 class Arpeggiator : public HardcodedScriptProcessor,
-	public SliderPackProcessor,
-	public MidiControllerAutomationHandler::MPEData::Listener,
-	public Processor::BypassListener
+          public SliderPackProcessor,
+          public MidiControllerAutomationHandler::MPEData::Listener,
+          public Processor::BypassListener
 {
 public:
 
@@ -84,6 +84,7 @@ public:
 
 	SET_PROCESSOR_NAME("Arpeggiator", "Arpeggiator", "A arpeggiator module");
 
+
 	int getNumSliderPacks();
 
 	SliderPackData *getSliderPackData(int index) override;
@@ -99,19 +100,13 @@ public:
 		}
 	}
 
+
 	void onInit() override;
-
-	
 	void onNoteOn() override;;
-
 	void onNoteOff() override;
-
 	void onControl(ScriptingApi::Content::ScriptComponent *c, var value) override;
-
 	void onController() override;
-
 	void onAllNotesOff() override;
-
 	void onTimer(int /*offsetInBuffer*/);
 
 	void playNote();;
@@ -125,8 +120,6 @@ private:
 	void sendNoteOff(int eventId);
 
 	Range<uint16> sendNoteOn();
-
-	
 
 	bool mpeMode = false;
 
@@ -157,7 +150,6 @@ private:
 	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArraySorted;
 	Array<NoteWithChannel, DummyCriticalSection, 256> MidiSequenceArray;
 	Array<NoteWithChannel, DummyCriticalSection, 256> MidiSequenceArraySorted;
-	
 
 	Array<int, DummyCriticalSection, 256> currentlyPlayingEventIds;
 	
@@ -272,7 +264,6 @@ private:
 
 	}
 
-
 	int incAndWrapValueFromZeroToMax(int increment, int value, int max)
 	{
 		if (max == 0)
@@ -335,7 +326,7 @@ private:
 
 	static float getSliderValueWithoutDisplay(ScriptingApi::Content::ScriptSliderPack* sp, int index)
 	{
-		auto array = sp->getSliderPackData()->getDataArray();
+		auto array = static_cast<SliderPackData*>(sp->getCachedDataObject())->getDataArray();
 
 		if (index < array.size())
 			return (float)array[index];
@@ -344,7 +335,6 @@ private:
 			//jassertfalse;
 			return 0.0f;
 		}
-			
 	}
 
 	ScriptSliderPack semiToneSliderPack;

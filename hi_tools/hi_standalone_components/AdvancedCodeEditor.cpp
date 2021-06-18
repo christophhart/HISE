@@ -343,9 +343,7 @@ void JavascriptCodeEditor::showAutoCompleteNew()
 	}
 	else
 	{
-		Component *editor = getTopLevelComponent();
-
-		if (editor != nullptr)
+		if (auto editor = TopLevelWindowWithOptionalOpenGL::findRoot(this))
 		{
 			editor->addAndMakeVisible(currentPopup);
 

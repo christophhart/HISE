@@ -96,6 +96,14 @@ enum MissingOpenGLDefinitions
     GL_MAX_ELEMENTS_INDICES         = 0x80E9,
    #endif
 
+#if JUCE_WINDOWS && !defined(GL_MAJOR_VERSION)
+	GL_MAJOR_VERSION				= 0x821b,
+#endif
+#if JUCE_WINDOWS && !defined(GL_MINOR_VERSION)
+	GL_MINOR_VERSION 				= 0x821c,
+#endif
+
+
    #if JUCE_WINDOWS && ! defined (GL_TEXTURE0)
     GL_OPERAND0_RGB                 = 0x8590,
     GL_OPERAND1_RGB                 = 0x8591,

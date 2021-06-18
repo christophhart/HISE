@@ -32,6 +32,34 @@
 
 namespace hise { using namespace juce;
 
+CurveEq::CurveEq(MainController *mc, const String &id) :
+	MasterEffectProcessor(mc, id)
+{
+	finaliseModChains();
+
+	fftBuffer = new SimpleRingBuffer();
+	fftBuffer->setRingBufferSize(2, 32768);
+	fftBuffer->setGlobalUIUpdater(mc->getGlobalUIUpdater());
+
+	parameterNames.add("Gain");
+	parameterDescriptions.add("The gain in decibels if supported from the filter type.");
+
+	parameterNames.add("Freq");
+	parameterDescriptions.add("The frequency in Hz.");
+
+	parameterNames.add("Q");
+	parameterDescriptions.add("The bandwidth of the filter if supported.");
+
+	parameterNames.add("Enabled");
+	parameterDescriptions.add("the state of the filter band.");
+
+	parameterNames.add("Type");
+	parameterDescriptions.add("the filter type of the filter band.");
+
+	parameterNames.add("BandOffset");
+	parameterDescriptions.add("the offset that can be used to get the desired formula.");
+}
+
 float CurveEq::getAttribute(int index) const
 {
 	if(index == -1) return 0.0f;

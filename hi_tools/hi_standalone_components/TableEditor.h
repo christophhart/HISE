@@ -127,275 +127,13 @@ public:
 };
 
 
-class TableSlider: public Slider
-{
-public:
-	TableSlider(int index):
-		Slider(),
-		indexMod(index % 12)
-	{
-		bool isBlack = false;
 
-		switch(indexMod)
-		{
-		case 1:
-		case 3:
-		case 6:
-		case 8:
-		case 10: isBlack = true; 
-				 break;
-		default: break;
-		}
-		
 
-		setRange (0, 1, 0);
-		setSliderStyle (Slider::LinearBarVertical);
-		setTextBoxStyle (Slider::NoTextBox, true, 80, 20);
-		setColour (Slider::thumbColourId, isBlack ? Colour (0x93000000) : Colour (0x73ffffff));
-		setColour (Slider::backgroundColourId, isBlack ? Colour (0x03000000) : Colour (0x15ffffff));
-		setColour (Slider::ColourIds::textBoxOutlineColourId, Colours::white.withAlpha(0.05f));
-		setColour (Slider::ColourIds::rotarySliderOutlineColourId, Colours::white.withAlpha(0.05f));
-	};
 
-	void mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& wheel) override
-    {
-		if (e.mods.isCtrlDown())
-		{
-			Slider::mouseWheelMove(e, wheel);
 
-		}
 
-    }
 
 
-private:
-
-	int indexMod;
-
-};
-
-struct TableColumn: public Component
-{
-	TableColumn(int index_):
-		index(index_),
-		selected(false),
-		pressed(false)
-	{
-
-		
-
-		addAndMakeVisible(slider = new TableSlider(index));
-	};
-
-	void paint(Graphics &g)
-	{
-		g.setColour(selected ? Colours::white.withAlpha(0.1f) : Colours::transparentBlack);
-		g.fillAll();
-
-		g.setColour(pressed ? Colours::red.withAlpha(0.1f) : Colours::transparentBlack);
-		g.fillRoundedRectangle(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), 4.0f);
-
-		g.setColour (Colour (0x63ffffff));
-		g.setFont (GLOBAL_FONT());
-		
-		static String noteNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-
-		g.drawText(String(noteNames[index % 12]), 0, 5, getWidth(), getHeight(), Justification::centredTop, false);
-	}
-
-	
-	void setSelected(bool shouldBeSelected)
-	{
-		selected = shouldBeSelected;
-		repaint();
-	};
-
-	void setPressed(bool isPressed)
-	{
-		pressed = isPressed;
-		repaint();
-	};
-
-	void resized()
-	{
-		
-		slider->setBounds(0, 20, getWidth(), getHeight() - 20);
-	};
-
-	int index;
-
-	bool selected;
-	bool pressed;
-
-	ScopedPointer<TableSlider> slider;
-};
-
-
-
-class DiscreteTableEditor: public Component,
-						   public SliderListener,
-						   public SafeChangeBroadcaster
-{
-public:
-
-	DiscreteTableEditor(Table *tableToBeEdited):
-		table(static_cast<DiscreteTable*>(tableToBeEdited))
-	{
-		// Only Discrete Tables are allowed!
-		jassert(table != nullptr);
-
-		addAndMakeVisible(viewport = new Viewport());
-		viewport->setViewedComponent(content = new Component(), false);
-
-		viewport->setScrollBarsShown(false, true, false, false);
-
-		
-
-		
-
-		setSliderAmount(128);
-
-		
-	}
-
-	void sliderValueChanged(Slider *s) override
-	{
-		for(int i = 0; i < valueSliders.size(); i++)
-		{
-			if(s == valueSliders[i]->slider)
-			{
-				table->setValue(i, (float)s->getValue());
-			};
-		}
-
-		sendChangeMessage();
-	};
-
-	void paint(Graphics &g) override
-	{
-		g.setColour(Colours::lightgrey.withAlpha(0.1f));
-		g.drawRect(getLocalBounds(), 1);
-	}
-
-	float getMaximumInSelection() const
-	{
-		float x = 0.0f;
-
-		for(int i = selectedRange.getStart(); i < selectedRange.getEnd(); i++)
-		{
-			x = jmax<float>(x, (float)valueSliders[i]->slider->getValue());
-		}
-
-		return x;
-
-	};
-
-	void setDeltaValue(float delta)
-	{
-		jassert(dragStartValues.size() == selectedRange.getLength());
-
-		for(int i = 0; i < dragStartValues.size(); i++)
-		{
-			const float newValue = jlimit<float>(0.0f, 1.0f, dragStartValues[i] + delta);
-
-			valueSliders[i + selectedRange.getStart()]->slider->setValue(newValue, sendNotificationSync);
-		}
-
-	}
-
-	/** Saves all values at the drag start. */
-	void startDrag()
-	{
-		dragStartValues.clear();
-		dragStartValues.ensureStorageAllocated(selectedRange.getLength());
-
-		for(int i = selectedRange.getStart(); i < selectedRange.getEnd(); i++)
-		{
-			dragStartValues.add((float)valueSliders[i]->slider->getValue());
-		}
-
-	}
-
-	void endDrag()
-	{
-		dragStartValues.clear();
-	}
-
-
-	void setSelected(Range<int> newSelection)
-	{
-		selectedRange = newSelection;
-		updateSelection();
-	}
-
-	void updateSelection()
-	{
-		
-
-		for(int i = 0; i < valueSliders.size(); i++)
-		{
-			valueSliders[i]->setSelected(selectedRange.contains(i));
-		}
-	}
-
-	void setSliderAmount(int amount)
-	{
-		valueSliders.clear();
-
-		for(int i = 0; i < amount; i++)
-		{
-			TableColumn *s = new TableColumn(i);
-			content->addAndMakeVisible(s);
-			s->slider->addListener (this);
-			valueSliders.add(s);
-			s->slider->setValue(table->get(i), dontSendNotification);
-		}
-	}
-
-	void resized() override
-	{
-		int x = 0;
-		//int w = getWidth() / valueSliders.size();
-		int w = 20;
-
-
-
-		for (int i = 0; i < valueSliders.size(); i++)
-		{
-			valueSliders[i]->setBounds(x, 0, w + 1, getHeight() - 20);
-
-			x += w;
-		}
-
-		content->setSize(x, getHeight());
-		viewport->setSize(getWidth(), getHeight());
-	}
-
-	void setCurrentKey(int newKey)
-	{
-		valueSliders[abs(newKey)]->setPressed(newKey >= 0);
-	}
-
-	void scrollToKey(int newKey)
-	{
-		if (newKey > 0) viewport->setViewPositionProportionately((double)newKey / 127.0f, 0.0);
-	}
-
-private:
-
-	Array<float> dragStartValues;
-
-	Range<int> selectedRange;
-
-	DiscreteTable *table;
-
-	OwnedArray<TableColumn> valueSliders;
-
-	ScopedPointer<Component> content;
-
-	ScopedPointer<Viewport> viewport;
-
-};
 
 class Processor;
 
@@ -405,19 +143,23 @@ class Processor;
 */
 class TableEditor : public Component,
 	public SettableTooltipClient,
-	public SafeChangeListener,
 	public CopyPasteTarget,
-	public Table::Updater::Listener
+	public Table::Listener,
+	public ComplexDataUIBase::EditorBase
 {
 public:
 
 	struct LookAndFeelMethods
 	{
         virtual ~LookAndFeelMethods() {};
-        
+     
+		virtual bool shouldClosePath() const { return true; }
+
 		virtual void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) = 0;
 		virtual void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) = 0;
 		virtual void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) = 0;
+
+		virtual void drawTableValueLabel(Graphics& g, TableEditor& te, Font f, const String& text, Rectangle<int> textBox);
 	};
 
 	struct HiseTableLookAndFeel : public LookAndFeel_V3,
@@ -444,25 +186,36 @@ public:
 	*
 	*	It shouldn't be used for any kind of serious data processing though...
 	*/
-	struct Listener
+	struct EditListener
 	{
-		virtual ~Listener() {};
+		virtual ~EditListener() {};
 
 		/** Will be called when the user starts dragging a point. */
-		virtual void pointDragStarted(Point<int> position, float index, float value) = 0;
+		virtual void pointDragStarted(Point<int> position, float index, float value)
+		{
+			ignoreUnused(position, index, value);
+		}
 
 		/** Will be called when the user stops dragging a point. */
-		virtual void pointDragEnded() = 0;
+		virtual void pointDragEnded()
+		{
+		}
 
 		/** Called while the point is being dragged. */
-		virtual void pointDragged(Point<int> position, float index, float value) = 0;
+		virtual void pointDragged(Point<int> position, float index, float value)
+		{
+			ignoreUnused(position, index, value);
+		}
 
 		/** Called when the user changes a curve. The position will be the middle between the points. */
-		virtual void curveChanged(Point<int> position, float curveValue) = 0;
+		virtual void curveChanged(Point<int> position, float curveValue) 
+		{
+			ignoreUnused(position, curveValue);
+		}
 
 	private:
 
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(EditListener);
 	};
 
 	enum ColourIds
@@ -490,14 +243,36 @@ public:
 	*
 	*	The lifetime of the table must be longer than the editor's lifetime.
 	*/
-	explicit TableEditor(UndoManager* undoManager, Table *tableToBeEdited=nullptr);
+	explicit TableEditor(UndoManager* undoManager=nullptr, Table *tableToBeEdited=nullptr);
 
 	~TableEditor();
+
+	void setComplexDataUIBase(ComplexDataUIBase* newData) override
+	{
+		if (auto t = dynamic_cast<Table*>(newData))
+			setEditedTable(t);
+	}
 
 	void paint(Graphics&) override;
 
 	/** If you resize the TableEditor, all internal DragPoints are deleted and new created. */
 	void resized() override;
+
+	void changeListenerCallback(SafeChangeBroadcaster *b)
+	{
+		if (dynamic_cast<Table*>(b) != nullptr)
+		{
+			createDragPoints();
+
+			refreshGraph();
+
+			return;
+		}
+
+#if !HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES
+		updateFromProcessor(b);
+#endif
+	}
 
 	Table *getEditedTable() const
 	{
@@ -506,12 +281,14 @@ public:
 
 	void setEditedTable(Table *newTable)
 	{
+		if (editedTable != nullptr)
+			editedTable->removeRulerListener(this);
+
 		editedTable = newTable;
 
 		if (editedTable != nullptr)
 		{
-			editedTable->addChangeListener(this);
-
+			editedTable->addRulerListener(this);
 			createDragPoints();
 			refreshGraph();
 		}
@@ -522,12 +299,15 @@ public:
 		setDisplayedIndex(newIndex);
 	}
 
+	void graphHasChanged(int point) override;
+
 	String getObjectTypeName() override
 	{ 
 		return "Table Data"; 
 	};
 
 	void copyAction() override { SystemClipboard::copyTextToClipboard(getEditedTable()->exportData()); };
+
 	virtual void pasteAction() override
 	{
 		const String data = SystemClipboard::getTextFromClipboard();
@@ -537,9 +317,7 @@ public:
 		refreshGraph();
 	}
 
-	void changeListenerCallback(SafeChangeBroadcaster *b) override;;
-
-	void connectToLookupTableProcessor(Processor *p, int tableIndex=-1);;
+	void connectToLookupTableProcessor(Processor *p, int tableIndex=0);
 
 	/** Set the display of the domain value to the desired type. If you want a scaled value to be displayed, pass a Range<int> object */
 	void setDomain(DomainType newDomainType, Range<int> newRange=Range<int>());
@@ -554,17 +332,25 @@ public:
 		drag_points.getLast()->setConstantValue(constantRightEdge);
 	};
 
+	void setMargin(float newMargin)
+	{
+		margin = newMargin;
+	}
+
+	Rectangle<float> getTableArea() const 
+	{
+		return getLocalBounds().toFloat().reduced(margin);
+	}
 
 	void setUseFlatDesign(bool shouldUseFlatDesign)
 	{
 		if (shouldUseFlatDesign)
-			currentLAF = new FlatTableLookAndFeel();
+			setSpecialLookAndFeel(new FlatTableLookAndFeel(), true);
 		else
-			currentLAF = new HiseTableLookAndFeel();
+			setSpecialLookAndFeel(new HiseTableLookAndFeel(), true);
 
-		setLookAndFeel(currentLAF.get());
-		setTableLookAndFeel(dynamic_cast<LookAndFeelMethods*>(currentLAF.get()), false);
-
+		setLookAndFeel(getSpecialLookAndFeel<LookAndFeel>());
+		
 		repaint();
 	}
 
@@ -607,16 +393,31 @@ public:
 	/** Updates the graph and the points. If the table size is smaller than 5000, it also refreshes the look up table. */
 	void mouseDrag(const MouseEvent &e) override;
 
+	void mouseMove(const MouseEvent& e) override;
+
+	void mouseExit(const MouseEvent& e) override;
+
+	UndoManager* getUndoManager(bool useUndoManager = true)
+	{
+		if (!useUndoManager)
+			return nullptr;
+
+		if (auto d = getEditedTable())
+			return getEditedTable()->getUndoManager();
+
+		return nullptr;
+	}
+
 	void changePointPosition(int index, int x, int y, bool useUndoManager=false)
 	{
 		if (index == -1 || index >= drag_points.size())
 			return;
 
-		if (undoManager != nullptr && useUndoManager)
+		if (auto um = getUndoManager(useUndoManager))
 		{
 			auto oldPos = drag_points[index]->getPos();
 
-			undoManager->perform(new TableAction(this, TableAction::Drag, index, x, y, 0.0f, oldPos.getX(), oldPos.getY(), 0.0f));
+			um->perform(new TableAction(this, TableAction::Drag, index, x, y, 0.0f, oldPos.getX(), oldPos.getY(), 0.0f));
 		}
 		else
 		{
@@ -635,16 +436,24 @@ public:
 	/** If you move the mouse wheel over a point, you can adjust the curve to the left of the point */
 	void mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &wheel)  override;
 
+	void setScrollModifiers(ModifierKeys newScrollModifiers)
+	{
+		scrollModifiers = newScrollModifiers;
+	}
+
 	void setScrollWheelEnabled(bool shouldBeEnabled)
 	{
-		allowScrollWheel = shouldBeEnabled;
+		ModifierKeys mod;
+
+		if (!shouldBeEnabled)
+			mod.withFlags(ModifierKeys::commandModifier);
+
+		setScrollModifiers(mod);
 	}
 
 	void updateCurve(int x, int y, float newCurveValue, bool useUndoManager);
 
 	void updateFromProcessor(SafeChangeBroadcaster* b);
-
-	void removeProcessorConnection();
 
 	bool isInMainPanel() const;
 
@@ -658,8 +467,8 @@ public:
 	*/
 	void setDisplayedIndex(float newIndex)
 	{
+		lastIndex = newIndex;
 		ruler->setIndex(newIndex);
-		
 	};
 
 	/** \brief Sets the point at the left or right edge to the new value
@@ -674,35 +483,47 @@ public:
 		CopyPasteTarget::paintOutlineIfSelected(g);
 	}
 
-	void addListener(Listener* l)
+	void addEditListener(EditListener* l)
 	{
-		listeners.addIfNotAlreadyThere(l);
+		editListeners.addIfNotAlreadyThere(l);
 	}
 
-	void removeListener(Listener* l)
+	void removeEditListener(EditListener* l)
 	{
-		listeners.removeAllInstancesOf(l);
+		editListeners.removeAllInstancesOf(l);
 	}
-
 
 	String getPopupString(float x, float y);
 	std::function<String(float, float)> popupFunction;
 
 	void setTableLookAndFeel(LookAndFeelMethods* lm, bool isExternalLaf)
 	{
-		if(isExternalLaf || !externalLaf)
-		{
-			lafToUse = lm;
-			externalLaf = isExternalLaf;
-		}
+		setSpecialLookAndFeel(dynamic_cast<LookAndFeel*>(lm), !isExternalLaf);
+	}
+
+	float getLastIndex() const { return jlimit(0.0f, 1.0f, lastIndex); }
+
+	Rectangle<int> getPointAreaBetweenMouse() const;
+
+	LookAndFeelMethods* getTableLookAndFeel()
+	{
+		if (auto lm = getSpecialLookAndFeel<LookAndFeelMethods>())
+			return lm;
+
+		return &defaultLaf;
 	}
 
 private:
 
-	bool externalLaf = false;
-	LookAndFeelMethods* lafToUse = nullptr;
+	float margin = 0.0f;
 
-	ScopedPointer<LookAndFeel> currentLAF;
+	HiseTableLookAndFeel defaultLaf;
+
+	Rectangle<int> pointAreaBetweenMouse;
+
+	ModifierKeys scrollModifiers;
+
+	float lastIndex = 0.0f;
 
 	class Ruler : public Component
 	{
@@ -836,8 +657,20 @@ private:
 			dragPlotSize = Rectangle<int>(width, height);
 		}
 
-		void mouseEnter(const MouseEvent &){over = true;repaint();};
-		void mouseExit(const MouseEvent &){over = false;repaint();};
+		void mouseEnter(const MouseEvent &)
+		{
+			if (auto te = findParentComponentOfClass<TableEditor>())
+				te->pointAreaBetweenMouse = {};
+
+			over = true;
+			repaint();
+		};
+
+		void mouseExit(const MouseEvent &)
+		{
+			over = false;
+			repaint();
+		};
 
 		bool isStartOrEnd() const { return ( isStart || isEnd ); };
 
@@ -908,6 +741,23 @@ private:
 		return nullptr;
 	}
 
+	TableEditor::DragPoint* getPrevPointFor(int x) const
+	{
+		for (int i = 0; i < drag_points.size() - 1; i++)
+		{
+			auto dp = drag_points[i];
+
+			auto next = drag_points[i + 1];
+
+			if (x >= dp->getX() && x <= next->getX())
+			{
+				return dp;
+			}
+		}
+
+		return nullptr;
+	}
+
 	
 
 	// Adds a new DragPoint and selects it.
@@ -916,7 +766,8 @@ private:
 	// Add a drag point directly from a GraphPoint
 	void addNormalizedDragPoint(Table::GraphPoint normalizedPoint, bool isStart=false, bool isEnd=false)
 	{
-		addDragPoint((int)(normalizedPoint.x * getWidth()), (int)((1.0f - normalizedPoint.y) * getHeight()), normalizedPoint.curve, isStart, isEnd);
+		auto a = getTableArea();
+		addDragPoint((int)(a.getX() + normalizedPoint.x * a.getWidth()), (int)(a.getY() + (1.0f - normalizedPoint.y) * a.getHeight()), normalizedPoint.curve, isStart, isEnd);
 	}
 
 	// Recreates the drag points from the given Table. It automatically adds the start / end flags.
@@ -936,17 +787,19 @@ private:
 
 		for(int i = 0; i < drag_points.size(); i++)	newPoints.add(drag_points[i]->getGraphPoint());
 
-		if(editedTable.get() != nullptr) editedTable->setGraphPoints(newPoints, drag_points.size());
+		if(editedTable.get() != nullptr) 
+			editedTable->setGraphPoints(newPoints, drag_points.size());
 
 		if(refreshLookUpTable)
 		{
-			if(editedTable.get() != nullptr) editedTable->fillLookUpTable();
+			if(editedTable.get() != nullptr) 
+				editedTable->fillLookUpTable();
 		}
 	};
 
 	int snapXValueToGrid(int x) const;
 
-	
+	Array<WeakReference<EditListener>, CriticalSection> editListeners;
 
 	Image snapshot;
 	bool needsRepaint;
@@ -961,12 +814,11 @@ private:
 
 	MidiTable dummyTable;
 
+	float lastRightDragValue = 0.0f;
 	
 	Font fontToUse;
 
 	bool allowScrollWheel = true;
-
-	WeakReference<Processor> connectedProcessor;
 
 	class TableAction : public UndoableAction
 	{
@@ -1036,8 +888,6 @@ private:
 
 	WeakReference<DragPoint> currently_dragged_point;
 
-	UndoManager* undoManager;
-
 	ScopedPointer<Ruler> ruler;
 
 	ScopedPointer<TouchOverlay> touchOverlay;
@@ -1047,8 +897,6 @@ private:
 	float lineThickness = 2.0f;
 
 	Array<float> snapValues;
-
-	Array<WeakReference<Listener>, CriticalSection> listeners;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TableEditor)

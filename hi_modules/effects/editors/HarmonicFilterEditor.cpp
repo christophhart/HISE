@@ -36,13 +36,13 @@ HarmonicFilterEditor::HarmonicFilterEditor (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (sliderPackA = new SliderPack (dynamic_cast<BaseHarmonicFilter*>(getProcessor())->getSliderPackData(0)));
+    addAndMakeVisible (sliderPackA = new SliderPack (dynamic_cast<BaseHarmonicFilter*>(getProcessor())->getSliderPackUnchecked(0)));
     sliderPackA->setName ("new component");
 
-    addAndMakeVisible (sliderPackB = new SliderPack (dynamic_cast<BaseHarmonicFilter*>(getProcessor())->getSliderPackData(1)));
+    addAndMakeVisible (sliderPackB = new SliderPack (dynamic_cast<BaseHarmonicFilter*>(getProcessor())->getSliderPackUnchecked(1)));
     sliderPackB->setName ("new component");
 
-    addAndMakeVisible (sliderPackMix = new SliderPack (dynamic_cast<BaseHarmonicFilter*>(getProcessor())->getSliderPackData(2)));
+    addAndMakeVisible (sliderPackMix = new SliderPack (dynamic_cast<BaseHarmonicFilter*>(getProcessor())->getSliderPackUnchecked(2)));
     sliderPackMix->setName ("new component");
 
     addAndMakeVisible (label2 = new Label ("new label",

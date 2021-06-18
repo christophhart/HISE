@@ -35,6 +35,8 @@
 namespace hise {
 using namespace juce;
 
+
+
 class MarkdownRenderer : public MarkdownParser,
 						 public ViewportWithScrollCallback::Listener
 {
@@ -402,6 +404,61 @@ private:
 	float lastWidth = -1.0f;
 };
 
+class SimpleMarkdownDisplay : public Component
+{
+public:
 
+	struct InternalComp : public Component
+	{
+		InternalComp(SimpleMarkdownDisplay& parent_) :
+			parent(parent_)
+		{};
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().toFloat();
+			parent.r.draw(g, b);
+		}
+
+		SimpleMarkdownDisplay& parent;
+	};
+
+	SimpleMarkdownDisplay() :
+		r("", nullptr),
+		canvas(*this)
+	{
+		vp.setViewedComponent(&canvas, false);
+		addAndMakeVisible(vp);
+		vp.setScrollOnDragEnabled(true);
+	}
+
+	void setText(const String& text)
+	{
+		r.setNewText(text);
+		r.setTargetComponent(&canvas);
+		
+
+		resized();
+		r.updateCreatedComponents();
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		vp.setBounds(b);
+		
+		auto w = b.getWidth() - vp.getScrollBarThickness();
+
+		totalHeight = r.getHeightForWidth(w, true);
+
+		canvas.setSize(w, totalHeight);
+		repaint();
+	}
+
+	MarkdownRenderer r;
+	float totalHeight = 0.0;
+	Viewport vp;
+	InternalComp canvas;
+};
 
 }

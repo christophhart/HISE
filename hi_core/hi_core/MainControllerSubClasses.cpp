@@ -239,11 +239,12 @@ void MainController::CodeHandler::printPendingMessagesFromQueue()
 	{
 		auto processor = cm.p.get();
 
-		if (processor == nullptr)
-			return MultithreadedQueueHelpers::SkipFurtherExecutions;
-
-		message << processor->getId() << ":";
-		message << (cm.warningLevel == WarningLevel::Error ? "! " : " ");
+		if (processor != nullptr)
+		{
+			message << processor->getId() << ":";
+			message << (cm.warningLevel == WarningLevel::Error ? "! " : " ");
+		}
+		
 		message << cm.message << "\n";
 
 		return MultithreadedQueueHelpers::OK;

@@ -217,6 +217,8 @@ namespace HelperFunctions
 
 };
 
+#if HI_EXPORT_DSP_LIBRARY
+
 /** Contains functions that are called internally to load / unload the library. */
 namespace InternalLibraryFunctions
 {
@@ -268,6 +270,8 @@ DLL_EXPORT void InternalLibraryFunctions::destroyDspObject(DspBaseObject* handle
 *	@endcode
 */
 DLL_EXPORT LoadingErrorCode initialise(const char* args);
+
+#endif
 
 } // namespace hise
 

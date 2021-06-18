@@ -122,6 +122,7 @@ class ScriptingContentOverlay : public Component,
 								public ScriptComponentEditListener,
 								public LassoSource<ScriptComponent*>
 							    
+							    
 {
 public:
 
@@ -134,6 +135,8 @@ public:
 
 	void toggleEditMode();
 
+	bool isEditModeEnabled() const;
+
 	void setEditMode(bool editModeEnabled);
 
 	void setShowEditButton(bool shouldBeVisible)
@@ -143,13 +146,16 @@ public:
 
 	void paint(Graphics& g) override;
 
-
-
 	void scriptComponentSelectionChanged() override;
 
 	void scriptComponentPropertyChanged(ScriptComponent* sc, Identifier idThatWasChanged, const var& newValue) override;
 
 	bool keyPressed(const KeyPress &key) override;
+
+	struct LassoLaf: public LookAndFeel_V3
+	{
+		void drawLasso(Graphics& g, Component& c) override;
+	} llaf;
 
 	void findLassoItemsInArea(Array<ScriptComponent*> &itemsFound, const Rectangle< int > &area) override;
 		
@@ -184,11 +190,24 @@ public:
 
 		MarkdownLink getLink() const override;
 
+		void setUseSnapShot(bool shouldUseSnapShot);
+
 		void mouseUp(const MouseEvent& e);
 
 		void resized()
 		{
 			resizer->setBounds(getWidth() - 10, getHeight() - 10, 10, 10);
+
+			auto b = getLocalBounds();
+
+			auto bb = b.removeFromBottom(5);
+			bb.removeFromRight(10);
+
+			auto br = b.removeFromRight(5);
+			br.removeFromBottom(10);
+
+			bEdge->setBounds(bb);
+			rEdge->setBounds(br);
 		}
 
 		void moveOverlayedComponent(int deltaX, int deltaY);
@@ -196,6 +215,11 @@ public:
 		void resizeOverlayedComponent(int newWidth, int newHeight);
 
 		void duplicateSelection(int deltaX, int deltaY);
+
+		Point<int> getDragDistance() const
+		{
+			return dragDistance;
+		}
 
 	private:
 
@@ -320,9 +344,6 @@ public:
 				return currentPosition.getHeight() - startPosition.getHeight();
 			}
 
-
-
-
 			void setRasteredMovement(bool shouldBeRastered)
 			{
 				rasteredMovement = shouldBeRastered;
@@ -368,9 +389,12 @@ public:
 
 		ComponentDragger dragger;
 
+		Point<int> dragDistance;
+
 		Constrainer constrainer;
 
 		ScopedPointer<ResizableCornerComponent> resizer;
+		ScopedPointer<ResizableEdgeComponent> lEdge, rEdge, tEdge, bEdge;
 
 		Image snapShot;
 		bool copyMode = false;
@@ -379,7 +403,86 @@ public:
 
 		Rectangle<int> startBounds;
 
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Dragger);
 	};
+
+	struct SelectionMovementWatcher : public ComponentListener,
+								      public AsyncUpdater
+	{
+		SelectionMovementWatcher(ScriptingContentOverlay& parent_) :
+			parent(parent_)
+		{};
+
+		struct Item
+		{
+			WeakReference<Dragger> dragger;
+			Point<int> topLeftAtDragStart;
+		};
+
+		void startDragging(Dragger* newCurrentDragger)
+		{
+			currentDragger = newCurrentDragger;
+
+			otherDraggers.clear();
+
+			for (auto d : parent.draggers)
+			{
+				if (d == currentDragger)
+					continue;
+
+				Item ni;
+				ni.dragger = d;
+				d->setUseSnapShot(true);
+				ni.topLeftAtDragStart = d->getBoundsInParent().getTopLeft();
+
+				otherDraggers.add(ni);
+			}
+
+			currentDragger->addComponentListener(this);
+		}
+
+		void endDragging()
+		{
+			if (currentDragger != nullptr)
+				currentDragger->removeComponentListener(this);
+
+			for (auto o : otherDraggers)
+			{
+				if (o.dragger != nullptr)
+					o.dragger->setUseSnapShot(false);
+			}
+
+			currentDragger = nullptr;
+		}
+
+		void handleAsyncUpdate()
+		{
+			if (currentDragger != nullptr)
+			{
+				auto dd = currentDragger->getDragDistance();
+
+				for (auto& o : otherDraggers)
+				{
+					auto np = o.topLeftAtDragStart.translated(dd.getX(), dd.getY());
+
+					if (o.dragger != nullptr)
+						o.dragger->setTopLeftPosition(np);
+				}
+			}
+		}
+
+		void componentMovedOrResized(Component& component,
+			bool wasMoved,
+			bool wasResized)
+		{
+			triggerAsyncUpdate();
+		}
+
+		Array<Item> otherDraggers;
+		WeakReference<Dragger> currentDragger;
+
+		ScriptingContentOverlay& parent;
+	} smw;
 
 	bool isDisabledUntilUpdate = false;
 

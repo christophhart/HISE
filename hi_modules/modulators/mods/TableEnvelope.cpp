@@ -35,13 +35,15 @@ namespace hise { using namespace juce;
 TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m, float attackTimeMs, float releaseTimeMs):
 		EnvelopeModulator(mc, id, voiceAmount, m),
 		Modulation(m),
-		attackTable(new SampleLookupTable()),
-		releaseTable(new SampleLookupTable()),
+		LookupTableProcessor(mc, 2, true),
 		attack(attackTimeMs),
 		release(releaseTimeMs),
 		attackChain(new ModulatorChain(mc, "AttackTime Modulation", voiceAmount, Modulation::GainMode, this)),
 		releaseChain(new ModulatorChain(mc, "ReleaseTime Modulation", voiceAmount, Modulation::GainMode, this))
 {
+	attackTable = dynamic_cast<SampleLookupTable*>(getTableUnchecked(0));
+	releaseTable = dynamic_cast<SampleLookupTable*>(getTableUnchecked(1));
+
 	parameterNames.add("Attack");
 	parameterNames.add("Release");
 
@@ -92,6 +94,9 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 
 	attackChain->setParentProcessor(this);
 	releaseChain->setParentProcessor(this);
+
+	setInternalAttribute(SpecialParameters::Attack, attackTimeMs);
+	setInternalAttribute(SpecialParameters::Release, releaseTimeMs);
 };
 
 TableEnvelope::~TableEnvelope()
@@ -218,37 +223,39 @@ void TableEnvelope::calculateBlock(int startSample, int numSamples)
 
 	auto state = static_cast<TableEnvelopeState*>(isMonophonic ? monophonicState.get() : states[voiceIndex]);
 
-	if (--numSamples >= 0)
-	{
-		const float value = calculateNewValue(voiceIndex);
-		internalBuffer.setSample(0, startSample, value);
-		++startSample;
-		if (isMonophonic || voiceIndex == polyManager.getLastStartedVoice())
-		{
-
-			jassert(voiceIndex < states.size());
-
-			// skip sustaining and idle envelopes
-			if (state->current_state == TableEnvelopeState::SUSTAIN)
-			{
-				sendTableIndexChangeMessage(false, attackTable, 1.0f);
-				sendTableIndexChangeMessage(false, releaseTable, 0.0f);
-			}
-			else
-			{
-				SampleLookupTable *tableToUse = state->current_state == TableEnvelopeState::ATTACK ? attackTable : releaseTable;
-
-				const float indexValue = (float)state->uptime / (float)tableToUse->getLengthInSamples();
-
-				sendTableIndexChangeMessage(false, tableToUse, indexValue);
-			}
-		}
-	}
-
 	while (--numSamples >= 0)
 	{
 		internalBuffer.setSample(0, startSample, calculateNewValue(voiceIndex));
 		++startSample;
+	}
+
+	if (polyManager.getLastStartedVoice() == voiceIndex && uiUpdater.shouldUpdate())
+	{
+		float normalisedDisplayValue = (float)state->uptime / (float)SAMPLE_LOOKUP_TABLE_SIZE;
+
+		switch (state->current_state)
+		{
+		case TableEnvelopeState::ATTACK:
+			attackTable->sendDisplayIndexMessage(normalisedDisplayValue);
+			releaseTable->sendDisplayIndexMessage(0.0f);
+			break;
+		case TableEnvelopeState::SUSTAIN:
+			attackTable->sendDisplayIndexMessage(1.0f);
+			releaseTable->sendDisplayIndexMessage(0.0f);
+			break;
+		case TableEnvelopeState::RELEASE:
+			attackTable->sendDisplayIndexMessage(1.0f);
+			releaseTable->sendDisplayIndexMessage(normalisedDisplayValue);
+			break;
+		case TableEnvelopeState::RETRIGGER:
+			attackTable->sendDisplayIndexMessage(normalisedDisplayValue);
+			releaseTable->sendDisplayIndexMessage(0.0f);
+			break;
+		case TableEnvelopeState::IDLE:
+			attackTable->sendDisplayIndexMessage(0.0f);
+			releaseTable->sendDisplayIndexMessage(0.0f);
+			break;
+		}
 	}
 }
 
@@ -293,19 +300,19 @@ float TableEnvelope::calculateNewValue(int voiceIndex)
 	switch(state->current_state)
 	{
 	case TableEnvelopeState::ATTACK:
+	{
+		state->current_value = attackTable->getInterpolatedValue(state->uptime, dontSendNotification);
 
-		state->current_value = attackTable->getInterpolatedValue(state->uptime);
+		state->uptime += attackUptimeDelta * state->attackModValue;
 
-		state->uptime += state->attackModValue;
-
-		if((int)state->uptime >= attackTable->getLengthInSamples() - 1)
+		if ((int)state->uptime >= SAMPLE_LOOKUP_TABLE_SIZE)
 		{
 			state->uptime = 0.0f;
 
-			if(!isMonophonic && attackTable->getLastValue() <= 0.01f)
+			if (!isMonophonic && attackTable->getLastValue() <= 0.01f)
 			{
 				stopVoice(voiceIndex);
-				
+
 			}
 			else
 			{
@@ -314,12 +321,12 @@ float TableEnvelope::calculateNewValue(int voiceIndex)
 			}
 		}
 		break;
-			
+	}
 	case TableEnvelopeState::SUSTAIN: break;
 
 	case TableEnvelopeState::RETRIGGER:
 	{
-		const float targetValue = attackTable->getInterpolatedValue(0.0);
+		const float targetValue = attackTable->getInterpolatedValue(0.0, dontSendNotification);
 		const float currentValue = state->current_value;
 
 		const bool down = currentValue > targetValue;
@@ -350,20 +357,17 @@ float TableEnvelope::calculateNewValue(int voiceIndex)
 
 	case TableEnvelopeState::RELEASE:
 
-		state->uptime += state->releaseModValue;
+		state->uptime += releaseUptimeDelta * state->releaseModValue;
 
-		if((int)state->uptime >= releaseTable->getLengthInSamples() - 1)
+		if((int)state->uptime >= SAMPLE_LOOKUP_TABLE_SIZE)
 		{
 			state->current_value = 0.0f; 
 			state->current_state = TableEnvelopeState::IDLE;
-			
 		}
 		else
 		{
-			state->current_value = state->releaseGain * releaseTable->getInterpolatedValue(state->uptime);
+			state->current_value = state->releaseGain * releaseTable->getInterpolatedValue(state->uptime, dontSendNotification);
 		}
-		
-		
 
 		break;
 
@@ -379,6 +383,8 @@ float TableEnvelope::calculateNewValue(int voiceIndex)
 void TableEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	EnvelopeModulator::prepareToPlay(sampleRate, samplesPerBlock);
+
+	uiUpdater.limitFromBlockSizeToFrameRate(getControlRate(), samplesPerBlock);
 		
 
 	setInternalAttribute(Attack, attack);

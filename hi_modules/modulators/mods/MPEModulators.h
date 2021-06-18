@@ -87,9 +87,6 @@ public:
 	float getDefaultValue(int parameterIndex) const override;
 	float getAttribute(int parameter_index) const;
 
-	int getNumTables() const override { return 1; }
-	Table* getTable(int /*index*/) const override { return table; }
-	
 	void resetToDefault();
 	
 	void restoreFromValueTree(const ValueTree &v) override;
@@ -234,9 +231,7 @@ private:
 	Gesture g;
 	float smoothedIntensity;
 
-	ScopedPointer<SampleLookupTable> table;
-
-	
+	SampleLookupTable* table;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEModulator);
 

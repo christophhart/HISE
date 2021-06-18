@@ -1009,5 +1009,49 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
 #endif
 }
 
+
+
+
+String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code, int& counter)
+{
+	jassertfalse;
+
+	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "");
+
+	try
+	{
+		String returnString = it.removeUnneededNamespaces(counter);
+		return returnString;
+	}
+	catch (String &e)
+	{
+		Logger::getCurrentLogger()->writeToLog(e);
+		return code;
+	}
+
+	return {};
+}
+
+String JavascriptProcessor::Helpers::uglify(const String& prettyCode)
+{
+	jassertfalse;
+
+	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(prettyCode, "");
+
+	try
+	{
+		String returnString = it.uglify();
+		return returnString;
+	}
+	catch (String &e)
+	{
+		Logger::getCurrentLogger()->writeToLog(e);
+		return prettyCode;
+	}
+	return {};
+}
+
+
+
 } // namespace hise
 

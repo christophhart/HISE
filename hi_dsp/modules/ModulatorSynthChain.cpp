@@ -243,6 +243,10 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	// Shrink the internal buffer to the output buffer size 
 	internalBuffer.setSize(getMatrix().getNumSourceChannels(), numSamples, true, false, true);
 
+#if FORCE_INPUT_CHANNELS
+	internalBuffer.makeCopyOf(buffer);
+#endif
+
 	// Process the Synths and add store their output in the internal buffer
 	for (int i = 0; i < synths.size(); i++)
     {
@@ -304,8 +308,13 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	}
 	else // save some cycles on non multichannel buffers...
 	{
+#if FORCE_INPUT_CHANNELS
+		FloatVectorOperations::copyWithMultiply(buffer.getWritePointer(0, 0), internalBuffer.getReadPointer(0, 0), getGain() * getBalance(false), numSamples);
+		FloatVectorOperations::copyWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), numSamples);
+#else
 		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(0, 0), internalBuffer.getReadPointer(0, 0), getGain() * getBalance(false), numSamples);
 		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), numSamples);
+#endif
 	}
 
 	// Display the output

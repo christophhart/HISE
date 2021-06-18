@@ -29,7 +29,7 @@
  *
  *   ===========================================================================
  */
-
+#if 0
 #pragma once
 
 namespace scriptnode {
@@ -1279,3 +1279,4 @@ void fm::setFrequency(double newFrequency)
 } // namespace core
 
 } // namespace scriptnode
+#endif

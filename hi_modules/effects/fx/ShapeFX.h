@@ -69,7 +69,8 @@ public:
 
 	void setTargetValue(float newTargetValue)
 	{
-		targetValue = FloatSanitizers::sanitizeFloatNumber(newTargetValue);
+		FloatSanitizers::sanitizeFloatNumber(newTargetValue);
+		targetValue = newTargetValue;
 	}
 
 	Smoother s;
@@ -80,15 +81,8 @@ public:
 	@ingroup effectTypes.
 */
 class ShapeFX : public MasterEffectProcessor,
-				public WaveformComponent::Broadcaster,
-#if HI_USE_SHAPE_FX_SCRIPTING
 				public LookupTableProcessor,
-				public JavascriptProcessor,
-				public ProcessorWithScriptingContent
-#else
-				public LookupTableProcessor
-#endif
-
+				public WaveformComponent::Broadcaster
 {
 public:
 
@@ -112,8 +106,6 @@ public:
 		Chebichev3,
 		Curve=32,
 		AsymetricalCurve,
-		CachedScript,
-		Script,
 		numModes
 	};
 
@@ -150,9 +142,6 @@ public:
 			}
 		}
 
-		
-
-
 		float getSingleValue(float input) { return ShapeFunction::shape(input); };
 	};
 
@@ -179,8 +168,6 @@ public:
 		BypassFilters,
 		numParameters
 	};
-
-	
 
 	SET_PROCESSOR_NAME("ShapeFX", "Shape FX", "A general purpose waveshaper effect. ");
 
@@ -221,10 +208,6 @@ public:
 
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 0; };
-
-	Table* getTable(int /*tableIndex*/) const override;
-	
-	int getNumTables() const override { return 1; }
 
 	Processor *getChildProcessor(int /*processorIndex*/) override
 	{
@@ -283,32 +266,26 @@ private:
 
 	void initShapers();
 
-	struct TableUpdater : public SafeChangeListener
+	struct TableUpdater : public Table::Listener
 	{
 		TableUpdater(ShapeFX& parent_) :
 			parent(parent_)
 		{
-			parent.getTable(0)->addChangeListener(this);
+			parent.getTable(0)->addRulerListener(this);
 		};
 
 		~TableUpdater()
 		{
-			parent.getTable(0)->removeChangeListener(this);
+			parent.getTable(0)->removeRulerListener(this);
 		}
 
-		void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
+		void graphHasChanged(int index) override
 		{
 			parent.recalculateDisplayTable();
 		}
 
 		ShapeFX& parent;
 	};
-
-#if HI_USE_SHAPE_FX_SCRIPTING
-	void rebuildScriptedTable();
-	Result shapeResult;
-	ScopedPointer<SnippetDocument> functionCode;
-#endif
 
 	void recalculateDisplayTable();
 
@@ -363,7 +340,6 @@ private:
 
 	chunkware_simple::SimpleLimit limiter;
 
-	ScopedPointer<SafeChangeBroadcaster> tableBroadcaster;
 	ScopedPointer<TableUpdater> tableUpdater;
 
 	void updateMix();
@@ -375,8 +351,8 @@ private:
 *
 */
 class PolyshapeFX : public VoiceEffectProcessor,
-					public WaveformComponent::Broadcaster,
-					public LookupTableProcessor
+					public LookupTableProcessor,
+					public WaveformComponent::Broadcaster
 {
 public:
 
@@ -430,10 +406,6 @@ public:
 	int getNumChildProcessors() const override { return numInternalChains; };
 	int getNumInternalChains() const override { return numInternalChains; };
 
-	Table* getTable(int tableIndex) const override;
-
-	int getNumTables() const override { return 2; }
-
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
@@ -472,25 +444,25 @@ private:
 
 	void updateSmoothedGainers();
 
-	class TableUpdater : public SafeChangeListener
+	class TableUpdater : public Table::Listener
 	{
 	public:
 		TableUpdater(PolyshapeFX& parent_) :
 			parent(parent_)
 		{
-			parent.getTable(0)->addChangeListener(this);
-			parent.getTable(1)->addChangeListener(this);
+			parent.getTable(0)->addRulerListener(this);
+			parent.getTable(1)->addRulerListener(this);
 		}
-
-		void changeListenerCallback(SafeChangeBroadcaster*) override
+ 
+		void graphHasChanged(int point) override
 		{
 			parent.recalculateDisplayTable();
 		}
 
 		~TableUpdater()
 		{
-			parent.getTable(0)->removeChangeListener(this);
-			parent.getTable(1)->removeChangeListener(this);
+			parent.getTable(0)->removeRulerListener(this);
+			parent.getTable(1)->removeRulerListener(this);
 		}
 
 		PolyshapeFX& parent;

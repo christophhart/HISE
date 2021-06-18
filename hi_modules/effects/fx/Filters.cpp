@@ -624,24 +624,7 @@ void PolyFilterEffect::startVoice(int voiceIndex, const HiseEvent& e)
 	blockIsActive = true;
 }
 
-void StaticBiquadSubType::updateCoefficients(double sampleRate, double frequency, double q, double gain)
-{
-	switch (biquadType)
-	{
-	case LowPass:		currentCoefficients = IIRCoefficients::makeLowPass(sampleRate, frequency); break;
-	case HighPass:		currentCoefficients = IIRCoefficients::makeHighPass(sampleRate, frequency); break;
-	case LowShelf:		currentCoefficients = IIRCoefficients::makeLowShelf(sampleRate, frequency, q, (float)gain); break;
-	case HighShelf:		currentCoefficients = IIRCoefficients::makeHighShelf(sampleRate, frequency, q, (float)gain); break;
-	case Peak:			currentCoefficients = IIRCoefficients::makePeakFilter(sampleRate, frequency, q, (float)gain); break;
-	case ResoLow:		currentCoefficients = FilterEffect::makeResoLowPass(sampleRate, frequency, q); break;
-	default:							jassertfalse; break;
-	}
 
-	for (int i = 0; i < numChannels; i++)
-	{
-		filters[i].setCoefficients(currentCoefficients);
-	}
-}
 
 
 } // namespace hise

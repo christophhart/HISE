@@ -35,12 +35,86 @@
 
 namespace hise { using namespace juce;
 
+#define OLD_LISTENER_SP 0
+
 /** The data model for a SliderPack component. */
-class SliderPackData: public SafeChangeBroadcaster
+class SliderPackData: public SafeChangeBroadcaster,
+					  public ComplexDataUIBase
 {
 public:
 
-	SliderPackData(UndoManager* undoManager, PooledUIUpdater* updater);
+	static constexpr int NumDefaultSliders = 16;
+
+	class Listener : private ComplexDataUIUpdaterBase::EventListener
+	{
+	public:
+
+		virtual ~Listener() {};
+
+		/** Callback that will be executed when a slider is moved. You can get the actual value with SliderPack::getValue(int index). */
+		virtual void sliderPackChanged(SliderPackData *d, int index) = 0;
+
+		/** Will be executed when the amount of sliders has changed. */
+		virtual void sliderAmountChanged(SliderPackData* d) {};
+
+		/** Will be executed when the displayed index has changed. */
+		virtual void displayedIndexChanged(SliderPackData* d, int newIndex) {};
+
+	private:
+
+		friend class SliderPackData;
+
+		/** @internal (only used by the slider pack data). */
+		void setSliderPack(SliderPackData* d)
+		{
+			connectedSliderPack = d;
+		}
+
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var v) override
+		{
+			switch (t)
+			{
+			case ComplexDataUIUpdaterBase::EventType::ContentRedirected:
+				sliderAmountChanged(connectedSliderPack);
+				break;
+			case ComplexDataUIUpdaterBase::EventType::ContentChange:
+				sliderPackChanged(connectedSliderPack, (int)v);
+				break;
+			case ComplexDataUIUpdaterBase::EventType::DisplayIndex:
+				displayedIndexChanged(connectedSliderPack, (int)v);
+				
+				break;
+			}
+		}
+
+		WeakReference<SliderPackData> connectedSliderPack;
+	};
+
+#if OLD_LISTENER_SP
+	/** Inherit from this class in order to get notified about changes to the slider pack. */
+	class Listener
+	{
+	public:
+
+		virtual ~Listener();
+
+		/** Callback that will be executed when a slider is moved. You can get the actual value with SliderPack::getValue(int index). */
+		virtual void sliderPackChanged(SliderPackData *d, int index) = 0;
+
+		/** Will be executed when the amount of sliders has changed. */
+		virtual void sliderAmountChanged(SliderPackData* d) {};
+
+		/** Will be executed when the displayed index has changed. */
+		virtual void displayedIndexChanged(SliderPackData* d, int newIndex) {};
+
+	private:
+		WeakReference<Listener>::Master masterReference;
+		friend class WeakReference<Listener>;
+
+	};
+#endif
+
+	SliderPackData(UndoManager* undoManager=nullptr, PooledUIUpdater* updater=nullptr);
 
 	~SliderPackData();
 
@@ -51,6 +125,18 @@ public:
 	void startDrag()
 	{
 		
+	}
+
+	bool fromBase64String(const String& b64) override
+	{
+		fromBase64(b64);
+
+		return getNumSliders() > 0;
+	}
+
+	String toBase64String() const override
+	{
+		return toBase64();
 	}
 
 	double getStepSize() const;
@@ -76,40 +162,20 @@ public:
 		return nextIndexToDisplay;
 	}
 
-	void swapData(Array<var> &otherData)
-	{
-		{
-			SimpleReadWriteLock::ScopedWriteLock sl(arrayLock);
-
-			values = var(otherData);
-		}
-		
-		sendChangeMessage();
-	}
+	void swapData(const var &otherData);
 
 	void setDisplayedIndex(int index)
 	{
-		if (index != nextIndexToDisplay)
-		{
-			nextIndexToDisplay = index;
-			sendPooledChangeMessage();
-		}
+		nextIndexToDisplay = index;
+		internalUpdater.sendDisplayChangeMessage((float)index, sendNotificationAsync);
 	}
 
-	const float* getCachedData()
+	const float* getCachedData() const
 	{
-		int size = getNumSliders();
-		cachedData.buffer.setSize(1, size);
-
-		for (int i = 0; i < size; i++)
-		{
-			cachedData.setSample(i, getValue(i));
-		}
-
-		return cachedData.buffer.getReadPointer(0);
+		return dataBuffer->buffer.getReadPointer(0);
 	}
 
-	var getDataArray() const { return values; }
+	var getDataArray() const { return var(dataBuffer); }
 
 	void setFlashActive(bool shouldBeShown) { flashActive = shouldBeShown; };
 	void setShowValueOverlay(bool shouldBeShown) { showValueOverlay = shouldBeShown; };
@@ -119,16 +185,33 @@ public:
 
 	void setDefaultValue(double newDefaultValue)
 	{
-		defaultValue = var(newDefaultValue);
-	}
-
-	void setUndoManager(UndoManager* managerToUse)
-	{
-		undoManager = managerToUse;
+		defaultValue = (float)newDefaultValue;
 	}
 
 	void setNewUndoAction() const;
+
+	/** Register a listener that will receive notification when the sliders are changed. */
+	void addListener(Listener *listener)
+	{
+		listener->setSliderPack(this);
+		internalUpdater.addEventListener(listener);
+	}
+
+	/** Removes a previously registered listener. */
+	void removeListener(Listener *listener)
+	{
+		listener->setSliderPack(nullptr);
+		internalUpdater.removeEventListener(listener);
+	}
+
+	void sendValueChangeMessage(int index, NotificationType notify=sendNotificationSync)
+	{
+		internalUpdater.sendContentChangeMessage(notify, index);
+	}
+
 private:
+
+	void swapBuffer(VariantBuffer::Ptr otherBuffer);
 
 	struct SliderPackAction : public UndoableAction
 	{
@@ -169,31 +252,20 @@ private:
 		NotificationType n;
 	};
 
-	
-	mutable SimpleReadWriteLock arrayLock;
-
-	UndoManager* undoManager;
-
 	bool flashActive;
 	bool showValueOverlay;
 
-	VariantBuffer cachedData;
+	VariantBuffer::Ptr dataBuffer;
 	
-	WeakReference<SliderPackData>::Master masterReference;
-
-	friend class WeakReference < SliderPackData > ;
-
 	int nextIndexToDisplay;
 	
 	Range<double> sliderRange;
 
 	double stepSize;
 
-	var values;
+	float defaultValue;
 
-	var defaultValue;
-
-	//Array<float> values;
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SliderPackData);
 };
 
 
@@ -206,32 +278,30 @@ private:
 */
 class SliderPack : public Component,
 				   public Slider::Listener,
-				   public SafeChangeListener,
-				   public Timer
+				   public SliderPackData::Listener,
+				   public Timer,
+				   public ComplexDataUIBase::EditorBase
 {
 public:
 
-	struct SliderLookAndFeel : public BiPolarSliderLookAndFeel
+	using Listener = SliderPackData::Listener;
+
+	struct LookAndFeelMethods
 	{
+		virtual ~LookAndFeelMethods() {};
+
+		virtual void drawSliderPackBackground(Graphics& g, SliderPack& s);
+
+		virtual void drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity);
+	};
+
+	struct SliderLookAndFeel : public BiPolarSliderLookAndFeel,
+							   public LookAndFeelMethods
+	{
+
 		void drawLinearSlider(Graphics &g, int /*x*/, int /*y*/, int width,
 			int height, float /*sliderPos*/, float /*minSliderPos*/,
 			float /*maxSliderPos*/, const Slider::SliderStyle style, Slider &s) override;
-	};
-
-	/** Inherit from this class in order to get notified about changes to the slider pack. */
-	class Listener
-	{
-	public:
-
-		virtual ~Listener();
-
-		/** Callback that will be executed when a slider is moved. You can get the actual value with SliderPack::getValue(int index). */
-		virtual void sliderPackChanged(SliderPack *s, int index ) = 0;
-
-	private:
-		WeakReference<Listener>::Master masterReference;
-		friend class WeakReference<Listener>;
-		
 	};
 
 	SET_GENERIC_PANEL_ID("ArrayEditor");
@@ -241,16 +311,31 @@ public:
 
 	~SliderPack();
 
-	/** Register a listener that will receive notification when the sliders are changed. */
-	void addListener(Listener *listener)
+	void sliderAmountChanged(SliderPackData* d) override
 	{
-		listeners.addIfNotAlreadyThere(listener);
+		slidersNeedRebuild = true;
+		startTimer(30);
 	}
 
-	/** Removes a previously registered listener. */
-	void removeListener(Listener *listener)
+	void sliderPackChanged(SliderPackData *s, int index) override
 	{
-		listeners.removeAllInstancesOf(listener);
+		for (int i = 0; i < sliders.size(); i++)
+		{
+			auto shouldBe = data->getValue(i);
+
+			if (sliders[i]->getValue() != shouldBe)
+				sliders[i]->setValue(shouldBe, dontSendNotification);
+		}
+	} 
+
+	void displayedIndexChanged(SliderPackData* d, int newIndex) override
+	{
+		if (currentDisplayIndex != newIndex)
+		{
+			currentDisplayIndex = newIndex;
+			displayAlphas.set(newIndex, 0.4f);
+			startTimer(30);
+		}
 	}
 
 	void timerCallback() override;
@@ -264,29 +349,44 @@ public:
 	/** Sets the value of one of the sliders. If the index is bigger than the slider amount, it will do nothing. */
 	void setValue(int sliderIndex, double newValue);
 
+	void setSliderPackData(SliderPackData* newData);
+
+	void setComplexDataUIBase(ComplexDataUIBase* newData) override
+	{
+		if (auto sp = dynamic_cast<SliderPackData*>(newData))
+			setSliderPackData(sp);
+	}
+
 	void updateSliders();
 
+#if 0
 	void changeListenerCallback(SafeChangeBroadcaster *b) override;
+#endif
 
 	void mouseDown(const MouseEvent &e) override;
 	void mouseDrag(const MouseEvent &e) override;
 	void mouseUp(const MouseEvent &e) override;
 	void mouseDoubleClick(const MouseEvent &e) override;
 	void mouseExit(const MouseEvent &e) override;
+	void mouseMove(const MouseEvent&) override { repaint(); }
 
 	void update();
 
 	void sliderValueChanged(Slider *s) override;
 
-	void notifyListeners(int index);
+	void notifyListeners(int index, NotificationType n)
+	{
+		if (getData() != nullptr)
+		{
+			getData()->sendValueChangeMessage(index, n);
+		}
+	}
 
 	void paintOverChildren(Graphics &g) override;
 
 	void paint(Graphics &g);
 
 	void setSuffix(const String &suffix);
-
-	void setDisplayedIndex(int displayIndex);
 
 	/** Sets the double click return value. */
 	void setDefaultValue(double defaultValue);
@@ -302,6 +402,13 @@ public:
 	/** Returns the number of slider. */
 	int getNumSliders();
 
+	void setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn /* = false */) override
+	{
+		EditorBase::setSpecialLookAndFeel(l, shouldOwn);
+		sliders.clear();
+		rebuildSliders();
+	}
+
 	void setFlashActive(bool setFlashActive);
 	void setShowValueOverlay(bool shouldShowValueOverlay);
 	void setStepSize(double stepSize);
@@ -316,16 +423,32 @@ public:
         resized();
     }
     
+	void addListener(Listener* l)
+	{
+		if (auto d = getData())
+			d->addListener(l);
+	}
+
+	void removeListener(Listener* listener)
+	{
+		if (auto d = getData())
+			d->removeListener(listener);
+	}
+
 private:
+
+	int lastDragIndex = -1;
+	float lastDragValue = -1.0f;
+
+	bool slidersNeedRebuild = false;
+
+	void rebuildSliders();
 
 	int currentDisplayIndex = -1;
 
 	int getSliderIndexForMouseEvent(const MouseEvent& e);
     
-	SliderPackData dummyData;
-
-	Array<WeakReference<Listener>, CriticalSection> listeners;
-
+	ReferenceCountedObjectPtr<SliderPackData> dummyData;
 	String suffix;
 
 	double defaultValue;
@@ -342,10 +465,7 @@ private:
 
 	double currentlyDraggedSliderValue;
 
-	SliderLookAndFeel laf;
-
 	WeakReference<SliderPackData> data;
-
 	OwnedArray<Slider> sliders;
 
 };

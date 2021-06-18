@@ -53,6 +53,40 @@ void DspHelpers::increaseBuffer(AudioSampleBuffer& b, const PrepareSpecs& specs)
 	}
 }
 
+void DspHelpers::increaseBuffer(snex::Types::heap<float>& b, const PrepareSpecs& specs)
+{
+	auto numChannels = specs.numChannels;
+	auto numSamples = specs.blockSize;
+	auto numElements = numChannels * numSamples;
+
+	if (numElements > b.size())
+		b.setSize(numElements);
+}
+
+void DspHelpers::setErrorIfFrameProcessing(const PrepareSpecs& ps)
+{
+	if (ps.blockSize == 1)
+	{
+		Error e;
+		e.error = Error::IllegalFrameCall;
+		throw e;
+	}
+}
+
+void DspHelpers::setErrorIfNotOriginalSamplerate(const PrepareSpecs& ps, NodeBase* n)
+{
+	auto original = n->getRootNetwork()->getOriginalSampleRate();
+
+	if (ps.sampleRate != original)
+	{
+		Error e;
+		e.error = Error::SampleRateMismatch;
+		e.expected = (int)original;
+		e.actual = (int)ps.sampleRate;
+		throw e;
+	}
+}
+
 scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRange(NormalisableRange<double> range, bool inverted, const ParameterCallback& originalFunction)
 {
 	if (RangeHelpers::isIdentity(range))
@@ -88,175 +122,57 @@ scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRang
 }
 
 
-double DspHelpers::ConverterFunctions::decibel2Gain(double input)
+
+void DspHelpers::validate(PrepareSpecs sp, PrepareSpecs rp)
 {
-	return Decibels::decibelsToGain(input);
-}
-
-double DspHelpers::ConverterFunctions::gain2Decibel(double input)
-{
-	return Decibels::gainToDecibels(input);
-}
-
-double DspHelpers::ConverterFunctions::dryAmount(double input)
-{
-	auto invGain = jlimit(0.0, 1.0, 1.0 - input);
-	auto invDb = Decibels::gainToDecibels(invGain);
-	return invDb;
-}
-
-double DspHelpers::ConverterFunctions::wetAmount(double input)
-{
-	return Decibels::gainToDecibels(input);
-}
-
-double DspHelpers::ConverterFunctions::subtractFromOne(double input)
-{
-	return jlimit(0.0, 1.0, 1.0 - input);
-}
-
-DspHelpers::ConverterFunction DspHelpers::ConverterFunctions::getFunction(const Identifier& id)
-{
-	if (id.isNull() || id == ConverterIds::Identity)
-		return {};
-	if (id == ConverterIds::Decibel2Gain)
-		return decibel2Gain;
-	if (id == ConverterIds::Gain2Decibel)
-		return gain2Decibel;
-	if (id == ConverterIds::SubtractFromOne)
-		return subtractFromOne;
-	if (id == ConverterIds::DryAmount)
-		return dryAmount;
-	if (id == ConverterIds::WetAmount)
-		return wetAmount;
-	
-	return {};
-}
-
-scriptnode::DspHelpers::ParameterCallback DspHelpers::wrapIntoConversionLambda(const Identifier& converterId, const ParameterCallback& originalFunction, NormalisableRange<double> range, bool inverted)
-{
-	using namespace ConverterIds;
-
-	if (converterId == Identity || converterId.isNull())
-		return getFunctionFrom0To1ForRange(range, inverted, originalFunction);
-
-	if (converterId == SubtractFromOne)
+	auto isIdle = [](const PrepareSpecs& p)
 	{
-		auto withRange = getFunctionFrom0To1ForRange(range, false, originalFunction);
+		return p.numChannels == 0 && p.sampleRate == 0.0 && p.blockSize == 0;
+	};
 
-		return [withRange](double normedValue)
-		{
-			double v = ConverterFunctions::subtractFromOne(normedValue);
-			withRange(v);
-		};
+	if (isIdle(sp) || isIdle(rp))
+		return;
+
+	if (sp.numChannels != rp.numChannels)
+	{
+		Error e;
+		e.error = Error::ChannelMismatch;
+		e.actual = rp.numChannels;
+		e.expected = sp.numChannels;
+
+		throw e;
 	}
 
-	if (auto cf = ConverterFunctions::getFunction(converterId))
+	if (sp.sampleRate != rp.sampleRate)
 	{
-		return [originalFunction, cf](double newValue)
-		{
-			originalFunction(cf(newValue));
-		};
-	}
-	else
-		return originalFunction;
-}
-
-
-double DspHelpers::findPeak(const ProcessData& data)
-{
-	double max = 0.0;
-
-	for (auto channel : data)
-	{
-		auto r = FloatVectorOperations::findMinAndMax(channel, data.size);
-		auto thisMax = jmax<float>(std::abs(r.getStart()), std::abs(r.getEnd()));
-		max = jmax(max, (double)thisMax);
+		Error e;
+		e.error = Error::SampleRateMismatch;
+		e.actual = (int)rp.sampleRate;
+		e.expected = (int)sp.sampleRate;
+		throw e;
 	}
 
-	return max;
-}
-
-void ProcessData::copyToFrameDynamic(float* frame) const
-{
-	jassert(modifyPointersAllowed);
-
-	for (int i = 0; i < numChannels; i++)
-		frame[i] = *data[i];
-}
-
-void ProcessData::copyFromFrameAndAdvanceDynamic(const float* frame)
-{
-	jassert(modifyPointersAllowed);
-
-	for (int i = 0; i < numChannels; i++)
-		*data[i]++ = frame[i];
-}
-
-void ProcessData::advanceChannelPointers(int sampleAmount/*=1*/)
-{
-	jassert(modifyPointersAllowed);
-
-	for (int i = 0; i < numChannels; i++)
-		data[i] += sampleAmount;
-}
-
-scriptnode::ProcessData ProcessData::copyToRawArray(float** channelData, float* uninitialisedData, bool clearArray/*=true*/)
-{
-	for (int i = 0; i < numChannels; i++)
+	if (sp.blockSize != rp.blockSize)
 	{
-		channelData[i] = uninitialisedData;
-
-		if (clearArray)
-			memset(channelData[i], 0, sizeof(float)*size);
-
-		uninitialisedData += size;
+		Error e;
+		e.error = Error::BlockSizeMismatch;
+		e.actual = rp.blockSize;
+		e.expected = sp.blockSize;
+		throw e;
 	}
-
-	ProcessData rd(channelData, numChannels, size);
-	rd.eventBuffer = eventBuffer;
-	return rd;
 }
 
-scriptnode::ProcessData ProcessData::copyTo(AudioSampleBuffer& buffer, int index)
+void DspHelpers::throwIfFrame(PrepareSpecs ps)
 {
-	auto channelOffset = index * numChannels;
-
-	int numChannelsToCopy = jmin(buffer.getNumChannels() - channelOffset, numChannels);
-	int numSamplesToCopy = jmin(buffer.getNumSamples(), size);
-
-	for (int i = 0; i < numChannelsToCopy; i++)
-		buffer.copyFrom(i + channelOffset, 0, data[i], numSamplesToCopy);
-
-	return referTo(buffer, index);
+	if (ps.blockSize == 1)
+	{
+		Error e;
+		e.error = Error::IllegalFrameCall;
+		throw e;
+	}
 }
 
-
-scriptnode::ProcessData ProcessData::referTo(AudioSampleBuffer& buffer, int index) const
-{
-	ProcessData d;
-
-	auto channelOffset = index * numChannels;
-
-	d.numChannels = jmin(buffer.getNumChannels() - channelOffset, numChannels);
-	d.size = jmin(buffer.getNumSamples(), size);
-	d.data = buffer.getArrayOfWritePointers() + channelOffset;
-	d.eventBuffer = eventBuffer;
-
-	return d;
-}
-
-scriptnode::ProcessData& ProcessData::operator+=(const ProcessData& other)
-{
-	jassert(numChannels == other.numChannels);
-	jassert(size == other.size);
-
-	for (int i = 0; i < numChannels; i++)
-		FloatVectorOperations::add(data[i], other.data[i], size);
-
-	return *this;
-}
-
+#if 0
 juce::String CodeHelpers::createIncludeFile(File targetDirectory)
 {
 	if (!targetDirectory.isDirectory())
@@ -382,7 +298,7 @@ void CodeHelpers::addFileToProjectFolder(const String& filename, const String& c
 {
 	addFileInternal(filename, content, projectIncludeDirectory);
 }
-
+#endif
 
 }
 

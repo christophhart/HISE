@@ -1015,6 +1015,9 @@ public:
 
 		bool handleBufferDuringSuspension(AudioSampleBuffer& b);
 
+		/** Calls the function later on the same thread (either message thread or sample loading thread. */
+		void callLater(const std::function<void()>& f);
+
 	private:
 
 		friend class SuspendHelpers::ScopedTicket;
@@ -1198,6 +1201,8 @@ public:
 	{
 		return &getSampleManager().getProjectHandler().pool->getMidiFilePool();
 	}
+
+	virtual void* getWorkbenchManager() { return nullptr; }
 
 	KillStateHandler& getKillStateHandler() { return killStateHandler; };
 	const KillStateHandler& getKillStateHandler() const { return killStateHandler; };
@@ -1494,6 +1499,11 @@ public:
 		return currentPreview;
 	}
 
+	MultiChannelAudioBuffer::XYZPool* getXYZPool()
+	{
+		return xyzPool.get();
+	}
+
 #if HISE_INCLUDE_RLOTTIE
 	RLottieManager::Ptr getRLottieManager();
 #endif
@@ -1561,7 +1571,11 @@ protected:
 		maxEventTimestamp = newMaxTimestamp;
 	}
 
+	
+
 private:
+
+	ReferenceCountedObjectPtr<MultiChannelAudioBuffer::XYZPool> xyzPool;
 
 	bool refreshOversampling();
 

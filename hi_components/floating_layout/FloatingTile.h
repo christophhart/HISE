@@ -432,6 +432,7 @@ public:
 
 	void setContent(const var& data);
 	void setNewContent(const Identifier& newId);
+	void setNewContent(Component* newContent);
 
 	bool isEmpty() const;
 	bool showTitle() const;
@@ -487,6 +488,8 @@ public:
 	void mouseExit(const MouseEvent& event) override;
 	void mouseDown(const MouseEvent& event) override;
 
+	void setOverlayComponent(Component* newOverlayComponent, int fadeTime);
+
 	void resized();
 
 	/** Returns the current size in the container. */
@@ -519,6 +522,8 @@ public:
 	void editJSON();
 
 	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint);
+
+	bool isRootPopupShown() const;
 
 	struct LayoutHelpers
 	{
@@ -564,6 +569,41 @@ public:
 	MainController* getMainController() { return mc; }
 
 	const MainController* getMainController() const { return mc; }
+
+	/** Pass in a lambda and it will call it on every child that matches. If you return true, it will abort the execution. */
+	template <typename ContentType> bool forEach(const std::function<bool(ContentType*)>& f)
+	{
+		if (auto typed = dynamic_cast<ContentType*>(getCurrentFloatingPanel()))
+		{
+			if (f(typed))
+				return true;
+		}
+
+		if (auto c = dynamic_cast<FloatingTileContainer*>(getCurrentFloatingPanel()))
+		{
+			for (int i = 0; i < c->getNumComponents(); i++)
+			{
+				if (c->getComponent(i)->forEach(f))
+					return true;
+			}
+		}
+
+		return false;
+	}
+
+	template <typename ContentType> ContentType* findFirstChildWithType()
+	{
+		ContentType* result = nullptr;
+		ContentType** resultPointer = &result;
+
+		forEach<ContentType>([resultPointer](ContentType* t)
+		{
+			*resultPointer = t;
+			return true;
+		});
+
+		return result;
+	}
 
 	void setIsFloatingTileOnInterface()
 	{
@@ -625,6 +665,8 @@ private:
 
 	FloatingTileContainer* parentContainer;
 	FloatingTileContent::Factory panelFactory;
+
+	ScopedPointer<Component> overlayComponent;
 };
 
 #if USE_BACKEND

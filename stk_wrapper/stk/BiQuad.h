@@ -87,7 +87,7 @@ public:
   StkFloat lastOut( void ) const { return lastFrame_[0]; };
 
   //! Input one sample to the filter and return a reference to one output.
-  StkFloat tick( StkFloat input );
+  StkFloat tick( StkFloat input, int=0 );
 
   //! Take a channel of the StkFrames object as inputs to the filter and replace with corresponding outputs.
   /*!
@@ -116,7 +116,7 @@ public:
   virtual void sampleRateChanged( StkFloat newRate, StkFloat oldRate );
 };
 
-inline StkFloat BiQuad :: tick( StkFloat input )
+inline StkFloat BiQuad :: tick( StkFloat input, int )
 {
   inputs_[0] = gain_ * input;
   lastFrame_[0] = b_[0] * inputs_[0] + b_[1] * inputs_[1] + b_[2] * inputs_[2];

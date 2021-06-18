@@ -453,43 +453,73 @@ private:
 };
 
 
-
-
-class TableEditorPanel : public PanelWithProcessorConnection
+struct ComplexDataEditorPanel : public PanelWithProcessorConnection
 {
-public:
+	ComplexDataEditorPanel(FloatingTile* parent, snex::ExternalData::DataType t):
+		PanelWithProcessorConnection(parent),
+		type(t)
+	{}
 
-	TableEditorPanel(FloatingTile* parent) :
-		PanelWithProcessorConnection(parent)
-	{};
-
-	SET_PANEL_NAME("TableEditor");
+	bool hasSubIndex() const override { return true; }
 
 	Component* createContentComponent(int index) override
 	{
-		auto ltp = dynamic_cast<LookupTableProcessor*>(getProcessor());
-		return new TableEditor(getProcessor()->getMainController()->getControlUndoManager(), ltp->getTable(index));
+		if (auto pb = dynamic_cast<ProcessorWithExternalData*>(getProcessor()))
+		{
+			if (isPositiveAndBelow(index, pb->getNumDataObjects(type)))
+			{
+				auto obj = pb->getComplexBaseType(type, index);
+				return dynamic_cast<Component*>(snex::ExternalData::createEditor(obj));
+			}
+		}
+
+		return nullptr;
 	}
 
 	void fillModuleList(StringArray& moduleList) override
 	{
-		fillModuleListWithType<LookupTableProcessor>(moduleList);
+		moduleList.addArray(ProcessorHelpers::getAllIdsForDataType(getMainController()->getMainSynthChain(), type));
 	}
-
-	bool hasSubIndex() const override { return true; }
 
 	void fillIndexList(StringArray& indexList) override
 	{
-		auto ltp = dynamic_cast<LookupTableProcessor*>(getConnectedProcessor());
-
-		if (ltp != nullptr)
+		if (auto pb = dynamic_cast<ProcessorWithExternalData*>(getProcessor()))
 		{
-			for (int i = 0; i < ltp->getNumTables(); i++)
-			{
-				indexList.add("Table " + String(i + 1));
-			}
+			int numObjects = pb->getNumDataObjects(type);
+
+			auto name = ExternalData::getDataTypeName(type);
+
+			for (int i = 0; i < numObjects; i++)
+				indexList.add(name + String(i + 1));
 		}
 	}
+
+protected:
+
+	const snex::ExternalData::DataType type;
+};
+
+
+class TableEditorPanel : public ComplexDataEditorPanel
+{
+public:
+
+	TableEditorPanel(FloatingTile* parent) :
+		ComplexDataEditorPanel(parent, snex::ExternalData::DataType::Table)
+	{};
+
+	SET_PANEL_NAME("TableEditor");
+};
+
+class SliderPackPanel : public ComplexDataEditorPanel
+{
+public:
+
+	SliderPackPanel(FloatingTile* parent) :
+		ComplexDataEditorPanel(parent, snex::ExternalData::DataType::SliderPack)
+	{};
+
+	SET_PANEL_NAME("SliderPackEditor");
 };
 
 class PlotterPanel : public PanelWithProcessorConnection
@@ -527,39 +557,7 @@ private:
 };
 
 
-class SliderPackPanel : public PanelWithProcessorConnection
-{
-public:
 
-	SliderPackPanel(FloatingTile* parent) :
-		PanelWithProcessorConnection(parent)
-	{
-	};
-
-	SET_PANEL_NAME("SliderPackEditor");
-
-	Component* createContentComponent(int /*index*/) override
-	{
-		if (auto p = dynamic_cast<SliderPackProcessor*>(getProcessor()))
-		{
-			auto sp = new SliderPack(p->getSliderPackData(0));
-
-			sp->setOpaque(true);
-			sp->setColour(Slider::backgroundColourId, Colour(0xff333333));
-
-			return sp;
-		}
-		
-		return nullptr;
-	}
-
-	void fillModuleList(StringArray& moduleList) override
-	{
-		fillModuleListWithType<SliderPackProcessor>(moduleList);
-	}
-
-	void resized() override;
-};
 
 
 class ProcessorPeakMeter : public Component,

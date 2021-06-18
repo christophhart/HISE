@@ -117,6 +117,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, addToMacroControl);
 	API_METHOD_WRAPPER_0(ScriptComponent, getWidth);
 	API_METHOD_WRAPPER_0(ScriptComponent, getHeight);
+	API_METHOD_WRAPPER_1(ScriptComponent, getLocalBounds);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, changed);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionX);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
@@ -149,6 +150,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 
 	ADD_SCRIPT_PROPERTY(vId, "visible");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(eId, "enabled");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(lId, "locked");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_NUMBER_PROPERTY(xId, "x");					ADD_AS_SLIDER_TYPE(0, 900, 1);
 	ADD_NUMBER_PROPERTY(yId, "y");					ADD_AS_SLIDER_TYPE(0, MAX_SCRIPT_HEIGHT, 1);
 	ADD_NUMBER_PROPERTY(wId, "width");				ADD_AS_SLIDER_TYPE(0, 900, 1);
@@ -178,6 +180,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	setDefaultValue(Properties::text, name.toString());
 	setDefaultValue(Properties::visible, true);
 	setDefaultValue(Properties::enabled, true);
+	setDefaultValue(Properties::locked, false);
 	
 	setDefaultValue(Properties::min, 0.0);
 	setDefaultValue(Properties::max, 1.0);
@@ -212,6 +215,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_1(addToMacroControl);
 	ADD_API_METHOD_0(getWidth);
 	ADD_API_METHOD_0(getHeight);
+	ADD_API_METHOD_1(getLocalBounds);
 	ADD_API_METHOD_0(changed);
 	ADD_API_METHOD_0(getGlobalPositionX);
 	ADD_API_METHOD_0(getGlobalPositionY);
@@ -1066,6 +1070,7 @@ void ScriptingApi::Content::ScriptComponent::sendSubComponentChangeMessage(Scrip
 		MessageManager::callAsync(f);
 }
 
+
 void ScriptingApi::Content::ScriptComponent::setZLevel(String zLevelToUse)
 {
 	static const StringArray validNames = { "Back", "Default", "Front", "AlwaysOnTop" };
@@ -1087,6 +1092,15 @@ void ScriptingApi::Content::ScriptComponent::setZLevel(String zLevelToUse)
 				l->zLevelChanged(currentZLevel);
 		}
 	}
+
+  var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
+{
+	Rectangle<float> ar(0.0f, 0.0f, (float)getScriptObjectProperty(Properties::width), (float)getScriptObjectProperty(Properties::height));
+	ar = ar.reduced(reduceAmount);
+
+	Array<var> b;
+	b.add(ar.getX()); b.add(ar.getY()); b.add(ar.getWidth()); b.add(ar.getHeight());
+	return var(b);
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -1944,23 +1958,128 @@ juce::StringArray ScriptingApi::Content::ScriptComboBox::getOptionsFor(const Ide
 	return sa;
 }
 
+
+ScriptingApi::Content::ComplexDataScriptComponent::ComplexDataScriptComponent(ProcessorWithScriptingContent* base, Identifier name, snex::ExternalData::DataType type_) :
+	ScriptComponent(base, name),
+	type(type_)
+{
+	ownedObject = snex::ExternalData::create<MidiTable>(type);
+	ownedObject->setGlobalUIUpdater(base->getMainController_()->getGlobalUIUpdater());
+	ownedObject->setUndoManager(base->getMainController_()->getControlUndoManager());
+}
+
+juce::StringArray ScriptingApi::Content::ComplexDataScriptComponent::getOptionsFor(const Identifier &id)
+{
+	if (id != getIdFor(ScriptComponent::Properties::processorId))
+		return ScriptComponent::getOptionsFor(id);
+
+	auto parentSynth = ProcessorHelpers::findParentProcessor(dynamic_cast<Processor*>(getScriptProcessor()), true);
+
+	return ProcessorHelpers::getAllIdsForDataType(parentSynth, type);
+}
+
+hise::ComplexDataUIBase* ScriptingApi::Content::ComplexDataScriptComponent::getUsedData(snex::ExternalData::DataType requiredType)
+{
+	if (type != requiredType)
+		return nullptr;
+
+	if (auto eh = getExternalHolder())
+	{
+		auto externalIndex = (int)getScriptObjectProperty(getIndexPropertyId());
+		cachedObjectReference = eh->getComplexBaseType(type, externalIndex);
+	}
+	else
+		cachedObjectReference = ownedObject.get();
+
+	return cachedObjectReference;
+}
+
+snex::ExternalDataHolder* ScriptingApi::Content::ComplexDataScriptComponent::getExternalHolder()
+{
+	if (otherHolder != nullptr)
+		return otherHolder;
+
+	if (auto eh = dynamic_cast<ExternalDataHolder*>(getConnectedProcessor()))
+		return eh;
+
+	return nullptr;
+}
+
+juce::ValueTree ScriptingApi::Content::ComplexDataScriptComponent::exportAsValueTree() const
+{
+	ValueTree v = ScriptComponent::exportAsValueTree();
+
+	jassert(cachedObjectReference != nullptr);
+
+	if (cachedObjectReference != nullptr)
+		v.setProperty("data", cachedObjectReference->toBase64String(), nullptr);
+
+	return v;
+}
+
+void ScriptingApi::Content::ComplexDataScriptComponent::restoreFromValueTree(const ValueTree &v)
+{
+	ScriptComponent::restoreFromValueTree(v);
+
+	if (cachedObjectReference != nullptr)
+		cachedObjectReference->fromBase64String(v.getProperty("data", String()));
+}
+
+void ScriptingApi::Content::ComplexDataScriptComponent::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isPluginParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
+}
+
+void ScriptingApi::Content::ComplexDataScriptComponent::registerComplexDataObjectAtParent(int index /*= -1*/)
+{
+	if (auto d = dynamic_cast<ProcessorWithDynamicExternalData*>(getScriptProcessor()))
+	{
+		otherHolder = d;
+		d->registerExternalObject(type, index, ownedObject);
+		setScriptObjectProperty(getIndexPropertyId(), index, sendNotification);
+		updateCachedObjectReference();
+	}
+}
+
+void ScriptingApi::Content::ScriptAudioWaveform::handleDefaultDeactivatedProperties()
+{
+	ComplexDataScriptComponent::handleDefaultDeactivatedProperties();
+
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(text));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(defaultValue));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(macroControl));
+}
+
+void ScriptingApi::Content::ScriptTable::handleDefaultDeactivatedProperties()
+{
+	ComplexDataScriptComponent::handleDefaultDeactivatedProperties();
+
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
+}
+
 struct ScriptingApi::Content::ScriptTable::Wrapper
 {
 	API_METHOD_WRAPPER_1(ScriptTable, getTableValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, setTablePopupFunction);
 	API_VOID_METHOD_WRAPPER_2(ScriptTable, connectToOtherTable);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, setSnapValues);
+	API_VOID_METHOD_WRAPPER_1(ScriptTable, registerAtParent);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, referToData);
 };
 
 ScriptingApi::Content::ScriptTable::ScriptTable(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name, int x, int y, int , int ) :
-ScriptComponent(base, name),
-ownedTable(new MidiTable()),
-useOtherTable(false),
-connectedProcessor(nullptr),
-lookupTableIndex(-1)
+ComplexDataScriptComponent(base, name, snex::ExternalData::DataType::Table)
 {
-	
 	propertyIds.add("tableIndex");
 	propertyIds.add("customColours"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
@@ -1974,25 +2093,20 @@ lookupTableIndex(-1)
 	handleDefaultDeactivatedProperties();
 	
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::Properties::processorId);
-	
 	initInternalPropertyFromValueTreeOrDefault(Properties::TableIndex);
+
+	updateCachedObjectReference();
 
 	ADD_API_METHOD_1(getTableValue);
 	ADD_API_METHOD_2(connectToOtherTable);
 	ADD_API_METHOD_1(setSnapValues);
 	ADD_API_METHOD_1(referToData);
 	ADD_API_METHOD_1(setTablePopupFunction);
-
-	broadcaster.enablePooledUpdate(base->getMainController_()->getGlobalUIUpdater());
+	ADD_API_METHOD_1(registerAtParent);
 }
 
 ScriptingApi::Content::ScriptTable::~ScriptTable()
 {
-	broadcaster.removeAllChangeListeners();
-
-	ownedTable = nullptr;
-	referencedTable = nullptr;
-	connectedProcessor = nullptr;
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -2002,114 +2116,20 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createCompon
 
 float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 {
-	value = inputValue;
-
-	
-
-	
-
-	if (useOtherTable)
+	if (auto t = getCachedTable())
 	{
-		if (MidiTable *mt = dynamic_cast<MidiTable*>(referencedTable.get()))
+		if (MidiTable *mt = dynamic_cast<MidiTable*>(t))
 		{
-			return mt->get(inputValue);
+			return mt->get(inputValue, sendNotificationAsync);
 		}
-		else if (SampleLookupTable *st = dynamic_cast<SampleLookupTable*>(referencedTable.get()))
+		else if (SampleLookupTable *st = dynamic_cast<SampleLookupTable*>(t))
 		{
-			return st->getInterpolatedValue(inputValue);
-		}
-		else
-		{
-			logErrorAndContinue("Connected Table was not found!");
-			
-			return -1.0f;
+			return st->getInterpolatedValue(inputValue, sendNotificationAsync);
 		}
 	}
-	else
-	{
-		// Connected tables will handle the update automatically, but for owned tables
-		// it must be done here explicitely...
-		if (auto t = getTable())
-		{
-			broadcaster.table = t;
-			broadcaster.tableIndex = (float)inputValue / (float)t->getTableSize();
 
-			broadcaster.sendPooledChangeMessage();
-		}
-
-		return ownedTable->get(inputValue);
-	}
-}
-
-StringArray ScriptingApi::Content::ScriptTable::getOptionsFor(const Identifier &id)
-{
-	if (id != getIdFor(ScriptComponent::Properties::processorId)) return ScriptComponent::getOptionsFor(id);
-
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-	if (mp == nullptr) return StringArray();
-
-	return ProcessorHelpers::getAllIdsForType<LookupTableProcessor>(mp->getOwnerSynth());
+	return 0.0f;
 };
-
-void ScriptingApi::Content::ScriptTable::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor)
-{
-	if (getIdFor(ScriptComponent::Properties::processorId) == id)
-	{
-		jassert(isCorrectlyInitialised(ScriptComponent::Properties::processorId));
-
-		const int tableIndex = getScriptObjectProperty(TableIndex);
-
-		connectToOtherTable(newValue, tableIndex);
-	}
-	else if (getIdFor(TableIndex) == id)
-	{
-		jassert(isCorrectlyInitialised(TableIndex));
-
-		connectToOtherTable(getScriptObjectProperty(ScriptComponent::Properties::processorId), newValue);
-	}
-	else if (getIdFor(parameterId) == id)
-	{
-		// don't do anything if you try to connect a table to a parameter...
-		return;
-	}
-	
-	
-
-	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
-}
-
-void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &otherTableId, int index)
-{
-	if (otherTableId.isEmpty() || otherTableId == " ")
-		return;
-
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-	if (mp == nullptr) return;
-
-	Processor::Iterator<Processor> it(mp->getOwnerSynth(), false);
-
-	Processor *p;
-
-	while ((p = it.getNextProcessor()) != nullptr)
-	{
-		if (dynamic_cast<LookupTableProcessor*>(p) != nullptr && p->getId() == otherTableId)
-		{
-			useOtherTable = true;
-
-			referencedTable = dynamic_cast<LookupTableProcessor*>(p)->getTable(index);
-
-			connectedProcessor = p;
-
-			return;
-		}
-
-	}
-
-	useOtherTable = false;
-	referencedTable = nullptr;
-
-    logErrorAndContinue(otherTableId + " was not found.");
-}
 
 
 void ScriptingApi::Content::ScriptTable::setSnapValues(var snapValueArray)
@@ -2124,81 +2144,14 @@ void ScriptingApi::Content::ScriptTable::setSnapValues(var snapValueArray)
 	getPropertyValueTree().sendPropertyChangeMessage(getIdFor(parameterId));
 }
 
-LookupTableProcessor * ScriptingApi::Content::ScriptTable::getTableProcessor() const
-{
-	if (connectedProcessor == nullptr && useOtherTable)
-		return const_cast<LookupTableProcessor*>(dynamic_cast<const LookupTableProcessor*>(getScriptProcessor()));
 
-	return dynamic_cast<LookupTableProcessor*>(connectedProcessor.get());
-}
 
-ValueTree ScriptingApi::Content::ScriptTable::exportAsValueTree() const
-{
-	ValueTree v = ScriptComponent::exportAsValueTree();
-
-	if (getTable() != nullptr) v.setProperty("data", getTable()->exportData(), nullptr);
-	else jassertfalse;
-
-	return v;
-}
-
-void ScriptingApi::Content::ScriptTable::restoreFromValueTree(const ValueTree &v)
-{
-	ScriptComponent::restoreFromValueTree(v);
-
-	if (getTable() == nullptr)
-		return;
-
-	getTable()->restoreData(v.getProperty("data", String()));
-
-	getTable()->sendChangeMessage();
-}
-
-Table * ScriptingApi::Content::ScriptTable::getTable()
-{
-	return useOtherTable ? referencedTable.get() : ownedTable;
-}
-
-const Table * ScriptingApi::Content::ScriptTable::getTable() const
-{
-	return useOtherTable ? referencedTable.get() : ownedTable;
-}
-
-void ScriptingApi::Content::ScriptTable::handleDefaultDeactivatedProperties()
-{
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
-}
 
 void ScriptingApi::Content::ScriptTable::resetValueToDefault()
 {
-	if (auto t = getTable())
+	if (auto t = getCachedTable())
 	{
 		t->reset();
-		t->sendChangeMessage();
-	}
-}
-
-void ScriptingApi::Content::ScriptTable::referToData(var tableData)
-{
-	if (auto td = dynamic_cast<ScriptingObjects::ScriptTableData*>(tableData.getObject()))
-	{
-		referencedTable = td->getTable();
-		useOtherTable = true;
-	}
-	else
-	{
-		referencedTable = nullptr;
-		useOtherTable = false;
-		
-		reportScriptError("Invalid table");
 	}
 }
 
@@ -2206,6 +2159,16 @@ void ScriptingApi::Content::ScriptTable::setTablePopupFunction(var newFunction)
 {
 	tableValueFunction = newFunction;
 	getPropertyValueTree().sendPropertyChangeMessage(getIdFor(parameterId));
+}
+
+void ScriptingApi::Content::ScriptTable::referToData(var tableData)
+{
+	referToDataBase(tableData);
+}
+
+void ScriptingApi::Content::ScriptTable::registerAtParent(int index)
+{
+	registerComplexDataObjectAtParent(index);
 }
 
 struct ScriptingApi::Content::ScriptSliderPack::Wrapper
@@ -2219,21 +2182,14 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 };
 
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int , int ) :
-ScriptComponent(base, name_),
-packData(new SliderPackData(base->getMainController_()->getControlUndoManager(), base->getMainController_()->getGlobalUIUpdater())),
-existingData(nullptr)
+ComplexDataScriptComponent(base, name_, snex::ExternalData::DataType::SliderPack)
 {
-	
-
 	ADD_NUMBER_PROPERTY(i00, "sliderAmount");		ADD_AS_SLIDER_TYPE(0, 128, 1);
 	ADD_NUMBER_PROPERTY(i01, "stepSize");
-	ADD_SCRIPT_PROPERTY(i02, "flashActive");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i02, "flashActive");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i03, "showValueOverlay");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i05, "SliderPackIndex");     
 
-	packData->setNumSliders(16);
-
-	
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 200);
@@ -2250,7 +2206,7 @@ existingData(nullptr)
 	
 	setDefaultValue(SliderPackIndex, 0);
 
-	setDefaultValue(SliderAmount, 16);
+	setDefaultValue(SliderAmount, hise::SliderPackData::NumDefaultSliders);
 	setDefaultValue(StepSize, 0.01);
 
 	handleDefaultDeactivatedProperties();
@@ -2264,6 +2220,8 @@ existingData(nullptr)
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::Properties::processorId);
 	initInternalPropertyFromValueTreeOrDefault(SliderPackIndex);
 
+	updateCachedObjectReference();
+
 	ADD_API_METHOD_2(setSliderAtIndex);
 	ADD_API_METHOD_1(getSliderValueAt);
 	ADD_API_METHOD_1(setAllValues);
@@ -2274,8 +2232,6 @@ existingData(nullptr)
 
 ScriptingApi::Content::ScriptSliderPack::~ScriptSliderPack()
 {
-	packData = nullptr;
-	existingData = nullptr;
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSliderPack::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -2285,81 +2241,45 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSliderPack::createC
 
 void ScriptingApi::Content::ScriptSliderPack::setSliderAtIndex(int index, double newValue)
 {
-	getSliderPackData()->setValue(index, (float)newValue, sendNotification);
+	if(auto d = getCachedSliderPack())
+		d->setValue(index, (float)newValue, sendNotification);
 }
 
 double ScriptingApi::Content::ScriptSliderPack::getSliderValueAt(int index)
 {
-	SliderPackData *dataToUse = getSliderPackData();
+	if (auto d = getCachedSliderPack())
+	{
+		d->setDisplayedIndex(index);
+		return d->getValue(index);
+	}
 
-	jassert(dataToUse != nullptr);
-
-	dataToUse->setDisplayedIndex(index);
-
-	return (double)dataToUse->getValue(index);
+	return 0.0;
 }
 
 void ScriptingApi::Content::ScriptSliderPack::setAllValues(double newValue)
 {
-	SliderPackData *dataToUse = getSliderPackData();
-
-	jassert(dataToUse != nullptr);
-
-	for (int i = 0; i < dataToUse->getNumSliders(); i++)
+	if (auto d = getCachedSliderPack())
 	{
-		dataToUse->setValue(i, (float)newValue, dontSendNotification);
-	}
+		for (int i = 0; i < d->getNumSliders(); i++)
+		{
+			d->setValue(i, (float)newValue, dontSendNotification);
+		}
 
-	getSliderPackData()->sendChangeMessage();
+		d->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+	}
 }
 
 int ScriptingApi::Content::ScriptSliderPack::getNumSliders() const
 {
-	return getSliderPackData()->getNumSliders();
-}
+	if (auto d = getCachedSliderPack())
+		return d->getNumSliders();
 
-void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const String &newPackId)
-{
-	if (newPackId.isEmpty() || newPackId == " ")
-		return;
-
-	otherPackId = newPackId;
-
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-	if (mp == nullptr) return;
-
-	Processor::Iterator<Processor> it(mp->getOwnerSynth(), false);
-
-	Processor *p;
-
-	while ((p = it.getNextProcessor()) != nullptr)
-	{
-		if ((dynamic_cast<SliderPackProcessor*>(p) != nullptr) && p->getId() == newPackId)
-		{
-			existingData = dynamic_cast<SliderPackProcessor*>(p)->getSliderPackData(otherPackIndex);
-
-			if (existingData == nullptr)
-				logErrorAndContinue("Slider Pack for " + newPackId + " with index " + String(otherPackIndex) + " wasn't found");
-
-			return;
-		}
-	}
-
-	existingData = nullptr;
-
-    logErrorAndContinue(newPackId + " was not found.");
+	return 0;
 }
 
 StringArray ScriptingApi::Content::ScriptSliderPack::getOptionsFor(const Identifier &id)
 {
-	if (id == getIdFor(ScriptComponent::Properties::processorId))
-	{
-		MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-		if (mp == nullptr) return StringArray();
-
-		return ProcessorHelpers::getAllIdsForType<SliderPackProcessor>(mp->getOwnerSynth());
-	}
-	else if(id == getIdFor(Properties::StepSize))
+	if(id == getIdFor(Properties::StepSize))
 	{
 		StringArray sa;
 
@@ -2370,7 +2290,7 @@ StringArray ScriptingApi::Content::ScriptSliderPack::getOptionsFor(const Identif
 		return sa;
 	}
 	
-	return ScriptComponent::getOptionsFor(id);
+	return ComplexDataScriptComponent::getOptionsFor(id);
 };
 
 void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /*= sendNotification*/)
@@ -2381,92 +2301,53 @@ void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeM
 	{
 		jassert(isCorrectlyInitialised(SliderAmount));
 
-		if (existingData.get() != nullptr) return;
-		packData->setNumSliders(newValue);
+		if(auto d = getCachedSliderPack())
+			d->setNumSliders((int)newValue);
 	}
 	else if (id == getIdFor(ScriptComponent::Properties::min))
 	{
 		jassert(isCorrectlyInitialised(ScriptComponent::Properties::min));
 
-		if (existingData.get() != nullptr) return;
-		packData->setRange(newValue, packData->getRange().getEnd(), newValue);
+		if(auto d = getCachedSliderPack())
+			d->setRange((double)newValue, d->getRange().getEnd(), d->getStepSize());
 	}
 	else if (id == getIdFor(ScriptComponent::Properties::max))
 	{
-		jassert(isCorrectlyInitialised(ScriptComponent::Properties::min));
+		jassert(isCorrectlyInitialised(ScriptComponent::Properties::max));
 
-		if (existingData.get() != nullptr) return;
-		packData->setRange(packData->getRange().getStart(), newValue, newValue);
+		if (auto d = getCachedSliderPack())
+			d->setRange(d->getRange().getStart(), (double)newValue, d->getStepSize());
 	}
 	else if (id == getIdFor(StepSize))
 	{
 		jassert(isCorrectlyInitialised(StepSize));
 
-		if (existingData.get() != nullptr) return;
-		packData->setRange(packData->getRange().getStart(), packData->getRange().getEnd(), newValue);
+		if (auto d = getCachedSliderPack())
+			d->setRange(d->getRange().getStart(), d->getRange().getEnd(), (double)newValue);
 	}
 	else if (id == getIdFor(FlashActive))
 	{
 		jassert(isCorrectlyInitialised(FlashActive));
 
-		if (existingData.get() != nullptr) return;
-		packData->setFlashActive((bool)newValue);
+		if(auto d = getCachedSliderPack())
+			d->setFlashActive((bool)newValue);
 	}
 	else if (id == getIdFor(ShowValueOverlay))
 	{
 		jassert(isCorrectlyInitialised(ShowValueOverlay));
 
-		if (existingData.get() != nullptr) return;
-		packData->setShowValueOverlay((bool)newValue);
-	}
-	else if (id == getIdFor(ScriptComponent::Properties::processorId) || id == oldProcessorId)
-	{
-		jassert(isCorrectlyInitialised(ScriptComponent::Properties::processorId));
-
-		connectToOtherSliderPack(newValue.toString());
+		if (auto d = getCachedSliderPack())
+			d->setShowValueOverlay((bool)newValue);
 	}
 	else if (getIdFor(parameterId) == id )
 	{
 		// don't do anything if you try to connect a slider pack to a parameter...
 		return;
 	}
-	else if (id == getIdFor(SliderPackIndex))
-	{
-		jassert(isCorrectlyInitialised(SliderPackIndex));
-
-		otherPackIndex = (int)newValue;
-		connectToOtherSliderPack(otherPackId);
-	}
 	
-	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+	ComplexDataScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
 
-ValueTree ScriptingApi::Content::ScriptSliderPack::exportAsValueTree() const
-{
-	ValueTree v = ScriptComponent::exportAsValueTree();
-
-	v.setProperty("data", getSliderPackData()->toBase64(), nullptr);
-
-	return v;
-}
-
-void ScriptingApi::Content::ScriptSliderPack::restoreFromValueTree(const ValueTree &v)
-{
-	ScriptComponent::restoreFromValueTree(v);
-
-	getSliderPackData()->fromBase64(v.getProperty("data", String()));
-	getSliderPackData()->sendChangeMessage();
-}
-
-SliderPackData * ScriptingApi::Content::ScriptSliderPack::getSliderPackData()
-{
-	return (existingData != nullptr) ? existingData.get() : packData.get();
-}
-
-const SliderPackData * ScriptingApi::Content::ScriptSliderPack::getSliderPackData() const
-{
-	return (existingData != nullptr) ? existingData.get() : packData.get();
-}
 
 void ScriptingApi::Content::ScriptSliderPack::setValue(var newValue)
 {
@@ -2474,9 +2355,8 @@ void ScriptingApi::Content::ScriptSliderPack::setValue(var newValue)
 
 	if (auto array = newValue.getArray())
 	{
-		getSliderPackData()->swapData(*array);
-		
-		triggerAsyncUpdate();
+		if(auto d = getCachedSliderPack())
+			d->swapData(*array);
 	}
 	else
 	{
@@ -2486,18 +2366,15 @@ void ScriptingApi::Content::ScriptSliderPack::setValue(var newValue)
 
 var ScriptingApi::Content::ScriptSliderPack::getValue() const
 {
-	return getSliderPackData()->getDataArray();
+	if (auto d = getCachedSliderPack())
+		return d->getDataArray();
+
+	return {};
 }
 
 void ScriptingApi::Content::ScriptSliderPack::referToData(var sliderPackData)
 {
-	if (auto spd = dynamic_cast<ScriptingObjects::ScriptSliderPackData*>(sliderPackData.getObject()))
-	{
-		existingData = spd->getSliderPackData();
-		existingData->sendChangeMessage();
-	}
-	else
-		logErrorAndContinue("not a valid SliderPackData object");
+	referToDataBase(sliderPackData);
 }
 
 void ScriptingApi::Content::ScriptSliderPack::setWidthArray(var normalizedWidths)
@@ -2512,21 +2389,103 @@ void ScriptingApi::Content::ScriptSliderPack::setWidthArray(var normalizedWidths
         widthArray = *ar;
         sendChangeMessage();
     }
-    
-    
-    
-    
 }
-    
-void ScriptingApi::Content::ScriptSliderPack::handleDefaultDeactivatedProperties()
+
+ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int, int) :
+	ComplexDataScriptComponent(base, waveformName, snex::ExternalData::DataType::AudioFile)
 {
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isPluginParameter));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
+	ADD_SCRIPT_PROPERTY(i01, "itemColour3"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
+	ADD_SCRIPT_PROPERTY(i02, "opaque"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i03, "showLines"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i04, "showFileName"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i05, "sampleIndex");
+
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, 200);
+	setDefaultValue(ScriptComponent::Properties::height, 100);
+
+	setDefaultValue(Properties::itemColour3, 0x22FFFFFF);
+	setDefaultValue(ScriptComponent::Properties::bgColour, (int64)0xFF555555);
+	setDefaultValue(ScriptComponent::Properties::itemColour2, (int64)0xffcccccc);
+	setDefaultValue(ScriptComponent::Properties::itemColour, (int64)0xa2181818);
+
+	setDefaultValue(Properties::opaque, true);
+	setDefaultValue(Properties::showLines, false);
+	setDefaultValue(Properties::showFileName, true);
+	setDefaultValue(Properties::sampleIndex, -1);
+
+	handleDefaultDeactivatedProperties();
+
+	updateCachedObjectReference();
 }
+
+ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptAudioWaveform::createComponentWrapper(ScriptContentComponent *content, int index)
+{
+	return new ScriptCreatedComponentWrappers::AudioWaveformWrapper(content, this, index);
+}
+
+
+ValueTree ScriptingApi::Content::ScriptAudioWaveform::exportAsValueTree() const
+{
+	ValueTree v = ComplexDataScriptComponent::exportAsValueTree();
+
+	if (auto af = getCachedAudioFile())
+	{
+		auto sr = af->getCurrentRange();
+		v.setProperty("rangeStart", sr.getStart(), nullptr);
+		v.setProperty("rangeEnd", sr.getEnd(), nullptr);
+	}
+
+	return v;
+}
+
+void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const ValueTree &v)
+{
+	ComplexDataScriptComponent::restoreFromValueTree(v);
+
+	if (auto af = getCachedAudioFile())
+	{
+		// Old versions of HISE used fileName instead of the data property for storing the file reference
+		if (v.hasProperty("fileName") && !v.hasProperty("data"))
+		{
+			af->fromBase64String(v.getProperty("fileName", "").toString());
+		}
+
+		Range<int> range(v.getProperty("rangeStart", 0), v.getProperty("rangeEnd", 0));
+		af->setRange(range);
+	}
+}
+
+StringArray ScriptingApi::Content::ScriptAudioWaveform::getOptionsFor(const Identifier &id)
+{
+	if (id == getIdFor(processorId))
+	{
+		auto list = ComplexDataScriptComponent::getOptionsFor(id);
+
+		auto os = ProcessorHelpers::findParentProcessor(dynamic_cast<Processor*>(getScriptProcessor()), true);
+
+		auto samplers = ProcessorHelpers::getAllIdsForType<ModulatorSampler>(os);
+		list.addArray(samplers);
+		return list;
+	}
+	else
+	{
+		return ScriptComponent::getOptionsFor(id);
+	}
+}
+
+ModulatorSampler* ScriptingApi::Content::ScriptAudioWaveform::getSampler()
+{
+	return dynamic_cast<ModulatorSampler*>(getConnectedProcessor());
+}
+
+void ScriptingApi::Content::ScriptAudioWaveform::resetValueToDefault()
+{
+	if (auto af = getCachedAudioFile())
+		af->fromBase64String({});
+}
+
 
 struct ScriptingApi::Content::ScriptImage::Wrapper
 {
@@ -2686,6 +2645,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setMouseCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setLoadingCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setTimerCallback);
+	API_VOID_METHOD_WRAPPER_3(ScriptPanel, setFileDropCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, startTimer);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, stopTimer);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, changed);
@@ -2717,7 +2677,8 @@ graphics(new ScriptingObjects::GraphicsObject(base, this)),
 isChildPanel(true),
 loadRoutine(base, var(), 1),
 timerRoutine(base, var(), 0),
-mouseRoutine(base, var(), 1)
+mouseRoutine(base, var(), 1),
+fileDropRoutine(base, var(), 1)
 {
 	init();
 }
@@ -2729,7 +2690,8 @@ ScriptingApi::Content::ScriptPanel::ScriptPanel(ScriptPanel* parent) :
 	parentPanel(parent),
 	loadRoutine(parent->getScriptProcessor(), var(), 1),
 	mouseRoutine(parent->getScriptProcessor(), var(), 1),
-	timerRoutine(parent->getScriptProcessor(), var(), 0)
+	timerRoutine(parent->getScriptProcessor(), var(), 0),
+	fileDropRoutine(parent->getScriptProcessor(), var(), 1)
 {
 	
 	init();
@@ -2789,6 +2751,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_1(setMouseCallback);
 	ADD_API_METHOD_1(setLoadingCallback);
 	ADD_API_METHOD_1(setTimerCallback);
+	ADD_API_METHOD_3(setFileDropCallback);
 	ADD_API_METHOD_1(startTimer);
 	ADD_API_METHOD_0(stopTimer);
 	ADD_API_METHOD_2(loadImage);
@@ -2979,7 +2942,16 @@ void ScriptingApi::Content::ScriptPanel::preloadStateChanged(bool isPreloading)
 		loadRoutine.call1(isPreloading);
 }
 
+void ScriptingApi::Content::ScriptPanel::setFileDropCallback(String callbackLevel, String wildcard, var dropFunction)
+{
+	fileDropLevel = callbackLevel;
+	fileDropExtension = wildcard;
+	fileDropRoutine = WeakCallbackHolder(getScriptProcessor(), dropFunction, 1);
+	fileDropRoutine.incRefCount();
+	fileDropRoutine.setThisObject(this);
+	fileDropRoutine.setHighPriority();
 
+}
 
 void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunction)
 {
@@ -2987,6 +2959,17 @@ void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunct
 	mouseRoutine.incRefCount();
 	mouseRoutine.setThisObject(this);
 	mouseRoutine.setHighPriority();
+}
+
+void ScriptingApi::Content::ScriptPanel::fileDropCallback(var fileInformation)
+{
+	const bool parentHasMovedOn = !isChildPanel && !parent->hasComponent(this);
+
+	if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
+		return;
+
+	if (fileDropRoutine)
+		fileDropRoutine.call1(fileInformation);
 }
 
 void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
@@ -3450,6 +3433,9 @@ void ScriptingApi::Content::ScriptPanel::removeAnimationListener(AnimationListen
 #endif
 }
 
+
+
+
 #endif
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -3555,139 +3541,7 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 	return vArray;
 }
 
-ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int , int ) :
-ScriptComponent(base, waveformName)
-{
-	ADD_SCRIPT_PROPERTY(i01, "itemColour3"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
-	ADD_SCRIPT_PROPERTY(i02, "opaque"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	ADD_SCRIPT_PROPERTY(i03, "showLines"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	ADD_SCRIPT_PROPERTY(i04, "showFileName"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-    ADD_SCRIPT_PROPERTY(i05, "sampleIndex");
-    
-	setDefaultValue(ScriptComponent::Properties::x, x);
-	setDefaultValue(ScriptComponent::Properties::y, y);
-	setDefaultValue(ScriptComponent::Properties::width, 200);
-	setDefaultValue(ScriptComponent::Properties::height, 100);
-	
-	setDefaultValue(Properties::itemColour3, 0x22FFFFFF);
-	setDefaultValue(ScriptComponent::Properties::bgColour, (int64)0xFF555555);
-	setDefaultValue(ScriptComponent::Properties::itemColour2, (int64)0xffcccccc);
-	setDefaultValue(ScriptComponent::Properties::itemColour, (int64)0xa2181818);
 
-	setDefaultValue(Properties::opaque, true);
-	setDefaultValue(Properties::showLines, false);
-	setDefaultValue(Properties::showFileName, true);
-    setDefaultValue(Properties::sampleIndex, -1);
-
-	handleDefaultDeactivatedProperties();
-}
-
-ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptAudioWaveform::createComponentWrapper(ScriptContentComponent *content, int index)
-{
-	return new ScriptCreatedComponentWrappers::AudioWaveformWrapper(content, this, index);
-}
-
-
-ValueTree ScriptingApi::Content::ScriptAudioWaveform::exportAsValueTree() const
-{
-	ValueTree v = ScriptComponent::exportAsValueTree();
-
-	const AudioSampleProcessor *asp = dynamic_cast<const AudioSampleProcessor*>(getConnectedProcessor());
-
-	if (asp != nullptr)
-	{
-		v.setProperty("rangeStart", asp->getRange().getStart(), nullptr);
-		v.setProperty("rangeEnd", asp->getRange().getEnd(), nullptr);
-		v.setProperty("fileName", asp->getFileName(), nullptr);
-	}
-
-	return v;
-}
-
-void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const ValueTree &v)
-{
-	const String id = v.getProperty("id", "");
-
-	if (id.isNotEmpty())
-	{
-		const String fileName = v.getProperty("fileName", "");
-
-		if (getAudioProcessor() != nullptr)
-		{
-			getAudioProcessor()->setLoadedFile(fileName, true, false);
-
-			Range<int> range(v.getProperty("rangeStart"), v.getProperty("rangeEnd"));
-
-			getAudioProcessor()->setRange(range);
-
-			//WHYTHEFUCK
-			triggerAsyncUpdate();
-		}
-	}
-}
-
-StringArray ScriptingApi::Content::ScriptAudioWaveform::getOptionsFor(const Identifier &id)
-{
-	if (id != getIdFor(processorId)) return ScriptComponent::getOptionsFor(id);
-
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-	if (mp == nullptr) return StringArray();
-
-	auto aps = ProcessorHelpers::getAllIdsForType<AudioSampleProcessor>(mp->getOwnerSynth());
-	auto samplers = ProcessorHelpers::getAllIdsForType<ModulatorSampler>(mp->getOwnerSynth());
-	auto cds = ProcessorHelpers::getAllIdsForType<ComplexDataHolder>(mp->getOwnerSynth());
-
-	aps.addArray(samplers);
-	aps.addArray(cds);
-
-	return aps;
-}
-
-AudioSampleProcessor * ScriptingApi::Content::ScriptAudioWaveform::getAudioProcessor()
-{
-	return dynamic_cast<AudioSampleProcessor*>(getConnectedProcessor());
-}
-
-void ScriptingApi::Content::ScriptAudioWaveform::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */)
-{
-	if (id == getIdFor(parameterId))
-	{
-		return;
-	}
-
-	if (id == getIdFor(sampleIndex))
-	{
-		if (auto cdh = dynamic_cast<ComplexDataHolder*>(getConnectedProcessor()))
-		{
-			auto index = (int)newValue;
-
-			if (index < cdh->getNumAudioFiles())
-			{
-				audioFile = cdh->addOrReturnAudioFile(index);
-			}
-		}
-	}
-
-	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
-}
-
-ModulatorSampler* ScriptingApi::Content::ScriptAudioWaveform::getSampler()
-{
-	return dynamic_cast<ModulatorSampler*>(getConnectedProcessor());
-}
-
-void ScriptingApi::Content::ScriptAudioWaveform::handleDefaultDeactivatedProperties()
-{
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(text));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(min));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(max));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(defaultValue));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(macroControl));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::useUndoManager));
-}
 
 // ====================================================================================================== ScriptFloatingTile functions
 
@@ -3965,6 +3819,7 @@ colour(Colour(0xff777777))
 	setMethod("setColour", Wrapper::setColour);
 	setMethod("clear", Wrapper::clear);
 	setMethod("createPath", Wrapper::createPath);
+	setMethod("createShader", Wrapper::createShader);
 }
 
 ScriptingApi::Content::~Content()
@@ -4723,6 +4578,24 @@ void ScriptingApi::Content::suspendPanelTimers(bool shouldBeSuspended)
 			sp->suspendTimer(shouldBeSuspended);
 		}
 	}
+}
+
+#ifndef HISE_SUPPORT_GLSL_LINE_NUMBERS
+#define HISE_SUPPORT_GLSL_LINE_NUMBERS 0
+#endif
+
+var ScriptingApi::Content::createShader(const String& fileName)
+{
+	auto f = new ScriptingObjects::ScriptShader(getScriptProcessor());
+
+#if HISE_SUPPORT_GLSL_LINE_NUMBERS
+	f->setEnableLineNumbers(true);
+#endif
+
+	if(!fileName.isEmpty())
+		f->setFragmentShader(fileName);
+
+	return var(f);
 }
 
 #undef ADD_TO_TYPE_SELECTOR

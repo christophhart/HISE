@@ -44,24 +44,50 @@
 #include "scripting/scriptnode/nodes/DspNode.h"
 
 #include "scripting/scriptnode/ui/ParameterSlider.h"
-#include "scripting/scriptnode/ui/PropertyEditor.h"
 
 #include "scripting/scriptnode/ui/ModulationSourceComponent.h"
+
+
+
 #include "scripting/scriptnode/ui/NodeContainerComponent.h"
-#include "scripting/scriptnode/ui/FeedbackNodeComponents.h"
+
+
+
 #include "scripting/scriptnode/ui/DspNodeComponent.h"
 #include "scripting/scriptnode/ui/DspNetworkComponents.h"
 
 
 #include "scripting/scriptnode/api/Properties.cpp"
+#include "scripting/scriptnode/api/DynamicProperty.cpp"
 #include "scripting/scriptnode/api/RangeHelpers.cpp"
 #include "scripting/scriptnode/api/DspHelpers.cpp"
-#include "scripting/scriptnode/api/Base.cpp"
+
 #include "scripting/scriptnode/api/NodeBase.cpp"
 #include "scripting/scriptnode/api/NodeProperty.cpp"
+
+
+
 #include "scripting/scriptnode/api/ModulationSourceNode.cpp"
 #include "scripting/scriptnode/api/DspNetwork.cpp"
 #include "scripting/scriptnode/api/StaticNodeWrappers.cpp"
+
+#include "scripting/scriptnode/dynamic_elements/DynamicParameterList.cpp"
+#include "scripting/scriptnode/dynamic_elements/DynamicComplexData.cpp"
+
+#if HISE_INCLUDE_SNEX
+#include "scripting/scriptnode/snex_nodes/SnexSource.cpp"
+#include "scripting/scriptnode/snex_nodes/SnexNode.cpp"
+#include "scripting/scriptnode/snex_nodes/SnexShaper.cpp"
+#include "scripting/scriptnode/snex_nodes/SnexOscillator.cpp"
+#include "scripting/scriptnode/snex_nodes/SnexTimer.cpp"
+#include "scripting/scriptnode/snex_nodes/SnexMidi.cpp"
+#include "scripting/scriptnode/snex_nodes/SnexEnvelope.cpp"
+#endif
+
+#include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.cpp"
+#include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.cpp"
+#include "scripting/scriptnode/dynamic_elements/DynamicSmootherNode.cpp"
+#include "scripting/scriptnode/dynamic_elements/DynamicRoutingNodes.cpp"
 
 #include "scripting/scriptnode/nodes/AudioFileNodeBase.cpp"
 #include "scripting/scriptnode/nodes/CodeGenerator.cpp"
@@ -83,7 +109,11 @@
 #include "scripting/scriptnode/ui/DspNetworkComponents.cpp"
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.cpp"
 
+#if INCLUDE_SOUL_NODE
 #include "scripting/scriptnode/soul/custom/Soul2Hise.cpp"
 #include "scripting/scriptnode/soul/custom/SoulNode.cpp"
 #include "scripting/scriptnode/soul/custom/SoulNodeComponent.cpp"
 #include "scripting/scriptnode/soul/custom/SoulConverterHelpers.cpp"
+#endif
+
+

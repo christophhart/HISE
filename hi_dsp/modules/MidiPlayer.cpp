@@ -1377,7 +1377,7 @@ void MidiPlayer::removeSequence(int sequenceIndex)
 
 	if (isPositiveAndBelow(sequenceIndex, getNumSequences()))
 	{
-		SimpleReadWriteLock::ScopedWriteLock sl(sequenceLock, true);
+		SimpleReadWriteLock::ScopedWriteLock sl(sequenceLock);
 		seqToRemove = currentSequences.removeAndReturn(sequenceIndex);
 	}
 

@@ -120,30 +120,7 @@ public:
 		bool enabled = true;
 	};
 
-	CurveEq(MainController *mc, const String &id):
-		MasterEffectProcessor(mc, id)
-	{
-		finaliseModChains();
-
-		parameterNames.add("Gain");			
-		parameterDescriptions.add("The gain in decibels if supported from the filter type.");
-
-		parameterNames.add("Freq");
-		parameterDescriptions.add("The frequency in Hz.");
-
-		parameterNames.add("Q");
-		parameterDescriptions.add("The bandwidth of the filter if supported.");
-
-		parameterNames.add("Enabled");
-		parameterDescriptions.add("the state of the filter band.");
-
-		parameterNames.add("Type");
-		parameterDescriptions.add("the filter type of the filter band.");
-
-		parameterNames.add("BandOffset");
-		parameterDescriptions.add("the offset that can be used to get the desired formula.");
-
-	};
+	CurveEq(MainController *mc, const String &id);;
 
 	int getParameterIndex(int filterIndex, int parameterType) const
 	{
@@ -154,7 +131,7 @@ public:
 
 	void setInternalAttribute(int index, float newValue) override;;
 
-	const AnalyserRingBuffer& getFFTBuffer() const
+	SimpleRingBuffer::Ptr getFFTBuffer() const
 	{
 		return fftBuffer;
 	}
@@ -164,12 +141,10 @@ public:
 		FilterHelpers::RenderData r(buffer, startSample, numSamples);
 
 		for (auto filter : filterBands)
-		{
 			filter->renderIfEnabled(r);
-		}
 
-		if (fftBuffer.isActive())
-			fftBuffer.pushSamples(buffer, startSample, numSamples);
+		if (fftBuffer != nullptr && fftBuffer->isActive())
+			fftBuffer->write(buffer, startSample, numSamples);
 
 #if OLD_EQ_FFT
 		if(fftBufferIndex < FFT_SIZE_FOR_EQ)
@@ -207,7 +182,7 @@ public:
 
 	void enableSpectrumAnalyser(bool shouldBeEnabled)
 	{
-		fftBuffer.setAnalyserBufferSize(shouldBeEnabled ? 16384 : 0);
+		fftBuffer->setActive(shouldBeEnabled);
 	}
 
 	void addFilterBand(double freq, double gain)
@@ -263,7 +238,7 @@ public:
 			v.setProperty("Band" + String(i), getAttribute(i), nullptr);
 		}
 
-		v.setProperty("FFTEnabled", fftBuffer.isActive(), nullptr);
+		v.setProperty("FFTEnabled", fftBuffer->isActive(), nullptr);
 
 		return v;
 	};
@@ -312,7 +287,7 @@ public:
 
 private:
 
-	AnalyserRingBuffer fftBuffer;
+	SimpleRingBuffer::Ptr fftBuffer;
 
 #if OLD_EQ_FFT
 	float fftData[FFT_SIZE_FOR_EQ];

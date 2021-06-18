@@ -48,13 +48,22 @@ END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
 
-#ifndef HI_DSP_LIBRARY_H_INCLUDED
-#define HI_DSP_LIBRARY_H_INCLUDED
+#pragma once
 
 #include "AppConfig.h"
+
+#include "../hi_tools/hi_tools.h"
 #include "../JUCE/modules/juce_core/juce_core.h"
+#include "../JUCE/modules/juce_dsp/juce_dsp.h"
 
 
+/** Config: HI_EXPORT_AS_PROJECT_DLL
+
+	Set this to 1 if you compile the project's networks as dll.
+*/
+#ifndef HI_EXPORT_AS_PROJECT_DLL
+#define HI_EXPORT_AS_PROJECT_DLL 0
+#endif
 
 /** Config: HI_EXPORT_DSP_LIBRARY
 
@@ -73,23 +82,129 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #endif
 
 
+/** TODO List for scripnode rework:
+
+	Move nodes over:
+
+	- nodes with Tables / Sliderpacks
+	- nodes with acccess to NodeBase*
+	- nodes with properties
+	- wrapper nodes
+	- nodes with obvious access to MainController
+*/
+
+
+/** TODO JIT integration
+
+	- inline assembly for wrapper nodes / other containers
+	- make PolyData JIT template
+
+*/
+
+
+/** As soon as we jump to C++14, we can use proper if constexpr. */
+#define IF_CONSTEXPR if
+
+// Include the basic structures from SNEX
+
+
+#include "node_api/helpers/node_macros.h"
+
+#include "dywapitchtrack/dywapitchtrack.h"
+#include "dywapitchtrack/PitchDetection.h"
+
+#include "snex_basics/snex_Types.h"
+
+#include "snex_basics/snex_TypeHelpers.h"
+
+#include "snex_basics/snex_IndexTypes.h"
+#include "snex_basics/snex_ArrayTypes.h"
+#include "snex_basics/snex_Math.h"
+#include "snex_basics/snex_IndexLogic.h"
+#include "snex_basics/snex_DynamicType.h"
+
+
+
+
+
+
+
+#include "snex_basics/snex_ExternalData.h"
+
+
+
+#include "snex_basics/snex_FrameProcessor.h"
+#include "snex_basics/snex_FrameProcessor.cpp"
+#include "snex_basics/snex_ProcessDataTypes.h"
+#include "snex_basics/snex_ProcessDataTypes.cpp"
 
 #include "dsp_library/DspBaseModule.h"
 #include "dsp_library/BaseFactory.h"
 #include "dsp_library/DspFactory.h"
 
+
+#include "dsp_basics/chunkware_simple_dynamics/chunkware_simple_dynamics.h"
+#include "dsp_basics/AllpassDelay.h"
+
+#include "dsp_basics/DelayLine.h"
+#include "dsp_basics/DelayLine.cpp"
+#include "dsp_basics/Oscillators.h"
+#include "dsp_basics/MultiChannelFilters.h"
+
+
+#include "node_api/helpers/node_ids.h"
+#include "node_api/helpers/ParameterData.h"
+#include "node_api/helpers/parameter.h"
+#include "node_api/helpers/parameter_impl.h"
+
+#include "node_api/helpers/range.h"
+#include "node_api/helpers/range_impl.h"
+
+#include "node_api/nodes/prototypes.h"
+#include "node_api/nodes/duplicate.h"
+
+#include "node_api/nodes/Base.h"
+#include "node_api/nodes/Bypass.h"
+#include "node_api/nodes/container_base.h"
+#include "node_api/nodes/container_base_impl.h"
+#include "node_api/nodes/Containers.h"
+#include "node_api/nodes/Container_Chain.h"
+#include "node_api/nodes/Container_Split.h"
+#include "node_api/nodes/Container_Multi.h"
+
+#include "node_api/nodes/OpaqueNode.h"
+#include "node_api/nodes/processors.h"
+#include "node_api/nodes/duplicate.h"
+
+#include "dsp_nodes/CoreNodes.h"
+
+#include "dsp_nodes/CableNodeBaseClasses.h"
+#include "dsp_nodes/CableNodes.h"
+#include "dsp_nodes/RoutingNodes.h"
+#include "dsp_nodes/DelayNode.h"
+#include "dsp_nodes/MathNodes.h"
+#include "dsp_nodes/FXNodes.h"
+#include "dsp_nodes/FilterNode.h"
+#include "dsp_nodes/EventNodes.h"
+#include "dsp_nodes/EnvelopeNodes.h"
+#include "dsp_nodes/DynamicsNode.h"
+#include "dsp_nodes/DynamicsNode.cpp"
+#include "dsp_nodes/AnalyserNodes.h"
+
+#include "dsp_nodes/FXNodes_impl.h"
+
+
 // Include these files in the header because the external functions won't get linked when in another object file...
 #if HI_EXPORT_DSP_LIBRARY
 #include "dsp_library/DspBaseModule.cpp"
+
 #include "dsp_library/HiseLibraryHeader.h"
 #include "dsp_library/HiseLibraryHeader.cpp"
 #else
 
-
-#if HI_EXPORT_DSP_LIBRARY
-
-#else
-
+#if HI_EXPORT_AS_PROJECT_DLL
+#include "dsp_library/HiseLibraryHeader.h"
+#endif
 
 namespace hise {
 	namespace HelperFunctions
@@ -101,11 +216,3 @@ namespace hise {
 }
 #endif
 
-
-
-
-#endif
-
-
- 
-#endif

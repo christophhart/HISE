@@ -70,6 +70,19 @@ hi_modules/nodes/CustomNodeInclude.cpp
 tools/rlottie/rLottie Demo/Builds/VisualStudio2017/resources.rc
 tools/rlottie/rLottie Demo/Builds/
 tools/rlottie/rLottie Demo/JuceLibraryCode/
+hi_snex/html/
+hi_snex/latex/classsnex_1_1_types_1_1_channel_ptr.tex
+hi_snex/latex/
+tools/SNEX api generator/xml/
+tools/SNEX api generator/output/apiValueTree.dat
+tools/SNEX api generator/html/
+tools/snex_workbench/JuceLibraryCode/
+tools/snex_workbench/Builds/
+tools/snex_playground/test_files/CppTest/JuceLibraryCode/
+tools/snex_playground/test_files/CppTest/Builds/
+tools/snex_playground/test_files/node.xml
+extras/demo_project/DspNetworks/DspNetworkLibrary/
+extras/demo_project/DspNetworks/Binaries/
 projects/standalone/HISE Standalone.jucer
 projects/standalone/JuceLibraryCode/AppConfig.h
 projects/standalone/JuceLibraryCode/JuceHeader.h
@@ -85,3 +98,7 @@ tools/projucer/ProjucerBAK.app/Contents/PkgInfo
 tools/projucer/ProjucerBAK.app/Contents/Resources/Icon.icns
 tools/projucer/ProjucerBAK.app/Contents/Resources/RecentFilesMenuTemplate.nib
 projects/standalone/HISE Standalone.jucer
+tools/snex_workbench_plugin/Builds/
+tools/snex_workbench_plugin/JuceLibraryCode/include_hi_backend.cpp
+tools/snex_workbench_plugin/JuceLibraryCode/
+extras/demo_project/AdditionalSourceCode/nodes/

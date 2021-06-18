@@ -542,20 +542,7 @@ DspInstance::~DspInstance()
 
 void DspInstance::rightClickCallback(const MouseEvent& e, Component* c)
 {
-#if USE_BACKEND
-
-	DspObjectDebugger* d = new DspObjectDebugger(this);
-
-	d->setSize(600, 600);
-
-	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-
-	MouseEvent ee = e.getEventRelativeTo(editor);
-
-	editor->getRootFloatingTile()->showComponentInRootPopup(d, editor, ee.getMouseDownPosition());
-#else
 	ignoreUnused(e, c);
-#endif
 }
 
 void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)

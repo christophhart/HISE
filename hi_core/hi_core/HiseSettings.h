@@ -52,6 +52,7 @@ DECLARE_ID(MidiSettings);
 DECLARE_ID(ScriptingSettings);
 DECLARE_ID(OtherSettings);
 DECLARE_ID(DocSettings);
+DECLARE_ID(SnexWorkbenchSettings);
 
 Array<Identifier> getAllIds();
 
@@ -130,6 +131,7 @@ Array<Identifier> getAllIds();
 namespace Other
 {
 DECLARE_ID(GlobalSamplePath);
+DECLARE_ID(UseOpenGL);
 DECLARE_ID(EnableAutosave);
 DECLARE_ID(AutosaveInterval);
 DECLARE_ID(AudioThreadGuardEnabled)
@@ -166,6 +168,14 @@ DECLARE_ID(MidiChannels);
 Array<Identifier> getAllIds();
 
 } // Midi
+
+namespace SnexWorkbench
+{
+DECLARE_ID(PlayOnRecompile);
+DECLARE_ID(AddFade);
+
+Array<Identifier> getAllIds();
+}
 
 #undef DECLARE_ID
 

@@ -431,7 +431,7 @@ void FileBrowser::previewFile(const File& f)
 	}
 	else if (ff->isScriptFile(f))
 	{
-		auto c = new JSONEditor(f);
+		auto c = new JSONEditor(f.loadFileAsString(), new JavascriptTokeniser());
 
 		c->setSize(600, 500);
 

@@ -32,7 +32,10 @@
 
 namespace hise { using namespace juce;
 
-LookupTableProcessor::LookupTableProcessor()
+using namespace snex;
+
+LookupTableProcessor::LookupTableProcessor(MainController* mc, int numTables, bool useSampleLookup=true):
+	ProcessorWithSingleStaticExternalData(mc, ExternalData::DataType::Table, numTables, useSampleLookup)
 {
 
 }
@@ -40,41 +43,6 @@ LookupTableProcessor::LookupTableProcessor()
 LookupTableProcessor::~LookupTableProcessor()
 {
 	
-}
-
-void LookupTableProcessor::addTableChangeListener(SafeChangeListener *listener)
-{
-	tableChangeBroadcaster.addChangeListener(listener);
-}
-
-void LookupTableProcessor::removeTableChangeListener(SafeChangeListener *listener)
-{
-	tableChangeBroadcaster.removeChangeListener(listener);
-}
-
-void LookupTableProcessor::sendTableIndexChangeMessage(bool sendSynchronous, Table *table, float tableIndex)
-{
-	if (!tableChangeBroadcaster.isHandlerInitialised())
-	{
-		auto t = dynamic_cast<Processor*>(this);
-
-		if (t != nullptr)
-			tableChangeBroadcaster.setHandler(t->getMainController()->getGlobalUIUpdater());
-		else
-			jassertfalse;
-	}
-
-	
-
-	{
-		SpinLock::ScopedLockType sl(tableChangeBroadcaster.lock);
-
-		tableChangeBroadcaster.table = table;
-		tableChangeBroadcaster.tableIndex = tableIndex;
-	}
-	
-	if (sendSynchronous) tableChangeBroadcaster.sendSynchronousChangeMessage();
-    else tableChangeBroadcaster.sendPooledChangeMessage();
 }
 
 FactoryType::FactoryType(Processor *owner_) :
@@ -197,7 +165,7 @@ FactoryType::ProcessorEntry::ProcessorEntry(const Identifier t, const String &n)
 type(t),
 name(n)
 {
-
+	
 }
 
 AudioSampleProcessor::~AudioSampleProcessor()
@@ -208,14 +176,17 @@ AudioSampleProcessor::~AudioSampleProcessor()
 
 void AudioSampleProcessor::saveToValueTree(ValueTree &v) const
 {
-	const String fileName = data.getRef().getReferenceString();
+	
+	auto fileName = getBuffer().toBase64String();
+	auto sampleRange = getBuffer().getCurrentRange();
+	auto loopRange = getBuffer().getLoopRange();
 
 	v.setProperty("FileName", fileName, nullptr);
 
 	v.setProperty("min", sampleRange.getStart(), nullptr);
 	v.setProperty("max", sampleRange.getEnd(), nullptr);
 
-	v.setProperty("loopStart", loopRange.getStart(), nullptr);
+	v.setProperty("loopStart",  loopRange.getStart(), nullptr);
 	v.setProperty("loopEnd", loopRange.getEnd(), nullptr);
 }
 
@@ -223,55 +194,33 @@ void AudioSampleProcessor::restoreFromValueTree(const ValueTree &v)
 {
 	const String savedFileName = v.getProperty("FileName", "");
 
+	getBuffer().fromBase64String(savedFileName);
+
 	setLoadedFile(savedFileName, true);
 
-	Range<int> range = Range<int>(v.getProperty("min", 0), v.getProperty("max", 0));
+	auto sRange = Range<int>(v.getProperty("min", 0), v.getProperty("max", 0));
+	auto lRange = Range<int>(v.getProperty("loopStart", 0), v.getProperty("loopEnd", 0));
 
-	setRange(range);
+	getBuffer().setRange(sRange);
+	getBuffer().setLoopRange(lRange, dontSendNotification);
 }
 
 
 void AudioSampleProcessor::poolEntryReloaded(PoolReference referenceThatWasChanged)
 {
-	if (data.getRef() == referenceThatWasChanged)
+	auto s = referenceThatWasChanged.getReferenceString();
+
+	if (getBuffer().toBase64String() == s)
 	{
-		setLoadedFile("", true, true);
-		setLoadedFile(referenceThatWasChanged.getReferenceString(), true, true);
+		getBuffer().fromBase64String({});
+		getBuffer().fromBase64String(s);
 	}
 }
-
-void AudioSampleProcessor::setLoopFromMetadata(const var& metadata)
-{
-	if (metadata.getProperty(MetadataIDs::LoopEnabled, false))
-	{
-		loopRange = Range<int>((int)metadata.getProperty(MetadataIDs::LoopStart, 0), (int)metadata.getProperty(MetadataIDs::LoopEnd, 0) + 1); // add 1 because of the offset
-		sampleRange.setEnd(loopRange.getEnd());
-		setUseLoop(true);
-	}
-	else
-	{
-		loopRange = {};
-		setUseLoop(false);
-	}
-}
-
-AudioSampleProcessor::AudioSampleProcessor(Processor *p) :
-length(0),
-sampleRateOfLoadedFile(-1.0)
-{
-	// A AudioSampleProcessor must be derived from Processor!
-	jassert(p != nullptr);
-
-	mc = p->getMainController();
-	
-	currentPool = mc->getCurrentAudioSampleBufferPool();
-}
-
-
 
 int AudioSampleProcessor::getConstrainedLoopValue(String metadata)
 {
-	return jlimit<int>(sampleRange.getStart(), sampleRange.getEnd(), metadata.getIntValue());
+	auto sr = getBuffer().getCurrentRange();
+	return jlimit<int>(sr.getStart(), sr.getEnd(), metadata.getIntValue());
 }
 
 void Chain::Handler::clearAsync(Processor* parentThatShouldBeTakenOffAir)

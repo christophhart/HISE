@@ -25,9 +25,10 @@ public:
     //==============================================================================
     void initialise (const String& commandLine) override
     {
-		UnitTestRunner runner;
+		
 		runner.setAssertOnFailure(true);
-		runner.runAllTests();
+        runner.runTestsInCategory("snex");
+		runner.runTestsInCategory("node_tests");
 
         // This method is where you should put your application's initialisation code..
 
@@ -103,6 +104,7 @@ public:
 
 private:
     std::unique_ptr<MainWindow> mainWindow;
+	UnitTestRunner runner;
 };
 
 //==============================================================================

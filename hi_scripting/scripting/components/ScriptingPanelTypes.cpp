@@ -56,8 +56,8 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	int numFiles = p->getNumWatchedFiles();
 
 	const bool isCallback = index < numSnippets;
-	const bool isExternalFile = index >= numSnippets && index < (numSnippets + numFiles);
-	
+	const bool isExternalFile = index >= numSnippets && (index-numSnippets) < numFiles;
+	const bool isJitNodeCode = !isExternalFile && !isCallback;
 
 	if (isCallback)
 	{
@@ -70,9 +70,20 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	{
 		const int fileIndex = index - p->getNumSnippets();
 
-		auto pe = new PopupIncludeEditor(p, p->getWatchedFile(fileIndex));
+		auto f = p->getWatchedFile(fileIndex);
+
+		if (f.getFileExtension() == ".h")
+		{
+			snex::ui::WorkbenchData* wb = new snex::ui::WorkbenchData();
+			wb->setUseFileAsContentSource(f);
+			return new snex::SnexPlayground(wb);
+		}
+
+		auto pe = new PopupIncludeEditor(p, f);
 		pe->addMouseListener(this, true);
-		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
+
+		if(auto ed = pe->getEditor())
+			getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 
 		return pe;
 	}
@@ -85,14 +96,9 @@ Component* CodeEditorPanel::createContentComponent(int index)
 		{
 			if (auto network = h->getActiveNetwork())
 			{
-				auto list = network->getListOfNodesWithType<scriptnode::JitNode>(true);
+				// Use the codemanager here...
+				jassertfalse;
 
-				if (auto n = dynamic_cast<scriptnode::JitNode*>(list[jitNodeIndex].get()))
-				{
-					auto v = n->getNodePropertyAsValue(scriptnode::PropertyIds::Code);
-					auto pg = new snex::SnexPlayground(v, nullptr); // add the buffer later...
-					return pg;
-				}
 			}
 		}
 #endif
@@ -198,10 +204,10 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 #if HISE_INCLUDE_SNEX
 			if (auto network = h->getActiveNetwork())
 			{
-				auto list = network->getListOfNodesWithType<scriptnode::JitNode>(true);
-
-				for (auto l : list)
-					indexList.add("SNEX Node: " + l->getId());
+				for (auto so : network->getSnexObjects())
+				{
+					indexList.add("SNEX Node: " + so->getId());
+				}
 			}
 #endif
 		}
@@ -317,7 +323,6 @@ void ScriptContentPanel::fromDynamicObject(const var& object)
 	if (editor != nullptr)
 	{
 		editor->setZoomAmount(getPropertyWithDefault(object, SpecialPanelIds::ZoomAmount));
-		editor->setEditMode(getPropertyWithDefault(object, SpecialPanelIds::EditMode));
 	}
 }
 
@@ -326,10 +331,6 @@ Identifier ScriptContentPanel::getProcessorTypeId() const
 	return JavascriptProcessor::getConnectorId();
 }
 
-Component* ScriptContentPanel::createContentComponent(int /*index*/)
-{
-	return new Editor(getConnectedProcessor());
-}
 
 
 void ScriptContentPanel::fillModuleList(StringArray& moduleList)
@@ -340,73 +341,18 @@ void ScriptContentPanel::fillModuleList(StringArray& moduleList)
 struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 									public Component
 {
-
 	Canvas(Processor* p) :
 		processor(p)
 	{
 		addAndMakeVisible(content = new ScriptContentComponent(dynamic_cast<ProcessorWithScriptingContent*>(p)));
 		addAndMakeVisible(overlay = new ScriptingContentOverlay(this));
-
 		overlay->setShowEditButton(false);
-
-		refreshContent();
 	}
 
-	void paint(Graphics& g) override
-	{
-		bool isInContent = findParentComponentOfClass<ScriptContentComponent>() != nullptr;
-
-		if (!isInContent)
-		{
-			g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF1b1b1b)));
-
-			auto overlayBounds = FLOAT_RECTANGLE(getLocalArea(overlay, overlay->getLocalBounds()));
-
-			g.fillRect(overlayBounds);
-
-			g.setColour(Colours::white.withAlpha(0.5f));
-
-			
-
-			g.drawHorizontalLine((int)overlayBounds.getY(), overlayBounds.getX()-5.0f, overlayBounds.getX());
-			g.drawHorizontalLine((int)overlayBounds.getY(), overlayBounds.getRight(), overlayBounds.getRight() + 5);
-
-			g.drawHorizontalLine((int)overlayBounds.getBottom(), overlayBounds.getX() - 5.0f, overlayBounds.getX());
-			g.drawHorizontalLine((int)overlayBounds.getBottom(), overlayBounds.getRight(), overlayBounds.getRight() + 5);
-
-			g.drawVerticalLine((int)overlayBounds.getX(), overlayBounds.getY() - 5.0f, overlayBounds.getY());
-			g.drawVerticalLine((int)overlayBounds.getX(), overlayBounds.getBottom(), overlayBounds.getBottom() + 5);
-
-			g.drawVerticalLine((int)overlayBounds.getRight(), overlayBounds.getY() - 5.0f, overlayBounds.getY());
-			g.drawVerticalLine((int)overlayBounds.getRight(), overlayBounds.getBottom(), overlayBounds.getBottom() + 5.0f);
-		}
-
-		
-	}
+	void paint(Graphics& g) override;
 
 	void selectOnInitCallback() override
 	{
-
-	}
-
-	void setZoomLevel(float zoomAmount)
-	{
-		if (zoomLevel != zoomAmount)
-		{
-			zoomLevel = zoomAmount;
-
-			auto s1 = AffineTransform::scale((float)zoomAmount);
-			auto s2 = AffineTransform::scale((float)zoomAmount);
-
-			content->setTransform(s1);
-			overlay->setTransform(s2);
-
-			refreshContent();
-		}
-
-		
-
-		
 
 	}
 
@@ -414,23 +360,6 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 	{
 		if (getScriptEditHandlerProcessor())
 			getScriptEditHandlerProcessor()->compileScript();
-	}
-
-	void refreshContent()
-	{
-		auto unscaledWidth = content->getContentWidth();
-		auto unscaledHeight = content->getContentHeight();
-
-		auto vp = findParentComponentOfClass<Viewport>();
-
-		auto vpw = vp != nullptr ? vp->getWidth() - vp->getScrollBarThickness() : 0;
-		auto vph = vp != nullptr ? vp->getHeight() - vp->getScrollBarThickness() : 0;
-
-		auto w = (int)((float)unscaledWidth * zoomLevel) + 20;
-		auto h = (int)((float)unscaledHeight * zoomLevel) + 20;
-
-		setSize(jmax<int>(w, vpw), jmax<int>(h, vph));
-		resized();
 	}
 
 public:
@@ -451,44 +380,17 @@ public:
 
 	virtual JavascriptProcessor* getScriptEditHandlerProcessor() { return dynamic_cast<JavascriptProcessor*>(processor.get()); }
 
+	void refreshContent()
+	{
+		setSize(content->getContentWidth() + 10, content->getContentHeight() + 10);
+	}
+
 	void resized() override
 	{
-		bool isInContent = findParentComponentOfClass<ScriptContentComponent>() != nullptr;
+		auto b = getLocalBounds().reduced(5);
 
-		if (isInContent)
-		{
-			content->setBounds(0, 0, getWidth(), getHeight());
-			overlay->setVisible(false);
-		}
-		else
-		{
-			int w = content->getContentWidth();
-			int h = content->getContentHeight();
-
-			int scaledWidth = (int)((float)w * zoomLevel);
-			int scaledHeight = (int)((float)h * zoomLevel);
-
-			float centreX = (float)(getWidth() - w*zoomLevel) / 2;
-			float centreY = (float)(getHeight() - h*zoomLevel) / 2;
-
-			if (getWidth() < scaledWidth)
-			{
-				centreX = 10.0f;
-			}
-
-			if (getHeight() < scaledHeight)
-			{
-				centreY = 10.0f;
-			}
-			
-			int offsetX = (int)(centreX / zoomLevel);
-			int offsetY = (int)(centreY / zoomLevel);
-			
-
-
-			content->setBounds(offsetX, offsetY, w, h);
-			overlay->setBounds(offsetX, offsetY, w, h);
-		}
+		content->setBounds(b);
+		overlay->setBounds(b);
 	}
 
 private:
@@ -503,10 +405,42 @@ private:
 
 };
 
+void ScriptContentPanel::Canvas::paint(Graphics& g)
+{
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF1b1b1b)));
+
+	auto overlayBounds = FLOAT_RECTANGLE(getLocalArea(overlay, overlay->getLocalBounds()));
+
+	g.fillRect(overlayBounds);
+
+	g.setColour(Colours::white.withAlpha(0.5f));
+
+	UnblurryGraphics ug(g, *this, true);
+
+	
+
+	ug.draw1PxHorizontalLine((int)overlayBounds.getY(), overlayBounds.getX() - 5.0f, overlayBounds.getX());
+	ug.draw1PxHorizontalLine((int)overlayBounds.getY(), overlayBounds.getRight(), overlayBounds.getRight() + 5);
+
+	ug.draw1PxHorizontalLine((int)overlayBounds.getBottom(), overlayBounds.getX() - 5.0f, overlayBounds.getX());
+	ug.draw1PxHorizontalLine((int)overlayBounds.getBottom(), overlayBounds.getRight(), overlayBounds.getRight() + 5);
+
+	ug.draw1PxVerticalLine((int)overlayBounds.getX(), overlayBounds.getY() - 5.0f, overlayBounds.getY());
+	ug.draw1PxVerticalLine((int)overlayBounds.getX(), overlayBounds.getBottom(), overlayBounds.getBottom() + 5);
+
+	ug.draw1PxVerticalLine((int)overlayBounds.getRight(), overlayBounds.getY() - 5.0f, overlayBounds.getY());
+	ug.draw1PxVerticalLine((int)overlayBounds.getRight(), overlayBounds.getBottom(), overlayBounds.getBottom() + 5.0f);
+}
 
 
 
 
+Component* ScriptContentPanel::createContentComponent(int /*index*/)
+{
+	auto c = new Canvas(getConnectedProcessor());
+
+	return new Editor(c);
+}
 
 
 MARKDOWN_CHAPTER(InterfaceDesignerHelp)
@@ -557,70 +491,126 @@ END_MARKDOWN()
 END_MARKDOWN_CHAPTER()
 
 
-ScriptContentPanel::Editor::Editor(Processor* p):
-	ScriptComponentEditListener(p)
+ScriptContentPanel::Editor::Editor(Canvas* c):
+	WrapperWithMenuBarBase(c),
+	ScriptComponentEditListener(dynamic_cast<Processor*>(c->getScriptEditHandlerProcessor()))
 {
-	addAndMakeVisible(zoomSelector = new ComboBox("Zoom"));
+	zoomSelector = new ComboBox("Zoom");
 	zoomSelector->addListener(this);
-	zoomSelector->addItem("50%", 1);
-	zoomSelector->addItem("75%", 2);
-	zoomSelector->addItem("100%", 3);
-	zoomSelector->addItem("125%", 4);
-	zoomSelector->addItem("150%", 5);
-	zoomSelector->addItem("200%", 6);
-
+	zoomSelector->addItemList({ "50%", "75%", "100%", "125%", "150%", "200%" }, 1);
 	zoomSelector->setSelectedId(3, dontSendNotification);
 	zoomSelector->setLookAndFeel(&klaf);
+	zoomSelector->setSize(100, 24);
+	klaf.setDefaultColours(*zoomSelector);
 
-	zoomSelector->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::black.withAlpha(0.4f));
-	zoomSelector->setColour(HiseColourScheme::ComponentFillBottomColourId, Colours::black.withAlpha(0.4f));
-	zoomSelector->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::transparentBlack);
-	zoomSelector->setColour(HiseColourScheme::ComponentTextColourId, Colours::white.withAlpha(0.8f));
-
-	Factory f;
-
-	addAndMakeVisible(editSelector = new HiseShapeButton("Edit", this, f, "EditOff"));
-	addAndMakeVisible(cancelButton = new HiseShapeButton("Cancel", this, f));
-
-	addAndMakeVisible(undoButton = new HiseShapeButton("Undo", this, f));
-	undoButton->setTooltip("Undo last item change");
-
-	addAndMakeVisible(redoButton = new HiseShapeButton("Redo", this, f));
-	addAndMakeVisible(rebuildButton = new HiseShapeButton("Rebuild", this, f));
-
-	addAndMakeVisible(viewport = new Viewport());
-
-	viewport->setViewedComponent(new Canvas(p), true);
-
-	zoomSelector->setTooltip("Select Update Level for Refreshing the interface (Cmd +/-)");
-	zoomSelector->setTooltip("Select Zoom Level");
-	editSelector->setTooltip("Toggle Edit / Presentation Mode (F4)");
-	cancelButton->setTooltip("Deselect current item (Escape)");
-	
-	redoButton->setTooltip("Redo last item change");
-	rebuildButton->setTooltip("Rebuild Interface (F5)");
-
-	addAndMakeVisible(verticalAlignButton = new HiseShapeButton("Vertical Align", this, f));
-	verticalAlignButton->setTooltip("Align the selection vertically on the left edge");
-	addAndMakeVisible(horizontalAlignButton = new HiseShapeButton("Horizontal Align", this, f));
-	horizontalAlignButton->setTooltip("Align the selection horizontally on the top edge");
-	addAndMakeVisible(verticalDistributeButton = new HiseShapeButton("Vertical Distribute", this, f));
-	verticalDistributeButton->setTooltip("Distribute the selection vertically with equal space");
-	addAndMakeVisible(horizontalDistributeButton = new HiseShapeButton("Horizontal Distribute", this, f));
-	horizontalDistributeButton->setTooltip("Distribute the selection horizontally with equal space");
-
-	addAndMakeVisible(helpButton = new MarkdownHelpButton());
-	helpButton->setPopupWidth(600);
-	
-	helpButton->setHelpText<PathProvider<Factory>>(InterfaceDesignerHelp::Help());
-
-	setWantsKeyboardFocus(true);
-
-	updateUndoDescription();
-
-	startTimer(2000);
+	rebuildAfterContentChange();
 }
 
+
+void ScriptContentPanel::Editor::rebuildAfterContentChange()
+{
+	addCustomComponent(zoomSelector);
+
+	addButton("edit");
+	addButton("cancel");
+	addButton("rebuild");
+
+	addSpacer(10);
+
+	addButton("undo");
+	addButton("redo");
+
+	addSpacer(10);
+
+	addButton("lock");
+
+	addSpacer(10);
+
+	addButton("vertical-align");
+	addButton("horizontal-align");
+	addButton("vertical-distribute");
+	addButton("horizontal-distribute");
+
+	setWantsKeyboardFocus(true);
+	updateUndoDescription();
+	refreshContent();
+}
+
+void ScriptContentPanel::Editor::addButton(const String& name)
+{
+	using ActionButton = WrapperWithMenuBarBase::ActionButtonBase<Editor, Factory>;
+	auto b = new ActionButton(this, name);
+
+	if (name == "edit")
+	{
+		b->actionFunction = Actions::toggleEditMode;
+		b->stateFunction = [](Editor& e) { return e.isEditModeEnabled(); };
+		b->setTooltip("Toggle Edit / Presentation Mode (F4)");
+	}
+	if(name == "cancel")
+	{
+		b->enabledFunction = isSelected;
+		b->actionFunction = Actions::deselectAll;
+		b->setTooltip("Deselect current item (Escape)");
+	}
+	if (name == "rebuild")
+	{
+		b->actionFunction = Actions::rebuild;
+		b->setTooltip("Rebuild Interface (F5)");
+	}
+	if (name == "lock")
+	{
+		b->actionFunction = Actions::lockSelection;
+		b->stateFunction = [](Editor& e)
+		{
+			if (auto f = e.getScriptComponentEditBroadcaster()->getFirstFromSelection())
+			{
+				return f->isLocked();
+			}
+
+			return false;
+		};
+		b->enabledFunction = isSelected;
+		b->setTooltip("Lock the selected components");
+	}
+	if (name == "undo")
+	{
+		b->actionFunction = [](Editor& e) { return Actions::undo(&e, true);};
+		b->setTooltip("Undo last item change");
+	}
+	if (name == "redo")
+	{
+		b->actionFunction = [](Editor& e) { return Actions::undo(&e, false); };
+		b->setTooltip("Redo last item change");
+	}
+	if (name == "vertical-align")
+	{
+		b->actionFunction = [](Editor& e) { return Actions::align(&e, true); };
+		b->setTooltip("Align the selection vertically on the left edge");
+		b->enabledFunction = isSelected;
+	}
+	if(name == "horizontal-align")
+	{
+		b->actionFunction = [](Editor& e) { return Actions::align(&e, false); };
+		b->setTooltip("Align the selection horizontally on the top edge");
+		b->enabledFunction = isSelected;
+	}
+	if (name == "vertical-distribute")
+	{
+		b->actionFunction = [](Editor& e) { return Actions::distribute(&e, true); };
+		b->setTooltip("Distribute the selection vertically with equal space");
+		b->enabledFunction = isSelected;
+	}
+	if (name == "horizontal-distribute")
+	{
+		b->actionFunction = [](Editor& e) { return Actions::distribute(&e, false); };
+		b->setTooltip("Distribute the selection horizontally with equal space");
+		b->enabledFunction = isSelected;
+	}
+
+	addAndMakeVisible(b);
+	actionButtons.add(b);
+}
 
 void ScriptContentPanel::Editor::scriptComponentSelectionChanged()
 {
@@ -633,201 +623,116 @@ void ScriptContentPanel::Editor::scriptComponentPropertyChanged(ScriptComponent*
 	updateUndoDescription();
 }
 
+void ScriptContentPanel::Editor::zoomChanged(float newScalingFactor)
+{
+	String s;
+	s << roundToInt(newScalingFactor * 100) << "%";
+
+	zoomSelector->setText(s, dontSendNotification);
+}
+
+#if 0
 void ScriptContentPanel::Editor::resized()
 {
-	const bool isInContent = findParentComponentOfClass<ScriptContentComponent>() != nullptr;
+	auto total = getLocalBounds();
 
-	if (isInContent)
-	{
-		viewport->setBounds(getLocalBounds());
+	auto topRow = total.removeFromTop(24);
 
-		viewport->getViewedComponent()->resized();
-		viewport->setScrollBarsShown(false, false, false, false);
+	editSelector->setBounds(topRow.removeFromLeft(24).reduced(2));
+	cancelButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+	zoomSelector->setBounds(topRow.removeFromLeft(84).reduced(2));
 
-		editSelector->setVisible(false);
-		cancelButton->setVisible(false);
-		zoomSelector->setVisible(false);
-		undoButton->setVisible(false);
-		redoButton->setVisible(false);
-		verticalAlignButton->setVisible(false);
-		horizontalAlignButton->setVisible(false);
-		verticalDistributeButton->setVisible(false);
-		horizontalDistributeButton->setVisible(false);
-		helpButton->setVisible(false);
-	}
-	else
-	{
-		auto total = getLocalBounds();
+	topRow.removeFromLeft(20);
 
-		auto topRow = total.removeFromTop(24);
+	undoButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+	redoButton->setBounds(topRow.removeFromLeft(24).reduced(2));
 
-		editSelector->setBounds(topRow.removeFromLeft(24).reduced(2));
-		cancelButton->setBounds(topRow.removeFromLeft(24).reduced(2));
-		zoomSelector->setBounds(topRow.removeFromLeft(84).reduced(2));
+	topRow.removeFromLeft(20);
 
-		topRow.removeFromLeft(20);
+	rebuildButton->setBounds(topRow.removeFromLeft(24).reduced(2));
 
-		undoButton->setBounds(topRow.removeFromLeft(24).reduced(2));
-		redoButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+	topRow.removeFromLeft(50);
 
-		topRow.removeFromLeft(20);
+	verticalAlignButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+	horizontalAlignButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+	verticalDistributeButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+	horizontalDistributeButton->setBounds(topRow.removeFromLeft(24).reduced(2));
 
-		rebuildButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+	topRow.removeFromLeft(50);
 
-		topRow.removeFromLeft(50);
-
-		verticalAlignButton->setBounds(topRow.removeFromLeft(24).reduced(2));
-		horizontalAlignButton->setBounds(topRow.removeFromLeft(24).reduced(2));
-		verticalDistributeButton->setBounds(topRow.removeFromLeft(24).reduced(2));
-		horizontalDistributeButton->setBounds(topRow.removeFromLeft(24).reduced(2));
-
-		topRow.removeFromLeft(50);
-
-		helpButton->setBounds(topRow.removeFromLeft(24).reduced(2));
-
-
-		auto canvas = dynamic_cast<Canvas*>(viewport->getViewedComponent());
-		
-		viewport->setBounds(total);
-
-		canvas->refreshContent();
-	}
-
+	helpButton->setBounds(topRow.removeFromLeft(24).reduced(2));
 }
+#endif
 
 void ScriptContentPanel::Editor::refreshContent()
 {
-	if (viewport != nullptr && viewport->getViewedComponent() != nullptr)
-		dynamic_cast<Canvas*>(viewport->getViewedComponent())->refreshContent();
+	canvas.getContent<Canvas>()->refreshContent();
+
+	auto newBounds = canvas.getContent<Canvas>()->getBounds();
+
+
+
+	if (lastBounds.getWidth() != newBounds.getWidth() ||
+		lastBounds.getHeight() != newBounds.getHeight())
+	{
+		canvas.centerCanvas();
+	}
+
+	lastBounds = newBounds;
 }
 
 void ScriptContentPanel::Editor::buttonClicked(Button* b)
 {
-	auto overlay = dynamic_cast<Canvas*>(viewport->getViewedComponent())->overlay.get();
-
-	if (b == editSelector)
-	{
-		editSelector->toggle();
-		overlay->toggleEditMode();
-	}
-	if (b == cancelButton)
-	{
-		Actions::deselectAll(this);
-	}
-	if (b == undoButton)
-	{
-		Actions::undo(this, true);
-	}
-	if (b == redoButton)
-	{
-		Actions::undo(this, false);
-	}
-	if (b == rebuildButton)
-	{
-		Actions::rebuildAndRecompile(this);
-	}
-	if (b == verticalAlignButton)
-	{
-		Actions::align(this,true);
-	}
-	if (b == horizontalAlignButton)
-	{
-		Actions::align(this,false);
-	}
-	if (b == verticalDistributeButton)
-	{
-		Actions::distribute(this,true);
-	}
-	if (b == horizontalDistributeButton)
-	{
-		Actions::distribute(this,false);
-	}
-	
 }
 
 
 void ScriptContentPanel::Editor::updateUndoDescription()
 {
-	auto& undoManager = getScriptComponentEditBroadcaster()->getUndoManager();
-	undoButton->setTooltip("Undo " + undoManager.getUndoDescription());
-	redoButton->setTooltip("Redo " + undoManager.getRedoDescription());
+	
 }
 
 void ScriptContentPanel::Editor::comboBoxChanged(ComboBox* c)
 {
-	if (c == zoomSelector)
+	switch (c->getSelectedId())
 	{
-		switch (zoomSelector->getSelectedId())
-		{
-		case 1: setZoomAmount(0.5); break;
-		case 2: setZoomAmount(0.75); break;
-		case 3: setZoomAmount(1.0); break;
-		case 4: setZoomAmount(1.25); break;
-		case 5: setZoomAmount(1.5); break;
-		case 6: setZoomAmount(2.0); break;
-		}
+	case 1: setZoomAmount(0.5); break;
+	case 2: setZoomAmount(0.75); break;
+	case 3: setZoomAmount(1.0); break;
+	case 4: setZoomAmount(1.25); break;
+	case 5: setZoomAmount(1.5); break;
+	case 6: setZoomAmount(2.0); break;
 	}
 	
 }
 
 void ScriptContentPanel::Editor::setZoomAmount(double newZoomAmount)
 {
-	if (zoomAmount != newZoomAmount)
-	{
-		zoomAmount = newZoomAmount;
+	auto c = canvas.getContent<Canvas>()->getLocalBounds().toFloat();
 
-		auto canvas = dynamic_cast<Canvas*>(viewport->getViewedComponent());
-
-		canvas->setZoomLevel((float)zoomAmount);
-
-		
-		
-		if(zoomAmount == 0.5)   zoomSelector->setSelectedId(1, dontSendNotification);
-		if (zoomAmount == 0.75) zoomSelector->setSelectedId(2, dontSendNotification);
-		if (zoomAmount == 1.0)  zoomSelector->setSelectedId(3, dontSendNotification);
-		if (zoomAmount == 1.25) zoomSelector->setSelectedId(4, dontSendNotification);
-		if (zoomAmount == 1.5)  zoomSelector->setSelectedId(5, dontSendNotification);
-		if (zoomAmount == 2.0)  zoomSelector->setSelectedId(6, dontSendNotification);
-		
-		viewport->setScrollBarsShown(true, true, true, true);
-		
-
-		refreshContent();
-		resized();
-	}
-
-	
+	canvas.setZoomFactor(newZoomAmount, c.getCentre());
 }
 
 
 double ScriptContentPanel::Editor::getZoomAmount() const
 {
-	return zoomAmount;
-}
-
-void ScriptContentPanel::Editor::setEditMode(bool editModeEnabled)
-{
-	if (editModeEnabled != editSelector->getToggleState())
-	{
-		buttonClicked(editSelector);
-	}
+	return canvas.zoomFactor;
 }
 
 bool ScriptContentPanel::Editor::isEditModeEnabled() const
 {
-	return editSelector->getToggleState();
+	return canvas.getContent<Canvas>()->overlay->isEditModeEnabled();
 }
 
 
-void ScriptContentPanel::Editor::Actions::deselectAll(Editor* e)
+bool ScriptContentPanel::Editor::Actions::deselectAll(Editor& e)
 {
-	e->getScriptComponentEditBroadcaster()->clearSelection();
+	e.getScriptComponentEditBroadcaster()->clearSelection();
+	return true;
 }
 
-void ScriptContentPanel::Editor::Actions::rebuild(Editor* e)
+bool ScriptContentPanel::Editor::Actions::rebuild(Editor& e_)
 {
-	
-
+	auto e = &e_;
 	auto jp = dynamic_cast<JavascriptProcessor*>(e->getProcessor());
 	auto content = jp->getContent();
 
@@ -849,10 +754,14 @@ void ScriptContentPanel::Editor::Actions::rebuild(Editor* e)
 		if (sc != nullptr)
 			b->addToSelection(sc, id == ids.getLast() ? sendNotification : dontSendNotification);
 	}
+
+	return true;
 }
 
-void ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor* e)
+bool ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor& e_)
 {
+	auto e = &e_;
+
     auto jp = dynamic_cast<JavascriptProcessor*>(e->getProcessor());
     auto content = jp->getContent();
     
@@ -903,32 +812,38 @@ void ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor* e)
 	auto p = e->getProcessor();
 
 	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::ScriptingThread);
+
+	return true;
 }
 
-void ScriptContentPanel::Editor::Actions::zoomIn(Editor* e)
+bool ScriptContentPanel::Editor::Actions::zoomIn(Editor& e)
 {
-	int currentId = e->zoomSelector->getSelectedId();
-	int numIds = e->zoomSelector->getNumItems();
-
-	int newId = jlimit<int>(1, numIds, currentId + 1);
-
-	e->zoomSelector->setSelectedId(newId, sendNotification);
+	return e.canvas.changeZoom(true);
 }
 
-void ScriptContentPanel::Editor::Actions::zoomOut(Editor* e)
+bool ScriptContentPanel::Editor::Actions::zoomOut(Editor& e)
 {
-
-	int currentId = e->zoomSelector->getSelectedId();
-	int numIds = e->zoomSelector->getNumItems();
-
-	int newId = jlimit<int>(1, numIds, currentId - 1);
-
-	e->zoomSelector->setSelectedId(newId, sendNotification);
+	return e.canvas.changeZoom(false);
 }
 
-void ScriptContentPanel::Editor::Actions::toggleEditMode(Editor* e)
+bool ScriptContentPanel::Editor::Actions::toggleEditMode(Editor& e)
 {
-	e->editSelector->triggerClick();
+	e.canvas.getContent<Canvas>()->overlay->toggleEditMode();
+	return true;
+}
+
+bool ScriptContentPanel::Editor::Actions::lockSelection(Editor& e)
+{
+	auto sl = e.getScriptComponentEditBroadcaster();
+
+	bool wasLocked = false;
+
+	if (auto first = sl->getFirstFromSelection())
+		wasLocked = first->isLocked();
+
+	sl->setScriptComponentPropertyForSelection("locked", !wasLocked, sendNotification);
+
+	return true;
 }
 
 struct ComponentPositionComparator
@@ -948,14 +863,14 @@ struct ComponentPositionComparator
 	bool isVertical;
 };
 
-void ScriptContentPanel::Editor::Actions::distribute(Editor* editor, bool isVertical)
+bool ScriptContentPanel::Editor::Actions::distribute(Editor* editor, bool isVertical)
 {
 	auto b = editor->getScriptComponentEditBroadcaster();
 
 	auto selection = b->getSelection();
 
 	if (selection.size() < 3)
-		return;
+		return false;
 
 	float minV = 100000.0f;
 	float maxV = -1.0f;
@@ -974,18 +889,16 @@ void ScriptContentPanel::Editor::Actions::distribute(Editor* editor, bool isVert
 
 	auto id = isVertical ? Identifier("y") : Identifier("x");
 
-	
-
 	for (auto& sc : selection)
 	{
 		b->setScriptComponentProperty(sc, id, (int)minV, sendNotification, false);
 		minV += delta;
 	}
 
-
+	return selection.isEmpty();
 }
 
-void ScriptContentPanel::Editor::Actions::align(Editor* editor, bool isVertical)
+bool ScriptContentPanel::Editor::Actions::align(Editor* editor, bool isVertical)
 {
 	auto b = editor->getScriptComponentEditBroadcaster();
 	
@@ -1001,48 +914,39 @@ void ScriptContentPanel::Editor::Actions::align(Editor* editor, bool isVertical)
 	auto id = isVertical ? Identifier("x") : Identifier("y");
 
 	b->setScriptComponentPropertyForSelection(id, minV, sendNotification);
+
+	return selection.isEmpty();
 }
 
-void ScriptContentPanel::Editor::Actions::undo(Editor * e, bool shouldUndo)
+bool ScriptContentPanel::Editor::Actions::undo(Editor* e, bool shouldUndo)
 {
 	e->getScriptComponentEditBroadcaster()->undo(shouldUndo);
+	rebuild(*e);
 
-	rebuild(e);
-
-	
+	return true;
 }
-
-
 
 bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)
 {
 	if (key == KeyPress::F4Key)
-	{
-		Actions::toggleEditMode(this);
-		return true;
-	}
+		return Actions::toggleEditMode(*this);
 	if (key == KeyPress::escapeKey)
-	{
-		Actions::deselectAll(this);
-		return true;
-	}
+		return Actions::deselectAll(*this);
 	else if (key == KeyPress::F5Key)
-	{
-		Actions::rebuildAndRecompile(this);
-		return true;
-	}
+		return Actions::rebuildAndRecompile(*this);
 	else if (key.getKeyCode() == '+' && key.getModifiers().isCommandDown())
-	{
-		Actions::zoomIn(this);
-		return true;
-	}
+		return Actions::zoomIn(*this);
 	else if (key.getKeyCode() == '-' && key.getModifiers().isCommandDown())
-	{
-		Actions::zoomOut(this);
-		return true;
-	}
+		return Actions::zoomOut(*this);
+	else if (key.getKeyCode() == 'L' && key.getModifiers().isCommandDown())
+		return Actions::lockSelection(*this);
 
 	return false;
+}
+
+bool ScriptContentPanel::Editor::isSelected(Editor& e)
+{
+	return !e.canvas.getContent<Canvas>()->overlay->draggers.isEmpty();
 }
 
 juce::Identifier ServerControllerPanel::getProcessorTypeId() const
@@ -1853,17 +1757,138 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	Path p;
 
 	LOAD_PATH_IF_URL("edit", OverlayIcons::penShape);
-	LOAD_PATH_IF_URL("editoff"				, OverlayIcons::lockShape);
-	LOAD_PATH_IF_URL("cancel"				, EditorIcons::cancelIcon);
-	LOAD_PATH_IF_URL("undo"				, EditorIcons::undoIcon);
-	LOAD_PATH_IF_URL("redo"				, EditorIcons::redoIcon);
-	LOAD_PATH_IF_URL("rebuild"				, ColumnIcons::moveIcon);
-	LOAD_PATH_IF_URL("vertical-align"		, ColumnIcons::verticalAlign);
-	LOAD_PATH_IF_URL("horizontal-align"	, ColumnIcons::horizontalAlign);
-	LOAD_PATH_IF_URL("vertical-distribute" , ColumnIcons::verticalDistribute);
+	LOAD_PATH_IF_URL("editoff", OverlayIcons::lockShape);
+	LOAD_PATH_IF_URL("lock", OverlayIcons::lockShape);
+	LOAD_PATH_IF_URL("cancel", EditorIcons::cancelIcon);
+	LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
+	LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
+	LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
+	LOAD_PATH_IF_URL("vertical-align", ColumnIcons::verticalAlign);
+	LOAD_PATH_IF_URL("horizontal-align", ColumnIcons::horizontalAlign);
+	LOAD_PATH_IF_URL("vertical-distribute", ColumnIcons::verticalDistribute);
 	LOAD_PATH_IF_URL("horizontal-distribute", ColumnIcons::horizontalDistribute);
 
 	return p;
+}
+
+juce::Identifier ComplexDataManager::getProcessorTypeId() const
+{
+	return JavascriptProcessor::getConnectorId();
+}
+
+struct ComplexDataViewer : public Component,
+						   public ComboBox::Listener
+{
+	ComplexDataViewer(JavascriptProcessor* h_, ExternalData::DataType t) :
+		type(t),
+		h(h_)
+	{
+		slotSelector.setLookAndFeel(&claf);
+		addAndMakeVisible(slotSelector);
+		refreshSelector();
+		slotSelector.setTextWhenNothingSelected("Select slot");
+
+		GlobalHiseLookAndFeel::setDefaultColours(slotSelector);
+	}
+
+	void refreshSelector()
+	{
+		int currentId = slotSelector.getSelectedId();
+		int numEntries;
+
+		slotSelector.clear(dontSendNotification);
+
+		numEntries = h->getNumDataObjects(type);
+
+		for (int i = 0; i < numEntries; i++)
+		{
+			slotSelector.addItem("Slot" + String(i), i + 1);
+		}
+
+		slotSelector.addItem("Add new slot", numEntries+1);
+		slotSelector.setSelectedId(currentId, dontSendNotification);
+		slotSelector.addListener(this);
+	}
+
+	void paint(Graphics& g) override
+	{
+		if (currentComponent == nullptr)
+		{
+			g.setColour(Colours::white.withAlpha(0.7f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("Select slot or create new slot above", getLocalBounds().toFloat(), Justification::centred);
+		}
+	}
+
+	void comboBoxChanged(ComboBox* c)
+	{
+		setContent(c->getSelectedItemIndex());
+		refreshSelector();
+	}
+
+	void setContent(int slotIndex)
+	{
+		auto mc = dynamic_cast<Processor*>(h.get())->getMainController();
+
+		auto c = h->getComplexBaseType(type, slotIndex);
+		c->setUndoManager(mc->getControlUndoManager());
+		c->setGlobalUIUpdater(mc->getGlobalUIUpdater());
+
+		switch (type)
+		{
+		case ExternalData::DataType::AudioFile:
+		{
+			auto tn = new MultiChannelAudioBufferDisplay();
+			currentComponent = tn;
+			break;
+		}
+		case ExternalData::DataType::SliderPack:
+		{
+			auto sp = new SliderPack();
+			currentComponent = sp;
+			break;
+		}
+		case snex::ExternalData::DataType::Table:
+		{
+			auto te = new TableEditor();
+			currentComponent = te;
+			break;
+		}
+		}
+
+		dynamic_cast<ComplexDataUIBase::EditorBase*>(currentComponent.get())->setComplexDataUIBase(c);
+
+		addAndMakeVisible(currentComponent);
+		resized();
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		slotSelector.setBounds(b.removeFromTop(24));
+
+		if(currentComponent != nullptr)
+			currentComponent->setBounds(b);
+	}
+
+	GlobalHiseLookAndFeel claf;
+	ComboBox slotSelector;
+	ScopedPointer<Component> currentComponent;
+	ExternalData::DataType type;
+	WeakReference<JavascriptProcessor> h;
+};
+
+juce::Component* ComplexDataManager::createContentComponent(int index)
+{
+	if (auto d = dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()))
+	{
+		return new ComplexDataViewer(d, (snex::ExternalData::DataType)index);
+	}
+
+	return nullptr;
+	
+
+	
 }
 
 } // namespace hise

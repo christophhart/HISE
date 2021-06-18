@@ -301,7 +301,7 @@ FloatingTabComponent::FloatingTabComponent(FloatingTile* parent) :
 
 	addButton->setShape(p, false, false, true);
 
-	addButton->addListener(this);
+	setAddButtonCallback({});
 
 	setOutline(0);
 
@@ -535,9 +535,17 @@ void FloatingTabComponent::resized()
 		addButton->setBounds(intend + 2, 2, 16, 16);
 }
 
-void FloatingTabComponent::buttonClicked(Button* )
+void FloatingTabComponent::addButtonClicked()
 {
 	addFloatingTile(new FloatingTile(getParentShell()->getMainController(), this));
+}
+
+void FloatingTabComponent::setAddButtonCallback(const std::function<void()>& f)
+{
+	if (f)
+		addButton->onClick = f;
+	else
+		addButton->onClick = BIND_MEMBER_FUNCTION_0(FloatingTabComponent::addButtonClicked);
 }
 
 void ResizableFloatingTileContainer::refreshLayout()

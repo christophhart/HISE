@@ -869,12 +869,12 @@ void SampleMap::loadUnsavedValueTree(const ValueTree& v)
 
 	clear(dontSendNotification);
 
-	parseValueTree(v);
+	//parseValueTree(v);
 
 	currentPool = nullptr;
 	sampleMapData = PooledSampleMap();
 	
-	parseValueTree(data);
+	parseValueTree(v);
 	changeWatcher = new ChangeWatcher(data);
 
 
@@ -1301,6 +1301,14 @@ void MonolithExporter::updateSampleMap()
 				const auto length = (int64)hlac::CompressionHelpers::getPaddedSampleSize((int)reader->lengthInSamples);
 				auto sampleEnd = (int64)s.getProperty(SampleIds::SampleEnd, 0);
 
+				
+				if (sampleEnd == 0)
+				{
+					// We need to write the actual sample length in the monolith data when we read
+					// it outside a sampler
+					s.setProperty(SampleIds::SampleEnd, reader->lengthInSamples, nullptr);
+				}
+
 				if (reader->lengthInSamples < sampleEnd)
 				{
 					if (logData.logFunction)
@@ -1587,7 +1595,6 @@ void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(const Array<Async
 
 				if (sound->isDeletePending())
 				{
-					jassertfalse;
 					continue;
 				}
 

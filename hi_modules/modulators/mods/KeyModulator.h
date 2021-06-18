@@ -48,116 +48,38 @@ public:
 
 	SET_PROCESSOR_NAME("KeyNumber", "Notenumber Modulator", "Creates a modulation value based on the note-number.")
 
-	/** Special Parameters for the Random Modulator */
-	enum Parameters
-	{
-		TableMode = 0,
-		numTotalParameters
-		
-	};
-
-	enum Mode
-	{
-		KeyMode = 0,
-		NumberMode,
-		numModes
-	};
-
 	KeyModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m);
 
 	void restoreFromValueTree(const ValueTree &v) override
 	{
 		VoiceStartModulator::restoreFromValueTree(v);
-
-		loadAttribute(TableMode, "Mode");
-
-		loadTable(midiTable, "MidiTableData");
-		loadTable(keyTable, "KeyTableData");
+		loadTable(getTableUnchecked(0), "MidiTableData");
 	};
 
 	ValueTree exportAsValueTree() const override
 	{
 		ValueTree v = VoiceStartModulator::exportAsValueTree();
-
-		saveAttribute(TableMode, "Mode");
-
-		saveTable(midiTable, "MidiTableData");
-		saveTable(keyTable, "KeyTableData");
-
+		saveTable(getTableUnchecked(0), "MidiTableData");
 		return v;
 	}
-
-	
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void setInternalAttribute(int parameterIndex, float newValue) override
 	{
-		switch(parameterIndex)
-		{
-		case TableMode:			mode = (Mode)(int)newValue; break;
-		default:				jassertfalse; break;
-		}
 
-		
 	};
 
 	float getAttribute(int parameterIndex) const override
 	{
-		switch(parameterIndex)
-		{
-		case TableMode:			return (float)mode;
-		default:				jassertfalse; return -1.0f;
-		}
+		return 0.0f;
 	};
 
 	/** Calculates a new random value. If the table is used, it is converted to 7bit.*/
 	float calculateVoiceStartValue(const HiseEvent &m) override
 	{ 
-		return getTable(mode)->getReadPointer()[m.getNoteNumber()]; 
+		return getMidiTable()->get(m.getNoteNumber(), sendNotificationAsync);
 	};
-
-	void handleHiseEvent(const HiseEvent &m) override
-	{
-		VoiceStartModulator::handleHiseEvent(m);
-
-		if(m.isNoteOnOrOff())
-		{
-			if (mode == Mode::NumberMode)
-			{
-				if(m.isNoteOn()) sendTableIndexChangeMessage(false, midiTable, (float)m.getNoteNumber() / 127.0f);
-			}
-			else
-			{
-				if (m.isNoteOn()) setInputValue((float)m.getNoteNumber());
-				else			 setInputValue((float)-m.getNoteNumber());
-
-				sendChangeMessage();
-			}
-		}
-	}
-
-	/** returns a pointer to the look up table. Don't delete it! */
-	Table *getTable(int m) const override 
-	{
-		const Mode returnMode = (m != numModes) ? (Mode)m : mode;
-
-		switch(returnMode)
-		{
-		case KeyMode:		return keyTable;
-		case NumberMode:	return midiTable;
-		default:			jassertfalse; return nullptr;
-		}
-		
-	};
-
-	int getNumTables() const override { return 2; };
-
-private:
-
-	ScopedPointer<DiscreteTable> keyTable;
-	ScopedPointer<MidiTable> midiTable;
-	Mode mode;
 };
 
 

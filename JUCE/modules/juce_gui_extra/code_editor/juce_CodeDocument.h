@@ -322,6 +322,11 @@ public:
     /** Finds the line that contains the given position. */
     void findLineContaining  (const Position& pos, Position& start, Position& end) const noexcept;
 
+	/** Checks whether the line contains a newline character at the end. */
+	bool endsWithNewLine(int lineIndex) const noexcept;
+
+	String getLineWithoutLinebreak(int lineIndex) const noexcept;
+
     //==============================================================================
     /** An object that receives callbacks from the CodeDocument when its text changes.
         @see CodeDocument::addListener, CodeDocument::removeListener

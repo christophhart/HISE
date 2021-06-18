@@ -473,8 +473,6 @@ class FilterEffect
 public:
 
 	static IIRCoefficients getDisplayCoefficients(FilterBank::FilterMode m, double frequency, double q, float gain, double samplerate);
-	static IIRCoefficients makeResoLowPass(double sampleRate, double cutoff, double q);
-
 	static String getTableValueAsGain(float input);
 
 

@@ -37,27 +37,4 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-
-
-
-
-
-/*
-using frame1_block = SingleSampleBlock<1>;
-using frame2_block = SingleSampleBlock<2>;
-using frame3_block = SingleSampleBlock<3>;
-using frame4_block = SingleSampleBlock<4>;
-using frame6_block = SingleSampleBlock<6>;
-using frame8_block = SingleSampleBlock<8>;
-using frame16_block = SingleSampleBlock<16>;
-using fix32_block = FixedBlockNode<32>;
-using fix64_block = FixedBlockNode<64>;
-using fix128_block = FixedBlockNode<128>;
-using fix256_block = FixedBlockNode<256>;
-using fix512_block = FixedBlockNode<512>;
-using fix1024_block = FixedBlockNode<1024>;
-*/
-
-
-
 }

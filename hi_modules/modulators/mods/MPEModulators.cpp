@@ -39,11 +39,13 @@ using namespace juce;
 MPEModulator::MPEModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m) :
 	EnvelopeModulator(mc, id, voiceAmount, m),
 	Modulation(m),
-	table(new SampleLookupTable()),
+	LookupTableProcessor(mc, 1, true),
 	monoState(-1),
 	g((Gesture)(int)getDefaultValue(GestureCC)),
 	smoothedIntensity(getIntensity())
 {
+	table = static_cast<SampleLookupTable*>(getTableUnchecked(0));
+
 	setAttribute(DefaultValue, getDefaultValue(DefaultValue), dontSendNotification);
 
 	table->setXTextConverter(Modulation::getDomainAsMidiRange);
@@ -215,8 +217,6 @@ void MPEModulator::resetToDefault()
 	smoothedIntensity = getDefaultValue(SpecialParameters::SmoothedIntensity);
 	setIntensity(smoothedIntensity);
 	table->reset();
-	table->sendChangeMessage();
-	sendTableIndexChangeMessage(false, table, 0);
 	sendChangeMessage();
 }
 
@@ -479,8 +479,7 @@ void MPEModulator::handleHiseEvent(const HiseEvent& m)
 
 		if (g == Stroke)
 		{
-			const float targetValue = table->getInterpolatedValue(midiValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
-			sendTableIndexChangeMessage(false, table, midiValue);
+			const float targetValue = table->getInterpolatedValue(midiValue * (float)SAMPLE_LOOKUP_TABLE_SIZE, sendNotificationAsync);
 			unsavedStrokeValue = targetValue;
 		}
 		else
@@ -521,31 +520,15 @@ void MPEModulator::handleHiseEvent(const HiseEvent& m)
 		midiValue = mpeValues.storeAndGetMaxValue(g, c, midiValue);
 	}
 
-	const float targetValue = table->getInterpolatedValue(midiValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
-
-	bool found = false;
+	const float targetValue = table->getInterpolatedValue(midiValue * (float)SAMPLE_LOOKUP_TABLE_SIZE, sendNotificationAsync);
 
 	for (auto s : activeStates)
 	{
 		const bool midiChannelMatches = isMonophonic || s->midiChannel == c;
 
 		if (s->isPressed && midiChannelMatches)
-		{
 			s->setTargetValue(targetValue);
-
-			
-
-			const bool voiceIndexMatches = isMonophonic || s->index == polyManager.getLastStartedVoice();
-
-			if (!found && voiceIndexMatches)
-			{
-				sendTableIndexChangeMessage(false, table, midiValue);
-				found = true;
-			}
-		}
-			
 	}
-
 }
 
 hise::ProcessorEditorBody * MPEModulator::createEditor(ProcessorEditor *parentEditor)

@@ -40,7 +40,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "\r\n"
 "<JUCERPROJECT id=\"Tw64Zd\" name=\"%NAME%\" projectType=\"guiapp\" version=\"%VERSION%\"\r\n"
 "              bundleIdentifier=\"%BUNDLE_ID%\" includeBinaryInAppConfig=\"1\"\r\n"
-"              jucerVersion=\"5.2.0\" companyName=\"%COMPANY%\" companyWebsite=\"%COMPANY_WEBSITE%\" companyCopyright=\"%COMPANY_COPYRIGHT%\" displaySplashScreen=\"0\" reportAppUsage=\"0\" cppLanguageStandard=\"14\">\r\n"
+"              jucerVersion=\"5.2.0\" companyName=\"%COMPANY%\" companyWebsite=\"%COMPANY_WEBSITE%\" companyCopyright=\"%COMPANY_COPYRIGHT%\" displaySplashScreen=\"0\" reportAppUsage=\"0\" cppLanguageStandard=\"17\">\r\n"
 "  <MAINGROUP id=\"SLR7uY\" name=\"%NAME%\">\r\n"
 "    <GROUP id=\"{122C85F1-8B09-257A-B636-113E3EAC258A}\" name=\"Source\">\r\n"
 "      <FILE id=\"eLP6Ii\" name=\"balanceKnob_200.png\" compile=\"0\" resource=\"1\"\r\n"

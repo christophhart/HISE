@@ -39,5 +39,26 @@ using namespace hise;
 
 
 
+namespace filters
+{
+
+#if 0
+struct FilterNodeGraph : public ScriptnodeExtraComponent<CoefficientProvider>
+{
+	FilterNodeGraph(CoefficientProvider* d, PooledUIUpdater* h);
+
+	static Component* createExtraComponent(void* p, PooledUIUpdater* h);
+	bool coefficientsChanged(const IIRCoefficients& first, const IIRCoefficients& second) const;
+	void timerCallback() override;
+	void resized() override;
+
+	IIRCoefficients lastCoefficients;
+	FilterGraph filterGraph;
+};
+#endif
+
+}
+
+
 
 }

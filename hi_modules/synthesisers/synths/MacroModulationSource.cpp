@@ -59,7 +59,7 @@ ModulatorSynth(mc, id, numVoices)
 	{
 		auto c = Colour(SIGNAL_COLOUR).withSaturation(JUCE_LIVE_CONSTANT_OFF(0.4f));
 
-		mChain->setColour(c.withMultipliedBrightness(JUCE_LIVE_CONSTANT(0.9f)));
+		mChain->setColour(c.withMultipliedBrightness(JUCE_LIVE_CONSTANT_OFF(0.9f)));
 		
 		mChain->getHandler()->addListener(this);
 	}

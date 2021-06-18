@@ -17,6 +17,7 @@
 // [BEGIN_USER_CODE_SECTION]
 
 #define JUCE_ENABLE_AUDIO_GUARD 0
+#define JUCE_DONT_ASSERT_ON_GLSL_COMPILE_ERROR 1
 
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
@@ -48,8 +49,6 @@
 // END SECTION A
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
-
-#define JUCE_PROJUCER_VERSION 0x50405
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                  1
@@ -85,6 +84,20 @@
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
 
 //==============================================================================
+// hi_backend flags:
+
+#ifndef    USE_WORKBENCH_EDITOR
+ //#define USE_WORKBENCH_EDITOR 0
+#endif
+
+//==============================================================================
+// hi_components flags:
+
+#ifndef    HISE_INCLUDE_SNEX_FLOATING_TILES
+ //#define HISE_INCLUDE_SNEX_FLOATING_TILES 0
+#endif
+
+//==============================================================================
 // hi_core flags:
 
 #ifndef    USE_BACKEND
@@ -117,6 +130,10 @@
 
 #ifndef    FRONTEND_IS_PLUGIN
  //#define FRONTEND_IS_PLUGIN 0
+#endif
+
+#ifndef    FORCE_INPUT_CHANNELS
+ //#define FORCE_INPUT_CHANNELS 0
 #endif
 
 #ifndef    HISE_MIDIFX_PLUGIN
@@ -214,6 +231,10 @@
 //==============================================================================
 // hi_dsp_library flags:
 
+#ifndef    HI_EXPORT_AS_PROJECT_DLL
+ //#define HI_EXPORT_AS_PROJECT_DLL 0
+#endif
+
 #ifndef    HI_EXPORT_DSP_LIBRARY
  #define   HI_EXPORT_DSP_LIBRARY 0
 #endif
@@ -267,6 +288,13 @@
 
 #ifndef    STANDALONE_STREAMING
  //#define STANDALONE_STREAMING 1
+#endif
+
+//==============================================================================
+// hi_tools flags:
+
+#ifndef    HISE_NO_GUI_TOOLS
+ //#define HISE_NO_GUI_TOOLS 0
 #endif
 
 //==============================================================================

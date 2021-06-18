@@ -2484,33 +2484,7 @@ public:
 		Be aware that it accepts float values as argument to each method as it tries to
 		postpone the rounding as much as possible.
 	*/
-	UnblurryGraphics(Graphics& g_, Component& componentToDrawOn) :
-		g(g_),
-		c(componentToDrawOn),
-		tl(c.getTopLevelComponent())
-	{
-		juceScaleFactor = UnblurryGraphics::getScaleFactorForComponent(&c);
-		sf = g.getInternalContext().getPhysicalPixelScaleFactor();
-		physicalScaleFactor = sf / juceScaleFactor;
-
-		// Now for some reason a small rounding error is introduced, so we make
-		// sure that the physical scale factor is a multiple of 0.25.
-		// (I am not aware of OS that use a smaller resolution for their scale factor
-		// steps).
-		physicalScaleFactor -= fmod(physicalScaleFactor, 0.25f);
-		sf = juceScaleFactor * physicalScaleFactor;
-
-		pixelSizeInFloat = 1.0f / sf;
-
-		// On retina images, this will make sure that it draws actually px wide thingies.
-		pixelSizeInFloat *= std::floor(sf);
-
-		if (pixelSizeInFloat == 0.0f)
-			pixelSizeInFloat = 1.0f;
-
-		// For the position calculation we just need the physical scale factor
-		subOffsetDivisor = 1.0f / physicalScaleFactor;
-	}
+	UnblurryGraphics(Graphics& g_, Component& componentToDrawOn, bool correctTopLevelOnly=false);
 
 	/** Draws a 1px horizontal line without blurrying the edges. */
 	void draw1PxHorizontalLine(float y, float startX, float endX)
@@ -2577,8 +2551,11 @@ public:
 		return { x, y, w, h };
 	}
 
-	static float getScaleFactorForComponent(Component* c)
+	static float getScaleFactorForComponent(const Component* c, bool correctTopLevelOnly=false)
 	{
+		if (correctTopLevelOnly)
+			return c->getTopLevelComponent()->getTransform().getScaleFactor();
+
 		float sf = c->getTransform().getScaleFactor();
 		auto pc = c->getParentComponent();
 
@@ -2611,6 +2588,10 @@ public:
 		auto yInTopLevel = (float)tmp * subOffsetDivisor;
 		return c.getLocalPoint(tl, Point<float>(0.0f, yInTopLevel)).getY();
 	}
+
+	float getPixelSize() const { return pixelSizeInFloat; }
+
+	float getTotalScaleFactor() const { return sf; }
 
 private:
 

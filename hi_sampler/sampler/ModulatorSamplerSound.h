@@ -65,6 +65,7 @@ struct MappingData
 
 namespace SampleIds
 {
+DECLARE_ID(Unused);
 DECLARE_ID(ID);
 DECLARE_ID(FileName);
 DECLARE_ID(Root);

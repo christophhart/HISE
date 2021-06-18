@@ -156,6 +156,10 @@ public:
 
 	// ================================================================================================================
 
+#if HISE_INCLUDE_SNEX
+	struct SnexWrapper;
+#endif
+
 	typedef var(*call0)(ApiClass*);
 	typedef var(*call1)(ApiClass*, var);
 	typedef var(*call2)(ApiClass*, var, var);
@@ -173,7 +177,10 @@ public:
 	ApiClass(int numConstants_);;
 	virtual ~ApiClass();
 
-    
+#if HISE_INCLUDE_SNEX
+	/** Override this if you want the API class to be accessible on the Snex layer... */
+	virtual SnexWrapper* createSnexWrapper() { return nullptr; };
+#endif
 
 	/** You can overwrite this method and return true if you want to allow illegal calls that would otherwise
 	*	fire a warning. This is eg. used in the Console class to prevent firing when debugging. */
@@ -248,6 +255,8 @@ public:
 	void getAllConstants(Array<Identifier> &ids) const;
 
 	ReadWriteLock apiClassLock;
+
+	
 
 private:
 

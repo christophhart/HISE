@@ -34,6 +34,7 @@ namespace hise { using namespace juce;
 
 HardcodedScriptProcessor::HardcodedScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms):
 	ScriptBaseMidiProcessor(mc, id),
+	ProcessorWithDynamicExternalData(mc),
 	Message(this),
 	Synth(this, ms),
 	Engine(this),

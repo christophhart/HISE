@@ -35,12 +35,10 @@ namespace hise { using namespace juce;
 FrontendProcessorEditor::FrontendProcessorEditor(FrontendProcessor *fp) :
 AudioProcessorEditor(fp)
 {
-#if HISE_USE_OPENGL_FOR_PLUGIN
 	usesOpenGl = dynamic_cast<GlobalSettingManager*>(fp)->useOpenGL;
 	
 	if(usesOpenGl)
-		context.attachTo(*this);
-#endif
+		setEnableOpenGL(this);
 
 	fp->addScaleFactorListener(this);
 	fp->incActiveEditors();
@@ -176,10 +174,7 @@ AudioProcessorEditor(fp)
 
 FrontendProcessorEditor::~FrontendProcessorEditor()
 {
-#if HISE_USE_OPENGL_FOR_PLUGIN
-	if(usesOpenGl)
-		context.detach();
-#endif
+	detachOpenGl();
 
 	dynamic_cast<FrontendProcessor*>(getAudioProcessor())->decActiveEditors();
 	dynamic_cast<GlobalSettingManager*>(getAudioProcessor())->removeScaleFactorListener(this);

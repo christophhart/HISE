@@ -192,7 +192,7 @@ public:
 		// ============================================================================================================
 
 		Engine(ProcessorWithScriptingContent *p);
-		~Engine() {};
+		~Engine();
 
 		Identifier getObjectName() const override  { RETURN_STATIC_IDENTIFIER("Engine"); };
 
@@ -447,8 +447,8 @@ public:
 		/** Creates a MIDI List object. */
     ScriptingObjects::MidiList *createMidiList();
 
-		/** Creates a SliderPack Data object. */
-		ScriptingObjects::ScriptSliderPackData* createSliderPackData();
+		/** Creates a unordered stack that can hold up to 128 float numbers. */
+		ScriptingObjects::ScriptUnorderedStack* createUnorderedStack();
 
 		/** Creates a SliderPack Data object and registers it so you can access it from other modules. */
 		ScriptingObjects::ScriptSliderPackData* createAndRegisterSliderPackData(int index);
@@ -458,6 +458,9 @@ public:
 
 		/** Creates a audio file holder and registers it so you can access it from other modules. */
 		ScriptingObjects::ScriptAudioFile* createAndRegisterAudioFile(int index);
+
+		/** Creates a ring buffer and registers it so you can access it from other modules. */
+		ScriptingObjects::ScriptRingBuffer* createAndRegisterRingBuffer(int index);
 
 		/** Creates a new timer object. */
 		ScriptingObjects::TimerObject* createTimerObject();
@@ -497,10 +500,18 @@ public:
 		
 		// ============================================================================================================
 
+
 		/** This warning will show up in the console so people can migrate in the next years... */
 		void logSettingWarning(const String& methodName) const;
 
+#if HISE_INCLUDE_SNEX
+		SnexWrapper* createSnexWrapper() override;
+		struct Snex;
+#endif
+
 		struct Wrapper;
+
+		double unused = 0.0;
 
 		ScriptBaseMidiProcessor* parentMidiProcessor;
 
@@ -703,6 +714,9 @@ public:
 
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
+
+		/** Loads an SFZ file into the sampler. */
+		var loadSfzFile(var sfzFile);
 
 		/** Loads a few samples in the current samplemap and returns a list of references to these samples. */
 		var importSamples(var fileNameList, bool skipExistingSamples);
@@ -926,6 +940,9 @@ public:
 		/** Returns the table processor with the given name. */
 		ScriptTableProcessor *getTableProcessor(const String &name);
 
+		/** Returns a reference to a processor that holds a display buffer. */
+		ScriptingObjects::ScriptDisplayBufferSource* getDisplayBufferSource(const String& name);
+
 		/** Returns the first sampler with the name name. */
 		Sampler *getSampler(const String &name);
 
@@ -975,6 +992,12 @@ public:
 		void setSustainPedal(bool shouldBeDown) { sustainState = shouldBeDown; };
 
 		struct Wrapper;
+
+#if HISE_INCLUDE_SNEX
+		struct Snex;
+
+		SnexWrapper* createSnexWrapper() override;
+#endif
 
 	private:
 
@@ -1332,6 +1355,9 @@ public:
 		/** Returns the current sample folder as File object. */
 		var getFolder(var locationType);
 
+		/** Returns a file object from an absolute path (eg. C:/Windows/MyProgram.exe). */
+		var fromAbsolutePath(String path);
+
 		/** Returns a list of all child files of a directory that match the wildcard. */
 		var findFiles(var directory, String wildcard, bool recursive);
 
@@ -1374,6 +1400,30 @@ public:
 
 		/** Returns a colour value with the specified alpha value. */
 		int withAlpha(int colour, float alpha);
+
+		/** Returns a colour with the specified hue. */
+		int withHue(int colour, float hue);
+
+		/** Returns a colour with the specified saturation. */
+		int withSaturation(int colour, float saturation);
+
+		/** Returns a colour with the specified brightness. */
+		int withBrightness(int colour, float brightness);
+
+		/** Returns a colour with a multiplied alpha value. */
+		int withMultipliedAlpha(int colour, float factor);
+
+		/** Returns a colour with a multiplied saturation value. */
+		int withMultipliedSaturation(int colour, float factor);
+
+		/** Returns a colour with a multiplied brightness value. */
+		int withMultipliedBrightness(int colour, float factor);
+
+		/** Converts a colour to a [r, g, b, a] array that can be passed to GLSL as vec4. */
+		var toVec4(int colour);
+
+		/** Converts a colour from a [r, g, b, a] float array to a uint32 value. */
+		int fromVec4(var vec4);
 
 		// ============================================================================================================
 

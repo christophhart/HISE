@@ -145,6 +145,15 @@ If set to 1, the compiled plugin will be a effect (stereo in / out). */
 #define FRONTEND_IS_PLUGIN 0
 #endif
 
+/** Config: FORCE_INPUT_CHANNELS
+
+If set to 1, the compiled plugin will use a stereo input channel pair and render the master containers effect chain on top of it.
+This can be used to simulate an audio effect routing setup (when the appropriate plugin type is selected in the projucer settings).
+*/
+#ifndef FORCE_INPUT_CHANNELS
+#define FORCE_INPUT_CHANNELS 0
+#endif
+
 /** Config: HISE_MIDIFX_PLUGIN
 
 If set to 1, then the plugin will be a MIDI effect plugin. */

@@ -45,15 +45,10 @@ struct MacroPropertyEditor : public Component,
 	struct ConnectionEditor : public Component,
 							  public ButtonListener
 	{
-		static Array<Identifier> getHiddenIds()
-		{
-			return { PropertyIds::NodeId, PropertyIds::ParameterId,
-					PropertyIds::UpperLimit, PropertyIds::LowerLimit,
-					PropertyIds::Inverted };
-		}
+		
 
 		ConnectionEditor(NodeBase* b, ValueTree connectionData, bool showSourceInTitle) :
-			cEditor(b, true, connectionData, getHiddenIds()),
+			cEditor(b, true, connectionData, RangeHelpers::getHiddenIds()),
 			node(b),
 			deleteButton("delete", this, f),
 			gotoButton("goto", this, f),
@@ -425,10 +420,27 @@ struct MacroPropertyEditor : public Component,
 };
 
 
+struct NodeDropTarget
+{
+	virtual ~NodeDropTarget() {};
 
-class ContainerComponent : public NodeComponent,
+	Component* asComponent() { return dynamic_cast<Component*>(this); }
+
+	virtual void setDropTarget(Point<int> position) = 0;
+	virtual void removeDraggedNode(NodeComponent* draggedNode) = 0;
+	virtual void insertDraggedNode(NodeComponent* newNode, bool copyNode) = 0;
+	virtual void clearDropTarget() = 0;
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeDropTarget);
+};
+
+class ContainerComponent :  public NodeComponent,
+							public NodeDropTarget,
 							public DragAndDropContainer,
-							public NodeBase::HelpManager::Listener
+							public HelpManager::Listener,
+							public Value::Listener
 {
 public:
 
@@ -466,6 +478,7 @@ public:
 			dragButton.setToggleModeWithColourChange(true);
 
 			rebuildParameters();
+			setSize(500, UIValues::ParameterHeight);
 		}
 
 		~ParameterComponent()
@@ -492,8 +505,10 @@ public:
 					p.setProperty(PropertyIds::ID, name, nullptr);
 					p.setProperty(PropertyIds::MinValue, 0.0, nullptr);
 					p.setProperty(PropertyIds::MaxValue, 1.0, nullptr);
-					p.setProperty(PropertyIds::StepSize, 0.01, nullptr);
-					p.setProperty(PropertyIds::SkewFactor, 1.0, nullptr);
+
+					PropertyIds::Helpers::setToDefault(p, PropertyIds::StepSize);
+					PropertyIds::Helpers::setToDefault(p, PropertyIds::SkewFactor);
+
 					p.setProperty(PropertyIds::Value, 1.0, nullptr);
 					parameterTree.addChild(p, -1, parent.node->getUndoManager());
 				}
@@ -548,6 +563,7 @@ public:
 		{
 			auto b = getLocalBounds();
 
+			b.removeFromTop(15);
 			auto bRow = b.removeFromLeft(b.getHeight() / 3);
 
 			addButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
@@ -561,7 +577,13 @@ public:
 
 		void paint(Graphics& g) override
 		{
-			g.fillAll(Colours::black.withAlpha(0.1f));
+			auto b = getLocalBounds().toFloat();
+			
+			b.removeFromTop(10.0f);
+
+			g.setColour(Colours::black.withAlpha(0.1f));
+
+			g.fillRoundedRectangle(b, 10.0f);
 		}
 
 		ContainerComponent& parent;
@@ -602,8 +624,10 @@ public:
 		}
 	}
 
-	void setDropTarget(Point<int> position);
+	void setDropTarget(Point<int> position) override;
 	void clearDropTarget();
+
+	void valueChanged(Value& v) override;
 
 	virtual Rectangle<float> getInsertRuler(int ) const { jassertfalse; return {}; }
 
@@ -611,22 +635,32 @@ public:
 	{
 		NodeComponent::resized();
 
-		if (dataReference[PropertyIds::ShowParameters])
-		{
-			parameters.setVisible(true);
-		}
-		else
-			parameters.setVisible(false);
+		Component* topComponent = parameters != nullptr ? parameters.get() : extraComponent.get();
+
+		jassert(topComponent != nullptr);
+
+		topComponent->setVisible(dataReference[PropertyIds::ShowParameters]);
 
 		auto b = getLocalBounds();
 		b.expand(-UIValues::NodeMargin, 0);
 		b.removeFromTop(UIValues::HeaderHeight);
-		parameters.setBounds(b.removeFromTop(UIValues::ParameterHeight));
+		topComponent->setSize(b.getWidth(), topComponent->getHeight());
+		topComponent->setTopLeftPosition(b.getTopLeft());
 	}
 
 	int getCurrentAddPosition() const { return addPosition; }
 
+	void setExtraComponent(Component* newExtraComponent)
+	{
+		extraComponent = newExtraComponent;
+		addAndMakeVisible(extraComponent);
+		parameters = nullptr;
+		resized();
+	}
+
 protected:
+
+	Value verticalValue;
 
 	Point<int> getStartPosition() const;
 	float getCableXOffset(int cableIndex, int factor = 1) const;
@@ -659,15 +693,18 @@ private:
 
 	void rebuildNodes();
 
-	ParameterComponent parameters;
+	ScopedPointer<ParameterComponent> parameters;
+	ScopedPointer<Component> extraComponent;
 };
 
 struct SerialNodeComponent : public ContainerComponent
 {
-	SerialNodeComponent(SerialNode* node);
+	SerialNodeComponent(NodeContainer* node);
 
 	int getInsertPosition(Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
+
+	Colour getOutlineColour() const override;
 
 	void resized() override;
 	void paintSerialCable(Graphics& g, int cableIndex);
@@ -676,7 +713,7 @@ struct SerialNodeComponent : public ContainerComponent
 
 struct ParallelNodeComponent : public ContainerComponent
 {
-	ParallelNodeComponent(ParallelNode* node);;
+	ParallelNodeComponent(NodeContainer* node);;
 
 	bool isMultiChannelNode() const;
 	int getInsertPosition(Point<int> position) const override;
@@ -695,6 +732,11 @@ struct ModChainNodeComponent : public ContainerComponent
 
 	int getInsertPosition(Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
+
+	Colour getOutlineColour() const override
+	{
+		return JUCE_LIVE_CONSTANT_OFF(Colour(0xff776123));
+	}
 
 	void resized() override;
 	void paint(Graphics& g) override;

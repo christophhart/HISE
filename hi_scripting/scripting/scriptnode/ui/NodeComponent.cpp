@@ -66,7 +66,8 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 	parent(parent_),
 	powerButton(getPowerButtonId(false), this, f, getPowerButtonId(true)),
 	deleteButton("delete", this, f),
-	parameterButton("parameter", this, f)
+	parameterButton("parameter", this, f),
+	freezeButton("freeze", this, f)
 {
 	powerButton.setToggleModeWithColourChange(true);
 	
@@ -80,10 +81,20 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 	addAndMakeVisible(powerButton);
 	addAndMakeVisible(deleteButton);
 	addAndMakeVisible(parameterButton);
-	
+	addAndMakeVisible(freezeButton);
+
+	freezeButton.setToggleModeWithColourChange(true);
+
 	parameterButton.setToggleModeWithColourChange(true);
 	parameterButton.setToggleStateAndUpdateIcon(parent.dataReference[PropertyIds::ShowParameters]);
 	parameterButton.setVisible(dynamic_cast<NodeContainer*>(parent.node.get()) != nullptr);
+
+	freezeButton.setEnabled(parent.node->getRootNetwork()->canBeFrozen());
+
+	freezeButton.setToggleStateAndUpdateIcon(parent.node->getRootNetwork()->isFrozen());
+	
+	if (!freezeButton.isEnabled())
+		freezeButton.setAlpha(0.1f);
 }
 
 
@@ -99,6 +110,11 @@ void NodeComponent::Header::buttonClicked(Button* b)
 
 		parent.dataReference.getParent().removeChild(
 			parent.dataReference, parent.node->getUndoManager());
+	}
+	if (b == &freezeButton)
+	{
+		parent.node->getRootNetwork()->setUseFrozenNode(b->getToggleState());
+		parent.repaint();
 	}
 	if (b == &parameterButton)
 	{
@@ -137,9 +153,11 @@ void NodeComponent::Header::resized()
 	parameterButton.setBounds(b.removeFromLeft(getHeight()).reduced(3));
 
 	deleteButton.setBounds(b.removeFromRight(getHeight()).reduced(3));
+	freezeButton.setBounds(deleteButton.getBounds());
 
 	powerButton.setVisible(!parent.isRoot());
 	deleteButton.setVisible(!parent.isRoot());
+	freezeButton.setVisible(parent.isRoot());
 }
 
 void NodeComponent::Header::mouseDown(const MouseEvent& e)
@@ -200,15 +218,29 @@ void NodeComponent::Header::mouseDrag(const MouseEvent& e)
 }
 
 
+bool NodeComponent::Header::isInterestedInDragSource(const SourceDetails& details)
+{
+	if (dynamic_cast<cable::dynamic::editor*>(details.sourceComponent.get()) != nullptr)
+		return false;
+
+	return true;
+}
+
 void NodeComponent::Header::paint(Graphics& g)
 {
 	g.setColour(parent.getOutlineColour());
 	g.fillAll();
 
+	auto b = getLocalBounds();
+	b.removeFromLeft(1);
+	b.removeFromRight(1);
+	b.removeFromTop(1);
+
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x2b000000)));
+	g.fillRect(b);
+
 	
 	g.setFont(GLOBAL_BOLD_FONT());
-
-
 
 	String s = parent.dataReference[PropertyIds::ID].toString();
 
@@ -216,38 +248,44 @@ void NodeComponent::Header::paint(Graphics& g)
 		s << " [poly]";
 
 	
+	if (parent.node->getRootNetwork()->getCpuProfileFlag())
+	{
+		s << parent.node->getCpuUsageInPercent();
+	}
+
 
 	auto textWidth = GLOBAL_BOLD_FONT().getStringWidthFloat(s) + 10.0f;
 
-	auto colourBounds = getLocalBounds().reduced(3, 6);
-
-	if (powerButton.isVisible())
-		colourBounds.removeFromLeft(powerButton.getWidth() + 6);
-
-	if (parameterButton.isVisible())
-		colourBounds.removeFromLeft(parameterButton.getWidth() + 6);
-
-	if (deleteButton.isVisible())
-		colourBounds.removeFromRight(deleteButton.getWidth() + 6);
-
-	if (!colour.isTransparent())
-	{
-		g.setColour(colour);
-		
-		auto textBounds = getLocalBounds().toFloat().withSizeKeepingCentre(textWidth, (float)getHeight());
-
-		auto colourL = colourBounds.toFloat().withRight(textBounds.getX());
-		auto colourR = colourBounds.toFloat().withLeft(textBounds.getRight());
-
-		g.fillRoundedRectangle(colourL, 2.0f);
-		g.fillRoundedRectangle(colourR, 2.0f);
-	}
-
-	
-
-
 	g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.5f : 1.0f));
 	g.drawText(s, getLocalBounds(), Justification::centred);
+
+	auto ar = getLocalBounds().toFloat();
+	ar.removeFromRight(ar.getHeight());
+
+	if (parent.node->isUINodeOfDuplicate())
+	{
+		g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.1f : 0.3f));
+		Path p;
+		p.loadPathFromData(SampleMapIcons::copySamples, sizeof(SampleMapIcons::copySamples));
+
+		PathFactory::scalePath(p, ar.removeFromRight(ar.getHeight()).reduced(2.0f));
+
+		g.fillPath(p);
+	}
+
+	if (parent.node->isProcessingHiseEvent())
+	{
+		auto hasMidiParent = (parent.node->findParentNodeOfType<MidiChainNode>() != nullptr || parent.node->getRootNetwork()->isPolyphonic()) &&
+							 parent.node->findParentNodeOfType<NoMidiChainNode>() == nullptr;
+
+		Path p;
+		p.loadPathFromData(HiBinaryData::SpecialSymbols::midiData, sizeof(HiBinaryData::SpecialSymbols::midiData));
+
+		PathFactory::scalePath(p, ar.removeFromRight(ar.getHeight()).reduced(4.0f));
+
+		g.setColour(Colours::white.withAlpha(hasMidiParent ? 0.5f : 0.1f));
+		g.fillPath(p);
+	}
 
 	if (isHoveringOverBypass)
 	{
@@ -262,16 +300,27 @@ NodeComponent::NodeComponent(NodeBase* b) :
 	node(b),
 	header(*this)
 {
+	if (auto en = node->getEmbeddedNetwork())
+	{
+		addAndMakeVisible(embeddedNetworkBar = new EmbeddedNetworkBar(b));
+	}
+
 	node->getRootNetwork()->addSelectionListener(this);
 
 	setName(b->getId());
 	addAndMakeVisible(header);
-	setOpaque(true);
+	setOpaque(false);
 
-	repaintListener.setCallback(dataReference, {PropertyIds::ID, PropertyIds::NumChannels},
+	repaintListener.setCallback(dataReference, {PropertyIds::ID, PropertyIds::NumChannels, PropertyIds::NodeColour},
 		valuetree::AsyncMode::Asynchronously,
 		[this](Identifier id, var)
 	{
+		if (id == PropertyIds::NodeColour)
+		{
+			if (auto dng = findParentComponentOfClass<DspNetworkGraph>())
+				dng->repaint();
+		}
+
 		repaint();
 		
 		if (id == PropertyIds::NumChannels && getParentComponent() != nullptr)
@@ -288,16 +337,21 @@ NodeComponent::~NodeComponent()
 
 void NodeComponent::paint(Graphics& g)
 {
-	g.fillAll(Colour(0xFF444444));
+
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff353535)));
+
+	g.fillAll();
+
+	drawTopBodyGradient(g, JUCE_LIVE_CONSTANT_OFF(0.15f));
+
 	g.setColour(getOutlineColour());
-	g.drawRect(getLocalBounds());
+	g.drawRect(getLocalBounds().toFloat(), 1.0f);
 
-	Path p;
-
+#if 0
 	if (node->getAsRestorableNode() != nullptr)
 		p.loadPathFromData(HnodeIcons::freezeIcon, sizeof(HnodeIcons::freezeIcon));
     
-#if HISE_INCLUDE_SNEX
+#if HISE_INCLUDE_SNEX && OLD_JIT_STUFF
 	else if (dynamic_cast<JitNodeBase*>(node.get()) != nullptr)
 		p.loadPathFromData(HnodeIcons::jit, sizeof(HnodeIcons::jit));
 #endif
@@ -309,16 +363,57 @@ void NodeComponent::paint(Graphics& g)
 		g.setColour(Colours::white.withAlpha(0.2f));
 		g.fillPath(p);
 	}
+#endif
 }
 
 
 void NodeComponent::paintOverChildren(Graphics& g)
 {
+	if (isRoot() && node->getRootNetwork()->isFrozen())
+	{
+		auto b = getLocalBounds().reduced(1);
+		b.removeFromTop(header.getHeight());
+
+		if (header.parameterButton.getToggleState())
+			b.removeFromTop(UIValues::ParameterHeight);
+
+		auto hashMatches = node->getRootNetwork()->hashMatches();
+
+		g.setColour(hashMatches ? Colour(0xEE171717) : Colour(0xEE221111));
+		g.fillRect(b);
+
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		if (!hashMatches)
+		{
+			g.setColour(Colours::white);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("The compiled node doesn't match the interpreted network. Recompile this node in order to ensure consistent behaviour", b.toFloat(), Justification::centred);
+		}
+
+		Path fp;
+		fp.loadPathFromData(HnodeIcons::freezeIcon, sizeof(HnodeIcons::freezeIcon));
+		auto pSize = jmin(200, getWidth(), getHeight());
+		auto bl = b.withSizeKeepingCentre(pSize, pSize).toFloat();
+		PathFactory::scalePath(fp, bl);
+
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.strokePath(fp, PathStrokeType(4.0f));
+		g.fillPath(fp);
+		
+		auto tb = bl.removeFromBottom(24.0f).translated(0.0f, 40.0f);
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawText("Using the project DLL node", tb, Justification::centred);
+
+
+	}
+
 	if (isSelected())
 	{
-		g.setColour(Colour(SIGNAL_COLOUR));
-		g.drawRect(getLocalBounds(), 1);
+		UnblurryGraphics ug(g, *this, true);
 
+		g.setColour(Colour(SIGNAL_COLOUR));
+		ug.draw1PxRect(getLocalBounds().toFloat());
 	}
 
 	if (isBeingCopied())
@@ -333,6 +428,34 @@ void NodeComponent::paintOverChildren(Graphics& g)
 		g.setColour(Colours::white.withAlpha(0.6f));
 		g.fillPath(p);
 	}
+
+	auto& exceptionHandler = node->getRootNetwork()->getExceptionHandler();
+
+	auto error = exceptionHandler.getErrorMessage(node);
+
+	if (error.isNotEmpty())
+	{
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xaa683333)));
+
+		g.drawRect(getLocalBounds().reduced(1), 1);
+
+		auto b = getLocalBounds();
+		b.removeFromTop(header.getHeight());
+
+		g.fillRect(b.reduced(1));
+
+		auto f = GLOBAL_BOLD_FONT();
+
+		g.setFont(f);
+		
+		MarkdownRenderer mp(error);
+		mp.getStyleData().fontSize = 13.0f;
+		
+		mp.parse();
+		auto h = mp.getHeightForWidth(getWidth() - 20.0f);
+
+		mp.draw(g, b.toFloat().reduced(20.0f));
+	}
 }
 
 
@@ -341,6 +464,9 @@ void NodeComponent::resized()
 	auto b = getLocalBounds();
 
 	header.setBounds(b.removeFromTop(24));
+
+	if (embeddedNetworkBar != nullptr)
+		embeddedNetworkBar->setBounds(b.removeFromTop(24));
 }
 
 
@@ -372,12 +498,10 @@ void NodeComponent::selectionChanged(const NodeBase::List& selection)
 
 void NodeComponent::fillContextMenu(PopupMenu& m)
 {
-	m.addItem((int)MenuActions::ExportAsCpp, "Export module to Custom folder", CodeHelpers::customFolderIsDefined());
-	m.addItem((int)MenuActions::ExportAsCppProject, "Export module to Project folder", CodeHelpers::projectFolderIsDefined());
-
 	m.addItem((int)MenuActions::ExportAsSnippet, "Export as snippet");
 	m.addItem((int)MenuActions::EditProperties, "Edit Properties");
 
+#if 0
 	if (auto hc = node.get()->getAsRestorableNode())
 	{
 		m.addItem((int)MenuActions::UnfreezeNode, "Unfreeze hardcoded node");
@@ -387,6 +511,7 @@ void NodeComponent::fillContextMenu(PopupMenu& m)
 	{
 		m.addItem((int)MenuActions::FreezeNode, "Replace with hardcoded version");
 	}
+#endif
 
 	m.addSectionHeader("Wrap into container");
 	m.addItem((int)MenuActions::WrapIntoChain, "Chain");
@@ -402,23 +527,7 @@ void NodeComponent::fillContextMenu(PopupMenu& m)
 
 void NodeComponent::handlePopupMenuResult(int result)
 {
-	if (result == (int)MenuActions::ExportAsCpp)
-	{
-		const String c = node->createCppClass(true);
-
-		CodeHelpers::addFileToCustomFolder(node->getId(), c);
-
-		SystemClipboard::copyTextToClipboard(c);
-
-		String cppClassName = "custom." + node->getId();
-		node->setValueTreeProperty(PropertyIds::FreezedPath, cppClassName);
-	}
-	if (result == (int)MenuActions::ExportAsCppProject)
-	{
-		const String c = node->createCppClass(true);
-		CodeHelpers::addFileToProjectFolder(node->getId(), c);
-		SystemClipboard::copyTextToClipboard(c);
-	}
+#if USE_BACKEND
 	if (result == (int)MenuActions::CreateScreenShot)
 	{
 		auto mc = node->getScriptProcessor()->getMainController_();
@@ -451,7 +560,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 	{
 		auto n = new NodePopupEditor(this);
 		
-		auto g = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+		auto g = findParentComponentOfClass<ZoomableViewport>();
 		auto b = g->getLocalArea(this, getLocalBounds());
 
 		g->setCurrentModalWindow(n, b);
@@ -471,9 +580,41 @@ void NodeComponent::handlePopupMenuResult(int result)
 	{
 		DspNetworkGraph::Actions::freezeNode(node);
 	}
+	if (result == (int)MenuActions::WrapIntoDspNetwork)
+	{
+		ValueTree nData(PropertyIds::Network);
+
+		auto rootTree = node->getRootNetwork()->getValueTree();
+
+		// mirror all properties from the parent network;
+		for (int i = 0; i < rootTree.getNumProperties(); i++)
+			nData.setProperty(rootTree.getPropertyName(i), rootTree.getProperty(rootTree.getPropertyName(i)), nullptr);
+
+		nData.setProperty(PropertyIds::ID, node->getId(), nullptr);
+		nData.addChild(node->getValueTree().createCopy(), -1, nullptr);
+
+		
+
+		auto ndir = BackendDllManager::getSubFolder(node->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Networks);
+
+		auto tFile = ndir.getChildFile(node->getId()).withFileExtension("xml");
+
+		if (!tFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite file", "Do you want to overwrite the file " + tFile.getFileName()))
+		{
+			ScopedPointer<XmlElement> xml = nData.createXml();
+			tFile.replaceWithText(xml->createDocument(""));
+			
+			auto newPath = "project." + node->getId();
+			node->setValueTreeProperty(PropertyIds::FactoryPath, newPath);
+
+			PresetHandler::showMessageWindow("Exported chain as new network", "Reload this patch to apply the change");
+			return;
+		}
+
+	}
 	if (result >= (int)MenuActions::WrapIntoChain && result <= (int)MenuActions::WrapIntoOversample4)
 	{
-		auto framePath = "container.frame" + String(node->getNumChannelsToProcess()) + "_block";
+		auto framePath = "container.frame" + String(node->getCurrentChannelAmount()) + "_block";
 
 		StringArray ids = { "container.chain", "container.split", "container.multi",
 						      framePath, "container.oversample4x" };
@@ -572,6 +713,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 			sn->setNodeProperty(PropertyIds::Connection, firstId);
 		}
 	}
+#endif
 	
 }
 
@@ -580,7 +722,37 @@ juce::Colour NodeComponent::getOutlineColour() const
 	if (isRoot())
 		return dynamic_cast<const Processor*>(node->getScriptProcessor())->getColour();
 
+	auto& exceptionHandler = node->getRootNetwork()->getExceptionHandler();
+
+	if (!exceptionHandler.isOk())
+	{
+		auto error = exceptionHandler.getErrorMessage(node);
+
+		if (error.isNotEmpty())
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFFFF0000));
+	}
+
+	if (!header.colour.isTransparent())
+		return header.colour;
+
 	return header.isDragging ? Colour(0x88444444) : Colour(0xFF555555);
+}
+
+juce::Colour NodeComponent::getHeaderColour() const
+{
+	if (!header.colour.isTransparent())
+		return header.colour;
+
+	return Colours::white;
+}
+
+void NodeComponent::drawTopBodyGradient(Graphics& g, float alpha/*=0.1f*/, float height/*=20.0f*/)
+{
+	auto b = getLocalBounds().toFloat();
+	b.removeFromTop(header.getHeight());
+	b = b.removeFromTop(height);
+	g.setGradientFill(ColourGradient(Colours::black.withAlpha(alpha), 0.0f, b.getY(), Colours::transparentBlack, 0.0f, b.getBottom(), false));
+	g.fillRect(b);
 }
 
 bool NodeComponent::isRoot() const
@@ -677,6 +849,7 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("goto", ColumnIcons::targetIcon);
 	LOAD_PATH_IF_URL("parameter", HiBinaryData::SpecialSymbols::macros);
 	LOAD_PATH_IF_URL("split", ScriptnodeIcons::splitIcon);
+	LOAD_PATH_IF_URL("freeze", HnodeIcons::freezeIcon);
 	LOAD_PATH_IF_URL("chain", ScriptnodeIcons::chainIcon);
 	LOAD_PATH_IF_URL("multi", ScriptnodeIcons::multiIcon);
 	LOAD_PATH_IF_URL("modchain", ScriptnodeIcons::modIcon);
@@ -705,6 +878,77 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 
 
 
+juce::Path NodeComponent::EmbeddedNetworkBar::Factory::createPath(const String& url) const
+{
+	Path p;
+	LOAD_PATH_IF_URL("freeze", HnodeIcons::freezeIcon);
+	LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
+	LOAD_PATH_IF_URL("warning", EditorIcons::warningIcon);
+	return p;
+}
 
+NodeComponent::EmbeddedNetworkBar::EmbeddedNetworkBar(NodeBase* n) :
+	parentNode(n),
+	embeddedNetwork(n->getEmbeddedNetwork()),
+	warningButton("warning", this, f),
+	freezeButton("freeze", this, f),
+	gotoButton("goto", this, f)
+{
+	jassert(embeddedNetwork != nullptr);
+
+	addAndMakeVisible(warningButton);
+
+	warningButton.setVisible(!n->getEmbeddedNetwork()->hashMatches() & embeddedNetwork->canBeFrozen());
+
+	addAndMakeVisible(gotoButton);
+	addAndMakeVisible(freezeButton);
+
+	if (!embeddedNetwork->canBeFrozen())
+	{
+		freezeButton.setEnabled(false);
+		freezeButton.setAlpha(0.1f);
+	}
+	else
+	{
+		freezeUpdater.setCallback(parentNode->getValueTree(), { PropertyIds::Frozen }, valuetree::AsyncMode::Asynchronously,
+			BIND_MEMBER_FUNCTION_2(EmbeddedNetworkBar::updateFreezeState));
+	}
+	
+	freezeButton.setToggleModeWithColourChange(true);
+	freezeButton.setToggleStateAndUpdateIcon(parentNode->getValueTree()[PropertyIds::Frozen]);
+
+	setSize(100, 24);
+}
+
+void NodeComponent::EmbeddedNetworkBar::buttonClicked(Button* b)
+{
+	if (b == &warningButton)
+	{
+
+	}
+	if (b == &freezeButton)
+	{
+		parentNode->setValueTreeProperty(PropertyIds::Frozen, b->getToggleState());
+	}
+	if (b == &gotoButton)
+	{
+		findParentComponentOfClass<ZoomableViewport>()->setNewContent(new DspNetworkGraph(embeddedNetwork), getParentComponent());
+	}
+}
+
+void NodeComponent::EmbeddedNetworkBar::resized()
+{
+	auto b = getLocalBounds();
+	freezeButton.setBounds(b.removeFromRight(b.getHeight()).reduced(2));
+	if (warningButton.isVisible())
+		warningButton.setBounds(b.removeFromRight(b.getHeight()).reduced(2));
+
+	gotoButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(4));
+}
+
+void NodeComponent::EmbeddedNetworkBar::updateFreezeState(const Identifier& id, const var& newValue)
+{
+	freezeButton.setToggleStateAndUpdateIcon((bool)newValue);
+}
 
 }

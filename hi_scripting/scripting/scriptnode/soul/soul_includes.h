@@ -1,5 +1,8 @@
 #pragma once
 
+#define INCLUDE_SOUL_NODE 0
+
+#if INCLUDE_SOUL_NODE
 #include "API/soul_patch.h"
 
 // We don't do that here...
@@ -12,6 +15,6 @@
 #include "custom/Soul2Hise.h"
 #include "custom/SoulNode.h"
 #include "custom/SoulNodeComponent.h"
-
+#endif
 
 

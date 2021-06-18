@@ -332,7 +332,7 @@ public:
 
 			File file(firstName);
 
-			return file.isDirectory() || AudioSampleProcessorBufferComponent::isAudioFile(firstName) || file.hasFileExtension("xml");
+			return file.isDirectory() || MultiChannelAudioBufferDisplay::isAudioFile(firstName) || file.hasFileExtension("xml");
 		}
 		else
 		{

@@ -46,6 +46,10 @@
 #include "FloatingTileContainer.cpp"
 #include "FloatingTile.cpp"
 
+#if HISE_INCLUDE_SNEX_FLOATING_TILES
+#include "SnexFloatingTiles.cpp"
+#endif
+
 
 #include "FloatingInterfaceBuilder.cpp"
 

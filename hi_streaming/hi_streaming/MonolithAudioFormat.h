@@ -409,6 +409,11 @@ public:
 		return multiChannelSampleInformation[0][sampleIndex].start;
 	}
 
+	int getNumSamplesInMonolith() const
+	{
+		return multiChannelSampleInformation[0].size();
+	}
+
 	int64 getMonolithLength(int sampleIndex) const
 	{
 		return (int64)jmax<int>(0, (int)multiChannelSampleInformation[0][sampleIndex].length);

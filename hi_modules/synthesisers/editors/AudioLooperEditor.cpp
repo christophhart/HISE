@@ -34,8 +34,9 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (sampleBufferContent = new AudioSampleProcessorBufferComponent (getProcessor()));
+    addAndMakeVisible (sampleBufferContent = new MultiChannelAudioBufferDisplay ());
     sampleBufferContent->setName ("new component");
+	sampleBufferContent->setAudioFile(dynamic_cast<AudioSampleProcessor*>(getProcessor())->getAudioFileUnchecked(0));
 
     addAndMakeVisible (label = new Label ("new label",
                                           TRANS("LOOPER")));
@@ -96,14 +97,11 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
 
 	AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(getProcessor());
 
-	sampleBufferContent->setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), sendNotification);
-
+	sampleBufferContent->setAudioFile(&asp->getBuffer());
 
 	startModSlider->setup(getProcessor(), AudioLooper::SampleStartMod, "Random Start");
 	startModSlider->setMode(HiSlider::Discrete, 0.0, 20000, 1000.0, 1.0);
 
-
-	sampleBufferContent->addAreaListener(this);
 
 	syncToHost->setup(getProcessor(), AudioLooper::SyncMode, "Sync to host");
 	loopButton->setup(getProcessor(), AudioLooper::LoopEnabled, "Loop Enabled");

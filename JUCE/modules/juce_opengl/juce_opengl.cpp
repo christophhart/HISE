@@ -48,7 +48,7 @@
 #elif JUCE_WINDOWS
  #include <windowsx.h>
 
- #if JUCE_MSVC && ! JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES
+ #if ! JUCE_MINGW && ! JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES
   #pragma comment(lib, "OpenGL32.Lib")
  #endif
 
@@ -213,7 +213,7 @@ static void checkGLError (const char* file, const int line)
             continue;
 
         DBG ("***** " << getGLErrorMessage (e) << "  at " << file << " : " << line);
-        jassertfalse;
+        //jassertfalse;
     }
 }
 

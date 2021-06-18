@@ -807,7 +807,7 @@ void JSONEditor::executeCallback()
 {
 	var newData;
 
-	auto result = JSON::parse(doc->getAllContent(), newData);
+	auto result = compileCallback(doc->getAllContent(), newData);
 
 	if (result.wasOk())
 	{

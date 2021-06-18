@@ -138,9 +138,7 @@ struct StereoChannelData
     adding pitch modulators or changing the `Pitch` property might lead to a pitch ratio that is above the limit, so be careful when you use these
     in combination with a high-pitched sample!
 */
-#if HISE_IOS
-#define MAX_SAMPLER_PITCH 8
-#else
+#ifndef MAX_SAMPLER_PITCH
 #define MAX_SAMPLER_PITCH 8
 #endif
 

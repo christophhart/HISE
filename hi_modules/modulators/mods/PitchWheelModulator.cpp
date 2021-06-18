@@ -34,18 +34,18 @@ namespace hise { using namespace juce;
 
 PitchwheelModulator::PitchwheelModulator(MainController *mc, const String &id, Modulation::Mode m):
 	TimeVariantModulator(mc, id, m),
+	LookupTableProcessor(mc, 1, false),
     targetValue(0.5f),
 	Modulation(m),
 	intensity(1.0f),
 	inverted(false),
 	useTable(false),
-	table(new MidiTable()),
 	smoothTime(200.0f),
 	currentValue(0.5f)
 {
 	this->enableConsoleOutput(false);
 	
-	table->setXTextConverter(Modulation::getDomainAsPitchBendRange);
+	getTableUnchecked(0)->setXTextConverter(Modulation::getDomainAsPitchBendRange);
 
 	parameterNames.add("Inverted");
 	parameterNames.add("UseTable");
@@ -134,14 +134,11 @@ void PitchwheelModulator::calculateBlock(int startSample, int numSamples)
 		currentValue = targetValue;
 		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), currentValue, numSamples);
 	}
-
-	if (useTable) sendTableIndexChangeMessage(false, table, inputValue);
 }
 
 float PitchwheelModulator::calculateNewValue ()
 {
 	currentValue = (fabsf(targetValue - currentValue) < 0.001) ? targetValue : smoother.smooth(targetValue);
-	
 	return currentValue;
 }
 
@@ -156,14 +153,12 @@ void PitchwheelModulator::handleHiseEvent (const HiseEvent &m)
 		inputValue = m.getPitchWheelValue() / 16383.0f;
 		float value;
 
-		if(useTable) value = table->get((int)(inputValue * 127.0f));
+		if(useTable) value = getMidiTable()->get((int)(inputValue * 127.0f), sendNotificationAsync);
 		else value = inputValue;
 
 		if(inverted) value = 1.0f - value;
 
 		targetValue = value;
-
-		
 	};
 }
 

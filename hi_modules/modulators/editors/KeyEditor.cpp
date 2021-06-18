@@ -34,61 +34,13 @@ KeyEditor::KeyEditor (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<KeyModulator*>(getProcessor())->getTable(KeyModulator::NumberMode)));
+    addAndMakeVisible (midiTable = new TableEditor());
     midiTable->setName ("new component");
 
-    addAndMakeVisible (discreteTableEditor = new DiscreteTableEditor (dynamic_cast<KeyModulator*>(getProcessor())->getTable(KeyModulator::KeyMode)));
-    discreteTableEditor->setName ("new component");
-
-    addAndMakeVisible (keyGraph = new KeyGraph (dynamic_cast<KeyModulator*>(getProcessor())->getTable(KeyModulator::KeyMode)));
-    keyGraph->setName ("new component");
-
-    addAndMakeVisible (selectionSlider = new Slider ("new slider"));
-    selectionSlider->setRange (0, 1, 0);
-    selectionSlider->setSliderStyle (Slider::LinearBar);
-    selectionSlider->setTextBoxStyle (Slider::NoTextBox, false, 80, 20);
-    selectionSlider->setColour (Slider::thumbColourId, Colour (0x59ffffff));
-    selectionSlider->setColour (Slider::rotarySliderOutlineColourId, Colour (0x47000000));
-    selectionSlider->setColour (Slider::textBoxOutlineColourId, Colour (0x88808080));
-    selectionSlider->addListener (this);
-
-    addAndMakeVisible (keyMode = new ToggleButton ("new toggle button"));
-    keyMode->setTooltip (TRANS("Toggle between Keymode with discrete values for each note or a simple look up table over the entire MIDI range."));
-    keyMode->setButtonText (TRANS("Key Mode"));
-    keyMode->addListener (this);
-    keyMode->setColour (ToggleButton::textColourId, Colours::white);
-
-    addAndMakeVisible (controlButton = new ToggleButton ("new toggle button"));
-    controlButton->setTooltip (TRANS("Enables selection of ranges by playing notes / intervals on the keyboard."));
-    controlButton->setButtonText (TRANS("MidiSelect"));
-    controlButton->addListener (this);
-    controlButton->setColour (ToggleButton::textColourId, Colours::white);
-
-    addAndMakeVisible (scrollButton = new ToggleButton ("new toggle button"));
-    scrollButton->setTooltip (TRANS("Enables scrolling to the selected range."));
-    scrollButton->setButtonText (TRANS("Autoscroll"));
-    scrollButton->addListener (this);
-    scrollButton->setColour (ToggleButton::textColourId, Colours::white);
-
-
     //[UserPreSize]
-	discreteTableEditor->addChangeListener(keyGraph);
-
+	
 	midiTable->connectToLookupTableProcessor(getProcessor());
 
-	intervalKey = -1;
-	dragLock = false;
-	selectedRange = Range<int>(0, 0);
-
-	selectionSlider->setSliderStyle (Slider::LinearBarVertical);
-
-
-	getProcessor()->getMainController()->skin(*keyMode);
-	getProcessor()->getMainController()->skin(*controlButton);
-	getProcessor()->getMainController()->skin(*scrollButton);
-	getProcessor()->getMainController()->skin(*selectionSlider);
-
-        
     //[/UserPreSize]
 
     setSize (900, 320);
@@ -107,12 +59,6 @@ KeyEditor::~KeyEditor()
     //[/Destructor_pre]
 
     midiTable = nullptr;
-    discreteTableEditor = nullptr;
-    keyGraph = nullptr;
-    selectionSlider = nullptr;
-    keyMode = nullptr;
-    controlButton = nullptr;
-    scrollButton = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -141,12 +87,7 @@ void KeyEditor::resized()
     //[/UserPreResize]
 
     midiTable->setBounds ((getWidth() / 2) + -1 - ((getWidth() - 164) / 2), 32, getWidth() - 164, 203);
-    discreteTableEditor->setBounds ((getWidth() / 2) + -25 - ((getWidth() - 212) / 2), 126, getWidth() - 212, 109);
-    keyGraph->setBounds ((getWidth() / 2) + -25 - ((getWidth() - 212) / 2), 32, getWidth() - 212, 80);
-    selectionSlider->setBounds (getWidth() - 83 - 32, 32, 32, 203);
-    keyMode->setBounds (((getWidth() / 2) + -25 - ((getWidth() - 212) / 2)) + -6, 247, 128, 32);
-    controlButton->setBounds ((((getWidth() / 2) + -25 - ((getWidth() - 212) / 2)) + -6) + 128 - -8, 247, 128, 32);
-    scrollButton->setBounds (((((getWidth() / 2) + -25 - ((getWidth() - 212) / 2)) + -6) + 128 - -8) + 128 - -8, 247, 128, 32);
+    
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -156,14 +97,7 @@ void KeyEditor::sliderValueChanged (Slider* sliderThatWasMoved)
     //[UsersliderValueChanged_Pre]
     //[/UsersliderValueChanged_Pre]
 
-    if (sliderThatWasMoved == selectionSlider)
-    {
-        //[UserSliderCode_selectionSlider] -- add your slider handling code here..
-		const float delta = (float)selectionSlider->getValue() - dragStartValue;
-
-		discreteTableEditor->setDeltaValue(delta);
-        //[/UserSliderCode_selectionSlider]
-    }
+    
 
     //[UsersliderValueChanged_Post]
     //[/UsersliderValueChanged_Post]
@@ -174,35 +108,7 @@ void KeyEditor::buttonClicked (Button* buttonThatWasClicked)
     //[UserbuttonClicked_Pre]
     //[/UserbuttonClicked_Pre]
 
-    if (buttonThatWasClicked == keyMode)
-    {
-        //[UserButtonCode_keyMode] -- add your button handler code here..
-
-		const bool on = !keyMode->getToggleState();
-
-		getProcessor()->setAttribute(KeyModulator::TableMode, on, dontSendNotification);
-
-		showTable();
-
-        //[/UserButtonCode_keyMode]
-    }
-    else if (buttonThatWasClicked == controlButton)
-    {
-        //[UserButtonCode_controlButton] -- add your button handler code here..
-
-		for(int i = -127; i < 0; i++)
-		{
-			discreteTableEditor->setCurrentKey(i);
-
-		}
-
-        //[/UserButtonCode_controlButton]
-    }
-    else if (buttonThatWasClicked == scrollButton)
-    {
-        //[UserButtonCode_scrollButton] -- add your button handler code here..
-        //[/UserButtonCode_scrollButton]
-    }
+    
 
     //[UserbuttonClicked_Post]
     //[/UserbuttonClicked_Post]

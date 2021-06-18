@@ -107,7 +107,6 @@ class ProcessorEditor;
 #include "modules/ModulatorSynth.h"
 #include "modules/ModulatorSynthChain.h"
 #include "modules/ModulatorSynthGroup.h"
-#include "modules/DspCoreModules.h"
 
 // Plugin Parameters
 

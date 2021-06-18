@@ -67,7 +67,6 @@ public:
 	virtual ModulatorType getModulatorType() const = 0;
 	virtual ~GlobalModulator();
 
-	Table *getTable(int /*tableIndex*/) const override { return table; }
 	Modulator *getOriginalModulator();
 	const Modulator *getOriginalModulator() const;
 	GlobalModulatorContainer *getConnectedContainer();
@@ -91,7 +90,7 @@ protected:
 
 	GlobalModulator(MainController *mc);
 
-	ScopedPointer<MidiTable> table;
+	MidiTable* table;
 
 	bool useTable = false;
 	bool inverted = false;

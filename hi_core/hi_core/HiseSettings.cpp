@@ -51,6 +51,7 @@ Array<juce::Identifier> HiseSettings::SettingFiles::getAllIds()
 	ids.add(GeneralSettings);
 	ids.add(ScriptingSettings);
 	ids.add(DocSettings);
+	ids.add(SnexWorkbenchSettings);
 #endif
 
 #endif
@@ -141,6 +142,7 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 {
 	Array<Identifier> ids;
 
+	ids.add(UseOpenGL);
 	ids.add(GlobalSamplePath);
 	ids.add(EnableAutosave);
 	ids.add(AutosaveInterval);
@@ -183,6 +185,15 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 	return ids;
 }
 
+Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
+{
+	Array<Identifier> ids;
+
+	ids.add(PlayOnRecompile);
+	ids.add(AddFade);
+	
+	return ids;
+}
 
 
 #define P(p) if (prop == p) { s << "### " << ConversionHelpers::getUncamelcasedId(p) << "\n";
@@ -453,6 +464,11 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("It's the same functionality as found in the compiled plugins.");
 		P_();
 
+		P(HiseSettings::Other::UseOpenGL);
+		D("Enable this in order to use OpenGL for the UI rendering of the HISE app. This might drastically accelerate the UI performance, so if you have a laggy UI in HISE, try this option");
+		D("> Be aware that this does not affect whether your compiled project uses OpenGL (as this can be defined separately).");
+		P_();
+
 		P(HiseSettings::Other::GlobalSamplePath);
 		D("If you want to redirect all sample locations to a global sample path (eg. on a dedicated hard drive or the Dropbox folder), you can set it here.")
 		D("Then you can just put a redirection file using the `{GLOBAL_SAMPLE_FOLDER}` wildcard into each sample folder that you want to redirect");
@@ -509,6 +525,10 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("The MIDI input device list. It should get updated automatically if you connect a new MIDI device - if not try restarting HISE");
 		P_();
 			
+		P(HiseSettings::SnexWorkbench::PlayOnRecompile);
+		D("Plays the selected testfile when you compile a script");
+		P_();
+
 		return s;
 
 	};
@@ -547,6 +567,7 @@ juce::File HiseSettings::Data::getFileForSetting(const Identifier& id) const
 	else if (id == SettingFiles::ScriptingSettings)	return appDataFolder.getChildFile("ScriptSettings.xml");
 	else if (id == SettingFiles::OtherSettings)		return appDataFolder.getChildFile("OtherSettings.xml");
 	else if (id == SettingFiles::DocSettings)		return appDataFolder.getChildFile("DocSettings.xml");
+	else if (id == SettingFiles::SnexWorkbenchSettings) return appDataFolder.getChildFile("SnexWorkbench.xml");
 
 	jassertfalse;
 
@@ -627,6 +648,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Other::EnableAutosave ||
 		id == Scripting::EnableDebugMode ||
 		id == Other::AudioThreadGuardEnabled ||
+		id == Other::UseOpenGL ||
 		id == Compiler::RebuildPoolFiles ||
 		id == Compiler::Support32BitMacOS ||
 		id == Project::SupportMonoFX ||
@@ -635,7 +657,9 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Project::UseRawFrontend ||
 		id == Project::LinkExpansionsToProject ||
 		id == Project::SupportFullDynamicsHLAC ||
-		id == Documentation::RefreshOnStartup)
+		id == Documentation::RefreshOnStartup ||
+		id == SnexWorkbench::PlayOnRecompile ||
+		id == SnexWorkbench::AddFade)
 		return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
@@ -749,6 +773,7 @@ void HiseSettings::Data::addMissingSettings(ValueTree& v, const Identifier &id)
 	else if (id == SettingFiles::ScriptingSettings) ids = Scripting::getAllIds();
 	else if (id == SettingFiles::OtherSettings)		ids = Other::getAllIds();
 	else if (id == SettingFiles::DocSettings)		ids = Documentation::getAllIds();
+	else if (id == SettingFiles::SnexWorkbenchSettings) ids = SnexWorkbench::getAllIds();
 
 	for (const auto& id_ : ids)
 		addSetting(v, id_);
@@ -811,6 +836,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";
 	else if (id == Project::LinkExpansionsToProject)   return "No";
+	else if (id == Other::UseOpenGL)				return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
@@ -824,6 +850,8 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Compiler::LegacyCPUSupport) 		return "No";
 	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
 	else if (id == Compiler::Support32BitMacOS)		return "Yes";
+	else if (id == SnexWorkbench::AddFade)			return "Yes";
+	else if (id == SnexWorkbench::PlayOnRecompile)  return "Yes";
 	else if (id == User::CompanyURL)				return "http://yourcompany.com";
 	else if (id == User::CompanyCopyright)			return "(c)2017, Company";
 	else if (id == User::CompanyCode)				return "Abcd";
@@ -956,7 +984,8 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 
 	else if (id == Scripting::CodeFontSize)
 		mc->getFontSizeChangeBroadcaster().sendChangeMessage();
-
+	else if (id == Other::UseOpenGL)
+		PresetHandler::showMessageWindow("Reopen HISE window", "Restart HISE (or reopen this window) in order to apply the new OpenGL setting", PresetHandler::IconType::Info);
 	else if (id == Other::EnableAutosave || id == Other::AutosaveInterval)
 		mc->getAutoSaver().updateAutosaving();
 	else if (id == Other::AudioThreadGuardEnabled)
@@ -1041,21 +1070,6 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 
 		for (int i = 0; i < midiNames.size(); i++)
 			driver->toggleMidiInput(midiNames[i], state[i]);
-	}
-	if (id == Compiler::CustomNodePath)
-	{
-		auto hisePath = File(getSetting(Compiler::HisePath).toString());
-		auto hiseFile = hisePath.getChildFile("hi_modules/nodes/CustomNodeInclude.cpp");
-
-		String hc;
-
-		if (hisePath.isDirectory())
-		{
-			scriptnode::CodeHelpers::setIncludeDirectory(newValue.toString());
-			hc << scriptnode::CodeHelpers::createIncludeFile(scriptnode::CodeHelpers::getIncludeDirectory());
-		}
-
-		hiseFile.replaceWithText(hc);
 	}
 	else if (id == Project::LinkExpansionsToProject)
 	{
