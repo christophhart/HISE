@@ -114,6 +114,9 @@ struct ZoomableViewport : public Component,
 	void mouseUp(const MouseEvent& e) override;
 
 	void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel) override;
+    
+    void mouseMagnify(const MouseEvent& e, float scaleFactor) override;
+    
 	void resized() override;
 
 	void paint(Graphics& g) override;

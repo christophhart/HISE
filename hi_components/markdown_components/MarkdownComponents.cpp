@@ -93,7 +93,7 @@ void MarkdownHelpButton::buttonClicked(Button* /*b*/)
 		{
 			auto nc = new MarkdownHelp(parser, popupWidth);
 
-			auto window = getTopLevelComponent();
+            auto window = TopLevelWindowWithOptionalOpenGL::findRoot(this);
 
 			if (window == nullptr)
 				return;

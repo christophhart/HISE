@@ -162,6 +162,21 @@ void ZoomableViewport::mouseUp(const MouseEvent& e)
 	}
 }
 
+void ZoomableViewport::mouseMagnify (const MouseEvent& e, float scaleFactor)
+{
+    auto cBounds = content->getBoundsInParent().toDouble();
+    auto tBounds = getLocalBounds().toDouble();
+
+    auto normX = Helpers::pixelToNorm((double)e.getPosition().getX(), cBounds.getWidth(), tBounds.getWidth());
+    auto normY = Helpers::pixelToNorm((double)e.getPosition().getY(), cBounds.getHeight(), tBounds.getHeight());
+
+    normDragStart = { normX, normY };
+    scrollPosDragStart = { hBar.getCurrentRangeStart(), vBar.getCurrentRangeStart() };
+    
+    zoomFactor *= scaleFactor;
+    setZoomFactor(zoomFactor, {});
+}
+
 void ZoomableViewport::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel)
 {
 	if (e.mods.isCommandDown())
@@ -178,13 +193,19 @@ void ZoomableViewport::mouseWheelMove(const MouseEvent& e, const MouseWheelDetai
 	else
 	{
 		auto zDelta = std::sqrt(zoomFactor);
+        
+#if JUCE_WINDOWS
+        const float speed = 0.1f;
+#else
+        const float speed = 0.3f;
+#endif
 
 		if (e.mods.isShiftDown())
-			hBar.setCurrentRangeStart(hBar.getCurrentRangeStart() - wheel.deltaY * 0.1 / zDelta);
+			hBar.setCurrentRangeStart(hBar.getCurrentRangeStart() - wheel.deltaY * speed / zDelta);
 		else
 		{
-			hBar.setCurrentRangeStart(hBar.getCurrentRangeStart() - wheel.deltaX * 0.1 / zDelta);
-			vBar.setCurrentRangeStart(vBar.getCurrentRangeStart() - wheel.deltaY * 0.1 / zDelta);
+			hBar.setCurrentRangeStart(hBar.getCurrentRangeStart() - wheel.deltaX * speed / zDelta);
+			vBar.setCurrentRangeStart(vBar.getCurrentRangeStart() - wheel.deltaY * speed / zDelta);
 		}
 			
 	}

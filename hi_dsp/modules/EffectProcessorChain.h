@@ -334,7 +334,6 @@ public:
         phaser,
 		routeFX,
 		saturation,
-		audioProcessorWrapper,
 		scriptFxProcessor,
 		polyScriptFxProcessor,
 		slotFX,
