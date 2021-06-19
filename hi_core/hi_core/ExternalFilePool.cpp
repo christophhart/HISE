@@ -1252,9 +1252,7 @@ hise::MultiChannelAudioBuffer::SampleReference::Ptr PooledAudioFileDataProvider:
 		lr->buffer = dataPtr->data;
 		lr->reference = ref.getReferenceString();
 	}
-	else
-		lr->r = Result::fail("Can't load file " + reference);
-
+	
 	return lr;
 }
 
