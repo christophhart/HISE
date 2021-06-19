@@ -277,12 +277,12 @@
 //==============================================================================
 // hi_snex flags:
 
-#ifndef    HISE_INCLUDE_SNEX
- //#define HISE_INCLUDE_SNEX 0
-#endif
-
 #ifndef    SNEX_ENABLE_SIMD
  //#define SNEX_ENABLE_SIMD 0
+#endif
+
+#ifndef    HISE_INCLUDE_SNEX
+ //#define HISE_INCLUDE_SNEX 0
 #endif
 
 //==============================================================================
