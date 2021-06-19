@@ -38,9 +38,5 @@ using String = juce::String;
 #include "snex_components/snex_DebugTools.cpp"
 #include "snex_components/snex_WorkbenchData.cpp"
 #include "snex_components/snex_ExtraComponents.cpp"
-
-
-
 #include "snex_components/snex_JitPlayground.cpp"
-
 #endif

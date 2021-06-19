@@ -89,7 +89,9 @@ END_JUCE_MODULE_DECLARATION
 #include "../hi_streaming/hi_streaming.h"
 
 
-
+#if JUCE_ARM
+#include "hi_tools/sse2neon.h"
+#endif
 
 #if USE_BACKEND || USE_FRONTEND
 #define HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES 0

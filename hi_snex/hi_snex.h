@@ -62,21 +62,9 @@ END_JUCE_MODULE_DECLARATION
 
 
 
-/** Config: HISE_INCLUDE_SNEX
- 
-Set to 0 to disable SNEX compilation (default on iOS).
-*/
-#ifndef HISE_INCLUDE_SNEX
-#if HISE_IOS
-#define HISE_INCLUDE_SNEX 0
-#else
-#if USE_BACKEND
-#define HISE_INCLUDE_SNEX 1
-#else
-#define HISE_INCLUDE_SNEX 0
-#endif
-#endif
-#endif
+
+
+
 
 
 /** Config: SNEX_ENABLE_SIMD
@@ -89,11 +77,63 @@ Enables SIMD processing for consecutive float spans (not functional yet).
 
 
 
+#include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
+
+
+
+/** Config: HISE_INCLUDE_SNEX
+ 
+Set to 0 to disable SNEX compilation (default on iOS).
+*/
+#ifndef HISE_INCLUDE_SNEX
+#if defined (__arm__) || defined (__arm64__)
+#define HISE_INCLUDE_SNEX 0
+#else
+#if USE_BACKEND
+#define HISE_INCLUDE_SNEX 1
+#else
+#define HISE_INCLUDE_SNEX 0
+#endif
+#endif
+#endif
 
 
 #include "../hi_lac/hi_lac.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
-#include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
+
+
+namespace snex
+{
+    namespace jit
+    {
+#define DECLARE_ID(x) static const juce::String x(#x);
+
+        namespace OptimizationIds
+        {
+            DECLARE_ID(SmallObjectOptimisation);
+            DECLARE_ID(ConstantFolding);
+            DECLARE_ID(Inlining);
+            DECLARE_ID(AutoVectorisation);
+            DECLARE_ID(DeadCodeElimination);
+            DECLARE_ID(BinaryOpOptimisation);
+            DECLARE_ID(LoopOptimisation);
+            DECLARE_ID(AsmOptimisation)
+            DECLARE_ID(NoSafeChecks);
+
+            static StringArray getDefaultIds()
+            {
+                return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
+            }
+
+            static StringArray getAllIds()
+            {
+                return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
+            }
+        }
+
+#undef DECLARE_ID
+    }
+}
 
 #if HISE_INCLUDE_SNEX
 
@@ -104,38 +144,7 @@ Enables SIMD processing for consecutive float spans (not functional yet).
 #define JIT_MEMBER_WRAPPER_4(R, C, N, T1, T2, T3, T4)	  static R N(void* o, T1 a1, T2 a2, T3 a3, T4 a4) { return static_cast<C*>(o)->N(a1, a2, a3, a4); };
 #define JIT_MEMBER_WRAPPER_5(R, C, N, T1, T2, T3, T4, T5) static R N(void* o, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) { return static_cast<C*>(o)->N(a1, a2, a3, a4, a5); };
 
-namespace snex
-{
-	namespace jit
-	{
-#define DECLARE_ID(x) static const juce::String x(#x);
 
-		namespace OptimizationIds
-		{
-			DECLARE_ID(SmallObjectOptimisation);
-			DECLARE_ID(ConstantFolding);
-			DECLARE_ID(Inlining);
-			DECLARE_ID(AutoVectorisation);
-			DECLARE_ID(DeadCodeElimination);
-			DECLARE_ID(BinaryOpOptimisation);
-			DECLARE_ID(LoopOptimisation);
-			DECLARE_ID(AsmOptimisation)
-			DECLARE_ID(NoSafeChecks);
-
-			static StringArray getDefaultIds()
-			{
-				return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
-			}
-
-			static StringArray getAllIds()
-			{
-				return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
-			}
-		}
-
-#undef DECLARE_ID
-	}
-}
 
 namespace snex
 {

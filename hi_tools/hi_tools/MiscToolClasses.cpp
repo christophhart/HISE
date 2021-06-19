@@ -31,8 +31,7 @@
 */
 
 
-#if JUCE_IOS
-#else
+#if !JUCE_ARM
 #include "xmmintrin.h"
 #endif
 
@@ -428,8 +427,7 @@ bool RegexFunctions::matchesWildcard(const String &wildcard, const String &strin
 
 ScopedNoDenormals::ScopedNoDenormals()
 {
-#if JUCE_IOS
-#else
+#if !JUCE_ARM
 	oldMXCSR = _mm_getcsr();
 	int newMXCSR = oldMXCSR | 0x8040;
 	_mm_setcsr(newMXCSR);
@@ -438,8 +436,7 @@ ScopedNoDenormals::ScopedNoDenormals()
 
 ScopedNoDenormals::~ScopedNoDenormals()
 {
-#if JUCE_IOS
-#else
+#if !JUCE_ARM
 	_mm_setcsr(oldMXCSR);
 #endif
 }

@@ -24,7 +24,7 @@
 #include <cassert>
 #include <cmath>
 
-#if FFTCONVOLVER_USE_SSE
+#if FFTCONVOLVER_USE_SSE && JUCE_INTEL
   #include <xmmintrin.h>
 #endif
 

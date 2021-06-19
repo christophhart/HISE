@@ -774,6 +774,7 @@ void Graph::refreshDisplayedBuffer()
 
 void Graph::processFFT(const AudioSampleBuffer& originalSource)
 {
+#if USE_IPP
 	auto& td = getWorkbench()->getTestData();
 
 	if (currentGraphType == GraphType::Spectrograph)
@@ -855,6 +856,7 @@ void Graph::processFFT(const AudioSampleBuffer& originalSource)
 		hise::IppFFT::Helpers::scaleFrequencyOutput(fftSource, false);
 		internalGraph.setBuffer(fftSource);
 	}
+#endif
 }
 
 void ParameterList::rebuild()

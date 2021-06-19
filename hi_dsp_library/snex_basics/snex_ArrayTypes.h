@@ -37,7 +37,9 @@
 
 #include <type_traits>
 #include <initializer_list>
+#if !JUCE_ARM
 #include <nmmintrin.h>
+#endif
 #include <stdint.h>
 
 

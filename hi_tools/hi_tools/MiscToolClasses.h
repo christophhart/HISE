@@ -37,7 +37,10 @@
 #include <array>
 #include <thread>
 #include <atomic>
+
+#if !JUCE_ARM
 #include <emmintrin.h>
+#endif
 
 
 
