@@ -270,7 +270,7 @@ template <int NV> struct jpanner : public base::jwrapper<juce::dsp::Panner<float
 			if (P == 0)
 				obj.setPan(v);
 			if (P == 1)
-				obj.setRule((JuceDspType::Rule)(int)v);
+				obj.setRule((juce::dsp::Panner<float>::Rule)(int)v);
 		}
 	}
 
