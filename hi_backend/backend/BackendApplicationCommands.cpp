@@ -2027,12 +2027,17 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendRootWindow * bpe, con
     
 	if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 	{
-		if (auto xml = XmlDocument::parse(fileToLoad))
+		auto xml = XmlDocument::parse(fileToLoad);
+
+		if (xml != nullptr)
 		{
 			XmlBackupFunctions::addContentFromSubdirectory(*xml, fileToLoad);
 			String newId = xml->getStringAttribute("ID");
-			XmlBackupFunctions::restoreAllScripts(*xml, bpe->getMainSynthChain(), newId);
-			ValueTree v = ValueTree::fromXml(*xml);
+			
+			
+
+			auto v = ValueTree::fromXml(*xml);
+			XmlBackupFunctions::restoreAllScripts(v, bpe->getMainSynthChain(), newId);
 			bpe->loadNewContainer(v);
 		}
 		else

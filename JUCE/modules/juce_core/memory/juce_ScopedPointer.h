@@ -25,6 +25,8 @@
 namespace juce
 {
 
+#define JUCE_DEPRECATED_ATTRIBUTE_NOT
+
 //==============================================================================
 /**
     This class is deprecated. You should use std::unique_ptr instead.
@@ -35,13 +37,13 @@ class ScopedPointer
 public:
     //==============================================================================
     // ScopedPointer is deprecated! You should use std::unique_ptr instead.
-    JUCE_DEPRECATED_ATTRIBUTE inline ScopedPointer() = default;
+	JUCE_DEPRECATED_ATTRIBUTE_NOT inline ScopedPointer() = default;
 
     // ScopedPointer is deprecated! You should use std::unique_ptr instead.
-    JUCE_DEPRECATED_ATTRIBUTE inline ScopedPointer (decltype (nullptr)) noexcept {}
+	JUCE_DEPRECATED_ATTRIBUTE_NOT inline ScopedPointer (decltype (nullptr)) noexcept {}
 
     // ScopedPointer is deprecated! You should use std::unique_ptr instead.
-    JUCE_DEPRECATED_ATTRIBUTE inline ScopedPointer (ObjectType* objectToTakePossessionOf) noexcept
+	JUCE_DEPRECATED_ATTRIBUTE_NOT inline ScopedPointer (ObjectType* objectToTakePossessionOf) noexcept
         : object (objectToTakePossessionOf)
     {
     }
@@ -53,7 +55,7 @@ public:
     }
 
     // ScopedPointer is deprecated! You should use std::unique_ptr instead.
-    JUCE_DEPRECATED_ATTRIBUTE inline ~ScopedPointer()         { reset(); }
+	JUCE_DEPRECATED_ATTRIBUTE_NOT inline ~ScopedPointer()         { reset(); }
 
     ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
     {
