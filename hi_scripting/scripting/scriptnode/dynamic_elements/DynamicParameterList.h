@@ -270,6 +270,7 @@ namespace parameter
 
 		template <int P> void call(double v)
 		{
+			lastValues.set(P, v);
 			jassert(isPositiveAndBelow(P, getNumParameters()));
 			targets[P]->p.call(v);
 		}
@@ -281,7 +282,10 @@ namespace parameter
 
 		String missingNodes;
 
+		Array<double> lastValues;
 		ReferenceCountedArray<MultiOutputConnection> targets;
+
+		
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic_list);
 };

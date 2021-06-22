@@ -98,7 +98,22 @@ template <int NV> struct file_player : public data::base
 
 	void reset()
 	{
-		
+		for (auto& s : state)
+		{
+			if (mode != PlaybackModes::MidiFreq)
+			{
+				auto& cd = getCurrentAudioSample();
+
+				HiseEvent e(HiseEvent::Type::NoteOn, 64, 1, 1);
+
+				if (this->externalData.getStereoSample(cd, e))
+					s.uptimeDelta = cd.getPitchFactor();
+
+				
+
+				s.uptime = 0.0;
+			}
+		}
 	}
 
 	void setExternalData(const snex::ExternalData& d, int index) override
@@ -116,6 +131,8 @@ template <int NV> struct file_player : public data::base
 			s.uptime = 0.0;
 			s.uptimeDelta = 0.0;
 		}
+
+		reset();
 	}
 
 	PolyData<StereoSample, NUM_POLYPHONIC_VOICES> currentXYZSample;
@@ -263,7 +280,7 @@ template <int NV> struct file_player : public data::base
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		if (mode != PlaybackModes::SignalInput)
+		if (mode == PlaybackModes::MidiFreq)
 		{
 			auto& s = state.get();
 
@@ -274,9 +291,7 @@ template <int NV> struct file_player : public data::base
 				if (this->externalData.getStereoSample(cd, e))
 					s.uptimeDelta = cd.getPitchFactor();
 
-				if (mode == PlaybackModes::MidiFreq)
-						s.uptimeDelta = e.getFrequency() / rootFreq;
-				
+				s.uptimeDelta = e.getFrequency() / rootFreq;
 				s.uptime = 0.0;
 			}
 		}
@@ -285,6 +300,7 @@ template <int NV> struct file_player : public data::base
 	void setPlaybackMode(double v)
 	{
 		mode = (PlaybackModes)(int)v;
+
 		reset();
 	}
 

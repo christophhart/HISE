@@ -255,6 +255,12 @@ namespace parameter
 				return false;
 		}
 
+		for (int i = 0; i < getNumParameters(); i++)
+		{
+			if (auto t = targets[i])
+				targets[i]->p.call(lastValues[i]);
+		}
+
 		return true;
 	}
 
@@ -274,6 +280,8 @@ namespace parameter
 	void dynamic_list::updateParameterAmount(Identifier, var newValue)
 	{
 		auto numToUse = numParameters.getValue();
+
+		lastValues.ensureStorageAllocated(numToUse);
 
 		int numToRemove = switchTree.getNumChildren() - numToUse;
 		int numToAdd = -numToRemove;

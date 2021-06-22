@@ -182,20 +182,21 @@ namespace smoothers
 	{
 		addAndMakeVisible(modeSelector);
 		addAndMakeVisible(plotter);
-		setSize(256, 80);
+		setSize(200, 58);
 	}
 
 	void dynamic::editor::paint(Graphics& g)
 	{
 		float a = JUCE_LIVE_CONSTANT_OFF(0.4f);
 
-
 		auto b = getLocalBounds();
-		b.removeFromTop(24);
-		b = b.removeFromTop(5);
-
+		b.removeFromTop(modeSelector.getHeight());
+		b.removeFromTop(UIValues::NodeMargin);
 		g.setColour(currentColour.withAlpha(a));
-		g.fillRect(b);
+
+		b = b.removeFromRight(b.getHeight()).reduced(5);
+
+		g.fillEllipse(b.toFloat());
 	}
 
 	void dynamic::editor::timerCallback()

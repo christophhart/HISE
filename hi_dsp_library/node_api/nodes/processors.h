@@ -906,11 +906,18 @@ public:
 
 	void prepare(PrepareSpecs ps)
 	{
-		ps.sampleRate /= (double)HISE_EVENT_RASTER;
-		ps.blockSize /= HISE_EVENT_RASTER;
+		bool isFrame = ps.blockSize == 1;
+
+		if (!isFrame)
+		{
+			ps.sampleRate /= (double)HISE_EVENT_RASTER;
+			ps.blockSize /= HISE_EVENT_RASTER;
+		}
+		
 		ps.numChannels = 1;
 
-		snex::Types::FrameConverters::increaseBuffer(controlBuffer, ps);
+		if(!isFrame)
+			snex::Types::FrameConverters::increaseBuffer(controlBuffer, ps);
 
 		this->obj.prepare(ps);
 	}
@@ -940,12 +947,8 @@ public:
 	// must always be wrapped into a fix<1> node...
 	template <typename FrameDataType> void processFrame(FrameDataType& )
 	{
-		if (--singleCounter <= 0)
-		{
-			singleCounter = HISE_EVENT_RASTER;
-			FrameType md = { 0.0f };
-			obj.processFrame(md);
-		}
+		FrameType md = { 0.0f };
+		obj.processFrame(md);
 	}
 
 	bool handleModulation(double& )

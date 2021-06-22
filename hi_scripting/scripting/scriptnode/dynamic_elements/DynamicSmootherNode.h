@@ -176,6 +176,7 @@ struct dynamic : public base
 
 	void set(double nv) final override
 	{
+		value = nv;
 		b->set(nv);
 	}
 
@@ -219,11 +220,14 @@ struct dynamic : public base
 		}
 
 		refreshSmoothingTime();
+		b->set(value);
+		b->reset();
 	}
 
 	NodePropertyT<String> mode;
 
 	ModValue lastValue;
+	double value = 0.0;
 
 	smoothers::no n;
 	smoothers::linear_ramp r;
@@ -234,8 +238,6 @@ struct dynamic : public base
 
 	struct editor : public ScriptnodeExtraComponent<dynamic>
 	{
-		
-
 		editor(dynamic* p, PooledUIUpdater* updater);
 
 		void paint(Graphics& g) override;
@@ -253,11 +255,11 @@ struct dynamic : public base
 			auto b = getLocalBounds();
 
 			modeSelector.setBounds(b.removeFromTop(24));
-			b.removeFromTop(5);
+			b.removeFromTop(UIValues::NodeMargin);
 			plotter.setBounds(b);
 		}
 
-		ModulationSourcePlotter plotter;
+		ModulationSourceBaseComponent plotter;
 		ComboBoxWithModeProperty modeSelector;
 
 		Colour currentColour;

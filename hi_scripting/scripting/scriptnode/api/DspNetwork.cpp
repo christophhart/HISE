@@ -398,6 +398,8 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(getConnectionLock());
 
+		bool firstTime = currentSpecs.blockSize == 0;
+
 		try
 		{
 			originalSampleRate = sampleRate;
@@ -411,6 +413,16 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 
 			getRootNode()->prepare(currentSpecs);
 			getRootNode()->reset();
+
+			if (firstTime)
+			{
+				for (int i = 0; i < getRootNode()->getNumParameters(); i++)
+				{
+					auto p = getRootNode()->getParameter(i);
+					auto value = (double)p->getTreeWithValue()[PropertyIds::Value];
+					p->setValueAndStoreAsync(value);
+				}
+			}
 
 			if (projectNodeHolder.isActive())
 				projectNodeHolder.prepare(currentSpecs);
@@ -783,7 +795,9 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 {
 	auto updateConnection = [oldId, newId, undoManager](ValueTree& v)
 	{
-		if (v.hasType(PropertyIds::Connection))
+		if (v.hasType(PropertyIds::Connection) ||
+			v.hasType(PropertyIds::ModulationTarget) ||
+			v.hasType(PropertyIds::SwitchTarget))
 		{
 			auto nId = v[PropertyIds::NodeId].toString();
 

@@ -169,6 +169,7 @@ public:
     
 	void prepare(PrepareSpecs ps)
     {
+		display_buffer_base<true>::prepare(ps);
         obj.setSampleRate(ps.sampleRate);
     }
     
@@ -280,8 +281,10 @@ public:
 		return modValue.getChangedValue(v); 
 	};
 
-	void prepare(PrepareSpecs ps)
+	void prepare(PrepareSpecs ps) override
     {
+		display_buffer_base<true>::prepare(ps);
+
         envelope.setSampleRate(ps.sampleRate);
     }
     
