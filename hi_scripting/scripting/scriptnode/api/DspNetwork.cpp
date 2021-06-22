@@ -86,6 +86,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ownedFactories.add(new control::Factory(this));
 	ownedFactories.add(new dynamics::Factory(this));
 	ownedFactories.add(new filters::Factory(this));
+	ownedFactories.add(new jdsp::Factory(this));
 	ownedFactories.add(new stk_factory::Factory(this));
 
 #if USE_BACKEND

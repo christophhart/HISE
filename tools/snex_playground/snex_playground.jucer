@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="L2bkCQ" name="snex_playground" projectType="guiapp" jucerVersion="5.4.3"
-              cppLanguageStandard="17" displaySplashScreen="0" reportAppUsage="0"
-              splashScreenColour="Dark" version="1.0.0" bundleIdentifier="com.hise.snex_playground"
-              includeBinaryInAppConfig="1" companyCopyright="" headerPath="D:\Development\HISE modules">
+<JUCERPROJECT id="L2bkCQ" name="snex_playground" projectType="guiapp" cppLanguageStandard="17"
+              displaySplashScreen="0" reportAppUsage="0" splashScreenColour="Dark"
+              version="1.0.0" bundleIdentifier="com.hise.snex_playground" includeBinaryInAppConfig="1"
+              companyCopyright="" headerPath="D:\Development\HISE modules"
+              jucerFormatVersion="1">
   <MAINGROUP id="V5l5vh" name="snex_playground">
     <GROUP id="{AC16B56A-5346-1AB4-D4BD-30CF29DD2DFA}" name="Source">
       <FILE id="u67bzi" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
@@ -95,7 +96,7 @@
       </MODULEPATHS>
     </LINUX_MAKE>
     <VS2017 targetFolder="Builds/VisualStudio2017" extraDefs="USE_IPP=1"
-            IPPLibrary="Sequential">
+            IPPLibrary="Sequential" extraCompilerFlags="/bigobj">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" generateManifest="1" debugInformationFormat="ProgramDatabase"/>
         <CONFIGURATION isDebug="0" name="Release" winWarningLevel="4" generateManifest="1"

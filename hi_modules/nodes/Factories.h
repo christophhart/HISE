@@ -38,6 +38,16 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+namespace jdsp
+{
+class Factory : public NodeFactory
+{
+public:
+	Factory(DspNetwork* network);
+	Identifier getId() const override { return "jdsp"; };
+};
+}
+
 namespace analyse
 {
 
@@ -48,7 +58,6 @@ public:
 	Factory(DspNetwork* network);;
 	Identifier getId() const override { return "analyse"; }
 };
-
 }
 
 namespace examples

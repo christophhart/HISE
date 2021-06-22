@@ -1629,6 +1629,25 @@ Factory::Factory(DspNetwork* network) :
 }
 }
 
+namespace jdsp
+{
+
+template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
+
+Factory::Factory(DspNetwork* network):
+	NodeFactory(network)
+{
+	registerNode<jchorus>();
+	registerNode<wrap::data<jlinkwitzriley, data::dynamic::filter>, data::ui::filter_editor>();
+
+	registerNode<jdelay>();
+
+	registerPolyModNode<dp<jcompressor>, wrap::illegal_poly<dp<jcompressor>>, data::ui::displaybuffer_editor>();
+
+	registerPolyNode<jpanner<1>, jpanner<NUM_POLYPHONIC_VOICES>>();
+}
+}
+
 namespace generator
 {
 Factory::Factory(DspNetwork* network) :

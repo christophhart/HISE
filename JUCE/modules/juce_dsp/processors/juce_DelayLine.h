@@ -108,6 +108,9 @@ public:
     /** Returns the current delay in samples. */
     SampleType getDelay() const;
 
+	/** Sets the upper limit for the delay time (in samples). */
+	void setMaxDelaySamples(int newMaxSize);
+
     //==============================================================================
     /** Initialises the processor. */
     void prepare (const ProcessSpec& spec);
@@ -311,6 +314,8 @@ private:
     //==============================================================================
     double sampleRate;
 
+	ProcessSpec lastSpecs;
+
     //==============================================================================
     AudioBuffer<SampleType> bufferData;
     std::vector<SampleType> v;
@@ -319,6 +324,8 @@ private:
     int delayInt = 0, totalSize = 4;
     SampleType alpha = 0.0;
 };
+
+
 
 } // namespace dsp
 } // namespace juce
