@@ -37,12 +37,11 @@ using namespace hise;
 
 
 ChainNode::ChainNode(DspNetwork* n, ValueTree t) :
-	SerialNode(n, t),
-	isVertical(PropertyIds::IsVertical, true)
+	SerialNode(n, t)
 {
 	initListeners();
 
-	isVertical.initialise(this);
+	
 	wrapper.getObject().initialise(this);
 }
 
@@ -85,14 +84,6 @@ void ChainNode::prepare(PrepareSpecs ps)
 void ChainNode::handleHiseEvent(HiseEvent& e)
 {
 	wrapper.handleHiseEvent(e);
-}
-
-scriptnode::NodeComponent* ChainNode::createComponent()
-{
-	if (!isVertical.getValue())
-		return new ParallelNodeComponent(this);
-	else
-		return new SerialNodeComponent(this);
 }
 
 SplitNode::SplitNode(DspNetwork* root, ValueTree data) :
@@ -214,9 +205,10 @@ void ModulationChainNode::process(ProcessDataDyn& data) noexcept
 
 void ModulationChainNode::prepare(PrepareSpecs ps)
 {
+	isProcessingFrame = ps.blockSize == 1;
+
 	ps.numChannels = 1;
 
-	DspHelpers::setErrorIfFrameProcessing(ps);
 	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 
 	NodeBase::prepare(ps);
@@ -239,12 +231,12 @@ void ModulationChainNode::reset()
 
 int ModulationChainNode::getBlockSizeForChildNodes() const
 {
-	return jmax(1, originalBlockSize / HISE_EVENT_RASTER);
+	return isProcessingFrame ? originalBlockSize : jmax(1, originalBlockSize / HISE_EVENT_RASTER);
 }
 
 double ModulationChainNode::getSampleRateForChildNodes() const
 {
-	return originalSampleRate / (double)HISE_EVENT_RASTER;
+	return isProcessingFrame ? originalSampleRate : originalSampleRate / (double)HISE_EVENT_RASTER;
 }
 
 #if 0
@@ -656,6 +648,7 @@ void OfflineChainNode::process(ProcessDataDyn& data) noexcept
 void OfflineChainNode::prepare(PrepareSpecs ps)
 {
 	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
 }
 
 void OfflineChainNode::handleHiseEvent(HiseEvent& e)
@@ -682,6 +675,7 @@ void FixedBlockXNode::process(ProcessDataDyn& data)
 void FixedBlockXNode::prepare(PrepareSpecs ps)
 {
 	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
 	obj.prepare(ps);
 }
 
@@ -715,6 +709,7 @@ void NoMidiChainNode::process(ProcessDataDyn& data) noexcept
 void NoMidiChainNode::prepare(PrepareSpecs ps)
 {
 	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
 	obj.prepare(ps);
 }
 

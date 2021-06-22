@@ -719,27 +719,12 @@ struct ParallelNodeComponent : public ContainerComponent
 	int getInsertPosition(Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
 
+	juce::Colour getOutlineColour() const override;
+
 	void resized() override;
 	void paint(Graphics& g) override;
 	void paintCable(Graphics& g, int cableIndex);
 };
 
-struct ModChainNodeComponent : public ContainerComponent
-{
-	ModChainNodeComponent(ModulationChainNode* node);
-
-	bool isMultiChannelNode() const { return false; }
-
-	int getInsertPosition(Point<int> position) const override;
-	Rectangle<float> getInsertRuler(int position) const override;
-
-	Colour getOutlineColour() const override
-	{
-		return JUCE_LIVE_CONSTANT_OFF(Colour(0xff776123));
-	}
-
-	void resized() override;
-	void paint(Graphics& g) override;
-};
 
 }

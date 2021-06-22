@@ -57,18 +57,9 @@ public:
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override { wrapper.reset(); }
 
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
-	{
- 		return getBoundsToDisplay(getContainerPosition(isVertical.getValue(), topLeft));
-	}
-
-	NodeComponent* createComponent() override;
-
-	NodePropertyT<bool> isVertical;
+	
 
 private:
-
-	
 
 	InternalWrapper wrapper;
 	valuetree::PropertyListener bypassListener;
@@ -97,10 +88,10 @@ public:
 	int getBlockSizeForChildNodes() const override;
 	double getSampleRateForChildNodes() const override;
 
-	//Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
-
 private:
-	
+
+	bool isProcessingFrame = false;
+
 	wrap::fix<1, wrap::control_rate<SerialNode::DynamicSerialProcessor>> obj;
 };
 

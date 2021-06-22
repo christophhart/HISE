@@ -816,7 +816,7 @@ bool DspNetworkGraph::Actions::swapOrientation(DspNetworkGraph& g)
 
 	for (auto n : l)
 	{
-		if (auto sn = dynamic_cast<ChainNode*>(n.get()))
+		if (auto sn = dynamic_cast<SerialNode*>(n.get()))
 			sn->isVertical.storeValue(!sn->isVertical.getValue(), sn->getUndoManager());
 	}
 

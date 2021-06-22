@@ -687,6 +687,19 @@ juce::Rectangle<float> ParallelNodeComponent::getInsertRuler(int position) const
 	return Rectangle<int>(targetX, UIValues::HeaderHeight, UIValues::NodeMargin / 2, getHeight() - UIValues::HeaderHeight).toFloat();
 }
 
+juce::Colour ParallelNodeComponent::getOutlineColour() const
+{
+	if (auto c = dynamic_cast<NodeContainer*>(node.get()))
+	{
+		auto c2 = c->getContainerColour();
+
+		if (!c2.isTransparent())
+			return c2;
+	}
+
+	return NodeComponent::getOutlineColour();
+}
+
 void ParallelNodeComponent::resized()
 {
 	ContainerComponent::resized();
@@ -921,111 +934,6 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 	}
 }
 
-
-
-ModChainNodeComponent::ModChainNodeComponent(ModulationChainNode* node):
-	ContainerComponent(node)
-{
-}
-
-int ModChainNodeComponent::getInsertPosition(Point<int> position) const
-{
-	auto targetY = position.getY();
-	auto p = childNodeComponents.size();
-
-	for (auto nc : childNodeComponents)
-	{
-		if (targetY < nc->getY() + nc->getHeight() / 2)
-		{
-			p = childNodeComponents.indexOf(nc);
-			break;
-		}
-	}
-
-	return p;
-}
-
-juce::Rectangle<float> ModChainNodeComponent::getInsertRuler(int position) const
-{
-	int targetY = getHeight() - UIValues::PinHeight;
-
-	if (auto childBeforeInsert = childNodeComponents[position])
-		targetY = childBeforeInsert->getY();
-
-	targetY -= (3 * UIValues::NodeMargin / 4);
-	return Rectangle<int>(UIValues::NodeMargin, targetY, getWidth() - 2 * UIValues::NodeMargin, UIValues::NodeMargin / 2).toFloat();
-}
-
-void ModChainNodeComponent::resized()
-{
-	ContainerComponent::resized();
-
-	Point<int> startPos = getStartPosition();
-
-	for (auto nc : childNodeComponents)
-	{
-		auto bounds = nc->node->getPositionInCanvas(startPos);
-		bounds = nc->node->getBoundsToDisplay(bounds);
-
-		nc->setBounds(bounds);
-
-		auto helpBounds = nc->node->getHelpManager().getHelpSize().toNearestInt();
-		auto widthWithHelp = bounds.getWidth() + helpBounds.getWidth();
-		auto heightWithHelp = jmax(bounds.getHeight(), helpBounds.getHeight());
-		auto x = (getWidth() - widthWithHelp) / 2;
-		nc->setTopLeftPosition(x, bounds.getY());
-		startPos = startPos.withY(bounds.getY() + heightWithHelp + UIValues::NodeMargin);
-	}
-}
-
-void ModChainNodeComponent::paint(Graphics& g)
-{
-	auto b = getLocalBounds().toFloat();
-	
-	Colour fc = getOutlineColour();
-
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff363636)));
-	g.fillRect(b);
-
-	g.setColour(fc);
-
-	g.drawRect(b, 3.0f);
-	
-
-	int yStart = 0;
-	g.setColour(Colours::white.withAlpha(0.03f));
-
-	if (auto ng = findParentComponentOfClass<DspNetworkGraph>())
-	{
-		yStart = (ng->getLocalArea(this, getLocalBounds()).getY() + 15) % 10;
-	}
-
-	g.setColour(fc.withMultipliedAlpha(0.15f));
-
-	for (int i = yStart; i < getHeight(); i += 10)
-	{
-		g.drawHorizontalLine(i, 3.0f, (float)getWidth() - 3.0f);
-	}
-
-	drawHelp(g);
-
-	if (addPosition != -1)
-	{
-		g.fillAll(Colours::white.withAlpha(0.01f));
-
-		g.setColour(Colours::white.withAlpha(0.08f));
-		g.fillRoundedRectangle(getInsertRuler(addPosition), 2.5f);
-	}
-
-	if (insertPosition != -1)
-	{
-		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.05f));
-		g.fillRoundedRectangle(getLocalBounds().toFloat(), 5.0f);
-
-		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.8f));
-		g.fillRoundedRectangle(getInsertRuler(insertPosition), 2.5f);
-	}
-}
 
 void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
 {

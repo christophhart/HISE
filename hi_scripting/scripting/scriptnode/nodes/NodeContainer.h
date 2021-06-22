@@ -255,7 +255,13 @@ public:
 	SerialNode(DspNetwork* root, ValueTree data);
 
 	NodeComponent* createComponent() override;
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+
+	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+	{
+		return getBoundsToDisplay(getContainerPosition(isVertical.getValue(), topLeft));
+	}
+
+	NodePropertyT<bool> isVertical;
 };
 
 class ParallelNode : public NodeBase,

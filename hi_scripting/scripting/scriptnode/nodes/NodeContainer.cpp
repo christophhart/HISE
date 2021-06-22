@@ -378,24 +378,20 @@ void NodeContainer::initListeners(bool initParameterListener)
 }
 
 SerialNode::SerialNode(DspNetwork* root, ValueTree data) :
-	NodeBase(root, data, 0)
+	NodeBase(root, data, 0),
+	isVertical(PropertyIds::IsVertical, true)
 {
-}
-
-NodeComponent* SerialNode::createComponent()
-{
-	return new SerialNodeComponent(this);
+	isVertical.initialise(this);
 }
 
 
-
-
-juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
+scriptnode::NodeComponent* SerialNode::createComponent()
 {
-	return getBoundsToDisplay(getContainerPosition(true, topLeft));
+	if (!isVertical.getValue())
+		return new ParallelNodeComponent(this);
+	else
+		return new SerialNodeComponent(this);
 }
-
-
 
 SerialNode::DynamicSerialProcessor::DynamicSerialProcessor(const DynamicSerialProcessor& other)
 {

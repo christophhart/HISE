@@ -331,7 +331,8 @@ NodeComponent::NodeComponent(NodeBase* b) :
 
 NodeComponent::~NodeComponent()
 {
-	node->getRootNetwork()->removeSelectionListener(this);
+	if(node != nullptr)
+		node->getRootNetwork()->removeSelectionListener(this);
 }
 
 
