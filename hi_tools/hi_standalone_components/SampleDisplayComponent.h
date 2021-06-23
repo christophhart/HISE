@@ -1312,7 +1312,7 @@ public:
 	void paintOverChildren(Graphics& g) override;
 
 	/** Returns the currently loaded file name. */
-	const String &getCurrentlyLoadedFileName() const
+	String getCurrentlyLoadedFileName() const
 	{
 		if (connectedBuffer != nullptr)
 		{

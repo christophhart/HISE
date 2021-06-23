@@ -221,7 +221,10 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 
 #if JUCE_MAC && IS_STANDALONE_APP
-	MenuBarModel::setMacMainMenu(this);
+    if(owner->getDocProcessor() != owner )
+    {
+        MenuBarModel::setMacMainMenu(this);
+    }
 #else
 
 	addAndMakeVisible(menuBar = new MenuBarComponent(this));

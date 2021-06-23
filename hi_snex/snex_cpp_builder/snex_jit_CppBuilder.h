@@ -225,7 +225,7 @@ struct DefinitionBase
 		parent_(b)
 	{};
 
-	virtual ~DefinitionBase()
+    virtual ~DefinitionBase()
 	{
 
 	}

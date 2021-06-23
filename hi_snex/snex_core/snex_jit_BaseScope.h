@@ -161,6 +161,11 @@ struct SymbolWithScope
 
 struct TableEntry : public ReferenceCountedObject
 {
+    ~TableEntry()
+    {
+        data = nullptr;
+    };
+    
 	Symbol s;
 	void* data;
 	InitialiserList::Ptr initValues;
