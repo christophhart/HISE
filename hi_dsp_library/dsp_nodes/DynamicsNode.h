@@ -261,6 +261,7 @@ public:
 		DEF_PARAMETER(Release, envelope_follower);
 		DEF_PARAMETER(ProcessSignal, envelope_follower)
 	}
+    PARAMETER_MEMBER_FUNCTION;
 
 	SET_HISE_NODE_ID("envelope_follower");
 	SN_GET_SELF_AS_OBJECT(envelope_follower);
@@ -274,6 +275,7 @@ public:
 	static constexpr bool isNormalisedModulation() { return true; }
 
 	HISE_EMPTY_HANDLE_EVENT;
+    HISE_EMPTY_INITIALISE;
 
 	bool handleModulation(double& v) noexcept 
 	{ 

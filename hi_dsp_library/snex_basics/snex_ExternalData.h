@@ -198,6 +198,11 @@ using namespace Types;
             v(v_)
             {};
             
+            ~ImmediateChild()
+            {
+                
+            }
+            
             bool getValue(VariableStorage& target) const override
             {
                 target = v;

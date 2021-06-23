@@ -1058,7 +1058,7 @@ template <class ParameterClass, class T> struct mod
 	*/
 	template <int P> void setParameter(double v)
 	{
-		obj.setParameter<P>(v);
+		obj.template setParameter<P>(v);
 	}
 
 	template <int P> static void setParameterStatic(void* o, double v)

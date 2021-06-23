@@ -188,6 +188,14 @@ String ValueTreeBuilder::getGlueCode(ValueTreeBuilder::FormatGlueCode c)
 
 
 			Include(*this, "JuceHeader.h");
+            
+            addComment("These will improve the readability of the connection definition", Base::CommentType::RawWithNewLine);
+            
+            *this << "#define getT(Idx) template get<Idx>()";
+            *this << "#define connectT(Idx, target) template connect<Idx>(target)";
+            *this << "#define getParameterT(Idx) template getParameter<Idx>()";
+            *this << "#define setParameterT(Idx, value) template setParameter<Idx>(value)";
+            
 			UsingNamespace(*this, NamespacedIdentifier("scriptnode"));
 			UsingNamespace(*this, NamespacedIdentifier("snex"));
 			UsingNamespace(*this, NamespacedIdentifier("snex").getChildId("Types"));
@@ -198,6 +206,11 @@ String ValueTreeBuilder::getGlueCode(ValueTreeBuilder::FormatGlueCode c)
 		case FormatGlueCode::MainInstanceClass: return "instance";
 		case FormatGlueCode::PublicDefinition: 
 		{
+            *this << "#undef getT";
+            *this << "#undef connectT";
+            *this << "#undef setParameterT";
+            *this << "#undef getParameterT";
+            
 			addComment("Public Definition", Base::CommentType::FillTo80);
 
 			Namespace n(*this, "project", false);
@@ -1524,7 +1537,7 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 			}
 
 			String v;
-			v << sv->toExpression() << ".template setParameter<" << pTree.indexOf(p) << ">(";
+			v << sv->toExpression() << ".setParameterT(" << pTree.indexOf(p) << ", ";
 			v << Types::Helpers::getCppValueString(p[PropertyIds::Value], Types::ID::Double);
 			v << ");";
 			parent << v;
@@ -1543,7 +1556,7 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 	for (auto p : root->nodeTree.getChildWithName(PropertyIds::Parameters))
 	{
 		String l;
-		l << "this->setParameter<" << ValueTreeIterator::getIndexInParent(p) << ">(";
+		l << "this->setParameterT(" << ValueTreeIterator::getIndexInParent(p) << ", ";
 		l << Helpers::getCppValueString(p[PropertyIds::Value], Types::ID::Double) << ");";
 		parent << l;
 	}
@@ -1572,13 +1585,13 @@ PooledStackVariable::Ptr ValueTreeBuilder::RootContainerBuilder::getChildNodeAsS
 
 	for (auto i : path)
 	{
-		*e << "template get<" << i << ">()";
+		*e << "getT(" << i << ")";
 
 		if (++index != path.size())
 			*e << JitTokens::dot;
 	}
 
-	if(path.size() > 4)
+	if(path.size() > 7)
 		e->addBreaksBeforeDots(path.size() / 2);
 
 	if (auto existing = stackVariables.getExisting(*e))
@@ -1677,7 +1690,7 @@ void ValueTreeBuilder::RootContainerBuilder::addParameterConnections()
 					pv << ".";
 				}
 
-				pv << "getParameter<" << ValueTreeIterator::getIndexInParent(p) << ">()";
+				pv << "getParameterT(" << ValueTreeIterator::getIndexInParent(p) << ")";
 
 				auto cTree = p.getChildWithName(PropertyIds::Connections);
 
@@ -1692,7 +1705,7 @@ void ValueTreeBuilder::RootContainerBuilder::addParameterConnections()
 					
 					auto cIndex = ValueTreeIterator::getIndexInParent(c_);
 
-					def << pv.toExpression() << ".connect<" << cIndex << ">(";
+					def << pv.toExpression() << ".connectT(" << cIndex << ", ";
 
 					bool found = false;
 
@@ -1814,10 +1827,9 @@ void ValueTreeBuilder::RootContainerBuilder::addModConnection(ValueTree& t, Node
 
 	if (pIndex != -1)
 	{
-		def << "_p.getParameter";
+		def << "_p.getParameterT";
 		
-		if (pIndex != -1)
-			def << "<" << pIndex << ">()";
+		def << "(" << pIndex << ")";
 	}
 	else
 	{
@@ -1827,7 +1839,7 @@ void ValueTreeBuilder::RootContainerBuilder::addModConnection(ValueTree& t, Node
 		def << ".getParameter()";
 	}
 
-	def << ".connect<" << ValueTreeIterator::getIndexInParent(t) << ">(";
+	def << ".connectT(" << ValueTreeIterator::getIndexInParent(t) << ", ";
 	auto targetId = cn.n->nodeTree[PropertyIds::ID].toString();
 	auto mt = getChildNodeAsStackVariable(cn.n->nodeTree);
 

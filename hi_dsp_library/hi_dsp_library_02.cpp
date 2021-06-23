@@ -44,6 +44,7 @@
 #include "dsp_nodes/DelayNode.cpp"
 #include "dsp_nodes/MathNodes.cpp"
 #include "dsp_nodes/FXNodes.cpp"
+#include "dsp_nodes/JuceNodes.cpp"
 #include "dsp_nodes/RoutingNodes.cpp"
 #include "dsp_nodes/FilterNode.cpp"
 #include "dsp_nodes/CableNodeBaseClasses.cpp"
