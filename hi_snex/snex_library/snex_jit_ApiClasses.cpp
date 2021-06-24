@@ -760,7 +760,7 @@ juce::Result MathFunctions::Inliners::wrap(InlineData* b)
 	case Types::ID::Double: zero << "0.0"; break;
 	}
 
-	def << "return (value >= " << zero << ") ? Math.fmod(value, limit) : Math.fmod(limit - Math.fmod(Math.abs(value), limit), limit);";
+	def << "return (value >= " << zero << ") ? Math.fmod(value, limit) : Math.fmod(limit + Math.fmod(value, limit), limit);";
 
 	c << def;
 
