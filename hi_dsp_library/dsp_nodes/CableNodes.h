@@ -734,13 +734,190 @@ namespace control
 		JUCE_DECLARE_WEAK_REFERENCEABLE(xfader);
 	};
 
-	
+	namespace pimpl {
+	struct bipolar_base
+	{
+		virtual ~bipolar_base() {};
+
+		struct Data
+		{
+			bool operator==(const Data& other) const 
+			{
+				return gamma == other.gamma &&
+					   value == other.value &&
+					   scale == other.scale;
+			}
+
+			double getBipolarValue() const
+			{
+				double v = value - 0.5f;
+
+				if (gamma != 1.0)
+					v = hmath::pow(hmath::abs(v * 2.0), gamma) * hmath::sign(v) * 0.5;
+
+				v *= scale;
+				v += 0.5;
+				return v;
+			}
+
+			double value = 0.5;
+			double scale = 0.0;
+			double gamma = 1.0;
+			bool dirty = false;
+		};
+
+		virtual Data getUIData() const = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(bipolar_base);
+	};
+	}
+
+	template <int NV, class ParameterType> struct bipolar : public mothernode,
+															public polyphonic_base,
+															public pimpl::bipolar_base,
+															public pimpl::parameter_node_base<ParameterType>,
+															public pimpl::no_processing
+	{
+		static constexpr int NumVoices = NV;
+
+		SET_HISE_POLY_NODE_ID("bipolar");
+		SN_GET_SELF_AS_OBJECT(bipolar);
+		SN_DESCRIPTION("Creates a bipolar mod signal from a 0...1 range");
+
+		bipolar() :
+			polyphonic_base(getStaticId(), false),
+			control::pimpl::parameter_node_base<ParameterType>(getStaticId())
+		{};
+
+		enum class Parameters
+		{
+			Value,
+			Scale,
+			Gamma
+		};
+
+		DEFINE_PARAMETERS
+		{
+			DEF_PARAMETER(Value, bipolar);
+			DEF_PARAMETER(Scale, bipolar);
+			DEF_PARAMETER(Gamma, bipolar);
+		};
+		PARAMETER_MEMBER_FUNCTION;
+
+		void setValue(double v)
+		{
+			for (auto& s : this->data)
+			{
+				s.value = v;
+				s.dirty = true;
+			}
+
+			sendPending();
+		}
+
+		void setScale(double v)
+		{
+			for (auto& s : this->data)
+			{
+				s.scale = v;
+				s.dirty = true;
+			}
+
+			sendPending();
+		}
+
+		void setGamma(double v)
+		{
+			for (auto& s : this->data)
+			{
+				s.gamma = v;
+				s.dirty = true;
+			}
+
+			sendPending();
+		}
+
+
+		void sendPending()
+		{
+			if constexpr (isPolyphonic())
+			{
+				if (polyHandler == nullptr ||
+					!this->getParameter().isConnected() ||
+					polyHandler->getVoiceIndex() == -1)
+					return;
+
+				auto& d = data.get();
+
+				this->getParameter().call(d.getBipolarValue());
+			}
+			else
+			{
+				auto& d = data.get();
+
+				if (d.dirty && this->getParameter().isConnected())
+				{
+					auto v = d.getBipolarValue();
+					this->getParameter().call(v);
+				}
+
+			}
+		}
+
+		template <typename T> void process(T&)
+		{
+			sendPending();
+		}
+
+		template <typename T> void processFrame(T&)
+		{
+			sendPending();
+		}
+
+		void prepare(PrepareSpecs ps)
+		{
+			this->data.prepare(ps);
+			polyHandler = ps.voiceIndex;
+		}
+
+		void createParameters(ParameterDataList& data)
+		{
+			{
+				DEFINE_PARAMETERDATA(bipolar, Value);
+				p.setRange({ 0.0, 1.0 });
+				p.setDefaultValue(0.0);
+				data.add(std::move(p));
+			}
+			{
+				DEFINE_PARAMETERDATA(bipolar, Scale);
+				p.setRange({ -1.0, 1.0 });
+				p.setDefaultValue(0.0);
+				data.add(std::move(p));
+			}
+			{
+				DEFINE_PARAMETERDATA(bipolar, Gamma);
+				p.setRange({ 0.5, 2.0 });
+				p.setSkewForCentre(1.0);
+				p.setDefaultValue(1.0);
+				data.add(std::move(p));
+			}
+		}
+
+		Data getUIData() const override {
+			return data.getFirst();
+		}
+
+	private:
+
+		snex::Types::PolyHandler* polyHandler;
+		PolyData<Data, NumVoices> data;
+	};
 
 	template <int NV, class ParameterType> struct pma : public mothernode,
-														      public polyphonic_base,
-															  public pimpl::combined_parameter_base,
-															  public pimpl::parameter_node_base<ParameterType>,
-															  public pimpl::no_processing
+														public polyphonic_base,
+														public pimpl::combined_parameter_base,
+														public pimpl::parameter_node_base<ParameterType>,
+														public pimpl::no_processing
 	{
 		static constexpr int NumVoices = NV;
 
@@ -819,8 +996,11 @@ namespace control
 			{
 				auto& d = data.get();
 
-				if(d.dirty && this->getParameter().isConnected())
-					this->getParameter().call(d.getPmaValue());
+				if (d.dirty && this->getParameter().isConnected())
+				{
+					auto v = d.getPmaValue();
+					this->getParameter().call(v);
+				}
 			}
 		}
 

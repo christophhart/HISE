@@ -38,7 +38,152 @@ using namespace hise;
 
 namespace control
 {
-	
+	struct bipolar_editor : public ScriptnodeExtraComponent<pimpl::bipolar_base>
+	{
+		using BipolarBase = pimpl::bipolar_base;
+
+		bipolar_editor(BipolarBase* b, PooledUIUpdater* u) :
+			ScriptnodeExtraComponent<BipolarBase>(b, u),
+			dragger(u)
+		{
+			setSize(256, 256);
+			addAndMakeVisible(dragger);
+		};
+
+		void timerCallback() override
+		{
+			auto obj = getObject();
+
+			if (obj == nullptr)
+				return;
+
+			auto thisData = getObject()->getUIData();
+
+			if (!(thisData == lastData))
+			{
+				lastData = thisData;
+				rebuild();
+			}
+		}
+
+		void rebuild()
+		{
+			outlinePath.clear();
+			
+			valuePath.clear();
+			outlinePath.startNewSubPath(0.0f, 0.0f);
+			outlinePath.startNewSubPath(1.0f, 1.0f);
+
+			valuePath.startNewSubPath(0.0f, 0.0f);
+			valuePath.startNewSubPath(1.0f, 1.0f);
+
+			auto copy = lastData;
+
+			auto numPixels = pathArea.getWidth();
+
+			bool outlineEmpty = true;
+			bool valueEmpty = true;
+
+			bool valueBiggerThanHalf = copy.value > 0.5;
+			auto v = lastData.value;
+
+			for (float i = 0.0; i < numPixels; i++)
+			{
+				float x = i / numPixels;
+
+				copy.value = x;
+				float y = 1.0f - copy.getBipolarValue();
+
+				if (outlineEmpty)
+				{
+					outlinePath.startNewSubPath(x, y);
+					outlineEmpty = false;
+				}
+				else
+					outlinePath.lineTo(x, y);
+
+				bool drawBiggerValue = valueBiggerThanHalf && x > 0.5f && x < v;
+				bool drawSmallerValue = !valueBiggerThanHalf && x < 0.5f && x > v;
+
+				if (drawBiggerValue || drawSmallerValue)
+				{
+					if (valueEmpty)
+					{
+						valuePath.startNewSubPath(x, y);
+						valueEmpty = false;
+					}
+					else
+						valuePath.lineTo(x, y);
+				}
+			}
+
+			PathFactory::scalePath(outlinePath, pathArea.reduced(UIValues::NodeMargin));
+			PathFactory::scalePath(valuePath, pathArea.reduced(UIValues::NodeMargin));
+
+			repaint();
+		}
+
+		void paint(Graphics& g) override
+		{
+			ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, pathArea, false);
+
+			UnblurryGraphics ug(g, *this, true);
+
+			g.setColour(Colours::white.withAlpha(0.1f));
+
+			auto pb = pathArea.reduced(UIValues::NodeMargin / 2);
+
+			ug.draw1PxHorizontalLine(pathArea.getCentreY(), pb.getX(), pb.getRight());
+			ug.draw1PxVerticalLine(pathArea.getCentreX(), pb.getY(), pb.getBottom());
+			ug.draw1PxRect(pb);
+
+			auto c = Colours::white.withAlpha(0.8f);
+
+			if (auto nc = findParentComponentOfClass<NodeComponent>())
+			{
+				auto c2 = nc->header.colour;
+				if (!c2.isTransparent())
+					c = c2;
+			}
+
+			g.setColour(c);
+
+			Path dst;
+
+			auto ps = ug.getPixelSize();
+			float l[2] = { 4.0f * ps, 4.0f * ps };
+
+			PathStrokeType(2.0f * ps).createDashedStroke(dst, outlinePath, l, 2);
+
+			g.fillPath(dst);
+
+			g.strokePath(valuePath, PathStrokeType(4.0f * ug.getPixelSize()));
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			dragger.setBounds(b.removeFromBottom(28));
+			b.removeFromBottom(UIValues::NodeMargin);
+			auto bSize = jmin(b.getWidth(), b.getHeight());
+			pathArea = b.withSizeKeepingCentre(bSize, bSize).toFloat();
+
+		}
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			auto typed = static_cast<mothernode*>(obj);
+			return new bipolar_editor(dynamic_cast<BipolarBase*>(typed), updater);
+		}
+
+		Path outlinePath;
+		Path valuePath;
+
+		pimpl::bipolar_base::Data lastData;
+
+		Rectangle<float> pathArea;
+		ModulationSourceBaseComponent dragger;
+	};
 
 	struct pma_editor : public ModulationSourceBaseComponent
 	{
