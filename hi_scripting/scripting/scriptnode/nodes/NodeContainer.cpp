@@ -129,6 +129,8 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 
 	DspNetwork::AnonymousNodeCloner cloner(*n->getRootNetwork(), n->getNodeHolder());
 	
+	bool useLock = n->getRootNetwork()->isInitialised();
+
 	if (auto nodeToProcess = n->getRootNetwork()->getNodeForValueTree(child))
 	{
 		if (wasAdded)
@@ -144,7 +146,7 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 
 			int insertIndex = getNodeTree().indexOf(child);
 
-			SimpleReadWriteLock::ScopedWriteLock sl(n->getRootNetwork()->getConnectionLock());
+			SimpleReadWriteLock::ScopedWriteLock sl(n->getRootNetwork()->getConnectionLock(), useLock);
 
 			nodes.insert(insertIndex, nodeToProcess);
 			updateChannels(n->getValueTree(), PropertyIds::NumChannels);
@@ -155,7 +157,7 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 
 			nodeToProcess->setIsUINodeOfDuplicates(false);
 
-			SimpleReadWriteLock::ScopedWriteLock sl(n->getRootNetwork()->getConnectionLock());
+			SimpleReadWriteLock::ScopedWriteLock sl(n->getRootNetwork()->getConnectionLock(), useLock);
 			
 			nodes.removeAllInstancesOf(nodeToProcess);
 			updateChannels(n->getValueTree(), PropertyIds::NumChannels);

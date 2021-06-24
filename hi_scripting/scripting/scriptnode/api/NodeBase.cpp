@@ -220,6 +220,21 @@ int NodeBase::getIndexInParent() const
 	return v_data.getParent().indexOf(v_data);
 }
 
+bool NodeBase::isActive(bool checkRecursively) const
+{
+	ValueTree p = v_data.getParent();
+
+	if (!checkRecursively)
+		return p.isValid();
+
+	while (p.isValid() && p.getType() != PropertyIds::Network)
+	{
+		p = p.getParent();
+	}
+
+	return p.getType() == PropertyIds::Network;
+}
+
 void NodeBase::checkValid() const
 {
 	getRootNetwork()->checkValid();
@@ -446,6 +461,8 @@ void NodeBase::setParent(var parentNode, int indexInParent)
 	if (parentNode.getObject() == network)
 		parentNode = var(network->getRootNode());
 
+	Parameter::ScopedAutomationPreserver sap(this);
+
 	if(getValueTree().getParent().isValid())
 		getValueTree().getParent().removeChild(getValueTree(), getUndoManager());
 
@@ -513,9 +530,15 @@ Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 	ADD_PROPERTY_ID_CONSTANT(PropertyIds::StepSize);
 
 	setValueAndStoreAsync(initialValue);
+
+	automationRemover.setCallback(data, valuetree::AsyncMode::Synchronously, true, BIND_MEMBER_FUNCTION_1(Parameter::updateConnectionOnRemoval));
 }
 
-
+void Parameter::updateConnectionOnRemoval(ValueTree& c)
+{
+	if (!ScopedAutomationPreserver::isPreservingRecursive(parent) && connectionSourceTree.isValid())
+		connectionSourceTree.getParent().removeChild(connectionSourceTree, parent->getUndoManager());
+}
 
 juce::String Parameter::getId() const
 {
@@ -530,7 +553,9 @@ double Parameter::getValue() const
 
 void Parameter::setCallbackNew(parameter::dynamic_base* ownedNew)
 {
-	SimpleReadWriteLock::ScopedWriteLock sl(parent->getRootNetwork()->getConnectionLock());
+	// We don't need to lock if the network isn't active yet...
+	bool useLock = parent->isActive(true) && parent->getRootNetwork()->isInitialised();
+	SimpleReadWriteLock::ScopedWriteLock sl(parent->getRootNetwork()->getConnectionLock(), useLock);
 	dbNew.setParameter(ownedNew);
 }
 
@@ -943,8 +968,13 @@ scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnect
 		auto pId = c[PropertyIds::ParameterId].toString();
 		auto tn = n->getRootNetwork()->getNodeWithId(nId);
 
-		if (tn == nullptr && throwIfNotFound)
-			throw nId;
+		if (tn == nullptr)
+		{
+			if (throwIfNotFound)
+				throw nId;
+			else
+				continue;
+		}
 
 		if (pId == PropertyIds::Bypassed.toString())
 		{
@@ -1009,6 +1039,29 @@ RealNodeProfiler::RealNodeProfiler(NodeBase* n) :
 {
 	if (enabled)
 		start = Time::getMillisecondCounterHiRes();
+}
+
+Parameter::ScopedAutomationPreserver::ScopedAutomationPreserver(NodeBase* n) :
+	parent(n)
+{
+	prevValue = parent->getPreserveAutomationFlag();
+	parent->getPreserveAutomationFlag() = true;
+}
+
+Parameter::ScopedAutomationPreserver::~ScopedAutomationPreserver()
+{
+	parent->getPreserveAutomationFlag() = prevValue;
+}
+
+bool Parameter::ScopedAutomationPreserver::isPreservingRecursive(NodeBase* n)
+{
+	if (n == nullptr)
+		return false;
+
+	if (n->getPreserveAutomationFlag())
+		return true;
+
+	return isPreservingRecursive(n->getParentNode());
 }
 
 }

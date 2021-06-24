@@ -92,6 +92,23 @@ class Parameter : public ConstScriptingObject
 {
 public:
 
+	/** Create an object of this type if you don't want to remove any connections when the node is
+	    removed from the signal chain (eg. when dragging the node around). 
+	*/
+	struct ScopedAutomationPreserver
+	{
+		ScopedAutomationPreserver(NodeBase* n);
+
+		~ScopedAutomationPreserver();
+
+		static bool isPreservingRecursive(NodeBase* n);
+
+	private:
+
+		NodeBase* parent;
+		bool prevValue;
+	};
+
 	Identifier getObjectName() const override { return PropertyIds::Parameter; }
 
 	Parameter(NodeBase* parent_, ValueTree& data_);;
@@ -156,6 +173,9 @@ public:
 
 private:
 
+
+	void updateConnectionOnRemoval(ValueTree& c);
+
 	ValueTree treeThatStoresValue;
 	parameter::dynamic_base_holder dbNew;
 
@@ -167,6 +187,7 @@ private:
 	valuetree::PropertyListener valuePropertyUpdater;
 	valuetree::PropertyListener idUpdater;
 	valuetree::PropertyListener modulationStorageBypasser;
+	valuetree::RemoveListener   automationRemover;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Parameter);
 };
@@ -311,7 +332,7 @@ public:
 	int getIndexInParent() const;
 
 	/** Checks if the node is inserted into the signal path. */
-	bool isActive() const { return v_data.getParent().isValid(); }
+	bool isActive(bool checkRecursively) const;
 
 	/** Sets the property of the node. */
 	void set(var id, var value);
@@ -447,12 +468,18 @@ public:
 	DspNetwork* getEmbeddedNetwork();
 	const DspNetwork* getEmbeddedNetwork() const;
 
+	bool& getPreserveAutomationFlag() { return preserveAutomation; }
+
 protected:
 
 	ValueTree v_data;
 	PrepareSpecs lastSpecs;
 
 private:
+
+	bool preserveAutomation = false;
+
+	
 
 	void updateFrozenState(Identifier id, var newValue);
 
