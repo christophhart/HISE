@@ -319,12 +319,9 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition(boo
 
 snex::jit::BlockParser::StatementPtr BlockParser::addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids)
 {
-	
-
 	auto n = Operations::as<Operations::ComplexTypeDefinition>(def);
 
-	if(currentTypeInfo.isDynamic())
-		currentTypeInfo = def->getTypeInfo();
+    currentTypeInfo = def->getTypeInfo();
 
 	if (currentTypeInfo.isComplexType() && currentTypeInfo.getComplexType()->hasConstructor())
 	{
