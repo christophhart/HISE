@@ -236,7 +236,7 @@ bool SnexWorkbenchEditor::perform(const InvocationInfo &info)
 	
 	case ToolsAudioConfig:
 	{
-		auto window = new SettingWindows(getProcessor()->getSettingsObject(), { HiseSettings::SettingFiles::SnexWorkbenchSettings, HiseSettings::SettingFiles::AudioSettings });
+		auto window = new SettingWindows(getProcessor()->getSettingsObject(), { HiseSettings::SettingFiles::SnexWorkbenchSettings, HiseSettings::SettingFiles::OtherSettings,  HiseSettings::SettingFiles::AudioSettings });
 		window->setModalBaseWindowComponent(this);
 		window->activateSearchBox();
 		return true;
@@ -383,7 +383,10 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(BackendProcessor* bp) :
 	}
 	
 
-	context.attachTo(*this);
+    auto useOpenGL = GET_HISE_SETTING(bp->getMainSynthChain(), HiseSettings::Other::UseOpenGL).toString() == "1";
+    
+    if(useOpenGL)
+        context.attachTo(*this);
 
 	mainManager.registerAllCommandsForTarget(this);
 	mainManager.setFirstCommandTarget(this);
@@ -506,7 +509,9 @@ SnexWorkbenchEditor::~SnexWorkbenchEditor()
 #endif
     
 	//getLayoutFile().replaceWithText(rootTile->exportAsJSON());
-	context.detach();
+    
+    if(context.isAttached())
+        context.detach();
 
 	rootTile = nullptr;
 }
