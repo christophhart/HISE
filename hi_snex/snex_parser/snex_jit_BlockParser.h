@@ -213,7 +213,7 @@ public:
 
 	StatementPtr parseComplexTypeDefinition(bool mustBeConstructor=false);
 
-	virtual StatementPtr addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids);
+	virtual StatementPtr addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids, bool matchSemicolon=true);
 
 	StatementPtr matchIfSemicolonAndReturn(StatementPtr p)
 	{

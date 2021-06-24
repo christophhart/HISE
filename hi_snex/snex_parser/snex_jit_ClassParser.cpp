@@ -77,10 +77,12 @@ void ClassParser::registerTemplateArguments(TemplateParameter::List& templateLis
 	}
 }
 
-snex::jit::BlockParser::StatementPtr ClassParser::addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids)
+snex::jit::BlockParser::StatementPtr ClassParser::addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids, bool matchSemicolon)
 {
-	// Do not add a constructor in a class definition
-	match(JitTokens::semicolon);
+    // Do not add a constructor in a class definition
+    if(matchSemicolon)
+        match(JitTokens::semicolon);
+    
 	return def;
 }
 

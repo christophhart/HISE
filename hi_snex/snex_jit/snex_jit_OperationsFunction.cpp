@@ -219,14 +219,15 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			sTree->setReturnType(classData->returnType);
 
-			compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, sTree);
-			// add this when using stack...
-			//compiler->executePass(BaseCompiler::DataSizeCalculation, functionScope, statements);
-			compiler->executePass(BaseCompiler::DataAllocation, functionScope, sTree);
-			compiler->executePass(BaseCompiler::DataInitialisation, functionScope, sTree);
-
-			
-
+            {
+                NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classData->id);
+                
+                compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, sTree);
+            }
+            
+            compiler->executePass(BaseCompiler::DataAllocation, functionScope, sTree);
+            compiler->executePass(BaseCompiler::DataInitialisation, functionScope, sTree);
+        
 			if (classData->isConst())
 			{
 				sTree->forEachRecursive([](Ptr p)
@@ -246,7 +247,12 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 				}, IterationType::AllChildStatements);
 			}
 
-			compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, sTree);
+            {
+                NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classData->id);
+                
+                compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, sTree);
+            }
+            
 			compiler->executePass(BaseCompiler::TypeCheck, functionScope, sTree);
 			compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, sTree);
 
@@ -1017,7 +1023,14 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				if (callType == MemberFunction)
 					classType = getObjectExpression()->getTypeInfo().getComplexType();
 				else
-					classType = dynamic_cast<ClassScope*>(scope->getScopeForSymbol(function.id))->typePtr;
+                {
+                    auto cs = dynamic_cast<ClassScope*>(scope->getScopeForSymbol(function.id));
+                    
+                    if(cs != nullptr)
+                        classType = cs->typePtr;
+                    else
+                        throwError("Can't find class scope");
+                }
 
 				fc = classType->getFunctionClass();
 				ownedFc = fc;
@@ -1215,49 +1228,67 @@ bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
 			if (auto cType = compiler->namespaceHandler.getComplexType(function.id))
 			{
 				// might be a constructor with the syntax auto obj = MyObject(...);
-
 				fc = cType->getFunctionClass();
 
 				function.id = function.id.getChildId(function.id.getIdentifier());
 				function.returnType = TypeInfo(cType, false, false);
-				
-				function.inliner = Inliner::createAsmInliner(function.id, [](InlineData* b)
-				{
-					auto d = b->toAsmInlineData();
+#if 0
+                Array<TypeInfo> args;
+                
+                for(auto& a: function.args)
+                    args.add(a.typeInfo);
+                
+                auto cf = fc->getConstructor(args);
+                
+                
+                
+                if(cf.inliner != nullptr)
+                {
+                    function.inliner = cf.inliner;
+                }
+                else
+                {
+                    function.inliner = Inliner::createAsmInliner(function.id, [](InlineData* b)
+                    {
+                        auto d = b->toAsmInlineData();
 
-					auto typeToInitialise = d->target->getTypeInfo().getComplexType();
-					auto& cc = d->gen.cc;
+                        auto typeToInitialise = d->target->getTypeInfo().getComplexType();
+                        auto& cc = d->gen.cc;
 
-					auto mem = cc.newStack(typeToInitialise->getRequiredByteSize(), typeToInitialise->getRequiredAlignment());
-					
-					d->target->setCustomMemoryLocation(mem, false);
+                        auto mem = cc.newStack(typeToInitialise->getRequiredByteSize(), typeToInitialise->getRequiredAlignment());
+                        
+                        d->target->setCustomMemoryLocation(mem, false);
 
-					d->gen.emitStackInitialisation(d->target, typeToInitialise, nullptr, typeToInitialise->makeDefaultInitialiserList());
+                        d->gen.emitStackInitialisation(d->target, typeToInitialise, nullptr, typeToInitialise->makeDefaultInitialiserList());
 
-					FunctionClass::Ptr fc = typeToInitialise->getFunctionClass();
+                        FunctionClass::Ptr fc = typeToInitialise->getFunctionClass();
 
-					Array<TypeInfo> argTypes;
+                        Array<TypeInfo> argTypes;
 
-					for (auto a : d->args)
-						argTypes.add(a->getTypeInfo());
+                        for (auto a : d->args)
+                            argTypes.add(a->getTypeInfo());
 
-					auto f = fc->getConstructor(argTypes);
+                        auto f = fc->getConstructor(argTypes);
 
-					// Remove the inliner
-					f.inliner = nullptr;
-					
-					auto ok = d->gen.emitFunctionCall(nullptr, f, d->target, d->args);
+                        // Remove the inliner
+                        f.inliner = nullptr;
+                        
+                        if(f.function == nullptr)
+                            return Result::fail("Function must be inlined before codegen");
+                        
+                        auto ok = d->gen.emitFunctionCall(nullptr, f, d->target, d->args);
 
-					
-					return Result::ok();
-				});
+                        
+                        return Result::ok();
+                    });
+                }
 
 				for (int i = 0; i < getNumArguments(); i++)
 					function.addArgs("a" + String(i + 1), getArgument(i)->getTypeInfo());
 
 				possibleMatches.add(function);
 				callType = StaticFunction;
-
+#endif
 				return true;
 			}
 

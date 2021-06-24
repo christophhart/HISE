@@ -792,7 +792,7 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
         
 		if (index->isMemoryLocation())
         {
-            p = ptr.cloneAdjustedAndResized(imm2ptr(INT_IMM(index) * elementSizeInBytes), elementSizeInBytes);
+            p = ptr.cloneAdjustedAndResized(imm2ptr(INT_IMM(index) * elementSizeInBytes), jmin<int>(elementSizeInBytes, 8));
         }
 		else
 		{

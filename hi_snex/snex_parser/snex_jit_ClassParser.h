@@ -49,7 +49,7 @@ public:
 
 	void registerTemplateArguments(TemplateParameter::List& templateList, const NamespacedIdentifier& scopeId);
 
-	StatementPtr addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids) override;
+	StatementPtr addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids, bool matchSemicolon) override;
 
 	StatementPtr parseStatement(bool mustHaveSemicolon) override;
 	StatementPtr parseVariableDefinition();

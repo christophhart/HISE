@@ -261,4 +261,6 @@ return b1; \
 
 };
 
+static hmath Math;
+
 }

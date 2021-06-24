@@ -602,10 +602,6 @@ juce::Result SnexSource::ParameterHandlerLight::recompiledOk(snex::jit::ComplexT
 		String s;
 		int l = 0;
 
-		objPtr->dumpTable(s, l, object.getObjectPtr(), object.getObjectPtr());
-
-		DBG(s);
-
 		pFunctions[index] = matches[index];
 
 		if (pFunctions[index].templateParameters[0].constant != index)

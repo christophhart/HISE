@@ -218,6 +218,10 @@ struct SyntaxTreeInlineData : public InlineData
 	static void processUpToCurrentPass(Operations::Statement::Ptr currentStatement, Operations::Statement::Ptr e)
 	{
 		auto c = currentStatement->currentCompiler;
+        
+        if(c == nullptr)
+            currentStatement->throwError("No compiler");
+            
 		auto s = currentStatement->currentScope;
 
 		if (auto t = dynamic_cast<Operations::StatementBlock*>(e.get()))
