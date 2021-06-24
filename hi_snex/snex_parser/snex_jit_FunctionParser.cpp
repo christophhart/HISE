@@ -156,6 +156,8 @@ BlockParser::StatementPtr CodeParser::parseReturnStatement()
 
 snex::jit::BlockParser::StatementPtr CodeParser::parseVariableDefinition()
 {
+    using namespace Operations;
+    
 	SymbolParser sp(*this, compiler->namespaceHandler);
 
 	ExprPtr target;
@@ -179,6 +181,15 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseVariableDefinition()
 	match(JitTokens::assign_);
 	ExprPtr expr = parseExpression();
 
+    if(auto fc = as<FunctionCall>(expr))
+    {
+        if(auto e = fc->extractFirstArgumentFromConstructor(compiler->namespaceHandler))
+        {
+            s.typeInfo = fc->getTypeInfo();
+            expr = e;
+        }
+    }
+    
 	if (s.typeInfo.isDynamic())
 	{
 		if (expr->tryToResolveType(compiler))
@@ -197,9 +208,11 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseVariableDefinition()
 
 	if (s.typeInfo.isComplexType())
 	{
-		target = new Operations::ComplexTypeDefinition(location, { s.id }, s.typeInfo);
+        Array<NamespacedIdentifier> ids = { s.id };
+		target = new Operations::ComplexTypeDefinition(location, ids, s.typeInfo);
 		target->addStatement(expr);
-		return target;
+        
+        return addConstructorToComplexTypeDef(target, ids, false);
 	}
 	else
 	{

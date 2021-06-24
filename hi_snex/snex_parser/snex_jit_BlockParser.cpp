@@ -245,6 +245,8 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(b
 
 snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition(bool mustBeDestructor)
 {
+    using namespace Operations;
+    
 	jassert(getCurrentComplexType() != nullptr);
 
 	Array<NamespacedIdentifier> ids;
@@ -298,7 +300,7 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition(boo
 		while (matchIf(JitTokens::comma))
 			ids.add(rootId.getChildId(parseIdentifier()));
 
-		auto n = new Operations::ComplexTypeDefinition(location, ids, currentTypeInfo);
+		auto n = new ComplexTypeDefinition(location, ids, currentTypeInfo);
 
 		CommentAttacher ca(*this);
 
@@ -310,14 +312,26 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition(boo
 			if (currentType == JitTokens::openBrace)
 				n->addInitValues(parseInitialiserList());
 			else
-				n->addStatement(parseExpression());
+            {
+                auto expr = parseExpression();
+                
+                if(auto fc = as<FunctionCall>(expr))
+                {
+                    if(auto fa = fc->extractFirstArgumentFromConstructor(compiler->namespaceHandler))
+                    {
+                        expr = fa;
+                    }
+                }
+                
+				n->addStatement(expr);
+            }
 		}
 
 		return addConstructorToComplexTypeDef(n, ids);
 	}
 }
 
-snex::jit::BlockParser::StatementPtr BlockParser::addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids)
+snex::jit::BlockParser::StatementPtr BlockParser::addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids, bool matchSemicolon)
 {
 	auto n = Operations::as<Operations::ComplexTypeDefinition>(def);
 
@@ -344,7 +358,17 @@ snex::jit::BlockParser::StatementPtr BlockParser::addConstructorToComplexTypeDef
 		{
 			FunctionClass::Ptr fc = currentTypeInfo.getComplexType()->getFunctionClass();
 
-			auto cf = fc->getConstructor(n->initValues);
+            FunctionData cf;
+            
+            if(auto singleArg = n->getSubExpr(0))
+            {
+                cf = fc->getConstructor({ singleArg->getTypeInfo() });
+            }
+            else
+            {
+                cf = fc->getConstructor(n->initValues);
+            }
+            
 
 			if (!cf.id.isValid())
 			{
@@ -366,32 +390,41 @@ snex::jit::BlockParser::StatementPtr BlockParser::addConstructorToComplexTypeDef
 			if (n->initValues != nullptr)
 			{
 				n->initValues->forEach([&](InitialiserList::ChildBase* cb)
-					{
-						if (auto e = dynamic_cast<InitialiserList::ExpressionChild*>(cb))
-						{
-							call->addArgument(e->expression->clone(location));
-						}
-						else
-						{
-							VariableStorage immValue;
+                {
+                    if (auto e = dynamic_cast<InitialiserList::ExpressionChild*>(cb))
+                    {
+                        call->addArgument(e->expression->clone(location));
+                    }
+                    else
+                    {
+                        VariableStorage immValue;
 
-							if (cb->getValue(immValue))
-								call->addArgument(new Operations::Immediate(location, immValue));
-						}
+                        if (cb->getValue(immValue))
+                            call->addArgument(new Operations::Immediate(location, immValue));
+                    }
 
-						return false;
-					});
+                    return false;
+                });
 			}
-
-			
+            else if(auto firstChild = n->getSubExpr(0))
+            {
+                // this will cover the
+                // Type x = initValue;
+                // syntax
+                call->addArgument(firstChild->clone(location));
+            }
+            
 			ab->addStatement(call);
 		}
 
-		match(JitTokens::semicolon);
+        if(matchSemicolon)
+            match(JitTokens::semicolon);
+        
 		return ab;
 	}
 
-	match(JitTokens::semicolon);
+    if(matchSemicolon)
+        match(JitTokens::semicolon);
 
 	return n;
 }
@@ -874,6 +907,10 @@ snex::jit::BlockParser::ExprPtr BlockParser::parseThis()
 	{
 		if (auto typePtr = fs->getClassType())
 			return new Operations::ThisPointer(location, TypeInfo(typePtr, false, true));
+        else
+        {
+            jassertfalse;
+        }
 	}
 
 	location.throwError("Can't use this pointer outside of class method");

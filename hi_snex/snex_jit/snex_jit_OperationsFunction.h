@@ -196,6 +196,17 @@ struct Operations::FunctionCall : public Expression
 		return newFC;
 	}
 
+    Ptr extractFirstArgumentFromConstructor(NamespaceHandler& handler)
+    {
+        if(auto cType = handler.getComplexType(function.id))
+        {
+            function.returnType = TypeInfo(cType, false, false);
+            return getArgument(0)->clone(location);
+        }
+        
+        return nullptr;
+    }
+    
 	bool tryToResolveType(BaseCompiler* compiler) override;
 
 	ValueTree toValueTree() const override
