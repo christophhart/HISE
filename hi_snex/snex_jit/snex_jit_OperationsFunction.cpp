@@ -219,14 +219,15 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			sTree->setReturnType(classData->returnType);
 
-			compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, sTree);
-			// add this when using stack...
-			//compiler->executePass(BaseCompiler::DataSizeCalculation, functionScope, statements);
-			compiler->executePass(BaseCompiler::DataAllocation, functionScope, sTree);
-			compiler->executePass(BaseCompiler::DataInitialisation, functionScope, sTree);
-
-			
-
+            {
+                NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classData->id);
+                
+                compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, sTree);
+            }
+            
+            compiler->executePass(BaseCompiler::DataAllocation, functionScope, sTree);
+            compiler->executePass(BaseCompiler::DataInitialisation, functionScope, sTree);
+        
 			if (classData->isConst())
 			{
 				sTree->forEachRecursive([](Ptr p)
@@ -246,7 +247,12 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 				}, IterationType::AllChildStatements);
 			}
 
-			compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, sTree);
+            {
+                NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classData->id);
+                
+                compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, sTree);
+            }
+            
 			compiler->executePass(BaseCompiler::TypeCheck, functionScope, sTree);
 			compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, sTree);
 
