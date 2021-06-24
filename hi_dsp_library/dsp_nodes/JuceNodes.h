@@ -307,27 +307,37 @@ struct jdelay : public base::jwrapper<juce::dsp::DelayLine<float, juce::dsp::Del
 	{
 		JuceBaseType::prepare(ps);
 		sr = ps.sampleRate;
+
+		if (sr != 0.0 && maxSize != 0.0)
+		{
+			setParameter<0>(maxSize);
+			maxSize = 0.0;
+		}
 	}
 
 	template <int P> void setParameter(double v)
 	{
-		v = v * 0.001 * sr;
+		auto sampleValue = v * 0.001 * sr;
 
 		for (auto& obj : objects)
 		{
 			if (P == 0)
 			{
 				if (sr != 0.0)
-					obj.setMaxDelaySamples(v);
+					obj.setMaxDelaySamples(sampleValue);
+				else
+					maxSize = v;
 			}
 			if (P == 1)
-				obj.setDelay(v);
+				obj.setDelay(sampleValue);
 		}
 	}
 
 	void createParameters(ParameterDataList& d) override;
 
 	double sr = 0.0;
+	double maxSize = 0.0;
+
 };
 
 struct jchorus: public base::jwrapper<juce::dsp::Chorus<float>, 1>

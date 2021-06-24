@@ -165,8 +165,8 @@ template <int NV> struct file_player : public data::base
 				}
 				else
 				{
-					
-					//externalData.setDisplayedValue((double)(int)idx);
+					auto uptime = hmath::fmod(state.get().uptime, maxIndex);
+					externalData.setDisplayedValue(uptime);
 
 					while (fd.next())
 						processWithPitchRatio(fd.toSpan());

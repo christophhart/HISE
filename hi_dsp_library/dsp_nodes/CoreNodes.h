@@ -515,7 +515,7 @@ template <class ShaperType> struct snex_shaper
 	HISE_EMPTY_CREATE_PARAM;
 };
 
-template <int NV, bool UseRingBuffer> class ramp : public data::display_buffer_base<UseRingBuffer>
+template <int NV, bool UseRingBuffer=false> class ramp : public data::display_buffer_base<UseRingBuffer>
 {
 public:
 

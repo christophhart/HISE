@@ -656,10 +656,16 @@ private:
 
 		Node::Ptr parse();
 
+		void setFlushNode(bool shouldFlushNode)
+		{
+			flushNodeBeforeReturning = shouldFlushNode;
+		}
 		
 		static Array<float> getEmbeddedData(const ValueTree& nodeTree, ExternalData::DataType t, int slotIndex);
 
 	private:
+
+		bool flushNodeBeforeReturning = true;
 
 		Node::Ptr parseEmbeddedDataNode(ExternalData::DataType t);
 		Node::Ptr parseExternalDataNode(ExternalData::DataType t, int slotIndex);
@@ -727,7 +733,7 @@ private:
 
 	Node::Ptr parseRoutingNode(Node::Ptr u);
 
-	Node::Ptr parseComplexDataNode(Node::Ptr u);
+	Node::Ptr parseComplexDataNode(Node::Ptr u, bool flushNode=true);
 
 	Node::Ptr parseOptionalSnexNode(Node::Ptr u);
 

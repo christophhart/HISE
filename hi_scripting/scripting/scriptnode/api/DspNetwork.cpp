@@ -236,7 +236,7 @@ NodeBase::List DspNetwork::getListOfUnconnectedNodes() const
 
 	for (auto n : nodes)
 	{
-		if (!n->isActive())
+		if (!n->isActive(false))
 			unconnectedNodes.add(n);
 	}
 
@@ -397,9 +397,9 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 {
 	if (sampleRate > 0.0)
 	{
-		SimpleReadWriteLock::ScopedWriteLock sl(getConnectionLock());
+		SimpleReadWriteLock::ScopedWriteLock sl(getConnectionLock(), isInitialised());
 
-		bool firstTime = currentSpecs.blockSize == 0;
+		bool firstTime = !isInitialised();
 
 		try
 		{

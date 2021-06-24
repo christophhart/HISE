@@ -302,6 +302,36 @@ template <class T, int P> struct plain : public single_base<T, P>
 };
 
 
+/** Inverts the normalised value. */
+template <class T, int P> struct inverted: public single_base<T, P>
+{
+	void call(double v)
+	{
+		jassert(this->isConnected());
+		callStatic(this->obj, v);
+	}
+
+	static void callStatic(void* o, double v)
+	{
+		using ObjectType = typename T::ObjectType;
+		jassert(o != nullptr);
+
+		ObjectType::template setParameterStatic<P>(o, 1.0 - v);
+	}
+
+	void addToList(ParameterDataList& d)
+	{
+		data p("plainUnNamed");
+		p.callback.referTo(this->obj, callStatic);
+		d.add(p);
+	}
+
+	template <int Unused> auto& getParameter()
+	{
+		return *this;
+	}
+};
+
 
 
 /** A parameter that takes a expression class for converting the value that is passed to the parameter callback.

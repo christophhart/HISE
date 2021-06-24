@@ -637,11 +637,12 @@ Node::Ptr ValueTreeBuilder::parseRootContainer(Node::Ptr container)
 }
 
 
-Node::Ptr ValueTreeBuilder::parseComplexDataNode(Node::Ptr u)
+Node::Ptr ValueTreeBuilder::parseComplexDataNode(Node::Ptr u, bool flushNode)
 {
 	if (ValueTreeIterator::isComplexDataNode(u->nodeTree))
 	{
 		ComplexDataBuilder c(*this, u);
+		c.setFlushNode(flushNode);
 		return c.parse();
 	}
 
@@ -878,17 +879,23 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 
 		auto id = getNodeId(u->nodeTree);
 
+		
+
 		if (!ValueTreeIterator::needsModulationWrapper(u->nodeTree))
 		{
 			*u << *mod;
 
 			u->addOptionalModeTemplate();
+
+			u = parseComplexDataNode(u);
 		}
 		else
 		{
-			auto inner = u;
-
 			u->addOptionalModeTemplate();
+			auto inner = parseComplexDataNode(u, false);
+
+			jassert(!inner->isFlushed());
+			
 			u = createNode(u->nodeTree, id.getIdentifier(), "wrap::mod");
 			*u << *mod;
 			*u << *inner;
@@ -897,7 +904,7 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 		addNodeComment(u);
 
 		
-		u = parseComplexDataNode(u);
+		
 
 		addNumVoicesTemplate(u);
 
@@ -939,19 +946,20 @@ NamespacedIdentifier ValueTreeBuilder::getNodePath(const ValueTree& n)
 
 snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnection(const Connection& c, const Identifier& pName, int parameterIndexInChain, const ValueTree& pTree)
 {
-	if (auto existing = pooledParameters.getExisting(c))
-		return existing;
-
 	String p = pName.toString();
-
-	if (parameterIndexInChain != -1)
-		p << "_" << parameterIndexInChain;
 
 	if (!c)
 	{
 		auto up = makeParameter(p, "empty", {});
 		return addParameterAndReturn(up);
 	}
+
+	if (auto existing = pooledParameters.getExisting(c))
+		return existing;
+
+	if (parameterIndexInChain != -1)
+		p << "_" << parameterIndexInChain;
+
 
 	if (!c)
 	{
@@ -1019,7 +1027,7 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 
 		auto useNormalisedMod = CustomNodeProperties::nodeHasProperty(pTree, PropertyIds::UseUnnormalisedModulation);
 
-		if (RangeHelpers::isEqual(tr, sr) || useNormalisedMod)
+		if (RangeHelpers::isEqual(tr, sr) || useNormalisedMod && !c.inverted)
 		{
 			// skip both ranges and just pass on the parameter;
 			auto up = makeParameter(p, "plain", c);
@@ -1069,7 +1077,7 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 	}
 	default:
 	{
-		auto up = makeParameter(p, "plain", c);
+		auto up = makeParameter(p, c.inverted ? "inverted" : "plain", c);
 		*up << *c.n;
 		*up << c.index;
 
@@ -2071,7 +2079,9 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseEmbeddedDataNode(ExternalDa
 		wn->nodeTree = n->nodeTree;
 		*wn << *n;
 
-		wn->flushIfNot();
+		if(flushNodeBeforeReturning)
+			wn->flushIfNot();
+
 		return wn;
 	}
 
@@ -2095,7 +2105,10 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseEmbeddedDataNode(ExternalDa
 	*wn << ed;
 
 	parent.addNumVoicesTemplate(wn);
-	wn->flushIfNot();
+
+	if(flushNodeBeforeReturning)
+		wn->flushIfNot();
+
 	return wn;
 }
 
@@ -2116,7 +2129,10 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseExternalDataNode(ExternalDa
 	*wn << ed;
 
 	parent.addNumVoicesTemplate(wn);
-	wn->flushIfNot();
+
+	if(flushNodeBeforeReturning)
+		wn->flushIfNot();
+
 	return wn;
 }
 
@@ -2290,7 +2306,8 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseMatrixDataNode()
 
 	parent.addNumVoicesTemplate(wn);
 
-	wn->flushIfNot();
+	if(flushNodeBeforeReturning)
+		wn->flushIfNot();
 
 	return wn;
 }
