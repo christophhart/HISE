@@ -979,9 +979,6 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 			{
 				SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
 				loopRange = newLoopRange;
-				
-				if(loopRange.getEnd() > 1)
-					bufferRange.setEnd(loopRange.getEnd());
 			}
 			
 			if(n != dontSendNotification)
@@ -1014,9 +1011,13 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		return { 0, originalBuffer.getNumSamples() };
 	}
 
-	Range<int> getLoopRange() const
+	Range<int> getLoopRange(bool subtractStart = false) const
 	{
-		return loopRange;
+		bool useLoop = !loopRange.isEmpty() && loopRange.getStart() < bufferRange.getEnd();
+
+		auto delta = (int)subtractStart * bufferRange.getStart();
+
+		return (useLoop ? loopRange.getIntersectionWith(bufferRange): bufferRange) - delta;
 	}
 
 	double sampleRate = 0.0;
@@ -1352,6 +1353,8 @@ public:
 		else
 			preview->setBuffer({}, {});
 		
+		setShowLoop(connectedBuffer != nullptr && connectedBuffer->getLoopRange() != connectedBuffer->getCurrentRange());
+
 		updateRanges(nullptr);
 	}
 
@@ -1402,7 +1405,7 @@ protected:
 
 	Path loopPath;
 
-	Range<int> xPositionOfLoop;
+	Range<float> xPositionOfLoop;
 
 	Colour bgColour;
 

@@ -138,8 +138,8 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
     
 	int offset = sampleRange.getStart();
 
-	const float *leftSamples = buffer->getReadPointer(0, offset);
-	const float *rightSamples = buffer->getNumChannels() > 1 ? buffer->getReadPointer(1, offset) : leftSamples;
+	const float *leftSamples = buffer->getReadPointer(0, 0);
+	const float *rightSamples = buffer->getNumChannels() > 1 ? buffer->getReadPointer(1, 0) : leftSamples;
 
 	auto loopRange = looper->getBuffer().getLoopRange();
 
@@ -148,7 +148,7 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	length = looper->isUsingLoop() ? loopEnd - loopStart : length;
 
-	auto end = sampleRange.getEnd()-1;
+	auto end = sampleRange.getLength()-1;
 
 	auto loopOffset = jmax<int>(0, loopStart - offset);
 
@@ -217,7 +217,7 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	if (isLastVoice && length != 0)
 	{
-		const int samplePos = getSamplePos((int)voiceUptime, length, loopOffset, isReversed, end);
+		const int samplePos = getSamplePos((int)voiceUptime, length, loopOffset, isReversed, length);
 
 		looper->getBuffer().sendDisplayIndexMessage((float)samplePos);
 	}

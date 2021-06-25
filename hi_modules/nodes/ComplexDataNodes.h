@@ -165,7 +165,12 @@ template <int NV> struct file_player : public data::base
 				}
 				else
 				{
-					auto uptime = hmath::fmod(state.get().uptime, maxIndex);
+
+					using IndexType = index::unscaled<double, index::looped<0>>;
+
+					IndexType i(state.get().uptime);
+					i.setLoopRange(s.loopRange[0], s.loopRange[1]);
+					auto uptime = i.getIndex(maxIndex, 0);
 					externalData.setDisplayedValue(uptime);
 
 					while (fd.next())

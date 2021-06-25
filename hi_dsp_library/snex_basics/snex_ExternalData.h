@@ -493,7 +493,7 @@ struct ExternalData
 					for (int c = 0; c < NumChannels; c++)
 						ed->referBlockTo(dataToFill->data[c], c);
 
-					auto lr = static_cast<MultiChannelAudioBuffer*>(ed->obj)->getLoopRange();
+					auto lr = static_cast<MultiChannelAudioBuffer*>(ed->obj)->getLoopRange(true);
 					dataToFill->setLoopRange(lr);
 
 					return 1;

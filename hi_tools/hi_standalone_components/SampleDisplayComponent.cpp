@@ -509,6 +509,16 @@ void MultiChannelAudioBufferDisplay::paintOverChildren(Graphics& g)
 
 	if (showLoop)
 	{
+		if (connectedBuffer != nullptr && !connectedBuffer->isEmpty())
+		{
+			auto loopRange = connectedBuffer->getLoopRange();
+			
+			float factor = (float)getWidth() / (float)connectedBuffer->getTotalRange().getLength();
+
+			xPositionOfLoop.setStart((float)loopRange.getStart() * factor);
+			xPositionOfLoop.setEnd((float)loopRange.getEnd() * factor);
+		}
+
 		g.setColour(Colours::white.withAlpha(0.6f));
 		g.drawVerticalLine(xPositionOfLoop.getStart(), 0.0f, (float)getHeight());
 		g.drawVerticalLine(xPositionOfLoop.getEnd(), 0.0f, (float)getHeight());
@@ -1273,10 +1283,9 @@ bool MultiChannelAudioBuffer::fromBase64String(const String& b64)
 						SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
 						bufferRange = { 0, originalBuffer.getNumSamples() };
 						sampleRate = lr->sampleRate;
+						setLoopRange(lr->loopRange, dontSendNotification);
 						setDataBuffer(nb);
 					}
-
-					setLoopRange(lr->loopRange, dontSendNotification);
 
 					return true;
 				}
