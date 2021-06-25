@@ -53,7 +53,12 @@ ContainerComponent::Updater::~Updater()
 
 void ContainerComponent::Updater::changeListenerCallback(SafeChangeBroadcaster *)
 {
-	parent.rebuildNodes();
+	if(messageLevel == Level::Rebuild)
+		parent.rebuildNodes();
+	if (messageLevel == Level::Repaint)
+		parent.repaint();
+
+	messageLevel = Level::Nothing;
 }
 
 
@@ -81,13 +86,22 @@ void ContainerComponent::Updater::valueTreeChildRemoved(ValueTree& parentTree, V
 void ContainerComponent::Updater::valueTreePropertyChanged(ValueTree&, const Identifier& id)
 {
 	if (id == PropertyIds::Bypassed)
-		parent.repaint();
+	{
+		messageLevel = jmax(Level::Repaint, messageLevel);
+		sendPooledChangeMessage();
+	}
 
 	if (id == PropertyIds::Folded)
+	{
+		messageLevel = Level::Rebuild;
 		sendPooledChangeMessage();
+	}
 
 	if (id == PropertyIds::ShowParameters)
+	{
+		messageLevel = Level::Rebuild;
 		sendPooledChangeMessage();
+	}
 }
 
 

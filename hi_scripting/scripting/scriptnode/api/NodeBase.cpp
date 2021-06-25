@@ -53,10 +53,11 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	parent(rootNetwork),
 	v_data(data_),
 	helpManager(this, data_),
-	currentId(v_data[PropertyIds::ID].toString()),
+	currentId(v_data[PropertyIds::ID].toString()),	
 	subHolder(rootNetwork->getCurrentHolder())
 {
 	numChannels.referTo(data_, PropertyIds::NumChannels, nullptr, 2);
+	bypassState.referTo(data_, PropertyIds::Bypassed, getUndoManager(), false);
 
 	setDefaultValue(PropertyIds::NumChannels, 2);
 	setDefaultValue(PropertyIds::NodeColour, 0);
@@ -71,25 +72,13 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ADD_API_METHOD_2(setParent);
 	ADD_API_METHOD_1(getParameterReference);
 
-	bypassListener.setCallback(v_data, { PropertyIds::Bypassed }, valuetree::AsyncMode::Synchronously, [this](Identifier id, var newValue)
-	{
-		if (id == PropertyIds::Bypassed)
-		{
-			setBypassed((bool)newValue);
-		}
-	});
-
 	for (auto c : getPropertyTree())
-	{
 		addConstant(c[PropertyIds::ID].toString(), c[PropertyIds::ID]);
-	}
-
-	DBG("Add " + getId());
 }
 
 NodeBase::~NodeBase()
 {
-	DBG("Remove " + getId());
+	
 }
 
 void NodeBase::prepare(PrepareSpecs specs)
@@ -205,7 +194,11 @@ snex::NamespacedIdentifier NodeBase::getPath() const
 void NodeBase::setBypassed(bool shouldBeBypassed)
 {
 	checkValid();
-	bypassState = shouldBeBypassed;
+
+	if (enableUndo)
+		bypassState.setValue(shouldBeBypassed, getUndoManager());
+	else
+		bypassState.setValue(shouldBeBypassed, nullptr);
 }
 
 

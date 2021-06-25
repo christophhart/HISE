@@ -72,7 +72,7 @@ hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const Addi
 
 void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 /*hashCode*/, AudioSampleBuffer& data, var* additionalData)
 {
-	auto reader = afm.createReaderFor(std::unique_ptr<InputStream>(ownedStream));
+	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(std::unique_ptr<InputStream>(ownedStream));
 
 	if (reader != nullptr)
 	{

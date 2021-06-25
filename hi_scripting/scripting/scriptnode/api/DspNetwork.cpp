@@ -871,7 +871,10 @@ DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)
 	for (auto n : networks)
 	{
 		if (n->getId() == id)
+		{
+			setActiveNetwork(n);
 			return n;
+		}
 	}
 
 	ValueTree v(scriptnode::PropertyIds::Network);

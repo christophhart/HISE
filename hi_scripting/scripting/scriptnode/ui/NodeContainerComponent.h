@@ -675,6 +675,13 @@ private:
 		public SafeChangeListener,
 		public ValueTree::Listener
 	{
+		enum class Level
+		{
+			Nothing,
+			Repaint,
+			Rebuild
+		};
+
 		Updater(ContainerComponent& parent_);
 
 		~Updater();
@@ -689,6 +696,7 @@ private:
 		ContainerComponent& parent;
 		ValueTree copy;
 
+		Level messageLevel = Level::Nothing;
 	} updater;
 
 	void rebuildNodes();

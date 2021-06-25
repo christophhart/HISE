@@ -228,6 +228,24 @@ public:
 
 	struct DynamicBypassParameter : public parameter::dynamic_base
 	{
+		struct ScopedUndoDeactivator
+		{
+			ScopedUndoDeactivator(NodeBase* n):
+				p(*n)
+			{
+				prevState = p.enableUndo;
+				p.enableUndo = false;
+			}
+
+			~ScopedUndoDeactivator()
+			{
+				p.enableUndo = prevState;
+			}
+
+			NodeBase& p;
+			bool prevState;
+		};
+
 		DynamicBypassParameter(NodeBase* n, Range<double> enabledRange_) :
 			node(n),
 			enabledRange(enabledRange_)
@@ -241,6 +259,9 @@ public:
 		void call(double v) final override
 		{
 			bypassed = !enabledRange.contains(v) && enabledRange.getEnd() != v;
+
+			ScopedUndoDeactivator sns(node);
+
 			node->setBypassed(bypassed);
 		}
 
@@ -478,6 +499,7 @@ protected:
 private:
 
 	bool preserveAutomation = false;
+	bool enableUndo = true;
 
 	
 
@@ -502,10 +524,8 @@ private:
 	String currentId;
 
 	HelpManager helpManager;
-
-	valuetree::PropertyListener bypassListener;
 	
-	bool bypassState = false;
+	CachedValue<bool> bypassState;
 
 	ReferenceCountedArray<Parameter> parameters;
 	WeakReference<NodeBase> parentNode;
