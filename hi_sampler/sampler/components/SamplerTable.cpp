@@ -34,6 +34,7 @@ ML("- Use the regex parser as a normal wildcard search engine until it does not 
 ML("- Select all with `.`");
 ML("- if you want to subtract something from the selection, use the prefix `sub:` (this is not official regex, but I added it for simpler handling)");
 ML("- if you want to add something to the selection but keep the other sounds selected, use the prefix `add:`");
+ML("- you can use logical operators (and: `&`, or: `|`) with multiple keywords");
 ML("- the end of the filename can be checked with `$`, the start of the filename can be checked with `^`.");
 
 ML("## Isolate a token in the file name")
