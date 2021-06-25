@@ -93,7 +93,9 @@ public:
 		void setNumSourceChannels(int newNumChannels, NotificationType notifyProcessors=sendNotification);
 		void setNumDestinationChannels(int newNumChannels, NotificationType notifyProcessors = sendNotification);
 
-		const CriticalSection &getLock() const;
+		void handleDisplayValues(const AudioSampleBuffer& input, const AudioSampleBuffer& output);
+
+		SimpleReadWriteLock& getLock();
 
 		int getNumSourceChannels() const { return numSourceChannels; }
 		int getNumDestinationChannels() const { return numDestinationChannels; };
@@ -147,6 +149,7 @@ public:
 		void refreshSourceUseStates();
 
 		friend class RoutableProcessor;
+		SimpleReadWriteLock lock;
 
 		WeakReference<Processor> targetProcessor;
 		RoutableProcessor *owningProcessor;
@@ -160,6 +163,8 @@ public:
 		float targetGainValues[NUM_MAX_CHANNELS];
         int channelConnections[NUM_MAX_CHANNELS];
 		int sendConnections[NUM_MAX_CHANNELS];
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MatrixData);
 	};
 
 	virtual void numSourceChannelsChanged() = 0;

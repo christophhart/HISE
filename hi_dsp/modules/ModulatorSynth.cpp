@@ -453,24 +453,9 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		}
 	}
 
-	if (getMatrix().isEditorShown())
-	{
-		float gainValues[NUM_MAX_CHANNELS];
+	getMatrix().handleDisplayValues(thisInternalBuffer, outputBuffer);
 
-		for (int i = 0; i < thisInternalBuffer.getNumChannels(); i++)
-		{
-			gainValues[i] = thisInternalBuffer.getMagnitude(i, 0, numSamplesFixed);
-		}
-
-		getMatrix().setGainValues(gainValues, true);
-
-		for (int i = 0; i < outputBuffer.getNumChannels(); i++)
-		{
-			gainValues[i] = outputBuffer.getMagnitude(i, 0, numSamplesFixed);
-		}
-
-		getMatrix().setGainValues(gainValues, false);
-	}
+	
 
 	handlePeakDisplay(numSamplesFixed);
 }

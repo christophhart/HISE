@@ -69,7 +69,7 @@ bool RoutableProcessor::MatrixData::isUsed(int sourceChannel) const noexcept
 
 bool RoutableProcessor::MatrixData::toggleEnabling(int sourceChannel) noexcept
 {
-	ScopedLock sl(getLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(getLock());
 
 	if (sourceChannel < 0 || sourceChannel >= getNumSourceChannels())
 	{
@@ -92,7 +92,7 @@ bool RoutableProcessor::MatrixData::toggleEnabling(int sourceChannel) noexcept
 
 bool RoutableProcessor::MatrixData::toggleSendEnabling(int sourceChannel) noexcept
 {
-	ScopedLock sl(getLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(getLock());
 
 	if (sourceChannel < 0 || sourceChannel >= getNumSourceChannels())
 	{
@@ -115,7 +115,7 @@ bool RoutableProcessor::MatrixData::toggleSendEnabling(int sourceChannel) noexce
 
 bool RoutableProcessor::MatrixData::toggleConnection(int sourceChannel, int destinationChannel) noexcept
 {
-	ScopedLock sl(getLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(getLock());
 
 	if (sourceChannel < 0 || sourceChannel >= getNumSourceChannels() || destinationChannel < 0 || destinationChannel >= getNumDestinationChannels())
 	{
@@ -138,7 +138,7 @@ bool RoutableProcessor::MatrixData::toggleConnection(int sourceChannel, int dest
 
 bool RoutableProcessor::MatrixData::addConnection(int sourceChannel, int destinationChannel) noexcept
 {
-	ScopedLock sl(getLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(getLock());
 
 	if (sourceChannel < 0 || sourceChannel >= getNumSourceChannels() || destinationChannel < 0 || destinationChannel >= getNumDestinationChannels())
 	{
@@ -178,7 +178,7 @@ bool RoutableProcessor::MatrixData::addConnection(int sourceChannel, int destina
 
 bool RoutableProcessor::MatrixData::removeConnection(int sourceChannel, int destinationChannel) noexcept
 {
-	ScopedLock sl(getLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(getLock());
 
 	if (sourceChannel < 0 || sourceChannel >= getNumSourceChannels() || destinationChannel < 0 || destinationChannel >= getNumDestinationChannels())
 	{
@@ -214,7 +214,7 @@ bool RoutableProcessor::MatrixData::removeConnection(int sourceChannel, int dest
 
 bool RoutableProcessor::MatrixData::toggleSendConnection(int sourceChannel, int destinationChannel) noexcept
 {
-	ScopedLock sl(getLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(getLock());
 
 	if (sourceChannel < 0 || sourceChannel >= getNumSourceChannels() || destinationChannel < 0 || destinationChannel >= getNumDestinationChannels())
 	{
@@ -237,7 +237,7 @@ bool RoutableProcessor::MatrixData::toggleSendConnection(int sourceChannel, int 
 
 bool RoutableProcessor::MatrixData::addSendConnection(int sourceChannel, int destinationChannel) noexcept
 {
-	ScopedLock sl(getLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(getLock());
 
 	if (sourceChannel < 0 || sourceChannel >= getNumSourceChannels() || destinationChannel < 0 || destinationChannel >= getNumDestinationChannels())
 	{
@@ -277,7 +277,7 @@ bool RoutableProcessor::MatrixData::addSendConnection(int sourceChannel, int des
 
 bool RoutableProcessor::MatrixData::removeSendConnection(int sourceChannel, int destinationChannel) noexcept
 {
-	ScopedLock sl(getLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(getLock());
 
 	if (sourceChannel < 0 || sourceChannel >= getNumSourceChannels() || destinationChannel < 0 || destinationChannel >= getNumDestinationChannels())
 	{
@@ -415,14 +415,14 @@ void RoutableProcessor::MatrixData::setNumSourceChannels(int newNumChannels, Not
 
 	if (newNumChannels != numSourceChannels)
 	{
-		ScopedLock sl(getLock());
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(getLock());
+			numSourceChannels = jmax<int>(1, newNumChannels);
+			refreshSourceUseStates();
+		}
 
-		numSourceChannels = jmax<int>(1, newNumChannels);
-		//clearAllConnections();
-
-		refreshSourceUseStates();
-
-		if (notifyProcessors == sendNotification) owningProcessor->numSourceChannelsChanged();
+		if (notifyProcessors == sendNotification) 
+			owningProcessor->numSourceChannelsChanged();
 	}
 }
 
@@ -434,7 +434,7 @@ void RoutableProcessor::MatrixData::setNumDestinationChannels(int newNumChannels
 
 	if (newNumChannels != numDestinationChannels)
 	{
-		ScopedLock sl(getLock());
+		SimpleReadWriteLock::ScopedWriteLock sl(getLock());
 
 		numDestinationChannels = jmax<int>(1, newNumChannels);
 		refreshSourceUseStates();
@@ -443,9 +443,34 @@ void RoutableProcessor::MatrixData::setNumDestinationChannels(int newNumChannels
 	if (notifyProcessors == sendNotification) owningProcessor->numDestinationChannelsChanged();
 }
 
-const CriticalSection & RoutableProcessor::MatrixData::getLock() const
+void RoutableProcessor::MatrixData::handleDisplayValues(const AudioSampleBuffer& input, const AudioSampleBuffer& output)
 {
-	return thisAsProcessor->getMainController()->getLock();
+	if (isEditorShown())
+	{
+		float gainValues[NUM_MAX_CHANNELS];
+
+		auto numToCheck = jmin(input.getNumSamples(), output.getNumSamples());
+		static constexpr float DecayFactor = 0.97f;
+
+		for (int i = 0; i < input.getNumChannels(); i++)
+		{
+			auto max = input.getMagnitude(i, 0, numToCheck);
+			auto& v = sourceGainValues[i];
+			v = max > v ? max : v * DecayFactor;
+		}
+
+		for (int i = 0; i < output.getNumChannels(); i++)
+		{
+			auto max = output.getMagnitude(i, 0, numToCheck);
+			auto& v = targetGainValues[i];
+			v = max > v ? max : v * DecayFactor;
+		}
+	}
+}
+
+SimpleReadWriteLock& RoutableProcessor::MatrixData::getLock()
+{
+	return lock;
 }
 
 void RoutableProcessor::MatrixData::setTargetProcessor(Processor *p)
@@ -455,9 +480,10 @@ void RoutableProcessor::MatrixData::setTargetProcessor(Processor *p)
 
 void RoutableProcessor::MatrixData::setGainValues(float *numMaxChannelValues, bool isSourceValue)
 {
-	ScopedLock sl(getLock());
-
-	memcpy(isSourceValue ? sourceGainValues : targetGainValues, numMaxChannelValues, (isSourceValue ? numSourceChannels : numDestinationChannels) * sizeof(float));
+	if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getLock()))
+	{
+		memcpy(isSourceValue ? sourceGainValues : targetGainValues, numMaxChannelValues, (isSourceValue ? numSourceChannels : numDestinationChannels) * sizeof(float));
+	}
 }
 
 void RoutableProcessor::MatrixData::loadPreset(Presets newPreset)

@@ -296,25 +296,6 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 				FloatVectorOperations::addWithMultiply(buffer.getWritePointer(destinationIndex, 0), internalBuffer.getReadPointer(sourceIndex, 0), getGain() * getBalance(i % 2 != 0), numSamples);
 			}
 		}
-
-		if (getMatrix().isEditorShown())
-		{
-			float gainValues[NUM_MAX_CHANNELS];
-
-			for (int i = 0; i < internalBuffer.getNumChannels(); i++)
-			{
-				gainValues[i] = FloatVectorOperations::findMaximum(internalBuffer.getReadPointer(i), numSamples);
-			}
-
-			getMatrix().setGainValues(gainValues, true);
-
-			for (int i = 0; i < buffer.getNumChannels(); i++)
-			{
-				gainValues[i] = FloatVectorOperations::findMaximum(buffer.getReadPointer(i), numSamples);
-			}
-
-			getMatrix().setGainValues(gainValues, false);
-		}
 	}
 	else // save some cycles on non multichannel buffers...
 	{
@@ -326,6 +307,8 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), numSamples);
 #endif
 	}
+
+	getMatrix().handleDisplayValues(internalBuffer, buffer);
 
 	// Display the output
 	handlePeakDisplay(numSamples);
