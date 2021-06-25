@@ -125,7 +125,8 @@ void ModulatorSynthChain::prepareToPlay(double newSampleRate, int samplesPerBloc
 {
 	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
-	for (int i = 0; i < synths.size(); i++) synths[i]->prepareToPlay(newSampleRate, samplesPerBlock);
+	for (auto s: synths)
+		s->prepareToPlay(newSampleRate, samplesPerBlock);
 }
 
 void ModulatorSynthChain::numSourceChannelsChanged()
@@ -221,6 +222,15 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	initRenderCallback();
 
 #if FRONTEND_IS_PLUGIN
+
+#if PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN
+	
+	for (int i = 0; i < synths.size(); i++)
+	{
+		if (!synths[i]->isSoftBypassed())
+			synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
+	}
+#endif
 
 	effectChain->renderNextBlock(buffer, 0, numSamples);
 	effectChain->renderMasterEffects(buffer);

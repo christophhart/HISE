@@ -145,6 +145,15 @@ If set to 1, the compiled plugin will be a effect (stereo in / out). */
 #define FRONTEND_IS_PLUGIN 0
 #endif
 
+
+/** Config: PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN
+
+If set to 1, then the FX plugin will also process child sound generators (eg. global modulators or macro modulation sources). 
+*/
+#ifndef PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN
+#define PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN 1
+#endif
+
 /** Config: FORCE_INPUT_CHANNELS
 
 If set to 1, the compiled plugin will use a stereo input channel pair and render the master containers effect chain on top of it.

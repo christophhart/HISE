@@ -1450,8 +1450,10 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
 
 		auto midiInputEnabled = GET_SETTING(HiseSettings::Project::EnableMidiInputFX);
+		auto soundGeneratorsEnabled = GET_SETTING(HiseSettings::Project::EnableSoundGeneratorsFX);
 
 		REPLACE_WILDCARD_WITH_STRING("%ENABLE_MIDI_INPUT_FX%", midiInputEnabled == "1" ? "enabled" : "disabled");
+		REPLACE_WILDCARD_WITH_STRING("%PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN%", soundGeneratorsEnabled == "1" ? "enabled" : "disabled");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN%", midiInputEnabled);
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISMIDIFX%", "0");
@@ -1467,6 +1469,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISMIDIFX%", "1");
+		REPLACE_WILDCARD_WITH_STRING("%PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN%", "disabled");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
 		REPLACE_WILDCARD_WITH_STRING("%HISE_MIDIFX_PLUGIN%", "enabled");
 		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", "disabled");
@@ -1478,6 +1481,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
 		REPLACE_WILDCARD_WITH_STRING("%ENABLE_MIDI_INPUT_FX%", "disabled");
+		REPLACE_WILDCARD_WITH_STRING("%PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN%", "disabled");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
         REPLACE_WILDCARD_WITH_STRING("%AAX_CATEGORY%", "AAX_ePlugInCategory_SWGenerators");
 		REPLACE_WILDCARD_WITH_STRING("%HISE_MIDIFX_PLUGIN%", "disabled");

@@ -88,6 +88,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(AAXCategoryFX);
 	ids.add(SupportMonoFX);
 	ids.add(EnableMidiInputFX);
+	ids.add(EnableSoundGeneratorsFX);
 	ids.add(VST3Support);
 	ids.add(UseRawFrontend);
 	ids.add(ExpansionType);
@@ -361,6 +362,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 
 		P(HiseSettings::Project::EnableMidiInputFX);
 		D("If enabled, the effect plugin will process incoming MIDI messages (if the host supports FX plugins with MIDI input");
+		P_();
+
+		P(HiseSettings::Project::EnableSoundGeneratorsFX);
+		D("If enabled, the effect plugin will also process child sound generators (eg. Global modulation containers and Macro modulation sources");
+		D("> Be aware that the sound output of the child sound generators will not be used, so this is only useful with \"quiet\" sound generators");
 		P_();
 
 		P(HiseSettings::Project::VST3Support);
@@ -653,6 +659,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Compiler::Support32BitMacOS ||
 		id == Project::SupportMonoFX ||
 		id == Project::EnableMidiInputFX ||
+		id == Project::EnableSoundGeneratorsFX ||
 		id == Project::VST3Support ||
 		id == Project::UseRawFrontend ||
 		id == Project::LinkExpansionsToProject ||
@@ -832,6 +839,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::AAXCategoryFX)			return "AAX_ePlugInCategory_Modulation";
 	else if (id == Project::SupportMonoFX)			return "No";
 	else if (id == Project::EnableMidiInputFX)		return "No";
+	else if (id == Project::EnableSoundGeneratorsFX) return "No";
 	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";

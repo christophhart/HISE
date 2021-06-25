@@ -79,6 +79,7 @@ DECLARE_ID(AppGroupID);
 DECLARE_ID(RedirectSampleFolder);
 DECLARE_ID(AAXCategoryFX);
 DECLARE_ID(SupportMonoFX);
+DECLARE_ID(EnableSoundGeneratorsFX);
 DECLARE_ID(EnableMidiInputFX);
 DECLARE_ID(UseRawFrontend);
 DECLARE_ID(VST3Support);
