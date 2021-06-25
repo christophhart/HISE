@@ -688,6 +688,9 @@ var ModulatorSamplerSound::getSampleProperty(const Identifier& id) const
 	if (id == SampleIds::ID)
 		return getId();
 
+	if (id == SampleIds::FileName && data.getNumChildren() != 0)
+		return data.getChild(0)[id];
+
 	var rv = data.getProperty(id, getDefaultValue(id));
 
 	if (SampleIds::Helpers::isMapProperty(id))
