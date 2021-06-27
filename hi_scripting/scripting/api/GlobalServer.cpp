@@ -68,6 +68,16 @@ var GlobalServer::getPendingDownloads()
 	return list;
 }
 
+var GlobalServer::getPendingCallbacks()
+{
+	Array<var> list;
+
+	for (auto p : internalThread.pendingCallbacks)
+		list.add(var(p));
+
+	return list;
+}
+
 Result GlobalServer::resendCallback(PendingCallback* p)
 {
 	if (p != nullptr)
