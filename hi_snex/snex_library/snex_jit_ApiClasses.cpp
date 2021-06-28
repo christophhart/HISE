@@ -254,11 +254,11 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	HNODE_JIT_ADD_C_FUNCTION_3(float, hmath::norm, float, float, float, "norm");
 	setDescription("normalises the input using the given range", { "input" , "lowerlimit", "upperlimit" });
 
-	HNODE_JIT_ADD_C_FUNCTION_3(float, hmath::norm, float, float, float, "norm");
-	setDescription("normalises the input using the given range", { "input" , "lowerlimit", "upperlimit" });
-
-	HNODE_JIT_ADD_C_FUNCTION_3(double, hmath::map, double, double, double, "map");
+	HNODE_JIT_ADD_C_FUNCTION_3(float, hmath::map, float, float, float, "map");
 	setDescription("maps the normalised input to the output range", { "input" , "lowerlimit", "upperlimit" });
+
+	HNODE_JIT_ADD_C_FUNCTION_3(double, hmath::norm, double, double, double, "norm");
+	setDescription("normalises the input using the given range", { "input" , "lowerlimit", "upperlimit" });
 
 	HNODE_JIT_ADD_C_FUNCTION_3(double, hmath::map, double, double, double, "map");
 	setDescription("maps the normalised input to the output range", { "input" , "lowerlimit", "upperlimit" });
