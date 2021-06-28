@@ -736,6 +736,14 @@ PresetBrowser::~PresetBrowser()
 	expHandler.removeListener(this);
 }
 
+bool PresetBrowser::isReadOnly(const File& f)
+{
+	if (rootFile == f)
+		return false;
+
+	return getMainController()->getUserPresetHandler().isReadOnly(f);
+}
+
 void PresetBrowser::expansionPackLoaded(Expansion* currentExpansion)
 {
 	if(expansionColumn != nullptr && currentExpansion != nullptr)
@@ -787,7 +795,7 @@ void PresetBrowser::presetChanged(const File& newPreset)
 	
 	presetColumn->setSelectedFile(newPreset, dontSendNotification);
 
-	saveButton->setEnabled(true);
+	saveButton->setEnabled(!isReadOnly(newPreset));
 
 	noteLabel->setText(DataBaseHelpers::getNoteFromXml(newPreset), dontSendNotification);
 }
@@ -830,7 +838,7 @@ void PresetBrowser::rebuildAllPresets()
 		presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
 		bankColumn->setEditMode(false);
-		presetColumn->updateButtonVisibility();
+		presetColumn->updateButtonVisibility(isReadOnly(f));
 	}
 }
 
@@ -1210,6 +1218,8 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 {
 	const bool showCategoryColumn = numColumns == 3;
 
+	auto readOnly = isReadOnly(file);
+
 	if (columnIndex == -1) // Expansions
 	{
 		currentBankFile = File();
@@ -1257,7 +1267,8 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 			categoryColumn->setEditMode(false);
 			presetColumn->setEditMode(false);
 
-			bankColumn->updateButtonVisibility();
+			bankColumn->updateButtonVisibility(readOnly);
+			bankColumn->showAddButton();
 
 			noteLabel->setText("", dontSendNotification);
 		}
@@ -1269,8 +1280,10 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 			presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
 			bankColumn->setEditMode(false);
-			bankColumn->updateButtonVisibility();
-			presetColumn->updateButtonVisibility();
+			bankColumn->updateButtonVisibility(readOnly);
+			bankColumn->showAddButton();
+			
+			presetColumn->updateButtonVisibility(readOnly);
 		}
 
 		noteLabel->setText("", dontSendNotification);
@@ -1286,8 +1299,8 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 
         bankColumn->setEditMode(false);
 
-		categoryColumn->updateButtonVisibility();
-		presetColumn->updateButtonVisibility();
+		categoryColumn->updateButtonVisibility(readOnly);
+		presetColumn->updateButtonVisibility(readOnly);
 
 		noteLabel->setText("", dontSendNotification);
 	}
@@ -1300,7 +1313,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 		bankColumn->setEditMode(false);
 		categoryColumn->setEditMode(false);
 
-		presetColumn->updateButtonVisibility();
+		presetColumn->updateButtonVisibility(readOnly);
 	}
 }
 
@@ -1535,6 +1548,7 @@ void PresetBrowser::loadPreset(const File& f)
         currentlyLoadedPreset = allPresets.indexOf(f);
 
 		noteLabel->setText(DataBaseHelpers::getNoteFromXml(f), dontSendNotification);
+		saveButton->setEnabled(!isReadOnly(f));
     }
 }
 

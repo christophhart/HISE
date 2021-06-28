@@ -1461,6 +1461,9 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 	String fullDynamicsSupport = x == "1" ? "enabled" : "disabled";
 	REPLACE_WILDCARD_WITH_STRING("%SUPPORT_FULL_DYNAMICS%", fullDynamicsSupport);
 
+	String readOnlyFactoryPresets = GET_SETTING(HiseSettings::Project::ReadOnlyFactoryPresets) == "1" ? "enabled" : "disabled";
+	REPLACE_WILDCARD_WITH_STRING("%READ_ONLY_FACTORY_PRESETS%", readOnlyFactoryPresets);
+
 	if (type == TargetTypes::EffectPlugin)
 	{
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
@@ -1693,6 +1696,9 @@ hise::CompileExporter::CompileExporter::ErrorCodes CompileExporter::createStanda
 
 	String fullDynamicsSupport = GET_SETTING(HiseSettings::Project::SupportFullDynamicsHLAC) == "1" ? "enabled" : "disabled";
 	REPLACE_WILDCARD_WITH_STRING("%SUPPORT_FULL_DYNAMICS%", fullDynamicsSupport);
+
+	String readOnlyFactoryPresets = GET_SETTING(HiseSettings::Project::ReadOnlyFactoryPresets) == "1" ? "enabled" : "disabled";
+	REPLACE_WILDCARD_WITH_STRING("%READ_ONLY_FACTORY_PRESETS%", readOnlyFactoryPresets);
 
 	ProjectTemplateHelpers::handleVisualStudioVersion(dataObject,templateProject);
 

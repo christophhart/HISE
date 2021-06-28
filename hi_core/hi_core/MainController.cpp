@@ -1700,4 +1700,94 @@ void MainController::KillStateHandler::callLater(const std::function<void()>& f)
 	}
 }
 
+bool MainController::UserPresetHandler::isReadOnly(const File& f)
+{
+#if READ_ONLY_FACTORY_PRESETS
+	return factoryPaths->contains(mc, f);
+#else
+	return false;
+#endif
+}
+
+#if READ_ONLY_FACTORY_PRESETS
+bool MainController::UserPresetHandler::FactoryPaths::contains(MainController* mc, const File& f)
+{
+	if (!initialised)
+		initialise(mc);
+
+	auto path = getPath(mc, f);
+
+	if (path.isNotEmpty())
+	{
+		auto ok = factoryPaths.contains(path);
+		return ok;
+	}
+		
+
+	return false;
+}
+
+void MainController::UserPresetHandler::FactoryPaths::initialise(MainController* mc)
+{
+#if USE_FRONTEND
+	ScopedPointer<MemoryInputStream> mis = FrontendFactory::getEmbeddedData(FileHandlerBase::UserPresets);
+	zstd::ZCompressor<UserPresetDictionaryProvider> decompressor;
+	MemoryBlock mb(mis->getData(), mis->getDataSize());
+	ValueTree presetTree;
+	decompressor.expand(mb, presetTree);
+
+	for (auto c : presetTree)
+		addRecursive(c, "{PROJECT_FOLDER}");
+#endif
+
+	initialised = true;
+
+}
+
+String MainController::UserPresetHandler::FactoryPaths::getPath(MainController* mc, const File& f)
+{
+	auto factoryFolder = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::UserPresets);
+
+	if (f.isAChildOf(factoryFolder))
+		return "{PROJECT_FOLDER}" + f.withFileExtension("").getRelativePathFrom(factoryFolder).replace("\\", "/");
+
+	for (int i = 0; i < mc->getExpansionHandler().getNumExpansions(); i++)
+	{
+		auto e = mc->getExpansionHandler().getExpansion(i);
+		auto expFolder = e->getSubDirectory(FileHandlerBase::UserPresets);
+
+		if (f.isAChildOf(expFolder))
+			return e->getWildcard() + f.withFileExtension("").getRelativePathFrom(expFolder).replace("\\", "/");
+	}
+
+	return {};
+}
+
+void MainController::UserPresetHandler::FactoryPaths::addRecursive(const ValueTree& v, const String& path)
+{
+	if (v["isDirectory"])
+	{
+		String thisPath;
+		
+		thisPath << path << v["FileName"].toString();
+
+		for (auto c : v)
+		{
+			addRecursive(c, thisPath + "/");
+		}
+
+		this->factoryPaths.addIfNotAlreadyThere(thisPath);
+	}
+	if (v.getType() == Identifier("PresetFile"))
+	{
+		String thisFile;
+		
+		thisFile << path << v["FileName"].toString();
+
+		this->factoryPaths.addIfNotAlreadyThere(thisFile);
+		return;
+	}
+}
+#endif
+
 } // namespace hise

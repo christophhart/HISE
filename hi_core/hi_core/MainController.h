@@ -671,6 +671,12 @@ public:
 		/** @internal */
 		void sendRebuildMessage();
 
+		/** Checks if the current preset file (or directory) is marked as read-only.
+		
+			If READ_ONLY_FACTORY_PRESETS is true, this function will check the file path
+			against the ones embedded as factory presets and return true for matches. */
+		bool isReadOnly(const File& f);
+
 		/** Saves a preset. 
 		*
 		*	If you use the MultiColumnPresetBrowser, you won't need to bother about this method,
@@ -691,9 +697,35 @@ public:
 			useUndoForPresetLoads = shouldAllowUndo;
 		}
 
+#if READ_ONLY_FACTORY_PRESETS
+
+		
+
 	private:
 
 
+		struct FactoryPaths
+		{
+			bool contains(MainController* mc, const File& f);
+			void addRecursive(const ValueTree& v, const String& path);
+
+		private:
+
+			void initialise(MainController* mc);
+			String getPath(MainController* mc, const File& f);
+
+			StringArray factoryPaths;
+			bool initialised = false;
+		};
+
+		SharedResourcePointer<FactoryPaths> factoryPaths;
+
+		public:
+
+		FactoryPaths& getFactoryPaths() { return *factoryPaths; }
+#endif
+
+		private:
 
 		SharedResourcePointer<TagDataBase> tagDataBase;
 

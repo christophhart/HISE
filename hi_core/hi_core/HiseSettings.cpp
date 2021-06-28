@@ -94,6 +94,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(ExpansionType);
 	ids.add(EncryptionKey);
 	ids.add(LinkExpansionsToProject);
+	ids.add(ReadOnlyFactoryPresets);
 
 	return ids;
 }
@@ -367,6 +368,12 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		P(HiseSettings::Project::EnableSoundGeneratorsFX);
 		D("If enabled, the effect plugin will also process child sound generators (eg. Global modulation containers and Macro modulation sources");
 		D("> Be aware that the sound output of the child sound generators will not be used, so this is only useful with \"quiet\" sound generators");
+		P_();
+
+
+		P(HiseSettings::Project::ReadOnlyFactoryPresets);
+		D("If enabled, the user presets that are part of the compiled plugin (and expansions) can not be overriden by the end user.");
+		D("> It will grey out the save button for all factory presets");
 		P_();
 
 		P(HiseSettings::Project::VST3Support);
@@ -664,10 +671,11 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Project::UseRawFrontend ||
 		id == Project::LinkExpansionsToProject ||
 		id == Project::SupportFullDynamicsHLAC ||
+		id == Project::ReadOnlyFactoryPresets ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade)
-		return { "Yes", "No" };
+	    return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
 		return { "Visual Studio 2015", "Visual Studio 2017" };
@@ -840,6 +848,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::SupportMonoFX)			return "No";
 	else if (id == Project::EnableMidiInputFX)		return "No";
 	else if (id == Project::EnableSoundGeneratorsFX) return "No";
+	else if (id == Project::ReadOnlyFactoryPresets) return "No";
 	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";

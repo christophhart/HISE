@@ -450,7 +450,7 @@ public:
 	void paint(Graphics& g) override;
 	void resized();
 
-	void updateButtonVisibility();
+	void updateButtonVisibility(bool isReadOnly);
 
 	void tagSelectionChanged(const StringArray& newSelection) override
 	{
@@ -478,7 +478,7 @@ public:
 	void setIsResultBar(bool shouldBeResultBar)
 	{
 		isResultBar = shouldBeResultBar;
-		updateButtonVisibility();
+		updateButtonVisibility(false);
 	}
 
 	void timerCallback() override
@@ -517,6 +517,11 @@ public:
 		listbox->setModel(newModel);
 		newModel->setTotalRoot(totalRoot);
 		listModel = newModel;
+	}
+
+	void showAddButton()
+	{
+		addButton->setVisible(true);
 	}
 
 private:

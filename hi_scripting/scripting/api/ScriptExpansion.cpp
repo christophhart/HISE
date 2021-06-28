@@ -1203,13 +1203,25 @@ void ScriptEncryptedExpansion::extractUserPresetsIfEmpty(ValueTree encryptedTree
 	// the directory might not have been created yet...
 	auto targetDirectory = getRootFolder().getChildFile(FileHandlerBase::getIdentifier(FileHandlerBase::UserPresets));
 
-	if (!targetDirectory.isDirectory() || forceExtraction)
+#if READ_ONLY_FACTORY_PRESETS
+	bool createPathList = true;
+#else
+	bool createPathList = false;
+#endif
+
+	if (!targetDirectory.isDirectory() || forceExtraction || createPathList)
 	{
 		MemoryBlock mb;
 		mb.fromBase64Encoding(presetTree.getProperty(ExpansionIds::Data).toString());
 		ValueTree p;
 		zstd::ZCompressor<hise::UserPresetDictionaryProvider> comp;
 		comp.expand(mb, p);
+
+		if (createPathList)
+		{
+			for (auto c : p)
+				getMainController()->getUserPresetHandler().getFactoryPaths().addRecursive(c, getWildcard());
+		}
 
 		if (p.getNumChildren() != 0)
 		{

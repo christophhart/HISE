@@ -86,6 +86,7 @@ DECLARE_ID(VST3Support);
 DECLARE_ID(ExpansionType);
 DECLARE_ID(EncryptionKey);
 DECLARE_ID(LinkExpansionsToProject);
+DECLARE_ID(ReadOnlyFactoryPresets);
 
 Array<Identifier> getAllIds();
 

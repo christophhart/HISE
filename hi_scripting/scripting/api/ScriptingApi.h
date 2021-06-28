@@ -354,6 +354,9 @@ public:
 		/** Returns a list of all available user presets as relative path. */
 		var getUserPresetList() const;
 
+		/** Checks if the user preset is read only. */
+		bool isUserPresetReadOnly(var optionalFile);
+
 		/** Sets whether the samples are allowed to be duplicated. Set this to false if you operate on the same samples differently. */
 		void setAllowDuplicateSamples(bool shouldAllow);
 

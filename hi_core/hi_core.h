@@ -270,6 +270,13 @@ Set this to 0 to deactivate peak collection for any other processor than the mai
 #define ENABLE_ALL_PEAK_METERS 1
 #endif
 
+/** Config: READ_ONLY_FACTORY_PRESETS 
+
+Set this to 1 to enable read only presets that are shipped with the plugin / expansion. */
+#ifndef READ_ONLY_FACTORY_PRESETS
+#define READ_ONLY_FACTORY_PRESETS 0
+#endif
+
 /** Config: ENABLE_CONSOLE_OUTPUT
 
 Set this to 0 to deactivate the console output

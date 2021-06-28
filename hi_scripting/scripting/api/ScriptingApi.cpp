@@ -837,6 +837,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, loadPreviousUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, setUserPresetTagList);
+	API_VOID_METHOD_WRAPPER_1(Engine, isUserPresetReadOnly);
 	API_METHOD_WRAPPER_0(Engine, getUserPresetList);
 	API_METHOD_WRAPPER_0(Engine, getCurrentUserPresetName);
 	API_VOID_METHOD_WRAPPER_1(Engine, saveUserPreset);
@@ -944,6 +945,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
     ADD_API_METHOD_1(openWebsite);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
+	ADD_API_METHOD_1(isUserPresetReadOnly);
 	ADD_API_METHOD_0(getExpansionList);
 	ADD_API_METHOD_1(setCurrentExpansion);
 	ADD_API_METHOD_1(setUserPresetTagList);
@@ -2045,6 +2047,35 @@ var ScriptingApi::Engine::getUserPresetList() const
 	}
 
 	return var(list);
+}
+
+bool ScriptingApi::Engine::isUserPresetReadOnly(var optionalFile)
+{
+#if USE_BACKEND
+
+	// In HISE we just pass the project setting here (since all user presets will be factory presets...
+	return GET_HISE_SETTING(getScriptProcessor()->getMainController_()->getMainSynthChain(), HiseSettings::Project::ReadOnlyFactoryPresets);
+
+#elif READ_ONLY_FACTORY_PRESETS
+	File fToCheck;
+
+	if (optionalFile.isUndefined())
+		fToCheck = getScriptProcessor()->getMainController_()->getUserPresetHandler().getCurrentlyLoadedFile();
+
+	if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(optionalFile.getObject()))
+		fToCheck = sf->f;
+
+	if (optionalFile.isString())
+	{
+		auto root = getScriptProcessor()->getMainController_()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::UserPresets);
+
+		fToCheck = root.getChildFile(optionalFile.toString()).withFileExtension(".preset");
+	}
+
+	return getScriptProcessor()->getMainController_()->getUserPresetHandler().isReadOnly(fToCheck);
+#else
+	return false;
+#endif
 }
 
 void ScriptingApi::Engine::setAllowDuplicateSamples(bool shouldAllow)
