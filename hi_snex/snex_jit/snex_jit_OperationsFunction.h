@@ -260,6 +260,10 @@ struct Operations::FunctionCall : public Expression
 
 	bool isVectorOpFunction() const;
 
+	bool resolveWithParameters(Array<TypeInfo> t);
+
+	void convertNumericTypes(Array<TypeInfo>& t);
+
 	CallType callType = Unresolved;
 	Array<FunctionData> possibleMatches;
 	mutable FunctionData function;

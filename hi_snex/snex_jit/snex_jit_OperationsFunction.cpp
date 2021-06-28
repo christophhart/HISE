@@ -736,8 +736,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				}
 			}
 
-
-			throwError("Fuuck");
+			throwError("Unknown function " + function.getSignature());
 		}
 
 		if (getObjectExpression()->getTypeInfo().isComplexType())
@@ -896,16 +895,23 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 		}
 
-		for (auto& f : possibleMatches)
+		jassert(compiler == currentCompiler);
+
+		if (resolveWithParameters(parameterTypes))
+			return;
+			
+
+		// The initial type check failed, now we try to "upcast" the numeric arguments
+
+		convertNumericTypes(parameterTypes);
+
+		if (resolveWithParameters(parameterTypes))
 		{
-			if (f.matchesArgumentTypesWithDefault(parameterTypes))
-			{
-				addDefaultParameterExpressions(f);
-				inlineAndSetType(compiler, f);
-				return;
-			}
+			logWarning("Implicit cast of arguments");
+			return;
 		}
 		
+
 		String s;
 		
 		s << "Can't resolve " << function.id.toString() << "(";
@@ -1501,6 +1507,47 @@ void Operations::FunctionCall::adjustBaseClassPointer(BaseCompiler* compiler, Ba
 				}
 			}
 		}
+	}
+}
+
+bool Operations::FunctionCall::resolveWithParameters(Array<TypeInfo> parameterTypes)
+{
+	for (auto& f : possibleMatches)
+	{
+		if (f.matchesArgumentTypesWithDefault(parameterTypes))
+		{
+			addDefaultParameterExpressions(f);
+			inlineAndSetType(currentCompiler, f);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void Operations::FunctionCall::convertNumericTypes(Array<TypeInfo>& types)
+{
+	Types::ID bestType = Types::ID::Integer;
+
+	for (auto& t : types)
+	{
+		if (t.getType() == Types::ID::Double)
+			bestType = Types::ID::Double;
+
+		if (t.getType() == Types::ID::Float && bestType != Types::ID::Double)
+			bestType = Types::ID::Float;
+	}
+
+	for (int i = 0; i < types.size(); i++)
+	{
+		if (types[i].isComplexType())
+			continue;
+
+		getArgument(i)->replaceInParent(new Cast(location, getArgument(i)->clone(location), bestType));
+
+		SyntaxTreeInlineData::processUpToCurrentPass(this, getArgument(i));
+
+		types.set(i, TypeInfo(bestType, types[i].isConst(), types[i].isRef()));
 	}
 }
 

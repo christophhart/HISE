@@ -182,6 +182,10 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	setDescription("returns the absolute (positive) value of the input", { "input" });
 	HNODE_JIT_ADD_C_FUNCTION_3(double, hmath::range, double, double, double, "range"); 
 	setDescription("limits the input to the given range", { "input" , "lowerlimit", "upperlimit"});
+
+	HNODE_JIT_ADD_C_FUNCTION_3(double, hmath::smoothstep, double, double, double, "smoothstep");
+	setDescription("creates a smooth transition between upper and lower limit", { "input" , "lowerlimit", "upperlimit" });
+
 	HNODE_JIT_ADD_C_FUNCTION_2(double, hmath::min, double, double, "min");			
 	setDescription("returns the smaller value", { "firstValue", "secondValue" });
 	HNODE_JIT_ADD_C_FUNCTION_2(double, hmath::max, double, double, "max");			
@@ -224,6 +228,10 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	setDescription("returns the absolute (positive) value of the input", { "input" });
 	HNODE_JIT_ADD_C_FUNCTION_3(float, hmath::range, float, float, float, "range");
 	setDescription("limits the input to the given range", { "input" , "lowerlimit", "upperlimit" });
+
+	HNODE_JIT_ADD_C_FUNCTION_3(float, hmath::smoothstep, float, float, float, "smoothstep");
+	setDescription("creates a smooth transition between upper and lower limit", { "input" , "lowerlimit", "upperlimit" });
+
 	HNODE_JIT_ADD_C_FUNCTION_2(float, hmath::min, float, float, "min");
 	setDescription("returns the smaller value", { "firstValue", "secondValue" });
 	HNODE_JIT_ADD_C_FUNCTION_2(float, hmath::max, float, float, "max");
@@ -231,6 +239,32 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	HNODE_JIT_ADD_C_FUNCTION_0(float, hmath::random, "random");
 	setDescription("returns a 32bit floating point random value", {});
 	
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::sig2mod, float, "sig2mod");
+	setDescription("converts a -1...1 signal to a 0...1 mod signal", { "v" });
+
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::mod2sig, float, "mod2sig");
+	setDescription("converts a 0...1 mod signal to a -1..1 audio signal", { "v" });
+
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sig2mod, double, "sig2mod");
+	setDescription("converts a -1...1 signal to a 0...1 mod signal", { "v" });
+
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::mod2sig, double, "mod2sig");
+	setDescription("converts a 0...1 mod signal to a -1..1 audio signal", { "v" });
+
+	HNODE_JIT_ADD_C_FUNCTION_3(float, hmath::norm, float, float, float, "norm");
+	setDescription("normalises the input using the given range", { "input" , "lowerlimit", "upperlimit" });
+
+	HNODE_JIT_ADD_C_FUNCTION_3(float, hmath::norm, float, float, float, "norm");
+	setDescription("normalises the input using the given range", { "input" , "lowerlimit", "upperlimit" });
+
+	HNODE_JIT_ADD_C_FUNCTION_3(double, hmath::map, double, double, double, "map");
+	setDescription("maps the normalised input to the output range", { "input" , "lowerlimit", "upperlimit" });
+
+	HNODE_JIT_ADD_C_FUNCTION_3(double, hmath::map, double, double, double, "map");
+	setDescription("maps the normalised input to the output range", { "input" , "lowerlimit", "upperlimit" });
+
+
+
 	for (auto f : functions)
 		f->setConst(true);
 
@@ -242,10 +276,13 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	addInliner("min", Inliners::min);
 	addInliner("range", Inliners::range);
 	addInliner("sign", Inliners::sign);
-	addInliner("map", Inliners::map);
+	addInliner("map", Inliners::map, Inliner::InlineType::HighLevel);
 	addInliner("fmod", Inliners::fmod);
 	addInliner("sin", Inliners::sin);
 	addInliner("wrap", Inliners::wrap, Inliner::InlineType::HighLevel);
+	addInliner("norm", Inliners::norm, Inliner::InlineType::HighLevel);
+	addInliner("sig2mod", Inliners::sig2mod, Inliner::InlineType::HighLevel);
+	addInliner("mod2sig", Inliners::mod2sig, Inliner::InlineType::HighLevel);
 
 	for (auto& f : functions)
 	{
@@ -602,26 +639,132 @@ juce::Result MathFunctions::Inliners::sign(InlineData* d_)
 	return Result::ok();
 }
 
-juce::Result MathFunctions::Inliners::map(InlineData* d_)
+
+
+struct Funky
 {
-	SETUP_MATH_INLINE("inline map");
+	Funky(InlineData* b) : b_(b), args({}) { resolveType(); };
+	Funky(InlineData* b, const StringArray& arguments) : b_(b), args(arguments) { resolveType(); }
+	Funky(InlineData* b, const String& a1): b_(b), args(StringArray::fromTokens(a1, ",", "")) { args.trim(); resolveType(); };
 
-	IF_(float)
+	Funky& operator<<(double v)
 	{
-		FP_OP(cc.movss, d->target, ARGS(2));
-		FP_OP(cc.subss, d->target, ARGS(1));
-		FP_OP(cc.mulss, d->target, ARGS(0));
-		FP_OP(cc.addss, d->target, ARGS(1));
-	}
-	IF_(double)
-	{
-		FP_OP(cc.movsd, d->target, ARGS(2));
-		FP_OP(cc.subsd, d->target, ARGS(1));
-		FP_OP(cc.mulsd, d->target, ARGS(0));
-		FP_OP(cc.addsd, d->target, ARGS(1));
+		currentLine << getLiteral(v);
+		return *this;
 	}
 
-	return Result::ok();
+	Funky& operator<<(const String& s)
+	{
+		currentLine << s;
+
+		if (s.contains(";"))
+			flushLine(false);
+
+		return *this;
+	}
+
+	void flushLine(bool addMissingSemicolon=true)
+	{
+		if (addMissingSemicolon && currentLine.isNotEmpty() && !currentLine.endsWith(";"))
+			currentLine << ";";
+
+		c << currentLine;
+		currentLine = {};
+	}
+
+	Result flush()
+	{
+		if (currentLine.isNotEmpty())
+			flushLine();
+
+		return SyntaxTreeInlineParser(b_, args, c).flush();
+	}
+
+	operator Result()
+	{
+		return flush();
+	}
+
+private:
+
+	void resolveType()
+	{
+		auto st = b_->toSyntaxTreeData();
+
+		if(st->target != nullptr)
+			type = st->target->getType();
+
+		if (type == Types::ID::Dynamic || type == Types::ID::Void)
+		{
+			for (auto a : b_->toSyntaxTreeData()->args)
+			{
+				type = a->getType();
+
+				if (type != Types::ID::Dynamic)
+					break;
+			}
+		}
+	}
+
+	String getLiteral(double value)
+	{
+		VariableStorage v(type, var(value));
+		return Types::Helpers::getCppValueString(value);
+	}
+
+	Types::ID type = Types::ID::Dynamic;
+	String currentLine;
+	InlineData* b_;
+	cppgen::Base c;
+	StringArray args;
+};
+
+juce::Result MathFunctions::Inliners::map(InlineData* b)
+{
+	Funky c(b, "v, minValue, maxValue");
+	c << "return v * (maxValue - minValue) + minValue";
+	return c;
+}
+
+juce::Result MathFunctions::Inliners::norm(InlineData* b)
+{
+	Funky c(b, "v, minValue, maxValue");
+	{
+		c << "return (v - minValue) / (maxValue - minValue)";
+	}
+	
+	return c;
+}
+
+juce::Result MathFunctions::Inliners::sig2mod(InlineData* b)
+{
+	Funky c(b, "v");
+	{
+		c << "return v * " << 0.5 << " + " << 0.5;
+	}
+
+	return c;
+}
+
+juce::Result MathFunctions::Inliners::mod2sig(InlineData* b)
+{
+	Funky c(b, "v");
+	{
+		c << "return v * " << 2.0 << "-" << 1.0;
+	}
+	
+	return c;
+}
+
+juce::Result MathFunctions::Inliners::wrap(InlineData* b)
+{
+	Funky c(b, "value, limit");
+	{
+		c << "auto w = Math.fmod(value, limit);";
+		c << "return value >= " << 0.0 << " ? w : Math.fmod(limit + w, limit)";
+	}
+	
+	return c;
 }
 
 juce::Result MathFunctions::Inliners::fmod(InlineData* d_)
@@ -741,31 +884,7 @@ juce::Result MathFunctions::Inliners::sin(InlineData* d_)
 	return Result::ok();
 }
 
-juce::Result MathFunctions::Inliners::wrap(InlineData* b)
-{
-	cppgen::Base c;
-	
 
-
-	String def;
-	
-	String zero;
-
-	auto st = b->toSyntaxTreeData();
-
-	switch (b->toSyntaxTreeData()->args[0]->getType())
-	{
-	case Types::ID::Integer: zero << "0"; break;
-	case Types::ID::Float: zero << "0.0f"; break;
-	case Types::ID::Double: zero << "0.0"; break;
-	}
-
-	def << "return (value >= " << zero << ") ? Math.fmod(value, limit) : Math.fmod(limit + Math.fmod(value, limit), limit);";
-
-	c << def;
-
-	return SyntaxTreeInlineParser(b, { "value", "limit" }, c).flush();
-}
 
 }
 }

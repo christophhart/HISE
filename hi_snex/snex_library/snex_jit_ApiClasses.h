@@ -262,12 +262,15 @@ public:
 		static Result min(InlineData* d);
 		static Result range(InlineData* d);
 		static Result sign(InlineData* b);
-		static Result map(InlineData* b);
-
 		static Result fmod(InlineData* b);
 		static Result sin(InlineData* b);
-
 		static Result wrap(InlineData* b);
+		static Result map(InlineData* b);;
+		static Result norm(InlineData* b);
+		static Result sig2mod(InlineData* b);
+		static Result mod2sig(InlineData* b);
+
+		
 	};
 
 	MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockType);;
