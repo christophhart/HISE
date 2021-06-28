@@ -212,6 +212,14 @@ struct dynamic_base_holder
 			base->setParentNumVoiceListener(l);
 	}
 
+	NormalisableRange<double> getParameterRange() const
+	{
+		if (base != nullptr)
+			return RangeHelpers::getDoubleRange(base->dataTree);
+
+		return {};
+	}
+
 	WeakReference<dynamic_base> displaySource;
 
 	WeakReference<DupliListener> parentNumVoiceListener;
@@ -306,6 +314,8 @@ struct dynamic_step_inv : public dynamic_base
 	NormalisableRange<double> range;
 };
 
+
+
 struct dynamic_from0to1 : public dynamic_base
 {
 	dynamic_from0to1(parameter::dynamic& obj, const NormalisableRange<double>& r) :
@@ -326,8 +336,6 @@ struct dynamic_from0to1 : public dynamic_base
 
 	const NormalisableRange<double> range;
 };
-
-
 
 struct dynamic_to0to1 : public dynamic_base
 {
@@ -394,8 +402,28 @@ struct dynamic_chain : public dynamic_base
 
 	dynamic_base* getFirstIfSingle()
 	{
-		if (targets.size() == 1 && (RangeHelpers::isIdentity(inputRange2) || scaleInput))
-			return targets.removeAndReturn(0);
+		if (targets.size() == 1)
+		{
+			auto first = targets.getFirst();
+
+			if(RangeHelpers::isIdentity(inputRange2))
+				return targets.removeAndReturn(0);
+
+			if (auto expr = dynamic_cast<dynamic_expression*>(first))
+				return nullptr;
+
+			auto outRange = RangeHelpers::getDoubleRange(first->dataTree);
+
+			if (RangeHelpers::isEqual(inputRange2, outRange))
+			{
+				auto s = new dynamic_base();
+				s->obj = first->obj;
+				s->f = first->f;
+				s->setDataTree(first->dataTree);
+
+				return s;
+			}
+		}
 
 		return nullptr;
 	}

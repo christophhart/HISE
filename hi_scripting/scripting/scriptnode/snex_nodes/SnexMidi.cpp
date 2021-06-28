@@ -146,13 +146,13 @@ bool dynamic::getMidiValueWrapped(HiseEvent& e, double& v)
 	switch (currentMode)
 	{
 	case Mode::Gate:
-		return gate().getMidiValue(e, v);
+		return gate<0>().getMidiValue(e, v);
 	case Mode::Velocity:
-		return velocity().getMidiValue(e, v);
+		return velocity<0>().getMidiValue(e, v);
 	case Mode::NoteNumber:
-		return notenumber().getMidiValue(e, v);
+		return notenumber<0>().getMidiValue(e, v);
 	case Mode::Frequency:
-		return frequency().getMidiValue(e, v);
+		return frequency<0>().getMidiValue(e, v);
 	case Mode::Custom:
 	{
 		HiseEvent* eptr = &e;

@@ -95,6 +95,8 @@ struct NodeContainer : public AssignableObject
 
 		var addParameterTarget(NodeBase::Parameter* p)
 		{
+			p->data.setProperty(PropertyIds::Automated, true, p->parent->getUndoManager());
+
 			for (auto c : connections)
 			{
 				if (c->matchesTarget(p))

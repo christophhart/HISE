@@ -62,6 +62,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 {
 	jassert(data.getType() == PropertyIds::Network);
 
+	tempoSyncer.publicModValue = &networkModValue;
+
 	polyHandler.setTempoSyncer(&tempoSyncer);
 	getScriptProcessor()->getMainController_()->addTempoListener(&tempoSyncer);
 
@@ -677,6 +679,46 @@ void DspNetwork::checkIfDeprecated()
 		return d.notOk;
 	});
 #endif
+}
+
+Result DspNetwork::checkBeforeCompilation()
+{
+	for (auto id : getListOfUsedNodeIds())
+	{
+		auto mustBeWrapped = NodeComponent::PopupHelpers::isWrappable(getNodeWithId(id)) == 2;
+
+		if (mustBeWrapped)
+			return Result::fail(id + " needs to be wrapped into a compileable DSP network");
+	}
+
+	if (projectNodeHolder.dll != nullptr)
+	{
+		auto dll = projectNodeHolder.dll;
+		auto fileList = BackendDllManager::getNetworkFiles(getScriptProcessor()->getMainController_(), false);
+
+		for (auto nId : fileList)
+		{
+			auto id = nId.getFileNameWithoutExtension();
+			auto prHash = BackendDllManager::getHashForNetworkFile(getScriptProcessor()->getMainController_(), id);
+			bool found = false;
+
+			for (int i = 0; i < dll->getNumNodes(); i++)
+			{
+				if (dll->getNodeId(i) == id)
+				{
+					found = true;
+
+					if (prHash != dll->getHash(i))
+						return Result::fail(id + " hash mismatch");
+				}
+			}
+
+			if (!found)
+				return Result::fail(id + " is not compiled");
+		}
+	}
+
+	return Result::ok();
 }
 
 void DspNetwork::addToSelection(NodeBase* node, ModifierKeys mods)

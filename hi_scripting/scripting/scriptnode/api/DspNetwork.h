@@ -605,12 +605,12 @@ public:
 
 	bool isPolyphonic() const { return isPoly; }
 
-	bool handleModulation(double& modValue)
+	bool handleModulation(double& v)
 	{
 		if (isFrozen())
-			return projectNodeHolder.handleModulation(modValue);
+			return projectNodeHolder.handleModulation(v);
 		else
-			return tempoSyncer.publicModValue.getChangedValue(modValue);
+			return networkModValue.getChangedValue(v);
 	}
 
 	Identifier getParameterIdentifier(int parameterIndex);
@@ -672,6 +672,8 @@ public:
 	NodeBase* getNodeWithId(const String& id) const;
 
 	void checkIfDeprecated();
+
+	Result checkBeforeCompilation();
 
 	struct SelectionListener
 	{
@@ -824,7 +826,11 @@ public:
 		return &polyHandler;
 	}
 
+	ModValue& getNetworkModValue() { return networkModValue; }
+
 private:
+
+	ModValue networkModValue;
 
 	bool enableCpuProfiling = false;
 
@@ -1032,6 +1038,7 @@ struct OpaqueNetworkHolder
 
 	void prepare(PrepareSpecs ps)
 	{
+		snex::Types::DllBoundaryTempoSyncer::ScopedModValueChange smvs(*ps.voiceIndex->getTempoSyncer(), ownedNetwork->getNetworkModValue());
 		ownedNetwork->prepareToPlay(ps.sampleRate, ps.blockSize);
 	}
 
@@ -1209,10 +1216,17 @@ struct DspNetworkListeners
 			if (changed || forceDelete)
 			{
 				anythingChanged(valuetree::AnyListener::PropertyChange);
+
 				auto ofile = d.getSiblingFile(network->getRootNode()->getId()).withFileExtension(".xml");
-				ofile.deleteFile();
-				auto ok = d.moveFileTo(ofile);
-				jassert(ok);
+				auto backup = ofile.loadFileAsString();
+				auto ok = ofile.deleteFile();
+
+				if(ok)
+					ok = d.moveFileTo(ofile);
+
+				if (!ok)
+					ofile.replaceWithText(backup);
+
 				creationTime = Time::getMillisecondCounter();
 			}
 		}

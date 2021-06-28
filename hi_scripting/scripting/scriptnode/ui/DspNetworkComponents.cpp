@@ -2141,7 +2141,7 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 
 			auto s = g.network->getSelection().getFirst();
 
-			m.addItem((int)NodeComponent::MenuActions::WrapIntoDspNetwork, "Wrap into DSP Network", s != nullptr && s->getValueTree()[PropertyIds::FactoryPath].toString() == "container.chain");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoDspNetwork, "Wrap into DSP Network", NodeComponent::PopupHelpers::isWrappable(s) != 0);
 
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoChain, "Wrap into chain");
 
@@ -2315,8 +2315,6 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 	actionButtons.add(b);
 	addAndMakeVisible(b);
 }
-
-
 
 void KeyboardPopup::TagList::Tag::paint(Graphics& g)
 {

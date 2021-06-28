@@ -167,6 +167,7 @@ var ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 	m.setProperty(PropertyIds::Enabled, true, nullptr);
 
 	n->getTreeWithValue().setProperty(PropertyIds::ModulationTarget, true, getUndoManager());
+	n->getTreeWithValue().setProperty(PropertyIds::Automated, true, getUndoManager());
 
 	auto range = RangeHelpers::getDoubleRange(n->data);
 

@@ -288,6 +288,8 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 {
 	typedef void(*MyFunc)(void*, double);
 
+	
+
 	struct Item
 	{
 		Item() :
@@ -356,7 +358,29 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 	hise::UnorderedStack<Item, 32> data;
 
 	// Oh boy, what a disgrace...
-	ModValue publicModValue;
+	ModValue* publicModValue = nullptr;
+
+	/** This can be used to temporarily change the pointer to the mod value.
+		The OpaqueNetworkHolder uses this abomination of a class in the prepare
+		call back in order to allow public_mod nodes to use the parent's network mod value.
+	*/
+	struct ScopedModValueChange
+	{
+		ScopedModValueChange(DllBoundaryTempoSyncer& d_, ModValue& m) :
+			d(d_),
+			prev(d.publicModValue)
+		{
+			d.publicModValue = &m;
+		}
+
+		~ScopedModValueChange()
+		{
+			d.publicModValue = prev;
+		}
+
+		DllBoundaryTempoSyncer& d;
+		ModValue* prev;
+	};
 };
 
 /** The PolyHandler can be used in order to create data structures that can be used

@@ -165,6 +165,9 @@ struct Node : public ReferenceCountedObject,
 
 	bool addOptionalModeTemplate()
 	{
+		if (readOnly)
+			return false;
+
 		if (hasProperty(PropertyIds::HasModeTemplateArgument, false))
 		{
 			auto fId = NamespacedIdentifier(CustomNodeProperties::getModeNamespace(nodeTree));
@@ -183,7 +186,14 @@ struct Node : public ReferenceCountedObject,
 		return false;
 	}
 
+	void setReadOnly()
+	{
+		readOnly = true;
+	}
+
 	ValueTree nodeTree;
+
+	bool readOnly = false;
 };
 
 
@@ -704,6 +714,23 @@ private:
 		Node::Ptr n;
 	};
 
+	struct ExpressionNodeBuilder
+	{
+		ExpressionNodeBuilder(ValueTreeBuilder& parent_, Node::Ptr u, bool isMathNode):
+			parent(parent_),
+			mathNode(isMathNode),
+			n(u)
+		{
+
+		}
+
+		Node::Ptr parse();
+
+		ValueTreeBuilder& parent;
+		Node::Ptr n;
+		const bool mathNode;
+	};
+
 	Format outputFormat =  Format::TestCaseFile;
 
 	String getGlueCode(FormatGlueCode c);
@@ -736,6 +763,8 @@ private:
 	Node::Ptr parseComplexDataNode(Node::Ptr u, bool flushNode=true);
 
 	Node::Ptr parseOptionalSnexNode(Node::Ptr u);
+
+	Node::Ptr parseExpressionNode(Node::Ptr u);
 
 	Node::Ptr parseSnexNode(Node::Ptr u);
 

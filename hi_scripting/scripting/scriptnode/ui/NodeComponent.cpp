@@ -497,6 +497,9 @@ void NodeComponent::selectionChanged(const NodeBase::List& selection)
 	}
 }
 
+
+
+
 void NodeComponent::fillContextMenu(PopupMenu& m)
 {
 	m.addItem((int)MenuActions::ExportAsSnippet, "Export as snippet");
@@ -583,97 +586,125 @@ void NodeComponent::handlePopupMenuResult(int result)
 	}
 	if (result == (int)MenuActions::WrapIntoDspNetwork)
 	{
-		ValueTree nData(PropertyIds::Network);
+		auto wType = PopupHelpers::isWrappable(node);
 
-		auto rootTree = node->getRootNetwork()->getValueTree();
-
-		// mirror all properties from the parent network;
-		for (int i = 0; i < rootTree.getNumProperties(); i++)
-			nData.setProperty(rootTree.getPropertyName(i), rootTree.getProperty(rootTree.getPropertyName(i)), nullptr);
-
-		nData.setProperty(PropertyIds::ID, node->getId(), nullptr);
-		nData.addChild(node->getValueTree().createCopy(), -1, nullptr);
-
-		
-
-		auto ndir = BackendDllManager::getSubFolder(node->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Networks);
-
-		auto tFile = ndir.getChildFile(node->getId()).withFileExtension("xml");
-
-		if (!tFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite file", "Do you want to overwrite the file " + tFile.getFileName()))
+		if (wType == 2)
 		{
-			auto xml = nData.createXml();
-			tFile.replaceWithText(xml->createDocument(""));
-			
-			auto newPath = "project." + node->getId();
-			node->setValueTreeProperty(PropertyIds::FactoryPath, newPath);
+			auto id = node->getId();
 
-			PresetHandler::showMessageWindow("Exported chain as new network", "Reload this patch to apply the change");
-			return;
+			struct ConnectionState
+			{
+				ConnectionState(ValueTree v, bool isInput):
+					sourceTree(v),
+					input(isInput)
+				{
+
+				}
+
+				void removeOldConnection(NodeBase::Ptr old)
+				{
+					oldParent = sourceTree.getParent();
+					oldParent.removeChild(sourceTree, old->getUndoManager());
+				}
+
+				void addNewConnection(NodeBase::Ptr n)
+				{
+					if (input)
+					{
+						auto oldId = sourceTree[PropertyIds::NodeId].toString();
+						auto newId = n->getId();
+						sourceTree.setProperty(PropertyIds::NodeId, newId, n->getUndoManager());
+						oldParent.addChild(sourceTree, -1, n->getUndoManager());
+					}
+					else
+					{
+						auto tTree = n->getValueTree().getOrCreateChildWithName(PropertyIds::ModulationTargets, n->getUndoManager());
+						tTree.addChild(sourceTree, -1, n->getUndoManager());
+					}
+					
+				}
+
+				ValueTree sourceTree;
+				ValueTree oldParent;
+				const bool input;
+			};
+
+			Array<ConnectionState> existingConnections;
+
+			for (int i = 0; i < node->getNumParameters(); i++)
+			{
+				auto sourceConnection = node->getParameter(i)->getConnectionSourceTree(true);
+
+				if(sourceConnection.isValid())
+					existingConnections.add(ConnectionState(sourceConnection, true));
+			}
+
+			if (auto modNode = dynamic_cast<ModulationSourceNode*>(node.get()))
+			{
+				for (auto c : modNode->getModulationTargetTree())
+				{
+					existingConnections.add(ConnectionState(c, false));
+				}
+			}
+
+			for (auto& c : existingConnections)
+			{
+				c.removeOldConnection(node);
+			}
+
+			if (id == node->getPath().getIdentifier().toString())
+			{
+				id = PresetHandler::getCustomName(id, "Enter a customized name for the node");
+			}
+
+			String newId = id + "_";
+
+			node->setValueTreeProperty(PropertyIds::ID, newId);
+
+			PopupHelpers::wrapIntoChain(node, MenuActions::WrapIntoChain, id);
+
+			auto pn = node->getParentNode();
+			pn->getValueTree().setProperty(PropertyIds::ShowParameters, true, node->getUndoManager());
+
+			if (auto modNode = dynamic_cast<ModulationSourceNode*>(node.get()))
+			{
+				String pmodId = id + "_pm";
+				var pmodvar = node->getRootNetwork()->create("routing.public_mod", pmodId);
+
+				auto pmod = dynamic_cast<NodeBase*>(pmodvar.getObject());
+
+				pmod->setParent(var(pn), 1);
+
+				jassert(modNode != nullptr);
+
+				modNode->addModulationTarget(pmod->getParameter(0));
+			}
+
+			for (int i = 0; i < node->getNumParameters(); i++)
+			{
+				pn->getParameterTree().addChild(node->getParameter(i)->data.createCopy(), -1, node->getUndoManager());
+			}
+
+			for (int i = 0; i < pn->getNumParameters(); i++)
+			{
+				auto m = dynamic_cast<NodeContainer::MacroParameter*>(pn->getParameter(i));
+				m->addParameterTarget(node->getParameter(i));
+			}
+
+			PopupHelpers::wrapIntoNetwork(pn, true);
+
+			for (auto& c : existingConnections)
+				c.addNewConnection(pn);
 		}
 
+		if (wType == 1)
+		{
+			PopupHelpers::wrapIntoNetwork(node, PresetHandler::showYesNoWindow("Compile this network", "Do you want to include the new network into the compilation?", PresetHandler::IconType::Question));
+		}
 	}
 	if (result >= (int)MenuActions::WrapIntoChain && result <= (int)MenuActions::WrapIntoOversample4)
 	{
-		auto framePath = "container.frame" + String(node->getCurrentChannelAmount()) + "_block";
-
-		StringArray ids = { "container.chain", "container.split", "container.multi",
-						      framePath, "container.oversample4x" };
-
-		int idIndex = result - (int)MenuActions::WrapIntoChain;
-
-		auto path = ids[idIndex];
-
-		
-		int index = 1;
-		
-		auto newId = "wrap" + node->getId() + String(index);
-
-		auto network = node->getRootNetwork();
-
-		while (network->get(newId).isObject())
-		{
-			index++;
-			newId = "wrap" + node->getId() + String(index);
-		}
-		
-		auto newNode = node->getRootNetwork()->create(path, newId);
-
-		if (auto newContainer = dynamic_cast<NodeBase*>(newNode.getObject()))
-		{
-			auto containerTree = newContainer->getValueTree();
-
-			auto um = node->getUndoManager();
-
-			auto selection = network->getSelection();
-
-			if (selection.isEmpty() || !selection.contains(node))
-			{
-				auto nodeTree = node->getValueTree();
-				auto parent = nodeTree.getParent();
-				auto nIndex = parent.indexOf(nodeTree);
-
-				parent.removeChild(nodeTree, um);
-				containerTree.getChildWithName(PropertyIds::Nodes).addChild(nodeTree, -1, um);
-
-				jassert(!containerTree.getParent().isValid());
-
-				parent.addChild(containerTree, nIndex, um);
-			}
-			else
-			{
-				auto parent = selection.getFirst()->getValueTree().getParent();
-				auto nIndex = parent.indexOf(selection.getFirst()->getValueTree());
-
-				for (auto n : selection)
-				{
-					n->getValueTree().getParent().removeChild(n->getValueTree(), um);
-					containerTree.getChildWithName(PropertyIds::Nodes).addChild(n->getValueTree(), -1, um);
-				}
-
-				parent.addChild(containerTree, nIndex, um);
-			}
-		}
+		PopupHelpers::wrapIntoChain(node, (MenuActions)result);
 	}
 	if (result >= (int)MenuActions::SurroundWithFeedback && result <= (int)MenuActions::SurroundWithMSDecoder)
 	{
@@ -950,6 +981,127 @@ void NodeComponent::EmbeddedNetworkBar::resized()
 void NodeComponent::EmbeddedNetworkBar::updateFreezeState(const Identifier& id, const var& newValue)
 {
 	freezeButton.setToggleStateAndUpdateIcon((bool)newValue);
+}
+
+int NodeComponent::PopupHelpers::isWrappable(NodeBase* n)
+{
+	if (n == nullptr)
+		return 0;
+
+	auto nodeTree = n->getValueTree();
+
+	auto p = n->getPath();
+
+	auto isOptionalSnex = snex::cppgen::CustomNodeProperties::nodeHasProperty(nodeTree, PropertyIds::IsOptionalSnexNode);
+	auto isSnex = p.getIdentifier().toString().contains("snex");
+	auto isChain = p == NamespacedIdentifier::fromString("container::chain");
+	auto isExpression = p.getIdentifier().toString().endsWith("expr");
+
+	if (isChain)
+		return 1;
+
+	if (isSnex || isOptionalSnex || isExpression)
+		return 2;
+
+	return 0;
+}
+
+void NodeComponent::PopupHelpers::wrapIntoNetwork(NodeBase* node, bool makeCompileable)
+{
+	ValueTree nData(PropertyIds::Network);
+
+	auto rootTree = node->getRootNetwork()->getValueTree();
+
+	// mirror all properties from the parent network;
+	for (int i = 0; i < rootTree.getNumProperties(); i++)
+		nData.setProperty(rootTree.getPropertyName(i), rootTree.getProperty(rootTree.getPropertyName(i)), nullptr);
+
+	nData.setProperty(PropertyIds::ID, node->getId(), nullptr);
+	nData.addChild(node->getValueTree().createCopy(), -1, nullptr);
+
+	auto ndir = BackendDllManager::getSubFolder(node->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Networks);
+
+	auto tFile = ndir.getChildFile(node->getId()).withFileExtension("xml");
+
+	if (makeCompileable)
+		nData.setProperty(PropertyIds::AllowCompilation, makeCompileable, nullptr);
+
+	if (!tFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite file", "Do you want to overwrite the file " + tFile.getFileName()))
+	{
+		auto xml = nData.createXml();
+		tFile.replaceWithText(xml->createDocument(""));
+
+		auto newPath = "project." + node->getId();
+		node->setValueTreeProperty(PropertyIds::FactoryPath, newPath);
+
+		PresetHandler::showMessageWindow("Exported chain as new network", "Reload this patch to apply the change");
+		return;
+	}
+}
+
+void NodeComponent::PopupHelpers::wrapIntoChain(NodeBase* node, MenuActions result, String idToUse)
+{
+	auto framePath = "container.frame" + String(node->getCurrentChannelAmount()) + "_block";
+
+	StringArray ids = { "container.chain", "container.split", "container.multi",
+						  framePath, "container.oversample4x" };
+
+	int idIndex = (int)result - (int)MenuActions::WrapIntoChain;
+
+	auto path = ids[idIndex];
+
+	int index = 1;
+
+	if (idToUse.isEmpty())
+	{
+		idToUse = "wrap" + node->getId() + String(index);
+	}
+
+	auto network = node->getRootNetwork();
+
+	while (network->get(idToUse).isObject())
+	{
+		index++;
+		idToUse = "wrap" + node->getId() + String(index);
+	}
+
+	auto newNode = node->getRootNetwork()->create(path, idToUse);
+
+	if (auto newContainer = dynamic_cast<NodeBase*>(newNode.getObject()))
+	{
+		auto containerTree = newContainer->getValueTree();
+
+		auto um = node->getUndoManager();
+
+		auto selection = network->getSelection();
+
+		if (selection.isEmpty() || !selection.contains(node))
+		{
+			auto nodeTree = node->getValueTree();
+			auto parent = nodeTree.getParent();
+			auto nIndex = parent.indexOf(nodeTree);
+
+			parent.removeChild(nodeTree, um);
+			containerTree.getChildWithName(PropertyIds::Nodes).addChild(nodeTree, -1, um);
+
+			jassert(!containerTree.getParent().isValid());
+
+			parent.addChild(containerTree, nIndex, um);
+		}
+		else
+		{
+			auto parent = selection.getFirst()->getValueTree().getParent();
+			auto nIndex = parent.indexOf(selection.getFirst()->getValueTree());
+
+			for (auto n : selection)
+			{
+				n->getValueTree().getParent().removeChild(n->getValueTree(), um);
+				containerTree.getChildWithName(PropertyIds::Nodes).addChild(n->getValueTree(), -1, um);
+			}
+
+			parent.addChild(containerTree, nIndex, um);
+		}
+	}
 }
 
 }

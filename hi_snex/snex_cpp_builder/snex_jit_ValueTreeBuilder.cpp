@@ -403,6 +403,11 @@ Node::Ptr ValueTreeBuilder::parseOptionalSnexNode(Node::Ptr u)
 		}
 	}
 
+	if (getNodePath(u->nodeTree).getIdentifier().toString().endsWith("expr"))
+	{
+		return parseExpressionNode(u);
+	}
+
 	if (p.contains("snex"))
 		return parseSnexNode(u);
 
@@ -426,11 +431,19 @@ Node::Ptr ValueTreeBuilder::parseOptionalSnexNode(Node::Ptr u)
 }
 
 
+Node::Ptr ValueTreeBuilder::parseExpressionNode(Node::Ptr u)
+{
+	bool isMathNode = getNodePath(u->nodeTree).getParent() == NamespacedIdentifier("math");
+	ExpressionNodeBuilder nb(*this, u, isMathNode);
+
+	return parseMod(nb.parse());
+}
+
 Node::Ptr ValueTreeBuilder::parseSnexNode(Node::Ptr u)
 {
 	SnexNodeBuilder s(*this, u);
 
-	return parseComplexDataNode(s.parse());
+	return parseMod(s.parse());
 }
 
 Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
@@ -1327,15 +1340,6 @@ bool ValueTreeIterator::isAutomated(const ValueTree& parameterTree)
 bool ValueTreeIterator::isControlNode(const ValueTree& nodeTree)
 {
 	return CustomNodeProperties::nodeHasProperty(nodeTree, PropertyIds::IsControlNode);
-
-	static const StringArray controlNodes{ "control.pma",
-											"control.cable_table",
-											"control.cable_pack",
-											"control.xfader",
-											"control.sliderbank" };
-
-	auto p = nodeTree[PropertyIds::FactoryPath].toString();
-	return controlNodes.contains(p);
 }
 
 String ValueTreeIterator::getSnexCode(const ValueTree& nodeTree)
@@ -2391,6 +2395,9 @@ Node::Ptr ValueTreeBuilder::SnexNodeBuilder::parseWrappedSnexNode()
 
 	*wn << ud;
 
+	// Avoid appending other template types...
+	wn->setReadOnly();
+
 	return wn;
 }
 
@@ -2405,6 +2412,35 @@ Node::Ptr ValueTreeBuilder::SnexNodeBuilder::parseUnwrappedSnexNode()
 	parent.addEmptyLine();
 
 	return wn;
+}
+
+Node::Ptr ValueTreeBuilder::ExpressionNodeBuilder::parse()
+{
+	auto code = ValueTreeIterator::getNodeProperty(n->nodeTree, PropertyIds::Code).toString();
+	auto id = n->nodeTree[PropertyIds::ID].toString();
+
+	Namespace ns(parent, "custom", false);
+	
+	Struct s(parent, id, {}, {});
+
+	auto sig = mathNode ? "static float op(float input, float value)" :
+						   "static double op(double input)";
+
+	parent << sig;
+
+	{
+		StatementBlock sb(parent);
+		String l;
+		l << "return " << code << ";";
+		parent << l;
+	}
+
+	s.flushIfNot();
+	ns.flushIfNot();
+
+	*n << s.toExpression();
+
+	return n;
 }
 
 }

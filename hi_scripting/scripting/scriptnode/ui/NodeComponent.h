@@ -233,6 +233,20 @@ public:
 
 	void selectionChanged(const NodeBase::List& selection) override;
 
+	struct PopupHelpers
+	{
+		static int isWrappable(NodeBase* n);
+
+		static void wrapIntoNetwork(NodeBase* node, bool makeCompileable=false);
+
+		static void wrapIntoChain(NodeBase* node, MenuActions result, String idToUse = String());
+	};
+
+	
+
+	
+
+
 	virtual void fillContextMenu(PopupMenu& m);
 
 	virtual void handlePopupMenuResult(int result);

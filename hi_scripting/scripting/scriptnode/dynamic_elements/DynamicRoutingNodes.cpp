@@ -75,6 +75,9 @@ using MatrixEditor = HostHelpers::NoExtraComponent;
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
+	// create this once to set the property...
+	public_mod once;
+
 	registerNode<matrix<dynamic_matrix>, MatrixEditor>();
 
 	registerNode<dynamic_send, cable::dynamic::editor>();
