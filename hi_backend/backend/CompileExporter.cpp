@@ -866,6 +866,22 @@ bool CompileExporter::checkSanity(BuildOption option)
     }
 #endif
     
+	auto networks = ProcessorHelpers::getListOfAllProcessors<scriptnode::DspNetwork::Holder>(chainToExport);
+
+	for (auto n : networks)
+	{
+		if (auto network = n->getActiveNetwork())
+		{
+			auto r = network->checkBeforeCompilation();
+
+			if (!r.wasOk())
+			{
+				printErrorMessage("DSP Network sanity check failed", r.getErrorMessage());
+				return false;
+			}
+		}
+	}
+
     if(!shouldBeSilent() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
     {
         const String faultySample = checkSampleReferences(chainToExport);

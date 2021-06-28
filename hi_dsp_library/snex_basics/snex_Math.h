@@ -150,6 +150,7 @@ return b1; \
 	static constexpr float max(float value1, float value2) { return jmax<float>(value1, value2); };
 	static forcedinline float random() { return Random::getSystemRandom().nextFloat(); };
 	static forcedinline float fmod(float x, float y) { return std::fmod(x, y); };
+	
 
 	static constexpr int fmod(int x, int y) { return x % y; };
 
@@ -188,6 +189,15 @@ return b1; \
 	static constexpr int round(int value) { return value; };
 	static forcedinline int randInt(int low = 0, int high = INT_MAX) { return  Random::getSystemRandom().nextInt(Range<int>((int)low, (int)high)); }
 
+	static forcedinline double smoothstep(double input, double lower, double upper)
+	{
+		auto t = range((input - lower) / (upper - lower), 0.0, 1.0);
+		return range(t * t * (3.0 - 2.0 * t), 0.0, 1.0);
+	}
+
+	static constexpr	double sig2mod(double v) { return v * 0.5 + 0.5; };
+	static constexpr	double mod2sig(double v) { return v * 2.0 - 1.0; };
+	static constexpr	double norm(double v, double minValue, double maxValue) { return (v - minValue) / (maxValue - minValue); }
 	static forcedinline double map(double normalisedInput, double start, double end) { return jmap<double>(normalisedInput, start, end); }
 	static forcedinline double sin(double a) { return std_::sin(a); }
 	static forcedinline double asin(double a) { return std_::asin(a); }
@@ -209,11 +219,17 @@ return b1; \
 	static forcedinline double floor(double a) { return std_::floor(a); }
 	static forcedinline double db2gain(double a) { return Decibels::decibelsToGain(a); }
 	static forcedinline double gain2db(double a) { return Decibels::gainToDecibels(a); }
-	static forcedinline double fmod(double x, double y)
-	{
-		return std::fmod(x, y);
-	};
+	static forcedinline double fmod(double x, double y) { return std::fmod(x, y); };
 
+	static forcedinline float smoothstep(float input, float lower, float upper)
+	{
+		auto t = range((input - lower) / (upper - lower), 0.0f, 1.0f);
+		return range(t * t * (3.0f - 2.0f * t), 0.0f, 1.0f);
+	}
+
+	static constexpr	float sig2mod(float v) { return v * 0.5f + 0.5f; };
+	static constexpr	float mod2sig(float v) { return v * 2.0f - 1.0f; };
+	static constexpr	float norm(float v, float minValue, float maxValue) { return (v - minValue) / (maxValue - minValue); }
 	static forcedinline float map(float normalisedInput, float start, float end) { return jmap<float>(normalisedInput, start, end); }
 	static forcedinline float sin(float a) { return std_::sinf(a); }
 	static forcedinline float asin(float a) { return std_::asinf(a); }

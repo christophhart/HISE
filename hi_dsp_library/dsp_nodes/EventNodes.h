@@ -93,7 +93,7 @@ template <int NV> struct toggle
 namespace midi_logic
 {
 
-struct gate
+template <int Unused> struct gate
 {
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_INITIALISE;
@@ -110,7 +110,7 @@ struct gate
 	}
 };
 
-struct velocity
+template <int Unused> struct velocity
 {
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_INITIALISE;
@@ -127,7 +127,7 @@ struct velocity
 	}
 };
 
-struct notenumber
+template <int Unused> struct notenumber
 {
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_INITIALISE;
@@ -144,7 +144,7 @@ struct notenumber
 	}
 };
 
-struct frequency
+template <int Unused> struct frequency
 {
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_INITIALISE;
@@ -204,6 +204,7 @@ public:
 	{
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsProcessingHiseEvent);
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsOptionalSnexNode);
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::TemplateArgumentIsPolyphonic);
 	};
 	
 	HISE_EMPTY_PROCESS_SINGLE;

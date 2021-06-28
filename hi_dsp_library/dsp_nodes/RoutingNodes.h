@@ -236,7 +236,7 @@ struct public_mod
 		// This is beyond ugly, but somebody has tucked a mod value to the temposyncer...
 
 		if (ptr == nullptr)
-			ptr = &ps.voiceIndex->getTempoSyncer()->publicModValue;
+			ptr = ps.voiceIndex->getTempoSyncer()->publicModValue;
 	}
 
 	public_mod()
