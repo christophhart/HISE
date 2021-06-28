@@ -149,7 +149,7 @@ struct JitExpression : public ReferenceCountedObject
 	*/
 	using Ptr = ReferenceCountedObjectPtr<JitExpression>;
 
-	JitExpression(const String& s, DebugHandler* consoleHandler=nullptr);
+	JitExpression(const String& s, DebugHandler* consoleHandler=nullptr, bool hasFloatValueInput=false);
 
 	/** Evaluates the expression and returns the value. 
 	
@@ -159,6 +159,12 @@ struct JitExpression : public ReferenceCountedObject
 
 	/** Evaluates the expression. Make sure it's valid before calling it!. */
 	double getValueUnchecked(double input) const;
+
+	/** Evaluates the expression with a value input. */
+	float getFloatValueWithInput(float input, float value);
+
+	/** Evaluates the expression with a value input. Make sure it's valid before calling it!. */
+	float getFloatValueWithInputUnchecked(float input, float value);
 
 	/** Returns the last error message or an empty string if everything was fine. */
 	String getErrorMessage() const;
@@ -175,6 +181,7 @@ struct JitExpression : public ReferenceCountedObject
 
 private:
 
+	const bool hasFloatValue = 0;
 	String errorMessage;
 	jit::GlobalScope memory;
 	jit::JitObject obj;

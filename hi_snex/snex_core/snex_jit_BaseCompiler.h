@@ -242,7 +242,16 @@ public:
 
 	MathFunctions& getMathFunctionClass();
 
+	void setUseCodeInErrorMessage(bool shouldIncludeCodeSnippet)
+	{
+		useCodeSnippet = shouldIncludeCodeSnippet;
+	}
+
+	bool useCodeSnippetInErrorMessage() const { return useCodeSnippet; }
+
 private:
+
+	bool useCodeSnippet = false;
 
 	FunctionClass::Ptr mathFunctions;
 

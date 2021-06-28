@@ -42,7 +42,7 @@ namespace math
 namespace Operations
 {
 #define SET_ID(x) static Identifier getId() { RETURN_STATIC_IDENTIFIER(#x); }
-#define SET_DEFAULT(x) static constexpr float defaultValue = x;
+#define SET_DEFAULT(x) float getDefaultValue() const { return x; }
 
 
 #define OP_BLOCK(data, value) template <typename PD> static void op(PD& data, float value)
@@ -51,7 +51,7 @@ namespace Operations
 
 	struct mul
 	{
-		SET_ID(mul); SET_DEFAULT(1.0f);
+		SET_ID(mul);
 
 		OP_BLOCK(data, value)
 		{
@@ -307,9 +307,33 @@ namespace Operations
 	};
 }
 
+template <class OpType> class OpNodeBase : public mothernode,
+										   public polyphonic_base
+{
+public:
 
+	OpNodeBase():
+		polyphonic_base(OpType::getId(), false)
+	{
 
-template <class OpType, int V> class OpNode
+	}
+
+	virtual ~OpNodeBase() {};
+
+	HISE_DEFAULT_INIT(OpType);
+
+	float getDefaultValue() const
+	{
+		if constexpr (prototypes::check::getDefaultValue<OpType>::value)
+			return obj.getDefaultValue();
+		else
+			return 1.0f;
+	}
+
+	OpType obj;
+};
+
+template <class OpType, int V> class OpNode: public OpNodeBase<OpType>
 {
 public:
 
@@ -332,21 +356,23 @@ public:
 	SN_GET_SELF_AS_OBJECT(OpNode);
 	SN_DESCRIPTION("A math operator on the input signal");
 	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_INITIALISE;
-
-	OpNode() = default;
-	OpNode(const OpNode& other) = default;
-
 	
+	OpNode()
+	{
+		for (auto v : value)
+			v = getDefaultValue();
+	}
+
+	OpNode(const OpNode& other) = default;
 
 	template <typename PD> void process(PD& d)
 	{
-        OpType::template op<PD>(d, value.get());
+		this->obj.op(d, value.get());
 	}
 
 	template <typename FD> void processFrame(FD& d)
 	{
-		OpType::opSingle(d, value.get());
+		this->obj.opSingle(d, value.get());
 	}
 
 	HISE_EMPTY_RESET;
@@ -360,7 +386,7 @@ public:
 	{
 		{
 			DEFINE_PARAMETERDATA(OpNode, Value);
-			p.setDefaultValue(OpType::defaultValue);
+			p.setDefaultValue(getDefaultValue());
 			data.add(std::move(p));
 		}
 	}
@@ -371,7 +397,7 @@ public:
 			v = (float)newValue;
 	}
 
-	PolyData<float, NumVoices> value = OpType::defaultValue;
+	PolyData<float, NumVoices> value;
 };
 
 #define DEFINE_MONO_OP_NODE(monoName) using monoName = OpNode<Operations::monoName, 1>;
@@ -393,6 +419,27 @@ DEFINE_MONO_OP_NODE(clear);
 DEFINE_MONO_OP_NODE(square);
 DEFINE_MONO_OP_NODE(sqrt);
 DEFINE_MONO_OP_NODE(pow);
+
+template <typename ExpressionClass> struct expression_base
+{
+	static Identifier getId() { return "expr"; };
+
+	template <typename T> static void op(T& data, float value)
+	{
+		for (auto& ch : data)
+		{
+			for (auto& s : data.toChannelData(ch))
+				s = ExpressionClass::op(s, value);
+		}
+	}
+	template <typename T> static void opSingle(T& data, float value)
+	{
+		for (auto& s : data)
+			s = ExpressionClass::op(s, value);
+	}
+};
+
+template <int NV, class ExpressionClass> using expr = OpNode<expression_base<ExpressionClass>, NV>;
 
 }
 

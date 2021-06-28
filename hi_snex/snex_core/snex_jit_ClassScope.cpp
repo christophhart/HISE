@@ -141,8 +141,10 @@ public:
 		{
 			syntaxTree = nullptr;
 
-			logMessage(BaseCompiler::Error, e.toString());
-			lastResult = Result::fail(e.toString());
+			auto m = e.toString(useCodeSnippetInErrorMessage() ? ParserHelpers::Error::Format::CodeExample : ParserHelpers::Error::Format::LineNumbers);
+
+			logMessage(BaseCompiler::Error, m);
+			lastResult = Result::fail(m);
 		}
 
 		return newScope.release();

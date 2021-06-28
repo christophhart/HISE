@@ -198,10 +198,11 @@ snex::jit::NamespaceHandler& Compiler::parseWithoutCompilation(const juce::Strin
 	return compiler->namespaceHandler;
 }
 
-void Compiler::setDebugHandler(DebugHandler* newHandler)
+void Compiler::setDebugHandler(DebugHandler* newHandler, bool useLineNumbersInErrorMessage)
 {
 	compiler->setDebugHandler(newHandler);
 	compiler->parentScope->getGlobalScope()->addDebugHandler(newHandler);
+	compiler->setUseCodeInErrorMessage(!useLineNumbersInErrorMessage);
 }
 
 

@@ -182,12 +182,23 @@ juce::StringArray ParameterHelpers::getParameterNames(JitObject& obj)
 	return sa;
 }
 
-JitExpression::JitExpression(const juce::String& s, DebugHandler* handler) :
-	memory()
+JitExpression::JitExpression(const juce::String& s, DebugHandler* handler, bool hasFloatValueInput) :
+	memory(),
+	hasFloatValue(hasFloatValueInput)
 {
-	juce::String code = "double get(double input){ return " + s + ";}";
+	juce::String code;
+	
+	if(hasFloatValueInput)
+		code << "float get(float input, float value){ return " << s << ";}";
+	else
+		code << "double get(double input){ return " << s << ";}";
+
+	for(auto s: snex::jit::OptimizationIds::getAllIds())
+		memory.addOptimization(s);
 
 	snex::jit::Compiler c(memory);
+	c.setDebugHandler(handler, false);
+	
 	obj = c.compileJitObject(code);
 
 	if (c.getCompileResult().wasOk())
@@ -205,6 +216,8 @@ JitExpression::JitExpression(const juce::String& s, DebugHandler* handler) :
 
 double JitExpression::getValue(double input) const
 {
+	jassert(!hasFloatValue);
+
 	if (f)
 		return getValueUnchecked(input);
 	else
@@ -213,7 +226,26 @@ double JitExpression::getValue(double input) const
 
 double JitExpression::getValueUnchecked(double input) const
 {
+	jassert(!hasFloatValue);
+
 	return f.callUnchecked<double>(input);
+}
+
+float JitExpression::getFloatValueWithInput(float input, float value)
+{
+	jassert(hasFloatValue);
+
+	if (f)
+		return getFloatValueWithInputUnchecked(input, value);
+}
+
+float JitExpression::getFloatValueWithInputUnchecked(float input, float value)
+{
+	jassert(hasFloatValue);
+
+	auto v = f.callUnchecked<float>(input, value);
+	FloatSanitizers::sanitizeFloatNumber(v);
+	return v;
 }
 
 juce::String JitExpression::getErrorMessage() const

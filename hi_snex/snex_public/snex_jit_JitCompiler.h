@@ -100,7 +100,7 @@ public:
 	~Compiler();
 	Compiler(GlobalScope& memoryPool);
 
-	void setDebugHandler(DebugHandler* newHandler);
+	void setDebugHandler(DebugHandler* newHandler, bool useLineNumbersInErrorMessage=true);
 
 	JitObject compileJitObject(const juce::String& code);
 

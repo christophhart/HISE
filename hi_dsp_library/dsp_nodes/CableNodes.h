@@ -472,6 +472,32 @@ namespace control
 		JUCE_DECLARE_WEAK_REFERENCEABLE(resetter);
 	};
 
+	
+	template <typename ExpressionClass, typename ParameterClass> struct cable_expr : public mothernode,
+																					 public pimpl::parameter_node_base<ParameterClass>,
+																					 public pimpl::no_processing
+	{
+		SET_HISE_NODE_ID("cable_expr");
+		SN_GET_SELF_AS_OBJECT(cable_expr);
+		SN_DESCRIPTION("evaluates an expression for the control value");
+
+		HISE_ADD_SET_VALUE(cable_expr);
+		SN_PARAMETER_NODE_CONSTRUCTOR(cable_expr, ParameterClass);
+
+		HISE_DEFAULT_INIT(ExpressionClass);
+
+		void setValue(double input)
+		{
+			auto v = obj.op(input);
+
+			if (this->getParameter().isConnected())
+				this->getParameter().call(v);
+		}
+
+		ExpressionClass obj;
+		double lastValue = 0.0;
+	};
+
 	template <typename ParameterClass> struct cable_table : public scriptnode::data::base,
 															public pimpl::parameter_node_base<ParameterClass>,
 															public pimpl::no_processing

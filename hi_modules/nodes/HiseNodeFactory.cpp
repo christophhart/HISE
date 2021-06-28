@@ -41,6 +41,8 @@
 namespace scriptnode
 {
 
+
+
 namespace core
 {
 using namespace hise;
@@ -989,81 +991,7 @@ Factory::Factory(DspNetwork* network) :
 
 namespace fx
 {
-	struct simple_visualiser : public ScriptnodeExtraComponent<NodeBase>
-	{
-		simple_visualiser(NodeBase*, PooledUIUpdater* u) :
-			ScriptnodeExtraComponent<NodeBase>(nullptr, u)
-		{
-			setSize(100, 60);
-		}
-
-		NodeBase* getNode()
-		{
-			return findParentComponentOfClass<NodeComponent>()->node.get();
-		}
-
-		double getParameter(int index)
-		{
-			jassert(isPositiveAndBelow(index, getNode()->getNumParameters()));
-			return getNode()->getParameter(index)->getValue();
-		}
-
-		bool stroke = true;
-
-		Colour getNodeColour()
-		{
-			auto c = findParentComponentOfClass<NodeComponent>()->header.colour;
-
-			if (c == Colours::transparentBlack)
-				return Colour(0xFFAAAAAA);
-
-			return c;
-		}
-
-		void timerCallback() override
-		{
-			original.clear();
-			p.clear();
-			rebuildPath(p);
-
-			auto b = getLocalBounds().toFloat().reduced(4.0f);
-
-			if(!p.getBounds().isEmpty())
-				p.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), false);
-
-			if (!original.getBounds().isEmpty())
-			{
-				original.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), false);
-
-				auto cp = original;
-
-				float l[2] = { 2.0f, 2.0f };
-				PathStrokeType(1.5f).createDashedStroke(original, cp, l, 2);
-			}
-
-			repaint();
-		}
-
-		virtual void rebuildPath(Path& path) = 0;
-		
-		void paint(Graphics& g) override
-		{
-			ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, getLocalBounds().toFloat(), false);
-			g.setColour(getNodeColour());
-
-			if (!original.isEmpty())
-				g.fillPath(original);
-
-			g.strokePath(p, PathStrokeType(1.0f));
-		}
-
-		Path original;
-
-	private:
-
-		Path p;
-		
-	};
+	
 
 	struct bitcrush_editor : simple_visualiser
 	{
@@ -1258,9 +1186,14 @@ Factory::Factory(DspNetwork* n) :
 	registerNode<sqrt>();
 	registerNode<pow>();
 
+	registerPolyNode<OpNode<dynamic_expression, 1>, OpNode<dynamic_expression, NUM_POLYPHONIC_VOICES>, dynamic_expression::editor>();
+
 	sortEntries();
 }
 }
+
+
+
 
 namespace control
 {
@@ -1292,6 +1225,8 @@ namespace control
 		registerNoProcessNode<control::xy_editor::NodeType, control::xy_editor>();
 
 		registerNoProcessNode<control::resetter_editor::NodeType, control::resetter_editor>();
+
+		registerNoProcessNode<dynamic_expression::ControlNodeType, dynamic_expression::editor>();
 
 		registerModNode<smoothers::dynamic::NodeType, smoothers::dynamic::editor>();
 
@@ -1451,7 +1386,7 @@ namespace dynamic
 
 	struct env_display : envelope_display_base
 	{
-		struct visualiser : public fx::simple_visualiser
+		struct visualiser : public simple_visualiser
 		{
 			visualiser(PooledUIUpdater* u, env_display& parent) :
 				simple_visualiser(nullptr, u),

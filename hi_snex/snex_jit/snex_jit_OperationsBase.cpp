@@ -606,11 +606,11 @@ void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::Mes
 	ParserHelpers::Error e(location);
 	e.errorMessage = message;
 
-	DBG(e.toString());
+	ParserHelpers::Error::Format f = compiler->useCodeSnippetInErrorMessage() ? ParserHelpers::Error::Format::CodeExample : 
+																				ParserHelpers::Error::Format::LineNumbers;
 
-	
-
-	compiler->logMessage(type, e.toString());
+	DBG(e.toString(f));
+	compiler->logMessage(type, e.toString(f));
 }
 
 void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(Statement::Ptr statementToSearchFor, BaseCompiler* c, BaseScope* s)

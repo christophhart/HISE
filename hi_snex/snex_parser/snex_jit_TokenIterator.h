@@ -243,13 +243,19 @@ struct ParserHelpers
 
 	struct Error
 	{
+		enum class Format
+		{
+			LineNumbers,
+			CodeExample
+		};
+
 		Error(const CodeLocation& location_) :
 			location(location_)
 		{
 			
 		};
 
-		String toString() const
+		String toString(Format f = Format::LineNumbers) const
 		{
 			auto lToUse = location;
 
@@ -257,9 +263,46 @@ struct ParserHelpers
 
 			String s;
 
-			s << "Line " << lToUse.getLine();
-			s << "(" << lToUse.getColNumber() << ")";
-			s << ": " << errorMessage;
+			if (f == Format::LineNumbers)
+			{
+				s << "Line " << lToUse.getLine();
+				s << "(" << lToUse.getColNumber() << ")";
+				s << ": ";
+				s << errorMessage;
+			}
+			else
+			{
+				auto x = jmax(location.program, location.location - 4);
+				
+				auto end = x;
+
+				int pos = 0;
+
+				while (!end.isEmpty() && pos++ < 8)
+				{
+					end++;
+				}
+
+				while (pos < 8)
+				{
+					--x;
+					pos++;
+				}
+
+				int xPos = location.location - x;
+
+				for (int i = 0; i < xPos; i++)
+					s << ' ';
+
+				s << "V\n";
+
+				s << String(x, end) << ": ";
+
+				
+				s << errorMessage << "\n";
+			}
+
+
 
 			return s;
 		}
