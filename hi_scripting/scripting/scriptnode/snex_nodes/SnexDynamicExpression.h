@@ -38,26 +38,6 @@ using namespace juce;
 using namespace hise;
 using namespace snex;
 
-struct simple_visualiser : public ScriptnodeExtraComponent<NodeBase>
-{
-	simple_visualiser(NodeBase*, PooledUIUpdater* u);
-
-	NodeBase* getNode();
-	double getParameter(int index);
-	Colour getNodeColour();
-
-	void timerCallback() override;
-	virtual void rebuildPath(Path& path) = 0;
-	void paint(Graphics& g) override;
-
-	Path original;
-	Path gridPath;
-	Path p;
-
-	bool stroke = true;
-	bool drawBackground = true;
-	float thickness = 1.0f;
-};
 
 struct dynamic_expression : public snex::DebugHandler
 {

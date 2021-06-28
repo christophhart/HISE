@@ -991,8 +991,6 @@ Factory::Factory(DspNetwork* network) :
 
 namespace fx
 {
-	
-
 	struct bitcrush_editor : simple_visualiser
 	{
 		bitcrush_editor(PooledUIUpdater* u) :
@@ -1186,7 +1184,9 @@ Factory::Factory(DspNetwork* n) :
 	registerNode<sqrt>();
 	registerNode<pow>();
 
+#if HISE_INCLUDE_SNEX
 	registerPolyNode<OpNode<dynamic_expression, 1>, OpNode<dynamic_expression, NUM_POLYPHONIC_VOICES>, dynamic_expression::editor>();
+#endif
 
 	sortEntries();
 }
@@ -1219,18 +1219,13 @@ namespace control
 
 		registerNoProcessNode<duplilogic::dynamic::NodeType, duplilogic::dynamic::editor>();
 		registerNoProcessNode<dynamic_dupli_pack, data::ui::sliderpack_editor>();
-
 		registerNoProcessNode<faders::dynamic::NodeType, faders::dynamic::editor>();
-		
 		registerNoProcessNode<control::xy_editor::NodeType, control::xy_editor>();
-
 		registerNoProcessNode<control::resetter_editor::NodeType, control::resetter_editor>();
-
-		registerNoProcessNode<dynamic_expression::ControlNodeType, dynamic_expression::editor>();
-
 		registerModNode<smoothers::dynamic::NodeType, smoothers::dynamic::editor>();
 
 #if HISE_INCLUDE_SNEX
+		registerNoProcessNode<dynamic_expression::ControlNodeType, dynamic_expression::editor>();
 		registerModNode<midi_logic::dynamic::NodeType, midi_logic::dynamic::editor>();
 		registerPolyModNode<control::timer<1, snex_timer>, timer<NUM_POLYPHONIC_VOICES, snex_timer>, snex_timer::editor>();
 #endif

@@ -683,6 +683,7 @@ void DspNetwork::checkIfDeprecated()
 
 Result DspNetwork::checkBeforeCompilation()
 {
+#if USE_BACKEND
 	for (auto id : getListOfUsedNodeIds())
 	{
 		auto mustBeWrapped = NodeComponent::PopupHelpers::isWrappable(getNodeWithId(id)) == 2;
@@ -717,6 +718,7 @@ Result DspNetwork::checkBeforeCompilation()
 				return Result::fail(id + " is not compiled");
 		}
 	}
+#endif
 
 	return Result::ok();
 }

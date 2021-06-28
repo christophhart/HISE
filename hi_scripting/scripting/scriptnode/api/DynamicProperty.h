@@ -409,8 +409,10 @@ struct dynamic_chain : public dynamic_base
 			if(RangeHelpers::isIdentity(inputRange2))
 				return targets.removeAndReturn(0);
 
+#if HISE_INCLUDE_SNEX
 			if (auto expr = dynamic_cast<dynamic_expression*>(first))
 				return nullptr;
+#endif
 
 			auto outRange = RangeHelpers::getDoubleRange(first->dataTree);
 
