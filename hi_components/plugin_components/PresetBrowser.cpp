@@ -382,6 +382,8 @@ PresetBrowser::ModalWindow::ModalWindow(PresetBrowser* p) :
 	inputLabel->refreshWithEachKey = false;
 
 	setWantsKeyboardFocus(true);
+
+	setAlwaysOnTop(true);
 }
 
 PresetBrowser::ModalWindow::~ModalWindow()
