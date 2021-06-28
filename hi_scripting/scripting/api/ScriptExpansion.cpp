@@ -1217,11 +1217,13 @@ void ScriptEncryptedExpansion::extractUserPresetsIfEmpty(ValueTree encryptedTree
 		zstd::ZCompressor<hise::UserPresetDictionaryProvider> comp;
 		comp.expand(mb, p);
 
+#if READ_ONLY_FACTORY_PRESETS
 		if (createPathList)
 		{
 			for (auto c : p)
 				getMainController()->getUserPresetHandler().getFactoryPaths().addRecursive(c, getWildcard());
 		}
+#endif
 
 		if (p.getNumChildren() != 0)
 		{

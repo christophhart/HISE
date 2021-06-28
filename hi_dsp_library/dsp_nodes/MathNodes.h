@@ -360,7 +360,7 @@ public:
 	OpNode()
 	{
 		for (auto v : value)
-			v = getDefaultValue();
+			v = this->getDefaultValue();
 	}
 
 	OpNode(const OpNode& other) = default;
@@ -386,7 +386,7 @@ public:
 	{
 		{
 			DEFINE_PARAMETERDATA(OpNode, Value);
-			p.setDefaultValue(getDefaultValue());
+			p.setDefaultValue(this->getDefaultValue());
 			data.add(std::move(p));
 		}
 	}
