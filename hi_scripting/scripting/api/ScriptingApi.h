@@ -645,6 +645,9 @@ public:
 		/** Enables the group with the given index (one-based). Allows multiple groups to be active. */
 		void setMultiGroupIndex(var groupIndex, bool enabled);
 
+		/** Sets the volume of a particular group (use -1 for active group). Only works with disabled crossfade tables. */
+		void setRRGroupVolume(int groupIndex, int gainInDecibels);
+
 		/** Returns the currently (single) active RR group. */
 		int getActiveRRGroup();
 
@@ -889,6 +892,9 @@ public:
 		*
 		*/
 		void setModulatorAttribute(int chainId, int modulatorIndex, int attributeIndex, float newValue);
+
+		/** Checks if the artificial event is active */
+		bool isArtificialEventActive(int eventId);
 
 		/** Returns the number of pressed keys (!= the number of playing voices!). */
 		int getNumPressedKeys() const {return numPressedKeys.get(); };

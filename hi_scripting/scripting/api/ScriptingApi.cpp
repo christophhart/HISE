@@ -2430,6 +2430,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_0(Sampler, getSampleMapList);
     API_METHOD_WRAPPER_0(Sampler, getCurrentSampleMapId);
     API_VOID_METHOD_WRAPPER_2(Sampler, setAttribute);
+	API_VOID_METHOD_WRAPPER_2(Sampler, setRRGroupVolume);
     API_METHOD_WRAPPER_0(Sampler, getNumAttributes);
     API_METHOD_WRAPPER_1(Sampler, getAttribute);
     API_METHOD_WRAPPER_1(Sampler, getAttributeId);
@@ -2454,6 +2455,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(enableRoundRobin);
 	ADD_API_METHOD_1(setActiveGroup);
 	ADD_API_METHOD_0(getActiveRRGroup);
+	ADD_API_METHOD_2(setRRGroupVolume);
 	ADD_API_METHOD_2(setMultiGroupIndex);
 	ADD_API_METHOD_2(getRRGroupsForMessage);
 	ADD_API_METHOD_0(refreshRRMap);
@@ -2602,6 +2604,19 @@ void ScriptingApi::Sampler::setMultiGroupIndex(var groupIndex, bool enabled)
 }
 
 
+
+void ScriptingApi::Sampler::setRRGroupVolume(int groupIndex, int gainInDecibels)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setRRGroupVolume() only works with Samplers.");
+		return;
+	}
+
+	s->setRRGroupVolume(groupIndex, Decibels::decibelsToGain((float)gainInDecibels));
+}
 
 int ScriptingApi::Sampler::getActiveRRGroup()
 {
@@ -3505,6 +3520,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_0(Synth, isLegatoInterval);
 	API_METHOD_WRAPPER_0(Synth, isSustainPedalDown);
 	API_METHOD_WRAPPER_1(Synth, isKeyDown);
+	API_METHOD_WRAPPER_1(Synth, isArtificialEventActive);
 	API_VOID_METHOD_WRAPPER_1(Synth, setClockSpeed);
 	API_VOID_METHOD_WRAPPER_1(Synth, setShouldKillRetriggeredNote);
 };
@@ -3575,6 +3591,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_0(isLegatoInterval);
 	ADD_API_METHOD_0(isSustainPedalDown);
 	ADD_API_METHOD_1(isKeyDown);
+	ADD_API_METHOD_1(isArtificialEventActive);
 	ADD_API_METHOD_1(setClockSpeed);
 	ADD_API_METHOD_1(setShouldKillRetriggeredNote);
 
@@ -4613,6 +4630,12 @@ void ScriptingApi::Synth::setModulatorAttribute(int chain, int modulatorIndex, i
 	modulator->sendChangeMessage();
 
 
+}
+
+
+bool ScriptingApi::Synth::isArtificialEventActive(int eventId)
+{
+	return getScriptProcessor()->getMainController_()->getEventHandler().isArtificialEventId((uint16)eventId);
 }
 
 

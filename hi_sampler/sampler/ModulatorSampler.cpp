@@ -1094,6 +1094,10 @@ void ModulatorSampler::setVoiceLimit(int newVoiceLimit)
 
 float ModulatorSampler::getConstantCrossFadeModulationValue() const noexcept
 {
+	// Return the rr group volume if it is set
+	if (!crossfadeGroups)
+		return useRRGain ? rrGroupGains[currentRRGroupIndex-1] : 1.0f;
+
 #if HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY
 
 	// This plays all crossfade groups until there's a modulator present.
@@ -1102,9 +1106,6 @@ float ModulatorSampler::getConstantCrossFadeModulationValue() const noexcept
 		return 1.0f;
 	}
 #endif
-
-	if (!crossfadeGroups)
-		return 1.0f;
 
 	return currentCrossfadeValue;
 }
@@ -1214,6 +1215,21 @@ bool ModulatorSampler::setCurrentGroupIndex(int currentIndex)
 	}
 }
 
+void ModulatorSampler::setRRGroupVolume(int groupIndex, float gainValue)
+{
+	if (groupIndex == -1)
+		groupIndex = currentRRGroupIndex;
+
+	FloatSanitizers::sanitizeFloatNumber(gainValue);
+
+	--groupIndex;
+
+	useRRGain = true;
+
+	if (isPositiveAndBelow(groupIndex, rrGroupGains.size()))
+		rrGroupGains.setUnchecked(groupIndex, gainValue);
+}
+
 bool ModulatorSampler::setMultiGroupState(int groupIndex, bool shouldBeEnabled)
 {
 	if (groupIndex == -1)
@@ -1245,6 +1261,14 @@ void ModulatorSampler::setRRGroupAmount(int newGroupLimit)
 
 	while (auto sound = sIter.getNextSound())
 		sound->setMaxRRGroupIndex(rrGroupAmount);
+
+	rrGroupGains.ensureStorageAllocated(rrGroupAmount);
+
+	for (int i = rrGroupGains.size(); i < rrGroupAmount; i++)
+		rrGroupGains.add(1.0f);
+
+	// reset this, so it doesn't use a lookup as long as setRRGroupVolume isn't called
+	useRRGain = false;
 
 	ModulatorSynth::setVoiceLimit(realVoiceAmount * getNumActiveGroups());
 }
