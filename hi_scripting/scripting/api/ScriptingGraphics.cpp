@@ -1106,4 +1106,6 @@ Rectangle<int> ScriptingObjects::GraphicsObject::getIntRectangleFromVar(const va
 }
 
 
+
+
 } 

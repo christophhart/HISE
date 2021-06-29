@@ -413,7 +413,8 @@ namespace ScriptingObjects
 			public TableEditor::LookAndFeelMethods,
 			public NumberTag::LookAndFeelMethods,
 			public MessageWithIcon::LookAndFeelMethods,
-			public ControlledObject
+			public ControlledObject,
+			public MidiFileDragAndDropper::LookAndFeelMethods
 		{
 			Laf(MainController* mc) :
 				ControlledObject(mc)
@@ -483,6 +484,10 @@ namespace ScriptingObjects
 			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
 
 			void drawScrollbar(Graphics& g, ScrollBar& scrollbar, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown) override;
+
+			
+
+			void drawMidiDropper(Graphics& g, Rectangle<float> area, const String& text, MidiFileDragAndDropper& d) override;
 
 			Image createIcon(PresetHandler::IconType type) override;
 

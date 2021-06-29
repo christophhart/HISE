@@ -338,6 +338,9 @@ void dynamic_expression::editor::timerCallback()
 {
 	repaint();
 
+	if (getObject() == nullptr)
+		return;
+
 	showError = !getObject()->r.wasOk();
 
 	auto showLogger = debugButton.getToggleState() || showError;
