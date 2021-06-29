@@ -1270,6 +1270,9 @@ public:
 		/** Returns a list of all pending Downloads. */
 		var getPendingDownloads();
 
+		/** Returns a list of all pending Calls. */
+		var getPendingCalls();
+
 		/** Sets the maximal number of parallel downloads. */
 		void setNumAllowedDownloads(int maxNumberOfParallelDownloads);
 

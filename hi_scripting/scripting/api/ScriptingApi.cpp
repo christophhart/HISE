@@ -5350,6 +5350,7 @@ struct ScriptingApi::Server::Wrapper
 	API_METHOD_WRAPPER_4(Server, downloadFile);
 	API_VOID_METHOD_WRAPPER_1(Server, setHttpHeader);
 	API_METHOD_WRAPPER_0(Server, getPendingDownloads);
+	API_METHOD_WRAPPER_0(Server, getPendingCalls);
 	API_METHOD_WRAPPER_0(Server, isOnline);
 	API_VOID_METHOD_WRAPPER_1(Server, setNumAllowedDownloads);
 	API_VOID_METHOD_WRAPPER_0(Server, cleanFinishedDownloads);
@@ -5377,6 +5378,7 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_1(setHttpHeader);
 	ADD_API_METHOD_4(downloadFile);
 	ADD_API_METHOD_0(getPendingDownloads);
+	ADD_API_METHOD_0(getPendingCalls);
 	ADD_API_METHOD_0(isOnline);
 	ADD_API_METHOD_1(setNumAllowedDownloads);
 	ADD_API_METHOD_1(setServerCallback);
@@ -5444,6 +5446,11 @@ var ScriptingApi::Server::downloadFile(String subURL, var parameters, var target
 var ScriptingApi::Server::getPendingDownloads()
 {
 	return globalServer.getPendingDownloads();
+}
+
+var ScriptingApi::Server::getPendingCalls()
+{
+	return globalServer.getPendingCallbacks();
 }
 
 void ScriptingApi::Server::setNumAllowedDownloads(int maxNumberOfParallelDownloads)
