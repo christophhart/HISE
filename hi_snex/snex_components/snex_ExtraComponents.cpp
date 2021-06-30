@@ -204,7 +204,6 @@ void Graph::InternalGraph::paint(Graphics& g)
 void Graph::InternalGraph::drawTestEvent(Graphics& g, bool isParameter, int index)
 {
 	int timestamp = 0;
-	int type = -1;
 	String t;
 	Colour c;
 
@@ -303,8 +302,6 @@ void Graph::InternalGraph::calculatePath(Path& p, const AudioSampleBuffer& b, in
 
 		pixelsPerSample = 1.0f / (float)delta;
 
-		auto w = (float)getWidth();
-
 		p.startNewSubPath(0.0f, getYPosition(0.0f));
 
 		for (int i = 0; i < b.getNumSamples(); i += samplesPerPixel)
@@ -390,8 +387,7 @@ String Graph::InternalGraph::getTooltip()
 		int samplePos = jlimit(0, lastBuffer.getNumSamples() - 1, roundToInt(xNormalised * (float)lastBuffer.getNumSamples()));
 
 		bool rightChannel = stereoMode && currentPoint.getY() > (getHeight() / 2);
-		auto p = findParentComponentOfClass<Graph>();
-
+		
 		v << "data[" << juce::String(samplePos) << "]: ";
 		float value = lastBuffer.getSample(rightChannel ? 1 : 0, samplePos);
 		v << Types::Helpers::getCppValueString(value);
@@ -455,6 +451,8 @@ String Graph::InternalGraph::getTooltip()
 		v << String(hz, 1) << " Hz: ";
 		v << String(Decibels::gainToDecibels(p), 1) << "dB";
 	}
+    default:
+        break;
 	}
 
 	DBG(v);
@@ -489,6 +487,8 @@ float Graph::InternalGraph::getXPosition(float normalisedIndex) const
 		else
 			return normalisedIndex;
 	}
+    default:
+        break;
 	}
 
 	return 0.0f;
@@ -522,6 +522,7 @@ float Graph::InternalGraph::getYPosition(float level) const
 		else
 			return 1.0f - jlimit(0.0f, 1.0f, level);
 	}
+    default: break;
 	}
 
 	return 0.0f;
@@ -536,7 +537,6 @@ void Graph::InternalGraph::rebuildSpectrumRectangles()
 
 	auto Spectrum2DSize = findParentComponentOfClass<Graph>()->Spectrum2DSize;
 
-	auto h = Spectrum2DSize;
 
 	auto maxLevel = lastBuffer.getMagnitude(0, lastBuffer.getNumSamples());
 
@@ -742,8 +742,6 @@ void Graph::paint(Graphics& g)
 		g.drawText(juce::String(internalGraph.leftPeaks.getStart(), 1), lMin, Justification::left);
 		g.drawText(juce::String(internalGraph.leftPeaks.getEnd(), 1), lMax, Justification::left);
 	}
-
-	auto lb = getLocalBounds().removeFromLeft(32);
 
 	String cu;
 

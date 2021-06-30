@@ -411,7 +411,7 @@ public:
 
 	int getNumSamplesInMonolith() const
 	{
-		return multiChannelSampleInformation[0].size();
+		return (int)multiChannelSampleInformation[0].size();
 	}
 
 	int64 getMonolithLength(int sampleIndex) const

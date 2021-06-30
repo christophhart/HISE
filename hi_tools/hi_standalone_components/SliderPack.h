@@ -82,8 +82,9 @@ public:
 				break;
 			case ComplexDataUIUpdaterBase::EventType::DisplayIndex:
 				displayedIndexChanged(connectedSliderPack, (int)v);
-				
 				break;
+            default:
+                break;
 			}
 		}
 

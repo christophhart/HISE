@@ -19,7 +19,7 @@ using namespace juce;
 
 
 //==============================================================================
-class mcl::GutterComponent : public juce::Component,
+class GutterComponent : public juce::Component,
 							 public FoldableLineRange::Listener,
 							 public Value::Listener
 {

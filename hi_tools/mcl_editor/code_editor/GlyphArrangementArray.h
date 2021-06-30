@@ -22,7 +22,7 @@ using namespace juce;
    This class wraps a StringArray and memoizes the evaluation of glyph
    arrangements derived from the associated strings.
 */
-class mcl::GlyphArrangementArray
+class GlyphArrangementArray
 {
 public:
 
@@ -155,11 +155,6 @@ public:
 			}
 
 			return lines;
-		}
-
-		int getNextColumn(Point<int> pos)
-		{
-
 		}
 
 		Point<int> getPositionInLine(int col, OutOfBoundsMode mode) const

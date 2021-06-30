@@ -778,6 +778,7 @@ public:
 		case Mode::Saw:		 s += g * tickSaw(*currentVoiceData); break;
 		case Mode::Square:	 s += g * tickSquare(*currentVoiceData); break;
 		case Mode::Noise:	 s += g * Random::getSystemRandom().nextFloat() * 2.0f - 1.0f;
+        default: break;
 		}
 	}
 

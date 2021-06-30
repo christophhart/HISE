@@ -69,6 +69,7 @@ namespace faders
 					{
 					case 0: return jlimit(0.0, 1.0, 2.0 - 2.0 * normalisedInput);
 					case 1: return jlimit(0.0, 1.0, 2.0 * normalisedInput);
+                    default: return 0.0;
 					}
 				}
 				case 3:
@@ -77,6 +78,7 @@ namespace faders
 					{
 					case 0: return jlimit(0.0, 1.0, 3.0 - 3.0 * normalisedInput);
 					case 1: return jlimit(0.0, 1.0, 3.0 * normalisedInput);
+                    default: return 0.0;
 					}
 
 				}
@@ -164,6 +166,8 @@ namespace smoothers
 {
 	struct base
 	{
+        virtual ~base() {};
+        
 		void setSmoothingTime(double t)
 		{
 			if (smoothingTimeMs != t)

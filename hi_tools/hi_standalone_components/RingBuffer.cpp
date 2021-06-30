@@ -477,8 +477,6 @@ void AhdsrGraph::paint(Graphics &g)
 		laf->drawAhdsrPathSection(g, *this, *pToUse, true);
 
 		auto bounds = pToUse->getBounds();
-		auto duration = 10.0;// (float)(processor->getMainController()->getUptime() - lastState.changeTime) * 1000.0f;
-
 		auto normalizedDuration = 0.0f;
 
 		normalizedDuration = fmod(ballPos, 1.0);
@@ -1000,8 +998,7 @@ void OscilloscopeBase::drawOscilloscope(Graphics &g, const AudioSampleBuffer &b)
 {
 	auto dataL = b.getReadPointer(0);
 	auto dataR = b.getReadPointer(1);
-	int size = b.getNumSamples();
-
+	
 	auto asComponent = dynamic_cast<Component*>(this);
 
 	drawPath(dataL, b.getNumSamples(), asComponent->getWidth(), lPath);

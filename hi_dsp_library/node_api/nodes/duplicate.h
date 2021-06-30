@@ -145,6 +145,8 @@ struct duplicate_sender
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
+    virtual ~duplicate_sender() {};
+    
 	duplicate_sender(int initialVoiceAmount) :
 		numVoices(initialVoiceAmount)
 	{};
@@ -291,7 +293,6 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 		{
 			SimpleReadWriteLock::ScopedWriteLock sl(getVoiceLock());
 
-			auto start = begin();
 			auto ptr = end();
 
 			if (delta > 0)

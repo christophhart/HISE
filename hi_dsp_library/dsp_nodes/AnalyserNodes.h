@@ -82,7 +82,7 @@ struct Helpers
 
 		SET_HISE_NODE_ID("fft");
 
-		static char* getDescription() { return "A FFT analyser"; };
+		static String getDescription() { return "A FFT analyser"; };
 
 		static constexpr int NumChannels = 1;
 		
@@ -125,7 +125,7 @@ struct Helpers
 
 		SET_HISE_NODE_ID("oscilloscope");
 
-		static char* getDescription() { return "an oscilloscope with optional MIDI input sync"; };
+		static String getDescription() { return "an oscilloscope with optional MIDI input sync"; };
 
 		
 
@@ -152,7 +152,7 @@ struct Helpers
 
 		int getClassIndex() const override { return PropertyIndex; }
 
-		static char* getDescription() { return "A goniometer (stereo correlation display)."; };
+		static String getDescription() { return "A goniometer (stereo correlation display)."; };
 
 		SET_HISE_NODE_ID("goniometer");
 
@@ -212,8 +212,7 @@ public:
 		if(isProcessingHiseEvent() && rb != nullptr && e.isNoteOn())
 		{
 			auto sr = rb->getSamplerate();
-			auto l = rb->getReadBuffer().getNumSamples();
-
+			
 			auto numSamplesForCycle = 1.0 / e.getFrequency() * sr;
 
 			while (numSamplesForCycle < 128.0 && numSamplesForCycle != 0.0)

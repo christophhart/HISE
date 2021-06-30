@@ -200,7 +200,6 @@ void ModulationChainNode::process(ProcessDataDyn& data) noexcept
 	NodeProfiler np(this);
 
 	obj.process(data);
-	double thisValue = 0.0;
 }
 
 void ModulationChainNode::prepare(PrepareSpecs ps)
@@ -439,7 +438,6 @@ MultiChannelNode::MultiChannelNode(DspNetwork* root, ValueTree data) :
 
 void MultiChannelNode::channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange)
 {
-	int numChannelsAvailable = getCurrentChannelAmount();
 	int numNodes = nodes.size();
 
 	if (numNodes == 0)

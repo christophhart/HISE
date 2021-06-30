@@ -2186,6 +2186,7 @@ int CppBuilder::exportValueTreeAsCpp(const File &sourceDirectory, const File &de
 void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types)
 {
 	ModulatorSynthChain* chainToExport = exporter->chainToExport;
+    ignoreUnused(chainToExport);
 
 	File batchFile = getBatchFile(exporter);
 
@@ -2388,8 +2389,6 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 
 File CompileExporter::BatchFileCreator::getBatchFile(CompileExporter* exporter)
 {
-	ModulatorSynthChain* chainToExport = exporter->chainToExport;
-
 #if JUCE_WINDOWS
 	return exporter->getBuildFolder().getChildFile("batchCompile.bat");
 #elif JUCE_LINUX

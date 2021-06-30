@@ -168,10 +168,7 @@ struct instance: public ChainWrapper
 		// just set the flag so you know it's initialised...
 		obj.initialised = true;
 
-		constexpr int processorSize = sizeof(processor);
-		constexpr int parameterSize = sizeof(ParameterType);
-		constexpr int chainSize = sizeof(ChainWrapper);
-
+		
 		// As you can see, the container does not add any bytes to the actual
 		// node object...
 		//static_assert(chainSize == processorSize + parameterSize , "no fat");

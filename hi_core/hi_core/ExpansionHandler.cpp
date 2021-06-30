@@ -439,8 +439,6 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 			auto headerFile = samplesDir.getChildFile("header.dat");
 			jassert(headerFile.existsAsFile());
 
-			bool shouldSendCompleteMessage = true;
-
 			if (getCredentials().isObject())
 				ScriptEncryptedExpansion::encryptIntermediateFile(getMainController(), headerFile, expRoot);
 			else

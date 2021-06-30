@@ -30,37 +30,12 @@
 #define MCL_ENABLE_OPEN_GL 1
 #endif
 
-/** Config: TEST_MULTI_CARET_EDITING
-*
-*	Enable this to test the multi caret editing
-*/
-#ifndef TEST_MULTI_CARET_EDITING
-#define TEST_MULTI_CARET_EDITING 1
-#endif
-
-/** Config: TEST_SYNTAX_SUPPORT
-*
-*	Enable this to test the syntax highlighting
-*/
-#ifndef TEST_SYNTAX_SUPPORT
-#define TEST_SYNTAX_SUPPORT 1
-#endif
-
-
 /** Config: ENABLE_CARET_BLINK
 *
 *	Enable this to make the caret blink (disabled by default)
 */
 #ifndef ENABLE_CARET_BLINK
 #define ENABLE_CARET_BLINK 1
-#endif
-
-/** Config: PROFILE_PAINTS
-*
-*	Enable this to show profile statistics for the paint routine performance.
-*/
-#ifndef PROFILE_PAINTS
-#define PROFILE_PAINTS 0
 #endif
 
 

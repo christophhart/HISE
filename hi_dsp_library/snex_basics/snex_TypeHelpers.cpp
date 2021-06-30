@@ -189,6 +189,7 @@ size_t Types::Helpers::getSizeForType(ID type)
 	case Types::ID::Double: return sizeof(double);
 	case Types::ID::Block: return sizeof(block);
 	case Types::ID::Pointer: return sizeof(int*);
+    default: return 0;
 	}
 
 	jassertfalse;

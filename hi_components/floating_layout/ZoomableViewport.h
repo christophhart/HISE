@@ -481,6 +481,7 @@ struct WrapperWithMenuBarBase : public Component,
 {
 	struct ButtonWithStateFunction
 	{
+        virtual ~ButtonWithStateFunction() {};
 		virtual bool hasChanged() = 0;
 	};
 

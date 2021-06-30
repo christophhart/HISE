@@ -368,8 +368,6 @@ void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
 		auto lr = safeShader->localRect;
 		auto gr = safeShader->globalRect;
 
-		auto wScale = lr.getWidth() / gr.getWidth();
-
 		auto scale = safeShader->scaleFactor;
 
 		pr.setUniform("iTime", thisTime);
@@ -389,18 +387,12 @@ void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
 				if (v.getArray()->size() == 2) // vec2
 					pr.setUniform(name, (float)v[0], (float)v[1]);
 				if (v.getArray()->size() == 3) // vec3
-				{
 					pr.setUniform(name, (float)v[0], (float)v[1], (float)v[2]);
-				}
 				if (v.getArray()->size() == 4) // vec4
-				{
 					pr.setUniform(name, (float)v[0], (float)v[1], (float)v[2], (float)v[3]);
-				}
 			}
 			if (v.isDouble()) // single value
-			{
 				pr.setUniform(name, (float)v);
-			}
 			if (v.isInt() || v.isInt64())
 			{
 				auto u = (int64)v;
@@ -408,9 +400,7 @@ void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
 				pr.setUniform(name, u_);
 			}
 			if (v.isBuffer()) // static float array
-			{
 				pr.setUniform(name, v.getBuffer()->buffer.getReadPointer(0), v.getBuffer()->size);
-			}
 		}
 	};
 

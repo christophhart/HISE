@@ -19,8 +19,11 @@ using namespace juce;
 
 class BreakpointManager
 {
+    virtual ~BreakpointManager() {};
+    
 	struct Listener
 	{
+        virtual ~Listener() {};
 		virtual void breakpointsChanged() = 0;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
@@ -139,6 +142,7 @@ public:
 	{
 	public:
 
+        virtual ~Listener() {};
 		virtual void foldStateChanged(WeakPtr rangeThatHasChanged) = 0;
 		virtual void rootWasRebuilt(WeakPtr newRoot) {};
 
@@ -169,9 +173,7 @@ public:
 		{
 			if (auto r = getRangeWithStartAtLine(lineNumber))
 			{
-				auto type = getLineType(lineNumber);
 				r->folded = !r->folded;
-
 				updateFoldState(r);
 			}
 		}
@@ -250,9 +252,7 @@ public:
 		LineType getLineType(int lineNumber) const
 		{
 			bool isBetween = false;
-			bool isEnd = false;
-			bool isStart = false;
-
+			
 			for (auto l : all)
 			{
 				auto lineRange = l->getLineRange();
@@ -415,8 +415,8 @@ private:
 
 
 //==============================================================================
-class mcl::TextDocument : public CoallescatedCodeDocumentListener,
-						  public FoldableLineRange::Listener
+class TextDocument : public CoallescatedCodeDocumentListener,
+                     public FoldableLineRange::Listener
 {
 public:
 	enum class Metric
@@ -767,9 +767,6 @@ public:
 	{
 		CodeDocument::Position start(getCodeDocument(), startIndex);
 		CodeDocument::Position end(getCodeDocument(), endIndex);
-
-		auto sameLine = start.getLineNumber() == end.getLineNumber();
-		auto existingLine = isPositiveAndBelow(start.getLineNumber(), lines.size());
 
 		auto b = getCodeDocument().getTextBetween(start, end);
 

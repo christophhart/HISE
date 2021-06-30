@@ -573,11 +573,6 @@ private:
 
 	struct Error
 	{
-		Error()
-		{
-			int x = 5;
-		}
-
 		String toString()
 		{
 			String s;

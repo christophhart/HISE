@@ -213,7 +213,6 @@ mcl::FoldableLineRange::List debug::Helpers::createLineRanges(const CodeDocument
 
 	CodeDocument::Iterator it(doc);
 
-	int currentRangeEnd = 0;
 	bool firstInLine = false;
 	mcl::FoldableLineRange::WeakPtr currentElement;
 
@@ -265,7 +264,7 @@ mcl::FoldableLineRange::List debug::Helpers::createLineRanges(const CodeDocument
 
 				it.nextChar();
 
-				while (c = it.nextChar())
+				while ((c = it.nextChar()))
 				{
 					if (c == '*')
 					{

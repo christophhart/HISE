@@ -84,6 +84,8 @@ bool OscillatorDisplayProvider::OscillatorDisplayObject::validateInt(const Ident
 
 	if (id == RingBufferIds::NumChannels)
 		return SimpleRingBuffer::toFixSize<1>(v);
+    
+    return true;
 }
 
 void OscillatorDisplayProvider::OscillatorDisplayObject::transformReadBuffer(AudioSampleBuffer& b)
@@ -107,6 +109,7 @@ void OscillatorDisplayProvider::OscillatorDisplayObject::transformReadBuffer(Aud
 			case Mode::Square: v = provider->tickSquare(d); break;
 			case Mode::Triangle: v = provider->tickTriangle(d); break;
 			case Mode::Noise: v = provider->tickNoise(d); break;
+            default: break;
 			}
 
 			b.setSample(0, i, v);

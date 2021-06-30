@@ -566,10 +566,6 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 		//p.addLineSegment(l, 2.0f);
 	}
 
-	//sh.drawForPath(g, p);
-	
-	auto sf = 1.0f / UnblurryGraphics::getScaleFactorForComponent(this);
-
 	g.setColour(Colour(0xFF262626));
 	g.strokePath(p, PathStrokeType(4.0f, PathStrokeType::curved, PathStrokeType::rounded));
 
@@ -579,10 +575,6 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 		c = Colour(0xFFAAAAAA);
 
 	g.setColour(c);
-
-	
-
-	
 	g.strokePath(p, PathStrokeType(2.0f, PathStrokeType::curved, PathStrokeType::rounded));
 }
 
@@ -615,14 +607,10 @@ void SerialNodeComponent::paint(Graphics& g)
 
 	for (int i = yStart; i < getHeight() + 10; i += 10)
 	{
-		auto h2 = (float)getHeight() / 2.0f;
 		float multiplier = (float)i / float(getHeight());
 		multiplier += JUCE_LIVE_CONSTANT_OFF(0.5f);
 		g.setColour(fc.withMultipliedAlpha( multiplier * JUCE_LIVE_CONSTANT_OFF(0.08f)));
-
-		g.fillRect(2, i, getWidth() - 2, 9 );
-
-		//g.drawHorizontalLine(i, 2.0f, (float)getWidth() - 2.0f);
+        g.fillRect(2, i, getWidth() - 2, 9 );
 	}
 
 	for (int i = 0; i < node->getCurrentChannelAmount(); i++)
@@ -835,8 +823,6 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 
 	if (auto sn = dynamic_cast<SerialNode*>(node.get()))
 	{
-		int numChannels = node->getCurrentChannelAmount();
-
 		DspNetworkPathFactory df;
 
 		auto icon = df.createPath("swap-orientation");

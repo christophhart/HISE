@@ -55,7 +55,7 @@ X(rightShiftUnsigned, ">>>") X(rightShiftEquals, ">>=") X(rightShift,   ">>")   
     X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")  X(register_var, "reg") \
 	X(in, 		"in")		X(inline_, "inline") X(const_, "const")	 X(global_,   "global")	  X(local_,	   "local") \
 	X(include_,  "include") X(rLock_,   "readLock") X(wLock_,"writeLock") 	X(extern_, "extern") X(namespace_, "namespace") \
-	X(isDefined_, "isDefined"); X(snex_, "snex")
+	X(isDefined_, "isDefined");
 
 namespace TokenTypes
 {
@@ -1092,86 +1092,5 @@ numArgs(numArgs_)
 	}
 }
 
-
-
-#if INCLUDE_NATIVE_JIT
-NativeJITScope* HiseJavascriptEngine::RootObject::HiseSpecialData::getNativeJITScope(const Identifier& id)
-{
-	for (int i = 0; i < jitScopes.size(); i++)
-	{
-		if (jitScopes[i]->getName() == id)
-		{
-			return jitScopes[i];
-		}
-	}
-
-	return nullptr;
-}
-
-NativeJITCompiler* HiseJavascriptEngine::RootObject::HiseSpecialData::getNativeCompiler(const Identifier& id)
-{
-	for (int i = 0; i < jitModules.size(); i++)
-	{
-		if (jitModules[i]->getModuleName() == id)
-		{
-			return jitModules[i];
-		}
-	}
-
-	return nullptr;
-}
-#endif
-
-#if HISE_INCLUDE_SNEX
-var HiseJavascriptEngine::RootObject::JavascriptNamespace::createSnexInstance(const Identifier& sId, const var::NativeFunctionArgs& args)
-{
-	for (auto s : snexClasses)
-	{
-		if (s->classId == sId)
-			return s->create(args);
-	}
-
-	String e;
-
-	e << "Can't find SNEX struct ";
-
-	if (id.isValid())
-		e << id << ".";
-
-	e << sId.toString();
-
-	throw e;
-}
-
-bool HiseJavascriptEngine::RootObject::JavascriptNamespace::hasSnexClass(const Identifier& sId) const
-{
-	for (auto s : snexClasses)
-		if (s->classId == sId)
-			return true;
-
-	return false;
-}
-
-void HiseJavascriptEngine::RootObject::JavascriptNamespace::addSnexClass(HiseJavascriptEngine::RootObject* root, const String& code, const Identifier& classId)
-{
-	using namespace snex::jit;
-
-	SnexStructSriptingWrapper::Ptr p = new SnexStructSriptingWrapper(root->snexGlobalScope, code, classId);
-
-	if (p->r.failed())
-		throw p->r.getErrorMessage();
-
-	snexClasses.add(p);
-}
-
-snex::jit::SnexStructSriptingWrapper::Ptr HiseJavascriptEngine::RootObject::JavascriptNamespace::getSnexStruct(const Identifier& classId)
-{
-	for (auto s : snexClasses)
-		if (s->classId == classId)
-			return s;
-
-	return nullptr;
-}
-#endif
 
 } // namespace hise

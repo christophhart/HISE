@@ -299,6 +299,11 @@ juce::Component* dynamic_expression::editor::createExtraComponent(void* obj, Poo
 		return new editor(&n->obj, updater, false);
 	else if (auto n = dynamic_cast<MathNodeType*>(t))
 		return new editor(&n->obj, updater, true);
+    else
+    {
+        jassertfalse;
+        return nullptr;
+    }
 }
 
 void dynamic_expression::editor::paint(Graphics& g)
@@ -318,8 +323,6 @@ void dynamic_expression::editor::paint(Graphics& g)
 
 	if (!getObject()->r.wasOk())
 		c = Colours::red;
-
-	auto rc = jmin<float>(b.getHeight(), UIValues::NodeMargin);
 
 	c = c.withSaturation(0.5f);
 
@@ -471,6 +474,8 @@ double dynamic_expression::op(double input)
 
 		return output;
 	}
+    
+    return 0.0;
 }
 
 void dynamic_expression::updateUIValue()

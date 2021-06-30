@@ -1087,8 +1087,6 @@ juce::Array<juce::File> DspNetworkCompileExporter::getIncludedNetworkFiles(const
 
 			return false;
 		};
-
-		auto firstIsReferencedInSecond = ValueTreeIterator::forEach(v, ValueTreeIterator::ChildrenFirst, f2);
 	}
 
 	list.add(networkFile);
@@ -1353,6 +1351,7 @@ void TestRunWindow::run()
 		case DspNetworkCodeProvider::SourceMode::InterpretedNode: cMessage << "Interpreted"; break;
 		case DspNetworkCodeProvider::SourceMode::JitCompiledNode: cMessage << "JIT"; break;
 		case DspNetworkCodeProvider::SourceMode::DynamicLibrary: cMessage << "Dynamic Library"; break;
+        default: break;
 		}
 
 		writeConsoleMessage(cMessage);

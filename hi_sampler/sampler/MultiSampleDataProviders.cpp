@@ -62,7 +62,7 @@ void SimpleSampleMapDisplay::setComplexDataUIBase(ComplexDataUIBase* newData)
 	if (currentBuffer != nullptr)
 		currentBuffer->getUpdater().removeEventListener(this);
 
-	if (currentBuffer = dynamic_cast<MultiChannelAudioBuffer*>(newData))
+	if ((currentBuffer = dynamic_cast<MultiChannelAudioBuffer*>(newData)))
 		currentBuffer->getUpdater().addEventListener(this);
 }
 
@@ -161,7 +161,7 @@ hise::MultiChannelAudioBuffer::SampleReference::Ptr XYZSampleMapProvider::Monoli
 				if (afs != nullptr)
 				{
 					if (sampleRange.isEmpty())
-						sampleRange = Range<int>(0, afs->lengthInSamples);
+						sampleRange = Range<int>(0, (int)afs->lengthInSamples);
 
 					lr->buffer.setSize(afs->numChannels, sampleRange.getLength());
 					afs->read(&lr->buffer, 0, jmin(sampleRange.getLength(), (int)afs->lengthInSamples), sampleRange.getStart(), true, true);
@@ -391,7 +391,7 @@ void XYZSampleMapProvider::Editor::setComplexDataUIBase(ComplexDataUIBase* newDa
 	if (currentBuffer != nullptr)
 		currentBuffer->getUpdater().removeEventListener(this);
 
-	if (currentBuffer = dynamic_cast<MultiChannelAudioBuffer*>(newData))
+	if ((currentBuffer = dynamic_cast<MultiChannelAudioBuffer*>(newData)))
 		currentBuffer->getUpdater().addEventListener(this);
 
 	updateComboBoxItem();

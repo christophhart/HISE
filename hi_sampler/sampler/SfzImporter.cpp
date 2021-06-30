@@ -270,12 +270,8 @@ void SfzImporter::applyGlobalOpcodesToRegion()
 	auto currentControl = currentTarget->findParentTargetOfType<Control>();
 	auto currentGlobal = currentTarget->findParentTargetOfType<Global>();
 
-	NamedValueSet *globalSet = &currentGlobal->opcodes;
-
 	for (auto c: currentGlobal->children)
 	{
-		NamedValueSet *groupSet = &c->opcodes;
-
 		for (auto r : c->children)
 		{
 			// Apply Control properties

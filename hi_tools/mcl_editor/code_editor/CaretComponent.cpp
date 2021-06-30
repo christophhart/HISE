@@ -37,27 +37,18 @@ void mcl::CaretComponent::updateSelections()
 
 void mcl::CaretComponent::paint(Graphics& g)
 {
-#if PROFILE_PAINTS
-	auto start = Time::getMillisecondCounterHiRes();
-#endif
-
 	auto colour = getParentComponent()->findColour(juce::CaretComponent::caretColourId);
-	auto outline = colour.contrasting();
-
+	
 	UnblurryGraphics ug(g, *this);
 
 	bool drawCaretLine = document.getNumSelections() == 1 && document.getSelections().getFirst().isSingular();
 
-	
-
-	for (const auto &r : getCaretRectangles())
+    for (const auto &r : getCaretRectangles())
 	{
 		g.setColour(colour.withAlpha(squareWave(phase)));
 
 		auto rf = ug.getRectangleWithFixedPixelWidth(r, 2);
 		g.fillRect(rf);
-
-
 
 		if (drawCaretLine)
 		{
@@ -65,10 +56,6 @@ void mcl::CaretComponent::paint(Graphics& g)
 			g.fillRect(r.withX(0.0f).withWidth(getWidth()));
 		}
 	}
-
-#if PROFILE_PAINTS
-	std::cout << "[CaretComponent::paint] " << Time::getMillisecondCounterHiRes() - start << std::endl;
-#endif
 }
 
 float mcl::CaretComponent::squareWave(float wt) const

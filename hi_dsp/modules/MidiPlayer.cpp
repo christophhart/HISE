@@ -1048,8 +1048,6 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 
 			auto timeStampInThisBuffer = e->getTimeStamp() - positionInTicks;
 
-			timeStampInThisBuffer;
-
 			if (timeStampInThisBuffer < 0.0)
 				timeStampInThisBuffer += getCurrentSequence()->getTimeSignature().normalisedLoopRange.getLength() * lengthInTicks;
 

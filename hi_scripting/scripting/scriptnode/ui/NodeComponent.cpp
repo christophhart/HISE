@@ -254,8 +254,6 @@ void NodeComponent::Header::paint(Graphics& g)
 	}
 
 
-	auto textWidth = GLOBAL_BOLD_FONT().getStringWidthFloat(s) + 10.0f;
-
 	g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.5f : 1.0f));
 	g.drawText(s, getLocalBounds(), Justification::centred);
 
@@ -453,7 +451,7 @@ void NodeComponent::paintOverChildren(Graphics& g)
 		mp.getStyleData().fontSize = 13.0f;
 		
 		mp.parse();
-		auto h = mp.getHeightForWidth(getWidth() - 20.0f);
+		mp.getHeightForWidth(getWidth() - 20.0f);
 
 		mp.draw(g, b.toFloat().reduced(20.0f));
 	}

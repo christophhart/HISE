@@ -2574,8 +2574,6 @@ void ScriptingApi::Sampler::setMultiGroupIndex(var groupIndex, bool enabled)
 		return;
 	}
 
-	bool ok = true;
-
 	if (groupIndex.isArray())
 	{
 		for (const auto& v : *groupIndex.getArray())

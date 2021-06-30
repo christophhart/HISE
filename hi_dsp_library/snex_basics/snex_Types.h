@@ -492,7 +492,7 @@ struct PolyHandler
 
 		jassert(ph->enabled != 0);
 
-		auto idx = ph->getVoiceIndex();
+		return ph->getVoiceIndex();
 	}
 
 	static int getSizeStatic(PolyHandler* ph)
@@ -578,6 +578,7 @@ struct PrepareSpecs
 	{
 		PrepareSpecs copy(*this);
 		copy.numChannels = newNumChannels;
+        return copy;
 	}
 
 	template <int NumChannels> PrepareSpecs withNumChannelsT() const

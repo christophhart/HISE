@@ -291,8 +291,6 @@ namespace parameter
 
 		ScopedValueSetter<bool> svs(deferUpdate, true);
 
-		auto size = getNumParameters();
-
 		if (numToRemove > 0)
 		{
 			for (int i = 0; i < numToRemove; i++)
