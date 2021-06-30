@@ -284,7 +284,7 @@ public:
         /** Creates an Iterator for this MidiBuffer.
             This class has been deprecated in favour of MidiBufferIterator.
         */
-        JUCE_DEPRECATED (Iterator (const MidiBuffer&) noexcept);
+        Iterator (const MidiBuffer&) noexcept;
 
         /** Creates a copy of an iterator. */
         Iterator (const Iterator&) = default;

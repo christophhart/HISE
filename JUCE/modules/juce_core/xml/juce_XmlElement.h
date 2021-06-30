@@ -738,11 +738,11 @@ public:
 
     //==============================================================================
     /** This has been deprecated in favour of the toString() method. */
-    JUCE_DEPRECATED (String createDocument (StringRef dtdToUse,
+    String createDocument (StringRef dtdToUse,
                                             bool allOnOneLine = false,
                                             bool includeXmlHeader = true,
                                             StringRef encodingType = "UTF-8",
-                                            int lineWrapLength = 60) const);
+                                            int lineWrapLength = 60) const;
 
     /** This has been deprecated in favour of the writeTo() method. */
     JUCE_DEPRECATED (void writeToStream (OutputStream& output,
@@ -753,10 +753,10 @@ public:
                                          int lineWrapLength = 60) const);
 
     /** This has been deprecated in favour of the writeTo() method. */
-    JUCE_DEPRECATED (bool writeToFile (const File& destinationFile,
+    bool writeToFile (const File& destinationFile,
                                        StringRef dtdToUse,
                                        StringRef encodingType = "UTF-8",
-                                       int lineWrapLength = 60) const);
+                                       int lineWrapLength = 60) const;
 
 private:
     //==============================================================================

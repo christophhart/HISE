@@ -69,10 +69,10 @@ public:
 
         @see RangedDirectoryIterator
     */
-    JUCE_DEPRECATED (DirectoryIterator (const File& directory,
+    DirectoryIterator (const File& directory,
                                         bool isRecursive,
                                         const String& wildCard = "*",
-                                        int whatToLookFor = File::findFiles));
+                                        int whatToLookFor = File::findFiles);
 
     /** Destructor. */
     ~DirectoryIterator();
