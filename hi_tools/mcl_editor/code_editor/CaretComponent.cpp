@@ -77,7 +77,7 @@ float mcl::CaretComponent::squareWave(float wt) const
 	{
 		const float delta = 0.222f;
 		const float A = 1.0;
-		return 0.5f + A / 3.14159f * std::atanf(std::cosf(wt) / delta);
+		return 0.5f + A / 3.14159f * std::atan(std::cos(wt) / delta);
 	}
 	
 	return 0.6f;
