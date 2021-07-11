@@ -66,9 +66,11 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 
 	AudioLooper *looper = static_cast<AudioLooper*>(getOwnerSynth());
 
-	const AudioSampleBuffer *buffer = looper->getBuffer();
+	SimpleReadWriteLock::ScopedReadLock sl(looper->getBuffer().getDataLock());
 
-	uptimeDelta = buffer != nullptr ? 1.0 : 0.0;
+	const AudioSampleBuffer *buffer = &looper->getAudioSampleBuffer();
+
+	uptimeDelta = looper->getBuffer().isNotEmpty() ? 1.0 : 0.0;
 
 	const double resampleFactor = looper->getSampleRateForLoadedFile() / getSampleRate();
 
@@ -113,14 +115,16 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
 
-	
-
 	AudioLooper *looper = static_cast<AudioLooper*>(getOwnerSynth());
 
-	const AudioSampleBuffer *buffer = looper->getBuffer();
+	SimpleReadWriteLock::ScopedReadLock sl(looper->getBuffer().getDataLock());
+	auto sampleRange = looper->getBuffer().getCurrentRange();
 
-	const bool noBuffer = buffer == nullptr || buffer->getNumChannels() == 0;
-	const bool sampleFinished = !looper->isUsingLoop() && (voiceUptime > looper->length);
+	auto buffer = &looper->getAudioSampleBuffer();
+	auto length = sampleRange.getLength();
+
+	const bool noBuffer = buffer->getNumChannels() == 0;
+	const bool sampleFinished = !looper->isUsingLoop() && (voiceUptime > length);
 	
 	const bool isLastVoice = getOwnerSynth()->isLastStartedVoice(this);
 	const bool isReversed = looper->reversed;
@@ -132,20 +136,19 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		return;
 	}
     
-	int offset = looper->sampleRange.getStart();
+	int offset = sampleRange.getStart();
 
-	const float *leftSamples = buffer->getReadPointer(0, offset);
-	const float *rightSamples = buffer->getNumChannels() > 1 ? buffer->getReadPointer(1, offset) : leftSamples;
+	const float *leftSamples = buffer->getReadPointer(0, 0);
+	const float *rightSamples = buffer->getNumChannels() > 1 ? buffer->getReadPointer(1, 0) : leftSamples;
 
-	int loopStart = jmax<int>(offset, looper->loopRange.getStart());
-	int loopEnd = jmin<int>(looper->loopRange.getEnd(), looper->sampleRange.getEnd());
+	auto loopRange = looper->getBuffer().getLoopRange();
 
-	auto length = looper->isUsingLoop() ? loopEnd - loopStart : looper->length;
+	int loopStart = jmax<int>(offset, loopRange.getStart());
+	int loopEnd = jmin<int>(loopRange.getEnd(), sampleRange.getEnd());
 
-	auto end = looper->getRange().getEnd()-1;
+	length = looper->isUsingLoop() ? loopEnd - loopStart : length;
 
-	if (length == 0)
-		length = looper->length;
+	auto end = sampleRange.getLength()-1;
 
 	auto loopOffset = jmax<int>(0, loopStart - offset);
 
@@ -162,7 +165,7 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		//const int samplePos = (int)voiceUptime % looper->length + looper->sampleRange.getStart();
 		//const int nextSamplePos = ((int)voiceUptime + 1) % looper->length + looper->sampleRange.getStart();
 
-        if(checkReset && (uptime+2) > looper->length)
+        if(checkReset && (uptime+2) > length)
         {
 			voiceBuffer.clear(startSample, numSamples+1);
 
@@ -212,13 +215,11 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), constantGainValue, samplesToCopy);
 	}
 
-	if (isLastVoice && looper->length != 0 && looper->inputMerger.shouldUpdate())
+	if (isLastVoice && length != 0)
 	{
-		const int samplePos = getSamplePos((int)voiceUptime, length, loopOffset, isReversed, end);
-		const int actualLength = looper->getActualRange().getLength();
+		const int samplePos = getSamplePos((int)voiceUptime, length, loopOffset, isReversed, length);
 
-		//const float inputValue = (float)((int)voiceUptime % looper->length) / (float)looper->length;
-		looper->setInputValue((float)samplePos / (float)actualLength, dontSendNotification);
+		looper->getBuffer().sendDisplayIndexMessage((float)samplePos);
 	}
 
 	if (resetAfterBlock)
@@ -235,11 +236,12 @@ void AudioLooperVoice::resetVoice()
 
 AudioLooper::AudioLooper(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices),
-AudioSampleProcessor(this),
+AudioSampleProcessor(mc),
 syncMode(AudioSampleProcessor::SyncToHostMode::FreeRunning),
 pitchTrackingEnabled(false),
 rootNote(64)
 {
+	getBuffer().addListener(this);
 	finaliseModChains();
 
 	parameterNames.add("SyncMode");
@@ -342,14 +344,18 @@ void AudioLooper::setInternalAttribute(int parameterIndex, float newValue)
 	}
 }
 
-void AudioLooper::newFileLoaded()
+void AudioLooper::bufferWasLoaded()
 {
 	if (!pitchTrackingEnabled)
 		return;
 
-	if (auto b = getBuffer())
+	SimpleReadWriteLock::ScopedReadLock sl(getBuffer().getDataLock());
+
+	auto& b = getAudioSampleBuffer();
+
+	if (b.getNumSamples() > 0)
 	{
-		auto freq = PitchDetection::detectPitch(*b, 0, b->getNumSamples(), getSampleRate());
+		auto freq = PitchDetection::detectPitch(b, 0, b.getNumSamples(), getSampleRate());
 		
 		if (freq == 0.0)
 			return;
@@ -384,6 +390,11 @@ void AudioLooper::newFileLoaded()
 	
 }
 
+void AudioLooper::bufferWasModified()
+{
+	
+}
+
 ProcessorEditorBody* AudioLooper::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
@@ -398,15 +409,15 @@ ProcessorEditorBody* AudioLooper::createEditor(ProcessorEditor *parentEditor)
 
 void AudioLooper::setSyncMode(int newSyncMode)
 {
+	SimpleReadWriteLock::ScopedReadLock sl(getBuffer().getDataLock());
+
 	syncMode = (SyncToHostMode)newSyncMode;
 
 	const double globalBpm = getMainController()->getBpm();
 
 	const bool tempoOK = globalBpm > 0.0 && globalBpm < 1000.0;
-
 	const bool sampleRateOK = getSampleRate() != -1.0;
-
-	const bool lengthOK = length != 0;
+	const bool lengthOK = getBuffer().isNotEmpty();
 
 	if (!tempoOK || !sampleRateOK || !lengthOK)
 	{
@@ -435,9 +446,8 @@ void AudioLooper::setSyncMode(int newSyncMode)
 	}
 	else
 	{
-		dynamic_cast<AudioLooperVoice*>(getVoice(0))->syncFactor = (float)length / (float)(lengthForOneBeat * multiplier);
+		dynamic_cast<AudioLooperVoice*>(getVoice(0))->syncFactor = (float)getBuffer().getCurrentRange().getLength() / (float)(lengthForOneBeat * multiplier);
 	}
-
 }
 
 } // namespace hise

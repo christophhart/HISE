@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -206,10 +206,17 @@ public:
     virtual void memoryWarningReceived()     { jassertfalse; }
 
     //==============================================================================
-    /** Override this method to be informed when the back button is pressed on a device.
+    /** This will be called when the back button on a device is pressed. The return value
+        should be used to indicate whether the back button event has been handled by
+        the application, for example if you want to implement custom navigation instead
+        of the standard behaviour on Android.
+
         This is currently only implemented on Android devices.
+
+        @returns  true if the event has been handled, or false if the default OS
+                  behaviour should happen
      */
-    virtual void backButtonPressed() {}
+    virtual bool backButtonPressed() { return false; }
 
     //==============================================================================
     /** Signals that the main message loop should stop and the application should terminate.

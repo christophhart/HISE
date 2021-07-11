@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -218,7 +217,7 @@ private:
         delete getIvar<std::function<void()>*> (self, "callback");
         delete getIvar<NSDragOperation*> (self, "operation");
 
-        sendSuperclassMessage (self, @selector (dealloc));
+        sendSuperclassMessage<void> (self, @selector (dealloc));
     }
 
     static void provideDataForType (id self, SEL, NSPasteboard* sender, NSPasteboardItem*, NSString* type)
@@ -377,18 +376,9 @@ Desktop::DisplayOrientation Desktop::getCurrentOrientation() const
 }
 
 //==============================================================================
-#if defined (MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7)
- #define JUCE_USE_IOPM_SCREENSAVER_DEFEAT 1
-#endif
-
-#if ! (defined (JUCE_USE_IOPM_SCREENSAVER_DEFEAT) || defined (__POWER__))
- extern "C"  { extern OSErr UpdateSystemActivity (UInt8); } // Some versions of the SDK omit this function..
-#endif
-
 class ScreenSaverDefeater   : public Timer
 {
 public:
-   #if JUCE_USE_IOPM_SCREENSAVER_DEFEAT
     ScreenSaverDefeater()
     {
         startTimer (5000);
@@ -429,19 +419,6 @@ public:
     };
 
     std::unique_ptr<PMAssertion> assertion;
-   #else
-    ScreenSaverDefeater()
-    {
-        startTimer (10000);
-        timerCallback();
-    }
-
-    void timerCallback() override
-    {
-        if (Process::isForegroundProcess())
-            UpdateSystemActivity (1 /*UsrActivity*/);
-    }
-   #endif
 };
 
 static std::unique_ptr<ScreenSaverDefeater> screenSaverDefeater;
@@ -464,26 +441,30 @@ struct DisplaySettingsChangeCallback  : private DeletedAtShutdown
 {
     DisplaySettingsChangeCallback()
     {
-        CGDisplayRegisterReconfigurationCallback (displayReconfigurationCallBack, nullptr);
+        CGDisplayRegisterReconfigurationCallback (displayReconfigurationCallback, nullptr);
     }
 
     ~DisplaySettingsChangeCallback()
     {
-        CGDisplayRemoveReconfigurationCallback (displayReconfigurationCallBack, nullptr);
+        CGDisplayRemoveReconfigurationCallback (displayReconfigurationCallback, nullptr);
         clearSingletonInstance();
     }
 
-    static void displayReconfigurationCallBack (CGDirectDisplayID, CGDisplayChangeSummaryFlags, void*)
+    static void displayReconfigurationCallback (CGDirectDisplayID, CGDisplayChangeSummaryFlags, void*)
     {
-        const_cast<Displays&> (Desktop::getInstance().getDisplays()).refresh();
+        if (forceDisplayUpdate != nullptr)
+            forceDisplayUpdate();
     }
 
-    JUCE_DECLARE_SINGLETON_SINGLETHREADED_MINIMAL (DisplaySettingsChangeCallback)
+    static std::function<void()> forceDisplayUpdate;
 
+    JUCE_DECLARE_SINGLETON_SINGLETHREADED_MINIMAL (DisplaySettingsChangeCallback)
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DisplaySettingsChangeCallback)
 };
 
 JUCE_IMPLEMENT_SINGLETON (DisplaySettingsChangeCallback)
+
+std::function<void()> DisplaySettingsChangeCallback::forceDisplayUpdate = nullptr;
 
 static Rectangle<int> convertDisplayRect (NSRect r, CGFloat mainScreenBottom)
 {
@@ -504,10 +485,8 @@ static Displays::Display getDisplayFromScreen (NSScreen* s, CGFloat& mainScreenB
     d.totalArea = convertDisplayRect ([s frame], mainScreenBottom) / masterScale;
     d.scale = masterScale;
 
-   #if defined (MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7)
     if ([s respondsToSelector: @selector (backingScaleFactor)])
         d.scale *= s.backingScaleFactor;
-   #endif
 
     NSSize dpi = [[[s deviceDescription] objectForKey: NSDeviceResolution] sizeValue];
     d.dpi = (dpi.width + dpi.height) / 2.0;
@@ -519,7 +498,10 @@ void Displays::findDisplays (const float masterScale)
 {
     JUCE_AUTORELEASEPOOL
     {
-        DisplaySettingsChangeCallback::getInstance();
+        auto& settingsChangeCallback = *DisplaySettingsChangeCallback::getInstance();
+
+        if (settingsChangeCallback.forceDisplayUpdate == nullptr)
+            settingsChangeCallback.forceDisplayUpdate = [this] { refresh(); };
 
         CGFloat mainScreenBottom = 0;
 
@@ -542,8 +524,14 @@ bool juce_areThereAnyAlwaysOnTopWindows()
 static void selectImageForDrawing (const Image& image)
 {
     [NSGraphicsContext saveGraphicsState];
+
+   #if (defined (MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_10)
+    [NSGraphicsContext setCurrentContext: [NSGraphicsContext graphicsContextWithCGContext: juce_getImageContext (image)
+                                                                                  flipped: false]];
+   #else
     [NSGraphicsContext setCurrentContext: [NSGraphicsContext graphicsContextWithGraphicsPort: juce_getImageContext (image)
                                                                                      flipped: false]];
+   #endif
 }
 
 static void releaseImageAfterDrawing()
@@ -614,16 +602,16 @@ void SystemClipboard::copyTextToClipboard (const String& text)
 {
     NSPasteboard* pb = [NSPasteboard generalPasteboard];
 
-    [pb declareTypes: [NSArray arrayWithObject: NSStringPboardType]
+    [pb declareTypes: [NSArray arrayWithObject: NSPasteboardTypeString]
                owner: nil];
 
     [pb setString: juceStringToNS (text)
-          forType: NSStringPboardType];
+          forType: NSPasteboardTypeString];
 }
 
 String SystemClipboard::getTextFromClipboard()
 {
-    return nsStringToJuce ([[NSPasteboard generalPasteboard] stringForType: NSStringPboardType]);
+    return nsStringToJuce ([[NSPasteboard generalPasteboard] stringForType: NSPasteboardTypeString]);
 }
 
 void Process::setDockIconVisible (bool isVisible)

@@ -83,6 +83,16 @@ void Granulate :: setRandomFactor( StkFloat randomness )
   gRandomFactor_ = 0.97 * randomness;
 };
 
+
+void Granulate::setExternalData(const snex::Types::ExternalData& d, int index)
+{
+	if (index == 0)
+	{
+		data_.resize(d.numSamples, d.numChannels);
+	}
+}
+
+
 void Granulate :: openFile( std::string fileName, bool typeRaw )
 {
   // Attempt to load the soundfile data.

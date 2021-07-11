@@ -36,25 +36,23 @@ Table::Table():
 	xConverter(getDefaultTextValue),
 	yConverter(getDefaultTextValue)
 {
-	
     graphPoints.add(GraphPoint(0.0, 0.0, 0.5));
     graphPoints.add(GraphPoint(1.0, 1.0, 0.5));
 }
 
 Table::~Table()
 {
-	
-
-	masterReference.clear();
 }
 
 void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints)
 {
 	graphPoints.clear();
 	graphPoints.addArray(newGraphPoints, 0, numPoints);
+
+	internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
 };
 
-void Table::createPath(Path &normalizedPath) const
+void Table::createPath(Path &normalizedPath, bool fillPath) const
 {
 	normalizedPath.clear();
 	normalizedPath.startNewSubPath(-0.00000001f, 1.0000001f);
@@ -85,8 +83,12 @@ void Table::createPath(Path &normalizedPath) const
 	}
 
 	normalizedPath.lineTo(1.0000001f, 0.0000001f); // fix wrong scaling if greatest value is < 1
-	normalizedPath.lineTo(1.0000001f, 1.0000001f);
-	normalizedPath.closeSubPath();
+
+	if (fillPath)
+	{
+		normalizedPath.lineTo(1.0000001f, 1.0000001f);
+		normalizedPath.closeSubPath();
+	}
 };
 
 void Table::fillLookUpTable()
@@ -96,7 +98,7 @@ void Table::fillLookUpTable()
 
 	Path renderPath;
 
-	createPath(renderPath);
+	createPath(renderPath, true);
 
 	renderPath.applyTransform(AffineTransform::scale((float)getTableSize(), 1.0f));
 

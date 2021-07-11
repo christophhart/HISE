@@ -55,7 +55,7 @@ public:
 
 	struct FileBrowserToolbarPaths
 	{
-		static Drawable *createPath(int id, bool isOn);
+		static std::unique_ptr<Drawable> createPath(int id, bool isOn);
 	};
 
 private:
@@ -205,7 +205,7 @@ private:
 
 		bool isFileSuitable(const File &file) const override
 		{
-			return file.hasFileExtension("hip") || AudioSampleProcessorBufferComponent::isAudioFile(file.getFullPathName());
+			return file.hasFileExtension("hip") || MultiChannelAudioBufferDisplay::isAudioFile(file.getFullPathName());
 		}
 		
 
@@ -251,7 +251,7 @@ private:
 
 		bool isAudioFile(const File& file) const
 		{
-			return AudioSampleProcessorBufferComponent::isAudioFile(file.getFullPathName());
+			return MultiChannelAudioBufferDisplay::isAudioFile(file.getFullPathName());
 		}
         
 		bool isXmlFile(const File& file) const
@@ -289,7 +289,7 @@ private:
     {
         File favoritesFile = NativeFileHandler::getAppDataDirectory().getChildFile("Favorites.xml");
         
-        ScopedPointer<XmlElement> xml = XmlDocument::parse(favoritesFile);
+        auto xml = XmlDocument::parse(favoritesFile);
         
         if(xml == nullptr) return;
         

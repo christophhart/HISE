@@ -399,7 +399,7 @@ void SampleMap::saveAndReloadMap()
 {
 	auto f = getReference().getFile();
 
-	ScopedPointer<XmlElement> xml = data.createXml();
+	auto xml = data.createXml();
 	xml->writeToFile(f, "");
 
 	auto pool = sampler->getMainController()->getCurrentSampleMapPool();
@@ -652,7 +652,7 @@ bool SampleMap::save(const File& fileToUse)
 
 	}
 
-	ScopedPointer<XmlElement> xml = data.createXml();
+	auto xml = data.createXml();
 	f.replaceWithText(xml->createDocument(""));
 
 	PoolReference ref(getSampler()->getMainController(), f.getFullPathName(), FileHandlerBase::SubDirectories::SampleMaps);
@@ -869,12 +869,12 @@ void SampleMap::loadUnsavedValueTree(const ValueTree& v)
 
 	clear(dontSendNotification);
 
-	parseValueTree(v);
+	//parseValueTree(v);
 
 	currentPool = nullptr;
 	sampleMapData = PooledSampleMap();
 	
-	parseValueTree(data);
+	parseValueTree(v);
 	changeWatcher = new ChangeWatcher(data);
 
 
@@ -1080,7 +1080,7 @@ void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
 {
 	showStatusMessage("Saving Samplemap file");
 	
-	ScopedPointer<XmlElement> xml = v.createXml();
+	auto xml = v.createXml();
 
 	sampleMapFile.getParentDirectory().createDirectory();
 
@@ -1300,6 +1300,14 @@ void MonolithExporter::updateSampleMap()
 			{
 				const auto length = (int64)hlac::CompressionHelpers::getPaddedSampleSize((int)reader->lengthInSamples);
 				auto sampleEnd = (int64)s.getProperty(SampleIds::SampleEnd, 0);
+
+				
+				if (sampleEnd == 0)
+				{
+					// We need to write the actual sample length in the monolith data when we read
+					// it outside a sampler
+					s.setProperty(SampleIds::SampleEnd, reader->lengthInSamples, nullptr);
+				}
 
 				if (reader->lengthInSamples < sampleEnd)
 				{
@@ -1587,7 +1595,6 @@ void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(const Array<Async
 
 				if (sound->isDeletePending())
 				{
-					jassertfalse;
 					continue;
 				}
 

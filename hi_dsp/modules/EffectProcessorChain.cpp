@@ -110,10 +110,8 @@ void EffectProcessorChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(MdaDegradeEffect);
 	ADD_NAME_TO_TYPELIST(ChorusEffect);
     ADD_NAME_TO_TYPELIST(PhaseFX);
-	ADD_NAME_TO_TYPELIST(GainCollector);
 	ADD_NAME_TO_TYPELIST(RouteEffect);
 	ADD_NAME_TO_TYPELIST(SaturatorEffect);
-	ADD_NAME_TO_TYPELIST(AudioProcessorWrapper);
 	ADD_NAME_TO_TYPELIST(JavascriptMasterEffect);
 	ADD_NAME_TO_TYPELIST(JavascriptPolyphonicEffect);
 	ADD_NAME_TO_TYPELIST(SlotFX);
@@ -145,10 +143,8 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 	case degrade:						return new MdaDegradeEffect(m, id);
 	case chorus:						return new ChorusEffect(m, id);
     case phaser:                        return new PhaseFX(m, id);
-	case gainCollector:					return new GainCollector(m, id);
 	case routeFX:						return new RouteEffect(m, id);
 	case saturation:					return new SaturatorEffect(m, id);
-	case audioProcessorWrapper:			return new AudioProcessorWrapper(m, id);
 	case scriptFxProcessor:				return new JavascriptMasterEffect(m, id);
 	case slotFX:						return new SlotFX(m, id);
 	case emptyFX:						return new EmptyFX(m, id);

@@ -221,7 +221,10 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 
 #if JUCE_MAC && IS_STANDALONE_APP
-	MenuBarModel::setMacMainMenu(this);
+    if(owner->getDocProcessor() != owner )
+    {
+        MenuBarModel::setMacMainMenu(this);
+    }
 #else
 
 	addAndMakeVisible(menuBar = new MenuBarComponent(this));
@@ -234,6 +237,11 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 	startTimer(1000);
 
 	updateCommands();
+
+	auto useOpenGL = GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Other::UseOpenGL).toString() == "1";
+
+	if (useOpenGL)
+		setEnableOpenGL(this);
 }
 
 
@@ -270,7 +278,7 @@ BackendRootWindow::~BackendRootWindow()
 
 	mainEditor = nullptr;
 
-
+	detachOpenGl();
 }
 
 bool BackendRootWindow::isFullScreenMode() const

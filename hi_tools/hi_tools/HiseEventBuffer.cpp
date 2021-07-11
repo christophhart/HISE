@@ -323,6 +323,11 @@ void HiseEvent::setSongPositionValue(int positionInMidiBeats)
 	value = (positionInMidiBeats >> 7) & 127;
 }
 
+void HiseEvent::clear()
+{
+	*this = {};
+}
+
 juce::String HiseEvent::toDebugString() const
 {
 	String s;

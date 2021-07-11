@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -37,10 +36,7 @@ struct AudioVisualiserComponent::ChannelInfo
 
     void clear() noexcept
     {
-        // VS2013 doesn't like {} here...
-        for (auto& l : levels)
-            l = Range<float>();
-
+        levels.fill ({});
         value = {};
         subSample = 0;
     }
@@ -55,8 +51,10 @@ struct AudioVisualiserComponent::ChannelInfo
     {
         if (--subSample <= 0)
         {
-            nextSample %= levels.size();
-            levels.getReference (nextSample++) = value;
+            if (++nextSample == levels.size())
+                nextSample = 0;
+
+            levels.getReference (nextSample) = value;
             subSample = owner.getSamplesPerBlock();
             value = Range<float> (newSample, newSample);
         }
@@ -78,7 +76,7 @@ struct AudioVisualiserComponent::ChannelInfo
     AudioVisualiserComponent& owner;
     Array<Range<float>> levels;
     Range<float> value;
-    int nextSample = 0, subSample = 0;
+    std::atomic<int> nextSample { 0 }, subSample { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChannelInfo)
 };
@@ -180,7 +178,7 @@ void AudioVisualiserComponent::paint (Graphics& g)
     g.fillAll (backgroundColour);
 
     auto r = getLocalBounds().toFloat();
-    auto channelHeight = r.getHeight() / channels.size();
+    auto channelHeight = r.getHeight() / (float) channels.size();
 
     g.setColour (waveformColour);
 

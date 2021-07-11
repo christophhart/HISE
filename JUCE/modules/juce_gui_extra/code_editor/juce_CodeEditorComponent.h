@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -252,6 +251,19 @@ public:
     */
     Colour getColourForTokenType (int tokenType) const;
 
+    /** Rebuilds the syntax highlighting for a section of text.
+
+        This happens automatically any time the CodeDocument is edited, but this
+        method lets you change text colours even when the CodeDocument hasn't changed.
+
+        For example, you could use this to highlight tokens as the cursor moves.
+        To do so you'll need to tell your custom CodeTokeniser where the token you
+        want to highlight is, and make it return a special type of token. Then you
+        should call this method supplying the range of the highlighted text.
+        @see CodeTokeniser
+     */
+    void retokenise (int startIndex, int endIndex);
+
     //==============================================================================
     /** A set of colour IDs to use to change the colour of various aspects of the editor.
 
@@ -289,6 +301,9 @@ public:
     /** Called when the view position is scrolled horizontally or vertically. */
     virtual void editorViewportPositionChanged();
 
+    /** Called when the caret position moves. */
+    virtual void caretPositionMoved();
+
     //==============================================================================
     /** This adds the items to the popup menu.
 
@@ -323,7 +338,7 @@ public:
     */
     virtual void performPopupMenuAction (int menuItemID);
 
-    /** Specifies a commmand-manager which the editor will notify whenever the state
+    /** Specifies a command-manager which the editor will notify whenever the state
         of any of its commands changes.
         If you're making use of the editor's ApplicationCommandTarget interface, then
         you should also use this to tell it which command manager it should use. Make
@@ -365,6 +380,8 @@ public:
     void getCommandInfo (CommandID, ApplicationCommandInfo&) override;
     /** @internal */
     bool perform (const InvocationInfo&) override;
+    /** @internal */
+    void lookAndFeelChanged() override;
 
 private:
     //==============================================================================
@@ -408,7 +425,7 @@ private:
     void rebuildLineTokensAsync();
     void codeDocumentChanged (int start, int end);
 
-    OwnedArray<CodeDocument::Iterator> cachedIterators;
+    Array<CodeDocument::Iterator> cachedIterators;
     void clearCachedIterators (int firstLineToBeInvalid);
     void updateCachedIterators (int maxLineNum);
     void getIteratorForPosition (int position, CodeDocument::Iterator&);

@@ -345,6 +345,9 @@ void PanelWithProcessorConnection::processorDeleted(Processor* /*deletedProcesso
 
 bool PanelWithProcessorConnection::shouldHideSelector() const
 {
+	if (forceHideSelector)
+		return true;
+
 #if USE_BACKEND
 	return findParentComponentOfClass<ScriptContentComponent>() != nullptr ||
 		findParentComponentOfClass<MarkdownPreview>() != nullptr;
@@ -468,8 +471,10 @@ bool PanelWithProcessorConnection::ProcessorConnection::perform()
 {
 	if (panel.getComponent() != nullptr)
 	{
-		panel->currentIndex = newIndex;
 		panel->setCurrentProcessor(newProcessor.get());
+		panel->refreshIndexList();
+		panel->currentIndex = newIndex;
+		
 		panel->refreshContent();
 		
 		return true;

@@ -127,6 +127,9 @@ public:
 		bit-equality. */
 	bool operator==(const HiseEvent &other) const;
 
+	/** Clears the event (so that isEmpty() returns true. */
+	void clear();
+
 	/** Swaps the event with another. */
 	void swapWith(HiseEvent &other);
 
@@ -634,6 +637,8 @@ public:
 	/** Returns the number of events in this buffer. */
 	int getNumUsed() const { return numUsed; }
 
+	int size() const { return getNumUsed(); }
+
 	HiseEvent getEvent(int index) const;
 
 	HiseEvent popEvent(int index);
@@ -767,6 +772,12 @@ public:
 
 	/** Searches all active note on events and returns the one with the given event id. */
 	HiseEvent popNoteOnFromEventId(uint16 eventId);
+
+	/** Checks whether the event ID points to an active artificial event. */
+	bool isArtificialEventId(uint16 eventId) const
+	{
+		return !artificialEvents[eventId % HISE_EVENT_ID_ARRAY_SIZE].isEmpty();
+	}
 
 	// ===========================================================================================================
 

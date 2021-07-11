@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -35,29 +34,27 @@
 */
 class FilePathPropertyComponent    : public PropertyComponent,
                                      public FileDragAndDropTarget,
-                                     private Value::Listener
+                                     protected Value::Listener
 {
 public:
     FilePathPropertyComponent (Value valueToControl, const String& propertyName, bool isDir, bool thisOS = true,
-                               const String& wildcardsToUse = "*", const File& relativeRoot = File(), bool multiPath = false)
+                               const String& wildcardsToUse = "*", const File& relativeRoot = File())
         : PropertyComponent (propertyName),
           text (valueToControl, propertyName, 1024, false),
-          isDirectory (isDir), isThisOS (thisOS), supportsMultiplePaths (multiPath), wildcards (wildcardsToUse), root (relativeRoot)
+          isDirectory (isDir), isThisOS (thisOS), wildcards (wildcardsToUse), root (relativeRoot)
     {
         textValue.referTo (valueToControl);
-
         init();
     }
 
     /** Displays a default value when no value is specified by the user. */
     FilePathPropertyComponent (ValueWithDefault& valueToControl, const String& propertyName, bool isDir, bool thisOS = true,
-                               const String& wildcardsToUse = "*", const File& relativeRoot = File(), bool multiPath = false)
+                               const String& wildcardsToUse = "*", const File& relativeRoot = File())
        : PropertyComponent (propertyName),
          text (valueToControl, propertyName, 1024, false),
-         isDirectory (isDir), isThisOS (thisOS), supportsMultiplePaths (multiPath), wildcards (wildcardsToUse), root (relativeRoot)
+         isDirectory (isDir), isThisOS (thisOS), wildcards (wildcardsToUse), root (relativeRoot)
     {
         textValue = valueToControl.getPropertyAsValue();
-
         init();
     }
 
@@ -89,18 +86,16 @@ public:
 
     void filesDropped (const StringArray& selectedFiles, int, int) override
     {
-        if (supportsMultiplePaths)
-        {
-            for (auto& f : selectedFiles)
-                setTo (f);
-        }
-        else
-        {
-            setTo (selectedFiles[0]);
-        }
+        setTo (selectedFiles[0]);
 
         highlightForDragAndDrop = false;
         repaint();
+    }
+
+protected:
+    void valueChanged (Value&) override
+    {
+        updateEditorColour();
     }
 
 private:
@@ -125,11 +120,6 @@ private:
 
         auto pathName = (root == File()) ? f.getFullPathName()
                                          : f.getRelativePathFrom (root);
-
-        auto currentPath = text.getText();
-
-        if (supportsMultiplePaths && currentPath.isNotEmpty())
-            pathName = currentPath.trimCharactersAtEnd (" ;") + "; " + pathName;
 
         text.setText (pathName);
         updateEditorColour();
@@ -160,30 +150,25 @@ private:
 
     void updateEditorColour()
     {
-        if (supportsMultiplePaths || ! isThisOS)
-            return;
-
-        text.setColour (TextPropertyComponent::textColourId, findColour (widgetTextColourId));
-
-        auto pathToCheck = text.getText();
-
-        if (pathToCheck.isNotEmpty())
+        if (isThisOS)
         {
-            pathToCheck.replace ("${user.home}", "~");
+            text.setColour (TextPropertyComponent::textColourId, findColour (widgetTextColourId));
 
-           #if JUCE_WINDOWS
-            if (pathToCheck.startsWith ("~"))
-                pathToCheck = pathToCheck.replace ("~", File::getSpecialLocation (File::userHomeDirectory).getFullPathName());
-           #endif
+            auto pathToCheck = text.getText();
 
-            if (! root.getChildFile (pathToCheck).exists())
-                text.setColour (TextPropertyComponent::textColourId, Colours::red);
+            if (pathToCheck.isNotEmpty())
+            {
+                pathToCheck.replace ("${user.home}", "~");
+
+               #if JUCE_WINDOWS
+                if (pathToCheck.startsWith ("~"))
+                    pathToCheck = pathToCheck.replace ("~", File::getSpecialLocation (File::userHomeDirectory).getFullPathName());
+               #endif
+
+                if (! root.getChildFile (pathToCheck).exists())
+                    text.setColour (TextPropertyComponent::textColourId, Colours::red);
+            }
         }
-    }
-
-    void valueChanged (Value&) override
-    {
-        updateEditorColour();
     }
 
     void lookAndFeelChanged() override
@@ -200,10 +185,47 @@ private:
     TextPropertyComponent text;
     TextButton browseButton { "..." };
 
-    bool isDirectory, isThisOS, supportsMultiplePaths, highlightForDragAndDrop = false;
+    bool isDirectory, isThisOS, highlightForDragAndDrop = false;
     String wildcards;
     File root;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FilePathPropertyComponent)
+};
+
+//==============================================================================
+class FilePathPropertyComponentWithEnablement  : public FilePathPropertyComponent
+{
+public:
+    FilePathPropertyComponentWithEnablement (ValueWithDefault& valueToControl,
+                                             ValueWithDefault valueToListenTo,
+                                             const String& propertyName,
+                                             bool isDir,
+                                             bool thisOS = true,
+                                             const String& wildcardsToUse = "*",
+                                             const File& relativeRoot = File())
+        : FilePathPropertyComponent (valueToControl,
+                                     propertyName,
+                                     isDir,
+                                     thisOS,
+                                     wildcardsToUse,
+                                     relativeRoot),
+          valueWithDefault (valueToListenTo),
+          value (valueToListenTo.getPropertyAsValue())
+    {
+        value.addListener (this);
+        valueChanged (value);
+    }
+
+    ~FilePathPropertyComponentWithEnablement() override    { value.removeListener (this); }
+
+private:
+    void valueChanged (Value& v) override
+    {
+        FilePathPropertyComponent::valueChanged (v);
+        setEnabled (valueWithDefault.get());
+    }
+
+    ValueWithDefault valueWithDefault;
+    Value value;
 };

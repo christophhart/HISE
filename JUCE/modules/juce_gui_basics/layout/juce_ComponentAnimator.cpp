@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -31,6 +30,11 @@ class ComponentAnimator::AnimationTask
 {
 public:
     AnimationTask (Component* c) noexcept  : component (c) {}
+
+    ~AnimationTask()
+    {
+        proxy.deleteAndZero();
+    }
 
     void reset (const Rectangle<int>& finalBounds,
                 float finalAlpha,
@@ -58,17 +62,17 @@ public:
         midSpeed = invTotalDistance;
         endSpeed = jmax (0.0, endSpd * invTotalDistance);
 
+        proxy.deleteAndZero();
+
         if (useProxyComponent)
-            proxy.reset (new ProxyComponent (*component));
-        else
-            proxy.reset();
+            proxy = new ProxyComponent (*component);
 
         component->setVisible (! useProxyComponent);
     }
 
     bool useTimeslice (const int elapsed)
     {
-        if (auto* c = proxy != nullptr ? proxy.get()
+        if (auto* c = proxy != nullptr ? proxy.getComponent()
                                        : component.get())
         {
             msElapsed += elapsed;
@@ -159,7 +163,8 @@ public:
             else
                 jassertfalse; // seem to be trying to animate a component that's not visible..
 
-            auto scale = (float) Desktop::getInstance().getDisplays().findDisplayForRect (getScreenBounds()).scale;
+            auto scale = (float) Desktop::getInstance().getDisplays().getDisplayForRect (getScreenBounds())->scale
+                           * Component::getApproximateScaleFactorForComponent (&c);
 
             image = c.createComponentSnapshot (c.getLocalBounds(), false, scale);
 
@@ -170,8 +175,8 @@ public:
         void paint (Graphics& g) override
         {
             g.setOpacity (1.0f);
-            g.drawImageTransformed (image, AffineTransform::scale (getWidth()  / (float) image.getWidth(),
-                                                                   getHeight() / (float) image.getHeight()), false);
+            g.drawImageTransformed (image, AffineTransform::scale ((float) getWidth()  / (float) jmax (1, image.getWidth()),
+                                                                   (float) getHeight() / (float) jmax (1, image.getHeight())), false);
         }
 
     private:
@@ -181,7 +186,7 @@ public:
     };
 
     WeakReference<Component> component;
-    std::unique_ptr<Component> proxy;
+    Component::SafePointer<Component> proxy;
 
     Rectangle<int> destination;
     double destAlpha;

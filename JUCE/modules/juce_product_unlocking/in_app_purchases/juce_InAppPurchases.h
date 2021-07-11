@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -200,19 +199,15 @@ public:
 
         @param productIdentifier               The product identifier.
 
-        @param isSubscription                  (Android only) defines if a product a user wants to buy is a subscription or a one-time purchase.
-                                               On iOS, type of the product is derived implicitly.
-
-        @param upgradeOrDowngradeFromSubscriptionsWithProductIdentifiers (Android only) specifies subscriptions that will be replaced by the
-                                                                         one being purchased now. Used only when buying a subscription
-                                                                         that is an upgrade or downgrade from other ones.
+        @param upgradeOrDowngradeFromSubscriptionWithProductIdentifier (Android only) specifies the subscription that will be replaced by
+                                                                       the one being purchased now. Used only when buying a subscription
+                                                                       that is an upgrade or downgrade from another.
 
         @param creditForUnusedSubscription     (Android only) controls whether a user should be credited for any unused subscription time on
-                                               the products that are being upgraded or downgraded.
+                                               the product that is being upgraded or downgraded.
     */
     void purchaseProduct (const String& productIdentifier,
-                          bool isSubscription,
-                          const StringArray& upgradeOrDowngradeFromSubscriptionsWithProductIdentifiers = {},
+                          const String& upgradeOrDowngradeFromSubscriptionWithProductIdentifier = {},
                           bool creditForUnusedSubscription = true);
 
     /** Asynchronously asks about a list of products that a user has already bought. Upon completion, Listener::purchasesListReceived()
@@ -259,6 +254,22 @@ public:
 
     /** iOS only: Cancels downloads of hosted content from the store. */
     void cancelDownloads (const Array<Download*>& downloads);
+
+    //==============================================================================
+    // On Android, it is no longer necessary to specify whether the product being purchased is a subscription
+    // and only a single subscription can be upgraded/downgraded. Use the updated purchaseProduct() method
+    // which takes a single String argument.
+    JUCE_DEPRECATED_WITH_BODY (void purchaseProduct (const String& productIdentifier,
+                                                     bool isSubscription,
+                                                     const StringArray& upgradeOrDowngradeFromSubscriptionsWithProductIdentifiers = {},
+                                                     bool creditForUnusedSubscription = true),
+                               {
+
+                                   ignoreUnused (isSubscription);
+                                   purchaseProduct (productIdentifier,
+                                                    upgradeOrDowngradeFromSubscriptionsWithProductIdentifiers[0],
+                                                    creditForUnusedSubscription);
+                               })
 
 private:
     //==============================================================================

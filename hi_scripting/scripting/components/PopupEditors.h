@@ -42,7 +42,8 @@ class DebugConsoleTextEditor;
 class PopupIncludeEditor : public Component,
 						   public Timer,
 						   public ButtonListener,
-						   public Dispatchable
+						   public Dispatchable,
+						   public ExternalScriptFile::RuntimeErrorListener
 {
 public:
 
@@ -56,7 +57,7 @@ public:
 	void timerCallback();
 	bool keyPressed(const KeyPress& key) override;
 
-	
+	void runTimeErrorsOccured(const Array<ExternalScriptFile::RuntimeError>& errors) override;
 
 	void resized() override;;
 
@@ -64,9 +65,17 @@ public:
 
 	void buttonClicked(Button* b) override;
 
-	JavascriptCodeEditor* getEditor() { return editor.get(); }
+	JavascriptCodeEditor* getEditor() 
+	{ 
+		auto p = dynamic_cast<JavascriptCodeEditor*>(editor.get());
+		return p;
+	}
 
-	const JavascriptCodeEditor* getEditor() const { return editor.get(); }
+	const JavascriptCodeEditor* getEditor() const
+	{
+		auto p = dynamic_cast<const JavascriptCodeEditor*>(editor.get());
+		return p;
+	}
 
 	File getFile() const;
 	
@@ -84,8 +93,9 @@ private:
 
 	ExternalScriptFile::Ptr externalFile;
 
+	ScopedPointer<mcl::TextDocument> doc;
 	ScopedPointer<JavascriptTokeniser> tokeniser;
-	ScopedPointer < JavascriptCodeEditor > editor;
+	ScopedPointer<Component> editor;
 	
 	ScopedPointer<TextButton> compileButton;
 

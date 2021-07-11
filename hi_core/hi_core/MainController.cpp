@@ -80,7 +80,8 @@ MainController::MainController() :
 	debugLogger(this),
 	globalAsyncModuleHandler(this),
 	//presetLoadRampFlag(OldUserPresetHandler::Active),
-	controlUndoManager(new UndoManager())
+	controlUndoManager(new UndoManager()),
+	xyzPool(new MultiChannelAudioBuffer::XYZPool())
 {
 	PresetHandler::setCurrentMainController(this);
 
@@ -774,7 +775,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages); // TODO_BUFFER: Move this after the next line...
 
 	masterEventBuffer.addEvents(midiMessages);
-
+	masterEventBuffer.alignEventsToRaster<HISE_EVENT_RASTER>(numSamplesThisBlock);
+	
 	if (maxEventTimestamp != 0)
 	{
 		int maxAligned = maxEventTimestamp - maxEventTimestamp % HISE_EVENT_RASTER;
@@ -843,7 +845,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 #if !FRONTEND_IS_PLUGIN
 
+#if !FORCE_INPUT_CHANNELS
 	buffer.clear();
+#endif
 
 	checkAllNotesOff();
 
@@ -941,7 +945,15 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	jassert(thisMultiChannelBuffer.getNumSamples() <= multiChannelBuffer.getNumSamples());
 
+#if FORCE_INPUT_CHANNELS
+	jassert(thisMultiChannelBuffer.getNumSamples() >= buffer.getNumSamples());
+	jassert(thisMultiChannelBuffer.getNumChannels() >= buffer.getNumChannels());
+	thisMultiChannelBuffer.makeCopyOf(buffer, true);
+#else
 	thisMultiChannelBuffer.clear();
+#endif
+
+	
 
 	if (previewBufferIndex != -1)
 	{
@@ -988,6 +1000,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		
 		thisMultiChannelBuffer.setDataToReferTo(d, (int)osOutput.getNumChannels(), (int)osOutput.getNumSamples());
 	}
+
+
 
 
 	synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
@@ -1070,11 +1084,7 @@ void MainController::skin(Component &c)
 {
 	c.setLookAndFeel(mainLookAndFeel);
     
-	c.setColour(HiseColourScheme::ComponentBackgroundColour, Colours::transparentBlack);
-    c.setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
-    c.setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
-    c.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
-	c.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+	GlobalHiseLookAndFeel::setDefaultColours(c);
 	
 
 #if 0
@@ -1667,5 +1677,117 @@ void MainController::SampleManager::handleNonRealtimeState()
 		internalsSetToNonRealtime = isNonRealtime();
 	}
 }
+
+void MainController::KillStateHandler::callLater(const std::function<void()>& f)
+{
+	auto t = KillStateHandler::getCurrentThread();
+
+	if (t == SampleLoadingThread)
+	{
+		mc->getSampleManager().addDeferredFunction(mc->getMainSynthChain(), [f](Processor* p)
+		{
+			f();
+			return SafeFunctionCall::OK;
+		});
+	}
+	if (t == MessageThread)
+	{
+		MessageManager::callAsync(f);
+	}
+	if (t == ScriptingThread)
+	{
+		jassertfalse;
+	}
+}
+
+bool MainController::UserPresetHandler::isReadOnly(const File& f)
+{
+#if READ_ONLY_FACTORY_PRESETS
+	return factoryPaths->contains(mc, f);
+#else
+	return false;
+#endif
+}
+
+#if READ_ONLY_FACTORY_PRESETS
+bool MainController::UserPresetHandler::FactoryPaths::contains(MainController* mc, const File& f)
+{
+	if (!initialised)
+		initialise(mc);
+
+	auto path = getPath(mc, f);
+
+	if (path.isNotEmpty())
+	{
+		auto ok = factoryPaths.contains(path);
+		return ok;
+	}
+		
+
+	return false;
+}
+
+void MainController::UserPresetHandler::FactoryPaths::initialise(MainController* mc)
+{
+#if USE_FRONTEND
+	ScopedPointer<MemoryInputStream> mis = FrontendFactory::getEmbeddedData(FileHandlerBase::UserPresets);
+	zstd::ZCompressor<UserPresetDictionaryProvider> decompressor;
+	MemoryBlock mb(mis->getData(), mis->getDataSize());
+	ValueTree presetTree;
+	decompressor.expand(mb, presetTree);
+
+	for (auto c : presetTree)
+		addRecursive(c, "{PROJECT_FOLDER}");
+#endif
+
+	initialised = true;
+
+}
+
+String MainController::UserPresetHandler::FactoryPaths::getPath(MainController* mc, const File& f)
+{
+	auto factoryFolder = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::UserPresets);
+
+	if (f.isAChildOf(factoryFolder))
+		return "{PROJECT_FOLDER}" + f.withFileExtension("").getRelativePathFrom(factoryFolder).replace("\\", "/");
+
+	for (int i = 0; i < mc->getExpansionHandler().getNumExpansions(); i++)
+	{
+		auto e = mc->getExpansionHandler().getExpansion(i);
+		auto expFolder = e->getSubDirectory(FileHandlerBase::UserPresets);
+
+		if (f.isAChildOf(expFolder))
+			return e->getWildcard() + f.withFileExtension("").getRelativePathFrom(expFolder).replace("\\", "/");
+	}
+
+	return {};
+}
+
+void MainController::UserPresetHandler::FactoryPaths::addRecursive(const ValueTree& v, const String& path)
+{
+	if (v["isDirectory"])
+	{
+		String thisPath;
+		
+		thisPath << path << v["FileName"].toString();
+
+		for (auto c : v)
+		{
+			addRecursive(c, thisPath + "/");
+		}
+
+		this->factoryPaths.addIfNotAlreadyThere(thisPath);
+	}
+	if (v.getType() == Identifier("PresetFile"))
+	{
+		String thisFile;
+		
+		thisFile << path << v["FileName"].toString();
+
+		this->factoryPaths.addIfNotAlreadyThere(thisFile);
+		return;
+	}
+}
+#endif
 
 } // namespace hise

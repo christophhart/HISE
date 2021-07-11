@@ -248,7 +248,7 @@ public:
 	ParameterConnection* addConnectedParameter(Processor* p, int parameterIndex, NormalisableRange<double> normalisableRange)
 	{
 		auto newConnection = new ParameterConnection(p, parameterIndex, normalisableRange);
-		connectedParameters.addIfNotAlreadyThere(newConnection);
+		connectedParameters.add(newConnection);
 		return connectedParameters.getLast();
 	}
 

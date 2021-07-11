@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -208,6 +208,18 @@ public:
     */
     static AudioChannelSet JUCE_CALLTYPE create7point1point2();
 
+    /** Creates a set for Dolby Atmos 7.0.4 surround setup (left, right, centre, leftSurroundSide, rightSurroundSide, leftSurroundRear, rightSurroundRear, topFrontLeft, topFrontRight, topRearLeft, topRearRight).
+
+        Is equivalent to: n/a (VST), n/a (AAX), n/a (CoreAudio)
+    */
+    static AudioChannelSet JUCE_CALLTYPE create7point0point4();
+
+    /** Creates a set for Dolby Atmos 7.1.4 surround setup (left, right, centre, leftSurroundSide, rightSurroundSide, leftSurroundRear, rightSurroundRear, LFE, topFrontLeft, topFrontRight, topRearLeft, topRearRight).
+
+        Is equivalent to: k71_4 (VST), n/a (AAX), n/a (CoreAudio)
+    */
+    static AudioChannelSet JUCE_CALLTYPE create7point1point4();
+
 
     //==============================================================================
     /** Creates a set for quadraphonic surround setup (left, right, leftSurround, rightSurround)
@@ -369,7 +381,7 @@ public:
         bottomFrontCentre   = 63, /**< Bottom Front Centre (Bfc) */
         bottomFrontRight    = 64, /**< Bottom Front Right (Bfr)  */
 
-        proxymityLeft       = 65, /**< Proximity Left (Pl)  */
+        proximityLeft       = 65, /**< Proximity Left (Pl)  */
         proximityRight      = 66, /**< Proximity Right (Pr) */
 
         bottomSideLeft      = 67, /**< Bottom Side Left (Bsl)   */

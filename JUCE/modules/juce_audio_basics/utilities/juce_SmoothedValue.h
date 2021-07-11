@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -179,10 +179,18 @@ protected:
 */
 namespace ValueSmoothingTypes
 {
-    /** Used to indicate a linear smoothing between values. */
+    /**
+        Used to indicate a linear smoothing between values.
+
+        @tags{Audio}
+    */
     struct Linear {};
 
-    /** Used to indicate a smoothing between multiplicative values. */
+    /**
+        Used to indicate a smoothing between multiplicative values.
+
+        @tags{Audio}
+    */
     struct Multiplicative {};
 }
 
@@ -406,7 +414,7 @@ private:
     template <typename T = SmoothingType>
     MultiplicativeVoid<T> setStepSize()
     {
-        step = std::exp ((std::log (std::abs (this->target)) - std::log (std::abs (this->currentValue))) / this->countdown);
+        step = std::exp ((std::log (std::abs (this->target)) - std::log (std::abs (this->currentValue))) / (FloatType) this->countdown);
     }
 
     //==============================================================================
@@ -455,7 +463,7 @@ class CommonSmoothedValueTests  : public UnitTest
 {
 public:
     CommonSmoothedValueTests()
-        : UnitTest ("CommonSmoothedValueTests", "SmoothedValues")
+        : UnitTest ("CommonSmoothedValueTests", UnitTestCategories::smoothedValues)
     {}
 
     void runTest() override
@@ -561,8 +569,8 @@ public:
                 return result;
             };
 
-            auto compareData = [this](const AudioBuffer<float>& test,
-                                      const AudioBuffer<float>& reference)
+            auto compareData = [this] (const AudioBuffer<float>& test,
+                                       const AudioBuffer<float>& reference)
             {
                 for (int i = 0; i < test.getNumSamples(); ++i)
                     expectWithinAbsoluteError (test.getSample (0, i),

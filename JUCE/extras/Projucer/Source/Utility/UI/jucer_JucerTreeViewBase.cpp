@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -37,14 +36,12 @@ void TreePanelBase::setRoot (JucerTreeViewBase* root)
 
     if (project != nullptr)
     {
-        const std::unique_ptr<XmlElement> treeOpenness (project->getStoredProperties()
-                                                          .getXmlValue (opennessStateKey));
-        if (treeOpenness != nullptr)
+        if (auto treeOpenness = project->getStoredProperties().getXmlValue (opennessStateKey))
         {
             tree.restoreOpennessState (*treeOpenness, true);
 
             for (int i = tree.getNumSelectedItems(); --i >= 0;)
-                if (JucerTreeViewBase* item = dynamic_cast<JucerTreeViewBase*> (tree.getSelectedItem (i)))
+                if (auto item = dynamic_cast<JucerTreeViewBase*> (tree.getSelectedItem (i)))
                     item->cancelDelayedSelectionTimer();
         }
     }
@@ -83,7 +80,7 @@ void JucerTreeViewBase::refreshSubItems()
 
 Font JucerTreeViewBase::getFont() const
 {
-    return Font (getItemHeight() * 0.6f);
+    return Font ((float) getItemHeight() * 0.6f);
 }
 
 void JucerTreeViewBase::paintOpenCloseButton (Graphics& g, const Rectangle<float>& area, Colour /*backgroundColour*/, bool isMouseOver)
@@ -230,7 +227,7 @@ ProjectContentComponent* JucerTreeViewBase::getProjectContentComponent() const
 class JucerTreeViewBase::ItemSelectionTimer  : public Timer
 {
 public:
-    ItemSelectionTimer (JucerTreeViewBase& tvb)  : owner (tvb) {}
+    explicit ItemSelectionTimer (JucerTreeViewBase& tvb)  : owner (tvb) {}
 
     void timerCallback() override    { owner.invokeShowDocument(); }
 

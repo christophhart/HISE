@@ -179,7 +179,7 @@ namespace hise { using namespace juce;
 #define LOCK_WITH_GUARD(mc) ScopedLock sl(mc->getLock());
 #endif
 
-#define GET_HISE_SETTING(processor, settingId) dynamic_cast<GlobalSettingManager*>(processor->getMainController())->getSettingsObject().getSetting(settingId)
+#define GET_HISE_SETTING(processor, settingId) dynamic_cast<const GlobalSettingManager*>(processor->getMainController())->getSettingsObject().getSetting(settingId)
 
 #include "copyProtectionMacros.h"
 

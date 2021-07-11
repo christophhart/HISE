@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -67,15 +66,17 @@ public:
             else if (columnId == descCol)
                 text = TRANS("Deactivated after failing to initialise correctly");
         }
-        else if (const PluginDescription* const desc = list.getType (row))
+        else
         {
+            auto desc = list.getTypes()[row];
+
             switch (columnId)
             {
-                case nameCol:         text = desc->name; break;
-                case typeCol:         text = desc->pluginFormatName; break;
-                case categoryCol:     text = desc->category.isNotEmpty() ? desc->category : "-"; break;
-                case manufacturerCol: text = desc->manufacturerName; break;
-                case descCol:         text = getPluginDescription (*desc); break;
+                case nameCol:         text = desc.name; break;
+                case typeCol:         text = desc.pluginFormatName; break;
+                case categoryCol:     text = desc.category.isNotEmpty() ? desc.category : "-"; break;
+                case manufacturerCol: text = desc.manufacturerName; break;
+                case descCol:         text = getPluginDescription (desc); break;
 
                 default: jassertfalse; break;
             }
@@ -87,9 +88,17 @@ public:
             g.setColour (isBlacklisted ? Colours::red
                                        : columnId == nameCol ? defaultTextColour
                                                              : defaultTextColour.interpolatedWith (Colours::transparentBlack, 0.3f));
-            g.setFont (Font (height * 0.7f, Font::bold));
+            g.setFont (Font ((float) height * 0.7f, Font::bold));
             g.drawFittedText (text, 4, 0, width - 6, height, Justification::centredLeft, 1, 0.9f);
         }
+    }
+
+    void cellClicked (int rowNumber, int columnId, const juce::MouseEvent& e) override
+    {
+        TableListBoxModel::cellClicked (rowNumber, columnId, e);
+
+        if (rowNumber >= 0 && rowNumber < getNumRows() && e.mods.isPopupMenu())
+            owner.createMenuForRow (rowNumber).showMenuAsync (PopupMenu::Options().withDeletionCheck (owner));
     }
 
     void deleteKeyPressed (int) override
@@ -159,7 +168,13 @@ PluginListComponent::PluginListComponent (AudioPluginFormatManager& manager, Kno
     addAndMakeVisible (table);
 
     addAndMakeVisible (optionsButton);
-    optionsButton.onClick = [this] { showOptionsMenu(); };
+    optionsButton.onClick = [this]
+    {
+        createOptionsMenu().showMenuAsync (PopupMenu::Options()
+                                              .withDeletionCheck (*this)
+                                              .withTargetComponent (optionsButton));
+    };
+
     optionsButton.setTriggeredOnMouseDown (true);
 
     setSize (400, 600);
@@ -197,10 +212,13 @@ void PluginListComponent::resized()
 {
     auto r = getLocalBounds().reduced (2);
 
-    optionsButton.setBounds (r.removeFromBottom (24));
-    optionsButton.changeWidthToFitText (24);
+    if (optionsButton.isVisible())
+    {
+        optionsButton.setBounds (r.removeFromBottom (24));
+        optionsButton.changeWidthToFitText (24);
+        r.removeFromBottom (3);
+    }
 
-    r.removeFromBottom (3);
     table.setBounds (r);
 }
 
@@ -218,7 +236,7 @@ void PluginListComponent::updateList()
 
 void PluginListComponent::removeSelectedPlugins()
 {
-    const SparseSet<int> selected (table.getSelectedRows());
+    auto selected = table.getSelectedRows();
 
     for (int i = table.getNumRows(); --i >= 0;)
         if (selected.contains (i))
@@ -236,79 +254,98 @@ void PluginListComponent::setTableModel (TableListBoxModel* model)
     table.repaint();
 }
 
-bool PluginListComponent::canShowSelectedFolder() const
+static bool canShowFolderForPlugin (KnownPluginList& list, int index)
 {
-    if (const PluginDescription* const desc = list.getType (table.getSelectedRow()))
-        return File::createFileWithoutCheckingPath (desc->fileOrIdentifier).exists();
-
-    return false;
+    return File::createFileWithoutCheckingPath (list.getTypes()[index].fileOrIdentifier).exists();
 }
 
-void PluginListComponent::showSelectedFolder()
+static void showFolderForPlugin (KnownPluginList& list, int index)
 {
-    if (canShowSelectedFolder())
-        if (const PluginDescription* const desc = list.getType (table.getSelectedRow()))
-            File (desc->fileOrIdentifier).getParentDirectory().startAsProcess();
+    if (canShowFolderForPlugin (list, index))
+        File (list.getTypes()[index].fileOrIdentifier).revealToUser();
 }
 
 void PluginListComponent::removeMissingPlugins()
 {
-    for (int i = list.getNumTypes(); --i >= 0;)
-        if (! formatManager.doesPluginStillExist (*list.getType (i)))
-            list.removeType (i);
+    auto types = list.getTypes();
+
+    for (int i = types.size(); --i >= 0;)
+    {
+        auto type = types.getUnchecked (i);
+
+        if (! formatManager.doesPluginStillExist (type))
+            list.removeType (type);
+    }
 }
 
 void PluginListComponent::removePluginItem (int index)
 {
     if (index < list.getNumTypes())
-        list.removeType (index);
+        list.removeType (list.getTypes()[index]);
     else
         list.removeFromBlacklist (list.getBlacklistedFiles() [index - list.getNumTypes()]);
 }
 
-void PluginListComponent::optionsMenuStaticCallback (int result, PluginListComponent* pluginList)
-{
-    if (pluginList != nullptr)
-        pluginList->optionsMenuCallback (result);
-}
-
-void PluginListComponent::optionsMenuCallback (int result)
-{
-    switch (result)
-    {
-        case 0:   break;
-        case 1:   list.clear(); break;
-        case 2:   removeSelectedPlugins(); break;
-        case 3:   showSelectedFolder(); break;
-        case 4:   removeMissingPlugins(); break;
-
-        default:
-            if (AudioPluginFormat* format = formatManager.getFormat (result - 10))
-                scanFor (*format);
-
-            break;
-    }
-}
-
-void PluginListComponent::showOptionsMenu()
+PopupMenu PluginListComponent::createOptionsMenu()
 {
     PopupMenu menu;
-    menu.addItem (1, TRANS("Clear list"));
-    menu.addItem (2, TRANS("Remove selected plug-in from list"), table.getNumSelectedRows() > 0);
-    menu.addItem (3, TRANS("Show folder containing selected plug-in"), canShowSelectedFolder());
-    menu.addItem (4, TRANS("Remove any plug-ins whose files no longer exist"));
+    menu.addItem (PopupMenu::Item (TRANS("Clear list"))
+                    .setAction ([this] { list.clear(); }));
+
     menu.addSeparator();
 
-    for (int i = 0; i < formatManager.getNumFormats(); ++i)
-    {
-        auto* format = formatManager.getFormat (i);
-
+    for (auto format : formatManager.getFormats())
         if (format->canScanForPlugins())
-            menu.addItem (10 + i, "Scan for new or updated " + format->getName() + " plug-ins");
+            menu.addItem (PopupMenu::Item ("Remove all " + format->getName() + " plug-ins")
+                            .setEnabled (! list.getTypesForFormat (*format).isEmpty())
+                            .setAction ([this, format]
+                                        {
+                                            for (auto& pd : list.getTypesForFormat (*format))
+                                                list.removeType (pd);
+                                        }));
+
+    menu.addSeparator();
+
+    menu.addItem (PopupMenu::Item (TRANS("Remove selected plug-in from list"))
+                    .setEnabled (table.getNumSelectedRows() > 0)
+                    .setAction ([this] { removeSelectedPlugins(); }));
+
+    menu.addItem (PopupMenu::Item (TRANS("Remove any plug-ins whose files no longer exist"))
+                    .setAction ([this] { removeMissingPlugins(); }));
+
+    menu.addSeparator();
+
+    auto selectedRow = table.getSelectedRow();
+
+    menu.addItem (PopupMenu::Item (TRANS("Show folder containing selected plug-in"))
+                    .setEnabled (canShowFolderForPlugin (list, selectedRow))
+                    .setAction ([this, selectedRow] { showFolderForPlugin (list, selectedRow); }));
+
+    menu.addSeparator();
+
+    for (auto format : formatManager.getFormats())
+        if (format->canScanForPlugins())
+            menu.addItem (PopupMenu::Item ("Scan for new or updated " + format->getName() + " plug-ins")
+                            .setAction ([this, format]  { scanFor (*format); }));
+
+    return menu;
+}
+
+PopupMenu PluginListComponent::createMenuForRow (int rowNumber)
+{
+    PopupMenu menu;
+
+    if (rowNumber >= 0 && rowNumber < tableModel->getNumRows())
+    {
+        menu.addItem (PopupMenu::Item (TRANS("Remove plug-in from list"))
+                        .setAction ([this, rowNumber] { removePluginItem (rowNumber); }));
+
+        menu.addItem (PopupMenu::Item (TRANS("Show folder containing plug-in"))
+                        .setEnabled (canShowFolderForPlugin (list, rowNumber))
+                        .setAction ([this, rowNumber] { showFolderForPlugin (list, rowNumber); }));
     }
 
-    menu.showMenuAsync (PopupMenu::Options().withTargetComponent (&optionsButton),
-                        ModalCallbackFunction::forComponent (optionsMenuStaticCallback, this));
+    return menu;
 }
 
 bool PluginListComponent::isInterestedInFileDrag (const StringArray& /*files*/)
@@ -324,14 +361,23 @@ void PluginListComponent::filesDropped (const StringArray& files, int, int)
 
 FileSearchPath PluginListComponent::getLastSearchPath (PropertiesFile& properties, AudioPluginFormat& format)
 {
-    return FileSearchPath (properties.getValue ("lastPluginScanPath_" + format.getName(),
-                                                format.getDefaultLocationsToSearch().toString()));
+    auto key = "lastPluginScanPath_" + format.getName();
+
+    if (properties.containsKey (key) && properties.getValue (key, {}).trim().isEmpty())
+        properties.removeValue (key);
+
+    return FileSearchPath (properties.getValue (key, format.getDefaultLocationsToSearch().toString()));
 }
 
 void PluginListComponent::setLastSearchPath (PropertiesFile& properties, AudioPluginFormat& format,
                                              const FileSearchPath& newPath)
 {
-    properties.setValue ("lastPluginScanPath_" + format.getName(), newPath.toString());
+    auto key = "lastPluginScanPath_" + format.getName();
+
+    if (newPath.getNumPaths() == 0)
+        properties.removeValue (key);
+    else
+        properties.setValue (key, newPath.toString());
 }
 
 //==============================================================================
@@ -344,15 +390,14 @@ public:
         : owner (plc), formatToScan (format), filesOrIdentifiersToScan (filesOrIdentifiers), propertiesToUse (properties),
           pathChooserWindow (TRANS("Select folders to scan..."), String(), AlertWindow::NoIcon),
           progressWindow (title, text, AlertWindow::NoIcon),
-          progress (0.0), numThreads (threads), allowAsync (allowPluginsWhichRequireAsynchronousInstantiation),
-          finished (false)
+          numThreads (threads), allowAsync (allowPluginsWhichRequireAsynchronousInstantiation)
     {
         FileSearchPath path (formatToScan.getDefaultLocationsToSearch());
 
         // You need to use at least one thread when scanning plug-ins asynchronously
         jassert (! allowAsync || (numThreads > 0));
 
-        // If the filesOrIdentifiersToScan argumnent isn't empty, we should only scan these
+        // If the filesOrIdentifiersToScan argument isn't empty, we should only scan these
         // If the path is empty, then paths aren't used for this format.
         if (filesOrIdentifiersToScan.isEmpty() && path.getNumPaths() > 0)
         {
@@ -397,9 +442,9 @@ private:
     AlertWindow pathChooserWindow, progressWindow;
     FileSearchPathListComponent pathList;
     String pluginBeingScanned;
-    double progress;
+    double progress = 0;
     int numThreads;
-    bool allowAsync, finished, timerReentrancyCheck = false;
+    bool allowAsync, finished = false, timerReentrancyCheck = false;
     std::unique_ptr<ThreadPool> pool;
 
     static void startScanCallback (int result, AlertWindow* alert, Scanner* scanner)
@@ -418,7 +463,7 @@ private:
     {
         for (int i = 0; i < pathList.getPath().getNumPaths(); ++i)
         {
-            const File f (pathList.getPath()[i]);
+            auto f = pathList.getPath()[i];
 
             if (isStupidPath (f))
             {
@@ -459,9 +504,9 @@ private:
                 File::userMoviesDirectory,
                 File::userPicturesDirectory };
 
-        for (int i = 0; i < numElementsInArray (pathsThatWouldBeStupidToScan); ++i)
+        for (auto location : pathsThatWouldBeStupidToScan)
         {
-            const File sillyFolder (File::getSpecialLocation (pathsThatWouldBeStupidToScan[i]));
+            auto sillyFolder = File::getSpecialLocation (location);
 
             if (f == sillyFolder || sillyFolder.isAChildOf (f))
                 return true;
@@ -521,10 +566,10 @@ private:
         if (timerReentrancyCheck)
             return;
 
-        const ScopedValueSetter<bool> setter (timerReentrancyCheck, true);
-
         if (pool == nullptr)
         {
+            const ScopedValueSetter<bool> setter (timerReentrancyCheck, true);
+
             if (doNextScan())
                 startTimer (20);
         }

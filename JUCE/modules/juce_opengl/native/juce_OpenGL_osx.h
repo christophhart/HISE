@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -26,6 +25,8 @@
 
 namespace juce
 {
+
+JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wdeprecated-declarations")
 
 class OpenGLContext::NativeContext
 {
@@ -45,15 +46,15 @@ public:
         view = [cls.createInstance() initWithFrame: NSMakeRect (0, 0, 100.0f, 100.0f)
                                        pixelFormat: format];
 
-       #if defined (MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7)
         if ([view respondsToSelector: @selector (setWantsBestResolutionOpenGLSurface:)])
             [view setWantsBestResolutionOpenGLSurface: YES];
-       #endif
 
+        JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wundeclared-selector")
         [[NSNotificationCenter defaultCenter] addObserver: view
                                                  selector: @selector (_surfaceNeedsUpdate:)
                                                      name: NSViewGlobalFrameDidChangeNotification
                                                    object: view];
+        JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 
         renderContext = [[[NSOpenGLContext alloc] initWithFormat: format
                                                     shareContext: (NSOpenGLContext*) contextToShare] autorelease];
@@ -207,7 +208,11 @@ public:
         minSwapTimeMs = (numFramesPerSwap * 1000) / 60;
 
         [renderContext setValues: (const GLint*) &numFramesPerSwap
+                   #if defined (MAC_OS_X_VERSION_10_12) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
+                    forParameter: NSOpenGLContextParameterSwapInterval];
+                   #else
                     forParameter: NSOpenGLCPSwapInterval];
+                   #endif
         return true;
     }
 
@@ -215,7 +220,11 @@ public:
     {
         GLint numFrames = 0;
         [renderContext getValues: &numFrames
+                   #if defined (MAC_OS_X_VERSION_10_12) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
+                    forParameter: NSOpenGLContextParameterSwapInterval];
+                   #else
                     forParameter: NSOpenGLCPSwapInterval];
+                   #endif
 
         return numFrames;
     }
@@ -253,5 +262,7 @@ bool OpenGLHelpers::isContextActive()
 {
     return CGLGetCurrentContext() != CGLContextObj();
 }
+
+JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 
 } // namespace juce

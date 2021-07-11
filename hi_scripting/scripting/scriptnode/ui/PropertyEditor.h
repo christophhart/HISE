@@ -49,31 +49,40 @@ struct NodePropertyComponent : public PropertyComponent
 
 	struct Comp : public Component,
 				  public ComboBoxListener,
-				  public Value::Listener
+				  public Value::Listener,
+				  public TextEditor::Listener
 	{
 		Comp(ValueTree d, NodeBase* n);
 
-		StringArray getListForId(const Identifier& id, NodeBase* n)
+		~Comp()
 		{
-			if (id == PropertyIds::Callback)
-			{
-				if (auto jp = dynamic_cast<JavascriptProcessor*>(n->getScriptProcessor()))
-				{
-					return jp->getScriptEngine()->getInlineFunctionNames(1);
-				}
-			}
-			else if (id == PropertyIds::Connection)
-			{
-				return routing::Factory::getSourceNodeList(n);
-			}
+			if (auto te = dynamic_cast<TextEditor*>(editor.get()))
+				textEditorFocusLost(*te);
+		}
 
-			return {};
+		StringArray getListForId(const Identifier& id, NodeBase* n);
+
+		void textEditorReturnKeyPressed(TextEditor& te) 
+		{
+			v.setValue(te.getText());
+		}
+
+		void textEditorEscapeKeyPressed(TextEditor& te)
+		{
+			te.setText(v.getValue().toString(), dontSendNotification);
+		}
+
+		void textEditorFocusLost(TextEditor& te)
+		{
+			v.setValue(te.getText());
 		}
 
 		void valueChanged(Value& value)
 		{
 			if (auto cb = dynamic_cast<ComboBox*>(editor.get()))
 				cb->setText(value.getValue(), dontSendNotification);
+			if (auto te = dynamic_cast<TextEditor*>(editor.get()))
+				te->setText(value.getValue(), dontSendNotification);
 		}
 
 		void comboBoxChanged(ComboBox* c) override
@@ -85,8 +94,6 @@ struct NodePropertyComponent : public PropertyComponent
 		{
 			auto b = getLocalBounds();
 
-			publicButton.setBounds(b.removeFromRight(40));
-				
 			if(editor != nullptr)
 				editor->setBounds(b);
 		}
@@ -95,7 +102,6 @@ struct NodePropertyComponent : public PropertyComponent
 
 		ScopedPointer<Component> editor;
 		NodeBase::Ptr jitNode;
-		TextButton publicButton;
 		
 		HiPropertyPanelLookAndFeel laf;
 		
@@ -160,48 +166,7 @@ struct MultiColumnPropertyPanel : public Component
 
 struct PropertyEditor : public Component
 {
-	PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds = {})
-	{
-
-		plaf.propertyBgColour = Colours::transparentBlack;
-
-		Array<PropertyComponent*> newProperties;
-
-		for (int i = 0; i < data.getNumProperties(); i++)
-		{
-			auto id = data.getPropertyName(i);
-
-			if (hiddenIds.contains(id))
-				continue;
-
-			auto nt = PropertyHelpers::createPropertyComponent(n->getScriptProcessor(), data, id, n->getUndoManager());
-
-			newProperties.add(nt);
-		}
-
-		// Only add Node properties in two-column mode (aka Connection Editor)...
-		if (!useTwoColumns)
-		{
-			for (auto prop : n->getPropertyTree())
-			{
-				if (!(bool)prop[PropertyIds::Public] && prop[PropertyIds::ID].toString().contains("."))
-				{
-					continue;
-				}
-
-				auto nt = new NodePropertyComponent(n, prop);
-				newProperties.add(nt);
-			}
-		}
-		
-
-		p.setUseTwoColumns(useTwoColumns);
-		p.addProperties(newProperties);
-
-		addAndMakeVisible(p);
-		p.setLookAndFeel(&plaf);
-		updateSize();
-	}
+	PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds = {}, bool includeProperties=true);
 
 	void updateSize()
 	{
@@ -234,22 +199,7 @@ struct NodePopupEditor : public Component,
 
 	} factory;
 
-	NodePopupEditor(NodeComponent* nc_) :
-		nc(nc_),
-		editor(nc->node, false, nc->node->getValueTree()),
-		exportButton("export", this, factory),
-		wrapButton("wrap", this, factory),
-		surroundButton("surround", this, factory)
-	{
-		setName("Edit Node Properties");
-
-		addAndMakeVisible(editor);
-		addAndMakeVisible(exportButton);
-		addAndMakeVisible(wrapButton);
-		addAndMakeVisible(surroundButton);
-		setWantsKeyboardFocus(true);
-		setSize(editor.getWidth(), editor.getHeight() + 50);
-	}
+	NodePopupEditor(NodeComponent* nc_);
 
 	bool keyPressed(const KeyPress& key) override;
 
@@ -274,5 +224,7 @@ struct NodePopupEditor : public Component,
 	PropertyEditor editor;
 	HiseShapeButton exportButton, wrapButton, surroundButton;
 };
+
+
 
 }

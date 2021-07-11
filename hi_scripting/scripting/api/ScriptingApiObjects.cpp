@@ -195,6 +195,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsObject);
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
+	API_VOID_METHOD_WRAPPER_3(ScriptFile, extractZipFile);
 	API_VOID_METHOD_WRAPPER_0(ScriptFile, show);
 };
 
@@ -235,6 +236,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_0(loadAsObject);
 	ADD_API_METHOD_1(loadEncryptedObject);
 	ADD_API_METHOD_0(show);
+	ADD_API_METHOD_3(extractZipFile);
 }
 
 
@@ -407,7 +409,10 @@ bool ScriptingObjects::ScriptFile::writeAudioFile(var audioData, double sampleRa
 		return w->writeFromAudioSampleBuffer(b, 0, numSamples);
 	}
 	else
+	{
 		reportScriptError("Can't find audio format for file extension " + fileFormat);
+		RETURN_IF_NO_THROW(var());
+	}
 }
 
 bool ScriptingObjects::ScriptFile::writeString(String text)
@@ -480,6 +485,121 @@ void ScriptingObjects::ScriptFile::show()
 	{
 		f_.revealToUser();
 	});
+}
+
+void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool overwriteFiles, var callback)
+{
+	File tf;
+
+	if (targetDirectory.isString() && File::isAbsolutePath(targetDirectory.toString()))
+		tf = File(targetDirectory.toString());
+	else if (auto sf = dynamic_cast<ScriptFile*>(targetDirectory.getObject()))
+	{
+		tf = sf->f;
+	}
+
+	ReferenceCountedObjectPtr<ScriptFile> safeThis(this);
+
+	auto cb = [safeThis, tf, targetDirectory, overwriteFiles, callback](Processor* p)
+	{
+		if (safeThis == nullptr)
+			return SafeFunctionCall::OK;
+
+		juce::ZipFile zipFile(safeThis->f);
+
+		DynamicObject::Ptr data = new DynamicObject();
+
+		data->setProperty("Status", 0);
+		data->setProperty("Progress", 0.0);
+		data->setProperty("TotalBytesWritten", 0);
+		data->setProperty("Cancel", false);
+		data->setProperty("Target", tf.getFullPathName());
+		data->setProperty("CurrentFile", "");
+		data->setProperty("Error", "");
+		
+		int64 numBytesWritten = 0;
+
+		WeakCallbackHolder cb(safeThis.get()->getScriptProcessor(), callback, 1);
+		cb.setThisObject(safeThis.get());
+		cb.incRefCount();
+
+		if (cb)
+		{
+			cb.call1(var(data->clone()));
+		}
+
+		data->setProperty("Status", 1);
+		int numEntries = zipFile.getNumEntries();
+		bool callForEachFile = numEntries < 500;
+
+
+		for (int i = 0; i < numEntries; i++)
+		{
+			if (Thread::getCurrentThread()->threadShouldExit())
+				return SafeFunctionCall::OK;
+
+			if (safeThis == nullptr)
+				return SafeFunctionCall::OK;
+
+			auto progress = (double)i / (double)zipFile.getNumEntries();
+
+			safeThis.get()->getScriptProcessor()->getMainController_()->getSampleManager().getPreloadProgress() = progress;
+
+			auto c = data->clone();
+
+			c->setProperty("Progress", progress);
+			c->setProperty("TotalBytesWritten", numBytesWritten);
+			c->setProperty("CurrentFile", zipFile.getEntry(i)->filename);
+
+			if (callForEachFile && cb)
+				cb.call1(var(c));
+
+			auto result = zipFile.uncompressEntry(i, tf, overwriteFiles);
+
+			numBytesWritten += zipFile.getEntry(i)->uncompressedSize;
+
+			if (result.failed())
+			{
+				c->setProperty("Error", result.getErrorMessage());
+
+				data = c;
+
+				if (cb)
+					cb.call1(var(c));
+
+				break;
+			}
+
+			if (c->getProperty("Cancel"))
+			{
+				c->setProperty("Error", "User abort");
+
+				data = c;
+
+				if (cb)
+					cb.call1(var(c));
+
+				break;
+			}
+		}
+
+		if (cb)
+		{
+			auto c = data->clone();
+
+			c->setProperty("Status", 2);
+			c->setProperty("Progress", 1.0);
+			c->setProperty("TotalBytesWritten", numBytesWritten);
+			c->setProperty("CurrentFile", "");
+			cb.call1(var(c));
+		}
+
+		return SafeFunctionCall::OK;
+	};
+
+	auto p = dynamic_cast<Processor*>(getScriptProcessor());
+
+	getScriptProcessor()->getMainController_()->getKillStateHandler().killVoicesAndCall(p, cb, MainController::KillStateHandler::SampleLoadingThread);
 }
 
 struct ScriptingObjects::ScriptDownloadObject::Wrapper
@@ -589,7 +709,7 @@ bool ScriptingObjects::ScriptDownloadObject::resumeInternal()
 
 			int status = 0;
 
-			ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
+			auto wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
 
 			auto numTotal = wis != nullptr ? wis->getTotalLength() : 0;
 
@@ -617,7 +737,7 @@ bool ScriptingObjects::ScriptDownloadObject::resumeInternal()
 				String rangeHeader;
 				rangeHeader << "Range: bytes=" << existingBytesBeforeResuming << "-" << numTotal;
 
-				download = downloadURL.downloadToFile(resumeFile, rangeHeader, this);
+				download = downloadURL.downloadToFile(resumeFile, rangeHeader, this).release();
 
 				data->setProperty("numTotal", numTotal);
 				data->setProperty("numDownloaded", existingBytesBeforeResuming);
@@ -792,7 +912,7 @@ void ScriptingObjects::ScriptDownloadObject::start()
 
 	int status = 0;
 
-	ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &status);
+	auto wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &status);
 
 	if (Thread::currentThreadShouldExit())
 		return;
@@ -800,7 +920,7 @@ void ScriptingObjects::ScriptDownloadObject::start()
 	if (status == 200)
 	{
 		isRunning_ = true;
-		download = downloadURL.downloadToFile(targetFile, {}, this);
+		download = downloadURL.downloadToFile(targetFile, {}, this).release();
 
 		data->setProperty("numTotal", 0);
 		data->setProperty("numDownloaded", 0);
@@ -822,6 +942,26 @@ void ScriptingObjects::ScriptDownloadObject::start()
 	}
 }
 
+ScriptingObjects::ScriptComplexDataReferenceBase::ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type_, ExternalDataHolder* otherHolder/*=nullptr*/) :
+	ConstScriptingObject(c, 0),
+	index(dataIndex),
+	type(type_),
+	holder(otherHolder != nullptr ? otherHolder : dynamic_cast<ExternalDataHolder*>(c))
+{
+	if (holder != nullptr)
+	{
+		complexObject = holder->getComplexBaseType(getDataType(), index);
+	}
+}
+
+void ScriptingObjects::ScriptComplexDataReferenceBase::setPosition(double newPosition)
+{
+	if (complexObject != nullptr)
+	{
+		complexObject->getUpdater().sendDisplayChangeMessage(newPosition, sendNotificationAsync);
+	}
+}
+
 struct ScriptingObjects::ScriptAudioFile::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, loadFile);
@@ -832,9 +972,8 @@ struct ScriptingObjects::ScriptAudioFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptAudioFile, getSampleRate);
 };
 
-ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent* pwsc) :
-	ConstScriptingObject(pwsc, 0),
-	SimpleTimer(pwsc->getMainController_()->getGlobalUIUpdater())
+ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index_, snex::ExternalDataHolder* otherHolder) :
+	ScriptComplexDataReferenceBase(pwsc, 0, snex::ExternalData::DataType::AudioFile, otherHolder)
 {
 	ADD_API_METHOD_2(setRange);
 	ADD_API_METHOD_1(loadFile);
@@ -842,116 +981,55 @@ ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent
 	ADD_API_METHOD_0(update);
 	ADD_API_METHOD_0(getNumSamples);
 	ADD_API_METHOD_0(getSampleRate);
-
-	buffer = new RefCountedBuffer();
-}
-
-void ScriptingObjects::ScriptAudioFile::handleAsyncUpdate()
-{
-	for (auto l : listeners)
-	{
-		if (l != nullptr)
-			l->contentChanged();
-	}
 }
 
 void ScriptingObjects::ScriptAudioFile::clear()
 {
-	RefCountedBuffer::Ptr newB = new RefCountedBuffer();
-
-	{
-		SpinLock::ScopedLockType sl(getLock());
-		std::swap(newB, buffer);
-	}
+	if (auto buffer = getBuffer())
+		buffer->fromBase64String({});
 }
 
 void ScriptingObjects::ScriptAudioFile::setRange(int min, int max)
 {
-	int numChannels = buffer->all.getNumChannels();
-
-	if (numChannels == 0)
+	if (auto buffer = getBuffer())
 	{
-		clear();
-		return;
+		int numChannels = buffer->getBuffer().getNumChannels();
+
+		if (numChannels == 0)
+		{
+			clear();
+			return;
+		}
+
+		min = jmax(0, min);
+		max = jmin(buffer->getBuffer().getNumSamples(), max);
+
+		int size = max - min;
+
+		if (size == 0)
+		{
+			clear();
+			return;
+		}
+
+		buffer->setRange({ min, max });
 	}
-
-	min = jmax(0, min);
-	max = jmin(buffer->all.getNumSamples(), max);
-
-	int size = max - min;
-
-	if (size == 0)
-	{
-		clear();
-		return;
-	}
-
-	{
-		SpinLock::ScopedLockType sl(getLock());
-		buffer->setRange(min, max);
-	}
-
-	update();
 }
 
 void ScriptingObjects::ScriptAudioFile::loadFile(const String& filePath)
 {
-	if (filePath == getCurrentlyLoadedFile())
-		return;
-
-	if (filePath.isEmpty())
-	{
-		clear();
-		update();
-		stop();
-		return;
-	}
-
-	auto mc = getScriptProcessor()->getMainController_();
-	
-	
-
-	RefCountedBuffer::Ptr newBuffer = new RefCountedBuffer();
-
-	newBuffer->currentFileReference = PoolReference(mc, filePath, FileHandlerBase::AudioFiles);
-
-	auto poolData = mc->getCurrentAudioSampleBufferPool()->loadFromReference(newBuffer->currentFileReference, PoolHelpers::LoadAndCacheWeak);
-
-	if (auto d = poolData.get())
-	{
-		auto rb = d->data;
-
-		newBuffer->all.makeCopyOf(rb);
-		newBuffer->sampleRate = d->additionalData.getProperty(MetadataIDs::SampleRate, 44100.0);
-		newBuffer->clear = false;
-		newBuffer->setRange(0, rb.getNumSamples());
-
-		{
-			SpinLock::ScopedLockType sl(getLock());
-			std::swap(newBuffer, buffer);
-		}
-
-		update();
-		start();
-	}
-	else
-	{
-		// Can't find the path...
-		jassertfalse;
-	}
+	if (auto buffer = getBuffer())
+		buffer->fromBase64String(filePath);
 }
 
 var ScriptingObjects::ScriptAudioFile::getContent()
 {
 	Array<var> channels;
 
-	if (auto b = getBuffer())
+	if (auto buffer = getBuffer())
 	{
-		for (int i = 0; i < b->all.getNumChannels(); i++)
-		{
-			auto n = new VariantBuffer(b->range.getWritePointer(i), b->range.getNumSamples());
-			channels.add(var(n));
-		}
+		for (int i = 0; i < buffer->getBuffer().getNumChannels(); i++)
+			channels.add(buffer->getChannelBuffer(i, false));
 	}
 
 	return channels;
@@ -959,44 +1037,168 @@ var ScriptingObjects::ScriptAudioFile::getContent()
 
 void ScriptingObjects::ScriptAudioFile::update()
 {
-	triggerAsyncUpdate();
+	if (auto buffer = getBuffer())
+	{
+		buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+	}
 }
 
 int ScriptingObjects::ScriptAudioFile::getNumSamples() const
 {
-	if (buffer->clear)
-		return 0;
+	if (auto buffer = getBuffer())
+	{
+		return buffer->getBuffer().getNumSamples();
+	}
 
-	return buffer->sampleRange.getLength();
+	return 0;
 }
 
 double ScriptingObjects::ScriptAudioFile::getSampleRate() const
 {
-	return buffer->sampleRate;
+	if (auto buffer = getBuffer())
+		return buffer->sampleRate;
+
+	return 0.0;
 }
 
 juce::String ScriptingObjects::ScriptAudioFile::getCurrentlyLoadedFile() const
 {
-	return buffer->currentFileReference.getReferenceString();
-}
-
-void ScriptingObjects::ScriptAudioFile::timerCallback()
-{
-	if (lastPosition != position.load())
+	if (auto buffer = getBuffer())
 	{
-		lastPosition = position.load();
-
-		for (auto l : listeners)
-		{
-			if (l != nullptr)
-				l->playbackPositionChanged(lastPosition);
-		}
+		return buffer->toBase64String();
 	}
+
+	return {};
 }
 
-ScriptingObjects::ScriptAudioFile::RefCountedBuffer::Ptr ScriptingObjects::ScriptAudioFile::getBuffer()
+struct ScriptingObjects::ScriptRingBuffer::Wrapper
 {
-	return buffer;
+	API_METHOD_WRAPPER_0(ScriptRingBuffer, getReadBuffer);
+	API_METHOD_WRAPPER_3(ScriptRingBuffer, createPath);
+	API_METHOD_WRAPPER_2(ScriptRingBuffer, getResizedBuffer);
+};
+
+ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* other/*=nullptr*/):
+	ScriptComplexDataReferenceBase(pwsc, index, snex::ExternalData::DataType::DisplayBuffer, other)
+{
+	ADD_API_METHOD_0(getReadBuffer);
+	ADD_API_METHOD_3(createPath);
+	ADD_API_METHOD_2(getResizedBuffer);
+}
+
+var ScriptingObjects::ScriptRingBuffer::getReadBuffer()
+{
+	auto& rb = getRingBuffer()->getReadBuffer();
+	return  var(new VariantBuffer(const_cast<float*>(rb.getArrayOfReadPointers()[0]), rb.getNumSamples()));
+}
+
+
+var ScriptingObjects::ScriptRingBuffer::getResizedBuffer(int numDestSamples, int resampleMode)
+{
+	if (numDestSamples > 0)
+	{
+		auto& rb = getRingBuffer()->getReadBuffer();
+
+		if (rb.getNumSamples() == numDestSamples)
+			return getReadBuffer();
+
+		VariantBuffer::Ptr b = new VariantBuffer(numDestSamples);
+
+		float stride = (float)rb.getNumSamples() / (float)numDestSamples;
+
+		int dstIndex = 0;
+
+		if (stride < 2.0)
+		{
+			for (float i = 0.0f; i < (float)rb.getNumSamples(); i += stride)
+			{
+				auto idx = (int)i;
+				auto c = rb.getSample(0, i);
+				b->setSample(dstIndex++, c);
+			}
+		}
+		else
+		{
+			for (float i = 0.0f; i < (float)rb.getNumSamples(); i += stride)
+			{
+				auto idx = (int)i;
+				auto numThisTime = jmin(rb.getNumSamples() - idx, roundToInt(stride));
+				auto v = FloatVectorOperations::findMinAndMax(rb.getReadPointer(0, idx), numThisTime);
+
+				auto c = v.getStart() + v.getLength() * 0.5f;
+				b->setSample(dstIndex++, c);
+			}
+		}
+
+		
+
+		return var(b);
+	}
+	else
+		return var(new VariantBuffer(0));
+}
+
+var ScriptingObjects::ScriptRingBuffer::createPath(var dstArea, var sourceRange, var startValue)
+{
+	auto r = Result::ok();
+
+	auto dst = ApiHelpers::getRectangleFromVar(dstArea, &r);
+
+	if (!r.wasOk())
+		reportScriptError(r.getErrorMessage());
+
+	auto src = ApiHelpers::getRectangleFromVar(sourceRange, &r);
+
+	if (!r.wasOk())
+		reportScriptError(r.getErrorMessage());
+	
+	auto b = *getReadBuffer().getBuffer();
+
+	auto hToUse = (int)src.getHeight();
+
+	if (hToUse == -1)
+		hToUse = b.size;
+
+	Range<int> s_range(jmax<int>(0, (int)src.getWidth()), jmin<int>(b.size, hToUse));
+	Range<float> valueRange(jmax<float>(-1.0f, src.getX()), jmin<float>(1.0f, src.getY()));
+
+	int numValues = s_range.getLength();
+	int numPixels = dst.getWidth();
+	auto stride = roundToInt((float)numValues / (float)numPixels);
+
+	auto sp = new PathObject(getScriptProcessor());
+	
+	auto& p = sp->getPath();
+
+	auto startv = valueRange.getEnd() - (double)startValue * valueRange.getLength();
+
+	p.startNewSubPath(0.0f, valueRange.getStart());
+	p.startNewSubPath(0.0f, valueRange.getEnd());
+
+	bool first = true;
+	float firstValue = 0.0f;
+
+	p.startNewSubPath(0.0f, startv);
+
+	for (int i = 0; i < numValues; i += stride)
+	{
+		int numToLook = jmin(stride, numValues - i);
+
+		auto avg = FloatVectorOperations::findMinAndMax(b.buffer.getReadPointer(0, i), numToLook);
+
+		auto value = avg.getEnd();
+
+		if(std::abs(avg.getStart()) > std::abs(avg.getEnd()))
+			value = avg.getStart();
+
+		p.lineTo((float)i, valueRange.getEnd() - valueRange.clipValue(value));
+	};
+
+	p.lineTo(numValues, startv);
+
+	PathFactory::scalePath(p, dst);
+
+	return var(sp);
 }
 
 struct ScriptingObjects::ScriptTableData::Wrapper
@@ -1007,13 +1209,9 @@ struct ScriptingObjects::ScriptTableData::Wrapper
 	API_METHOD_WRAPPER_1(ScriptTableData, getTableValueNormalised);
 };
 
-ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent* pwsc):
-	ConstScriptingObject(pwsc, 0)
+ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* otherHolder):
+	ScriptComplexDataReferenceBase(pwsc, index, snex::ExternalData::DataType::Table, otherHolder)
 {
-	
-	table.setHandler(pwsc->getMainController_()->getGlobalUIUpdater());
-	broadcaster.enablePooledUpdate(pwsc->getMainController_()->getGlobalUIUpdater());
-
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(addTablePoint);
 	ADD_API_METHOD_4(setTablePoint);
@@ -1023,14 +1221,11 @@ ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent
 void ScriptingObjects::ScriptTableData::rightClickCallback(const MouseEvent& e, Component *c)
 {
 #if USE_BACKEND
-	TableEditor *te = new TableEditor(nullptr, &table);
 
+	auto te = dynamic_cast<Component*>(snex::ExternalData::createEditor(getTable()));
 	te->setSize(300, 200);
-
 	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-
 	MouseEvent ee = e.getEventRelativeTo(editor);
-
 	editor->getRootFloatingTile()->showComponentInRootPopup(te, editor, ee.getMouseDownPosition());
 #else
 	ignoreUnused(e, c);
@@ -1039,29 +1234,30 @@ void ScriptingObjects::ScriptTableData::rightClickCallback(const MouseEvent& e, 
 
 void ScriptingObjects::ScriptTableData::setTablePoint(int pointIndex, float x, float y, float curve)
 {
-	table.setTablePoint(pointIndex, x, y, curve);
-	table.sendPooledChangeMessage();
+	if(auto table = getTable())
+		table->setTablePoint(pointIndex, x, y, curve);
 }
 
 void ScriptingObjects::ScriptTableData::addTablePoint(float x, float y)
 {
-	table.addTablePoint(x, y);
-	table.sendPooledChangeMessage();
+	if (auto table = getTable())
+		table->addTablePoint(x, y);
 }
 
 void ScriptingObjects::ScriptTableData::reset()
 {
-	table.reset();
-	table.sendPooledChangeMessage();
+	if (auto table = getTable())
+		table->reset();
 }
 
 float ScriptingObjects::ScriptTableData::getTableValueNormalised(double normalisedInput)
 {
-	if (auto lup = dynamic_cast<LookupTableProcessor*>(getScriptProcessor()))
-		lup->sendTableIndexChangeMessage(false, getTable(), (float)normalisedInput);
-		
-	table.sendPooledChangeMessage();
-	return table.getInterpolatedValue((double)SAMPLE_LOOKUP_TABLE_SIZE * normalisedInput);
+	if (auto st = dynamic_cast<SampleLookupTable*>(getTable()))
+	{
+		return st->getInterpolatedValue((double)SAMPLE_LOOKUP_TABLE_SIZE * normalisedInput, sendNotificationAsync);
+	}
+
+	return 0.0f;
 }
 
 
@@ -1075,12 +1271,9 @@ struct ScriptingObjects::ScriptSliderPackData::Wrapper
 	
 };
 
-ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc) :
-	ConstScriptingObject(pwsc, 0),
-	data(pwsc->getMainController_()->getControlUndoManager(), pwsc->getMainController_()->getGlobalUIUpdater())
+ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, snex::ExternalDataHolder* otherHolder) :
+	ScriptComplexDataReferenceBase(pwsc, dataIndex, snex::ExternalData::DataType::SliderPack, otherHolder)
 {
-	data.setNumSliders(16);
-
 	ADD_API_METHOD_2(setValue);
 	ADD_API_METHOD_1(setNumSliders);
 	ADD_API_METHOD_1(getValue);
@@ -1088,62 +1281,47 @@ ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScript
 	ADD_API_METHOD_3(setRange);
 }
 
-void ScriptingObjects::ScriptSliderPackData::rightClickCallback(const MouseEvent& e, Component *c)
-{
-#if USE_BACKEND
-	SliderPack *s = new SliderPack(&data);
-
-	const int numSliders = getNumSliders();
-
-
-
-	int widthPerSlider = 16;
-
-	if (numSliders > 64)
-		widthPerSlider = 8;
-
-	s->setSize((int)getNumSliders() * 16, 200);
-
-	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-
-	MouseEvent ee = e.getEventRelativeTo(editor);
-
-	editor->getRootFloatingTile()->showComponentInRootPopup(s, editor, ee.getMouseDownPosition());
-#else
-    ignoreUnused(e, c);
-#endif
-}
-
 var ScriptingObjects::ScriptSliderPackData::getStepSize() const
 {
-	return data.getStepSize();
+	if(auto data = getSliderPackData())
+		return data->getStepSize();
+
+	return 0.0;
 }
 
 void ScriptingObjects::ScriptSliderPackData::setNumSliders(var numSliders)
 {
-	data.setNumSliders(numSliders);
+	if (auto data = getSliderPackData())
+		data->setNumSliders(numSliders);
 }
 
 int ScriptingObjects::ScriptSliderPackData::getNumSliders() const
 {
-	return data.getNumSliders();
+	if (auto data = getSliderPackData())
+		return data->getNumSliders();
+	
+	return 0;
 }
 
 void ScriptingObjects::ScriptSliderPackData::setValue(int sliderIndex, float value)
 {
-	data.setValue(sliderIndex, value, sendNotification);
+	if(auto data = getSliderPackData())
+		data->setValue(sliderIndex, value, sendNotification);
 }
 
 float ScriptingObjects::ScriptSliderPackData::getValue(int index) const
 {
-	return data.getValue((int)index);
+	if(auto data = getSliderPackData())
+		return data->getValue((int)index);
+
+	return 0.0f;
 }
 
 void ScriptingObjects::ScriptSliderPackData::setRange(double minValue, double maxValue, double stepSize)
 {
-	data.setRange(minValue, maxValue, stepSize);
+	if(auto data = getSliderPackData())
+		return data->setRange(minValue, maxValue, stepSize);
 }
-
 
 struct ScriptingObjects::ScriptingSamplerSound::Wrapper
 {
@@ -1743,6 +1921,14 @@ void ScriptingObjects::ScriptingModulator::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
+		auto vt = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
+
+		if (!vt.isValid())
+		{
+			reportScriptError("Can't load module state");
+			RETURN_IF_NO_THROW();
+		}
+
 		ProcessorHelpers::restoreFromBase64String(mod, base64State);
 	}
 }
@@ -2028,14 +2214,18 @@ void ScriptingObjects::ScriptingEffect::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
+		auto vt = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
+
+		if (!vt.isValid())
+		{
+			reportScriptError("Can't load module state");
+			RETURN_IF_NO_THROW();
+		}
+
 		SuspendHelpers::ScopedTicket ticket(effect->getMainController());
-
 		effect->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(dynamic_cast<JavascriptProcessor*>(getScriptProcessor()));
-
 		LockHelpers::freeToGo(effect->getMainController());
-
 		ProcessorHelpers::restoreFromBase64String(effect, base64State);
-
 	}
 }
 
@@ -2259,6 +2449,12 @@ void ScriptingObjects::ScriptingSlotFX::clear()
 
 ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(String effectName)
 {
+	if (effectName == "undefined")
+	{
+		reportScriptError("Invalid effectName");
+		RETURN_IF_NO_THROW(new ScriptingEffect(getScriptProcessor(), nullptr))
+	}
+
 	if(auto slot = getSlotFX())
     {
 		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
@@ -2331,6 +2527,8 @@ struct ScriptingObjects::ScriptRoutingMatrix::Wrapper
 {
 	API_METHOD_WRAPPER_2(ScriptRoutingMatrix, addConnection);
 	API_METHOD_WRAPPER_2(ScriptRoutingMatrix, removeConnection);
+	API_METHOD_WRAPPER_2(ScriptRoutingMatrix, addSendConnection);
+	API_METHOD_WRAPPER_2(ScriptRoutingMatrix, removeSendConnection);
 	API_VOID_METHOD_WRAPPER_0(ScriptRoutingMatrix, clear);
 	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getSourceGainValue);
 };
@@ -2341,6 +2539,8 @@ ScriptingObjects::ScriptRoutingMatrix::ScriptRoutingMatrix(ProcessorWithScriptin
 {
 	ADD_API_METHOD_2(addConnection);
 	ADD_API_METHOD_2(removeConnection);
+	ADD_API_METHOD_2(addSendConnection);
+	ADD_API_METHOD_2(removeSendConnection);
 	ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_1(getSourceGainValue);
 
@@ -2364,6 +2564,36 @@ bool ScriptingObjects::ScriptRoutingMatrix::addConnection(int sourceIndex, int d
 		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
 		{
 			return r->getMatrix().addConnection(sourceIndex, destinationIndex);
+		}
+		else
+			return false;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptRoutingMatrix::addSendConnection(int sourceIndex, int destinationIndex)
+{
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			return r->getMatrix().addSendConnection(sourceIndex, destinationIndex);
+		}
+		else
+			return false;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptRoutingMatrix::removeSendConnection(int sourceIndex, int destinationIndex)
+{
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			return r->getMatrix().removeSendConnection(sourceIndex, destinationIndex);
 		}
 		else
 			return false;
@@ -2585,6 +2815,14 @@ void ScriptingObjects::ScriptingSynth::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
+		auto vt = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
+
+		if (!vt.isValid())
+		{
+			reportScriptError("Can't load module state");
+			RETURN_IF_NO_THROW();
+		}
+
 		ProcessorHelpers::restoreFromBase64String(synth, base64State);
 	}
 }
@@ -2870,6 +3108,14 @@ void ScriptingObjects::ScriptingMidiProcessor::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
+		auto vt = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
+
+		if (!vt.isValid())
+		{
+			reportScriptError("Can't load module state");
+			RETURN_IF_NO_THROW();
+		}
+
 		ProcessorHelpers::restoreFromBase64String(mp, base64State, false);
 	}
 }
@@ -3019,9 +3265,6 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 {
 	if (checkValidObject())
 	{
-		auto asp = dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get());
-
-		ScopedLock sl(asp->getFileLock());
 
 #if USE_BACKEND
 		auto pool = audioSampleProcessor->getMainController()->getCurrentAudioSampleBufferPool();
@@ -3030,7 +3273,8 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 			reportScriptError("You must call Engine.loadAudioFilesIntoPool() before using this method");
 #endif
 
-		asp->setLoadedFile(fileName, true);
+		auto asp = dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get());
+		asp->getBuffer().fromBase64String(fileName);
 	}
 }
 
@@ -3038,9 +3282,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setSampleRange(int start, 
 {
 	if (checkValidObject())
 	{
-		ScopedLock sl(audioSampleProcessor->getMainController()->getLock());
-		dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->setRange(Range<int>(start, end));
-
+		dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getBuffer().setRange(Range<int>(start, end));
 	}
 }
 
@@ -3048,7 +3290,7 @@ int ScriptingObjects::ScriptingAudioSampleProcessor::getSampleLength() const
 {
 	if (checkValidObject())
 	{
-		return dynamic_cast<const AudioSampleProcessor*>(audioSampleProcessor.get())->getTotalLength();
+		return dynamic_cast<const AudioSampleProcessor*>(audioSampleProcessor.get())->getBuffer().getCurrentRange().getLength();
 	}
 	else return 0;
 }
@@ -3102,7 +3344,6 @@ void ScriptingObjects::ScriptingTableProcessor::setTablePoint(int tableIndex, in
 		if (table != nullptr)
 		{
 			table->setTablePoint(pointIndex, x, y, curve);
-			table->sendChangeMessage();
 			return;
 		}
 	}
@@ -3120,7 +3361,6 @@ void ScriptingObjects::ScriptingTableProcessor::addTablePoint(int tableIndex, fl
 		if (table != nullptr)
 		{
 			table->addTablePoint(x, y);
-			table->sendChangeMessage();
 			return;
 		}
 	}
@@ -3136,7 +3376,6 @@ void ScriptingObjects::ScriptingTableProcessor::reset(int tableIndex)
 		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->reset();
-			table->sendChangeMessage();
 			return;
 		}
 	}
@@ -3151,7 +3390,6 @@ void ScriptingObjects::ScriptingTableProcessor::restoreFromBase64(int tableIndex
 		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->restoreData(state);
-			table->sendChangeMessage();
 			return;
 		}
 	}
@@ -3277,842 +3515,6 @@ void ScriptingObjects::TimerObject::setTimerCallback(var callbackFunction)
 		throw String("You need to pass in a function for the timer callback");
 }
 
-class PathPreviewComponent: public Component
-{
-public:
-
-	PathPreviewComponent(Path &p_) : p(p_) { setSize(300, 300); }
-
-	void paint(Graphics &g) override
-	{
-		g.setColour(Colours::white);
-		p.scaleToFit(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), true);
-		g.fillPath(p);
-	}
-
-private:
-
-	Path p;
-};
-
-void ScriptingObjects::PathObject::rightClickCallback(const MouseEvent &e, Component* componentToNotify)
-{
-#if USE_BACKEND
-
-	auto *editor = GET_BACKEND_ROOT_WINDOW(componentToNotify);
-
-	PathPreviewComponent* content = new PathPreviewComponent(p);
-	
-	MouseEvent ee = e.getEventRelativeTo(editor);
-
-	editor->getRootFloatingTile()->showComponentInRootPopup(content, editor, ee.getMouseDownPosition());
-
-#else
-
-	ignoreUnused(e, componentToNotify);
-
-#endif
-}
-
-
-struct ScriptingObjects::PathObject::Wrapper
-{
-	API_VOID_METHOD_WRAPPER_1(PathObject, loadFromData);
-	API_VOID_METHOD_WRAPPER_0(PathObject, closeSubPath);
-	API_VOID_METHOD_WRAPPER_2(PathObject, startNewSubPath);
-	API_VOID_METHOD_WRAPPER_2(PathObject, lineTo);
-	API_VOID_METHOD_WRAPPER_0(PathObject, clear);
-	API_VOID_METHOD_WRAPPER_4(PathObject, quadraticTo);
-	API_VOID_METHOD_WRAPPER_3(PathObject, addArc);
-	API_METHOD_WRAPPER_1(PathObject, getBounds);
-};
-
-ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
-ConstScriptingObject(p, 0)
-{
-	ADD_API_METHOD_1(loadFromData);
-	ADD_API_METHOD_0(closeSubPath);
-	ADD_API_METHOD_0(clear);
-	ADD_API_METHOD_2(startNewSubPath);
-	ADD_API_METHOD_2(lineTo);
-	ADD_API_METHOD_4(quadraticTo);
-	ADD_API_METHOD_3(addArc);
-	ADD_API_METHOD_1(getBounds);
-}
-
-ScriptingObjects::PathObject::~PathObject()
-{
-
-}
-
-
-void ScriptingObjects::PathObject::loadFromData(var data)
-{
-	if (data.isArray())
-	{
-		p.clear();
-
-		Array<unsigned char> pathData;
-
-		Array<var> *varData = data.getArray();
-
-		const int numElements = varData->size();
-
-		pathData.ensureStorageAllocated(numElements);
-
-		for (int i = 0; i < numElements; i++)
-		{
-			pathData.add(static_cast<unsigned char>((int)varData->getUnchecked(i)));
-		}
-
-		p.loadPathFromData(pathData.getRawDataPointer(), numElements);
-	}
-}
-
-void ScriptingObjects::PathObject::clear()
-{
-	p.clear();
-}
-
-void ScriptingObjects::PathObject::startNewSubPath(var x, var y)
-{
-    auto x_ = (float)x;
-    auto y_ = (float)y;
-    
-	p.startNewSubPath(SANITIZED(x_), SANITIZED(y_));
-}
-
-void ScriptingObjects::PathObject::closeSubPath()
-{
-	p.closeSubPath();
-}
-
-void ScriptingObjects::PathObject::lineTo(var x, var y)
-{
-    auto x_ = (float)x;
-    auto y_ = (float)y;
-    
-	p.lineTo(SANITIZED(x_), SANITIZED(y_));
-}
-
-void ScriptingObjects::PathObject::quadraticTo(var cx, var cy, var x, var y)
-{
-	p.quadraticTo(cx, cy, x, y);
-}
-
-void ScriptingObjects::PathObject::addArc(var area, var fromRadians, var toRadians)
-{
-	auto rect = ApiHelpers::getRectangleFromVar(area);
-
-    auto fr = (float)fromRadians;
-    auto tr = (float)toRadians;
-    
-	p.addArc(rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight(), SANITIZED(fr), SANITIZED(tr), true);
-}
-
-var ScriptingObjects::PathObject::getBounds(var scaleFactor)
-{
-	auto r = p.getBoundsTransformed(AffineTransform::scale(scaleFactor));
-
-	Array<var> area;
-
-	area.add(r.getX());
-	area.add(r.getY());
-	area.add(r.getWidth());
-	area.add(r.getHeight());
-
-	return var(area);
-}
-
-struct ScriptingObjects::GraphicsObject::Wrapper
-{
-	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillAll);
-	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setColour);
-	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setOpacity);
-	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillRect);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawRect);
-	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawRoundedRectangle);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillRoundedRectangle);
-	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawLine);
-	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawHorizontalLine);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, setFont);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
-	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawAlignedText);
-	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setGradientFill);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawEllipse);
-	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillEllipse);
-	API_VOID_METHOD_WRAPPER_4(GraphicsObject, drawImage);
-	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawDropShadow);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, addDropShadowFromAlpha);
-	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawTriangle);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillTriangle);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillPath);
-	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawPath);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, rotate);
-	API_VOID_METHOD_WRAPPER_1(GraphicsObject, gaussianBlur);
-	API_VOID_METHOD_WRAPPER_1(GraphicsObject, boxBlur);
-	API_VOID_METHOD_WRAPPER_0(GraphicsObject, desaturate);
-	API_VOID_METHOD_WRAPPER_1(GraphicsObject, addNoise);
-	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyMask);
-	API_VOID_METHOD_WRAPPER_1(GraphicsObject, beginLayer);
-	API_VOID_METHOD_WRAPPER_0(GraphicsObject, endLayer);
-};
-
-ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
-ConstScriptingObject(p, 0),
-parent(parent_),
-rectangleResult(Result::ok())
-{
-	ADD_API_METHOD_1(fillAll);
-	ADD_API_METHOD_1(setColour);
-	ADD_API_METHOD_1(setOpacity);
-	ADD_API_METHOD_2(drawRect);
-	ADD_API_METHOD_1(fillRect);
-	ADD_API_METHOD_3(drawRoundedRectangle);
-	ADD_API_METHOD_2(fillRoundedRectangle);
-	ADD_API_METHOD_5(drawLine);
-	ADD_API_METHOD_3(drawHorizontalLine);
-	ADD_API_METHOD_2(setFont);
-	ADD_API_METHOD_2(drawText);
-	ADD_API_METHOD_3(drawAlignedText);
-	ADD_API_METHOD_1(setGradientFill);
-	ADD_API_METHOD_2(drawEllipse);
-	ADD_API_METHOD_1(fillEllipse);
-	ADD_API_METHOD_4(drawImage);
-	ADD_API_METHOD_3(drawDropShadow);
-	ADD_API_METHOD_2(addDropShadowFromAlpha);
-	ADD_API_METHOD_3(drawTriangle);
-	ADD_API_METHOD_2(fillTriangle);
-	ADD_API_METHOD_2(fillPath);
-	ADD_API_METHOD_3(drawPath);
-	ADD_API_METHOD_2(rotate);
-	
-	ADD_API_METHOD_1(beginLayer);
-	ADD_API_METHOD_1(gaussianBlur);
-	ADD_API_METHOD_1(boxBlur);
-	ADD_API_METHOD_0(desaturate);
-	ADD_API_METHOD_1(addNoise);
-	ADD_API_METHOD_3(applyMask);
-	ADD_API_METHOD_0(endLayer);
-}
-
-struct ScriptedPostDrawActions
-{
-	struct guassianBlur: public DrawActions::PostActionBase
-	{
-		guassianBlur(int b) : blurAmount(b) {};
-
-		bool needsStackData() const override { return true; }
-		void perform(PostGraphicsRenderer& r) override
-		{
-			r.gaussianBlur(blurAmount);
-		}
-
-		int blurAmount;
-	};
-
-	struct boxBlur : public DrawActions::PostActionBase
-	{
-		boxBlur(int b) : blurAmount(b) {};
-
-		bool needsStackData() const override { return true; }
-		void perform(PostGraphicsRenderer& r) override
-		{
-			r.boxBlur(blurAmount);
-		}
-
-		int blurAmount;
-	};
-
-	struct desaturate : public DrawActions::PostActionBase
-	{
-		desaturate() {};
-
-		bool needsStackData() const override { return false; }
-		void perform(PostGraphicsRenderer& r) override
-		{
-			r.desaturate();
-		}
-
-		int blurAmount;
-	};
-
-	struct addNoise : public DrawActions::PostActionBase
-	{
-		addNoise(float v) : noise(v) {};
-
-		bool needsStackData() const override { return false; }
-		void perform(PostGraphicsRenderer& r) override
-		{
-			r.addNoise(noise);
-		}
-
-		float noise;
-	};
-
-	struct applyMask : public DrawActions::PostActionBase
-	{
-		applyMask(const Path& p, bool i) : path(p), invert(i) {};
-
-		bool needsStackData() const override { return true; }
-		void perform(PostGraphicsRenderer& r) override
-		{
-			r.applyMask(path, invert);
-		}
-
-		Path path;
-		bool invert;
-	};
-};
-
-ScriptingObjects::GraphicsObject::~GraphicsObject()
-{
-	parent = nullptr;
-}
-
-void ScriptingObjects::GraphicsObject::beginLayer(bool drawOnParent)
-{
-	drawActionHandler.beginLayer(drawOnParent);
-}
-
-void ScriptingObjects::GraphicsObject::endLayer()
-{
-	drawActionHandler.endLayer();
-}
-
-void ScriptingObjects::GraphicsObject::gaussianBlur(var blurAmount)
-{
-	if (auto cl = drawActionHandler.getCurrentLayer())
-	{
-		cl->addPostAction(new ScriptedPostDrawActions::guassianBlur(jlimit(1, 100, (int)blurAmount)));
-	}
-	else
-		reportScriptError("You need to create a layer for gaussian blur");
-}
-
-void ScriptingObjects::GraphicsObject::boxBlur(var blurAmount)
-{
-	if (auto cl = drawActionHandler.getCurrentLayer())
-	{
-		cl->addPostAction(new ScriptedPostDrawActions::boxBlur(jlimit(1, 100, (int)blurAmount)));
-	}
-	else
-		reportScriptError("You need to create a layer for box blur");
-}
-
-void ScriptingObjects::GraphicsObject::addNoise(var noiseAmount)
-{
-	if (auto cl = drawActionHandler.getCurrentLayer())
-	{
-		cl->addPostAction(new ScriptedPostDrawActions::addNoise(jlimit(0.0f, 1.0f, (float)noiseAmount)));
-	}
-	else
-		reportScriptError("You need to create a layer for adding noise");
-}
-
-void ScriptingObjects::GraphicsObject::desaturate()
-{
-	if (auto cl = drawActionHandler.getCurrentLayer())
-	{
-		cl->addPostAction(new ScriptedPostDrawActions::desaturate());
-	}
-	else
-		reportScriptError("You need to create a layer for desaturating");
-}
-
-void ScriptingObjects::GraphicsObject::applyMask(var path, var area, bool invert)
-{
-	if (auto cl = drawActionHandler.getCurrentLayer())
-	{
-		if (PathObject* pathObject = dynamic_cast<PathObject*>(path.getObject()))
-		{
-			Path p = pathObject->getPath();
-
-			Rectangle<float> r = getRectangleFromVar(area);
-			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
-
-			cl->addPostAction(new ScriptedPostDrawActions::applyMask(p, invert));
-		}
-		else
-			reportScriptError("No valid path object supplied");
-	}
-	else
-		reportScriptError("You need to create a layer for applying a mask");
-}
-
-struct ScriptedDrawActions
-{
-	struct fillAll : public DrawActions::ActionBase
-	{
-		fillAll(Colour c_) : c(c_) {};
-		void perform(Graphics& g) { g.fillAll(c); };
-		Colour c;
-	};
-
-	struct setColour : public DrawActions::ActionBase
-	{
-		setColour(Colour c_) : c(c_) {};
-		void perform(Graphics& g) { g.setColour(c); };
-		Colour c;
-	};
-
-	struct addTransform : public DrawActions::ActionBase
-	{
-		addTransform(AffineTransform a_) : a(a_) {};
-		void perform(Graphics& g) override { g.addTransform(a); };
-		AffineTransform a;
-	};
-
-	struct fillPath : public DrawActions::ActionBase
-	{
-		fillPath(const Path& p_) : p(p_) {};
-		void perform(Graphics& g) override { g.fillPath(p); };
-		Path p;
-	};
-
-	struct drawPath : public DrawActions::ActionBase
-	{
-		drawPath(const Path& p_, float thickness_) : p(p_), thickness(thickness_) {};
-		void perform(Graphics& g) override
-		{
-			PathStrokeType s(thickness);
-			g.strokePath(p, s);
-		}
-		Path p;
-		float thickness;
-	};
-
-	struct fillRect : public DrawActions::ActionBase
-	{
-		fillRect(Rectangle<float> area_) : area(area_) {};
-		void perform(Graphics& g) { g.fillRect(area); };
-		Rectangle<float> area;
-	};
-
-	struct fillEllipse : public DrawActions::ActionBase
-	{
-		fillEllipse(Rectangle<float> area_) : area(area_) {};
-		void perform(Graphics& g) { g.fillEllipse(area); };
-		Rectangle<float> area;
-	};
-
-	struct drawRect : public DrawActions::ActionBase
-	{
-		drawRect(Rectangle<float> area_, float borderSize_) : area(area_), borderSize(borderSize_) {};
-		void perform(Graphics& g) { g.drawRect(area, borderSize); };
-		Rectangle<float> area;
-		float borderSize;
-	};
-
-	struct drawEllipse : public DrawActions::ActionBase
-	{
-		drawEllipse(Rectangle<float> area_, float borderSize_) : area(area_), borderSize(borderSize_) {};
-		void perform(Graphics& g) { g.drawEllipse(area, borderSize); };
-		Rectangle<float> area;
-		float borderSize;
-	};
-
-	struct fillRoundedRect : public DrawActions::ActionBase
-	{
-		fillRoundedRect(Rectangle<float> area_, float cornerSize_) :
-			area(area_), cornerSize(cornerSize_) {};
-		void perform(Graphics& g) { g.fillRoundedRectangle(area, cornerSize); };
-		Rectangle<float> area;
-		float cornerSize;
-	};
-
-	struct drawRoundedRectangle : public DrawActions::ActionBase
-	{
-		drawRoundedRectangle(Rectangle<float> area_, float borderSize_, float cornerSize_) :
-			area(area_), borderSize(borderSize_), cornerSize(cornerSize_) {};
-		void perform(Graphics& g) { g.drawRoundedRectangle(area, cornerSize, borderSize); };
-		Rectangle<float> area;
-		float cornerSize, borderSize;
-	};
-
-	struct drawImageWithin : public DrawActions::ActionBase
-	{
-		drawImageWithin(const Image& img_, Rectangle<float> r_) :
-			img(img_), r(r_){};
-
-		void perform(Graphics& g) override
-		{
-			g.drawImageWithin(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), RectanglePlacement::centred);
-
-			
-			//			g.drawImage(img, ri.getX(), ri.getY(), (int)(r.getWidth() / scaleFactor), (int)(r.getHeight() / scaleFactor), 0, yOffset, (int)img.getWidth(), (int)((double)img.getHeight()));
-		}
-
-		Image img;
-		Rectangle<float> r;
-	};
-
-	struct drawImage : public DrawActions::ActionBase
-	{
-		drawImage(const Image& img_, Rectangle<float> r_, float scaleFactor_, int yOffset_) :
-			img(img_), r(r_), scaleFactor(scaleFactor_), yOffset(yOffset_) {};
-		
-		void perform(Graphics& g) override 
-		{
-			g.drawImage(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), 0, yOffset, (int)img.getWidth(), (int)((double)r.getHeight() * scaleFactor));
-
-
-//			g.drawImage(img, ri.getX(), ri.getY(), (int)(r.getWidth() / scaleFactor), (int)(r.getHeight() / scaleFactor), 0, yOffset, (int)img.getWidth(), (int)((double)img.getHeight()));
-		}
-
-		Image img;
-		Rectangle<float> r;
-		float scaleFactor;
-		int yOffset;
-	};
-
-	struct drawHorizontalLine : public DrawActions::ActionBase
-	{
-		drawHorizontalLine(int y_, float x1_, float x2_) :
-			y(y_), x1(x1_), x2(x2_) {};
-		void perform(Graphics& g) { g.drawHorizontalLine(y, x1, x2); };
-		int y; float x1; float x2;
-	};
-
-	struct setOpacity : public DrawActions::ActionBase
-	{
-		setOpacity(float alpha_) :
-			alpha(alpha_) {};
-		void perform(Graphics& g) { g.setOpacity(alpha); };
-		float alpha;
-	};
-
-	struct drawLine : public DrawActions::ActionBase
-	{
-		drawLine(float x1_, float x2_, float y1_, float y2_, float lineThickness_):
-			x1(x1_), x2(x2_), y1(y1_), y2(y2_), lineThickness(lineThickness_) {};
-		void perform(Graphics& g) { g.drawLine(x1, x2, y1, y2, lineThickness); };
-		float x1, x2, y1, y2, lineThickness;
-	};
-
-	struct setFont : public DrawActions::ActionBase
-	{
-		setFont(Font f_) : f(f_) {};
-		void perform(Graphics& g) { g.setFont(f); };
-		Font f;
-	};
-
-	struct setGradientFill : public DrawActions::ActionBase
-	{
-		setGradientFill(ColourGradient grad_) : grad(grad_) {};
-		void perform(Graphics& g) { g.setGradientFill(grad); };
-		ColourGradient grad;
-	};
-
-	struct drawText : public DrawActions::ActionBase
-	{
-		drawText(const String& text_, Rectangle<float> area_, Justification j_=Justification::centred ) : text(text_), area(area_), j(j_) {};
-		void perform(Graphics& g) override { g.drawText(text, area, j); };
-		String text;
-		Rectangle<float> area;
-		Justification j;
-	};
-
-	struct drawDropShadow : public DrawActions::ActionBase
-	{
-		drawDropShadow(Rectangle<int> r_, DropShadow& shadow_) : r(r_), shadow(shadow_) {};
-		void perform(Graphics& g) override { shadow.drawForRectangle(g, r); };
-		Rectangle<int> r;
-		DropShadow shadow;
-	};
-
-	struct addDropShadowFromAlpha : public DrawActions::ActionBase
-	{
-		addDropShadowFromAlpha(const DropShadow& shadow_) : shadow(shadow_) {};
-
-		bool wantsCachedImage() const override { return true; };
-
-		void perform(Graphics& g) override
-		{
-			shadow.drawForImage(g, cachedImage);
-		}
-
-		DropShadow shadow;
-	};
-};
-
-
-
-void ScriptingObjects::GraphicsObject::fillAll(var colour)
-{
-	Colour c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillAll(c));
-}
-
-void ScriptingObjects::GraphicsObject::fillRect(var area)
-{
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRect(getRectangleFromVar(area)));
-}
-
-void ScriptingObjects::GraphicsObject::drawRect(var area, float borderSize)
-{
-	auto bs = (float)borderSize;
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRect(getRectangleFromVar(area), SANITIZED(bs)));
-}
-
-void ScriptingObjects::GraphicsObject::fillRoundedRectangle(var area, float cornerSize)
-{
-    auto cs = (float)cornerSize;
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRoundedRect(getRectangleFromVar(area), SANITIZED(cs)));
-}
-
-void ScriptingObjects::GraphicsObject::drawRoundedRectangle(var area, float cornerSize, float borderSize)
-{
-    auto cs = SANITIZED(cornerSize);
-    auto bs = SANITIZED(borderSize);
-	auto ar = getRectangleFromVar(area);
-    
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRoundedRectangle(ar, bs, cs));
-}
-
-void ScriptingObjects::GraphicsObject::drawHorizontalLine(int y, float x1, float x2)
-{
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawHorizontalLine(y, SANITIZED(x1), SANITIZED(x2)));
-}
-
-void ScriptingObjects::GraphicsObject::setOpacity(float alphaValue)
-{
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::setOpacity(alphaValue));
-}
-
-void ScriptingObjects::GraphicsObject::drawLine(float x1, float x2, float y1, float y2, float lineThickness)
-{
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawLine(
-		SANITIZED(x1), SANITIZED(y1), SANITIZED(x2), SANITIZED(y2), SANITIZED(lineThickness)));
-}
-
-void ScriptingObjects::GraphicsObject::setColour(var colour)
-{
-	auto c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(c));
-}
-
-void ScriptingObjects::GraphicsObject::setFont(String fontName, float fontSize)
-{
-	MainController *mc = getScriptProcessor()->getMainController_();
-	auto f = mc->getFontFromString(fontName, SANITIZED(fontSize));
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(f));
-}
-
-void ScriptingObjects::GraphicsObject::drawText(String text, var area)
-{
-	Rectangle<float> r = getRectangleFromVar(area);
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText(text, r));
-}
-
-void ScriptingObjects::GraphicsObject::drawAlignedText(String text, var area, String alignment)
-{
-	Rectangle<float> r = getRectangleFromVar(area);
-
-	Result re = Result::ok();
-	auto just= ApiHelpers::getJustification(alignment, &re);
-
-	if (re.failed())
-		reportScriptError(re.getErrorMessage());
-
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText(text, r, just));
-}
-
-void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
-{
-	if (gradientData.isArray())
-	{
-		Array<var>* data = gradientData.getArray();
-
-		if (gradientData.getArray()->size() == 6)
-		{
-			auto c1 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(0));
-			auto c2 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(3));
-
-			auto grad = ColourGradient(c1, (float)data->getUnchecked(1), (float)data->getUnchecked(2),
-					 					     c2, (float)data->getUnchecked(4), (float)data->getUnchecked(5), false);
-
-
-			drawActionHandler.addDrawAction(new ScriptedDrawActions::setGradientFill(grad));
-		}
-		else
-			reportScriptError("Gradient Data must have six elements");
-	}
-	else
-		reportScriptError("Gradient Data is not sufficient");
-}
-
-
-
-void ScriptingObjects::GraphicsObject::drawEllipse(var area, float lineThickness)
-{
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawEllipse(getRectangleFromVar(area), lineThickness));
-}
-
-void ScriptingObjects::GraphicsObject::fillEllipse(var area)
-{
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillEllipse(getRectangleFromVar(area)));
-}
-
-void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int /*xOffset*/, int yOffset)
-{
-	if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent))
-	{
-		const Image img = sc->getLoadedImage(imageName);
-
-		if (img.isValid())
-		{
-			Rectangle<float> r = getRectangleFromVar(area);
-
-			if (r.getWidth() != 0)
-			{
-				const double scaleFactor = (double)img.getWidth() / (double)r.getWidth();
-
-				drawActionHandler.addDrawAction(new ScriptedDrawActions::drawImage(img, r, (float)scaleFactor, yOffset));
-			}
-		}
-		else
-		{
-			drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(Colours::grey));
-			drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRect(getRectangleFromVar(area)));
-			
-			drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(Colours::black));
-			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRect(getRectangleFromVar(area), 1.0f));
-			drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(GLOBAL_BOLD_FONT()));
-			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText("XXX", getRectangleFromVar(area), Justification::centred));
-
-			debugError(dynamic_cast<Processor*>(getScriptProcessor()), "Image " + imageName + " not found");
-		}
-			
-			
-	}
-	else
-	{
-		reportScriptError("drawImage is only allowed in a panel's paint routine");
-	}
-	
-}
-
-void ScriptingObjects::GraphicsObject::drawDropShadow(var area, var colour, int radius)
-{
-	auto r = getIntRectangleFromVar(area);
-	DropShadow shadow;
-
-	shadow.colour = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
-	shadow.radius = radius;
-
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawDropShadow(r, shadow));
-}
-
-void ScriptingObjects::GraphicsObject::drawTriangle(var area, float angle, float lineThickness)
-{
-	Path p;
-	p.startNewSubPath(0.5f, 0.0f);
-	p.lineTo(1.0f, 1.0f);
-	p.lineTo(0.0f, 1.0f);
-	p.closeSubPath();
-	p.applyTransform(AffineTransform::rotation(angle));
-	auto r = getRectangleFromVar(area);
-	p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
-	
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawPath(p, lineThickness));
-}
-
-void ScriptingObjects::GraphicsObject::fillTriangle(var area, float angle)
-{
-	Path p;
-	p.startNewSubPath(0.5f, 0.0f);
-	p.lineTo(1.0f, 1.0f);
-	p.lineTo(0.0f, 1.0f);
-	p.closeSubPath();
-	p.applyTransform(AffineTransform::rotation(angle));
-	auto r = getRectangleFromVar(area);
-	p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
-
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillPath(p));
-}
-
-void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(var colour, int radius)
-{
-	DropShadow shadow;
-
-	shadow.colour = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
-	shadow.radius = radius;
-
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::addDropShadowFromAlpha(shadow));
-}
-
-void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
-{
-	if (PathObject* pathObject = dynamic_cast<PathObject*>(path.getObject()))
-	{
-		Path p = pathObject->getPath();
-
-		if (p.getBounds().isEmpty())
-			return;
-
-		if (area.isArray())
-		{
-			Rectangle<float> r = getRectangleFromVar(area);
-			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
-		}
-
-		drawActionHandler.addDrawAction(new ScriptedDrawActions::fillPath(p));
-	}
-}
-
-void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var thickness)
-{
-	if (PathObject* pathObject = dynamic_cast<PathObject*>(path.getObject()))
-	{
-		Path p = pathObject->getPath();
-		
-		if (area.isArray())
-		{
-			Rectangle<float> r = getRectangleFromVar(area);
-			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
-		}
-
-        auto t = (float)thickness;
-		drawActionHandler.addDrawAction(new ScriptedDrawActions::drawPath(p, SANITIZED(t)));
-	}
-}
-
-void ScriptingObjects::GraphicsObject::rotate(var angleInRadian, var center)
-{
-	Point<float> c = getPointFromVar(center);
-    auto air = (float)angleInRadian;
-	auto a = AffineTransform::rotation(SANITIZED(air), c.getX(), c.getY());
-
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::addTransform(a));
-}
-
-Point<float> ScriptingObjects::GraphicsObject::getPointFromVar(const var& data)
-{
-	Point<float>&& f = ApiHelpers::getPointFromVar(data, &rectangleResult);
-
-	if (rectangleResult.failed()) reportScriptError(rectangleResult.getErrorMessage());
-
-	return f;
-}
-
-Rectangle<float> ScriptingObjects::GraphicsObject::getRectangleFromVar(const var &data)
-{
-	Rectangle<float>&& f = ApiHelpers::getRectangleFromVar(data, &rectangleResult);
-
-	if (rectangleResult.failed()) reportScriptError(rectangleResult.getErrorMessage());
-
-	return f;
-}
-
-Rectangle<int> ScriptingObjects::GraphicsObject::getIntRectangleFromVar(const var &data)
-{
-	Rectangle<int>&& f = ApiHelpers::getIntRectangleFromVar(data, &rectangleResult);
-
-	if (rectangleResult.failed()) reportScriptError(rectangleResult.getErrorMessage());
-
-	return f;
-}
 
 struct ScriptingObjects::ScriptingMessageHolder::Wrapper
 {
@@ -5526,6 +4928,28 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawScrollbar(Graphics& g_, Scr
 	GlobalHiseLookAndFeel::drawScrollbar(g_, scrollbar, x, y, width, height, isScrollbarVertical, thumbStartPosition, thumbSize, isMouseOver, isMouseDown);
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawMidiDropper(Graphics& g_, Rectangle<float> area, const String& text, MidiFileDragAndDropper& d)
+{
+	if (functionDefined("drawMidiDropper"))
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
+		obj->setProperty("hover", d.hover);
+		obj->setProperty("active", d.isActive());
+		obj->setProperty("externalDrag", d.externalDrag);
+
+		obj->setProperty("bgColour", d.findColour(HiseColourScheme::ComponentBackgroundColour).getARGB());
+		obj->setProperty("itemColour", d.findColour(HiseColourScheme::ComponentOutlineColourId).getARGB());
+		obj->setProperty("textColour", d.findColour(HiseColourScheme::ComponentTextColourId).getARGB());
+		obj->setProperty("text", text);
+
+		if (get()->callWithGraphics(g_, "drawMidiDropper", var(obj)))
+			return;
+	}
+
+	MidiFileDragAndDropper::LookAndFeelMethods::drawMidiDropper(g_, area, text, d);
+}
+
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)
 {
 	auto img = MessageWithIcon::LookAndFeelMethods::createIcon(type);
@@ -5641,6 +5065,123 @@ juce::ValueTree ApiHelpers::getApiTree()
 	return v;
 }
 #endif
+
+struct ScriptingObjects::ScriptDisplayBufferSource::Wrapper
+{
+	API_METHOD_WRAPPER_1(ScriptDisplayBufferSource, getDisplayBuffer);
+};
+
+ScriptingObjects::ScriptDisplayBufferSource::ScriptDisplayBufferSource(ProcessorWithScriptingContent *p, ExternalDataHolder *h):
+	ConstScriptingObject(p, 0),
+	source(h)
+{
+	ADD_API_METHOD_1(getDisplayBuffer);
+}
+
+var ScriptingObjects::ScriptDisplayBufferSource::getDisplayBuffer(int index)
+{
+	if (objectExists())
+	{
+		auto numObjects = source->getNumDataObjects(ExternalData::DataType::DisplayBuffer);
+
+		if (isPositiveAndBelow(index, numObjects))
+			return var(new ScriptingObjects::ScriptRingBuffer(getScriptProcessor(), index, source));
+
+		reportScriptError("Can't find buffer at index " + String(index));
+	}
+	
+	RETURN_IF_NO_THROW(var());
+}
+
+
+struct ScriptingObjects::ScriptUnorderedStack::Wrapper
+{
+	API_METHOD_WRAPPER_0(ScriptUnorderedStack, isEmpty);
+	API_METHOD_WRAPPER_0(ScriptUnorderedStack, size);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, asBuffer);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, insert);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, remove);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, contains);
+};
+
+ScriptingObjects::ScriptUnorderedStack::ScriptUnorderedStack(ProcessorWithScriptingContent *p):
+	ConstScriptingObject(p, 0)
+{
+	ADD_API_METHOD_0(isEmpty);
+	ADD_API_METHOD_0(size);
+	ADD_API_METHOD_1(asBuffer);
+	ADD_API_METHOD_1(insert);
+	ADD_API_METHOD_1(remove);
+	ADD_API_METHOD_1(contains);
+
+	elementBuffer = new VariantBuffer(data.begin(), 0);
+	wholeBf = new VariantBuffer(data.begin(), 128);
+}
+
+struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
+														 public Timer
+{
+	static constexpr int CellWidth = 70;
+	static constexpr int CellHeight = 22;
+	static constexpr int NumRows = 16;
+	static constexpr int NumColumns = 128 / NumRows;
+
+	void timerCallback() override { repaint(); }
+
+	Display(ScriptUnorderedStack* p):
+		parent(p)
+	{
+		setSize(NumColumns * CellWidth, NumRows * CellHeight);
+		setName("Unordered Stack Viewer");
+		startTimer(30);
+	}
+
+	void paint(Graphics& g) override
+	{
+		int index = 0;
+
+		for (int y = 0; y < NumRows; y++)
+		{
+			for (int x = 0; x < NumColumns; x++)
+			{
+				Rectangle<int> ar(x * CellWidth, y * CellHeight, CellWidth, CellHeight);
+				
+				if (index < parent->size())
+				{
+					g.setColour(Colours::white.withAlpha(0.2f));
+					g.fillRect(ar.reduced(1));
+
+					float v = *(parent->data.begin() + index);
+					g.setColour(Colours::white.withAlpha(0.8f));
+					g.setFont(GLOBAL_MONOSPACE_FONT());
+					g.drawText(String(v, 1), ar.toFloat(), Justification::centred);
+				}
+				else
+				{
+					g.setColour(Colours::white.withAlpha(0.05f));
+					g.fillRect(ar.reduced(1));
+				}
+
+				index++;
+			}
+		}
+	}
+
+	WeakReference<ScriptUnorderedStack> parent;
+};
+
+void ScriptingObjects::ScriptUnorderedStack::rightClickCallback(const MouseEvent& e, Component *c)
+{
+#if USE_BACKEND
+
+	auto te = new Display(this);
+	auto editor = GET_BACKEND_ROOT_WINDOW(c);
+	MouseEvent ee = e.getEventRelativeTo(editor);
+	editor->getRootFloatingTile()->showComponentInRootPopup(te, editor, ee.getMouseDownPosition());
+#else
+	ignoreUnused(e, c);
+#endif
+}
 
 
 

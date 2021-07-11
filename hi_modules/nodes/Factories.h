@@ -38,6 +38,16 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+namespace jdsp
+{
+class Factory : public NodeFactory
+{
+public:
+	Factory(DspNetwork* network);
+	Identifier getId() const override { return "jdsp"; };
+};
+}
+
 namespace analyse
 {
 
@@ -48,8 +58,54 @@ public:
 	Factory(DspNetwork* network);;
 	Identifier getId() const override { return "analyse"; }
 };
+}
+
+namespace examples
+{
+
+class Factory : public NodeFactory
+{
+public:
+
+	Factory(DspNetwork* network);;
+	Identifier getId() const override { return "examples"; }
+};
 
 }
+
+namespace control
+{
+	class Factory : public NodeFactory
+	{
+	public:
+		Factory(DspNetwork* network);
+		Identifier getId() const override { return "control"; };
+	};
+}
+
+
+namespace envelope
+{
+class Factory : public NodeFactory
+{
+public:
+
+	Factory(DspNetwork* network);;
+	Identifier getId() const override { return "envelope"; }
+};
+}
+
+namespace generator
+{
+	class Factory : public NodeFactory
+	{
+	public:
+
+		Factory(DspNetwork* network);;
+		Identifier getId() const override { return "generator"; }
+	};
+}
+
 
 namespace core
 {
@@ -100,6 +156,16 @@ struct Factory : public NodeFactory
 
 }
 
+namespace stk_factory
+{
+struct Factory: public NodeFactory
+{
+	Factory(DspNetwork* n);;
+	Identifier getId() const override { return "stk"; }
+};
+	
+}
+
 namespace math
 {
 
@@ -137,8 +203,6 @@ class Factory : public NodeFactory
 {
 public:
 	Factory(DspNetwork* n);
-
-	static StringArray getSourceNodeList(NodeBase* n);
 
 	Identifier getId() const override { return "routing"; }
 };

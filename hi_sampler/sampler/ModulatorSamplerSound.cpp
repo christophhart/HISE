@@ -481,33 +481,77 @@ void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard
 		set.deselectAll();
 	}
 
+	if (wildcard.contains("&"))
+	{
+		// Regex doesn't have a nice & operator, so we need to implement
+		// this manually...
 
-    try
-    {
-		std::regex reg(wildcard.toStdString());
+		auto ops = StringArray::fromTokens(regexWildcard, "&", "");
 
-		ModulatorSampler::SoundIterator iter(sampler, false);
+		OwnedArray<SelectedItemSet<Ptr>> andSelections;
 
-		while (auto sound = iter.getNextSound())
+		for (auto op : ops)
 		{
-			const String name = sound->getPropertyAsString(SampleIds::FileName);
+			auto opSet = new SelectedItemSet<Ptr>();
+			selectSoundsBasedOnRegex(op, sampler, *opSet);
+			andSelections.add(opSet);
+		}
 
-			if (std::regex_search(name.toStdString(), reg))
+		if (!andSelections.isEmpty())
+		{
+			SelectedItemSet<Ptr>* smallest = andSelections.getFirst();
+
+			// Find the one with the smallest number, this will make the next loop
+			// much faster...
+			for (auto s: andSelections)
 			{
-				if (subtractMode)
+				if (s->getNumSelected() < smallest->getNumSelected())
+					smallest = s;
+			}
+
+			for (const auto& thisSound: *smallest)
+			{
+				bool found = true;
+
+				for (auto s: andSelections)
 				{
-					set.deselect(sound.get());
+					if (!s->isSelected(thisSound))
+					{
+						found = false;
+						break;
+					}
 				}
-				else
-				{
-					set.addToSelection(sound.get());
-				}
+
+				if (found)
+					set.addToSelection(thisSound);
 			}
 		}
 	}
-	catch (std::regex_error e)
+	else
 	{
-		debugError(sampler, e.what());
+		try
+		{
+			std::regex reg(wildcard.toStdString());
+
+			ModulatorSampler::SoundIterator iter(sampler, false);
+
+			while (auto sound = iter.getNextSound())
+			{
+				const String name = sound->getPropertyAsString(SampleIds::FileName);
+
+				if (std::regex_search(name.toStdString(), reg))
+				{
+					if (subtractMode)
+						set.deselect(sound.get());
+					else
+						set.addToSelection(sound.get());
+				}
+			}
+		}
+		catch (std::regex_error e)
+		{
+			debugError(sampler, e.what());
+		}
 	}
 }
 
@@ -689,7 +733,7 @@ var ModulatorSamplerSound::getSampleProperty(const Identifier& id) const
 		return getId();
 
 	if (id == SampleIds::FileName && data.getNumChildren() != 0)
-			return data.getChild(0)[id];
+		return data.getChild(0)[id];
 
 	var rv = data.getProperty(id, getDefaultValue(id));
 

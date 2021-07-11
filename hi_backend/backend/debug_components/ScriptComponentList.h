@@ -372,7 +372,7 @@ private:
 		if (tree != nullptr)
 		{
 			scrollY = tree->getViewport()->getViewPositionY();
-			openState = tree->getOpennessState(false);
+			openState = tree->getOpennessState(false).release();
 		}
 	}
 

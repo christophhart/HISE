@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -23,7 +23,7 @@
 namespace juce
 {
 
-#if ! JUCE_MINGW
+#if JUCE_MSVC && ! defined (__INTEL_COMPILER)
  #pragma intrinsic (__cpuid)
  #pragma intrinsic (__rdtsc)
 #endif
@@ -41,10 +41,11 @@ void Logger::outputDebugString (const String& text)
 
 //==============================================================================
 
-#if JUCE_MINGW
+#if JUCE_MINGW || JUCE_CLANG
 static void callCPUID (int result[4], uint32 type)
 {
-  uint32 la = result[0], lb = result[1], lc = result[2], ld = result[3];
+  uint32 la = (uint32) result[0], lb = (uint32) result[1],
+         lc = (uint32) result[2], ld = (uint32) result[3];
 
   asm ("mov %%ebx, %%esi \n\t"
        "cpuid \n\t"
@@ -55,7 +56,8 @@ static void callCPUID (int result[4], uint32 type)
         #endif
        );
 
-  result[0] = la; result[1] = lb; result[2] = lc; result[3] = ld;
+  result[0] = (int) la; result[1] = (int) lb;
+  result[2] = (int) lc; result[3] = (int) ld;
 }
 #else
 static void callCPUID (int result[4], int infoType)
@@ -144,24 +146,28 @@ void CPUInformation::initialise() noexcept
     hasSSE2  = (info[3] & (1 << 26)) != 0;
     hasSSE3  = (info[2] & (1 <<  0)) != 0;
     hasAVX   = (info[2] & (1 << 28)) != 0;
+    hasFMA3  = (info[2] & (1 << 12)) != 0;
     hasSSSE3 = (info[2] & (1 <<  9)) != 0;
     hasSSE41 = (info[2] & (1 << 19)) != 0;
     hasSSE42 = (info[2] & (1 << 20)) != 0;
     has3DNow = (info[1] & (1 << 31)) != 0;
 
+    callCPUID (info, 0x80000001);
+    hasFMA4  = (info[2] & (1 << 16)) != 0;
+
     callCPUID (info, 7);
 
-    hasAVX2            = (info[1] & (1 << 5))   != 0;
-    hasAVX512F         = (info[1] & (1u << 16)) != 0;
-    hasAVX512DQ        = (info[1] & (1u << 17)) != 0;
-    hasAVX512IFMA      = (info[1] & (1u << 21)) != 0;
-    hasAVX512PF        = (info[1] & (1u << 26)) != 0;
-    hasAVX512ER        = (info[1] & (1u << 27)) != 0;
-    hasAVX512CD        = (info[1] & (1u << 28)) != 0;
-    hasAVX512BW        = (info[1] & (1u << 30)) != 0;
-    hasAVX512VL        = (info[1] & (1u << 31)) != 0;
-    hasAVX512VBMI      = (info[2] & (1u <<  1)) != 0;
-    hasAVX512VPOPCNTDQ = (info[2] & (1u << 14)) != 0;
+    hasAVX2            = ((unsigned int) info[1] & (1 << 5))   != 0;
+    hasAVX512F         = ((unsigned int) info[1] & (1u << 16)) != 0;
+    hasAVX512DQ        = ((unsigned int) info[1] & (1u << 17)) != 0;
+    hasAVX512IFMA      = ((unsigned int) info[1] & (1u << 21)) != 0;
+    hasAVX512PF        = ((unsigned int) info[1] & (1u << 26)) != 0;
+    hasAVX512ER        = ((unsigned int) info[1] & (1u << 27)) != 0;
+    hasAVX512CD        = ((unsigned int) info[1] & (1u << 28)) != 0;
+    hasAVX512BW        = ((unsigned int) info[1] & (1u << 30)) != 0;
+    hasAVX512VL        = ((unsigned int) info[1] & (1u << 31)) != 0;
+    hasAVX512VBMI      = ((unsigned int) info[2] & (1u <<  1)) != 0;
+    hasAVX512VPOPCNTDQ = ((unsigned int) info[2] & (1u << 14)) != 0;
 
     SYSTEM_INFO systemInfo;
     GetNativeSystemInfo (&systemInfo);
@@ -185,43 +191,73 @@ static DebugFlagsInitialiser debugFlagsInitialiser;
 #endif
 
 //==============================================================================
-static uint32 getWindowsVersion()
-{
-    auto filename = _T("kernel32.dll");
-    DWORD handle = 0;
+#if JUCE_MINGW
+ static uint32 getWindowsVersion()
+ {
+     auto filename = _T("kernel32.dll");
+     DWORD handle = 0;
 
-    if (auto size = GetFileVersionInfoSize (filename, &handle))
-    {
-        HeapBlock<char> data (size);
+     if (auto size = GetFileVersionInfoSize (filename, &handle))
+     {
+         HeapBlock<char> data (size);
 
-        if (GetFileVersionInfo (filename, handle, size, data))
-        {
-            VS_FIXEDFILEINFO* info = nullptr;
-            UINT verSize = 0;
+         if (GetFileVersionInfo (filename, handle, size, data))
+         {
+             VS_FIXEDFILEINFO* info = nullptr;
+             UINT verSize = 0;
 
-            if (VerQueryValue (data, (LPCTSTR) _T("\\"), (void**) &info, &verSize))
-                if (size > 0 && info != nullptr && info->dwSignature == 0xfeef04bd)
-                    return (uint32) info->dwFileVersionMS;
-        }
-    }
+             if (VerQueryValue (data, (LPCTSTR) _T("\\"), (void**) &info, &verSize))
+                 if (size > 0 && info != nullptr && info->dwSignature == 0xfeef04bd)
+                     return (uint32) info->dwFileVersionMS;
+         }
+     }
 
-    return 0;
-}
+     return 0;
+ }
+#else
+ RTL_OSVERSIONINFOW getWindowsVersionInfo()
+ {
+     RTL_OSVERSIONINFOW versionInfo = {};
+
+     if (auto* moduleHandle = ::GetModuleHandleW (L"ntdll.dll"))
+     {
+         using RtlGetVersion = LONG (WINAPI*) (PRTL_OSVERSIONINFOW);
+
+         if (auto* rtlGetVersion = (RtlGetVersion) ::GetProcAddress (moduleHandle, "RtlGetVersion"))
+         {
+             versionInfo.dwOSVersionInfoSize = sizeof (versionInfo);
+             LONG STATUS_SUCCESS = 0;
+
+             if (rtlGetVersion (&versionInfo) != STATUS_SUCCESS)
+                 versionInfo = {};
+         }
+     }
+
+     return versionInfo;
+ }
+#endif
 
 SystemStats::OperatingSystemType SystemStats::getOperatingSystemType()
 {
+   #if JUCE_MINGW
     auto v = getWindowsVersion();
-    auto major = (v >> 16);
+    auto major = (v >> 16) & 0xff;
+    auto minor = (v >> 0)  & 0xff;
+   #else
+    auto versionInfo = getWindowsVersionInfo();
+    auto major = versionInfo.dwMajorVersion;
+    auto minor = versionInfo.dwMinorVersion;
+   #endif
 
     jassert (major <= 10); // need to add support for new version!
 
-    if (major == 10)       return Windows10;
-    if (v == 0x00060003)   return Windows8_1;
-    if (v == 0x00060002)   return Windows8_0;
-    if (v == 0x00060001)   return Windows7;
-    if (v == 0x00060000)   return WinVista;
-    if (v == 0x00050000)   return Win2000;
-    if (major == 5)        return WinXP;
+    if (major == 10)                 return Windows10;
+    if (major == 6 && minor == 3)    return Windows8_1;
+    if (major == 6 && minor == 2)    return Windows8_0;
+    if (major == 6 && minor == 1)    return Windows7;
+    if (major == 6 && minor == 0)    return WinVista;
+    if (major == 5 && minor == 1)    return WinXP;
+    if (major == 5 && minor == 0)    return Win2000;
 
     jassertfalse;
     return UnknownOS;
@@ -240,6 +276,23 @@ String SystemStats::getOperatingSystemName()
         case WinVista:          name = "Windows Vista";     break;
         case WinXP:             name = "Windows XP";        break;
         case Win2000:           name = "Windows 2000";      break;
+
+        case MacOSX:            JUCE_FALLTHROUGH
+        case Windows:           JUCE_FALLTHROUGH
+        case Linux:             JUCE_FALLTHROUGH
+        case Android:           JUCE_FALLTHROUGH
+        case iOS:               JUCE_FALLTHROUGH
+
+        case MacOSX_10_7:       JUCE_FALLTHROUGH
+        case MacOSX_10_8:       JUCE_FALLTHROUGH
+        case MacOSX_10_9:       JUCE_FALLTHROUGH
+        case MacOSX_10_10:      JUCE_FALLTHROUGH
+        case MacOSX_10_11:      JUCE_FALLTHROUGH
+        case MacOSX_10_12:      JUCE_FALLTHROUGH
+        case MacOSX_10_13:      JUCE_FALLTHROUGH
+        case MacOSX_10_14:      JUCE_FALLTHROUGH
+
+        case UnknownOS:         JUCE_FALLTHROUGH
         default:                jassertfalse; break; // !! new type of OS?
     }
 

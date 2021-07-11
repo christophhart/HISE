@@ -47,6 +47,20 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 {
 	registerLayoutPanelTypes();
 	
+#if HISE_INCLUDE_SNEX_FLOATING_TILES
+
+	registerType<SnexEditorPanel>(PopupMenuOptions::SnexEditor);
+	registerType<SnexWorkbenchPanel<snex::ui::OptimizationProperties>>(PopupMenuOptions::SnexOptimisations);
+	registerType<SnexWorkbenchPanel<snex::ui::Graph>>(PopupMenuOptions::SnexGraph);
+	registerType<SnexWorkbenchPanel<snex::ui::ParameterList>>(PopupMenuOptions::SnexParameterList);
+	registerType<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(PopupMenuOptions::SnexTestDataInfo);
+	registerType<SnexWorkbenchPanel<snex::ui::TestComplexDataManager>>(PopupMenuOptions::SnexComplexTestData);
+	//registerType<snex::ui::Console>();
+	//registerType<snex::ui::AssemblyViewer>();
+
+#endif
+
+
 	registerType<Note>(PopupMenuOptions::Note);
 #if HISE_INCLUDE_RLOTTIE
 	registerType<RLottieFloatingTile>(PopupMenuOptions::RLottieDevPanel);
@@ -77,10 +91,11 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ScriptComponentList::Panel>(PopupMenuOptions::ScriptComponentList);
 	registerType<MarkdownEditorPanel>(PopupMenuOptions::MarkdownEditor);
 
+	registerType<ComplexDataManager>(PopupMenuOptions::ComplexDataManager);
 	registerType<ServerControllerPanel>(PopupMenuOptions::ServerController);
-
 	registerType<scriptnode::DspNetworkGraphPanel>(PopupMenuOptions::DspNetworkGraph);
 	registerType<scriptnode::NodePropertyPanel>(PopupMenuOptions::DspNodeParameterEditor);
+
 #endif
 
 	registerFrontendPanelTypes();
@@ -143,7 +158,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<FilterDragOverlay::Panel>(PopupMenuOptions::DraggableFilterPanel);
 	registerType<MPEPanel>(PopupMenuOptions::MPEPanel);
 	
-	registerType<AhdsrGraph::Panel>(PopupMenuOptions::AHDSRGraph);
+	registerType<AhdsrEnvelope::Panel>(PopupMenuOptions::AHDSRGraph);
 	registerType<MarkdownPreviewPanel>(PopupMenuOptions::MarkdownPreviewPanel);
 
 #if HI_ENABLE_EXTERNAL_CUSTOM_TILES
@@ -154,7 +169,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 
 
 
-Drawable* FloatingTileContent::Factory::getIcon(PopupMenuOptions type) const
+std::unique_ptr<Drawable> FloatingTileContent::Factory::getIcon(PopupMenuOptions type) const
 {
 	Path path = getPath(type);
 
@@ -163,10 +178,10 @@ Drawable* FloatingTileContent::Factory::getIcon(PopupMenuOptions type) const
 		auto d = new DrawablePath();
 		d->setPath(path);
 
-		return d;
+		return std::unique_ptr<Drawable>(d);
 	}
 	else
-		return nullptr;
+		return {};
 }
 
 namespace FloatingTileIcons
@@ -252,6 +267,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 		path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
 		break;
 	}
+	case PopupMenuOptions::SnexParameterList:
 	case PopupMenuOptions::MacroTable:
 	{
 		path.loadPathFromData(MainToolbarIcons::macroControlTable, sizeof(MainToolbarIcons::macroControlTable));
@@ -262,7 +278,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	case PopupMenuOptions::DspNodeList:
 	case PopupMenuOptions::DspNodeParameterEditor:
 	{
-		path.loadPathFromData(ScriptnodeIcons::splitIcon, sizeof(ScriptnodeIcons::splitIcon));
+		path.loadPathFromData(ScriptnodeIcons::pinIcon, sizeof(ScriptnodeIcons::pinIcon));
 		break;
 	}
 	case PopupMenuOptions::PresetBrowser:
@@ -340,6 +356,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 		break;
 	}
 	case PopupMenuOptions::MarkdownEditor:
+	case FloatingTileContent::Factory::PopupMenuOptions::SnexEditor:
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptEditor:
 	{
 		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor));
@@ -381,6 +398,11 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 		return path;
 	}
+	case FloatingTileContent::Factory::PopupMenuOptions::SnexTestDataInfo:
+	{
+		path.loadPathFromData(HnodeIcons::testIcon, sizeof(HnodeIcons::testIcon));
+		return path;
+	}
 
 	case FloatingTileContent::Factory::PopupMenuOptions::SliderPackPanel:
 	{
@@ -402,6 +424,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 #endif
 		break;
 	}
+	case FloatingTileContent::Factory::PopupMenuOptions::SnexGraph:
 	case FloatingTileContent::Factory::PopupMenuOptions::Plotter:
 	{
 		static const unsigned char pathData[] = { 110,109,128,252,89,67,64,173,211,67,98,163,65,87,67,250,238,211,67,11,182,84,67,198,176,212,67,0,89,82,67,64,212,213,67,98,235,158,77,67,51,27,216,67,247,55,73,67,167,244,219,67,127,85,68,67,64,17,226,67,108,255,12,75,67,192,104,227,67,98,225,192,79,
@@ -543,7 +566,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 void FloatingTileContent::Factory::addToPopupMenu(PopupMenu& m, PopupMenuOptions type, const String& name, bool isEnabled, bool isTicked)
 {
-	m.addItem((int)type, name, isEnabled, isTicked, getIcon(type));
+	m.addItem((int)type, name, isEnabled, isTicked, std::unique_ptr<Drawable>(getIcon(type)));
 }
 
 void addCommandIcon(FloatingTile* /*parent*/, PopupMenu& , int /*commandID*/)
@@ -600,6 +623,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::ScriptComponentList, "Script Component List");
 			addToPopupMenu(m, PopupMenuOptions::ApiCollection, "API Browser");
 			addToPopupMenu(m, PopupMenuOptions::ScriptWatchTable, "Live Variable View");
+			addToPopupMenu(m, PopupMenuOptions::ComplexDataManager, "Complex Data Manager");
 			addToPopupMenu(m, PopupMenuOptions::Console, "Console");
 			addToPopupMenu(m, PopupMenuOptions::DspNodeList, "DSP Node list");
 			addToPopupMenu(m, PopupMenuOptions::DspNetworkGraph, "DSP Network Graph");
@@ -711,7 +735,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::SampleMapEditor:		parent->setNewContent(GET_PANEL_NAME(SampleMapEditorPanel)); break;
 	case PopupMenuOptions::SamplerTable:		parent->setNewContent(GET_PANEL_NAME(SamplerTablePanel)); break;
 	case PopupMenuOptions::WavetablePreview:	parent->setNewContent(GET_PANEL_NAME(WaveformComponent::Panel)); break;
-	case PopupMenuOptions::AHDSRGraph:			parent->setNewContent(GET_PANEL_NAME(AhdsrGraph::Panel)); break;
+	case PopupMenuOptions::AHDSRGraph:			parent->setNewContent(GET_PANEL_NAME(AhdsrEnvelope::Panel)); break;
 	case PopupMenuOptions::MarkdownPreviewPanel:parent->setNewContent(GET_PANEL_NAME(MarkdownPreviewPanel)); break;
 	case PopupMenuOptions::MarkdownEditor:		parent->setNewContent(GET_PANEL_NAME(MarkdownEditorPanel)); break;
 	case PopupMenuOptions::FilterGraphPanel:	parent->setNewContent(GET_PANEL_NAME(FilterGraph::Panel)); break;
@@ -724,6 +748,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::Plotter:				parent->setNewContent(GET_PANEL_NAME(PlotterPanel)); break;
 	case PopupMenuOptions::AudioAnalyser:		parent->setNewContent(GET_PANEL_NAME(AudioAnalyserComponent::Panel)); break;
 	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(ScriptComponentEditPanel::Panel)); break;
+	case PopupMenuOptions::ComplexDataManager:  parent->setNewContent(GET_PANEL_NAME(ComplexDataManager)); break;
 	case PopupMenuOptions::DspNetworkGraph:		parent->setNewContent(GET_PANEL_NAME(scriptnode::DspNetworkGraphPanel)); break;
 	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(SliderPackPanel)); break;
 	case PopupMenuOptions::ScriptConnectorPanel:parent->setNewContent(GET_PANEL_NAME(GlobalConnectorPanel<JavascriptProcessor>)); break;

@@ -799,17 +799,24 @@ void SampleMapEditor::importSfz()
 
 	if (fc.browseForFileToOpen())
 	{
-		try
-		{
-			sampler->clearSampleMap(dontSendNotification);
+		auto f = fc.getResult();
 
-			SfzImporter sfz(sampler, fc.getResult());
-			sfz.importSfzFile();
-		}
-		catch (SfzImporter::SfzParsingError error)
+		sampler->killAllVoicesAndCall([f](Processor* p)
 		{
-			debugError(sampler, error.getErrorMessage());
-		}
+			auto s = static_cast<ModulatorSampler*>(p);
+
+			try
+			{
+				SfzImporter sfz(s, f);
+				sfz.importSfzFile();
+			}
+			catch (SfzImporter::SfzParsingError error)
+			{
+				debugError(s, error.getErrorMessage());
+			}
+
+			return SafeFunctionCall::OK;
+		});
 	}
 }
 

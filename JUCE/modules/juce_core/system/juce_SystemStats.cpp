@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -90,9 +90,9 @@ struct CPUInformation
 
     int numLogicalCPUs = 0, numPhysicalCPUs = 0;
 
-    bool hasMMX      = false, hasSSE        = false, hasSSE2       = false, hasSSE3 = false,
-         has3DNow    = false, hasSSSE3      = false, hasSSE41      = false,
-         hasSSE42    = false, hasAVX        = false, hasAVX2       = false,
+    bool hasMMX      = false, hasSSE        = false, hasSSE2       = false, hasSSE3       = false,
+         has3DNow    = false, hasFMA3       = false, hasFMA4       = false, hasSSSE3      = false,
+         hasSSE41    = false, hasSSE42      = false, hasAVX        = false, hasAVX2       = false,
          hasAVX512F  = false, hasAVX512BW   = false, hasAVX512CD   = false,
          hasAVX512DQ = false, hasAVX512ER   = false, hasAVX512IFMA = false,
          hasAVX512PF = false, hasAVX512VBMI = false, hasAVX512VL   = false,
@@ -110,6 +110,8 @@ int SystemStats::getNumCpus() noexcept          { return getCPUInformation().num
 int SystemStats::getNumPhysicalCpus() noexcept  { return getCPUInformation().numPhysicalCPUs; }
 bool SystemStats::hasMMX() noexcept             { return getCPUInformation().hasMMX; }
 bool SystemStats::has3DNow() noexcept           { return getCPUInformation().has3DNow; }
+bool SystemStats::hasFMA3() noexcept            { return getCPUInformation().hasFMA3; }
+bool SystemStats::hasFMA4() noexcept            { return getCPUInformation().hasFMA4; }
 bool SystemStats::hasSSE() noexcept             { return getCPUInformation().hasSSE; }
 bool SystemStats::hasSSE2() noexcept            { return getCPUInformation().hasSSE2; }
 bool SystemStats::hasSSE3() noexcept            { return getCPUInformation().hasSSE3; }
@@ -136,7 +138,7 @@ String SystemStats::getStackBacktrace()
 {
     String result;
 
-   #if JUCE_ANDROID || JUCE_MINGW
+   #if JUCE_ANDROID || JUCE_MINGW || JUCE_WASM
     jassertfalse; // sorry, not implemented yet!
 
    #elif JUCE_WINDOWS
@@ -185,6 +187,8 @@ String SystemStats::getStackBacktrace()
 }
 
 //==============================================================================
+#if ! JUCE_WASM
+
 static SystemStats::CrashHandlerFunction globalCrashHandler = nullptr;
 
 #if JUCE_WINDOWS
@@ -197,7 +201,7 @@ static LONG WINAPI handleCrash (LPEXCEPTION_POINTERS ep)
 static void handleCrash (int signum)
 {
     globalCrashHandler ((void*) (pointer_sized_int) signum);
-    kill (getpid(), SIGKILL);
+    ::kill (getpid(), SIGKILL);
 }
 
 int juce_siginterrupt (int sig, int flag);
@@ -220,6 +224,8 @@ void SystemStats::setApplicationCrashHandler (CrashHandlerFunction handler)
     }
    #endif
 }
+
+#endif
 
 bool SystemStats::isRunningInAppExtensionSandbox() noexcept
 {

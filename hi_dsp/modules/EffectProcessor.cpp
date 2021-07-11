@@ -38,8 +38,8 @@ bool EffectProcessor::isSilent(AudioSampleBuffer& b, int startSample, int numSam
 	if (numSamples == 0)
 		return true;
 
-	const float* l = b.getReadPointer(0, startSample);
-	const float* r = b.getReadPointer(1, startSample);
+	float* l = b.getWritePointer(0, startSample);
+	float* r = b.getWritePointer(1, startSample);
 
 	using SSEFloat = dsp::SIMDRegister<float>;
 

@@ -395,7 +395,7 @@ public:
 			newEntry->lineContent = doc.getLine(newEntry->pos.getLineNumber());
 			newEntry->fileName = nameToShow;
 
-			entries.addIfNotAlreadyThere(newEntry);
+			entries.add(newEntry);
 		}
 	}
 

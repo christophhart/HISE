@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -28,9 +27,9 @@ namespace juce
 {
 
 #define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD, CALLBACK) \
- STATICMETHOD (getAndroidBluetoothManager, "getAndroidBluetoothManager", "(Landroid/content/Context;)Lcom/roli/juce/JuceMidiSupport$BluetoothManager;")
+ STATICMETHOD (getAndroidBluetoothManager, "getAndroidBluetoothManager", "(Landroid/content/Context;)Lcom/rmsl/juce/JuceMidiSupport$BluetoothManager;")
 
-DECLARE_JNI_CLASS_WITH_MIN_SDK (AndroidJuceMidiSupport, "com/roli/juce/JuceMidiSupport", 23)
+DECLARE_JNI_CLASS_WITH_MIN_SDK (AndroidJuceMidiSupport, "com/rmsl/juce/JuceMidiSupport", 23)
 #undef JNI_CLASS_MEMBERS
 
 #define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD, CALLBACK) \
@@ -41,7 +40,7 @@ DECLARE_JNI_CLASS_WITH_MIN_SDK (AndroidJuceMidiSupport, "com/roli/juce/JuceMidiS
  METHOD (getBluetoothDeviceStatus, "getBluetoothDeviceStatus", "(Ljava/lang/String;)I") \
  METHOD (startStopScan, "startStopScan", "(Z)V")
 
-DECLARE_JNI_CLASS_WITH_MIN_SDK (AndroidBluetoothManager, "com/roli/juce/JuceMidiSupport$BluetoothManager", 23)
+DECLARE_JNI_CLASS_WITH_MIN_SDK (AndroidBluetoothManager, "com/rmsl/juce/JuceMidiSupport$BluetoothManager", 23)
 #undef JNI_CLASS_MEMBERS
 
 //==============================================================================
@@ -229,24 +228,24 @@ private:
 
             const float xmargin = 3.0f;
             const float ymargin = 3.0f;
-            const float fontHeight = 0.4f * height;
-            const float deviceNameWidth = 0.6f * width;
+            const float fontHeight = 0.4f * (float) height;
+            const float deviceNameWidth = 0.6f * (float) width;
 
             g.setFont (fontHeight);
 
             g.setColour (getDeviceNameFontColour (device.connectionStatus));
             g.drawText (device.name,
-                        Rectangle<float> (xmargin, ymargin, deviceNameWidth - (2.0f * xmargin), height - (2.0f * ymargin)),
+                        Rectangle<float> (xmargin, ymargin, deviceNameWidth - (2.0f * xmargin), (float) height - (2.0f * ymargin)),
                         Justification::topLeft, true);
 
             g.setColour (getDeviceStatusFontColour (device.connectionStatus));
             g.drawText (statusString,
                         Rectangle<float> (deviceNameWidth + xmargin, ymargin,
-                                          width - deviceNameWidth - (2.0f * xmargin), height - (2.0f * ymargin)),
+                                          (float) width - deviceNameWidth - (2.0f * xmargin), (float) height - (2.0f * ymargin)),
                         Justification::topRight, true);
 
             g.setColour (Colours::grey);
-            g.drawHorizontalLine (height - 1, xmargin, width);
+            g.drawHorizontalLine (height - 1, xmargin, (float) width);
         }
     }
 
@@ -377,6 +376,7 @@ private:
                 case AndroidBluetoothMidiInterface::paired:
                     status = AndroidBluetoothMidiDevice::connected;
                     break;
+                case AndroidBluetoothMidiInterface::unpaired:
                 default:
                     status = AndroidBluetoothMidiDevice::disconnected;
             }
@@ -421,7 +421,7 @@ public:
         enterModalState (true, exitCallback.release(), true);
     }
 
-    ~BluetoothMidiSelectorOverlay()
+    ~BluetoothMidiSelectorOverlay() override
     {
         AndroidBluetoothMidiInterface::startStopScan (false);
     }

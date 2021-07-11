@@ -63,6 +63,8 @@ class BandedWG : public Instrmnt
   //! Set instrument parameters for a particular frequency.
   void setFrequency( StkFloat frequency );
 
+  void setFreqRatio(StkFloat ratio);
+
   //! Apply bow velocity/pressure to instrument with given amplitude and rate of increase.
   void startBowing( StkFloat amplitude, StkFloat rate );
 
@@ -96,6 +98,8 @@ class BandedWG : public Instrmnt
 
  protected:
 
+	 void updateFrequency();
+
   bool doPluck_;
   bool trackVelocity_;
   int nModes_;
@@ -107,6 +111,7 @@ class BandedWG : public Instrmnt
   StkFloat maxVelocity_;
   StkFloat modes_[MAX_BANDED_MODES];
   StkFloat frequency_;
+  StkFloat ratio;
   StkFloat baseGain_;
   StkFloat gains_[MAX_BANDED_MODES];
   StkFloat basegains_[MAX_BANDED_MODES];

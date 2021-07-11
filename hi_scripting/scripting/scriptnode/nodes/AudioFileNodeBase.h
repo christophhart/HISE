@@ -37,61 +37,6 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-using RefBufferPtr = ScriptingObjects::ScriptAudioFile::RefCountedBuffer::Ptr;
-
-class AudioFileNodeBase : public HiseDspBase,
-	public ScriptingObjects::ScriptAudioFile::Listener
-{
-public:
-
-	struct Listener
-	{
-		virtual ~Listener() {};
-		virtual void sourceChanged(ScriptingObjects::ScriptAudioFile* newReference) = 0;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
-	};
-
-	struct WrappedDisplay;
-
-	AudioFileNodeBase();;
-
-	void contentChanged() override;
-	void initialise(NodeBase* n) override;
-
-	void updateFile(Identifier id, var newValue);
-	void updateIndex(Identifier id, var newValue);
-
-	void createParameters(Array<ParameterData>& data) override;
-	Component* createExtraComponent(PooledUIUpdater* updater) override;
-
-	void addListener(Listener* l);
-	void removeListener(Listener* l);
-
-protected:
-
-	SpinLock lock;
-	RefBufferPtr currentBuffer;
-	ScriptingObjects::ScriptAudioFile::Ptr audioFile;
-
-private:
-
-	
-	
-	UndoManager* undoManager = nullptr;
-
-	bool recursiveProtection = false;
-
-	ComplexDataHolder* holder;
-	Array<WeakReference<Listener>> listeners;
-	ProcessorWithScriptingContent* pwsc = nullptr;
-
-	bool isUsingInternalReference = false;
-	NodePropertyT<int> index;
-	NodePropertyT<String> internalReference;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(AudioFileNodeBase);
-};
 
 
 }

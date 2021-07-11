@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -31,18 +31,18 @@ template <typename JavaType>
 class LocalRef
 {
 public:
-    explicit inline LocalRef() noexcept                 : obj (0) {}
+    explicit inline LocalRef() noexcept                 : obj (nullptr) {}
     explicit inline LocalRef (JavaType o) noexcept      : obj (o) {}
     inline LocalRef (const LocalRef& other) noexcept    : obj (retain (other.obj)) {}
-    inline LocalRef (LocalRef&& other) noexcept         : obj (0) { std::swap (obj, other.obj); }
+    inline LocalRef (LocalRef&& other) noexcept         : obj (nullptr) { std::swap (obj, other.obj); }
     ~LocalRef()                                         { clear(); }
 
     void clear()
     {
-        if (obj != 0)
+        if (obj != nullptr)
         {
             getEnv()->DeleteLocalRef (obj);
-            obj = 0;
+            obj = nullptr;
         }
     }
 
@@ -69,7 +69,7 @@ private:
 
     static JavaType retain (JavaType obj)
     {
-        return obj == 0 ? 0 : (JavaType) getEnv()->NewLocalRef (obj);
+        return obj == nullptr ? nullptr : (JavaType) getEnv()->NewLocalRef (obj);
     }
 };
 
@@ -77,21 +77,21 @@ private:
 class GlobalRef
 {
 public:
-    inline GlobalRef() noexcept                             : obj (0) {}
+    inline GlobalRef() noexcept                             : obj (nullptr) {}
     inline explicit GlobalRef (const LocalRef<jobject>& o)  : obj (retain (o.get(), getEnv())) {}
     inline explicit GlobalRef (const LocalRef<jobject>& o, JNIEnv* env)  : obj (retain (o.get(), env)) {}
     inline GlobalRef (const GlobalRef& other)           : obj (retain (other.obj, getEnv())) {}
-    inline GlobalRef (GlobalRef && other) noexcept      : obj (0) { std::swap (other.obj, obj); }
+    inline GlobalRef (GlobalRef && other) noexcept      : obj (nullptr) { std::swap (other.obj, obj); }
     ~GlobalRef()                                             { clear(); }
 
 
-    inline void clear()                                 { if (obj != 0) clear (getEnv()); }
+    inline void clear()                                 { if (obj != nullptr) clear (getEnv()); }
     inline void clear (JNIEnv* env)
     {
-        if (obj != 0)
+        if (obj != nullptr)
         {
             env->DeleteGlobalRef (obj);
-            obj = 0;
+            obj = nullptr;
         }
     }
 
@@ -147,11 +147,11 @@ public:
 
 private:
     //==============================================================================
-    jobject obj = 0;
+    jobject obj = nullptr;
 
-    static inline jobject retain (jobject obj, JNIEnv* env)
+    static jobject retain (jobject obj, JNIEnv* env)
     {
-        return obj == 0 ? 0 : env->NewGlobalRef (obj);
+        return obj == nullptr ? nullptr : env->NewGlobalRef (obj);
     }
 };
 
@@ -193,7 +193,7 @@ private:
     size_t byteCodeSize;
 
     int minSDK;
-    jclass classRef = 0;
+    jclass classRef = nullptr;
 
     static Array<JNIClassBase*>& getClasses();
     void initialise (JNIEnv*);
@@ -523,22 +523,23 @@ DECLARE_JNI_CLASS (AndroidUri, "android/net/Uri")
 #undef JNI_CLASS_MEMBERS
 
 #define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD, CALLBACK) \
- METHOD (construct,           "<init>",              "(Landroid/content/Context;)V") \
- METHOD (layout,              "layout",              "(IIII)V") \
- METHOD (getLeft,             "getLeft",             "()I") \
- METHOD (getTop,              "getTop",              "()I") \
- METHOD (getWidth,            "getWidth",            "()I") \
- METHOD (getHeight,           "getHeight",           "()I") \
- METHOD (getLocationOnScreen, "getLocationOnScreen", "([I)V") \
- METHOD (getParent,           "getParent",           "()Landroid/view/ViewParent;") \
- METHOD (bringToFront,        "bringToFront",        "()V") \
- METHOD (requestFocus,        "requestFocus",        "()Z") \
- METHOD (hasFocus,            "hasFocus",            "()Z") \
- METHOD (invalidate,          "invalidate",          "(IIII)V") \
- METHOD (setVisibility,       "setVisibility",       "(I)V") \
- METHOD (setLayoutParams,     "setLayoutParams",     "(Landroid/view/ViewGroup$LayoutParams;)V") \
- METHOD (findViewById,        "findViewById",        "(I)Landroid/view/View;") \
- METHOD (getRootView,         "getRootView",         "()Landroid/view/View;") \
+ METHOD (construct,                 "<init>",                    "(Landroid/content/Context;)V") \
+ METHOD (layout,                    "layout",                    "(IIII)V") \
+ METHOD (getLeft,                   "getLeft",                   "()I") \
+ METHOD (getTop,                    "getTop",                    "()I") \
+ METHOD (getWidth,                  "getWidth",                  "()I") \
+ METHOD (getHeight,                 "getHeight",                 "()I") \
+ METHOD (getLocationOnScreen,       "getLocationOnScreen",       "([I)V") \
+ METHOD (getParent,                 "getParent",                 "()Landroid/view/ViewParent;") \
+ METHOD (bringToFront,              "bringToFront",              "()V") \
+ METHOD (requestFocus,              "requestFocus",              "()Z") \
+ METHOD (hasFocus,                  "hasFocus",                  "()Z") \
+ METHOD (invalidate,                "invalidate",                "(IIII)V") \
+ METHOD (setVisibility,             "setVisibility",             "(I)V") \
+ METHOD (setLayoutParams,           "setLayoutParams",           "(Landroid/view/ViewGroup$LayoutParams;)V") \
+ METHOD (setSystemUiVisibility,     "setSystemUiVisibility",     "(I)V") \
+ METHOD (findViewById,              "findViewById",              "(I)Landroid/view/View;") \
+ METHOD (getRootView,               "getRootView",               "()Landroid/view/View;") \
  METHOD (addOnLayoutChangeListener, "addOnLayoutChangeListener", "(Landroid/view/View$OnLayoutChangeListener;)V")
 
 DECLARE_JNI_CLASS (AndroidView, "android/view/View")
@@ -755,7 +756,7 @@ namespace
 {
     inline String juceString (JNIEnv* env, jstring s)
     {
-        if (s == 0)
+        if (s == nullptr)
             return {};
 
         const char* const utf8 = env->GetStringUTFChars (s, nullptr);
@@ -874,13 +875,29 @@ LocalRef<jobject> CreateJavaInterface (AndroidInterfaceImplementer* implementer,
 class ActivityLifecycleCallbacks     : public AndroidInterfaceImplementer
 {
 public:
-    virtual void onActivityCreated (jobject /*activity*/, jobject /*bundle*/) {}
-    virtual void onActivityDestroyed (jobject /*activity*/) {}
-    virtual void onActivityPaused (jobject /*activity*/) {}
-    virtual void onActivityResumed (jobject /*activity*/) {}
-    virtual void onActivitySaveInstanceState (jobject /*activity*/, jobject /*bundle*/) {}
-    virtual void onActivityStarted (jobject /*activity*/) {}
-    virtual void onActivityStopped (jobject /*activity*/) {}
+    virtual void onActivityPreCreated            (jobject /*activity*/, jobject /*bundle*/)  {}
+    virtual void onActivityPreDestroyed          (jobject /*activity*/)                      {}
+    virtual void onActivityPrePaused             (jobject /*activity*/)                      {}
+    virtual void onActivityPreResumed            (jobject /*activity*/)                      {}
+    virtual void onActivityPreSaveInstanceState  (jobject /*activity*/, jobject /*bundle*/)  {}
+    virtual void onActivityPreStarted            (jobject /*activity*/)                      {}
+    virtual void onActivityPreStopped            (jobject /*activity*/)                      {}
+
+    virtual void onActivityCreated               (jobject /*activity*/, jobject /*bundle*/)  {}
+    virtual void onActivityDestroyed             (jobject /*activity*/)                      {}
+    virtual void onActivityPaused                (jobject /*activity*/)                      {}
+    virtual void onActivityResumed               (jobject /*activity*/)                      {}
+    virtual void onActivitySaveInstanceState     (jobject /*activity*/, jobject /*bundle*/)  {}
+    virtual void onActivityStarted               (jobject /*activity*/)                      {}
+    virtual void onActivityStopped               (jobject /*activity*/)                      {}
+
+    virtual void onActivityPostCreated           (jobject /*activity*/, jobject /*bundle*/)  {}
+    virtual void onActivityPostDestroyed         (jobject /*activity*/)                      {}
+    virtual void onActivityPostPaused            (jobject /*activity*/)                      {}
+    virtual void onActivityPostResumed           (jobject /*activity*/)                      {}
+    virtual void onActivityPostSaveInstanceState (jobject /*activity*/, jobject /*bundle*/)  {}
+    virtual void onActivityPostStarted           (jobject /*activity*/)                      {}
+    virtual void onActivityPostStopped           (jobject /*activity*/)                      {}
 
 private:
     jobject invoke (jobject, jobject, jobjectArray) override;
@@ -889,7 +906,7 @@ private:
 //==============================================================================
 struct SurfaceHolderCallback    : AndroidInterfaceImplementer
 {
-    virtual ~SurfaceHolderCallback() {}
+    virtual ~SurfaceHolderCallback() override = default;
 
     virtual void surfaceChanged (LocalRef<jobject> holder, int format, int width, int height) = 0;
     virtual void surfaceCreated (LocalRef<jobject> holder) = 0;

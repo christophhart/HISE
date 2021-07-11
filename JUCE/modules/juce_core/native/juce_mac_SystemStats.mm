@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -81,9 +81,13 @@ void CPUInformation::initialise() noexcept
     has3DNow = (b & (1u << 31)) != 0;
     hasSSE3  = (c & (1u <<  0)) != 0;
     hasSSSE3 = (c & (1u <<  9)) != 0;
+    hasFMA3  = (c & (1u << 12)) != 0;
     hasSSE41 = (c & (1u << 19)) != 0;
     hasSSE42 = (c & (1u << 20)) != 0;
     hasAVX   = (c & (1u << 28)) != 0;
+
+    SystemStatsHelpers::doCPUID (a, b, c, d, 0x80000001);
+    hasFMA4  = (c & (1u << 16)) != 0;
 
     SystemStatsHelpers::doCPUID (a, b, c, d, 7);
     hasAVX2            = (b & (1u <<  5)) != 0;
@@ -117,10 +121,21 @@ static String getOSXVersion()
 {
     JUCE_AUTORELEASEPOOL
     {
-        NSDictionary* dict = [NSDictionary dictionaryWithContentsOfFile:
-                                    nsStringLiteral ("/System/Library/CoreServices/SystemVersion.plist")];
+        const String systemVersionPlist ("/System/Library/CoreServices/SystemVersion.plist");
 
-        return nsStringToJuce ([dict objectForKey: nsStringLiteral ("ProductVersion")]);
+       #if (defined (MAC_OS_X_VERSION_10_13) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_13)
+        NSError* error = nullptr;
+        NSDictionary* dict = [NSDictionary dictionaryWithContentsOfURL: createNSURLFromFile (systemVersionPlist)
+                                                                 error: &error];
+       #else
+        NSDictionary* dict = [NSDictionary dictionaryWithContentsOfFile: juceStringToNS (systemVersionPlist)];
+       #endif
+
+        if (dict != nullptr)
+            return nsStringToJuce ([dict objectForKey: nsStringLiteral ("ProductVersion")]);
+
+        jassertfalse;
+        return {};
     }
 }
 #endif
@@ -133,11 +148,17 @@ SystemStats::OperatingSystemType SystemStats::getOperatingSystemType()
     StringArray parts;
     parts.addTokens (getOSXVersion(), ".", StringRef());
 
-    jassert (parts[0].getIntValue() == 10);
-    const int major = parts[1].getIntValue();
-    jassert (major > 2);
+    const auto major = parts[0].getIntValue();
+    const auto minor = parts[1].getIntValue();
 
-    return (OperatingSystemType) (major + MacOSX_10_4 - 4);
+    if (major == 10)
+    {
+        jassert (minor > 2);
+        return (OperatingSystemType) (minor + MacOSX_10_7 - 7);
+    }
+
+    jassert (major == 11);
+    return MacOS_11;
    #endif
 }
 
@@ -159,11 +180,28 @@ String SystemStats::getDeviceDescription()
    #endif
 
     size_t size;
+
     if (sysctlbyname (name, nullptr, &size, nullptr, 0) >= 0)
     {
         HeapBlock<char> model (size);
-        if (sysctlbyname (name, model,   &size, nullptr, 0) >= 0)
-            return model.get();
+
+        if (sysctlbyname (name, model, &size, nullptr, 0) >= 0)
+        {
+            String description (model.get());
+
+           #if JUCE_IOS
+            if (description == "x86_64") // running in the simulator
+            {
+                if (auto* userInfo = [[NSProcessInfo processInfo] environment])
+                {
+                    if (auto* simDeviceName = [userInfo objectForKey: @"SIMULATOR_DEVICE_NAME"])
+                        return nsStringToJuce (simDeviceName);
+                }
+            }
+          #endif
+
+            return description;
+        }
     }
 
     return {};
@@ -178,10 +216,8 @@ bool SystemStats::isOperatingSystem64Bit()
 {
    #if JUCE_IOS
     return false;
-   #elif JUCE_64BIT
-    return true;
    #else
-    return getOperatingSystemType() >= MacOSX_10_6;
+    return true;
    #endif
 }
 

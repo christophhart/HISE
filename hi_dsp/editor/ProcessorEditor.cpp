@@ -44,7 +44,7 @@ isPopupMode(false)
 	processor->addChangeListener(this);
 
 	addAndMakeVisible(header = new ProcessorEditorHeader(this));
-	addAndMakeVisible(body = p->createEditor(this));
+ 	addAndMakeVisible(body = p->createEditor(this));
 	
 	addAndMakeVisible(panel = new ProcessorEditorPanel(this));
 	addAndMakeVisible(chainBar = new ProcessorEditorChainBar(this));
@@ -294,7 +294,7 @@ void ProcessorEditor::pasteAction()
 {
 	if (getProcessorAsChain() != nullptr)
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
+		auto xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
 
 		if (xml != nullptr)
 		{

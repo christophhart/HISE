@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -26,57 +25,6 @@
 
 namespace juce
 {
-
-PluginDescription::PluginDescription()
-    : uid (0),
-      isInstrument (false),
-      numInputChannels (0),
-      numOutputChannels (0),
-      hasSharedContainer (false)
-{
-}
-
-PluginDescription::~PluginDescription()
-{
-}
-
-PluginDescription::PluginDescription (const PluginDescription& other)
-    : name (other.name),
-      descriptiveName (other.descriptiveName),
-      pluginFormatName (other.pluginFormatName),
-      category (other.category),
-      manufacturerName (other.manufacturerName),
-      version (other.version),
-      fileOrIdentifier (other.fileOrIdentifier),
-      lastFileModTime (other.lastFileModTime),
-      lastInfoUpdateTime (other.lastInfoUpdateTime),
-      uid (other.uid),
-      isInstrument (other.isInstrument),
-      numInputChannels (other.numInputChannels),
-      numOutputChannels (other.numOutputChannels),
-      hasSharedContainer (other.hasSharedContainer)
-{
-}
-
-PluginDescription& PluginDescription::operator= (const PluginDescription& other)
-{
-    name = other.name;
-    descriptiveName = other.descriptiveName;
-    pluginFormatName = other.pluginFormatName;
-    category = other.category;
-    manufacturerName = other.manufacturerName;
-    version = other.version;
-    fileOrIdentifier = other.fileOrIdentifier;
-    uid = other.uid;
-    isInstrument = other.isInstrument;
-    lastFileModTime = other.lastFileModTime;
-    lastInfoUpdateTime = other.lastInfoUpdateTime;
-    numInputChannels = other.numInputChannels;
-    numOutputChannels = other.numOutputChannels;
-    hasSharedContainer = other.hasSharedContainer;
-
-    return *this;
-}
 
 bool PluginDescription::isDuplicateOf (const PluginDescription& other) const noexcept
 {
@@ -100,10 +48,12 @@ String PluginDescription::createIdentifierString() const
     return pluginFormatName + "-" + name + getPluginDescSuffix (*this);
 }
 
-XmlElement* PluginDescription::createXml() const
+std::unique_ptr<XmlElement> PluginDescription::createXml() const
 {
-    XmlElement* const e = new XmlElement ("PLUGIN");
+    auto e = std::make_unique<XmlElement> ("PLUGIN");
+
     e->setAttribute ("name", name);
+
     if (descriptiveName != name)
         e->setAttribute ("descriptiveName", descriptiveName);
 

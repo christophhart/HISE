@@ -515,10 +515,6 @@ void ModulatorChain::ModChainWithBuffer::applyMonophonicModulationValues(AudioSa
 {
 	if (c->hasMonophonicTimeModulationMods())
 	{
-		// You need to expand the modulation values to audio rate before calling this method.
-		// Either call setExpandAudioRate(true) in the constructor, or manually expand them
-		jassert(monoExpandChecker);
-
 		for (int i = 0; i < b.getNumSamples(); i++)
 		{
 			FloatVectorOperations::multiply(b.getWritePointer(i, startSample), modBuffer.monoValues, numSamples);
@@ -568,10 +564,6 @@ const float* ModulatorChain::ModChainWithBuffer::getMonophonicModulationValues(i
 
 	if (c->hasMonophonicTimeModulationMods())
 	{
-		// You need to expand the modulation values to audio rate before calling this method.
-		// Either call setExpandAudioRate(true) in the constructor, or manually expand them
-		jassert(monoExpandChecker);
-
 		return modBuffer.monoValues + startSample;
 	}
 
@@ -1241,9 +1233,7 @@ void TimeVariantModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(ControlModulator);
 	ADD_NAME_TO_TYPELIST(PitchwheelModulator);
 	ADD_NAME_TO_TYPELIST(MacroModulator);
-    ADD_NAME_TO_TYPELIST(AudioFileEnvelope);
 	ADD_NAME_TO_TYPELIST(GlobalTimeVariantModulator);
-	ADD_NAME_TO_TYPELIST(CCDucker);
 	ADD_NAME_TO_TYPELIST(JavascriptTimeVariantModulator);
 }
 
@@ -1264,9 +1254,9 @@ void EnvelopeModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(SimpleEnvelope);
 	ADD_NAME_TO_TYPELIST(AhdsrEnvelope);
 	ADD_NAME_TO_TYPELIST(TableEnvelope);
-	ADD_NAME_TO_TYPELIST(CCEnvelope);
 	ADD_NAME_TO_TYPELIST(JavascriptEnvelopeModulator);
 	ADD_NAME_TO_TYPELIST(MPEModulator);
+	ADD_NAME_TO_TYPELIST(ScriptnodeVoiceKiller);
 }
 
 

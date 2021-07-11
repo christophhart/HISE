@@ -50,6 +50,23 @@ juce::Path NodePopupEditor::Factory::createPath(const String& s) const
 }
 
 
+NodePopupEditor::NodePopupEditor(NodeComponent* nc_) :
+	nc(nc_),
+	editor(nc->node, false, nc->node->getValueTree()),
+	exportButton("export", this, factory),
+	wrapButton("wrap", this, factory),
+	surroundButton("surround", this, factory)
+{
+	setName("Edit Node Properties");
+
+	addAndMakeVisible(editor);
+	addAndMakeVisible(exportButton);
+	addAndMakeVisible(wrapButton);
+	addAndMakeVisible(surroundButton);
+	setWantsKeyboardFocus(true);
+	setSize(editor.getWidth(), editor.getHeight() + 50);
+}
+
 bool NodePopupEditor::keyPressed(const KeyPress& key)
 {
 	if (key.getKeyCode() == 'w' || key.getKeyCode() == 'W')
@@ -69,7 +86,7 @@ bool NodePopupEditor::keyPressed(const KeyPress& key)
 	}
 	if (key.getKeyCode() == 'o' || key.getKeyCode() == 'O')
 	{
-#if HISE_INCLUDE_SNEX
+#if HISE_INCLUDE_SNEX && OLD_JIT_STUFF
 		if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
 		{
 			auto n = nc->node;
@@ -119,7 +136,7 @@ void NodePopupEditor::buttonClicked(Button* b)
 		mode = 2;
 
 	auto tmp = nc.getComponent();
-	auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+	auto sp = findParentComponentOfClass<ZoomableViewport>();
 
 	Component::SafePointer<Component> tmp2 = b;
 
@@ -131,6 +148,7 @@ void NodePopupEditor::buttonClicked(Button* b)
 
 		if (mode == 0)
 		{
+#if 0
 			if (tmp->node->getAsRestorableNode())
 			{
 				m.addItem((int)NodeComponent::MenuActions::UnfreezeNode, "Unfreeze Node");
@@ -144,6 +162,7 @@ void NodePopupEditor::buttonClicked(Button* b)
 				m.addItem((int)NodeComponent::MenuActions::FreezeNode, "Freeze Node (discard changes)");
 				m.addSeparator();
 			}
+#endif
 
 			m.addSectionHeader("Export Node");
 			m.addItem((int)NodeComponent::MenuActions::ExportAsCpp, "Export as custom CPP class");
@@ -180,18 +199,14 @@ void NodePopupEditor::buttonClicked(Button* b)
 }
 
 
+
+
 NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 	v(d.getPropertyAsValue(PropertyIds::Value, n->getUndoManager()))
 {
-	publicButton.getToggleStateValue().referTo(d.getPropertyAsValue(PropertyIds::Public, n->getUndoManager()));
-	publicButton.setButtonText("Public");
-	addAndMakeVisible(publicButton);
-	publicButton.setLookAndFeel(&laf);
-	publicButton.setClickingTogglesState(true);
-
 	Identifier propId = Identifier(d[PropertyIds::ID].toString().fromLastOccurrenceOf(".", false, false));
 
-	if (propId == PropertyIds::FillMode || propId == PropertyIds::UseMidi || propId == PropertyIds::UseResetValue || propId == PropertyIds::UseFreqDomain)
+	if (propId == PropertyIds::FillMode || propId == PropertyIds::UseResetValue || propId == PropertyIds::UseFreqDomain)
 	{
 		TextButton* t = new TextButton();
 		t->setButtonText("Enabled");
@@ -202,7 +217,7 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 		editor = t;
 		addAndMakeVisible(editor);
 	}
-	else if (propId == PropertyIds::Callback || propId == PropertyIds::Connection)
+	else if (propId == PropertyIds::Callback)
 	{
 		Array<var> values;
 
@@ -229,19 +244,28 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 		{
 			jp->onClick = [this, n]()
 			{
+				
 				auto pTree = n->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString());
 				if (pTree.isValid())
 				{
-					if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
+					if (auto sp = this->findParentComponentOfClass<ZoomableViewport>())
 					{
-						auto value = pTree.getPropertyAsValue(PropertyIds::Value, n->getUndoManager());
-						auto pg = new snex::jit::SnexPlayground(value);
+						if (auto m = static_cast<snex::ui::WorkbenchManager*>(n->getScriptProcessor()->getMainController_()->getWorkbenchManager()))
+						{
+							auto v = n->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString()).getPropertyAsValue(PropertyIds::Value, n->getUndoManager());
 
-						auto bounds = sp->getBounds().reduced(100);
+							auto cp = new snex::ui::WorkbenchData::ValueBasedCodeProvider(nullptr, v, n->getId());
 
-						pg->setSize(jmin(1280, bounds.getWidth()), jmin(800, bounds.getHeight()));
-						sp->setCurrentModalWindow(pg, sp->getCurrentTarget());
-						return;
+							auto wb = m->getWorkbenchDataForCodeProvider(cp, true);
+
+							auto pg = new snex::jit::SnexPlayground(wb);
+
+							auto bounds = sp->getBounds().reduced(100);
+
+							pg->setSize(jmin(1280, bounds.getWidth()), jmin(800, bounds.getHeight()));
+							sp->setCurrentModalWindow(pg, sp->getCurrentTarget());
+							return;
+						}
 					}
 				}
 			};
@@ -253,14 +277,28 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 	else
 	{
 		auto te = new TextEditor();
-		te->getTextValue().referTo(v);
 		te->setLookAndFeel(&laf);
+		te->addListener(this);
 		editor = te;
-
+		valueChanged(v);
 	}
 
 	if (editor != nullptr)
 		addAndMakeVisible(editor);
+}
+
+juce::StringArray NodePropertyComponent::Comp::getListForId(const Identifier& id, NodeBase* n)
+{
+	if (id == PropertyIds::Callback)
+	{
+		if (auto jp = dynamic_cast<JavascriptProcessor*>(n->getScriptProcessor()))
+		{
+			return jp->getScriptEngine()->getInlineFunctionNames(1);
+		}
+	}
+
+
+	return {};
 }
 
 void MultiColumnPropertyPanel::resized()
@@ -332,6 +370,45 @@ int MultiColumnPropertyPanel::getTotalContentHeight() const
 	}
 
 	return h;
+}
+
+
+
+PropertyEditor::PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds, bool includeProperties)
+{
+	plaf.propertyBgColour = Colours::transparentBlack;
+
+	Array<PropertyComponent*> newProperties;
+
+	for (int i = 0; i < data.getNumProperties(); i++)
+	{
+		auto id = data.getPropertyName(i);
+
+		if (hiddenIds.contains(id))
+			continue;
+
+		auto nt = PropertyHelpers::createPropertyComponent(n->getScriptProcessor(), data, id, n->getUndoManager());
+
+		newProperties.add(nt);
+	}
+
+	// Only add Node properties in two-column mode (aka Connection Editor)...
+	if (includeProperties && !useTwoColumns)
+	{
+		for (auto prop : n->getPropertyTree())
+		{
+			auto nt = new NodePropertyComponent(n, prop);
+			newProperties.add(nt);
+		}
+	}
+
+
+	p.setUseTwoColumns(useTwoColumns);
+	p.addProperties(newProperties);
+
+	addAndMakeVisible(p);
+	p.setLookAndFeel(&plaf);
+	updateSize();
 }
 
 }

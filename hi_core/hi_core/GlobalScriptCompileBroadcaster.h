@@ -66,6 +66,45 @@ private:
 class ExternalScriptFile : public ReferenceCountedObject
 {
 public:
+
+	struct RuntimeError
+	{
+		enum class ErrorLevel
+		{
+			Error = 0,
+			Warning = 1,
+			Invalid,
+			numErrorLevels
+		};
+
+		RuntimeError(const String& e);
+
+		String toString() const;
+
+		RuntimeError() = default;
+
+		ErrorLevel errorLevel = ErrorLevel::Invalid;
+
+		bool matches(const String& fileNameWithoutExtension) const;
+
+	private:
+
+		String file;
+
+		int lineNumber = -1;
+		
+		String errorMessage;
+	};
+
+	struct RuntimeErrorListener
+	{
+		virtual ~RuntimeErrorListener() {};
+
+		virtual void runTimeErrorsOccured(const Array<RuntimeError>& errors) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(RuntimeErrorListener);
+	};
+
 	ExternalScriptFile(const File&file) :
 		file(file),
 		currentResult(Result::ok())
@@ -95,7 +134,21 @@ public:
 
 	typedef ReferenceCountedObjectPtr<ExternalScriptFile> Ptr;
 
+	void setRuntimeErrors(const Result& r);
+
+	void addRuntimeErrorListener(RuntimeErrorListener* l);
+
+	void removeRuntimeErrorListener(RuntimeErrorListener* l)
+	{
+		runtimeErrorListeners.removeAllInstancesOf(l);
+	}
+
 private:
+
+	
+
+	Array<RuntimeError> runtimeErrors;
+	Array<WeakReference<RuntimeErrorListener>> runtimeErrorListeners;
 
 	Result currentResult;
 
@@ -104,6 +157,7 @@ private:
 	CodeDocument content;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExternalScriptFile)
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ExternalScriptFile);
 };
 
 class ScriptComponentEditBroadcaster;

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -52,9 +52,9 @@ public:
     bool isActive() const override;
 
     /** This method will tell, if an other PhysicalTopologySource has locked the Midi connection */
-    bool isLockedFromOutside() const;
+    bool isLockedFromOutside() const override;
 
-    //==========================================================================
+    //==============================================================================
     /** For custom transport systems, this represents a connected device */
     struct DeviceConnection
     {
@@ -86,7 +86,7 @@ protected:
     virtual void handleTimerTick();
 
 private:
-    //==========================================================================
+    //==============================================================================
     DeviceDetector* customDetector = nullptr;
     friend struct Detector;
     struct DetectorHolder;

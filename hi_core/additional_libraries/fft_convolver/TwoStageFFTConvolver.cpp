@@ -75,6 +75,7 @@ void TwoStageFFTConvolver::cleanPipeline()
 {
 	_tailOutput.setZero();
 	_tailInput.setZero();
+	_tailConvolver0.resetInput();
 	_tailOutput0.setZero();
 	_tailPrecalculated.setZero();
 	_tailPrecalculated0.setZero();

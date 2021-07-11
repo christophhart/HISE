@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -35,27 +34,28 @@
 
 #define JUCE_CORE_INCLUDE_NATIVE_HEADERS 1
 #define JUCE_CORE_INCLUDE_OBJC_HELPERS 1
+#define JUCE_GUI_BASICS_INCLUDE_XHEADERS 1
+#define JUCE_GUI_BASICS_INCLUDE_SCOPED_THREAD_DPI_AWARENESS_SETTER 1
 
 #include "juce_audio_processors.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
 //==============================================================================
 #if JUCE_MAC
- #if JUCE_SUPPORT_CARBON \
-      && ((JUCE_PLUGINHOST_VST || JUCE_PLUGINHOST_AU) \
-           || ! (defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6))
+ #if JUCE_SUPPORT_CARBON && (JUCE_PLUGINHOST_VST || JUCE_PLUGINHOST_AU)
   #include <Carbon/Carbon.h>
-  #include "../juce_gui_extra/native/juce_mac_CarbonViewWrapperComponent.h"
+  #include <juce_gui_extra/native/juce_mac_CarbonViewWrapperComponent.h>
  #endif
 #endif
 
-#if JUCE_PLUGINHOST_VST && JUCE_LINUX
+#if (JUCE_PLUGINHOST_VST || JUCE_PLUGINHOST_VST3) && JUCE_LINUX
  #include <X11/Xlib.h>
  #include <X11/Xutil.h>
+ #include <sys/utsname.h>
  #undef KeyPress
 #endif
 
-#if ! JUCE_WINDOWS && ! JUCE_MAC
+#if ! JUCE_WINDOWS && ! JUCE_MAC && ! JUCE_LINUX
  #undef JUCE_PLUGINHOST_VST3
  #define JUCE_PLUGINHOST_VST3 0
 #endif
@@ -68,8 +68,10 @@
 namespace juce
 {
 
-static inline bool arrayContainsPlugin (const OwnedArray<PluginDescription>& list,
-                                        const PluginDescription& desc)
+#if JUCE_PLUGINHOST_VST || (JUCE_PLUGINHOST_LADSPA && JUCE_LINUX)
+
+static bool arrayContainsPlugin (const OwnedArray<PluginDescription>& list,
+                                 const PluginDescription& desc)
 {
     for (auto* p : list)
         if (p->isDuplicateOf (desc))
@@ -78,7 +80,99 @@ static inline bool arrayContainsPlugin (const OwnedArray<PluginDescription>& lis
     return false;
 }
 
-#if JUCE_MAC || JUCE_IOS
+#endif
+
+#if JUCE_WINDOWS
+
+//==============================================================================
+class HWNDComponentWithParent  : public HWNDComponent,
+                                 private Timer
+{
+public:
+    HWNDComponentWithParent()
+    {
+        String className ("JUCE_");
+        className << String::toHexString (Time::getHighResolutionTicks());
+
+        HMODULE moduleHandle = (HMODULE) Process::getCurrentModuleInstanceHandle();
+
+        WNDCLASSEX wc = {};
+        wc.cbSize         = sizeof (wc);
+        wc.lpfnWndProc    = (WNDPROC) wndProc;
+        wc.cbWndExtra     = 4;
+        wc.hInstance      = moduleHandle;
+        wc.lpszClassName  = className.toWideCharPointer();
+
+        atom = RegisterClassEx (&wc);
+        jassert (atom != 0);
+
+        hwnd = CreateWindow (getClassNameFromAtom(), L"HWNDComponentWithParent",
+                             0, 0, 0, 0, 0,
+                             nullptr, nullptr, moduleHandle, nullptr);
+
+        jassert (hwnd != nullptr);
+
+        setHWND (hwnd);
+        startTimer (30);
+    }
+
+    ~HWNDComponentWithParent() override
+    {
+        if (IsWindow (hwnd))
+            DestroyWindow (hwnd);
+
+        UnregisterClass (getClassNameFromAtom(), nullptr);
+    }
+
+private:
+    //==============================================================================
+    static LRESULT CALLBACK wndProc (HWND h, const UINT message, const WPARAM wParam, const LPARAM lParam)
+    {
+        if (message == WM_SHOWWINDOW && wParam == TRUE)
+            return 0;
+
+        return DefWindowProc (h, message, wParam, lParam);
+    }
+
+    void timerCallback() override
+    {
+        if (HWND child = getChildHWND())
+        {
+            stopTimer();
+
+            ShowWindow (child, SW_HIDE);
+            SetParent (child, NULL);
+
+            auto windowFlags = GetWindowLongPtr (child, -16);
+
+            windowFlags &= ~WS_CHILD;
+            windowFlags |= WS_POPUP;
+
+            SetWindowLongPtr (child, -16, windowFlags);
+
+            setHWND (child);
+        }
+    }
+
+    LPCTSTR getClassNameFromAtom() noexcept  { return (LPCTSTR) (pointer_sized_uint) atom; }
+
+    HWND getChildHWND() const
+    {
+        if (HWND parent = (HWND) getHWND())
+            return GetWindow (parent, GW_CHILD);
+
+        return nullptr;
+    }
+
+    //==============================================================================
+    ATOM atom;
+    HWND hwnd;
+
+    //==============================================================================
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HWNDComponentWithParent)
+};
+
+#elif JUCE_MAC || JUCE_IOS
 
 #if JUCE_IOS
  #define JUCE_IOS_MAC_VIEW  UIView
@@ -127,16 +221,10 @@ struct AutoResizingNSViewComponentWithParent  : public AutoResizingNSViewCompone
         }
     }
 };
+
 #endif
 
 } // namespace juce
-
-#if JUCE_CLANG
- #pragma clang diagnostic ignored "-Wdeprecated-declarations"
- #if __has_warning("-Wcast-align")
-  #pragma clang diagnostic ignored "-Wcast-align"
- #endif
-#endif
 
 #include "format/juce_AudioPluginFormat.cpp"
 #include "format/juce_AudioPluginFormatManager.cpp"
@@ -154,6 +242,13 @@ struct AutoResizingNSViewComponentWithParent  : public AutoResizingNSViewCompone
 #include "scanning/juce_KnownPluginList.cpp"
 #include "scanning/juce_PluginDirectoryScanner.cpp"
 #include "scanning/juce_PluginListComponent.cpp"
-#include "utilities/juce_AudioProcessorParameters.cpp"
 #include "processors/juce_AudioProcessorParameterGroup.cpp"
+#include "utilities/juce_AudioProcessorParameterWithID.cpp"
+#include "utilities/juce_RangedAudioParameter.cpp"
+#include "utilities/juce_AudioParameterFloat.cpp"
+#include "utilities/juce_AudioParameterInt.cpp"
+#include "utilities/juce_AudioParameterBool.cpp"
+#include "utilities/juce_AudioParameterChoice.cpp"
+#include "utilities/juce_ParameterAttachments.cpp"
 #include "utilities/juce_AudioProcessorValueTreeState.cpp"
+#include "utilities/juce_PluginHostType.cpp"

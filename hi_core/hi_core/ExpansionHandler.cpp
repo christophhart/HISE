@@ -757,7 +757,7 @@ juce::ValueTree Expansion::Helpers::loadValueTreeForFileBasedExpansion(const Fil
 
 	if (infoFile.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(infoFile);
+		auto xml = XmlDocument::parse(infoFile);
 
 		if (xml != nullptr)
 		{

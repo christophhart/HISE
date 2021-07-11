@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -92,6 +92,8 @@ public:
     static IIRCoefficients makeNotchFilter (double sampleRate,
                                             double frequency,
                                             double Q) noexcept;
+
+	static IIRCoefficients makeResoLowPass(double sampleRate, double cutoff, double q);
 
     //==============================================================================
     /** Returns the coefficients for an all-pass filter. */

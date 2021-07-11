@@ -294,11 +294,9 @@ void SearchableListComponent::Item::mouseDown(const MouseEvent& event)
 		{
 			if (getPopupHeight() != 0)
 			{
-                auto *parent = getTopLevelComponent();
+				auto parent = TopLevelWindowWithOptionalOpenGL::findRoot(this);
 
-				PopupComponent *table = new PopupComponent(this);
-
-				CallOutBox::launchAsynchronously(table, parent->getLocalArea(this, getLocalBounds()), parent);
+				CallOutBox::launchAsynchronously(std::unique_ptr<PopupComponent>(new PopupComponent(this)), parent->getLocalArea(this, getLocalBounds()), parent);
 			}
 		}
 		else

@@ -3,7 +3,7 @@ BEGIN_TEST_DATA
   f: main
   ret: int
   args: int
-  input: 8
+  input: 7
   output: 12
   error: ""
   filename: "struct/double_member_2"

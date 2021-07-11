@@ -163,8 +163,6 @@ void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
 
 		g.drawText(id, xOffset, 0, width - 4, height, Justification::centredLeft, true);
 
-		
-
 		xOffset += GLOBAL_BOLD_FONT().getStringWidth(id) + 10;
 
 		g.setColour(Colours::white.withAlpha(0.2f));
@@ -178,6 +176,20 @@ void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
 
 		g.drawText(typeName, 4 + xOffset, 0, width - 4, height, Justification::centredLeft, true);
 
+		auto isLocked = (bool)tree.getProperty("locked");
+
+		if (isLocked)
+		{
+			ScriptContentPanel::Factory f;
+
+			Rectangle<float> a = area.removeFromRight(area.getHeight()).reduced(1);
+
+			g.setColour(Colours::white.withAlpha(0.8f));
+
+			auto p = f.createPath("lock");
+			f.scalePath(p, a);
+			g.fillPath(p);
+		}
 	}
 
 	
@@ -290,7 +302,7 @@ void ScriptComponentListItem::moveItems(TreeView& treeView, const OwnedArray<Val
 
 	if (items.size() > 0)
 	{
-		ScopedPointer<XmlElement> oldOpenness(treeView.getOpennessState(false));
+		auto oldOpenness = treeView.getOpennessState(false);
 
         auto c = dynamic_cast<ScriptComponentListItem*>(treeView.getRootItem())->content.get();
         
@@ -311,14 +323,21 @@ void ScriptComponentListItem::moveItems(TreeView& treeView, const OwnedArray<Val
 				auto cPos = ContentValueTreeHelpers::getLocalPosition(v);
 				ContentValueTreeHelpers::getAbsolutePosition(v, cPos);
 
-				auto pPos = ContentValueTreeHelpers::getLocalPosition(v.getParent());
-				ContentValueTreeHelpers::getAbsolutePosition(v.getParent(), pPos);
 
-				ContentValueTreeHelpers::updatePosition(v, cPos, pPos);
+				auto nPos = ContentValueTreeHelpers::getLocalPosition(newParent);
+				ContentValueTreeHelpers::getAbsolutePosition(newParent, nPos);
 
 				v.getParent().removeChild(v, &undoManager);
-
 				v.setProperty(pc, newParent.getProperty("id"), &undoManager);
+
+				static const Identifier x("x");
+				static const Identifier y("y");
+
+				auto delta = cPos - nPos;
+
+				v.setProperty(x, delta.getX(), &undoManager);
+				v.setProperty(y, delta.getY(), &undoManager);
+
 
 				newParent.addChild(v, insertIndex, &undoManager);
 			}

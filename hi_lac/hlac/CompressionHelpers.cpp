@@ -215,9 +215,9 @@ AudioSampleBuffer CompressionHelpers::loadFile(const File& f, double& speed)
 	fis.readIntoMemoryBlock(mb);
 
 
-	MemoryInputStream* mis = new MemoryInputStream(mb, false);
+	std::unique_ptr<InputStream> mis(new MemoryInputStream(mb, false));
 
-	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(mis);
+	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(std::move(mis));
 
 	if (reader != nullptr)
 	{
@@ -233,7 +233,7 @@ AudioSampleBuffer CompressionHelpers::loadFile(const File& f, double& speed)
 
 		speed = sampleLength / delta;
 
-		Logger::writeToLog("PCM Decoding Performance: " + String(speed, 1) + "x realtime");
+		
 
 		return b;
 	}

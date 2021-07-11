@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -30,7 +30,7 @@ namespace juce
     Examples of arrays are: Array<int>, Array<Rectangle> or Array<MyClass*>
 
     The Array class can be used to hold simple, non-polymorphic objects as well as primitive types - to
-    do so, the class must fulfil these requirements:
+    do so, the class must fulfill these requirements:
     - it must have a copy constructor and assignment operator
     - it must be able to be relocated in memory by a memcpy without this causing any problems - so
       objects whose functionality relies on external pointers or references to themselves can not be used.
@@ -110,16 +110,16 @@ public:
 
     /** Initalises an Array from a list of items. */
     template <typename... OtherElements>
-    Array (const ElementType& firstNewElement, OtherElements... otherElements)
+    Array (const ElementType& firstNewElement, OtherElements&&... otherElements)
     {
-        values.add (firstNewElement, otherElements...);
+        values.add (firstNewElement, std::forward<OtherElements> (otherElements)...);
     }
 
     /** Initalises an Array from a list of items. */
     template <typename... OtherElements>
-    Array (ElementType&& firstNewElement, OtherElements... otherElements)
+    Array (ElementType&& firstNewElement, OtherElements&&... otherElements)
     {
-        values.add (std::move (firstNewElement), otherElements...);
+        values.add (std::move (firstNewElement), std::forward<OtherElements> (otherElements)...);
     }
 
     template <typename TypeToCreateFrom>
@@ -264,7 +264,21 @@ public:
         @param index    the index of the element being requested (0 is the first element in the array)
         @see operator[], getFirst, getLast
     */
-    inline ElementType& getReference (int index) const noexcept
+    inline ElementType& getReference (int index) noexcept
+    {
+        const ScopedLockType lock (getLock());
+        return values[index];
+    }
+
+    /** Returns a direct reference to one of the elements in the array, without checking the index passed in.
+
+        This is like getUnchecked, but returns a direct reference to the element. Obviously
+        this can be dangerous, so only use it when absolutely necessary.
+
+        @param index    the index of the element being requested (0 is the first element in the array)
+        @see operator[], getFirst, getLast
+    */
+    inline const ElementType& getReference (int index) const noexcept
     {
         const ScopedLockType lock (getLock());
         return values[index];
@@ -298,11 +312,28 @@ public:
         return values.begin();
     }
 
+    /** Returns a pointer to the actual array data.
+        This pointer will only be valid until the next time a non-const method
+        is called on the array.
+    */
+    inline const ElementType* getRawDataPointer() const noexcept
+    {
+        return values.begin();
+    }
+
     //==============================================================================
     /** Returns a pointer to the first element in the array.
         This method is provided for compatibility with standard C++ iteration mechanisms.
     */
-    inline ElementType* begin() const noexcept
+    inline ElementType* begin() noexcept
+    {
+        return values.begin();
+    }
+
+    /** Returns a pointer to the first element in the array.
+        This method is provided for compatibility with standard C++ iteration mechanisms.
+    */
+    inline const ElementType* begin() const noexcept
     {
         return values.begin();
     }
@@ -310,7 +341,15 @@ public:
     /** Returns a pointer to the element which follows the last element in the array.
         This method is provided for compatibility with standard C++ iteration mechanisms.
     */
-    inline ElementType* end() const noexcept
+    inline ElementType* end() noexcept
+    {
+        return values.end();
+    }
+
+    /** Returns a pointer to the element which follows the last element in the array.
+        This method is provided for compatibility with standard C++ iteration mechanisms.
+    */
+    inline const ElementType* end() const noexcept
     {
         return values.end();
     }
@@ -318,7 +357,15 @@ public:
     /** Returns a pointer to the first element in the array.
         This method is provided for compatibility with the standard C++ containers.
     */
-    inline ElementType* data() const noexcept
+    inline ElementType* data() noexcept
+    {
+        return begin();
+    }
+
+    /** Returns a pointer to the first element in the array.
+        This method is provided for compatibility with the standard C++ containers.
+    */
+    inline const ElementType* data() const noexcept
     {
         return begin();
     }
@@ -386,18 +433,18 @@ public:
 
     /** Appends multiple new elements at the end of the array. */
     template <typename... OtherElements>
-    void add (const ElementType& firstNewElement, OtherElements... otherElements)
+    void add (const ElementType& firstNewElement, OtherElements&&... otherElements)
     {
         const ScopedLockType lock (getLock());
-        values.add (firstNewElement, otherElements...);
+        values.add (firstNewElement, std::forward<OtherElements> (otherElements)...);
     }
 
     /** Appends multiple new elements at the end of the array. */
     template <typename... OtherElements>
-    void add (ElementType&& firstNewElement, OtherElements... otherElements)
+    void add (ElementType&& firstNewElement, OtherElements&&... otherElements)
     {
         const ScopedLockType lock (getLock());
-        values.add (std::move (firstNewElement), otherElements...);
+        values.add (std::move (firstNewElement), std::forward<OtherElements> (otherElements)...);
     }
 
     /** Inserts a new element into the array at a given position.

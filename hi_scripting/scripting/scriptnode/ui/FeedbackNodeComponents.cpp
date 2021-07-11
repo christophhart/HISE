@@ -32,8 +32,65 @@
 
 namespace scriptnode
 {
+
+namespace filters
+{
 using namespace juce;
 using namespace hise;
+
+#if 0
+FilterNodeGraph::FilterNodeGraph(CoefficientProvider* d, PooledUIUpdater* h) :
+	ScriptnodeExtraComponent<CoefficientProvider>(d, h),
+	filterGraph(1)
+{
+	lastCoefficients = {};
+	this->addAndMakeVisible(filterGraph);
+	filterGraph.addFilter(hise::FilterType::HighPass);
+
+	setSize(256, 100);
+
+	timerCallback();
+}
+
+Component* FilterNodeGraph::createExtraComponent(void* p, PooledUIUpdater* h)
+{
+	auto typed = static_cast<CoefficientProvider*>(p);
+	return new FilterNodeGraph(typed, h);
+}
+
+bool FilterNodeGraph::coefficientsChanged(const IIRCoefficients& first, const IIRCoefficients& second) const
+{
+	for (int i = 0; i < 5; i++)
+		if (first.coefficients[i] != second.coefficients[i])
+			return true;
+
+	return false;
+}
+
+void FilterNodeGraph::timerCallback()
+{
+	if (this->getObject() == nullptr)
+		return;
+
+	IIRCoefficients thisCoefficients = this->getObject()->getCoefficients();
+
+	if (coefficientsChanged(lastCoefficients, thisCoefficients))
+	{
+		lastCoefficients = thisCoefficients;
+		filterGraph.setCoefficients(0, this->getObject()->sr, thisCoefficients);
+	}
+}
+
+void FilterNodeGraph::resized()
+{
+	if (this->getWidth() > 0)
+		filterGraph.setBounds(this->getLocalBounds());
+}
+#endif
+
+}
+
+
 
 
 

@@ -47,8 +47,7 @@
 #include <float.h>
 #include <limits.h>
 
-#if JUCE_IOS
-#else
+#if JUCE_INTEL
 #include "xmmintrin.h"
 #endif
 

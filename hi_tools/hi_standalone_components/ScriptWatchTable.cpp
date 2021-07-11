@@ -188,7 +188,10 @@ void ScriptWatchTable::mouseDown(const MouseEvent& e)
 
 		if (info != nullptr)
 		{
-			info->rightClickCallback(e, table);
+			if (auto o = info->getObject())
+				o->rightClickCallback(e, table);
+			else
+				info->rightClickCallback(e, table);
 		}
 	}
 }

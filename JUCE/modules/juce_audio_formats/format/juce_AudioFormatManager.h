@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -66,7 +65,8 @@ public:
                          bool makeThisTheDefaultFormat);
 
     /** Handy method to make it easy to register the formats that come with JUCE.
-        Currently, this will add WAV and AIFF to the list.
+        This will add WAV and AIFF to the list, along with any other formats enabled
+        in either the Projucer or your application's preprocessor definitions.
     */
     void registerBasicFormats();
 
@@ -80,10 +80,16 @@ public:
     AudioFormat* getKnownFormat (int index) const;
 
     /** Iterator access to the list of known formats. */
-    AudioFormat** begin() const noexcept                       { return knownFormats.begin(); }
+    AudioFormat** begin() noexcept                       { return knownFormats.begin(); }
 
     /** Iterator access to the list of known formats. */
-    AudioFormat** end() const noexcept                         { return knownFormats.end(); }
+    AudioFormat* const* begin() const noexcept           { return knownFormats.begin(); }
+
+    /** Iterator access to the list of known formats. */
+    AudioFormat** end() noexcept                         { return knownFormats.end(); }
+
+    /** Iterator access to the list of known formats. */
+    AudioFormat* const* end() const noexcept             { return knownFormats.end(); }
 
     /** Looks for which of the known formats is listed as being for a given file
         extension.
@@ -131,7 +137,7 @@ public:
         If none of the registered formats can open the stream, it'll return nullptr.
         If it returns a reader, it's the caller's responsibility to delete the reader.
     */
-    AudioFormatReader* createReaderFor (InputStream* audioFileStream);
+    AudioFormatReader* createReaderFor (std::unique_ptr<InputStream> audioFileStream);
 
 private:
     //==============================================================================

@@ -51,6 +51,45 @@ class IppFFT
 {
 public:
 
+	struct Helpers
+	{
+		
+		static void toFreqSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer& out)
+		{
+			auto input = inp.getReadPointer(0);
+			auto output = out.getWritePointer(0);
+			
+			jassert(inp.getNumSamples() == out.getNumSamples() * 2);
+
+			auto numOriginalSamples = out.getNumSamples();
+
+			for (int i = 0; i < numOriginalSamples; i++)
+			{
+				output[i] = input[i*2] * input[i*2] + input[i*2+1] * input[i*2+1];
+				output[i] = sqrt(output[i]);
+			}
+		}
+
+		static void scaleFrequencyOutput(AudioSampleBuffer& b, bool convertToDb)
+		{
+			auto data = b.getWritePointer(0);
+			auto numOriginalSamples = b.getNumSamples();
+
+			if (numOriginalSamples == 0)
+				return;
+
+			auto factor = 2.f / (float)numOriginalSamples;
+
+			FloatVectorOperations::multiply(data, factor, numOriginalSamples);
+
+			if (convertToDb)
+			{
+				for (int i = 0; i < numOriginalSamples; i++)
+					data[i] = Decibels::gainToDecibels(data[i]);
+			}
+		}
+	};
+
 	enum class DataType
 	{
 		ComplexFloat = 0,
@@ -87,6 +126,8 @@ public:
 	*
 	*	Input: d[] = re[0],re[1],..,re[size-1].
 	*	Output: d[] = re[0],*re[size/2]*,re[1],im[1],..,re[size/2-1],im[size/2-1].
+	*
+	*	Use Helpers::toFreqSpectrum() afterwards
 	*/
 	void realFFT(const float *in, float* out, int size) const;
 
@@ -98,6 +139,8 @@ public:
 
 	/** Complex inverse inplace FFT (input is aligned float array, size is power of two.) */
 	void complexFFTInverse(const float* in, float *out, int size) const;
+
+	
 
 
 	// ==================================================================================================================================== double FFTs

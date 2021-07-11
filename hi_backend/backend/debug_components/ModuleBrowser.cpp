@@ -156,7 +156,7 @@ ModuleBrowser::ModuleCollection::ModuleCollection(Types t)
 
 	XmlDocument doc(f);
 
-	ScopedPointer<XmlElement> xml = doc.getDocumentElement();
+	auto xml = doc.getDocumentElement();
 
 	switch (t)
 	{

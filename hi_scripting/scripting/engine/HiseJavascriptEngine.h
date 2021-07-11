@@ -207,6 +207,8 @@ public:
 
 	var getScriptVariableFromRootNamespace(const Identifier & id) const;
 
+	void addShaderFile(const File& f);
+
 	int getNumIncludedFiles() const;
 	File getIncludedFile(int fileIndex) const;
 	Result getIncludedFileResult(int fileIndex) const;
@@ -535,7 +537,12 @@ public:
 		struct GlobalVarStatement;		struct GlobalReference;		struct LocalVarStatement;
 		struct LocalReference;			struct LockStatement;	    struct CallbackParameterReference;
 		struct CallbackLocalStatement;  struct CallbackLocalReference;  struct ExternalCFunction;
-		struct NativeJIT;				struct IsDefinedTest;
+		struct NativeJIT;				struct IsDefinedTest;		
+
+		// Snex stuff
+
+		struct SnexDefinition;			struct SnexConstructor;		struct SnexBinding;
+		struct SnexConfiguration;
 
 		// Parser classes
 
@@ -713,10 +720,23 @@ public:
 
 			void prepareCycleReferenceCheck() override;
 
+#if HISE_INCLUDE_SNEX
+			void addSnexClass(HiseJavascriptEngine::RootObject* root, const String& code, const Identifier& classId);
+
+			bool hasSnexClass(const Identifier& sId) const;
+
+			var createSnexInstance(const Identifier& sId, const var::NativeFunctionArgs& args);
+
+			snex::jit::SnexStructSriptingWrapper::Ptr getSnexStruct(const Identifier& id);
+
+			snex::jit::SnexStructSriptingWrapper::List snexClasses;
+#endif
+
 			DebugInformation* createDebugInformation(int index) const;
 
 			const Identifier id;
 			ReferenceCountedArray<DynamicObject> inlineFunctions;
+			ReferenceCountedArray<DynamicObject> inlineFunctionSnexBindings;
 			NamedValueSet constObjects;
 			VarRegister	varRegister;
 
@@ -838,6 +858,10 @@ public:
 		}
 
 		HiseSpecialData hiseSpecialData;
+
+#if HISE_INCLUDE_SNEX
+		snex::jit::GlobalScope snexGlobalScope;
+#endif
 
 		private:
 

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -38,19 +38,13 @@
   #error "JUCE requires that GCC has C++11 compatibility enabled"
  #endif
 
- #define JUCE_COMPILER_SUPPORTS_NOEXCEPT 1
-
- #if (__GNUC__ * 100 + __GNUC_MINOR__) >= 500
-  #define JUCE_HAS_CONSTEXPR 1
- #endif
-
  #ifndef JUCE_EXCEPTIONS_DISABLED
   #if ! __EXCEPTIONS
    #define JUCE_EXCEPTIONS_DISABLED 1
   #endif
  #endif
 
- #define JUCE_CXX14_IS_AVAILABLE (__cplusplus >= 201402L)
+ #define JUCE_CXX14_IS_AVAILABLE ((__cplusplus >= 201402L) || ((__GNUC__ * 100 + __GNUC_MINOR__) >= 409 && (__cplusplus >= 201300L)))
  #define JUCE_CXX17_IS_AVAILABLE (__cplusplus >= 201703L)
 
 #endif
@@ -62,9 +56,6 @@
  #if (__clang_major__ < 3) || (__clang_major__ == 3 && __clang_minor__ < 3)
   #error "JUCE requires Clang 3.3 or later"
  #endif
-
- #define JUCE_COMPILER_SUPPORTS_NOEXCEPT 1
- #define JUCE_HAS_CONSTEXPR 1
 
  #ifndef JUCE_COMPILER_SUPPORTS_ARC
   #define JUCE_COMPILER_SUPPORTS_ARC 1
@@ -85,17 +76,8 @@
 // MSVC
 #if JUCE_MSVC
 
- #if _MSC_VER < 1800 // VS2013
-   #error "JUCE requires Visual Studio 2013 or later"
- #endif
-
- #if _MSC_VER >= 1900 // VS2015
-  #define JUCE_COMPILER_SUPPORTS_NOEXCEPT 1
-  #define JUCE_HAS_CONSTEXPR 1
- #else
-  #define _ALLOW_KEYWORD_MACROS 1 // prevent a warning
-  #undef  noexcept
-  #define noexcept  throw()
+ #if _MSC_VER < 1900 // VS2015
+   #error "JUCE requires Visual Studio 2015 or later"
  #endif
 
  #ifndef JUCE_EXCEPTIONS_DISABLED
@@ -115,27 +97,24 @@
 #endif
 
 //==============================================================================
-#if JUCE_HAS_CONSTEXPR
- #define JUCE_CONSTEXPR constexpr
-#else
- #define JUCE_CONSTEXPR
-#endif
-
 #if (! JUCE_MSVC) && (! JUCE_CXX14_IS_AVAILABLE)
 namespace std
 {
-    template<typename T, typename... Args>
+    template <typename T, typename... Args>
     unique_ptr<T> make_unique (Args&&... args)
     {
-        return unique_ptr<T> (new T (forward<Args> (args)...));
+        return unique_ptr<T> (new T (std::forward<Args> (args)...));
     }
 }
 #endif
 
+//==============================================================================
 #if ! DOXYGEN
  // These are old flags that are now supported on all compatible build targets
  #define JUCE_COMPILER_SUPPORTS_OVERRIDE_AND_FINAL 1
  #define JUCE_COMPILER_SUPPORTS_VARIADIC_TEMPLATES 1
  #define JUCE_COMPILER_SUPPORTS_INITIALIZER_LISTS 1
+ #define JUCE_COMPILER_SUPPORTS_NOEXCEPT 1
  #define JUCE_DELETED_FUNCTION = delete
+ #define JUCE_CONSTEXPR constexpr
 #endif

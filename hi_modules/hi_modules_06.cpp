@@ -4,7 +4,7 @@
 
 #if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 
-#if USE_BACKEND
+#if 0 && USE_BACKEND
 #include "nodes/MetaNodes.h"
 #endif
 

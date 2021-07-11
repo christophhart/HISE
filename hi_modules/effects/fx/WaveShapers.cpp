@@ -85,8 +85,8 @@ class PolyshapeFX::PolytableShaper : public ShapeFX::ShaperBase
 {
 public:
 
-	PolytableShaper():
-		table(new SampleLookupTable())
+	PolytableShaper(PolyshapeFX& p):
+		table(static_cast<SampleLookupTable*>(p.getTableUnchecked(0)))
 	{}
 
 	static String getName() { return "Curve"; };
@@ -102,7 +102,7 @@ public:
 
 	float getSingleValue(float input) override { return get(input); };
 
-	ScopedPointer<SampleLookupTable> table;
+	SampleLookupTable* table;
 
 	~PolytableShaper() { table = nullptr; }
 
@@ -129,8 +129,8 @@ class PolyshapeFX::PolytableAsymetricalShaper : public ShapeFX::ShaperBase
 {
 public:
 
-	PolytableAsymetricalShaper() :
-		table(new SampleLookupTable())
+	PolytableAsymetricalShaper(PolyshapeFX& p) :
+		table(static_cast<SampleLookupTable*>(p.getTableUnchecked(1)))
 	{}
 
 	static String getName() { return "Asymetrical Curve"; };
@@ -146,7 +146,7 @@ public:
 
 	float getSingleValue(float input) override { return get(input); };
 
-	ScopedPointer<SampleLookupTable> table;
+	SampleLookupTable* table;
 
 	~PolytableAsymetricalShaper() { table = nullptr; }
 
@@ -175,8 +175,8 @@ class ShapeFX::TableShaper : public ShapeFX::ShaperBase
 {
 public:
 
-	TableShaper() :
-		table(new SampleLookupTable())
+	TableShaper(ShapeFX& p) :
+		table(dynamic_cast<SampleLookupTable*>(p.getTableUnchecked(0)))
 	{};
 
 	~TableShaper()
@@ -197,7 +197,7 @@ public:
 
 	float getSingleValue(float input) override { return get(input); };
 
-	ScopedPointer<SampleLookupTable> table;
+	SampleLookupTable* table;
 
 private:
 
@@ -362,7 +362,7 @@ class ShapeFX::InternalSaturator : public ShapeFX::ShaperBase
 {
 public:
 
-	InternalSaturator()
+	InternalSaturator(ShapeFX& p)
 	{
 
 	}
@@ -390,7 +390,7 @@ public:
 
 
 #define REGISTER_BASIC_SHAPE_FUNCTION(id) shapers.set((int)ShapeFX::ShapeMode::id, new ShapeFX::FuncShaper<ShapeFX::ShapeFunctions::id>()); shapeNames.set((int)ShapeFX::ShapeMode::id, #id);
-#define REGISTER_SHAPER_CLASS(enumId, ClassName) shapers.set((int)ShapeFX::ShapeMode::enumId, new ClassName()); shapeNames.set((int)ShapeFX::ShapeMode::enumId, ClassName::getName());
+#define REGISTER_SHAPER_CLASS(enumId, ClassName) shapers.set((int)ShapeFX::ShapeMode::enumId, new ClassName(*this)); shapeNames.set((int)ShapeFX::ShapeMode::enumId, ClassName::getName());
 
 void ShapeFX::initShapers()
 {

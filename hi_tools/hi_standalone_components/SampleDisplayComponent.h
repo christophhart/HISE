@@ -54,6 +54,18 @@ class HiseAudioThumbnail: public Component,
 {
 public:
 
+	struct LookAndFeelMethods
+	{
+		virtual ~LookAndFeelMethods() {};
+
+		virtual void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area);
+		virtual void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path);
+		virtual void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleList<float>& rectList);
+		virtual void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area);
+	};
+
+	
+
 	static Image createPreview(const AudioSampleBuffer* buffer, int width)
 	{
 		jassert(buffer != nullptr);
@@ -88,6 +100,8 @@ public:
 	HiseAudioThumbnail();;
 
 	~HiseAudioThumbnail();
+
+	void setBufferAndSampleRate(double sampleRate, var bufferL, var bufferR = var(), bool synchronously = false);
 
 	void setBuffer(var bufferL, var bufferR = var(), bool synchronously=false);
 
@@ -157,6 +171,8 @@ public:
 
 	void setRange(const int left, const int right);
 private:
+
+	double sampleRate = 44100.0;
 
 	bool scaleVertically = false;
 	bool rebuildOnResize = true;
@@ -483,7 +499,7 @@ public:
 	*/
 	void setPlaybackPosition(double normalizedPlaybackPosition)
 	{
-        if(playBackPosition != normalizedPlaybackPosition)
+		if(playBackPosition != normalizedPlaybackPosition)
         {
             playBackPosition = normalizedPlaybackPosition;
             repaint();
@@ -498,6 +514,8 @@ public:
 		afm.registerBasicFormats();
 
 		addAndMakeVisible(preview = new HiseAudioThumbnail());
+
+		preview->setLookAndFeel(&defaultLaf);
 	};
 
 	/** Removes all listeners. */
@@ -532,11 +550,13 @@ public:
 
 	void refreshSampleAreaBounds(SampleArea* areaToSkip=nullptr)
 	{
-		if(getTotalSampleAmount() == 0) return;
+		bool somethingVisible = getTotalSampleAmount() != 0;
 
 		for(int i=0; i < areas.size(); i++)
 		{
 			if(areas[i] == areaToSkip) continue;
+
+			areas[i]->setVisible(somethingVisible);
 
 			Range<int> sampleRange = areas[i]->getSampleRange();
 
@@ -580,6 +600,7 @@ public:
 	void resized() override
 	{
 		preview->setBounds(getLocalBounds());
+		preview->resized();
 		refreshSampleAreaBounds();
 	}
 
@@ -621,6 +642,12 @@ public:
 
 protected:
 
+	struct DefaultLookAndFeel : public LookAndFeel_V3,
+								public HiseAudioThumbnail::LookAndFeelMethods
+	{
+
+	} defaultLaf;
+
 	OwnedArray<SampleArea> areas;
 
 	AudioFormatManager afm;
@@ -645,6 +672,560 @@ private:
 
 };
 
+
+/** This is a multichannel buffer type used by SNEX and scriptnode for audio files. 
+
+	The buffer will contain two versions of the data, one is used as read-only resource
+	and the other one is used for the data.
+
+	The buffer has also the capability to host multiple files that are mapped in an XYZ
+	coordinate system (like the samplemaps).
+*/
+struct MultiChannelAudioBuffer : public ComplexDataUIBase
+{
+	struct SampleReference : public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<SampleReference>;
+
+		SampleReference(bool ok = true, const String& ref = String()) :
+			r(ok ? Result::ok() : Result::fail(ref + " not found")),
+			reference(ref)
+		{};
+
+		operator bool() { return r.wasOk(); }
+
+		bool operator==(const SampleReference& other) const
+		{
+			return reference == other.reference;
+		}
+
+		AudioSampleBuffer buffer;
+		Result r;
+		String reference = {};
+		Range<int> loopRange = {};
+		double sampleRate = 0.0;
+
+	private:
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleReference);
+	};
+
+	struct DataProvider: public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<DataProvider>;
+
+		virtual ~DataProvider() = default;
+
+		/** Override this function and load the content and process the string to be displayed. */
+		virtual SampleReference::Ptr loadFile(const String& referenceString) = 0;
+
+		/** This directory will be used as default directory when opening files. */
+		virtual File getRootDirectory() { return File(); }
+
+	protected:
+
+		/** Use this to load a file that you have resolved to an absolute path. */
+		MultiChannelAudioBuffer::SampleReference::Ptr loadAbsoluteFile(const File& f, const String& refString);
+
+		AudioFormatManager afm;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(DataProvider);
+	};
+
+	struct XYZItem
+	{
+		using List = Array<XYZItem>;
+
+		bool matches(int n, int v, int r)
+		{
+			return veloRange.contains(v) &&
+				keyRange.contains(n) &&
+				rrGroup == r;
+		}
+
+		Range<int> veloRange;
+		Range<int> keyRange;
+		double root;
+		int rrGroup;
+		SampleReference::Ptr data;
+	};
+
+	struct XYZPool : public DataProvider
+	{
+		int indexOf(const String& ref) const
+		{
+			for (int i = 0; i < pool.size(); i++)
+				if (pool[i]->reference == ref)
+					return i;
+
+			return -1;
+		}
+
+		SampleReference::Ptr loadFile(const String& ref) override
+		{
+			for (auto i : pool)
+			{
+				if (i->reference == ref)
+					return i;
+			}
+
+			return new SampleReference(false, ref);
+		}
+
+		ReferenceCountedArray<SampleReference> pool;
+	};
+
+	struct XYZProviderBase : public ReferenceCountedObject
+	{
+		XYZProviderBase(XYZPool* pool_) : pool(pool_) {}
+
+		virtual ComplexDataUIBase::EditorBase* createEditor(MultiChannelAudioBuffer* ed) = 0;
+
+		SampleReference::Ptr loadFileFromReference(const String& f);
+
+		void removeFromPool(SampleReference::Ptr p)
+		{
+			if(pool != nullptr)
+				pool->pool.removeObject(p);
+		}
+
+		virtual Identifier getId() const = 0;
+
+		String getWildcard() const 
+		{ 
+			String s;
+			s << "{XYZ::" << getId() << "}";
+			return s;
+		}
+
+		virtual bool parse(const String& v, XYZItem::List& list) = 0;
+
+		virtual DataProvider* getDataProvider() = 0;
+
+		SampleReference::Ptr getPooledItem(int idx) const
+		{
+			if (pool != nullptr)
+			{
+				if (isPositiveAndBelow(idx, pool->pool.size()))
+					return pool->pool[idx];
+			}
+			
+			return nullptr;
+		}
+
+	protected:
+		
+		ReferenceCountedObjectPtr<XYZPool> pool;
+	};
+
+	struct XYZProviderFactory
+	{
+		struct Item
+		{
+			Identifier id;
+			std::function<XYZProviderBase*()> f;
+		};
+
+		static Identifier parseID(const String& referenceString)
+		{
+			static const String wildcard("{XYZ::");
+			if (referenceString.startsWith(wildcard))
+			{
+				auto wc = referenceString.upToFirstOccurrenceOf("}", false, false);
+				return Identifier(wc.fromLastOccurrenceOf(":", false, false));
+			}
+
+			return Identifier();
+		}
+
+		void registerXYZProvider(const Identifier& id, const std::function<XYZProviderBase*()>& f)
+		{
+			for (const auto& i : items)
+				if (i.id == id)
+					return;
+
+			items.add({ id, f });
+		}
+
+		XYZProviderBase* create(const Identifier& id)
+		{
+			for (const auto& i : items)
+				if (i.id == id)
+					return i.f();
+
+			return nullptr;
+		}
+		
+		Array<Identifier> getIds()
+		{
+			Array<Identifier> ids;
+
+			for (auto& i : items)
+			{
+				ids.add(i.id);
+			}
+
+			return ids;
+		}
+
+	private:
+
+		Array<Item> items;
+	};
+	
+	/** A Listener will be notified about changes to the sample content. 
+	
+		By default the content change notifications are synchronous
+		(because you might want to update stuff for the processing), 
+		but you can change the notification to be asynchronous in order
+		to do UI stuff (there's no guarantee from which thread the events
+		might be executed).
+	*/
+	struct Listener: private ComplexDataUIUpdaterBase::EventListener
+	{
+		Listener() = default;
+		virtual ~Listener() = default;
+
+		/** This will be called (synchronously while holding the data write lock) whenever the data is relocated. */
+		virtual void bufferWasLoaded() = 0;
+
+		/** This will be called (synchronously but without holding the lock) whenever the (non-original) data has been modified. */
+		virtual void bufferWasModified() = 0;
+
+		/** This will be called asynchronously whenever the sample index has been changed. The index is relative to the data buffer. */
+		virtual void sampleIndexChanged(int newSampleIndex) {};
+
+	private:
+
+		friend class MultiChannelAudioBuffer;
+
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType d, var v) override
+		{
+			switch (d)
+			{
+			case ComplexDataUIUpdaterBase::EventType::ContentChange:
+				bufferWasModified();
+				break;
+			case ComplexDataUIUpdaterBase::EventType::ContentRedirected:
+				bufferWasLoaded();
+				break;
+			case ComplexDataUIUpdaterBase::EventType::DisplayIndex:
+				sampleIndexChanged((int)v);
+				break;
+			}
+		}
+	};
+
+	void addListener(Listener* l)
+	{
+		internalUpdater.addEventListener(l);
+	}
+
+	void removeListener(Listener* l)
+	{
+		internalUpdater.removeEventListener(l);
+	}
+
+	String toBase64String() const override 
+	{ 
+		return referenceString;
+	}
+	
+	void setXYZProvider(const Identifier& id);
+
+	bool fromBase64String(const String& b64) override;
+
+	
+	/** Set the range of the buffer. The notification to the listeners will always be synchronous. */
+	void setRange(Range<int> sampleRange)
+	{
+		sampleRange.setStart(jmax(0, sampleRange.getStart()));
+		sampleRange.setEnd(jmin(originalBuffer.getNumSamples(), sampleRange.getEnd()));
+
+		if (sampleRange != bufferRange)
+		{
+			{
+				auto nb = createNewDataBuffer(sampleRange);
+
+				SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+				bufferRange = sampleRange;
+				setDataBuffer(nb);
+			}
+		}
+	}
+
+	void loadBuffer(const AudioSampleBuffer& b, double sr)
+	{
+		referenceString = "{INTERNAL}";
+		
+		originalBuffer.makeCopyOf(b);
+
+		auto nb = createNewDataBuffer({ 0, b.getNumSamples() });
+		SimpleReadWriteLock::ScopedWriteLock l(getDataLock());
+		sampleRate = sr;
+		bufferRange = { 0, b.getNumSamples() };
+		setDataBuffer(nb);
+	}
+
+	void setLoopRange(Range<int> newLoopRange, NotificationType n)
+	{
+		newLoopRange.setStart(jmax(bufferRange.getStart(), newLoopRange.getStart()));
+		newLoopRange.setEnd(jmin(bufferRange.getEnd(), newLoopRange.getEnd()));
+
+		if (newLoopRange != loopRange)
+		{
+			{
+				SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+				loopRange = newLoopRange;
+			}
+			
+			if(n != dontSendNotification)
+				getUpdater().sendContentChangeMessage(sendNotificationSync, -1);
+		}
+	}
+
+	var getChannelBuffer(int channelIndex, bool getFullContent)
+	{
+		auto& bToUse = getFullContent ? originalBuffer : currentData;
+
+		if(isPositiveAndBelow(channelIndex, bToUse.getNumChannels()))
+			return var(new VariantBuffer(bToUse.getWritePointer(channelIndex, 0), bToUse.getNumSamples()));
+
+		return {};
+	}
+	
+	void setProvider(DataProvider* p)
+	{
+		provider = p;
+	}
+
+	Range<int> getCurrentRange() const
+	{
+		return bufferRange;
+	}
+
+	Range<int> getTotalRange() const
+	{
+		return { 0, originalBuffer.getNumSamples() };
+	}
+
+	Range<int> getLoopRange(bool subtractStart = false) const
+	{
+		bool useLoop = !loopRange.isEmpty() && loopRange.getStart() < bufferRange.getEnd();
+
+		auto delta = (int)subtractStart * bufferRange.getStart();
+
+		return (useLoop ? loopRange.getIntersectionWith(bufferRange): bufferRange) - delta;
+	}
+
+	double sampleRate = 0.0;
+
+	AudioSampleBuffer& getBuffer() { return currentData; }
+	const AudioSampleBuffer& getBuffer() const { return currentData; }
+
+	DataProvider::Ptr getProvider()
+	{
+		return provider;
+	}
+
+	bool isEmpty() const
+	{
+		return originalBuffer.getNumChannels() == 0 || originalBuffer.getNumSamples() == 0;
+	}
+
+	bool isNotEmpty() const
+	{
+		return originalBuffer.getNumChannels() != 0 || originalBuffer.getNumSamples() != 0;
+	}
+
+	float** getDataPtrs()
+	{
+		jassert(!isXYZ());
+		return currentData.getArrayOfWritePointers();
+	}
+
+	Array<Identifier> getAvailableXYZProviders()
+	{
+		auto ids = factory->getIds();
+
+		for (int i = 0; i < ids.size(); i++)
+		{
+			if (deactivatedXYZIds.contains(ids[i]))
+				ids.remove(i--);
+		}
+
+		return ids;
+	}
+
+	Identifier getCurrentXYZId() const
+	{
+		if (xyzProvider != nullptr)
+			return xyzProvider->getId();
+
+		return Identifier();
+	}
+
+	bool isXYZ() const
+	{
+		return xyzProvider != nullptr;
+	}
+
+	void registerXYZProvider(const Identifier& id, const std::function<XYZProviderBase*()> & f)
+	{
+		factory->registerXYZProvider(id, f);
+	}
+
+	ComplexDataUIBase::EditorBase* createEditor();
+
+	const XYZItem::List& getXYZItems() const { return xyzItems; }
+	XYZItem::List& getXYZItems() { return xyzItems; }
+
+	SampleReference::Ptr getFirstXYZData()
+	{
+		if (xyzItems.isEmpty())
+			return nullptr;
+
+		return xyzItems[0].data;
+	}
+
+	void setDisabledXYZProviders(const Array<Identifier>& ids)
+	{
+		deactivatedXYZIds = ids;
+	}
+
+private:
+
+	Array<Identifier> deactivatedXYZIds;
+
+	SharedResourcePointer<XYZProviderFactory> factory;
+
+	void setDataBuffer(AudioSampleBuffer& newBuffer)
+	{
+		// Never call this without holding the lock
+		jassert(getDataLock().writeAccessIsLocked());
+
+		std::swap(currentData, newBuffer);
+		getUpdater().sendContentRedirectMessage();
+	}
+
+	AudioSampleBuffer createNewDataBuffer(Range<int> newRange)
+	{
+		if (newRange.isEmpty())
+			return {};
+		
+		SimpleReadWriteLock::ScopedReadLock l(getDataLock());
+
+		AudioSampleBuffer newDataBuffer(originalBuffer.getNumChannels(), newRange.getLength());
+
+		for (int i = 0; i < newDataBuffer.getNumChannels(); i++)
+			newDataBuffer.copyFrom(i, 0, originalBuffer.getReadPointer(i, newRange.getStart()), newDataBuffer.getNumSamples());
+
+		return newDataBuffer;
+	}
+
+	friend class DataProvider;
+
+	Range<int> bufferRange;
+	Range<int> loopRange;
+	
+	String referenceString;
+	
+	AudioSampleBuffer originalBuffer;
+	AudioSampleBuffer currentData;
+	DataProvider::Ptr provider;
+
+	XYZItem::List xyzItems;
+	ReferenceCountedObjectPtr<XYZProviderBase> xyzProvider;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MultiChannelAudioBuffer);
+};
+
+
+struct XYZMultiChannelAudioBufferEditor : public ComplexDataUIBase::EditorBase,
+										  public Component,
+										  public ButtonListener
+{
+	void setComplexDataUIBase(ComplexDataUIBase* newData) override;
+
+	void addButton(const Identifier& id, const Identifier& currentId);
+
+	void buttonClicked(Button* b);
+
+	void rebuildButtons();
+
+	void rebuildEditor();
+
+	void paint(Graphics& g) override;
+
+	void resized() override;
+
+	OwnedArray<TextButton> buttons;
+
+	ScopedPointer<Component> currentEditor;
+
+	WeakReference<MultiChannelAudioBuffer> currentBuffer;
+};
+
+#if 0
+struct MultiChannelAudioBufferDisplay : public AudioDisplayComponent,
+										public ComplexDataUIBase::EditorBase,
+										public MultiChannelAudioBuffer::Listener,
+										public AudioDisplayComponent::Listener
+{
+	MultiChannelAudioBufferDisplay()
+	{
+		addAreaListener(this);
+
+		areas.add(new SampleArea(AreaTypes::PlayArea, this));
+		addAndMakeVisible(areas[0]);
+		areas[0]->setAreaEnabled(true);
+	}
+
+	
+
+	void updateRanges(SampleArea *areaToSkip/* =nullptr */) override
+	{
+		areas[0]->setSampleRange(connectedFile->getCurrentRange());
+		refreshSampleAreaBounds(areaToSkip);
+	}
+
+	double getSampleRate() const override
+	{
+		if (connectedFile != nullptr)
+			return connectedFile->sampleRate;
+	}
+
+	
+
+	void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea) override
+	{
+		if (auto ar = getSampleArea(changedArea))
+		{
+			if (connectedFile != nullptr)
+			{
+				ar->getSampleRange();
+			}
+		}
+	}
+
+	
+
+	WeakReference<MultiChannelAudioBuffer> connectedFile;
+};
+#endif
+
+
+/** Rewrite AudioDisplayComponent:
+
+	- add Locking on MultiChannelAudioBuffer level
+	- make it use the MultiChannelAudioFile
+	- remove all Listeners & replace with one
+	- remove inheritance stuff and replace with one provider class
+
+*/
+
 /** A waveform component to display the content of a pooled AudioSampleBuffer.
 *	@ingroup hise_ui
 *
@@ -656,12 +1237,12 @@ private:
 *	- playback position display
 *	- designed to interact with AudioSampleProcessor & AudioSampleBufferPool
 */
-class AudioSampleBufferComponentBase: public AudioDisplayComponent,
-								  public FileDragAndDropTarget,
-								  public SafeChangeBroadcaster,
-								  public SafeChangeListener,
-								  public DragAndDropTarget,
-								  public Timer
+class MultiChannelAudioBufferDisplay: public AudioDisplayComponent,
+									  public FileDragAndDropTarget,
+									  public DragAndDropTarget,
+									  public ComplexDataUIBase::EditorBase,
+									  public MultiChannelAudioBuffer::Listener,
+									  public AudioDisplayComponent::Listener
 {
 public:
 
@@ -671,40 +1252,32 @@ public:
 		numAreas
 	};
 
-	AudioSampleBufferComponentBase(SafeChangeBroadcaster* p);
-	virtual ~AudioSampleBufferComponentBase();
+	struct BufferLookAndFeel : public LookAndFeel_V3,
+							   public HiseAudioThumbnail::LookAndFeelMethods
+	{
 
-	virtual void updateProcessorConnection() = 0;
-	virtual File getDefaultDirectory() const = 0;
-	virtual void loadFile(const File& f) = 0;
+	};
+
+	virtual void setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn=false)
+	{
+		preview->setLookAndFeel(l);
+		EditorBase::setSpecialLookAndFeel(l, shouldOwn);
+	}
+
+	MultiChannelAudioBufferDisplay();
+	virtual ~MultiChannelAudioBufferDisplay();
 
 	void itemDragEnter(const SourceDetails& dragSourceDetails) override;;
 	void itemDragExit(const SourceDetails& /*dragSourceDetails*/) override;;
 	
 	bool isInterestedInFileDrag (const StringArray &files) override;
 
+	bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override;
+	void itemDropped(const SourceDetails& dragSourceDetails) override;
+
 	static bool isAudioFile(const String &s);
 	
 	void filesDropped(const StringArray &fileNames, int, int);
-
-	void setAudioSampleProcessor(SafeChangeBroadcaster* newProcessor);
-
-	virtual void updatePlaybackPosition() = 0;
-	
-	/** Call this when you want the component to display the content of the given AudioSampleBuffer. 
-	*
-	*	It repaints the waveform, resets the range and calls rangeChanged for all registered AreaListeners.
-	*/
-	void setAudioSampleBuffer(const AudioSampleBuffer *b, const String &fileName, NotificationType notifyListeners);
-
-	virtual void newBufferLoaded() = 0;
-
-	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
-	{
-		newBufferLoaded();
-
-		repaint();
-	}
 
 	void updateRanges(SampleArea *areaToSkip=nullptr) override;
 
@@ -717,13 +1290,22 @@ public:
 		repaint();
 	}
 
+	void rangeChanged(AudioDisplayComponent *, int ) override
+	{
+		auto range = areas[0]->getSampleRange();
+
+		if (connectedBuffer != nullptr)
+			connectedBuffer->setRange(range);
+	}
+
 	void setBackgroundColour(Colour c) { bgColour = c; };
 
 	void mouseDown(const MouseEvent &e) override;
 
-	void timerCallback() override
+	void mouseDoubleClick(const MouseEvent&)
 	{
-		repaint();
+		if (connectedBuffer != nullptr)
+			connectedBuffer->fromBase64String({});
 	}
 
 	void paint(Graphics &g) override;
@@ -731,15 +1313,28 @@ public:
 	void paintOverChildren(Graphics& g) override;
 
 	/** Returns the currently loaded file name. */
-	const String &getCurrentlyLoadedFileName() const
+	String getCurrentlyLoadedFileName() const
 	{
-		return currentFileName;
+		if (connectedBuffer != nullptr)
+		{
+			auto a = connectedBuffer->toBase64String();
+
+			if (a == "-1")
+				return {};
+
+			return a;
+		}
+
+		return {};
 	}
 
 	/** Returns only 44100.0 (this will have no impact, but must be overriden. */
 	double getSampleRate() const override
 	{
-		return 44100.0;
+		if (connectedBuffer != nullptr)
+			return connectedBuffer->sampleRate;
+
+		return 0.0;
 	}
 
 	void setShowLoop(bool shouldShowLoop)
@@ -751,7 +1346,57 @@ public:
 		}
 	}
 
+	void bufferWasLoaded() override
+	{
+		if (connectedBuffer != nullptr)
+			preview->setBufferAndSampleRate(connectedBuffer->sampleRate, connectedBuffer->getChannelBuffer(0, true), connectedBuffer->getChannelBuffer(1, true));
+		else
+			preview->setBuffer({}, {});
+		
+		setShowLoop(connectedBuffer != nullptr && connectedBuffer->getLoopRange() != connectedBuffer->getCurrentRange());
+
+		updateRanges(nullptr);
+	}
+
+	void bufferWasModified() override
+	{
+		updateRanges(nullptr);
+	}
+
+	void sampleIndexChanged(int newSampleIndex) override
+	{
+		if (connectedBuffer != nullptr)
+		{
+			auto s = connectedBuffer->getCurrentRange().getLength();
+			AudioDisplayComponent::setPlaybackPosition((double)newSampleIndex / s);
+			repaint();
+		}
+	}
+
+	void setComplexDataUIBase(ComplexDataUIBase* newData) override
+	{
+		if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(newData))
+			setAudioFile(af);
+	}
+
+	void setAudioFile(MultiChannelAudioBuffer* af)
+	{
+		if (af != connectedBuffer)
+		{
+			if (connectedBuffer != nullptr)
+				connectedBuffer->removeListener(this);
+
+			connectedBuffer = af;
+			bufferWasLoaded();
+
+			if (connectedBuffer != nullptr)
+				connectedBuffer->addListener(this);
+		}
+	}
+
 protected:
+
+	WeakReference<MultiChannelAudioBuffer> connectedBuffer;
 
 	bool over = false;
 
@@ -760,16 +1405,11 @@ protected:
 
 	Path loopPath;
 
-	Range<int> xPositionOfLoop;
-
-	WeakReference<SafeChangeBroadcaster> connectedProcessor;
+	Range<float> xPositionOfLoop;
 
 	Colour bgColour;
 
-	String currentFileName;
 	bool itemDragged;
-
-	const AudioSampleBuffer *buffer;
 };
 
 

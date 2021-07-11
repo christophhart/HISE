@@ -14,6 +14,7 @@
 
 #include "AppConfig.h"
 
+#include <hi_dsp_library/hi_dsp_library.h>
 #include <hi_lac/hi_lac.h>
 #include <hi_snex/hi_snex.h>
 #include <hi_tools/hi_tools.h>
@@ -25,6 +26,7 @@
 #include <juce_core/juce_core.h>
 #include <juce_cryptography/juce_cryptography.h>
 #include <juce_data_structures/juce_data_structures.h>
+#include <juce_dsp/juce_dsp.h>
 #include <juce_events/juce_events.h>
 #include <juce_graphics/juce_graphics.h>
 #include <juce_gui_basics/juce_gui_basics.h>

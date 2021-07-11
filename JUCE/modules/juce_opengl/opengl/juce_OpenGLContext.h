@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -248,7 +247,7 @@ public:
         This function can only be called if the context is attached to a component.
         Otherwise, this function will assert.
 
-        This function is useful when you need to excute house-keeping tasks such
+        This function is useful when you need to execute house-keeping tasks such
         as allocating, deallocating textures or framebuffers. As such, the functor
         will execute without locking the message thread. Therefore, it is not
         intended for any drawing commands or GUI code. Any GUI code should be
@@ -273,7 +272,7 @@ public:
     */
     unsigned int getFrameBufferID() const noexcept;
 
-    /** Returns an OS-dependent handle to some kind of underlting OS-provided GL context.
+    /** Returns an OS-dependent handle to some kind of underlying OS-provided GL context.
 
         The exact type of the value returned will depend on the OS and may change
         if the implementation changes. If you want to use this, digging around in the
@@ -328,7 +327,8 @@ private:
     void* contextToShareWith = nullptr;
     OpenGLVersion versionRequired = defaultGLVersion;
     size_t imageCacheMaxSize = 8 * 1024 * 1024;
-    bool renderComponents = true, useMultisampling = false, continuousRepaint = false, overrideCanAttach = false;
+    bool renderComponents = true, useMultisampling = false, overrideCanAttach = false;
+    std::atomic<bool> continuousRepaint { false };
     TextureMagnificationFilter texMagFilter = linear;
 
     //==============================================================================

@@ -40,6 +40,8 @@ MidiFileDragAndDropper::MidiFileDragAndDropper(MidiPlayer* player) :
 	setColour(HiseColourScheme::ComponentBackgroundColour, Colour(0x11000000));
 	setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
 	setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white);
+
+	sequenceLoaded(getPlayer()->getCurrentSequence());
 }
 
 bool MidiFileDragAndDropper::isMidiFile(const String& s)
@@ -52,8 +54,9 @@ bool MidiFileDragAndDropper::isMidiFile(const String& s)
 void MidiFileDragAndDropper::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
 {
 	currentSequence = newSequence;
-
 	currentSequenceId = newSequence != nullptr ? newSequence->getId() : Identifier();
+
+	setMouseCursor(newSequence != nullptr ? MouseCursor::DraggingHandCursor : MouseCursor());
 	repaint();
 }
 
@@ -61,33 +64,18 @@ void MidiFileDragAndDropper::sequencesCleared()
 {
 	currentSequence = nullptr;
 	currentSequenceId = {};
+	setMouseCursor(MouseCursor());
 	repaint();
 }
 
 bool MidiFileDragAndDropper::shouldDropFilesWhenDraggedExternally(const DragAndDropTarget::SourceDetails &, StringArray &, bool &)
 {
-	if (currentSequence != nullptr)
-	{
-		if (!draggedTempFile.existsAsFile())
-		{
-			draggedTempFile = currentSequence->writeToTempFile();
-		}
-
-		return true;
-	}
-
 	return false;
 }
 
 void MidiFileDragAndDropper::dragOperationEnded(const DragAndDropTarget::SourceDetails&)
 {
-	if (draggedTempFile.existsAsFile())
-	{
-		StringArray files;
-		files.add(draggedTempFile.getFullPathName());
-		performExternalDragDropOfFiles(files, true);
-		draggedTempFile.deleteFile();
-	}
+	
 }
 
 void MidiFileDragAndDropper::mouseDown(const MouseEvent& e)
@@ -106,11 +94,38 @@ void MidiFileDragAndDropper::mouseDown(const MouseEvent& e)
 	}
 	else
 	{
-		auto d = getPlayer()->getPoolReference().createDragDescription();
-		startDragging(d, this, createSnapshot(), true);
-	}
+		if (externalDrag)
+		{
+			if (currentSequence != nullptr)
+			{
+				auto c = currentSequence->clone();
+				c->setCurrentTrackIndex(getPlayer()->getAttribute(MidiPlayer::CurrentTrack) - 1);
+				c->trimInactiveTracks();
 
-	
+				auto tmp = c->writeToTempFile();
+				externalDrag = true;
+				repaint();
+
+				performExternalDragDropOfFiles({ tmp.getFullPathName() }, false, this, [tmp, this]()
+				{
+					this->externalDrag = false;
+					this->repaint();
+
+					auto f = [tmp]()
+					{
+						tmp.deleteFile();
+					};
+
+					new DelayedFunctionCaller(f, 2000);
+				});
+			}
+		}
+		else
+		{
+			auto d = getPlayer()->getPoolReference().createDragDescription();
+			startDragging(d, this, createSnapshot(), true);
+		}
+	}
 }
 
 juce::Image MidiFileDragAndDropper::createSnapshot() const
@@ -189,24 +204,33 @@ void MidiFileDragAndDropper::itemDropped(const SourceDetails& dragSourceDetails)
 
 void MidiFileDragAndDropper::paint(Graphics& g)
 {
-	g.fillAll(findColour(HiseColourScheme::ComponentBackgroundColour));
-
-	if (hover)
-	{
-		g.setColour(findColour(HiseColourScheme::ComponentOutlineColourId));
-		g.drawRect(getLocalBounds(), 3);
-	}
-
-	
-	g.setFont(getFont());
+	auto ar = getLocalBounds().toFloat();
 	String message;
 
-	if (currentSequenceId.isNull()) message << "Drop MIDI file here";
-	else message << "Drop new MIDI file or drag Content";
+	if (!isActive()) 
+		message << "Drop MIDI file here";
+	else 
+		message << "Drop MIDI file or Drag to external target";
 
-	g.setColour(findColour(HiseColourScheme::ComponentTextColourId));
-	g.drawText(message, getLocalBounds().toFloat(), Justification::centred);
+	ScriptingObjects::ScriptedLookAndFeel::Laf slaf(getPlayer()->getMainController());
+
+	slaf.drawMidiDropper(g, ar, message, *this);
 }
 
+
+void MidiFileDragAndDropper::LookAndFeelMethods::drawMidiDropper(Graphics& g, Rectangle<float> area, const String& text, MidiFileDragAndDropper& d)
+{
+	g.fillAll(d.findColour(HiseColourScheme::ComponentBackgroundColour));
+
+	if (d.hover)
+	{
+		g.setColour(d.findColour(HiseColourScheme::ComponentOutlineColourId));
+		g.drawRect(area, 3.0f);
+	}
+
+	g.setFont(d.getFont());
+	g.setColour(d.findColour(HiseColourScheme::ComponentTextColourId));
+	g.drawText(text, area, Justification::centred);
+}
 
 }

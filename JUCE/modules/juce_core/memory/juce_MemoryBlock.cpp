@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -321,7 +321,7 @@ void MemoryBlock::loadFromHexString (StringRef hex)
 
     for (;;)
     {
-        int byte = 0;
+        juce_wchar byte = 0;
 
         for (int loop = 2; --loop >= 0;)
         {
@@ -356,7 +356,7 @@ String MemoryBlock::toBase64Encoding() const
 
     String destString ((unsigned int) size); // store the length, followed by a '.', and then the data.
     auto initialLen = destString.length();
-    destString.preallocateBytes (sizeof (String::CharPointerType::CharType) * (size_t) initialLen + 2 + numChars);
+    destString.preallocateBytes ((size_t) initialLen * sizeof (String::CharPointerType::CharType) + 2 + numChars);
 
     auto d = destString.getCharPointer();
     d += initialLen;

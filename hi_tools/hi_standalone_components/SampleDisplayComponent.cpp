@@ -92,6 +92,7 @@ AudioDisplayComponent::SampleArea::SampleArea(int area_, AudioDisplayComponent *
 		useConstrainer(false),
 		parentWaveform(parentWaveform_)
 {
+	
 	setInterceptsMouseClicks(false, true);
 	edgeLaf = new EdgeLookAndFeel(this);
 		
@@ -181,6 +182,7 @@ void AudioDisplayComponent::SampleArea::mouseDrag(const MouseEvent &)
 
 void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 {
+	UnblurryGraphics ug(g, *this, true);
 	
 	if(area == AreaTypes::LoopCrossfadeArea)
 	{
@@ -204,7 +206,7 @@ void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 		g.fillAll();
 
 		g.setColour(getAreaColour().withAlpha(0.3f));
-		g.drawRect(getLocalBounds(), 1);
+		ug.draw1PxRect(getLocalBounds().toFloat());
 	}
 	else
 	{
@@ -212,13 +214,13 @@ void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 		g.fillAll();
 
 		g.setColour(getAreaColour().withAlpha(0.3f));
-		g.drawRect(getLocalBounds(), 1);
+		ug.draw1PxRect(getLocalBounds().toFloat());
 
 		g.setColour(getAreaColour());
+
 		g.drawVerticalLine(0, 0.0, (float)getHeight());
 		g.drawVerticalLine(getWidth() - 1, 0.0, (float)getHeight());
 	}
-
 }
 
 void AudioDisplayComponent::SampleArea::checkBounds()
@@ -328,23 +330,21 @@ void AudioDisplayComponent::SampleArea::EdgeLookAndFeel::drawStretchableLayoutRe
 
 #pragma warning( pop )
 
-AudioSampleBufferComponentBase::AudioSampleBufferComponentBase(SafeChangeBroadcaster* p) :
+MultiChannelAudioBufferDisplay::MultiChannelAudioBufferDisplay() :
 	AudioDisplayComponent(),
-	buffer(nullptr),
 	itemDragged(false),
-
-	bgColour(Colour(0xFF555555)),
-	connectedProcessor(p)
+	bgColour(Colour(0xFF555555))
 {
 	setColour(ColourIds::bgColour, Colour(0xFF555555));
+
+	setSpecialLookAndFeel(new BufferLookAndFeel(), true);
 
 	setOpaque(true);
 
 	areas.add(new SampleArea(AreaTypes::PlayArea, this));
 	addAndMakeVisible(areas[0]);
 	areas[0]->setAreaEnabled(true);
-
-	setAudioSampleProcessor(p);
+	addAreaListener(this);
 
 	static const unsigned char pathData[] = { 110,109,0,23,2,67,128,20,106,67,108,0,0,230,66,128,92,119,67,108,0,23,2,67,128,82,130,67,108,0,23,2,67,128,92,123,67,108,0,0,7,67,128,92,123,67,98,146,36,8,67,128,92,123,67,243,196,9,67,58,18,124,67,128,5,11,67,128,88,125,67,98,13,70,12,67,198,158,126,
 		67,0,0,13,67,53,39,128,67,0,0,13,67,64,197,128,67,98,0,0,13,67,109,97,129,67,151,72,12,67,91,58,130,67,0,11,11,67,128,221,130,67,98,105,205,9,67,165,128,131,67,219,50,8,67,0,220,131,67,0,0,7,67,0,220,131,67,108,0,0,210,66,0,220,131,67,98,30,54,205,66,
@@ -356,71 +356,72 @@ AudioSampleBufferComponentBase::AudioSampleBufferComponentBase(SafeChangeBroadca
 	loopPath.loadPathFromData(pathData, sizeof(pathData));
 }
 
-AudioSampleBufferComponentBase::~AudioSampleBufferComponentBase()
+MultiChannelAudioBufferDisplay::~MultiChannelAudioBufferDisplay()
 {
-	if (connectedProcessor != nullptr)
-	{
-		connectedProcessor->removeChangeListener(this);
-	}
-}
-
-void AudioSampleBufferComponentBase::setAudioSampleProcessor(SafeChangeBroadcaster* newProcessor)
-{
-	connectedProcessor = newProcessor;
-
-	
+	setAudioFile(nullptr);
 }
 
 
-void AudioSampleBufferComponentBase::itemDragEnter(const SourceDetails& dragSourceDetails)
+void MultiChannelAudioBufferDisplay::itemDragEnter(const SourceDetails& dragSourceDetails)
 {
 	over = isInterestedInDragSource(dragSourceDetails);
 	repaint();
 }
 
-void AudioSampleBufferComponentBase::itemDragExit(const SourceDetails& /*dragSourceDetails*/)
+void MultiChannelAudioBufferDisplay::itemDragExit(const SourceDetails& /*dragSourceDetails*/)
 {
 	over = false;
 	repaint();
 }
 
-bool AudioSampleBufferComponentBase::isInterestedInFileDrag(const StringArray &files)
+bool MultiChannelAudioBufferDisplay::isInterestedInFileDrag(const StringArray &files)
 {
 	return files.size() == 1 && isAudioFile(files[0]);
 }
 
-bool AudioSampleBufferComponentBase::isAudioFile(const String &s)
+bool MultiChannelAudioBufferDisplay::isInterestedInDragSource(const SourceDetails& dragSourceDetails)
+{
+	return isAudioFile(dragSourceDetails.description.toString());
+}
+
+void MultiChannelAudioBufferDisplay::itemDropped(const SourceDetails& dragSourceDetails)
+{
+	if (connectedBuffer != nullptr)
+	{
+		connectedBuffer->fromBase64String(dragSourceDetails.description.toString());
+	}
+}
+
+bool MultiChannelAudioBufferDisplay::isAudioFile(const String &s)
 {
     AudioFormatManager afm;
 
-    
-	
 	afm.registerBasicFormats();
+#if !HISE_NO_GUI_TOOLS
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+#endif
 	
 	return File(s).existsAsFile() && afm.findFormatForFileExtension(File(s).getFileExtension()) != nullptr;
 }
 
 
-void AudioSampleBufferComponentBase::filesDropped(const StringArray &fileNames, int, int)
+void MultiChannelAudioBufferDisplay::filesDropped(const StringArray &fileNames, int, int)
 {
-	if (fileNames.size() > 0)
+	if (fileNames.size() > 0 && connectedBuffer != nullptr)
 	{
-		auto f = File(fileNames[0]);
-
-		loadFile(f);
+		connectedBuffer->fromBase64String(fileNames[0]);
 	}
 }
 
-void AudioSampleBufferComponentBase::updateRanges(SampleArea *areaToSkip/*=nullptr*/)
+void MultiChannelAudioBufferDisplay::updateRanges(SampleArea *areaToSkip/*=nullptr*/)
 {
-	areas[PlayArea]->setSampleRange(Range<int>(0, buffer == nullptr ? 0 : buffer->getNumSamples()));
+	areas[PlayArea]->setSampleRange(connectedBuffer != nullptr ? connectedBuffer->getCurrentRange() : Range<int>());
 	refreshSampleAreaBounds(areaToSkip);
 }
 
-void AudioSampleBufferComponentBase::setRange(Range<int> newRange)
+void MultiChannelAudioBufferDisplay::setRange(Range<int> newRange)
 {
-	const bool isSomethingLoaded = currentFileName.isNotEmpty();
+	const bool isSomethingLoaded = connectedBuffer != nullptr && connectedBuffer->toBase64String().isNotEmpty();
 
 	getSampleArea(0)->setVisible(isSomethingLoaded);
 
@@ -433,71 +434,35 @@ void AudioSampleBufferComponentBase::setRange(Range<int> newRange)
 
 
 
-void AudioSampleBufferComponentBase::setAudioSampleBuffer(const AudioSampleBuffer *b, const String &fileName, NotificationType notifyListeners)
+void MultiChannelAudioBufferDisplay::mouseDown(const MouseEvent &e)
 {
-	if (b != nullptr)
+	if (connectedBuffer != nullptr && (e.mods.isRightButtonDown() || e.mods.isCtrlDown()))
 	{
-		currentFileName = fileName;
-
-		buffer = b;
-
-		auto data = const_cast<float**>(b->getArrayOfReadPointers());
-
-		VariantBuffer::Ptr l = new VariantBuffer(data[0], b->getNumSamples());
-
-		var lVar = var(l.get());
-		var rVar;
-
-		if (b->getNumChannels() > 1)
+		if (auto p = connectedBuffer->getProvider())
 		{
-			VariantBuffer::Ptr r = new VariantBuffer(data[1], b->getNumSamples());
-			rVar = var(r.get());
-		}
+			String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF;*.hlac;*.flac;*.HLAC;*.FLAC";
 
-		preview->setBuffer(lVar, rVar);
-	}
-	else
-	{
-		currentFileName = {};
+			File searchDirectory = connectedBuffer->getProvider()->getRootDirectory();
 
-		buffer = nullptr;
+			FileChooser fc("Load File", searchDirectory, patterns, true);
 
-		preview->clear();
-	}
-
-	updateRanges();
-
-	setCurrentArea(getSampleArea(0));
-
-	if (notifyListeners)
-		sendAreaChangedMessage();
-}
-
-
-
-void AudioSampleBufferComponentBase::mouseDown(const MouseEvent &e)
-{
-	if (e.mods.isRightButtonDown() || e.mods.isCtrlDown())
-	{
-		String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF;*.hlac;*.flac;*.HLAC;*.FLAC";
-
-		File searchDirectory = getDefaultDirectory();
-
-		FileChooser fc("Load File", searchDirectory, patterns, true);
-
-		if (fc.browseForFileToOpen())
-		{
-			auto f = fc.getResult();
-
-			loadFile(f);
+			if (fc.browseForFileToOpen())
+			{
+				auto f = fc.getResult();
+				connectedBuffer->fromBase64String(f.getFullPathName());
+			}
 		}
 	}
 }
 
-void AudioSampleBufferComponentBase::paint(Graphics &g)
+void MultiChannelAudioBufferDisplay::paint(Graphics &g)
 {
+	
+
 	bgColour = findColour(AudioDisplayComponent::ColourIds::bgColour);
 	g.fillAll(bgColour);
+
+	AudioDisplayComponent::paint(g);
 
 	if (over)
 	{
@@ -507,50 +472,53 @@ void AudioSampleBufferComponentBase::paint(Graphics &g)
 }
 
 
-void AudioSampleBufferComponentBase::paintOverChildren(Graphics& g)
+void MultiChannelAudioBufferDisplay::paintOverChildren(Graphics& g)
 {
+	auto laf = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(&preview->getLookAndFeel());
 
-	Font f = GLOBAL_BOLD_FONT();
+	jassert(laf != nullptr);
 
-	g.setFont(f);
-
-
+	
     static const String text = "Drop audio file or Right click to open browser";
     
+	auto f = GLOBAL_BOLD_FONT();
+
     const int w = f.getStringWidth(text) + 20;
 
-	if (getWidth() > (w+10) && (buffer == nullptr || buffer->getNumSamples() == 0))
+	if (getWidth() > (w+10) && (connectedBuffer == nullptr || connectedBuffer->getBuffer().getNumSamples() == 0))
 	{
-		g.setColour(Colours::white.withAlpha(0.3f));
-
-		
-		g.setColour(Colours::black.withAlpha(0.5f));
 		Rectangle<int> r((getWidth() - w) / 2, (getHeight() - 20) / 2, w, 20);
-		g.fillRect(r);
-		g.setColour(Colours::white.withAlpha(0.5f));
-		g.drawRect(r, 1);
-
-		g.drawText(text, getLocalBounds(), Justification::centred);
+		laf->drawTextOverlay(g, *preview, text, r.toFloat());
 	}
 
 	AudioDisplayComponent::paint(g);
 
-	const String fileNameToShow = File::isAbsolutePath(currentFileName) ? File(currentFileName).getFileName() : currentFileName;
+	String fileNameToShow = getCurrentlyLoadedFileName();
 
 	if (showFileName && fileNameToShow.isNotEmpty())
 	{
+		fileNameToShow = fileNameToShow.replace("\\", "/");
+		fileNameToShow = fileNameToShow.fromLastOccurrenceOf("}", false, false);
+		fileNameToShow = fileNameToShow.fromLastOccurrenceOf("/", false, false);
+		
+
 		const int w2 = f.getStringWidth(fileNameToShow) + 20;
-		g.setColour(Colours::black.withAlpha(0.5f));
 		Rectangle<int> r(getWidth() - w2 - 5, 5, w2, 20);
-		g.fillRect(r);
-		g.setColour(Colours::white.withAlpha(0.2f));
-		g.drawRect(r, 1);
-		g.setColour(Colours::white.withAlpha(0.6f));
-		g.drawText(fileNameToShow, r, Justification::centred);
+		laf->drawTextOverlay(g, *preview, fileNameToShow, r.toFloat());
 	}
 
 	if (showLoop)
 	{
+		if (connectedBuffer != nullptr && !connectedBuffer->isEmpty())
+		{
+			auto loopRange = connectedBuffer->getLoopRange();
+			
+			float factor = (float)getWidth() / (float)connectedBuffer->getTotalRange().getLength();
+
+			xPositionOfLoop.setStart((float)loopRange.getStart() * factor);
+			xPositionOfLoop.setEnd((float)loopRange.getEnd() * factor);
+		}
+
 		g.setColour(Colours::white.withAlpha(0.6f));
 		g.drawVerticalLine(xPositionOfLoop.getStart(), 0.0f, (float)getHeight());
 		g.drawVerticalLine(xPositionOfLoop.getEnd(), 0.0f, (float)getHeight());
@@ -656,8 +624,8 @@ void HiseAudioThumbnail::LoadingThread::run()
 
 	RectangleList<float> lRects, rRects;
 
-	float width = (float)bounds.getWidth();
-
+	auto sf = UnblurryGraphics::getScaleFactorForComponent(parent, false);
+	float width = (float)bounds.getWidth() * sf;
 
 	VariantBuffer::Ptr r = rb.getBuffer();
 	VariantBuffer::Ptr l = lb.getBuffer();
@@ -904,6 +872,14 @@ HiseAudioThumbnail::~HiseAudioThumbnail()
 	loadingThread.stopThread(400);
 }
 
+void HiseAudioThumbnail::setBufferAndSampleRate(double newSampleRate, var bufferL, var bufferR /*= var()*/, bool synchronously /*= false*/)
+{
+	if(newSampleRate > 0.0)
+		sampleRate = newSampleRate;
+
+	setBuffer(bufferL, bufferR, synchronously);
+}
+
 void HiseAudioThumbnail::setBuffer(var bufferL, var bufferR /*= var()*/, bool synchronously)
 {
 	currentReader = nullptr;
@@ -919,11 +895,13 @@ void HiseAudioThumbnail::setBuffer(var bufferL, var bufferR /*= var()*/, bool sy
 
 	if (auto l = bufferL.getBuffer())
 	{
-		lengthInSeconds = l->size / 44100.0;
+		lengthInSeconds = l->size / sampleRate;
 	}
 
 	rebuildPaths(synchronously);
 }
+
+
 
 void HiseAudioThumbnail::paint(Graphics& g)
 {
@@ -934,10 +912,7 @@ void HiseAudioThumbnail::paint(Graphics& g)
 
 	if (sl.isLocked())
 	{
-
-
 		auto bounds = getLocalBounds();
-
 
 		if (leftBound > 0 || rightBound > 0)
 		{
@@ -948,8 +923,6 @@ void HiseAudioThumbnail::paint(Graphics& g)
 
 			g.excludeClipRegion(left);
 			g.excludeClipRegion(right);
-
-
 
 			drawSection(g, true);
 
@@ -963,52 +936,118 @@ void HiseAudioThumbnail::paint(Graphics& g)
 			drawSection(g, true);
 		}
 	}
-	
+}
+
+void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area)
+{
+	Colour fillColour = th.findColour(AudioDisplayComponent::ColourIds::fillColour);
+	Colour outlineColour = th.findColour(AudioDisplayComponent::ColourIds::outlineColour);
+
+	if (!areaIsEnabled)
+	{
+		fillColour = fillColour.withMultipliedAlpha(0.3f);
+		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
+	}
+
+	g.setColour(fillColour.withAlpha(0.05f));
+
+	if (th.drawHorizontalLines)
+	{
+		g.drawHorizontalLine(area.getY() + area.getHeight() / 4, 0.0f, (float)th.getWidth());
+		g.drawHorizontalLine(area.getY() + 3 * area.getHeight() / 4, 0.0f, (float)th.getWidth());
+	}
+}
+
+void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path)
+{
+	Colour fillColour = th.findColour(AudioDisplayComponent::ColourIds::fillColour);
+	Colour outlineColour = th.findColour(AudioDisplayComponent::ColourIds::outlineColour);
+
+	if (!areaIsEnabled)
+	{
+		fillColour = fillColour.withMultipliedAlpha(0.3f);
+		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
+	}
+
+	g.setColour(fillColour);
+	g.fillPath(path);
+
+	if (!outlineColour.isTransparent())
+	{
+		g.setColour(outlineColour);
+		g.strokePath(path, PathStrokeType(1.0f));
+	}
+}
+
+void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleList<float>& rectList)
+{
+	Colour fillColour = th.findColour(AudioDisplayComponent::ColourIds::fillColour);
+	Colour outlineColour = th.findColour(AudioDisplayComponent::ColourIds::outlineColour);
+
+	if (!areaIsEnabled)
+	{
+		fillColour = fillColour.withMultipliedAlpha(0.3f);
+		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
+	}
+
+	g.setColour(fillColour);
+	g.fillRectList(rectList);
+}
+
+
+void HiseAudioThumbnail::LookAndFeelMethods::drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area)
+{
+	Font f = GLOBAL_BOLD_FONT();
+	g.setFont(f);
+
+	g.setColour(Colours::white.withAlpha(0.3f));
+	g.setColour(Colours::black.withAlpha(0.5f));
+	g.fillRect(area);
+	g.setColour(Colours::white.withAlpha(0.5f));
+	g.drawRect(area, 1);
+	g.drawText(text, area, Justification::centred);
 }
 
 void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 {
 	bool isStereo = rBuffer.isBuffer();
 
-	Colour fillColour = findColour(AudioDisplayComponent::ColourIds::fillColour);
-	Colour outlineColour = findColour(AudioDisplayComponent::ColourIds::outlineColour);
+	auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel());
 
-	if (!enabled)
-	{
-		fillColour = fillColour.withMultipliedAlpha(0.3f);
-		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
-	}
-		
+	if (laf == nullptr)
+		return;
 
 	if (!isStereo)
 	{
-		g.setColour(fillColour.withAlpha(0.05f));
+		auto a = getLocalBounds();
 
-		int h = getHeight();
-
-		if (drawHorizontalLines)
-		{
-			g.drawHorizontalLine(h / 4, 0.0f, (float)getWidth());
-			g.drawHorizontalLine(3 * h / 4, 0.0f, (float)getWidth());
-		}
-
-		g.setColour(fillColour);
+		laf->drawHiseThumbnailBackground(g, *this, enabled, a);
 
 		if (!leftWaveform.isEmpty())
-			g.fillPath(leftWaveform);
+			laf->drawHiseThumbnailPath(g, *this, enabled, leftWaveform);
 		else if (!leftPeaks.isEmpty())
-			g.fillRectList(leftPeaks);
-
-		if (!outlineColour.isTransparent() && !leftWaveform.isEmpty())
-		{
-			g.setColour(outlineColour);
-			g.strokePath(leftWaveform, PathStrokeType(1.0f));
-		}
+			laf->drawHiseThumbnailRectList(g, *this, enabled, leftPeaks);
 	}
 	else
 	{
-		g.setColour(fillColour.withAlpha(0.08f));
+		auto a1 = getLocalBounds();
+		auto a2 = a1.removeFromBottom(a1.getHeight() / 2);
 
+		laf->drawHiseThumbnailBackground(g, *this, enabled, a1);
+
+		if (!leftWaveform.isEmpty())
+			laf->drawHiseThumbnailPath(g, *this, enabled, leftWaveform);
+		else if (!leftPeaks.isEmpty())
+			laf->drawHiseThumbnailRectList(g, *this, enabled, leftPeaks);
+
+		laf->drawHiseThumbnailBackground(g, *this, enabled, a2);
+
+		if (!rightWaveform.isEmpty())
+			laf->drawHiseThumbnailPath(g, *this, enabled, rightWaveform);
+		else if (!rightPeaks.isEmpty())
+			laf->drawHiseThumbnailRectList(g, *this, enabled, rightPeaks);
+
+#if 0
 		int h = getHeight()/2;
 
 		if (drawHorizontalLines)
@@ -1038,6 +1077,7 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 			g.strokePath(leftWaveform, PathStrokeType(1.0f));
 			g.strokePath(rightWaveform, PathStrokeType(1.0f));
 		}
+#endif
 	}
 }
 
@@ -1078,6 +1118,250 @@ void HiseAudioThumbnail::setRange(const int left, const int right)
 	leftBound = left;
 	rightBound = getWidth() - right;
 	repaint();
+}
+
+
+void XYZMultiChannelAudioBufferEditor::setComplexDataUIBase(ComplexDataUIBase* newData)
+{
+	if (auto df = dynamic_cast<MultiChannelAudioBuffer*>(newData))
+	{
+		currentBuffer = df;
+		rebuildButtons();
+		rebuildEditor();
+	}
+}
+
+void XYZMultiChannelAudioBufferEditor::addButton(const Identifier& id, const Identifier& currentId)
+{
+	auto tb = new TextButton(id.toString());
+	tb->setClickingTogglesState(true);
+	tb->setRadioGroupId(912451, dontSendNotification);
+
+	bool shouldBeOn = currentId == id ||
+		id == Identifier("Single Sample") && currentId.isNull();
+
+	tb->setToggleState(shouldBeOn, dontSendNotification);
+	addAndMakeVisible(tb);
+	tb->addListener(this);
+
+	tb->setLookAndFeel(getSpecialLookAndFeel<LookAndFeel>());
+
+	buttons.add(tb);
+}
+
+void XYZMultiChannelAudioBufferEditor::buttonClicked(Button* b)
+{
+	Identifier id(b->getName());
+
+	if (currentBuffer != nullptr)
+	{
+		currentBuffer->setXYZProvider(id);
+		rebuildEditor();
+	}
+}
+
+void XYZMultiChannelAudioBufferEditor::rebuildButtons()
+{
+	buttons.clear();
+
+	if (currentBuffer != nullptr)
+	{
+		auto l = currentBuffer->getAvailableXYZProviders();
+		auto cId = currentBuffer->getCurrentXYZId();
+
+		addButton("Single Sample", cId);
+
+		for (auto id : l)
+			addButton(id, cId);
+	}
+}
+
+void XYZMultiChannelAudioBufferEditor::rebuildEditor()
+{
+	if (currentBuffer != nullptr)
+	{
+		currentEditor = dynamic_cast<Component*>(currentBuffer->createEditor());
+
+		addAndMakeVisible(currentEditor);
+		resized();
+	}
+}
+
+void XYZMultiChannelAudioBufferEditor::paint(Graphics& g)
+{
+}
+
+void XYZMultiChannelAudioBufferEditor::resized()
+{
+	auto b = getLocalBounds();
+	auto top = b.removeFromTop(24);
+
+	if (!buttons.isEmpty())
+	{
+		int bWidth = getWidth() / buttons.size();
+
+		for (auto tb : buttons)
+			tb->setBounds(top.removeFromLeft(bWidth));
+	}
+
+	if (currentEditor != nullptr)
+		currentEditor->setBounds(b);
+}
+
+void MultiChannelAudioBuffer::setXYZProvider(const Identifier& id)
+{
+	if (id.isNull() || id.toString() == "Single Sample" || deactivatedXYZIds.contains(id))
+	{
+		xyzProvider = nullptr;
+	}
+	else
+	{
+		if (xyzProvider == nullptr || xyzProvider->getId() != id)
+			xyzProvider = factory->create(id);
+	}
+}
+
+bool MultiChannelAudioBuffer::fromBase64String(const String& b64)
+{
+
+	if (b64 != referenceString)
+	{
+		referenceString = b64;
+		
+		if (referenceString.isEmpty() && xyzProvider != nullptr)
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+			xyzItems.clear();
+			getUpdater().sendContentRedirectMessage();
+			return true;
+		}
+
+		Identifier xyzId = XYZProviderFactory::parseID(referenceString);
+
+		if (xyzId.isValid())
+		{
+			setXYZProvider(xyzId);
+
+			if (xyzProvider != nullptr)
+			{
+				SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+				xyzItems.clear();
+
+				try
+				{
+					auto ok = xyzProvider->parse(b64, xyzItems);
+
+					getUpdater().sendContentRedirectMessage();
+
+					return ok;
+				}
+				catch (String& errorMessage)
+				{
+					jassertfalse;
+					return false;
+				}
+			}
+
+			return false;
+		}
+		else
+		{
+			xyzProvider = nullptr;
+
+			jassert(provider != nullptr);
+
+			if (provider != nullptr)
+			{
+				if (auto lr = provider->loadFile(referenceString))
+				{
+					originalBuffer = lr->buffer;
+					auto nb = createNewDataBuffer({ 0, originalBuffer.getNumSamples() });
+
+					referenceString = lr->reference;
+
+					{
+						SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+						bufferRange = { 0, originalBuffer.getNumSamples() };
+						sampleRate = lr->sampleRate;
+						setLoopRange(lr->loopRange, dontSendNotification);
+						setDataBuffer(nb);
+					}
+
+					return true;
+				}
+				else
+				{
+					SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+					originalBuffer = {};
+					bufferRange = {};
+					currentData = {};
+					getUpdater().sendContentRedirectMessage();
+					return false;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+hise::ComplexDataUIBase::EditorBase* MultiChannelAudioBuffer::createEditor()
+{
+	if (xyzProvider != nullptr)
+	{
+		auto c = xyzProvider->createEditor(this);
+		c->setComplexDataUIBase(this);
+		return c;
+	}
+	else
+	{
+		auto c = new MultiChannelAudioBufferDisplay();
+		c->setComplexDataUIBase(this);
+		return c;
+	}
+}
+
+hise::MultiChannelAudioBuffer::SampleReference::Ptr MultiChannelAudioBuffer::XYZProviderBase::loadFileFromReference(const String& f)
+{
+	if (pool != nullptr)
+	{
+		if (auto pr = pool->loadFile(f))
+		{
+			if (*pr)
+				return pr;
+		}
+	}
+
+	auto lr = getDataProvider()->loadFile(f);
+
+	if (!lr->r.wasOk())
+		throw lr->r.getErrorMessage();
+
+	pool->pool.add(lr);
+
+	return lr;
+}
+
+hise::MultiChannelAudioBuffer::SampleReference::Ptr MultiChannelAudioBuffer::DataProvider::loadAbsoluteFile(const File& f, const String& refString)
+{
+	// call registerBasicFormats and thank me later...
+	jassert(afm.getNumKnownFormats() > 0);
+
+	auto fis = new FileInputStream(f);
+
+	auto reader = afm.createReaderFor(std::unique_ptr<InputStream>(fis));
+
+	if (reader != nullptr)
+	{
+		MultiChannelAudioBuffer::SampleReference::Ptr lr = new MultiChannelAudioBuffer::SampleReference();
+		lr->buffer.setSize(reader->numChannels, (int)reader->lengthInSamples);
+		reader->read(&lr->buffer, 0, (int)reader->lengthInSamples, 0, true, true);
+		lr->reference = refString;
+		lr->sampleRate = reader->sampleRate;
+		return lr;
+	}
+
+	return new MultiChannelAudioBuffer::SampleReference(false, f.getFileName() + " can't be loaded");
 }
 
 } // namespace hise

@@ -359,7 +359,7 @@ void PresetBrowserColumn::ColumnListModel::updateTags(const StringArray& newSele
 
 	
 
-	const auto& cachedTags = parent->getMainController()->getUserPresetHandler().getTagDataBase().getCachedTags();
+	auto& cachedTags = parent->getMainController()->getUserPresetHandler().getTagDataBase().getCachedTags();
 
 	for (auto& t : cachedTags)
 	{
@@ -569,7 +569,7 @@ void PresetBrowserColumn::setNewRootDirectory(const File& newRootDirectory)
 	listbox->updateContent();
 	listbox->repaint();
 
-	updateButtonVisibility();
+	updateButtonVisibility(parent->isReadOnly(newRootDirectory));
 }
 
 void PresetBrowserColumn::touchAndHold(Point<int> /*downPosition*/)
@@ -655,7 +655,7 @@ void PresetBrowserColumn::addEntry(const String &newName)
 		}
 	}
 
-	updateButtonVisibility();
+	updateButtonVisibility(false);
 }
 
 void PresetBrowserColumn::paint(Graphics& g)
@@ -687,7 +687,7 @@ void PresetBrowserColumn::resized()
 	listArea = { 0, 0, getWidth(), getHeight() };
 	listArea = listArea.reduced(1);
 
-	updateButtonVisibility();
+	updateButtonVisibility(false);
 
 	if (showButtonsAtBottom)
 	{
@@ -704,11 +704,11 @@ void PresetBrowserColumn::resized()
 }
 
 
-void PresetBrowserColumn::updateButtonVisibility()
+void PresetBrowserColumn::updateButtonVisibility(bool isReadOnly)
 {
 	editButton->setVisible(false);
 
-	const bool buttonsVisible = showButtonsAtBottom && !isResultBar && currentRoot.isDirectory();
+	const bool buttonsVisible = showButtonsAtBottom && !isResultBar && currentRoot.isDirectory() && !isReadOnly;
 	const bool fileIsSelected = listbox->getNumSelectedRows() > 0;
 
 	addButton->setVisible(buttonsVisible);

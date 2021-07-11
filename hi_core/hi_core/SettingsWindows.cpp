@@ -58,7 +58,7 @@ public:
 
 };
 
-SettingWindows::SettingWindows(HiseSettings::Data& dataObject_) :
+SettingWindows::SettingWindows(HiseSettings::Data& dataObject_, const Array<Identifier>& menusToShow) :
 	dataObject(dataObject_),
 	projectSettings("Project"),
 	developmentSettings("Development"),
@@ -67,29 +67,61 @@ SettingWindows::SettingWindows(HiseSettings::Data& dataObject_) :
 	allSettings("All"),
 	applyButton("Save"),
 	cancelButton("Cancel"),
+	snexSettings("SNEX Workbench"),
 	undoButton("Undo")
 {
+	if (menusToShow.isEmpty())
+		settingsToShow = HiseSettings::SettingFiles::getAllIds();
+	else
+		settingsToShow = menusToShow;
+
 	alaf = PresetHandler::createAlertWindowLookAndFeel();
 
 	dataObject.addChangeListener(this);
 
+	auto shouldShow = [this](const Identifier& id)
+	{
+		return settingsToShow.contains(id);
+	};
+
 #if !IS_MARKDOWN_EDITOR
-	addAndMakeVisible(&projectSettings);
-	projectSettings.addListener(this);
-	projectSettings.setLookAndFeel(&tblaf);
 
-	addAndMakeVisible(&developmentSettings);
-	developmentSettings.addListener(this);
-	developmentSettings.setLookAndFeel(&tblaf);
+	if (shouldShow(HiseSettings::SettingFiles::ProjectSettings))
+	{
+		addAndMakeVisible(&projectSettings);
+		projectSettings.addListener(this);
+		projectSettings.setLookAndFeel(&tblaf);
+	}
 
-	addAndMakeVisible(&docSettings);
-	docSettings.addListener(this);
-	docSettings.setLookAndFeel(&tblaf);
+	if (shouldShow(HiseSettings::SettingFiles::OtherSettings))
+	{
+		addAndMakeVisible(&developmentSettings);
+		developmentSettings.addListener(this);
+		developmentSettings.setLookAndFeel(&tblaf);
+	}
+
+	if (shouldShow(HiseSettings::SettingFiles::DocSettings))
+	{
+		addAndMakeVisible(&docSettings);
+		docSettings.addListener(this);
+		docSettings.setLookAndFeel(&tblaf);
+	}
+
+	if (shouldShow(HiseSettings::SettingFiles::SnexWorkbenchSettings))
+	{
+		addAndMakeVisible(&snexSettings);
+		snexSettings.addListener(this);
+		snexSettings.setLookAndFeel(&tblaf);
+	}
 
 #if IS_STANDALONE_APP
-	addAndMakeVisible(&audioSettings);
-	audioSettings.addListener(this);
-	audioSettings.setLookAndFeel(&tblaf);
+
+	if (shouldShow(HiseSettings::SettingFiles::AudioSettings))
+	{
+		addAndMakeVisible(&audioSettings);
+		audioSettings.addListener(this);
+		audioSettings.setLookAndFeel(&tblaf);
+	}
 #endif
 #endif
 
@@ -116,6 +148,8 @@ SettingWindows::SettingWindows(HiseSettings::Data& dataObject_) :
 	allSettings.setRadioGroupId(1, dontSendNotification);
 	developmentSettings.setRadioGroupId(1, dontSendNotification);
 	audioSettings.setRadioGroupId(1, dontSendNotification);
+	snexSettings.setRadioGroupId(1, dontSendNotification);
+	docSettings.setRadioGroupId(1, dontSendNotification);
 
 	addAndMakeVisible(currentContent = new Content());
 
@@ -153,7 +187,7 @@ SettingWindows::~SettingWindows()
 
 void SettingWindows::buttonClicked(Button* b)
 {
-	if (b == &allSettings)		   setContent(  HiseSettings::SettingFiles::getAllIds());
+	if (b == &allSettings)		   setContent(  settingsToShow );
 	if (b == &projectSettings)	   setContent({ HiseSettings::SettingFiles::ProjectSettings, 
 												HiseSettings::SettingFiles::UserSettings });
 	if (b == &developmentSettings) setContent({	HiseSettings::SettingFiles::CompilerSettings, 
@@ -162,7 +196,8 @@ void SettingWindows::buttonClicked(Button* b)
 	if (b == &audioSettings)	   setContent({ HiseSettings::SettingFiles::AudioSettings,
 												HiseSettings::SettingFiles::MidiSettings});
 	if (b == &docSettings)		   setContent({ HiseSettings::SettingFiles::DocSettings });
-	
+	if (b == &snexSettings)        setContent({ HiseSettings::SettingFiles::SnexWorkbenchSettings });
+
 	if (b == &applyButton)
 	{
 		saveOnDestroy = true;
@@ -197,13 +232,20 @@ void SettingWindows::resized()
 	allSettings.setBounds(left.removeFromTop(40));
 
 #if IS_MARKDOWN_EDITOR
-	docSettings.setBounds(left.removeFromTop(40));
+	if(docSettings.isVisible())
+		docSettings.setBounds(left.removeFromTop(40));
 #else
 
-	projectSettings.setBounds(left.removeFromTop(40));
-	developmentSettings.setBounds(left.removeFromTop(40));
-	docSettings.setBounds(left.removeFromTop(40));
-	audioSettings.setBounds(left.removeFromTop(40));
+	if(projectSettings.isVisible())
+		projectSettings.setBounds(left.removeFromTop(40));
+	if(developmentSettings.isVisible())
+		developmentSettings.setBounds(left.removeFromTop(40));
+	if(docSettings.isVisible())
+		docSettings.setBounds(left.removeFromTop(40));
+	if(snexSettings.isVisible())
+		snexSettings.setBounds(left.removeFromTop(40));
+	if(audioSettings.isVisible())
+		audioSettings.setBounds(left.removeFromTop(40));
 	
 #endif
 
@@ -515,11 +557,11 @@ void addChildWithValue(ValueTree& v, const Identifier& id, const var& newValue)
 
 juce::ValueTree HiseSettings::ConversionHelpers::loadValueTreeFromFile(const File& f, const Identifier& settingId)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+	auto xml = XmlDocument::parse(f);
 
 	if (xml != nullptr)
 	{
-		return loadValueTreeFromXml(xml, settingId);
+		return loadValueTreeFromXml(xml.get(), settingId);
 	}
 
 	return ValueTree();
@@ -600,7 +642,7 @@ juce::XmlElement* HiseSettings::ConversionHelpers::getConvertedXml(const ValueTr
 	}
 
 
-	return copy.createXml();
+	return copy.createXml().release();
 }
 
 Array<int> HiseSettings::ConversionHelpers::getBufferSizesForDevice(AudioIODevice* currentDevice)

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -89,7 +89,7 @@ static File getWellKnownFolder (const char* folderId)
     auto* env = getEnv();
     auto fieldId = env->GetStaticFieldID (AndroidEnvironment, folderId, "Ljava/lang/String;");
 
-    if (fieldId == 0)
+    if (fieldId == nullptr)
     {
         // unknown field in environment
         jassertfalse;
@@ -194,7 +194,7 @@ public:
         auto* env = getEnv();
         LocalRef<jobject> contentResolver (env->CallObjectMethod (getAppContext().get(), AndroidContext.getContentResolver));
 
-        if (contentResolver == 0)
+        if (contentResolver == nullptr)
             return {};
 
         auto filename = getStringUsingDataColumn ("_display_name", env, uri, contentResolver);
@@ -298,7 +298,7 @@ private:
             auto* env = getEnv();
             static jmethodID m = (env->GetMethodID (AndroidContext, "getExternalFilesDirs",
                                                     "(Ljava/lang/String;)[Ljava/io/File;"));
-            if (m == 0)
+            if (m == nullptr)
                 return {};
 
             auto paths = convertFileArray (LocalRef<jobject> (env->CallObjectMethod (getAppContext().get(), m, nullptr)));
@@ -319,9 +319,8 @@ private:
                 return {};
 
             auto rootFsDevice = info.st_dev;
-            DirectoryIterator iter (mountFolder, false, "*", File::findDirectories);
 
-            while (iter.next())
+            for (const auto& iter : RangedDirectoryIterator (mountFolder, false, "*", File::findDirectories))
             {
                 auto candidate = iter.getFile();
 
@@ -406,7 +405,7 @@ private:
             return {};
         }
 
-        if (cursor == 0)
+        if (cursor == nullptr)
             return {};
 
         String fileName;
@@ -439,7 +438,7 @@ struct AndroidContentUriOutputStream :  public OutputStream
     {
     }
 
-    ~AndroidContentUriOutputStream()
+    ~AndroidContentUriOutputStream() override
     {
         stream.callVoidMethod (AndroidOutputStream.close);
     }
@@ -484,7 +483,7 @@ OutputStream* juce_CreateContentURIOutputStream (const URL& url)
 {
     auto stream = AndroidContentUriResolver::getStreamForContentUri (url, false);
 
-    return (stream.get() != 0 ? new AndroidContentUriOutputStream (std::move (stream)) : nullptr);
+    return (stream.get() != nullptr ? new AndroidContentUriOutputStream (std::move (stream)) : nullptr);
 }
 
 //==============================================================================
@@ -676,7 +675,7 @@ private:
 
 void FileOutputStream::flushInternal()
 {
-    if (fileHandle != 0)
+    if (fileHandle != nullptr)
     {
         if (fsync (getFD (fileHandle)) == -1)
             status = getResultForErrno();

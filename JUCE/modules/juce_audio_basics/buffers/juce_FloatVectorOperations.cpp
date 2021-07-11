@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -30,7 +30,7 @@ namespace FloatVectorHelpers
     #define JUCE_INCREMENT_DEST             dest += (16 / sizeof (*dest));
 
    #if JUCE_USE_SSE_INTRINSICS
-    inline static bool isAligned (const void* p) noexcept
+    static bool isAligned (const void* p) noexcept
     {
         return (((pointer_sized_int) p) & 15) == 0;
     }
@@ -353,8 +353,8 @@ namespace FloatVectorHelpers
     union signMask64 { double d; uint64 i; };
 
    #if JUCE_USE_SSE_INTRINSICS || JUCE_USE_ARM_NEON
-    template<int typeSize> struct ModeType    { using Mode = BasicOps32; };
-    template<>             struct ModeType<8> { using Mode = BasicOps64; };
+    template <int typeSize> struct ModeType    { using Mode = BasicOps32; };
+    template <>             struct ModeType<8> { using Mode = BasicOps64; };
 
     template <typename Mode>
     struct MinMax
@@ -1139,6 +1139,7 @@ ScopedNoDenormals::~ScopedNoDenormals() noexcept
   #endif
 }
 
+
 //==============================================================================
 //==============================================================================
 #if JUCE_UNIT_TESTS
@@ -1146,7 +1147,9 @@ ScopedNoDenormals::~ScopedNoDenormals() noexcept
 class FloatVectorOperationsTests  : public UnitTest
 {
 public:
-    FloatVectorOperationsTests() : UnitTest ("FloatVectorOperations", "Audio") {}
+    FloatVectorOperationsTests()
+        : UnitTest ("FloatVectorOperations", UnitTestCategories::audio)
+    {}
 
     template <typename ValueType>
     struct TestRunner

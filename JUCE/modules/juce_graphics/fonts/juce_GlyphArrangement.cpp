@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -39,29 +38,9 @@ PositionedGlyph::PositionedGlyph (const Font& font_, juce_wchar character_, int 
 {
 }
 
-PositionedGlyph::PositionedGlyph (PositionedGlyph&& other) noexcept
-    : font (std::move (other.font)),
-      character (other.character), glyph (other.glyph),
-      x (other.x), y (other.y), w (other.w), whitespace (other.whitespace)
-{
-}
-
-PositionedGlyph& PositionedGlyph::operator= (PositionedGlyph&& other) noexcept
-{
-    font = std::move (other.font);
-    character = other.character;
-    glyph = other.glyph;
-    x = other.x;
-    y = other.y;
-    w = other.w;
-    whitespace = other.whitespace;
-
-    return *this;
-}
-
 PositionedGlyph::~PositionedGlyph() {}
 
-static inline void drawGlyphWithFont (Graphics& g, int glyph, const Font& font, AffineTransform t)
+static void drawGlyphWithFont (Graphics& g, int glyph, const Font& font, AffineTransform t)
 {
     auto& context = g.getInternalContext();
     context.setFont (font);
@@ -128,20 +107,6 @@ GlyphArrangement::GlyphArrangement()
     glyphs.ensureStorageAllocated (128);
 }
 
-GlyphArrangement::GlyphArrangement (GlyphArrangement&& other)
-    : glyphs (std::move (other.glyphs))
-{
-}
-
-GlyphArrangement& GlyphArrangement::operator= (GlyphArrangement&& other)
-{
-    glyphs = std::move (other.glyphs);
-
-    return *this;
-}
-
-GlyphArrangement::~GlyphArrangement() {}
-
 //==============================================================================
 void GlyphArrangement::clear()
 {
@@ -181,10 +146,46 @@ void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& t
 {
     if (text.isNotEmpty())
     {
-        Array<int> newGlyphs;
+		Array<int> newGlyphs;
         Array<float> xOffsets;
         font.getGlyphPositions (text, newGlyphs, xOffsets);
+
         auto textLen = newGlyphs.size();
+
+		constexpr int numSpacePerTab = 4;
+
+		auto spaceWidth = font.getStringWidthFloat(" ");
+
+		int column = 0;
+
+		for (int i = 0; i < textLen; i++)
+		{
+			if (text[i] == '\t')
+			{
+#if JUCE_WINDOWS
+				int width = numSpacePerTab - column % 4;
+				auto numToAdd = (width - 1) * spaceWidth;
+#else
+				int width = numSpacePerTab - (column) % 4;
+				auto numToAdd = (width)* spaceWidth;
+#endif
+
+
+				
+
+				for (int j = i+1; j < textLen+1; j++)
+					xOffsets.set(j, xOffsets[j] + numToAdd);
+
+				column += width;
+			}
+			else
+			{
+				column++;
+			}
+			
+			
+		}
+
         glyphs.ensureStorageAllocated (glyphs.size() + textLen);
 
         auto t = text.getCharPointer();
@@ -256,7 +257,8 @@ int GlyphArrangement::insertEllipsis (const Font& font, float maxXPos, int start
 
 void GlyphArrangement::addJustifiedText (const Font& font, const String& text,
                                          float x, float y, float maxLineWidth,
-                                         Justification horizontalLayout)
+                                         Justification horizontalLayout,
+                                         float leading)
 {
     auto lineStartIndex = glyphs.size();
     addLineOfText (font, text, x, y);
@@ -331,7 +333,7 @@ void GlyphArrangement::addJustifiedText (const Font& font, const String& text,
 
         lineStartIndex = i;
 
-        y += font.getHeight();
+        y += font.getHeight() + leading;
     }
 }
 
@@ -577,7 +579,7 @@ void GlyphArrangement::spreadOutLine (int start, int num, float targetWidth)
     }
 }
 
-static inline bool isBreakableGlyph (const PositionedGlyph& g) noexcept
+static bool isBreakableGlyph (const PositionedGlyph& g) noexcept
 {
     return g.isWhitespace() || g.getCharacter() == '-';
 }
@@ -615,7 +617,7 @@ void GlyphArrangement::splitLines (const String& text, Font font, int startIndex
         // allowing for unevenness in the lengths due to differently sized words.
         const float lineLengthUnevennessAllowance = 80.0f;
 
-        if (numLines > (lineWidth + lineLengthUnevennessAllowance) / width || newFontHeight < 8.0f)
+        if ((float) numLines > (lineWidth + lineLengthUnevennessAllowance) / width || newFontHeight < 8.0f)
             break;
     }
 
@@ -625,7 +627,7 @@ void GlyphArrangement::splitLines (const String& text, Font font, int startIndex
     int lineIndex = 0;
     auto lineY = y;
     auto widthPerLine = jmin (width / minimumHorizontalScale,
-                              lineWidth / numLines);
+                              lineWidth / (float) numLines);
 
     while (lineY < y + height)
     {
@@ -744,7 +746,7 @@ void GlyphArrangement::draw (const Graphics& g, AffineTransform transform) const
 
     for (int i = 0; i < glyphs.size(); ++i)
     {
-        auto& pg = glyphs.getReference(i);
+        auto& pg = glyphs.getReference (i);
 
         if (pg.font.isUnderlined())
             drawGlyphUnderline (g, pg, i, transform);

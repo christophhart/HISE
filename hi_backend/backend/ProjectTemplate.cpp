@@ -48,7 +48,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "              pluginAAXCategory=\"%AAX_CATEGORY%\" jucerVersion=\"5.2.0\"\r\n"
 "              companyName=\"%COMPANY%\" companyWebsite=\"%COMPANY_WEBSITE%\" companyCopyright=\"%COMPANY_COPYRIGHT%\""
 "   displaySplashScreen=\"0\""
-"     reportAppUsage=\"0\" splashScreenColour=\"Dark\" enableIAA=\"1\" cppLanguageStandard=\"14\">\r\n"
+"     reportAppUsage=\"0\" splashScreenColour=\"Dark\" enableIAA=\"1\" cppLanguageStandard=\"17\">\r\n"
 "  <MAINGROUP id=\"SLR7uY\" name=\"%NAME%\">\r\n"
 "    <GROUP id=\"{122C85F1-8B09-257A-B636-113E3EAC258A}\" name=\"Source\">\r\n"
 "      <FILE id=\"eLP6Ii\" name=\"balanceKnob_200.png\" compile=\"0\" resource=\"1\"\r\n"
@@ -124,8 +124,8 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "        <MODULEPATH id=\"hi_snex\" path=\"%HISE_PATH%\"/>\r\n"
 "      </MODULEPATHS>\r\n"
 "    </%VS_VERSION%>\r\n"
-"    <XCODE_MAC targetFolder=\"Builds/MacOSX\"  vstLegacyFolder=\"%VSTSDK_FOLDER%\" vst3Folder=\"%VSTSDK3_FOLDER%\"  aaxFolder=\"%AAX_PATH%\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override\"\r\n"
-"               extraLinkerFlags=\"%IPP_COMPILER_FLAGS% %OSX_STATIC_LIBS%\" extraDefs=\"%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_OSX%\" hardenedRuntime=\"1\" hardenedRuntimeOptions=\"com.apple.security.cs.allow-jit,com.apple.security.cs.allow-unsigned-executable-memory,com.apple.security.device.audio-input\">\r\n"
+"    <XCODE_MAC targetFolder=\"Builds/MacOSX\"  vstLegacyFolder=\"%VSTSDK_FOLDER%\" vst3Folder=\"%VSTSDK3_FOLDER%\"  aaxFolder=\"%AAX_PATH%\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override  -fno-aligned-allocation\"\r\n"
+"               extraLinkerFlags=\"%IPP_COMPILER_FLAGS% %OSX_STATIC_LIBS%\" extraDefs=\"%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_OSX%\" hardenedRuntime=\"1\" hardenedRuntimeOptions=\"com.apple.security.cs.allow-jit,com.apple.security.cs.allow-unsigned-executable-memory,com.apple.security.device.audio-input\" xcodeValidArchs=\"arm64,arm64e,x86_64\">\r\n"
 "                \r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" osxSDK=\"default\" osxCompatibility=\"10.7 SDK\" osxArchitecture=\"%MACOS_ARCHITECTURE%\"\r\n"
@@ -134,7 +134,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "        <CONFIGURATION name=\"Release\" osxSDK=\"default\" osxCompatibility=\"10.7 SDK\" osxArchitecture=\"%MACOS_ARCHITECTURE%\"\r\n"
 "                       isDebug=\"0\" optimisation=\"3\" enablePluginBinaryCopyStep=\"%COPY_PLUGIN%\" targetName=\"%NAME%\" headerPath=\"%IPP_HEADER%\"\r\n"
 "                       libraryPath=\"%IPP_LIBRARY%;%AAX_RELEASE_LIB%\" cppLibType=\"libc++\" linkTimeOptimisation=\"1\"\r\n"
-"                       cppLanguageStandard=\"c++11\" stripLocalSymbols=\"1\"/>\r\n"
+"                       stripLocalSymbols=\"1\"/>\r\n"
 "      </CONFIGURATIONS>\r\n"
 "      <MODULEPATHS>\r\n"
 "        <MODULEPATH id=\"juce_product_unlocking\" path=\"%JUCE_PATH%\"/>\r\n"
@@ -288,11 +288,11 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "    <MODULE id=\"stk_wrapper\" showAllCode=\"1\" useLocalCopy=\"0\" useGlobalPath=\"0\"/>\r\n"
 "    <MODULE id=\"hi_snex\" showAllCode=\"1\" useLocalCopy=\"0\" useGlobalPath=\"0\"/>\r\n"
 "  </MODULES>\r\n"
-"  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" USE_FRONTEND=\"enabled\" USE_RAW_FRONTEND=\"%USE_RAW_FRONTEND%\" HI_EXPORT_DSP_LIBRARY=\"disabled\" HISE_ENABLE_MIDI_INPUT_FOR_FX=\"%ENABLE_MIDI_INPUT_FX%\" HISE_MIDIFX_PLUGIN=\"%HISE_MIDIFX_PLUGIN%\" USE_COPY_PROTECTION = \"%USE_COPY_PROTECTION%\" IS_STANDALONE_APP=\"disabled\"\r\n"
+"  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" USE_FRONTEND=\"enabled\" USE_RAW_FRONTEND=\"%USE_RAW_FRONTEND%\" HI_EXPORT_DSP_LIBRARY=\"disabled\" HISE_ENABLE_MIDI_INPUT_FOR_FX=\"%ENABLE_MIDI_INPUT_FX%\" PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN=\"%PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN%\" HISE_MIDIFX_PLUGIN=\"%HISE_MIDIFX_PLUGIN%\" USE_COPY_PROTECTION = \"%USE_COPY_PROTECTION%\" IS_STANDALONE_APP=\"disabled\"\r\n"
 "               USE_IPP=\"%USE_IPP%\" FRONTEND_IS_PLUGIN=\"%FRONTEND_IS_PLUGIN%\" USE_CUSTOM_FRONTEND_TOOLBAR=\"%USE_CUSTOM_FRONTEND_TOOLBAR%\" IS_STANDALONE_FRONTEND=\"%IS_STANDALONE_FRONTEND%\"  USE_GLITCH_DETECTION = \"enabled\" ENABLE_PLOTTER=\"disabled\" ENABLE_SCRIPTING_SAFE_CHECKS=\"disabled\""
 "               ENABLE_ALL_PEAK_METERS=\"disabled\" USE_SPLASH_SCREEN=\"%USE_SPLASH_SCREEN%\" HI_SUPPORT_MONO_CHANNEL_LAYOUT=\"%SUPPORT_MONO%\" HI_SUPPORT_FULL_DYNAMICS_HLAC=\"%SUPPORT_FULL_DYNAMICS%\" ENABLE_CONSOLE_OUTPUT=\"disabled\" HI_ENABLE_LEGACY_CPU_SUPPORT=\"%LEGACY_CPU_SUPPORT%\" HLAC_MEASURE_DECODING_PERFORMANCE=\"disabled\" HLAC_DEBUG_LOG=\"disabled\" HLAC_INCLUDE_TEST_SUITE=\"disabled\" STANDALONE_STREAMING=\"disabled\""
 
-"				JUCE_ASSERTION_FIRFILTER=\"disabled\" JUCE_WEB_BROWSER=\"disabled\" JUCE_USE_CURL=\"disabled\" JUCE_DSP_USE_INTEL_MKL=\"disabled\" JUCE_DSP_USE_SHARED_FFTW=\"disabled\" JUCE_DSP_USE_STATIC_FFTW=\"disabled\"  HISE_USE_CUSTOM_EXPANSION_TYPE=\"%USE_CUSTOM_EXPANSION_TYPE%\" JUCE_HEADLESS_PLUGIN_CLIENT=\"%JUCE_HEADLESS_PLUGIN_CLIENT%\"/>/>\r\n"
+"				JUCE_ASSERTION_FIRFILTER=\"disabled\" JUCE_WEB_BROWSER=\"disabled\" JUCE_USE_CURL=\"disabled\" JUCE_DSP_USE_INTEL_MKL=\"disabled\" JUCE_DSP_USE_SHARED_FFTW=\"disabled\" JUCE_DSP_USE_STATIC_FFTW=\"disabled\"  HISE_USE_CUSTOM_EXPANSION_TYPE=\"%USE_CUSTOM_EXPANSION_TYPE%\" READ_ONLY_FACTORY_PRESETS=\"%READ_ONLY_FACTORY_PRESETS%\"  JUCE_HEADLESS_PLUGIN_CLIENT=\"%JUCE_HEADLESS_PLUGIN_CLIENT%\"/>/>\r\n"
 "</JUCERPROJECT>\r\n";
 
 const char* projectTemplate_jucer = (const char*)projectTemplate_jucer_lines;

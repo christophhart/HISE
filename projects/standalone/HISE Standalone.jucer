@@ -2,11 +2,13 @@
 
 <JUCERPROJECT id="jUHBuI" name="HISE Standalone" projectType="guiapp" version="2.1.0"
               bundleIdentifier="com.hartinstruments.HISEStandalone" includeBinaryInAppConfig="1"
-              jucerVersion="5.4.5" companyName="Hart Instruments" companyWebsite="http://hise.audio"
+              companyName="Hart Instruments" companyWebsite="http://hise.audio"
               companyCopyright="Hart Instruments" displaySplashScreen="0" reportAppUsage="0"
-              splashScreenColour="Dark" cppLanguageStandard="14">
+              splashScreenColour="Dark" cppLanguageStandard="17" jucerFormatVersion="1">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
+      <FILE id="Fw455d" name="ScriptNodeTestSuite.cpp" compile="1" resource="0"
+            file="../../hi_scripting/scripting/scriptnode/ScriptNodeTestSuite.cpp"/>
       <FILE id="ho3qQy" name="logo_new.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_new.png"/>
       <FILE id="YnIt9L" name="logo_mini.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_mini.png"/>
       <FILE id="yjZXfQ" name="DspUnitTests.cpp" compile="1" resource="0"
@@ -36,6 +38,8 @@
       <FILE id="h7HW4R" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="btXzOW" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
     </GROUP>
+    <FILE id="OLb0nc" name="knob_without_arrow.png" compile="0" resource="1"
+          file="../../hi_core/hi_images/knob_without_arrow.png"/>
   </MAINGROUP>
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -89,10 +93,12 @@
         <MODULEPATH id="hi_snex" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
-    <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
+    <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="UIInterfaceOrientationLandscapeLeft,UIInterfaceOrientationLandscapeRight"
+                  extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
                   extraLinkerFlags="" smallIcon="BNfj8p" bigIcon="BNfj8p" iosBackgroundAudio="1"
                   UIStatusBarHidden="1" extraDefs="USE_IPP=0&#10;HISE_IOS=1" customPList="&lt;key&gt;NSAppTransportSecurity&lt;/key&gt;&#10;&lt;dict&gt;&#10;    &lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&#10;    &lt;true/&gt;&#10;&lt;/dict&gt;"
-                  iPadScreenOrientation="landscape" iosDeviceFamily="1,2">
+                  iPadScreenOrientation="UIInterfaceOrientationLandscapeLeft,UIInterfaceOrientationLandscapeRight"
+                  iosDeviceFamily="1,2">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" iosCompatibility="8.0" isDebug="1" optimisation="1"
                        targetName="HISE Standalone" cppLanguageStandard="c++11" cppLibType="libc++"
@@ -135,7 +141,8 @@
     </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
             useIPP="Sequential" IPPLibrary="Sequential" windowsTargetPlatformVersion="10.0.16299.0"
-            extraDefs="USE_IPP=1&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1">
+            extraDefs="USE_IPP=1&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1"
+            extraCompilerFlags="/bigobj">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="1" optimisation="1" targetName="HISE x86 Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"

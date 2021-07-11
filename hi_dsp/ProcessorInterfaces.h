@@ -35,12 +35,371 @@
 
 namespace hise { using namespace juce;
 
+using namespace snex;
+
+class ProcessorWithExternalData : public ExternalDataHolder
+{
+public:
+
+	ProcessorWithExternalData(MainController* mc) :
+		mc_internal(mc)
+	{};
+
+	virtual ~ProcessorWithExternalData() {};
+
+	bool removeDataObject(ExternalData::DataType t, int index) override
+	{
+		return true;
+	}
+
+	FilterDataObject* getFilterData(int index) override
+	{
+		jassertfalse; // soon...
+		return nullptr;
+	}
+
+protected:
+
+	ComplexDataUIBase* createAndInit(ExternalData::DataType t, bool useSampleLookup)
+	{
+		ComplexDataUIBase* d;
+
+		if (useSampleLookup)
+			d = ExternalData::create(t);
+		else
+			d = ExternalData::create<hise::MidiTable>(t);
+
+		if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(d))
+			af->setProvider(new hise::PooledAudioFileDataProvider(mc_internal));
+
+		d->setGlobalUIUpdater(getUpdater());
+		d->setUndoManager(getUndoManager());
+
+		return d;
+	}
+
+private:
+
+	PooledUIUpdater* getUpdater()
+	{
+		return mc_internal->getGlobalUIUpdater();
+	}
+
+	UndoManager* getUndoManager()
+	{
+		return mc_internal->getControlUndoManager();
+	}
+
+	MainController* mc_internal = nullptr;
+};
+
+/** A baseclass interface for processors with a single data type. */
+class ProcessorWithSingleStaticExternalData : public ProcessorWithExternalData
+{
+public:
+
+	ProcessorWithSingleStaticExternalData(MainController* mc, ExternalData::DataType t, int numObjects=1, bool useSampleLookupTable=true):
+		ProcessorWithExternalData(mc),
+		dataType(t)
+	{
+		for (int i = 0; i < numObjects; i++)
+		{
+			ownedObjects.add(createAndInit(t, useSampleLookupTable));
+		}
+	}
+
+	virtual ~ProcessorWithSingleStaticExternalData() {};
+
+	Table* getTable(int index) final override
+	{ 
+		return static_cast<Table*>(getWithoutCreating(ExternalData::DataType::Table, index));
+	}
+	
+	SliderPackData* getSliderPack(int index) final  override
+	{
+		return static_cast<SliderPackData*>(getWithoutCreating(ExternalData::DataType::SliderPack, index));
+	}
+
+	MultiChannelAudioBuffer* getAudioFile(int index) final override
+	{
+		return static_cast<MultiChannelAudioBuffer*>(getWithoutCreating(ExternalData::DataType::AudioFile, index));
+	}
+
+	SimpleRingBuffer* getDisplayBuffer(int index) final override
+	{
+		return static_cast<SimpleRingBuffer*>(getWithoutCreating(ExternalData::DataType::DisplayBuffer, index));
+	}
+
+	int getNumDataObjects(ExternalData::DataType t) const  final override
+	{
+		return t == dataType ? ownedObjects.size() : 0;
+	}
+	
+private:
+
+	friend class LookupTableProcessor;
+	friend class SliderPackProcessor;
+	friend class AudioSampleProcessor;
+
+	ComplexDataUIBase* getWithoutCreating(ExternalData::DataType requiredType, int index) const
+	{
+		if (dataType == requiredType && isPositiveAndBelow(index, ownedObjects.size()))
+		{
+			return ownedObjects[index];
+		}
+
+		return nullptr;
+	}
+
+	const ExternalData::DataType dataType;
+	ReferenceCountedArray<ComplexDataUIBase> ownedObjects;
+};
+
+/** A baseclass interface for a constant amount of multiple data types. */
+class ProcessorWithStaticExternalData : public ProcessorWithExternalData
+{
+public:
+
+	ProcessorWithStaticExternalData(MainController* mc, int numTables, int numSliderPacks, int numAudioFiles, int numDisplayBuffers, bool useSampleLookup):
+		ProcessorWithExternalData(mc)
+	{
+		for (int i = 0; i < numTables; i++)
+			tables.add(static_cast<Table*>(createAndInit(ExternalData::DataType::Table, useSampleLookup)));
+
+		for (int i = 0; i < numSliderPacks; i++)
+			sliderPacks.add(static_cast<SliderPackData*>(createAndInit(ExternalData::DataType::SliderPack, true)));
+
+		for (int i = 0; i < numAudioFiles; i++)
+			audioFiles.add(static_cast<MultiChannelAudioBuffer*>(createAndInit(ExternalData::DataType::AudioFile, true)));
+
+		for (int i = 0; i < numDisplayBuffers; i++)
+			displayBuffers.add(static_cast<SimpleRingBuffer*>(createAndInit(ExternalData::DataType::DisplayBuffer, true)));
+	}
+
+	int getNumDataObjects(ExternalData::DataType t) const final override
+	{
+		switch (t)
+		{
+		case ExternalData::DataType::Table: return tables.size();
+		case ExternalData::DataType::SliderPack: return sliderPacks.size();
+		case ExternalData::DataType::AudioFile: return audioFiles.size();
+		case ExternalData::DataType::DisplayBuffer: return displayBuffers.size();
+		}
+
+		return 0;
+	}
+
+	Table* getTable(int index) final override
+	{
+		if(isPositiveAndBelow(index, tables.size()))
+			return tables[index];
+
+		return nullptr;
+	}
+
+	SliderPackData* getSliderPack(int index) final override
+	{
+		if (isPositiveAndBelow(index, sliderPacks.size()))
+			return sliderPacks[index];
+
+		return nullptr;
+	}
+
+	MultiChannelAudioBuffer* getAudioFile(int index) final override
+	{
+		if (isPositiveAndBelow(index, audioFiles.size()))
+			return audioFiles[index];
+
+		return nullptr;
+	}
+
+	SimpleRingBuffer* getDisplayBuffer(int index) final override
+	{
+		if (isPositiveAndBelow(index, displayBuffers.size()))
+			return displayBuffers[index];
+
+		return nullptr;
+	}
+
+	Table* getTableUnchecked(int index = 0)
+	{
+		return *(tables.getRawDataPointer() + index);
+	}
+
+	const Table* getTableUnchecked(int index = 0) const
+	{
+		return *(tables.getRawDataPointer() + index);
+	}
+
+	SliderPackData* getSliderPackDataUnchecked(int index = 0)
+	{
+		return *(sliderPacks.getRawDataPointer() + index);
+	}
+
+	const SliderPackData* getSliderPackDataUnchecked(int index = 0) const
+	{
+		return *(sliderPacks.getRawDataPointer() + index);
+	}
+
+	MultiChannelAudioBuffer* getAudioFileUnchecked(int index = 0)
+	{
+		return *(audioFiles.getRawDataPointer() + index);
+	}
+
+	const MultiChannelAudioBuffer* getAudioFileUnchecked(int index = 0) const
+	{
+		return *(audioFiles.getRawDataPointer() + index);
+	}
+
+	SimpleRingBuffer* getDisplayBufferUnchecked(int index = 0)
+	{
+		return *(displayBuffers.getRawDataPointer() + index);
+	}
+
+	const SimpleRingBuffer* getDisplayBufferUnchecked(int index = 0) const
+	{
+		return *(displayBuffers.getRawDataPointer() + index);
+	}
+
+private:
+
+	ReferenceCountedArray<SliderPackData> sliderPacks;
+	ReferenceCountedArray<Table> tables;
+	ReferenceCountedArray<MultiChannelAudioBuffer> audioFiles;
+	ReferenceCountedArray<SimpleRingBuffer> displayBuffers;
+};
+
+/** A baseclass for processors with multiple data types that can be resized
+*/
+class ProcessorWithDynamicExternalData : public ProcessorWithExternalData
+{
+public:
+
+	ProcessorWithDynamicExternalData(MainController* mc, bool useSampleLookup_ = true) :
+		ProcessorWithExternalData(mc),
+		useSampleLookup(useSampleLookup_)
+	{
+	};
+
+	virtual ~ProcessorWithDynamicExternalData() {};
+
+	SliderPackData* getSliderPack(int index)  final override
+	{
+		if (auto d = sliderPacks[index])
+			return d;
+
+		auto s = createAndInit(snex::ExternalData::DataType::SliderPack, useSampleLookup);
+
+		sliderPacks.set(index, static_cast<SliderPackData*>(s));
+		return sliderPacks[index];
+	}
+
+	Table* getTable(int index) final override
+	{
+		if (auto d = tables[index])
+			return d;
+
+		auto s = createAndInit(snex::ExternalData::DataType::Table, useSampleLookup);
+
+		tables.set(index, static_cast<Table*>(s));
+		return tables[index];
+	}
+
+	MultiChannelAudioBuffer* getAudioFile(int index) final  override
+	{
+		if (auto d = audioFiles[index])
+			return d;
+
+		auto s = createAndInit(snex::ExternalData::DataType::AudioFile, useSampleLookup);
+
+		audioFiles.set(index, static_cast<MultiChannelAudioBuffer*>(s));
+		return audioFiles[index];
+	}
+
+	SimpleRingBuffer* getDisplayBuffer(int index) final override
+	{
+		if (auto d = ringBuffers[index])
+			return d;
+
+		auto s = createAndInit(snex::ExternalData::DataType::DisplayBuffer, true);
+
+		ringBuffers.set(index, static_cast<SimpleRingBuffer*>(s));
+		return ringBuffers[index];
+	}
+
+	int getNumDataObjects(ExternalData::DataType t) const
+	{
+		switch (t)
+		{
+		case ExternalData::DataType::SliderPack: return sliderPacks.size();
+		case ExternalData::DataType::Table: return tables.size();
+		case ExternalData::DataType::AudioFile: return audioFiles.size();
+		case ExternalData::DataType::DisplayBuffer: return ringBuffers.size();
+		}
+
+		return 0;
+	}
+
+	void saveComplexDataTypeAmounts(ValueTree& v) const
+	{
+		using namespace scriptnode;
+
+		ExternalData::forEachType([&v, this](ExternalData::DataType t)
+		{
+			auto numObjects = getNumDataObjects(t);
+
+			if (numObjects > 0)
+				v.setProperty(ExternalData::getNumIdentifier(t), numObjects, nullptr);
+		});
+	}
+
+	void restoreComplexDataTypes(const ValueTree& v)
+	{
+		using namespace scriptnode;
+
+		ExternalData::forEachType([this, &v](ExternalData::DataType t)
+		{
+			auto numObjects = (int)v.getProperty(ExternalData::getNumIdentifier(t), 0);
+
+			for (int i = 0; i < numObjects; i++)
+				getComplexBaseType(t, i);
+		});
+	}
+
+	void registerExternalObject(ExternalData::DataType t, int index, ComplexDataUIBase* obj)
+	{
+		switch (t)
+		{
+		case ExternalData::DataType::Table:
+			tables.set(index, dynamic_cast<Table*>(obj)); break;
+		case ExternalData::DataType::SliderPack:
+			sliderPacks.set(index, dynamic_cast<SliderPackData*>(obj)); break;
+		case ExternalData::DataType::AudioFile:
+			audioFiles.set(index, dynamic_cast<MultiChannelAudioBuffer*>(obj)); break;
+		case ExternalData::DataType::DisplayBuffer:
+			ringBuffers.set(index, dynamic_cast<SimpleRingBuffer*>(obj)); break;
+		}
+	}
+
+
+private:
+
+	const bool useSampleLookup;
+
+	ReferenceCountedArray<SliderPackData> sliderPacks;
+	ReferenceCountedArray<Table> tables;
+	ReferenceCountedArray<MultiChannelAudioBuffer> audioFiles;
+	ReferenceCountedArray<SimpleRingBuffer> ringBuffers;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessorWithDynamicExternalData);
+};
+
 /** A Processor that uses a Table.
 *	@ingroup processor_interfaces
 *
 *	If your Processor uses a Table object for anything, you can subclass it from this interface class and use its Table. 
 *	*/
-class LookupTableProcessor
+class LookupTableProcessor: public ProcessorWithSingleStaticExternalData
 {
 public:
 
@@ -90,53 +449,12 @@ public:
 
 	// ================================================================================================================
 
-	struct TableChangeBroadcaster : public SafeChangeBroadcaster
-	{
-        TableChangeBroadcaster()
-        {
-            
-        }
-        
-		SpinLock lock;
-
-		WeakReference<Table> table;
-		float tableIndex;
-	};
-
-	LookupTableProcessor();
+	LookupTableProcessor(MainController* mc, int numTables, bool useSampleLookUp);
 	virtual ~LookupTableProcessor();
 
 	//SET_PROCESSOR_CONNECTOR_TYPE_ID("LookupTableProcessor");
 
 	// ================================================================================================================
-
-	/** Overwrite this method and return the table for the supplied index.
-	*
-	*	If you only have one table, ignore this parameter.*/
-	virtual Table *getTable(int tableIndex) const = 0;
-
-	/** Overwrite this and return the number of tables that this processor uses.
-	*
-	*	It assumes one table so if you do have one table, you don't need to do anything...
-	*/
-	virtual int getNumTables() const { return 1; }
-
-	/** Adds a listener to this processor. */
-	void addTableChangeListener(SafeChangeListener *listener);;
-
-	/** Removes a listener from this processor. */
-	void removeTableChangeListener(SafeChangeListener *listener);;
-
-	/** Call this method whenever the table index is changed and all connected tables will receive a change message.
-	*
-	*	You can dynamic_cast the broadcaster to a LookupTableProcessor::TableChangeBroadcaster and use this code:
-	*
-	*		if(dynamic_cast<LookupTableProcessor::TableChangeBroadcaster*>(b) != nullptr)
-	*		{
-	*			dynamic_cast<LookupTableProcessor::TableChangeBroadcaster*>(b)->table->setDisplayedIndex(tableValue);
-	*		}
-	*/
-	void sendTableIndexChangeMessage(bool sendSynchronous, Table *table, float tableIndex);
 
 	void addYValueConverter(const Table::ValueTextConverter& converter, Processor* p)
 	{
@@ -171,6 +489,18 @@ public:
 		updateYConverters();
 	}
 
+	Table* getTableUnchecked(int index = 0)
+	{
+		return static_cast<Table*>(ownedObjects.getUnchecked(index).get());
+	}
+
+	const Table* getTableUnchecked(int index = 0) const
+	{
+		return static_cast<const Table*>(ownedObjects.getUnchecked(index).get());
+	}
+
+	MidiTable* getMidiTable() { return static_cast<MidiTable*>(getTableUnchecked(0)); };
+
 protected:
 
 	Table::ValueTextConverter defaultYConverter = Table::getDefaultTextValue;
@@ -181,15 +511,12 @@ private:
 	{
 		const auto cToUse = yConverters.size() == 1 ? yConverters.getFirst()->converter : defaultYConverter;
 
-		for (int i = 0; i < getNumTables(); i++)
+		for (int i = 0; i < getNumDataObjects(snex::ExternalData::DataType::Table); i++)
 			getTable(i)->setYTextConverterRaw(cToUse);
 	}
 
 	OwnedArray<ProcessorValueConverter> yConverters;
 	
-
-	TableChangeBroadcaster tableChangeBroadcaster;
-
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LookupTableProcessor);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(LookupTableProcessor);
 
@@ -203,24 +530,26 @@ class SliderPackData;
 *
 *	It is a pure virtual class interface without member data to prevent the Diamond of Death.
 */
-class SliderPackProcessor
+class SliderPackProcessor: public ProcessorWithSingleStaticExternalData
 {
 public:
 
 	// ================================================================================================================
 
-	SliderPackProcessor() {};
-	virtual ~SliderPackProcessor() {};
+	SliderPackProcessor(MainController* mc, int numSliderPacks):
+		ProcessorWithSingleStaticExternalData(mc, ExternalData::DataType::SliderPack, numSliderPacks)
+	{};
 
-	//SET_PROCESSOR_CONNECTOR_TYPE_ID("SliderPackProcessor");
+	SliderPackData* getSliderPackUnchecked(int index = 0)
+	{
+		return static_cast<SliderPackData*>(ownedObjects.getUnchecked(index).get());
+		
+	}
 
-	/** Overwrite this and return the const SliderPackData member from your subclassed Processor. */
-	virtual SliderPackData *getSliderPackData(int index) = 0;
-
-	/** Overwrite this and return the SliderPackData member from your subclassed Processor. */
-	virtual const SliderPackData *getSliderPackData(int index) const = 0;
-
-	virtual int getNumSliderPacks() const { return 1; }
+	const SliderPackData* getSliderPackUnchecked(int index = 0) const
+	{
+		return static_cast<const SliderPackData*>(ownedObjects.getUnchecked(index).get());
+	}
 
 private:
 
@@ -230,17 +559,148 @@ private:
 	// ================================================================================================================
 };
 
+using namespace snex;
+
+#if 0
+/** This is the base class for all processors that use complex data. 
+	
+	If your processor just holds a single data type, subclass it from the specialised
+	subclasses LookupTableProcessor, SliderPackProcessor or AudioSampleProcessor.
+	
+	You will have to call setNumDataObjects() in your subclass constructor and then
+	fetch the data objects using the calls getTable(), etc...
+
+	STEPS TODO:  1. replace AudioSampleProcessor with this
+				 2. replace SliderPackProcessor with this
+				 3. replace TableProcessor with this
+*/
+struct ProcessorAsComplexDataHolder : public snex::ExternalDataHolder
+{
+	virtual ~ProcessorAsComplexDataHolder() {};
+
+	int getNumDataObjects(ExternalData::DataType t) const override
+	{
+		switch (t)
+		{
+		case ExternalData::DataType::AudioFile: return audioFiles.size();
+		case ExternalData::DataType::Table: return tables.size();
+		case ExternalData::DataType::SliderPack: return sliderPacks.size();
+		}
+	}
+
+	Table* getTable(int index) override
+	{
+		jassert(isPositiveAndBelow(index, tables.size()));
+
+		return tables[index];
+	}
+
+	SliderPackData* getSliderPack(int index) override
+	{
+		jassert(isPositiveAndBelow(index, sliderPacks.size()));
+		return sliderPacks[index];
+	}
+
+	MultiChannelAudioBuffer* getAudioFile(int index) override
+	{ 
+		jassert(isPositiveAndBelow(index, audioFiles.size()));
+		return audioFiles[index];
+	}
+
+	/** Override this method and remove the object in question. Return true if successful. */
+	bool removeDataObject(ExternalData::DataType t, int index) override
+	{
+		// not sure if we ever need it...
+		return false;
+	}
+
+	void setNumDataObjects(ExternalData::DataType dt, int numObjects, Processor* p)
+	{
+		switch (dt)
+		{
+		case ExternalData::DataType::Table:
+			ensureSize<Table>(tables, numObjects, p, useSampleLookUpTable ? createSampleLookUpTable : createMidiTable);
+			break;
+		case ExternalData::DataType::SliderPack:
+			ensureSize<SliderPackData>(sliderPacks, numObjects, p, createSliderPackData);
+			break;
+		case ExternalData::DataType::AudioFile:
+			ensureSize<MultiChannelAudioBuffer>(audioFiles, numObjects, p, createAudioFile);
+			break;
+		default:
+			break;
+		}
+	}
+
+	void setUseMidiTables()
+	{
+		useSampleLookUpTable = false;
+	}
+
+private:
+
+	bool useSampleLookUpTable = true;
+
+	static SliderPackData* createSliderPackData(Processor* p)
+	{
+		auto t = new SliderPackData();
+		t->setGlobalUIUpdater(p->getMainController()->getGlobalUIUpdater());
+		t->setUndoManager(p->getMainController()->getControlUndoManager());
+		return t;
+	}
+
+	static MultiChannelAudioBuffer* createAudioFile(Processor* p)
+	{
+		auto t = new MultiChannelAudioBuffer();
+		t->setGlobalUIUpdater(p->getMainController()->getGlobalUIUpdater());
+		t->setUndoManager(p->getMainController()->getControlUndoManager());
+		t->setProvider(new PooledAudioFileDataProvider(p->getMainController()));
+
+		return t;
+	}
+
+	static Table* createSampleLookUpTable(Processor* p)
+	{
+		auto t = new SampleLookupTable();
+		t->setGlobalUIUpdater(p->getMainController()->getGlobalUIUpdater());
+		t->setUndoManager(p->getMainController()->getControlUndoManager());
+		return t;
+	}
+
+	static Table* createMidiTable(Processor* p)
+	{
+		auto t = new MidiTable();
+		t->setGlobalUIUpdater(p->getMainController()->getGlobalUIUpdater());
+		t->setUndoManager(p->getMainController()->getControlUndoManager());
+		return t;
+	}
+
+	template <typename SubType> static void ensureSize(ReferenceCountedArray<SubType>& list, int numRequired, Processor* p, const std::function<SubType*(Processor*)>& f)
+	{
+		if (list.size() != numRequired)
+		{
+			int numToAdd = numRequired - list.size();
+			int numToDelete = -1 * numToAdd;
+
+			for (int i = 0; i < numToAdd; i++)
+				list.add(f(p));
+
+			for (int i = 0; i < numToDelete; i++)
+				list.removeLast();
+		}
+	}
+
+	ReferenceCountedArray<Table> tables;
+	ReferenceCountedArray<SliderPackData> sliderPacks;
+	ReferenceCountedArray<MultiChannelAudioBuffer> audioFiles;
+};
+#endif
 
 
-/** A Processor that uses an audio sample.
+/** A Processor that uses a single audio sample.
 *	@ingroup processor_interfaces
 *
-*	If you want to use a audio sample from the pool, subclass your Processor from this and you will get some nice tools:
-*
-*	- automatic memory management (samples are reference counted and released on destruction)
-*	- import / export sample properties in the RestorableObject methods
-*	- handle the thumbnail cache
-*	- designed to work with an AudioSampleBufferComponent
+*	Be 
 *
 *	In order to use this class with a AudioSampleBufferComponent, just follow these steps:
 *
@@ -248,8 +708,16 @@ private:
 *	2. Set the reference to the AudioSampleBuffer with AudioSampleBufferComponent::setAudioSampleBuffer();
 *	3. Add the AudioSampleBuffer as ChangeListener (and remove it in the destructor!)
 *	4. Add an AreaListener to the AudioSampleBufferComponent and call setRange() and setLoadedFile in the rangeChanged() callback
+
+	Additional functions:
+
+	- load / save to valuetree
+	- reload when pool reference has changed
+	- loop stuff
+
 */
-class AudioSampleProcessor: public PoolBase::Listener
+class AudioSampleProcessor: public PoolBase::Listener,
+							public ProcessorWithSingleStaticExternalData
 {
 public:
 
@@ -263,6 +731,12 @@ public:
 		OneBar,
 		TwoBars,
 		FourBars
+	};
+
+	AudioSampleProcessor(MainController* mc) :
+		ProcessorWithSingleStaticExternalData(mc, ExternalData::DataType::AudioFile, 1)
+	{
+		currentPool = &mc->getActiveFileHandler()->pool->getAudioSampleBufferPool();
 	};
 
 	/** Automatically releases the sample in the pool. */
@@ -283,133 +757,45 @@ public:
 	*
 	*	This is called automatically if a AudioSampleBufferComponent is set up correctly.
 	*/
-	void setRange(Range<int> newSampleRange);
 
-	/** Returns the range of the sample. */
-	Range<int> getRange() const
-	{ 
-		return sampleRange; 
-	};
 
 	void poolEntryReloaded(PoolReference referenceThatWasChanged) override;
-
-	int getTotalLength() const { return data ? data.getData()->getNumSamples() : 0; };
-
-	/** Returns a const pointer to the audio sample buffer.
-	*
-	*	The pointer references a object from a AudioSamplePool and should be valid as long as the pool is not cleared. */
-	const AudioSampleBuffer *getBuffer() 
-	{
-		if(data)
-			return data.getData(); 
-
-		return &fallback;
-	};
-
-	const AudioSampleBuffer *getSampleBuffer() const 
-	{ 
-		if (data)
-			return data.getData();
-
-		return &fallback;
-	};
-
-	void setLoopFromMetadata(const var& md);
-
-	void setUseLoop(bool shouldUseLoop)
-	{
-		if (useLoop != shouldUseLoop)
-		{
-			useLoop = shouldUseLoop;
-
-			if (useLoop && loopRange.isEmpty())
-				loopRange = sampleRange;
-		}
-	}
-
-	bool isUsingLoop() const noexcept
-	{
-		return useLoop;
-	}
 
 	/** Returns the filename that was loaded.
 	*
 	*	It is possible that the file does not exist on your system:
 	*	If you restore a pool completely from a ValueTree, it still uses the absolute filename as identification.
 	*/
-	String getFileName() const { return data.getRef().getReferenceString(); };
+	String getFileName() const { return getBuffer().toBase64String(); };
 
-	/** Overwrite this method and do whatever needs to be done when the selected range changes. */
-	virtual void rangeUpdated() {};
+	double getSampleRateForLoadedFile() const { return getBuffer().sampleRate; }
 
-	/** Overwrite this method and do whatever needs to be done when a new file is loaded.
-	*
-	*	You don't need to call setLoadedFile(), but if you got some internal stuff going on, this is the place.
-	*/
-	virtual void newFileLoaded() {};
+	AudioSampleBuffer& getAudioSampleBuffer() { return getBuffer().getBuffer(); }
+	const AudioSampleBuffer& getAudioSampleBuffer() const { return getBuffer().getBuffer(); }
 
-	double getSampleRateForLoadedFile() const { return sampleRateOfLoadedFile; }
+	MultiChannelAudioBuffer& getBuffer() { return *getAudioFileUnchecked(0); }
+	const MultiChannelAudioBuffer& getBuffer() const { return *getAudioFileUnchecked(0); }
 
-	virtual const CriticalSection& getFileLock() const = 0;
-
-	Range<int> getActualRange() const
+	MultiChannelAudioBuffer* getAudioFileUnchecked(int index = 0)
 	{
-		if (isUsingLoop())
-		{
-			int x1 = sampleRange.getStart();
-			int x2 = jmin<int>(sampleRange.getEnd(), loopRange.getEnd());
-
-			return { x1, x2 };
-		}
-		else
-		{
-			return sampleRange;
-		}
+		return static_cast<MultiChannelAudioBuffer*>(ownedObjects.getUnchecked(index).get());
 	}
 
-	Range<int> getLoopRange()
+	const MultiChannelAudioBuffer* getAudioFileUnchecked(int index = 0) const
 	{
-		return loopRange;
+		return static_cast<const MultiChannelAudioBuffer*>(ownedObjects.getUnchecked(index).get());
 	}
 
-	
-
-	
 protected:
-
-	/** Call this constructor within your subclass constructor. */
-	AudioSampleProcessor(Processor *p);
-
-	PooledAudioFile data;
-
-	Range<int> sampleRange;
-	int length;
-
-	Range<int> loopRange;
-
-	
-
-	double sampleRateOfLoadedFile;
-
-	bool useLoop = false;
 
 	WeakReference<AudioSampleBufferPool> currentPool;
 
 private:
 
-	
-
-	AudioSampleBuffer fallback;
-
 	int getConstrainedLoopValue(String metadata);
 	
-
 	// ================================================================================================================
-
 	
-	MainController *mc;
-
-	// ================================================================================================================
 };
 
 

@@ -484,6 +484,20 @@ protected:
 };
 
 
+struct ScriptnodeComboBoxLookAndFeel : public PopupLookAndFeel
+{
+	void drawComboBox(Graphics&, int width, int height, bool isButtonDown,
+		int buttonX, int buttonY, int buttonW, int buttonH,
+		ComboBox&) override;
+
+	Font getComboBoxFont(ComboBox&) override { return GLOBAL_BOLD_FONT(); }
+
+	Label* createComboBoxTextBox(ComboBox&) override;
+
+	static void drawScriptnodeDarkBackground(Graphics& g, Rectangle<float> area, bool roundedCorners);
+};
+
+
 class TableHeaderLookAndFeel: public PopupLookAndFeel
 {
 public:
@@ -921,6 +935,8 @@ class BiPolarSliderLookAndFeel: public LookAndFeel_V3
 	{
 		return GLOBAL_FONT();
 	}
+
+	JUCE_LEAK_DETECTOR(BiPolarSliderLookAndFeel);
 };
 
 
@@ -1271,34 +1287,11 @@ public:
 		return label;
 	}
 
-	static void fillPathHiStyle(Graphics &g, const Path &p, int width, int height, bool drawBorders = true)
-	{
-
-
-		if (drawBorders)
-		{
-			g.setColour(Colours::lightgrey.withAlpha(0.8f));
-			g.strokePath(p, PathStrokeType(1.0f));
-
-			g.setColour(Colours::lightgrey.withAlpha(0.1f));
-			g.drawRect(0, 0, width, height, 1);
-		}
-
-		g.setGradientFill(ColourGradient(Colour(0x88ffffff),
-			0.0f, 0.0f,
-			Colour(0x11ffffff),
-			0.0f, (float)height,
-			false));
-
-		g.fillPath(p);
-
-		DropShadow d(Colours::white.withAlpha(drawBorders ? 0.2f : 0.1f), 5, Point<int>());
-
-		d.drawForPath(g, p);
-
-	};
+	static void fillPathHiStyle(Graphics &g, const Path &p, int , int , bool drawBorders = true);;
 
 	int getSliderThumbRadius(Slider& ) override { return 0; }
+
+	void drawVectorRotaryKnob(Graphics& g, Rectangle<float> area, double value, bool bipolar, bool hover, bool down, bool enabled, float modValue);
 
 	void drawLinearSlider (Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPos*/, float minSliderPos, float maxSliderPos, const Slider::SliderStyle style, Slider &s) override
 	{
@@ -1314,7 +1307,6 @@ public:
 			Rectangle<float> area(leftBoxPos, 0.0f, rightBoxPos - leftBoxPos, (float)height);
 
 			area.reduce(-1.0f, -1.0f);
-
 			
 			g.setColour(s.findColour(Slider::ColourIds::thumbColourId));
 			g.fillRect(area);
@@ -1386,7 +1378,14 @@ public:
 	static const char* slider2_bipolar_png;
     static const int slider2_bipolar_pngSize;
     
-    
+	static void setDefaultColours(Component& c)
+	{
+		c.setColour(HiseColourScheme::ComponentBackgroundColour, Colours::transparentBlack);
+		c.setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+		c.setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+		c.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+		c.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+	}
 
 private:
     
@@ -1402,6 +1401,8 @@ private:
 	Image ring_yellow;
 	Image ring_blue;
 	Image ring_modulated;
+
+	Path ring, ring2;
 
 };
 
@@ -1598,19 +1599,46 @@ public:
 	BlackTextButtonLookAndFeel();
 
 	void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
-		bool /*isMouseOverButton*/, bool isButtonDown)
+		bool isMouseOverButton, bool isButtonDown)
 	{
-		g.setGradientFill(ColourGradient(Colours::white.withAlpha(isButtonDown ? 0.4f : 0.2f), 0.0f, 0.0f,
-			Colours::white.withAlpha(0.1f), 0.0f, (float)button.getHeight(), false));
+		
 
-		g.fillRoundedRectangle(0.0f, 0.0f, (float)button.getWidth(), (float)button.getHeight(), 4.0f);
+		auto area = button.getLocalBounds().toFloat();
+
+		if (button.getToggleState())
+		{
+			g.setColour(textColour);
+			g.drawRoundedRectangle(area.reduced(1.0f), 4.0f, 1.0f);
+		}
+
+		float alpha = 0.2f;
+
+		if (isButtonDown)
+			alpha += 0.1f;
+
+		if (isMouseOverButton)
+			alpha += 0.1f;
+
+		if (!button.isEnabled())
+			alpha = 0.1f;
+		
+
+		g.setGradientFill(ColourGradient(Colours::white.withAlpha(alpha + 0.1f), 0.0f, 0.0f,
+			Colours::white.withAlpha(alpha), 0.0f, (float)button.getHeight(), false));
+
+		g.fillRoundedRectangle(area, 4.0f);
 	}
 
 	void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool);
 
 	void drawButtonText(Graphics& g, TextButton& b, bool , bool ) override
 	{
-		g.setColour(Colours::white);
+		float alpha = 1.0f;
+
+		if (!b.isEnabled())
+			alpha = 0.5f;
+
+		g.setColour(textColour.withMultipliedAlpha(alpha));
 		g.setFont(f);
 		g.drawText(b.getButtonText(), b.getLocalBounds().toFloat(), Justification::centred);
 	}

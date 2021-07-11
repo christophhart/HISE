@@ -447,56 +447,18 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	{
 		Identifier id = Identifier::isValidIdentifier(currentValue.toString()) ? Identifier(currentValue.toString()) : Identifier::null;
 
-
-		
-
 		bool skipConsoleCalls = false;
 
 #if !ENABLE_SCRIPTING_SAFE_CHECKS
 		static const Identifier c("Console");
-		
+
 		if (id == c)
 		{
 			skipConsoleCalls = true;
 		}
 #endif
 
-		ExpPtr lhs;
-
-#if INCLUDE_NATIVE_JIT
-		if (auto s = hiseSpecialData->getNativeJITScope(id))
-		{
-			lhs = parseNativeJITExpression(s);
-		}
-		else if (auto c = hiseSpecialData->getNativeCompiler(id))
-		{
-			parseIdentifier();
-			match(TokenTypes::dot);
-			parseIdentifier();
-			match(TokenTypes::openParen);
-			match(TokenTypes::closeParen);
-
-			ScopedPointer<NativeJITScope> s = c->compileAndReturnScope();
-
-			if (s == nullptr)
-			{
-				location.throwError("NativeJIT compile error: " + c->getErrorMessage());
-			}
-
-			hiseSpecialData->jitScopes.add(s.get());
-
-			return new RootObject::NativeJIT::ScopeReference(location, s.release());
-
-		}
-		else
-		{
-			lhs = parseLogicOperator();
-		}
-#else
-        lhs = parseLogicOperator();
-#endif
-		
-
+		ExpPtr lhs = parseLogicOperator();
 
 		if (matchIf(TokenTypes::in))
 		{
@@ -592,7 +554,9 @@ private:
 		if (matchIf(TokenTypes::break_))           return new BreakStatement(location);
 		if (matchIf(TokenTypes::continue_))        return new ContinueStatement(location);
 		if (matchIf(TokenTypes::function))         return parseFunction();
-		if (matchIf(TokenTypes::loadJit_))		   return parseJITModule();
+#if HISE_INCLUDE_SNEX
+		if (matchIf(TokenTypes::snex_))			   return parseSnexStatement();
+#endif
 		if (matchIf(TokenTypes::semicolon))        return new Statement(location);
 		if (matchIf(TokenTypes::plusplus))         return parsePreIncDec<AdditionOp>();
 		if (matchIf(TokenTypes::minusminus))       return parsePreIncDec<SubtractionOp>();
@@ -612,7 +576,7 @@ private:
 		return nullptr;
 	}
 
-	String getFileContent(const String &fileNameInScript, String &refFileName)
+	String getFileContent(const String &fileNameInScript, String &refFileName, bool allowMultipleIncludes = false)
 	{
 		String cleanedFileName = fileNameInScript.removeCharacters("\"\'");
 
@@ -645,46 +609,54 @@ private:
 		if (!f.existsAsFile())
 			throwError("File " + refFileName + " not found");
 
-		for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
+		if (!allowMultipleIncludes)
 		{
-			if (hiseSpecialData->includedFiles[i]->f == f)
+			for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
 			{
-				debugToConsole(dynamic_cast<Processor*>(hiseSpecialData->processor), "File " + shortFileName + " was included multiple times");
-				return String();
+				if (hiseSpecialData->includedFiles[i]->f == f)
+				{
+					debugToConsole(dynamic_cast<Processor*>(hiseSpecialData->processor), "File " + shortFileName + " was included multiple times");
+					return String();
+				}
 			}
-				
 		}
 
 		return f.loadFileAsString();
 
 #else
-		
+
 		refFileName = cleanedFileName;
 
 		if (File::isAbsolutePath(refFileName))
 		{
 			File f(refFileName);
 
-			for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
+			if (!allowMultipleIncludes)
 			{
-				if (hiseSpecialData->includedFiles[i]->f == f)
+				for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
 				{
-					DBG("File " + refFileName + " was included multiple times");
-					return String();
-				}
+					if (hiseSpecialData->includedFiles[i]->f == f)
+					{
+						DBG("File " + refFileName + " was included multiple times");
+						return String();
+					}
 
+				}
 			}
 
 			return f.loadFileAsString();
 		}
 		else
 		{
-			for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
+			if (!allowMultipleIncludes)
 			{
-				if (hiseSpecialData->includedFiles[i]->scriptName == refFileName)
+				for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
 				{
-					DBG("Script " + refFileName + " was included multiple times");
-					return String();
+					if (hiseSpecialData->includedFiles[i]->scriptName == refFileName)
+					{
+						DBG("Script " + refFileName + " was included multiple times");
+						return String();
+					}
 				}
 			}
 
@@ -693,7 +665,10 @@ private:
 #endif
 	};
 
-	Statement* parseExternalFile()
+	
+
+	/** Call this to include and register the file, then use getFileContent with the reference String to obtain the actual content. */
+	String addExternalFile()
 	{
 		if (getCurrentNamespace() != hiseSpecialData)
 		{
@@ -701,11 +676,33 @@ private:
 		}
 
 		match(TokenTypes::openParen);
-		
+
 		String refFileName;
 		String fileContent = getFileContent(currentValue.toString(), refFileName);
-        
+
 		if (fileContent.isEmpty())
+			return {};
+
+#if USE_BACKEND
+		File f(refFileName);
+		hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::RelativeFile, f, String()));
+#else
+
+		if (File::isAbsolutePath(refFileName))
+			hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(refFileName), String()));
+		else
+			hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(), refFileName));
+
+#endif
+
+		return refFileName;
+	}
+
+	Statement* parseExternalFile()
+	{
+		auto refFileName = addExternalFile();
+
+		if (refFileName.isEmpty())
 		{
 			match(TokenTypes::literal);
 			match(TokenTypes::closeParen);
@@ -715,23 +712,10 @@ private:
 		}
 		else
 		{
-#if USE_BACKEND
-            
-            File f(refFileName);
-            
-            
-            hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::RelativeFile, f, String()));
-#else
-
-			if (File::isAbsolutePath(refFileName)) 
-                hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(refFileName), String()));
-			else
-                hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(), refFileName));
-
-#endif
-
 			try
 			{
+				String fileContent = getFileContent(currentValue.toString(), refFileName, true);
+
 				ExpressionTreeBuilder ftb(fileContent, refFileName);
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
@@ -1316,6 +1300,191 @@ private:
 			}
 		}
 	}
+
+#if HISE_INCLUDE_SNEX
+	Expression* parseSnexExpression()
+	{
+		match(TokenTypes::dot);
+
+		Identifier make_("make");
+
+		auto oldLoc = location;
+		auto commandId = parseIdentifier();
+
+		if (commandId == make_)
+		{
+			match(TokenTypes::lessThan);
+
+			auto classId = parseIdentifier();
+			Identifier nsId;
+
+			if (matchIf(TokenTypes::dot))
+			{
+				nsId = classId;
+				classId = parseIdentifier();
+			}
+
+			match(TokenTypes::greaterThan);
+
+			JavascriptNamespace* nsToUse = hiseSpecialData;
+
+			if (nsId.isValid())
+				nsToUse = hiseSpecialData->getNamespace(nsId);
+
+			if (nsToUse == nullptr)
+				location.throwError("Can't find namespace " + nsId);
+
+			match(TokenTypes::openParen);
+
+			ExpPtr r(new RootObject::SnexConstructor(location, nsToUse, classId));
+
+			auto asObj = dynamic_cast<RootObject::SnexConstructor*>(r.get());
+
+			while (currentType != TokenTypes::eof && currentType != TokenTypes::closeParen)
+			{
+				asObj->arguments.add(parseExpression());
+
+				if (currentType != TokenTypes::closeParen)
+					match(TokenTypes::comma);
+			}
+			
+			match(TokenTypes::closeParen);
+
+			return r.release();
+		}
+
+		location.throwError("Unknown SNEX expression: " + commandId);
+
+		RETURN_IF_NO_THROW(nullptr);
+	}
+
+	Statement* parseSnexStatement()
+	{
+		match(TokenTypes::dot);
+
+		Identifier struct_("struct");
+		Identifier bind_("bind");
+		Identifier config_("config");
+		
+
+		auto oldLoc = location;
+
+		if (matchIf(TokenTypes::include_))
+		{
+			auto refFileName = addExternalFile();
+
+			if (refFileName.isEmpty())
+				location.throwError("Can't find file");
+
+			auto code = getFileContent(currentValue.toString(), refFileName, true);
+
+			ExpPtr s = parseExpression();
+
+			match(TokenTypes::closeParen);
+			match(TokenTypes::semicolon);
+
+			if (code.isNotEmpty())
+			{
+				return new SnexDefinition(location, code, refFileName, true);
+			}
+
+			location.throwError("Empty file");
+		}
+
+		auto commandId = parseIdentifier();
+
+		if (commandId == struct_)
+		{
+			// class name
+			auto classId = parseIdentifier();
+
+			match(TokenTypes::openBrace);
+
+			int numOpenBrackets = 1;
+
+			while (numOpenBrackets > 0 && currentType != TokenTypes::eof)
+			{
+				if (matchIf(TokenTypes::openBrace))
+					numOpenBrackets++;
+				else if (matchIf(TokenTypes::closeBrace))
+					numOpenBrackets--;
+				else
+					skip();
+			}
+
+			match(TokenTypes::semicolon);
+
+			String snexCode(oldLoc.location, location.location);
+
+			return new RootObject::SnexDefinition(oldLoc, snexCode, classId);
+		}
+		if (commandId == bind_)
+		{
+			match(TokenTypes::lessThan);
+
+			using namespace snex::jit;
+
+			FunctionData f;
+			int typeIndex = 0;
+
+			while (currentType != TokenTypes::greaterThan && currentType != TokenTypes::eof)
+			{
+				snex::jit::ExternalTypeParser etp(location.location, location.program.getCharPointer());
+
+				if (etp.getResult().wasOk())
+				{
+					if (typeIndex == 0)
+						f.returnType = etp.getType();
+					else
+						f.addArgs("a" + String(typeIndex), etp.getType());
+					
+					typeIndex++;
+
+					while (location.location < etp.getEndOfTypeName())
+					{
+						skip();
+					}
+				}
+				else
+				{
+					throwError(etp.getResult().getErrorMessage());
+				}
+
+				matchIf(TokenTypes::comma);
+			}
+
+			match(TokenTypes::greaterThan);
+
+			match(TokenTypes::openParen);
+
+			ExpPtr className = parseExpression();
+
+			match(TokenTypes::comma);
+
+			ExpPtr ifo = parseExpression();
+
+			match(TokenTypes::closeParen);
+			match(TokenTypes::semicolon);
+
+			return new SnexBinding(location, f, className.release(), ifo.release());
+		}
+		if (commandId == config_)
+		{
+			match(TokenTypes::openParen);
+
+			ExpPtr c = parseExpression();
+			match(TokenTypes::comma);
+			ExpPtr a = parseExpression();
+			match(TokenTypes::closeParen);
+
+			return new SnexConfiguration(location, c.release(), a.release());
+		}
+		
+		location.throwError("Unknown SNEX statement: " + commandId);
+
+		RETURN_IF_NO_THROW(nullptr);
+	}
+#endif
 
 	Statement* parseJITModule()
 	{
@@ -1922,6 +2091,9 @@ private:
 
 	Expression* parseUnary()
 	{
+#if HISE_INCLUDE_SNEX
+		if (matchIf(TokenTypes::snex_))		  return parseSnexExpression();
+#endif
 		if (matchIf(TokenTypes::minus))       { ExpPtr a(new LiteralValue(location, (int)0)), b(parseUnary()); return new SubtractionOp(location, a, b); }
 		if (matchIf(TokenTypes::logicalNot))  { ExpPtr a(new LiteralValue(location, (int)0)), b(parseUnary()); return new EqualsOp(location, a, b); }
 		if (matchIf(TokenTypes::plusplus))    return parsePreIncDec<AdditionOp>();

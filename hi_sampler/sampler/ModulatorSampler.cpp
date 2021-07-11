@@ -95,6 +95,7 @@ SET_DOCUMENTATION(ModulatorSampler)
 
 ModulatorSampler::ModulatorSampler(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices),
+LookupTableProcessor(mc, 8, true),
 preloadSize(PRELOAD_SIZE),
 asyncPurger(this),
 sampleMap(new SampleMap(this)),
@@ -165,16 +166,14 @@ temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 	sampleStartChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff5e8127)));
 	crossFadeChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff884b29)));
 
-	for (int i = 0; i < 127; i++) samplerDisplayValues.currentNotes[i] = 0;
+	for (int i = 0; i < 127; i++) 
+		samplerDisplayValues.currentNotes[i] = 0;
 
 	setVoiceAmount(numVoices);
 
 
 	for (int i = 0; i < 8; i++)
-	{
-		crossfadeTables.add(new SampleLookupTable());
-		crossfadeTables.getLast()->setYTextConverterRaw(Modulation::getValueAsDecibel);
-	}
+		getTable(i)->setYTextConverterRaw(Modulation::getValueAsDecibel);
 
 	getMatrix().setAllowResizing(true);
 }
@@ -354,10 +353,8 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
     loadAttribute(CrossfadeGroups, "CrossfadeGroups");
     loadAttribute(RRGroupAmount, "RRGroupAmount");
 
-	for (int i = 0; i < crossfadeTables.size(); i++)
-	{
-		loadTable(crossfadeTables[i], "Group" + String(i) + "Table");
-	}
+	for (int i = 0; i < 8; i++)
+		loadTable(getTableUnchecked(i), "Group" + String(i) + "Table");
 
 	ModulatorSynth::restoreFromValueTree(v);
 };
@@ -390,9 +387,9 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 
 	v.addChild(channels, -1, nullptr);
 
-	for (int i = 0; i < crossfadeTables.size(); i++)
+	for (int i = 0; i < 8; i++)
 	{
-		saveTable(crossfadeTables[i], "Group" + String(i) + "Table");
+		saveTable(getTableUnchecked(i), "Group" + String(i) + "Table");
 	}
 
 	if (sampleMap->isUsingUnsavedValueTree())
@@ -678,13 +675,11 @@ void ModulatorSampler::refreshMemoryUsage()
 	{
 		temporaryVoiceBuffer = hlac::HiseSampleBuffer(temporaryBufferShouldBeFloatingPoint, 2, 0);
 
-		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), (double)MAX_SAMPLER_PITCH);
-
 		for (auto i = 0; i < getNumVoices(); i++)
-		{
 			static_cast<ModulatorSamplerVoice*>(getVoice(i))->setStreamingBufferDataType(temporaryBufferShouldBeFloatingPoint);
-		}
 	}
+
+	StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), (double)MAX_SAMPLER_PITCH);
 
 	int64 actualPreloadSize = 0;
 
@@ -870,13 +865,6 @@ void ModulatorSampler::setCurrentPlayingPosition(double normalizedPosition)
 void ModulatorSampler::setCrossfadeTableValue(float newValue)
 {
 	samplerDisplayValues.crossfadeTableValue = newValue;
-
-	const int currentlyShownTable = getEditorState(getEditorStateForIndex(ModulatorSampler::EditorStates::CrossfadeTableShown));
-
-	if (currentlyShownTable >= 0 && currentlyShownTable < 8)
-	{
-		sendTableIndexChangeMessage(false, crossfadeTables[currentlyShownTable], newValue);
-	}
 }
 
 void ModulatorSampler::resetNoteDisplay(int noteNumber)
@@ -1106,6 +1094,10 @@ void ModulatorSampler::setVoiceLimit(int newVoiceLimit)
 
 float ModulatorSampler::getConstantCrossFadeModulationValue() const noexcept
 {
+	// Return the rr group volume if it is set
+	if (!crossfadeGroups)
+		return useRRGain ? rrGroupGains[currentRRGroupIndex-1] : 1.0f;
+
 #if HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY
 
 	// This plays all crossfade groups until there's a modulator present.
@@ -1115,19 +1107,18 @@ float ModulatorSampler::getConstantCrossFadeModulationValue() const noexcept
 	}
 #endif
 
-	if (!crossfadeGroups)
-		return 1.0f;
-
 	return currentCrossfadeValue;
 }
 
 float ModulatorSampler::getCrossfadeValue(int groupIndex, float modValue) const
 {
-	SampleLookupTable * table = crossfadeTables[groupIndex];
-
-	modValue = CONSTRAIN_TO_0_1(modValue);
-
-	return table->getInterpolatedValue((double)modValue * (double)SAMPLE_LOOKUP_TABLE_SIZE);
+	if (auto st = static_cast<const SampleLookupTable*>(getTableUnchecked(groupIndex)))
+	{
+		modValue = CONSTRAIN_TO_0_1(modValue);
+		return st->getInterpolatedValue((double)modValue * (double)SAMPLE_LOOKUP_TABLE_SIZE, sendNotificationAsync);
+	}
+	
+	return 0.0f;
 }
 
 void ModulatorSampler::clearSampleMap(NotificationType n)
@@ -1224,6 +1215,21 @@ bool ModulatorSampler::setCurrentGroupIndex(int currentIndex)
 	}
 }
 
+void ModulatorSampler::setRRGroupVolume(int groupIndex, float gainValue)
+{
+	if (groupIndex == -1)
+		groupIndex = currentRRGroupIndex;
+
+	FloatSanitizers::sanitizeFloatNumber(gainValue);
+
+	--groupIndex;
+
+	useRRGain = true;
+
+	if (isPositiveAndBelow(groupIndex, rrGroupGains.size()))
+		rrGroupGains.setUnchecked(groupIndex, gainValue);
+}
+
 bool ModulatorSampler::setMultiGroupState(int groupIndex, bool shouldBeEnabled)
 {
 	if (groupIndex == -1)
@@ -1255,6 +1261,14 @@ void ModulatorSampler::setRRGroupAmount(int newGroupLimit)
 
 	while (auto sound = sIter.getNextSound())
 		sound->setMaxRRGroupIndex(rrGroupAmount);
+
+	rrGroupGains.ensureStorageAllocated(rrGroupAmount);
+
+	for (int i = rrGroupGains.size(); i < rrGroupAmount; i++)
+		rrGroupGains.add(1.0f);
+
+	// reset this, so it doesn't use a lookup as long as setRRGroupVolume isn't called
+	useRRGain = false;
 
 	ModulatorSynth::setVoiceLimit(realVoiceAmount * getNumActiveGroups());
 }

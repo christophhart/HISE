@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -19,6 +19,10 @@
 
   ==============================================================================
 */
+
+#if JUCE_BELA
+extern "C" int cobalt_thread_mode();
+#endif
 
 namespace juce
 {
@@ -50,7 +54,7 @@ bool SystemStats::isOperatingSystem64Bit()
 }
 
 //==============================================================================
-static inline String getCpuInfo (const char* key)
+static String getCpuInfo (const char* key)
 {
     return readPosixConfigFileValue ("/proc/cpuinfo", key);
 }
@@ -103,11 +107,11 @@ int SystemStats::getPageSize()
 //==============================================================================
 String SystemStats::getLogonName()
 {
-    if (const char* user = getenv ("USER"))
-        return CharPointer_UTF8 (user);
+    if (auto user = getenv ("USER"))
+        return String::fromUTF8 (user);
 
-    if (struct passwd* const pw = getpwuid (getuid()))
-        return CharPointer_UTF8 (pw->pw_name);
+    if (auto pw = getpwuid (getuid()))
+        return String::fromUTF8 (pw->pw_name);
 
     return {};
 }
@@ -119,7 +123,8 @@ String SystemStats::getFullUserName()
 
 String SystemStats::getComputerName()
 {
-    char name [256] = { 0 };
+    char name[256] = {};
+
     if (gethostname (name, sizeof (name) - 1) == 0)
         return name;
 
@@ -128,21 +133,24 @@ String SystemStats::getComputerName()
 
 static String getLocaleValue (nl_item key)
 {
-    const char* oldLocale = ::setlocale (LC_ALL, "");
-    String result (String::fromUTF8 (nl_langinfo (key)));
+    auto oldLocale = ::setlocale (LC_ALL, "");
+    auto result = String::fromUTF8 (nl_langinfo (key));
     ::setlocale (LC_ALL, oldLocale);
     return result;
 }
 
-String SystemStats::getUserLanguage()    { return getLocaleValue (_NL_IDENTIFICATION_LANGUAGE); }
-String SystemStats::getUserRegion()      { return getLocaleValue (_NL_IDENTIFICATION_TERRITORY); }
-String SystemStats::getDisplayLanguage() { return getUserLanguage() + "-" + getUserRegion(); }
+String SystemStats::getUserLanguage()     { return getLocaleValue (_NL_IDENTIFICATION_LANGUAGE); }
+String SystemStats::getUserRegion()       { return getLocaleValue (_NL_IDENTIFICATION_TERRITORY); }
+String SystemStats::getDisplayLanguage()  { return getUserLanguage() + "-" + getUserRegion(); }
 
 //==============================================================================
 void CPUInformation::initialise() noexcept
 {
     auto flags = getCpuInfo ("flags");
+
     hasMMX             = flags.contains ("mmx");
+    hasFMA3            = flags.contains ("fma");
+    hasFMA4            = flags.contains ("fma4");
     hasSSE             = flags.contains ("sse");
     hasSSE2            = flags.contains ("sse2");
     hasSSE3            = flags.contains ("sse3");
@@ -175,16 +183,21 @@ void CPUInformation::initialise() noexcept
 //==============================================================================
 uint32 juce_millisecondsSinceStartup() noexcept
 {
-    timespec t;
-    clock_gettime (CLOCK_MONOTONIC, &t);
-
-    return (uint32) (t.tv_sec * 1000 + t.tv_nsec / 1000000);
+    return (uint32) (Time::getHighResolutionTicks() / 1000);
 }
 
 int64 Time::getHighResolutionTicks() noexcept
 {
     timespec t;
+
+   #if JUCE_BELA
+    if (cobalt_thread_mode() == 0x200 /*XNRELAX*/)
+        clock_gettime (CLOCK_MONOTONIC, &t);
+    else
+        __wrap_clock_gettime (CLOCK_MONOTONIC, &t);
+   #else
     clock_gettime (CLOCK_MONOTONIC, &t);
+   #endif
 
     return (t.tv_sec * (int64) 1000000) + (t.tv_nsec / 1000);
 }
@@ -196,16 +209,16 @@ int64 Time::getHighResolutionTicksPerSecond() noexcept
 
 double Time::getMillisecondCounterHiRes() noexcept
 {
-    return getHighResolutionTicks() * 0.001;
+    return (double) getHighResolutionTicks() * 0.001;
 }
 
 bool Time::setSystemTimeToThisTime() const
 {
     timeval t;
-    t.tv_sec = millisSinceEpoch / 1000;
-    t.tv_usec = (millisSinceEpoch - t.tv_sec * 1000) * 1000;
+    t.tv_sec = decltype (timeval::tv_sec) (millisSinceEpoch / 1000);
+    t.tv_usec = decltype (timeval::tv_usec) ((millisSinceEpoch - t.tv_sec * 1000) * 1000);
 
-    return settimeofday (&t, 0) == 0;
+    return settimeofday (&t, nullptr) == 0;
 }
 
 JUCE_API bool JUCE_CALLTYPE juce_isRunningUnderDebugger() noexcept
@@ -213,8 +226,7 @@ JUCE_API bool JUCE_CALLTYPE juce_isRunningUnderDebugger() noexcept
    #if JUCE_BSD
     return false;
    #else
-    return readPosixConfigFileValue ("/proc/self/status", "TracerPid")
-             .getIntValue() > 0;
+    return readPosixConfigFileValue ("/proc/self/status", "TracerPid").getIntValue() > 0;
    #endif
 }
 

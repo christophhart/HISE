@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -36,9 +36,10 @@
 
 #include "juce_core.h"
 
-#include <locale>
 #include <cctype>
 #include <cstdarg>
+#include <locale>
+#include <thread>
 
 #if ! JUCE_ANDROID
  #include <sys/timeb.h>
@@ -48,21 +49,18 @@
 #if JUCE_WINDOWS
  #include <ctime>
 
- #if ! JUCE_MINGW
-  #pragma warning (push)
-  #pragma warning (disable: 4091)
-  #include <Dbghelp.h>
-  #pragma warning (pop)
-
-  #if ! JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES
-   #pragma comment (lib, "DbgHelp.lib")
-  #endif
- #endif
-
  #if JUCE_MINGW
   #include <ws2spi.h>
   #include <cstdio>
   #include <locale.h>
+ #else
+  JUCE_BEGIN_IGNORE_WARNINGS_MSVC (4091)
+  #include <Dbghelp.h>
+  JUCE_END_IGNORE_WARNINGS_MSVC
+
+  #if ! JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES
+   #pragma comment (lib, "DbgHelp.lib")
+  #endif
  #endif
 
 #else
@@ -72,6 +70,16 @@
   #include <sys/errno.h>
   #include <unistd.h>
   #include <netinet/in.h>
+ #endif
+
+ #if JUCE_WASM
+  #include <stdio.h>
+  #include <sys/types.h>
+  #include <sys/socket.h>
+  #include <errno.h>
+  #include <unistd.h>
+  #include <netinet/in.h>
+  #include <sys/stat.h>
  #endif
 
  #if JUCE_LINUX
@@ -94,7 +102,7 @@
  #include <net/if.h>
  #include <sys/ioctl.h>
 
- #if ! JUCE_ANDROID
+ #if ! (JUCE_ANDROID || JUCE_WASM)
   #include <execinfo.h>
  #endif
 #endif
@@ -126,6 +134,7 @@
 #include "containers/juce_ReferenceCountedArray.cpp"
 #include "containers/juce_SparseSet.cpp"
 #include "files/juce_DirectoryIterator.cpp"
+#include "files/juce_RangedDirectoryIterator.cpp"
 #include "files/juce_File.cpp"
 #include "files/juce_FileInputStream.cpp"
 #include "files/juce_FileOutputStream.cpp"
@@ -137,10 +146,10 @@
 #include "maths/juce_Expression.cpp"
 #include "maths/juce_Random.cpp"
 #include "memory/juce_MemoryBlock.cpp"
+#include "memory/juce_AllocationHooks.cpp"
 #include "misc/juce_RuntimePermissions.cpp"
 #include "misc/juce_Result.cpp"
 #include "misc/juce_Uuid.cpp"
-#include "misc/juce_StdFunctionCompat.cpp"
 #include "misc/juce_ConsoleApplication.cpp"
 #include "network/juce_MACAddress.cpp"
 #include "network/juce_NamedPipe.cpp"
@@ -186,63 +195,69 @@
 
 //==============================================================================
 #if ! JUCE_WINDOWS
-#include "native/juce_posix_SharedCode.h"
-#include "native/juce_posix_NamedPipe.cpp"
-#if ! JUCE_ANDROID || __ANDROID_API__ >= 24
- #include "native/juce_posix_IPAddress.h"
-#endif
+ #include "native/juce_posix_SharedCode.h"
+ #include "native/juce_posix_NamedPipe.cpp"
+ #if ! JUCE_ANDROID || __ANDROID_API__ >= 24
+  #include "native/juce_posix_IPAddress.h"
+ #endif
 #endif
 
 //==============================================================================
 #if JUCE_MAC || JUCE_IOS
-#include "native/juce_mac_Files.mm"
-#include "native/juce_mac_Network.mm"
-#include "native/juce_mac_Strings.mm"
-#include "native/juce_mac_SystemStats.mm"
-#include "native/juce_mac_Threads.mm"
+ #include "native/juce_mac_Files.mm"
+ #include "native/juce_mac_Network.mm"
+ #include "native/juce_mac_Strings.mm"
+ #include "native/juce_mac_SystemStats.mm"
+ #include "native/juce_mac_Threads.mm"
 
 //==============================================================================
 #elif JUCE_WINDOWS
-#include "native/juce_win32_Files.cpp"
-#include "native/juce_win32_Network.cpp"
-#include "native/juce_win32_Registry.cpp"
-#include "native/juce_win32_SystemStats.cpp"
-#include "native/juce_win32_Threads.cpp"
+ #include "native/juce_win32_Files.cpp"
+ #include "native/juce_win32_Network.cpp"
+ #include "native/juce_win32_Registry.cpp"
+ #include "native/juce_win32_SystemStats.cpp"
+ #include "native/juce_win32_Threads.cpp"
 
 //==============================================================================
 #elif JUCE_LINUX
-#include "native/juce_linux_CommonFile.cpp"
-#include "native/juce_linux_Files.cpp"
-#include "native/juce_linux_Network.cpp"
-#if JUCE_USE_CURL
- #include "native/juce_curl_Network.cpp"
-#endif
-#include "native/juce_linux_SystemStats.cpp"
-#include "native/juce_linux_Threads.cpp"
+ #include "native/juce_linux_CommonFile.cpp"
+ #include "native/juce_linux_Files.cpp"
+ #include "native/juce_linux_Network.cpp"
+ #if JUCE_USE_CURL
+  #include "native/juce_curl_Network.cpp"
+ #endif
+ #include "native/juce_linux_SystemStats.cpp"
+ #include "native/juce_linux_Threads.cpp"
 
 //==============================================================================
 #elif JUCE_ANDROID
+ #include "native/juce_linux_CommonFile.cpp"
+ #include "native/juce_android_JNIHelpers.cpp"
+ #include "native/juce_android_Files.cpp"
+ #include "native/juce_android_Misc.cpp"
+ #include "native/juce_android_Network.cpp"
+ #include "native/juce_android_SystemStats.cpp"
+ #include "native/juce_android_Threads.cpp"
+ #include "native/juce_android_RuntimePermissions.cpp"
 
-#include "native/juce_linux_CommonFile.cpp"
-#include "native/juce_android_JNIHelpers.cpp"
-#include "native/juce_android_Files.cpp"
-#include "native/juce_android_Misc.cpp"
-#include "native/juce_android_Network.cpp"
-#include "native/juce_android_SystemStats.cpp"
-#include "native/juce_android_Threads.cpp"
-#include "native/juce_android_RuntimePermissions.cpp"
+#elif JUCE_WASM
+ #include "native/juce_wasm_SystemStats.cpp"
 
 #endif
 
-#include "threads/juce_ChildProcess.cpp"
 #include "threads/juce_HighResolutionTimer.cpp"
+#include "threads/juce_WaitableEvent.cpp"
 #include "network/juce_URL.cpp"
-#include "network/juce_WebInputStream.cpp"
-#include "streams/juce_URLInputSource.cpp"
+
+#if ! JUCE_WASM
+ #include "threads/juce_ChildProcess.cpp"
+ #include "network/juce_WebInputStream.cpp"
+ #include "streams/juce_URLInputSource.cpp"
+#endif
 
 //==============================================================================
 #if JUCE_UNIT_TESTS
-#include "containers/juce_HashMap_test.cpp"
+ #include "containers/juce_HashMap_test.cpp"
 #endif
 
 //==============================================================================

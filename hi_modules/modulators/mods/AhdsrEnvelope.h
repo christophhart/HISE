@@ -37,6 +37,8 @@ namespace hise { using namespace juce;
 
 
 
+
+
 /** @brief A pretty common envelope type with 5 states. @ingroup modulatorTypes
 
 ### AHDSR Envelope
@@ -59,7 +61,8 @@ ID | Parameter | Description
 4 | Sustain | the sustain level in decibel
 5 | Release | the release time in milliseconds
 */
-class AhdsrEnvelope: public EnvelopeModulator	
+class AhdsrEnvelope: public EnvelopeModulator,
+					 public scriptnode::envelope::pimpl::ahdsr_base
 {
 public:
 
@@ -90,15 +93,7 @@ public:
 		numEditorStates
 	};
 
-	enum InternalChains
-	{
-		AttackTimeChain = 0,
-		AttackLevelChain,
-		DecayTimeChain,
-		SustainLevelChain,
-		ReleaseTimeChain,
-		numInternalChains
-	};
+	
 
 	AhdsrEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m);
 	~AhdsrEnvelope() {};
@@ -118,91 +113,35 @@ public:
 	void calculateBlock(int startSample, int numSamples);;
 
 	void handleHiseEvent(const HiseEvent &e) override;
-	
 
 	ProcessorEditorBody *createEditor(ProcessorEditor* parentEditor) override;
 
-	
-
 	float getDefaultValue(int parameterIndex) const override;
 	void setInternalAttribute (int parameter_index, float newValue) override;;
-
-	
 
 	float getAttribute(int parameter_index) const override;;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
+	void setExternalData(const snex::ExternalData& d, int index) override
+	{
+		ahdsr_base::setExternalData(d, index);
+
+		if (displayBuffer->getWriteBuffer().getNumSamples() > 0)
+		{
+			for (int i = 0; i < SpecialParameters::DecayCurve - SpecialParameters::Attack; i++)
+			{
+				displayBuffer->getWriteBuffer().setSample(0, i, getAttribute(i + SpecialParameters::Attack));
+			}
+		}
+	}
+
 	/** @brief returns \c true, if the envelope is not IDLE and not bypassed. */
 	bool isPlaying(int voiceIndex) const override;;
     
-    /** @internal The container for the envelope state. */
-    struct AhdsrEnvelopeState: public EnvelopeModulator::ModulatorState
-	{
-	public:
+	ModulatorState *createSubclassedState(int voiceIndex) const override;;
 
-		AhdsrEnvelopeState(int voiceIndex, const AhdsrEnvelope *ownerEnvelope):
-			ModulatorState(voiceIndex),
-			current_state(IDLE),
-			holdCounter(0),
-			envelope(ownerEnvelope),
-			current_value(0.0f),
-			lastSustainValue(1.0f)
-		{
-			for(int i = 0; i < numInternalChains; i++) modValues[i] = 1.0f;
-		};
-
-		/** The internal states that this envelope has */
-		enum EnvelopeState
-		{
-			ATTACK, ///< attack phase (isPlaying() returns \c true)
-			HOLD, ///< hold phase
-			DECAY, ///< decay phase
-			SUSTAIN, ///< sustain phase (isPlaying() returns \c true)
-			RETRIGGER, ///< retrigger phase (monophonic only)
-			RELEASE, ///< attack phase (isPlaying() returns \c true)
-			IDLE ///< idle state (isPlaying() returns \c false.
-		};
-
-		/** Calculate the attack rate for the state. If the modulation value is 1.0f, they are simply copied from the envelope. */
-		void setAttackRate(float rate);;
-		
-		/** Calculate the decay rate for the state. If the modulation value is 1.0f, they are simply copied from the envelope. */
-		void setDecayRate(float rate);;
-		
-		/** Calculate the release rate for the state. If the modulation value is 1.0f, they are simply copied from the envelope. */
-		void setReleaseRate(float rate);;
-
-		const AhdsrEnvelope *envelope;
-
-        /// the uptime
-		int holdCounter;
-		float current_value;
-
-		int leftOverSamplesFromLastBuffer = 0;
-
-		/** The ratio in which the attack time is altered. This is calculated by the internal ModulatorChain attackChain*/
-		float modValues[numInternalChains];
-
-		float attackLevel;
-		float attackCoef;
-		float attackBase;
-
-		float decayCoef;
-		float decayBase;
-
-		float releaseCoef;
-		float releaseBase;
-		float release_delta;
-
-		float lastSustainValue;
-
-		EnvelopeState current_state;
-	};
-
-	ModulatorState *createSubclassedState(int voiceIndex) const override {return new AhdsrEnvelopeState(voiceIndex, this); };
-
-	void calculateCoefficients(float timeInMilliSeconds, float base, float maximum, float &stateBase, float &stateCoeff) const;
+	
 
 	struct StateInfo
 	{
@@ -211,7 +150,7 @@ public:
 			return other.state == state;
 		};
 
-		AhdsrEnvelopeState::EnvelopeState state = AhdsrEnvelopeState::IDLE;
+		state_base::EnvelopeState state = state_base::IDLE;
 		double changeTime = 0.0;
 	};
 
@@ -219,87 +158,6 @@ public:
 	{
 		return stateInfo;
 	};
-
-private:
-
-	StateInfo stateInfo;
-
-	float getSampleRateForCurrentMode() const;
-
-	void setAttackRate(float rate);
-	void setDecayRate(float rate);
-	void setReleaseRate(float rate);
-	void setSustainLevel(float level);
-	void setHoldTime(float holdTimeMs);
-	void setTargetRatioA(float targetRatio);
-	void setTargetRatioDR(float targetRatio);
-
-	float calcCoef(float rate, float targetRatio) const;
-
-	float calculateNewValue(int voiceIndex);
-	
-	void setAttackCurve(float newValue);
-	void setDecayCurve(float newValue);
-	
-	float inputValue;
-
-	float attack;
-	
-	float attackLevel;
-
-	float attackCurve;
-	float decayCurve;
-
-	float hold;
-	float holdTimeSamples;
-
-	float attackBase;
-
-	float decay;
-	float decayCoef;
-	float decayBase;
-	float targetRatioDR;
-
-	float sustain;
-
-	float release;
-	float releaseCoef;
-	float releaseBase;
-
-	AhdsrEnvelopeState *state;
-
-	float release_delta;
-
-	ModulatorChain::Collection internalChains;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AhdsrEnvelope)
-	JUCE_DECLARE_WEAK_REFERENCEABLE(AhdsrEnvelope);
-};
-
-class AhdsrGraph : public Component,
-				   public Timer
-{
-public:
-
-	enum ColourIds
-	{
-		bgColour,
-		fillColour,
-		lineColour,
-		outlineColour,
-		numColourIds
-	};
-
-	AhdsrGraph(Processor *p);
-
-	~AhdsrGraph();
-
-	void paint(Graphics &g);
-	void setUseFlatDesign(bool shouldUseFlatDesign);
-
-	void timerCallback() override;
-
-	void rebuildGraph();
 
 	class Panel : public PanelWithProcessorConnection
 	{
@@ -316,28 +174,36 @@ public:
 
 private:
 
-	AhdsrEnvelope::StateInfo lastState;
+	hise::ExecutionLimiter<DummyCriticalSection> ballUpdater;
 
-	bool flatDesign = false;
+	SimpleRingBuffer::Ptr displayBuffer;
 
-	WeakReference<Processor> processor;
+	float calculateNewValue(int voiceIndex);
 
-	float attack = 0.0f;
-	float attackLevel = 0.0f;
-	float hold = 0.0f;
-	float decay = 0.0f;
-	float sustain = 0.f;
-	float release = 0.f;
-	float attackCurve = 0.f;
+	struct AhdsrEnvelopeState : public EnvelopeModulator::ModulatorState,
+								public state_base
+	{
+		AhdsrEnvelopeState(int voiceIndex, const ahdsr_base *ownerBase) :
+			ModulatorState(voiceIndex),
+			state_base()
+		{
+			this->envelope = ownerBase;
+		};
+	};
 
-	Path envelopePath;
-	Path attackPath;
-	Path holdPath;
-	Path decayPath;
-	Path releasePath;
+	StateInfo stateInfo;
+	AhdsrEnvelopeState *state;
 
+	ModulatorChain::Collection internalChains;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AhdsrEnvelope)
 	JUCE_DECLARE_WEAK_REFERENCEABLE(AhdsrEnvelope);
 };
+
+
+
+
+
 
 } // namespace hise
 

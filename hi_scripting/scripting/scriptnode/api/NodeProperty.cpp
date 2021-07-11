@@ -35,44 +35,14 @@ using namespace juce;
 using namespace hise;
 
 
-ScriptFunctionManager::~ScriptFunctionManager()
+
+bool NodeProperty::initialise(NodeBase* n)
 {
-	if (mc != nullptr)
-		mc->removeScriptListener(this);
-}
+	jassert(n != nullptr);
 
-bool NodeProperty::init(NodeBase* n, HiseDspBase* parent)
-{
-	if (n == nullptr && pendingNode == nullptr)
-		return false;
+	valueTreePropertyid = baseId;
 
-	if (n == nullptr)
-		n = pendingNode;
-
-	if (parent == nullptr)
-		parent = pendingParent;
-
-
-	if (auto hc = n->getAsHardcodedNode())
-	{
-		if (hc->getNodeId(parent).isEmpty())
-		{
-			pendingNode = n;
-			pendingParent = parent;
-			return false;
-		}
-
-		String c;
-
-		c << hc->getNodeId(parent) << ".";
-		c << baseId;
-
-		valueTreePropertyid = Identifier(c);
-	}
-	else
-	{
-		valueTreePropertyid = baseId;
-	}
+	um = n->getUndoManager();
 
 	auto propTree = n->getPropertyTree();
 
@@ -83,7 +53,6 @@ bool NodeProperty::init(NodeBase* n, HiseDspBase* parent)
 		d = ValueTree(PropertyIds::Property);
 		d.setProperty(PropertyIds::ID, getValueTreePropertyId().toString(), nullptr);
 		d.setProperty(PropertyIds::Value, defaultValue, nullptr);
-		d.setProperty(PropertyIds::Public, isPublic, nullptr);
 		propTree.addChild(d, -1, n->getUndoManager());
 	}
 
@@ -95,52 +64,6 @@ bool NodeProperty::init(NodeBase* n, HiseDspBase* parent)
 juce::Identifier NodeProperty::getValueTreePropertyId() const
 {
 	return valueTreePropertyid;
-}
-
-void ScriptFunctionManager::scriptWasCompiled(JavascriptProcessor *processor)
-{
-	if (jp == processor)
-	{
-		updateFunction(PropertyIds::Callback, functionName);
-	}
-}
-
-void ScriptFunctionManager::updateFunction(Identifier, var newValue)
-{
-	if (jp != nullptr)
-	{
-		auto functionId = Identifier(newValue.toString());
-
-		functionName = newValue;
-
-		function = jp->getScriptEngine()->getInlineFunction(functionId);
-		ok = function.getObject() != nullptr;
-	}
-	else
-		ok = false;
-}
-
-double ScriptFunctionManager::callWithDouble(double inputValue)
-{
-	if (ok)
-	{
-		input[0] = inputValue;
-		return (double)jp->getScriptEngine()->executeInlineFunction(function, input, &lastResult, 1);
-	}
-
-	return inputValue;
-}
-
-void ScriptFunctionManager::postInit(NodeBase* n)
-{
-	mc = n->getScriptProcessor()->getMainController_();
-	mc->addScriptListener(this);
-
-	jp = dynamic_cast<JavascriptProcessor*>(n->getScriptProcessor());
-
-	functionListener.setCallback(getPropertyTree(), { PropertyIds::Value },
-		valuetree::AsyncMode::Asynchronously,
-		BIND_MEMBER_FUNCTION_2(ScriptFunctionManager::updateFunction));
 }
 
 

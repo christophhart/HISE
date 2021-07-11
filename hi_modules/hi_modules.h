@@ -55,10 +55,12 @@ END_JUCE_MODULE_DECLARATION
 
 #include "AppConfig.h"
 #include "../hi_scripting/hi_scripting.h"
+#include "../stk_wrapper/stk_wrapper.h"
+
 
 #include "synthesisers/synths/PolyBlep.h"
 
-#include "effects/fx/chunkware_simple_dynamics/chunkware_simple_dynamics.h"
+
 
 #include "synthesisers/synths/WavetableTools.h"
 #include "synthesisers/editors/WavetableComponents.h"
@@ -77,6 +79,8 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #define ENABLE_PEAK_METERS_FOR_GAIN_EFFECT 1
 #endif
 
+#include "nodes/HardcodedNetworkModuleBase.h"
+
 
 /** @defgroup modulatorTypes HISE Modulators
 *	@ingroup types
@@ -87,9 +91,7 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "modulators/mods/ConstantModulator.h"
 #include "modulators/mods/ControlModulator.h"
 #include "modulators/mods/LFOModulator.h"
-#include "modulators/mods/AudioFileEnvelope.h"
 #include "modulators/mods/MacroControlModulator.h"
-#include "modulators/mods/PluginParameterModulator.h"
 #include "modulators/mods/RandomModulator.h"
 #include "modulators/mods/SimpleEnvelope.h"
 #include "modulators/mods/KeyModulator.h"
@@ -99,11 +101,9 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "modulators/mods/VelocityModulator.h"
 #include "modulators/mods/GlobalModulators.h"
 #include "modulators/mods/ArrayModulator.h"
-#include "modulators/mods/CCEnvelope.h"
-#include "modulators/mods/CCDucker.h"
-#include "modulators/mods/GainMatcher.h"
 #include "modulators/mods/MPEModulators.h"
 #include "modulators/mods/MPEComponents.h"
+#include "modulators/mods/HardcodedNetworkModulators.h"
 
 
 #if USE_BACKEND
@@ -111,21 +111,16 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "modulators/editors/AhdsrEnvelopeEditor.h"
 #include "modulators/editors/ConstantEditor.h"
 #include "modulators/editors/ControlEditor.h"
-#include "modulators/editors/CCDuckerEditor.h"
-#include "modulators/editors/CCEnvelopeEditor.h"
 #include "modulators/editors/LfoEditor.h"
-#include "modulators/editors/AudioFileEnvelopeEditor.h"
 #include "modulators/editors/KeyEditor.h"
 #include "modulators/editors/MacroControlModulatorEditor.h"
 #include "modulators/editors/PitchWheelEditor.h"
-#include "modulators/editors/PluginParameterEditor.h"
 #include "modulators/editors/RandomEditor.h"
 #include "modulators/editors/SimpleEnvelopeEditor.h"
 #include "modulators/editors/TableEnvelopeEditor.h"
 #include "modulators/editors/VelocityEditor.h"
 #include "modulators/editors/ArrayModulatorEditor.h"
 #include "modulators/editors/GlobalModulatorEditor.h"
-#include "modulators/editors/GainMatcherEditor.h"
 #include "modulators/editors/MPEModulatorEditors.h"
 
 #endif
@@ -171,8 +166,6 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "effects/fx/GainEffect.h"
 #include "effects/fx/Chorus.h"
 #include "effects/fx/Phaser.h"
-#include "effects/fx/GainCollector.h"
-#include "effects/convolution/AtkConvolution.h"
 #include "effects/convolution/Convolution.h"
 #include "effects/mda/mdaLimiter.h"
 #include "effects/mda/mdaDegrade.h"
@@ -182,6 +175,7 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "effects/fx/Analyser.h"
 #include "effects/fx/ShapeFX.h"
 #include "effects/fx/SlotFX.h"
+#include "effects/fx/HardcodedNetworkEffect.h"
 
 
 #if USE_BACKEND
@@ -198,7 +192,6 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "effects/editors/ConvolutionEditor.h"
 #include "effects/editors/MdaLimiterEditor.h"
 #include "effects/editors/MdaDegradeEditor.h"
-#include "effects/editors/GainCollectorEditor.h"
 #include "effects/editors/RouteFXEditor.h"
 #include "effects/editors/SaturationEditor.h"
 #include "effects/editors/DynamicsEditor.h"
@@ -228,6 +221,7 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 
 #include "synthesisers/synths/WavetableSynth.h"
 #include "synthesisers/synths/AudioLooper.h"
+#include "synthesisers/synths/HardcodedNetworkSynth.h"
 
 #if USE_BACKEND
 
@@ -256,17 +250,12 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "raw/raw_UserPreset.h"
 #include "raw/raw_PluginParameter.h"
 
-#include "nodes/CoreNodes.h"
-#include "nodes/FXNodes.h"
-#include "nodes/AnalyserNodes.h"
+#include "nodes/HiseNodes.h"
 #include "nodes/ComplexDataNodes.h"
-#include "nodes/MathNodes.h"
-#include "nodes/DynamicsNode.h"
-#include "nodes/EventNodes.h"
-#include "nodes/FilterNode.h"
-#include "nodes/RoutingNodes.h"
-#include "nodes/DelayNode.h"
+
+
 
 #include "nodes/MetaNodes.h"
+#include "nodes/snex_library/snex_NodeLibrary.h"
 
 #endif   // HI_MODULES_INCLUDED

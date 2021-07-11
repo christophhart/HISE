@@ -63,7 +63,7 @@ void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v, bool 
 
 void MainController::UserPresetHandler::loadUserPreset(const File& f)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+	auto xml = XmlDocument::parse(f);
 
 	if (xml != nullptr)
 	{

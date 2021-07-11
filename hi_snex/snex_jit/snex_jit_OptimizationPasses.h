@@ -102,18 +102,27 @@ public:
 		old->replaceInParent(newExpression);
 	}
 
-    /** Short helper tool to check Types. */
-    template <class T> T* as(StatementPtr obj)
-    {
-        return dynamic_cast<T*>(obj.get());
-    }
+	void processPreviousPasses(BaseCompiler* c, BaseScope* s, StatementPtr st);
+
+	template <class StatementType, class... StatementTypes> static bool is(StatementPtr obj)
+	{
+        return Operations::as<StatementType>(obj) != nullptr && is<StatementTypes...>(obj);
+	}
+
+	template <class StatementType> static bool is(StatementPtr obj)
+	{
+		return Operations::as<StatementType>(obj) != nullptr;
+	}
+
 };
 
-    
+  
+
     
 #define OPTIMIZATION_FACTORY(id, x) static Identifier getStaticId() { return id; } \
 static BaseCompiler::OptimizationPassBase* create() { return new x(); } \
 juce::String getName() const override { return getStaticId().toString(); };
+
 
     /** TODO: Optimizations:
      
@@ -210,7 +219,7 @@ private:
 
 	static Operations::BinaryOp* getFirstOp(ExprPtr e);
 
-	SymbolWithScope currentlyAssignedId;
+	Symbol currentlyAssignedId;
 
 	static bool containsVariableReference(ExprPtr p, const Symbol& refToCheck);
 
@@ -228,6 +237,81 @@ public:
 	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
 };
 
+class LoopOptimiser : public OptimizationPass
+{
+	using Ptr = Operations::Statement::Ptr;
+
+public:
+
+	OPTIMIZATION_FACTORY(OptimizationIds::LoopOptimisation, LoopOptimiser);
+
+	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, Ptr statement) override;
+
+	static bool replaceWithVectorLoop(BaseCompiler* compiler, BaseScope* s, Ptr binaryOpToReplace);
+
+private:
+
+	struct Helpers
+	{
+		static int getCompileTimeAmount(Ptr target)
+		{
+			auto t = target->getTypeInfo();
+
+			if (auto sp = t.getTypedIfComplexType<SpanType>())
+				return sp->getNumElements();
+
+			if (auto st = t.getTypedIfComplexType<StructType>())
+			{
+				if (st->id == NamespacedIdentifier("FrameProcessor"))
+					return st->getTemplateInstanceParameters()[0].constant;
+			}
+
+			return 0;
+		}
+	};
+
+	Operations::Loop* currentLoop = nullptr;
+	BaseScope* currentScope = nullptr;
+	BaseCompiler* currentCompiler = nullptr;
+
+	bool unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l);
+
+	bool combineLoops(BaseCompiler* c, BaseScope* s, Operations::Loop* l);
+
+	bool sameTarget(Operations::Loop* l1, Operations::Loop* l2);
+
+	bool isBlockWithSingleStatement(Ptr s);
+
+	bool combineInternal(Operations::Loop* l, Operations::Loop* nl);
+
+	Operations::Loop* getLoopStatement(Ptr s);
+
+	StatementPtr getRealParent(Ptr s);
+
+	static Symbol getRealSymbol(Ptr s);
+	
+};
+
+class LoopVectoriser : public OptimizationPass
+{
+	using Ptr = Operations::Statement::Ptr;
+
+public:
+
+	OPTIMIZATION_FACTORY(OptimizationIds::AutoVectorisation, LoopVectoriser);
+
+	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
+
+private:
+
+	bool convertToSimd(BaseCompiler* c, Operations::Loop* l);
+
+	Result changeIteratorTargetToSimd(Operations::Loop* l);
+
+	static bool isUnSimdableOperation(Ptr s);
+};
+
+
 class FunctionInliner: public OptimizationPass
 {
 public:
@@ -244,6 +328,185 @@ public:
 
 };
 
+
+
+/** This pass tries to optimize on the lowest level just before the actual machine code is being generated.
+
+	There are a few redundant instructions that might have been created during code generation, eg. mov calls
+	to the same target or math operations with immediate values that don't have an effect. 
+	
+	Since this pass has no information about high-level concepts, it's scope is limited to clean-up tasks rather
+	than sophisticated optimization algorithms.
+
+	Note: this pass is not being executed like the other passes, however it's subclassed from the snex::OptimisationPass
+	base class for consistency.
+*/
+struct AsmCleanupPass : public OptimizationPass,
+						public asmjit::FuncPass
+{
+	OPTIMIZATION_FACTORY(OptimizationIds::AsmOptimisation, AsmCleanupPass);
+
+	AsmCleanupPass();
+
+	virtual ~AsmCleanupPass() {}
+
+	/** A default filter for the iterator that does nothing. */
+	struct Base
+	{
+		using ReturnType = BaseNode;
+		static bool matches(BaseNode* node) noexcept { return true; }
+	};
+
+	/** A node iterator that will iterate over the linked list. 
+	
+		You can give it a filter class that needs:
+
+		- a type alias called ReturnType for the desired node subclass
+		- a function `static bool matches(BaseNode*)` that performs a
+		  check on each node whether it should be returned by the iterator.
+
+		Take a look at the Base filter above for an example.
+	*/
+	template <class FilterType = Base> struct Iterator
+	{
+		using RetType = typename FilterType::ReturnType;
+
+		Iterator(FuncPass* parent, BaseNode* start) :
+			currentNode(start),
+			cc(parent->cc())
+		{}
+
+		/** Returns the next matching node. */
+		RetType* next()
+		{
+			if (currentNode == nullptr)
+				return nullptr;
+
+			auto retNode = currentNode;
+
+			currentNode = currentNode->next();
+
+			using ReturnType = typename FilterType::ReturnType;
+
+			if (FilterType::matches(retNode))
+				return retNode->template as<ReturnType>();
+			else
+				return next();
+		}
+
+		/** Checks whether the direct successor to this node matches the filter. */
+		RetType* peekNextMatch()
+		{
+			if (FilterType::matches(currentNode))
+				return currentNode->as<typename FilterType::ReturnType>();
+
+			return nullptr;
+		}
+
+		/** Removes the given node. */
+		void removeNode(BaseNode* n)
+		{
+			if (n->hasInlineComment())
+				n->next()->setInlineComment(n->inlineComment());
+
+			cc->removeNode(n);
+		}
+
+		/** Seeks to the next match and returns it or nullptr if there is no match left. */
+		RetType* seekToNextMatch()
+		{
+			BaseNode* n = currentNode;
+
+			while (n != nullptr)
+			{
+				if (FilterType::matches(n))
+					return currentNode->as<FilterType::ReturnType>();
+
+				n = n->next();
+			}
+
+			return nullptr;
+		}
+
+	private:
+
+		asmjit::BaseCompiler* cc;
+		BaseNode* currentNode;
+	};
+
+	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override
+	{
+		// This method is never being called because this pass will not be executed
+		// from the SNEX compiler, but directly by the asmjit::Compiler
+		jassertfalse;
+
+		return false;
+	}
+
+private:
+
+	struct SubPassBase
+	{
+		SubPassBase(FuncPass* p)
+		{};
+
+		/** Override this method and return true if the optimisation was successful.
+		
+			In this case it will repeat the optimisation until it returns false. */
+		virtual bool run(BaseNode* n) = 0;
+	};
+
+public:
+
+	/** Subclass any subpass from this, then override the run() method to perform the optimisation. */
+	template <typename FilterType> struct SubPass : public SubPassBase
+	{
+		SubPass(FuncPass* p):
+			SubPassBase(p),
+			parent(p)
+		{}
+
+		/** Creates a iterator with the given filter type. */
+		Iterator<FilterType> createIterator(BaseNode* n)
+		{
+			return Iterator<FilterType>(parent, n);
+		}
+
+		FuncPass* parent;
+	};
+
+	template <class T> void addSubPass()
+	{
+		auto newPass = new T(this);
+		passes.add(newPass);
+	}
+
+	Error runOnFunction(asmjit::Zone* zone, asmjit::Logger* logger, FuncNode* func) noexcept
+	{
+		for (int i = 0; i < passes.size(); i++)
+		{
+			auto p = passes[i];
+
+			if (p->run(func))
+			{
+				numOptimisations++;
+				i = 0;
+			}
+		}
+		
+
+		return 0;
+	}
+
+private:
+
+	int numOptimisations = 0;
+
+	OwnedArray<SubPassBase> passes;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AsmCleanupPass);
+};
+
 struct OptimizationFactory
 {
 	using CreateFunction = std::function<BaseCompiler::OptimizationPassBase*(void)>;
@@ -255,6 +518,8 @@ struct OptimizationFactory
 		registerOptimization<DeadcodeEliminator>();
 		registerOptimization<BinaryOpOptimizer>();
 		registerOptimization<ConstExprEvaluator>();
+		registerOptimization<LoopOptimiser>();
+		registerOptimization<LoopVectoriser>();
 	}
 
 	struct Entry
@@ -276,7 +541,7 @@ struct OptimizationFactory
 	{
 		for (auto& e : entries)
 		{
-			if (id == e.id)
+			if (id.toString() == e.id.toString())
 			{
 				return e.f();
 			}

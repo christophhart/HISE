@@ -42,15 +42,26 @@ constrainer(new RectangleConstrainer())
 
 
 
-StringArray MouseCallbackComponent::getCallbackLevels()
+StringArray MouseCallbackComponent::getCallbackLevels(bool getFileCallbacks)
 {
 	StringArray sa;
-	sa.add("No Callbacks");
-	sa.add("Context Menu");
-	sa.add("Clicks Only");
-	sa.add("Clicks & Hover");
-	sa.add("Clicks, Hover & Dragging");
-	sa.add("All Callbacks");
+
+	if (getFileCallbacks)
+	{
+		sa.add("No Callbacks");
+		sa.add("Drop Only");
+		sa.add("Drop & Hover");
+		sa.add("All Callbacks");
+	}
+	else
+	{
+		sa.add("No Callbacks");
+		sa.add("Context Menu");
+		sa.add("Clicks Only");
+		sa.add("Clicks & Hover");
+		sa.add("Clicks, Hover & Dragging");
+		sa.add("All Callbacks");
+	}
 
 	return sa;
 }
@@ -130,6 +141,26 @@ void MouseCallbackComponent::mouseDoubleClick(const MouseEvent &event)
     if (callbackLevel < CallbackLevel::ClicksOnly) return;
     
     sendMessage(event, Action::DoubleClicked);
+}
+
+void MouseCallbackComponent::setEnableFileDrop(const String& newCallbackLevel, const String& allowedWildcards)
+{
+	if (newCallbackLevel.isEmpty() || allowedWildcards.isEmpty())
+	{
+		fileCallbackLevel = FileCallbackLevel::NoCallbacks;
+		fileDropExtensions.clear();
+		return;
+	}
+
+	fileCallbackLevel = (FileCallbackLevel)getCallbackLevels(true).indexOf(newCallbackLevel);
+
+	if (fileCallbackLevel > FileCallbackLevel::NoCallbacks)
+	{
+		fileDropExtensions.clear();
+		fileDropExtensions.addTokens(allowedWildcards, ";,", "\"'");
+		fileDropExtensions.trim();
+		fileDropExtensions.removeEmptyStrings();
+	}
 }
 
 void MouseCallbackComponent::mouseDown(const MouseEvent& event)
@@ -389,6 +420,48 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 	sendToListeners(var(obj));
 }
 
+bool MouseCallbackComponent::isInterestedInFileDrag(const StringArray& files)
+{
+	if (fileCallbackLevel == FileCallbackLevel::NoCallbacks)
+		return false;
+	
+	if (fileDropExtensions.isEmpty())
+		return false;
+
+	if (files.size() > 1)
+		return false;
+
+	File f(files[0]);
+
+	for (auto& ex : fileDropExtensions)
+	{
+		if (files[0].matchesWildcard(ex, true))
+			return true;
+	}
+
+	return false;
+}
+
+void MouseCallbackComponent::fileDragEnter(const StringArray& files, int x, int y)
+{
+	sendFileMessage(Action::FileEnter, files[0], Point<int>(x, y));
+}
+
+void MouseCallbackComponent::fileDragMove(const StringArray& files, int x, int y)
+{
+	sendFileMessage(Action::FileMove, files[0], Point<int>(x, y));
+}
+
+void MouseCallbackComponent::fileDragExit(const StringArray& files)
+{
+	sendFileMessage(Action::FileExit, files[0], Point<int>());
+}
+
+void MouseCallbackComponent::filesDropped(const StringArray& files, int x, int y)
+{
+	sendFileMessage(Action::FileDrop, files[0], Point<int>(x, y));
+}
+
 void MouseCallbackComponent::setAllowCallback(const String &newCallbackLevel) noexcept
 {
 	const int index = callbackLevels.indexOf(newCallbackLevel);
@@ -450,6 +523,42 @@ void MouseCallbackComponent::mouseUp(const MouseEvent &event)
 	if (callbackLevel < CallbackLevel::ClicksOnly) return;
 
 	sendMessage(event, Action::MouseUp);
+}
+
+void MouseCallbackComponent::sendFileMessage(Action a, const String& f, Point<int> pos)
+{
+	FileCallbackLevel requiredLevel = FileCallbackLevel::NoCallbacks;
+
+	switch (a)
+	{
+	case Action::FileDrop: requiredLevel = FileCallbackLevel::DropOnly; break;
+	case Action::FileEnter:
+	case Action::FileExit: requiredLevel = FileCallbackLevel::DropHover; break;
+	case Action::FileMove: requiredLevel = FileCallbackLevel::AllCallbacks; break;
+	}
+
+	if (fileCallbackLevel < requiredLevel)
+		return;
+
+	static const Identifier x("x");
+	static const Identifier y("y");
+	static const Identifier hover("hover");
+	static const Identifier drop("drop");
+	static const Identifier file("fileName");
+
+	DynamicObject::Ptr e = new DynamicObject();
+	e->setProperty(x, pos.getX());
+	e->setProperty(y, pos.getY());
+	e->setProperty(hover, a != Action::FileExit);
+	e->setProperty(drop, a == Action::FileDrop);
+	e->setProperty(file, f);
+
+	var fileInformation(e);
+
+	for(auto l: listenerList)
+	{
+		l->fileDropCallback(fileInformation);
+	}
 }
 
 void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action, EnterState state)
@@ -589,6 +698,14 @@ borderSize(1.0f)
 	closeButton.setImages(false, true, true, img, 1.0f, Colour(0),
 		img, 1.0f, Colours::white.withAlpha(0.05f),
 		img, 1.0f, Colours::white.withAlpha(0.1f));
+
+	WeakReference<BorderPanel> safeThis(this);
+
+	MessageManager::callAsync([safeThis]()
+	{
+		if (safeThis != nullptr)
+			safeThis.get()->registerToTopLevelComponent();
+	});
 }
 
 BorderPanel::~BorderPanel()
@@ -616,10 +733,38 @@ void BorderPanel::changeListenerCallback(SafeChangeBroadcaster* )
 {
 }
 
+struct GraphicHelpers
+{
+	static void quickDraw(Image& dst, const Image& src)
+	{
+		jassert(dst.getFormat() == src.getFormat());
+		jassert(dst.getBounds() == src.getBounds());
+
+		juce::Image::BitmapData srcData(src, juce::Image::BitmapData::readOnly);
+		juce::Image::BitmapData dstData(dst, juce::Image::BitmapData::writeOnly);
+
+		for (int y = 0; y < src.getHeight(); y++)
+		{
+			auto s = srcData.getLinePointer(y);
+			auto d = dstData.getLinePointer(y);
+
+			auto w = src.getWidth() * 4;
+
+			for (int x = 0; x < w; x++)
+				d[x] = jmin(255, s[x] + d[x]);
+		}
+	}
+};
+
 void BorderPanel::paint(Graphics &g)
 {
 	if (recursion)
 		return;
+
+
+	registerToTopLevelComponent();
+
+	
 
 #if HISE_INCLUDE_RLOTTIE
 	if (animation != nullptr)
@@ -636,35 +781,71 @@ void BorderPanel::paint(Graphics &g)
 		if (isOpaque())
 			g.fillAll(Colours::black);
 
+		UnblurryGraphics ug(g, *this);
+
+		auto sf = ug.getTotalScaleFactor();
+		auto sf2 = UnblurryGraphics::getScaleFactorForComponent(this, false);
+		auto st = AffineTransform::scale(jmin<double>(2.0, sf));
+		auto st2 = AffineTransform::scale(sf);
+
+		auto gb = getLocalArea(getTopLevelComponent(), getLocalBounds()).transformed(st2);
+		
+		drawHandler->setGlobalBounds(gb, sf);
+
 		DrawActions::Handler::Iterator it(drawHandler.get());
 
 		if (it.wantsCachedImage())
 		{
+			// We are creating one master image before the loop
+			Image cachedImg;
+			
+			
+			
+			if (!isOpaque() && (getParentComponent() != nullptr && it.wantsToDrawOnParent()))
+			{
+				// fetch the parent component content here...
+				ScopedValueSetter<bool> sv(recursion, true);
+				cachedImg = getParentComponent()->createComponentSnapshot(getBoundsInParent(), true, sf);
+			}
+			else
+			{
+				// just use an empty image
+				cachedImg = Image(Image::ARGB, getWidth() * sf, getHeight() * sf, true);
+			}
+
+			Graphics g2(cachedImg);
+			g2.addTransform(st);
+
 			while (auto action = it.getNextAction())
 			{
 				if (action->wantsCachedImage())
 				{
-					Image cachedImg;
+					Image actionImage;
 
-					if (getParentComponent() != nullptr && action->wantsToDrawOnParent())
-					{
-						ScopedValueSetter<bool> sv(recursion, true);
-						cachedImg = getParentComponent()->createComponentSnapshot(getBoundsInParent());
-					}
+					if (action->wantsToDrawOnParent())
+						actionImage = cachedImg; // just use the cached image
 					else
 					{
-						cachedImg = Image(Image::ARGB, getWidth(), getHeight(), true);
+						actionImage = Image(cachedImg.getFormat(), cachedImg.getWidth(), cachedImg.getHeight(), true);
 					}
 
-					Graphics g2(cachedImg);
-					action->setCachedImage(cachedImg);
-					action->perform(g2);
+					Graphics g3(actionImage);
+					g3.addTransform(st);
+					action->setCachedImage(actionImage);
+					action->perform(g3);
 
-					g.drawImageAt(cachedImg, 0, 0);
+					if (!action->wantsToDrawOnParent())
+					{
+						GraphicHelpers::quickDraw(cachedImg, actionImage);
+					}
 				}
 				else
-					action->perform(g);
+				{
+					action->perform(g2);
+				}
 			}
+			
+			g.drawImageTransformed(cachedImg, st.inverted());
 		}
 		else
 		{
@@ -847,6 +1028,67 @@ void MouseCallbackComponent::RectangleConstrainer::addListener(Listener *l)
 void MouseCallbackComponent::RectangleConstrainer::removeListener(Listener *l)
 {
 	listeners.removeAllInstancesOf(l);
+}
+
+bool DrawActions::Handler::beginBlendLayer(const Identifier& blendMode, float alpha)
+{
+	static const Array<Identifier> blendIds = {
+		"Normal",
+		"Lighten",
+		"Darken",
+		"Multiply",
+		"Average",
+		"Add",
+		"Subtract",
+		"Difference",
+		"Negation",
+		"Screen",
+		"Exclusion",
+		"Overlay",
+		"SoftLight",
+		"HardLight",
+		"ColorDodge",
+		"ColorBurn",
+		"LinearDodge",
+		"LinearBurn",
+		"LinearLight",
+		"VividLight",
+		"PinLight",
+		"HardMix",
+		"Reflect",
+		"Glow",
+		"Phoenix"
+	};
+
+	auto idx = blendIds.indexOf(blendMode);
+
+	if (idx == -1)
+		return false;
+
+	auto bm = (gin::BlendMode)idx;
+	ActionLayer* newLayer = new BlendingLayer(bm, alpha);
+	addDrawAction(newLayer);
+	layerStack.insert(-1, newLayer);
+	return true;
+}
+
+void DrawActions::BlendingLayer::perform(Graphics& g)
+{
+	auto imageToBlendOn = cachedImage;
+
+	blendSource = Image(Image::ARGB, cachedImage.getWidth(), cachedImage.getHeight(), true);
+
+	for (auto a : actions)
+	{
+		if (a->wantsCachedImage())
+			a->setCachedImage(blendSource);
+	}
+
+	setCachedImage(blendSource);
+	Graphics g2(blendSource);
+
+	ActionLayer::perform(g2);
+	gin::applyBlend(imageToBlendOn, blendSource, blendMode, alpha);
 }
 
 } // namespace hise

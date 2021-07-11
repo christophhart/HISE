@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -39,7 +39,7 @@ static uint8 calculatePacketChecksum (const uint8* data, uint32 size) noexcept
     uint8 checksum = (uint8) size;
 
     for (uint32 i = 0; i < size; ++i)
-        checksum += checksum * 2 + data[i];
+        checksum = static_cast<uint8> (checksum + (checksum * 2 + data[i]));
 
     return checksum & 0x7f;
 }
@@ -79,8 +79,8 @@ struct IntegerWithBitSize
                                     : (uint32) (value >> (numBits - 8)));
     }
 
-    float toUnipolarFloat() const noexcept      { return value / (float) maxValue; }
-    float toBipolarFloat() const noexcept       { return static_cast<int32> (value << (32 - numBits)) / (float) 0x80000000u; }
+    float toUnipolarFloat() const noexcept      { return (float) value / (float) maxValue; }
+    float toBipolarFloat() const noexcept       { return (float) static_cast<int32> (value << (32 - numBits)) / (float) 0x80000000u; }
 
     static IntegerWithBitSize fromUnipolarFloat (float value) noexcept
     {
@@ -181,7 +181,7 @@ struct Packed7BitArrayBuilder
             {
                 const int bitsToDo = jmin (7 - bitsInCurrentByte, numBits);
 
-                data[bytesWritten] |= ((value & ((1 << bitsToDo) - 1)) << bitsInCurrentByte);
+                data[bytesWritten] = static_cast<uint8> (data[bytesWritten] | ((value & (uint32) ((1 << bitsToDo) - 1)) << bitsInCurrentByte));
                 value >>= bitsToDo;
                 numBits -= bitsToDo;
                 bitsInCurrentByte += bitsToDo;
@@ -213,7 +213,7 @@ struct Packed7BitArrayBuilder
     }
 
 private:
-    uint8 data[allocatedBytes];
+    uint8 data[(size_t) allocatedBytes];
     int bytesWritten = 0, bitsInCurrentByte = 0;
 };
 
@@ -253,13 +253,13 @@ struct Packed7BitArrayReader
 
         while (numBits > 0)
         {
-            const uint32 valueInCurrentByte = (*data >> bitsReadInCurrentByte);
+            const auto valueInCurrentByte = (uint32) (*data >> bitsReadInCurrentByte);
 
             const int bitsAvailable = 7 - bitsReadInCurrentByte;
 
             if (bitsAvailable > numBits)
             {
-                value |= ((valueInCurrentByte & ((1 << numBits) - 1)) << bitsSoFar);
+                value |= ((valueInCurrentByte & (uint32) ((1 << numBits) - 1)) << bitsSoFar);
                 bitsReadInCurrentByte += numBits;
                 break;
             }

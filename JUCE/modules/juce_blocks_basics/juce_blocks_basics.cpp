@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -22,12 +22,6 @@
 
 #include "juce_blocks_basics.h"
 
-#if ! JUCE_HAS_CONSTEXPR
- #ifndef JUCE_DEMO_RUNNER
-  #error "The juce_blocks_basics module requires a compiler that supports constexpr"
- #endif
-#else
-
 #include <regex>
 
 namespace juce
@@ -39,9 +33,8 @@ namespace juce
 #include "protocol/juce_BlocksProtocolDefinitions.h"
 #include "protocol/juce_HostPacketDecoder.h"
 #include "protocol/juce_HostPacketBuilder.h"
-#include "protocol/juce_BlockModels.h"
-
 #include "blocks/juce_BlockConfigManager.h"
+#include "protocol/juce_BlockModels.h"
 #include "blocks/juce_Block.cpp"
 #include "blocks/juce_BlocksVersion.cpp"
 #include "topology/juce_BlockGraph.cpp"
@@ -49,5 +42,3 @@ namespace juce
 #include "topology/juce_RuleBasedTopologySource.cpp"
 #include "visualisers/juce_DrumPadLEDProgram.cpp"
 #include "visualisers/juce_BitmapLEDProgram.cpp"
-
-#endif

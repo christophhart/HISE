@@ -34,15 +34,10 @@ namespace hise { using namespace juce;
 
 KeyModulator::KeyModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m):
 		VoiceStartModulator(mc, id, numVoices, m),
-		Modulation(m),
-		mode(KeyMode),
-		keyTable(new DiscreteTable()),
-		midiTable(new MidiTable())
+		LookupTableProcessor(mc, 1, false),
+		Modulation(m)
 {
-	midiTable->setXTextConverter(Modulation::getDomainAsMidiNote);
-
-	parameterNames.add("KeyMode");
-	parameterNames.add("NumberMode");
+	getTableUnchecked(0)->setXTextConverter(Modulation::getDomainAsMidiNote);
 };
 
 ProcessorEditorBody *KeyModulator::createEditor(ProcessorEditor *parentEditor)

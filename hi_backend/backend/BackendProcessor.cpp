@@ -60,6 +60,8 @@ viewUndoManager(new UndoManager())
 
 	GET_PROJECT_HANDLER(synthChain).checkSubDirectories();
 
+	dllManager = new BackendDllManager(this);
+
 	refreshExpansionType();
 
 	//getExpansionHandler().createAvailableExpansions();
@@ -87,8 +89,6 @@ viewUndoManager(new UndoManager())
 
 		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 	}
-
-	scriptnode::CodeHelpers::initCustomCodeFolder(synthChain);
 }
 
 
@@ -133,8 +133,6 @@ void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
 	};
 
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
-
-	scriptnode::CodeHelpers::initCustomCodeFolder(synthChain);
 
 	refreshExpansionType();
 	
@@ -273,7 +271,11 @@ void BackendProcessor::setStateInformation(const void *data, int sizeInBytes)
 
 AudioProcessorEditor* BackendProcessor::createEditor()
 {
+#if USE_WORKBENCH_EDITOR
+	return new SnexWorkbenchEditor(this);
+#else
 	return new BackendRootWindow(this, editorInformation);
+#endif
 }
 
 void BackendProcessor::registerItemGenerators()
@@ -351,6 +353,8 @@ void BackendProcessor::setEditorData(var editorState)
 {
 	editorInformation = editorState;
 }
+
+
 
 } // namespace hise
 

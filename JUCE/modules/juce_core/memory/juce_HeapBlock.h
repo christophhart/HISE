@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -29,7 +29,7 @@ namespace HeapBlockHelper
     template <bool shouldThrow>
     struct ThrowOnFail          { static void checkPointer (void*) {} };
 
-    template<>
+    template <>
     struct ThrowOnFail<true>    { static void checkPointer (void* data) { if (data == nullptr) throw std::bad_alloc(); } };
 }
 #endif
@@ -137,7 +137,7 @@ public:
     */
     ~HeapBlock()
     {
-		free();
+        std::free (data);
     }
 
     /** Move constructor */
@@ -255,9 +255,7 @@ public:
     template <typename SizeType>
     void malloc (SizeType newNumElements, size_t elementSize = sizeof (ElementType))
     {
-		WARN_IF_AUDIO_THREAD(newNumElements > 0 || data != nullptr, IllegalAudioThreadOps::HeapBlockAllocation);
-		
-		free();
+        std::free (data);
         data = static_cast<ElementType*> (std::malloc (static_cast<size_t> (newNumElements) * elementSize));
         throwOnAllocationFailure();
     }
@@ -282,9 +280,7 @@ public:
     template <typename SizeType>
     void allocate (SizeType newNumElements, bool initialiseToZero)
     {
-		WARN_IF_AUDIO_THREAD(newNumElements > 0 || data != nullptr, IllegalAudioThreadOps::HeapBlockAllocation);
-
-		free();
+        std::free (data);
         data = static_cast<ElementType*> (initialiseToZero
                                              ? std::calloc (static_cast<size_t> (newNumElements), sizeof (ElementType))
                                              : std::malloc (static_cast<size_t> (newNumElements) * sizeof (ElementType)));
@@ -311,13 +307,8 @@ public:
     */
     void free() noexcept
     {
-		WARN_IF_AUDIO_THREAD(data != nullptr, IllegalAudioThreadOps::HeapBlockDeallocation);
-
-		if (data != nullptr)
-		{
-			std::free(data);
-			data = nullptr;
-		}
+        std::free (data);
+        data = nullptr;
     }
 
     /** Swaps this object's data with the data of another HeapBlock.

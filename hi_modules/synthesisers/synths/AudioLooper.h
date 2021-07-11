@@ -83,7 +83,8 @@ private:
 */
 class AudioLooper : public ModulatorSynth,
 					public AudioSampleProcessor,
-					public TempoListener
+					public TempoListener,
+					public MultiChannelAudioBuffer::Listener
 {
 public:
 
@@ -119,18 +120,27 @@ public:
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 
-	void newFileLoaded() override;
+	
+
+	void bufferWasLoaded() override;
+
+	void bufferWasModified() override;
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 	void setSyncMode(int newSyncMode);
 
-	const CriticalSection& getFileLock() const override { return lock; };
+	void setUseLoop(bool shouldBeEnabled)
+	{
+		loopEnabled = shouldBeEnabled;
+	}
+
+	bool isUsingLoop() const { return loopEnabled; }
 
 private:
 
 	UpdateMerger inputMerger;
 
-	
+	bool loopEnabled = false;
 	bool reversed = false;
 	bool pitchTrackingEnabled;
 	int rootNote;

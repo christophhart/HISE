@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -95,13 +95,13 @@ public:
 
     /** Returns the position of this button on the device, in device units.
         For buttons that are on the side of the device, this may want to return a value that
-        is beyond the phyiscal block size.
+        is beyond the physical block size.
     */
     virtual float getPositionX() const = 0;
 
     /** Returns the position of this button on the device, in device units.
         For buttons that are on the side of the device, this may want to return a value that
-        is beyond the phyiscal block size.
+        is beyond the physical block size.
     */
     virtual float getPositionY() const = 0;
 

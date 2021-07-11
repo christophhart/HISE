@@ -233,11 +233,11 @@ void MainController::SampleManager::PreloadListenerUpdater::handleAsyncUpdate()
 
 	for (auto& pl: arrayToUse)
 	{
-		if (pl.get() != nullptr)
+		if (pl.get() != nullptr )
 			pl->preloadStateChanged(manager->preloadFlag.load());
 	}
 
-	jassert(arrayToUse.size() == manager->preloadListeners.size());
+	
 }
 
 

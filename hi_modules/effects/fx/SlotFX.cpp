@@ -104,6 +104,21 @@ void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 		if (!w->isSoftBypassed())
 		{
 			wrappedEffect->renderAllChains(0, buffer.getNumSamples());
+
+			if (buffer.getNumChannels() > 2)
+			{
+				auto l = getLeftSourceChannel();
+				auto r = getRightSourceChannel();
+
+				if (l + r != 1)
+				{
+					float* ptr[2] = { buffer.getWritePointer(l), buffer.getWritePointer(r) };
+					AudioSampleBuffer mBuffer(ptr, 2, buffer.getNumSamples());
+					wrappedEffect->renderWholeBuffer(mBuffer);
+					return;
+				}
+			}
+
 			wrappedEffect->renderWholeBuffer(buffer);
 		}
 	}

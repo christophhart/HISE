@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -69,12 +68,14 @@ static bool doUIDsMatch (const Steinberg::TUID a, const Steinberg::TUID b) noexc
 #endif
 
 //==============================================================================
-inline juce::String toString (const Steinberg::char8* string) noexcept      { return juce::String (string); }
-inline juce::String toString (const Steinberg::char16* string) noexcept     { return juce::String (juce::CharPointer_UTF16 ((juce::CharPointer_UTF16::CharType*) string)); }
+inline juce::String toString (const Steinberg::char8* string) noexcept       { return juce::String (juce::CharPointer_UTF8  ((juce::CharPointer_UTF8::CharType*)  string)); }
+inline juce::String toString (const Steinberg::char16* string) noexcept      { return juce::String (juce::CharPointer_UTF16 ((juce::CharPointer_UTF16::CharType*) string)); }
 
 // NB: The casts are handled by a Steinberg::UString operator
-inline juce::String toString (const Steinberg::UString128& string) noexcept { return toString (static_cast<const Steinberg::char16*> (string)); }
-inline juce::String toString (const Steinberg::UString256& string) noexcept { return toString (static_cast<const Steinberg::char16*> (string)); }
+inline juce::String toString (const Steinberg::UString128& string) noexcept  { return toString (static_cast<const Steinberg::char16*> (string)); }
+inline juce::String toString (const Steinberg::UString256& string) noexcept  { return toString (static_cast<const Steinberg::char16*> (string)); }
+
+inline Steinberg::Vst::TChar* toString (const juce::String& source) noexcept { return reinterpret_cast<Steinberg::Vst::TChar*> (source.toUTF16().getAddress()); }
 
 inline void toString128 (Steinberg::Vst::String128 result, const char* source)
 {
@@ -83,18 +84,15 @@ inline void toString128 (Steinberg::Vst::String128 result, const char* source)
 
 inline void toString128 (Steinberg::Vst::String128 result, const juce::String& source)
 {
-    Steinberg::UString (result, 128).fromAscii (source.toUTF8());
-}
-
-inline Steinberg::Vst::TChar* toString (const juce::String& source) noexcept
-{
-    return reinterpret_cast<Steinberg::Vst::TChar*> (source.toUTF16().getAddress());
+    Steinberg::UString (result, 128).assign (toString (source));
 }
 
 #if JUCE_WINDOWS
  static const Steinberg::FIDString defaultVST3WindowType = Steinberg::kPlatformTypeHWND;
-#else
+#elif JUCE_MAC
  static const Steinberg::FIDString defaultVST3WindowType = Steinberg::kPlatformTypeNSView;
+#elif JUCE_LINUX
+ static const Steinberg::FIDString defaultVST3WindowType = Steinberg::kPlatformTypeX11EmbedWindowID;
 #endif
 
 
@@ -111,45 +109,7 @@ static inline Steinberg::Vst::SpeakerArrangement getArrangementForBus (Steinberg
     return arrangement;
 }
 
-/** For the sake of simplicity, there can only be 1 arrangement type per channel count.
-    i.e.: 4 channels == k31Cine OR k40Cine
-*/
-static inline Steinberg::Vst::SpeakerArrangement getArrangementForNumChannels (int numChannels) noexcept
-{
-    using namespace Steinberg::Vst::SpeakerArr;
-
-    switch (numChannels)
-    {
-        case 0:     return kEmpty;
-        case 1:     return kMono;
-        case 2:     return kStereo;
-        case 3:     return k30Cine;
-        case 4:     return k31Cine;
-        case 5:     return k50;
-        case 6:     return k51;
-        case 7:     return k61Cine;
-        case 8:     return k71CineFullFront;
-        case 9:     return k90;
-        case 10:    return k91;
-        case 11:    return k101;
-        case 12:    return k111;
-        case 13:    return k130;
-        case 14:    return k131;
-       #if VST_VERSION >= 0x030608
-        case 16:    return kAmbi3rdOrderACN;
-       #endif
-        case 24:    return (Steinberg::Vst::SpeakerArrangement) 1929904127; // k222
-        default:    break;
-    }
-
-    jassert (numChannels >= 0);
-
-    juce::BigInteger bi;
-    bi.setRange (0, jmin (numChannels, (int) (sizeof (Steinberg::Vst::SpeakerArrangement) * 8)), true);
-    return (Steinberg::Vst::SpeakerArrangement) bi.toInt64();
-}
-
-static inline Steinberg::Vst::Speaker getSpeakerType (const AudioChannelSet& set, AudioChannelSet::ChannelType type) noexcept
+static Steinberg::Vst::Speaker getSpeakerType (const AudioChannelSet& set, AudioChannelSet::ChannelType type) noexcept
 {
     switch (type)
     {
@@ -163,8 +123,8 @@ static inline Steinberg::Vst::Speaker getSpeakerType (const AudioChannelSet& set
         case AudioChannelSet::leftCentre:        return Steinberg::Vst::kSpeakerLc;
         case AudioChannelSet::rightCentre:       return Steinberg::Vst::kSpeakerRc;
         case AudioChannelSet::centreSurround:    return Steinberg::Vst::kSpeakerCs;
-        case AudioChannelSet::leftSurroundSide:  return Steinberg::Vst::kSpeakerLcs;
-        case AudioChannelSet::rightSurroundSide: return Steinberg::Vst::kSpeakerRcs;
+        case AudioChannelSet::leftSurroundSide:  return Steinberg::Vst::kSpeakerSl;
+        case AudioChannelSet::rightSurroundSide: return Steinberg::Vst::kSpeakerSr;
         case AudioChannelSet::topMiddle:         return (1ull << 11); /* kSpeakerTm */
         case AudioChannelSet::topFrontLeft:      return Steinberg::Vst::kSpeakerTfl;
         case AudioChannelSet::topFrontCentre:    return Steinberg::Vst::kSpeakerTfc;
@@ -173,8 +133,8 @@ static inline Steinberg::Vst::Speaker getSpeakerType (const AudioChannelSet& set
         case AudioChannelSet::topRearCentre:     return Steinberg::Vst::kSpeakerTrc;
         case AudioChannelSet::topRearRight:      return Steinberg::Vst::kSpeakerTrr;
         case AudioChannelSet::LFE2:              return Steinberg::Vst::kSpeakerLfe2;
-        case AudioChannelSet::leftSurroundRear:  return Steinberg::Vst::kSpeakerSl;
-        case AudioChannelSet::rightSurroundRear: return Steinberg::Vst::kSpeakerSr;
+        case AudioChannelSet::leftSurroundRear:  return Steinberg::Vst::kSpeakerLcs;
+        case AudioChannelSet::rightSurroundRear: return Steinberg::Vst::kSpeakerRcs;
         case AudioChannelSet::wideLeft:          return Steinberg::Vst::kSpeakerPl;
         case AudioChannelSet::wideRight:         return Steinberg::Vst::kSpeakerPr;
         case AudioChannelSet::ambisonicACN0:     return Steinberg::Vst::kSpeakerACN0;
@@ -206,6 +166,29 @@ static inline Steinberg::Vst::Speaker getSpeakerType (const AudioChannelSet& set
 
         case AudioChannelSet::discreteChannel0:  return Steinberg::Vst::kSpeakerM;
 
+        case AudioChannelSet::ambisonicACN16:
+        case AudioChannelSet::ambisonicACN17:
+        case AudioChannelSet::ambisonicACN18:
+        case AudioChannelSet::ambisonicACN19:
+        case AudioChannelSet::ambisonicACN20:
+        case AudioChannelSet::ambisonicACN21:
+        case AudioChannelSet::ambisonicACN22:
+        case AudioChannelSet::ambisonicACN23:
+        case AudioChannelSet::ambisonicACN24:
+        case AudioChannelSet::ambisonicACN25:
+        case AudioChannelSet::ambisonicACN26:
+        case AudioChannelSet::ambisonicACN27:
+        case AudioChannelSet::ambisonicACN28:
+        case AudioChannelSet::ambisonicACN29:
+        case AudioChannelSet::ambisonicACN30:
+        case AudioChannelSet::ambisonicACN31:
+        case AudioChannelSet::ambisonicACN32:
+        case AudioChannelSet::ambisonicACN33:
+        case AudioChannelSet::ambisonicACN34:
+        case AudioChannelSet::ambisonicACN35:
+        case AudioChannelSet::proximityLeft:
+        case AudioChannelSet::proximityRight:
+        case AudioChannelSet::unknown:
         default:
             break;
     }
@@ -214,7 +197,7 @@ static inline Steinberg::Vst::Speaker getSpeakerType (const AudioChannelSet& set
     return (1ull << (channelIndex + 33ull /* last speaker in vst layout + 1 */));
 }
 
-static inline AudioChannelSet::ChannelType getChannelType (Steinberg::Vst::SpeakerArrangement arr, Steinberg::Vst::Speaker type) noexcept
+static AudioChannelSet::ChannelType getChannelType (Steinberg::Vst::SpeakerArrangement arr, Steinberg::Vst::Speaker type) noexcept
 {
     switch (type)
     {
@@ -227,8 +210,8 @@ static inline AudioChannelSet::ChannelType getChannelType (Steinberg::Vst::Speak
         case Steinberg::Vst::kSpeakerLc:    return AudioChannelSet::leftCentre;
         case Steinberg::Vst::kSpeakerRc:    return AudioChannelSet::rightCentre;
         case Steinberg::Vst::kSpeakerCs:    return AudioChannelSet::centreSurround;
-        case Steinberg::Vst::kSpeakerSl:    return AudioChannelSet::leftSurroundRear;
-        case Steinberg::Vst::kSpeakerSr:    return AudioChannelSet::rightSurroundRear;
+        case Steinberg::Vst::kSpeakerSl:    return AudioChannelSet::leftSurroundSide;
+        case Steinberg::Vst::kSpeakerSr:    return AudioChannelSet::rightSurroundSide;
         case Steinberg::Vst::kSpeakerTc:    return AudioChannelSet::topMiddle;  /* kSpeakerTm */
         case Steinberg::Vst::kSpeakerTfl:   return AudioChannelSet::topFrontLeft;
         case Steinberg::Vst::kSpeakerTfc:   return AudioChannelSet::topFrontCentre;
@@ -256,8 +239,8 @@ static inline AudioChannelSet::ChannelType getChannelType (Steinberg::Vst::Speak
         case Steinberg::Vst::kSpeakerACN15: return AudioChannelSet::ambisonicACN15;
         case Steinberg::Vst::kSpeakerTsl:   return AudioChannelSet::topSideLeft;
         case Steinberg::Vst::kSpeakerTsr:   return AudioChannelSet::topSideRight;
-        case Steinberg::Vst::kSpeakerLcs:   return AudioChannelSet::leftSurroundSide;
-        case Steinberg::Vst::kSpeakerRcs:   return AudioChannelSet::rightSurroundSide;
+        case Steinberg::Vst::kSpeakerLcs:   return AudioChannelSet::leftSurroundRear;
+        case Steinberg::Vst::kSpeakerRcs:   return AudioChannelSet::rightSurroundRear;
         case Steinberg::Vst::kSpeakerBfl:   return AudioChannelSet::bottomFrontLeft;
         case Steinberg::Vst::kSpeakerBfc:   return AudioChannelSet::bottomFrontCentre;
         case Steinberg::Vst::kSpeakerBfr:   return AudioChannelSet::bottomFrontRight;
@@ -279,35 +262,37 @@ static inline AudioChannelSet::ChannelType getChannelType (Steinberg::Vst::Speak
     return static_cast<AudioChannelSet::ChannelType> (static_cast<int> (AudioChannelSet::discreteChannel0) + 6 + (channelType - 33));
 }
 
-static inline Steinberg::Vst::SpeakerArrangement getVst3SpeakerArrangement (const AudioChannelSet& channels) noexcept
+static Steinberg::Vst::SpeakerArrangement getVst3SpeakerArrangement (const AudioChannelSet& channels) noexcept
 {
     using namespace Steinberg::Vst::SpeakerArr;
 
-    if      (channels == AudioChannelSet::disabled())            return kEmpty;
-    else if (channels == AudioChannelSet::mono())                return kMono;
-    else if (channels == AudioChannelSet::stereo())              return kStereo;
-    else if (channels == AudioChannelSet::createLCR())           return k30Cine;
-    else if (channels == AudioChannelSet::createLRS())           return k30Music;
-    else if (channels == AudioChannelSet::createLCRS())          return k40Cine;
-    else if (channels == AudioChannelSet::create5point0())       return k50;
-    else if (channels == AudioChannelSet::create5point1())       return k51;
-    else if (channels == AudioChannelSet::create6point0())       return k60Cine;
-    else if (channels == AudioChannelSet::create6point1())       return k61Cine;
-    else if (channels == AudioChannelSet::create6point0Music())  return k60Music;
-    else if (channels == AudioChannelSet::create6point1Music())  return k61Music;
-    else if (channels == AudioChannelSet::create7point0())       return k70Music;
-    else if (channels == AudioChannelSet::create7point0SDDS())   return k70Cine;
-    else if (channels == AudioChannelSet::create7point1())       return k71CineSideFill;
-    else if (channels == AudioChannelSet::create7point1SDDS())   return k71Cine;
-    else if (channels == AudioChannelSet::ambisonic())           return kAmbi1stOrderACN;
-    else if (channels == AudioChannelSet::quadraphonic())        return k40Music;
-    else if (channels == AudioChannelSet::create7point0point2()) return k71_2 & ~(Steinberg::Vst::kSpeakerLfe);
-    else if (channels == AudioChannelSet::create7point1point2()) return k71_2;
-    else if (channels == AudioChannelSet::ambisonic (0))         return (1ull << 20);
-    else if (channels == AudioChannelSet::ambisonic (1))         return (1ull << 20) | (1ull << 21) | (1ull << 22) | (1ull << 23);
+    if (channels == AudioChannelSet::disabled())            return kEmpty;
+    if (channels == AudioChannelSet::mono())                return kMono;
+    if (channels == AudioChannelSet::stereo())              return kStereo;
+    if (channels == AudioChannelSet::createLCR())           return k30Cine;
+    if (channels == AudioChannelSet::createLRS())           return k30Music;
+    if (channels == AudioChannelSet::createLCRS())          return k40Cine;
+    if (channels == AudioChannelSet::create5point0())       return k50;
+    if (channels == AudioChannelSet::create5point1())       return k51;
+    if (channels == AudioChannelSet::create6point0())       return k60Cine;
+    if (channels == AudioChannelSet::create6point1())       return k61Cine;
+    if (channels == AudioChannelSet::create6point0Music())  return k60Music;
+    if (channels == AudioChannelSet::create6point1Music())  return k61Music;
+    if (channels == AudioChannelSet::create7point0())       return k70Music;
+    if (channels == AudioChannelSet::create7point0SDDS())   return k70Cine;
+    if (channels == AudioChannelSet::create7point1())       return k71CineSideFill;
+    if (channels == AudioChannelSet::create7point1SDDS())   return k71Cine;
+    if (channels == AudioChannelSet::ambisonic())           return kAmbi1stOrderACN;
+    if (channels == AudioChannelSet::quadraphonic())        return k40Music;
+    if (channels == AudioChannelSet::create7point0point2()) return k71_2 & ~(Steinberg::Vst::kSpeakerLfe);
+    if (channels == AudioChannelSet::create7point1point2()) return k71_2;
+    if (channels == AudioChannelSet::create7point0point4()) return k71_4 & ~(Steinberg::Vst::kSpeakerLfe);
+    if (channels == AudioChannelSet::create7point1point4()) return k71_4;
+    if (channels == AudioChannelSet::ambisonic (0))         return (1ull << 20);
+    if (channels == AudioChannelSet::ambisonic (1))         return (1ull << 20) | (1ull << 21) | (1ull << 22) | (1ull << 23);
    #if VST_VERSION >= 0x030608
-    else if (channels == AudioChannelSet::ambisonic (2))         return kAmbi2cdOrderACN;
-    else if (channels == AudioChannelSet::ambisonic (3))         return kAmbi3rdOrderACN;
+    if (channels == AudioChannelSet::ambisonic (2))         return kAmbi2cdOrderACN;
+    if (channels == AudioChannelSet::ambisonic (3))         return kAmbi3rdOrderACN;
    #endif
 
     Steinberg::Vst::SpeakerArrangement result = 0;
@@ -320,36 +305,40 @@ static inline Steinberg::Vst::SpeakerArrangement getVst3SpeakerArrangement (cons
     return result;
 }
 
-static inline AudioChannelSet getChannelSetForSpeakerArrangement (Steinberg::Vst::SpeakerArrangement arr) noexcept
+static AudioChannelSet getChannelSetForSpeakerArrangement (Steinberg::Vst::SpeakerArrangement arr) noexcept
 {
     using namespace Steinberg::Vst::SpeakerArr;
 
-    if      (arr == kEmpty)                                          return AudioChannelSet::disabled();
-    else if (arr == kMono)                                           return AudioChannelSet::mono();
-    else if (arr == kStereo)                                         return AudioChannelSet::stereo();
-    else if (arr == k30Cine)                                         return AudioChannelSet::createLCR();
-    else if (arr == k30Music)                                        return AudioChannelSet::createLRS();
-    else if (arr == k40Cine)                                         return AudioChannelSet::createLCRS();
-    else if (arr == k50)                                             return AudioChannelSet::create5point0();
-    else if (arr == k51)                                             return AudioChannelSet::create5point1();
-    else if (arr == k60Cine)                                         return AudioChannelSet::create6point0();
-    else if (arr == k61Cine)                                         return AudioChannelSet::create6point1();
-    else if (arr == k60Music)                                        return AudioChannelSet::create6point0Music();
-    else if (arr == k61Music)                                        return AudioChannelSet::create6point1Music();
-    else if (arr == k70Music)                                        return AudioChannelSet::create7point0();
-    else if (arr == k70Cine)                                         return AudioChannelSet::create7point0SDDS();
-    else if (arr == k71CineSideFill)                                 return AudioChannelSet::create7point1();
-    else if (arr == k71Cine)                                         return AudioChannelSet::create7point1SDDS();
-    else if (arr == kAmbi1stOrderACN)                                return AudioChannelSet::ambisonic();
-    else if (arr == k40Music)                                        return AudioChannelSet::quadraphonic();
-    else if (arr == k71_2)                                           return AudioChannelSet::create7point1point2();
-    else if (arr == (k71_2 & ~(Steinberg::Vst::kSpeakerLfe)))        return AudioChannelSet::create7point0point2();
-    else if (arr == (1 << 20))                                       return AudioChannelSet::ambisonic (0);
-    else if (arr == ((1 << 20) | (1 << 21) | (1 << 22) | (1 << 23))) return AudioChannelSet::ambisonic (1);
-   #if VST_VERSION >= 0x030608
-    else if (arr == kAmbi2cdOrderACN)                                return AudioChannelSet::ambisonic (2);
-    else if (arr == kAmbi3rdOrderACN)                                return AudioChannelSet::ambisonic (3);
-   #endif
+    switch (arr)
+    {
+        case kEmpty:                                          return AudioChannelSet::disabled();
+        case kMono:                                           return AudioChannelSet::mono();
+        case kStereo:                                         return AudioChannelSet::stereo();
+        case k30Cine:                                         return AudioChannelSet::createLCR();
+        case k30Music:                                        return AudioChannelSet::createLRS();
+        case k40Cine:                                         return AudioChannelSet::createLCRS();
+        case k50:                                             return AudioChannelSet::create5point0();
+        case k51:                                             return AudioChannelSet::create5point1();
+        case k60Cine:                                         return AudioChannelSet::create6point0();
+        case k61Cine:                                         return AudioChannelSet::create6point1();
+        case k60Music:                                        return AudioChannelSet::create6point0Music();
+        case k61Music:                                        return AudioChannelSet::create6point1Music();
+        case k70Music:                                        return AudioChannelSet::create7point0();
+        case k70Cine:                                         return AudioChannelSet::create7point0SDDS();
+        case k71CineSideFill:                                 return AudioChannelSet::create7point1();
+        case k71Cine:                                         return AudioChannelSet::create7point1SDDS();
+        case k40Music:                                        return AudioChannelSet::quadraphonic();
+        case k71_2:                                           return AudioChannelSet::create7point1point2();
+        case k71_2 & ~(Steinberg::Vst::kSpeakerLfe):          return AudioChannelSet::create7point0point2();
+        case k71_4:                                           return AudioChannelSet::create7point1point4();
+        case k71_4 & ~(Steinberg::Vst::kSpeakerLfe):          return AudioChannelSet::create7point0point4();
+        case (1 << 20):                                       return AudioChannelSet::ambisonic (0);
+        case kAmbi1stOrderACN:                                return AudioChannelSet::ambisonic (1);
+       #if VST_VERSION >= 0x030608
+        case kAmbi2cdOrderACN:                                return AudioChannelSet::ambisonic (2);
+        case kAmbi3rdOrderACN:                                return AudioChannelSet::ambisonic (3);
+       #endif
+    }
 
     AudioChannelSet result;
 
@@ -369,24 +358,24 @@ static inline AudioChannelSet getChannelSetForSpeakerArrangement (Steinberg::Vst
 
 //==============================================================================
 template <class ObjectType>
-class ComSmartPtr
+class VSTComSmartPtr
 {
 public:
-    ComSmartPtr() noexcept : source (nullptr) {}
-    ComSmartPtr (ObjectType* object, bool autoAddRef = true) noexcept  : source (object)    { if (source != nullptr && autoAddRef) source->addRef(); }
-    ComSmartPtr (const ComSmartPtr& other) noexcept : source (other.source)                 { if (source != nullptr) source->addRef(); }
-    ~ComSmartPtr()                                                                          { if (source != nullptr) source->release(); }
+    VSTComSmartPtr() noexcept : source (nullptr) {}
+    VSTComSmartPtr (ObjectType* object, bool autoAddRef = true) noexcept  : source (object)  { if (source != nullptr && autoAddRef) source->addRef(); }
+    VSTComSmartPtr (const VSTComSmartPtr& other) noexcept : source (other.source)            { if (source != nullptr) source->addRef(); }
+    ~VSTComSmartPtr()                                                                        { if (source != nullptr) source->release(); }
 
     operator ObjectType*() const noexcept    { return source; }
     ObjectType* get() const noexcept         { return source; }
     ObjectType& operator*() const noexcept   { return *source; }
     ObjectType* operator->() const noexcept  { return source; }
 
-    ComSmartPtr& operator= (const ComSmartPtr& other)       { return operator= (other.source); }
+    VSTComSmartPtr& operator= (const VSTComSmartPtr& other)       { return operator= (other.source); }
 
-    ComSmartPtr& operator= (ObjectType* const newObjectToTakePossessionOf)
+    VSTComSmartPtr& operator= (ObjectType* const newObjectToTakePossessionOf)
     {
-        ComSmartPtr p (newObjectToTakePossessionOf);
+        VSTComSmartPtr p (newObjectToTakePossessionOf);
         std::swap (p.source, source);
         return *this;
     }
@@ -415,8 +404,8 @@ private:
 class MidiEventList  : public Steinberg::Vst::IEventList
 {
 public:
-    MidiEventList() {}
-    virtual ~MidiEventList() {}
+    MidiEventList() = default;
+    virtual ~MidiEventList() = default;
 
     JUCE_DECLARE_VST3_COM_REF_METHODS
     JUCE_DECLARE_VST3_COM_QUERY_METHODS
@@ -453,66 +442,69 @@ public:
     //==============================================================================
     static void toMidiBuffer (MidiBuffer& result, Steinberg::Vst::IEventList& eventList)
     {
-        const int32 numEvents = eventList.getEventCount();
+        const auto numEvents = eventList.getEventCount();
 
         for (Steinberg::int32 i = 0; i < numEvents; ++i)
         {
             Steinberg::Vst::Event e;
 
-            if (eventList.getEvent (i, e) == Steinberg::kResultOk)
-            {
-                switch (e.type)
-                {
-                    case Steinberg::Vst::Event::kNoteOnEvent:
-                        result.addEvent (MidiMessage::noteOn (createSafeChannel (e.noteOn.channel),
-                                                              createSafeNote (e.noteOn.pitch),
-                                                              (Steinberg::uint8) denormaliseToMidiValue (e.noteOn.velocity)),
-                                         e.sampleOffset);
-                        break;
+            if (eventList.getEvent (i, e) != Steinberg::kResultOk)
+                continue;
 
-                    case Steinberg::Vst::Event::kNoteOffEvent:
-                        result.addEvent (MidiMessage::noteOff (createSafeChannel (e.noteOff.channel),
-                                                               createSafeNote (e.noteOff.pitch),
-                                                               (Steinberg::uint8) denormaliseToMidiValue (e.noteOff.velocity)),
-                                         e.sampleOffset);
-                        break;
+            const auto message = toMidiMessage (e);
 
-                    case Steinberg::Vst::Event::kPolyPressureEvent:
-                        result.addEvent (MidiMessage::channelPressureChange (createSafeChannel (e.polyPressure.channel),
-                                                                             denormaliseToMidiValue (e.polyPressure.pressure)),
-                                         e.sampleOffset);
-                        break;
-
-                    case Steinberg::Vst::Event::kDataEvent:
-                        result.addEvent (MidiMessage::createSysExMessage (e.data.bytes, (int) e.data.size),
-                                         e.sampleOffset);
-                        break;
-
-                    default:
-                        break;
-                }
-            }
+            if (message.isValid)
+                result.addEvent (message.item, e.sampleOffset);
         }
     }
 
-    static void toEventList (Steinberg::Vst::IEventList& result, MidiBuffer& midiBuffer,
-                             Steinberg::Vst::IParameterChanges* parameterChanges = nullptr,
-                             Steinberg::Vst::IMidiMapping* midiMapping = nullptr)
+    static void hostToPluginEventList (Steinberg::Vst::IEventList& result, MidiBuffer& midiBuffer,
+                                       Steinberg::Vst::IParameterChanges* parameterChanges,
+                                       Steinberg::Vst::IMidiMapping* midiMapping)
     {
-        MidiBuffer::Iterator iterator (midiBuffer);
-        const uint8* midiEventData = nullptr;
-        int midiEventSize = 0;
-        int midiEventPosition = 0;
+        toEventList (result,
+                     midiBuffer,
+                     parameterChanges,
+                     midiMapping,
+                     EventConversionKind::hostToPlugin);
+    }
 
+    static void pluginToHostEventList (Steinberg::Vst::IEventList& result, MidiBuffer& midiBuffer)
+    {
+        toEventList (result,
+                     midiBuffer,
+                     nullptr,
+                     nullptr,
+                     EventConversionKind::pluginToHost);
+    }
+
+private:
+    enum class EventConversionKind
+    {
+        // Hosted plugins don't expect to receive LegacyMIDICCEvents messages from the host,
+        // so if we're converting midi from the host to an eventlist, this mode will avoid
+        // converting to Legacy events where possible.
+        hostToPlugin,
+
+        // If plugins generate MIDI internally, then where possible we should preserve
+        // these messages as LegacyMIDICCOut events.
+        pluginToHost
+    };
+
+    static void toEventList (Steinberg::Vst::IEventList& result, MidiBuffer& midiBuffer,
+                             Steinberg::Vst::IParameterChanges* parameterChanges,
+                             Steinberg::Vst::IMidiMapping* midiMapping,
+                             EventConversionKind kind)
+    {
         enum { maxNumEvents = 2048 }; // Steinberg's Host Checker states that no more than 2048 events are allowed at once
         int numEvents = 0;
 
-        while (iterator.getNextEvent (midiEventData, midiEventSize, midiEventPosition))
+        for (const auto metadata : midiBuffer)
         {
             if (++numEvents > maxNumEvents)
                 break;
 
-            MidiMessage msg (midiEventData, midiEventSize);
+            auto msg = metadata.getMessage();
 
             if (midiMapping != nullptr && parameterChanges != nullptr)
             {
@@ -529,61 +521,25 @@ public:
                         Steinberg::int32 ignore;
 
                         if (auto* queue = parameterChanges->addParameterData (controlParamID, ignore))
-                            queue->addPoint (midiEventPosition, controlEvent.paramValue, ignore);
+                            queue->addPoint (metadata.samplePosition, controlEvent.paramValue, ignore);
                     }
 
                     continue;
                 }
             }
 
-            Steinberg::Vst::Event e = { 0 };
+            auto maybeEvent = createVstEvent (msg, metadata.data, kind);
 
-            if (msg.isNoteOn())
-            {
-                e.type              = Steinberg::Vst::Event::kNoteOnEvent;
-                e.noteOn.channel    = createSafeChannel (msg.getChannel());
-                e.noteOn.pitch      = createSafeNote (msg.getNoteNumber());
-                e.noteOn.velocity   = normaliseMidiValue (msg.getVelocity());
-                e.noteOn.length     = 0;
-                e.noteOn.tuning     = 0.0f;
-                e.noteOn.noteId     = -1;
-            }
-            else if (msg.isNoteOff())
-            {
-                e.type              = Steinberg::Vst::Event::kNoteOffEvent;
-                e.noteOff.channel   = createSafeChannel (msg.getChannel());
-                e.noteOff.pitch     = createSafeNote (msg.getNoteNumber());
-                e.noteOff.velocity  = normaliseMidiValue (msg.getVelocity());
-                e.noteOff.tuning    = 0.0f;
-                e.noteOff.noteId    = -1;
-            }
-            else if (msg.isSysEx())
-            {
-                e.type          = Steinberg::Vst::Event::kDataEvent;
-                e.data.bytes    = midiEventData + 1;
-                e.data.size     = (uint32) msg.getSysExDataSize();
-                e.data.type     = Steinberg::Vst::DataEvent::kMidiSysEx;
-            }
-            else if (msg.isChannelPressure())
-            {
-                e.type                   = Steinberg::Vst::Event::kPolyPressureEvent;
-                e.polyPressure.channel   = createSafeChannel (msg.getChannel());
-                e.polyPressure.pitch     = createSafeNote (msg.getNoteNumber());
-                e.polyPressure.pressure  = normaliseMidiValue (msg.getChannelPressureValue());
-            }
-            else
-            {
+            if (! maybeEvent.isValid)
                 continue;
-            }
 
+            auto& e = maybeEvent.item;
             e.busIndex = 0;
-            e.sampleOffset = midiEventPosition;
-
+            e.sampleOffset = metadata.samplePosition;
             result.addEvent (e);
         }
     }
 
-private:
     Array<Steinberg::Vst::Event, CriticalSection> events;
     Atomic<int> refCount;
 
@@ -596,6 +552,240 @@ private:
     static float normaliseMidiValue (int value) noexcept              { return jlimit (0.0f, 1.0f, (float) value / 127.0f); }
     static int denormaliseToMidiValue (float value) noexcept          { return roundToInt (jlimit (0.0f, 127.0f, value * 127.0f)); }
 
+    static Steinberg::Vst::Event createNoteOnEvent (const MidiMessage& msg) noexcept
+    {
+        Steinberg::Vst::Event e{};
+        e.type              = Steinberg::Vst::Event::kNoteOnEvent;
+        e.noteOn.channel    = createSafeChannel (msg.getChannel());
+        e.noteOn.pitch      = createSafeNote (msg.getNoteNumber());
+        e.noteOn.velocity   = normaliseMidiValue (msg.getVelocity());
+        e.noteOn.length     = 0;
+        e.noteOn.tuning     = 0.0f;
+        e.noteOn.noteId     = -1;
+        return e;
+    }
+
+    static Steinberg::Vst::Event createNoteOffEvent (const MidiMessage& msg) noexcept
+    {
+        Steinberg::Vst::Event e{};
+        e.type              = Steinberg::Vst::Event::kNoteOffEvent;
+        e.noteOff.channel   = createSafeChannel (msg.getChannel());
+        e.noteOff.pitch     = createSafeNote (msg.getNoteNumber());
+        e.noteOff.velocity  = normaliseMidiValue (msg.getVelocity());
+        e.noteOff.tuning    = 0.0f;
+        e.noteOff.noteId    = -1;
+        return e;
+    }
+
+    static Steinberg::Vst::Event createSysExEvent (const MidiMessage& msg, const uint8* midiEventData) noexcept
+    {
+        Steinberg::Vst::Event e{};
+        e.type          = Steinberg::Vst::Event::kDataEvent;
+        e.data.bytes    = midiEventData + 1;
+        e.data.size     = (uint32) msg.getSysExDataSize();
+        e.data.type     = Steinberg::Vst::DataEvent::kMidiSysEx;
+        return e;
+    }
+
+    static Steinberg::Vst::Event createLegacyMIDIEvent (int channel, int controlNumber, int value, int value2 = 0)
+    {
+        Steinberg::Vst::Event e{};
+        e.type                      = Steinberg::Vst::Event::kLegacyMIDICCOutEvent;
+        e.midiCCOut.channel         = Steinberg::int8 (createSafeChannel (channel));
+        e.midiCCOut.controlNumber   = uint8 (jlimit (0, 255, controlNumber));
+        e.midiCCOut.value           = Steinberg::int8 (createSafeNote (value));
+        e.midiCCOut.value2          = Steinberg::int8 (createSafeNote (value2));
+        return e;
+    }
+
+    static Steinberg::Vst::Event createPolyPressureEvent (const MidiMessage& msg)
+    {
+        Steinberg::Vst::Event e{};
+        e.type                      = Steinberg::Vst::Event::kPolyPressureEvent;
+        e.polyPressure.channel      = createSafeChannel (msg.getChannel());
+        e.polyPressure.pitch        = createSafeNote (msg.getNoteNumber());
+        e.polyPressure.pressure     = normaliseMidiValue (msg.getAfterTouchValue());
+        e.polyPressure.noteId       = -1;
+        return e;
+    }
+
+    static Steinberg::Vst::Event createChannelPressureEvent (const MidiMessage& msg) noexcept
+    {
+        return createLegacyMIDIEvent (msg.getChannel(),
+                                      Steinberg::Vst::kAfterTouch,
+                                      msg.getChannelPressureValue());
+    }
+
+    static Steinberg::Vst::Event createControllerEvent (const MidiMessage& msg) noexcept
+    {
+        return createLegacyMIDIEvent (msg.getChannel(),
+                                      msg.getControllerNumber(),
+                                      msg.getControllerValue());
+    }
+
+    static Steinberg::Vst::Event createCtrlPolyPressureEvent (const MidiMessage& msg) noexcept
+    {
+        return createLegacyMIDIEvent (msg.getChannel(),
+                                      Steinberg::Vst::kCtrlPolyPressure,
+                                      msg.getNoteNumber(),
+                                      msg.getAfterTouchValue());
+    }
+
+    static Steinberg::Vst::Event createPitchWheelEvent (const MidiMessage& msg) noexcept
+    {
+        return createLegacyMIDIEvent (msg.getChannel(),
+                                      Steinberg::Vst::kPitchBend,
+                                      msg.getRawData()[1],
+                                      msg.getRawData()[2]);
+    }
+
+    static Steinberg::Vst::Event createProgramChangeEvent (const MidiMessage& msg) noexcept
+    {
+        return createLegacyMIDIEvent (msg.getChannel(),
+                                      Steinberg::Vst::kCtrlProgramChange,
+                                      msg.getProgramChangeNumber());
+    }
+
+    static Steinberg::Vst::Event createCtrlQuarterFrameEvent (const MidiMessage& msg) noexcept
+    {
+        return createLegacyMIDIEvent (msg.getChannel(),
+                                      Steinberg::Vst::kCtrlQuarterFrame,
+                                      msg.getQuarterFrameValue());
+    }
+
+    template <typename Item>
+    struct BasicOptional final
+    {
+        BasicOptional() noexcept = default;
+        BasicOptional (const Item& i) noexcept : item { i }, isValid { true } {}
+
+        Item item;
+        bool isValid{};
+    };
+
+    static BasicOptional<Steinberg::Vst::Event> createVstEvent (const MidiMessage& msg,
+                                                                const uint8* midiEventData,
+                                                                EventConversionKind kind) noexcept
+    {
+        if (msg.isNoteOn())
+            return createNoteOnEvent (msg);
+
+        if (msg.isNoteOff())
+            return createNoteOffEvent (msg);
+
+        if (msg.isSysEx())
+            return createSysExEvent (msg, midiEventData);
+
+        if (msg.isChannelPressure())
+            return createChannelPressureEvent (msg);
+
+        if (msg.isPitchWheel())
+            return createPitchWheelEvent (msg);
+
+        if (msg.isProgramChange())
+            return createProgramChangeEvent (msg);
+
+        if (msg.isController())
+            return createControllerEvent (msg);
+
+        if (msg.isQuarterFrame())
+            return createCtrlQuarterFrameEvent (msg);
+
+        if (msg.isAftertouch())
+        {
+            switch (kind)
+            {
+                case EventConversionKind::hostToPlugin:
+                    return createPolyPressureEvent (msg);
+
+                case EventConversionKind::pluginToHost:
+                    return createCtrlPolyPressureEvent (msg);
+            }
+
+            jassertfalse;
+            return {};
+        }
+
+        return {};
+    }
+
+    static BasicOptional<MidiMessage> toMidiMessage (const Steinberg::Vst::LegacyMIDICCOutEvent& e)
+    {
+        if (e.controlNumber <= 127)
+            return MidiMessage::controllerEvent (createSafeChannel (int16 (e.channel)),
+                                                 createSafeNote (int16 (e.controlNumber)),
+                                                 createSafeNote (int16 (e.value)));
+
+        switch (e.controlNumber)
+        {
+            case Steinberg::Vst::kAfterTouch:
+                return MidiMessage::channelPressureChange (createSafeChannel (int16 (e.channel)),
+                                                           createSafeNote (int16 (e.value)));
+
+            case Steinberg::Vst::kPitchBend:
+                return MidiMessage::pitchWheel (createSafeChannel (int16 (e.channel)),
+                                                (e.value & 0x7f) | ((e.value2 & 0x7f) << 7));
+
+            case Steinberg::Vst::kCtrlProgramChange:
+                return MidiMessage::programChange (createSafeChannel (int16 (e.channel)),
+                                                   createSafeNote (int16 (e.value)));
+
+            case Steinberg::Vst::kCtrlQuarterFrame:
+                return MidiMessage::quarterFrame (createSafeChannel (int16 (e.channel)),
+                                                  createSafeNote (int16 (e.value)));
+
+            case Steinberg::Vst::kCtrlPolyPressure:
+                return MidiMessage::aftertouchChange (createSafeChannel (int16 (e.channel)),
+                                                      createSafeNote (int16 (e.value)),
+                                                      createSafeNote (int16 (e.value2)));
+
+            default:
+                // If this is hit, we're trying to convert a LegacyMIDICCOutEvent with an unknown controlNumber.
+                jassertfalse;
+                return {};
+        }
+    }
+
+    static BasicOptional<MidiMessage> toMidiMessage (const Steinberg::Vst::Event& e)
+    {
+        switch (e.type)
+        {
+            case Steinberg::Vst::Event::kNoteOnEvent:
+                return MidiMessage::noteOn (createSafeChannel (e.noteOn.channel),
+                                            createSafeNote (e.noteOn.pitch),
+                                            (Steinberg::uint8) denormaliseToMidiValue (e.noteOn.velocity));
+
+            case Steinberg::Vst::Event::kNoteOffEvent:
+                return MidiMessage::noteOff (createSafeChannel (e.noteOff.channel),
+                                             createSafeNote (e.noteOff.pitch),
+                                             (Steinberg::uint8) denormaliseToMidiValue (e.noteOff.velocity));
+
+            case Steinberg::Vst::Event::kPolyPressureEvent:
+                return MidiMessage::aftertouchChange (createSafeChannel (e.polyPressure.channel),
+                                                      createSafeNote (e.polyPressure.pitch),
+                                                      (Steinberg::uint8) denormaliseToMidiValue (e.polyPressure.pressure));
+
+            case Steinberg::Vst::Event::kDataEvent:
+                return MidiMessage::createSysExMessage (e.data.bytes, (int) e.data.size);
+
+            case Steinberg::Vst::Event::kLegacyMIDICCOutEvent:
+                return toMidiMessage (e.midiCCOut);
+
+            case Steinberg::Vst::Event::kNoteExpressionValueEvent:
+            case Steinberg::Vst::Event::kNoteExpressionTextEvent:
+            case Steinberg::Vst::Event::kChordEvent:
+            case Steinberg::Vst::Event::kScaleEvent:
+                return {};
+
+            default:
+                break;
+        }
+
+        // If this is hit, we've been sent an event type that doesn't exist in the VST3 spec.
+        jassertfalse;
+        return {};
+    }
+
     //==============================================================================
     struct Vst3MidiControlEvent
     {
@@ -605,13 +795,26 @@ private:
 
     static bool toVst3ControlEvent (const MidiMessage& msg, Vst3MidiControlEvent& result)
     {
+        if (msg.isController())
+        {
+            result = { (Steinberg::Vst::CtrlNumber) msg.getControllerNumber(), msg.getControllerValue() / 127.0};
+            return true;
+        }
+
+        if (msg.isPitchWheel())
+        {
+            result = { Steinberg::Vst::kPitchBend, msg.getPitchWheelValue() / 16383.0};
+            return true;
+        }
+
+        if (msg.isChannelPressure())
+        {
+            result = { Steinberg::Vst::kAfterTouch, msg.getChannelPressureValue() / 127.0};
+            return true;
+        }
+
         result.controllerNumber = -1;
-
-        if      (msg.isController())        result = { (Steinberg::Vst::CtrlNumber) msg.getControllerNumber(), msg.getControllerValue() / 127.0};
-        else if (msg.isPitchWheel())        result = { Steinberg::Vst::kPitchBend, msg.getPitchWheelValue() / 16383.0};
-        else if (msg.isAftertouch())        result = { Steinberg::Vst::kAfterTouch, msg.getAfterTouchValue() / 127.0};
-
-        return (result.controllerNumber != -1);
+        return false;
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiEventList)
@@ -624,8 +827,8 @@ struct VST3BufferExchange
     using Bus = Array<FloatType*>;
     using BusMap = Array<Bus>;
 
-    static inline void assignRawPointer (Steinberg::Vst::AudioBusBuffers& vstBuffers, float** raw)  { vstBuffers.channelBuffers32 = raw; }
-    static inline void assignRawPointer (Steinberg::Vst::AudioBusBuffers& vstBuffers, double** raw) { vstBuffers.channelBuffers64 = raw; }
+    static void assignRawPointer (Steinberg::Vst::AudioBusBuffers& vstBuffers, float** raw)  { vstBuffers.channelBuffers32 = raw; }
+    static void assignRawPointer (Steinberg::Vst::AudioBusBuffers& vstBuffers, double** raw) { vstBuffers.channelBuffers64 = raw; }
 
     /** Assigns a series of AudioBuffer's channels to an AudioBusBuffers'
         @warning For speed, does not check the channel count and offsets according to the AudioBuffer
@@ -669,9 +872,9 @@ struct VST3BufferExchange
         channelIndexOffset += numChansForBus;
     }
 
-    static inline void mapBufferToBuses (Array<Steinberg::Vst::AudioBusBuffers>& result, BusMap& busMapToUse,
-                                          const Array<AudioChannelSet>& arrangements,
-                                          AudioBuffer<FloatType>& source)
+    static void mapBufferToBuses (Array<Steinberg::Vst::AudioBusBuffers>& result, BusMap& busMapToUse,
+                                  const Array<AudioChannelSet>& arrangements,
+                                  AudioBuffer<FloatType>& source)
     {
         int channelIndexOffset = 0;
 
@@ -680,10 +883,10 @@ struct VST3BufferExchange
                                     arrangements.getUnchecked (i), source);
     }
 
-    static inline void mapBufferToBuses (Array<Steinberg::Vst::AudioBusBuffers>& result,
-                                          Steinberg::Vst::IAudioProcessor& processor,
-                                          BusMap& busMapToUse, bool isInput, int numBuses,
-                                          AudioBuffer<FloatType>& source)
+    static void mapBufferToBuses (Array<Steinberg::Vst::AudioBusBuffers>& result,
+                                  Steinberg::Vst::IAudioProcessor& processor,
+                                  BusMap& busMapToUse, bool isInput, int numBuses,
+                                  AudioBuffer<FloatType>& source)
     {
         int channelIndexOffset = 0;
 
@@ -710,12 +913,12 @@ struct VST3FloatAndDoubleBusMapComposite
 
 template <> struct VST3FloatAndDoubleBusMapCompositeHelper<float>
 {
-    static inline VST3BufferExchange<float>::BusMap& get (VST3FloatAndDoubleBusMapComposite& impl)  { return impl.floatVersion; }
+    static VST3BufferExchange<float>::BusMap& get (VST3FloatAndDoubleBusMapComposite& impl)  { return impl.floatVersion; }
 };
 
 template <> struct VST3FloatAndDoubleBusMapCompositeHelper<double>
 {
-    static inline VST3BufferExchange<double>::BusMap& get (VST3FloatAndDoubleBusMapComposite& impl) { return impl.doubleVersion; }
+    static VST3BufferExchange<double>::BusMap& get (VST3FloatAndDoubleBusMapComposite& impl) { return impl.doubleVersion; }
 };
 
 } // namespace juce

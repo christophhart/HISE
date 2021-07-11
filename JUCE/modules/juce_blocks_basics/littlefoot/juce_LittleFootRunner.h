@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -174,7 +174,7 @@ struct NativeFunction
         jassert (slash > 0); // The slash can't be the first character in this string!
         jassert (nameAndArgTypes[slash + 1] != 0);  // The slash must be followed by a return type character
         jassert (String (nameAndArgTypes).substring (0, slash).containsOnly ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"));
-        jassert (! String ("0123456789").containsChar (nameAndArgTypes[0]));
+        jassert (! String ("0123456789").containsChar (String (nameAndArgTypes)[0]));
         jassert (String (nameAndArgTypes).substring (slash + 1).containsOnly ("vifb"));
         jassert (String (nameAndArgTypes).substring (slash + 2).containsOnly ("ifb")); // arguments must only be of these types
 
@@ -238,7 +238,7 @@ struct Program
         auto n = (uint16) size;
 
         for (uint32 i = 2; i < size; ++i)
-            n += (n * 2) + programStart[i];
+            n = static_cast<uint16> (n + (n * 2) + programStart[i]);
 
         return n;
     }
@@ -336,7 +336,8 @@ struct Program
            #undef LITTLEFOOT_OP_INT16
            #undef LITTLEFOOT_OP_INT32
 
-            default:  s << "???"; break;
+            case OpCode::endOfOpcodes:
+            default:  s << "???";      break;
         }
 
         return s;
@@ -370,8 +371,11 @@ struct Program
            #undef LITTLEFOOT_OP_INT16
            #undef LITTLEFOOT_OP_INT32
 
-            default:  jassertfalse; return 0;
+            case OpCode::endOfOpcodes:
+            default: jassertfalse;     break;
         }
+
+        return 0;
     }
 
     //==============================================================================
@@ -583,7 +587,7 @@ struct Runner
 
     //==============================================================================
     /** */
-    uint8 allMemory[((programAndHeapSpace + stackAndGlobalsSpace) + 3) & ~3];
+    uint8 allMemory[(size_t) (((programAndHeapSpace + stackAndGlobalsSpace) + 3) & ~3)];
 
     /** */
     Program program;
@@ -676,6 +680,7 @@ struct Runner
                 switch (op)
                 {
                     LITTLEFOOT_OPCODES (LITTLEFOOT_PERFORM_OP, LITTLEFOOT_PERFORM_OP_INT8, LITTLEFOOT_PERFORM_OP_INT16, LITTLEFOOT_PERFORM_OP_INT32)
+                    case OpCode::endOfOpcodes:
                     default:  setError (ErrorCode::unknownInstruction); break;
                 }
 

@@ -89,7 +89,7 @@ void ViewInfo::restoreFromValueTree(const ValueTree &v)
 
 		view->processorId = child.getProperty("i", "");
 		view->parentId = child.getProperty("p", "");
-		view->editorState = XmlDocument::parse(child.getProperty("s", ""));
+		view->editorState = XmlDocument::parse(child.getProperty("s", "")).release();
 
 		states.add(view);
 	}

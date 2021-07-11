@@ -1,31 +1,31 @@
 /*
   ==============================================================================
 
-
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
 
 namespace VideoRenderers
 {
-    //======================================================================
+    //==============================================================================
     struct Base
     {
         virtual ~Base() {}
@@ -38,7 +38,7 @@ namespace VideoRenderers
         virtual HRESULT getVideoSize (long& videoWidth, long& videoHeight) = 0;
     };
 
-    //======================================================================
+    //==============================================================================
     struct VMR7  : public Base
     {
         VMR7() {}
@@ -98,7 +98,7 @@ namespace VideoRenderers
     };
 
 
-    //======================================================================
+    //==============================================================================
     struct EVR  : public Base
     {
         EVR() {}
@@ -389,7 +389,7 @@ private:
 
     std::unique_ptr<ComponentWatcher> componentWatcher;
 
-    //======================================================================
+    //==============================================================================
     struct DirectShowContext    : public AsyncUpdater
     {
         DirectShowContext (Pimpl& c)  : component (c)
@@ -403,7 +403,7 @@ private:
             CoUninitialize();
         }
 
-        //======================================================================
+        //==============================================================================
         void updateWindowPosition (const Rectangle<int>& newBounds)
         {
             nativeWindow->setWindowPosition (newBounds);
@@ -414,7 +414,7 @@ private:
             nativeWindow->showWindow (shouldBeVisible);
         }
 
-        //======================================================================
+        //==============================================================================
         void repaint()
         {
             if (hasVideo)
@@ -433,7 +433,7 @@ private:
                 videoRenderer->displayModeChanged();
         }
 
-        //======================================================================
+        //==============================================================================
         void peerChanged()
         {
             deleteNativeWindow();
@@ -488,7 +488,7 @@ private:
             triggerAsyncUpdate();
         }
 
-        //======================================================================
+        //==============================================================================
         Result loadFile (const String& fileOrURLPath)
         {
             jassert (state == uninitializedState);
@@ -667,7 +667,7 @@ private:
             }
         }
 
-        //======================================================================
+        //==============================================================================
         void play()
         {
             mediaControl->Run();
@@ -686,7 +686,7 @@ private:
             state = pausedState;
         }
 
-        //======================================================================
+        //==============================================================================
         Rectangle<int> getVideoSize() const noexcept
         {
             long width = 0, height = 0;
@@ -697,7 +697,7 @@ private:
             return { (int) width, (int) height };
         }
 
-        //======================================================================
+        //==============================================================================
         double getDuration() const
         {
             REFTIME duration;
@@ -743,7 +743,7 @@ private:
         State state = uninitializedState;
 
     private:
-        //======================================================================
+        //==============================================================================
         enum { graphEventID = WM_APP + 0x43f0 };
 
         Pimpl& component;
@@ -761,7 +761,7 @@ private:
 
         bool hasVideo = false, needToUpdateViewport = true, needToRecreateNativeWindow = false;
 
-        //======================================================================
+        //==============================================================================
         bool createNativeWindow()
         {
             jassert (nativeWindow == nullptr);
@@ -838,7 +838,7 @@ private:
             return false;
         }
 
-        //======================================================================
+        //==============================================================================
         struct NativeWindowClass   : private DeletedAtShutdown
         {
             bool isRegistered() const noexcept              { return atom != 0; }
@@ -854,10 +854,10 @@ private:
 
                 HINSTANCE moduleHandle = (HINSTANCE) Process::getCurrentModuleInstanceHandle();
 
-                TCHAR moduleFile [1024] = { 0 };
+                TCHAR moduleFile [1024] = {};
                 GetModuleFileName (moduleHandle, moduleFile, 1024);
 
-                WNDCLASSEX wcex = { 0 };
+                WNDCLASSEX wcex = {};
                 wcex.cbSize         = sizeof (wcex);
                 wcex.style          = CS_OWNDC;
                 wcex.lpfnWndProc    = (WNDPROC) wndProc;
@@ -898,7 +898,7 @@ private:
             JUCE_DECLARE_NON_COPYABLE (NativeWindowClass)
         };
 
-        //======================================================================
+        //==============================================================================
         struct NativeWindow
         {
             NativeWindow (HWND parentToAddTo, void* userData)

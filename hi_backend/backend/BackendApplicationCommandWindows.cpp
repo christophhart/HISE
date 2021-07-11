@@ -64,7 +64,7 @@ END_MARKDOWN_CHAPTER()
 
 static bool canConnectToWebsite(const URL& url)
 {
-	ScopedPointer<InputStream> in(url.createInputStream(false, nullptr, nullptr, String(), 2000, nullptr));
+	auto in = url.createInputStream(false, nullptr, nullptr, String(), 2000, nullptr);
 	return in != nullptr;
 }
 
@@ -171,7 +171,7 @@ public:
 
 		URL url(webFolder + downloadFileName);
 
-		ScopedPointer<InputStream> stream = url.createInputStream(false, &downloadProgress, this);
+		auto stream = url.createInputStream(false, &downloadProgress, this);
 
 		target = File(filePicker->getCurrentFile().getChildFile(downloadFileName));
 
@@ -271,7 +271,7 @@ private:
 
 		String content;
 
-		ScopedPointer<InputStream> stream = url.createInputStream(false);
+		auto stream = url.createInputStream(false);
 
 		if (stream != nullptr)
 		{
@@ -360,7 +360,7 @@ struct XmlBackupFunctions
 			{
 				if (auto child = XmlDocument::parse(f))
 				{
-					uiData->addChildElement(child);
+					uiData->addChildElement(child.release());
 				}
 			}
 
@@ -411,31 +411,7 @@ struct XmlBackupFunctions
 		}
 	}
 
-	static void restoreAllScripts(XmlElement &xml, ModulatorSynthChain *masterChain, const String &newId)
-	{
-		if (xml.hasTagName("Processor") && xml.getStringAttribute("Type").contains("Script"))
-		{
-			File scriptDirectory = getScriptDirectoryFor(masterChain, newId);
-
-			DirectoryIterator iter(scriptDirectory, false, "*.js", File::findFiles);
-
-			while (iter.next())
-			{
-				File script = iter.getFile();
-
-				if (script.getFileNameWithoutExtension() == getSanitiziedName(xml.getStringAttribute("ID")))
-				{
-					xml.setAttribute("Script", script.loadFileAsString());
-					break;
-				}
-			}
-		}
-
-		for (int i = 0; i < xml.getNumChildElements(); i++)
-		{
-			restoreAllScripts(*xml.getChildElement(i), masterChain, newId);
-		}
-	}
+	static void restoreAllScripts(ValueTree &v, ModulatorSynthChain *masterChain, const String &newId);
 
 	static File getScriptDirectoryFor(ModulatorSynthChain *masterChain, const String &chainId = String())
 	{
@@ -462,6 +438,46 @@ private:
 	}
 };
 
+void XmlBackupFunctions::restoreAllScripts(ValueTree& v, ModulatorSynthChain *masterChain, const String &newId)
+{
+	static const Identifier pr("Processor");
+	static const Identifier scr("Script");
+	static const Identifier id("ID");
+	static const Identifier typ("Type");
+
+	if (v.getType() == Identifier(pr) && v[typ].toString().contains("Script"))
+	{
+		auto fileName = getSanitiziedName(v[id]);
+		
+		
+
+		File scriptDirectory = getScriptDirectoryFor(masterChain, newId);
+
+		auto sf = scriptDirectory.getChildFile(fileName).withFileExtension("js");
+
+		if (!sf.existsAsFile())
+		{
+			jassertfalse;
+		}
+
+
+		DirectoryIterator iter(scriptDirectory, false, "*.js", File::findFiles);
+
+		while (iter.next())
+		{
+			File script = iter.getFile();
+
+			if (script.getFileNameWithoutExtension() == fileName)
+			{
+				v.setProperty(scr, script.loadFileAsString(), nullptr);
+				break;
+			}
+		}
+	}
+
+	for (auto c: v)
+		restoreAllScripts(c, masterChain, newId);
+}
 
 class DummyUnlocker : public OnlineUnlockStatus
 {
@@ -1326,7 +1342,7 @@ public:
 
 		showStatusMessage("Downloading the project");
 
-		ScopedPointer<InputStream> stream = downloadLocation.createInputStream(false, &downloadProgress, this, String(), 0, nullptr, &httpStatusCode, 20);
+		auto stream = downloadLocation.createInputStream(false, &downloadProgress, this, String(), 0, nullptr, &httpStatusCode, 20);
 
 		if (stream == nullptr || stream->getTotalLength() <= 0)
 		{
@@ -1340,7 +1356,7 @@ public:
 		tempFile.deleteFile();
 		tempFile.create();
 
-		ScopedPointer<OutputStream> fos = tempFile.createOutputStream();
+		auto fos = tempFile.createOutputStream();
 
 		MemoryBlock mb;
 		mb.setSize(8192);

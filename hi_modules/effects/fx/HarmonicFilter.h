@@ -268,11 +268,31 @@ class BaseHarmonicFilter: public SliderPackProcessor
 {
 public:
 
+	enum SliderPacks
+	{
+		A = 0,
+		B,
+		Mix,
+		numPacks
+	};
+
+	BaseHarmonicFilter(MainController* mc) :
+		SliderPackProcessor(mc, 3)
+	{
+		dataA = getSliderPackUnchecked(0);
+		dataB = getSliderPackUnchecked(1);
+		dataMix = getSliderPackUnchecked(2);
+	}
+
     virtual ~BaseHarmonicFilter() {};
     
 	virtual void setCrossfadeValue(double normalizedCrossfadeValue) = 0;
 
-    int getNumSliderPacks() const override { return 3; }
+protected:
+
+	SliderPackData* dataA;
+	SliderPackData* dataB;
+	SliderPackData* dataMix;
 };
 
  
@@ -353,8 +373,6 @@ public:
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	
     
-	SliderPackData *getSliderPackData(int i) override;
-    const SliderPackData *getSliderPackData(int i) const override;
 	void setCrossfadeValue(double normalizedCrossfadeValue) override;
 
 private:
@@ -367,10 +385,6 @@ private:
 	const int numVoices;
 	double q;
 	int numBands;
-
-	ScopedPointer<SliderPackData> dataA;
-	ScopedPointer<SliderPackData> dataB;
-	ScopedPointer<SliderPackData> dataMix;
 
 	FixedVoiceAmountArray<PeakFilterBand> filterBanks;
 };
@@ -406,13 +420,7 @@ public:
 		numParameters
 	};
 
-	enum SliderPacks
-	{
-		A = 0,
-		B,
-		Mix,
-		numPacks
-	};
+	
 
 	enum FilterBandNumbers
 	{
@@ -450,8 +458,6 @@ public:
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-	SliderPackData *getSliderPackData(int i) override;
-    const SliderPackData *getSliderPackData(int i) const override;
     
 	void setCrossfadeValue(double normalizedCrossfadeValue);
 
@@ -464,10 +470,6 @@ private:
 	int semiToneTranspose;
 	int numBands;
 	double q;
-
-	ScopedPointer<SliderPackData> dataA;
-	ScopedPointer<SliderPackData> dataB;
-	ScopedPointer<SliderPackData> dataMix;
 
 	PeakFilterBand filterBank;
 };

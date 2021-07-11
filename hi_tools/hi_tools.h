@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_zstd
+  dependencies:      juce_audio_basics, juce_audio_formats, juce_core, juce_graphics,  juce_data_structures, juce_events
   OSXFrameworks:    Accelerate
   iOSFrameworks:    Accelerate
 
@@ -53,16 +53,45 @@ END_JUCE_MODULE_DECLARATION
 #pragma once
 
 #include "AppConfig.h"
+
+
+
+
+/** Config: HISE_NO_GUI_TOOLS
+
+	Set this to true to remove some UI code from this module
+	This will reduce the build times and compilation size for headless projects.
+*/
+#ifndef HISE_NO_GUI_TOOLS
+#define HISE_NO_GUI_TOOLS 0
+#endif
+
+
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
-#include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"
+
+#include "../JUCE/modules/juce_graphics/juce_graphics.h"
+
 #include "../JUCE/modules/juce_audio_devices/juce_audio_devices.h"
 #include "../JUCE/modules/juce_audio_utils/juce_audio_utils.h"
+
+#include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"
+
+#if !HISE_NO_GUI_TOOLS
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../hi_zstd/hi_zstd.h"
+
+#endif
+
+
+
 #include "../hi_streaming/hi_streaming.h"
 
+
+#if JUCE_ARM
+#include "hi_tools/sse2neon.h"
+#endif
 
 #if USE_BACKEND || USE_FRONTEND
 #define HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES 0
@@ -74,6 +103,12 @@ END_JUCE_MODULE_DECLARATION
 #define DOUBLE_TO_STRING_DIGITS 8
 #endif
 
+
+
+
+#if HISE_NO_GUI_TOOLS
+#define HISE_INCLUDE_RLOTTIE 0
+#endif
 
 #ifndef HISE_HEADLESS
 #define HISE_HEADLESS 0
@@ -95,21 +130,21 @@ END_JUCE_MODULE_DECLARATION
 
 #ifndef HI_MARKDOWN_ENABLE_INTERACTIVE_CODE
 #if USE_BACKEND
-#define HI_MARKDOWN_ENABLE_INTERACTIVE_CODE 1
+#define HI_MARKDOWN_ENABLE_INTERACTIVE_CODE 0
 #else
 #define HI_MARKDOWN_ENABLE_INTERACTIVE_CODE 0
 #endif
 #endif
 
-
+#if !HISE_NO_GUI_TOOLS
 #include "hi_binary_data/hi_binary_data.h"
+#endif
 
 #include "Macros.h"
 
 #include "hi_tools/CustomDataContainers.h"
 #include "hi_tools/HiseEventBuffer.h"
 
-#include "hi_tools/PostGraphicsRenderer.h"
 #include "hi_tools/UpdateMerger.h"
 #include "hi_tools/MiscToolClasses.h"
 
@@ -127,8 +162,10 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_tools/IppFFT.h"
 #endif
 
+#if !HISE_NO_GUI_TOOLS
 
-
+#include "gin_images/gin_imageeffects.h"
+#include "hi_tools/PostGraphicsRenderer.h"
 
 #include "hi_markdown/MarkdownHeader.h"
 #include "hi_markdown/MarkdownLink.h"
@@ -141,15 +178,20 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_markdown/MarkdownDatabaseCrawler.h"
 
 
+#include "mcl_editor/mcl_editor.h"
+
+
 #include "hi_tools/JavascriptTokeniser.h"
 #include "hi_tools/JavascriptTokeniserFunctions.h"
 
 #include "hi_standalone_components/CodeEditorApiBase.h"
 #include "hi_standalone_components/AdvancedCodeEditor.h"
 #include "hi_standalone_components/ScriptWatchTable.h"
-
+#endif
 
 #include "hi_standalone_components/Plotter.h"
+
+#include "hi_standalone_components/RingBuffer.h"
 
 #include "hi_standalone_components/SliderPack.h"
 #include "hi_standalone_components/TableEditor.h"
@@ -157,4 +199,10 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/VuMeter.h"
 #include "hi_standalone_components/SampleDisplayComponent.h"
 
+
+#include "hi_standalone_components/eq_plot/FilterInfo.h"
+#include "hi_standalone_components/eq_plot/FilterGraph.h"
+
+
 #include "hi_rlottie/hi_rlottie.h"
+

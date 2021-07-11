@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -76,7 +76,7 @@ public:
                                      again when a thread is free. */
     };
 
-    /** Peforms the actual work that this job needs to do.
+    /** Performs the actual work that this job needs to do.
 
         Your subclass must implement this method, in which is does its work.
 
@@ -166,9 +166,6 @@ public:
                                 be used.
     */
     ThreadPool (int numberOfThreads, size_t threadStackSize = 0);
-
-	/** Creates a thread pool with a given name. */
-	ThreadPool(const String& name, int numberOfThreads);
 
     /** Creates a thread pool with one thread per CPU core.
         Once you've created a pool, you can give it some jobs by calling addJob().
@@ -322,8 +319,6 @@ public:
 private:
     //==============================================================================
     Array<ThreadPoolJob*> jobs;
-
-	String name;
 
     struct ThreadPoolThread;
     friend class ThreadPoolJob;

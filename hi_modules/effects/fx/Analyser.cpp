@@ -51,95 +51,20 @@ ProcessorEditorBody * AnalyserEffect::createEditor(ProcessorEditor *parentEditor
 
 }
 
-void Goniometer::paint(Graphics& g)
-{
-	auto an = getAnalyser();
-
-	if (auto l_ = SingleWriteLockfreeMutex::ScopedReadLock(an->getBufferLock()))
-	{
-		auto size = jmin<int>(getWidth(), getHeight());
-
-		Rectangle<int> area = { (getWidth() - size) / 2, (getHeight() - size) / 2, size, size };
-
-		g.setColour(getColourForAnalyser(AudioAnalyserComponent::bgColour));
-		g.fillRect(area);
-
-		g.setColour(getColourForAnalyser(AudioAnalyserComponent::lineColour));
-
-		g.drawLine((float)area.getX(), (float)area.getY(), (float)area.getRight(), (float)area.getBottom(), 1.0f);
-		g.drawLine((float)area.getX(), (float)area.getBottom(), (float)area.getRight(), (float)area.getY(), 1.0f);
-
-		auto buffer = an->getAnalyseBuffer();
-
-		shapeIndex = (shapeIndex + 1) % 6;
-		shapes[shapeIndex] = Shape(buffer, area);
-
-		Colour c = getColourForAnalyser(AudioAnalyserComponent::fillColour);
-
-		shapes[shapeIndex].draw(g, c.withAlpha(1.0f));
-		shapes[(shapeIndex + 1) % 6].draw(g, c.withAlpha(0.5f));
-		shapes[(shapeIndex + 2) % 6].draw(g, c.withAlpha(0.3f));
-		shapes[(shapeIndex + 3) % 6].draw(g, c.withAlpha(0.2f));
-		shapes[(shapeIndex + 4) % 6].draw(g, c.withAlpha(0.1f));
-		shapes[(shapeIndex + 5) % 6].draw(g, c.withAlpha(0.05f));
-	}
-}
-
-Goniometer::Shape::Shape(const AudioSampleBuffer& buffer, Rectangle<int> area)
-{
-	const int stepSize = buffer.getNumSamples() / 128;
-
-	for (int i = 0; i < 128; i++)
-	{
-		auto p = createPointFromSample(buffer.getSample(0, i * stepSize), buffer.getSample(1, i*stepSize), (float)area.getWidth());
-
-		points.addWithoutMerging({ p.x + area.getX(), p.y + area.getY(), 2.0f, 2.0f });
-	}
-}
-
-
-
-Point<float> Goniometer::Shape::createPointFromSample(float left, float right, float size)
-{
-	float lScaled = sqrt(fabsf(left));
-	float rScaled = sqrt(fabsf(right));
-
-	if (left < 0.0f)
-		lScaled *= -1.0f;
-
-	if (right < 0.0f)
-		rScaled *= -1.0f;
-
-	float lValue = lScaled / -2.0f + 0.5f;
-	float rValue = rScaled / 2.0f + 0.5f;
-
-	float x = ((lValue + rValue) / 2.0f * size);
-	float y = ((lValue + 1.0f - rValue) / 2.0f * size);
-
-	return { x, y };
-}
-
-
-void Goniometer::Shape::draw(Graphics& g, Colour c)
-{
-	g.setColour(c);
-
-	g.fillRectList(points);
-
-}
 
 
 
 
-Colour AudioAnalyserComponent::getColourForAnalyser(ColourId id)
+
+Colour AudioAnalyserComponent::getColourForAnalyser(RingBufferComponentBase::ColourId id)
 {
 	if (auto panel = findParentComponentOfClass<Panel>())
 	{
 		switch (id)
 		{
-		case hise::AudioAnalyserComponent::bgColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::bgColour);
-		case hise::AudioAnalyserComponent::fillColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::itemColour1);
-		case hise::AudioAnalyserComponent::lineColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::itemColour2);
+		case RingBufferComponentBase::bgColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::bgColour);
+		case RingBufferComponentBase::fillColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::itemColour1);
+		case RingBufferComponentBase::lineColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::itemColour2);
             default: break;
 		}
 	}
@@ -147,9 +72,9 @@ Colour AudioAnalyserComponent::getColourForAnalyser(ColourId id)
 	{
 		switch (id)
 		{
-		case hise::AudioAnalyserComponent::bgColour:   return findColour(AudioAnalyserComponent::ColourId::bgColour);
-		case hise::AudioAnalyserComponent::fillColour: return Colour(0xFF555555);
-		case hise::AudioAnalyserComponent::lineColour: return Colour(0xFF555555);
+		case RingBufferComponentBase::bgColour:   return findColour(RingBufferComponentBase::ColourId::bgColour);
+		case RingBufferComponentBase::fillColour: return Colour(0xFF555555);
+		case RingBufferComponentBase::lineColour: return Colour(0xFF555555);
             default: break;
 		}
 	}
@@ -193,5 +118,7 @@ void AudioAnalyserComponent::Panel::fillIndexList(StringArray& indexList)
 	indexList.add("Oscilloscope");
 	indexList.add("Spectral Analyser");
 }
+
+
 
 }

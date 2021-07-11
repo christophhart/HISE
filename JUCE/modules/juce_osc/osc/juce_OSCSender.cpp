@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -69,7 +68,7 @@ namespace
             if (! output.writeString (value))
                 return false;
 
-            const size_t numPaddingZeros = ~value.length() & 3;
+            const size_t numPaddingZeros = ~value.getNumBytesAsUTF8() & 3;
 
             return output.writeRepeatedByte ('\0', numPaddingZeros);
         }
@@ -332,6 +331,7 @@ bool OSCSender::send (const OSCBundle& bundle)      { return pimpl->send (bundle
 bool OSCSender::sendToIPAddress (const String& host, int port, const OSCMessage& message) { return pimpl->send (message, host, port); }
 bool OSCSender::sendToIPAddress (const String& host, int port, const OSCBundle& bundle)   { return pimpl->send (bundle,  host, port); }
 
+
 //==============================================================================
 //==============================================================================
 #if JUCE_UNIT_TESTS
@@ -339,7 +339,9 @@ bool OSCSender::sendToIPAddress (const String& host, int port, const OSCBundle& 
 class OSCBinaryWriterTests  : public UnitTest
 {
 public:
-    OSCBinaryWriterTests() : UnitTest ("OSCBinaryWriter class", "OSC") {}
+    OSCBinaryWriterTests()
+        : UnitTest ("OSCBinaryWriter class", UnitTestCategories::osc)
+    {}
 
     void runTest()
     {
@@ -666,7 +668,9 @@ static OSCBinaryWriterTests OSCBinaryWriterUnitTests;
 class OSCRoundTripTests  : public UnitTest
 {
 public:
-    OSCRoundTripTests() : UnitTest ("OSCRoundTripTests class", "OSC") {}
+    OSCRoundTripTests()
+        : UnitTest ("OSCRoundTripTests class", UnitTestCategories::osc)
+    {}
 
     void runTest()
     {
@@ -867,7 +871,6 @@ public:
 
 static OSCRoundTripTests OSCRoundTripUnitTests;
 
-//==============================================================================
-#endif // JUCE_UNIT_TESTS
+#endif
 
 } // namespace juce

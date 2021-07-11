@@ -101,10 +101,8 @@ class SlotFX;
 /** This class wrapps all available objects that can be created by a script.
 *	@ingroup scripting
 */
-class ScriptingObjects
+namespace ScriptingObjects
 {
-public:
-
 	class MidiList : public ConstScriptingObject,
 					 public AssignableObject
 	{
@@ -170,6 +168,93 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiList);
 
 		// ============================================================================================================
+	};
+
+	class ScriptUnorderedStack : public ConstScriptingObject
+	{
+	public:
+
+		ScriptUnorderedStack(ProcessorWithScriptingContent *p);
+		~ScriptUnorderedStack() {};
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("UnorderedStack"); }
+
+		void rightClickCallback(const MouseEvent& e, Component *c) override;
+
+		// ============================================================================================================
+
+		/** Inserts a number at the end of the stack. */
+		bool insert(float value)
+		{
+			auto ok = data.insert(value);
+			updateElementBuffer();
+			return ok;
+		}
+
+		/** removes the given number and fills the gap. */
+		bool remove(float value)
+		{
+			auto ok = data.remove(value);
+			updateElementBuffer();
+			return ok;
+		}
+
+		/** Clears the stack. */
+		bool clear()
+		{
+			auto wasEmpty = isEmpty();
+			data.clear();
+			updateElementBuffer();
+
+			return !wasEmpty;
+		}
+
+		/** Returns the number of values in the stack. */
+		int size() const
+		{
+			return data.size();
+		}
+
+		/** Checks if any number is present in the stack. */
+		bool isEmpty() const
+		{
+			return data.isEmpty();
+		}
+
+		/** checks if the number is in the stack. */
+		bool contains(float value) const
+		{
+			return data.contains(value);
+		}
+
+		/** Returns a buffer that refers the data. */
+		var asBuffer(bool getAllElements)
+		{
+			if (getAllElements)
+				return var(wholeBf);
+			else
+			{
+				return var(elementBuffer);
+			}
+		}
+
+		// ============================================================================================================
+
+	private:
+
+		struct Display;
+
+		struct Wrapper;
+
+		void updateElementBuffer()
+		{
+			elementBuffer->referToData(data.begin(), data.size());
+		}
+
+		VariantBuffer::Ptr wholeBf, elementBuffer;
+		hise::UnorderedStack<float, 128> data;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUnorderedStack);
 	};
 
 	class ScriptFile : public ConstScriptingObject
@@ -244,6 +329,9 @@ public:
 		/** Opens a Explorer / Finder window that points to the file. */
 		void show();
 
+		/** Extracts the ZIP archive if this file is a .zip file. */
+		void extractZipFile(var targetDirectory, bool overwriteFiles, var callback);
+
 		// ================================================= End of API calls
 
 		File f;
@@ -251,128 +339,12 @@ public:
 	private:
 
 		struct Wrapper;
-	};
 
-	class ScriptAudioFile : public ConstScriptingObject,
-							public AsyncUpdater,
-							public PooledUIUpdater::SimpleTimer
-	{
-	public:
-
-		struct RefCountedBuffer : public ReferenceCountedObject
-		{
-			void setRange(int min, int max)
-			{
-				int numChannels = all.getNumChannels();
-				sampleRange = { min, max };
-
-				for (int i = 0; i < numChannels; i++)
-					ptrs[i] = all.getWritePointer(i, min);
-
-				range.setDataToReferTo(ptrs, numChannels, sampleRange.getLength());
-			}
-
-			bool clear = true;
-			using Ptr = ReferenceCountedObjectPtr<RefCountedBuffer>;
-
-			double sampleRate = 44100.0;
-			AudioSampleBuffer all;
-			AudioSampleBuffer range;
-			Range<int> sampleRange;
-			float* ptrs[NUM_MAX_CHANNELS];
-			PoolReference currentFileReference;
-		};
-
-		using Ptr = ReferenceCountedObjectPtr<ScriptAudioFile>;
-
-		struct Listener
-		{
-			virtual ~Listener() {};
-
-			virtual void contentChanged() = 0;
-
-			virtual void playbackPositionChanged(double /*newPos*/) {};
-
-			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
-		};
-
-		ScriptAudioFile(ProcessorWithScriptingContent* pwsc);;
-
-		String getDebugName() const override { return "AudioFile"; };
-		String getDebugValue() const override { return "AudioFile"; };
-
-		void rightClickCallback(const MouseEvent& , Component *) override {};
-
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("AudioFile"); }
-
-		void addListener(Listener* l, bool isSynchronous=false)
-		{
-			ignoreUnused(isSynchronous);
-			listeners.addIfNotAlreadyThere(l);
-		}
-
-		void removeListener(Listener* l)
-		{
-			listeners.removeAllInstancesOf(l);
-		}
-
-		void handleAsyncUpdate();
-
-		// ============================================================================================================
-
-		void clear();
-
-		/** Sets a new sample range. */
-		void setRange(int min, int max);
-
-		/** Loads an audio file from the given reference. */
-		void loadFile(const String& filePath);
-		
-		/** Returns the current audio data as array of channels. */
-		var getContent();
-
-		/** Sends an update message to all registered listeners. */
-		void update();
-
-		/** returns the amount of samples. */
-		int getNumSamples() const;
-
-		/** Returns the samplerate of the audio file. */
-		double getSampleRate() const;
-
-		/** Returns the reference string for the currently loaded file. */
-		String getCurrentlyLoadedFile() const;
-
-		// ============================================================================================================
-
-		void timerCallback() override;
-
-		RefCountedBuffer::Ptr getBuffer();
-
-		void setPosition(double newPosition)
-		{
-			position = newPosition;
-		}
-
-		SpinLock& getLock() { return sampleLock; }
-
-	private:
-
-        std::atomic<double> position {0.0};
-		double lastPosition = 0.0;
-
-
-		SpinLock sampleLock;
-
-		Array<WeakReference<Listener>> listeners;
-
-		RefCountedBuffer::Ptr buffer;
-		
-		struct Wrapper;
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptFile);
 	};
 
 	struct ScriptDownloadObject : public ConstScriptingObject,
-							 public URL::DownloadTask::Listener
+		public URL::DownloadTask::Listener
 	{
 		using Ptr = ReferenceCountedObjectPtr<ScriptDownloadObject>;
 
@@ -472,36 +444,125 @@ public:
 		uint32 lastSpeedMeasure = 0;
 
 		DynamicObject::Ptr data;
-		
+
 		URL downloadURL;
 		File targetFile;
 
 		WeakCallbackHolder callback;
-		
+
 		ScopedPointer<URL::DownloadTask> download;
-		
+
 		JavascriptProcessor* jp = nullptr;
 	};
 
-	class ScriptTableData : public ConstScriptingObject
+	class ScriptComplexDataReferenceBase: public ConstScriptingObject
 	{
 	public:
 
-		ScriptTableData(ProcessorWithScriptingContent* pwsc);
+		snex::ExternalData::DataType getDataType() const { return type; }
 
-		~ScriptTableData()
-		{
-			
-		}
+		String getDebugName() const override { return snex::ExternalData::getDataTypeName(getDataType()); };
+		String getDebugValue() const override { return getDebugName(); };
+		Identifier getObjectName() const override { return Identifier(getDebugName()); }
 
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("TableData"); }
+		bool objectDeleted() const override { return complexObject == nullptr; }
+		bool objectExists() const override { return complexObject != nullptr; }
 
-		String getDebugName() const override { return "Table"; };
-		String getDebugValue() const override { return "Table"; };
+		void rightClickCallback(const MouseEvent&, Component *) override {};
+
+		ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type, ExternalDataHolder* otherHolder=nullptr);;
+
+		void setPosition(double newPosition);
+
+		int getIndex() const { return index; }
+		ExternalDataHolder* getHolder() { return holder; }
+
+	protected:
+
+		WeakReference<ComplexDataUIBase> complexObject;
+
+	private:
+
+		const snex::ExternalData::DataType type;
+		WeakReference<ExternalDataHolder> holder;
+		const int index;
+	};
+
+	class ScriptAudioFile : public ScriptComplexDataReferenceBase
+	{
+	public:
+
+		ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* otherHolder = nullptr);
+
+		// ============================================================================================================
+
+		void clear();
+
+		/** Sets a new sample range. */
+		void setRange(int min, int max);
+
+		/** Loads an audio file from the given reference. */
+		void loadFile(const String& filePath);
+
+		/** Returns the current audio data as array of channels. */
+		var getContent();
+
+		/** Sends an update message to all registered listeners. */
+		void update();
+
+		/** returns the amount of samples. */
+		int getNumSamples() const;
+
+		/** Returns the samplerate of the audio file. */
+		double getSampleRate() const;
+
+		/** Returns the reference string for the currently loaded file. */
+		String getCurrentlyLoadedFile() const;
+
+		// ============================================================================================================
+
+	private:
+
+		MultiChannelAudioBuffer* getBuffer() { return static_cast<MultiChannelAudioBuffer*>(complexObject.get()); }
+		const MultiChannelAudioBuffer* getBuffer() const { return static_cast<const MultiChannelAudioBuffer*>(complexObject.get()); }
+
+		struct Wrapper;
+	};
+
+	class ScriptRingBuffer : public ScriptComplexDataReferenceBase
+	{
+	public:
+
+		ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* other=nullptr);
+
+		// ============================================================================================================
+
+		/** Returns a reference to the internal read buffer. */
+		var getReadBuffer();
+
+		/** Resamples the buffer to a fixed size. */
+		var getResizedBuffer(int numDestSamples, int resampleMode);
+
+		/** Creates a path objects scaled to the given bounds and sourceRange */
+		var createPath(var dstArea, var sourceRange, var normalisedStartValue);
+
+		// ============================================================================================================
+
+	private:
+
+		SimpleRingBuffer* getRingBuffer() { return static_cast<SimpleRingBuffer*>(complexObject.get()); }
+		const SimpleRingBuffer* getRingBuffer() const { return static_cast<SimpleRingBuffer*>(complexObject.get()); }
+
+		struct Wrapper;
+	};
+
+	class ScriptTableData : public ScriptComplexDataReferenceBase
+	{
+	public:
+
+		ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* externalHolder=nullptr);
 
 		void rightClickCallback(const MouseEvent& e, Component *c) override;
-
-		Table* getTable() const { return const_cast<Table*>(dynamic_cast<const Table*>(&table)); }
 
 		// ============================================================================================================
 
@@ -521,29 +582,19 @@ public:
 
 	private:
 
-		LookupTableProcessor::TableChangeBroadcaster broadcaster;
+		Table* getTable() { return static_cast<Table*>(complexObject.get()); }
+		const Table* getTable() const { return static_cast<const Table*>(complexObject.get()); }
 
 		struct Wrapper;
-
-		SampleLookupTable table;
 	};
 
-	class ScriptSliderPackData : public ConstScriptingObject
+	class ScriptSliderPackData : public ScriptComplexDataReferenceBase
 	{
 	public:
 
-		ScriptSliderPackData(ProcessorWithScriptingContent* pwsc);
+		ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, snex::ExternalDataHolder* otherHolder=nullptr);
 
 		~ScriptSliderPackData() {};
-
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("SliderPackData"); }
-
-		String getDebugName() const override { return "SliderPackData"; };
-		String getDebugValue() const override { return String(getNumSliders()); };
-
-		void rightClickCallback(const MouseEvent& e, Component *c) override;
-
-		SliderPackData* getSliderPackData() { return &data; }
 
 		// ============================================================================================================
 
@@ -569,10 +620,10 @@ public:
 
 	private:
 
+		SliderPackData* getSliderPackData() { return static_cast<SliderPackData*>(complexObject.get()); }
+		const SliderPackData* getSliderPackData() const { return static_cast<const SliderPackData*>(complexObject.get()); }
+
 		struct Wrapper;
-
-		SliderPackData data;
-
 	};
 
 	class ScriptingSamplerSound : public ConstScriptingObject
@@ -1053,6 +1104,12 @@ public:
 		/** adds a connection to the given channels. */
 		bool addConnection(int sourceIndex, int destinationIndex);
 
+		/** adds a send connection to the given channels. */
+		bool addSendConnection(int sourceIndex, int destinationIndex);
+
+		/** removes the send connection. */
+		bool removeSendConnection(int sourceIndex, int destinationIndex);
+
 		/** Removes the connection from the given channels. */
 		bool removeConnection(int sourceIndex, int destinationIndex);
 
@@ -1305,6 +1362,30 @@ public:
 		// ============================================================================================================
 	};
 
+	class ScriptDisplayBufferSource : public ConstScriptingObject
+	{
+	public:
+
+		ScriptDisplayBufferSource(ProcessorWithScriptingContent *p, ExternalDataHolder *h);
+		~ScriptDisplayBufferSource() {};
+
+		// =============================================================================================
+
+		/** Returns a reference to the display buffer at the given index. */
+		var getDisplayBuffer(int index);
+
+		// =============================================================================================
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("DisplayBufferSource"); };
+		bool objectDeleted() const override { return source.get() == nullptr; }
+		bool objectExists() const override { return source != nullptr; }
+
+	private:
+
+		struct Wrapper;
+		WeakReference<ExternalDataHolder> source;
+	};
+
 	class ScriptingTableProcessor : public ConstScriptingObject
 	{
 	public:
@@ -1531,314 +1612,7 @@ public:
 		HiseMidiSequence* getSequence() const { return getPlayer()->getCurrentSequence(); }
 	};
 
-	class PathObject : public ConstScriptingObject
-	{
-	public:
-
-		// ============================================================================================================
-
-		PathObject(ProcessorWithScriptingContent* p);
-		~PathObject();
-
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Path"); }
-
-		
-		String getDebugValue() const override {
-			return p.getBounds().toString();
-		}
-		String getDebugName() const override { return "Path"; }
-		
-		void rightClickCallback(const MouseEvent &e, Component* componentToNotify) override;
-
-		
-
-		// ============================================================================================================ API Methods
-
-		/** Loads a path from a data array. */
-		void loadFromData(var data);
-
-		/** Clears the Path. */
-		void clear();
-
-		/** Starts a new Path. It does not clear the path, so use 'clear()' if you want to start all over again. */
-		void startNewSubPath(var x, var y);
-
-		/** Closes the Path. */
-		void closeSubPath();
-
-		/** Adds a line to [x,y]. */
-		void lineTo(var x, var y);
-
-		/** Adds a quadratic bezier curve with the control point [cx,cy] and the end point [x,y]. */
-		void quadraticTo(var cx, var cy, var x, var y);
-
-		/** Adds an arc to the path. */
-		void addArc(var area, var fromRadians, var toRadians);
-
-		/** Returns the area ([x, y, width, height]) that the path is occupying with the scale factor applied. */
-		var getBounds(var scaleFactor);
-
-		// ============================================================================================================
-
-		struct Wrapper;
-
-		Path& getPath() { return p; }
-
-		const Path& getPath() const { return p; }
-
-	private:
-
-		Path p;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PathObject);
-
-		// ============================================================================================================
-	};
-
-
-	class GraphicsObject : public ConstScriptingObject
-	{
-	public:
-
-		// ============================================================================================================
-
-		GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent);
-		~GraphicsObject();
-
-		// ============================================================================================================
-
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Graphics"); }
-		
-		// ============================================================================================================ API Methods
-
-		/** Starts a new Layer. If cre */
-		void beginLayer(bool drawOnParent);
-
-		/** flushes the current layer. */
-		void endLayer();
-
-		/** Applies gaussian blur to the current layer. */
-		void gaussianBlur(var blurAmount);
-
-		/** Applies a box blur to the current layer. */
-		void boxBlur(var blurAmount);
-
-		/** Adds noise to the current layer. */
-		void addNoise(var noiseAmount);
-
-		/** Removes all colour from the current layer. */
-		void desaturate();
-
-		/** Applies a mask to the current layer. */
-		void applyMask(var path, var area, bool invert);
-
-		/** Fills the whole area with the given colour. */
-		void fillAll(var colour);
-
-		/** Fills a rectangle with the given colour. */
-		void fillRect(var area);
-
-		/** Draws a rectangle. */
-		void drawRect(var area, float borderSize);
-
-		/** Fills a rounded rectangle. */
-		void fillRoundedRectangle(var area, float cornerSize);
-
-		/** Draws a rounded rectangle. */
-		void drawRoundedRectangle(var area, float cornerSize, float borderSize);
-
-		/** Draws a (non interpolated) horizontal line. */
-		void drawHorizontalLine(int y, float x1, float x2);
-
-		/** Sets a global transparency level. */
-		void setOpacity(float alphaValue);
-
-		/** Draws a line. */
-		void drawLine(float x1, float x2, float y1, float y2, float lineThickness);
-
-		/** Sets the current colour. */
-		void setColour(var colour);
-
-		/** Sets the current font. */
-		void setFont(String fontName, float fontSize);
-
-		/** Draws a centered and vertically stretched text. */
-		void drawText(String text, var area);
-
-		/** Draws a text with the given alignment (see the Label alignment property). */
-		void drawAlignedText(String text, var area, String alignment);
-
-		/** Sets the current gradient via an array [Colour1, x1, y1, Colour2, x2, y2] */
-		void setGradientFill(var gradientData);
-
-		/** Draws a ellipse in the given area. */
-		void drawEllipse(var area, float lineThickness);
-		
-		/** Fills a ellipse in the given area. */
-		void fillEllipse(var area);
-
-		/** Draws a image into the area. */
-		void drawImage(String imageName, var area, int xOffset, int yOffset);
-
-		/** Draws a drop shadow around a rectangle. */
-		void drawDropShadow(var area, var colour, int radius);
-
-		/** Draws a triangle rotated by the angle in radians. */
-		void drawTriangle(var area, float angle, float lineThickness);
-
-		/** Fills a triangle rotated by the angle in radians. */
-		void fillTriangle(var area, float angle);
-
-		/** Adds a drop shadow based on the alpha values of the current image. */
-		void addDropShadowFromAlpha(var colour, int radius);
-
-		/** Fills a Path. */
-		void fillPath(var path, var area);
-
-		/** Draws the given path. */
-		void drawPath(var path, var area, var thickNess);
-
-		/** Rotates the canvas around center `[x, y]` by the given amount in radian. */
-		void rotate(var angleInRadian, var center);
-		
-		// ============================================================================================================
-
-		struct Wrapper;
-
-		
-		DrawActions::Handler& getDrawHandler() { return drawActionHandler; }
-
-	private:
-
-		Point<float> getPointFromVar(const var& data);
-		Rectangle<float> getRectangleFromVar(const var &data);
-		Rectangle<int> getIntRectangleFromVar(const var &data);
-
-		Result rectangleResult;
-
-		ConstScriptingObject* parent = nullptr;
-
-		DrawActions::Handler drawActionHandler;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GraphicsObject);
-
-		// ============================================================================================================
-	};
-
-	class ScriptedLookAndFeel : public ConstScriptingObject
-	{
-	public:
-
-		struct Laf : public GlobalHiseLookAndFeel,
-					 public PresetBrowserLookAndFeelMethods,
-					 public TableEditor::LookAndFeelMethods,
-					 public NumberTag::LookAndFeelMethods,
-					 public MessageWithIcon::LookAndFeelMethods,
-					 public ControlledObject
-		{
-			Laf(MainController* mc) :
-				ControlledObject(mc)
-			{}
-
-			ScriptedLookAndFeel* get()
-			{
-				return dynamic_cast<ScriptedLookAndFeel*>(getMainController()->getCurrentScriptLookAndFeel());
-			}
-
-			Font getFont()
-			{
-				if (auto l = get())
-					return l->f;
-				else
-					return GLOBAL_BOLD_FONT();
-			}
-
-			void drawAlertBox(Graphics&, AlertWindow&, const Rectangle<int>& textArea, TextLayout&) override;
-
-			Font getAlertWindowMessageFont() override { return getFont(); }
-			Font getAlertWindowTitleFont() override { return getFont(); }
-			Font getTextButtonFont(TextButton &, int) override { return getFont(); }
-			Font getComboBoxFont(ComboBox&) override { return getFont(); }
-			Font getPopupMenuFont() override { return getFont(); };
-			Font getAlertWindowFont() override { return getFont(); };
-
-			MarkdownLayout::StyleData getAlertWindowMarkdownStyleData() override;
-
-			void drawPopupMenuBackground(Graphics& g_, int width, int height) override;
-
-			void drawPopupMenuItem(Graphics& g, const Rectangle<int>& area,
-				bool isSeparator, bool isActive,
-				bool isHighlighted, bool isTicked,
-				bool hasSubMenu, const String& text,
-				const String& shortcutKeyText,
-				const Drawable* icon, const Colour* textColourToUse);
-
-			void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/) override;
-
-			void drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;
-			
-			void drawLinearSlider(Graphics &g, int x, int y, int width, int height, float sliderPos, float minSliderPos, float maxSliderPos, const Slider::SliderStyle style, Slider &slider) override;
-
-			void drawButtonText(Graphics &g_, TextButton &button, bool isMouseOverButton, bool isButtonDown) override;
-
-			void drawComboBox(Graphics&, int width, int height, bool isButtonDown, int buttonX, int buttonY, int buttonW, int buttonH, ComboBox& cb);
-
-			void positionComboBoxText(ComboBox &c, Label &labelToPosition) override;
-
-			void drawComboBoxTextWhenNothingSelected(Graphics& g, ComboBox& box, Label& label);
-
-			void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
-				bool isMouseOverButton, bool isButtonDown) override;
-
-			void drawNumberTag(Graphics& g, Colour& c, Rectangle<int> area, int offset, int size, int number) override;
-
-			void drawPresetBrowserBackground(Graphics& g, PresetBrowser* p) override;
-			void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText) override;
-			void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
-			void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command) override;
-			void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode) override;
-			void drawSearchBar(Graphics& g, Rectangle<int> area) override;
-
-			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
-			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
-			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
-
-			void drawScrollbar(Graphics& g, ScrollBar& scrollbar, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown) override;
-
-			Image createIcon(PresetHandler::IconType type) override;
-
-			bool functionDefined(const String& s);
-
-			static Identifier getIdOfParentFloatingTile(Component& c);
-
-			static bool addParentFloatingTile(Component& c, DynamicObject* obj);
-		};
-
-		struct Wrapper;
-
-		ScriptedLookAndFeel(ProcessorWithScriptingContent* sp);
-
-		~ScriptedLookAndFeel();
-
-		Identifier getObjectName() const override { return "ScriptLookAndFeel"; }
-
-		/** Registers a function that will be used for the custom look and feel. */
-		void registerFunction(var functionName, var function);
-
-		/** Set a global font. */
-		void setGlobalFont(const String& fontName, float fontSize);
-
-		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject);
-
-		var callDefinedFunction(const Identifier& name, var* args, int numArgs);
-
-		Font f = GLOBAL_BOLD_FONT();
-		ReferenceCountedObjectPtr<GraphicsObject> g;
-
-		var functions;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedLookAndFeel);
-	};
+	
 };
 
 

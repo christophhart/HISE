@@ -628,7 +628,7 @@ bool MidiPlayer::EditAction::undo()
 	return false;
 }
 
-void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destination, const Array<HiseEvent>& arrayToWrite, double bpm, double sampleRate)
+void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destination, Array<HiseEvent>& arrayToWrite, double bpm, double sampleRate)
 {
 	if (destination == nullptr)
 		return;
@@ -1377,7 +1377,7 @@ void MidiPlayer::removeSequence(int sequenceIndex)
 
 	if (isPositiveAndBelow(sequenceIndex, getNumSequences()))
 	{
-		SimpleReadWriteLock::ScopedWriteLock sl(sequenceLock, true);
+		SimpleReadWriteLock::ScopedWriteLock sl(sequenceLock);
 		seqToRemove = currentSequences.removeAndReturn(sequenceIndex);
 	}
 

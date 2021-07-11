@@ -152,7 +152,7 @@ private:
 				{
 					auto relativePath = c.getProperty("FilePath").toString();
 
-					ScopedPointer<XmlElement> xml = c.createXml();
+					auto xml = c.createXml();
 
 					xml->removeAttribute("FilePath");
 
@@ -198,7 +198,7 @@ private:
 
 			for (auto f : presetList)
 			{
-				ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+				auto xml = XmlDocument::parse(f);
 
 				if (xml != nullptr)
 				{
@@ -382,6 +382,8 @@ PresetBrowser::ModalWindow::ModalWindow(PresetBrowser* p) :
 	inputLabel->refreshWithEachKey = false;
 
 	setWantsKeyboardFocus(true);
+
+	setAlwaysOnTop(true);
 }
 
 PresetBrowser::ModalWindow::~ModalWindow()
@@ -734,6 +736,14 @@ PresetBrowser::~PresetBrowser()
 	expHandler.removeListener(this);
 }
 
+bool PresetBrowser::isReadOnly(const File& f)
+{
+	if (rootFile == f)
+		return false;
+
+	return getMainController()->getUserPresetHandler().isReadOnly(f);
+}
+
 void PresetBrowser::expansionPackLoaded(Expansion* currentExpansion)
 {
 	if(expansionColumn != nullptr && currentExpansion != nullptr)
@@ -785,7 +795,7 @@ void PresetBrowser::presetChanged(const File& newPreset)
 	
 	presetColumn->setSelectedFile(newPreset, dontSendNotification);
 
-	saveButton->setEnabled(true);
+	saveButton->setEnabled(!isReadOnly(newPreset));
 
 	noteLabel->setText(DataBaseHelpers::getNoteFromXml(newPreset), dontSendNotification);
 }
@@ -828,7 +838,7 @@ void PresetBrowser::rebuildAllPresets()
 		presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
 		bankColumn->setEditMode(false);
-		presetColumn->updateButtonVisibility();
+		presetColumn->updateButtonVisibility(isReadOnly(f));
 	}
 }
 
@@ -891,11 +901,16 @@ void PresetBrowser::resized()
 
 	int x = 3;
 
+	
+	
+
 	bankColumn->setVisible(!showOnlyPresets && numColumns > 1);
 	categoryColumn->setVisible(!showOnlyPresets && numColumns > 2);
 	presetColumn->setIsResultBar(showOnlyPresets);
 
 	auto listArea = Rectangle<int>(x, y, getWidth() - 6, getHeight() - y - 3);
+
+	
 
 	if (noteLabel->isVisible())
 	{
@@ -908,7 +923,10 @@ void PresetBrowser::resized()
 
 	if (showOnlyPresets)
 	{
-		presetColumn->setBounds(listArea);
+		if (expansionColumn != nullptr)
+			listArea.removeFromLeft(expansionColumn->getWidth() + 4);
+
+		presetColumn->setBounds(listArea.reduced(2));
 	}
 	else
 	{
@@ -1208,6 +1226,8 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 {
 	const bool showCategoryColumn = numColumns == 3;
 
+	auto readOnly = isReadOnly(file);
+
 	if (columnIndex == -1) // Expansions
 	{
 		currentBankFile = File();
@@ -1255,7 +1275,8 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 			categoryColumn->setEditMode(false);
 			presetColumn->setEditMode(false);
 
-			bankColumn->updateButtonVisibility();
+			bankColumn->updateButtonVisibility(readOnly);
+			bankColumn->showAddButton();
 
 			noteLabel->setText("", dontSendNotification);
 		}
@@ -1267,8 +1288,10 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 			presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
 			bankColumn->setEditMode(false);
-			bankColumn->updateButtonVisibility();
-			presetColumn->updateButtonVisibility();
+			bankColumn->updateButtonVisibility(readOnly);
+			bankColumn->showAddButton();
+			
+			presetColumn->updateButtonVisibility(readOnly);
 		}
 
 		noteLabel->setText("", dontSendNotification);
@@ -1284,8 +1307,8 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 
         bankColumn->setEditMode(false);
 
-		categoryColumn->updateButtonVisibility();
-		presetColumn->updateButtonVisibility();
+		categoryColumn->updateButtonVisibility(readOnly);
+		presetColumn->updateButtonVisibility(readOnly);
 
 		noteLabel->setText("", dontSendNotification);
 	}
@@ -1298,7 +1321,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 		bankColumn->setEditMode(false);
 		categoryColumn->setEditMode(false);
 
-		presetColumn->updateButtonVisibility();
+		presetColumn->updateButtonVisibility(readOnly);
 	}
 }
 
@@ -1533,6 +1556,7 @@ void PresetBrowser::loadPreset(const File& f)
         currentlyLoadedPreset = allPresets.indexOf(f);
 
 		noteLabel->setText(DataBaseHelpers::getNoteFromXml(f), dontSendNotification);
+		saveButton->setEnabled(!isReadOnly(f));
     }
 }
 
@@ -1583,7 +1607,7 @@ void PresetBrowser::DataBaseHelpers::writeTagsInXml(const File& currentPreset, c
 {
 	if (currentPreset.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+		auto xml = XmlDocument::parse(currentPreset);
 
 		if (xml != nullptr)
 		{
@@ -1617,7 +1641,7 @@ void PresetBrowser::DataBaseHelpers::writeNoteInXml(const File& currentPreset, c
 {
 	if (currentPreset.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+		auto xml = XmlDocument::parse(currentPreset);
 
 		if (xml != nullptr)
 		{
@@ -1654,12 +1678,10 @@ juce::String PresetBrowser::DataBaseHelpers::getNoteFromXml(const File& currentP
 {
 	if (currentPreset.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+		auto xml = XmlDocument::parse(currentPreset);
 
 		if (xml != nullptr)
-		{
 			return xml->getStringAttribute("Notes", "");
-		}
 	}
 
 	return String();

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -231,6 +231,23 @@ IIRCoefficients IIRCoefficients::makeHighShelf (double sampleRate,
                             aplus1 - aminus1TimesCoso + beta,
                             2.0 * (aminus1 - aplus1 * coso),
                             aplus1 - aminus1TimesCoso - beta);
+}
+
+juce::IIRCoefficients IIRCoefficients::makeResoLowPass(double sampleRate, double cutoff, double q)
+{
+	const double c = 1.0 / (tan(double_Pi * (cutoff / sampleRate)));
+	const double csq = c * c;
+
+	q = 1 / (3 * q);
+
+	double c1 = 1.0 / (1.0 + (q * c) + (csq));
+
+	return IIRCoefficients(c1,
+		2.0 * c1,
+		c1,
+		1.0,
+		(2.0 * c1) * (1.0 - csq),
+		c1 * (1.0 - (q * c) + csq));
 }
 
 IIRCoefficients IIRCoefficients::makePeakFilter (double sampleRate,

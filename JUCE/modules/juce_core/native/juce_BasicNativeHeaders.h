@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -28,12 +28,20 @@
 #if JUCE_MAC || JUCE_IOS
 
  #if JUCE_IOS
+  #if JUCE_MODULE_AVAILABLE_juce_opengl && defined (__IPHONE_12_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_12_0
+   #define GLES_SILENCE_DEPRECATION 1
+  #endif
+
   #import <Foundation/Foundation.h>
   #import <UIKit/UIKit.h>
   #import <CoreData/CoreData.h>
   #import <MobileCoreServices/MobileCoreServices.h>
   #include <sys/fcntl.h>
  #else
+  #if JUCE_MODULE_AVAILABLE_juce_opengl && defined (MAC_OS_X_VERSION_10_14) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_14
+   #define GL_SILENCE_DEPRECATION 1
+  #endif
+
   #import <Cocoa/Cocoa.h>
   #if (! defined MAC_OS_X_VERSION_10_12) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_12
    #define NSEventModifierFlagCommand       NSCommandKeyMask
@@ -74,6 +82,12 @@
    #define NSAlertStyleInformational        NSInformationalAlertStyle
    #define NSEventTypeTabletPoint           NSTabletPoint
    #define NSEventTypeTabletProximity       NSTabletProximity
+   #define NSEventTypeFlagsChanged          NSFlagsChanged
+   #define NSEventTypeAppKitDefined         NSAppKitDefined
+   #define NSEventTypeSystemDefined         NSSystemDefined
+   #define NSEventTypeApplicationDefined    NSApplicationDefined
+   #define NSEventTypePeriodic              NSPeriodic
+   #define NSEventTypeSmartMagnify          NSEventTypeSmartMagnify
   #endif
   #import <CoreAudio/HostTime.h>
   #include <sys/dir.h>
@@ -96,6 +110,7 @@
  #include <objc/runtime.h>
  #include <objc/objc.h>
  #include <objc/message.h>
+ #include <poll.h>
 
 //==============================================================================
 #elif JUCE_WINDOWS
@@ -117,14 +132,14 @@
  #define STRICT 1
  #define WIN32_LEAN_AND_MEAN 1
  #if JUCE_MINGW
-  #define _WIN32_WINNT 0x0501
+  #define _WIN32_WINNT 0x0600
  #else
   #define _WIN32_WINNT 0x0602
  #endif
  #define _UNICODE 1
  #define UNICODE 1
  #ifndef _WIN32_IE
-  #define _WIN32_IE 0x0500
+  #define _WIN32_IE 0x0501
  #endif
 
  #include <windows.h>
@@ -167,7 +182,7 @@
   #pragma warning (4: 4511 4512 4100)
  #endif
 
- #if JUCE_MSVC && ! JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES
+ #if ! JUCE_MINGW && ! JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES
   #pragma comment (lib, "kernel32.lib")
   #pragma comment (lib, "user32.lib")
   #pragma comment (lib, "wininet.lib")
@@ -233,6 +248,7 @@
  #include <sys/vfs.h>
  #include <sys/wait.h>
  #include <utime.h>
+ #include <poll.h>
 
 //==============================================================================
 #elif JUCE_BSD
@@ -261,6 +277,7 @@
  #include <sys/types.h>
  #include <sys/wait.h>
  #include <utime.h>
+ #include <poll.h>
 
 //==============================================================================
 #elif JUCE_ANDROID
@@ -282,6 +299,7 @@
  #include <fnmatch.h>
  #include <sys/wait.h>
  #include <android/api-level.h>
+ #include <poll.h>
 
  // If you are getting include errors here, then you to re-build the Projucer
  // and re-save your .jucer file.

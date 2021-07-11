@@ -35,6 +35,7 @@ namespace hise { using namespace juce;
 LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mode m):
 	TimeVariantModulator(mc, id, m),
 	Modulation(m),
+	ProcessorWithStaticExternalData(mc, 1, 1, 0, 0, true),
 	frequency(getDefaultValue(Frequency)),
 	run(false),
 	currentValue(1.0f),
@@ -47,8 +48,6 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	keysPressed(0),
 	intensityModulationValue(1.0f),
 	frequencyModulationValue(1.0f),
-	customTable(new SampleLookupTable()),
-	data(new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater())),
 	currentWaveform((Waveform)(int)getDefaultValue(WaveFormType)),
 	currentTable(nullptr),
 	currentRandomValue(1.0f),
@@ -56,9 +55,14 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	legato(getDefaultValue(Legato) >= 0.5f),
 	loopEnabled(getDefaultValue(LoopEnabled) >= 0.5f),
 	tempoSync(getDefaultValue(TempoSync) >= 0.5f),
-	smoothingTime(getDefaultValue(SmoothingTime)),
-	updater(*this)
+	smoothingTime(getDefaultValue(SmoothingTime))
 {
+	data = getSliderPackDataUnchecked(0);
+	customTable = static_cast<SampleLookupTable*>(getTableUnchecked(0));
+
+	connectWaveformUpdaterToComplexUI(data, true);
+	connectWaveformUpdaterToComplexUI(customTable, true);
+
 	modChains.reserve(2);
 	
 	modChains += {this, "LFO Intensity Mod"};
@@ -94,8 +98,6 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 
 	getMainController()->addTempoListener(this);
 
-	data->setNumSliders(16);
-
 	frequencyChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 	intensityChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 
@@ -104,9 +106,6 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	setCurrentWaveform();
 
 	CHECK_COPY_AND_RETURN_10(this);
-
-	customTable->addChangeListener(&updater);
-	data->addChangeListener(&updater);
 
 	setTargetRatioA(0.3f);
 
@@ -136,7 +135,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 		return String();
 	};
 
-	customTable->setXTextConverter(f);
+	getTableUnchecked(0)->setXTextConverter(f);
 };
 
 LfoModulator::~LfoModulator()
@@ -144,11 +143,10 @@ LfoModulator::~LfoModulator()
 	intensityChain = nullptr;
 	frequencyChain = nullptr;
 
-	modChains.clear();
+	connectWaveformUpdaterToComplexUI(data, false);
+	connectWaveformUpdaterToComplexUI(customTable, false);
 
-	customTable->removeAllChangeListeners();
-	data->removeAllChangeListeners();
-	customTable = nullptr;
+	modChains.clear();
 
 	getMainController()->removeTempoListener(this);
 };
@@ -171,9 +169,9 @@ void LfoModulator::restoreFromValueTree(const ValueTree &v)
 	if (v.hasProperty("LoopEnabled"))
 		loadAttribute(LoopEnabled, "LoopEnabled");
 
-	loadTable(customTable, "CustomWaveform");
+	loadTable(getTableUnchecked(0), "CustomWaveform");
 
-	data->fromBase64(v.getProperty("StepData"));
+	getSliderPackDataUnchecked(0)->fromBase64(v.getProperty("StepData"));
 }
 
 juce::ValueTree LfoModulator::exportAsValueTree() const
@@ -189,9 +187,9 @@ juce::ValueTree LfoModulator::exportAsValueTree() const
 	saveAttribute(LoopEnabled, "LoopEnabled");
 	saveAttribute(PhaseOffset, "PhaseOffset");
 
-	saveTable(customTable, "CustomWaveform");
+	saveTable(getTableUnchecked(0), "CustomWaveform");
 
-	v.setProperty("StepData", data->toBase64(), nullptr);
+	v.setProperty("StepData", getSliderPackDataUnchecked(0)->toBase64(), nullptr);
 
 	return v;
 }
@@ -259,7 +257,7 @@ float LfoModulator::getAttribute(int parameter_index) const
 	case Parameters::SmoothingTime:
 		return smoother.getSmoothingTime();
 	case Parameters::NumSteps:
-		return (float)data->getNumSliders();
+		return (float)getSliderPackDataUnchecked(0)->getNumSliders();
 	case Parameters::LoopEnabled:
 		return loopEnabled ? 1.0f : 0.0f;
 	case Parameters::PhaseOffset:
@@ -306,7 +304,7 @@ void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 		smoother.setSmoothingTime(smoothingTime);
 		break;
 	case Parameters::NumSteps:
-		data->setNumSliders(jmax<int>(1, (int)newValue));
+		getSliderPackDataUnchecked(0)->setNumSliders(jmax<int>(1, (int)newValue));
 		break;
 	case Parameters::LoopEnabled:
 		loopEnabled = newValue > 0.5f;
@@ -333,7 +331,6 @@ void LfoModulator::getWaveformTableValues(int /*displayIndex*/, float const** ta
 		*tableValues = data->getCachedData();
 		numValues = data->getNumSliders();
 		normalizeValue = 1.0f;
-
 		interpolationMode = WaveformComponent::Truncate;
 	}
 	else 
@@ -341,7 +338,6 @@ void LfoModulator::getWaveformTableValues(int /*displayIndex*/, float const** ta
 		*tableValues = currentTable;
 		numValues = SAMPLE_LOOKUP_TABLE_SIZE;
 		normalizeValue = 1.0f;
-
 		interpolationMode = WaveformComponent::LinearInterpolation;
 	}
 }
@@ -492,7 +488,6 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void LfoModulator::calculateBlock(int startSample, int numSamples)
 {
-	
 	const int startIndex = startSample;
 	const int numValues = numSamples;
 
@@ -509,12 +504,7 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 	{
 		const bool isLooped = (loopEnabled || uptime < (double)SAMPLE_LOOKUP_TABLE_SIZE);
 
-		if (isLooped)
-		{
-			sendTableIndexChangeMessage(false, customTable, newInputValue);
-		}
-		else
-			sendTableIndexChangeMessage(false, customTable, 1.0f);
+		getTableUnchecked(0)->setNormalisedIndexSync(isLooped ? newInputValue : 1.0f);
 	}
 
 	float *mod = internalBuffer.getWritePointer(0, startIndex);
@@ -571,7 +561,7 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 			{
 				currentSliderIndex = 0;
 				currentSliderValue = 1.0f - data->getValue(0);
-				data->setDisplayedIndex(0);
+				getSliderPackDataUnchecked(0)->setDisplayedIndex(0);
 				lastSwapIndex = -1;
 			}
 

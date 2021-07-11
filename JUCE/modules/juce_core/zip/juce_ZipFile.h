@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -82,6 +82,12 @@ public:
 
         /** True if the zip entry is a symbolic link. */
         bool isSymbolicLink;
+
+        /** Platform specific data. Depending on how the zip file was created this
+            may contain macOS and Linux file types, permissions and
+            setuid/setgid/sticky bits.
+        */
+        uint32 externalFileAttributes;
     };
 
     //==============================================================================

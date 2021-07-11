@@ -39,14 +39,18 @@ using namespace asmjit;
 
 static int counter = 0;
 
-AssemblyRegister::AssemblyRegister(TypeInfo type_) :
-	type(type_)
+AssemblyRegister::AssemblyRegister(BaseCompiler* compiler_, TypeInfo type_) :
+	type(type_),
+	compiler(compiler_)
 {
 	debugId = counter++;
 }
 
 bool AssemblyRegister::matchesMemoryLocation(Ptr other) const
 {
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->matchesMemoryLocation(other);
+
 	auto bothAreMemory = hasCustomMemoryLocation() &&
 		other->hasCustomMemoryLocation();
 
@@ -54,7 +58,7 @@ bool AssemblyRegister::matchesMemoryLocation(Ptr other) const
 
 	if (typeMatch && bothAreMemory)
 	{
-		auto m = other->getAsMemoryLocation();
+        auto m = other->getMemoryLocationForReference();
 		return m == memory;
 	}
 
@@ -63,74 +67,77 @@ bool AssemblyRegister::matchesMemoryLocation(Ptr other) const
 
 bool AssemblyRegister::isGlobalMemory() const
 {
-	return (hasCustomMem && globalMemory) || isGlobalVariableRegister() || id.isReference();
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isGlobalMemory();
+
+    return (hasCustomMem && globalMemory) || isGlobalVariableRegister();// || id.isReference();
 }
 
 bool AssemblyRegister::shouldLoadMemoryIntoRegister() const
 {
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->shouldLoadMemoryIntoRegister();
+
 	return numMemoryReferences > 0;
 }
 
 void AssemblyRegister::setReference(BaseScope* s, const Symbol& ref)
 {
-	scope = s->getScopeForSymbol(ref.id);
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->setReference(s, ref);
+		return;
+	}
+
+	auto refScope = s->getScopeForSymbol(ref.id);
+
+	if (refScope != nullptr)
+		scope = refScope;
+	else
+		scope = s;
+
 	id = ref;
-	jassert(id.typeInfo == type);
+	jassert(compiler->getRegisterType(id.typeInfo) == getType());
 }
 
 
 const Symbol& AssemblyRegister::getVariableId() const
 {
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->getVariableId();
+
 	return id;
 }
 
 
 bool AssemblyRegister::isDirtyGlobalMemory() const
 {
-	return dirty;
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isDirtyGlobalMemory();
+
+	return dirty && isGlobalMemory();
 }
 
 
-void AssemblyRegister::flagForReuseIfAnonymous()
+
+void AssemblyRegister::reinterpretCast(const TypeInfo& newType)
 {
-	if (!id)
-		flagForReuse();
+	type = newType;
 }
 
-
-void AssemblyRegister::flagForReuse(bool forceReuse)
+snex::Types::ID AssemblyRegister::getType() const
 {
-	if (!forceReuse)
-	{
-		if (!isActive())
-			return;
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->getType();
 
-		if (isIter)
-			return;
-
-		if (dirty)
-			return;
-	}
-
-	reusable = true;
-	state = ReusableRegister;
+	return compiler->getRegisterType(type);
 }
-
-
-void AssemblyRegister::removeReuseFlag()
-{
-	reusable = false;
-	state = ActiveRegister;
-}
-
-bool AssemblyRegister::canBeReused() const
-{
-	return reusable;
-}
-
 
 void* AssemblyRegister::getGlobalDataPointer()
 {
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->getGlobalDataPointer();
+
 	if (getType() == Types::ID::Pointer)
 	{
 		jassert(memoryLocation != nullptr);
@@ -149,8 +156,10 @@ void* AssemblyRegister::getGlobalDataPointer()
 
 asmjit::X86Reg AssemblyRegister::getRegisterForReadOp()
 {
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->getRegisterForReadOp();
+
 	jassert(state == ActiveRegister ||
-		state == ReusableRegister ||
 		state == DirtyGlobalRegister);
 
 	jassert(reg.isValid());
@@ -160,14 +169,19 @@ asmjit::X86Reg AssemblyRegister::getRegisterForReadOp()
 
 asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 {
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->getRegisterForWriteOp();
+
 	jassert(state == ActiveRegister ||
-		state == ReusableRegister ||
 		state == DirtyGlobalRegister);
 
 	jassert(scope != nullptr);
 
 	if (isGlobalMemory())
+	{
 		dirty = true;
+		state = DirtyGlobalRegister;
+	}
 
 	if (id)
 	{
@@ -176,14 +190,20 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 
 		auto sToUse = scope->getScopeForSymbol(id.id);
 
-		jassert(sToUse != nullptr);
+		//jassert(sToUse != nullptr);
+
+		if (sToUse == nullptr)
+			sToUse = scope;
 
 		auto scopeType = sToUse->getScopeType();
 
-		if (!isIter && (scopeType == BaseScope::Class || id.isReference()))
+		if (!isIter && (sToUse->getRootClassScope() == sToUse || id.isReference()))
 		{
-			dirty = true;
-			state = DirtyGlobalRegister;
+            if(memoryLocation != nullptr)
+            {
+                dirty = true;
+                state = DirtyGlobalRegister;
+            }
 		}
 		else if (scopeType == BaseScope::Global)
 			throw juce::String("can't write to global variables");
@@ -196,6 +216,11 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 
 asmjit::X86Mem AssemblyRegister::getAsMemoryLocation()
 {
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->getAsMemoryLocation();
+
+	jassert(memory.isMem());
+
 	jassert(state == LoadedMemoryLocation);
 	//jassert(type != Types::ID::Integer);
 
@@ -205,6 +230,9 @@ asmjit::X86Mem AssemblyRegister::getAsMemoryLocation()
 
 asmjit::X86Mem AssemblyRegister::getMemoryLocationForReference()
 {
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->getMemoryLocationForReference();
+
 	jassert(memory.isMem());
 
 	return memory;
@@ -212,20 +240,33 @@ asmjit::X86Mem AssemblyRegister::getMemoryLocationForReference()
 
 juce::int64 AssemblyRegister::getImmediateIntValue()
 {
-	jassert(state == LoadedMemoryLocation);
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->getImmediateIntValue();
+
+	jassert(state == LoadedMemoryLocation || state == UnloadedMemoryLocation);
 	jassert(getType() == Types::ID::Integer);
-	jassert(!hasCustomMem);
+ 	jassert(!hasCustomMem);
+	jassert(hasImmediateValue);
 
 	return static_cast<int64>(immediateIntValue);
 }
 
 bool AssemblyRegister::operator==(const Symbol& s) const
 {
+	if (isReferencingOtherRegister())
+		return *getReferenceTargetRegister().get() == s;
+
 	return id == s;
 }
 
 void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forceLoad)
 {
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->loadMemoryIntoRegister(cc, forceLoad);
+		return;
+	}
+
 	if (!forceLoad && reg.isValid())
 		return;
 
@@ -243,6 +284,8 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 
 	asmjit::Error e = asmjit::kErrorOk;
 
+	jassert(!memory.isNone());
+
 	switch (getType())
 	{
 	case Types::ID::Float: e = cc.movss(reg.as<X86Xmm>(), memory); break;
@@ -250,10 +293,10 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 	case Types::ID::Block:
 	case Types::ID::Integer:
 	{
-		if (hasCustomMem)
-			e = cc.mov(reg.as<IntRegisterType>(), memory);
-		else
+		if (hasImmediateValue)
 			e = cc.mov(reg.as<IntRegisterType>(), static_cast<int64_t>(immediateIntValue));
+		else
+			e = cc.mov(reg.as<IntRegisterType>(), memory);
 
 		break;
 	}
@@ -261,8 +304,10 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 	{
 		if (isSimd4Float())
 		{
+            auto p = AsmCodeGenerator::createValid64BitPointer(cc, memory, 0, 16);
+            
+            cc.movaps(reg.as<X86Xmm>(), p);
 			jassert(reg.isXmm());
-			e = cc.movaps(reg.as<X86Xmm>(), memory);
 		}
 		else
 		{
@@ -270,6 +315,8 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 				e = cc.lea(reg.as<X86Gpq>(), memory);
 			else if (memory.hasOffset() && !memory.hasBaseOrIndex())
 				e = cc.mov(reg.as<X86Gpq>(), memory.offset());
+			else if (isGlobalMemory())
+				e = cc.mov(reg.as<X86Gpq>(), (uint64_t)memoryLocation);
 		}
 
 		break;
@@ -284,51 +331,77 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 
 bool AssemblyRegister::isValid() const
 {
-	return state == ActiveRegister && reg.isValid();
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isValid();
+
+	return isActive() && reg.isValid();
 }
 
 bool AssemblyRegister::isGlobalVariableRegister() const
 {
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isGlobalVariableRegister();
+
 	return scope->getRootClassScope()->rootData->contains(id.id);
 }
 
 bool AssemblyRegister::isActive() const
 {
-	return state == ActiveRegister;
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isActive();
+
+	return state == ActiveRegister || state == DirtyGlobalRegister;
+}
+
+bool AssemblyRegister::isSameRegisterSource(Ptr other) const
+{
+	auto thisRef = getReferenceTargetRegister();
+	auto otherRef = other->getReferenceTargetRegister();
+
+	return thisRef == otherRef;
 }
 
 bool AssemblyRegister::matchesScopeAndSymbol(BaseScope* scopeToCheck, const Symbol& symbol) const
 {
+
+	// Here we do not look for a reference since we really want the actual register...
+#if 0
+	if (isReferencingOtherRegister())
+		getReferenceTargetRegister()->matchesScopeAndSymbol(scopeToCheck, symbol);
+#endif
+
 	auto scopeMatches = scopeToCheck->getScopeForSymbol(symbol.id) == scope;
 	auto symbolMatches = symbol == id;
 
 	return scopeMatches && symbolMatches;
 }
 
-bool AssemblyRegister::isActiveOrDirtyGlobalRegister() const
-{
-	return state == ActiveRegister || state == DirtyGlobalRegister;
-}
-
 void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 {
-	jassert(memoryLocation != nullptr);
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->createMemoryLocation(cc);
+		return;
+	}
+
+	jassert(memoryLocation != nullptr || getType() == Types::ID::Integer);
 
 	if (getType() != Types::ID::Pointer && isGlobalVariableRegister() && !id.isConst())
 	{
 		auto t = getType();
+		
+		hasCustomMem = false;
+		state = State::LoadedMemoryLocation;
 
 		bool useQword = (t == Types::ID::Double ||
 			t == Types::ID::Block ||
 			t == Types::ID::Pointer);
 
-        auto r = cc.newGpq();
-        
-        cc.mov(r, (uint64_t)memoryLocation);
-        
+		auto r = cc.newGpq();
+
+		cc.mov(r, (uint64_t)memoryLocation);
+
 		memory = useQword ? x86::qword_ptr(r) : x86::dword_ptr(r);
-		hasCustomMem = true;
-		state = State::LoadedMemoryLocation;
 	}
 	else
 	{
@@ -348,25 +421,22 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 		}
 		if (getType() == Types::ID::Integer)
 		{
-			immediateIntValue = *reinterpret_cast<int*>(memoryLocation);
-			isZeroValue = immediateIntValue == 0;
-		}
-		if (type == Types::ID::Block)
-		{
-			jassertfalse;
-#if 0
-			uint8* d = reinterpret_cast<uint8*>(memoryLocation);
-			asmjit::Data128 data = asmjit::Data128::fromU8(d[0], d[1], d[2], d[3],
-				d[4], d[5], d[6], d[7],
-				d[8], d[9], d[10], d[11],
-				d[12], d[13], d[14], d[15]);
+			if (memoryLocation != nullptr)
+			{
+				immediateIntValue = *reinterpret_cast<int*>(memoryLocation);
+				hasImmediateValue = true;
+			}
 
-			memory = cc.newXmmConst(ConstPool::kScopeLocal, data);
-#endif
+			isZeroValue = immediateIntValue == 0;
 		}
 		if (getType() == Types::ID::Pointer)
 		{
-			memory = x86::qword_ptr((uint64_t)reinterpret_cast<VariableStorage*>(memoryLocation)->getDataPointer());
+            // If it's not aligned to 16 byte it's definitely not a VariableStorage
+            
+            if((uint64_t)memoryLocation % 16 == 0)
+                memory = x86::qword_ptr((uint64_t)reinterpret_cast<VariableStorage*>(memoryLocation)->getDataPointer());
+            else
+                memory = x86::qword_ptr((uint64_t)memoryLocation);
 		}
 			
 		state = State::LoadedMemoryLocation;
@@ -377,14 +447,16 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 
 void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 {
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->createRegister(cc);
+		return;
+	}
+
 	jassert(getType() != Types::ID::Dynamic);
 
 	if (reg.isValid())
 	{
-		// From now on we can use it just like a regular register
-		if (state == ReusableRegister)
-			state = ActiveRegister;
-
 		jassert(state == ActiveRegister || 
 			    state == DirtyGlobalRegister);
 		return;
@@ -413,12 +485,21 @@ void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 
 bool AssemblyRegister::isMemoryLocation() const
 {
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isMemoryLocation();
+
 	return state == LoadedMemoryLocation;
 }
 
 
 void AssemblyRegister::setCustomMemoryLocation(X86Mem newLocation, bool isGlobalMemory_)
 {
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->setCustomMemoryLocation(newLocation, isGlobalMemory_);
+		return;
+	}
+
 	memory = newLocation;
 	dirty = false;
 	globalMemory = isGlobalMemory_;
@@ -428,36 +509,184 @@ void AssemblyRegister::setCustomMemoryLocation(X86Mem newLocation, bool isGlobal
 	hasCustomMem = true;
 }
 
-void AssemblyRegister::setDataPointer(void* memLoc)
+void AssemblyRegister::setDataPointer(void* memLoc, bool globalMemory_)
 {
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->setDataPointer(memLoc, globalMemory_);
+		return;
+	}
+
 	memoryLocation = memLoc;
 	reg = {};
+	globalMemory = globalMemory_;
 	state = State::UnloadedMemoryLocation;
 	hasCustomMem = false;
 }
 
 
-void AssemblyRegister::clearForReuse()
+void AssemblyRegister::setImmediateValue(int64 value)
 {
-	isIter = false;
-	state = ReusableRegister;
-	dirty = false;
-	reusable = false;
-	immediateIntValue = 0;
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->setImmediateValue(value);
+		return;
+	}
+
+	jassert(getType() == Types::ID::Integer);
+
+	hasImmediateValue = true;
+	immediateIntValue = value;
+	state = UnloadedMemoryLocation;
 	memoryLocation = nullptr;
-	scope = nullptr;
-	id = {};
+	reg = {};
+	hasCustomMem = false;
+}
+
+bool AssemblyRegister::isImmediate() const
+{
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isImmediate();
+
+	return hasImmediateValue;
+}
+
+void AssemblyRegister::invalidateRegisterForCustomMemory()
+{
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->invalidateRegisterForCustomMemory();
+		return;
+	}
+
+	jassert(hasCustomMemoryLocation());
+	dirty = false;
+	reg = {};
+
+	state = LoadedMemoryLocation;
+}
+
+void AssemblyRegister::clearAfterReturn()
+{
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->clearAfterReturn();
+		return;
+	}
+
+	reg = {};
+
+	setMemoryState();
+}
+
+bool AssemblyRegister::isIteratorRegister() const
+{
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isIteratorRegister();
+
+	if (isIter)
+	{
+		jassert(state == ActiveRegister);
+		return true;
+	}
+
+	return false;
+}
+
+bool AssemblyRegister::isSimd4Float() const
+{
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isSimd4Float();
+
+	if (!compiler->getOptimizations().contains(OptimizationIds::AutoVectorisation))
+		return false;
+
+	if (auto st = type.getTypedIfComplexType<SpanType>())
+	{
+		return (st->getElementType() == TypeInfo(Types::ID::Float)) && st->getNumElements() == 4;
+	}
+
+	return false;
+}
+
+void AssemblyRegister::setDirtyFloat4(Ptr source, int byteOffset)
+{
+	if (source->isGlobalMemory())
+	{
+		memory = source->getMemoryLocationForReference().cloneAdjusted(byteOffset);
+		globalMemory = true;
+		dirty = true;
+		hasCustomMem = true;
+		
+		if (isActive())
+			state = DirtyGlobalRegister;
+	}
 }
 
 void AssemblyRegister::setUndirty()
 {
-	jassert(state == DirtyGlobalRegister || isIter || isGlobalMemory());
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->setUndirty();
+		return;
+	}
 
-	dirty = false;
-	state = ActiveRegister;
+	if (dirty && isActive())
+	{
+		jassert(state == DirtyGlobalRegister || isIter || isGlobalMemory());
+
+		dirty = false;
+		state = ActiveRegister;
+	}
 }
 
-AssemblyRegisterPool::AssemblyRegisterPool()
+bool AssemblyRegister::hasCustomMemoryLocation() const noexcept
+{
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->hasCustomMemoryLocation();
+
+	return hasCustomMem;
+}
+
+bool AssemblyRegister::isZero() const
+{
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isZero();
+
+	return !isActive() && isZeroValue;
+}
+
+void AssemblyRegister::setWriteBackToMemory(bool shouldWriteBackToMemory)
+{
+	if (isReferencingOtherRegister())
+	{
+		getReferenceTargetRegister()->setWriteBackToMemory(shouldWriteBackToMemory);
+		return;
+	}
+
+	writeBackToMemory = shouldWriteBackToMemory;
+}
+
+bool AssemblyRegister::shouldWriteToMemoryAfterStore() const
+{
+	if (isReferencingOtherRegister())
+	{
+		return getReferenceTargetRegister()->shouldWriteToMemoryAfterStore();
+	}
+
+	return writeBackToMemory;
+}
+
+void AssemblyRegister::setMemoryState()
+{
+	auto memIsValid = memory.hasBase();
+	memIsValid |= memory.offset() != 0;
+
+	state = memIsValid ? LoadedMemoryLocation : UnloadedMemoryLocation;
+}
+
+AssemblyRegisterPool::AssemblyRegisterPool(BaseCompiler* c):
+	compiler(c)
 {
 }
 
@@ -509,7 +738,7 @@ snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getActiveRegisterF
 		}
 	}
 
-	return nullptr;
+	return regWithCustomMem;
 }
 
 void AssemblyRegisterPool::removeIfUnreferenced(AssemblyRegister::Ptr ref)
@@ -523,9 +752,10 @@ void AssemblyRegisterPool::removeIfUnreferenced(AssemblyRegister::Ptr ref)
 
 AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope, TypeInfo type)
 {
+#if REMOVE_REUSABLE_REG
 	for (auto r : currentRegisterPool)
 	{
-		if (r->getType() == type.getType() && r->canBeReused())
+		if (r->getType() == compiler->getRegisterType(type) && r->canBeReused())
 		{
 			r->clearForReuse();
 			r->scope = scope;
@@ -533,8 +763,9 @@ AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope
 			return r;
 		}
 	}
+#endif
 
-	RegPtr newReg = new AssemblyRegister(type);
+	RegPtr newReg = new AssemblyRegister(compiler, type);
 	newReg->scope = scope;
 
 	currentRegisterPool.add(newReg);
@@ -549,7 +780,7 @@ snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterWithMem
 
 	for (auto r : currentRegisterPool)
 	{
-		if (!r->isMemoryLocation())
+		if (!r->isMemoryLocation() && !r->isActive())
 			continue;
 
 		if (r == other.get())
@@ -557,7 +788,9 @@ snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterWithMem
 
 		if (r->matchesMemoryLocation(other))
 		{
+#if REMOVE_REUSABLE_REG
 			other->clearForReuse();
+#endif
 			r->numMemoryReferences++;
 			return r;
 		}
@@ -578,6 +811,11 @@ AssemblyRegisterPool::RegList AssemblyRegisterPool::getListOfAllNamedRegisters()
 	}
 
 	return list;
+}
+
+snex::Types::ID AssemblyRegisterPool::getRegisterType(const TypeInfo& t) const
+{
+	return compiler->getRegisterType(t);
 }
 
 }

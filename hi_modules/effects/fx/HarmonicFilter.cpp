@@ -34,6 +34,7 @@ namespace hise { using namespace juce;
 
 HarmonicFilter::HarmonicFilter(MainController *mc, const String &uid, int numVoices_) :
 VoiceEffectProcessor(mc, uid, numVoices_),
+BaseHarmonicFilter(mc),
 q(12.0f),
 numVoices(numVoices_),
 filterBandIndex(OneBand),
@@ -51,10 +52,6 @@ filterBanks(numVoices_)
     parameterNames.add("SemiToneTranspose");
 
 	editorStateIdentifiers.add("XFadeChainShown");
-
-	dataA = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
-	dataB = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
-	dataMix = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
 
 	dataA->setRange(-24.0, 24.0, 0.1);
 	dataB->setRange(-24.0, 24.0, 0.1);
@@ -201,28 +198,6 @@ ProcessorEditorBody * HarmonicFilter::createEditor(ProcessorEditor *parentEditor
 	return nullptr;
 #endif
 }
-
-SliderPackData * HarmonicFilter::getSliderPackData(int i)
-{
-	switch (i)
-	{
-	case SliderPacks::A:	return dataA;
-	case SliderPacks::B:	return dataB;
-	case SliderPacks::Mix:	return dataMix;
-	default:				return nullptr;
-	}
-}
-
-const SliderPackData * HarmonicFilter::getSliderPackData(int i) const
-{
-    switch (i)
-    {
-        case SliderPacks::A:	return dataA;
-        case SliderPacks::B:	return dataB;
-        case SliderPacks::Mix:	return dataMix;
-        default:				return nullptr;
-    }
-}
     
 void HarmonicFilter::setCrossfadeValue(double normalizedCrossfadeValue)
 {
@@ -267,6 +242,7 @@ int HarmonicFilter::getNumBandForFilterBandIndex(FilterBandNumbers number) const
 
 HarmonicMonophonicFilter::HarmonicMonophonicFilter(MainController *mc, const String &uid) :
 MonophonicEffectProcessor(mc, uid),
+BaseHarmonicFilter(mc),
 q(12.0f),
 filterBandIndex(OneBand),
 currentCrossfadeValue(0.5f),
@@ -284,10 +260,6 @@ filterBank()
     parameterNames.add("Crossfade");
     parameterNames.add("SemiToneTranspose");
     
-	dataA = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
-	dataB = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
-	dataMix = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
-
 	dataA->setRange(-24.0, 24.0, 0.1);
 	dataB->setRange(-24.0, 24.0, 0.1);
 	dataMix->setRange(-24.0, 24.0, 0.1);
@@ -422,27 +394,6 @@ ProcessorEditorBody * HarmonicMonophonicFilter::createEditor(ProcessorEditor *pa
 #endif
 }
 
-SliderPackData * HarmonicMonophonicFilter::getSliderPackData(int i)
-{
-	switch (i)
-	{
-	case SliderPacks::A:	return dataA;
-	case SliderPacks::B:	return dataB;
-	case SliderPacks::Mix:	return dataMix;
-	default:				return nullptr;
-	}
-}
-
-const SliderPackData * HarmonicMonophonicFilter::getSliderPackData(int i) const
-{
-    switch (i)
-    {
-        case SliderPacks::A:	return dataA;
-        case SliderPacks::B:	return dataB;
-        case SliderPacks::Mix:	return dataMix;
-        default:				return nullptr;
-    }
-}
     
 void HarmonicMonophonicFilter::setCrossfadeValue(double normalizedCrossfadeValue)
 {

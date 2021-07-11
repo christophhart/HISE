@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -62,7 +61,7 @@ namespace juce
     will correspond to the order in which the property was added, or that it will remain
     constant when other properties are added or removed.
 
-    Listeners can be added to a ValueTree to be told when properies change and when
+    Listeners can be added to a ValueTree to be told when properties change and when
     sub-trees are added or removed.
 
     @see var, XmlElement
@@ -427,10 +426,9 @@ public:
     /** Creates an XmlElement that holds a complete image of this tree and all its children.
         If this tree is invalid, this may return nullptr. Otherwise, the XML that is produced can
         be used to recreate a similar tree by calling ValueTree::fromXml().
-        The caller must delete the object that is returned.
         @see fromXml, toXmlString
     */
-    XmlElement* createXml() const;
+    std::unique_ptr<XmlElement> createXml() const;
 
     /** Tries to recreate a tree from its XML representation.
         This isn't designed to cope with random XML data - it should only be fed XML that was created
@@ -438,11 +436,17 @@ public:
     */
     static ValueTree fromXml (const XmlElement& xml);
 
+    /** Tries to recreate a tree from its XML representation.
+        This isn't designed to cope with random XML data - it should only be fed XML that was created
+        by the createXml() method.
+    */
+    static ValueTree fromXml (const String& xmlText);
+
     /** This returns a string containing an XML representation of the tree.
         This is quite handy for debugging purposes, as it provides a quick way to view a tree.
         @see createXml()
     */
-    String toXmlString() const;
+    String toXmlString (const XmlElement::TextFormat& format = {}) const;
 
     //==============================================================================
     /** Stores this tree (and all its children) in a binary format.
@@ -484,7 +488,7 @@ public:
             simply check the tree parameter in this callback to make sure it's the tree you're interested in.
         */
         virtual void valueTreePropertyChanged (ValueTree& treeWhosePropertyHasChanged,
-                                               const Identifier& property) = 0;
+                                               const Identifier& property);
 
         /** This method is called when a child sub-tree is added.
             Note that when you register a listener to a tree, it will receive this callback for
@@ -493,7 +497,7 @@ public:
             just check the parentTree parameter to make sure it's the one that you're interested in.
         */
         virtual void valueTreeChildAdded (ValueTree& parentTree,
-                                          ValueTree& childWhichHasBeenAdded) = 0;
+                                          ValueTree& childWhichHasBeenAdded);
 
         /** This method is called when a child sub-tree is removed.
 
@@ -504,7 +508,7 @@ public:
         */
         virtual void valueTreeChildRemoved (ValueTree& parentTree,
                                             ValueTree& childWhichHasBeenRemoved,
-                                            int indexFromWhichChildWasRemoved) = 0;
+                                            int indexFromWhichChildWasRemoved);
 
         /** This method is called when a tree's children have been re-shuffled.
 
@@ -514,7 +518,7 @@ public:
             just check the parameter to make sure it's the tree that you're interested in.
         */
         virtual void valueTreeChildOrderChanged (ValueTree& parentTreeWhoseChildrenHaveMoved,
-                                                 int oldIndex, int newIndex) = 0;
+                                                 int oldIndex, int newIndex);
 
         /** This method is called when a tree has been added or removed from a parent.
 
@@ -522,7 +526,7 @@ public:
             removed from a parent. Unlike the other callbacks, it applies only to the tree to which
             the listener is registered, and not to any of its children.
         */
-        virtual void valueTreeParentChanged (ValueTree& treeWhoseParentHasChanged) = 0;
+        virtual void valueTreeParentChanged (ValueTree& treeWhoseParentHasChanged);
 
         /** This method is called when a tree is made to point to a different internal shared object.
             When operator= is used to make a ValueTree refer to a different object, this callback

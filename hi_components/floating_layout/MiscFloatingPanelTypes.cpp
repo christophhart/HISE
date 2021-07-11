@@ -32,6 +32,9 @@
 
 namespace hise { using namespace juce;
 
+
+
+
 void EmptyComponent::paint(Graphics& g)
 {
 	g.fillAll(c);
@@ -52,26 +55,6 @@ void ApplicationCommandButtonPanel::setCommand(int commandID)
 	b->setVisible(true);
 }
 #endif
-
-
-void SliderPackPanel::resized()
-{
-	PanelWithProcessorConnection::resized();
-
-	if (auto sp = getContent<SliderPack>())
-	{
-		int numSliders = sp->getNumSliders();
-
-		int wPerSlider = getWidth() / numSliders;
-
-		int newWidth = numSliders * wPerSlider;
-
-		int y = sp->getY();
-		int height = sp->getHeight();
-
-		sp->setBounds((getWidth() - newWidth) / 2, y, newWidth, height);
-	}
-}
 
 void SpacerPanel::paint(Graphics& g)
 {
@@ -125,6 +108,15 @@ void VisibilityToggleBar::refreshButtons()
 
 			for (int i = 0; i < c->getNumComponents(); i++)
 			{
+				auto comp = c->getComponent(i);
+
+				if (auto compAsContainer = dynamic_cast<FloatingTileContainer*>(comp->getCurrentFloatingPanel()))
+				{
+					// Skip the button for the container of this panel...
+					if (compAsContainer->getIndexOfComponent(getParentShell()) != -1)
+						continue;
+				}
+
 				addIcon(c->getComponent(i));
 			}
 
@@ -240,7 +232,7 @@ void VisibilityToggleBar::siblingAmountChanged()
 
 void VisibilityToggleBar::resized()
 {
-	auto c = dynamic_cast<ResizableFloatingTileContainer*>(getParentShell()->getParentContainer());
+	auto c = dynamic_cast<ResizableFloatingTileContainer*>(controlledContainer.getComponent());
 
 	bool arrangeHorizontal = true;
 
@@ -257,7 +249,7 @@ void VisibilityToggleBar::resized()
 
 	int offset = alignment == Justification::centred ? (totalSize-totalButtonSize)/2 :  0;
 
-	if (getParentShell()->getParentContainer())
+	if (c != nullptr)
 	{
 		for (int i = 0; i < buttons.size(); i++)
 		{

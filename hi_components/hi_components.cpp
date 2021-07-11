@@ -51,11 +51,9 @@
 #include "plugin_components/PluginPreviewWindow.cpp"
 #endif
 
-
-#include "eq_plot/FilterInfo.cpp"
-#include "eq_plot/FilterGraph.cpp"
-#include "eq_plot/EqComponent.cpp"
-
+#include "audio_components/SampleComponents.cpp"
+#include "audio_components/EqComponent.cpp"
+#include "floating_layout/ZoomableViewport.cpp"
 #include "floating_layout/FloatingLayout.cpp"
 #include "hi_expansion/ExpansionFloatingTiles.cpp"
 
@@ -64,4 +62,3 @@
 #include "midi_overlays/MidiLooper.cpp"
 #include "midi_overlays/MidiOverlayFactory.cpp"
 
-#include "wave_components/SampleComponents.cpp"

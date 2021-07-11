@@ -761,9 +761,7 @@ void HiToggleButton::buttonClicked(Button *b)
 	}
 }
 
-StringArray TempoSyncer::tempoNames = StringArray();
 
-float TempoSyncer::tempoFactors[numTempos];
 
 #undef GET_MACROCHAIN
 

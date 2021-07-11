@@ -44,8 +44,6 @@ struct NodeBase::Wrapper
 	API_METHOD_WRAPPER_1(NodeBase, get);
 	API_VOID_METHOD_WRAPPER_2(NodeBase, setParent);
 	API_METHOD_WRAPPER_1(NodeBase, getParameterReference);
-	API_METHOD_WRAPPER_0(NodeBase, createRingBuffer);
-	API_VOID_METHOD_WRAPPER_1(NodeBase, writeModulationSignal);
 };
 
 
@@ -54,16 +52,17 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ConstScriptingObject(rootNetwork->getScriptProcessor(), 8),
 	parent(rootNetwork),
 	v_data(data_),
-	bypassUpdater(rootNetwork->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
-	bypassed(v_data, PropertyIds::Bypassed, getUndoManager(), false),
-	helpManager(*this, data_),
-	currentId(v_data[PropertyIds::ID].toString())
+	helpManager(this, data_),
+	currentId(v_data[PropertyIds::ID].toString()),	
+	subHolder(rootNetwork->getCurrentHolder())
 {
+	numChannels.referTo(data_, PropertyIds::NumChannels, nullptr, 2);
+	bypassState.referTo(data_, PropertyIds::Bypassed, getUndoManager(), false);
+
 	setDefaultValue(PropertyIds::NumChannels, 2);
-	setDefaultValue(PropertyIds::LockNumChannels, false);
 	setDefaultValue(PropertyIds::NodeColour, 0);
 	setDefaultValue(PropertyIds::Comment, "");
-	setDefaultValue(PropertyIds::CommentWidth, 300);
+	//setDefaultValue(PropertyIds::CommentWidth, 300);
 
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(set);
@@ -71,18 +70,33 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_2(setParent);
-	ADD_API_METHOD_0(createRingBuffer);
-	ADD_API_METHOD_1(writeModulationSignal);
 	ADD_API_METHOD_1(getParameterReference);
 
-	bypassUpdater.setFunction([this]()
-	{
-		bypassed = pendingBypassState;
-	});
-
 	for (auto c : getPropertyTree())
-	{
 		addConstant(c[PropertyIds::ID].toString(), c[PropertyIds::ID]);
+}
+
+NodeBase::~NodeBase()
+{
+	
+}
+
+void NodeBase::prepare(PrepareSpecs specs)
+{
+	jassert(!isUINodeOfDuplicate());
+
+	numChannels = specs.numChannels;
+	
+	lastSpecs = specs;
+	cpuUsage = 0.0;
+
+	for (auto p : parameters)
+	{
+		if (p->isModulated())
+			continue;
+
+		auto v = p->getValue();
+		p->setValueAndStoreAsync(v);
 	}
 }
 
@@ -91,34 +105,12 @@ DspNetwork* NodeBase::getRootNetwork() const
 	return static_cast<DspNetwork*>(parent.get());
 }
 
-
-void NodeBase::prepareParameters(PrepareSpecs specs)
+scriptnode::NodeBase::Holder* NodeBase::getNodeHolder() const
 {
-	for (int i = 0; i < getNumParameters(); i++)
-		getParameter(i)->prepare(specs);
-}
+	if (subHolder != nullptr)
+		return subHolder;
 
-void NodeBase::processSingle(float* frameData, int numChannels)
-{
-	ProcessData d;
-	d.data = &frameData;
-	d.numChannels = numChannels;
-	d.size = 1;
-
-	process(d);
-}
-
-
-juce::String NodeBase::createCppClass(bool isOuterClass)
-{
-	ignoreUnused(isOuterClass);
-
-	auto className = v_data[PropertyIds::FactoryPath].toString().replace(".", "::");
-
-	if (isPolyphonic())
-		className << "_poly";
-
-	return className;
+	return static_cast<DspNetwork*>(parent.get());
 }
 
 void NodeBase::setValueTreeProperty(const Identifier& id, const var value)
@@ -131,9 +123,6 @@ void NodeBase::setDefaultValue(const Identifier& id, var newValue)
 	if (!v_data.hasProperty(id))
 		v_data.setProperty(id, newValue, nullptr);
 }
-
-
-
 
 void NodeBase::setNodeProperty(const Identifier& id, const var& newValue)
 {
@@ -158,6 +147,16 @@ var NodeBase::getNodeProperty(const Identifier& id)
 		return propTree[PropertyIds::Value];
 
 	return {};
+}
+
+bool NodeBase::hasNodeProperty(const Identifier& id) const
+{
+	auto propTree = v_data.getChildWithName(PropertyIds::Properties);
+
+	if (propTree.isValid())
+		return propTree.getChildWithProperty(PropertyIds::ID, id.toString()).isValid();
+
+	return false;
 }
 
 juce::Value NodeBase::getNodePropertyAsValue(const Identifier& id)
@@ -186,28 +185,47 @@ juce::Rectangle<int> NodeBase::getPositionInCanvas(Point<int> topLeft) const
 	return body;
 }
 
+snex::NamespacedIdentifier NodeBase::getPath() const
+{
+	auto t = getValueTree()[PropertyIds::FactoryPath].toString();
+	return NamespacedIdentifier::fromString(t.replace(".", "::"));
+}
+
 void NodeBase::setBypassed(bool shouldBeBypassed)
 {
 	checkValid();
 
-	if (bypassed != shouldBeBypassed)
-	{
-		pendingBypassState = shouldBeBypassed;
-		bypassUpdater.triggerUpdateWithLambda();
-	}
+	if (enableUndo)
+		bypassState.setValue(shouldBeBypassed, getUndoManager());
+	else
+		bypassState.setValue(shouldBeBypassed, nullptr);
 }
 
 
 bool NodeBase::isBypassed() const noexcept
 {
 	checkValid();
-
-	return bypassed;
+	return bypassState;
 }
 
 int NodeBase::getIndexInParent() const
 {
 	return v_data.getParent().indexOf(v_data);
+}
+
+bool NodeBase::isActive(bool checkRecursively) const
+{
+	ValueTree p = v_data.getParent();
+
+	if (!checkRecursively)
+		return p.isValid();
+
+	while (p.isValid() && p.getType() != PropertyIds::Network)
+	{
+		p = p.getParent();
+	}
+
+	return p.getType() == PropertyIds::Network;
 }
 
 void NodeBase::checkValid() const
@@ -251,33 +269,33 @@ juce::UndoManager* NodeBase::getUndoManager() const
 juce::Rectangle<int> NodeBase::getBoundsToDisplay(Rectangle<int> originalHeight) const
 {
 	if (v_data[PropertyIds::Folded])
-		return originalHeight.withHeight(UIValues::HeaderHeight).withWidth(UIValues::NodeWidth);
-	else
-	{ 
-		auto helpBounds = helpManager.getHelpSize().toNearestInt();
+		originalHeight = originalHeight.withHeight(UIValues::HeaderHeight).withWidth(UIValues::NodeWidth);
+	
+	auto helpBounds = helpManager.getHelpSize().toNearestInt();
 
+	if (!helpBounds.isEmpty())
+	{
 		originalHeight.setWidth(originalHeight.getWidth() + helpBounds.getWidth());
 		originalHeight.setHeight(jmax<int>(originalHeight.getHeight(), helpBounds.getHeight()));
-
-		return originalHeight;
 	}
+
+	return originalHeight;
 }
 
 
 
 juce::Rectangle<int> NodeBase::getBoundsWithoutHelp(Rectangle<int> originalHeight) const
 {
+	auto helpBounds = helpManager.getHelpSize().toNearestInt();
+
+	originalHeight.removeFromRight(helpBounds.getWidth());
+
 	if (v_data[PropertyIds::Folded])
 		return originalHeight.withHeight(UIValues::HeaderHeight);
 	else
 	{
 		return originalHeight;
 	}
-}
-
-bool NodeBase::hasFixChannelAmount() const
-{
-	return v_data[PropertyIds::LockNumChannels];
 }
 
 int NodeBase::getNumParameters() const
@@ -306,18 +324,115 @@ NodeBase::Parameter* NodeBase::getParameter(int index) const
     return nullptr;
 }
 
+struct ParameterSorter
+{
+	static int compareElements(const Parameter* first, const Parameter* second)
+	{
+		const auto& ftree = first->getTreeWithValue();
+		const auto& stree = second->getTreeWithValue();
+
+		int fIndex = ftree.getParent().indexOf(ftree);
+		int sIndex = stree.getParent().indexOf(stree);
+
+		if (fIndex < sIndex)
+			return -1;
+
+		if (fIndex > sIndex)
+			return 1;
+
+		jassertfalse;
+		return 0;
+	}
+};
+
 void NodeBase::addParameter(Parameter* p)
 {
-	parameters.add(p);
+	ParameterSorter sorter;
+
+	parameters.addSorted(sorter, p);
 	auto& f = p->getReferenceToCallback();
 	
-	if(f) f(p->getValue());
+	f.call(p->getValue());
+
+	
 }
 
 
 void NodeBase::removeParameter(int index)
 {
 	parameters.remove(index);
+}
+
+void NodeBase::setParentNode(Ptr newParentNode)
+{
+	if (newParentNode == nullptr && getRootNetwork() != nullptr)
+	{
+		getRootNetwork()->getExceptionHandler().removeError(this);
+
+		if (auto nc = dynamic_cast<NodeContainer*>(this))
+		{
+			nc->forEachNode([](NodeBase::Ptr b)
+			{
+				b->getRootNetwork()->getExceptionHandler().removeError(b);
+				return false;
+			});
+		}
+	}
+
+	parentNode = newParentNode;
+}
+
+void NodeBase::showPopup(Component* childOfGraph, Component* c)
+{
+	auto g = childOfGraph->findParentComponentOfClass<ZoomableViewport>();
+	auto b = g->getLocalArea(childOfGraph, childOfGraph->getLocalBounds());
+	g->setCurrentModalWindow(c, b);
+}
+
+String NodeBase::getCpuUsageInPercent() const
+{
+	String s;
+
+	if (lastSpecs.sampleRate > 0.0 && lastSpecs.blockSize > 0)
+	{
+		auto secondPerBuffer = cpuUsage * 0.001;
+		auto bufferDuration = (double)lastSpecs.blockSize / lastSpecs.sampleRate;
+		auto bufferRatio = secondPerBuffer / bufferDuration;
+		s << " - " << String(bufferRatio * 100.0, 1) << "%";
+	}
+
+	return s;
+}
+
+void NodeBase::setEmbeddedNetwork(NodeBase::Holder* n)
+{
+	embeddedNetwork = n;
+
+	if (getEmbeddedNetwork()->canBeFrozen())
+	{
+		setDefaultValue(PropertyIds::Frozen, true);
+		frozenListener.setCallback(v_data, { PropertyIds::Frozen }, valuetree::AsyncMode::Synchronously,
+			BIND_MEMBER_FUNCTION_2(NodeBase::updateFrozenState));
+	}
+}
+
+scriptnode::DspNetwork* NodeBase::getEmbeddedNetwork()
+{
+	return static_cast<DspNetwork*>(embeddedNetwork.get());
+}
+
+const scriptnode::DspNetwork* NodeBase::getEmbeddedNetwork() const
+{
+	return static_cast<const DspNetwork*>(embeddedNetwork.get());
+}
+
+void NodeBase::updateFrozenState(Identifier id, var newValue)
+{
+	if (auto n = getEmbeddedNetwork())
+	{
+		if (n->canBeFrozen())
+			n->setUseFrozenNode((bool)newValue);
+	}
 }
 
 var NodeBase::get(var id)
@@ -339,6 +454,8 @@ void NodeBase::setParent(var parentNode, int indexInParent)
 	if (parentNode.getObject() == network)
 		parentNode = var(network->getRootNode());
 
+	Parameter::ScopedAutomationPreserver sap(this);
+
 	if(getValueTree().getParent().isValid())
 		getValueTree().getParent().removeChild(getValueTree(), getUndoManager());
 
@@ -359,34 +476,6 @@ void NodeBase::setParent(var parentNode, int indexInParent)
 	}
 }
 
-void NodeBase::writeModulationSignal(var buffer)
-{
-	checkValid();
-
-	if (auto b = buffer.getBuffer())
-	{
-		if (b->size == ModulationSourceNode::RingBufferSize)
-		{
-			if (auto modSource = dynamic_cast<ModulationSourceNode*>(this))
-			{
-				modSource->fillAnalysisBuffer(b->buffer);
-			}
-			else
-				reportScriptError("No modulation node");
-		}
-		else
-			reportScriptError("buffer size mismatch. Expected: " + String(ModulationSourceNode::RingBufferSize));
-	}
-	else
-		reportScriptError("the argument is not a buffer.");
-}
-
-var NodeBase::createRingBuffer()
-{
-	VariantBuffer::Ptr p = new VariantBuffer(ModulationSourceNode::RingBufferSize);
-	return var(p);
-}
-
 var NodeBase::getParameterReference(var indexOrId) const
 {
 	Parameter* p = nullptr;
@@ -404,48 +493,25 @@ var NodeBase::getParameterReference(var indexOrId) const
 
 
 
-struct NodeBase::Parameter::Wrapper
+struct Parameter::Wrapper
 {
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getId);
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getValue);
-	API_METHOD_WRAPPER_0(NodeBase::Parameter, getModValue);
 	API_METHOD_WRAPPER_1(NodeBase::Parameter, addConnectionFrom);
 	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValueAndStoreAsync);
 };
 
-NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
+Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 	ConstScriptingObject(parent_->getScriptProcessor(), 4),
 	parent(parent_),
-	valueUpdater(parent_->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	data(data_)
 {
 	auto initialValue = (double)data[PropertyIds::Value];
-
-	value.forEachVoice([initialValue](ParameterValue& v)
-	{
-		v.value = initialValue;
-	});
-
 	auto weakThis = WeakReference<Parameter>(this);
 
-	valueUpdater.setFunction(BIND_MEMBER_FUNCTION_0(NodeBase::Parameter::storeValue));
-	
-	valuePropertyUpdater.setCallback(data, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
-		std::bind(&NodeBase::Parameter::updateFromValueTree, this, std::placeholders::_1, std::placeholders::_2));
-
-	modulationStorageBypasser.setCallback(data, {PropertyIds::ModulationTarget},
-		valuetree::AsyncMode::Synchronously,
-		[this](Identifier, var newValue)
-	{
-		if ((bool)newValue)
-			this->valueUpdater.setFunction({});
-		else
-			valueUpdater.setFunction(BIND_MEMBER_FUNCTION_0(NodeBase::Parameter::storeValue));
-	});
+	setTreeWithValue(data);
 
 	ADD_API_METHOD_0(getValue);
-	ADD_API_METHOD_0(getModValue);
-	ADD_API_METHOD_0(getModValue);
 	ADD_API_METHOD_1(addConnectionFrom);
 	ADD_API_METHOD_1(setValueAndStoreAsync);
 
@@ -455,135 +521,124 @@ NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 	ADD_PROPERTY_ID_CONSTANT(PropertyIds::MaxValue);
 	ADD_PROPERTY_ID_CONSTANT(PropertyIds::MidPoint);
 	ADD_PROPERTY_ID_CONSTANT(PropertyIds::StepSize);
+
+	setValueAndStoreAsync(initialValue);
+
+	automationRemover.setCallback(data, valuetree::AsyncMode::Synchronously, true, BIND_MEMBER_FUNCTION_1(Parameter::updateConnectionOnRemoval));
 }
 
+void Parameter::updateConnectionOnRemoval(ValueTree& c)
+{
+	if (!ScopedAutomationPreserver::isPreservingRecursive(parent) && connectionSourceTree.isValid())
+		connectionSourceTree.getParent().removeChild(connectionSourceTree, parent->getUndoManager());
+}
 
-
-juce::String NodeBase::Parameter::getId() const
+juce::String Parameter::getId() const
 {
 	return data[PropertyIds::ID].toString();
 }
 
 
-double NodeBase::Parameter::getValue() const
+double Parameter::getValue() const
 {
-	return value.getCurrentOrFirst().value;
+	return dbNew.getDisplayValue();
 }
 
-
-DspHelpers::ParameterCallback& NodeBase::Parameter::getReferenceToCallback()
+void Parameter::setCallbackNew(parameter::dynamic_base* ownedNew)
 {
-	return db;
+	// We don't need to lock if the network isn't active yet...
+	bool useLock = parent->isActive(true) && parent->getRootNetwork()->isInitialised();
+	SimpleReadWriteLock::ScopedWriteLock sl(parent->getRootNetwork()->getConnectionLock(), useLock);
+	dbNew.setParameter(ownedNew);
 }
 
-
-DspHelpers::ParameterCallback NodeBase::Parameter::getCallback() const
+void Parameter::setTreeWithValue(ValueTree v)
 {
-	return db;
+	treeThatStoresValue = v;
+	valuePropertyUpdater.setCallback(treeThatStoresValue, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
+		std::bind(&NodeBase::Parameter::updateFromValueTree, this, std::placeholders::_1, std::placeholders::_2));
 }
 
-void NodeBase::Parameter::setCallback(const DspHelpers::ParameterCallback& newCallback)
+void Parameter::setValueAndStoreAsync(double newValue)
 {
-	ScopedLock sl(parent->getRootNetwork()->getConnectionLock());
-
-	if (!newCallback)
-		db = nothing;
-	else
-		db = newCallback;
-}
-
-
-double NodeBase::Parameter::getModValue() const
-{
-	return value.getCurrentOrFirst().getModValue();
-}
-
-void NodeBase::Parameter::storeValue()
-{
-	data.setProperty(PropertyIds::Value, getValue(), parent->getUndoManager());
-}
-
-void NodeBase::Parameter::setValueAndStoreAsync(double newValue)
-{
-	if (value.isMonophonicOrInsideVoiceRendering())
+	if (!connectionSourceTree.isValid()) // prevent overriding all voice parameters
 	{
-		value.getCurrentOrFirst().value = newValue;
-
-		lastValue = getModValue();
-
-		if (db)
-			db(lastValue);
-		else
-			jassertfalse;
+		DspNetwork::NoVoiceSetter nvs(*parent->getRootNetwork());
+		dbNew.call(newValue);
 	}
 	else
+		dbNew.setUIValue(newValue);
+}
+
+juce::ValueTree Parameter::getConnectionSourceTree(bool forceUpdate)
+{
+	if (forceUpdate)
 	{
-		value.forEachVoice([this, newValue](ParameterValue& v)
+		auto pId = getId();
+		auto nId = parent->getId();
+		auto n = parent->getRootNetwork();
+
 		{
-			v.value = newValue;
-			if (v.updateLastValue() && db)
-				db(v.lastValue);
-		});
-	}
+			auto containers = n->getListOfNodesWithType<NodeContainer>(true);
 
-#if USE_BACKEND
-	valueUpdater.triggerUpdateWithLambda();
-#endif
-}
+			for (auto c : containers)
+			{
+				for (auto p : c->getParameterTree())
+				{
+					auto cTree = p.getChildWithName(PropertyIds::Connections);
 
+					for (auto c : cTree)
+					{
+						if (c[PropertyIds::NodeId].toString() == nId &&
+							c[PropertyIds::ParameterId].toString() == pId)
+						{
+							connectionSourceTree = c;
+							return c;
+						}
+					}
+				}
+			}
+		}
 
-void NodeBase::Parameter::addModulationValue(double newValue)
-{
-	if (value.isMonophonicOrInsideVoiceRendering())
-	{
-		auto& v = value.get();
-		v.modAddValue = newValue;
-		
-		if (v.updateLastValue() && db)
-			db(v.lastValue);
-	}
-	else
-	{
-		value.forEachVoice([this, newValue](ParameterValue& v)
 		{
-			v.modAddValue = newValue;
+			auto modNodes = n->getListOfNodesWithType<ModulationSourceNode>(true);
 
-			if (v.updateLastValue())
-				db(v.lastValue);
-		});
+			for (auto mn : modNodes)
+			{
+				auto mTree = mn->getValueTree().getChildWithName(PropertyIds::ModulationTargets);
+
+				for (auto mt : mTree)
+				{
+					if (mt[PropertyIds::NodeId].toString() == nId &&
+						mt[PropertyIds::ParameterId].toString() == pId)
+					{
+						connectionSourceTree = mt;
+						return mt;
+					}
+				}
+
+				auto sTree = mn->getValueTree().getChildWithName(PropertyIds::SwitchTargets);
+
+				for (auto sts : sTree)
+				{
+					for (auto st : sts.getChildWithName(PropertyIds::Connections))
+					{
+						if (st[PropertyIds::NodeId].toString() == nId &&
+							st[PropertyIds::ParameterId].toString() == pId)
+						{
+							connectionSourceTree = st;
+							return st;
+						}
+					}
+				}
+			}
+		}
+
+		return {};
 	}
-}
 
-
-void NodeBase::Parameter::multiplyModulationValue(double newValue)
-{
-	if (value.isMonophonicOrInsideVoiceRendering())
-	{
-		auto& v = value.get();
-		v.modMulValue = newValue;
-
-		if (v.updateLastValue() && db)
-			db(v.lastValue);
-	}
-	else
-	{
-		value.forEachVoice([this, newValue](ParameterValue& v)
-		{
-			v.modMulValue = newValue;
-
-			if (v.updateLastValue())
-				db(v.lastValue);
-		});
-	}
-}
-
-void NodeBase::Parameter::clearModulationValues()
-{
-	value.forEachVoice([](ParameterValue& v)
-	{
-		v.modAddValue = 0.0;
-		v.modMulValue = 1.0;
-	});
+	return connectionSourceTree;
+	
 }
 
 struct DragHelpers
@@ -644,6 +699,17 @@ struct DragHelpers
 		auto sourceNodeId = getSourceNodeId(dragDetails);
 		auto pId = getSourceParameterId(dragDetails);
 
+		if (dragDetails.getProperty(PropertyIds::SwitchTarget, false))
+		{
+			auto st = parent->getRootNetwork()->getNodeWithId(sourceNodeId)->getValueTree().getChildWithName(PropertyIds::SwitchTargets);
+
+			jassert(st.isValid());
+
+			auto v = st.getChild(pId.getIntValue());
+			jassert(v.isValid());
+			return v;
+		}
+
 		if (auto sourceContainer = dynamic_cast<NodeContainer*>(parent->getRootNetwork()->get(sourceNodeId).getObject()))
 		{
 			return sourceContainer->asNode()->getParameterTree().getChildWithProperty(PropertyIds::ID, pId);
@@ -662,8 +728,6 @@ void NodeBase::addConnectionToBypass(var dragDetails)
 		ValueTree newC(PropertyIds::Connection);
 		newC.setProperty(PropertyIds::NodeId, getId(), nullptr);
 		newC.setProperty(PropertyIds::ParameterId, PropertyIds::Bypassed.toString(), nullptr);
-		newC.setProperty(PropertyIds::Converter, ConverterIds::Identity.toString(), nullptr);
-		newC.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
 
 		NormalisableRange<double> r(0.5, 1.1, 0.5);
 
@@ -681,31 +745,56 @@ void NodeBase::addConnectionToBypass(var dragDetails)
 
 var NodeBase::Parameter::addConnectionFrom(var dragDetails)
 {
-	DBG(JSON::toString(dragDetails));
+	auto shouldAdd = dragDetails.isObject();
 
-	auto sourceNodeId = DragHelpers::getSourceNodeId(dragDetails);
-	auto parameterId = DragHelpers::getSourceParameterId(dragDetails);
+	data.setProperty(PropertyIds::Automated, shouldAdd, parent->getUndoManager());
 
-	if (auto modSource = DragHelpers::getModulationSource(parent, dragDetails))
+	if (shouldAdd)
 	{
-		return modSource->addModulationTarget(this);
-	}
+		auto sourceNodeId = DragHelpers::getSourceNodeId(dragDetails);
+		auto parameterId = DragHelpers::getSourceParameterId(dragDetails);
 
-	if (sourceNodeId == parent->getId() && parameterId == getId())
-		return {};
+		if (auto modSource = DragHelpers::getModulationSource(parent, dragDetails))
+			return modSource->addModulationTarget(this);
 
-	if (auto sn = parent->getRootNetwork()->getNodeWithId(sourceNodeId))
-	{
-		if (auto sp = dynamic_cast<NodeContainer::MacroParameter*>(sn->getParameter(parameterId)))
+		if (sourceNodeId == parent->getId() && parameterId == getId())
+			return {};
+
+		if (auto sn = parent->getRootNetwork()->getNodeWithId(sourceNodeId))
 		{
-			return sp->addParameterTarget(this);
+			if (auto sp = dynamic_cast<NodeContainer::MacroParameter*>(sn->getParameter(parameterId)))
+				return sp->addParameterTarget(this);
 
-			
+			if (dragDetails.getProperty(PropertyIds::SwitchTarget, false))
+			{
+				auto cTree = sn->getValueTree().getChildWithName(PropertyIds::SwitchTargets).getChild(parameterId.getIntValue()).getChildWithName(PropertyIds::Connections);
+
+				if (cTree.isValid())
+				{
+					ValueTree newC(PropertyIds::Connection);
+					newC.setProperty(PropertyIds::NodeId, parent->getId(), nullptr);
+					newC.setProperty(PropertyIds::ParameterId, getId(), nullptr);
+					RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(data), nullptr);
+					newC.setProperty(PropertyIds::Expression, "", nullptr);
+
+					cTree.addChild(newC, -1, parent->getUndoManager());
+				}
+			}
 		}
-	}
-	
 
-	return {};
+		return {};
+	}
+	else
+	{
+		auto c = getConnectionSourceTree(false);
+
+		if (c.isValid())
+			c.getParent().removeChild(c, parent->getUndoManager());
+
+		connectionSourceTree = {};
+
+		return {};
+	}
 }
 
 bool NodeBase::Parameter::matchesConnection(const ValueTree& c) const
@@ -737,11 +826,100 @@ juce::Array<NodeBase::Parameter*> NodeBase::Parameter::getConnectedMacroParamete
 	return list;
 }
 
-NodeBase::HelpManager::HelpManager(NodeBase& parent, ValueTree d) :
-	ControlledObject(parent.getScriptProcessor()->getMainController_())
+HelpManager::HelpManager(NodeBase* parent, ValueTree d) :
+	ControlledObject(parent->getScriptProcessor()->getMainController_())
 {
-	commentListener.setCallback(d, { PropertyIds::Comment, PropertyIds::NodeColour, PropertyIds::CommentWidth }, valuetree::AsyncMode::Asynchronously,
-		BIND_MEMBER_FUNCTION_2(NodeBase::HelpManager::update));
+	commentListener.setCallback(d, { PropertyIds::Comment, PropertyIds::NodeColour}, valuetree::AsyncMode::Asynchronously,
+		BIND_MEMBER_FUNCTION_2(HelpManager::update));
+}
+
+void HelpManager::update(Identifier id, var newValue)
+{
+	if (id == PropertyIds::NodeColour)
+	{
+		highlightColour = PropertyHelpers::getColourFromVar(newValue);
+		if (highlightColour.isTransparent())
+			highlightColour = Colour(SIGNAL_COLOUR);
+
+		if (helpRenderer != nullptr)
+		{
+			helpRenderer->getStyleData().headlineColour = highlightColour;
+
+			helpRenderer->setNewText(lastText);
+
+			for (auto l : listeners)
+			{
+				if (l != nullptr)
+					l->repaintHelp();
+			}
+		}
+	}
+	else if (id == PropertyIds::Comment)
+	{
+		lastText = newValue.toString();
+
+		auto f = GLOBAL_BOLD_FONT();
+
+		auto sa = StringArray::fromLines(lastText);
+		lastWidth = 0.0f;
+
+		for (auto s : sa)
+			lastWidth = jmax(f.getStringWidthFloat(s) + 10.0f, lastWidth);
+
+		lastWidth = jmin(300.0f, lastWidth);
+		rebuild();
+	}
+}
+
+void HelpManager::render(Graphics& g, Rectangle<float> area)
+{
+	if (helpRenderer != nullptr && !area.isEmpty())
+	{
+		area.removeFromLeft(10.0f);
+		g.setColour(Colours::black.withAlpha(0.1f));
+		g.fillRoundedRectangle(area, 2.0f);
+		helpRenderer->draw(g, area.reduced(10.0f));
+	}
+}
+
+void HelpManager::addHelpListener(Listener* l)
+{
+	listeners.addIfNotAlreadyThere(l);
+	l->helpChanged(lastWidth + 30.0f, lastHeight + 20.0f);
+}
+
+void HelpManager::removeHelpListener(Listener* l)
+{
+	listeners.removeAllInstancesOf(l);
+}
+
+juce::Rectangle<float> HelpManager::getHelpSize() const
+{
+	return { 0.0f, 0.0f, lastHeight > 0.0f ? lastWidth + 30.0f : 0.0f, lastHeight + 20.0f };
+}
+
+void HelpManager::rebuild()
+{
+	if (lastText.isNotEmpty())
+	{
+		helpRenderer = new MarkdownRenderer(lastText);
+		helpRenderer->setDatabaseHolder(dynamic_cast<MarkdownDatabaseHolder*>(getMainController()));
+		helpRenderer->getStyleData().headlineColour = highlightColour;
+		helpRenderer->setDefaultTextSize(15.0f);
+		helpRenderer->parse();
+		lastHeight = helpRenderer->getHeightForWidth(lastWidth);
+	}
+	else
+	{
+		helpRenderer = nullptr;
+		lastHeight = 0.0f;
+	}
+
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			l->helpChanged(lastWidth + 30.0f, lastHeight);
+	}
 }
 
 struct ConnectionBase::Wrapper
@@ -764,17 +942,66 @@ ConnectionBase::ConnectionBase(ProcessorWithScriptingContent* p, ValueTree data_
 	addConstant(PropertyIds::StepSize.toString(), PropertyIds::StepSize.toString());
 	addConstant(PropertyIds::Expression.toString(), PropertyIds::Expression.toString());
 
-	opTypeListener.setCallback(data, { PropertyIds::OpType }, valuetree::AsyncMode::Asynchronously,
-		[this](Identifier, var newValue)
-	{
-		auto id = Identifier(newValue.toString());
-
-		setOpTypeFromId(id);
-	});
-
 	ADD_API_METHOD_0(getLastValue);
 	ADD_API_METHOD_1(get);
 	ADD_API_METHOD_2(set);
+}
+
+scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnectionTree(NodeBase* n, const ValueTree& connectionTree, bool throwIfNotFound)
+{
+	jassert(connectionTree.getType() == PropertyIds::Connections);
+
+	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
+
+	chain->inputRange2 = RangeHelpers::getDoubleRange(connectionTree.getParent());
+
+	for (auto c : connectionTree)
+	{
+		auto nId = c[PropertyIds::NodeId].toString();
+		auto pId = c[PropertyIds::ParameterId].toString();
+		auto tn = n->getRootNetwork()->getNodeWithId(nId);
+
+		if (tn == nullptr)
+		{
+			if (throwIfNotFound)
+				throw nId;
+			else
+				continue;
+		}
+
+		if (pId == PropertyIds::Bypassed.toString())
+		{
+			auto r = RangeHelpers::getDoubleRange(c).getRange();
+			chain->addParameter(new NodeBase::DynamicBypassParameter(tn, r));
+		}
+		else if (auto param = tn->getParameter(pId))
+		{
+#if HISE_INCLUDE_SNEX
+			if (auto sn = dynamic_cast<SnexSource::SnexParameter*>(param))
+			{
+				ScopedPointer<parameter::dynamic_base> b;
+				b = parameter::dynamic_base::createFromConnectionTree(c, sn->p);
+				b->setDataTree(sn->getTreeWithValue());
+				chain->addParameter(b.release());
+				continue;
+			}
+#endif
+			auto pList = tn->createInternalParameterList();
+
+			for (auto p : pList)
+			{
+				if (p.info.getId() == pId)
+				{
+					ScopedPointer<parameter::dynamic_base> b;
+					b = parameter::dynamic_base::createFromConnectionTree(c, p.callback);
+					b->setDataTree(param->getTreeWithValue());
+					chain->addParameter(b.release());
+				}
+			}
+		}
+	}
+
+	return chain.release();
 }
 
 void ConnectionBase::initRemoveUpdater(NodeBase* parent)
@@ -797,6 +1024,37 @@ void ConnectionBase::initRemoveUpdater(NodeBase* parent)
 			}
 		});
 	}
+}
+
+RealNodeProfiler::RealNodeProfiler(NodeBase* n) :
+	enabled(n->getRootNetwork()->getCpuProfileFlag()),
+	profileFlag(n->getCpuFlag())
+{
+	if (enabled)
+		start = Time::getMillisecondCounterHiRes();
+}
+
+Parameter::ScopedAutomationPreserver::ScopedAutomationPreserver(NodeBase* n) :
+	parent(n)
+{
+	prevValue = parent->getPreserveAutomationFlag();
+	parent->getPreserveAutomationFlag() = true;
+}
+
+Parameter::ScopedAutomationPreserver::~ScopedAutomationPreserver()
+{
+	parent->getPreserveAutomationFlag() = prevValue;
+}
+
+bool Parameter::ScopedAutomationPreserver::isPreservingRecursive(NodeBase* n)
+{
+	if (n == nullptr)
+		return false;
+
+	if (n->getPreserveAutomationFlag())
+		return true;
+
+	return isPreservingRecursive(n->getParentNode());
 }
 
 }

@@ -40,6 +40,30 @@ using namespace juce;
 
 
 
+template <class T> class ScriptnodeExtraComponent : public Component,
+public PooledUIUpdater::SimpleTimer
+{
+public:
+
+	using ObjectType = T;
+
+	ObjectType* getObject() const
+	{
+		return object.get();
+	}
+
+protected:
+
+	ScriptnodeExtraComponent(ObjectType* t, PooledUIUpdater* updater) :
+		SimpleTimer(updater),
+		object(t)
+	{};
+
+private:
+
+	WeakReference<ObjectType> object;
+};
+
 
 class NodeComponent : public Component,
 					  public DspNetwork::SelectionListener,
@@ -56,6 +80,7 @@ public:
 		EditProperties,
 		UnfreezeNode,
 		FreezeNode,
+		WrapIntoDspNetwork,
 		WrapIntoChain,
 		WrapIntoSplit,
 		WrapIntoMulti,
@@ -95,10 +120,7 @@ public:
 		void mouseUp(const MouseEvent& e) override;
 		void mouseDrag(const MouseEvent& e) override;
 		
-		bool isInterestedInDragSource(const SourceDetails&) override
-		{
-			return true;
-		}
+		bool isInterestedInDragSource(const SourceDetails&) override;
 
 		void itemDragEnter(const SourceDetails& dragSourceDetails) override
 		{
@@ -106,6 +128,11 @@ public:
 			isHoveringOverBypass = b.contains(dragSourceDetails.localPosition);
 
 			repaint();
+		}
+
+		bool isRootHeader() const
+		{
+			return parent.node->getRootNetwork()->getRootNode() == parent.node;
 		}
 
 		void updateColour(Identifier id, var value)
@@ -151,12 +178,48 @@ public:
 		HiseShapeButton powerButton;
 		HiseShapeButton deleteButton;
 		HiseShapeButton parameterButton;
+		HiseShapeButton freezeButton;
 		
 		bool isDragging = false;
 
 		ComponentDragger d;
 
 		bool isHoveringOverBypass = false;
+	};
+
+	struct EmbeddedNetworkBar : public Component,
+							    public ButtonListener
+	{
+		EmbeddedNetworkBar(NodeBase* n);
+
+		void paint(Graphics& g) override
+		{
+			g.setColour(Colour(0x1e000000));
+			auto b = getLocalBounds().reduced(1, 0);
+			g.fillRect(b);
+			g.setColour(Colours::white.withAlpha(0.1f));
+			g.drawHorizontalLine(getHeight(), 1.0f, (float)getWidth() - 2.0f);
+		}
+
+		void buttonClicked(Button* b) override;
+
+		void resized() override;
+
+		struct Factory : public PathFactory
+		{
+			Path createPath(const String& url) const override;
+		} f;
+
+		void updateFreezeState(const Identifier& id, const var& newValue);
+
+		HiseShapeButton gotoButton;
+		HiseShapeButton freezeButton;
+		HiseShapeButton warningButton;
+
+		valuetree::PropertyListener freezeUpdater;
+
+		WeakReference<NodeBase> parentNode;
+		WeakReference<DspNetwork> embeddedNetwork;
 	};
 
 	NodeComponent(NodeBase* b);;
@@ -170,11 +233,29 @@ public:
 
 	void selectionChanged(const NodeBase::List& selection) override;
 
+	struct PopupHelpers
+	{
+		static int isWrappable(NodeBase* n);
+
+		static void wrapIntoNetwork(NodeBase* node, bool makeCompileable=false);
+
+		static void wrapIntoChain(NodeBase* node, MenuActions result, String idToUse = String());
+	};
+
+	
+
+	
+
+
 	virtual void fillContextMenu(PopupMenu& m);
 
 	virtual void handlePopupMenuResult(int result);
 
-	Colour getOutlineColour() const;
+	virtual Colour getOutlineColour() const;
+
+	Colour getHeaderColour() const;
+
+	void drawTopBodyGradient(Graphics& g, float alpha=0.1f, float height=15.0f);
 
 	bool isRoot() const;
 	bool isFolded() const;
@@ -199,6 +280,7 @@ public:
 	ValueTree dataReference;
 	NodeBase::Ptr node;
 	Header header;
+	ScopedPointer<EmbeddedNetworkBar> embeddedNetworkBar;
 
 	valuetree::PropertyListener repaintListener;
 
@@ -214,6 +296,27 @@ struct DeactivatedComponent : public NodeComponent
 
 	void paint(Graphics& g) override;
 	void resized() override;
+};
+
+struct simple_visualiser : public ScriptnodeExtraComponent<NodeBase>
+{
+	simple_visualiser(NodeBase*, PooledUIUpdater* u);
+
+	NodeBase* getNode();
+	double getParameter(int index);
+	Colour getNodeColour();
+
+	void timerCallback() override;
+	virtual void rebuildPath(Path& path) = 0;
+	void paint(Graphics& g) override;
+
+	Path original;
+	Path gridPath;
+	Path p;
+
+	bool stroke = true;
+	bool drawBackground = true;
+	float thickness = 1.0f;
 };
 
 }

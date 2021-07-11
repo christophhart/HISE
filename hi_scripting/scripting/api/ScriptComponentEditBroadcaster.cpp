@@ -117,11 +117,27 @@ void ScriptComponentEditBroadcaster::setSelection(ScriptComponent* componentToSe
 
 void ScriptComponentEditBroadcaster::setSelection(ScriptComponentSelection newSelection, NotificationType notifyListeners /*= sendNotification*/)
 {
-	currentSelection.swapWith(newSelection);
+	bool isEqual = newSelection.size() == currentSelection.size();
 
-	if (notifyListeners)
-		sendSelectionChangeMessage();
-	
+	if (isEqual)
+	{
+		for (int i = 0; i < newSelection.size(); i++)
+		{
+			if (newSelection[i] != currentSelection[i])
+			{
+				isEqual = false;
+				break;
+			}
+		}
+	}
+
+	if (!isEqual)
+	{
+		currentSelection.swapWith(newSelection);
+
+		if (notifyListeners)
+			sendSelectionChangeMessage();
+	}
 }
 
 void ScriptComponentEditBroadcaster::updateSelectionBasedOnModifier(ScriptComponent* componentToUpdate, const ModifierKeys& mods, NotificationType notifyListeners /*= sendNotification*/)

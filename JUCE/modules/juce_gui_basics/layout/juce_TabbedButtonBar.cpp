@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -552,12 +551,6 @@ void TabbedButtonBar::setTabBackgroundColour (int tabIndex, Colour newColour)
     }
 }
 
-void TabbedButtonBar::extraItemsMenuCallback (int result, TabbedButtonBar* bar)
-{
-    if (bar != nullptr && result > 0)
-        bar->setCurrentTabIndex (result - 1);
-}
-
 void TabbedButtonBar::showExtraItemsMenu()
 {
     PopupMenu m;
@@ -567,11 +560,14 @@ void TabbedButtonBar::showExtraItemsMenu()
         auto* tab = tabs.getUnchecked(i);
 
         if (! tab->button->isVisible())
-            m.addItem (i + 1, tab->name, true, i == currentTabIndex);
+            m.addItem (PopupMenu::Item (tab->name)
+                         .setTicked (i == currentTabIndex)
+                         .setAction ([this, i] { setCurrentTabIndex (i); }));
     }
 
-    m.showMenuAsync (PopupMenu::Options().withTargetComponent (extraTabsButton.get()),
-                     ModalCallbackFunction::forComponent (extraItemsMenuCallback, this));
+    m.showMenuAsync (PopupMenu::Options()
+                        .withDeletionCheck (*this)
+                        .withTargetComponent (extraTabsButton.get()));
 }
 
 //==============================================================================

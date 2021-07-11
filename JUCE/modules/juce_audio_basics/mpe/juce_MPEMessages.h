@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -99,7 +99,7 @@ public:
 
     /** Returns the sequence of MIDI messages that, if sent to an Expressive
         MIDI device, will reset the whole MPE zone layout of the
-        device to the laoyut passed in. This will first clear the current lower and upper
+        device to the layout passed in. This will first clear the current lower and upper
         zones, then then set the zones contained in the passed-in zone layout, and set their
         per-note and master pitchbend ranges to their current values.
     */

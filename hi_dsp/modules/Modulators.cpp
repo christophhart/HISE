@@ -585,9 +585,7 @@ Processor *TimeVariantModulatorFactoryType::createProcessor(int typeIndex, const
 	case controlModulator:				return new ControlModulator(m, id, mode);
 	case pitchWheel:					return new PitchwheelModulator(m, id, mode);
 	case macroModulator:				return new MacroModulator(m, id, mode);
-	case audioFileEnvelope:				return new AudioFileEnvelope(m, id, mode);
 	case globalTimeVariantModulator:	return new GlobalTimeVariantModulator(m, id, mode);
-	case ccDucker:						return new CCDucker(m, id, mode);
 	case scriptTimeVariantModulator:	return new JavascriptTimeVariantModulator(m, id, mode);
 	default: jassertfalse;				return nullptr;
 
@@ -603,9 +601,9 @@ Processor *EnvelopeModulatorFactoryType::createProcessor(int typeIndex, const St
 	case simpleEnvelope:	return new SimpleEnvelope(m, id, numVoices, mode);
 	case ahdsrEnvelope:		return new AhdsrEnvelope(m, id, numVoices, mode);
 	case tableEnvelope:		return new TableEnvelope(m, id, numVoices, mode);
-	case ccEnvelope:		return new CCEnvelope(m, id, numVoices, mode);
 	case scriptEnvelope:	return new JavascriptEnvelopeModulator(m, id, numVoices, mode);
 	case mpeModulator:		return new MPEModulator(m, id, numVoices, mode);
+	case voiceKillEnvelope: return new ScriptnodeVoiceKiller(m, id, numVoices);
 	default: jassertfalse;	return nullptr;
 
 	}

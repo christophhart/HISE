@@ -397,9 +397,7 @@ void ScriptExpansionHandler::InstallState::call()
 
 void ScriptExpansionHandler::InstallState::timerCallback()
 {
-	SimpleReadWriteLock::ScopedTryReadLock sl(timerLock);
-
-	if (sl.hasLock())
+	if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(timerLock))
 	{
 		status = 1;
 		call();
@@ -1205,13 +1203,27 @@ void ScriptEncryptedExpansion::extractUserPresetsIfEmpty(ValueTree encryptedTree
 	// the directory might not have been created yet...
 	auto targetDirectory = getRootFolder().getChildFile(FileHandlerBase::getIdentifier(FileHandlerBase::UserPresets));
 
-	if (!targetDirectory.isDirectory() || forceExtraction)
+#if READ_ONLY_FACTORY_PRESETS
+	bool createPathList = true;
+#else
+	bool createPathList = false;
+#endif
+
+	if (!targetDirectory.isDirectory() || forceExtraction || createPathList)
 	{
 		MemoryBlock mb;
 		mb.fromBase64Encoding(presetTree.getProperty(ExpansionIds::Data).toString());
 		ValueTree p;
 		zstd::ZCompressor<hise::UserPresetDictionaryProvider> comp;
 		comp.expand(mb, p);
+
+#if READ_ONLY_FACTORY_PRESETS
+		if (createPathList)
+		{
+			for (auto c : p)
+				getMainController()->getUserPresetHandler().getFactoryPaths().addRecursive(c, getWildcard());
+		}
+#endif
 
 		if (p.getNumChildren() != 0)
 		{
@@ -1354,7 +1366,7 @@ juce::ValueTree FullInstrumentExpansion::getValueTreeFromFile(Expansion::Expansi
 
 	if (fis.readByte() == '<')
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(hxiFile);
+		auto xml = XmlDocument::parse(hxiFile);
 
 		if (xml == nullptr)
 			return ValueTree();
@@ -1638,7 +1650,7 @@ void ExpansionEncodingWindow::run()
 		mData.setProperty(ExpansionIds::UUID, GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::BundleIdentifier), nullptr);
 		mData.setProperty(ExpansionIds::HiseVersion, HISE_VERSION, nullptr);
 
-		ScopedPointer<XmlElement> xml = mData.createXml();
+		auto xml = mData.createXml();
 		f.replaceWithText(xml->createDocument(""));
 		ScopedPointer<FullInstrumentExpansion> e = new FullInstrumentExpansion(getMainController(), h.getWorkDirectory());
 		e->initialise();

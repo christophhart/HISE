@@ -27,8 +27,10 @@ class FFTProcessor;
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#ifndef ICSTLIB_NO_SSEOPT 
+#ifndef ICSTLIB_NO_SSEOPT
+#if JUCE_INTEL
 	#include <emmintrin.h>	// SSE2 intrinsics
+#endif
 #endif
 #ifdef _WIN32
 	#ifndef NOMINMAX		// no max/min macros are defined when

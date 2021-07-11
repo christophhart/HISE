@@ -79,7 +79,7 @@ using namespace juce;
 
 		};
 
-		virtual String getId() const = 0;
+		virtual String getId() const { return {}; }
 
 		virtual ~PathFactory() {};
 		virtual Path createPath(const String& id) const = 0;

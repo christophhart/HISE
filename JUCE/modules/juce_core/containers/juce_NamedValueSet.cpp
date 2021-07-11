@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -39,14 +39,6 @@ NamedValueSet::NamedValue::NamedValue (const Identifier& n, var&& v) noexcept
 {
 }
 
-#if JUCE_COMPILER_SUPPORTS_INITIALIZER_LISTS
-NamedValueSet::NamedValueSet(const std::initializer_list<NamedValue>& items) noexcept
-	: values(items)
-{}
-#endif
-
-
-
 NamedValueSet::NamedValue::NamedValue (Identifier&& n, var&& v) noexcept
    : name (std::move (n)),
      value (std::move (v))
@@ -70,6 +62,11 @@ NamedValueSet::NamedValueSet (const NamedValueSet& other)  : values (other.value
 
 NamedValueSet::NamedValueSet (NamedValueSet&& other) noexcept
    : values (std::move (other.values)) {}
+
+NamedValueSet::NamedValueSet (std::initializer_list<NamedValue> list)
+   : values (std::move (list))
+{
+}
 
 NamedValueSet& NamedValueSet::operator= (const NamedValueSet& other)
 {
@@ -150,7 +147,16 @@ var NamedValueSet::getWithDefault (const Identifier& name, const var& defaultRet
     return defaultReturnValue;
 }
 
-var* NamedValueSet::getVarPointer (const Identifier& name) const noexcept
+var* NamedValueSet::getVarPointer (const Identifier& name) noexcept
+{
+    for (auto& i : values)
+        if (i.name == name)
+            return &(i.value);
+
+    return {};
+}
+
+const var* NamedValueSet::getVarPointer (const Identifier& name) const noexcept
 {
     for (auto& i : values)
         if (i.name == name)
@@ -239,7 +245,15 @@ const var& NamedValueSet::getValueAt (const int index) const noexcept
     return getNullVarRef();
 }
 
-var* NamedValueSet::getVarPointerAt (int index) const noexcept
+var* NamedValueSet::getVarPointerAt (int index) noexcept
+{
+    if (isPositiveAndBelow (index, values.size()))
+        return &(values.getReference (index).value);
+
+    return {};
+}
+
+const var* NamedValueSet::getVarPointerAt (int index) const noexcept
 {
     if (isPositiveAndBelow (index, values.size()))
         return &(values.getReference (index).value);

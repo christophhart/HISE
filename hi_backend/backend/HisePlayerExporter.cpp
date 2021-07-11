@@ -88,7 +88,7 @@ void HisePlayerExporter::run()
 
 	ValueTree collection("HisePlayerLibrary");
 
-	ScopedPointer<XmlElement> metaXml = metadata.createXml();
+	auto metaXml = metadata.createXml();
 
 	collection.setProperty(Identifier("Info"), metaXml->createDocument("", true, false), nullptr);
 	var compressedData = PresetHandler::writeValueTreeToMemoryBlock(library, true);

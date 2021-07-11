@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -136,7 +136,14 @@ public:
     }
 
     //==============================================================================
-    inline ElementType& operator[] (const int index) const noexcept
+    inline ElementType& operator[] (const int index) noexcept
+    {
+        jassert (elements != nullptr);
+        jassert (isPositiveAndBelow (index, numUsed));
+        return elements[index];
+    }
+
+    inline const ElementType& operator[] (const int index) const noexcept
     {
         jassert (elements != nullptr);
         jassert (isPositiveAndBelow (index, numUsed));
@@ -159,17 +166,32 @@ public:
     }
 
     //==============================================================================
-    inline ElementType* begin() const noexcept
+    inline ElementType* begin() noexcept
     {
         return elements;
     }
 
-    inline ElementType* end() const noexcept
+    inline const ElementType* begin() const noexcept
+    {
+        return elements;
+    }
+
+    inline ElementType* end() noexcept
     {
         return elements + numUsed;
     }
 
-    inline ElementType* data() const noexcept
+    inline const ElementType* end() const noexcept
+    {
+        return elements + numUsed;
+    }
+
+    inline ElementType* data() noexcept
+    {
+        return elements;
+    }
+
+    inline const ElementType* data() const noexcept
     {
         return elements;
     }
@@ -233,32 +255,24 @@ public:
     //==============================================================================
     void add (const ElementType& newElement)
     {
-        checkSourceIsNotAMember (&newElement);
-        ensureAllocatedSize (numUsed + 1);
-        addAssumingCapacityIsReady (newElement);
+        addImpl (newElement);
     }
 
     void add (ElementType&& newElement)
     {
-        checkSourceIsNotAMember (&newElement);
-        ensureAllocatedSize (numUsed + 1);
-        addAssumingCapacityIsReady (std::move (newElement));
+        addImpl (std::move (newElement));
     }
 
     template <typename... OtherElements>
-    void add (const ElementType& firstNewElement, OtherElements... otherElements)
+    void add (const ElementType& firstNewElement, OtherElements&&... otherElements)
     {
-        checkSourceIsNotAMember (&firstNewElement);
-        ensureAllocatedSize (numUsed + 1 + (int) sizeof... (otherElements));
-        addAssumingCapacityIsReady (firstNewElement, otherElements...);
+        addImpl (firstNewElement, std::forward<OtherElements> (otherElements)...);
     }
 
     template <typename... OtherElements>
-    void add (ElementType&& firstNewElement, OtherElements... otherElements)
+    void add (ElementType&& firstNewElement, OtherElements&&... otherElements)
     {
-        checkSourceIsNotAMember (&firstNewElement);
-        ensureAllocatedSize (numUsed + 1 + (int) sizeof... (otherElements));
-        addAssumingCapacityIsReady (std::move (firstNewElement), otherElements...);
+        addImpl (std::move (firstNewElement), std::forward<OtherElements> (otherElements)...);
     }
 
     //==============================================================================
@@ -313,7 +327,7 @@ public:
     //==============================================================================
     void insert (int indexToInsertAt, ParameterType newElement, int numberOfTimesToInsertIt)
     {
-        checkSourceIsNotAMember (&newElement);
+        checkSourceIsNotAMember (newElement);
         auto* space = createInsertSpace (indexToInsertAt, numberOfTimesToInsertIt);
 
         for (int i = 0; i < numberOfTimesToInsertIt; ++i)
@@ -499,13 +513,13 @@ private:
         {
             memmove (elements + currentIndex,
                      elements + currentIndex + 1,
-                     sizeof (ElementType) * (size_t) (newIndex - currentIndex));
+                     (size_t) (newIndex - currentIndex) * sizeof (ElementType));
         }
         else
         {
             memmove (elements + newIndex + 1,
                      elements + newIndex,
-                     sizeof (ElementType) * (size_t) (currentIndex - newIndex));
+                     (size_t) (currentIndex - newIndex) * sizeof (ElementType));
         }
 
         memcpy (elements + newIndex, tempCopy, sizeof (ElementType));
@@ -539,21 +553,18 @@ private:
     }
 
     //==============================================================================
-    void addAssumingCapacityIsReady (const ElementType& element)   { new (elements + numUsed++) ElementType (element); }
-    void addAssumingCapacityIsReady (ElementType&& element)        { new (elements + numUsed++) ElementType (std::move (element)); }
-
-    template <typename... OtherElements>
-    void addAssumingCapacityIsReady (const ElementType& firstNewElement, OtherElements... otherElements)
+    template <typename... Elements>
+    void addImpl (Elements&&... toAdd)
     {
-        addAssumingCapacityIsReady (firstNewElement);
-        addAssumingCapacityIsReady (otherElements...);
+        ignoreUnused (std::initializer_list<int> { (((void) checkSourceIsNotAMember (toAdd)), 0)... });
+        ensureAllocatedSize (numUsed + (int) sizeof... (toAdd));
+        addAssumingCapacityIsReady (std::forward<Elements> (toAdd)...);
     }
 
-    template <typename... OtherElements>
-    void addAssumingCapacityIsReady (ElementType&& firstNewElement, OtherElements... otherElements)
+    template <typename... Elements>
+    void addAssumingCapacityIsReady (Elements&&... toAdd)
     {
-        addAssumingCapacityIsReady (std::move (firstNewElement));
-        addAssumingCapacityIsReady (otherElements...);
+        ignoreUnused (std::initializer_list<int> { ((void) (new (elements + numUsed++) ElementType (std::forward<Elements> (toAdd))), 0)... });
     }
 
     //==============================================================================
@@ -572,14 +583,14 @@ private:
         new (destination) ElementType (std::move (source));
     }
 
-    void checkSourceIsNotAMember (const ElementType* element)
+    void checkSourceIsNotAMember (const ElementType& element)
     {
         // when you pass a reference to an existing element into a method like add() which
         // may need to reallocate the array to make more space, the incoming reference may
         // be deleted indirectly during the reallocation operation! To work around this,
         // make a local copy of the item you're trying to add (and maybe use std::move to
         // move it into the add() method to avoid any extra overhead)
-        jassert (element < begin() || element >= end());
+        jassert (std::addressof (element) < begin() || end() <= std::addressof (element));
         ignoreUnused (element);
     }
 

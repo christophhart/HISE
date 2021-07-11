@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -98,9 +97,8 @@ namespace FlacNamespace
 
  #define FLAC__NO_DLL 1
 
- #if JUCE_MSVC
-  #pragma warning (disable: 4267 4127 4244 4996 4100 4701 4702 4013 4133 4206 4312 4505 4365 4005 4334 181 111)
- #else
+ JUCE_BEGIN_IGNORE_WARNINGS_MSVC (4267 4127 4244 4996 4100 4701 4702 4013 4133 4206 4312 4505 4365 4005 4334 181 111)
+ #if ! JUCE_MSVC
   #define HAVE_LROUND 1
  #endif
 
@@ -112,15 +110,15 @@ namespace FlacNamespace
   #define SIZE_MAX 0xffffffff
  #endif
 
- #if JUCE_CLANG
-  #pragma clang diagnostic push
-  #pragma clang diagnostic ignored "-Wconversion"
-  #pragma clang diagnostic ignored "-Wshadow"
-  #pragma clang diagnostic ignored "-Wdeprecated-register"
-  #if __has_warning("-Wzero-as-null-pointer-constant")
-   #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
-  #endif
- #endif
+ JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wconversion",
+                                      "-Wshadow",
+                                      "-Wdeprecated-register",
+                                      "-Wswitch-enum",
+                                      "-Wswitch-default",
+                                      "-Wimplicit-fallthrough",
+                                      "-Wzero-as-null-pointer-constant",
+                                      "-Wsign-conversion",
+                                      "-Wredundant-decls")
 
  #if JUCE_INTEL
   #if JUCE_32BIT
@@ -158,9 +156,8 @@ namespace FlacNamespace
  #include <FLAC/all.h>
 #endif
 
- #if JUCE_CLANG
-  #pragma clang diagnostic pop
- #endif
+ JUCE_END_IGNORE_WARNINGS_GCC_LIKE
+ JUCE_END_IGNORE_WARNINGS_MSVC
 }
 
 #undef max
@@ -240,7 +237,7 @@ public:
                     if (destSamples[i] != nullptr)
                         memcpy (destSamples[i] + startOffsetInDestBuffer,
                                 reservoir.getReadPointer (i, (int) (startSampleInFile - reservoirStart)),
-                                sizeof (int) * (size_t) num);
+                                (size_t) num * sizeof (int));
 
                 startOffsetInDestBuffer += num;
                 startSampleInFile += num;
@@ -253,7 +250,7 @@ public:
                     samplesInReservoir = 0;
                 }
                 else if (startSampleInFile < reservoirStart
-                          || startSampleInFile > reservoirStart + jmax (samplesInReservoir, 511))
+                          || startSampleInFile > reservoirStart + jmax (samplesInReservoir, (int64) 511))
                 {
                     // had some problems with flac crashing if the read pos is aligned more
                     // accurately than this. Probably fixed in newer versions of the library, though.
@@ -277,7 +274,7 @@ public:
         {
             for (int i = numDestChannels; --i >= 0;)
                 if (destSamples[i] != nullptr)
-                    zeromem (destSamples[i] + startOffsetInDestBuffer, sizeof (int) * (size_t) numSamples);
+                    zeromem (destSamples[i] + startOffsetInDestBuffer, (size_t) numSamples * sizeof (int));
         }
 
         return true;
@@ -370,7 +367,7 @@ public:
 private:
     FlacNamespace::FLAC__StreamDecoder* decoder;
     AudioBuffer<float> reservoir;
-    int reservoirStart = 0, samplesInReservoir = 0;
+    int64 reservoirStart = 0, samplesInReservoir = 0;
     bool ok = false, scanningForLength = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FlacReader)

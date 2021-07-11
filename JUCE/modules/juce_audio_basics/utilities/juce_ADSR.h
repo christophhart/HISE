@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -30,6 +30,8 @@ namespace juce
     To use it, call setSampleRate() with the current sample rate and give it some parameters
     with setParameters() then call getNextSample() to get the envelope value to be applied
     to each audio sample or applyEnvelopeToBuffer() to apply the envelope to a whole buffer.
+
+    @tags{Audio}
 */
 class ADSR
 {
@@ -42,7 +44,11 @@ public:
     }
 
     //==============================================================================
-    /** Holds the parameters being used by an ADSR object. */
+    /**
+        Holds the parameters being used by an ADSR object.
+
+        @tags{Audio}
+    */
     struct Parameters
     {
         /** Attack time in seconds. */
@@ -107,9 +113,19 @@ public:
     /** Starts the attack phase of the envelope. */
     void noteOn()
     {
-        if      (attackRate > 0.0f)  currentState = State::attack;
-        else if (decayRate > 0.0f)   currentState = State::decay;
-        else                         currentState = State::sustain;
+        if (attackRate > 0.0f)
+        {
+            currentState = State::attack;
+        }
+        else if (decayRate > 0.0f)
+        {
+            envelopeVal = 1.0f;
+            currentState = State::decay;
+        }
+        else
+        {
+            currentState = State::sustain;
+        }
     }
 
     /** Starts the release phase of the envelope. */
@@ -117,11 +133,9 @@ public:
     {
         if (currentState != State::idle)
         {
-            if (releaseRate > 0.0f)
+            if (currentParameters.release > 0.0f)
             {
-                if (currentState != State::sustain)
-                    releaseRate = static_cast<float> (envelopeVal / (currentParameters.release * sr));
-
+                releaseRate = static_cast<float> (envelopeVal / (currentParameters.release * sr));
                 currentState = State::release;
             }
             else
@@ -185,7 +199,7 @@ public:
 
         @see getNextSample
     */
-    template<typename FloatType>
+    template <typename FloatType>
     void applyEnvelopeToBuffer (AudioBuffer<FloatType>& buffer, int startSample, int numSamples)
     {
         jassert (startSample + numSamples <= buffer.getNumSamples());
@@ -212,7 +226,6 @@ private:
 
         attackRate  = (parameters.attack  > 0.0f ? static_cast<float> (1.0f                  / (parameters.attack * sr))  : -1.0f);
         decayRate   = (parameters.decay   > 0.0f ? static_cast<float> ((1.0f - sustainLevel) / (parameters.decay * sr))   : -1.0f);
-        releaseRate = (parameters.release > 0.0f ? static_cast<float> (sustainLevel          / (parameters.release * sr)) : -1.0f);
     }
 
     void checkCurrentState()
@@ -229,11 +242,7 @@ private:
     Parameters currentParameters;
 
     double sr = 0.0;
-
-    float envelopeVal = 0.0f;
-
-    float sustainLevel = 0.0f;
-    float attackRate = 0.0f, decayRate = 0.0f, releaseRate = 0.0f;
+    float envelopeVal = 0.0f, sustainLevel = 0.0f, attackRate = 0.0f, decayRate = 0.0f, releaseRate = 0.0f;
 };
 
 } // namespace juce

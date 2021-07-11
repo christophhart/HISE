@@ -12,7 +12,7 @@
               companyWebsite="http://hise.audio" pluginIsMidiEffectPlugin="0"
               buildAUv3="0" companyCopyright="Hart Instruments" displaySplashScreen="0"
               reportAppUsage="0" splashScreenColour="Dark" buildStandalone="0"
-              enableIAA="0" cppLanguageStandard="14" pluginFormats="buildVST,buildAU"
+              enableIAA="0" cppLanguageStandard="17" pluginFormats="buildVST,buildAU"
               pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn,pluginEditorRequiresKeys">
   <MAINGROUP id="VUOG93" name="HISE">
     <GROUP id="{665762C7-5461-7343-9D6B-1FFA3A6308C3}" name="Source">

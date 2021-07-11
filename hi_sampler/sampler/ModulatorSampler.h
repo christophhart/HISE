@@ -140,12 +140,11 @@ public:
 			s(const_cast<ModulatorSampler*>(s_)),
 			lock(s->getIteratorLock())
 		{
-			holdsLock = lock.tryRead();
 		}
 
 		SharedPointer getNextSound()
 		{
-			if (!holdsLock)
+			if (!lock)
 				return nullptr;
 
 			while (auto sound = getSoundInternal())
@@ -156,8 +155,6 @@ public:
 
 		~SoundIterator()
 		{
-			if (holdsLock)
-				lock.exitRead();
 		}
 
 		int size() const
@@ -172,7 +169,7 @@ public:
 
 		bool canIterate() const
 		{
-			return holdsLock;
+			return lock;
 		}
 
 	private:
@@ -184,12 +181,7 @@ public:
 
 			if (s->shouldAbortIteration())
 			{
-				if (holdsLock)
-				{
-					lock.exitRead();
-					holdsLock = false;
-				}
-
+				lock.unlock();
 				return nullptr;
 			}
 
@@ -200,8 +192,7 @@ public:
 
 		int index = 0;
 		WeakReference<ModulatorSampler> s;
-		SimpleReadWriteLock& lock;
-		bool holdsLock;
+		SimpleReadWriteLock::ScopedTryReadLock lock;
 	};
 
 	void suspendStateChanged(bool shouldBeSuspended) override
@@ -381,8 +372,6 @@ public:
 	void preHiseEventCallback(const HiseEvent &m) override;
 
 	bool isUsingCrossfadeGroups() const { return crossfadeGroups; }
-	Table *getTable(int tableIndex) const override { return tableIndex < crossfadeTables.size() ? crossfadeTables[tableIndex] : nullptr; }
-
 	float* calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
 	const float *getCrossfadeModValues() const;
 
@@ -427,6 +416,8 @@ public:
 	void setUseRoundRobinLogic(bool shouldUseRoundRobinLogic) noexcept { useRoundRobinCycleLogic = shouldUseRoundRobinLogic; };
 	/** Sets the current index to the group. */
 	bool setCurrentGroupIndex(int currentIndex);
+
+	void setRRGroupVolume(int groupIndex, float gainValue);
 
 	bool setMultiGroupState(int groupIndex, bool shouldBeEnabled);
 	
@@ -729,6 +720,9 @@ private:
 	int rrGroupAmount;
 	int currentRRGroupIndex;
 	
+	Array<float> rrGroupGains;
+	bool useRRGain = false;
+
 	struct MultiGroupState
 	{
 		MultiGroupState()
@@ -789,8 +783,6 @@ private:
 	bool useStaticMatrix = false;
 
 	int64 memoryUsage;
-
-	OwnedArray<SampleLookupTable> crossfadeTables;
 
 	AudioSampleBuffer crossfadeBuffer;
 

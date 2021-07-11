@@ -51,9 +51,6 @@ public:
 	{
 		extraComponent = newExtraComponent;
 		addAndMakeVisible(extraComponent);
-		
-		if (extraComponent != nullptr)
-			extraWidth = extraComponent->getWidth();
 	}
 
 	void updateSliders(ValueTree , bool )
@@ -71,9 +68,17 @@ public:
 		resized();
 	}
 
+	void applyExtraComponentToBounds(Rectangle<int>& bounds)
+	{
+		if (extraComponent != nullptr)
+		{
+			bounds.setWidth(jmax(bounds.getWidth(), extraComponent->getWidth()));
+			bounds.setHeight(bounds.getHeight() + extraComponent->getHeight() + UIValues::NodeMargin);
+		}
+	}
+
 	void resized() override;
 
-	int extraWidth = -1;
 	ScopedPointer<Component> extraComponent;
 	OwnedArray<ParameterSlider> sliders;
 

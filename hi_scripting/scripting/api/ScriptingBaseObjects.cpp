@@ -606,7 +606,7 @@ juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
 {
 	jassert_locked_script_thread(getScriptProcessor()->getMainController_());
 
-	if (engineToUse.get() == nullptr)
+	if (engineToUse.get() == nullptr || engineToUse->getRootObject() == nullptr)
 	{
 		clear();
 		return Result::fail("Engine is dangling");
@@ -623,6 +623,8 @@ juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
 
 		var::NativeFunctionArgs a(thisObj, args.getRawDataPointer(), args.size());
 		engineToUse->callExternalFunction(var(castedObj), a, &r);
+
+		
 
 		if (!r.wasOk())
 			debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());

@@ -1022,6 +1022,8 @@ private:
 		uint64 data[2];
 		int8 numBitsSet = 0;
 	} monophonicKeymap;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(EnvelopeModulator);
 };
 
 /** This class only exists for the Iterator. */
@@ -1092,9 +1094,9 @@ class EnvelopeModulatorFactoryType: public FactoryType
 		simpleEnvelope = 0,
 		ahdsrEnvelope,
 		tableEnvelope,
-		ccEnvelope,
 		scriptEnvelope,
-		mpeModulator
+		mpeModulator,
+		voiceKillEnvelope
 	};
 
 public:
@@ -1137,9 +1139,7 @@ class TimeVariantModulatorFactoryType: public FactoryType
 		controlModulator,
 		pitchWheel,
 		macroModulator,
-		audioFileEnvelope,
 		globalTimeVariantModulator,
-		ccDucker,
 		scriptTimeVariantModulator
 	};
 

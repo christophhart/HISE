@@ -28,7 +28,7 @@ void PopupLabel::showPopup()
 	{
 		if (isTicked == 0)
 		{
-			p.addCustomItem(i + 1, new TooltipPopupComponent(options[i], toolTips[i], getWidth() - 4));
+			p.addCustomItem(i + 1, std::unique_ptr<TooltipPopupComponent>(new TooltipPopupComponent(options[i], toolTips[i], getWidth() - 4)));
 		}
 		else
 		{
@@ -1254,17 +1254,17 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 		if (c == SampleIds::FileName)
 		{
 			i1 = 320;
-			i2 = 320;
-			i3 = 600;
+			i2 = 220;
+			i3 = 1200;
 		}
 		else
 		{
 			i1 = 40;
-			i2 = 40;
-			i3 = 40;
+			i2 = 30;
+			i3 = 80;
 		}
 
-		table.getHeader().addColumn(c.toString(), columnIds.indexOf(c)+1, i1, i2, i3, TableHeaderComponent::notResizable);
+		table.getHeader().addColumn(c.toString(), columnIds.indexOf(c)+1, i1, i2, i3, TableHeaderComponent::ColumnPropertyFlags::sortable | TableHeaderComponent::resizable | TableHeaderComponent::visible);
 	}
 
 	table.getHeader().setLookAndFeel(&laf);
@@ -1290,13 +1290,25 @@ void SamplerSoundTable::refreshList()
 
 	sortedSoundList.clear();
 
+	auto sortId = table.getHeader().getSortColumnId();
+
+	bool forward = table.getHeader().isSortedForwards();
+
+	if (sortId == 0)
+	{
+		// sort forwards by the ID column
+		sortId = 2;
+		forward = true;
+	}
+
 	ModulatorSampler::SoundIterator sIter(ownerSampler, false);
 
 	while (auto sound = sIter.getNextSound())
 		sortedSoundList.add(sound.get());
 
-    // we could now change some initial settings..
-    table.getHeader().setSortColumnId (2, true); // sort forwards by the ID column
+	// we could now change some initial settings..
+	table.getHeader().setSortColumnId(sortId, forward);
+	sortOrderChanged(sortId, forward);
 
 	table.updateContent();
 

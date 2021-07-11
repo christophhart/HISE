@@ -37,24 +37,6 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-struct RangeHelpers
-{
-	static bool isRangeId(const Identifier& id);
-
-	static bool isIdentity(NormalisableRange<double> d);
-
-	static Array<Identifier> getRangeIds();
-
-	/** Checks if the MinValue and MaxValue are inverted, sets the property Inverted and returns the result. */
-	static bool checkInversion(ValueTree& data, ValueTree::Listener* listenerToExclude, UndoManager* um);
-
-	/** Creates a NormalisableRange from the ValueTree properties. It doesn't update the Inverted property. */
-	static NormalisableRange<double> getDoubleRange(const ValueTree& t);
-
-	static void storeDoubleRange(ValueTree& d, bool isInverted, NormalisableRange<double> r, UndoManager* um);
-};
-
-
 
 
 }

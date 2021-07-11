@@ -59,9 +59,7 @@ ValueTree BaseExporter::exportUserPresetFiles()
 
 		XmlDocument doc(f);
 
-		ScopedPointer<XmlElement> xml = doc.getDocumentElement();
-
-		if (xml != nullptr)
+		if (auto xml = doc.getDocumentElement())
 		{
 			File pd = f.getParentDirectory();
 
@@ -136,9 +134,7 @@ ValueTree BaseExporter::collectAllSampleMapsInDirectory()
         if(sampleMapFiles[i].isHidden() || sampleMapFiles[i].getFileName().startsWith("."))
             continue;
         
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFiles[i]);
-
-		if (xml != nullptr)
+		if (auto xml = XmlDocument::parse(sampleMapFiles[i]))
 		{
 			ValueTree sampleMap = ValueTree::fromXml(*xml);
 			sampleMaps.addChild(sampleMap, -1, nullptr);
@@ -155,7 +151,7 @@ bool CompileExporter::useCIMode = false;
 
 void CompileExporter::printErrorMessage(const String& title, const String &message)
 {
-	if (isExportingFromCommandLine())
+	if (shouldBeSilent())
 	{
 		std::cout << "ERROR: " << title << std::endl;
 		std::cout << message;
@@ -194,6 +190,11 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 	return "OK";
 }
 
+
+juce::File CompileExporter::getBuildFolder() const
+{
+	return GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries);
+}
 
 void CompileExporter::writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile, bool compress)
 {
@@ -865,7 +866,23 @@ bool CompileExporter::checkSanity(BuildOption option)
     }
 #endif
     
-    if(!isExportingFromCommandLine() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
+	auto networks = ProcessorHelpers::getListOfAllProcessors<scriptnode::DspNetwork::Holder>(chainToExport);
+
+	for (auto n : networks)
+	{
+		if (auto network = n->getActiveNetwork())
+		{
+			auto r = network->checkBeforeCompilation();
+
+			if (!r.wasOk())
+			{
+				printErrorMessage("DSP Network sanity check failed", r.getErrorMessage());
+				return false;
+			}
+		}
+	}
+
+    if(!shouldBeSilent() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
     {
         const String faultySample = checkSampleReferences(chainToExport);
         
@@ -1444,13 +1461,18 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 	String fullDynamicsSupport = x == "1" ? "enabled" : "disabled";
 	REPLACE_WILDCARD_WITH_STRING("%SUPPORT_FULL_DYNAMICS%", fullDynamicsSupport);
 
+	String readOnlyFactoryPresets = GET_SETTING(HiseSettings::Project::ReadOnlyFactoryPresets) == "1" ? "enabled" : "disabled";
+	REPLACE_WILDCARD_WITH_STRING("%READ_ONLY_FACTORY_PRESETS%", readOnlyFactoryPresets);
+
 	if (type == TargetTypes::EffectPlugin)
 	{
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
 
 		auto midiInputEnabled = GET_SETTING(HiseSettings::Project::EnableMidiInputFX);
+		auto soundGeneratorsEnabled = GET_SETTING(HiseSettings::Project::EnableSoundGeneratorsFX);
 
 		REPLACE_WILDCARD_WITH_STRING("%ENABLE_MIDI_INPUT_FX%", midiInputEnabled == "1" ? "enabled" : "disabled");
+		REPLACE_WILDCARD_WITH_STRING("%PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN%", soundGeneratorsEnabled == "1" ? "enabled" : "disabled");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN%", midiInputEnabled);
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISMIDIFX%", "0");
@@ -1466,6 +1488,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISMIDIFX%", "1");
+		REPLACE_WILDCARD_WITH_STRING("%PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN%", "disabled");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
 		REPLACE_WILDCARD_WITH_STRING("%HISE_MIDIFX_PLUGIN%", "enabled");
 		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", "disabled");
@@ -1477,6 +1500,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
 		REPLACE_WILDCARD_WITH_STRING("%ENABLE_MIDI_INPUT_FX%", "disabled");
+		REPLACE_WILDCARD_WITH_STRING("%PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN%", "disabled");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
         REPLACE_WILDCARD_WITH_STRING("%AAX_CATEGORY%", "AAX_ePlugInCategory_SWGenerators");
 		REPLACE_WILDCARD_WITH_STRING("%HISE_MIDIFX_PLUGIN%", "disabled");
@@ -1673,6 +1697,9 @@ hise::CompileExporter::CompileExporter::ErrorCodes CompileExporter::createStanda
 	String fullDynamicsSupport = GET_SETTING(HiseSettings::Project::SupportFullDynamicsHLAC) == "1" ? "enabled" : "disabled";
 	REPLACE_WILDCARD_WITH_STRING("%SUPPORT_FULL_DYNAMICS%", fullDynamicsSupport);
 
+	String readOnlyFactoryPresets = GET_SETTING(HiseSettings::Project::ReadOnlyFactoryPresets) == "1" ? "enabled" : "disabled";
+	REPLACE_WILDCARD_WITH_STRING("%READ_ONLY_FACTORY_PRESETS%", readOnlyFactoryPresets);
+
 	ProjectTemplateHelpers::handleVisualStudioVersion(dataObject,templateProject);
 
 	ProjectTemplateHelpers::handleCompanyInfo(this, templateProject);
@@ -1805,7 +1832,7 @@ XmlElement* createXmlElementForFile(ModulatorSynthChain* chainToExport, String& 
 		if (f.getFileName() == "Icon.png")
 			templateProject = templateProject.replace("%ICON_FILE%", "smallIcon=\"" + fileId + "\" bigIcon=\"" + fileId + "\"");
 
-		bool isSourceFile = allowCompilation && f.hasFileExtension(".cpp");
+		bool isSourceFile = (allowCompilation && f.hasFileExtension(".cpp")) || f.getFileName() == "factory.cpp";
 		bool isSplashScreen = f.getFileName().contains("SplashScreen");
 
 		xml->setAttribute("compile", isSourceFile ? 1 : 0);
@@ -1920,7 +1947,7 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 		for (int i = 0; i < additionalSourceFiles.size(); i++)
 		{
-			ScopedPointer<XmlElement> fileEntry = createXmlElementForFile(chainToExport, templateProject, additionalSourceFiles[i], true);
+			auto fileEntry = createXmlElementForFile(chainToExport, templateProject, additionalSourceFiles[i], true);
 
 			String newAditionalSourceLine = fileEntry->createDocument("", false, false);
             
@@ -2090,7 +2117,7 @@ int CppBuilder::exportValueTreeAsCpp(const File &sourceDirectory, const File &de
 	Array<File> files;
 	sourceDirectory.findChildFiles(files, File::findFiles, false, "*");
 
-	ScopedPointer<OutputStream> header(headerFile.createOutputStream());
+	auto header = headerFile.createOutputStream();
 
 	if (header == nullptr)
 	{
@@ -2099,7 +2126,7 @@ int CppBuilder::exportValueTreeAsCpp(const File &sourceDirectory, const File &de
 		return 0;
 	}
 
-	ScopedPointer<OutputStream> cpp(cppFile.createOutputStream());
+	auto cpp = cppFile.createOutputStream();
 
 	if (cpp == nullptr)
 	{
@@ -2162,7 +2189,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 
 	File batchFile = getBatchFile(exporter);
 
-	if (!exporter->isExportingFromCommandLine() && batchFile.existsAsFile())
+	if (!exporter->shouldBeSilent() && batchFile.existsAsFile())
 	{
 		if (!PresetHandler::showYesNoWindow("Batch File already found", "Do you want to rewrite the batch file for the compile process?"))
 		{
@@ -2172,7 +2199,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 
     batchFile.deleteFile();
     
-	const String buildPath = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getFullPathName();
+	const String buildPath = exporter->getBuildFolder().getFullPathName();
 
     String batchContent;
     
@@ -2197,7 +2224,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 
 	const String projucerPath = exporter->hisePath.getChildFile("tools/Projucer/Projucer.exe").getFullPathName();
 	
-	const String vsArgs = "/p:Configuration=\"Release\" /verbosity:minimal";
+	const String vsArgs = "/p:Configuration=\"" + exporter->configurationName + "\" /verbosity:minimal";
 
 	const String vsFolder = HelperClasses::isUsingVisualStudio2015(exporter->dataObject) ? "VisualStudio2015" : "VisualStudio2017";
 
@@ -2289,7 +2316,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 	ADD_LINE("\"" << projucerPath << "\" --resave AutogeneratedProject.jucer");
 	ADD_LINE("cd Builds/LinuxMakefile/");
 	ADD_LINE("echo Compiling " << projectType << " " << projectName << " ...");
-    ADD_LINE("make CONFIG=Release AR=gcc-ar -j`nproc --ignore=2`");
+    ADD_LINE("make CONFIG=" << exporter->configurationName << " AR=gcc-ar -j`nproc --ignore=2`");
 	ADD_LINE("echo Compiling finished. Cleaning up...");
 
 	File tempFile = batchFile.getSiblingFile("tempBatch");
@@ -2308,6 +2335,8 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
     
 	const String projucerPath = exporter->hisePath.getChildFile("tools/Projucer/Projucer.app/Contents/MacOS/Projucer").getFullPathName();
 
+    ADD_LINE("chmod +x \"" << projucerPath << "\"");
+    
     ADD_LINE("cd \"`dirname \"$0\"`\"");
     ADD_LINE("\"" << projucerPath << "\" --resave AutogeneratedProject.jucer");
     ADD_LINE("");
@@ -2330,7 +2359,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
         ADD_LINE("echo Compiling " << projectType << " " << projectName << " ...");
 
 		String xcodeLine;
-		xcodeLine << "xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"Release\"";
+		xcodeLine << "xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"" << exporter->configurationName << "\"";
 
 		if (!isUsingCIMode())
 		{
@@ -2362,11 +2391,11 @@ File CompileExporter::BatchFileCreator::getBatchFile(CompileExporter* exporter)
 	ModulatorSynthChain* chainToExport = exporter->chainToExport;
 
 #if JUCE_WINDOWS
-	return GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("batchCompile.bat");
+	return exporter->getBuildFolder().getChildFile("batchCompile.bat");
 #elif JUCE_LINUX
-	return GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("batchCompileLinux.sh");
+	return exporter->getBuildFolder().getChildFile("batchCompileLinux.sh");
 #else
-    return GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("batchCompileOSX");
+    return exporter->getBuildFolder().getChildFile("batchCompileOSX");
 #endif
 }
 
@@ -2443,11 +2472,7 @@ CompileExporter::ErrorCodes CompileExporter::HelperClasses::saveProjucerFile(Str
 {
 	XmlDocument doc(templateProject);
 
-	ScopedPointer<XmlElement> xml = doc.getDocumentElement();
-
-	jassert(xml != nullptr);
-
-	if (xml != nullptr)
+	if (auto xml = doc.getDocumentElement())
 	{
 		File projectFile = exporter->getProjucerProjectFile();
 
@@ -2538,6 +2563,12 @@ void CompileExporter::HeaderHelpers::addStaticDspFactoryRegistration(String& plu
 	}
     
 	pluginDataHeaderFile << "}" << "\n";
+
+	auto nodeIncludeFile = GET_PROJECT_HANDLER(exporter->chainToExport).getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile("nodes").getChildFile("includes.h");
+	
+	// We need to add this function body or the linker will complain (if the file exists, it'll be defined
+	if(!nodeIncludeFile.existsAsFile())
+		pluginDataHeaderFile << "scriptnode::dll::FactoryBase* hise::FrontendHostFactory::createStaticFactory() { return nullptr; }\n";
 }
 
 void CompileExporter::HeaderHelpers::addCopyProtectionHeaderLines(const String &publicKey, String& pluginDataHeaderFile)

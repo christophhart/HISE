@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -50,8 +49,8 @@ struct ProcessSpec
 //==============================================================================
 /**
     This is a handy base class for the state of a processor (such as parameter values)
-    which is typically shared among several procoessors. This is useful to for
-    multi-mono filters which share the same state among several mono processors.
+    which is typically shared among several processors. This is useful for multi-mono
+    filters which share the same state among several mono processors.
 
     @tags{DSP}
 */
@@ -83,6 +82,7 @@ public:
     using SampleType     = ContextSampleType;
     /** The type of audio block that this context handles. */
     using AudioBlockType = AudioBlock<SampleType>;
+    using ConstAudioBlockType = AudioBlock<const SampleType>;
 
     /** Creates a ProcessContextReplacing that uses the given audio block.
         Note that the caller must not delete the block while it is still in use by this object!
@@ -93,10 +93,10 @@ public:
     ProcessContextReplacing (ProcessContextReplacing&&) = default;
 
     /** Returns the audio block to use as the input to a process function. */
-    const AudioBlockType& getInputBlock() const noexcept        { return ioBlock; }
+    const ConstAudioBlockType& getInputBlock() const noexcept   { return constBlock; }
 
     /** Returns the audio block to use as the output to a process function. */
-    AudioBlockType& getOutputBlock() const noexcept             { return const_cast<AudioBlockType&> (ioBlock); }
+    AudioBlockType& getOutputBlock() const noexcept             { return ioBlock; }
 
     /** All process context classes will define this constant method so that templated
         code can determine whether the input and output blocks refer to the same buffer,
@@ -111,6 +111,7 @@ public:
 
 private:
     AudioBlockType& ioBlock;
+    ConstAudioBlockType constBlock { ioBlock };
 };
 
 //==============================================================================
@@ -134,21 +135,27 @@ public:
     using SampleType     = ContextSampleType;
     /** The type of audio block that this context handles. */
     using AudioBlockType = AudioBlock<SampleType>;
+    using ConstAudioBlockType = AudioBlock<const SampleType>;
 
     /** Creates a ProcessContextReplacing that uses the given input and output blocks.
         Note that the caller must not delete these blocks while they are still in use by this object!
     */
-    ProcessContextNonReplacing (const AudioBlockType& input, AudioBlockType& output) noexcept
-        : inputBlock (input), outputBlock (output) {}
+    ProcessContextNonReplacing (const ConstAudioBlockType& input, AudioBlockType& output) noexcept
+        : inputBlock (input), outputBlock (output)
+    {
+        // If the input and output blocks are the same then you should use
+        // ProcessContextReplacing instead.
+        jassert (input != output);
+    }
 
     ProcessContextNonReplacing (const ProcessContextNonReplacing&) = default;
     ProcessContextNonReplacing (ProcessContextNonReplacing&&) = default;
 
     /** Returns the audio block to use as the input to a process function. */
-    const AudioBlockType& getInputBlock() const noexcept        { return inputBlock; }
+    const ConstAudioBlockType& getInputBlock() const noexcept   { return inputBlock; }
 
     /** Returns the audio block to use as the output to a process function. */
-    AudioBlockType& getOutputBlock() const noexcept             { return const_cast<AudioBlockType&> (outputBlock); }
+    AudioBlockType& getOutputBlock() const noexcept             { return outputBlock; }
 
     /** All process context classes will define this constant method so that templated
         code can determine whether the input and output blocks refer to the same buffer,
@@ -162,7 +169,7 @@ public:
     bool isBypassed = false;
 
 private:
-    const AudioBlockType& inputBlock;
+    ConstAudioBlockType inputBlock;
     AudioBlockType& outputBlock;
 };
 

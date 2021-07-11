@@ -227,7 +227,6 @@ private:
 			DEACTIVATE(HarmonicMonophonicFilter);
 			DEACTIVATE(StereoEffect);
 			DEACTIVATE(RouteEffect);
-			DEACTIVATE(AudioProcessorWrapper);
 			DEACTIVATE(SlotFX);
 
 			return true;

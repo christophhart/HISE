@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -216,7 +216,7 @@ class iOSAudioIODeviceType  : public AudioIODeviceType,
 {
 public:
     iOSAudioIODeviceType();
-    ~iOSAudioIODeviceType();
+    ~iOSAudioIODeviceType() override;
 
     void scanForDevices() override;
     StringArray getDeviceNames (bool) const override;
@@ -262,7 +262,7 @@ struct iOSAudioIODevice::Pimpl      : public AudioPlayHead,
         sessionHolder->activeDevices.add (this);
     }
 
-    ~Pimpl()
+    ~Pimpl() override
     {
         sessionHolder->activeDevices.removeFirstMatchingValue (this);
 
@@ -671,6 +671,7 @@ struct iOSAudioIODevice::Pimpl      : public AudioPlayHead,
 
     //==============================================================================
    #if JUCE_MODULE_AVAILABLE_juce_graphics
+    JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wdeprecated-declarations")
     Image getIcon (int size)
     {
         if (interAppAudioConnected)
@@ -681,6 +682,7 @@ struct iOSAudioIODevice::Pimpl      : public AudioPlayHead,
         }
         return Image();
     }
+    JUCE_END_IGNORE_WARNINGS_GCC_LIKE
    #endif
 
     void switchApplication()
@@ -698,7 +700,7 @@ struct iOSAudioIODevice::Pimpl      : public AudioPlayHead,
                                             &dataSize);
         if (err == noErr)
         {
-           #if (! defined __IPHONE_OS_VERSION_MIN_REQUIRED) || (! defined __IPHONE_10_0) || (__IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0)
+           #if (! defined __IPHONE_10_0) || (__IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0)
             [[UIApplication sharedApplication] openURL: (NSURL*)hostUrl];
            #else
             [[UIApplication sharedApplication] openURL: (NSURL*)hostUrl options: @{} completionHandler: nil];
@@ -1427,12 +1429,6 @@ void iOSAudioIODeviceType::handleRouteChange (AVAudioSessionRouteChangeReason)
 void iOSAudioIODeviceType::handleAsyncUpdate()
 {
     callDeviceChangeListeners();
-}
-
-//==============================================================================
-AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_iOSAudio()
-{
-    return new iOSAudioIODeviceType();
 }
 
 //==============================================================================

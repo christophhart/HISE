@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -31,7 +30,7 @@
 // Handy list of static Identifiers..
 namespace Ids
 {
-    #define DECLARE_ID(name)      const Identifier name (#name)
+    #define DECLARE_ID(name)  const Identifier name (#name)
 
     DECLARE_ID (name);
     DECLARE_ID (file);
@@ -48,8 +47,11 @@ namespace Ids
     DECLARE_ID (companyCopyright);
     DECLARE_ID (companyWebsite);
     DECLARE_ID (companyEmail);
+    DECLARE_ID (useAppConfig);
+    DECLARE_ID (addUsingNamespaceToJuceHeader);
+    DECLARE_ID (usePrecompiledHeaderFile);
+    DECLARE_ID (precompiledHeaderFile);
     DECLARE_ID (displaySplashScreen);
-    DECLARE_ID (reportAppUsage);
     DECLARE_ID (splashScreenColour);
     DECLARE_ID (position);
     DECLARE_ID (source);
@@ -73,7 +75,6 @@ namespace Ids
     DECLARE_ID (rtasFolder);
     DECLARE_ID (auFolder);
     DECLARE_ID (vstLegacyPath);
-    DECLARE_ID (vst3Path);
     DECLARE_ID (rtasPath);
     DECLARE_ID (aaxPath);
     DECLARE_ID (flags);
@@ -90,6 +91,7 @@ namespace Ids
     DECLARE_ID (alwaysGenerateDebugSymbols);
     DECLARE_ID (targetName);
     DECLARE_ID (binaryPath);
+    DECLARE_ID (recommendedWarnings);
     DECLARE_ID (optimisation);
     DECLARE_ID (defines);
     DECLARE_ID (headerPath);
@@ -107,6 +109,7 @@ namespace Ids
     DECLARE_ID (UIFileSharingEnabled);
     DECLARE_ID (UISupportsDocumentBrowser);
     DECLARE_ID (UIStatusBarHidden);
+    DECLARE_ID (UIRequiresFullScreen);
     DECLARE_ID (documentExtensions);
     DECLARE_ID (keepCustomXcodeSchemes);
     DECLARE_ID (useHeaderMap);
@@ -149,7 +152,6 @@ namespace Ids
     DECLARE_ID (msvcModuleDefinitionFile);
     DECLARE_ID (bigIcon);
     DECLARE_ID (smallIcon);
-    DECLARE_ID (jucerVersion);
     DECLARE_ID (prebuildCommand);
     DECLARE_ID (postbuildCommand);
     DECLARE_ID (generateManifest);
@@ -161,8 +163,10 @@ namespace Ids
     DECLARE_ID (aaxFolder);
     DECLARE_ID (compile);
     DECLARE_ID (noWarnings);
+    DECLARE_ID (skipPCH);
     DECLARE_ID (resource);
     DECLARE_ID (xcodeResource);
+    DECLARE_ID (xcodeValidArchs);
     DECLARE_ID (className);
     DECLARE_ID (classDesc);
     DECLARE_ID (controlPoint);
@@ -185,17 +189,24 @@ namespace Ids
     DECLARE_ID (showAllCode);
     DECLARE_ID (useLocalCopy);
     DECLARE_ID (overwriteOnSave);
+    DECLARE_ID (appSandbox);
+    DECLARE_ID (appSandboxInheritance);
+    DECLARE_ID (appSandboxOptions);
     DECLARE_ID (hardenedRuntime);
     DECLARE_ID (hardenedRuntimeOptions);
     DECLARE_ID (microphonePermissionNeeded);
     DECLARE_ID (microphonePermissionsText);
     DECLARE_ID (cameraPermissionNeeded);
     DECLARE_ID (cameraPermissionText);
+    DECLARE_ID (sendAppleEventsPermissionNeeded);
+    DECLARE_ID (sendAppleEventsPermissionText);
     DECLARE_ID (androidJavaLibs);
     DECLARE_ID (androidAdditionalJavaFolders);
     DECLARE_ID (androidAdditionalResourceFolders);
+    DECLARE_ID (androidProjectRepositories);
     DECLARE_ID (androidRepositories);
     DECLARE_ID (androidDependencies);
+    DECLARE_ID (androidCustomAppBuildGradleContent);
     DECLARE_ID (androidBuildConfigRemoteNotifsConfigFile);
     DECLARE_ID (androidAdditionalXmlValueResources);
     DECLARE_ID (androidAdditionalDrawableResources);
@@ -206,17 +217,18 @@ namespace Ids
     DECLARE_ID (androidCustomApplicationClass);
     DECLARE_ID (androidVersionCode);
     DECLARE_ID (androidSDKPath);
-    DECLARE_ID (androidNDKPath);
     DECLARE_ID (androidOboeRepositoryPath);
     DECLARE_ID (androidInternetNeeded);
     DECLARE_ID (androidArchitectures);
     DECLARE_ID (androidManifestCustomXmlElements);
+    DECLARE_ID (androidGradleSettingsContent);
     DECLARE_ID (androidCustomStringXmlElements);
     DECLARE_ID (androidBluetoothNeeded);
     DECLARE_ID (androidExternalReadNeeded);
     DECLARE_ID (androidExternalWriteNeeded);
     DECLARE_ID (androidInAppBilling);
     DECLARE_ID (androidVibratePermissionNeeded);
+    DECLARE_ID (androidPushNotifications);
     DECLARE_ID (androidEnableRemoteNotifications);
     DECLARE_ID (androidRemoteNotificationsConfigFile);
     DECLARE_ID (androidEnableContentSharing);
@@ -238,6 +250,7 @@ namespace Ids
     DECLARE_ID (iPadScreenOrientation);
     DECLARE_ID (iosScreenOrientation);
     DECLARE_ID (iosInAppPurchases);
+    DECLARE_ID (iosContentSharing);
     DECLARE_ID (iosBackgroundAudio);
     DECLARE_ID (iosBackgroundBle);
     DECLARE_ID (iosPushNotifications);
@@ -245,6 +258,8 @@ namespace Ids
     DECLARE_ID (iCloudPermissions);
     DECLARE_ID (iosDevelopmentTeamID);
     DECLARE_ID (iosAppGroupsId);
+    DECLARE_ID (iosBluetoothPermissionNeeded);
+    DECLARE_ID (iosBluetoothPermissionText);
     DECLARE_ID (duplicateAppExResourcesFolder);
     DECLARE_ID (buildToolsVersion);
     DECLARE_ID (gradleVersion);
@@ -323,6 +338,8 @@ namespace Ids
     DECLARE_ID (pluginCode);
     DECLARE_ID (pluginChannelConfigs);
     DECLARE_ID (pluginCharacteristicsValue);
+    DECLARE_ID (pluginCharacteristics);
+    DECLARE_ID (extraPluginFormats);
     DECLARE_ID (pluginIsSynth);
     DECLARE_ID (pluginWantsMidiIn);
     DECLARE_ID (pluginProducesMidiOut);
@@ -341,6 +358,8 @@ namespace Ids
     DECLARE_ID (pluginAAXDisableMultiMono);
     DECLARE_ID (pluginVSTNumMidiInputs);
     DECLARE_ID (pluginVSTNumMidiOutputs);
+    DECLARE_ID (suppressPlistResourceUsage);
+    DECLARE_ID (useLegacyBuildSystem);
     DECLARE_ID (exporters);
     DECLARE_ID (website);
     DECLARE_ID (mainClass);
@@ -351,6 +370,13 @@ namespace Ids
     DECLARE_ID (projectLineFeed);
     DECLARE_ID (compilerFlagSchemes);
     DECLARE_ID (compilerFlagScheme);
+    DECLARE_ID (dontQueryForUpdate);
+    DECLARE_ID (dontAskAboutJUCEPath);
+    DECLARE_ID (postExportShellCommandPosix);
+    DECLARE_ID (postExportShellCommandWin);
+    DECLARE_ID (liveBuildEnabled);
+    DECLARE_ID (guiEditorEnabled);
+    DECLARE_ID (jucerFormatVersion);
 
     const Identifier ID ("id");
     const Identifier ID_uppercase ("ID");

@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -64,7 +63,7 @@ public:
         auto area = getLocalBounds();
 
         text.createLayout (getLookAndFeel().createFileChooserHeaderText (getName(), instructions),
-                           getWidth() - 12.0f);
+                           (float) getWidth() - 12.0f);
 
         area.removeFromTop (roundToInt (text.getHeight()) + 10);
 
@@ -95,8 +94,8 @@ FileChooserDialogBox::FileChooserDialogBox (const String& name,
                                             FileBrowserComponent& chooserComponent,
                                             bool shouldWarn,
                                             Colour backgroundColour,
-                                            Component* parentComponent)
-    : ResizableWindow (name, backgroundColour, parentComponent == nullptr),
+                                            Component* parentComp)
+    : ResizableWindow (name, backgroundColour, parentComp == nullptr),
       warnAboutOverwritingExistingFiles (shouldWarn)
 {
     content = new ContentComponent (name, instructions, chooserComponent);
@@ -113,8 +112,10 @@ FileChooserDialogBox::FileChooserDialogBox (const String& name,
 
     FileChooserDialogBox::selectionChanged();
 
-    if (parentComponent != nullptr)
-        parentComponent->addAndMakeVisible (this);
+    if (parentComp != nullptr)
+        parentComp->addAndMakeVisible (this);
+    else
+        setAlwaysOnTop (juce_areThereAnyAlwaysOnTopWindows());
 }
 
 FileChooserDialogBox::~FileChooserDialogBox()

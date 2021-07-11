@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -24,28 +23,29 @@
   ==============================================================================
 */
 
+
 /*******************************************************************************
  The block below describes the properties of this module, and is read by
  the Projucer to automatically generate project code that uses it.
  For details about the syntax and how to create or use a module, see the
- JUCE Module Format.txt file.
+ JUCE Module Format.md file.
 
 
  BEGIN_JUCE_MODULE_DECLARATION
 
-  ID:               juce_opengl
-  vendor:           juce
-  version:          5.4.3
-  name:             JUCE OpenGL classes
-  description:      Classes for rendering OpenGL in a JUCE window.
-  website:          http://www.juce.com/juce
-  license:          GPL/Commercial
+  ID:                 juce_opengl
+  vendor:             juce
+  version:            6.0.8
+  name:               JUCE OpenGL classes
+  description:        Classes for rendering OpenGL in a JUCE window.
+  website:            http://www.juce.com/juce
+  license:            GPL/Commercial
 
-  dependencies:     juce_gui_extra
-  OSXFrameworks:    OpenGL
-  iOSFrameworks:    OpenGLES
-  linuxLibs:        GL
-  mingwLibs:        opengl32
+  dependencies:       juce_gui_extra
+  OSXFrameworks:      OpenGL
+  iOSFrameworks:      OpenGLES
+  linuxLibs:          GL
+  mingwLibs:          opengl32
 
  END_JUCE_MODULE_DECLARATION
 
@@ -92,20 +92,17 @@
  #include <GL/gl.h>
  #undef KeyPress
 #elif JUCE_IOS
- #if defined (__IPHONE_7_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_7_0
-  #include <OpenGLES/ES3/gl.h>
- #else
-  #include <OpenGLES/ES2/gl.h>
+ #if defined (__IPHONE_12_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_12_0
+  #define GLES_SILENCE_DEPRECATION 1
  #endif
+ #include <OpenGLES/ES3/gl.h>
 #elif JUCE_MAC
- #if defined (MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7)
-  #define JUCE_OPENGL3 1
-  #include <OpenGL/gl3.h>
-  #include <OpenGL/gl3ext.h>
- #else
-  #include <OpenGL/gl.h>
-  #include <OpenGL/glext.h>
+ #define JUCE_OPENGL3 1
+ #if defined (MAC_OS_X_VERSION_10_14) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_14
+  #define GL_SILENCE_DEPRECATION 1
  #endif
+ #include <OpenGL/gl3.h>
+ #include <OpenGL/gl3ext.h>
 #elif JUCE_ANDROID
  #include <android/native_window.h>
  #include <android/native_window_jni.h>

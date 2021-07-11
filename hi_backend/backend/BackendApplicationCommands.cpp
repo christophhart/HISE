@@ -1234,9 +1234,7 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 
 bool BackendCommandTarget::Actions::hasProcessorInClipboard()
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
-
-	if (xml != nullptr)
+	if (auto xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard()))
 	{
 		ValueTree v = ValueTree::fromXml(*xml);
 
@@ -1335,9 +1333,7 @@ void BackendCommandTarget::Actions::replaceWithClipboardContent(BackendRootWindo
 	}
 	else
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(clipboardContent);
-
-		if (xml != nullptr)
+		if (auto xml = XmlDocument::parse(clipboardContent))
 		{
 			ValueTree v = ValueTree::fromXml(*xml);
 
@@ -1538,14 +1534,14 @@ void BackendCommandTarget::Actions::testPlugin(const String& pluginToLoad)
 
 		Logger::writeToLog("Loading plugin " + desc->name + nl);
 
-		ScopedPointer<XmlElement> xml = desc->createXml();
+		auto xml = desc->createXml();
 
 		Logger::writeToLog("Plugin description:");
 		Logger::writeToLog(xml->createDocument(""));
 
 		Logger::writeToLog("Initialising...");
 
-		ScopedPointer<AudioPluginInstance> plugin = fm.createPluginInstance(*desc, 44100.0, 512, error);
+		auto plugin = fm.createPluginInstance(*desc, 44100.0, 512, error);
 
 		Logger::writeToLog("OK");
 
@@ -1854,10 +1850,9 @@ void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
 
 			            v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
 			            
-						ScopedPointer<XmlElement> xml = v.createXml();
-
+						auto xml = v.createXml();
+						
 						XmlBackupFunctions::removeEditorStatesFromXml(*xml);
-
 						
 						Processor::Iterator<ModulatorSampler> siter(bpe->getMainSynthChain());
 
@@ -1951,7 +1946,7 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
             v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
             
-			ScopedPointer<XmlElement> xml = v.createXml();
+			auto xml = v.createXml();
 
 			FullInstrumentExpansion::setNewDefault(bpe->owner, v);
 
@@ -2032,18 +2027,17 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendRootWindow * bpe, con
     
 	if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
+		auto xml = XmlDocument::parse(fileToLoad);
 
 		if (xml != nullptr)
 		{
 			XmlBackupFunctions::addContentFromSubdirectory(*xml, fileToLoad);
-
 			String newId = xml->getStringAttribute("ID");
+			
+			
 
-			XmlBackupFunctions::restoreAllScripts(*xml, bpe->getMainSynthChain(), newId);
-
-			ValueTree v = ValueTree::fromXml(*xml);
-
+			auto v = ValueTree::fromXml(*xml);
+			XmlBackupFunctions::restoreAllScripts(v, bpe->getMainSynthChain(), newId);
 			bpe->loadNewContainer(v);
 		}
 		else
@@ -2504,7 +2498,7 @@ void BackendCommandTarget::Actions::convertSfzFilesToSampleMaps(BackendRootWindo
 
 				File sampleMapFile = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(id + ".xml");
 
-				ScopedPointer<XmlElement> xml = sampleMap.createXml();
+				auto xml = sampleMap.createXml();
 				xml->writeToFile(sampleMapFile, "");
 			}
 		}
@@ -2697,9 +2691,7 @@ void BackendCommandTarget::Actions::createRecoveryXml(BackendRootWindow * bpe)
 
 		if (vt.isValid())
 		{
-			ScopedPointer<XmlElement> xml = vt.createXml();
-
-			if (xml != nullptr)
+			if (auto xml = vt.createXml())
 			{
 				auto xmlContent = xml->createDocument("");
 

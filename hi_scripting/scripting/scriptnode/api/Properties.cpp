@@ -131,12 +131,12 @@ struct ColourSelectorPropertyComponent : public PropertyComponent
 		{
 			auto p = new Popup(this);
 
-			Component* root = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+			Component* root = findParentComponentOfClass<ZoomableViewport>();
 
 			if (root == nullptr)
 				root = findParentComponentOfClass<PropertyPanel>();
 
-			CallOutBox::launchAsynchronously(p, root->getLocalArea(this, getLocalBounds()), root);
+			CallOutBox::launchAsynchronously(std::unique_ptr<Component>(p), root->getLocalArea(this, getLocalBounds()), root);
 		}
 
 		void changeListenerCallback(ChangeBroadcaster* b)
@@ -202,6 +202,9 @@ struct ToggleButtonPropertyComponent : public PropertyComponent,
 		b.setClickingTogglesState(true);
 		v.addListener(this);
 		b.addListener(this);
+
+		DBG(data.createXml()->createDocument(""));
+
 		update(data[id]);
 	}
 
@@ -247,10 +250,13 @@ struct SliderWithLimit : public PropertyComponent
 
 		auto v = data.getProperty(id);
 
-		auto min = jmin(v, data.getProperty(LowerLimit, 0.0));
-		auto max = jmax(v, data.getProperty(UpperLimit, 1.0));
+		auto min = (double)jmin(0.0, (double)v, (double)data.getProperty(MinValue, 0.0));
+		auto max = (double)jmax(v, data.getProperty(MaxValue, 1.0));
 		auto stepSize = data.getProperty(StepSize, 0.01);
 		
+		if (min > max)
+			std::swap(min, max);
+
 		c.setScrollWheelEnabled(false);
 		c.setRange(min, max, stepSize);
 		c.getValueObject().referTo(data.getPropertyAsValue(id, um, true));
@@ -328,13 +334,13 @@ struct SliderWithLimit : public PropertyComponent
 			setColour(Slider::ColourIds::thumbColourId, Colour(0xFF666666));
 			setColour(Slider::ColourIds::textBoxTextColourId, Colours::white);
 			setColour(TextEditor::ColourIds::textColourId, Colours::white);
+			setColour(juce::Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
+			setColour(juce::Slider::textBoxHighlightColourId, Colour(SIGNAL_COLOUR));
 		}
-
-		
 
 		String getTextFromValue(double v) override
 		{
-			return CppGen::Emitter::createPrettyNumber(v, false);
+			return snex::Types::Helpers::getCppValueString(var(v), snex::Types::ID::Double);
 		}
 
 		double getValueFromText(const String& text) override
@@ -474,8 +480,8 @@ struct ExpressionPropertyComponent : public PropertyComponent
 					
 					auto f = GLOBAL_BOLD_FONT();
 
-					auto s = CppGen::Emitter::createPrettyNumber(range.getStart(), false);
-					auto e = CppGen::Emitter::createPrettyNumber(range.getEnd(), false);
+					auto s = snex::Types::Helpers::getCppValueString(var(range.getStart()), snex::Types::ID::Double);
+					auto e = snex::Types::Helpers::getCppValueString(var(range.getEnd()), snex::Types::ID::Double);
 
 					auto sw = f.getStringWidthFloat(s) + 15.0f;
 					auto ew = f.getStringWidthFloat(e) + 15.0f;
@@ -520,7 +526,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 
 						posText << String(hoverPos.getX(), 2);
 						posText << " | ";
-						posText << CppGen::Emitter::createPrettyNumber(va, false);
+						posText << snex::Types::Helpers::getCppValueString(var(va), snex::Types::ID::Double); 
 
 						auto w = f.getStringWidthFloat(posText) + 10.0f;
 
@@ -687,11 +693,11 @@ void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& )
 	Display* bigOne = new Display(value, false);
 	bigOne->setSize(300, 300);
 
-	auto pc = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+	auto pc = findParentComponentOfClass<ZoomableViewport>();
 
 	auto b = pc->getLocalArea(this, getLocalBounds());
 
-	CallOutBox::launchAsynchronously(bigOne, b, pc);
+	CallOutBox::launchAsynchronously(std::unique_ptr<Component>(bigOne), b, pc);
 }
 #endif
     
@@ -703,28 +709,6 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 	auto name = id.toString();
 
 	Identifier propId = Identifier(name.fromLastOccurrenceOf(".", false, false));
-
-	if (propId == Converter || propId == OpType)
-	{
-		Array<Identifier> ids;
-
-		if (id == Converter)
-			ids = { ConverterIds::Identity, ConverterIds::Decibel2Gain, ConverterIds::Gain2Decibel,
-								  ConverterIds::DryAmount, ConverterIds::WetAmount, ConverterIds::SubtractFromOne, };
-		else
-			ids = { OperatorIds::SetValue, OperatorIds::Multiply, OperatorIds::Add };
-
-		StringArray sa;
-		Array<var> values;
-
-		for (auto cId : ids)
-		{
-			sa.add(cId.toString());
-			values.add(cId.toString());
-		}
-
-		return new juce::ChoicePropertyComponent(value, name, sa, values);
-	}
 
 	if (id == NodeColour)
 		return new ColourSelectorPropertyComponent(d, id, um);
@@ -742,9 +726,11 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 
 		return new FileNameValuePropertyComponent(id.toString(), file, value);
 	}
-		
 
-	if (propId == LockNumChannels || propId == Enabled)
+	if (propId == Enabled || 
+		propId == SplitSignal ||
+		propId == AllowCompilation ||
+		propId == AllowPolyphonic)
 		return new ToggleButtonPropertyComponent(d, id, um);
     
 #if HISE_INCLUDE_SNEX

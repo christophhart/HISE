@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -151,7 +150,7 @@ private:
                 const auto charArea = codeEditor->getCharacterBounds (startPosition);
                 const int height = charArea.getHeight() + 8;
 
-                Font f (height * 0.7f);
+                Font f ((float) height * 0.7f);
 
                 const int width = jmin (height * 2 + f.getStringWidth (launchButton.getName()),
                                         jmax (120, codeEditor->proportionOfWidth (0.2f)));
@@ -192,7 +191,7 @@ private:
                    .draw (g, r.removeFromLeft (getHeight()).toFloat(), false);
 
                 g.setColour (Colours::white);
-                g.setFont (getHeight() * 0.7f);
+                g.setFont ((float) getHeight() * 0.7f);
                 g.drawFittedText (getName(), r, Justification::centredLeft, 1);
             }
 
@@ -201,6 +200,8 @@ private:
                 if (auto* l = findParentComponentOfClass<LaunchClassOverlayComponent>())
                     l->launch();
             }
+
+            using Button::clicked;
         };
 
         void launch()
@@ -231,24 +232,31 @@ private:
 
         void timerCallback() override
         {
-            Array<ClassDatabase::Class*> newClasses;
+            Array<WeakReference<ClassDatabase::Class>> newClasses;
 
             if (childProcess != nullptr)
                 const_cast <ClassDatabase::ClassList&> (childProcess->getComponentList()).globalNamespace.findClassesDeclaredInFile (newClasses, file);
 
             for (int i = newClasses.size(); --i >= 0;)
-                if (! newClasses.getUnchecked(i)->getInstantiationFlags().canBeInstantiated())
+            {
+                auto& c = newClasses.getReference (i);
+
+                if (c == nullptr || ! c->getInstantiationFlags().canBeInstantiated())
                     newClasses.remove (i);
+            }
 
             if (newClasses != classes)
             {
                 classes = newClasses;
                 deleteOverlays();
 
-                for (auto& c : classes)
+                for (auto c : classes)
                 {
-                    CodeDocument::Position pos (owner.getDocument(), c->getClassDeclarationRange().range.getStart());
-                    overlays.add (new LaunchClassOverlayComponent (owner, pos, pos, c->getName()));
+                    if (c != nullptr)
+                    {
+                        CodeDocument::Position pos (owner.getDocument(), c->getClassDeclarationRange().range.getStart());
+                        overlays.add (new LaunchClassOverlayComponent (owner, pos, pos, c->getName()));
+                    }
                 }
             }
         }
@@ -264,7 +272,7 @@ private:
         GenericCodeEditorComponent& owner;
         CompileEngineChildProcess::Ptr childProcess;
         File file;
-        Array<ClassDatabase::Class*> classes;
+        Array<WeakReference<ClassDatabase::Class>> classes;
         Array<Component::SafePointer<Component>> overlays;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentClassList)
@@ -316,9 +324,9 @@ private:
             g.fillRect (getLocalBounds().withTrimmedBottom (lineOffset));
 
             Path path;
-            const float bottomY = getHeight() - (lineOffset / 2.0f);
+            const float bottomY = (float) getHeight() - ((float) lineOffset / 2.0f);
             path.addTriangle ((float) arrowXMin, bottomY,
-                              (arrowXMax + arrowXMin) / 2.0f, (float) lineOffset,
+                              (float) (arrowXMax + arrowXMin) / 2.0f, (float) lineOffset,
                               (float) arrowXMax, bottomY);
 
             g.setColour (diagColour.withAlpha (0.8f));
@@ -684,10 +692,10 @@ private:
 class LiveBuildCodeEditorDocument  : public SourceCodeDocument
 {
 public:
-    LiveBuildCodeEditorDocument (Project* project, const File& file)
-        : SourceCodeDocument (project, file)
+    LiveBuildCodeEditorDocument (Project* projectToUse, const File& file)
+        : SourceCodeDocument (projectToUse, file)
     {
-        if (project != nullptr)
+        if (projectToUse != nullptr)
             if (CompileEngineChildProcess::Ptr childProcess = getChildProcess())
                 childProcess->editorOpened (file, getCodeDocument());
     }

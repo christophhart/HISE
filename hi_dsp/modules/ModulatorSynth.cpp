@@ -343,9 +343,16 @@ void ModulatorSynth::addProcessorsWhenEmpty()
 	LockHelpers::freeToGo(getMainController());
 
 	jassert(finalised);
+
 	
+
 	if (dynamic_cast<ModulatorSynthChain*>(this) == nullptr)
 	{
+		auto envList = ProcessorHelpers::getListOfAllProcessors<EnvelopeModulator>(gainChain);
+		
+		if (envList.size() > 1) // the chain itself is an envelope...
+			return;
+
 		ScopedPointer<SimpleEnvelope> newEnvelope = new SimpleEnvelope(getMainController(),
 			"DefaultEnvelope",
 			voices.size(),
@@ -446,24 +453,9 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		}
 	}
 
-	if (getMatrix().isEditorShown())
-	{
-		float gainValues[NUM_MAX_CHANNELS];
+	getMatrix().handleDisplayValues(thisInternalBuffer, outputBuffer);
 
-		for (int i = 0; i < thisInternalBuffer.getNumChannels(); i++)
-		{
-			gainValues[i] = thisInternalBuffer.getMagnitude(i, 0, numSamplesFixed);
-		}
-
-		getMatrix().setGainValues(gainValues, true);
-
-		for (int i = 0; i < outputBuffer.getNumChannels(); i++)
-		{
-			gainValues[i] = outputBuffer.getMagnitude(i, 0, numSamplesFixed);
-		}
-
-		getMatrix().setGainValues(gainValues, false);
-	}
+	
 
 	handlePeakDisplay(numSamplesFixed);
 }
@@ -764,9 +756,11 @@ void ModulatorSynth::startVoiceWithHiseEvent(ModulatorSynthVoice* voice, Synthes
 		return;
 	}
 
+#if JUCE_DEBUG
 	// If this is false, your collectSoundsToBeStarted method is wrong
 	// it uses the event id because it might have another start offset in a detuned synth group
 	jassert(voice->getCurrentHiseEvent().getEventId() == eventForSoundCollection.getEventId());
+#endif
 
 	pendingRemoveVoices.remove(voice);
 

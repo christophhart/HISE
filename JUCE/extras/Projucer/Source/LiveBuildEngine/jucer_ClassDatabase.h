@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -207,12 +206,6 @@ struct ClassDatabase
             : isAbstract (false),
               inAnonymousNamespace (false),
               noDefaultConstructor (false)
-        {}
-
-        InstantiationFlags (const InstantiationFlags& other)
-            : isAbstract (other.isAbstract),
-              inAnonymousNamespace (other.inAnonymousNamespace),
-              noDefaultConstructor (other.noDefaultConstructor)
         {}
 
         bool canBeInstantiated() const noexcept
@@ -452,6 +445,7 @@ struct ClassDatabase
         InstantiationFlags instantiationFlags;
 
         JUCE_LEAK_DETECTOR (Class)
+        JUCE_DECLARE_WEAK_REFERENCEABLE (Class)
     };
 
     //==============================================================================
@@ -522,14 +516,18 @@ struct ClassDatabase
             return nullptr;
         }
 
-        void findClassesDeclaredInFile (Array<Class*>& results, const File& file)
+        void findClassesDeclaredInFile (Array<WeakReference<Class>>& results, const File& file)
         {
-            for (auto& c : components)
+            for (int i = 0; i < components.size(); ++i)
+            {
+                auto& c = components.getReference (i);
+
                 if (c.isDeclaredInFile (file))
                     results.add (&c);
+            }
 
-            for (auto& n : namespaces)
-                n.findClassesDeclaredInFile (results, file);
+            for (int i = 0; i < namespaces.size(); ++i)
+                namespaces.getReference (i).findClassesDeclaredInFile (results, file);
         }
 
         void merge (const Namespace& other)
@@ -560,9 +558,13 @@ struct ClassDatabase
 
         Namespace* findNamespace (const String& targetName)
         {
-            for (auto& n : namespaces)
+            for (int i = 0; i < namespaces.size(); ++i)
+            {
+                auto& n = namespaces.getReference (i);
+
                 if (n.name == targetName)
                     return &n;
+            }
 
             return nullptr;
         }
@@ -575,7 +577,7 @@ struct ClassDatabase
 
         Namespace* getOrCreateNamespace (const String& newName)
         {
-            if (Namespace* existing = findNamespace (newName))
+            if (auto* existing = findNamespace (newName))
                 return existing;
 
             return createNamespace (newName);
@@ -600,14 +602,20 @@ struct ClassDatabase
 
         void nudgeAllCodeRanges (const String& file, int index, int delta)
         {
-            for (auto& c : components)  c.nudgeAllCodeRanges (file, index, delta);
-            for (auto& n : namespaces)  n.nudgeAllCodeRanges (file, index, delta);
+            for (int i = 0; i < components.size(); ++i)
+                components.getReference (i).nudgeAllCodeRanges (file, index, delta);
+
+            for (int i = 0; i < namespaces.size(); ++i)
+                namespaces.getReference (i).nudgeAllCodeRanges (file, index, delta);
         }
 
         void fileContentChanged (const String& file)
         {
-            for (auto& c : components)  c.fileContentChanged (file);
-            for (auto& n : namespaces)  n.fileContentChanged (file);
+            for (int i = 0; i < components.size(); ++i)
+                components.getReference (i).fileContentChanged (file);
+
+            for (int i = 0; i < namespaces.size(); ++i)
+                namespaces.getReference (i).fileContentChanged (file);
         }
 
         bool matches (const Namespace& other) const
@@ -617,7 +625,7 @@ struct ClassDatabase
                  && namespaces.size() == other.namespaces.size())
             {
                 for (int i = namespaces.size(); --i >= 0;)
-                    if (! namespaces.getReference (i).matches (other.namespaces.getReference(i)))
+                    if (! namespaces.getReference (i).matches (other.namespaces.getReference (i)))
                         return false;
 
                 return true;

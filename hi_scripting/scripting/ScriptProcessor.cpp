@@ -272,6 +272,7 @@ void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Cont
 		scriptEngine->executeInlineFunction(fVar, args, &r);
 	}
 
+#if 0
 #if USE_BACKEND
 	if (!r.wasOk())
 	{
@@ -282,6 +283,7 @@ void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Cont
 			debugError(dynamic_cast<Processor*>(this), r.getErrorMessage());
 		}
 	}
+#endif
 #endif
 }
 
@@ -333,11 +335,13 @@ FileChangeListener::~FileChangeListener()
 	masterReference.clear();
 }
 
-void FileChangeListener::addFileWatcher(const File &file)
+ExternalScriptFile::Ptr FileChangeListener::addFileWatcher(const File &file)
 {
 	auto p = dynamic_cast<Processor*>(this)->getMainController()->getExternalScriptFile(file);
 
 	watchers.add(p);
+
+	return p;
 }
 
 void FileChangeListener::setFileResult(const File &file, Result r)
@@ -554,6 +558,7 @@ void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles
 }
 
 JavascriptProcessor::JavascriptProcessor(MainController *mc) :
+	ProcessorWithDynamicExternalData(mc, true),
 	mainController(mc),
 	scriptEngine(new HiseJavascriptEngine(this)),
 	lastCompileWasOK(false),
@@ -562,6 +567,13 @@ JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 	callStackEnabled(mc->isCallStackEnabled()),
 	repaintDispatcher(mc)
 {
+#if USE_BACKEND
+
+	dynamic_cast<BackendProcessor*>(mc)->dllManager->loadDll(false);
+	setProjectDll(dynamic_cast<BackendProcessor*>(mc)->dllManager->projectDll);
+#endif
+
+
 	allInterfaceData = ValueTree("UIData");
 	auto defaultContent = ValueTree("ContentProperties");
 	defaultContent.setProperty("DeviceType", "Desktop", nullptr);
@@ -1488,37 +1500,6 @@ String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<F
 	return x;
 }
 
-String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code, int& counter)
-{
-	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "");
-
-	try
-	{
-		String returnString = it.removeUnneededNamespaces(counter);
-		return returnString;
-	}
-	catch (String &e)
-	{
-		Logger::getCurrentLogger()->writeToLog(e);
-		return code;
-	}
-}
-
-String JavascriptProcessor::Helpers::uglify(const String& prettyCode)
-{
-	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(prettyCode, "");
-
-	try
-	{
-		String returnString = it.uglify();
-		return returnString;
-	}
-	catch (String &e)
-	{
-		Logger::getCurrentLogger()->writeToLog(e);
-		return prettyCode;
-	}
-}
 
 String JavascriptProcessor::collectScript(bool silent) const
 {

@@ -220,18 +220,18 @@ public:
 
 		int getNumChildren() const { return children.size(); }
 
-		Item& operator[](int childIndex) const { return children.getReference(childIndex); };
+		Item& operator[](int childIndex) { return children.getReference(childIndex); };
 
 		bool hasChildren() const { return !children.isEmpty(); }
 
 		Item* begin() const
 		{
-			return children.begin();
+			return const_cast<Item*>(children.begin());
 		}
 
 		Item* end() const
 		{
-			return children.end();
+			return const_cast<Item*>(children.end());
 		}
 
 		Item* getParentItem() const { return parent; }

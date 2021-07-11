@@ -41,30 +41,42 @@ ChainNode::ChainNode(DspNetwork* n, ValueTree t) :
 {
 	initListeners();
 
+	
 	wrapper.getObject().initialise(this);
-
-	setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0);
-
-	bypassListener.setCallback(t, { PropertyIds::Bypassed, PropertyIds::BypassRampTimeMs },
-		valuetree::AsyncMode::Asynchronously,
-		std::bind(&InternalWrapper::setBypassedFromValueTreeCallback, &wrapper, std::placeholders::_1, std::placeholders::_2));
 }
 
-void ChainNode::process(ProcessData& data)
+
+
+void ChainNode::process(ProcessDataDyn& data)
 {
+	NodeProfiler np(this);
 	wrapper.process(data);
 }
 
 
-void ChainNode::processSingle(float* frameData, int numChannels)
+void ChainNode::processFrame(NodeBase::FrameType& data)
 {
-	wrapper.processSingle(frameData, numChannels);
+	if (data.size() == 1)
+		processMonoFrame(MonoFrameType::as(data.begin()));
+	if(data.size() == 2)
+		processStereoFrame(StereoFrameType::as(data.begin()));
+
+	wrapper.processFrame(data);
+}
+
+void ChainNode::processMonoFrame(MonoFrameType& data)
+{
+	wrapper.processFrame(data);
+}
+
+void ChainNode::processStereoFrame(StereoFrameType& data)
+{
+	wrapper.processFrame(data);
 }
 
 void ChainNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
-
+	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
 	wrapper.prepare(ps);
 }
@@ -72,19 +84,6 @@ void ChainNode::prepare(PrepareSpecs ps)
 void ChainNode::handleHiseEvent(HiseEvent& e)
 {
 	wrapper.handleHiseEvent(e);
-}
-
-String ChainNode::getCppCode(CppGen::CodeLocation location)
-{
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s = NodeContainer::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-
-		return s;
-	}
-	else
-		return SerialNode::getCppCode(location);
 }
 
 SplitNode::SplitNode(DspNetwork* root, ValueTree data) :
@@ -95,19 +94,15 @@ SplitNode::SplitNode(DspNetwork* root, ValueTree data) :
 
 void SplitNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
-
+	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
 
-	ps.numChannels *= 2;
-	DspHelpers::increaseBuffer(splitBuffer, ps);
+	if (ps.blockSize > 1)
+	{
+		DspHelpers::increaseBuffer(original, ps);
+		DspHelpers::increaseBuffer(workBuffer, ps);
+	}
 }
-
-juce::String SplitNode::getCppCode(CppGen::CodeLocation location)
-{
-	return ParallelNode::getCppCode(location);
-}
-
 
 void SplitNode::handleHiseEvent(HiseEvent& e)
 {
@@ -118,60 +113,65 @@ void SplitNode::handleHiseEvent(HiseEvent& e)
 	}
 }
 
-void SplitNode::process(ProcessData& data)
+void SplitNode::process(ProcessDataDyn& data)
 {
-	if (isBypassed())
+	if (isBypassed() || original.begin() == nullptr)
 		return;
 
-	auto original = data.copyTo(splitBuffer, 0);
+	NodeProfiler np(this);
+
+	float* ptrs[NUM_MAX_CHANNELS];
+	int numSamples = data.getNumSamples();
+
+	{
+		float* optr = original.begin();
+		float* wptr = workBuffer.begin();
+
+		int index = 0;
+		for (auto& c : data)
+		{
+			FloatVectorOperations::copy(optr, c.getRawReadPointer(), numSamples);
+			ptrs[index++] = wptr;
+			optr += numSamples;
+			wptr += numSamples;
+		}
+	}
+	
 	int channelCounter = 0;
 
 	for (auto n : nodes)
 	{
+		if (n->isBypassed())
+			continue;
+
 		if (channelCounter++ == 0)
 		{
-			if (n->isBypassed())
-				continue;
-
 			n->process(data);
 		}
 		else
 		{
-			if (n->isBypassed())
-				continue;
+			int numToCopy = data.getNumSamples() * data.getNumChannels();
 
-			auto wd = original.copyTo(splitBuffer, 1);
-			n->process(wd);
-			data += wd;
+			FloatVectorOperations::copy(workBuffer.begin(), original.begin(), numToCopy);
+			ProcessDataDyn cp(ptrs, numSamples, data.getNumChannels());
+
+			n->process(cp);
+
+			int index = 0;
+			for (auto& c : data)
+				FloatVectorOperations::add(c.getRawWritePointer(), ptrs[index++], numSamples);
 		}
 	}
 }
 
-
-void SplitNode::processSingle(float* frameData, int numChannels)
+void SplitNode::processMonoFrame(MonoFrameType& data)
 {
-	if (isBypassed())
-		return;
+	processFrameInternal<1>(data);
+}
 
-	float original[NUM_MAX_CHANNELS];
-	memcpy(original, frameData, sizeof(float)*numChannels);
-	bool isFirst = true;
-
-	for (auto n : nodes)
-	{
-		if (isFirst)
-		{
-			n->processSingle(frameData, numChannels);
-			isFirst = false;
-		}
-		else
-		{
-			float wb[NUM_MAX_CHANNELS];
-			memcpy(wb, original, sizeof(float)*numChannels);
-			n->processSingle(wb, numChannels);
-			FloatVectorOperations::add(frameData, wb, numChannels);
-		}
-	}
+void SplitNode::processStereoFrame(StereoFrameType& data)
+{
+	processFrameInternal<2>(data);
 }
 
 void SplitNode::reset()
@@ -186,31 +186,32 @@ ModulationChainNode::ModulationChainNode(DspNetwork* n, ValueTree t) :
 	obj.initialise(this);
 }
 
-void ModulationChainNode::processSingle(float* frameData, int ) noexcept
+void ModulationChainNode::processFrame(NodeBase::FrameType& d) noexcept
 {
-	if (isBypassed())
-		return;
-
-	obj.processSingle(frameData, 1);
+	if (!isBypassed())
+		obj.processFrame(d);
 }
 
-void ModulationChainNode::process(ProcessData& data) noexcept
+void ModulationChainNode::process(ProcessDataDyn& data) noexcept
 {
 	if (isBypassed())
 		return;
 
-	ProcessData copy(data);
-	copy.numChannels = 1;
+	NodeProfiler np(this);
 
-	obj.process(copy);
+	obj.process(data);
 	double thisValue = 0.0;
-	obj.handleModulation(thisValue);
 }
 
 void ModulationChainNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
+	isProcessingFrame = ps.blockSize == 1;
 
+	ps.numChannels = 1;
+
+	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
+
+	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
 	obj.prepare(ps);
 }
@@ -226,26 +227,19 @@ void ModulationChainNode::reset()
 	obj.reset();
 }
 
-scriptnode::NodeComponent* ModulationChainNode::createComponent()
-{
-	return new ModChainNodeComponent(this);
-}
 
-juce::String ModulationChainNode::createCppClass(bool isOuterClass)
-{
-	return createCppClassForNodes(isOuterClass);
-}
 
 int ModulationChainNode::getBlockSizeForChildNodes() const
 {
-	return jmax(1, originalBlockSize / HISE_EVENT_RASTER);
+	return isProcessingFrame ? originalBlockSize : jmax(1, originalBlockSize / HISE_EVENT_RASTER);
 }
 
 double ModulationChainNode::getSampleRateForChildNodes() const
 {
-	return originalSampleRate / (double)HISE_EVENT_RASTER;
+	return isProcessingFrame ? originalSampleRate : originalSampleRate / (double)HISE_EVENT_RASTER;
 }
 
+#if 0
 juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft) const
 {
 	using namespace UIValues;
@@ -280,6 +274,7 @@ juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft
 
 	return { topLeft.getX(), topLeft.getY(), maxW + 2 * NodeMargin, h };
 }
+#endif
 
 
 template <int OversampleFactor>
@@ -304,7 +299,7 @@ void OversampleNode<OversampleFactor>::updateBypassState(Identifier, var)
 	PrepareSpecs ps;
 	ps.blockSize = originalBlockSize;
 	ps.sampleRate = originalSampleRate;
-	ps.numChannels = getNumChannelsToProcess();
+	ps.numChannels = getCurrentChannelAmount();
 	ps.voiceIndex = lastVoiceIndex;
 
 	prepare(ps);
@@ -313,6 +308,10 @@ void OversampleNode<OversampleFactor>::updateBypassState(Identifier, var)
 template <int OversampleFactor>
 void OversampleNode<OversampleFactor>::prepare(PrepareSpecs ps)
 {
+	DspHelpers::setErrorIfFrameProcessing(ps);
+	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
+
+	NodeBase::prepare(ps);
 	lastVoiceIndex = ps.voiceIndex;
 	prepareNodes(ps);
 
@@ -347,8 +346,10 @@ void OversampleNode<OversampleFactor>::handleHiseEvent(HiseEvent& e)
 }
 
 template <int OversampleFactor>
-void OversampleNode<OversampleFactor>::process(ProcessData& d) noexcept
+void OversampleNode<OversampleFactor>::process(ProcessDataDyn& d) noexcept
 {
+	NodeProfiler np(this);
+
 	if (isBypassed())
 	{
 		obj.getObject().process(d);
@@ -379,24 +380,12 @@ SerialNode(network, d)
 }
 
 
-template <int B>
-void FixedBlockNode<B>::updateBypassState(Identifier, var)
-{
-	if (originalBlockSize == 0)
-		return;
-
-	PrepareSpecs ps;
-	ps.blockSize = originalBlockSize;
-	ps.sampleRate = originalSampleRate;
-	ps.numChannels = getNumChannelsToProcess();
-	ps.voiceIndex = lastVoiceIndex;
-
-	prepare(ps);
-}
 
 template <int B>
-void FixedBlockNode<B>::process(ProcessData& d)
+void FixedBlockNode<B>::process(ProcessDataDyn& d)
 {
+	NodeProfiler np(this);
+
 	if (isBypassed())
 	{
 		obj.getObject().process(d);
@@ -410,6 +399,9 @@ void FixedBlockNode<B>::process(ProcessData& d)
 template <int B>
 void FixedBlockNode<B>::prepare(PrepareSpecs ps)
 {
+	DspHelpers::setErrorIfFrameProcessing(ps);
+
+	NodeBase::prepare(ps);
 	lastVoiceIndex = ps.voiceIndex;
 	prepareNodes(ps);
 
@@ -447,45 +439,32 @@ MultiChannelNode::MultiChannelNode(DspNetwork* root, ValueTree data) :
 
 void MultiChannelNode::channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange)
 {
-	int numChannelsAvailable = getNumChannelsToProcess();
+	int numChannelsAvailable = getCurrentChannelAmount();
 	int numNodes = nodes.size();
 
 	if (numNodes == 0)
 		return;
-
-	// Use the ones with locked channel amounts first
-	for (auto n : nodes)
-	{
-		if (n->hasFixChannelAmount())
-		{
-			numChannelsAvailable -= n->getNumChannelsToProcess();
-			numNodes--;
-		}
-	}
-
-	if (numNodes > 0)
-	{
-		int numPerNode = numChannelsAvailable / numNodes;
-
-		for (auto n : nodes)
-		{
-			if (n->hasFixChannelAmount())
-				continue;
-
-			int thisNum = jmax(0, jmin(numChannelsAvailable, numPerNode));
-
-			if (n != nodeThatCausedLayoutChange)
-				n->setNumChannels(thisNum);
-
-			numChannelsAvailable -= n->getNumChannelsToProcess();
-		}
-	}
 }
 
 void MultiChannelNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
+	auto numNodes = this->nodes.size();
+	auto numChannels = ps.numChannels;
 
+	getRootNetwork()->getExceptionHandler().removeError(this);
+
+	if (numNodes > numChannels)
+	{
+		Error e;
+		e.error = Error::TooManyChildNodes;
+		e.expected = numChannels;
+		e.actual = numNodes;
+		getRootNetwork()->getExceptionHandler().addError(this, e);
+	}
+
+	int numPerChildren = jmax(1,  numNodes > 0 ? numChannels / numNodes : 0);
+	
+	NodeBase::prepare(ps);
 	NodeContainer::prepareContainer(ps);
 	int channelIndex = 0;
 
@@ -496,7 +475,7 @@ void MultiChannelNode::prepare(PrepareSpecs ps)
 
 	for (int i = 0; i < jmin(NUM_MAX_CHANNELS, nodes.size()); i++)
 	{
-		int numChannelsThisTime = nodes[i]->getNumChannelsToProcess();
+		int numChannelsThisTime = numPerChildren;
 		int startChannel = channelIndex;
 		int endChannel = startChannel + numChannelsThisTime;
 
@@ -523,7 +502,7 @@ void MultiChannelNode::handleHiseEvent(HiseEvent& e)
 	}
 }
 
-void MultiChannelNode::processSingle(float* frameData, int )
+void MultiChannelNode::processFrame(NodeBase::FrameType& data)
 {
 	for (int i = 0; i < nodes.size(); i++)
 	{
@@ -532,33 +511,33 @@ void MultiChannelNode::processSingle(float* frameData, int )
 		if (r.getLength() == 0)
 			continue;
 
-		float* d = frameData + r.getStart();
+		float* d = data.data + r.getStart();
 		int numThisThime = r.getLength();
-		nodes[i]->processSingle(d, numThisThime);
+		FrameType md(d, numThisThime);
+		nodes[i]->processFrame(md);
 	}
 }
 
-void MultiChannelNode::process(ProcessData& d)
+void MultiChannelNode::process(ProcessDataDyn& d)
 {
+	NodeProfiler np(this);
+
 	int channelIndex = 0;
 
 	for (auto n : nodes)
 	{
-		int numChannelsThisTime = n->getNumChannelsToProcess();
+		int numChannelsThisTime = n->getCurrentChannelAmount();
 		int startChannel = channelIndex;
 		int endChannel = startChannel + numChannelsThisTime;
 
-		if (endChannel <= d.numChannels)
+		if (endChannel <= d.getNumChannels())
 		{
 			for (int i = 0; i < numChannelsThisTime; i++)
-				currentChannelData[i] = d.data[startChannel + i];
+				currentChannelData[i] = d[startChannel + i].data;
 
-			ProcessData thisData;
-			thisData.data = currentChannelData;
-			thisData.numChannels = numChannelsThisTime;
-			thisData.size = d.size;
-
-			n->process(thisData);
+			ProcessDataDyn td(currentChannelData, d.getNumSamples(), numChannelsThisTime);
+			td.copyNonAudioDataFrom(d);
+			n->process(td);
 		}
 
 		channelIndex += numChannelsThisTime;
@@ -574,7 +553,7 @@ SingleSampleBlockX::SingleSampleBlockX(DspNetwork* n, ValueTree d) :
 
 void SingleSampleBlockX::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
+	NodeBase::prepare(ps);
 	prepareNodes(ps);
 }
 
@@ -583,17 +562,19 @@ void SingleSampleBlockX::reset()
 	obj.reset();
 }
 
-void SingleSampleBlockX::process(ProcessData& data)
+void SingleSampleBlockX::process(ProcessDataDyn& data)
 {
+	NodeProfiler np(this);
+
 	if (isBypassed())
 		obj.getObject().process(data);
 	else
 		obj.process(data);
 }
 
-void SingleSampleBlockX::processSingle(float* frameData, int numChannels)
+void SingleSampleBlockX::processFrame(NodeBase::FrameType& data)
 {
-	obj.processSingle(frameData, numChannels);
+	obj.processFrame(data);
 }
 
 int SingleSampleBlockX::getBlockSizeForChildNodes() const
@@ -606,19 +587,6 @@ void SingleSampleBlockX::handleHiseEvent(HiseEvent& e)
 	obj.handleHiseEvent(e);
 }
 
-juce::String SingleSampleBlockX::getCppCode(CppGen::CodeLocation location)
-{
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s;
-		s << SerialNode::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-		return s;
-	}
-
-	return SerialNode::getCppCode(location);
-}
-
 MidiChainNode::MidiChainNode(DspNetwork* n, ValueTree t):
 	SerialNode(n, t)
 {
@@ -626,12 +594,12 @@ MidiChainNode::MidiChainNode(DspNetwork* n, ValueTree t):
 	obj.getObject().initialise(this);
 }
 
-void MidiChainNode::processSingle(float* frameData, int numChannels) noexcept
+void MidiChainNode::processFrame(NodeBase::FrameType& data) noexcept
 {
-	obj.processSingle(frameData, numChannels);
+	obj.processFrame(data);
 }
 
-void MidiChainNode::process(ProcessData& data) noexcept
+void MidiChainNode::process(ProcessDataDyn& data) noexcept
 {
 	if (isBypassed())
 	{
@@ -645,8 +613,10 @@ void MidiChainNode::process(ProcessData& data) noexcept
 
 void MidiChainNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
+	DspHelpers::setErrorIfFrameProcessing(ps);
+	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 
+	NodeBase::prepare(ps);
 	prepareNodes(ps);
 }
 
@@ -660,17 +630,98 @@ void MidiChainNode::reset()
 	obj.reset();
 }
 
-juce::String MidiChainNode::getCppCode(CppGen::CodeLocation location)
+OfflineChainNode::OfflineChainNode(DspNetwork* n, ValueTree t) :
+	SerialNode(n, t)
 {
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s;
-		s << SerialNode::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-		return s;
-	}
-    else
-        return SerialNode::getCppCode(location);
+	initListeners();
+	obj.initialise(this);
+}
+
+void OfflineChainNode::processFrame(FrameType& data) noexcept
+{
+}
+
+void OfflineChainNode::process(ProcessDataDyn& data) noexcept
+{
+}
+
+void OfflineChainNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
+}
+
+void OfflineChainNode::handleHiseEvent(HiseEvent& e)
+{
+}
+
+void OfflineChainNode::reset()
+{
+}
+
+FixedBlockXNode::FixedBlockXNode(DspNetwork* network, ValueTree d) :
+	SerialNode(network, d)
+{
+	initListeners();
+	obj.initialise(this);
+}
+
+void FixedBlockXNode::process(ProcessDataDyn& data)
+{
+	NodeProfiler np(this);
+	obj.process(data);
+}
+
+void FixedBlockXNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
+	obj.prepare(ps);
+}
+
+void FixedBlockXNode::reset()
+{
+	obj.reset();
+}
+
+void FixedBlockXNode::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
+}
+
+NoMidiChainNode::NoMidiChainNode(DspNetwork* n, ValueTree t):
+	SerialNode(n, t)
+{
+	initListeners();
+	obj.getObject().initialise(this);
+}
+
+void NoMidiChainNode::processFrame(FrameType& data) noexcept
+{
+	obj.processFrame(data);
+}
+
+void NoMidiChainNode::process(ProcessDataDyn& data) noexcept
+{
+	obj.process(data);
+}
+
+void NoMidiChainNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
+	obj.prepare(ps);
+}
+
+void NoMidiChainNode::handleHiseEvent(HiseEvent& e)
+{
+	// let the wrapper send it to nirvana
+	obj.handleHiseEvent(e);
+}
+
+void NoMidiChainNode::reset()
+{
+	obj.reset();
 }
 
 }

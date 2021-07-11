@@ -835,7 +835,13 @@ void SampleMapToWavetableConverter::renderAllWavetablesFromSingleWavetables(doub
 				auto thisFreq = MidiMessage::getMidiNoteInHertz(i);
 				auto rootFreq = MidiMessage::getMidiNoteInHertz(root);
 
-				PoolReference r(chain->getMainController(), s.getProperty(SampleIds::FileName).toString(), FileHandlerBase::Samples);
+
+				auto fName = s.getProperty(SampleIds::FileName).toString();
+
+				if (fName.isEmpty())
+					s.getChild(0).getProperty(SampleIds::FileName).toString();
+
+				PoolReference r(chain->getMainController(), fName, FileHandlerBase::Samples);
 
 				Data data;
 				data.sampleFile = r.getFile();
@@ -1176,6 +1182,15 @@ juce::Result SampleMapToWavetableConverter::readSample(AudioSampleBuffer& buffer
 	auto range = Range<int>((int)getSampleProperty(sample, SampleIds::SampleStart) + monoOffset,
 		(int)getSampleProperty(sample, SampleIds::SampleEnd) + monoOffset);
 
+	if (range.isEmpty() && isMonolith)
+	{
+		auto mOffset = (int)getSampleProperty(sample, "MonolithOffset");
+		auto mLength = (int)getSampleProperty(sample, "MonolithLength");
+
+		range = { mOffset, mOffset + mLength };
+	}
+		
+
 
 	auto rootNote = (int)getSampleProperty(sample, SampleIds::Root);
 
@@ -1193,6 +1208,8 @@ juce::Result SampleMapToWavetableConverter::readSample(AudioSampleBuffer& buffer
 
 		if (reader != nullptr)
 		{
+			if (range.isEmpty())
+				range = { 0, (int)reader->lengthInSamples };
 
 			if (reader->sampleRate == sampleRate && rootNote == noteNumber)
 			{
@@ -1278,9 +1295,7 @@ Array<juce::AudioSampleBuffer> SampleMapToWavetableConverter::splitSample(const 
 
 juce::Result SampleMapToWavetableConverter::loadSampleMapFromFile(File sampleMapFile)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFile);
-
-	if (xml != nullptr)
+	if (auto  xml = XmlDocument::parse(sampleMapFile))
 	{
 		sampleMap = ValueTree::fromXml(*xml);
 		return Result::ok();

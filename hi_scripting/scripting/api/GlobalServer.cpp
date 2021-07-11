@@ -68,6 +68,16 @@ var GlobalServer::getPendingDownloads()
 	return list;
 }
 
+var GlobalServer::getPendingCallbacks()
+{
+	Array<var> list;
+
+	for (auto p : internalThread.pendingCallbacks)
+		list.add(var(p));
+
+	return list;
+}
+
 Result GlobalServer::resendCallback(PendingCallback* p)
 {
 	if (p != nullptr)
@@ -188,7 +198,7 @@ void GlobalServer::WebThread::run()
 
 					job->requestTimeMs = Time::getMillisecondCounter();
 
-					wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &job->status));
+					wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &job->status).release());
 
 					if (threadShouldExit())
 						return;

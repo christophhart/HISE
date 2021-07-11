@@ -927,7 +927,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 	
 	
-	bool useSnapshot = true;
+	bool useSnapshot = false;
 
 	Component* createComponent(int maxWidth)
 	{

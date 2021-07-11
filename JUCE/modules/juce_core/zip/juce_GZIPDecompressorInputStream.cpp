@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -23,26 +23,21 @@
 namespace juce
 {
 
-#if JUCE_MSVC
- #pragma warning (push)
- #pragma warning (disable: 4309 4305 4365)
-#endif
+JUCE_BEGIN_IGNORE_WARNINGS_MSVC (4309 4305 4365)
 
 namespace zlibNamespace
 {
  #if JUCE_INCLUDE_ZLIB_CODE
-  #if JUCE_CLANG
-   #pragma clang diagnostic push
-   #pragma clang diagnostic ignored "-Wconversion"
-   #pragma clang diagnostic ignored "-Wshadow"
-   #pragma clang diagnostic ignored "-Wdeprecated-register"
-   #if __has_warning("-Wzero-as-null-pointer-constant")
-    #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
-   #endif
-   #if __has_warning("-Wcomma")
-    #pragma clang diagnostic ignored "-Wcomma"
-   #endif
-  #endif
+  JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wconversion",
+                                       "-Wsign-conversion",
+                                       "-Wshadow",
+                                       "-Wdeprecated-register",
+                                       "-Wswitch-enum",
+                                       "-Wswitch-default",
+                                       "-Wredundant-decls",
+                                       "-Wimplicit-fallthrough",
+                                       "-Wzero-as-null-pointer-constant",
+                                       "-Wcomma")
 
   #undef OS_CODE
   #undef fdopen
@@ -75,9 +70,7 @@ namespace zlibNamespace
   #undef Dad
   #undef Len
 
-  #if JUCE_CLANG
-   #pragma clang diagnostic pop
-  #endif
+  JUCE_END_IGNORE_WARNINGS_GCC_LIKE
  #else
   #include JUCE_ZLIB_INCLUDE_PATH
 
@@ -92,9 +85,7 @@ namespace zlibNamespace
  #endif
 }
 
-#if JUCE_MSVC
- #pragma warning (pop)
-#endif
+JUCE_END_IGNORE_WARNINGS_MSVC
 
 //==============================================================================
 // internal helper object that holds the zlib structures so they don't have to be
@@ -139,7 +130,7 @@ public:
             {
             case Z_STREAM_END:
                 finished = true;
-                // deliberate fall-through
+                JUCE_FALLTHROUGH
             case Z_OK:
                 data += dataSize - stream.avail_in;
                 dataSize = (z_uInt) stream.avail_in;
@@ -154,7 +145,7 @@ public:
             case Z_DATA_ERROR:
             case Z_MEM_ERROR:
                 error = true;
-
+                JUCE_FALLTHROUGH
             default:
                 break;
             }
@@ -298,13 +289,15 @@ bool GZIPDecompressorInputStream::setPosition (int64 newPos)
     return true;
 }
 
+
+//==============================================================================
 //==============================================================================
 #if JUCE_UNIT_TESTS
 
 struct GZIPDecompressorInputStreamTests   : public UnitTest
 {
     GZIPDecompressorInputStreamTests()
-        : UnitTest ("GZIPDecompressorInputStreamTests", "Streams")
+        : UnitTest ("GZIPDecompressorInputStreamTests", UnitTestCategories::streams)
     {}
 
     void runTest() override

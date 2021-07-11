@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -120,7 +119,7 @@ public:
     */
     bool cancelAllModalComponents();
 
-   #if JUCE_MODAL_LOOPS_PERMITTED
+   #if JUCE_MODAL_LOOPS_PERMITTED || DOXYGEN
     /** Runs the event loop until the currently topmost modal component is dismissed, and
         returns the exit code for that component.
     */
@@ -170,7 +169,7 @@ public:
 
         @see ModalComponentManager::Callback
     */
-    static ModalComponentManager::Callback* create (std::function<void(int)>);
+    static ModalComponentManager::Callback* create (std::function<void (int)>);
 
     //==============================================================================
     /** This is a utility function to create a ModalComponentManager::Callback that will
@@ -190,7 +189,7 @@ public:
 
         Component* someKindOfComp;
         ...
-        someKindOfComp->enterModalState (ModalCallbackFunction::create (myCallbackFunction, 3.0));
+        someKindOfComp->enterModalState (true, ModalCallbackFunction::create (myCallbackFunction, 3.0));
         @endcode
         @see ModalComponentManager::Callback
     */
@@ -219,7 +218,7 @@ public:
 
         Component* someKindOfComp;
         ...
-        someKindOfComp->enterModalState (ModalCallbackFunction::create (myCallbackFunction, 3.0, String ("xyz")));
+        someKindOfComp->enterModalState (true, ModalCallbackFunction::create (myCallbackFunction, 3.0, String ("xyz")));
         @endcode
         @see ModalComponentManager::Callback
     */
@@ -250,7 +249,7 @@ public:
         Component* someKindOfComp;
         Slider* mySlider;
         ...
-        someKindOfComp->enterModalState (ModalCallbackFunction::forComponent (myCallbackFunction, mySlider));
+        someKindOfComp->enterModalState (true, ModalCallbackFunction::forComponent (myCallbackFunction, mySlider));
         @endcode
         @see ModalComponentManager::Callback
     */
@@ -281,7 +280,7 @@ public:
         Component* someKindOfComp;
         Slider* mySlider;
         ...
-        someKindOfComp->enterModalState (ModalCallbackFunction::forComponent (myCallbackFunction, mySlider, String ("hello")));
+        someKindOfComp->enterModalState (true, ModalCallbackFunction::forComponent (myCallbackFunction, mySlider, String ("hello")));
         @endcode
         @see ModalComponentManager::Callback
     */

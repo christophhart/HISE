@@ -38,6 +38,8 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+#if 0
+
 /** Howto convert hardcoded node classes to pimpl nodes:
 
 1. Paste the entire class definition here.
@@ -57,12 +59,12 @@ namespace width_bandpass_impl
 struct instance : public hardcoded_pimpl
 {
 	SET_HISE_NODE_ID("width_bandpass");
-	GET_SELF_AS_OBJECT(instance);
+	SN_GET_SELF_AS_OBJECT(instance);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	String getSnippetText() const override;
 
-	void createParameters(Array<ParameterData>& data);
+	void createParameters(ParameterDataList& data);
 
 	DEFINE_DSP_METHODS_PIMPL;
 };
@@ -77,12 +79,12 @@ namespace filter_delay_impl
 struct instance : public hardcoded_pimpl
 {
 	SET_HISE_NODE_ID("filter_delay");
-	GET_SELF_AS_OBJECT(instance);
+	SN_GET_SELF_AS_OBJECT(instance);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	String getSnippetText() const override;
 
-	void createParameters(Array<ParameterData>& data);
+	void createParameters(ParameterDataList& data);
 
 	DEFINE_DSP_METHODS_PIMPL;
 };
@@ -97,11 +99,11 @@ namespace tremolo_impl
 struct instance : public hardcoded_pimpl
 {
 	SET_HISE_NODE_ID("tremolo");
-	GET_SELF_AS_OBJECT(instance);
+	SN_GET_SELF_AS_OBJECT(instance);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	String getSnippetText() const override;
-	void createParameters(Array<ParameterData>& data);
+	void createParameters(ParameterDataList& data);
 
 	DEFINE_DSP_METHODS_PIMPL;
 };
@@ -116,12 +118,12 @@ namespace transient_designer_impl
 struct instance : public hardcoded_pimpl
 {
 	SET_HISE_NODE_ID("transient_designer");
-	GET_SELF_AS_OBJECT(instance);
+	SN_GET_SELF_AS_OBJECT(instance);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	String getSnippetText() const override;
 
-	void createParameters(Array<ParameterData>& data);
+	void createParameters(ParameterDataList& data);
 
 	DEFINE_DSP_METHODS_PIMPL;
 };
@@ -133,6 +135,6 @@ using transient_designer = transient_designer_impl::instance;
 }
 
 
-
+#endif
 
 }

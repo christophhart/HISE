@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -25,6 +25,18 @@ namespace juce
 
 namespace
 {
+    struct InterfaceInfo
+    {
+        IPAddress interfaceAddress, broadcastAddress;
+    };
+
+    inline bool operator== (const InterfaceInfo& lhs, const InterfaceInfo& rhs)
+    {
+        return lhs.interfaceAddress == rhs.interfaceAddress
+            && lhs.broadcastAddress == rhs.broadcastAddress;
+    }
+
+   #if ! JUCE_WASM
     static IPAddress makeAddress (const sockaddr_in6* addr_in)
     {
         if (addr_in == nullptr)
@@ -54,25 +66,14 @@ namespace
         return IPAddress (ntohl (addr_in->sin_addr.s_addr));
     }
 
-    struct InterfaceInfo
-    {
-        IPAddress interfaceAddress, broadcastAddress;
-    };
-
-    bool operator== (const InterfaceInfo& lhs, const InterfaceInfo& rhs)
-    {
-        return lhs.interfaceAddress == rhs.interfaceAddress
-            && lhs.broadcastAddress == rhs.broadcastAddress;
-    }
-
     bool populateInterfaceInfo (struct ifaddrs* ifa, InterfaceInfo& interfaceInfo)
     {
         if (ifa->ifa_addr != nullptr)
         {
             if (ifa->ifa_addr->sa_family == AF_INET)
             {
-                auto interfaceAddressInfo = reinterpret_cast<sockaddr_in*> (ifa->ifa_addr);
-                auto broadcastAddressInfo = reinterpret_cast<sockaddr_in*> (ifa->ifa_dstaddr);
+                auto interfaceAddressInfo = unalignedPointerCast<sockaddr_in*> (ifa->ifa_addr);
+                auto broadcastAddressInfo = unalignedPointerCast<sockaddr_in*> (ifa->ifa_dstaddr);
 
                 if (interfaceAddressInfo->sin_addr.s_addr != INADDR_NONE)
                 {
@@ -83,18 +84,23 @@ namespace
             }
             else if (ifa->ifa_addr->sa_family == AF_INET6)
             {
-                interfaceInfo.interfaceAddress = makeAddress (reinterpret_cast<sockaddr_in6*> (ifa->ifa_addr));
-                interfaceInfo.broadcastAddress = makeAddress (reinterpret_cast<sockaddr_in6*> (ifa->ifa_dstaddr));
+                interfaceInfo.interfaceAddress = makeAddress (unalignedPointerCast<sockaddr_in6*> (ifa->ifa_addr));
+                interfaceInfo.broadcastAddress = makeAddress (unalignedPointerCast<sockaddr_in6*> (ifa->ifa_dstaddr));
                 return true;
             }
         }
 
         return false;
     }
+   #endif
 
     Array<InterfaceInfo> getAllInterfaceInfo()
     {
         Array<InterfaceInfo> interfaces;
+
+       #if JUCE_WASM
+        // TODO
+       #else
         struct ifaddrs* ifaddr = nullptr;
 
         if (getifaddrs (&ifaddr) != -1)
@@ -109,6 +115,7 @@ namespace
 
             freeifaddrs (ifaddr);
         }
+       #endif
 
         return interfaces;
     }

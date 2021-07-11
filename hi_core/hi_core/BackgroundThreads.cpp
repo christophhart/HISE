@@ -128,6 +128,11 @@ DialogWindowWithBackgroundThread::~DialogWindowWithBackgroundThread()
 
 void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 {
+	for (int i = 0; i < getNumChildComponents(); i++)
+	{
+		GlobalHiseLookAndFeel::setDefaultColours(*getChildComponent(i));
+	}
+
 	addTextEditor("state", "", "Status", false);
 
 	getTextEditor("state")->setReadOnly(true);
@@ -672,7 +677,7 @@ String SampleDataExporter::getMetadataJSON() const
 
 		if (Expansion::Helpers::isXmlFile(hxiFile->getCurrentFile()))
 		{
-			ScopedPointer<XmlElement> xml = XmlDocument::parse(hxiFile->getCurrentFile());
+			auto xml = XmlDocument::parse(hxiFile->getCurrentFile());
 
 			if (xml != nullptr)
 			{
@@ -1105,7 +1110,8 @@ DialogWindowWithBackgroundThread::AdditionalRow::Column::Column(Component* t, co
 		addAndMakeVisible(infoButton = new MarkdownHelpButton());
 	}
 
-	infoButton->setVisible(false);
+	if(infoButton != nullptr)
+		infoButton->setVisible(false);
 }
 
 void DialogWindowWithBackgroundThread::AdditionalRow::Column::resized()

@@ -54,8 +54,9 @@ public:
 	ArrayModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m) :
 		VoiceStartModulator(mc, id, numVoices, m),
 		Modulation(m),
-		data(new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater()))
+		SliderPackProcessor(mc, 1)
 	{
+		data = getSliderPackUnchecked(0);
 		data->setNumSliders(128);
 		data->setRange(0.0, 1.0, 0.001);
         
@@ -107,13 +108,9 @@ public:
 		return data->getValue(number);
 	};
 
-	SliderPackData *getSliderPackData(int /*index*/) override { return data; };
-
-    const SliderPackData *getSliderPackData(int /*index*/) const override { return data; };
-
 private:
 
-	ScopedPointer<SliderPackData> data;
+	SliderPackData* data;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArrayModulator);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ArrayModulator);

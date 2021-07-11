@@ -331,7 +331,7 @@ public:
 		/** Restores the previous event list. */
 		bool undo() override;
 
-		static void writeArrayToSequence(HiseMidiSequence::Ptr destination, const Array<HiseEvent>& arrayToWrite, double bpm, double sampleRate);
+		static void writeArrayToSequence(HiseMidiSequence::Ptr destination, Array<HiseEvent>& arrayToWrite, double bpm, double sampleRate);
 
 	private:
 

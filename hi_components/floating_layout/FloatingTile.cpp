@@ -558,6 +558,9 @@ bool FloatingTile::showTitle() const
 	}
 	else
 	{
+		if (getCurrentFloatingPanel() == nullptr)
+			return true;
+
 		return getCurrentFloatingPanel()->showTitleInPresentationMode();
 	}
 }
@@ -1007,6 +1010,25 @@ void FloatingTile::mouseDown(const MouseEvent& event)
 	}
 }
 
+void FloatingTile::setOverlayComponent(Component* newOverlayComponent, int fadeTime)
+{
+	if (overlayComponent != nullptr)
+	{
+		if (fadeTime != 0)
+			Desktop::getInstance().getAnimator().fadeOut(overlayComponent, fadeTime);
+	}
+
+	if (newOverlayComponent != nullptr)
+	{
+		addAndMakeVisible(overlayComponent = newOverlayComponent);
+
+		overlayComponent->setBounds(getContentBounds());
+
+		if (fadeTime != 0)
+			Desktop::getInstance().getAnimator().fadeIn(overlayComponent, fadeTime);
+	}
+}
+
 void FloatingTile::resized()
 {
 	if (content.get() == nullptr)
@@ -1014,6 +1036,9 @@ void FloatingTile::resized()
 
 	
 	LayoutHelpers::setContentBounds(this);
+
+	if (overlayComponent != nullptr)
+		overlayComponent->setBounds(getContentBounds());
 
 	if (LayoutHelpers::showFoldButton(this))
 	{
@@ -1106,6 +1131,16 @@ void FloatingTile::editJSON()
 	showComponentInRootPopup(codeEditor, moveButton, moveButton->getLocalBounds().getCentre());
 }
 
+bool FloatingTile::isRootPopupShown() const
+{
+	if (getParentType() != ParentType::Root)
+	{
+		return getRootFloatingTile()->isRootPopupShown();
+	}
+
+	return currentPopup != nullptr;
+}
+
 FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint)
 {
 	if (getParentType() != ParentType::Root)
@@ -1152,6 +1187,8 @@ FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponen
 		return currentPopup;
 	}
 }
+
+
 
 
 void FloatingTilePopup::updatePosition()
@@ -1313,7 +1350,6 @@ void FloatingTile::setContent(const var& data)
 	if (data.isUndefined() || data.isVoid())
 	{
 		addAndMakeVisible(content = new EmptyComponent(this));
-		
 	}
 	else
 	{
@@ -1351,10 +1387,18 @@ void FloatingTile::setContent(NamedValueSet&& data)
 
 void FloatingTile::setNewContent(const Identifier& newId)
 {
-	addAndMakeVisible(content = dynamic_cast<Component*>(FloatingTileContent::createNewPanel(newId, this)));
+	auto newObject = dynamic_cast<Component*>(FloatingTileContent::createNewPanel(newId, this));
+	setNewContent(newObject);
+}
+
+void FloatingTile::setNewContent(Component* newContent)
+{
+	jassert(dynamic_cast<FloatingTileContent*>(newContent) != nullptr);
+
+	addAndMakeVisible(content = newContent);
 
 	refreshFixedSizeForNewContent();
-	
+
 	if (hasChildren())
 		setCanBeFolded(false);
 

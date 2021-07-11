@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -44,13 +43,13 @@ class JUCE_API  MD5
 public:
     //==============================================================================
     /** Creates a null MD5 object. */
-    MD5() noexcept;
+    MD5();
 
     /** Creates a copy of another MD5. */
-    MD5 (const MD5&) noexcept;
+    MD5 (const MD5&);
 
     /** Copies another MD5. */
-    MD5& operator= (const MD5&) noexcept;
+    MD5& operator= (const MD5&);
 
     //==============================================================================
     /** Creates a checksum for a block of binary data. */
@@ -78,7 +77,7 @@ public:
     explicit MD5 (CharPointer_UTF8 utf8Text) noexcept;
 
     /** Destructor. */
-    ~MD5() noexcept;
+    ~MD5();
 
     //==============================================================================
     /** Returns the checksum as a 16-byte block of data. */
@@ -106,9 +105,8 @@ public:
 
 private:
     //==============================================================================
-    uint8 result [16];
+    uint8 result[16] = {};
 
-    void processData (const void*, size_t) noexcept;
     void processStream (InputStream&, int64);
 
     // This private constructor is declared here to prevent you accidentally passing a

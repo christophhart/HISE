@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -33,7 +32,9 @@ bool juce_performDragDropText (const String&, bool& shouldStop);
 
 //==============================================================================
 class DragAndDropContainer::DragImageComponent  : public Component,
+												  public DragAndDropContainer::DragImageComponentBase,
                                                   private Timer
+												  
 {
 public:
     DragImageComponent (const Image& im,
@@ -228,7 +229,10 @@ public:
     // (overridden to avoid beeps when dragging)
     void inputAttemptWhenModal() override {}
 
+	DragAndDropTarget::SourceDetails getDetails() const override { return sourceDetails; }
+
     DragAndDropTarget::SourceDetails sourceDetails;
+
 
 private:
     Image image;
@@ -468,7 +472,7 @@ void DragAndDropContainer::startDragging (const var& sourceDescription,
                 if (distance > lo)
                 {
                     auto alpha = (distance > hi) ? 0
-                                                 : (hi - distance) / (float) (hi - lo)
+                                                 : (float) (hi - distance) / (float) (hi - lo)
                                                      + random.nextFloat() * 0.008f;
 
                     dragImage.multiplyAlphaAt (x, y, alpha);
@@ -511,6 +515,7 @@ void DragAndDropContainer::startDragging (const var& sourceDescription,
         }
     }
 
+    dragImageComponent->sourceDetails.localPosition = sourceComponent->getLocalPoint (nullptr, lastMouseDown);
     dragImageComponent->updateLocation (false, lastMouseDown);
 
    #if JUCE_WINDOWS

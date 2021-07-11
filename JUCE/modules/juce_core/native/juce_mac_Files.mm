@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -36,15 +36,9 @@ bool File::copyInternal (const File& dest) const
         NSFileManager* fm = [NSFileManager defaultManager];
 
         return [fm fileExistsAtPath: juceStringToNS (fullPath)]
-               #if defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
                 && [fm copyItemAtPath: juceStringToNS (fullPath)
                                toPath: juceStringToNS (dest.getFullPathName())
                                 error: nil];
-               #else
-                && [fm copyPath: juceStringToNS (fullPath)
-                         toPath: juceStringToNS (dest.getFullPathName())
-                        handler: nil];
-               #endif
     }
 }
 
@@ -75,7 +69,7 @@ namespace MacFileHelpers
 
     static bool isHiddenFile (const String& path)
     {
-       #if defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
+       #if JUCE_MAC
         JUCE_AUTORELEASEPOOL
         {
             NSNumber* hidden = nil;
@@ -84,15 +78,8 @@ namespace MacFileHelpers
             return [createNSURLFromFile (path) getResourceValue: &hidden forKey: NSURLIsHiddenKey error: &err]
                      && [hidden boolValue];
         }
-       #elif JUCE_IOS
-        return File (path).getFileName().startsWithChar ('.');
        #else
-        FSRef ref;
-        LSItemInfoRecord info;
-
-        return FSPathMakeRefWithOptions ((const UInt8*) path.toRawUTF8(), kFSPathMakeRefDoNotFollowLeafSymlink, &ref, 0) == noErr
-                 && LSCopyItemInfoForRef (&ref, kLSRequestBasicFlagsOnly, &info) == noErr
-                 && (info.flags & kLSItemInfoIsInvisible) != 0;
+        return File (path).getFileName().startsWithChar ('.');
        #endif
     }
 
@@ -214,8 +201,9 @@ File File::getSpecialLocation (const SpecialLocationType type)
 
             case invokedExecutableFile:
                 if (juce_argv != nullptr && juce_argc > 0)
-                    return File::getCurrentWorkingDirectory().getChildFile (String (juce_argv[0]));
+                    return File::getCurrentWorkingDirectory().getChildFile (CharPointer_UTF8 (juce_argv[0]));
                 // deliberate fall-through...
+                JUCE_FALLTHROUGH
 
             case currentExecutableFile:
                 return juce_getExecutableFile();
@@ -428,10 +416,7 @@ bool JUCE_CALLTYPE Process::openDocument (const String& fileName, const String& 
         NSWorkspace* workspace = [NSWorkspace sharedWorkspace];
 
         if (parameters.isEmpty())
-            // NB: the length check here is because of strange failures involving long filenames,
-            // probably due to filesystem name length limitations..
-            return (fileName.length() < 1024 && [workspace openFile: juceStringToNS (fileName)])
-                    || [workspace openURL: filenameAsURL];
+            return [workspace openURL: filenameAsURL];
 
         const File file (fileName);
 
@@ -440,12 +425,22 @@ bool JUCE_CALLTYPE Process::openDocument (const String& fileName, const String& 
             StringArray params;
             params.addTokens (parameters, true);
 
-            NSMutableDictionary* dict = [[NSMutableDictionary new] autorelease];
-
             NSMutableArray* paramArray = [[NSMutableArray new] autorelease];
 
             for (int i = 0; i < params.size(); ++i)
                 [paramArray addObject: juceStringToNS (params[i])];
+
+           #if (defined MAC_OS_X_VERSION_10_15) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_15
+            auto config = [NSWorkspaceOpenConfiguration configuration];
+            [config setCreatesNewApplicationInstance: YES];
+            config.arguments = paramArray;
+
+            [workspace openApplicationAtURL: filenameAsURL
+                              configuration: config
+                          completionHandler: nil];
+            return true;
+           #else
+            NSMutableDictionary* dict = [[NSMutableDictionary new] autorelease];
 
             [dict setObject: paramArray
                      forKey: nsStringLiteral ("NSWorkspaceLaunchConfigurationArguments")];
@@ -454,6 +449,7 @@ bool JUCE_CALLTYPE Process::openDocument (const String& fileName, const String& 
                                              options: NSWorkspaceLaunchDefault | NSWorkspaceLaunchNewInstance
                                        configuration: dict
                                                error: nil];
+           #endif
         }
 
         if (file.exists())

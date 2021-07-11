@@ -47,42 +47,7 @@ public:
 	bool appliesToVelocity (int /*midiChannel*/) override  { return true; }
 };
 
-template <int TableSize> class SineLookupTable
-{
-public:
 
-	SineLookupTable()
-	{
-		for (int i = 0; i < TableSize; i++)
-		{
-			sinTable[i] = sinf(i * float_Pi / (float)(TableSize/2));
-		}
-	}
-
-	constexpr int getTableSize() const { return TableSize; };
-
-	float getInterpolatedValue(double uptime) const
-	{
-		int index = (int)uptime;
-
-		const float v1 = getWrappedValue(index);
-		const float v2 = getWrappedValue(index + 1);
-		const float alpha = float(uptime) - (float)index;
-		const float invAlpha = 1.0f - alpha;
-		const float currentSample = invAlpha * v1 + alpha * v2;
-
-		return currentSample;
-	}
-
-private:
-
-	float getWrappedValue(int index) const noexcept
-	{
-		return sinTable[index & (TableSize - 1)];
-	}
-
-	float sinTable[TableSize];
-};
 
 class SineSynthVoice: public ModulatorSynthVoice
 {

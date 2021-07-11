@@ -665,7 +665,7 @@ void HiColourPropertyComponent::ColourComp::mouseDown(const MouseEvent& /*event*
 
 	auto root = findParentComponentOfClass<FloatingTile>()->getRootFloatingTile();
 
-	CallOutBox::launchAsynchronously(p, root->getLocalArea(this, getLocalBounds()), root);
+	CallOutBox::launchAsynchronously(std::unique_ptr<Component>(p), root->getLocalArea(this, getLocalBounds()), root);
 }
 
 void HiColourPropertyComponent::ColourComp::changeListenerCallback(ChangeBroadcaster* b)
