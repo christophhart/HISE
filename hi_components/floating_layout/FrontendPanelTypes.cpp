@@ -478,7 +478,7 @@ void PerformanceLabelPanel::timerCallback()
 	//activityLed->setOn(midiFlag);
 
 	String stats = "CPU: ";
-	stats << String(cpuUsage) << "%, RAM: " << String(ramUsage, 1) << "MB , Voices: " << String(voiceAmount);
+	stats << String(cpuUsage) << "%, RAM: " << String(ramUsage, 1) << "MB, Voices: " << String(voiceAmount);
 	statisticLabel->setText(stats, dontSendNotification);
 }
 
