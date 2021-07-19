@@ -317,7 +317,7 @@ bool ScriptingObjects::ScriptFile::writeAudioFile(var audioData, double sampleRa
 		if (numSamples == -1)
 			numSamples = s;
 		else if (numSamples != s)
-			reportScriptError("Size mismatch at channel " + index);
+			reportScriptError("Size mismatch at channel " + String(index));
 
 		index++;
 	};
@@ -869,7 +869,9 @@ void ScriptingObjects::ScriptDownloadObject::flushTemporaryFile()
 		
 		download = nullptr;
 		auto ok = resumeFile.deleteFile();
-		resumeFile = File();
+        
+        if(ok)
+            resumeFile = File();
 	}
 }
 
@@ -1113,7 +1115,7 @@ var ScriptingObjects::ScriptRingBuffer::getResizedBuffer(int numDestSamples, int
 			for (float i = 0.0f; i < (float)rb.getNumSamples(); i += stride)
 			{
 				auto idx = (int)i;
-				auto c = rb.getSample(0, i);
+				auto c = rb.getSample(0, idx);
 				b->setSample(dstIndex++, c);
 			}
 		}
@@ -1174,11 +1176,7 @@ var ScriptingObjects::ScriptRingBuffer::createPath(var dstArea, var sourceRange,
 
 	p.startNewSubPath(0.0f, valueRange.getStart());
 	p.startNewSubPath(0.0f, valueRange.getEnd());
-
-	bool first = true;
-	float firstValue = 0.0f;
-
-	p.startNewSubPath(0.0f, startv);
+    p.startNewSubPath(0.0f, startv);
 
 	for (int i = 0; i < numValues; i += stride)
 	{

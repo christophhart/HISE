@@ -29,7 +29,7 @@
 #include <cmath>
 #include <cstring>
 
-#if HISE_IOS
+#if HISE_IOS || USE_VDSP_FFT
 #define AUDIOFFT_APPLE_ACCELERATE
 #endif
 
@@ -37,7 +37,14 @@
 
 #if defined(AUDIOFFT_APPLE_ACCELERATE)
   #define AUDIOFFT_APPLE_ACCELERATE_USED
-  #include <Accelerate/Accelerate.h>
+
+#define Point DummyPoint
+#define Component DummyComponent
+#define MemoryBlock DummyMB
+#include <Accelerate/Accelerate.h>
+#undef Point
+#undef Component
+#undef MemoryBlock
 
   #include <vector>
 #elif defined (AUDIOFFT_FFTW3)

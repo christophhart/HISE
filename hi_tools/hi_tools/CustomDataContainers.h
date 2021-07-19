@@ -513,6 +513,20 @@ template <int BSize, int Alignment> struct ObjectStorage
 		free();
 	}
 
+    ObjectStorage& operator==(ObjectStorage&& other)
+    {
+        objPtr = other.objPtr;
+        other.objPtr = nullptr;
+        
+        allocatedSize = other.allocatedSize;
+        other.allocatedSize = 0;
+        
+        memcpy(smallBuffer, other.smallBuffer, BSize + Alignment);
+        bigBuffer = std::move(other.bigBuffer);
+        
+        return *this;
+    }
+    
 	ObjectStorage(const ObjectStorage& other)
 	{
 		setSize(other.allocatedSize);

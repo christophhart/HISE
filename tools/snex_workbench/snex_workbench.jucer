@@ -33,7 +33,7 @@
           file="../../hi_core/hi_images/knob_without_arrow.png"/>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <XCODE_MAC targetFolder="Builds/MacOSX" xcodeValidArchs="x86_64">
+    <XCODE_MAC targetFolder="Builds/MacOSX" xcodeValidArchs="x86_64" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -fno-aligned-allocation">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" osxArchitecture="64BitIntel"/>
         <CONFIGURATION isDebug="0" name="Release" osxArchitecture="64BitIntel"/>

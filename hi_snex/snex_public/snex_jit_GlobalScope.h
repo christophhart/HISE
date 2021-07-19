@@ -77,6 +77,7 @@ struct RuntimeError
 		case ErrorType::DynAccessOutOfBounds: s << "dyn operator[] out of bounds - " << String(data1) << ", limit: " << String(data2); break;
 		case ErrorType::DynReferIllegalOffset: s << "referTo: illegal offset for dynamic source: " << String(data2) << "(total size: " + String(data1) << ")"; break;
 		case ErrorType::DynReferIllegalSize: s << "referTo: illegal size for dynamic source (" << String(data1) << ")"; break;
+        default: break;
 		}
 
 		return s;

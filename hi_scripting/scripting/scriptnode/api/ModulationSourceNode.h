@@ -181,6 +181,8 @@ struct MultiOutputDragSource
 		return Colour::fromHSV(hue, saturation, brightness, alpha);
 	}
 
+    virtual ~MultiOutputDragSource() {};
+    
 	virtual NodeBase* getNode() const = 0;
 	virtual int getOutputIndex() const = 0;
 	virtual int getNumOutputs() const = 0;

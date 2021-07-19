@@ -108,7 +108,7 @@ template <int C> struct ProcessDataHelpers
 			memcpy(dst + offset, sourcePtrs[i], sizeof(float)*numElements);
 		}
 
-		jassert(t.size() >= numToCopy);
+        jassert(t.size() >= numToCopy); ignoreUnused(numToCopy);
 	}
 };
 

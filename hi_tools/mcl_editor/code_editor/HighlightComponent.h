@@ -117,6 +117,7 @@ public:
 
 	struct Listener
 	{
+        virtual ~Listener() {};
 		virtual void searchItemsChanged() {};
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
@@ -197,9 +198,6 @@ public:
 	{
 		auto b = getLocalBounds();
 		
-		auto top = b.removeFromTop(5).toFloat();
-		
-
 		DropShadow sh;
 		sh.colour = Colours::black.withAlpha(0.8f);
 		sh.radius = 5;
@@ -207,9 +205,6 @@ public:
 
 		g.setColour(Colour(0xFF555555));
 		g.fillRect(b);
-
-		
-
 
 		String s;
 		
@@ -280,7 +275,7 @@ public:
 
 
 //==============================================================================
-class mcl::HighlightComponent : public juce::Component,
+class HighlightComponent : public juce::Component,
 								public FoldableLineRange::Listener
 {
 public:

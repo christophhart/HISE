@@ -230,11 +230,6 @@ public:
 		registerAllObjectFunctions(gs);
 	};
 
-	~ConsoleFunctions()
-	{
-		int x = 5;
-	}
-
 	WeakReference<BaseScope> classScope;
 	WeakReference<GlobalScope> gs;
 };

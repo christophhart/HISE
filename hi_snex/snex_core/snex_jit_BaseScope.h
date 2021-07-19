@@ -263,9 +263,10 @@ public:
 				switch (ts.s.typeInfo.getType())
 				{
 				case Types::ID::Integer: return VariableStorage(*(int*)ts.data);
-				case Types::ID::Float: return VariableStorage(*(float*)ts.data);
-				case Types::ID::Double: return VariableStorage(*(double*)ts.data);
-				case Types::ID::Block: return VariableStorage(*(block*)ts.data);
+				case Types::ID::Float:   return VariableStorage(*(float*)ts.data);
+				case Types::ID::Double:  return VariableStorage(*(double*)ts.data);
+				case Types::ID::Block:   return VariableStorage(*(block*)ts.data);
+                default:                 return VariableStorage();
 				}
 			}
 		}

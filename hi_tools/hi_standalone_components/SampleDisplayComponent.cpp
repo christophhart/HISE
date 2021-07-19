@@ -1137,8 +1137,8 @@ void XYZMultiChannelAudioBufferEditor::addButton(const Identifier& id, const Ide
 	tb->setClickingTogglesState(true);
 	tb->setRadioGroupId(912451, dontSendNotification);
 
-	bool shouldBeOn = currentId == id ||
-		id == Identifier("Single Sample") && currentId.isNull();
+	bool shouldBeOn = (currentId == id ||
+		id == Identifier("Single Sample")) && currentId.isNull();
 
 	tb->setToggleState(shouldBeOn, dontSendNotification);
 	addAndMakeVisible(tb);

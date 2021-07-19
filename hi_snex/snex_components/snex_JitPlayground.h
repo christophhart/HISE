@@ -693,7 +693,7 @@ private:
 
 	void eventHappened(BreakpointHandler* handler, BreakpointHandler::EventType type) override
 	{
-		currentBreakpointLine = *handler->getLineNumber();
+		currentBreakpointLine = (int)*handler->getLineNumber();
 
 		if (type == BreakpointHandler::Resume)
 			currentBreakpointLine = -1;

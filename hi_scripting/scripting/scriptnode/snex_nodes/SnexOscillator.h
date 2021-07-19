@@ -175,6 +175,8 @@ private:
 
 			if (id == RingBufferIds::NumChannels)
 				return SimpleRingBuffer::toFixSize<1>(v);
+            
+            return true;
 		}
 
 		void transformReadBuffer(AudioSampleBuffer& b) override;

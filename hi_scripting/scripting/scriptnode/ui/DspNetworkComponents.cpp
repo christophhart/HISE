@@ -405,18 +405,6 @@ void DspNetworkGraph::resized()
 	}
 }
 
-
-
-static Colour getFadeColour(int index, int numPaths)
-{
-	if (numPaths == 0)
-		return Colours::transparentBlack;
-
-	auto hue = (float)index / (float)numPaths;
-
-	return Colour::fromHSV(hue, 0.2f, 0.8f, 0.4f);
-}
-
 Colour getSpecialColour(Component* c, Colour defaultColour)
 {
 	if (NodeComponent* nc = c->findParentComponentOfClass<NodeComponent>())
@@ -457,16 +445,9 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 	for (auto e : draggers)
 	{
-		auto asC = dynamic_cast<Component*>(e);
-
-		float zf = findParentComponentOfClass<ZoomableViewport>()->zoomFactor;
-
 		auto mousePoint = this->getMouseXYRelative().toFloat();
 
 		Rectangle<float> a(mousePoint, mousePoint);
-
-		//asC->getProperties().set("circleOffsetX", zf * JUCE_LIVE_CONSTANT_OFF(1.0));
-		//asC->getProperties().set("circleOffsetY", JUCE_LIVE_CONSTANT_OFF(0));
 
 		auto start = getCircle(e->getDetails().sourceComponent, false);
 		auto end = a.withSize(start.getWidth(), start.getHeight());
@@ -582,13 +563,9 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 				auto index = multiSource->getOutputIndex();
 				auto numOutputs = multiSource->getNumOutputs();
-
 				auto c = MultiOutputDragSource::getFadeColour(index, numOutputs).withAlpha(1.0f);
 
-				auto cableColour = getSpecialColour(dynamic_cast<Component*>(multiSource), c);
-
 				Colour hc = s->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
-
 				paintCable(g, start, end, c, alpha, hc);
 			}
 		}

@@ -127,6 +127,7 @@ private:
 		bool evaluate(String& b, Result& r)
 		{
 			jassertfalse;
+            return false;
 		}
 
 		AutocompleteData getAutocompleteData() const
@@ -191,7 +192,7 @@ private:
 		{
 			if (e.location.program != program)
 			{
-				int delta = e.location.location - e.location.program;
+				auto delta = (int)(e.location.location - e.location.program);
 
 				e.location.location = originalLocation + delta;
 				e.location.program = program;

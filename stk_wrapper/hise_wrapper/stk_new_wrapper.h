@@ -88,7 +88,6 @@ template <typename T, int NumChannels> struct StkWrapperBase
 	{
 		if constexpr (ProcessDataType::hasCompileTimeSize())
 		{
-			constexpr int NumChannelsToUse = jmin(NumChannels, d.getNumChannels());
 			auto fd = d.template toFrameData<NumChannels>();
 
 			while (fd.next())
@@ -140,7 +139,6 @@ template <typename T, int NumChannels> struct MultiChannelWrapperBase
 	{
 		if constexpr (ProcessDataType::hasCompileTimeSize())
 		{
-			constexpr int NumChannelsToUse = jmin(NumChannels, d.getNumChannels());
 			auto fd = d.template toFrameData<NumChannels>();
 
 			while (fd.next())

@@ -176,7 +176,7 @@ public:
     // nullptr on headless systems with no connected displays
     JUCE_DEPRECATED (const Display& findDisplayForRect (Rectangle<int>, bool isPhysical = false) const noexcept);
     JUCE_DEPRECATED (const Display& findDisplayForPoint (Point<int>, bool isPhysical = false) const noexcept);
-    JUCE_DEPRECATED (const Display& getMainDisplay() const noexcept);
+    const Display& getMainDisplay() const noexcept;
    #endif
 
 private:

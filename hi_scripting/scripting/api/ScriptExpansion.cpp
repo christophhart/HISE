@@ -838,6 +838,8 @@ juce::Result ScriptEncryptedExpansion::loadValueTree(ValueTree& v)
 
 		return Result::ok();
 	}
+    
+    return Result::fail("Filebased expansions not supported here");
 }
 
 

@@ -88,7 +88,7 @@ public:
 				{
 				case '(':
 				case '<':
-					thisRangeStart = (ptr - start) + 1;
+					thisRangeStart = (int)(ptr - start) + 1;
 					break;
 				case ',':
 				{
@@ -721,9 +721,7 @@ struct Autocomplete : public Component,
 	void paint(Graphics& g) override
 	{
 		g.fillAll(Colour(0xFF282828));
-		auto b = getLocalBounds().toFloat();
-
-	}
+    }
 
 
 

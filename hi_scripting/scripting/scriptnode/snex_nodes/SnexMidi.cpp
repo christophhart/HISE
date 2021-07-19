@@ -86,8 +86,6 @@ void dynamic::prepare(PrepareSpecs ps)
 	if (getParentNode() != nullptr)
 	{
 		auto pp = getParentNode()->getParentNode();
-		bool found = true;
-
 		auto isInMidiChain = getParentNode()->getRootNetwork()->isPolyphonic();
 
 		while (pp != nullptr && !isInMidiChain)

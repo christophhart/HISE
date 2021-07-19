@@ -18,7 +18,7 @@ using namespace juce;
 
 
 //==============================================================================
-class mcl::CaretComponent : public juce::Component, public juce::Timer
+class CaretComponent : public juce::Component, public juce::Timer
 {
 public:
 	CaretComponent(const TextDocument& document);
@@ -27,8 +27,6 @@ public:
 
 	//==========================================================================
 	void paint(juce::Graphics& g) override;
-
-	
 
 private:
 	//==========================================================================

@@ -177,7 +177,7 @@ struct Helpers
 		returnIfDefault(AllowCompilation, false);
 		returnIfDefault(AllowPolyphonic, false);
 
-		jassertfalse;
+        return {};
 	}
 
 #undef returnIfDefault

@@ -592,31 +592,31 @@ template <class T> struct dyn
 
 	template<class Other> dyn(Other& o) :
 		data(o.begin()),
-		size_(o.end() - o.begin())
+		size_((int)(o.end() - o.begin()))
 	{
         static_assert(std::is_same<DataType, typename Other::DataType>(), "not same data type");
 	}
 
 	template<class Other> dyn(Other& o, size_t s_) :
 		data(o.begin()),
-		size_(s_)
+		size_((int)s_)
 	{
         static_assert(std::is_same<DataType, typename Other::DataType>(), "not same data type");
 	}
 
 	dyn(juce::HeapBlock<T>& d, size_t s_):
 		data(d.get()),
-		size_(s_)
+		size_((int)s_)
 	{}
 
 	dyn(T* data_, size_t s_) :
 		data(data_),
-		size_(s_)
+		size_((int)s_)
 	{}
 
 	template<class Other> dyn(Other& o, size_t s_, size_t offset) :
 		data(o.begin() + offset),
-		size_(s_)
+		size_((int)s_)
 	{
 		auto fullSize = o.end() - o.begin();
 		jassert(offset + size() < fullSize);
@@ -963,131 +963,6 @@ template <typename T> struct heap
 	int size_ = 0;
 	juce::HeapBlock<T> data;
 };
-
-namespace Interleaver
-{
-
-
-static void interleave(float* src, int numFrames, int numChannels)
-{
-	size_t numBytes = sizeof(float) * numChannels * numFrames;
-
-	float* dst = (float*)alloca(numBytes);
-
-	for (int i = 0; i < numFrames; i++)
-	{
-		for (int j = 0; j < numChannels; j++)
-		{
-			auto targetIndex = i * numChannels + j;
-			auto sourceIndex = j * numFrames + i;
-
-			dst[targetIndex] = src[sourceIndex];
-		}
-	}
-
-	memcpy(src, dst, numBytes);
-}
-
-
-static void interleaveRaw(float* src, int numFrames, int numChannels)
-{
-	interleave(src, numFrames, numChannels);
-}
-
-template <class T, int NumChannels> static auto interleave(span<dyn<T>, NumChannels>& t)
-{
-	jassert(isContinousMemory(t));
-
-	int numFrames = t[0].size;
-
-	static_assert(std::is_same<float, T>(), "must be float");
-
-	// [ [ptr, size], [ptr, size] ]
-	// => [ ptr, size ] 
-
-	using FrameType = span<T, NumChannels>;
-
-
-	auto src = reinterpret_cast<float*>(t[0].begin());
-	interleaveRaw(src, numFrames, NumChannels);
-
-	return dyn<FrameType>(reinterpret_cast<FrameType*>(src), numFrames);
-}
-
-/** Interleaves the float data from a dynamic array of frames.
-
-	dyn_span<T>(numChannels) => span<dyn_span<T>, NumChannels>
-*/
-template <class T, int NumChannels> static auto interleave(dyn<span<T, NumChannels>>& t)
-{
-	jassert(isContinousMemory(t));
-
-	int numFrames = t.size;
-
-	span<dyn<T>, NumChannels> d;
-
-	float* src = t.begin()->begin();
-
-
-	interleave(src, NumChannels, numFrames);
-
-	for (auto& r : d)
-	{
-		r = dyn<T>(src, numFrames);
-		src += numFrames;
-	}
-
-	return d;
-}
-
-template <class T, int NumFrames, int NumChannels> static auto& interleave(span<span<T, NumFrames>, NumChannels>& t)
-{
-	static_assert(std::is_same<float, T>(), "must be float");
-	jassert(isContinousMemory(t));
-
-	using ChannelType = span<T, NumChannels>;
-
-	int s1 = sizeof(span<ChannelType, NumFrames>);
-	int s2 = sizeof(span<span<T, NumFrames>, NumChannels>);
-
-
-
-	auto src = reinterpret_cast<float*>(t.begin());
-	interleave(src, NumFrames, NumChannels);
-	return *reinterpret_cast<span<ChannelType, NumFrames>*>(&t);
-}
-
-template <class T> static bool isContinousMemory(const T& t)
-{
-	using ElementType = typename T::DataType;
-
-	auto ptr = t.begin();
-	auto e = t.end();
-	auto elementSize = sizeof(ElementType);
-	auto size = (e - ptr) * elementSize;
-	auto realSize = reinterpret_cast<uint64_t>(e) - reinterpret_cast<uint64_t>(ptr);
-	return realSize == size;
-}
-
-
-template <class DataType> static dyn<DataType> slice(const dyn<DataType>& src, int size = -1, int start=0)
-{
-	dyn<DataType> c;
-	c.referTo(src, size, start);
-	return c;
-}
-
-template <class DataType, int Size> static dyn<DataType> slice(const span<DataType, Size>& src, int size = -1, int start=0)
-{
-	dyn<DataType> d;
-	d.referToRawData(src.begin(), size, start);
-	return d;
-}
-
-
-};
-
-
 
 }
     

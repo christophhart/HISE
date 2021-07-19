@@ -6,7 +6,7 @@
  *  Version		: 1.12
  *  Implements	: SimpleLimit
  *
- *	© 2006, ChunkWare Music Software, OPEN-SOURCE
+ *	ï¿½ 2006, ChunkWare Music Software, OPEN-SOURCE
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a
  *	copy of this software and associated documentation files (the "Software"),
@@ -57,7 +57,7 @@ namespace chunkware_simple
 	void SimpleLimit::setThresh( SimpleDataType dB )
 	{
 		threshdB_ = dB;
-		thresh_ = dB2lin( dB );
+        thresh_ = juce::Decibels::decibelsToGain(dB);
 	}
 
 	//-------------------------------------------------------------

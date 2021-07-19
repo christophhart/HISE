@@ -256,13 +256,13 @@ struct FontHelpers
 
 
 #if ENABLE_MARKDOWN
-#define MARKDOWN_CHAPTER(chapter) namespace chapter {
+#define MARKDOWN_CHAPTER(chapter) struct chapter {
 #define START_MARKDOWN(name) static const String name() { String content; static const String nl = "\n";
 #define ML(text) content << text << nl;
 #define ML_START_CODE() ML("```javascript")
 #define ML_END_CODE() ML("```")
 #define END_MARKDOWN() return content; };
-#define END_MARKDOWN_CHAPTER() }
+#define END_MARKDOWN_CHAPTER() };
 #else
 #define MARKDOWN_CHAPTER(chapter)
 #define START_MARKDOWN(name) 

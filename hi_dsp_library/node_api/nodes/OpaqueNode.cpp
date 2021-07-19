@@ -263,6 +263,8 @@ int ProjectDll::getWrapperType(int i) const
 {
 	if (gwtf != nullptr)
 		return gwtf(i);
+    
+    return 0;
 }
 
 int ProjectDll::getNumNodes() const

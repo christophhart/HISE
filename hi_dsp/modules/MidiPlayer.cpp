@@ -1048,8 +1048,6 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 
 			auto timeStampInThisBuffer = e->getTimeStamp() - positionInTicks;
 
-			timeStampInThisBuffer;
-
 			if (timeStampInThisBuffer < 0.0)
 				timeStampInThisBuffer += getCurrentSequence()->getTimeSignature().normalisedLoopRange.getLength() * lengthInTicks;
 
@@ -1801,6 +1799,7 @@ void MidiPlayer::addNoteOffsToPendingNoteOns()
 		{
 			auto channel = futureEvent.getChannel();
 			jassert(channel == currentTrackIndex + 1);
+            ignoreUnused(channel);
 
 			futureEvent.setTimeStamp(getLargestBlockSize() - 2);
 			sortAfterOp = true;

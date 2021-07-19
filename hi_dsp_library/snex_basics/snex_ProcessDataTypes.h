@@ -391,7 +391,7 @@ template <typename ProcessDataType, bool IncludeEvents=true> struct ChunkablePro
 
 				if (numEventsThisTime != 0)
 				{
-					slicedEvents.referToRawData(parent.events.begin() + firstIndex, (size_t) numEventsThisTime);
+					slicedEvents.referToRawData(parent.events.begin() + firstIndex, numEventsThisTime);
 
 					sliced.setEventBuffer(slicedEvents);
 

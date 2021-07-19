@@ -681,8 +681,19 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 
 	static constexpr size_t getDataOffset()
 	{
-		using D = data<T, DataHandler>;
-		return offsetof(D, i);
+        using D = data<T, DataHandler>;
+        return offsetof(D, i);
+
+        
+        
+        D* d = nullptr;
+        
+        auto x1 = reinterpret_cast<uint64>(&d->i);
+        auto x2 = reinterpret_cast<uint64>(&d->obj);
+        
+        return static_cast<size_t>(x1 - x2);
+        
+		//return offsetof(D, i);
 	}
 
 	data()

@@ -172,14 +172,9 @@ public:
 
 	void displayedLineRangeChanged(Range<int> newRange) override
 	{
-		auto middleLine = newRange.getStart() + newRange.getLength() / 2;
-
 		for (auto i : items)
-		{
 			i->setDisplayedRange(newRange);
 			
-		}
-
 		repaint();
 	}
 
@@ -351,6 +346,7 @@ public:
 			case Function:	g.setColour(Colour(0xFF76425A).brighter(0.2f)); break;
 			case Enum:		g.setColour(Colour(0xFF6C8249).brighter(0.2f)); break;
 			case Namespace: g.setColour(Colour(0xFF8D7B4F).brighter(0.2f)); break;
+            default:                                                        break;
 			}
 
 
@@ -506,10 +502,10 @@ public:
 };
 
 
-class mcl::CodeMap : public Component,
-	public CodeDocument::Listener,
-	public Timer,
-	public Selection::Listener
+class CodeMap : public Component,
+                public CodeDocument::Listener,
+                public Timer,
+                public Selection::Listener
 {
 public:
 

@@ -332,6 +332,8 @@ void DspNetworkCodeProvider::anythingChanged(valuetree::AnyListener::CallbackTyp
 			DBG("CHANGE");
 			t->getParent()->triggerPostCompileActions();
 		}
+        
+        return SafeFunctionCall::OK;
 	};
 
 	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
@@ -457,8 +459,6 @@ struct WorkbenchBottomComponent::RoutingSelector : public Component,
 
 	void paint(Graphics& g) override
 	{
-		bool over = isMouseOver(true);
-
 		auto pAlpha = 0.0f;
 		auto mAlpha = 0.0f;
 

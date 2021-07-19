@@ -447,8 +447,6 @@ void RoutableProcessor::MatrixData::handleDisplayValues(const AudioSampleBuffer&
 {
 	if (isEditorShown())
 	{
-		float gainValues[NUM_MAX_CHANNELS];
-
 		auto numToCheck = jmin(input.getNumSamples(), output.getNumSamples());
 		static constexpr float DecayFactor = 0.97f;
 

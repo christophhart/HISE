@@ -155,7 +155,6 @@ public:
 
 	template <typename FrameDataType> void processFrame(FrameDataType& d)
 	{
-		auto numToDo = 1.0;
 		auto& u = uptime.get();
 
 		modValues.get().setModValueIfChanged(parentProcessor->getModValueForNode(modIndex, roundToInt(u)));

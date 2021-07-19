@@ -39,10 +39,6 @@ void mcl::GutterComponent::updateSelections()
 
 void mcl::GutterComponent::paint(Graphics& g)
 {
-#if PROFILE_PAINTS
-	auto start = Time::getMillisecondCounterHiRes();
-#endif
-
 	/*
 	 Draw the gutter background, shadow, and outline
 	 ------------------------------------------------------------------
@@ -65,8 +61,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 	 */
 	auto area = g.getClipBounds().toFloat().transformedBy(transform.inverted());
 	auto rowData = document.findRowsIntersecting(area);
-	auto verticalTransform = transform.withAbsoluteTranslation(0.f, transform.getTranslationY());
-
+	
 	auto getRowData = [&rowData](int lineNumber)
 	{
 		TextDocument::RowData* data = nullptr;
@@ -83,8 +78,6 @@ void mcl::GutterComponent::paint(Graphics& g)
 	};
 
 	auto f = document.getFont();
-
-	auto gap = (document.getRowHeight() - f.getHeight() * 0.8f) / 2.0f * transform.getScaleFactor();
 
 	f.setHeight(f.getHeight() * transform.getScaleFactor() * 0.8f);
 	g.setFont(f);
@@ -191,6 +184,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 			ug.draw1PxVerticalLine(lfb.getCentreX(), lfb.getY(), b);
 			ug.draw1PxHorizontalLine(b, lfb.getCentreX(), lfb.getRight() - 3.0f * transform.getScaleFactor());
 		}
+        default: break;
 		}
 	}
 
@@ -223,8 +217,6 @@ void mcl::GutterComponent::paint(Graphics& g)
 			g.fillRect(b.withWidth(getWidth()));
 		}
 	}
-
-	int bpIndex = 0;
 
 	for (auto bp : breakpoints)
 	{
@@ -265,9 +257,6 @@ void mcl::GutterComponent::paint(Graphics& g)
 	
 	blinkHandler.draw(g, rowData);
 
-#if PROFILE_PAINTS
-	std::cout << "[GutterComponent::paint] " << Time::getMillisecondCounterHiRes() - start << std::endl;
-#endif
 }
 
 GlyphArrangement mcl::GutterComponent::getLineNumberGlyphs(int row) const
@@ -483,7 +472,7 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 						t->setSize(GLOBAL_MONOSPACE_FONT().getStringWidth(line) + 20.0f, 24.0f);
 						t->setText(line, dontSendNotification);
 						t->setReadOnly(true);
-						auto& cb = CallOutBox::launchAsynchronously(std::unique_ptr<Component>(t), calloutBounds, nullptr);
+						CallOutBox::launchAsynchronously(std::unique_ptr<Component>(t), calloutBounds, nullptr);
 					}
 				}
 				else

@@ -537,10 +537,6 @@ public:
 
 	void renderOpenGL() override
 	{
-		auto& ctx = srs->t.contextHolder->context;
-
-		
-		
 		
 	}
 

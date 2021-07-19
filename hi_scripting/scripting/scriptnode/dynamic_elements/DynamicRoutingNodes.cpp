@@ -121,15 +121,13 @@ void cable::dynamic::prepare(PrepareSpecs ps)
 
 		for (int i = 0; i < ps.numChannels; i++)
 		{
-			channels[i].referToRawData(ptr, (size_t)ps.blockSize);
+			channels[i].referToRawData(ptr, ps.blockSize);
 			ptr += ps.blockSize;
 		}
 	}
 
 	if (parentNode != nullptr)
 	{
-		auto pn = parentNode->getRootNetwork();
-
 		auto ids = StringArray::fromTokens(receiveIds.getValue(), ";", "");
 		ids.removeDuplicates(false);
 		ids.removeEmptyStrings(true);
@@ -360,14 +358,7 @@ bool dynamic::editor::isInterestedInDragSource(const SourceDetails& dragSourceDe
 void dynamic::editor::itemDragEnter(const SourceDetails& dragSourceDetails)
 {
 	dragOver = true;
-
 	currentDragError = checkConnectionWhileDragging(dragSourceDetails);
-
-	if (currentDragError.error != Error::OK)
-	{
-		auto dd = getDragAndDropContainer();
-	}
-
 	repaint();
 }
 
@@ -613,6 +604,8 @@ bool dynamic::editor::isConnected()
 
 	if (auto sn = getAsSendNode())
 		return sn->cable.receiveIds.getValue().isNotEmpty();
+    
+    return false;
 }
 
 void dynamic::editor::updatePeakMeter()
