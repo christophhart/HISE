@@ -912,6 +912,8 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 
 	ComboBox* b = w.getComboBoxComponent("buildOption");
 
+    GlobalHiseLookAndFeel::setDefaultColours(*b);
+    
 #if JUCE_WINDOWS
 
 	switch (type)
