@@ -120,6 +120,7 @@ namespace snex
             DECLARE_ID(AsmOptimisation)
             DECLARE_ID(NoSafeChecks);
 
+#if HISE_INCLUDE_SNEX
             static StringArray getDefaultIds()
             {
                 return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
@@ -129,6 +130,7 @@ namespace snex
             {
                 return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
             }
+#endif
         }
 
 #undef DECLARE_ID
