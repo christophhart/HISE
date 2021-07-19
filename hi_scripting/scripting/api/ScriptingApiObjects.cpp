@@ -4926,6 +4926,28 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawScrollbar(Graphics& g_, Scr
 	GlobalHiseLookAndFeel::drawScrollbar(g_, scrollbar, x, y, width, height, isScrollbarVertical, thumbStartPosition, thumbSize, isMouseOver, isMouseDown);
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawMidiDropper(Graphics& g_, Rectangle<float> area, const String& text, MidiFileDragAndDropper& d)
+{
+	if (functionDefined("drawMidiDropper"))
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
+		obj->setProperty("hover", d.hover);
+		obj->setProperty("active", d.isActive());
+		obj->setProperty("externalDrag", d.externalDrag);
+
+		obj->setProperty("bgColour", d.findColour(HiseColourScheme::ComponentBackgroundColour).getARGB());
+		obj->setProperty("itemColour", d.findColour(HiseColourScheme::ComponentOutlineColourId).getARGB());
+		obj->setProperty("textColour", d.findColour(HiseColourScheme::ComponentTextColourId).getARGB());
+		obj->setProperty("text", text);
+
+		if (get()->callWithGraphics(g_, "drawMidiDropper", var(obj)))
+			return;
+	}
+
+	MidiFileDragAndDropper::LookAndFeelMethods::drawMidiDropper(g_, area, text, d);
+}
+
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)
 {
 	auto img = MessageWithIcon::LookAndFeelMethods::createIcon(type);

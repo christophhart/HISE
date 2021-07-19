@@ -2431,6 +2431,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_0(Sampler, getSampleMapList);
     API_METHOD_WRAPPER_0(Sampler, getCurrentSampleMapId);
     API_VOID_METHOD_WRAPPER_2(Sampler, setAttribute);
+	API_VOID_METHOD_WRAPPER_2(Sampler, setRRGroupVolume);
     API_METHOD_WRAPPER_0(Sampler, getNumAttributes);
     API_METHOD_WRAPPER_1(Sampler, getAttribute);
     API_METHOD_WRAPPER_1(Sampler, getAttributeId);
@@ -2455,6 +2456,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(enableRoundRobin);
 	ADD_API_METHOD_1(setActiveGroup);
 	ADD_API_METHOD_0(getActiveRRGroup);
+	ADD_API_METHOD_2(setRRGroupVolume);
 	ADD_API_METHOD_2(setMultiGroupIndex);
 	ADD_API_METHOD_2(getRRGroupsForMessage);
 	ADD_API_METHOD_0(refreshRRMap);
@@ -2601,6 +2603,19 @@ void ScriptingApi::Sampler::setMultiGroupIndex(var groupIndex, bool enabled)
 }
 
 
+
+void ScriptingApi::Sampler::setRRGroupVolume(int groupIndex, int gainInDecibels)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setRRGroupVolume() only works with Samplers.");
+		return;
+	}
+
+	s->setRRGroupVolume(groupIndex, Decibels::decibelsToGain((float)gainInDecibels));
+}
 
 int ScriptingApi::Sampler::getActiveRRGroup()
 {
@@ -3504,6 +3519,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_0(Synth, isLegatoInterval);
 	API_METHOD_WRAPPER_0(Synth, isSustainPedalDown);
 	API_METHOD_WRAPPER_1(Synth, isKeyDown);
+	API_METHOD_WRAPPER_1(Synth, isArtificialEventActive);
 	API_VOID_METHOD_WRAPPER_1(Synth, setClockSpeed);
 	API_VOID_METHOD_WRAPPER_1(Synth, setShouldKillRetriggeredNote);
 };
@@ -3574,6 +3590,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_0(isLegatoInterval);
 	ADD_API_METHOD_0(isSustainPedalDown);
 	ADD_API_METHOD_1(isKeyDown);
+	ADD_API_METHOD_1(isArtificialEventActive);
 	ADD_API_METHOD_1(setClockSpeed);
 	ADD_API_METHOD_1(setShouldKillRetriggeredNote);
 
@@ -4615,6 +4632,12 @@ void ScriptingApi::Synth::setModulatorAttribute(int chain, int modulatorIndex, i
 }
 
 
+bool ScriptingApi::Synth::isArtificialEventActive(int eventId)
+{
+	return getScriptProcessor()->getMainController_()->getEventHandler().isArtificialEventId((uint16)eventId);
+}
+
+
 ScriptingObjects::ScriptingModulator* ScriptingApi::Synth::addModulator(int chain, const String &type, const String &id)
 {
 	ModulatorChain *c = nullptr;
@@ -5349,6 +5372,7 @@ struct ScriptingApi::Server::Wrapper
 	API_METHOD_WRAPPER_4(Server, downloadFile);
 	API_VOID_METHOD_WRAPPER_1(Server, setHttpHeader);
 	API_METHOD_WRAPPER_0(Server, getPendingDownloads);
+	API_METHOD_WRAPPER_0(Server, getPendingCalls);
 	API_METHOD_WRAPPER_0(Server, isOnline);
 	API_VOID_METHOD_WRAPPER_1(Server, setNumAllowedDownloads);
 	API_VOID_METHOD_WRAPPER_0(Server, cleanFinishedDownloads);
@@ -5376,6 +5400,7 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_1(setHttpHeader);
 	ADD_API_METHOD_4(downloadFile);
 	ADD_API_METHOD_0(getPendingDownloads);
+	ADD_API_METHOD_0(getPendingCalls);
 	ADD_API_METHOD_0(isOnline);
 	ADD_API_METHOD_1(setNumAllowedDownloads);
 	ADD_API_METHOD_1(setServerCallback);
@@ -5443,6 +5468,11 @@ var ScriptingApi::Server::downloadFile(String subURL, var parameters, var target
 var ScriptingApi::Server::getPendingDownloads()
 {
 	return globalServer.getPendingDownloads();
+}
+
+var ScriptingApi::Server::getPendingCalls()
+{
+	return globalServer.getPendingCallbacks();
 }
 
 void ScriptingApi::Server::setNumAllowedDownloads(int maxNumberOfParallelDownloads)

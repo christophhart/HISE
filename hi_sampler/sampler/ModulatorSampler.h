@@ -417,6 +417,8 @@ public:
 	/** Sets the current index to the group. */
 	bool setCurrentGroupIndex(int currentIndex);
 
+	void setRRGroupVolume(int groupIndex, float gainValue);
+
 	bool setMultiGroupState(int groupIndex, bool shouldBeEnabled);
 	
 	bool setMultiGroupState(const int* data128, int numSet);
@@ -718,6 +720,9 @@ private:
 	int rrGroupAmount;
 	int currentRRGroupIndex;
 	
+	Array<float> rrGroupGains;
+	bool useRRGain = false;
+
 	struct MultiGroupState
 	{
 		MultiGroupState()

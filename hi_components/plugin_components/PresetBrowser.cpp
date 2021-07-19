@@ -901,11 +901,16 @@ void PresetBrowser::resized()
 
 	int x = 3;
 
+	
+	
+
 	bankColumn->setVisible(!showOnlyPresets && numColumns > 1);
 	categoryColumn->setVisible(!showOnlyPresets && numColumns > 2);
 	presetColumn->setIsResultBar(showOnlyPresets);
 
 	auto listArea = Rectangle<int>(x, y, getWidth() - 6, getHeight() - y - 3);
+
+	
 
 	if (noteLabel->isVisible())
 	{
@@ -918,7 +923,10 @@ void PresetBrowser::resized()
 
 	if (showOnlyPresets)
 	{
-		presetColumn->setBounds(listArea);
+		if (expansionColumn != nullptr)
+			listArea.removeFromLeft(expansionColumn->getWidth() + 4);
+
+		presetColumn->setBounds(listArea.reduced(2));
 	}
 	else
 	{

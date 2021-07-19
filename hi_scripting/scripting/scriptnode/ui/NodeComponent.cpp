@@ -1072,6 +1072,8 @@ void NodeComponent::PopupHelpers::wrapIntoChain(NodeBase* node, MenuActions resu
 	{
 		auto containerTree = newContainer->getValueTree();
 
+		newContainer->setValueTreeProperty(PropertyIds::NodeColour, node->getValueTree()[PropertyIds::NodeColour]);
+
 		auto um = node->getUndoManager();
 
 		auto selection = network->getSelection();
