@@ -681,8 +681,9 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 
 	static constexpr size_t getDataOffset()
 	{
-        
-		using D = wrap::init<T, DataHandler>;
+        using D = data<T, DataHandler>;
+        return offsetof(D, i);
+
         
         
         D* d = nullptr;

@@ -1799,6 +1799,7 @@ void MidiPlayer::addNoteOffsToPendingNoteOns()
 		{
 			auto channel = futureEvent.getChannel();
 			jassert(channel == currentTrackIndex + 1);
+            ignoreUnused(channel);
 
 			futureEvent.setTimeStamp(getLargestBlockSize() - 2);
 			sortAfterOp = true;
