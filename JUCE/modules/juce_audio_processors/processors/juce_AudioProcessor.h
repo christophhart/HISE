@@ -1383,7 +1383,7 @@ protected:
 public:
     // These methods are all deprecated in favour of using AudioProcessorParameter
     // and AudioProcessorParameterGroup
-    JUCE_DEPRECATED (virtual int getNumParameters());
+    virtual int getNumParameters();
     JUCE_DEPRECATED (virtual const String getParameterName (int parameterIndex));
     JUCE_DEPRECATED (virtual String getParameterID (int index));
     JUCE_DEPRECATED (virtual float getParameter (int parameterIndex));
@@ -1399,9 +1399,9 @@ public:
     JUCE_DEPRECATED (virtual bool isParameterAutomatable (int parameterIndex) const);
     JUCE_DEPRECATED (virtual bool isMetaParameter (int parameterIndex) const);
     JUCE_DEPRECATED (virtual AudioProcessorParameter::Category getParameterCategory (int parameterIndex) const);
-    JUCE_DEPRECATED (void beginParameterChangeGesture (int parameterIndex));
-    JUCE_DEPRECATED (void endParameterChangeGesture (int parameterIndex));
-    JUCE_DEPRECATED (void setParameterNotifyingHost (int parameterIndex, float newValue));
+    void beginParameterChangeGesture (int parameterIndex);
+    void endParameterChangeGesture (int parameterIndex);
+    void setParameterNotifyingHost (int parameterIndex, float newValue);
 
     // These functions are deprecated: your audio processor can inform the host
     // on its bus and channel layouts and names using the AudioChannelSet and various bus classes.

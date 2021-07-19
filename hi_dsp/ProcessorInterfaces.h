@@ -184,6 +184,7 @@ public:
 		case ExternalData::DataType::SliderPack: return sliderPacks.size();
 		case ExternalData::DataType::AudioFile: return audioFiles.size();
 		case ExternalData::DataType::DisplayBuffer: return displayBuffers.size();
+        default: return 0;
 		}
 
 		return 0;
@@ -335,6 +336,7 @@ public:
 		case ExternalData::DataType::Table: return tables.size();
 		case ExternalData::DataType::AudioFile: return audioFiles.size();
 		case ExternalData::DataType::DisplayBuffer: return ringBuffers.size();
+        default: return 0;
 		}
 
 		return 0;
@@ -378,6 +380,7 @@ public:
 			audioFiles.set(index, dynamic_cast<MultiChannelAudioBuffer*>(obj)); break;
 		case ExternalData::DataType::DisplayBuffer:
 			ringBuffers.set(index, dynamic_cast<SimpleRingBuffer*>(obj)); break;
+        default: jassertfalse; break;
 		}
 	}
 

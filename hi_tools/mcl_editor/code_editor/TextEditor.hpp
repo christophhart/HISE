@@ -269,7 +269,7 @@ public:
 
 		auto lineNumber = o.x;
 		
-		if (forceShow || (input.isNotEmpty() && tokenCollection.hasEntries(input, tokenBefore, lineNumber) || hasDotAndNotFloat))
+		if (forceShow || ((input.isNotEmpty() && tokenCollection.hasEntries(input, tokenBefore, lineNumber)) || hasDotAndNotFloat))
 		{
 			if (currentAutoComplete != nullptr)
 				currentAutoComplete->setInput(input, tokenBefore, lineNumber);
@@ -407,8 +407,6 @@ public:
 
 	bool incParameter(bool useUndo=true)
 	{
-		auto s = currentParameterSelection.size();
-
 		if (currentParameter != nullptr)
 		{
 			auto newIndex = currentParameterSelection.indexOf(currentParameter) + 1;

@@ -279,7 +279,7 @@ public:
         Obviously a length may be scaled by entirely different amounts depending on its
         direction, so this is only appropriate as a rough guide.
     */
-    JUCE_DEPRECATED (float getScaleFactor() const noexcept);
+    float getScaleFactor() const noexcept;
 
     /* A ready-to-use identity transform - now deprecated.
        @deprecated If you need an identity transform, just use AffineTransform() or {}.

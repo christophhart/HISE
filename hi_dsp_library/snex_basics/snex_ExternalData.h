@@ -785,7 +785,9 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 
 		if constexpr (EnableBuffer)
 		{
-			if (rb = dynamic_cast<SimpleRingBuffer*>(d.obj))
+            rb = dynamic_cast<SimpleRingBuffer*>(d.obj);
+            
+			if (rb != nullptr)
 			{
 #if SNEX_THROW_IF_MULTIPLE_WRITERS
 				if (rb->getCurrentWriter() != nullptr)
@@ -797,11 +799,8 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 #endif
 
 				rb->setCurrentWriter(this);
-
 				registerPropertyObject(rb);
 					
-				//rb->setPropertyObject(createPropertyObject());
-
 				if (lastSpecs.sampleRate > 0.0)
 					prepare(lastSpecs);
 			}

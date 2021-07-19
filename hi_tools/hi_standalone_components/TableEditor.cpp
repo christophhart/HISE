@@ -361,8 +361,6 @@ void TableEditor::mouseDown(const MouseEvent &e)
 	int x = parentEvent.getMouseDownPosition().getX();
 	int y = parentEvent.getMouseDownPosition().getY();
 
-	auto a = getTableArea();
-
 	DragPoint *dp = this->getPointUnder(x, y);
 
 	lastEditedPointIndex = drag_points.indexOf(dp);

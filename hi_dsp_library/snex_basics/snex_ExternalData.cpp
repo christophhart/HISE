@@ -117,6 +117,7 @@ hise::ComplexDataUIBase* ExternalDataHolder::getComplexBaseType(ExternalData::Da
 	case ExternalData::DataType::AudioFile:  return getAudioFile(index);
 	case ExternalData::DataType::FilterCoefficients: return getFilterData(index);
 	case ExternalData::DataType::DisplayBuffer: return getDisplayBuffer(index);
+    default: return nullptr;
 	}
 
 	return nullptr;
@@ -181,7 +182,6 @@ ExternalData::ExternalData(ComplexDataUIBase* b, int absoluteIndex) :
 	}
 	case DataType::FilterCoefficients:
 	{
-		auto t = dynamic_cast<FilterDataObject*>(obj);
 		data = nullptr;
 		numSamples = 0;
 		numChannels = 0;
@@ -195,6 +195,7 @@ ExternalData::ExternalData(ComplexDataUIBase* b, int absoluteIndex) :
 		numChannels = rb->getWriteBuffer().getNumChannels();
 		break;
 	}
+    default: break;
 	}
 }
 

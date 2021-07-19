@@ -68,25 +68,18 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 
 	SimpleReadWriteLock::ScopedReadLock sl(looper->getBuffer().getDataLock());
 
-	const AudioSampleBuffer *buffer = &looper->getAudioSampleBuffer();
-
 	uptimeDelta = looper->getBuffer().isNotEmpty() ? 1.0 : 0.0;
 
 	const double resampleFactor = looper->getSampleRateForLoadedFile() / getSampleRate();
 
 	uptimeDelta *= resampleFactor;
-
     uptimeDelta *= looper->getMainController()->getGlobalPitchFactor();
     
 	if (looper->pitchTrackingEnabled)
 	{
-		//const double noteDelta = jlimit<int>(-24, 24, midiNoteNumber - looper->rootNote);
-
 		const double noteDelta = midiNoteNumber - looper->rootNote;
-
-		const double pitchDelta = pow(2, noteDelta / 12.0);
-
-		uptimeDelta *= pitchDelta;
+        const double pitchDelta = pow(2, noteDelta / 12.0);
+        uptimeDelta *= pitchDelta;
 	}
 }
 

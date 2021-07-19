@@ -56,9 +56,8 @@ struct NodeBase;
 
 /** Object Accessors
 
-	/
-
-/** Use this macro to define the type that should be returned by calls to getObject(). Normally you pass in the wrapped object (for non-wrapped classes you should use SN_GET_SELF_AS_OBJECT(). */
+ Use this macro to define the type that should be returned by calls to getObject(). Normally you pass in the wrapped object (for non-wrapped classes you should use SN_GET_SELF_AS_OBJECT().
+ */
 #define GET_SELF_OBJECT(x) constexpr auto& getObject() { return x; } \
 constexpr const auto& getObject() const { return x; }
 
@@ -69,7 +68,7 @@ constexpr const auto& getWrappedObject() const { return x; }
 /** Use this macro in order to create the getObject() / getWrappedObject() methods that return the object itself. */
 #define SN_GET_SELF_AS_OBJECT(x) GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(*this); using ObjectType = x; using WrappedObjectType = x;
 
-#define SN_DESCRIPTION(x) constexpr char* getDescription() const { return x; }
+#define SN_DESCRIPTION(x) static String getDescription() { return x; }
 
 /** Use this macro to pass the static ID to the base constructor of the parameter_node class that will define the IsControlNode property to avoid the wrap::mod wrapper. */
 #define SN_PARAMETER_NODE_CONSTRUCTOR(ClassId, ParameterId) ClassId() : control::pimpl::parameter_node_base<ParameterId>(getStaticId()) {};

@@ -590,6 +590,7 @@ private:
 				case FunctionClass::PostIncOverload: op = "i++;"; break;
 				case FunctionClass::DecOverload:	 op = "--i;"; break;
 				case FunctionClass::PostDecOverload: op = "i--;"; break;
+                default:                             op = "";     break;
 				}
 
 				c.addWithSemicolon("return (int)" + op);
@@ -614,6 +615,7 @@ private:
 				case FunctionClass::PostIncOverload: expected = (int)i++; break;
 				case FunctionClass::DecOverload:	 expected = (int)--i; break;
 				case FunctionClass::PostDecOverload: expected = (int)i--; break;
+                default:                             expected = 0; break;
 				}
 
 				auto actual = obj["test"].template call<int>(testValue);

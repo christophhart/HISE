@@ -395,15 +395,10 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 			g.setColour(Colours::black.withAlpha(0.4f));
 
-			auto tb = p.getBounds().expanded(20.0f);
-
-
 			g.setColour(Colours::white.withAlpha(0.7f));
 			g.setFont(GLOBAL_BOLD_FONT());
 			
-
-
-			g.fillPath(p);
+            g.fillPath(p);
 		}
 
 		WorkbenchData::Ptr wb;

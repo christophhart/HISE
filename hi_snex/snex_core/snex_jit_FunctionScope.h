@@ -54,11 +54,6 @@ struct RegisterScope : public BaseScope
 		jassert(getScopeType() >= BaseScope::Function);
 	}
 
-	~RegisterScope()
-	{
-		int x = 5;
-	};
-
 	Array<Symbol> localVariables;
 
 private:

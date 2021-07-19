@@ -739,6 +739,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 					s.refreshReleaseTime();
 					s.refreshDecayTime();
 					break;
+                default: break;
 				}
 			}
 		}

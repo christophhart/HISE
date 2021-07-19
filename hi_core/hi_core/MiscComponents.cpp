@@ -535,6 +535,7 @@ void MouseCallbackComponent::sendFileMessage(Action a, const String& f, Point<in
 	case Action::FileEnter:
 	case Action::FileExit: requiredLevel = FileCallbackLevel::DropHover; break;
 	case Action::FileMove: requiredLevel = FileCallbackLevel::AllCallbacks; break;
+    default: break;
 	}
 
 	if (fileCallbackLevel < requiredLevel)
@@ -784,7 +785,6 @@ void BorderPanel::paint(Graphics &g)
 		UnblurryGraphics ug(g, *this);
 
 		auto sf = ug.getTotalScaleFactor();
-		auto sf2 = UnblurryGraphics::getScaleFactorForComponent(this, false);
 		auto st = AffineTransform::scale(jmin<double>(2.0, sf));
 		auto st2 = AffineTransform::scale(sf);
 
@@ -798,8 +798,6 @@ void BorderPanel::paint(Graphics &g)
 		{
 			// We are creating one master image before the loop
 			Image cachedImg;
-			
-			
 			
 			if (!isOpaque() && (getParentComponent() != nullptr && it.wantsToDrawOnParent()))
 			{
@@ -835,14 +833,10 @@ void BorderPanel::paint(Graphics &g)
 					action->perform(g3);
 
 					if (!action->wantsToDrawOnParent())
-					{
 						GraphicHelpers::quickDraw(cachedImg, actionImage);
-					}
 				}
 				else
-				{
 					action->perform(g2);
-				}
 			}
 			
 			g.drawImageTransformed(cachedImg, st.inverted());

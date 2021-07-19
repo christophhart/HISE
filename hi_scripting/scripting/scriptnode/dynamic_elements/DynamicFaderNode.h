@@ -84,6 +84,7 @@ struct dynamic
 		case Length: lastValue = file_analysers::milliseconds().getValue(d); break;
 		case Pitch: lastValue = file_analysers::pitch().getValue(d); break;
 		case Peak: lastValue = file_analysers::peak().getValue(d); break;
+        default: break;
 		}
 
 		return lastValue;

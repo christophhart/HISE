@@ -653,6 +653,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 				return false;
 			}
 
+            return false;
 		}
 
 		void setUpdater(PooledUIUpdater* nonOwnedUpdater)

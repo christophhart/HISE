@@ -51,8 +51,6 @@ public:
 
 		int startSample = 0;
 
-		auto ptr = fullData;
-
 		while ((startSample + numPerCheck) < numSamples)
 		{
 			const double pitchResult = dywapitch_computepitch(&tracker, fullData, startSample, numPerCheck);

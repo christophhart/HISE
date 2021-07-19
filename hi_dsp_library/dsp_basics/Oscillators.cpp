@@ -84,6 +84,8 @@ bool OscillatorDisplayProvider::OscillatorDisplayObject::validateInt(const Ident
 
 	if (id == RingBufferIds::NumChannels)
 		return SimpleRingBuffer::toFixSize<1>(v);
+    
+    return true;
 }
 
 void OscillatorDisplayProvider::OscillatorDisplayObject::transformReadBuffer(AudioSampleBuffer& b)
@@ -107,6 +109,7 @@ void OscillatorDisplayProvider::OscillatorDisplayObject::transformReadBuffer(Aud
 			case Mode::Square: v = provider->tickSquare(d); break;
 			case Mode::Triangle: v = provider->tickTriangle(d); break;
 			case Mode::Noise: v = provider->tickNoise(d); break;
+            default: break;
 			}
 
 			b.setSample(0, i, v);
@@ -134,9 +137,36 @@ float OscillatorDisplayProvider::tickSaw(OscData& d)
 	return naiveValue;
 }
 
+template<typename T>
+inline int64_t bitwiseOrZero(const T &t) {
+    return static_cast<int64_t>(t) | 0;
+}
+
 float OscillatorDisplayProvider::tickTriangle(OscData& d)
 {
-	return (1.0f - std::abs(tickSaw(d))) * 2.0f - 1.0f;
+    auto phase = d.tick() / 2048.0;
+    phase = std::fmod(phase + 0.5, 1.0);
+    auto t = phase;
+    
+    double t1 = t + 0.25;
+    t1 -= bitwiseOrZero(t1);
+
+    double t2 = t + 0.75;
+    t2 -= bitwiseOrZero(t2);
+
+    double y = t * 4;
+
+    if (y >= 3) {
+        y -= 4;
+    } else if (y > 1) {
+        y = 2 - y;
+    }
+    
+    auto dt = d.uptimeDelta / 2048.0;
+
+    y += 4 * dt * (blamp(t1, dt) - blamp(t2, dt));
+
+    return (float)y;
 }
 
 float OscillatorDisplayProvider::tickSine(OscData& d)

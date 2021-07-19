@@ -734,7 +734,7 @@ struct SnexSource : public WorkbenchData::Listener,
 
 	const ParameterHandler& getParameterHandler() const { return parameterHandler; }
 	const ComplexDataHandler& getComplexDataHandler() const { return dataHandler; }
-	const CallbackHandlerBase& getCallbackHandler() const { jassert(callbackHandler != nullptr); *callbackHandler; }
+	const CallbackHandlerBase& getCallbackHandler() const { jassert(callbackHandler != nullptr); return *callbackHandler; }
 
 	Identifier getCurrentClassId() const { return Identifier(classId.getValue()); }
 

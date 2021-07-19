@@ -57,8 +57,7 @@ Component* CodeEditorPanel::createContentComponent(int index)
 
 	const bool isCallback = index < numSnippets;
 	const bool isExternalFile = index >= numSnippets && (index-numSnippets) < numFiles;
-	const bool isJitNodeCode = !isExternalFile && !isCallback;
-
+	
 	if (isCallback)
 	{
 		auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
@@ -86,22 +85,6 @@ Component* CodeEditorPanel::createContentComponent(int index)
 			getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 
 		return pe;
-	}
-	else
-	{
-#if HISE_INCLUDE_SNEX
-		int jitNodeIndex = index - numSnippets - numFiles;
-
-		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
-		{
-			if (auto network = h->getActiveNetwork())
-			{
-				// Use the codemanager here...
-				jassertfalse;
-
-			}
-		}
-#endif
 	}
 
 	return nullptr;
@@ -1244,6 +1227,7 @@ struct ServerController: public Component,
 					g.drawEllipse(circle, 1.0f);
 					break;
 				}
+                default: break;
 				}
 			}
 		}
@@ -1397,6 +1381,7 @@ struct ServerController: public Component,
 					g.drawEllipse(circle, 1.0f);
 					break;
 				}
+                default: break;
 				}
 			}
 		}
@@ -1859,6 +1844,7 @@ struct ComplexDataViewer : public Component,
 			currentComponent = te;
 			break;
 		}
+        default: break;
 		}
 
 		dynamic_cast<ComplexDataUIBase::EditorBase*>(currentComponent.get())->setComplexDataUIBase(c);

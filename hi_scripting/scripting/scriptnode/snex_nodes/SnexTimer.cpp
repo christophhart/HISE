@@ -79,6 +79,7 @@ namespace control
 		case TimerMode::Custom: v = callbacks.getTimerValue(); break;
 		case TimerMode::Toggle: v = toggleTimer.getTimerValue(); break;
 		case TimerMode::Random: v = randomTimer.getTimerValue(); break;
+        default:                v = 0.0f; break;
 		}
 
 		lastValue.setModValue(v);

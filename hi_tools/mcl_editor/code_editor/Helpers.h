@@ -19,10 +19,7 @@ namespace mcl
 
 #define CURSOR_WIDTH 1.5f
 #define TEXT_INDENT 6.f
-#define TEST_MULTI_CARET_EDITING true
-#define TEST_SYNTAX_SUPPORT true
 
-#define PROFILE_PAINTS false
 static bool DEBUG_TOKENS = false;
 
 
@@ -79,11 +76,11 @@ struct ActionHelpers
 
 	static bool  isMatchingClosure(juce_wchar l, juce_wchar r)
 	{
-		return l == '"' && r == '"' ||
-			l == '[' && r == ']' ||
-			l == '(' && r == ')' ||
-			l == '{' && r == '}' ||
-			l == '<' && r == '>' ;
+		return (l == '"' && r == '"') ||
+			(l == '[' && r == ']') ||
+			(l == '(' && r == ')') ||
+			(l == '{' && r == '}') ||
+			(l == '<' && r == '>') ;
 	};
 };
 
@@ -101,8 +98,9 @@ struct Helpers
 	{
 		switch (c)
 		{
-		case GutterColour: return JUCE_LIVE_CONSTANT_OFF(Colour(0xff2f2f2f));
-		case EditorBackgroundColour: return JUCE_LIVE_CONSTANT_OFF(Colour(0xff282829));
+		case GutterColour:           return Colour(0xff2f2f2f);
+		case EditorBackgroundColour: return Colour(0xff282829);
+            default:                 return Colours::transparentBlack;
 		}
 
 		return Colours::transparentBlack;

@@ -273,15 +273,11 @@ struct ParserHelpers
 			else
 			{
 				auto x = jmax(location.program, location.location - 4);
-				
 				auto end = x;
-
 				int pos = 0;
 
 				while (!end.isEmpty() && pos++ < 8)
-				{
 					end++;
-				}
 
 				while (pos < 8)
 				{
@@ -289,21 +285,16 @@ struct ParserHelpers
 					pos++;
 				}
 
-				int xPos = location.location - x;
+				auto xPos = (int)(location.location - x);
 
 				for (int i = 0; i < xPos; i++)
 					s << ' ';
 
 				s << "V\n";
-
 				s << String(x, end) << ": ";
-
-				
 				s << errorMessage << "\n";
 			}
-
-
-
+            
 			return s;
 		}
 
@@ -647,6 +638,7 @@ struct ParserHelpers
 			}
 
 			location.throwError("Unsupported operator overload");
+            return {};
 		}
 
 		Identifier parseIdentifier()

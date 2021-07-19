@@ -117,7 +117,6 @@ void mcl::TextEditor::setText (const String& text)
 
 void TextEditor::scrollToLine(float centerLine, bool scrollToLine)
 {
-	auto W = document.getBounds().getWidth();
 	auto H = document.getBounds().getHeight();
 
 	centerLine -= (float)getNumDisplayedRows() / 2.0f;
@@ -381,7 +380,6 @@ void TextEditor::selectionChanged()
 
 void mcl::TextEditor::translateView (float dx, float dy)
 {
-    auto W = viewScaleFactor * document.getBounds().getWidth();
     auto H = viewScaleFactor * document.getBounds().getHeight();
 
 	gutter.setViewTransform(AffineTransform::scale(viewScaleFactor));
@@ -420,21 +418,11 @@ void mcl::TextEditor::updateViewTransform()
 			currentAutoComplete->helpPopup->setTransform(transform);
 	}
 
-	auto dy = transform.getTranslationY();
-	auto sc = transform.getScaleFactor();
-
 	auto visibleRange = getLocalBounds().toFloat().transformed(transform.inverted());
 	scrollBar.setCurrentRange({ visibleRange.getY(), visibleRange.getBottom() }, dontSendNotification);
-
-	
-	
-
 	auto rows = document.getRangeOfRowsIntersecting(getLocalBounds().toFloat().transformed(transform.inverted()));
-	
 	ScopedValueSetter<bool> svs(scrollRecursion, true);
-
 	document.setDisplayedLineRange(rows);
-
     repaint();
 }
 
@@ -569,10 +557,6 @@ void mcl::TextEditor::paint (Graphics& g)
 		area = area.translated(0.3f, 1.0f);
 		g.fillRect(area);
 	}
-
-#if PROFILE_PAINTS
-    std::cout << "[TextEditor::paint] " << lastTimeInPaint << std::endl;
-#endif
 }
 
 void mcl::TextEditor::paintOverChildren (Graphics& g)
@@ -707,7 +691,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
     {
         return;
     }
-    if (! e.mods.isCommandDown() || ! TEST_MULTI_CARET_EDITING)
+    if (!e.mods.isCommandDown())
     {
         selections.clear();
     }
@@ -913,9 +897,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 		if (both)
 		{
-			auto s = document.getSelection(0);
 			document.navigateSelections(Target::character, Direction::backwardCol, Selection::Part::both);
-			auto s2 = document.getSelection(0);
 			updateSelections();
 		}
 
@@ -967,8 +949,6 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 		if (l == '{')
 		{
-			int numChars = s.head.y-1;
-
 			juce::String ws = "\n\t";
 			juce::String t = "\n";
 

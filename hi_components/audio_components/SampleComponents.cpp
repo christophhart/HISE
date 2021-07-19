@@ -81,9 +81,6 @@ WaveformComponent::~WaveformComponent()
 
 void WaveformComponent::paint(Graphics &g)
 {
-	auto w = (float)getWidth();
-	auto h = (float)getHeight();
-
 	if (useFlatDesign)
 	{
 		g.setColour(findColour(bgColour));

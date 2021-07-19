@@ -2398,6 +2398,7 @@ void ScriptingApi::Engine::logSettingWarning(const String& methodName) const
 	auto p = dynamic_cast<const Processor*>(getScriptProcessor());
 
 	auto unconst = const_cast<Processor*>(p);
+    ignoreUnused(unconst);
 
 	String s;
 	s << "Engine." << methodName << "() is deprecated. Use Settings." << methodName << "() instead.";
@@ -2575,8 +2576,6 @@ void ScriptingApi::Sampler::setMultiGroupIndex(var groupIndex, bool enabled)
 		reportScriptError("Round Robin is not disabled. Call 'Synth.enableRoundRobin(false)' before calling this method.");
 		return;
 	}
-
-	bool ok = true;
 
 	if (groupIndex.isArray())
 	{

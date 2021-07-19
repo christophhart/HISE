@@ -904,9 +904,6 @@ struct xy_editor : public ScriptnodeExtraComponent<control::xy<parameter::dynami
 		g.drawEllipse(c, 2.0f);
 		g.fillEllipse(c.reduced(4.0f));
 
-		float alpha = 0.3f;
-		float s = 4.0f;
-
 		Path p;
 		p.startNewSubPath(c.getCentre());
 

@@ -59,7 +59,6 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 			auto nodeId = f.getFileNameWithoutExtension();
 			auto networkFile = f;
 
-
 			if (networkFile.existsAsFile())
 			{
 				if (auto xml = XmlDocument::parse(networkFile.loadFileAsString()))
@@ -74,6 +73,10 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 						return HostHelpers::initNodeWithNetwork<InterpretedNode>(p, v, nv, useMod);
 				}
 			}
+            
+            jassertfalse;
+            NodeBase* n = nullptr;
+            return n;
 		};
 
 		monoNodes.add(item);
@@ -239,6 +242,7 @@ juce::File BackendDllManager::getSubFolder(const MainController* mc, FolderSubTy
 	case FolderSubType::Binaries:				return createIfNotDirectory(f.getChildFile("Binaries"));
 	case FolderSubType::Layouts:				return createIfNotDirectory(f.getChildFile("Layouts"));
 	case FolderSubType::ProjucerSourceFolder:	return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("Source"));
+    default: return {};
 	}
 
 	jassertfalse;

@@ -418,6 +418,7 @@ float ahdsr_base::state_base::getUIPosition(double deltaMs)
 	case EnvelopeState::DECAY:   return (double)current_state + ratioOrZero(deltaMs, decayTime);
 	case EnvelopeState::SUSTAIN: return (double)current_state;
 	case EnvelopeState::RELEASE: return (double)current_state + ratioOrZero(deltaMs, releaseTime);
+    default: return -1.0f;
 	}
 
 	return -1.0f;
@@ -457,11 +458,9 @@ void simple_ar_base::PropertyObject::transformReadBuffer(AudioSampleBuffer& b)
 
 	auto totalSeconds = (attack + release) * 0.001 + 0.1;
 	auto sr = 512.0 / totalSeconds;
-	auto isOn = s.targetValue > 0.0f;
 	
 	s.env.setSampleRate(sr);
 	s.env.reset();
-	int counter = 0;
 	s.setGate(true);
 
 	jassert(b.getNumSamples() == 1024);

@@ -180,12 +180,9 @@ void mcl::GlyphArrangementArray::ensureValid(int index) const
 
 		entry->charactersPerLine.clear();
 
-		int index = 0;
-
 		for (const auto& p : entry->positions)
 		{
 			auto l = p.x;
-			auto characterIsTab = entry->string[index++] == '\t';
 			auto c = p.y + 1;
 
 			if (isPositiveAndBelow(l, entry->charactersPerLine.size()))

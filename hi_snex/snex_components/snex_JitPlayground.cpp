@@ -715,11 +715,6 @@ void SnexPlayground::buttonClicked(Button* b)
 
 String SnexPlayground::TestCodeProvider::getTestTemplate()
 {
-	auto emitCommentLine = [](juce::String& code, const juce::String& comment)
-	{
-		code << "/** " << comment << " */\n";
-	};
-
 	juce::String s;
 	juce::String nl = "\n";
 	String emptyBracket;

@@ -61,21 +61,6 @@ void LinebreakDisplay::paint(Graphics& g)
 
 void mcl::CodeMap::mouseEnter(const MouseEvent& e)
 {
-	auto yNormalised = e.position.getY() / (float)getHeight();
-	auto lineNumber = surrounding.getStart() + yNormalised * surrounding.getLength();
-	auto editor = findParentComponentOfClass<TextEditor>();
-
-#if 0
-	editor->addChildComponent(preview = new HoverPreview(doc, lineNumber));
-
-	preview->colourScheme = editor->colourScheme;
-	preview->scale = editor->transform.getScaleFactor();
-	preview->repaint();
-
-	Desktop::getInstance().getAnimator().fadeIn(preview, 200);
-
-	preview->setBounds(getPreviewBounds(e));
-#endif
 }
 
 void mcl::CodeMap::mouseExit(const MouseEvent& e)
@@ -190,9 +175,6 @@ void mcl::CodeMap::paint(Graphics& g)
 	}
 
 	RectangleList<float> selection;
-
-	auto numCharacters = doc.getCodeDocument().getNumCharacters();
-	auto numRectangles = colouredRectangles.size();
 
 	for (auto& a : colouredRectangles)
 	{
@@ -348,13 +330,7 @@ void mcl::CodeMap::rebuild()
 
 			CodeDocument::Position end(doc.getCodeDocument(), it.getPosition());
 
-			auto startLine = start.getLineNumber();
-			auto endLine = end.getLineNumber();
-
 			auto pos = start;
-
-			auto h = getHeight();
-
 			float height = (float)getHeight() / (float)getNumLinesToShow();
 
 			while (pos != end)
@@ -456,8 +432,7 @@ void mcl::CodeMap::HoverPreview::paint(Graphics& g)
 	auto it = TextDocument::Iterator(document, index);
 	auto previous = it.getIndex();
 	auto zones = Array<Selection>();
-	auto start = Time::getMillisecondCounterHiRes();
-
+	
 	while (it.getIndex().x < rows.getEnd() && !it.isEOF())
 	{
 		auto tokenType = CppTokeniserFunctions::readNextToken(it);

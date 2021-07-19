@@ -364,6 +364,7 @@ scriptnode::data::pimpl::dynamic_base* OpaqueNodeDataHolder::create(ExternalData
 	case ExternalData::DataType::AudioFile: return new data::dynamic::audiofile(*this, i);
 	case ExternalData::DataType::FilterCoefficients: return new data::dynamic::filter(*this, i);
 	case ExternalData::DataType::DisplayBuffer: return new data::dynamic::displaybuffer(*this, i);
+    default: jassertfalse; return nullptr;
 	}
 
 	jassertfalse;
@@ -607,8 +608,6 @@ struct WrapperSlot : public ScriptnodeExtraComponent<InterpretedUnisonoWrapperNo
 
 	void resized() override
 	{
-		auto b = getLocalBounds();
-
 		if (nc != nullptr)
 		{
 			if (isChain)
@@ -633,7 +632,6 @@ struct WrapperSlot : public ScriptnodeExtraComponent<InterpretedUnisonoWrapperNo
 		{
 			KeyboardPopup* newPopup = new KeyboardPopup(getObject(), 0);
 
-			auto midPoint = getLocalBounds().getCentre();
 			auto sp = findParentComponentOfClass<ZoomableViewport>();
 			auto r = sp->getLocalArea(this, getLocalBounds());
 
@@ -797,7 +795,6 @@ struct WrapperSlot : public ScriptnodeExtraComponent<InterpretedUnisonoWrapperNo
 
 		alpha = 1.0f;
 
-		float delta = 10.0f;
 		float scaleFactor = 0.98f;
 		
 		float startX, startY, startHeight, startWidth;

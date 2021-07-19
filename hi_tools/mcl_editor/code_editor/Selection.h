@@ -27,7 +27,7 @@ using namespace juce;
 	head <= tail, and singular when head == tail, in which case it would be
 	rendered without any highlighting.
  */
-struct mcl::Selection
+struct Selection
 {
 	struct Listener
 	{
@@ -177,7 +177,7 @@ struct mcl::Selection
 
 
 //==============================================================================
-struct mcl::Transaction
+struct Transaction
 {
 	using Callback = std::function<void(const Transaction&)>;
 	enum class Direction { forward, reverse };

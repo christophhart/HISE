@@ -26,25 +26,21 @@ void mcl::HighlightComponent::setViewTransform(const AffineTransform& transformT
 	transform = transformToUse;
 
 	outlinePath.clear();
-	auto clip = getLocalBounds().toFloat().transformedBy(transform.inverted());
-
+	
 	for (const auto& s : document.getSelections())
-	{
 		outlinePath.addPath(getOutlinePath(document, s));
-	}
-	repaint(outlinePath.getBounds().getSmallestIntegerContainer());
+	
+    repaint(outlinePath.getBounds().getSmallestIntegerContainer());
 }
 
 void mcl::HighlightComponent::updateSelections()
 {
 	outlinePath.clear();
-	auto clip = getLocalBounds().toFloat().transformedBy(transform.inverted());
-
+	
 	for (const auto& s : document.getSelections())
-	{
 		outlinePath.addPath(getOutlinePath(document, s.oriented()));
-	}
-	repaint(outlinePath.getBounds().getSmallestIntegerContainer());
+	
+    repaint(outlinePath.getBounds().getSmallestIntegerContainer());
 }
 
 void mcl::HighlightComponent::paintHighlight(Graphics& g)

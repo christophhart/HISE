@@ -6,7 +6,7 @@
  *  Version		: 1.12
  *  Implements	: SimpleComp, SimpleCompRms
  *
- *	© 2006, ChunkWare Music Software, OPEN-SOURCE
+ *	ï¿½ 2006, ChunkWare Music Software, OPEN-SOURCE
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a
  *	copy of this software and associated documentation files (the "Software"),
@@ -85,7 +85,7 @@ namespace chunkware_simple
 
 		// convert key to dB
 		keyLinked += DC_OFFSET;				// add DC offset to avoid log( 0 )
-		SimpleDataType keydB = lin2dB(keyLinked);	// convert linear -> dB
+        SimpleDataType keydB = juce::Decibels::gainToDecibels(keyLinked);	// convert linear -> dB
 
 		// threshold
 		SimpleDataType overdB = keydB - threshdB_;	// delta over threshold
@@ -106,8 +106,8 @@ namespace chunkware_simple
 		 */
 
 		 // transfer function
-		gR = overdB * (ratio_ - 1.0);	// gain reduction (dB)
-		gR = dB2lin(gR);						// convert dB -> linear
+		gR = overdB * (ratio_ - 1.0);	         // gain reduction (dB)
+		gR = juce::Decibels::decibelsToGain(gR); // convert dB -> linear
 
 		// output gain
 		in1 *= gR;	// apply gain reduction to input

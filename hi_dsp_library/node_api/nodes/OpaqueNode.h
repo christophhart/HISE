@@ -100,7 +100,7 @@ struct OpaqueNode
 	OpaqueNode();
 
 	OpaqueNode(OpaqueNode&& other) = default;
-	OpaqueNode& operator=(OpaqueNode&& other) = default;
+	
 
 	OpaqueNode(const OpaqueNode& other) = default;
 

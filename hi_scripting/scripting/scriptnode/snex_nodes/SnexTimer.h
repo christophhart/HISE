@@ -204,6 +204,7 @@ struct snex_timer : public SnexSource
 		case TimerMode::Custom: callbacks.resetTimer(); break;
 		case TimerMode::Toggle: toggleTimer.reset(); break;
 		case TimerMode::Random: randomTimer.reset(); break;
+        default: break;
 		}
 	}
 

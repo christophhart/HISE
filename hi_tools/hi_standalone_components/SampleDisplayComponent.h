@@ -914,6 +914,8 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 			case ComplexDataUIUpdaterBase::EventType::DisplayIndex:
 				sampleIndexChanged((int)v);
 				break;
+            default:
+                break;
 			}
 		}
 	};

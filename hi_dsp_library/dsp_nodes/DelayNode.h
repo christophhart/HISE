@@ -64,7 +64,7 @@ struct fix_delay : public HiseDspBase
 	{
 		delayTimeSeconds = other.delayTimeSeconds;
 
-		for (auto d : other.delayLines)
+        for (int i = 0; i < other.delayLines.size(); i++)
 			delayLines.add(new DelayLine<>());
 
 		return *this;

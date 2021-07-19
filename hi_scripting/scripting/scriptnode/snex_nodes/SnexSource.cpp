@@ -328,6 +328,7 @@ int SnexSource::ComplexDataHandler::getNumDataObjects(ExternalData::DataType t) 
 	case snex::ExternalData::DataType::SliderPack:			return sliderPacks.size();
 	case snex::ExternalData::DataType::DisplayBuffer:		return displayBuffers.size();
 	case snex::ExternalData::DataType::FilterCoefficients:  return 0;
+    default: return 0;
 	}
 
 	return 0;
@@ -465,6 +466,7 @@ bool SnexSource::ComplexDataHandler::removeDataObject(ExternalData::DataType t, 
 		case ExternalData::DataType::SliderPack: pendingDelete = sliderPacks.removeAndReturn(index); break;
 		case ExternalData::DataType::AudioFile: pendingDelete = audioFiles.removeAndReturn(index); break;
 		case ExternalData::DataType::DisplayBuffer: pendingDelete = displayBuffers.removeAndReturn(index); break;
+        default: break;
 		}
 	}
 
@@ -481,6 +483,7 @@ snex::ExternalDataHolder* SnexSource::ComplexDataHandler::getDynamicDataHolder(s
 	case snex::ExternalData::DataType::SliderPack: return sliderPacks[index];
 	case snex::ExternalData::DataType::AudioFile: return audioFiles[index];
 	case snex::ExternalData::DataType::DisplayBuffer: return displayBuffers[index];
+    default: break;
 	}
 
 	return nullptr;
@@ -597,11 +600,9 @@ juce::Result SnexSource::ParameterHandlerLight::recompiledOk(snex::jit::ComplexT
 
 	for (int index = 0; index < matches.size(); index++)
 	{
-		auto& object = parent.object;
 		auto objPtr = parent.wb->getLastResult().mainClassPtr;
 		String s;
-		int l = 0;
-
+		
 		pFunctions[index] = matches[index];
 
 		if (pFunctions[index].templateParameters[0].constant != index)
@@ -632,8 +633,7 @@ SnexComplexDataDisplay::~SnexComplexDataDisplay()
 void SnexComplexDataDisplay::rebuildEditors()
 {
 	auto updater = source->getParentNode()->getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
-	auto undoManager = source->getParentNode()->getScriptProcessor()->getMainController_()->getControlUndoManager();
-
+	
 	auto& dataHandler = source->getComplexDataHandler();
 
 	auto t = snex::ExternalData::DataType::Table;

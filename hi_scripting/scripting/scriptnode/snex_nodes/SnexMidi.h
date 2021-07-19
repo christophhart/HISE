@@ -100,7 +100,7 @@ struct dynamic : public SnexSource
 				for (int i = 0; i < td.getNumTestEvents(false); i++)
 				{
 					data->e = td.getTestHiseEvent(i);
-					auto r = m.call<int>(&data->e, &data->d);
+					m.call<int>(&data->e, &data->d);
 				}
 
 				return Result::ok();

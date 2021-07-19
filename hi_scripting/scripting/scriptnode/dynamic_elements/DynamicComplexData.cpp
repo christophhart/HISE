@@ -61,7 +61,7 @@ void dynamic_base::initialise(NodeBase* p)
 
 	auto h = parentNode->getRootNetwork()->getExternalDataHolder();
 
-	if (forcedUpdateSource = dynamic_cast<ExternalDataHolderWithForcedUpdate*>(h))
+	if ((forcedUpdateSource = dynamic_cast<ExternalDataHolderWithForcedUpdate*>(h)))
 	{
 		forcedUpdateSource->addForcedUpdateListener(this);
 	}
@@ -355,8 +355,7 @@ namespace pimpl
 			alpha += 0.1f;
 
 		auto c = getNodeColour(&te).withBrightness(1.0f).withAlpha(alpha);
-		auto c2 = c;
-
+		
 		g.setColour(c);
 
 		{
@@ -387,14 +386,9 @@ namespace pimpl
 			b = area;
 			b.removeFromLeft(i * area.getWidth());
 			g.setColour(getNodeColour(&te).withBrightness(1.0f).withAlpha(0.9f));
-			auto yValue = e->getInterpolatedValue(te.getLastIndex() * SAMPLE_LOOKUP_TABLE_SIZE, dontSendNotification);
-
 			g.saveState();
-
 			g.excludeClipRegion(b.toNearestInt());
-			
 			g.strokePath(p, PathStrokeType(3.0f * ug.getPixelSize()));
-
 			g.restoreState();
 		}
 
@@ -539,11 +533,6 @@ namespace pimpl
 		{
 			float leftY;
 			float actualHeight;
-
-			const float max = (float)s.getMaximum();
-			const float min = (float)s.getMinimum();
-
-			//g.fillAll(s.findColour(Slider::ColourIds::backgroundColourId));
 
 			const double value = s.getValue();
 			const double normalizedValue = (value - s.getMinimum()) / (s.getMaximum() - s.getMinimum());

@@ -2134,8 +2134,6 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int p
 {
 	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 
-	auto form = dynamic_cast<ScriptingApi::Content::ScriptAudioWaveform *>(getScriptComponent());
-
 	if (auto adc = dynamic_cast<AudioDisplayComponent*>(component.get()))
 	{
 		switch (propertyIndex)

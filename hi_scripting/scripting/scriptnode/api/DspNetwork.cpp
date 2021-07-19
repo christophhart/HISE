@@ -1214,6 +1214,7 @@ bool DeprecationChecker::check(DeprecationId id)
 		return !v.hasProperty("OpType") || v["OpType"] == var("SetValue");
 	case DeprecationId::ConverterNotIdentity:
 		return !v.hasProperty("Converter") || v["Converter"] == var("Identity");
+    default: return false;
 	}
 
 	return false;

@@ -369,79 +369,6 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		fo.body = parseBlock();
 	}
 
-#if INCLUDE_NATIVE_JIT
-	Expression* parseNativeJITExpression(NativeJITScope* scope)
-	{
-		const Identifier scopeId = parseIdentifier();
-
-		jassert(scopeId == scope->getName());
-
-		match(TokenTypes::dot);
-
-		static const Identifier pb("processBlock");
-
-		const Identifier id = parseIdentifier();
-
-		if (scope->isFunction(id))
-		{
-			ScopedPointer<RootObject::NativeJIT::FunctionCall> f = new RootObject::NativeJIT::FunctionCall(location);
-			
-			f->scope = scope;
-
-			f->numArgs = scope->getNumArgsForFunction(id);
-
-			f->functionName = id;
-
-
-
-			match(TokenTypes::openParen);
-
-			while (currentType != TokenTypes::closeParen && currentType != TokenTypes::eof)
-			{
-				ExpPtr p = parseExpression();
-				matchIf(TokenTypes::comma);
-
-				f->arguments.add(p.release());
-			}
-
-			match(TokenTypes::closeParen);
-
-			if (f->numArgs != f->arguments.size())
-			{
-				location.throwError("Argument amount mismatch. Expected: " + String(f->numArgs) + ". Actual: " + String(f->arguments.size()));
-			}
-
-			return f.release();
-
-		}
-		else if (scope->isGlobal(id))
-		{
-			ScopedPointer<RootObject::NativeJIT::GlobalReference> r = new RootObject::NativeJIT::GlobalReference(location, scope);
-
-			r->index = scope->getIndexForGlobal(id);
-
-			return parseSuffixes(r.release());
-		}
-		else if (id == pb)
-		{
-			ScopedPointer<RootObject::NativeJIT::ProcessBufferCall> c = new RootObject::NativeJIT::ProcessBufferCall(location, scope);
-
-			match(TokenTypes::openParen);
-
-			ExpPtr target = parseExpression();
-
-			match(TokenTypes::closeParen);
-
-			c->target = target.release();
-
-			return c.release();
-		}
-		else
-		{
-			location.throwError(id.toString() + " not found in " + scope->getName());
-		}
-	}
-#endif
 
 	Expression* parseExpression()
 	{
@@ -554,9 +481,6 @@ private:
 		if (matchIf(TokenTypes::break_))           return new BreakStatement(location);
 		if (matchIf(TokenTypes::continue_))        return new ContinueStatement(location);
 		if (matchIf(TokenTypes::function))         return parseFunction();
-#if HISE_INCLUDE_SNEX
-		if (matchIf(TokenTypes::snex_))			   return parseSnexStatement();
-#endif
 		if (matchIf(TokenTypes::semicolon))        return new Statement(location);
 		if (matchIf(TokenTypes::plusplus))         return parsePreIncDec<AdditionOp>();
 		if (matchIf(TokenTypes::minusminus))       return parsePreIncDec<SubtractionOp>();
@@ -822,13 +746,6 @@ private:
 		hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::ConstVariables, s->name, location);
 
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
-
-#if INCLUDE_NATIVE_JIT
-		if (auto sr = dynamic_cast<RootObject::NativeJIT::ScopeReference*>(s->initialiser.get()))
-		{
-			sr->scope->setName(s->name);
-		}
-#endif
 
 		if (matchIf(TokenTypes::comma))
 		{
@@ -1301,191 +1218,6 @@ private:
 		}
 	}
 
-#if HISE_INCLUDE_SNEX
-	Expression* parseSnexExpression()
-	{
-		match(TokenTypes::dot);
-
-		Identifier make_("make");
-
-		auto oldLoc = location;
-		auto commandId = parseIdentifier();
-
-		if (commandId == make_)
-		{
-			match(TokenTypes::lessThan);
-
-			auto classId = parseIdentifier();
-			Identifier nsId;
-
-			if (matchIf(TokenTypes::dot))
-			{
-				nsId = classId;
-				classId = parseIdentifier();
-			}
-
-			match(TokenTypes::greaterThan);
-
-			JavascriptNamespace* nsToUse = hiseSpecialData;
-
-			if (nsId.isValid())
-				nsToUse = hiseSpecialData->getNamespace(nsId);
-
-			if (nsToUse == nullptr)
-				location.throwError("Can't find namespace " + nsId);
-
-			match(TokenTypes::openParen);
-
-			ExpPtr r(new RootObject::SnexConstructor(location, nsToUse, classId));
-
-			auto asObj = dynamic_cast<RootObject::SnexConstructor*>(r.get());
-
-			while (currentType != TokenTypes::eof && currentType != TokenTypes::closeParen)
-			{
-				asObj->arguments.add(parseExpression());
-
-				if (currentType != TokenTypes::closeParen)
-					match(TokenTypes::comma);
-			}
-			
-			match(TokenTypes::closeParen);
-
-			return r.release();
-		}
-
-		location.throwError("Unknown SNEX expression: " + commandId);
-
-		RETURN_IF_NO_THROW(nullptr);
-	}
-
-	Statement* parseSnexStatement()
-	{
-		match(TokenTypes::dot);
-
-		Identifier struct_("struct");
-		Identifier bind_("bind");
-		Identifier config_("config");
-		
-
-		auto oldLoc = location;
-
-		if (matchIf(TokenTypes::include_))
-		{
-			auto refFileName = addExternalFile();
-
-			if (refFileName.isEmpty())
-				location.throwError("Can't find file");
-
-			auto code = getFileContent(currentValue.toString(), refFileName, true);
-
-			ExpPtr s = parseExpression();
-
-			match(TokenTypes::closeParen);
-			match(TokenTypes::semicolon);
-
-			if (code.isNotEmpty())
-			{
-				return new SnexDefinition(location, code, refFileName, true);
-			}
-
-			location.throwError("Empty file");
-		}
-
-		auto commandId = parseIdentifier();
-
-		if (commandId == struct_)
-		{
-			// class name
-			auto classId = parseIdentifier();
-
-			match(TokenTypes::openBrace);
-
-			int numOpenBrackets = 1;
-
-			while (numOpenBrackets > 0 && currentType != TokenTypes::eof)
-			{
-				if (matchIf(TokenTypes::openBrace))
-					numOpenBrackets++;
-				else if (matchIf(TokenTypes::closeBrace))
-					numOpenBrackets--;
-				else
-					skip();
-			}
-
-			match(TokenTypes::semicolon);
-
-			String snexCode(oldLoc.location, location.location);
-
-			return new RootObject::SnexDefinition(oldLoc, snexCode, classId);
-		}
-		if (commandId == bind_)
-		{
-			match(TokenTypes::lessThan);
-
-			using namespace snex::jit;
-
-			FunctionData f;
-			int typeIndex = 0;
-
-			while (currentType != TokenTypes::greaterThan && currentType != TokenTypes::eof)
-			{
-				snex::jit::ExternalTypeParser etp(location.location, location.program.getCharPointer());
-
-				if (etp.getResult().wasOk())
-				{
-					if (typeIndex == 0)
-						f.returnType = etp.getType();
-					else
-						f.addArgs("a" + String(typeIndex), etp.getType());
-					
-					typeIndex++;
-
-					while (location.location < etp.getEndOfTypeName())
-					{
-						skip();
-					}
-				}
-				else
-				{
-					throwError(etp.getResult().getErrorMessage());
-				}
-
-				matchIf(TokenTypes::comma);
-			}
-
-			match(TokenTypes::greaterThan);
-
-			match(TokenTypes::openParen);
-
-			ExpPtr className = parseExpression();
-
-			match(TokenTypes::comma);
-
-			ExpPtr ifo = parseExpression();
-
-			match(TokenTypes::closeParen);
-			match(TokenTypes::semicolon);
-
-			return new SnexBinding(location, f, className.release(), ifo.release());
-		}
-		if (commandId == config_)
-		{
-			match(TokenTypes::openParen);
-
-			ExpPtr c = parseExpression();
-			match(TokenTypes::comma);
-			ExpPtr a = parseExpression();
-			match(TokenTypes::closeParen);
-
-			return new SnexConfiguration(location, c.release(), a.release());
-		}
-		
-		location.throwError("Unknown SNEX statement: " + commandId);
-
-		RETURN_IF_NO_THROW(nullptr);
-	}
-#endif
-
 	Statement* parseJITModule()
 	{
 
@@ -1499,12 +1231,6 @@ private:
 		match(TokenTypes::closeParen);
 		match(TokenTypes::semicolon);
 
-#if INCLUDE_NATIVE_JIT
-		ScopedPointer<NativeJITCompiler> compiler = new NativeJITCompiler(fileContent);
-
-		hiseSpecialData->jitModules.add(compiler.release());
-#endif
-        
 		return new Statement(location);
 	}
 
@@ -1941,18 +1667,6 @@ private:
 				{
 					return parseSuffixes(parseApiExpression());
 				}
-#if INCLUDE_NATIVE_JIT
-				else if (auto compiler = hiseSpecialData->getNativeCompiler(id))
-				{
-					match(TokenTypes::dot);
-					match(TokenTypes::identifier);
-					match(TokenTypes::openParen);
-					match(TokenTypes::closeParen);
-
-					return new RootObject::NativeJIT::ScopeReference(location, compiler->compileAndReturnScope());
-				}
-#endif
-				
 				else if (globalIndex != -1)
 				{
 					return parseSuffixes(new GlobalReference(location, hiseSpecialData->globals, parseIdentifier()));
@@ -2091,9 +1805,6 @@ private:
 
 	Expression* parseUnary()
 	{
-#if HISE_INCLUDE_SNEX
-		if (matchIf(TokenTypes::snex_))		  return parseSnexExpression();
-#endif
 		if (matchIf(TokenTypes::minus))       { ExpPtr a(new LiteralValue(location, (int)0)), b(parseUnary()); return new SubtractionOp(location, a, b); }
 		if (matchIf(TokenTypes::logicalNot))  { ExpPtr a(new LiteralValue(location, (int)0)), b(parseUnary()); return new EqualsOp(location, a, b); }
 		if (matchIf(TokenTypes::plusplus))    return parsePreIncDec<AdditionOp>();

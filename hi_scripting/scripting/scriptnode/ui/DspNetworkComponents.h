@@ -350,17 +350,12 @@ public:
 		nodeEditor.setText(text, dontSendNotification);
 		list.setSearchText(nodeEditor.getText());
 
-		auto minY = tagList.getBottom();
-
 		list.rebuild(getWidthForListItems());
 		auto height = jmin(300, list.getHeight() + 10);
 
 		if (help != nullptr)
 			height = jmax(400, height);
 		
-
-		//setSize(tagList.getWidth(), minY + height);
-
 		updateHelp();
 
 		resized();

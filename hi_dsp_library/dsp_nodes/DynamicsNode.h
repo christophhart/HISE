@@ -63,17 +63,17 @@ struct DynamicHelpers
         RETURN_STATIC_IDENTIFIER("limiter");
     }
     
-    static char* getDescription(const chunkware_simple::SimpleGate*)
+    static String getDescription(const chunkware_simple::SimpleGate*)
     {
         return "A gate effect with the ducking amount as modulation signal";
     }
     
-    static char* getDescription(const chunkware_simple::SimpleComp*)
+    static String getDescription(const chunkware_simple::SimpleComp*)
     {
         return "A compressor with the ducking amount as modulation signal";
     }
     
-    static char* getDescription(const chunkware_simple::SimpleLimit*)
+    static String getDescription(const chunkware_simple::SimpleLimit*)
     {
         return "A limiter with the ducking amount as modulation signal";
     }
@@ -107,9 +107,10 @@ public:
         return DynamicHelpers::getId(t);
     }
 
-	constexpr char* getDescription() const
+	static String getDescription()
     {
-        return DynamicHelpers::getDescription(&obj);
+        DynamicProcessorType* t;
+        return DynamicHelpers::getDescription(t);
     }
 
 	static constexpr bool isNormalisedModulation() { return true; };

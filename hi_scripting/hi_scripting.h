@@ -76,18 +76,10 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #define MAX_SCRIPT_HEIGHT 700
 
-#define INCLUDE_NATIVE_JIT 0
-
 #include "AppConfig.h"
 #include "../hi_sampler/hi_sampler.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 #include "../hi_snex/hi_snex.h"
-
-#if INCLUDE_NATIVE_JIT
-#include "../hi_native_jit/hi_native_jit_public.h"
-#endif
-
-
 
 #include "scripting/api/ScriptMacroDefinitions.h"
 #include "scripting/engine/JavascriptApiClass.h"
