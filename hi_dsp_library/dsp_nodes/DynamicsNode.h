@@ -232,9 +232,9 @@ public:
 	int lastNumSamples = 0;
 };
 
-template struct dynamics_wrapper<chunkware_simple::SimpleGate>;
-template struct dynamics_wrapper<chunkware_simple::SimpleComp>;
-template struct dynamics_wrapper<chunkware_simple::SimpleLimit>;
+template class dynamics_wrapper<chunkware_simple::SimpleGate>;
+template class dynamics_wrapper<chunkware_simple::SimpleComp>;
+template class dynamics_wrapper<chunkware_simple::SimpleLimit>;
 
 using gate = dynamics_wrapper<chunkware_simple::SimpleGate>;
 using comp = dynamics_wrapper<chunkware_simple::SimpleComp>;

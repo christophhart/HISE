@@ -33,10 +33,10 @@ class CaretComponent;         // draws the caret symbol(s)
 class GutterComponent;        // draws the gutter
 class GlyphArrangementArray;  // like StringArray but caches glyph positions
 class HighlightComponent;     // draws the highlight region(s)
-class Selection;              // stores leading and trailing edges of an editing region
+struct Selection;              // stores leading and trailing edges of an editing region
 class TextDocument;           // stores text data and caret ranges, supplies metrics, accepts actions
 class TextEditor;             // is a component, issues actions, computes view transform
-class Transaction;            // a text replacement, the document computes the inverse on fulfilling it
+struct Transaction;            // a text replacement, the document computes the inverse on fulfilling it
 class CodeMap;
 
 //==============================================================================
