@@ -609,7 +609,9 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 		if (cBounds.contains(area))
 			continue;
 
-		if (area.intersects(cBounds))
+		auto pBounds = parentOfC->getBounds();
+
+		if (area.intersects(cBounds) && area.intersects(pBounds))
 		{
 			arrayToFill.addIfNotAlreadyThere(sc);
 		}

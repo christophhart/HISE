@@ -192,22 +192,24 @@ void ZoomableViewport::mouseWheelMove(const MouseEvent& e, const MouseWheelDetai
 	}
 	else
 	{
-		auto zDelta = std::sqrt(zoomFactor);
-        
+		if (mouseWheelScroll)
+		{
+			auto zDelta = std::sqrt(zoomFactor);
+
 #if JUCE_WINDOWS
-        const float speed = 0.1f;
+			const float speed = 0.1f;
 #else
-        const float speed = 0.3f;
+			const float speed = 0.3f;
 #endif
 
-		if (e.mods.isShiftDown())
-			hBar.setCurrentRangeStart(hBar.getCurrentRangeStart() - wheel.deltaY * speed / zDelta);
-		else
-		{
-			hBar.setCurrentRangeStart(hBar.getCurrentRangeStart() - wheel.deltaX * speed / zDelta);
-			vBar.setCurrentRangeStart(vBar.getCurrentRangeStart() - wheel.deltaY * speed / zDelta);
+			if (e.mods.isShiftDown())
+				hBar.setCurrentRangeStart(hBar.getCurrentRangeStart() - wheel.deltaY * speed / zDelta);
+			else
+			{
+				hBar.setCurrentRangeStart(hBar.getCurrentRangeStart() - wheel.deltaX * speed / zDelta);
+				vBar.setCurrentRangeStart(vBar.getCurrentRangeStart() - wheel.deltaY * speed / zDelta);
+			}
 		}
-			
 	}
 }
 
