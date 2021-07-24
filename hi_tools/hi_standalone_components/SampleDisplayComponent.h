@@ -899,7 +899,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 
 	private:
 
-		friend class MultiChannelAudioBuffer;
+		friend struct MultiChannelAudioBuffer;
 
 		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType d, var v) override
 		{
@@ -1127,7 +1127,7 @@ private:
 		return newDataBuffer;
 	}
 
-	friend class DataProvider;
+	friend struct DataProvider;
 
 	Range<int> bufferRange;
 	Range<int> loopRange;

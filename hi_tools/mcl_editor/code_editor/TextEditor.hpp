@@ -770,7 +770,7 @@ private:
     RenderScheme renderScheme = RenderScheme::usingGlyphArrangement;
 	GotoFunction gotoFunction;
 
-	friend class FullEditor;
+	friend struct FullEditor;
 
     //==========================================================================
     double lastTransactionTime;

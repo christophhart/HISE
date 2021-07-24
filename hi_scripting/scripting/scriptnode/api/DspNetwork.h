@@ -46,7 +46,7 @@ using namespace hise;
 
 
 
-class NodeFactory;
+struct NodeFactory;
 
 struct DeprecationChecker
 {
