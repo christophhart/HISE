@@ -4486,6 +4486,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawToggleButton(Graphics &g_, 
 	{
 		DynamicObject::Ptr obj = new DynamicObject();
 		obj->setProperty("area", ApiHelpers::getVarRectangle(b.getLocalBounds().toFloat()));
+		obj->setProperty("enabled", b.isEnabled());
 		obj->setProperty("text", b.getButtonText());
 		obj->setProperty("over", isMouseOverButton);
 		obj->setProperty("down", isButtonDown);
@@ -4515,6 +4516,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawRotarySlider(Graphics &g_, 
 		s.setTextBoxStyle (Slider::NoTextBox, false, -1, -1);
 
 		obj->setProperty("id", s.getComponentID());
+		obj->setProperty("enabled", s.isEnabled());
 		obj->setProperty("text", s.getName());
 		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
 
@@ -4554,6 +4556,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		DynamicObject::Ptr obj = new DynamicObject();
 
 		obj->setProperty("id", slider.getComponentID());
+		obj->setProperty("enabled", slider.isEnabled());
 		obj->setProperty("text", slider.getName());
 		obj->setProperty("area", ApiHelpers::getVarRectangle(slider.getLocalBounds().toFloat()));
 
@@ -4682,6 +4685,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonBackground(Graphics& 
 		DynamicObject::Ptr obj = new DynamicObject();
 		obj->setProperty("area", ApiHelpers::getVarRectangle(button.getLocalBounds().toFloat()));
 		obj->setProperty("text", button.getButtonText());
+		obj->setProperty("enabled", button.isEnabled());
 		obj->setProperty("over", isMouseOverButton);
 		obj->setProperty("down", isButtonDown);
 		obj->setProperty("value", button.getToggleState());
