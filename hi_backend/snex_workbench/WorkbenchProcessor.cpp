@@ -1031,7 +1031,7 @@ void DspNetworkCompileExporter::run()
 void DspNetworkCompileExporter::threadFinished()
 {
 #if JUCE_LINUX
-	ok = compileSolution(o, CompileExporter::TargetTypes::numTargetTypes);
+	ok = compileSolution(CompileExporter::VSTLinux, CompileExporter::TargetTypes::numTargetTypes);
 #endif
 
 	if (ok == ErrorCodes::OK)
