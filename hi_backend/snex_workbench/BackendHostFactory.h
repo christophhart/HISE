@@ -131,6 +131,8 @@ struct BackendDllManager : public ReferenceCountedObject,
 
 #if JUCE_WINDOWS
 		String extension = "*.dll";
+#elif JUCE_LINUX
+		String extension = "*.so";
 #else
 		String extension = "*.dylib";
 #endif
