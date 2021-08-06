@@ -351,9 +351,9 @@ bool XYZSampleMapProvider::parse(const String& v, MultiChannelAudioBuffer::XYZIt
 	SampleMapPool::ManagedPtr p;
 
 	if (auto e = getMainController()->getExpansionHandler().getExpansionForWildcardReference(v))
-		p = e->pool->getSampleMapPool().loadFromReference(r, PoolHelpers::DontCreateNewEntry);
+		p = e->pool->getSampleMapPool().loadFromReference(r, PoolHelpers::LoadAndCacheWeak);
 	else
-		p = getMainController()->getActiveFileHandler()->pool->getSampleMapPool().loadFromReference(r, PoolHelpers::DontCreateNewEntry);
+		p = getMainController()->getActiveFileHandler()->pool->getSampleMapPool().loadFromReference(r, PoolHelpers::LoadAndCacheWeak);
 
 	if (p.get() != nullptr)
 	{

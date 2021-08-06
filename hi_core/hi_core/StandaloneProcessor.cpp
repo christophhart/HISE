@@ -115,7 +115,7 @@ StandaloneProcessor::StandaloneProcessor()
     {
         const String portName = FrontendHandler::getProjectName() + " Virtual MIDI";
         
-        if(virtualMidiPort = MidiInput::createNewDevice(portName, callback))
+        if(virtualMidiPort = MidiInput::createNewDevice(portName, callback).release())
         {
             virtualMidiPort->start();
         }

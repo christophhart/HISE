@@ -142,9 +142,7 @@ static Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceF
 #endif
 #endif
 
-#else
-
-
+#elif JUCE_LINUX && !HISE_NO_GUI_TOOLS
 
 class LinuxFontHandler
 {
@@ -184,9 +182,16 @@ class LinuxFontHandler
     };
 };
 
+
 #define GLOBAL_FONT() (LinuxFontHandler::Instance().getGlobalFont())
 #define GLOBAL_BOLD_FONT() (LinuxFontHandler::Instance().getGlobalBoldFont())
 #define GLOBAL_MONOSPACE_FONT() (LinuxFontHandler::Instance().getGlobalMonospaceFont())
+
+#else
+
+#define GLOBAL_FONT() (Font())
+#define GLOBAL_BOLD_FONT() (Font())
+#define GLOBAL_MONOSPACE_FONT() (Font())
 
 #endif
 
