@@ -200,7 +200,7 @@ int StaticLibraryHostFactory::getNumDataObjects(int index, int dataTypeAsInt) co
 DynamicLibraryHostFactory::DynamicLibraryHostFactory(ProjectDll::Ptr dll_) :
 	projectDll(dll_)
 {
-	jassert(projectDll != nullptr);
+	
 }
 
 DynamicLibraryHostFactory::~DynamicLibraryHostFactory()
