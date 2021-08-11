@@ -436,7 +436,7 @@ int FunctionData::getSpecialFunctionType() const
 }
 
 
-#if 0
+
 struct VariadicCallHelpers
 {
 #if JUCE_LINUX
@@ -847,7 +847,6 @@ snex::VariableStorage FunctionData::callDynamic(VariableStorage* args, int numAr
 	}
 	return {};
 }
-#endif
 
 ExternalTypeParser::ExternalTypeParser(String::CharPointerType location, String::CharPointerType wholeProgram) :
 	parseResult(Result::ok()),
