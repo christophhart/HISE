@@ -835,6 +835,41 @@ HlacMonolithInfo::Ptr ModulatorSamplerSoundPool::loadMonolithicData(const ValueT
 }
 
 
+void ModulatorSamplerSoundPool::setAllowDuplicateSamples(bool shouldAllowDuplicateSamples)
+{
+	if (allowDuplicateSamples == shouldAllowDuplicateSamples)
+		return;
+
+	allowDuplicateSamples = shouldAllowDuplicateSamples;
+
+	Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
+
+	auto& expHandler = mc->getExpansionHandler();
+
+	while (auto sampler = it.getNextProcessor())
+	{
+		auto ref = sampler->getSampleMap()->getReference();
+		auto refExpansion = expHandler.getExpansionForWildcardReference(ref.getReferenceString());
+
+		bool isSameExpansion = refExpansion == getFileHandler();
+		bool isRootPoolAndNoExpansionLoaded = dynamic_cast<Expansion*>(getFileHandler()) == nullptr && refExpansion == nullptr;
+
+		if (isSameExpansion || isRootPoolAndNoExpansionLoaded)
+		{
+			auto f = [ref](Processor* p)
+			{
+				auto s = static_cast<ModulatorSampler*>(p);
+				s->clearSampleMap(dontSendNotification);
+				s->loadSampleMap(ref);
+
+				return SafeFunctionCall::OK;
+			};
+
+			mc->getKillStateHandler().killVoicesAndCall(sampler, f, MainController::KillStateHandler::SampleLoadingThread);
+		}
+	}
+}
+
 void ModulatorSamplerSoundPool::clearUnreferencedSamples()
 {
 	asyncCleaner.triggerAsyncUpdate();

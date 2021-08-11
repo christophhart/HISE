@@ -537,11 +537,7 @@ public:
 		searchPool = !shouldBeDeactivated;
 	}
 
-	void setAllowDuplicateSamples(bool shouldAllowDuplicateSamples)
-	{
-		allowDuplicateSamples = shouldAllowDuplicateSamples;
-	}
-
+	void setAllowDuplicateSamples(bool shouldAllowDuplicateSamples);
 
 	int getNumLoadedFiles() const override { return getNumSoundsInPool(); }
 	PoolReference getReference(int index) const { return pool[index].r; }
