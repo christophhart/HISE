@@ -366,6 +366,9 @@ public:
 	/** Reextracts (and overrides) the user presets from the given expansion. Only works with intermediate / encrypted expansions. */
 	bool rebuildUserPresets();
 
+	/** Sets whether the samples are allowed to be duplicated for this expansion. Set this to false if you operate on the same samples differently. */
+	void setAllowDuplicateSamples(bool shouldAllowDuplicates);
+
 private:
 
 	friend class ScriptExpansionHandler;
