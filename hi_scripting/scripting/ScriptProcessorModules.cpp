@@ -1090,6 +1090,8 @@ void JavascriptTimeVariantModulator::calculateBlock(int startSample, int numSamp
 			if(n->getExceptionHandler().isOk())
 				n->getRootNode()->process(d);
 		}
+
+		FloatVectorOperations::clip(ptr, ptr, 0.0f, 1.0f, numSamples);
 	}
 	else if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 	{

@@ -170,6 +170,7 @@ public:
 		TrimSampleStart,
 		ExportAiffWithMetadata,
 		RemoveNormalisationInfo,
+		RedirectSampleMapReference,
 		numCommands
 	};
 
@@ -215,8 +216,11 @@ public:
 								AutomapUsingMetadata,
 								TrimSampleStart,
 								ExportAiffWithMetadata,
-								RemoveNormalisationInfo
+								RemoveNormalisationInfo,
+								RedirectSampleMapReference
 								};
+
+		//ScopedPointer<SomeClass> ptr = new SomeClass();
 
 		commands.addArray(id, numElementsInArray(id));
 	};
@@ -639,6 +643,7 @@ public:
 		toolsMenu.addCommandItem(a, ReencodeMonolith);
 		toolsMenu.addCommandItem(a, EncodeAllMonoliths);
 		toolsMenu.addCommandItem(a, ExportAiffWithMetadata);
+		toolsMenu.addCommandItem(a, RedirectSampleMapReference);
 		
 
 		p.addSubMenu("Tools", toolsMenu, true);

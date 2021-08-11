@@ -670,7 +670,10 @@ bool SampleMap::save(const File& fileToUse)
 
 	auto func = [tmp](Processor* p)
 	{
-		static_cast<ModulatorSampler*>(p)->loadSampleMap(tmp);
+		auto s = static_cast<ModulatorSampler*>(p);
+		
+		s->clearSampleMap(dontSendNotification);
+		s->loadSampleMap(tmp);
 
 		return SafeFunctionCall::OK;
 	};

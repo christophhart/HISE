@@ -619,6 +619,10 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 		result.setActive(true);
 		result.addDefaultKeypress(KeyPress::F5Key, ModifierKeys::shiftModifier);
 		break;
+	case RedirectSampleMapReference:
+		result.setInfo("Redirect Monolith reference", "Use a monolith ID other than the default", "Sample Editing", 0);
+		result.setActive(sampler->getSampleMap()->getReference().isValid());
+		break;
 	case EncodeAllMonoliths:
 		result.setInfo("(Re)encode all sample maps as HLAC monolith", "(Re)encode all sample maps as HLAC monolith", "Sample Editing", 0);
 		result.setActive(true);
@@ -698,7 +702,27 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
 	case RemoveNormalisationInfo: SampleEditHandler::SampleEditingActions::removeNormalisationInfo(handler); return true;
 	case ReencodeMonolith:	SampleEditHandler::SampleEditingActions::reencodeMonolith(this, handler); return true;
-	
+	case RedirectSampleMapReference:
+	{
+		FileChooser fc("Select the monolith sample you want to reference", GET_PROJECT_HANDLER(sampler).getSubDirectory(FileHandlerBase::Samples), "*.ch1");
+
+		if (fc.browseForFileToOpen())
+		{
+			auto newId = fc.getResult().getFileNameWithoutExtension();
+
+			auto vt = *const_cast<ValueTree*>(&sampler->getSampleMap()->getValueTree());
+
+			if(newId == sampler->getSampleMap()->getId().toString())
+				vt.removeProperty("MonolithReference", sampler->getUndoManager());
+			else
+				vt.setProperty("MonolithReference", newId, sampler->getUndoManager());
+
+			sampler->saveSampleMap();
+		};
+
+		return true;
+	}
+
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
 	case Undo:				sampler->getUndoManager()->undo(); return true;
