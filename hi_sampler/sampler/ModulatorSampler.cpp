@@ -1136,6 +1136,21 @@ void ModulatorSampler::clearSampleMap(NotificationType n)
 }
 
 
+void ModulatorSampler::reloadSampleMap()
+{
+	auto ref = getSampleMap()->getReference();
+
+	auto f = [ref](Processor* p)
+	{
+		auto s = static_cast<ModulatorSampler*>(p);
+		s->clearSampleMap(dontSendNotification);
+		s->loadSampleMap(ref);
+		return SafeFunctionCall::OK;
+	};
+
+	killAllVoicesAndCall(f, true);
+}
+
 void ModulatorSampler::loadSampleMap(PoolReference ref)
 {
 	if (getSampleMap()->getReference() == ref)

@@ -385,7 +385,9 @@ public:
 
 	SampleMap *getSampleMap() {	return sampleMap; };
 	void clearSampleMap(NotificationType n);
-	
+
+	void reloadSampleMap();
+
 	void loadSampleMap(PoolReference ref);
 
 	void loadEmbeddedValueTree(const ValueTree& v, bool loadAsynchronous = false);
