@@ -855,18 +855,7 @@ void ModulatorSamplerSoundPool::setAllowDuplicateSamples(bool shouldAllowDuplica
 		bool isRootPoolAndNoExpansionLoaded = dynamic_cast<Expansion*>(getFileHandler()) == nullptr && refExpansion == nullptr;
 
 		if (isSameExpansion || isRootPoolAndNoExpansionLoaded)
-		{
-			auto f = [ref](Processor* p)
-			{
-				auto s = static_cast<ModulatorSampler*>(p);
-				s->clearSampleMap(dontSendNotification);
-				s->loadSampleMap(ref);
-
-				return SafeFunctionCall::OK;
-			};
-
-			mc->getKillStateHandler().killVoicesAndCall(sampler, f, MainController::KillStateHandler::SampleLoadingThread);
-		}
+			sampler->reloadSampleMap();
 	}
 }
 
