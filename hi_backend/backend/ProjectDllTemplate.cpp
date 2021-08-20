@@ -31,7 +31,7 @@ static const unsigned char projectDllTemplate_jucer_lines[] =
 "      </MODULEPATHS>\r\n"
 "    </VS2017>\r\n"
 
-"<XCODE_MAC targetFolder=\"Builds/MacOSX\" extraDefs=\"%USE_IPP_MAC%\" extraLinkerFlags=\"%IPP_COMPILER_FLAGS%\" xcodeValidArchs=\"x86_64\">\r\n"
+"<XCODE_MAC targetFolder=\"Builds/MacOSX\" extraDefs=\"%USE_IPP_MAC%\" extraLinkerFlags=\"%IPP_COMPILER_FLAGS%\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override -fno-aligned-allocation\" xcodeValidArchs=\"x86_64\">\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION isDebug=\"1\" name=\"Debug\" osxArchitecture=\"64BitIntel\" headerPath=\"%IPP_HEADER%\"\r\n"
 "                       libraryPath=\"%IPP_LIBRARY%\" binaryPath=\"dll\" targetName=\"%DEBUG_DLL_NAME%\"/>\r\n"
