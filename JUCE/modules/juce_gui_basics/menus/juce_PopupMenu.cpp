@@ -1640,6 +1640,16 @@ void PopupMenu::addItem (int itemResultID, String itemText, bool isActive,
     addItem (std::move (i));
 }
 
+void PopupMenu::addItemWithShortcut(int itemResultID, String itemText, const KeyPress& k, bool isEnabled /*= true*/, bool isTicked /*= false*/)
+{
+	Item i(std::move(itemText));
+	i.itemID = itemResultID;
+	i.isEnabled = isEnabled;
+	i.isTicked = isTicked;
+	i.shortcutKeyDescription = k.getTextDescriptionWithIcons();
+	addItem(std::move(i));
+}
+
 void PopupMenu::addCommandItem (ApplicationCommandManager* commandManager,
                                 const CommandID commandID,
                                 String displayName,

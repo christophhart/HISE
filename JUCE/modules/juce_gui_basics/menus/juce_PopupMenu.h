@@ -248,6 +248,12 @@ public:
                   bool isEnabled = true,
                   bool isTicked = false);
 
+	void addItemWithShortcut(int itemResultID,
+		String itemText,
+		const KeyPress& k,
+		bool isEnabled = true,
+		bool isTicked = false);
+
     /** Appends a new item with an icon.
 
         @param itemResultID     the number that will be returned from the show() method
