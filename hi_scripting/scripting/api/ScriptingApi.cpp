@@ -4259,13 +4259,12 @@ ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcesso
 
 	if (getScriptProcessor()->objectsCanBeCreated())
 	{
-		Processor::Iterator<LookupTableProcessor> it(owner);
+		Processor::Iterator<ExternalDataHolder> it(owner);
 
-		while (LookupTableProcessor *lut = it.getNextProcessor())
+		while (auto lut = it.getNextProcessor())
 		{
 			if (dynamic_cast<Processor*>(lut)->getId() == name)
 			{
-
 				return new ScriptTableProcessor(getScriptProcessor(), lut);
 			}
 		}

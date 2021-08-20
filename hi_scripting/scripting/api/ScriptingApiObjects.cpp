@@ -3372,7 +3372,7 @@ struct ScriptingObjects::ScriptingTableProcessor::Wrapper
 
 
 
-ScriptingObjects::ScriptingTableProcessor::ScriptingTableProcessor(ProcessorWithScriptingContent *p, LookupTableProcessor *tableProcessor_) :
+ScriptingObjects::ScriptingTableProcessor::ScriptingTableProcessor(ProcessorWithScriptingContent *p, ExternalDataHolder *tableProcessor_) :
 ConstScriptingObject(p, dynamic_cast<Processor*>(tableProcessor_) != nullptr ? dynamic_cast<Processor*>(tableProcessor_)->getNumParameters() : 0),
 tableProcessor(dynamic_cast<Processor*>(tableProcessor_))
 {
@@ -3403,9 +3403,7 @@ void ScriptingObjects::ScriptingTableProcessor::setTablePoint(int tableIndex, in
 {
 	if (tableProcessor != nullptr)
 	{
-		Table *table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex);
-
-		if (table != nullptr)
+		if(auto table = dynamic_cast<ExternalDataHolder*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->setTablePoint(pointIndex, x, y, curve);
 			return;
@@ -3420,9 +3418,7 @@ void ScriptingObjects::ScriptingTableProcessor::addTablePoint(int tableIndex, fl
 {
 	if (tableProcessor != nullptr)
 	{
-		Table *table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex);
-
-		if (table != nullptr)
+		if (auto table = dynamic_cast<ExternalDataHolder*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->addTablePoint(x, y);
 			return;
@@ -3437,7 +3433,7 @@ void ScriptingObjects::ScriptingTableProcessor::reset(int tableIndex)
 {
 	if (tableProcessor != nullptr)
 	{
-		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
+		if (auto table = dynamic_cast<ExternalDataHolder*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->reset();
 			return;
@@ -3451,7 +3447,7 @@ void ScriptingObjects::ScriptingTableProcessor::restoreFromBase64(int tableIndex
 {
 	if (tableProcessor != nullptr)
 	{
-		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
+		if (auto table = dynamic_cast<ExternalDataHolder*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->restoreData(state);
 			return;
@@ -3465,7 +3461,7 @@ juce::String ScriptingObjects::ScriptingTableProcessor::exportAsBase64(int table
 {
 	if (tableProcessor != nullptr)
 	{
-		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
+		if (auto table = dynamic_cast<ExternalDataHolder*>(tableProcessor.get())->getTable(tableIndex))
 			return table->exportData();
 	}
 

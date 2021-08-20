@@ -1438,7 +1438,7 @@ namespace ScriptingObjects
 
 		// ============================================================================================================
 
-		ScriptingTableProcessor(ProcessorWithScriptingContent *p, LookupTableProcessor *tableProcessor);
+		ScriptingTableProcessor(ProcessorWithScriptingContent *p, ExternalDataHolder *tableProcessor);
 		~ScriptingTableProcessor() {};
 
 		Identifier getObjectName() const override {	RETURN_STATIC_IDENTIFIER("TableProcessor"); };
