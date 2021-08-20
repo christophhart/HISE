@@ -1272,6 +1272,8 @@ struct DspNetworkListeners
 				v.removeProperty(id, nullptr);
 		}
 
+	public:
+
 		static bool stripValueTree(ValueTree& v)
 		{
 			// Remove all child nodes from a project node

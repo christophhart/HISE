@@ -85,6 +85,9 @@ void NodeBase::prepare(PrepareSpecs specs)
 {
 	jassert(!isUINodeOfDuplicate());
 
+	if(lastSpecs.numChannels == 0)
+		setBypassed(isBypassed());
+
 	numChannels = specs.numChannels;
 	
 	lastSpecs = specs;

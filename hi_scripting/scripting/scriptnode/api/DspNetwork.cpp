@@ -392,26 +392,28 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 
 			currentSpecs.sampleRate = sampleRate;
 			currentSpecs.blockSize = (int)blockSize;
-			currentSpecs.numChannels = getRootNode()->getCurrentChannelAmount();
-			currentSpecs.voiceIndex = getPolyHandler();
 
-			
-
-			getRootNode()->prepare(currentSpecs);
-			getRootNode()->reset();
-
-			if (firstTime)
+			if (auto rootNode = getRootNode())
 			{
-				for (int i = 0; i < getRootNode()->getNumParameters(); i++)
-				{
-					auto p = getRootNode()->getParameter(i);
-					auto value = (double)p->getTreeWithValue()[PropertyIds::Value];
-					p->setValueAndStoreAsync(value);
-				}
-			}
+				currentSpecs.numChannels = getRootNode()->getCurrentChannelAmount();
+				currentSpecs.voiceIndex = getPolyHandler();
 
-			if (projectNodeHolder.isActive())
-				projectNodeHolder.prepare(currentSpecs);
+				getRootNode()->prepare(currentSpecs);
+				getRootNode()->reset();
+
+				if (firstTime)
+				{
+					for (int i = 0; i < getRootNode()->getNumParameters(); i++)
+					{
+						auto p = getRootNode()->getParameter(i);
+						auto value = (double)p->getTreeWithValue()[PropertyIds::Value];
+						p->setValueAndStoreAsync(value);
+					}
+				}
+
+				if (projectNodeHolder.isActive())
+					projectNodeHolder.prepare(currentSpecs);
+			}
 		}
 		catch (String& errorMessage)
 		{
