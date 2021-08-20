@@ -690,6 +690,9 @@ public:
 		/** Returns an array with all samples from the index data (can be either int or array of int, -1 selects all.). */
 		var createSelectionFromIndexes(var indexData);
 
+		/** Returns an array with all samples that match the filter function. */
+		var createSelectionWithFilter(var filterFunction);
+
 		/** Returns a list of the sounds selected by the selectSounds() method. */
 		var createListFromScriptSelection();
 

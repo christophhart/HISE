@@ -2440,6 +2440,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_1(Sampler, loadSfzFile);
 	API_METHOD_WRAPPER_1(Sampler, createSelection);
 	API_METHOD_WRAPPER_1(Sampler, createSelectionFromIndexes);
+	API_METHOD_WRAPPER_1(Sampler, createSelectionWithFilter);
 	API_METHOD_WRAPPER_0(Sampler, createListFromGUISelection);
 	API_METHOD_WRAPPER_0(Sampler, createListFromScriptSelection);
 	API_METHOD_WRAPPER_1(Sampler, saveCurrentSampleMap);
@@ -2485,6 +2486,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(setSortByRRGroup);
 	ADD_API_METHOD_1(createSelection);
 	ADD_API_METHOD_1(createSelectionFromIndexes);
+	ADD_API_METHOD_1(createSelectionWithFilter);
 	ADD_API_METHOD_0(createListFromGUISelection);
 	ADD_API_METHOD_0(createListFromScriptSelection);
 	ADD_API_METHOD_1(saveCurrentSampleMap);
@@ -2759,6 +2761,50 @@ var ScriptingApi::Sampler::createSelectionFromIndexes(var indexData)
 	}
 
 	return var(selection);
+}
+
+var ScriptingApi::Sampler::createSelectionWithFilter(var filterFunction)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("createSelectionWithFilter() only works with Samplers.");
+		RETURN_IF_NO_THROW({});
+	}
+
+	ReferenceCountedArray<ModulatorSamplerSound> list;
+
+	{
+		ModulatorSampler::SoundIterator it(s, false);
+
+		while (auto so = it.getNextSound())
+			list.add(so.get());
+	}
+
+	Array<var> results;
+
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		auto engine = jp->getScriptEngine();
+
+		
+
+		for (auto so : list)
+		{
+			var x = var(new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, so));
+			var::NativeFunctionArgs args(x, nullptr, 0);
+
+			auto ok = (int)engine->callExternalFunctionRaw(filterFunction, args);
+
+			if(ok != 0)
+				results.add(x);
+		}
+	}
+
+	
+
+	return var(results);
 }
 
 var ScriptingApi::Sampler::createListFromScriptSelection()
