@@ -915,6 +915,18 @@ DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)
 
 	v.addChild(s, -1, nullptr);
 
+#if USE_BACKEND
+	for (auto f : BackendDllManager::getNetworkFiles(asScriptProcessor->getMainController_()))
+	{
+		if (f.getFileNameWithoutExtension() == id)
+		{
+			auto xml = XmlDocument::parse(f);
+			v = ValueTree::fromXml(*xml);
+			break;
+		}
+	}
+#endif
+
 	auto newNetwork = new DspNetwork(asScriptProcessor, v, isPolyphonic());
 
 	if (vk != nullptr)
@@ -969,7 +981,30 @@ void DspNetwork::Holder::saveNetworks(ValueTree& d) const
 
 		for (auto n : networks)
 		{
-			v.addChild(n->getValueTree().createCopy(), -1, nullptr);
+			auto c = n->getValueTree().createCopy();
+
+#if USE_BACKEND
+
+			cppgen::ValueTreeIterator::forEach(c, 
+				snex::cppgen::ValueTreeIterator::IterationType::Forward, 
+				DspNetworkListeners::PatchAutosaver::stripValueTree);
+
+			auto f = BackendDllManager::getSubFolder(dynamic_cast<const ControlledObject*>(this)->getMainController(), BackendDllManager::FolderSubType::Networks);
+
+			auto nf = f.getChildFile(c[PropertyIds::ID].toString()).withFileExtension("xml");
+
+			if (nf.existsAsFile())
+			{
+				auto xml = c.createXml();
+				nf.replaceWithText(xml->createDocument(""));
+
+				debugToConsole(dynamic_cast<Processor*>(const_cast<Holder*>(this)), "Save network to " + nf.getFileName() + " from project folder");
+
+				c.removeAllChildren(nullptr);
+			}
+#endif
+
+			v.addChild(c, -1, nullptr);
 		}
 
 		d.addChild(v, -1, nullptr);
@@ -986,6 +1021,21 @@ void DspNetwork::Holder::restoreNetworks(const ValueTree& d)
 
 		for (auto c : v)
 		{
+#if USE_BACKEND
+			auto f = BackendDllManager::getSubFolder(dynamic_cast<const ControlledObject*>(this)->getMainController(), BackendDllManager::FolderSubType::Networks);
+
+			auto nf = f.getChildFile(c[PropertyIds::ID].toString()).withFileExtension("xml");
+
+			if (nf.existsAsFile())
+			{
+				if (auto xml = XmlDocument::parse(nf))
+				{
+					debugToConsole(dynamic_cast<Processor*>(this), "Load network " + nf.getFileName() + " from project folder");
+					c = ValueTree::fromXml(*xml);
+				}
+			}
+#endif
+
 			auto newNetwork = new DspNetwork(dynamic_cast<ProcessorWithScriptingContent*>(this),
 				c.createCopy(), isPolyphonic());
 
