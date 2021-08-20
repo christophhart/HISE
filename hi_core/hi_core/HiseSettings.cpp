@@ -430,8 +430,8 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		P_();
 
 		P(HiseSettings::Scripting::CodeFontSize);
-		D("Changes the font size of the scripting editor. Beware that on newer versions of macOS, some font sizes will not be displayed (Please don't ask why...).  ");
-		D("So if you're script is invisible, this might be the reason.");
+		D("Changes the default font size for the console, all code editors and the script watch table");
+		D("> You can temporarily change the font size for individual elements using Cmd+Scrollwheel, however this will not be persistent.");
 		P_();
 
 		P(HiseSettings::Compiler::Support32BitMacOS);
@@ -1000,7 +1000,7 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		mc->updateCallstackSettingForExistingScriptProcessors();
 
 	else if (id == Scripting::CodeFontSize)
-		mc->getFontSizeChangeBroadcaster().sendChangeMessage();
+		mc->getFontSizeChangeBroadcaster().sendMessage(sendNotification, (float)newValue);
 	else if (id == Other::UseOpenGL)
 		PresetHandler::showMessageWindow("Reopen HISE window", "Restart HISE (or reopen this window) in order to apply the new OpenGL setting", PresetHandler::IconType::Info);
 	else if (id == Other::EnableAutosave || id == Other::AutosaveInterval)

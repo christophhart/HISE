@@ -1453,7 +1453,7 @@ public:
 		return false;
 	}
     
-    SafeChangeBroadcaster &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
+	LambdaBroadcaster<float> &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
     
     /** This sets the global pitch factor. */
     void setGlobalPitchFactor(double pitchFactorInSemiTones)
@@ -1738,7 +1738,7 @@ private:
 	Component::SafePointer<CodeEditorComponent> lastActiveEditor;
 	int lastCharacterPositionOfSelectedEditor;
 
-    SafeChangeBroadcaster codeFontChangeNotificator;
+    LambdaBroadcaster<float> codeFontChangeNotificator;
         
 	WeakReference<Console> console;
 
