@@ -946,6 +946,17 @@ void ScriptingObjects::ScriptDownloadObject::start()
 	}
 }
 
+Component* ScriptingObjects::ScriptComplexDataReferenceBase::createPopupComponent(const MouseEvent& e, Component *c)
+{
+	if (auto ed = dynamic_cast<Component*>(ExternalData::createEditor(complexObject)))
+	{
+		ed->setSize(600, 300);
+		return ed;
+	}
+	
+	return nullptr;
+}
+
 ScriptingObjects::ScriptComplexDataReferenceBase::ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type_, ExternalDataHolder* otherHolder/*=nullptr*/) :
 	ConstScriptingObject(c, 0),
 	index(dataIndex),
@@ -1218,17 +1229,15 @@ ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent
 	ADD_API_METHOD_1(getTableValueNormalised);
 }
 
-void ScriptingObjects::ScriptTableData::rightClickCallback(const MouseEvent& e, Component *c)
+Component* ScriptingObjects::ScriptTableData::createPopupComponent(const MouseEvent& e, Component *c)
 {
 #if USE_BACKEND
-
 	auto te = dynamic_cast<Component*>(snex::ExternalData::createEditor(getTable()));
 	te->setSize(300, 200);
-	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-	MouseEvent ee = e.getEventRelativeTo(editor);
-	editor->getRootFloatingTile()->showComponentInRootPopup(te, editor, ee.getMouseDownPosition());
+	return te;
 #else
 	ignoreUnused(e, c);
+	return nullptr;
 #endif
 }
 
@@ -1381,9 +1390,51 @@ juce::String ScriptingObjects::ScriptingSamplerSound::getDebugValue() const
 	return sound != nullptr ? sound->getPropertyAsString(SampleIds::FileName) : "";
 }
 
-void ScriptingObjects::ScriptingSamplerSound::rightClickCallback(const MouseEvent&, Component *)
+hise::DebugInformation* ScriptingObjects::ScriptingSamplerSound::getChildElement(int index)
 {
+	ModulatorSamplerSound::Ptr other = sound;
 
+	auto id = sampleIds[index];
+
+	auto av = [other, id]()
+	{
+		if (other != nullptr)
+			return other->getSampleProperty(id);
+
+		return var();
+	};
+
+	String cid = "%PARENT%.";
+	cid << id;
+
+	return new LambdaValueInformation(av, Identifier(cid), {}, (DebugInformation::Type)getTypeNumber(), getLocation());
+}
+
+void ScriptingObjects::ScriptingSamplerSound::assign(const int index, var newValue)
+{
+	set(index, newValue);
+}
+
+var ScriptingObjects::ScriptingSamplerSound::getAssignedValue(int index) const
+{
+	return get(index);
+}
+
+int ScriptingObjects::ScriptingSamplerSound::getCachedIndex(const var &indexExpression) const
+{
+	if (indexExpression.isString())
+	{
+		Identifier thisId(indexExpression.toString());
+
+		auto idx = sampleIds.indexOf(thisId);
+
+		if (idx == -1)
+			reportScriptError("Can't find property " + thisId.toString());
+
+		return idx;
+	}
+
+	return (int)indexExpression;
 }
 
 void ScriptingObjects::ScriptingSamplerSound::set(int propertyIndex, var newValue)
@@ -1840,9 +1891,9 @@ void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent 
 #endif
 }
 
-void ScriptingObjects::ScriptingModulator::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingModulator::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, mod);
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, mod);
 }
 
 void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
@@ -2132,9 +2183,9 @@ moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 };
 
 
-void ScriptingObjects::ScriptingEffect::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingEffect::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, effect.get());
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, effect.get());
 }
 
 juce::String ScriptingObjects::ScriptingEffect::getId() const
@@ -2712,9 +2763,9 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 };
 
 
-void ScriptingObjects::ScriptingSynth::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingSynth::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, synth);
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, synth);
 }
 
 String ScriptingObjects::ScriptingSynth::getId() const
@@ -3001,9 +3052,9 @@ mp(mp_)
 	ADD_API_METHOD_0(asMidiPlayer);
 }
 
-void ScriptingObjects::ScriptingMidiProcessor::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingMidiProcessor::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, mp);
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, mp);
 }
 
 int ScriptingObjects::ScriptingMidiProcessor::getCachedIndex(const var &indexExpression) const
@@ -4295,8 +4346,41 @@ void ScriptingObjects::ScriptedLookAndFeel::setGlobalFont(const String& fontName
 	f = getScriptProcessor()->getMainController_()->getFontFromString(fontName, fontSize);
 }
 
+Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
+{
+	static const Array<Identifier> sa =
+	{
+		"drawAlertWindow",
+		"getAlertWindowMarkdownStyleData",
+		"drawAlertWindowIcon",
+		"drawPopupMenuBackground",
+		"drawPopupMenuItem",
+		"drawToggleButton",
+		"drawRotarySlider",
+		"drawLinearSlider",
+		"drawDialogButton",
+		"drawComboBox",
+		"drawNumberTag",
+		"drawPresetBrowserBackground",
+		"drawPresetBrowserColumnBackground",
+		"drawPresetBrowserListItem",
+		"drawPresetBrowserSearchBar",
+		"drawPresetBrowserTag",
+		"drawTablePath",
+		"drawTablePoint",
+		"drawTableRuler",
+		"drawScrollbar",
+		"drawMidiDropper"
+	};
+
+	return sa;
+}
+
 bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject)
 {
+	// If this hits, you need to add that id to the array above.
+	jassert(getAllFunctionNames().contains(functionname));
+
 	auto f = functions.getProperty(functionname, {});
 
 	if (HiseJavascriptEngine::isJavascriptFunction(f))
@@ -4342,6 +4426,9 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 
 var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier& functionname, var* args, int numArgs)
 {
+	// If this hits, you need to add that id to the array above.
+	jassert(getAllFunctionNames().contains(functionname));
+
 	auto f = functions.getProperty(functionname, {});
 
 	if (HiseJavascriptEngine::isJavascriptFunction(f))
@@ -5051,6 +5138,29 @@ LookAndFeel* HiseColourScheme::createAlertWindowLookAndFeel(void* mainController
 }
 #endif
 
+
+
+juce::Array<juce::Identifier> ApiHelpers::getGlobalApiClasses()
+{
+
+	static const Array<Identifier> ids =
+	{
+		"Engine",
+		"Console",
+		"Content",
+		"Sampler",
+		"Synth",
+		"Math",
+		"Settings",
+		"Server",
+		"FileSystem",
+		"Message",
+		"Buffer"
+	};
+	
+	return ids;
+}
+
 #if USE_BACKEND
 juce::ValueTree ApiHelpers::getApiTree()
 {
@@ -5170,16 +5280,13 @@ struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
 	WeakReference<ScriptUnorderedStack> parent;
 };
 
-void ScriptingObjects::ScriptUnorderedStack::rightClickCallback(const MouseEvent& e, Component *c)
+Component* ScriptingObjects::ScriptUnorderedStack::createPopupComponent(const MouseEvent& e, Component *c)
 {
 #if USE_BACKEND
-
-	auto te = new Display(this);
-	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-	MouseEvent ee = e.getEventRelativeTo(editor);
-	editor->getRootFloatingTile()->showComponentInRootPopup(te, editor, ee.getMouseDownPosition());
+	return new Display(this);
 #else
 	ignoreUnused(e, c);
+	return nullptr;
 #endif
 }
 

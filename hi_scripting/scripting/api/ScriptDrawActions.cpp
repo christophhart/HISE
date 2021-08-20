@@ -405,6 +405,17 @@ namespace ScriptedDrawActions
 
 		void perform(Graphics& g) override
 		{
+			auto invT = AffineTransform::scale(1.0f / handler->getScaleFactor()).translated(bounds.getX(), bounds.getY());
+
+			if (ScriptingObjects::ScriptShader::isRenderingScreenshot())
+			{
+				if (cachedOpenGlBuffer.isValid())
+				{
+					g.drawImageTransformed(cachedOpenGlBuffer, invT);
+					return;
+				}
+			}
+
 			if (obj != nullptr && obj->shader != nullptr)
 			{
 				if (obj->dirty)
@@ -439,16 +450,23 @@ namespace ScriptedDrawActions
 #if USE_BACKEND
 					if (!obj->compiledOk())
 					{
-						while (glGetError() != GL_NO_ERROR)
+						int safeCount = 0;
+
+						while (glGetError() != GL_NO_ERROR )
 						{
+							safeCount++;
+
+							if (safeCount > 10000)
+								break;
 						};
 
-						handler->logError(obj->getErrorMessage());
+						auto s = StringArray::fromLines(obj->getErrorMessage(true));
+						s.removeEmptyStrings();
+
+						for(auto l: s)
+							handler->logError(l);
 					}
 #endif
-
-					
-
 				}
 
 				if (obj->compiledOk())
@@ -473,8 +491,6 @@ namespace ScriptedDrawActions
 						glBlendFunc((int)obj->src, (int)obj->dst);
 					}
 
-					
-
 					obj->shader->fillRect(g.getInternalContext(), bounds);
 
 					// reset it to default
@@ -485,7 +501,30 @@ namespace ScriptedDrawActions
 
 						glBlendFunc(blendSrc, blendDst);
 					}
-						
+
+					if (obj->enableCache)
+					{
+						auto gb = handler->getGlobalBounds();
+						auto sb = handler->getScreenshotBounds(bounds);
+
+						cachedOpenGlBuffer = Image(Image::RGB, sb.getWidth(), sb.getHeight(), true);
+
+						Image::BitmapData data(cachedOpenGlBuffer, Image::BitmapData::writeOnly);
+
+						glFlush();
+						glReadPixels(sb.getX(), sb.getY(), sb.getWidth(), sb.getHeight(), GL_BGR_EXT, GL_UNSIGNED_BYTE, data.getPixelPointer(0, 0));
+
+						for (int y = 0; y < sb.getHeight() / 2; y++)
+						{
+							auto srcLine = data.getLinePointer(y);
+							auto dstLine = data.getLinePointer(sb.getHeight() - y - 1);
+
+							for (int x = 0; x < data.width * data.pixelStride; x++)
+							{
+								std::swap(srcLine[x], dstLine[x]);
+							}
+						}
+					}	
 				}
 			}
 		}
@@ -493,6 +532,8 @@ namespace ScriptedDrawActions
 		WeakReference<DrawActions::Handler> handler;
 		WeakReference<ScriptingObjects::ScriptShader> obj;
 		Rectangle<int> bounds;
+
+		Image cachedOpenGlBuffer;
 	};
 };
 

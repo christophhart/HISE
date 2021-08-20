@@ -1480,6 +1480,18 @@ public:
 			numProperties
 		};
 
+		enum class DebugWatchIndex
+		{
+			Data,
+			ChildPanels,
+			PaintRoutine,
+			TimerCallback,
+			MouseCallback,
+			PreloadCallback,
+			FileCallback,
+			NumDebugWatchIndexes
+		};
+
 		ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);;
 		
 		ScriptPanel(ScriptPanel* parent);
@@ -1504,6 +1516,8 @@ public:
 
 		void preRecompileCallback() override
 		{
+			cachedList.clear();
+
 			ScriptComponent::preRecompileCallback();
 
 			timerRoutine.clear();
@@ -1518,6 +1532,14 @@ public:
 		void prepareCycleReferenceCheck() override;
 
 		void handleDefaultDeactivatedProperties() override;
+
+		int getNumChildElements() const override;
+
+		DebugInformationBase* getChildElement(int index) override;
+
+		DebugInformationBase::Ptr createChildElement(DebugWatchIndex index) const;
+
+		
 
 		// ======================================================================================================== API Methods
 
@@ -1767,7 +1789,7 @@ public:
 
 		var paintRoutine;
 
-		
+		void buildDebugListIfEmpty() const;
 
 		WeakCallbackHolder timerRoutine;
 		WeakCallbackHolder loadRoutine;
@@ -1785,7 +1807,7 @@ public:
 		WeakReference<ScriptPanel> parentPanel;
 		ReferenceCountedArray<ScriptPanel> childPanels;
 
-		
+		mutable DebugInformationBase::List cachedList;
 
 		bool isChildPanel = false;
 

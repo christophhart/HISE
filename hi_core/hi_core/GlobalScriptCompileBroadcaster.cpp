@@ -175,38 +175,7 @@ void ExternalScriptFile::setRuntimeErrors(const Result& r)
 			runtimeErrors.add(RuntimeError(s));
 	}
 
-	WeakReference<ExternalScriptFile> safeThis(this);
-
-	MessageManager::callAsync([safeThis]()
-	{
-		if (safeThis.get() != nullptr)
-		{
-			for (auto s : safeThis.get()->runtimeErrorListeners)
-			{
-				if (s.get() != nullptr)
-					s->runTimeErrorsOccured(safeThis->runtimeErrors);
-			}
-		}
-	});
-}
-
-void ExternalScriptFile::addRuntimeErrorListener(RuntimeErrorListener* l)
-{
-	runtimeErrorListeners.addIfNotAlreadyThere(l);
-
-	WeakReference<ExternalScriptFile> safeThis(this);
-	WeakReference<RuntimeErrorListener> safeL(l);
-
-	if (!runtimeErrors.isEmpty())
-	{
-		MessageManager::callAsync([safeThis, safeL]()
-		{
-			if (safeL == nullptr || safeThis == nullptr)
-				return;
-
-			safeL.get()->runTimeErrorsOccured(safeThis->runtimeErrors);
-		});
-	}
+	runtimeErrorBroadcaster.sendMessage(sendNotification, &runtimeErrors);
 }
 
 ExternalScriptFile::RuntimeError::RuntimeError(const String& e)

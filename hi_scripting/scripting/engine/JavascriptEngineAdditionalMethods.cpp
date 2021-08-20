@@ -460,6 +460,8 @@ struct ManualGraphicsObject: public DebugableObjectBase
 	Identifier getObjectName() const override { return "Graphics"; };
 	Identifier getInstanceName() const override { return "g"; };
 
+	bool isWatchable() const override { return false; };
+
 	void getAllFunctionNames(Array<Identifier>& functions) const override
 	{
 #if USE_BACKEND
@@ -469,8 +471,6 @@ struct ManualGraphicsObject: public DebugableObjectBase
 			functions.add(c.getProperty("name", "unknown").toString());  
 #endif
 	}
-
-	
 };
 
 struct ManualEventObject : public DebugableObjectBase
@@ -481,6 +481,19 @@ struct ManualEventObject : public DebugableObjectBase
 
 	Identifier getInstanceName() const override {
 		return "event";
+	}
+
+	bool isWatchable() const override { return false; };
+
+	int getNumChildElements() const override
+	{
+		return MouseCallbackComponent::getCallbackPropertyNames().size();
+	}
+
+	DebugInformationBase* getChildElement(int index)
+	{
+		auto id = MouseCallbackComponent::getCallbackPropertyNames()[index];
+		return createDebugInformationForChild(id);
 	}
 
 	DebugInformationBase* createDebugInformationForChild(const Identifier& id) override
@@ -544,16 +557,40 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 
 	debugInformation.clear();
 
+	WeakReference<HiseSpecialData> safeThis(this);
+
 	for (int i = 0; i < constObjects.size(); i++)
 	{
-		debugInformation.add(new FixedVarPointerInformation(constObjects.getVarPointerAt(i), constObjects.getName(i), Identifier(), DebugInformation::Type::Constant, constLocations[i]));
+		auto vf = [safeThis, i]()
+		{
+			if (safeThis == nullptr)
+				return var();
+
+			if (auto v = safeThis->constObjects.getVarPointerAt(i))
+				return *v;
+
+			return var();
+		};
+
+		debugInformation.add(new LambdaValueInformation(vf, constObjects.getName(i), Identifier(), DebugInformation::Type::Constant, constLocations[i]));
 	}
 
 	const int numRegisters = varRegister.getNumUsedRegisters();
 
 	for (int i = 0; i < numRegisters; i++)
 	{
-		debugInformation.add(new FixedVarPointerInformation(varRegister.getVarPointer(i), varRegister.getRegisterId(i), Identifier(), DebugInformation::Type::RegisterVariable, registerLocations[i]));
+		auto vf = [safeThis, i]()
+		{
+			if (safeThis == nullptr)
+				return var();
+
+			if (auto v = safeThis->varRegister.getVarPointer(i))
+				return *v;
+
+			return var();
+		};
+
+		debugInformation.add(new LambdaValueInformation(vf, varRegister.getRegisterId(i), Identifier(), DebugInformation::Type::RegisterVariable, registerLocations[i]));
 	}
 	
 	for (int i = 0; i < apiClasses.size(); i++)
@@ -562,17 +599,20 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 		
 	}
 
-	DynamicObject *globalObject = rootObject->getProperty("Globals").getDynamicObject();
-
-	for (int i = 0; i < globalObject->getProperties().size(); i++)
-		debugInformation.add(new DynamicObjectDebugInformation(globalObject, globalObject->getProperties().getName(i), DebugInformation::Type::Globals));
+	if (auto globalObject = rootObject->getProperty("Globals").getDynamicObject())
+	{
+		for (int i = 0; i < globalObject->getProperties().size(); i++)
+			debugInformation.add(new DynamicObjectDebugInformation(globalObject, globalObject->getProperties().getName(i), DebugInformation::Type::Globals));
+	}
 
 	for (int i = 0; i < rootObject->getProperties().size(); i++)
 	{
 		const Identifier propertyId = rootObject->getProperties().getName(i);
 		if (hiddenProperties.contains(propertyId)) continue;
 
-		debugInformation.add(new DynamicObjectDebugInformation(rootObject, propertyId, DebugInformation::Type::Variables));
+		auto t = rootObject->getProperty(propertyId).isMethod() ? DebugInformation::Type::Variables : DebugInformation::Type::ExternalFunction;
+
+		debugInformation.add(new DynamicObjectDebugInformation(rootObject, propertyId, t));
 	}
 
 	for (int i = 0; i < namespaces.size(); i++)
@@ -614,14 +654,27 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 }
 
 
-DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createDebugInformation(int index) const
+DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createDebugInformation(int index)
 {
 	int prevLimit = 0;
 	int upperLimit = varRegister.getNumUsedRegisters();
 
+	WeakReference<JavascriptNamespace> safeThis(const_cast<JavascriptNamespace*>(this));
+
 	if (index < upperLimit)
 	{
-		DebugInformation* di = new FixedVarPointerInformation(varRegister.getVarPointer(index), varRegister.getRegisterId(index), id, DebugInformation::Type::RegisterVariable, registerLocations[index]);
+		auto vf = [safeThis, index]()
+		{
+			if (safeThis != nullptr)
+			{
+				if (auto v = safeThis->varRegister.getVarPointer(index))
+					return *v;
+			}
+
+			return var();
+		};
+
+		DebugInformation* di = new LambdaValueInformation(vf, varRegister.getRegisterId(index), id, DebugInformation::Type::RegisterVariable, registerLocations[index]);
 		return di;
 	}
 
@@ -644,7 +697,18 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 	{
 		const int constIndex = index - prevLimit;
 
-		DebugInformation* di = new FixedVarPointerInformation(constObjects.getVarPointerAt(constIndex), constObjects.getName(constIndex), id, DebugInformation::Type::Constant, constLocations[constIndex]);
+		auto vf = [safeThis, constIndex]()
+		{
+			if (safeThis != nullptr)
+			{
+				if (auto v = safeThis->constObjects.getVarPointerAt(constIndex))
+					return *v;
+			}
+
+			return var();
+		};
+
+		DebugInformation* di = new LambdaValueInformation(vf, constObjects.getName(constIndex), id, DebugInformation::Type::Constant, constLocations[constIndex]);
 	
 		return di;
 	}

@@ -284,6 +284,10 @@ struct WeakCallbackHolder : private ScriptingObject
 		anonymousFunctionRef = var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()));
 	}
 
+	
+
+	DebugInformationBase::Ptr createDebugObject(const String& n) const;
+
 	void decRefCount()
 	{
 		anonymousFunctionRef = var();
@@ -326,6 +330,32 @@ class AssignableObject
 {
 public:
 
+	/** Use this to create a child data in the watch table. */
+	struct IndexedValue
+	{
+		IndexedValue(AssignableObject* obj_, int idx): index(idx), obj(obj_) {}
+
+		var operator()()
+		{
+			if (obj.get() != nullptr)
+				return obj->getAssignedValue(index);
+
+			return var();
+		}
+
+		Identifier getId() const
+		{
+			String s = "%PARENT%";
+			s << "[" << String(index) << "]";
+			return Identifier(s);
+		}
+
+	private:
+
+		const int index;
+		WeakReference<AssignableObject> obj;
+	};
+
 	virtual ~AssignableObject() {};
 
 	/** Assign the value to the specified index. The parameter passed in must relate to the index created with getCachedIndex. */
@@ -336,6 +366,8 @@ public:
 
 	/** Overwrite this and return an index that can be used to look up the value when the script is executed. */
 	virtual int getCachedIndex(const var &indexExpression) const = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(AssignableObject);
 };
 
 

@@ -130,11 +130,11 @@ namespace ScriptingObjects
 			useLineNumbers = shouldUseLineNumbers;
 		}
 
-		void rightClickCallback(const MouseEvent& e, Component* componentToNotifiy) override;
+		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
 
 		bool compiledOk() const { return r.wasOk(); }
 
-		String getErrorMessage() { return r.getErrorMessage(); }
+		String getErrorMessage(bool verbose) const;
 
 		void setCompileResult(Result compileResult)
 		{
@@ -227,7 +227,7 @@ namespace ScriptingObjects
 		}
 		String getDebugName() const override { return "Path"; }
 
-		void rightClickCallback(const MouseEvent &e, Component* componentToNotify) override;
+		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
 
 
 
@@ -540,6 +540,8 @@ namespace ScriptingObjects
 		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject);
 
 		var callDefinedFunction(const Identifier& name, var* args, int numArgs);
+
+		static Array<Identifier> getAllFunctionNames();
 
 		Font f = GLOBAL_BOLD_FONT();
 		ReferenceCountedObjectPtr<GraphicsObject> g;

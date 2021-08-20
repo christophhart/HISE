@@ -422,6 +422,14 @@ const ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain() con
 	return getMainController()->getMainSynthChain();
 }
 
+void PanelWithProcessorConnection::changeContentWithUndo(int newIndex)
+{
+	if (currentIndex != newIndex)
+	{
+		setContentWithUndo(currentProcessor, newIndex);
+	}
+}
+
 void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, int newIndex)
 {
 	StringArray indexes;

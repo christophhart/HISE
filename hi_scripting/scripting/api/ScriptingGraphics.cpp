@@ -329,23 +329,41 @@ var ScriptingObjects::ScriptShader::getOpenGLStatistics()
 	return openGLStats;
 }
 
-void ScriptingObjects::ScriptShader::rightClickCallback(const MouseEvent& e, Component* componentToNotify)
+void ScriptingObjects::ScriptShader::setEnableCachedBuffer(bool shouldEnableBuffer)
+{
+	enableCache = shouldEnableBuffer;
+}
+
+Component* ScriptingObjects::ScriptShader::createPopupComponent(const MouseEvent& e, Component* componentToNotify)
 {
 #if USE_BACKEND
-
-	auto *editor = GET_BACKEND_ROOT_WINDOW(componentToNotify);
-
-	auto content = new PreviewComponent(this);
-
-	MouseEvent ee = e.getEventRelativeTo(editor);
-
-	editor->getRootFloatingTile()->showComponentInRootPopup(content, editor, ee.getMouseDownPosition());
-
+	return new PreviewComponent(this);
 #else
-
 	ignoreUnused(e, componentToNotify);
-
+	return nullptr;
 #endif
+}
+
+String ScriptingObjects::ScriptShader::getErrorMessage(bool verbose) const
+{
+	if (verbose)
+	{
+		String s;
+
+		auto lines = StringArray::fromLines(r.getErrorMessage());
+		lines.removeEmptyStrings();
+
+		for (const auto& l : lines)
+		{
+			s << l;
+			s << "{GLSL::";
+			s << dynamic_cast<const Processor*>(getScriptProcessor())->getId() << "::" << shaderName << "}\n";
+		}
+		
+		return s;
+	}
+	else
+	return r.getErrorMessage();
 }
 
 void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
@@ -434,22 +452,13 @@ private:
 	Path p;
 };
 
-void ScriptingObjects::PathObject::rightClickCallback(const MouseEvent &e, Component* componentToNotify)
+Component* ScriptingObjects::PathObject::createPopupComponent(const MouseEvent &e, Component* componentToNotify)
 {
 #if USE_BACKEND
-
-	auto *editor = GET_BACKEND_ROOT_WINDOW(componentToNotify);
-
-	PathPreviewComponent* content = new PathPreviewComponent(p);
-
-	MouseEvent ee = e.getEventRelativeTo(editor);
-
-	editor->getRootFloatingTile()->showComponentInRootPopup(content, editor, ee.getMouseDownPosition());
-
+	return new PathPreviewComponent(p);
 #else
-
 	ignoreUnused(e, componentToNotify);
-
+	return nullptr;
 #endif
 }
 

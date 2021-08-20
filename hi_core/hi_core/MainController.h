@@ -1396,7 +1396,7 @@ public:
 	/** Returns the amount of playing voices. */
 	int getNumActiveVoices() const;;
 
-	void setLastActiveEditor(CodeEditorComponent *editor, CodeDocument::Position position)
+	void setLastActiveEditor(Component *editor, CodeDocument::Position position)
 	{
 		auto old = lastActiveEditor;
 
@@ -1410,7 +1410,7 @@ public:
 			lastActiveEditor->repaint();
 	}
 
-	CodeEditorComponent* getLastActiveEditor()
+	Component* getLastActiveEditor()
 	{
 		return lastActiveEditor.getComponent();
 	}
@@ -1736,7 +1736,7 @@ private:
 
 	Font globalFont;
 
-	Component::SafePointer<CodeEditorComponent> lastActiveEditor;
+	Component::SafePointer<Component> lastActiveEditor;
 	int lastCharacterPositionOfSelectedEditor;
 
     LambdaBroadcaster<float> codeFontChangeNotificator;

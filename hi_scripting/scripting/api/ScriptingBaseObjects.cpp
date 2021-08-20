@@ -529,6 +529,16 @@ hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& oth
 	return *this;
 }
 
+hise::DebugInformationBase::Ptr WeakCallbackHolder::createDebugObject(const String& n) const
+{
+	if (weakCallback != nullptr)
+	{
+		return new ObjectDebugInformationWithCustomName(weakCallback.get(), (int)DebugInformation::Type::Callback, "%PARENT%." + n);
+	}
+
+	return nullptr;
+}
+
 void WeakCallbackHolder::clear()
 {
 	engineToUse = nullptr;

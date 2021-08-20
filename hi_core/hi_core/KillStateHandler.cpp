@@ -223,6 +223,7 @@ void MainController::KillStateHandler::quit()
 {
 	LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
 
+	mc->getJavascriptThreadPool().deactivateSleepUntilCompilation();
 	mc->getMainSynthChain()->resetAllVoices();
 	currentState = ShutdownComplete;
 

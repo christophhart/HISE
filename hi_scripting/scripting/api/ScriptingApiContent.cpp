@@ -2010,8 +2010,6 @@ juce::ValueTree ScriptingApi::Content::ComplexDataScriptComponent::exportAsValue
 {
 	ValueTree v = ScriptComponent::exportAsValueTree();
 
-	jassert(cachedObjectReference != nullptr);
-
 	if (cachedObjectReference != nullptr)
 		v.setProperty("data", cachedObjectReference->toBase64String(), nullptr);
 
@@ -3435,6 +3433,80 @@ void ScriptingApi::Content::ScriptPanel::removeAnimationListener(AnimationListen
 }
 
 
+hise::DebugInformationBase::Ptr ScriptingApi::Content::ScriptPanel::createChildElement(DebugWatchIndex i) const
+{
+	var v;
+	String id = "%PARENT%.";
+
+	switch (i)
+	{
+	case DebugWatchIndex::Data:					
+		v = getConstantValue(0); 
+
+		if (auto obj = v.getDynamicObject())
+			if (obj->getProperties().isEmpty())
+				return nullptr;
+		
+		id << "data";  break;
+	case DebugWatchIndex::PaintRoutine:			
+		v = paintRoutine; 
+		
+		if (v.isUndefined() || v.isVoid())
+			return nullptr;
+		
+		id << "paintRoutine";  break;
+	case DebugWatchIndex::TimerCallback:		return timerRoutine.createDebugObject("timerCallback");
+	case DebugWatchIndex::MouseCallback:		return mouseRoutine.createDebugObject("mouseCallback");
+	case DebugWatchIndex::PreloadCallback:		return this->loadRoutine.createDebugObject("loadingCallback");
+	case DebugWatchIndex::ChildPanels:
+	{
+		if (childPanels.isEmpty())
+			return nullptr;
+
+		Array<var> s;
+		for (auto p : childPanels)
+			s.add(var(p));
+
+		v = s;
+		id << "childPanels";
+		break;
+	}
+	case DebugWatchIndex::FileCallback:		   return fileDropRoutine.createDebugObject("fileCallback");
+	case DebugWatchIndex::NumDebugWatchIndexes:
+	default:
+		break;
+	}
+
+	auto vf = [v]() {return v; };
+	return new LambdaValueInformation(vf, Identifier(id), {}, DebugInformation::Type::Constant, getLocation());
+}
+
+
+void ScriptingApi::Content::ScriptPanel::buildDebugListIfEmpty() const
+{
+	if (cachedList.isEmpty())
+	{
+		for (int i = 0; i < (int)DebugWatchIndex::NumDebugWatchIndexes; i++)
+		{
+			auto ptr = createChildElement((DebugWatchIndex)i);
+
+			if (ptr != nullptr)
+				cachedList.add(ptr);
+		}
+	}
+}
+
+hise::DebugInformationBase* ScriptingApi::Content::ScriptPanel::getChildElement(int index)
+{
+	return cachedList[index];
+}
+
+int ScriptingApi::Content::ScriptPanel::getNumChildElements() const
+{
+	buildDebugListIfEmpty();
+	return cachedList.size();
+}
+
 
 
 #endif
@@ -3789,8 +3861,6 @@ colour(Colour(0xff777777))
 	{
 		contentPropertyData = ValueTree("ContentProperties");
 	}
-
-	
 
 	setMethod("addButton", Wrapper::addButton);
 	setMethod("addKnob", Wrapper::addKnob);
@@ -4979,7 +5049,7 @@ void ScriptingApi::Content::Helpers::gotoLocation(ScriptComponent* sc)
 		{
 			auto location = info->getObject()->getLocation();
 
-			DebugableObject::Helpers::gotoLocation(p, info);
+			DebugableObject::Helpers::gotoLocation(p, info.get());
 
 			return;
 		}

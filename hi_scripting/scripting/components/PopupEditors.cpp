@@ -104,21 +104,22 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 	callback(Identifier()),
 	tokeniser(new JavascriptTokeniser())
 {
-	Processor *p = dynamic_cast<Processor*>(sp);
+	Processor *p = dynamic_cast<Processor*>(sp.get());
 
 	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit);
-
+	
+	addEditor(externalFile->getFileDocument(), !externalFile->getFile().hasFileExtension("glsl"));
 	
 
-	if (externalFile->getFile().hasFileExtension("glsl"))
+#if 0
 	{
-		
+		externalFile->getFileDocument()
 
-		doc = new mcl::TextDocument(externalFile->getFileDocument());
+		doc = new mcl::TextDocument();
 		
 		auto med = new mcl::TextEditor(*doc);
 
-		med->tokenCollection.addTokenProvider(new GLSLKeywordProvider());
+		
 
 		editor = med;
 
@@ -132,9 +133,9 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 	else
 	{
 		const Identifier snippetId = Identifier("File_" + fileToEdit.getFileNameWithoutExtension());
-		tokeniser = new JavascriptTokeniser();
 		addAndMakeVisible(editor = new JavascriptCodeEditor(externalFile->getFileDocument(), tokeniser, s, snippetId));
 	}
+#endif
 
 	addButtonAndCompileLabel();
 }
@@ -144,13 +145,114 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	callback(callback_),
 	tokeniser(new JavascriptTokeniser())
 {
-	addAndMakeVisible(editor = new JavascriptCodeEditor(*sp->getSnippet(callback_), tokeniser, s, callback));
+	
+	auto& d = *sp->getSnippet(callback_);
+	addEditor(d, true);
 	addButtonAndCompileLabel();
+
+	refreshAfterCompilation(JavascriptProcessor::SnippetResult(s->getLastErrorMessage(), 0));
+}
+
+void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
+{
+#if HISE_USE_NEW_CODE_EDITOR
+	doc = new mcl::TextDocument(d);
+	addAndMakeVisible(editor = new mcl::FullEditor(*doc));
+
+	auto& ed = getEditor()->editor;
+
+	if (isJavascript)
+		ed.tokenCollection.addTokenProvider(new HiseJavascriptEngine::TokenProvider(sp));
+	else
+	{
+		ed.tokenCollection.addTokenProvider(new GLSLKeywordProvider());
+
+		if (externalFile != nullptr)
+		{
+			externalFile->getRuntimeErrorBroadcaster().addListener(*this, runTimeErrorsOccured);
+		}
+	}
+
+	ed.setIncludeDotInAutocomplete(true);
+	ed.setLineRangeFunction(snex::debug::Helpers::createLineRanges);
+	ed.tokenCollection.signalRebuild();
+	ed.setPopupLookAndFeel(new PopupLookAndFeel());
+
+	auto mc = dynamic_cast<Processor*>(sp.get())->getMainController();
+
+	mc->getFontSizeChangeBroadcaster().addListener(ed, [mc](mcl::TextEditor& e, float s)
+	{
+		auto fs = mc->getGlobalCodeFontSize();
+		auto factor = fs / e.getFont().getHeight();
+		e.setScaleFactor(factor);
+	});
+
+	if (isJavascript)
+	{
+		getEditor()->enableBreakpoints(true);
+		getEditor()->addBreakpointListener(this);
+		
+		auto& tp = mc->getJavascriptThreadPool();
+		tp.addSleepListener(this);
+
+		getEditor()->editor.onFocusChange = [mc, this](bool isFocused, FocusChangeType t)
+		{
+			if (isFocused)
+				mc->setLastActiveEditor(CommonEditorFunctions::as(this), CommonEditorFunctions::getCaretPos(this));
+		};
+	}
+
+	WeakReference<ApiProviderBase::Holder> safeHolder = dynamic_cast<ApiProviderBase::Holder*>(sp.get());
+
+	ed.addPopupMenuFunction([safeHolder](mcl::TextEditor& ed, PopupMenu& m, const MouseEvent& e)
+	{
+		safeHolder->addPopupMenuItems(m, &ed, e);
+	},
+	[safeHolder](mcl::TextEditor& ed, int result)
+	{
+		if (safeHolder->performPopupMenuAction(result, &ed))
+			return true;
+
+		return false;
+	});
+
+	ed.addKeyPressFunction([this](const KeyPress& k)
+	{
+		if (k == KeyPress::F8Key)
+		{
+			auto id = k.getModifiers().isCommandDown() ?
+				JavascriptProcessor::ScriptContextActions::ClearAutocompleteTemplates :
+				JavascriptProcessor::ScriptContextActions::AddAutocompleteTemplate;
+
+			sp->performPopupMenuAction(id, getEditor());
+			return true;
+		}
+		if (k == KeyPress::F10Key)
+		{
+			dynamic_cast<Processor*>(sp.get())->getMainController()->getJavascriptThreadPool().resume();
+			return true;
+		}
+		if (k == KeyPress('f', ModifierKeys::shiftModifier | ModifierKeys::commandModifier, 'F'))
+		{
+			sp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::FindAllOccurences, getEditor());
+			return true;
+		}
+		if (k == KeyPress('g', ModifierKeys::commandModifier, 'g'))
+		{
+			sp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::SearchAndReplace, getEditor());
+			return true;
+		}
+
+		return false;
+	});
+#else
+	addAndMakeVisible(editor = new JavascriptCodeEditor(d, tokeniser, sp, callback));
+#endif
 }
 
 void PopupIncludeEditor::addButtonAndCompileLabel()
 {
-	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(sp)));
+	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(sp.get())));
 
 	addAndMakeVisible(compileButton = new TextButton("new button"));
 	compileButton->setButtonText(TRANS("Compile"));
@@ -158,23 +260,57 @@ void PopupIncludeEditor::addButtonAndCompileLabel()
 	compileButton->addListener(this);
 	compileButton->setColour(TextButton::buttonColourId, Colour(0xa2616161));
 
+	addAndMakeVisible(resumeButton = new TextButton("new button"));
+	resumeButton->setButtonText(TRANS("Resume"));
+	resumeButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
+	resumeButton->addListener(this);
+	resumeButton->setColour(TextButton::buttonColourId, Colour(0xa2616161));
+	resumeButton->setVisible(false);
+
 	setSize(800, 800);
 }
 
 
 
+void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::SnippetResult& r)
+{
+	lastCompileOk = r.r.wasOk();
+	resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);
+	resultLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white);
+
+	if (auto asmcl = dynamic_cast<mcl::FullEditor*>(editor.get()))
+	{
+		if (!lastCompileOk)
+		{
+			auto errorMessage = r.r.getErrorMessage();
+
+			auto message = errorMessage.upToFirstOccurrenceOf("{", false, false);
+			auto line = errorMessage.fromFirstOccurrenceOf("Line ", false, false).getIntValue();
+			auto col = errorMessage.fromFirstOccurrenceOf("column ", false, false).getIntValue();
+
+			String mclError = "Line ";
+			mclError << line << "(" << col << "): " << message;
+
+			asmcl->editor.setError(mclError);
+		}
+		else
+		{
+			asmcl->editor.clearWarningsAndErrors();
+		}
+	}
+
+	startTimer(200);
+}
+
 PopupIncludeEditor::~PopupIncludeEditor()
 {
-	if (externalFile != nullptr)
-		externalFile->removeRuntimeErrorListener(this);
-
 	editor = nullptr;
 	resultLabel = nullptr;
 
 	tokeniser = nullptr;
 	compileButton = nullptr;
 
-	Processor *p = dynamic_cast<Processor*>(sp);
+	Processor *p = dynamic_cast<Processor*>(sp.get());
 
 	sp = nullptr;
 	p = nullptr;
@@ -200,31 +336,58 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 	return false;
 }
 
-void PopupIncludeEditor::runTimeErrorsOccured(const Array<ExternalScriptFile::RuntimeError>& errors)
+void PopupIncludeEditor::runTimeErrorsOccured(PopupIncludeEditor& t, Array<ExternalScriptFile::RuntimeError>* errors)
 {
-	if (auto asmcl = dynamic_cast<mcl::TextEditor*>(editor.get()))
+	if (errors == nullptr)
+		return;
+
+#if HISE_USE_NEW_CODE_EDITOR
+	if (auto asmcl = CommonEditorFunctions::as(&t))
 	{
-		for (const auto& e : errors)
+		for (const auto& e : *errors)
 		{
-			auto matchesFile = e.matches(externalFile->getFile().getFileNameWithoutExtension());
+			auto matchesFile = e.matches(t.externalFile->getFile().getFileNameWithoutExtension());
 
 			if (matchesFile && e.errorLevel == ExternalScriptFile::RuntimeError::ErrorLevel::Warning)
-				asmcl->addWarning(e.toString(), true);
+				asmcl->editor.addWarning(e.toString(), true);
 
 			if (e.errorLevel == ExternalScriptFile::RuntimeError::ErrorLevel::Error)
 			{
-				if(matchesFile)
-					asmcl->addWarning(e.toString(), false);
+				if (matchesFile)
+					asmcl->editor.addWarning(e.toString(), false);
 
-				lastCompileOk = false;
-				startTimer(200);
+				t.lastCompileOk = false;
+				t.startTimer(200);
 
-				if(resultLabel != nullptr)
-					resultLabel->setText("GLSL Compile Error", dontSendNotification);
+				if (t.resultLabel != nullptr)
+					t.resultLabel->setText("GLSL Compile Error", dontSendNotification);
 			}
 		}
 
 		asmcl->repaint();
+	}
+#endif
+}
+
+void PopupIncludeEditor::sleepStateChanged(const Identifier& id, int lineNumber, bool on)
+{
+	if (callback == id)
+	{
+		resumeButton->setVisible(on);
+
+#if HISE_USE_NEW_CODE_EDITOR
+		if (on)
+			getEditor()->setCurrentBreakline(lineNumber);
+		else
+			getEditor()->setCurrentBreakline(-1);
+#endif
+
+		if (on)
+		{
+			resultLabel->setText("Breakpoint at line " + String(lineNumber), dontSendNotification);
+		}
+
+		resized();
 	}
 }
 
@@ -237,8 +400,14 @@ void PopupIncludeEditor::resized()
 	else
 		editor->setBounds(0, 5, getWidth(), getHeight() - 23);
 
-	resultLabel->setBounds(0, getHeight() - 18, getWidth()- 95, 18);
-	compileButton->setBounds(getWidth() - 95, getHeight() - 18, 95, 18);
+	auto b = getLocalBounds().removeFromBottom(18);
+
+	compileButton->setBounds(b.removeFromRight(95));
+
+	if (resumeButton->isVisible())
+		resumeButton->setBounds(b.removeFromRight(95));
+
+	resultLabel->setBounds(b);
 }
 
 void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
@@ -247,19 +416,62 @@ void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
 
 	if (auto ed = getEditor())
 	{
-		pos = lineNumber != -1 ? CodeDocument::Position(ed->getDocument(), lineNumber, character) :
-			CodeDocument::Position(ed->getDocument(), character);
+		auto& doc = CommonEditorFunctions::getDoc(this);
 
+		pos = lineNumber != -1 ? CodeDocument::Position(doc, lineNumber, character) :
+			CodeDocument::Position(doc, character);
+
+#if HISE_USE_NEW_CODE_EDITOR
+		ed->editor.scrollToLine(jmax<int>(0, pos.getLineNumber() - 1), true);
+#else
 		ed->scrollToLine(jmax<int>(0, pos.getLineNumber() - 1));
 		ed->moveCaretTo(pos, false);
 		ed->moveCaretToStartOfLine(false);
 		ed->moveCaretToEndOfLine(true);
+#endif
 	}
 }
 
-void PopupIncludeEditor::buttonClicked(Button* /*b*/)
+void PopupIncludeEditor::buttonClicked(Button* b)
 {
-	compileInternal();
+	if (b == resumeButton)
+	{
+		dynamic_cast<Processor*>(sp.get())->getMainController()->getJavascriptThreadPool().resume();
+	}
+	if (b == compileButton)
+	{
+		dynamic_cast<Processor*>(sp.get())->getMainController()->getJavascriptThreadPool().resume();
+		compileInternal();
+	}
+}
+
+
+
+void PopupIncludeEditor::breakpointsChanged(mcl::GutterComponent& g)
+{
+	sp->clearPreprocessorFunctions();
+
+	auto cb = callback;
+
+	sp->addPreprocessorFunction([&g, cb](const Identifier& id, String& s)
+		{
+			if (id == cb)
+				return g.injectBreakPoints(s);
+
+			return false;
+		});
+
+	compileButton->triggerClick();
+}
+
+void PopupIncludeEditor::paintOverChildren(Graphics& g)
+{
+	if (getEditor() == dynamic_cast<Processor*>(sp.get())->getMainController()->getLastActiveEditor())
+	{
+		g.setColour(Colour(SIGNAL_COLOUR));
+		g.fillRect(0, 0, 5, 5);
+		
+	}
 }
 
 File PopupIncludeEditor::getFile() const
@@ -275,20 +487,18 @@ void PopupIncludeEditor::compileInternal()
 		externalFile->getFileDocument().setSavePoint();
 	}
 
-	auto rf = [this](const JavascriptProcessor::SnippetResult& r)
-	{
-		lastCompileOk = r.r.wasOk();
-		resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);
-		resultLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white);
-		startTimer(200);
-	};
-
-	sp->compileScript(rf);
+	sp->compileScript(BIND_MEMBER_FUNCTION_1(PopupIncludeEditor::refreshAfterCompilation));
 
 	if (auto asmcl = dynamic_cast<mcl::TextEditor*>(editor.get()))
 	{
 		asmcl->clearWarningsAndErrors();
 	}
+}
+
+float PopupIncludeEditor::CommonEditorFunctions::getGlobalCodeFontSize(Component* c)
+{
+	FloatingTile* ft = c->findParentComponentOfClass<FloatingTile>();
+	return ft->getMainController()->getGlobalCodeFontSize();
 }
 
 } // namespace hise

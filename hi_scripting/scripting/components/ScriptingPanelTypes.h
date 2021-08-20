@@ -72,6 +72,8 @@ public:
 
 	void gotoLocation(Processor* p, const String& fileName, int charNumber);
 
+	float scaleFactor = -1.0f;
+
 private:
 
 	ScopedPointer<JavascriptTokeniser> tokeniser;
@@ -335,7 +337,6 @@ public:
 private:
 
 	const Identifier showConnectionBar;
-
 };
 
 

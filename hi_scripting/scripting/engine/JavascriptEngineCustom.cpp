@@ -79,6 +79,19 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 		functionIndex(functionIndex),
 		apiClass(apiClass_)
 	{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+		static const Identifier cId("Console");
+		isDebugCall = apiClass_->getInstanceName() == cId;
+
+		if (isDebugCall)
+		{
+			int unused;
+			l.fillColumnAndLines(unused, lineNumber);
+			callbackName = l.getCallbackName(true);
+		}
+
+#endif
+
 		for (int i = 0; i < 5; i++)
 		{
 			argumentList[i] = nullptr;
@@ -87,8 +100,6 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 
 	var getResult(const Scope& s) const override
 	{
-		
-
 #if JUCE_ENABLE_AUDIO_GUARD
         const bool allowIllegalCalls = apiClass->allowIllegalCallsOnAudioThread(functionIndex);
 		AudioThreadGuard::Suspender suspender(allowIllegalCalls);
@@ -99,13 +110,23 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 		{
 			results[i] = argumentList[i]->getResult(s);
 
-			HiseJavascriptEngine::checkValidParameter(i, results[i], location);
+			HiseJavascriptEngine::checkValidParameter(i, results[i], argumentList[i]->location);
 		}
 
 		CHECK_CONDITION_WITH_LOCATION(apiClass != nullptr, "API class does not exist");
 
 		try
 		{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+			if (isDebugCall)
+			{
+				if (auto console = dynamic_cast<ScriptingApi::Console*>(apiClass.get()))
+				{
+					console->setDebugLocation(callbackName, lineNumber);
+				}
+			}
+#endif
+
 			return apiClass->callFunction(functionIndex, results, expectedNumArguments);
 		}
 		catch (String& error)
@@ -119,6 +140,11 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 	ExpPtr argumentList[5];
 	const int functionIndex;
 	
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	bool isDebugCall = false;
+	int lineNumber;
+	Identifier callbackName;
+#endif
 
 	const ReferenceCountedObjectPtr<ApiClass> apiClass;
 };
@@ -261,7 +287,33 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		/** This will be shown as name of the object. */
 		String getDebugName() const override { return functionDef; }
 
-		String getDebugDataType() const override { return DebugInformation::getVarType(lastReturnValue); }
+		String getDebugDataType() const override { return "function"; }
+
+		int getNumChildElements() const override
+		{
+			return localProperties.size();
+		}
+
+		DebugInformationBase* getChildElement(int index) override
+		{
+			WeakReference<Object> safeThis(this);
+
+			auto vf = [safeThis, index]()
+			{
+				if (safeThis == nullptr)
+					return var();
+
+				if (auto p = safeThis->localProperties.getVarPointerAt(index))
+					return *p;
+
+				return var();
+			};
+
+			String mId;
+			mId << name << "." << localProperties.getName(index);
+
+			return new LambdaValueInformation(vf, Identifier(mId), {}, DebugInformation::Type::InlineFunction, location);
+		}
 
 		void doubleClickCallback(const MouseEvent &/*event*/, Component* ed)
 		{

@@ -442,6 +442,45 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		return functionDef;
 	}
 
+	int getNumChildElements() const override
+	{
+		if (lastScope != nullptr)
+			return lastScope->getProperties().size() - 1;
+
+		return 0;
+	}
+
+	DebugInformationBase* getChildElement(int index) override
+	{
+		if (lastScope != nullptr)
+		{
+			WeakReference<FunctionObject> safeThis(this);
+
+			DynamicObject::Ptr l = lastScope;
+
+			auto vf = [safeThis, index]()
+			{
+				if (safeThis == nullptr)
+					return var();
+
+				if (auto l = safeThis->lastScope)
+				{
+					if (auto v = l->getProperties().getVarPointerAt(index + 1))
+						return *v;
+				}
+
+				return var();
+			};
+
+			String mid;
+			mid << "%PARENT%" << "." << l->getProperties().getName(index + 1);
+
+			return new LambdaValueInformation(vf, mid, {}, DebugInformation::Type::ExternalFunction, getLocation());
+		}
+
+		return 0;
+	}
+
 	AttributedString getDescription() const override
 	{
 		return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameters);

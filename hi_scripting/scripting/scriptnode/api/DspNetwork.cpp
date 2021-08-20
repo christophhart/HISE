@@ -195,25 +195,6 @@ void DspNetwork::createAllNodesOnce()
 	cppgen::CustomNodeProperties::setInitialised(true);
 }
 
-void DspNetwork::rightClickCallback(const MouseEvent& e, Component* c)
-{
-
-#if USE_BACKEND
-
-	auto* d = new DspNetworkGraph(this);
-
-	d->setSize(600, 600);
-
-	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-
-	MouseEvent ee = e.getEventRelativeTo(editor);
-
-	editor->getRootFloatingTile()->showComponentInRootPopup(d, editor, ee.getMouseDownPosition());
-#else
-	ignoreUnused(e, c);
-#endif
-}
-
 NodeBase* DspNetwork::getNodeForValueTree(const ValueTree& v)
 {
 	if (!v.isValid())

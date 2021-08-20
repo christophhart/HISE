@@ -478,9 +478,12 @@ struct DrawActions
 		void addDrawActionListener(Listener* l) { listeners.addIfNotAlreadyThere(l); }
 		void removeDrawActionListener(Listener* l) { listeners.removeAllInstancesOf(l); }
 
-		void setGlobalBounds(Rectangle<int> gb, float sf)
+		Rectangle<int> getScreenshotBounds(Rectangle<int> shaderBounds) const;
+
+		void setGlobalBounds(Rectangle<int> gb, Rectangle<int> tb, float sf)
 		{
 			globalBounds = gb;
+			topLevelBounds = tb;
 			scaleFactor = sf;
 		}
 
@@ -492,6 +495,7 @@ struct DrawActions
 	private:
 
 		Rectangle<int> globalBounds;
+		Rectangle<int> topLevelBounds;
 		float scaleFactor = 1.0f;
 
 		void handleAsyncUpdate() override

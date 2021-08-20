@@ -69,6 +69,8 @@ public:
 
 	struct RuntimeError
 	{
+		using Broadcaster = LambdaBroadcaster<Array<RuntimeError>*>;
+
 		enum class ErrorLevel
 		{
 			Error = 0,
@@ -96,14 +98,7 @@ public:
 		String errorMessage;
 	};
 
-	struct RuntimeErrorListener
-	{
-		virtual ~RuntimeErrorListener() {};
 
-		virtual void runTimeErrorsOccured(const Array<RuntimeError>& errors) = 0;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(RuntimeErrorListener);
-	};
 
 	ExternalScriptFile(const File&file) :
 		file(file),
@@ -136,19 +131,13 @@ public:
 
 	void setRuntimeErrors(const Result& r);
 
-	void addRuntimeErrorListener(RuntimeErrorListener* l);
-
-	void removeRuntimeErrorListener(RuntimeErrorListener* l)
-	{
-		runtimeErrorListeners.removeAllInstancesOf(l);
-	}
+	RuntimeError::Broadcaster& getRuntimeErrorBroadcaster() { return runtimeErrorBroadcaster; }
 
 private:
 
-	
+	RuntimeError::Broadcaster runtimeErrorBroadcaster;
 
 	Array<RuntimeError> runtimeErrors;
-	Array<WeakReference<RuntimeErrorListener>> runtimeErrorListeners;
 
 	Result currentResult;
 

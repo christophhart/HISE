@@ -473,16 +473,16 @@ public:
 		LoadScriptClipboard,
 
 		ClearAllBreakpoints,
-
-
 		CreateUiFactoryMethod,
-		ReplaceConstructorWithReference,
-		OpenExternalFile,
-		OpenInPopup,
 		MoveToExternalFile,
-		InsertExternalFile,
 		ExportAsCompressedScript,
-		ImportCompressedScript
+		ImportCompressedScript,
+		JumpToDefinition,
+		SearchAndReplace,
+		AddCodeBookmark,
+		FindAllOccurences,
+		AddAutocompleteTemplate,
+		ClearAutocompleteTemplates,
 	};
 
 	// ================================================================================================================
@@ -511,7 +511,10 @@ public:
 	}
 
 	void addPopupMenuItems(PopupMenu &m, Component* c, const MouseEvent &e) override;
-	void performPopupMenuAction(int menuId, Component* c) override;
+
+#if USE_BACKEND
+	bool performPopupMenuAction(int menuId, Component* c) override;
+#endif
 
 	SET_PROCESSOR_CONNECTOR_TYPE_ID("ScriptProcessor");
 
@@ -711,6 +714,14 @@ public:
 	ValueTree getContentPropertiesForDevice(int deviceIndex=-1);
 
 	bool hasUIDataForDeviceType(int type=-1) const;
+
+	struct AutocompleteTemplate
+	{
+		String expression;
+		Identifier classId;
+	};
+
+	Array<AutocompleteTemplate> autoCompleteTemplates;
 
 protected:
 

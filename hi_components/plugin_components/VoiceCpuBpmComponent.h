@@ -59,6 +59,8 @@ public:
 	void timerCallback() override;
 	void resized() override;
 
+	
+
 	void paint(Graphics& g) override;
 	void paintOverChildren(Graphics& g) override;
 
@@ -75,7 +77,13 @@ public:
 		repaint();
 	}
 
+	void mouseDown(const MouseEvent& e) override;
+
 private:
+
+	struct InternalSleepListener;
+
+	ScopedPointer<InternalSleepListener> il;
 
 	bool isRecording = false;
 
