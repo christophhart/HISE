@@ -507,6 +507,8 @@ namespace ScriptingObjects
 
 		void setPosition(double newPosition);
 
+		float getCurrentDisplayIndexBase() const;
+
 		int getIndex() const { return index; }
 		ExternalDataHolder* getHolder() { return holder; }
 
@@ -539,6 +541,9 @@ namespace ScriptingObjects
 
 		/** Returns the current audio data as array of channels. */
 		var getContent();
+
+		/** Returns the current sample position (from 0 to numSamples). */
+		float getCurrentlyDisplayedIndex() const;
 
 		/** Sends an update message to all registered listeners. */
 		void update();
@@ -611,6 +616,9 @@ namespace ScriptingObjects
 		/** Returns the value of the table at the given input (0.0 ... 1.0). */
 		float getTableValueNormalised(double normalisedInput);
 
+		/** Returns the current ruler position (from 0 to 1). */
+		float getCurrentlyDisplayedIndex() const;
+
 		// ============================================================================================================
 
 	private:
@@ -648,6 +656,9 @@ namespace ScriptingObjects
 
 		/** Sets the range. */
 		void setRange(double minValue, double maxValue, double stepSize);
+
+		/** Returns the currently displayed slider index. */
+		float getCurrentlyDisplayedIndex() const;
 
 		// ============================================================================================================
 
@@ -1395,6 +1406,9 @@ namespace ScriptingObjects
 		/** Sets the length of the current sample selection in samples. */
 		void setSampleRange(int startSample, int endSample);
 
+		/** Creates a ScriptAudioFile reference to the given index. */
+		var getAudioFile(int slotIndex);
+
 		// ============================================================================================================
 
 		struct Wrapper; 
@@ -1406,6 +1420,32 @@ namespace ScriptingObjects
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptingAudioSampleProcessor);
 
 		// ============================================================================================================
+	};
+
+	class ScriptSliderPackProcessor : public ConstScriptingObject
+	{
+	public:
+
+		ScriptSliderPackProcessor(ProcessorWithScriptingContent* p, ExternalDataHolder* h);
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("SliderPackProcessor"); };
+		bool objectDeleted() const override { return sp.get() == nullptr; }
+		bool objectExists() const override { return sp.get() != nullptr; }
+
+		// ============================================================================================================
+
+		/** Creates a data reference to the given index. */
+		var getSliderPack(int sliderPackIndex);
+
+		// ============================================================================================================
+
+	private:
+
+		struct Wrapper;
+
+		WeakReference<Processor> sp;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptSliderPackProcessor);
 	};
 
 	class ScriptDisplayBufferSource : public ConstScriptingObject
@@ -1438,7 +1478,7 @@ namespace ScriptingObjects
 
 		// ============================================================================================================
 
-		ScriptingTableProcessor(ProcessorWithScriptingContent *p, LookupTableProcessor *tableProcessor);
+		ScriptingTableProcessor(ProcessorWithScriptingContent *p, ExternalDataHolder *tableProcessor);
 		~ScriptingTableProcessor() {};
 
 		Identifier getObjectName() const override {	RETURN_STATIC_IDENTIFIER("TableProcessor"); };
@@ -1464,6 +1504,9 @@ namespace ScriptingObjects
 
 		/** Exports the state as base64 encoded string. */
 		String exportAsBase64(int tableIndex) const;
+
+		/** Creates a ScriptTableData object for the given table. */
+		var getTable(int tableIndex);
 
 		// ============================================================================================================
 		

@@ -65,8 +65,11 @@ void mcl::HighlightComponent::paintHighlight(Graphics& g)
 	g.setColour(Colour(0xff959595));
 	g.strokePath(outlinePath, PathStrokeType(1.f));
 
-	for (auto sr : document.getSearchResults())
+	auto ar = document.getSearchResults();
+
+	for (int i = 0; i < ar.size(); i++)
 	{
+		auto sr = ar[i];
 		auto r = document.getSelectionRegion(sr);
 
 		for (auto h : r)

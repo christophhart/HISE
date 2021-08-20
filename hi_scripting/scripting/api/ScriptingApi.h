@@ -791,6 +791,7 @@ public:
 		typedef ScriptingObjects::ScriptingSynth ScriptSynth;
 		typedef ScriptingObjects::ScriptingAudioSampleProcessor ScriptAudioSampleProcessor;
 		typedef ScriptingObjects::ScriptingTableProcessor ScriptTableProcessor;
+		typedef ScriptingObjects::ScriptSliderPackProcessor ScriptSliderPackProcessor;
 		typedef ScriptingObjects::ScriptingSlotFX ScriptSlotFX;
 		typedef ScriptingObjects::ScriptedMidiPlayer ScriptMidiPlayer;
 		typedef ScriptingObjects::ScriptRoutingMatrix ScriptRoutingMatrix;
@@ -946,6 +947,9 @@ public:
 
 		/** Returns the table processor with the given name. */
 		ScriptTableProcessor *getTableProcessor(const String &name);
+
+		/** Returns the sliderpack processor with the given name. */
+		ScriptSliderPackProcessor* getSliderPackProcessor(const String& name);
 
 		/** Returns a reference to a processor that holds a display buffer. */
 		ScriptingObjects::ScriptDisplayBufferSource* getDisplayBufferSource(const String& name);

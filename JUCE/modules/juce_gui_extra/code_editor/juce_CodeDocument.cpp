@@ -920,6 +920,11 @@ void CodeDocument::checkLastLineStatus()
 void CodeDocument::addListener    (CodeDocument::Listener* l)   { listeners.add (l); }
 void CodeDocument::removeListener (CodeDocument::Listener* l)   { listeners.remove (l); }
 
+int CodeDocument::getNumListeners() const
+{
+	return listeners.size();
+}
+
 //==============================================================================
 struct CodeDocument::InsertAction   : public UndoableAction
 {

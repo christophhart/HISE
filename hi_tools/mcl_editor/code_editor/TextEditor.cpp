@@ -142,6 +142,24 @@ int TextEditor::getNumDisplayedRows() const
 	return roundToInt((float)getHeight() / viewScaleFactor / document.getRowHeight());
 }
 
+bool TextEditor::shouldSkipInactiveUpdate() const
+{
+	auto docHasMultipleEditors = document.getCodeDocument().getNumListeners() > 10;
+
+	if (!docHasMultipleEditors)
+		return false;
+
+	auto isBig = document.getNumRows() > 2000;
+
+	if (!isBig)
+		return false;
+	
+	if (!isShowing())
+		return true;
+
+	return false;
+}
+
 void TextEditor::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart)
 {
 	auto b = document.getBounds();
@@ -261,6 +279,32 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 	else
 		closeAutocomplete(false, {}, {});
 }
+
+void TextEditor::codeDocumentTextInserted(const String& newText, int insertIndex)
+{
+	if (shouldSkipInactiveUpdate())
+		return;
+
+	CodeDocument::Position start(document.getCodeDocument(), insertIndex);
+	auto end = start.movedBy(newText.length());
+	Range<int> r(start.getLineNumber(), end.getLineNumber() + 1);
+	updateAfterTextChange(r);
+}
+
+void TextEditor::codeDocumentTextDeleted(int startIndex, int endIndex)
+{
+	if (shouldSkipInactiveUpdate())
+		return;
+
+	CodeDocument::Position start(document.getCodeDocument(), startIndex);
+	CodeDocument::Position end(document.getCodeDocument(), endIndex);
+	
+	Range<int> r(start.getLineNumber(), end.getLineNumber() + 1);
+
+	updateAfterTextChange(r);
+}
+
+
 
 void TextEditor::setScaleFactor(float newFactor)
 {
@@ -641,9 +685,15 @@ void mcl::TextEditor::resized()
 
 void mcl::TextEditor::paint (Graphics& g)
 {
-    auto start = Time::getMillisecondCounterHiRes();
-    
+	if (shouldSkipInactiveUpdate())
+	{
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colours::white.withAlpha(0.4f));
+		g.drawText("Editor is inactive. Click to activate", getLocalBounds().toFloat(), Justification::centred);
+		return;
+	}
 
+    auto start = Time::getMillisecondCounterHiRes();
     String renderSchemeString;
 
 	renderTextUsingGlyphArrangement(g);
@@ -877,6 +927,9 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 
     selections.add (index);
     document.setSelections (selections, true);
+
+	if (shouldSkipInactiveUpdate())
+		updateAfterTextChange();
 
 	tokenCollection.setEnabled(true);
 	grabKeyboardFocus();
@@ -1566,7 +1619,7 @@ bool mcl::TextEditor::insert (const juce::String& content)
 {
 	ScopedValueSetter<bool> scrollDisabler(scrollRecursion, true);
 
-    double now = Time::getApproximateMillisecondCounter();
+	double now = Time::getApproximateMillisecondCounter();
 
 	if (currentParameter == nullptr)
 	{
@@ -1604,8 +1657,8 @@ bool mcl::TextEditor::insert (const juce::String& content)
 
     }
 	
-	refreshLineWidth();
-	updateViewTransform();
+	//refreshLineWidth();
+	//updateViewTransform();
 	translateToEnsureCaretIsVisible();
     updateSelections();
 

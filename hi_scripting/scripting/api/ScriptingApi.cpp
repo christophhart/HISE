@@ -3549,6 +3549,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getAudioSampleProcessor);
 	API_METHOD_WRAPPER_1(Synth, getDisplayBufferSource);
 	API_METHOD_WRAPPER_1(Synth, getTableProcessor);
+	API_METHOD_WRAPPER_1(Synth, getSliderPackProcessor);
 	API_METHOD_WRAPPER_1(Synth, getRoutingMatrix);
 	API_METHOD_WRAPPER_1(Synth, getSampler);
 	API_METHOD_WRAPPER_1(Synth, getSlotFX);
@@ -3621,6 +3622,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(getAudioSampleProcessor);
 	ADD_API_METHOD_1(getDisplayBufferSource);
 	ADD_API_METHOD_1(getTableProcessor);
+	ADD_API_METHOD_1(getSliderPackProcessor);
 	ADD_API_METHOD_1(getSampler);
 	ADD_API_METHOD_1(getSlotFX);
 	ADD_API_METHOD_1(getEffect);
@@ -4259,13 +4261,12 @@ ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcesso
 
 	if (getScriptProcessor()->objectsCanBeCreated())
 	{
-		Processor::Iterator<LookupTableProcessor> it(owner);
+		Processor::Iterator<ExternalDataHolder> it(owner);
 
-		while (LookupTableProcessor *lut = it.getNextProcessor())
+		while (auto lut = it.getNextProcessor())
 		{
 			if (dynamic_cast<Processor*>(lut)->getId() == name)
 			{
-
 				return new ScriptTableProcessor(getScriptProcessor(), lut);
 			}
 		}
@@ -4277,6 +4278,32 @@ ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcesso
 	{
 		reportIllegalCall("getScriptingTableProcessor()", "onInit");
 		RETURN_IF_NO_THROW(new ScriptTableProcessor(getScriptProcessor(), nullptr));
+	}
+}
+
+hise::ScriptingApi::Synth::ScriptSliderPackProcessor* ScriptingApi::Synth::getSliderPackProcessor(const String& name)
+{
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
+	if (getScriptProcessor()->objectsCanBeCreated())
+	{
+		Processor::Iterator<ExternalDataHolder> it(owner);
+
+		while (auto sp = it.getNextProcessor())
+		{
+			if (dynamic_cast<Processor*>(sp)->getId() == name)
+			{
+				return new ScriptSliderPackProcessor(getScriptProcessor(), sp);
+			}
+		}
+
+		reportScriptError(name + " was not found. ");
+		RETURN_IF_NO_THROW(new ScriptSliderPackProcessor(getScriptProcessor(), nullptr));
+	}
+	else
+	{
+		reportIllegalCall("getSliderPackProcessor()", "onInit");
+		RETURN_IF_NO_THROW(new ScriptSliderPackProcessor(getScriptProcessor(), nullptr));
 	}
 }
 
