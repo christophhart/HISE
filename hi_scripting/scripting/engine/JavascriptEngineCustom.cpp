@@ -349,6 +349,12 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				return;
 #endif
 
+#if ENABLE_SCRIPTING_BREAKPOINTS
+			// We favor having the local properties visible in the script watch table
+			// over occasional leaks in the backend system...
+			return;
+#endif
+
 			if (!localProperties.isEmpty())
 			{
 				for (int i = 0; i < localProperties.size(); i++)

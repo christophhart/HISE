@@ -396,6 +396,10 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 			lastScopeForCycleCheck = var(functionRoot);
 #endif
 
+#if ENABLE_SCRIPTING_BREAKPOINTS
+		lastScope = functionRoot;
+#endif
+
 		return result;
 	}
 
@@ -457,6 +461,10 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 	mutable var lastScopeForCycleCheck;
 
 	DynamicObject::Ptr unneededScope;
+
+	mutable DynamicObject::Ptr lastScope;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(FunctionObject);
 };
 
 

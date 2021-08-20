@@ -128,7 +128,7 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 	CodeLocation(const String& code, const String &externalFile_) noexcept        : program(code), location(program.getCharPointer()), externalFile(externalFile_) {}
 	CodeLocation(const CodeLocation& other) noexcept : program(other.program), location(other.location), externalFile(other.externalFile) {}
 
-	String getCallbackName() const
+	String getCallbackName(bool returnExternalFileName=false) const
 	{
 		if (program.startsWith("function"))
 		{

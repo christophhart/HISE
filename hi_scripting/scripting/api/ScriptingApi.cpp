@@ -4760,8 +4760,9 @@ int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
 struct ScriptingApi::Console::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(Console, print);
-	API_VOID_METHOD_WRAPPER_0(Console, start);
-	API_VOID_METHOD_WRAPPER_0(Console, stop);
+	API_VOID_METHOD_WRAPPER_0(Console, startBenchmark);
+	API_VOID_METHOD_WRAPPER_0(Console, stopBenchmark);
+	API_VOID_METHOD_WRAPPER_1(Console, stop);
 	API_VOID_METHOD_WRAPPER_0(Console, clear);
 	API_VOID_METHOD_WRAPPER_1(Console, assertTrue);
 	API_VOID_METHOD_WRAPPER_2(Console, assertEqual);
@@ -4769,6 +4770,7 @@ struct ScriptingApi::Console::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Console, assertIsObjectOrArray);
 	API_VOID_METHOD_WRAPPER_1(Console, assertLegalNumber);
 	API_VOID_METHOD_WRAPPER_0(Console, breakInDebugger);
+	API_VOID_METHOD_WRAPPER_0(Console, blink);
 };
 
 ScriptingApi::Console::Console(ProcessorWithScriptingContent *p) :
@@ -4777,9 +4779,11 @@ ApiClass(0),
 startTime(0.0)
 {
 	ADD_API_METHOD_1(print);
-	ADD_API_METHOD_0(start);
-	ADD_API_METHOD_0(stop);
+	ADD_API_METHOD_0(startBenchmark);
+	ADD_API_METHOD_0(stopBenchmark);
+	ADD_API_METHOD_1(stop);
 	ADD_API_METHOD_0(clear);
+	ADD_API_METHOD_0(blink);
 
 	ADD_API_METHOD_1(assertTrue);
 	ADD_API_METHOD_2(assertEqual);
@@ -4802,13 +4806,13 @@ void ScriptingApi::Console::print(var x)
 #endif
 }
 
-void ScriptingApi::Console::stop()
+void ScriptingApi::Console::stopBenchmark()
 {
 #if USE_BACKEND
 	AudioThreadGuard::Suspender suspender;
 	ignoreUnused(suspender);
 
-	if(startTime == 0.0)
+	if (startTime == 0.0)
 	{
 		reportScriptError("The Benchmark was not started!");
 		return;
@@ -4822,9 +4826,66 @@ void ScriptingApi::Console::stop()
 #endif
 }
 
+void ScriptingApi::Console::stop(bool condition)
+{
+	if (!condition)
+		return;
+
+	auto c = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
+
+	if (c == MainController::KillStateHandler::ScriptingThread ||
+		c == MainController::KillStateHandler::SampleLoadingThread ||
+		c == MainController::KillStateHandler::AudioThread)
+	{
+		auto n = Time::getMillisecondCounter();
+
+		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+		
+		MessageManager::callAsync([jp]()
+		{
+			ScopedReadLock sl(jp->getDebugLock());
+			jp->getScriptEngine()->rebuildDebugInformation();
+			jp->rebuild();
+		});
+
+		auto& jtp = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
+
+		JavascriptThreadPool::ScopedSleeper ss(jtp, id, lineNumber);
+
+		n = Time::getMillisecondCounter() - n;
+		jp->getScriptEngine()->extendTimeout(n);
+	}
+	else
+	{
+		String message;
+		message << "Breakpoint in UI Thread at " << id << "(Line " << lineNumber << ")";
+
+		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), message);
+	}
+}
 
 
 
+
+
+void ScriptingApi::Console::blink()
+{
+#if USE_BACKEND && HISE_USE_NEW_CODE_EDITOR
+	if (auto e = getProcessor()->getMainController()->getLastActiveEditor())
+	{
+		Identifier i = id;
+		int l = lineNumber;
+
+		MessageManager::callAsync([e, i, l]()
+		{
+			if (PopupIncludeEditor::CommonEditorFunctions::matchesId(e, i))
+			{
+				PopupIncludeEditor::CommonEditorFunctions::as(e)->sendBlinkMessage(l);
+			}
+		});
+	}
+#endif
+}
 
 void ScriptingApi::Console::clear()
 {

@@ -1102,7 +1102,17 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 #endif
 
-			lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), callbackId == onInit);
+			auto codeToCompile = getSnippet(i)->getSnippetAsFunction();
+
+			for (const auto& pf : preprocessorFunctions)
+			{
+				pf(callbackId, codeToCompile);
+			}
+
+			if (codeToCompile.isEmpty())
+				continue;
+
+			lastResult = scriptEngine->execute(codeToCompile, callbackId == onInit);
 
 			if (!lastResult.wasOk())
 			{
@@ -1184,7 +1194,7 @@ void JavascriptProcessor::compileScript(const ResultFunction& rf /*= ResultFunct
 		return SafeFunctionCall::OK;
 	};
 
-	
+	mainController->getJavascriptThreadPool().deactivateSleepUntilCompilation();
 
 	mainController->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(this), f, MainController::KillStateHandler::ScriptingThread);
 }
@@ -1605,7 +1615,12 @@ void JavascriptProcessor::mergeCallbacksToScript(String &x, const String& sepStr
 	{
 		const SnippetDocument *s = getSnippet(i);
 
-		x << s->getSnippetAsFunction() << sepString;
+		auto code = s->getSnippetAsFunction();
+
+		for (const auto& pf : preprocessorFunctions)
+			pf(s->getCallbackName(), code);
+
+		x << code << sepString;
 	}
 }
 
@@ -1810,6 +1825,9 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 
 	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
 
+	if (t != Task::Type::Compilation && isSleeping)
+		return;
+
 	switch (currentThread)
 	{
 	case MainController::KillStateHandler::SampleLoadingThread:
@@ -1910,15 +1928,22 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 	{
 		CompilationTask ct;
 
+		allowSleep = true;
+
 		while (compilationQueue.pop(ct))
 		{
 			SuspendHelpers::ScopedTicket ticket;
+
+			lowPriorityQueue.clear();
+			highPriorityQueue.clear();
 
 			killVoicesAndExtendTimeOut(ct.getFunction().getProcessor());
 
 			r = ct.call();
 			pendingCompilations.addIfNotAlreadyThere(ct.getFunction().getProcessor());
 		}
+
+		
 
 		return r;
 	}
