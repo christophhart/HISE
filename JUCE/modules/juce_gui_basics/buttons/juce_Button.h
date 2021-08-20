@@ -122,7 +122,7 @@ public:
         If set to true, then before the clicked() callback occurs, the toggle-state
         of the button is flipped.
     */
-    void setClickingTogglesState (bool shouldAutoToggleOnClick) noexcept;
+    void setClickingTogglesState (bool shouldAutoToggleOnClick, bool rightClickTogglesState=false) noexcept;
 
     /** Returns true if this button is set to be an automatic toggle-button.
         This returns the last value that was passed to setClickingTogglesState().
@@ -490,6 +490,7 @@ private:
     Value isOn;
     bool lastToggleState = false;
     bool clickTogglesState = false;
+	bool rightClickTogglesState = false;
     bool needsToRelease = false;
     bool needsRepainting = false;
     bool isKeyDown = false;
