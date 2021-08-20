@@ -17,6 +17,7 @@ extras/demo_project/Binaries/
 Autosave*
 thumbnails.dat
 *.hip
+*.gch
 extras/script_module_template/Builds
 extras/script_module_template/JuceLibraryCode
 hi_scripting/scripting/api/latex/
