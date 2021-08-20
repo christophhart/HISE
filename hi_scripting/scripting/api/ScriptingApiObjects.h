@@ -224,6 +224,14 @@ namespace ScriptingObjects
 			return ok;
 		}
 
+		/** Removes the element at the given number and fills the gap. */
+		bool removeElement(int index)
+		{
+			auto ok = data.removeElement(index);
+			updateElementBuffer();
+			return ok;
+		}
+
 		/** Clears the stack. */
 		bool clear()
 		{
@@ -704,6 +712,9 @@ namespace ScriptingObjects
 
 		/** Writes the content of the audio data (array of buffers) into the audio file. This is undoable!. */
 		bool replaceAudioFile(var audioData);
+
+		/** Checks if the otherSample object refers to the same sample as this. */
+		bool refersToSameSample(var otherSample);
 
 		// ============================================================================================================
 
@@ -1527,6 +1538,8 @@ namespace ScriptingObjects
 		};
 
 		InternalTimer it;
+
+		WeakCallbackHolder tc;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerObject)
         JUCE_DECLARE_WEAK_REFERENCEABLE(TimerObject);

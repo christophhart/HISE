@@ -154,11 +154,6 @@ void ScriptContentComponent::updateValue(int i)
 		o->updateValue(dontSendNotification);
 	}
 
-	if (TableEditor *t = dynamic_cast<TableEditor*>(componentWrappers[i]->getComponent()))
-	{
-		t->setDisplayedIndex((float)contentData->components[i]->value / 127.0f);
-	}
-
 	if (Slider *s = dynamic_cast<Slider*>(componentWrappers[i]->getComponent()))
 	{
 		if (s->getSliderStyle() == Slider::TwoValueHorizontal)

@@ -124,7 +124,8 @@ void HiseJavascriptEngine::RootObject::ArraySubscript::cacheIndex(AssignableObje
 	{
 		if (dynamic_cast<LiteralValue*>(index.get()) != nullptr ||
 			dynamic_cast<ConstReference*>(index.get()) != nullptr ||
-			dynamic_cast<DotOperator*>(index.get()))
+			dynamic_cast<DotOperator*>(index.get()) ||
+			dynamic_cast<ApiConstant*>(index.get()))
 		{
 			if (DotOperator* dot = dynamic_cast<DotOperator*>(index.get()))
 			{

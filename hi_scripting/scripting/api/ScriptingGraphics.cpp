@@ -205,7 +205,7 @@ void ScriptingObjects::ScriptShader::PreviewComponent::paint(Graphics& g)
 			String s;
 			s << "### Compilation Error: \n";
 			s << "```\n";
-			s << obj->getErrorMessage();
+			s << obj->getErrorMessage(false);
 			s << "```\n";
 
 
@@ -213,6 +213,7 @@ void ScriptingObjects::ScriptShader::PreviewComponent::paint(Graphics& g)
 			r.parse();
 			r.getHeightForWidth(getWidth() - 20.0f);
 
+			g.fillAll(Colours::grey);
 			r.draw(g, getLocalBounds().toFloat().reduced(10.0f));
 		}
 	}
@@ -276,6 +277,11 @@ String ScriptingObjects::ScriptShader::getHeader()
 	s << "\n#define fragCoord _gl_fc()\n";
 	s << "#define fragColor gl_FragColor\n";
 
+#if JUCE_WINDOWS
+	// The #line directive does not work on macOS apparently...
+	s << "#line 0 \"" << shaderName << "\" \n";
+#endif
+
 	return s;
 }
 
@@ -283,6 +289,8 @@ String ScriptingObjects::ScriptShader::getHeader()
 
 void ScriptingObjects::ScriptShader::setFragmentShader(String shaderFile)
 {
+	shaderName = shaderFile;
+
 	FileParser p(getScriptProcessor(), useLineNumbers, shaderFile, includedFiles);
 
 	compileRawCode(p.getLines().joinIntoString("\n"));

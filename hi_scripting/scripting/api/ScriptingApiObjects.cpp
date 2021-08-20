@@ -1341,6 +1341,7 @@ struct ScriptingObjects::ScriptingSamplerSound::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingSamplerSound, duplicateSample);
 	API_METHOD_WRAPPER_0(ScriptingSamplerSound, loadIntoBufferArray);
 	API_METHOD_WRAPPER_1(ScriptingSamplerSound, replaceAudioFile);
+	API_METHOD_WRAPPER_1(ScriptingSamplerSound, refersToSameSample);
 };
 
 ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScriptingContent* p, ModulatorSampler* sampler_, ModulatorSamplerSound::Ptr sound_) :
@@ -1355,6 +1356,7 @@ ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScri
 	ADD_API_METHOD_0(duplicateSample);
 	ADD_API_METHOD_0(loadIntoBufferArray);
 	ADD_API_METHOD_1(replaceAudioFile);
+	ADD_API_METHOD_1(refersToSameSample);
 
 	sampleIds.ensureStorageAllocated(ModulatorSamplerSound::numProperties);
 	sampleIds.add(SampleIds::ID);
@@ -1668,6 +1670,17 @@ bool ScriptingObjects::ScriptingSamplerSound::replaceAudioFile(var audioData)
 	}
 
 	return true;
+}
+
+bool ScriptingObjects::ScriptingSamplerSound::refersToSameSample(var otherSample)
+{
+	if (auto s = dynamic_cast<ScriptingSamplerSound*>(otherSample.getObject()))
+	{
+		return s->sound.get() == sound.get();
+	}
+
+	reportScriptError("refersToSampleSample: otherSample parameter is not a sample object");
+	RETURN_IF_NO_THROW(false);
 }
 
 hise::ModulatorSampler* ScriptingObjects::ScriptingSamplerSound::getSampler() const
@@ -3472,7 +3485,8 @@ struct ScriptingObjects::TimerObject::Wrapper
 ScriptingObjects::TimerObject::TimerObject(ProcessorWithScriptingContent *p) :
 	DynamicScriptingObject(p),
 	ControlledObject(p->getMainController_(), true),
-	it(this)
+	it(this),
+	tc(p, {}, 0)
 {
 	ADD_DYNAMIC_METHOD(startTimer);
 	ADD_DYNAMIC_METHOD(stopTimer);
@@ -3488,6 +3502,12 @@ ScriptingObjects::TimerObject::~TimerObject()
 
 void ScriptingObjects::TimerObject::timerCallback()
 {
+	if (tc)
+		tc.call(nullptr, 0);
+	else
+		it.stopTimer();
+
+#if 0
 	auto callback = getProperty("callback");
 
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
@@ -3512,14 +3532,19 @@ void ScriptingObjects::TimerObject::timerCallback()
 											 dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), 
 											 f);
 	}
+#endif
 }
 
 void ScriptingObjects::TimerObject::timerCallbackInternal(const var& callback, Result& r)
 {
+	
+
+#if 0
+
 	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock));
 
 	var undefinedArgs;
-	var thisObject(this);
+	var thisObject;// (this);
 	var::NativeFunctionArgs args(thisObject, &undefinedArgs, 0);
 
 	auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
@@ -3539,6 +3564,7 @@ void ScriptingObjects::TimerObject::timerCallbackInternal(const var& callback, R
 	}
 	else
 		stopTimer();
+#endif
 }
 
 void ScriptingObjects::TimerObject::startTimer(int intervalInMilliSeconds)
@@ -3558,12 +3584,9 @@ void ScriptingObjects::TimerObject::stopTimer()
 
 void ScriptingObjects::TimerObject::setTimerCallback(var callbackFunction)
 {
-	if (dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(callbackFunction.getObject()))
-	{
-		setProperty("callback", callbackFunction);
-	}
-	else
-		throw String("You need to pass in a function for the timer callback");
+	tc = WeakCallbackHolder(getScriptProcessor(), callbackFunction, 0);
+	tc.setThisObject(this);
+	tc.incRefCount();
 }
 
 
@@ -5169,12 +5192,11 @@ juce::ValueTree ApiHelpers::getApiTree()
 	if (!v.isValid())
 		v = ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize);
 
-	//File::getSpecialLocation(File::userDesktopDirectory).getChildFile("API.xml").replaceWithText(v.createXml()->createDocument(""));
-
-
 	return v;
 }
 #endif
+
+
 
 struct ScriptingObjects::ScriptDisplayBufferSource::Wrapper
 {
@@ -5211,6 +5233,8 @@ struct ScriptingObjects::ScriptUnorderedStack::Wrapper
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, asBuffer);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, insert);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, remove);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, removeElement);
+	API_METHOD_WRAPPER_0(ScriptUnorderedStack, clear);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, contains);
 };
 
@@ -5222,7 +5246,9 @@ ScriptingObjects::ScriptUnorderedStack::ScriptUnorderedStack(ProcessorWithScript
 	ADD_API_METHOD_1(asBuffer);
 	ADD_API_METHOD_1(insert);
 	ADD_API_METHOD_1(remove);
+	ADD_API_METHOD_1(removeElement);
 	ADD_API_METHOD_1(contains);
+	ADD_API_METHOD_0(clear);
 
 	elementBuffer = new VariantBuffer(data.begin(), 0);
 	wholeBf = new VariantBuffer(data.begin(), 128);
@@ -5248,6 +5274,14 @@ struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
 
 	void paint(Graphics& g) override
 	{
+		if (parent.get() == nullptr)
+		{
+			g.setColour(Colours::white.withAlpha(0.8f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("Refresh this window after recompiling", getLocalBounds().toFloat(), Justification::centred);
+			return;
+		}
+
 		int index = 0;
 
 		for (int y = 0; y < NumRows; y++)
