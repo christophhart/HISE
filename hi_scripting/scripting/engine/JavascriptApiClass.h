@@ -181,6 +181,8 @@ public:
 
 	String getDebugValue() const override { return ""; }
 
+	bool isWatchable() const override { return false; };
+
 	// ================================================================================================================
 
     /** Adds a constant. You can give it a name (it must be a valid Identifier) and a value and will be resolved at
@@ -247,7 +249,21 @@ public:
 
 	ReadWriteLock apiClassLock;
 
+	int getNumChildElements() const override { return numConstants; }
 	
+	DebugInformationBase* getChildElement(int index) override
+	{
+		auto name = getConstantName(index);
+		auto s = new SettableDebugInfo();
+		s->codeToInsert << "%PARENT%." << name;
+		s->value = getConstantValue(index);
+		s->watchable = false;
+		s->autocompleteable = false;
+		return s;
+	}
+
+
+	bool isAutocompleteable() const override { return true; }
 
 private:
 

@@ -143,6 +143,8 @@ juce::Rectangle<int> mcl::CodeMap::getPreviewBounds(const MouseEvent& e)
 
 void mcl::CodeMap::paint(Graphics& g)
 {
+	g.fillAll(Colours::black.withAlpha(0.3f));
+
 	if (!isActive())
 	{
 		return;

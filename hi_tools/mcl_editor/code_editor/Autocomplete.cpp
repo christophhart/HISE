@@ -16,8 +16,8 @@ using namespace juce;
 
 void Autocomplete::Item::mouseUp(const MouseEvent& e)
 {
-	auto editor = findParentComponentOfClass<TextEditor>();
-	editor->closeAutocomplete(true, token->getCodeToInsert(input), token->getSelectionRangeAfterInsert());
+	auto editor = findParentComponentOfClass<Autocomplete>()->editor;
+	editor->closeAutocomplete(true, token->getCodeToInsert(input), token->getSelectionRangeAfterInsert(input));
 }
 
 juce::AttributedString Autocomplete::Item::createDisplayText() const
@@ -32,7 +32,9 @@ juce::AttributedString Autocomplete::Item::createDisplayText() const
 	auto between = text.substring(beforeIndex, beforeIndex + input.length());
 	auto after = text.substring(beforeIndex + input.length());
 
-	auto nf = GLOBAL_MONOSPACE_FONT().withHeight(16.0f);
+	auto sf = findParentComponentOfClass<Autocomplete>()->getScaleFactor();
+
+	auto nf = GLOBAL_MONOSPACE_FONT().withHeight(16.0f * sf);
 	auto bf = nf.boldened();
 
 	s.append(before, nf, Colours::white.withAlpha(0.7f));
@@ -82,7 +84,7 @@ void Autocomplete::Item::paint(Graphics& g)
 	g.setColour(Colours::white.withAlpha(0.8f));
 
 	auto tBounds = getLocalBounds().toFloat();
-	tBounds = tBounds.withSizeKeepingCentre(tBounds.getWidth() - 10.0f, 18.0f);
+	tBounds = tBounds.withSizeKeepingCentre(tBounds.getWidth() - 10.0f, tBounds.getHeight() * 0.8f);
 
 	
 
@@ -96,11 +98,21 @@ void Autocomplete::Item::paint(Graphics& g)
 
 
 
+Autocomplete::Autocomplete(TokenCollection& tokenCollection_, const String& input, const String& previousToken, int lineNumber, TextEditor* editor_) :
+	tokenCollection(tokenCollection_),
+	scrollbar(true),
+	shadow(DropShadow(Colours::black.withAlpha(0.7f), 5, Point<int>())),
+	editor(editor_)
+{
+	addAndMakeVisible(scrollbar);
+	setInput(input, previousToken, lineNumber);
+	scrollbar.addListener(this);
+}
+
 bool Autocomplete::keyPressed(const KeyPress& key, Component*)
 {
 	allowPopup = true;
-	auto editor = findParentComponentOfClass<TextEditor>();
-
+		
 	if (key == KeyPress::returnKey)
 	{
 		if (editor->incParameter())
@@ -109,7 +121,7 @@ bool Autocomplete::keyPressed(const KeyPress& key, Component*)
 			return true;
 		}
 
-		editor->closeAutocomplete(true, getCurrentText(), getSelectionRange());
+		editor->closeAutocomplete(true, getCurrentText(), getSelectionRange(currentInput));
 		
 		return true;
 	}
@@ -145,7 +157,7 @@ void Autocomplete::cancel()
 	{
 		if (safeThis.getComponent() != nullptr)
 		{
-			if (auto p = safeThis.getComponent()->findParentComponentOfClass<TextEditor>())
+			if (auto p = safeThis.getComponent()->editor)
 			{
 				p->closeAutocomplete(false, {}, {});
 			}
@@ -153,6 +165,84 @@ void Autocomplete::cancel()
 	};
 
 	MessageManager::callAsync(f);
+}
+
+void Autocomplete::setInput(const String& input, const String& previousToken, int lineNumber)
+{
+	if (editor->includeDotInAutocomplete)
+		currentInput = previousToken + input;
+	else
+		currentInput = input;
+
+	auto currentlyDisplayedItem = getCurrentText();
+	items.clear();
+
+	viewIndex = 0;
+
+	for (auto t : tokenCollection)
+	{
+		if (t->matches(input, previousToken, lineNumber))
+		{
+			if (t->tokenContent == currentlyDisplayedItem)
+				viewIndex = items.size();
+
+			items.add(createItem(t, currentInput));
+
+			addAndMakeVisible(items.getLast());
+		}
+	}
+
+	int numLinesFull = 7;
+
+	if (isPositiveAndBelow(numLinesFull, items.size()))
+	{
+		displayedRange = { 0, numLinesFull };
+
+		displayedRange = displayedRange.movedToStartAt(viewIndex);
+
+		if (displayedRange.getEnd() >= items.size())
+		{
+			displayedRange = displayedRange.movedToEndAt(items.size() - 1);
+		}
+
+	}
+	else
+		displayedRange = { 0, items.size() };
+
+	scrollbar.setRangeLimits({ 0.0, (double)items.size() });
+
+	setDisplayedIndex(viewIndex);
+
+	auto h = getNumDisplayedRows() * getRowHeight();
+
+	if (items.size() == 0)
+		cancel();
+
+	if (isSingleMatch())
+	{
+		cancel();
+	}
+	else
+	{
+		auto maxWidth = 0;
+
+		auto nf = Font(Font::getDefaultMonospacedFontName(), 16.0f * getScaleFactor(), Font::plain);
+
+		for (auto& i : items)
+		{
+
+			maxWidth = jmax(maxWidth, nf.getStringWidth(i->token->tokenContent) + 20);
+		}
+
+		setSize(maxWidth, h);
+		resized();
+		repaint();
+	}
+}
+
+float Autocomplete::getScaleFactor() const
+{
+	return editor->transform.getScaleFactor();
 }
 
 void Autocomplete::ParameterSelection::rebuildPosition(TextDocument& doc, AffineTransform t)

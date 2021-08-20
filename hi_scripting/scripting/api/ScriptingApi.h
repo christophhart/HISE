@@ -690,6 +690,9 @@ public:
 		/** Returns an array with all samples from the index data (can be either int or array of int, -1 selects all.). */
 		var createSelectionFromIndexes(var indexData);
 
+		/** Returns an array with all samples that match the filter function. */
+		var createSelectionWithFilter(var filterFunction);
+
 		/** Returns a list of the sounds selected by the selectSounds() method. */
 		var createListFromScriptSelection();
 
@@ -1045,10 +1048,16 @@ public:
 		void print(var debug);
 
 		/** Starts the benchmark. You can give it a name that will be displayed with the result if desired. */
-		void start() { startTime = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()); };
+		void startBenchmark() { startTime = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()); };
 
 		/** Stops the benchmark and prints the result. */
-		void stop();
+		void stopBenchmark();
+
+		/** Causes the execution to stop(). */
+		void stop(bool condition);
+
+		/** Sends a blink message to the current editor. */
+		void blink();
 
 		/** Clears the console. */
 		void clear();
@@ -1073,9 +1082,20 @@ public:
 
 		struct Wrapper;
 
+		void setDebugLocation(const Identifier& id_, int lineNumber_)
+		{
+			id = id_;
+			lineNumber = lineNumber_;
+		}
+
 	private:
 
+		Identifier id;
+		int lineNumber;
+
 		double startTime;
+
+
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Console)
 	};

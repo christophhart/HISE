@@ -173,6 +173,8 @@ public:
 
 		Colour colour = Colours::transparentBlack;
 
+		valuetree::RecursiveTypedChildListener dynamicPowerUpdater;
+
 		valuetree::PropertyListener powerButtonUpdater;
 		valuetree::PropertyListener colourUpdater;
 		HiseShapeButton powerButton;

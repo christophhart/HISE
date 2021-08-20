@@ -226,8 +226,55 @@ struct WorkbenchData : public ReferenceCountedObject,
 		WorkbenchData::WeakPtr parent;
 	};
 
-	struct CompileResult
+	struct CompileResult: public ApiProviderBase
 	{
+		enum class DataTypes
+		{
+			Integer,
+			Float,
+			Double,
+			Struct,
+			Span,
+			Dyn
+		};
+
+		struct DataEntry : public DebugInformationBase
+		{
+			DataEntry(TypeInfo t, void* dataPtr, const Identifier& id_):
+				type(t),
+				data(dataPtr),
+				id(id_)
+			{
+
+			}
+
+			virtual String getTextForName() const
+			{
+				return id.toString();
+			}
+
+			String getTextForType() const override { return type.toString(); }
+
+			String getTextForDataType() const override
+			{
+				return type.toString();
+			}
+
+			int getType() const override;;
+
+			String getTextForValue() const override;
+
+			String getCodeToInsert() const { return "unused"; }
+
+			int getNumChildElements() const override;
+
+			DebugInformationBase::Ptr getChildElement(int index) override;
+
+			TypeInfo type;
+			void* data;
+			Identifier id;
+		};
+
 		CompileResult() :
 			compileResult(Result::ok())
 		{};
@@ -237,6 +284,52 @@ struct WorkbenchData : public ReferenceCountedObject,
 			return compileResult.wasOk();
 		}
 
+		void rightClickCallback(const MouseEvent& e, Component* componentToNotify)
+		{
+
+		}
+
+		void setDataPtrForDebugging(void* d)
+		{
+			dataPtr = d;
+			
+		}
+
+		void getColourAndLetterForType(int type, Colour& colour, char& letter) override
+		{
+			switch ((DataTypes)type)
+			{
+			case DataTypes::Integer: 
+				colour = Types::Helpers::getColourForType(Types::ID::Integer);
+				letter = 'I';
+				break;
+			case DataTypes::Float:
+				colour = Types::Helpers::getColourForType(Types::ID::Float);
+				letter = 'F';
+				break;
+			case DataTypes::Double:
+				colour = Types::Helpers::getColourForType(Types::ID::Double);
+				letter = 'D';
+				break;
+			case DataTypes::Span:
+				colour = Types::Helpers::getColourForType(Types::ID::Block);
+				letter = 'S';
+				break;
+			case DataTypes::Dyn:
+				colour = Types::Helpers::getColourForType(Types::ID::Block);
+				letter = 'D';
+				break;
+			case DataTypes::Struct:
+				colour = Types::Helpers::getColourForType(Types::ID::Block);
+				letter = 'C';
+				break;
+			}
+		}
+
+		int getNumDebugObjects() const override;
+
+		DebugInformationBase::Ptr getDebugInformation(int index);
+
 		Result compileResult;
 		String assembly;
 		JitObject obj;
@@ -245,6 +338,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		scriptnode::ParameterDataList parameters;
 		JitCompiledNode::Ptr lastNode;
+
+		void* dataPtr = nullptr;
 	};
 
 	struct TestRunnerBase

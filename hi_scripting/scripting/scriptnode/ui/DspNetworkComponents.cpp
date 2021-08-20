@@ -231,8 +231,7 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 		valuetree::AsyncMode::Asynchronously,
 		[this](ValueTree v, Identifier id)
 	{
-		if (v[PropertyIds::DynamicBypass].toString().isNotEmpty())
-			repaint();
+		repaint();
 	});
 
 	rebuildListener.setCallback(dataReference, valuetree::AsyncMode::Synchronously,
@@ -627,7 +626,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		if (!n->isBodyShown())
 			continue;
 
-		auto connection = n->getValueTree().getProperty(PropertyIds::DynamicBypass).toString();
+		auto connection = n->getDynamicBypassSource(false);
 
 		if (connection.isNotEmpty())
 		{
@@ -660,6 +659,9 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 				auto c = n->isBypassed() ? Colours::grey : Colour(SIGNAL_COLOUR).withAlpha(0.8f);
 
 				c = getSpecialColour(sourceSlider, c);
+
+				if (sourceSlider->parameterToControl == nullptr)
+					continue;
 
 				if (!sourceSlider->parameterToControl->parent->isBodyShown())
 					continue;
@@ -1669,73 +1671,6 @@ void NetworkPanel::fillIndexList(StringArray& sa)
 	}
 }
 
-KeyboardPopup::Help::Help(DspNetwork* n) :
-	renderer("", nullptr)
-{
-#if USE_BACKEND
-
-	auto bp = dynamic_cast<BackendProcessor*>(n->getScriptProcessor()->getMainController_())->getDocProcessor();
-
-	rootDirectory = bp->getDatabaseRootDirectory();
-	renderer.setDatabaseHolder(bp);
-
-	initGenerator(rootDirectory, bp);
-	renderer.setImageProvider(new doc::ScreenshotProvider(&renderer));
-	renderer.setLinkResolver(new doc::Resolver(rootDirectory));
-
-#endif
-
-
-}
-
-
-void KeyboardPopup::Help::showDoc(const String& text)
-{
-	ignoreUnused(text);
-
-	return;
-
-#if USE_BACKEND
-	if (text.isEmpty())
-	{
-		renderer.setNewText("> no search results");
-		return;
-	}
-
-	String link;
-
-	link << doc::ItemGenerator::getWildcard();
-	link << "/list/";
-	link << text.replace(".", "/");
-
-	MarkdownLink url(rootDirectory, link);
-	renderer.gotoLink(url);
-	rebuild(getWidth());
-#endif
-}
-
-bool KeyboardPopup::Help::initialised = false;
-
-void KeyboardPopup::Help::initGenerator(const File& root, MainController* mc)
-{
-	ignoreUnused(root, mc);
-
-	return;
-
-#if USE_BACKEND
-	if (initialised)
-		return;
-
-	auto bp = dynamic_cast<BackendProcessor*>(mc);
-
-	static doc::ItemGenerator gen(root, *bp);
-	gen.createRootItem(bp->getDatabase());
-
-	initialised = true;
-#endif
-}
-
-
 void KeyboardPopup::addNodeAndClose(String path)
 {
 	auto sp = findParentComponentOfClass<ZoomableViewport>();
@@ -1862,7 +1797,6 @@ bool KeyboardPopup::keyPressed(const KeyPress& k, Component*)
 		auto pos = list.selectNext(false);
 		scrollToMakeVisible(pos);
 		nodeEditor.setText(list.getCurrentText(), dontSendNotification);
-		updateHelp();
 		return true;
 	}
 	else if (k == KeyPress::downKey)
@@ -1870,7 +1804,6 @@ bool KeyboardPopup::keyPressed(const KeyPress& k, Component*)
 		auto pos = list.selectNext(true);
 		scrollToMakeVisible(pos);
 		nodeEditor.setText(list.getCurrentText(), dontSendNotification);
-		updateHelp();
 		return true;
 	}
 	else if (k == KeyPress::returnKey)
@@ -1911,7 +1844,7 @@ void KeyboardPopup::PopupList::Item::buttonClicked(Button*)
 
 void KeyboardPopup::PopupList::Item::mouseDown(const MouseEvent&)
 {
-	findParentComponentOfClass<PopupList>()->setSelected(this);
+	findParentComponentOfClass<PopupList>()->setSelected(this, false);
 }
 
 void KeyboardPopup::PopupList::Item::mouseUp(const MouseEvent& event)
@@ -2320,40 +2253,50 @@ void KeyboardPopup::TagList::Tag::paint(Graphics& g)
 	g.drawText(getName(), getLocalBounds().toFloat(), Justification::centred);
 }
 
-void KeyboardPopup::PopupList::setSelected(Item* i)
+void KeyboardPopup::PopupList::setSelected(Item* i, bool forceRebuild)
 {
-	auto kp = findParentComponentOfClass<KeyboardPopup>();
+	auto newIndex = items.indexOf(i);
 
-	if (i != nullptr)
+	if (newIndex != selectedIndex || forceRebuild)
 	{
-		kp->currentPreview = new ImagePreviewCreator(*kp, i->entry.displayName);
+		selectedIndex = newIndex;
 
-		kp->oneLiner = new OneLiner();
+		auto kp = findParentComponentOfClass<KeyboardPopup>();
 
-		if (kp->currentPreview->createdNode != nullptr)
-			kp->oneLiner->description = kp->currentPreview->createdNode->getNodeDescription();
-
-		kp->addAndMakeVisible(kp->oneLiner);
-
-		Component::SafePointer<PopupList> safeThis(this);
-
-		MessageManager::callAsync([safeThis]()
+		if (i != nullptr)
 		{
-		if (safeThis.getComponent() != nullptr)
-			safeThis.getComponent()->resized();
-		});
-	}
-	else
-	{
-		kp->currentPreview = nullptr;
-		kp->screenshot = {};
-		kp->repaint();
-	}
+			kp->currentPreview = new ImagePreviewCreator(*kp, i->entry.displayName);
 
-	for (auto item : items)
-	{
-		item->selected = item == i;
-		item->repaint();
+			kp->oneLiner = new OneLiner();
+
+			if (kp->currentPreview->createdNode != nullptr)
+				kp->oneLiner->description = kp->currentPreview->createdNode->getNodeDescription();
+
+			kp->addAndMakeVisible(kp->oneLiner);
+			kp->resized();
+
+			Component::SafePointer<PopupList> safeThis(this);
+
+			MessageManager::callAsync([safeThis]()
+				{
+					if (safeThis.getComponent() != nullptr)
+						safeThis.getComponent()->resized();
+				});
+		}
+		else
+		{
+			kp->currentPreview = nullptr;
+			kp->screenshot = {};
+			kp->repaint();
+		}
+
+		int idx = 0;
+
+		for (auto item : items)
+		{
+			item->selected = idx++ == selectedIndex;
+			item->repaint();
+		}
 	}
 }
 

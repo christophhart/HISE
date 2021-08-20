@@ -179,12 +179,6 @@ void ExpansionHandler::createNewExpansion(const File& expansionFolder)
 
 juce::File ExpansionHandler::getExpansionFolder() const
 {
-#if USE_FRONTEND
-	// We'll automatically use the sample folder to store the expansions
-	if (FullInstrumentExpansion::isEnabled(getMainController()))
-		return FrontendHandler::getSampleLocationForCompiledPlugin();
-#endif
-
 	if (!expansionFolder.isDirectory())
 	{
 		auto f = getMainController()->getSampleManager().getProjectHandler().getRootFolder().getChildFile("Expansions");
@@ -371,14 +365,6 @@ void ExpansionHandler::setCurrentExpansion(Expansion* e, NotificationType notify
 {
 	if (currentExpansion != e)
 	{
-#if USE_BACKEND
-		if (FullInstrumentExpansion::isEnabled(getMainController()))
-		{
-			debugToConsole(getMainController()->getMainSynthChain(), "Skipping loading of expansion " + (e != nullptr ? e->getProperty(ExpansionIds::Name) : "Default"));
-			return;
-		}
-#endif
-
 		currentExpansion = e;
 		notifier.sendNotification(Notifier::EventType::ExpansionLoaded, notifyListeners);
 	}

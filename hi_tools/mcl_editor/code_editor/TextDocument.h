@@ -576,8 +576,7 @@ public:
 
 	void foldStateChanged(FoldableLineRange::WeakPtr rangeThatHasChanged)
 	{
-		if(rangeThatHasChanged != nullptr)
-			rebuildRowPositions();
+		rebuildRowPositions();
 	}
 
 	void rootWasRebuilt(FoldableLineRange::WeakPtr newRoot)
@@ -802,6 +801,7 @@ public:
 	void addSelectionListener(Selection::Listener* l)
 	{
 		selectionListeners.addIfNotAlreadyThere(l);
+		l->displayedLineRangeChanged(currentlyDisplayedLineRange);
 	}
 
 	void removeSelectionListener(Selection::Listener* l)

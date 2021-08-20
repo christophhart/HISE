@@ -41,11 +41,14 @@ size((externalData != nullptr) ? size_ : 0)
 		float *data[1] = { externalData };
 		buffer.setDataToReferTo(data, 1, size_);
 	}
+
+	addMethods();
 }
 
 VariantBuffer::VariantBuffer(VariantBuffer *otherBuffer, int offset /*= 0*/, int numSamples /*= -1*/)
 {
 	referToOtherBuffer(otherBuffer, offset, numSamples);
+	addMethods();
 }
 
 VariantBuffer::VariantBuffer(int samples) :
@@ -57,6 +60,8 @@ buffer()
 		buffer.setSize(1, jmax<int>(0, samples));
 		buffer.clear();
 	}
+
+	addMethods();
 }
 
 VariantBuffer::~VariantBuffer()
@@ -101,6 +106,7 @@ void VariantBuffer::addMul(const VariantBuffer &a, const VariantBuffer &b)
 	FloatVectorOperations::addWithMultiply(buffer.getWritePointer(0), a.buffer.getReadPointer(0), b.buffer.getReadPointer(0), size);
 }
 
+
 var VariantBuffer::getSample(int sampleIndex)
 {
 	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
@@ -124,6 +130,44 @@ String VariantBuffer::toDebugString() const
 	description << ", RMS: " << String(buffer.getRMSLevel(0, 0, size), 3);
 
 	return description;
+}
+
+void VariantBuffer::addMethods()
+{
+	setMethod("getMagnitude", [](const var::NativeFunctionArgs& n)
+	{
+		if(auto bf = n.thisObject.getBuffer())
+			return var(bf->buffer.getMagnitude(0, 0, bf->buffer.getNumSamples()));
+
+		return var(0);
+	});
+	
+	setMethod("getRMSLevel", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+			return var(bf->buffer.getRMSLevel(0, 0, bf->buffer.getNumSamples()));
+
+		return var(0);
+	});
+
+	setMethod("getRMSLevel", [](const var::NativeFunctionArgs& n)
+	{
+		Array<var> range;
+
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			auto r = bf->buffer.findMinMax(0, 0, bf->buffer.getNumSamples());
+			range.add(r.getStart());
+			range.add(r.getEnd());
+		}
+		else
+		{
+			range.add(0);
+			range.add(0);
+		}
+			
+		return var(range);
+	});
 }
 
 void VariantBuffer::operator>>(VariantBuffer &destinationBuffer) const

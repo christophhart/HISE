@@ -64,7 +64,9 @@ public:
 		virtual void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area);
 	};
 
-	
+	struct DefaultLookAndFeel : public LookAndFeel_V3,
+		public LookAndFeelMethods
+	{} defaultLaf;
 
 	static Image createPreview(const AudioSampleBuffer* buffer, int width)
 	{
@@ -1259,6 +1261,8 @@ public:
 	{
 
 	};
+
+
 
 	virtual void setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn=false)
 	{

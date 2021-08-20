@@ -270,6 +270,8 @@ struct StructType : public ComplexType,
 
 	size_t getMemberOffset(int index) const; 
 
+	int getNumMembers() const { return memberData.size(); };
+
 	NamespaceHandler::Visibility getMemberVisibility(const Identifier& id) const;
 
 	Identifier getMemberName(int index) const;

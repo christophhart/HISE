@@ -56,9 +56,9 @@ bool MainController::KillStateHandler::handleKillState()
 
 	initAudioThreadId();
 
-	ScopedTryLock sl(ticketLock);
+	SimpleReadWriteLock::ScopedTryReadLock sl(ticketLock);
 
-	if (!sl.isLocked())
+	if(!sl)
 	{
 		jassertfalse;
 	}
@@ -223,6 +223,7 @@ void MainController::KillStateHandler::quit()
 {
 	LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
 
+	mc->getJavascriptThreadPool().deactivateSleepUntilCompilation();
 	mc->getMainSynthChain()->resetAllVoices();
 	currentState = ShutdownComplete;
 
@@ -309,8 +310,8 @@ bool MainController::KillStateHandler::invalidateTicket(uint16 ticket)
 	//stackTraces.remove(StackTrace<3, 6>(ticket, false));
 
 	{
-		ScopedLock sl(ticketLock);
-
+		SimpleReadWriteLock::ScopedWriteLock sl(ticketLock);
+		
 		// You tried to invalidate an invalid ticket!
 		jassert(ticket != 0);
 
@@ -340,14 +341,10 @@ juce::uint16 MainController::KillStateHandler::requestNewTicket()
 	//DBG(String(delta) + "ms: Request Ticket " + String(ticketCounter + 1));
 
 	{
-		ScopedLock sl(ticketLock);
+		SimpleReadWriteLock::ScopedWriteLock sl(ticketLock);
 
 		ticketCounter = jmax<uint16>(1, ticketCounter + 1);
-
 		newTicket = ticketCounter;
-
-		
-
 		pendingTickets.insertWithoutSearch(newTicket);
 	}
 	
@@ -358,9 +355,9 @@ juce::uint16 MainController::KillStateHandler::requestNewTicket()
 
 bool MainController::KillStateHandler::checkForClearance() const noexcept
 {
-	ScopedTryLock sl(ticketLock);
-
-	if (sl.isLocked())
+	SimpleReadWriteLock::ScopedTryReadLock sl(ticketLock);
+	
+	if (sl)
 		return pendingTickets.isEmpty();
 
 	// If we didn't get the lock, there's certainly going on something, 

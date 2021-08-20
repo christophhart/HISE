@@ -60,15 +60,10 @@ struct NodeContainer : public AssignableObject
 		private:
 
 			ValueTree targetNodeData;
-
 			UndoManager* um = nullptr;
-			
 			double rangeMultiplerForBypass = 1.0;
-
 			MacroParameter* parentParameter = nullptr;
-
 			valuetree::PropertyListener exprSyncer;
-
 			String expressionCode;
 		};
 

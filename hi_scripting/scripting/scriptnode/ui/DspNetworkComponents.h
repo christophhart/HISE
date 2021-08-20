@@ -226,7 +226,6 @@ public:
 		setName("Create Node");
 
 		addAndMakeVisible(helpButton);
-		helpButton.setToggleModeWithColourChange(true);
 		addAndMakeVisible(tagList);
 		addAndMakeVisible(nodeEditor);
 
@@ -241,9 +240,7 @@ public:
 		viewport.setViewedComponent(&list, false);
 
 		viewport.setScrollBarThickness(14);
-
 		viewport.setScrollOnDragEnabled(true);
-		helpViewport.setScrollOnDragEnabled(true);
 
 		helpButton.addListener(this);
 		setSize(tagList.getWidth(), 64 + 240 + 2 * UIValues::NodeMargin);
@@ -253,22 +250,14 @@ public:
 
 	void buttonClicked(Button* )
 	{
-		if (help == nullptr)
-		{
-			help = new Help(network);
-			help->showDoc(list.getCurrentText());
-			helpViewport.setViewedComponent(help, false);
-			helpViewport.setVisible(true);
-			setSize(tagList.getTagWidth() + 100, tagList.getBottom() + 400);
-			resized();
-		}
-		else
-		{
-			help = nullptr;
-			setSize(tagList.getTagWidth(), tagList.getBottom() + viewport.getHeight());
-			helpViewport.setVisible(false);
-			resized();
-		}
+		auto t = list.getCurrentText();
+
+		URL url("https://docs.hise.audio/");
+		url = url.getChildURL("scriptnode").getChildURL("list");
+		url = url.getChildURL(t.upToFirstOccurrenceOf(".", false, false));
+		url = url.getChildURL(t.fromFirstOccurrenceOf(".", false, false) + ".html");
+
+		url.launchInDefaultBrowser();
 	}
 
 	void scrollToMakeVisible(int yPos)
@@ -297,38 +286,6 @@ public:
 
 	void addNodeAndClose(String path);
 
-	
-
-	struct Help : public Component
-	{
-		Help(DspNetwork* n);
-
-		void paint(Graphics& g) override
-		{
-			g.fillAll(Colour(0xFF262626).withAlpha(0.3f));
-
-			renderer.draw(g, getLocalBounds().toFloat().reduced(10.0f));
-		}
-
-		void showDoc(const String& text);
-
-		void rebuild(int maxWidth)
-		{
-			auto height = renderer.getHeightForWidth((float)(maxWidth)-20.0f);
-			setSize(maxWidth, (int)height + 20);
-		}
-
-		File rootDirectory;
-
-		MarkdownRenderer renderer;
-
-		static void initGenerator(const File& f, MainController* mc);
-		static bool initialised;
-
-	};
-
-	
-
 	void textEditorTextChanged(TextEditor&) override
 	{
 		setSearchText(nodeEditor.getText());
@@ -336,13 +293,7 @@ public:
 
 	int getWidthForListItems() const
 	{
-		return help != nullptr ? 0 : tagList.getWidth() / 2 - viewport.getScrollBarThickness();
-	}
-
-	void updateHelp()
-	{
-		if (help != nullptr)
-			help->showDoc(list.getCurrentText());
+		return tagList.getWidth() / 2 - viewport.getScrollBarThickness();
 	}
 
 	void setSearchText(const String& text)
@@ -352,11 +303,6 @@ public:
 
 		list.rebuild(getWidthForListItems());
 		auto height = jmin(300, list.getHeight() + 10);
-
-		if (help != nullptr)
-			height = jmax(400, height);
-		
-		updateHelp();
 
 		resized();
 	}
@@ -378,23 +324,10 @@ public:
 		
 		b.removeFromTop(UIValues::NodeMargin);
 
-		
+		viewport.setBounds(b.removeFromLeft(getWidth() / 2));
 
-		if (help != nullptr)
-		{
-			viewport.setBounds(b.removeFromLeft(list.getWidth() + viewport.getScrollBarThickness()));
-			help->rebuild(b.getWidth() - helpViewport.getScrollBarThickness());
-			helpViewport.setBounds(b);
-		}
-		else
-		{
-			helpViewport.setVisible(false);
-
-			viewport.setBounds(b.removeFromLeft(getWidth() / 2));
-
-			if (oneLiner != nullptr)
-				oneLiner->setBounds(b.removeFromBottom(32));
-		}
+		if (oneLiner != nullptr)
+			oneLiner->setBounds(b.removeFromBottom(32));
 	}
 
 	Rectangle<float> getPreviewBounds();
@@ -411,7 +344,6 @@ public:
 			ExistingNode,
 			NewNode
 		};
-
 
 		struct Entry
 		{
@@ -496,16 +428,18 @@ public:
 
 		int selectNext(bool next)
 		{
+			int nextIndex = selectedIndex;
+
 			if (next)
-				selectedIndex = jmin(items.size(), selectedIndex + 1);
+				nextIndex = jmin(items.size(), selectedIndex + 1);
 			else
-				selectedIndex = jmax(0, selectedIndex - 1);
+				nextIndex = jmax(0, selectedIndex - 1);
 
-			rebuild(maxWidth);
+			
 
-			setSelected(items[selectedIndex]);
+			setSelected(items[nextIndex], false);
 
-			return selectedIndex * ItemHeight;
+			return nextIndex * ItemHeight;
 		}
 
 		void setSearchText(const String& text)
@@ -514,7 +448,7 @@ public:
 			rebuild(maxWidth);
 
 			selectedIndex = 0;
-			setSelected(items[selectedIndex]);
+			setSelected(items[selectedIndex], true);
 		}
 
 		void paint(Graphics& g) override
@@ -545,7 +479,7 @@ public:
 			HiseShapeButton deleteButton;
 		};
 
-		void setSelected(Item* i);
+		void setSelected(Item* i, bool forceRebuild);
 
 		void resized() override
 		{
@@ -603,13 +537,7 @@ public:
 
 	ZoomableViewport::Laf laf;
 
-	ScopedPointer<Help> help;
-	Viewport helpViewport;
-	
-	
-	
 	HiseShapeButton helpButton;
-	
 };
 
 

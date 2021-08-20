@@ -2834,6 +2834,20 @@ void Component::grabKeyboardFocus()
     jassert (isShowing() || isOnDesktop());
 }
 
+void Component::grabKeyboardFocusAsync()
+{
+	Component::SafePointer<Component> safeC(this);
+
+	Timer::callAfterDelay(300, [safeC]()
+	{
+		if (safeC == nullptr)
+			return;
+
+		if (safeC->isShowing() || safeC->isOnDesktop())
+			safeC->grabKeyboardFocus();
+	});
+}
+
 void Component::moveKeyboardFocusToSibling (bool moveToNext)
 {
     // if component methods are being called from threads other than the message

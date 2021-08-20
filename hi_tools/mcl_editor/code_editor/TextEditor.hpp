@@ -38,12 +38,17 @@ class TextEditor : public juce::Component,
 				   public ScrollBar::Listener,
 				   public TooltipWithArea::Client,
 				   public SearchBoxComponent::Listener,
+				   public ComponentWithDocumentation,
 				   public Timer
 {
 public:
 
 	using TokenTooltipFunction = std::function<String(const String&, int)>;
 	using GotoFunction = std::function<int(int lineNumber, const String& token)>;
+
+	using PopupMenuFunction = std::function<void(TextEditor&, PopupMenu&, const MouseEvent& e)>;
+	using PopupMenuResultFunction = std::function<bool(TextEditor&, int)>;
+	using KeyPressFunction = std::function<bool(const KeyPress& k)>;
 
     enum class RenderScheme {
         usingAttributedStringSingle,
@@ -52,6 +57,7 @@ public:
     };
 
 	
+	std::function<void(bool, FocusChangeType)> onFocusChange;
 
     TextEditor(TextDocument& doc);
     ~TextEditor();
@@ -95,11 +101,19 @@ public:
 
 	void focusGained(FocusChangeType t) override
 	{
+		if (onFocusChange)
+			onFocusChange(true, t);
+
 		caret.startTimer(50);
 	}
 
 	void focusLost(FocusChangeType t) override
 	{
+		tokenCollection.setEnabled(false);
+
+		if (onFocusChange)
+			onFocusChange(false, t);
+
 		caret.stopTimer();
 		caret.repaint();
 	}
@@ -134,6 +148,8 @@ public:
 		repaint();
 	}
 
+	virtual MarkdownLink getLink() const override;
+
 	void addWarning(const String& errorMessage, bool isWarning=true)
 	{
 		warnings.add(new Error(document, errorMessage, isWarning));
@@ -160,9 +176,9 @@ public:
 			document.setMaxLineWidth(actualLineWidth);
 		else
 			document.setMaxLineWidth(-1);
-
-		setFirstLineOnScreen(firstRow);
 	}
+
+	CodeDocument& getDocument() { return document.getCodeDocument(); }
 
 	TooltipWithArea::Data getTooltip(Point<float> position) override
 	{
@@ -223,83 +239,7 @@ public:
 		return {};
 	}
 
-	void updateAutocomplete(bool forceShow = false)
-	{
-		if (document.getSelections().size() != 1)
-		{
-			closeAutocomplete(true, {}, {});
-			return;
-		}
-
-		const auto o = document.getSelections().getFirst().oriented().tail;
-
-		auto p = o;
-		auto s = p;
-
-		document.navigate(s, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
-		document.navigate(p, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
-
-
-		auto lineStart = o;
-		document.navigate(lineStart, mcl::TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
-
-		auto lineContent = document.getSelectionContent({ lineStart, o });
-
-		auto isCommentLine = lineContent.contains("//") || lineContent.startsWith("/*");
-
-		if (isCommentLine)
-		{
-			closeAutocomplete(true, {}, {});
-			return;
-		}
-
-		autocompleteSelection = { s.x, s.y, p.x, p.y };
-		auto input = document.getSelectionContent(autocompleteSelection);
-
-		auto te = s;
-		auto ts = s;
-
-		document.navigate(ts, TextDocument::Target::cppToken, TextDocument::Direction::backwardCol);
-
-		Selection beforeToken = { ts.x, ts.y, te.x, te.y };
-
-		auto tokenBefore = document.getSelectionContent(beforeToken);
-
-		auto hasDotAndNotFloat = !CharacterFunctions::isDigit(tokenBefore[0]) && tokenBefore.endsWith(".");
-
-		auto lineNumber = o.x;
-		
-		if (forceShow || ((input.isNotEmpty() && tokenCollection.hasEntries(input, tokenBefore, lineNumber)) || hasDotAndNotFloat))
-		{
-			if (currentAutoComplete != nullptr)
-				currentAutoComplete->setInput(input, tokenBefore, lineNumber);
-			else
-			{
-				addAndMakeVisible(currentAutoComplete = new Autocomplete(tokenCollection, input, tokenBefore, lineNumber));
-				addKeyListener(currentAutoComplete);
-			}
-
-			auto sToUse = input.isEmpty() ? o.translated(0, 1) : s;
-
-			auto cBounds = document.getBoundsOnRow(sToUse.x, { sToUse.y, sToUse.y + 1 }, GlyphArrangementArray::ReturnLastCharacter).getRectangle(0);
-			auto topLeft = cBounds.getBottomLeft();
-
-			currentAutoComplete->setTopLeftPosition(topLeft.roundToInt());
-
-			if (currentAutoComplete->getBoundsInParent().getBottom() > getHeight())
-			{
-				auto b = cBounds.getTopLeft().translated(0, -currentAutoComplete->getHeight());
-
-				currentAutoComplete->setTopLeftPosition(b.roundToInt());
-			}
-				
-
-			currentAutoComplete->setTransform(transform);
-
-		}
-		else 
-			closeAutocomplete(false, {}, {});
-	}
+	void updateAutocomplete(bool forceShow = false);
 
 	bool gotoDefinition(Selection s1 = {})
 	{
@@ -390,9 +330,12 @@ public:
 			if (currentParameter != nullptr)
 				document.setSelections({ currentParameter->getSelection() }, false);
 
+			grabKeyboardFocus();
 			repaint();
 		}
 	}
+
+	void setScaleFactor(float newFactor);
 
 	void clearParameters(bool useUndo=true)
 	{
@@ -490,9 +433,15 @@ public:
 		plaf = ownedLaf;
 	}
 
+	void setIncludeDotInAutocomplete(bool shouldInclude)
+	{
+		includeDotInAutocomplete = shouldInclude;
+	}
+
 	void setLineRangeFunction(const FoldableLineRange::LineRangeFunction& f)
 	{
 		lineRangeFunction = f;
+		updateAfterTextChange();
 	};
 
 	int getFirstLineOnScreen() const
@@ -546,7 +495,27 @@ public:
 
 	bool isReadOnly() const { return readOnly; }
 
+	void addPopupMenuFunction(const PopupMenuFunction& pf, const PopupMenuResultFunction& rf)
+	{
+		popupMenuFunctions.add(pf);
+		popupMenuResultFunctions.add(rf);
+	}
+
+	TextDocument& getTextDocument() { return document; }
+
+	bool insert(const juce::String& content);
+
+	bool enableLiveParsing = true;
+	bool enablePreprocessorParsing = true;
+
+	void addKeyPressFunction(const KeyPressFunction& kf)
+	{
+		keyPressFunctions.add(kf);
+	}
+
 private:
+
+	friend class Autocomplete;
 
     struct AutocompleteTimer: public Timer
     {
@@ -556,7 +525,7 @@ private:
         
         void startAutocomplete()
         {
-            auto updateSpeed = parent.currentAutoComplete != nullptr ? 30 : 1200;
+            auto updateSpeed = parent.currentAutoComplete != nullptr ? 30 : 600;
             startTimer(updateSpeed);
         }
         
@@ -618,6 +587,11 @@ private:
 			errorMessage = s.fromFirstOccurrenceOf(": ", false, false);
 
 			Point<int> pos, endPoint;
+
+			auto maxLength = document.doc.getLine(l).trimCharactersAtEnd(" \t\n").length();
+
+			if (c >= (maxLength-1))
+				c = -1;
 
 			if (c == -1)
 			{
@@ -750,7 +724,7 @@ private:
 	CodeDocument& docRef;
 
     //==========================================================================
-    bool insert (const juce::String& content);
+    
     void updateViewTransform();
     void updateSelections();
 
@@ -782,23 +756,31 @@ private:
 
 	FoldableLineRange::LineRangeFunction lineRangeFunction;
 
+	Array<PopupMenuFunction> popupMenuFunctions;
+	Array<PopupMenuResultFunction> popupMenuResultFunctions;
+
+	Array<KeyPressFunction> keyPressFunctions;
+
     CaretComponent caret;
     GutterComponent gutter;
     HighlightComponent highlight;
 	LinebreakDisplay linebreakDisplay;
 	ScrollBar scrollBar;
+
 	SparseSet<int> deactivatesLines;
 	bool linebreakEnabled = true;
     float viewScaleFactor = 1.f;
 	int maxLinesToShow = 0;
 	bool lastInsertWasDouble = false;
+	float lastGutterWidth = 0.0f;
     juce::Point<float> translation;
 	bool showClosures = false;
-	bool enableLiveParsing = true;
-	bool enablePreprocessorParsing = true;
+	float xPos = 0.0f;
+	
 	Selection currentClosure[2];
 
 	bool scrollRecursion = false;
+	bool includeDotInAutocomplete = false;
 
 	Autocomplete::ParameterSelection::List currentParameterSelection;
 	Autocomplete::ParameterSelection::Ptr currentParameter;

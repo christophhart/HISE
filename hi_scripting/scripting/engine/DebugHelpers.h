@@ -70,7 +70,9 @@ public:
 		
 		static void gotoLocation(ModulatorSynthChain* mainSynthChain, const String& encodedState);
 
-		static void showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p);
+		static Component* showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p);
+
+		static Component* createJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id);
 
 		static void showJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id);
 
@@ -78,9 +80,9 @@ public:
 
 		static var getCleanedObjectForJSONDisplay(const var& object);
 
-		static DebugInformationBase* getDebugInformation(ApiProviderBase* engine, DebugableObjectBase* object);
+		static DebugInformationBase::Ptr getDebugInformation(ApiProviderBase* engine, DebugableObjectBase* object);
 
-		static DebugInformationBase* getDebugInformation(ApiProviderBase* engine, const var& v);
+		static DebugInformationBase::Ptr getDebugInformation(ApiProviderBase* engine, const var& v);
 	};
 
 };
@@ -150,7 +152,7 @@ public:
 		return getTextForName();
 	}
 
-	void rightClickCallback(const MouseEvent& e, Component* componentToNotify) override;
+	Component* createPopupComponent(const MouseEvent& e, Component* componentToNotify) override;
 
 	virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify);
 
@@ -189,7 +191,8 @@ protected:
 
 	static DebugableObjectBase *getDebugableObject(const var &v)
 	{
-		return dynamic_cast<DebugableObjectBase*>(v.getObject());
+		auto obj = v.getObject();
+		return dynamic_cast<DebugableObjectBase*>(obj);
 	}
 
 	private:
@@ -212,6 +215,19 @@ public:
 	~DynamicObjectDebugInformation()
 	{
 		obj = nullptr;
+	}
+
+	bool isWatchable() const override
+	{
+		static const Array<Identifier> unwatchableIds = 
+		{ 
+			Identifier("Array"), 
+			Identifier("String"), 
+			Identifier("Buffer"),
+			Identifier("Libraries")
+		};
+
+		return !unwatchableIds.contains(id);
 	}
 
 	String getTextForName() const override { return id.toString(); }
@@ -244,12 +260,15 @@ public:
 };
 
 
-class FixedVarPointerInformation : public DebugInformation
+class LambdaValueInformation : public DebugInformation
 {
 public:
-	FixedVarPointerInformation(const var* v, const Identifier &id_, const Identifier& namespaceId_, Type t, DebugableObjectBase::Location location_):
+
+	using ValueFunction = std::function<var()>;
+
+	LambdaValueInformation(const ValueFunction& f, const Identifier &id_, const Identifier& namespaceId_, Type t, DebugableObjectBase::Location location_):
 		DebugInformation(t),
-		value(v),
+		vf(f),
 		namespaceId(namespaceId_),
 		id(id_),
 		location(location_)
@@ -260,7 +279,7 @@ public:
 		return location;
 	}
 
-	String getTextForDataType() const override { return getVarType(*value); }
+	String getTextForDataType() const override { return getVarType(getCachedValueFunction()); }
 	
 	String getTextForName() const override 
 	{ 
@@ -268,15 +287,149 @@ public:
 									  namespaceId.toString() + "." + id.toString(); 
 	}
 
-	const var getVariantCopy() const override { return var(*value); };
+	int getNumChildElements() const override
+	{
+		auto value = vf();
 
-	String getTextForValue() const override { return getVarValue(*value); }
-	DebugableObjectBase *getObject() override { return getDebugableObject(*value); }
+		if (auto obj = getDebugableObject(value))
+		{
+			auto customSize = obj->getNumChildElements();
 
-	const var *value;
+			if (customSize != -1)
+				return customSize;
+		}
+
+		if (value.isBuffer())
+		{
+			auto s = value.getBuffer()->size;
+
+			if (isPositiveAndBelow(s, 513))
+				return s;
+
+			return 0;
+		}
+		
+		if (auto dyn = value.getDynamicObject())
+			return dyn->getProperties().size();
+
+		if (auto ar = value.getArray())
+			return jmin<int>(128, ar->size());
+
+		return 0;
+	}
+
+	 
+	DebugInformation::Ptr getChildElement(int index) override
+	{
+		auto value = vf();
+
+		if (auto obj = getDebugableObject(value))
+		{
+			auto numCustom = obj->getNumChildElements();
+
+			if (numCustom != -1)
+				return obj->getChildElement(index);
+		}
+
+		WeakReference<LambdaValueInformation> safeThis(this);
+
+		if (value.isBuffer())
+		{
+			auto actualValueFunction = [index, safeThis]()
+			{
+				if (safeThis == nullptr)
+					return var();
+
+				if (auto b = safeThis->vf().getBuffer())
+				{
+					if (isPositiveAndBelow(index, b->size))
+						return var(b->getSample(index));
+				}
+
+				return var(0.0f);
+			};
+
+			String cid = "%PARENT%[" + String(index) + "]";
+
+			return new LambdaValueInformation(actualValueFunction, Identifier(cid), namespaceId, (Type)getType(), location);
+		}
+			
+
+		if (auto dyn = value.getDynamicObject())
+		{
+			String cid;
+
+			const NamedValueSet& s = dyn->getProperties();
+
+			auto mid = s.getName(index);
+			cid << id << "." << mid;
+
+			auto cf = [safeThis, mid]()
+			{
+				if (safeThis == nullptr)
+					return var();
+
+				auto v = safeThis->vf();
+				return v.getProperty(mid, {});
+			};
+
+			return new LambdaValueInformation(cf, Identifier(cid), namespaceId, (Type)getType(), location);
+		}
+
+		if (auto ar = value.getArray())
+		{
+			String cid;
+			cid << id << "[" << String(index) << "]";
+
+			auto cf = [index, safeThis]()
+			{
+				if (safeThis == nullptr)
+					return var();
+
+				auto a = safeThis->vf();
+
+				if (auto ar = a.getArray())
+					return (*ar)[index];
+
+				return var();
+			};
+
+			return new LambdaValueInformation(cf, Identifier(cid), namespaceId, (Type)getType(), location);
+		}
+
+		return new DebugInformationBase();
+	}
+
+	var getCachedValueFunction() const
+	{
+		return vf();
+	}
+
+	bool isAutocompleteable() const override
+	{
+		auto v = vf();
+
+		if (v.isObject())
+			return true;
+
+		return false;
+	}
+
+	const var getVariantCopy() const override { return var(getCachedValueFunction()); };
+
+	String getTextForValue() const override {
+		auto v = getCachedValueFunction();
+		return getVarValue(v); 
+	}
+	DebugableObjectBase *getObject() override { return getDebugableObject(getCachedValueFunction()); }
+
+	ValueFunction vf;
+
 	const Identifier id;
 	const Identifier namespaceId;
 	DebugableObjectBase::Location location;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(LambdaValueInformation);
 };
 
 
@@ -290,18 +443,47 @@ public:
 		namespaceId(namespaceId_)
 		{};
 
-	String getTextForDataType() const override { return object->getDebugDataType(); }
+	String getTextForDataType() const override { return object != nullptr ? object->getDebugDataType() : ""; }
 	String getTextForName() const override 
 	{ 
+		if (object == nullptr)
+			return "";
+
 		return namespaceId.isNull() ? object->getDebugName() :
 									  namespaceId.toString() + "." + object->getDebugName(); 
 	}
-	String getTextForValue() const override { return object->getDebugValue(); }
+	String getTextForValue() const override { return object != nullptr ? object->getDebugValue() : ""; }
 	AttributedString getDescription() const override { return AttributedString(); }
 
-	DebugableObjectBase *getObject() override { return object; }
+	bool isWatchable() const override { return object != nullptr ? object->isWatchable() : false; }
 
-	DebugableObjectBase* object;
+	int getNumChildElements() const override
+	{
+		if (object != nullptr)
+		{
+			auto o = object->getNumChildElements();
+
+			if (o != -1)
+				return o;
+
+			
+		}
+
+		return 0;
+	}
+
+	Ptr getChildElement(int index) override
+	{
+		if (object != nullptr)
+			return object->getChildElement(index);
+			
+		return nullptr;
+	}
+
+	DebugableObjectBase *getObject() override { return object.get(); }
+	const DebugableObjectBase *getObject() const override { return object.get(); }
+
+	WeakReference<DebugableObjectBase> object;
 	const Identifier id;
 	const Identifier namespaceId;
 };

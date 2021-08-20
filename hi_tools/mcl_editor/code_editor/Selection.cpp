@@ -242,7 +242,16 @@ UndoableAction* mcl::Transaction::on(TextDocument& document, Callback callback)
 	return new Undoable(document, callback, *this);
 }
 
+Selection::Selection(const juce::CodeDocument& doc, int headChar, int tailChar)
+{
+	auto h = juce::CodeDocument::Position(doc, headChar);
+	auto t = juce::CodeDocument::Position(doc, tailChar);
 
+	head.x = h.getLineNumber();
+	head.y = h.getIndexInLine();
 
+	tail.x = t.getLineNumber();
+	tail.y = t.getIndexInLine();
+}
 
 }

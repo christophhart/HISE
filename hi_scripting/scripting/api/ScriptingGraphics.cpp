@@ -205,7 +205,7 @@ void ScriptingObjects::ScriptShader::PreviewComponent::paint(Graphics& g)
 			String s;
 			s << "### Compilation Error: \n";
 			s << "```\n";
-			s << obj->getErrorMessage();
+			s << obj->getErrorMessage(false);
 			s << "```\n";
 
 
@@ -213,6 +213,7 @@ void ScriptingObjects::ScriptShader::PreviewComponent::paint(Graphics& g)
 			r.parse();
 			r.getHeightForWidth(getWidth() - 20.0f);
 
+			g.fillAll(Colours::grey);
 			r.draw(g, getLocalBounds().toFloat().reduced(10.0f));
 		}
 	}
@@ -224,6 +225,7 @@ struct ScriptingObjects::ScriptShader::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptShader, setUniformData);
 	API_VOID_METHOD_WRAPPER_3(ScriptShader, setBlendFunc);
 	API_VOID_METHOD_WRAPPER_1(ScriptShader, fromBase64);
+	API_VOID_METHOD_WRAPPER_1(ScriptShader, setEnableCachedBuffer);
 	API_METHOD_WRAPPER_0(ScriptShader, toBase64);
 	API_METHOD_WRAPPER_0(ScriptShader, getOpenGLStatistics);
 };
@@ -250,7 +252,10 @@ ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) 
 	ADD_API_METHOD_1(fromBase64);
 	ADD_API_METHOD_0(toBase64);
 	ADD_API_METHOD_0(getOpenGLStatistics);
+	ADD_API_METHOD_1(setEnableCachedBuffer);
 }
+
+bool ScriptingObjects::ScriptShader::renderingScreenShot = false;
 
 String ScriptingObjects::ScriptShader::getHeader()
 {
@@ -272,6 +277,11 @@ String ScriptingObjects::ScriptShader::getHeader()
 	s << "\n#define fragCoord _gl_fc()\n";
 	s << "#define fragColor gl_FragColor\n";
 
+#if JUCE_WINDOWS
+	// The #line directive does not work on macOS apparently...
+	s << "#line 0 \"" << shaderName << "\" \n";
+#endif
+
 	return s;
 }
 
@@ -279,6 +289,8 @@ String ScriptingObjects::ScriptShader::getHeader()
 
 void ScriptingObjects::ScriptShader::setFragmentShader(String shaderFile)
 {
+	shaderName = shaderFile;
+
 	FileParser p(getScriptProcessor(), useLineNumbers, shaderFile, includedFiles);
 
 	compileRawCode(p.getLines().joinIntoString("\n"));
@@ -325,23 +337,41 @@ var ScriptingObjects::ScriptShader::getOpenGLStatistics()
 	return openGLStats;
 }
 
-void ScriptingObjects::ScriptShader::rightClickCallback(const MouseEvent& e, Component* componentToNotify)
+void ScriptingObjects::ScriptShader::setEnableCachedBuffer(bool shouldEnableBuffer)
+{
+	enableCache = shouldEnableBuffer;
+}
+
+Component* ScriptingObjects::ScriptShader::createPopupComponent(const MouseEvent& e, Component* componentToNotify)
 {
 #if USE_BACKEND
-
-	auto *editor = GET_BACKEND_ROOT_WINDOW(componentToNotify);
-
-	auto content = new PreviewComponent(this);
-
-	MouseEvent ee = e.getEventRelativeTo(editor);
-
-	editor->getRootFloatingTile()->showComponentInRootPopup(content, editor, ee.getMouseDownPosition());
-
+	return new PreviewComponent(this);
 #else
-
 	ignoreUnused(e, componentToNotify);
-
+	return nullptr;
 #endif
+}
+
+String ScriptingObjects::ScriptShader::getErrorMessage(bool verbose) const
+{
+	if (verbose)
+	{
+		String s;
+
+		auto lines = StringArray::fromLines(r.getErrorMessage());
+		lines.removeEmptyStrings();
+
+		for (const auto& l : lines)
+		{
+			s << l;
+			s << "{GLSL::";
+			s << dynamic_cast<const Processor*>(getScriptProcessor())->getId() << "::" << shaderName << "}\n";
+		}
+		
+		return s;
+	}
+	else
+	return r.getErrorMessage();
 }
 
 void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
@@ -430,22 +460,13 @@ private:
 	Path p;
 };
 
-void ScriptingObjects::PathObject::rightClickCallback(const MouseEvent &e, Component* componentToNotify)
+Component* ScriptingObjects::PathObject::createPopupComponent(const MouseEvent &e, Component* componentToNotify)
 {
 #if USE_BACKEND
-
-	auto *editor = GET_BACKEND_ROOT_WINDOW(componentToNotify);
-
-	PathPreviewComponent* content = new PathPreviewComponent(p);
-
-	MouseEvent ee = e.getEventRelativeTo(editor);
-
-	editor->getRootFloatingTile()->showComponentInRootPopup(content, editor, ee.getMouseDownPosition());
-
+	return new PathPreviewComponent(p);
 #else
-
 	ignoreUnused(e, componentToNotify);
-
+	return nullptr;
 #endif
 }
 

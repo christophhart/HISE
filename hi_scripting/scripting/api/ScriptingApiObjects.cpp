@@ -75,7 +75,9 @@ var ScriptingObjects::MidiList::getAssignedValue(int index) const				 { return g
 
 void ScriptingObjects::MidiList::fill(int valueToFill)
 {
-	memset(data, valueToFill, sizeof(int) * 128);
+	for (int i = 0; i < 128; i++)
+		data[i] = valueToFill;
+
 	numValues = (int)(valueToFill != -1) * 128;
 }
 
@@ -944,6 +946,17 @@ void ScriptingObjects::ScriptDownloadObject::start()
 	}
 }
 
+Component* ScriptingObjects::ScriptComplexDataReferenceBase::createPopupComponent(const MouseEvent& e, Component *c)
+{
+	if (auto ed = dynamic_cast<Component*>(ExternalData::createEditor(complexObject)))
+	{
+		ed->setSize(600, 300);
+		return ed;
+	}
+	
+	return nullptr;
+}
+
 ScriptingObjects::ScriptComplexDataReferenceBase::ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type_, ExternalDataHolder* otherHolder/*=nullptr*/) :
 	ConstScriptingObject(c, 0),
 	index(dataIndex),
@@ -1216,17 +1229,15 @@ ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent
 	ADD_API_METHOD_1(getTableValueNormalised);
 }
 
-void ScriptingObjects::ScriptTableData::rightClickCallback(const MouseEvent& e, Component *c)
+Component* ScriptingObjects::ScriptTableData::createPopupComponent(const MouseEvent& e, Component *c)
 {
 #if USE_BACKEND
-
 	auto te = dynamic_cast<Component*>(snex::ExternalData::createEditor(getTable()));
 	te->setSize(300, 200);
-	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-	MouseEvent ee = e.getEventRelativeTo(editor);
-	editor->getRootFloatingTile()->showComponentInRootPopup(te, editor, ee.getMouseDownPosition());
+	return te;
 #else
 	ignoreUnused(e, c);
+	return nullptr;
 #endif
 }
 
@@ -1330,6 +1341,7 @@ struct ScriptingObjects::ScriptingSamplerSound::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingSamplerSound, duplicateSample);
 	API_METHOD_WRAPPER_0(ScriptingSamplerSound, loadIntoBufferArray);
 	API_METHOD_WRAPPER_1(ScriptingSamplerSound, replaceAudioFile);
+	API_METHOD_WRAPPER_1(ScriptingSamplerSound, refersToSameSample);
 };
 
 ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScriptingContent* p, ModulatorSampler* sampler_, ModulatorSamplerSound::Ptr sound_) :
@@ -1344,6 +1356,7 @@ ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScri
 	ADD_API_METHOD_0(duplicateSample);
 	ADD_API_METHOD_0(loadIntoBufferArray);
 	ADD_API_METHOD_1(replaceAudioFile);
+	ADD_API_METHOD_1(refersToSameSample);
 
 	sampleIds.ensureStorageAllocated(ModulatorSamplerSound::numProperties);
 	sampleIds.add(SampleIds::ID);
@@ -1379,9 +1392,51 @@ juce::String ScriptingObjects::ScriptingSamplerSound::getDebugValue() const
 	return sound != nullptr ? sound->getPropertyAsString(SampleIds::FileName) : "";
 }
 
-void ScriptingObjects::ScriptingSamplerSound::rightClickCallback(const MouseEvent&, Component *)
+hise::DebugInformation* ScriptingObjects::ScriptingSamplerSound::getChildElement(int index)
 {
+	ModulatorSamplerSound::Ptr other = sound;
 
+	auto id = sampleIds[index];
+
+	auto av = [other, id]()
+	{
+		if (other != nullptr)
+			return other->getSampleProperty(id);
+
+		return var();
+	};
+
+	String cid = "%PARENT%.";
+	cid << id;
+
+	return new LambdaValueInformation(av, Identifier(cid), {}, (DebugInformation::Type)getTypeNumber(), getLocation());
+}
+
+void ScriptingObjects::ScriptingSamplerSound::assign(const int index, var newValue)
+{
+	set(index, newValue);
+}
+
+var ScriptingObjects::ScriptingSamplerSound::getAssignedValue(int index) const
+{
+	return get(index);
+}
+
+int ScriptingObjects::ScriptingSamplerSound::getCachedIndex(const var &indexExpression) const
+{
+	if (indexExpression.isString())
+	{
+		Identifier thisId(indexExpression.toString());
+
+		auto idx = sampleIds.indexOf(thisId);
+
+		if (idx == -1)
+			reportScriptError("Can't find property " + thisId.toString());
+
+		return idx;
+	}
+
+	return (int)indexExpression;
 }
 
 void ScriptingObjects::ScriptingSamplerSound::set(int propertyIndex, var newValue)
@@ -1617,6 +1672,17 @@ bool ScriptingObjects::ScriptingSamplerSound::replaceAudioFile(var audioData)
 	return true;
 }
 
+bool ScriptingObjects::ScriptingSamplerSound::refersToSameSample(var otherSample)
+{
+	if (auto s = dynamic_cast<ScriptingSamplerSound*>(otherSample.getObject()))
+	{
+		return s->sound.get() == sound.get();
+	}
+
+	reportScriptError("refersToSampleSample: otherSample parameter is not a sample object");
+	RETURN_IF_NO_THROW(false);
+}
+
 hise::ModulatorSampler* ScriptingObjects::ScriptingSamplerSound::getSampler() const
 {
 	auto s = dynamic_cast<ModulatorSampler*>(sampler.get());
@@ -1838,9 +1904,9 @@ void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent 
 #endif
 }
 
-void ScriptingObjects::ScriptingModulator::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingModulator::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, mod);
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, mod);
 }
 
 void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
@@ -2130,9 +2196,9 @@ moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 };
 
 
-void ScriptingObjects::ScriptingEffect::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingEffect::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, effect.get());
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, effect.get());
 }
 
 juce::String ScriptingObjects::ScriptingEffect::getId() const
@@ -2710,9 +2776,9 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 };
 
 
-void ScriptingObjects::ScriptingSynth::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingSynth::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, synth);
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, synth);
 }
 
 String ScriptingObjects::ScriptingSynth::getId() const
@@ -2999,9 +3065,9 @@ mp(mp_)
 	ADD_API_METHOD_0(asMidiPlayer);
 }
 
-void ScriptingObjects::ScriptingMidiProcessor::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingMidiProcessor::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, mp);
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, mp);
 }
 
 int ScriptingObjects::ScriptingMidiProcessor::getCachedIndex(const var &indexExpression) const
@@ -3419,7 +3485,8 @@ struct ScriptingObjects::TimerObject::Wrapper
 ScriptingObjects::TimerObject::TimerObject(ProcessorWithScriptingContent *p) :
 	DynamicScriptingObject(p),
 	ControlledObject(p->getMainController_(), true),
-	it(this)
+	it(this),
+	tc(p, {}, 0)
 {
 	ADD_DYNAMIC_METHOD(startTimer);
 	ADD_DYNAMIC_METHOD(stopTimer);
@@ -3435,6 +3502,12 @@ ScriptingObjects::TimerObject::~TimerObject()
 
 void ScriptingObjects::TimerObject::timerCallback()
 {
+	if (tc)
+		tc.call(nullptr, 0);
+	else
+		it.stopTimer();
+
+#if 0
 	auto callback = getProperty("callback");
 
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
@@ -3459,14 +3532,19 @@ void ScriptingObjects::TimerObject::timerCallback()
 											 dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), 
 											 f);
 	}
+#endif
 }
 
 void ScriptingObjects::TimerObject::timerCallbackInternal(const var& callback, Result& r)
 {
+	
+
+#if 0
+
 	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock));
 
 	var undefinedArgs;
-	var thisObject(this);
+	var thisObject;// (this);
 	var::NativeFunctionArgs args(thisObject, &undefinedArgs, 0);
 
 	auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
@@ -3486,6 +3564,7 @@ void ScriptingObjects::TimerObject::timerCallbackInternal(const var& callback, R
 	}
 	else
 		stopTimer();
+#endif
 }
 
 void ScriptingObjects::TimerObject::startTimer(int intervalInMilliSeconds)
@@ -3505,12 +3584,9 @@ void ScriptingObjects::TimerObject::stopTimer()
 
 void ScriptingObjects::TimerObject::setTimerCallback(var callbackFunction)
 {
-	if (dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(callbackFunction.getObject()))
-	{
-		setProperty("callback", callbackFunction);
-	}
-	else
-		throw String("You need to pass in a function for the timer callback");
+	tc = WeakCallbackHolder(getScriptProcessor(), callbackFunction, 0);
+	tc.setThisObject(this);
+	tc.incRefCount();
 }
 
 
@@ -4293,8 +4369,41 @@ void ScriptingObjects::ScriptedLookAndFeel::setGlobalFont(const String& fontName
 	f = getScriptProcessor()->getMainController_()->getFontFromString(fontName, fontSize);
 }
 
+Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
+{
+	static const Array<Identifier> sa =
+	{
+		"drawAlertWindow",
+		"getAlertWindowMarkdownStyleData",
+		"drawAlertWindowIcon",
+		"drawPopupMenuBackground",
+		"drawPopupMenuItem",
+		"drawToggleButton",
+		"drawRotarySlider",
+		"drawLinearSlider",
+		"drawDialogButton",
+		"drawComboBox",
+		"drawNumberTag",
+		"drawPresetBrowserBackground",
+		"drawPresetBrowserColumnBackground",
+		"drawPresetBrowserListItem",
+		"drawPresetBrowserSearchBar",
+		"drawPresetBrowserTag",
+		"drawTablePath",
+		"drawTablePoint",
+		"drawTableRuler",
+		"drawScrollbar",
+		"drawMidiDropper"
+	};
+
+	return sa;
+}
+
 bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject)
 {
+	// If this hits, you need to add that id to the array above.
+	jassert(getAllFunctionNames().contains(functionname));
+
 	auto f = functions.getProperty(functionname, {});
 
 	if (HiseJavascriptEngine::isJavascriptFunction(f))
@@ -4340,6 +4449,9 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 
 var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier& functionname, var* args, int numArgs)
 {
+	// If this hits, you need to add that id to the array above.
+	jassert(getAllFunctionNames().contains(functionname));
+
 	auto f = functions.getProperty(functionname, {});
 
 	if (HiseJavascriptEngine::isJavascriptFunction(f))
@@ -5049,6 +5161,29 @@ LookAndFeel* HiseColourScheme::createAlertWindowLookAndFeel(void* mainController
 }
 #endif
 
+
+
+juce::Array<juce::Identifier> ApiHelpers::getGlobalApiClasses()
+{
+
+	static const Array<Identifier> ids =
+	{
+		"Engine",
+		"Console",
+		"Content",
+		"Sampler",
+		"Synth",
+		"Math",
+		"Settings",
+		"Server",
+		"FileSystem",
+		"Message",
+		"Buffer"
+	};
+	
+	return ids;
+}
+
 #if USE_BACKEND
 juce::ValueTree ApiHelpers::getApiTree()
 {
@@ -5057,12 +5192,11 @@ juce::ValueTree ApiHelpers::getApiTree()
 	if (!v.isValid())
 		v = ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize);
 
-	//File::getSpecialLocation(File::userDesktopDirectory).getChildFile("API.xml").replaceWithText(v.createXml()->createDocument(""));
-
-
 	return v;
 }
 #endif
+
+
 
 struct ScriptingObjects::ScriptDisplayBufferSource::Wrapper
 {
@@ -5099,6 +5233,8 @@ struct ScriptingObjects::ScriptUnorderedStack::Wrapper
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, asBuffer);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, insert);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, remove);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, removeElement);
+	API_METHOD_WRAPPER_0(ScriptUnorderedStack, clear);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, contains);
 };
 
@@ -5110,7 +5246,9 @@ ScriptingObjects::ScriptUnorderedStack::ScriptUnorderedStack(ProcessorWithScript
 	ADD_API_METHOD_1(asBuffer);
 	ADD_API_METHOD_1(insert);
 	ADD_API_METHOD_1(remove);
+	ADD_API_METHOD_1(removeElement);
 	ADD_API_METHOD_1(contains);
+	ADD_API_METHOD_0(clear);
 
 	elementBuffer = new VariantBuffer(data.begin(), 0);
 	wholeBf = new VariantBuffer(data.begin(), 128);
@@ -5136,6 +5274,14 @@ struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
 
 	void paint(Graphics& g) override
 	{
+		if (parent.get() == nullptr)
+		{
+			g.setColour(Colours::white.withAlpha(0.8f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("Refresh this window after recompiling", getLocalBounds().toFloat(), Justification::centred);
+			return;
+		}
+
 		int index = 0;
 
 		for (int y = 0; y < NumRows; y++)
@@ -5168,16 +5314,13 @@ struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
 	WeakReference<ScriptUnorderedStack> parent;
 };
 
-void ScriptingObjects::ScriptUnorderedStack::rightClickCallback(const MouseEvent& e, Component *c)
+Component* ScriptingObjects::ScriptUnorderedStack::createPopupComponent(const MouseEvent& e, Component *c)
 {
 #if USE_BACKEND
-
-	auto te = new Display(this);
-	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-	MouseEvent ee = e.getEventRelativeTo(editor);
-	editor->getRootFloatingTile()->showComponentInRootPopup(te, editor, ee.getMouseDownPosition());
+	return new Display(this);
 #else
 	ignoreUnused(e, c);
+	return nullptr;
 #endif
 }
 

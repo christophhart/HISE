@@ -43,21 +43,136 @@ class PopupIncludeEditor : public Component,
 						   public Timer,
 						   public ButtonListener,
 						   public Dispatchable,
-						   public ExternalScriptFile::RuntimeErrorListener
+						   public mcl::GutterComponent::BreakpointListener,
+						   public JavascriptThreadPool::SleepListener
 {
 public:
+
+#if HISE_USE_NEW_CODE_EDITOR
+	using EditorType = mcl::FullEditor;
+#else
+	using EditorType = JavascriptCodeEditor;
+#endif
+
+	struct CommonEditorFunctions
+	{
+		static bool matchesId(Component* c, const Identifier& id)
+		{
+			return as(c)->findParentComponentOfClass<PopupIncludeEditor>()->callback == id;
+		}
+
+		static float getGlobalCodeFontSize(Component* c);
+
+		static EditorType* as(Component* c) 
+		{ 
+			if (auto pe = dynamic_cast<PopupIncludeEditor*>(c))
+				return pe->getEditor();
+
+			if (auto e = dynamic_cast<EditorType*>(c))
+				return e;
+
+			return c->findParentComponentOfClass<EditorType>();
+		}
+
+		static CodeDocument::Position getCaretPos(Component* c)
+		{
+			if (auto ed = as(c))
+			{
+#if HISE_USE_NEW_CODE_EDITOR
+				auto pos = ed->editor.getTextDocument().getSelection(0).head;
+				return CodeDocument::Position(getDoc(c), pos.x, pos.y);
+#else
+				return ed->getCaretPos();
+#endif
+			}
+
+			jassertfalse;
+			// make it crash...
+			return *static_cast<CodeDocument::Position*>(nullptr);
+		}
+
+		static CodeDocument& getDoc(Component* c)
+		{
+			if (auto ed = as(c))
+			{
+#if HISE_USE_NEW_CODE_EDITOR
+				return ed->editor.getDocument();
+#else
+				return ed->getDocument();
+#endif
+			}
+
+			jassertfalse;
+			static CodeDocument d;
+			return d;
+		}
+
+		static String getCurrentToken(Component* c)
+		{
+			if (auto ed = as(c))
+			{
+#if HISE_USE_NEW_CODE_EDITOR
+
+				auto& doc = ed->editor.getTextDocument();
+
+				auto cs = doc.getSelection(0);
+
+				doc.navigate(cs.tail, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
+				doc.navigate(cs.head, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
+				
+				auto d = doc.getSelectionContent(cs);
+
+				return d;
+#else
+				return ed->getCurrentToken();
+#endif
+			}
+		}
+
+		static void insertTextAtCaret(Component* c, const String& t)
+		{
+			if (auto ed = as(c))
+			{
+				
+#if HISE_USE_NEW_CODE_EDITOR
+				ed->editor.insert(t);
+#else
+				ed->insertTextAtCaret(t);
+#endif
+			}
+		}
+
+		static String getCurrentSelection(Component* c)
+		{
+			if (auto ed = as(c))
+			{
+#if HISE_USE_NEW_CODE_EDITOR
+				auto& doc = ed->editor.getTextDocument();
+				return doc.getSelectionContent(doc.getSelection(0));
+#else
+				return ed->getTextInRange(ed->getHighlightedRegion());
+#endif
+			}
+
+			return {};
+		}
+	};
 
 	// ================================================================================================================
 
 	PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit);
 	PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback);
 	
+	void addEditor(CodeDocument& d, bool isJavascript);
+
 	~PopupIncludeEditor();
 
 	void timerCallback();
 	bool keyPressed(const KeyPress& key) override;
 
-	void runTimeErrorsOccured(const Array<ExternalScriptFile::RuntimeError>& errors) override;
+	static void runTimeErrorsOccured(PopupIncludeEditor& t, Array<ExternalScriptFile::RuntimeError>* errors);
+
+	void sleepStateChanged(const Identifier& id, int lineNumber, bool on) override;
 
 	void resized() override;;
 
@@ -65,23 +180,29 @@ public:
 
 	void buttonClicked(Button* b) override;
 
-	JavascriptCodeEditor* getEditor() 
+	void breakpointsChanged(mcl::GutterComponent& g) override;
+
+	EditorType* getEditor()
 	{ 
-		auto p = dynamic_cast<JavascriptCodeEditor*>(editor.get());
-		return p;
+		return dynamic_cast<EditorType*>(editor.get());
 	}
 
-	const JavascriptCodeEditor* getEditor() const
+	void paintOverChildren(Graphics& g) override;
+
+	const EditorType* getEditor() const
 	{
-		auto p = dynamic_cast<const JavascriptCodeEditor*>(editor.get());
-		return p;
+		return dynamic_cast<const EditorType*>(editor.get());
 	}
 
 	File getFile() const;
 	
+	JavascriptProcessor* getScriptProcessor() { return sp; }
+
 private:
 
 	void addButtonAndCompileLabel();
+
+	void refreshAfterCompilation(const JavascriptProcessor::SnippetResult& r);
 
 	void compileInternal();
 
@@ -98,17 +219,20 @@ private:
 	ScopedPointer<Component> editor;
 	
 	ScopedPointer<TextButton> compileButton;
+	ScopedPointer<TextButton> resumeButton;
+
+	bool isHalted = false;
 
 	ScopedPointer<DebugConsoleTextEditor> resultLabel;
 
-	JavascriptProcessor *sp;
-	
+	WeakReference<JavascriptProcessor> sp;
 	
 	const Identifier callback;
 
 	bool lastCompileOk;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PopupIncludeEditor);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PopupIncludeEditor);
 
 	// ================================================================================================================
 };

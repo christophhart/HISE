@@ -70,7 +70,7 @@ AudioProcessorEditor(fp)
 #if FRONTEND_IS_PLUGIN || HISE_IOS
     const bool searchSamples = false;
 #else
-    const bool searchSamples = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(fp->getMainSynthChain()) != nullptr;
+    const bool searchSamples = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(fp->getMainSynthChain()) != nullptr || FullInstrumentExpansion::isEnabled(fp);
     
 #endif
 

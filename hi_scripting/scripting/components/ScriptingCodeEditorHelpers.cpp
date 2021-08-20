@@ -40,11 +40,13 @@ class CodeReplacer : public DialogWindowWithBackgroundThread,
 {
 public:
 
-	CodeReplacer(JavascriptCodeEditor *editor_) :
+	CodeReplacer(PopupIncludeEditor::EditorType *editor_) :
 		DialogWindowWithBackgroundThread("Search & Replace"),
 		editor(editor_)
 	{
-		addTextEditor("search", editor->getTextInRange(editor->getHighlightedRegion()), "Search for");
+		auto selection = PopupIncludeEditor::CommonEditorFunctions::getCurrentSelection(editor);
+
+		addTextEditor("search", selection, "Search for");
 		getTextEditor("search")->addListener(this);
 
 		StringArray regexList; regexList.add("Yes"); regexList.add("No");
@@ -63,6 +65,8 @@ public:
 
 	~CodeReplacer()
 	{
+		refreshSelection(editor, "");
+
 		editor = nullptr;
 	}
 
@@ -71,13 +75,35 @@ public:
 
 	}
 
-	static Array<JavascriptCodeEditor::CodeRegion> getRegionsFor(JavascriptCodeEditor* editor, const String &searchTerm)
+	static void refreshSelection(PopupIncludeEditor::EditorType* ed, const String& search)
 	{
-		const String allText = editor->getDocument().getAllContent();
+		auto newHighlight = getRegionsFor(ed, search);
+
+#if HISE_USE_NEW_CODE_EDITOR
+		Array<mcl::Selection> newSelections;
+
+		auto& doc = ed->editor.getDocument();
+
+		for (auto h : newHighlight)
+			newSelections.add({ doc, h.getStart(), h.getEnd() });
+
+		ed->editor.getTextDocument().setSearchResults(newSelections);
+		ed->editor.repaint();
+#else
+		ed->rebuildHighlightedSelection(newHighlight);
+#endif
+	}
+
+	static Array<JavascriptCodeEditor::CodeRegion> getRegionsFor(PopupIncludeEditor::EditorType* editor, const String &searchTerm)
+	{
+		const String allText = PopupIncludeEditor::CommonEditorFunctions::getDoc(editor).getAllContent();
 
 		String analyseString = allText;
 		String search = searchTerm;
 		Array<JavascriptCodeEditor::CodeRegion> newHighlight;
+
+		if (searchTerm.isEmpty())
+			return newHighlight;
 
 		const bool useRegex = false;
 
@@ -114,7 +140,6 @@ public:
 
 				newHighlight.add(newRegion);
 			}
-
 		}
 
 		return newHighlight;
@@ -122,19 +147,16 @@ public:
 
 	void textEditorTextChanged(TextEditor& e)
 	{
-		const String allText = editor->getDocument().getAllContent();
+		const String allText = PopupIncludeEditor::CommonEditorFunctions::getDoc(editor).getAllContent();
 
 		String analyseString = allText;
-
 		String search = e.getText();
 
 		Array<JavascriptCodeEditor::CodeRegion> newHighlight = getRegionsFor(editor, search);
 
 		showStatusMessage(String(newHighlight.size()) + "matches.");
 
-		editor->rebuildHighlightedSelection(newHighlight);
-
-
+		refreshSelection(editor, search);
 	}
 
     void timerCallback() override
@@ -158,11 +180,11 @@ public:
 			const String search = getTextEditor("search")->getText();
 			const String replace = getTextEditor("replace")->getText();
 
-			const String selected = editor->getTextInRange(Range<int>(editor->getSelectionStart().getPosition(), editor->getSelectionEnd().getPosition()));
+			const String selected = PopupIncludeEditor::CommonEditorFunctions::getCurrentSelection(editor);
 
 			if (selected == search)
 			{
-				editor->insertTextAtCaret(replace);
+				PopupIncludeEditor::CommonEditorFunctions::insertTextAtCaret(editor, replace);
 			}
 
 			goToNextMatch();
@@ -172,17 +194,18 @@ public:
 			const String search = getTextEditor("search")->getText();
 			const String replace = getTextEditor("replace")->getText();
 
-			const String allText = editor->getDocument().getAllContent();
-			editor->getDocument().replaceAllContent(allText.replace(search, replace, false));
+			auto& doc = PopupIncludeEditor::CommonEditorFunctions::getDoc(editor);
 
-			Array<JavascriptCodeEditor::CodeRegion> regions = getRegionsFor(editor, replace);
-			editor->rebuildHighlightedSelection(regions);
+			const String allText = doc.getAllContent();
+			doc.replaceAllContent(allText.replace(search, replace, false));
+
+			refreshSelection(editor, search);
 		}
 		else if (name == "Cancel")
 		{
 			Array<JavascriptCodeEditor::CodeRegion> emptyRegions = Array<JavascriptCodeEditor::CodeRegion>();
 
-			editor->rebuildHighlightedSelection(emptyRegions);
+			refreshSelection(editor, "");
 		}
         
         debounce = true;
@@ -206,6 +229,11 @@ private:
     
 	void goToNextMatch()
 	{
+#if HISE_USE_NEW_CODE_EDITOR
+
+		jassertfalse;
+
+#else
 		const int start = editor->getCaretPos().getPosition();
 
 		const String search = getTextEditor("search")->getText();
@@ -226,9 +254,10 @@ private:
 			editor->moveCaretTo(editor->getCaretPos().movedBy(offset), false);
 			editor->moveCaretTo(editor->getCaretPos().movedBy(search.length()), true);
 		}
+#endif
 	}
 
-	JavascriptCodeEditor *editor;
+	PopupIncludeEditor::EditorType *editor;
 
 };
 
@@ -248,18 +277,14 @@ public:
 		numColumns
 	};
 
-	ReferenceFinder(JavascriptCodeEditor* editor_, JavascriptProcessor* jp_) :
+	ReferenceFinder(PopupIncludeEditor::EditorType* editor_, JavascriptProcessor* jp_) :
 		DialogWindowWithBackgroundThread("Find all occurrences"),
 		editor(editor_),
 		mc(dynamic_cast<Processor*>(jp_)->getMainController()),
 		jp(jp_)
 	{
-
-		//GET_BACKEND_ROOT_WINDOW(this)
-
-		addTextEditor("searchTerm", editor->getCurrentToken(), "Search term");
+		addTextEditor("searchTerm", PopupIncludeEditor::CommonEditorFunctions::getCurrentToken(editor), "Search term");
 		getTextEditor("searchTerm")->addListener(this);
-
 
 		StringArray sa;
 
@@ -288,14 +313,20 @@ public:
 
 		addCustomComponent(table);
 
-
-
 		addTextEditor("state", "", "Status", false);
 		getTextEditor("state")->setReadOnly(true);
 
 		addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
 
 		rebuildLines();
+
+		getTextEditor("searchTerm")->grabKeyboardFocusAsync();
+	}
+
+	~ReferenceFinder()
+	{
+		if(editor != nullptr)
+			CodeReplacer::refreshSelection(editor, "");
 	}
 
 	struct TableEntry
@@ -305,9 +336,7 @@ public:
 			return other.doc == this->doc && other.pos.getLineNumber() == this->pos.getLineNumber();
 		}
 
-
 		String fileName;
-
 
 		const CodeDocument* doc;
 		CodeDocument::Position pos;
@@ -316,8 +345,6 @@ public:
 
 	void textEditorTextChanged(TextEditor&) override
 	{
-
-
 		rebuildLines();
 	}
 
@@ -338,11 +365,13 @@ public:
 
 		if (search.isNotEmpty())
 		{
+			auto thisDoc = &PopupIncludeEditor::CommonEditorFunctions::getDoc(editor);
+
 			for (int i = 0; i < jp->getNumSnippets(); i++)
 			{
 				auto f = jp->getSnippet(i);
 
-				const bool useFile = lookInAllFiles || f == &editor->getDocument();
+				const bool useFile = lookInAllFiles || f == thisDoc;
 
 				if (!useFile)
 					continue;
@@ -354,7 +383,7 @@ public:
 			{
 				auto& doc = jp->getWatchedFileDocument(i);
 
-				const bool useFile = lookInAllFiles || &doc == &editor->getDocument();
+				const bool useFile = lookInAllFiles || &doc == thisDoc;
 
 				if (!useFile)
 					continue;
@@ -367,9 +396,7 @@ public:
 
 		table->updateContent();
 
-		auto newHighlight = CodeReplacer::getRegionsFor(editor, search);
-
-		editor->rebuildHighlightedSelection(newHighlight);
+		CodeReplacer::refreshSelection(editor, search);
 	}
 
 	void fillArrayWithDoc(const CodeDocument &doc, const String &search, const String& nameToShow)
@@ -430,6 +457,8 @@ public:
 			g.fillAll(Colour(0x66000000));
 	}
 
+	
+
 	void selectedRowsChanged(int lastRowSelected) override
 	{
 		if (auto entry = entries[lastRowSelected])
@@ -441,19 +470,13 @@ public:
 
 			DebugableObject::Helpers::gotoLocation(editor, jp, loc);
 
-			editor = dynamic_cast<JavascriptCodeEditor*>(mc->getLastActiveEditor());
+			editor = PopupIncludeEditor::CommonEditorFunctions::as(mc->getLastActiveEditor());
 
 			if (editor != nullptr)
 			{
 				auto search = getTextEditor("searchTerm")->getText();
-
-				auto newHighlight = CodeReplacer::getRegionsFor(editor, search);
-
-				editor->rebuildHighlightedSelection(newHighlight);
+				CodeReplacer::refreshSelection(editor, search);
 			}
-
-			
-
 		}
 	}
 
@@ -493,20 +516,13 @@ public:
 			}
 			}
 		}
-
-
 	}
 
 	TableHeaderLookAndFeel laf;
-
-	Component::SafePointer<JavascriptCodeEditor> editor;
-
-
+	Component::SafePointer<PopupIncludeEditor::EditorType> editor;
 	ScopedPointer<TableListBox> table;
-
 	MainController* mc;
 	JavascriptProcessor* jp;
-
 };
 
 
@@ -514,20 +530,498 @@ bool JavascriptProcessor::handleKeyPress(const KeyPress& k, Component* c)
 {
 	if ((k.isKeyCode('f') || k.isKeyCode('F')) && k.getModifiers().isCommandDown()) // Ctrl + F
 	{
-		ReferenceFinder * finder = new ReferenceFinder(dynamic_cast<JavascriptCodeEditor*>(c), this);
-		finder->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(c));
-		finder->grabKeyboardFocus();
+		performPopupMenuAction(ScriptContextActions::FindAllOccurences, c);
 		return true;
 	}
 	else if ((k.isKeyCode('h') || k.isKeyCode('H')) && k.getModifiers().isCommandDown()) // Ctrl + F
 	{
-		CodeReplacer * replacer = new CodeReplacer(dynamic_cast<JavascriptCodeEditor*>(c));
-		replacer->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(c));
-		replacer->getTextEditor("search")->grabKeyboardFocus();
+		performPopupMenuAction(ScriptContextActions::SearchAndReplace, c);
 		return true;
 	}
 
 	return false;
+}
+
+struct TemplateSelector : public Component,
+	public ButtonListener,
+	public Timer
+{
+	TemplateSelector(PopupIncludeEditor* c, JavascriptProcessor* jp_, const StringArray& allIds_) :
+		ed(c),
+		ok("OK"),
+		cancel("Cancel"),
+		jp(jp_),
+		allIds(allIds_)
+	{
+		addAndMakeVisible(l);
+		addAndMakeVisible(cb);
+		addAndMakeVisible(ok);
+		addAndMakeVisible(cancel);
+
+		ok.setLookAndFeel(&alaf);
+		cancel.setLookAndFeel(&alaf);
+		cb.setLookAndFeel(&alaf);
+		l.setLookAndFeel(&alaf);
+
+		ok.addListener(this);
+		cancel.addListener(this);
+
+		setWantsKeyboardFocus(true);
+		cb.setWantsKeyboardFocus(false);
+		l.setWantsKeyboardFocus(false);
+		ok.setWantsKeyboardFocus(false);
+		cancel.setWantsKeyboardFocus(false);
+
+		cb.addItemList(allIds, 1);
+
+		GlobalHiseLookAndFeel::setDefaultColours(cb);
+
+		l.setFont(GLOBAL_MONOSPACE_FONT());
+
+		l.setText(PopupIncludeEditor::CommonEditorFunctions::getCurrentToken(c->getEditor()), dontSendNotification);
+		l.setEditable(false);
+		l.setColour(Label::textColourId, Colours::white);
+		l.setColour(Label::backgroundColourId, Colours::white.withAlpha(0.1f));
+
+		setName("Add autocomplete template");
+		setSize(500, 150);
+
+		if (auto mbw = c->findParentComponentOfClass<ModalBaseWindow>())
+			mbw->setModalComponent(this);
+
+		grabKeyboardFocus();
+		startTimer(1000);
+	}
+
+	void timerCallback() override
+	{
+		searchTerm = {};
+		repaint();
+	}
+
+	bool keyPressed(const KeyPress& k) override
+	{
+		if (k == KeyPress::returnKey)
+		{
+			ok.triggerClick();
+			return true;
+		}
+		if (k == KeyPress::escapeKey)
+		{
+			cancel.triggerClick();
+			return true;
+		}
+		if (k == KeyPress::upKey)
+		{
+			cb.setSelectedItemIndex(jmax(0, cb.getSelectedItemIndex() - 1), dontSendNotification);
+			return true;
+		}
+		if (k == KeyPress::downKey)
+		{
+			cb.setSelectedItemIndex(jmin(allIds.size() - 1, cb.getSelectedItemIndex() + 1), dontSendNotification);
+			return true;
+		}
+
+		searchTerm << k.getTextCharacter();
+		startTimer(1000);
+
+		repaint();
+
+		int index = 0;
+
+		for (const auto& s : allIds)
+		{
+			if (s.toLowerCase().startsWith(searchTerm.toLowerCase()))
+			{
+				cb.setSelectedItemIndex(index, dontSendNotification);
+				return true;
+			}
+
+			index++;
+		}
+
+		return true;
+	}
+
+	String searchTerm;
+
+	void buttonClicked(Button* b) override
+	{
+#if HISE_USE_NEW_CODE_EDITOR
+		if (b == &ok)
+		{
+			jp->autoCompleteTemplates.add({ l.getText(), Identifier(cb.getText()) });
+			ed->getEditor()->editor.tokenCollection.signalRebuild();
+		}
+#endif
+
+		if (auto mbw = b->findParentComponentOfClass<ModalBaseWindow>())
+		{
+			Component::SafePointer<PopupIncludeEditor> c(ed);
+
+			MessageManager::callAsync([mbw, c]()
+				{
+					mbw->clearModalComponent();
+
+					if (c.getComponent() != nullptr)
+					{
+						c->grabKeyboardFocus();
+
+#if !HISE_USE_NEW_CODE_EDITOR
+						c->getEditor()->moveCaretTo(c->getEditor()->getSelectionEnd(), false);
+#endif
+					}
+
+				});
+		}
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto dark = Colour(0xFF252525);
+		auto bright = Colour(0xFFAAAAAA);
+
+		ColourGradient grad(dark.withMultipliedBrightness(1.4f), 0.0f, 0.0f,
+			dark, 0.0f, (float)getHeight(), false);
+
+		g.setGradientFill(grad);
+		g.fillAll();
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.fillRect(0, 0, getWidth(), 37);
+		g.setColour(bright);
+		g.setColour(bright);
+		g.drawRect(0, 0, getWidth(), getHeight());
+
+		auto b = getLocalBounds().removeFromTop(37).toFloat();
+
+		g.setColour(bright);
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("Select a Class type that will be shown for the given expression", b, Justification::centred);
+
+		Path p;
+
+		Line<float> l(arrowBounds.getX(), arrowBounds.getCentreY(), arrowBounds.getRight(), arrowBounds.getCentreY());
+
+		p.addArrow(l, 5.0, 20.f, 20.0f);
+
+		g.fillPath(p);
+
+		if (searchTerm.isNotEmpty())
+		{
+			auto d = cb.getBoundsInParent().toFloat().translated(10.0, -24.0f).reduced(3.0f);
+			g.setColour(Colours::white.withAlpha(0.4f));
+			g.setFont(GLOBAL_FONT());
+			g.drawText(searchTerm, d, Justification::left);
+		}
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds().reduced(20);
+
+		b.removeFromTop(40);
+		auto br = b.removeFromBottom(28);
+		b.removeFromBottom(10);
+
+		cb.setBounds(b.removeFromRight(130).reduced(5));
+		arrowBounds = b.removeFromRight(b.getHeight());
+		l.setBounds(b.reduced(5));
+
+		ok.setBounds(br.removeFromRight(br.getWidth() / 2).reduced(10, 0));
+		cancel.setBounds(br.reduced(10, 0));
+	}
+
+	AlertWindowLookAndFeel alaf;
+
+	Rectangle<int> arrowBounds;
+
+	Label l;
+	ComboBox cb;
+	TextButton ok;
+	TextButton cancel;
+
+	PopupIncludeEditor* ed;
+	WeakReference<JavascriptProcessor> jp;
+	const StringArray allIds;
+};
+
+
+struct ScriptRefactoring
+{
+	static String createFactoryMethod(const String& definition)
+	{
+		StringArray lines = StringArray::fromLines(definition);
+
+		for (int i = 0; i < lines.size(); i++)
+		{
+			lines.set(i, lines[i].upToFirstOccurrenceOf("//", false, false));
+		}
+
+		if (lines.size() != 0)
+		{
+			const String firstLineRegex = "(const var )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
+			//const String firstLineRegex = "(const var)\\s+(\\w*)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
+			const StringArray firstLineData = RegexFunctions::getFirstMatch(firstLineRegex, lines[0]);
+
+			if (firstLineData.size() == 7)
+			{
+				const String componentName = firstLineData[2];
+				const String componentType = firstLineData[3];
+				const String componentId = firstLineData[4];
+				const String componentX = firstLineData[5];
+				const String componentY = firstLineData[6];
+
+				StringArray newLines;
+
+				String functionName = PresetHandler::getCustomName("Factory Method");
+
+				const String inlineDefinition = "inline function " + functionName + "(name, x, y)\n{";
+
+				newLines.add(inlineDefinition);
+
+				const String newFirstLine = "\tlocal component = " + componentType + "(name, x, y);";
+
+				newLines.add(newFirstLine);
+
+				for (int i = 1; i < lines.size(); i++)
+				{
+					newLines.add("    " + lines[i].replace(componentId, "name").replace(componentName + ".", "component."));
+				}
+
+				newLines.add("    return component;\n};\n");
+
+				const String newComponentDefinition = "const var " + componentName + " = " +
+					functionName + "(" +
+					componentId + ", " +
+					componentX + ", " +
+					componentY + ");\n";
+
+				newLines.add(newComponentDefinition);
+
+				return newLines.joinIntoString("\n");
+			}
+
+
+		}
+
+		return definition;
+	}
+
+
+	static const String createScriptComponentReference(const String selection)
+	{
+		String regexString = "(\\s*)(const\\s+var |local )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
+
+		const StringArray firstLineData = RegexFunctions::getFirstMatch(regexString, selection);
+
+		if (firstLineData.size() == 8)
+		{
+
+			const String whitespace = firstLineData[1];
+			const String variableType = firstLineData[2];
+			const String componentName = firstLineData[3];
+			const String componentType = firstLineData[4];
+			const String componentId = firstLineData[5];
+
+			return whitespace + variableType + componentName + " = Content.getComponent(" + componentId + ");";
+		}
+
+		PresetHandler::showMessageWindow("Something went wrong...", "The replacement didn't work");
+		return selection;
+	}
+};
+
+
+
+bool JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
+{
+	auto action = (ScriptContextActions)menuId;
+
+	switch (action)
+	{
+	case CreateUiFactoryMethod:
+	{
+		const String selection = PopupIncludeEditor::CommonEditorFunctions::getCurrentSelection(c);
+		const String newText = ScriptRefactoring::createFactoryMethod(selection);
+		PopupIncludeEditor::CommonEditorFunctions::insertTextAtCaret(c, newText);
+		return true;
+	}
+	case AddAutocompleteTemplate:
+	{
+		auto v = createApiTree();
+
+		StringArray classIds;
+
+		for (auto c : v)
+			classIds.add(c.getType().toString());
+
+		new TemplateSelector(c->findParentComponentOfClass<PopupIncludeEditor>(), this, classIds);
+
+		return true;
+	}
+	case ScriptContextActions::ClearAutocompleteTemplates:
+	{
+#if HISE_USE_NEW_CODE_EDITOR
+		if (PresetHandler::showYesNoWindow("Clear autocomplete templates", "Do you want to clear all autocomplete templates?"))
+		{
+			autoCompleteTemplates.clear();
+			PopupIncludeEditor::CommonEditorFunctions::as(c)->editor.tokenCollection.signalRebuild();
+		}
+#endif
+
+		return true;
+	}
+	case ClearAllBreakpoints:
+	{
+		removeAllBreakpoints();
+		c->repaint();
+		return true;
+	}
+	case SaveScriptFile:
+	{
+		FileChooser scriptSaver("Save script as",
+			File(GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+			"*.js");
+
+		if (scriptSaver.browseForFileToSave(true))
+		{
+			String script;
+			mergeCallbacksToScript(script);
+			scriptSaver.getResult().replaceWithText(script);
+			debugToConsole(dynamic_cast<Processor*>(this), "Script saved to " + scriptSaver.getResult().getFullPathName());
+		}
+		return true;
+	}
+	case LoadScriptFile:
+	{
+		FileChooser scriptLoader("Please select the script you want to load",
+			File(GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+			"*.js");
+
+		if (scriptLoader.browseForFileToOpen())
+		{
+			String script = scriptLoader.getResult().loadFileAsString().removeCharacters("\r");
+			const bool success = parseSnippetsFromString(script);
+
+			if (success)
+			{
+				compileScript();
+
+				debugToConsole(dynamic_cast<Processor*>(this), "Script loaded from " + scriptLoader.getResult().getFullPathName());
+			}
+		}
+
+		return true;
+	}
+	case ExportAsCompressedScript:
+	{
+		const String compressedScript = getBase64CompressedScript();
+		const String scriptName = PresetHandler::getCustomName("Compressed Script") + ".cjs";
+		File f = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(scriptName);
+
+		if (!f.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite", "The file " + scriptName + " already exists. Do you want to overwrite it?"))
+		{
+			f.deleteFile();
+			f.replaceWithText(compressedScript);
+		}
+
+		return true;
+	}
+	case ImportCompressedScript:
+	{
+		FileChooser scriptLoader("Please select the compressed script you want to load",
+			File(GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+			"*.cjs");
+
+		if (scriptLoader.browseForFileToOpen())
+		{
+			String compressedScript = scriptLoader.getResult().loadFileAsString();
+
+			const bool success = restoreBase64CompressedScript(compressedScript);
+
+			if (success)
+			{
+				compileScript();
+				debugToConsole(dynamic_cast<Processor*>(this), "Compressed Script loaded from " + scriptLoader.getResult().getFullPathName());
+			}
+		}
+
+		return true;
+	}
+	case SaveScriptClipboard:
+	{
+		String x;
+		mergeCallbacksToScript(x);
+		SystemClipboard::copyTextToClipboard(x);
+
+		debugToConsole(dynamic_cast<Processor*>(this), "Script exported to Clipboard.");
+
+		return true;
+	}
+	case LoadScriptClipboard:
+	{
+		String x = String(SystemClipboard::getTextFromClipboard()).removeCharacters("\r");
+
+		if (x.containsNonWhitespaceChars() && PresetHandler::showYesNoWindow("Replace Script?", "Do you want to replace the script?"))
+		{
+			const bool success = parseSnippetsFromString(x);
+
+			if (success)
+				compileScript();
+		}
+
+		return true;
+	}
+	case MoveToExternalFile:
+	{
+		const String text = PopupIncludeEditor::CommonEditorFunctions::getCurrentSelection(c);
+
+		const String newFileName = PresetHandler::getCustomName("Script File", "Enter the file name for the external script file (without .js)");
+
+		if (newFileName.isNotEmpty())
+		{
+			File scriptDirectory = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts);
+
+			File newFile = scriptDirectory.getChildFile(newFileName + ".js");
+
+			if (!newFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite existing file", "Do you want to overwrite the file " + newFile.getFullPathName() + "?"))
+			{
+				newFile.replaceWithText(text);
+			}
+
+			String insertStatement = "include(\"" + newFile.getFileName() + "\");" + NewLine();
+			auto& doc = PopupIncludeEditor::CommonEditorFunctions::getDoc(c);
+			PopupIncludeEditor::CommonEditorFunctions::insertTextAtCaret(c, insertStatement);
+		}
+
+		return true;
+	}
+	case JumpToDefinition:
+	{
+		auto token = PopupIncludeEditor::CommonEditorFunctions::getCurrentToken(c);
+		const String namespaceId = JavascriptCodeEditor::Helpers::findNamespaceForPosition(PopupIncludeEditor::CommonEditorFunctions::getCaretPos(c));
+		jumpToDefinition(token, namespaceId);
+
+		return true;
+	}
+	case FindAllOccurences:
+	{
+		auto finder = new ReferenceFinder(PopupIncludeEditor::CommonEditorFunctions::as(c), this);
+		finder->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(c));
+		finder->grabKeyboardFocus();
+		return true;
+	}
+	case SearchAndReplace:
+	{
+		auto replacer = new CodeReplacer(PopupIncludeEditor::CommonEditorFunctions::as(c));
+		replacer->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(c));
+		replacer->getTextEditor("search")->grabKeyboardFocus();
+		return true;
+		return true;
+	}
+	default:
+		return false;
+	}
 }
 
 } // namespace hise

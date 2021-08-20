@@ -710,12 +710,13 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 		{
 			auto newId = fc.getResult().getFileNameWithoutExtension();
 
-			auto vt = *const_cast<ValueTree*>(&sampler->getSampleMap()->getValueTree());
+			auto vt = sampler->getSampleMap()->getValueTree();
+			auto vtCopy = const_cast<ValueTree*>(&vt);
 
 			if(newId == sampler->getSampleMap()->getId().toString())
-				vt.removeProperty("MonolithReference", sampler->getUndoManager());
+				vtCopy->removeProperty("MonolithReference", sampler->getUndoManager());
 			else
-				vt.setProperty("MonolithReference", newId, sampler->getUndoManager());
+				vtCopy->setProperty("MonolithReference", newId, sampler->getUndoManager());
 
 			sampler->saveSampleMap();
 		};

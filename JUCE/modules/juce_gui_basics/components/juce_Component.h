@@ -1337,6 +1337,8 @@ public:
     */
     void grabKeyboardFocus();
 
+	void grabKeyboardFocusAsync();
+
     /** Returns true if this component currently has the keyboard focus.
 
         @param trueIfChildIsFocused     if this is true, then the method returns true if

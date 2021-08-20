@@ -540,11 +540,6 @@ DspInstance::~DspInstance()
 	unload();
 }
 
-void DspInstance::rightClickCallback(const MouseEvent& e, Component* c)
-{
-	ignoreUnused(e, c);
-}
-
 void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	if (object != nullptr && samplesPerBlock > 0 && sampleRate > 0.0)

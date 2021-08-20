@@ -85,12 +85,8 @@ ScriptComponentEditPanel::ScriptComponentEditPanel(MainController* mc_, Processo
 	addAndMakeVisible(idEditor = new TextEditor());
 	
 	idEditor->addListener(this);
-	idEditor->setFont(GLOBAL_MONOSPACE_FONT());
-
-	idEditor->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.4f));
-	idEditor->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
-	idEditor->setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
-	idEditor->setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
+	
+	GlobalHiseLookAndFeel::setTextEditorColours(*idEditor);
 
 	Colour normal = Colours::white.withAlpha(0.6f);
 	Colour over = Colours::white.withAlpha(0.8f);

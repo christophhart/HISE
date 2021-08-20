@@ -85,6 +85,9 @@ void NodeBase::prepare(PrepareSpecs specs)
 {
 	jassert(!isUINodeOfDuplicate());
 
+	if(lastSpecs.numChannels == 0)
+		setBypassed(isBypassed());
+
 	numChannels = specs.numChannels;
 	
 	lastSpecs = specs;
@@ -493,6 +496,44 @@ var NodeBase::getParameterReference(var indexOrId) const
 
 
 
+String NodeBase::getDynamicBypassSource(bool forceUpdate) const
+{
+	if (!forceUpdate)
+	{
+		return dynamicBypassId;
+	}
+
+	auto c = getRootNetwork()->getListOfNodesWithType<NodeContainer>(false);
+	auto id = getId();
+
+	for (auto& nc : c)
+	{
+		for (int i = 0; i < nc->getNumParameters(); i++)
+		{
+			auto p = nc->getParameter(i);
+
+			if (p == nullptr)
+				continue;
+
+			for (const auto& con : p->data.getChildWithName(PropertyIds::Connections))
+			{
+				if (con[PropertyIds::ParameterId].toString() == "Bypassed")
+				{
+					if (con[PropertyIds::NodeId].toString() == getId())
+					{
+						dynamicBypassId = nc->getId() + "." + p->getId();
+						return dynamicBypassId;
+					}
+						
+				}
+			}
+		}
+	}
+
+	dynamicBypassId = {};
+	return dynamicBypassId;
+}
+
 struct Parameter::Wrapper
 {
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getId);
@@ -579,7 +620,7 @@ juce::ValueTree Parameter::getConnectionSourceTree(bool forceUpdate)
 		auto n = parent->getRootNetwork();
 
 		{
-			auto containers = n->getListOfNodesWithType<NodeContainer>(true);
+			auto containers = n->getListOfNodesWithType<NodeContainer>(false);
 
 			for (auto c : containers)
 			{
@@ -601,7 +642,7 @@ juce::ValueTree Parameter::getConnectionSourceTree(bool forceUpdate)
 		}
 
 		{
-			auto modNodes = n->getListOfNodesWithType<ModulationSourceNode>(true);
+			auto modNodes = n->getListOfNodesWithType<ModulationSourceNode>(false);
 
 			for (auto mn : modNodes)
 			{
@@ -736,10 +777,27 @@ void NodeBase::addConnectionToBypass(var dragDetails)
 		String connectionId = DragHelpers::getSourceNodeId(dragDetails) + "." + 
 							  DragHelpers::getSourceParameterId(dragDetails);
 
-		setValueTreeProperty(PropertyIds::DynamicBypass, connectionId);
-
 		ValueTree connectionTree = sourceParameterTree.getChildWithName(PropertyIds::Connections);
 		connectionTree.addChild(newC, -1, getUndoManager());
+	}
+	else
+	{
+		auto src = getDynamicBypassSource(true);
+
+		if (auto srcNode = getRootNetwork()->getNodeWithId(src.upToFirstOccurrenceOf(".", false, false)))
+		{
+			if (auto srcParameter = srcNode->getParameter(src.fromFirstOccurrenceOf(".", false, false)))
+			{
+				for (auto c : srcParameter->data.getChildWithName(PropertyIds::Connections))
+				{
+					if (c[PropertyIds::NodeId] == getId() && c[PropertyIds::ParameterId].toString() == "Bypassed")
+					{
+						c.getParent().removeChild(c, getUndoManager());
+						return;
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -799,6 +857,14 @@ var NodeBase::Parameter::addConnectionFrom(var dragDetails)
 
 bool NodeBase::Parameter::matchesConnection(const ValueTree& c) const
 {
+	if (c.hasType(PropertyIds::Node))
+	{
+		auto isParent = parent->getValueTree() == c;
+		auto isParentOfParent = parent->getValueTree().isAChildOf(c);
+		
+		return isParent || isParentOfParent;
+	}
+
 	auto matchesNode = c[PropertyIds::NodeId].toString() == parent->getId();
 	auto matchesParameter = c[PropertyIds::ParameterId].toString() == getId();
 	return matchesNode && matchesParameter;
@@ -1022,6 +1088,11 @@ void ConnectionBase::initRemoveUpdater(NodeBase* parent)
 				if(!node->isBeingMoved())
 					d.getParent().removeChild(d, undoManager);
 			}
+		});
+
+		sourceRemoveUpdater.setCallback(d, valuetree::AsyncMode::Synchronously, true, [](ValueTree& v)
+		{
+			jassertfalse;
 		});
 	}
 }

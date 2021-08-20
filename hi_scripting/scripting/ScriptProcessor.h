@@ -337,8 +337,7 @@ public:
 
 	// ================================================================================================================
 
-
-	
+	using PreprocessorFunction = std::function<bool(const Identifier&, String& m)>;
 
 	/** A named document that contains a callback function. */
 	class SnippetDocument : public CodeDocument
@@ -474,16 +473,16 @@ public:
 		LoadScriptClipboard,
 
 		ClearAllBreakpoints,
-
-
 		CreateUiFactoryMethod,
-		ReplaceConstructorWithReference,
-		OpenExternalFile,
-		OpenInPopup,
 		MoveToExternalFile,
-		InsertExternalFile,
 		ExportAsCompressedScript,
-		ImportCompressedScript
+		ImportCompressedScript,
+		JumpToDefinition,
+		SearchAndReplace,
+		AddCodeBookmark,
+		FindAllOccurences,
+		AddAutocompleteTemplate,
+		ClearAutocompleteTemplates,
 	};
 
 	// ================================================================================================================
@@ -512,7 +511,10 @@ public:
 	}
 
 	void addPopupMenuItems(PopupMenu &m, Component* c, const MouseEvent &e) override;
-	void performPopupMenuAction(int menuId, Component* c) override;
+
+#if USE_BACKEND
+	bool performPopupMenuAction(int menuId, Component* c) override;
+#endif
 
 	SET_PROCESSOR_CONNECTOR_TYPE_ID("ScriptProcessor");
 
@@ -678,6 +680,16 @@ public:
 		breakpointListeners.removeAllInstancesOf(listenerToRemove);
 	}
 
+	void clearPreprocessorFunctions()
+	{
+		preprocessorFunctions.clear();
+	}
+
+	void addPreprocessorFunction(const PreprocessorFunction& pf)
+	{
+		preprocessorFunctions.add(pf);
+	}
+
 	ScriptingApi::Content* getContent()
 	{
 		return dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent();
@@ -702,6 +714,14 @@ public:
 	ValueTree getContentPropertiesForDevice(int deviceIndex=-1);
 
 	bool hasUIDataForDeviceType(int type=-1) const;
+
+	struct AutocompleteTemplate
+	{
+		String expression;
+		Identifier classId;
+	};
+
+	Array<AutocompleteTemplate> autoCompleteTemplates;
 
 protected:
 
@@ -751,7 +771,7 @@ protected:
 
 private:
 
-	
+	Array<PreprocessorFunction> preprocessorFunctions;
 
 	struct Helpers
 	{
@@ -789,11 +809,20 @@ public:
 	
 };
 
+struct JavascriptSleepListener
+{
+	virtual ~JavascriptSleepListener() {};
+	virtual void sleepStateChanged(const Identifier& callback, int lineNumber, bool isSleeping) = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptSleepListener);
+};
 
 class JavascriptThreadPool : public Thread,
 							 public ControlledObject
 {
 public:
+
+	using SleepListener = JavascriptSleepListener;
 
 	JavascriptThreadPool(MainController* mc);
 
@@ -875,7 +904,96 @@ public:
 
 	GlobalServer* getGlobalServer() { return globalServer.get(); }
 
+	void resume()
+	{
+		shouldWakeUp = true;
+	}
+
+	void deactivateSleepUntilCompilation()
+	{
+		allowSleep = false;
+	}
+
+	struct ScopedSleeper
+	{
+		ScopedSleeper(JavascriptThreadPool& p_, const Identifier& id, int lineNumber_) :
+			p(p_),
+			wasSleeping(p.isSleeping),
+			cid(id),
+			lineNumber(lineNumber_)
+		{
+			if (!p.allowSleep)
+				return;
+
+			sendMessage(true);
+
+			p.isSleeping = true;
+			p.shouldWakeUp = false;
+
+			auto cThread = Thread::getCurrentThread();
+			jassert(cThread != nullptr);
+
+			while (p.allowSleep && !p.shouldWakeUp && !cThread->threadShouldExit())
+			{
+				cThread->wait(200);
+			}
+
+			sendMessage(false);
+		}
+
+		void sendMessage(bool on)
+		{
+			JavascriptThreadPool* p_ = &p;
+			auto cid_ = cid;
+			auto ln = lineNumber;
+
+			auto f = [p_, cid_, ln, on]()
+			{
+				for (const auto& s : p_->sleepListeners)
+				{
+					if (s != nullptr)
+						s.get()->sleepStateChanged(cid_, ln, on);
+				}
+			};
+
+			MessageManager::callAsync(f);
+		}
+
+		~ScopedSleeper()
+		{
+			p.isSleeping = wasSleeping;
+
+			p.lowPriorityQueue.clear();
+			p.highPriorityQueue.clear();
+			
+			sendMessage(false);
+		}
+
+		const Identifier cid;
+		const int lineNumber;
+		JavascriptThreadPool& p;
+		const bool wasSleeping;
+	};
+
+	void addSleepListener(SleepListener* s)
+	{
+		sleepListeners.addIfNotAlreadyThere(s);
+	};
+
+	void removeSleepListener(SleepListener* s)
+	{
+		sleepListeners.removeAllInstancesOf(s);
+	}
+
+	bool  isCurrentlySleeping() const { return isSleeping; };
+
 private:
+
+	Array<WeakReference<SleepListener>> sleepListeners;
+
+	bool isSleeping = false;
+	bool shouldWakeUp = false;
+	bool allowSleep = true;
 
 	ScopedPointer<GlobalServer> globalServer;
 

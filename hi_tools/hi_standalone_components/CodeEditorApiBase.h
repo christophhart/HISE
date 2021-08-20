@@ -84,7 +84,14 @@ public:
 
 	virtual int getTypeNumber() const { return 0; }
 
-	
+	virtual bool isWatchable() const { return true; }
+
+	virtual bool isAutocompleteable() const { return true; }
+
+	/** Override this and return something else than -1 for a custom child layout. */
+	virtual int getNumChildElements() const { return -1; };
+
+	virtual DebugInformationBase* getChildElement(int index) { return nullptr; }
 
 	virtual Identifier getInstanceName() const { return getObjectName(); }
 
@@ -117,10 +124,8 @@ public:
 		ignoreUnused(e, componentToNotify);
 	};
 
-	virtual void rightClickCallback(const MouseEvent& e, Component* componentToNotifiy) 
-	{
-		ignoreUnused(e, componentToNotifiy);
-	};
+	/** Override this and return a component that will be shown as popup in the value table. */
+	virtual Component* createPopupComponent(const MouseEvent& e, Component* parent) { return nullptr; }
 
 	virtual Location getLocation() const { return Location(); }
 
@@ -177,9 +182,12 @@ public:
 
 
 /** A general representation of an entity that is supposed to be shown in the IDE. */
-class DebugInformationBase
+class DebugInformationBase: public ReferenceCountedObject
 {
 public:
+
+	using Ptr = ReferenceCountedObjectPtr<DebugInformationBase>;
+	using List = ReferenceCountedArray<DebugInformationBase>;
 
 	/** This will be called if the user double clicks on the row. */
 	virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
@@ -188,10 +196,10 @@ public:
 			getObject()->doubleClickCallback(e, componentToNotify);
 	};
 
-	virtual void rightClickCallback(const MouseEvent& e, Component* componentToNotify)
+	virtual Component* createPopupComponent(const MouseEvent& e, Component* componentToNotify)
 	{
 		if (auto obj = getObject())
-			getObject()->rightClickCallback(e, componentToNotify);
+			return getObject()->createPopupComponent(e, componentToNotify);
 	};
 
 	virtual int getType() const 
@@ -201,6 +209,29 @@ public:
 
 		return 0; 
 	};
+
+	virtual int getNumChildElements() const 
+	{ 
+		if (auto obj = getObject())
+		{
+			auto numCustom = obj->getNumChildElements();
+
+			if (numCustom != -1)
+				return numCustom;
+		}
+
+		return 0; 
+	}
+
+	virtual Ptr getChildElement(int index) 
+	{ 
+		if (auto obj = getObject())
+		{
+			return obj->getChildElement(index);
+
+		}
+		return nullptr; 
+	}
 
 	virtual String getTextForName() const
 	{
@@ -244,7 +275,23 @@ public:
 		return "empty";
 	}
 
-	virtual String getCodeToInsert() const = 0;
+	virtual bool isWatchable() const 
+	{ 
+		if (auto obj = getObject())
+			return obj->isWatchable();
+
+		return true; 
+	}
+
+	virtual bool isAutocompleteable() const
+	{
+		if (auto obj = getObject())
+			return obj->isAutocompleteable();
+
+		return true;
+	}
+
+	virtual String getCodeToInsert() const { return ""; };
 
 	virtual AttributedString getDescription() const
 	{
@@ -258,6 +305,20 @@ public:
 	virtual const DebugableObjectBase* getObject() const { return nullptr; }
 
 	virtual ~DebugInformationBase() {};
+
+	static String replaceParentWildcard(const String& id, const String& parentId)
+	{
+		static const String pWildcard = "%PARENT%";
+
+		if (id.contains(pWildcard))
+		{
+			String s;
+			s << parentId << id.fromLastOccurrenceOf(pWildcard, false, false);
+			return s;
+		}
+
+		return id;
+	}
 
 	static String getVarType(const var &v)
 	{
@@ -312,6 +373,9 @@ public:
 	String category;
 	AttributedString description;
 
+	bool watchable = true;
+	bool autocompleteable = true;
+
 	int getType() const { return typeValue; };
 	String getTextForName() const { return name; }
 	String getTextForType() const { return type; }
@@ -319,6 +383,9 @@ public:
 	String getTextForValue() const { return value; }
 	String getCodeToInsert() const { return codeToInsert; }
 	String getCategory() const { return category; }
+
+	bool isWatchable() const override { return watchable; }
+	bool isAutocompleteable() const override { return autocompleteable; }
 
 	AttributedString getDescription() const { return description; }
 };
@@ -345,6 +412,23 @@ public:
 	const DebugableObjectBase* getObject() const override { return obj.get(); }
 
 	WeakReference<DebugableObjectBase> obj;
+};
+
+class ObjectDebugInformationWithCustomName: public ObjectDebugInformation
+{
+public:
+
+	ObjectDebugInformationWithCustomName(DebugableObjectBase* b, int t, String n) :
+		ObjectDebugInformation(b, t),
+		name(n)
+	{};
+
+	virtual String getTextForName() const
+	{
+		return name;
+	}
+
+	String name;
 };
 
 
@@ -466,9 +550,10 @@ public:
 			ignoreUnused(m, c, e);
 		};
 
-		virtual void performPopupMenuAction(int menuId, Component* c) 
+		virtual bool performPopupMenuAction(int menuId, Component* c) 
 		{
 			ignoreUnused(menuId, c);
+			return false;
 		};
 
 		virtual void handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c) 
@@ -481,7 +566,32 @@ public:
 			ignoreUnused(codeFile, ed, e);
 		}
 
+		juce::ReadWriteLock& getDebugLock() { return debugLock; }
+
+		bool shouldReleaseDebugLock() const { return wantsToCompile; }
+
 	protected:
+
+		struct CompileDebugLock
+		{
+			CompileDebugLock(Holder& h) :
+				p(h),
+				prevValue(h.wantsToCompile),
+				sl(h.getDebugLock())
+			{
+				p.wantsToCompile = true;
+			}
+
+			~CompileDebugLock()
+			{
+				p.wantsToCompile = prevValue;
+			}
+
+			Holder& p;
+			bool prevValue = false;
+
+			ScopedWriteLock sl;
+		};
 
 		struct RepaintUpdater : public AsyncUpdater
 		{
@@ -505,6 +615,9 @@ public:
 			int lastIndex = -1;
 			Array<Component::SafePointer<Component>> editors;
 		};
+
+		ReadWriteLock debugLock;
+		bool wantsToCompile = false;
 
 		friend class ApiComponentBase;
 
@@ -564,7 +677,7 @@ public:
 	/** Override this method and return the number of all objects that you want to use. */
 	virtual int getNumDebugObjects() const = 0;
 
-	virtual DebugInformationBase* getDebugInformation(int index) = 0;
+	virtual DebugInformationBase::Ptr getDebugInformation(int index) = 0;
 
 	/** Override this method and return a Colour and a (uppercase) letter to be displayed in the autocomplete window for each type. */
 	virtual void getColourAndLetterForType(int type, Colour& colour, char& letter);

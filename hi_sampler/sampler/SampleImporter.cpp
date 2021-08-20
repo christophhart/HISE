@@ -653,6 +653,8 @@ void FileImportDialogWindow::run()
 {
 	SuspendHelpers::ScopedTicket ticket(sampler->getMainController());
 
+
+
 	while (sampler->getMainController()->getKillStateHandler().isAudioRunning())
 	{
 		Thread::sleep(200);
@@ -662,6 +664,8 @@ void FileImportDialogWindow::run()
 
 	auto pool = sampler->getSampleMap()->getCurrentSamplePool();
 	
+	SampleMap::ScopedNotificationDelayer snd(*sampler->getSampleMap());
+
 	if (getComboBoxComponent("poolSearch")->getSelectedItemIndex() == 1)
 	{
 		pool->setDeactivatePoolSearch(true);
@@ -721,10 +725,19 @@ void FileImportDialogWindow::run()
 
 		LockHelpers::freeToGo(sampler->getMainController());
 		
-		for (int i = 0; i < collection.dataList.size(); i++)
-		{
-			showStatusMessage("Loading sample " + collection.dataList[i].files.getFirst().getReferenceString());
+		auto numToImport = collection.dataList.size();
 
+		auto updateRate = jmax(1, numToImport / 100);
+		int counter = 0;
+
+		for (int i = 0; i < numToImport; i++)
+		{
+			if (counter++ > updateRate)
+			{
+				showStatusMessage("Loading sample " + collection.dataList[i].files.getFirst().getReferenceString());
+				counter = 0;
+			}
+			
 			setProgress((double)i / (double)collection.dataList.size());
 
 			SampleImporter::createSoundAndAddToSampler(sampler, collection.dataList[i]);

@@ -42,11 +42,6 @@ CodeEditorComponent(doc, tok)
 	setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF282828));
 	getDocument().getUndoManager().setMaxNumberOfStoredUnits(0, 0);
 
-#if JUCE_MAC
-    setFont(GLOBAL_MONOSPACE_FONT().withHeight(12.0f)); // other font sizes disappear on OSX Sierra, yeah!
-#else
-    setFont(GLOBAL_MONOSPACE_FONT());
-#endif
     
 	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colours::white.withBrightness(0.7f));
 	setLineNumbersShown(false);
@@ -63,6 +58,8 @@ Console::Console(MainController* mc_):
 	consoleDoc->addListener(this);
 
 	setTokeniser(new ConsoleTokeniser());
+
+	mc->getFontSizeChangeBroadcaster().addListener(*this, updateFontSize);
 }
 
 Console::~Console()
@@ -71,8 +68,6 @@ Console::~Console()
 
 	newTextConsole = nullptr;
 	tokeniser = nullptr;
-
-	masterReference.clear();
 };
 
 
@@ -225,6 +220,18 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 
 	
 };;
+
+void Console::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel)
+{
+	if (e.mods.isCommandDown())
+	{
+		auto f = newTextConsole->getFont();
+		auto oldHeight = f.getHeight();
+		oldHeight += wheel.deltaY;
+		oldHeight = jlimit(12.0f, 30.0f, oldHeight);
+		newTextConsole->setFont(f.withHeight(oldHeight));
+	}
+}
 
 Console::ConsoleTokeniser::ConsoleTokeniser()
 {
