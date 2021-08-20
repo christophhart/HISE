@@ -321,6 +321,8 @@ public:
 		}
 	}
 
+	bool isEnabled() const { return enabled; }
+
 	private:
 
 	struct Sorter
@@ -336,6 +338,8 @@ public:
 			return first->tokenContent.compareIgnoreCase(second->tokenContent);
 		}
 	};
+
+	
 
 private:
 

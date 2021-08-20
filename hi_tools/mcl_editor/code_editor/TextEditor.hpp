@@ -107,6 +107,8 @@ public:
 		caret.startTimer(50);
 	}
 
+	bool shouldSkipInactiveUpdate() const;
+
 	void focusLost(FocusChangeType t) override
 	{
 		tokenCollection.setEnabled(false);

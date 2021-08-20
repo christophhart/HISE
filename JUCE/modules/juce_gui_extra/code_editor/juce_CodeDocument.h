@@ -328,6 +328,8 @@ public:
 
 	String getLineWithoutLinebreak(int lineIndex) const noexcept;
 
+	
+
     //==============================================================================
     /** An object that receives callbacks from the CodeDocument when its text changes.
         @see CodeDocument::addListener, CodeDocument::removeListener
@@ -355,6 +357,8 @@ public:
         @see addListener
     */
     void removeListener (Listener* listener);
+
+	int getNumListeners() const;
 
     //==============================================================================
     /** Iterates the text in a CodeDocument.
