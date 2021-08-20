@@ -1109,7 +1109,8 @@ public:
 
 		UnorderedStack<uint16, 4096> pendingTickets;
 		uint16 ticketCounter = 0;
-		CriticalSection ticketLock;
+
+		mutable hise::SimpleReadWriteLock ticketLock;
 
 		std::atomic<State> currentState;
 
