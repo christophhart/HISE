@@ -990,7 +990,6 @@ bool JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
 			}
 
 			String insertStatement = "include(\"" + newFile.getFileName() + "\");" + NewLine();
-			auto& doc = PopupIncludeEditor::CommonEditorFunctions::getDoc(c);
 			PopupIncludeEditor::CommonEditorFunctions::insertTextAtCaret(c, insertStatement);
 		}
 

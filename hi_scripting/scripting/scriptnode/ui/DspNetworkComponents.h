@@ -300,10 +300,7 @@ public:
 	{
 		nodeEditor.setText(text, dontSendNotification);
 		list.setSearchText(nodeEditor.getText());
-
 		list.rebuild(getWidthForListItems());
-		auto height = jmin(300, list.getHeight() + 10);
-
 		resized();
 	}
 

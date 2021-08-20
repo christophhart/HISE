@@ -1477,7 +1477,7 @@ template <typename ReturnType, typename... Ps> struct SafeLambdaBase
 		return call(parameters...);
 	}
 
-	~SafeLambdaBase() {};
+	virtual ~SafeLambdaBase() {};
 
 	virtual ReturnType call(Ps... parameters) = 0;
 

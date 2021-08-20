@@ -76,19 +76,18 @@ public:
 
 		static CodeDocument::Position getCaretPos(Component* c)
 		{
-			if (auto ed = as(c))
-			{
+			
+            auto ed = as(c);
+            
+            // this must always be true...
+            jassert(ed != nullptr);
+            
 #if HISE_USE_NEW_CODE_EDITOR
-				auto pos = ed->editor.getTextDocument().getSelection(0).head;
-				return CodeDocument::Position(getDoc(c), pos.x, pos.y);
+			auto pos = ed->editor.getTextDocument().getSelection(0).head;
+			return CodeDocument::Position(getDoc(c), pos.x, pos.y);
 #else
-				return ed->getCaretPos();
+            return ed->getCaretPos();
 #endif
-			}
-
-			jassertfalse;
-			// make it crash...
-			return *static_cast<CodeDocument::Position*>(nullptr);
 		}
 
 		static CodeDocument& getDoc(Component* c)
@@ -127,6 +126,8 @@ public:
 				return ed->getCurrentToken();
 #endif
 			}
+            
+            return {};
 		}
 
 		static void insertTextAtCaret(Component* c, const String& t)

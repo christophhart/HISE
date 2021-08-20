@@ -42,6 +42,10 @@ enum MissingOpenGLDefinitions
    #ifndef GL_BGRA_EXT
     GL_BGRA_EXT                     = 0x80e1,
    #endif
+    
+   #ifndef GL_BGR_EXT
+    GL_BGR_EXT                      = 0x80E0,
+   #endif
 
    #ifndef GL_DEPTH24_STENCIL8
     GL_DEPTH24_STENCIL8             = 0x88F0,

@@ -504,7 +504,7 @@ namespace ScriptedDrawActions
 
 					if (obj->enableCache)
 					{
-						auto gb = handler->getGlobalBounds();
+						
 						auto sb = handler->getScreenshotBounds(bounds);
 
 						cachedOpenGlBuffer = Image(Image::RGB, sb.getWidth(), sb.getHeight(), true);

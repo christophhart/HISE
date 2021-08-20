@@ -200,6 +200,8 @@ public:
 	{
 		if (auto obj = getObject())
 			return getObject()->createPopupComponent(e, componentToNotify);
+        
+        return nullptr;
 	};
 
 	virtual int getType() const 

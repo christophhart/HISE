@@ -80,7 +80,7 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 
 	dynamicPowerUpdater.setTypesToWatch({ PropertyIds::Nodes, PropertyIds::Connections });
 
-	dynamicPowerUpdater.setCallback(parent.node->getRootNetwork()->getValueTree(), valuetree::AsyncMode::Asynchronously, [this](ValueTree& v, bool wasAdded)
+	dynamicPowerUpdater.setCallback(parent.node->getRootNetwork()->getValueTree(), valuetree::AsyncMode::Asynchronously, [this](ValueTree v, bool wasAdded)
 	{
 		auto on = parent.node->getDynamicBypassSource(true).isEmpty();
 		powerButton.setVisible(on);
