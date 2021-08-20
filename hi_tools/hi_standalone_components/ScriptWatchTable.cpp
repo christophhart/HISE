@@ -60,11 +60,11 @@ ScriptWatchTable::ScriptWatchTable() :
 	table->addMouseListener(this, true);
 
 	addAndMakeVisible(fuzzySearchBox = new TextEditor());
+
+	GlobalHiseLookAndFeel::setTextEditorColours(*fuzzySearchBox);
+
 	fuzzySearchBox->addListener(this);
-	fuzzySearchBox->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
-    fuzzySearchBox->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
-	fuzzySearchBox->setFont(GLOBAL_FONT());
-	fuzzySearchBox->setSelectAllWhenFocused(true);
+	
 
 	rebuildLines();
 }

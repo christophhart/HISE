@@ -1289,6 +1289,8 @@ public:
 
 	static void fillPathHiStyle(Graphics &g, const Path &p, int , int , bool drawBorders = true);;
 
+	static void setTextEditorColours(TextEditor& ed);
+
 	int getSliderThumbRadius(Slider& ) override { return 0; }
 
 	void drawVectorRotaryKnob(Graphics& g, Rectangle<float> area, double value, bool bipolar, bool hover, bool down, bool enabled, float modValue);

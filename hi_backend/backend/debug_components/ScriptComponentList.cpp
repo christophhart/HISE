@@ -394,10 +394,11 @@ ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
 
 	addAndMakeVisible(fuzzySearchBox = new TextEditor());
 	fuzzySearchBox->addListener(this);
-	fuzzySearchBox->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
-	fuzzySearchBox->setFont(GLOBAL_FONT());
-	fuzzySearchBox->setSelectAllWhenFocused(true);
-	fuzzySearchBox->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+	
+	GlobalHiseLookAndFeel::setTextEditorColours(*fuzzySearchBox);
+
+	
+	
 
 	addAndMakeVisible(tree = new TreeView());
 
