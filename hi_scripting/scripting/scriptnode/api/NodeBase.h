@@ -369,6 +369,8 @@ public:
 
 	// ============================================================================================= END NODE API
 
+	String getDynamicBypassSource(bool forceUpdate=true) const;
+
 	void setValueTreeProperty(const Identifier& id, const var value);
 	void setDefaultValue(const Identifier& id, var newValue);
 	void setNodeProperty(const Identifier& id, const var& newValue);
@@ -500,7 +502,7 @@ private:
 
 	bool preserveAutomation = false;
 	bool enableUndo = true;
-
+	mutable String dynamicBypassId;
 	
 
 	void updateFrozenState(Identifier id, var newValue);
@@ -612,6 +614,8 @@ public:
 
 	// ============================================================================== End of API Calls
 
+	
+
 	bool objectDeleted() const override
 	{
 		return !data.getParent().isValid();
@@ -627,6 +631,7 @@ public:
 	ValueTree data;
 
 	valuetree::RemoveListener nodeRemoveUpdater;
+	valuetree::RemoveListener sourceRemoveUpdater;
 
 	NormalisableRange<double> connectionRange;
 
