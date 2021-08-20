@@ -156,6 +156,8 @@ public:
 
 	String toDebugString() const;
 	
+	
+	
 	class Factory : public DynamicObject
 	{
 	public:
@@ -180,6 +182,10 @@ public:
 	AudioSampleBuffer buffer;
 	int size;
 	VariantBuffer::Ptr referencedBuffer;
+
+	private:
+
+	void addMethods();
 };
 
 void operator >> (float f, VariantBuffer &b);

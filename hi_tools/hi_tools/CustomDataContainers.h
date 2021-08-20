@@ -389,16 +389,19 @@ public:
 		return true;
 	}
 
-	void removeElement(int index)
+	bool removeElement(int index)
 	{
 		Lock sl(lock);
 
-		if (index < position)
+		if (isPositiveAndBelow(index, position))
 		{
 			position = jmax<int>(0, position-1);
 			data[index] = std::move(data[position]);
 			data[position] = ElementType();
+			return true;
 		}
+
+		return false;
 	}
 
 	bool contains(const ElementType& elementToLookFor) const noexcept
