@@ -262,6 +262,26 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 		closeAutocomplete(false, {}, {});
 }
 
+void TextEditor::codeDocumentTextInserted(const String& newText, int insertIndex)
+{
+	CodeDocument::Position start(document.getCodeDocument(), insertIndex);
+	auto end = start.movedBy(newText.length());
+	Range<int> r(start.getLineNumber(), end.getLineNumber() + 1);
+	updateAfterTextChange(r);
+}
+
+void TextEditor::codeDocumentTextDeleted(int startIndex, int endIndex)
+{
+	CodeDocument::Position start(document.getCodeDocument(), startIndex);
+	CodeDocument::Position end(document.getCodeDocument(), endIndex);
+	
+	Range<int> r(start.getLineNumber(), end.getLineNumber() + 1);
+
+	updateAfterTextChange(r);
+}
+
+
+
 void TextEditor::setScaleFactor(float newFactor)
 {
 	auto currentLine = document.getSelection(0).head;
@@ -1566,7 +1586,7 @@ bool mcl::TextEditor::insert (const juce::String& content)
 {
 	ScopedValueSetter<bool> scrollDisabler(scrollRecursion, true);
 
-    double now = Time::getApproximateMillisecondCounter();
+	double now = Time::getApproximateMillisecondCounter();
 
 	if (currentParameter == nullptr)
 	{
@@ -1604,8 +1624,8 @@ bool mcl::TextEditor::insert (const juce::String& content)
 
     }
 	
-	refreshLineWidth();
-	updateViewTransform();
+	//refreshLineWidth();
+	//updateViewTransform();
 	translateToEnsureCaretIsVisible();
     updateSelections();
 

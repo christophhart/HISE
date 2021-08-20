@@ -122,10 +122,7 @@ public:
 
 	void scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
 
-	void codeDocumentTextDeleted(int startIndex, int endIndex) override
-	{
-		updateAfterTextChange();
-	}
+	void codeDocumentTextDeleted(int startIndex, int endIndex) override;
 
 	void setGotoFunction(const GotoFunction& f)
 	{
@@ -268,10 +265,7 @@ public:
 
 	
 
-	void codeDocumentTextInserted(const String& newText, int insertIndex) override
-	{
-		updateAfterTextChange();
-	}
+	void codeDocumentTextInserted(const String& newText, int insertIndex) override;
 	
 	struct Action : public UndoableAction
 	{
@@ -396,19 +390,15 @@ public:
 
 	void closeAutocomplete(bool async, const String& textToInsert, Array<Range<int>> selectRanges);
 
-	void updateAfterTextChange()
+	void updateAfterTextChange(Range<int> rangeToInvalidate = Range<int>())
 	{
 		if (!skipTextUpdate)
 		{
-			document.invalidate({});
+			document.invalidate(rangeToInvalidate);
 		
 			if (lineRangeFunction)
 			{
-
 				auto ranges = lineRangeFunction(document.getCodeDocument());
-
-				
-
 				document.getFoldableLineRangeHolder().setRanges(ranges);
 			}
 
