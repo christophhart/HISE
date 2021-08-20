@@ -130,7 +130,7 @@ using namespace juce;
 
 		void setToggleModeWithColourChange(bool shouldBeEnabled)
 		{
-			setClickingTogglesState(shouldBeEnabled);
+			setClickingTogglesState(shouldBeEnabled, false);
 
 			if (shouldBeEnabled)
 				addListener(this);
@@ -163,7 +163,7 @@ using namespace juce;
 			}
 			else
 			{
-				setColours(Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white);
+				setColours(offColour.withMultipliedAlpha(0.5f), offColour.withMultipliedAlpha(0.8f), offColour);
 			}
 		}
 
@@ -201,9 +201,22 @@ using namespace juce;
 			offShape = newOffShape;
 		}
 
+		void clicked(const ModifierKeys& modifiers) override
+		{
+			lastMods = modifiers;
+			ShapeButton::clicked(modifiers);
+		}
+
+		bool wasRightClicked() const { return lastMods.isRightButtonDown(); }
+
 		Colour onColour = Colour(SIGNAL_COLOUR);
+		Colour offColour = Colours::white;
 		Path onShape;
 		Path offShape;
+
+		private:
+
+		ModifierKeys lastMods = ModifierKeys();
 	};
 
 }
