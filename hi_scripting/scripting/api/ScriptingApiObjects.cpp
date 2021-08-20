@@ -75,7 +75,9 @@ var ScriptingObjects::MidiList::getAssignedValue(int index) const				 { return g
 
 void ScriptingObjects::MidiList::fill(int valueToFill)
 {
-	memset(data, valueToFill, sizeof(int) * 128);
+	for (int i = 0; i < 128; i++)
+		data[i] = valueToFill;
+
 	numValues = (int)(valueToFill != -1) * 128;
 }
 

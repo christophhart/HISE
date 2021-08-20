@@ -1941,6 +1941,31 @@ public:
 	};
 
 
+	struct ScreenshotListener
+	{
+		virtual void makeScreenshot(const File& targetFile, Rectangle<float> area) = 0;
+
+		virtual void visualGuidesChanged() = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScreenshotListener);
+	};
+
+	struct VisualGuide
+	{
+		enum class Type
+		{
+			HorizontalLine,
+			VerticalLine,
+			Rectangle
+		};
+
+		Rectangle<float> area;
+		Colour c;
+		Type t;
+	};
+
 	// ================================================================================================================
 
 	Content(ProcessorWithScriptingContent *p);;
@@ -2019,6 +2044,12 @@ public:
 
 	/** Sets the height of the content. */
 	void setWidth(int newWidth) noexcept;
+
+	/** Creates a screenshot of the area relative to the content's origin. */
+	void createScreenshot(var area, var directory, String name);
+
+	/** Creates either a line or rectangle with the given colour. */
+	void addVisualGuide(var guideData, var colour);
 
     /** Sets this script as main interface with the given size. */
     void makeFrontInterface(int width, int height);
@@ -2101,6 +2132,11 @@ public:
 	const ValueTree getContentProperties() const
 	{
 		return contentPropertyData;
+	}
+
+	void setScreenshotListener(ScreenshotListener* l)
+	{
+		screenshotListener = l;
 	}
 
 	var getValuePopupProperties() const { return valuePopupData; };
@@ -2252,6 +2288,8 @@ public:
     
 	void suspendPanelTimers(bool shouldBeSuspended);
 
+	Array<VisualGuide> guides;
+
 private:
 
 	struct AsyncRebuildMessageBroadcaster : public AsyncUpdater
@@ -2285,7 +2323,7 @@ private:
 		}
 	};
 
-	
+	WeakReference<ScreenshotListener> screenshotListener;
 
 	static void initNumberProperties();
 

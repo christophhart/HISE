@@ -44,11 +44,6 @@ void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, i
 	if (getScriptEditHandlerContent() == nullptr)
 		return;
 
-	if (getScriptEditHandlerEditor() == nullptr)
-	{
-		return;
-	}
-
 	String componentName;
 
 	switch (componentType)

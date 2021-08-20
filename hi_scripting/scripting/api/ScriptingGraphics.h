@@ -120,6 +120,9 @@ namespace ScriptingObjects
 		/** Returns a JSON object with the current OpenGL statistics. */
 		var getOpenGLStatistics();
 
+		/** If this is enabled, the shader will create a buffered image of the last rendering result. */
+		void setEnableCachedBuffer(bool shouldEnableBuffer);
+
 		// ===========================================================================
 
 		void setEnableLineNumbers(bool shouldUseLineNumbers)
@@ -165,17 +168,39 @@ namespace ScriptingObjects
 		ReferenceCountedArray<ExternalScriptFile> includedFiles;
 		
 		bool enableBlending = false;
+		bool enableCache = false;
+
 		BlendMode src = BlendMode::_GL_SRC_ALPHA;
 		BlendMode dst = BlendMode::_GL_ONE_MINUS_SRC_ALPHA;
 
+		static bool isRenderingScreenshot() { return renderingScreenShot; }
+
+		struct ScopedScreenshotRenderer
+		{
+			ScopedScreenshotRenderer()
+			{
+				renderingScreenShot = true;
+			}
+
+			~ScopedScreenshotRenderer()
+			{
+				renderingScreenShot = false;
+			}
+		};
+
 	private:
 
+		static bool renderingScreenShot;
+
 		String compiledCode;
+
+		String shaderName;
 
 		String getHeader();
 
 		void compileRawCode(const String& code);
 
+		
 		
 
 		struct Result processErrorMessage(const Result& r);

@@ -224,6 +224,7 @@ struct ScriptingObjects::ScriptShader::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptShader, setUniformData);
 	API_VOID_METHOD_WRAPPER_3(ScriptShader, setBlendFunc);
 	API_VOID_METHOD_WRAPPER_1(ScriptShader, fromBase64);
+	API_VOID_METHOD_WRAPPER_1(ScriptShader, setEnableCachedBuffer);
 	API_METHOD_WRAPPER_0(ScriptShader, toBase64);
 	API_METHOD_WRAPPER_0(ScriptShader, getOpenGLStatistics);
 };
@@ -250,7 +251,10 @@ ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) 
 	ADD_API_METHOD_1(fromBase64);
 	ADD_API_METHOD_0(toBase64);
 	ADD_API_METHOD_0(getOpenGLStatistics);
+	ADD_API_METHOD_1(setEnableCachedBuffer);
 }
+
+bool ScriptingObjects::ScriptShader::renderingScreenShot = false;
 
 String ScriptingObjects::ScriptShader::getHeader()
 {

@@ -86,7 +86,8 @@ class ScriptContentComponent: public Component,
 							  public GlobalScriptCompileListener,
 							  public ScriptingApi::Content::RebuildListener,
 							  public AsyncValueTreePropertyListener,
-							  public Processor::DeleteListener							
+							  public Processor::DeleteListener,
+							  public ScriptingApi::Content::ScreenshotListener
 {
 public:
 
@@ -134,17 +135,12 @@ public:
 
 	void paint(Graphics &g) override;
 
-    void paintOverChildren(Graphics& g) override
-    {
-        if(isRebuilding)
-        {
-            g.fillAll(Colours::black.withAlpha(0.8f));
-            g.setColour(Colours::white);
-            g.setFont(GLOBAL_BOLD_FONT());
-            g.drawText("Rebuilding...", 0, 0, getWidth(), getHeight(), Justification::centred, false);
-        }
-    }
+    void paintOverChildren(Graphics& g) override;
     
+	void makeScreenshot(const File& target, Rectangle<float> area) override;
+
+	void visualGuidesChanged() override;
+
 	void contentWasRebuilt() override;
 
     void contentRebuildStateChanged(bool rebuildState)

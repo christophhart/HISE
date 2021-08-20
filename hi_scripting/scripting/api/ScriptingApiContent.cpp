@@ -3807,6 +3807,8 @@ colour(Colour(0xff777777))
 	setMethod("setToolbarProperties", Wrapper::setToolbarProperties);
 	setMethod("setHeight", Wrapper::setHeight);
 	setMethod("setWidth", Wrapper::setWidth);
+	setMethod("createScreenshot", Wrapper::createScreenshot);
+	setMethod("addVisualGuide", Wrapper::addVisualGuide);
     setMethod("makeFrontInterface", Wrapper::makeFrontInterface);
 	setMethod("makeFullScreenInterface", Wrapper::makeFullScreenInterface);
 	setMethod("setName", Wrapper::setName);
@@ -4008,6 +4010,7 @@ void ScriptingApi::Content::beginInitialization()
 	allowGuiCreation = true;
 
 	updateWatcher = nullptr;
+	guides.clear();
 }
 
 
@@ -4043,13 +4046,14 @@ void ScriptingApi::Content::setWidth(int newWidth) noexcept
 	}
 
 	width = newWidth;
+	
 };
 
 void ScriptingApi::Content::makeFrontInterface(int newWidth, int newHeight)
 {
     width = newWidth;
     height = newHeight;
-    
+
     dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
     
 }
@@ -4597,6 +4601,83 @@ var ScriptingApi::Content::createShader(const String& fileName)
 		f->setFragmentShader(fileName);
 
 	return var(f);
+}
+
+
+void ScriptingApi::Content::createScreenshot(var area, var directory, String name)
+{
+	if (screenshotListener != nullptr)
+	{
+		if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(directory.getObject()))
+		{
+			auto dir = sf->f;
+
+			if (!dir.existsAsFile() && !dir.isDirectory())
+				dir.createDirectory();
+
+			if (sf->f.isDirectory())
+			{
+				auto target = sf->f.getChildFile(name).withFileExtension("png");
+				Rectangle<float> a;
+
+				if (auto comp = dynamic_cast<ScriptComponent*>(area.getObject()))
+				{
+					a.setX((int)comp->getGlobalPositionX());
+					a.setY((int)comp->getGlobalPositionY());
+					a.setWidth((int)comp->getWidth());
+					a.setHeight((int)comp->getHeight());
+				}
+				else
+				{
+					auto r = Result::ok();
+					a = ApiHelpers::getRectangleFromVar(area, &r);
+
+					if (!r.wasOk())
+						reportScriptError(r.getErrorMessage());
+				}
+
+				screenshotListener->makeScreenshot(target, a);
+			}
+		}
+	}
+}
+
+void ScriptingApi::Content::addVisualGuide(var guideData, var colour)
+{
+	if (auto ga = guideData.getArray())
+	{
+		VisualGuide g;
+		g.c = Helpers::getCleanedObjectColour(colour);
+
+		if (ga->size() == 4)
+		{
+			g.t = VisualGuide::Type::Rectangle;
+			g.area = ApiHelpers::getRectangleFromVar(guideData);
+		}
+		else if (ga->size() == 2)
+		{
+			auto x = (float)ga->getUnchecked(0);
+			auto y = (float)ga->getUnchecked(1);
+
+			if (x == 0)
+			{
+				g.t = VisualGuide::Type::HorizontalLine;
+				g.area = { 0.0f, y, (float)width, 1.0f };
+			}
+			else if (y == 0)
+			{
+				g.t = VisualGuide::Type::VerticalLine;
+				g.area = { x, 0.0, 1.0f, (float)height };
+			}
+		}
+
+		guides.add(std::move(g));
+	}
+	else
+		guides.clear();
+
+	if (screenshotListener != nullptr)
+		screenshotListener->visualGuidesChanged();
 }
 
 #undef ADD_TO_TYPE_SELECTOR
