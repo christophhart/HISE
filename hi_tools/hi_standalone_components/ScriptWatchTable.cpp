@@ -539,7 +539,7 @@ void ScriptWatchTable::buttonClicked(Button* b)
 			auto fullRefresh = r % 10 != 0;
 
 			if (fullRefresh)
-				fullRefreshFactor = roundFloatToInt((float)r / (float)timerspeed);
+				fullRefreshFactor = roundToInt((float)r / (float)timerspeed);
 			else
 				timerspeed = r;
 
@@ -796,8 +796,6 @@ void ScriptWatchTable::paintCell (Graphics& g, int rowNumber, int columnId,
 			}
 			if (columnId == Type)
 			{
-				const float h = jmin<float>((float)height, (float)width) - 4.0f;
-				
 				Rectangle<float> area(0.0, 0.0, width, height);
 
 				area = area.withSizeKeepingCentre(18.0, 18.0);
@@ -997,6 +995,7 @@ juce::Path ScriptWatchTable::Factory::createPath(const String& url) const
 		return p;
 	}
 	
+    return p;
 }
 
 void ScriptWatchTable::TooltipInfo::draw(Graphics& g)

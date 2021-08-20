@@ -108,7 +108,7 @@ public:
 
 	static void updateFontSize(ScriptWatchTable& t, float newSize)
 	{
-		t.table->setRowHeight(roundFloatToInt(newSize / 0.7f));
+		t.table->setRowHeight(roundToInt(newSize / 0.7f));
 	}
 
     String getHeadline() const;

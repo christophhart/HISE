@@ -1504,7 +1504,7 @@ static void addRecursive(JavascriptProcessor* jp, mcl::TokenCollection::List& to
 		if (ptr->getTextForName() == "Colours")
 		{
 			auto vs = c->getTextForValue();
-			childColour = Colour(vs.getLargeIntValue());
+            childColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(vs);
 		}
 
 		tokens.add(new HiseJavascriptEngine::TokenProvider::DebugInformationToken(c, v, childColour, ptr));

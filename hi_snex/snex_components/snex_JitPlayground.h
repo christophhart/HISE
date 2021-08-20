@@ -674,6 +674,9 @@ public:
 		{
 			return &wb->getLastResultReference();
 		}
+        
+        jassertfalse;
+        return nullptr;
 	}
 
 	

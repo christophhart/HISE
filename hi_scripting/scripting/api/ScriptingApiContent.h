@@ -1965,6 +1965,8 @@ public:
 
 	struct ScreenshotListener
 	{
+        virtual ~ScreenshotListener() {};
+        
 		virtual void makeScreenshot(const File& targetFile, Rectangle<float> area) = 0;
 
 		virtual void visualGuidesChanged() = 0;

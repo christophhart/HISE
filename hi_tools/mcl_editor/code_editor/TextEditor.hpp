@@ -168,8 +168,6 @@ public:
 
 	void refreshLineWidth()
 	{
-		auto firstRow = getFirstLineOnScreen();
-
 		auto actualLineWidth = (maxLinesToShow - gutter.getGutterWidth()) / viewScaleFactor;
 
 		if (linebreakEnabled)

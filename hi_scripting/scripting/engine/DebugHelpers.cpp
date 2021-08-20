@@ -232,10 +232,11 @@ Component* DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& 
 	else
 	{
 		PresetHandler::showMessageWindow("Processor does not exist", "The Processor is not existing, because it was deleted or the reference is wrong", PresetHandler::IconType::Error);
+        return nullptr;
 	}
 #else
 	ignoreUnused(e, table, p);
-	return table;
+	return nullptr;
 #endif
 }
 

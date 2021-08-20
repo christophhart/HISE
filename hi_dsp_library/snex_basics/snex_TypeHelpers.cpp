@@ -157,7 +157,7 @@ String Types::Helpers::getStringFromDataPtr(Types::ID type, void* data)
 	case Types::ID::Integer: v = var(*reinterpret_cast<int*>(data)); break;
 	case Types::ID::Double: v = var(*reinterpret_cast<double*>(data)); break;
 	case Types::ID::Float: v = var(*reinterpret_cast<float*>(data)); break;
-	case Types::ID::Pointer: v = var(*reinterpret_cast<int64_t*>(data)); break;
+	case Types::ID::Pointer: v = var(*reinterpret_cast<int64*>(data)); break;
 	default: jassertfalse;
 	}
 
