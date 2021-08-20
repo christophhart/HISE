@@ -788,9 +788,11 @@ void BorderPanel::paint(Graphics &g)
 		auto st = AffineTransform::scale(jmin<double>(2.0, sf));
 		auto st2 = AffineTransform::scale(sf);
 
-		auto gb = getLocalArea(getTopLevelComponent(), getLocalBounds()).transformed(st2);
+		auto tc = getTopLevelComponent();
+
+		auto gb = getLocalArea(tc, getLocalBounds()).transformed(st2);
 		
-		drawHandler->setGlobalBounds(gb, sf);
+		drawHandler->setGlobalBounds(gb, tc->getLocalBounds(), sf);
 
 		DrawActions::Handler::Iterator it(drawHandler.get());
 
@@ -1064,6 +1066,21 @@ bool DrawActions::Handler::beginBlendLayer(const Identifier& blendMode, float al
 	addDrawAction(newLayer);
 	layerStack.insert(-1, newLayer);
 	return true;
+}
+
+juce::Rectangle<int> DrawActions::Handler::getScreenshotBounds(Rectangle<int> shaderBounds) const
+{
+	shaderBounds = shaderBounds.transformedBy(AffineTransform::scale(scaleFactor));
+
+	auto x = shaderBounds.getX() -1 * globalBounds.getX();
+	
+	auto y = topLevelBounds.getHeight() + globalBounds.getY() - shaderBounds.getHeight() - shaderBounds.getY();
+
+	shaderBounds.setX(x);
+	shaderBounds.setY(y);
+
+	return shaderBounds;
+
 }
 
 void DrawActions::BlendingLayer::perform(Graphics& g)

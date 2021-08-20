@@ -75,7 +75,9 @@ var ScriptingObjects::MidiList::getAssignedValue(int index) const				 { return g
 
 void ScriptingObjects::MidiList::fill(int valueToFill)
 {
-	memset(data, valueToFill, sizeof(int) * 128);
+	for (int i = 0; i < 128; i++)
+		data[i] = valueToFill;
+
 	numValues = (int)(valueToFill != -1) * 128;
 }
 
@@ -944,6 +946,17 @@ void ScriptingObjects::ScriptDownloadObject::start()
 	}
 }
 
+Component* ScriptingObjects::ScriptComplexDataReferenceBase::createPopupComponent(const MouseEvent& e, Component *c)
+{
+	if (auto ed = dynamic_cast<Component*>(ExternalData::createEditor(complexObject)))
+	{
+		ed->setSize(600, 300);
+		return ed;
+	}
+	
+	return nullptr;
+}
+
 ScriptingObjects::ScriptComplexDataReferenceBase::ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type_, ExternalDataHolder* otherHolder/*=nullptr*/) :
 	ConstScriptingObject(c, 0),
 	index(dataIndex),
@@ -964,6 +977,14 @@ void ScriptingObjects::ScriptComplexDataReferenceBase::setPosition(double newPos
 	}
 }
 
+float ScriptingObjects::ScriptComplexDataReferenceBase::getCurrentDisplayIndexBase() const
+{
+	if (complexObject != nullptr)
+		return complexObject->getUpdater().getLastDisplayValue();
+	
+	return 0.0f;
+}
+
 struct ScriptingObjects::ScriptAudioFile::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, loadFile);
@@ -972,6 +993,7 @@ struct ScriptingObjects::ScriptAudioFile::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptAudioFile, setRange);
 	API_METHOD_WRAPPER_0(ScriptAudioFile, getNumSamples);
 	API_METHOD_WRAPPER_0(ScriptAudioFile, getSampleRate);
+	API_METHOD_WRAPPER_0(ScriptAudioFile, getCurrentlyDisplayedIndex);
 };
 
 ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index_, snex::ExternalDataHolder* otherHolder) :
@@ -983,6 +1005,7 @@ ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent
 	ADD_API_METHOD_0(update);
 	ADD_API_METHOD_0(getNumSamples);
 	ADD_API_METHOD_0(getSampleRate);
+	ADD_API_METHOD_0(getCurrentlyDisplayedIndex);
 }
 
 void ScriptingObjects::ScriptAudioFile::clear()
@@ -1035,6 +1058,11 @@ var ScriptingObjects::ScriptAudioFile::getContent()
 	}
 
 	return channels;
+}
+
+float ScriptingObjects::ScriptAudioFile::getCurrentlyDisplayedIndex() const
+{
+	return getCurrentDisplayIndexBase();
 }
 
 void ScriptingObjects::ScriptAudioFile::update()
@@ -1205,6 +1233,7 @@ struct ScriptingObjects::ScriptTableData::Wrapper
 	API_VOID_METHOD_WRAPPER_4(ScriptTableData, setTablePoint);
 	API_VOID_METHOD_WRAPPER_2(ScriptTableData, addTablePoint);
 	API_METHOD_WRAPPER_1(ScriptTableData, getTableValueNormalised);
+	API_METHOD_WRAPPER_0(ScriptTableData, getCurrentlyDisplayedIndex);
 };
 
 ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* otherHolder):
@@ -1214,19 +1243,18 @@ ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent
 	ADD_API_METHOD_2(addTablePoint);
 	ADD_API_METHOD_4(setTablePoint);
 	ADD_API_METHOD_1(getTableValueNormalised);
+	ADD_API_METHOD_0(getCurrentlyDisplayedIndex);
 }
 
-void ScriptingObjects::ScriptTableData::rightClickCallback(const MouseEvent& e, Component *c)
+Component* ScriptingObjects::ScriptTableData::createPopupComponent(const MouseEvent& e, Component *c)
 {
 #if USE_BACKEND
-
 	auto te = dynamic_cast<Component*>(snex::ExternalData::createEditor(getTable()));
 	te->setSize(300, 200);
-	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-	MouseEvent ee = e.getEventRelativeTo(editor);
-	editor->getRootFloatingTile()->showComponentInRootPopup(te, editor, ee.getMouseDownPosition());
+	return te;
 #else
 	ignoreUnused(e, c);
+	return nullptr;
 #endif
 }
 
@@ -1259,6 +1287,11 @@ float ScriptingObjects::ScriptTableData::getTableValueNormalised(double normalis
 }
 
 
+float ScriptingObjects::ScriptTableData::getCurrentlyDisplayedIndex() const
+{
+	return getCurrentDisplayIndexBase();
+}
+
 struct ScriptingObjects::ScriptSliderPackData::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptSliderPackData, setValue);
@@ -1266,7 +1299,7 @@ struct ScriptingObjects::ScriptSliderPackData::Wrapper
 	API_METHOD_WRAPPER_1(ScriptSliderPackData, getValue);
 	API_METHOD_WRAPPER_0(ScriptSliderPackData, getNumSliders);
 	API_VOID_METHOD_WRAPPER_3(ScriptSliderPackData, setRange);
-	
+	API_METHOD_WRAPPER_0(ScriptSliderPackData, getCurrentlyDisplayedIndex);
 };
 
 ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, snex::ExternalDataHolder* otherHolder) :
@@ -1277,6 +1310,7 @@ ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScript
 	ADD_API_METHOD_1(getValue);
 	ADD_API_METHOD_0(getNumSliders);
 	ADD_API_METHOD_3(setRange);
+	ADD_API_METHOD_0(getCurrentlyDisplayedIndex);
 }
 
 var ScriptingObjects::ScriptSliderPackData::getStepSize() const
@@ -1321,6 +1355,11 @@ void ScriptingObjects::ScriptSliderPackData::setRange(double minValue, double ma
 		return data->setRange(minValue, maxValue, stepSize);
 }
 
+float ScriptingObjects::ScriptSliderPackData::getCurrentlyDisplayedIndex() const
+{
+	return getCurrentDisplayIndexBase();
+}
+
 struct ScriptingObjects::ScriptingSamplerSound::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptingSamplerSound, setFromJSON);
@@ -1330,6 +1369,7 @@ struct ScriptingObjects::ScriptingSamplerSound::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingSamplerSound, duplicateSample);
 	API_METHOD_WRAPPER_0(ScriptingSamplerSound, loadIntoBufferArray);
 	API_METHOD_WRAPPER_1(ScriptingSamplerSound, replaceAudioFile);
+	API_METHOD_WRAPPER_1(ScriptingSamplerSound, refersToSameSample);
 };
 
 ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScriptingContent* p, ModulatorSampler* sampler_, ModulatorSamplerSound::Ptr sound_) :
@@ -1344,6 +1384,7 @@ ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScri
 	ADD_API_METHOD_0(duplicateSample);
 	ADD_API_METHOD_0(loadIntoBufferArray);
 	ADD_API_METHOD_1(replaceAudioFile);
+	ADD_API_METHOD_1(refersToSameSample);
 
 	sampleIds.ensureStorageAllocated(ModulatorSamplerSound::numProperties);
 	sampleIds.add(SampleIds::ID);
@@ -1379,9 +1420,51 @@ juce::String ScriptingObjects::ScriptingSamplerSound::getDebugValue() const
 	return sound != nullptr ? sound->getPropertyAsString(SampleIds::FileName) : "";
 }
 
-void ScriptingObjects::ScriptingSamplerSound::rightClickCallback(const MouseEvent&, Component *)
+hise::DebugInformation* ScriptingObjects::ScriptingSamplerSound::getChildElement(int index)
 {
+	ModulatorSamplerSound::Ptr other = sound;
 
+	auto id = sampleIds[index];
+
+	auto av = [other, id]()
+	{
+		if (other != nullptr)
+			return other->getSampleProperty(id);
+
+		return var();
+	};
+
+	String cid = "%PARENT%.";
+	cid << id;
+
+	return new LambdaValueInformation(av, Identifier(cid), {}, (DebugInformation::Type)getTypeNumber(), getLocation());
+}
+
+void ScriptingObjects::ScriptingSamplerSound::assign(const int index, var newValue)
+{
+	set(index, newValue);
+}
+
+var ScriptingObjects::ScriptingSamplerSound::getAssignedValue(int index) const
+{
+	return get(index);
+}
+
+int ScriptingObjects::ScriptingSamplerSound::getCachedIndex(const var &indexExpression) const
+{
+	if (indexExpression.isString())
+	{
+		Identifier thisId(indexExpression.toString());
+
+		auto idx = sampleIds.indexOf(thisId);
+
+		if (idx == -1)
+			reportScriptError("Can't find property " + thisId.toString());
+
+		return idx;
+	}
+
+	return (int)indexExpression;
 }
 
 void ScriptingObjects::ScriptingSamplerSound::set(int propertyIndex, var newValue)
@@ -1617,6 +1700,17 @@ bool ScriptingObjects::ScriptingSamplerSound::replaceAudioFile(var audioData)
 	return true;
 }
 
+bool ScriptingObjects::ScriptingSamplerSound::refersToSameSample(var otherSample)
+{
+	if (auto s = dynamic_cast<ScriptingSamplerSound*>(otherSample.getObject()))
+	{
+		return s->sound.get() == sound.get();
+	}
+
+	reportScriptError("refersToSampleSample: otherSample parameter is not a sample object");
+	RETURN_IF_NO_THROW(false);
+}
+
 hise::ModulatorSampler* ScriptingObjects::ScriptingSamplerSound::getSampler() const
 {
 	auto s = dynamic_cast<ModulatorSampler*>(sampler.get());
@@ -1838,9 +1932,9 @@ void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent 
 #endif
 }
 
-void ScriptingObjects::ScriptingModulator::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingModulator::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, mod);
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, mod);
 }
 
 void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
@@ -2130,9 +2224,9 @@ moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 };
 
 
-void ScriptingObjects::ScriptingEffect::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingEffect::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, effect.get());
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, effect.get());
 }
 
 juce::String ScriptingObjects::ScriptingEffect::getId() const
@@ -2710,9 +2804,9 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 };
 
 
-void ScriptingObjects::ScriptingSynth::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingSynth::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, synth);
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, synth);
 }
 
 String ScriptingObjects::ScriptingSynth::getId() const
@@ -2999,9 +3093,9 @@ mp(mp_)
 	ADD_API_METHOD_0(asMidiPlayer);
 }
 
-void ScriptingObjects::ScriptingMidiProcessor::rightClickCallback(const MouseEvent& e, Component* t)
+Component* ScriptingObjects::ScriptingMidiProcessor::createPopupComponent(const MouseEvent& e, Component* t)
 {
-	DebugableObject::Helpers::showProcessorEditorPopup(e, t, mp);
+	return DebugableObject::Helpers::showProcessorEditorPopup(e, t, mp);
 }
 
 int ScriptingObjects::ScriptingMidiProcessor::getCachedIndex(const var &indexExpression) const
@@ -3170,6 +3264,7 @@ struct ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getSampleLength);
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setSampleRange);
 	API_VOID_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, setFile);
+	API_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, getAudioFile);
 };
 
 
@@ -3200,6 +3295,7 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 	ADD_API_METHOD_0(getSampleLength);
 	ADD_API_METHOD_2(setSampleRange);
 	ADD_API_METHOD_1(setFile);
+	ADD_API_METHOD_1(getAudioFile);
 }
 
 
@@ -3284,6 +3380,18 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setSampleRange(int start, 
 	}
 }
 
+var ScriptingObjects::ScriptingAudioSampleProcessor::getAudioFile(int slotIndex)
+{
+	if (checkValidObject())
+	{
+		if (auto ed = dynamic_cast<ExternalDataHolder*>(audioSampleProcessor.get()))
+			return var(new ScriptAudioFile(getScriptProcessor(), slotIndex, ed));
+	}
+
+	reportScriptError("Not a valid object");
+	RETURN_IF_NO_THROW(var());
+}
+
 int ScriptingObjects::ScriptingAudioSampleProcessor::getSampleLength() const
 {
 	if (checkValidObject())
@@ -3302,11 +3410,12 @@ struct ScriptingObjects::ScriptingTableProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_5(ScriptingTableProcessor, setTablePoint);
 	API_METHOD_WRAPPER_1(ScriptingTableProcessor, exportAsBase64);
 	API_VOID_METHOD_WRAPPER_2(ScriptingTableProcessor, restoreFromBase64);
+	API_METHOD_WRAPPER_1(ScriptingTableProcessor, getTable);
 };
 
 
 
-ScriptingObjects::ScriptingTableProcessor::ScriptingTableProcessor(ProcessorWithScriptingContent *p, LookupTableProcessor *tableProcessor_) :
+ScriptingObjects::ScriptingTableProcessor::ScriptingTableProcessor(ProcessorWithScriptingContent *p, ExternalDataHolder *tableProcessor_) :
 ConstScriptingObject(p, dynamic_cast<Processor*>(tableProcessor_) != nullptr ? dynamic_cast<Processor*>(tableProcessor_)->getNumParameters() : 0),
 tableProcessor(dynamic_cast<Processor*>(tableProcessor_))
 {
@@ -3329,6 +3438,7 @@ tableProcessor(dynamic_cast<Processor*>(tableProcessor_))
 	ADD_API_METHOD_5(setTablePoint);
 	ADD_API_METHOD_1(exportAsBase64);
 	ADD_API_METHOD_2(restoreFromBase64);
+	ADD_API_METHOD_1(getTable);
 }
 
 
@@ -3337,9 +3447,7 @@ void ScriptingObjects::ScriptingTableProcessor::setTablePoint(int tableIndex, in
 {
 	if (tableProcessor != nullptr)
 	{
-		Table *table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex);
-
-		if (table != nullptr)
+		if(auto table = dynamic_cast<ExternalDataHolder*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->setTablePoint(pointIndex, x, y, curve);
 			return;
@@ -3354,9 +3462,7 @@ void ScriptingObjects::ScriptingTableProcessor::addTablePoint(int tableIndex, fl
 {
 	if (tableProcessor != nullptr)
 	{
-		Table *table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex);
-
-		if (table != nullptr)
+		if (auto table = dynamic_cast<ExternalDataHolder*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->addTablePoint(x, y);
 			return;
@@ -3371,7 +3477,7 @@ void ScriptingObjects::ScriptingTableProcessor::reset(int tableIndex)
 {
 	if (tableProcessor != nullptr)
 	{
-		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
+		if (auto table = dynamic_cast<ExternalDataHolder*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->reset();
 			return;
@@ -3385,7 +3491,7 @@ void ScriptingObjects::ScriptingTableProcessor::restoreFromBase64(int tableIndex
 {
 	if (tableProcessor != nullptr)
 	{
-		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
+		if (auto table = dynamic_cast<ExternalDataHolder*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->restoreData(state);
 			return;
@@ -3399,13 +3505,51 @@ juce::String ScriptingObjects::ScriptingTableProcessor::exportAsBase64(int table
 {
 	if (tableProcessor != nullptr)
 	{
-		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
+		if (auto table = dynamic_cast<ExternalDataHolder*>(tableProcessor.get())->getTable(tableIndex))
 			return table->exportData();
 	}
 
 	reportScriptError("No table");
 	RETURN_IF_NO_THROW("");
 }
+
+var ScriptingObjects::ScriptingTableProcessor::getTable(int tableIndex)
+{
+	if (checkValidObject())
+	{
+		if (auto ed = dynamic_cast<ExternalDataHolder*>(tableProcessor.get()))
+			return var(new ScriptTableData(getScriptProcessor(), tableIndex, ed));
+	}
+
+	reportScriptError("Not a valid object");
+	RETURN_IF_NO_THROW(var());
+}
+
+struct ScriptingObjects::ScriptSliderPackProcessor::Wrapper
+{
+	API_METHOD_WRAPPER_1(ScriptSliderPackProcessor, getSliderPack);
+};
+
+ScriptingObjects::ScriptSliderPackProcessor::ScriptSliderPackProcessor(ProcessorWithScriptingContent* p, ExternalDataHolder* h) :
+	ConstScriptingObject(p, 0),
+	sp(dynamic_cast<Processor*>(h))
+{
+	ADD_API_METHOD_1(getSliderPack);
+}
+
+var ScriptingObjects::ScriptSliderPackProcessor::getSliderPack(int sliderPackIndex)
+{
+	if (checkValidObject())
+	{
+		if (auto ed = dynamic_cast<ExternalDataHolder*>(sp.get()))
+			return var(new ScriptSliderPackData(getScriptProcessor(), sliderPackIndex, ed));
+	}
+
+	reportScriptError("Not a valid object");
+	RETURN_IF_NO_THROW(var());
+}
+
+
 
 // TimerObject ==============================================================================================================
 
@@ -3419,7 +3563,8 @@ struct ScriptingObjects::TimerObject::Wrapper
 ScriptingObjects::TimerObject::TimerObject(ProcessorWithScriptingContent *p) :
 	DynamicScriptingObject(p),
 	ControlledObject(p->getMainController_(), true),
-	it(this)
+	it(this),
+	tc(p, {}, 0)
 {
 	ADD_DYNAMIC_METHOD(startTimer);
 	ADD_DYNAMIC_METHOD(stopTimer);
@@ -3435,6 +3580,12 @@ ScriptingObjects::TimerObject::~TimerObject()
 
 void ScriptingObjects::TimerObject::timerCallback()
 {
+	if (tc)
+		tc.call(nullptr, 0);
+	else
+		it.stopTimer();
+
+#if 0
 	auto callback = getProperty("callback");
 
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
@@ -3459,14 +3610,19 @@ void ScriptingObjects::TimerObject::timerCallback()
 											 dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), 
 											 f);
 	}
+#endif
 }
 
 void ScriptingObjects::TimerObject::timerCallbackInternal(const var& callback, Result& r)
 {
+	
+
+#if 0
+
 	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock));
 
 	var undefinedArgs;
-	var thisObject(this);
+	var thisObject;// (this);
 	var::NativeFunctionArgs args(thisObject, &undefinedArgs, 0);
 
 	auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
@@ -3486,6 +3642,7 @@ void ScriptingObjects::TimerObject::timerCallbackInternal(const var& callback, R
 	}
 	else
 		stopTimer();
+#endif
 }
 
 void ScriptingObjects::TimerObject::startTimer(int intervalInMilliSeconds)
@@ -3505,12 +3662,9 @@ void ScriptingObjects::TimerObject::stopTimer()
 
 void ScriptingObjects::TimerObject::setTimerCallback(var callbackFunction)
 {
-	if (dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(callbackFunction.getObject()))
-	{
-		setProperty("callback", callbackFunction);
-	}
-	else
-		throw String("You need to pass in a function for the timer callback");
+	tc = WeakCallbackHolder(getScriptProcessor(), callbackFunction, 0);
+	tc.setThisObject(this);
+	tc.incRefCount();
 }
 
 
@@ -4293,8 +4447,41 @@ void ScriptingObjects::ScriptedLookAndFeel::setGlobalFont(const String& fontName
 	f = getScriptProcessor()->getMainController_()->getFontFromString(fontName, fontSize);
 }
 
+Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
+{
+	static const Array<Identifier> sa =
+	{
+		"drawAlertWindow",
+		"getAlertWindowMarkdownStyleData",
+		"drawAlertWindowIcon",
+		"drawPopupMenuBackground",
+		"drawPopupMenuItem",
+		"drawToggleButton",
+		"drawRotarySlider",
+		"drawLinearSlider",
+		"drawDialogButton",
+		"drawComboBox",
+		"drawNumberTag",
+		"drawPresetBrowserBackground",
+		"drawPresetBrowserColumnBackground",
+		"drawPresetBrowserListItem",
+		"drawPresetBrowserSearchBar",
+		"drawPresetBrowserTag",
+		"drawTablePath",
+		"drawTablePoint",
+		"drawTableRuler",
+		"drawScrollbar",
+		"drawMidiDropper"
+	};
+
+	return sa;
+}
+
 bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject)
 {
+	// If this hits, you need to add that id to the array above.
+	jassert(getAllFunctionNames().contains(functionname));
+
 	auto f = functions.getProperty(functionname, {});
 
 	if (HiseJavascriptEngine::isJavascriptFunction(f))
@@ -4340,6 +4527,9 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 
 var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier& functionname, var* args, int numArgs)
 {
+	// If this hits, you need to add that id to the array above.
+	jassert(getAllFunctionNames().contains(functionname));
+
 	auto f = functions.getProperty(functionname, {});
 
 	if (HiseJavascriptEngine::isJavascriptFunction(f))
@@ -5053,6 +5243,29 @@ LookAndFeel* HiseColourScheme::createAlertWindowLookAndFeel(void* mainController
 }
 #endif
 
+
+
+juce::Array<juce::Identifier> ApiHelpers::getGlobalApiClasses()
+{
+
+	static const Array<Identifier> ids =
+	{
+		"Engine",
+		"Console",
+		"Content",
+		"Sampler",
+		"Synth",
+		"Math",
+		"Settings",
+		"Server",
+		"FileSystem",
+		"Message",
+		"Buffer"
+	};
+	
+	return ids;
+}
+
 #if USE_BACKEND
 juce::ValueTree ApiHelpers::getApiTree()
 {
@@ -5061,12 +5274,11 @@ juce::ValueTree ApiHelpers::getApiTree()
 	if (!v.isValid())
 		v = ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize);
 
-	//File::getSpecialLocation(File::userDesktopDirectory).getChildFile("API.xml").replaceWithText(v.createXml()->createDocument(""));
-
-
 	return v;
 }
 #endif
+
+
 
 struct ScriptingObjects::ScriptDisplayBufferSource::Wrapper
 {
@@ -5103,6 +5315,8 @@ struct ScriptingObjects::ScriptUnorderedStack::Wrapper
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, asBuffer);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, insert);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, remove);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, removeElement);
+	API_METHOD_WRAPPER_0(ScriptUnorderedStack, clear);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, contains);
 };
 
@@ -5114,7 +5328,9 @@ ScriptingObjects::ScriptUnorderedStack::ScriptUnorderedStack(ProcessorWithScript
 	ADD_API_METHOD_1(asBuffer);
 	ADD_API_METHOD_1(insert);
 	ADD_API_METHOD_1(remove);
+	ADD_API_METHOD_1(removeElement);
 	ADD_API_METHOD_1(contains);
+	ADD_API_METHOD_0(clear);
 
 	elementBuffer = new VariantBuffer(data.begin(), 0);
 	wholeBf = new VariantBuffer(data.begin(), 128);
@@ -5140,6 +5356,14 @@ struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
 
 	void paint(Graphics& g) override
 	{
+		if (parent.get() == nullptr)
+		{
+			g.setColour(Colours::white.withAlpha(0.8f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("Refresh this window after recompiling", getLocalBounds().toFloat(), Justification::centred);
+			return;
+		}
+
 		int index = 0;
 
 		for (int y = 0; y < NumRows; y++)
@@ -5172,18 +5396,16 @@ struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
 	WeakReference<ScriptUnorderedStack> parent;
 };
 
-void ScriptingObjects::ScriptUnorderedStack::rightClickCallback(const MouseEvent& e, Component *c)
+Component* ScriptingObjects::ScriptUnorderedStack::createPopupComponent(const MouseEvent& e, Component *c)
 {
 #if USE_BACKEND
-
-	auto te = new Display(this);
-	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-	MouseEvent ee = e.getEventRelativeTo(editor);
-	editor->getRootFloatingTile()->showComponentInRootPopup(te, editor, ee.getMouseDownPosition());
+	return new Display(this);
 #else
 	ignoreUnused(e, c);
+	return nullptr;
 #endif
 }
+
 
 
 

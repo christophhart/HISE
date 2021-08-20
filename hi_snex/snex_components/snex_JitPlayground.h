@@ -258,7 +258,7 @@ public:
 		return infos.size();
 	}
 
-	DebugInformationBase* getDebugInformation(int index)
+	DebugInformationBase::Ptr getDebugInformation(int index)
 	{
 		return infos[index];
 	}
@@ -270,7 +270,7 @@ public:
 
 	void rebuild() override;
 
-	OwnedArray<DebugInformationBase> infos;
+	DebugInformationBase::List infos;
 	GlobalScope& scope;
 	BreakpointHandler& handler;
 };
@@ -509,11 +509,17 @@ class SnexPlayground : public ui::WorkbenchComponent,
 	public CodeDocument::Listener,
 	public ButtonListener,
 	public BreakpointHandler::Listener,
-	public mcl::GutterComponent::BreakpointListener
+	public mcl::GutterComponent::BreakpointListener,
+	public hise::ApiProviderBase::Holder
 {
 public:
 
-	
+	enum class ContextActions
+	{
+		BackgroundParsing = 11000,
+		Preprocessor,
+		Goto
+	};
 
 	struct TestCodeProvider : public ui::WorkbenchData::CodeProvider
 	{
@@ -589,6 +595,7 @@ public:
 
 	void breakpointsChanged(mcl::GutterComponent& g) override
 	{
+		
 		getWorkbench()->triggerRecompile();
 	}
 
@@ -602,6 +609,25 @@ public:
 	void resized() override;
 
 	void mouseDown(const MouseEvent& event) override;
+
+	void addPopupMenuItems(mcl::TextEditor& te, PopupMenu &m, const MouseEvent& e)
+	{
+		m.addItem((int)ContextActions::Goto, "Goto definition", true, false);
+		m.addItem((int)ContextActions::BackgroundParsing, "Background C++ parsing", true, te.enableLiveParsing);
+		m.addItem((int)ContextActions::Preprocessor, "Parse preprocessor conditions", true, te.enablePreprocessorParsing);
+	}
+
+	bool performPopupMenu(mcl::TextEditor& te, int result)
+	{
+		switch ((ContextActions)result)
+		{
+		case ContextActions::Goto: te.gotoDefinition(te.getTextDocument().getSelection(0)); return true;
+		case ContextActions::BackgroundParsing: te.enableLiveParsing = !te.enableLiveParsing; return true;
+		case ContextActions::Preprocessor: te.enablePreprocessorParsing = !te.enablePreprocessorParsing; return true;
+		}
+
+		return false;
+	}
 
 	bool keyPressed(const KeyPress& k) override;
 	void createTestSignal();
@@ -642,6 +668,19 @@ public:
 
 	void buttonClicked(Button* b) override;
 	
+	ApiProviderBase* getProviderBase() override
+	{
+		if (auto wb = getWorkbench())
+		{
+			return &wb->getLastResultReference();
+		}
+        
+        jassertfalse;
+        return nullptr;
+	}
+
+	
+
 private:
 
 	bool isReadOnly = false;
@@ -750,6 +789,9 @@ private:
 	DebugHandler::Tokeniser consoleTokeniser;
 	CodeDocument consoleContent;
 	CodeEditorComponent console;
+	ScriptWatchTable watchTable;
+
+	ScopedPointer<ui::OptimizationProperties> stateViewer;
 
     SnexPathFactory factory;
     Path snexIcon;
@@ -758,6 +800,7 @@ private:
 	HiseShapeButton showConsole;
 	HiseShapeButton showInfo;
 	HiseShapeButton bugButton;
+	HiseShapeButton showWatch;
 	TextButton compileButton;
 	TextButton resumeButton;
 	
@@ -767,8 +810,9 @@ private:
 	Spacer spacerAssembly;
 	Spacer spacerInfo;
 	Spacer spacerConsole;
+	Spacer spacerWatch;
 
-	ScopedPointer<Component> stateViewer;
+	
 
 	Array<Range<int>> scopeRanges;
 	ScopedPointer<TestCodeProvider> testProvider;

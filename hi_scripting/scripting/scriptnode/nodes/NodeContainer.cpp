@@ -551,18 +551,6 @@ NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree da
 		valuetree::AsyncMode::Synchronously,
 		[this](ValueTree child, bool wasAdded)
 	{
-		if (!wasAdded)
-		{
-			auto macroTargetId = child[PropertyIds::NodeId].toString();
-			auto parameterId = child[PropertyIds::ParameterId].toString();
-
-			if (auto macroTarget = parent->getRootNetwork()->getNodeWithId(macroTargetId))
-			{
-				if (parameterId == PropertyIds::Bypassed.toString())
-					macroTarget->getValueTree().removeProperty(PropertyIds::DynamicBypass, parent->getUndoManager());
-			}
-		}
-
 		rebuildCallback();
 	});
 

@@ -94,6 +94,8 @@ public:
 
 		void rebuild(const String& tokenText);
 
+		void createRecursive(DebugInformationBase::Ptr p);
+
 		void createVariableRows();
 		void createApiRows(const ValueTree &apiTree, const String& tokenText);
 		void createObjectPropertyRows(const ValueTree &apiTree, const String &tokenText);
@@ -103,7 +105,7 @@ public:
 
 		void addRowsFromObject(DebugableObjectBase* obj, const String& originalToken, const ValueTree& classTree);
 
-		void addRowFromApiClass(const ValueTree classTree, const String& originalToken);
+		void addRowFromApiClass(const ValueTree classTree, const String& originalToken, bool isTemplate=false);
 
 		KeyboardFocusTraverser* createFocusTraverser() override;
 
@@ -139,6 +141,9 @@ public:
 
 		struct RowInfo
 		{
+			RowInfo() = default;
+			RowInfo(DebugInformationBase::Ptr p);
+
             using WeakPtr = WeakReference<RowInfo>;
             using List = Array<WeakPtr>;
             
@@ -201,6 +206,12 @@ public:
 
 	// ================================================================================================================
 
+	struct AutocompleteTemplate
+	{
+		String token;
+		String classId;
+	};
+
 	enum DragState
 	{
 		Virgin = 0,
@@ -208,14 +219,7 @@ public:
 		NoJSONFound
 	};
 
-	enum ContextActions
-	{
-		JumpToDefinition = 101,
-		SearchReplace,
-		AddCodeBookmark,
-		FindAllOccurences,
-		numGenericContexts
-	};
+	
 
 	typedef Range<int> CodeRegion;
 
@@ -243,6 +247,13 @@ public:
 
 	void addPopupMenuItems(PopupMenu &m, const MouseEvent *e) override;
 	void performPopupMenuAction(int menuId) override;
+
+	void addAutocompleteTemplate(const String& expression, const String& classId)
+	{
+		autocompleteTemplates.add({ expression, classId });
+	}
+
+	String matchesAutocompleteTemplate(const String& token) const;
 
 	String getCurrentToken() const;
 
@@ -487,6 +498,7 @@ private:
 	String hoverText;
 	Point<int> hoverPosition;
 
+	Array<AutocompleteTemplate> autocompleteTemplates;
 
 	// ================================================================================================================
 

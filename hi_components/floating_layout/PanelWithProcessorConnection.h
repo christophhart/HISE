@@ -142,6 +142,8 @@ public:
 
 	const ModulatorSynthChain* getMainSynthChain() const;
 
+	void changeContentWithUndo(int newIndex);
+
 	void setContentWithUndo(Processor* newProcessor, int newIndex);
 
 	void refreshContent()
@@ -215,6 +217,8 @@ public:
 	{
 		currentIndex = newIndex;
 	}
+
+	int getCurrentIndex() const { return currentIndex; }
 
 	void setForceHideSelector(bool shouldHide)
 	{

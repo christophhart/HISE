@@ -224,7 +224,9 @@ void mcl::GutterComponent::paint(Graphics& g)
 		{
 			auto b = getRowBounds(*r);
 
-			b = b.removeFromLeft(b.getHeight()).reduced(3.5f);
+			auto height = document.getCharacterRectangle().getHeight();
+
+			b = b.removeFromLeft(height).withSizeKeepingCentre(height, height).translated(height * 0.2f, 0.0f);
 
 			auto t = h.getLineType(*bp);
 

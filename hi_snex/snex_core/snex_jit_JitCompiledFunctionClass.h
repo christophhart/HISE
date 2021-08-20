@@ -81,7 +81,7 @@ private:
 
 	static NamespacedIdentifier getMainId();
 
-	OwnedArray<DebugInformationBase> debugInformation;
+	ReferenceCountedArray<DebugInformationBase> debugInformation;
 	friend class ClassCompiler;
 	friend class JitObject;
 
@@ -131,7 +131,7 @@ public:
 
 	DebugableObjectBase* getDebugObject(const juce::String& token) override;
 
-	DebugInformationBase* getDebugInformation(int index)
+	DebugInformationBase::Ptr getDebugInformation(int index) override
 	{
 		return functionClass->debugInformation[index];
 	}

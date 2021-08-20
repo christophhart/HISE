@@ -1469,6 +1469,153 @@ struct SimpleReadWriteLock
 	bool fakeWriteLock = false;
 };
 
+
+template <typename ReturnType, typename... Ps> struct SafeLambdaBase
+{
+	ReturnType operator()(Ps...parameters)
+	{
+		return call(parameters...);
+	}
+
+	virtual ~SafeLambdaBase() {};
+
+	virtual ReturnType call(Ps... parameters) = 0;
+
+	virtual bool isValid() const = 0;
+};
+
+template <class T, typename ReturnType, typename...Ps> struct SafeLambda : public SafeLambdaBase<ReturnType, Ps...>
+{
+	using InternalLambda = std::function<ReturnType(T&, Ps...)>;
+
+	SafeLambda(T& obj, const InternalLambda& f_) :
+		item(&obj),
+		f(f_)
+	{
+
+	};
+
+	bool isValid() const final override { return item.get() != nullptr; };
+
+	ReturnType call(Ps... parameters) override
+	{
+		if (item != nullptr)
+			return f(*item, parameters...);
+
+		return ReturnType();
+	}
+
+private:
+
+	WeakReference<T> item;
+	InternalLambda f;
+};
+
+/** A listener class that can be used as member to implement a safe listener communication system.
+
+	You can specify the parameters that the callback will contain as template parameters.
+
+	This is most suitable for non-performance critical tasks that require the least amount of boilerplate
+	where you just want to implement a safe and simple listener system with a lean syntax.
+*/
+template <typename...Ps> struct LambdaBroadcaster final
+{
+	/** Creates a broadcaster. */
+	LambdaBroadcaster() :
+		updater(*this)
+	{};
+
+	/** This will cancel all pending callbacks. */
+	~LambdaBroadcaster()
+	{
+		updater.cancelPendingUpdate();
+
+		SimpleReadWriteLock::ScopedWriteLock sl(lock);
+		listeners.clear();
+	}
+
+	/** Use this method to add a listener to this class. You can use any object as obj. The second parameter
+		can be either a function pointer to a static function or a lambda with the signature
+
+		void callback(T& obj, Ps... parameters)
+
+		You don't need to bother about removing the listeners, they are automatically removed as soon before a
+		message is being sent out.
+
+		It will also fire the callback once with the last value so that the object will be initialised correctly.
+	*/
+	template <typename T, typename F> void addListener(T& obj, const F& f)
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(lock);
+		removeDanglingObjects();
+		listeners.add(new SafeLambda<T, void, Ps...>(obj, f));
+
+		std::apply(*listeners.getLast(), lastValue);
+	}
+
+	/** Sends a message to all registered listeners. Be aware that this call is not realtime safe as this class
+		is supposed to be used for non-audio related tasks.
+	*/
+	void sendMessage(NotificationType n, Ps... parameters)
+	{
+		lastValue = std::make_tuple(parameters...);
+
+		if (n != sendNotificationAsync)
+			sendInternal();
+		else
+			updater.triggerAsyncUpdate();
+	}
+
+private:
+
+	void removeDanglingObjects()
+	{
+		for (int i = 0; i < listeners.size(); i++)
+		{
+			if (!listeners[i]->isValid())
+			{
+				SimpleReadWriteLock::ScopedWriteLock sl(lock);
+				listeners.remove(i--);
+			}
+		}
+	}
+
+	std::tuple<Ps...> lastValue;
+
+	void sendInternal()
+	{
+		removeDanglingObjects();
+
+		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
+		{
+			for (auto i : listeners)
+			{
+				if (i->isValid())
+					std::apply(*i, lastValue);
+			}
+		}
+		else
+			updater.triggerAsyncUpdate();
+	}
+
+	struct Updater : public AsyncUpdater
+	{
+		Updater(LambdaBroadcaster& p) :
+			parent(p)
+		{};
+
+		void handleAsyncUpdate() override
+		{
+			parent.sendInternal();
+		};
+
+		LambdaBroadcaster& parent;
+	} updater;
+
+	hise::SimpleReadWriteLock lock;
+	OwnedArray<SafeLambdaBase<void, Ps...>> listeners;
+};
+
 /** This is a non allocating alternative to the AsyncUpdater.
 *	@ingroup event_handling
 *

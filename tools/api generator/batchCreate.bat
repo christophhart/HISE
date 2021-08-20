@@ -28,6 +28,10 @@ xcopy "xml\structhise_1_1_hise_javascript_engine_1_1_root_object_1_1_math_class.
 xcopy "xml\classhise_1_1_doxygen_array_functions.xml" "xml\selection"
 xcopy "xml\classhise_1_1_doxygen_string_functions.xml" "xml\selection"
 
+xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_look_and_feel.xml" "xml\selection"
+
+
+
 
 xcopy "xml\classhise_1_1_script_expansion_handler.xml" "xml\selection"
 xcopy "xml\classhise_1_1_script_expansion_reference.xml" "xml\selection"
@@ -54,6 +58,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_message_holder.xml" "xm
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_audio_sample_processor.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_table_processor.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_display_buffer_source.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_script_slider_pack_processor.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_effect.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_routing_matrix.xml" "xml\selection"
@@ -122,7 +127,10 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_effect.xml" "Ef
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_midi_processor.xml" "MidiProcessor.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_audio_sample_processor.xml" "AudioSampleProcessor.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_table_processor.xml" "TableProcessor.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_slider_pack_processor.xml" "SliderPackProcessor.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_display_buffer_source.xml" "DisplayBufferSource.xml"
+
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_look_and_feel.xml" "ScriptLookAndFeel.xml"
 
 
 

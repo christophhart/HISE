@@ -551,8 +551,7 @@ public:
 
 	String getDebugName() const override { return "DspNetwork"; }
 	String getDebugValue() const override { return getId(); }
-	void rightClickCallback(const MouseEvent& e, Component* c) override;
-
+	
 	NodeBase* getNodeForValueTree(const ValueTree& v);
 	NodeBase::List getListOfUnconnectedNodes() const;
 
@@ -1272,6 +1271,8 @@ struct DspNetworkListeners
 			if (v.hasProperty(definedId))
 				v.removeProperty(id, nullptr);
 		}
+
+	public:
 
 		static bool stripValueTree(ValueTree& v)
 		{

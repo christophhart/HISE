@@ -140,6 +140,7 @@ void ValueTreeApiHelpers::getColourAndCharForType(int type, char &c, Colour &col
 	case (int)4:			c = 'G'; break;
 	case (int)5:			c = 'F'; break;
 	case (int)6:			c = 'A'; break;
+	case (int)7:		c = 'F'; break;
 	case (int)8:		c = 'N'; break;
 	default:											c = 'V'; break;
 	}

@@ -79,9 +79,12 @@ bool LockHelpers::freeToGo(MainController* mc)
 
 	if (mc->getKillStateHandler().isAudioRunning())
 	{
+		if (mc->getJavascriptThreadPool().isCurrentlySleeping())
+			return true;
+
 		// The audio engine is not suspended. Wrap this call
 		// into a killVoicesAndCall lambda.
-		jassertfalse;
+		jassertfalse; 
 		return false;
 	}
 

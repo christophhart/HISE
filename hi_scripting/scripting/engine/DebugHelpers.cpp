@@ -72,37 +72,52 @@ String DebugInformation::varArrayToString(const Array<var> &arrayToStringify)
 }
 
 
-void DebugInformation::rightClickCallback(const MouseEvent& e, Component* componentToNotify)
+Component* DebugInformation::createPopupComponent(const MouseEvent& e, Component* componentToNotify)
 {
 	var v = getVariantCopy();
-
 
 	if (v.isBuffer())
 	{
 #if USE_BACKEND
 		auto display = new HiseAudioThumbnail();
-		display->setBuffer(v);
+		
+		
 
 		display->setName("Buffer Viewer");
 		display->setSize(500, 100);
 		display->setShouldScaleVertically(true);
+		display->setBuffer(v, var(), true);
 
-		auto e2 = e.getEventRelativeTo(componentToNotify);
+		
 
-		GET_BACKEND_ROOT_WINDOW(componentToNotify)->getRootFloatingTile()->showComponentInRootPopup(display, componentToNotify, Point<int>(componentToNotify->getWidth() / 2, e2.getMouseDownY() + 10));
+		return display;
+#else
+		return nullptr;
 #endif
-		return;
 	}
 
 	if (v.isObject() || v.isArray())
 	{
-		DebugableObject::Helpers::showJSONEditorForObject(e, componentToNotify, v, getTextForName());
+		return DebugableObject::Helpers::createJSONEditorForObject(e, componentToNotify, v, getTextForName());
 	}
+
+	return nullptr;
 }
 
 void DebugInformation::doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
 {
-	if (auto cso = dynamic_cast<ScriptingObject*>(getObject()))
+	auto obj = getObject();
+
+	if (auto pc = componentToNotify->findParentComponentOfClass<PanelWithProcessorConnection>())
+	{
+		auto p = pc->getConnectedProcessor();
+		DebugableObject::Helpers::gotoLocation(p, this);
+		return;
+	}
+
+	
+
+	if (auto cso = dynamic_cast<ScriptingObject*>(obj))
 	{
 		auto jp = dynamic_cast<Processor*>(cso->getProcessor());
 
@@ -146,7 +161,7 @@ String DebugInformation::toString()
 void gotoLocationInternal(Processor* processor, DebugableObject::Location location)
 {
 #if USE_BACKEND
-	auto editor = dynamic_cast<JavascriptCodeEditor*>(processor->getMainController()->getLastActiveEditor());
+	auto editor = processor->getMainController()->getLastActiveEditor();
 
 	if (editor == nullptr)
 		return;
@@ -205,37 +220,43 @@ void DebugableObject::Helpers::gotoLocation(Processor* processor, DebugInformati
 
 
 
-void DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p)
+Component* DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p)
 {
 #if USE_BACKEND
 	if (p != nullptr)
 	{
 		ProcessorEditorContainer *pc = new ProcessorEditorContainer();
 		pc->setRootProcessorEditor(p);
-
-		GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(pc, table, Point<int>(table->getWidth() / 2, e.getMouseDownY() + 40));
+		return pc;
 	}
 	else
 	{
 		PresetHandler::showMessageWindow("Processor does not exist", "The Processor is not existing, because it was deleted or the reference is wrong", PresetHandler::IconType::Error);
+        return nullptr;
 	}
 #else
 	ignoreUnused(e, table, p);
+	return nullptr;
 #endif
 }
 
-void DebugableObject::Helpers::showJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id)
+Component* DebugableObject::Helpers::createJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id)
 {
-#if USE_BACKEND
-
 	auto cleanedObject = getCleanedObjectForJSONDisplay(object);
 
 	JSONEditor* jsonEditor = new JSONEditor(cleanedObject);
 
 	jsonEditor->setName((cleanedObject.isArray() ? "Show Array: " : "Show Object: ") + id);
 	jsonEditor->setSize(500, 500);
-	auto e2 = e.getEventRelativeTo(table);
+	
+	return jsonEditor;
+}
 
+void DebugableObject::Helpers::showJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id)
+{
+#if USE_BACKEND
+	auto jsonEditor = createJSONEditorForObject(e, table, object, id);
+	auto e2 = e.getEventRelativeTo(table);
 	GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(jsonEditor, table, Point<int>(table->getWidth() / 2, e2.getMouseDownY() + 5));
 #else
 	ignoreUnused(e, table, object, id);
@@ -287,7 +308,7 @@ var DebugableObject::Helpers::getCleanedObjectForJSONDisplay(const var& object)
 		return object;
 }
 
-DebugInformationBase* DebugableObject::Helpers::getDebugInformation(ApiProviderBase* engine, DebugableObjectBase* object)
+DebugInformationBase::Ptr DebugableObject::Helpers::getDebugInformation(ApiProviderBase* engine, DebugableObjectBase* object)
 {
 	for (int i = 0; i < engine->getNumDebugObjects(); i++)
 	{
@@ -300,7 +321,7 @@ DebugInformationBase* DebugableObject::Helpers::getDebugInformation(ApiProviderB
 	return nullptr;
 }
 
-DebugInformationBase* DebugableObject::Helpers::getDebugInformation(ApiProviderBase* engine, const var& v)
+DebugInformationBase::Ptr DebugableObject::Helpers::getDebugInformation(ApiProviderBase* engine, const var& v)
 {
 	if (auto obj = dynamic_cast<DebugableObjectBase*>(v.getObject()))
 	{
@@ -309,10 +330,12 @@ DebugInformationBase* DebugableObject::Helpers::getDebugInformation(ApiProviderB
 
 	for (int i = 0; i < engine->getNumDebugObjects(); i++)
 	{
-		if(auto dbg = dynamic_cast<DebugInformation*>(engine->getDebugInformation(i)))
+		auto b = engine->getDebugInformation(i);
+
+		if(auto dbg = dynamic_cast<DebugInformation*>(b.get()))
 		{
 			if(dbg->getVariantCopy() == v)
-				return dbg;
+				return b;
 		}
 	}
 

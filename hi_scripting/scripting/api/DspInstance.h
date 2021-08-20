@@ -227,13 +227,11 @@ public:
 	DspInstance(const DspFactory *f, const String &moduleName_);
 	~DspInstance();
 
-	void initialise();
+		void initialise();
 	void unload();
 
 	String getDebugName() const override { return "DSP object"; }
 	String getDebugValue() const override { return moduleName; }
-
-	void rightClickCallback(const MouseEvent& e, Component* c) override;
 
 	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("DspModule") };
 

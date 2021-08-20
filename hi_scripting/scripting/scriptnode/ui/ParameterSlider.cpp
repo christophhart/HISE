@@ -944,8 +944,8 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index_) :
 
 	setName(pTree[PropertyIds::ID].toString());
 
-	connectionListener.setTypesToWatch({ PropertyIds::Connections, PropertyIds::ModulationTargets });
-	connectionListener.setCallback(pTree.getRoot(), valuetree::AsyncMode::Asynchronously,
+	connectionListener.setTypesToWatch({ PropertyIds::Connections, PropertyIds::ModulationTargets, PropertyIds::Nodes });
+	connectionListener.setCallback(pTree.getRoot(), valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(ParameterSlider::updateOnConnectionChange));
 
 	rangeListener.setCallback(pTree, RangeHelpers::getRangeIds(),
@@ -984,6 +984,9 @@ ParameterSlider::~ParameterSlider()
 
 void ParameterSlider::updateOnConnectionChange(ValueTree p, bool wasAdded)
 {
+	if (p.hasType(PropertyIds::Node) && wasAdded)
+		return;
+
 	if (!matchesConnection(p))
 		return;
 
@@ -999,7 +1002,10 @@ void ParameterSlider::checkEnabledState()
 	if (modulationActive)
 		start();
 	else
+	{
 		stop();
+		parameterToControl->getReferenceToCallback().setDisplaySource(nullptr);
+	}
 
 	if (auto g = findParentComponentOfClass<DspNetworkGraph>())
 		g->repaint();

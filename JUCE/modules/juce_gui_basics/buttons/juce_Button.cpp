@@ -196,9 +196,11 @@ void Button::setToggleState (bool shouldBeOn, bool sendChange)
     setToggleState (shouldBeOn, sendChange ? sendNotification : dontSendNotification);
 }
 
-void Button::setClickingTogglesState (bool shouldToggle) noexcept
+void Button::setClickingTogglesState (bool shouldToggle, bool rc) noexcept
 {
     clickTogglesState = shouldToggle;
+	rightClickTogglesState = rc;
+	
 
     // if you've got clickTogglesState turned on, you shouldn't also connect the button
     // up to be a command invoker. Instead, your command handler must flip the state of whatever
@@ -336,10 +338,10 @@ void Button::triggerClick()
 
 void Button::internalClickCallback (const ModifierKeys& modifiers)
 {
-    if (clickTogglesState)
+	if (clickTogglesState && (!modifiers.isRightButtonDown() || rightClickTogglesState))
     {
         const bool shouldBeOn = (radioGroupId != 0 || ! lastToggleState);
-
+		
         if (shouldBeOn != getToggleState())
         {
             setToggleState (shouldBeOn, sendNotification);

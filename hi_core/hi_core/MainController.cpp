@@ -1546,29 +1546,31 @@ bool MainController::isInitialised() const noexcept
 
 void MainController::insertStringAtLastActiveEditor(const String &string, bool selectArguments)
 {
+#if USE_BACKEND
 	if (lastActiveEditor.getComponent() != nullptr)
 	{
-		lastActiveEditor->getDocument().deleteSection(lastActiveEditor->getSelectionStart(), lastActiveEditor->getSelectionEnd());
-        lastActiveEditor->moveCaretTo(CodeDocument::Position(lastActiveEditor->getDocument(), lastCharacterPositionOfSelectedEditor), false);
+		auto ed = dynamic_cast<PopupIncludeEditor::EditorType*>(lastActiveEditor.getComponent());
 
-		lastActiveEditor->insertTextAtCaret(string);
+#if !HISE_USE_NEW_CODE_EDITOR
 
-
+		ed->getDocument().deleteSection(ed->getSelectionStart(), ed->getSelectionEnd());
+        ed->moveCaretTo(CodeDocument::Position(ed->getDocument(), lastCharacterPositionOfSelectedEditor), false);
+		ed->insertTextAtCaret(string);
 
 		if (selectArguments)
 		{
-			lastActiveEditor->moveCaretLeft(false, false);
+			ed->moveCaretLeft(false, false);
 
-			while (!lastActiveEditor->getTextInRange(lastActiveEditor->getHighlightedRegion()).contains("("))
-			{
-				lastActiveEditor->moveCaretLeft(false, true);
-			}
+			while (!ed->getTextInRange(ed->getHighlightedRegion()).contains("("))
+				ed->moveCaretLeft(false, true);
 
-			lastActiveEditor->moveCaretRight(false, true);
+			ed->moveCaretRight(false, true);
 		}
 
-		lastActiveEditor->grabKeyboardFocus();
+#endif
+		ed->grabKeyboardFocus();
 	}
+#endif
 }
 
 bool MainController::checkAndResetMidiInputFlag()

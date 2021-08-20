@@ -166,12 +166,12 @@ public:
 				i->setBoldLine(lineToBolden);
 			}
 		}
-
-		
 	}
 
 	void displayedLineRangeChanged(Range<int> newRange) override
 	{
+		lastRange = newRange;
+
 		for (auto i : items)
 			i->setDisplayedRange(newRange);
 			
@@ -187,13 +187,15 @@ public:
 	struct Item : public Component,
 				  public TooltipWithArea::Client
 	{
-		static const int Height = 20;
+		static const int Height = 24;
 
 		Item(FoldableLineRange::WeakPtr p_, FoldMap& m) :
 			p(p_)
 		{
 			text = m.getTextForFoldRange(p);
 			type = Helpers::getEntryType(text);
+
+			bestWidth = getFont().boldened().getStringWidth(text) + roundToInt((float)Helpers::getLevel(p) * 5.0f);
 
 			int h = Height;
 
@@ -209,9 +211,8 @@ public:
 				h += n->getHeight();
 				children.add(n.release());
 
+				bestWidth = jmax(bestWidth, children.getLast()->bestWidth + 10);
 			}
-
-			
 
 			setRepaintsOnMouseActivity(true);
 			setSize(1, h);
@@ -307,22 +308,26 @@ public:
 			}
 		}
 
+		Font getFont() { return Font(Font::getDefaultMonospacedFontName(), 14.0f, clicked ? Font::bold : Font::plain); }
+
+
 		void paint(Graphics& g) override
 		{
 			auto a = getLocalBounds().removeFromTop(Height).toFloat();;
 
-			//Font f(Font::getDefaultMonospacedFontName(), 13.0f, clicked ? Font::bold : Font::plain);
+			auto f = getFont();
 
-			auto f = GLOBAL_FONT().withHeight(12.0f);
+			//auto f = GLOBAL_FONT().withHeight(12.0f);
 
+			
 
 			if (isBoldLine)
 				f = f.boldened();
 
 			if (edgeOnScreen) 
 			{
-				auto b = a.removeFromRight(4.0f);
-				g.setColour(Colours::white.withAlpha(0.07f));
+				auto b = a;// .removeFromRight(4.0f);
+				g.setColour(Colours::white.withAlpha(0.03f));
 				g.fillRect(b);
 
 				if (onScreen)
@@ -386,7 +391,7 @@ public:
 			
 
 			g.setFont(f);
-			g.setColour(Colours::white.withAlpha(isBoldLine ? 1.0f : 0.8f));
+			g.setColour(Colours::white.withAlpha(isBoldLine ? 1.0f : 0.6f));
 
 			a.removeFromLeft((float)Helpers::getLevel(p) * 5.0f);
 
@@ -405,13 +410,14 @@ public:
 
 		OwnedArray<Item> children;
 		bool clicked = false;
+
+		int bestWidth = 0;
 	};
 
 	
 
 	FoldMap(TextDocument& d) :
-		doc(d),
-		resizer(this, nullptr, ResizableEdgeComponent::leftEdge)
+		doc(d)
 	{
 		doc.addFoldListener(this);
 		doc.addSelectionListener(this);
@@ -420,14 +426,26 @@ public:
 		addAndMakeVisible(vp);
 		vp.setColour(ScrollBar::ColourIds::thumbColourId, Colours::white.withAlpha(0.2f));
 		vp.setScrollBarThickness(10);
-
-		addAndMakeVisible(resizer);
 	};
 
 	~FoldMap()
 	{
 		doc.removeFoldListener(this);
 		doc.removeSelectionListener(this);
+	}
+
+	int getBestWidth() const
+	{
+		Font f(Font::getDefaultMonospacedFontName(), 13.0f, Font::bold);
+
+		int maxWidth = 0;
+
+		for (auto i : items)
+		{
+			maxWidth = jmax(maxWidth, i->bestWidth + JUCE_LIVE_CONSTANT_OFF(35));
+		}
+
+		return maxWidth;
 	}
 
 	void foldStateChanged(FoldableLineRange::WeakPtr rangeThatHasChanged) override
@@ -437,7 +455,7 @@ public:
 
 	void paint(Graphics& g) override
 	{
-		g.fillAll(Colours::black.withAlpha(0.2f));
+		g.fillAll(Colours::black.withAlpha(0.3f));
 	}
 
 	void rootWasRebuilt(FoldableLineRange::WeakPtr rangeThatHasChanged) override
@@ -467,6 +485,9 @@ public:
 
 		content.setSize(getWidth() - vp.getScrollBarThickness(), h);
 		updateSize();
+
+		selectionChanged();
+		displayedLineRangeChanged(lastRange);
 	}
 
 	void updateSize()
@@ -478,17 +499,15 @@ public:
 			i->setBounds(0, y, content.getWidth(), i->getHeight());
 			y += i->getHeight();
 		}
+
+		repaint();
 	}
 
 	void resized() override
 	{
 		updateSize();
 		vp.setBounds(getLocalBounds());
-
-		resizer.setBounds(getLocalBounds().removeFromLeft(5));
 	}
-
-	ResizableEdgeComponent resizer;
 
 	Viewport vp;
 	Component content;
@@ -497,6 +516,7 @@ public:
 
 	FoldableLineRange::Ptr root;
 
+	Range<int> lastRange;
 
 	TextDocument& doc;
 };

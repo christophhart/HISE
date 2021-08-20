@@ -126,6 +126,29 @@ public:
 		WeakReference<HiseJavascriptEngine> engine;
 	};
 
+	struct TokenProvider : public mcl::TokenCollection::Provider,
+						   public hise::GlobalScriptCompileListener
+	{
+		struct DebugInformationToken;
+		struct ObjectMethodToken;
+		struct KeywordToken;
+		struct ApiToken;
+
+		TokenProvider(JavascriptProcessor* jp_);;
+
+		~TokenProvider();
+
+		void addTokens(mcl::TokenCollection::List& tokens) override;
+
+		void scriptWasCompiled(JavascriptProcessor *processor) override
+		{
+			if (jp == processor)
+				signalRebuild();
+		}
+
+		WeakReference<JavascriptProcessor> jp;
+	};
+
 	/** Attempts to parse and run a block of javascript code.
 	If there's a parse or execution error, the error description is returned in
 	the result.
@@ -199,7 +222,7 @@ public:
 
 	String getHoverString(const String& token);
 
-	DebugInformationBase* getDebugInformation(int index);
+	DebugInformationBase::Ptr getDebugInformation(int index);
 
 #if 0
 	var getDebugObject(const Identifier &id) const;
@@ -600,6 +623,13 @@ public:
 
 			String getDebugName() const override { return callbackName.toString() + "()"; }
 
+			int getNumChildElements() const override
+			{
+				return getNumArgs() + localProperties.size();
+			}
+
+			DebugInformation* getChildElement(int index) override;
+
 			String::CharPointerType getProgramPtr() const;
 
 			void setParameterValue(int parameterIndex, const var& newValue)
@@ -649,6 +679,10 @@ public:
 
 			void cleanLocalProperties()
 			{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+				return;
+#endif
+
 				if (!localProperties.isEmpty())
 				{
 					for (int i = 0; i < localProperties.size(); i++)
@@ -678,6 +712,8 @@ public:
 			const double bufferTime;
 
 			bool isCallbackDefined = false;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Callback);
 		};
 
 		struct JavascriptNamespace: public ReferenceCountedObject,
@@ -709,18 +745,30 @@ public:
 				DebugableObject::Helpers::gotoLocation(e, nullptr, namespaceLocation);
 			}
 
+			int getNumChildElements() const override
+			{
+				return varRegister.getNumUsedRegisters() +
+					inlineFunctions.size() +
+					constObjects.size();
+			}
+
+			DebugInformationBase* getChildElement(int index) override
+			{
+				return createDebugInformation(index);
+			}
+			
+
 			int getNumDebugObjects() const
 			{
-				return varRegister.getNumUsedRegisters() + 
-					   inlineFunctions.size() + 
-					   constObjects.size();
+				return 0;
+				
 			}
 
 			bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
 
 			void prepareCycleReferenceCheck() override;
 
-			DebugInformation* createDebugInformation(int index) const;
+			DebugInformation* createDebugInformation(int index);
 
 			const Identifier id;
 			ReferenceCountedArray<DynamicObject> inlineFunctions;
@@ -732,6 +780,8 @@ public:
 			Array<DebugableObject::Location> constLocations;
 
 			DebugableObject::Location namespaceLocation;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptNamespace);
 		};
 
 		struct HiseSpecialData: public JavascriptNamespace
@@ -837,7 +887,9 @@ public:
 
 			CriticalSection debugLock;
 
-			OwnedArray<DebugInformationBase> debugInformation;
+			ReferenceCountedArray<DebugInformationBase> debugInformation;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(HiseSpecialData);
 		};
 
 		void setUseCycleReferenceCheckForNextCompilation()

@@ -54,7 +54,7 @@ public:
 			if (input.length() == 1)
 				return code.toLowerCase().startsWith(input.toLowerCase());
 			else
-				return code.toLowerCase().contains(input.toLowerCase());
+				return FuzzySearcher::fitsSearch(input.toLowerCase(), code.toLowerCase(), JUCE_LIVE_CONSTANT_OFF(0.6));
 		}
 
 		virtual bool equals(const Token* other) const
@@ -67,11 +67,11 @@ public:
 			return equals(&other) && other.equals(this);
 		}
 
-		virtual Array<Range<int>> getSelectionRangeAfterInsert() const
+		virtual Array<Range<int>> getSelectionRangeAfterInsert(const String& input) const
 		{
 			Array<Range<int>> parameterRanges;
 
-			auto code = getCodeToInsert("");
+			auto code = getCodeToInsert(input);
 
 			auto ptr = code.getCharPointer();
 			auto start = ptr;
@@ -123,6 +123,8 @@ public:
 
 			return parameterRanges;
 		}
+
+		virtual MarkdownLink getLink() const { return MarkdownLink(); };
 
 		/** Override this method if you want to customize the code that is about to be inserted. */
 		virtual String getCodeToInsert(const String& input) const { return tokenContent; }
@@ -188,8 +190,22 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
+	void setEnabled(bool shouldBeEnabled)
+	{
+		if (shouldBeEnabled != enabled)
+		{
+			enabled = shouldBeEnabled;
+
+			if (enabled && !buildLock.writeAccessIsLocked())
+				signalRebuild();
+		}
+	}
+
 	void signalRebuild()
 	{
+		if (!enabled)
+			return;
+
 		stopThread(1000);
 		startThread();
 	}
@@ -233,10 +249,16 @@ public:
 		if (CharacterFunctions::isDigit(previousToken[0]))
 			return false;
 
-		for (auto t : tokens)
+		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(buildLock))
 		{
-			if (t->matches(input, previousToken, lineNumber))
-				return true;
+			for (auto t : tokens)
+			{
+				if (dirty || isThreadRunning())
+					return false;
+
+				if (t->matches(input, previousToken, lineNumber))
+					return true;
+			}
 		}
 
 		return false;
@@ -277,6 +299,8 @@ public:
 	{
 		if (dirty)
 		{
+			SimpleReadWriteLock::ScopedWriteLock sl(buildLock);
+
 			List newTokens;
 
 			for (auto tp : tokenProviders)
@@ -297,6 +321,8 @@ public:
 		}
 	}
 
+	bool isEnabled() const { return enabled; }
+
 	private:
 
 	struct Sorter
@@ -313,28 +339,41 @@ public:
 		}
 	};
 
+	
+
 private:
 
+	bool enabled = true;
 	OwnedArray<Provider> tokenProviders;
 	Array<WeakReference<Listener>> listeners;
 	List tokens;
 	int64 currentHash;
 	std::atomic<bool> dirty = { false };
 
+	mutable SimpleReadWriteLock buildLock;
+
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(TokenCollection);
 };
 
 /** A TokenCollection::Provider subclass that scans the current document and creates a list of all tokens. */
 struct SimpleDocumentTokenProvider : public TokenCollection::Provider,
-									 public CoallescatedCodeDocumentListener
+									 public CoallescatedCodeDocumentListener,
+							         public Timer
 {
 	SimpleDocumentTokenProvider(CodeDocument& doc) :
 		CoallescatedCodeDocumentListener(doc)
 	{}
 
-	void codeChanged(bool, int, int) override
+	void timerCallback() override
 	{
 		signalRebuild();
+		stopTimer();
+	}
+
+	void codeChanged(bool, int, int) override
+	{
+		startTimer(5000);
 	}
 
 	void addTokens(TokenCollection::List& tokens) override
@@ -507,15 +546,7 @@ struct Autocomplete : public Component,
 		String input;
 	};
 
-	Autocomplete(TokenCollection& tokenCollection_, const String& input, const String& previousToken, int lineNumber) :
-		tokenCollection(tokenCollection_),
-		scrollbar(true),
-		shadow(DropShadow(Colours::black.withAlpha(0.7f), 5, {}))
-	{
-		addAndMakeVisible(scrollbar);
-		setInput(input, previousToken, lineNumber);
-		scrollbar.addListener(this);
-	}
+	Autocomplete(TokenCollection& tokenCollection_, const String& input, const String& previousToken, int lineNumber, TextEditor* editor_);
 
 	~Autocomplete()
 	{
@@ -528,11 +559,11 @@ struct Autocomplete : public Component,
 
 	void cancel();
 
-	Array<Range<int>> getSelectionRange() const
+	Array<Range<int>> getSelectionRange(const String& input) const
 	{
 		if (isPositiveAndBelow(viewIndex, items.size()))
 		{
-			return items[viewIndex]->token->getSelectionRangeAfterInsert();
+			return items[viewIndex]->token->getSelectionRangeAfterInsert(input);
 		}
 
 		return {};
@@ -644,78 +675,11 @@ struct Autocomplete : public Component,
 		return false;
 	}
 
-	void setInput(const String& input, const String& previousToken, int lineNumber)
-	{
-		currentInput = input;
-
-		auto currentlyDisplayedItem = getCurrentText();
-		items.clear();
-
-		viewIndex = 0;
-
-		for (auto t : tokenCollection)
-		{
-			if (t->matches(input, previousToken, lineNumber))
-			{
-				if (t->tokenContent == currentlyDisplayedItem)
-					viewIndex = items.size();
-
-				items.add(createItem(t, input));
-				addAndMakeVisible(items.getLast());
-			}
-		}
-
-		int numLinesFull = 7;
-
-		if (isPositiveAndBelow(numLinesFull, items.size()))
-		{
-			displayedRange = { 0, numLinesFull };
-
-			displayedRange = displayedRange.movedToStartAt(viewIndex);
-
-			if (displayedRange.getEnd() >= items.size())
-			{
-				displayedRange = displayedRange.movedToEndAt(items.size() - 1);
-			}
-
-		}
-		else
-			displayedRange = { 0, items.size() };
-
-		scrollbar.setRangeLimits({ 0.0, (double)items.size() });
-
-		setDisplayedIndex(viewIndex);
-
-		auto h = getNumDisplayedRows() * getRowHeight();
-
-		if (items.size() == 0)
-			cancel();
-
-		if (isSingleMatch())
-		{
-			cancel();
-		}
-		else
-		{
-			auto maxWidth = 0;
-
-			auto nf = Font(Font::getDefaultMonospacedFontName(), 16.0f, Font::plain);
-
-			for (auto& i : items)
-			{
-
-				maxWidth = jmax(maxWidth, nf.getStringWidth(i->token->tokenContent) + 20);
-			}
-
-			setSize(maxWidth, h);
-			resized();
-			repaint();
-		}
-	}
+	void setInput(const String& input, const String& previousToken, int lineNumber);
 
 	int getRowHeight() const
 	{
-		return 28;
+		return roundToInt(28.0f * getScaleFactor());
 	}
 
 	void paint(Graphics& g) override
@@ -736,6 +700,8 @@ struct Autocomplete : public Component,
 	{
 		return displayedRange.getLength();
 	}
+
+	float getScaleFactor() const;
 
 	void resized() override
 	{
@@ -773,6 +739,8 @@ struct Autocomplete : public Component,
 	bool allowPopup = false;
 
 	ScopedPointer<HelpPopup> helpPopup;
+
+	WeakReference<TextEditor> editor;
 };
 
 

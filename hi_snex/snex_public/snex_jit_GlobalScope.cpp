@@ -105,8 +105,6 @@ GlobalScope::GlobalScope() :
 	runtimeError(Result::ok()),
 	polyHandler(false)
 {
-	bufferHandler = new BufferHandler();
-
 	blockType = new DynType(TypeInfo(Types::ID::Float));
 	blockType->setAlias(NamespacedIdentifier("block"));
 

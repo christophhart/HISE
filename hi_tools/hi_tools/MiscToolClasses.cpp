@@ -295,7 +295,7 @@ bool FuzzySearcher::fitsSearch(const String &searchTerm, const String &stringToM
 	if (stringToMatch.contains(searchTerm))
 	{
 		return true;
-}
+	}
 
 	// Calculate the Levenshtein-distance:
 	int levenshteinDistance = getLevenshteinDistance(searchTerm, stringToMatch);

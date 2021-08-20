@@ -86,7 +86,7 @@ struct Helpers
 
 	static void dumpNativeData(juce::String& s, int intendationLevel, const juce::String& symbol, void* dataStart, void* dataPointer, size_t byteSize, Types::ID type);
 
-
+	static String getStringFromDataPtr(Types::ID type, void* data);;
 
 	template <typename T> static String getTypeNameFromTypeId()
 	{

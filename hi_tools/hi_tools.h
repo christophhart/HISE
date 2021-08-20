@@ -67,6 +67,17 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
+/** Config: HISE_USE_NEW_CODE_EDITOR
+
+	Set this to false in order to use the old code editor for HiseScript files.
+	The new editor might be a bit quirky until it's been tested more, so if you are
+	on a tight schedule you might want to revert to the old one until the kinks are
+	sorted out.
+*/
+#ifndef HISE_USE_NEW_CODE_EDITOR
+#define HISE_USE_NEW_CODE_EDITOR 1
+#endif
+
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
 
@@ -81,10 +92,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../hi_zstd/hi_zstd.h"
-
 #endif
-
-
 
 #include "../hi_streaming/hi_streaming.h"
 

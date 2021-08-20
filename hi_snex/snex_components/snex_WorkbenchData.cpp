@@ -721,4 +721,158 @@ void ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 	cpuUsage = delta / calculatedSeconds;
 }
 
+int ui::WorkbenchData::CompileResult::getNumDebugObjects() const
+{
+	if (dataPtr == nullptr)
+		return 0;
+
+	int numObjects = 0;
+
+	if (auto st = dynamic_cast<StructType*>(mainClassPtr.get()))
+	{
+		String s;
+		int intent = 0;
+		st->dumpTable(s, intent, dataPtr, dataPtr);
+
+		DBG(s);
+
+		numObjects += st->getNumMembers();
+	}
+
+	return numObjects;
+}
+
+hise::DebugInformationBase::Ptr ui::WorkbenchData::CompileResult::getDebugInformation(int index)
+{
+	if (dataPtr == nullptr)
+		return nullptr;
+
+	if (auto st = dynamic_cast<StructType*>(mainClassPtr.get()))
+	{
+		if (isPositiveAndBelow(index, st->getNumMembers()))
+		{
+			auto id = st->getMemberName(index);
+			auto ptr = reinterpret_cast<uint8*>(dataPtr) + st->getMemberOffset(index);
+			return new CompileResult::DataEntry(st->getMemberTypeInfo(id), ptr, id);
+		}
+	}
+
+	return nullptr;
+}
+
+int ui::WorkbenchData::CompileResult::DataEntry::getType() const
+{
+	if (type.getTypedIfComplexType<DynType>())
+		return (int)DataTypes::Dyn;
+
+	if (type.getTypedIfComplexType<SpanType>())
+		return (int)DataTypes::Span;
+
+	if (type.getTypedIfComplexType<StructType>())
+		return (int)DataTypes::Struct;
+
+	if (type.getType() == Types::ID::Integer)
+		return (int)DataTypes::Integer;
+
+	if (type.getType() == Types::ID::Double)
+		return (int)DataTypes::Double;
+
+	if (type.getType() == Types::ID::Float)
+		return (int)DataTypes::Float;
+
+	return 0;
+}
+
+String ui::WorkbenchData::CompileResult::DataEntry::getTextForValue() const
+{
+	if (type.isComplexType())
+	{
+		if (type.toString() == "HiseEvent")
+		{
+			auto t = static_cast<HiseEvent*>(data)->toDebugString();
+			return t.replace("Number", "N").replace("Value", "V").replace("Channel", "C");
+		}
+
+		String s;
+		s << "0x" << String::toHexString((uint64_t)data).toUpperCase();
+		return s;
+	}
+
+	return Types::Helpers::getStringFromDataPtr(type.getType(), data);
+}
+
+int ui::WorkbenchData::CompileResult::DataEntry::getNumChildElements() const
+{
+	if (auto st = type.getTypedIfComplexType<StructType>())
+	{
+		if (st->id == NamespacedIdentifier("HiseEvent"))
+		{
+			return 0;
+		}
+
+		return st->getNumMembers();
+	}
+
+	if (auto dyn = type.getTypedIfComplexType<DynType>())
+	{
+		auto ptr = reinterpret_cast<uint8*>(data);
+		auto size = *reinterpret_cast<int*>(ptr + 4);
+		return jmin(1024, size);
+	}
+
+	if (auto sp = type.getTypedIfComplexType<SpanType>())
+	{
+		return jmin(1024, sp->getNumElements());
+	}
+
+	return 0;
+}
+
+hise::DebugInformationBase::Ptr ui::WorkbenchData::CompileResult::DataEntry::getChildElement(int index)
+{
+	if (auto st = type.getTypedIfComplexType<StructType>())
+	{
+		if (isPositiveAndBelow(index, st->getNumMembers()))
+		{
+			auto d = reinterpret_cast<uint8*>(data) + st->getMemberOffset(index);
+
+			String eid = id.toString();
+
+			auto mid = st->getMemberName(index);
+
+			eid << "." << mid;
+			return new DataEntry(st->getMemberTypeInfo(mid), d, eid);
+		}
+	}
+
+	if (auto dyn = type.getTypedIfComplexType<DynType>())
+	{
+		auto ptr = reinterpret_cast<uint8*>(data);
+		auto dynPtr = *reinterpret_cast<uint8**>(ptr + 8);
+
+		auto d = dynPtr + index * dyn->getElementType().getRequiredByteSizeNonZero();
+
+		String eid = id.toString();
+		eid << "[" << String(index) << "]";
+
+		return new DataEntry(dyn->getElementType(), d, Identifier(eid));
+	}
+
+	if (auto sp = type.getTypedIfComplexType<SpanType>())
+	{
+		if (isPositiveAndBelow(index, sp->getNumElements()))
+		{
+			auto d = reinterpret_cast<uint8*>(data) + index * sp->getElementSize();
+
+			String eid = id.toString();
+			eid << "[" << String(index) << "]";
+
+			return new DataEntry(sp->getElementType(), d, Identifier(eid));
+			
+		}
+	}
+
+	return nullptr;
+}
+
 }

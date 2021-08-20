@@ -57,7 +57,7 @@ public:
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override { wrapper.reset(); }
 
-	
+	String getNodeDescription() const override { return "A container for serial processing of nodes"; }
 
 private:
 
@@ -88,6 +88,8 @@ public:
 	int getBlockSizeForChildNodes() const override;
 	double getSampleRateForChildNodes() const override;
 
+	String getNodeDescription() const override { return "a serial chain optimized for modulation sources"; }
+
 private:
 
 	bool isProcessingFrame = false;
@@ -113,6 +115,8 @@ public:
 		return Colour(MIDI_PROCESSOR_COLOUR);
 	}
 
+	String getNodeDescription() const override { return "Sends MIDI events to child nodes"; }
+
 private:
 
 	wrap::event<SerialNode::DynamicSerialProcessor> obj;
@@ -131,6 +135,8 @@ public:
 	void prepare(PrepareSpecs ps) override;
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override;
+
+	String getNodeDescription() const override { return "Prevents child nodes from processing MIDI events"; }
 
 private:
 
@@ -170,6 +176,8 @@ public:
 
 	void updateBypassState(Identifier, var );
 
+	String getNodeDescription() const override { return "Processes the child nodes with a higher samplerate"; }
+
 	void prepare(PrepareSpecs ps) override;
 	void reset() final override;
 	void handleHiseEvent(HiseEvent& e) final override;
@@ -189,6 +197,8 @@ public:
 	static constexpr int FixedBlockSize = B;
 
 	SCRIPTNODE_FACTORY(FixedBlockNode<B>, "fix" + String(FixedBlockSize) + "_block");
+
+	String getNodeDescription() const override { return "Split the audio signal into fixed length chunks of " + String(B) + " samples."; }
 
 	FixedBlockNode(DspNetwork* network, ValueTree d);
 
@@ -286,6 +296,8 @@ public:
 
 	SCRIPTNODE_FACTORY(FixedBlockXNode, "fix_blockx");
 
+	String getNodeDescription() const override { return "Split the audio signal into adjustable fixed length chunks"; }
+
 	FixedBlockXNode(DspNetwork* network, ValueTree d);
 
 	void process(ProcessDataDyn& data) final override;
@@ -329,6 +341,8 @@ public:
 	SplitNode(DspNetwork* root, ValueTree data);;
 
 	SCRIPTNODE_FACTORY(SplitNode, "split");
+
+	String getNodeDescription() const override { return "Processes each node independently and sums up the output."; }
 
 	void prepare(PrepareSpecs ps) override;
 	void reset() final override;
@@ -395,6 +409,8 @@ public:
 
 	SCRIPTNODE_FACTORY(MultiChannelNode, "multi");
 
+	String getNodeDescription() const override { return "Process every channel with a different child node"; }
+
 	void prepare(PrepareSpecs ps) final override;
 	void reset() final override;
 	void handleHiseEvent(HiseEvent& e) override;
@@ -415,6 +431,8 @@ public:
 
 	SCRIPTNODE_FACTORY(SingleSampleBlockX, "framex_block");
 
+	String getNodeDescription() const override { return "Enables per sample processing for the child nodes."; }
+
 	void prepare(PrepareSpecs ps) final override;
 	void reset() final override;
 	void process(ProcessDataDyn& data) final override;
@@ -433,6 +451,8 @@ public:
 
 	using FixProcessType = snex::Types::ProcessData<NumChannels>;
 	using FixFrameType = snex::Types::span<float, NumChannels>;
+
+	String getNodeDescription() const override { return "Per sample processing for " + String(NumChannels) + " audio channels"; }
 
 	SingleSampleBlock(DspNetwork* n, ValueTree d) :
 		SerialNode(n, d)

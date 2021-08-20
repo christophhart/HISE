@@ -46,6 +46,7 @@ struct Selection
 	};
 
 	Selection() {}
+	Selection(const juce::CodeDocument& doc, int headChar, int tailChar);
 	Selection(juce::Point<int> head) : head(head), tail(head) {}
 	Selection(juce::Point<int> head, juce::Point<int> tail) : head(head), tail(tail) {}
 	Selection(int r0, int c0, int r1, int c1) : head(r0, c0), tail(r1, c1) {}

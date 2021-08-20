@@ -57,6 +57,8 @@ void SnexSource::recompiled(WorkbenchData::Ptr wb)
 	{
 		objPtr->initialiseObjectStorage(object);
 
+		wb->getLastResultReference().setDataPtrForDebugging(object.getObjectPtr());
+
 #if 0
 		String s;
 		int l = 0;

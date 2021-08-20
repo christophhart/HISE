@@ -54,6 +54,7 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 	p(dynamic_cast<Processor*>(p_))
 {
 	processor->getScriptingContent()->addRebuildListener(this);
+	processor->getScriptingContent()->setScreenshotListener(this);
 
     setNewContent(processor->getScriptingContent());
 
@@ -151,11 +152,6 @@ void ScriptContentComponent::updateValue(int i)
 	if (o != nullptr)
 	{
 		o->updateValue(dontSendNotification);
-	}
-
-	if (TableEditor *t = dynamic_cast<TableEditor*>(componentWrappers[i]->getComponent()))
-	{
-		t->setDisplayedIndex((float)contentData->components[i]->value / 127.0f);
 	}
 
 	if (Slider *s = dynamic_cast<Slider*>(componentWrappers[i]->getComponent()))
@@ -396,6 +392,51 @@ void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *jp)
 	}
 }
 
+void ScriptContentComponent::makeScreenshot(const File& target, Rectangle<float> area)
+{
+	WeakReference<ScriptContentComponent> safeThis(this);
+
+	auto f = [safeThis, target, area]()
+	{
+		if (safeThis != nullptr)
+		{
+			ScriptingObjects::ScriptShader::ScopedScreenshotRenderer ssr;
+
+			auto sf = UnblurryGraphics::getScaleFactorForComponent(safeThis.get());
+
+			auto img = safeThis->createComponentSnapshot(area.toNearestInt(), true, sf);
+
+			juce::PNGImageFormat png;
+
+			target.deleteFile();
+
+			FileOutputStream fos(target);
+
+			auto ok = png.writeImageToStream(img, fos);
+
+			if (ok)
+			{
+				debugToConsole(dynamic_cast<Processor*>(safeThis->processor), "Screenshot exported as " + target.getFullPathName());
+			}
+		}
+	};
+
+	MessageManager::callAsync(f);
+}
+
+void ScriptContentComponent::visualGuidesChanged()
+{
+	Component::SafePointer<Component> safeThis(this);
+
+	auto f = [safeThis]()
+	{
+		if(safeThis != nullptr)
+			safeThis->repaint();
+	};
+
+	MessageManager::callAsync(f);
+}
+
 void ScriptContentComponent::contentWasRebuilt()
 {
 	contentRebuildNotifier.notify(processor->getScriptingContent());
@@ -452,6 +493,7 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 	updateContent();
     
     addMouseListenersForComponentWrappers();
+	repaint();
 }
 
 void ScriptContentComponent::addMouseListenersForComponentWrappers()
@@ -512,6 +554,39 @@ void ScriptContentComponent::paint(Graphics &g)
 #else
 	ignoreUnused(g);
 #endif
+}
+
+void ScriptContentComponent::paintOverChildren(Graphics& g)
+{
+#if USE_BACKEND
+
+	const auto& guides = processor->getScriptingContent()->guides;
+
+	if (!guides.isEmpty() && !ScriptingObjects::ScriptShader::isRenderingScreenshot())
+	{
+		UnblurryGraphics ug(g, *this, true);
+
+		for (const auto& vg : guides)
+		{
+			g.setColour(vg.c);
+
+			if (vg.t == ScriptingApi::Content::VisualGuide::Type::HorizontalLine)
+				ug.draw1PxHorizontalLine(vg.area.getY(), vg.area.getX(), vg.area.getRight());
+			if (vg.t == ScriptingApi::Content::VisualGuide::Type::VerticalLine)
+				ug.draw1PxVerticalLine(vg.area.getX(), vg.area.getY(), vg.area.getBottom());
+			if (vg.t == ScriptingApi::Content::VisualGuide::Type::Rectangle)
+				ug.draw1PxRect(vg.area);
+		}
+	}
+#endif
+
+	if (isRebuilding)
+	{
+		g.fillAll(Colours::black.withAlpha(0.8f));
+		g.setColour(Colours::white);
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("Rebuilding...", 0, 0, getWidth(), getHeight(), Justification::centred, false);
+	}
 }
 
 ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getScriptComponentFor(Point<int> pos)

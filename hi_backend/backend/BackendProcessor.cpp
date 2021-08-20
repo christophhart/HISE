@@ -58,6 +58,8 @@ viewUndoManager(new UndoManager())
 
 	initData(this);
 
+	getFontSizeChangeBroadcaster().sendMessage(sendNotification, getGlobalCodeFontSize());
+
 	GET_PROJECT_HANDLER(synthChain).checkSubDirectories();
 
 	dllManager = new BackendDllManager(this);
