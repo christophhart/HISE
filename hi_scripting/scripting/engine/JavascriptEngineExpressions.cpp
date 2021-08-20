@@ -555,7 +555,7 @@ bool HiseJavascriptEngine::RootObject::isNumeric(const var& v) noexcept
 
 bool HiseJavascriptEngine::RootObject::isNumericOrUndefined(const var& v) noexcept
 {
-	return isNumeric(v) || v.isUndefined();
+	return isNumeric(v) || v.isUndefined() || v.isVoid();
 }
 
 int64 HiseJavascriptEngine::RootObject::getOctalValue(const String& s)
