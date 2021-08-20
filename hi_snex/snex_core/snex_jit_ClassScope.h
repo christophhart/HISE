@@ -57,7 +57,6 @@ public:
 		if (auto gs = dynamic_cast<GlobalScope*>(parent))
 		{
 			gs->setCurrentClassScope(this);
-			gs->getBufferHandler().reset();
 
 			runtime = new asmjit::JitRuntime();
 			rootData = new RootClassData();
@@ -264,7 +263,7 @@ public:
 	}
 #endif
 
-	void createDebugInfo(OwnedArray<DebugInformationBase>& list)
+	void createDebugInfo(DebugInformationBase::List& list)
 	{
 		list.clear();
 
