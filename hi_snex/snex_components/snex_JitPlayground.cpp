@@ -88,6 +88,8 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	ed.setLineRangeFunction(debug::Helpers::createLineRanges);
 
+	ed.setCodeTokeniser(new CPlusPlusCodeTokeniser());
+
 	setName("SNEX Editor");
 
 	ed.addPopupMenuFunction([this](mcl::TextEditor& te, PopupMenu& m, const MouseEvent& e) { addPopupMenuItems(te, m, e); }, BIND_MEMBER_FUNCTION_2(SnexPlayground::performPopupMenu));

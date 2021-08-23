@@ -539,8 +539,8 @@ public:
 	{
 		virtual ~LookAndFeelMethods() {};
 
-		virtual void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive) = 0;
-		virtual void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p) = 0;
+		virtual void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive);
+		virtual void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p);
 
 	};
 
@@ -548,8 +548,7 @@ public:
 		public LookAndFeelMethods,
 		public LookAndFeel_V3
 	{
-		virtual void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive) override;
-		virtual void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p) override;
+		
 	};
 
 	enum ColourIds
@@ -579,6 +578,8 @@ public:
 	void rebuildGraph();
 
 	Path envelopePath;
+
+	int getCurrentStateIndex() const { return (int)ballPos; }
 
 private:
 

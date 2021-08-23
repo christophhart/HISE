@@ -489,6 +489,14 @@ juce::Component* AhdsrEnvelope::Panel::createContentComponent(int /*index*/)
 			if (g->findColour(AhdsrGraph::bgColour).isOpaque())
 				g->setOpaque(true);
 
+			if (getProcessor()->getMainController()->getCurrentScriptLookAndFeel() != nullptr)
+			{
+				ScopedPointer<LookAndFeel> scriptlaf = HiseColourScheme::createAlertWindowLookAndFeel(getProcessor()->getMainController());
+
+				if (auto s = dynamic_cast<AhdsrGraph::LookAndFeelMethods*>(scriptlaf.get()))
+					g->setSpecialLookAndFeel(scriptlaf.release(), true);
+			}
+
 			return g;
 		}
 	}

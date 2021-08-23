@@ -116,7 +116,7 @@ public:
 
 		static EntryType getEntryType(String& s)
 		{
-			static const StringArray skipWords = { "for", "if", "else", "while", "switch", "/*" };
+			static const StringArray skipWords = { "for", "if", "else", "while", "switch", "/*", "```", "---" };
 
 			for (auto& w : skipWords)
 				if (s.startsWith(w))
@@ -181,7 +181,7 @@ public:
 	String getTextForFoldRange(FoldableLineRange::WeakPtr p)
 	{
 		auto s = doc.getCodeDocument().getLine(p->getLineRange().getStart());
-		return s.trim();
+		return s.trimCharactersAtStart("#").trim();
 	}
 
 	struct Item : public Component,

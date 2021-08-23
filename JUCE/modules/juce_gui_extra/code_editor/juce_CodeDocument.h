@@ -420,6 +420,8 @@ public:
         /** Returns the line number of the next character. */
         int getLine() const noexcept            { return line; }
 
+		int getIndexInLine() const;
+
         /** Returns true if the iterator has reached the end of the document. */
         bool isEOF() const noexcept;
 

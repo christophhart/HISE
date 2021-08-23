@@ -472,6 +472,8 @@ public:
 		tokenTooltipFunction = f;
 	}
 
+	void grabKeyboardFocusAndActivateTokenBuilding();
+
 	bool isLiveParsingEnabled() const { return enableLiveParsing; }
 	bool isPreprocessorParsingEnabled() const { return enablePreprocessorParsing; }
 
@@ -503,7 +505,14 @@ public:
 		keyPressFunctions.add(kf);
 	}
 
+	void setCodeTokeniser(juce::CodeTokeniser* ownedTokeniser)
+	{
+		tokeniser = ownedTokeniser;
+	}
+
 private:
+
+	ScopedPointer<CodeTokeniser> tokeniser;
 
 	friend class Autocomplete;
 

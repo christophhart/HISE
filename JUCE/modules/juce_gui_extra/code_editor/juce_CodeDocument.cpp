@@ -290,6 +290,17 @@ void CodeDocument::Iterator::skipWhitespace() noexcept
         skip();
 }
 
+int CodeDocument::Iterator::getIndexInLine() const
+{
+	if (auto* l = document->lines[line])
+	{
+		if(charPointer >= l->line.begin() && charPointer < l->line.end())
+			return (int)(charPointer - l->line.getCharPointer());
+	}
+
+	return 0;
+}
+
 bool CodeDocument::Iterator::isEOF() const noexcept
 {
     return charPointer.getAddress() == nullptr && line >= document->lines.size();

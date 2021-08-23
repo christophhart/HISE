@@ -418,6 +418,15 @@ void TextEditor::closeAutocomplete(bool async, const String& textToInsert, Array
 	repaint();
 }
 
+void TextEditor::grabKeyboardFocusAndActivateTokenBuilding()
+{
+	if (shouldSkipInactiveUpdate())
+		updateAfterTextChange();
+
+	tokenCollection.setEnabled(true);
+	grabKeyboardFocus();
+}
+
 bool TextEditor::cut()
 {
 	auto s = document.getSelections().getFirst();
@@ -928,11 +937,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
     selections.add (index);
     document.setSelections (selections, true);
 
-	if (shouldSkipInactiveUpdate())
-		updateAfterTextChange();
-
-	tokenCollection.setEnabled(true);
-	grabKeyboardFocus();
+	grabKeyboardFocusAndActivateTokenBuilding();
 }
 
 void mcl::TextEditor::mouseDrag (const MouseEvent& e)
@@ -1617,6 +1622,10 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 bool mcl::TextEditor::insert (const juce::String& content)
 {
+	if (isShowing())
+		tokenCollection.setEnabled(true);
+
+
 	ScopedValueSetter<bool> scrollDisabler(scrollRecursion, true);
 
 	double now = Time::getApproximateMillisecondCounter();
@@ -1688,22 +1697,36 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
     {
         auto rows = document.getRangeOfRowsIntersecting (g.getClipBounds().toFloat());
 
-		rows.setStart(jmax(0, rows.getStart() - 20));
+		auto realStart = document.getFoldableLineRangeHolder().getNearestLineStartOfAnyRange(rows.getStart());
+
+		rows.setStart(realStart);
 
         auto index = Point<int> (rows.getStart(), 0);
-        auto it = TextDocument::Iterator (document, index);
-        auto previous = it.getIndex();
+        
         auto zones = Array<Selection>();
 
+		CodeDocument::Position pos(document.getCodeDocument(), rows.getStart(), 0);
+		CodeDocument::Iterator it(pos);
 		
+		Point<int> previous(it.getLine(), it.getIndexInLine());
 
-        while (it.getIndex().x < rows.getEnd() && ! it.isEOF())
+        while (it.getLine() < rows.getEnd() && ! it.isEOF())
         {
-			auto tokenType = JavascriptTokeniserFunctions::readNextToken(it);
+			int tokenType;
 
-            //auto tokenType = CppTokeniserFunctions::readNextToken (it);
-            zones.add (Selection (previous, it.getIndex()).withStyle (tokenType));
-            previous = it.getIndex();
+			if (tokeniser != nullptr)
+				tokenType = tokeniser->readNextToken(it);
+			else
+				tokenType = JavascriptTokeniserFunctions::readNextToken(it);
+
+			Point<int> now(it.getLine(), it.getIndexInLine());
+
+			if (previous != now)
+				zones.add(Selection(previous, now).withStyle(tokenType));
+			else
+				break;
+
+            previous = now;
         }
 
 		for (auto& z : zones)

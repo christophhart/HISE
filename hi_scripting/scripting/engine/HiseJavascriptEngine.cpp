@@ -1477,7 +1477,7 @@ struct LookAndFeelToken : public TokenWithDot
 	static String getContent(const Identifier& oid, const Identifier& fid)
 	{
 		String s;
-		s << oid << ".registerFunction(\"" << fid << "\", function(g, obj)\n{\n\t \n};";
+		s << oid << ".registerFunction(\"" << fid << "\", function(g, obj)\n{\n\t \n});";
 		return s;
 	}
 };

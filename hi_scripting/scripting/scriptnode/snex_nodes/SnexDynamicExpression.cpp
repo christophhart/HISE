@@ -68,7 +68,7 @@ float dynamic_expression::graph::intersectsPath(Path& path, Rectangle<float> b)
 
 juce::NormalisableRange<double> dynamic_expression::graph::getXRange()
 {
-	if (expr->isMathNode)
+	if (expr != nullptr && expr->isMathNode)
 		return NormalisableRange<double>(-1.0, 1.0);
 	else
 		return RangeHelpers::getDoubleRange(getNode()->getParameter(0)->data);

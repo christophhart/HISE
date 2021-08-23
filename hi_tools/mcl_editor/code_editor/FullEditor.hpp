@@ -69,6 +69,12 @@ struct FullEditor: public Component,
 		return editor.gutter.injectBreakPoints(s);
 	}
 
+	void setColourScheme(const juce::CodeEditorComponent::ColourScheme& s)
+	{
+		editor.colourScheme = s;
+		codeMap.colourScheme = s;
+	}
+
 	void setCurrentBreakline(int n)
 	{
 		editor.gutter.setCurrentBreakline(n);

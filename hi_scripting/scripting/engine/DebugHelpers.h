@@ -272,7 +272,10 @@ public:
 		namespaceId(namespaceId_),
 		id(id_),
 		location(location_)
-	{}
+	{
+		auto v = f();
+		DebugableObjectBase::updateLocation(location, v);
+	}
 
 	DebugableObjectBase::Location getLocation() const override
 	{

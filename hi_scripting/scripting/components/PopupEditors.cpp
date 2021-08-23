@@ -166,6 +166,8 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 	else
 	{
 		ed.tokenCollection.addTokenProvider(new GLSLKeywordProvider());
+		ed.setCodeTokeniser(new CPlusPlusCodeTokeniser());
+
 
 		if (externalFile != nullptr)
 		{
