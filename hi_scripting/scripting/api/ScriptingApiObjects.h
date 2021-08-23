@@ -66,6 +66,8 @@ public:
 		Component::SafePointer<Component> mainEditor;
 	};
 
+	static var getVarFromPoint(Point<float> pos);
+
 	static Point<float> getPointFromVar(const var& data, Result* r = nullptr);
 
 	static var getVarRectangle(Rectangle<float> floatRectangle, Result* r = nullptr);

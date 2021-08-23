@@ -439,6 +439,8 @@ namespace ScriptingObjects
 			public NumberTag::LookAndFeelMethods,
 			public MessageWithIcon::LookAndFeelMethods,
 			public ControlledObject,
+			public RingBufferComponentBase::LookAndFeelMethods,
+			public AhdsrGraph::LookAndFeelMethods,
 			public MidiFileDragAndDropper::LookAndFeelMethods
 		{
 			Laf(MainController* mc) :
@@ -510,7 +512,8 @@ namespace ScriptingObjects
 
 			void drawScrollbar(Graphics& g, ScrollBar& scrollbar, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown) override;
 
-			
+			void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive) override;
+			void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p) override;
 
 			void drawMidiDropper(Graphics& g, Rectangle<float> area, const String& text, MidiFileDragAndDropper& d) override;
 
@@ -540,6 +543,42 @@ namespace ScriptingObjects
 		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject);
 
 		var callDefinedFunction(const Identifier& name, var* args, int numArgs);
+
+		int getNumChildElements() const override
+		{
+			if (auto dyn = functions.getDynamicObject())
+				return dyn->getProperties().size();
+		}
+
+		DebugInformationBase* getChildElement(int index) override
+		{
+			WeakReference<ScriptedLookAndFeel> safeThis(this);
+
+			auto vf = [safeThis, index]()
+			{
+				if (safeThis != nullptr)
+				{
+					if (auto dyn = safeThis->functions.getDynamicObject())
+					{
+						if(isPositiveAndBelow(index, dyn->getProperties().size()))
+							return dyn->getProperties().getValueAt(index);
+					}
+				}
+
+				return var();
+			};
+
+			String id = "%PARENT%.";
+
+			auto mid = functions.getDynamicObject()->getProperties().getName(index);
+
+			id << mid;
+
+			Location l = getLocation();
+
+
+			return new LambdaValueInformation(vf, id, {}, (DebugInformation::Type)getTypeNumber(), l);
+		}
 
 		static Array<Identifier> getAllFunctionNames();
 

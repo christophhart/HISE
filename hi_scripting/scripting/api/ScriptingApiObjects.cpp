@@ -4471,7 +4471,9 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawTablePoint",
 		"drawTableRuler",
 		"drawScrollbar",
-		"drawMidiDropper"
+		"drawMidiDropper",
+		"drawAhdsrBall",
+		"drawAhdsrPath"
 	};
 
 	return sa;
@@ -5116,6 +5118,61 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawScrollbar(Graphics& g_, Scr
 	GlobalHiseLookAndFeel::drawScrollbar(g_, scrollbar, x, y, width, height, isScrollbarVertical, thumbStartPosition, thumbSize, isMouseOver, isMouseDown);
 }
 
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive)
+{
+	if (functionDefined("drawAhdsrPath"))
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+
+		auto p = new ScriptingObjects::PathObject(get()->getScriptProcessor());
+
+		var keeper(p);
+
+		p->getPath() = s;
+
+		obj->setProperty("isActive", isActive);
+		obj->setProperty("path", keeper);
+		obj->setProperty("currentState", graph.getCurrentStateIndex());
+		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getBounds().toFloat()));
+		obj->setProperty("bgColour", graph.findColour(AhdsrGraph::ColourIds::bgColour).getARGB());
+		obj->setProperty("itemColour", graph.findColour(AhdsrGraph::ColourIds::fillColour).getARGB());
+		obj->setProperty("itemColour2", graph.findColour(AhdsrGraph::ColourIds::lineColour).getARGB());
+		obj->setProperty("itemColour3", graph.findColour(AhdsrGraph::ColourIds::outlineColour).getARGB());
+
+		addParentFloatingTile(graph, obj);
+
+		if (get()->callWithGraphics(g, "drawAhdsrPath", var(obj)))
+			return;
+	}
+	
+	AhdsrGraph::LookAndFeelMethods::drawAhdsrPathSection(g, graph, s, isActive);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> pos)
+{
+	if (functionDefined("drawAhdsrBall"))
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(graph.getLocalBounds().toFloat()));
+		obj->setProperty("position", ApiHelpers::getVarFromPoint(pos));
+		obj->setProperty("currentState", graph.getCurrentStateIndex());
+		obj->setProperty("bgColour", graph.findColour(AhdsrGraph::ColourIds::bgColour).getARGB());
+		obj->setProperty("itemColour", graph.findColour(AhdsrGraph::ColourIds::fillColour).getARGB());
+		obj->setProperty("itemColour2", graph.findColour(AhdsrGraph::ColourIds::lineColour).getARGB());
+		obj->setProperty("itemColour3", graph.findColour(AhdsrGraph::ColourIds::outlineColour).getARGB());
+
+		addParentFloatingTile(graph, obj);
+
+		if (get()->callWithGraphics(g, "drawAhdsrBall", var(obj)))
+			return;
+	}
+
+	AhdsrGraph::LookAndFeelMethods::drawAhdsrBallPosition(g, graph, pos);
+}
+
+
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawMidiDropper(Graphics& g_, Rectangle<float> area, const String& text, MidiFileDragAndDropper& d)
 {
 	if (functionDefined("drawMidiDropper"))
@@ -5240,6 +5297,14 @@ LookAndFeel* HiseColourScheme::createAlertWindowLookAndFeel(void* mainController
 #endif
 
 
+
+var ApiHelpers::getVarFromPoint(Point<float> pos)
+{
+	Array<var> p;
+	p.add(pos.getX());
+	p.add(pos.getY());
+	return var(p);
+}
 
 juce::Array<juce::Identifier> ApiHelpers::getGlobalApiClasses()
 {

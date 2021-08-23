@@ -646,7 +646,7 @@ void AhdsrGraph::rebuildGraph()
 
 
 
-void AhdsrGraph::DefaultLookAndFeel::drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive)
+void AhdsrGraph::LookAndFeelMethods::drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive)
 {
 	if (isActive)
 	{
@@ -677,7 +677,7 @@ void AhdsrGraph::DefaultLookAndFeel::drawAhdsrPathSection(Graphics& g, AhdsrGrap
 	}
 }
 
-void AhdsrGraph::DefaultLookAndFeel::drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p)
+void AhdsrGraph::LookAndFeelMethods::drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p)
 {
 	auto circle = Rectangle<float>(p, p).withSizeKeepingCentre(6.0f, 6.0f);
 	g.setColour(graph.findColour(lineColour).withAlpha(1.0f));
