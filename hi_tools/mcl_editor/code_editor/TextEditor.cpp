@@ -1617,6 +1617,10 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 bool mcl::TextEditor::insert (const juce::String& content)
 {
+	if (isShowing())
+		tokenCollection.setEnabled(true);
+
+
 	ScopedValueSetter<bool> scrollDisabler(scrollRecursion, true);
 
 	double now = Time::getApproximateMillisecondCounter();

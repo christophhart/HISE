@@ -215,7 +215,7 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 
 void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int charNumber)
 {
-	if (fileName.isEmpty())
+	if (fileName.isEmpty() || fileName == "onInit")
 	{
 		changeContentWithUndo(0);
 	}

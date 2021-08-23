@@ -129,6 +129,8 @@ public:
 
 	virtual Location getLocation() const { return Location(); }
 
+	static void updateLocation(Location& l, var possibleObject);
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DebugableObjectBase);
 };
 
