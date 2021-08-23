@@ -673,100 +673,11 @@ juce::String MarkdownParser::Iterator::advanceLine()
 	return s;
 }
 
+
+
 int MarkdownParser::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 {
-	source.skipWhitespace();
-
-	const juce_wchar firstChar = source.peekNextChar();
-
-	switch (firstChar)
-	{
-	case '#':
-	{
-		source.skipToEndOfLine();
-		return 1;
-	}
-	case '*':
-	{
-		while (source.peekNextChar() == '*')
-			source.skip();
-
-		while (!source.isEOF() && source.peekNextChar() != '*')
-			source.skip();
-
-		while (source.peekNextChar() == '*')
-			source.skip();
-
-		return 2;
-	}
-	case '`':
-	{
-		source.skip();
-
-		while (!source.isEOF() && source.peekNextChar() != '`')
-		{
-			source.skip();
-		}
-
-		source.skip();
-
-		return 3;
-	}
-	
-	case '>':
-	{
-		source.skipToEndOfLine();
-		return 4;
-	}
-	case '-':
-	{
-		source.skip();
-
-		if (source.nextChar() == '-')
-		{
-			if (source.nextChar() == '-')
-			{
-				source.skipToEndOfLine();
-
-				while (!source.isEOF())
-				{
-					if (source.nextChar() == '-')
-					{
-						if (source.nextChar() == '-')
-						{
-							if (source.nextChar() == '-')
-							{
-								break;
-							}
-						}
-					}
-
-					source.skipToEndOfLine();
-				}
-
-				return 5;
-			}
-			else
-				return 0;
-		}
-		else
-			return 0;
-	}
-	case '!':
-	case '[':
-	{
-		source.skip();
-
-		while (!source.isEOF() && source.peekNextChar() != ')')
-			source.skip();
-
-		source.skip();
-
-		return 6;
-	}
-	case '|': source.skipToEndOfLine(); return 7;
-	default: source.skip(); return 0;
-	}
+	return TokeniserT::readNextToken(source);
 }
 
 juce::CodeEditorComponent::ColourScheme MarkdownParser::Tokeniser::getDefaultColourScheme()

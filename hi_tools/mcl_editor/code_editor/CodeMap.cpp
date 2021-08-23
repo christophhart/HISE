@@ -499,6 +499,7 @@ void FoldMap::Item::mouseDoubleClick(const MouseEvent& e)
 	doc.setDisplayedLineRange(p->getLineRange());
 	doc.jumpToLine(line);
 
+	findParentComponentOfClass<FullEditor>()->editor.grabKeyboardFocusAndActivateTokenBuilding();
 
 	repaint();
 }

@@ -231,7 +231,7 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MarkdownHelpButton);
 };
 
-
+#if !HISE_USE_NEW_CODE_EDITOR
 class MarkdownEditor : public CodeEditorComponent
 {
 public:
@@ -261,6 +261,9 @@ public:
 
 	File currentFile;
 };
+#else
+using MarkdownEditor = mcl::FullEditor;
+#endif
 
 class MarkdownEditorPanel : public FloatingTileContent,
 	public Component,
@@ -299,45 +302,7 @@ public:
 
 	SET_PANEL_NAME("Markdown Editor");
 
-	MarkdownEditorPanel(FloatingTile* root) :
-		FloatingTileContent(root),
-		editor(doc, &tokeniser),
-		livePreview("Live Preview", this, f),
-		newButton("New File", this, f),
-		openButton("Open File", this, f),
-		saveButton("Save File", this, f),
-		urlButton("Create Link", this, f),
-		imageButton("Create image", this, f),
-		tableButton("Create Table", this, f),
-		settingsButton("Show Settings", this, f)
-	{
-		setLookAndFeel(&laf);
-
-		livePreview.setToggleModeWithColourChange(true);
-		
-		livePreview.setToggleState(false, sendNotification);
-
-		addAndMakeVisible(editor);
-		addAndMakeVisible(livePreview);
-		addAndMakeVisible(newButton);
-		addAndMakeVisible(openButton);
-		addAndMakeVisible(saveButton);
-		addAndMakeVisible(urlButton);
-		addAndMakeVisible(imageButton);
-		addAndMakeVisible(tableButton);
-		addAndMakeVisible(settingsButton);
-
-		livePreview.setTooltip("Enable live preview of the editor's content");
-		newButton.setTooltip("Create new file");
-		openButton.setTooltip("Open a file");
-		saveButton.setTooltip("Save a file");
-		urlButton.setTooltip("Create a link");
-		imageButton.setTooltip("Create a image link");
-		tableButton.setTooltip("Create a table");
-		settingsButton.setTooltip("Show settings");
-
-		doc.addListener(this);
-	}
+	MarkdownEditorPanel(FloatingTile* root);
 
 	~MarkdownEditorPanel()
 	{
@@ -350,6 +315,8 @@ public:
 
 	}
 
+	static mcl::FoldableLineRange::List createLineRange(const CodeDocument& doc);
+
 	void scrolled(Rectangle<int> /*visibleArea*/)
 	{
 		if (editor.hasKeyboardFocus(true))
@@ -359,9 +326,9 @@ public:
 		{
 			auto ratio = (float)preview->viewport.getViewPositionY() / (float)preview->internalComponent.getHeight();
 
-			int l = (int)(ratio * (float)editor.getDocument().getNumLines());
+			int l = (int)(ratio * (float)doc.getNumLines());
 
-			editor.scrollToKeepLinesOnScreen({ l, l + editor.getNumLinesOnScreen() });
+			editor.editor.scrollToLine(l, true);
 		}
 	}
 
@@ -431,7 +398,9 @@ public:
 		if (updatePreview())
 		{
 			preview->renderer.clearCurrentLink();
-			preview->setNewText(doc.getAllContent().replace("\r\n", "\n"), editor.currentFile);
+
+			preview->setNewText(doc.getAllContent().replace("\r\n", "\n"), currentFile);
+
 		}
 
 		stopTimer();
@@ -487,9 +456,11 @@ public:
 	CodeDocument doc;
 	MarkdownParser::Tokeniser tokeniser;
 	Component::SafePointer<MarkdownPreview> preview;
+
+	mcl::TextDocument tdoc;
+
 	MarkdownEditor editor;
 	MarkdownDataBase* database = nullptr;
-	
 };
 
 }

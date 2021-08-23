@@ -225,6 +225,19 @@ public:
 			return nullptr;
 		}
 
+		int getNearestLineStartOfAnyRange(int lineNumber)
+		{
+			for (auto r : all)
+			{
+				auto n = r->getNearestLineStart(lineNumber);
+
+				if (n != -1)
+					return n;
+			}
+
+			return lineNumber;
+		}
+
 		WeakPtr getRangeContainingLine(int lineNumber) const
 		{
 			for (auto r : all)
@@ -400,6 +413,23 @@ public:
 	void setEnd(int charPos)
 	{
 		end.setPosition(charPos);
+	}
+
+	int getNearestLineStart(int lineNumber)
+	{
+		if (getLineRange().contains(lineNumber))
+		{
+			for (auto c : children)
+			{
+				auto n = c->getNearestLineStart(lineNumber);
+				if (n != -1)
+					return n;
+			}
+
+			return start.getLineNumber();
+		}
+
+		return -1;
 	}
 
 private:

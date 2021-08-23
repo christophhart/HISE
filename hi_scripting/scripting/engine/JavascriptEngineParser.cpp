@@ -1428,7 +1428,9 @@ private:
 
 		ScopedPointer<FunctionObject> fo(new FunctionObject());
 
-		
+		fo->location.fileName = location.getCallbackName(true);
+		fo->location.charNumber = location.getCharIndex();
+
 		parseFunctionParamsAndBody(*fo);
 		fo->functionCode = String(functionStart, location.location);
         fo->createFunctionDefinition(functionName);

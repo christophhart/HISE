@@ -486,9 +486,13 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameters);
 	}
 
+	Location getLocation() const override { return location; }
+
 	bool enableCycleCheck = false;
 
 	Identifier name;
+
+	Location location;
 
 	String functionCode;
 	Array<Identifier> parameters;
