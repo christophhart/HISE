@@ -677,6 +677,10 @@ void mcl::TextEditor::resized()
 	auto b = getLocalBounds();
 	caret.setBounds(b);
 	
+    auto l = getFirstLineOnScreen();
+    
+    
+    
 	scrollBar.setBounds(b.removeFromRight(14));
 
 	if(linebreakEnabled)
@@ -686,6 +690,8 @@ void mcl::TextEditor::resized()
 
 	refreshLineWidth();
 	
+    setFirstLineOnScreen(l);
+    
     highlight.setBounds (b);
     
     gutter.setBounds (b);

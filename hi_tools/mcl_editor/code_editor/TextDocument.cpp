@@ -272,6 +272,12 @@ juce::Range<int> mcl::TextDocument::getRangeOfRowsIntersecting(juce::Rectangle<f
 	if (rowPositions.isEmpty())
 		return { 0, 1 };
 
+    auto topY = jmax<int>(0, area.getY());
+    auto bottomY = area.getBottom();
+    
+    int topIndex = -1;
+    int bottomIndex = -1;
+    
 	Range<float> yRange = { area.getY() - getRowHeight(), area.getBottom() + getRowHeight() };
 
 	int min = getNumRows()-1;
@@ -279,12 +285,31 @@ juce::Range<int> mcl::TextDocument::getRangeOfRowsIntersecting(juce::Rectangle<f
 
 	for (int i = 0; i < rowPositions.size(); i++)
 	{
+        auto pos = rowPositions[i];
+        
+        
+        
+        if(topIndex == -1 && pos >= topY)
+            topIndex = jmax(0, i - 1);
+        
+        if(bottomIndex == -1 && pos >= bottomY)
+        {
+            bottomIndex = jmax(0, i - 1);
+            break;
+        }
+            
+        
 		if (yRange.contains(rowPositions[i]))
 		{
 			min = jmin(min, i);
 			max = jmax(max, i);
 		}
 	}
+    
+    if(bottomIndex == -1)
+        bottomIndex = rowPositions.size()-1;
+    
+    return { topIndex, bottomIndex + 1 };
 
 	return { min, max + 1 };
 }
