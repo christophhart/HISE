@@ -1107,9 +1107,9 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 		while (sPos.getPosition() < document.getCodeDocument().getNumCharacters())
 		{
-			sPos = sPos.movedBy(1);
-
 			auto c = sPos.getCharacter();
+
+			sPos = sPos.movedBy(1);
 
 			if (c == openChar)
 				numBefore++;
@@ -1134,7 +1134,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 				numAfter++;
 		}
 		
-		numAfter = jmax(numAfter, 0);
+		//numAfter = jmax(numAfter, 0);
 
 
 		juce::String text;
