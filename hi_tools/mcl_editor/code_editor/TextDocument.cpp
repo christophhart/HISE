@@ -423,58 +423,175 @@ Point<int> mcl::TextDocument::getEnd() const
 	return { getNumRows(), 0 };
 }
 
-bool mcl::TextDocument::next(Point<int>& index) const
+void TextDocument::setSelections(const juce::Array<Selection>& newSelections, bool useUndo)
 {
-	if (index.y < getNumColumns(index.x))
+	columnTryingToMaintain = -1;
+
+	if (useUndo)
 	{
-		index.y += 1;
+		viewUndoManager.perform(new SelectionAction(*this, newSelections));
+	}
+	else
+	{
+		selections = newSelections;
+		sendSelectionChangeMessage();
+	}
+}
+
+bool TextDocument::navigateLeftRight(juce::Point<int>& index, bool right) const
+{
+	columnTryingToMaintain = -1;
+
+	if (right)
+	{
+		if (index.y < getNumColumns(index.x))
+		{
+			index.y += 1;
+			return true;
+		}
+		else if (index.x < getNumRows())
+		{
+			index.x += 1;
+			index.y = 0;
+			return true;
+		}
+		return false;
+	}
+	else
+	{
+		if (index.y > 0)
+		{
+			index.y -= 1;
+			return true;
+		}
+		else if (index.x > 0)
+		{
+			index.x -= 1;
+			index.y = getNumColumns(index.x);
+			return true;
+		}
+		return false;
+	}
+}
+
+bool TextDocument::navigateUpDown(juce::Point<int>& index, bool down) const
+{
+	auto canMove = (down && index.x < getNumRows() - 1) ||
+		(!down && index.x > 0);
+
+	auto isLineBreak = getNumLinesForRow(index.x) > 1;
+
+	if (canMove || isLineBreak)
+	{
+		if (isLineBreak)
+		{
+			auto b = getGlyphBounds(index, GlyphArrangementArray::ReturnBeyondLastCharacter);
+
+			b = b.translated(0.0f, getRowHeight() * (down ? 1.0f : -1.0f));
+
+			auto newIndex = findIndexNearestPosition(Point<float>(b.getX(), down ? b.getY() : b.getBottom()));
+			auto sameLine = newIndex.x == index.x;
+
+			// Sometimes the method will not find the correct index (eg. because a long word that
+			// is wrapped), so in this case we just jump to the next line...
+			auto isLastCharacter = newIndex.y == getNumColumns(newIndex.x);
+
+			if (sameLine && !isLastCharacter)
+			{
+				index = newIndex;
+				return true;
+			}
+		}
+
+		if (columnTryingToMaintain != -1)
+			index.y = columnTryingToMaintain;
+		else
+			columnTryingToMaintain = getColumnIndexAccountingTabs(index);
+
+		
+
+		auto upIntoLineBreak = !down && getNumLinesForRow(index.x - 1) > 1;
+
+		if (upIntoLineBreak)
+		{
+			auto b = getGlyphBounds(index, GlyphArrangementArray::ReturnBeyondLastCharacter);
+			b = b.withX(TEXT_INDENT + (float)columnTryingToMaintain * getCharacterRectangle().getWidth());
+
+			b = b.translated(0.0f, -1.0f * getRowHeight());
+
+			index = findIndexNearestPosition(b.getBottomLeft());
+			return true;
+		}
+		else
+		{
+			index.x += down ? 1 : -1;
+			index.x = jlimit(0, getNumRows()-1, index.x);
+			index.y = jmin(index.y, getNumColumns(index.x));
+
+			applyTabsToPosition(index, columnTryingToMaintain);
+		}
+
 		return true;
 	}
-	else if (index.x < getNumRows())
-	{
-		index.x += 1;
-		index.y = 0;
-		return true;
-	}
+
 	return false;
 }
 
-bool mcl::TextDocument::prev(Point<int>& index) const
+
+int TextDocument::getColumnIndexAccountingTabs(juce::Point<int>& index) const
 {
-	if (index.y > 0)
+	auto isLineBreak = getNumLinesForRow(index.x) > 1;
+	
+	if (isLineBreak)
 	{
-		index.y -= 1;
-		return true;
+		auto b = getBoundsOnRow(index.x, { index.y, index.y + 1 }, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
+		return roundToInt((b.getX() - TEXT_INDENT) / getCharacterRectangle().getWidth());
 	}
-	else if (index.x > 0)
+
+	auto line = doc.getLine(index.x);
+	auto t = line.getCharPointer();
+	int col = 0;
+
+	for (int i = 0; i < index.y; ++i)
 	{
-		index.x -= 1;
-		index.y = getNumColumns(index.x);
-		return true;
+		if (t.isEmpty())
+		{
+			col = i;
+			break;
+		}
+
+		static constexpr int TabSize = 4;
+
+		if (t.getAndAdvance() != '\t')
+			++col;
+		else
+			col += TabSize - (col % TabSize);
 	}
-	return false;
+
+	return col;
 }
 
-bool mcl::TextDocument::nextRow(Point<int>& index) const
+void TextDocument::applyTabsToPosition(juce::Point<int>& index, int positionToMaintain) const
 {
-	if (index.x < getNumRows() - 1)
-	{
-		index.x += 1;
-		index.y = jmin(index.y, getNumColumns(index.x));
-		return true;
-	}
-	return false;
-}
+	auto l = doc.getLine(index.x);
 
-bool mcl::TextDocument::prevRow(Point<int>& index) const
-{
-	if (index.x > 0)
+	int realCol = 0;
+
+	for (int i = 0; i < l.length(); i++)
 	{
-		index.x -= 1;
-		index.y = jmin(index.y, getNumColumns(index.x));
-		return true;
+		static constexpr int TabSize = 4;
+
+		if (realCol >= positionToMaintain)
+		{
+			index.y = i;
+			break;
+		}
+
+		if (l[i] == '\t')
+			realCol += TabSize - (realCol % TabSize);
+		else
+			realCol++;
 	}
-	return false;
 }
 
 void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction direction) const
@@ -490,10 +607,10 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 	case Direction::forwardRow:
 		advance = [this](Point<int>& i) 
 		{ 
-			auto ok = nextRow(i); 
+			auto ok = navigateUpDown(i, true); 
 
 			while (foldManager.isFolded(i.x))
-				ok = nextRow(i);
+				ok = navigateUpDown(i, true);
 
 			return ok;
 		};
@@ -502,22 +619,22 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 	case Direction::backwardRow:
 		advance = [this](Point<int>& i) 
 		{ 
-			auto ok = prevRow(i);
+			auto ok = navigateUpDown(i, false);
 
 			while (foldManager.isFolded(i.x))
-				ok = prevRow(i);
+				ok = navigateUpDown(i, false);
 
 			return ok;
 		};
-		get = [this](Point<int> i) { prev(i); return getCharacter(i); };
+		get = [this](Point<int> i) { navigateLeftRight(i, false); return getCharacter(i); };
 		break;
 	case Direction::forwardCol:
-		advance = [this](Point<int>& i) { return next(i); };
+		advance = [this](Point<int>& i) { return navigateLeftRight(i, true); };
 		get = [this](Point<int> i) { return getCharacter(i); };
 		break;
 	case Direction::backwardCol:
-		advance = [this](Point<int>& i) { return prev(i); };
-		get = [this](Point<int> i) { prev(i); return getCharacter(i); };
+		advance = [this](Point<int>& i) { return navigateLeftRight(i, false); };
+		get = [this](Point<int> i) { navigateLeftRight(i, false); return getCharacter(i); };
 		break;
 	}
 
@@ -529,25 +646,45 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 	case Target::character: advance(i); break;
 	case Target::firstnonwhitespace:
 	{
-		if (i.y != 0 && get(i) == '\n' && direction == Direction::backwardCol)
+		auto isLineBreak = getNumLinesForRow(i.x) > 1;
+
+		if (isLineBreak)
 		{
-			prev(i);
+			auto y = getGlyphBounds(i, GlyphArrangementArray::ReturnLastCharacter).getY();
+			
+			while (navigateLeftRight(i, false))
+			{
+				auto thisY = getGlyphBounds(i, GlyphArrangementArray::ReturnLastCharacter).getY();
+
+				if (y != thisY)
+				{
+					navigateLeftRight(i, true);
+					break;
+				}
+			}
 		}
+		else
+		{
+			if (i.y != 0 && get(i) == '\n' && direction == Direction::backwardCol)
+			{
+				navigateLeftRight(i, false);
+			}
 
-		jassert(direction == Direction::backwardCol);
+			jassert(direction == Direction::backwardCol);
 
-		bool skipTofirstNonWhiteCharacter = false;
+			bool skipTofirstNonWhiteCharacter = false;
 
-		while (get(i) != '\n' && prev(i))
-			skipTofirstNonWhiteCharacter |= !CF::isWhitespace(get(i));
+			while (get(i) != '\n' && navigateLeftRight(i, false))
+				skipTofirstNonWhiteCharacter |= !CF::isWhitespace(get(i));
 
-		while (skipTofirstNonWhiteCharacter && CF::isWhitespace(get(i)))
-			next(i);
+			while (skipTofirstNonWhiteCharacter && CF::isWhitespace(get(i)))
+				navigateLeftRight(i, true);
 
-		if (skipTofirstNonWhiteCharacter)
-			prev(i);
+			if (skipTofirstNonWhiteCharacter)
+				navigateLeftRight(i, false);
 
-		break;
+			break;
+		}
 	}
 	case Target::subword: while ((CF::isLetterOrDigit(get(i)) || get(i) == '_') && advance(i)) {} break;
 	case Target::subwordWithPoint: while ((CF::isLetterOrDigit(get(i)) || get(i) == '_' || get(i) == '.') && advance(i)) {} break;
@@ -641,7 +778,33 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 		}
 		break;
 	}
-	case Target::line: while (get(i) != '\n' && advance(i)) {} break;
+	case Target::line:
+	{
+		auto isLineBreak = getNumLinesForRow(i.x) > 1;
+
+		if (isLineBreak)
+		{
+			auto y = getGlyphBounds(i, GlyphArrangementArray::ReturnLastCharacter).getY();
+
+			while (get(i) != '\n' && advance(i))
+			{
+				auto thisY = getGlyphBounds(i, GlyphArrangementArray::ReturnBeyondLastCharacter).getY();
+
+				if (thisY > y)
+				{
+					i.y--;
+					break;
+				}
+			}
+		}
+		else
+		{
+			while (get(i) != '\n' && advance(i))
+			{}
+		}
+
+		break;
+	}
 	case Target::paragraph: while (getNumColumns(i.x) > 0 && advance(i)) {} break;
 	case Target::scope: jassertfalse; break; // IMPLEMENT ME
 	case Target::document: while (advance(i)) {} break;
