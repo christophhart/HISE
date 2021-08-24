@@ -66,6 +66,9 @@ void mcl::CodeMap::mouseEnter(const MouseEvent& e)
 void mcl::CodeMap::mouseExit(const MouseEvent& e)
 {
 	hoveredLine = -1;
+
+	preview = nullptr;
+
 	repaint();
 
 #if 0
@@ -84,19 +87,21 @@ void mcl::CodeMap::mouseExit(const MouseEvent& e)
 
 void mcl::CodeMap::mouseMove(const MouseEvent& e)
 {
-	if (preview != nullptr)
-	{
-		preview->setCenterRow(getLineNumberFromEvent(e));
-		preview->setBounds(getPreviewBounds(e));
-	}
-
 	hoveredLine = getLineNumberFromEvent(e);
+
+	if(preview == nullptr)
+		getParentComponent()->addAndMakeVisible(preview = new HoverPreview(*this, hoveredLine));
+
+	preview->setBounds(getPreviewBounds(e));
+	preview->setCenterRow(getLineNumberFromEvent(e));
 
 	repaint();
 }
 
 void mcl::CodeMap::mouseDown(const MouseEvent& e)
 {
+	preview = nullptr;
+
 	currentAnimatedLine = displayedLines.getStart() + displayedLines.getLength() / 2;
 	targetAnimatedLine = getLineNumberFromEvent(e);
 
@@ -114,14 +119,16 @@ float mcl::CodeMap::getLineNumberFromEvent(const MouseEvent& e) const
 
 juce::Rectangle<int> mcl::CodeMap::getPreviewBounds(const MouseEvent& e)
 {
-	auto editor = findParentComponentOfClass<TextEditor>();
+	auto editor = findParentComponentOfClass<FullEditor>();
 
 
 
 	auto b = editor->getBounds();
 	b.removeFromRight(getWidth());
 
-	auto slice = b.removeFromRight(editor->getWidth() / 3).toFloat();
+	auto sliceWidth = jmin(600, editor->getWidth() / 3);
+
+	auto slice = b.removeFromRight(sliceWidth).toFloat();
 
 	auto yNormalised = e.position.getY() / (float)getHeight();
 
@@ -316,16 +323,19 @@ void mcl::CodeMap::rebuild()
 
 	auto xScale = (float)(getWidth() - 6) / jlimit(1.0f, 80.0f, lineLength);
 
-	if (tokeniser != nullptr)
+	if (auto tokeniser = getTokeniser())
 	{
+		auto colourScheme = getColourScheme();
 
+		if (colourScheme == nullptr)
+			return;
 
 		while (!it.isEOF())
 		{
 			CodeDocument::Position start(doc.getCodeDocument(), it.getPosition());
 			auto token = tokeniser->readNextToken(it);
 
-			auto colour = colourScheme.types[token].colour;
+			auto colour = colourScheme->types[token].colour;
 
 			if (token == 0)
 				break;
@@ -429,29 +439,46 @@ void mcl::CodeMap::timerCallback()
 
 void mcl::CodeMap::HoverPreview::paint(Graphics& g)
 {
-	auto index = Point<int>(jmax(0, rows.getStart() - 20), 0);
+	auto& document = parent.doc;
 
-	auto it = TextDocument::Iterator(document, index);
-	auto previous = it.getIndex();
+	auto realStart = document.getFoldableLineRangeHolder().getNearestLineStartOfAnyRange(rows.getStart());
+
+	Range<int> realRange(realStart, rows.getEnd() + 1);
+
+	auto index = Point<int>(jmax(realStart, 0), 0);
+
+	CodeDocument::Position pos(document.getCodeDocument(), index.x, index.y);
+
+	auto it = CodeDocument::Iterator(pos);
+	auto previous = Point<int>(it.getLine(), it.getIndexInLine());
 	auto zones = Array<Selection>();
 	
-	while (it.getIndex().x < rows.getEnd() && !it.isEOF())
+	if (auto tokeniser = parent.getTokeniser())
 	{
-		auto tokenType = CppTokeniserFunctions::readNextToken(it);
-		zones.add(Selection(previous, it.getIndex()).withStyle(tokenType));
-		previous = it.getIndex();
+		while (it.getLine() <= rows.getEnd() && !it.isEOF())
+		{
+			auto tokenType = tokeniser->readNextToken(it);
+
+			Point<int> next(it.getLine(), it.getIndexInLine());
+
+			if (next == previous)
+				break;
+
+			zones.add(Selection(previous, next).withStyle(tokenType));
+			previous = next;
+		}
 	}
 
-	document.clearTokens(rows.expanded(20));
-	document.applyTokens(rows.expanded(20), zones);
+	document.clearTokens(realRange);
+	document.applyTokens(realRange, zones);
 
 	int top = rows.getStart();
-	int bottom = rows.getEnd();
+	int bottom = rows.getEnd() + 1;
 
 	RectangleList<float> area;
 
-	area.add(document.getBoundsOnRow(top, { 0, document.getNumColumns(top) }, GlyphArrangementArray::ReturnLastCharacter));
-	area.add(document.getBoundsOnRow(bottom, { 0, document.getNumColumns(bottom) }, GlyphArrangementArray::ReturnLastCharacter));
+	for (int i = top; i < bottom + 1; i++)
+		area.add(document.getBoundsOnRow(i, { 0, document.getNumColumns(i) }, GlyphArrangementArray::ReturnLastCharacter));
 
 	auto displayBounds = area.getBounds();
 
@@ -467,11 +494,15 @@ void mcl::CodeMap::HoverPreview::paint(Graphics& g)
 
 	g.setColour(Colours::black);
 
-	for (int i = 0; i < colourScheme.types.size(); i++)
+
+	if (auto colourScheme = parent.getColourScheme())
 	{
-		g.setColour(colourScheme.types[i].colour);
-		auto glyphs = document.findGlyphsIntersecting(displayBounds, i);
-		glyphs.draw(g);
+		for (int i = 0; i < colourScheme->types.size(); i++)
+		{
+			g.setColour(colourScheme->types[i].colour);
+			auto glyphs = document.findGlyphsIntersecting(displayBounds, i);
+			glyphs.draw(g);
+		}
 	}
 
 	g.restoreState();
@@ -480,9 +511,9 @@ void mcl::CodeMap::HoverPreview::paint(Graphics& g)
 void mcl::CodeMap::HoverPreview::setCenterRow(int newCenterRow)
 {
 	centerRow = newCenterRow;
-	auto numRowsToShow = getHeight() / document.getFontHeight();
+	auto numRowsToShow = getHeight() / parent.doc.getFontHeight();
 
-	rows = Range<int>(centerRow - numRowsToShow, centerRow + numRowsToShow / 2);
+	rows = Range<int>(centerRow - numRowsToShow / 2, centerRow + numRowsToShow / 2);
 
 	rows.setStart(jmax(0, rows.getStart()));
 
@@ -502,6 +533,22 @@ void FoldMap::Item::mouseDoubleClick(const MouseEvent& e)
 	findParentComponentOfClass<FullEditor>()->editor.grabKeyboardFocusAndActivateTokenBuilding();
 
 	repaint();
+}
+
+juce::CodeEditorComponent::ColourScheme* CodeMap::getColourScheme()
+{
+	if (auto fe = findParentComponentOfClass<FullEditor>())
+		return &fe->editor.colourScheme;
+
+	return nullptr;
+}
+
+juce::CodeTokeniser* CodeMap::getTokeniser()
+{
+	if (auto fe = findParentComponentOfClass<FullEditor>())
+		return fe->editor.tokeniser;
+
+	return nullptr;
 }
 
 }

@@ -53,7 +53,7 @@ juce::Path FullEditor::Factory::createPath(const String& url) const
 
 FullEditor::FullEditor(TextDocument& d) :
 	editor(d),
-	codeMap(d, new CPlusPlusCodeTokeniser()),
+	codeMap(d),
 	foldMap(d),
 	mapButton("goggles", this, factory),
 	foldButton("toc", this, factory),
@@ -77,7 +77,6 @@ FullEditor::FullEditor(TextDocument& d) :
 	initButton(mapButton);
 	initButton(foldButton);
 
-	codeMap.colourScheme = editor.colourScheme;
 	codeMap.transformToUse = editor.transform;
 
 	addAndMakeVisible(edge);

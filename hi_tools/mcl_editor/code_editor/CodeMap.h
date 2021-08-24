@@ -529,9 +529,8 @@ class CodeMap : public Component,
 {
 public:
 
-	CodeMap(TextDocument& doc_, CodeTokeniser* tok) :
+	CodeMap(TextDocument& doc_) :
 		doc(doc_),
-		tokeniser(tok),
 		rebuilder(*this),
 		transformToUse(defaultTransform)
 	{
@@ -609,8 +608,8 @@ public:
 
 	struct HoverPreview : public Component
 	{
-		HoverPreview(TextDocument& doc, int centerRow) :
-			document(doc)
+		HoverPreview(CodeMap& parent_, int centerRow) :
+			parent(parent_)
 		{
 			setCenterRow(centerRow);
 		}
@@ -619,10 +618,7 @@ public:
 
 		void paint(Graphics& g) override;
 
-		TextDocument& document;
-
-		CodeEditorComponent::ColourScheme colourScheme;
-
+		CodeMap& parent;
 		Range<int> rows;
 		int centerRow;
 		float scale = 1.0f;
@@ -643,6 +639,10 @@ public:
 	float lineToY(int lineNumber) const;
 
 	int yToLine(float y) const;
+
+	CodeEditorComponent::ColourScheme* getColourScheme();
+
+	CodeTokeniser* getTokeniser();
 
 	ScopedPointer<HoverPreview> preview;
 
@@ -665,10 +665,7 @@ public:
 
 	Array<ColouredRectangle> colouredRectangles;
 
-	CodeEditorComponent::ColourScheme colourScheme;
-
 	TextDocument& doc;
-	ScopedPointer<CodeTokeniser> tokeniser;
 
 	float currentAnimatedLine = -1.0f;
 	float targetAnimatedLine = -1.0f;
@@ -681,6 +678,8 @@ public:
 	Range<int> displayedLines;
 	Range<int> surrounding;
 	int offsetY = 0;
+
+	
 
 	AffineTransform defaultTransform;
 	AffineTransform& transformToUse;
