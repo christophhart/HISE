@@ -90,7 +90,7 @@ public:
 	bool isActive() const { return currentSequence != nullptr; }
 
 	bool hover = false;
-	bool externalDrag = false;
+	bool externalDrag = true;
 
 private:
 	
