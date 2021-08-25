@@ -28,6 +28,52 @@ MainContentComponent::MainContentComponent() :
 	addAndMakeVisible(preview);
 
 	editor.setMarkdownMode();
+	editor.setLookAndFeel(&plaf);
+
+	
+	editor.editor.addPopupMenuFunction(
+	[](mcl::TextEditor& te , PopupMenu& m, const MouseEvent& e)
+	{
+		m.addItem(12000, "Insert image link");
+		m.addItem(13000, "Insert link");
+	},
+	[this](mcl::TextEditor& te, int result)
+	{
+		if (result == 12000)
+		{
+			FileChooser fc("Create image link", rootDirectory.getChildFile("images"));
+
+			if (fc.browseForFileToOpen())
+			{
+				String f;
+				f << "![ALT_TEXT](/" << fc.getResult().getRelativePathFrom(rootDirectory).replace("\\", "/") << ")";
+				te.insert(f);
+			}
+
+			return true;
+		}
+		if (result == 13000)
+		{
+			FileChooser fc("Create link", currentFile.getParentDirectory());
+
+			if (fc.browseForFileToOpen())
+			{
+				String f;
+				f << "[LinkName](/" << fc.getResult().getRelativePathFrom(rootDirectory).replace("\\", "/") << ")";
+				te.insert(f);
+
+				auto s = te.getTextDocument().getSelection(0);
+				s.head.y++;
+				s.tail.y = s.head.y + 8;
+				te.getTextDocument().setSelection(0, s, false);
+			}
+
+			return true;
+		}
+		
+		return false;
+	}
+	);
 
 	preview.setViewOptions((int)MarkdownPreview::ViewOptions::Naked);
 	preview.setStyleData(MarkdownLayout::StyleData::createBrightStyle());
