@@ -1600,7 +1600,17 @@ FloatingTileDocumentWindow::FloatingTileDocumentWindow(BackendRootWindow* parent
 	setUsingNativeTitleBar(true);
 	setResizable(true, true);
 
+	auto useOpenGL = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Other::UseOpenGL).toString() == "1";
+
+	if (useOpenGL)
+		setEnableOpenGL(this);
+
 	centreWithSize(500, 500);
+}
+
+FloatingTileDocumentWindow::~FloatingTileDocumentWindow()
+{
+	detachOpenGl();
 }
 
 void FloatingTileDocumentWindow::closeButtonPressed()

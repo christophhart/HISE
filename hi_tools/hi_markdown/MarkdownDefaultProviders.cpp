@@ -69,8 +69,8 @@ MarkdownParser::FileLinkResolver::FileLinkResolver(const File& root_) :
 
 juce::String MarkdownParser::FileLinkResolver::getContent(const MarkdownLink& url)
 {
-	if (url.fileExists({}))
-		return url.toString(MarkdownLink::ContentFull);
+	if (url.fileExists(root))
+		return url.toString(MarkdownLink::ContentFull, root);
 
 	return {};
 }

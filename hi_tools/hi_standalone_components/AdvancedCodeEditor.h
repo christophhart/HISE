@@ -544,6 +544,22 @@ private:
 	void increaseMultiSelectionForCurrentToken();
 };
 
+struct CommonEditorFunctions
+{
+#if HISE_USE_NEW_CODE_EDITOR
+	using EditorType = mcl::FullEditor;
+#else
+	using EditorType = JavascriptCodeEditor;
+#endif
+
+	static EditorType* as(Component* c);
+	static CodeDocument::Position getCaretPos(Component* c);
+	static CodeDocument& getDoc(Component* c);
+	static String getCurrentToken(Component* c);
+	static void insertTextAtCaret(Component* c, const String& t);
+	static String getCurrentSelection(Component* c);
+};
+
 
 } // namespace hise
 

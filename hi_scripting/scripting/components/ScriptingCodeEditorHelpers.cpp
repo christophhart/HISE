@@ -44,7 +44,7 @@ public:
 		DialogWindowWithBackgroundThread("Search & Replace"),
 		editor(editor_)
 	{
-		auto selection = PopupIncludeEditor::CommonEditorFunctions::getCurrentSelection(editor);
+		auto selection = CommonEditorFunctions::getCurrentSelection(editor);
 
 		addTextEditor("search", selection, "Search for");
 		getTextEditor("search")->addListener(this);
@@ -96,7 +96,7 @@ public:
 
 	static Array<JavascriptCodeEditor::CodeRegion> getRegionsFor(PopupIncludeEditor::EditorType* editor, const String &searchTerm)
 	{
-		const String allText = PopupIncludeEditor::CommonEditorFunctions::getDoc(editor).getAllContent();
+		const String allText = CommonEditorFunctions::getDoc(editor).getAllContent();
 
 		String analyseString = allText;
 		String search = searchTerm;
@@ -147,7 +147,7 @@ public:
 
 	void textEditorTextChanged(TextEditor& e)
 	{
-		const String allText = PopupIncludeEditor::CommonEditorFunctions::getDoc(editor).getAllContent();
+		const String allText = CommonEditorFunctions::getDoc(editor).getAllContent();
 
 		String analyseString = allText;
 		String search = e.getText();
@@ -180,11 +180,11 @@ public:
 			const String search = getTextEditor("search")->getText();
 			const String replace = getTextEditor("replace")->getText();
 
-			const String selected = PopupIncludeEditor::CommonEditorFunctions::getCurrentSelection(editor);
+			const String selected = CommonEditorFunctions::getCurrentSelection(editor);
 
 			if (selected == search)
 			{
-				PopupIncludeEditor::CommonEditorFunctions::insertTextAtCaret(editor, replace);
+				CommonEditorFunctions::insertTextAtCaret(editor, replace);
 			}
 
 			goToNextMatch();
@@ -194,7 +194,7 @@ public:
 			const String search = getTextEditor("search")->getText();
 			const String replace = getTextEditor("replace")->getText();
 
-			auto& doc = PopupIncludeEditor::CommonEditorFunctions::getDoc(editor);
+			auto& doc = CommonEditorFunctions::getDoc(editor);
 
 			const String allText = doc.getAllContent();
 			doc.replaceAllContent(allText.replace(search, replace, false));
@@ -283,7 +283,7 @@ public:
 		mc(dynamic_cast<Processor*>(jp_)->getMainController()),
 		jp(jp_)
 	{
-		addTextEditor("searchTerm", PopupIncludeEditor::CommonEditorFunctions::getCurrentToken(editor), "Search term");
+		addTextEditor("searchTerm", CommonEditorFunctions::getCurrentToken(editor), "Search term");
 		getTextEditor("searchTerm")->addListener(this);
 
 		StringArray sa;
@@ -365,7 +365,7 @@ public:
 
 		if (search.isNotEmpty())
 		{
-			auto thisDoc = &PopupIncludeEditor::CommonEditorFunctions::getDoc(editor);
+			auto thisDoc = &CommonEditorFunctions::getDoc(editor);
 
 			for (int i = 0; i < jp->getNumSnippets(); i++)
 			{
@@ -470,7 +470,7 @@ public:
 
 			DebugableObject::Helpers::gotoLocation(editor, jp, loc);
 
-			editor = PopupIncludeEditor::CommonEditorFunctions::as(mc->getLastActiveEditor());
+			editor = CommonEditorFunctions::as(mc->getLastActiveEditor());
 
 			if (editor != nullptr)
 			{
@@ -578,7 +578,7 @@ struct TemplateSelector : public Component,
 
 		l.setFont(GLOBAL_MONOSPACE_FONT());
 
-		l.setText(PopupIncludeEditor::CommonEditorFunctions::getCurrentToken(c->getEditor()), dontSendNotification);
+		l.setText(CommonEditorFunctions::getCurrentToken(c->getEditor()), dontSendNotification);
 		l.setEditable(false);
 		l.setColour(Label::textColourId, Colours::white);
 		l.setColour(Label::backgroundColourId, Colours::white.withAlpha(0.1f));
@@ -841,9 +841,9 @@ bool JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
 	{
 	case CreateUiFactoryMethod:
 	{
-		const String selection = PopupIncludeEditor::CommonEditorFunctions::getCurrentSelection(c);
+		const String selection = CommonEditorFunctions::getCurrentSelection(c);
 		const String newText = ScriptRefactoring::createFactoryMethod(selection);
-		PopupIncludeEditor::CommonEditorFunctions::insertTextAtCaret(c, newText);
+		CommonEditorFunctions::insertTextAtCaret(c, newText);
 		return true;
 	}
 	case AddAutocompleteTemplate:
@@ -865,7 +865,7 @@ bool JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
 		if (PresetHandler::showYesNoWindow("Clear autocomplete templates", "Do you want to clear all autocomplete templates?"))
 		{
 			autoCompleteTemplates.clear();
-			PopupIncludeEditor::CommonEditorFunctions::as(c)->editor.tokenCollection.signalRebuild();
+			CommonEditorFunctions::as(c)->editor.tokenCollection.signalRebuild();
 		}
 #endif
 
@@ -974,7 +974,7 @@ bool JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
 	}
 	case MoveToExternalFile:
 	{
-		const String text = PopupIncludeEditor::CommonEditorFunctions::getCurrentSelection(c);
+		const String text = CommonEditorFunctions::getCurrentSelection(c);
 
 		const String newFileName = PresetHandler::getCustomName("Script File", "Enter the file name for the external script file (without .js)");
 
@@ -990,29 +990,29 @@ bool JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
 			}
 
 			String insertStatement = "include(\"" + newFile.getFileName() + "\");" + NewLine();
-			PopupIncludeEditor::CommonEditorFunctions::insertTextAtCaret(c, insertStatement);
+			CommonEditorFunctions::insertTextAtCaret(c, insertStatement);
 		}
 
 		return true;
 	}
 	case JumpToDefinition:
 	{
-		auto token = PopupIncludeEditor::CommonEditorFunctions::getCurrentToken(c);
-		const String namespaceId = JavascriptCodeEditor::Helpers::findNamespaceForPosition(PopupIncludeEditor::CommonEditorFunctions::getCaretPos(c));
+		auto token = CommonEditorFunctions::getCurrentToken(c);
+		const String namespaceId = JavascriptCodeEditor::Helpers::findNamespaceForPosition(CommonEditorFunctions::getCaretPos(c));
 		jumpToDefinition(token, namespaceId);
 
 		return true;
 	}
 	case FindAllOccurences:
 	{
-		auto finder = new ReferenceFinder(PopupIncludeEditor::CommonEditorFunctions::as(c), this);
+		auto finder = new ReferenceFinder(CommonEditorFunctions::as(c), this);
 		finder->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(c));
 		finder->grabKeyboardFocus();
 		return true;
 	}
 	case SearchAndReplace:
 	{
-		auto replacer = new CodeReplacer(PopupIncludeEditor::CommonEditorFunctions::as(c));
+		auto replacer = new CodeReplacer(CommonEditorFunctions::as(c));
 		replacer->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(c));
 		replacer->getTextEditor("search")->grabKeyboardFocus();
 		return true;

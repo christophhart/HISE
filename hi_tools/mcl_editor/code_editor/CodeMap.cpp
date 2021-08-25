@@ -67,6 +67,7 @@ void mcl::CodeMap::mouseExit(const MouseEvent& e)
 {
 	hoveredLine = -1;
 
+	Desktop::getInstance().getAnimator().fadeOut(preview, 200);
 	preview = nullptr;
 
 	repaint();
@@ -89,8 +90,11 @@ void mcl::CodeMap::mouseMove(const MouseEvent& e)
 {
 	hoveredLine = getLineNumberFromEvent(e);
 
-	if(preview == nullptr)
-		getParentComponent()->addAndMakeVisible(preview = new HoverPreview(*this, hoveredLine));
+	if (preview == nullptr)
+	{
+		getParentComponent()->addChildComponent(preview = new HoverPreview(*this, hoveredLine));
+		Desktop::getInstance().getAnimator().fadeIn(preview, 600);
+	}
 
 	preview->setBounds(getPreviewBounds(e));
 	preview->setCenterRow(getLineNumberFromEvent(e));
@@ -100,6 +104,7 @@ void mcl::CodeMap::mouseMove(const MouseEvent& e)
 
 void mcl::CodeMap::mouseDown(const MouseEvent& e)
 {
+	Desktop::getInstance().getAnimator().fadeOut(preview, 200);
 	preview = nullptr;
 
 	currentAnimatedLine = displayedLines.getStart() + displayedLines.getLength() / 2;
@@ -337,9 +342,6 @@ void mcl::CodeMap::rebuild()
 
 			auto colour = colourScheme->types[token].colour;
 
-			if (token == 0)
-				break;
-
 			CodeDocument::Position end(doc.getCodeDocument(), it.getPosition());
 
 			auto pos = start;
@@ -482,10 +484,11 @@ void mcl::CodeMap::HoverPreview::paint(Graphics& g)
 
 	auto displayBounds = area.getBounds();
 
-	g.fillAll(Colour(0xCC333333));
+	g.setColour(Colour(0xEE333333));
+	g.fillRoundedRectangle(getLocalBounds().toFloat(), 4.0f);
 
 	g.setColour(Colours::white.withAlpha(0.6f));
-	g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 2.0f, 1.0f);
+	g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 4.0f, 1.0f);
 
 	auto transform = AffineTransform::scale(1.5f / scale).translated(displayBounds.getX() - 10, displayBounds.getY() - 10);
 
@@ -515,7 +518,8 @@ void mcl::CodeMap::HoverPreview::setCenterRow(int newCenterRow)
 
 	rows = Range<int>(centerRow - numRowsToShow / 2, centerRow + numRowsToShow / 2);
 
-	rows.setStart(jmax(0, rows.getStart()));
+	if (rows.getStart() < 0)
+		rows = rows.movedToStartAt(0);
 
 	repaint();
 }

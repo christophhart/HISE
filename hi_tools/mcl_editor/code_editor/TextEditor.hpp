@@ -510,7 +510,15 @@ public:
 		tokeniser = ownedTokeniser;
 	}
 
+	void setEnableAutocomplete(bool shouldBeEnabled)
+	{
+		autocompleteEnabled = shouldBeEnabled;
+		currentAutoComplete = nullptr;
+	}
+
 	ScopedPointer<CodeTokeniser> tokeniser;
+
+	ScrollBar& getVerticalScrollBar() { return scrollBar; }
 
 private:
 
@@ -777,9 +785,16 @@ private:
     juce::Point<float> translation;
 	bool showClosures = false;
 	float xPos = 0.0f;
+
+	bool autocompleteEnabled = true;
 	
 	Selection currentClosure[2];
 
+	
+	// just used in order to send a scrollbar notification
+	bool scrollBarRecursion = false;
+
+	// used for all scrolling
 	bool scrollRecursion = false;
 	bool includeDotInAutocomplete = false;
 

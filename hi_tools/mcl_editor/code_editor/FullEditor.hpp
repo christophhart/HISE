@@ -59,6 +59,15 @@ struct FullEditor: public Component,
 
 	}
 
+	void setMarkdownMode()
+	{
+		editor.setCodeTokeniser(new MarkdownParser::Tokeniser());
+		editor.colourScheme = editor.tokeniser->getDefaultColourScheme();
+		editor.setLineRangeFunction(mcl::FullEditor::createMarkdownLineRange);
+		editor.setEnableAutocomplete(false);
+		enableBreakpoints(false);
+	}
+
 	void setReadOnly(bool shouldBeReadOnly)
 	{
 		editor.setReadOnly(shouldBeReadOnly);
@@ -98,6 +107,8 @@ struct FullEditor: public Component,
 	{
 		editor.gutter.setBreakpointsEnabled(shouldBeEnabled);
 	}
+
+	static mcl::FoldableLineRange::List createMarkdownLineRange(const CodeDocument& doc);
 
 	void buttonClicked(Button* b) override;
 

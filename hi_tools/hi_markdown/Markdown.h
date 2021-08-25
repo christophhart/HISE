@@ -75,7 +75,7 @@ class MarkdownParser
 {
 public:
 	
-	
+	static constexpr int DefaultLineWidth = 800;
 
 	enum ResolveType
 	{
@@ -291,6 +291,10 @@ public:
 		lastLink = url;
 	}
 
+	int getLineNumberForY(float y) const;
+
+	float getYForLineNumber(int lineNumber) const;
+
 	Array<MarkdownLink> getImageLinks() const;
 
 	HyperLink getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area);
@@ -454,8 +458,9 @@ protected:
 
 	struct Element
 	{
-		Element(MarkdownParser* parent_) :
-			parent(parent_)
+		Element(MarkdownParser* parent_, int lineNumber_) :
+			parent(parent_),
+			lineNumber(lineNumber_)
 		{
 			hyperLinks.insertArray(0, parent->currentLinks.getRawDataPointer(), parent->currentLinks.size());
 		};
@@ -515,6 +520,8 @@ protected:
 
 		virtual void prepareLinksForHtmlExport(const String& baseURL);
 
+		int getLineNumber() const { return lineNumber; }
+
 		String generateHtmlAndResolveLinks(const File& localRoot) const
 		{
 			auto s = generateHtml();
@@ -556,6 +563,7 @@ protected:
 
 		float lastWidth = -1.0f;
 		float cachedHeight = 0.0f;
+		int lineNumber;
 	};
 
 	struct TextBlock;	struct Headline;		struct BulletPointList;		struct Comment;
@@ -610,10 +618,13 @@ private:
 		String getRestString() const;
 		String advanceLine();
 
+		int getLineNumber() const { return currentLine; }
+
 	private:
 
 		String text;
 		CharPointer_UTF8 it;
+		int currentLine = 0;
 	};
 
 	struct Helpers

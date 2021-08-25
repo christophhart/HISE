@@ -213,7 +213,7 @@ struct MarkdownEditorPopupComponents
 		{
 			auto t = getTextToInsert();
 
-			parent.editor.editor.insert(t);
+			CommonEditorFunctions::insertTextAtCaret(&parent.editor, t);
 
 			auto tmp = &parent.editor;
 
@@ -513,7 +513,7 @@ struct MarkdownEditorPopupComponents
 				if (clipboard.isNotEmpty())
 					linkURL = clipboard;
 
-				auto text = PopupIncludeEditor::CommonEditorFunctions::getCurrentSelection(&parent.editor);
+				auto text = CommonEditorFunctions::getCurrentSelection(&parent.editor);
 
 				if (text.isNotEmpty())
 					linkName = text;
@@ -644,7 +644,12 @@ struct MarkdownEditorPopupComponents
 MarkdownEditorPanel::MarkdownEditorPanel(FloatingTile* root) :
 	FloatingTileContent(root),
 	tdoc(doc),
+
+#if HISE_USE_NEW_CODE_EDITOR
 	editor(tdoc),
+#else
+	editor(doc, &tokeniser),
+#endif
 	livePreview("Live Preview", this, f),
 	newButton("New File", this, f),
 	openButton("Open File", this, f),
@@ -678,193 +683,11 @@ MarkdownEditorPanel::MarkdownEditorPanel(FloatingTile* root) :
 	tableButton.setTooltip("Create a table");
 	settingsButton.setTooltip("Show settings");
 
-	editor.editor.setCodeTokeniser(new MarkdownParser::Tokeniser());
-
-	MarkdownParser::Tokeniser t;
-
-	editor.setColourScheme(t.getDefaultColourScheme());
-
-	editor.editor.setLineRangeFunction(createLineRange);
+#if HISE_USE_NEW_CODE_EDITOR
+	editor.setMarkdownMode();
+#endif
 
 	doc.addListener(this);
-}
-
-mcl::FoldableLineRange::List MarkdownEditorPanel::createLineRange(const CodeDocument& doc)
-{
-	
-
-	CodeDocument::Iterator it(doc);
-
-	
-
-	int currentHeadlineLevel = 0;
-	bool addAtNextChar = false;
-
-	bool isInsideCodeBlock = false;
-
-	struct Level
-	{
-		int line;
-		int level;
-	};
-
-	Array<Level> levels;
-
-	while (auto c = it.peekNextChar())
-	{
-		switch (c)
-		{
-		case '#':
-		{
-			if (!isInsideCodeBlock)
-			{
-				if (!addAtNextChar)
-					currentHeadlineLevel = 0;
-
-				currentHeadlineLevel++;
-				addAtNextChar = true;
-				it.skip();
-				break;
-			}
-		}
-		case '-':
-		case '`':
-		{
-			if (it.nextChar() == c && it.nextChar() == c)
-			{
-				levels.add({ it.getLine(), 9000 });
-				isInsideCodeBlock = !isInsideCodeBlock;
-				break;
-			}
-		}
-		default:
-		{
-			if (addAtNextChar)
-			{
-				levels.add({ it.getLine(), currentHeadlineLevel });
-				addAtNextChar = false;
-			}
-
-			it.skipToEndOfLine();
-			break;
-		}
-		}
-	}
-
-	mcl::FoldableLineRange::WeakPtr currentElement;
-	mcl::FoldableLineRange::List lineRanges;
-
-	auto getNextLineWithSameOrLowerLevel = [&](int i)
-	{
-		auto thisLevel = levels[i].level;
-
-		for (int j = i + 1; j < levels.size(); j++)
-		{
-			if (levels[j].level <= thisLevel)
-				return j;
-		}
-
-		return levels.size() - 1;
-	};
-
-	auto getCurrentLevel = [&]()
-	{
-		if (currentElement == nullptr)
-			return -1;
-
-		auto lineStart = currentElement->getLineRange().getStart();
-
-		for (int i = 0; i < levels.size(); i++)
-		{
-			if (lineStart == levels[i].line)
-				return levels[i].level;
-		}
-
-		jassertfalse;
-		return -1;
-	};
-
-	isInsideCodeBlock = false;
-
-	for (int i = 0; i < levels.size(); i++)
-	{
-		auto thisLevel = levels[i].level;
-
-		
-
-		if (thisLevel == 9000)
-		{
-			if (isInsideCodeBlock)
-			{
-				isInsideCodeBlock = false;
-				continue;
-			}
-
-			isInsideCodeBlock = true;
-
-			if (levels[i + 1].level == 9000)
-			{
-				Range<int> r(levels[i].line, levels[i + 1].line - 1);
-				auto codeRange = new mcl::FoldableLineRange(doc, r);
-
-				if (currentElement != nullptr)
-				{
-					currentElement->children.add(codeRange);
-					codeRange->parent = currentElement;
-				}
-				else
-				{
-					// don't add this as current element as there will be no children
-					lineRanges.add(codeRange);
-				}
-			}
-
-			continue;
-		}
-
-		if (thisLevel >= 4)
-			continue;
-
-		auto endOfRangeIndex = getNextLineWithSameOrLowerLevel(i);
-
-		Range<int> r(levels[i].line, levels[endOfRangeIndex].line);
-
-		if (r.isEmpty())
-			r.setEnd(doc.getNumLines());
-
-		r.setEnd(r.getEnd() - 1);
-
-		auto newRange = new mcl::FoldableLineRange(doc, r);
-
-		
-
-		if (currentElement == nullptr)
-		{
-			currentElement = newRange;
-			lineRanges.add(currentElement);
-		}
-		else
-		{
-			while (getCurrentLevel() >= thisLevel)
-			{
-				currentElement = currentElement->parent;
-			}
-
-			if (currentElement == nullptr)
-			{
-				currentElement = newRange;
-				lineRanges.add(currentElement);
-			}
-			else
-			{
-				currentElement->children.add(newRange);
-				newRange->parent = currentElement;
-				currentElement = newRange;
-			}
-		}
-	}
-
-	return lineRanges;
 }
 
 void MarkdownEditorPanel::buttonClicked(Button* b)

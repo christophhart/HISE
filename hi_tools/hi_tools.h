@@ -78,6 +78,15 @@ END_JUCE_MODULE_DECLARATION
 #define HISE_USE_NEW_CODE_EDITOR 1
 #endif
 
+/** Config: IS_MARKDOWN_EDITOR
+
+	Set this to true if you want to build the markdown editor (it will deactivate
+	some code that would require the entire HISE codebase).
+*/
+#ifndef IS_MARKDOWN_EDITOR
+#define IS_MARKDOWN_EDITOR 0
+#endif
+
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
 
@@ -181,9 +190,10 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_markdown/MarkdownLayout.h"
 #include "hi_markdown/Markdown.h"
 #include "hi_markdown/MarkdownDefaultProviders.h"
-#include "hi_markdown/MarkdownRenderer.h"
+
 #include "hi_markdown/MarkdownHtmlExporter.h"
 #include "hi_markdown/MarkdownDatabaseCrawler.h"
+#include "hi_markdown/MarkdownRenderer.h"
 
 
 #include "mcl_editor/mcl_editor.h"

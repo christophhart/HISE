@@ -4905,9 +4905,9 @@ void ScriptingApi::Console::blink()
 
 		MessageManager::callAsync([e, i, l]()
 		{
-			if (PopupIncludeEditor::CommonEditorFunctions::matchesId(e, i))
+			if (PopupIncludeEditor::matchesId(e, i))
 			{
-				PopupIncludeEditor::CommonEditorFunctions::as(e)->sendBlinkMessage(l);
+				CommonEditorFunctions::as(e)->sendBlinkMessage(l);
 			}
 		});
 	}

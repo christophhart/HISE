@@ -42,8 +42,8 @@ float getHeightForLayout(const MarkdownLayout& l)
 
 struct MarkdownParser::TextBlock : public MarkdownParser::Element
 {
-	TextBlock(MarkdownParser* parent, const AttributedString& s) :
-		Element(parent),
+	TextBlock(MarkdownParser* parent, int lineNumber, const AttributedString& s) :
+		Element(parent, lineNumber),
 		content(s),
 		l(content, 0.0f)
 	{}
@@ -150,8 +150,8 @@ struct MarkdownParser::ActionButton : public Element,
 		MarkdownParser& parent;
 	};
 
-	ActionButton(MarkdownParser* parent, const String& text_, const String& url_) :
-		Element(parent),
+	ActionButton(MarkdownParser* parent, int lineNumber, const String& text_, const String& url_) :
+		Element(parent, lineNumber),
 		blaf(*parent),
 		text(text_),
 		url(url_)
@@ -229,8 +229,8 @@ struct MarkdownParser::ActionButton : public Element,
 
 struct MarkdownParser::Headline : public MarkdownParser::Element
 {
-	Headline(MarkdownParser* parent, int level_, const String& imageURL_, const AttributedString& s, bool isFirst_) :
-		Element(parent),
+	Headline(MarkdownParser* parent, int lineNumber, int level_, const String& imageURL_, const AttributedString& s, bool isFirst_) :
+		Element(parent, lineNumber),
 		content(s),
 		headlineLevel(level_),
 		isFirst(isFirst_),
@@ -372,8 +372,8 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 		Array<HyperLink> links;
 	};
 
-	BulletPointList(MarkdownParser* parser, Array<AttributedString>& ar, Array<Array<HyperLink>>& links) :
-		Element(parser)
+	BulletPointList(MarkdownParser* parser, int lineNumber, Array<AttributedString>& ar, Array<Array<HyperLink>>& links) :
+		Element(parser, lineNumber)
 	{
 		for (int i = 0; i < ar.size(); i++)
 			rows.add({ ar[i],{ ar[i], 0.0f }, links[i] });
@@ -515,8 +515,8 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 
 struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 {
-	EnumerationList(MarkdownParser* parent, Array<AttributedString>& list, Array<Array<HyperLink>>& links) :
-		BulletPointList(parent, list, links)
+	EnumerationList(MarkdownParser* parent, int lineNumber, Array<AttributedString>& list, Array<Array<HyperLink>>& links) :
+		BulletPointList(parent, lineNumber, list, links)
 	{};
 
 	String getTextToCopy() const override
@@ -564,8 +564,8 @@ struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 
 struct MarkdownParser::Comment : public MarkdownParser::Element
 {
-	Comment(MarkdownParser* p, const AttributedString& c) :
-		Element(p),
+	Comment(MarkdownParser* p, int lineNumber, const AttributedString& c) :
+		Element(p, lineNumber),
 		l(c, 0.0f),
 		content(c)
 	{};
@@ -656,8 +656,8 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 
 struct MarkdownParser::ImageElement : public MarkdownParser::Element
 {
-	ImageElement(MarkdownParser* parent, const String& imageName_, const String& imageURL_) :
-		Element(parent),
+	ImageElement(MarkdownParser* parent, int lineNumber, const String& imageName_, const String& imageURL_) :
+		Element(parent, lineNumber),
 		imageName(imageName_),
 		imageURL({}, imageURL_)
 	{
@@ -854,8 +854,8 @@ private:
 
 struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 {
-	CodeBlock(MarkdownParser* parent, const String& code_, MarkdownCodeComponentBase::SyntaxType t) :
-		Element(parent),
+	CodeBlock(MarkdownParser* parent, int lineNumber, const String& code_, MarkdownCodeComponentBase::SyntaxType t) :
+		Element(parent, lineNumber),
 		code(code_),
 		syntax(t)
 	{
@@ -946,7 +946,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 		MessageManagerLock mm;
 #endif
 
-		createComponent(800);
+		createComponent(MarkdownParser::DefaultLineWidth);
 
 		content->addImageLinks(sa);
 	}
@@ -982,8 +982,8 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 {
 	static constexpr int FixOffset = 100000;
 
-	MarkdownTable(MarkdownParser* p, const RowContent& headerItems, const Array<int>& lengths, const Array<RowContent>& entries) :
-		Element(p)
+	MarkdownTable(MarkdownParser* p, int lineNumber, const RowContent& headerItems, const Array<int>& lengths, const Array<RowContent>& entries) :
+		Element(p, lineNumber)
 	{
 		int index = 0;
 
@@ -1315,8 +1315,8 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 {
-	ContentFooter(MarkdownParser* parent, const MarkdownHeader& header):
-		Element(parent)
+	ContentFooter(MarkdownParser* parent, int lineNumber, const MarkdownHeader& header):
+		Element(parent, lineNumber)
 	{
 		auto f = parent->styleData.getFont().withHeight(parent->styleData.fontSize * 0.75f);
 
