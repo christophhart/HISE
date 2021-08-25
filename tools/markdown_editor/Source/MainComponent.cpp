@@ -15,10 +15,15 @@ MainContentComponent::MainContentComponent() :
 	preview(*this),
 	updater(*this)
 {
+#if JUCE_MAC
+    MenuBarModel::setMacMainMenu(this);
+#else
 	addAndMakeVisible(menuBar);
 	menuBar.setModel(this);
+    setEnableOpenGL(this);
+#endif
 
-	setEnableOpenGL(this);
+	
 
 	setLookAndFeel(&laf);
 
@@ -76,11 +81,13 @@ MainContentComponent::MainContentComponent() :
 	);
 
 	preview.setViewOptions((int)MarkdownPreview::ViewOptions::Naked);
-	preview.setStyleData(MarkdownLayout::StyleData::createBrightStyle());
+	preview.setStyleData(MarkdownLayout::StyleData::createDarkStyle());
 	//preview.renderer.setCreateFooter(false);
 	preview.setNewText("", File());
 	preview.setMouseMode(MarkdownPreview::Drag);
 
+    
+    
 	setEnableScrollbarListening(true);
 
     setSize (1280, 800);
@@ -90,6 +97,10 @@ MainContentComponent::MainContentComponent() :
 
 MainContentComponent::~MainContentComponent()
 {
+#if JUCE_MAC
+    MenuBarModel::setMacMainMenu(nullptr);
+#endif
+    
 	currentSettings.getDynamicObject()->setProperty(SettingIds::Width, getWidth());
 	currentSettings.getDynamicObject()->setProperty(SettingIds::Height, getHeight());
 
@@ -107,7 +118,8 @@ void MainContentComponent::resized()
 {
 	auto b = getLocalBounds();
 
-	menuBar.setBounds(b.removeFromTop(24));
+    if(menuBar.isVisible())
+        menuBar.setBounds(b.removeFromTop(24));
 
 	if(preview.isVisible())
 		preview.setBounds(editor.isVisible() ? b.removeFromRight(getWidth() / 2) : b);
@@ -158,6 +170,7 @@ juce::PopupMenu MainContentComponent::getMenuForIndex(int topLevelMenuIndex, con
 	{
 		m.addItem(1, "Show Editor", true, getSetting(SettingIds::ShowEditor));
 		m.addItem(2, "Show Preview", true, getSetting(SettingIds::ShowPreview));
+        m.addItem(4, "Dark Preview", true, getSetting(SettingIds::DarkPreview));
 		m.addSeparator();
 		m.addItem(3, "Set root directory");
 	}
@@ -182,6 +195,7 @@ void MainContentComponent::menuItemSelected(int menuItemID, int topLevelMenuInde
 			break;
 		}
 		case 3:
+            currentFile.replaceWithText(doc.getAllContent());
 			break;
 		case 4:
 			JUCEApplication::quit();
@@ -203,6 +217,7 @@ void MainContentComponent::menuItemSelected(int menuItemID, int topLevelMenuInde
 		{
 		case 1: toggleSetting(SettingIds::ShowEditor); break;
 		case 2: toggleSetting(SettingIds::ShowPreview); break;
+        case 4: toggleSetting(SettingIds::DarkPreview); break;
 		case 3:
 		{
 			FileChooser fc("Set root directory", File());
@@ -218,14 +233,30 @@ void MainContentComponent::applySetting(const Identifier& id, var newValue)
 {
 	currentSettings.getDynamicObject()->setProperty(id, newValue);
 
+    MenuBarModel::menuItemsChanged();
+    
 	if (id == SettingIds::ShowEditor)
 	{
-		editor.setVisible(newValue);
-		resized();
+        int lineToShow = -1;
+        
+        if(newValue)
+            lineToShow = preview.renderer.getLineNumberForY(preview.viewport.getViewPositionY());
+        
+        MarkdownRenderer::ScopedScrollDisabler sds(preview.renderer);
+        
+        editor.setVisible(newValue);
+        resized();
+        
+        
+        
+        if(lineToShow != -1)
+            editor.editor.setFirstLineOnScreen(lineToShow);
 	}
 	if (id == SettingIds::ShowPreview)
 	{
+        auto firstLine = editor.editor.getFirstLineOnScreen();
 		preview.setVisible(newValue);
+        editor.editor.setFirstLineOnScreen(firstLine + 2);
 		resized();
 	}
 	if (id == SettingIds::CurrentFile)
@@ -245,6 +276,21 @@ void MainContentComponent::applySetting(const Identifier& id, var newValue)
 
 		setFile(f);
 	}
+    if(id == SettingIds::DarkPreview)
+    {
+        bool isDarkPreview = (bool)newValue;
+        
+        auto s = isDarkPreview ? MarkdownLayout::StyleData::createDarkStyle():
+                                 MarkdownLayout::StyleData::createBrightStyle();
+        
+        s.fontSize = preview.renderer.getStyleData().fontSize;
+        
+        preview.setStyleData(s);
+        
+        MarkdownRenderer::ScopedScrollDisabler sds(preview.renderer);
+        preview.setNewText(doc.getAllContent(), currentFile, false);
+        preview.repaint();
+    }
 	if (id == SettingIds::RootDirectory)
 	{
 		rootDirectory = File(newValue.toString());
@@ -253,6 +299,11 @@ void MainContentComponent::applySetting(const Identifier& id, var newValue)
 		{
 			preview.renderer.setLinkResolver(new MarkdownParser::FileLinkResolver(rootDirectory));
 			preview.renderer.setImageProvider(new MarkdownParser::FileBasedImageProvider(&preview.renderer, rootDirectory));
+            
+            auto tempDir = getSettingsFile().getSiblingFile("imagecache");
+            tempDir.createDirectory();
+            
+            preview.renderer.setImageProvider(new MarkdownParser::URLImageProvider(tempDir, &preview.renderer));
 		}
 	}
 	if (id == SettingIds::Width)
@@ -290,6 +341,9 @@ void MainContentComponent::synchroniseTabs(bool editorIsSource)
 {
 	if (recursiveScrollProtector)
 		return;
+    
+    if(!editor.isVisible() || !preview.isVisible())
+        return;
 
 	ScopedValueSetter<bool> svs(recursiveScrollProtector, true);
 

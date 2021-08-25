@@ -419,27 +419,40 @@ void MarkdownPreview::InternalComponent::mouseMove(const MouseEvent& event)
 	setMouseCursor(link.valid ? MouseCursor::PointingHandCursor : MouseCursor::NormalCursor);
 }
 
+void MarkdownPreview::InternalComponent::setScaleFactor(float newScaleFactor)
+{
+    newScaleFactor = jlimit(0.5f, 3.0f, newScaleFactor);
+    
+    if(scaleFactor != newScaleFactor)
+    {
+        scaleFactor = newScaleFactor;
+        
+        auto topLine = parent.renderer.getLineNumberForY(parent.viewport.getViewPositionY());
+        
+        auto newWidth = jmin(parent.viewport.getWidth() - parent.viewport.getScrollBarThickness(), roundToInt((float)MarkdownParser::DefaultLineWidth * scaleFactor));
+
+        MarkdownRenderer::ScopedScrollDisabler sds(parent.renderer);
+
+        styleData.fontSize = 18.0f * scaleFactor;
+        
+        if(newWidth != getWidth())
+            setSize(newWidth, getHeight());
+
+        renderer.setStyleData(styleData);
+        
+        auto newY = parent.renderer.getYForLineNumber(topLine);
+        parent.renderer.scrollToY(newY);
+    }
+}
+
 
 void MarkdownPreview::InternalComponent::mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& details)
 {
 	if (event.mods.isCommandDown())
 	{
-		float delta = details.deltaY > 0 ? 1.0f : -1.0f;
-
-		auto oldSize = styleData.fontSize;
-
-		styleData.fontSize = jlimit<float>(17.0f, 36.0f, styleData.fontSize + delta);
-
-		scaleFactor = styleData.fontSize / oldSize;
-
-		auto newWidth = jmin(parent.viewport.getWidth() - parent.viewport.getScrollBarThickness(), roundToInt((float)getWidth() * scaleFactor));
-
-		MarkdownRenderer::ScopedScrollDisabler sds(parent.renderer);
-
-		if(newWidth != getWidth())
-			setSize(newWidth, getHeight());
-
-		renderer.setStyleData(styleData);
+        auto thisScale = scaleFactor + (float)details.deltaY * 0.2;
+        setScaleFactor(thisScale);
+        
 	}
 	else
 	{

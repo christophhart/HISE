@@ -21,10 +21,11 @@ namespace SettingIds
 	DECLARE_ID(RootDirectory);
 	DECLARE_ID(Width);
 	DECLARE_ID(Height);
+    DECLARE_ID(DarkPreview);
 
 	static Array<Identifier> getAllIds()
 	{
-		static const Array<Identifier> ids = { RootDirectory, CurrentFile, ShowPreview, ShowEditor, FileList, FontSize, Width, Height};
+		static const Array<Identifier> ids = { RootDirectory, CurrentFile, ShowPreview, ShowEditor, FileList, FontSize, Width, Height, DarkPreview};
 
 		return ids;
 	}
@@ -126,7 +127,9 @@ private:
 			return 1280;
 		if (id == SettingIds::Height)
 			return 800;
-		
+		if (id == SettingIds::DarkPreview)
+            return true;
+        
 		jassertfalse;
 		return var();
 	}

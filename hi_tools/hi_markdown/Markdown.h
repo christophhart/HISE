@@ -398,6 +398,9 @@ public:
 			{
 				source.skip();
 
+                while(!source.isEOF() && source.peekNextChar() != ']')
+                    source.skip();
+                
 				while (!source.isEOF() && source.peekNextChar() != ')')
 					source.skip();
 

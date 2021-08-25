@@ -377,34 +377,36 @@ public:
 
 	bool disableScrolling = false;
 
+    void scrollToY(float y)
+    {
+        if (disableScrolling)
+            return;
+
+        currentY = y;
+
+        WeakReference<MarkdownRenderer> r = this;
+
+        auto f = [r, y]()
+        {
+            if (r != nullptr)
+            {
+                for (auto l : r->listeners)
+                {
+                    if (l.get() != nullptr)
+                        l->scrollToAnchor(y);
+                }
+            }
+            
+        };
+
+        MessageManager::callAsync(f);
+    }
+    
 private:
 
 	float currentY;
 
-	void scrollToY(float y)
-	{
-		if (disableScrolling)
-			return;
-
-		currentY = y;
-
-		WeakReference<MarkdownRenderer> r = this;
-
-		auto f = [r, y]()
-		{
-			if (r != nullptr)
-			{
-				for (auto l : r->listeners)
-				{
-					if (l.get() != nullptr)
-						l->scrollToAnchor(y);
-				}
-			}
-			
-		};
-
-		MessageManager::callAsync(f);
-	}
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(MarkdownRenderer);
 
@@ -692,6 +694,14 @@ public:
 
 		void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& details) override;
 
+        void mouseMagnify (const juce::MouseEvent& e, float sf) override
+        {
+            auto newScaleFactor = scaleFactor * sf;
+            setScaleFactor(newScaleFactor);
+        }
+        
+        void setScaleFactor(float newScaleFactor);
+        
 		void scrollToAnchor(float v) override;
 
 		void scrollToSearchResult(Rectangle<float> currentSelection);
