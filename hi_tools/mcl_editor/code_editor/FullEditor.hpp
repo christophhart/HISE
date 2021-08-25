@@ -72,7 +72,6 @@ struct FullEditor: public Component,
 	void setColourScheme(const juce::CodeEditorComponent::ColourScheme& s)
 	{
 		editor.colourScheme = s;
-		codeMap.colourScheme = s;
 	}
 
 	void setCurrentBreakline(int n)

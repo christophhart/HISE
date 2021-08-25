@@ -63,7 +63,8 @@ void mcl::GlyphArrangementArray::applyTokens(int index, Selection zone)
 
 	for (int col = range.getStart(); col < range.getEnd(); ++col)
 	{
-		entry->tokens.setUnchecked(col, zone.token);
+		if(isPositiveAndBelow(col, entry->tokens.size()))
+			entry->tokens.setUnchecked(col, zone.token);
 	}
 
 	entry->tokensAreDirty = false;

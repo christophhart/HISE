@@ -514,23 +514,6 @@ public:
 		juce::RectangleList<float> bounds;
 	};
 
-	class Iterator
-	{
-	public:
-		Iterator(const TextDocument& document, juce::Point<int> index) noexcept : document(&document), index(index) { t = get(); }
-		juce::juce_wchar nextChar() noexcept { if (isEOF()) return 0; auto s = t; document->next(index); t = get(); return s; }
-		juce::juce_wchar peekNextChar() noexcept { return t; }
-		void skip() noexcept { if (!isEOF()) { document->next(index); t = get(); } }
-		void skipWhitespace() noexcept { while (!isEOF() && juce::CharacterFunctions::isWhitespace(t)) skip(); }
-		void skipToEndOfLine() noexcept { while (t != '\r' && t != '\n' && t != 0) skip(); }
-		bool isEOF() const noexcept { return index == document->getEnd(); }
-		const juce::Point<int>& getIndex() const noexcept { return index; }
-	private:
-		juce::juce_wchar get() { return document->getCharacter(index); }
-		juce::juce_wchar t;
-		const TextDocument* document;
-		juce::Point<int> index;
-	};
 
 	TextDocument(CodeDocument& doc_);;
 
@@ -557,18 +540,7 @@ public:
 	void replaceAll(const juce::String& content);
 
 	/** Replace the list of selections with a new one. */
-	void setSelections(const juce::Array<Selection>& newSelections, bool useUndo)
-	{
-		if (useUndo)
-		{
-			viewUndoManager.perform(new SelectionAction(*this, newSelections));
-		}
-		else
-		{
-			selections = newSelections; 
-			sendSelectionChangeMessage();
-		}
-	}
+	void setSelections(const juce::Array<Selection>& newSelections, bool useUndo);
 
 	/** Add a selection to the list. */
 	void addSelection(Selection selection) 
@@ -675,23 +647,14 @@ public:
 	/** Return an index pointing to one-past-the-end. */
 	juce::Point<int> getEnd() const;
 
-	/** Advance the given index by a single character, moving to the next
-		line if at the end. Return false if the index cannot be advanced
-		further.
-	 */
-	bool next(juce::Point<int>& index) const;
+	bool navigateLeftRight(juce::Point<int>& index, bool right) const;
 
-	/** Move the given index back by a single character, moving to the previous
-		line if at the end. Return false if the index cannot be advanced
-		further.
-	 */
-	bool prev(juce::Point<int>& index) const;
+	bool navigateUpDown(juce::Point<int>& index, bool down) const;
 
-	/** Move the given index to the next row if possible. */
-	bool nextRow(juce::Point<int>& index) const;
-
-	/** Move the given index to the previous row if possible. */
-	bool prevRow(juce::Point<int>& index) const;
+	int getColumnIndexAccountingTabs(juce::Point<int>& index) const;
+	
+	/** Ensures that the y-position of the index equals the positionToMaintain column. */
+	void applyTabsToPosition(juce::Point<int>& index, int positionToMaintain) const;
 
 	/** Navigate an index to the first character of the given categaory.
 	 */
@@ -823,7 +786,10 @@ public:
 	/** returns the amount of lines occupied by the row. This can be > 1 when the line-break is active. */
 	int getNumLinesForRow(int rowIndex) const
 	{
-		return roundToInt(lines.lines[rowIndex]->height / font.getHeight());
+		if(isPositiveAndBelow(rowIndex, lines.lines.size()))
+			return roundToInt(lines.lines[rowIndex]->height / font.getHeight());
+
+		return 1;
 	}
 
 	float getFontHeight() const { return font.getHeight(); };
@@ -913,6 +879,8 @@ public:
 	}
 
 private:
+
+	mutable int columnTryingToMaintain = -1;
 
 	UndoManager viewUndoManager;
 

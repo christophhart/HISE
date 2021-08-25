@@ -510,9 +510,11 @@ public:
 		tokeniser = ownedTokeniser;
 	}
 
+	ScopedPointer<CodeTokeniser> tokeniser;
+
 private:
 
-	ScopedPointer<CodeTokeniser> tokeniser;
+	
 
 	friend class Autocomplete;
 

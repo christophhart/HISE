@@ -222,7 +222,7 @@ mcl::Transaction mcl::Transaction::accountingForSpecialCharacters(const TextDocu
 	{
 		if (s.head.y == s.tail.y)
 		{
-			document.prev(s.head);
+			document.navigateLeftRight(s.head, false);
 		}
 		t.content.clear();
 	}
@@ -230,7 +230,7 @@ mcl::Transaction mcl::Transaction::accountingForSpecialCharacters(const TextDocu
 	{
 		if (s.head.y == s.tail.y)
 		{
-			document.next(s.head);
+			document.navigateLeftRight(s.head, true);
 		}
 		t.content.clear();
 	}

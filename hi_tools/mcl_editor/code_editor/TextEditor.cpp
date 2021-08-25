@@ -677,6 +677,10 @@ void mcl::TextEditor::resized()
 	auto b = getLocalBounds();
 	caret.setBounds(b);
 	
+    auto l = getFirstLineOnScreen();
+    
+    
+    
 	scrollBar.setBounds(b.removeFromRight(14));
 
 	if(linebreakEnabled)
@@ -686,6 +690,8 @@ void mcl::TextEditor::resized()
 
 	refreshLineWidth();
 	
+    setFirstLineOnScreen(l);
+    
     highlight.setBounds (b);
     
     gutter.setBounds (b);
@@ -1101,9 +1107,9 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 		while (sPos.getPosition() < document.getCodeDocument().getNumCharacters())
 		{
-			sPos = sPos.movedBy(1);
-
 			auto c = sPos.getCharacter();
+
+			sPos = sPos.movedBy(1);
 
 			if (c == openChar)
 				numBefore++;
@@ -1128,7 +1134,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 				numAfter++;
 		}
 		
-		numAfter = jmax(numAfter, 0);
+		//numAfter = jmax(numAfter, 0);
 
 
 		juce::String text;
