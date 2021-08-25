@@ -197,6 +197,8 @@ public:
 
 			bestWidth = getFont().boldened().getStringWidth(text) + roundToInt((float)Helpers::getLevel(p) * 5.0f);
 
+			bestWidth = jmin(bestWidth, 600);
+
 			int h = Height;
 
 			for (auto c : p->children)

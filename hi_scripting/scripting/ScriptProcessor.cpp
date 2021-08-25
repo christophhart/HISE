@@ -593,12 +593,12 @@ JavascriptProcessor::~JavascriptProcessor()
 void JavascriptProcessor::addPopupMenuItems(PopupMenu &menu, Component* c, const MouseEvent& e)
 {
 #if USE_BACKEND
-	String s = PopupIncludeEditor::CommonEditorFunctions::getCurrentSelection(c);
+	String s = CommonEditorFunctions::getCurrentSelection(c);
 
 	menu.addItem(ClearAllBreakpoints, "Clear all breakpoints", anyBreakpointsActive());
 	menu.addSeparator();
 
-	const String selection = PopupIncludeEditor::CommonEditorFunctions::getCurrentSelection(c).trimEnd().trimStart();
+	const String selection = CommonEditorFunctions::getCurrentSelection(c).trimEnd().trimStart();
 	const bool isUIDefinitionSelected = selection.startsWith("const var");
 	
 	menu.addSectionHeader("Import / Export");

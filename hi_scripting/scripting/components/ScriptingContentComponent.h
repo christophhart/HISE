@@ -505,7 +505,7 @@ public:
 	String serverURL;
 	int options;
 
-	ScopedPointer<MarkdownPreview> preview;
+	ScopedPointer<HiseMarkdownPreview> preview;
 };
 
 

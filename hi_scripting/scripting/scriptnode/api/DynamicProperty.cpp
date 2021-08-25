@@ -61,7 +61,6 @@ scriptnode::parameter::dynamic_base* dynamic_base::createFromConnectionTree(cons
 	auto e = c[PropertyIds::Expression].toString();
 	auto inv = RangeHelpers::isInverted(c);
 
-#
 	if (e.isNotEmpty())
 	{
 #if USE_BACKEND

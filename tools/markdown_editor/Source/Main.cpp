@@ -99,20 +99,6 @@ private:
 };
 
 
-REGISTER_STATIC_DSP_LIBRARIES()
-{
-	REGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);
-
-#if ENABLE_JUCE_DSP
-	REGISTER_STATIC_DSP_FACTORY(JuceDspModuleFactory);
-#endif
-}
-
-AudioProcessor* hise::StandaloneProcessor::createProcessor()
-{
-	return new hise::BackendProcessor(deviceManager, callback);
-}
-
 
 //==============================================================================
 // This macro generates the main() routine that launches the app.

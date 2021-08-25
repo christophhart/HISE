@@ -410,9 +410,7 @@ public:
 
 			if (ref.isValid())
 			{
-#if !HISE_USE_NEW_CODE_EDITOR
-				PopupIncludeEditor::CommonEditorFunctions::as(editor)->insertTextAtCaret(ref.getReferenceString());
-#endif
+				CommonEditorFunctions::insertTextAtCaret(editor, ref.getReferenceString());
 			}
 		}
 	}

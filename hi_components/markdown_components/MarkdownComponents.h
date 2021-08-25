@@ -309,13 +309,8 @@ public:
 		doc.removeListener(this);
 
 		if (preview.getComponent() != nullptr)
-		{
 			preview->viewport.removeListener(this);
-		}
-
 	}
-
-	static mcl::FoldableLineRange::List createLineRange(const CodeDocument& doc);
 
 	void scrolled(Rectangle<int> /*visibleArea*/)
 	{
@@ -328,7 +323,9 @@ public:
 
 			int l = (int)(ratio * (float)doc.getNumLines());
 
+#if HISE_USE_NEW_CODE_EDITOR
 			editor.editor.scrollToLine(l, true);
+#endif
 		}
 	}
 

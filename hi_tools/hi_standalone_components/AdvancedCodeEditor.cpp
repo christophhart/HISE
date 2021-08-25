@@ -1726,4 +1726,109 @@ JavascriptCodeEditor::AutoCompletePopup::RowInfo::RowInfo(DebugInformationBase::
 	codeToInsert = info->getCodeToInsert();
 }
 
+hise::CommonEditorFunctions::EditorType* CommonEditorFunctions::as(Component* c)
+{
+	if (auto e = dynamic_cast<EditorType*>(c))
+		return e;
+
+	auto e = c->findParentComponentOfClass<EditorType>();
+
+	if (e == nullptr)
+	{
+		for (int i = 0; i < c->getNumChildComponents(); i++)
+		{
+			if (e = dynamic_cast<EditorType*>(c->getChildComponent(i)))
+				return e;
+		}
+	}
+	else
+		return e;
+
+	jassertfalse;
+	return nullptr;
+}
+
+juce::CodeDocument::Position CommonEditorFunctions::getCaretPos(Component* c)
+{
+	auto ed = as(c);
+
+	// this must always be true...
+	jassert(ed != nullptr);
+
+#if HISE_USE_NEW_CODE_EDITOR
+	auto pos = ed->editor.getTextDocument().getSelection(0).head;
+	return CodeDocument::Position(getDoc(c), pos.x, pos.y);
+#else
+	return ed->getCaretPos();
+#endif
+}
+
+juce::CodeDocument& CommonEditorFunctions::getDoc(Component* c)
+{
+	if (auto ed = as(c))
+	{
+#if HISE_USE_NEW_CODE_EDITOR
+		return ed->editor.getDocument();
+#else
+		return ed->getDocument();
+#endif
+	}
+
+	jassertfalse;
+	static CodeDocument d;
+	return d;
+}
+
+String CommonEditorFunctions::getCurrentToken(Component* c)
+{
+	if (auto ed = as(c))
+	{
+#if HISE_USE_NEW_CODE_EDITOR
+
+		auto& doc = ed->editor.getTextDocument();
+
+		auto cs = doc.getSelection(0);
+
+		doc.navigate(cs.tail, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
+		doc.navigate(cs.head, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
+
+		auto d = doc.getSelectionContent(cs);
+
+		return d;
+#else
+		return ed->getCurrentToken();
+#endif
+	}
+
+	return {};
+}
+
+void CommonEditorFunctions::insertTextAtCaret(Component* c, const String& t)
+{
+	if (auto ed = as(c))
+	{
+
+#if HISE_USE_NEW_CODE_EDITOR
+		ed->editor.insert(t);
+#else
+		ed->insertTextAtCaret(t);
+#endif
+	}
+}
+
+String CommonEditorFunctions::getCurrentSelection(Component* c)
+{
+	if (auto ed = as(c))
+	{
+#if HISE_USE_NEW_CODE_EDITOR
+		auto& doc = ed->editor.getTextDocument();
+		return doc.getSelectionContent(doc.getSelection(0));
+#else
+		return ed->getTextInRange(ed->getHighlightedRegion());
+#endif
+	}
+
+	return {};
+}
+
 } // namespace hise

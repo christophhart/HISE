@@ -283,7 +283,7 @@ mcl::FoldableLineRange::List debug::Helpers::createLineRanges(const CodeDocument
 								{
 									currentElement->children.add(newElement);
 									newElement->parent = currentElement;
-									currentElement = newElement;
+									//currentElement = newElement;
 								}
 							}
 

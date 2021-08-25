@@ -162,6 +162,9 @@ bool TextEditor::shouldSkipInactiveUpdate() const
 
 void TextEditor::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart)
 {
+	if (scrollBarRecursion)
+		return;
+
 	auto b = document.getBounds();
 	
 	auto pos = newRangeStart;
@@ -189,6 +192,9 @@ hise::MarkdownLink TextEditor::getLink() const
 
 void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 {
+	if (!autocompleteEnabled)
+		return;
+
 	if (document.getSelections().size() != 1)
 	{
 		closeAutocomplete(true, {}, {});
@@ -334,6 +340,9 @@ void TextEditor::setScaleFactor(float newFactor)
 
 void TextEditor::closeAutocomplete(bool async, const String& textToInsert, Array<Range<int>> selectRanges)
 {
+	if (!autocompleteEnabled)
+		return;
+
 	if (currentAutoComplete != nullptr)
 	{
 		auto f = [this, textToInsert, selectRanges]()
@@ -622,10 +631,14 @@ void mcl::TextEditor::updateViewTransform()
 	linebreakDisplay.setViewTransform(transform);
 	
 	auto b = document.getBounds();
-	scrollBar.setRangeLimits({ b.getY(), b.getBottom()});
 
-	auto visibleRange = getLocalBounds().toFloat().transformed(transform.inverted());
-	scrollBar.setCurrentRange({ visibleRange.getY(), visibleRange.getBottom() }, dontSendNotification);
+	{
+		ScopedValueSetter<bool> svs(scrollBarRecursion, true);
+		scrollBar.setRangeLimits({ b.getY(), b.getBottom() });
+		auto visibleRange = getLocalBounds().toFloat().transformed(transform.inverted());
+		scrollBar.setCurrentRange({ visibleRange.getY(), visibleRange.getBottom() }, sendNotificationSync);
+	}
+
 	auto rows = document.getRangeOfRowsIntersecting(getLocalBounds().toFloat().transformed(transform.inverted()));
 	ScopedValueSetter<bool> svs(scrollRecursion, true);
 	document.setDisplayedLineRange(rows);
@@ -973,7 +986,11 @@ void mcl::TextEditor::mouseDrag (const MouseEvent& e)
 		else
 		{
 			auto selection = document.getSelections().getFirst();
-			selection.head = document.findIndexNearestPosition(e.position.transformedBy(transform.inverted()));
+
+			auto pos = e.position;
+			pos.x = jmax(pos.x, gutter.getGutterWidth() + 5);
+
+			selection.head = document.findIndexNearestPosition(pos.transformedBy(transform.inverted()));
 			document.setSelections({ selection }, false);
 			translateToEnsureCaretIsVisible();
 			updateSelections();
@@ -1141,6 +1158,10 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		text << openChar;
 
 		auto both = numBefore == numAfter;
+
+
+		if (closeChar == '"')
+			both |= (numAfter % 2 == 0);
 
 		if (both)
 		{
@@ -1465,6 +1486,22 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 			if (mods.isShiftDown())
 			{
+				// Do not delete if there is no whitespace
+				if (s.head.y == 0)
+					return true;
+
+				Selection prevFirstLine;
+				prevFirstLine.tail = s.head;
+				prevFirstLine.head = s.head;
+				prevFirstLine.head.y = 0;
+
+				auto prevText = document.getSelectionContent(prevFirstLine);
+
+				bool hasWhiteSpaceCharAtStart = prevText[0] == ' ' || prevText[0] == '\t';
+
+				if(!hasWhiteSpaceCharAtStart)
+					return true;
+
 				document.setSelections(lineStarts, false);
 				document.navigateSelections(Target::character, Direction::forwardCol, Selection::Part::both);
 

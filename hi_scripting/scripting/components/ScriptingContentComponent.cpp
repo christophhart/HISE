@@ -729,7 +729,7 @@ void MarkdownPreviewPanel::initPanel()
 
 #endif
 
-	addAndMakeVisible(preview = new MarkdownPreview(*holder));
+	addAndMakeVisible(preview = new HiseMarkdownPreview(*holder));
 
     options = (int)MarkdownPreview::ViewOptions::Edit;
     

@@ -673,11 +673,14 @@ private:
 
 class FloatingTileDocumentWindow : public DocumentWindow,
 								   public ComponentWithBackendConnection,
+								   public TopLevelWindowWithOptionalOpenGL,
 							       public ModalBaseWindow
 {
 public:
 
 	FloatingTileDocumentWindow(BackendRootWindow* parentRoot);
+
+	~FloatingTileDocumentWindow();
 
 	void resized() override
 	{

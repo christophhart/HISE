@@ -180,7 +180,7 @@ struct audio_spin_mutex_shared
 	}
 
 	audio_spin_mutex w;
-	std::atomic<int> sharedCounter = 0;
+    std::atomic<int> sharedCounter {0};
 };
 
 

@@ -356,7 +356,7 @@ Point<int> mcl::TextDocument::findIndexNearestPosition(Point<float> position) co
 	{
 		auto x = lines.size() - 1;
 		if (x >= 0)
-			return { x, getNumColumns(x) - 1 };
+			return { x, getNumColumns(x) };
 	}
 		
 
@@ -387,7 +387,7 @@ Point<int> mcl::TextDocument::findIndexNearestPosition(Point<float> position) co
 				}
 			}
 
-			return { l, col -1 };
+			return { l, col };
 		}
 
 		yPos = p.getEnd();

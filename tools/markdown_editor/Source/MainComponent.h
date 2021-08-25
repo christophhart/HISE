@@ -10,7 +10,27 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 
+#define DECLARE_ID(x) static const Identifier x(#x);
+namespace SettingIds
+{
+	DECLARE_ID(CurrentFile);
+	DECLARE_ID(ShowPreview);
+	DECLARE_ID(ShowEditor);
+	DECLARE_ID(FileList);
+	DECLARE_ID(FontSize);
+	DECLARE_ID(RootDirectory);
+	DECLARE_ID(Width);
+	DECLARE_ID(Height);
+    DECLARE_ID(DarkPreview);
 
+	static Array<Identifier> getAllIds()
+	{
+		static const Array<Identifier> ids = { RootDirectory, CurrentFile, ShowPreview, ShowEditor, FileList, FontSize, Width, Height, DarkPreview};
+
+		return ids;
+	}
+}
+#undef DECLARE_ID
 
 //==============================================================================
 /*
@@ -19,7 +39,10 @@
 */
 class MainContentComponent   : public Component,
 							   public MarkdownDatabaseHolder,
-							   public CodeDocument::Listener
+							   public CodeDocument::Listener,
+							   public juce::ScrollBar::Listener,
+							   public TopLevelWindowWithOptionalOpenGL,
+							   public MenuBarModel
 {
 public:
     //==============================================================================
@@ -28,6 +51,8 @@ public:
 
     void paint (Graphics&) override;
     void resized() override;
+
+	
 
 	void registerContentProcessor(MarkdownContentProcessor* processor) {}
 	void registerItemGenerators() {}
@@ -40,28 +65,154 @@ public:
 		return File();
 	}
 
+	
+
+	void scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
+
 	bool shouldUseCachedData() const override { return false; }
 	
 	/** Called by a CodeDocument when text is added. */
 	virtual void codeDocumentTextInserted(const String& newText, int insertIndex)
 	{
-		preview.setNewText(doc.getAllContent(), {});
+		updater.startTimer(500);
 	}
 
 	/** Called by a CodeDocument when text is deleted. */
 	virtual void codeDocumentTextDeleted(int startIndex, int endIndex)
 	{
-		preview.setNewText(doc.getAllContent(), {});
+		updater.startTimer(500);
 	}
+
+	/** This method must return a list of the names of the menus. */
+	StringArray getMenuBarNames() override;
+
+	PopupMenu getMenuForIndex(int topLevelMenuIndex,
+		const String& menuName) override;
+
+	void menuItemSelected(int menuItemID,
+		int topLevelMenuIndex) override;
 
 private:
 
+	hise::PopupLookAndFeel plaf;
+
+	juce::MenuBarComponent menuBar;
+
+	var currentSettings;
+
+	void createDefaultValue(const Identifier& id)
+	{
+		if (!currentSettings.hasProperty(id))
+			currentSettings.getDynamicObject()->setProperty(id, getDefaultSetting(id));
+	}
+
+	static var getDefaultSetting(const Identifier& id)
+	{
+		if (id == SettingIds::CurrentFile)
+			return "";
+		if (id == SettingIds::FileList)
+		{
+			Array<var> a;
+			return var(a);
+		}
+		if (id == SettingIds::FontSize)
+			return 18.0f;
+		if (id == SettingIds::ShowEditor)
+			return true;
+		if (id == SettingIds::ShowPreview)
+			return true;
+		if (id == SettingIds::RootDirectory)
+			return "";
+		if (id == SettingIds::Width)
+			return 1280;
+		if (id == SettingIds::Height)
+			return 800;
+		if (id == SettingIds::DarkPreview)
+            return true;
+        
+		jassertfalse;
+		return var();
+	}
+
+	File getSettingsFile()
+	{
+		auto dir = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("HISE MarkdownEditor");
+		dir.createDirectory();
+
+		return dir.getChildFile("settings.json");
+	}
+
+	void applySetting(const Identifier& id, var newValue);
+
+	void toggleSetting(const Identifier& id);
+
+	void loadSettings()
+	{
+		currentSettings = JSON::parse(getSettingsFile());
+
+		if (currentSettings.getDynamicObject() == nullptr)
+			currentSettings = var(new DynamicObject());
+
+		for (auto i : SettingIds::getAllIds())
+		{
+			applySetting(i, getSetting(i));
+		}
+	}
+
+	void saveSettings()
+	{
+		auto text = JSON::toString(currentSettings);
+		getSettingsFile().replaceWithText(text);
+	}
+	
+	var getSetting(const Identifier& id)
+	{
+		return currentSettings.getProperty(id, getDefaultSetting(id));
+	}
+
+	ScopedPointer<mcl::TextDocument> settingsDoc;
+	ScopedPointer<mcl::TextEditor> settingsEditor;
+
+	void setEnableScrollbarListening(bool shouldListenToScrollBars);
+
+	void synchroniseTabs(bool editorIsSource);
+
+	struct Updater : public Timer
+	{
+		Updater(MainContentComponent& parent_) :
+			parent(parent_)
+		{};
+
+		void timerCallback() override
+		{
+			{
+				MarkdownRenderer::ScopedScrollDisabler sds(parent.preview.renderer);
+				ScopedValueSetter<bool> svs(parent.recursiveScrollProtector, true);
+				parent.preview.setNewText(parent.doc.getAllContent(), {}, false);
+				stopTimer();
+			}
+			
+			parent.synchroniseTabs(true);
+		}
+
+		MainContentComponent& parent;
+	} updater;
+
+	void setFile(const File& f);
+
+	File currentFile;
+	File rootDirectory;
+
 	CodeDocument doc;
-	MarkdownParser::Tokeniser tok;
-	MarkdownEditor editor;
+	mcl::TextDocument tdoc;
+	
+	mcl::FullEditor editor;
 	MarkdownPreview preview;
+	bool recursiveScrollProtector = false;
 
 	hise::GlobalHiseLookAndFeel laf;
+
+
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)

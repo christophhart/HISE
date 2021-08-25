@@ -3,7 +3,7 @@
 <JUCERPROJECT id="LIw2Py" name="MarkdownEditor" displaySplashScreen="0" reportAppUsage="1"
               splashScreenColour="Dark" projectType="guiapp" version="1.0.0"
               bundleIdentifier="com.yourcompany.MarkdownEditor" includeBinaryInAppConfig="1"
-              cppLanguageStandard="latest" companyCopyright="" jucerVersion="5.4.3">
+              cppLanguageStandard="17" companyCopyright="" jucerFormatVersion="1">
   <MAINGROUP id="JMBnAC" name="MarkdownEditor">
     <GROUP id="{FD8766C4-CBD5-1BD0-658F-058C5C8E90D2}" name="Source">
       <FILE id="aVdE5A" name="MainComponent.cpp" compile="1" resource="0"
@@ -38,7 +38,8 @@
     <FILE id="KDrMTM" name="toggle_200.png" compile="0" resource="1" file="../../hi_core/hi_images/toggle_200.png"/>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <VS2017 targetFolder="Builds/VisualStudio2017" windowsTargetPlatformVersion="10.0.16299.0">
+    <VS2017 targetFolder="Builds/VisualStudio2017" windowsTargetPlatformVersion="10.0.16299.0"
+            extraCompilerFlags="/bigobj">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
@@ -66,26 +67,20 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_core" path="../../"/>
-        <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="hi_components" path="../../"/>
-        <MODULEPATH id="hi_sampler" path="../../"/>
-        <MODULEPATH id="hi_scripting" path="../../"/>
-        <MODULEPATH id="hi_modules" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
+        <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2017>
     <XCODE_MAC targetFolder="Builds/MacOSX">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" enablePluginBinaryCopyStep="1" isDebug="1" optimisation="1"
-                       linkTimeOptimisation="0" targetName="MarkdownEditor" osxCompatibility="10.7 SDK"
+                       linkTimeOptimisation="0" targetName="MarkdownEditor" osxCompatibility="10.14 SDK"
                        cppLibType="libc++"/>
         <CONFIGURATION name="Release" enablePluginBinaryCopyStep="1" isDebug="0" optimisation="3"
-                       linkTimeOptimisation="1" targetName="MarkdownEditor" osxCompatibility="10.7 SDK"
+                       linkTimeOptimisation="1" targetName="MarkdownEditor" osxCompatibility="10.14 SDK"
                        cppLibType="libc++"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
@@ -106,20 +101,15 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_core" path="../../"/>
-        <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="hi_components" path="../../"/>
-        <MODULEPATH id="hi_sampler" path="../../"/>
-        <MODULEPATH id="hi_scripting" path="../../"/>
-        <MODULEPATH id="hi_modules" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
+        <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
-    <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" iPadScreenOrientation="landscape"
+    <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="UIInterfaceOrientationLandscapeLeft,UIInterfaceOrientationLandscapeRight"
+                  iPadScreenOrientation="UIInterfaceOrientationLandscapeLeft,UIInterfaceOrientationLandscapeRight"
                   iosDeviceFamily="1,2" smallIcon="zRnUH8" bigIcon="zRnUH8">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" enablePluginBinaryCopyStep="1" isDebug="1" optimisation="1"
@@ -146,30 +136,17 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
-        <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_core" path="../../"/>
-        <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="hi_components" path="../../"/>
-        <MODULEPATH id="hi_sampler" path="../../"/>
-        <MODULEPATH id="hi_scripting" path="../../"/>
-        <MODULEPATH id="hi_modules" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
+        <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
   </EXPORTFORMATS>
   <MODULES>
-    <MODULE id="hi_backend" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_components" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -190,10 +167,12 @@
     <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
             useGlobalPath="0"/>
     <MODULE id="juce_video" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="stk_wrapper" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <JUCEOPTIONS JUCE_USE_DIRECTWRITE="1" USE_BACKEND="1" USE_FRONTEND="0" IS_STANDALONE_APP="1"
-               USE_IPP="0" HI_EXPORT_DSP_LIBRARY="0"/>
+               USE_IPP="0" HI_EXPORT_DSP_LIBRARY="0" IS_MARKDOWN_EDITOR="1"/>
   <LIVE_SETTINGS>
     <WINDOWS/>
+    <OSX/>
   </LIVE_SETTINGS>
 </JUCERPROJECT>

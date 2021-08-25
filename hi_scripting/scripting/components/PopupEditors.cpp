@@ -497,7 +497,7 @@ void PopupIncludeEditor::compileInternal()
 	}
 }
 
-float PopupIncludeEditor::CommonEditorFunctions::getGlobalCodeFontSize(Component* c)
+float PopupIncludeEditor::getGlobalCodeFontSize(Component* c)
 {
 	FloatingTile* ft = c->findParentComponentOfClass<FloatingTile>();
 	return ft->getMainController()->getGlobalCodeFontSize();

@@ -457,7 +457,7 @@ struct SnapshotMarkdownCodeComponent : public MarkdownCodeComponentBase
 	{
 		if (syntax == MarkdownCodeComponentBase::EditableFloatingTile && screenshot.isNull())
 		{
-			screenshot = parent->resolveImage(l, 800);
+			screenshot = parent->resolveImage(l, MarkdownParser::DefaultLineWidth);
 		}
 
 		return jmax<int>(50, screenshot.getHeight());
