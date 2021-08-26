@@ -61,13 +61,15 @@ struct SnexSource : public WorkbenchData::Listener,
 		SnexParameter(SnexSource* n, NodeBase* parent, ValueTree dataTree);
 		parameter::dynamic p;
 		const int pIndex;
-		ValueTree treeInNetwork;
+	
+		static ValueTree getTreeInNetwork(NodeBase* parent, ValueTree dataTree);
 
 		void sendValueChangeToParentListeners(Identifier id, var newValue);
 
 		valuetree::PropertySyncer syncer;
 		valuetree::PropertyListener parentValueUpdater;
 		WeakReference<SnexSource> snexSource;
+		ValueTree treeInCodeMetadata;
 	};
 
 	
@@ -156,69 +158,13 @@ struct SnexSource : public WorkbenchData::Listener,
 			ParameterHandlerLight(s, o)
 		{};
 
-		void updateParameters(ValueTree v, bool wasAdded)
-		{
-			if (wasAdded)
-			{
-				auto newP = new SnexParameter(&parent, getNode(), v);
-				getNode()->addParameter(newP);
-			}
-			else
-			{
-				for (int i = 0; i < getNode()->getNumParameters(); i++)
-				{
-					if (auto sn = dynamic_cast<SnexParameter*>(getNode()->getParameter(i)))
-					{
-						if (sn->data == v)
-						{
-							removeSnexParameter(sn);
-							break;
-						}
-					}
-				}
-			}
-		}
+		void updateParameters(ValueTree v, bool wasAdded);
 
-		void updateParametersForWorkbench(bool shouldAdd)
-		{
-			for (int i = 0; i < getNode()->getNumParameters(); i++)
-			{
-				if (auto sn = dynamic_cast<SnexParameter*>(getNode()->getParameter(i)))
-				{
-					removeSnexParameter(sn);
-					i--;
-				}
-			}
+		void updateParametersForWorkbench(bool shouldAdd);
 
-			if (shouldAdd)
-			{
-				parameterTree = getNode()->getRootNetwork()->codeManager.getParameterTree(parent.getTypeId(), parent.classId.getValue());
-				parameterListener.setCallback(parameterTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(ParameterHandler::updateParameters));
-			}
-		}
+		void removeSnexParameter(SnexParameter* p);
 
-		void removeSnexParameter(SnexParameter* p)
-		{
-			p->treeInNetwork.getParent().removeChild(p->treeInNetwork, getNode()->getUndoManager());
-
-			for (int i = 0; i < getNode()->getNumParameters(); i++)
-			{
-				if (getNode()->getParameter(i) == p)
-				{
-					getNode()->removeParameter(i);
-					break;
-				}
-			}
-		}
-
-		void addNewParameter(parameter::data p)
-		{
-			if (auto existing = getNode()->getParameter(p.info.getId()))
-				return;
-
-			auto newTree = p.createValueTree();
-			parameterTree.addChild(newTree, -1, getNode()->getUndoManager());
-		}
+		void addNewParameter(parameter::data p);
 
 		NodeBase* getNode() { return parent.parentNode; }
 

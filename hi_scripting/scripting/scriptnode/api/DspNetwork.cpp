@@ -406,7 +406,7 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 					for (int i = 0; i < getRootNode()->getNumParameters(); i++)
 					{
 						auto p = getRootNode()->getParameter(i);
-						auto value = (double)p->getTreeWithValue()[PropertyIds::Value];
+						auto value = (double)p->data[PropertyIds::Value];
 						p->setValueAndStoreAsync(value);
 					}
 				}
@@ -541,7 +541,7 @@ bool DspNetwork::setParameterDataFromJSON(var jsonData)
 				{
 					if (auto p = node->getParameter(pId))
 					{
-						p->getTreeWithValue().setProperty(PropertyIds::Value, value, getUndoManager());
+						p->data.setProperty(PropertyIds::Value, value, getUndoManager());
 						p->isProbed = true;
 						ok = true;
 					}

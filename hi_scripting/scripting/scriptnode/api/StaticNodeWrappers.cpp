@@ -892,7 +892,7 @@ InterpretedUnisonoWrapperNode::InterpretedUnisonoWrapperNode(DspNetwork* n, Valu
 		auto np = new Parameter(this, pTree);
 
 		addParameter(np);
-		np->getReferenceToCallback().setParameter(new parameter::dynamic_base(p.callback));
+		np->getDynamicParameterAsHolder()->setParameter(new parameter::dynamic_base(p.callback));
 	}
 }
 

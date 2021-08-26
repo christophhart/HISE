@@ -85,7 +85,7 @@ struct NodeContainer : public AssignableObject
 
 		void timerCallback() override
 		{
-			getReferenceToCallback().updateUI();
+			getDynamicParameter()->updateUI();
 		}
 
 		
@@ -118,8 +118,6 @@ struct NodeContainer : public AssignableObject
 
 		bool matchesTarget(const Parameter* target) const;
 
-
-
 		valuetree::ChildListener connectionListener;
 		valuetree::RecursivePropertyListener rangeListener;
 		valuetree::RecursivePropertyListener expressionListener;
@@ -128,11 +126,23 @@ struct NodeContainer : public AssignableObject
 		ReferenceCountedArray<Connection> connections;
 		bool initialised = false;
 		bool editEnabled = false;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroParameter);
 	};
 
 	NodeContainer();
 
+	template <int P> static void setParameterStatic(void* obj, double v)
+	{
+		auto typed = static_cast<NodeContainer*>(obj);
+
+		if(auto p = typed->asNode()->getParameter(P))
+			p->setValueAndStoreAsync(v);
+	}
+
 	void resetNodes();
+
+	ParameterDataList createInternalParametersForMacros();
 
 	NodeBase* asNode();
 	const NodeBase* asNode() const;
@@ -254,6 +264,13 @@ public:
 	SerialNode(DspNetwork* root, ValueTree data);
 
 	NodeComponent* createComponent() override;
+
+	ParameterDataList createInternalParameterList() override
+	{
+		return NodeContainer::createInternalParametersForMacros();
+	}
+
+	
 
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
 	{

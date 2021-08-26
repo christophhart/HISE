@@ -138,7 +138,7 @@ ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
 					{
 						auto v = tp->getValue();
 						tp->data.removeProperty(PropertyIds::ModulationTarget, getUndoManager());
-						tp->getReferenceToCallback().setDisplaySource(nullptr);
+						tp->getDynamicParameterAsHolder()->setDisplaySource(nullptr);
 						tp->setValueAndStoreAsync(v);
 					}
 
@@ -166,8 +166,8 @@ var ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 	m.setProperty(PropertyIds::ParameterId, n->getId(), nullptr);
 	m.setProperty(PropertyIds::Enabled, true, nullptr);
 
-	n->getTreeWithValue().setProperty(PropertyIds::ModulationTarget, true, getUndoManager());
-	n->getTreeWithValue().setProperty(PropertyIds::Automated, true, getUndoManager());
+	n->data.setProperty(PropertyIds::ModulationTarget, true, getUndoManager());
+	n->data.setProperty(PropertyIds::Automated, true, getUndoManager());
 
 	auto range = RangeHelpers::getDoubleRange(n->data);
 
@@ -190,8 +190,10 @@ parameter::data ModulationSourceNode::getParameterData(const ValueTree& m) const
 {
 	if (auto targetNode = getTargetNode(m))
 	{
+		auto pId = m[PropertyIds::ParameterId].toString();
+
 #if HISE_INCLUDE_SNEX
-		if (auto sn = dynamic_cast<SnexSource::SnexParameter*>(targetNode->getParameter(m[PropertyIds::ParameterId].toString())))
+		if (auto sn = dynamic_cast<SnexSource::SnexParameter*>(targetNode->getParameter(pId)))
 		{
 			parameter::data obj;
 			obj.info = parameter::pod(sn->data);
@@ -200,15 +202,20 @@ parameter::data ModulationSourceNode::getParameterData(const ValueTree& m) const
 		}
 #endif
 
-		auto pList = targetNode->createInternalParameterList();
-
-		for (auto& p : pList)
+		if (auto mp = dynamic_cast<NodeContainer::MacroParameter*>(targetNode->getParameter(pId)))
 		{
-			if (p.info.getId() == m[PropertyIds::ParameterId].toString())
-				return p;
+			jassertfalse;
 		}
+		else
+		{
+			auto pList = targetNode->createInternalParameterList();
 
-		
+			for (auto& p : pList)
+			{
+				if (p.info.getId() == pId)
+					return p;
+			}
+		}
 	}
 	
 	return parameter::data("");
@@ -221,7 +228,19 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 	auto range = RangeHelpers::getDoubleRange(m);
 
 	auto targetNode = getTargetNode(m);
+
+	if (targetNode == nullptr)
+		return nullptr;
+
 	auto expression = m[PropertyIds::Expression].toString();
+
+
+	auto pId = m[PropertyIds::ParameterId].toString();
+
+	if (auto mp = dynamic_cast<NodeContainer::MacroParameter*>(targetNode->getParameter(pId)))
+	{
+		return mp->getDynamicParameter();
+	}
 
 	if (auto p = getParameterData(m))
 	{
@@ -245,7 +264,7 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 		
 		if (auto tp = targetNode->getParameter(p.info.parameterName))
 		{
-			tp->getReferenceToCallback().setDisplaySource(np);
+			tp->getDynamicParameterAsHolder()->setDisplaySource(np);
 
 			if (auto uWrapper = targetNode->findParentNodeOfType<InterpretedUnisonoWrapperNode>())
 			{
@@ -254,12 +273,14 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 				dd->connect(uWrapper, np.release());
 				np = dd;
 
-				tp->getReferenceToCallback().setDisplaySource(np);
+				tp->getDynamicParameterAsHolder()->setDisplaySource(np);
 			}
 		}
 
 		return np.release();
 	}
+
+	
 
 	return nullptr;
 }

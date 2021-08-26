@@ -42,8 +42,11 @@ using DupliListener = wrap::duplicate_sender::Listener;
 namespace parameter
 {
 
-struct dynamic_base
+struct dynamic_base: public ReferenceCountedObject
 {
+	using Ptr = ReferenceCountedObjectPtr<dynamic_base>;
+	using List = ReferenceCountedArray<dynamic_base>;
+
 	PARAMETER_SPECS(ParameterType::Single, 1);
 
 	dynamic_base(parameter::dynamic& obj_);;
@@ -109,11 +112,11 @@ private:
 
 
 
-struct dynamic_base_holder
+struct dynamic_base_holder: public dynamic_base
 {
 	PARAMETER_SPECS(ParameterType::Single, 1);
 
-	void call(double v)
+	void call(double v) final override
 	{
 		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
 
@@ -123,7 +126,7 @@ struct dynamic_base_holder
 			base->call(v);
 	}
 
-	void setUIValue(double v)
+	void setUIValue(double v) final override
 	{
 		lastValue = v;
 
@@ -152,7 +155,7 @@ struct dynamic_base_holder
 	}
 
 
-	void setDelta(double v)
+	void setDelta(double v) final override
 	{
 		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
 
@@ -160,7 +163,7 @@ struct dynamic_base_holder
 			base->setDelta(v);
 	}
 
-	void updateUI()
+	void updateUI() final override
 	{
 		if (base != nullptr)
 			base->updateUI();
@@ -224,7 +227,7 @@ struct dynamic_base_holder
 
 	WeakReference<DupliListener> parentNumVoiceListener;
 
-	ScopedPointer<dynamic_base> base;
+	dynamic_base::Ptr base;
 	double lastValue = 0.0;
 	
 private:
@@ -400,7 +403,7 @@ struct dynamic_chain : public dynamic_base
 		targets.add(p);
 	}
 
-	dynamic_base* getFirstIfSingle()
+	dynamic_base::Ptr getFirstIfSingle()
 	{
 		if (targets.size() == 1)
 		{
@@ -410,7 +413,7 @@ struct dynamic_chain : public dynamic_base
 				return targets.removeAndReturn(0);
 
 #if HISE_INCLUDE_SNEX
-			if (auto expr = dynamic_cast<dynamic_expression*>(first))
+			if (auto expr = dynamic_cast<dynamic_expression*>(first.get()))
 				return nullptr;
 #endif
 
@@ -472,7 +475,7 @@ struct dynamic_chain : public dynamic_base
 	}
 
 	bool scaleInput = true;
-	OwnedArray<dynamic_base> targets;
+	dynamic_base::List targets;
 	NormalisableRange<double> inputRange2;
 };
 

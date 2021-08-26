@@ -48,6 +48,12 @@ void NodeContainer::resetNodes()
 		n->reset();
 }
 
+scriptnode::ParameterDataList NodeContainer::createInternalParametersForMacros()
+{
+	jassertfalse;
+	return {};
+}
+
 scriptnode::NodeBase* NodeContainer::asNode()
 {
 
@@ -564,7 +570,7 @@ NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree da
 	});
 
 	auto initialValue = (double)data[PropertyIds::Value];
-	getReferenceToCallback().call(initialValue);
+	getDynamicParameter()->call(initialValue);
 }
 
 void NodeContainer::MacroParameter::rebuildCallback()
