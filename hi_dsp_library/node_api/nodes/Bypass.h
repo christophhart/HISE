@@ -52,7 +52,12 @@ public:
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
 		if (shouldSmoothBypass())
-			FrameConverters::forwardToFrame16(this, data);
+		{
+			if constexpr(ProcessDataType::hasCompileTimeSize())
+				FrameConverters::processFix<data.getNumChannels()>(this, data); 
+			else
+				FrameConverters::forwardToFrame16(this, data);
+		}
 		else if(!bypassed)
 			this->obj.process(data);
 	}
@@ -70,7 +75,7 @@ public:
 
         using ObjectTypeT = typename T::ObjectType;
         
-		if (P == ParameterId)
+		if constexpr (P == ParameterId)
 			thisPointer->setBypassed(v > 0.5);
 		else
 			ObjectTypeT::template setParameterStatic<P>(&thisPointer->obj, v);
@@ -128,6 +133,17 @@ public:
 	void createParameters(ParameterDataList& data) override
 	{
 		this->obj.createParameters(data);
+	}
+
+	template <int Index> auto& get()
+	{
+		return this->obj.template get<Index>();
+	}
+
+
+	void setExternalData(const ExternalData& d, int index)
+	{
+		this->obj.setExternalData(d, index);
 	}
 
 private:
@@ -215,6 +231,8 @@ public:
 
 	SN_SELF_AWARE_WRAPPER(simple, T);
 
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
+
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
 		if (!bypassed)
@@ -231,10 +249,10 @@ public:
 	{
 		auto thisPointer = static_cast<simple*>(obj);
 
-		if (P == ParameterId)
+		if constexpr (P == ParameterId)
 			thisPointer->setBypassed(v > 0.5);
 		else
-			T::ObjectType::setParameter<P>(&thisPointer->obj, v);
+			T::ObjectType::template setParameterStatic<P>(&thisPointer->obj, v);
 	}
 
 	void prepare(PrepareSpecs ps)

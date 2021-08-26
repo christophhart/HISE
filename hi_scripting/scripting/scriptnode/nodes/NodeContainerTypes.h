@@ -143,6 +143,32 @@ private:
 	wrap::no_midi<SerialNode::DynamicSerialProcessor> obj;
 };
 
+
+class SoftBypassNode : public SerialNode
+{
+public:
+
+	SCRIPTNODE_FACTORY(SoftBypassNode, "soft_bypass");
+
+	SoftBypassNode(DspNetwork* n, ValueTree t);
+
+	void processFrame(FrameType& data) noexcept final override;
+	void process(ProcessDataDyn& data) noexcept final override;
+	void prepare(PrepareSpecs ps) override;
+	void handleHiseEvent(HiseEvent& e) final override;
+	void reset() final override;
+
+	void setBypassed(bool shouldBeBypassed) override;
+
+	String getNodeDescription() const override { return "Allows soft bypassing without clicks"; }
+
+private:
+
+	using WrapperType = bypass::smoothed<SerialNode::DynamicSerialProcessor>;
+	
+	WrapperType obj;
+};
+
 class OfflineChainNode : public SerialNode
 {
 public:

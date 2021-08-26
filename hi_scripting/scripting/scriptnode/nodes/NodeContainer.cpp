@@ -470,6 +470,7 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<FixedBlockXNode>();
 	registerNodeRaw<OfflineChainNode>();
 	registerNodeRaw<NoMidiChainNode>();
+	registerNodeRaw<SoftBypassNode>();
 }
 
 
@@ -515,6 +516,14 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 
 
 
+
+NodeContainer::MacroParameter::Connection::~Connection()
+{
+	if (nodeToBeBypassed != nullptr)
+	{
+		nodeToBeBypassed->getRootNetwork()->getExceptionHandler().removeError(nodeToBeBypassed, Error::IllegalBypassConnection);
+	}
+}
 
 juce::ValueTree NodeContainer::MacroParameter::getConnectionTree()
 {

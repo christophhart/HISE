@@ -54,7 +54,12 @@ juce::String NodeComponent::Header::getPowerButtonId(bool getOff) const
 				return "on";
 		}
 		else
+		{
+			if (path == "soft_bypass")
+				return "on";
+
 			return path;
+		}
 	}
 		
 	return "on";

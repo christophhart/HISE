@@ -42,6 +42,8 @@ struct RangeHelpers
 {
 	static bool isRangeId(const Identifier& id);
 
+	static bool isBypassIdentity(NormalisableRange<double> d);
+
 	static bool isIdentity(NormalisableRange<double> d);
 
 	static Array<Identifier> getRangeIds();

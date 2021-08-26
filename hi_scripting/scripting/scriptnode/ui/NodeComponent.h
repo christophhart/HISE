@@ -165,8 +165,6 @@ public:
 			isHoveringOverBypass = false;
 			repaint();
 		}
-		
-		
 
 		NodeComponent& parent;
 		Factory f;

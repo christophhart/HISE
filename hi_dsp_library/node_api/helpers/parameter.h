@@ -207,7 +207,7 @@ struct empty
 	}
 };
 
-template <typename T> struct bypass : public single_base<T, 9000>
+template <typename T, typename RangeType=ranges::Identity> struct bypass : public single_base<T, 9000>
 {
 	PARAMETER_SPECS(ParameterType::Single, 1);
 
@@ -216,15 +216,23 @@ template <typename T> struct bypass : public single_base<T, 9000>
 		callStatic(this->obj, v);
 	}
 
-	void addToList(ParameterDataList& )
+	void addToList(ParameterDataList& d)
 	{
-
+		data p("plainUnNamed");
+		p.callback.referTo(this->obj, callStatic);
+		d.add(p);
 	}
 
 	static void callStatic(void*  obj, double v)
 	{
-        jassertfalse;
-		//T::setParameter<9000>(obj, v);
+		if constexpr (!std::is_same<RangeType, ranges::Identity>())
+		{
+			auto s = RangeType::getSimpleRange();
+			auto shouldBeOn = v >= s[0] && v <= s[1];
+			v = (double)!shouldBeOn;
+		}
+
+		T::template setParameter<9000>(obj, v);
 	}
 
 	template <int P> auto& getParameter()

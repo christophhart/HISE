@@ -48,6 +48,8 @@ struct NodeContainer : public AssignableObject
 		{
 			Connection(NodeBase* parent, MacroParameter* pp, ValueTree d);
 
+			~Connection();
+
 			bool isValid() const { return targetParameter.get() != nullptr || nodeToBeBypassed.get() != nullptr; };
 
 			bool matchesTarget(const Parameter* target) const

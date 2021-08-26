@@ -133,6 +133,7 @@ static double op(double input) { return x; } };
 	static constexpr bool isRange() { return true; } \
 	static constexpr double to0To1(double input) { return RANGE_BASE::to0To1(min, max, input); } \
 	static constexpr double from0To1(double input){ return RANGE_BASE::from0To1(min, max, input); };\
+	static constexpr std::array<double, 2> getSimpleRange() { return { (double)min, (double)max }; } \
 	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max); } };
 
 /** Declares a linear range with discrete steps. */
@@ -140,6 +141,7 @@ static double op(double input) { return x; } };
 	static constexpr bool isRange() { return true; } \
 	static constexpr double to0To1(double input) {  return RANGE_BASE::to0To1Step(min, max, step, input); } \
 	static constexpr double from0To1(double input){ return RANGE_BASE::from0To1Step(min, max, step, input);} \
+	static constexpr std::array<double, 2> getSimpleRange() { return { (double)min, (double)max }; } \
 	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, step); } };
 
 /** Declares a skewed range with a settable skew factor. */
@@ -147,6 +149,7 @@ static double op(double input) { return x; } };
 	static constexpr bool isRange() { return true; } \
 	static constexpr double to0To1(double input) {  return RANGE_BASE::to0To1Skew(min, max, skew, input); }\
 	static constexpr double from0To1(double input){ return RANGE_BASE::from0To1Skew(min, max, skew, input);} \
+	static constexpr std::array<double, 2> getSimpleRange() { return { (double)min, (double)max }; } \
 	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, 0.0, skew); } };
 
 /** Declares a skewed range with discrete steps. */
@@ -154,6 +157,7 @@ static double op(double input) { return x; } };
 	static constexpr bool isRange() { return true; } \
 	static constexpr double to0To1(double input) {  return RANGE_BASE::to0To1StepSkew(min, max, step, skew, input); } \
 	static constexpr double from0To1(double input){ return RANGE_BASE::from0To1StepSkew(min, max, step, skew, input);} \
+	static constexpr std::array<double, 2> getSimpleRange() { return { (double)min, (double)max }; } \
 	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, step, skew); } };
 
 }
