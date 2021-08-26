@@ -202,8 +202,15 @@ struct GlobalServer: public ControlledObject
 
 	juce::URL getWithParameters(String subURL, var parameters);
 
+    void setInitialised()
+    {
+        initialised = true;
+    }
+    
 private:
 
+    bool initialised = false;
+    
 	struct WebThread : public Thread
 	{
 		WebThread(GlobalServer& p) :
