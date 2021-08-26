@@ -415,6 +415,8 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 		LOG_START("Initialising audio callback");
 		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
 	}
+    
+    getJavascriptThreadPool().getGlobalServer()->setInitialised();
 }
 
 const String FrontendProcessor::getName(void) const

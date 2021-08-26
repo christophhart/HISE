@@ -106,7 +106,7 @@ void GlobalServer::WebThread::run()
 {
 	while (!threadShouldExit())
 	{
-		if (parent.getMainController()->getKillStateHandler().initialised())
+		if (parent.initialised)
 		{
 			{
 				ReferenceCountedArray<ScriptingObjects::ScriptDownloadObject> thisList;

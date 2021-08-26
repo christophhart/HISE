@@ -348,6 +348,8 @@ void MainController::loadPresetInternal(const ValueTree& v)
 				synth->setEditorState(Processor::EditorState::Folded, true);
 
 			changed = false;
+            
+            getJavascriptThreadPool().getGlobalServer()->setInitialised();
 #endif
 
 			auto f = [](Dispatchable* obj)
