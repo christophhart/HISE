@@ -54,7 +54,10 @@ public:
 		if (shouldSmoothBypass())
 		{
 			if constexpr(ProcessDataType::hasCompileTimeSize())
-				FrameConverters::processFix<data.getNumChannels()>(this, data); 
+            {
+                constexpr int NC = ProcessDataType::NumChannels;
+				FrameConverters::template processFix<NC>(this, data);
+            }
 			else
 				FrameConverters::forwardToFrame16(this, data);
 		}

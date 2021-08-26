@@ -207,7 +207,7 @@ struct empty
 	}
 };
 
-template <typename T, typename RangeType=ranges::Identity> struct bypass : public single_base<T, 9000>
+template <typename T, typename RangeType=typename ranges::Identity> struct bypass : public single_base<T, 9000>
 {
 	PARAMETER_SPECS(ParameterType::Single, 1);
 
