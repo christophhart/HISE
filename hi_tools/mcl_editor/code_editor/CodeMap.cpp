@@ -347,6 +347,9 @@ void mcl::CodeMap::rebuild()
 			auto pos = start;
 			float height = (float)getHeight() / (float)getNumLinesToShow();
 
+			if (pos == end)
+				break;
+
 			while (pos != end)
 			{
 				float randomValue = (float)((pos.getCharacter() * 120954801) % 313) / 313.0f;
