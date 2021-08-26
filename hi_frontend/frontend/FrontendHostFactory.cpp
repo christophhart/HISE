@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 FrontendHostFactory::FrontendHostFactory(DspNetwork* n) :
 	NodeFactory(n)
 {
-	if (staticFactory = dynamic_cast<scriptnode::dll::StaticLibraryHostFactory*>(createStaticFactory()))
+	if ((staticFactory = dynamic_cast<scriptnode::dll::StaticLibraryHostFactory*>(createStaticFactory())))
 	{
 		int numNodes = staticFactory->getNumNodes();
 

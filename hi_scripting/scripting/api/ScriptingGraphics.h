@@ -548,6 +548,8 @@ namespace ScriptingObjects
 		{
 			if (auto dyn = functions.getDynamicObject())
 				return dyn->getProperties().size();
+            
+            return 0;
 		}
 
 		DebugInformationBase* getChildElement(int index) override
