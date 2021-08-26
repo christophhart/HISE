@@ -586,7 +586,7 @@ void WeakCallbackHolder::call(var* arguments, int numArgs)
 	}
 }
 
-Result WeakCallbackHolder::callSync(var* arguments, int numArgs)
+Result WeakCallbackHolder::callSync(var* arguments, int numArgs, var* returnValue)
 {
 	if (engineToUse.get() == nullptr)
 	{
@@ -604,7 +604,10 @@ Result WeakCallbackHolder::callSync(var* arguments, int numArgs)
 			thisObj = var(d);
 
 		var::NativeFunctionArgs a(thisObj, arguments, numArgs);
-		engineToUse->callExternalFunction(var(castedObj), a, &r, true);
+		auto rv = engineToUse->callExternalFunction(var(castedObj), a, &r, true);
+
+		if (returnValue != nullptr)
+			*returnValue = rv;
 	}
 	else
 		jassertfalse;

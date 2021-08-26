@@ -309,6 +309,8 @@ public:
 
 			virtual void zLevelChanged(ZLevel newZLevel) = 0;
 
+			virtual void wantsToLoseFocus() {}
+
 			JUCE_DECLARE_WEAK_REFERENCEABLE(ZLevelListener);
 		};
 
@@ -531,8 +533,19 @@ public:
 		/** Changes the depth hierarchy (z-axis) of sibling components (Back, Default, Front or AlwaysOnTop). */
 		void setZLevel(String zLevel);
 
+		/** Adds a callback to react on key presses (when this component is focused). */
+		void setKeyPressCallback(var keyboardFunction);
+
+		/** Call this method in order to give away the focus for this component. */
+		void loseFocus();
+
 		// End of API Methods ============================================================================================
 
+		bool handleKeyPress(const KeyPress& k);
+
+		void handleFocusChange(bool isFocused);
+
+		bool wantsKeyboardFocus() const { return (bool)keyboardCallback; }
 
 		void addSubComponentListener(SubComponentListener* l)
 		{
@@ -686,6 +699,8 @@ public:
 		bool removePropertyIfDefault = true;
 
 	private:
+
+		WeakCallbackHolder keyboardCallback;
 
 		struct AsyncControlCallbackSender : private UpdateDispatcher::Listener
         {

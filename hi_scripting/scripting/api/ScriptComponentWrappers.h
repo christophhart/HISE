@@ -145,7 +145,9 @@ DECLARE_ID(height);
 *	you simply call changed() with whatever new value comes in.
 */
 class ScriptCreatedComponentWrapper: public AsyncValueTreePropertyListener,
-									 public ScriptingApi::Content::ScriptComponent::ZLevelListener
+									 public ScriptingApi::Content::ScriptComponent::ZLevelListener,
+									 public KeyListener,
+									 public juce::FocusChangeListener
 {
 public:
 
@@ -361,7 +363,16 @@ protected:
 
 	void zLevelChanged(ScriptingApi::Content::ScriptComponent::ZLevelListener::ZLevel newLevel) override;
 
+	void wantsToLoseFocus() override;
+
+	bool keyPressed(const KeyPress& key,
+		Component* originatingComponent) override;
+
+	void globalFocusChanged(Component* focusedComponent) override;
+
 private:
+
+	bool wasFocused = false;
 
 	struct ValuePopupHandler : public Timer
 	{
@@ -586,6 +597,9 @@ public:
 		void labelTextChanged(Label *l) override;;
 
 		void updateValue(var newValue) override;
+
+		void editorShown(Label*, TextEditor&) override;
+		void editorHidden(Label*, TextEditor&) override;
 
 	private:
 
