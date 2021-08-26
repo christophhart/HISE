@@ -111,7 +111,7 @@ public:
 
 	Identifier getObjectName() const override { return PropertyIds::Parameter; }
 
-	Parameter(NodeBase* parent_, ValueTree& data_);;
+	Parameter(NodeBase* parent_, const ValueTree& data_);;
 
 	// ======================================================================== API Calls
 

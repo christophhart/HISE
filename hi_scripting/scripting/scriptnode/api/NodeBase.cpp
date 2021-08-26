@@ -539,7 +539,7 @@ struct Parameter::Wrapper
 	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValueAndStoreAsync);
 };
 
-Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
+Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
 	ConstScriptingObject(parent_->getScriptProcessor(), 4),
 	parent(parent_),
 	data(data_),
