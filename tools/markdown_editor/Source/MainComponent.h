@@ -32,6 +32,34 @@ namespace SettingIds
 }
 #undef DECLARE_ID
 
+struct KeyCommand
+{
+    KeyCommand(int keyCode , ModifierKeys m_, const std::function<void()>& f_):
+      f(f_),
+      kc(keyCode),
+      mods(m_)
+    {};
+    
+    bool operator()(const KeyPress& k) const
+    {
+        auto keymatch = (k.getKeyCode() == kc) ||
+                        (kc < 127 && CharacterFunctions::toUpperCase(kc) == k.getKeyCode());
+        
+        if(keymatch && k.getModifiers() == mods)
+        {
+            f();
+            return true;
+        }
+        
+        return false;
+    }
+    
+    int kc;
+    ModifierKeys mods;
+    std::function<void()> f;
+    
+};
+
 //==============================================================================
 /*
     This component lives inside our window, and this is where you should put all
@@ -51,8 +79,6 @@ public:
 
     void paint (Graphics&) override;
     void resized() override;
-
-	
 
 	void registerContentProcessor(MarkdownContentProcessor* processor) {}
 	void registerItemGenerators() {}
@@ -92,8 +118,26 @@ public:
 	void menuItemSelected(int menuItemID,
 		int topLevelMenuIndex) override;
 
+    bool keyPressed(const KeyPress& k) override
+    {
+        for(const auto& c: commands)
+        {
+            if(c(k))
+                return true;
+        }
+        
+        return false;
+    }
+    
 private:
 
+    void addKeyCommand(int k, ModifierKeys m, const std::function<void()>& f)
+    {
+        commands.add({k, m, f});
+    }
+    
+    Array<KeyCommand> commands;
+    
 	hise::PopupLookAndFeel plaf;
 
 	juce::MenuBarComponent menuBar;
