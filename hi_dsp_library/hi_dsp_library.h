@@ -154,11 +154,14 @@ Set this to 1 if you want to embed the libraries created with this module into y
 
 #include "node_api/helpers/node_ids.h"
 #include "node_api/helpers/ParameterData.h"
-#include "node_api/helpers/parameter.h"
-#include "node_api/helpers/parameter_impl.h"
 
 #include "node_api/helpers/range.h"
 #include "node_api/helpers/range_impl.h"
+
+
+#include "node_api/helpers/parameter.h"
+#include "node_api/helpers/parameter_impl.h"
+
 
 #include "node_api/nodes/prototypes.h"
 #include "node_api/nodes/duplicate.h"
