@@ -71,7 +71,9 @@ public:
 
 	void codeDocumentTextInserted(const String &/*newText*/, int /*insertIndex*/) override
 	{
-		int numLinesVisible = jmax<int>(0, newTextConsole->getDocument().getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));
+		auto fh = newTextConsole->getFont().getHeight();
+
+		int numLinesVisible = jmax<int>(0, newTextConsole->getDocument().getNumLines() - (int)((float)newTextConsole->getHeight() / fh));
 
 		newTextConsole->scrollToLine(numLinesVisible);
 	}
