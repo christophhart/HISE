@@ -181,21 +181,31 @@ void mcl::GlyphArrangementArray::ensureValid(int index) const
 
 		entry->charactersPerLine.clear();
 
-		for (const auto& p : entry->positions)
+		if (maxLineWidth == -1)
 		{
-			auto l = p.x;
-			auto c = p.y + 1;
+			if(!entry->positions.isEmpty())
+				entry->charactersPerLine.set(0, entry->positions.getLast().y + 1);
+		}
+		else
+		{
+			for (const auto& p : entry->positions)
+			{
+				auto l = p.x;
+				auto c = p.y + 1;
 
-			if (isPositiveAndBelow(l, entry->charactersPerLine.size()))
-			{
-				auto& thisC = entry->charactersPerLine.getReference(l);
-				thisC = jmax(thisC, c);
-			}
-			else
-			{
-				entry->charactersPerLine.set(l, c);
+				if (isPositiveAndBelow(l, entry->charactersPerLine.size()))
+				{
+					auto& thisC = entry->charactersPerLine.getReference(l);
+					thisC = jmax(thisC, c);
+				}
+				else
+				{
+					entry->charactersPerLine.set(l, c);
+				}
 			}
 		}
+
+		
 
 		if (entry->charactersPerLine.isEmpty())
 			entry->charactersPerLine.add(0);

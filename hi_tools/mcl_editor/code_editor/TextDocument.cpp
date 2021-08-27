@@ -39,7 +39,7 @@ int mcl::TextDocument::getNumColumns(int row) const
 float mcl::TextDocument::getVerticalPosition(int row, Metric metric) const
 {
 	row = jmin(row, lines.size());
-	float pos = rowPositions[row];
+	float pos = rowPositions[jmin(rowPositions.size()-1, row)];
 
 
 	float gap = font.getHeight() * (lineSpacing - 1.f) * 0.5f;
@@ -164,13 +164,30 @@ RectangleList<float> mcl::TextDocument::getBoundsOnRow(int row, Range<int> colum
 		columns.setStart(jmax(columns.getStart(), 0));
 		auto l = lines.lines[row];
 
+		float yPos = getVerticalPosition(row, Metric::top);
+		float xPos = TEXT_INDENT;
 		auto boundsToUse = l->characterBounds;
+
+		if (columns == Range<int>(0, getNumColumns(row)) && m == GlyphArrangementArray::ReturnBeyondLastCharacter)
+		{
+			auto rowHeight = getRowHeight();
+
+			for (auto& numCol : l->charactersPerLine)
+			{
+				Rectangle<float> l(xPos, yPos, numCol * boundsToUse.getWidth(), rowHeight);
+				yPos += rowHeight;
+				b.add(l);
+			}
+			
+			return b;
+		}
+
+		
 
 		if (boundsToUse.isEmpty())
 			boundsToUse = { 0.0f, 0.0f, font.getStringWidthFloat(" "), font.getHeight() };
 
-		float yPos = getVerticalPosition(row, Metric::top);
-		float xPos = TEXT_INDENT;
+		
 		float gap = lineSpacing * font.getHeight() - font.getHeight();
 
 		auto length = l->string.length();

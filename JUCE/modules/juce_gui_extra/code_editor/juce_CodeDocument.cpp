@@ -1019,6 +1019,9 @@ void CodeDocument::insert (const String& text, const int insertPos, const bool u
                 if (p->getPosition() >= insertPos)
                     p->setPosition (p->getPosition() + newTextLength);
 
+			Range<int> rangeThatChanged(firstAffectedLine, firstAffectedLine + newLines.size());
+			listeners.call([&](Listener& l) { l.lineRangeChanged(rangeThatChanged, true); });
+
             listeners.call ([&] (Listener& l) { l.codeDocumentTextInserted (text, insertPos); });
         }
     }
@@ -1112,6 +1115,9 @@ void CodeDocument::remove (const int startPos, const int endPos, const bool undo
             if (p->getPosition() > totalChars)
                 p->setPosition (totalChars);
         }
+
+		Range<int> rangeThatWasDeleted(firstAffectedLine, endLine);
+		listeners.call([=](Listener& l) { l.lineRangeChanged(rangeThatWasDeleted, false); });
 
         listeners.call ([=] (Listener& l) { l.codeDocumentTextDeleted (startPos, endPos); });
     }

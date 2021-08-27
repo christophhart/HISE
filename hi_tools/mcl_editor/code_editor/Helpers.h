@@ -161,7 +161,7 @@ struct CoallescatedCodeDocumentListener : public CodeDocument::Listener
 		codeChanged(true, insertIndex, insertIndex + newText.length());
 	}
 
-	virtual void codeChanged(bool wasAdded, int startIndex, int endIndex) = 0;
+	virtual void codeChanged(bool wasAdded, int startIndex, int endIndex) {};
 
 protected:
 

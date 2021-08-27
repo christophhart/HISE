@@ -345,6 +345,11 @@ public:
 
         /** Called by a CodeDocument when text is deleted. */
         virtual void codeDocumentTextDeleted (int startIndex, int endIndex) = 0;
+
+		virtual void lineRangeChanged(Range<int> range, bool wasAdded) 
+		{
+			ignoreUnused(range, wasAdded);
+		};
     };
 
     /** Registers a listener object to receive callbacks when the document changes.
