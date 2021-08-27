@@ -2150,6 +2150,19 @@ String String::fromUTF8 (const char* const buffer, int bufferSizeBytes)
     return {};
 }
 
+juce::String String::withCleanedLineEndings() const
+{
+	if (containsChar('\r'))
+	{
+		if (containsChar('\n'))
+			return removeCharacters("\r");
+		else
+			return replaceCharacter('\r', '\n');
+	}
+
+	return *this;
+}
+
 JUCE_END_IGNORE_WARNINGS_MSVC
 
 //==============================================================================
