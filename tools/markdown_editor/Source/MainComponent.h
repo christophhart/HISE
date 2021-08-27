@@ -232,7 +232,10 @@ private:
 			{
 				MarkdownRenderer::ScopedScrollDisabler sds(parent.preview.renderer);
 				ScopedValueSetter<bool> svs(parent.recursiveScrollProtector, true);
-				parent.preview.setNewText(parent.doc.getAllContent(), {}, false);
+
+				if (parent.preview.isVisible())
+					parent.preview.setNewText(parent.doc.getAllContent(), {}, false);
+
 				stopTimer();
 			}
 			

@@ -197,6 +197,13 @@ RectangleList<float> mcl::TextDocument::getBoundsOnRow(int row, Range<int> colum
 
 		b.consolidate();
 	}
+	else
+	{
+		float yPos = getVerticalPosition(row, Metric::top);
+		float xPos = TEXT_INDENT;
+
+		b.add(Rectangle<float>(xPos, yPos, getCharacterRectangle().getWidth(), getRowHeight()));
+	}
 
 	return b;
 }
@@ -348,6 +355,9 @@ Array<mcl::TextDocument::RowData> mcl::TextDocument::findRowsIntersecting(Rectan
 Point<int> mcl::TextDocument::findIndexNearestPosition(Point<float> position) const
 {
 	position = position.translated(getCharacterRectangle().getWidth() * 0.5f, 0.0f);
+
+	if (position.getX() < TEXT_INDENT)
+		position.setX(TEXT_INDENT);
 
 	auto gap = font.getHeight() * lineSpacing - font.getHeight();
 	float yPos = gap / 2.0f;
