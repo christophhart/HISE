@@ -529,7 +529,7 @@ hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& oth
 	return *this;
 }
 
-hise::DebugInformationBase::Ptr WeakCallbackHolder::createDebugObject(const String& n) const
+hise::DebugInformationBase* WeakCallbackHolder::createDebugObject(const String& n) const
 {
 	if (weakCallback != nullptr)
 	{

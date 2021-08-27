@@ -3964,6 +3964,7 @@ colour(Colour(0xff777777))
 	setMethod("clear", Wrapper::clear);
 	setMethod("createPath", Wrapper::createPath);
 	setMethod("createShader", Wrapper::createShader);
+	setMethod("getCurrentTooltip", Wrapper::getCurrentTooltip);
 }
 
 ScriptingApi::Content::~Content()
@@ -4819,6 +4820,18 @@ void ScriptingApi::Content::addVisualGuide(var guideData, var colour)
 
 	if (screenshotListener != nullptr)
 		screenshotListener->visualGuidesChanged();
+}
+
+String ScriptingApi::Content::getCurrentTooltip()
+{
+	auto& desktop = Desktop::getInstance();
+	auto mouseSource = desktop.getMainMouseSource();
+	auto* newComp = mouseSource.isTouch() ? nullptr : mouseSource.getComponentUnderMouse();
+
+	if (auto ttc = dynamic_cast<TooltipClient*> (newComp))
+		return ttc->getTooltip();
+
+	return {};
 }
 
 #undef ADD_TO_TYPE_SELECTOR

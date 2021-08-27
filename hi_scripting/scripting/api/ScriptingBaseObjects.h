@@ -286,7 +286,7 @@ struct WeakCallbackHolder : private ScriptingObject
 
 	
 
-	DebugInformationBase::Ptr createDebugObject(const String& n) const;
+	DebugInformationBase* createDebugObject(const String& n) const;
 
 	void decRefCount()
 	{

@@ -3555,27 +3555,32 @@ var ScriptingObjects::ScriptSliderPackProcessor::getSliderPack(int sliderPackInd
 
 struct ScriptingObjects::TimerObject::Wrapper
 {
-	DYNAMIC_METHOD_WRAPPER(TimerObject, startTimer, (int)ARG(0));
-	DYNAMIC_METHOD_WRAPPER(TimerObject, stopTimer);
-	DYNAMIC_METHOD_WRAPPER(TimerObject, setTimerCallback, ARG(0));
+	API_METHOD_WRAPPER_0(TimerObject, isTimerRunning);
+	API_VOID_METHOD_WRAPPER_1(TimerObject, startTimer);
+	API_VOID_METHOD_WRAPPER_0(TimerObject, stopTimer);
+	API_VOID_METHOD_WRAPPER_1(TimerObject, setTimerCallback);
+	API_METHOD_WRAPPER_0(TimerObject, getMilliSecondsSinceCounterReset);
+	API_VOID_METHOD_WRAPPER_0(TimerObject, resetCounter);
 };
 
 ScriptingObjects::TimerObject::TimerObject(ProcessorWithScriptingContent *p) :
-	DynamicScriptingObject(p),
+	ConstScriptingObject(p, 0),
 	ControlledObject(p->getMainController_(), true),
 	it(this),
 	tc(p, {}, 0)
 {
-	ADD_DYNAMIC_METHOD(startTimer);
-	ADD_DYNAMIC_METHOD(stopTimer);
-	ADD_DYNAMIC_METHOD(setTimerCallback);
+	ADD_API_METHOD_0(isTimerRunning);
+	ADD_API_METHOD_1(startTimer);
+	ADD_API_METHOD_0(stopTimer);
+	ADD_API_METHOD_1(setTimerCallback);
+	ADD_API_METHOD_0(resetCounter);
+	ADD_API_METHOD_0(getMilliSecondsSinceCounterReset);
 }
 
 
 ScriptingObjects::TimerObject::~TimerObject()
 {
 	it.stopTimer();
-	removeProperty("callback");
 }
 
 void ScriptingObjects::TimerObject::timerCallback()
@@ -3584,65 +3589,33 @@ void ScriptingObjects::TimerObject::timerCallback()
 		tc.call(nullptr, 0);
 	else
 		it.stopTimer();
-
-#if 0
-	auto callback = getProperty("callback");
-
-	if (HiseJavascriptEngine::isJavascriptFunction(callback))
-	{
-        WeakReference<TimerObject> ref(this);
-        
-		auto f = [ref, callback](JavascriptProcessor* )
-		{
-            Result r = Result::ok();
-            
-            if(ref != nullptr)
-            {
-                
-                ref.get()->timerCallbackInternal(callback, r);
-            }
-			
-			return r;
-		};
-
-		auto mc = getScriptProcessor()->getMainController_();
-		mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, 
-											 dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), 
-											 f);
-	}
-#endif
 }
 
-void ScriptingObjects::TimerObject::timerCallbackInternal(const var& callback, Result& r)
+hise::DebugInformationBase* ScriptingObjects::TimerObject::getChildElement(int index)
 {
-	
-
-#if 0
-
-	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock));
-
-	var undefinedArgs;
-	var thisObject;// (this);
-	var::NativeFunctionArgs args(thisObject, &undefinedArgs, 0);
-
-	auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
-
-	jassert(engine != nullptr);
-
-	if (engine != nullptr)
+	if (index == 0)
 	{
-		engine->maximumExecutionTime = RelativeTime(0.5);
-		engine->callExternalFunction(callback, args, &r);
+		WeakReference<TimerObject> safeThis(this);
 
-		if (r.failed())
+		auto vf = [safeThis]()
 		{
-			stopTimer();
-			debugError(getProcessor(), r.getErrorMessage());
-		}
+			if (safeThis != nullptr)
+			{
+				return var(safeThis->getMilliSecondsSinceCounterReset());
+			}
+
+			return var(0);
+		};
+
+		Identifier id("%PARENT%.durationSinceReset");
+		return new LambdaValueInformation(vf, id, {}, (DebugInformation::Type)getTypeNumber(), getLocation());
 	}
-	else
-		stopTimer();
-#endif
+
+	if (index = 1)
+	{
+		return tc.createDebugObject("timerCallback");
+	}
+	
 }
 
 void ScriptingObjects::TimerObject::startTimer(int intervalInMilliSeconds)
@@ -3650,6 +3623,7 @@ void ScriptingObjects::TimerObject::startTimer(int intervalInMilliSeconds)
 	if (intervalInMilliSeconds > 10)
 	{
 		it.startTimer(intervalInMilliSeconds);
+		resetCounter();
 	}
 	else
 		throw String("Go easy on the timer");
@@ -3667,6 +3641,22 @@ void ScriptingObjects::TimerObject::setTimerCallback(var callbackFunction)
 	tc.incRefCount();
 }
 
+
+bool ScriptingObjects::TimerObject::isTimerRunning() const
+{
+	return it.isTimerRunning();
+}
+
+var ScriptingObjects::TimerObject::getMilliSecondsSinceCounterReset()
+{
+	auto now = Time::getMillisecondCounter();
+	return now - milliSecondCounter;
+}
+
+void ScriptingObjects::TimerObject::resetCounter()
+{
+	milliSecondCounter = Time::getMillisecondCounter();
+}
 
 struct ScriptingObjects::ScriptingMessageHolder::Wrapper
 {

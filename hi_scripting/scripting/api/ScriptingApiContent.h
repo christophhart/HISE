@@ -2060,6 +2060,9 @@ public:
 	/** Returns the reference to the given component. */
 	var getComponent(var name);
 	
+	/** Returns the current tooltip. */
+	String getCurrentTooltip();
+
 	/** Returns an array of all components that match the given regex. */
     var getAllComponents(String regex);
 
