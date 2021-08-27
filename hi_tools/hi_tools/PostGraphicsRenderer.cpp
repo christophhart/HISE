@@ -132,10 +132,11 @@ PostGraphicsRenderer::Data::WithoutAlphaConverter::~WithoutAlphaConverter()
 	}
 }
 
-PostGraphicsRenderer::PostGraphicsRenderer(DataStack& stackTouse, Image& image) :
+PostGraphicsRenderer::PostGraphicsRenderer(DataStack& stackTouse, Image& image, float scaleFactor_) :
 	img(image),
 	bd(image, Image::BitmapData::readWrite),
-	stack(stackTouse)
+	stack(stackTouse),
+	scaleFactor(scaleFactor_)
 {
 	
 }
@@ -164,21 +165,32 @@ void PostGraphicsRenderer::desaturate()
 	}
 }
 
-void PostGraphicsRenderer::applyMask(Path& path, bool invert /*= false*/, bool scale)
+void PostGraphicsRenderer::applyMask(const Path& path, bool invert /*= false*/, bool scale)
 {
 	auto& bf = getNextData();
 
+	const Path* pathToUse = &path;
+	Path other;
+
 	if (scale)
 	{
+		other = path;
 		Rectangle<float> area(0.0f, 0.0f, bd.width, bd.height);
-		PathFactory::scalePath(path, area);
+		PathFactory::scalePath(other, area);
+		pathToUse = &other;
+	}
+	else if (scaleFactor != 1.0f)
+	{
+		other = path;
+		other.applyTransform(AffineTransform::scale(scaleFactor));
+		pathToUse = &other;
 	}
 
 	bf.createPathImage(bd.width, bd.height);
 
 	Graphics g(bf.pathImage);
 	g.setColour(Colours::white);
-	g.fillPath(path);
+	g.fillPath(*pathToUse);
 
 	Image::BitmapData pathData(bf.pathImage, Image::BitmapData::readOnly);
 

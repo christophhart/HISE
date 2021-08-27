@@ -1524,7 +1524,7 @@ namespace ScriptingObjects
 	};
 
 
-	class TimerObject : public DynamicScriptingObject,
+	class TimerObject : public ConstScriptingObject,
 					    public ControlledObject
 	{
 	public:
@@ -1543,7 +1543,10 @@ namespace ScriptingObjects
 		bool objectExists() const override { return false; }
 
 		void timerCallback();
-		void timerCallbackInternal(const var& callback, Result& r);
+
+		int getNumChildElements() const override { return 2; }
+
+		DebugInformationBase* getChildElement(int index) override;
 
 		// ============================================================================================================
 		
@@ -1556,11 +1559,22 @@ namespace ScriptingObjects
 		/** Sets the function that will be called periodically. */
 		void setTimerCallback(var callbackFunction);
 
-		struct Wrapper;
+		/** Checks if the timer is active. */
+		bool isTimerRunning() const;
+
+		/** Returns the duration from the last counter reset. */
+		var getMilliSecondsSinceCounterReset();
+
+		/** Resets the internal counter. */
+		void resetCounter();
 
 		// ============================================================================================================
 
 	private:
+
+		uint32 milliSecondCounter;
+
+		struct Wrapper;
 
 		struct InternalTimer : public Timer
 		{

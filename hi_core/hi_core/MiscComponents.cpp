@@ -831,6 +831,7 @@ void BorderPanel::paint(Graphics &g)
 
 					Graphics g3(actionImage);
 					g3.addTransform(st);
+					action->setScaleFactor(sf);
 					action->setCachedImage(actionImage);
 					action->perform(g3);
 

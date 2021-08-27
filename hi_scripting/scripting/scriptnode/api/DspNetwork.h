@@ -128,7 +128,9 @@ public:
 			auto e = items[i].error.error;
 
 			auto isErrorCode = e == errorToRemove ||
-				(errorToRemove == Error::numErrorCodes && e != Error::ErrorCode::DeprecatedNode);
+				(errorToRemove == Error::numErrorCodes && 
+				  e != Error::ErrorCode::DeprecatedNode &&
+				  e != Error::ErrorCode::IllegalBypassConnection);
 
 			if ((n == nullptr || (items[i].node == n)) && isErrorCode)
 				items.remove(i--);

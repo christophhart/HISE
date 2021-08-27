@@ -97,6 +97,8 @@ struct ScriptingApi::Content::Wrapper
 	static var setToolbarProperties(const var::NativeFunctionArgs& args);
 	static var setUseHighResolutionForPanels(const var::NativeFunctionArgs& args);
 
+	static var getCurrentTooltip(const var::NativeFunctionArgs& args);
+
 	static var createScreenshot(const var::NativeFunctionArgs& args);
 
 	static var addVisualGuide(const var::NativeFunctionArgs& args);
@@ -938,6 +940,17 @@ var ScriptingApi::Content::Wrapper::addVisualGuide(const var::NativeFunctionArgs
 	{
 		CHECK_ARGUMENTS("addVisualGuide()", 2);
 		thisObject->addVisualGuide(args.arguments[0], args.arguments[1]);
+	}
+
+	return var();
+}
+
+var ScriptingApi::Content::Wrapper::getCurrentTooltip(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("getCurrentTooltip()", 0);
+		return thisObject->getCurrentTooltip();
 	}
 
 	return var();

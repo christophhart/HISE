@@ -206,15 +206,28 @@ namespace parameter
 		if (p.base == nullptr)
 			return false;
 
-		if (np->getTreeWithValue() == p.base->dataTree)
+		// Continue here...
+		
+		if (np->data == p.base->dataTree)
 			return true;
 
 		if (auto dc = dynamic_cast<parameter::dynamic_chain*>(p.base.get()))
 		{
 			for (auto d : dc->targets)
-				if (d->dataTree == np->getTreeWithValue())
+				if (d->dataTree == np->data)
 					return true;
 		}
+
+		for (const auto& c : connectionTree)
+		{
+			if (c[PropertyIds::NodeId].toString() == np->parent->getId())
+			{
+				if (c[PropertyIds::ParameterId] == np->getId())
+					return true;
+			}
+		}
+
+		
 
 		return false;
 	}
@@ -697,7 +710,8 @@ namespace parameter
 				for (int i = 0; i < numVoices; i++)
 				{
 					auto tp = l[i];
-					auto obj = tp->getReferenceToCallback().base->obj;
+					auto obj = tp->getDynamicParameter()->obj;
+					jassert(obj != nullptr);
 					targets.add(obj);
 				}
 			}

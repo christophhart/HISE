@@ -280,7 +280,7 @@ void FullEditor::resized()
 
 	if (codeMap.isVisible())
 	{
-		auto nb = b.removeFromRight(150);
+		auto nb = b.removeFromRight(mapWidth);
 		nb.removeFromTop(32);
 		codeMap.setBounds(nb);
 		edge.setBounds(b.removeFromRight(5));

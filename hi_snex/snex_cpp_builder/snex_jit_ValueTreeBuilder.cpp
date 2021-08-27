@@ -490,6 +490,10 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 			auto numChannels = (int)PropertyIds::Helpers::getWithDefault(u->nodeTree, PropertyIds::NumChannels);
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::frame"), numChannels);
 		}
+		if (realPath.startsWith("soft_bypass"))
+		{
+			u = wrapNode(u, NamespacedIdentifier::fromString("bypass::smoothed"));
+		}
 		if (realPath.startsWith("midi"))
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::event"));
@@ -981,6 +985,24 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 		throw e;
 	}
 
+	auto parseRange = [&](const NormalisableRange<double>& r, const String& fWhat)
+	{
+		if (auto existing = pooledRanges.getExisting(r))
+		{
+			return existing;
+		}
+		else
+		{
+			auto r = new PooledRange({ *this, fWhat });
+			r->c = c;
+
+			emitRangeDefinition(fWhat, r->c.targetRange);
+
+			addEmptyLine();
+			return pooledRanges.add(r);
+		}
+	};
+
 	auto t = c.getType();
 
 	switch (t)
@@ -989,6 +1011,21 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 	{
 		auto up = makeParameter(p, "bypass", c);
 		*up << *c.n;
+
+		if (!RangeHelpers::isBypassIdentity(c.targetRange))
+		{
+			String fWhat;
+
+			fWhat << up->scopedId.getIdentifier();
+			fWhat << "Range";
+
+			auto r = parseRange(c.targetRange, fWhat);
+
+			*up << r->id.toExpression();
+		}
+		
+		up->flushIfNot();
+		addEmptyLine();
 
 		return addParameterAndReturn(up);
 	}
@@ -1060,25 +1097,7 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 			fWhat << up->scopedId.getIdentifier();
 			fWhat << "Range";
 
-			auto parseRange = [&](const NormalisableRange<double>& r)
-			{
-				if (auto existing = pooledRanges.getExisting(r))
-				{
-					return existing;
-				}
-				else
-				{
-					auto r = new PooledRange({ *this, fWhat });
-					r->c = c;
-
-					emitRangeDefinition(fWhat, r->c.targetRange);
-
-					addEmptyLine();
-					return pooledRanges.add(r);
-				}
-			};
-
-			auto r = parseRange(c.targetRange);
+			auto r = parseRange(c.targetRange, fWhat);
 
 			*up << r->id.toExpression();
 

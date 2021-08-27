@@ -530,7 +530,10 @@ juce::Path MarkdownPreview::Topbar::TopbarPaths::createPath(const String& id) co
 	LOAD_PATH_IF_URL("book", EditorIcons::bookIcon);
 	
 	LOAD_PATH_IF_URL("rebuild", EditorIcons::moveIcon);
+    
+#if USE_BACKEND
 	LOAD_PATH_IF_URL("toc", BackendBinaryData::ToolbarIcons::hamburgerIcon);
+#endif
 	LOAD_PATH_IF_URL("edit", EditorIcons::penShape);
 	LOAD_PATH_IF_URL("lock", EditorIcons::lockShape);
 

@@ -197,6 +197,13 @@ RectangleList<float> mcl::TextDocument::getBoundsOnRow(int row, Range<int> colum
 
 		b.consolidate();
 	}
+	else
+	{
+		float yPos = getVerticalPosition(row, Metric::top);
+		float xPos = TEXT_INDENT;
+
+		b.add(Rectangle<float>(xPos, yPos, getCharacterRectangle().getWidth(), getRowHeight()));
+	}
 
 	return b;
 }
@@ -349,6 +356,9 @@ Point<int> mcl::TextDocument::findIndexNearestPosition(Point<float> position) co
 {
 	position = position.translated(getCharacterRectangle().getWidth() * 0.5f, 0.0f);
 
+	if (position.getX() < TEXT_INDENT)
+		position.setX(TEXT_INDENT);
+
 	auto gap = font.getHeight() * lineSpacing - font.getHeight();
 	float yPos = gap / 2.0f;
 
@@ -382,7 +392,7 @@ Point<int> mcl::TextDocument::findIndexNearestPosition(Point<float> position) co
 
 				if (b.contains(position))
 				{
-					col = n+1;
+					col = n;
 					break;
 				}
 			}
@@ -394,28 +404,6 @@ Point<int> mcl::TextDocument::findIndexNearestPosition(Point<float> position) co
 	}
 
 	return { 0, 0 };
-
-	jassertfalse;
-
-	auto lineHeight = font.getHeight() * lineSpacing;
-	auto row = jlimit(0, jmax(getNumRows() - 1, 0), int(position.y / lineHeight));
-	auto col = 0;
-	auto glyphs = getGlyphsForRow(row);
-
-	if (position.x > 0.f)
-	{
-		col = glyphs.getNumGlyphs();
-
-		for (int n = 0; n < glyphs.getNumGlyphs(); ++n)
-		{
-			if (glyphs.getBoundingBox(n, 1, true).getHorizontalRange().contains(position.x))
-			{
-				col = n;
-				break;
-			}
-		}
-	}
-	return { row, col };
 }
 
 Point<int> mcl::TextDocument::getEnd() const

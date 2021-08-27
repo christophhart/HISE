@@ -221,9 +221,9 @@ private:
 
     
 class InterpretedNode : public WrapperNode,
-						public InterpretedNodeBase<bypass::smoothed<OpaqueNode>>
+						public InterpretedNodeBase<bypass::simple<OpaqueNode>>
 {
-	using Base = InterpretedNodeBase<bypass::smoothed<OpaqueNode>>;
+	using Base = InterpretedNodeBase<bypass::simple<OpaqueNode>>;
 
 public:
 

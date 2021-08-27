@@ -201,7 +201,9 @@ public:
 				auto l = (int)charactersPerLine.size() - 1;
 				auto c = charactersPerLine[l];
 
-				auto isTab = !string.isEmpty() && string[jlimit(0, string.length()-1, col - 1)] == '\t';
+				auto stringLength = string.length();
+
+				auto isTab = !string.isEmpty() && isPositiveAndBelow(col-1, stringLength) && string[jlimit(0, stringLength, col - 1)] == '\t';
 
 				if (isTab)
 					return { l, roundToTab(c) };
@@ -282,7 +284,14 @@ public:
 
 	static int roundToTab(int c)
 	{
-		return c + 4 - c % 4;
+		static constexpr int TabSize = 4;
+
+		if (c % TabSize == 0)
+			return c;
+
+		c -= (c % TabSize);
+		c += TabSize;
+		return c;
 	}
 
 	mutable juce::ReferenceCountedArray<Entry> lines;

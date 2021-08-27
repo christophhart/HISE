@@ -136,7 +136,7 @@ void MarkdownParser::setNewText(const String& newText)
 	resetCurrentBlock();
 	elements.clear();
 
-	markdownCode = newText;
+	markdownCode = newText.withCleanedLineEndings();
 	it = Iterator(markdownCode);
 	parse();
 }

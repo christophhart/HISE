@@ -669,6 +669,8 @@ public:
 
 	TextDocument& doc;
 
+	bool allowHover = true;
+
 	float currentAnimatedLine = -1.0f;
 	float targetAnimatedLine = -1.0f;
 

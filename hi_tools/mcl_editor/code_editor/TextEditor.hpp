@@ -554,6 +554,20 @@ private:
     
 	bool readOnly = false;
 
+	void setLineBreakEnabled(bool shouldBeEnabled)
+	{
+		if (linebreakEnabled != shouldBeEnabled)
+		{
+			linebreakEnabled = !linebreakEnabled;
+
+			if (linebreakEnabled)
+				xPos = 0.0f;
+
+			resized();
+			refreshLineWidth();
+		}
+	}
+
 	bool expand(TextDocument::Target target)
 	{
 		document.navigateSelections(target, TextDocument::Direction::backwardCol, Selection::Part::tail);

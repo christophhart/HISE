@@ -56,6 +56,11 @@ public:
 		refreshIndexList();
 	}
 
+	void fromDynamicObject(const var& object) override;
+
+	var toDynamicObject() const override;
+
+
 	void scriptWasCompiled(JavascriptProcessor *processor) override;
 
 	void mouseDown(const MouseEvent& event) override;
@@ -76,6 +81,7 @@ public:
 
 private:
 
+	var settings;
 	ScopedPointer<JavascriptTokeniser> tokeniser;
 };
 

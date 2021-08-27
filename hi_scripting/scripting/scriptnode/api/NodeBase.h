@@ -111,7 +111,7 @@ public:
 
 	Identifier getObjectName() const override { return PropertyIds::Parameter; }
 
-	Parameter(NodeBase* parent_, ValueTree& data_);;
+	Parameter(NodeBase* parent_, const ValueTree& data_);;
 
 	// ======================================================================== API Calls
 
@@ -135,14 +135,15 @@ public:
 
 	Array<Parameter*> getConnectedMacroParameters() const;
 
-	parameter::dynamic_base_holder& getReferenceToCallback()
+	parameter::dynamic_base_holder* getDynamicParameterAsHolder()
 	{
-		return dbNew;
+		return dynamic_cast<parameter::dynamic_base_holder*>(dynamicParameter.get());
 	}
 
-	const parameter::dynamic_base_holder& getCallback() const
+	parameter::dynamic_base::Ptr getDynamicParameter() const
 	{
-		return dbNew;
+		jassert(dynamicParameter != nullptr);
+		return dynamicParameter;
 	}
 
 	void setCallbackNew(parameter::dynamic_base* ownedNew);
@@ -155,10 +156,6 @@ public:
 	{
 		setValueAndStoreAsync((double)newValue);
 	}
-
-	void setTreeWithValue(ValueTree v);
-
-	ValueTree getTreeWithValue() const { return treeThatStoresValue; }
 
 	ValueTree data;
 
@@ -176,8 +173,7 @@ private:
 
 	void updateConnectionOnRemoval(ValueTree& c);
 
-	ValueTree treeThatStoresValue;
-	parameter::dynamic_base_holder dbNew;
+	parameter::dynamic_base::Ptr dynamicParameter;
 
 	ValueTree connectionSourceTree;
 
@@ -337,7 +333,7 @@ public:
 
 	virtual Rectangle<int> getPositionInCanvas(Point<int> topLeft) const;
 	
-	virtual ParameterDataList createInternalParameterList() { return {}; }
+	virtual ParameterDataList createInternalParameterList() { return {}; };
 
 	NamespacedIdentifier getPath() const;
 

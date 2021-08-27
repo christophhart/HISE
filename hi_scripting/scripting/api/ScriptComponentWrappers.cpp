@@ -55,8 +55,13 @@ Array<ScriptComponentPropertyTypeSelector::SliderRange> ScriptComponentPropertyT
 
 ScriptCreatedComponentWrapper::~ScriptCreatedComponentWrapper()
 {
+	Desktop::getInstance().removeFocusChangeListener(this);
+
 	if (auto c = getComponent())
+	{
 		c->setLookAndFeel(nullptr);
+		c->removeKeyListener(this);
+	}
 
 	if (auto sp = getScriptComponent())
 		sp->removeZLevelListener(this);
@@ -181,6 +186,13 @@ ScriptingApi::Content * ScriptCreatedComponentWrapper::getContent()
 void ScriptCreatedComponentWrapper::initAllProperties()
 {
 	auto sc = getScriptComponent();
+
+	if (sc->wantsKeyboardFocus())
+	{
+		component->addKeyListener(this);
+		component->setWantsKeyboardFocus(true);
+		Desktop::getInstance().addFocusChangeListener(this);
+	}
 
 	for (int i = 0; i < sc->getNumIds(); i++)
 	{
@@ -612,6 +624,30 @@ void ScriptCreatedComponentWrapper::zLevelChanged(ScriptingApi::Content::ScriptC
 			}
 		}
 	});
+}
+
+void ScriptCreatedComponentWrapper::wantsToLoseFocus()
+{
+	if (wasFocused)
+	{
+		getComponent()->unfocusAllComponents();
+	}
+}
+
+bool ScriptCreatedComponentWrapper::keyPressed(const KeyPress& key, Component* originatingComponent)
+{
+	return getScriptComponent()->handleKeyPress(key);
+}
+
+void ScriptCreatedComponentWrapper::globalFocusChanged(Component* focusedComponent)
+{
+	auto isFocused = getComponent() == focusedComponent;
+
+	if (isFocused != wasFocused)
+	{
+		wasFocused = isFocused;
+		getScriptComponent()->handleFocusChange(isFocused);
+	}
 }
 
 void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* s)
@@ -1139,6 +1175,19 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateValue(var newValue)
 	MultilineLabel *l = dynamic_cast<MultilineLabel*>(component.get());
 
 	l->setText(newValue.toString(), dontSendNotification);
+}
+
+void ScriptCreatedComponentWrappers::LabelWrapper::editorShown(Label*, TextEditor& te)
+{
+	if (getScriptComponent()->wantsKeyboardFocus())
+	{
+		te.addKeyListener(this);
+	}
+}
+
+void ScriptCreatedComponentWrappers::LabelWrapper::editorHidden(Label*, TextEditor& te)
+{
+	te.removeKeyListener(this);
 }
 
 ScriptCreatedComponentWrappers::TableWrapper::TableWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptTable *table, int index) :

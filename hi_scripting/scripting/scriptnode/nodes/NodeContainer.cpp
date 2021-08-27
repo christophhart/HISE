@@ -48,6 +48,12 @@ void NodeContainer::resetNodes()
 		n->reset();
 }
 
+scriptnode::ParameterDataList NodeContainer::createInternalParametersForMacros()
+{
+	jassertfalse;
+	return {};
+}
+
 scriptnode::NodeBase* NodeContainer::asNode()
 {
 
@@ -470,6 +476,7 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<FixedBlockXNode>();
 	registerNodeRaw<OfflineChainNode>();
 	registerNodeRaw<NoMidiChainNode>();
+	registerNodeRaw<SoftBypassNode>();
 }
 
 
@@ -516,6 +523,14 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 
 
 
+NodeContainer::MacroParameter::Connection::~Connection()
+{
+	if (nodeToBeBypassed != nullptr)
+	{
+		nodeToBeBypassed->getRootNetwork()->getExceptionHandler().removeError(nodeToBeBypassed, Error::IllegalBypassConnection);
+	}
+}
+
 juce::ValueTree NodeContainer::MacroParameter::getConnectionTree()
 {
 	auto existing = data.getChildWithName(PropertyIds::Connections);
@@ -555,7 +570,7 @@ NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree da
 	});
 
 	auto initialValue = (double)data[PropertyIds::Value];
-	getReferenceToCallback().call(initialValue);
+	getDynamicParameter()->call(initialValue);
 }
 
 void NodeContainer::MacroParameter::rebuildCallback()

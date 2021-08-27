@@ -50,12 +50,19 @@ ChainNode::ChainNode(DspNetwork* n, ValueTree t) :
 void ChainNode::process(ProcessDataDyn& data)
 {
 	NodeProfiler np(this);
+
+	if (isBypassed())
+		return;
+
 	wrapper.process(data);
 }
 
 
 void ChainNode::processFrame(NodeBase::FrameType& data)
 {
+	if (isBypassed())
+		return;
+
 	if (data.size() == 1)
 		processMonoFrame(MonoFrameType::as(data.begin()));
 	if(data.size() == 2)
@@ -83,6 +90,9 @@ void ChainNode::prepare(PrepareSpecs ps)
 
 void ChainNode::handleHiseEvent(HiseEvent& e)
 {
+	if (isBypassed())
+		return;
+
 	wrapper.handleHiseEvent(e);
 }
 
@@ -106,6 +116,9 @@ void SplitNode::prepare(PrepareSpecs ps)
 
 void SplitNode::handleHiseEvent(HiseEvent& e)
 {
+	if (isBypassed())
+		return;
+
 	for (auto n : nodes)
 	{
 		HiseEvent copy(e);
@@ -720,6 +733,44 @@ void NoMidiChainNode::handleHiseEvent(HiseEvent& e)
 void NoMidiChainNode::reset()
 {
 	obj.reset();
+}
+
+SoftBypassNode::SoftBypassNode(DspNetwork* n, ValueTree t):
+	SerialNode(n, t)
+{
+	initListeners();
+	obj.initialise(this);
+}
+
+void SoftBypassNode::processFrame(FrameType& data) noexcept
+{
+	obj.processFrame(data);
+}
+
+void SoftBypassNode::process(ProcessDataDyn& data) noexcept
+{
+	obj.process(data);
+}
+
+void SoftBypassNode::prepare(PrepareSpecs ps)
+{
+	obj.prepare(ps);
+}
+
+void SoftBypassNode::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
+}
+
+void SoftBypassNode::reset()
+{
+	obj.reset();
+}
+
+void SoftBypassNode::setBypassed(bool shouldBeBypassed)
+{
+	SerialNode::setBypassed(shouldBeBypassed);
+	WrapperType::setParameter<bypass::ParameterId>(&this->obj, (double)shouldBeBypassed);
 }
 
 }

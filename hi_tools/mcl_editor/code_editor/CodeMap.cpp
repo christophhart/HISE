@@ -67,8 +67,11 @@ void mcl::CodeMap::mouseExit(const MouseEvent& e)
 {
 	hoveredLine = -1;
 
-	Desktop::getInstance().getAnimator().fadeOut(preview, 200);
-	preview = nullptr;
+	if (preview != nullptr)
+	{
+		Desktop::getInstance().getAnimator().fadeOut(preview, 200);
+		preview = nullptr;
+	}
 
 	repaint();
 
@@ -90,22 +93,54 @@ void mcl::CodeMap::mouseMove(const MouseEvent& e)
 {
 	hoveredLine = getLineNumberFromEvent(e);
 
-	if (preview == nullptr)
+	if (allowHover && preview == nullptr)
 	{
 		getParentComponent()->addChildComponent(preview = new HoverPreview(*this, hoveredLine));
 		Desktop::getInstance().getAnimator().fadeIn(preview, 600);
 	}
 
-	preview->setBounds(getPreviewBounds(e));
-	preview->setCenterRow(getLineNumberFromEvent(e));
+	if (preview != nullptr)
+	{
+		preview->setBounds(getPreviewBounds(e));
+		preview->setCenterRow(getLineNumberFromEvent(e));
+	}
 
 	repaint();
 }
 
 void mcl::CodeMap::mouseDown(const MouseEvent& e)
 {
-	Desktop::getInstance().getAnimator().fadeOut(preview, 200);
-	preview = nullptr;
+	if (e.mods.isRightButtonDown())
+	{
+		PopupLookAndFeel plaf;
+		PopupMenu m;
+		m.setLookAndFeel(&plaf);
+		m.addItem(1, "Small Width", true, getWidth() < 100);
+		m.addItem(2, "Normal Width", true, getWidth() > 100);
+		m.addItem(3, "Enable Hover Preview", true, allowHover);
+
+		auto r = m.show();
+
+		if (r == 1)
+		{
+			findParentComponentOfClass<FullEditor>()->mapWidth = 75;
+			getParentComponent()->resized();
+		}
+		if (r == 2)
+		{
+			findParentComponentOfClass<FullEditor>()->mapWidth = 150;
+			getParentComponent()->resized();
+		}
+		if (r == 3)
+			allowHover = !allowHover;
+	}
+
+	if (preview != nullptr)
+	{
+		Desktop::getInstance().getAnimator().fadeOut(preview, 200);
+		preview = nullptr;
+	}
+	
 
 	currentAnimatedLine = displayedLines.getStart() + displayedLines.getLength() / 2;
 	targetAnimatedLine = getLineNumberFromEvent(e);
@@ -346,6 +381,9 @@ void mcl::CodeMap::rebuild()
 
 			auto pos = start;
 			float height = (float)getHeight() / (float)getNumLinesToShow();
+
+			if (pos == end)
+				break;
 
 			while (pos != end)
 			{

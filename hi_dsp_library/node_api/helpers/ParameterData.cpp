@@ -47,6 +47,14 @@ bool RangeHelpers::isRangeId(const Identifier& id)
 }
 
 
+bool RangeHelpers::isBypassIdentity(NormalisableRange<double> d)
+{
+	if (d.start == 0.5 && d.end == 1.0 && d.skew == 1.0)
+		return true;
+
+	return false;
+}
+
 bool RangeHelpers::isIdentity(NormalisableRange<double> d)
 {
 	if (d.start == 0.0 && d.end == 1.0 && d.skew == 1.0)

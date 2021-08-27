@@ -224,6 +224,7 @@ struct Error
 		RingBufferMultipleWriters,
 		DeprecatedNode,
 		IllegalPolyphony,
+		IllegalBypassConnection,
 		numErrorCodes
 	};
 

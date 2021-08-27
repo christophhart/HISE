@@ -191,7 +191,9 @@ struct ScriptedPostDrawActions
 		bool needsStackData() const override { return true; }
 		void perform(PostGraphicsRenderer& r) override
 		{
-			r.applyMask(path, invert);
+			
+
+			r.applyMask(path, invert, false);
 		}
 
 		Path path;
@@ -391,6 +393,42 @@ namespace ScriptedDrawActions
 		}
 
 		DropShadow shadow;
+	};
+
+	struct drawDropShadowFromPath : public DrawActions::ActionBase
+	{
+		drawDropShadowFromPath(const Path& p_, Rectangle<float> a, Colour c_, int r_) :
+			p(p_),
+			c(c_),
+			area(a),
+			radius(r_)
+		{}
+
+		void perform(Graphics& g) override
+		{
+			auto spb = area.withPosition((float)radius, (float)radius).transformed(AffineTransform::scale(scaleFactor));
+
+			auto copy = p;
+
+			copy.scaleToFit(spb.getX(), spb.getY(), spb.getWidth(), spb.getHeight(), false);
+
+			auto drawTargetArea = area.expanded((float)radius).transformed(AffineTransform::scale(scaleFactor));
+
+			
+			
+			Image img(Image::PixelFormat::ARGB, drawTargetArea.getWidth(), drawTargetArea.getHeight(), true);
+			Graphics g2(img);
+			g2.setColour(c);
+			g2.fillPath(copy);
+			gin::applyStackBlur(img, radius);
+			
+			g.drawImageAt(img, drawTargetArea.getX(), drawTargetArea.getY());
+		}
+
+		Rectangle<float> area;
+		Path p;
+		Colour c;
+		int radius;
 	};
 
 	struct addShader : public DrawActions::ActionBase

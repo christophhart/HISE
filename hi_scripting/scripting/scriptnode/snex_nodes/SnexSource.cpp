@@ -193,6 +193,70 @@ void SnexSource::addDummyProcessFunctions(String& s)
 		jassertfalse;
 }
 
+void SnexSource::ParameterHandler::updateParameters(ValueTree v, bool wasAdded)
+{
+	if (wasAdded)
+	{
+		auto newP = new SnexParameter(&parent, getNode(), v);
+		getNode()->addParameter(newP);
+	}
+	else
+	{
+		for (int i = 0; i < getNode()->getNumParameters(); i++)
+		{
+			if (auto sn = dynamic_cast<SnexParameter*>(getNode()->getParameter(i)))
+			{
+				if (sn->data[PropertyIds::ID].toString() == v[PropertyIds::ID].toString())
+				{
+					removeSnexParameter(sn);
+					break;
+				}
+			}
+		}
+	}
+}
+
+void SnexSource::ParameterHandler::updateParametersForWorkbench(bool shouldAdd)
+{
+	for (int i = 0; i < getNode()->getNumParameters(); i++)
+	{
+		if (auto sn = dynamic_cast<SnexParameter*>(getNode()->getParameter(i)))
+		{
+			removeSnexParameter(sn);
+			i--;
+		}
+	}
+
+	if (shouldAdd)
+	{
+		parameterTree = getNode()->getRootNetwork()->codeManager.getParameterTree(parent.getTypeId(), parent.classId.getValue());
+		parameterListener.setCallback(parameterTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(ParameterHandler::updateParameters));
+	}
+}
+
+void SnexSource::ParameterHandler::removeSnexParameter(SnexParameter* p)
+{
+	p->data.getParent().removeChild(p->data, getNode()->getUndoManager());
+
+	for (int i = 0; i < getNode()->getNumParameters(); i++)
+	{
+		if (getNode()->getParameter(i) == p)
+		{
+			getNode()->removeParameter(i);
+			break;
+		}
+	}
+}
+
+void SnexSource::ParameterHandler::addNewParameter(parameter::data p)
+{
+	if (auto existing = getNode()->getParameter(p.info.getId()))
+		return;
+
+	auto newTree = p.createValueTree();
+	parameterTree.addChild(newTree, -1, getNode()->getUndoManager());
+}
+
 void SnexSource::ParameterHandler::addParameterCode(String& code)
 {
 	using namespace snex::cppgen;
@@ -492,10 +556,14 @@ snex::ExternalDataHolder* SnexSource::ComplexDataHandler::getDynamicDataHolder(s
 }
 
 SnexSource::SnexParameter::SnexParameter(SnexSource* n, NodeBase* parent, ValueTree dataTree) :
-	Parameter(parent, dataTree),
+	Parameter(parent, getTreeInNetwork(parent, dataTree)),
 	pIndex(dataTree.getParent().indexOf(dataTree)),
-	snexSource(n)
+	snexSource(n),
+	treeInCodeMetadata(dataTree)
 {
+	// Let's be very clear about this.
+	jassert(!treeInCodeMetadata.isAChildOf(parent->getRootNetwork()->getValueTree()));
+
 	auto& pHandler = n->getParameterHandler();
 
 	switch (pIndex)
@@ -512,32 +580,29 @@ SnexSource::SnexParameter::SnexParameter(SnexSource* n, NodeBase* parent, ValueT
 	}
 
 	auto ndb = new parameter::dynamic_base(p);
-	ndb->dataTree = dataTree;
+	ndb->dataTree = data;
 	setCallbackNew(ndb);
-
-	for (auto pTree : parent->getParameterTree())
-	{
-		if (pTree[PropertyIds::ID] == dataTree[PropertyIds::ID])
-		{
-			treeInNetwork = pTree;
-			break;
-		}
-	}
-
-	if (!treeInNetwork.isValid())
-	{
-		treeInNetwork = dataTree.createCopy();
-		parent->getParameterTree().addChild(treeInNetwork, -1, parent->getUndoManager());
-	}
-
-	setTreeWithValue(treeInNetwork);
 
 	auto ids = RangeHelpers::getRangeIds();
 	ids.add(PropertyIds::ID);
 
-	syncer.setPropertiesToSync(dataTree, treeInNetwork, ids, parent->getUndoManager());
+	syncer.setPropertiesToSync(dataTree, data, ids, parent->getUndoManager());
 
-	parentValueUpdater.setCallback(treeInNetwork, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(SnexSource::SnexParameter::sendValueChangeToParentListeners));
+	parentValueUpdater.setCallback(data, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(SnexSource::SnexParameter::sendValueChangeToParentListeners));
+}
+
+juce::ValueTree SnexSource::SnexParameter::getTreeInNetwork(NodeBase* parent, ValueTree dataTree)
+{
+	for (auto pTree : parent->getParameterTree())
+	{
+		if (pTree[PropertyIds::ID] == dataTree[PropertyIds::ID])
+			return pTree;
+	}
+
+	auto treeInNetwork = dataTree.createCopy();
+	parent->getParameterTree().addChild(treeInNetwork, -1, parent->getUndoManager());
+
+	return treeInNetwork;
 }
 
 void SnexSource::SnexParameter::sendValueChangeToParentListeners(Identifier id, var newValue)

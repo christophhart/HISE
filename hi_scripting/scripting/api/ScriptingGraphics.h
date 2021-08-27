@@ -383,6 +383,9 @@ namespace ScriptingObjects
 		/** Draws a drop shadow around a rectangle. */
 		void drawDropShadow(var area, var colour, int radius);
 
+		/** Draws a drop shadow from a path. */
+		void drawDropShadowFromPath(var path, var area, var colour, int radius, var offset);
+
 		/** Draws a triangle rotated by the angle in radians. */
 		void drawTriangle(var area, float angle, float lineThickness);
 
@@ -548,6 +551,8 @@ namespace ScriptingObjects
 		{
 			if (auto dyn = functions.getDynamicObject())
 				return dyn->getProperties().size();
+            
+            return 0;
 		}
 
 		DebugInformationBase* getChildElement(int index) override

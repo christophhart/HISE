@@ -123,6 +123,8 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setControlCallback);
 	API_METHOD_WRAPPER_0(ScriptComponent, getAllProperties);
+	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setKeyPressCallback);
+	API_VOID_METHOD_WRAPPER_0(ScriptComponent, loseFocus);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setZLevel);
 };
 
@@ -133,6 +135,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ConstScriptingObject(base, numConstants),
 	UpdateDispatcher::Listener(base->getScriptingContent()->getUpdateDispatcher()),
 	name(name_),
+	keyboardCallback(base, {}, 1),
 	parent(base->getScriptingContent()),
 	controlSender(this, base),
 	propertyTree(name_.isValid() ? parent->getValueTreeForComponent(name) : ValueTree("Component")),
@@ -222,6 +225,8 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_1(setControlCallback);
 	ADD_API_METHOD_0(getAllProperties);
 	ADD_API_METHOD_1(setZLevel);
+	ADD_API_METHOD_1(setKeyPressCallback);
+	ADD_API_METHOD_0(loseFocus);
 
 	//setName(name_.toString());
 
@@ -1102,6 +1107,72 @@ var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
 	Array<var> b;
 	b.add(ar.getX()); b.add(ar.getY()); b.add(ar.getWidth()); b.add(ar.getHeight());
 	return var(b);
+}
+
+void ScriptingApi::Content::ScriptComponent::setKeyPressCallback(var keyboardFunction)
+{
+	keyboardCallback = WeakCallbackHolder(getScriptProcessor(), keyboardFunction, 1);
+	keyboardCallback.incRefCount();
+	keyboardCallback.setThisObject(this);
+}
+
+bool ScriptingApi::Content::ScriptComponent::handleKeyPress(const KeyPress& k)
+{
+	if (keyboardCallback)
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("isFocusChange", false);
+
+		auto c = k.getTextCharacter();
+
+		auto printable = CharacterFunctions::isPrintable(c);
+		
+		obj->setProperty("character", printable ? String::charToString(c) : "");
+		obj->setProperty("specialKey", !printable);
+		obj->setProperty("keyCode", k.getKeyCode());
+		obj->setProperty("description", k.getTextDescription());
+		obj->setProperty("shift", k.getModifiers().isShiftDown());
+		obj->setProperty("cmd", k.getModifiers().isCommandDown() || k.getModifiers().isCtrlDown());
+		obj->setProperty("alt", k.getModifiers().isAltDown());
+
+		var args(obj);
+		var rv;
+
+		auto ok = keyboardCallback.callSync(&args, 1, &rv);
+
+		if (ok.wasOk())
+			return (bool)rv;
+		else
+			reportScriptError(ok.getErrorMessage());
+	}
+
+	return false;
+}
+
+void ScriptingApi::Content::ScriptComponent::handleFocusChange(bool isFocused)
+{
+	if (keyboardCallback)
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("isFocusChange", true);
+		obj->setProperty("hasFocus", isFocused);
+		
+		var args(obj);
+		
+		auto ok = keyboardCallback.callSync(&args, 1);
+
+		if (!ok.wasOk())
+			reportScriptError(ok.getErrorMessage());
+	}
+}
+
+void ScriptingApi::Content::ScriptComponent::loseFocus()
+{
+	for (auto l : zLevelListeners)
+	{
+		if (l != nullptr)
+			l->wantsToLoseFocus();
+	}
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -3893,6 +3964,7 @@ colour(Colour(0xff777777))
 	setMethod("clear", Wrapper::clear);
 	setMethod("createPath", Wrapper::createPath);
 	setMethod("createShader", Wrapper::createShader);
+	setMethod("getCurrentTooltip", Wrapper::getCurrentTooltip);
 }
 
 ScriptingApi::Content::~Content()
@@ -4748,6 +4820,18 @@ void ScriptingApi::Content::addVisualGuide(var guideData, var colour)
 
 	if (screenshotListener != nullptr)
 		screenshotListener->visualGuidesChanged();
+}
+
+String ScriptingApi::Content::getCurrentTooltip()
+{
+	auto& desktop = Desktop::getInstance();
+	auto mouseSource = desktop.getMainMouseSource();
+	auto* newComp = mouseSource.isTouch() ? nullptr : mouseSource.getComponentUnderMouse();
+
+	if (auto ttc = dynamic_cast<TooltipClient*> (newComp))
+		return ttc->getTooltip();
+
+	return {};
 }
 
 #undef ADD_TO_TYPE_SELECTOR

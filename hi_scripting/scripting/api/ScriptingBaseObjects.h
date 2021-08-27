@@ -247,7 +247,7 @@ struct WeakCallbackHolder : private ScriptingObject
 	void call(var* arguments, int numArgs);
 
 	/** Call the functions synchronously. */
-	Result callSync(var* arguments, int numArgs);
+	Result callSync(var* arguments, int numArgs, var* returnValue=nullptr);
 
 	/** Call the function with one argument that can be converted to a var. */
 	template <typename T> void call1(const T& arg1)
@@ -286,7 +286,7 @@ struct WeakCallbackHolder : private ScriptingObject
 
 	
 
-	DebugInformationBase::Ptr createDebugObject(const String& n) const;
+	DebugInformationBase* createDebugObject(const String& n) const;
 
 	void decRefCount()
 	{

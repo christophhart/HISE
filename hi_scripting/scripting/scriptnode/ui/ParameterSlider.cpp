@@ -937,7 +937,7 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index_) :
 	SimpleTimer(node_->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	parameterToControl(node_->getParameter(index_)),
 	node(node_),
-	pTree(node_->getParameter(index_)->getTreeWithValue()),
+	pTree(node_->getParameter(index_)->data),
 	index(index_)
 {
 	addAndMakeVisible(rangeButton);
@@ -1004,7 +1004,7 @@ void ParameterSlider::checkEnabledState()
 	else
 	{
 		stop();
-		parameterToControl->getReferenceToCallback().setDisplaySource(nullptr);
+		parameterToControl->getDynamicParameterAsHolder()->setDisplaySource(nullptr);
 	}
 
 	if (auto g = findParentComponentOfClass<DspNetworkGraph>())
@@ -1244,7 +1244,7 @@ void ParameterSlider::sliderValueChanged(Slider*)
 			n->getCurrentParameterHandler()->setParameter(index, getValue());
 		}
 		
-		parameterToControl->getTreeWithValue().setProperty(PropertyIds::Value, getValue(), parameterToControl->parent->getUndoManager());
+		parameterToControl->data.setProperty(PropertyIds::Value, getValue(), parameterToControl->parent->getUndoManager());
 	}
 
 	if (auto nl = dynamic_cast<ParameterKnobLookAndFeel::SliderLabel*>(getTextBox()))

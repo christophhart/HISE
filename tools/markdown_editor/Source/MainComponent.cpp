@@ -22,9 +22,24 @@ MainContentComponent::MainContentComponent() :
 	menuBar.setModel(this);
     setEnableOpenGL(this);
 #endif
+    
+    setWantsKeyboardFocus(true);
 
-	
+    addKeyCommand('n', ModifierKeys::commandModifier, [&]()
+    {
+        applySetting(SettingIds::CurrentFile, "");
+    });
+    
+    addKeyCommand(KeyPress::F6Key, {}, [&]()
+    {
+        toggleSetting(SettingIds::ShowEditor);
+    });
 
+    addKeyCommand(KeyPress::F7Key, {}, [&]()
+    {
+        toggleSetting(SettingIds::ShowPreview);
+    });
+    
 	setLookAndFeel(&laf);
 
 	doc.addListener(this);
@@ -39,7 +54,7 @@ MainContentComponent::MainContentComponent() :
 	editor.editor.addPopupMenuFunction(
 	[](mcl::TextEditor& te , PopupMenu& m, const MouseEvent& e)
 	{
-		m.addItem(12000, "Insert image link");
+        m.addItem(12000, "Insert image link");
 		m.addItem(13000, "Insert link");
 	},
 	[this](mcl::TextEditor& te, int result)
@@ -63,14 +78,30 @@ MainContentComponent::MainContentComponent() :
 
 			if (fc.browseForFileToOpen())
 			{
+                auto s = te.getTextDocument().getSelection(0);
+                auto selection = te.getTextDocument().getSelectionContent(s);
+                
 				String f;
-				f << "[LinkName](/" << fc.getResult().getRelativePathFrom(rootDirectory).replace("\\", "/") << ")";
+                f << "[";
+                
+                if(selection.isNotEmpty())
+                    f << selection;
+                else
+                    f << "LinkName";
+                
+                f << "](/" << fc.getResult().getRelativePathFrom(rootDirectory).replace("\\", "/") << ")";
+                
+                auto tl = f.length();
+                
 				te.insert(f);
 
-				auto s = te.getTextDocument().getSelection(0);
-				s.head.y++;
-				s.tail.y = s.head.y + 8;
-				te.getTextDocument().setSelection(0, s, false);
+                if(selection.isEmpty())
+                {
+                    s = te.getTextDocument().getSelection(0);
+                    s.tail.y -= (tl-1);
+                    s.head.y -= (tl-9);
+                    te.getTextDocument().setSelection(0, s, false);
+                }
 			}
 
 			return true;
@@ -93,6 +124,7 @@ MainContentComponent::MainContentComponent() :
     setSize (1280, 800);
 
 	loadSettings();
+	editor.loadSettings(currentSettings);
 }
 
 MainContentComponent::~MainContentComponent()
@@ -105,7 +137,10 @@ MainContentComponent::~MainContentComponent()
 	currentSettings.getDynamicObject()->setProperty(SettingIds::Height, getHeight());
 
 	detachOpenGl();
+
+	editor.saveSettings(currentSettings.getDynamicObject());
 	saveSettings();
+	
 }
 
 void MainContentComponent::paint (Graphics& g)
@@ -145,9 +180,9 @@ juce::PopupMenu MainContentComponent::getMenuForIndex(int topLevelMenuIndex, con
 	
 	if (topLevelMenuIndex == 0)
 	{
-		m.addItem(1, "New File");
-		m.addItem(2, "Open File");
-		m.addItem(3, "Save File");
+        m.addItem(1, "New File (Cmd+N)");
+		m.addItem(2, "Open File (Cmd+O)");
+		m.addItem(3, "Save File (Cmd+S)");
 
 		PopupMenu recentFiles;
 
@@ -168,8 +203,8 @@ juce::PopupMenu MainContentComponent::getMenuForIndex(int topLevelMenuIndex, con
 	}
 	if (topLevelMenuIndex == 1)
 	{
-		m.addItem(1, "Show Editor", true, getSetting(SettingIds::ShowEditor));
-		m.addItem(2, "Show Preview", true, getSetting(SettingIds::ShowPreview));
+		m.addItem(1, "Show Editor (F6)", true, getSetting(SettingIds::ShowEditor));
+		m.addItem(2, "Show Preview (F7)", true, getSetting(SettingIds::ShowPreview));
         m.addItem(4, "Dark Preview", true, getSetting(SettingIds::DarkPreview));
 		m.addSeparator();
 		m.addItem(3, "Set root directory");
