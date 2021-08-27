@@ -20,9 +20,11 @@ void mcl::TextDocument::replaceAll(const String& content)
 {
 	lines.clear();
 
+	int index = 0;
+
 	for (const auto& line : StringArray::fromLines(content))
 	{
-		lines.add(line);
+		lines.set(index++, line);
 	}
 }
 
