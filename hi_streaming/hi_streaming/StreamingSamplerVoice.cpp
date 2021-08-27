@@ -97,8 +97,6 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 
 	sound = s;
 
-	s->wakeSound();
-
 	sampleStartModValue = (int)startTime;
 
 	auto localReadBuffer = &s->getPreloadBuffer();
@@ -546,8 +544,7 @@ void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 		loader.startNote(sound, sampleStartModValue);
 
 		jassert(sound != nullptr);
-		sound->wakeSound();
-
+		
 		voiceUptime = (double)sampleStartModValue;
 
 		// You have to call setPitchFactor() before startNote().

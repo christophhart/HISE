@@ -411,7 +411,14 @@ public:
 
 	int type;
 
-	virtual String getCodeToInsert() const override { return getObject()->getInstanceName().toString(); };
+	virtual String getCodeToInsert() const override 
+	{ 
+		if(obj != nullptr)
+			return obj->getInstanceName().toString(); 
+
+		return {};
+
+	};
 	DebugableObjectBase* getObject() override { return obj.get(); }
 	const DebugableObjectBase* getObject() const override { return obj.get(); }
 

@@ -37,24 +37,26 @@ public:
 
 	int size() const { return lines.size(); }
 	void clear() { lines.clear(); }
-	void add(const juce::String& string)
+
+	void set(int index, const juce::String& string)
 	{
-		auto hash = Entry::createHash(string, maxLineWidth);
-		int lineNumber = lines.size();
-		auto cachedItem = cache.getCachedItem(lineNumber, hash);
+		auto newItem = new Entry(string.removeCharacters("\r\n"), maxLineWidth);
+		lines.set(index, newItem);
+	}
 
-		if (cachedItem == nullptr)
-		{
-			cachedItem = new Entry(string, maxLineWidth);
-			cache.cachedItems.set(lineNumber, { hash, cachedItem });
-		}
+	void insert(int index, const String& string)
+	{
+		auto newItem = new Entry(string.removeCharacters("\r\n"), maxLineWidth);
+		lines.insert(index, newItem);
+	}
 
-		lines.add(cachedItem);
+	void removeRange(Range<int> r)
+	{
+		lines.removeRange(r.getStart(), r.getLength());
 	}
 
 	void removeRange(int startIndex, int numberToRemove) { lines.removeRange(startIndex, numberToRemove); }
 	const juce::String& operator[] (int index) const;
-
 
 	int getToken(int row, int col, int defaultIfOutOfBounds) const;
 	void clearTokens(int index);
@@ -270,10 +272,14 @@ public:
 		{
 			if (isPositiveAndBelow(line, cachedItems.size()))
 			{
-				auto l = cachedItems.begin() + line;
+				Range<int> rangeToCheck(jmax(0, line - 4), jmin(cachedItems.size(), line + 4));
 
-				if (l->hash == hash)
-					return l->p;
+				for (int i = rangeToCheck.getStart(); i < rangeToCheck.getEnd(); i++)
+				{
+					auto l = cachedItems.begin() + i;
+					if (l->hash == hash)
+						return l->p;
+				}
 			}
 
 			return nullptr;

@@ -753,28 +753,43 @@ public:
 			if(!foldManager.isFolded(i))
 				yPos += l->height + gap;
 		}
+
+		rowPositions.add(yPos);
 	}
 
-	void codeChanged(bool wasInserted, int startIndex, int endIndex)
+	void lineRangeChanged(Range<int> r, bool wasAdded) override
 	{
-		CodeDocument::Position start(getCodeDocument(), startIndex);
-		CodeDocument::Position end(getCodeDocument(), endIndex);
+		invalidate(r);
 
-		auto b = getCodeDocument().getTextBetween(start, end);
-
-		lines.lines.clearQuick();
-		lines.lines.ensureStorageAllocated(doc.getNumLines());
-
-		for (int i = 0; i < doc.getNumLines(); i++)
+		if (!wasAdded && r.getLength() > 0)
 		{
-			auto l = doc.getLine(i).removeCharacters("\r");
-            
-            if(l.endsWith("\n"))
-                lines.add(l.substring(0, l.length()-1));
-            else
-                lines.add(l);
+			lines.removeRange(r);
+			lines.set(r.getStart(), doc.getLine(r.getStart()));
+			return;
 		}
 
+		if (r.getLength() > 1)
+		{
+
+			lines.set(r.getStart(), doc.getLine(r.getStart()));
+
+			for (int i = r.getStart() + 1; i < r.getEnd(); i++)
+				lines.insert(i, doc.getLine(i));
+		}
+		else
+		{
+			auto lineNumber = r.getStart();
+			lines.set(lineNumber, doc.getLine(lineNumber));
+		}
+
+		if (wasAdded && r.getEnd() > getNumRows())
+		{
+			lines.set(r.getEnd(), "");
+		}
+	}
+
+	void codeChanged(bool wasInserted, int startIndex, int endIndex) override
+	{
 		CodeDocument::Position pos(getCodeDocument(), wasInserted ? endIndex : startIndex);
 
 		if (getNumSelections() == 1)
