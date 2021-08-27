@@ -853,8 +853,9 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			numCommands
 		};
 
+		PopupLookAndFeel pplaf;
         PopupMenu menu;
-		menu.setLookAndFeel(plaf);
+		menu.setLookAndFeel(&pplaf);
 
 
 		menu.addSeparator();
@@ -912,13 +913,8 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 				break;
 			}
 			case LineBreaks: 
-				linebreakEnabled = !linebreakEnabled; 
-				
-				if (linebreakEnabled)
-					xPos = 0.0f;
-
-				resized();  
-				refreshLineWidth(); break;
+				setLineBreakEnabled(!linebreakEnabled);
+				break;
         }
 
         resetProfilingData();

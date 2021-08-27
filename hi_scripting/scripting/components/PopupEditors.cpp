@@ -161,8 +161,14 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 
 	auto& ed = getEditor()->editor;
 
+	
+
 	if (isJavascript)
+	{
 		ed.tokenCollection.addTokenProvider(new HiseJavascriptEngine::TokenProvider(sp));
+		ed.setCodeTokeniser(new JavascriptTokeniser());
+	}
+		
 	else
 	{
 		ed.tokenCollection.addTokenProvider(new GLSLKeywordProvider());

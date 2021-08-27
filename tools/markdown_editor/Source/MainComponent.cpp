@@ -124,6 +124,7 @@ MainContentComponent::MainContentComponent() :
     setSize (1280, 800);
 
 	loadSettings();
+	editor.loadSettings(currentSettings);
 }
 
 MainContentComponent::~MainContentComponent()
@@ -136,7 +137,10 @@ MainContentComponent::~MainContentComponent()
 	currentSettings.getDynamicObject()->setProperty(SettingIds::Height, getHeight());
 
 	detachOpenGl();
+
+	editor.saveSettings(currentSettings.getDynamicObject());
 	saveSettings();
+	
 }
 
 void MainContentComponent::paint (Graphics& g)

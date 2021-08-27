@@ -72,6 +72,8 @@ Component* CodeEditorPanel::createContentComponent(int index)
 #if HISE_USE_NEW_CODE_EDITOR
 		if(scaleFactor != -1.0f)
 			pe->getEditor()->editor.setScaleFactor(scaleFactor);
+
+		pe->getEditor()->loadSettings(settings);
 #endif
 
 		pe->addMouseListener(this, true);
@@ -120,6 +122,23 @@ void CodeEditorPanel::fillModuleList(StringArray& moduleList)
 	}
 }
 
+
+void CodeEditorPanel::fromDynamicObject(const var& object)
+{
+	settings = object;
+
+	PanelWithProcessorConnection::fromDynamicObject(object);
+}
+
+var CodeEditorPanel::toDynamicObject() const
+{
+	auto obj = PanelWithProcessorConnection::toDynamicObject();
+
+	if (auto ed = getContent<PopupIncludeEditor>())
+		ed->getEditor()->saveSettings(obj.getDynamicObject());
+
+	return obj;
+}
 
 void CodeEditorPanel::scriptWasCompiled(JavascriptProcessor *processor)
 {

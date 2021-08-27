@@ -22,7 +22,21 @@
 
 #pragma once
 
+#define DECLARE_ID(x) static const juce::Identifier x(#x);
+namespace TextEditorSettings
+{
+	DECLARE_ID(MapWidth);
+	DECLARE_ID(LineBreaks);
+	DECLARE_ID(EnableHover);
+	
+	static juce::Array<juce::Identifier> getAllIds()
+	{
+		static const juce::Array<juce::Identifier> ids = { MapWidth, LineBreaks, EnableHover };
 
+		return ids;
+	}
+}
+#undef DECLARE_ID
 
 
 namespace mcl
@@ -66,6 +80,24 @@ struct FullEditor: public Component,
 		editor.setLineRangeFunction(mcl::FullEditor::createMarkdownLineRange);
 		editor.setEnableAutocomplete(false);
 		enableBreakpoints(false);
+	}
+
+	void loadSettings(const var& s)
+	{
+		editor.setLineBreakEnabled(s.getProperty(TextEditorSettings::LineBreaks, true));
+		mapWidth = s.getProperty(TextEditorSettings::MapWidth, 150);
+		resized();
+		codeMap.allowHover = s.getProperty(TextEditorSettings::EnableHover, true);
+	}
+
+	void saveSettings(DynamicObject::Ptr obj) const
+	{
+		if (obj != nullptr)
+		{
+			obj->setProperty(TextEditorSettings::LineBreaks, editor.linebreakEnabled);
+			obj->setProperty(TextEditorSettings::MapWidth, mapWidth);
+			obj->setProperty(TextEditorSettings::EnableHover, codeMap.allowHover);
+		}
 	}
 
 	void setReadOnly(bool shouldBeReadOnly)
@@ -114,12 +146,20 @@ struct FullEditor: public Component,
 
 	void resized() override;
 
+	int mapWidth = 150;
+
 	HiseShapeButton mapButton, foldButton;
 	CodeMap codeMap;
 	FoldMap foldMap;
 
+	using SettingFunction = std::function<void(bool, DynamicObject::Ptr)>;
+
+	SettingFunction settingFunction;
+
 	juce::ComponentBoundsConstrainer constrainer;
 	ResizableEdgeComponent edge;
+
+	var settings;
 };
 
 }
