@@ -278,10 +278,13 @@ struct DrawActions
 		virtual bool wantsToDrawOnParent() const { return false; }
 
 		void setCachedImage(Image& img) { cachedImage = img; }
+		void setScaleFactor(float sf) { scaleFactor = sf; }
 
 	protected:
 
 		Image cachedImage;
+
+		float scaleFactor = 1.0f;
 
 	private:
 
@@ -313,7 +316,7 @@ struct DrawActions
 
 			if (postActions.size() > 0)
 			{
-				PostGraphicsRenderer r(stack, cachedImage);
+				PostGraphicsRenderer r(stack, cachedImage, scaleFactor);
 				int numDataRequired = 0;
 
 				for (auto p : postActions)

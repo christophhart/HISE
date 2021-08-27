@@ -191,7 +191,9 @@ struct ScriptedPostDrawActions
 		bool needsStackData() const override { return true; }
 		void perform(PostGraphicsRenderer& r) override
 		{
-			r.applyMask(path, invert);
+			
+
+			r.applyMask(path, invert, false);
 		}
 
 		Path path;

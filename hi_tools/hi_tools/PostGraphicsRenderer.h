@@ -99,7 +99,7 @@ struct PostGraphicsRenderer
 
 	using DataStack = OwnedArray<Data>;
 
-	PostGraphicsRenderer(DataStack& stackTouse, Image& image);
+	PostGraphicsRenderer(DataStack& stackTouse, Image& image, float scaleFactor=1.0f);
 
 	void reserveStackOperations(int numOperationsToAllocate);
 
@@ -118,7 +118,7 @@ struct PostGraphicsRenderer
 
 	void desaturate();
 
-	void applyMask(Path& path, bool invert = false, bool scale=false);
+	void applyMask(const Path& path, bool invert = false, bool scale=false);
 
 	void addNoise(float noiseAmount);
 
@@ -148,6 +148,7 @@ private:
 	int stackIndex = 0;
 	Image::BitmapData bd;
 	Image img;
+	float scaleFactor = 1.0f;
 };
 
 
