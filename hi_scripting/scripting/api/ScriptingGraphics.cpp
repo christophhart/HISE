@@ -599,6 +599,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillEllipse);
 	API_VOID_METHOD_WRAPPER_4(GraphicsObject, drawImage);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawDropShadow);
+	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawDropShadowFromPath);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, addDropShadowFromAlpha);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawTriangle);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillTriangle);
@@ -645,6 +646,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_1(fillEllipse);
 	ADD_API_METHOD_4(drawImage);
 	ADD_API_METHOD_3(drawDropShadow);
+	ADD_API_METHOD_5(drawDropShadowFromPath);
 	ADD_API_METHOD_2(addDropShadowFromAlpha);
 	ADD_API_METHOD_3(drawTriangle);
 	ADD_API_METHOD_2(fillTriangle);
@@ -977,6 +979,22 @@ void ScriptingObjects::GraphicsObject::drawDropShadow(var area, var colour, int 
 	shadow.radius = radius;
 
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawDropShadow(r, shadow));
+}
+
+void ScriptingObjects::GraphicsObject::drawDropShadowFromPath(var path, var area, var colour, int radius, var offset)
+{
+	auto r = getIntRectangleFromVar(area);
+	auto o = getPointFromVar(offset);
+	auto c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
+
+	if (auto p = dynamic_cast<ScriptingObjects::PathObject*>(path.getObject()))
+	{
+		Path sp = p->getPath();
+		
+		auto area = r.toFloat().translated(o.getX(), o.getY());
+
+		drawActionHandler.addDrawAction(new ScriptedDrawActions::drawDropShadowFromPath(sp, area, c, radius));
+	}
 }
 
 void ScriptingObjects::GraphicsObject::drawTriangle(var area, float angle, float lineThickness)
