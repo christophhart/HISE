@@ -81,6 +81,8 @@ public:
 		bool glyphsAreDirty = true;
 		bool tokensAreDirty = true;
 		bool hasLineBreak = false;
+		
+		bool isBookmark();
 
 		Array<Point<int>> positions;
 

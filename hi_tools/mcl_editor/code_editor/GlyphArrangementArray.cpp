@@ -270,4 +270,21 @@ void GlyphArrangementArray::ensureReadyToPaint(Range<int> lineRange)
 	}
 }
 
+bool GlyphArrangementArray::Entry::isBookmark()
+{
+	auto s = string.begin();
+	auto e = string.end();
+
+	while (s != e && CharacterFunctions::isWhitespace(*s))
+		s++;
+
+	if ((e - s> 3) && 
+		*s == '/' && 
+		*(++s) == '/' && 
+		*(++s) == '!')
+		return true;
+
+	return false;
+}
+
 }

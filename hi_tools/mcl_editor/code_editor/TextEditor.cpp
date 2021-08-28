@@ -862,8 +862,73 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
     {
         return;
     }
-    else if (e.mods.isRightButtonDown())
+    else if (e.mods.isRightButtonDown() || e.mods.isMiddleButtonDown())
     {
+		PopupLookAndFeel pplaf;
+		PopupMenu menu;
+		menu.setLookAndFeel(&pplaf);
+
+		if (e.mods.isMiddleButtonDown() || e.mods.isShiftDown())
+		{
+			auto bm = document.getBookmarks();
+
+			if (!bm.isEmpty())
+			{
+				menu.addSectionHeader("Custom Bookmarks");
+
+				for (auto b : bm)
+				{
+					menu.addItem(b.lineNumber + 1, b.name);
+				}
+			}
+			
+			menu.addSeparator();
+			menu.addItem(-1, "Add custom bookmark");
+			
+			auto& holder = document.getFoldableLineRangeHolder();
+
+			if (!holder.roots.isEmpty())
+			{
+				menu.addSeparator();
+				menu.addSectionHeader("Automatic bookmarks");
+
+				for (auto r : holder.roots)
+				{
+					auto b = r->getBookmark();
+					menu.addItem(b.lineNumber + 1, b.name);
+
+					for (auto c : r->children)
+					{
+						auto b = c->getBookmark();
+						menu.addItem(b.lineNumber + 1, "   " + b.name);
+					}
+				}
+			}
+
+			auto r = menu.show();
+
+			if (r == -1)
+			{
+				document.navigateSelections(mcl::TextDocument::Target::firstnonwhitespace, TextDocument::Direction::backwardCol, Selection::Part::both);
+
+				insert("//! Enter bookmark title\n");
+				auto s = document.getSelection(0);
+				
+				for (int i = 0; i < 21; i++)
+					document.navigateLeftRight(s.tail, false);
+
+				document.navigateLeftRight(s.head, false);
+				
+				document.setSelection(0, s, true);
+				return;
+			}
+
+			if (r != 0)
+				setFirstLineOnScreen(r - 1);
+
+			return;
+		}
+
 		enum Commands
 		{
 			Cut=1,
@@ -884,9 +949,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			numCommands
 		};
 
-		PopupLookAndFeel pplaf;
-        PopupMenu menu;
-		menu.setLookAndFeel(&pplaf);
+		
 
 
 		menu.addSeparator();

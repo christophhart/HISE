@@ -178,6 +178,8 @@ public:
 		repaint();
 	}
 
+	
+
 	String getTextForFoldRange(FoldableLineRange::WeakPtr p)
 	{
 		auto s = doc.getCodeDocument().getLine(p->getLineRange().getStart());

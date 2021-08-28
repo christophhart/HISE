@@ -68,6 +68,11 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BreakpointManager);
 };
 
+struct Bookmark
+{
+	String name;
+	int lineNumber;
+};
 
 class FoldableLineRange : public ReferenceCountedObject
 {
@@ -397,6 +402,8 @@ public:
 		return { start.getLineNumber(), end.getLineNumber() +1};
 	}
 
+	Bookmark getBookmark() const;
+	
 	void setFolded(bool shouldBeFolded)
 	{
 		folded = shouldBeFolded;
@@ -514,6 +521,9 @@ public:
 		juce::RectangleList<float> bounds;
 	};
 
+	
+
+	Array<Bookmark> getBookmarks() const;
 
 	TextDocument(CodeDocument& doc_);;
 

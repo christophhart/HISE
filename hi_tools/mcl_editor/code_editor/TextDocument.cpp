@@ -483,6 +483,27 @@ Point<int> mcl::TextDocument::getEnd() const
 	return { getNumRows(), 0 };
 }
 
+juce::Array<Bookmark> TextDocument::getBookmarks() const
+{
+	int index = 0;
+	Array<Bookmark> bookmarks;
+
+	for (auto l : lines.lines)
+	{
+		if (l->isBookmark())
+		{
+			Bookmark b;
+			b.lineNumber = index;
+			b.name = l->string.fromFirstOccurrenceOf("//!", false, false).trim();
+			bookmarks.add(b);
+		}
+
+		index++;
+	}
+
+	return bookmarks;
+}
+
 void TextDocument::setSelections(const juce::Array<Selection>& newSelections, bool useUndo)
 {
 	columnTryingToMaintain = -1;
@@ -1104,5 +1125,27 @@ mcl::TextDocument::TextDocument(CodeDocument& doc_) :
     }
 }
 
+
+mcl::Bookmark FoldableLineRange::getBookmark() const
+{
+	Bookmark b;
+	b.lineNumber = start.getLineNumber();
+
+	auto copy = start;
+
+	while (copy.getLineNumber() == b.lineNumber)
+	{
+		b.name << copy.getCharacter();
+		auto p = copy.getPosition();
+		copy.moveBy(1);
+
+		if (p == copy.getPosition())
+			break;
+	}
+		
+	b.name = b.name.trimCharactersAtStart("#").trim();
+
+	return b;
+}
 
 }
