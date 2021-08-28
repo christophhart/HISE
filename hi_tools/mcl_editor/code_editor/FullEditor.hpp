@@ -29,13 +29,6 @@ namespace TextEditorSettings
 	DECLARE_ID(LineBreaks);
 	DECLARE_ID(EnableHover);
 	DECLARE_ID(ShowWhitespace);
-	
-	static juce::Array<juce::Identifier> getAllIds()
-	{
-		static const juce::Array<juce::Identifier> ids = { MapWidth, LineBreaks, EnableHover, ShowWhitespace };
-
-		return ids;
-	}
 }
 #undef DECLARE_ID
 

@@ -99,6 +99,26 @@ String ScriptingObjects::ScriptShader::FileParser::loadFileContent()
 #if USE_BACKEND
 	auto f = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts).getChildFile(fileNameWithoutExtension).withFileExtension("glsl");
 
+    if(!f.existsAsFile())
+    {
+        String s;
+        String nl = "\n";
+        
+        s << "void main()" << nl;
+        s << "{" << nl;
+        s << "    // Normalized pixel coordinates (from 0 to 1)" << nl;
+        s << "    vec2 uv = fragCoord/iResolution.xy;" << nl;
+        s << nl;
+        s << "    // Time varying pixel color" << nl;
+        s << "    vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));" << nl;
+        s << nl;
+        s << "    // Output to screen" << nl;
+        s << "    fragColor = pixelAlpha * vec4(col,1.0);" << nl;
+        s << "}" << nl;
+        
+        f.replaceWithText(s);
+    }
+    
 	if (auto jp = dynamic_cast<JavascriptProcessor*>(sp))
 	{
 		auto ef = jp->addFileWatcher(f);

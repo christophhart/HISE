@@ -742,12 +742,12 @@ void mcl::TextEditor::resized()
     
     highlight.setBounds (b);
     
-	if (!linebreakEnabled)
-	{
-		auto b = getLocalBounds();
-		b.removeFromLeft(gutter.getGutterWidth());
-		horizontalScrollBar.setBounds(b.removeFromBottom(14));
-	}
+    horizontalScrollBar.setVisible(!linebreakEnabled);
+    
+    auto b2 = getLocalBounds();
+    b2.removeFromLeft(gutter.getGutterWidth());
+    horizontalScrollBar.setBounds(b2.removeFromBottom(14));
+    
 
     gutter.setBounds (b);
     resetProfilingData();
@@ -1145,21 +1145,26 @@ void mcl::TextEditor::mouseWheelMove(const MouseEvent& e, const MouseWheelDetail
 	float factors[2] = { 80.0f, 160.0f };
 #endif
 
-	if (e.mods.isShiftDown() && !linebreakEnabled)
+    bool handleXScroll = !linebreakEnabled && (e.mods.isShiftDown() || d.deltaX != 0.0);
+    
+    
+	if (handleXScroll)
 	{
-		if(d.deltaY < 0.0f)
+        auto vToUse = e.mods.isShiftDown() ? d.deltaY : d.deltaX;
+        
+		if(vToUse < 0.0f)
 			xPos = jmin(-gutter.getGutterWidth(), xPos);
 
-		xPos += d.deltaY * factors[1];
+		xPos += vToUse * factors[1];
 
 		auto maxWidth = document.getBounds().getWidth() * viewScaleFactor;
 		xPos = jmax(xPos, -maxWidth);
 
-		translateView(0.0f, 0.0f);
 	}
-	else
-		translateView(0.0f, d.deltaY * factors[1]);
-
+	
+    auto yToUse = e.mods.isShiftDown() ? 0.0f : d.deltaY;
+    
+    translateView(0.0f, yToUse * factors[1]);
 }
 
 void mcl::TextEditor::mouseMagnify (const MouseEvent& e, float scaleFactor)
