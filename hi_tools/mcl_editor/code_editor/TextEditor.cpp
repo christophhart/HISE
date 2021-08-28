@@ -25,6 +25,7 @@ mcl::TextEditor::TextEditor(TextDocument& codeDoc)
 , highlight (document)
 , docRef(codeDoc.getCodeDocument())
 , scrollBar(true)
+, horizontalScrollBar(false)
 , tokenCollection()
 , tooltipManager(*this)
 , autocompleteTimer(*this)
@@ -58,6 +59,9 @@ mcl::TextEditor::TextEditor(TextDocument& codeDoc)
     addAndMakeVisible (highlight);
     addAndMakeVisible (caret);
     addAndMakeVisible (gutter);
+	addAndMakeVisible(horizontalScrollBar);
+	horizontalScrollBar.setColour(ScrollBar::ColourIds::thumbColourId, Colours::white.withAlpha(0.05f));
+	horizontalScrollBar.addListener(this);
 
 	setOpaque(true);
 
@@ -169,7 +173,18 @@ void TextEditor::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRang
 	
 	auto pos = newRangeStart;
 
-	translation.y = jlimit<float>(-b.getHeight() * viewScaleFactor, 0.0f, -pos * viewScaleFactor);
+	if (scrollBarThatHasMoved == &scrollBar)
+		translation.y = jlimit<float>(-b.getHeight() * viewScaleFactor, 0.0f, -pos * viewScaleFactor);
+	else
+	{
+		translation.x = -pos * viewScaleFactor;
+
+		if (translation.x == 0)
+			translation.x = gutter.getGutterWidth();
+
+		xPos = translation.x;
+	}
+
 	updateViewTransform();
 }
 
@@ -637,6 +652,14 @@ void mcl::TextEditor::updateViewTransform()
 		scrollBar.setCurrentRange({ visibleRange.getY(), visibleRange.getBottom() }, sendNotificationSync);
 	}
 
+	if (!linebreakEnabled)
+	{
+		ScopedValueSetter<bool> svs(scrollBarRecursion, true);
+		horizontalScrollBar.setRangeLimits({ b.getX(), b.getRight() });
+		auto visibleRange = getLocalBounds().toFloat().transformed(transform.inverted());
+		horizontalScrollBar.setCurrentRange({ visibleRange.getX(), visibleRange.getRight() }, sendNotificationSync);
+	}
+
 	auto rows = document.getRangeOfRowsIntersecting(getLocalBounds().toFloat().transformed(transform.inverted()));
 	ScopedValueSetter<bool> svs(scrollRecursion, true);
 	document.setDisplayedLineRange(rows);
@@ -705,6 +728,13 @@ void mcl::TextEditor::resized()
     
     highlight.setBounds (b);
     
+	if (!linebreakEnabled)
+	{
+		auto b = getLocalBounds();
+		b.removeFromLeft(gutter.getGutterWidth());
+		horizontalScrollBar.setBounds(b.removeFromBottom(14));
+	}
+
     gutter.setBounds (b);
     resetProfilingData();
 }
@@ -1020,9 +1050,9 @@ void mcl::TextEditor::mouseDoubleClick (const MouseEvent& e)
     updateSelections();
 }
 
-void mcl::TextEditor::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& d)
+void mcl::TextEditor::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& d)
 {
-	float dx = d.deltaX;
+
 
 	if (e.mods.isCommandDown())
 	{
@@ -1032,20 +1062,27 @@ void mcl::TextEditor::mouseWheelMove (const MouseEvent& e, const MouseWheelDetai
 		return;
 	}
 
-#if JUCE_WINDOWS
-
-	translateView(dx * 80, d.deltaY * 160);
-
+#if JUCE_MAC
+	float factors[2] = { 400.0f, 800.0f };
 #else
-    /*
-     make scrolling away from the gutter just a little "sticky"
-     */
-    if (translation.x == gutter.getGutterWidth() && -0.01f < dx && dx < 0.f)
-    {
-        dx = 0.f;
-    }
-    translateView (dx * 400, d.deltaY * 800);
+	float factors[2] = { 80.0f, 160.0f };
 #endif
+
+	if (e.mods.isShiftDown() && !linebreakEnabled)
+	{
+		if(d.deltaY < 0.0f)
+			xPos = jmin(-gutter.getGutterWidth(), xPos);
+
+		xPos += d.deltaY * factors[1];
+
+		auto maxWidth = document.getBounds().getWidth() * viewScaleFactor;
+		xPos = jmax(xPos, -maxWidth);
+
+		translateView(0.0f, 0.0f);
+	}
+	else
+		translateView(0.0f, d.deltaY * factors[1]);
+
 }
 
 void mcl::TextEditor::mouseMagnify (const MouseEvent& e, float scaleFactor)

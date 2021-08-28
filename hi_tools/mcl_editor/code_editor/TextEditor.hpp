@@ -790,6 +790,7 @@ private:
     HighlightComponent highlight;
 	LinebreakDisplay linebreakDisplay;
 	ScrollBar scrollBar;
+	ScrollBar horizontalScrollBar;
 
 	SparseSet<int> deactivatesLines;
 	bool linebreakEnabled = true;
