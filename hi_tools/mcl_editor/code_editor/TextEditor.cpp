@@ -544,6 +544,20 @@ void TextEditor::displayedLineRangeChanged(Range<int> newRange)
 	}
 }
 
+void TextEditor::setLanguageManager(LanguageManager* ownedLanguageManager)
+{
+	languageManager = ownedLanguageManager;
+
+	if (languageManager != nullptr)
+	{
+		tokenCollection.clearTokenProviders();
+		ownedLanguageManager->addTokenProviders(&tokenCollection);
+		setCodeTokeniser(languageManager->createCodeTokeniser());
+		ownedLanguageManager->setupEditor(this);
+		tokenCollection.signalRebuild();
+	}
+}
+
 void TextEditor::selectionChanged()
 {
 	highlight.updateSelections();

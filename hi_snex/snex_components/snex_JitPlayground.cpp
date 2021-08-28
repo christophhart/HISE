@@ -39,18 +39,6 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
-void SnexPlayground::setFullTokenProviders()
-{
-	auto& ed = editor.editor;
-	ed.tokenCollection.clearTokenProviders();
-	ed.tokenCollection.addTokenProvider(new debug::KeywordProvider());
-	ed.tokenCollection.addTokenProvider(new debug::SymbolProvider(doc));
-	ed.tokenCollection.addTokenProvider(new debug::TemplateProvider());
-	ed.tokenCollection.addTokenProvider(new debug::MathFunctionProvider());
-	ed.tokenCollection.addTokenProvider(new debug::PreprocessorMacroProvider(doc));
-	ed.tokenCollection.signalRebuild();
-}
-
 SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	ui::WorkbenchComponent(data, true),
 	bpProvider(getGlobalScope()),
@@ -86,9 +74,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	ed.setPopupLookAndFeel(new hise::PopupLookAndFeel());
 
-	ed.setLineRangeFunction(debug::Helpers::createLineRanges);
-
-	ed.setCodeTokeniser(new CPlusPlusCodeTokeniser());
+	ed.setLanguageManager(new debug::SnexLanguageManager(doc));
 
 	setName("SNEX Editor");
 

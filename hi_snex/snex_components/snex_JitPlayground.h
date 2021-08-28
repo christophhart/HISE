@@ -599,7 +599,7 @@ public:
 		getWorkbench()->triggerRecompile();
 	}
 
-	void setFullTokenProviders();
+	
 
 	SnexPlayground(ui::WorkbenchData* data, bool addDebugComponents=false);
 

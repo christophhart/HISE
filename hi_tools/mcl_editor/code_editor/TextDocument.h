@@ -950,4 +950,28 @@ private:
 	juce::Array<Selection> selections;
 };
 
+struct TokenCollection;
+
+/** This object will manage different properties of languages:
+
+	- code tokeniser & colour scheme
+	- line range functions
+	- autocomplete tokens
+	- bookmark title processing
+*/
+struct LanguageManager
+{
+	virtual CodeTokeniser* createCodeTokeniser() = 0;
+
+	virtual FoldableLineRange::List createLineRange(const juce::CodeDocument& doc);
+
+	virtual void processBookmarkTitle(juce::String& bookmarkTitle) = 0;
+
+	/** Add all token providers you want to use for this language. */
+	virtual void addTokenProviders(TokenCollection* t) = 0;
+
+	/** Use this for additional setup. */
+	virtual void setupEditor(TextEditor* editor) {}
+};
+
 }

@@ -74,15 +74,6 @@ struct FullEditor: public Component,
 
 	}
 
-	void setMarkdownMode()
-	{
-		editor.setCodeTokeniser(new MarkdownParser::Tokeniser());
-		editor.colourScheme = editor.tokeniser->getDefaultColourScheme();
-		editor.setLineRangeFunction(mcl::FullEditor::createMarkdownLineRange);
-		editor.setEnableAutocomplete(false);
-		enableBreakpoints(false);
-	}
-
 	void loadSettings(const var& s)
 	{
 		editor.setLineBreakEnabled(s.getProperty(TextEditorSettings::LineBreaks, true));

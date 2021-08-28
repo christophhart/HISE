@@ -38,6 +38,7 @@ class TextDocument;           // stores text data and caret ranges, supplies met
 class TextEditor;             // is a component, issues actions, computes view transform
 struct Transaction;            // a text replacement, the document computes the inverse on fulfilling it
 class CodeMap;
+class LanguageManager;		  
 
 //==============================================================================
 template <typename ArgType, typename DataType>
