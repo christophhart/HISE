@@ -153,6 +153,55 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	refreshAfterCompilation(JavascriptProcessor::SnippetResult(s->getLastErrorMessage(), 0));
 }
 
+struct JavascriptLanguageManager : public mcl::LanguageManager
+{
+	JavascriptLanguageManager(JavascriptProcessor* jp_):
+		jp(jp_)
+	{};
+
+	CodeTokeniser* createCodeTokeniser() override 
+	{
+		return new JavascriptTokeniser();
+	}
+
+	virtual void processBookmarkTitle(juce::String& t)
+	{
+		
+	}
+
+	/** Add all token providers you want to use for this language. */
+	void addTokenProviders(mcl::TokenCollection* t)
+	{
+		t->addTokenProvider(new HiseJavascriptEngine::TokenProvider(jp));
+	}
+
+	/** Use this for additional setup. */
+	void setupEditor(mcl::TextEditor* editor) override
+	{
+		editor->setIncludeDotInAutocomplete(true);
+		editor->setEnableBreakpoint(true);
+	}
+
+	WeakReference<JavascriptProcessor> jp;
+};
+
+struct GLSLLanguageManager : public mcl::LanguageManager
+{
+	CodeTokeniser* createCodeTokeniser() override {
+		return new CPlusPlusCodeTokeniser();
+	}
+
+	virtual void processBookmarkTitle(juce::String& )
+	{
+		
+	}
+
+	void addTokenProviders(mcl::TokenCollection* t)
+	{
+		t->addTokenProvider(new GLSLKeywordProvider());
+	}
+};
+
 void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 {
 #if HISE_USE_NEW_CODE_EDITOR
@@ -161,29 +210,16 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 
 	auto& ed = getEditor()->editor;
 
-	
-
 	if (isJavascript)
-	{
-		ed.tokenCollection.addTokenProvider(new HiseJavascriptEngine::TokenProvider(sp));
-		ed.setCodeTokeniser(new JavascriptTokeniser());
-	}
-		
+		ed.setLanguageManager(new JavascriptLanguageManager(sp));
 	else
 	{
-		ed.tokenCollection.addTokenProvider(new GLSLKeywordProvider());
-		ed.setCodeTokeniser(new CPlusPlusCodeTokeniser());
-
-
+		ed.setLanguageManager(new GLSLLanguageManager());
+		
 		if (externalFile != nullptr)
-		{
 			externalFile->getRuntimeErrorBroadcaster().addListener(*this, runTimeErrorsOccured);
-		}
 	}
-
-	ed.setIncludeDotInAutocomplete(true);
-	ed.setLineRangeFunction(snex::debug::Helpers::createLineRanges);
-	ed.tokenCollection.signalRebuild();
+	
 	ed.setPopupLookAndFeel(new PopupLookAndFeel());
 
 	auto mc = dynamic_cast<Processor*>(sp.get())->getMainController();
@@ -197,7 +233,6 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 
 	if (isJavascript)
 	{
-		getEditor()->enableBreakpoints(true);
 		getEditor()->addBreakpointListener(this);
 		
 		auto& tp = mc->getJavascriptThreadPool();

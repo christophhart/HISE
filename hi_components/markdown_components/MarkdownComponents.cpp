@@ -684,7 +684,7 @@ MarkdownEditorPanel::MarkdownEditorPanel(FloatingTile* root) :
 	settingsButton.setTooltip("Show settings");
 
 #if HISE_USE_NEW_CODE_EDITOR
-	editor.setMarkdownMode();
+	
 #endif
 
 	doc.addListener(this);

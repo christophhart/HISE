@@ -25,6 +25,7 @@ mcl::TextEditor::TextEditor(TextDocument& codeDoc)
 , highlight (document)
 , docRef(codeDoc.getCodeDocument())
 , scrollBar(true)
+, horizontalScrollBar(false)
 , tokenCollection()
 , tooltipManager(*this)
 , autocompleteTimer(*this)
@@ -58,6 +59,9 @@ mcl::TextEditor::TextEditor(TextDocument& codeDoc)
     addAndMakeVisible (highlight);
     addAndMakeVisible (caret);
     addAndMakeVisible (gutter);
+	addAndMakeVisible(horizontalScrollBar);
+	horizontalScrollBar.setColour(ScrollBar::ColourIds::thumbColourId, Colours::white.withAlpha(0.05f));
+	horizontalScrollBar.addListener(this);
 
 	setOpaque(true);
 
@@ -169,7 +173,18 @@ void TextEditor::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRang
 	
 	auto pos = newRangeStart;
 
-	translation.y = jlimit<float>(-b.getHeight() * viewScaleFactor, 0.0f, -pos * viewScaleFactor);
+	if (scrollBarThatHasMoved == &scrollBar)
+		translation.y = jlimit<float>(-b.getHeight() * viewScaleFactor, 0.0f, -pos * viewScaleFactor);
+	else
+	{
+		translation.x = -pos * viewScaleFactor;
+
+		if (translation.x == 0)
+			translation.x = gutter.getGutterWidth();
+
+		xPos = translation.x;
+	}
+
 	updateViewTransform();
 }
 
@@ -529,6 +544,20 @@ void TextEditor::displayedLineRangeChanged(Range<int> newRange)
 	}
 }
 
+void TextEditor::setLanguageManager(LanguageManager* ownedLanguageManager)
+{
+	languageManager = ownedLanguageManager;
+
+	if (languageManager != nullptr)
+	{
+		tokenCollection.clearTokenProviders();
+		ownedLanguageManager->addTokenProviders(&tokenCollection);
+		setCodeTokeniser(languageManager->createCodeTokeniser());
+		ownedLanguageManager->setupEditor(this);
+		tokenCollection.signalRebuild();
+	}
+}
+
 void TextEditor::selectionChanged()
 {
 	highlight.updateSelections();
@@ -616,11 +645,9 @@ void mcl::TextEditor::updateViewTransform()
 {
 	auto thisGutterWidth = gutter.getGutterWidth();
 
-	if (translation.x < thisGutterWidth)
-	{
-		//translation.x = thisGutterWidth;
-	}
-		
+	// Ensure that there is no weird gap
+	if (translation.x > 0.0)
+		translation.x = thisGutterWidth;
 
 	closeAutocomplete(true, {}, {});
 
@@ -637,6 +664,14 @@ void mcl::TextEditor::updateViewTransform()
 		scrollBar.setRangeLimits({ b.getY(), b.getBottom() });
 		auto visibleRange = getLocalBounds().toFloat().transformed(transform.inverted());
 		scrollBar.setCurrentRange({ visibleRange.getY(), visibleRange.getBottom() }, sendNotificationSync);
+	}
+
+	if (!linebreakEnabled)
+	{
+		ScopedValueSetter<bool> svs(scrollBarRecursion, true);
+		horizontalScrollBar.setRangeLimits({ b.getX(), b.getRight() });
+		auto visibleRange = getLocalBounds().toFloat().transformed(transform.inverted());
+		horizontalScrollBar.setCurrentRange({ visibleRange.getX(), visibleRange.getRight() }, sendNotificationSync);
 	}
 
 	auto rows = document.getRangeOfRowsIntersecting(getLocalBounds().toFloat().transformed(transform.inverted()));
@@ -707,6 +742,13 @@ void mcl::TextEditor::resized()
     
     highlight.setBounds (b);
     
+	if (!linebreakEnabled)
+	{
+		auto b = getLocalBounds();
+		b.removeFromLeft(gutter.getGutterWidth());
+		horizontalScrollBar.setBounds(b.removeFromBottom(14));
+	}
+
     gutter.setBounds (b);
     resetProfilingData();
 }
@@ -720,6 +762,8 @@ void mcl::TextEditor::paint (Graphics& g)
 		g.drawText("Editor is inactive. Click to activate", getLocalBounds().toFloat(), Justification::centred);
 		return;
 	}
+
+	
 
     auto start = Time::getMillisecondCounterHiRes();
     String renderSchemeString;
@@ -832,8 +876,73 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
     {
         return;
     }
-    else if (e.mods.isRightButtonDown())
+    else if (e.mods.isRightButtonDown() || e.mods.isMiddleButtonDown())
     {
+		PopupLookAndFeel pplaf;
+		PopupMenu menu;
+		menu.setLookAndFeel(&pplaf);
+
+		if (e.mods.isMiddleButtonDown() || e.mods.isShiftDown())
+		{
+			auto bm = document.getBookmarks();
+
+			if (!bm.isEmpty())
+			{
+				menu.addSectionHeader("Custom Bookmarks");
+
+				for (auto b : bm)
+				{
+					menu.addItem(b.lineNumber + 1, b.name);
+				}
+			}
+			
+			menu.addSeparator();
+			menu.addItem(-1, "Add custom bookmark");
+			
+			auto& holder = document.getFoldableLineRangeHolder();
+
+			if (!holder.roots.isEmpty())
+			{
+				menu.addSeparator();
+				menu.addSectionHeader("Automatic bookmarks");
+
+				for (auto r : holder.roots)
+				{
+					auto b = r->getBookmark();
+					menu.addItem(b.lineNumber + 1, b.name);
+
+					for (auto c : r->children)
+					{
+						auto b = c->getBookmark();
+						menu.addItem(b.lineNumber + 1, "   " + b.name);
+					}
+				}
+			}
+
+			auto r = menu.show();
+
+			if (r == -1)
+			{
+				document.navigateSelections(mcl::TextDocument::Target::firstnonwhitespace, TextDocument::Direction::backwardCol, Selection::Part::both);
+
+				insert("//! Enter bookmark title\n");
+				auto s = document.getSelection(0);
+				
+				for (int i = 0; i < 21; i++)
+					document.navigateLeftRight(s.tail, false);
+
+				document.navigateLeftRight(s.head, false);
+				
+				document.setSelection(0, s, true);
+				return;
+			}
+
+			if (r != 0)
+				setFirstLineOnScreen(r - 1);
+
+			return;
+		}
+
 		enum Commands
 		{
 			Cut=1,
@@ -848,14 +957,13 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			UnfoldAll,
 			Goto,
 			LineBreaks,
+			Whitespace,
 			BackgroundParsing,
 			Preprocessor,
 			numCommands
 		};
 
-		PopupLookAndFeel pplaf;
-        PopupMenu menu;
-		menu.setLookAndFeel(&pplaf);
+		
 
 
 		menu.addSeparator();
@@ -879,6 +987,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 		menu.addItem(FoldAll, "Fold all", true, false);
 		menu.addItem(UnfoldAll, "Unfold all", true, false);
 		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
+		menu.addItem(Whitespace, "Show whitespace", true, showWhitespace);
 
 		menu.addSeparator();
 
@@ -914,6 +1023,10 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			}
 			case LineBreaks: 
 				setLineBreakEnabled(!linebreakEnabled);
+				break;
+			case Whitespace:
+				showWhitespace = !showWhitespace;
+				repaint();
 				break;
         }
 
@@ -1014,9 +1127,9 @@ void mcl::TextEditor::mouseDoubleClick (const MouseEvent& e)
     updateSelections();
 }
 
-void mcl::TextEditor::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& d)
+void mcl::TextEditor::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& d)
 {
-	float dx = d.deltaX;
+
 
 	if (e.mods.isCommandDown())
 	{
@@ -1026,20 +1139,27 @@ void mcl::TextEditor::mouseWheelMove (const MouseEvent& e, const MouseWheelDetai
 		return;
 	}
 
-#if JUCE_WINDOWS
-
-	translateView(dx * 80, d.deltaY * 160);
-
+#if JUCE_MAC
+	float factors[2] = { 400.0f, 800.0f };
 #else
-    /*
-     make scrolling away from the gutter just a little "sticky"
-     */
-    if (translation.x == gutter.getGutterWidth() && -0.01f < dx && dx < 0.f)
-    {
-        dx = 0.f;
-    }
-    translateView (dx * 400, d.deltaY * 800);
+	float factors[2] = { 80.0f, 160.0f };
 #endif
+
+	if (e.mods.isShiftDown() && !linebreakEnabled)
+	{
+		if(d.deltaY < 0.0f)
+			xPos = jmin(-gutter.getGutterWidth(), xPos);
+
+		xPos += d.deltaY * factors[1];
+
+		auto maxWidth = document.getBounds().getWidth() * viewScaleFactor;
+		xPos = jmax(xPos, -maxWidth);
+
+		translateView(0.0f, 0.0f);
+	}
+	else
+		translateView(0.0f, d.deltaY * factors[1]);
+
 }
 
 void mcl::TextEditor::mouseMagnify (const MouseEvent& e, float scaleFactor)
@@ -1732,25 +1852,25 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 
 	highlight.paintHighlight(g);
 
-    if (enableSyntaxHighlighting)
-    {
-        auto rows = document.getRangeOfRowsIntersecting (g.getClipBounds().toFloat());
+	if (enableSyntaxHighlighting)
+	{
+		auto rows = document.getRangeOfRowsIntersecting(g.getClipBounds().toFloat());
 
 		auto realStart = document.getFoldableLineRangeHolder().getNearestLineStartOfAnyRange(rows.getStart());
 
 		rows.setStart(realStart);
 
-        auto index = Point<int> (rows.getStart(), 0);
-        
-        auto zones = Array<Selection>();
+		auto index = Point<int>(rows.getStart(), 0);
+
+		auto zones = Array<Selection>();
 
 		CodeDocument::Position pos(document.getCodeDocument(), rows.getStart(), 0);
 		CodeDocument::Iterator it(pos);
-		
+
 		Point<int> previous(it.getLine(), it.getIndexInLine());
 
-        while (it.getLine() < rows.getEnd() && ! it.isEOF())
-        {
+		while (it.getLine() < rows.getEnd() && !it.isEOF())
+		{
 			int tokenType;
 
 			if (tokeniser != nullptr)
@@ -1765,17 +1885,23 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 			else
 				break;
 
-            previous = now;
-        }
+			previous = now;
+		}
 
 		for (auto& z : zones)
 		{
-			if (deactivatesLines.contains(z.tail.x+1))
+			if (deactivatesLines.contains(z.tail.x + 1))
 				z.token = colourScheme.types.size() - 1;
 		}
 
-        document.clearTokens (rows);
-        document.applyTokens (rows, zones);
+		document.clearTokens(rows);
+		document.applyTokens(rows, zones);
+
+		if (showWhitespace)
+		{
+			for (int i = rows.getStart(); i < rows.getEnd(); i++)
+				document.drawWhitespaceRectangles(i, g);
+		}
 
         for (int n = 0; n < colourScheme.types.size(); ++n)
         {

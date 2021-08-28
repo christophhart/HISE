@@ -161,60 +161,76 @@ RectangleList<float> mcl::TextDocument::getBoundsOnRow(int row, Range<int> colum
 {
 	RectangleList<float> b;
 
+	float yPos = getVerticalPosition(row, Metric::top);
+	float xPos = TEXT_INDENT;
+
 	if (isPositiveAndBelow(row, getNumRows()))
 	{
 		columns.setStart(jmax(columns.getStart(), 0));
 		auto l = lines.lines[row];
 
-		float yPos = getVerticalPosition(row, Metric::top);
-		float xPos = TEXT_INDENT;
 		auto boundsToUse = l->characterBounds;
-
-		if (columns == Range<int>(0, getNumColumns(row)) && m == GlyphArrangementArray::ReturnBeyondLastCharacter)
-		{
-			auto rowHeight = getRowHeight();
-
-			for (auto& numCol : l->charactersPerLine)
-			{
-				Rectangle<float> l(xPos, yPos, numCol * boundsToUse.getWidth(), rowHeight);
-				yPos += rowHeight;
-				b.add(l);
-			}
-			
-			return b;
-		}
-
-		
 
 		if (boundsToUse.isEmpty())
 			boundsToUse = { 0.0f, 0.0f, font.getStringWidthFloat(" "), font.getHeight() };
 
-		
-		float gap = lineSpacing * font.getHeight() - font.getHeight();
-
-		auto length = l->string.length();
-
-		for (int i = columns.getStart(); i < columns.getEnd(); i++)
+		if (l->charactersPerLine.size() == 1)
 		{
-			auto p = l->getPositionInLine(i, m);
-			auto cBound = boundsToUse.translated(xPos + p.y * boundsToUse.getWidth(), yPos + p.x * boundsToUse.getHeight());
+			auto startCol = (float)GlyphArrangementArray::getLineLength(l->string, columns.getStart());
+			auto endCol = (float)GlyphArrangementArray::getLineLength(l->string, columns.getEnd());
+			
+			auto cw = boundsToUse.getWidth();
 
-			if (p.x == l->charactersPerLine.size() - 1)
-				cBound = cBound.withHeight(cBound.getHeight() + gap);
+			Rectangle<float> a(xPos + startCol * cw, yPos, (endCol - startCol) * cw, getRowHeight());
 
-			bool isTab = isPositiveAndBelow(i, length) && l->string[i] == '\t';
+			if (a.getWidth() == 0.0f)
+				a.setWidth(boundsToUse.getWidth());
 
-			if (isTab)
+			b.add(a);
+			return b;
+		}
+		else
+		{
+			if (columns == Range<int>(0, getNumColumns(row)) && m == GlyphArrangementArray::ReturnBeyondLastCharacter)
 			{
-				int tabLength = 4 - p.y % 4;
+				auto rowHeight = getRowHeight();
 
-				cBound.setWidth((float)tabLength * boundsToUse.getWidth());
+				for (auto& numCol : l->charactersPerLine)
+				{
+					Rectangle<float> l(xPos, yPos, numCol * boundsToUse.getWidth(), rowHeight);
+					yPos += rowHeight;
+					b.add(l);
+				}
+
+				return b;
 			}
 
-			b.add(cBound);
-		}
+			float gap = lineSpacing * font.getHeight() - font.getHeight();
 
-		b.consolidate();
+			auto length = l->string.length();
+
+			for (int i = columns.getStart(); i < columns.getEnd(); i++)
+			{
+				auto p = l->getPositionInLine(i, m);
+				auto cBound = boundsToUse.translated(xPos + p.y * boundsToUse.getWidth(), yPos + p.x * boundsToUse.getHeight());
+
+				if (p.x == l->charactersPerLine.size() - 1)
+					cBound = cBound.withHeight(cBound.getHeight() + gap);
+
+				bool isTab = isPositiveAndBelow(i, length) && l->string[i] == '\t';
+
+				if (isTab)
+				{
+					int tabLength = 4 - p.y % 4;
+
+					cBound.setWidth((float)tabLength * boundsToUse.getWidth());
+				}
+
+				b.add(cBound);
+			}
+
+			b.consolidate();
+		}
 	}
 	else
 	{
@@ -272,6 +288,8 @@ Rectangle<float> mcl::TextDocument::getGlyphBounds(Point<int> index, GlyphArrang
 
 GlyphArrangement mcl::TextDocument::getGlyphsForRow(int row, int token, bool withTrailingSpace) const
 {
+	lines.lines[row]->ensureReadyToPaint(lines.font);
+
 	return lines.getGlyphs(row,
 		getVerticalPosition(row, Metric::baseline),
 		token,
@@ -283,6 +301,8 @@ GlyphArrangement mcl::TextDocument::findGlyphsIntersecting(Rectangle<float> area
 	auto range = getRangeOfRowsIntersecting(area);
 	auto rows = Array<RowData>();
 	auto glyphs = GlyphArrangement();
+
+	
 
 	for (int n = range.getStart(); n < range.getEnd(); ++n)
 	{
@@ -301,6 +321,38 @@ juce::Range<int> mcl::TextDocument::getRangeOfRowsIntersecting(juce::Rectangle<f
     auto topY = jmax<int>(0, area.getY());
     auto bottomY = area.getBottom();
     
+	int topIndex = 0;
+
+	for (const auto& p : rowPositions)
+	{
+		if (p >= topY)
+			break;
+
+		topIndex++;
+	}
+
+	auto numRows = rowPositions.size();
+
+	int bottomIndex = numRows;
+
+	while (--bottomIndex >= topIndex)
+	{
+		if (rowPositions[bottomIndex] < bottomY)
+			break;
+
+		
+	}
+
+	Range<int> range(topIndex, bottomIndex);
+
+	range = range.expanded(1);
+	range.setStart(jmax(0, range.getStart()));
+	range.setEnd(jmin(range.getEnd(), getNumRows()));
+
+	return range;
+
+
+#if 0
     int topIndex = -1;
     int bottomIndex = -1;
     
@@ -333,11 +385,12 @@ juce::Range<int> mcl::TextDocument::getRangeOfRowsIntersecting(juce::Rectangle<f
 	}
     
     if(bottomIndex == -1)
-        bottomIndex = rowPositions.size()-1;
+        bottomIndex = rowPositions.size()-2;
     
     return { topIndex, bottomIndex + 1 };
 
 	return { min, max + 1 };
+#endif
 }
 
 Array<mcl::TextDocument::RowData> mcl::TextDocument::findRowsIntersecting(Rectangle<float> area,
@@ -381,7 +434,7 @@ Point<int> mcl::TextDocument::findIndexNearestPosition(Point<float> position) co
 	auto gap = font.getHeight() * lineSpacing - font.getHeight();
 	float yPos = gap / 2.0f;
 
-	if (position.y > rowPositions.getLast() + getRowHeight())
+	if (position.y > rowPositions.getLast())
 	{
 		auto x = lines.size() - 1;
 		if (x >= 0)
@@ -430,6 +483,27 @@ Point<int> mcl::TextDocument::getEnd() const
 	return { getNumRows(), 0 };
 }
 
+juce::Array<Bookmark> TextDocument::getBookmarks() const
+{
+	int index = 0;
+	Array<Bookmark> bookmarks;
+
+	for (auto l : lines.lines)
+	{
+		if (l->isBookmark())
+		{
+			Bookmark b;
+			b.lineNumber = index;
+			b.name = l->string.fromFirstOccurrenceOf("//!", false, false).trim();
+			bookmarks.add(b);
+		}
+
+		index++;
+	}
+
+	return bookmarks;
+}
+
 void TextDocument::setSelections(const juce::Array<Selection>& newSelections, bool useUndo)
 {
 	columnTryingToMaintain = -1;
@@ -442,6 +516,35 @@ void TextDocument::setSelections(const juce::Array<Selection>& newSelections, bo
 	{
 		selections = newSelections;
 		sendSelectionChangeMessage();
+	}
+}
+
+void TextDocument::drawWhitespaceRectangles(int row, Graphics& g)
+{
+	if (getFoldableLineRangeHolder().isFolded(row))
+		return;
+
+	g.setColour(Colours::white.withAlpha(0.2f));
+
+	if (auto l = lines.lines[row])
+	{
+		const auto& s = l->string;
+		auto numChars = s.length();
+
+		for (int i = 0; i < numChars; i++)
+		{
+			if (CharacterFunctions::isWhitespace(s[i]))
+			{
+				auto r = getBoundsOnRow(row, { i, i + 1 }, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
+				
+				bool isSpace = s[i] == ' ';
+
+				if (isSpace)
+					g.fillRect(r.withSizeKeepingCentre(2.0f, 2.0f));
+				else
+					g.fillRect(r.withSizeKeepingCentre(r.getWidth() - 2.0f, 1.0f));
+			}
+		}
 	}
 }
 
@@ -1022,5 +1125,129 @@ mcl::TextDocument::TextDocument(CodeDocument& doc_) :
     }
 }
 
+
+mcl::Bookmark FoldableLineRange::getBookmark() const
+{
+	Bookmark b;
+	b.lineNumber = start.getLineNumber();
+
+	auto copy = start;
+
+	while (copy.getLineNumber() == b.lineNumber)
+	{
+		b.name << copy.getCharacter();
+		auto p = copy.getPosition();
+		copy.moveBy(1);
+
+		if (p == copy.getPosition())
+			break;
+	}
+		
+	b.name = b.name.trimCharactersAtStart("#").trim();
+
+	return b;
+}
+
+
+
+mcl::FoldableLineRange::List LanguageManager::createLineRange(const juce::CodeDocument& doc)
+{
+	mcl::FoldableLineRange::List lineRanges;
+
+	CodeDocument::Iterator it(doc);
+
+	bool firstInLine = false;
+	mcl::FoldableLineRange::WeakPtr currentElement;
+
+	while (auto c = it.nextChar())
+	{
+		switch (c)
+		{
+		case '{':
+		{
+			auto thisLine = it.getLine();
+
+			if (firstInLine)
+				thisLine -= 1;
+
+			Range<int> r(thisLine, thisLine);
+
+			mcl::FoldableLineRange::Ptr newElement = new mcl::FoldableLineRange(doc, r);
+
+			if (currentElement == nullptr)
+			{
+				currentElement = newElement;
+				lineRanges.add(newElement);
+			}
+			else
+			{
+				newElement->parent = currentElement;
+				currentElement->children.add(newElement);
+				currentElement = newElement.get();
+			}
+
+			break;
+		}
+		case '}':
+		{
+			if (currentElement != nullptr)
+			{
+				currentElement->setEnd(it.getPosition());
+				currentElement = currentElement->parent;
+			}
+
+			break;
+		}
+		case '#': it.skipToEndOfLine(); break;
+		case '/':
+		{
+			if (it.peekNextChar() == '*')
+			{
+				auto lineNumber = it.getLine();
+
+				it.nextChar();
+
+				while ((c = it.nextChar()))
+				{
+					if (c == '*')
+					{
+						if (it.peekNextChar() == '/')
+						{
+							auto thisLine = it.getLine();
+							if (thisLine > lineNumber)
+							{
+								mcl::FoldableLineRange::Ptr newElement = new mcl::FoldableLineRange(doc, { lineNumber, it.getLine() });
+
+								if (currentElement == nullptr)
+								{
+									lineRanges.add(newElement);
+								}
+								else
+								{
+									currentElement->children.add(newElement);
+									newElement->parent = currentElement;
+									//currentElement = newElement;
+								}
+							}
+
+							it.nextChar();
+
+							break;
+						}
+					}
+				}
+			}
+			if (it.peekNextChar() == '/')
+				it.skipToEndOfLine();
+
+			break;
+		}
+		}
+
+		firstInLine = (c == '\n') || (firstInLine && CharacterFunctions::isWhitespace(c));
+	}
+
+	return lineRanges;
+}
 
 }

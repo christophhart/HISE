@@ -178,6 +178,8 @@ public:
 		repaint();
 	}
 
+	
+
 	String getTextForFoldRange(FoldableLineRange::WeakPtr p)
 	{
 		auto s = doc.getCodeDocument().getLine(p->getLineRange().getStart());
@@ -669,6 +671,13 @@ public:
 
 	TextDocument& doc;
 
+	void visibilityChanged() override
+	{
+		if (isVisible() && dirty)
+			rebuild();
+	}
+
+	bool dirty = false;
 	bool allowHover = true;
 
 	float currentAnimatedLine = -1.0f;

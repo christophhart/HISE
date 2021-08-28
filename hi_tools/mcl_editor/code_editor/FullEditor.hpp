@@ -28,10 +28,11 @@ namespace TextEditorSettings
 	DECLARE_ID(MapWidth);
 	DECLARE_ID(LineBreaks);
 	DECLARE_ID(EnableHover);
+	DECLARE_ID(ShowWhitespace);
 	
 	static juce::Array<juce::Identifier> getAllIds()
 	{
-		static const juce::Array<juce::Identifier> ids = { MapWidth, LineBreaks, EnableHover };
+		static const juce::Array<juce::Identifier> ids = { MapWidth, LineBreaks, EnableHover, ShowWhitespace };
 
 		return ids;
 	}
@@ -73,18 +74,10 @@ struct FullEditor: public Component,
 
 	}
 
-	void setMarkdownMode()
-	{
-		editor.setCodeTokeniser(new MarkdownParser::Tokeniser());
-		editor.colourScheme = editor.tokeniser->getDefaultColourScheme();
-		editor.setLineRangeFunction(mcl::FullEditor::createMarkdownLineRange);
-		editor.setEnableAutocomplete(false);
-		enableBreakpoints(false);
-	}
-
 	void loadSettings(const var& s)
 	{
 		editor.setLineBreakEnabled(s.getProperty(TextEditorSettings::LineBreaks, true));
+		editor.showWhitespace = s.getProperty(TextEditorSettings::ShowWhitespace, true);
 		mapWidth = s.getProperty(TextEditorSettings::MapWidth, 150);
 		resized();
 		codeMap.allowHover = s.getProperty(TextEditorSettings::EnableHover, true);
@@ -97,6 +90,7 @@ struct FullEditor: public Component,
 			obj->setProperty(TextEditorSettings::LineBreaks, editor.linebreakEnabled);
 			obj->setProperty(TextEditorSettings::MapWidth, mapWidth);
 			obj->setProperty(TextEditorSettings::EnableHover, codeMap.allowHover);
+			obj->setProperty(TextEditorSettings::ShowWhitespace, editor.showWhitespace);
 		}
 	}
 

@@ -330,6 +330,40 @@ struct SymbolProvider : public TokenCollection::Provider
 };
 
 
+struct SnexLanguageManager : public mcl::LanguageManager
+{
+	SnexLanguageManager(CodeDocument& d) :
+		doc(d)
+	{};
+
+	CodeTokeniser* createCodeTokeniser() override
+	{
+		return new CPlusPlusCodeTokeniser();
+	}
+
+	void processBookmarkTitle(juce::String& bookmarkTitle) override
+	{
+
+	}
+
+	mcl::FoldableLineRange::List createLineRange(const CodeDocument& doc) override;
+
+	void addTokenProviders(mcl::TokenCollection* t) override
+	{
+		t->addTokenProvider(new debug::KeywordProvider());
+		t->addTokenProvider(new debug::SymbolProvider(doc));
+		t->addTokenProvider(new debug::TemplateProvider());
+		t->addTokenProvider(new debug::MathFunctionProvider());
+		t->addTokenProvider(new debug::PreprocessorMacroProvider(doc));
+	}
+
+	void setupEditor(mcl::TextEditor* editor) override
+	{
+	}
+
+	CodeDocument& doc;
+};
+
 }
 
 

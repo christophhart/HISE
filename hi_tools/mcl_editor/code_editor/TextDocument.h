@@ -68,6 +68,11 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BreakpointManager);
 };
 
+struct Bookmark
+{
+	String name;
+	int lineNumber;
+};
 
 class FoldableLineRange : public ReferenceCountedObject
 {
@@ -397,6 +402,8 @@ public:
 		return { start.getLineNumber(), end.getLineNumber() +1};
 	}
 
+	Bookmark getBookmark() const;
+	
 	void setFolded(bool shouldBeFolded)
 	{
 		folded = shouldBeFolded;
@@ -514,6 +521,9 @@ public:
 		juce::RectangleList<float> bounds;
 	};
 
+	
+
+	Array<Bookmark> getBookmarks() const;
 
 	TextDocument(CodeDocument& doc_);;
 
@@ -630,6 +640,8 @@ public:
 		only glyphs with that token mask are returned.
 	 */
 	juce::GlyphArrangement findGlyphsIntersecting(juce::Rectangle<float> area, int token = -1) const;
+
+	void drawWhitespaceRectangles(int row, Graphics& g);
 
 	/** Return the range of rows intersecting the given rectangle. */
 	juce::Range<int> getRangeOfRowsIntersecting(juce::Rectangle<float> area) const;
@@ -759,8 +771,13 @@ public:
 
 	void lineRangeChanged(Range<int> r, bool wasAdded) override
 	{
-		invalidate(r);
-
+		if (!wasAdded)
+		{
+			auto rangeToInvalidate = r;
+			rangeToInvalidate.setLength(jmax(1, r.getLength()));
+			invalidate(rangeToInvalidate);
+		}
+			
 		if (!wasAdded && r.getLength() > 0)
 		{
 			lines.removeRange(r);
@@ -770,7 +787,6 @@ public:
 
 		if (r.getLength() > 1)
 		{
-
 			lines.set(r.getStart(), doc.getLine(r.getStart()));
 
 			for (int i = r.getStart() + 1; i < r.getEnd(); i++)
@@ -785,7 +801,12 @@ public:
 		if (wasAdded && r.getEnd() > getNumRows())
 		{
 			lines.set(r.getEnd(), "");
+			
+			
 		}
+
+
+		
 	}
 
 	void codeChanged(bool wasInserted, int startIndex, int endIndex) override
@@ -927,6 +948,30 @@ private:
 	Array<WeakReference<Selection::Listener>> selectionListeners;
 
 	juce::Array<Selection> selections;
+};
+
+struct TokenCollection;
+
+/** This object will manage different properties of languages:
+
+	- code tokeniser & colour scheme
+	- line range functions
+	- autocomplete tokens
+	- bookmark title processing
+*/
+struct LanguageManager
+{
+	virtual CodeTokeniser* createCodeTokeniser() = 0;
+
+	virtual FoldableLineRange::List createLineRange(const juce::CodeDocument& doc);
+
+	virtual void processBookmarkTitle(juce::String& bookmarkTitle) = 0;
+
+	/** Add all token providers you want to use for this language. */
+	virtual void addTokenProviders(TokenCollection* t) = 0;
+
+	/** Use this for additional setup. */
+	virtual void setupEditor(TextEditor* editor) {}
 };
 
 }

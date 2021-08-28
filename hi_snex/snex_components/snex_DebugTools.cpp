@@ -198,10 +198,11 @@ void debug::TemplateProvider::addTokens(mcl::TokenCollection::List& tokens)
 	}
 }
 
-mcl::FoldableLineRange::List debug::Helpers::createLineRanges(const CodeDocument& doc)
+mcl::FoldableLineRange::List debug::SnexLanguageManager::createLineRange(const CodeDocument& doc)
 {
-	mcl::FoldableLineRange::List lineRanges;
-	Preprocessor p(doc.getAllContent());
+	auto lineRanges = LanguageManager::createLineRange(doc);
+
+	snex::Preprocessor p(doc.getAllContent());
 
 	auto s = p.getDeactivatedLines();
 
@@ -209,99 +210,6 @@ mcl::FoldableLineRange::List debug::Helpers::createLineRanges(const CodeDocument
 	{
 		auto r = s.getRange(i);
 		lineRanges.add(new mcl::FoldableLineRange(doc, { r.getStart() - 2, r.getEnd() }));
-	}
-
-	CodeDocument::Iterator it(doc);
-
-	bool firstInLine = false;
-	mcl::FoldableLineRange::WeakPtr currentElement;
-
-	while (auto c = it.nextChar())
-	{
-		switch (c)
-		{
-		case '{':
-		{
-			auto thisLine = it.getLine();
-
-			if (firstInLine)
-				thisLine -= 1;
-
-			Range<int> r(thisLine, thisLine);
-
-			mcl::FoldableLineRange::Ptr newElement = new mcl::FoldableLineRange(doc, r);
-
-			if (currentElement == nullptr)
-			{
-				currentElement = newElement;
-				lineRanges.add(newElement);
-			}
-			else
-			{
-				newElement->parent = currentElement;
-				currentElement->children.add(newElement);
-				currentElement = newElement.get();
-			}
-
-			break;
-		}
-		case '}':
-		{
-			if (currentElement != nullptr)
-			{
-				currentElement->setEnd(it.getPosition());
-				currentElement = currentElement->parent;
-			}
-
-			break;
-		}
-		case '#': it.skipToEndOfLine(); break;
-		case '/':
-		{
-			if (it.peekNextChar() == '*')
-			{
-				auto lineNumber = it.getLine();
-
-				it.nextChar();
-
-				while ((c = it.nextChar()))
-				{
-					if (c == '*')
-					{
-						if (it.peekNextChar() == '/')
-						{
-							auto thisLine = it.getLine();
-							if (thisLine > lineNumber)
-							{
-								mcl::FoldableLineRange::Ptr newElement = new mcl::FoldableLineRange(doc, { lineNumber, it.getLine() });
-
-								if (currentElement == nullptr)
-								{
-									lineRanges.add(newElement);
-								}
-								else
-								{
-									currentElement->children.add(newElement);
-									newElement->parent = currentElement;
-									//currentElement = newElement;
-								}
-							}
-
-							it.nextChar();
-
-							break;
-						}
-					}
-				}
-			}
-			if (it.peekNextChar() == '/')
-				it.skipToEndOfLine();
-
-			break;
-		}
-		}
-
-		firstInLine = (c == '\n') || (firstInLine && CharacterFunctions::isWhitespace(c));
 	}
 
 	return lineRanges;

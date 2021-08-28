@@ -134,8 +134,10 @@ var CodeEditorPanel::toDynamicObject() const
 {
 	auto obj = PanelWithProcessorConnection::toDynamicObject();
 
+#if HISE_USE_NEW_CODE_EDITOR
 	if (auto ed = getContent<PopupIncludeEditor>())
 		ed->getEditor()->saveSettings(obj.getDynamicObject());
+#endif
 
 	return obj;
 }

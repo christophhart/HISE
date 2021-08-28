@@ -62,9 +62,12 @@ float mcl::CaretComponent::squareWave(float wt) const
 {
 	if (isTimerRunning())
 	{
-		const float delta = 0.222f;
-		const float A = 1.0;
-		return 0.5f + A / 3.14159f * std::atan(std::cos(wt) / delta);
+		auto f = 0.5f * std::sin(wt) + 0.5f;
+
+		if (f > 0.3f)
+			return f;
+
+		return 0.0f;
 	}
 	
 	return 0.6f;

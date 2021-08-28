@@ -398,9 +398,9 @@ public:
 		{
 			document.invalidate(rangeToInvalidate);
 		
-			if (lineRangeFunction)
+			if (languageManager != nullptr && rangeToInvalidate.getLength() > 1)
 			{
-				auto ranges = lineRangeFunction(document.getCodeDocument());
+				auto ranges = languageManager->createLineRange(document.getCodeDocument());
 				document.getFoldableLineRangeHolder().setRanges(ranges);
 			}
 
@@ -427,12 +427,6 @@ public:
 	{
 		includeDotInAutocomplete = shouldInclude;
 	}
-
-	void setLineRangeFunction(const FoldableLineRange::LineRangeFunction& f)
-	{
-		lineRangeFunction = f;
-		updateAfterTextChange();
-	};
 
 	int getFirstLineOnScreen() const
 	{
@@ -505,9 +499,17 @@ public:
 		keyPressFunctions.add(kf);
 	}
 
+	void setLanguageManager(LanguageManager* ownedLanguageManager);
+
+	void setEnableBreakpoint(bool shouldBeEnabled)
+	{
+		gutter.setBreakpointsEnabled(shouldBeEnabled);
+	}
+
 	void setCodeTokeniser(juce::CodeTokeniser* ownedTokeniser)
 	{
 		tokeniser = ownedTokeniser;
+		colourScheme = tokeniser->getDefaultColourScheme();
 	}
 
 	void setEnableAutocomplete(bool shouldBeEnabled)
@@ -522,7 +524,7 @@ public:
 
 private:
 
-	
+	ScopedPointer<LanguageManager> languageManager;
 
 	friend class Autocomplete;
 
@@ -757,6 +759,7 @@ private:
     void renderTextUsingGlyphArrangement (juce::Graphics& g);
     void resetProfilingData();
     bool enableSyntaxHighlighting = true;
+	bool showWhitespace = true;
     bool allowCoreGraphics = true;
     bool useOpenGLRendering = false;
     bool drawProfilingInfo = false;
@@ -777,8 +780,6 @@ private:
 
 	OwnedArray<Error> warnings;
 
-	FoldableLineRange::LineRangeFunction lineRangeFunction;
-
 	Array<PopupMenuFunction> popupMenuFunctions;
 	Array<PopupMenuResultFunction> popupMenuResultFunctions;
 
@@ -789,6 +790,7 @@ private:
     HighlightComponent highlight;
 	LinebreakDisplay linebreakDisplay;
 	ScrollBar scrollBar;
+	ScrollBar horizontalScrollBar;
 
 	SparseSet<int> deactivatesLines;
 	bool linebreakEnabled = true;
