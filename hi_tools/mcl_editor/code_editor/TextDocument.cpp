@@ -1069,7 +1069,10 @@ mcl::TextDocument::TextDocument(CodeDocument& doc_) :
 	addFoldListener(this);
 
 	if (doc.getNumCharacters() > 0)
+    {
+        lineRangeChanged({0, doc.getNumLines()}, true);
 		codeChanged(true, 0, doc.getNumCharacters());
+    }
 }
 
 
