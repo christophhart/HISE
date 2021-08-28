@@ -398,7 +398,7 @@ public:
 		{
 			document.invalidate(rangeToInvalidate);
 		
-			if (lineRangeFunction)
+			if (lineRangeFunction && rangeToInvalidate.getLength() > 1)
 			{
 				auto ranges = lineRangeFunction(document.getCodeDocument());
 				document.getFoldableLineRangeHolder().setRanges(ranges);
@@ -757,6 +757,7 @@ private:
     void renderTextUsingGlyphArrangement (juce::Graphics& g);
     void resetProfilingData();
     bool enableSyntaxHighlighting = true;
+	bool showWhitespace = true;
     bool allowCoreGraphics = true;
     bool useOpenGLRendering = false;
     bool drawProfilingInfo = false;

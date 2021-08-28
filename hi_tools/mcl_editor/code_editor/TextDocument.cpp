@@ -498,6 +498,35 @@ void TextDocument::setSelections(const juce::Array<Selection>& newSelections, bo
 	}
 }
 
+void TextDocument::drawWhitespaceRectangles(int row, Graphics& g)
+{
+	if (getFoldableLineRangeHolder().isFolded(row))
+		return;
+
+	g.setColour(Colours::white.withAlpha(0.2f));
+
+	if (auto l = lines.lines[row])
+	{
+		const auto& s = l->string;
+		auto numChars = s.length();
+
+		for (int i = 0; i < numChars; i++)
+		{
+			if (CharacterFunctions::isWhitespace(s[i]))
+			{
+				auto r = getBoundsOnRow(row, { i, i + 1 }, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
+				
+				bool isSpace = s[i] == ' ';
+
+				if (isSpace)
+					g.fillRect(r.withSizeKeepingCentre(2.0f, 2.0f));
+				else
+					g.fillRect(r.withSizeKeepingCentre(r.getWidth() - 2.0f, 1.0f));
+			}
+		}
+	}
+}
+
 bool TextDocument::navigateLeftRight(juce::Point<int>& index, bool right) const
 {
 	columnTryingToMaintain = -1;

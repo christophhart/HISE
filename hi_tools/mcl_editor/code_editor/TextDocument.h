@@ -631,6 +631,8 @@ public:
 	 */
 	juce::GlyphArrangement findGlyphsIntersecting(juce::Rectangle<float> area, int token = -1) const;
 
+	void drawWhitespaceRectangles(int row, Graphics& g);
+
 	/** Return the range of rows intersecting the given rectangle. */
 	juce::Range<int> getRangeOfRowsIntersecting(juce::Rectangle<float> area) const;
 

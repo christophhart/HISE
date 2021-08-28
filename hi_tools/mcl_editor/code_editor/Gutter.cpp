@@ -140,7 +140,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 		lfb = lfb.removeFromRight(15 * transform.getScaleFactor());
 
-		g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withAlpha(0.5f));
+		g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withBrightness(0.5f));
 
 		
 
@@ -277,16 +277,34 @@ bool mcl::GutterComponent::hitTest(int x, int y)
 
 juce::Rectangle<float> mcl::GutterComponent::getRowBounds(const TextDocument::RowData& r) const
 {
-	auto b = r.bounds.getRectangle(0);
-	b.removeFromBottom(2.6f);
+	if (r.bounds.getNumRectangles() == 1)
+	{
+		auto b = r.bounds.getRectangle(0);
+		b.removeFromBottom(2.6f);
 
-	b = b
-		.transformedBy(transform)
-		.withX(0)
-		.withWidth(getGutterWidth());
+		b = b
+			.transformedBy(transform)
+			.withX(0)
+			.withWidth(getGutterWidth());
 
-	return b;
+		return b;
+	}
+	else
+	{
+		
 
+		auto y = r.bounds.getRectangle(0).getY();
+
+		auto numLines = r.bounds.getNumRectangles();
+
+		auto h = document.getFontHeight() * (numLines - 1) + document.getRowHeight();
+		
+
+		auto x = 0.0;
+
+		Rectangle<float> s(x, y, 0, h);
+		return s.transformedBy(transform).withX(0).withWidth(getGutterWidth());
+	}
 }
 
 void mcl::GutterComponent::mouseDown(const MouseEvent& e)

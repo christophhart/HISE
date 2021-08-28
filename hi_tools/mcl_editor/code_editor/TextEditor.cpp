@@ -719,6 +719,8 @@ void mcl::TextEditor::paint (Graphics& g)
 		return;
 	}
 
+	
+
     auto start = Time::getMillisecondCounterHiRes();
     String renderSchemeString;
 
@@ -846,6 +848,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			UnfoldAll,
 			Goto,
 			LineBreaks,
+			Whitespace,
 			BackgroundParsing,
 			Preprocessor,
 			numCommands
@@ -877,6 +880,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 		menu.addItem(FoldAll, "Fold all", true, false);
 		menu.addItem(UnfoldAll, "Unfold all", true, false);
 		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
+		menu.addItem(Whitespace, "Show whitespace", true, showWhitespace);
 
 		menu.addSeparator();
 
@@ -912,6 +916,10 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			}
 			case LineBreaks: 
 				setLineBreakEnabled(!linebreakEnabled);
+				break;
+			case Whitespace:
+				showWhitespace = !showWhitespace;
+				repaint();
 				break;
         }
 
@@ -1730,25 +1738,25 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 
 	highlight.paintHighlight(g);
 
-    if (enableSyntaxHighlighting)
-    {
-        auto rows = document.getRangeOfRowsIntersecting (g.getClipBounds().toFloat());
+	if (enableSyntaxHighlighting)
+	{
+		auto rows = document.getRangeOfRowsIntersecting(g.getClipBounds().toFloat());
 
 		auto realStart = document.getFoldableLineRangeHolder().getNearestLineStartOfAnyRange(rows.getStart());
 
 		rows.setStart(realStart);
 
-        auto index = Point<int> (rows.getStart(), 0);
-        
-        auto zones = Array<Selection>();
+		auto index = Point<int>(rows.getStart(), 0);
+
+		auto zones = Array<Selection>();
 
 		CodeDocument::Position pos(document.getCodeDocument(), rows.getStart(), 0);
 		CodeDocument::Iterator it(pos);
-		
+
 		Point<int> previous(it.getLine(), it.getIndexInLine());
 
-        while (it.getLine() < rows.getEnd() && ! it.isEOF())
-        {
+		while (it.getLine() < rows.getEnd() && !it.isEOF())
+		{
 			int tokenType;
 
 			if (tokeniser != nullptr)
@@ -1763,17 +1771,23 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 			else
 				break;
 
-            previous = now;
-        }
+			previous = now;
+		}
 
 		for (auto& z : zones)
 		{
-			if (deactivatesLines.contains(z.tail.x+1))
+			if (deactivatesLines.contains(z.tail.x + 1))
 				z.token = colourScheme.types.size() - 1;
 		}
 
-        document.clearTokens (rows);
-        document.applyTokens (rows, zones);
+		document.clearTokens(rows);
+		document.applyTokens(rows, zones);
+
+		if (showWhitespace)
+		{
+			for (int i = rows.getStart(); i < rows.getEnd(); i++)
+				document.drawWhitespaceRectangles(i, g);
+		}
 
         for (int n = 0; n < colourScheme.types.size(); ++n)
         {
