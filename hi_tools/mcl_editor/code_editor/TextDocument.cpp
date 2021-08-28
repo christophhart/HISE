@@ -161,60 +161,76 @@ RectangleList<float> mcl::TextDocument::getBoundsOnRow(int row, Range<int> colum
 {
 	RectangleList<float> b;
 
+	float yPos = getVerticalPosition(row, Metric::top);
+	float xPos = TEXT_INDENT;
+
 	if (isPositiveAndBelow(row, getNumRows()))
 	{
 		columns.setStart(jmax(columns.getStart(), 0));
 		auto l = lines.lines[row];
 
-		float yPos = getVerticalPosition(row, Metric::top);
-		float xPos = TEXT_INDENT;
 		auto boundsToUse = l->characterBounds;
-
-		if (columns == Range<int>(0, getNumColumns(row)) && m == GlyphArrangementArray::ReturnBeyondLastCharacter)
-		{
-			auto rowHeight = getRowHeight();
-
-			for (auto& numCol : l->charactersPerLine)
-			{
-				Rectangle<float> l(xPos, yPos, numCol * boundsToUse.getWidth(), rowHeight);
-				yPos += rowHeight;
-				b.add(l);
-			}
-			
-			return b;
-		}
-
-		
 
 		if (boundsToUse.isEmpty())
 			boundsToUse = { 0.0f, 0.0f, font.getStringWidthFloat(" "), font.getHeight() };
 
-		
-		float gap = lineSpacing * font.getHeight() - font.getHeight();
-
-		auto length = l->string.length();
-
-		for (int i = columns.getStart(); i < columns.getEnd(); i++)
+		if (l->charactersPerLine.size() == 1)
 		{
-			auto p = l->getPositionInLine(i, m);
-			auto cBound = boundsToUse.translated(xPos + p.y * boundsToUse.getWidth(), yPos + p.x * boundsToUse.getHeight());
+			auto startCol = (float)GlyphArrangementArray::getLineLength(l->string, columns.getStart());
+			auto endCol = (float)GlyphArrangementArray::getLineLength(l->string, columns.getEnd());
+			
+			auto cw = boundsToUse.getWidth();
 
-			if (p.x == l->charactersPerLine.size() - 1)
-				cBound = cBound.withHeight(cBound.getHeight() + gap);
+			Rectangle<float> a(xPos + startCol * cw, yPos, (endCol - startCol) * cw, getRowHeight());
 
-			bool isTab = isPositiveAndBelow(i, length) && l->string[i] == '\t';
+			if (a.getWidth() == 0.0f)
+				a.setWidth(boundsToUse.getWidth());
 
-			if (isTab)
+			b.add(a);
+			return b;
+		}
+		else
+		{
+			if (columns == Range<int>(0, getNumColumns(row)) && m == GlyphArrangementArray::ReturnBeyondLastCharacter)
 			{
-				int tabLength = 4 - p.y % 4;
+				auto rowHeight = getRowHeight();
 
-				cBound.setWidth((float)tabLength * boundsToUse.getWidth());
+				for (auto& numCol : l->charactersPerLine)
+				{
+					Rectangle<float> l(xPos, yPos, numCol * boundsToUse.getWidth(), rowHeight);
+					yPos += rowHeight;
+					b.add(l);
+				}
+
+				return b;
 			}
 
-			b.add(cBound);
-		}
+			float gap = lineSpacing * font.getHeight() - font.getHeight();
 
-		b.consolidate();
+			auto length = l->string.length();
+
+			for (int i = columns.getStart(); i < columns.getEnd(); i++)
+			{
+				auto p = l->getPositionInLine(i, m);
+				auto cBound = boundsToUse.translated(xPos + p.y * boundsToUse.getWidth(), yPos + p.x * boundsToUse.getHeight());
+
+				if (p.x == l->charactersPerLine.size() - 1)
+					cBound = cBound.withHeight(cBound.getHeight() + gap);
+
+				bool isTab = isPositiveAndBelow(i, length) && l->string[i] == '\t';
+
+				if (isTab)
+				{
+					int tabLength = 4 - p.y % 4;
+
+					cBound.setWidth((float)tabLength * boundsToUse.getWidth());
+				}
+
+				b.add(cBound);
+			}
+
+			b.consolidate();
+		}
 	}
 	else
 	{
@@ -272,6 +288,8 @@ Rectangle<float> mcl::TextDocument::getGlyphBounds(Point<int> index, GlyphArrang
 
 GlyphArrangement mcl::TextDocument::getGlyphsForRow(int row, int token, bool withTrailingSpace) const
 {
+	lines.lines[row]->ensureReadyToPaint(lines.font);
+
 	return lines.getGlyphs(row,
 		getVerticalPosition(row, Metric::baseline),
 		token,
@@ -283,6 +301,8 @@ GlyphArrangement mcl::TextDocument::findGlyphsIntersecting(Rectangle<float> area
 	auto range = getRangeOfRowsIntersecting(area);
 	auto rows = Array<RowData>();
 	auto glyphs = GlyphArrangement();
+
+	
 
 	for (int n = range.getStart(); n < range.getEnd(); ++n)
 	{
@@ -301,6 +321,38 @@ juce::Range<int> mcl::TextDocument::getRangeOfRowsIntersecting(juce::Rectangle<f
     auto topY = jmax<int>(0, area.getY());
     auto bottomY = area.getBottom();
     
+	int topIndex = 0;
+
+	for (const auto& p : rowPositions)
+	{
+		if (p >= topY)
+			break;
+
+		topIndex++;
+	}
+
+	auto numRows = rowPositions.size();
+
+	int bottomIndex = numRows;
+
+	while (--bottomIndex >= topIndex)
+	{
+		if (rowPositions[bottomIndex] < bottomY)
+			break;
+
+		
+	}
+
+	Range<int> range(topIndex, bottomIndex);
+
+	range = range.expanded(1);
+	range.setStart(jmax(0, range.getStart()));
+	range.setEnd(jmin(range.getEnd(), getNumRows()));
+
+	return range;
+
+
+#if 0
     int topIndex = -1;
     int bottomIndex = -1;
     
@@ -333,11 +385,12 @@ juce::Range<int> mcl::TextDocument::getRangeOfRowsIntersecting(juce::Rectangle<f
 	}
     
     if(bottomIndex == -1)
-        bottomIndex = rowPositions.size()-1;
+        bottomIndex = rowPositions.size()-2;
     
     return { topIndex, bottomIndex + 1 };
 
 	return { min, max + 1 };
+#endif
 }
 
 Array<mcl::TextDocument::RowData> mcl::TextDocument::findRowsIntersecting(Rectangle<float> area,
@@ -381,7 +434,7 @@ Point<int> mcl::TextDocument::findIndexNearestPosition(Point<float> position) co
 	auto gap = font.getHeight() * lineSpacing - font.getHeight();
 	float yPos = gap / 2.0f;
 
-	if (position.y > rowPositions.getLast() + getRowHeight())
+	if (position.y > rowPositions.getLast())
 	{
 		auto x = lines.size() - 1;
 		if (x >= 0)

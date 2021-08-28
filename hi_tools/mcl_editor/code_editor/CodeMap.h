@@ -669,6 +669,13 @@ public:
 
 	TextDocument& doc;
 
+	void visibilityChanged() override
+	{
+		if (isVisible() && dirty)
+			rebuild();
+	}
+
+	bool dirty = false;
 	bool allowHover = true;
 
 	float currentAnimatedLine = -1.0f;

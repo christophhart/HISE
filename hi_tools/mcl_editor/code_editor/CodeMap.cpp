@@ -354,8 +354,13 @@ void mcl::CodeMap::rebuild()
 	
 	colouredRectangles.clear();
 
-	if (!isActive())
+	if (!isActive() || !isShowing())
+	{
+		dirty = true;
 		return;
+	}
+		
+	dirty = false;
 
 	CodeDocument::Iterator it(doc.getCodeDocument());
 

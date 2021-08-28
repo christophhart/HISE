@@ -1012,14 +1012,25 @@ void CodeDocument::insert (const String& text, const int insertPos, const bool u
                 lineStart += l.lineLength;
             }
 
+			int numLinesBefore = getNumLines();
             checkLastLineStatus();
+
+
+
+			
+
             auto newTextLength = text.length();
 
             for (auto* p : positionsToMaintain)
                 if (p->getPosition() >= insertPos)
                     p->setPosition (p->getPosition() + newTextLength);
 
-			Range<int> rangeThatChanged(firstAffectedLine, firstAffectedLine + newLines.size());
+			auto rangeEnd = firstAffectedLine + newLines.size();
+
+			if (getNumLines() != numLinesBefore)
+				rangeEnd++;
+
+			Range<int> rangeThatChanged(firstAffectedLine, rangeEnd);
 			listeners.call([&](Listener& l) { l.lineRangeChanged(rangeThatChanged, true); });
 
             listeners.call ([&] (Listener& l) { l.codeDocumentTextInserted (text, insertPos); });

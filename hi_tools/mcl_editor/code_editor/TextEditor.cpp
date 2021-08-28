@@ -616,11 +616,9 @@ void mcl::TextEditor::updateViewTransform()
 {
 	auto thisGutterWidth = gutter.getGutterWidth();
 
-	if (translation.x < thisGutterWidth)
-	{
-		//translation.x = thisGutterWidth;
-	}
-		
+	// Ensure that there is no weird gap
+	if (translation.x > 0.0)
+		translation.x = thisGutterWidth;
 
 	closeAutocomplete(true, {}, {});
 

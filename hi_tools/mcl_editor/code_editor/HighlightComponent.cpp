@@ -88,6 +88,9 @@ void mcl::HighlightComponent::paintHighlight(Graphics& g)
 
 Path mcl::HighlightComponent::getOutlinePath(const TextDocument& doc, const Selection& s)
 {
+	if (s.isSingular())
+		return {};
+
 	RectangleList<float> list;
 	auto top = doc.getUnderlines(s, TextDocument::Metric::top);
 	auto bottom = doc.getUnderlines(s, TextDocument::Metric::baseline);

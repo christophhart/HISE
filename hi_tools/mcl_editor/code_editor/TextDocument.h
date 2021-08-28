@@ -759,8 +759,13 @@ public:
 
 	void lineRangeChanged(Range<int> r, bool wasAdded) override
 	{
-		invalidate(r);
-
+		if (!wasAdded)
+		{
+			auto rangeToInvalidate = r;
+			rangeToInvalidate.setLength(jmax(1, r.getLength()));
+			invalidate(rangeToInvalidate);
+		}
+			
 		if (!wasAdded && r.getLength() > 0)
 		{
 			lines.removeRange(r);
@@ -770,7 +775,6 @@ public:
 
 		if (r.getLength() > 1)
 		{
-
 			lines.set(r.getStart(), doc.getLine(r.getStart()));
 
 			for (int i = r.getStart() + 1; i < r.getEnd(); i++)
@@ -785,7 +789,12 @@ public:
 		if (wasAdded && r.getEnd() > getNumRows())
 		{
 			lines.set(r.getEnd(), "");
+			
+			
 		}
+
+
+		
 	}
 
 	void codeChanged(bool wasInserted, int startIndex, int endIndex) override
