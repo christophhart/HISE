@@ -877,6 +877,8 @@ private:
 	bool scrollRecursion = false;
 	bool includeDotInAutocomplete = false;
 
+    StringArray multiSelection;
+    
 	Autocomplete::ParameterSelection::List currentParameterSelection;
 	Autocomplete::ParameterSelection::Ptr currentParameter;
 	CodeDocument::Position postParameterPos;

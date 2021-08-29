@@ -494,12 +494,44 @@ bool TextEditor::cut()
 
 bool TextEditor::copy()
 {
+    if(document.getNumSelections() != 1)
+    {
+        multiSelection.clear();
+        
+        for(int i = 0; i < document.getNumSelections(); i++)
+        {
+            multiSelection.add(document.getSelectionContent(document.getSelection(i)));
+        }
+    }
+    
 	SystemClipboard::copyTextToClipboard(document.getSelectionContent(document.getSelections().getFirst()));
 	return true;
 }
 
 bool TextEditor::paste()
 {
+    if(document.getNumSelections() == multiSelection.size())
+    {
+        for(int i = 0; i < multiSelection.size(); i++)
+        {
+            Transaction t;
+            t.content = multiSelection[i];
+            t.selection = document.getSelection (i);
+            
+            auto callback = [this] (const Transaction& r)
+            {
+                translateToEnsureCaretIsVisible();
+                updateSelections();
+            };
+
+            ScopedPointer<UndoableAction> op = t.on(document, callback);
+            op->perform();
+        }
+        
+        repaint();
+        return true;
+    }
+    
 	auto insertText = SystemClipboard::getTextFromClipboard();
 	auto sel = document.getSelection(0);
 	Point<int> p = sel.head;
@@ -1780,6 +1812,14 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     if (key == KeyPress ('z', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0))
     {
         return document.getCodeDocument().getUndoManager().redo();
+    }
+    if (key == KeyPress ('t', ModifierKeys::commandModifier, 0))
+    {
+        document.navigateSelections (TextDocument::Target::subword, TextDocument::Direction::backwardCol, Selection::Part::head);
+        document.navigateSelections (TextDocument::Target::subword, TextDocument::Direction::forwardCol,  Selection::Part::tail);
+        updateSelections();
+        
+        return true;
     }
     
 	if (key.isKeyCode(KeyPress::F4Key))
