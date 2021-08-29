@@ -165,6 +165,11 @@ public:
 		repaint();
 	}
 
+    void abortAutocomplete()
+    {
+        autocompleteTimer.stopTimer();
+    }
+    
 	void refreshLineWidth()
 	{
 		auto actualLineWidth = (maxLinesToShow - gutter.getGutterWidth()) / viewScaleFactor;
@@ -640,6 +645,8 @@ private:
 
 			document.setSelection(0, prevSelection, true);
 
+            abortAutocomplete();
+            
 			return true;
 		}
 

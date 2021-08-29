@@ -546,7 +546,9 @@ bool TextEditor::paste()
 		DBG(insertText);
 	}
 
-	return insert(insertText);
+	auto ok = insert(insertText);
+    abortAutocomplete();
+    return ok;
 }
 
 void TextEditor::displayedLineRangeChanged(Range<int> newRange)
