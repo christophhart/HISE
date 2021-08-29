@@ -140,6 +140,8 @@ void GlyphArrangement::addLineOfText (const Font& font, const String& text, floa
     addCurtailedLineOfText (font, text, xOffset, yOffset, 1.0e10f, false);
 }
 
+bool GlyphArrangement::fixWeirdTab = false;
+
 void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& text,
                                                float xOffset, float yOffset,
                                                float maxWidthPixels, bool useEllipsis)
@@ -156,24 +158,27 @@ void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& t
 
 		auto spaceWidth = font.getStringWidthFloat(" ");
 
+        auto tabWidth = font.getStringWidthFloat("\t");
+        
 		int column = 0;
-
+        
 		for (int i = 0; i < textLen; i++)
 		{
 			if (text[i] == '\t')
 			{
-#if JUCE_WINDOWS || JUCE_LINUX
-				int width = numSpacePerTab - column % 4;
-				auto numToAdd = (width - 1) * spaceWidth;
-#else
-				int width = numSpacePerTab - (column) % 4;
-				auto numToAdd = (width)* spaceWidth;
-#endif
-
-
-				
-
-				for (int j = i+1; j < textLen+1; j++)
+                int numToAdd = 0;
+                int width = numSpacePerTab - (column) % 4;
+                
+                if(fixWeirdTab)
+                {
+                    numToAdd = (width)* spaceWidth;
+                }
+                else
+                {
+                    numToAdd = (width - 1) * spaceWidth;
+                }
+                
+				for (int j = i+1; j < textLen; j++)
 					xOffsets.set(j, xOffsets[j] + numToAdd);
 
 				column += width;

@@ -970,6 +970,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			Whitespace,
             AutoAutocomplete,
 			BackgroundParsing,
+            FixWeirdTab,
 			Preprocessor,
 			numCommands
 		};
@@ -999,6 +1000,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 		menu.addItem(UnfoldAll, "Unfold all", true, false);
 		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
 		menu.addItem(Whitespace, "Show whitespace", true, showWhitespace);
+        menu.addItem(FixWeirdTab, "Fix weird tabs", true, GlyphArrangement::fixWeirdTab);
         menu.addItem(AutoAutocomplete, "Autoshow Autocomplete", true, showAutocompleteAfterDelay);
         
 		menu.addSeparator();
@@ -1038,6 +1040,11 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 				break;
             case AutoAutocomplete:
                 showAutocompleteAfterDelay = !showAutocompleteAfterDelay;
+                break;
+            case FixWeirdTab:
+                GlyphArrangement::fixWeirdTab = !GlyphArrangement::fixWeirdTab;
+                document.invalidate({});
+                repaint();
                 break;
 			case Whitespace:
 				showWhitespace = !showWhitespace;
@@ -1870,6 +1877,8 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 bool mcl::TextEditor::insert (const juce::String& content)
 {
+    
+    
     tokenSelection.clear();
     
 	if (isShowing())
@@ -1923,6 +1932,12 @@ bool mcl::TextEditor::insert (const juce::String& content)
 
 	lastInsertWasDouble = false;
 
+    // Do not open the autocomplete if we delete a character
+    if(content.isEmpty() && currentAutoComplete == nullptr)
+    {
+        abortAutocomplete();
+    }
+    
     return true;
 }
 

@@ -135,6 +135,8 @@ public:
     /** Destructor. */
     ~GlyphArrangement() = default;
 
+    static bool fixWeirdTab;
+    
     //==============================================================================
     /** Returns the total number of glyphs in the arrangement. */
     int getNumGlyphs() const noexcept                           { return glyphs.size(); }
