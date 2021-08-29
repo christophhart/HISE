@@ -136,6 +136,10 @@ public:
 	void setError(int lineNumber, const String& error)
 	{
 		errorLine = lineNumber;
+        
+        if(error.isEmpty())
+            errorLine = -1;
+        
 		errorMessage = error;
 		repaint();
 	}
@@ -380,7 +384,7 @@ private:
 
 	TextDocument::RowData hoveredData;
 
-	int errorLine;
+    int errorLine = -1;
 	String errorMessage;
 
 	float scaleFactor = 1.0f;

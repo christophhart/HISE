@@ -482,6 +482,7 @@ public:
 		firstnonwhitespace,
 		token,
 		line,
+		lineUntilBreak,
 		paragraph,
 		scope,
 		document,
