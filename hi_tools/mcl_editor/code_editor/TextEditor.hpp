@@ -799,6 +799,8 @@ private:
 	ScrollBar scrollBar;
 	ScrollBar horizontalScrollBar;
 
+    Array<Selection> tokenSelection;
+    
 	SparseSet<int> deactivatesLines;
 	bool linebreakEnabled = true;
     float viewScaleFactor = 1.f;

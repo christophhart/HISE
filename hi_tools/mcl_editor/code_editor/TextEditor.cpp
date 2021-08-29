@@ -697,7 +697,7 @@ void mcl::TextEditor::updateViewTransform()
 
 void mcl::TextEditor::updateSelections()
 {
-    
+    tokenSelection.clear();
 }
 
 void mcl::TextEditor::translateToEnsureCaretIsVisible()
@@ -785,27 +785,6 @@ void mcl::TextEditor::paint (Graphics& g)
 
 	renderTextUsingGlyphArrangement(g);
 
-    lastTimeInPaint = Time::getMillisecondCounterHiRes() - start;
-    accumulatedTimeInPaint += lastTimeInPaint;
-    numPaintCalls += 1;
-
-    if (drawProfilingInfo)
-    {
-        String info;
-        info += "paint mode         : " + renderSchemeString + "\n";
-        info += "cache glyph bounds : " + String (document.lines.cacheGlyphArrangement ? "yes" : "no") + "\n";
-        info += "core graphics      : " + String (allowCoreGraphics ? "yes" : "no") + "\n";
-        info += "opengl             : " + String (useOpenGLRendering ? "yes" : "no") + "\n";
-        info += "syntax highlight   : " + String (enableSyntaxHighlighting ? "yes" : "no") + "\n";
-        info += "mean render time   : " + String (accumulatedTimeInPaint / numPaintCalls) + " ms\n";
-        info += "last render time   : " + String (lastTimeInPaint) + " ms\n";
-        info += "tokeniser time     : " + String (lastTokeniserTime) + " ms\n";
-
-        g.setColour (findColour (CodeEditorComponent::defaultTextColourId));
-        g.setFont (Font ("Courier New", 12, 0));
-        g.drawMultiLineText (info, getWidth() - 280, 10, 280);
-    }
-
 	g.setColour(Colours::blue.withAlpha(0.8f));
 
 	for (auto arg : currentParameterSelection)
@@ -839,6 +818,22 @@ void mcl::TextEditor::paint (Graphics& g)
 		}
 	}
 
+    for(auto b: tokenSelection)
+    {
+        auto ra = document.getSelectionRegion(b);
+        
+        g.setColour(Colours::white.withAlpha(0.5f));
+        
+        auto ar = ra.getBounds();
+        
+        auto area = ar.withHeight(document.getRowHeight())
+                      .reduced(0.0f, 0.8f)
+                      .transformedBy(transform);
+        
+        g.drawRoundedRectangle(area, 3.0f, 1.0f);
+        
+    }
+    
 	if (currentError != nullptr)
 	{
 		currentError->paintLines(g, transform, Colours::red);
@@ -870,6 +865,8 @@ void mcl::TextEditor::paintOverChildren (Graphics& g)
 
 void mcl::TextEditor::mouseDown (const MouseEvent& e)
 {
+    tokenSelection.clear();
+    
 	if (readOnly)
 		return;
 
@@ -1137,6 +1134,63 @@ void mcl::TextEditor::mouseDoubleClick (const MouseEvent& e)
         document.navigateSelections (TextDocument::Target::subword, TextDocument::Direction::backwardCol, Selection::Part::head);
         document.navigateSelections (TextDocument::Target::subword, TextDocument::Direction::forwardCol,  Selection::Part::tail);
         updateSelections();
+        
+        auto currentToken = document.getSelectionContent(document.getSelection(0));
+        
+        tokenSelection.clear();
+        
+        CodeDocument::Position p(document.getCodeDocument(), 0);
+        auto firstChar = currentToken[0];
+        auto maxIndex = currentToken.length();
+        
+        while (p.getPosition() < document.getCodeDocument().getNumCharacters())
+        {
+            if (p.getCharacter() == firstChar)
+            {
+                auto prev = p.movedBy(-1).getCharacter();
+                
+                
+                
+                auto e = p.movedBy(maxIndex);
+
+                auto after = e.getCharacter();
+                
+                
+                
+                auto t = document.getCodeDocument().getTextBetween(p, e);
+
+                if (currentToken == t)
+                {
+                    if(CharacterFunctions::isDigit(after) ||
+                       CharacterFunctions::isLetter(after))
+                    {
+                        p.moveBy(1);
+                        continue;
+                    }
+                    
+                    if(CharacterFunctions::isDigit(prev) ||
+                       CharacterFunctions::isLetter(prev))
+                    {
+                        p.moveBy(1);
+                        continue;
+                    }
+                    
+                    Point<int> ps(p.getLineNumber(), p.getIndexInLine());
+                    Point<int> pe(e.getLineNumber(), e.getIndexInLine());
+
+                    
+                    
+                    tokenSelection.add({ ps, pe });
+                }
+            }
+
+            p.moveBy(1);
+        }
+        
+        tokenSelection.removeAllInstancesOf(document.getSelection(0));
+        
+        repaint();
+        return;
     }
     else if (e.getNumberOfClicks() == 3)
     {
@@ -1809,6 +1863,8 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 bool mcl::TextEditor::insert (const juce::String& content)
 {
+    tokenSelection.clear();
+    
 	if (isShowing())
 		tokenCollection.setEnabled(true);
 
