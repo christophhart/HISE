@@ -871,7 +871,32 @@ void mcl::TextEditor::paint (Graphics& g)
 		auto b = currentError->area.transformedBy(transform).withLeft(gutter.getGutterWidth()).withRight(getWidth());;
 		g.fillRect(b);
 	}
-	
+    
+    Array<LanguageManager::InplaceDebugValue> inplaceDebugValues;
+    
+    if(languageManager != nullptr && languageManager->getInplaceDebugValues(inplaceDebugValues))
+    {
+        for(const auto& ip: inplaceDebugValues)
+        {
+            auto b = document.getBoundsOnRow(ip.location.x, {ip.location.y, ip.location.y + 1}, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
+            
+            b = b.translated(document.getCharacterRectangle().getWidth() * 1.0f, 0.0f);
+            
+            auto area = b.transformed(transform).withRight(getWidth());
+            auto vf = document.getFont().withHeight(document.getFontHeight() * viewScaleFactor * 0.7f);
+            g.setFont(vf);
+            g.setColour(Colours::white.withAlpha(0.05f));
+            
+            auto r = area;
+            r = r.removeFromLeft(vf.getStringWidthFloat(ip.value) + 20.0f);
+            
+            g.fillRoundedRectangle(r, r.getHeight() / 2.0f);
+            
+            g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+            g.drawText(ip.value, area.reduced(10.0f, 0.0f), Justification::left);
+        }
+    }
+    
 	for (auto w : warnings)
 		w->paintLines(g, transform, w->isWarning ? Colours::yellow : Colours::red);
 

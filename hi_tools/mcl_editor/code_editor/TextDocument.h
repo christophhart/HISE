@@ -968,6 +968,17 @@ struct LanguageManager
 
 	virtual FoldableLineRange::List createLineRange(const juce::CodeDocument& doc);
 
+    struct InplaceDebugValue
+    {
+        Point<int> location;
+        String value;
+    };
+    
+    virtual bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const
+    {
+        return false;
+    }
+    
 	virtual void processBookmarkTitle(juce::String& bookmarkTitle) = 0;
 
 	/** Add all token providers you want to use for this language. */

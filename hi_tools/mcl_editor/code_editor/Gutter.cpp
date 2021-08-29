@@ -140,7 +140,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 		lfb = lfb.removeFromRight(15 * transform.getScaleFactor());
 
-		g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withBrightness(0.5f));
+		g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withBrightness(0.35f));
 
 		
 
@@ -203,7 +203,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 		A.removeFromRight(15 * transform.getScaleFactor());
 
-		g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withMultipliedAlpha(0.7f));
+		g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withMultipliedAlpha(0.4f));
 		g.drawText(String(r.rowNumber + 1), A.reduced(5.0f, 0.0f), Justification::right, false);
 	}
 
