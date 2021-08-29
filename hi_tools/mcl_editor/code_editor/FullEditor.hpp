@@ -29,13 +29,7 @@ namespace TextEditorSettings
 	DECLARE_ID(LineBreaks);
 	DECLARE_ID(EnableHover);
 	DECLARE_ID(ShowWhitespace);
-	
-	static juce::Array<juce::Identifier> getAllIds()
-	{
-		static const juce::Array<juce::Identifier> ids = { MapWidth, LineBreaks, EnableHover, ShowWhitespace };
-
-		return ids;
-	}
+    DECLARE_ID(AutoAutocomplete);
 }
 #undef DECLARE_ID
 
@@ -81,6 +75,7 @@ struct FullEditor: public Component,
 		mapWidth = s.getProperty(TextEditorSettings::MapWidth, 150);
 		resized();
 		codeMap.allowHover = s.getProperty(TextEditorSettings::EnableHover, true);
+        editor.showAutocompleteAfterDelay = s.getProperty(TextEditorSettings::AutoAutocomplete, true);
 	}
 
 	void saveSettings(DynamicObject::Ptr obj) const
@@ -91,6 +86,7 @@ struct FullEditor: public Component,
 			obj->setProperty(TextEditorSettings::MapWidth, mapWidth);
 			obj->setProperty(TextEditorSettings::EnableHover, codeMap.allowHover);
 			obj->setProperty(TextEditorSettings::ShowWhitespace, editor.showWhitespace);
+            obj->setProperty(TextEditorSettings::AutoAutocomplete, editor.showAutocompleteAfterDelay);
 		}
 	}
 

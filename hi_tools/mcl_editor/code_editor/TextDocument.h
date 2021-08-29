@@ -961,6 +961,8 @@ struct TokenCollection;
 */
 struct LanguageManager
 {
+    virtual ~LanguageManager() {};
+    
 	virtual CodeTokeniser* createCodeTokeniser() = 0;
 
 	virtual FoldableLineRange::List createLineRange(const juce::CodeDocument& doc);
