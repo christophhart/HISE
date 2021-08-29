@@ -30,6 +30,7 @@ namespace TextEditorSettings
 	DECLARE_ID(EnableHover);
 	DECLARE_ID(ShowWhitespace);
     DECLARE_ID(AutoAutocomplete);
+    DECLARE_ID(FixWeirdTab);
 }
 #undef DECLARE_ID
 
@@ -76,6 +77,8 @@ struct FullEditor: public Component,
 		resized();
 		codeMap.allowHover = s.getProperty(TextEditorSettings::EnableHover, true);
         editor.showAutocompleteAfterDelay = s.getProperty(TextEditorSettings::AutoAutocomplete, true);
+        
+        GlyphArrangement::fixWeirdTab = s.getProperty(TextEditorSettings::FixWeirdTab, false);
 	}
 
 	void saveSettings(DynamicObject::Ptr obj) const
@@ -87,6 +90,7 @@ struct FullEditor: public Component,
 			obj->setProperty(TextEditorSettings::EnableHover, codeMap.allowHover);
 			obj->setProperty(TextEditorSettings::ShowWhitespace, editor.showWhitespace);
             obj->setProperty(TextEditorSettings::AutoAutocomplete, editor.showAutocompleteAfterDelay);
+            obj->setProperty(TextEditorSettings::FixWeirdTab, GlyphArrangement::fixWeirdTab);
 		}
 	}
 

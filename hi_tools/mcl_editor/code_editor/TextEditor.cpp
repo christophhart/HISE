@@ -494,12 +494,44 @@ bool TextEditor::cut()
 
 bool TextEditor::copy()
 {
+    if(document.getNumSelections() != 1)
+    {
+        multiSelection.clear();
+        
+        for(int i = 0; i < document.getNumSelections(); i++)
+        {
+            multiSelection.add(document.getSelectionContent(document.getSelection(i)));
+        }
+    }
+    
 	SystemClipboard::copyTextToClipboard(document.getSelectionContent(document.getSelections().getFirst()));
 	return true;
 }
 
 bool TextEditor::paste()
 {
+    if(document.getNumSelections() == multiSelection.size())
+    {
+        for(int i = 0; i < multiSelection.size(); i++)
+        {
+            Transaction t;
+            t.content = multiSelection[i];
+            t.selection = document.getSelection (i);
+            
+            auto callback = [this] (const Transaction& r)
+            {
+                translateToEnsureCaretIsVisible();
+                updateSelections();
+            };
+
+            ScopedPointer<UndoableAction> op = t.on(document, callback);
+            op->perform();
+        }
+        
+        repaint();
+        return true;
+    }
+    
 	auto insertText = SystemClipboard::getTextFromClipboard();
 	auto sel = document.getSelection(0);
 	Point<int> p = sel.head;
@@ -546,7 +578,9 @@ bool TextEditor::paste()
 		DBG(insertText);
 	}
 
-	return insert(insertText);
+	auto ok = insert(insertText);
+    abortAutocomplete();
+    return ok;
 }
 
 void TextEditor::displayedLineRangeChanged(Range<int> newRange)
@@ -968,6 +1002,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			Whitespace,
             AutoAutocomplete,
 			BackgroundParsing,
+            FixWeirdTab,
 			Preprocessor,
 			numCommands
 		};
@@ -997,6 +1032,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 		menu.addItem(UnfoldAll, "Unfold all", true, false);
 		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
 		menu.addItem(Whitespace, "Show whitespace", true, showWhitespace);
+        menu.addItem(FixWeirdTab, "Fix weird tabs", true, GlyphArrangement::fixWeirdTab);
         menu.addItem(AutoAutocomplete, "Autoshow Autocomplete", true, showAutocompleteAfterDelay);
         
 		menu.addSeparator();
@@ -1036,6 +1072,11 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 				break;
             case AutoAutocomplete:
                 showAutocompleteAfterDelay = !showAutocompleteAfterDelay;
+                break;
+            case FixWeirdTab:
+                GlyphArrangement::fixWeirdTab = !GlyphArrangement::fixWeirdTab;
+                document.invalidate({});
+                repaint();
                 break;
 			case Whitespace:
 				showWhitespace = !showWhitespace;
@@ -1102,7 +1143,7 @@ void mcl::TextEditor::mouseDrag (const MouseEvent& e)
 				multiLineSelections.add({ i, current.y, i, start.y});
 			}
 
-			document.setSelections(multiLineSelections, false);
+			document.setSelections(multiLineSelections, true);
 			updateSelections();
 		}
 		else
@@ -1113,7 +1154,7 @@ void mcl::TextEditor::mouseDrag (const MouseEvent& e)
 			pos.x = jmax(pos.x, gutter.getGutterWidth() + 5);
 
 			selection.head = document.findIndexNearestPosition(pos.transformedBy(transform.inverted()));
-			document.setSelections({ selection }, false);
+			document.setSelections({ selection }, true);
 			translateToEnsureCaretIsVisible();
 			updateSelections();
 		}
@@ -1485,11 +1526,19 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 	auto addNextTokenToSelection = [this]()
 	{
-		auto s = document.getSelections().getLast().oriented();
+        auto s = document.getSelections().getLast();
 		
+        bool isOriented = s.isOriented();
+        
+        s = s.oriented();
+        
 		CodeDocument::Position start(document.getCodeDocument(), s.head.x, s.head.y);
 		CodeDocument::Position end(document.getCodeDocument(), s.tail.x, s.tail.y);
 
+        
+        
+        //document.setSelection(document.getNumSelections()-1, s, true);
+        
 		auto t = document.getCodeDocument().getTextBetween(start, end);
 
 		while (start.getPosition() < document.getCodeDocument().getNumCharacters())
@@ -1503,9 +1552,12 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 			{
 				Selection s(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
 
-				
+                
+                
+				if(isOriented != s.isOriented())
+                    s = s.swapped();
 
-				document.addSelection(s.swapped());
+				document.addSelection(s);
 				translateToEnsureCaretIsVisible();
 				updateSelections();
 				return true;
@@ -1763,7 +1815,14 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     if (key == KeyPress ('a', ModifierKeys::commandModifier, 0)) return expand (Target::document);
 	if (key == KeyPress('d', ModifierKeys::commandModifier, 0))  return addNextTokenToSelection();
     if (key == KeyPress ('l', ModifierKeys::commandModifier, 0)) return expand (Target::line);
-    if (key == KeyPress ('u', ModifierKeys::commandModifier, 0)) return addSelectionAtNextMatch();
+    if (key == KeyPress ('u', ModifierKeys::commandModifier, 0))
+    {
+        return document.viewUndoManager.undo();
+    }
+    if (key == KeyPress ('u', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0))
+    {
+        return document.viewUndoManager.redo();
+    }
     if (key == KeyPress ('z', ModifierKeys::commandModifier, 0))
     {
         return document.getCodeDocument().getUndoManager().undo();
@@ -1771,6 +1830,14 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     if (key == KeyPress ('z', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0))
     {
         return document.getCodeDocument().getUndoManager().redo();
+    }
+    if (key == KeyPress ('t', ModifierKeys::commandModifier, 0))
+    {
+        document.navigateSelections (TextDocument::Target::subword, TextDocument::Direction::backwardCol, Selection::Part::head);
+        document.navigateSelections (TextDocument::Target::subword, TextDocument::Direction::forwardCol,  Selection::Part::tail);
+        updateSelections();
+        
+        return true;
     }
     
 	if (key.isKeyCode(KeyPress::F4Key))
@@ -1868,6 +1935,8 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 bool mcl::TextEditor::insert (const juce::String& content)
 {
+    
+    
     tokenSelection.clear();
     
 	if (isShowing())
@@ -1921,6 +1990,12 @@ bool mcl::TextEditor::insert (const juce::String& content)
 
 	lastInsertWasDouble = false;
 
+    // Do not open the autocomplete if we delete a character
+    if(content.isEmpty() && currentAutoComplete == nullptr)
+    {
+        abortAutocomplete();
+    }
+    
     return true;
 }
 
