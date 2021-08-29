@@ -740,8 +740,6 @@ void mcl::TextEditor::resized()
 	auto b = getLocalBounds();
 	caret.setBounds(b);
 	
-    auto l = getFirstLineOnScreen();
-    
     
     
 	scrollBar.setBounds(b.removeFromRight(14));
@@ -753,8 +751,6 @@ void mcl::TextEditor::resized()
 
 	refreshLineWidth();
 	
-    setFirstLineOnScreen(l);
-    
     highlight.setBounds (b);
     
     horizontalScrollBar.setVisible(!linebreakEnabled);
@@ -1768,9 +1764,15 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 	if (key == KeyPress('d', ModifierKeys::commandModifier, 0))  return addNextTokenToSelection();
     if (key == KeyPress ('l', ModifierKeys::commandModifier, 0)) return expand (Target::line);
     if (key == KeyPress ('u', ModifierKeys::commandModifier, 0)) return addSelectionAtNextMatch();
-    if (key == KeyPress ('z', ModifierKeys::commandModifier, 0)) return document.getCodeDocument().getUndoManager().undo();
-    if (key == KeyPress ('r', ModifierKeys::commandModifier, 0)) return document.getCodeDocument().getUndoManager().redo();
-
+    if (key == KeyPress ('z', ModifierKeys::commandModifier, 0))
+    {
+        return document.getCodeDocument().getUndoManager().undo();
+    }
+    if (key == KeyPress ('z', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0))
+    {
+        return document.getCodeDocument().getUndoManager().redo();
+    }
+    
 	if (key.isKeyCode(KeyPress::F4Key))
 	{
 		auto isComment = [this](Selection s)
