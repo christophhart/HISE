@@ -188,7 +188,7 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 struct GLSLLanguageManager : public mcl::LanguageManager
 {
 	CodeTokeniser* createCodeTokeniser() override {
-		return new CPlusPlusCodeTokeniser();
+		return new JavascriptTokeniser();
 	}
 
 	virtual void processBookmarkTitle(juce::String& )

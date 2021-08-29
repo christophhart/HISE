@@ -276,10 +276,16 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 			currentAutoComplete->setInput(input, tokenBefore, lineNumber);
 		else
 		{
-			parent->addAndMakeVisible(currentAutoComplete = new Autocomplete(tokenCollection, input, tokenBefore, lineNumber, this));
-			addKeyListener(currentAutoComplete);
+            if(showAutocompleteAfterDelay || forceShow)
+            {
+                parent->addAndMakeVisible(currentAutoComplete = new Autocomplete(tokenCollection, input, tokenBefore, lineNumber, this));
+                addKeyListener(currentAutoComplete);
+            }
 		}
 
+        if(currentAutoComplete == nullptr)
+            return;
+        
 		auto sToUse = input.isEmpty() ? o.translated(0, 1) : s;
 
 		auto cBounds = document.getBoundsOnRow(sToUse.x, { sToUse.y, sToUse.y + 1 }, GlyphArrangementArray::ReturnLastCharacter).getRectangle(0);
@@ -346,11 +352,18 @@ void TextEditor::setScaleFactor(float newFactor)
 
 	updateViewTransform();
 
-	auto newPos = pos.transformedBy(transform);
-
-	auto dy = newPos.y - posOnScreen.y;
-
-	translateView(0.0f, -dy);
+    Point<float> newPos;
+    
+    if(!linebreakEnabled)
+        newPos = pos.transformedBy(transform);
+    else
+    {
+        newPos = document.getPosition(currentLine, TextDocument::Metric::baseline);
+        newPos = newPos.transformedBy(transform);
+    }
+    
+    auto dy = newPos.y - posOnScreen.y;
+    translateView(0.0f, -dy);
 }
 
 void TextEditor::closeAutocomplete(bool async, const String& textToInsert, Array<Range<int>> selectRanges)
@@ -551,10 +564,12 @@ void TextEditor::setLanguageManager(LanguageManager* ownedLanguageManager)
 	if (languageManager != nullptr)
 	{
 		tokenCollection.clearTokenProviders();
+        tokenCollection.addTokenProvider(new SimpleDocumentTokenProvider(document.getCodeDocument()));
 		ownedLanguageManager->addTokenProviders(&tokenCollection);
 		setCodeTokeniser(languageManager->createCodeTokeniser());
 		ownedLanguageManager->setupEditor(this);
 		tokenCollection.signalRebuild();
+        updateLineRanges();
 	}
 }
 
@@ -742,12 +757,12 @@ void mcl::TextEditor::resized()
     
     highlight.setBounds (b);
     
-	if (!linebreakEnabled)
-	{
-		auto b = getLocalBounds();
-		b.removeFromLeft(gutter.getGutterWidth());
-		horizontalScrollBar.setBounds(b.removeFromBottom(14));
-	}
+    horizontalScrollBar.setVisible(!linebreakEnabled);
+    
+    auto b2 = getLocalBounds();
+    b2.removeFromLeft(gutter.getGutterWidth());
+    horizontalScrollBar.setBounds(b2.removeFromBottom(14));
+    
 
     gutter.setBounds (b);
     resetProfilingData();
@@ -958,6 +973,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			Goto,
 			LineBreaks,
 			Whitespace,
+            AutoAutocomplete,
 			BackgroundParsing,
 			Preprocessor,
 			numCommands
@@ -988,7 +1004,8 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 		menu.addItem(UnfoldAll, "Unfold all", true, false);
 		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
 		menu.addItem(Whitespace, "Show whitespace", true, showWhitespace);
-
+        menu.addItem(AutoAutocomplete, "Autoshow Autocomplete", true, showAutocompleteAfterDelay);
+        
 		menu.addSeparator();
 
 		for (const auto& pf : popupMenuFunctions)
@@ -1024,6 +1041,9 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			case LineBreaks: 
 				setLineBreakEnabled(!linebreakEnabled);
 				break;
+            case AutoAutocomplete:
+                showAutocompleteAfterDelay = !showAutocompleteAfterDelay;
+                break;
 			case Whitespace:
 				showWhitespace = !showWhitespace;
 				repaint();
@@ -1145,21 +1165,26 @@ void mcl::TextEditor::mouseWheelMove(const MouseEvent& e, const MouseWheelDetail
 	float factors[2] = { 80.0f, 160.0f };
 #endif
 
-	if (e.mods.isShiftDown() && !linebreakEnabled)
+    bool handleXScroll = !linebreakEnabled && (e.mods.isShiftDown() || d.deltaX != 0.0);
+    
+    
+	if (handleXScroll)
 	{
-		if(d.deltaY < 0.0f)
+        auto vToUse = e.mods.isShiftDown() ? d.deltaY : d.deltaX;
+        
+		if(vToUse < 0.0f)
 			xPos = jmin(-gutter.getGutterWidth(), xPos);
 
-		xPos += d.deltaY * factors[1];
+		xPos += vToUse * factors[1];
 
 		auto maxWidth = document.getBounds().getWidth() * viewScaleFactor;
 		xPos = jmax(xPos, -maxWidth);
 
-		translateView(0.0f, 0.0f);
 	}
-	else
-		translateView(0.0f, d.deltaY * factors[1]);
-
+	
+    auto yToUse = e.mods.isShiftDown() ? 0.0f : d.deltaY;
+    
+    translateView(0.0f, yToUse * factors[1]);
 }
 
 void mcl::TextEditor::mouseMagnify (const MouseEvent& e, float scaleFactor)
@@ -1362,13 +1387,16 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 			Point<int> end = s.head;
 			Point<int> start = end;
+            end.y++;
 			document.navigate(start, Target::line, Direction::backwardCol);
-			document.navigate(end, Target::character, Direction::backwardCol);
+			document.navigate(end, Target::firstnonwhitespace, Direction::backwardCol);
 
 			Selection emptyBeforeText(end, start);
 
 			auto s = document.getSelectionContent(emptyBeforeText);
 
+            
+            
 			ws << s;
 			t << s;
 

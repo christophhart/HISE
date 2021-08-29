@@ -97,6 +97,13 @@ Component* CodeEditorPanel::createContentComponent(int index)
 		auto pe = new PopupIncludeEditor(p, f);
 		pe->addMouseListener(this, true);
 
+#if HISE_USE_NEW_CODE_EDITOR
+        if(scaleFactor != -1.0f)
+            pe->getEditor()->editor.setScaleFactor(scaleFactor);
+
+        pe->getEditor()->loadSettings(settings);
+#endif
+        
 		if(auto ed = pe->getEditor())
 			getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 
