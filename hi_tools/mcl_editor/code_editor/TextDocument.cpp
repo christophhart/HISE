@@ -888,9 +888,10 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 		}
 		break;
 	}
+	case Target::lineUntilBreak:
 	case Target::line:
 	{
-		auto isLineBreak = getNumLinesForRow(i.x) > 1;
+		auto isLineBreak = getNumLinesForRow(i.x) > 1 && target == Target::lineUntilBreak;
 
 		if (isLineBreak)
 		{

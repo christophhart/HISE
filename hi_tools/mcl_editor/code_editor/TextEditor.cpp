@@ -1757,12 +1757,15 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 #if JUCE_WINDOWS
     // Home/End: End / start of line
 	if (key.isKeyCode(KeyPress::homeKey)) return nav(mods, Target::firstnonwhitespace, Direction::backwardCol);
-	if (key.isKeyCode(KeyPress::endKey))  return nav(mods, Target::line, Direction::forwardCol);
+	if (key.isKeyCode(KeyPress::endKey))  return nav(mods, Target::lineUntilBreak, Direction::forwardCol);
 #else
     // Home/End: Scroll to beginning
     if (key.isKeyCode(KeyPress::homeKey)) return nav (mods, Target::document, Direction::forwardRow);
     if (key.isKeyCode(KeyPress::endKey))  return nav (mods, Target::document, Direction::backwardRow);
 #endif
+
+	if (key == KeyPress('+', ModifierKeys::commandModifier, 0)) { scaleView(1.1f, false); return true; }
+	if (key == KeyPress('-', ModifierKeys::commandModifier, 0)) { scaleView(0.9f, false); return true; }
 
     if (key == KeyPress ('a', ModifierKeys::commandModifier, 0)) return expand (Target::document);
 	if (key == KeyPress('d', ModifierKeys::commandModifier, 0))  return addNextTokenToSelection();
