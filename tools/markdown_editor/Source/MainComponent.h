@@ -128,7 +128,8 @@ public:
         
         return false;
     }
-    
+	void saveIfChanged(bool silent = false);
+
 private:
 
     void addKeyCommand(int k, ModifierKeys m, const std::function<void()>& f)

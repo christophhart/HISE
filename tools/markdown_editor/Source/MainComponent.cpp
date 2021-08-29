@@ -429,9 +429,10 @@ void MainContentComponent::menuItemSelected(int menuItemID, int topLevelMenuInde
 			break;
 		}
 		case 3:
-            currentFile.replaceWithText(doc.getAllContent());
+			saveIfChanged(true);
 			break;
 		case 4:
+			
 			JUCEApplication::quit();
 			break;
 		default:
@@ -463,6 +464,37 @@ void MainContentComponent::menuItemSelected(int menuItemID, int topLevelMenuInde
 	}
 }
 
+void MainContentComponent::saveIfChanged(bool silent)
+{
+	if (!currentFile.existsAsFile())
+	{
+		if (silent)
+		{
+			FileChooser fc("Save file", rootDirectory, "*.md");
+
+			if (fc.browseForFileToSave(true))
+			{
+				auto f = fc.getResult();
+				f.replaceWithText(doc.getAllContent().withCleanedLineEndings());
+				applySetting(SettingIds::CurrentFile, f.getFullPathName());
+			}
+		}
+
+		return;
+	}
+		
+
+	auto fileContent = currentFile.loadFileAsString().withCleanedLineEndings();
+	auto currentContent = doc.getAllContent().withCleanedLineEndings();
+
+	auto hasChanged = fileContent.hashCode64() != currentContent.hashCode64();
+
+	if (hasChanged && (silent || AlertWindow::showOkCancelBox(AlertWindow::QuestionIcon, "Overwrite file", "Do you want to overwrite the file " + currentFile.getFullPathName())))
+	{
+		currentFile.replaceWithText(currentContent);
+	}
+}
+
 void MainContentComponent::applySetting(const Identifier& id, var newValue)
 {
 	currentSettings.getDynamicObject()->setProperty(id, newValue);
@@ -480,8 +512,6 @@ void MainContentComponent::applySetting(const Identifier& id, var newValue)
         
         editor.setVisible(newValue);
         resized();
-        
-        
         
         if(lineToShow != -1)
             editor.editor.setFirstLineOnScreen(lineToShow);
@@ -509,6 +539,7 @@ void MainContentComponent::applySetting(const Identifier& id, var newValue)
 		}
 
 		setFile(f);
+		editor.grabKeyboardFocusAsync();
 	}
     if(id == SettingIds::DarkPreview)
     {
@@ -601,9 +632,9 @@ void MainContentComponent::synchroniseTabs(bool editorIsSource)
 
 void MainContentComponent::setFile(const File& f)
 {
-	auto text = f.loadFileAsString();
+	saveIfChanged();
 
-	text = text.removeCharacters("\r");
+	auto text = f.loadFileAsString().withCleanedLineEndings();
 
 	currentFile = f;
 	tdoc.getCodeDocument().replaceAllContent(text);
