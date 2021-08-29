@@ -276,11 +276,8 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 			currentAutoComplete->setInput(input, tokenBefore, lineNumber);
 		else
 		{
-            if(showAutocompleteAfterDelay || forceShow)
-            {
-                parent->addAndMakeVisible(currentAutoComplete = new Autocomplete(tokenCollection, input, tokenBefore, lineNumber, this));
-                addKeyListener(currentAutoComplete);
-            }
+			parent->addAndMakeVisible(currentAutoComplete = new Autocomplete(tokenCollection, input, tokenBefore, lineNumber, this));
+			addKeyListener(currentAutoComplete);
 		}
 
         if(currentAutoComplete == nullptr)
