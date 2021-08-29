@@ -411,7 +411,9 @@ public:
 
 			updateSelections();
 
-            autocompleteTimer.startAutocomplete();
+            if(rangeToInvalidate.getLength() != 0 &&
+               rangeToInvalidate.getLength() != document.getNumRows())
+                autocompleteTimer.startAutocomplete();
 			
 			updateViewTransform();
 
@@ -808,6 +810,7 @@ private:
 	float xPos = 0.0f;
 
 	bool autocompleteEnabled = true;
+    bool showAutocompleteAfterDelay = false;
 	
 	Selection currentClosure[2];
 

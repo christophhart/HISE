@@ -276,10 +276,16 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 			currentAutoComplete->setInput(input, tokenBefore, lineNumber);
 		else
 		{
-			parent->addAndMakeVisible(currentAutoComplete = new Autocomplete(tokenCollection, input, tokenBefore, lineNumber, this));
-			addKeyListener(currentAutoComplete);
+            if(showAutocompleteAfterDelay || forceShow)
+            {
+                parent->addAndMakeVisible(currentAutoComplete = new Autocomplete(tokenCollection, input, tokenBefore, lineNumber, this));
+                addKeyListener(currentAutoComplete);
+            }
 		}
 
+        if(currentAutoComplete == nullptr)
+            return;
+        
 		auto sToUse = input.isEmpty() ? o.translated(0, 1) : s;
 
 		auto cBounds = document.getBoundsOnRow(sToUse.x, { sToUse.y, sToUse.y + 1 }, GlyphArrangementArray::ReturnLastCharacter).getRectangle(0);
@@ -551,6 +557,7 @@ void TextEditor::setLanguageManager(LanguageManager* ownedLanguageManager)
 	if (languageManager != nullptr)
 	{
 		tokenCollection.clearTokenProviders();
+        tokenCollection.addTokenProvider(new SimpleDocumentTokenProvider(document.getCodeDocument()));
 		ownedLanguageManager->addTokenProviders(&tokenCollection);
 		setCodeTokeniser(languageManager->createCodeTokeniser());
 		ownedLanguageManager->setupEditor(this);
@@ -959,6 +966,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			Goto,
 			LineBreaks,
 			Whitespace,
+            AutoAutocomplete,
 			BackgroundParsing,
 			Preprocessor,
 			numCommands
@@ -989,7 +997,8 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 		menu.addItem(UnfoldAll, "Unfold all", true, false);
 		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
 		menu.addItem(Whitespace, "Show whitespace", true, showWhitespace);
-
+        menu.addItem(AutoAutocomplete, "Autoshow Autocomplete", true, showAutocompleteAfterDelay);
+        
 		menu.addSeparator();
 
 		for (const auto& pf : popupMenuFunctions)
@@ -1025,6 +1034,9 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			case LineBreaks: 
 				setLineBreakEnabled(!linebreakEnabled);
 				break;
+            case AutoAutocomplete:
+                showAutocompleteAfterDelay = !showAutocompleteAfterDelay;
+                break;
 			case Whitespace:
 				showWhitespace = !showWhitespace;
 				repaint();
