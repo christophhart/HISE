@@ -41,7 +41,7 @@ void LinebreakDisplay::paint(Graphics& g)
 		yPos = document.getVerticalPosition(i, mcl::TextDocument::Metric::top);
 		int numLines = document.getNumLinesForRow(i) - 1;
 
-		g.setColour(Colours::grey);
+		g.setColour(Colours::white.withAlpha(0.1f));
 
 		for (int i = 0; i < numLines; i++)
 		{

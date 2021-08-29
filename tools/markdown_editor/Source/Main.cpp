@@ -35,12 +35,19 @@ public:
     {
         // Add your application's shutdown code here..
 
+		
+
         mainWindow = nullptr; // (deletes our window)
     }
 
     //==============================================================================
     void systemRequestedQuit() override
     {
+		if (auto mcc = dynamic_cast<MainContentComponent*>(mainWindow->getContentComponent()))
+			mcc->saveIfChanged();
+
+		LookAndFeel::setDefaultLookAndFeel(nullptr);
+
         // This is called when the app is being asked to quit: you can ignore this
         // request and let the app carry on running, or call quit() to allow the app to close.
         quit();
@@ -66,6 +73,7 @@ public:
                                                                           .findColour (ResizableWindow::backgroundColourId),
                                                     DocumentWindow::allButtons)
         {
+			LookAndFeel::setDefaultLookAndFeel(alaf = new AlertWindowLookAndFeel());
             setUsingNativeTitleBar (true);
             setContentOwned (new MainContentComponent(), true);
 
@@ -91,10 +99,14 @@ public:
         */
 
     private:
+
+		ScopedPointer<AlertWindowLookAndFeel> alaf;
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindow)
     };
 
 private:
+
+	
     ScopedPointer<MainWindow> mainWindow;
 };
 
