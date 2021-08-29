@@ -555,6 +555,7 @@ void TextEditor::setLanguageManager(LanguageManager* ownedLanguageManager)
 		setCodeTokeniser(languageManager->createCodeTokeniser());
 		ownedLanguageManager->setupEditor(this);
 		tokenCollection.signalRebuild();
+        updateLineRanges();
 	}
 }
 
@@ -1367,13 +1368,16 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 			Point<int> end = s.head;
 			Point<int> start = end;
+            end.y++;
 			document.navigate(start, Target::line, Direction::backwardCol);
-			document.navigate(end, Target::character, Direction::backwardCol);
+			document.navigate(end, Target::firstnonwhitespace, Direction::backwardCol);
 
 			Selection emptyBeforeText(end, start);
 
 			auto s = document.getSelectionContent(emptyBeforeText);
 
+            
+            
 			ws << s;
 			t << s;
 

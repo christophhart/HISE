@@ -392,6 +392,12 @@ public:
 
 	void closeAutocomplete(bool async, const String& textToInsert, Array<Range<int>> selectRanges);
 
+    void updateLineRanges()
+    {
+        auto ranges = languageManager->createLineRange(document.getCodeDocument());
+        document.getFoldableLineRangeHolder().setRanges(ranges);
+    }
+    
 	void updateAfterTextChange(Range<int> rangeToInvalidate = Range<int>())
 	{
 		if (!skipTextUpdate)
@@ -400,8 +406,7 @@ public:
 		
 			if (languageManager != nullptr && rangeToInvalidate.getLength() > 1)
 			{
-				auto ranges = languageManager->createLineRange(document.getCodeDocument());
-				document.getFoldableLineRangeHolder().setRanges(ranges);
+                updateLineRanges();
 			}
 
 			updateSelections();
