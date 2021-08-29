@@ -597,6 +597,50 @@ private:
 	{
 		lastInsertWasDouble = false;
 
+		bool isLineSwap = mods.isCommandDown() && mods.isShiftDown() && (direction == TextDocument::Direction::backwardRow ||
+			direction == TextDocument::Direction::forwardRow);
+
+		if (mods.isCommandDown() && mods.isShiftDown() && target == TextDocument::Target::word)
+			return true;
+
+		if (isLineSwap && document.getNumSelections() == 1)
+		{
+			
+
+			auto prevSelection = document.getSelection(0).oriented();
+
+			auto up = direction == TextDocument::Direction::backwardRow;
+
+			document.setSelection(0, prevSelection, true);
+
+			if(prevSelection.head.y != 0)
+				document.navigateSelections(TextDocument::Target::line, TextDocument::Direction::backwardCol, Selection::Part::head);
+
+			document.navigateSelections(TextDocument::Target::line, TextDocument::Direction::forwardCol, Selection::Part::tail);
+			document.navigateSelections(TextDocument::Target::character, TextDocument::Direction::forwardCol, Selection::Part::tail);
+
+			auto content = document.getSelectionContent(document.getSelection(0));
+
+			insert("");
+
+			auto s = document.getSelection(0).oriented();
+
+			auto delta = up ? -1 : 1;
+
+			s.head.x += delta;
+			s.tail.x += delta;
+
+			document.setSelection(0, s, true);
+			insert(content);
+
+			prevSelection.head.x += delta;
+			prevSelection.tail.x += delta;
+
+			document.setSelection(0, prevSelection, true);
+
+			return true;
+		}
+
 		if (mods.isShiftDown())
 			document.navigateSelections(target, direction, Selection::Part::head);
 		else

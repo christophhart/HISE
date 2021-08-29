@@ -58,7 +58,7 @@ MainComponent::MainComponent() :
 		provider = new snex::ui::SnexPlayground::TestCodeProvider(*playground, {});
 		data->setCodeProvider(provider, sendNotification);
 
-		playground->setFullTokenProviders();
+		
 	}
 
 	context.attachTo(*this);

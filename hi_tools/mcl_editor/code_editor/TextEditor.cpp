@@ -479,7 +479,10 @@ bool TextEditor::cut()
 		move = true;
 	}
 
-	SystemClipboard::copyTextToClipboard(document.getSelectionContent(s));
+	auto content = document.getSelectionContent(s);
+
+	if(content.containsNonWhitespaceChars())
+		SystemClipboard::copyTextToClipboard(content);
 
 	insert("");
 
