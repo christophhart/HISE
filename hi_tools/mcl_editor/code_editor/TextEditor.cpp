@@ -1143,7 +1143,7 @@ void mcl::TextEditor::mouseDrag (const MouseEvent& e)
 				multiLineSelections.add({ i, current.y, i, start.y});
 			}
 
-			document.setSelections(multiLineSelections, false);
+			document.setSelections(multiLineSelections, true);
 			updateSelections();
 		}
 		else
@@ -1154,7 +1154,7 @@ void mcl::TextEditor::mouseDrag (const MouseEvent& e)
 			pos.x = jmax(pos.x, gutter.getGutterWidth() + 5);
 
 			selection.head = document.findIndexNearestPosition(pos.transformedBy(transform.inverted()));
-			document.setSelections({ selection }, false);
+			document.setSelections({ selection }, true);
 			translateToEnsureCaretIsVisible();
 			updateSelections();
 		}
@@ -1526,11 +1526,19 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 	auto addNextTokenToSelection = [this]()
 	{
-		auto s = document.getSelections().getLast().oriented();
+        auto s = document.getSelections().getLast();
 		
+        bool isOriented = s.isOriented();
+        
+        s = s.oriented();
+        
 		CodeDocument::Position start(document.getCodeDocument(), s.head.x, s.head.y);
 		CodeDocument::Position end(document.getCodeDocument(), s.tail.x, s.tail.y);
 
+        
+        
+        //document.setSelection(document.getNumSelections()-1, s, true);
+        
 		auto t = document.getCodeDocument().getTextBetween(start, end);
 
 		while (start.getPosition() < document.getCodeDocument().getNumCharacters())
@@ -1544,9 +1552,12 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 			{
 				Selection s(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
 
-				
+                
+                
+				if(isOriented != s.isOriented())
+                    s = s.swapped();
 
-				document.addSelection(s.swapped());
+				document.addSelection(s);
 				translateToEnsureCaretIsVisible();
 				updateSelections();
 				return true;
@@ -1804,7 +1815,14 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     if (key == KeyPress ('a', ModifierKeys::commandModifier, 0)) return expand (Target::document);
 	if (key == KeyPress('d', ModifierKeys::commandModifier, 0))  return addNextTokenToSelection();
     if (key == KeyPress ('l', ModifierKeys::commandModifier, 0)) return expand (Target::line);
-    if (key == KeyPress ('u', ModifierKeys::commandModifier, 0)) return addSelectionAtNextMatch();
+    if (key == KeyPress ('u', ModifierKeys::commandModifier, 0))
+    {
+        return document.viewUndoManager.undo();
+    }
+    if (key == KeyPress ('u', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0))
+    {
+        return document.viewUndoManager.redo();
+    }
     if (key == KeyPress ('z', ModifierKeys::commandModifier, 0))
     {
         return document.getCodeDocument().getUndoManager().undo();
