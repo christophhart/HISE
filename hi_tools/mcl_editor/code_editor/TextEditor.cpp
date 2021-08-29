@@ -352,11 +352,18 @@ void TextEditor::setScaleFactor(float newFactor)
 
 	updateViewTransform();
 
-	auto newPos = pos.transformedBy(transform);
-
-	auto dy = newPos.y - posOnScreen.y;
-
-	translateView(0.0f, -dy);
+    Point<float> newPos;
+    
+    if(!linebreakEnabled)
+        newPos = pos.transformedBy(transform);
+    else
+    {
+        newPos = document.getPosition(currentLine, TextDocument::Metric::baseline);
+        newPos = newPos.transformedBy(transform);
+    }
+    
+    auto dy = newPos.y - posOnScreen.y;
+    translateView(0.0f, -dy);
 }
 
 void TextEditor::closeAutocomplete(bool async, const String& textToInsert, Array<Range<int>> selectRanges)
