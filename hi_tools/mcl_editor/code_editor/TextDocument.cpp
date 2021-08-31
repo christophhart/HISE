@@ -837,6 +837,14 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 		}
 		else
 		{
+            if(direction == Direction::forwardCol)
+            {
+                while(CF::isWhitespace(get(i)) && navigateLeftRight(i, true))
+                    ;
+                    
+                return;
+            }
+            
 			if (i.y != 0 && get(i) == '\n' && direction == Direction::backwardCol)
 			{
 				navigateLeftRight(i, false);
