@@ -166,16 +166,18 @@ void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& t
 		{
 			if (text[i] == '\t')
 			{
-                int numToAdd = 0;
-                int width = numSpacePerTab - (column) % 4;
+                float numToAdd = 0.0f;
+                float width = (float)(numSpacePerTab - (column) % 4);
                 
                 if(fixWeirdTab)
                 {
+				    
+
                     numToAdd = (width)* spaceWidth;
                 }
                 else
                 {
-                    numToAdd = (width - 1) * spaceWidth;
+                    numToAdd = (width - 1.0f) * spaceWidth;
                 }
                 
 				for (int j = i+1; j < textLen; j++)
