@@ -555,8 +555,37 @@ public:
 			repaintUpdater.triggerAsyncUpdate();
 	}
 
-	
-
+	struct InplaceDebugValue
+    {
+        Identifier callback;
+        int lineNumber;
+        String value;
+    };
+    
+    void addInplaceDebugValue(const Identifier& callback, int lineNumber, const String& value)
+    {
+        inplaceBroadcaster.sendMessage(sendNotificationAsync, callback, lineNumber);
+        
+        for(auto& v: inplaceValues)
+        {
+            if(v.callback == callback && v.lineNumber == lineNumber)
+            {
+                v.value = value;
+                return;
+            }
+        }
+        
+        InplaceDebugValue newValue;
+        newValue.callback = callback;
+        newValue.lineNumber = lineNumber;
+        newValue.value = value;
+        
+        inplaceValues.add(newValue);
+    }
+    
+    Array<InplaceDebugValue> inplaceValues;
+    LambdaBroadcaster<Identifier, int> inplaceBroadcaster;
+    
 	virtual void fileChanged() override;
 
 	void compileScript(const ResultFunction& f = ResultFunction());

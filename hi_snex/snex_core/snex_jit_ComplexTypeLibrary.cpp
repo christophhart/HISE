@@ -338,6 +338,11 @@ juce::Result SpanType::initialise(InitData d)
 {
 	juce::String e;
 
+	if (d.initValues == nullptr)
+	{
+		return Result::fail("no init values");
+	}
+
 	if (d.initValues->size() != size && d.initValues->size() != 1)
 	{
 
@@ -473,7 +478,10 @@ void DynType::dumpTable(juce::String& s, int& intentLevel, void* dataStart, void
 	
 
 	s << "\t{ size: " << juce::String(numElements);
+
+#if SNEX_INCLUDE_MEMORY_ADDRESS_IN_DUMP
 	s << ", data: 0x" << String::toHexString(reinterpret_cast<uint64_t>(actualDataPointer)).toUpperCase();
+#endif
 	//s << "\t Absolute: " << String::toHexString(reinterpret_cast<uint64_t>(bytePtr) + 8) << "\n";
 	
 	s << " }\n";

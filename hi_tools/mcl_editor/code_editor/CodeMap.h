@@ -298,6 +298,8 @@ public:
 
 		void mouseDoubleClick(const MouseEvent& e) override;
 
+		void setSelected(bool shouldBeSelected, bool grabFocus);
+
 		void resized() override
 		{
 			int y = Height;
@@ -438,6 +440,8 @@ public:
 		doc.removeSelectionListener(this);
 	}
 
+	bool keyPressed(const KeyPress& k) override;
+
 	int getBestWidth() const
 	{
 		Font f(Font::getDefaultMonospacedFontName(), 13.0f, Font::bold);
@@ -449,7 +453,7 @@ public:
 			maxWidth = jmax(maxWidth, i->bestWidth + JUCE_LIVE_CONSTANT_OFF(35));
 		}
 
-		return maxWidth;
+		return maxWidth + 10;
 	}
 
 	void foldStateChanged(FoldableLineRange::WeakPtr rangeThatHasChanged) override
@@ -459,7 +463,8 @@ public:
 
 	void paint(Graphics& g) override
 	{
-		g.fillAll(Colours::black.withAlpha(0.3f));
+		g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xe3212121)));
+
 	}
 
 	void rootWasRebuilt(FoldableLineRange::WeakPtr rangeThatHasChanged) override
@@ -510,7 +515,11 @@ public:
 	void resized() override
 	{
 		updateSize();
-		vp.setBounds(getLocalBounds());
+
+		auto b = getLocalBounds();
+		b.removeFromLeft(10);
+
+		vp.setBounds(b);
 	}
 
 	Viewport vp;
@@ -677,7 +686,7 @@ public:
 			rebuild();
 	}
 
-	bool dirty = false;
+	bool dirty = true;
 	bool allowHover = true;
 
 	float currentAnimatedLine = -1.0f;

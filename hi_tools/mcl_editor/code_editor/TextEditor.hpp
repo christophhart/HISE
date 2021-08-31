@@ -448,6 +448,9 @@ public:
 
 	void searchItemsChanged() override
 	{
+		if (document.getNumSelections() == 0)
+			return;
+
 		auto selectedLine = document.getSelection(0).head.x;
 
 		Range<int> visibleLines = document.getRangeOfRowsIntersecting(getLocalBounds().toFloat().transformed(transform.inverted()));
@@ -548,7 +551,7 @@ private:
         
         void startAutocomplete()
         {
-            auto updateSpeed = parent.currentAutoComplete != nullptr ? 30 : 600;
+            auto updateSpeed = parent.currentAutoComplete != nullptr ? 30 : 400;
 
 			if(parent.showAutocompleteAfterDelay || parent.currentAutoComplete != nullptr)
 				startTimer(updateSpeed);
@@ -604,11 +607,24 @@ private:
 	{
 		lastInsertWasDouble = false;
 
+
+
 		bool isLineSwap = mods.isCommandDown() && mods.isShiftDown() && (direction == TextDocument::Direction::backwardRow ||
 			direction == TextDocument::Direction::forwardRow);
 
+		auto currentSelection = document.getSelection(0).oriented();
+
+		auto up = direction == TextDocument::Direction::backwardRow;
+
+		Range<int> currentLineRange(currentSelection.head.x, currentSelection.tail.x);
+
+		isLineSwap &= (currentLineRange.getStart() > 0 || !up);
+		isLineSwap &= (currentLineRange.getEnd() < (document.getNumRows()-1) || up);
+
 		if (mods.isCommandDown() && mods.isShiftDown() && target == TextDocument::Target::word)
 			return true;
+
+
 
 		if (isLineSwap && document.getNumSelections() == 1)
 		{
@@ -616,7 +632,7 @@ private:
 
 			auto prevSelection = document.getSelection(0).oriented();
 
-			auto up = direction == TextDocument::Direction::backwardRow;
+			
 
 			document.setSelection(0, prevSelection, true);
 

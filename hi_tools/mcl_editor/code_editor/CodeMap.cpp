@@ -133,6 +133,8 @@ void mcl::CodeMap::mouseDown(const MouseEvent& e)
 		}
 		if (r == 3)
 			allowHover = !allowHover;
+
+		return;
 	}
 
 	if (preview != nullptr)
@@ -190,7 +192,7 @@ juce::Rectangle<int> mcl::CodeMap::getPreviewBounds(const MouseEvent& e)
 
 void mcl::CodeMap::paint(Graphics& g)
 {
-	g.fillAll(Colours::black.withAlpha(0.3f));
+	//g.fillAll(Colour(0xe3212121));
 
 	if (!isActive())
 	{
@@ -351,7 +353,6 @@ void mcl::CodeMap::setVisibleRange(Range<int> visibleLines)
 
 void mcl::CodeMap::rebuild()
 {
-	
 	colouredRectangles.clear();
 
 	if (!isActive() || !isShowing())
@@ -426,7 +427,7 @@ void mcl::CodeMap::rebuild()
 		}
 	}
 
-
+	setVisibleRange(displayedLines);
 
 	repaint();
 }
@@ -569,15 +570,23 @@ void mcl::CodeMap::HoverPreview::setCenterRow(int newCenterRow)
 
 void FoldMap::Item::mouseDoubleClick(const MouseEvent& e)
 {
-	clicked = true;
-	auto line = p->getLineRange().getStart()+1;
+	setSelected(true, true);
+}
 
-	auto& doc = findParentComponentOfClass<FoldMap>()->doc;
-	
-	doc.setDisplayedLineRange(p->getLineRange());
-	doc.jumpToLine(line);
+void FoldMap::Item::setSelected(bool shouldBeSelected, bool grabFocus)
+{
+	clicked = shouldBeSelected;
 
-	findParentComponentOfClass<FullEditor>()->editor.grabKeyboardFocusAndActivateTokenBuilding();
+	if (clicked)
+	{
+		auto line = p->getLineRange().getStart() + 1;
+		auto& doc = findParentComponentOfClass<FoldMap>()->doc;
+		doc.setDisplayedLineRange(p->getLineRange());
+		doc.jumpToLine(line);
+
+		if (grabFocus)
+			findParentComponentOfClass<FullEditor>()->editor.grabKeyboardFocusAndActivateTokenBuilding();
+	}
 
 	repaint();
 }
@@ -596,6 +605,59 @@ juce::CodeTokeniser* CodeMap::getTokeniser()
 		return fe->editor.tokeniser;
 
 	return nullptr;
+}
+
+void addItem(Array<FoldMap::Item*>& list, FoldMap::Item* item)
+{
+	if (item == nullptr)
+		return;
+
+	list.add(item);
+
+	for (auto c : item->children)
+	{
+		addItem(list, c);
+	}
+}
+
+bool FoldMap::keyPressed(const KeyPress& k)
+{
+	if (k == KeyPress::upKey || k == KeyPress::downKey)
+	{
+		Array<Item*> allItems;
+		
+		for (auto i : items)
+			addItem(allItems, i);
+
+		bool up = k == KeyPress::upKey;
+
+		for (int i = allItems.size() - 1; i >= 0; --i)
+		{
+			auto thisItem = allItems[i];
+			auto nextItem = allItems[i + 1];
+			auto prevItem = allItems[i - 1];
+
+			jassert(thisItem != nullptr);
+
+			if (up && nextItem != nullptr && nextItem->isBoldLine)
+			{
+				nextItem->setSelected(false, false);
+				thisItem->setSelected(true, false);
+				return true;
+			}
+
+			if (!up && nextItem != nullptr && thisItem->isBoldLine)
+			{
+				thisItem->setSelected(false, false);
+				nextItem->setSelected(true, false);
+				return true;
+			}
+		}
+
+		repaint();
+	}
+
+	return false;
 }
 
 }

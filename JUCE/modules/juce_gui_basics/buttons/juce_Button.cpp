@@ -331,9 +331,12 @@ void Button::clicked (const ModifierKeys&)
 
 enum { clickMessageId = 0x2f3f4f99 };
 
-void Button::triggerClick()
+void Button::triggerClick(NotificationType notificationType)
 {
-    postCommandMessage (clickMessageId);
+	if (notificationType == sendNotificationSync)
+		handleCommandMessage(clickMessageId);
+	else
+		postCommandMessage (clickMessageId);
 }
 
 void Button::internalClickCallback (const ModifierKeys& modifiers)

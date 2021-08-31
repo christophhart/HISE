@@ -477,6 +477,7 @@ public:
 		character,
 		subword,
 		cppToken,
+		commandTokenNav, // used for all keypresses with cmd
 		subwordWithPoint,
 		word,
 		firstnonwhitespace,
@@ -873,7 +874,14 @@ public:
 
 			Selection ss(sourceLine, sourceLine);
 
+			auto newRange = currentlyDisplayedLineRange.movedToStartAt(lineNumber - currentlyDisplayedLineRange.getLength() / 2 - 4);
+
+			setDisplayedLineRange(newRange);
+
 			setSelections({ ss }, true);
+
+
+
 			return true;
 		}
 
@@ -968,6 +976,17 @@ struct LanguageManager
 
 	virtual FoldableLineRange::List createLineRange(const juce::CodeDocument& doc);
 
+    struct InplaceDebugValue
+    {
+        Point<int> location;
+        String value;
+    };
+    
+    virtual bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const
+    {
+        return false;
+    }
+    
 	virtual void processBookmarkTitle(juce::String& bookmarkTitle) = 0;
 
 	/** Add all token providers you want to use for this language. */

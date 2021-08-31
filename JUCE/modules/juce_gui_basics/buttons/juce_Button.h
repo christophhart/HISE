@@ -202,7 +202,7 @@ public:
 
         @see clicked
     */
-    virtual void triggerClick();
+    virtual void triggerClick(NotificationType notificationType=sendNotificationAsync);
 
     //==============================================================================
     /** Sets a command ID for this button to automatically invoke when it's clicked.

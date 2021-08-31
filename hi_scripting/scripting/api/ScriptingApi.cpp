@@ -4829,6 +4829,10 @@ void ScriptingApi::Console::print(var x)
 
 	AudioThreadGuard::Suspender suspender;
 	ignoreUnused(suspender);
+    
+    auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+    jp->addInplaceDebugValue(id, lineNumber, x.toString());
+    
 	debugToConsole(getProcessor(), x);
 #endif
 }
@@ -4849,6 +4853,8 @@ void ScriptingApi::Console::stopBenchmark()
 	const double ms = (now - startTime) * 1000.0;
 	startTime = 0.0;
 
+    
+    
 	debugToConsole(getProcessor(), "Benchmark Result: " + String(ms, 3) + " ms");
 #endif
 }

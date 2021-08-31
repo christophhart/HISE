@@ -81,7 +81,7 @@ void mcl::CaretComponent::timerCallback()
 	phase += 3.2e-1;
 
 	for (const auto &r : getCaretRectangles())
-		repaint(r.getSmallestIntegerContainer());
+		repaint(r.getSmallestIntegerContainer().expanded(3));
 }
 
 Array<Rectangle<float>> mcl::CaretComponent::getCaretRectangles() const
