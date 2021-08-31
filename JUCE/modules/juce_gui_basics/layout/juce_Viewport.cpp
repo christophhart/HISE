@@ -596,7 +596,8 @@ bool Viewport::keyPressed (const KeyPress& key)
 {
     const bool isUpDownKey = isUpDownKeyPress (key);
 
-    if (getVerticalScrollBar().isVisible() && isUpDownKey)
+    if (getVerticalScrollBar().isVisible() && isUpDownKey &&
+        getVerticalScrollBar().getWantsKeyboardFocus())
         return getVerticalScrollBar().keyPressed (key);
 
     const bool isLeftRightKey = isLeftRightKeyPress (key);
