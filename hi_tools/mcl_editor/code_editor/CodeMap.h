@@ -298,6 +298,8 @@ public:
 
 		void mouseDoubleClick(const MouseEvent& e) override;
 
+		void setSelected(bool shouldBeSelected, bool grabFocus);
+
 		void resized() override
 		{
 			int y = Height;
@@ -438,6 +440,8 @@ public:
 		doc.removeSelectionListener(this);
 	}
 
+	bool keyPressed(const KeyPress& k) override;
+
 	int getBestWidth() const
 	{
 		Font f(Font::getDefaultMonospacedFontName(), 13.0f, Font::bold);
@@ -460,6 +464,12 @@ public:
 	void paint(Graphics& g) override
 	{
 		g.fillAll(Colours::black.withAlpha(0.3f));
+
+		if (hasKeyboardFocus(true))
+		{
+			g.setColour(Colour(SIGNAL_COLOUR));
+			g.fillRect(0, 0, 10, 10);
+		}
 	}
 
 	void rootWasRebuilt(FoldableLineRange::WeakPtr rangeThatHasChanged) override

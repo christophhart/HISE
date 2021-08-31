@@ -136,6 +136,8 @@ struct FullEditor: public Component,
 
 	static mcl::FoldableLineRange::List createMarkdownLineRange(const CodeDocument& doc);
 
+	bool keyPressed(const KeyPress& k) override;
+
 	void buttonClicked(Button* b) override;
 
 	void resized() override;

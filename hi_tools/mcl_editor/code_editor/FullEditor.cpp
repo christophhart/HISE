@@ -82,6 +82,17 @@ FullEditor::FullEditor(TextDocument& d) :
 	addAndMakeVisible(edge);
 }
 
+bool FullEditor::keyPressed(const KeyPress& k)
+{
+	if (k == KeyPress('r', ModifierKeys::commandModifier, 0))
+	{
+		foldButton.triggerClick();
+		return true;
+	}
+
+	return false;
+}
+
 void FullEditor::buttonClicked(Button* b)
 {
 	if (b == &foldButton)
@@ -92,6 +103,11 @@ void FullEditor::buttonClicked(Button* b)
 		foldButton.setToggleStateAndUpdateIcon(false);
 
 	resized();
+
+	if (foldButton.getToggleState())
+		foldMap.grabKeyboardFocusAsync();
+	else
+		editor.grabKeyboardFocusAsync();
 
 	if (foldButton.getToggleState())
 		foldMap.rebuild();

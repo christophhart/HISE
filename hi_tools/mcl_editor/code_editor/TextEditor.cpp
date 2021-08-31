@@ -786,6 +786,7 @@ void mcl::TextEditor::resized()
 	refreshLineWidth();
 	
     highlight.setBounds (b);
+	highlight.updateSelections();
     
     horizontalScrollBar.setVisible(!linebreakEnabled);
     
