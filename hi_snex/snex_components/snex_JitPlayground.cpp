@@ -74,7 +74,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	ed.setPopupLookAndFeel(new hise::PopupLookAndFeel());
 
-	ed.setLanguageManager(new debug::SnexLanguageManager(doc));
+	ed.setLanguageManager(new debug::SnexLanguageManager(doc, getGlobalScope()));
 
 	setName("SNEX Editor");
 
@@ -308,7 +308,7 @@ void SnexPlayground::resized()
 	spacerAssembly.setVisible(assemblyVisible);
 	spacerConsole.setVisible(consoleVisible);
 
-	auto topRight = top.removeFromRight(top.getHeight() * 4);
+	auto topRight = top.removeFromRight(top.getHeight() * 5);
 	
 	
 	auto buttonWidth = topRight.getHeight();

@@ -143,6 +143,8 @@ struct DebugHandler
 	*/
 	virtual void blink(int line) {};
 
+	virtual void recompiled() {};
+
 	/** Override this and change the behaviour for the handler depending on its supposed enablement. */
 	virtual void setEnabled(bool shouldBeEnabled)
 	{
@@ -502,6 +504,14 @@ public:
 	*/
 	uint64_t getRuntimeErrorFlag() { return reinterpret_cast<uint64_t>(&currentRuntimeError.errorType); }
 
+	void sendRecompileMessage()
+	{
+		for (auto dh : debugHandlers)
+		{
+			if (dh != nullptr)
+				dh->recompiled();
+		}
+	}
 
 	bool isRuntimeErrorCheckEnabled() const noexcept { return !optimizationPasses.contains(OptimizationIds::NoSafeChecks); }
 

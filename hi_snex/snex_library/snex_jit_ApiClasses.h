@@ -50,17 +50,17 @@ class ConsoleFunctions : public JitCallableObject
 {
 	struct WrapperInt
 	{
-		JIT_MEMBER_WRAPPER_1(int, ConsoleFunctions, print, int);
+		JIT_MEMBER_WRAPPER_2(int, ConsoleFunctions, print, int, int);
 	};
 
 	struct WrapperDouble
 	{
-		JIT_MEMBER_WRAPPER_1(double, ConsoleFunctions, print, double);
+		JIT_MEMBER_WRAPPER_2(double, ConsoleFunctions, print, double, int);
 	};
 
 	struct WrapperFloat
 	{
-		JIT_MEMBER_WRAPPER_1(float, ConsoleFunctions, print, float);
+		JIT_MEMBER_WRAPPER_2(float, ConsoleFunctions, print, float, int);
 	};
 
 	struct WrapperEvent
@@ -78,33 +78,40 @@ class ConsoleFunctions : public JitCallableObject
 		JIT_MEMBER_WRAPPER_0(void, ConsoleFunctions, dump);
 	};
 	
-	int print(int value)
+	int print(int value, int lineNumber)
 	{
 		if (gs.get() != nullptr && gs->isDebugModeEnabled())
 		{
 			DBG(value);
-			logAsyncIfNecessary(juce::String(value));
+
+			String s;
+			s << "Line " << lineNumber << ": " << value;
+			logAsyncIfNecessary(s);
 		}
 
 		
 		return value;
 	}
-	double print(double value)
+	double print(double value, int lineNumber)
 	{
 		if (gs.get() != nullptr && gs->isDebugModeEnabled())
 		{
 			DBG(value);
-			logAsyncIfNecessary(juce::String(value));
+			String s;
+			s << "Line " << lineNumber << ": " << value;
+			logAsyncIfNecessary(s);
 		}
 
 		return value;
 	}
-	float print(float value)
+	float print(float value, int lineNumber)
 	{
 		if (gs.get() != nullptr && gs->isDebugModeEnabled())
 		{
 			DBG(value);
-			logAsyncIfNecessary(juce::String(value));
+			String s;
+			s << "Line " << lineNumber << ": " << value;
+			logAsyncIfNecessary(s);
 		}
 		return value;
 	}
@@ -120,8 +127,7 @@ class ConsoleFunctions : public JitCallableObject
 				int l = 0;
 				String s;
 
-				s << "Dump object " << ptr->id.toString();
-				s << " at line " << String(ptr->lineNumber) << "\n";
+				s << "Line " << String(ptr->lineNumber) << ": ";
 
 				if (dataPtr != nullptr)
 					ptr->type->dumpTable(s, l, dataPtr, dataPtr);

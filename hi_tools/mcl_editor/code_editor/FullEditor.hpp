@@ -136,11 +136,17 @@ struct FullEditor: public Component,
 
 	static mcl::FoldableLineRange::List createMarkdownLineRange(const CodeDocument& doc);
 
+	bool keyPressed(const KeyPress& k) override;
+
 	void buttonClicked(Button* b) override;
 
 	void resized() override;
 
+	void paint(Graphics& g) override;
+
 	int mapWidth = 150;
+
+	bool overlayFoldMap = false;
 
 	HiseShapeButton mapButton, foldButton;
 	CodeMap codeMap;
@@ -151,7 +157,6 @@ struct FullEditor: public Component,
 	SettingFunction settingFunction;
 
 	juce::ComponentBoundsConstrainer constrainer;
-	ResizableEdgeComponent edge;
 
 	var settings;
 };

@@ -30,7 +30,7 @@ void mcl::TextDocument::replaceAll(const String& content)
 
 int mcl::TextDocument::getNumRows() const
 {
-	return lines.size();
+	return doc.getNumLines();
 }
 
 int mcl::TextDocument::getNumColumns(int row) const
@@ -754,6 +754,54 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 	case Target::punctuation: while (!punctuation.containsChar(get(i)) && advance(i)) {} break;
 
 	case Target::character: advance(i); break;
+	case Target::commandTokenNav:
+	{
+		if (getCharacter(i.translated(0, -1)) == ';' && direction == Direction::backwardCol)
+			advance(i);
+
+		auto shouldSkipBracket = false;
+
+		do
+		{
+			if (direction == TextDocument::Direction::backwardCol)
+				shouldSkipBracket = String(")]}\"").containsChar(getCharacter(i.translated(0, -1)));
+			else
+				shouldSkipBracket = String("([{\"").containsChar(getCharacter(i));
+
+			if (shouldSkipBracket)
+				advance(i);
+		} 
+		while (shouldSkipBracket);
+
+		advance(i);
+
+		while (CF::isWhitespace(getCharacter(i)))
+			advance(i);
+
+		
+
+		
+
+		bool didSomething = false;
+
+		while (CharacterFunctions::isLetterOrDigit(getCharacter(i)))
+		{
+			didSomething = true;
+			advance(i);
+		}
+			
+
+		if (direction == TextDocument::Direction::backwardCol)
+		{
+			while (CharacterFunctions::isWhitespace(getCharacter(i)))
+				navigateLeftRight(i, true);
+
+			if(didSomething && !CharacterFunctions::isLetterOrDigit(getCharacter(i)))
+				navigateLeftRight(i, true);
+		}
+
+		break;
+	}
 	case Target::firstnonwhitespace:
 	{
 		auto isLineBreak = getNumLinesForRow(i.x) > 1;

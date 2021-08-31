@@ -330,11 +330,53 @@ struct SymbolProvider : public TokenCollection::Provider
 };
 
 
-struct SnexLanguageManager : public mcl::LanguageManager
+struct SnexLanguageManager : public mcl::LanguageManager,
+							 public snex::jit::DebugHandler
 {
-	SnexLanguageManager(CodeDocument& d) :
+	SnexLanguageManager(CodeDocument& d, snex::GlobalScope& s) :
 		doc(d)
-	{};
+	{
+		s.addDebugHandler(this);
+	};
+
+	Array<LanguageManager::InplaceDebugValue> debugValues;
+
+	void recompiled() override
+	{
+		debugValues.clear();
+	}
+
+	void logMessage(int level, const juce::String& s) override
+	{
+		if (s.startsWith("Line"))
+		{
+			auto lineNumber = s.fromFirstOccurrenceOf("Line ", false, false).getIntValue() - 1;
+			auto value = s.fromFirstOccurrenceOf(":", false, false).trim().replaceCharacter('\t', ' ');
+
+			if (value.length() > 60)
+				value = value.substring(0, 60) + "(...)";
+
+			for (auto& v : debugValues)
+			{
+				if (v.location.x == lineNumber)
+				{
+					v.value = value;
+					return;
+				}
+			}
+
+			InplaceDebugValue newValue;
+			newValue.value = value;
+			newValue.location = { lineNumber, 99 };
+			debugValues.add(newValue);
+		}
+	}
+
+	bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const override
+	{
+		values.addArray(debugValues);
+		return !debugValues.isEmpty();
+	}
 
 	CodeTokeniser* createCodeTokeniser() override
 	{

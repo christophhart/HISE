@@ -155,15 +155,38 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 
 struct JavascriptLanguageManager : public mcl::LanguageManager
 {
-	JavascriptLanguageManager(JavascriptProcessor* jp_):
-		jp(jp_)
-	{};
+	JavascriptLanguageManager(JavascriptProcessor* jp_, const Identifier& callback_, mcl::TextEditor& ed):
+		jp(jp_),
+        callback(callback_)
+	{
+        jp->inplaceBroadcaster.addListener(ed, [](mcl::TextEditor& ed, Identifier, int)
+        {
+            ed.repaint();
+        });
+    };
 
 	CodeTokeniser* createCodeTokeniser() override 
 	{
+        
+        
 		return new JavascriptTokeniser();
 	}
 
+    
+    
+    bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const override
+    {
+        for(const auto& spv: jp->inplaceValues)
+        {
+            if(spv.callback == callback)
+            {
+                values.add({{spv.lineNumber-1, 99}, spv.value});
+            }
+        }
+        
+        return true;
+    }
+    
 	virtual void processBookmarkTitle(juce::String& t)
 	{
 		
@@ -183,6 +206,7 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 	}
 
 	WeakReference<JavascriptProcessor> jp;
+    Identifier callback;
 };
 
 struct GLSLLanguageManager : public mcl::LanguageManager
@@ -211,7 +235,7 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 	auto& ed = getEditor()->editor;
 
 	if (isJavascript)
-		ed.setLanguageManager(new JavascriptLanguageManager(sp));
+		ed.setLanguageManager(new JavascriptLanguageManager(sp, callback, ed));
 	else
 	{
 		ed.setLanguageManager(new GLSLLanguageManager());

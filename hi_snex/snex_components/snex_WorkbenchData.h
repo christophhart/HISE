@@ -1106,6 +1106,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 			rebuild();
 		}
 
+		getGlobalScope().sendRecompileMessage();
+
 		for (auto l : listeners)
 		{
 			if (l != nullptr)

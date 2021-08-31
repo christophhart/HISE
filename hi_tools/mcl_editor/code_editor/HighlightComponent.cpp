@@ -55,15 +55,15 @@ void mcl::HighlightComponent::paintHighlight(Graphics& g)
 	sh.offset = { 0, 3 };
 	//sh.drawForPath(g, outlinePath);
 
-	auto c = highlight.withAlpha(1.0f);
+	auto c = highlight.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.6f));
 
 	auto b = outlinePath.getBounds();
 
 	g.setGradientFill(ColourGradient(c, 0.0f, b.getY(), c.darker(0.05f), 0.0f, b.getBottom(), false));
 	g.fillPath(outlinePath);
 
-	g.setColour(Colour(0xff959595));
-	g.strokePath(outlinePath, PathStrokeType(1.f));
+	g.setColour(Colour(0xff959595).withAlpha(JUCE_LIVE_CONSTANT_OFF(0.2f)));
+	g.strokePath(outlinePath, PathStrokeType(1.0f / transform.getScaleFactor()));
 
 	auto ar = document.getSearchResults();
 

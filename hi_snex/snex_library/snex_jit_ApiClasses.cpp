@@ -452,9 +452,23 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 			{
 				auto nativeType = typeToPrint.getType();
 
+				if (typeToPrint.isRef())
+					d->args[0]->loadMemoryIntoRegister(d->gen.cc);
+
+				d->gen.location.calculatePosition(false, true);
+
+				auto lineNumber = d->gen.location.getLine();
+
+				AsmCodeGenerator::TemporaryRegister tmp(d->gen, d->target->getScope(), Types::ID::Integer);
+
+				tmp.tempReg->setImmediateValue(lineNumber);
+
+				d->args.add(tmp.tempReg);
+
 				FunctionData fToCall;
 				fToCall.returnType = TypeInfo(Types::ID::Void);
-				fToCall.addArgs("args", typeToPrint);
+				fToCall.addArgs("args", nativeType);
+				fToCall.addArgs("lineNumber", Types::ID::Integer);
 				fToCall.object = this;
 
 				switch (nativeType)

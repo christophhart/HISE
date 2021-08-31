@@ -916,6 +916,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 void JavascriptProcessor::compileScript(const ResultFunction& rf /*= ResultFunction()*/)
 {
+    inplaceValues.clearQuick();
+    
 	auto f = [rf](Processor* p)
 	{
 		auto jp = dynamic_cast<JavascriptProcessor*>(p);
