@@ -432,6 +432,8 @@ public:
 		addAndMakeVisible(vp);
 		vp.setColour(ScrollBar::ColourIds::thumbColourId, Colours::white.withAlpha(0.2f));
 		vp.setScrollBarThickness(10);
+        vp.getVerticalScrollBar().setWantsKeyboardFocus(false);
+        vp.setScrollBarsShown(true, false);
 	};
 
 	~FoldMap()

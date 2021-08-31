@@ -1495,6 +1495,10 @@ static void addRecursive(JavascriptProcessor* jp, mcl::TokenCollection::List& to
 			return;
 
 		auto c = ptr->getChildElement(j);
+        
+        if(c == nullptr)
+            break;
+        
 		char s;
 
 		jp->getProviderBase()->getColourAndLetterForType(c->getType(), c2, s);

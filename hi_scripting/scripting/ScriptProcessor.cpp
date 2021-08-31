@@ -761,6 +761,54 @@ hise::JavascriptCodeEditor* JavascriptProcessor::getActiveEditor()
 #endif
 }
 
+void JavascriptProcessor::breakpointWasHit(int index)
+{
+	for (int i = 0; i < breakpoints.size(); i++)
+	{
+		breakpoints.getReference(i).hit = (i == index);
+	}
+
+	for (int i = 0; i < breakpointListeners.size(); i++)
+	{
+		if (breakpointListeners[i].get() != nullptr)
+		{
+			breakpointListeners[i]->breakpointWasHit(index);
+		}
+	}
+
+	if (index != -1)
+		repaintUpdater.triggerAsyncUpdate();
+}
+
+void JavascriptProcessor::addInplaceDebugValue(const Identifier& callback, int lineNumber, const String& value)
+{
+	if (auto sn = getSnippet(callback))
+	{
+		lineNumber--;
+
+		inplaceBroadcaster.sendMessage(sendNotificationAsync, callback, lineNumber);
+
+		for (mcl::LanguageManager::InplaceDebugValue& v : inplaceValues)
+		{
+			if (v.location.getOwner() == sn &&
+				(v.location.getLineNumber() == lineNumber || lineNumber == v.originalLineNumber))
+			{
+				v.value = value;
+				return;
+			}
+		}
+
+
+		mcl::LanguageManager::InplaceDebugValue newValue;
+		newValue.location = CodeDocument::Position(*sn, lineNumber, 99);
+		newValue.originalLineNumber = lineNumber;
+		newValue.value = value;
+
+		inplaceValues.add(newValue);
+		inplaceValues.getReference(inplaceValues.size() - 1).location.setPositionMaintained(true);
+	}
+}
+
 void JavascriptProcessor::fileChanged()
 {
 	compileScript();
