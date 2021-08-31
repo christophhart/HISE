@@ -604,7 +604,7 @@ bool TextDocument::navigateUpDown(juce::Point<int>& index, bool down) const
 
 			// Sometimes the method will not find the correct index (eg. because a long word that
 			// is wrapped), so in this case we just jump to the next line...
-			auto isLastCharacter = newIndex.y == getNumColumns(newIndex.x);
+			auto isLastCharacter = newIndex.y >= getNumColumns(newIndex.x);
 
 			if (sameLine && !isLastCharacter)
 			{
@@ -716,9 +716,13 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 	{
 	case Direction::forwardRow:
 		advance = [this](Point<int>& i) 
-		{ 
+		{
+            auto lastX = i.x;
 			auto ok = navigateUpDown(i, true); 
 
+            if(i.x == lastX)
+                return false;
+            
 			while (foldManager.isFolded(i.x))
 				ok = navigateUpDown(i, true);
 
@@ -976,7 +980,15 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 	}
 	case Target::paragraph: while (getNumColumns(i.x) > 0 && advance(i)) {} break;
 	case Target::scope: jassertfalse; break; // IMPLEMENT ME
-	case Target::document: while (advance(i)) {} break;
+	case Target::document:
+        
+        if(direction == TextDocument::Direction::forwardRow ||
+           direction == TextDocument::Direction::forwardCol)
+            i = { getNumRows()-1, getNumColumns(getNumRows()-1)-1};
+        else
+            i = {0, 0};
+            
+        break;
 	}
 
 }
