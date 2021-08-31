@@ -1342,23 +1342,33 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 			
 			if (e == c)
 			{
-				auto newS = s;
-
-				document.navigate(newS.head, TextDocument::Target::firstnonwhitespace, TextDocument::Direction::backwardCol);
-
-				auto lineContent = document.getSelectionContent(newS);
+                auto line = document.getLine(s.head.x);
+                
+                
+                
+                auto lineBefore = line.substring(0, s.head.y);
+                auto lineAfter = line.substring(s.head.y);
 
 				int delta = 0;
 
-				for (int i = 0; i < lineContent.length(); i++)
+				for (int i = 0; i < lineBefore.length(); i++)
 				{
-					auto thisC = lineContent[i];
+					auto thisC = lineBefore[i];
 
 					if (ActionHelpers::isMatchingClosure(thisC, c))
 						delta++;
 					if (ActionHelpers::isRightClosure(thisC))
 						delta--;
 				}
+                for (int i = 0; i < lineAfter.length(); i++)
+                {
+                    auto thisC = lineAfter[i];
+
+                    if (ActionHelpers::isMatchingClosure(thisC, c))
+                        delta++;
+                    if (ActionHelpers::isRightClosure(thisC))
+                        delta--;
+                }
 
 				if (delta <= 1)
 				{
@@ -1768,10 +1778,19 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 			if (mods.isShiftDown())
 			{
-				// Do not delete if there is no whitespace
-				if (s.head.y == 0)
-					return true;
-
+                if (s.head.y == 0)
+                {
+                    document.navigateSelections(Target::firstnonwhitespace, Direction::forwardCol, Selection::Part::head);
+                    
+                    s = document.getSelection(0);
+                }
+                
+                // Do not delete if there is no whitespace
+                if(s.head.y == 0)
+                    return true;
+                
+                
+					
 				Selection prevFirstLine;
 				prevFirstLine.tail = s.head;
 				prevFirstLine.head = s.head;
