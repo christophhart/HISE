@@ -250,7 +250,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 			auto bPath = bp->createPath();
 			PathFactory::scalePath(bPath, b);
 
-			if (true || bp->enabled.getValue() && breakpointsEnabled)
+			if (bp->enabled.getValue() && breakpointsEnabled)
 			{
 				g.setColour(bp->breakIfHit.getValue() ? Colour(0xFF683333) : Colour(0xFF333368));
 				g.fillPath(bPath);
@@ -259,7 +259,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 			g.setColour(Colours::white.withAlpha(0.4f));
 			g.strokePath(bPath, PathStrokeType(1.0f));
 
-			if (true || *bp == currentBreakLine.getLineNumber() - 1)
+			if (*bp == currentBreakLine.getLineNumber() - 1)
 			{
 				g.strokePath(bPath, PathStrokeType(1.0f));
 				g.setColour(Colours::white);
