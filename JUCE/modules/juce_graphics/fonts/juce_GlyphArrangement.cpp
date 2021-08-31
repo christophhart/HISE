@@ -155,23 +155,46 @@ void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& t
             auto spaceWidth = font.getStringWidthFloat(" ");
             auto startOffset = xOffset;
             
+            int partIndex = 0;
+            
             for(const auto& p: parts)
             {
+                auto tabWidth = spaceWidth * 4.0f;
+                
+                float widthToAdd = 0.0f;
+                
                 if(p.isEmpty())
                 {
-                    glyphs.add(PositionedGlyph (font, 'f', 1000000000,
-                                                xOffset, yOffset, spaceWidth * 4.0f, false));
+                    widthToAdd = tabWidth;
+                    
+                    glyphs.add(PositionedGlyph (font, ' ', 0,
+                                                xOffset, yOffset, widthToAdd, true));
+                    
+                    xOffset += widthToAdd;
                 }
                 else
                 {
                     addCurtailedLineOfText(font, p, xOffset, yOffset, maxWidthPixels, useEllipsis);
+                    
                     xOffset = glyphs.getLast().getRight();
+                    
+                    auto x2 = xOffset - startOffset;
+                    x2 = (std::floor((x2 + 0.5f) / tabWidth) + 1.0f) * tabWidth;
+                    x2 += startOffset;
+                    widthToAdd = x2 - xOffset;
+                    
+                    if(partIndex != parts.size()-1)
+                    {
+                        auto x2 = xOffset;
+                        
+                        glyphs.add(PositionedGlyph (font, ' ', 0,
+                                                    xOffset, yOffset, widthToAdd, true));
+                        
+                        xOffset += widthToAdd;
+                    }
                 }
                 
-                xOffset -= startOffset;
-                auto tabWidth = spaceWidth * 4.0f;
-                xOffset = (std::floor(xOffset / tabWidth) + 1.0f) * tabWidth;
-                xOffset += startOffset;
+                partIndex++;
             }
         }
         else
