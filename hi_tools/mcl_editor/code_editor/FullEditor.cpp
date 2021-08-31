@@ -56,11 +56,9 @@ FullEditor::FullEditor(TextDocument& d) :
 	codeMap(d),
 	foldMap(d),
 	mapButton("goggles", this, factory),
-	foldButton("toc", this, factory),
-	edge(&editor, nullptr, ResizableEdgeComponent::rightEdge)
+	foldButton("toc", this, factory)
 {
 	addAndMakeVisible(editor);
-
 	addAndMakeVisible(foldMap);
 	addAndMakeVisible(codeMap);
 
@@ -78,15 +76,14 @@ FullEditor::FullEditor(TextDocument& d) :
 	initButton(foldButton);
 
 	codeMap.transformToUse = editor.transform;
-
-	addAndMakeVisible(edge);
 }
 
 bool FullEditor::keyPressed(const KeyPress& k)
 {
 	if (k == KeyPress('r', ModifierKeys::commandModifier, 0))
 	{
-		foldButton.triggerClick();
+		ScopedValueSetter<bool> svs(overlayFoldMap, true);
+		foldButton.triggerClick(sendNotificationSync);
 		return true;
 	}
 
@@ -95,11 +92,10 @@ bool FullEditor::keyPressed(const KeyPress& k)
 
 void FullEditor::buttonClicked(Button* b)
 {
-	if (b == &foldButton)
-	{
+	if (b == &foldButton && !overlayFoldMap)
 		mapButton.setToggleStateAndUpdateIcon(false);
-	}
-	else
+	
+	if(b == &mapButton)
 		foldButton.setToggleStateAndUpdateIcon(false);
 
 	resized();
@@ -120,23 +116,27 @@ void FullEditor::resized()
 	codeMap.setVisible(mapButton.getToggleState());
 	foldMap.setVisible(foldButton.getToggleState());
 
+	editor.getVerticalScrollBar().setVisible(!codeMap.isVisible());
+
+	codeMap.preview = nullptr;
+
 	if (codeMap.isVisible())
 	{
 		auto nb = b.removeFromRight(mapWidth);
 		nb.removeFromTop(32);
 		codeMap.setBounds(nb);
-		edge.setBounds(b.removeFromRight(5));
 	}
-	else if (foldMap.isVisible())
+	if (foldMap.isVisible())
 	{
+		auto b2 = b;
 		auto nb = b.removeFromRight(foldMap.getBestWidth());
 		nb.removeFromTop(32);
 		
 		foldMap.setBounds(nb);
-		edge.setBounds(b.removeFromRight(5));
+
+		if (overlayFoldMap)
+			b = b2;
 	}
-	else
-		edge.setVisible(false);
 
 	editor.setBounds(b);
 
@@ -146,6 +146,11 @@ void FullEditor::resized()
 
 	mapButton.setBounds(top.removeFromRight(top.getHeight()).reduced(4));
 	foldButton.setBounds(top.removeFromRight(top.getHeight()).reduced(4));
+}
+
+void FullEditor::paint(Graphics& g)
+{
+	g.fillAll(Helpers::getEditorColour(Helpers::EditorBackgroundColour));
 }
 
 }

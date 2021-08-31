@@ -453,7 +453,7 @@ public:
 			maxWidth = jmax(maxWidth, i->bestWidth + JUCE_LIVE_CONSTANT_OFF(35));
 		}
 
-		return maxWidth;
+		return maxWidth + 10;
 	}
 
 	void foldStateChanged(FoldableLineRange::WeakPtr rangeThatHasChanged) override
@@ -463,13 +463,8 @@ public:
 
 	void paint(Graphics& g) override
 	{
-		g.fillAll(Colours::black.withAlpha(0.3f));
+		g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xe3212121)));
 
-		if (hasKeyboardFocus(true))
-		{
-			g.setColour(Colour(SIGNAL_COLOUR));
-			g.fillRect(0, 0, 10, 10);
-		}
 	}
 
 	void rootWasRebuilt(FoldableLineRange::WeakPtr rangeThatHasChanged) override
@@ -520,7 +515,11 @@ public:
 	void resized() override
 	{
 		updateSize();
-		vp.setBounds(getLocalBounds());
+
+		auto b = getLocalBounds();
+		b.removeFromLeft(10);
+
+		vp.setBounds(b);
 	}
 
 	Viewport vp;
@@ -687,7 +686,7 @@ public:
 			rebuild();
 	}
 
-	bool dirty = false;
+	bool dirty = true;
 	bool allowHover = true;
 
 	float currentAnimatedLine = -1.0f;

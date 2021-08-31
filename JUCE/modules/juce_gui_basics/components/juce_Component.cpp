@@ -2844,7 +2844,10 @@ void Component::grabKeyboardFocusAsync()
 			return;
 
 		if (safeC->isShowing() || safeC->isOnDesktop())
+		{
 			safeC->grabKeyboardFocus();
+			safeC->repaint();
+		}
 	});
 }
 

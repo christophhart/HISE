@@ -133,6 +133,8 @@ void mcl::CodeMap::mouseDown(const MouseEvent& e)
 		}
 		if (r == 3)
 			allowHover = !allowHover;
+
+		return;
 	}
 
 	if (preview != nullptr)
@@ -190,7 +192,7 @@ juce::Rectangle<int> mcl::CodeMap::getPreviewBounds(const MouseEvent& e)
 
 void mcl::CodeMap::paint(Graphics& g)
 {
-	g.fillAll(Colours::black.withAlpha(0.3f));
+	//g.fillAll(Colour(0xe3212121));
 
 	if (!isActive())
 	{
@@ -351,7 +353,6 @@ void mcl::CodeMap::setVisibleRange(Range<int> visibleLines)
 
 void mcl::CodeMap::rebuild()
 {
-	
 	colouredRectangles.clear();
 
 	if (!isActive() || !isShowing())
@@ -426,7 +427,7 @@ void mcl::CodeMap::rebuild()
 		}
 	}
 
-
+	setVisibleRange(displayedLines);
 
 	repaint();
 }

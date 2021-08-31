@@ -874,7 +874,14 @@ public:
 
 			Selection ss(sourceLine, sourceLine);
 
+			auto newRange = currentlyDisplayedLineRange.movedToStartAt(lineNumber - currentlyDisplayedLineRange.getLength() / 2 - 4);
+
+			setDisplayedLineRange(newRange);
+
 			setSelections({ ss }, true);
+
+
+
 			return true;
 		}
 

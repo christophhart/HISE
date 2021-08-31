@@ -142,7 +142,11 @@ struct FullEditor: public Component,
 
 	void resized() override;
 
+	void paint(Graphics& g) override;
+
 	int mapWidth = 150;
+
+	bool overlayFoldMap = false;
 
 	HiseShapeButton mapButton, foldButton;
 	CodeMap codeMap;
@@ -153,7 +157,6 @@ struct FullEditor: public Component,
 	SettingFunction settingFunction;
 
 	juce::ComponentBoundsConstrainer constrainer;
-	ResizableEdgeComponent edge;
 
 	var settings;
 };

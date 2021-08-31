@@ -123,7 +123,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 							showFoldRange = true;
 						}
 
-						g.fillRect(ib);
+						//g.fillRect(ib);
 					}
 				}
 			}
@@ -132,8 +132,10 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 		if ((r.isRowSelected || isErrorLine) && !showFoldRange)
 		{
+			auto b2 = b.withHeight(jmax(b.getHeight(), document.getRowHeight() * scaleFactor));
+
 			g.setColour(ln.contrasting(0.1f));
-			g.fillRect(b);
+			g.fillRect(b2);
 		}
 
 		auto lfb = b;
@@ -149,21 +151,35 @@ void mcl::GutterComponent::paint(Graphics& g)
 		case FoldableLineRange::Holder::RangeStartOpen:
 		case FoldableLineRange::Holder::RangeStartClosed:
 		{
+			g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withBrightness(0.35f));
+
 			auto w = lfb.getWidth() - 4.0f * transform.getScaleFactor();
 			auto box = lfb.withSizeKeepingCentre(w, w);
 
 			box = ug.getRectangleWithFixedPixelWidth(box, (int)box.getWidth());
-			
+
+			if (t == FoldableLineRange::Holder::RangeStartClosed)
+			{
+				g.setColour(Colours::white.withAlpha(0.2f));
+				g.fillRect(box);
+				g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withBrightness(0.7f));
+			}
+
 			g.drawRect(box, 1.0f);
+
 			box = box.reduced(2.0f * transform.getScaleFactor());
 
 			g.drawHorizontalLine(box.getCentreY(), box.getX(), box.getRight());
+
+			
 
 			if (t == FoldableLineRange::Holder::RangeStartClosed)
 			{
 
 				ug.draw1PxHorizontalLine(b.getBottom(), 0.0f, b.getRight());
 				g.drawVerticalLine((int)box.getCentreX(), box.getY(), box.getBottom());
+
+				
 
 			}
 				
@@ -212,7 +228,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 	{
 		if (auto r = getRowData(currentBreakLine.getLineNumber()-1))
 		{
-			auto b = getRowBounds(*r);
+			auto b = getRowBounds(*r).withHeight(document.getRowHeight() * scaleFactor);
 			g.setColour(Colours::red.withAlpha(0.05f));
 			g.fillRect(b.withWidth(getWidth()));
 		}
@@ -222,11 +238,9 @@ void mcl::GutterComponent::paint(Graphics& g)
 	{
 		if (auto r = getRowData(bp->getLineNumber()))
 		{
-			auto b = getRowBounds(*r);
+			auto b = getRowBounds(*r).withHeight(document.getRowHeight() * scaleFactor);
 
-			auto height = document.getCharacterRectangle().getHeight();
-
-			b = b.removeFromLeft(height).withSizeKeepingCentre(height, height).translated(height * 0.2f, 0.0f);
+			b = b.withWidth(b.getHeight()).reduced(JUCE_LIVE_CONSTANT_OFF(6.0f) * scaleFactor);
 
 			auto t = h.getLineType(*bp);
 
@@ -236,7 +250,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 			auto bPath = bp->createPath();
 			PathFactory::scalePath(bPath, b);
 
-			if (bp->enabled.getValue() && breakpointsEnabled)
+			if (true || bp->enabled.getValue() && breakpointsEnabled)
 			{
 				g.setColour(bp->breakIfHit.getValue() ? Colour(0xFF683333) : Colour(0xFF333368));
 				g.fillPath(bPath);
@@ -245,13 +259,13 @@ void mcl::GutterComponent::paint(Graphics& g)
 			g.setColour(Colours::white.withAlpha(0.4f));
 			g.strokePath(bPath, PathStrokeType(1.0f));
 
-			if (*bp == currentBreakLine.getLineNumber() - 1)
+			if (true || *bp == currentBreakLine.getLineNumber() - 1)
 			{
 				g.strokePath(bPath, PathStrokeType(1.0f));
 				g.setColour(Colours::white);
 
 				Path arrow = createArrow();
-				PathFactory::scalePath(arrow, b.reduced(1.0f));
+				PathFactory::scalePath(arrow, b.reduced(2.0f * scaleFactor));
 				g.fillPath(arrow);
 			}
 		}

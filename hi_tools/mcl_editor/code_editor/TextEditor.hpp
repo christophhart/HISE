@@ -551,7 +551,7 @@ private:
         
         void startAutocomplete()
         {
-            auto updateSpeed = parent.currentAutoComplete != nullptr ? 30 : 600;
+            auto updateSpeed = parent.currentAutoComplete != nullptr ? 30 : 400;
 
 			if(parent.showAutocompleteAfterDelay || parent.currentAutoComplete != nullptr)
 				startTimer(updateSpeed);
