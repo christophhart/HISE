@@ -631,6 +631,9 @@ bool FoldMap::keyPressed(const KeyPress& k)
 
 		bool up = k == KeyPress::upKey;
 
+        if(!up && allItems.getLast()->isBoldLine)
+            return false;
+        
 		for (int i = allItems.size() - 1; i >= 0; --i)
 		{
 			auto thisItem = allItems[i];

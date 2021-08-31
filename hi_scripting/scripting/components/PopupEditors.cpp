@@ -176,13 +176,7 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
     
     bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const override
     {
-        for(const auto& spv: jp->inplaceValues)
-        {
-            if(spv.callback == callback)
-            {
-                values.add({{spv.lineNumber-1, 99}, spv.value});
-            }
-        }
+		values.addArray(jp->inplaceValues);
         
         return true;
     }

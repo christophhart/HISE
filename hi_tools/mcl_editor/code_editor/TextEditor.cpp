@@ -881,7 +881,10 @@ void mcl::TextEditor::paint (Graphics& g)
     {
         for(const auto& ip: inplaceDebugValues)
         {
-            auto b = document.getBoundsOnRow(ip.location.x, {ip.location.y, ip.location.y + 1}, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
+			auto line = ip.location.getLineNumber();
+			auto col = ip.location.getIndexInLine();
+
+            auto b = document.getBoundsOnRow(line, {col, col+1}, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
             
             b = b.translated(document.getCharacterRectangle().getWidth() * 1.0f, 0.0f);
             

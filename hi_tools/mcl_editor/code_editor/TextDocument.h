@@ -978,7 +978,8 @@ struct LanguageManager
 
     struct InplaceDebugValue
     {
-        Point<int> location;
+		int originalLineNumber;
+        CodeDocument::Position location;
         String value;
     };
     

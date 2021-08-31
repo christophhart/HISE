@@ -536,54 +536,11 @@ public:
 
 	JavascriptCodeEditor* getActiveEditor() override;
 
-	void breakpointWasHit(int index) override
-	{
-		for (int i = 0; i < breakpoints.size(); i++)
-		{
-			breakpoints.getReference(i).hit = (i == index);
-		}
+	void breakpointWasHit(int index) override;
 
-		for (int i = 0; i < breakpointListeners.size(); i++)
-		{
-			if (breakpointListeners[i].get() != nullptr)
-			{
-				breakpointListeners[i]->breakpointWasHit(index);
-			}
-		}
-
-		if(index != -1)
-			repaintUpdater.triggerAsyncUpdate();
-	}
-
-	struct InplaceDebugValue
-    {
-        Identifier callback;
-        int lineNumber;
-        String value;
-    };
+	void addInplaceDebugValue(const Identifier& callback, int lineNumber, const String& value);
     
-    void addInplaceDebugValue(const Identifier& callback, int lineNumber, const String& value)
-    {
-        inplaceBroadcaster.sendMessage(sendNotificationAsync, callback, lineNumber);
-        
-        for(auto& v: inplaceValues)
-        {
-            if(v.callback == callback && v.lineNumber == lineNumber)
-            {
-                v.value = value;
-                return;
-            }
-        }
-        
-        InplaceDebugValue newValue;
-        newValue.callback = callback;
-        newValue.lineNumber = lineNumber;
-        newValue.value = value;
-        
-        inplaceValues.add(newValue);
-    }
-    
-    Array<InplaceDebugValue> inplaceValues;
+    Array<mcl::LanguageManager::InplaceDebugValue> inplaceValues;
     LambdaBroadcaster<Identifier, int> inplaceBroadcaster;
     
 	virtual void fileChanged() override;

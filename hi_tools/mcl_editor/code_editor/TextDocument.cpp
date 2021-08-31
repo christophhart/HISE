@@ -769,18 +769,21 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 				shouldSkipBracket = String("([{\"").containsChar(getCharacter(i));
 
 			if (shouldSkipBracket)
-				advance(i);
+			{
+				if (!advance(i))
+					break;
+			}
+				
 		} 
 		while (shouldSkipBracket);
 
 		advance(i);
 
 		while (CF::isWhitespace(getCharacter(i)))
-			advance(i);
-
-		
-
-		
+		{
+			if (!advance(i))
+				break;
+		}
 
 		bool didSomething = false;
 
@@ -794,10 +797,17 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 		if (direction == TextDocument::Direction::backwardCol)
 		{
 			while (CharacterFunctions::isWhitespace(getCharacter(i)))
-				navigateLeftRight(i, true);
+			{
+				if (!navigateLeftRight(i, true))
+					break;
+			}
+				
 
-			if(didSomething && !CharacterFunctions::isLetterOrDigit(getCharacter(i)))
-				navigateLeftRight(i, true);
+			if (didSomething && !CharacterFunctions::isLetterOrDigit(getCharacter(i)))
+			{
+				if (!navigateLeftRight(i, true))
+					break;
+			}
 		}
 
 		break;

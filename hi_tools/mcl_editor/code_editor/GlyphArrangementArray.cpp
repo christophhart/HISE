@@ -112,7 +112,7 @@ GlyphArrangement mcl::GlyphArrangementArray::getGlyphs(int index,
 
 	for (int n = 0; n < glyphSource.getNumGlyphs(); ++n)
 	{
-		if (token == -1 || entry->tokens.getUnchecked(n) == token)
+		if (token == -1 || entry->tokens[n] == token)
 		{
 			auto glyph = glyphSource.getGlyph(n);
 

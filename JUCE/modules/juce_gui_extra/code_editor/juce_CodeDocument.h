@@ -179,6 +179,8 @@ public:
         */
         String getLineText() const;
 
+		const CodeDocument* getOwner() const { return owner; }
+
     private:
         CodeDocument* owner = nullptr;
         int characterPos = 0, line = 0, indexInLine = 0;

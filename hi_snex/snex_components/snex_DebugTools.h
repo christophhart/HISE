@@ -358,7 +358,7 @@ struct SnexLanguageManager : public mcl::LanguageManager,
 
 			for (auto& v : debugValues)
 			{
-				if (v.location.x == lineNumber)
+				if (v.location.getLineNumber() == lineNumber)
 				{
 					v.value = value;
 					return;
@@ -367,8 +367,10 @@ struct SnexLanguageManager : public mcl::LanguageManager,
 
 			InplaceDebugValue newValue;
 			newValue.value = value;
-			newValue.location = { lineNumber, 99 };
-			debugValues.add(newValue);
+
+			newValue.location = CodeDocument::Position(doc, lineNumber, 99);
+			debugValues.add(std::move(newValue));
+			(debugValues.getRawDataPointer() + debugValues.size() - 1)->location.setPositionMaintained(true);
 		}
 	}
 
