@@ -477,6 +477,7 @@ public:
 		character,
 		subword,
 		cppToken,
+		commandTokenNav, // used for all keypresses with cmd
 		subwordWithPoint,
 		word,
 		firstnonwhitespace,

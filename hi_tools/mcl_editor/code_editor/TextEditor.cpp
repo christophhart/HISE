@@ -1692,13 +1692,18 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     }
     if (mods.isCtrlDown())
     {
-        if (key.isKeyCode (KeyPress::rightKey)) return nav (mods, Target::whitespace, Direction::forwardCol)  && nav (mods, Target::word, Direction::forwardCol);
-        if (key.isKeyCode (KeyPress::leftKey )) return nav (mods, Target::whitespace, Direction::backwardCol) && nav (mods, Target::word, Direction::backwardCol);
+		if (key.isKeyCode(KeyPress::rightKey)) return nav(mods, Target::commandTokenNav, Direction::forwardCol);
+		if (key.isKeyCode(KeyPress::leftKey))  return nav(mods, Target::commandTokenNav, Direction::backwardCol);
         if (key.isKeyCode (KeyPress::downKey )) return nav (mods, Target::word, Direction::forwardCol)  && nav (mods, Target::paragraph, Direction::forwardRow);
         if (key.isKeyCode (KeyPress::upKey   )) return nav (mods, Target::word, Direction::backwardCol) && nav (mods, Target::paragraph, Direction::backwardRow);
 
-        if (key.isKeyCode (KeyPress::backspaceKey)) return (   expandBack (Target::whitespace, Direction::backwardCol)
-                                                            && expandBack (Target::word, Direction::backwardCol)
+		if (key.isKeyCode(KeyPress::deleteKey) && document.getSelection(0).isSingular())
+		{
+			document.navigateSelections(Target::commandTokenNav, Direction::forwardCol, Selection::Part::head);
+			return insert("");
+		}
+
+        if (key.isKeyCode (KeyPress::backspaceKey)) return (   expandBack (Target::commandTokenNav, Direction::backwardCol)
                                                             && insert (""));
 
 		if (key == KeyPress('e', ModifierKeys::ctrlModifier, 0) ||
