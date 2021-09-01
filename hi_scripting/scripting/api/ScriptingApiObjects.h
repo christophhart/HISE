@@ -1402,6 +1402,12 @@ namespace ScriptingObjects
 		/** loads the file. You can use the wildcard {PROJECT_FOLDER} to get the audio file folder for the current project. */
 		void setFile(String fileName);
 
+		/** Returns the filename (including wildcard) for the currently loaded file. */
+		String getFilename(); 
+
+		/** Returns the samplerange in the form [start, end]. */
+		var getSampleStart();
+
 		/** Returns the length of the current sample selection in samples. */
 		int getSampleLength() const;
 
