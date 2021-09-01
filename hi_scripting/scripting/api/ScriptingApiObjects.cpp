@@ -3265,6 +3265,8 @@ struct ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setSampleRange);
 	API_VOID_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, setFile);
 	API_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, getAudioFile);
+	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getFilename);
+	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getSampleStart);
 };
 
 
@@ -3296,6 +3298,8 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 	ADD_API_METHOD_2(setSampleRange);
 	ADD_API_METHOD_1(setFile);
 	ADD_API_METHOD_1(getAudioFile);
+	ADD_API_METHOD_0(getFilename);
+	ADD_API_METHOD_0(getSampleStart);
 }
 
 
@@ -3372,12 +3376,31 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 	}
 }
 
-void ScriptingObjects::ScriptingAudioSampleProcessor::setSampleRange(int start, int end)
+String ScriptingObjects::ScriptingAudioSampleProcessor::getFilename()
 {
 	if (checkValidObject())
 	{
-		dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getBuffer().setRange(Range<int>(start, end));
+		if (checkValidObject())
+		{
+			return dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getFileName();
+		}
 	}
+
+	return {};
+}
+
+var ScriptingObjects::ScriptingAudioSampleProcessor::getSampleStart()
+{
+	if (checkValidObject())
+		return dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getBuffer().getCurrentRange().getStart();
+
+	return 0;
+}
+
+void ScriptingObjects::ScriptingAudioSampleProcessor::setSampleRange(int start, int end)
+{
+	if (checkValidObject())
+		dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getBuffer().setRange(Range<int>(start, end));
 }
 
 var ScriptingObjects::ScriptingAudioSampleProcessor::getAudioFile(int slotIndex)
