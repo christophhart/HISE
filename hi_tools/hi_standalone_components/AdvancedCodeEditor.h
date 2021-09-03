@@ -558,6 +558,7 @@ struct CommonEditorFunctions
 	static String getCurrentToken(Component* c);
 	static void insertTextAtCaret(Component* c, const String& t);
 	static String getCurrentSelection(Component* c);
+	static void moveCaretTo(Component* c, CodeDocument::Position& pos, bool select);
 };
 
 

@@ -100,53 +100,31 @@ struct GLSLKeywordProvider : public mcl::TokenCollection::Provider
 };
 
 PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit) :
-	sp(s),
+	jp(s),
 	callback(Identifier()),
 	tokeniser(new JavascriptTokeniser())
 {
-	Processor *p = dynamic_cast<Processor*>(sp.get());
-
+	Processor *p = dynamic_cast<Processor*>(jp.get());
 	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit);
-	
-	addEditor(externalFile->getFileDocument(), !externalFile->getFile().hasFileExtension("glsl"));
-	
 
-#if 0
-	{
-		externalFile->getFileDocument()
+	auto isJavascript = !externalFile->getFile().hasFileExtension("glsl");
 
-		doc = new mcl::TextDocument();
-		
-		auto med = new mcl::TextEditor(*doc);
+	addEditor(externalFile->getFileDocument(), isJavascript);
 
-		
-
-		editor = med;
-
-		med->setLineRangeFunction(snex::debug::Helpers::createLineRanges);
-
-		addAndMakeVisible(editor);
-
-		externalFile->addRuntimeErrorListener(this);
-
-	}
-	else
-	{
-		const Identifier snippetId = Identifier("File_" + fileToEdit.getFileNameWithoutExtension());
-		addAndMakeVisible(editor = new JavascriptCodeEditor(externalFile->getFileDocument(), tokeniser, s, snippetId));
-	}
-#endif
+	if (externalFile != nullptr && !isJavascript)
+		externalFile->getRuntimeErrorBroadcaster().addListener(*this, runTimeErrorsOccured);
 
 	addButtonAndCompileLabel();
+	refreshAfterCompilation(JavascriptProcessor::SnippetResult(s->getLastErrorMessage(), 0));
 }
 
 PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback_) :
-	sp(s),
+	jp(s),
 	callback(callback_),
 	tokeniser(new JavascriptTokeniser())
 {
 	
-	auto& d = *sp->getSnippet(callback_);
+	auto& d = *jp->getSnippet(callback_);
 	addEditor(d, true);
 	addButtonAndCompileLabel();
 
@@ -220,100 +198,9 @@ struct GLSLLanguageManager : public mcl::LanguageManager
 	}
 };
 
-void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
-{
-#if HISE_USE_NEW_CODE_EDITOR
-	doc = new mcl::TextDocument(d);
-	addAndMakeVisible(editor = new mcl::FullEditor(*doc));
-
-	auto& ed = getEditor()->editor;
-
-	if (isJavascript)
-		ed.setLanguageManager(new JavascriptLanguageManager(sp, callback, ed));
-	else
-	{
-		ed.setLanguageManager(new GLSLLanguageManager());
-		
-		if (externalFile != nullptr)
-			externalFile->getRuntimeErrorBroadcaster().addListener(*this, runTimeErrorsOccured);
-	}
-	
-	ed.setPopupLookAndFeel(new PopupLookAndFeel());
-
-	auto mc = dynamic_cast<Processor*>(sp.get())->getMainController();
-
-	mc->getFontSizeChangeBroadcaster().addListener(ed, [mc](mcl::TextEditor& e, float s)
-	{
-		auto fs = mc->getGlobalCodeFontSize();
-		auto factor = fs / e.getFont().getHeight();
-		e.setScaleFactor(factor);
-	});
-
-	if (isJavascript)
-	{
-		getEditor()->addBreakpointListener(this);
-		
-		auto& tp = mc->getJavascriptThreadPool();
-		tp.addSleepListener(this);
-
-		getEditor()->editor.onFocusChange = [mc, this](bool isFocused, FocusChangeType t)
-		{
-			if (isFocused)
-				mc->setLastActiveEditor(CommonEditorFunctions::as(this), CommonEditorFunctions::getCaretPos(this));
-		};
-	}
-
-	WeakReference<ApiProviderBase::Holder> safeHolder = dynamic_cast<ApiProviderBase::Holder*>(sp.get());
-
-	ed.addPopupMenuFunction([safeHolder](mcl::TextEditor& ed, PopupMenu& m, const MouseEvent& e)
-	{
-		safeHolder->addPopupMenuItems(m, &ed, e);
-	},
-	[safeHolder](mcl::TextEditor& ed, int result)
-	{
-		if (safeHolder->performPopupMenuAction(result, &ed))
-			return true;
-
-		return false;
-	});
-
-	ed.addKeyPressFunction([this](const KeyPress& k)
-	{
-		if (k == KeyPress::F8Key)
-		{
-			auto id = k.getModifiers().isCommandDown() ?
-				JavascriptProcessor::ScriptContextActions::ClearAutocompleteTemplates :
-				JavascriptProcessor::ScriptContextActions::AddAutocompleteTemplate;
-
-			sp->performPopupMenuAction(id, getEditor());
-			return true;
-		}
-		if (k == KeyPress::F10Key)
-		{
-			dynamic_cast<Processor*>(sp.get())->getMainController()->getJavascriptThreadPool().resume();
-			return true;
-		}
-		if (k == KeyPress('f', ModifierKeys::shiftModifier | ModifierKeys::commandModifier, 'F'))
-		{
-			sp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::FindAllOccurences, getEditor());
-			return true;
-		}
-		if (k == KeyPress('g', ModifierKeys::commandModifier, 'g'))
-		{
-			sp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::SearchAndReplace, getEditor());
-			return true;
-		}
-
-		return false;
-	});
-#else
-	addAndMakeVisible(editor = new JavascriptCodeEditor(d, tokeniser, sp, callback));
-#endif
-}
-
 void PopupIncludeEditor::addButtonAndCompileLabel()
 {
-	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(sp.get())));
+	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(jp.get())));
 
 	addAndMakeVisible(compileButton = new TextButton("new button"));
 	compileButton->setButtonText(TRANS("Compile"));
@@ -345,12 +232,41 @@ void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::Snip
 		{
 			auto errorMessage = r.r.getErrorMessage();
 
+			auto secondLine = errorMessage.fromFirstOccurrenceOf("\n", false, false).substring(1).trim();
+
+			auto fileName = getFile().getFileName();
+
+			bool isSameFile = true;
+
+			if (!secondLine.startsWith(callback.toString()))
+				isSameFile = false;
+
+			if(fileName.isNotEmpty() && secondLine.contains(fileName))
+				isSameFile = true;
+
+			if (fileName.isEmpty() && secondLine.contains(".js"))
+				isSameFile = false;
+
+			if (secondLine.isEmpty())
+				isSameFile = true;
+
+			if (!isSameFile)
+			{
+				asmcl->editor.clearWarningsAndErrors();
+				startTimer(200);
+				return;
+			}
+
 			auto message = errorMessage.upToFirstOccurrenceOf("{", false, false);
 			auto line = errorMessage.fromFirstOccurrenceOf("Line ", false, false).getIntValue();
 			auto col = errorMessage.fromFirstOccurrenceOf("column ", false, false).getIntValue();
 
 			String mclError = "Line ";
 			mclError << line << "(" << col << "): " << message;
+
+			
+
+			
 
 			asmcl->editor.setError(mclError);
 		}
@@ -371,9 +287,9 @@ PopupIncludeEditor::~PopupIncludeEditor()
 	tokeniser = nullptr;
 	compileButton = nullptr;
 
-	Processor *p = dynamic_cast<Processor*>(sp.get());
+	Processor *p = dynamic_cast<Processor*>(jp.get());
 
-	sp = nullptr;
+	
 	p = nullptr;
 
 	externalFile = nullptr;
@@ -430,28 +346,6 @@ void PopupIncludeEditor::runTimeErrorsOccured(PopupIncludeEditor& t, Array<Exter
 #endif
 }
 
-void PopupIncludeEditor::sleepStateChanged(const Identifier& id, int lineNumber, bool on)
-{
-	if (callback == id)
-	{
-		resumeButton->setVisible(on);
-
-#if HISE_USE_NEW_CODE_EDITOR
-		if (on)
-			getEditor()->setCurrentBreakline(lineNumber);
-		else
-			getEditor()->setCurrentBreakline(-1);
-#endif
-
-		if (on)
-		{
-			resultLabel->setText("Breakpoint at line " + String(lineNumber), dontSendNotification);
-		}
-
-		resized();
-	}
-}
-
 void PopupIncludeEditor::resized()
 {
 	bool isInPanel = findParentComponentOfClass<FloatingTile>() != nullptr;
@@ -497,11 +391,11 @@ void PopupIncludeEditor::buttonClicked(Button* b)
 {
 	if (b == resumeButton)
 	{
-		dynamic_cast<Processor*>(sp.get())->getMainController()->getJavascriptThreadPool().resume();
+		dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume();
 	}
 	if (b == compileButton)
 	{
-		dynamic_cast<Processor*>(sp.get())->getMainController()->getJavascriptThreadPool().resume();
+		dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume();
 		compileInternal();
 	}
 }
@@ -510,24 +404,26 @@ void PopupIncludeEditor::buttonClicked(Button* b)
 
 void PopupIncludeEditor::breakpointsChanged(mcl::GutterComponent& g)
 {
-	sp->clearPreprocessorFunctions();
+	jp->clearPreprocessorFunctions();
 
 	auto cb = callback;
 
-	sp->addPreprocessorFunction([&g, cb](const Identifier& id, String& s)
-		{
-			if (id == cb)
-				return g.injectBreakPoints(s);
+	WeakReference<mcl::GutterComponent> safeGutter(&g);
 
-			return false;
-		});
+	jp->addPreprocessorFunction([safeGutter, cb](const Identifier& id, String& s)
+	{
+		if (id == cb && safeGutter != nullptr)
+			return safeGutter->injectBreakPoints(s);
+
+		return false;
+	});
 
 	compileButton->triggerClick();
 }
 
 void PopupIncludeEditor::paintOverChildren(Graphics& g)
 {
-	if (getEditor() == dynamic_cast<Processor*>(sp.get())->getMainController()->getLastActiveEditor())
+	if (getEditor() == dynamic_cast<Processor*>(jp.get())->getMainController()->getLastActiveEditor())
 	{
 		g.setColour(Colour(SIGNAL_COLOUR));
 		g.fillRect(0, 0, 5, 5);
@@ -548,7 +444,7 @@ void PopupIncludeEditor::compileInternal()
 		externalFile->getFileDocument().setSavePoint();
 	}
 
-	sp->compileScript(BIND_MEMBER_FUNCTION_1(PopupIncludeEditor::refreshAfterCompilation));
+	jp->compileScript(BIND_MEMBER_FUNCTION_1(PopupIncludeEditor::refreshAfterCompilation));
 
 	if (auto asmcl = dynamic_cast<mcl::TextEditor*>(editor.get()))
 	{
@@ -560,6 +456,119 @@ float PopupIncludeEditor::getGlobalCodeFontSize(Component* c)
 {
 	FloatingTile* ft = c->findParentComponentOfClass<FloatingTile>();
 	return ft->getMainController()->getGlobalCodeFontSize();
+}
+
+void PopupIncludeEditor::sleepStateChanged(const Identifier& id, int lineNumber, bool on)
+{
+	if (callback == id)
+	{
+#if HISE_USE_NEW_CODE_EDITOR
+		getEditor()->setCurrentBreakline(on ? lineNumber : -1);
+#endif
+		resumeButton->setVisible(on);
+		if (on)
+			resultLabel->setText("Breakpoint at line " + String(lineNumber), dontSendNotification);
+
+		resized();
+	}
+}
+
+void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
+{
+	auto asComponent = dynamic_cast<Component*>(this);
+
+#if HISE_USE_NEW_CODE_EDITOR
+	doc = new mcl::TextDocument(d);
+
+	asComponent->addAndMakeVisible(editor = new mcl::FullEditor(*doc));
+
+	auto& ed = getEditor()->editor;
+
+	if (isJavascript)
+		ed.setLanguageManager(new JavascriptLanguageManager(jp, callback, ed));
+	else
+	{
+		ed.setLanguageManager(new GLSLLanguageManager());
+	}
+
+	ed.setPopupLookAndFeel(new PopupLookAndFeel());
+
+	auto mc = dynamic_cast<Processor*>(jp.get())->getMainController();
+
+	mc->getFontSizeChangeBroadcaster().addListener(ed, [mc](mcl::TextEditor& e, float s)
+		{
+			auto fs = mc->getGlobalCodeFontSize();
+			auto factor = fs / e.getFont().getHeight();
+			e.setScaleFactor(factor);
+		});
+
+	if (isJavascript)
+	{
+		getEditor()->addBreakpointListener(this);
+
+		auto& tp = mc->getJavascriptThreadPool();
+		tp.addSleepListener(this);
+
+		getEditor()->editor.onFocusChange = [mc, asComponent](bool isFocused, Component::FocusChangeType t)
+		{
+			if (isFocused)
+				mc->setLastActiveEditor(CommonEditorFunctions::as(asComponent), CommonEditorFunctions::getCaretPos(asComponent));
+		};
+	}
+
+	WeakReference<ApiProviderBase::Holder> safeHolder = dynamic_cast<ApiProviderBase::Holder*>(jp.get());
+
+	ed.addPopupMenuFunction([safeHolder](mcl::TextEditor& ed, PopupMenu& m, const MouseEvent& e)
+	{
+		safeHolder->addPopupMenuItems(m, &ed, e);
+	},
+	[safeHolder](mcl::TextEditor& ed, int result)
+	{
+		if (safeHolder->performPopupMenuAction(result, &ed))
+			return true;
+
+		return false;
+	});
+
+	ed.addKeyPressFunction([this](const KeyPress& k)
+	{
+		if (k == KeyPress::F8Key)
+		{
+			auto id = k.getModifiers().isCommandDown() ?
+				JavascriptProcessor::ScriptContextActions::ClearAutocompleteTemplates :
+				JavascriptProcessor::ScriptContextActions::AddAutocompleteTemplate;
+
+			jp->performPopupMenuAction(id, getEditor());
+			return true;
+		}
+		if (k == KeyPress::F9Key)
+		{
+			resultLabel->gotoText();
+			return true;
+		}
+		if (k == KeyPress::F10Key)
+		{
+			dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume();
+			return true;
+		}
+		if (k == KeyPress('f', ModifierKeys::shiftModifier | ModifierKeys::commandModifier, 'F'))
+		{
+			jp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::FindAllOccurences, getEditor());
+			return true;
+		}
+		if (k == KeyPress('g', ModifierKeys::commandModifier, 'g'))
+		{
+			jp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::SearchAndReplace, getEditor());
+			return true;
+		}
+
+		return false;
+	});
+
+	getEditor()->loadSettings(getPropertyFile());
+#else
+	asComponent->addAndMakeVisible(editor = new JavascriptCodeEditor(d, tokeniser, sp, callback));
+#endif
 }
 
 } // namespace hise

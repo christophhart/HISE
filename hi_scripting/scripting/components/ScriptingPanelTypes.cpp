@@ -72,8 +72,6 @@ Component* CodeEditorPanel::createContentComponent(int index)
 #if HISE_USE_NEW_CODE_EDITOR
 		if(scaleFactor != -1.0f)
 			pe->getEditor()->editor.setScaleFactor(scaleFactor);
-
-		pe->getEditor()->loadSettings(settings);
 #endif
 
 		pe->addMouseListener(this, true);
@@ -100,8 +98,6 @@ Component* CodeEditorPanel::createContentComponent(int index)
 #if HISE_USE_NEW_CODE_EDITOR
         if(scaleFactor != -1.0f)
             pe->getEditor()->editor.setScaleFactor(scaleFactor);
-
-        pe->getEditor()->loadSettings(settings);
 #endif
         
 		if(auto ed = pe->getEditor())
@@ -132,21 +128,12 @@ void CodeEditorPanel::fillModuleList(StringArray& moduleList)
 
 void CodeEditorPanel::fromDynamicObject(const var& object)
 {
-	settings = object;
-
 	PanelWithProcessorConnection::fromDynamicObject(object);
 }
 
 var CodeEditorPanel::toDynamicObject() const
 {
-	auto obj = PanelWithProcessorConnection::toDynamicObject();
-
-#if HISE_USE_NEW_CODE_EDITOR
-	if (auto ed = getContent<PopupIncludeEditor>())
-		ed->getEditor()->saveSettings(obj.getDynamicObject());
-#endif
-
-	return obj;
+	return PanelWithProcessorConnection::toDynamicObject();
 }
 
 void CodeEditorPanel::scriptWasCompiled(JavascriptProcessor *processor)
@@ -250,10 +237,7 @@ void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int cha
 	else if (fileName.contains("()"))
 	{
 		auto jp = dynamic_cast<JavascriptProcessor*>(p);
-
 		auto snippetId = Identifier(fileName.upToFirstOccurrenceOf("()", false, false));
-
-		
 
 		for (int i = 0; i < jp->getNumSnippets(); i++)
 		{
@@ -298,14 +282,11 @@ void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int cha
 		editor->editor.scrollToLine(pos.getLineNumber(), true);
 		mcl::Selection newSelection(pos.getLineNumber(), pos.getIndexInLine(), pos.getLineNumber(), pos.getIndexInLine());
 		editor->editor.getTextDocument().setSelection(0, newSelection, true);
-
 #else
 		CodeDocument::Position pos(editor->getDocument(), charNumber);
 		editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
 #endif
 	}
-
-	
 }
 
 ConsolePanel::ConsolePanel(FloatingTile* parent) :
@@ -410,11 +391,11 @@ public:
 
 	virtual ScriptingContentOverlay* getScriptEditHandlerOverlay() { return overlay; }
 
-	virtual JavascriptCodeEditor* getScriptEditHandlerEditor()
+	CommonEditorFunctions::EditorType* getScriptEditHandlerEditor() override
 	{
 		if (processor.get())
 		{
-			return dynamic_cast<JavascriptCodeEditor*>(processor->getMainController()->getLastActiveEditor());
+			return dynamic_cast<CommonEditorFunctions::EditorType*>(processor->getMainController()->getLastActiveEditor());
 		}
 
 		return nullptr;

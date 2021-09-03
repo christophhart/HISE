@@ -1831,4 +1831,18 @@ String CommonEditorFunctions::getCurrentSelection(Component* c)
 	return {};
 }
 
+void CommonEditorFunctions::moveCaretTo(Component* c, CodeDocument::Position& pos, bool select)
+{
+	if (auto ed = as(c))
+	{
+#if HISE_USE_NEW_CODE_EDITOR
+		mcl::Selection s(*pos.getOwner(), pos.getPosition(), pos.getPosition());
+		ed->editor.getTextDocument().setSelection(0, s, true);
+#else
+		ed->moveCaretTo(pos, select);
+#endif
+	}
+
+}
+
 } // namespace hise

@@ -179,12 +179,11 @@ private:
 		return var();
 	}
 
-	File getSettingsFile()
+	File getSettingsFile(bool editorSettings)
 	{
 		auto dir = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("HISE MarkdownEditor");
 		dir.createDirectory();
-
-		return dir.getChildFile("settings.json");
+		return dir.getChildFile(editorSettings ? "code_editor.json" : "settings.json");
 	}
 
 	void applySetting(const Identifier& id, var newValue);
@@ -193,7 +192,7 @@ private:
 
 	void loadSettings()
 	{
-		currentSettings = JSON::parse(getSettingsFile());
+		currentSettings = JSON::parse(getSettingsFile(false));
 
 		if (currentSettings.getDynamicObject() == nullptr)
 			currentSettings = var(new DynamicObject());
@@ -207,7 +206,7 @@ private:
 	void saveSettings()
 	{
 		auto text = JSON::toString(currentSettings);
-		getSettingsFile().replaceWithText(text);
+		getSettingsFile(false).replaceWithText(text);
 	}
 	
 	var getSetting(const Identifier& id)

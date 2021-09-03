@@ -40,11 +40,10 @@ class JavascriptCodeEditor;
 class DebugConsoleTextEditor;
 
 
-
 class PopupIncludeEditor : public Component,
 						   public Timer,
 						   public ButtonListener,
-						   public Dispatchable,
+						   public Dispatchable, 
 						   public mcl::GutterComponent::BreakpointListener,
 						   public JavascriptThreadPool::SleepListener
 {
@@ -57,23 +56,17 @@ public:
 
 	static float getGlobalCodeFontSize(Component* c);
 
-	using EditorType = CommonEditorFunctions::EditorType;
-
 	// ================================================================================================================
 
 	PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit);
 	PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback);
 	
-	void addEditor(CodeDocument& d, bool isJavascript);
-
 	~PopupIncludeEditor();
 
 	void timerCallback();
 	bool keyPressed(const KeyPress& key) override;
 
 	static void runTimeErrorsOccured(PopupIncludeEditor& t, Array<ExternalScriptFile::RuntimeError>* errors);
-
-	void sleepStateChanged(const Identifier& id, int lineNumber, bool on) override;
 
 	void resized() override;;
 
@@ -83,28 +76,41 @@ public:
 
 	void breakpointsChanged(mcl::GutterComponent& g) override;
 
-	EditorType* getEditor()
-	{ 
-		return dynamic_cast<EditorType*>(editor.get());
-	}
-
 	void paintOverChildren(Graphics& g) override;
-
-	const EditorType* getEditor() const
-	{
-		return dynamic_cast<const EditorType*>(editor.get());
-	}
 
 	File getFile() const;
 	
-	JavascriptProcessor* getScriptProcessor() { return sp; }
+	JavascriptProcessor* getScriptProcessor() { return jp; }
+
+	static File getPropertyFile()
+	{
+		return ProjectHandler::getAppDataDirectory().getChildFile("code_editor.json");
+	}
+
+	using EditorType = CommonEditorFunctions::EditorType;
+
+	void sleepStateChanged(const Identifier& id, int lineNumber, bool on) override;
+
+	void addEditor(CodeDocument& d, bool isJavascript);
+
+	EditorType* getEditor() { return editor; }
+	const EditorType* getEditor() const { return editor; }
+
+	ScopedPointer<EditorType> editor;
+
+	ScopedPointer<mcl::TextDocument> doc;
+
+	Identifier callback;
+	WeakReference<JavascriptProcessor> jp;
+
+	ExternalScriptFile::Ptr externalFile;
+
+	ScopedPointer<DebugConsoleTextEditor> resultLabel;
 
 private:
 
 	void addButtonAndCompileLabel();
-
 	void refreshAfterCompilation(const JavascriptProcessor::SnippetResult& r);
-
 	void compileInternal();
 
 	friend class PopupIncludeEditorWindow;
@@ -113,23 +119,11 @@ private:
 	
 	int fontSize;
 
-	ExternalScriptFile::Ptr externalFile;
-
-	ScopedPointer<mcl::TextDocument> doc;
 	ScopedPointer<JavascriptTokeniser> tokeniser;
-	ScopedPointer<Component> editor;
-	
 	ScopedPointer<TextButton> compileButton;
 	ScopedPointer<TextButton> resumeButton;
 
 	bool isHalted = false;
-
-	ScopedPointer<DebugConsoleTextEditor> resultLabel;
-
-	WeakReference<JavascriptProcessor> sp;
-	
-	const Identifier callback;
-
 	bool lastCompileOk;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PopupIncludeEditor);
