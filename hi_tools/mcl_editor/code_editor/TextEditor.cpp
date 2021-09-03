@@ -1099,19 +1099,13 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 				break;
 			}
 			case LineBreaks: 
-				setLineBreakEnabled(!linebreakEnabled);
+				FullEditor::saveSetting(this, TextEditorSettings::LineBreaks, !linebreakEnabled);
 				break;
             case AutoAutocomplete:
-                showAutocompleteAfterDelay = !showAutocompleteAfterDelay;
-                break;
-            case FixWeirdTab:
-                GlyphArrangement::fixWeirdTab = !GlyphArrangement::fixWeirdTab;
-                document.invalidate({});
-                repaint();
+				FullEditor::saveSetting(this, TextEditorSettings::AutoAutocomplete, !showAutocompleteAfterDelay);
                 break;
 			case Whitespace:
-				showWhitespace = !showWhitespace;
-				repaint();
+				FullEditor::saveSetting(this, TextEditorSettings::ShowWhitespace, !showWhitespace);
 				break;
         }
 
@@ -1757,7 +1751,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 		auto s = document.getSelections().getFirst();
 
-		if (s.head.x != s.tail.x)
+		if (!s.isSingular())
 		{
 			CodeDocument::Position start(document.getCodeDocument(), s.head.x, s.head.y);
 			CodeDocument::Position end(document.getCodeDocument(), s.tail.x, s.tail.y);
@@ -1772,16 +1766,13 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 			Array<Selection> lineStarts;
 
 			for (int i = rows.getStart(); i < rows.getEnd(); i++)
-			{
 				lineStarts.add(Selection(i, 0, i, 0));
-			}
 
 			if (mods.isShiftDown())
 			{
                 if (s.head.y == 0)
                 {
                     document.navigateSelections(Target::firstnonwhitespace, Direction::forwardCol, Selection::Part::head);
-                    
                     s = document.getSelection(0);
                 }
                 

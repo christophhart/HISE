@@ -201,7 +201,7 @@ struct MarkdownLanguageManager : public mcl::LanguageManager
 	void setupEditor(mcl::TextEditor* editor) override
 	{
 		editor->setCodeTokeniser(new MarkdownParser::Tokeniser());
-		editor->setEnableAutocomplete(false);
+		//editor->setEnableAutocomplete(false);
 		editor->setEnableBreakpoint(false);
 	}
 };
@@ -323,7 +323,7 @@ MainContentComponent::MainContentComponent() :
     setSize (1280, 800);
 
 	loadSettings();
-	editor.loadSettings(currentSettings);
+	editor.loadSettings(getSettingsFile(true));
 }
 
 MainContentComponent::~MainContentComponent()
@@ -337,9 +337,7 @@ MainContentComponent::~MainContentComponent()
 
 	detachOpenGl();
 
-	editor.saveSettings(currentSettings.getDynamicObject());
 	saveSettings();
-	
 }
 
 void MainContentComponent::paint (Graphics& g)
@@ -565,7 +563,7 @@ void MainContentComponent::applySetting(const Identifier& id, var newValue)
 			preview.renderer.setLinkResolver(new MarkdownParser::FileLinkResolver(rootDirectory));
 			preview.renderer.setImageProvider(new MarkdownParser::FileBasedImageProvider(&preview.renderer, rootDirectory));
             
-            auto tempDir = getSettingsFile().getSiblingFile("imagecache");
+            auto tempDir = getSettingsFile(true).getSiblingFile("imagecache");
             tempDir.createDirectory();
             
             preview.renderer.setImageProvider(new MarkdownParser::URLImageProvider(tempDir, &preview.renderer));

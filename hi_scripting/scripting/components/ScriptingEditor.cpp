@@ -50,39 +50,13 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 	}
 
 	if (isFront)
-	{
 		return;
-	}
 
-	static const Identifier empty("empty");
-
-    addAndMakeVisible (codeEditor = new CodeEditorWrapper (*doc, tokenizer, sp, empty));
-    codeEditor->setName ("new component");
-
-    addAndMakeVisible (compileButton = new TextButton ("new button"));
-    compileButton->setButtonText (TRANS("Compile"));
-    compileButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
-    compileButton->addListener (this);
-    compileButton->setColour (TextButton::buttonColourId, Colour (0xa2616161));
-
-    addAndMakeVisible (messageBox = new DebugConsoleTextEditor("new text editor", getProcessor()));
-    
-	
-    addAndMakeVisible (timeLabel = new Label ("new label",
-                                              TRANS("2.5 microseconds")));
-    timeLabel->setFont (GLOBAL_BOLD_FONT());
-    timeLabel->setJustificationType (Justification::centredLeft);
-    timeLabel->setEditable (false, false, false);
-    timeLabel->setColour (Label::textColourId, Colours::white);
-    timeLabel->setColour (TextEditor::textColourId, Colours::black);
-    timeLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-
-	addAndMakeVisible(buttonRow = new Component());
-
-	buttonRow->addAndMakeVisible(contentButton = new TextButton("new button"));
+	addAndMakeVisible(contentButton = new TextButton("new button"));
 	contentButton->setButtonText(TRANS("Interface"));
 	contentButton->setConnectedEdges(Button::ConnectedOnRight);
 	contentButton->addListener(this);
+	contentButton->setClickingTogglesState(true);
 	contentButton->setColour(TextButton::buttonColourId, Colour(0x4c4b4b4b));
 	contentButton->setColour(TextButton::buttonOnColourId, Colour(0xffb4b4b4));
 	contentButton->setColour(TextButton::textColourOnId, Colour(0x77ffffff));
@@ -92,10 +66,11 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 	for (int i = 0; i < sp->getNumSnippets(); i++)
 	{
 		TextButton *b = new TextButton("new button");
-		buttonRow->addAndMakeVisible(b);
+		addAndMakeVisible(b);
 		b->setButtonText(sp->getSnippet(i)->getCallbackName().toString());
 		b->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
 		b->addListener(this);
+		b->setClickingTogglesState(true);
 		b->setColour(TextButton::buttonColourId, Colour(0x4c4b4b4b));
 		b->setColour(TextButton::buttonOnColourId, Colour(0xff680000));
 		b->setColour(TextButton::textColourOnId, Colour(0x77ffffff));
@@ -103,24 +78,13 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 		b->setLookAndFeel(&alaf);
 		callbackButtons.add(b);
 	}
-
-    buttonRow->setBufferedToImage(true);
     
 	callbackButtons.getLast()->setConnectedEdges(TextButton::ConnectedEdgeFlags::ConnectedOnLeft);
 
-    timeLabel->setFont (GLOBAL_BOLD_FONT());
-
-	
-	
 	addAndMakeVisible(scriptContent = new ScriptContentComponent(dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())));
 
     scriptContent->addMouseListenersForComponentWrappers();
-    
-	
-
 	useComponentSelectMode = false;
-
-	compileButton->setLookAndFeel(&alaf);
 
 	if (dynamic_cast<JavascriptMidiProcessor*>(getProcessor()))
 	{
@@ -136,28 +100,17 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 
 	currentDragOverlay = dragOverlay;
 
-    setSize (800, 500);
-
-	
-
 	editorInitialized();
 }
 
 ScriptingEditor::~ScriptingEditor()
 { 
 	scriptContent = nullptr;
-
     codeEditor = nullptr;
-    compileButton = nullptr;
-    messageBox = nullptr;
-    timeLabel = nullptr;
 	callbackButtons.clear();
     contentButton = nullptr;
-
 	lastPositions.clear();
-   
     doc = nullptr;
-    
 }
 
 int ScriptingEditor::getBodyHeight() const
@@ -165,258 +118,82 @@ int ScriptingEditor::getBodyHeight() const
 	if (isFront)
 		return 0;
 
-	if (isRootEditor())
-	{
-		if(auto viewport = findParentComponentOfClass<Viewport>())
-			return viewport->getHeight() - 36;
-
-		if (findParentComponentOfClass<FloatingTilePopup>() != nullptr)
-			return 500;
-	}
-
 	const ProcessorWithScriptingContent* pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor());
 
+	auto contentHeight = pwsc->getScriptingContent()->getContentHeight();
+
 	if (isConnectedToExternalScript)
-	{
-		return pwsc->getScriptingContent()->getContentHeight();
-	}
-	else
-	{
-		int editorOffset = pwsc->getCallbackEditorStateOffset();
+		return contentHeight;
+	
+	int editorOffset = pwsc->getCallbackEditorStateOffset();
+	const bool showContent = scriptContent->isVisible();
 
-		const bool showContent = getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown);
+	if (!showContent)
+		contentHeight = 0;
 
-		const int contentHeight = showContent ? pwsc->getScriptingContent()->getContentHeight() : 0;
+	const int additionalOffset = (dynamic_cast<const JavascriptModulatorSynth*>(getProcessor()) != nullptr) ? 5 : 0;
 
-		const int additionalOffset = (dynamic_cast<const JavascriptModulatorSynth*>(getProcessor()) != nullptr) ? 5 : 0;
-
-		if (editorShown)
-		{
-			return 28 + additionalOffset + contentHeight + codeEditor->currentHeight + 24;
-		}
-		else
-		{
-			return 28 + additionalOffset + contentHeight;
-		}
-	}
-}
-
-void ScriptingEditor::gotoLocation(DebugInformation* info)
-{
-	showOnInitCallback();
-	gotoChar(info->getLocation().charNumber);
-}
-
-//==============================================================================
-void ScriptingEditor::paint (Graphics& g)
-{
-    //[UserPrePaint] Add your own custom painting code here..
-    //[/UserPrePaint]
-
-    //[UserPaint] Add your own custom painting code here..
-
-	if(!isConnectedToExternalScript && editorShown && getProcessor() != nullptr)
-	{
-		
-		Colour c = dynamic_cast<JavascriptProcessor*>(getProcessor())->wasLastCompileOK() ? Colour(0xff323832) : Colour(0xff383232);
-
-		float y = (float)codeEditor->getBottom();
-
-		g.setGradientFill(ColourGradient(c.withMultipliedBrightness(0.8f), 0.0f, y, c, 0.0f, y+6.0f, false));
-
-		g.fillRect(1, codeEditor->getBottom(), getWidth()-2, compileButton->getHeight());
-	}
-
-    //[/UserPaint]
+	return 28 + additionalOffset + contentHeight + (codeEditor != nullptr ? EditorHeight : 0);
 }
 
 void ScriptingEditor::resized()
 {
 	if (isFront)
 		return;
-
-	codeEditor->setVisible(!isConnectedToExternalScript);
-	codeEditor->setVisible(!isConnectedToExternalScript);
-	messageBox->setVisible(!isConnectedToExternalScript);
+	
 	dragOverlay->setVisible(!isConnectedToExternalScript);
 	contentButton->setVisible(!isConnectedToExternalScript);
 
 	for (int i = 0; i < callbackButtons.size(); i++)
 		callbackButtons[i]->setVisible(!isConnectedToExternalScript);
 
+	auto b = getLocalBounds();
+
 	if (isConnectedToExternalScript)
 	{
-		
-
 		scriptContent->setVisible(true);
-		scriptContent->setBounds(0, 0, getWidth(), scriptContent->getContentHeight());
+		scriptContent->setBounds(b);
 		return;
 	}
 
-	codeEditor->setBounds ((getWidth() / 2) - ((getWidth() - 90) / 2), 104, getWidth() - 90, getHeight() - 140);
-    compileButton->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + (getWidth() - 90) - 95, getHeight() - 24, 95, 24);
-    messageBox->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + 0, getHeight() - 24, getWidth() - 296, 24);
-    
-	int buttonWidth = (getWidth()-20) / (callbackButtons.size() + 1);
-	int buttonX = 10;
+	auto buttonRow = b.removeFromTop(28);
 
-	int y = 28;
+	buttonRow = buttonRow.reduced(30, 5);
 
-	int xOff = isRootEditor() ? 0 : 1;
-	int w = getWidth() - 2*xOff;
+	auto wPerButton = buttonRow.getWidth() / (callbackButtons.size() + 1);
 
-	int editorOffset = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
+	contentButton->setBounds(buttonRow.removeFromLeft(wPerButton));
 
-	scriptContent->setVisible(getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::contentShown));
+	for (auto& cb : callbackButtons)
+		cb->setBounds(buttonRow.removeFromLeft(wPerButton));
 
-	const int contentHeight = scriptContent->isVisible() ? scriptContent->getContentHeight() : 0;
+	if (scriptContent->isVisible())
+		scriptContent->setBounds(b.removeFromTop(scriptContent->getContentHeight()));
 
-	scriptContent->setBounds(xOff, y, w, scriptContent->getContentHeight());
-	y += contentHeight;
-
-	const bool fullscreen = getEditor()->isPopup() || isRootEditor();
-
-	const int editorHeight = fullscreen ? getHeight() - y - 24 : codeEditor->currentHeight;
-
-	codeEditor->setSize(w, editorHeight);
-
-    setWantsKeyboardFocus(editorShown);
-    
-	if(!editorShown)
-	{
-		codeEditor->setBounds(0, y, getWidth(), codeEditor->getHeight());
-
-		codeEditor->setTopLeftPosition(0, getHeight());
-		compileButton->setTopLeftPosition(0, getHeight());
-		messageBox->setTopLeftPosition(0, getHeight());
-        
-		
-	}
-	else
-	{
-		codeEditor->setBounds(xOff, y, getWidth() - 2 * xOff, codeEditor->getHeight());
-
-		y += codeEditor->getHeight();
-
-		messageBox->setBounds(1, y, getWidth() - compileButton->getWidth() - 4, 24);
-
-		compileButton->setTopLeftPosition(codeEditor->getRight() - compileButton->getWidth(), y);
-	}
-
-	dragOverlay->setBounds(scriptContent->getBounds());
-	dragOverlay->setVisible(true);
-
-    // The editor gets weirdly disabled occasionally, so this is a hacky fix for this...
-    setEnabled(true);
-
-	contentButton->setBounds(buttonX, 0, buttonWidth, 20);
-	buttonX = contentButton->getRight();
-
-	buttonRow->setBounds(0, 0, getWidth(), 28);
-
-	for (int i = 0; i < callbackButtons.size(); i++)
-	{
-		callbackButtons[i]->setBounds(buttonX, 0, buttonWidth, 20);
-		buttonX = callbackButtons[i]->getRight();
-	}
-
+	if (codeEditor != nullptr)
+		codeEditor->setBounds(b);
 }
 
 void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
 {
-    
 	JavascriptProcessor *s = dynamic_cast<JavascriptProcessor*>(getProcessor());
-
-	int editorOffset = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
 
 	int callbackIndex = callbackButtons.indexOf(dynamic_cast<TextButton*>(buttonThatWasClicked));
 
 	if (callbackIndex != -1)
 	{
-		saveLastCallback();
+		for (auto b : callbackButtons)
+			b->setToggleState(b == buttonThatWasClicked && buttonThatWasClicked->getToggleState(), dontSendNotification);
 
-		addAndMakeVisible(codeEditor = new CodeEditorWrapper(*s->getSnippet(callbackIndex), tokenizer, dynamic_cast<JavascriptProcessor*>(getProcessor()), s->getSnippet(callbackIndex)->getCallbackName()));
-		goToSavedPosition(callbackIndex);
-
-	}
-	else if (buttonThatWasClicked == compileButton)
-	{
-
-		compileScript();
-
+		showCallback(callbackIndex);
 		return;
-
 	}
     else if (buttonThatWasClicked == contentButton)
     {
-		
-
-		getProcessor()->setEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown, !toggleButton(contentButton));
+		scriptContent->setVisible(buttonThatWasClicked->getToggleState());
 		refreshBodySize();
-		resized();
 		return;
     }
-
-	if(buttonThatWasClicked->getToggleState())
-	{
-		editorShown = false;
-
-		for (int i = 0; i < callbackButtons.size(); i++)
-		{
-			callbackButtons[i]->setToggleState(false, dontSendNotification);
-			getProcessor()->setEditorState(editorOffset + (int)ProcessorWithScriptingContent::EditorStates::onInitShown + i, false);
-		}
-	}
-	else
-	{
-		editorShown = true;
-
-		for (int i = 0; i < callbackButtons.size(); i++)
-		{
-			const bool isShown = buttonThatWasClicked == callbackButtons[i];
-
-			if (isShown)
-				currentCallbackIndex = i;
-
-			callbackButtons[i]->setToggleState(isShown, dontSendNotification);
-			getProcessor()->setEditorState(editorOffset + (int)ProcessorWithScriptingContent::EditorStates::onInitShown + i, isShown);
-		}
-
-		buttonThatWasClicked->setToggleState(true, dontSendNotification);
-	}
-
-	resized();
-	refreshBodySize();
-}
-
-//[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
-
-void ScriptingEditor::goToSavedPosition(int newCallback)
-{
-	if (newCallback < callbackButtons.size())
-	{
-		if (newCallback < lastPositions.size())
-		{
-			codeEditor->editor->moveCaretTo(CodeDocument::Position(codeEditor->editor->getDocument(), lastPositions[newCallback]), false);
-		}
-		
-		codeEditor->editor->scrollToColumn(0);
-
-		if(codeEditor->editor->isShowing())
-			codeEditor->editor->grabKeyboardFocus();
-	}
-}
-
-void ScriptingEditor::saveLastCallback()
-{
-	int lastCallback = getActiveCallback();
-	if (lastCallback < callbackButtons.size())
-	{
-		if (lastCallback < lastPositions.size())
-		{
-			lastPositions.set(lastCallback, codeEditor->editor->getCaretPos().getPosition());
-		}
-	}
 }
 
 void ScriptingEditor::updateGui()
@@ -431,6 +208,10 @@ void ScriptingEditor::updateGui()
 	if (nowConnected != isConnectedToExternalScript)
 	{
 		isConnectedToExternalScript = nowConnected;
+
+		if (isConnectedToExternalScript)
+			codeEditor = nullptr;
+
 		useComponentSelectMode = false;
 		refreshBodySize();
 	}
@@ -448,26 +229,31 @@ void ScriptingEditor::showCallback(int callbackIndex, int lineToScroll/*=-1*/)
 {
 	if (currentCallbackIndex != callbackIndex && callbackIndex < callbackButtons.size())
 	{
-		callbackButtons[callbackIndex]->setToggleState(false, dontSendNotification);
-		buttonClicked(callbackButtons[callbackIndex]);
+		if (codeEditor != nullptr)
+			lastPositions.set(currentCallbackIndex, CommonEditorFunctions::getCaretPos(codeEditor).getPosition());;
 
-		
+		currentCallbackIndex = callbackIndex;
 
-		if (lineToScroll != -1)
-		{
-			CodeDocument::Position pos(codeEditor->editor->getDocument(), lineToScroll, 0);
-			codeEditor->editor->scrollToLine(jmax<int>(0, lineToScroll));
+		callbackButtons[callbackIndex]->setToggleState(true, dontSendNotification);
 
-			Array<Range<int>> underlines;
+		auto jp = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
-			underlines.add(Range<int>(0, 6));
+		auto d = jp->getSnippet(callbackIndex);
 
-			codeEditor->editor->moveCaretTo(pos, false);
-			codeEditor->editor->moveCaretToEndOfLine(true);
+		addAndMakeVisible(codeEditor = new PopupIncludeEditor(jp, d->getCallbackName()));
 
-			//codeEditor->editor->setTemporaryUnderlining(underlines);
-		}
+		CodeDocument::Position pos(*d, lastPositions[callbackIndex]);
+		CommonEditorFunctions::moveCaretTo(codeEditor, pos, false);
+
 	}
+	else
+	{
+		currentCallbackIndex = -1;
+		codeEditor = nullptr;
+	}
+
+	refreshBodySize();
+	resized();
 }
 
 void ScriptingEditor::showOnInitCallback()
@@ -475,27 +261,12 @@ void ScriptingEditor::showOnInitCallback()
 	showCallback(0);
 }
 
-void ScriptingEditor::openContentInPopup()
-{
-#if USE_BACKEND
-	BackendCommandTarget::Actions::addInterfacePreview(GET_BACKEND_ROOT_WINDOW(this));
-#endif
-}
-
-void ScriptingEditor::closeAllPopup()
-{
-	
-	codeEditor->setEnabled(true);
-	checkActiveSnippets();
-}
-
 void ScriptingEditor::gotoChar(int character)
 {
 	showOnInitCallback();
 
-	CodeDocument::Position pos(codeEditor->editor->getDocument(), character);
-
-	codeEditor->editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
+	CodeDocument::Position pos(CommonEditorFunctions::getDoc(codeEditor->editor), character);
+	CommonEditorFunctions::moveCaretTo(codeEditor->editor, pos, false);
 }
 
 bool ScriptingEditor::keyPressed(const KeyPress &k)
@@ -524,13 +295,13 @@ bool ScriptingEditor::keyPressed(const KeyPress &k)
 	}
 	else if (k.getKeyCode() == KeyPress::F5Key && !k.getModifiers().isShiftDown())
 	{
-		int i = codeEditor->editor->getCaretPos().getPosition();
+		int i = CommonEditorFunctions::getCaretPos(codeEditor->editor).getPosition();
 
 		compileScript();
 
-		CodeDocument::Position pos(codeEditor->editor->getDocument(), i);
+		CodeDocument::Position pos(CommonEditorFunctions::getDoc(codeEditor->editor), i);
 
-		codeEditor->editor->moveCaretTo(pos, false);
+		CommonEditorFunctions::moveCaretTo(codeEditor->editor, pos, false);
 
 		return true;
 	}
@@ -597,7 +368,7 @@ int ScriptingEditor::getActiveCallback() const
 
 	if (codeEditor == nullptr) return sp->getNumSnippets();
 
-	const CodeDocument &codeDoc = codeEditor->editor->getDocument();
+	const CodeDocument &codeDoc = CommonEditorFunctions::getDoc(codeEditor->editor);
 
 	for (int i = 0; i < sp->getNumSnippets(); i++)
 	{

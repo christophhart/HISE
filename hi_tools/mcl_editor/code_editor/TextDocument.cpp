@@ -765,6 +765,8 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 
 		auto shouldSkipBracket = false;
 
+		auto startX = i.x;
+
 		do
 		{
 			if (direction == TextDocument::Direction::backwardCol)
@@ -777,7 +779,9 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 				if (!advance(i))
 					break;
 			}
-				
+
+			if (i.x != startX)
+				return;
 		} 
 		while (shouldSkipBracket);
 
@@ -785,6 +789,9 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 
 		while (CF::isWhitespace(getCharacter(i)))
 		{
+			if (i.x != startX)
+				break;
+
 			if (!advance(i))
 				break;
 		}
@@ -793,6 +800,9 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 
 		while (CharacterFunctions::isLetterOrDigit(getCharacter(i)))
 		{
+			if (i.x != startX)
+				break;
+
 			didSomething = true;
 			advance(i);
 		}
@@ -802,6 +812,9 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 		{
 			while (CharacterFunctions::isWhitespace(getCharacter(i)))
 			{
+				if (i.x != startX)
+					break;
+
 				if (!navigateLeftRight(i, true))
 					break;
 			}

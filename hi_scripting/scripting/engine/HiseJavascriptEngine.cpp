@@ -707,7 +707,7 @@ var HiseJavascriptEngine::RootObject::eval(Args a)
 	return var::undefined();
 }
 
-Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowConstDeclarations/*=true*/)
+Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowConstDeclarations/*=true*/, const Identifier& callbackId)
 {
 #if JUCE_DEBUG
 	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
@@ -715,6 +715,10 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 #endif
 
 	static const Identifier onInit("onInit");
+
+	Identifier callbackIdTouse = callbackId;
+	if (callbackIdTouse.isNull())
+		callbackIdTouse = onInit;
 
 	try
 	{
@@ -734,8 +738,10 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 		DBG(e.errorMessage);
 		return Result::fail(e.errorMessage);
 #endif
+		if(e.externalLocation.isEmpty())
+			e.externalLocation = callbackIdTouse.toString() + "()";
 
-		return Result::fail(root->dumpCallStack(e, onInit));
+		return Result::fail(root->dumpCallStack(e, callbackIdTouse));
 	}
 	catch (Breakpoint& bp)
 	{
@@ -743,7 +749,7 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 			bp.copyLocalScopeToRoot(*root);
 
 		sendBreakpointMessage(bp.index);
-		return Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), onInit));
+		return Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), callbackIdTouse));
 	}
 
 	return Result::ok();
