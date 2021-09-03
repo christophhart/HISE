@@ -155,7 +155,7 @@ public:
 	You can specify a maximum time for which the program is allowed to run, and
 	it'll return with an error message if this time is exceeded.
 	*/
-	Result execute(const String& javascriptCode, bool allowConstDeclarations=true);
+	Result execute(const String& javascriptCode, bool allowConstDeclarations = true, const Identifier& callbackId = {});
 
 	/** Attempts to parse and run a javascript expression, and returns the result.
 	If there's a syntax error, or the expression can't be evaluated, the return value

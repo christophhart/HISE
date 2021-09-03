@@ -35,62 +35,6 @@
 namespace hise { using namespace juce;
 
 
-CodeEditorWrapper::CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId)
-{
-	addAndMakeVisible(editor = new JavascriptCodeEditor(document, codeTokeniser, p, snippetId));
-
-	restrainer.setMinimumHeight(50);
-	restrainer.setMaximumHeight(600);
-
-	addAndMakeVisible(dragger = new ResizableEdgeComponent(this, &restrainer, ResizableEdgeComponent::Edge::bottomEdge));
-
-	dragger->addMouseListener(this, true);
-
-	setSize(200, 340);
-
-	currentHeight = getHeight();
-}
-
-CodeEditorWrapper::~CodeEditorWrapper()
-{
-	editor = nullptr;
-}
-
-void CodeEditorWrapper::resized()
-{
-	editor->setBounds(getLocalBounds());
-
-	dragger->setBounds(0, getHeight() - 5, getWidth(), 5);
-}
-
-void CodeEditorWrapper::timerCallback()
-{
-#if USE_BACKEND
-	ProcessorEditorBody *body = dynamic_cast<ProcessorEditorBody*>(getParentComponent());
-
-	resized();
-
-	if (body != nullptr)
-	{
-		currentHeight = getHeight();
-
-		body->refreshBodySize();
-	}
-#endif
-}
-
-void CodeEditorWrapper::mouseDown(const MouseEvent &m)
-{
-	if (m.eventComponent == dragger) startTimer(30);
-}
-
-void CodeEditorWrapper::mouseUp(const MouseEvent &)
-{
-	stopTimer();
-}
-
-
-
 DebugConsoleTextEditor::DebugConsoleTextEditor(const String& name, Processor* p) :
 	TextEditor(name),
 	processor(p)
@@ -172,6 +116,11 @@ void DebugConsoleTextEditor::mouseDown(const MouseEvent& e)
 }
 
 void DebugConsoleTextEditor::mouseDoubleClick(const MouseEvent& /*e*/)
+{
+	gotoText();
+}
+
+void DebugConsoleTextEditor::gotoText()
 {
 	DebugableObject::Helpers::gotoLocation(processor->getMainController()->getMainSynthChain(), getText());
 }

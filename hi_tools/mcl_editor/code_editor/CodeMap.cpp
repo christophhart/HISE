@@ -122,17 +122,12 @@ void mcl::CodeMap::mouseDown(const MouseEvent& e)
 		auto r = m.show();
 
 		if (r == 1)
-		{
-			findParentComponentOfClass<FullEditor>()->mapWidth = 75;
-			getParentComponent()->resized();
-		}
+			FullEditor::saveSetting(this, TextEditorSettings::MapWidth, 75);
 		if (r == 2)
-		{
-			findParentComponentOfClass<FullEditor>()->mapWidth = 150;
-			getParentComponent()->resized();
-		}
+			FullEditor::saveSetting(this, TextEditorSettings::MapWidth, 150);
 		if (r == 3)
-			allowHover = !allowHover;
+			FullEditor::saveSetting(this, TextEditorSettings::EnableHover, !allowHover);
+			
 
 		return;
 	}

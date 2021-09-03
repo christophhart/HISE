@@ -903,7 +903,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 			if (codeToCompile.isEmpty())
 				continue;
 
-			lastResult = scriptEngine->execute(codeToCompile, callbackId == onInit);
+			lastResult = scriptEngine->execute(codeToCompile, callbackId == onInit, callbackId);
 
 			if (!lastResult.wasOk())
 			{
