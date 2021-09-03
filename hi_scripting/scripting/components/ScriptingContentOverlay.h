@@ -82,7 +82,7 @@ public:
 
 	virtual ScriptingContentOverlay* getScriptEditHandlerOverlay() = 0;
 
-	virtual JavascriptCodeEditor* getScriptEditHandlerEditor() = 0;
+	virtual CommonEditorFunctions::EditorType* getScriptEditHandlerEditor() = 0;
 
 	virtual JavascriptProcessor* getScriptEditHandlerProcessor() = 0;
 

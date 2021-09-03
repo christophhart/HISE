@@ -52,6 +52,8 @@ public:
 	void mouseDown(const MouseEvent& e);
 	void mouseDoubleClick(const MouseEvent& e) override;
 
+	void gotoText();
+
 	void addToHistory(const String& s);
 
 	void textEditorReturnKeyPressed(TextEditor& /*t*/);
@@ -68,41 +70,6 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DebugConsoleTextEditor)
 };
 
-
-class CodeEditorWrapper : public Component,
-	public Timer
-{
-public:
-
-	// ================================================================================================================
-
-	CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId);
-	virtual ~CodeEditorWrapper();
-
-	ScopedPointer<JavascriptCodeEditor> editor;
-
-	void resized() override;;
-	void timerCallback();
-
-	void mouseDown(const MouseEvent &m) override;;
-	void mouseUp(const MouseEvent &) override;;
-
-	int currentHeight;
-
-	// ================================================================================================================
-
-private:
-
-	ScopedPointer<ResizableEdgeComponent> dragger;
-
-	ComponentBoundsConstrainer restrainer;
-
-	LookAndFeel_V2 laf2;
-
-	// ================================================================================================================
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CodeEditorWrapper);
-};
 
 
 

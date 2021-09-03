@@ -69,8 +69,12 @@ struct FullEditor: public Component,
 
 	}
 
-	void loadSettings(const var& s)
+	void loadSettings(const File& sFile)
 	{
+		settingFile = sFile;
+
+		auto s = JSON::parse(settingFile);
+
 		editor.setLineBreakEnabled(s.getProperty(TextEditorSettings::LineBreaks, true));
 		editor.showWhitespace = s.getProperty(TextEditorSettings::ShowWhitespace, true);
 		mapWidth = s.getProperty(TextEditorSettings::MapWidth, 150);
@@ -81,16 +85,39 @@ struct FullEditor: public Component,
         GlyphArrangement::fixWeirdTab = s.getProperty(TextEditorSettings::FixWeirdTab, false);
 	}
 
-	void saveSettings(DynamicObject::Ptr obj) const
+	static void saveSetting(Component* c, const Identifier& id, const var& newValue)
 	{
-		if (obj != nullptr)
+		auto pe = c->findParentComponentOfClass<FullEditor>();
+		
+		auto s = JSON::parse(pe->settingFile);
+
+		if (s.getDynamicObject() == nullptr)
+			s = var(new DynamicObject());
+
+		s.getDynamicObject()->setProperty(id, newValue);
+		pe->settingFile.replaceWithText(JSON::toString(s));
+
+		if (id == TextEditorSettings::MapWidth)
 		{
-			obj->setProperty(TextEditorSettings::LineBreaks, editor.linebreakEnabled);
-			obj->setProperty(TextEditorSettings::MapWidth, mapWidth);
-			obj->setProperty(TextEditorSettings::EnableHover, codeMap.allowHover);
-			obj->setProperty(TextEditorSettings::ShowWhitespace, editor.showWhitespace);
-            obj->setProperty(TextEditorSettings::AutoAutocomplete, editor.showAutocompleteAfterDelay);
-            obj->setProperty(TextEditorSettings::FixWeirdTab, GlyphArrangement::fixWeirdTab);
+			pe->mapWidth = (int)newValue;
+			pe->resized();
+		}
+		if (id == TextEditorSettings::EnableHover)
+		{
+			pe->codeMap.allowHover = (bool)newValue;
+		}
+		if (id == TextEditorSettings::AutoAutocomplete)
+		{
+			pe->editor.showAutocompleteAfterDelay = (bool)newValue;
+		}
+		if (id == TextEditorSettings::LineBreaks)
+		{
+			pe->editor.setLineBreakEnabled((bool)newValue);
+		}
+		if (id == TextEditorSettings::ShowWhitespace)
+		{
+			pe->editor.showWhitespace = (bool)newValue;
+			pe->editor.repaint();
 		}
 	}
 
@@ -151,6 +178,8 @@ struct FullEditor: public Component,
 	HiseShapeButton mapButton, foldButton;
 	CodeMap codeMap;
 	FoldMap foldMap;
+
+	File settingFile;
 
 	using SettingFunction = std::function<void(bool, DynamicObject::Ptr)>;
 

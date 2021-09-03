@@ -394,6 +394,8 @@ private:
 	TextDocument& document;
 	juce::AffineTransform transform;
 	Memoizer<int, juce::GlyphArrangement> memoizedGlyphArrangements;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(GutterComponent);
 };
 
 

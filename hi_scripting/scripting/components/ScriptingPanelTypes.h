@@ -81,7 +81,6 @@ public:
 
 private:
 
-	var settings;
 	ScopedPointer<JavascriptTokeniser> tokeniser;
 };
 

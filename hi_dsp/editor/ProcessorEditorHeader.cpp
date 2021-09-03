@@ -1383,10 +1383,6 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "TableProcessor");
 		else if (result == CreateSliderPackProcessorReference)
 			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "SliderPackProcessor");
-		else if (result == OpenInterfaceInPopup)
-		{
-			dynamic_cast<ScriptingEditor*>(getEditor()->getBody())->openContentInPopup();
-		}
 		else if (result == ConnectToScriptFile)
 		{
 			FileChooser fc("Select external script", GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
