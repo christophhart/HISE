@@ -34,6 +34,7 @@
 #include "code_editor/Selection.h"
 #include "code_editor/GlyphArrangementArray.h"
 #include "code_editor/TextDocument.h"
+#include "code_editor/LanguageManager.h"
 #include "code_editor/DocTree.h"
 #include "code_editor/CodeMap.h"
 #include "code_editor/CaretComponent.h"

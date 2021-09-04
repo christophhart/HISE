@@ -181,5 +181,58 @@ struct FullEditor: public Component,
 	var settings;
 };
 
+struct MarkdownPreviewSyncer : public Timer,
+                               public CodeDocument::Listener,
+                               public juce::ScrollBar::Listener
+{
+    void setEnableScrollbarListening(bool shouldListenToScrollBars);
+
+    void synchroniseTabs(bool editorIsSource);
+    
+    void scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
+
+    void codeDocumentTextInserted(const String& newText, int insertIndex) override
+    {
+        startTimer(500);
+    }
+
+    void codeDocumentTextDeleted(int startIndex, int endIndex) override
+    {
+        startTimer(500);
+    }
+    
+    MarkdownPreviewSyncer(mcl::FullEditor& editor, MarkdownPreview& preview) :
+        p(preview),
+        e(editor)
+    {
+        e.editor.getTextDocument().getCodeDocument().addListener(this);
+    };
+
+    ~MarkdownPreviewSyncer()
+    {
+        e.editor.getTextDocument().getCodeDocument().removeListener(this);
+    }
+    
+    void timerCallback() override
+    {
+        {
+            MarkdownRenderer::ScopedScrollDisabler sds(p.renderer);
+            ScopedValueSetter<bool> svs(recursiveScrollProtector, true);
+
+            if (p.isVisible())
+                p.setNewText(e.editor.getTextDocument().getCodeDocument().getAllContent(), {}, false);
+
+            stopTimer();
+        }
+        
+        synchroniseTabs(true);
+    }
+
+    bool recursiveScrollProtector = false;
+    
+    MarkdownPreview& p;
+    mcl::FullEditor& e;
+};
+
 }
 

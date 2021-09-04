@@ -125,8 +125,6 @@ public:
 			if (s.startsWith("template"))
 				s = s.fromFirstOccurrenceOf(">", false, false).trim();
 
-
-
 			if (trimAndGet(s, "class"))
 				return EntryType::Class;
 
@@ -138,9 +136,6 @@ public:
 
 			if (auto t = trimAndGet(s, "enum"))
 				return EntryType::Enum;
-
-
-
 
 			trimIf(s, "static");
 			trimIf(s, "inline");
@@ -182,8 +177,7 @@ public:
 
 	String getTextForFoldRange(FoldableLineRange::WeakPtr p)
 	{
-		auto s = doc.getCodeDocument().getLine(p->getLineRange().getStart());
-		return s.trimCharactersAtStart("#").trim();
+		return doc.getCodeDocument().getLine(p->getLineRange().getStart());
 	}
 
 	struct Item : public Component,
@@ -194,7 +188,13 @@ public:
 		Item(FoldableLineRange::WeakPtr p_, FoldMap& m) :
 			p(p_)
 		{
+            auto* lm = m.getLanguageManager();
+            
 			text = m.getTextForFoldRange(p);
+            
+            if(lm != nullptr)
+                lm->processBookmarkTitle(text);
+            
 			type = Helpers::getEntryType(text);
 
 			bestWidth = getFont().boldened().getStringWidth(text) + roundToInt((float)Helpers::getLevel(p) * 5.0f);
@@ -442,6 +442,8 @@ public:
 		doc.removeSelectionListener(this);
 	}
 
+    LanguageManager* getLanguageManager();
+    
 	bool keyPressed(const KeyPress& k) override;
 
 	int getBestWidth() const

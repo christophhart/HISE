@@ -535,6 +535,8 @@ public:
 
 	ScopedPointer<CodeTokeniser> tokeniser;
 
+    LanguageManager* getLanguageManager() { return languageManager; }
+    
 	ScrollBar& getVerticalScrollBar() { return scrollBar; }
 
 private:
