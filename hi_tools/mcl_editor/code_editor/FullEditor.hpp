@@ -28,7 +28,6 @@ namespace TextEditorSettings
 	DECLARE_ID(MapWidth);
 	DECLARE_ID(LineBreaks);
 	DECLARE_ID(EnableHover);
-	DECLARE_ID(ShowWhitespace);
     DECLARE_ID(AutoAutocomplete);
     DECLARE_ID(FixWeirdTab);
 }
@@ -76,13 +75,10 @@ struct FullEditor: public Component,
 		auto s = JSON::parse(settingFile);
 
 		editor.setLineBreakEnabled(s.getProperty(TextEditorSettings::LineBreaks, true));
-		editor.showWhitespace = s.getProperty(TextEditorSettings::ShowWhitespace, true);
 		mapWidth = s.getProperty(TextEditorSettings::MapWidth, 150);
 		resized();
 		codeMap.allowHover = s.getProperty(TextEditorSettings::EnableHover, true);
         editor.showAutocompleteAfterDelay = s.getProperty(TextEditorSettings::AutoAutocomplete, true);
-        
-        GlyphArrangement::fixWeirdTab = s.getProperty(TextEditorSettings::FixWeirdTab, false);
 	}
 
 	static void saveSetting(Component* c, const Identifier& id, const var& newValue)
@@ -113,11 +109,6 @@ struct FullEditor: public Component,
 		if (id == TextEditorSettings::LineBreaks)
 		{
 			pe->editor.setLineBreakEnabled((bool)newValue);
-		}
-		if (id == TextEditorSettings::ShowWhitespace)
-		{
-			pe->editor.showWhitespace = (bool)newValue;
-			pe->editor.repaint();
 		}
 	}
 

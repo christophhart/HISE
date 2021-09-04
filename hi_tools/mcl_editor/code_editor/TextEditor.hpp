@@ -817,7 +817,6 @@ private:
 	};
 
 	TooltipWithArea tooltipManager;
-
 	
 	bool skipTextUpdate = false;
 	Selection autocompleteSelection;
@@ -830,21 +829,9 @@ private:
     void updateSelections();
 
 	void selectionChanged() override;
-    
-
     void renderTextUsingGlyphArrangement (juce::Graphics& g);
-    void resetProfilingData();
     bool enableSyntaxHighlighting = true;
-	bool showWhitespace = true;
-    bool allowCoreGraphics = true;
-    bool useOpenGLRendering = false;
-    bool drawProfilingInfo = false;
-    float accumulatedTimeInPaint = 0.f;
-    float lastTimeInPaint = 0.f;
-    float lastTokeniserTime = 0.f;
-    int numPaintCalls = 0;
-    RenderScheme renderScheme = RenderScheme::usingGlyphArrangement;
-	GotoFunction gotoFunction;
+    GotoFunction gotoFunction;
 
 	friend struct FullEditor;
 

@@ -533,8 +533,23 @@ void TextDocument::drawWhitespaceRectangles(int row, Graphics& g)
 
 		for (int i = 0; i < numChars; i++)
 		{
-			if (CharacterFunctions::isWhitespace(s[i]))
+            if (CharacterFunctions::isWhitespace(s[i]))
 			{
+                Point<int> pos(row, i);
+                bool found = false;
+                
+                for(auto& s: selections)
+                {
+                    if(s.contains(pos))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                
+                if(!found)
+                    continue;
+                
 				auto r = getBoundsOnRow(row, { i, i + 1 }, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
 				
 				bool isSpace = s[i] == ' ';
