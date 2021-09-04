@@ -71,15 +71,22 @@ juce::NormalisableRange<double> dynamic_expression::graph::getXRange()
 	if (expr != nullptr && expr->isMathNode)
 		return NormalisableRange<double>(-1.0, 1.0);
 	else
-		return RangeHelpers::getDoubleRange(getNode()->getParameter(0)->data);
+    {
+        if(auto n = getNode())
+            return RangeHelpers::getDoubleRange(n->getParameter(0)->data);
+    }
+    
+    return {0.0, 1.0};
 }
 
 double dynamic_expression::graph::getInputValue()
 {
-	if (expr->isMathNode)
+	if (expr != nullptr && expr->isMathNode)
 		return expr->lastInput;
-	else
-		return getNode()->getParameter(0)->getValue();
+	else if (auto n = getNode())
+		return n->getParameter(0)->getValue();
+    
+    return 0.0;
 }
 
 float dynamic_expression::graph::getValue(double x)
@@ -92,6 +99,9 @@ float dynamic_expression::graph::getValue(double x)
 
 void dynamic_expression::graph::rebuildPath(Path& path)
 {
+    if(expr == nullptr && getNode() == nullptr)
+        return;
+    
 	auto pRange = getXRange();
 
 	auto v = getInputValue();
