@@ -684,10 +684,9 @@ MarkdownEditorPanel::MarkdownEditorPanel(FloatingTile* root) :
 	settingsButton.setTooltip("Show settings");
 
 #if HISE_USE_NEW_CODE_EDITOR
-	
+    editor.editor.setLanguageManager(new mcl::MarkdownLanguageManager());
 #endif
 
-	doc.addListener(this);
 }
 
 void MarkdownEditorPanel::buttonClicked(Button* b)

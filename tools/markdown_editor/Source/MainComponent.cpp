@@ -10,208 +10,13 @@
 
 
 
-struct MarkdownLanguageManager : public mcl::LanguageManager
-{
-	CodeTokeniser* createCodeTokeniser() override
-	{
-		return new MarkdownParser::Tokeniser();
-	}
-
-	void processBookmarkTitle(juce::String& bookmarkTitle) override
-	{
-		bookmarkTitle.trim().removeCharacters("#`");
-	}
-
-	void addTokenProviders(mcl::TokenCollection*) override {};
-
-	mcl::FoldableLineRange::List createLineRange(const CodeDocument& doc) override
-	{
-		CodeDocument::Iterator it(doc);
-
-		int currentHeadlineLevel = 0;
-		bool addAtNextChar = false;
-
-		bool isInsideCodeBlock = false;
-
-		struct Level
-		{
-			int line;
-			int level;
-		};
-
-		Array<Level> levels;
-
-		while (auto c = it.peekNextChar())
-		{
-			switch (c)
-			{
-			case '#':
-			{
-				if (!isInsideCodeBlock)
-				{
-					if (!addAtNextChar)
-						currentHeadlineLevel = 0;
-
-					currentHeadlineLevel++;
-					addAtNextChar = true;
-					it.skip();
-					break;
-				}
-			}
-			case '-':
-			case '`':
-			{
-				if (it.nextChar() == c && it.nextChar() == c)
-				{
-					levels.add({ it.getLine(), 9000 });
-					isInsideCodeBlock = !isInsideCodeBlock;
-					break;
-				}
-			}
-			default:
-			{
-				if (addAtNextChar)
-				{
-					levels.add({ it.getLine(), currentHeadlineLevel });
-					addAtNextChar = false;
-				}
-
-				it.skipToEndOfLine();
-				break;
-			}
-			}
-		}
-
-		mcl::FoldableLineRange::WeakPtr currentElement;
-		mcl::FoldableLineRange::List lineRanges;
-
-		auto getNextLineWithSameOrLowerLevel = [&](int i)
-		{
-			auto thisLevel = levels[i].level;
-
-			for (int j = i + 1; j < levels.size(); j++)
-			{
-				if (levels[j].level <= thisLevel)
-					return j;
-			}
-
-			return levels.size() - 1;
-		};
-
-		auto getCurrentLevel = [&]()
-		{
-			if (currentElement == nullptr)
-				return -1;
-
-			auto lineStart = currentElement->getLineRange().getStart();
-
-			for (int i = 0; i < levels.size(); i++)
-			{
-				if (lineStart == levels[i].line)
-					return levels[i].level;
-			}
-
-			jassertfalse;
-			return -1;
-		};
-
-		isInsideCodeBlock = false;
-
-		for (int i = 0; i < levels.size(); i++)
-		{
-			auto thisLevel = levels[i].level;
-
-
-
-			if (thisLevel == 9000)
-			{
-				if (isInsideCodeBlock)
-				{
-					isInsideCodeBlock = false;
-					continue;
-				}
-
-				isInsideCodeBlock = true;
-
-				if (levels[i + 1].level == 9000)
-				{
-					Range<int> r(levels[i].line, levels[i + 1].line - 1);
-					auto codeRange = new mcl::FoldableLineRange(doc, r);
-
-					if (currentElement != nullptr)
-					{
-						currentElement->children.add(codeRange);
-						codeRange->parent = currentElement;
-					}
-					else
-					{
-						// don't add this as current element as there will be no children
-						lineRanges.add(codeRange);
-					}
-				}
-
-				continue;
-			}
-
-			if (thisLevel >= 4)
-				continue;
-
-			auto endOfRangeIndex = getNextLineWithSameOrLowerLevel(i);
-
-			Range<int> r(levels[i].line, levels[endOfRangeIndex].line);
-
-			if (r.isEmpty())
-				r.setEnd(doc.getNumLines());
-
-			r.setEnd(r.getEnd() - 1);
-
-			auto newRange = new mcl::FoldableLineRange(doc, r);
-
-
-
-			if (currentElement == nullptr)
-			{
-				currentElement = newRange;
-				lineRanges.add(currentElement);
-			}
-			else
-			{
-				while (getCurrentLevel() >= thisLevel)
-				{
-					currentElement = currentElement->parent;
-				}
-
-				if (currentElement == nullptr)
-				{
-					currentElement = newRange;
-					lineRanges.add(currentElement);
-				}
-				else
-				{
-					currentElement->children.add(newRange);
-					newRange->parent = currentElement;
-					currentElement = newRange;
-				}
-			}
-		}
-
-		return lineRanges;
-	}
-
-	void setupEditor(mcl::TextEditor* editor) override
-	{
-		editor->setCodeTokeniser(new MarkdownParser::Tokeniser());
-		//editor->setEnableAutocomplete(false);
-		editor->setEnableBreakpoint(false);
-	}
-};
 
 //==============================================================================
 MainContentComponent::MainContentComponent() :
 	tdoc(doc),
 	editor(tdoc),
 	preview(*this),
-	updater(*this)
+	updater(editor, preview)
 {
 #if JUCE_MAC
     MenuBarModel::setMacMainMenu(this);
@@ -240,12 +45,12 @@ MainContentComponent::MainContentComponent() :
     
 	setLookAndFeel(&laf);
 
-	doc.addListener(this);
+	
 
 	addAndMakeVisible(editor);
 	addAndMakeVisible(preview);
 
-	editor.editor.setLanguageManager(new MarkdownLanguageManager());
+	editor.editor.setLanguageManager(new mcl::MarkdownLanguageManager());
 
 	editor.setLookAndFeel(&plaf);
 
@@ -318,7 +123,7 @@ MainContentComponent::MainContentComponent() :
 
     
     
-	setEnableScrollbarListening(true);
+	updater.setEnableScrollbarListening(true);
 
     setSize (1280, 800);
 
@@ -360,10 +165,7 @@ void MainContentComponent::resized()
 		editor.setBounds(b);
 }
 
-void MainContentComponent::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart)
-{
-	synchroniseTabs(scrollBarThatHasMoved == &editor.editor.getVerticalScrollBar());
-}
+
 
 juce::StringArray MainContentComponent::getMenuBarNames()
 {
@@ -586,47 +388,7 @@ void MainContentComponent::toggleSetting(const Identifier& id)
 	applySetting(id, !getSetting(id));
 }
 
-void MainContentComponent::setEnableScrollbarListening(bool shouldListenToScrollBars)
-{
-	if (shouldListenToScrollBars)
-	{
-		preview.viewport.getVerticalScrollBar().addListener(this);
-		editor.editor.getVerticalScrollBar().addListener(this);
-	}
-	else
-	{
-		preview.viewport.getVerticalScrollBar().removeListener(this);
-		editor.editor.getVerticalScrollBar().removeListener(this);
-	}
-}
 
-void MainContentComponent::synchroniseTabs(bool editorIsSource)
-{
-	if (recursiveScrollProtector)
-		return;
-    
-    if(!editor.isVisible() || !preview.isVisible())
-        return;
-
-	ScopedValueSetter<bool> svs(recursiveScrollProtector, true);
-
-	auto ps = &preview.viewport.getVerticalScrollBar();
-	auto es = &editor.editor.getVerticalScrollBar();
-
-	if (!editorIsSource)
-	{
-		auto yPos = (float)preview.viewport.getViewPositionY();
-		auto lineNumber = preview.renderer.getLineNumberForY(yPos);
-
-		editor.editor.setFirstLineOnScreen(lineNumber);
-	}
-	else
-	{
-		auto currentLine = editor.editor.getFirstLineOnScreen();
-		auto yPos = preview.renderer.getYForLineNumber(currentLine);
-		preview.viewport.setViewPosition(0, yPos);
-	}
-}
 
 void MainContentComponent::setFile(const File& f)
 {

@@ -795,10 +795,7 @@ void mcl::TextEditor::resized()
     auto b2 = getLocalBounds();
     b2.removeFromLeft(gutter.getGutterWidth());
     horizontalScrollBar.setBounds(b2.removeFromBottom(14));
-    
-
     gutter.setBounds (b);
-    resetProfilingData();
 }
 
 void mcl::TextEditor::paint (Graphics& g)
@@ -1030,7 +1027,6 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			UnfoldAll,
 			Goto,
 			LineBreaks,
-			Whitespace,
             AutoAutocomplete,
 			BackgroundParsing,
             FixWeirdTab,
@@ -1062,8 +1058,6 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 		menu.addItem(FoldAll, "Fold all", true, false);
 		menu.addItem(UnfoldAll, "Unfold all", true, false);
 		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
-		menu.addItem(Whitespace, "Show whitespace", true, showWhitespace);
-        menu.addItem(FixWeirdTab, "Fix weird tabs", true, GlyphArrangement::fixWeirdTab);
         menu.addItem(AutoAutocomplete, "Autoshow Autocomplete", true, showAutocompleteAfterDelay);
         
 		menu.addSeparator();
@@ -1104,12 +1098,9 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
             case AutoAutocomplete:
 				FullEditor::saveSetting(this, TextEditorSettings::AutoAutocomplete, !showAutocompleteAfterDelay);
                 break;
-			case Whitespace:
-				FullEditor::saveSetting(this, TextEditorSettings::ShowWhitespace, !showWhitespace);
-				break;
         }
 
-        resetProfilingData();
+      
         repaint();
         return;
     }
@@ -1845,7 +1836,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 	if (key.isKeyCode(KeyPress::backspaceKey)) return remove(Target::character, Direction::backwardCol);
 	if (key.isKeyCode(KeyPress::deleteKey))	   return remove(Target::character, Direction::forwardCol);
 
-#if JUCE_WINDOWS
+#if JUCE_WINDOWS || JUCE_LINUX
     // Home/End: End / start of line
 	if (key.isKeyCode(KeyPress::homeKey)) return nav(mods, Target::firstnonwhitespace, Direction::backwardCol);
 	if (key.isKeyCode(KeyPress::endKey))  return nav(mods, Target::lineUntilBreak, Direction::forwardCol);
@@ -2107,11 +2098,8 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 		document.clearTokens(rows);
 		document.applyTokens(rows, zones);
 
-		if (showWhitespace)
-		{
-			for (int i = rows.getStart(); i < rows.getEnd(); i++)
-				document.drawWhitespaceRectangles(i, g);
-		}
+        for (int i = rows.getStart(); i < rows.getEnd(); i++)
+            document.drawWhitespaceRectangles(i, g);
 
         for (int n = 0; n < colourScheme.types.size(); ++n)
         {
@@ -2121,17 +2109,9 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
     }
     else
     {
-        lastTokeniserTime = 0.f;
         document.findGlyphsIntersecting (g.getClipBounds().toFloat()).draw (g);
     }
     g.restoreState();
 }
-
-void mcl::TextEditor::resetProfilingData()
-{
-    accumulatedTimeInPaint = 0.f;
-    numPaintCalls = 0;
-}
-
 
 }

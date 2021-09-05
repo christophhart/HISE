@@ -318,8 +318,11 @@ public:
 		/** Returns the millisecond value for the supplied tempo (HINT: Use "TempoSync" mode from Slider!) */
 		double getMilliSecondsForTempo(int tempoIndex) const;;
 
-        /** launches the given URL in the system's web browser. */
-        void openWebsite(String url);
+    /** launches the given URL in the system's web browser. */
+    void openWebsite(String url);
+
+		/** Checks if given email address is valid - not fool proof. */
+    bool isEmailAddress(String email);
 
 		/** Creates a list of all available expansions. */
 		var getExpansionList();

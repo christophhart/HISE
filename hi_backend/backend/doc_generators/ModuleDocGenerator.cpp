@@ -134,7 +134,10 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFac
 	list.url.setType(MarkdownLink::Folder);
 	list.tocString = "List of " + factoryName;
 	list.keywords.add(factoryName);
-	
+
+    auto mc = f->getOwnerProcessor()->getMainController();
+    
+    mc->setAllowFlakyThreading(true);
 
 	for (int i = 0; i < n; i++)
 	{
@@ -144,8 +147,16 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFac
 			continue;
 
 		parent.c = p->getColour();
+        
+        
+        
 		list.addChild(createItemForProcessor(p, list));
+        
+        
 	}
+    
+    mc->setAllowFlakyThreading(false);
+    
 	list.isAlwaysOpen = true;
 	list.sortChildren();
 	
@@ -178,11 +189,15 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 
 	ScopedPointer<FactoryType> f = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, bp->getMainSynthChain());
 
+    bp->setAllowFlakyThreading(true);
+    
 	auto sg = createItemForCategory("Sound Generators", rItem);
 
 	auto sg2 = createItemForFactory(new ModulatorSynthChainFactoryType(1, bp->getMainSynthChain()),
 		"Sound Generators", sg);
 
+    bp->setAllowFlakyThreading(false);
+    
 	sg.addChild(std::move(sg2));
 
 	rItem.addChild(std::move(sg));
@@ -437,8 +452,12 @@ juce::Image HiseModuleDatabase::ScreenshotProvider::getImage(const MarkdownLink&
 
 			p->setId(p->getName());
 
+            p->getMainController()->setAllowFlakyThreading(true);
+            
 			ScopedPointer<ProcessorEditor> editor = new ProcessorEditor(c, 1, p, nullptr);
 
+            p->getMainController()->setAllowFlakyThreading(false);
+            
 			w->addAndMakeVisible(editor);
 
 			editor->setSize(800, editor->getHeight());
@@ -495,6 +514,8 @@ hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& par
 
 	root.addChild(std::move(manual));
 
+    data->network->getScriptProcessor()->getMainController_()->setAllowFlakyThreading(true);
+    
 	auto list = data->network->getListOfAvailableModulesAsTree();
 
 	MarkdownDataBase::Item lItem;
@@ -510,6 +531,8 @@ hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& par
 
 	root.addChild(std::move(lItem));
 
+    data->network->getScriptProcessor()->getMainController_()->setAllowFlakyThreading(false);
+    
 	return root;
 }
 
@@ -666,7 +689,7 @@ hise::Image ScreenshotProvider::getImage(const MarkdownLink& url, float width)
 		if (auto node = dynamic_cast<NodeBase*>(data->network->get(id).getObject()))
 		{
 			MessageManagerLock mmlock;
-			auto c = dynamic_cast<juce::Component*>(node->createComponent());
+			ScopedPointer<Component> c = dynamic_cast<juce::Component*>(node->createComponent());
 			c->setBounds(node->getPositionInCanvas({ 0, 0 }));
 			return c->createComponentSnapshot(c->getLocalBounds());
 		}
