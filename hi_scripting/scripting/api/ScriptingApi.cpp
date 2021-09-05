@@ -833,7 +833,6 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, showMessage);
 	API_VOID_METHOD_WRAPPER_1(Engine, setLowestKeyToDisplay);
   API_VOID_METHOD_WRAPPER_1(Engine, openWebsite);
-	API_METHOD_WRAPPER_1(Engine, isEmailAddress);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadNextUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadPreviousUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadUserPreset);
@@ -944,7 +943,6 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(showMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
   ADD_API_METHOD_1(openWebsite);
-	ADD_API_METHOD_1(isEmailAddress);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_1(isUserPresetReadOnly);
@@ -1578,12 +1576,6 @@ void ScriptingApi::Engine::openWebsite(String url)
     {
         reportScriptError("not a valid URL");
     }
-}
-
-bool ScriptingApi::Engine::isEmailAddress(String email)
-{
-	URL u("");
-	return u.isProbablyAnEmailAddress(email);
 }
 
 var ScriptingApi::Engine::getExpansionList()
@@ -5525,6 +5517,7 @@ struct ScriptingApi::Server::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Server, setNumAllowedDownloads);
 	API_VOID_METHOD_WRAPPER_0(Server, cleanFinishedDownloads);
 	API_VOID_METHOD_WRAPPER_1(Server, setServerCallback);
+	API_METHOD_WRAPPER_1(Server, isEmailAddress);
 };
 
 ScriptingApi::Server::Server(JavascriptProcessor* jp_):
@@ -5553,6 +5546,7 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_1(setNumAllowedDownloads);
 	ADD_API_METHOD_1(setServerCallback);
 	ADD_API_METHOD_0(cleanFinishedDownloads);
+	ADD_API_METHOD_1(isEmailAddress);
 }
 
 void ScriptingApi::Server::setBaseURL(String url)
@@ -5658,8 +5652,11 @@ void ScriptingApi::Server::setServerCallback(var callback)
 	serverCallback.incRefCount();
 }
 
-
-
+bool ScriptingApi::Server::isEmailAddress(String email)
+{
+	URL u("");
+	return u.isProbablyAnEmailAddress(email);
+}
 
 ScriptingApi::TransportHandler::Callback::Callback(TransportHandler* p, const var& f, bool sync, int numArgs_) :
 	callback(p->getScriptProcessor(), f, numArgs_),
