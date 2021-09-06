@@ -335,6 +335,7 @@ juce::String HiseEvent::toDebugString() const
 	s << getTypeAsString() << ", Number: " << number << ", Value: " << value;
 	s << ", Channel: " << channel;
 	s << ", Timestamp: " << getTimeStamp();
+	s << ", Event ID: " << String(getEventId());
 	s << (isArtificial() ? ", artficial" : "");
 	s << (isIgnored() ? ", ignored" : "");
 
@@ -761,8 +762,23 @@ void EventIdHandler::handleEventIds()
 
 		if (m->isAllNotesOff())
         {
-			memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
-            overlappingNoteOns.clear();
+			//overlappingNoteOns.clear();
+
+			for (int nc = 0; nc < 16; nc++)
+			{
+				for (int noteNumber = 0; noteNumber < 128; noteNumber++)
+				{
+					auto& e = realNoteOnEvents[nc][noteNumber];
+
+					if (!e.isEmpty())
+					{
+						overlappingNoteOns.insert(e);
+						e = {};
+					}
+				}
+			}
+
+			//memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
         }
 
 		if (m->isNoteOn())
@@ -811,6 +827,7 @@ void EventIdHandler::handleEventIds()
 
 				if (!found)
 				{
+					m->setEventId(currentEventId++);
 					// There is something fishy here so deactivate this event
 					m->ignoreEvent(true);
 				}

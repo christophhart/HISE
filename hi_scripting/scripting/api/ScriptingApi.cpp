@@ -270,6 +270,7 @@ struct ScriptingApi::Message::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Message, store);
 	API_METHOD_WRAPPER_0(Message, makeArtificial);
 	API_METHOD_WRAPPER_0(Message, isArtificial);
+	API_VOID_METHOD_WRAPPER_1(Message, setAllNotesOffCallback);
 
 };
 
@@ -278,7 +279,8 @@ ScriptingApi::Message::Message(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
 ApiClass(0),
 messageHolder(nullptr),
-constMessageHolder(nullptr)
+constMessageHolder(nullptr),
+allNotesOffCallback(p, var(), 0)
 {
 	memset(artificialNoteOnIds, 0, sizeof(uint16) * 128);
 
@@ -311,6 +313,7 @@ constMessageHolder(nullptr)
 	ADD_API_METHOD_1(store);
 	ADD_API_METHOD_0(makeArtificial);
 	ADD_API_METHOD_0(isArtificial);
+	ADD_API_METHOD_1(setAllNotesOffCallback);
 }
 
 
@@ -738,8 +741,7 @@ int ScriptingApi::Message::makeArtificial()
 		if (copy.isNoteOn())
 		{
 			getScriptProcessor()->getMainController_()->getEventHandler().pushArtificialNoteOn(copy);
-			artificialNoteOnIds[copy.getNoteNumber()] = copy.getEventId();
-
+			pushArtificialNoteOn(copy);
 		}
 		else if (copy.isNoteOff())
 		{
@@ -772,6 +774,12 @@ bool ScriptingApi::Message::isArtificial() const
 	return false;
 }
 
+void ScriptingApi::Message::setAllNotesOffCallback(var onAllNotesOffCallback)
+{
+	allNotesOffCallback = WeakCallbackHolder(getScriptProcessor(), onAllNotesOffCallback, 0);
+	allNotesOffCallback.incRefCount();
+}
+
 void ScriptingApi::Message::setHiseEvent(HiseEvent &m)
 {
 	messageHolder = &m;
@@ -792,6 +800,12 @@ hise::HiseEvent& ScriptingApi::Message::getCurrentEventReference()
 	jassertfalse;
 	static HiseEvent unused;
 	return unused;
+}
+
+void ScriptingApi::Message::onAllNotesOff()
+{
+	if (allNotesOffCallback)
+		allNotesOffCallback.callSync(nullptr, 0, nullptr);
 }
 
 // ====================================================================================================== Engine functions
@@ -833,6 +847,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, showMessage);
 	API_VOID_METHOD_WRAPPER_1(Engine, setLowestKeyToDisplay);
     API_VOID_METHOD_WRAPPER_1(Engine, openWebsite);
+	API_METHOD_WRAPPER_0(Engine, createUserPresetHandler);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadNextUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadPreviousUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadUserPreset);
@@ -943,6 +958,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(showMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
     ADD_API_METHOD_1(openWebsite);
+	ADD_API_METHOD_0(createUserPresetHandler);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_1(isUserPresetReadOnly);
@@ -1488,6 +1504,11 @@ var ScriptingApi::Engine::createDspNetwork(String id)
 var ScriptingApi::Engine::createExpansionHandler()
 {
 	return var(new ScriptExpansionHandler(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())));
+}
+
+var ScriptingApi::Engine::createUserPresetHandler()
+{
+	return var(new ScriptUserPresetHandler(getScriptProcessor()));
 }
 
 var ScriptingApi::Engine::getDspNetworkReference(String processorId, String id)
@@ -3572,10 +3593,11 @@ struct ScriptingApi::Synth::Wrapper
 };
 
 
-ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *ownerSynth) :
+ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, Message* messageObject_, ModulatorSynth *ownerSynth) :
 	ScriptingObject(p),
 	ApiClass(0),
 	moduleHandler(dynamic_cast<Processor*>(p), dynamic_cast<JavascriptProcessor*>(p)),
+	messageObject(messageObject_),
 	owner(ownerSynth),
 	numPressedKeys(0),
 	keyDown(0),
@@ -3859,6 +3881,9 @@ int ScriptingApi::Synth::addMessageFromHolder(var messageHolder)
 				if (e.isNoteOn())
 				{
 					parentMidiProcessor->getMainController()->getEventHandler().pushArtificialNoteOn(e);
+					if (messageObject != nullptr)
+						messageObject->pushArtificialNoteOn(e);
+
 					parentMidiProcessor->addHiseEventToBuffer(e);
 					return e.getEventId();
 				}
@@ -4511,6 +4536,10 @@ int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velo
 						m.setArtificial();
 
 						parentMidiProcessor->getMainController()->getEventHandler().pushArtificialNoteOn(m);
+
+						if (messageObject != nullptr)
+							messageObject->pushArtificialNoteOn(m);
+
 						parentMidiProcessor->addHiseEventToBuffer(m);
 
 						return m.getEventId();

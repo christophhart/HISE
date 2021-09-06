@@ -33,6 +33,164 @@
 namespace hise {
 using namespace juce;
 
+struct ScriptUserPresetHandler::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPreCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPostCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setEnableUserPresetPreprocessing);
+	API_METHOD_WRAPPER_1(ScriptUserPresetHandler, isOldVersion);
+};
+
+ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* pwsc) :
+	ConstScriptingObject(pwsc, 0),
+	ControlledObject(pwsc->getMainController_()),
+	preCallback(pwsc, var(), 1),
+	postCallback(pwsc, var(), 1)
+{
+	getMainController()->getUserPresetHandler().addListener(this);
+
+	ADD_API_METHOD_1(isOldVersion);
+	ADD_API_METHOD_1(setPostCallback);
+	ADD_API_METHOD_1(setPreCallback);
+	ADD_API_METHOD_1(setEnableUserPresetPreprocessing);
+}
+
+
+
+ScriptUserPresetHandler::~ScriptUserPresetHandler()
+{
+	getMainController()->getUserPresetHandler().removeListener(this);
+}
+
+void ScriptUserPresetHandler::setPreCallback(var presetCallback)
+{
+	preCallback = WeakCallbackHolder(getScriptProcessor(), presetCallback, 1);
+	preCallback.setThisObject(this);
+	preCallback.incRefCount();
+}
+
+void ScriptUserPresetHandler::setPostCallback(var presetPostCallback)
+{
+	postCallback = WeakCallbackHolder(getScriptProcessor(), presetPostCallback, 1);
+	postCallback.setThisObject(this);
+	postCallback.incRefCount();
+}
+
+void ScriptUserPresetHandler::setEnableUserPresetPreprocessing(bool processBeforeLoading)
+{
+	enablePreprocessing = processBeforeLoading;
+}
+
+bool ScriptUserPresetHandler::isOldVersion(const String& version)
+{
+#if USE_BACKEND
+	auto thisVersion = dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
+#else
+	auto thisVersion = FrontendHandler::getVersionString();
+#endif
+
+	SemanticVersionChecker svs(version, thisVersion);
+
+	return svs.isUpdate();
+}
+
+var ScriptUserPresetHandler::convertToJson(const ValueTree& d)
+{
+	DynamicObject::Ptr p = new DynamicObject();
+
+	{
+		auto dataTree = d.getChildWithName("Content");
+		
+		Array<var> dataArray;
+
+		p->setProperty("version", d["Version"]);
+
+		for (const auto& c : dataTree)
+		{
+			DynamicObject::Ptr cd = new DynamicObject();
+
+			auto value = c["value"];
+
+			if (value.toString().startsWith("[") ||
+				value.toString().startsWith("{"))
+			{
+				value = JSON::parse(value.toString());
+			}
+
+			cd->setProperty("id", c["id"].toString());
+			cd->setProperty("type", c["type"].toString());
+			cd->setProperty("value", value);
+
+			dataArray.add(var(cd));
+		}
+
+		p->setProperty("content", var(dataArray));
+	}
+
+	return var(p);
+}
+
+juce::ValueTree ScriptUserPresetHandler::applyJSON(const ValueTree& original, DynamicObject::Ptr obj)
+{
+	if (obj == nullptr)
+		return original;
+
+	auto copy = original.createCopy();
+
+	auto dataTree = copy.getChildWithName("Content");
+	dataTree.removeAllChildren(nullptr);
+
+	if (auto dataArray = obj->getProperty("content").getArray())
+	{
+		for (const auto& p : *dataArray)
+		{
+			auto id = p.getProperty("id", "");;
+			auto type = p.getProperty("type", "");
+			auto value = p.getProperty("value", 0.0);
+
+			if (value.isArray() || value.isObject())
+				value = JSON::toString(value);
+
+			ValueTree c("Control");
+			c.setProperty("type", type, nullptr);
+			c.setProperty("id", id.toString(), nullptr);
+			c.setProperty("value", value, nullptr);
+			dataTree.addChild(c, -1, nullptr);
+		}
+	}
+
+	return copy;
+}
+
+juce::ValueTree ScriptUserPresetHandler::prePresetLoad(const ValueTree& dataToLoad, const File& fileToLoad)
+{
+	currentlyLoadedFile = fileToLoad;
+
+	if (preCallback)
+	{
+		var args;
+
+		if (enablePreprocessing)
+			args = convertToJson(dataToLoad);
+
+		auto r = preCallback.callSync(&args, 1, nullptr);
+
+		if (enablePreprocessing)
+			return applyJSON(dataToLoad, args.getDynamicObject());
+	}
+
+	return dataToLoad;
+}
+
+void ScriptUserPresetHandler::presetChanged(const File& newPreset)
+{
+	if (postCallback)
+	{
+		var f(new ScriptingObjects::ScriptFile(getScriptProcessor(), newPreset));
+		postCallback.call(&f, 1);
+	}
+}
+
 struct ScriptExpansionHandler::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setErrorFunction);
