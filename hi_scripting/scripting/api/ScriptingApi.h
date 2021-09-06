@@ -159,6 +159,9 @@ public:
 		/** Checks if the event was created by a script earlier. */
 		bool isArtificial() const;
 
+		/** Sets a callback that will be performed when an all notes off message is received. */
+		void setAllNotesOffCallback(var onAllNotesOffCallback);
+
 		// ============================================================================================================
 
 		void setHiseEvent(HiseEvent &m);
@@ -168,7 +171,19 @@ public:
 
 		struct Wrapper;
 
+		void pushArtificialNoteOn(const HiseEvent& e)
+		{
+			jassert(e.isArtificial());
+			artificialNoteOnIds[e.getNoteNumber()] = e.getEventId();
+		}
+
+		void onAllNotesOff();
+
 	private:
+
+		WeakCallbackHolder allNotesOffCallback;
+
+		friend class Synth;
 
 		friend class JavascriptMidiProcessor;
 		friend class HardcodedScriptProcessor;
@@ -179,6 +194,7 @@ public:
 		uint16 artificialNoteOnIds[128];
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Message);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Message);
 	};
 
 	/** All scripting methods related to the main engine can be accessed here.
@@ -288,6 +304,9 @@ public:
 		/** Creates (and activates) the expansion handler. */
 		var createExpansionHandler();
 
+		/** Creates an user preset handler. */
+		var createUserPresetHandler();
+
 		/** Creates a reference to the DSP network of another script processor. */
 		var getDspNetworkReference(String processorId, String id);
 
@@ -320,9 +339,6 @@ public:
 
     /** launches the given URL in the system's web browser. */
     void openWebsite(String url);
-
-		/** Checks if given email address is valid - not fool proof. */
-    bool isEmailAddress(String email);
 
 		/** Creates a list of all available expansions. */
 		var getExpansionList();
@@ -783,8 +799,8 @@ public:
 
 		// ============================================================================================================
 
-		Synth(ProcessorWithScriptingContent *p, ModulatorSynth *ownerSynth);
-		~Synth() { artificialNoteOns.clear(); }
+		Synth(ProcessorWithScriptingContent *p, Message* messageObject, ModulatorSynth *ownerSynth);
+		~Synth() {}
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Synth"); };
 
@@ -977,29 +993,28 @@ public:
 
 		// ============================================================================================================
 
-		void clearNoteCounter()
-		{
-			keyDown.clear();
-			numPressedKeys.set(0);
-		}
-
-		void handleNoteCounter(const HiseEvent& e, bool inc) noexcept
+		void handleNoteCounter(const HiseEvent& e) noexcept
 		{
 			if (e.isArtificial())
 				return;
 
-			if (inc)
+			if (e.isNoteOn())
 			{
 				++numPressedKeys;
 				keyDown.setBit(e.getNoteNumber(), true);
 			}
-			else
+			else if (e.isNoteOff())
 			{
 				--numPressedKeys; 
 				if (numPressedKeys.get() < 0) 
 					numPressedKeys.set(0);
 
 				keyDown.setBit(e.getNoteNumber(), false);
+			}
+			else if (e.isAllNotesOff())
+			{
+				numPressedKeys = 0;
+				keyDown.clear();
 			}
 		}
 
@@ -1013,7 +1028,9 @@ public:
 
 		friend class ModuleHandler;
 
-		OwnedArray<Message> artificialNoteOns;
+		
+		WeakReference<Message> messageObject;
+
 		ModulatorSynth * const owner;
 		Atomic<int> numPressedKeys;
 		BigInteger keyDown;
@@ -1318,6 +1335,9 @@ public:
 		/** This function will be called whenever there is server activity. */
 		void setServerCallback(var callback);
 
+		/** Checks if given email address is valid - not fool proof. */
+    bool isEmailAddress(String email);
+		
 		void queueChanged(int numItems) override
 		{
 			if (serverCallback)

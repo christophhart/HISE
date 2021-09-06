@@ -36,7 +36,7 @@ HardcodedScriptProcessor::HardcodedScriptProcessor(MainController *mc, const Str
 	ScriptBaseMidiProcessor(mc, id),
 	ProcessorWithDynamicExternalData(mc),
 	Message(this),
-	Synth(this, ms),
+	Synth(this, &Message, ms),
 	Engine(this),
 	Console(this),
 	refCountedContent(new ScriptingApi::Content(this)),
@@ -85,19 +85,17 @@ void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 		currentEvent = &m;
 
 		Message.setHiseEvent(m);
-
 		Message.ignoreEvent(false);
+		Synth.handleNoteCounter(m);
 
 		switch (m.getType())
 		{
-		case HiseEvent::Type::NoteOn: Synth.handleNoteCounter(m, true);
+		case HiseEvent::Type::NoteOn:
 			onNoteOn();
 			break;
-
-		case HiseEvent::Type::NoteOff: Synth.handleNoteCounter(m, false);
+		case HiseEvent::Type::NoteOff:
 			onNoteOff();
 			break;
-
 		case HiseEvent::Type::Controller:
 		case HiseEvent::Type::PitchBend:
 		case HiseEvent::Type::Aftertouch: 
@@ -115,7 +113,6 @@ void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 		}
 		case HiseEvent::Type::AllNotesOff:
 		{
-			Synth.clearNoteCounter();
 			onAllNotesOff();
 			break;
 		}
