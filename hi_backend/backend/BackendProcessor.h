@@ -215,7 +215,7 @@ private:
 	var editorInformation;
 
 	ScopedPointer<BackendProcessor> docProcessor;
-	ScopedPointer<BackendRootWindow> docWindow;
+	BackendRootWindow* docWindow;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BackendProcessor)
 };

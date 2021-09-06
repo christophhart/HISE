@@ -267,10 +267,7 @@ using MarkdownEditor = mcl::FullEditor;
 
 class MarkdownEditorPanel : public FloatingTileContent,
 	public Component,
-	public CodeDocument::Listener,
-	public Timer,
-	public ButtonListener,
-	public ViewportWithScrollCallback::Listener
+	public ButtonListener
 {
 public:
 
@@ -306,27 +303,6 @@ public:
 
 	~MarkdownEditorPanel()
 	{
-		doc.removeListener(this);
-
-		if (preview.getComponent() != nullptr)
-			preview->viewport.removeListener(this);
-	}
-
-	void scrolled(Rectangle<int> /*visibleArea*/)
-	{
-		if (editor.hasKeyboardFocus(true))
-			return;
-
-		if (updatePreview())
-		{
-			auto ratio = (float)preview->viewport.getViewPositionY() / (float)preview->internalComponent.getHeight();
-
-			int l = (int)(ratio * (float)doc.getNumLines());
-
-#if HISE_USE_NEW_CODE_EDITOR
-			editor.editor.scrollToLine(l, true);
-#endif
-		}
 	}
 
 	bool updatePreview()
@@ -352,28 +328,19 @@ public:
 		if (p != nullptr)
 		{
 			preview = p;
-			preview->viewport.addListener(this);
+            syncer = new mcl::MarkdownPreviewSyncer(editor, *p);
+            syncer->setEnableScrollbarListening(true);
 		}
 			
-	}
-
-	void codeDocumentTextDeleted(int , int ) override
-	{
-		if(livePreview.getToggleState())
-			startTimer(300);
-	}
-
-	void codeDocumentTextInserted(const String&, int ) override
-	{
-		if (livePreview.getToggleState())
-			startTimer(300);
 	}
 
 	bool keyPressed(const KeyPress& key) override
 	{
 		if (key == KeyPress::F5Key)
 		{
-			startTimer(300);
+			if(syncer != nullptr)
+                syncer->startTimer(500);
+            
 			return true;
 		}
 		if ((key.getKeyCode() == 's' ||
@@ -389,19 +356,6 @@ public:
 	void loadText(const String& s);
 
 	void loadFile(File f);
-
-	void timerCallback() override
-	{
-		if (updatePreview())
-		{
-			preview->renderer.clearCurrentLink();
-
-			preview->setNewText(doc.getAllContent().replace("\r\n", "\n"), currentFile);
-
-		}
-
-		stopTimer();
-	}
 
 	File getRootFile();
 
@@ -458,6 +412,8 @@ public:
 
 	MarkdownEditor editor;
 	MarkdownDataBase* database = nullptr;
+    
+    ScopedPointer<mcl::MarkdownPreviewSyncer> syncer;
 };
 
 }

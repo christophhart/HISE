@@ -533,8 +533,23 @@ void TextDocument::drawWhitespaceRectangles(int row, Graphics& g)
 
 		for (int i = 0; i < numChars; i++)
 		{
-			if (CharacterFunctions::isWhitespace(s[i]))
+            if (CharacterFunctions::isWhitespace(s[i]))
 			{
+                Point<int> pos(row, i);
+                bool found = false;
+                
+                for(auto& s: selections)
+                {
+                    if(s.contains(pos))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                
+                if(!found)
+                    continue;
+                
 				auto r = getBoundsOnRow(row, { i, i + 1 }, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
 				
 				bool isSpace = s[i] == ' ';
@@ -1242,104 +1257,6 @@ mcl::Bookmark FoldableLineRange::getBookmark() const
 
 
 
-mcl::FoldableLineRange::List LanguageManager::createLineRange(const juce::CodeDocument& doc)
-{
-	mcl::FoldableLineRange::List lineRanges;
 
-	CodeDocument::Iterator it(doc);
-
-	bool firstInLine = false;
-	mcl::FoldableLineRange::WeakPtr currentElement;
-
-	while (auto c = it.nextChar())
-	{
-		switch (c)
-		{
-		case '{':
-		{
-			auto thisLine = it.getLine();
-
-			if (firstInLine)
-				thisLine -= 1;
-
-			Range<int> r(thisLine, thisLine);
-
-			mcl::FoldableLineRange::Ptr newElement = new mcl::FoldableLineRange(doc, r);
-
-			if (currentElement == nullptr)
-			{
-				currentElement = newElement;
-				lineRanges.add(newElement);
-			}
-			else
-			{
-				newElement->parent = currentElement;
-				currentElement->children.add(newElement);
-				currentElement = newElement.get();
-			}
-
-			break;
-		}
-		case '}':
-		{
-			if (currentElement != nullptr)
-			{
-				currentElement->setEnd(it.getPosition());
-				currentElement = currentElement->parent;
-			}
-
-			break;
-		}
-		case '#': it.skipToEndOfLine(); break;
-		case '/':
-		{
-			if (it.peekNextChar() == '*')
-			{
-				auto lineNumber = it.getLine();
-
-				it.nextChar();
-
-				while ((c = it.nextChar()))
-				{
-					if (c == '*')
-					{
-						if (it.peekNextChar() == '/')
-						{
-							auto thisLine = it.getLine();
-							if (thisLine > lineNumber)
-							{
-								mcl::FoldableLineRange::Ptr newElement = new mcl::FoldableLineRange(doc, { lineNumber, it.getLine() });
-
-								if (currentElement == nullptr)
-								{
-									lineRanges.add(newElement);
-								}
-								else
-								{
-									currentElement->children.add(newElement);
-									newElement->parent = currentElement;
-									//currentElement = newElement;
-								}
-							}
-
-							it.nextChar();
-
-							break;
-						}
-					}
-				}
-			}
-			if (it.peekNextChar() == '/')
-				it.skipToEndOfLine();
-
-			break;
-		}
-		}
-
-		firstInLine = (c == '\n') || (firstInLine && CharacterFunctions::isWhitespace(c));
-	}
-
-	return lineRanges;
-}
 
 }

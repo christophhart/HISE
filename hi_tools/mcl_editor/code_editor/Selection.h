@@ -169,6 +169,21 @@ struct Selection
 	 */
 	void push(juce::Point<int>& index) const;
 
+    bool contains(Point<int> pos) const
+    {
+        if(isSingular())
+            return false;
+        
+        auto o = oriented();
+        
+        auto isBiggerThanHead = pos.x > o.head.x ||
+                              ((pos.x == o.head.x) && (pos.y > o.head.y));
+        auto isSmallerThanTail = pos.x < o.tail.x ||
+                               ((pos.x == o.tail.x) && (pos.y < o.tail.y));
+        
+        return isBiggerThanHead && isSmallerThanTail;
+    }
+    
 	juce::Point<int> head; // (row, col) of the selection head (where the caret is drawn)
 	juce::Point<int> tail; // (row, col) of the tail
 	int token = 0;

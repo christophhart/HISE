@@ -563,15 +563,23 @@ void mcl::CodeMap::HoverPreview::setCenterRow(int newCenterRow)
 	repaint();
 }
 
+LanguageManager* FoldMap::getLanguageManager()
+{
+    return findParentComponentOfClass<FullEditor>()->editor.getLanguageManager();
+}
+
 void FoldMap::Item::mouseDoubleClick(const MouseEvent& e)
 {
 	setSelected(true, true);
 }
 
+
 void FoldMap::Item::setSelected(bool shouldBeSelected, bool grabFocus)
 {
 	clicked = shouldBeSelected;
 
+    
+    
 	if (clicked)
 	{
 		auto line = p->getLineRange().getStart() + 1;

@@ -390,7 +390,7 @@ bool MainController::KillStateHandler::killVoicesAndCall(Processor* p, const Pro
 {
 	WARN_IF_AUDIO_THREAD(true, IllegalOps::GlobalLocking);
 
-	if (!initialised())
+    if (!initialised())
 	{
 		jassert(currentState == State::WaitingForInitialisation || 
 		        currentState == State::ShutdownComplete ||
@@ -404,7 +404,9 @@ bool MainController::KillStateHandler::killVoicesAndCall(Processor* p, const Pro
 
 	const bool sameThread = getCurrentThread() == targetThread;
 
-	if (inUnitTestMode() || (!isAudioRunning() && sameThread))
+	if (inUnitTestMode() ||
+        ( !isAudioRunning() && sameThread ) ||
+        p->getMainController()->isFlakyThreadingAllowed())
 	{
 		// We either don't care about threading (unit-test) or the engine is idle
 		// and the target thread is active, so we can call the function without

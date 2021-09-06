@@ -748,6 +748,8 @@ void PresetBrowser::expansionPackLoaded(Expansion* currentExpansion)
 {
 	if(expansionColumn != nullptr && currentExpansion != nullptr)
 		selectionChanged(-1, -1, currentExpansion->getRootFolder(), false);
+	else
+		selectionChanged(-1, -1, File(), false);
 }
 
 void PresetBrowser::expansionPackCreated(Expansion* newExpansion)

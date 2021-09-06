@@ -153,4 +153,54 @@ void FullEditor::paint(Graphics& g)
 	g.fillAll(Helpers::getEditorColour(Helpers::EditorBackgroundColour));
 }
 
+
+
+void MarkdownPreviewSyncer::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart)
+{
+    synchroniseTabs(scrollBarThatHasMoved == &e.editor.getVerticalScrollBar());
+}
+
+void MarkdownPreviewSyncer::setEnableScrollbarListening(bool shouldListenToScrollBars)
+{
+    if (shouldListenToScrollBars)
+    {
+        p.viewport.getVerticalScrollBar().addListener(this);
+        e.editor.getVerticalScrollBar().addListener(this);
+    }
+    else
+    {
+        p.viewport.getVerticalScrollBar().removeListener(this);
+        e.editor.getVerticalScrollBar().removeListener(this);
+    }
+}
+
+void MarkdownPreviewSyncer::synchroniseTabs(bool editorIsSource)
+{
+    if (recursiveScrollProtector)
+        return;
+    
+    if(!e.isVisible() || !p.isVisible())
+        return;
+
+    ScopedValueSetter<bool> svs(recursiveScrollProtector, true);
+
+    auto ps = &p.viewport.getVerticalScrollBar();
+    auto es = &e.editor.getVerticalScrollBar();
+
+    if (!editorIsSource)
+    {
+        auto yPos = (float)p.viewport.getViewPositionY();
+        auto lineNumber = p.renderer.getLineNumberForY(yPos);
+
+        e.editor.setFirstLineOnScreen(lineNumber);
+    }
+    else
+    {
+        auto currentLine = e.editor.getFirstLineOnScreen();
+        auto yPos = p.renderer.getYForLineNumber(currentLine);
+        p.viewport.setViewPosition(0, yPos);
+    }
+}
+
+
 }

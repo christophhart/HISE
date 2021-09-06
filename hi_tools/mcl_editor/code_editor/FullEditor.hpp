@@ -28,7 +28,6 @@ namespace TextEditorSettings
 	DECLARE_ID(MapWidth);
 	DECLARE_ID(LineBreaks);
 	DECLARE_ID(EnableHover);
-	DECLARE_ID(ShowWhitespace);
     DECLARE_ID(AutoAutocomplete);
     DECLARE_ID(FixWeirdTab);
 }
@@ -76,13 +75,10 @@ struct FullEditor: public Component,
 		auto s = JSON::parse(settingFile);
 
 		editor.setLineBreakEnabled(s.getProperty(TextEditorSettings::LineBreaks, true));
-		editor.showWhitespace = s.getProperty(TextEditorSettings::ShowWhitespace, true);
 		mapWidth = s.getProperty(TextEditorSettings::MapWidth, 150);
 		resized();
 		codeMap.allowHover = s.getProperty(TextEditorSettings::EnableHover, true);
         editor.showAutocompleteAfterDelay = s.getProperty(TextEditorSettings::AutoAutocomplete, true);
-        
-        GlyphArrangement::fixWeirdTab = s.getProperty(TextEditorSettings::FixWeirdTab, false);
 	}
 
 	static void saveSetting(Component* c, const Identifier& id, const var& newValue)
@@ -113,11 +109,6 @@ struct FullEditor: public Component,
 		if (id == TextEditorSettings::LineBreaks)
 		{
 			pe->editor.setLineBreakEnabled((bool)newValue);
-		}
-		if (id == TextEditorSettings::ShowWhitespace)
-		{
-			pe->editor.showWhitespace = (bool)newValue;
-			pe->editor.repaint();
 		}
 	}
 
@@ -188,6 +179,59 @@ struct FullEditor: public Component,
 	juce::ComponentBoundsConstrainer constrainer;
 
 	var settings;
+};
+
+struct MarkdownPreviewSyncer : public Timer,
+                               public CodeDocument::Listener,
+                               public juce::ScrollBar::Listener
+{
+    void setEnableScrollbarListening(bool shouldListenToScrollBars);
+
+    void synchroniseTabs(bool editorIsSource);
+    
+    void scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
+
+    void codeDocumentTextInserted(const String& newText, int insertIndex) override
+    {
+        startTimer(500);
+    }
+
+    void codeDocumentTextDeleted(int startIndex, int endIndex) override
+    {
+        startTimer(500);
+    }
+    
+    MarkdownPreviewSyncer(mcl::FullEditor& editor, MarkdownPreview& preview) :
+        p(preview),
+        e(editor)
+    {
+        e.editor.getTextDocument().getCodeDocument().addListener(this);
+    };
+
+    ~MarkdownPreviewSyncer()
+    {
+        e.editor.getTextDocument().getCodeDocument().removeListener(this);
+    }
+    
+    void timerCallback() override
+    {
+        {
+            MarkdownRenderer::ScopedScrollDisabler sds(p.renderer);
+            ScopedValueSetter<bool> svs(recursiveScrollProtector, true);
+
+            if (p.isVisible())
+                p.setNewText(e.editor.getTextDocument().getCodeDocument().getAllContent(), {}, false);
+
+            stopTimer();
+        }
+        
+        synchroniseTabs(true);
+    }
+
+    bool recursiveScrollProtector = false;
+    
+    MarkdownPreview& p;
+    mcl::FullEditor& e;
 };
 
 }
