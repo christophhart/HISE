@@ -917,11 +917,29 @@ public:
 			p.shouldWakeUp = false;
 
 			auto cThread = Thread::getCurrentThread();
-			jassert(cThread != nullptr);
+			std::function<bool()> shouldExit;
 
-			while (p.allowSleep && !p.shouldWakeUp && !cThread->threadShouldExit())
+			if (cThread != nullptr)
+				shouldExit = [cThread](){ return cThread->threadShouldExit(); };
+			else
 			{
-				cThread->wait(200);
+				auto currentThread = p.getMainController()->getKillStateHandler().getCurrentThread();
+
+				if (currentThread == MainController::KillStateHandler::TargetThread::AudioThread)
+				{
+					auto mc = p.getMainController();
+					shouldExit = [mc]() { return mc->getKillStateHandler().hasRequestedQuit(); };
+				}
+			}
+
+			jassert(shouldExit);
+
+			if (!shouldExit)
+				shouldExit = []() { return true; };
+
+			while (p.allowSleep && !p.shouldWakeUp && !shouldExit())
+			{
+				Thread::sleep(200);
 			}
 
 			sendMessage(false);

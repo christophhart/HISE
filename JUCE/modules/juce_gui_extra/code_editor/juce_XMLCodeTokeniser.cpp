@@ -36,18 +36,18 @@ CodeEditorComponent::ColourScheme XmlTokeniser::getDefaultColourScheme()
         const char* name;
         uint32 colour;
     };
-
+    
     const Type types[] =
     {
-        { "Error",              0xffcc0000 },
-        { "Comment",            0xff00aa00 },
-        { "Keyword",            0xff0000cc },
-        { "Operator",           0xff225500 },
-        { "Identifier",         0xff000000 },
-        { "String",             0xff990099 },
-        { "Bracket",            0xff000055 },
-        { "Punctuation",        0xff004400 },
-        { "Preprocessor Text",  0xff660000 }
+        { "Error",              0xffBB3333 },
+        { "Comment",            0xff77CC77 },
+        { "Keyword",            0xffbbbbff },
+        { "Operator",           0xffCCCCCC },
+        { "Identifier",         0xffDDDDFF },
+        { "String",             0xffDDAAAA },
+        { "Bracket",            0xffFFFFFF },
+        { "Punctuation",        0xffCCCCCC },
+        { "Preprocessor Text",  0xffCC7777 }
     };
 
     CodeEditorComponent::ColourScheme cs;

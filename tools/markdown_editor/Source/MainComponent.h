@@ -32,6 +32,8 @@ namespace SettingIds
 }
 #undef DECLARE_ID
 
+
+
 struct KeyCommand
 {
     KeyCommand(int keyCode , ModifierKeys m_, const std::function<void()>& f_):
@@ -67,8 +69,7 @@ struct KeyCommand
 */
 class MainContentComponent   : public Component,
 							   public MarkdownDatabaseHolder,
-							   public CodeDocument::Listener,
-							   public juce::ScrollBar::Listener,
+							   
 							   public TopLevelWindowWithOptionalOpenGL,
 							   public MenuBarModel
 {
@@ -93,21 +94,11 @@ public:
 
 	
 
-	void scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
-
+	
+    
 	bool shouldUseCachedData() const override { return false; }
 	
-	/** Called by a CodeDocument when text is added. */
-	virtual void codeDocumentTextInserted(const String& newText, int insertIndex)
-	{
-		updater.startTimer(500);
-	}
-
-	/** Called by a CodeDocument when text is deleted. */
-	virtual void codeDocumentTextDeleted(int startIndex, int endIndex)
-	{
-		updater.startTimer(500);
-	}
+	
 
 	/** This method must return a list of the names of the menus. */
 	StringArray getMenuBarNames() override;
@@ -214,36 +205,7 @@ private:
 		return currentSettings.getProperty(id, getDefaultSetting(id));
 	}
 
-	ScopedPointer<mcl::TextDocument> settingsDoc;
-	ScopedPointer<mcl::TextEditor> settingsEditor;
-
-	void setEnableScrollbarListening(bool shouldListenToScrollBars);
-
-	void synchroniseTabs(bool editorIsSource);
-
-	struct Updater : public Timer
-	{
-		Updater(MainContentComponent& parent_) :
-			parent(parent_)
-		{};
-
-		void timerCallback() override
-		{
-			{
-				MarkdownRenderer::ScopedScrollDisabler sds(parent.preview.renderer);
-				ScopedValueSetter<bool> svs(parent.recursiveScrollProtector, true);
-
-				if (parent.preview.isVisible())
-					parent.preview.setNewText(parent.doc.getAllContent(), {}, false);
-
-				stopTimer();
-			}
-			
-			parent.synchroniseTabs(true);
-		}
-
-		MainContentComponent& parent;
-	} updater;
+	
 
 	void setFile(const File& f);
 
@@ -255,12 +217,12 @@ private:
 	
 	mcl::FullEditor editor;
 	MarkdownPreview preview;
-	bool recursiveScrollProtector = false;
+	
 
 	hise::GlobalHiseLookAndFeel laf;
 
-
-
+    mcl::MarkdownPreviewSyncer updater;
+    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
 };

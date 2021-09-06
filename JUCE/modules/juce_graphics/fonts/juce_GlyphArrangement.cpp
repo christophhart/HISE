@@ -141,8 +141,6 @@ void GlyphArrangement::addLineOfText (const Font& font, const String& text, floa
     addCurtailedLineOfText (font, text, xOffset, yOffset, 1.0e10f, false);
 }
 
-bool GlyphArrangement::fixWeirdTab = false;
-
 void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& text,
                                                float xOffset, float yOffset,
                                                float maxWidthPixels, bool useEllipsis)
@@ -230,90 +228,6 @@ void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& t
                                              nextX - thisX, isWhitespace));
             }
         }
-        
-        
-        
-#if 0
-		Array<int> newGlyphs;
-        Array<float> xOffsets;
-        
-        font.getGlyphPositions (text, newGlyphs, xOffsets);
-
-        auto textLen = newGlyphs.size();
-
-		constexpr int numSpacePerTab = 4;
-
-		auto spaceWidth = font.getStringWidthFloat(" ");
-
-        auto tabWidth = font.getStringWidthFloat("\t");
-        
-		int column = 0;
-        
-		for (int i = 0; i < textLen; i++)
-		{
-			if (text[i] == '\t')
-			{
-                float numToAdd = 0.0f;
-                float width = (float)(numSpacePerTab - (column) % 4);
-                
-                if(fixWeirdTab)
-                {
-				    
-
-                    numToAdd = (width)* spaceWidth;
-                }
-                else
-                {
-                    numToAdd = (width - 1.0f) * spaceWidth;
-                }
-                
-				for (int j = i+1; j < textLen; j++)
-					xOffsets.set(j, xOffsets[j] + numToAdd);
-
-				column += width;
-			}
-			else
-			{
-				column++;
-			}
-			
-			
-		}
-
-        int numOffsets = xOffsets.size();
-        
-        if(xOffsets.size() > 2 && xOffsets.getLast() < xOffsets[numOffsets-2])
-        {
-            xOffsets.getReference(numOffsets - 1) += xOffsets[numOffsets-2];
-        }
-        
-        glyphs.ensureStorageAllocated (glyphs.size() + textLen);
-
-        auto t = text.getCharPointer();
-
-        for (int i = 0; i < textLen; ++i)
-        {
-            auto nextX = xOffsets.getUnchecked (i + 1);
-
-            if (nextX > maxWidthPixels + 1.0f)
-            {
-                // curtail the string if it's too wide..
-                if (useEllipsis && textLen > 3 && glyphs.size() >= 3)
-                    insertEllipsis (font, xOffset + maxWidthPixels, 0, glyphs.size());
-
-                break;
-            }
-
-            auto thisX = xOffsets.getUnchecked (i);
-            bool isWhitespace = t.isWhitespace();
-
-            auto w = nextX - thisX;
-            
-            glyphs.add (PositionedGlyph (font, t.getAndAdvance(),
-                                         newGlyphs.getUnchecked(i),
-                                         xOffset + thisX, yOffset, w, isWhitespace));
-        }
-#endif
     }
 }
 

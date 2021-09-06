@@ -1206,6 +1206,17 @@ struct TokenWithDot : public mcl::TokenCollection::Token
 	String classId;
 };
 
+struct ObjectConstantToken : public TokenWithDot
+{
+	ObjectConstantToken(DebugInformation::Ptr parent, const Identifier& id, const var& value):
+		TokenWithDot(parent->getTextForName() + "." + id.toString(), parent->getTextForName())
+	{
+		priority = 99;
+		c = Colour(0xFF88EECC);
+		markdownDescription << "Constant value: `" << value.toString() << "`";
+	}
+};
+
 struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWithDot
 {
 	ObjectMethodToken(ValueTree methodTree, DebugInformation::Ptr parent_) :
@@ -1287,6 +1298,9 @@ struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWith
 			replaceArgs("mouseCallbackFunction", "event");
 			replaceArgs("loadingCallback", "isPreloading");
 			
+			replaceArgs("presetPreCallback", "presetData");
+			replaceArgs("presetPostCallback", "presetFile");
+
 			replaceFCallback("setOnBeatChange", "beatIndex, isNewBar");
 			replaceFCallback("setOnSignatureChange", "nom, denom");
 			replaceFCallback("setOnTempoChange", "newTempo");
@@ -1619,6 +1633,18 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 								return;
 
 							tokens.add(new ObjectMethodToken(method, ptr));
+						}
+
+						if (auto a = dynamic_cast<ApiClass*>(ptr->getObject()))
+						{
+							Array<Identifier> ids;
+							a->getAllConstants(ids);
+
+							int i = 0;
+							for (const auto& id : ids)
+							{
+								tokens.add(new ObjectConstantToken(ptr, id, a->getConstantValue(i++)));
+							}
 						}
 					}
 

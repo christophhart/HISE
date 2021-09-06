@@ -15,6 +15,7 @@
 #include "code_editor/Selection.cpp"
 #include "code_editor/GlyphArrangementArray.cpp"
 #include "code_editor/TextDocument.cpp"
+#include "code_editor/LanguageManager.cpp"
 #include "code_editor/DocTree.cpp"
 #include "code_editor/CodeMap.cpp"
 #include "code_editor/CaretComponent.cpp"

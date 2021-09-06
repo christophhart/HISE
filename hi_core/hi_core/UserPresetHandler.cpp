@@ -54,6 +54,12 @@ void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v, bool 
 			return SafeFunctionCall::OK;
 		};
 
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				pendingPreset = l.get()->prePresetLoad(pendingPreset, currentlyLoadedFile);
+		}
+
 		// Send a note off to stop the arpeggiator etc...
 		mc->allNotesOff(false);
 

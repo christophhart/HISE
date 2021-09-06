@@ -4691,6 +4691,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawToggleButton(Graphics &g_, 
 	{
 		DynamicObject::Ptr obj = new DynamicObject();
 		obj->setProperty("area", ApiHelpers::getVarRectangle(b.getLocalBounds().toFloat()));
+		obj->setProperty("enabled", b.isEnabled());
 		obj->setProperty("text", b.getButtonText());
 		obj->setProperty("over", isMouseOverButton);
 		obj->setProperty("down", isButtonDown);
@@ -4720,6 +4721,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawRotarySlider(Graphics &g_, 
 		s.setTextBoxStyle (Slider::NoTextBox, false, -1, -1);
 
 		obj->setProperty("id", s.getComponentID());
+		obj->setProperty("enabled", s.isEnabled());
 		obj->setProperty("text", s.getName());
 		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
 
@@ -4759,6 +4761,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		DynamicObject::Ptr obj = new DynamicObject();
 
 		obj->setProperty("id", slider.getComponentID());
+		obj->setProperty("enabled", slider.isEnabled());
 		obj->setProperty("text", slider.getName());
 		obj->setProperty("area", ApiHelpers::getVarRectangle(slider.getLocalBounds().toFloat()));
 
@@ -4887,6 +4890,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonBackground(Graphics& 
 		DynamicObject::Ptr obj = new DynamicObject();
 		obj->setProperty("area", ApiHelpers::getVarRectangle(button.getLocalBounds().toFloat()));
 		obj->setProperty("text", button.getButtonText());
+		obj->setProperty("enabled", button.isEnabled());
 		obj->setProperty("over", isMouseOverButton);
 		obj->setProperty("down", isButtonDown);
 		obj->setProperty("value", button.getToggleState());
@@ -5392,10 +5396,14 @@ struct ScriptingObjects::ScriptUnorderedStack::Wrapper
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, removeElement);
 	API_METHOD_WRAPPER_0(ScriptUnorderedStack, clear);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, contains);
+	API_METHOD_WRAPPER_2(ScriptUnorderedStack, storeEvent);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, copyTo);
+	API_VOID_METHOD_WRAPPER_2(ScriptUnorderedStack, setIsEventStack);
 };
 
 ScriptingObjects::ScriptUnorderedStack::ScriptUnorderedStack(ProcessorWithScriptingContent *p):
-	ConstScriptingObject(p, 0)
+	ConstScriptingObject(p, 5),
+	compareFunction(p, var(), 2)
 {
 	ADD_API_METHOD_0(isEmpty);
 	ADD_API_METHOD_0(size);
@@ -5405,9 +5413,18 @@ ScriptingObjects::ScriptUnorderedStack::ScriptUnorderedStack(ProcessorWithScript
 	ADD_API_METHOD_1(removeElement);
 	ADD_API_METHOD_1(contains);
 	ADD_API_METHOD_0(clear);
+	ADD_API_METHOD_2(setIsEventStack);
+	ADD_API_METHOD_2(storeEvent);
+	ADD_API_METHOD_1(copyTo);
 
 	elementBuffer = new VariantBuffer(data.begin(), 0);
 	wholeBf = new VariantBuffer(data.begin(), 128);
+
+	addConstant("BitwiseEqual",					 (int)CompareFunctions::BitwiseEqual);
+	addConstant("EventId",						 (int)CompareFunctions::EventId);
+	addConstant("NoteNumberAndVelocity",		 (int)CompareFunctions::NoteNumberAndVelocity);
+	addConstant("NoteNumberAndChannel",			 (int)CompareFunctions::NoteNumberAndChannel);
+	addConstant("EqualData",					 (int)CompareFunctions::EqualData);
 }
 
 struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
@@ -5415,16 +5432,27 @@ struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
 {
 	static constexpr int CellWidth = 70;
 	static constexpr int CellHeight = 22;
-	static constexpr int NumRows = 16;
-	static constexpr int NumColumns = 128 / NumRows;
+	static constexpr int EventCellWidth = 500;
+
+	static constexpr int NumColumns = 8;
+	static constexpr int EventNumColumns = 1;
+	
+	
 
 	void timerCallback() override { repaint(); }
 
 	Display(ScriptUnorderedStack* p):
 		parent(p)
 	{
-		setSize(NumColumns * CellWidth, NumRows * CellHeight);
-		setName("Unordered Stack Viewer");
+		auto isEventStack = parent->isEventStack;
+
+		auto w = isEventStack ? EventCellWidth : CellWidth;
+		auto h = CellHeight;
+		auto NumColumnsToUse = isEventStack ? EventNumColumns : NumColumns;
+		int NumRows = 128 / NumColumnsToUse;
+
+		setSize(NumColumnsToUse * w, NumRows * h);
+		setName(isEventStack ? "Event Stack" : "Float Stack");
 		startTimer(30);
 	}
 
@@ -5438,23 +5466,42 @@ struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
 			return;
 		}
 
+		auto isEventStack = parent->isEventStack;
+
+		auto w = isEventStack ? EventCellWidth : CellWidth;
+		auto h = CellHeight;
+		auto NumColumnsToUse = isEventStack ? EventNumColumns : NumColumns;
+		int NumRows = 128 / NumColumnsToUse;
+
 		int index = 0;
 
 		for (int y = 0; y < NumRows; y++)
 		{
-			for (int x = 0; x < NumColumns; x++)
+			for (int x = 0; x < NumColumnsToUse; x++)
 			{
-				Rectangle<int> ar(x * CellWidth, y * CellHeight, CellWidth, CellHeight);
+				Rectangle<int> ar(x * w, y * h, w, h);
 				
 				if (index < parent->size())
 				{
 					g.setColour(Colours::white.withAlpha(0.2f));
 					g.fillRect(ar.reduced(1));
 
-					float v = *(parent->data.begin() + index);
+					String text;
+
+					if (isEventStack)
+					{
+						auto e = *(parent->eventData.begin() + index);
+						text = e.toDebugString();
+					}
+					else
+					{
+						float v = *(parent->data.begin() + index);
+						text = String(v, 1);
+					}
+
 					g.setColour(Colours::white.withAlpha(0.8f));
 					g.setFont(GLOBAL_MONOSPACE_FONT());
-					g.drawText(String(v, 1), ar.toFloat(), Justification::centred);
+					g.drawText(text, ar.toFloat(), Justification::centred);
 				}
 				else
 				{
@@ -5473,13 +5520,288 @@ struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
 Component* ScriptingObjects::ScriptUnorderedStack::createPopupComponent(const MouseEvent& e, Component *c)
 {
 #if USE_BACKEND
-	return new Display(this);
+	auto v = new Display(this);
+
+	if (v->getHeight() > 400)
+	{
+		auto vp = new Viewport();
+		vp->setViewedComponent(v, true);
+		vp->setSize(v->getWidth() + vp->getScrollBarThickness(), 400);
+		vp->setName(v->getName());
+
+		return vp;
+	}
+
+	return v;
+
 #else
 	ignoreUnused(e, c);
 	return nullptr;
 #endif
 }
 
+
+
+
+bool ScriptingObjects::ScriptUnorderedStack::copyTo(var target)
+{
+	if (target.isArray())
+	{
+		target.getArray()->clear();
+		target.getArray()->ensureStorageAllocated(size());
+
+		if (isEventStack)
+		{
+			for (const auto& e : eventData)
+			{
+				auto m = new ScriptingMessageHolder(getScriptProcessor());
+				m->setMessage(e);
+				target.append(var(m));
+			}
+		}
+		else
+		{
+			for (const auto& v : data)
+				target.append(var(v));
+		}
+
+		return true;
+	}
+
+	if (target.isBuffer())
+	{
+		if (isEventStack)
+		{
+			reportScriptError("Can't copy event stack to buffer");
+			return false;
+		}
+		else
+		{
+			auto b = target.getBuffer();
+
+			if (isPositiveAndBelow(data.size(), b->size))
+			{
+				b->buffer.clear();
+				FloatVectorOperations::copy(b->buffer.getWritePointer(0), data.begin(), data.size());
+				return true;
+			}
+
+			return false;
+		}
+	}
+
+	if (auto otherStack = dynamic_cast<ScriptUnorderedStack*>(target.getObject()))
+	{
+		if (isEventStack == otherStack->isEventStack)
+		{
+			if (isEventStack)
+			{
+				otherStack->eventData.clearQuick();
+				
+				for (const auto& e : eventData)
+					otherStack->eventData.insertWithoutSearch(e);
+
+				return true;
+			}
+			else
+			{
+				otherStack->data.clearQuick();
+
+				for (const auto& v : data)
+					otherStack->data.insertWithoutSearch(v);
+
+				return true;
+			}
+		}
+	}
+
+	reportScriptError("No valid container");
+	RETURN_IF_NO_THROW(false);
+}
+
+bool ScriptingObjects::ScriptUnorderedStack::storeEvent(int index, var holder)
+{
+	if (!isEventStack)
+	{
+		reportScriptError("storeEvent does not work with float number stack");
+		RETURN_IF_NO_THROW(false);
+	}
+
+	if (auto m = dynamic_cast<ScriptingMessageHolder*>(holder.getObject()))
+	{
+		if (isPositiveAndBelow(index, size()))
+		{
+			m->setMessage(eventData[index]);
+			return true;
+		}
+		
+		return false;
+	}
+	else
+		reportScriptError("holder must be a MessageHolder");
+
+	RETURN_IF_NO_THROW(false);
+}
+
+bool ScriptingObjects::ScriptUnorderedStack::insert(var value)
+{
+	if (isEventStack)
+	{
+		if (auto m = dynamic_cast<ScriptingMessageHolder*>(value.getObject()))
+			return eventData.insert(m->getMessageCopy());
+
+		return false;
+	}
+	else
+	{
+		auto ok = data.insert(value);
+		updateElementBuffer();
+		return ok;
+	}
+}
+
+int ScriptingObjects::ScriptUnorderedStack::getIndexForEvent(var value) const
+{
+	if (auto m = dynamic_cast<ScriptingMessageHolder*>(value.getObject()))
+	{
+		int numUsed = eventData.size();
+
+		if (compareFunctionType == CompareFunctions::Custom)
+		{
+			var args[2];
+			args[0] = var(compareHolder);
+			args[1] = value;
+
+			for (int i = 0; i < numUsed; i++)
+			{
+				compareHolder->setMessage(eventData[i]);
+				var rv;
+
+				auto cf = const_cast<WeakCallbackHolder*>(&compareFunction);
+
+				auto r = cf->callSync(args, 2, &rv);
+
+				if (!r.wasOk())
+					reportScriptError(r.getErrorMessage());
+
+				if ((bool)rv)
+					return i;
+			}
+		}
+		else
+		{
+			auto e1 = m->getMessageCopy();
+
+			for (int i = 0; i < numUsed; i++)
+			{
+				if (hcf(e1, eventData[i]))
+					return i;
+			}
+		}
+	}
+
+	return -1;
+}
+
+
+
+bool ScriptingObjects::ScriptUnorderedStack::remove(var value)
+{
+	if (isEventStack)
+	{
+		auto index = getIndexForEvent(value);
+
+		if (index != -1)
+			return eventData.removeElement(index);
+
+		return false;
+	}
+	else
+	{
+		auto ok = data.remove(value);
+		updateElementBuffer();
+		return ok;
+	}
+}
+
+bool ScriptingObjects::ScriptUnorderedStack::removeElement(int index)
+{
+	auto ok = isEventStack ? eventData.removeElement(index) : data.removeElement(index);
+	updateElementBuffer();
+	return ok;
+}
+
+bool ScriptingObjects::ScriptUnorderedStack::clear()
+{
+	auto wasEmpty = isEmpty();
+
+	isEventStack ? eventData.clear() : data.clear();
+	updateElementBuffer();
+
+	return !wasEmpty;
+}
+
+int ScriptingObjects::ScriptUnorderedStack::size() const
+{
+	return isEventStack ? eventData.size() : data.size();
+}
+
+bool ScriptingObjects::ScriptUnorderedStack::isEmpty() const
+{
+	return isEventStack ? eventData.isEmpty() : data.isEmpty();
+}
+
+bool ScriptingObjects::ScriptUnorderedStack::contains(var value) const
+{
+	if (isEventStack)
+		return getIndexForEvent(value) != -1;
+	else
+		return data.contains((float)value);
+}
+
+var ScriptingObjects::ScriptUnorderedStack::asBuffer(bool getAllElements)
+{
+	if (isEventStack)
+		reportScriptError("Can't use asBuffer on a stack for events");
+
+	if (getAllElements)
+		return var(wholeBf);
+	else
+	{
+		return var(elementBuffer);
+	}
+}
+
+void ScriptingObjects::ScriptUnorderedStack::setIsEventStack(bool shouldBeEventStack, var eventCompareFunction)
+{
+	isEventStack = shouldBeEventStack;
+
+	if (eventCompareFunction.isObject())
+	{
+		compareFunction = WeakCallbackHolder(getScriptProcessor(), eventCompareFunction, 2);
+		compareFunctionType = CompareFunctions::Custom;
+
+		if (compareFunction)
+		{
+			compareFunction.incRefCount();
+			compareHolder = new ScriptingMessageHolder(getScriptProcessor());
+		}
+	}
+	else
+	{
+		compareFunctionType = (CompareFunctions)(int)eventCompareFunction;
+
+		switch (compareFunctionType)
+		{
+		case CompareFunctions::BitwiseEqual:		  hcf = MCF::equals<CompareFunctions::BitwiseEqual>; break;
+		case CompareFunctions::EqualData:			  hcf = MCF::equals<CompareFunctions::EqualData>; break;
+		case CompareFunctions::EventId:				  hcf = MCF::equals<CompareFunctions::EventId>; break;
+		case CompareFunctions::NoteNumberAndChannel:  hcf = MCF::equals<CompareFunctions::NoteNumberAndChannel>; break;
+		case CompareFunctions::NoteNumberAndVelocity: hcf = MCF::equals<CompareFunctions::NoteNumberAndVelocity>; break;
+		default: reportScriptError("eventCompareFunction is not a valid compare constant");
+		}
+	}
+}
 
 
 

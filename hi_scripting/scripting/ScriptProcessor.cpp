@@ -450,6 +450,7 @@ void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int /
 
 void JavascriptProcessor::cleanupEngine()
 {
+	inplaceValues.clear();
 	mainController->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
 	scriptEngine = nullptr;
 	dynamic_cast<ProcessorWithScriptingContent*>(this)->content = nullptr;
@@ -585,7 +586,6 @@ JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 JavascriptProcessor::~JavascriptProcessor()
 {
 	deleteAllPopups();
-	
 	scriptEngine = nullptr;
 }
 

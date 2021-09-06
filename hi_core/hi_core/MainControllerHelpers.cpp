@@ -591,23 +591,22 @@ int MidiControllerAutomationHandler::MPEData::size() const
 
 void MidiControllerAutomationHandler::MPEData::setMpeMode(bool shouldBeOn)
 {
-	
-
-	
-
 	getMainController()->getKeyboardState().injectMessage(MidiMessage::controllerEvent(1, 74, 64));
 	getMainController()->getKeyboardState().injectMessage(MidiMessage::pitchWheel(1, 8192));
 	getMainController()->allNotesOff();
 
-	mpeEnabled = shouldBeOn;
-
-    // Do this synchronously
-    ScopedLock sl(listeners.getLock());
-    
-	for (auto l : listeners)
+	if (mpeEnabled != shouldBeOn)
 	{
-        if(l != nullptr)
-            l->mpeModeChanged(mpeEnabled);
+		mpeEnabled = shouldBeOn;
+
+		// Do this synchronously
+		ScopedLock sl(listeners.getLock());
+
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->mpeModeChanged(mpeEnabled);
+		}
 	}
 }
 

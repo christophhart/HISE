@@ -53,7 +53,9 @@ namespace HiseModuleDatabase
 
 			~Data()
 			{
+                bp->setAllowFlakyThreading(true);
 				allProcessors.clear();
+                bp->setAllowFlakyThreading(false);
 			}
 
 			void createAllProcessors();
