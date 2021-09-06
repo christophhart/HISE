@@ -1055,9 +1055,9 @@ public:
 
     virtual ~ModulatorEditorHeaderLookAndFeel() {};
     
-	Colour getColour(int /*ColourId*/) const override { return isChain ? JUCE_LIVE_CONSTANT_OFF(Colour(0xff1f1f1f)) : Colour(0xFF222222); };
+	Colour getColour(int /*ColourId*/) const override { return isChain ? c : JUCE_LIVE_CONSTANT(Colour(0xFF222222)); };
 
-	
+    Colour c;
 
 };
 

@@ -297,7 +297,7 @@ void SampleMapEditor::paint (Graphics& g)
     
 	Rectangle<int> a(x, y, width, height);
 
-	ProcessorEditorLookAndFeel::drawShadowBox(g, a, JUCE_LIVE_CONSTANT_OFF(Colour(0xff333333)));
+	//ProcessorEditorLookAndFeel::drawShadowBox(g, a, JUCE_LIVE_CONSTANT_OFF(Colour(0xff333333)));
 
 	//g.drawRect(x, y, width, height);
 

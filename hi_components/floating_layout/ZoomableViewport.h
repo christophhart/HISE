@@ -54,6 +54,25 @@ struct ZoomableViewport : public Component,
 	{
 		void drawScrollbar(Graphics& g, ScrollBar&, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown);
 
+        void drawStretchableLayoutResizerBar (Graphics& g, int w, int h, bool /*isVerticalBar*/,
+                                                              bool isMouseOver, bool isMouseDragging)
+        {
+            float alpha = 0.0f;
+            
+            if(isMouseOver)
+                alpha += 0.3f;
+            
+            if(isMouseDragging)
+                alpha += 0.3f;
+            
+            g.setColour(Colour(SIGNAL_COLOUR).withAlpha(alpha));
+            
+            Rectangle<float> area(0.0f, 0.0f, (float)w, (float)h);
+            
+            area = area.reduced(1.0f);
+            g.fillRoundedRectangle(area, jmin(area.getWidth() / 2.0f, area.getHeight() / 2.0f));
+        }
+        
 		Colour bg = Colour(0x771d1d1d);
 	} slaf;
 

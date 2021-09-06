@@ -1766,7 +1766,7 @@ Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 
 	auto f = [this](Component* p, Component* c, Point<int> s)
 	{
-		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentInRootPopup(p, c, s);
+		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentInRootPopup(p, c, s, true);
 	};
 
 	swt->setPopupFunction(f);

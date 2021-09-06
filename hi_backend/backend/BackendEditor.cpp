@@ -986,6 +986,8 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 			
 			ft->setNewContent(GET_PANEL_NAME(InterfaceContentPanel));
 
+            ft->setOpaque(false);
+            
 			auto content = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(mc)->getScriptingContent();
 
 			if (content != nullptr)
@@ -1035,7 +1037,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 		newOptions.showNotesLabel = false;
 		newOptions.showFolderButton = false;
 		newOptions.highlightColour = Colour(SIGNAL_COLOUR);
-		newOptions.backgroundColour = Colours::black.withAlpha(0.8f);
+        newOptions.backgroundColour = Colours::transparentBlack;
 		newOptions.textColour = Colours::white;
 		newOptions.font = GLOBAL_BOLD_FONT();
 

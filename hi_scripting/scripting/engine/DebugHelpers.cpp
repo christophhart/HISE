@@ -227,6 +227,7 @@ Component* DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& 
 	{
 		ProcessorEditorContainer *pc = new ProcessorEditorContainer();
 		pc->setRootProcessorEditor(p);
+        pc->setName(p->getId());
 		return pc;
 	}
 	else

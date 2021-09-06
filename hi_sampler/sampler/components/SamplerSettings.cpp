@@ -521,7 +521,7 @@ void SamplerSettings::paint (Graphics& g)
     
 	Rectangle<int> a(x, y, width, height);
 
-	ProcessorEditorLookAndFeel::drawShadowBox(g, a, Colour(0xFF333333));
+	//ProcessorEditorLookAndFeel::drawShadowBox(g, a, Colour(0xFF333333));
 
     //[/UserPrePaint]
 

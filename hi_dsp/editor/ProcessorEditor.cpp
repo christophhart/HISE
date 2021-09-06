@@ -52,7 +52,7 @@ isPopupMode(false)
 	header->addMouseListener(this, false);
 	body->addMouseListener(this, false);
 
-    setOpaque(true);
+    //setOpaque(true);
 	
 
 	setSize(ProcessorEditorContainer::getWidthForIntendationLevel(intendationLevel), getActualHeight());
@@ -342,39 +342,67 @@ void ProcessorEditor::pasteAction()
 void ProcessorEditor::paint(Graphics &g)
 {
 	const float yOffset = (float)header->getBottom();
-
 	Colour c = getProcessor()->getColour();
-    
     const float z = (float)getIndentationLevel() * 0.04f;
-    
     c = c.withMultipliedBrightness(1.0f + z);
 
 	if (isSelectedForCopyAndPaste()) c = getProcessorAsChain() ? c.withMultipliedBrightness(1.05f) : c.withMultipliedBrightness(1.05f);
 
-    if(dynamic_cast<ModulatorSynth*>(getProcessor()))
+    
+    
+    if(dynamic_cast<ModulatorSynth*>(getProcessor()) ||
+       dynamic_cast<Chain*>(getProcessor()) )
     {
         g.setColour(c);
     }
     else
     {
+        c = c.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.2f));
+        
         g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.02f),
                                          0.0f, yOffset,
-                                         c.withMultipliedBrightness(0.98f),
+                                         c.withMultipliedBrightness(0.98f).withAlpha(0.1f),
                                          0.0f, jmax(30.0f, (float)getHeight()),
                                          false));
 
+        g.fillAll();
     }
 
-	g.fillAll(); 
+    //g.setColour(Colours::red);
+	//g.fillAll();
         
-    Colour lineColour = isSelectedForCopyAndPaste() ? Colours::white : Colours::black;
+    
+    //Colour lineColour = isSelectedForCopyAndPaste() ? Colours::white : Colours::black;
         
-    g.setColour(lineColour.withAlpha(0.25f));
+    Colour lineColour = Colour(0xFF111111);
+    
+    if(dynamic_cast<Chain*>(getProcessor()))
+    {
+        lineColour = getProcessor()->getColour().withMultipliedBrightness(JUCE_LIVE_CONSTANT_OFF(0.85f));
+    }
+    
+    if(dynamic_cast<ModulatorSynth*>(getProcessor()))
+    {
+        lineColour = Colour(0xff5a5959);
+    }
+    
+    
+    
+    g.setColour(lineColour);
+    
+    if(dynamic_cast<Chain*>(getProcessor()) && !dynamic_cast<ModulatorSynth*>(getProcessor()))
+    {
+        g.fillRoundedRectangle(0.0f, 0.0f, 3.0f, (float)getHeight(), 1.5f);
+    }
+    else
+    {
+        g.drawLine(0.0f, 0.f, 0.f, (float)getHeight());
+        g.drawLine((float)getWidth(), 0.0f, (float)getWidth(), (float)getHeight());
+           
+        g.drawLine(0.0f, (float)getHeight(), (float)getWidth(), (float)getHeight());
+    }
         
-	g.drawLine(0.0f, 0.f, 0.f, (float)getHeight());
-	g.drawLine((float)getWidth(), 0.0f, (float)getWidth(), (float)getHeight());
-       
-    g.drawLine(0.0f, (float)getHeight(), (float)getWidth(), (float)getHeight());
+	
 }
 
 

@@ -381,8 +381,10 @@ void ProcessorEditorHeader::setLookAndFeel()
 	if(dynamic_cast<ModulatorSynth*>(getProcessor()) != nullptr) luf = new ModulatorSynthEditorHeaderLookAndFeel();
 	else
 	{
-		luf = new ModulatorEditorHeaderLookAndFeel();
+		auto l = new ModulatorEditorHeaderLookAndFeel();
+        luf = l;
 		luf->isChain = isHeaderOfChain();
+        l->c = getProcessor()->getColour();
 	}
 	
 	repaint();

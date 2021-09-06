@@ -220,7 +220,7 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
 
 	
 
-	setOpaque(true);
+	//setOpaque(true);
 };
 
 SamplerSoundMap::~SamplerSoundMap()
@@ -473,7 +473,7 @@ void SamplerSoundMap::refreshSelectedSoundsFromLasso()
 
 void SamplerSoundMap::drawSoundMap(Graphics &g)
 {
-    g.fillAll(Colour(0xFF333333));
+    //g.fillAll(Colour(0xFF333333));
     
     const float noteWidth = (float)getWidth() / 128.0f;
     //const float velocityHeight = (float)getHeight() / 128.0f;

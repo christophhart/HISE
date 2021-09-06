@@ -37,9 +37,6 @@ FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedCom
 	attachedComponent(attachedComponent_),
 	localPointInComponent(localPoint)
 {
-	
-	setColour((int)ColourIds::backgroundColourId, Colours::black.withAlpha(0.96f));
-
 	setColour(Slider::ColourIds::textBoxOutlineColourId, Colours::white.withAlpha(0.6f));
 
 	if (auto ftc = dynamic_cast<FloatingTile*>(content_))
@@ -104,7 +101,7 @@ FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedCom
 		                                      img, 1.0f, Colours::white.withAlpha(0.05f),
 											  img, 1.0f, Colours::white.withAlpha(0.1f));
 
-	content->addComponentListener(this);
+	//content->addComponentListener(this);
 
 	attachedComponent->addComponentListener(this);
 
@@ -118,100 +115,117 @@ FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedCom
 	setSize(content->getWidth() + 2*offset, content->getHeight() + 24 + titleOffset + 12);
 }
 
+void FloatingTilePopup::rebuildBoxPath()
+{
+    boxPath.clear();
+    
+    if (arrowX > 0)
+    {
+        float l = (float)getWidth() - 12.0f;
+        float yOff = 12.0f;
+        float arc = 5.0f;
+        float h = (float)getHeight() - 12.0f;
+
+        boxPath.startNewSubPath(arc + 1.0f, yOff);
+
+        if (!arrowAtBottom)
+        {
+            boxPath.lineTo((float)arrowX - 12.0f, yOff);
+            boxPath.lineTo((float)arrowX, 0.0f);
+            boxPath.lineTo((float)arrowX + 12.0f, yOff);
+        }
+
+        boxPath.lineTo(l - arc, yOff);
+        boxPath.addArc(l - 2.0f*arc, yOff, 2.0f * arc, 2.f * arc, 0.0f, float_Pi / 2.0f);
+        boxPath.lineTo(l, h - arc);
+        boxPath.addArc(l - 2.0f*arc, h - 2.f*arc, 2.f * arc, 2.f * arc, float_Pi / 2.0f, float_Pi);
+        
+        if (arrowAtBottom)
+        {
+            boxPath.lineTo((float)arrowX + 12.0f, h);
+            boxPath.lineTo((float)arrowX, (float)getHeight()-1.0f);
+            boxPath.lineTo((float)arrowX - 12.0f, h);
+        }
+
+        boxPath.lineTo(arc + 1.0f, h);
+        boxPath.addArc(1.0f, h - 2.f*arc, 2.f * arc, 2.f * arc, float_Pi, float_Pi * 1.5f);
+        boxPath.lineTo(1.0f, yOff + arc);
+        boxPath.addArc(1.0f, yOff, 2.f * arc, 2.f * arc, float_Pi * 1.5f, float_Pi * 2.f);
+        boxPath.closeSubPath();
+    }
+    else
+    {
+        Rectangle<float> area(0.0f, 12.0f, (float)getWidth() - 12.0f, (float)getHeight() - 24.0f);
+
+        boxPath.addRoundedRectangle(area, 5.0f);
+        
+    }
+}
+
 void FloatingTilePopup::paint(Graphics &g)
 {
-	g.setColour(findColour((int)ColourIds::backgroundColourId));
-
-	if (arrowX > 0)
-	{
-		Path p;
-
-		float l = (float)getWidth() - 12.0f;
-		float yOff = 12.0f;
-		float arc = 5.0f;
-		float h = (float)getHeight() - 12.0f;
-
-		p.startNewSubPath(arc + 1.0f, yOff);
-
-		if (!arrowAtBottom)
-		{
-			p.lineTo((float)arrowX - 12.0f, yOff);
-			p.lineTo((float)arrowX, 0.0f);
-			p.lineTo((float)arrowX + 12.0f, yOff);
-		}
-
-		
-		p.lineTo(l - arc, yOff);
-		p.addArc(l - 2.0f*arc, yOff, 2.0f * arc, 2.f * arc, 0.0f, float_Pi / 2.0f);
-		p.lineTo(l, h - arc);
-		p.addArc(l - 2.0f*arc, h - 2.f*arc, 2.f * arc, 2.f * arc, float_Pi / 2.0f, float_Pi);
-		
-
-		if (arrowAtBottom)
-		{
-			p.lineTo((float)arrowX + 12.0f, h);
-			p.lineTo((float)arrowX, (float)getHeight()-1.0f);
-			p.lineTo((float)arrowX - 12.0f, h);
-		}
-
-		p.lineTo(arc + 1.0f, h);
-		p.addArc(1.0f, h - 2.f*arc, 2.f * arc, 2.f * arc, float_Pi, float_Pi * 1.5f);
-
-		p.lineTo(1.0f, yOff + arc);
-		p.addArc(1.0f, yOff, 2.f * arc, 2.f * arc, float_Pi * 1.5f, float_Pi * 2.f);
-
-		p.closeSubPath();
-
-		g.fillPath(p);
-
-
-		g.setColour(findColour(Slider::ColourIds::textBoxOutlineColourId));
-
-		
-		g.strokePath(p, PathStrokeType(2.0f));
-
-	}
-	else
-	{
-		Rectangle<float> area(0.0f, 12.0f, (float)getWidth() - 12.0f, (float)getHeight() - 24.0f);
-
-		g.fillRoundedRectangle(area, 5.0f);
-		g.setColour(Colours::white.withAlpha(0.6f));
-		g.drawRoundedRectangle((float)area.getX() + 1.0f, (float)area.getY() + 1.0f, (float)area.getWidth() - 2.0f, (float)area.getHeight() - 2.0f, 5.0f, 2.0f);
-	}
-
+    g.drawImageAt(background, 0, 0);
+    
 	if (hasTitle())
 	{
 		g.setColour(Colours::white);
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.drawText(content->getName(), 0, 15, getWidth(), 20, Justification::centred, false);
 	}
-
-#if 0
-	if (HiseDeviceSimulator::isMobileDevice())
-	{
-		g.setColour(Colours::black);
-		g.fillEllipse((float)getWidth() - 26.0f, 2.0f, 24.0f, 24.0f);
-		g.setColour(Colours::white.withAlpha(0.5f));
-		g.drawEllipse((float)getWidth() - 26.0f, 2.0f, 24.0f, 24.0f, 2.0f);
-
-	}
-	else
-	{
-		g.setColour(Colours::black);
-		g.fillEllipse((float)getWidth() - 22.0f, 2.0f, 20.0f, 20.0f);
-		g.setColour(Colours::white.withAlpha(0.5f));
-		g.drawEllipse((float)getWidth() - 22.0f, 2.0f, 20.0f, 20.0f, 2.0f);
-
-	}
-#endif
-
-
-	
 }
 
 void FloatingTilePopup::resized()
 {
+    if(isVisible())
+    {
+        setVisible(false);
+    
+        if(auto tc = getTopLevelComponent())
+        {
+            auto b = getLocalBounds();
+            b = tc->getLocalArea(this, b);
+            auto background2 = tc->createComponentSnapshot(b, 1.0f);
+            
+            rebuildBoxPath();
+            
+            background = Image(Image::PixelFormat::ARGB, background2.getWidth(), background2.getHeight(), true);
+            
+            gin::applyStackBlur(background2, 50);
+            
+            Graphics g(background2);
+            g.fillAll(JUCE_LIVE_CONSTANT(Colour(0x811a1a1a)));
+            PostGraphicsRenderer pg(stack, background2);
+            pg.applyMask(boxPath, false, false);
+            
+            Graphics g2(background);
+            
+            g2.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x88000000)));
+            g2.fillPath(boxPath);
+            
+            gin::applyStackBlur(background, 12);
+            
+            g2.setColour(Colours::black);
+            g2.drawImageAt(background2, 0, 0);
+            g2.setColour(JUCE_LIVE_CONSTANT(Colour(0xFF222222)));
+            g2.strokePath(boxPath, PathStrokeType(1.0f));
+            
+            
+            auto bb = boxPath.getBounds();
+            
+            boxPath.scaleToFit(bb.getX() + 1.0f, bb.getY() + 1.0f, bb.getWidth() - 2.0f, bb.getHeight() - 2.0f, false);
+            
+            g2.setColour(JUCE_LIVE_CONSTANT(Colour(0x44FFFFFF)));
+            g2.strokePath(boxPath, PathStrokeType(0.5f));
+            
+            g2.excludeClipRegion(bb.toNearestInt().removeFromBottom(bb.getHeight() - JUCE_LIVE_CONSTANT(24)));
+            g2.setColour(Colours::white.withAlpha(JUCE_LIVE_CONSTANT(0.05f)));
+            g2.fillPath(boxPath);
+            
+        }
+        
+        setVisible(true);
+    }
+    
 	closeButton->setBounds(getWidth() - 24, 0, 24, 24);
 	
 	if (hasTitle())
@@ -1141,8 +1155,149 @@ bool FloatingTile::isRootPopupShown() const
 	return currentPopup != nullptr;
 }
 
-FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint)
+struct ResizableViewport: public Component,
+                          public PathFactory,
+                          public ButtonListener,
+                          public ComponentListener
 {
+    
+    constexpr static int EdgeHeight = 18;
+    
+    ResizableViewport(int maxHeight_):
+     maxHeight(maxHeight_),
+     maximiseButton("maximise", this, *this),
+     edge(this, nullptr, ResizableEdgeComponent::bottomEdge)
+    {
+        maximiseButton.setToggleModeWithColourChange(true);
+        
+        slaf.bg = Colours::transparentBlack;
+        
+        addAndMakeVisible(maximiseButton);
+        addAndMakeVisible(vp);
+        addAndMakeVisible(edge);
+        edge.setLookAndFeel(&slaf);
+    }
+    
+    void componentMovedOrResized (Component& component,
+                                  bool wasMoved,
+                                  bool wasResized) override
+    {
+        if(wasResized && maximiseButton.getToggleState())
+        {
+            maximise();
+        }
+    }
+    
+    void resized() override
+    {
+        auto b = getLocalBounds();
+        b.removeFromLeft(vp.getScrollBarThickness());
+        
+        auto bot = b.removeFromBottom(EdgeHeight);
+        
+        maximiseButton.setBounds(bot.removeFromRight(bot.getHeight()).reduced(1));
+        edge.setBounds(bot.reduced(5));
+        vp.setBounds(b);
+    }
+    
+    void maximise()
+    {
+        auto maxHeightToUse = jmin(maxHeight - 50, vp.getViewedComponent()->getHeight() + EdgeHeight);
+        
+        setSize(getWidth(), maxHeightToUse);
+        edge.setVisible(false);
+    }
+    
+    void buttonClicked(Button* b) override
+    {
+        if(b->getToggleState())
+        {
+            defaultHeight = getHeight();
+            maximise();
+        }
+        else
+        {
+            setSize(getWidth(), defaultHeight);
+            edge.setVisible(true);
+        }
+        
+    }
+    
+    Path createPath(const String& url) const override
+    {
+        Path p;
+        p.startNewSubPath(0.0f, 0.0f);
+        p.lineTo(1.0f, 1.0f);
+        p.lineTo(0.25f, 1.0f);
+        p.lineTo(0.25f, 2.0f);
+        p.lineTo(1.0f, 2.0f);
+        p.lineTo(0.0f, 3.0f);
+        p.lineTo(-1.0f, 2.0f);
+        p.lineTo(-0.25f, 2.0f);
+        p.lineTo(-0.25f, 1.0f);
+        p.lineTo(-1.0f, 1.0f);
+        p.closeSubPath();
+        return p;
+    }
+    
+    void setComponent(Component* c)
+    {
+        vp.setViewedComponent(c, true);
+        
+        defaultHeight = jmin(c->getHeight(), maxHeight * 3 / 4);
+        
+        c->addComponentListener(this);
+        vp.getVerticalScrollBar().setLookAndFeel(&slaf);
+        vp.setScrollBarThickness(12);
+        
+        setSize(c->getWidth() + vp.getScrollBarThickness() * 2, defaultHeight + EdgeHeight);
+        
+        setName(c->getName());
+        
+        if(c->getHeight() > maxHeight)
+            maximiseButton.setToggleState(true, sendNotification);
+    }
+    
+    ResizableEdgeComponent edge;
+    Viewport vp;
+    ZoomableViewport::Laf slaf;
+    
+    HiseShapeButton maximiseButton;
+    
+    const int maxHeight;
+    int defaultHeight;
+};
+
+FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool wrapInViewport)
+{
+    Component* toListenTo = newComponent;
+    
+    if(newComponent != nullptr && wrapInViewport)
+    {
+        auto maxHeight = getTopLevelComponent()->getHeight();
+        
+        auto vp = new ResizableViewport(maxHeight);
+        vp->setComponent(newComponent);
+        
+        toListenTo = newComponent;
+        newComponent = vp;
+        
+        
+    }
+    
+    if(attachedComponent != nullptr)
+    {
+        if(auto f = attachedComponent->findParentComponentOfClass<FloatingTilePopup>())
+        {
+            auto r = attachedComponent->getTopLevelComponent();
+            
+            localPoint = r->getLocalPoint(attachedComponent, localPoint);
+            
+            CallOutBox::launchAsynchronously(std::unique_ptr<Component>(newComponent), {localPoint, localPoint}, r);
+            return f;
+        }
+    }
+    
 	if (getParentType() != ParentType::Root)
 	{
 		return getRootFloatingTile()->showComponentInRootPopup(newComponent, attachedComponent, localPoint);
@@ -1156,6 +1311,8 @@ FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponen
 
 			addAndMakeVisible(currentPopup = new FloatingTilePopup(newComponent, attachedComponent, localPoint));
 
+            toListenTo->addComponentListener(currentPopup);
+            newComponent->addComponentListener(currentPopup);
 
 			currentPopup->updatePosition();
 

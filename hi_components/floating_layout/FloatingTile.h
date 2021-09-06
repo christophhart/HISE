@@ -59,6 +59,17 @@ public:
 		return content != nullptr && content->getName().containsNonWhitespaceChars();
 	}
 
+    bool keyPressed(const KeyPress& k) override
+    {
+        if(k == KeyPress::escapeKey)
+        {
+            deleteAndClose();
+            return true;
+        }
+        
+        return false;
+    }
+    
 	void resized();
 
 	void deleteAndClose();
@@ -85,11 +96,19 @@ public:
 
 private:
 
+    void rebuildBoxPath();
+    
+    PostGraphicsRenderer::DataStack stack;
+    
+    Path boxPath;
+    
 	Component::SafePointer<Component> attachedComponent;
 	Point<int> localPointInComponent;
 
 	ScopedPointer<Component> content;
 	ScopedPointer<ImageButton> closeButton;
+    
+    Image background;
 };
 
 
@@ -521,7 +540,7 @@ public:
 
 	void editJSON();
 
-	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint);
+	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool wrapInViewport=false);
 
 	bool isRootPopupShown() const;
 
@@ -667,6 +686,8 @@ private:
 	FloatingTileContent::Factory panelFactory;
 
 	ScopedPointer<Component> overlayComponent;
+    
+    ZoomableViewport::Laf slaf;
 };
 
 #if USE_BACKEND

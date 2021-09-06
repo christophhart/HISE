@@ -325,7 +325,7 @@ void PopoutButtonPanel::resized()
 InterfaceContentPanel::InterfaceContentPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
-	setOpaque(true);
+	//setOpaque(true);
 
 	if (!connectToScript())
 	{
@@ -355,7 +355,7 @@ InterfaceContentPanel::~InterfaceContentPanel()
 
 void InterfaceContentPanel::paint(Graphics& g)
 {
-	g.fillAll(Colours::black);
+	//g.fillAll(Colours::black);
 
 	if (content == nullptr)
 	{
