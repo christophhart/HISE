@@ -340,9 +340,6 @@ public:
     /** launches the given URL in the system's web browser. */
     void openWebsite(String url);
 
-		/** Checks if given email address is valid - not fool proof. */
-    bool isEmailAddress(String email);
-
 		/** Creates a list of all available expansions. */
 		var getExpansionList();
 
@@ -1338,6 +1335,9 @@ public:
 		/** This function will be called whenever there is server activity. */
 		void setServerCallback(var callback);
 
+		/** Checks if given email address is valid - not fool proof. */
+    bool isEmailAddress(String email);
+		
 		void queueChanged(int numItems) override
 		{
 			if (serverCallback)
