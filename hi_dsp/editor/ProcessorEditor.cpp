@@ -370,6 +370,16 @@ void ProcessorEditor::paint(Graphics &g)
 										 */
 
         g.fillAll();
+
+		auto b = getLocalBounds().removeFromTop(header->getHeight() + JUCE_LIVE_CONSTANT_OFF(5)).removeFromBottom(10).toFloat();
+
+		g.setGradientFill(ColourGradient(c.withAlpha(0.4f),
+			0.0f, b.getY(),
+			Colours::transparentBlack,
+				0.0f, b.getBottom(),
+			false));
+		
+		g.fillRect(b.reduced(1.0f, 0.0f));
     }
 
     //g.setColour(Colours::red);
