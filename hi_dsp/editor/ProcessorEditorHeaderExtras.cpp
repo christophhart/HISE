@@ -263,6 +263,12 @@ void ChainIcon::paint(Graphics &g)
 
 	Path path;
 
+	Colour c = Colours::white;
+
+	if (dynamic_cast<Chain*>(p) != nullptr ||
+		dynamic_cast<ModulatorSynth*>(p) != nullptr)
+		c = Colours::black;
+
 	if (chainType == ChainIcon::ModulatorSynthIcon)
 	{
 		g.setColour(Colours::grey);
@@ -316,11 +322,7 @@ void ChainIcon::paint(Graphics &g)
 
 	path.scaleToFit(.0f, .0f, (float)getWidth(), (float)getHeight(), true);
 
-	g.setGradientFill(ColourGradient(Colour(0xaaffffff),
-		0.0f, 0.0f,
-		Colour(0x55ffffff),
-		0.0f, (float)getHeight(),
-		false));
+	g.setColour(c.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.4f)));
 
 	g.fillPath(path);
 

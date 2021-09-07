@@ -357,13 +357,17 @@ void ProcessorEditor::paint(Graphics &g)
     }
     else
     {
-        c = c.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.2f));
+        c = c.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.1f));
         
+		g.setColour(c);
+
+		/*
         g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.02f),
                                          0.0f, yOffset,
                                          c.withMultipliedBrightness(0.98f).withAlpha(0.1f),
                                          0.0f, jmax(30.0f, (float)getHeight()),
                                          false));
+										 */
 
         g.fillAll();
     }
@@ -393,6 +397,10 @@ void ProcessorEditor::paint(Graphics &g)
     if(dynamic_cast<Chain*>(getProcessor()) && !dynamic_cast<ModulatorSynth*>(getProcessor()))
     {
         g.fillRoundedRectangle(0.0f, 0.0f, 3.0f, (float)getHeight(), 1.5f);
+
+		g.setColour(lineColour.withAlpha(0.1f));
+		g.fillRoundedRectangle(getLocalBounds().toFloat(), 3.0f);
+
     }
     else
     {

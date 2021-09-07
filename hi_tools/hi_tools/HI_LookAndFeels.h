@@ -1020,27 +1020,7 @@ public:
 
 	virtual Colour getColour(int ColourId) const = 0;
 
-	void drawBackground(Graphics &g, float width, float height, bool /*isFolded*/)
-	{
-		g.excludeClipRegion(Rectangle<int>(0, 35, (int)width, 10));
-
-#if HISE_IOS
-		height = 45.0f;
-#else
-		height = 30.0f;
-#endif
-
-
-		g.setGradientFill (ColourGradient (getColour(HeaderBackgroundColour),
-										288.0f, 8.0f,
-										getColour(HeaderBackgroundColour).withMultipliedBrightness(0.9f),
-										288.0f, height,
-										false));
-		//g.fillRoundedRectangle (0.0f, 0.0f, width, height, 3.0f);
-
-		g.fillAll();
-
-	}
+	void drawBackground(Graphics &g, float width, float height, bool /*isFolded*/);
 
 	bool isChain;
 
@@ -1531,27 +1511,7 @@ public:
 
 	void drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/) override;
 
-	void drawButtonBackground (Graphics &g, Button &b, const Colour &backgroundColour, bool isMouseOverButton, bool isButtonDown) override
-	{
-
-
-		LookAndFeel_V3::drawButtonBackground(g, b, backgroundColour, isMouseOverButton, isButtonDown);
-
-		g.setColour(Colours::white.withAlpha(b.getToggleState() ? 0.8f : 0.3f));
-
-		ChainBarPathFactory factory;
-
-		Path path = factory.createPath(b.getButtonText());
-
-		path.scaleToFit(4.0f, 4.0f, (float)b.getHeight() - 8.0f, (float)b.getHeight() - 8.0f, true);
-
-		
-		g.setColour(b.findColour(b.getToggleState() ? IconColour : IconColourOff));
-		
-
-		g.fillPath(path);
-
-	};
+	void drawButtonBackground (Graphics &g, Button &b, const Colour &backgroundColour, bool isMouseOverButton, bool isButtonDown) override;;
 };
 
 

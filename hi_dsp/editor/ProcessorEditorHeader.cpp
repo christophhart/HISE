@@ -44,11 +44,16 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 	setOpaque(true);
 
+	auto drawColour = Colours::white;
+
+	if (isHeaderOfChain() || isHeaderOfModulatorSynth())
+		drawColour = Colours::black;
+
     addAndMakeVisible (valueMeter = new VuMeter());
 	valueMeter->setType(VuMeter::StereoHorizontal);
 	valueMeter->setColour (VuMeter::backgroundColour, Colour (0xFF333333));
 	valueMeter->setColour (VuMeter::ledColour, Colours::lightgrey);
-	valueMeter->setColour (VuMeter::outlineColour, isHeaderOfModulatorSynth() ? Colour (0x45000000) : Colour (0x45ffffff));
+	valueMeter->setColour (VuMeter::outlineColour, drawColour.withAlpha(0.5f));
 	
 	#if JUCE_DEBUG
 	startTimer(150);
@@ -64,16 +69,16 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
     idLabel->setJustificationType (Justification::centredLeft);
     idLabel->setEditable(false, true, true);
     idLabel->setColour (Label::backgroundColourId, Colour (0x00000000));
-    idLabel->setColour (Label::textColourId, Colours::black.withAlpha(0.7f));
+    idLabel->setColour (Label::textColourId, drawColour.withAlpha(0.7f));
     idLabel->setColour (Label::outlineColourId, Colour (0x00ffffff));
-    idLabel->setColour (Label::textWhenEditingColourId, Colours::black);
+    idLabel->setColour (Label::textWhenEditingColourId, drawColour);
     idLabel->setColour (Label::ColourIds::backgroundWhenEditingColourId, Colours::transparentBlack);
-	idLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, idLabel->findColour(Label::textWhenEditingColourId));
+	idLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, drawColour.contrasting(1.0f));
 	idLabel->setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
-    idLabel->setColour (TextEditor::textColourId, Colours::black);
+    idLabel->setColour (TextEditor::textColourId, drawColour);
     idLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
     idLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
-    idLabel->setColour(CaretComponent::ColourIds::caretColourId, isHeaderOfModulatorSynth() ? Colours::black : Colours::white);
+    idLabel->setColour(CaretComponent::ColourIds::caretColourId, drawColour);
     
 	idLabel->addListener(this);
 	
@@ -90,13 +95,11 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
     typeLabel->setJustificationType (Justification::centredLeft);
     typeLabel->setEditable (false, false, false);
     typeLabel->setColour (Label::backgroundColourId, Colour (0x00000000));
-    typeLabel->setColour (Label::textColourId, Colour (0xff220000));
+    typeLabel->setColour (Label::textColourId, drawColour);
     typeLabel->setColour (Label::outlineColourId, Colour (0x00000000));
     
     typeLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    typeLabel->setBufferedToImage(true);
-    
     addAndMakeVisible (debugButton = new TextButton ("Debug Button"));
 
 	debugButton->setButtonText("DBG");
@@ -108,8 +111,6 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	debugButton->setColour (TextButton::buttonOnColourId, Colour (0xff555555));
 	debugButton->setColour (TextButton::textColourOnId, Colour (0xffffffff));
 	debugButton->setColour (TextButton::textColourOffId, Colour (0x77ffffff));
-
-	
     debugButton->addListener (this);
 
 	addAndMakeVisible (plotButton = new DrawableButton ("Plotter Button", DrawableButton::ImageOnButtonBackground));
@@ -120,16 +121,15 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	addAndMakeVisible(bypassButton = new HeaderButton("Bypass Button", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape), this));
 
 	
-	addAndMakeVisible (foldButton = new ShapeButton ("Fold", Colours::white, Colours::white, Colours::white));
+	addAndMakeVisible (foldButton = new ShapeButton ("Fold", drawColour, drawColour, drawColour));
 	
 	
 	checkFoldButton();
 
     foldButton->setTooltip (TRANS("Expand this Processor"));
-    
     foldButton->addListener (this);
 
-	addAndMakeVisible(workspaceButton = new ShapeButton("Workspace", Colours::white, Colours::white, Colours::white));
+	addAndMakeVisible(workspaceButton = new ShapeButton("Workspace", drawColour, drawColour, drawColour));
     Path workspacePath;
     workspacePath.loadPathFromData(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
 	workspaceButton->setShape(workspacePath, true, true, true);
@@ -139,7 +139,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	refreshShapeButton(workspaceButton);
 
     
-    addAndMakeVisible (deleteButton = new ShapeButton ("Delete Processor", Colours::white, Colours::white, Colours::white));
+    addAndMakeVisible (deleteButton = new ShapeButton ("Delete Processor", drawColour, drawColour, drawColour));
 	Path deletePath;
 	deletePath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
 	deleteButton->setShape(deletePath, true, true, true);
@@ -148,16 +148,16 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 	deleteButton->addListener(this);
 
-	addAndMakeVisible(retriggerButton = new ShapeButton("Retrigger Envelope", Colours::white, Colours::white, Colours::white));
+	addAndMakeVisible(retriggerButton = new ShapeButton("Retrigger Envelope", drawColour, drawColour, drawColour));
 	retriggerButton->setTooltip("Retrigger envelope in Legato Mode");
 	retriggerButton->addListener(this);
 
-	addAndMakeVisible(monophonicButton = new ShapeButton("Monophonic", Colours::white, Colours::white, Colours::white));
+	addAndMakeVisible(monophonicButton = new ShapeButton("Monophonic", drawColour, drawColour, drawColour));
 
 	monophonicButton->setTooltip("Toggle between monophonic and polyphonic mode");
 	monophonicButton->addListener(this);
 
-	addAndMakeVisible(routeButton = new ShapeButton("Edit Routing Matrix", Colours::white, Colours::white, Colours::white));
+	addAndMakeVisible(routeButton = new ShapeButton("Edit Routing Matrix", drawColour, drawColour, drawColour));
 	Path routePath;
 	routePath.loadPathFromData(HiBinaryData::SpecialSymbols::routingIcon, sizeof(HiBinaryData::SpecialSymbols::routingIcon));
 	routeButton->setShape(routePath, true, true, true);
@@ -168,7 +168,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	routeButton->setVisible(dynamic_cast<RoutableProcessor*>(getProcessor()) != nullptr);
 
 
-	addAndMakeVisible(bipolarModButton = new ShapeButton("Bipolar Modulation", Colours::white, Colours::white, Colours::white));
+	addAndMakeVisible(bipolarModButton = new ShapeButton("Bipolar Modulation", drawColour, drawColour, drawColour));
 	
 	Path bipolarPath;
 	bipolarPath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon));
@@ -297,16 +297,12 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		deleteButton->setTooltip("Delete the Midi Processor.");
 		bypassButton->setTooltip("Bypass the Midi Processor.");
 
-		typeLabel->setColour (Label::textColourId, Colour (0xffFFFFFF));
-
 		plotButton->setVisible(false);
 		bipolarModButton->setVisible(false);
 
 		addButton->setVisible(isHeaderOfChain());
 		deleteButton->setVisible(!isHeaderOfChain());
 		intensitySlider->setVisible(false);
-
-
 	}
 
 	else if(isHeaderOfEffectProcessor())
@@ -316,7 +312,6 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		deleteButton->setTooltip("Delete the Effect.");
 		bypassButton->setTooltip("Bypass the Effect.");
 
-		typeLabel->setColour (Label::textColourId, Colour (0xffFFFFFF));
 		bipolarModButton->setVisible(false);
 
 		plotButton->setVisible(false);
@@ -325,6 +320,15 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		addButton->setVisible(isHeaderOfChain());
 		deleteButton->setVisible(!isHeaderOfChain());
 		intensitySlider->setVisible(false);
+
+	}
+
+	if (isHeaderOfChain() && !isHeaderOfModulatorSynth())
+	{
+		valueMeter->setOpaque(false);
+		valueMeter->setColour(VuMeter::ColourId::backgroundColour, Colours::black.withAlpha(0.2f));
+		valueMeter->setColour(VuMeter::ColourId::outlineColour, JUCE_LIVE_CONSTANT_OFF(Colour(0x50000000)));
+		valueMeter->setColour(VuMeter::ColourId::ledColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xb6ffffff)));
 	}
 
 	checkSoloLabel();
@@ -1038,12 +1042,6 @@ void ProcessorEditorHeader::enableChainHeader()
 		}
 	}
 
-	
-
-	idLabel->setColour (Label::textColourId, Colour (0x66ffffff).withAlpha(shouldBeEnabled ? 0.7f : 0.4f));
-	idLabel->setColour (Label::ColourIds::textWhenEditingColourId, Colours::white);
-	typeLabel->setColour (Label::textColourId, Colour (0x66ffffff).withAlpha(shouldBeEnabled ? 0.7f : 0.4f));
-
 	foldButton->setEnabled(shouldBeEnabled);
 	debugButton->setEnabled(shouldBeEnabled);
 	plotButton->setEnabled(shouldBeEnabled);
@@ -1433,9 +1431,18 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 };
 
 
-void ProcessorEditorHeader::mouseDoubleClick(const MouseEvent&)
+void ProcessorEditorHeader::mouseDoubleClick(const MouseEvent& e)
 {
-	findParentComponentOfClass<BackendProcessorEditor>()->setRootProcessorWithUndo(getProcessor());
+	auto b = getLocalBounds();
+	auto pe = DebugableObject::Helpers::showProcessorEditorPopup(e, this, getProcessor());
+	auto ft = GET_BACKEND_ROOT_WINDOW(this)->getRootFloatingTile();
+	Component::SafePointer<FloatingTilePopup> safePopup = ft->showComponentAsDetachedPopup(pe, this, { b.getCentreX(), b.getY() + 7 }, true);
+
+	dynamic_cast<ProcessorEditorContainer*>(pe)->deleteCallback = [safePopup]()
+	{
+		if (safePopup.getComponent())
+			safePopup->deleteAndClose();
+	};
 }
 
 void ProcessorEditorHeader::setupButton(DrawableButton *b, ButtonShapes::Symbol s)
@@ -1466,9 +1473,12 @@ void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 {
 	bool off = !b->getToggleState();
 
-	Colour buttonColour = isHeaderOfModulatorSynth() ? Colours::black.withAlpha(0.8f) : Colours::white;
-
-	Colour shadowColour = isHeaderOfModulatorSynth() ? Colour(SIGNAL_COLOUR).withAlpha(0.25f) : Colours::white.withAlpha(0.6f);
+	Colour buttonColour = Colours::white;
+	
+	if(isHeaderOfChain() || isHeaderOfModulatorSynth())
+		buttonColour = Colours::black.withAlpha(0.8f);
+	
+	buttonColour = buttonColour.withAlpha(b->isEnabled() ? 1.0f : 0.2f);
 
 	DropShadowEffect *shadow = dynamic_cast<DropShadowEffect*>(b->getComponentEffect());
 
@@ -1476,11 +1486,8 @@ void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 	{
 		jassert(shadow != nullptr);
 
-		shadow->setShadowProperties(DropShadow(off ? Colours::transparentBlack : shadowColour, 3, Point<int>()));
+		shadow->setShadowProperties(DropShadow(buttonColour.contrasting(1.0f).withAlpha(0.5f), 3, Point<int>()));
 	}
-		
-	buttonColour = off ? Colours::grey.withAlpha(0.7f) : buttonColour;
-	buttonColour = buttonColour.withAlpha(b->isEnabled() ? 1.0f : 0.2f);
 
 	b->setColours(buttonColour.withMultipliedAlpha(0.5f), buttonColour.withMultipliedAlpha(1.0f), buttonColour.withMultipliedAlpha(1.0f));
 	b->repaint();

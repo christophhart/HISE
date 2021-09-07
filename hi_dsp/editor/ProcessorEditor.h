@@ -59,8 +59,11 @@ public:
 
 	void processorDeleted(Processor* /*deletedProcessor*/) override
 	{
-		
+		if (deleteCallback)
+			deleteCallback();
 	}
+
+	std::function<void()> deleteCallback;
 
 	void updateChildEditorList(bool forceUpdate) override;
 

@@ -419,6 +419,20 @@ void ProcessorEditorChainBar::closeAll()
 	getEditor()->sendResizedMessage();
 }
 
+void ProcessorEditorChainBar::paint(Graphics& g)
+{
+	for (auto cb : chainButtons)
+	{
+		if (auto c = dynamic_cast<Processor*>(getChainForButton(cb)))
+		{
+			g.setColour(c->getColour().withAlpha(JUCE_LIVE_CONSTANT_OFF(0.7f)));
+
+			auto b = cb->getBounds().removeFromLeft(cb->getHeight() + 2.0f).toFloat();
+			g.fillRoundedRectangle(b.reduced(JUCE_LIVE_CONSTANT_OFF(1.0f)), 2.0f);
+		}
+	}
+}
+
 void ProcessorEditorChainBar::paintOverChildren(Graphics &g)
 {
 	for (int i = 1; i < chainButtons.size(); i++)
@@ -428,6 +442,8 @@ void ProcessorEditorChainBar::paintOverChildren(Graphics &g)
             auto c = Colours::white.withAlpha(0.5f);
 			numberRenderer.drawNumberTag(g, c, chainButtons[i]->getBounds(), 2, 14, numProcessorList[i - 1]);
 		}
+
+		
 	}
 
 	if (insertPosition != -1)
