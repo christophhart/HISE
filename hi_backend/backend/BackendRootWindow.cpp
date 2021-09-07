@@ -43,6 +43,8 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 	addAndMakeVisible(floatingRoot = new FloatingTile(owner, nullptr));
 
+	screenshotter = new PeriodicScreenshotter(floatingRoot);
+
 	bool loadedCorrectly = true;
 	bool objectFound = editorState.isObject();
 
@@ -399,6 +401,8 @@ void BackendRootWindow::resized()
 
 	floatingRoot->setBounds(0, menuBarOffset, getWidth(), getHeight() - menuBarOffset);
 
+	screenshotter->notify();
+
 #if IS_STANDALONE_APP
 
 	if (currentDialog != nullptr)
@@ -624,6 +628,43 @@ void BackendPanelHelpers::SamplerWorkspace::setGlobalProcessor(BackendRootWindow
 	if (auto connector = iter.getNextPanel())
 	{
 		connector->setContentWithUndo(dynamic_cast<Processor*>(sampler), 0);
+	}
+}
+
+void PeriodicScreenshotter::drawGlassSection(Graphics& g, Component* c, Rectangle<int> b)
+{
+	if (b.isEmpty())
+		b = c->getLocalBounds();
+
+	auto area = comp->getLocalArea(c, b);
+	area = area.getIntersection(comp->getLocalBounds());
+
+	b = c->getLocalArea(comp, area);
+	auto clip = img.getClippedImage(area.transformedBy(AffineTransform::scale(0.5f)));
+	g.setOpacity(1.0f);
+
+	g.saveState();
+	g.setImageResamplingQuality(Graphics::lowResamplingQuality);
+	g.drawImageWithin(clip, b.getX(), b.getY(), b.getWidth(), b.getHeight(), RectanglePlacement::fillDestination);
+	g.restoreState();
+}
+
+void PeriodicScreenshotter::run()
+{
+	while (!threadShouldExit())
+	{
+		Image newImage;
+		{
+			MessageManagerLock mm;
+			ScopedPopupDisabler<FloatingTilePopup> spd(comp);
+			newImage = comp->createComponentSnapshot(comp->getLocalBounds(), true, 0.5f);
+		}
+
+		gin::applyStackBlur(newImage, 10);
+
+		std::swap(newImage, img);
+
+		wait(1000);
 	}
 }
 

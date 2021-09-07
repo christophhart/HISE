@@ -41,6 +41,19 @@ class FloatingTilePopup: public Component,
 {
 public:
 
+	enum class RectangleType
+	{
+		FullBounds,
+		BoxPath,
+		Title,
+		CloseButton,
+		ContentBounds
+	};
+
+	
+
+	Rectangle<int> getRectangle(RectangleType t) const;
+
 	enum class ColourIds
 	{
 		backgroundColourId = 0,
@@ -94,21 +107,71 @@ public:
 
 	Component* getAttachedComponent() const { return attachedComponent.getComponent(); }
 
+	void mouseDrag(const MouseEvent& e) override
+	{
+		if (!moveButton.getToggleState())
+			return;
+
+		if (e.mouseWasDraggedSinceMouseDown())
+		{
+			if (!dragging)
+			{
+				dragger.startDraggingComponent(this, e);
+				dragging = true;
+			}
+			else
+				dragger.dragComponent(this, e, nullptr);
+		}
+	}
+
+	void mouseUp(const MouseEvent& e) override
+	{
+		dragging = false;
+	}
+
+	void mouseDown(const MouseEvent& e) override;
+
+	void rebuildBoxPath();
+
 private:
 
-    void rebuildBoxPath();
+	bool dragging = false;
+	ComponentDragger dragger;
+
+	struct Factory : public PathFactory
+	{
+		Path createPath(const String& url) const override;
+	} factory;
+
+	struct CloseButton : public Button
+	{
+		CloseButton() :
+			Button("closeButton")
+		{};
+
+		void paintButton(Graphics& g, bool over, bool down) override;
+
+		void resized() override;
+
+		Path p;
+	};
+
+    
     
     PostGraphicsRenderer::DataStack stack;
     
     Path boxPath;
+	Image shadowImage;
     
 	Component::SafePointer<Component> attachedComponent;
 	Point<int> localPointInComponent;
 
 	ScopedPointer<Component> content;
-	ScopedPointer<ImageButton> closeButton;
+	ScopedPointer<CloseButton> closeButton;
     
-    Image background;
+public:
+
+	HiseShapeButton moveButton;
 };
 
 
@@ -542,6 +605,10 @@ public:
 
 	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool wrapInViewport=false);
 
+	FloatingTilePopup* showComponentAsDetachedPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool wrapInViewport = false);
+
+	Component* wrapInViewport(Component* c);
+
 	bool isRootPopupShown() const;
 
 	struct LayoutHelpers
@@ -631,6 +698,45 @@ public:
 
 	bool isOnInterface() const { return interfaceFloatingTile; }
 
+	void removePopup(FloatingTilePopup* p)
+	{
+		if (currentPopup == p)
+		{
+			showComponentInRootPopup(nullptr, nullptr, {});
+		}
+		else
+		{
+			detachedPopups.removeObject(p);
+		}
+	}
+
+	void detachCurrentPopupAsync()
+	{
+		Component::SafePointer<FloatingTile> safeThis(this);
+
+		MessageManager::callAsync([safeThis]()
+		{
+			if (safeThis != nullptr)
+				safeThis->toggleDetachPopup(safeThis.getComponent()->currentPopup);
+		});
+	}
+
+	void toggleDetachPopup(FloatingTilePopup* p)
+	{
+		if (p == nullptr)
+			return;
+
+		if (currentPopup == p)
+		{
+			detachedPopups.add(currentPopup.release());
+		}
+		else
+		{
+			auto index = detachedPopups.indexOf(p);
+			currentPopup = detachedPopups.removeAndReturn(index);
+		}
+	}
+
 private:
 
 	bool interfaceFloatingTile = false;
@@ -676,6 +782,8 @@ private:
 	ScopedPointer<ResizeButton> resizeButton;
 
 	ScopedPointer<Component> content;
+
+	OwnedArray<FloatingTilePopup> detachedPopups;
 
 	ScopedPointer<FloatingTilePopup> currentPopup;
 
