@@ -54,7 +54,7 @@ isLoadingPreset(false)
 	viewport->viewport->setScrollBarThickness(SCROLLBAR_WIDTH);
 	viewport->viewport->setSingleStepSizes(0, 6);
 
-	setRootProcessor(owner->synthChain->getRootProcessor());
+	//setRootProcessor(owner->synthChain->getRootProcessor());
 
 	owner->addScriptListener(this);
 
@@ -343,9 +343,10 @@ void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
 {
     Processor *p = static_cast<Processor*>(owner->synthChain);
     
-	rebuildContainer();
+
+	//rebuildContainer();
     
-    container->setRootProcessorEditor(p);
+    //container->setRootProcessorEditor(p);
 }
 
 void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
