@@ -41,12 +41,52 @@ class BackendProcessorEditor;
 class PatchBrowser : public SearchableListComponent,
 					 public DragAndDropTarget,
 					 public ButtonListener,
+					 public Timer,
 					 public MainController::ProcessorChangeHandler::Listener
 {
 
 public:
 
+	struct MiniPeak : public Component,
+					  public PooledUIUpdater::SimpleTimer
+	{
+		MiniPeak(Processor* p_) :
+			PooledUIUpdater::SimpleTimer(p_->getMainController()->getGlobalUIUpdater()),
+			p(p_),
+			isMono(dynamic_cast<Modulator*>(p_) != nullptr)
+		{
+		};
+
+		void paint(Graphics& g) override;
+
+		void timerCallback() override
+		{
+			if (p == nullptr)
+				return;
+
+			auto& v = p->getDisplayValues();
+
+			if (v.outL != l ||
+				(!isMono && v.outR != r))
+			{
+				l = v.outL;
+				r = v.outR;
+				repaint();
+			}
+		}
+
+		const bool isMono;
+		float l, r;
+
+		WeakReference<Processor> p;
+	};
+
 	// ====================================================================================================================
+
+	void timerCallback() override
+	{
+		repaint();
+	}
 
 	PatchBrowser(BackendRootWindow *window);
 	~PatchBrowser();
@@ -60,6 +100,8 @@ public:
 	void itemDragExit(const SourceDetails& dragSourceDetails) override;
 	void itemDragMove(const SourceDetails& dragSourceDetails) override;
 	void itemDropped(const SourceDetails& dragSourceDetails) override;
+
+	static void showProcessorInPopup(Component* c, const MouseEvent& e, Processor* p);
 
 	void moduleListChanged(Processor* /*changedProcessor*/, MainController::ProcessorChangeHandler::EventType type) override
 	{
@@ -154,6 +196,8 @@ private:
 		bool isOver;
 	};
 
+	static void skinWorkspaceButton(ShapeButton& b, Processor* processor);
+
 	// ====================================================================================================================
 
 	class PatchCollection : public SearchableListComponent::Collection,
@@ -165,8 +209,8 @@ private:
 
 		~PatchCollection();
 
-		void mouseDoubleClick(const MouseEvent& event) override;
-		
+		void mouseDown(const MouseEvent& e) override;
+
 		void refreshFoldButton();
 		void buttonClicked(Button *b) override;
 
@@ -188,7 +232,12 @@ private:
 		void checkDragState(const SourceDetails& dragSourceDetails);
 		void resetDragState();
 		void toggleShowChains();
+
+		MiniPeak peak;
+
 	private:
+
+		ShapeButton gotoWorkspace;
 
 		ScopedPointer<ShapeButton> foldButton;
 
@@ -212,7 +261,7 @@ private:
 
         void paint(Graphics& g) override;
 
-		void mouseDoubleClick(const MouseEvent& );
+		void mouseDown(const MouseEvent& e);
 
 		int getPopupHeight() const override	{ return 0; };
 
@@ -223,20 +272,7 @@ private:
 		virtual Processor *getProcessor() override { return processor.get(); };
 		virtual const Processor *getProcessor() const override { return processor.get(); };
 
-        void mouseDown(const MouseEvent &e) override
-        {
-            
-            const bool isEditable = dynamic_cast<Chain*>(processor.get()) == nullptr ||
-                                    dynamic_cast<ModulatorSynth*>(processor.get()) != nullptr;
-            
-            if(isEditable && e.mods.isShiftDown())
-            {
-                idLabel->showEditor();
-            }
-
-			Item::mouseDown(e);
-
-        }
+        
         
         void labelTextChanged(Label *l) override
         {
@@ -246,7 +282,13 @@ private:
             }
         }
         
+		void resized() override;
+
+		MiniPeak peak;
+
 	private:
+
+		ShapeButton gotoWorkspace;
 
 		WeakReference<Processor> processor;
         WeakReference<Processor> parent;

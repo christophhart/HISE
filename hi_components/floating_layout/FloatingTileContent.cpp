@@ -501,11 +501,11 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	const int toggleBar = ib.addChild < VisibilityToggleBar>(mainVertical);
 	ib.getContent(toggleBar)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF404040));
 
-	const int apiCollection = ib.addChild<GenericPanel<ApiCollection>>(mainVertical);
+	const int mainArea = ib.addChild<GenericPanel<PatchBrowser>>(mainVertical);
 	const int fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(mainVertical);
+	const int apiCollection = ib.addChild<GenericPanel<ApiCollection>>(mainVertical);
 	const int codeEditor = ib.addChild<HorizontalTile>(mainVertical);
 	ib.setDynamic(codeEditor, false);
-
 
 	const int codeVertical = ib.addChild<VerticalTile>(codeEditor);
 	ib.setDynamic(codeVertical, false);
@@ -517,6 +517,8 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	ib.setCustomName(codeEditor, "Code Editor");
 	ib.setSizes(codeEditor, { -0.75, -0.25 });
 	ib.setSizes(codeVertical, { -0.8, -0.2 });
+
+	
 
 	const int scriptNode = ib.addChild<VerticalTile>(mainVertical);
 
@@ -597,10 +599,10 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 		ib.setSizes(interfaceDesigner, { -0.15, -0.7, -0.15 });
 
-		ib.setFoldable(mainVertical, false, { true, true, true, true, true, true });
+		ib.setFoldable(mainVertical, false, { true, true, true, true, true, true, true });
 		ib.setFoldable(interfaceHorizontal, false, { false, true, true });
 
-		ib.setSizes(mainVertical, { 32.0, 300.0, 300.0, -0.33, -0.33, -0.33 });
+		ib.setSizes(mainVertical, { 32.0, 300.0, 300.0, 300.0, -0.33, -0.33, -0.33 });
 
 		ib.getPanel(interfaceDesigner)->getLayoutData().setVisible(false);
 		ib.getPanel(apiCollection)->getLayoutData().setVisible(false);

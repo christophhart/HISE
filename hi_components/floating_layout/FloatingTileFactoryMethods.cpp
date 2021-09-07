@@ -516,7 +516,8 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::PatchBrowser:
 	{
-
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, sizeof(BackendBinaryData::ToolbarIcons::modulatorList)));
+		break;
 	}
 	break;
 	case FloatingTileContent::Factory::PopupMenuOptions::ExpansionEditBar:
