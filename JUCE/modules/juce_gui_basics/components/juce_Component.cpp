@@ -524,6 +524,15 @@ void Component::setComponentID (const String& newID)
     componentID = newID;
 }
 
+void Component::setSkipPainting(bool shouldSkip)
+{
+	if (flags.skipPaintFlag != shouldSkip)
+	{
+		JUCE_ASSERT_MESSAGE_MANAGER_IS_LOCKED;
+		flags.skipPaintFlag = shouldSkip;
+	}
+}
+
 void Component::setVisible (bool shouldBeVisible)
 {
     if (flags.visibleFlag != shouldBeVisible)
@@ -850,6 +859,8 @@ void Component::setCachedComponentImage (CachedComponentImage* newCachedImage)
         repaint();
     }
 }
+
+
 
 void Component::setBufferedToImage (bool shouldBeBuffered)
 {
@@ -1927,6 +1938,9 @@ void Component::paintWithinParentContext (Graphics& g)
 
 void Component::paintComponentAndChildren (Graphics& g)
 {
+	if (flags.skipPaintFlag)
+		return;
+
 	PaintProfiler paintProfiler(profileId);
 
     auto clipBounds = g.getClipBounds();

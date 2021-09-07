@@ -2357,6 +2357,9 @@ public:
     */
     bool getViewportIgnoreDragFlag() const noexcept                     { return flags.viewportIgnoreDragFlag; }
 
+	/** This will simply skip the painting of this component without causing a repaint. */
+	void setSkipPainting(bool shouldSkip);
+
 private:
     //==============================================================================
     friend class ComponentPeer;
@@ -2410,6 +2413,7 @@ private:
         bool isMoveCallbackPending      : 1;
         bool isResizeCallbackPending    : 1;
         bool viewportIgnoreDragFlag     : 1;
+		bool skipPaintFlag				: 1;
        #if JUCE_DEBUG
         bool isInsidePaintCall          : 1;
        #endif
