@@ -672,7 +672,10 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case WorkspaceSampler:
 	case WorkspaceCustom:				bpe->showWorkspace(info.commandID); updateCommands(); return true;
 	case MenuNewFile:                   if (PresetHandler::showYesNoWindow("New File", "Do you want to start a new preset?"))
-                                            bpe->mainEditor->clearPreset(); return true;
+										{
+											bpe->mainEditor->clearPreset();
+										}
+		return true;
 	case MenuOpenFile:                  Actions::openFile(bpe); return true;
 	case MenuSaveFile:                  Actions::saveFile(bpe, false); updateCommands(); return true;
 	case MenuSaveFileAs:				Actions::saveFile(bpe, true); updateCommands(); return true;

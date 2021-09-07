@@ -72,6 +72,8 @@ public:
 		//g.fillAll(Colour(0xFF333333));
 	}
 
+	void setScriptProcessorForWorkspace(JavascriptProcessor* jsp);
+
 	void saveInterfaceData();
 
 	void resized();

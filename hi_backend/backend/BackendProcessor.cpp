@@ -77,6 +77,8 @@ viewUndoManager(new UndoManager())
 	clearPreset();
 	getSampleManager().getProjectHandler().addListener(this);
 
+	createInterface(600, 500);
+
 	if (!inUnitTestMode())
 	{
 		auto tmp = getCurrentSampleMapPool();
@@ -344,6 +346,25 @@ hise::BackendRootWindow* BackendProcessor::getDocWindow()
 juce::Component* BackendProcessor::getRootComponent()
 {
 	return dynamic_cast<Component*>(getDocWindow());
+}
+
+hise::JavascriptProcessor* BackendProcessor::createInterface(int width, int height)
+{
+	auto midiChain = dynamic_cast<MidiProcessorChain*>(getMainSynthChain()->getChildProcessor(ModulatorSynthChain::MidiProcessor));
+	auto s = getMainSynthChain()->getMainController()->createProcessor(midiChain->getFactoryType(), "ScriptProcessor", "Interface");
+	auto jsp = dynamic_cast<JavascriptProcessor*>(s);
+
+	String code = "Content.makeFrontInterface(" + String(width) + ", " + String(width) + ");";
+
+	jsp->getSnippet(0)->replaceContentAsync(code);
+	jsp->compileScript();
+
+	midiChain->getHandler()->add(s, nullptr);
+
+	midiChain->setEditorState(Processor::EditorState::Visible, true);
+	s->setEditorState(Processor::EditorState::Folded, true);
+
+	return jsp;
 }
 
 void BackendProcessor::setEditorData(var editorState)

@@ -185,6 +185,8 @@ public:
 		return String(synthChain->getMacroControlData(index)->getDisplayValue(), 1);
 	}
 
+	JavascriptProcessor* createInterface(int width, int height);;
+
 	void setEditorData(var editorState);
 
 #if HISE_INCLUDE_SNEX_FLOATING_TILES

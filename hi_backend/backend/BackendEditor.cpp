@@ -378,13 +378,23 @@ void BackendProcessorEditor::clearPreset()
 {
 	setPluginPreviewWindow(nullptr);
 
+	
+
 	clearModuleList();
     container = nullptr;
 	isLoadingPreset = true;
 	viewport->showPreloadMessage(true);
 
-	owner->killAndCallOnLoadingThread([](Processor* p) {p->getMainController()->clearPreset(); return SafeFunctionCall::OK; });
+	auto rw = getRootWindow();
 
+	rw->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, {});
+
+	owner->killAndCallOnLoadingThread([rw](Processor* p) 
+	{
+		p->getMainController()->clearPreset(); 
+		auto jsp = dynamic_cast<BackendProcessor*>(p->getMainController())->createInterface(600, 500);
+		return SafeFunctionCall::OK;
+	});
 }
 
 void BackendProcessorEditor::clearModuleList()
@@ -598,47 +608,12 @@ public:
 
 			if (bpe != nullptr)
 			{
-				auto midiChain = dynamic_cast<MidiProcessorChain*>(bpe->getMainSynthChain()->getChildProcessor(ModulatorSynthChain::MidiProcessor));
+				auto bp = dynamic_cast<BackendProcessor*>(bpe->getMainController());
+				auto jsp = bp->createInterface(getWidth(), getHeight());
 
-				auto s = bpe->getMainSynthChain()->getMainController()->createProcessor(midiChain->getFactoryType(), "ScriptProcessor", "Interface");
+				BackendRootWindow* root = GET_BACKEND_ROOT_WINDOW(this);
 
-				auto jsp = dynamic_cast<JavascriptProcessor*>(s);
-
-				String code = "Content.makeFrontInterface(" + String(getWidth()) + ", " + String(getHeight()) + ");";
-
-				jsp->getSnippet(0)->replaceContentAsync(code);
-				jsp->compileScript();
-
-				midiChain->getHandler()->add(s, nullptr);
-
-				midiChain->setEditorState(Processor::EditorState::Visible, true);
-				s->setEditorState(Processor::EditorState::Folded, true);
-
-				auto root = GET_BACKEND_ROOT_WINDOW(this);
-				
-				root->sendRootContainerRebuildMessage(true);
-
-				root->getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::WorkspaceScript, false);
-
-				BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(root, jsp);
-				BackendPanelHelpers::ScriptingWorkspace::showInterfaceDesigner(root, true);
-                
-                auto rootContainer = root->getMainPanel()->getRootContainer();
-                
-                auto editorOfParent = rootContainer->getFirstEditorOf(root->getMainSynthChain());
-                auto editorOfChain = rootContainer->getFirstEditorOf(midiChain);
-                
-				if (editorOfParent != nullptr)
-				{
-					editorOfParent->getChainBar()->refreshPanel();
-					editorOfParent->sendResizedMessage();
-				}
-                
-                if(editorOfChain != nullptr)
-                {
-                    editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
-                    editorOfChain->childEditorAmountChanged();
-                }
+				root->setScriptProcessorForWorkspace(jsp);
 			}
 		}
 

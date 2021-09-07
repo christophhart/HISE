@@ -231,6 +231,8 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 	setSize(width, height);
 
+	setOpaque(true);
+
 	startTimer(1000);
 
 	updateCommands();
@@ -291,6 +293,34 @@ bool BackendRootWindow::isFullScreenMode() const
 #else
 	return false;
 #endif
+}
+
+void BackendRootWindow::setScriptProcessorForWorkspace(JavascriptProcessor* jsp)
+{
+	sendRootContainerRebuildMessage(true);
+	getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::WorkspaceScript, false);
+
+	BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
+	BackendPanelHelpers::ScriptingWorkspace::showInterfaceDesigner(this, true);
+
+	auto rootContainer = getMainPanel()->getRootContainer();
+
+	auto editorOfParent = rootContainer->getFirstEditorOf(getMainSynthChain());
+	auto editorOfChain = rootContainer->getFirstEditorOf(dynamic_cast<Processor*>(jsp)->getParentProcessor(false));
+
+	if (editorOfParent != nullptr)
+	{
+		editorOfParent->getChainBar()->refreshPanel();
+		editorOfParent->sendResizedMessage();
+
+		editorOfParent->childEditorAmountChanged();
+	}
+
+	if (editorOfChain != nullptr)
+	{
+		editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
+		editorOfChain->childEditorAmountChanged();
+	}
 }
 
 void BackendRootWindow::saveInterfaceData()
