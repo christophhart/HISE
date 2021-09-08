@@ -43,7 +43,10 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 	addAndMakeVisible(floatingRoot = new FloatingTile(owner, nullptr));
 
-	screenshotter = new PeriodicScreenshotter(floatingRoot);
+	if (GET_HISE_SETTING(owner->getMainSynthChain(), HiseSettings::Other::GlassEffect))
+	{
+		screenshotter = new PeriodicScreenshotter(floatingRoot);
+	}
 
 	bool loadedCorrectly = true;
 	bool objectFound = editorState.isObject();
@@ -406,7 +409,8 @@ void BackendRootWindow::resized()
 
 	floatingRoot->setBounds(0, menuBarOffset, getWidth(), getHeight() - menuBarOffset);
 
-	screenshotter->notify();
+	if(screenshotter != nullptr)
+		screenshotter->notify();
 
 #if IS_STANDALONE_APP
 

@@ -164,22 +164,28 @@ void FloatingTilePopup::rebuildBoxPath()
 	gin::applyStackBlur(shadowImage, 3);
 }
 
+
+
 void FloatingTilePopup::paint(Graphics &g)
 {
 	auto b = getLocalBounds();
 
 	if (auto s = GET_BACKEND_ROOT_WINDOW(this)->getScreenshotter())
+	{
 		s->drawGlassSection(g, this, getRectangle(RectangleType::BoxPath));
+		g.setOpacity(1.0f);
 
-	g.setOpacity(1.0f);
-
-	g.saveState();
-	g.setImageResamplingQuality(Graphics::lowResamplingQuality);
-	g.drawImageTransformed(shadowImage, AffineTransform::scale(4.0f));
-	g.restoreState();
-
-	
-
+		g.saveState();
+		g.setImageResamplingQuality(Graphics::lowResamplingQuality);
+		g.drawImageTransformed(shadowImage, AffineTransform::scale(4.0f));
+		g.restoreState();
+	}
+	else
+	{
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xf4242424)));
+		g.fillPath(boxPath);
+	}
+		
 	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF222222)));
 	g.strokePath(boxPath, PathStrokeType(1.0f));
 
