@@ -475,24 +475,42 @@ void CachedViewport::InternalViewport::paint(Graphics &g)
 	}
 }
 
-BreadcrumbComponent::BreadcrumbComponent(MainController* mc_) :
-	mc(mc_)
+BreadcrumbComponent::BreadcrumbComponent(ProcessorEditorContainer* container_) :
+	ControlledObject(container_->getRootEditor()->getProcessor()->getMainController()),
+	container(container_)
 {
-	mc->getProcessorChangeHandler().addProcessorChangeListener(this);
+	getMainController()->getProcessorChangeHandler().addProcessorChangeListener(this);
+	refreshBreadcrumbs();
+	container->rootBroadcaster.addListener(*this, newRoot);
 }
 
 BreadcrumbComponent::~BreadcrumbComponent()
 {
-	mc->getProcessorChangeHandler().removeProcessorChangeListener(this);
+	getMainController()->getProcessorChangeHandler().removeProcessorChangeListener(this);
+}
+
+void BreadcrumbComponent::moduleListChanged(Processor* /*processorThatWasChanged*/, MainController::ProcessorChangeHandler::EventType type)
+{
+	if (type == MainController::ProcessorChangeHandler::EventType::ProcessorRenamed)
+		refreshBreadcrumbs();
+}
+
+void BreadcrumbComponent::paint(Graphics &g)
+{
+	for (int i = 1; i < breadcrumbs.size(); i++)
+	{
+		g.setColour(Colours::white.withAlpha(0.6f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText(">", breadcrumbs[i]->getRight(), breadcrumbs[i]->getY(), 20, breadcrumbs[i]->getHeight(), Justification::centred, true);
+	}
 }
 
 void BreadcrumbComponent::refreshBreadcrumbs()
 {
 	breadcrumbs.clear();
 
-	const Processor *mainSynthChain = mc->getMainSynthChain();
-
-	const Processor *currentRoot = mc->getMainSynthChain()->getRootProcessor();
+	const Processor *mainSynthChain = getMainController()->getMainSynthChain();
+	const Processor *currentRoot = container->getRootEditor()->getProcessor();
 
 	while (currentRoot != mainSynthChain)
 	{
@@ -512,19 +530,25 @@ void BreadcrumbComponent::refreshBreadcrumbs()
 
 void BreadcrumbComponent::resized()
 {
-    int x = 5;
-    for(int i = breadcrumbs.size()-1; i  >= 0; i--)
-    {
-        breadcrumbs[i]->setBounds(x, 0, breadcrumbs[i]->getPreferredWidth(), getHeight()-8);
-        x = breadcrumbs[i]->getRight() + 20;
-    }
+	auto b = getLocalBounds().reduced(0, 4);
+
+	b.removeFromLeft(5);
+
+	for (int i = breadcrumbs.size() - 1; i >= 0; i--)
+	{
+		auto br = breadcrumbs[i];
+		br->setBounds(b.removeFromLeft(br->getPreferredWidth()));
+		b.removeFromLeft(20);
+	}
+		
 
 	repaint();
 }
 
 void BreadcrumbComponent::Breadcrumb::mouseDown(const MouseEvent& )
 {
-	findParentComponentOfClass<BackendProcessorEditor>()->setRootProcessorWithUndo(processor);
+	auto p = findParentComponentOfClass<BreadcrumbComponent>();
+	p->container->setRootProcessorEditor(processor);
 }
 
 } // namespace hise

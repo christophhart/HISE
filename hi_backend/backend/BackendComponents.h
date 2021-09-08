@@ -157,35 +157,24 @@ public:
 };
 
 class BreadcrumbComponent : public Component,
+						    public ControlledObject,
 							public MainController::ProcessorChangeHandler::Listener
 {
 public:
-	BreadcrumbComponent(MainController* mc_);;
+	BreadcrumbComponent(ProcessorEditorContainer* c);;
 
 	~BreadcrumbComponent();
 
-	void moduleListChanged(Processor* /*processorThatWasChanged*/, MainController::ProcessorChangeHandler::EventType type)
-	{
-		if (type == MainController::ProcessorChangeHandler::EventType::ProcessorRenamed)
-			refreshBreadcrumbs();
-	}
+	void moduleListChanged(Processor* /*processorThatWasChanged*/, MainController::ProcessorChangeHandler::EventType type);
 
-	void paint(Graphics &g) override
-	{
-		g.setColour(Colour(0xFF383838));
-
-		g.fillRoundedRectangle(0.0f,0.0f,(float)getWidth(), (float)getHeight()-8.0f, 3.0f);
-
-		for (int i = 1; i < breadcrumbs.size(); i++)
-		{
-			g.setColour(Colours::white.withAlpha(0.6f));
-			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText(">" , breadcrumbs[i]->getRight(), breadcrumbs[i]->getY(), 20, breadcrumbs[i]->getHeight(), Justification::centred, true);
-		}
-		
-	}
+	void paint(Graphics &g) override;
 
 	void refreshBreadcrumbs();
+
+	static void newRoot(BreadcrumbComponent& b, Processor*)
+	{
+		b.refreshBreadcrumbs();
+	}
 
     void resized();
     
@@ -206,15 +195,10 @@ private:
         {
             if(processor.get() != nullptr)
             {
-#if HISE_IOS
-				Font f = GLOBAL_BOLD_FONT().withHeight(18.0f);
-#else
-                Font f = GLOBAL_BOLD_FONT();
-#endif
-                
-                return f.getStringWidth(processor->getId());
+				Font f = GLOBAL_BOLD_FONT();
+                return f.getStringWidth(processor->getId()) + 10.0f;
             }
-			return 0;
+			return 10.0f;
         }
         
 		void paint(Graphics &g) override
@@ -222,17 +206,10 @@ private:
             if(processor.get() != nullptr)
             {
 				g.setColour(Colours::white.withAlpha(isMouseOver(true) ? 1.0f : 0.6f));
-
-#if HISE_IOS
-				Font f = GLOBAL_BOLD_FONT().withHeight(18.0f);
-#else
 				Font f = GLOBAL_BOLD_FONT();
-#endif
-
                 g.setFont(f);
                 g.drawText(processor->getId(), getLocalBounds(), Justification::centredLeft, true);
             }
-			
 		}
         
 		void mouseDown(const MouseEvent& /*event*/) override;
@@ -245,7 +222,8 @@ private:
 
 	OwnedArray<Breadcrumb> breadcrumbs;
 
-	MainController* mc;
+	Component::SafePointer<ProcessorEditorContainer> container;
+	JUCE_DECLARE_WEAK_REFERENCEABLE(BreadcrumbComponent);
 };
 
 class BaseDebugArea;

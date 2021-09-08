@@ -1433,16 +1433,16 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 
 void ProcessorEditorHeader::mouseDoubleClick(const MouseEvent& e)
 {
-	auto b = getLocalBounds();
-	auto pe = DebugableObject::Helpers::showProcessorEditorPopup(e, this, getProcessor());
-	auto ft = GET_BACKEND_ROOT_WINDOW(this)->getRootFloatingTile();
-	Component::SafePointer<FloatingTilePopup> safePopup = ft->showComponentAsDetachedPopup(pe, this, { b.getCentreX(), b.getY() + 7 }, true);
-
-	dynamic_cast<ProcessorEditorContainer*>(pe)->deleteCallback = [safePopup]()
+	if (auto pe = findParentComponentOfClass<ProcessorEditorContainer>())
 	{
-		if (safePopup.getComponent())
-			safePopup->deleteAndClose();
-	};
+		auto p = getProcessor();
+		MessageManager::callAsync([pe, p]()
+		{
+			pe->setRootProcessorEditor(p);
+		});
+		
+		return;
+	}
 }
 
 void ProcessorEditorHeader::setupButton(DrawableButton *b, ButtonShapes::Symbol s)

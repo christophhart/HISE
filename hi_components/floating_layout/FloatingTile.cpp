@@ -65,8 +65,12 @@ FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedCom
 	localPointInComponent(localPoint),
 	moveButton("move", this, factory)
 {
+	
+
 	addAndMakeVisible(moveButton);
 	moveButton.setToggleModeWithColourChange(true);
+
+	content->addComponentListener(this);
 
 	setColour(Slider::ColourIds::textBoxOutlineColourId, Colours::white.withAlpha(0.6f));
 
@@ -247,8 +251,15 @@ void FloatingTilePopup::componentMovedOrResized(Component& component, bool /*mov
 
 			setSize(newBounds.getWidth(), newBounds.getHeight());
 
-			if(!moveButton.getToggleState())
+			if (moveButton.getToggleState())
+			{
+				constrainer.setMinimumOnscreenAmounts(newBounds.getHeight(), newBounds.getWidth(), newBounds.getHeight(), newBounds.getWidth());
+				constrainer.checkComponentBounds(this);
+			}
+			else
+			{
 				updatePosition();
+			}
 		}
 	}
 }
@@ -1174,13 +1185,14 @@ struct ResizableViewport: public Component,
     
     constexpr static int EdgeHeight = 18;
     
-    ResizableViewport(int maxHeight_):
+    ResizableViewport(int maxHeight_, bool shouldBeMaximised):
      maxHeight(maxHeight_),
      maximiseButton("maximise", this, *this),
      edge(this, nullptr, ResizableEdgeComponent::bottomEdge)
     {
         maximiseButton.setToggleModeWithColourChange(true);
-        
+		maximiseButton.setToggleStateAndUpdateIcon(shouldBeMaximised, true);
+
         slaf.bg = Colours::transparentBlack;
         
         addAndMakeVisible(maximiseButton);
@@ -1199,9 +1211,22 @@ struct ResizableViewport: public Component,
         }
     }
     
+	void addFixComponent(Component* ownedC)
+	{
+		jassert(ownedC->getHeight() != 0);
+		addAndMakeVisible(fixComponent = ownedC);
+		
+		if (maximiseButton.getToggleState())
+			maximise();
+	}
+
     void resized() override
     {
         auto b = getLocalBounds();
+
+		if (fixComponent != nullptr)
+			fixComponent->setBounds(b.removeFromTop(fixComponent->getHeight()));
+
         b.removeFromLeft(vp.getScrollBarThickness());
         
         auto bot = b.removeFromBottom(EdgeHeight);
@@ -1213,7 +1238,12 @@ struct ResizableViewport: public Component,
     
     void maximise()
     {
-        auto maxHeightToUse = jmin(maxHeight - 50, vp.getViewedComponent()->getHeight() + EdgeHeight);
+		auto contentHeight = vp.getViewedComponent()->getHeight() + EdgeHeight;
+
+		if (fixComponent != nullptr)
+			contentHeight += fixComponent->getHeight();
+
+        auto maxHeightToUse = jmin(maxHeight - 80, contentHeight + EdgeHeight);
         
         setSize(getWidth(), maxHeightToUse);
         edge.setVisible(false);
@@ -1231,7 +1261,6 @@ struct ResizableViewport: public Component,
             setSize(getWidth(), defaultHeight);
             edge.setVisible(true);
         }
-        
     }
     
     Path createPath(const String& url) const override
@@ -1253,22 +1282,20 @@ struct ResizableViewport: public Component,
     
     void setComponent(Component* c)
     {
+		setName(c->getName());
+
         vp.setViewedComponent(c, true);
-        
         defaultHeight = jmin(c->getHeight(), maxHeight * 3 / 4);
-        
         c->addComponentListener(this);
         vp.getVerticalScrollBar().setLookAndFeel(&slaf);
         vp.setScrollBarThickness(12);
-        
         setSize(c->getWidth() + vp.getScrollBarThickness() * 2, defaultHeight + EdgeHeight);
         
-        setName(c->getName());
-        
-        if(c->getHeight() > maxHeight)
-            maximiseButton.setToggleState(true, sendNotification);
+		if (maximiseButton.getToggleState())
+			maximise();
     }
     
+	ScopedPointer<Component> fixComponent;
     ResizableEdgeComponent edge;
     Viewport vp;
     ZoomableViewport::Laf slaf;
@@ -1280,10 +1307,10 @@ struct ResizableViewport: public Component,
 };
 
 
-Component* FloatingTile::wrapInViewport(Component* c)
+Component* FloatingTile::wrapInViewport(Component* c, bool shouldBeMaximised)
 {
 	auto maxHeight = getTopLevelComponent()->getHeight();
-	auto vp = new ResizableViewport(maxHeight);
+	auto vp = new ResizableViewport(maxHeight, shouldBeMaximised);
 	vp->setComponent(c);
 	return vp;
 }
@@ -1291,7 +1318,7 @@ Component* FloatingTile::wrapInViewport(Component* c)
 FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool shouldWrapInViewport)
 {
     if(newComponent != nullptr && shouldWrapInViewport)
-		newComponent = wrapInViewport(newComponent);    
+		newComponent = wrapInViewport(newComponent, false);    
     
     if(attachedComponent != nullptr)
     {
@@ -1316,8 +1343,6 @@ FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponen
 				Desktop::getInstance().getAnimator().fadeOut(currentPopup, 150);
 
 			addAndMakeVisible(currentPopup = new FloatingTilePopup(newComponent, attachedComponent, localPoint));
-
-            newComponent->addComponentListener(currentPopup);
 
 			currentPopup->updatePosition();
 			currentPopup->setVisible(false);
@@ -1353,8 +1378,7 @@ hise::FloatingTilePopup* FloatingTile::showComponentAsDetachedPopup(Component* n
 
 	if (shouldWrapInViewport)
 	{
-		newComponent = wrapInViewport(newComponent);
-		dynamic_cast<ResizableViewport*>(newComponent)->maximiseButton.triggerClick();
+		newComponent = wrapInViewport(newComponent, true);
 	}
 
 	auto newPopup = new FloatingTilePopup(newComponent, attachedComponent, localPoint);
@@ -1363,19 +1387,26 @@ hise::FloatingTilePopup* FloatingTile::showComponentAsDetachedPopup(Component* n
 
 	detachedPopups.add(newPopup);
 
-	newComponent->addComponentListener(newPopup);
 	newPopup->updatePosition();
-	newPopup->setVisible(false);
-	newPopup->moveButton.setToggleStateAndUpdateIcon(true);
+	//newPopup->setVisible(false);
+	newPopup->moveButton.triggerClick();
 	newPopup->rebuildBoxPath();
 
-	Desktop::getInstance().getAnimator().fadeIn(newPopup, 150);
+	//Desktop::getInstance().getAnimator().fadeIn(newPopup, 150);
 
 	newPopup->grabKeyboardFocusAsync();
 
 	return newPopup;
 }
 
+void FloatingTilePopup::addFixComponent(Component* c)
+{
+	if (auto vp = dynamic_cast<ResizableViewport*>(content.get()))
+	{
+		vp->addFixComponent(c);
+		updatePosition();
+	}
+}
 
 void FloatingTilePopup::updatePosition()
 {
@@ -1433,6 +1464,23 @@ void FloatingTilePopup::updatePosition()
 	else
 	{
 		root->removePopup(this);
+	}
+}
+
+void FloatingTilePopup::mouseDrag(const MouseEvent& e)
+{
+	if (!moveButton.getToggleState())
+		return;
+
+	if (e.mouseWasDraggedSinceMouseDown())
+	{
+		if (!dragging)
+		{
+			dragger.startDraggingComponent(this, e);
+			dragging = true;
+		}
+		else
+			dragger.dragComponent(this, e, &constrainer);
 	}
 }
 

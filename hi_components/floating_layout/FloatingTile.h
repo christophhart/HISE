@@ -107,22 +107,7 @@ public:
 
 	Component* getAttachedComponent() const { return attachedComponent.getComponent(); }
 
-	void mouseDrag(const MouseEvent& e) override
-	{
-		if (!moveButton.getToggleState())
-			return;
-
-		if (e.mouseWasDraggedSinceMouseDown())
-		{
-			if (!dragging)
-			{
-				dragger.startDraggingComponent(this, e);
-				dragging = true;
-			}
-			else
-				dragger.dragComponent(this, e, nullptr);
-		}
-	}
+	void mouseDrag(const MouseEvent& e) override;
 
 	void mouseUp(const MouseEvent& e) override
 	{
@@ -133,10 +118,14 @@ public:
 
 	void rebuildBoxPath();
 
+	void addFixComponent(Component* c);
+
 private:
 
 	bool dragging = false;
 	ComponentDragger dragger;
+
+	juce::ComponentBoundsConstrainer constrainer;
 
 	struct Factory : public PathFactory
 	{
@@ -607,7 +596,7 @@ public:
 
 	FloatingTilePopup* showComponentAsDetachedPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool wrapInViewport = false);
 
-	Component* wrapInViewport(Component* c);
+	Component* wrapInViewport(Component* c, bool shouldBeMaximised);
 
 	bool isRootPopupShown() const;
 

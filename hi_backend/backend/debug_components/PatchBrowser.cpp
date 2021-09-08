@@ -186,6 +186,11 @@ void PatchBrowser::showProcessorInPopup(Component* c, const MouseEvent& e, Proce
 	auto ft = GET_BACKEND_ROOT_WINDOW(c)->getRootFloatingTile();
 	Component::SafePointer<FloatingTilePopup> safePopup = ft->showComponentAsDetachedPopup(pe, bp, { b.getCentreX(), b.getY() + 7 }, true);
 
+	auto newC = new BreadcrumbComponent(dynamic_cast<ProcessorEditorContainer*>(pe));
+	newC->setSize(100, 28);
+
+	safePopup->addFixComponent(newC);
+
 	dynamic_cast<ProcessorEditorContainer*>(pe)->deleteCallback = [safePopup]()
 	{
 		if (safePopup.getComponent())

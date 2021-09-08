@@ -47,7 +47,7 @@ isLoadingPreset(false)
 	setLookAndFeel(&lookAndFeelV3);
 
 	addAndMakeVisible(viewport = new CachedViewport());
-	addAndMakeVisible(breadCrumbComponent = new BreadcrumbComponent(owner));
+	
 	
 	addChildComponent(debugLoggerWindow = new DebugLoggerComponent(&owner->getDebugLogger()));
 
@@ -227,7 +227,7 @@ void BackendProcessorEditor::resized()
 
 	//setToolBarPosition(viewportX, 4 , viewportWidth, 28);
 
-	breadCrumbComponent->setBounds(viewportX, viewportY + 3, viewportWidth, breadcrumbHeight);
+	
 
 	setViewportPositions(viewportX, viewportY + breadcrumbHeight, viewportWidth, viewportHeight);
 

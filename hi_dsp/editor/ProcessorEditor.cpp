@@ -357,7 +357,12 @@ void ProcessorEditor::paint(Graphics &g)
     }
     else
     {
-        c = c.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.1f));
+		float alpha = 0.1f;
+
+		if (!dynamic_cast<ProcessorEditorPanel*>(getParentComponent()))
+			alpha += 0.15f;
+
+        c = c.withAlpha(alpha);
         
 		g.setColour(c);
 
@@ -510,6 +515,8 @@ void ProcessorEditorContainer::setRootProcessorEditor(Processor *p)
 	p->addDeleteListener(this);
 
 	refreshSize(false);
+
+	rootBroadcaster.sendMessage(sendNotificationAsync, p);
 }
 
 void ProcessorEditorContainer::addSoloProcessor(Processor *p)
