@@ -814,8 +814,8 @@ private:
 		{
 			for (int i = 0; i < (int)ColourId::numColourIds; i++)
 			{
-				colours[i] = Colours::pink;
-				defaultColours[i] = Colours::pink;
+				colours[i] = Colours::transparentBlack;
+				defaultColours[i] = Colours::transparentBlack;
 			}	
 		}
 

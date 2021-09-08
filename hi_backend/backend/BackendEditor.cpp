@@ -919,6 +919,341 @@ private:
 	ScopedPointer<Component> ownedComponent;
 };
 
+struct PopupFloatingTile: public Component,
+						  public ButtonListener,
+						  public PathFactory
+{
+	PopupFloatingTile(MainController* mc) :
+		t(mc, nullptr),
+		resizer(this, &constrainer),
+		clearButton("clear", this, *this),
+		loadButton("load", this, *this),
+		saveButton("save", this, *this),
+		layoutButton("layout", this, *this)
+	{
+		setOpaque(true);
+		addAndMakeVisible(t);
+		addAndMakeVisible(resizer);
+
+		addAndMakeVisible(clearButton);
+		addAndMakeVisible(loadButton);
+		addAndMakeVisible(saveButton);
+		addAndMakeVisible(layoutButton);
+
+		layoutButton.setToggleModeWithColourChange(true);
+
+		clear();
+		
+		setName("Custom Popup");
+		constrainer.setMinimumSize(200, 80);
+		setSize(400, 400);
+	}
+
+	void clear()
+	{
+		t.setLayoutModeEnabled(true);
+		t.setNewContent("HorizontalTile");
+		layoutButton.setToggleStateAndUpdateIcon(true, true);
+		t.setOpaque(true);
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+		LOAD_PATH_IF_URL("clear", SampleMapIcons::newSampleMap);
+		LOAD_PATH_IF_URL("load", SampleMapIcons::loadSampleMap);
+		LOAD_PATH_IF_URL("save", SampleMapIcons::saveSampleMap);
+		LOAD_PATH_IF_URL("layout", ColumnIcons::customizeIcon);
+		return p;
+	}
+
+	void buttonClicked(Button* b) override
+	{
+		if (b == &clearButton)
+		{
+			clear();
+		}
+		if (b == &saveButton)
+		{
+			auto name = PresetHandler::getCustomName("PopupLayout");
+
+			auto f = getDirectory().getChildFile(name).withFileExtension("json");
+
+			auto v = JSON::parse(t.exportAsJSON());
+
+			if (auto s = v.getDynamicObject())
+			{
+				s->setProperty("Width", getWidth());
+				s->setProperty("Height", getHeight());
+			}
+			
+			f.replaceWithText(JSON::toString(v));
+		}
+		if (b == &layoutButton)
+		{
+			t.setLayoutModeEnabled(layoutButton.getToggleState());
+		}
+		if (b == &loadButton)
+		{
+			auto files = getDirectory().findChildFiles(File::findFiles, false, "*.json");
+
+			PopupLookAndFeel plaf;
+			PopupMenu m;
+			m.setLookAndFeel(&plaf);
+
+			if (!files.isEmpty())
+			{
+				int index = 1;
+
+				for (auto& f : files)
+				{
+					m.addItem(index++, f.getFileNameWithoutExtension());
+				}
+
+				auto r = m.show();
+				if (r != 0)
+				{
+					auto content = files[r - 1].loadFileAsString();
+
+					auto v = JSON::parse(content);
+
+					int w = v.getProperty("Width", getWidth());
+					int h = v.getProperty("Height", getHeight());
+
+					t.loadFromJSON(content);
+					layoutButton.setToggleStateAndUpdateIcon(false);
+					t.setLayoutModeEnabled(false);
+
+					setSize(w, h);
+				}
+			}
+		}
+	}
+
+	File getDirectory()
+	{
+		auto dir = ProjectHandler::getAppDataDirectory().getChildFile("custom_popups");
+
+		if (!dir.isDirectory())
+			dir.createDirectory();
+
+		return dir;
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.fillAll(Colour(0xFF222222));
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+
+		static constexpr int ButtonHeight = 24;
+		static constexpr int ButtonMargin = 2;
+
+		auto topRow = b.removeFromTop(ButtonHeight);
+
+		clearButton.setBounds(topRow.removeFromLeft(ButtonHeight).reduced(ButtonMargin));
+		loadButton.setBounds(topRow.removeFromLeft(ButtonHeight).reduced(ButtonMargin));
+		saveButton.setBounds(topRow.removeFromLeft(ButtonHeight).reduced(ButtonMargin));
+		layoutButton.setBounds(topRow.removeFromLeft(ButtonHeight).reduced(ButtonMargin));
+
+		t.setBounds(b);
+		resizer.setBounds(getLocalBounds().removeFromRight(8).removeFromBottom(8));
+	}
+
+	HiseShapeButton clearButton;
+	HiseShapeButton loadButton;
+	HiseShapeButton layoutButton;
+	HiseShapeButton saveButton;
+
+	FloatingTile t;
+	juce::ResizableCornerComponent resizer;
+	juce::ComponentBoundsConstrainer constrainer;
+};
+
+struct ToolkitPopup : public Component,
+					  public ControlledObject,
+					  public PooledUIUpdater::SimpleTimer,
+					  public ButtonListener,
+					  public SliderListener,
+					  public PathFactory
+{
+	ToolkitPopup(MainController* mc):
+		Component("HISE Controller"),
+		ControlledObject(mc),
+		SimpleTimer(mc->getGlobalUIUpdater()),
+		panicButton("Panic", this, *this),
+		keyboard(mc),
+		masterConnection(&masterVolume, mc, "Master Chain"),
+		resizer(this, &constrainer, ResizableEdgeComponent::rightEdge)
+	{
+		constrainer.setMinimumWidth(550);
+		constrainer.setMaximumWidth(900);
+		resizer.setLookAndFeel(&rlaf);
+
+		addAndMakeVisible(resizer);
+		addAndMakeVisible(panicButton);
+		addAndMakeVisible(tempoKnob);
+		addAndMakeVisible(peakMeter);
+		addAndMakeVisible(masterVolume);
+		addAndMakeVisible(keyboard);
+
+		tempoKnob.setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+		tempoKnob.setLookAndFeel(&slaf);
+		tempoKnob.setRange(30, 240, 1.0);
+		tempoKnob.addListener(this);
+		tempoKnob.setName("Tempo");
+
+		masterVolume.setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+		masterVolume.setLookAndFeel(&slaf);
+		masterVolume.setRange(0.0, 1.0, 0.01);
+		masterVolume.setName("Volume");
+
+		peakMeter.setType(VuMeter::Type::StereoHorizontal);
+		peakMeter.setOpaque(false);
+		peakMeter.setColour(VuMeter::backgroundColour, Colours::transparentBlack);
+		peakMeter.setColour(VuMeter::ledColour, Colours::white.withAlpha(0.5f));
+		peakMeter.setName("Output");
+
+		keyboard.setUseVectorGraphics(true);
+
+		setSize(600, 72 + 48 + 30);
+	}
+
+	void buttonClicked(Button* b) override
+	{
+		if (b == &panicButton)
+			getMainController()->allNotesOff(true);
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.setColour(Colours::white);
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		auto statBounds = getLocalBounds();
+		statBounds.removeFromTop(30);
+		statBounds.removeFromBottom(keyboard.getHeight());
+		statBounds.removeFromLeft(panicButton.getBounds().getRight() + 10);
+		statBounds.setRight(tempoKnob.getX());
+
+		g.drawText(getStatistics(), statBounds.toFloat(), Justification::centredLeft);
+
+		g.setColour(Colours::white.withAlpha(0.4f));
+		g.fillPath(midiPath);
+
+		if (midiAlpha != 0.0f)
+		{
+			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(midiAlpha));
+			g.fillPath(midiPath);
+		}
+
+		paintName(g, peakMeter);
+		paintName(g, masterVolume);
+		paintName(g, tempoKnob);
+		paintName(g, panicButton);
+	}
+
+	void paintName(Graphics& g, Component& c)
+	{
+		auto b = c.getBoundsInParent().withY(0).withHeight(30).toFloat();
+		g.setColour(Colours::white.withAlpha(0.4f));
+		g.drawText(c.getName(), b, Justification::centred);
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		b.removeFromLeft(10);
+		resizer.setBounds(b.removeFromRight(10));
+		keyboard.setBounds(b.removeFromBottom(72));
+
+		b.removeFromTop(30);
+
+		masterVolume.setBounds(b.removeFromRight(b.getHeight()));
+		b.removeFromRight(10);
+		peakMeter.setBounds(b.removeFromRight(200).reduced(0, 10));
+
+		midiPath = createPath("midi");
+		scalePath(midiPath, b.removeFromRight(b.getHeight()).reduced(0, 13).toFloat());
+		b.removeFromRight(5);
+		tempoKnob.setBounds(b.removeFromRight(b.getHeight()));
+		panicButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(10));
+
+		
+	}
+
+	void sliderValueChanged(Slider* s)
+	{
+		getMainController()->setHostBpm(s->getValue());
+	}
+
+	void timerCallback() override
+	{
+		if(!tempoKnob.isMouseOverOrDragging())
+			tempoKnob.setValue(getMainController()->getBpm(), dontSendNotification);
+
+		const auto& dv = getMainController()->getMainSynthChain()->getDisplayValues();
+
+		peakMeter.setPeak(dv.outL, dv.outR);
+
+		if (getMainController()->checkAndResetMidiInputFlag())
+			midiAlpha = 1.0f;
+		else
+			midiAlpha = jmax(0.0f, midiAlpha - 0.1f);
+
+		repaint();
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+
+		LOAD_PATH_IF_URL("Panic", HiBinaryData::FrontendBinaryData::panicButtonShape);
+		LOAD_PATH_IF_URL("midi", HiBinaryData::SpecialSymbols::midiData);
+
+		return p;
+	}
+
+	String getStatistics() const
+	{
+		auto mc = getMainController();
+		const int cpuUsage = (int)mc->getCpuUsage();
+		const int voiceAmount = mc->getNumActiveVoices();
+
+		auto bytes = mc->getSampleManager().getModulatorSamplerSoundPool2()->getMemoryUsageForAllSamples();
+
+		auto& handler = getMainController()->getExpansionHandler();
+
+		for (int i = 0; i < handler.getNumExpansions(); i++)
+			bytes += handler.getExpansion(i)->pool->getSamplePool()->getMemoryUsageForAllSamples();
+
+		const double ramUsage = (double)bytes / 1024.0 / 1024.0;
+
+		String stats = "CPU: ";
+		stats << String(cpuUsage) << "%, RAM: " << String(ramUsage, 1) << "MB , Voices: " << String(voiceAmount);
+		return stats;
+	}
+
+	Path midiPath;
+	float midiAlpha = 0.0f;
+	HiseShapeButton panicButton;
+	
+	MacroKnobLookAndFeel slaf;
+	Slider tempoKnob;
+	Slider masterVolume;
+	raw::UIConnection::Slider<ModulatorSynth::Parameters::Gain> masterConnection;
+
+	VuMeter peakMeter;
+	CustomKeyboard keyboard;
+
+	juce::ResizableEdgeComponent resizer;
+	ComponentBoundsConstrainer constrainer;
+	ScrollbarFader::Laf rlaf;
+};
+
 
 void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 {
@@ -937,6 +1272,8 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	{
 	case MainTopBar::PopupType::About:
 	{
+		
+
 		c = new AboutPage();
 		
 		c->setSize(500, 300);
@@ -949,6 +1286,10 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	}
 	case MainTopBar::PopupType::Macro:
 	{
+		c = new PopupFloatingTile(mc);
+		button = macroButton;
+		break;
+
 		c = new MacroComponent(getRootWindow());
 		c->setSize(90 * 8, 74);
 

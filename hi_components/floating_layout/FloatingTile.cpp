@@ -897,11 +897,14 @@ void FloatingTile::paint(Graphics& g)
 {
 	if (isOpaque())
 	{
-		
-
 		if (findParentComponentOfClass<ScriptContentComponent>() || findParentComponentOfClass<FloatingTilePopup>())
 		{
-			g.fillAll(getCurrentFloatingPanel()->findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+			auto c = getCurrentFloatingPanel()->findPanelColour(FloatingTileContent::PanelColourId::bgColour);
+
+			if (!c.isOpaque())
+				c = Colour(0xFF222222);
+
+			g.fillAll(c);
 		}
 		else
 		{
