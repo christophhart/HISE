@@ -243,6 +243,11 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 	if (useOpenGL)
 		setEnableOpenGL(this);
+    
+    auto jsp = ProcessorHelpers::getFirstProcessorWithType<JavascriptMidiProcessor>(getBackendProcessor()->getMainSynthChain());
+    
+    BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
+    BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
 }
 
 

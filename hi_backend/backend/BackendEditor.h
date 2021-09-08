@@ -431,6 +431,7 @@ private:
 	ScopedPointer<HiseShapeButton> samplerWorkSpaceButton;
 	ScopedPointer<HiseShapeButton> customWorkSpaceButton;
 
+    ScopedPointer<Drawable> hiseIcon;
 };
 
 

@@ -411,6 +411,20 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	FloatingTileContent(parent),
 	ComponentWithHelp(parent->getBackendRootWindow())
 {
+    {
+        static const String iconData = "1231.nT6K8C1XOzhI.Xiuo5BLOQw..FZHKonCfUDaflA5ZgT2fXIOnsCvqXzRIkTRIR6KqEMqoZZW3Jrm4X+CHC.l..H.Oux8tFOdxKC2FOm8bR3BooKRTgCDZTULUICVnHwzkHMMpHvGRSlhtHUAENTY5AEoJZHhhzjFQanxzEKVHMYhHnfhJThvD8HZBGlZLYhTFbrPiJZRGtXQ4nhJSrVPiJCRQXlhrDMYgiAZTQSHgEVd33++ZPiZCTjlbwiHXr3vLCcDYpxJyrxjIiCGOr3xEINLnQYgxjJtPcqywoQQohjkoHLJ7SF7xLLFlyAZTWTgBYhjvbQRDoHIpHX14HfFkjKTHko.MpHXrD.t5Y6uo1IqZp+m62Vy6kIl26I+p5HdtqPugnoYaod3hOx7sKxZeriO9F5N5uBc80I+4xXb6aPatn57A.nMu2.TNDnQ0A0ENMpKSDMo9pWkJhJSQdfREJQDcQRRlGN3BPfvV1Ne4pp5HtLHt0KqwC11xpfCHZTT.fFkjKRXQS2qew64yEhqsOH.nuT14FO39Xi7siWrCmF0DpKlplHu+tdH3GBt398+7xli58KdI28gMd8cHZcesuLi2q+yNuP72KpKt10saokpiNl6022mkt8cdO6N1WxYtqm7gPX6ZmW27x9tap9ipuV53+My3g4p586h8c+A45+zbs9rzvy46Nndc8w6QH8AMiAhe9puZqoaOdtcJ1Gzd7ldJUDS.s6As6wWrw0Zrx2y6O9wJtdLWcs58K6tNAq5Kkwmm+ki3yuZ61iWm5yq2isfOedB79v9i+mDvPjIE.gADDF5y3WrC09paHrgKE2KWnEWctP56Vu4L1d4He4hOmwaKNgvas5cOGeKD8J3zf.71E53itluv6gM+5mzejuE+fYiHFSbcOK2N+KiBP5V0yc7BDHRnFKQvD.P.PBHAffBgUCLPmQzCHPxncQNk0LAyfEP.4e.crDLxWc0WF5xtPFRNdIN.YbvPxg.izdDQ0OFsF.8tW.dHDORrxg.xnII9jvLBOiG.5xHMxKzzW5eIAiQQ7QA.ZNIBVaFFC49JWE68dx3vmK3QlsG5Aj3bx2.sDjDxJZdlbSipcOtlpvZ9ynMyokW04FbbA4elRMTvGenL8E3CcC1rniW8.olNcQqZ0dUAKJL9hS.xVlOGNzeFmcIRRfWmI1G1N1Vyjn7gJEJ8p8wk9CB7Sba93wICBAYSY7dimsAEOtWJWZo79rvXEo9R05vezh1mgnofRMeLSOesGGWvDXiBfcwW2GUhFKkudo5a13pvfbuX6aqPrmRKOIEFvqBkJLRgMfEVBg4pEFi7hdvFSUq+fSEbuEIdO1pZoy9XNhbLXw0uyymhMUKY0XU6dItKXlqLRn9Vyi67m2g.25Xf9Zya2Rlisb4K.AwJVcVvJltxYOsENFgsjJC0NQBh2sQnn3yxAt36ygkRxPiTzxJ8nUkEVyInJQDQZTENGpx7FhTX.Q2CwoilgfdW0miH8zaJM.laTSj7gIvdAzXS0inQOXyAbwLM3qJ9L.w54NEkbcL7QWjAkEH6rxfWl17OfOChcRzDf94aoxO9ydFGMhmNV9Ot7chYIwjtd+o9Opj8qjTxtUd2Usjj+XtTv4uq0nF52r2SNUJqf6lN.";
+        
+        MemoryBlock mb;
+        mb.fromBase64Encoding(iconData);
+        zstd::ZDefaultCompressor comp;
+        ValueTree v;
+        comp.expand(mb, v);
+
+        auto xml = v.createXml();
+
+        hiseIcon = juce::Drawable::createFromSVG(*xml).release();
+    }
+    
 	MainToolbarFactory f;
 
 	setRepaintsOnMouseActivity(true);
@@ -686,16 +700,7 @@ public:
 
 
 	void paint(Graphics& g) override
-	{
-#if 0
-		g.fillAll(Colour(0xFF222222));
-		g.setColour(Colour(0xFF555555));
-		g.fillRect(getLocalBounds().withHeight(40));
-		g.setColour(Colour(0xFFCCCCCC));
-		g.setFont(GLOBAL_BOLD_FONT().withHeight(18.0f));
-		g.drawText("Create User Interface", getLocalBounds().withTop(10), Justification::centredTop);
-#endif
-
+    {
 		g.fillAll(Colour(0xFF222222));
 
 		g.setColour(Colours::white.withAlpha(0.4f));
@@ -748,6 +753,8 @@ void MainTopBar::popupChanged(Component* newComponent)
 								(newComponent != nullptr && newComponent->getName() == "Create User Interface");
 	bool presetBrowserShown = dynamic_cast<PresetBrowser*>(newComponent) != nullptr;
 
+    
+    
 	setColoursForButton(macroButton, macroShouldBeOn);
 	setColoursForButton(settingsButton, settingsShouldBeOn);
 	setColoursForButton(pluginPreviewButton, previewShouldBeShown);
@@ -760,14 +767,17 @@ void MainTopBar::popupChanged(Component* newComponent)
 
 void MainTopBar::paint(Graphics& g)
 {
-	
-
-	Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF424242));
+    Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF424242));
 	Colour c2 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF404040));
 
 	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false));
 	g.fillAll();
 	
+    if (hiseIcon != nullptr)
+        hiseIcon->drawWithin(g, getLocalBounds().removeFromLeft(JUCE_LIVE_CONSTANT(100)).reduced(30).toFloat(), RectanglePlacement::fillDestination, 1.0f);
+
+    
+    
 	g.setColour(Colours::white.withAlpha(0.2f));
 	g.setFont(GLOBAL_BOLD_FONT());
 	g.drawText("Frontend Panels", frontendArea.withTrimmedBottom(11), Justification::centredBottom);
@@ -803,6 +813,8 @@ void MainTopBar::buttonClicked(Button* b)
 
 void MainTopBar::resized()
 {
+    hiseButton->setVisible(false);
+    
 	const int centerY = 3;
 
 	int x = 10;
@@ -823,6 +835,9 @@ void MainTopBar::resized()
 
 	forwardButton->setBounds(x, backButtonOffset, backButtonSize, backButtonSize);
 
+    backButton->setVisible(false);
+    forwardButton->setVisible(false);
+    
 	const int leftX = forwardButton->getRight() + 4;
 
 	const int settingsWidth = 320;

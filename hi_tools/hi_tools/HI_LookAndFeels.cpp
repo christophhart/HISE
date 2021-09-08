@@ -1141,7 +1141,7 @@ void ChainBarButtonLookAndFeel::drawButtonText(Graphics& g, TextButton& button, 
 	auto alpha = 0.5f;
 
 	if (button.getToggleState())
-		alpha += 0.3f;
+		alpha += 0.5f;
 
 	if (!button.isEnabled())
 		alpha = 0.3f;
@@ -1160,7 +1160,7 @@ void ChainBarButtonLookAndFeel::drawButtonBackground(Graphics &g, Button &b, con
 		alpha += 0.05f;
 
 	if (b.getToggleState())
-		alpha += 0.4f;
+		alpha += 0.1f;
 
 	auto c = Colours::white.withAlpha(alpha);
 
@@ -1202,7 +1202,7 @@ void ChainBarButtonLookAndFeel::drawButtonBackground(Graphics &g, Button &b, con
 	path.scaleToFit(4.0f, 4.0f, (float)b.getHeight() - 8.0f, (float)b.getHeight() - 8.0f, true);
 
 
-	g.setColour(b.findColour(b.getToggleState() ? IconColour : IconColourOff));
+	g.setColour(Colours::white.withAlpha(0.7f));
 
 
 	g.fillPath(path);
