@@ -1953,6 +1953,68 @@ private:
 	static DeviceType currentDevice;
 };
 
+struct ScrollbarFader : public Timer,
+                        public ScrollBar::Listener
+{
+    ScrollbarFader() = default;
+
+    ~ScrollbarFader()
+    {
+        for(auto sb: scrollbars)
+        {
+            if(sb != nullptr)
+                sb->removeListener(this);
+        }
+    }
+    
+    struct Laf : public LookAndFeel_V4
+    {
+        void drawScrollbar(Graphics& g, ScrollBar&, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown);
+
+        void drawStretchableLayoutResizerBar (Graphics& g, int w, int h, bool /*isVerticalBar*/,
+                                                              bool isMouseOver, bool isMouseDragging)
+        {
+            float alpha = 0.0f;
+            
+            if(isMouseOver)
+                alpha += 0.3f;
+            
+            if(isMouseDragging)
+                alpha += 0.3f;
+            
+            g.setColour(Colour(SIGNAL_COLOUR).withAlpha(alpha));
+            
+            Rectangle<float> area(0.0f, 0.0f, (float)w, (float)h);
+            
+            area = area.reduced(1.0f);
+            g.fillRoundedRectangle(area, jmin(area.getWidth() / 2.0f, area.getHeight() / 2.0f));
+        }
+        
+        Colour bg = Colours::transparentBlack;
+    } slaf;
+    
+    void timerCallback() override;
+
+    void startFadeOut();
+
+    void scrollBarMoved(ScrollBar* sb, double ) override
+    {
+        sb->setAlpha(1.0f);
+        startFadeOut();
+    }
+    
+    bool fadeOut = false;
+
+    void addScrollBarToAnimate(ScrollBar& b)
+    {
+        b.addListener(this);
+        b.setLookAndFeel(&slaf);
+        scrollbars.add({&b});
+    }
+    
+    Array<Component::SafePointer<ScrollBar>> scrollbars;
+};
+
 
 #if JUCE_DEBUG
 #define GUI_UPDATER_FRAME_RATE 150

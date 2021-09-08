@@ -543,17 +543,6 @@ void ScriptContentComponent::processorDeleted(Processor* /*deletedProcessor*/)
 
 void ScriptContentComponent::paint(Graphics &g)
 {
-#if USE_BACKEND
-	if (dynamic_cast<ScriptingEditor*>(getParentComponent()) != nullptr)
-	{
-		g.fillAll(Colours::white.withAlpha(0.05f));
-		g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.1f), 0.0f, 0.0f,
-			Colours::transparentBlack, 0.0f, 6.0f, false));
-		g.fillRect(0.0f, 0.0f, (float)getWidth(), 6.0f);
-	}
-#else
-	ignoreUnused(g);
-#endif
 }
 
 void ScriptContentComponent::paintOverChildren(Graphics& g)

@@ -64,7 +64,7 @@ public:
 			if (p == nullptr)
 				return;
 
-			auto& v = p->getDisplayValues();
+			const auto& v = p->getDisplayValues();
 
 			if (v.outL != l ||
 				(!isMono && v.outR != r))

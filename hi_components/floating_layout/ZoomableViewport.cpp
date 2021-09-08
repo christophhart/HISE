@@ -62,9 +62,11 @@ ZoomableViewport::ZoomableViewport(Component* n) :
 	hBar(false),
 	vBar(true),
 	content(n),
-	mouseWatcher(new MouseWatcher(*this)),
-	sf(*this)
+	mouseWatcher(new MouseWatcher(*this))
 {
+    sf.addScrollBarToAnimate(hBar);
+    sf.addScrollBarToAnimate(vBar);
+    
 	setColour(ColourIds::backgroundColourId, Colour(0xff1d1d1d));
 
 	content->addComponentListener(this);
@@ -344,9 +346,9 @@ void ZoomableViewport::componentMovedOrResized(Component& component, bool wasMov
 
 void ZoomableViewport::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart)
 {
-	scrollBarThatHasMoved->setAlpha(1.0f);
+	
 	refreshPosition();
-	sf.startFadeOut();
+    
 }
 
 
@@ -489,40 +491,7 @@ void ZoomableViewport::refreshPosition()
 	content->setTopLeftPosition(x, y);
 }
 
-void ZoomableViewport::Laf::drawScrollbar(Graphics& g, ScrollBar&, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown)
-{
-	g.fillAll(bg);
 
-	float alpha = 0.3f;
-
-	if (isMouseOver || isMouseDown)
-		alpha += 0.1f;
-
-	if (isMouseDown)
-		alpha += 0.1f;
-
-	g.setColour(Colours::white.withAlpha(alpha));
-
-	auto area = Rectangle<int>(x, y, width, height).toFloat();
-
-	if (isScrollbarVertical)
-	{
-		area.removeFromTop((float)thumbStartPosition);
-		area = area.withHeight((float)thumbSize);
-	}
-	else
-	{
-		area.removeFromLeft((float)thumbStartPosition);
-		area = area.withWidth((float)thumbSize);
-	}
-
-	auto cornerSize = jmin(area.getWidth(), area.getHeight());
-
-	area = area.reduced(4.0f);
-	cornerSize = jmin(area.getWidth(), area.getHeight());
-	
-	g.fillRoundedRectangle(area, cornerSize / 2.0f);
-}
 
 void ZoomableViewport::Holder::setBackground(Image img)
 {
@@ -558,34 +527,6 @@ void ZoomableViewport::Holder::paint(Graphics& g)
 	g.drawText(content->getName(), b, Justification::centred);
 }
 
-void ZoomableViewport::ScrollbarFader::timerCallback()
-{
-	if (!fadeOut)
-	{
-		fadeOut = true;
-		startTimer(30);
-	}
-	{
-		auto a = parent.hBar.getAlpha();
-		a = jmax(0.1f, a - 0.05f);
 
-		parent.hBar.setAlpha(a);
-		parent.vBar.setAlpha(a);
-
-		if (a <= 0.1f)
-		{
-			fadeOut = false;
-			stopTimer();
-		}
-	}
-}
-
-void ZoomableViewport::ScrollbarFader::startFadeOut()
-{
-	parent.hBar.setAlpha(1.0f);
-	parent.vBar.setAlpha(1.0f);
-	fadeOut = false;
-	startTimer(500);
-}
 
 }

@@ -49,7 +49,9 @@ mcl::TextEditor::TextEditor(TextDocument& codeDoc)
 	
 	
 	scrollBar.addListener(this);
-	scrollBar.setColour(ScrollBar::ColourIds::thumbColourId, Colours::white.withAlpha(0.2f));
+    sf.addScrollBarToAnimate(scrollBar);
+    sf.addScrollBarToAnimate(horizontalScrollBar);
+    
     setFont (GLOBAL_MONOSPACE_FONT().withHeight(19.0f));
 
     translateView (gutter.getGutterWidth(), 0); 

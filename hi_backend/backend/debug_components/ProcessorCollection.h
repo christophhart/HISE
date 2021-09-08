@@ -309,6 +309,8 @@ private:
 	ScopedPointer<Viewport> viewport;
 	ScopedPointer<TextEditor> fuzzySearchBox;
 
+    ScrollbarFader sf;
+    
 	StringArray moduleNameList;
 	
 	Array<int> displayedIndexes;

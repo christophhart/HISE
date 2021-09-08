@@ -39,6 +39,8 @@ using namespace juce;
 
 using DragAnimator = juce::AnimatedPosition<juce::AnimatedPositionBehaviours::ContinuousWithMomentum>;
 
+
+
 struct ZoomableViewport : public Component,
 	public ScrollBar::Listener,
 	public ComponentListener,
@@ -50,31 +52,9 @@ struct ZoomableViewport : public Component,
 		backgroundColourId = 9000
 	};
 
-	struct Laf : public LookAndFeel_V4
-	{
-		void drawScrollbar(Graphics& g, ScrollBar&, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown);
-
-        void drawStretchableLayoutResizerBar (Graphics& g, int w, int h, bool /*isVerticalBar*/,
-                                                              bool isMouseOver, bool isMouseDragging)
-        {
-            float alpha = 0.0f;
-            
-            if(isMouseOver)
-                alpha += 0.3f;
-            
-            if(isMouseDragging)
-                alpha += 0.3f;
-            
-            g.setColour(Colour(SIGNAL_COLOUR).withAlpha(alpha));
-            
-            Rectangle<float> area(0.0f, 0.0f, (float)w, (float)h);
-            
-            area = area.reduced(1.0f);
-            g.fillRoundedRectangle(area, jmin(area.getWidth() / 2.0f, area.getHeight() / 2.0f));
-        }
-        
-		Colour bg = Colour(0x771d1d1d);
-	} slaf;
+    using Laf = ScrollbarFader::Laf;
+    
+	Laf slaf;
 
 	struct MouseWatcher : public MouseListener
 	{
@@ -470,20 +450,7 @@ private:
 	
 
 
-	struct ScrollbarFader : public Timer
-	{
-		ScrollbarFader(ZoomableViewport& p) :
-			parent(p)
-		{};
-
-		void timerCallback() override;
-
-		void startFadeOut();
-
-		bool fadeOut = false;
-
-		ZoomableViewport& parent;
-	} sf;
+	
 
 	bool dragToScroll = false;
 	bool mouseWheelScroll = true;
@@ -491,7 +458,7 @@ private:
 	Point<double> normDragStart;
 	Point<double> scrollPosDragStart;
 
-	
+    ScrollbarFader sf;
 	
 	DragAnimator xDragger, yDragger;
 	
@@ -735,6 +702,8 @@ struct WrapperWithMenuBarBase : public Component,
 
 		canvas.setBounds(b);
 	}
+    
+    
 
 	ZoomableViewport canvas;
 	OwnedArray<Component> actionButtons;

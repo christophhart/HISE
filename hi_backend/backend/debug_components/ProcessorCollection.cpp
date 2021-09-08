@@ -42,14 +42,16 @@ SearchableListComponent::SearchableListComponent(BackendRootWindow* window):
 {
 	addAndMakeVisible(fuzzySearchBox = new TextEditor());
 	fuzzySearchBox->addListener(this);
-	fuzzySearchBox->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
-	fuzzySearchBox->setFont(GLOBAL_FONT());
-	fuzzySearchBox->setSelectAllWhenFocused(true);
-    fuzzySearchBox->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+    
+    
+    GlobalHiseLookAndFeel::setTextEditorColours(*fuzzySearchBox);
+    
 	internalContainer = new InternalContainer();
 
 	addAndMakeVisible(viewport = new Viewport());
 
+    sf.addScrollBarToAnimate(viewport->getVerticalScrollBar());
+    viewport->setScrollBarThickness(13.0f);
 	viewport->setViewedComponent(internalContainer, false);
 
 	internalContainer->setSize(300, 20);

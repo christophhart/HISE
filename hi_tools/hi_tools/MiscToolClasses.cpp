@@ -831,4 +831,80 @@ float TempoSyncer::getTempoFactor(Tempo t)
 	return t < numTempos ? tempoFactors[(int)t] : tempoFactors[(int)Tempo::Quarter];
 }
 
+void ScrollbarFader::Laf::drawScrollbar(Graphics& g, ScrollBar&, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown)
+{
+    g.fillAll(bg);
+
+    float alpha = 0.3f;
+
+    if (isMouseOver || isMouseDown)
+        alpha += 0.1f;
+
+    if (isMouseDown)
+        alpha += 0.1f;
+
+    g.setColour(Colours::white.withAlpha(alpha));
+
+    auto area = Rectangle<int>(x, y, width, height).toFloat();
+
+    if (isScrollbarVertical)
+    {
+        area.removeFromTop((float)thumbStartPosition);
+        area = area.withHeight((float)thumbSize);
+    }
+    else
+    {
+        area.removeFromLeft((float)thumbStartPosition);
+        area = area.withWidth((float)thumbSize);
+    }
+
+    auto cornerSize = jmin(area.getWidth(), area.getHeight());
+
+    area = area.reduced(4.0f);
+    cornerSize = jmin(area.getWidth(), area.getHeight());
+    
+    g.fillRoundedRectangle(area, cornerSize / 2.0f);
+}
+
+void ScrollbarFader::timerCallback()
+{
+    if (!fadeOut)
+    {
+        fadeOut = true;
+        startTimer(30);
+    }
+    
+    {
+        if(auto first = scrollbars.getFirst().getComponent())
+        {
+            auto a = first->getAlpha();
+            a = jmax(0.1f, a - 0.05f);
+
+            for(auto sb: scrollbars)
+            {
+                if(sb != nullptr)
+                    sb->setAlpha(a);
+            }
+            
+            if (a <= 0.1f)
+            {
+                fadeOut = false;
+                stopTimer();
+            }
+        }
+    }
+}
+
+void ScrollbarFader::startFadeOut()
+{
+    for(auto sb: scrollbars)
+    {
+        if(sb != nullptr)
+            sb->setAlpha(1.0f);
+    }
+    
+    fadeOut = false;
+    startTimer(500);
+}
+
 }
