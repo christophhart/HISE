@@ -260,22 +260,7 @@ void MainController::CodeHandler::printPendingMessagesFromQueue()
 
 	auto c = mainConsole.getComponent();
 
-	auto toggle = [c](Dispatchable* obj)
-	{
-		auto p = static_cast<Processor*>(obj);
-
-		if (p->getMainController()->getConsoleHandler().getMainConsole() != nullptr)
-		{
-			auto rootWindow = GET_BACKEND_ROOT_WINDOW(c);
-
-			if (rootWindow != nullptr)
-				BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ConsolePanel>(rootWindow->getRootFloatingTile(), true);
-		}
-		
-		return Status::OK;
-	};
-
-	mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p.get(), toggle);
+	
 #endif
 }
 

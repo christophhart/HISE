@@ -986,6 +986,9 @@ struct FloatingPanelTemplates
 
 	static Component* createSamplerWorkspace(FloatingTile* root);
 
+	static Component* createCodeEditorPanel(FloatingTile* root);
+	static Component* createScriptnodeEditorPanel(FloatingTile* root);
+
 	static var createSettingsWindow(MainController* mc);
 
 	static void create2x2Matrix(FloatingTile* parent);

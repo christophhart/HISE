@@ -372,12 +372,6 @@ public:
 	{
 		switch (info.commandID)
 		{
-		case BackendCommandTarget::WorkspaceMain:
-			mainWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			break;
 		case BackendCommandTarget::WorkspaceScript: 
 			mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
 			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(true);

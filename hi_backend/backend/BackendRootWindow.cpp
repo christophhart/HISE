@@ -144,15 +144,13 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 	if(!objectFound || !loadedCorrectly)
 	{
 		mainEditor = dynamic_cast<BackendProcessorEditor*>(FloatingPanelTemplates::createHiseLayout(floatingRoot));
-
 		jassert(mainEditor != nullptr);
 
-		workspaces.add(FloatingTileHelpers::findTileWithId<VerticalTile>(floatingRoot, Identifier("MainWorkspace"))->getParentShell());
 		workspaces.add(FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("ScriptingWorkspace"))->getParentShell());
 		workspaces.add(FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("SamplerWorkspace"))->getParentShell());
 		workspaces.add(FloatingTileHelpers::findTileWithId<HorizontalTile>(floatingRoot, Identifier("CustomWorkspace"))->getParentShell());
 
-		showWorkspace(BackendCommandTarget::WorkspaceMain);
+		showWorkspace(BackendCommandTarget::WorkspaceScript);
 
 		setEditor(this);
 	}
@@ -176,7 +174,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 		}
 	}
 
-	auto consoleParent = FloatingTileHelpers::findTileWithId<ConsolePanel>(getRootFloatingTile(), "MainConsole");
+	auto consoleParent = FloatingTileHelpers::findTileWithId<ConsolePanel>(getRootFloatingTile(), {});
 
 	if (consoleParent != nullptr)
 		getBackendProcessor()->getConsoleHandler().setMainConsole(consoleParent->getConsole());
@@ -481,10 +479,19 @@ void BackendRootWindow::showWorkspace(int workspace)
 {
 	currentWorkspace = workspace;
 
-	int workspaceIndex = workspace - BackendCommandTarget::WorkspaceMain;
+	int workspaceIndex = workspace - BackendCommandTarget::WorkspaceScript;
+
+	static const Array<Identifier> ids = { "ScriptingWorkspace", "SamplerWorkspace" };
 
 	for (int i = 0; i < workspaces.size(); i++)
 	{
+		auto wb = workspaces[i];
+
+		if (wb == nullptr)
+		{
+			workspaces.set(i, FloatingTileHelpers::findTileWithId<FloatingTileContainer>(getRootFloatingTile(), ids[i])->getParentShell());
+		}
+
 		workspaces[i].getComponent()->getLayoutData().setVisible(i == workspaceIndex);
 	}
 
@@ -549,11 +556,11 @@ void BackendPanelHelpers::showWorkspace(BackendRootWindow* root, Workspace works
 {
 	if (notifyCommandManager == sendNotification)
 	{
-		root->getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::WorkspaceMain + (int)workspaceToShow, false);
+		root->getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::WorkspaceScript + (int)workspaceToShow, false);
 	}
 	else
 	{
-		root->showWorkspace(BackendCommandTarget::WorkspaceMain + (int)workspaceToShow);
+		root->showWorkspace(BackendCommandTarget::WorkspaceScript + (int)workspaceToShow);
 	}
 }
 
@@ -564,7 +571,7 @@ bool BackendPanelHelpers::isMainWorkspaceActive(FloatingTile* /*root*/)
 
 FloatingTile* BackendPanelHelpers::ScriptingWorkspace::get(BackendRootWindow* rootWindow)
 {
-	return FloatingTileHelpers::findTileWithId<FloatingTileContainer>(rootWindow->getRootFloatingTile(), "ScriptingWorkspace")->getParentShell();
+	return rootWindow->getRootFloatingTile();
 }
 
 void BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(BackendRootWindow* rootWindow, JavascriptProcessor* jsp)
@@ -577,6 +584,16 @@ void BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(BackendRootWind
 	{
 		connector->setContentWithUndo(dynamic_cast<Processor*>(jsp), 0);
 	}
+
+	auto shouldShowInterface = dynamic_cast<JavascriptMidiProcessor*>(jsp) != nullptr;
+
+	auto sn = FloatingTileHelpers::findTileWithId<VerticalTile>(workspace, "ScriptingWorkspaceScriptnode")->getParentShell();
+	auto id = FloatingTileHelpers::findTileWithId<VerticalTile>(workspace, "ScriptingWorkspaceInterfaceDesigner")->getParentShell();
+
+	sn->getLayoutData().setVisible(!shouldShowInterface);
+	id->getLayoutData().setVisible(shouldShowInterface);
+	sn->getParentContainer()->refreshLayout();
+
 }
 
 void BackendPanelHelpers::ScriptingWorkspace::showEditor(BackendRootWindow* rootWindow, bool shouldBeVisible)

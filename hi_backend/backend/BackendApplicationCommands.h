@@ -75,7 +75,6 @@ public:
 		Macros,
 		Keyboard,
 		Settings,
-		WorkspaceMain,
 		WorkspaceScript,
 		WorkspaceSampler,
 		WorkspaceCustom,

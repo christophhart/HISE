@@ -295,23 +295,48 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 
 	ib.getContainer(root)->setIsDynamic(false);
 
-	const int personaContainer = ib.addChild<VerticalTile>(root);
+	auto con = ib.addChild<GlobalConnectorPanel<JavascriptProcessor>>(root);
+
+	ib.setVisibility(con, false, {});
+
+	const int masterVertical = ib.addChild<VerticalTile>(root);
+
+	
+
+	
+
+	auto leftTab = ib.addChild<FloatingTabComponent>(masterVertical);
+	const int swappableVertical = ib.addChild<VerticalTile>(masterVertical);
+
+	ib.getContent(masterVertical)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xFF404040));
+	ib.getContent(swappableVertical)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xFF404040));
+
+	ib.getPanel(swappableVertical)->setForceShowTitle(false);
+
+	ib.getContent(leftTab)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xff353535));
+	ib.getContent(leftTab)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF404040));
+	const int mainArea = ib.addChild<GenericPanel<PatchBrowser>>(leftTab);
+	const int fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(leftTab);
+	ib.setDynamic(leftTab, false);
+	ib.setDynamic(masterVertical, false);
+	ib.setDynamic(swappableVertical, false);
+	ib.setId(swappableVertical, "SwappableContainer");
+
+	ib.getContent<FloatingTabComponent>(leftTab)->setCurrentTabIndex(0);
+
+	auto ce = createCodeEditorPanel(ib.getPanel(swappableVertical));
+
+	const int personaContainer = ib.addChild<VerticalTile>(swappableVertical);
 	ib.getContainer(personaContainer)->setIsDynamic(true);
 
-
-
-	ib.setFoldable(root, false, { true, false });
+	ib.getPanel(personaContainer)->setForceShowTitle(false);
+	
 	ib.setId(personaContainer, "PersonaContainer");
 
 	ib.getContent(root)->setPanelColour(FloatingTileContent::PanelColourId::bgColour,
 		Colour(0xFF404040));
 
-	auto mainPanel = createMainPanel(ib.getPanel(personaContainer));
-
 	ib.getContainer(personaContainer)->setIsDynamic(false);
-
-
-
 
 	File scriptJSON = ProjectHandler::getAppDataDirectory().getChildFile("Workspaces/ScriptingWorkspace.json");
 	File sampleJSON = ProjectHandler::getAppDataDirectory().getChildFile("Workspaces/SamplerWorkspace.json");
@@ -319,32 +344,30 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 	var scriptData = JSON::parse(scriptJSON.loadFileAsString());
 	var sampleData = JSON::parse(sampleJSON.loadFileAsString());
 
-
-
-	createScriptingWorkspace(ib.getPanel(personaContainer));
-
-	//ib.getPanel(scriptPanel)->setContent(scriptData);
-
-	//jassert(!ib.getPanel(scriptPanel)->isEmpty());
-
-
-
-	//auto samplePanel = ib.addChild < EmptyComponent>(personaContainer);
-
+	auto c = createScriptingWorkspace(ib.getPanel(personaContainer));
 	createSamplerWorkspace(ib.getPanel(personaContainer));
 
-	//ib.getPanel(samplePanel)->setContent(sampleData);
-	//ib.getPanel(samplePanel)->getLayoutData().setId("SamplerWorkspace");
-
-
-
+	
 	const int customPanel = ib.addChild<HorizontalTile>(personaContainer);
 	ib.getContent(customPanel)->setCustomTitle("Custom Workspace");
 	ib.getPanel(customPanel)->getLayoutData().setId("CustomWorkspace");
 	ib.getContainer(customPanel)->setIsDynamic(true);
 	ib.addChild<EmptyComponent>(customPanel);
 
-	return mainPanel;
+	auto be = ib.addChild<BackendProcessorEditor>(root);
+
+	auto mainEditor = ib.getContent<BackendProcessorEditor>(be);
+
+	ib.setSizes(masterVertical, { 300.0, -0.5 });
+	ib.setFolded(masterVertical, { false, false });
+	ib.setFoldable(masterVertical, false, { true, false });
+
+	ib.setFolded(swappableVertical, { true, false });
+
+	ib.setVisibility(be, false, {});
+
+	return mainEditor;
+
 #else
 	return rootTile;
 #endif
@@ -364,22 +387,7 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	ib.setDynamic(samplePanel, false);
 	ib.setId(samplePanel, "SamplerWorkspace");
 
-	const int toggleBar = ib.addChild<VisibilityToggleBar>(samplePanel);
-
-	auto browserBar = ib.addChild<HorizontalTile>(samplePanel);
-
     ib.getContent(samplePanel)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF262626));
-    
-	auto editBar = ib.addChild<ExpansionEditBar>(browserBar);
-	auto fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(browserBar);
-
-	ib.getPanel(editBar)->setCanBeFolded(false);
-
-	ib.setDynamic(browserBar, false);
-
-	auto samplePoolTable = ib.addChild<GenericPanel<SamplePoolTable>>(samplePanel);
-    
-    ib.getPanel(samplePoolTable)->getLayoutData().setVisible(false);
     
 	const int sampleHorizontal = ib.addChild<HorizontalTile>(samplePanel);
 	ib.setDynamic(sampleHorizontal, false);
@@ -398,18 +406,13 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 
     ib.setSizes(sampleVertical, {-0.7, -0.3});
     
-	ib.setSizes(samplePanel, { 32.0, 280.0, 280.0, -0.5 });
+	ib.setSizes(samplePanel, { -0.5 });
 	ib.getPanel(sampleHorizontal)->setCustomIcon((int)FloatingTileContent::Factory::PopupMenuOptions::SampleEditor);
 
-	ib.setId(fileBrowser, "SampleFileBrowser");
-	ib.setId(samplePoolTable, "SamplePoolTable");
 	ib.setId(sampleEditor, "MainSampleEditor");
 	ib.setId(sampleMapEditor, "MainSampleMapEditor");
 	ib.setId(samplerTable, "MainSamplerTable");
 	
-	ib.setCustomPanels(toggleBar, { browserBar, samplePoolTable, sampleEditor, sampleMapEditor, samplerTable });
-	ib.getPanel(toggleBar)->setCanBeFolded(false);
-
 	ib.getContent<FloatingTileContent>(sampleEditor)->setStyleProperty("showConnectionBar", false);
 	ib.getContent<FloatingTileContent>(sampleMapEditor)->setStyleProperty("showConnectionBar", false);
 	ib.getContent<FloatingTileContent>(samplerTable)->setStyleProperty("showConnectionBar", false);
@@ -419,6 +422,8 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 
 	return nullptr;
 }
+
+
 
 #define SET_FALSE(x) sData->setProperty(sw->getDefaultablePropertyId((int)x), false);
 
@@ -484,6 +489,43 @@ var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 
 #undef SET_FALSE
 
+Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
+{
+	FloatingInterfaceBuilder ib(root);
+
+	const int codeEditor = ib.addChild<HorizontalTile>(0);
+	ib.setDynamic(codeEditor, false);
+
+	const int codeVertical = ib.addChild<VerticalTile>(codeEditor);
+	ib.setDynamic(codeVertical, false);
+	const int codeTabs = ib.addChild<FloatingTabComponent>(codeVertical);
+	ib.addChild<CodeEditorPanel>(codeTabs);
+	const int variableWatch = ib.addChild<ScriptWatchTablePanel>(codeVertical);
+
+	auto mainConsole = ib.addChild<ConsolePanel>(codeEditor);
+
+
+
+	ib.setCustomName(codeEditor, "Code Editor");
+	ib.setSizes(codeEditor, { -0.75, -0.25 });
+	ib.setSizes(codeVertical, { -0.8, -0.2 });
+
+	ib.getContent<FloatingTileContent>(variableWatch)->setStyleProperty("showConnectionBar", false);
+
+	ib.getContent(codeVertical)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
+	ib.getContent(codeEditor)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
+	ib.setId(codeEditor, "ScriptingWorkspaceCodeEditor");
+
+	ib.getPanel(codeEditor)->getLayoutData().setVisible(true);
+
+	return ib.getPanel(codeEditor);
+}
+
+Component* FloatingPanelTemplates::createScriptnodeEditorPanel(FloatingTile* root)
+{
+	return nullptr;
+}
+
 Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTile)
 {
 #if USE_BACKEND
@@ -492,48 +534,13 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 	const int personaContainer = 0;
 
-	const int scriptPanel = ib.addChild <HorizontalTile>(personaContainer);
-	ib.setDynamic(scriptPanel, false);
-	ib.getContent(scriptPanel)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xFFFF4040));
-
-	ib.getPanel(scriptPanel)->getLayoutData().setId("ScriptingWorkspace");
-
-    auto con = ib.addChild<GlobalConnectorPanel<JavascriptProcessor>>(scriptPanel);
-    
-    ib.setVisibility(con, false, {});
-
-	const int mainVertical = ib.addChild<VerticalTile>(scriptPanel);
+	const int mainVertical = ib.addChild<VerticalTile>(personaContainer);
 	ib.setDynamic(mainVertical, false);
-
-    auto leftTab = ib.addChild<FloatingTabComponent>(mainVertical);
-    
-    ib.getContent(leftTab)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xff353535));
-    
-    ib.getContent(leftTab)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF404040));
-    
-	
-	const int mainArea = ib.addChild<GenericPanel<PatchBrowser>>(leftTab);
-	const int fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(leftTab);
-	const int codeEditor = ib.addChild<HorizontalTile>(mainVertical);
-	ib.setDynamic(codeEditor, false);
-
-	const int codeVertical = ib.addChild<VerticalTile>(codeEditor);
-	ib.setDynamic(codeVertical, false);
-	const int codeTabs = ib.addChild<FloatingTabComponent>(codeVertical);
-    ib.addChild<CodeEditorPanel>(codeTabs);
-	const int variableWatch = ib.addChild<ScriptWatchTablePanel>(codeVertical);
-
-    ib.addChild<ConsolePanel>(codeEditor);
-	ib.setCustomName(codeEditor, "Code Editor");
-	ib.setSizes(codeEditor, { -0.75, -0.25 });
-	ib.setSizes(codeVertical, { -0.8, -0.2 });
-
-	
+	ib.setId(mainVertical, "ScriptingWorkspace");
 
 	const int scriptNode = ib.addChild<VerticalTile>(mainVertical);
 
 	{
-		
 		ib.setDynamic(scriptNode, false);
 		ib.getContent(scriptNode)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
 
@@ -542,12 +549,9 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 		ib.getContent(scriptNodeHorizontal)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
 
 		const int interfacePanel = ib.addChild<scriptnode::DspNetworkGraphPanel>(scriptNodeHorizontal);
-		const int onInitPanel = ib.addChild<CodeEditorPanel>(scriptNodeHorizontal);
-		const int nodeKeyboard = ib.addChild<MidiKeyboardPanel>(scriptNodeHorizontal);
-		ib.getPanel(nodeKeyboard)->getLayoutData().setForceFoldButton(true);
 
-		ib.setSizes(scriptNodeHorizontal, { -0.7, -0.3, 72.0 });
-		ib.setCustomName(scriptNodeHorizontal, "", { "DSP Network", "Script Editor", "" });
+		ib.setSizes(scriptNodeHorizontal, { -0.7 });
+		ib.setCustomName(scriptNodeHorizontal, "", { "DSP Network" });
 		ib.setCustomName(scriptNode, "ScriptNode");
 
 		ib.setCustomName(nodeList, "Node List");
@@ -561,12 +565,11 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 		ib.getContent<FloatingTileContent>(nodeList)->setStyleProperty("showConnectionBar", false);
 		ib.getContent<FloatingTileContent>(nodePropertyEditor)->setStyleProperty("showConnectionBar", false);
 
-		ib.setFoldable(scriptNodeHorizontal, false, { false, true, true });
+		ib.setFoldable(scriptNodeHorizontal, false, { false });
 
-		ib.setSizes(scriptNode, { -0.15, -0.7, -0.15 });
+		ib.setSizes(scriptNode, { 200, -0.7, -0.15 });
 
-		ib.getPanel(onInitPanel)->setFolded(true);
-		ib.getPanel(nodeKeyboard)->setFolded(true);
+		ib.setId(scriptNode, "ScriptingWorkspaceScriptnode");
 	}
 
 	{
@@ -575,10 +578,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 		ib.setDynamic(interfaceDesigner, false);
 
 		ib.getContent(interfaceDesigner)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
-		ib.getContent(codeVertical)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
-
 		ib.getContent(mainVertical)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
-		ib.getContent(codeEditor)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
 
 		const int componentList = ib.addChild<ScriptComponentList::Panel>(interfaceDesigner);
 
@@ -589,51 +589,34 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 		ib.setDynamic(interfaceHorizontal, false);
 		const int interfacePanel = ib.addChild<ScriptContentPanel>(interfaceHorizontal);
-		const int onInitPanel = ib.addChild<CodeEditorPanel>(interfaceHorizontal);
-		const int keyboard = ib.addChild<MidiKeyboardPanel>(interfaceHorizontal);
-		ib.getPanel(keyboard)->getLayoutData().setForceFoldButton(true);
-
+		
 		const int propertyEditor = ib.addChild<ScriptComponentEditPanel::Panel>(interfaceDesigner);
 
-		ib.setSizes(interfaceHorizontal, { -0.7, -0.3, 72.0 });
-		ib.setCustomName(interfaceHorizontal, "", { "Canvas", "Script Editor", "" });
+		ib.setSizes(interfaceHorizontal, { -0.5 });
+		ib.setCustomName(interfaceHorizontal, "", { "Canvas"});
 
 		ib.setCustomName(interfaceDesigner, "Interface Designer");
 		ib.setCustomName(propertyEditor, "Property Editor");
 		ib.setCustomName(componentList, "Component List");
 
-		ib.setId(codeEditor, "ScriptingWorkspaceCodeEditor");
+		
 		ib.setId(interfaceDesigner, "ScriptingWorkspaceInterfaceDesigner");
 
-		ib.setSizes(interfaceDesigner, { -0.15, -0.7, -0.15 });
+		ib.setSizes(interfaceDesigner, { 250, -0.7, -0.15 });
 
-        ib.setDynamic(leftTab, false);
-        
-		ib.setFoldable(mainVertical, false, { true, true, true, true });
-		ib.setFoldable(interfaceHorizontal, false, { false, true, true });
-
-		ib.setSizes(mainVertical, { 300.0, -0.33, -0.33, -0.33 });
-
-		ib.getPanel(codeEditor)->getLayoutData().setVisible(true);
-		ib.getPanel(fileBrowser)->getLayoutData().setVisible(false);
+		ib.setFoldable(mainVertical, false, { true, true });
+		ib.setFoldable(interfaceHorizontal, false, { false });
+		ib.setSizes(mainVertical, { -0.33, -0.33 });
 		ib.getPanel(scriptNode)->getLayoutData().setVisible(false);
 
 		ib.getPanel(interfacePanel)->setForceShowTitle(false);
 		
-		//ib.getContent<FloatingTileContent>(onInitPanel)->setStyleProperty("showConnectionBar", false);
 		ib.getContent<FloatingTileContent>(interfacePanel)->setStyleProperty("showConnectionBar", false);
-		ib.getContent<FloatingTileContent>(variableWatch)->setStyleProperty("showConnectionBar", false);
-		ib.getContent<FloatingTileContent>(variableWatch)->setStyleProperty("showConnectionBar", false);
 		ib.getContent<FloatingTileContent>(componentList)->setStyleProperty("showConnectionBar", false);
 		ib.getContent<FloatingTileContent>(propertyEditor)->setStyleProperty("showConnectionBar", false);
-
-		ib.getPanel(onInitPanel)->setFolded(true);
-		ib.getPanel(keyboard)->setFolded(true);
-
-
 	}
 	
-	return ib.getPanel(scriptPanel);
+	return ib.getPanel(mainVertical);
 #else
 
 	ignoreUnused(rootTile);

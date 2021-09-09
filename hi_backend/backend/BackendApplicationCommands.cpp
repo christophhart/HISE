@@ -85,7 +85,6 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 {
 	const CommandID id[] = { 
 		Settings,
-		WorkspaceMain,
 		WorkspaceScript,
 		WorkspaceSampler,
 		WorkspaceCustom,
@@ -225,12 +224,6 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 #endif
 		break;
 
-	case WorkspaceMain:
-	{
-		setCommandTarget(result, "Show Main Workspace", true, bpe->getCurrentWorkspace() == WorkspaceMain, 'X', false);
-		result.categoryName = "View";
-		break;
-	}
 	case WorkspaceScript:
 	{
 		setCommandTarget(result, "Show Scripting Workspace", true, bpe->getCurrentWorkspace() == WorkspaceScript, 'X', false);
@@ -667,7 +660,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	{
 	case HamburgerMenu:					Actions::showMainMenu(bpe);  return true;
 	case Settings:                      bpe->showSettingsWindow(); return true;
-	case WorkspaceMain:
 	case WorkspaceScript:
 	case WorkspaceSampler:
 	case WorkspaceCustom:				bpe->showWorkspace(info.commandID); updateCommands(); return true;
@@ -995,7 +987,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		p.addSeparator();
 
-		ADD_ALL_PLATFORMS(WorkspaceMain);
 		ADD_ALL_PLATFORMS(WorkspaceScript);
 		ADD_ALL_PLATFORMS(WorkspaceSampler);
 		ADD_ALL_PLATFORMS(WorkspaceCustom);

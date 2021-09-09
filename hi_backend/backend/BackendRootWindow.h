@@ -248,7 +248,7 @@ private:
 
 	OwnedArray<FloatingTileDocumentWindow> popoutWindows;
 
-	int currentWorkspace = BackendCommandTarget::WorkspaceMain;
+	int currentWorkspace = BackendCommandTarget::WorkspaceScript;
 	
 	Array<Component::SafePointer<FloatingTile>> workspaces;
 
@@ -287,8 +287,7 @@ struct BackendPanelHelpers
 {
 	enum class Workspace
 	{
-		MainPanel = 0,
-		ScriptingWorkspace,
+		ScriptingWorkspace = 0,
 		SamplerWorkspace,
 		CustomWorkspace,
 		numWorkspaces

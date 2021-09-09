@@ -841,7 +841,7 @@ struct FloatingTileHelpers
 
 		while (auto t = iter.getNextPanel())
 		{
-			if (t->getParentShell()->getLayoutData().getID() == id)
+			if (t->getParentShell()->getLayoutData().getID() == id || id.isNull())
 				return t;
 		}
 

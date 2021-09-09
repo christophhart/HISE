@@ -1564,10 +1564,17 @@ void FloatingTile::swapContainerType(const Identifier& containerId)
 {
 	var v = getCurrentFloatingPanel()->toDynamicObject();
 
+
+
 	v.getDynamicObject()->setProperty("Type", containerId.toString());
 
 	if (auto list = v.getDynamicObject()->getProperty("Content").getArray())
 	{
+		for (int i = 0; i < list->size() / 2; i++)
+		{
+			list->swap(i, list->size() - 1 - i);
+		}
+
 		for (int i = 0; i < list->size(); i++)
 		{
 			var c = list->getUnchecked(i);

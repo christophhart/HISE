@@ -462,12 +462,6 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	pluginPreviewButton->setShape(f.createPath("Plugin Preview"), false, true, true);
 	pluginPreviewButton->addListener(this);
 
-
-
-	addAndMakeVisible(mainWorkSpaceButton = new HiseShapeButton("Main Workspace", this, f));
-	mainWorkSpaceButton->setTooltip("Show Main Workspace");
-	mainWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceMain, true);
-
 	addAndMakeVisible(scriptingWorkSpaceButton = new HiseShapeButton("Scripting Workspace", this, f));
 	scriptingWorkSpaceButton->setTooltip("Show Scripting Workspace");
 	scriptingWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceScript, true);
@@ -797,7 +791,15 @@ void MainTopBar::buttonClicked(Button* b)
 	}
 	else if (b == presetBrowserButton)
 	{
-		togglePopup(PopupType::PresetBrowser, !b->getToggleState());
+		auto s = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(getRootWindow()->getRootFloatingTile(), "SwappableContainer");
+		auto isVertical = dynamic_cast<VerticalTile*>(s) != nullptr;
+		s->getParentShell()->swapContainerType(isVertical ? "HorizontalTile" : "VerticalTile");
+
+		FloatingTileHelpers::findTileWithId<FloatingTileContainer>(getRootWindow()->getRootFloatingTile(), "PersonaContainer")->getParentShell()->setForceShowTitle(false);
+
+		getRootWindow()->getRootFloatingTile()->refreshRootLayout();
+
+		//togglePopup(PopupType::PresetBrowser, !b->getToggleState());
 	}
 }
 
@@ -823,7 +825,6 @@ void MainTopBar::resized()
     
     
 	
-    mainWorkSpaceButton->setVisible(false);
 	
 	
 
