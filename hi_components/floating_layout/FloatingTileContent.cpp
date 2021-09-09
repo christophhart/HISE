@@ -614,10 +614,11 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 		ib.setSizes(mainVertical, { 300.0, -0.33, -0.33, -0.33 });
 
-		ib.getPanel(codeEditor)->getLayoutData().setVisible(false);
+		ib.getPanel(codeEditor)->getLayoutData().setVisible(true);
 		ib.getPanel(fileBrowser)->getLayoutData().setVisible(false);
 		ib.getPanel(scriptNode)->getLayoutData().setVisible(false);
 
+		ib.getPanel(interfacePanel)->setForceShowTitle(false);
 		
 		//ib.getContent<FloatingTileContent>(onInitPanel)->setStyleProperty("showConnectionBar", false);
 		ib.getContent<FloatingTileContent>(interfacePanel)->setStyleProperty("showConnectionBar", false);

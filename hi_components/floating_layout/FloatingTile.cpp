@@ -551,6 +551,11 @@ bool FloatingTile::showTitle() const
 	
 	*/
 
+	if (forceShow != 0)
+	{
+		return forceShow == 2;
+	}
+
 	auto pt = getParentType();
 
 	const bool isRoot = pt == ParentType::Root;
@@ -1309,9 +1314,25 @@ struct ResizableViewport: public Component,
     int defaultHeight;
 };
 
+bool hasResizer(Component* c)
+{
+	if (dynamic_cast<juce::ResizableCornerComponent*>(c) != nullptr)
+		return true;
+
+	for (int i = 0; i < c->getNumChildComponents(); i++)
+	{
+		if(hasResizer(c->getChildComponent(i)))
+			return true;
+	}
+
+	return false;
+}
 
 Component* FloatingTile::wrapInViewport(Component* c, bool shouldBeMaximised)
 {
+	if (hasResizer(c))
+		return c;
+
 	auto maxHeight = getTopLevelComponent()->getHeight();
 	auto vp = new ResizableViewport(maxHeight, shouldBeMaximised);
 	vp->setComponent(c);
@@ -1380,9 +1401,7 @@ hise::FloatingTilePopup* FloatingTile::showComponentAsDetachedPopup(Component* n
 	jassert(getParentType() == ParentType::Root);
 
 	if (shouldWrapInViewport)
-	{
 		newComponent = wrapInViewport(newComponent, true);
-	}
 
 	auto newPopup = new FloatingTilePopup(newComponent, attachedComponent, localPoint);
 
@@ -1391,12 +1410,8 @@ hise::FloatingTilePopup* FloatingTile::showComponentAsDetachedPopup(Component* n
 	detachedPopups.add(newPopup);
 
 	newPopup->updatePosition();
-	//newPopup->setVisible(false);
 	newPopup->moveButton.triggerClick();
 	newPopup->rebuildBoxPath();
-
-	//Desktop::getInstance().getAnimator().fadeIn(newPopup, 150);
-
 	newPopup->grabKeyboardFocusAsync();
 
 	return newPopup;

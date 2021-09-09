@@ -623,6 +623,11 @@ public:
 		closeTogglesVisibility = shouldToggleVisibility;
 	}
 
+	void setForceShowTitle(bool shouldShowTitle)
+	{
+		forceShow = shouldShowTitle ? 2 : 1;
+	}
+
 	FloatingTileContent::Factory* getPanelFactory() { return &panelFactory; };
 
 	const FloatingTileContent::Factory* getPanelFactory() const { return &panelFactory; };
@@ -727,6 +732,8 @@ public:
 	}
 
 private:
+
+	int forceShow = 0;
 
 	bool interfaceFloatingTile = false;
 
