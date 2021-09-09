@@ -215,4 +215,78 @@ void DebugableObjectBase::updateLocation(Location& l, var possibleObject)
 	}
 }
 
+Component* DebugInformationBase::createPopupComponent(const MouseEvent& e, Component* componentToNotify)
+{
+	if (auto obj = getObject())
+	{
+		obj->setCurrentExpression(getCodeToInsert());
+		return getObject()->createPopupComponent(e, componentToNotify);
+	}
+		
+
+	return nullptr;
+}
+
+ComponentForDebugInformation::ComponentForDebugInformation(DebugableObjectBase* obj_, ApiProviderBase::Holder* h) :
+	holder(h),
+	obj(obj_)
+{
+	expression = obj->currentExpression;
+	jassert(expression.isNotEmpty());
+}
+
+void ComponentForDebugInformation::search()
+{
+	if (obj == nullptr)
+	{
+		if (holder == nullptr)
+			return;
+
+		ScopedReadLock sl(holder->getDebugLock());
+
+		auto provider = holder->getProviderBase();
+
+		if (provider == nullptr)
+			return;
+
+		for (int i = 0; i < provider->getNumDebugObjects(); i++)
+		{
+			if (searchRecursive(provider->getDebugInformation(i)))
+				break;
+		}
+	}
+}
+
+bool ComponentForDebugInformation::searchRecursive(DebugInformationBase* b)
+{
+	if (holder->shouldReleaseDebugLock())
+		return true;
+
+	if (b->getCodeToInsert() == expression)
+	{
+		obj = b->getObject();
+		refresh();
+		return true;
+	}
+
+	for (int i = 0; i < b->getNumChildElements(); i++)
+	{
+		if (searchRecursive(b->getChildElement(i)))
+			return true;
+	}
+
+	return false;
+}
+
+String ComponentForDebugInformation::getTitle() const
+{
+	String s;
+
+	if (obj != nullptr)
+		s << obj->getDebugName() << ": ";
+
+	s << expression;
+	return s;
+}
+
 } // namespace hise

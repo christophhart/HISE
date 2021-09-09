@@ -136,108 +136,280 @@ String ScriptingObjects::ScriptShader::FileParser::loadFileContent()
 #endif
 }
 
-
-ScriptingObjects::ScriptShader::PreviewComponent::PreviewComponent(ScriptShader* s) :
-	obj(s)
+struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
+													     public ComponentForDebugInformation,
+														 public ApiProviderBase::Holder,
+														 public PathFactory,
+														 public ButtonListener,
+														 public Timer
 {
-	setSize(600, 400);
-	startTimer(15);
-	setName("Shader preview");
-}
 
-void ScriptingObjects::ScriptShader::PreviewComponent::paint(Graphics& g)
-{
-	if (obj != nullptr && obj->shader != nullptr)
+	PreviewComponent(ScriptShader* s) :
+		ComponentForDebugInformation(s, dynamic_cast<ApiProviderBase::Holder*>(s->getScriptProcessor())),
+		resizer(this, nullptr),
+		statsButton("stats", this, *this),
+		viewButton("view", this, *this),
+		resetTimeButton("reset", this, *this)
 	{
-		if (obj->dirty)
+		addAndMakeVisible(statsButton);
+		addAndMakeVisible(resetTimeButton);
+		addAndMakeVisible(viewButton);
+
+		statsButton.setToggleModeWithColourChange(true);
+		viewButton.setToggleModeWithColourChange(true);
+
+		addAndMakeVisible(uniformDataViewer = new ScriptWatchTable());
+		uniformDataViewer->setHolder(this);
+		addAndMakeVisible(resizer);
+		setSize(600, 400);
+		startTimer(15);
+		setName("Shader preview");
+	}
+
+	void timerCallback() override
+	{
+		repaint();
+	}
+
+	void buttonClicked(Button* b) override
+	{
+		if (b == &resetTimeButton)
 		{
-			auto r = obj->shader->checkCompilation(g.getInternalContext());
-
-			obj->setCompileResult(r);
-			obj->dirty = false;
-		}
-
-		if (obj->compiledOk())
-		{
-			auto gb = getLocalArea(getTopLevelComponent(), getLocalBounds());
-
-			obj->setGlobalBounds(gb, 1.0f);
-
-			obj->localRect = getLocalBounds().toFloat();
-
-			auto enabled = obj->enableBlending;
-
-			auto wasEnabled = glIsEnabled(GL_BLEND);
-
-			int blendSrc;
-			int blendDst;
-
-			glGetIntegerv(GL_BLEND_SRC, &blendSrc);
-			glGetIntegerv(GL_BLEND_DST, &blendDst);
-
-			if (enabled)
+			if (auto s = getObject<ScriptShader>())
 			{
-				glEnable(GL_BLEND);
-				glBlendFunc((int)obj->src, (int)obj->dst);
+				s->iTime = 0.0;
+			}
+		}
+		
+		if (b == &viewButton)
+		{
+			uniformDataViewer->setVisible(b->getToggleState());
+			resized();
+		}
+			
+	}
+
+	void refresh() override
+	{
+		provider = nullptr;
+	}
+
+	void paint(Graphics& g) override
+	{
+		if (auto obj = getObject<ScriptShader>())
+		{
+			if (obj->shader == nullptr)
+				return;
+
+			if (obj->dirty)
+			{
+				auto r = obj->shader->checkCompilation(g.getInternalContext());
+				obj->setCompileResult(r);
+				obj->makeStatistics();
+				obj->dirty = false;
 			}
 
-			auto time = Time::getMillisecondCounterHiRes();
+			if (obj->compiledOk())
+			{
+				auto localBounds = getLocalBounds();
+				
+				if (viewButton.getToggleState())
+					localBounds.removeFromRight(uniformDataViewer->getWidth());
 
-			obj->shader->fillRect(g.getInternalContext(), getLocalBounds());
+				auto gb = getLocalArea(getTopLevelComponent(), localBounds);
 
-			time = Time::getMillisecondCounterHiRes() - time;
+				obj->setGlobalBounds(gb, 1.0f);
+				obj->localRect = localBounds.toFloat();
 
-			auto fps = 1.0 / (time * 0.001);
+				auto enabled = obj->enableBlending;
+				auto wasEnabled = glIsEnabled(GL_BLEND);
 
-			if (fps < lastFps)
-				lastFps = fps;
+				int blendSrc;
+				int blendDst;
+
+				glGetIntegerv(GL_BLEND_SRC, &blendSrc);
+				glGetIntegerv(GL_BLEND_DST, &blendDst);
+
+				if (enabled)
+				{
+					glEnable(GL_BLEND);
+					glBlendFunc((int)obj->src, (int)obj->dst);
+				}
+
+				auto time = Time::getMillisecondCounterHiRes();
+
+				obj->shader->fillRect(g.getInternalContext(), localBounds);
+
+				if(viewButton.getToggleState())
+					rebuild();
+
+				// reset it to default
+				if (enabled)
+				{
+					if (!wasEnabled)
+						glDisable(GL_BLEND);
+
+					glBlendFunc(blendSrc, blendDst);
+				}
+
+				g.setColour(Colours::black.withAlpha(0.5f));
+
+				if (statsButton.getToggleState())
+				{
+					String s;
+
+					s << "`";
+					s << JSON::toString(obj->getOpenGLStatistics(), true);
+					s << "`";
+					MarkdownRenderer r(s);
+					r.parse();
+					r.getHeightForWidth(getWidth() - 20.0f);
+					r.draw(g, localBounds.toFloat().reduced(10.0f));
+				}
+			}
 			else
 			{
-				fps = 0.999 * lastFps + 0.001 * fps;
+				String s;
+				s << "### Compilation Error: \n";
+				s << "`";
+				s << obj->getErrorMessage(false);
+				s << "`";
+
+				MarkdownRenderer r(s);
+				r.parse();
+				r.getHeightForWidth(getWidth() - 20.0f);
+
+				r.draw(g, getLocalBounds().toFloat().reduced(10.0f));
 			}
-			
-			g.setColour(Colours::white);
-			g.setFont(GLOBAL_BOLD_FONT());
-
-			auto f = GLOBAL_BOLD_FONT();
-
-			auto fpsString = String((int)fps) + "FPS";
-
-			auto textArea = getLocalBounds().toFloat().reduced(4.0f).removeFromLeft(f.getStringWidthFloat(fpsString) + 10.0f).removeFromBottom(20.0f);
-
-			g.setColour(Colours::black.withAlpha(0.7f));
-			g.fillRect(textArea);
-
-			g.setColour(Colours::white);
-			g.drawText(fpsString, textArea, Justification::centred);
-
-			// reset it to default
-			if (enabled)
-			{
-				if (!wasEnabled)
-					glDisable(GL_BLEND);
-
-				glBlendFunc(blendSrc, blendDst);
-			}
-		}
-		else
-		{
-			String s;
-			s << "### Compilation Error: \n";
-			s << "```\n";
-			s << obj->getErrorMessage(false);
-			s << "```\n";
-
-
-			MarkdownRenderer r(s);
-			r.parse();
-			r.getHeightForWidth(getWidth() - 20.0f);
-
-			g.fillAll(Colours::grey);
-			r.draw(g, getLocalBounds().toFloat().reduced(10.0f));
 		}
 	}
-}
+
+	
+
+	struct UniformProvider : public ApiProviderBase
+	{
+		UniformProvider(ScriptShader* s):
+			shader(s)
+		{
+
+		}
+
+		/** Override this method and return the number of all objects that you want to use. */
+		virtual int getNumDebugObjects() const
+		{
+			if (shader != nullptr)
+			{
+				return shader->uniformData.size();
+			}
+
+			return 0;
+		}
+
+		void getColourAndLetterForType(int type, Colour& colour, char& letter)
+		{
+			auto t = (DebugInformation::Type)type;
+
+			switch (t)
+			{
+			case DebugInformation::Type::RegisterVariable:
+				colour = snex::Types::Helpers::getColourForType(Types::ID::Float);
+				letter = 'F';
+				break;
+			case DebugInformation::Type::Constant:
+				colour = snex::Types::Helpers::getColourForType(Types::ID::Integer);
+				letter = 'I';
+				break;
+			case DebugInformation::Type::Callback:
+				colour = Colours::red.withSaturation(0.6f);
+				letter = 'A';
+				break;
+			}
+		}
+
+		DebugInformationBase::Ptr getDebugInformation(int index) override
+		{
+			if (shader == nullptr)
+				return nullptr;
+
+			Identifier id = shader->uniformData.getName(index);
+
+			auto v = shader->uniformData[id];
+
+			DebugInformation::Type t = DebugInformation::Type::Variables;
+
+			if (v.isDouble())
+				t = DebugInformation::Type::RegisterVariable;
+
+			if (v.isArray() || v.isBuffer())
+				t = DebugInformation::Type::Callback;
+
+			if (v.isInt() || v.isInt64())
+				t = DebugInformation::Type::Constant;
+
+			WeakReference<ScriptShader> s = shader;
+
+			auto vf = [s, id]()
+			{
+				if (s != nullptr)
+				{
+					return s->uniformData[id];
+				}
+
+				return var();
+			};
+			
+			return new LambdaValueInformation(vf, id, {}, t, {});
+		}
+
+		WeakReference<ScriptShader> shader;
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(UniformProvider);
+	};
+
+	
+
+	ApiProviderBase* getProviderBase() override
+	{
+		if(provider == nullptr)
+			provider = new UniformProvider(getObject<ScriptShader>().obj);
+
+		return provider;
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+
+		LOAD_PATH_IF_URL("stats", BackendBinaryData::ToolbarIcons::debugPanel);
+		LOAD_PATH_IF_URL("view", BackendBinaryData::ToolbarIcons::viewPanel);
+		LOAD_PATH_IF_URL("time", ColumnIcons::moveIcon);
+		return p;
+	}
+	
+	void resized() override
+	{
+		auto b = getLocalBounds();
+
+		auto top = b.removeFromTop(24);
+
+		resetTimeButton.setBounds(top.removeFromLeft(24).reduced(2));
+		statsButton.setBounds(top.removeFromLeft(24).reduced(2));
+		viewButton.setBounds(top.removeFromLeft(24).reduced(2));
+		
+		if(viewButton.getToggleState())
+			uniformDataViewer->setBounds(b.removeFromRight(350));
+
+		resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
+	}
+
+	HiseShapeButton viewButton;
+	HiseShapeButton statsButton;
+	HiseShapeButton resetTimeButton;
+
+	ScopedPointer<ScriptWatchTable> uniformDataViewer;
+	ScopedPointer<UniformProvider> provider;
+	juce::ResizableCornerComponent resizer;
+};
+
 
 struct ScriptingObjects::ScriptShader::Wrapper
 {
@@ -362,6 +534,30 @@ void ScriptingObjects::ScriptShader::setEnableCachedBuffer(bool shouldEnableBuff
 	enableCache = shouldEnableBuffer;
 }
 
+void ScriptingObjects::ScriptShader::makeStatistics()
+{
+	auto d = new DynamicObject();
+
+	int major = 0, minor = 0;
+	glGetIntegerv(GL_MAJOR_VERSION, &major);
+	glGetIntegerv(GL_MINOR_VERSION, &minor);
+
+	auto vendor = String((const char*)glGetString(GL_VENDOR));
+
+	auto renderer = String((const char*)glGetString(GL_RENDERER));
+	auto version = String((const char*)glGetString(GL_VERSION));
+	auto shaderVersion = OpenGLShaderProgram::getLanguageVersion();
+
+	d->setProperty("VersionString", version);
+	d->setProperty("Major", major);
+	d->setProperty("Minor", minor);
+	d->setProperty("Vendor", vendor);
+	d->setProperty("Renderer", renderer);
+	d->setProperty("GLSL Version", shaderVersion);
+
+	openGLStats = var(d);
+}
+
 Component* ScriptingObjects::ScriptShader::createPopupComponent(const MouseEvent& e, Component* componentToNotify)
 {
 #if USE_BACKEND
@@ -420,11 +616,21 @@ void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
 
 		auto scale = safeShader->scaleFactor;
 
-		pr.setUniform("iTime", thisTime);
-		pr.setUniform("uOffset", gr.getX() - lr.getX() * scale, gr.getY() - lr.getY() * scale);
-		pr.setUniform("iResolution", lr.getWidth(), lr.getHeight(), 1.0f);
-		//pr.setUniform("iResolution", safeShader->pos[2], safeShader->pos[3], 1.0f);
-		pr.setUniform("uScale", scale);
+		auto makeArray = [](var v1, var v2, var v3 = {})
+		{
+			Array<var> l;
+			l.add(v1);
+			l.add(v2);
+			if (!v3.isVoid())
+				l.add(v3);
+
+			return var(l);
+		};
+
+		safeShader->uniformData.set("iTime", thisTime);
+		safeShader->uniformData.set("uOffset", makeArray(gr.getX() - lr.getX() * scale, gr.getY() - lr.getY() * scale));
+		safeShader->uniformData.set("iResolution", makeArray(lr.getWidth(), lr.getHeight(), 1.0f));
+		safeShader->uniformData.set("uScale", scale);
 
 		for (const auto& p : safeShader->uniformData)
 		{
@@ -462,28 +668,72 @@ struct Result ScriptingObjects::ScriptShader::processErrorMessage(const Result& 
 	return r;
 }
 
-class PathPreviewComponent : public Component
+class PathPreviewComponent : public Component,
+							 public ComponentForDebugInformation
 {
 public:
 
-	PathPreviewComponent(Path &p_) : p(p_) { setSize(300, 300); }
+	PathPreviewComponent(ScriptingObjects::PathObject* o):
+		ComponentForDebugInformation(o, dynamic_cast<ApiProviderBase::Holder*>(o->getScriptProcessor())),
+		resizer(this, nullptr)
+	{ 
+		addAndMakeVisible(resizer);
+		setName(getTitle());
+		setSize(300, 300); 
+	}
 
 	void paint(Graphics &g) override
 	{
-		g.setColour(Colours::white);
-		p.scaleToFit(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), true);
-		g.fillPath(p);
+		if (auto p = getObject<ScriptingObjects::PathObject>())
+		{
+			auto path = p->getPath();
+			auto b = getLocalBounds().reduced(20).toFloat();
+
+			auto pathBounds = path.getBounds();
+
+			PathFactory::scalePath(path, b);
+
+			g.setColour(Colours::white.withAlpha(0.5f));
+			g.fillPath(path);
+			g.setColour(Colours::white.withAlpha(0.8f));
+			g.strokePath(path, PathStrokeType(2.0f));
+
+			b = path.getBounds();
+
+			g.setColour(Colours::white.withAlpha(0.1f));
+			g.drawRect(b.toFloat(), 1.0f);
+
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colours::white.withAlpha(0.3f));
+
+			b.expand(20.0f, 20.0f);
+
+			g.drawText(pathBounds.getTopLeft().toString(), b, Justification::topLeft);
+			g.drawText(pathBounds.getTopRight().toString(), b, Justification::topRight);
+			g.drawText(pathBounds.getBottomLeft().toString(), b, Justification::bottomLeft);
+			g.drawText(pathBounds.getBottomRight().toString(), b, Justification::bottomRight);
+		}
+		else
+		{
+			g.drawText("Path object " + getTitle() + " does not exist", getLocalBounds().toFloat(), Justification::centred);
+		}
+	}
+
+	void resized() override
+	{
+		resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
 	}
 
 private:
 
 	Path p;
+	juce::ResizableCornerComponent resizer;
 };
 
 Component* ScriptingObjects::PathObject::createPopupComponent(const MouseEvent &e, Component* componentToNotify)
 {
 #if USE_BACKEND
-	return new PathPreviewComponent(p);
+	return new PathPreviewComponent(this);
 #else
 	ignoreUnused(e, componentToNotify);
 	return nullptr;

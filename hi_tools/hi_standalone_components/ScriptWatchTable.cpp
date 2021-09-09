@@ -324,10 +324,8 @@ void ScriptWatchTable::mouseDown(const MouseEvent& e)
 		{
 			if (auto info = f->source)
 			{
-				if (auto o = info->getObject())
-					popup = o->createPopupComponent(e, table);
-				else
-					popup = info->createPopupComponent(e, table);
+				
+				popup = info->createPopupComponent(e, table);
 			}
 		}
 

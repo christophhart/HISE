@@ -124,12 +124,16 @@ public:
 		ignoreUnused(e, componentToNotify);
 	};
 
+	void setCurrentExpression(const String& e) { currentExpression = e; }
+
 	/** Override this and return a component that will be shown as popup in the value table. */
 	virtual Component* createPopupComponent(const MouseEvent& e, Component* parent) { return nullptr; }
 
 	virtual Location getLocation() const { return Location(); }
 
 	static void updateLocation(Location& l, var possibleObject);
+
+	String currentExpression;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DebugableObjectBase);
 };
@@ -198,13 +202,7 @@ public:
 			getObject()->doubleClickCallback(e, componentToNotify);
 	};
 
-	virtual Component* createPopupComponent(const MouseEvent& e, Component* componentToNotify)
-	{
-		if (auto obj = getObject())
-			return getObject()->createPopupComponent(e, componentToNotify);
-        
-        return nullptr;
-	};
+	virtual Component* createPopupComponent(const MouseEvent& e, Component* componentToNotify);;
 
 	virtual int getType() const 
 	{ 
@@ -295,7 +293,10 @@ public:
 		return true;
 	}
 
-	virtual String getCodeToInsert() const { return ""; };
+	virtual String getCodeToInsert() const 
+	{ 
+		return ""; 
+	};
 
 	virtual AttributedString getDescription() const
 	{
@@ -712,6 +713,65 @@ public:
 		The default implementation checks the name and instance id of each registered debug object, but you can overload it with more complex functions.
 	*/
 	virtual DebugableObjectBase* getDebugObject(const String& token);
+};
+
+/** This interface class can be used for components that display a debug information. 
+	
+	It automatically tries to find a suitable replacement if this component exceeds the
+	lifetime of the original debug information object.
+
+	In order to use it, just call getObject(), which creates a intermediate helper class
+	that automatically locks the debug lock during its lifetime
+*/
+struct ComponentForDebugInformation
+{
+	ComponentForDebugInformation(DebugableObjectBase* obj_, ApiProviderBase::Holder* h);
+	virtual ~ComponentForDebugInformation() {};
+
+protected:
+
+	virtual void refresh() {};
+
+	String getTitle() const;
+
+	template <typename T> struct SafeObject
+	{
+		SafeObject(ReadWriteLock& l, DebugableObjectBase* obj_) :
+			lock(l),
+			obj(dynamic_cast<T*>(obj_))
+		{};
+
+		T* obj;
+
+		operator bool() const
+		{
+			return obj != nullptr;
+		}
+
+		T* operator->() { return obj; }
+
+	private:
+		ScopedReadLock lock;
+	};
+
+	template <typename T> SafeObject<T> getObject()
+	{
+		static_assert(std::is_base_of<DebugableObjectBase, T>(), "not a base class");
+		search();
+
+		return { holder != nullptr ? holder->getDebugLock() : dummyLock, obj.get() };
+	}
+
+private:
+
+	ReadWriteLock dummyLock;
+
+	void search();
+	bool searchRecursive(DebugInformationBase* b);
+
+	String expression;
+	WeakReference<ApiProviderBase::Holder> holder;
+	WeakReference<DebugableObjectBase> obj;
 };
 
 } // namespace hise

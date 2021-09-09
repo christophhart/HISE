@@ -40,22 +40,7 @@ namespace ScriptingObjects
 	{
 	public:
 
-		struct PreviewComponent : public Component,
-								  public Timer
-		{
-			PreviewComponent(ScriptShader* s);;
-
-			void timerCallback() override
-			{
-				repaint();
-			}
-
-			void paint(Graphics& g) override;
-
-			WeakReference<ScriptShader> obj;
-
-			double lastFps = DBL_MAX;
-		};
+		struct PreviewComponent;
 
 		struct FileParser: public ControlledObject
 		{
@@ -124,6 +109,8 @@ namespace ScriptingObjects
 		void setEnableCachedBuffer(bool shouldEnableBuffer);
 
 		// ===========================================================================
+
+		void makeStatistics();
 
 		void setEnableLineNumbers(bool shouldUseLineNumbers)
 		{

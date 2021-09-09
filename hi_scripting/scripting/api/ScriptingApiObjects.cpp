@@ -5414,8 +5414,11 @@ ScriptingObjects::ScriptUnorderedStack::ScriptUnorderedStack(ProcessorWithScript
 	wholeBf = new VariantBuffer(data.begin(), 128);
 }
 
+
+
 struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
-														 public Timer
+														 public Timer,
+														 public ComponentForDebugInformation
 {
 	static constexpr int CellWidth = 70;
 	static constexpr int CellHeight = 22;
@@ -5425,53 +5428,57 @@ struct ScriptingObjects::ScriptUnorderedStack::Display : public Component,
 	void timerCallback() override { repaint(); }
 
 	Display(ScriptUnorderedStack* p):
-		parent(p)
+		ComponentForDebugInformation(p, dynamic_cast<ApiProviderBase::Holder*>(p->getScriptProcessor()))
 	{
 		setSize(NumColumns * CellWidth, NumRows * CellHeight);
-		setName("Unordered Stack Viewer");
+		setName(getTitle());
 		startTimer(30);
+	}
+
+	void refresh() override
+	{
+
 	}
 
 	void paint(Graphics& g) override
 	{
-		if (parent.get() == nullptr)
+		if (auto p = getObject<ScriptUnorderedStack>())
+		{
+			int index = 0;
+
+			for (int y = 0; y < NumRows; y++)
+			{
+				for (int x = 0; x < NumColumns; x++)
+				{
+					Rectangle<int> ar(x * CellWidth, y * CellHeight, CellWidth, CellHeight);
+
+					if (index < p->size())
+					{
+						g.setColour(Colours::white.withAlpha(0.2f));
+						g.fillRect(ar.reduced(1));
+
+						float v = *(p->data.begin() + index);
+						g.setColour(Colours::white.withAlpha(0.8f));
+						g.setFont(GLOBAL_MONOSPACE_FONT());
+						g.drawText(String(v, 1), ar.toFloat(), Justification::centred);
+					}
+					else
+					{
+						g.setColour(Colours::white.withAlpha(0.05f));
+						g.fillRect(ar.reduced(1));
+					}
+
+					index++;
+				}
+			}
+		}
+		else
 		{
 			g.setColour(Colours::white.withAlpha(0.8f));
 			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText("Refresh this window after recompiling", getLocalBounds().toFloat(), Justification::centred);
-			return;
-		}
-
-		int index = 0;
-
-		for (int y = 0; y < NumRows; y++)
-		{
-			for (int x = 0; x < NumColumns; x++)
-			{
-				Rectangle<int> ar(x * CellWidth, y * CellHeight, CellWidth, CellHeight);
-				
-				if (index < parent->size())
-				{
-					g.setColour(Colours::white.withAlpha(0.2f));
-					g.fillRect(ar.reduced(1));
-
-					float v = *(parent->data.begin() + index);
-					g.setColour(Colours::white.withAlpha(0.8f));
-					g.setFont(GLOBAL_MONOSPACE_FONT());
-					g.drawText(String(v, 1), ar.toFloat(), Justification::centred);
-				}
-				else
-				{
-					g.setColour(Colours::white.withAlpha(0.05f));
-					g.fillRect(ar.reduced(1));
-				}
-
-				index++;
-			}
+			g.drawText("Can't find object for expression " + getTitle(), getLocalBounds().toFloat(), Justification::centred);
 		}
 	}
-
-	WeakReference<ScriptUnorderedStack> parent;
 };
 
 Component* ScriptingObjects::ScriptUnorderedStack::createPopupComponent(const MouseEvent& e, Component *c)
