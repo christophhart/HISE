@@ -40,6 +40,8 @@ lastMousePosition(),
 newPosition(true),
 font(GLOBAL_BOLD_FONT())
 {
+    setLookAndFeel(&laf);
+    
 #if JUCE_DEBUG
 	startTimer(50);
 #else
@@ -60,38 +62,10 @@ void TooltipBar::paint(Graphics &g)
 		
 	const float thisAlpha = jmin<float>(alpha, 1.0f);
 
-	int offset = 0;
-
-	g.setColour(findColour(backgroundColour).withMultipliedAlpha(thisAlpha));
-
-	g.fillRect(0.0f, 0.0f, (float)getWidth(), (float)getHeight());
-
-	if (showIcon)
-	{
-		static const unsigned char pathData[] = { 110, 109, 0, 0, 12, 67, 46, 183, 84, 68, 98, 229, 174, 239, 66, 46, 183, 84, 68, 254, 255, 206, 66, 11, 205, 88, 68, 254, 255, 206, 66, 46, 215, 93, 68, 98, 254, 255, 206, 66, 82, 225, 98, 68, 228, 174, 239, 66, 46, 247, 102, 68, 0, 0, 12, 67, 46, 247, 102, 68, 98, 142, 40, 32, 67, 46, 247, 102, 68, 1, 128, 48, 67, 81, 225,
-			98, 68, 1, 128, 48, 67, 46, 215, 93, 68, 98, 1, 128, 48, 67, 10, 205, 88, 68, 142, 40, 32, 67, 46, 183, 84, 68, 0, 0, 12, 67, 46, 183, 84, 68, 99, 109, 0, 0, 12, 67, 46, 65, 101, 68, 98, 31, 62, 247, 66, 46, 65, 101, 68, 255, 175, 220, 66, 106, 239, 97, 68, 255, 175, 220, 66, 46, 215, 93, 68, 98, 255, 175, 220, 66, 242, 190,
-			89, 68, 31, 62, 247, 66, 46, 109, 86, 68, 0, 0, 12, 67, 46, 109, 86, 68, 98, 240, 96, 28, 67, 46, 109, 86, 68, 1, 168, 41, 67, 242, 190, 89, 68, 1, 168, 41, 67, 46, 215, 93, 68, 98, 1, 168, 41, 67, 106, 239, 97, 68, 241, 96, 28, 67, 46, 65, 101, 68, 0, 0, 12, 67, 46, 65, 101, 68, 99, 109, 0, 112, 7, 67, 46, 71, 89, 68, 108, 0, 144,
-			16, 67, 46, 71, 89, 68, 108, 0, 144, 16, 67, 46, 143, 91, 68, 108, 0, 112, 7, 67, 46, 143, 91, 68, 108, 0, 112, 7, 67, 46, 71, 89, 68, 99, 109, 0, 32, 21, 67, 46, 103, 98, 68, 108, 0, 224, 2, 67, 46, 103, 98, 68, 108, 0, 224, 2, 67, 46, 67, 97, 68, 108, 0, 112, 7, 67, 46, 67, 97, 68, 108, 0, 112, 7, 67, 46, 215, 93, 68, 108, 0, 224,
-			2, 67, 46, 215, 93, 68, 108, 0, 224, 2, 67, 46, 179, 92, 68, 108, 0, 144, 16, 67, 46, 179, 92, 68, 108, 0, 144, 16, 67, 46, 67, 97, 68, 108, 0, 32, 21, 67, 46, 67, 97, 68, 108, 0, 32, 21, 67, 46, 103, 98, 68, 99, 101, 0, 0 };
-
-		Path path;
-		path.loadPathFromData(pathData, sizeof(pathData));
-
-		path.scaleToFit(4.0f, 4.0f, (float)(getHeight() - 8), (float)(getHeight() - 8), true);
-
-		g.setColour(findColour(iconColour).withMultipliedAlpha(thisAlpha));
-
-		g.fillPath(path);
-
-		offset = 24;
-
-	}
-
-	
-
-	g.setColour(findColour(textColour).withMultipliedAlpha(thisAlpha));
-	g.setFont(font);
-	g.drawText(currentText, offset + 4, 0, getWidth() - offset, getHeight(), Justification::centredLeft, true);
+    if(auto tlaf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
+    {
+        tlaf->drawTooltipBar(g, *this, alpha, currentText);
+    }
 }
 
 void TooltipBar::timerCallback()

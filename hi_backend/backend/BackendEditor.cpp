@@ -495,8 +495,7 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	layoutButton->setShape(layoutPath, false, true, true);
 	
 	addAndMakeVisible(tooltipBar = new TooltipBar());
-	addAndMakeVisible(voiceCpuBpmComponent = new VoiceCpuBpmComponent(parent->getBackendRootWindow()->getBackendProcessor()));
-    
+	
 	tooltipBar->setColour(TooltipBar::ColourIds::backgroundColour, HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 	tooltipBar->setColour(TooltipBar::ColourIds::textColour, Colours::white);
 	tooltipBar->setColour(TooltipBar::ColourIds::iconColour, Colours::white);
@@ -774,16 +773,7 @@ void MainTopBar::paint(Graphics& g)
 	g.fillAll();
 	
     if (hiseIcon != nullptr)
-        hiseIcon->drawWithin(g, getLocalBounds().removeFromLeft(JUCE_LIVE_CONSTANT(100)).reduced(30).toFloat(), RectanglePlacement::fillDestination, 1.0f);
-
-    
-    
-	g.setColour(Colours::white.withAlpha(0.2f));
-	g.setFont(GLOBAL_BOLD_FONT());
-	g.drawText("Frontend Panels", frontendArea.withTrimmedBottom(11), Justification::centredBottom);
-	g.drawText("Workspaces", workspaceArea.withTrimmedBottom(11), Justification::centredBottom);
-
-	
+        hiseIcon->drawWithin(g, getLocalBounds().removeFromLeft(JUCE_LIVE_CONSTANT(100)).reduced(10).toFloat(), RectanglePlacement::centred, 1.0f);
 }
 
 void MainTopBar::paintOverChildren(Graphics& g)
@@ -814,84 +804,45 @@ void MainTopBar::buttonClicked(Button* b)
 void MainTopBar::resized()
 {
     hiseButton->setVisible(false);
+
     
-	const int centerY = 3;
-
-	int x = 10;
-
-	const int hiseButtonSize = 40;
-	const int hiseButtonOffset = (getHeight() - hiseButtonSize) / 2;
-
-	hiseButton->setBounds(hiseButtonOffset, hiseButtonOffset, hiseButtonSize, hiseButtonSize);
-
-	x = hiseButton->getRight() + 10;
-
-	const int backButtonSize = 24;
-	const int backButtonOffset = (getHeight() - backButtonSize) / 2;
-
-	backButton->setBounds(x, backButtonOffset, backButtonSize, backButtonSize);
-
-	x = backButton->getRight() + 4;
-
-	forwardButton->setBounds(x, backButtonOffset, backButtonSize, backButtonSize);
-
-    backButton->setVisible(false);
-    forwardButton->setVisible(false);
+    auto b = getLocalBounds();
     
-	const int leftX = forwardButton->getRight() + 4;
-
+    settingsButton->setBounds(b.removeFromRight(b.getHeight()).reduced(7));
+    peakMeter->setBounds(b.removeFromRight(180).reduced(8));
+    
+    
+    
 	const int settingsWidth = 320;
-	Rectangle<int> settingsArea(getWidth() - settingsWidth, centerY, settingsWidth, getHeight() - centerY);
-	tooltipBar->setBounds(settingsArea.getX(), getHeight() - 24, settingsWidth, 24);
-	voiceCpuBpmComponent->setBounds(settingsArea.getX(), 4, 120, 28);
-	x = settingsArea.getRight() - 28 - 8;
-	layoutButton->setBounds(x, centerY, 28, 28);
 	
-	x = layoutButton->getX() - 28 - 8;
+    layoutButton->setVisible(false);
 	
-	settingsButton->setBounds(x, centerY, 28, 28);
-	peakMeter->setBounds(voiceCpuBpmComponent->getRight() - 2, centerY + 4, settingsButton->getX() - voiceCpuBpmComponent->getRight(), 24);
 
-	const int rightX = settingsArea.getX() - 4;
-
-	const int workspaceWidth = 180;
-
-	int frontendWidth = 180;
 	
-	int centerX = leftX + (rightX - leftX) / 2;
-
-	x = centerX - workspaceWidth - 40;
-
-	workspaceArea = Rectangle<int>(x, centerY + 3, workspaceWidth, getHeight() - centerY);
-
-	mainWorkSpaceButton->setBounds(x, workspaceArea.getY(), 32, 32);
+    b.removeFromLeft(100);
+    
+    
 	
-	x += (workspaceWidth-32) / 3;
+    mainWorkSpaceButton->setVisible(false);
+	
+	
 
-	scriptingWorkSpaceButton->setBounds(x, workspaceArea.getY(), 32, 32);
+	scriptingWorkSpaceButton->setBounds(b.removeFromLeft(b.getHeight()).reduced(7));
 
-	x += (workspaceWidth - 32) / 3;
+    samplerWorkSpaceButton->setBounds(b.removeFromLeft(b.getHeight()).reduced(7));
+	
+    customWorkSpaceButton->setVisible(false);
 
-	samplerWorkSpaceButton->setBounds(x, workspaceArea.getY(), 32, 32);
-	x += (workspaceWidth - 32) / 3;
-
-	customWorkSpaceButton->setBounds(x, workspaceArea.getY(), 32, 32);
-	x += (workspaceWidth - 32) / 3;
-
-
-	x = centerX + 40;
-
-	frontendArea = Rectangle<int>(x, centerY + 3, frontendWidth, getHeight() - centerY);
+    frontendArea = getLocalBounds().withSizeKeepingCentre(getHeight() * 5, getHeight());
 
 	int macroX = frontendArea.getX();
 
-	macroButton->setBounds(macroX, frontendArea.getY(), 32, 32);
+    macroButton->setBounds(frontendArea.removeFromLeft(getHeight()).reduced(7));
+    presetBrowserButton->setBounds(frontendArea.removeFromRight(getHeight()).reduced(7));
+    
+	pluginPreviewButton->setBounds(frontendArea.withSizeKeepingCentre(getHeight(), getHeight()).reduced(7));
 
-	pluginPreviewButton->setBounds(frontendArea.getCentreX() - 16, frontendArea.getY(), 32, 32);
-
-	presetBrowserButton->setBounds(frontendArea.getRight() - 32, frontendArea.getY(), 32, 32);
-
-
+    tooltipBar->setBounds(b.withLeft(presetBrowserButton->getRight() + 10).reduced(8));
 
 }
 

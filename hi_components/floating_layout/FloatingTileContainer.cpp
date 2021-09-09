@@ -599,7 +599,6 @@ ResizableFloatingTileContainer::ResizableFloatingTileContainer(FloatingTile* par
 	FloatingTileContainer(parent),
 	vertical(isVerticalTile)
 {
-	setOpaque(true);
 	setDefaultPanelColour(PanelColourId::bgColour, Colour(0xff373737));
 	setDefaultPanelColour(PanelColourId::itemColour1, HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 

@@ -336,7 +336,7 @@ public:
 
 	int getFixedHeight() const override
 	{
-		return 60;
+		return 40;
 	}
 
 	String getMarkdownHelpUrl() const override
@@ -411,8 +411,7 @@ private:
 	Rectangle<int> workspaceArea;
 
 	ScopedPointer<TooltipBar> tooltipBar;
-	ScopedPointer<VoiceCpuBpmComponent> voiceCpuBpmComponent;
-
+	
 	ScopedPointer<ImageButton> hiseButton;
 
 	ScopedPointer<ShapeButton> backButton;
