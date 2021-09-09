@@ -136,6 +136,8 @@ public:
 
 	};
 
+    static void createProcessorFromPopup(Component* editorIfPossible, Processor* parentChainProcessor, Processor* insertBeforeSibling);
+    
 	bool isInterestedInDragSource(const SourceDetails &dragSourceDetails) override;
 
 	void itemDragEnter(const SourceDetails &dragSourceDetails) override;

@@ -432,6 +432,100 @@ void ProcessorEditor::paint(Graphics &g)
 const Chain * ProcessorEditor::getProcessorAsChain() const { return dynamic_cast<const Chain*>(getProcessor()); }
 Chain * ProcessorEditor::getProcessorAsChain() { return dynamic_cast<Chain*>(getProcessor()); }
 
+void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Processor* parentChainProcessor, Processor* insertBeforeSibling)
+{
+    Processor *processorToBeAdded = nullptr;
+    
+    auto c = dynamic_cast<Chain*>(parentChainProcessor);
+    
+    jassert(c != nullptr);
+    FactoryType *t = c->getFactoryType();
+    StringArray types;
+    bool clipBoard = false;
+    int result;
+
+    // =================================================================================================================
+    // Create the Popup
+
+    {
+        PopupLookAndFeel plaf;
+        PopupMenu m;
+        
+        m.setLookAndFeel(&plaf);
+
+        m.addSectionHeader("Create new Processor ");
+        
+        t->fillPopupMenu(m);
+
+        m.addSeparator();
+        m.addSectionHeader("Add from Clipboard");
+
+        String clipBoardName = PresetHandler::getProcessorNameFromClipboard(t);
+
+        if(clipBoardName != String())  m.addItem(CLIPBOARD_ITEM_MENU_INDEX, "Add " + clipBoardName + " from Clipboard");
+        else                                m.addItem(-1, "No compatible Processor in clipboard.", false);
+
+        clipBoard = clipBoardName != String();
+
+        result = m.show();
+    }
+
+    // =================================================================================================================
+    // Create the processor
+
+    if(result == 0)                                    return;
+
+    else if(result == CLIPBOARD_ITEM_MENU_INDEX && clipBoard)
+        processorToBeAdded = PresetHandler::createProcessorFromClipBoard(parentChainProcessor);
+
+    else
+    {
+        Identifier type = t->getTypeNameFromPopupMenuResult(result);
+        String typeName = t->getNameFromPopupMenuResult(result);
+
+        String name = typeName;
+        
+        if (name.isNotEmpty())
+            processorToBeAdded = MainController::createProcessor(t, type, name);
+        else return;
+    }
+
+    auto brw = GET_BACKEND_ROOT_WINDOW(editorIfPossible);
+    auto editor = dynamic_cast<ProcessorEditor*>(editorIfPossible);
+    
+    auto f = [c, brw, editor, processorToBeAdded, insertBeforeSibling](Processor* p)
+    {
+        if (ProcessorHelpers::is<ModulatorSynth>(processorToBeAdded) && dynamic_cast<ModulatorSynthGroup*>(c) == nullptr)
+            dynamic_cast<ModulatorSynth*>(processorToBeAdded)->addProcessorsWhenEmpty();
+
+        c->getHandler()->add(processorToBeAdded, insertBeforeSibling);
+
+        PresetHandler::setUniqueIdsForProcessor(processorToBeAdded);
+
+        if (ProcessorHelpers::is<ModulatorSynth>(processorToBeAdded))
+            processorToBeAdded->getMainController()->getMainSynthChain()->compileAllScripts();
+
+        MessageManager::callAsync([brw, c, editor]()
+        {
+            brw->sendRootContainerRebuildMessage(false);
+            
+            if(editor != nullptr)
+            {
+                editor->changeListenerCallback(editor->getProcessor());
+                editor->childEditorAmountChanged();
+            }
+            
+            PresetHandler::setChanged(dynamic_cast<Processor*>(c));
+        });
+
+        return SafeFunctionCall::OK;
+    };
+
+    processorToBeAdded->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeAdded, f, MainController::KillStateHandler::SampleLoadingThread);
+    
+    return;
+}
+
 void ProcessorEditor::setFolded(bool shouldBeFolded, bool notifyEditor)
 {
 	getProcessor()->setEditorState(Processor::Folded, shouldBeFolded, notifyEditor ? sendNotification : dontSendNotification);

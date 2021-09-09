@@ -233,10 +233,8 @@ SearchableListComponent::Collection * PatchBrowser::createCollection(int index)
 
 void PatchBrowser::paint(Graphics &g)
 {
-	g.fillAll(Colour(0xff383838));
-
 	SearchableListComponent::paint(g);
-
+    
 	Point<int> startPointInParent;
 
 	int numCollections = getNumCollections();
@@ -274,6 +272,34 @@ void PatchBrowser::paint(Graphics &g)
 		g.drawLine((float)startPointInParent.getX(), (float)endPointInParent.getY(), (float)endPointInParent.getX(), (float)endPointInParent.getY(), 2.0f);
 
 	}
+    
+    if(showChains)
+    {
+        Colour lineColour = Colours::white;
+
+        UnblurryGraphics ug(g, *this, true);
+
+        auto mulAlpha = 1.0f - jlimit(0.0f, 1.0f, (1.0f / 3.0f * ug.getPixelSize()));
+
+        if (mulAlpha > 0.1f)
+        {
+            for (int x = 10; x < getWidth(); x += 10)
+            {
+                float alpha = (x % 100 == 0) ? 0.12f : 0.05f;
+                alpha *= mulAlpha;
+                g.setColour(lineColour.withAlpha(alpha));
+                ug.draw1PxVerticalLine(x, 0.0f, (float)getHeight());
+            }
+
+            for (int y = 10; y < getHeight(); y += 10)
+            {
+                float alpha = (y % 100 == 0) ? 0.12f : 0.05f;
+                alpha *= mulAlpha;
+                g.setColour(lineColour.withAlpha(alpha));
+                ug.draw1PxHorizontalLine(y, 0.0f, (float)getWidth());
+            }
+        }
+    }
 }
 
 void PatchBrowser::toggleFoldAll()
@@ -298,6 +324,7 @@ void PatchBrowser::toggleShowChains()
 	addButton->setToggleState(showChains, dontSendNotification);
 
 	rebuildModuleList(true);
+    repaint();
 }
 
 void PatchBrowser::buttonClicked(Button *b)
@@ -553,7 +580,23 @@ PatchBrowser::PatchCollection::~PatchCollection()
 
 void PatchBrowser::PatchCollection::mouseDown(const MouseEvent& e)
 {
-	
+    if(auto pb = findParentComponentOfClass<PatchBrowser>())
+    {
+        if(pb->showChains)
+        {
+            auto p = getProcessor();
+            
+            if(auto c = dynamic_cast<Chain*>(p))
+            {
+                ProcessorEditor::createProcessorFromPopup(this, p, nullptr);
+            }
+            else
+            {
+                ProcessorEditor::createProcessorFromPopup(this, p->getParentProcessor(false), p);
+            }
+            return;
+        }
+    }
 
 	if (getProcessor() != nullptr)
 		PatchBrowser::showProcessorInPopup(this, e, getProcessor());
@@ -579,9 +622,17 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 		g.fillRoundedRectangle(b.reduced(8.0f), 2.0f);
 	}
 
-	auto iconSpace = b.reduced(7.0f);
-	iconSpace = iconSpace.removeFromLeft(iconSpace.getHeight());
+    g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, 0.0f,
+                                     Colours::black.withAlpha(0.3f), 0.0f, (float)getHeight(), false));
+    
 
+    
+    
+	auto iconSpace2 = b.reduced(7.0f);
+	auto iconSpace = iconSpace2.removeFromLeft(iconSpace2.getHeight());
+
+    g.fillRoundedRectangle(iconSpace2, 2.0f);
+    
 	g.setGradientFill(ColourGradient(synth->getIconColour().withMultipliedBrightness(1.1f), 0.0f, 7.0f,
 		synth->getIconColour().withMultipliedBrightness(0.9f), 0.0f, 35.0f, false));
 
@@ -856,7 +907,7 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 
 void PatchBrowser::PatchItem::mouseDown(const MouseEvent& e)
 {
-	const bool isEditable = dynamic_cast<Chain*>(processor.get()) == nullptr ||
+    const bool isEditable = dynamic_cast<Chain*>(processor.get()) == nullptr ||
 		dynamic_cast<ModulatorSynth*>(processor.get()) != nullptr;
 
 	if (isEditable && e.mods.isShiftDown())
@@ -867,6 +918,22 @@ void PatchBrowser::PatchItem::mouseDown(const MouseEvent& e)
 
 	Item::mouseDown(e);
 
+    if(auto pb = findParentComponentOfClass<PatchBrowser>())
+    {
+        if(pb->showChains)
+        {
+            if(auto c = dynamic_cast<Chain*>(processor.get()))
+            {
+                ProcessorEditor::createProcessorFromPopup(this, processor, nullptr);
+            }
+            else
+            {
+                ProcessorEditor::createProcessorFromPopup(this, processor->getParentProcessor(false), processor);
+            }
+            return;
+        }
+    }
+    
 	if (processor.get() != nullptr)
 		PatchBrowser::showProcessorInPopup(this, e, processor);
 }
@@ -896,8 +963,8 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 
 		const bool isRoot = GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()->getRootProcessor() == processor;
 
-		g.setGradientFill(ColourGradient(isRoot ? Colours::white.withAlpha(0.3f) : Colours::black.withAlpha(0.2f), 0.0f, 0.0f,
-										 isRoot ? Colours::white.withAlpha(0.2f) : Colours::black.withAlpha(0.3f), 0.0f, (float)getHeight(), false));
+		g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, 0.0f,
+										 Colours::black.withAlpha(0.3f), 0.0f, (float)getHeight(), false));
 		
 
 		g.fillRoundedRectangle(b.reduced(1.0f), 2.0f);
@@ -945,6 +1012,9 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 
 void PatchBrowser::MiniPeak::paint(Graphics& g)
 {
+    if(p.get() == nullptr)
+        return;
+    
 	auto area = getLocalBounds().toFloat().reduced(1.0f);
 
 	Rectangle<float> la, ra;

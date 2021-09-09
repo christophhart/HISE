@@ -1066,117 +1066,17 @@ void ProcessorEditorHeader::checkSoloLabel()
 	}
 };
 
+
+
 void ProcessorEditorHeader::createProcessorFromPopup(Processor *insertBeforeSibling)
 {
-	Processor *processorToBeAdded = nullptr;
-	
-	Chain *c = getEditor()->getProcessorAsChain();
-	
-	jassert(c != nullptr);
-	FactoryType *t = c->getFactoryType();
-	StringArray types;
-	bool clipBoard = false;
-	int result;
-
-	// =================================================================================================================
-	// Create the Popup
-
-	{
-		ScopedPointer<PopupLookAndFeel> l = new PopupLookAndFeel();
-		PopupMenu m;
-		
-		m.setLookAndFeel(l);
-
-		m.addSectionHeader("Create new Processor ");
-		
-		t->fillPopupMenu(m);
-
-		m.addSeparator();
-		m.addSectionHeader("Add from Clipboard");
-
-		String clipBoardName = PresetHandler::getProcessorNameFromClipboard(t);
-
-		if(clipBoardName != String())  m.addItem(CLIPBOARD_ITEM_MENU_INDEX, "Add " + clipBoardName + " from Clipboard");
-		else								m.addItem(-1, "No compatible Processor in clipboard.", false);
-
-		clipBoard = clipBoardName != String();
-
-		result = m.show();
-	}
-
-	// =================================================================================================================
-	// Create the processor
-
-	if(result == 0)									return;
-
-	else if(result == CLIPBOARD_ITEM_MENU_INDEX && clipBoard) processorToBeAdded = PresetHandler::createProcessorFromClipBoard(getProcessor());
-
-	else
-	{
-		Identifier type = t->getTypeNameFromPopupMenuResult(result);
-		String typeName = t->getNameFromPopupMenuResult(result);
-
-		String name;
-
-		if (isHeaderOfModulatorSynth()) name = typeName; // PresetHandler::getCustomName(typeName);
-		else						  name = typeName;
-
-
-		if (name.isNotEmpty())
-		{
-			processorToBeAdded = MainController::createProcessor(t, type, name);
-
-			
-		}
-			else return;
-	}
-
-	// =================================================================================================================
-	// Add the Editor
-
-	addProcessor(processorToBeAdded, insertBeforeSibling);
+    ProcessorEditor::createProcessorFromPopup(getEditor(), getProcessor(), insertBeforeSibling);
 };
 
 
 void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processor *insertBeforeSibling)
 {
-	if (processorToBeAdded == nullptr)	{ jassertfalse;	return; }
-
-	auto editor = getEditor();
-
-	auto f = [editor, insertBeforeSibling](Processor* p)
-	{
-		if (ProcessorHelpers::is<ModulatorSynth>(p) && dynamic_cast<ModulatorSynthGroup*>(editor->getProcessor()) == nullptr)
-			dynamic_cast<ModulatorSynth*>(p)->addProcessorsWhenEmpty();
-
-		editor->getProcessorAsChain()->getHandler()->add(p, insertBeforeSibling);
-
-		PresetHandler::setUniqueIdsForProcessor(p);
-
-		if (ProcessorHelpers::is<ModulatorSynth>(editor->getProcessor()))
-			p->getMainController()->getMainSynthChain()->compileAllScripts();
-
-		auto update = [](Dispatchable* obj)
-		{
-			auto editor = static_cast<ProcessorEditor*>(obj);
-
-			editor->changeListenerCallback(editor->getProcessor());
-			editor->childEditorAmountChanged();
-
-			BACKEND_ONLY(GET_BACKEND_ROOT_WINDOW(editor)->sendRootContainerRebuildMessage(false));
-			PresetHandler::setChanged(editor->getProcessor());
-
-			return Dispatchable::Status::OK;
-		};
-
-		p->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(editor, update);
-
-		return SafeFunctionCall::OK;
-	};
-
-	editor->getProcessor()->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeAdded, f, MainController::KillStateHandler::SampleLoadingThread);
 	
-	return;
 
 }
 
