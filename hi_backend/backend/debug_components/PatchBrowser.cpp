@@ -57,6 +57,7 @@ showChains(false)
 	addCustomButton(addButton);
 	
 	
+#if 0
 	addAndMakeVisible(foldButton = new ShapeButton("Fold all", Colours::white.withAlpha(0.6f), Colours::white, Colours::white));
 
 	Path foldPath;
@@ -67,6 +68,7 @@ showChains(false)
 	foldButton->addListener(this);
 
 	addCustomButton(foldButton);
+#endif
 
 	setOpaque(true);
 }
@@ -235,6 +237,8 @@ void PatchBrowser::paint(Graphics &g)
 {
 	SearchableListComponent::paint(g);
     
+    g.fillAll(Colour(0xFF353535));
+    
 	Point<int> startPointInParent;
 
 	int numCollections = getNumCollections();
@@ -339,7 +343,7 @@ void PatchBrowser::buttonClicked(Button *b)
 	}
 }
 
-void PatchBrowser::skinWorkspaceButton(ShapeButton& b, Processor* processor)
+HiseShapeButton* PatchBrowser::skinWorkspaceButton(Processor* processor)
 {
 	if (processor != nullptr)
 	{
@@ -347,23 +351,24 @@ void PatchBrowser::skinWorkspaceButton(ShapeButton& b, Processor* processor)
 
 		if (!isWorkspaceTarget)
 		{
-			b.setVisible(false);
-			return;
+            return nullptr;
+			
 		}
 
-		Path p;
-		p.loadPathFromData(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
-		b.setShape(p, true, true, true);
-		b.setToggleState(true, dontSendNotification);
-		b.setTooltip("Open " + processor->getId() + " in workspace");
+        Factory f;
+        
+        auto b = new HiseShapeButton("workspace", nullptr, f);
+        
+		
+        b->setToggleModeWithColourChange(true);
+		b->setTooltip("Open " + processor->getId() + " in workspace");
 
 		WeakReference<Processor> safeP(processor);
 
-		
-
-		b.onClick = [safeP, &b]()
+		b->onClick = [safeP, b]()
 		{
-			auto rootWindow = GET_BACKEND_ROOT_WINDOW((&b));
+			auto rootWindow = GET_BACKEND_ROOT_WINDOW((b));
+            
 			if (safeP != nullptr)
 			{
 				if (auto jsp = dynamic_cast<JavascriptProcessor*>(safeP.get()))
@@ -379,11 +384,11 @@ void PatchBrowser::skinWorkspaceButton(ShapeButton& b, Processor* processor)
 				}
 			}
 		};
+        
+        return b;
 	}
-	else
-	{
-		b.setVisible(false);
-	}
+    
+    return nullptr;
 }
 
 // ====================================================================================================================
@@ -511,16 +516,18 @@ void PatchBrowser::ModuleDragTarget::drawDragStatus(Graphics &g, Rectangle<float
 PatchBrowser::PatchCollection::PatchCollection(ModulatorSynth *synth, int hierarchy_, bool showChains) :
 root(synth),
 hierarchy(hierarchy_),
-gotoWorkspace("Goto", Colours::white, Colours::white, Colours::white),
 peak(synth)
 {
 	addAndMakeVisible(peak);
 	addAndMakeVisible(foldButton = new ShapeButton("Fold Overview", Colour(0xFF222222), Colours::white.withAlpha(0.4f), Colour(0xFF222222)));
 
-	addAndMakeVisible(gotoWorkspace);
-	
-	PatchBrowser::skinWorkspaceButton(gotoWorkspace, synth);
+    
+    
+	gotoWorkspace = PatchBrowser::skinWorkspaceButton(synth);
 
+    if(gotoWorkspace != nullptr)
+        addAndMakeVisible(gotoWorkspace);
+    
 	foldButton->addListener(this);
 
 	refreshFoldButton();
@@ -672,23 +679,22 @@ void PatchBrowser::PatchCollection::refreshFoldButton()
 
 void PatchBrowser::PatchCollection::resized()
 {
-	SearchableListComponent::Collection::resized();
+    SearchableListComponent::Collection::resized();
 
 	auto b = getLocalBounds().removeFromTop(40);
-
-	b.removeFromLeft(getIntendation());
 
 	auto iconSpace = b.reduced(7);
 	iconSpace = iconSpace.removeFromLeft(iconSpace.getHeight());
 
+    
 	foldButton->setBounds(iconSpace.reduced(6));
 
 
 
 	peak.setBounds(iconSpace.removeFromRight(9).translated(12, 0).reduced(0, 3));
 
-	if (gotoWorkspace.isVisible())
-		gotoWorkspace.setBounds(b.removeFromRight(b.getHeight()).reduced(13));
+	if (gotoWorkspace != nullptr)
+		gotoWorkspace->setBounds(b.removeFromRight(b.getHeight()).reduced(13));
 }
 
 void PatchBrowser::PatchCollection::buttonClicked(Button *b)
@@ -743,14 +749,17 @@ parent(parent_),
 lastId(String()),
 hierarchy(hierarchy_),
 lastMouseDown(0),
-gotoWorkspace("Goto", Colours::white, Colours::white, Colours::white),
 peak(p)
 {
     addAndMakeVisible(idLabel = new Label());
 	addAndMakeVisible(gotoWorkspace);
 	addAndMakeVisible(peak);
 
-	PatchBrowser::skinWorkspaceButton(gotoWorkspace, processor);
+    gotoWorkspace = PatchBrowser::skinWorkspaceButton(getProcessor());
+
+    if(gotoWorkspace != nullptr)
+        addAndMakeVisible(gotoWorkspace);
+    
 
     //idLabel->setEditable(false);
     //idLabel->addMouseListener(this, true);
@@ -948,8 +957,34 @@ void PatchBrowser::PatchItem::resized()
 	peak.setBounds(b.removeFromLeft(9).reduced(0, 2));
 	peak.setVisible(dynamic_cast<MidiProcessor*>(getProcessor()) == nullptr);
 
-	if (gotoWorkspace.isVisible())
-		gotoWorkspace.setBounds(getLocalBounds().removeFromRight(getHeight()).reduced(3));
+	if (gotoWorkspace != nullptr)
+		gotoWorkspace->setBounds(getLocalBounds().removeFromRight(getHeight()).reduced(3));
+}
+
+void PatchBrowser::rebuilt()
+{
+    if(auto root = findParentComponentOfClass<BackendRootWindow>())
+    {
+        for(int i = 0; i < getNumCollections(); i++)
+        {
+            auto c = dynamic_cast<PatchCollection*>(getCollection(i));
+            
+            if(c->gotoWorkspace != nullptr)
+            {
+                root->workspaceListeners.addListener(*c, PatchCollection::setWorkspace);
+            }
+            
+            for(int j = 0; j < c->getNumItems(false); j++)
+            {
+                auto item = dynamic_cast<PatchItem*>(c->getItem(j));
+                
+                if(item->gotoWorkspace != nullptr)
+                {
+                    root->workspaceListeners.addListener(*item, PatchItem::setWorkspace);
+                }
+            }
+        }
+    }
 }
 
 void PatchBrowser::PatchItem::paint(Graphics& g)

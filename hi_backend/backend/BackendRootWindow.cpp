@@ -72,21 +72,12 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 		{
 			floatingRoot->setContent(mainData);
 
-			mainEditor = FloatingTileHelpers::findTileWithId<BackendProcessorEditor>(floatingRoot, Identifier("MainColumn"));
+            
+            mainEditor = FloatingTileHelpers::findTileWithId<BackendProcessorEditor>(floatingRoot, {});
 
 			loadedCorrectly = mainEditor != nullptr;
 		}
-
-		if (loadedCorrectly)
-		{
-			auto mws = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("MainWorkspace"));
-
-			if (mws != nullptr)
-				workspaces.add(mws->getParentShell());
-			else
-				loadedCorrectly = false;
-		}
-
+        
 		if (loadedCorrectly)
 		{
 			auto mws = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("ScriptingWorkspace"));
@@ -578,6 +569,8 @@ void BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(BackendRootWind
 {
 	auto workspace = get(rootWindow);
 
+    rootWindow->workspaceListeners.sendMessage(sendNotificationAsync, dynamic_cast<Processor*>(jsp));
+    
 	FloatingTile::Iterator<GlobalConnectorPanel<JavascriptProcessor>> iter(workspace);
 
 	if (auto connector = iter.getNextPanel())
@@ -600,6 +593,8 @@ void BackendPanelHelpers::ScriptingWorkspace::showEditor(BackendRootWindow* root
 {
 	auto workspace = get(rootWindow);
 
+    
+    
 	auto editor = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(workspace, "ScriptingWorkspaceCodeEditor");
 
 	if (editor != nullptr)
@@ -649,6 +644,8 @@ void BackendPanelHelpers::SamplerWorkspace::setGlobalProcessor(BackendRootWindow
 {
 	auto workspace = get(rootWindow);
 
+    rootWindow->workspaceListeners.sendMessage(sendNotificationAsync, sampler);
+    
 	FloatingTile::Iterator<GlobalConnectorPanel<ModulatorSampler>> iter(workspace);
 
 	if (auto connector = iter.getNextPanel())
@@ -683,10 +680,12 @@ void PeriodicScreenshotter::run()
 		{
 			MessageManagerLock mm;
 			ScopedPopupDisabler<FloatingTilePopup> spd(comp);
+            ScopedPopupDisabler<BorderPanel> spd2(comp);
+            
 			newImage = comp->createComponentSnapshot(comp->getLocalBounds(), true, 0.5f);
 		}
 
-		gin::applyStackBlur(newImage, 10);
+		gin::applyStackBlur(newImage, 30);
 
 		std::swap(newImage, img);
 

@@ -530,7 +530,7 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 
 	canvas.setScrollOnDragEnabled(shouldDrag);
 	canvas.setMouseWheelScrollEnabled(!shouldDrag);
-	canvas.setColour(ZoomableViewport::ColourIds::backgroundColourId, Colour(0xff262626));
+	//canvas.setColour(ZoomableViewport::ColourIds::backgroundColourId, Colour(0xff262626));
 
 	rebuildAfterContentChange();
 }

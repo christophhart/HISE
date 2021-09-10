@@ -317,6 +317,10 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 	ib.getContent(leftTab)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF404040));
 	const int mainArea = ib.addChild<GenericPanel<PatchBrowser>>(leftTab);
 	const int fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(leftTab);
+    
+    ib.setCustomName(mainArea, "Module Tree");
+    ib.setCustomName(fileBrowser, "Project Directory");
+    
 	ib.setDynamic(leftTab, false);
 	ib.setDynamic(masterVertical, false);
 	ib.setDynamic(swappableVertical, false);
@@ -389,22 +393,33 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 
     ib.getContent(samplePanel)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF262626));
     
+    
+    
 	const int sampleHorizontal = ib.addChild<HorizontalTile>(samplePanel);
 	ib.setDynamic(sampleHorizontal, false);
 	auto con = ib.addChild<GlobalConnectorPanel<ModulatorSampler>>(sampleHorizontal);
     
     ib.setVisibility(con, false, {});
     
+    ib.getContent(samplePanel)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xFF404040));
+
+    ib.getContent(sampleHorizontal)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xFF404040));
+
+    
+    
 	const int sampleEditor = ib.addChild<SampleEditorPanel>(sampleHorizontal);
 	const int sampleVertical = ib.addChild<VerticalTile>(sampleHorizontal);
 	ib.setDynamic(sampleVertical, false);
     
-    ib.getContent(sampleHorizontal)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF262626));
+    ib.getContent(sampleVertical)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xFF404040));
+    
     
 	const int sampleMapEditor = ib.addChild<SampleMapEditorPanel>(sampleVertical);
 	const int samplerTable = ib.addChild<SamplerTablePanel>(sampleVertical);
 
     ib.setSizes(sampleVertical, {-0.7, -0.3});
+    
+    ib.setFoldable(sampleVertical, false, {true, true});
     
 	ib.setSizes(samplePanel, { -0.5 });
 	ib.getPanel(sampleHorizontal)->setCustomIcon((int)FloatingTileContent::Factory::PopupMenuOptions::SampleEditor);

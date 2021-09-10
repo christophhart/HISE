@@ -340,6 +340,7 @@ Identifier FloatingTile::LayoutData::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, LayoutDataIds::ForceFoldButton, "ForceFoldButton");
 	RETURN_DEFAULT_PROPERTY_ID(index, LayoutDataIds::Visible, "Visible");
 	RETURN_DEFAULT_PROPERTY_ID(index, LayoutDataIds::MinSize, "MinSize");
+    RETURN_DEFAULT_PROPERTY_ID(index, LayoutDataIds::ForceShowTitle, "ForceShowTitle");
 
 	jassertfalse;
 
@@ -551,6 +552,8 @@ bool FloatingTile::showTitle() const
 	
 	*/
 
+    auto forceShow = getLayoutData().getForceTitleState();
+    
 	if (forceShow != 0)
 	{
 		return forceShow == 2;

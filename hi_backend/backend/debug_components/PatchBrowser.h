@@ -91,6 +91,18 @@ public:
 	PatchBrowser(BackendRootWindow *window);
 	~PatchBrowser();
 
+    struct Factory: public PathFactory
+    {
+        Path createPath(const String& url) const override
+        {
+            Path p;
+            LOAD_PATH_IF_URL("add", EditorIcons::penShape);
+            LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
+            
+            return p;
+        }
+    };
+    
 	SET_GENERIC_PANEL_ID("PatchBrowser");
 
 	// ====================================================================================================================
@@ -128,6 +140,8 @@ public:
 
 	void buttonClicked(Button *b) override;
 
+    void rebuilt() override;
+    
 private:
 
 	// ====================================================================================================================
@@ -196,7 +210,7 @@ private:
 		bool isOver;
 	};
 
-	static void skinWorkspaceButton(ShapeButton& b, Processor* processor);
+	static HiseShapeButton* skinWorkspaceButton(Processor* processor);
 
 	// ====================================================================================================================
 
@@ -233,12 +247,21 @@ private:
 		void resetDragState();
 		void toggleShowChains();
 
+        static void setWorkspace(PatchCollection& p, Processor* pr)
+        {
+            p.gotoWorkspace->setToggleStateAndUpdateIcon(pr == p.getProcessor());
+        }
+        
 		MiniPeak peak;
 
+        ScopedPointer<HiseShapeButton> gotoWorkspace;
+        
 	private:
 
-		ShapeButton gotoWorkspace;
-
+        Factory f;
+        
+        
+		
 		ScopedPointer<ShapeButton> foldButton;
 
 		WeakReference<Processor> root;
@@ -246,6 +269,7 @@ private:
 		int hierarchy;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchCollection)
+        JUCE_DECLARE_WEAK_REFERENCEABLE(PatchCollection);
 	};
 
 	// ====================================================================================================================
@@ -285,12 +309,22 @@ private:
 		void resized() override;
 
 		MiniPeak peak;
+        
+        
+        
+        static void setWorkspace(PatchItem& p, Processor* pr)
+        {
+            p.gotoWorkspace->setToggleStateAndUpdateIcon(pr == p.processor.get());
+        }
 
+        ScopedPointer<HiseShapeButton> gotoWorkspace;
+        
 	private:
 
-		ShapeButton gotoWorkspace;
+        
+        WeakReference<Processor> processor;
 
-		WeakReference<Processor> processor;
+		
         WeakReference<Processor> parent;
         
         ScopedPointer<Label> idLabel;
@@ -301,7 +335,8 @@ private:
 
         uint32 lastMouseDown;
         
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchItem)
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchItem);
+        JUCE_DECLARE_WEAK_REFERENCEABLE(PatchItem);
 	};
 
 	Component::SafePointer<BackendProcessorEditor> editor;

@@ -202,6 +202,11 @@ public:
 			return items.size();
 		}
 
+        SearchableListComponent::Item* getItem(int index)
+        {
+            return items[index];
+        }
+        
 	protected:
 
 		OwnedArray<SearchableListComponent::Item> items;
@@ -265,6 +270,8 @@ public:
 	/** Call this whenever an item is added / deleted. */
 	void rebuildModuleList(bool forceRebuild=false);
 
+    virtual void rebuilt() {};
+    
 	void setShowEmptyCollections(bool emptyCollectionsShouldBeShown);;
 
 	BackendRootWindow* getRootWindow() { return rootWindow; }

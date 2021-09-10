@@ -217,6 +217,7 @@ public:
 			Folded,
 			Visible,
 			ForceFoldButton,
+            ForceShowTitle,
 			MinSize,
 			numProperties
 		};
@@ -239,6 +240,7 @@ public:
 			case FloatingTile::LayoutData::LayoutDataIds::ForceFoldButton: return var(0);
 			case FloatingTile::LayoutData::LayoutDataIds::Visible: return var(true);
 			case FloatingTile::LayoutData::LayoutDataIds::MinSize: return var(-1);
+            case FloatingTile::LayoutData::LayoutDataIds::ForceShowTitle: return var(0);
 			default:
 				break;
 			}
@@ -276,6 +278,11 @@ public:
 			return foldState >= 0; 
 		}
 
+        int getForceTitleState() const
+        {
+            return getPropertyWithDefault(layoutDataObject, LayoutDataIds::ForceShowTitle);
+        }
+        
 		void setFoldState(int newFoldState)
 		{
 			storePropertyInObject(layoutDataObject, LayoutDataIds::Folded, newFoldState);
@@ -289,6 +296,12 @@ public:
 			return currentSize;
 		}
 
+        void setForceShowTitle(int shouldForceTitle)
+        {
+            storePropertyInObject(layoutDataObject, LayoutDataIds::ForceShowTitle, shouldForceTitle);
+            cachedValues.forceShowTitle = shouldForceTitle;
+        }
+        
 		void setCurrentSize(double newSize)
 		{
 			storePropertyInObject(layoutDataObject, LayoutDataIds::Size, newSize);
@@ -361,6 +374,7 @@ public:
 			int minSize = -1;
 			bool visible = true;
 			bool forceFoldButton = false;
+            int forceShowTitle = 0;
 
 			String id = "anonymous";
 		};
@@ -625,7 +639,7 @@ public:
 
 	void setForceShowTitle(bool shouldShowTitle)
 	{
-		forceShow = shouldShowTitle ? 2 : 1;
+        getLayoutData().setForceShowTitle(shouldShowTitle ? 2 : 1);
 	}
 
 	FloatingTileContent::Factory* getPanelFactory() { return &panelFactory; };
@@ -732,8 +746,6 @@ public:
 	}
 
 private:
-
-	int forceShow = 0;
 
 	bool interfaceFloatingTile = false;
 

@@ -569,8 +569,14 @@ break;
 
 	HiseShapeButton pinButton;
 
+    
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptWatchTable);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptWatchTable);
+    
+public:
+    
+    Colour bgColour = Colour(0xFF262626);
 };
 
 } // namespace hise

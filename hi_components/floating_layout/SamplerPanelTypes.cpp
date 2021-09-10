@@ -62,6 +62,18 @@ SamplerBasePanel::SamplerBasePanel(FloatingTile* parent) :
 	editListener = new EditListener(this);
 }
 
+void SamplerBasePanel::paint(Graphics& g)
+{
+    PanelWithProcessorConnection::paint(g);
+    auto b = getParentShell()->getContentBounds();
+    g.setColour(Colour(0xFF262626));
+    g.fillRect(b);
+
+    g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.3f), 0.0f, b.getY(), Colours::transparentBlack, 0.0f, b.getY() + 15, false));
+
+    g.fillRect(b.removeFromTop(15));
+}
+
 SamplerBasePanel::~SamplerBasePanel()
 {
 	if (getProcessor())

@@ -560,7 +560,7 @@ void ResizableFloatingTileContainer::refreshLayout()
 void ResizableFloatingTileContainer::paint(Graphics& g)
 {
 	g.setColour(findPanelColour(PanelColourId::bgColour));
-	g.fillRect(getContainerBounds());
+    g.fillRect(getContainerBounds());
 }
 
 Rectangle<int> ResizableFloatingTileContainer::getContainerBounds() const
@@ -658,6 +658,9 @@ void ResizableFloatingTileContainer::resized()
 	addButton->toFront(false);
 
 	performLayout(getContainerBounds());
+    
+    for(auto r: resizers)
+        r->setVisible(true);
 }
 
 bool ResizableFloatingTileContainer::isTitleBarDisplayed() const
@@ -704,7 +707,7 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 	{
 		for (int i = 0; i < resizers.size(); i++)
 		{
-			resizers[i]->setVisible(false);
+			resizers[i]->setEnabled(false);
 		}
 
 		for (int i = 0; i < getNumComponents(); i++)
@@ -782,7 +785,7 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 			else
 			{
 				// It's visible by default so just hide it if necessary
-				resizer->setVisible(false);
+				resizer->setEnabled(false);
 			}
 
 			
@@ -916,8 +919,27 @@ void ResizableFloatingTileContainer::InternalResizer::paint(Graphics& g)
 {
 	g.setColour(parent->findPanelColour(ResizableFloatingTileContainer::PanelColourId::itemColour1));
 
-	g.fillAll();
+    
+    
+    
+    g.fillAll(Colour(0xFF373737));
+    
+    if(getHeight() > getWidth())
+    {
+        g.setColour(Colour(0xFF4C4C4C));
+        g.drawVerticalLine(0, 0.0f, (float)getHeight());
+        g.drawVerticalLine(getWidth() - 1, 0.0f, (float)getHeight());
+    }
+    else
+    {
+        g.setColour(Colour(0xFF404040));
+        g.drawHorizontalLine(0, 0.0f, (float)getWidth());
+        g.drawHorizontalLine(getHeight()-1, 0.0f, (float)getWidth());
+    }
 
+    if(!isEnabled())
+        return;
+    
 	Colour c = Colour(SIGNAL_COLOUR);
 
 	if (active)

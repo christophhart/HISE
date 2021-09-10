@@ -415,7 +415,7 @@ void ScriptWatchTable::paint(Graphics &g)
 
 	g.setColour(Colour(0xFF3D3D3D));
 
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff262626)));
+	g.setColour(bgColour);
 	g.fillRect(0, 25, getWidth(), getHeight());
 
 	g.setColour(Colours::white.withAlpha(0.6f));

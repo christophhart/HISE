@@ -86,13 +86,15 @@ void SearchableListComponent::paint(Graphics& g)
     g.setColour(Colour(0xff353535));
     g.fillRect(0.0f, 0.0f, (float)getWidth(), 25.0f);
     
-	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.5f), 0.0f, 25.0f,
-									 Colours::transparentBlack, 0.0f, 30.0f, false));
-	g.fillRect(0.0f, 25.0f, (float)getWidth(), 25.0f);
 	
-	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
+	
+	g.setColour(Colour(0xFF262626));
 	g.fillRect(0, 25, getWidth(), getHeight());
 
+    g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.3f), 0.0f, 25.0f,
+                                     Colours::transparentBlack, 0.0f, 35.0f, false));
+    g.fillRect(0.0f, 25.0f, (float)getWidth(), 10.0f);
+    
 	g.setColour(Colours::white.withAlpha(0.6f));
 
 	static const unsigned char searchIcon[] = { 110, 109, 0, 0, 144, 68, 0, 0, 48, 68, 98, 7, 31, 145, 68, 198, 170, 109, 68, 78, 223, 103, 68, 148, 132, 146, 68, 85, 107, 42, 68, 146, 2, 144, 68, 98, 54, 145, 219, 67, 43, 90, 143, 68, 66, 59, 103, 67, 117, 24, 100, 68, 78, 46, 128, 67, 210, 164, 39, 68, 98, 93, 50, 134, 67, 113, 58, 216, 67, 120, 192, 249, 67, 83, 151,
@@ -173,6 +175,8 @@ void SearchableListComponent::rebuildModuleList(bool forceRebuild)
 	}
 
 	internalRebuildFlag = false;
+    
+    rebuilt();
 }
 
 void SearchableListComponent::textEditorTextChanged(TextEditor& )

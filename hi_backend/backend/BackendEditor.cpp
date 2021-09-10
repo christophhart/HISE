@@ -490,7 +490,7 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	
 	addAndMakeVisible(tooltipBar = new TooltipBar());
 	
-	tooltipBar->setColour(TooltipBar::ColourIds::backgroundColour, HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+	tooltipBar->setColour(TooltipBar::ColourIds::backgroundColour, Colour(0));
 	tooltipBar->setColour(TooltipBar::ColourIds::textColour, Colours::white);
 	tooltipBar->setColour(TooltipBar::ColourIds::iconColour, Colours::white);
 	//tooltipBar->setShowInfoIcon(false);
@@ -760,14 +760,14 @@ void MainTopBar::popupChanged(Component* newComponent)
 
 void MainTopBar::paint(Graphics& g)
 {
-    Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF424242));
+    Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF383838));
 	Colour c2 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF404040));
 
 	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false));
 	g.fillAll();
 	
     if (hiseIcon != nullptr)
-        hiseIcon->drawWithin(g, getLocalBounds().removeFromLeft(JUCE_LIVE_CONSTANT(100)).reduced(10).toFloat(), RectanglePlacement::centred, 1.0f);
+        hiseIcon->drawWithin(g, getLocalBounds().removeFromLeft(JUCE_LIVE_CONSTANT_OFF(60)).reduced(8).toFloat(), RectanglePlacement::centred, 1.0f);
 }
 
 void MainTopBar::paintOverChildren(Graphics& g)
@@ -832,6 +832,9 @@ void MainTopBar::resized()
 
     samplerWorkSpaceButton->setBounds(b.removeFromLeft(b.getHeight()).reduced(7));
 	
+    
+    scriptingWorkSpaceButton->setVisible(false);
+    samplerWorkSpaceButton->setVisible(false);
     customWorkSpaceButton->setVisible(false);
 
     frontendArea = getLocalBounds().withSizeKeepingCentre(getHeight() * 5, getHeight());
@@ -1238,7 +1241,8 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	}
 	case MainTopBar::PopupType::Macro:
 	{
-		c = new PopupFloatingTile(mc);
+		//c = new PopupFloatingTile(mc);
+        c = new ToolkitPopup(mc);
 		button = macroButton;
 		break;
 

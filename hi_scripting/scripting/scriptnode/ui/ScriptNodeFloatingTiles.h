@@ -43,6 +43,12 @@ struct NetworkPanel : public PanelWithProcessorConnection
 		PanelWithProcessorConnection(parent)
 	{};
 
+    void paint(Graphics& g) override
+    {
+        g.setColour(Colour(0xFF262626));
+        g.fillRect(getParentShell()->getContentBounds());
+    }
+    
 	Identifier getProcessorTypeId() const override;
 	virtual Component* createComponentForNetwork(DspNetwork* parent) = 0;
 	Component* createContentComponent(int index) override;
