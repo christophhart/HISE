@@ -921,7 +921,10 @@ DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)
 		if (f.getFileNameWithoutExtension() == id)
 		{
 			auto xml = XmlDocument::parse(f);
-			v = ValueTree::fromXml(*xml);
+
+			if(xml->getTagName() != "empty")
+				v = ValueTree::fromXml(*xml);
+
 			break;
 		}
 	}

@@ -35,11 +35,194 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+struct Selector : public Component,
+				  public ControlledObject,
+				  public PathFactory,
+				  public ComboBox::Listener
+{
+	Selector(DspNetwork::Holder* holder_, MainController* mc):
+		ControlledObject(mc),
+		holder(holder_),
+		newButton("new", nullptr, *this),
+		importButton("import", nullptr, *this),
+		embeddedButton("embedded", nullptr, *this)
+	{
+		addAndMakeVisible(selector);
+		addAndMakeVisible(newButton);
+		addAndMakeVisible(importButton);
+		addAndMakeVisible(embeddedButton);
+
+		selector.addListener(this);
+
+		auto files = BackendDllManager::getNetworkFiles(getMainController(), true);
+
+		int index = 1;
+
+		selector.setLookAndFeel(&slaf);
+
+		for (auto f : files)
+		{
+			selector.addItem(f.getFileNameWithoutExtension(), index++);
+		}
+
+		newButton.onClick = [this]()
+		{
+			auto n = PresetHandler::getCustomName("DspNetwork");
+
+			auto f = BackendDllManager::getSubFolder(getMainController(), BackendDllManager::FolderSubType::Networks).getChildFile(n).withFileExtension(".xml");
+
+			if (!f.existsAsFile())
+				f.replaceWithText("<empty/>");
+
+			this->setNetwork(n);
+		};
+
+		static const String svgData = "3173.nT6K8C1CdzsX.nAvzpwKP71.L..nH...EAjqLc2hFV1fTsRlSJm.psDlhe5LyLyTxIyqflPygkRfpLkC1926AjX.6EfoRqeMsB8cjhHWq8ZIrbdEhnu5UFuqTC45HpdnMd0eb45yJls0TGljo0PaXQScqHinmZxxRAHKcnJ4QIkUOKWU6TDs7VQqKCIzMTqyNsLgkins7Qxt0YtPRRIg9vx9yGkHwr0Fcb51RRd9iVNdyfldRMqT0bd1E8pkU0TQm5p2RkTpQ2ZTKa8cbpT3AGFAFLj.H3+G58i49CbAVnhIr.U.Y+37GFcehrJcTF5pJIcbjmmFuxZZhNdQNwBh2flpSVWKK5hnpoqRqTlEZMljBm86TzSmFBRGtubadkujj28qyHR1jpCcdkJoCcNBhzgc0VQtYLNoIpniYqZ8j8NQ5Ndu9hgoWRNEMOe8L8iCMeIY7EpVcKBo0uBVt9gQnySgG..J..XTA.vBxPB3.CIflfDSTQDWHwFfgNfhJl.FjfhLHBLHwDQPDZ.EUbgEYPhIfPBpPEn.CQngHlPDSzAUDASLgDXvCTvDevEVvPBa.EPXEvAFXfDQngJhvhHpHCOb.NvHBHrfLXwDjvt6a.GXnAXPhI7fIXAMXgDlYHIXgJnv0F7F1vFjfDlPFt3hK7.C3.CKvvDafGv39O7fCLv.ERXQEQnAFJQ14jgLOf.NvvCnXB1PDRngKtfEjHhKvvAl4OL.Nv3BWTAI1fA3.CKnAKRotbrNj5tyiuqmxRkwirVehMmopozFaEjLeD5N9TFI3M2YwTScRnu4YkPEY7XGukxtr71.qw4gd0hPhq4hgMnuGH.GX7ALvS90CEfCL7fGbfwEPDQEGHQVEst3X7W00JlFIkrHeGzo7VMJIhdxHzSVpSE4mjpNcH4nlxRYaRGpEZEQ24hFe4+8nFZMsDw8WorQwx9dUREcxjn1b1PzWV4Yl2Tmz+3kJojEIbd444qbojxz82VaZImSol4uOkoZLe+rRPc8VvM8GzEt9KYMOaAy7JklxFqZwVaVRJszgF+uo7QKYL0BcW80qRpOUN9aYu4jp7LeaiogkGGSKEdP.XfCEoi9ZjChX5qHmNNpFKaWmU4FZhL7bVzKkYjkDY8J2zUOsEdGhEcIcGWEpZhXAKemrZY6ErwqzyIZVagdqk1bLq350JhTZp5QzmQrTMhlnQSIqym5zH1dVMxUjqhoERVOpY7Z3XzJkYlnZMxLz2gR2iUpgLdT38VUfPaQo0ebF4zJGIr7ORlSpXPkVo1ngJpgZdo56H1g6ni9WDdzUOSEKEha136YKc5QFOhlp46Jls9G4lyXodczy0.sFZdzqJWuFAuWkyTUOqNayQpaqTE55vlw+B.RcqSx7hScGY8D7kOD2yyUmq51GjVeGnldnRdTiIpAM248ju5X8k7lUBpp2Btn+btR0kU9d4tiokkceux+ND7nxrdBYk2W3XdnPnQsenB2p1q5cMwbQzL7lyhc1MNIG9ZQiDYqgUdTGeEszQQ8pqH05Ii1xVb0yVo9oqMBUWKpP0W4JiRTIZdNK5OcWuppzJ4rzmnjvidI00OXZtnYGxyI0cL8V1e0JwzbqzXwx6ijH84rQR8TURhbQRTOLQ8Ry1LIx4X69b7KTlqt1MGqZJOkSYdOMNamF1mxt++wLR+2sNjtibXRTZpTSs+VxPz0cak7PaDkLhpB8Uv499tps+XIQxFQ6UVgYciEZLxxmoU9HKt6o1RxFwHTWzEAuUzcUn72clHJspt1guf0bRQ+3dpA1t9UvHeZBBFFMtfP.fnBIf3zzLxGS54T2dOG9RKMt6zxHUsAox6AoaYUsRyFclgKoJWUQVoPEbBuLoSu7K2mdPhvW9KNEMWSFZVgtphLpr4XjdrHFdVYa8QeQqH5dh1WJu55uTuRMSYjS7HcUxUipqrId1MhYR9QCkEZWsetVtlWNJWxPMIulhen6H+PWExT+Z1c8sjRMz3Vnkr04R1h7ta5Y2yzcjYSO8qu4kCyemURE4Z5sr2osQMylVmSgGB.PnQd9J5Nu4pe5mqPHpXkoRTlz+ZyhuN8kMUuTCyLeMrE2Bu6oHqZ4Uj2QeYkHemZuBkn2C8FmDgNhtSG+RdSMvbxiLhqMh7+QcQEivzDGz3R8icLsSGiX4CR3Qmh2Wl2opRUgDzJyvIwUOuG2KOkRSmWiRuuFXkHRevDqqrqjEcKt0X73GITlnREr9ZBI6NmKceQU0FRds1PBcGdnjUlyiaklVKlZdZ7MWDMdpUjXJcechkZMhOz3uZPmklpyK8GUNZ1sM3TnJZdjxRqCQ1HA..AjHij.JtRJDCsAHZFgUXNSD.gDPfdofj9qrrfkPI32tIA+UfpgRQ2Cm4iCGGPOYVHJecRWmQZLlkpCgmXCb+VoiOWLts0FLIZmetRAkTIcM8RrRvBze.gtJYb1wrT4YOmcXQYYTsobdZZJhUdJBHn3rqAUoICJmpmi0fcAA3pIJHLIphEZMTDIQzJTvczq3BNYJ1+BpUjOJrFFBlJ8Em5CQjJ6HMfXVP4vpk9ECnogbAARguysLR751jqgwmVyppgSYD+d2hBSvxBH3mQhmG3YqyRNWl93sSmVGyu+KiqlsIJOTn.F9UOoUrrCl3tTiaPwkH5c+vGmgGU.LnsNizYcslyF1czcdBIYXEvxwxWBJSg.nDTXEoTFjp4fdIsOEy0cja3RzZf1xjll+3OJ7lx98nz618pBxPMhPFHbSvAvUn.fkyQ8NWzk.+fsU56i6xxZMf10zH4lS4sLGrWnJSnRKaZIrbXzYH.LySqkUrPBo7NAMSDINDHOvHrac4wmuxp1Lt3buIssEt0yfVYu6+J2igYhJEzoEcEpDtjqQV9o2BF3gXXsuIiw3aBv5JehtMZSdzQaoHmDmNnVQOR9HL3DAt+FKHEeccULbuoTIEQHTwVYh2VApgAIUdkrhMRRv7O3pOybmcXur6ue.tdAFcJjo7uvUWQWvvBWb5Xz1CN.PEXZ7eTFcwBvVh348X3BUQrn80I4vsFm3bcTa9FMav+fiYHHlFcuDlkphOpGusht5kl8tjiv0tErXRSEnODQmfs8YWsef2gaGP4VCKiSX3gSa3WXYbjO5W0sTMnRS7t8JM3gWrs9g+hCm+mp9PNt7TKzDTVFQ4th5fZ+MldKCVgmKzBashHli0KzQ6x3s2QHUSDJyZRnlHYodedLpD8ul3jQC7.0n5El6rkkm26TralPzpH0sfMW8EUwnAtTC5QIOWu5LFxXPunP+t.ifQtQxixl0Er+R1rMA9IfkijqIOHw1ApaIMkAI0uaRwRvr09oUxfdyNuhq38eQRu+MhaOwAjf8my4V6SgFztoJj9E.yQ.TVpPZcexEDE+OiXBpdffyfE912ltRGMtaTSbGaOYWPRn6ayzHEXbuApfmrGarTqAjIviDr.R8S5TaHh.N.NXFwqJj+PTFgyADJTSu29UgET80Kqz4gUwCQ2OW5u5GL7wKseVDeUkiXzyRUOE3WswpEJWCUo2AApW71gv1VG4Rw1wi2ihJR6LmORZspzdpLmZbSELPBernURMEzuq8ZL5j1E3SU43V2IXGs22DGz.TdbxpBdTAqm08cZ5uc6TLxEQaqv8wQivvD.R6y7vNIB7ZwLFXQpovwWB+KJCZ+mCQRZcErGVWHrDPSITtqPew30zfEnL2H82pf2Aj+EGjUBAXdHmzqBP1tFx.1sc+wEMiIMw2mwA4iviFG3O16Qf3CalFJ22.sImqJDWLmqjAg7NIxmMHAWR026I1s6ApiF3Cz9vFDjnm4VQrgMtQUqSM3xBwUo3nILdL01nc3IIogOJvIBfGCaHkqFytppM.ESynrfDyQwidaiVnfTJ6.7XIkaGAqONT5Pb7LaEEH3EyEk+WWvrpFPZ6smeqHEALlrVdK7BijyBEoqX3uDk499GFeBygstbalPdwFR3aii+O.jN5faE1d1MQwaPnFnzk3OJPnpkSnuV0OJ4up25EzkjCaI3GMHRqCmHscJUCM+tOUHhNo1zSAyV2OgoDlKxK0PYTaKoikq3fbSmvvnG.HV61bYg5wPpmWN8.1YUahQam3CSOe0Kfl8pruMwxpagVSavNKtOnCPSJKLiRzBJNfW5v0U0p5FPDR24L8g8w4UQef.moiFz0KTXMF8eKTHt99VJTdIzZemDB0EpFzD15obiq5RJamdptbcL2dP7mquVw18j3GYfYK26PNYeWg1p7A";
+
+		MemoryBlock mb;
+		mb.fromBase64Encoding(svgData);
+		zstd::ZDefaultCompressor comp;
+		ValueTree v;
+		comp.expand(mb, v);
+
+		auto xml = v.createXml();
+
+		selector.setName("selector");
+
+		mainLogoColoured = juce::Drawable::createFromSVG(*xml).release();
+		colour = dynamic_cast<Processor*>(holder.get())->getColour();
+		addAndMakeVisible(tooltipper);
+		selector.addMouseListener(&tooltipper, false);
+		newButton.addMouseListener(&tooltipper, true);
+		importButton.addMouseListener(&tooltipper, true);
+		embeddedButton.addMouseListener(&tooltipper, true);
+
+
+
+		embeddedButton.onClick = [this]() { setNetwork(getEmbeddedId()); };
+		importButton.onClick = [this]()
+		{
+			// implement me
+			jassertfalse;
+		};
+	}
+
+	String getEmbeddedId()
+	{
+		return MarkdownLink::Helpers::getSanitizedFilename(dynamic_cast<Processor*>(holder.get())->getId());
+	}
+
+	void setNetwork(const String& n)
+	{
+		auto rootWindow = GET_BACKEND_ROOT_WINDOW(this);
+		auto jsp = dynamic_cast<JavascriptProcessor*>(holder.get());
+
+		holder->getOrCreate(n);
+
+		auto gw = [rootWindow, jsp]()
+		{
+			BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rootWindow, jsp);
+			BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+		};
+
+		MessageManager::callAsync(gw);
+	}
+
+	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
+	{
+		setNetwork(selector.getText());
+	}
+
+	struct Tooltipper : public Component,
+						public Component::MouseListener
+	{
+		String getTooltip(Component* c)
+		{
+			auto n = c->getName();
+
+			if (n == "new")
+				return "Create a new DSP Network file";
+			if (n == "embedded")
+				return "Create an embedded DSP network";
+			if (n == "import")
+				return "Import a scriptnode snippet";
+			if (n == "selector")
+				return "Load an existing DSP network";
+
+			return "";
+		}
+
+		void mouseEnter(const MouseEvent& e)
+		{
+			currentText = getTooltip(e.eventComponent);
+			repaint();
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.setColour(Colours::white.withAlpha(0.4f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(currentText, getLocalBounds().toFloat(), Justification::centred);
+		}
+
+		String currentText;
+	};
+
+	void paint(Graphics& g) override
+	{
+		mainLogoColoured->drawWithin(g, iconBounds, RectanglePlacement::centred, 1.0f);
+		
+		g.setColour(colour);
+		g.fillRoundedRectangle(colourBounds.reduced(0, 2), 4.0f);
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+		LOAD_PATH_IF_URL("new", SampleMapIcons::newSampleMap);
+		LOAD_PATH_IF_URL("embedded", HnodeIcons::mapIcon);
+		LOAD_PATH_IF_URL("import", SampleMapIcons::pasteSamples);
+		return p;
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds().withSizeKeepingCentre(320, 172);
+
+		iconBounds = b.removeFromTop(70).toFloat();
+		b.removeFromTop(20);
+		auto textBounds = b.removeFromBottom(30);
+		
+		colourBounds = b.removeFromBottom(10).toFloat();
+		b.removeFromBottom(10).toFloat();
+
+		embeddedButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(4));
+		importButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(4));
+		b.removeFromLeft(10);
+		newButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(4));
+		selector.setBounds(b);
+		tooltipper.setBounds(textBounds);
+	}
+
+	Colour colour;
+	Rectangle<float> iconBounds;
+	Rectangle<float> textBounds;
+	Rectangle<float> colourBounds;
+	Tooltipper tooltipper;
+
+	WeakReference<DspNetwork::Holder> holder;
+	HiseShapeButton newButton;
+	HiseShapeButton embeddedButton;
+	HiseShapeButton importButton;
+	ComboBox selector;
+	scriptnode::ScriptnodeComboBoxLookAndFeel slaf;
+	ScopedPointer<Drawable> mainLogoColoured;
+};
 
 DspNetworkGraphPanel::DspNetworkGraphPanel(FloatingTile* parent) :
 	NetworkPanel(parent)
 {
-
+	
 }
 
 
@@ -53,6 +236,16 @@ Component* DspNetworkGraphPanel::createComponentForNetwork(DspNetwork* p)
 	auto n = new DspNetworkGraph(p);
 
 	return new DspNetworkGraph::WrapperWithMenuBar(n);
+}
+
+Component* DspNetworkGraphPanel::createEmptyComponent()
+{
+	if (auto h = dynamic_cast<DspNetwork::Holder*>(getProcessor()))
+	{
+		return new Selector(h, getMainController());
+	}
+
+	return nullptr;
 }
 
 NodePropertyPanel::NodePropertyPanel(FloatingTile* parent):

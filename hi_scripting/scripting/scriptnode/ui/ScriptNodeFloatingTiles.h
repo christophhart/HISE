@@ -52,6 +52,7 @@ struct NetworkPanel : public PanelWithProcessorConnection
 	Identifier getProcessorTypeId() const override;
 	virtual Component* createComponentForNetwork(DspNetwork* parent) = 0;
 	Component* createContentComponent(int index) override;
+	virtual Component* createEmptyComponent() { return nullptr; };
 	void fillModuleList(StringArray& moduleList) override;
 	virtual bool hasSubIndex() const { return true; }
 	void fillIndexList(StringArray& sa);
@@ -66,6 +67,8 @@ struct DspNetworkGraphPanel : public NetworkPanel
 	void paint(Graphics& g) override;
 
 	Component* createComponentForNetwork(DspNetwork* p) override;
+
+	Component* createEmptyComponent() override;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkGraphPanel);
 };

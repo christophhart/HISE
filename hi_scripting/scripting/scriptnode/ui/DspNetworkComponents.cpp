@@ -1645,14 +1645,11 @@ juce::Component* NetworkPanel::createContentComponent(int index)
 		if (id.isNotEmpty())
 		{
 			auto network = holder->getOrCreate(id);
-
 			return createComponentForNetwork(network);
-
-
 		}
 	}
 
-	return nullptr;
+	return createEmptyComponent();
 }
 
 void NetworkPanel::fillModuleList(StringArray& moduleList)
