@@ -159,6 +159,8 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
 		viewButton.setToggleModeWithColourChange(true);
 
 		addAndMakeVisible(uniformDataViewer = new ScriptWatchTable());
+        uniformDataViewer->setOpaque(false);
+        uniformDataViewer->bgColour = Colours::transparentBlack;
 		uniformDataViewer->setHolder(this);
 		addAndMakeVisible(resizer);
 		setSize(600, 400);
@@ -198,6 +200,23 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
 	{
 		if (auto obj = getObject<ScriptShader>())
 		{
+            auto tc = TopLevelWindowWithOptionalOpenGL::findRoot(this);
+            
+            if(!dynamic_cast<TopLevelWindowWithOptionalOpenGL*>(tc)->isOpenGLEnabled())
+            {
+                String s;
+                s << "### Open GL is not enabled  \n";
+                s << "> Goto the Settings and tick the **Enable OpenGL** box, then restart HISE in order to use the OpenGL renderer that is required for painting this shader";
+
+                MarkdownRenderer r(s);
+                r.parse();
+                r.getHeightForWidth(getWidth() - 20.0f);
+
+                r.draw(g, getLocalBounds().toFloat().reduced(10.0f));
+                return;
+            }
+                
+            
 			if (obj->shader == nullptr)
 				return;
 
@@ -212,15 +231,23 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
 			if (obj->compiledOk())
 			{
 				auto localBounds = getLocalBounds();
-				
+                localBounds.removeFromTop(24);
+                
 				if (viewButton.getToggleState())
 					localBounds.removeFromRight(uniformDataViewer->getWidth());
 
-				auto gb = getLocalArea(getTopLevelComponent(), localBounds);
+                UnblurryGraphics ug(g, *this);
+
+                auto sf = ug.getTotalScaleFactor();
+                auto st = AffineTransform::scale(jmin<double>(2.0, sf));
+                auto st2 = AffineTransform::scale(sf);
+                
+				auto gb = getLocalArea(getTopLevelComponent(), getLocalBounds()).transformed(st2);
 
 				obj->setGlobalBounds(gb, 1.0f);
-				obj->localRect = localBounds.toFloat();
+				obj->localRect = localBounds.toFloat().transformed(st2);
 
+                
 				auto enabled = obj->enableBlending;
 				auto wasEnabled = glIsEnabled(GL_BLEND);
 

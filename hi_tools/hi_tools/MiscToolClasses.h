@@ -488,6 +488,8 @@ struct TopLevelWindowWithOptionalOpenGL
 		Component* c;
 	};
 
+    bool isOpenGLEnabled() const { return contextHolder != nullptr; }
+    
 protected:
 
 	void detachOpenGl()
