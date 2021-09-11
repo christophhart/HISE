@@ -212,6 +212,10 @@ struct SnexEditorPanel : public Component,
 			addAndMakeVisible(playground = new snex::jit::SnexPlayground(newWorkbench, false));
 			wb->addListener(this);
 		}
+        else
+        {
+            playground = nullptr;
+        }
 
 		resized();
 	}

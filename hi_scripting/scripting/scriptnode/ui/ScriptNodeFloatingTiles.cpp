@@ -38,7 +38,8 @@ using namespace hise;
 struct Selector : public Component,
 				  public ControlledObject,
 				  public PathFactory,
-				  public ComboBox::Listener
+				  public ComboBox::Listener,
+                  public Timer
 {
 	Selector(DspNetwork::Holder* holder_, MainController* mc):
 		ControlledObject(mc),
@@ -97,7 +98,7 @@ struct Selector : public Component,
 		importButton.addMouseListener(&tooltipper, true);
 		embeddedButton.addMouseListener(&tooltipper, true);
 
-
+        startTimer(30);
 
 		embeddedButton.onClick = [this]() { setNetwork(getEmbeddedId()); };
 		importButton.onClick = [this]()
@@ -107,6 +108,18 @@ struct Selector : public Component,
 		};
 	}
 
+    void timerCallback() override
+    {
+        alpha += 0.02f;
+        if(alpha >= 1.0f)
+        {
+            alpha = 1.0f;
+            stopTimer();
+        }
+        
+        repaint();
+    }
+    
 	String getEmbeddedId()
 	{
 		return MarkdownLink::Helpers::getSanitizedFilename(dynamic_cast<Processor*>(holder.get())->getId());
@@ -133,8 +146,7 @@ struct Selector : public Component,
 		setNetwork(selector.getText());
 	}
 
-	struct Tooltipper : public Component,
-						public Component::MouseListener
+	struct Tooltipper : public Component
 	{
 		String getTooltip(Component* c)
 		{
@@ -170,12 +182,14 @@ struct Selector : public Component,
 
 	void paint(Graphics& g) override
 	{
-		mainLogoColoured->drawWithin(g, iconBounds, RectanglePlacement::centred, 1.0f);
+        mainLogoColoured->drawWithin(g, iconBounds, RectanglePlacement::centred, alpha);
 		
 		g.setColour(colour);
 		g.fillRoundedRectangle(colourBounds.reduced(0, 2), 4.0f);
 	}
 
+    float alpha = 0.2f;
+    
 	Path createPath(const String& url) const override
 	{
 		Path p;

@@ -1753,6 +1753,17 @@ Component* ServerControllerPanel::createContentComponent(int)
 	return new ServerController(dynamic_cast<JavascriptProcessor*>(getProcessor()));
 }
 
+ScriptWatchTablePanel::ScriptWatchTablePanel(FloatingTile* parent) :
+PanelWithProcessorConnection(parent)
+{
+    dynamic_cast<BackendProcessor*>(getMainController())->workbenches.addListener(this);
+};
+
+ScriptWatchTablePanel::~ScriptWatchTablePanel()
+{
+    dynamic_cast<BackendProcessor*>(getMainController())->workbenches.removeListener(this);
+}
+
 Identifier ScriptWatchTablePanel::getProcessorTypeId() const
 {
 	return JavascriptProcessor::getConnectorId();

@@ -327,6 +327,8 @@ public:
 		PluginPreview,
 		Settings,
 		PresetBrowser,
+        CustomPopup,
+        Keyboard,
 		numPopupTypes
 	};
 
@@ -418,6 +420,8 @@ private:
 	ScopedPointer<HiseShapeButton> macroButton;
 	ScopedPointer<ShapeButton> pluginPreviewButton;
 	ScopedPointer<ShapeButton> presetBrowserButton;
+    ScopedPointer<ShapeButton> customPopupButton;
+    ScopedPointer<ShapeButton> keyboardPopupButton;
 
 	ScopedPointer<HiseShapeButton> mainWorkSpaceButton;
 	ScopedPointer<HiseShapeButton> scriptingWorkSpaceButton;

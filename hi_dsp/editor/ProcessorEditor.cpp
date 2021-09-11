@@ -500,12 +500,14 @@ void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Proc
 
         c->getHandler()->add(processorToBeAdded, insertBeforeSibling);
 
+        
+        
         PresetHandler::setUniqueIdsForProcessor(processorToBeAdded);
 
         if (ProcessorHelpers::is<ModulatorSynth>(processorToBeAdded))
             processorToBeAdded->getMainController()->getMainSynthChain()->compileAllScripts();
 
-        MessageManager::callAsync([brw, c, editor]()
+        MessageManager::callAsync([brw, c, editor, processorToBeAdded]()
         {
             brw->sendRootContainerRebuildMessage(false);
             
@@ -514,6 +516,8 @@ void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Proc
                 editor->changeListenerCallback(editor->getProcessor());
                 editor->childEditorAmountChanged();
             }
+           
+            brw->gotoIfWorkspace(processorToBeAdded);
             
             PresetHandler::setChanged(dynamic_cast<Processor*>(c));
         });

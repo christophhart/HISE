@@ -291,13 +291,19 @@ void FloatingTilePopup::buttonClicked(Button* b)
 
 			if (attachedComponent != nullptr)
 				attachedComponent->addComponentListener(this);
+            
+            if(onDetach)
+                onDetach(false);
 		}
 		else
 		{
-			setMouseCursor(MouseCursor::DraggingHandCursor);
+            setMouseCursor(MouseCursor::DraggingHandCursor);
 			
 			if (attachedComponent != nullptr)
 				attachedComponent->removeComponentListener(this);
+            
+            if(onDetach)
+                onDetach(true);
 		}
 	}
 	if (b == closeButton.get())
@@ -477,6 +483,24 @@ void FloatingTile::FoldButton::buttonClicked(Button* )
 {
 	auto pc = findParentComponentOfClass<FloatingTile>();
 	
+    if(pc->getParentContainer()->getNumVisibleComponents() == 1)
+    {
+        pc = pc->getParentContainer()->getParentShell();
+        
+        while(pc != nullptr && !pc->canBeFolded())
+        {
+            auto c = pc->getParentContainer();
+            
+            if(c == nullptr)
+                return;
+            
+            pc = c->getParentShell();
+        }
+        
+        if(pc == nullptr)
+            return;
+    }
+    
 	if (!pc->canBeFolded())
 		return;
 
@@ -532,6 +556,31 @@ FloatingTile::FloatingTile(MainController* mc_, FloatingTileContainer* parent, v
 bool FloatingTile::isEmpty() const
 {
 	return dynamic_cast<const EmptyComponent*>(getCurrentFloatingPanel()) != nullptr;
+}
+
+void FloatingTile::ensureVisibility()
+{
+    auto p = this;
+    
+    while(p != nullptr)
+    {
+        if(p->isFolded())
+            p->setFolded(false);
+        
+        auto c = p->getParentContainer();
+        
+        if(auto tab = dynamic_cast<FloatingTabComponent*>(c))
+        {
+            tab->setDisplayedFloatingTile(p);
+        }
+        
+        if(c == nullptr)
+            break;
+        
+        p = c->getParentShell();
+    }
+    
+    refreshRootLayout();
 }
 
 bool FloatingTile::showTitle() const
@@ -931,6 +980,13 @@ void FloatingTile::paint(Graphics& g)
 
     if(getLayoutData().isFolded() && getParentType() == ParentType::Horizontal)
     {
+        if(isMouseOver(true))
+        {
+            g.setColour(Colours::white.withAlpha(0.03f));
+            auto b = getLocalBounds();
+            g.fillRect(b);
+        }
+        
         g.setColour(Colours::white.withAlpha(0.2f));
         
         Path p = getIcon();
@@ -1025,13 +1081,13 @@ void FloatingTile::refreshMouseClickTarget()
 
 void FloatingTile::mouseEnter(const MouseEvent& )
 {
-	if(isLayoutModeEnabled())
+	if(isLayoutModeEnabled() || isFolded())
 		repaint();
 }
 
 void FloatingTile::mouseExit(const MouseEvent& )
 {
-	if (isLayoutModeEnabled())
+    if (isLayoutModeEnabled() || isFolded())
 		repaint();
 }
 
@@ -1046,15 +1102,21 @@ void FloatingTile::mouseDown(const MouseEvent& event)
 		getPanelFactory()->handlePopupMenu(m, this);
 
 	}
-	else
-	{
-		if (layoutData.swappingEnabled && isSwappable())
-		{
-			currentSwapSource->swapWith(this);
+	else if (layoutData.swappingEnabled && isSwappable())
+    {
+        currentSwapSource->swapWith(this);
 
-			getRootFloatingTile()->enableSwapMode(false, nullptr);
-		}
-	}
+        getRootFloatingTile()->enableSwapMode(false, nullptr);
+    }
+    else if (foldButton->isVisible())
+    {
+        if(!canBeFolded())
+        {
+            jassertfalse;
+        }
+        
+        foldButton->triggerClick();
+    }
 }
 
 void FloatingTile::setOverlayComponent(Component* newOverlayComponent, int fadeTime)
@@ -1807,9 +1869,14 @@ bool FloatingTile::LayoutHelpers::showPinButton(const FloatingTile* t)
 
 bool FloatingTile::LayoutHelpers::showFoldButton(const FloatingTile* t)
 {
+    
 	if (t->getLayoutData().mustShowFoldButton())
 		return true;
 
+    if(t->getLayoutData().getForceTitleState() == 1 &&
+       !t->isFolded())
+        return false;
+    
 	if (!t->canBeFolded())
 		return false;
 

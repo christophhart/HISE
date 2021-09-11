@@ -169,6 +169,28 @@ void FloatingTileContent::setDynamicTitle(const String& newDynamicTitle)
 	getParentShell()->repaint();
 }
 
+String FloatingTileContent::getBestTitle() const
+{
+    if (hasDynamicTitle())
+        return getDynamicTitle();
+
+    if (hasCustomTitle())
+        return getCustomTitle();
+
+    auto t = getTitle();
+    
+    if(t.isEmpty())
+    {
+        if(auto c = dynamic_cast<const FloatingTileContainer*>(this))
+        {
+            if(auto first = c->getComponent(0))
+                return first->getCurrentFloatingPanel()->getBestTitle();
+        }
+    }
+    
+    return t;
+}
+
 const BackendProcessorEditor* FloatingTileContent::getMainPanel() const
 {
 #if USE_BACKEND && DONT_INCLUDE_FLOATING_LAYOUT_IN_FRONTEND
@@ -314,12 +336,19 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 	ib.getPanel(swappableVertical)->setForceShowTitle(false);
 
 	ib.getContent(leftTab)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xff353535));
-	ib.getContent(leftTab)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF404040));
+	ib.getContent(leftTab)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF232323));
 	const int mainArea = ib.addChild<GenericPanel<PatchBrowser>>(leftTab);
-	const int fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(leftTab);
+    
+    const int fileBrowserTab = ib.addChild<HorizontalTile>(leftTab);
+    
+	const int fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(fileBrowserTab);
+    const int expansionBar = ib.addChild<ExpansionEditBar>(fileBrowserTab);
+    ib.setDynamic(fileBrowserTab, false);
+    ib.getPanel(fileBrowser)->setForceShowTitle(false);
+    ib.setFoldable(fileBrowserTab, false, {false, false});
     
     ib.setCustomName(mainArea, "Module Tree");
-    ib.setCustomName(fileBrowser, "Project Directory");
+    ib.setCustomName(fileBrowserTab, "Project Directory");
     
 	ib.setDynamic(leftTab, false);
 	ib.setDynamic(masterVertical, false);
@@ -515,6 +544,9 @@ Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
 	ib.setDynamic(codeVertical, false);
 	const int codeTabs = ib.addChild<FloatingTabComponent>(codeVertical);
 	ib.addChild<CodeEditorPanel>(codeTabs);
+    
+    ib.addChild<SnexEditorPanel>(codeTabs);
+    
 	const int variableWatch = ib.addChild<ScriptWatchTablePanel>(codeVertical);
 
 	auto mainConsole = ib.addChild<ConsolePanel>(codeEditor);
@@ -560,18 +592,13 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 		ib.getContent(scriptNode)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
 
 		const int nodeList = ib.addChild<scriptnode::DspNodeList::Panel>(scriptNode);
-		const int scriptNodeHorizontal = ib.addChild<HorizontalTile>(scriptNode);
-		ib.getContent(scriptNodeHorizontal)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
-
-		const int interfacePanel = ib.addChild<scriptnode::DspNetworkGraphPanel>(scriptNodeHorizontal);
-
-		ib.setSizes(scriptNodeHorizontal, { -0.7 });
-		ib.setCustomName(scriptNodeHorizontal, "", { "DSP Network" });
-		ib.setCustomName(scriptNode, "ScriptNode");
+		
+		const int interfacePanel = ib.addChild<scriptnode::DspNetworkGraphPanel>(scriptNode);
+		
+		ib.setCustomName(scriptNode, "Scriptnode Workspace");
 
 		ib.setCustomName(nodeList, "Node List");
-		ib.setDynamic(scriptNodeHorizontal, false);
-
+		
 		const int nodePropertyEditor = ib.addChild<scriptnode::NodePropertyPanel>(scriptNode);
 
 		ib.setCustomName(nodePropertyEditor, "Node Properties");
@@ -580,8 +607,10 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 		ib.getContent<FloatingTileContent>(nodeList)->setStyleProperty("showConnectionBar", false);
 		ib.getContent<FloatingTileContent>(nodePropertyEditor)->setStyleProperty("showConnectionBar", false);
 
-		ib.setFoldable(scriptNodeHorizontal, false, { false });
+		ib.setFoldable(scriptNode, false, {true, false, true});
 
+        ib.getPanel(interfacePanel)->setForceShowTitle(false);
+        
 		ib.setSizes(scriptNode, { 200, -0.7, -0.15 });
 
 		ib.setId(scriptNode, "ScriptingWorkspaceScriptnode");

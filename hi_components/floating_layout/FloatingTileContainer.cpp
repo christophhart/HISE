@@ -47,6 +47,21 @@ int FloatingTileContainer::getNumComponents() const
 	return components.size();
 }
 
+int FloatingTileContainer::getNumVisibleComponents() const
+{
+    int num = 0;
+    
+    for(auto t: components)
+    {
+        if(t->getLayoutData().isVisible())
+        {
+            num++;
+        }
+    }
+    
+    return num;
+}
+
 void FloatingTileContainer::clear()
 {
 	// if this doesn't work, you're in trouble soon...
@@ -835,6 +850,7 @@ void ResizableFloatingTileContainer::rebuildResizers()
 			addAndMakeVisible(resizers.getLast());
 
 			resizers.getLast()->setVisible(resizers.getLast()->hasSomethingToDo());
+            
 		}
 	}
 
@@ -891,7 +907,12 @@ ResizableFloatingTileContainer::InternalResizer::InternalResizer(ResizableFloati
 
 
 	setRepaintsOnMouseActivity(true);
+    
+    if(isDragEnabled())
+    {
+    
 	setMouseCursor(parent_->isVertical() ? MouseCursor::UpDownResizeCursor : MouseCursor::LeftRightResizeCursor);
+    }
 
 	resizeIcon.loadPathFromData(ColumnIcons::bigResizeIcon, sizeof(ColumnIcons::bigResizeIcon));
 
@@ -913,6 +934,20 @@ int ResizableFloatingTileContainer::InternalResizer::getCurrentSize() const
 		return 32;
 
 	return parent->getParentShell()->isLayoutModeEnabled() ? 4 : 4;
+}
+
+bool ResizableFloatingTileContainer::InternalResizer::isDragEnabled() const
+{
+    if(prevPanels.isEmpty())
+        return false;
+    
+    if(auto lastPrev = prevPanels.getLast())
+    {
+        if(lastPrev->isFolded() || lastPrev->getLayoutData().isAbsolute())
+            return false;
+    }
+    
+    return true;
 }
 
 void ResizableFloatingTileContainer::InternalResizer::paint(Graphics& g)
@@ -937,7 +972,7 @@ void ResizableFloatingTileContainer::InternalResizer::paint(Graphics& g)
         g.drawHorizontalLine(getHeight()-1, 0.0f, (float)getWidth());
     }
 
-    if(!isEnabled())
+    if(!isDragEnabled())
         return;
     
 	Colour c = Colour(SIGNAL_COLOUR);
@@ -962,7 +997,7 @@ void ResizableFloatingTileContainer::InternalResizer::paint(Graphics& g)
 
 void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent& e)
 {
-	auto e2 = e.getEventRelativeTo(parent);
+    auto e2 = e.getEventRelativeTo(parent);
 
 	downOffset = parent->isVertical() ? e2.getMouseDownY() : e2.getMouseDownX();
 

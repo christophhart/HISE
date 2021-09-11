@@ -581,16 +581,8 @@ public:
 	}
 
 	/** This returns the title that is supposed to be displayed. */
-	String getBestTitle() const
-	{
-		if (hasDynamicTitle())
-			return getDynamicTitle();
-
-		if (hasCustomTitle())
-			return getCustomTitle();
-
-		return getTitle();
-	}
+    String getBestTitle() const;
+	
 
 	BackendProcessorEditor* getMainPanel();
 

@@ -240,6 +240,8 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
     
     BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
     BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+    
+    getBackendProcessor()->workbenches.addListener(this);
 }
 
 
@@ -252,6 +254,8 @@ BackendRootWindow::~BackendRootWindow()
 	getBackendProcessor()->getCommandManager()->clearCommands();
 	getBackendProcessor()->getConsoleHandler().setMainConsole(nullptr);
 
+    getBackendProcessor()->workbenches.removeListener(this);
+    
 	clearModalComponent();
 
 	modalComponent = nullptr;
@@ -277,6 +281,8 @@ BackendRootWindow::~BackendRootWindow()
 	mainEditor = nullptr;
 
 	detachOpenGl();
+    
+    
 }
 
 bool BackendRootWindow::isFullScreenMode() const
@@ -443,6 +449,26 @@ void BackendRootWindow::resetInterface()
 	}
 }
 
+bool BackendRootWindow::isRotated() const
+{
+    auto s = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot.get(), "SwappableContainer");
+    
+    return dynamic_cast<VerticalTile*>(s) == nullptr;
+}
+
+bool BackendRootWindow::toggleRotate()
+{
+    auto s = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(getRootFloatingTile(), "SwappableContainer");
+    auto isVertical = dynamic_cast<VerticalTile*>(s) != nullptr;
+    s->getParentShell()->swapContainerType(isVertical ? "HorizontalTile" : "VerticalTile");
+
+    FloatingTileHelpers::findTileWithId<FloatingTileContainer>(getRootFloatingTile(), "PersonaContainer")->getParentShell()->setForceShowTitle(false);
+
+    getRootFloatingTile()->refreshRootLayout();
+    return isVertical;
+
+}
+
 void BackendRootWindow::loadNewContainer(ValueTree & v)
 {
 	FloatingTile::Iterator<PanelWithProcessorConnection> iter(getRootFloatingTile());
@@ -464,6 +490,23 @@ void BackendRootWindow::loadNewContainer(const File &f)
 		p->setContentWithUndo(nullptr, 0);
 
 	mainEditor->loadNewContainer(f);
+}
+
+void BackendRootWindow::gotoIfWorkspace(Processor* p)
+{
+    if (auto jsp = dynamic_cast<JavascriptProcessor*>(p))
+    {
+        getBackendProcessor()->workbenches.setCurrentWorkbench(nullptr, false);
+        
+        BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
+        BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+
+    }
+    else if (auto sampler = dynamic_cast<ModulatorSampler*>(p))
+    {
+        BackendPanelHelpers::SamplerWorkspace::setGlobalProcessor(this, sampler);
+        BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::SamplerWorkspace, sendNotification);
+    }
 }
 
 void BackendRootWindow::showWorkspace(int workspace)

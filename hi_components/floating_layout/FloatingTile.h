@@ -120,6 +120,8 @@ public:
 
 	void addFixComponent(Component* c);
 
+    std::function<void(bool)> onDetach;
+    
 private:
 
 	bool dragging = false;
@@ -547,6 +549,8 @@ public:
 	bool isLayoutModeEnabled() const;;
 	bool canDoLayoutMode() const;
 
+    void ensureVisibility();
+    
 	ParentType getParentType() const;
 
 	const FloatingTileContainer* getParentContainer() const { return parentContainer; }

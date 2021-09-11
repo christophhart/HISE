@@ -291,7 +291,9 @@ void SpanType::dumpTable(juce::String& s, int& intendLevel, void* dataStart, voi
 {
 	intendLevel++;
 
-	for (int i = 0; i < size; i++)
+    int sizeToDump = jmin(128, size);
+    
+	for (int i = 0; i < sizeToDump; i++)
 	{
 		juce::String symbol;
 

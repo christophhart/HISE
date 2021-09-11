@@ -509,8 +509,7 @@ class SnexPlayground : public ui::WorkbenchComponent,
 	public CodeDocument::Listener,
 	public ButtonListener,
 	public BreakpointHandler::Listener,
-	public mcl::GutterComponent::BreakpointListener,
-	public hise::ApiProviderBase::Holder
+	public mcl::GutterComponent::BreakpointListener
 {
 public:
 
@@ -668,16 +667,7 @@ public:
 
 	void buttonClicked(Button* b) override;
 	
-	ApiProviderBase* getProviderBase() override
-	{
-		if (auto wb = getWorkbench())
-		{
-			return &wb->getLastResultReference();
-		}
-        
-        jassertfalse;
-        return nullptr;
-	}
+	
 
 	
 

@@ -183,6 +183,7 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 	rootWindow(rootWindow_),
 	directorySearcher("Directory Scanner")
 {
+    
     loadFavoriteFile();
     
 	GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).addListener(this);
@@ -218,10 +219,9 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 	addAndMakeVisible(textEditor = new TextEditor());
 	textEditor->setFont(GLOBAL_BOLD_FONT());
 	textEditor->addListener(this);
-    textEditor->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
-	textEditor->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
-	textEditor->setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.7f));
-
+    
+    GlobalHiseLookAndFeel::setTextEditorColours(*textEditor);
+    
 	directoryList = new DirectoryContentsList(fileFilter, directorySearcher);
 
 	addAndMakeVisible(fileTreeComponent = new FileTreeComponent(*directoryList));
@@ -380,19 +380,7 @@ void FileBrowser::paint(Graphics &g)
 	if (getHeight() <= 0)
 		return;
 
-	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
-
-	g.fillRect(0, 24, getWidth(), getHeight() - 24);
-
-	g.setColour(Colour(DEBUG_AREA_BACKGROUND_COLOUR_DARK));
-
-	g.fillRect(0.0f, 0.0f, (float)getWidth(), 24.0f);
-
-	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.3f), 0.0f, 24.0f,
-		Colours::transparentBlack, 0.0f, 30.0f, false));
-
-	g.fillRect(0.0f, 24.0f, (float)getWidth(), 25.0f);
-
+    g.fillAll(Colour(0xFF353535));
 	if (directoryList->getNumFiles() == 0)
 	{
 		g.setColour(Colours::white.withAlpha(0.5f));
@@ -402,7 +390,36 @@ void FileBrowser::paint(Graphics &g)
 	}
 }
 
-//class FilePreviewComponent
+struct XmlEditor: public Component
+{
+    XmlEditor(const File& xmlFile):
+        tdoc(doc),
+        editor(tdoc),
+        resizer(this, nullptr)
+    {
+        doc.replaceAllContent(xmlFile.loadFileAsString());
+        addAndMakeVisible(editor);
+        editor.editor.setLanguageManager(new mcl::XmlLanguageManager());
+        addAndMakeVisible(resizer);
+        setSize(600, 400);
+    }
+    
+    void resized() override
+    {
+        auto b = getLocalBounds();
+        b.removeFromTop(24);
+        editor.setBounds(b);
+        resizer.setBounds(b.removeFromBottom(15).removeFromRight(15));
+    }
+    
+    std::function<void()> closeCallback;
+    
+    CodeDocument doc;
+    mcl::TextDocument tdoc;
+    mcl::FullEditor editor;
+    juce::ResizableCornerComponent resizer;
+};
+
 
 void FileBrowser::previewFile(const File& f)
 {
@@ -437,9 +454,10 @@ void FileBrowser::previewFile(const File& f)
 
 		content = c;
 	}
-	else
+	else if (ff->isXmlFile(f))
 	{
-		return;
+        auto c = new XmlEditor(f);
+        content = c;
 	}
 
 	auto s = fileTreeComponent->getSelectedItem(0);
@@ -525,6 +543,8 @@ void FileBrowser::mouseDown(const MouseEvent& e)
 	
 }
 
+
+
 void FileBrowser::mouseDoubleClick(const MouseEvent& )
 {
 	File newRoot = fileTreeComponent->getSelectedFile();
@@ -554,6 +574,10 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 	{
 		rw->getMainPanel()->loadNewContainer(newRoot);
 	}
+    else if (newRoot.getFileExtension() == ".xml")
+    {
+        previewFile(newRoot);
+    }
     else if (newRoot.getFileExtension() == ".js")
     {
         // First look if the script is already used

@@ -142,19 +142,12 @@ struct WorkbenchData : public ReferenceCountedObject,
 		}
 	}
 
-	ValueTree createApiTree() override
-	{
-		return getLastJitObject().createValueTree();
-	}
+    ApiProviderBase* getProviderBase() override
+    {
+        return &getLastResultReference();
+    }
 
-	ApiProviderBase* getProviderBase() override 
-	{
-		if(lastCompileResult.compiledOk())
-			return &lastCompileResult.obj; 
-
-		return nullptr;
-	}
-
+    
 	void handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c) override
 	{
 		jassertfalse;
@@ -1096,13 +1089,17 @@ struct WorkbenchData : public ReferenceCountedObject,
 		}
 	}
 
+    
+    
 	void callAsyncWithSafeCheck(const std::function<void(WorkbenchData* d)>& f, bool callSyncIfMessageThread=false);
 
 	void postCompile()
 	{
 		if (getLastResult().compiledOk())
 		{
-			getLastJitObject().rebuildDebugInformation();
+            
+            
+			//gegetLastResult().rebuildDebugInformation();
 			rebuild();
 		}
 
@@ -1380,8 +1377,7 @@ struct WorkbenchManager final: public AsyncUpdater
 
 	void resetToRoot()
 	{
-		if (rootWb != nullptr)
-			setCurrentWorkbench(rootWb, false);
+		setCurrentWorkbench(rootWb, false);
 	}
 
 	void setCurrentWorkbench(WorkbenchData::Ptr newWorkbench, bool setAsRoot);

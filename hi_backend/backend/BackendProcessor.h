@@ -197,7 +197,7 @@ public:
 	BackendDllManager::Ptr dllManager;
 
 	
-
+    LambdaBroadcaster<Processor*> processorAddBroadcaster;
 	
 
 private:

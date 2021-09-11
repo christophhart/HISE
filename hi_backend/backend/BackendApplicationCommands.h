@@ -133,6 +133,7 @@ public:
 		MenuEditCreateBase64State,
         MenuEditCloseAllChains,
 		MenuViewOffset = 0x40000,
+        MenuViewRotate,
         MenuViewFullscreen,
 		MenuViewReset,
 		MenuViewBack,

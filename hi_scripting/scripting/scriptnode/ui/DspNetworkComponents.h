@@ -564,8 +564,11 @@ public:
 
 		~ActionButton()
 		{
-			if (parent.getComponent() != nullptr)
-				parent.getComponent()->network->removeSelectionListener(this);
+			if (auto pc = parent.getComponent())
+            {
+                if(pc->network != nullptr)
+                    pc->network->removeSelectionListener(this);
+            }
 		}
 
 
@@ -736,6 +739,8 @@ public:
 
 		static bool toggleProbe(DspNetworkGraph& g);
 		static bool setRandomColour(DspNetworkGraph& g);
+        
+        static bool eject(DspNetworkGraph& g);
 
 		static bool copyToClipboard(DspNetworkGraph& g);
 		static bool toggleCableDisplay(DspNetworkGraph& g);
@@ -752,6 +757,9 @@ public:
 		static bool undo(DspNetworkGraph& g);
 		static bool redo(DspNetworkGraph& g);
 
+        static bool exportAsSnippet(DspNetworkGraph& g);
+        static bool save(DspNetworkGraph& g);
+        
 		static bool addBookMark(DspNetworkGraph& g);
 
 		static bool zoomIn(DspNetworkGraph& g);

@@ -166,6 +166,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuViewResetLookAndFeel,
 		MenuViewReset,
         MenuViewFullscreen,
+        MenuViewRotate,
 		MenuViewBack,
 		MenuViewForward,
 		MenuViewEnableGlobalLayoutMode,
@@ -573,6 +574,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Forward: " + bpe->mainEditor->getViewUndoManager()->getRedoDescription(), bpe->mainEditor->getViewUndoManager()->canRedo(), false, 'X', false);
 		result.categoryName = "View";
 		break;
+    case MenuViewRotate:
+        setCommandTarget(result, "Vertical Layout", true, bpe->isRotated(), 'X', false);
+        break;
 	case MenuViewEnableGlobalLayoutMode:
 		setCommandTarget(result, "Enable Layout Mode", true, bpe->getRootFloatingTile()->isLayoutModeEnabled(), 'X', false);
 		result.addDefaultKeypress(KeyPress::F6Key, ModifierKeys::noModifiers);
@@ -737,6 +741,10 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuViewBack:					bpe->mainEditor->getViewUndoManager()->undo(); updateCommands(); return true;
 	case MenuViewReset:				    bpe->resetInterface(); updateCommands(); return true;
 	case MenuViewForward:				bpe->mainEditor->getViewUndoManager()->redo(); updateCommands(); return true;
+    case MenuViewRotate:
+        bpe->toggleRotate();
+        updateCommands();
+        return true;
 	case MenuViewEnableGlobalLayoutMode: bpe->toggleLayoutMode(); updateCommands(); return true;
 	case MenuViewAddFloatingWindow:		bpe->addFloatingWindow(); return true;
 	case MenuViewAddInterfacePreview:	Actions::addInterfacePreview(bpe); return true;
@@ -979,11 +987,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	}
 	case BackendCommandTarget::ViewMenu: {
 
-		ADD_ALL_PLATFORMS(MenuViewResetLookAndFeel);
-
-		ADD_ALL_PLATFORMS(MenuViewBack);
-		ADD_ALL_PLATFORMS(MenuViewForward);
-		ADD_ALL_PLATFORMS(MenuViewReset);
+        ADD_ALL_PLATFORMS(MenuViewFullscreen);
+        ADD_ALL_PLATFORMS(MenuViewRotate);
 
 		p.addSeparator();
 
@@ -995,8 +1000,11 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		ADD_DESKTOP_ONLY(MenuViewEnableGlobalLayoutMode);
 		ADD_DESKTOP_ONLY(MenuViewAddFloatingWindow);
-		ADD_DESKTOP_ONLY(MenuViewAddInterfacePreview);
-		ADD_DESKTOP_ONLY(MenuViewFullscreen);
+		
+        p.addSeparator();
+        
+        ADD_ALL_PLATFORMS(MenuViewResetLookAndFeel);
+        ADD_ALL_PLATFORMS(MenuViewReset);
         
 		break;
 		}

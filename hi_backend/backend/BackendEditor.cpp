@@ -457,6 +457,16 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	presetBrowserButton->setShape(f.createPath("Preset Browser"), false, true, true);
 	presetBrowserButton->addListener(this);
 
+    addAndMakeVisible(customPopupButton = new ShapeButton("Custom Popup", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
+    customPopupButton->setTooltip("Show Custom Popup");
+    customPopupButton->setShape(f.createPath("Custom Popup"), false, true, true);
+    customPopupButton->addListener(this);
+    
+    addAndMakeVisible(keyboardPopupButton = new ShapeButton("Keyboard", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
+    keyboardPopupButton->setTooltip("Show Custom Popup");
+    keyboardPopupButton->setShape(f.createPath("Keyboard"), false, true, true);
+    keyboardPopupButton->addListener(this);
+    
 	addAndMakeVisible(pluginPreviewButton = new ShapeButton("Plugin Preview", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
 	pluginPreviewButton->setTooltip("Show Plugin Preview");
 	pluginPreviewButton->setShape(f.createPath("Plugin Preview"), false, true, true);
@@ -738,25 +748,6 @@ private:
 };
 
 
-void MainTopBar::popupChanged(Component* newComponent)
-{
-	bool macroShouldBeOn = dynamic_cast<MacroComponent*>(newComponent) != nullptr;
-	bool settingsShouldBeOn = (newComponent != nullptr && newComponent->getName() == "Settings");
-	bool previewShouldBeShown = (newComponent != nullptr && newComponent->getName() == "Interface Preview") ||
-								(newComponent != nullptr && newComponent->getName() == "Create User Interface");
-	bool presetBrowserShown = dynamic_cast<PresetBrowser*>(newComponent) != nullptr;
-
-    
-    
-	setColoursForButton(macroButton, macroShouldBeOn);
-	setColoursForButton(settingsButton, settingsShouldBeOn);
-	setColoursForButton(pluginPreviewButton, previewShouldBeShown);
-	setColoursForButton(presetBrowserButton, presetBrowserShown);
-	macroButton->setToggleState(macroShouldBeOn, dontSendNotification);
-	settingsButton->setToggleState(settingsShouldBeOn, dontSendNotification);
-	pluginPreviewButton->setToggleState(previewShouldBeShown, dontSendNotification);
-	presetBrowserButton->setToggleState(presetBrowserShown, dontSendNotification);
-}
 
 void MainTopBar::paint(Graphics& g)
 {
@@ -765,9 +756,6 @@ void MainTopBar::paint(Graphics& g)
 
 	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false));
 	g.fillAll();
-	
-    if (hiseIcon != nullptr)
-        hiseIcon->drawWithin(g, getLocalBounds().removeFromLeft(JUCE_LIVE_CONSTANT_OFF(60)).reduced(8).toFloat(), RectanglePlacement::centred, 1.0f);
 }
 
 void MainTopBar::paintOverChildren(Graphics& g)
@@ -791,16 +779,16 @@ void MainTopBar::buttonClicked(Button* b)
 	}
 	else if (b == presetBrowserButton)
 	{
-		auto s = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(getRootWindow()->getRootFloatingTile(), "SwappableContainer");
-		auto isVertical = dynamic_cast<VerticalTile*>(s) != nullptr;
-		s->getParentShell()->swapContainerType(isVertical ? "HorizontalTile" : "VerticalTile");
-
-		FloatingTileHelpers::findTileWithId<FloatingTileContainer>(getRootWindow()->getRootFloatingTile(), "PersonaContainer")->getParentShell()->setForceShowTitle(false);
-
-		getRootWindow()->getRootFloatingTile()->refreshRootLayout();
-
-		//togglePopup(PopupType::PresetBrowser, !b->getToggleState());
+		togglePopup(PopupType::PresetBrowser, !b->getToggleState());
 	}
+    else if (b == keyboardPopupButton)
+    {
+        togglePopup(PopupType::Keyboard, !b->getToggleState());
+    }
+    else if (b == customPopupButton)
+    {
+        togglePopup(PopupType::CustomPopup, !b->getToggleState());
+    }
 }
 
 void MainTopBar::resized()
@@ -808,46 +796,36 @@ void MainTopBar::resized()
     hiseButton->setVisible(false);
 
     
-    auto b = getLocalBounds();
     
-    settingsButton->setBounds(b.removeFromRight(b.getHeight()).reduced(7));
-    peakMeter->setBounds(b.removeFromRight(180).reduced(8));
+    
+    
     
     
     
 	const int settingsWidth = 320;
 	
     layoutButton->setVisible(false);
-	
-
-	
-    b.removeFromLeft(100);
-    
-    
-	
-	
-	
-
-	scriptingWorkSpaceButton->setBounds(b.removeFromLeft(b.getHeight()).reduced(7));
-
-    samplerWorkSpaceButton->setBounds(b.removeFromLeft(b.getHeight()).reduced(7));
-	
     
     scriptingWorkSpaceButton->setVisible(false);
     samplerWorkSpaceButton->setVisible(false);
     customWorkSpaceButton->setVisible(false);
 
-    frontendArea = getLocalBounds().withSizeKeepingCentre(getHeight() * 5, getHeight());
-
-	int macroX = frontendArea.getX();
-
-    macroButton->setBounds(frontendArea.removeFromLeft(getHeight()).reduced(7));
-    presetBrowserButton->setBounds(frontendArea.removeFromRight(getHeight()).reduced(7));
+    auto bWidth = getHeight() * 2;
     
-	pluginPreviewButton->setBounds(frontendArea.withSizeKeepingCentre(getHeight(), getHeight()).reduced(7));
+    frontendArea = getLocalBounds().withSizeKeepingCentre(bWidth * 3, getHeight());
 
-    tooltipBar->setBounds(b.withLeft(presetBrowserButton->getRight() + 10).reduced(8));
-
+    auto b = getLocalBounds();
+    
+    customPopupButton->setBounds(b.removeFromLeft(getHeight()).reduced(8));
+    tooltipBar->setBounds(b.removeFromLeft(macroButton->getX()).reduced(7));
+                                 
+    macroButton->setBounds(frontendArea.removeFromLeft(bWidth).reduced(7));
+    pluginPreviewButton->setBounds(frontendArea.removeFromLeft(bWidth).reduced(7));
+    presetBrowserButton->setBounds(frontendArea.removeFromLeft(bWidth).reduced(7));
+                                 
+    settingsButton->setBounds(b.removeFromRight(b.getHeight()).reduced(7));
+    peakMeter->setBounds(b.removeFromRight(180).reduced(8));
+    keyboardPopupButton->setBounds(b.removeFromRight(b.getHeight()).reduced(8));
 }
 
 
@@ -878,7 +856,9 @@ struct PopupFloatingTile: public Component,
 						  public ButtonListener,
 						  public PathFactory
 {
-	PopupFloatingTile(MainController* mc) :
+    static constexpr int ButtonHeight = 24;
+    
+	PopupFloatingTile(MainController* mc, var data) :
 		t(mc, nullptr),
 		resizer(this, &constrainer),
 		clearButton("clear", this, *this),
@@ -895,15 +875,50 @@ struct PopupFloatingTile: public Component,
 		addAndMakeVisible(saveButton);
 		addAndMakeVisible(layoutButton);
 
-		layoutButton.setToggleModeWithColourChange(true);
-
-		clear();
-		
-		setName("Custom Popup");
-		constrainer.setMinimumSize(200, 80);
-		setSize(400, 400);
+        constrainer.setMinimumSize(200, 80);
+        
+        if(data.isObject())
+        {
+            showEditBar = false;
+            load(JSON::toString(data));
+            
+            
+            
+            t.setForceShowTitle(false);
+            
+            if(auto c = dynamic_cast<FloatingTileContainer*>(t.getCurrentFloatingPanel()))
+            {
+                if(c->getNumComponents() == 1)
+                {
+                    c->setIsDynamic(false);
+                    c->getComponent(0)->setForceShowTitle(false);
+                }
+            }
+        }
+        else
+        {
+            layoutButton.setToggleModeWithColourChange(true);
+            clear();
+            
+            setName("Custom Popup");
+            
+            setSize(400, 400);
+        }
 	}
 
+    void load(const String& jsonString)
+    {
+        auto data = JSON::parse(jsonString);
+        int w = data.getProperty("Width", getWidth());
+        int h = data.getProperty("Height", getHeight());
+
+        t.loadFromJSON(jsonString);
+        layoutButton.setToggleStateAndUpdateIcon(false);
+        t.setLayoutModeEnabled(false);
+        setName(t.getCurrentFloatingPanel()->getBestTitle());
+        setSize(w, h - ButtonHeight);
+    }
+    
 	void clear()
 	{
 		t.setLayoutModeEnabled(true);
@@ -921,7 +936,86 @@ struct PopupFloatingTile: public Component,
 		LOAD_PATH_IF_URL("layout", ColumnIcons::customizeIcon);
 		return p;
 	}
+    
+    static void fillPopupWithFiles(PopupMenu& m)
+    {
+        auto files = getFileList();
+        
+        int index = 1;
 
+        for (auto& f : files)
+        {
+            m.addItem(index++, f.getFileNameWithoutExtension());
+        }
+    }
+    
+    static Array<File> getFileList()
+    {
+        return getDirectory().findChildFiles(File::findFiles, false, "*.json");
+    }
+
+    struct PopupGlassLookAndFeel: public PopupLookAndFeel
+    {
+        PopupGlassLookAndFeel(BackendRootWindow* w_):
+            w(w_)
+        {
+            setColour(PopupMenu::backgroundColourId, Colours::transparentBlack);
+        }
+        
+        virtual void drawPopupMenuBackgroundWithOptions (Graphics& g,
+                                                         int width,
+                                                         int height,
+                                                         const PopupMenu::Options& o)
+        {
+            if(w->getScreenshotter() != nullptr)
+                w->getScreenshotter()->drawGlassSection(g, w, {0, 0, width, height});
+            
+        }
+        
+        BackendRootWindow* w;
+    };
+    
+    static Component* loadWithPopupMenu(Component* c)
+    {
+        auto w = GET_BACKEND_ROOT_WINDOW(c);
+        auto mc = w->getBackendProcessor();
+        var dataToLoad;
+        PopupGlassLookAndFeel plaf(w);
+        PopupMenu m;
+        m.setLookAndFeel(&plaf);
+
+        auto files = getFileList();
+        
+        
+        
+        fillPopupWithFiles(m);
+        
+        if(!files.isEmpty())
+            m.addSeparator();
+        
+        m.addItem(9000, "Create new Popup");
+        m.addItem(9001, "Show popup folder");
+            
+        auto r = m.showAt(c);
+        if (r != 0)
+        {
+            if(r == 9000)
+                return new PopupFloatingTile(mc, var());
+            
+            if(r == 9001)
+            {
+                PopupFloatingTile::getDirectory().revealToUser();
+                return nullptr;
+            }
+            
+            auto content = files[r - 1].loadFileAsString();
+
+            return new PopupFloatingTile(mc, JSON::parse(content));
+        }
+        
+        return nullptr;
+    }
+    
 	void buttonClicked(Button* b) override
 	{
 		if (b == &clearButton)
@@ -950,42 +1044,23 @@ struct PopupFloatingTile: public Component,
 		}
 		if (b == &loadButton)
 		{
-			auto files = getDirectory().findChildFiles(File::findFiles, false, "*.json");
-
-			PopupLookAndFeel plaf;
-			PopupMenu m;
-			m.setLookAndFeel(&plaf);
-
-			if (!files.isEmpty())
-			{
-				int index = 1;
-
-				for (auto& f : files)
-				{
-					m.addItem(index++, f.getFileNameWithoutExtension());
-				}
-
-				auto r = m.show();
-				if (r != 0)
-				{
-					auto content = files[r - 1].loadFileAsString();
-
-					auto v = JSON::parse(content);
-
-					int w = v.getProperty("Width", getWidth());
-					int h = v.getProperty("Height", getHeight());
-
-					t.loadFromJSON(content);
-					layoutButton.setToggleStateAndUpdateIcon(false);
-					t.setLayoutModeEnabled(false);
-
-					setSize(w, h);
-				}
-			}
+            PopupLookAndFeel plaf;
+            PopupMenu m;
+            m.setLookAndFeel(&plaf);
+            
+            fillPopupWithFiles(m);
+            
+            auto r = m.show();
+            
+            if(r != 0)
+            {
+                auto content = getFileList()[r - 1].loadFileAsString();
+                load(content);
+            }
 		}
 	}
 
-	File getDirectory()
+	static File getDirectory()
 	{
 		auto dir = ProjectHandler::getAppDataDirectory().getChildFile("custom_popups");
 
@@ -1004,10 +1079,10 @@ struct PopupFloatingTile: public Component,
 	{
 		auto b = getLocalBounds();
 
-		static constexpr int ButtonHeight = 24;
+		
 		static constexpr int ButtonMargin = 2;
 
-		auto topRow = b.removeFromTop(ButtonHeight);
+		auto topRow = b.removeFromTop(showEditBar ? ButtonHeight : 0);
 
 		clearButton.setBounds(topRow.removeFromLeft(ButtonHeight).reduced(ButtonMargin));
 		loadButton.setBounds(topRow.removeFromLeft(ButtonHeight).reduced(ButtonMargin));
@@ -1023,6 +1098,8 @@ struct PopupFloatingTile: public Component,
 	HiseShapeButton layoutButton;
 	HiseShapeButton saveButton;
 
+    bool showEditBar = true;
+    
 	FloatingTile t;
 	juce::ResizableCornerComponent resizer;
 	juce::ComponentBoundsConstrainer constrainer;
@@ -1210,6 +1287,33 @@ struct ToolkitPopup : public Component,
 };
 
 
+void MainTopBar::popupChanged(Component* newComponent)
+{
+    bool macroShouldBeOn = dynamic_cast<MacroComponent*>(newComponent) != nullptr;
+    bool settingsShouldBeOn = (newComponent != nullptr && newComponent->getName() == "Settings");
+    bool previewShouldBeShown = (newComponent != nullptr && newComponent->getName() == "Interface Preview") ||
+                                (newComponent != nullptr && newComponent->getName() == "Create User Interface");
+    bool presetBrowserShown = dynamic_cast<PresetBrowser*>(newComponent) != nullptr;
+
+    bool keyboardShouldBeOn = dynamic_cast<ToolkitPopup*>(newComponent) != nullptr;
+    
+    bool customShouldBeShown = dynamic_cast<PopupFloatingTile*>(newComponent) != nullptr;
+    
+    setColoursForButton(macroButton, macroShouldBeOn);
+    setColoursForButton(settingsButton, settingsShouldBeOn);
+    setColoursForButton(pluginPreviewButton, previewShouldBeShown);
+    setColoursForButton(presetBrowserButton, presetBrowserShown);
+    setColoursForButton(keyboardPopupButton, keyboardShouldBeOn);
+    setColoursForButton(customPopupButton, customShouldBeShown);
+    
+    macroButton->setToggleState(macroShouldBeOn, dontSendNotification);
+    settingsButton->setToggleState(settingsShouldBeOn, dontSendNotification);
+    pluginPreviewButton->setToggleState(previewShouldBeShown, dontSendNotification);
+    presetBrowserButton->setToggleState(presetBrowserShown, dontSendNotification);
+    keyboardPopupButton->setToggleState(keyboardShouldBeOn, dontSendNotification);
+    customPopupButton->setToggleState(customShouldBeShown, dontSendNotification);
+}
+
 void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 {
 	if (!shouldShow)
@@ -1227,10 +1331,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	{
 	case MainTopBar::PopupType::About:
 	{
-		
-
 		c = new AboutPage();
-		
 		c->setSize(500, 300);
 
 		button = hiseButton;
@@ -1241,11 +1342,6 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	}
 	case MainTopBar::PopupType::Macro:
 	{
-		//c = new PopupFloatingTile(mc);
-        c = new ToolkitPopup(mc);
-		button = macroButton;
-		break;
-
 		c = new MacroComponent(getRootWindow());
 		c->setSize(90 * 8, 74);
 
@@ -1336,6 +1432,14 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 		button = presetBrowserButton;
 		break;
 	}
+        case MainTopBar::PopupType::CustomPopup:
+        c = PopupFloatingTile::loadWithPopupMenu(customPopupButton);
+        button = customPopupButton;
+        break;
+    case MainTopBar::PopupType::Keyboard:
+        c = new ToolkitPopup(mc);
+        button = keyboardPopupButton;
+        break;
 	case MainTopBar::PopupType::numPopupTypes:
 		break;
 	default:
@@ -1345,8 +1449,16 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	Point<int> point(button->getLocalBounds().getCentreX(), button->getLocalBounds().getBottom());
 	auto popup = getParentShell()->showComponentInRootPopup(c, button, point);
 
-	if (popup != nullptr)
-		popup->setColour((int)FloatingTilePopup::ColourIds::backgroundColourId, JUCE_LIVE_CONSTANT_OFF(Colour(0xec000000)));
+    auto sb = dynamic_cast<ShapeButton*>(button);
+    
+    if(popup != nullptr)
+    {
+        popup->onDetach = [this, sb](bool isDetached)
+        {
+            setColoursForButton(sb, !isDetached);
+            sb->setToggleState(!isDetached, dontSendNotification);
+        };
+    }
 
 }
 

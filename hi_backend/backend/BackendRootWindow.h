@@ -112,6 +112,7 @@ struct PeriodicScreenshotter : public Thread
 class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
 						  public AudioProcessorEditor,
 						  public BackendCommandTarget,
+                          public snex::ui::WorkbenchManager::WorkbenchChangeListener,
 						  public Timer,
 						  public ComponentWithKeyboard,
 						  public ModalBaseWindow,
@@ -135,6 +136,22 @@ public:
 		//g.fillAll(Colour(0xFF333333));
 	}
 
+    void workbenchChanged(WorkbenchData::Ptr newWorkbench) override
+    {
+        if(newWorkbench != nullptr)
+        {
+            if(auto firstEditor = FloatingTileHelpers::findTileWithId<SnexEditorPanel>(getRootFloatingTile(), {}))
+            {
+                
+                firstEditor->getParentShell()->ensureVisibility();
+            }
+        }
+    }
+    
+    bool isRotated() const;
+    
+    bool toggleRotate();
+    
 	void setScriptProcessorForWorkspace(JavascriptProcessor* jsp);
 
 	void saveInterfaceData();
@@ -206,6 +223,8 @@ public:
 
 	int getCurrentWorkspace() const { return currentWorkspace; }
 
+    void gotoIfWorkspace(Processor* p);
+    
 	void showWorkspace(int workspace);
 
 	MainTopBar* getMainTopBar()

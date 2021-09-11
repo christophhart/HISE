@@ -242,6 +242,8 @@ public:
 
 		DspNetwork* getOrCreate(const ValueTree& v);
 
+        void unload();
+        
 		DspNetwork* getOrCreate(const String& id);
 		StringArray getIdList();
 		void saveNetworks(ValueTree& d) const;

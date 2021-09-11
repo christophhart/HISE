@@ -318,16 +318,30 @@ public:
 
 
 
-class ScriptWatchTablePanel : public PanelWithProcessorConnection
+class ScriptWatchTablePanel : public PanelWithProcessorConnection,
+                              public snex::ui::WorkbenchManager::WorkbenchChangeListener
 {
 public:
 
-	ScriptWatchTablePanel(FloatingTile* parent) :
-		PanelWithProcessorConnection(parent)
-	{
-		
-	};
+    ScriptWatchTablePanel(FloatingTile* parent);
 
+    ~ScriptWatchTablePanel();
+    
+    void workbenchChanged(snex::ui::WorkbenchData::Ptr newWorkbench) override
+    {
+        if(auto w = getContent<ScriptWatchTable>())
+        {
+            if(newWorkbench != nullptr)
+            {
+                w->setHolder(newWorkbench);
+            }
+            else
+            {
+                w->setHolder(dynamic_cast<JavascriptProcessor*>(getProcessor()));
+            }
+        }
+    }
+    
 	SET_PANEL_NAME("ScriptWatchTable");
 
 	Identifier getProcessorTypeId() const override;

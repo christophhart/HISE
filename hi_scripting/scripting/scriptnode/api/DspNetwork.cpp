@@ -893,6 +893,16 @@ DspNetwork::Holder::Holder()
 	rb->registerPropertyObject<scriptnode::OscillatorDisplayProvider::OscillatorDisplayObject>();
 }
 
+void DspNetwork::Holder::unload()
+{
+    auto& manager = dynamic_cast<BackendProcessor*>(dynamic_cast<ControlledObject*>(this)->getMainController())->workbenches;
+
+    manager.setCurrentWorkbench(nullptr, false);
+    embeddedNetworks.clear();
+    networks.clear();
+    setActiveNetwork(nullptr);
+}
+
 DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)
 {
 	auto asScriptProcessor = dynamic_cast<ProcessorWithScriptingContent*>(this);
@@ -1202,6 +1212,8 @@ DeprecationChecker::DeprecationChecker(DspNetwork* n_, ValueTree v_) :
 		throwIf(DeprecationId::OpTypeNonSet);
 	}
 }
+
+
 
 String DeprecationChecker::getErrorMessage(int id)
 {

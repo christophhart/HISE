@@ -38,7 +38,7 @@ PatchBrowser::PatchBrowser(BackendRootWindow *window) :
 SearchableListComponent(window),
 editor(window->getMainPanel()),
 rootWindow(window),
-showChains(false)
+showChains(true)
 {
 	setName("Patch Browser");
 
@@ -46,14 +46,13 @@ showChains(false)
 
 	window->getModuleListNofifier().addProcessorChangeListener(this);
 
-	addAndMakeVisible(addButton = new ShapeButton("Show chains", Colours::white.withAlpha(0.6f), Colours::white, Colours::white));
+    Factory f;
+    
+    addAndMakeVisible(addButton = new HiseShapeButton("add", this, f));
+    addButton->setToggleModeWithColourChange(true);
+	addButton->setTooltip("Edit Module Tree");
+    addButton->setToggleStateAndUpdateIcon(true);
 	
-	addButton->setTooltip("Show internal chains in list");
-	Path addPath;
-	addPath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::addIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::addIcon));
-	addButton->setShape(addPath, true, true, false);
-	addButton->addListener(this);
-
 	addCustomButton(addButton);
 	
 	
@@ -237,7 +236,11 @@ void PatchBrowser::paint(Graphics &g)
 {
 	SearchableListComponent::paint(g);
     
-    g.fillAll(Colour(0xFF353535));
+    auto b = getLocalBounds();
+    b.removeFromTop(25);
+    
+    g.setColour(Colour(0xFF353535));
+    g.fillRect(b);
     
 	Point<int> startPointInParent;
 
@@ -292,10 +295,10 @@ void PatchBrowser::paint(Graphics &g)
                 float alpha = (x % 100 == 0) ? 0.12f : 0.05f;
                 alpha *= mulAlpha;
                 g.setColour(lineColour.withAlpha(alpha));
-                ug.draw1PxVerticalLine(x, 0.0f, (float)getHeight());
+                ug.draw1PxVerticalLine(x, b.getY(), (float)getHeight());
             }
 
-            for (int y = 10; y < getHeight(); y += 10)
+            for (int y = b.getY() + 10; y < b.getBottom(); y += 10)
             {
                 float alpha = (y % 100 == 0) ? 0.12f : 0.05f;
                 alpha *= mulAlpha;
@@ -323,10 +326,6 @@ void PatchBrowser::toggleFoldAll()
 void PatchBrowser::toggleShowChains()
 {
 	showChains = !showChains;
-
-	addButton->setColours(showChains ? Colours::white : Colours::white.withAlpha(0.6f), Colours::white, Colours::white);
-	addButton->setToggleState(showChains, dontSendNotification);
-
 	rebuildModuleList(true);
     repaint();
 }
@@ -369,20 +368,7 @@ HiseShapeButton* PatchBrowser::skinWorkspaceButton(Processor* processor)
 		{
 			auto rootWindow = GET_BACKEND_ROOT_WINDOW((b));
             
-			if (safeP != nullptr)
-			{
-				if (auto jsp = dynamic_cast<JavascriptProcessor*>(safeP.get()))
-				{
-					BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rootWindow, jsp);
-					BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
-
-				}
-				else if (auto sampler = dynamic_cast<ModulatorSampler*>(safeP.get()))
-				{
-					BackendPanelHelpers::SamplerWorkspace::setGlobalProcessor(rootWindow, sampler);
-					BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::SamplerWorkspace, sendNotification);
-				}
-			}
+            rootWindow->gotoIfWorkspace(safeP);
 		};
         
         return b;
@@ -623,14 +609,10 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 
 	b.removeFromLeft(xOffset);
 
-	if (isMouseOver(false))
-	{
-		g.setColour(Colours::white.withAlpha(0.05f));
-		g.fillRoundedRectangle(b.reduced(8.0f), 2.0f);
-	}
+	
 
-    g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, 0.0f,
-                                     Colours::black.withAlpha(0.3f), 0.0f, (float)getHeight(), false));
+    g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0xff303030)), 0.0f, 0.0f,
+                                     JUCE_LIVE_CONSTANT_OFF(Colour(0xff212121)), 0.0f, (float)b.getHeight(), false));
     
 
     
@@ -649,8 +631,16 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 
 	g.drawRoundedRectangle(iconSpace, 2.0f, 2.0f);
 
-	g.setColour(isMouseOver() ? Colours::white : Colours::white.withAlpha(0.7f));
+    if (isMouseOver(false))
+    {
+        g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+        g.drawRoundedRectangle(iconSpace2, 2.0f, 1.0f);
+    }
+    
+	g.setColour(Colours::white.withAlpha(0.7f));
 
+    
+    
 	g.drawText(root->getId(), (int)iconSpace.getRight() + 18, 10, getWidth(), 20, Justification::centredLeft, false);
 }
 
@@ -998,18 +988,17 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 
 		const bool isRoot = GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()->getRootProcessor() == processor;
 
-		g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, 0.0f,
-										 Colours::black.withAlpha(0.3f), 0.0f, (float)getHeight(), false));
-		
+        g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0xff303030)), 0.0f, 0.0f,
+                                         JUCE_LIVE_CONSTANT_OFF(Colour(0xff282828)), 0.0f, (float)b.getHeight(), false));
+        
+        
 
 		g.fillRoundedRectangle(b.reduced(1.0f), 2.0f);
 
 		if (isMouseOver(true) || idLabel->isMouseOver(true))
 		{
-			g.setGradientFill(ColourGradient(Colours::white.withAlpha(0.1f), 0.0f, 0.0f,
-											 Colours::white.withAlpha(0.05f), 0.0f, (float)getHeight(), false));
-
-			g.fillRoundedRectangle(b.reduced(1.0f), 2.0f);
+            g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+			g.drawRoundedRectangle(b.reduced(1.0f), 2.0f, 1.0f);
 		}
 		
 		g.setColour(processor->getColour());

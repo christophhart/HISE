@@ -124,6 +124,8 @@ juce::Path MainToolbarFactory::createPath(const String& id) const
 
 	LOAD_PATH_IF_URL("back", MainToolbarIcons::back);
 	LOAD_PATH_IF_URL("forward", MainToolbarIcons::forward);
+    LOAD_PATH_IF_URL("custom-popup", MainToolbarIcons::customPopup);
+    LOAD_PATH_IF_URL("keyboard", BackendBinaryData::ToolbarIcons::keyboard);
 	LOAD_PATH_IF_URL("macro-controls", HiBinaryData::SpecialSymbols::macros);
 	LOAD_PATH_IF_URL("preset-browser", MainToolbarIcons::presetBrowser);
 	LOAD_PATH_IF_URL("plugin-preview", MainToolbarIcons::home);

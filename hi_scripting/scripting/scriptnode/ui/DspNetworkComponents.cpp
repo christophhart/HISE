@@ -146,6 +146,9 @@ namespace ScriptnodeIcons
 	176,65,108,150,67,17,66,106,188,168,64,108,152,110,104,65,106,188,168,64,108,152,110,104,65,0,0,0,0,108,111,146,38,66,0,0,0,0,108,111,146,38,66,106,188,168,64,99,109,0,0,0,0,219,249,132,65,108,0,0,0,0,199,75,31,65,108,236,81,12,65,199,75,31,65,108,236,
 	81,12,65,37,6,113,64,108,16,88,146,65,190,159,84,65,108,236,81,12,65,250,126,182,65,108,236,81,12,65,219,249,132,65,108,0,0,0,0,219,249,132,65,99,101,0,0 };
 
+    static const unsigned char ejectIcon[] = { 110,109,92,39,186,68,113,205,176,68,108,16,248,8,68,113,205,176,68,108,16,248,8,68,92,127,213,68,108,92,39,186,68,92,127,213,68,108,92,39,186,68,113,205,176,68,99,109,225,162,128,68,213,120,66,68,108,41,124,187,68,10,151,154,68,108,209,146,11,68,10,151,
+154,68,108,225,162,128,68,213,120,66,68,99,101,0,0 };
+
 	static const unsigned char propertyIcon[] = { 110,109,0,0,0,0,0,0,0,0,108,152,110,39,66,0,0,0,0,108,152,110,39,66,57,180,102,65,108,174,71,39,66,57,180,102,65,108,174,71,39,66,201,246,29,66,98,172,28,39,66,178,157,33,66,119,62,36,66,43,135,36,66,68,139,32,66,45,178,36,66,108,127,106,220,63,45,178,
 	36,66,98,141,151,78,63,43,135,36,66,10,215,163,61,147,152,33,66,227,165,27,61,201,246,29,66,108,227,165,27,61,57,180,102,65,108,0,0,0,0,57,180,102,65,108,0,0,0,0,0,0,0,0,99,109,223,207,25,66,57,180,102,65,108,133,235,89,64,57,180,102,65,108,133,235,89,
 	64,94,58,23,66,108,223,207,25,66,94,58,23,66,108,223,207,25,66,57,180,102,65,99,109,254,212,10,65,39,49,226,65,108,236,81,6,66,39,49,226,65,108,236,81,6,66,209,34,7,66,108,254,212,10,65,209,34,7,66,108,254,212,10,65,39,49,226,65,99,109,254,212,10,65,
@@ -194,6 +197,7 @@ juce::Path DspNetworkPathFactory::createPath(const String& url) const
 	LOAD_PATH_IF_URL("foldunselected", ScriptnodeIcons::foldUnselected);
 	LOAD_PATH_IF_URL("deselect", EditorIcons::cancelIcon);
 	LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
+    LOAD_PATH_IF_URL("eject", ScriptnodeIcons::ejectIcon);
 	LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
 	LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
 	LOAD_PATH_IF_URL("goto", ScriptnodeIcons::gotoIcon);
@@ -214,6 +218,8 @@ juce::Path DspNetworkPathFactory::createPath(const String& url) const
 	LOAD_PATH_IF_URL("export", HnodeIcons::freezeIcon);
 	LOAD_PATH_IF_URL("wrap", HnodeIcons::mapIcon);
 	LOAD_PATH_IF_URL("surround", HnodeIcons::injectNodeIcon);
+    LOAD_PATH_IF_URL("save", SampleMapIcons::saveSampleMap);
+    LOAD_PATH_IF_URL("export", SampleMapIcons::monolith);
 
 	return p;
 }
@@ -1070,6 +1076,37 @@ bool DspNetworkGraph::Actions::toggleFreeze(DspNetworkGraph& g)
 	return false;
 }
 
+
+
+bool DspNetworkGraph::Actions::save(DspNetworkGraph& g)
+{
+    auto saveCopy = g.network->getValueTree().createCopy();
+
+    cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, DspNetworkListeners::PatchAutosaver::stripValueTree);
+
+    auto xml = saveCopy.createXml();
+
+    auto folder = BackendDllManager::getSubFolder(g.network->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Networks);
+    
+    auto d = folder.getChildFile(g.network->getId()).withFileExtension("xml");
+    
+    if(!d.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite file", "Do you want to overwrite the file " + d.getFullPathName()))
+    {
+        d.replaceWithText(xml->createDocument(""));
+    }
+    
+    return true;
+}
+
+
+
+bool DspNetworkGraph::Actions::exportAsSnippet(DspNetworkGraph& g)
+{
+    jassertfalse;
+    return true;
+}
+
+
 bool DspNetworkGraph::Actions::toggleProbe(DspNetworkGraph& g)
 {
 	g.toggleProbeMode();
@@ -1546,6 +1583,32 @@ bool DspNetworkGraph::Actions::showJSONEditorForSelection(DspNetworkGraph& g)
 	return true;
 }
 
+bool DspNetworkGraph::Actions::eject(DspNetworkGraph& g)
+{
+    if(PresetHandler::showYesNoWindow("Unload this network", "Do you want to unload this network?"))
+    {
+        auto holder = g.network->getParentHolder();
+        
+        auto rootWindow = GET_BACKEND_ROOT_WINDOW((&g));
+        auto jsp = dynamic_cast<JavascriptProcessor*>(holder);
+
+        auto gw = [rootWindow, jsp]()
+        {
+            ReferenceCountedObjectPtr<DspNetwork> pendingDelete;
+            
+            pendingDelete = jsp->getActiveNetwork();
+            
+            jsp->unload();
+            BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rootWindow, jsp);
+            BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+            
+            pendingDelete = nullptr;
+        };
+
+        MessageManager::callAsync(gw);
+    }
+}
+
 bool DspNetworkGraph::Actions::undo(DspNetworkGraph& g)
 {
 	if (auto um = g.network->getUndoManager())
@@ -1951,8 +2014,13 @@ void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
 	addButton("copy");
 	addButton("duplicate");
 	addButton("delete");
-	addSpacer(10);
-	addButton("properties");
+	
+    addSpacer(10);
+    addButton("save");
+    addButton("export");
+    addButton("eject");
+    addSpacer(10);
+    addButton("properties");
 }
 
 void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
@@ -1968,6 +2036,23 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 		b->setTooltip("Enable parameter list selection");
 	}
 
+    if(name == "save")
+    {
+        b->actionFunction = Actions::save;
+    }
+    
+    if(name == "export")
+    {
+        b->actionFunction = Actions::exportAsSnippet;
+        b->setTooltip("Export the node and all references SNEX files as snippet");
+    }
+    
+    if(name == "eject")
+    {
+        b->actionFunction = Actions::eject;
+        b->setTooltip("Unload this Network");
+    }
+    
 	if (name == "colour")
 	{
 		b->actionFunction = Actions::setRandomColour;

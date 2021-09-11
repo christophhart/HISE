@@ -64,7 +64,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	doc.replaceAllContent(getWorkbench()->getCode());
 	doc.clearUndoHistory();
 	
-	watchTable.setHolder(this);
+	watchTable.setHolder(getWorkbench());
 
 	editor.addBreakpointListener(this);
 
@@ -838,7 +838,7 @@ void SnexPlayground::postPostCompile(ui::WorkbenchData::Ptr wb)
 		resultLabel.setText(result.getErrorMessage(), dontSendNotification);
 	}
 
-	rebuild();
+	getWorkbench()->rebuild();
 }
 
 int AssemblyTokeniser::readNextToken(CodeDocument::Iterator& source)

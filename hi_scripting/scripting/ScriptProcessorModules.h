@@ -689,12 +689,6 @@ public:
 	void postCompileCallback() override;
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
-
-    void addProcessorsWhenEmpty() override
-    {
-        getSnippet(0)->replaceAllContent("const var dsp = Engine.createDspNetwork(\"dsp\”);");
-        compileScript();
-    }
     
 private:
 

@@ -161,45 +161,6 @@ JitObject::operator bool() const
 	return functionClass != nullptr;
 }
 
-void JitObject::rebuildDebugInformation()
-{
-	if(functionClass != nullptr)
-		functionClass->pimpl->createDebugInfo(functionClass->debugInformation);
-}
-
-hise::DebugableObjectBase* JitObject::getDebugObject(const juce::String& token)
-{
-#if 0
-	for (auto& f : functionClass->debugInformation)
-	{
-		if (token == f->getCodeToInsert())
-		{
-			if (f->getType() == Types::ID::Block)
-				return functionClass->pimpl->getSubFunctionClass(Symbol::createRootSymbol("Block"));
-			if (f->getType() == Types::ID::Event)
-				return functionClass->pimpl->getSubFunctionClass(Symbol::createRootSymbol("Message"));
-		}
-	}
-#endif
-
-	return ApiProviderBase::getDebugObject(token);
-}
-
-juce::ValueTree JitObject::createValueTree()
-{
-    return {};
-    
-	auto c = dynamic_cast<GlobalScope*>(functionClass->pimpl->getParent())->getGlobalFunctionClass(NamespacedIdentifier("Console"));
-	auto v = functionClass->pimpl->getRootData()->getApiValueTree();
-	v.addChild(FunctionClass::createApiTree(c), -1, nullptr);
-	return v;
-}
-
-void JitObject::getColourAndLetterForType(int type, Colour& colour, char& letter)
-{
-	return ApiHelpers::getColourAndLetterForType(type, colour, letter);
-}
-
 snex::jit::FunctionData JitCompiledClassBase::getFunction(const Identifier& id)
 {
 	auto typePtr = dynamic_cast<StructType*>(classType.get());

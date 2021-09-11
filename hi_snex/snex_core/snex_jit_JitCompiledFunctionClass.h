@@ -90,7 +90,7 @@ private:
 
 
 
-class JitObject: public ApiProviderBase
+class JitObject
 {
 public:
 
@@ -118,24 +118,6 @@ public:
 
 	explicit operator bool() const;;
 	
-	void rebuildDebugInformation();
-
-	int getNumDebugObjects() const override
-	{
-		if(functionClass != nullptr)
-			return functionClass->debugInformation.size();
-		
-		return 0;
-	}
-
-
-	DebugableObjectBase* getDebugObject(const juce::String& token) override;
-
-	DebugInformationBase::Ptr getDebugInformation(int index) override
-	{
-		return functionClass->debugInformation[index];
-	}
-
 	ComplexType::Ptr getMainObjectType()
 	{
 		return functionClass->getMainObjectType();
@@ -147,10 +129,6 @@ public:
 	}
 
 	ClassScope* getClassScope() { return functionClass->getClassScope(); };
-
-	ValueTree createValueTree();
-
-	void getColourAndLetterForType(int type, Colour& colour, char& letter) override;
 
 	juce::String dumpTable()
 	{

@@ -344,7 +344,7 @@ private:
 
 	Component::SafePointer<Component> lastTarget;
 
-	ScopedPointer<ShapeButton> addButton;
+	ScopedPointer<HiseShapeButton> addButton;
 	ScopedPointer<ShapeButton> foldButton;
 
 	bool foldAll;

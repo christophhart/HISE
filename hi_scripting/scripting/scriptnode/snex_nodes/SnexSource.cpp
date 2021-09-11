@@ -793,6 +793,9 @@ void SnexMenuBar::parameterChanged(int snexParameterId, double newValue)
 
 SnexMenuBar::~SnexMenuBar()
 {
+    if(source->getParentNode() == nullptr)
+        return;
+    
 	auto wb = static_cast<snex::ui::WorkbenchManager*>(source->getParentNode()->getScriptProcessor()->getMainController_()->getWorkbenchManager());
 	wb->removeListener(this);
 

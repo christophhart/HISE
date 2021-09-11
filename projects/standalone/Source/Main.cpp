@@ -497,7 +497,7 @@ public:
     class MainWindow    : public DocumentWindow
     {
     public:
-        MainWindow(const String &commandLine)  : DocumentWindow ("HISE Backend Standalone",
+        MainWindow(const String &commandLine)  : DocumentWindow ("HISE",
                                         Colours::lightgrey,
 										DocumentWindow::TitleBarButtons::closeButton | DocumentWindow::maximiseButton | DocumentWindow::TitleBarButtons::minimiseButton)
         {
