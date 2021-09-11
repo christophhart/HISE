@@ -485,6 +485,7 @@ struct WrapperWithMenuBarBase : public Component,
 		public SettableTooltipClient
 	{
 		ActionButtonBase(ContentType* parent_, const String& name) :
+			Component(name),
 			parent(parent_)
 		{
 			PathFactoryType f;

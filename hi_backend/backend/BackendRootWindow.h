@@ -217,7 +217,7 @@ private:
 
 	friend class BackendCommandTarget;
 
-	PopupLookAndFeel plaf;
+	ScopedPointer<PeriodicScreenshotter::PopupGlassLookAndFeel> plaf;
 
 	BackendProcessor *owner;
 

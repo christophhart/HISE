@@ -1145,6 +1145,9 @@ void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositi
 
 void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 {
+	auto srBefore = sampleRate;
+	auto bufferBefore = maxBufferSize.get();
+
     LOG_START("Preparing playback");
     
 	maxBufferSize = samplesPerBlock * currentOversampleFactor;
@@ -1204,6 +1207,16 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 
 	if (oversampler != nullptr)
 		oversampler->initProcessing(getOriginalBufferSize());
+
+	if (sampleRate != srBefore || maxBufferSize.get() != bufferBefore)
+	{
+		String s;
+		s << "New Buffer Specifications: ";
+		s << "Samplerate: " << sampleRate;
+		s << ", Buffersize: " << String(maxBufferSize.get());
+		getConsoleHandler().writeToConsole(s, 0, getMainSynthChain(), Colours::white.withAlpha(0.4f));
+	}
+
 }
 
 void MainController::setBpm(double newTempo)

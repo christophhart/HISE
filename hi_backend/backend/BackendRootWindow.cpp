@@ -219,7 +219,8 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 #else
 
 	addAndMakeVisible(menuBar = new MenuBarComponent(this));
-	menuBar->setLookAndFeel(&plaf);
+	plaf = new PeriodicScreenshotter::PopupGlassLookAndFeel(*menuBar);
+	menuBar->setLookAndFeel(plaf);
 
 #endif
 
