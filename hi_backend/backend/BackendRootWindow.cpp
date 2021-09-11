@@ -697,23 +697,7 @@ void BackendPanelHelpers::SamplerWorkspace::setGlobalProcessor(BackendRootWindow
 	}
 }
 
-void PeriodicScreenshotter::drawGlassSection(Graphics& g, Component* c, Rectangle<int> b)
-{
-	if (b.isEmpty())
-		b = c->getLocalBounds();
 
-	auto area = comp->getLocalArea(c, b);
-	area = area.getIntersection(comp->getLocalBounds());
-
-	b = c->getLocalArea(comp, area);
-	auto clip = img.getClippedImage(area.transformedBy(AffineTransform::scale(0.5f)));
-	g.setOpacity(1.0f);
-
-	g.saveState();
-	g.setImageResamplingQuality(Graphics::lowResamplingQuality);
-	g.drawImageWithin(clip, b.getX(), b.getY(), b.getWidth(), b.getHeight(), RectanglePlacement::fillDestination);
-	g.restoreState();
-}
 
 void PeriodicScreenshotter::run()
 {
@@ -722,10 +706,8 @@ void PeriodicScreenshotter::run()
 		Image newImage;
 		{
 			MessageManagerLock mm;
-			ScopedPopupDisabler<FloatingTilePopup> spd(comp);
-            ScopedPopupDisabler<BorderPanel> spd2(comp);
-            
-			newImage = comp->createComponentSnapshot(comp->getLocalBounds(), true, 0.5f);
+			ScopedPopupDisabler spd(comp);
+            newImage = comp->createComponentSnapshot(comp->getLocalBounds(), true, 0.5f);
 		}
 
 		gin::applyStackBlur(newImage, 30);

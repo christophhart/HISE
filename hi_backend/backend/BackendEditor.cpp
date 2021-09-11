@@ -954,33 +954,14 @@ struct PopupFloatingTile: public Component,
         return getDirectory().findChildFiles(File::findFiles, false, "*.json");
     }
 
-    struct PopupGlassLookAndFeel: public PopupLookAndFeel
-    {
-        PopupGlassLookAndFeel(BackendRootWindow* w_):
-            w(w_)
-        {
-            setColour(PopupMenu::backgroundColourId, Colours::transparentBlack);
-        }
-        
-        virtual void drawPopupMenuBackgroundWithOptions (Graphics& g,
-                                                         int width,
-                                                         int height,
-                                                         const PopupMenu::Options& o)
-        {
-            if(w->getScreenshotter() != nullptr)
-                w->getScreenshotter()->drawGlassSection(g, w, {0, 0, width, height});
-            
-        }
-        
-        BackendRootWindow* w;
-    };
+    
     
     static Component* loadWithPopupMenu(Component* c)
     {
         auto w = GET_BACKEND_ROOT_WINDOW(c);
         auto mc = w->getBackendProcessor();
         var dataToLoad;
-        PopupGlassLookAndFeel plaf(w);
+        PeriodicScreenshotter::PopupGlassLookAndFeel plaf(*c);
         PopupMenu m;
         m.setLookAndFeel(&plaf);
 

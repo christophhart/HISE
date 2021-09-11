@@ -47,67 +47,7 @@ namespace hise { using namespace juce;
 
 class BackendProcessorEditor;
 
-struct PeriodicScreenshotter : public Thread
-{
-	struct Holder
-	{
-		virtual ~Holder() {};
-		virtual PeriodicScreenshotter* getScreenshotter() = 0;
-	};
 
-	PeriodicScreenshotter(Component* c) :
-		Thread("screenshotter"),
-		comp(c)
-	{
-		startThread(4);
-	};
-    
-    
-
-	~PeriodicScreenshotter()
-	{
-		stopThread(500);
-	}
-
-	template <class T> struct ScopedPopupDisabler
-	{
-		ScopedPopupDisabler(Component* r)
-		{
-			recursive(r);
-		}
-
-		~ScopedPopupDisabler()
-		{
-			for (const auto& c : skippers)
-				c->setSkipPainting(false);
-		}
-
-		void recursive(Component* c)
-		{
-			if (!c->isVisible())
-				return;
-
-			if (auto t = dynamic_cast<T*>(c))
-			{
-				skippers.add(c);
-				c->setSkipPainting(true);
-				return;
-			}
-
-			for (int i = 0; i < c->getNumChildComponents(); i++)
-				recursive(c->getChildComponent(i));
-		}
-
-		Array<Component*> skippers;
-	};
-
-	void drawGlassSection(Graphics& g, Component* c, Rectangle<int> b);
-
-	void run() override;
-
-	Image img;
-	Component* comp;
-};
 
 class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
 						  public AudioProcessorEditor,

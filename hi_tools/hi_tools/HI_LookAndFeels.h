@@ -1615,4 +1615,88 @@ private:
 	Image unticked;
 };
 
+struct PeriodicScreenshotter : public Thread
+{
+    struct Holder
+    {
+        virtual ~Holder() {};
+        virtual PeriodicScreenshotter* getScreenshotter() = 0;
+        JUCE_DECLARE_WEAK_REFERENCEABLE(Holder);
+    };
+
+    PeriodicScreenshotter(Component* c) :
+        Thread("screenshotter"),
+        comp(c)
+    {
+        startThread(4);
+    };
+    
+    static void disableForScreenshot(Component* c)
+    {
+        c->getProperties().set("SkipScreenshot", true);
+    }
+    
+    struct PopupGlassLookAndFeel: public PopupLookAndFeel
+    {
+        PopupGlassLookAndFeel(Component& c):
+            holder(c.findParentComponentOfClass<Holder>())
+        {
+            jassert(holder != nullptr);
+            setColour(PopupMenu::backgroundColourId, Colours::transparentBlack);
+        }
+
+        virtual void drawPopupMenuBackgroundWithOptions (Graphics& g,
+                                                         int width,
+                                                         int height,
+                                                         const PopupMenu::Options& o);
+        
+        
+        WeakReference<Holder> holder;
+    };
+
+    ~PeriodicScreenshotter()
+    {
+        stopThread(500);
+    }
+
+    struct ScopedPopupDisabler
+    {
+        ScopedPopupDisabler(Component* r)
+        {
+            recursive(r);
+        }
+
+        ~ScopedPopupDisabler()
+        {
+            for (const auto& c : skippers)
+                c->setSkipPainting(false);
+        }
+
+        void recursive(Component* c)
+        {
+            if (!c->isVisible())
+                return;
+
+            if (auto t = c->getProperties()["SkipScreenshot"])
+            {
+                skippers.add(c);
+                c->setSkipPainting(true);
+                return;
+            }
+
+            for (int i = 0; i < c->getNumChildComponents(); i++)
+                recursive(c->getChildComponent(i));
+        }
+
+        Array<Component*> skippers;
+    };
+
+    void drawGlassSection(Graphics& g, Component* c, Rectangle<int> b, Point<int> offset={});
+
+    void run() override;
+
+    Image img;
+    Component* comp;
+};
+
 } // namespace hise

@@ -65,7 +65,7 @@ FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedCom
 	localPointInComponent(localPoint),
 	moveButton("move", this, factory)
 {
-	
+    PeriodicScreenshotter::disableForScreenshot(this);
 
 	addAndMakeVisible(moveButton);
 	moveButton.setToggleModeWithColourChange(true);

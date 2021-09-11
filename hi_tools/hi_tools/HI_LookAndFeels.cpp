@@ -1307,4 +1307,41 @@ void ProcessorEditorHeaderLookAndFeel::drawBackground(Graphics &g, float width, 
 		g.fillAll();
 }
 
+void PeriodicScreenshotter::drawGlassSection(Graphics& g, Component* c, Rectangle<int> b, Point<int> offset)
+{
+    if (b.isEmpty())
+        b = c->getLocalBounds();
+
+    auto area = comp->getLocalArea(c, b);
+    area = area.getIntersection(comp->getLocalBounds());
+
+    b = c->getLocalArea(comp, area);
+    auto clip = img.getClippedImage(area.translated(offset.getX(), offset.getY()).transformedBy(AffineTransform::scale(0.5f)));
+    g.setOpacity(1.0f);
+
+    g.saveState();
+    g.setImageResamplingQuality(Graphics::lowResamplingQuality);
+    g.drawImageWithin(clip, b.getX(), b.getY(), b.getWidth(), b.getHeight(), RectanglePlacement::fillDestination);
+    g.restoreState();
+}
+
+void PeriodicScreenshotter::PopupGlassLookAndFeel::drawPopupMenuBackgroundWithOptions (Graphics& g,
+                                                 int width,
+                                                 int height,
+                                                 const PopupMenu::Options& o)
+{
+    g.fillAll(Colour(0xEE404040));
+    if(auto s = holder->getScreenshotter())
+    {
+        auto x = o.getTargetScreenArea().getX();
+        auto y = o.getTargetScreenArea().getX();
+        s->drawGlassSection(g, dynamic_cast<Component*>(holder.get()), {0, 0, width, height}, {x, y});
+    }
+    
+    g.fillAll(Colour(0x22000000));
+    
+    g.setColour(Colours::white.withAlpha(0.1f));
+    g.drawRect(0, 0, width, height);
+}
+
 } // namespace hise
