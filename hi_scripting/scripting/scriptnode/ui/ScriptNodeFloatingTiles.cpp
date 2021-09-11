@@ -35,6 +35,7 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+#if USE_BACKEND
 struct Selector : public Component,
 				  public ControlledObject,
 				  public PathFactory,
@@ -232,6 +233,7 @@ struct Selector : public Component,
 	scriptnode::ScriptnodeComboBoxLookAndFeel slaf;
 	ScopedPointer<Drawable> mainLogoColoured;
 };
+#endif
 
 DspNetworkGraphPanel::DspNetworkGraphPanel(FloatingTile* parent) :
 	NetworkPanel(parent)
@@ -254,10 +256,12 @@ Component* DspNetworkGraphPanel::createComponentForNetwork(DspNetwork* p)
 
 Component* DspNetworkGraphPanel::createEmptyComponent()
 {
+#if USE_BACKEND
 	if (auto h = dynamic_cast<DspNetwork::Holder*>(getProcessor()))
 	{
 		return new Selector(h, getMainController());
 	}
+#endif
 
 	return nullptr;
 }

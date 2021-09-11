@@ -190,6 +190,7 @@ juce::Path DspNetworkPathFactory::createPath(const String& url) const
 {
 	Path p;
 
+#if USE_BACKEND
 	LOAD_PATH_IF_URL("probe", ScriptnodeIcons::probeIcon);
 	LOAD_PATH_IF_URL("colour", ScriptnodeIcons::colourIcon);
 	LOAD_PATH_IF_URL("cable", ScriptnodeIcons::cableIcon);
@@ -221,6 +222,7 @@ juce::Path DspNetworkPathFactory::createPath(const String& url) const
     LOAD_PATH_IF_URL("save", SampleMapIcons::saveSampleMap);
     LOAD_PATH_IF_URL("export", SampleMapIcons::monolith);
 	LOAD_PATH_IF_URL("debug", SnexIcons::bugIcon);
+#endif
 
 	return p;
 }
@@ -1094,6 +1096,7 @@ bool DspNetworkGraph::Actions::toggleFreeze(DspNetworkGraph& g)
 
 bool DspNetworkGraph::Actions::save(DspNetworkGraph& g)
 {
+#if USE_BACKEND
     auto saveCopy = g.network->getValueTree().createCopy();
 
     cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, DspNetworkListeners::PatchAutosaver::stripValueTree);
@@ -1108,7 +1111,9 @@ bool DspNetworkGraph::Actions::save(DspNetworkGraph& g)
     {
         d.replaceWithText(xml->createDocument(""));
     }
-    
+	
+#endif
+
     return true;
 }
 
@@ -1145,6 +1150,7 @@ bool DspNetworkGraph::Actions::setRandomColour(DspNetworkGraph& g)
 	return true;
 }
 
+#if USE_BACKEND
 struct ScriptnodeDebugPopup: public Component,
 							 public ControlledObject,
 							 public Timer
@@ -1314,9 +1320,11 @@ struct ScriptnodeDebugPopup: public Component,
 	juce::ResizableCornerComponent resizer;
 	
 };
+#endif
 
 bool DspNetworkGraph::Actions::toggleDebug(DspNetworkGraph& g)
 {
+#if USE_BACKEND
 	g.network->getParentHolder()->toggleDebug();
 
 	if (auto dbg = g.network->getParentHolder()->getDebuggedNetwork())
@@ -1337,6 +1345,7 @@ bool DspNetworkGraph::Actions::toggleDebug(DspNetworkGraph& g)
 	}
 
 	g.repaint();
+#endif
 
 	return true;
 }
@@ -1795,6 +1804,7 @@ bool DspNetworkGraph::Actions::showJSONEditorForSelection(DspNetworkGraph& g)
 
 bool DspNetworkGraph::Actions::eject(DspNetworkGraph& g)
 {
+#if USE_BACKEND
     if(PresetHandler::showYesNoWindow("Unload this network", "Do you want to unload this network?"))
     {
         auto holder = g.network->getParentHolder();
@@ -1817,6 +1827,7 @@ bool DspNetworkGraph::Actions::eject(DspNetworkGraph& g)
 
         MessageManager::callAsync(gw);
     }
+#endif
 
 	return true;
 }

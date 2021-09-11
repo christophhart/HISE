@@ -535,6 +535,7 @@ var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 
 Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
 {
+#if USE_BACKEND
 	FloatingInterfaceBuilder ib(root);
 
 	const int codeEditor = ib.addChild<HorizontalTile>(0);
@@ -566,6 +567,9 @@ Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
 	ib.getPanel(codeEditor)->getLayoutData().setVisible(true);
 
 	return ib.getPanel(codeEditor);
+#endif
+
+	return nullptr;
 }
 
 Component* FloatingPanelTemplates::createScriptnodeEditorPanel(FloatingTile* root)

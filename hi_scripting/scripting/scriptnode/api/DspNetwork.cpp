@@ -895,12 +895,14 @@ DspNetwork::Holder::Holder()
 
 void DspNetwork::Holder::unload()
 {
+#if USE_BACKEND
     auto& manager = dynamic_cast<BackendProcessor*>(dynamic_cast<ControlledObject*>(this)->getMainController())->workbenches;
 
     manager.setCurrentWorkbench(nullptr, false);
     embeddedNetworks.clear();
     networks.clear();
     setActiveNetwork(nullptr);
+#endif
 }
 
 DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)

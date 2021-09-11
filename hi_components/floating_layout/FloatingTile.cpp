@@ -174,6 +174,7 @@ void FloatingTilePopup::paint(Graphics &g)
 {
 	auto b = getLocalBounds();
 
+#if USE_BACKEND
 	if (auto s = GET_BACKEND_ROOT_WINDOW(this)->getScreenshotter())
 	{
 		s->drawGlassSection(g, this, getRectangle(RectangleType::BoxPath));
@@ -211,6 +212,7 @@ void FloatingTilePopup::paint(Graphics &g)
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.drawText(content->getName(), t, Justification::centred, false);
 	}
+#endif
 }
 
 void FloatingTilePopup::resized()
