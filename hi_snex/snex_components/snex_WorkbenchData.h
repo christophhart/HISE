@@ -1072,6 +1072,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	void triggerPostCompileActions()
 	{
+		if (compileHandler == nullptr)
+			return;
+
 		compileHandler->postCompile(lastCompileResult);
 
 		callAsyncWithSafeCheck([](WorkbenchData* d)

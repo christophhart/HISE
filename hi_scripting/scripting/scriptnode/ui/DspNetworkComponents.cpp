@@ -220,6 +220,7 @@ juce::Path DspNetworkPathFactory::createPath(const String& url) const
 	LOAD_PATH_IF_URL("surround", HnodeIcons::injectNodeIcon);
     LOAD_PATH_IF_URL("save", SampleMapIcons::saveSampleMap);
     LOAD_PATH_IF_URL("export", SampleMapIcons::monolith);
+	LOAD_PATH_IF_URL("debug", SnexIcons::bugIcon);
 
 	return p;
 }
@@ -423,6 +424,19 @@ Colour getSpecialColour(Component* c, Colour defaultColour)
 
 void DspNetworkGraph::paintOverChildren(Graphics& g)
 {
+	if (network->isBeingDebugged())
+	{
+		DspNetworkPathFactory f;
+		auto p = f.createPath("debug");
+
+		auto w = jmin(getWidth() - 20, getHeight() - 20, 100);
+
+		f.scalePath(p, getLocalBounds().withSizeKeepingCentre(w, w).toFloat());
+		g.setColour(Colours::white.withAlpha(0.05f));
+		g.fillPath(p);
+		g.strokePath(p, PathStrokeType(1.0f));
+	}
+
 	if (network->isFrozen())
 		return;
 
@@ -1131,6 +1145,202 @@ bool DspNetworkGraph::Actions::setRandomColour(DspNetworkGraph& g)
 	return true;
 }
 
+struct ScriptnodeDebugPopup: public Component,
+							 public ControlledObject,
+							 public Timer
+{
+	
+
+	struct DummyCodeProvider : public snex::ui::WorkbenchData::CodeProvider
+	{
+		DummyCodeProvider(WorkbenchData* d, DspNetwork* n) :
+			CodeProvider(d),
+			networkId(n->getId())
+		{}
+
+		String loadCode() const override
+		{
+			return {};
+		}
+
+		bool saveCode(const String& s) override { return true; }
+
+		/** Override this method and return the instance id. This will be used to find the main class in nodes. */
+		virtual Identifier getInstanceId() const override { return networkId; }
+
+		Identifier networkId;
+	};
+
+	struct ScriptnodeCompileHandler : public snex::ui::WorkbenchData::CompileHandler,
+									  public valuetree::AnyListener
+	{
+		ScriptnodeCompileHandler(WorkbenchData* d, DspNetwork* n) :
+			CompileHandler(d),
+			network(n)
+		{
+			setRootValueTree(n->getValueTree());
+			setMillisecondsBetweenUpdate(500);
+			d->getTestData().setTestRootDirectory(BackendDllManager::getSubFolder(n->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Tests));
+		}
+
+		void anythingChanged(CallbackType) override
+		{
+			getParent()->triggerPostCompileActions();
+		}
+
+		/** Override this function and call the parameter method. */
+		void processTestParameterEvent(int parameterIndex, double value)
+		{
+			SimpleReadWriteLock::ScopedReadLock sl(network->getConnectionLock());
+			network->getCurrentParameterHandler()->setParameter(parameterIndex, value);
+		};
+
+		void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
+		{
+			network->prepareToPlay(ps.sampleRate, ps.blockSize);
+
+			for (auto pe : initialParameters)
+				processTestParameterEvent(pe.parameterIndex, pe.valueToUse);
+		}
+		void processTest(ProcessDataDyn& data)
+		{
+			network->process(data);
+		}
+
+		bool shouldProcessEventsManually() const 
+		{ 
+			return false; 
+		}
+
+		void processHiseEvent(HiseEvent& e)
+		{
+			jassertfalse;
+		};
+
+		snex::ui::WorkbenchData::CompileResult compile(const String& codeToCompile) override
+		{
+			snex::ui::WorkbenchData::CompileResult r;
+			r.compileResult = Result::ok();
+			return r;
+		}
+
+		void initExternalData(ExternalDataHolder* h) override
+		{
+			
+		}
+
+		Result runTest(ui::WorkbenchData::CompileResult& lastResult) override
+		{
+			auto& td = getParent()->getTestData();
+
+			auto cs = network->getCurrentSpecs();
+
+			if (cs.sampleRate <= 0.0 || cs.blockSize == 0)
+			{
+				cs.sampleRate = 44100.0;
+				cs.blockSize = 512;
+			}
+
+			td.initProcessing(cs.blockSize, cs.sampleRate);
+			td.processTestData(getParent());
+			return Result::ok();
+		}
+
+		void postCompile(ui::WorkbenchData::CompileResult& lastResult) override
+		{
+			runTest(lastResult);
+		}
+
+		WeakReference<DspNetwork> network;
+	};
+
+	ScriptnodeDebugPopup(MainController* mc, DspNetwork* n):
+		ControlledObject(mc),
+		dbgNetwork(n),
+		wb(new snex::ui::WorkbenchData()),
+		root(mc, nullptr),
+		resizer(this, nullptr)
+	{
+		setName("Scriptnode Debugger");
+		FloatingInterfaceBuilder builder(&root);
+		dynamic_cast<BackendProcessor*>(mc)->workbenches.setCurrentWorkbench(wb, false);
+
+		wb->setCompileHandler(new ScriptnodeCompileHandler(wb, n));
+		wb->setCodeProvider(new DummyCodeProvider(wb, n));
+
+		builder.setNewContentType<HorizontalTile>(0);
+		int testTab = 0;
+
+		auto pl = builder.addChild<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(testTab);
+		auto uig = builder.addChild<SnexWorkbenchPanel<snex::ui::Graph>>(testTab);
+
+		builder.setCustomName(pl, "Test Input");
+		builder.setCustomName(uig, "Test Signal Analyser");
+
+		builder.setDynamic(testTab, false);
+		builder.setSizes(testTab, { -0.3, -0.7 });
+
+		addAndMakeVisible(builder.finalizeAndReturnRoot());
+		addAndMakeVisible(resizer);
+		setSize(700, 450);
+		startTimer(100);
+	}
+
+	~ScriptnodeDebugPopup()
+	{
+		if (dbgNetwork->isBeingDebugged())
+			dbgNetwork->getParentHolder()->toggleDebug();
+
+		dynamic_cast<BackendProcessor*>(getMainController())->workbenches.setCurrentWorkbench(nullptr, true);
+	}
+
+	void resized() override
+	{
+		root.setBounds(getLocalBounds());
+		resizer.setBounds(getLocalBounds().removeFromBottom(15).removeFromRight(15));
+	}
+
+	void timerCallback() override
+	{
+		if (!dbgNetwork->isBeingDebugged())
+		{
+			findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
+		}
+	}
+
+	WeakReference<DspNetwork> dbgNetwork;
+	snex::ui::WorkbenchData::Ptr wb;
+	FloatingTile root;
+	juce::ResizableCornerComponent resizer;
+	
+};
+
+bool DspNetworkGraph::Actions::toggleDebug(DspNetworkGraph& g)
+{
+	g.network->getParentHolder()->toggleDebug();
+
+	if (auto dbg = g.network->getParentHolder()->getDebuggedNetwork())
+	{
+		auto w = GET_BACKEND_ROOT_WINDOW((&g))->getRootFloatingTile();
+
+		Array<ActionButton*> list;
+		fillChildComponentList(list, g.findParentComponentOfClass<WrapperWithMenuBar>());
+
+		for (auto b : list)
+		{
+			if (b->getName() == "debug")
+			{
+				w->showComponentInRootPopup(new ScriptnodeDebugPopup(w->getMainController(), dbg), b, { b->getLocalBounds().getCentreX(), b->getHeight() }, false);
+				return true;
+			}
+		}
+	}
+
+	g.repaint();
+
+	return true;
+}
+
 bool DspNetworkGraph::Actions::copyToClipboard(DspNetworkGraph& g)
 {
 	if (auto n = g.network->getSelection().getFirst())
@@ -1607,6 +1817,8 @@ bool DspNetworkGraph::Actions::eject(DspNetworkGraph& g)
 
         MessageManager::callAsync(gw);
     }
+
+	return true;
 }
 
 bool DspNetworkGraph::Actions::undo(DspNetworkGraph& g)
@@ -2020,6 +2232,7 @@ void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
     addButton("export");
     addButton("eject");
     addSpacer(10);
+	addButton("debug");
     addButton("properties");
 }
 
@@ -2109,6 +2322,12 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 		b->actionFunction = Actions::toggleCpuProfiling;
 		b->stateFunction = [](DspNetworkGraph& g) { return g.network->getCpuProfileFlag(); };
 		b->setTooltip("Activate CPU profiling");
+	}
+	if (name == "debug")
+	{
+		b->actionFunction = Actions::toggleDebug;
+		b->stateFunction = [](DspNetworkGraph& g) { return g.network->isBeingDebugged(); };
+		b->setTooltip("Debug this network");
 	}
 	if (name == "add")
 	{

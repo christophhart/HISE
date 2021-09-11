@@ -648,9 +648,9 @@ struct TestDataComponent : public TestDataComponentBase
 
 		auto top = b.removeFromTop(24);
 
-		g.fillAll(Colour(0xFF262626));
+		//g.fillAll(Colour(0xFF262626));
 
-		GlobalHiseLookAndFeel::drawFake3D(g, top);
+		//GlobalHiseLookAndFeel::drawFake3D(g, top);
 
 		top = b.removeFromTop(24);
 

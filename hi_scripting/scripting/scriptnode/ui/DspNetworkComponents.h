@@ -740,6 +740,8 @@ public:
 		static bool toggleProbe(DspNetworkGraph& g);
 		static bool setRandomColour(DspNetworkGraph& g);
         
+		static bool toggleDebug(DspNetworkGraph& g);
+
         static bool eject(DspNetworkGraph& g);
 
 		static bool copyToClipboard(DspNetworkGraph& g);

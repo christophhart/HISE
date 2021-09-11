@@ -324,6 +324,16 @@ public:
 			return n;
 		}
 
+		DspNetwork* getDebuggedNetwork() { return debuggedNetwork.get(); };
+		const DspNetwork* getDebuggedNetwork() const { return debuggedNetwork.get(); };
+
+		void toggleDebug()
+		{
+			SimpleReadWriteLock::ScopedWriteLock l(getNetworkLock());
+
+			std::swap(debuggedNetwork, activeNetwork);
+		}
+
 	protected:
 
 		ReferenceCountedArray<DspNetwork> embeddedNetworks;
@@ -334,6 +344,7 @@ public:
 
 		ExternalDataHolder* dataHolder = nullptr;
 
+		WeakReference<DspNetwork> debuggedNetwork;
 		WeakReference<DspNetwork> activeNetwork;
 
 		ReferenceCountedArray<DspNetwork> networks;
@@ -640,6 +651,11 @@ public:
 	{
 		if (parentHolder == nullptr)
 			reportScriptError("Parent of DSP Network is deleted");
+	}
+
+	bool isBeingDebugged() const
+	{
+		return parentHolder->getDebuggedNetwork() == this;
 	}
 
 	/** Deletes the node if it is not in a signal path. */
