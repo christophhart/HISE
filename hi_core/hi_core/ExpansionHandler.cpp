@@ -365,8 +365,27 @@ void ExpansionHandler::setCurrentExpansion(Expansion* e, NotificationType notify
 {
 	if (currentExpansion != e)
 	{
+		if (currentExpansion == nullptr)
+			FullInstrumentExpansion::setNewDefault(getMainController(), getMainController()->getMainSynthChain()->exportAsValueTree());
+
 		currentExpansion = e;
 		notifier.sendNotification(Notifier::EventType::ExpansionLoaded, notifyListeners);
+	}
+}
+
+void ExpansionHandler::unloadExpansion(Expansion* e)
+{
+	auto eIndex = expansionList.indexOf(e);
+
+	if (eIndex != -1)
+	{
+		auto unloaded = expansionList.removeAndReturn(eIndex);
+		unloadedExpansions.add(unloaded);
+		
+		auto notification = MessageManager::getInstance()->isThisTheMessageThread() ? sendNotificationSync : sendNotificationAsync;
+
+		if (getCurrentExpansion() == e)
+			setCurrentExpansion(nullptr, notification);
 	}
 }
 

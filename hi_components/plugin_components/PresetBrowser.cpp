@@ -714,7 +714,8 @@ PresetBrowser::~PresetBrowser()
 {
 	getMainController()->getUserPresetHandler().removeListener(this);
 
-	savePresetDatabase(rootFile);
+	if(rootFile.isDirectory())
+		savePresetDatabase(rootFile);
 
 	searchBar->inputLabel->removeListener(this);
 	searchBar->inputLabel->removeListener(presetColumn);
@@ -1251,7 +1252,8 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 			currentlySelectedExpansion = getMainController()->getExpansionHandler().getExpansionFromRootFile(file);
 		}
 
-		expansionColumn->repaint();
+		if(expansionColumn != nullptr)
+			expansionColumn->repaint();
 
 		bankColumn->setModel(new PresetBrowserColumn::ColumnListModel(this, 0, this), rootFile);
 		bankColumn->setNewRootDirectory(rootFile);

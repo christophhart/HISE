@@ -437,6 +437,8 @@ public:
 		static int64 getJSONHash(var obj);
 	};
 
+	void unloadExpansion(Expansion* e);
+
 	void createNewExpansion(const File& expansionFolder);
 	File getExpansionFolder() const;
 	bool createAvailableExpansions();
@@ -495,6 +497,7 @@ public:
 
 		return nullptr;
 	}
+
 
 	Expansion* getExpansionFromName(const String& name) const
 	{
@@ -715,6 +718,7 @@ private:
 
 	OwnedArray<Expansion> expansionList;
 	OwnedArray<Expansion> uninitialisedExpansions;
+	OwnedArray<Expansion> unloadedExpansions;
 
 	WeakReference<Expansion> currentExpansion;
 };

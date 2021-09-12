@@ -1967,8 +1967,8 @@ void ScriptingApi::Content::ScriptComboBox::setScriptObjectPropertyWithChangeMes
 	{
 		jassert(isCorrectlyInitialised(Items));
 
-		setScriptObjectProperty(Items, newValue);
-		setScriptObjectProperty(max, getItemList().size());
+		setScriptObjectProperty(Items, newValue, sendNotification);
+		setScriptObjectProperty(max, getItemList().size(), sendNotification);
 	}
 
 

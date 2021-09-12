@@ -369,6 +369,9 @@ public:
 	/** Sets whether the samples are allowed to be duplicated for this expansion. Set this to false if you operate on the same samples differently. */
 	void setAllowDuplicateSamples(bool shouldAllowDuplicates);
 
+	/** Unloads this expansion so it will not show up in the list of expansions until the next restart. */
+	void unloadExpansion();
+
 private:
 
 	friend class ScriptExpansionHandler;

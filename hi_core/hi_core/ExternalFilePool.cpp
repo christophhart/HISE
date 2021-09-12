@@ -511,11 +511,21 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 
 	static const String projectFolderWildcard("{PROJECT_FOLDER}");
 
-	if (FullInstrumentExpansion::isEnabled(mc) && input.startsWith(projectFolderWildcard))
+	if (FullInstrumentExpansion::isEnabled(mc))
 	{
-		if (auto e = mc->getExpansionHandler().getCurrentExpansion())
+		if (directoryType == FileHandlerBase::SampleMaps)
 		{
-			input = input.replace(projectFolderWildcard, e->getWildcard());
+			m = EmbeddedResource;
+			reference = input;
+			f = File();
+			return;
+		}
+		else if (input.startsWith(projectFolderWildcard))
+		{
+			if (auto e = mc->getExpansionHandler().getCurrentExpansion())
+			{
+				input = input.replace(projectFolderWildcard, e->getWildcard());
+			}
 		}
 	}
 

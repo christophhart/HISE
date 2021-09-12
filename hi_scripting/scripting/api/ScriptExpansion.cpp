@@ -439,6 +439,7 @@ struct ScriptExpansionReference::Wrapper
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getSampleFolder);
 	API_METHOD_WRAPPER_1(ScriptExpansionReference, setSampleFolder);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, rebuildUserPresets);
+	API_VOID_METHOD_WRAPPER_0(ScriptExpansionReference, unloadExpansion);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionReference, setAllowDuplicateSamples);
 };
 
@@ -461,6 +462,7 @@ ScriptExpansionReference::ScriptExpansionReference(ProcessorWithScriptingContent
 	ADD_API_METHOD_0(getSampleFolder);
 	ADD_API_METHOD_0(rebuildUserPresets);
 	ADD_API_METHOD_1(setAllowDuplicateSamples);
+	ADD_API_METHOD_0(unloadExpansion);
 }
 
 juce::BlowFish* ScriptExpansionReference::createBlowfish()
@@ -710,6 +712,12 @@ void ScriptExpansionReference::setAllowDuplicateSamples(bool shouldAllowDuplicat
 {
 	if (exp != nullptr)
 		exp->pool->getSamplePool()->setAllowDuplicateSamples(shouldAllowDuplicates);
+}
+
+void ScriptExpansionReference::unloadExpansion()
+{
+	if (exp != nullptr)
+		exp->getMainController()->getExpansionHandler().unloadExpansion(exp);
 }
 
 ScriptEncryptedExpansion::ScriptEncryptedExpansion(MainController* mc, const File& f) :
