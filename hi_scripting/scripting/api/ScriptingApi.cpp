@@ -1405,7 +1405,7 @@ var ScriptingApi::Engine::getSampleFilesFromDirectory(const String& relativePath
 
 void ScriptingApi::Engine::showMessageBox(String title, String markdownMessage, int type)
 {
-	MessageManager::callAsync([]()
+	MessageManager::callAsync([title, markdownMessage, type]()
 	{
 		PresetHandler::showMessageWindow(title, markdownMessage, (PresetHandler::IconType)type);
 	});
