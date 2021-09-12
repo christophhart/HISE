@@ -727,7 +727,7 @@ public:
 		Rectangle<float> currentSearchResult;
 
 		Rectangle<int> currentLasso;
-		bool enableSelect = true;
+		bool enableSelect = false;
 		float scaleFactor = 1.0f;
 	};
 

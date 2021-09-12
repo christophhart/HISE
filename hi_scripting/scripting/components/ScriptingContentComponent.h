@@ -365,6 +365,7 @@ public:
 		FixTocWidth,
 		StartURL,
 		ServerUpdateURL,
+		CustomContent,
 		numSpecialPanelIds
 	};
 
@@ -408,6 +409,7 @@ public:
 		showBack = getPropertyWithDefault(obj, SpecialPanelIds::ShowBack);
 		showToc = getPropertyWithDefault(obj, SpecialPanelIds::ShowToc);
 		startURL = getPropertyWithDefault(obj, SpecialPanelIds::StartURL);
+		customContent = getPropertyWithDefault(obj, SpecialPanelIds::CustomContent);
 
 		boldFontName = getPropertyWithDefault(obj, SpecialPanelIds::BoldFontName).toString();
 
@@ -443,6 +445,8 @@ public:
 		storePropertyInObject(obj, SpecialPanelIds::FixTocWidth, fixWidth);
 		storePropertyInObject(obj, SpecialPanelIds::StartURL, startURL);
 		storePropertyInObject(obj, SpecialPanelIds::ServerUpdateURL, serverURL);
+		storePropertyInObject(obj, SpecialPanelIds::CustomContent, customContent);
+
 
 		return obj;
 	}
@@ -464,6 +468,7 @@ public:
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FixTocWidth, "FixTocWidth");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::StartURL, "StartURL");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ServerUpdateURL, "ServerUpdateURL");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::CustomContent, "CustomContent");
 
 		jassertfalse;
 		return{};
@@ -481,6 +486,7 @@ public:
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FixTocWidth, -1);
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::StartURL, "/");
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ServerUpdateURL, "");
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::CustomContent, "");
 
 		jassertfalse;
 		return{};
@@ -503,6 +509,7 @@ public:
 	String contentFile;
 	String startURL;
 	String serverURL;
+	String customContent;
 	int options;
 
 	ScopedPointer<HiseMarkdownPreview> preview;
