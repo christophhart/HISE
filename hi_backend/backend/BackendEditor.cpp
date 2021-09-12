@@ -358,7 +358,7 @@ void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
 	isLoadingPreset = true;
 	viewport->showPreloadMessage(true);
 	
-	FullInstrumentExpansion::setNewDefault(getBackendProcessor(), v);
+	
 	
 	if (CompileExporter::isExportingFromCommandLine())
 	{
