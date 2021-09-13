@@ -638,6 +638,11 @@ void MainController::setBufferToPlay(const AudioSampleBuffer& buffer)
 	}
 }
 
+int MainController::getPreviewBufferPosition() const
+{
+	return previewBufferIndex;
+}
+
 void MainController::setKeyboardCoulour(int keyNumber, Colour colour)
 {
 	keyboardState.setColourForSingleKey(keyNumber, colour);

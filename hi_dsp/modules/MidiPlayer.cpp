@@ -1812,6 +1812,34 @@ void MidiPlayer::addNoteOffsToPendingNoteOns()
 		midiChain->artificialEvents.sortTimestamps();
 }
 
+juce::Path MidiPlayerBaseType::TransportPaths::createPath(const String& name) const
+{
+	auto url = MarkdownLink::Helpers::getSanitizedFilename(name);
+
+	ids.addIfNotAlreadyThere(url);
+
+	if (url == "start")
+	{
+		Path p;
+		p.addTriangle({ 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 0.5f });
+		return p;
+	}
+	if (url == "stop")
+	{
+		Path p;
+		p.addRectangle<float>({ 0.0f, 0.0f, 1.0f, 1.0f });
+		return p;
+	}
+	if (url == "record")
+	{
+		Path p;
+		p.addEllipse({ 0.0f, 0.0f, 1.0f, 1.0f });
+		return p;
+	}
+
+	return {};
+}
+
 MidiPlayerBaseType::~MidiPlayerBaseType()
 {
 	

@@ -197,6 +197,9 @@ struct SnexEditorPanel : public Component,
 
 	void workbenchChanged(Ptr newWorkbench) override
 	{
+		if (newWorkbench != nullptr && newWorkbench->getCodeProvider()->providesCode())
+			return;
+
 		setWorkbenchData(newWorkbench);
 	}
 

@@ -588,5 +588,93 @@ juce::Path SnexPopupEditor::Icons::createPath(const String& url) const
 }
 #endif
 
+WorkbenchTestPlayer::WorkbenchTestPlayer(FloatingTile* parent) :
+	FloatingTileContent(parent),
+	SimpleTimer(parent->getMainController()->getGlobalUIUpdater()),
+	playButton("start", nullptr, factory),
+	stopButton("stop", nullptr, factory),
+	midiButton("midi", nullptr, factory)
+{
+	addAndMakeVisible(playButton);
+	addAndMakeVisible(stopButton);
+	addAndMakeVisible(midiButton);
+
+	playButton.setToggleModeWithColourChange(true);
+	midiButton.setToggleModeWithColourChange(true);
+
+	playButton.onClick = BIND_MEMBER_FUNCTION_0(WorkbenchTestPlayer::play);
+	stopButton.onClick = BIND_MEMBER_FUNCTION_0(WorkbenchTestPlayer::stop);
+
+	addAndMakeVisible(inputPreview);
+	addAndMakeVisible(outputPreview);
+
+	workbenchChanged(dynamic_cast<BackendProcessor*>(getMainController())->workbenches.getCurrentWorkbench());
+}
+
+void WorkbenchTestPlayer::postPostCompile(WorkbenchData::Ptr wb)
+{
+	auto& td = wb->getTestData();
+
+	VariantBuffer::Ptr il = new VariantBuffer(td.testSourceData.getWritePointer(0), td.testSourceData.getNumSamples());
+	VariantBuffer::Ptr ir = new VariantBuffer(td.testSourceData.getWritePointer(1), td.testSourceData.getNumSamples());
+	VariantBuffer::Ptr ol = new VariantBuffer(td.testOutputData.getWritePointer(0), td.testOutputData.getNumSamples());
+	VariantBuffer::Ptr or = new VariantBuffer(td.testOutputData.getWritePointer(1), td.testOutputData.getNumSamples());
+
+	inputPreview.setBuffer(var(il), var(ir));
+	outputPreview.setBuffer(var(ol), var(or));
+}
+
+void WorkbenchTestPlayer::play()
+{
+	playButton.setToggleStateAndUpdateIcon(true);
+	getMainController()->setBufferToPlay(wb->getTestData().testOutputData);
+}
+
+void WorkbenchTestPlayer::stop()
+{
+	playButton.setToggleStateAndUpdateIcon(false);
+	getMainController()->setBufferToPlay({});
+}
+
+void WorkbenchTestPlayer::timerCallback()
+{
+	auto index = getMainController()->getPreviewBufferPosition();
+	//inputPreview.setPlaybackPosition((double)index / wb->getTestData().testSourceData.getNumSamples());
+}
+
+void WorkbenchTestPlayer::resized()
+{
+	auto b = getParentShell()->getContentBounds();
+
+	auto buttonHeight = 24;
+
+	auto topBar = b.removeFromTop(buttonHeight);
+	playButton.setBounds(topBar.removeFromLeft(buttonHeight).reduced(1));
+	stopButton.setBounds(topBar.removeFromLeft(buttonHeight).reduced(1));
+	midiButton.setBounds(topBar.removeFromLeft(buttonHeight).reduced(1));
+	
+	inputPreview.setBounds(b.removeFromTop(b.getHeight() / 2));
+	outputPreview.setBounds(b);
+}
+
+void WorkbenchTestPlayer::paint(Graphics& g)
+{
+	PopupLookAndFeel::drawFake3D(g, getLocalBounds().removeFromTop(24));
+}
+
+juce::Path WorkbenchTestPlayer::Factory::createPath(const String& url) const
+{
+	MidiPlayerBaseType::TransportPaths tf;
+
+	auto p = tf.createPath(url);
+
+	if (!p.isEmpty())
+		return p;
+
+	LOAD_PATH_IF_URL("midi", HiBinaryData::SpecialSymbols::midiData);
+
+	return p;
+}
+
 }
 

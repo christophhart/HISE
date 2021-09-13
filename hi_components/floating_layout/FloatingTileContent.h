@@ -676,6 +676,7 @@ public:
 			SnexWorkbenchInfo,
 			SnexTestDataInfo,
 			SnexComplexTestData,
+			SnexWorkbenchPlayer,
 			MenuCommandOffset = 10000,
 			numOptions
 		};

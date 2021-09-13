@@ -367,8 +367,18 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 	Canvas(Processor* p) :
 		processor(p)
 	{
-		addAndMakeVisible(content = new ScriptContentComponent(dynamic_cast<ProcessorWithScriptingContent*>(p)));
+		auto sp = dynamic_cast<ProcessorWithScriptingContent*>(p);
+
+		addAndMakeVisible(content = new ScriptContentComponent(sp));
 		addAndMakeVisible(overlay = new ScriptingContentOverlay(this));
+
+		auto shouldEdit = sp->getScriptingContent()->getNumComponents() == 0;
+		shouldEdit &= !ScriptEditHandler::editModeEnabled();
+
+		if (shouldEdit)
+			toggleComponentSelectMode(true);
+		
+		overlay->setEditMode(shouldEdit);
 		overlay->setShowEditButton(false);
 	}
 

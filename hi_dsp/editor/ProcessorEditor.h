@@ -55,9 +55,11 @@ class ProcessorEditorContainer : public Component,
 {
 public:
 
-	LambdaBroadcaster<Processor*> rootBroadcaster;
+	LambdaBroadcaster<Processor*, Processor*> rootBroadcaster;
 
 	ProcessorEditorContainer() {};
+
+	~ProcessorEditorContainer();
 
 	void processorDeleted(Processor* /*deletedProcessor*/) override
 	{

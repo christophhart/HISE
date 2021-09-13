@@ -350,6 +350,8 @@ public:
 		static void toggleCallStackEnabled(BackendRootWindow * bpe);
 		static void testPlugin(const String& pluginToLoad);
 
+		static void newFile(BackendRootWindow* bpe);
+
 		static void removeAllSampleMaps(BackendRootWindow * bpe);
 		static void redirectScriptFolder(BackendRootWindow * bpe);
 		static void exportSampleDataForInstaller(BackendRootWindow * bpe);

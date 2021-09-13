@@ -579,7 +579,6 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
         break;
 	case MenuViewEnableGlobalLayoutMode:
 		setCommandTarget(result, "Enable Layout Mode", true, bpe->getRootFloatingTile()->isLayoutModeEnabled(), 'X', false);
-		result.addDefaultKeypress(KeyPress::F6Key, ModifierKeys::noModifiers);
 		result.categoryName = "View";
 		break;
 	case MenuViewAddFloatingWindow:
@@ -667,11 +666,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case WorkspaceScript:
 	case WorkspaceSampler:
 	case WorkspaceCustom:				bpe->showWorkspace(info.commandID); updateCommands(); return true;
-	case MenuNewFile:                   if (PresetHandler::showYesNoWindow("New File", "Do you want to start a new preset?"))
-										{
-											bpe->mainEditor->clearPreset();
-										}
-		return true;
+	case MenuNewFile:                   Actions::newFile(bpe); return true;
 	case MenuOpenFile:                  Actions::openFile(bpe); return true;
 	case MenuSaveFile:                  Actions::saveFile(bpe, false); updateCommands(); return true;
 	case MenuSaveFileAs:				Actions::saveFile(bpe, true); updateCommands(); return true;
@@ -1566,6 +1561,14 @@ void BackendCommandTarget::Actions::testPlugin(const String& pluginToLoad)
 		Logger::writeToLog("OK");
 
 		return;
+	}
+}
+
+void BackendCommandTarget::Actions::newFile(BackendRootWindow* bpe)
+{
+	if (PresetHandler::showYesNoWindow("New File", "Do you want to start a new preset?"))
+	{
+		bpe->mainEditor->clearPreset();
 	}
 }
 

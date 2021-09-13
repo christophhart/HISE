@@ -331,7 +331,7 @@ public:
     {
         if(auto w = getContent<ScriptWatchTable>())
         {
-            if(newWorkbench != nullptr)
+            if(newWorkbench != nullptr && newWorkbench->getCodeProvider()->providesCode())
             {
                 w->setHolder(newWorkbench);
             }

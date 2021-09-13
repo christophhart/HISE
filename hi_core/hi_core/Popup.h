@@ -156,11 +156,16 @@ public:
 	{
 		if (t.isNotEmpty())
 		{
+			
 			isFadingOut = false;
 			alpha = 3.0f;
 
+			auto shouldRepaint = currentText != t;
+
 			currentText = t;
-			repaint();
+
+			if(shouldRepaint)
+				repaint();
 		}
 		else
 		{
@@ -173,6 +178,9 @@ public:
 
 	void clearText()
 	{
+		if (currentText.isEmpty())
+			return;
+
 		if (isFadingOut)
 		{
 			alpha -= 0.1f;

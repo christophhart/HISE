@@ -321,7 +321,10 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 {
 	eventBuffer.copyFrom(inputBuffer);
 
-	
+	if (!eventBuffer.isEmpty())
+		midiInputAlpha = 1.0f;
+	else
+		midiInputAlpha = jmax(0.0f, midiInputAlpha - 0.02f);
 
 	if (checkTimerCallback(0, numSamples)) synthTimerCallback(0, numSamples);
 	if (checkTimerCallback(1, numSamples)) synthTimerCallback(1, numSamples);
@@ -385,16 +388,11 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	processHiseEventBuffer(inputMidiBuffer, numSamplesFixed);
 
 	
-	midiInputFlag = !eventBuffer.isEmpty();
-
-	
 
 	HiseEventBuffer::Iterator eventIterator(eventBuffer);
 
 	HiseEvent m;
 	int midiEventPos;
-
-
 
 	while (numSamples > 0)
 	{
@@ -1361,15 +1359,9 @@ juce::SynthesiserVoice* ModulatorSynth::findVoiceToSteal(SynthesiserSound* sound
 	return Synthesiser::findVoiceToSteal(soundToPlay, midiChannel, midiNoteNumber);
 }
 
-bool ModulatorSynth::getMidiInputFlag()
+float ModulatorSynth::getMidiInputFlag()
 {
-	if (midiInputFlag)
-	{
-		midiInputFlag = false;
-		return true;
-	}
-
-	return false;
+	return midiInputAlpha;
 }
 
 

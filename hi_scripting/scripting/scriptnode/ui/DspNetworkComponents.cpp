@@ -426,19 +426,6 @@ Colour getSpecialColour(Component* c, Colour defaultColour)
 
 void DspNetworkGraph::paintOverChildren(Graphics& g)
 {
-	if (network->isBeingDebugged())
-	{
-		DspNetworkPathFactory f;
-		auto p = f.createPath("debug");
-
-		auto w = jmin(getWidth() - 20, getHeight() - 20, 100);
-
-		f.scalePath(p, getLocalBounds().withSizeKeepingCentre(w, w).toFloat());
-		g.setColour(Colours::white.withAlpha(0.05f));
-		g.fillPath(p);
-		g.strokePath(p, PathStrokeType(1.0f));
-	}
-
 	if (network->isFrozen())
 		return;
 
@@ -1151,140 +1138,153 @@ bool DspNetworkGraph::Actions::setRandomColour(DspNetworkGraph& g)
 }
 
 #if USE_BACKEND
+struct PopupCodeProvider : public snex::ui::WorkbenchData::CodeProvider
+{
+	PopupCodeProvider(WorkbenchData* d, DspNetwork* n) :
+		CodeProvider(d),
+		networkId(n->getId())
+	{}
+
+	String loadCode() const override
+	{
+		return {};
+	}
+
+	bool providesCode() const override { return false; }
+
+	bool saveCode(const String& s) override { return true; }
+
+	/** Override this method and return the instance id. This will be used to find the main class in nodes. */
+	virtual Identifier getInstanceId() const override { return networkId; }
+
+	Identifier networkId;
+};
+
+struct PopupCompileHandler : public snex::ui::WorkbenchData::CompileHandler,
+	public valuetree::AnyListener
+{
+	PopupCompileHandler(WorkbenchData* d, DspNetwork* n) :
+		CompileHandler(d),
+		network(n)
+	{
+		setRootValueTree(n->getValueTree());
+		setMillisecondsBetweenUpdate(500);
+		d->getTestData().setTestRootDirectory(BackendDllManager::getSubFolder(n->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Tests));
+	}
+
+	~PopupCompileHandler()
+	{
+		if (network->isBeingDebugged())
+			network->getParentHolder()->toggleDebug();
+	}
+
+	void anythingChanged(CallbackType) override
+	{
+		getParent()->triggerPostCompileActions();
+	}
+
+	/** Override this function and call the parameter method. */
+	void processTestParameterEvent(int parameterIndex, double value)
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(network->getConnectionLock());
+		network->getCurrentParameterHandler()->setParameter(parameterIndex, value);
+	};
+
+	void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
+	{
+		network->prepareToPlay(ps.sampleRate, ps.blockSize);
+
+		for (auto pe : initialParameters)
+			processTestParameterEvent(pe.parameterIndex, pe.valueToUse);
+	}
+	void processTest(ProcessDataDyn& data)
+	{
+		network->process(data);
+	}
+
+	bool shouldProcessEventsManually() const
+	{
+		return false;
+	}
+
+	void processHiseEvent(HiseEvent& e)
+	{
+		jassertfalse;
+	};
+
+	snex::ui::WorkbenchData::CompileResult compile(const String& codeToCompile) override
+	{
+		snex::ui::WorkbenchData::CompileResult r;
+		r.compileResult = Result::ok();
+		return r;
+	}
+
+	void initExternalData(ExternalDataHolder* h) override
+	{
+
+	}
+
+	Result runTest(ui::WorkbenchData::CompileResult& lastResult) override
+	{
+		auto& td = getParent()->getTestData();
+
+		auto cs = network->getCurrentSpecs();
+
+		if (cs.sampleRate <= 0.0 || cs.blockSize == 0)
+		{
+			cs.sampleRate = 44100.0;
+			cs.blockSize = 512;
+		}
+
+		td.initProcessing(cs.blockSize, cs.sampleRate);
+		td.processTestData(getParent());
+		return Result::ok();
+	}
+
+	void postCompile(ui::WorkbenchData::CompileResult& lastResult) override
+	{
+		runTest(lastResult);
+	}
+
+	WeakReference<DspNetwork> network;
+};
+
+using namespace snex::ui;
+
+
+
 struct ScriptnodeDebugPopup: public Component,
 							 public ControlledObject,
 							 public Timer
 {
-	
-
-	struct DummyCodeProvider : public snex::ui::WorkbenchData::CodeProvider
-	{
-		DummyCodeProvider(WorkbenchData* d, DspNetwork* n) :
-			CodeProvider(d),
-			networkId(n->getId())
-		{}
-
-		String loadCode() const override
-		{
-			return {};
-		}
-
-		bool saveCode(const String& s) override { return true; }
-
-		/** Override this method and return the instance id. This will be used to find the main class in nodes. */
-		virtual Identifier getInstanceId() const override { return networkId; }
-
-		Identifier networkId;
-	};
-
-	struct ScriptnodeCompileHandler : public snex::ui::WorkbenchData::CompileHandler,
-									  public valuetree::AnyListener
-	{
-		ScriptnodeCompileHandler(WorkbenchData* d, DspNetwork* n) :
-			CompileHandler(d),
-			network(n)
-		{
-			setRootValueTree(n->getValueTree());
-			setMillisecondsBetweenUpdate(500);
-			d->getTestData().setTestRootDirectory(BackendDllManager::getSubFolder(n->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Tests));
-		}
-
-		void anythingChanged(CallbackType) override
-		{
-			getParent()->triggerPostCompileActions();
-		}
-
-		/** Override this function and call the parameter method. */
-		void processTestParameterEvent(int parameterIndex, double value)
-		{
-			SimpleReadWriteLock::ScopedReadLock sl(network->getConnectionLock());
-			network->getCurrentParameterHandler()->setParameter(parameterIndex, value);
-		};
-
-		void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
-		{
-			network->prepareToPlay(ps.sampleRate, ps.blockSize);
-
-			for (auto pe : initialParameters)
-				processTestParameterEvent(pe.parameterIndex, pe.valueToUse);
-		}
-		void processTest(ProcessDataDyn& data)
-		{
-			network->process(data);
-		}
-
-		bool shouldProcessEventsManually() const 
-		{ 
-			return false; 
-		}
-
-		void processHiseEvent(HiseEvent& e)
-		{
-			jassertfalse;
-		};
-
-		snex::ui::WorkbenchData::CompileResult compile(const String& codeToCompile) override
-		{
-			snex::ui::WorkbenchData::CompileResult r;
-			r.compileResult = Result::ok();
-			return r;
-		}
-
-		void initExternalData(ExternalDataHolder* h) override
-		{
-			
-		}
-
-		Result runTest(ui::WorkbenchData::CompileResult& lastResult) override
-		{
-			auto& td = getParent()->getTestData();
-
-			auto cs = network->getCurrentSpecs();
-
-			if (cs.sampleRate <= 0.0 || cs.blockSize == 0)
-			{
-				cs.sampleRate = 44100.0;
-				cs.blockSize = 512;
-			}
-
-			td.initProcessing(cs.blockSize, cs.sampleRate);
-			td.processTestData(getParent());
-			return Result::ok();
-		}
-
-		void postCompile(ui::WorkbenchData::CompileResult& lastResult) override
-		{
-			runTest(lastResult);
-		}
-
-		WeakReference<DspNetwork> network;
-	};
-
-	ScriptnodeDebugPopup(MainController* mc, DspNetwork* n):
+	ScriptnodeDebugPopup(MainController* mc, snex::ui::WorkbenchData::Ptr p, DspNetwork* n):
 		ControlledObject(mc),
 		dbgNetwork(n),
-		wb(new snex::ui::WorkbenchData()),
+		wb(p),
 		root(mc, nullptr),
 		resizer(this, nullptr)
 	{
 		setName("Scriptnode Debugger");
 		FloatingInterfaceBuilder builder(&root);
-		dynamic_cast<BackendProcessor*>(mc)->workbenches.setCurrentWorkbench(wb, false);
 
-		wb->setCompileHandler(new ScriptnodeCompileHandler(wb, n));
-		wb->setCodeProvider(new DummyCodeProvider(wb, n));
+		auto& wbManager = dynamic_cast<BackendProcessor*>(mc)->workbenches;
+		
+		prevWb = wbManager.getCurrentWorkbench();
+		wbManager.setCurrentWorkbench(wb, false);
 
 		builder.setNewContentType<HorizontalTile>(0);
 		int testTab = 0;
 
 		auto pl = builder.addChild<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(testTab);
 		auto uig = builder.addChild<SnexWorkbenchPanel<snex::ui::Graph>>(testTab);
+		auto tp = builder.addChild<WorkbenchTestPlayer>(testTab);
 
 		builder.setCustomName(pl, "Test Input");
 		builder.setCustomName(uig, "Test Signal Analyser");
+		builder.setCustomName(uig, "Test Signal Player");
 
 		builder.setDynamic(testTab, false);
-		builder.setSizes(testTab, { -0.3, -0.7 });
+		builder.setSizes(testTab, { -0.3, -0.7, -0.3 });
 
 		addAndMakeVisible(builder.finalizeAndReturnRoot());
 		addAndMakeVisible(resizer);
@@ -1294,10 +1294,9 @@ struct ScriptnodeDebugPopup: public Component,
 
 	~ScriptnodeDebugPopup()
 	{
-		if (dbgNetwork->isBeingDebugged())
-			dbgNetwork->getParentHolder()->toggleDebug();
-
-		dynamic_cast<BackendProcessor*>(getMainController())->workbenches.setCurrentWorkbench(nullptr, true);
+		dynamic_cast<BackendProcessor*>(getMainController())->workbenches.setCurrentWorkbench(prevWb, false);
+		prevWb = nullptr;
+		wb = nullptr;
 	}
 
 	void resized() override
@@ -1314,11 +1313,12 @@ struct ScriptnodeDebugPopup: public Component,
 		}
 	}
 
+	snex::ui::WorkbenchData::Ptr prevWb;
+
 	WeakReference<DspNetwork> dbgNetwork;
 	snex::ui::WorkbenchData::Ptr wb;
 	FloatingTile root;
 	juce::ResizableCornerComponent resizer;
-	
 };
 #endif
 
@@ -1338,7 +1338,12 @@ bool DspNetworkGraph::Actions::toggleDebug(DspNetworkGraph& g)
 		{
 			if (b->getName() == "debug")
 			{
-				w->showComponentInRootPopup(new ScriptnodeDebugPopup(w->getMainController(), dbg), b, { b->getLocalBounds().getCentreX(), b->getHeight() }, false);
+				auto wb = new snex::ui::WorkbenchData();
+				
+				wb->setCompileHandler(new PopupCompileHandler(wb, dbg));
+				wb->setCodeProvider(new PopupCodeProvider(wb, dbg));
+
+				w->showComponentInRootPopup(new ScriptnodeDebugPopup(w->getMainController(), wb, dbg), b, { b->getLocalBounds().getCentreX(), b->getHeight() }, false);
 				return true;
 			}
 		}

@@ -1335,6 +1335,8 @@ public:
 
 	void setBufferToPlay(const AudioSampleBuffer& buffer);
 
+	int getPreviewBufferPosition() const;
+
 	void setKeyboardCoulour(int keyNumber, Colour colour);
 
 	CustomKeyboardState &getKeyboardState();

@@ -284,7 +284,8 @@ void FloatingTilePopup::buttonClicked(Button* b)
 		rebuildBoxPath();
 		repaint();
 
-		findParentComponentOfClass<FloatingTile>()->toggleDetachPopup(this);
+		if(!skipToggle)
+			findParentComponentOfClass<FloatingTile>()->toggleDetachPopup(this);
 
 		if (!moveButton.getToggleState())
 		{
@@ -553,6 +554,15 @@ FloatingTile::FloatingTile(MainController* mc_, FloatingTileContainer* parent, v
 	//layoutIcon.loadPathFromData(ColumnIcons::layoutIcon, sizeof(ColumnIcons::layoutIcon));
 
 	setContent(data);
+}
+
+void FloatingTile::forEachDetachedPopup(const std::function<void(FloatingTilePopup* p)>& f)
+{
+	if (getParentType() != ParentType::Root)
+		getRootFloatingTile()->forEachDetachedPopup(f);
+
+	for (auto p : detachedPopups)
+		f(p);
 }
 
 bool FloatingTile::isEmpty() const
@@ -1291,6 +1301,8 @@ struct ResizableViewport: public Component,
 		jassert(ownedC->getHeight() != 0);
 		addAndMakeVisible(fixComponent = ownedC);
 		
+		maxHeight -= fixComponent->getHeight();
+
 		if (maximiseButton.getToggleState())
 			maximise();
 	}
@@ -1377,7 +1389,7 @@ struct ResizableViewport: public Component,
     
     HiseShapeButton maximiseButton;
     
-    const int maxHeight;
+    int maxHeight;
     int defaultHeight;
 };
 
@@ -1438,6 +1450,7 @@ FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponen
 			currentPopup->updatePosition();
 			currentPopup->setVisible(false);
 			Desktop::getInstance().getAnimator().fadeIn(currentPopup, 150);
+			currentPopup->grabKeyboardFocusAsync();
 		}
 		else
 		{
@@ -1477,9 +1490,12 @@ hise::FloatingTilePopup* FloatingTile::showComponentAsDetachedPopup(Component* n
 	detachedPopups.add(newPopup);
 
 	newPopup->updatePosition();
-	newPopup->moveButton.triggerClick();
+	newPopup->skipToggle = true;
+	newPopup->moveButton.triggerClick(sendNotificationSync);
+	newPopup->skipToggle = false;
 	newPopup->rebuildBoxPath();
 	newPopup->grabKeyboardFocusAsync();
+	newPopup->moveButton.setVisible(false);
 
 	return newPopup;
 }
@@ -1491,6 +1507,16 @@ void FloatingTilePopup::addFixComponent(Component* c)
 		vp->addFixComponent(c);
 		updatePosition();
 	}
+}
+
+Component* FloatingTilePopup::getTrueContent()
+{
+	if (auto vp = dynamic_cast<ResizableViewport*>(content.get()))
+	{
+		return vp->vp.getViewedComponent();
+	}
+
+	return content.get();
 }
 
 void FloatingTilePopup::updatePosition()

@@ -122,7 +122,21 @@ public:
 
     std::function<void(bool)> onDetach;
     
+	bool skipToggle = false;
+
+	Component* getTrueContent();
+
+	template <typename ComponentType> ComponentType* getContent()
+	{
+		if(auto c = dynamic_cast<ComponentType*>(getTrueContent()))
+			return c;
+
+		return nullptr;
+	}
+
 private:
+
+	
 
 	bool dragging = false;
 	ComponentDragger dragger;
@@ -502,7 +516,7 @@ public:
 
 	FloatingTile(MainController* mc, FloatingTileContainer* parent, var data=var());
 
-	
+	void forEachDetachedPopup(const std::function<void(FloatingTilePopup* p)>& f);
 
 	~FloatingTile()
 	{

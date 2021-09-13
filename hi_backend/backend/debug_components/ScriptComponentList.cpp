@@ -693,11 +693,13 @@ void ScriptComponentList::resetRootItem()
 	auto v = content->getContentProperties();
 
 	tree->setRootItem(nullptr);
-    
+	tree->setDefaultOpenness(true);
+
 	rootItem = new ScriptComponentListItem(v, undoManager, content, searchTerm);
     
 	tree->setRootItem(rootItem);
 
+	
 	if (openState != nullptr)
 	{
 		tree->restoreOpennessState(*openState, false);

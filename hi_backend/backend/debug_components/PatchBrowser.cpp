@@ -38,7 +38,7 @@ PatchBrowser::PatchBrowser(BackendRootWindow *window) :
 SearchableListComponent(window),
 editor(window->getMainPanel()),
 rootWindow(window),
-showChains(true)
+showChains(false)
 {
 	setName("Patch Browser");
 
@@ -51,7 +51,7 @@ showChains(true)
     addAndMakeVisible(addButton = new HiseShapeButton("add", this, f));
     addButton->setToggleModeWithColourChange(true);
 	addButton->setTooltip("Edit Module Tree");
-    addButton->setToggleStateAndUpdateIcon(true);
+    addButton->setToggleStateAndUpdateIcon(false);
 	
 	addCustomButton(addButton);
 	
@@ -178,25 +178,111 @@ void PatchBrowser::itemDropped(const SourceDetails& dragSourceDetails)
 }
 
 
+
+void PatchBrowser::refreshBypassState()
+{
+	Component::callRecursive<Component>(this, [](Component* c)
+	{
+		auto somethingBypassed = false;
+
+		Processor* p = nullptr;
+
+		if (auto pc = dynamic_cast<PatchCollection*>(c))
+			p = pc->getProcessor();
+		else if (auto pi = dynamic_cast<PatchItem*>(c))
+			p = pi->getProcessor();
+		else
+			return false;
+		
+		somethingBypassed |= p->isBypassed();
+
+		while (!somethingBypassed && p != nullptr)
+		{
+			somethingBypassed |= p->isBypassed();
+			p = p->getParentProcessor(false);
+		}
+
+		dynamic_cast<ModuleDragTarget*>(c)->bypassed = somethingBypassed;
+		c->repaint();
+
+		return false;
+	});
+}
+
+void PatchBrowser::processorChanged(PatchBrowser& pb, Processor* oldProcessor, Processor* newProcessor)
+{
+	pb.popupProcessors.removeAllInstancesOf(oldProcessor);
+	pb.popupProcessors.addIfNotAlreadyThere(newProcessor);
+
+	pb.refreshPopupState();
+
+}
+
 void PatchBrowser::showProcessorInPopup(Component* c, const MouseEvent& e, Processor* p)
 {
 	auto bp = c->findParentComponentOfClass<PatchBrowser>();
-	auto b = c->getLocalBounds();
-	b = bp->getLocalArea(c, b);
-	auto pe = DebugableObject::Helpers::showProcessorEditorPopup(e, c, p);
 	auto ft = GET_BACKEND_ROOT_WINDOW(c)->getRootFloatingTile();
-	Component::SafePointer<FloatingTilePopup> safePopup = ft->showComponentAsDetachedPopup(pe, bp, { b.getCentreX(), b.getY() + 7 }, true);
 
-	auto newC = new BreadcrumbComponent(dynamic_cast<ProcessorEditorContainer*>(pe));
-	newC->setSize(100, 28);
+	auto shouldShow = !bp->popupProcessors.contains(p);
 
-	safePopup->addFixComponent(newC);
-
-	dynamic_cast<ProcessorEditorContainer*>(pe)->deleteCallback = [safePopup]()
+	if (shouldShow)
 	{
-		if (safePopup.getComponent())
-			safePopup->deleteAndClose();
-	};
+		if (!e.mods.isCommandDown())
+		{
+			ft->forEachDetachedPopup([p](FloatingTilePopup* ftp)
+				{
+					if (auto pe = ftp->getContent<ProcessorEditorContainer>())
+					{
+						ftp->deleteAndClose();
+					}
+				});
+		}
+
+		auto b = c->getLocalBounds();
+		b = bp->getLocalArea(c, b);
+		auto pe = dynamic_cast<ProcessorEditorContainer*>(DebugableObject::Helpers::showProcessorEditorPopup(e, c, p));
+		
+		Component::SafePointer<FloatingTilePopup> safePopup = ft->showComponentAsDetachedPopup(pe, bp, { b.getCentreX(), b.getY() + 30 }, true);
+
+		pe->rootBroadcaster.addListener(*bp, PatchBrowser::processorChanged);
+
+		auto newC = new BreadcrumbComponent(pe);
+		newC->setSize(100, 28);
+
+		safePopup->addFixComponent(newC);
+
+		dynamic_cast<ProcessorEditorContainer*>(pe)->deleteCallback = [safePopup]()
+		{
+			if (safePopup.getComponent())
+				safePopup->deleteAndClose();
+		};
+	}
+	else
+	{
+		ft->forEachDetachedPopup([p](FloatingTilePopup* ftp)
+		{
+			if (auto pe = ftp->getContent<ProcessorEditorContainer>())
+			{
+				if(pe->getRootEditor()->getProcessor() == p)
+					ftp->deleteAndClose();
+			}
+		});
+	}
+}
+
+void PatchBrowser::refreshPopupState()
+{
+	Component::callRecursive<PatchCollection>(this, [this](PatchCollection* pc)
+	{
+		pc->setInPopup(popupProcessors.contains(pc->getProcessor()));
+		return false;
+	});
+
+	Component::callRecursive<PatchItem>(this, [this](PatchItem* item)
+	{
+		item->setInPopup(popupProcessors.contains(item->getProcessor()));
+		return false;
+	});
 }
 
 int PatchBrowser::getNumCollectionsToCreate() const
@@ -504,15 +590,20 @@ root(synth),
 hierarchy(hierarchy_),
 peak(synth)
 {
+	synth->addBypassListener(this);
 	addAndMakeVisible(peak);
 	addAndMakeVisible(foldButton = new ShapeButton("Fold Overview", Colour(0xFF222222), Colours::white.withAlpha(0.4f), Colour(0xFF222222)));
 
-    
+	setRepaintsOnMouseActivity(true);
     
 	gotoWorkspace = PatchBrowser::skinWorkspaceButton(synth);
 
-    if(gotoWorkspace != nullptr)
-        addAndMakeVisible(gotoWorkspace);
+	if (gotoWorkspace != nullptr)
+	{
+		addAndMakeVisible(gotoWorkspace);
+		gotoWorkspace->addMouseListener(this, true);
+	}
+        
     
 	foldButton->addListener(this);
 
@@ -569,30 +660,32 @@ peak(synth)
 
 PatchBrowser::PatchCollection::~PatchCollection()
 {
+	if(getProcessor() != nullptr)
+		getProcessor()->removeBypassListener(this);
 }
 
 void PatchBrowser::PatchCollection::mouseDown(const MouseEvent& e)
 {
+	if (e.eventComponent == gotoWorkspace)
+		return;
+
     if(auto pb = findParentComponentOfClass<PatchBrowser>())
     {
-        if(pb->showChains)
+		if(e.mods.isRightButtonDown())
         {
             auto p = getProcessor();
             
             if(auto c = dynamic_cast<Chain*>(p))
-            {
                 ProcessorEditor::createProcessorFromPopup(this, p, nullptr);
-            }
             else
-            {
                 ProcessorEditor::createProcessorFromPopup(this, p->getParentProcessor(false), p);
-            }
             return;
         }
+		else if (getProcessor() != nullptr)
+			PatchBrowser::showProcessorInPopup(this, e, getProcessor());
     }
 
-	if (getProcessor() != nullptr)
-		PatchBrowser::showProcessorInPopup(this, e, getProcessor());
+	
 }
 
 void PatchBrowser::PatchCollection::paint(Graphics &g)
@@ -631,16 +724,22 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 
 	g.drawRoundedRectangle(iconSpace, 2.0f, 2.0f);
 
-    if (isMouseOver(false))
+    if (isMouseOver(false) || (gotoWorkspace != nullptr && gotoWorkspace->isMouseOver(true)))
     {
         g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
         g.drawRoundedRectangle(iconSpace2, 2.0f, 1.0f);
+		
     }
     
-	g.setColour(Colours::white.withAlpha(0.7f));
+	if (inPopup)
+	{
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.1f));
+		g.fillRoundedRectangle(iconSpace2, 2.0f);
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.6f));
+		g.drawRoundedRectangle(iconSpace2, 2.0f, 1.0f);
+	}
 
-    
-    
+	g.setColour(Colours::white.withAlpha(bypassed ? 0.2f : 0.8f));
 	g.drawText(root->getId(), (int)iconSpace.getRight() + 18, 10, getWidth(), 20, Justification::centredLeft, false);
 }
 
@@ -679,12 +778,15 @@ void PatchBrowser::PatchCollection::resized()
     
 	foldButton->setBounds(iconSpace.reduced(6));
 
+	
 
-
-	peak.setBounds(iconSpace.removeFromRight(9).translated(12, 0).reduced(0, 3));
+	peak.setBounds(iconSpace.removeFromRight(9).translated(12 + getIntendation(), 0));
 
 	if (gotoWorkspace != nullptr)
-		gotoWorkspace->setBounds(b.removeFromRight(b.getHeight()).reduced(13));
+	{
+		gotoWorkspace->setBorderSize(BorderSize<int>(JUCE_LIVE_CONSTANT_OFF(12)));
+		gotoWorkspace->setBounds(b.removeFromRight(b.getHeight()));
+	}
 }
 
 void PatchBrowser::PatchCollection::buttonClicked(Button *b)
@@ -739,17 +841,29 @@ parent(parent_),
 lastId(String()),
 hierarchy(hierarchy_),
 lastMouseDown(0),
-peak(p)
+peak(p),
+closeButton("close", nullptr, f),
+createButton("create", nullptr, f)
 {
+	addAndMakeVisible(closeButton);
+	addAndMakeVisible(createButton);
+	p->addBypassListener(this);
+
     addAndMakeVisible(idLabel = new Label());
 	addAndMakeVisible(gotoWorkspace);
 	addAndMakeVisible(peak);
 
     gotoWorkspace = PatchBrowser::skinWorkspaceButton(getProcessor());
 
-    if(gotoWorkspace != nullptr)
-        addAndMakeVisible(gotoWorkspace);
+	if (gotoWorkspace != nullptr)
+	{
+		addAndMakeVisible(gotoWorkspace);
+		gotoWorkspace->addMouseListener(this, true);
+	}
+        
     
+
+	setRepaintsOnMouseActivity(true);
 
     //idLabel->setEditable(false);
     //idLabel->addMouseListener(this, true);
@@ -773,7 +887,8 @@ peak(p)
 
 PatchBrowser::PatchItem::~PatchItem()
 {
-	
+	if(getProcessor() != nullptr)
+		getProcessor()->removeBypassListener(this);
 }
 
 
@@ -906,6 +1021,19 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 
 void PatchBrowser::PatchItem::mouseDown(const MouseEvent& e)
 {
+	if (e.eventComponent == gotoWorkspace)
+		return;
+
+	auto canBeBypassed = dynamic_cast<Chain*>(getProcessor()) == nullptr;
+	canBeBypassed |= dynamic_cast<ModulatorSynth*>(getProcessor()) != nullptr;
+
+	if (bypassArea.contains(e.getPosition()) && canBeBypassed)
+	{
+		bool shouldBeBypassed = !getProcessor()->isBypassed();
+		getProcessor()->setBypassed(shouldBeBypassed, sendNotification);
+		return;
+	}
+
     const bool isEditable = dynamic_cast<Chain*>(processor.get()) == nullptr ||
 		dynamic_cast<ModulatorSynth*>(processor.get()) != nullptr;
 
@@ -915,26 +1043,21 @@ void PatchBrowser::PatchItem::mouseDown(const MouseEvent& e)
 		return;
 	}
 
-	Item::mouseDown(e);
-
     if(auto pb = findParentComponentOfClass<PatchBrowser>())
     {
-        if(pb->showChains)
-        {
-            if(auto c = dynamic_cast<Chain*>(processor.get()))
-            {
-                ProcessorEditor::createProcessorFromPopup(this, processor, nullptr);
-            }
-            else
-            {
-                ProcessorEditor::createProcessorFromPopup(this, processor->getParentProcessor(false), processor);
-            }
-            return;
-        }
+		if (e.mods.isRightButtonDown())
+		{
+			if (auto c = dynamic_cast<Chain*>(processor.get()))
+				ProcessorEditor::createProcessorFromPopup(this, processor, nullptr);
+			else
+				ProcessorEditor::createProcessorFromPopup(this, processor->getParentProcessor(false), processor);
+		}
+		else
+		{
+			if (processor.get() != nullptr)
+				PatchBrowser::showProcessorInPopup(this, e, processor);
+		}
     }
-    
-	if (processor.get() != nullptr)
-		PatchBrowser::showProcessorInPopup(this, e, processor);
 }
 
 void PatchBrowser::PatchItem::resized()
@@ -944,11 +1067,30 @@ void PatchBrowser::PatchItem::resized()
 	b.removeFromLeft(hierarchy * 10 + 10);
 	b.removeFromLeft(b.getHeight() + 2);
 
-	peak.setBounds(b.removeFromLeft(9).reduced(0, 2));
-	peak.setVisible(dynamic_cast<MidiProcessor*>(getProcessor()) == nullptr);
+	//peak.setVisible(dynamic_cast<MidiProcessor*>(getProcessor()) == nullptr);
+
+	auto canBeDeleted = dynamic_cast<Chain*>(getProcessor()) == nullptr;
+	canBeDeleted |= dynamic_cast<ModulatorSynth*>(getProcessor()) != nullptr;
+	canBeDeleted &= getProcessor() != getProcessor()->getMainController()->getMainSynthChain();
+
+	if (canBeDeleted)
+	{
+		closeButton.setBorderSize(BorderSize<int>(2));
+		closeButton.setBounds(b.removeFromRight(getHeight()));
+	}
+		
+	if (dynamic_cast<Chain*>(getProcessor()) != nullptr)
+	{
+		createButton.setBorderSize(BorderSize<int>(2));
+		createButton.setBounds(b.removeFromRight(getHeight()));
+	}
 
 	if (gotoWorkspace != nullptr)
-		gotoWorkspace->setBounds(getLocalBounds().removeFromRight(getHeight()).reduced(3));
+	{
+		gotoWorkspace->setBorderSize(BorderSize<int>(3, 13, 3, 3));
+		gotoWorkspace->setBounds(b.removeFromRight(getHeight() + 10));
+	}
+		
 }
 
 void PatchBrowser::rebuilt()
@@ -975,16 +1117,27 @@ void PatchBrowser::rebuilt()
             }
         }
     }
+
+	refreshPopupState();
 }
 
 void PatchBrowser::PatchItem::paint(Graphics& g)
 {
+	idLabel->setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(bypassed ? 0.2f : 0.8f));
+
 	if (processor.get() != nullptr)
 	{
 		auto b = getLocalBounds().toFloat();
 
 		b.removeFromLeft(hierarchy * 10.0f + 10.0f);
 		b.removeFromLeft(findParentComponentOfClass<PatchCollection>()->getIntendation());
+
+		auto pb = findParentComponentOfClass<PatchBrowser>();
+
+		if (pb->showChains)
+		{
+			b.removeFromRight(getHeight());
+		}
 
 		const bool isRoot = GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()->getRootProcessor() == processor;
 
@@ -995,21 +1148,25 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 
 		g.fillRoundedRectangle(b.reduced(1.0f), 2.0f);
 
-		if (isMouseOver(true) || idLabel->isMouseOver(true))
+		if (isMouseOver(true))
 		{
-            g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
 			g.drawRoundedRectangle(b.reduced(1.0f), 2.0f, 1.0f);
 		}
 		
-		g.setColour(processor->getColour());
-
-		if (getProcessor()->isBypassed())
+		if (inPopup)
 		{
-			g.setColour(Colours::black.withAlpha(0.2f));
-			g.fillRoundedRectangle(b, 2.0f);
+			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.1f));
+			g.fillRoundedRectangle(b.reduced(1.0f), 2.0f);
+			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.6f));
+			g.drawRoundedRectangle(b.reduced(1.0f), 2.0f, 1.0f);
 		}
 
+		g.setColour(processor->getColour().withAlpha(!bypassed ? 1.0f : 0.5f));
+
 		auto iconSpace = b.removeFromLeft(b.getHeight()).reduced(2.0f);
+
+		bypassArea = iconSpace.toNearestInt();
 
 		g.fillRoundedRectangle(iconSpace, 2.0f);
 
@@ -1021,7 +1178,9 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 		
         if(lastId != processor->getId())
         {
-			b.removeFromLeft(9.0f);
+			peak.setBounds(b.removeFromLeft(b.getHeight() - JUCE_LIVE_CONSTANT_OFF(8)).toNearestInt());
+
+			//b.removeFromLeft(9.0f);
             idLabel->setFont(GLOBAL_BOLD_FONT());
             idLabel->setJustificationType(Justification::centredLeft);
             idLabel->setBounds(b.toNearestInt());
@@ -1034,6 +1193,49 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 	}
 }
 
+struct PlotterPopup: public Component
+{
+	PlotterPopup(Processor* m_):
+		m(m_),
+		resizer(this, nullptr)
+	{
+		dynamic_cast<Modulation*>(m.get())->setPlotter(&p);
+		addAndMakeVisible(p);
+		addAndMakeVisible(resizer);
+
+		setName("Plotter: " + m_->getId());
+		setSize(280, 200);
+		p.setOpaque(false);
+		p.setColour(Plotter::ColourIds::backgroundColour, Colour(0));
+		
+	}
+
+	void resized() override
+	{
+		p.setBounds(getLocalBounds().reduced(20));
+		resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
+	}
+
+	~PlotterPopup()
+	{
+		if(m != nullptr)
+			dynamic_cast<Modulation*>(m.get())->setPlotter(nullptr);
+	}
+
+	WeakReference<Processor> m;
+	Plotter p;
+	juce::ResizableCornerComponent resizer;
+};
+
+void PatchBrowser::MiniPeak::mouseDown(const MouseEvent& e)
+{
+	auto pl = new PlotterPopup(p);
+	
+	
+
+	GET_BACKEND_ROOT_WINDOW(this)->getRootFloatingTile()->showComponentInRootPopup(pl, getParentComponent(), { 100, 35 }, false);
+}
+
 void PatchBrowser::MiniPeak::paint(Graphics& g)
 {
     if(p.get() == nullptr)
@@ -1041,32 +1243,124 @@ void PatchBrowser::MiniPeak::paint(Graphics& g)
     
 	auto area = getLocalBounds().toFloat().reduced(1.0f);
 
-	Rectangle<float> la, ra;
-
-	if (isMono)
-		la = area.removeFromRight(3.0f);
-	else
+	switch (type)
 	{
+	case ProcessorType::Audio:
+	{
+		area = area.reduced(0.0f, 3.0f);
+
+		Rectangle<float> la, ra;
+
 		ra = area.removeFromRight(3.0f);
 		area.removeFromRight(1.0f);
 		la = area.removeFromRight(3.0f);
+
+		g.setColour(Colours::white.withAlpha(0.2f));
+
+		g.fillRect(la);
+		g.fillRect(ra);
+
+		g.setColour(Colours::white.withAlpha(0.7f));
+
+		auto skew = JUCE_LIVE_CONSTANT_OFF(0.4f);
+
+		auto lpeak = std::pow(jlimit(0.0f, 1.0f, l), skew);
+		auto rpeak = std::pow(jlimit(0.0f, 1.0f, r), skew);
+
+		la = la.removeFromBottom(lpeak * la.getHeight());
+		ra = ra.removeFromBottom(rpeak * ra.getHeight());
+
+		g.fillRect(la);
+		g.fillRect(ra);
+
+		break;
 	}
+	case ProcessorType::Mod:
+	{
+		if (auto c = dynamic_cast<Chain*>(p.get()))
+		{
+			if (c->getHandler()->getNumProcessors() == 0)
+				return;
+		}
 
-	g.setColour(Colours::white.withAlpha(0.2f));
+		auto b = getLocalBounds().withSizeKeepingCentre(getWidth(), getWidth()).reduced(JUCE_LIVE_CONSTANT(3));
+		g.setColour(Colours::black.withAlpha(0.4f));
+		g.fillEllipse(b.toFloat());
 
-	g.fillRect(la);
-	g.fillRect(ra);
+		g.setColour(p->getColour().withAlpha(l));
+		g.fillEllipse(b.toFloat().reduced(1.0f));
+		break;
+	}
+	case ProcessorType::Midi:
+	{
+		Path mp;
+		mp.loadPathFromData(HiBinaryData::SpecialSymbols::midiData, sizeof(HiBinaryData::SpecialSymbols::midiData));
+		PathFactory::scalePath(mp, getLocalBounds().toFloat().reduced(1.0f));
+		g.setColour(Colours::white.withAlpha(0.2f));
+		g.fillPath(mp);
+		g.setColour(p->getColour());
 
-	g.setColour(p->getColour());
+		if (auto synth = dynamic_cast<ModulatorSynth*>(p->getParentProcessor(true)))
+		{
+			g.setColour(Colours::white.withAlpha(l));
+			g.fillPath(mp);
+		}
 
-	if (dynamic_cast<ModulatorSynth*>(p.get()) != nullptr)
-		g.setColour(Colours::white.withAlpha(0.8f));
+		break;
+	}
+	}
+}
 
-	la = la.removeFromBottom(l * la.getHeight());
-	ra = ra.removeFromBottom(r * ra.getHeight());
+void PatchBrowser::MiniPeak::timerCallback()
+{
+	if (p == nullptr)
+		return;
 
-	g.fillRect(la);
-	g.fillRect(ra);
+	switch (type)
+	{
+	case ProcessorType::Mod:
+	{
+		auto newValue = getModValue();
+
+		if (l != newValue)
+		{
+			l = newValue;
+			repaint();
+		}
+
+		break;
+	}
+	case ProcessorType::Midi:
+	{
+		auto newValue = dynamic_cast<ModulatorSynth*>(p->getParentProcessor(true))->getMidiInputFlag();
+
+		if (l != newValue)
+		{
+			l = newValue;
+			repaint();
+		}
+		
+		break;
+	}
+	case ProcessorType::Audio:
+	{
+		const auto& v = p->getDisplayValues();
+
+		if (v.outL != l || v.outR != r)
+		{
+			auto decay = JUCE_LIVE_CONSTANT_OFF(0.7f);
+			l = jmax(l *= decay, v.outL);
+			r = jmax(r *= decay, v.outR);
+
+			if (l < 0.001f)
+				l = 0.0f;
+			if (r < 0.001f)
+				r = 0.0f;
+
+			repaint();
+		}
+	}
+	}
 }
 
 } // namespace hise

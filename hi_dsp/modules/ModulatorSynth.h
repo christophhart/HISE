@@ -470,7 +470,7 @@ public:
 
 	BigInteger disabledChains;
 
-	bool getMidiInputFlag();
+	float getMidiInputFlag();
 
 	void setSoftBypass(bool shouldBeBypassed, bool bypassFXToo);
 
@@ -564,7 +564,8 @@ private:
 
 	ModulatorSynthGroup *group;
 
-	bool midiInputFlag;
+	float midiInputAlpha = 0.0f;
+	
 	bool wasPlayingInLastBuffer;
 
 	std::atomic<float> gain;

@@ -479,8 +479,11 @@ void BackendRootWindow::loadNewContainer(ValueTree & v)
 
 	mainEditor->loadNewContainer(v);
 
-	
-
+	if (auto jsp = ProcessorHelpers::getFirstProcessorWithType<JavascriptMidiProcessor>(getMainSynthChain()))
+	{
+		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
+		BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+	}
 }
 
 void BackendRootWindow::loadNewContainer(const File &f)

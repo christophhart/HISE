@@ -50,33 +50,55 @@ public:
 	struct MiniPeak : public Component,
 					  public PooledUIUpdater::SimpleTimer
 	{
+		enum class ProcessorType
+		{
+			Midi,
+			Audio,
+			Mod
+		};
+
 		MiniPeak(Processor* p_) :
 			PooledUIUpdater::SimpleTimer(p_->getMainController()->getGlobalUIUpdater()),
 			p(p_),
 			isMono(dynamic_cast<Modulator*>(p_) != nullptr)
 		{
+			if (dynamic_cast<MidiProcessor*>(p_) != nullptr)
+				type = ProcessorType::Midi;
+			else if (dynamic_cast<Modulator*>(p_) != nullptr)
+				type = ProcessorType::Mod;
+			else
+				type = ProcessorType::Audio;
+
+			setInterceptsMouseClicks(type == ProcessorType::Mod, false);
 		};
+
+		void mouseDown(const MouseEvent& e) override;
 
 		void paint(Graphics& g) override;
 
-		void timerCallback() override
+		float getModValue()
 		{
-			if (p == nullptr)
-				return;
+			auto v = p->getDisplayValues().outL;
 
-			const auto& v = p->getDisplayValues();
-
-			if (v.outL != l ||
-				(!isMono && v.outR != r))
+			if (dynamic_cast<Modulation*>(p.get())->getMode() == Modulation::PitchMode)
 			{
-				l = v.outL;
-				r = v.outR;
-				repaint();
+				if (v != 0.0f)
+					v = log2(v) * 0.5f + 0.5f;
 			}
+
+			v = dynamic_cast<Modulation*>(p.get())->calcIntensityValue(v);
+			v = jlimit(0.0f, 1.0f, v);
+
+			return v;
 		}
 
+		void timerCallback() override;
+
 		const bool isMono;
-		float l, r;
+		float l = 0.0f;
+		float r = 0.0f;
+
+		ProcessorType type;
 
 		WeakReference<Processor> p;
 	};
@@ -98,7 +120,9 @@ public:
             Path p;
             LOAD_PATH_IF_URL("add", EditorIcons::penShape);
             LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
-            
+			LOAD_PATH_IF_URL("close", SampleMapIcons::deleteSamples);
+			LOAD_PATH_IF_URL("create", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
+
             return p;
         }
     };
@@ -113,7 +137,13 @@ public:
 	void itemDragMove(const SourceDetails& dragSourceDetails) override;
 	void itemDropped(const SourceDetails& dragSourceDetails) override;
 
+	void refreshBypassState();
+
+	static void processorChanged(PatchBrowser& pb, Processor* oldProcessor, Processor* newProcessor);
+
 	static void showProcessorInPopup(Component* c, const MouseEvent& e, Processor* p);
+
+	void refreshPopupState();
 
 	void moduleListChanged(Processor* /*changedProcessor*/, MainController::ProcessorChangeHandler::EventType type) override
 	{
@@ -185,6 +215,8 @@ private:
 
 		void setDraggingOver(bool isOver);
 
+		bool bypassed = false;
+
 	protected:
 
 		void setDragState(DragState newState) { dragState = newState; };
@@ -192,6 +224,7 @@ private:
 
 		void refreshAllButtonStates();
 		
+		Factory f;
 
 	private:
 
@@ -215,13 +248,20 @@ private:
 	// ====================================================================================================================
 
 	class PatchCollection : public SearchableListComponent::Collection,
-							public ModuleDragTarget
+							public ModuleDragTarget,
+							public Processor::BypassListener
 	{
 	public:
 
 		PatchCollection(ModulatorSynth *synth, int hierarchy, bool showChains);
 
 		~PatchCollection();
+
+		void bypassStateChanged(Processor* p, bool bypassState) override
+		{
+			if (auto pb = findParentComponentOfClass<PatchBrowser>())
+				pb->refreshBypassState();
+		}
 
 		void mouseDown(const MouseEvent& e) override;
 
@@ -235,6 +275,17 @@ private:
 
 		void paint(Graphics &g) override;
 		void resized() override;
+
+		void mouseEnter(const MouseEvent& e) override
+		{
+			repaint();
+		}
+
+		void mouseExit(const MouseEvent& e) override
+		{
+			repaint();
+		}
+
 
 		float getIntendation() const { return (float)hierarchy * 20.0f; }
 
@@ -256,11 +307,24 @@ private:
 
         ScopedPointer<HiseShapeButton> gotoWorkspace;
         
+		void setInPopup(bool isInPopup)
+		{
+			if (inPopup != isInPopup)
+			{
+				inPopup = isInPopup;
+				repaint();
+			}
+		}
+
+		
+
 	private:
+
+		bool inPopup = false;
 
         Factory f;
         
-        
+		
 		
 		ScopedPointer<ShapeButton> foldButton;
 
@@ -276,16 +340,33 @@ private:
 
 	class PatchItem :  public SearchableListComponent::Item,
 					   public ModuleDragTarget,
-                       public Label::Listener
+                       public Label::Listener,
+					   public Processor::BypassListener
 	{
 	public:
 
 		PatchItem(Processor *p, Processor *parent_, int hierarchy_, const String &searchTerm);
 		~PatchItem();
 
+		void bypassStateChanged(Processor* p, bool bypassState) override
+		{
+			if (auto pb = findParentComponentOfClass<PatchBrowser>())
+				pb->refreshBypassState();
+		}
+
         void paint(Graphics& g) override;
 
 		void mouseDown(const MouseEvent& e);
+
+		void mouseEnter(const MouseEvent& e) override
+		{
+			repaint();
+		}
+
+		void mouseExit(const MouseEvent& e) override
+		{
+			repaint();
+		}
 
 		int getPopupHeight() const override	{ return 0; };
 
@@ -318,12 +399,25 @@ private:
         }
 
         ScopedPointer<HiseShapeButton> gotoWorkspace;
-        
+		HiseShapeButton closeButton;
+		HiseShapeButton createButton;
+
+		void setInPopup(bool isInPopup)
+		{
+			if (inPopup != isInPopup)
+			{
+				inPopup = isInPopup;
+				repaint();
+			}
+		}
+
 	private:
 
+		bool inPopup = false;
         
         WeakReference<Processor> processor;
 
+		Rectangle<int> bypassArea;
 		
         WeakReference<Processor> parent;
         
@@ -347,6 +441,8 @@ private:
 	ScopedPointer<HiseShapeButton> addButton;
 	ScopedPointer<ShapeButton> foldButton;
 
+	Array<WeakReference<Processor>> popupProcessors;
+
 	bool foldAll;
 
 	bool showChains = false;
@@ -354,6 +450,7 @@ private:
 	// ====================================================================================================================
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchBrowser)
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PatchBrowser);
 };
 
 

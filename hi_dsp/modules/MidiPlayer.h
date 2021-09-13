@@ -698,6 +698,15 @@ class MidiPlayerBaseType : public MidiPlayer::SequenceListener,
 {
 public:
 
+	class TransportPaths : public PathFactory
+	{
+	public:
+
+		String getId() const override { return "MIDI Transport"; }
+
+		Path createPath(const String& name) const override;
+	};
+
 	// "Overwrite" this with your id for the factory
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("undefined"); }
 

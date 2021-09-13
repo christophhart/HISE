@@ -2360,6 +2360,24 @@ public:
 	/** This will simply skip the painting of this component without causing a repaint. */
 	void setSkipPainting(bool shouldSkip);
 
+	/** Recursively calls a function on all components with the given type. */
+	template <typename ComponentType=Component> static bool callRecursive(Component* root, const std::function<bool(ComponentType* c)>& f)
+	{
+		if (auto typed = dynamic_cast<ComponentType*>(root))
+		{
+			if (f(typed))
+				return true;
+		}
+			
+		for (int i = 0; i < root->getNumChildComponents(); i++)
+		{
+			if (callRecursive(root->getChildComponent(i), f))
+				return true;
+		}
+
+		return false;
+	}
+
 private:
     //==============================================================================
     friend class ComponentPeer;

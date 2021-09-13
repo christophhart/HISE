@@ -78,13 +78,10 @@ public:
 
     void workbenchChanged(WorkbenchData::Ptr newWorkbench) override
     {
-        if(newWorkbench != nullptr)
+        if(newWorkbench != nullptr && newWorkbench->getCodeProvider()->providesCode())
         {
             if(auto firstEditor = FloatingTileHelpers::findTileWithId<SnexEditorPanel>(getRootFloatingTile(), {}))
-            {
-                
                 firstEditor->getParentShell()->ensureVisibility();
-            }
         }
     }
     

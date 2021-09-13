@@ -276,11 +276,14 @@ void ScriptingContentOverlay::paint(Graphics& g)
 
 		auto mulAlpha = 1.0f - jlimit(0.0f, 1.0f, (1.0f / 3.0f * ug.getPixelSize()));
 
+		float tenAlpha = JUCE_LIVE_CONSTANT_OFF(0.15f);
+		float oneAlpha = JUCE_LIVE_CONSTANT_OFF(.06f);
+		
 		if (mulAlpha > 0.1f)
 		{
 			for (int x = 10; x < getWidth(); x += 10)
 			{
-				float alpha = (x % 100 == 0) ? 0.12f : 0.05f;
+				float alpha = (x % 100 == 0) ? tenAlpha : oneAlpha;
 				alpha *= mulAlpha;
 				g.setColour(lineColour.withAlpha(alpha));
 				ug.draw1PxVerticalLine(x, 0.0f, (float)getHeight());
@@ -288,7 +291,7 @@ void ScriptingContentOverlay::paint(Graphics& g)
 
 			for (int y = 10; y < getHeight(); y += 10)
 			{
-				float alpha = (y % 100 == 0) ? 0.12f : 0.05f;
+				float alpha = (y % 100 == 0) ? tenAlpha : oneAlpha;
 				alpha *= mulAlpha;
 				g.setColour(lineColour.withAlpha(alpha));
 				ug.draw1PxHorizontalLine(y, 0.0f, (float)getWidth());
@@ -449,6 +452,18 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 	return false;
 }
 
+bool isParent(ScriptComponent* cp, ScriptComponent* possibleParent)
+{
+	if (cp == nullptr)
+		return false;
+
+	auto thisParent = cp->getParentScriptComponent();
+
+	if (thisParent == possibleParent)
+		return true;
+
+	return isParent(thisParent, possibleParent);
+}
 
 void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &itemsFound, const Rectangle< int > &area)
 {
@@ -464,9 +479,26 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 	
 
 	ScriptComponentSelection newSelection;
+	bool isTwo = itemsFound.size() == 2;
+	for (int i = 0; i < itemsFound.size(); i++)
+	{
+		auto sc = itemsFound[i];
+
+		for (int j = 0; j < itemsFound.size(); j++)
+		{
+			if (isParent(sc, itemsFound[j]))
+			{
+				itemsFound.remove(i--);
+				break;
+			}
+		}
+	}
 
 	for (auto i : itemsFound)
+	{
 		newSelection.addIfNotAlreadyThere(i);
+	}
+		
 
 	b->setSelection(newSelection, sendNotificationAsync);
 }
@@ -566,7 +598,11 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 				if (parent != nullptr)
 				{
-					if (auto d = draggers.getFirst())
+					auto parentBounds = ApiHelpers::getRectangleFromVar(parent->getLocalBounds(0)).toNearestInt();
+
+					if (!parentBounds.contains(insertX, insertY ))
+						parent = nullptr;
+					else if (auto d = draggers.getFirst())
 					{
 						auto bounds = d->getLocalArea(this, d->getLocalBounds());
 
@@ -738,7 +774,7 @@ void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 	if (e.mods.isRightButtonDown())
 		return;
 
-	constrainer.setRasteredMovement(e.mods.isCommandDown());
+	constrainer.setRasteredMovement(!e.mods.isCommandDown());
 	constrainer.setLockedMovement(e.mods.isShiftDown());
 
 	

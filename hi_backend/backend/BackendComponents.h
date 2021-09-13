@@ -171,7 +171,7 @@ public:
 
 	void refreshBreadcrumbs();
 
-	static void newRoot(BreadcrumbComponent& b, Processor*)
+	static void newRoot(BreadcrumbComponent& b, Processor* oldRoot, Processor* newRoot)
 	{
 		b.refreshBreadcrumbs();
 	}

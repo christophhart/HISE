@@ -394,6 +394,13 @@ void BackendProcessorEditor::clearPreset()
 	{
 		p->getMainController()->clearPreset(); 
 		auto jsp = dynamic_cast<BackendProcessor*>(p->getMainController())->createInterface(600, 500);
+
+		MessageManager::callAsync([rw, jsp]()
+		{
+			BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rw, jsp);
+			BackendPanelHelpers::showWorkspace(rw, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+		});
+
 		return SafeFunctionCall::OK;
 	});
 }
