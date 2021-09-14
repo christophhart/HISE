@@ -2361,8 +2361,21 @@ public:
 	void setSkipPainting(bool shouldSkip);
 
 	/** Recursively calls a function on all components with the given type. */
-	template <typename ComponentType=Component> static bool callRecursive(Component* root, const std::function<bool(ComponentType* c)>& f)
+	template <typename ComponentType=Component> static bool callRecursive(Component* root, const std::function<bool(ComponentType* c)>& f, bool async=false)
 	{
+        if(async)
+        {
+            Component::SafePointer<Component> safeRoot(root);
+            
+            MessageManager::callAsync([safeRoot, f]()
+            {
+                if(safeRoot != nullptr)
+                    callRecursive<ComponentType>(safeRoot.getComponent(), f, false);
+            });
+            
+            return false;
+        }
+        
 		if (auto typed = dynamic_cast<ComponentType*>(root))
 		{
 			if (f(typed))

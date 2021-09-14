@@ -217,6 +217,15 @@ private:
 
 		bool bypassed = false;
 
+        virtual void applyLayout() = 0;
+        
+        ScopedPointer<HiseShapeButton> gotoWorkspace;
+        
+        static void setWorkspace(ModuleDragTarget& p, Processor* pr)
+        {
+            p.gotoWorkspace->setToggleStateAndUpdateIcon(pr == p.getProcessor());
+        }
+        
 	protected:
 
 		void setDragState(DragState newState) { dragState = newState; };
@@ -241,6 +250,8 @@ private:
         String id;
         bool itemBypassed;
 		bool isOver;
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE(ModuleDragTarget);
 	};
 
 	static HiseShapeButton* skinWorkspaceButton(Processor* processor);
@@ -287,6 +298,8 @@ private:
 		}
 
 
+        void applyLayout() override;
+        
 		float getIntendation() const { return (float)hierarchy * 20.0f; }
 
 		Point<int> getPointForTreeGraph(bool getStartPoint) const;
@@ -298,14 +311,11 @@ private:
 		void resetDragState();
 		void toggleShowChains();
 
-        static void setWorkspace(PatchCollection& p, Processor* pr)
-        {
-            p.gotoWorkspace->setToggleStateAndUpdateIcon(pr == p.getProcessor());
-        }
+        
         
 		MiniPeak peak;
 
-        ScopedPointer<HiseShapeButton> gotoWorkspace;
+        
         
 		void setInPopup(bool isInPopup)
 		{
@@ -377,7 +387,7 @@ private:
 		virtual Processor *getProcessor() override { return processor.get(); };
 		virtual const Processor *getProcessor() const override { return processor.get(); };
 
-        
+        void applyLayout() override;
         
         void labelTextChanged(Label *l) override
         {
@@ -391,14 +401,6 @@ private:
 
 		MiniPeak peak;
         
-        
-        
-        static void setWorkspace(PatchItem& p, Processor* pr)
-        {
-            p.gotoWorkspace->setToggleStateAndUpdateIcon(pr == p.processor.get());
-        }
-
-        ScopedPointer<HiseShapeButton> gotoWorkspace;
 		HiseShapeButton closeButton;
 		HiseShapeButton createButton;
 

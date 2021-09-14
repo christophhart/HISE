@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+static constexpr int TitleHeight = 18;
+
 namespace hise { using namespace juce;
 
 juce::Rectangle<int> FloatingTilePopup::getRectangle(RectangleType t) const
@@ -676,7 +678,7 @@ Rectangle<int> FloatingTile::getContentBounds()
 		return Rectangle<int>();
 
 	if (showTitle())
-		return Rectangle<int>(0, 16, getWidth(), getHeight() - 16);
+		return Rectangle<int>(0, TitleHeight, getWidth(), getHeight() - TitleHeight);
 	else
 		return getLocalBounds();
 }
@@ -1002,7 +1004,7 @@ void FloatingTile::paint(Graphics& g)
         g.setColour(Colours::white.withAlpha(0.2f));
         
         Path p = getIcon();
-        p.scaleToFit(1.0f, 17.0f, 14.0f, 14.0f, true);
+        p.scaleToFit(1.0f, 19.0f, 14.0f, 14.0f, true);
         g.fillPath(p);
     }
     
@@ -1012,9 +1014,14 @@ void FloatingTile::paint(Graphics& g)
 		g.setGradientFill(ColourGradient(Colour(0xFF222222), 0.0f, 0.0f,
 			Colour(0xFF151515), 0.0f, 16.0f, false));
 
-		g.fillRect(0, 0, getWidth(), 16);
+        auto area = getLocalBounds().removeFromTop(TitleHeight).toFloat();
+        
+		g.fillRect(area);
 
-		Rectangle<int> titleArea = Rectangle<int>(leftOffsetForTitleText, 0, rightOffsetForTitleText - leftOffsetForTitleText, 16);
+        g.setColour(Colours::white.withAlpha(0.1f));
+        g.drawRect(area.reduced(2.0f), 1.0f);
+        
+		Rectangle<int> titleArea = Rectangle<int>(leftOffsetForTitleText, 0, rightOffsetForTitleText - leftOffsetForTitleText, TitleHeight);
 
 		if (titleArea.getWidth() > 40)
 		{
@@ -1164,7 +1171,11 @@ void FloatingTile::resized()
 	if (LayoutHelpers::showFoldButton(this))
 	{
 		leftOffsetForTitleText = 16;
-		foldButton->setBounds(1, 1, 14, 14);
+        
+        foldButton->setBounds(getLocalBounds().removeFromTop(TitleHeight).removeFromLeft(TitleHeight));
+        foldButton->setBorderSize(BorderSize<int>(2));
+        
+		//foldButton->setBounds(1, 1, 14, 14);
 		foldButton->setVisible(LayoutHelpers::showFoldButton(this));
 	}
 	else

@@ -618,10 +618,10 @@ void WorkbenchTestPlayer::postPostCompile(WorkbenchData::Ptr wb)
 	VariantBuffer::Ptr il = new VariantBuffer(td.testSourceData.getWritePointer(0), td.testSourceData.getNumSamples());
 	VariantBuffer::Ptr ir = new VariantBuffer(td.testSourceData.getWritePointer(1), td.testSourceData.getNumSamples());
 	VariantBuffer::Ptr ol = new VariantBuffer(td.testOutputData.getWritePointer(0), td.testOutputData.getNumSamples());
-	VariantBuffer::Ptr or = new VariantBuffer(td.testOutputData.getWritePointer(1), td.testOutputData.getNumSamples());
+	VariantBuffer::Ptr or_ = new VariantBuffer(td.testOutputData.getWritePointer(1), td.testOutputData.getNumSamples());
 
 	inputPreview.setBuffer(var(il), var(ir));
-	outputPreview.setBuffer(var(ol), var(or));
+	outputPreview.setBuffer(var(ol), var(or_));
 }
 
 void WorkbenchTestPlayer::play()
