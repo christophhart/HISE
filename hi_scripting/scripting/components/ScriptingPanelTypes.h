@@ -182,6 +182,7 @@ public:
 		
 
 		static bool isSelected(Editor& e);
+		static bool isSingleSelection(Editor& e);
 
 		struct Actions
 		{

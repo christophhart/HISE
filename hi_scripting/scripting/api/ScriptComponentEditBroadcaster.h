@@ -118,6 +118,8 @@ public:
 		manager.clearUndoHistory();
 	}
 
+	
+
 	class Iterator
 	{
 	public:
@@ -322,7 +324,27 @@ public:
 	/* @internal. */
 	void sendSelectionChangeMessage();
 
+	void setCurrentlyLearnedComponent(ScriptComponent* c);
+
+	void setLearnMode(bool shouldBeEnabled);
+
+	bool learnModeEnabled() const { return learnMode; }
+
+	ScriptComponent* getCurrentlyLearnedComponent() { return currentlyLearnedComponent.get(); }
+
+	using LearnBroadcaster = LambdaBroadcaster<ScriptComponent*>;
+
+	LearnBroadcaster& getLearnBroadcaster() { return learnBroadcaster; }
+
+	void setLearnData(const MacroControlledObject::LearnData& d);
+
 private:
+
+	bool learnMode = false;
+
+	WeakReference<ScriptComponent> currentlyLearnedComponent;
+	LearnBroadcaster learnBroadcaster;
+	
 
 	ScopedPointer<ValueTreeUpdateWatcher> updateWatcher;
 

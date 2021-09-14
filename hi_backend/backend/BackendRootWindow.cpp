@@ -243,6 +243,8 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
     BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
     
     getBackendProcessor()->workbenches.addListener(this);
+
+	getBackendProcessor()->getScriptComponentEditBroadcaster()->getLearnBroadcaster().addListener(*this, BackendRootWindow::learnModeChanged);
 }
 
 
@@ -450,6 +452,12 @@ void BackendRootWindow::resetInterface()
 	}
 }
 
+void BackendRootWindow::learnModeChanged(BackendRootWindow& brw, ScriptComponent* c)
+{
+	brw.learnMode = c != nullptr;
+	brw.repaint();
+}
+
 bool BackendRootWindow::isRotated() const
 {
     auto s = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot.get(), "SwappableContainer");
@@ -567,6 +575,43 @@ MarkdownPreview* BackendRootWindow::createOrShowDocWindow(const MarkdownLink& li
 
 	
 	
+}
+
+void BackendRootWindow::paintOverChildren(Graphics& g)
+{
+	if (learnMode)
+	{
+		RectangleList<float> areas;
+
+		Component::callRecursive<Learnable>(this, [&areas, this](Learnable* m)
+		{
+			auto c = m->asComponent();
+
+			if (m->isLearnable() && c->isShowing() && c->findParentComponentOfClass<ScriptContentComponent>() == nullptr) 
+			{
+				areas.addWithoutMerging(this->getLocalArea(c, c->getLocalBounds()).toFloat());
+			}
+
+			return false;
+		});
+
+		
+		Learnable::Factory f;
+		auto p = f.createPath("destination");
+		
+		for (int i = 0; i < areas.getNumRectangles(); i++)
+		{
+			auto a = areas.getRectangle(i);
+			g.setColour(Colours::black.withAlpha(0.2f));
+			g.fillRect(a.reduced(1));
+			Learnable::Factory f;
+			auto p = f.createPath("source");
+			f.scalePath(p, a.reduced(2).removeFromLeft(28).removeFromTop(18).reduced(2));
+			g.setColour(Colour(SIGNAL_COLOUR));
+			g.drawRect(a, 1.0f);
+			g.fillPath(p);
+		}
+	}
 }
 
 VerticalTile* BackendPanelHelpers::getMainTabComponent(FloatingTile* root)

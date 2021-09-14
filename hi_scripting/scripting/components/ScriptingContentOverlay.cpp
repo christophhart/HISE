@@ -196,6 +196,8 @@ ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
 	setEditMode(handler->editModeEnabled());
 
 	setWantsKeyboardFocus(true);
+
+	
 }
 
 
@@ -225,6 +227,9 @@ void ScriptingContentOverlay::buttonClicked(Button* /*buttonThatWasClicked*/)
 void ScriptingContentOverlay::toggleEditMode()
 {
 	setEditMode(!dragMode);
+
+	if (!dragMode)
+		getScriptComponentEditBroadcaster()->setLearnMode(false);
 
 	handler->toggleComponentSelectMode(dragMode);
 }
@@ -328,6 +333,9 @@ void ScriptingContentOverlay::scriptComponentSelectionChanged()
 	ScriptComponentEditBroadcaster::Iterator iter(getScriptComponentEditBroadcaster());
 
 	auto content = handler->getScriptEditHandlerContent();
+	auto singleSelection = getScriptComponentEditBroadcaster()->getNumSelected() == 1;
+
+	getScriptComponentEditBroadcaster()->setCurrentlyLearnedComponent(nullptr);
 
 	while (auto c = iter.getNextScriptComponent())
 	{
@@ -340,7 +348,14 @@ void ScriptingContentOverlay::scriptComponentSelectionChanged()
 			return;
 		}
 
+		
+
 		auto d = new Dragger(c, draggedComponent);
+
+		getScriptComponentEditBroadcaster()->getLearnBroadcaster().addListener(*d, Dragger::learnComponentChanged);
+
+		if (singleSelection && getScriptComponentEditBroadcaster()->learnModeEnabled())
+			getScriptComponentEditBroadcaster()->setCurrentlyLearnedComponent(c);
 
 		addAndMakeVisible(d);
 
@@ -503,8 +518,6 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 	b->setSelection(newSelection, sendNotificationAsync);
 }
 
-
-
 void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 {
 	if (isDisabledUntilUpdate)
@@ -531,6 +544,7 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 				showCallback,
 				restoreToData,
 				copySnapshot,
+				toggleLearnMode,
 				editComponentOffset = 20000,
 
 			};
@@ -569,6 +583,17 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 				auto first = components.getFirst();
 
 				m.addItem(showCallback, "Show callback for " + first->getName().toString(), first->getCustomControlCallback() != nullptr);
+
+				bool learnable = b->getNumSelected() == 1;
+
+				Identifier id = learnable ? b->getFirstFromSelection()->getObjectName() : Identifier();
+
+				learnable |= (id == ScriptingApi::Content::ScriptSlider::getStaticObjectName());
+				learnable |= (id == ScriptingApi::Content::ScriptButton::getStaticObjectName());
+				learnable |= (id == ScriptingApi::Content::ScriptComboBox::getStaticObjectName());
+				learnable |= (id == ScriptingApi::Content::ScriptPanel::getStaticObjectName());
+				
+				m.addItem(toggleLearnMode, "Enable Connection Learn", learnable, b->getCurrentlyLearnedComponent() == b->getFirstFromSelection());
 			}
 
 			int result = m.show();
@@ -588,6 +613,10 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 				debugToConsole(processor, String(components.size()) + " script component definitions created and copied to the clipboard");
 
 				SystemClipboard::copyTextToClipboard(code);
+			}
+			else if (result == toggleLearnMode)
+			{
+				b->setCurrentlyLearnedComponent(b->getFirstFromSelection());
 			}
 			else if (result >= (int)ScriptEditHandler::ComponentType::Knob && result < (int)ScriptEditHandler::ComponentType::numComponentTypes)
 			{
@@ -696,6 +725,7 @@ ScriptingContentOverlay::Dragger::Dragger(ScriptComponent* sc_, Component* compo
 {
 	currentMovementWatcher = new MovementWatcher(componentToDrag, this);
 
+
 	
 	constrainer.setMinimumOnscreenAmounts(0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF);
 
@@ -743,6 +773,17 @@ void ScriptingContentOverlay::Dragger::paint(Graphics &g)
 		g.setColour(Colour(SIGNAL_COLOUR));
 		g.setFont(GLOBAL_BOLD_FONT().withHeight(28.0f));
 		g.drawText("+", getLocalBounds().withTrimmedLeft(2).expanded(0, 4), Justification::topLeft);
+	}
+
+	if (learnModeEnabled)
+	{
+		g.setColour(Colours::black.withAlpha(0.2f));
+		g.fillRect(getLocalBounds().reduced(1));
+		Learnable::Factory f;
+		auto p = f.createPath("source");
+		f.scalePath(p, getLocalBounds().reduced(3).removeFromRight(28).removeFromTop(18).reduced(2).toFloat());
+		g.setColour(Colour(SIGNAL_COLOUR));
+		g.fillPath(p);
 	}
 }
 
@@ -931,6 +972,12 @@ void ScriptingContentOverlay::Dragger::duplicateSelection(int deltaX, int deltaY
 		if (auto content = first->parent)
 			ScriptingApi::Content::Helpers::duplicateSelection(content, b->getSelection(), deltaX, deltaY, &b->getUndoManager());
 	}
+}
+
+void ScriptingContentOverlay::Dragger::learnComponentChanged(Dragger& d, ScriptComponent* newComponent)
+{
+	d.learnModeEnabled = newComponent != nullptr && d.sc == newComponent;
+	d.repaint();
 }
 
 void ScriptingContentOverlay::Dragger::MovementWatcher::componentMovedOrResized(bool /*wasMoved*/, bool /*wasResized*/)

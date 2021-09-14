@@ -184,7 +184,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
     addButton->addListener (this);
 
-    addAndMakeVisible (intensitySlider = new Slider ("Intensity Slider"));
+    addAndMakeVisible (intensitySlider = new IntensitySlider ("Intensity Slider"));
     intensitySlider->setRange (0, 1, 0.01);
     intensitySlider->setSliderStyle (Slider::LinearBar);
 	intensitySlider->setTextBoxStyle (Slider::TextEntryBoxPosition::TextBoxLeft, true, 80, 20);

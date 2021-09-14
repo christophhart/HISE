@@ -551,6 +551,7 @@ void ScriptContentPanel::Editor::rebuildAfterContentChange()
 	addCustomComponent(zoomSelector);
 
 	addButton("edit");
+	addButton("learn");
 	addButton("cancel");
 	addButton("rebuild");
 
@@ -596,6 +597,21 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 	{
 		b->actionFunction = Actions::rebuild;
 		b->setTooltip("Rebuild Interface (F5)");
+	}
+	if (name == "learn")
+	{
+		b->actionFunction = [](Editor& e)
+		{
+			auto bc = e.getScriptComponentEditBroadcaster();
+			bc->setLearnMode(!bc->learnModeEnabled());
+			return true;
+		};
+		b->stateFunction = [](Editor& e)
+		{
+			return e.getScriptComponentEditBroadcaster()->learnModeEnabled();
+		};
+
+		b->enabledFunction = isSingleSelection;
 	}
 	if (name == "lock")
 	{
@@ -992,6 +1008,11 @@ bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)
 bool ScriptContentPanel::Editor::isSelected(Editor& e)
 {
 	return !e.canvas.getContent<Canvas>()->overlay->draggers.isEmpty();
+}
+
+bool ScriptContentPanel::Editor::isSingleSelection(Editor& e)
+{
+	return e.canvas.getContent<Canvas>()->overlay->draggers.size() == 1;
 }
 
 juce::Identifier ServerControllerPanel::getProcessorTypeId() const
@@ -1866,6 +1887,7 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
 	LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
 	LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
+	LOAD_PATH_IF_URL("learn", EditorIcons::connectIcon);
 	LOAD_PATH_IF_URL("vertical-align", ColumnIcons::verticalAlign);
 	LOAD_PATH_IF_URL("horizontal-align", ColumnIcons::horizontalAlign);
 	LOAD_PATH_IF_URL("vertical-distribute", ColumnIcons::verticalDistribute);

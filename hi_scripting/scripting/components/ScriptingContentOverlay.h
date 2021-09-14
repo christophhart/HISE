@@ -158,7 +158,7 @@ public:
 	} llaf;
 
 	void findLassoItemsInArea(Array<ScriptComponent*> &itemsFound, const Rectangle< int > &area) override;
-		
+
 	SelectedItemSet<ScriptComponent*>& getLassoSelection() override
 	{
 		return lassoSet;
@@ -220,6 +220,10 @@ public:
 		{
 			return dragDistance;
 		}
+
+		static void learnComponentChanged(Dragger& d, ScriptComponent* newComponent);
+
+
 
 	private:
 
@@ -383,6 +387,7 @@ public:
 		};
 
 		Component::SafePointer<Component> draggedComponent;
+		bool learnModeEnabled = false;
 		ScriptComponent* sc;
 
 		ScopedPointer<MovementWatcher> currentMovementWatcher;

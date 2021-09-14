@@ -84,7 +84,11 @@ public:
                 firstEditor->getParentShell()->ensureVisibility();
         }
     }
+
+	static void learnModeChanged(BackendRootWindow& brw, ScriptComponent* c);
     
+
+
     bool isRotated() const;
     
     bool toggleRotate();
@@ -202,7 +206,11 @@ public:
 
     LambdaBroadcaster<Processor*> workspaceListeners;
     
+	void paintOverChildren(Graphics& g) override;
+
 private:
+
+	bool learnMode = false;
 
 	LookAndFeel_V3 globalLookAndFeel;
 
@@ -241,6 +249,8 @@ private:
 	bool resetOnClose = false;
 
 	ScopedPointer<PeriodicScreenshotter> screenshotter;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(BackendRootWindow);
 };
 
 struct BackendPanelHelpers
@@ -304,6 +314,8 @@ struct BackendPanelHelpers
 	};
 
 	static bool isMainWorkspaceActive(FloatingTile* root);
+
+	
 
 };
 

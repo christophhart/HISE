@@ -440,4 +440,66 @@ void ScriptComponentEditBroadcaster::sendSelectionChangeMessage()
 }
 
 
+void ScriptComponentEditBroadcaster::setCurrentlyLearnedComponent(ScriptComponent* c)
+{
+	if (c != currentlyLearnedComponent)
+	{
+		currentlyLearnedComponent = c;
+		learnBroadcaster.sendMessage(sendNotificationSync, currentlyLearnedComponent);
+	}
+}
+
+void ScriptComponentEditBroadcaster::setLearnMode(bool shouldBeEnabled)
+{
+	learnMode = shouldBeEnabled;
+
+	if (!learnMode)
+		setCurrentlyLearnedComponent(nullptr);
+	else if (getNumSelected() == 1)
+		setCurrentlyLearnedComponent(getFirstFromSelection());
+}
+
+void ScriptComponentEditBroadcaster::setLearnData(const MacroControlledObject::LearnData& d)
+{
+	if (currentlyLearnedComponent != nullptr)
+	{
+		auto c = currentlyLearnedComponent.get();
+
+		c->setControlCallback(var());
+
+		if (!d.mode.isEmpty() && dynamic_cast<ScriptingApi::Content::ScriptSlider*>(c) != nullptr)
+			c->setScriptObjectPropertyWithChangeMessage(c->getIdFor(ScriptingApi::Content::ScriptSlider::Mode), d.mode);
+
+		if (dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(c) != nullptr)
+		{
+			c->setScriptObjectPropertyWithChangeMessage(c->getIdFor(ScriptingApi::Content::ScriptComboBox::Items), d.items.joinIntoString("\n"));
+		}
+
+		c->setScriptObjectPropertyWithChangeMessage(c->getIdFor(ScriptComponent::Properties::text), d.name);
+		c->setScriptObjectPropertyWithChangeMessage(c->getIdFor(ScriptComponent::Properties::min), d.range.start);
+		c->setScriptObjectPropertyWithChangeMessage(c->getIdFor(ScriptComponent::Properties::max), d.range.end);
+
+		if (dynamic_cast<ScriptingApi::Content::ScriptSlider*>(c) != nullptr)
+		{
+			if (d.range.skew != 1.0)
+			{
+				auto end = d.range.end;
+				auto start = d.range.start;
+				auto skew = d.range.skew;
+
+				auto centrePointValue  = std::exp(std::log(0.5) / skew) * (end - start) + start;
+				c->setScriptObjectPropertyWithChangeMessage(c->getIdFor(ScriptingApi::Content::ScriptSlider::middlePosition), centrePointValue);
+			}
+		}
+			
+			
+
+		c->setValue(d.value);
+		c->setScriptObjectPropertyWithChangeMessage(c->getIdFor(ScriptComponent::Properties::processorId), d.processorId);
+		c->setScriptObjectPropertyWithChangeMessage(c->getIdFor(ScriptComponent::Properties::parameterId), d.parameterId);
+
+		setCurrentlyLearnedComponent(nullptr);
+	}
+}
+
 } // namespace hise

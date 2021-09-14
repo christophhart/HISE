@@ -128,6 +128,43 @@ private:
 	UpdateTimer updateTimer;
 };
 
+struct Learnable
+{
+	struct Factory : public PathFactory
+	{
+		Path createPath(const String& url) const override;
+	};
+	struct LearnData
+	{
+		String processorId;
+		String parameterId;
+		float value;
+		String name;
+		NormalisableRange<double> range;
+		String mode;
+		StringArray items;
+	};
+
+	Component* asComponent() { return dynamic_cast<Component*>(this); };
+	const Component* asComponent() const { return dynamic_cast<const Component*>(this); };
+
+	virtual ~Learnable() {};
+
+	void setLearnable(bool shouldBeLearnable)
+	{
+		learnable = shouldBeLearnable;
+	}
+
+	bool isLearnable() const
+	{
+		return learnable;
+	}
+
+private:
+
+	bool learnable = true;
+};
+
 
 /** A base class for all control Components that can be controlled by a MacroControlBroadcaster.
 *	@ingroup macroControl
@@ -135,7 +172,8 @@ private:
 *	Subclass your component from this class, and set the Processor's Attribute in its specified callback.
 *	
 */
-class MacroControlledObject: public MacroControlBroadcaster::MacroConnectionListener
+class MacroControlledObject: public MacroControlBroadcaster::MacroConnectionListener,
+						     public Learnable
 {
 public:
 	
@@ -595,6 +633,8 @@ public:
 		numberTag->setBounds(getLocalBounds());
 	}
 
+	String getModeId() const;
+
 	void setMode(Mode m)
 	{
 		if (mode != m)
@@ -636,6 +676,8 @@ public:
 			setModeRange(min, max, mid, stepSize);
 		}
 	};
+
+	Mode getMode() const { return mode; }
 
 	
 
