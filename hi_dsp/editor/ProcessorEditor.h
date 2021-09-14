@@ -138,6 +138,8 @@ public:
 
 	};
 
+	static void deleteProcessorFromUI(Component* c, Processor* pToDelete);
+
     static void createProcessorFromPopup(Component* editorIfPossible, Processor* parentChainProcessor, Processor* insertBeforeSibling);
     
 	bool isInterestedInDragSource(const SourceDetails &dragSourceDetails) override;

@@ -633,4 +633,23 @@ int VoiceModulation::PolyphonyManager::getLastStartedVoice() const
 	return lastStartedVoice;
 }
 
+void TimeVariantModulator::render(float* monoModulationValues, float* scratchBuffer, int startSample, int numSamples)
+{
+	// applyTimeModulation will not work correctly if it's going to be calculated in place...
+	jassert(monoModulationValues != scratchBuffer);
+
+	setScratchBuffer(scratchBuffer, startSample + numSamples);
+	calculateBlock(startSample, numSamples);
+
+	applyTimeModulation(monoModulationValues, startSample, numSamples);
+	lastConstantValue = monoModulationValues[startSample];
+
+#if ENABLE_ALL_PEAK_METERS
+	const float displayValue = internalBuffer.getSample(0, startSample);
+	pushPlotterValues(internalBuffer.getReadPointer(0), startSample, numSamples);
+
+	setOutputValue(displayValue);
+#endif
+}
+
 } // namespace hise

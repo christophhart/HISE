@@ -432,6 +432,31 @@ void ProcessorEditor::paint(Graphics &g)
 const Chain * ProcessorEditor::getProcessorAsChain() const { return dynamic_cast<const Chain*>(getProcessor()); }
 Chain * ProcessorEditor::getProcessorAsChain() { return dynamic_cast<Chain*>(getProcessor()); }
 
+void ProcessorEditor::deleteProcessorFromUI(Component* c, Processor* pToDelete)
+{
+	if (dynamic_cast<ModulatorSynth*>(pToDelete) == nullptr || PresetHandler::showYesNoWindow("Delete " + pToDelete->getId() + "?", "Do you want to delete the Synth module?"))
+	{
+		auto brw = GET_BACKEND_ROOT_WINDOW(c);
+
+		auto f = [brw](Processor* p)
+		{
+			if (auto c = dynamic_cast<Chain*>(p->getParentProcessor(false)))
+			{
+				c->getHandler()->remove(p, false);
+				jassert(!p->isOnAir());
+			}
+
+			brw->sendRootContainerRebuildMessage(false);
+
+			return SafeFunctionCall::OK;
+		};
+
+		
+
+		pToDelete->getMainController()->getGlobalAsyncModuleHandler().removeAsync(pToDelete, f);
+	}
+}
+
 void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Processor* parentChainProcessor, Processor* insertBeforeSibling)
 {
     Processor *processorToBeAdded = nullptr;

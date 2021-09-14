@@ -48,7 +48,8 @@ class PatchBrowser : public SearchableListComponent,
 public:
 
 	struct MiniPeak : public Component,
-					  public PooledUIUpdater::SimpleTimer
+					  public PooledUIUpdater::SimpleTimer,
+					  public SettableTooltipClient
 	{
 		enum class ProcessorType
 		{
@@ -57,46 +58,22 @@ public:
 			Mod
 		};
 
-		MiniPeak(Processor* p_) :
-			PooledUIUpdater::SimpleTimer(p_->getMainController()->getGlobalUIUpdater()),
-			p(p_),
-			isMono(dynamic_cast<Modulator*>(p_) != nullptr)
-		{
-			if (dynamic_cast<MidiProcessor*>(p_) != nullptr)
-				type = ProcessorType::Midi;
-			else if (dynamic_cast<Modulator*>(p_) != nullptr)
-				type = ProcessorType::Mod;
-			else
-				type = ProcessorType::Audio;
-
-			setInterceptsMouseClicks(type == ProcessorType::Mod, false);
-		};
+		MiniPeak(Processor* p_);;
 
 		void mouseDown(const MouseEvent& e) override;
 
 		void paint(Graphics& g) override;
 
-		float getModValue()
-		{
-			auto v = p->getDisplayValues().outL;
+		float getModValue();
 
-			if (dynamic_cast<Modulation*>(p.get())->getMode() == Modulation::PitchMode)
-			{
-				if (v != 0.0f)
-					v = log2(v) * 0.5f + 0.5f;
-			}
-
-			v = dynamic_cast<Modulation*>(p.get())->calcIntensityValue(v);
-			v = jlimit(0.0f, 1.0f, v);
-
-			return v;
-		}
+		int getPreferredWidth() const;
 
 		void timerCallback() override;
 
 		const bool isMono;
-		float l = 0.0f;
-		float r = 0.0f;
+		
+		float channelValues[NUM_MAX_CHANNELS];
+		int numChannels;
 
 		ProcessorType type;
 
@@ -176,7 +153,8 @@ private:
 
 	// ====================================================================================================================
 
-	class ModuleDragTarget : public ButtonListener
+	class ModuleDragTarget : public ButtonListener,
+							 public Label::Listener
 	{
 	public:
 
@@ -202,12 +180,12 @@ private:
 			numViewSettings
 		};
 
-		ModuleDragTarget();
+		ModuleDragTarget(Processor* p);
 
 		void buttonClicked(Button *b);
 
-		virtual const Processor *getProcessor() const = 0;
-		virtual Processor *getProcessor() = 0;
+		const Processor *getProcessor() const { return p.get(); }
+		Processor *getProcessor() { return p.get(); }
 
 		DragState getDragState() const { return dragState; };
 		virtual void checkDragState(const SourceDetails& dragSourceDetails);
@@ -226,7 +204,24 @@ private:
             p.gotoWorkspace->setToggleStateAndUpdateIcon(pr == p.getProcessor());
         }
         
+		void labelTextChanged(Label *l) override
+		{
+			if (auto p = getProcessor())
+			{
+				if (p->getId() != l->getText())
+				{
+					p->setId(l->getText(), sendNotification);
+				}
+			}
+		}
+
 	protected:
+
+		Label idLabel;
+
+		MiniPeak peak;
+
+		WeakReference<Processor> p;
 
 		void setDragState(DragState newState) { dragState = newState; };
 		void drawDragStatus(Graphics &g, Rectangle<float> area);
@@ -234,6 +229,9 @@ private:
 		void refreshAllButtonStates();
 		
 		Factory f;
+
+		HiseShapeButton closeButton;
+		HiseShapeButton createButton;
 
 	private:
 
@@ -304,19 +302,10 @@ private:
 
 		Point<int> getPointForTreeGraph(bool getStartPoint) const;
 
-		Processor *getProcessor() override { return root.get(); };
-		const Processor *getProcessor() const override { return root.get(); };
-
 		void checkDragState(const SourceDetails& dragSourceDetails);
 		void resetDragState();
 		void toggleShowChains();
 
-        
-        
-		MiniPeak peak;
-
-        
-        
 		void setInPopup(bool isInPopup)
 		{
 			if (inPopup != isInPopup)
@@ -331,15 +320,7 @@ private:
 	private:
 
 		bool inPopup = false;
-
-        Factory f;
-        
-		
-		
 		ScopedPointer<ShapeButton> foldButton;
-
-		WeakReference<Processor> root;
-
 		int hierarchy;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchCollection)
@@ -350,7 +331,6 @@ private:
 
 	class PatchItem :  public SearchableListComponent::Item,
 					   public ModuleDragTarget,
-                       public Label::Listener,
 					   public Processor::BypassListener
 	{
 	public:
@@ -384,26 +364,14 @@ private:
 
 		void popupCallback(int menuIndex);
 
-		virtual Processor *getProcessor() override { return processor.get(); };
-		virtual const Processor *getProcessor() const override { return processor.get(); };
-
         void applyLayout() override;
         
-        void labelTextChanged(Label *l) override
-        {
-            if(processor.get() != nullptr && processor->getId() != l->getText())
-            {
-                processor->setId(l->getText(), sendNotification);
-            }
-        }
+        
         
 		void resized() override;
 
-		MiniPeak peak;
+		
         
-		HiseShapeButton closeButton;
-		HiseShapeButton createButton;
-
 		void setInPopup(bool isInPopup)
 		{
 			if (inPopup != isInPopup)
@@ -417,13 +385,11 @@ private:
 
 		bool inPopup = false;
         
-        WeakReference<Processor> processor;
-
 		Rectangle<int> bypassArea;
 		
         WeakReference<Processor> parent;
         
-        ScopedPointer<Label> idLabel;
+        
 
 		String lastId;
 

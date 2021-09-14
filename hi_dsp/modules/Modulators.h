@@ -663,27 +663,7 @@ public:
 		return getSymbolPath();
 	};
 
-	void render(float* monoModulationValues, float* scratchBuffer, int startSample, int numSamples)
-	{
-		// applyTimeModulation will not work correctly if it's going to be calculated in place...
-		jassert(monoModulationValues != scratchBuffer);
-
-		setScratchBuffer(scratchBuffer, startSample + numSamples);
-		calculateBlock(startSample, numSamples);
-
-		applyTimeModulation(monoModulationValues, startSample, numSamples);
-		lastConstantValue = monoModulationValues[startSample];
-
-#if ENABLE_ALL_PEAK_METERS
-		const float displayValue = lastConstantValue;
-
-		pushPlotterValues(monoModulationValues, startSample, numSamples);
-
-		setOutputValue(displayValue);
-#endif
-		
-
-	}
+	void render(float* monoModulationValues, float* scratchBuffer, int startSample, int numSamples);
 
 	float getLastConstantValue() const noexcept { return lastConstantValue; }
 
