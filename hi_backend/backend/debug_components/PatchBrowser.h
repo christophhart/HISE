@@ -122,6 +122,10 @@ public:
 
 	void refreshPopupState();
 
+	void mouseMove(const MouseEvent& e) override;
+
+	void mouseExit(const MouseEvent&) override;
+
 	void moduleListChanged(Processor* /*changedProcessor*/, MainController::ProcessorChangeHandler::EventType type) override
 	{
 		if (type == MainController::ProcessorChangeHandler::EventType::ProcessorRenamed ||
@@ -140,6 +144,8 @@ public:
 	Collection *createCollection(int index) override;
 
 	void paint(Graphics &g) override;
+
+	void paintOverChildren(Graphics& g) override;
 
 	void toggleFoldAll();
 
@@ -192,6 +198,8 @@ private:
 		virtual void checkDragState(const SourceDetails& dragSourceDetails);
 		virtual void resetDragState();
 
+
+
 		void setDraggingOver(bool isOver);
 
 		bool bypassed = false;
@@ -232,6 +240,9 @@ private:
 		Factory f;
 
 		HiseShapeButton closeButton;
+
+	public:
+
 		HiseShapeButton createButton;
 
 	private:
@@ -240,8 +251,6 @@ private:
 		
 		ScopedPointer<ShapeButton> soloButton;
 		ScopedPointer<ShapeButton> hideButton;
-
-		
 
 		DragState dragState;
         
@@ -415,6 +424,8 @@ private:
 	bool foldAll;
 
 	bool showChains = false;
+
+	WeakReference<Processor> insertHover;
 
 	// ====================================================================================================================
 

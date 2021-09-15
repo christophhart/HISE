@@ -285,6 +285,69 @@ void PatchBrowser::refreshPopupState()
 	});
 }
 
+void PatchBrowser::mouseMove(const MouseEvent& e)
+{
+	if (!showChains)
+		return;
+
+	Processor* thisHover = nullptr;
+
+	if (auto m = e.eventComponent->findParentComponentOfClass<ModuleDragTarget>())
+	{
+		thisHover = m->getProcessor();
+
+		if (auto c = dynamic_cast<Chain*>(thisHover))
+		{
+			if(c->getHandler()->getNumProcessors() > 0)
+			{
+				thisHover = c->getHandler()->getProcessor(c->getHandler()->getNumProcessors() - 1);
+
+				while (thisHover->getNumChildProcessors() != 0)
+				{
+					thisHover = thisHover->getChildProcessor(thisHover->getNumChildProcessors() - 1);
+				}
+			}
+		}
+		else
+		{
+			auto pc = dynamic_cast<Chain*>(thisHover->getParentProcessor(false));
+
+			if (pc->getHandler()->getNumProcessors() > 1)
+			{
+				for (int i = 0; i < pc->getHandler()->getNumProcessors() - 1; i++)
+				{
+					if (pc->getHandler()->getProcessor(i + 1) == thisHover)
+					{
+						thisHover = pc->getHandler()->getProcessor(i);
+						break;
+					}
+				}
+			}
+			else
+				thisHover = dynamic_cast<Processor*>(pc);
+		}
+	}
+
+	if (insertHover.get() != thisHover)
+	{
+		insertHover = thisHover;
+		repaint();
+	}
+	
+}
+
+void PatchBrowser::mouseExit(const MouseEvent& e)
+{
+	if (auto m = e.eventComponent->findParentComponentOfClass<ModuleDragTarget>())
+	{
+		if (insertHover != nullptr)
+		{
+			insertHover = nullptr;
+			repaint();
+		}
+	}
+}
+
 int PatchBrowser::getNumCollectionsToCreate() const
 {
     Processor::Iterator<ModulatorSynth> iter(rootWindow.getComponent()->getMainSynthChain());
@@ -395,6 +458,31 @@ void PatchBrowser::paint(Graphics &g)
     }
 }
 
+void PatchBrowser::paintOverChildren(Graphics& g)
+{
+	if (insertHover != nullptr)
+	{
+		Component::callRecursive<ModuleDragTarget>(this, [this, &g](ModuleDragTarget* d)
+		{
+			if (d->getProcessor() == insertHover)
+			{
+				auto c = dynamic_cast<Component*>(d);
+				auto b = getLocalArea(c, c->getLocalBounds()).toFloat();
+				g.setColour(Colours::white.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.6f)));
+				b = b.removeFromBottom(0).withSizeKeepingCentre(16, 16).withX(0);
+
+				Path arrow;
+				arrow.addArrow(Line<float>(b.getX(), b.getCentreY(), b.getRight(), b.getCentreY()), b.getHeight() / 4, b.getHeight() / 2, b.getWidth() / 2);
+
+				g.fillPath(arrow);
+				return true;
+			}
+
+			return false;
+		});
+	}
+}
+
 void PatchBrowser::toggleFoldAll()
 {
 	foldAll = true;
@@ -467,17 +555,19 @@ void PatchBrowser::rebuilt()
 {
 	if (auto root = findParentComponentOfClass<BackendRootWindow>())
 	{
-		Component::callRecursive<ModuleDragTarget>(this, [root](ModuleDragTarget* d)
+		Component::callRecursive<ModuleDragTarget>(this, [root, this](ModuleDragTarget* d)
+		{
+			d->createButton.addMouseListener(this, true);
+
+			if (d->gotoWorkspace != nullptr)
 			{
-				if (d->gotoWorkspace != nullptr)
-				{
-					root->workspaceListeners.addListener(*d, ModuleDragTarget::setWorkspace);
-				}
+				root->workspaceListeners.addListener(*d, ModuleDragTarget::setWorkspace);
+			}
 
-				d->applyLayout();
+			d->applyLayout();
 
-				return false;
-			});
+			return false;
+		});
 	}
 
 	refreshPopupState();
@@ -502,6 +592,10 @@ isOver(false)
 			ProcessorEditor::createProcessorFromPopup(c, p, nullptr);
 		else
 			ProcessorEditor::createProcessorFromPopup(c, p->getParentProcessor(false), p);
+
+		auto pb = createButton.findParentComponentOfClass<PatchBrowser>();
+		pb->insertHover = nullptr;
+		pb->repaint();
 	};
 
 	closeButton.setTooltip("Delete " + getProcessor()->getId());
@@ -772,6 +866,7 @@ void PatchBrowser::PatchCollection::mouseDown(const MouseEvent& e)
                 ProcessorEditor::createProcessorFromPopup(this, p, nullptr);
             else
                 ProcessorEditor::createProcessorFromPopup(this, p->getParentProcessor(false), p);
+
             return;
         }
 		else if (getProcessor() != nullptr)
