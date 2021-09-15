@@ -54,50 +54,192 @@ MidiProcessor::~MidiProcessor()
 struct MidiProcessor::EventLogger
 {
     EventLogger():
-      queue(1024)
+      inputQueue(512),
+	  outputQueue(512)
     {};
     
     struct Display: public Component,
-                    public PooledUIUpdater::SimpleTimer
+                    public PooledUIUpdater::SimpleTimer,
+					public TextEditor::Listener
     {
         static constexpr int RowHeight = 24;
+		static constexpr int TopHeight = 54;
+		static constexpr int HeaderHeight = 30;
         
         enum class Columns
         {
             Type,
             Ignored,
             Artificial,
+			Channel,
             Number,
-            Channel,
             Value,
+			TransposeAmount,
+			FadeTime,
+			CoarseDetune,
+			FineDetune,
             Timestamp,
             EventId,
-            
             numColumns
         };
+
+		bool columnStates[(int)Columns::numColumns];
+
+		static constexpr int NumFixColumns = 3;
         
         Display(MidiProcessor* mp_, EventLogger* l):
           SimpleTimer(mp_->getMainController()->getGlobalUIUpdater()),
           resizer(this, nullptr),
+		  filter(),
           mp(mp_),
-          logger(l)
+          logger(l),
+		  filterResult(Result::ok()),
+		  processButton("process", nullptr, f, "bypass"),
+		  clearButton("processing-setup", nullptr, f)
         {
+			for (int i = 0; i < (int)Columns::numColumns; i++)
+				columnStates[i] = true;
+
+			columnStates[(int)Columns::TransposeAmount] = false;
+			columnStates[(int)Columns::CoarseDetune] = false;
+			columnStates[(int)Columns::FineDetune] = false;
+			columnStates[(int)Columns::FadeTime] = false;
+			columnStates[(int)Columns::EventId] = false;
+			columnStates[(int)Columns::Timestamp] = false;
+
             addAndMakeVisible(resizer);
+			addAndMakeVisible(filter);
+			addAndMakeVisible(processButton);
+			addAndMakeVisible(clearButton);
+
+			clearButton.onClick = [this]() { allInputEvents.clear(); allOutputEvents.clear();  rebuildEventsToShow(); };
+
+			clearButton.setTooltip("Clear the event list");
+
+			filter.setTooltip("Filter the list with a HiseScript expression (eg. Message.getNoteNumber() > 64)");
+			filter.setReturnKeyStartsNewLine(false);
+
+			processButton.setToggleModeWithColourChange(true);
+			processButton.setToggleStateAndUpdateIcon(true);
+			processButton.onClick = BIND_MEMBER_FUNCTION_0(Display::rebuildEventsToShow);
+			processButton.setTooltip("Show events after processing");
+
+			if (auto jsp = dynamic_cast<JavascriptMidiProcessor*>(mp_))
+			{
+				if (jsp->isDeferred())
+				{
+					processButton.setToggleStateAndUpdateIcon(false);
+					processButton.setEnabled(false);
+					processButton.setTooltip(jsp->getId() + " is deferred");
+				}
+			}
+
+			filter.addListener(this);
+
+			GlobalHiseLookAndFeel::setTextEditorColours(filter);
+			filter.setTextToShowWhenEmpty("Filter events", Colours::black.withAlpha(0.3f));
+
             start();
-            setSize(400, 400);
+            setSize(400, TopHeight + 16 * RowHeight);
             setName("Event Logger: " + mp->getId());
+
+			Random r;
+
+			for (int i = 0; i < 32; i++)
+				colours[i] = Colour(0xFFFFAAAA).withHue(r.nextFloat());
+
+			engine = new JavascriptEngine();
+			data = new DynamicObject();
+
+			#define GET_PROPERTY(propertyId) args.thisObject.getProperty(propertyId, 0)
+			#define SET_METHOD(methodName, expression) data->setMethod(methodName, [](const var::NativeFunctionArgs& args) { return expression; });
+
+			SET_METHOD("getNoteNumber", GET_PROPERTY("number"));
+			SET_METHOD("getChannel", GET_PROPERTY("channel"));
+			SET_METHOD("getVelocity", GET_PROPERTY("velocity"));
+			SET_METHOD("getControllerNumber", GET_PROPERTY("number"));
+			SET_METHOD("getControllerValue", GET_PROPERTY("velocity"));
+			SET_METHOD("getTimestamp", GET_PROPERTY("timestamp"));
+			SET_METHOD("getEventId", GET_PROPERTY("event_id"));
+			SET_METHOD("isArtificial", GET_PROPERTY("artificial"));
+			SET_METHOD("isTimerEvent", GET_PROPERTY("timer"));
+			SET_METHOD("isIgnored", GET_PROPERTY("ignored"));
+			SET_METHOD("isNoteOn", (int)GET_PROPERTY("type") == (int)HiseEvent::Type::NoteOn);
+			SET_METHOD("isNoteOff", (int)GET_PROPERTY("type") == (int)HiseEvent::Type::NoteOff);
+			SET_METHOD("isController", (int)GET_PROPERTY("type") == (int)HiseEvent::Type::Controller);
+			
+			#undef GET_PROPERTY
+			#undef SET_METHOD
+
+			engine->registerNativeObject("Message", data);
         }
-        
+
+		~Display()
+		{
+			mp->setEnableEventLogger(false);
+		}
+
+		int getColumnWidth(Columns c)
+		{
+			if (!columnStates[(int)c])
+				return 0;
+
+			if ((int)c < NumFixColumns)
+				return RowHeight;
+
+			auto w = getWidth();
+
+			for (int i = 0; i < NumFixColumns; i++)
+			{
+				if (columnStates[i])
+					w -= RowHeight;
+			}
+
+			int numToShow = 0;
+
+			for (int i = NumFixColumns; i < int(Columns::numColumns); i++)
+				numToShow += (int)columnStates[i];
+
+			auto dynamicWidth = w / jmax(1, numToShow);
+			return dynamicWidth;
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			if (e.mods.isRightButtonDown())
+			{
+				PopupLookAndFeel mlaf;
+				PopupMenu m;
+				m.setLookAndFeel(&mlaf);
+
+				m.addSectionHeader("Show columns");
+
+				for (int i = 0; i < (int)Columns::numColumns; i++)
+					m.addItem(i + 1, getColumnName((Columns)i), true, columnStates[i]);
+
+				if (auto r = m.show())
+				{
+					columnStates[r - 1] = !columnStates[r - 1];
+					repaint();
+				}
+			}
+		}
+
         void drawEventColumn(Graphics& g, const HiseEvent& e, Columns c, Rectangle<float> area)
         {
+			auto hasNumberData = e.isNoteOnOrOff() || e.isController() || 
+								 e.isAftertouch() || e.isPitchWheel() ||
+								 e.isPitchFade() || e.isVolumeFade();
+
             g.setFont(GLOBAL_MONOSPACE_FONT());
             g.setColour(Colours::black.withAlpha(0.05f));
             g.fillRect(area.reduced(0.5f));
-            g.setColour(Colours::white);
+            g.setColour(Colours::white.withAlpha(e.isIgnored() ? 0.3f : 0.8f));
             
-            auto draw = [&](int v)
+            auto draw = [&](int v, bool force=false)
             {
-                g.drawText(String(v), area, Justification::centred);
+				if(hasNumberData || force)
+					g.drawText(String(v), area, Justification::centred);
             };
             
             switch(c)
@@ -109,7 +251,29 @@ struct MidiProcessor::EventLogger
                         g.setColour(Colours::red.withSaturation(0.6f));
                         g.drawText("!", area, Justification::centred);
                     }
-                    if(e.isNoteOnOrOff())
+					else if (e.isTimerEvent())
+					{
+						g.drawText("T", area, Justification::centred);
+					}
+					else if (e.isController())
+					{
+						g.drawText("CC", area, Justification::centred);
+					}
+					else if (e.isPitchWheel())
+					{
+						g.drawText("PB", area, Justification::centred);
+					}
+					else if (e.isPitchFade())
+					{
+						g.setColour(getColourForEvent(e.getEventId()));
+						g.drawText("PF", area, Justification::centred);
+					}
+					else if (e.isVolumeFade())
+					{
+						g.setColour(getColourForEvent(e.getEventId()));
+						g.drawText("VF", area, Justification::centred);
+					}
+                    else if(e.isNoteOnOrOff())
                     {
                         Path p;
                         p.startNewSubPath(0.0f, 0.0f);
@@ -128,143 +292,252 @@ struct MidiProcessor::EventLogger
                         c[6] = Colours::orange;
                         c[7] = Colours::blue;
                         
-                        auto randomColour = c[e.getEventId() % 8];
-                        g.setColour(randomColour.withAlpha(0.7f).withSaturation(0.5f));
+						g.setColour(getColourForEvent(e.getEventId()));
                         
                         if(e.isNoteOff())
                             p.applyTransform(AffineTransform::rotation(float_Pi));
                         
-                        PathFactory::scalePath(p, area.reduced(6.0f));
-                        
-                        
+                        PathFactory::scalePath(p, area.reduced(7.0f));
                         
                         g.fillPath(p);
                     }
+
+					break;
                 }
                 case Columns::Ignored: if(e.isIgnored()) g.fillEllipse(area.reduced(9)); break;
                 case Columns::Artificial: if(e.isArtificial()) g.fillEllipse(area.reduced(9)); break;
                 case Columns::Number: draw(e.getNoteNumber()); break;
                 case Columns::Channel: draw(e.getChannel()); break;
                 case Columns::Value: draw(e.getVelocity()); break;
-                case Columns::Timestamp: draw(e.getTimeStamp()); break;
-                case Columns::EventId: draw(e.getEventId()); break;
+				case Columns::TransposeAmount: draw(e.getTransposeAmount()); break;
+                case Columns::Timestamp: draw(e.getTimeStamp(), true); break;
+				case Columns::CoarseDetune: draw(e.getCoarseDetune(), true); break;
+				case Columns::FineDetune: draw(e.getFineDetune(), true); break;
+				case Columns::FadeTime: if(e.isVolumeFade() || e.isPitchFade()) draw(e.getFadeTime(), true); break;
+                case Columns::EventId: if(e.isNoteOnOrOff()) draw(e.getEventId()); break;
                 default: return;
             }
         }
-        
-        void drawColumnHeader(Graphics& g, Columns c, Rectangle<float> area)
+
+		static String getColumnName(Columns c, bool shortName=false)
+		{
+			switch (c)
+			{
+			case Columns::Type:				return shortName ? "T" : "Type";
+			case Columns::Ignored:			return shortName ? "I" : "Ignored";
+			case Columns::Artificial:		return shortName ? "A" : "Artificial";
+			case Columns::Number:			return "Number";
+			case Columns::Channel:			return "Channel";
+			case Columns::Value:			return "Value";
+			case Columns::TransposeAmount:	return "Transpose";
+			case Columns::FadeTime:			return "Fade Time";
+			case Columns::CoarseDetune:		return "Coarse Detune";
+			case Columns::FineDetune:		return "Fine Detune";
+			case Columns::Timestamp:		return "Timestamp";
+			case Columns::EventId:			return "Event ID";
+			default: return "";
+			}
+		}
+
+		void drawColumnHeader(Graphics& g, Columns c, Rectangle<float> area)
         {
             g.setFont(GLOBAL_BOLD_FONT());
             g.setColour(Colours::black.withAlpha(0.15f));
             g.fillRect(area.reduced(0.5f));
             g.setColour(Colours::white);
-            
-            switch(c)
-            {
-                case Columns::Type: g.drawText("T", area, Justification::centred); break;
-                case Columns::Ignored: g.drawText("I", area, Justification::centred); break;
-                case Columns::Artificial: g.drawText("A", area, Justification::centred); break;
-                case Columns::Number: g.drawText("Number", area, Justification::centred); break;
-                case Columns::Channel: g.drawText("Channel", area, Justification::centred); break;
-                case Columns::Value: g.drawText("Value", area, Justification::centred); break;
-                case Columns::Timestamp: g.drawText("Timestamp", area, Justification::centred); break;
-                case Columns::EventId: g.drawText("Event ID", area, Justification::centred); break;
-                default: return;
-            }
-        }
-        
-        int getColumnWidth(Columns c)
-        {
-            switch(c)
-            {
-                case Columns::Type: return RowHeight;
-                case Columns::Ignored: return RowHeight;
-                case Columns::Artificial: return RowHeight;
-                case Columns::Number: return (getWidth() - RowHeight * 3) * 0.2;
-                case Columns::Channel: return (getWidth() - RowHeight * 3) * 0.15;
-                case Columns::Value: return (getWidth() - RowHeight * 3) * 0.15;
-                case Columns::Timestamp: return (getWidth() - RowHeight * 3) * 0.25;
-                case Columns::EventId: return (getWidth() - RowHeight * 3) * 0.25;
-                default: return 0;
-            }
-        }
-        
-        void drawEvent(Graphics& g, const HiseEvent& e, Rectangle<float> area)
-        {
-            g.setFont(GLOBAL_MONOSPACE_FONT());
-            g.setColour(Colours::white.withAlpha(0.4f));
-            g.drawText(e.toDebugString(), area, Justification::centred);
+			g.drawText(getColumnName(c, true), area, Justification::centred);
         }
         
         void paint(Graphics& g) override
         {
+			if (!filterResult.wasOk())
+			{
+				g.setColour(Colours::red.withSaturation(0.5f));
+				g.setFont(GLOBAL_MONOSPACE_FONT());
+				g.drawText(filterResult.getErrorMessage(), getLocalBounds().toFloat(), Justification::centred);
+			}
+
             auto b = getLocalBounds();
-            
-            auto top = b.removeFromTop(30);
-            
+            auto top = b.removeFromTop(TopHeight).removeFromBottom(HeaderHeight);
+
             for(int i = 0; i < int(Columns::numColumns); i++)
             {
                 auto h = top.removeFromLeft(getColumnWidth((Columns)i));
+
+				if (h.isEmpty())
+					continue;
+
                 drawColumnHeader(g, (Columns)i, h.toFloat());
             }
             
+			int numActiveNotes = 0;
+
             for(auto e: events)
             {
                 auto a = b.removeFromTop(RowHeight);
-             
+				auto copy = a;
+
+				
+
+				if (a.getHeight() < RowHeight)
+					break;
+
                 for(int i = 0; i < int(Columns::numColumns); i++)
                 {
                     auto h = a.removeFromLeft(getColumnWidth((Columns)i));
+
+					if (h.isEmpty())
+						continue;
+
                     drawEventColumn(g, e, (Columns)i, h.toFloat());
                 }
+
+				if (e.isNoteOn())
+					numActiveNotes++;
+				if (e.isNoteOff())
+					numActiveNotes = jmax(0, numActiveNotes - 1);
+
+				if (e.isNoteOn() && numActiveNotes < 4)
+				{
+					auto c = copy.removeFromLeft(getColumnWidth(Columns::Type)).toFloat();
+
+					UnblurryGraphics ug(g, *this);
+
+					for (int i = 0; i < events.size(); i++)
+					{
+						if (events[i].isNoteOff() && events[i].getEventId() == e.getEventId())
+						{
+							c = c.withBottom(TopHeight + (i + 1) * RowHeight).reduced(numActiveNotes*2.0f, RowHeight / 2);
+
+
+							g.setColour(getColourForEvent(e.getEventId()).withAlpha(1.0f));
+
+							c = c.withRight(c.getCentreX());
+
+							ug.draw1PxHorizontalLine(c.getY(), c.getX(), c.getRight());
+							ug.draw1PxHorizontalLine(c.getBottom(), c.getX(), c.getRight());
+							ug.draw1PxVerticalLine(c.getX(), c.getY(), c.getBottom());
+						}
+					}
+				}
             }
         }
         
-        ~Display()
-        {
-            mp->setEnableEventLogger(false);
-        }
+		void resized() override
+		{
+			rebuildEventsToShow();
+			auto topRow = getLocalBounds().removeFromTop(TopHeight);
+			topRow.removeFromBottom(HeaderHeight);
+
+			processButton.setBounds(topRow.removeFromLeft(topRow.getHeight()).reduced(1));
+			clearButton.setBounds(topRow.removeFromRight(topRow.getHeight()).reduced(1));
+			filter.setBounds(topRow);
+
+			resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
+		}
         
         void timerCallback() override
         {
             if(logger != nullptr)
             {
-                logger->queue.callForEveryElementInQueue([&](const HiseEvent& e)
+				auto didSomething = !logger->inputQueue.isEmpty() || !logger->outputQueue.isEmpty();
+				
+				logger->inputQueue.callForEveryElementInQueue([&](const HiseEvent& e)
                 {
-                    events.add(e);
+                    allInputEvents.add(e);
                     return true;
                 });
                 
-                int numToDisplay = getHeight() / RowHeight;
-                
-                if(events.size() > numToDisplay)
-                {
-                    int numToDelete = events.size() - numToDisplay;
-                    events.removeRange(0, numToDelete);
-                }
-                
-                repaint();
+				logger->outputQueue.callForEveryElementInQueue([&](const HiseEvent& e)
+				{
+					allOutputEvents.add(e);
+					return true;
+				});
+
+				if (allInputEvents.size() > 2048)
+					allInputEvents.removeRange(0, 1024);
+
+				if (allOutputEvents.size() > 2048)
+					allOutputEvents.removeRange(0, 1024);
+
+				if(didSomething)
+					rebuildEventsToShow();
             }
         }
-        
-        void resized() override
-        {
-            resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
-        }
-        
+		
+		void rebuildEventsToShow()
+		{
+			int numToDisplay = roundToInt(std::floor((float)(getHeight() - TopHeight) / (float)RowHeight));
+
+			events.clear();
+
+			auto& arrayToUse = processButton.getToggleState() ? allOutputEvents : allInputEvents;
+
+			for (int i = arrayToUse.size() - 1; i >= 0; i--)
+			{
+				data->setProperty("number", arrayToUse[i].getNoteNumber());
+				data->setProperty("velocity", arrayToUse[i].getVelocity());
+				data->setProperty("type", (int)arrayToUse[i].getType());
+				data->setProperty("channel", arrayToUse[i].getChannel());
+				data->setProperty("event_id", arrayToUse[i].getEventId());
+				data->setProperty("timestamp", (int)arrayToUse[i].getTimeStamp());
+				data->setProperty("artificial", arrayToUse[i].isArtificial());
+				data->setProperty("ignored", arrayToUse[i].isIgnored());
+				data->setProperty("timer", arrayToUse[i].isTimerEvent());
+
+				if(filterExpression.isEmpty() || engine->evaluate(filterExpression, &filterResult))
+				events.insert(0, arrayToUse[i]);
+
+				if (events.size() == numToDisplay)
+					break;
+			}
+
+			repaint();
+		}
+
+		void textEditorReturnKeyPressed(TextEditor&) override
+		{
+			filterExpression = filter.getText();
+			rebuildEventsToShow();
+			
+		}
+
+	private:
+
+		Colour getColourForEvent(int eventId) const
+		{
+			return colours[eventId % 32];
+		}
+
+		snex::ui::Graph::Icons f;
+
+		ScopedPointer<juce::JavascriptEngine> engine;
+		DynamicObject::Ptr data;
+		String filterExpression;
+		Result filterResult;
+		Array<HiseEvent> allInputEvents;
+		Array<HiseEvent> allOutputEvents;
+		Array<HiseEvent> events;
+
         WeakReference<EventLogger> logger;
         juce::ResizableCornerComponent resizer;
         WeakReference<MidiProcessor> mp;
-        
-        Array<HiseEvent> events;
+
+		TextEditor filter;
+
+		HiseShapeButton processButton;
+		HiseShapeButton clearButton;
+
+		Colour colours[32];
     };
     
-    hise::LockfreeQueue<HiseEvent> queue;
+    hise::LockfreeQueue<HiseEvent> inputQueue;
+	hise::LockfreeQueue<HiseEvent> outputQueue;
     
     JUCE_DECLARE_WEAK_REFERENCEABLE(EventLogger);
 };
 
-void MidiProcessor::logIfEnabled(const HiseEvent& e)
+void MidiProcessor::logIfEnabled(const HiseEvent& e, bool beforeProcessing)
 {
 #if USE_BACKEND
     
@@ -272,7 +545,10 @@ void MidiProcessor::logIfEnabled(const HiseEvent& e)
     
     if(eventLogger != nullptr)
     {
-        eventLogger->queue.push(e);
+		if(beforeProcessing)
+			eventLogger->inputQueue.push(e);
+		else
+			eventLogger->outputQueue.push(e);
     }
     
 #endif
@@ -392,23 +668,18 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 			wmp->preprocessBuffer(buffer, numSamples);
 			buffer.alignEventsToRaster<HISE_EVENT_RASTER>(numSamples);
 		}
-			
-
-		
 	}
 
 	if (buffer.isEmpty() && futureEventBuffer.isEmpty() && artificialEvents.isEmpty()) return;
     
+	logEvents(buffer, true);
+
 	HiseEventBuffer::Iterator it(buffer);
 	
 	jassert(buffer.timeStampsAreSorted());
 
-    
-    
-	while (HiseEvent* e = it.getNextEventPointer(false, false))
-	{
+	while (HiseEvent* e = it.getNextEventPointer(true, false))
 		processHiseEvent(*e);
-	}
 
 	buffer.sortTimestamps();
 	artificialEvents.sortTimestamps();
@@ -418,6 +689,23 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 	artificialEvents.moveEventsBelow(buffer, numSamples);
 	buffer.moveEventsAbove(artificialEvents, numSamples);
 	artificialEvents.subtractFromTimeStamps(numSamples);
+
+	logEvents(buffer, false);
+}
+
+void MidiProcessorChain::logEvents(HiseEventBuffer& buffer, bool isBefore)
+{
+#if USE_BACKEND
+	HiseEventBuffer::Iterator it(buffer);
+
+	while (auto n = it.getNextEventPointer())
+	{
+		logIfEnabled(*n, isBefore);
+
+		for (auto p : processors)
+			p->logIfEnabled(*n, isBefore);
+	}
+#endif
 }
 
 MidiProcessorFactoryType::MidiProcessorFactoryType(Processor *p) :

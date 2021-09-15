@@ -138,7 +138,7 @@ public:
 
     void setEnableEventLogger(bool shouldBeEnabled);
     
-    void logIfEnabled(const HiseEvent& e);
+    void logIfEnabled(const HiseEvent& e, bool beforeProcessing);
     
     Component* createEventLogComponent();
     
@@ -220,6 +220,8 @@ public:
 
 	void renderNextHiseEventBuffer(HiseEventBuffer &buffer, int numSamples);
 
+	void logEvents(HiseEventBuffer& buffer, bool isBefore);
+
 	/** Sequentially processes all processors. */
 	void processHiseEvent(HiseEvent &m) override
 	{
@@ -240,12 +242,8 @@ public:
 				continue;
 			}
 
-            processors[i]->logIfEnabled(m);
-            
-            if(m.isIgnored())
-                continue;
-            
-			processors[i]->processHiseEvent(m);
+            if(!m.isIgnored())
+				processors[i]->processHiseEvent(m);
 		}
 	};
 
