@@ -154,7 +154,8 @@ private:
 	// ====================================================================================================================
 
 	class ModuleDragTarget : public ButtonListener,
-							 public Label::Listener
+							 public Label::Listener,
+                             public SettableTooltipClient
 	{
 	public:
 

@@ -504,12 +504,23 @@ isOver(false)
 			ProcessorEditor::createProcessorFromPopup(c, p->getParentProcessor(false), p);
 	};
 
-	closeButton.setTooltip("Delete this module");
+	closeButton.setTooltip("Delete " + getProcessor()->getId());
 
+    String type;
+    
+    if(dynamic_cast<ModulatorSynth*>(getProcessor()))
+        type = "Sound generator";
+    if(dynamic_cast<Modulator*>(getProcessor()))
+        type = "Modulator";
+    if(dynamic_cast<EffectProcessor*>(getProcessor()))
+        type = "Effect";
+    if(dynamic_cast<MidiProcessor*>(getProcessor()))
+        type = "MIDI Processor";
+    
 	if (dynamic_cast<Chain*>(getProcessor()) != nullptr)
-		createButton.setTooltip("Add a new module to this chain");
+		createButton.setTooltip("Add a new " + type + " to this chain");
 	else
-		createButton.setTooltip("Add a new module before this");
+		createButton.setTooltip("Add a new " + type + " before " + getProcessor()->getId());
 	
 	closeButton.onClick = [this]()
 	{
@@ -550,6 +561,8 @@ isOver(false)
 	idLabel.setJustificationType(Justification::centredLeft);
 	idLabel.setText(getProcessor()->getId(), dontSendNotification);
 	idLabel.addListener(this);
+    
+    
 }
 
 void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)
@@ -659,6 +672,8 @@ hierarchy(hierarchy_)
 	addAndMakeVisible(idLabel);
 	addAndMakeVisible(foldButton = new ShapeButton("Fold Overview", Colour(0xFF222222), Colours::white.withAlpha(0.4f), Colour(0xFF222222)));
 
+    setTooltip("Show " + synth->getId() + " editor");
+    
 	idLabel.setFont(GLOBAL_BOLD_FONT().withHeight(JUCE_LIVE_CONSTANT_OFF(16.0f)));
 
 	if (dynamic_cast<Chain*>(synth) != nullptr)
@@ -961,7 +976,7 @@ lastId(String()),
 hierarchy(hierarchy_),
 lastMouseDown(0)
 {
-    
+    setTooltip("Show " + p->getId() + " editor");
     
 	addAndMakeVisible(closeButton);
 	addAndMakeVisible(createButton);
@@ -1374,6 +1389,11 @@ void PatchBrowser::MiniPeak::mouseDown(const MouseEvent& e)
 		if(auto rp = dynamic_cast<RoutableProcessor*>(p.get()))
 			rp->editRouting(this);
 	}
+    if(type == ProcessorType::Midi)
+    {
+        auto pl = dynamic_cast<MidiProcessor*>(p.get())->createEventLogComponent();
+        GET_BACKEND_ROOT_WINDOW(this)->getRootFloatingTile()->showComponentInRootPopup(pl, getParentComponent(), { 100, 35 }, false);
+    }
 	if (type == ProcessorType::Mod)
 	{
 		auto pl = new PlotterPopup(p);

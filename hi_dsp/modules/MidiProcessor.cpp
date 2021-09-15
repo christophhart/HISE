@@ -51,6 +51,259 @@ MidiProcessor::~MidiProcessor()
 };
 
 
+struct MidiProcessor::EventLogger
+{
+    EventLogger():
+      queue(1024)
+    {};
+    
+    struct Display: public Component,
+                    public PooledUIUpdater::SimpleTimer
+    {
+        static constexpr int RowHeight = 24;
+        
+        enum class Columns
+        {
+            Type,
+            Ignored,
+            Artificial,
+            Number,
+            Channel,
+            Value,
+            Timestamp,
+            EventId,
+            
+            numColumns
+        };
+        
+        Display(MidiProcessor* mp_, EventLogger* l):
+          SimpleTimer(mp_->getMainController()->getGlobalUIUpdater()),
+          resizer(this, nullptr),
+          mp(mp_),
+          logger(l)
+        {
+            addAndMakeVisible(resizer);
+            start();
+            setSize(400, 400);
+            setName("Event Logger: " + mp->getId());
+        }
+        
+        void drawEventColumn(Graphics& g, const HiseEvent& e, Columns c, Rectangle<float> area)
+        {
+            g.setFont(GLOBAL_MONOSPACE_FONT());
+            g.setColour(Colours::black.withAlpha(0.05f));
+            g.fillRect(area.reduced(0.5f));
+            g.setColour(Colours::white);
+            
+            auto draw = [&](int v)
+            {
+                g.drawText(String(v), area, Justification::centred);
+            };
+            
+            switch(c)
+            {
+                case Columns::Type:
+                {
+                    if(e.isAllNotesOff())
+                    {
+                        g.setColour(Colours::red.withSaturation(0.6f));
+                        g.drawText("!", area, Justification::centred);
+                    }
+                    if(e.isNoteOnOrOff())
+                    {
+                        Path p;
+                        p.startNewSubPath(0.0f, 0.0f);
+                        p.lineTo(1.0f, 0.0f);
+                        p.lineTo(0.5f, 1.0f);
+                        p.closeSubPath();
+                        
+                        Colour c[8];
+                        
+                        c[0] = Colours::red;
+                        c[1] = Colours::violet;
+                        c[2] = Colours::brown;
+                        c[3] = Colours::green;
+                        c[4] = Colours::pink;
+                        c[5] = Colours::yellow;
+                        c[6] = Colours::orange;
+                        c[7] = Colours::blue;
+                        
+                        auto randomColour = c[e.getEventId() % 8];
+                        g.setColour(randomColour.withAlpha(0.7f).withSaturation(0.5f));
+                        
+                        if(e.isNoteOff())
+                            p.applyTransform(AffineTransform::rotation(float_Pi));
+                        
+                        PathFactory::scalePath(p, area.reduced(6.0f));
+                        
+                        
+                        
+                        g.fillPath(p);
+                    }
+                }
+                case Columns::Ignored: if(e.isIgnored()) g.fillEllipse(area.reduced(9)); break;
+                case Columns::Artificial: if(e.isArtificial()) g.fillEllipse(area.reduced(9)); break;
+                case Columns::Number: draw(e.getNoteNumber()); break;
+                case Columns::Channel: draw(e.getChannel()); break;
+                case Columns::Value: draw(e.getVelocity()); break;
+                case Columns::Timestamp: draw(e.getTimeStamp()); break;
+                case Columns::EventId: draw(e.getEventId()); break;
+                default: return;
+            }
+        }
+        
+        void drawColumnHeader(Graphics& g, Columns c, Rectangle<float> area)
+        {
+            g.setFont(GLOBAL_BOLD_FONT());
+            g.setColour(Colours::black.withAlpha(0.15f));
+            g.fillRect(area.reduced(0.5f));
+            g.setColour(Colours::white);
+            
+            switch(c)
+            {
+                case Columns::Type: g.drawText("T", area, Justification::centred); break;
+                case Columns::Ignored: g.drawText("I", area, Justification::centred); break;
+                case Columns::Artificial: g.drawText("A", area, Justification::centred); break;
+                case Columns::Number: g.drawText("Number", area, Justification::centred); break;
+                case Columns::Channel: g.drawText("Channel", area, Justification::centred); break;
+                case Columns::Value: g.drawText("Value", area, Justification::centred); break;
+                case Columns::Timestamp: g.drawText("Timestamp", area, Justification::centred); break;
+                case Columns::EventId: g.drawText("Event ID", area, Justification::centred); break;
+                default: return;
+            }
+        }
+        
+        int getColumnWidth(Columns c)
+        {
+            switch(c)
+            {
+                case Columns::Type: return RowHeight;
+                case Columns::Ignored: return RowHeight;
+                case Columns::Artificial: return RowHeight;
+                case Columns::Number: return (getWidth() - RowHeight * 3) * 0.2;
+                case Columns::Channel: return (getWidth() - RowHeight * 3) * 0.15;
+                case Columns::Value: return (getWidth() - RowHeight * 3) * 0.15;
+                case Columns::Timestamp: return (getWidth() - RowHeight * 3) * 0.25;
+                case Columns::EventId: return (getWidth() - RowHeight * 3) * 0.25;
+                default: return 0;
+            }
+        }
+        
+        void drawEvent(Graphics& g, const HiseEvent& e, Rectangle<float> area)
+        {
+            g.setFont(GLOBAL_MONOSPACE_FONT());
+            g.setColour(Colours::white.withAlpha(0.4f));
+            g.drawText(e.toDebugString(), area, Justification::centred);
+        }
+        
+        void paint(Graphics& g) override
+        {
+            auto b = getLocalBounds();
+            
+            auto top = b.removeFromTop(30);
+            
+            for(int i = 0; i < int(Columns::numColumns); i++)
+            {
+                auto h = top.removeFromLeft(getColumnWidth((Columns)i));
+                drawColumnHeader(g, (Columns)i, h.toFloat());
+            }
+            
+            for(auto e: events)
+            {
+                auto a = b.removeFromTop(RowHeight);
+             
+                for(int i = 0; i < int(Columns::numColumns); i++)
+                {
+                    auto h = a.removeFromLeft(getColumnWidth((Columns)i));
+                    drawEventColumn(g, e, (Columns)i, h.toFloat());
+                }
+            }
+        }
+        
+        ~Display()
+        {
+            mp->setEnableEventLogger(false);
+        }
+        
+        void timerCallback() override
+        {
+            if(logger != nullptr)
+            {
+                logger->queue.callForEveryElementInQueue([&](const HiseEvent& e)
+                {
+                    events.add(e);
+                    return true;
+                });
+                
+                int numToDisplay = getHeight() / RowHeight;
+                
+                if(events.size() > numToDisplay)
+                {
+                    int numToDelete = events.size() - numToDisplay;
+                    events.removeRange(0, numToDelete);
+                }
+                
+                repaint();
+            }
+        }
+        
+        void resized() override
+        {
+            resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
+        }
+        
+        WeakReference<EventLogger> logger;
+        juce::ResizableCornerComponent resizer;
+        WeakReference<MidiProcessor> mp;
+        
+        Array<HiseEvent> events;
+    };
+    
+    hise::LockfreeQueue<HiseEvent> queue;
+    
+    JUCE_DECLARE_WEAK_REFERENCEABLE(EventLogger);
+};
+
+void MidiProcessor::logIfEnabled(const HiseEvent& e)
+{
+#if USE_BACKEND
+    
+    SimpleReadWriteLock::ScopedReadLock sl(eventLock);
+    
+    if(eventLogger != nullptr)
+    {
+        eventLogger->queue.push(e);
+    }
+    
+#endif
+}
+
+void MidiProcessor::setEnableEventLogger(bool shouldBeEnabled)
+{
+    SimpleReadWriteLock::ScopedWriteLock sl(eventLock);
+    
+    bool isLoggingEvents = eventLogger != nullptr;
+    
+    if(isLoggingEvents != shouldBeEnabled)
+    {
+        if(!shouldBeEnabled)
+        {
+            eventLogger = nullptr;
+        }
+        else
+        {
+            eventLogger = new EventLogger();
+        }
+    }
+}
+
+
+Component* MidiProcessor::createEventLogComponent()
+{
+    setEnableEventLogger(true);
+    return new EventLogger::Display(this, eventLogger);
+}
+
 bool MidiProcessor::setArtificialTimestamp(uint16 eventId, int newTimestamp)
 {
 	return ownerSynth->midiProcessorChain->setArtificialTimestamp(eventId, newTimestamp);
@@ -145,12 +398,14 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 	}
 
 	if (buffer.isEmpty() && futureEventBuffer.isEmpty() && artificialEvents.isEmpty()) return;
-
+    
 	HiseEventBuffer::Iterator it(buffer);
 	
 	jassert(buffer.timeStampsAreSorted());
 
-	while (HiseEvent* e = it.getNextEventPointer(true, false))
+    
+    
+	while (HiseEvent* e = it.getNextEventPointer(false, false))
 	{
 		processHiseEvent(*e);
 	}

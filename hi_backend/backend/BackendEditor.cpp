@@ -1106,7 +1106,7 @@ struct ToolkitPopup : public Component,
 		SimpleTimer(mc->getGlobalUIUpdater()),
 		panicButton("Panic", this, *this),
 		keyboard(mc),
-		masterConnection(&masterVolume, mc, "Master Chain"),
+		masterConnection(&masterVolume, mc, mc->getMainSynthChain()->getId()),
 		resizer(this, &constrainer, ResizableEdgeComponent::rightEdge)
 	{
 		constrainer.setMinimumWidth(550);
