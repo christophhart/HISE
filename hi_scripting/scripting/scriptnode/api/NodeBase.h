@@ -480,8 +480,6 @@ public:
 
 	bool isUINodeOfDuplicate() const { return uiNodeOfDuplicates; }
 
-	int getCurrentChannelAmount() const { return numChannels.get(); };
-
 	void setEmbeddedNetwork(NodeBase::Holder* n);
 
 	DspNetwork* getEmbeddedNetwork();
@@ -489,6 +487,8 @@ public:
 
 	bool& getPreserveAutomationFlag() { return preserveAutomation; }
 
+    int getCurrentChannelAmount() const { return lastSpecs.numChannels; };
+    
 protected:
 
 	ValueTree v_data;
@@ -506,8 +506,6 @@ private:
 	bool containsNetwork = false;
 
 	valuetree::PropertyListener frozenListener;
-
-	CachedValue<int> numChannels;
 
 	bool uiNodeOfDuplicates = false;
 

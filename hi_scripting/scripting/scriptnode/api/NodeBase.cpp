@@ -56,10 +56,8 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	currentId(v_data[PropertyIds::ID].toString()),	
 	subHolder(rootNetwork->getCurrentHolder())
 {
-	numChannels.referTo(data_, PropertyIds::NumChannels, nullptr, 2);
 	bypassState.referTo(data_, PropertyIds::Bypassed, getUndoManager(), false);
 
-	setDefaultValue(PropertyIds::NumChannels, 2);
 	setDefaultValue(PropertyIds::NodeColour, 0);
 	setDefaultValue(PropertyIds::Comment, "");
 	//setDefaultValue(PropertyIds::CommentWidth, 300);
@@ -88,8 +86,6 @@ void NodeBase::prepare(PrepareSpecs specs)
 	if(lastSpecs.numChannels == 0)
 		setBypassed(isBypassed());
 
-	numChannels = specs.numChannels;
-	
 	lastSpecs = specs;
 	cpuUsage = 0.0;
 

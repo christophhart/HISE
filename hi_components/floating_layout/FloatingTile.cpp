@@ -1018,7 +1018,7 @@ void FloatingTile::paint(Graphics& g)
         
 		g.fillRect(area);
 
-        g.setColour(Colours::white.withAlpha(0.1f));
+        g.setColour(Colours::white.withAlpha(0.03f));
         g.drawRect(area.reduced(2.0f), 1.0f);
         
 		Rectangle<int> titleArea = Rectangle<int>(leftOffsetForTitleText, 0, rightOffsetForTitleText - leftOffsetForTitleText, TitleHeight);

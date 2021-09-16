@@ -856,7 +856,7 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 			auto tr = t->getBounds().getRight();
 			auto tyc = t->getBounds().getCentreY();
 
-			auto nx = n->getBounds().getX();
+			auto nx = n->getBounds().getCentreX();
 			auto nyc = n->getBounds().getCentreY(); // if you can make it here
 
 			Point<float> t1(tr, tyc);

@@ -965,9 +965,16 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 		if (numToPlay > 0)
 		{
-			FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(0, 0), previewBuffer.getReadPointer(0, previewBufferIndex), numToPlay);
-			FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(1, 0), previewBuffer.getReadPointer(1, previewBufferIndex), numToPlay);
-
+            int numChannels = previewBuffer.getNumChannels();
+            
+            for(int i = 0; i < multiChannelBuffer.getNumChannels(); i++)
+            {
+                if(isPositiveAndBelow(i, previewBuffer.getNumChannels()))
+                {
+                    FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(i, 0), previewBuffer.getReadPointer(i, previewBufferIndex), numToPlay);
+                }
+            }
+            
 			previewBufferIndex += numToPlay;
 		}
 

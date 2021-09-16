@@ -501,7 +501,7 @@ void MacroControlBroadcaster::MacroControlData::removeParameter(int parameterInd
 		controlledParameters[parameterIndex]->getProcessor()->sendChangeMessage();
 	}
 
-	Processor* pToRemove = nullptr; 
+    WeakReference<Processor> pToRemove;
 	auto indexToRemove = -1;
 
 	if (auto cp = controlledParameters[parameterIndex])
@@ -511,7 +511,17 @@ void MacroControlBroadcaster::MacroControlData::removeParameter(int parameterInd
 	}
 
 	controlledParameters.remove(parameterIndex);
-	parent.sendMacroConnectionChangeMessage(macroIndex, pToRemove, indexToRemove, false);
+    
+    WeakReference<MacroControlBroadcaster> safeParent(&parent);
+    
+    auto mi = macroIndex;
+    MessageManager::callAsync([safeParent, pToRemove, mi, indexToRemove]()
+    {
+        if(safeParent && pToRemove)
+        {
+            safeParent->sendMacroConnectionChangeMessage(mi, pToRemove, indexToRemove, false);
+        }
+    });
 };
 
 void MacroControlBroadcaster::MacroControlData::removeParameter(const String &parameterName, const Processor *processor)

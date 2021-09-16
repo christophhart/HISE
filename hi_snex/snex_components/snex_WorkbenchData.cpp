@@ -486,8 +486,10 @@ void ui::WorkbenchData::TestData::rebuildTestSignal(NotificationType triggerTest
 {
 	int size = testSignalLength;
 
-	testSourceData.setSize(2, size);
-
+    if(ps.numChannels == 0)
+        return;
+    
+	testSourceData.setSize(ps.numChannels, size);
 	testSourceData.clear();
 
 	switch (currentTestSignalType)
@@ -593,8 +595,16 @@ void ui::WorkbenchData::TestData::rebuildTestSignal(NotificationType triggerTest
 		break;
 	}
 
+    
+    
 	if(currentTestSignalType != TestSignalMode::CustomFile)
-		FloatVectorOperations::copy(testSourceData.getWritePointer(1), testSourceData.getReadPointer(0), size);
+    {
+        for(int i = 1; i < testSourceData.getNumChannels(); i++)
+        {
+            FloatVectorOperations::copy(testSourceData.getWritePointer(i), testSourceData.getReadPointer(0), size);
+        }
+    }
+		
 
 	for (auto l : listeners)
 	{

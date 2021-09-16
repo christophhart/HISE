@@ -473,23 +473,13 @@ public:
 
 			if (testData.shouldRunTest())
 			{
-				testData.initProcessing(512, 44100.0);
+                PrepareSpecs ps;
+                ps.sampleRate = 44100.0;
+                ps.blockSize = 512;
+                ps.numChannels = 2;
+                
+				testData.initProcessing(ps);
 				testData.processTestData(getParent());
-
-#if 0
-				auto ps = testData.createPrepareSpecs();
-
-				auto pd = testData.createProcessData();
-
-
-				lastNode->prepare(ps);
-				lastNode->reset();
-
-				DBG("POST");
-
-				ProcessDataDyn data(processedTestBuffer.getArrayOfWritePointers(), ps.blockSize, ps.numChannels);
-				lastNode->process(data);
-#endif
 			}
 		}
 	}

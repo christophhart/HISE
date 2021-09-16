@@ -332,7 +332,7 @@ Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
 	{
 		PooledCableType::TemplateConstants c;
 
-		c.numChannels = (int)PropertyIds::Helpers::getWithDefault(u->nodeTree, PropertyIds::NumChannels);
+		c.numChannels = numChannelsToCompile;
 		c.isFrame = ValueTreeIterator::forEachParent(u->nodeTree, [&](ValueTree& v)
 		{
 			if (v.getType() == PropertyIds::Node)
@@ -450,6 +450,17 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 {
 	if (FactoryIds::isContainer(getNodePath(u->nodeTree)))
 	{
+        int numToUse = numChannelsToCompile;
+        
+        if(u->nodeTree[PropertyIds::FactoryPath] == "container.multi")
+        {
+            int numChildren = u->nodeTree.getChildWithName(PropertyIds::Nodes).getNumChildren();
+            
+            numToUse /= jmax(1, numChildren);
+        }
+        
+        ScopedChannelSetter sns(*this, numToUse);
+        
 		for (auto c : u->nodeTree.getChildWithName(PropertyIds::Nodes))
 			pooledTypeDefinitions.add(parseNode(c));
 
@@ -481,14 +492,15 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 
 		auto realPath = u->nodeTree[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf("container.", false, false);
 
+        
+        
 		if (realPath.startsWith("modchain"))
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::control_rate"));
 		}
 		if (realPath.startsWith("frame"))
 		{
-			auto numChannels = (int)PropertyIds::Helpers::getWithDefault(u->nodeTree, PropertyIds::NumChannels);
-			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::frame"), numChannels);
+			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::frame"), numChannelsToCompile);
 		}
 		if (realPath.startsWith("soft_bypass"))
 		{
@@ -564,6 +576,8 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
 {
 	Node::List children;
 
+    
+    
     auto nodeTree = container->nodeTree.getChildWithName(PropertyIds::Nodes);
     
 	ValueTreeIterator::forEach(nodeTree, ValueTreeIterator::OnlyChildren, [&](ValueTree& c)
@@ -573,11 +587,8 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
 		auto numToUse = -1;
 
 		if (c.getParent().indexOf(c) == 0)
-			numToUse = PropertyIds::Helpers::getWithDefault(container->nodeTree, PropertyIds::NumChannels);
+            numToUse = numChannelsToCompile;
 		
-		if (parentPath.getIdentifier() == Identifier("multi"))
-			numToUse = PropertyIds::Helpers::getWithDefault(c, PropertyIds::NumChannels);
-
 		if (numToUse != -1)
 			children.add(parseFixChannel(c, numToUse));
 		else
@@ -1659,10 +1670,10 @@ void ValueTreeBuilder::RootContainerBuilder::addMetadata()
 
 	parent.addEmptyLine();
 
-	auto numChannels = PropertyIds::Helpers::getWithDefault(root->nodeTree, PropertyIds::NumChannels);
+	auto numChannels = parent.numChannelsToCompile;
 
 	Macro(parent, "SNEX_METADATA_ID", { root->nodeTree[PropertyIds::ID].toString() });
-	Macro(parent, "SNEX_METADATA_NUM_CHANNELS", { numChannels.toString() });
+	Macro(parent, "SNEX_METADATA_NUM_CHANNELS", { String(parent.numChannelsToCompile) });
 
 	auto pCopy = root->nodeTree.getChildWithName(PropertyIds::Parameters).createCopy();
 
@@ -1671,19 +1682,6 @@ void ValueTreeBuilder::RootContainerBuilder::addMetadata()
 	int ssi = sizeof(NormalisableRange<double>);
 
 	cppgen::EncodedParameterMacro(parent, encoder);
-
-#if 0
-	if (outputFormat == Format::CppDynamicLibrary)
-	{
-		String s;
-		zstd::ZDefaultCompressor comp;
-		MemoryBlock mb;
-		comp.compress(root->nodeTree, mb);
-		s = mb.toBase64Encoding();
-		Macro(parent, "SNEX_METADATA_SNIPPET", { s });
-	}
-#endif
-
 	m.flushIfNot();
 	parent.addEmptyLine();
 }

@@ -669,7 +669,7 @@ struct WrapperWithMenuBarBase : public Component,
 		auto cTree = getBookmarkValueTree();
 
 		bookmarkUpdater.setCallback(cTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(WrapperWithMenuBarBase::updateBookmarks));
-		bookmarkBox->setSize(140, 24);
+		bookmarkBox->setSize(100, 24);
 		actionButtons.add(bookmarkBox);
 		addAndMakeVisible(bookmarkBox);
 	}

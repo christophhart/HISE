@@ -132,6 +132,10 @@ struct Selector : public Component,
 		auto jsp = dynamic_cast<JavascriptProcessor*>(holder.get());
 
 		holder->getOrCreate(n);
+        
+        auto p = dynamic_cast<Processor*>(holder.get());
+        
+        p->prepareToPlay(p->getSampleRate(), p->getLargestBlockSize());
 
 		auto gw = [rootWindow, jsp]()
 		{
@@ -615,10 +619,16 @@ void WorkbenchTestPlayer::postPostCompile(WorkbenchData::Ptr wb)
 {
 	auto& td = wb->getTestData();
 
-	VariantBuffer::Ptr il = new VariantBuffer(td.testSourceData.getWritePointer(0), td.testSourceData.getNumSamples());
-	VariantBuffer::Ptr ir = new VariantBuffer(td.testSourceData.getWritePointer(1), td.testSourceData.getNumSamples());
-	VariantBuffer::Ptr ol = new VariantBuffer(td.testOutputData.getWritePointer(0), td.testOutputData.getNumSamples());
-	VariantBuffer::Ptr or_ = new VariantBuffer(td.testOutputData.getWritePointer(1), td.testOutputData.getNumSamples());
+    auto& b1 = td.testSourceData;
+    auto& b2 = td.testOutputData;
+    
+    auto size = b1.getNumSamples();
+    int numChannels = b1.getNumChannels();
+    
+	VariantBuffer::Ptr il = new VariantBuffer(b1.getWritePointer(0), size);
+	VariantBuffer::Ptr ir = new VariantBuffer(b1.getWritePointer(jmin(1, numChannels-1)), size);
+	VariantBuffer::Ptr ol = new VariantBuffer(b2.getWritePointer(0), size);
+	VariantBuffer::Ptr or_ = new VariantBuffer(b2.getWritePointer(jmin(1, numChannels-1)), size);
 
 	inputPreview.setBuffer(var(il), var(ir));
 	outputPreview.setBuffer(var(ol), var(or_));

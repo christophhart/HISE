@@ -61,7 +61,13 @@ void Graph::InternalGraph::paint(Graphics& g)
 
 	g.setFont(GLOBAL_BOLD_FONT());
 
-	if (l.isEmpty() && r.isEmpty())
+    bool empty = true;
+    
+    for(const auto& cd: channelData)
+        empty &= cd.path.isEmpty();
+    
+    
+	if (empty)
 	{
 		g.setColour(Colours::white.withAlpha(0.5f));
 		g.setFont(GLOBAL_BOLD_FONT());
@@ -101,23 +107,16 @@ void Graph::InternalGraph::paint(Graphics& g)
 				}
 			}
 
-			g.setColour(Colours::white.withAlpha(0.8f));
+            g.setColour(Colours::white.withAlpha(0.8f));
 
-			if (isHiresMode())
-				g.strokePath(l, PathStrokeType(2.0f));
-			else
-				g.fillPath(l);
-
-			if (stereoMode && !r.isEmpty())
-			{
-				if (isHiresMode())
-					g.strokePath(r, PathStrokeType(2.0f));
-				else
-					g.fillPath(r);
-			} 
+            for(const auto& cd: channelData)
+            {
+                if (isHiresMode())
+                    g.strokePath(cd.path, PathStrokeType(2.0f));
+                else
+                    g.fillPath(cd.path);
+            }
 		}
-
-		
 	}
 
 	if (parent.markerButton->getToggleState() && getCurrentGraphType() != GraphType::FFT)
@@ -263,19 +262,17 @@ void Graph::InternalGraph::setBuffer(const AudioSampleBuffer& b)
 	}
 	else
 	{
-		calculatePath(l, b, 0);
-
-		stereoMode = b.getNumChannels() == 2;
-
-		if (stereoMode)
-			calculatePath(r, b, 1);
-		else
-			r.clear();
-
-		leftPeaks = b.findMinMax(0, 0, b.getNumSamples());
-
-		if (stereoMode)
-			rightPeaks = b.findMinMax(1, 0, b.getNumSamples());
+        Array<ChannelData> newData;
+        
+        for(int i = 0; i < b.getNumChannels(); i++)
+        {
+            ChannelData nd;
+            calculatePath(nd.path, b, i);
+            nd.peaks = b.findMinMax(i, 0, b.getNumSamples());
+            newData.add(std::move(nd));
+        }
+        
+        std::swap(newData, channelData);
 
 		resizePath();
 	}
@@ -339,24 +336,15 @@ void Graph::InternalGraph::resizePath()
 
 	pb.reduce(2, 2);
 
-	if (stereoMode)
-	{
-		auto lb = pb.removeFromTop(getHeight() / 2).toFloat();
-
-		auto rb = pb.toFloat();
-
-		lb.reduce(0.0f, 1.0f);
-		rb.reduce(0.0f, 1.f);
-
-		l.scaleToFit(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight(), false);
-		r.scaleToFit(rb.getX(), rb.getY(), rb.getWidth(), rb.getHeight(), false);
-	}
-	else
-	{
-		auto lb = pb.toFloat();
-		l.scaleToFit(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight(), false);
-	}
-
+    auto pathHeight = getHeight() / jmax(1, channelData.size());
+    
+    for(auto& cd: channelData)
+    {
+        auto lb = pb.removeFromTop(pathHeight).toFloat();
+        lb.reduce(0.0f, 1.0f);
+        cd.path.scaleToFit(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight(), false);
+    }
+    
 	repaint();
 }
 
@@ -386,13 +374,12 @@ String Graph::InternalGraph::getTooltip()
 	{
 		int samplePos = jlimit(0, lastBuffer.getNumSamples() - 1, roundToInt(xNormalised * (float)lastBuffer.getNumSamples()));
 
-		bool rightChannel = stereoMode && currentPoint.getY() > (getHeight() / 2);
+        int channelPos = (currentPoint.getY() * channelData.size() / getHeight());
+        channelPos = jlimit(0, channelData.size(), channelPos);
 		
 		v << "data[" << juce::String(samplePos) << "]: ";
-		float value = lastBuffer.getSample(rightChannel ? 1 : 0, samplePos);
+		float value = lastBuffer.getSample(channelPos, samplePos);
 		v << Types::Helpers::getCppValueString(value);
-
-		break;
 	}
 	case GraphType::FFT:
 	{
@@ -715,37 +702,19 @@ void Graph::paint(Graphics& g)
 
 	g.setColour(Colours::white);
 
-	if (internalGraph.stereoMode)
-	{
-		auto left = b.removeFromTop(b.getHeight() / 2).toFloat();
-		auto right = b.toFloat();
+    auto h = b.getHeight() / jmax(1, internalGraph.channelData.size());
+    
+    for(const auto& cd: internalGraph.channelData)
+    {
+        auto left = b.removeFromTop(h).toFloat();
+        auto lMax = left.removeFromTop(18);
+        auto lMin = left.removeFromBottom(18);
 
-		auto lMax = left.removeFromTop(18);
-		auto lMin = left.removeFromBottom(18);
-
-		g.drawText(juce::String(internalGraph.leftPeaks.getStart(), 1), lMin, Justification::left);
-		g.drawText(juce::String(internalGraph.leftPeaks.getEnd(), 1), lMax, Justification::left);
-
-		auto rMax = right.removeFromTop(18);
-		auto rMin = right.removeFromBottom(18);
-
-		g.drawText(juce::String(internalGraph.rightPeaks.getStart(), 1), rMin, Justification::left);
-		g.drawText(juce::String(internalGraph.rightPeaks.getEnd(), 1), rMax, Justification::left);
-	}
-	else
-	{
-		auto left = b.removeFromTop(b.getHeight()).toFloat();
-
-		auto lMax = left.removeFromTop(18);
-		auto lMin = left.removeFromBottom(18);
-
-		g.drawText(juce::String(internalGraph.leftPeaks.getStart(), 1), lMin, Justification::left);
-		g.drawText(juce::String(internalGraph.leftPeaks.getEnd(), 1), lMax, Justification::left);
-	}
-
+        g.drawText(juce::String(cd.peaks.getStart(), 1), lMin, Justification::left);
+        g.drawText(juce::String(cd.peaks.getEnd(), 1), lMax, Justification::left);
+    }
+    
 	String cu;
-
-	cu << "CPU: " << String(cpuUsage * 100.0, 2) << "%";
 
 	g.setColour(Colours::white);
 	g.drawText(cu, getLocalBounds().toFloat().reduced(30.f, 3.f), Justification::topRight);

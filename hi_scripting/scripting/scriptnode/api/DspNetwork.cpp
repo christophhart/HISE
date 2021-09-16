@@ -73,6 +73,9 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	if(!data.hasProperty(PropertyIds::AllowPolyphonic))
 		data.setProperty(PropertyIds::AllowPolyphonic, isPoly, nullptr);
 
+    if(!data.hasProperty(PropertyIds::CompileChannelAmount))
+        data.setProperty(PropertyIds::CompileChannelAmount, 2, nullptr);
+    
 	if (dataHolder_ != nullptr)
 		setExternalDataHolder(dataHolder_);
 	else
@@ -169,7 +172,11 @@ DspNetwork::~DspNetwork()
 
 void DspNetwork::setNumChannels(int newNumChannels)
 {
-	getRootNode()->getValueTree().setProperty(PropertyIds::NumChannels, newNumChannels, nullptr);
+    if(newNumChannels != currentSpecs.numChannels)
+    {
+        currentSpecs.numChannels = newNumChannels;
+        prepareToPlay(currentSpecs.sampleRate, currentSpecs.blockSize);
+    }
 }
 
 void DspNetwork::createAllNodesOnce()
@@ -393,9 +400,11 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 			currentSpecs.sampleRate = sampleRate;
 			currentSpecs.blockSize = (int)blockSize;
 
+            if(currentSpecs.numChannels == 0)
+                return;
+            
 			if (auto rootNode = getRootNode())
 			{
-				currentSpecs.numChannels = getRootNode()->getCurrentChannelAmount();
 				currentSpecs.voiceIndex = getPolyHandler();
 
 				getRootNode()->prepare(currentSpecs);

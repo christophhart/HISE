@@ -679,7 +679,7 @@ public:
 
 	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || getPolyHandler()->getVoiceIndex() == 0; }
 
-	bool isInitialised() const noexcept { return currentSpecs.blockSize > 0; };
+	bool isInitialised() const noexcept { return currentSpecs.blockSize > 0 && currentSpecs.numChannels > 0; };
 
 	bool isForwardingControlsToParameters() const
 	{
@@ -1144,9 +1144,6 @@ struct DspNetworkListeners
 
 				return !v[PropertyIds::Automated];
 			}
-
-			if (id == PropertyIds::NumChannels)
-				return false;
 
 			return true;
 		}

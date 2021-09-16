@@ -604,20 +604,25 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		double cpuUsage = 0.0;
 
-		TestSignalMode currentTestSignalType = TestSignalMode::Empty;
-		int testSignalLength = 1024;
+		TestSignalMode currentTestSignalType = TestSignalMode::Ramp;
+		int testSignalLength = 4096;
 
 		String getErrorMessage() const
 		{
 			return testResult.getErrorMessage();
 		}
 
-		void initProcessing(int blockSize, double sampleRate)
+		void initProcessing(PrepareSpecs specsToUse)
 		{
-			ps.numChannels = 2;
-			ps.blockSize = jmin(blockSize, testSourceData.getNumSamples());
-			ps.sampleRate = sampleRate;
+            ps = specsToUse;
 			ps.voiceIndex = parent.getGlobalScope().getPolyHandler();
+            
+            int numChannelsTestSignal = testSourceData.getNumChannels();
+            
+            if(numChannelsTestSignal != ps.numChannels)
+                rebuildTestSignal(dontSendNotification);
+            
+            ps.blockSize = jmin(ps.blockSize, testSourceData.getNumSamples());
 		}
 
 		PrepareSpecs getPrepareSpecs() { return ps; }
@@ -1319,7 +1324,7 @@ private:
 struct ValueTreeCodeProvider : public snex::ui::WorkbenchData::CodeProvider,
 	public Timer
 {
-	ValueTreeCodeProvider(snex::ui::WorkbenchData* data) :
+	ValueTreeCodeProvider(snex::ui::WorkbenchData* data, int numChannelsToCompile) :
 		CodeProvider(data)
 	{
 		timerCallback();
@@ -1351,6 +1356,7 @@ struct ValueTreeCodeProvider : public snex::ui::WorkbenchData::CodeProvider,
 
 	ValueTree lastTree;
 	String customCode;
+    int numChannelsToCompile;
 };
 
 struct WorkbenchManager final: public AsyncUpdater

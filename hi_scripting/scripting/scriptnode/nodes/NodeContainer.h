@@ -205,7 +205,7 @@ private:
 
 	void nodeAddedOrRemoved(ValueTree v, bool wasAdded);
 	void parameterAddedOrRemoved(ValueTree v, bool wasAdded);
-	void updateChannels(ValueTree v, Identifier id);
+	void updateChannels(ValueTree v, Identifier unused);
 
 	PolyHandler* lastVoiceIndex = nullptr;
 	bool channelRecursionProtection = false;

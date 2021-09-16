@@ -494,7 +494,7 @@ struct SnexSource : public WorkbenchData::Listener,
 						cs.blockSize = 512;
 					}
 
-					td.initProcessing(cs.blockSize, cs.sampleRate);
+					td.initProcessing(cs);
 
 					td.processTestData(rwb);
 

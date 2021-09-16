@@ -324,7 +324,7 @@ NodeComponent::NodeComponent(NodeBase* b) :
 	addAndMakeVisible(header);
 	setOpaque(false);
 
-	repaintListener.setCallback(dataReference, {PropertyIds::ID, PropertyIds::NumChannels, PropertyIds::NodeColour},
+	repaintListener.setCallback(dataReference, {PropertyIds::ID, PropertyIds::NodeColour},
 		valuetree::AsyncMode::Asynchronously,
 		[this](Identifier id, var)
 	{
@@ -335,9 +335,6 @@ NodeComponent::NodeComponent(NodeBase* b) :
 		}
 
 		repaint();
-		
-		if (id == PropertyIds::NumChannels && getParentComponent() != nullptr)
-			getParentComponent()->repaint();
 	});
 }
 
@@ -1038,7 +1035,10 @@ void NodeComponent::PopupHelpers::wrapIntoNetwork(NodeBase* node, bool makeCompi
 	auto tFile = ndir.getChildFile(node->getId()).withFileExtension("xml");
 
 	if (makeCompileable)
+    {
 		nData.setProperty(PropertyIds::AllowCompilation, makeCompileable, nullptr);
+        nData.setProperty(PropertyIds::CompileChannelAmount, node->getCurrentChannelAmount(), nullptr);
+    }
 
 	if (!tFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite file", "Do you want to overwrite the file " + tFile.getFileName()))
 	{

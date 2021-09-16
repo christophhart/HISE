@@ -712,6 +712,8 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 {
 	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 	
+    connectionChanged();
+    
 	if (getActiveNetwork() != nullptr)
 		getActiveNetwork()->prepareToPlay(sampleRate, samplesPerBlock);
 
@@ -1059,7 +1061,10 @@ void JavascriptTimeVariantModulator::prepareToPlay(double sampleRate, int sample
 	TimeVariantModulator::prepareToPlay(sampleRate, samplesPerBlock);
 
 	if (auto n = getActiveNetwork())
+    {
 		n->prepareToPlay(getControlRate(), samplesPerBlock / HISE_EVENT_RASTER);
+        n->setNumChannels(1);
+    }
 
 	if(internalBuffer.getNumChannels() > 0)
 		buffer->referToData(internalBuffer.getWritePointer(0), samplesPerBlock);
@@ -1260,8 +1265,8 @@ void JavascriptEnvelopeModulator::prepareToPlay(double sampleRate, int samplesPe
 
 	if (auto n = getActiveNetwork())
 	{
-		n->setNumChannels(1);
 		n->prepareToPlay(getControlRate(), samplesPerBlock / HISE_EVENT_RASTER);
+        n->setNumChannels(1);
 	}
 }
 
@@ -1870,7 +1875,8 @@ void JavascriptSynthesiser::prepareToPlay(double newSampleRate, int samplesPerBl
 
 	if (auto n = getActiveNetwork())
 	{
-		n->prepareToPlay(newSampleRate, (double)samplesPerBlock);
+        n->prepareToPlay(newSampleRate, (double)samplesPerBlock);
+        n->setNumChannels(getMatrix().getNumSourceChannels());
 	}
 }
 

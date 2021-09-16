@@ -767,19 +767,21 @@ public:
 		if (currentVoiceData->enabled == 0)
 			return;
 
-		auto& s = data[0];
+        float v = 0.0f;
 
 		auto g = currentVoiceData->gain;
 
 		switch (currentMode)
 		{
-		case Mode::Sine:	 s += g * tickSine(*currentVoiceData); break;
-		case Mode::Triangle: s += g * tickTriangle(*currentVoiceData); break;
-		case Mode::Saw:		 s += g * tickSaw(*currentVoiceData); break;
-		case Mode::Square:	 s += g * tickSquare(*currentVoiceData); break;
-		case Mode::Noise:	 s += g * (Random::getSystemRandom().nextFloat() * 2.0f - 1.0f);
+		case Mode::Sine:	 v = g * tickSine(*currentVoiceData); break;
+		case Mode::Triangle: v = g * tickTriangle(*currentVoiceData); break;
+		case Mode::Saw:		 v = g * tickSaw(*currentVoiceData); break;
+		case Mode::Square:	 v = g * tickSquare(*currentVoiceData); break;
+		case Mode::Noise:	 v = g * (Random::getSystemRandom().nextFloat() * 2.0f - 1.0f);
         default: break;
 		}
+        
+        data[0] = v;
 	}
 
 	void handleHiseEvent(HiseEvent& e)

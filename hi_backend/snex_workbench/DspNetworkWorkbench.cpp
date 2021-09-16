@@ -251,7 +251,12 @@ void DspNetworkCompileHandler::postCompile(WorkbenchData::CompileResult& lastRes
 
 		if (testData.shouldRunTest())
 		{
-			testData.initProcessing(getMainController()->getMainSynthChain()->getLargestBlockSize(), getMainController()->getMainSynthChain()->getSampleRate());
+            PrepareSpecs ps;
+            ps.sampleRate = getMainController()->getMainSynthChain()->getSampleRate();
+            ps.blockSize = getMainController()->getMainSynthChain()->getLargestBlockSize();
+            ps.numChannels = 2;
+            
+			testData.initProcessing(ps);
 			testData.processTestData(getParent());
 		}
 	}
@@ -284,7 +289,7 @@ void DspNetworkCodeProvider::initNetwork()
 
 	jassert(asP != nullptr);
 
-	asP->prepareToPlay(asP->getSampleRate(), asP->getLargestBlockSize());
+    asP->prepareToPlay(asP->getSampleRate(), asP->getLargestBlockSize());
 
 	source = SourceMode::InterpretedNode;
 	setRootValueTree(currentTree);
@@ -298,6 +303,8 @@ String DspNetworkCodeProvider::createCppForNetwork() const
 	{
 		getTestNodeFile().replaceWithText(xml->createDocument(""));
 
+        
+        
 		snex::cppgen::ValueTreeBuilder v(chain, snex::cppgen::ValueTreeBuilder::Format::JitCompiledInstance);
 
 		v.setCodeProvider(new BackendDllManager::FileCodeProvider(getMainController()));

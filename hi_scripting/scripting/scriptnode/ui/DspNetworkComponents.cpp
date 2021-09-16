@@ -764,38 +764,7 @@ bool DspNetworkGraph::setCurrentlyDraggedComponent(NodeComponent* n)
 
 void DspNetworkGraph::Actions::selectAndScrollToNode(DspNetworkGraph& g, NodeBase::Ptr node)
 {
-	g.network->addToSelection(node, {});
-
-	if (auto nc = g.getComponent(node))
-	{
-		auto viewport = g.findParentComponentOfClass<Viewport>();
-
-		auto nodeArea = viewport->getLocalArea(nc, nc->getLocalBounds());
-		auto viewArea = viewport->getViewArea();
-
-		if (!viewArea.contains(nodeArea))
-		{
-			int deltaX = 0;
-			int deltaY = 0;
-
-			if (nodeArea.getX() < viewArea.getX())
-				deltaX = nodeArea.getX() - viewArea.getX();
-			else if (nodeArea.getRight() > viewArea.getRight() && viewArea.getWidth() > nodeArea.getWidth())
-				deltaX = nodeArea.getRight() - viewArea.getRight();
-
-
-			if (nodeArea.getY() < viewArea.getY())
-				deltaY = nodeArea.getY() - viewArea.getY();
-			else if (nodeArea.getBottom() > viewArea.getBottom() && viewArea.getHeight() > nodeArea.getHeight())
-				deltaY = nodeArea.getBottom() - viewArea.getBottom();
-
-
-			viewport->setViewPosition(viewArea.getX() + deltaX, viewArea.getY() + deltaY);
-
-		}
-
-
-	}
+	
 }
 
 bool DspNetworkGraph::Actions::swapOrientation(DspNetworkGraph& g)
@@ -1236,7 +1205,7 @@ struct PopupCompileHandler : public snex::ui::WorkbenchData::CompileHandler,
 			cs.blockSize = 512;
 		}
 
-		td.initProcessing(cs.blockSize, cs.sampleRate);
+		td.initProcessing(cs);
 		td.processTestData(getParent());
 		return Result::ok();
 	}
@@ -1290,6 +1259,8 @@ struct ScriptnodeDebugPopup: public Component,
 		addAndMakeVisible(resizer);
 		setSize(700, 450);
 		startTimer(100);
+        
+        wb->triggerRecompile();
 	}
 
 	~ScriptnodeDebugPopup()
@@ -2206,6 +2177,8 @@ void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
 		BACKEND_ONLY(addCustomComponent(new BreadcrumbComponent(n)));
 	}
 
+    addButton("debug");
+    
 	if(n->canBeFrozen())
 		addButton("export");
 
@@ -2215,23 +2188,16 @@ void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
 
 	addSpacer(10);
 
-	addButton("fold");
 	addButton("foldunselected");
 	addButton("swap-orientation");
 
 	addSpacer(10);
 
 	addButton("error");
-	addButton("goto");
 	addButton("cable");
 	addButton("probe");
 	addSpacer(10);
-	addButton("add");
 	addButton("wrap");
-	
-	addButton("deselect");
-
-	addButton("bypass");
 	addButton("colour");
 	addButton("profile");
 
@@ -2239,16 +2205,10 @@ void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
 	addButton("undo");
 	addButton("redo");
 	addSpacer(10);
-	addButton("copy");
-	addButton("duplicate");
-	addButton("delete");
-	
-    addSpacer(10);
     addButton("save");
-    addButton("export");
     addButton("eject");
     addSpacer(10);
-	addButton("debug");
+	
     addButton("properties");
 }
 

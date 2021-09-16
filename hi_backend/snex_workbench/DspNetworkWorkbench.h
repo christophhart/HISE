@@ -149,7 +149,8 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 			return;
 
 		SimpleReadWriteLock::ScopedReadLock sl(lock);
-		activeNetwork->prepareToPlay(sampleRate, samplesPerBlock);
+        activeNetwork->prepareToPlay(sampleRate, samplesPerBlock);
+        activeNetwork->setNumChannels(2);
 	}
 
 	void workbenchChanged(WorkbenchData::Ptr newWorkbench) override

@@ -87,7 +87,6 @@ DECLARE_ID(Type);
 DECLARE_ID(Folded);
 DECLARE_ID(FactoryPath);
 DECLARE_ID(Frozen);
-DECLARE_ID(NumChannels);
 DECLARE_ID(EmbeddedData);
 DECLARE_ID(SwitchTargets);
 DECLARE_ID(SwitchTarget);
@@ -134,6 +133,7 @@ DECLARE_ID(IsPublicMod);
 DECLARE_ID(UseUnnormalisedModulation);
 DECLARE_ID(AllowPolyphonic);
 DECLARE_ID(AllowCompilation);
+DECLARE_ID(CompileChannelAmount);
 
 
 struct Helpers
@@ -150,10 +150,10 @@ struct Helpers
 			StepSize,
 			Inverted,
 			EmbeddedData,
-			NumChannels,
 			Automated,
 			AllowPolyphonic,
-			AllowCompilation
+			AllowCompilation,
+            CompileChannelAmount
 		};
 
 		return dIds;
@@ -171,10 +171,10 @@ struct Helpers
 		returnIfDefault(StepSize, 0.0);
 		returnIfDefault(Inverted, false);
 		returnIfDefault(EmbeddedData, -1);
-		returnIfDefault(NumChannels, 2);
 		returnIfDefault(Automated, false);
 		returnIfDefault(AllowCompilation, false);
 		returnIfDefault(AllowPolyphonic, false);
+        returnIfDefault(CompileChannelAmount, 2);
 
         return {};
 	}

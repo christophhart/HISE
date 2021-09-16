@@ -155,7 +155,7 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 			SimpleReadWriteLock::ScopedWriteLock sl(n->getRootNetwork()->getConnectionLock(), useLock);
 
 			nodes.insert(insertIndex, nodeToProcess);
-			updateChannels(n->getValueTree(), PropertyIds::NumChannels);
+            updateChannels(n->getValueTree(), Identifier());
 		}
 		else
 		{
@@ -166,7 +166,7 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 			SimpleReadWriteLock::ScopedWriteLock sl(n->getRootNetwork()->getConnectionLock(), useLock);
 			
 			nodes.removeAllInstancesOf(nodeToProcess);
-			updateChannels(n->getValueTree(), PropertyIds::NumChannels);
+			updateChannels(n->getValueTree(), Identifier());
 		}
 	}
 }
@@ -379,10 +379,6 @@ void NodeContainer::initListeners(bool initParameterListener)
 			valuetree::AsyncMode::Synchronously,
 			BIND_MEMBER_FUNCTION_2(NodeContainer::parameterAddedOrRemoved));
 	}
-
-	channelListener.setCallback(asNode()->getValueTree(), { PropertyIds::NumChannels },
-		valuetree::AsyncMode::Synchronously,
-		BIND_MEMBER_FUNCTION_2(NodeContainer::updateChannels));
 }
 
 SerialNode::SerialNode(DspNetwork* root, ValueTree data) :

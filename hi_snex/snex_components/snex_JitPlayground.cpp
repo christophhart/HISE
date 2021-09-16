@@ -1152,7 +1152,11 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 			if (td.shouldRunTest() && lastTest->nodeToTest != nullptr)
 			{
-				td.initProcessing(512, 44100.0);
+                PrepareSpecs ps;
+                ps.sampleRate = 44100.0;
+                ps.blockSize = 512;
+                ps.numChannels = 2;
+				td.initProcessing(ps);
 				td.processTestData(getParent());
 			}
 			else

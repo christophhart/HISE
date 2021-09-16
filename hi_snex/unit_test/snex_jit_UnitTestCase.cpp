@@ -994,7 +994,7 @@ String JitFileTestCase::HeaderBuilder::operator()()
 	String s;
 	String nl = "\n";
 
-	int numChannels = v[scriptnode::PropertyIds::NumChannels];
+    int numChannels = 2;
 	auto id = v[scriptnode::PropertyIds::ID].toString();
 
 	String inputFile;

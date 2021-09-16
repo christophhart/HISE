@@ -516,6 +516,24 @@ struct ValueTreeBuilder: public Base
 		Result r;
 		String code;
 	};
+    
+    struct ScopedChannelSetter
+    {
+        ScopedChannelSetter(ValueTreeBuilder& vtb_, int numChannels):
+          vtb(vtb_),
+          prevNumChannels(vtb_.numChannelsToCompile)
+        {
+            jassert(numChannels <= vtb.numChannelsToCompile);
+            vtb.numChannelsToCompile = numChannels;
+        }
+        ~ScopedChannelSetter()
+        {
+            vtb.numChannelsToCompile = prevNumChannels;
+        }
+        
+        ValueTreeBuilder& vtb;
+        int prevNumChannels;
+    };
 
 	enum class Format
 	{
@@ -538,7 +556,8 @@ struct ValueTreeBuilder: public Base
 		Base(Base::OutputType::AddTabs),
 		v(data),
 		outputFormat(Format::CppDynamicLibrary),
-		r(Result::ok())
+		r(Result::ok()),
+        numChannelsToCompile((int)v.getParent()[PropertyIds::CompileChannelAmount])
 	{
 		setHeaderForFormat();
 	}
@@ -809,6 +828,7 @@ private:
 	NamespacedIdentifier getNodeVariable(const ValueTree& n);
 
 	ValueTree v;
+    int numChannelsToCompile;
 };
 
 

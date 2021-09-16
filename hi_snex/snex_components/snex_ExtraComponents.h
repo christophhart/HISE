@@ -378,7 +378,7 @@ struct Graph : public TestDataComponentBase
 		{
 			auto x = (float)getPixelForSample(sample);
 			Line<float> line(x, 0.0f, x, (float)getHeight());
-			return roundToInt(l.getClippedLine(line, true).getEndY());
+			return roundToInt(channelData[0].path.getClippedLine(line, true).getEndY());
 		}
 
 		int getPixelForSample(int sample)
@@ -386,7 +386,7 @@ struct Graph : public TestDataComponentBase
 			if (lastBuffer.getNumSamples() == 0)
 				return 0;
 
-			Path::Iterator iter(l);
+			Path::Iterator iter(channelData[0].path);
 
 			auto asFloat = (float)sample / (float)lastBuffer.getNumSamples();
 			asFloat *= (float)getWidth();
@@ -410,15 +410,16 @@ struct Graph : public TestDataComponentBase
 
 		int numSamples = 0;
 		int currentPosition = 0;
-		Path l;
-		Path r;
-
+        
+        struct ChannelData
+        {
+            Path path;
+            Range<float> peaks;
+        };
+        
+        Array<ChannelData> channelData;
+        
 		Image spectroImage;
-
-		Range<float> leftPeaks;
-		Range<float> rightPeaks;
-		bool stereoMode = false;
-		
 		float zoomFactor = 1.0f;
 
 	} internalGraph;
