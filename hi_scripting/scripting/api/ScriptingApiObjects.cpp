@@ -665,7 +665,7 @@ bool ScriptingObjects::ScriptDownloadObject::stop()
 
 bool ScriptingObjects::ScriptDownloadObject::stopInternal(bool forceUpdate)
 {
-	if (isRunning_ || forceUpdate)
+	if (isRunning_ || forceUpdate || shouldAbort)
 	{
 		download = nullptr;
 		flushTemporaryFile();
@@ -675,6 +675,9 @@ bool ScriptingObjects::ScriptDownloadObject::stopInternal(bool forceUpdate)
 
 		if (shouldAbort)
 		{
+			isWaitingForStop = false;
+			isFinished = true;
+			data->setProperty("aborted", true);
 			targetFile.deleteFile();
 		}
 
@@ -835,6 +838,9 @@ String ScriptingObjects::ScriptDownloadObject::getStatusText()
 	if (isRunning_)
 		return "Downloading";
 
+	if (shouldAbort)
+		return "Aborted";
+
 	if (isFinished)
 		return "Completed";
 
@@ -930,6 +936,7 @@ void ScriptingObjects::ScriptDownloadObject::start()
 		data->setProperty("numDownloaded", 0);
 		data->setProperty("finished", false);
 		data->setProperty("success", false);
+		data->setProperty("aborted", false);
 
 		call(true);
 	}
@@ -941,6 +948,7 @@ void ScriptingObjects::ScriptDownloadObject::start()
 		data->setProperty("numDownloaded", 0);
 		data->setProperty("finished", true);
 		data->setProperty("success", false);
+		data->setProperty("aborted", false);
 
 		call(true);
 	}
