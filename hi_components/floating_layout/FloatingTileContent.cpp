@@ -650,7 +650,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 		
 		ib.setId(interfaceDesigner, "ScriptingWorkspaceInterfaceDesigner");
 
-		ib.setSizes(interfaceDesigner, { 250, -0.7, -0.15 });
+		ib.setSizes(interfaceDesigner, { -0.15, -0.7, -0.15 });
 
 		ib.setFoldable(mainVertical, false, { true, true });
 		ib.setFoldable(interfaceHorizontal, false, { false });

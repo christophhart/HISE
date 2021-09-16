@@ -1127,15 +1127,6 @@ void FloatingTile::mouseDown(const MouseEvent& event)
 
         getRootFloatingTile()->enableSwapMode(false, nullptr);
     }
-    else if (foldButton->isVisible())
-    {
-        if(!canBeFolded())
-        {
-            jassertfalse;
-        }
-        
-        foldButton->triggerClick();
-    }
 }
 
 void FloatingTile::setOverlayComponent(Component* newOverlayComponent, int fadeTime)
@@ -1172,8 +1163,17 @@ void FloatingTile::resized()
 	{
 		leftOffsetForTitleText = 16;
         
-        foldButton->setBounds(getLocalBounds().removeFromTop(TitleHeight).removeFromLeft(TitleHeight));
-        foldButton->setBorderSize(BorderSize<int>(2));
+        foldButton->setBounds(getLocalBounds().removeFromTop(TitleHeight + 2));
+        
+        auto openBorders = BorderSize<int>(1, 1, jmin(getHeight() - TitleHeight, 4), getWidth() - (TitleHeight));
+        
+        if(dynamic_cast<VerticalTile*>(getParentContainer()) && getLayoutData().isFolded())
+        {
+            foldButton->setBounds(getLocalBounds().removeFromLeft(TitleHeight + 2));
+            openBorders = BorderSize<int>(1, 1, getHeight() - TitleHeight, 1);
+        }
+        
+        foldButton->setBorderSize(openBorders);
         
 		//foldButton->setBounds(1, 1, 14, 14);
 		foldButton->setVisible(LayoutHelpers::showFoldButton(this));
