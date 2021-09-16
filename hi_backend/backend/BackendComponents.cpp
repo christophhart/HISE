@@ -282,40 +282,17 @@ void MacroComponent::buttonClicked(Button *b)
 
 		processor->getMacroManager().setMacroControlLearnMode(processor->getMainSynthChain(), -1);
 	}
-
-	auto root = GET_ROOT_FLOATING_TILE(this);
-
-	auto table = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<MacroParameterTable>>(root, b->getToggleState());
-	
-	if (b->getToggleState())
-	{
-		const int index = editButtons.indexOf(dynamic_cast<ShapeButton*>(b));
-
-		table->getContentFromGenericPanel()->setMacroController(processor->getMainSynthChain()->getMacroControlData(index));
-	}
-	else
-	{
-		table->getContentFromGenericPanel()->setMacroController(nullptr);
-	}
-
-	
-
 };
 
 
 void MacroComponent::changeListenerCallback(SafeChangeBroadcaster *)
 {
-	
-
-	if(auto table = getMainTable())
-	{
-		table->updateContent();
-	}
-
 	for(int i = 0; i < macroKnobs.size(); i++)
 	{
 		macroKnobs[i]->setValue(synthChain->getMacroControlData(i)->getCurrentValue(), dontSendNotification);
 	}
+
+	
 
 	checkActiveButtons();
 }

@@ -85,6 +85,7 @@ public:
 	Component* createComponentForNetwork(DspNetwork* p) override;
 };
 
+#if USE_BACKEND
 struct WorkbenchTestPlayer : public FloatingTileContent,
 	public Component,
 	public WorkbenchManager::WorkbenchChangeListener,
@@ -133,6 +134,7 @@ struct WorkbenchTestPlayer : public FloatingTileContent,
 
 	WorkbenchData::Ptr wb;
 };
+#endif
 
 #if 0
 struct SnexPopupEditor : public Component,

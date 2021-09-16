@@ -50,7 +50,8 @@ class FrontendProcessorEditor: public AudioProcessorEditor,
 							   public OverlayMessageBroadcaster::Listener,
 							   public ComponentWithBackendConnection,
 							   public GlobalSettingManager::ScaleFactorListener,
-							   public TopLevelWindowWithOptionalOpenGL
+							   public TopLevelWindowWithOptionalOpenGL,
+							   public MainController::LockFreeDispatcher::PresetLoadListener
 {
 public:
 
@@ -113,6 +114,8 @@ public:
 
 	}
 
+	void newHisePresetLoaded() override;
+
 	void scaleFactorChanged(float newScaleFactor) override;
 
 	void paint(Graphics &g) override
@@ -129,7 +132,9 @@ public:
         
 	};
 
-    void setGlobalScaleFactor(float newScaleFactor);
+
+
+    void setGlobalScaleFactor(float newScaleFactor, bool forceUpdate=false);
 
 	void resized() override;
 
@@ -164,7 +169,6 @@ private:
 
 	bool usesOpenGl;
 	OpenGLContext context;
-
 };
 
 

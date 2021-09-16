@@ -49,7 +49,8 @@ public:
 
 	struct MiniPeak : public Component,
 					  public PooledUIUpdater::SimpleTimer,
-					  public SettableTooltipClient
+					  public SettableTooltipClient,
+					  public SafeChangeListener
 	{
 		enum class ProcessorType
 		{
@@ -59,6 +60,13 @@ public:
 		};
 
 		MiniPeak(Processor* p_);;
+
+		~MiniPeak();
+
+		void changeListenerCallback(SafeChangeBroadcaster*) override
+		{
+			repaint();
+		}
 
 		void mouseDown(const MouseEvent& e) override;
 
@@ -198,7 +206,7 @@ private:
 		virtual void checkDragState(const SourceDetails& dragSourceDetails);
 		virtual void resetDragState();
 
-
+		void handleRightClick(bool isInEditMode);
 
 		void setDraggingOver(bool isOver);
 
@@ -328,6 +336,8 @@ private:
 		
 
 	private:
+
+		Rectangle<int> iconArea;
 
 		bool inPopup = false;
 		ScopedPointer<ShapeButton> foldButton;

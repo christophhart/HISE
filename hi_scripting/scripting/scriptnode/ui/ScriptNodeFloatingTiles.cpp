@@ -592,6 +592,7 @@ juce::Path SnexPopupEditor::Icons::createPath(const String& url) const
 }
 #endif
 
+#if USE_BACKEND
 WorkbenchTestPlayer::WorkbenchTestPlayer(FloatingTile* parent) :
 	FloatingTileContent(parent),
 	SimpleTimer(parent->getMainController()->getGlobalUIUpdater()),
@@ -685,6 +686,7 @@ juce::Path WorkbenchTestPlayer::Factory::createPath(const String& url) const
 
 	return p;
 }
+#endif
 
 }
 

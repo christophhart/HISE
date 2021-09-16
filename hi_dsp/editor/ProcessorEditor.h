@@ -142,6 +142,8 @@ public:
 
     static void createProcessorFromPopup(Component* editorIfPossible, Processor* parentChainProcessor, Processor* insertBeforeSibling);
     
+	static void showContextMenu(Component* c, Processor* p);
+
 	bool isInterestedInDragSource(const SourceDetails &dragSourceDetails) override;
 
 	void itemDragEnter(const SourceDetails &dragSourceDetails) override;
@@ -156,6 +158,8 @@ public:
 	{
 		return ProcessorHelpers::getMarkdownLink(getProcessor());
 	}
+
+	
 
 	ProcessorEditorContainer *getRootContainer()
 	{

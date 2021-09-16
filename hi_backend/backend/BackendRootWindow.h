@@ -265,26 +265,6 @@ struct BackendPanelHelpers
 
 	template <class ContentType> static ContentType* toggleVisibilityForRightColumnPanel(FloatingTile* root, bool show)
 	{
-		auto rightColumn = getMainRightColumn(root);
-
-		FloatingTile::Iterator<ContentType> iter(rightColumn->getParentShell());
-
-		auto existingContent = iter.getNextPanel();
-
-		if (existingContent != nullptr)
-		{
-			bool visible = existingContent->getParentShell()->getLayoutData().isVisible();
-
-			if (visible != show)
-			{
-				existingContent->getParentShell()->getLayoutData().setVisible(show);
-				rightColumn->refreshLayout();
-				rightColumn->notifySiblingChange();
-			}
-
-			return existingContent;
-		}
-
 		return nullptr;
 	}
 

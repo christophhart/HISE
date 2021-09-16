@@ -138,7 +138,7 @@ void ZoomableViewport::mouseDown(const MouseEvent& e)
 
 void ZoomableViewport::mouseDrag(const MouseEvent& e)
 {
-	if (dragToScroll)
+	if (dragToScroll || e.mods.isMiddleButtonDown())
 	{
 		auto cBounds = content->getBoundsInParent().toDouble();
 		auto tBounds = getLocalBounds().toDouble();
@@ -157,7 +157,7 @@ void ZoomableViewport::mouseDrag(const MouseEvent& e)
 
 void ZoomableViewport::mouseUp(const MouseEvent& e)
 {
-	if (dragToScroll)
+	if (dragToScroll || e.mods.isMiddleButtonDown())
 	{
 		xDragger.endDrag();
 		yDragger.endDrag();

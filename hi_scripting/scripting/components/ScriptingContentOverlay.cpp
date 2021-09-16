@@ -520,6 +520,12 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 
 void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 {
+	if (e.mods.isMiddleButtonDown())
+	{
+		return;
+	}
+		
+
 	if (isDisabledUntilUpdate)
 		return;
 
@@ -700,6 +706,9 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 void ScriptingContentOverlay::mouseDrag(const MouseEvent& e)
 {
+	if (e.mods.isMiddleButtonDown())
+		return;
+
 	if (isDisabledUntilUpdate)
 		return;
 
@@ -812,7 +821,7 @@ void ScriptingContentOverlay::Dragger::mouseDown(const MouseEvent& e)
 
 void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 {
-	if (e.mods.isRightButtonDown())
+	if (e.mods.isRightButtonDown() || e.mods.isMiddleButtonDown())
 		return;
 
 	constrainer.setRasteredMovement(!e.mods.isCommandDown());

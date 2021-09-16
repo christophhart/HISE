@@ -390,35 +390,7 @@ void FileBrowser::paint(Graphics &g)
 	}
 }
 
-struct XmlEditor: public Component
-{
-    XmlEditor(const File& xmlFile):
-        tdoc(doc),
-        editor(tdoc),
-        resizer(this, nullptr)
-    {
-        doc.replaceAllContent(xmlFile.loadFileAsString());
-        addAndMakeVisible(editor);
-        editor.editor.setLanguageManager(new mcl::XmlLanguageManager());
-        addAndMakeVisible(resizer);
-        setSize(600, 400);
-    }
-    
-    void resized() override
-    {
-        auto b = getLocalBounds();
-        b.removeFromTop(24);
-        editor.setBounds(b);
-        resizer.setBounds(b.removeFromBottom(15).removeFromRight(15));
-    }
-    
-    std::function<void()> closeCallback;
-    
-    CodeDocument doc;
-    mcl::TextDocument tdoc;
-    mcl::FullEditor editor;
-    juce::ResizableCornerComponent resizer;
-};
+
 
 
 void FileBrowser::previewFile(const File& f)
@@ -456,7 +428,7 @@ void FileBrowser::previewFile(const File& f)
 	}
 	else if (ff->isXmlFile(f))
 	{
-        auto c = new XmlEditor(f);
+        auto c = new mcl::XmlEditor(f);
         content = c;
 	}
 

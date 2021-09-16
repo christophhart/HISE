@@ -194,6 +194,9 @@ void PatchBrowser::refreshBypassState()
 		else
 			return false;
 		
+		if (p == nullptr)
+			return true;
+
 		somethingBypassed |= p->isBypassed();
 
 		while (!somethingBypassed && p != nullptr)
@@ -736,6 +739,25 @@ void PatchBrowser::ModuleDragTarget::resetDragState()
 	dynamic_cast<Component*>(this)->repaint();
 }
 
+void PatchBrowser::ModuleDragTarget::handleRightClick(bool isInEditMode)
+{
+	auto p = getProcessor();
+
+	auto comp = dynamic_cast<Component*>(this);
+
+	if (isInEditMode)
+	{
+		if (auto c = dynamic_cast<Chain*>(p))
+			ProcessorEditor::createProcessorFromPopup(comp, p, nullptr);
+		else
+			ProcessorEditor::createProcessorFromPopup(comp, p->getParentProcessor(false), p);
+	}
+	else
+	{
+		ProcessorEditor::showContextMenu(comp, p);
+	}
+}
+
 // ====================================================================================================================
 
 void PatchBrowser::ModuleDragTarget::drawDragStatus(Graphics &g, Rectangle<float> area)
@@ -850,6 +872,16 @@ void PatchBrowser::PatchCollection::mouseDown(const MouseEvent& e)
 	if (e.eventComponent == gotoWorkspace)
 		return;
 
+	auto canBeBypassed = getProcessor()->getMainController()->getMainSynthChain() != getProcessor();
+	
+
+	if (iconArea.contains(e.getPosition()) && canBeBypassed)
+	{
+		bool shouldBeBypassed = !getProcessor()->isBypassed();
+		getProcessor()->setBypassed(shouldBeBypassed, sendNotification);
+		return;
+	}
+
 	if (e.mods.isShiftDown())
 	{
 		idLabel.showEditor();
@@ -860,13 +892,7 @@ void PatchBrowser::PatchCollection::mouseDown(const MouseEvent& e)
     {
 		if(e.mods.isRightButtonDown())
         {
-            auto p = getProcessor();
-            
-            if(auto c = dynamic_cast<Chain*>(p))
-                ProcessorEditor::createProcessorFromPopup(this, p, nullptr);
-            else
-                ProcessorEditor::createProcessorFromPopup(this, p->getParentProcessor(false), p);
-
+			handleRightClick(pb->showChains);
             return;
         }
 		else if (getProcessor() != nullptr)
@@ -909,19 +935,29 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 
 
     
-    g.fillRoundedRectangle(iconSpace2, 2.0f);
+    g.fillRoundedRectangle(iconSpace2.reduced(2.0f), 2.0f);
     
     g.setColour(Colours::white.withAlpha(0.1f));
     g.drawRoundedRectangle(iconSpace2.reduced(2.0f), 1.0f, 1.0f);
     
-	g.setGradientFill(ColourGradient(synth->getIconColour().withMultipliedBrightness(1.1f), 0.0f, 7.0f,
-		synth->getIconColour().withMultipliedBrightness(0.9f), 0.0f, 35.0f, false));
+	auto c = synth->getIconColour();
 
-	g.fillRoundedRectangle(iconSpace, 2.0f);
+	if (c.isTransparent() && getProcessor()->getMainController()->getMainSynthChain() != getProcessor())
+		c = JUCE_LIVE_CONSTANT(Colour(0xff828282));
+
+	if (getProcessor()->isBypassed())
+		c = c.withMultipliedAlpha(0.4f);
+
+	g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.1f), 0.0f, 7.0f,
+		c.withMultipliedBrightness(0.9f), 0.0f, 35.0f, false));
+
+	g.fillRoundedRectangle(iconSpace.reduced(2.0f), 2.0f);
+
+	iconArea = iconSpace.toNearestInt();
 
 	g.setColour(Colour(0xFF222222));
 
-	g.drawRoundedRectangle(iconSpace, 2.0f, 2.0f);
+	g.drawRoundedRectangle(iconSpace.reduced(2.0f), 2.0f,  1.0f);
 
     if (isMouseOver(false) || (gotoWorkspace != nullptr && gotoWorkspace->isMouseOver(true)))
     {
@@ -1270,10 +1306,7 @@ void PatchBrowser::PatchItem::mouseDown(const MouseEvent& e)
     {
 		if (e.mods.isRightButtonDown())
 		{
-			if (auto c = dynamic_cast<Chain*>(p.get()))
-				ProcessorEditor::createProcessorFromPopup(this, p, nullptr);
-			else
-				ProcessorEditor::createProcessorFromPopup(this, p->getParentProcessor(false), p);
+			handleRightClick(pb->showChains);
 		}
 		else
 		{
@@ -1450,6 +1483,8 @@ PatchBrowser::MiniPeak::MiniPeak(Processor* p_) :
 {
 	FloatVectorOperations::clear(channelValues, NUM_MAX_CHANNELS);
 
+	setRepaintsOnMouseActivity(true);
+
 	if (dynamic_cast<MidiProcessor*>(p_) != nullptr)
 	{
 		type = ProcessorType::Midi;
@@ -1467,7 +1502,11 @@ PatchBrowser::MiniPeak::MiniPeak(Processor* p_) :
 		type = ProcessorType::Audio;
 		
 		if (auto rp = dynamic_cast<RoutableProcessor*>(p_))
+		{
 			numChannels = rp->getMatrix().getNumSourceChannels();
+			rp->getMatrix().addChangeListener(this);
+		}
+			
 		else
 			numChannels = 2;
 
@@ -1475,6 +1514,14 @@ PatchBrowser::MiniPeak::MiniPeak(Processor* p_) :
 	}
 	
 	setInterceptsMouseClicks(true, false);
+}
+
+PatchBrowser::MiniPeak::~MiniPeak()
+{
+	if (auto rp = dynamic_cast<RoutableProcessor*>(p.get()))
+	{
+		rp->getMatrix().removeChangeListener(this);
+	}
 }
 
 void PatchBrowser::MiniPeak::mouseDown(const MouseEvent& e)
@@ -1501,6 +1548,12 @@ void PatchBrowser::MiniPeak::paint(Graphics& g)
     if(p.get() == nullptr)
         return;
     
+	if (isMouseOver(true))
+	{
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.2f));
+		g.fillRect(getLocalBounds().reduced(0, 1));
+	}
+
 	auto area = getLocalBounds().toFloat().reduced(1.0f);
 
 	switch (type)

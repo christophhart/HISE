@@ -169,12 +169,16 @@ AudioProcessorEditor(fp)
 	}
 #endif
         
-    
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
+		getMainController()->getLockFreeDispatcher().addPresetLoadListener(this);
 }
 
 FrontendProcessorEditor::~FrontendProcessorEditor()
 {
 	detachOpenGl();
+
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
+		getMainController()->getLockFreeDispatcher().removePresetLoadListener(this);
 
 	dynamic_cast<FrontendProcessor*>(getAudioProcessor())->decActiveEditors();
 	dynamic_cast<GlobalSettingManager*>(getAudioProcessor())->removeScaleFactorListener(this);
@@ -202,16 +206,30 @@ Component* FrontendProcessorEditor::getContentComponent()
 #endif
 }
 
+void FrontendProcessorEditor::newHisePresetLoaded()
+{
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
+	{
+		if (auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getMainController()))
+		{
+			originalSizeX = jsp->getScriptingContent()->getContentWidth();
+			originalSizeY = jsp->getScriptingContent()->getContentHeight();
+		}
+
+		setGlobalScaleFactor(scaleFactor, true);
+	}
+}
+
 void FrontendProcessorEditor::scaleFactorChanged(float newScaleFactor)
 {
 	setGlobalScaleFactor(newScaleFactor);
 }
 
-void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)
+void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor, bool forceUpdate)
 {
 	LOG_START("Change scale factor");
 
-    if (newScaleFactor > 0.2 && (scaleFactor != newScaleFactor))
+    if (newScaleFactor > 0.2 && ((scaleFactor != newScaleFactor) || forceUpdate))
     {
         scaleFactor = newScaleFactor;
         

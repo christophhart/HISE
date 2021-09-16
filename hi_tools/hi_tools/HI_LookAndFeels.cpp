@@ -357,6 +357,7 @@ void GlobalHiseLookAndFeel::setTextEditorColours(TextEditor& ed)
 	ed.setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.4f));
 	ed.setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 	ed.setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
+	ed.setColour(TextEditor::ColourIds::outlineColourId, Colours::black.withAlpha(0.8f));
 	ed.setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
 	ed.setFont(GLOBAL_BOLD_FONT());
 	ed.setSelectAllWhenFocused(true);

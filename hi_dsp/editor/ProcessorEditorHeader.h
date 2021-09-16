@@ -169,13 +169,10 @@ private:
     ScopedPointer<VuMeter> valueMeter;
     ScopedPointer<Label> idLabel;
     ScopedPointer<Label> typeLabel;
-    ScopedPointer<TextButton> debugButton;
-    ScopedPointer<DrawableButton> plotButton;
     ScopedPointer<HeaderButton> bypassButton;
     ScopedPointer<ShapeButton> foldButton;
     ScopedPointer<ShapeButton> deleteButton;
 	ScopedPointer<ShapeButton> addButton;
-	ScopedPointer<ShapeButton> routeButton;
 	ScopedPointer<ShapeButton> workspaceButton;
 	ScopedPointer<ShapeButton> monophonicButton;
 	ScopedPointer<ShapeButton> retriggerButton;

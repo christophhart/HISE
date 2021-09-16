@@ -1172,6 +1172,12 @@ void FloatingTile::resized()
             foldButton->setBounds(getLocalBounds().removeFromLeft(TitleHeight + 2));
             openBorders = BorderSize<int>(1, 1, getHeight() - TitleHeight, 1);
         }
+
+		if (dynamic_cast<FloatingTabComponent*>(getCurrentFloatingPanel()))
+		{
+			foldButton->setBounds(getLocalBounds().removeFromLeft(TitleHeight + 2).removeFromTop(TitleHeight + 2));
+			openBorders = BorderSize<int>(2);
+		}
         
         foldButton->setBorderSize(openBorders);
         

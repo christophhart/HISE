@@ -50,7 +50,7 @@ MidiProcessor::~MidiProcessor()
 	masterReference.clear();
 };
 
-
+#if USE_BACKEND
 struct MidiProcessor::EventLogger
 {
     EventLogger():
@@ -536,6 +536,7 @@ struct MidiProcessor::EventLogger
     
     JUCE_DECLARE_WEAK_REFERENCEABLE(EventLogger);
 };
+#endif
 
 void MidiProcessor::logIfEnabled(const HiseEvent& e, bool beforeProcessing)
 {
@@ -556,6 +557,7 @@ void MidiProcessor::logIfEnabled(const HiseEvent& e, bool beforeProcessing)
 
 void MidiProcessor::setEnableEventLogger(bool shouldBeEnabled)
 {
+#if USE_BACKEND
     SimpleReadWriteLock::ScopedWriteLock sl(eventLock);
     
     bool isLoggingEvents = eventLogger != nullptr;
@@ -571,13 +573,18 @@ void MidiProcessor::setEnableEventLogger(bool shouldBeEnabled)
             eventLogger = new EventLogger();
         }
     }
+#endif
 }
 
 
 Component* MidiProcessor::createEventLogComponent()
 {
+#if USE_BACKEND
     setEnableEventLogger(true);
     return new EventLogger::Display(this, eventLogger);
+#else
+	return nullptr;
+#endif
 }
 
 bool MidiProcessor::setArtificialTimestamp(uint16 eventId, int newTimestamp)

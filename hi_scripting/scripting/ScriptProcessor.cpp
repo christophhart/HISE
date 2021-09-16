@@ -450,6 +450,7 @@ void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int /
 
 void JavascriptProcessor::cleanupEngine()
 {
+	inplaceValues.clear();
 	mainController->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
 	scriptEngine = nullptr;
 	dynamic_cast<ProcessorWithScriptingContent*>(this)->content = nullptr;
@@ -1109,7 +1110,7 @@ void JavascriptProcessor::saveScript(ValueTree &v) const
 		mergeCallbacksToScript(x);
 	}
 
-	v.addChild(allInterfaceData, -1, nullptr);
+	v.addChild(allInterfaceData.createCopy(), -1, nullptr);
 
 	v.setProperty("Script", x, nullptr);
 }

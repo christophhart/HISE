@@ -555,6 +555,170 @@ void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Proc
     return;
 }
 
+void ProcessorEditor::showContextMenu(Component* c, Processor* p)
+{
+	enum
+	{
+		Copy = 2,
+		InsertBefore,
+		CloseAllChains,
+		ViewXml,
+		CheckForDuplicate,
+		CreateGenericScriptReference,
+		CreateTableProcessorScriptReference,
+		CreateAudioSampleProcessorScriptReference,
+		CreateSamplerScriptReference,
+		CreateMidiPlayerScriptReference,
+		CreateSliderPackProcessorReference,
+		CreateSlotFXReference,
+		CreateRoutingMatrixReference,
+		ReplaceWithClipboardContent,
+		SaveAllSamplesToGlobalFolder,
+		OpenAllScriptsInPopup,
+		OpenInterfaceInPopup,
+		ConnectToScriptFile,
+		ReloadFromExternalScript,
+		DisconnectFromScriptFile,
+		SaveCurrentInterfaceState,
+		numMenuItems
+	};
+
+	PopupLookAndFeel plaf;
+	PopupMenu m;
+	m.setLookAndFeel(&plaf);
+
+	const bool isMainSynthChain = p->getMainController()->getMainSynthChain() == p;
+
+	m.addSectionHeader("Copy Tools");
+
+	m.addItem(Copy, "Copy " + p->getId() + " to Clipboard");
+	m.addItem(ViewXml, "Show XML data");
+
+	if ((dynamic_cast<Chain*>(p) == nullptr || dynamic_cast<ModulatorSynth*>(p)) && !isMainSynthChain)
+	{
+		m.addItem(InsertBefore, "Add Processor before this module", true);
+	}
+
+	m.addSeparator();
+
+	m.addItem(CreateGenericScriptReference, "Create generic script reference");
+
+	if (dynamic_cast<ModulatorSampler*>(p) != nullptr)
+		m.addItem(CreateSamplerScriptReference, "Create typed Sampler script reference");
+	else if (dynamic_cast<MidiPlayer*>(p) != nullptr)
+		m.addItem(CreateMidiPlayerScriptReference, "Create typed MIDI Player script reference");
+	else if (dynamic_cast<SlotFX*>(p) != nullptr)
+		m.addItem(CreateSlotFXReference, "Create typed SlotFX script reference");
+
+	m.addItem(CreateTableProcessorScriptReference, "Create typed Table script reference", dynamic_cast<LookupTableProcessor*>(p) != nullptr);
+	m.addItem(CreateAudioSampleProcessorScriptReference, "Create typed Audio sample script reference", dynamic_cast<AudioSampleProcessor*>(p) != nullptr);
+	m.addItem(CreateSliderPackProcessorReference, "Create typed Slider Pack script reference", dynamic_cast<SliderPackProcessor*>(p) != nullptr);
+	m.addItem(CreateRoutingMatrixReference, "Create typed Routing matrix script reference", dynamic_cast<RoutableProcessor*>(p) != nullptr);
+
+	m.addSeparator();
+
+	if (isMainSynthChain)
+	{
+		m.addSeparator();
+		m.addSectionHeader("Root Container Tools");
+		m.addItem(CheckForDuplicate, "Check children for duplicate IDs");
+	}
+
+	else if (auto sp = dynamic_cast<JavascriptProcessor*>(p))
+	{
+		m.addSeparator();
+		m.addSectionHeader("Script Processor Tools");
+		
+		m.addItem(ConnectToScriptFile, "Connect to external script", true, sp->isConnectedToExternalFile());
+		m.addItem(ReloadFromExternalScript, "Reload external script", sp->isConnectedToExternalFile(), false);
+		m.addItem(DisconnectFromScriptFile, "Disconnect from external script", sp->isConnectedToExternalFile(), false);
+	}
+
+	int result = m.show();
+
+	if (result == 0) return;
+
+	if (result == Copy) PresetHandler::copyProcessorToClipboard(p);
+
+	else if (result == InsertBefore)
+	{
+		createProcessorFromPopup(c, p->getParentProcessor(false), p);
+	}
+	else if (result == CheckForDuplicate)
+	{
+		PresetHandler::checkProcessorIdsForDuplicates(p, false);
+	}
+	else if (result == CreateGenericScriptReference)
+		ProcessorHelpers::getScriptVariableDeclaration(p);
+	else if (result == CreateAudioSampleProcessorScriptReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "AudioSampleProcessor");
+	else if (result == CreateMidiPlayerScriptReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "MidiPlayer");
+	else if (result == CreateRoutingMatrixReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "RoutingMatrix");
+	else if (result == CreateSamplerScriptReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "Sampler");
+	else if (result == CreateSlotFXReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "SlotFX");
+	else if (result == CreateTableProcessorScriptReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "TableProcessor");
+	else if (result == CreateSliderPackProcessorReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "SliderPackProcessor");
+	else if (result == ConnectToScriptFile)
+	{
+		FileChooser fc("Select external script", GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
+
+		if (fc.browseForFileToOpen())
+		{
+			File scriptFile = fc.getResult();
+
+			const String scriptReference = GET_PROJECT_HANDLER(p).getFileReference(scriptFile.getFullPathName(), ProjectHandler::SubDirectories::Scripts);
+
+			dynamic_cast<JavascriptProcessor*>(p)->setConnectedFile(scriptReference);
+		}
+	}
+	else if (result == ReloadFromExternalScript)
+	{
+		dynamic_cast<JavascriptProcessor*>(p)->reloadFromFile();
+	}
+	if (result == ViewXml)
+	{
+		auto root = GET_BACKEND_ROOT_WINDOW(c)->getRootFloatingTile();
+
+		auto xml = p->exportAsValueTree().createXml();
+
+		auto nc = new mcl::XmlEditor(File(), xml->createDocument(""));
+		nc->setName(p->getId() + " XML Data");
+		root->showComponentInRootPopup(nc, c, {0, 0});
+	}
+	else if (result == DisconnectFromScriptFile)
+	{
+		if (PresetHandler::showYesNoWindow("Disconnect from script file", "Do you want to disconnect the script from the connected file?\nAny changes you make here won't be saved in the file"))
+		{
+			dynamic_cast<JavascriptProcessor*>(p)->disconnectFromFile();
+		}
+	}
+	else
+	{
+		File f = PresetHandler::getPresetFileFromMenu(result - PRESET_MENU_ITEM_DELTA, p);
+
+		if (!f.existsAsFile()) return;
+
+		FileInputStream fis(f);
+
+		ValueTree testTree = ValueTree::readFromStream(fis);
+
+		if (testTree.isValid() && testTree.getProperty("Type") == "SynthChain")
+		{
+			c->findParentComponentOfClass<BackendProcessorEditor>()->loadNewContainer(testTree);
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("Invalid Preset", "The selected Preset file was not a container", PresetHandler::IconType::Error);
+		}
+	}
+}
+
 void ProcessorEditor::setFolded(bool shouldBeFolded, bool notifyEditor)
 {
 	getProcessor()->setEditorState(Processor::Folded, shouldBeFolded, notifyEditor ? sendNotification : dontSendNotification);
