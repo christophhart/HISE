@@ -352,6 +352,11 @@ struct dynamic : public base
 		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::setMode), true);
 	}
 
+	void setEnabled(double value) final override
+	{
+		b->setEnabled(value);
+	}
+
 	void setMode(Identifier id, var newValue)
 	{
 		auto m = (SmoothingType)getSmoothNames().indexOf(newValue.toString());

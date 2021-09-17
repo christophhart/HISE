@@ -1083,7 +1083,8 @@ namespace control
 		enum Parameters
 		{
 			Value,
-			SmoothingTime
+			SmoothingTime,
+			Enabled
 		};
 
 		smoothed_parameter():
@@ -1099,6 +1100,7 @@ namespace control
 		{
 			DEF_PARAMETER(Value, smoothed_parameter);
 			DEF_PARAMETER(SmoothingTime, smoothed_parameter);
+			DEF_PARAMETER(Enabled, smoothed_parameter);
 		}
 		PARAMETER_MEMBER_FUNCTION;
 
@@ -1158,6 +1160,17 @@ namespace control
 				p.setDefaultValue(100.0);
 				data.add(std::move(p));
 			}
+			{
+				DEFINE_PARAMETERDATA(smoothed_parameter, Enabled);
+				p.setRange({ 0.0, 1.0, 1.0 });
+				p.setDefaultValue(1.0);
+				data.add(std::move(p));
+			}
+		}
+
+		void setEnabled(double v)
+		{
+			value.setEnabled(v);
 		}
 
 		void setSmoothingTime(double newSmoothingTime)

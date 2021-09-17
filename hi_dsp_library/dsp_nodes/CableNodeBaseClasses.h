@@ -190,6 +190,8 @@ namespace smoothers
 
 		virtual void refreshSmoothingTime() = 0;
 
+		virtual void setEnabled(double v) = 0;
+
 		virtual HISE_EMPTY_INITIALISE;
 
 		double currentBlockRate = 0.0;
@@ -209,6 +211,8 @@ namespace smoothers
 		{
 			v = nv;
 		}
+
+		void setEnabled(double v) final override { };
 
 		float advance() final override
 		{
@@ -236,7 +240,7 @@ namespace smoothers
 
 		float advance() final override
 		{
-			if (isSmoothing)
+			if (isSmoothing && enabled)
 			{
 				auto thisValue = s.smooth(target);
 				isSmoothing = std::abs(thisValue - target) > 0.001f;
@@ -264,8 +268,17 @@ namespace smoothers
 			s.setSmoothingTime(smoothingTimeMs);
 		}
 
+		void setEnabled(double v) final override
+		{
+			enabled = v > 0.5;
+
+			if (enabled)
+				reset();
+		}
+
 	private:
 
+		bool enabled = true;
 		bool isSmoothing = false;
 		float lastValue = 0.0f;
 		float target = 0.0f;
@@ -281,12 +294,12 @@ namespace smoothers
 
 		float advance() final override
 		{
-			return d.advance();
+			return enabled ? d.advance() : d.targetValue;
 		}
 
 		float get() const final override
 		{
-			return d.get();
+			return enabled ? d.get() : d.targetValue;
 		}
 
 		void set(double newValue) final override
@@ -299,9 +312,18 @@ namespace smoothers
 			d.prepare(currentBlockRate, smoothingTimeMs);
 		}
 
+		void setEnabled(double v) final override
+		{
+			enabled = v > 0.5;
+
+			if (enabled)
+				reset();
+		}
+
 	private:
 
 		sdouble d;
+		bool enabled = true;
 	};
 }
 
