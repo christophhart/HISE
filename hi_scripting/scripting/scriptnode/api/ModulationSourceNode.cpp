@@ -171,7 +171,7 @@ var ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 
 	auto range = RangeHelpers::getDoubleRange(n->data);
 
-	RangeHelpers::storeDoubleRange(m, false, range, nullptr);
+	RangeHelpers::storeDoubleRange(m, range, nullptr);
 
 	m.setProperty(PropertyIds::Expression, "", nullptr);
 	

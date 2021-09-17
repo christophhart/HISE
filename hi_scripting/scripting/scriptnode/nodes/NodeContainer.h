@@ -101,7 +101,7 @@ struct NodeContainer : public AssignableObject
 			ValueTree newC(PropertyIds::Connection);
 			newC.setProperty(PropertyIds::NodeId, p->parent->getId(), nullptr);
 			newC.setProperty(PropertyIds::ParameterId, p->getId(), nullptr);
-			RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(p->data), nullptr);
+			RangeHelpers::storeDoubleRange(newC, RangeHelpers::getDoubleRange(p->data), nullptr);
 			newC.setProperty(PropertyIds::Expression, "", nullptr);
 
 			getConnectionTree().addChild(newC, -1, p->parent->getUndoManager());

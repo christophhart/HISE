@@ -87,11 +87,13 @@ void DspHelpers::setErrorIfNotOriginalSamplerate(const PrepareSpecs& ps, NodeBas
 	}
 }
 
-scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRange(NormalisableRange<double> range, bool inverted, const ParameterCallback& originalFunction)
+
+
+scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRange(InvertableParameterRange range, const ParameterCallback& originalFunction)
 {
 	if (RangeHelpers::isIdentity(range))
 	{
-		if (!inverted)
+		if (!range.inv)
 			return originalFunction;
 		else
 		{
@@ -102,26 +104,12 @@ scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRang
 		}
 	}
 
-	if (inverted)
+	return [range, originalFunction](double normalisedValue)
 	{
-		return [range, originalFunction](double normalisedValue)
-		{
-			normalisedValue = 1.0 - normalisedValue;
-			auto v = range.convertFrom0to1(normalisedValue);
-			originalFunction(v);
-		};
-	}
-	else
-	{
-		return [range, originalFunction](double normalisedValue)
-		{
-			auto v = range.convertFrom0to1(normalisedValue);
-			originalFunction(v);
-		};
-	}
+		auto v = range.convertFrom0to1(normalisedValue);
+		originalFunction(v);
+	};
 }
-
-
 
 void DspHelpers::validate(PrepareSpecs sp, PrepareSpecs rp)
 {

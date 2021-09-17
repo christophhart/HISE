@@ -844,8 +844,8 @@ void ParameterList::rebuild()
 
 			auto r = p.toRange();
 
-			s->setRange(r.getRange(), r.interval);
-			s->setSkewFactor(r.skew);
+			s->setRange(r.getRange(), r.rng.interval);
+			s->setSkewFactor(r.rng.skew);
 			s->setValue(p.info.defaultValue, dontSendNotification);
 
 			s->setSliderStyle(Slider::SliderStyle::RotaryHorizontalVerticalDrag);

@@ -66,7 +66,8 @@ struct DspHelpers
 	static void setErrorIfNotOriginalSamplerate(const PrepareSpecs& ps, NodeBase* n);
 
 	/** Returns a ParameterCallback with the given range. */
-	static ParameterCallback getFunctionFrom0To1ForRange(NormalisableRange<double> range, bool inverted, const ParameterCallback& originalFunction);
+
+	static ParameterCallback getFunctionFrom0To1ForRange(InvertableParameterRange r, const ParameterCallback& originalFunction);
 
 	forcedinline static double findPeak(const float* data, int numSamples)
 	{

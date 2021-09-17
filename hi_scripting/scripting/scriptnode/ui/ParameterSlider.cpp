@@ -68,7 +68,7 @@ struct RangePresets
 		else
 		{
 			createDefaultRange("0-1", { 0.0, 1.0 }, 0.5);
-			createDefaultRange("Inverted 0-1", { 0.0, 1.0 }, -1.0, true);
+			createDefaultRange("Inverted 0-1", InvertableParameterRange().inverted(), -1.0);
 			createDefaultRange("Osc LFO", { 0.0, 10.0, 0.01, 1.0 });
 			createDefaultRange("Osc Freq", { 20.0, 20000.0, 0.1 }, 1000.0);
 			createDefaultRange("Freq Ratio Harmonics", { 1.0, 16.0, 1.0 });
@@ -77,13 +77,12 @@ struct RangePresets
 		}
 	}
 
-	void createDefaultRange(const String& id, NormalisableRange<double> d, double midPoint = -10000000.0, bool inverted=false)
+	void createDefaultRange(const String& id, InvertableParameterRange d, double midPoint = -10000000.0)
 	{
 		Preset p;
 		p.id = id;
 		p.nr = d;
-		p.inverted = inverted;
-
+		
 		p.index = presets.size() + 1;
 
 		if (d.getRange().contains(midPoint))
@@ -108,8 +107,6 @@ struct RangePresets
 		void restoreFromValueTree(const ValueTree& v)
 		{
 			nr = RangeHelpers::getDoubleRange(v);
-			inverted = RangeHelpers::isInverted(v);
-
 			id = v[PropertyIds::ID].toString();
 		}
 
@@ -117,14 +114,13 @@ struct RangePresets
 		{
 			ValueTree v("Range");
 			v.setProperty(PropertyIds::ID, id, nullptr);
-			RangeHelpers::storeDoubleRange(v, inverted, nr, nullptr);
+			RangeHelpers::storeDoubleRange(v, nr, nullptr);
 			return v;
 		}
 
-		NormalisableRange<double> nr;
+		InvertableParameterRange nr;
 		String id;
 		int index;
-		bool inverted = false;
 	};
 
 	File fileToLoad;
@@ -223,8 +219,8 @@ struct ParameterSlider::RangeComponent : public Component,
 
 		Range<double> tr(0.0, 1.0);
 
-		auto cs = currentRange.start;
-		auto ce = currentRange.end;
+		auto cs = currentRange.rng.start;
+		auto ce = currentRange.rng.end;
 
 		auto ts = tr.getStart();
 		auto te = tr.getEnd();
@@ -234,12 +230,12 @@ struct ParameterSlider::RangeComponent : public Component,
 		auto ns = cs * coeff + ts * (1.0 - coeff);
 		auto ne = ce * coeff + te * (1.0 - coeff);
 
-		currentRange.start = ns;
-		currentRange.end = ne;
+		currentRange.rng.start = ns;
+		currentRange.rng.end = ne;
 		repaint();
 
 		auto tl = te - ts;
-		auto cl = currentRange.end - currentRange.start;
+		auto cl = currentRange.rng.end - currentRange.rng.start;
 
 		if (hmath::abs(tl - cl) < 0.01)
 		{
@@ -358,25 +354,26 @@ struct ParameterSlider::RangeComponent : public Component,
 
 	
 
-	NormalisableRange<double> getParentRange()
+	InvertableParameterRange getParentRange()
 	{
-		NormalisableRange<double> d;
+		InvertableParameterRange d;
 		auto r = getParent().getRange();
-		d.start = r.getStart();
-		d.end = r.getEnd();
-		d.skew = getParent().getSkewFactor();
-		d.interval = getParent().getInterval();
+		d.rng.start = r.getStart();
+		d.rng.end = r.getEnd();
+		d.rng.skew = getParent().getSkewFactor();
+		d.rng.interval = getParent().getInterval();
+		d.inv = false;
 		return d;
 	}
 
-	void setNewRange(NormalisableRange<double> rangeToUse, bool inverted, NotificationType updateRange)
+	void setNewRange(InvertableParameterRange rangeToUse, NotificationType updateRange)
 	{
 		auto& s = getParent();
 
-		RangeHelpers::storeDoubleRange(s.parameterToControl->data, inverted, rangeToUse, s.node->getUndoManager());
+		RangeHelpers::storeDoubleRange(s.parameterToControl->data, rangeToUse, s.node->getUndoManager());
 
 		if(connectionSource.isValid())
-			RangeHelpers::storeDoubleRange(connectionSource, inverted, rangeToUse, s.node->getUndoManager());
+			RangeHelpers::storeDoubleRange(connectionSource, rangeToUse, s.node->getUndoManager());
 
 		if (updateRange != dontSendNotification)
 			oldRange = rangeToUse;
@@ -388,18 +385,17 @@ struct ParameterSlider::RangeComponent : public Component,
 	{
 		auto& s = getParent();
 
-		auto newStart = oldRange.start + currentRange.start * oldRange.getRange().getLength();
-		auto newEnd = oldRange.start + currentRange.end * oldRange.getRange().getLength();
+		auto newStart = oldRange.rng.start + currentRange.rng.start * oldRange.getRange().getLength();
+		auto newEnd = oldRange.rng.start + currentRange.rng.end * oldRange.getRange().getLength();
 
-		NormalisableRange<double> nr;
-		nr.start = newStart;
-		nr.end = newEnd;
-		nr.interval = s.getInterval();
-		nr.skew = skewToUse;
+		InvertableParameterRange nr;
+		nr.rng.start = newStart;
+		nr.rng.end = newEnd;
+		nr.rng.interval = s.getInterval();
+		nr.rng.skew = skewToUse;
+		nr.inv = RangeHelpers::isInverted(connectionSource);
 
-		auto inv = RangeHelpers::isInverted(connectionSource);
-
-		setNewRange(nr, inv, updateRange);
+		setNewRange(nr, updateRange);
 	}
 
 	void setNewValue(const MouseEvent& e)
@@ -419,7 +415,7 @@ struct ParameterSlider::RangeComponent : public Component,
 
 		auto v = getParent().getValueFromText(t.getText());
 
-		auto inv = RangeHelpers::isInverted(connectionSource);
+		r.inv = RangeHelpers::isInverted(connectionSource);
 		auto isLeft = currentTextPos == Left;// && !inv) || (Right && inv);
 
 		if (currentTextPos == Inside)
@@ -427,11 +423,11 @@ struct ParameterSlider::RangeComponent : public Component,
 		else if (currentTextPos == Outside)
 			getParent().setValue(v, sendNotificationAsync);
 		else if (isLeft)
-			r.start = v;
+			r.rng.start = v;
 		else
-			r.end = v;
+			r.rng.end = v;
 
-		setNewRange(r, inv, sendNotification);
+		setNewRange(r, sendNotification);
 		createLabel(Nothing);
 	}
 
@@ -598,8 +594,8 @@ struct ParameterSlider::RangeComponent : public Component,
 		if (isTimerRunning())
 			return {};
 
-		auto newStart = oldRange.start + currentRange.start * oldRange.getRange().getLength();
-		auto newEnd = oldRange.start + currentRange.end * oldRange.getRange().getLength();
+		auto newStart = oldRange.rng.start + currentRange.rng.start * oldRange.getRange().getLength();
+		auto newEnd = oldRange.rng.start + currentRange.rng.end * oldRange.getRange().getLength();
 
 		switch (p)
 		{
@@ -788,7 +784,7 @@ struct ParameterSlider::RangeComponent : public Component,
 					close(300);
 			}
 			if (r == 4)
-				setNewRange(resetRange, false, sendNotification);
+				setNewRange(resetRange, sendNotification);
 
 			if (r == 3)
 			{
@@ -803,15 +799,15 @@ struct ParameterSlider::RangeComponent : public Component,
 			if (r == 5)
 			{
 				auto cr = getParentRange();
-				auto inv = !RangeHelpers::isInverted(connectionSource);
-				setNewRange(cr, inv, sendNotification);
+				cr.inv = !RangeHelpers::isInverted(connectionSource);
+				setNewRange(cr, sendNotification);
 			}
 			if (r == 6)
 			{
 				auto cr = getParentRange();
-				cr.skew = 1.0;
-				auto inv = RangeHelpers::isInverted(connectionSource);
-				setNewRange(cr, inv, sendNotification);
+				cr.rng.skew = 1.0;
+				cr.inv = RangeHelpers::isInverted(connectionSource);
+				setNewRange(cr, sendNotification);
 			}
 			if (r == 7)
 			{
@@ -822,13 +818,13 @@ struct ParameterSlider::RangeComponent : public Component,
 				if (sourceParameterTree.isValid() && sourceParameterTree.getType() == PropertyIds::Parameter)
 				{
 					auto inv = RangeHelpers::isInverted(connectionSource);
-					RangeHelpers::storeDoubleRange(sourceParameterTree, inv, cr, getParent().node->getUndoManager());
+					RangeHelpers::storeDoubleRange(sourceParameterTree, cr, getParent().node->getUndoManager());
 				}
 			}
 			if (r > 9000)
 			{
 				auto p = presets.presets[r - 9001];
-				setNewRange(p.nr, p.inverted, sendNotification);
+				setNewRange(p.nr, sendNotification);
 			}
 			
 			repaint();
@@ -844,9 +840,9 @@ struct ParameterSlider::RangeComponent : public Component,
 			setNewValue(e);
 
 		currentRangeAtDragStart = currentRange;
-		currentRangeAtDragStart.skew = getParent().getSkewFactor();
+		currentRangeAtDragStart.rng.skew = getParent().getSkewFactor();
 
-		skewToUse = currentRangeAtDragStart.skew;
+		skewToUse = currentRangeAtDragStart.rng.skew;
 		repaint();
 	}
 
@@ -881,11 +877,11 @@ struct ParameterSlider::RangeComponent : public Component,
 		{
 			auto d = (float)e.getDistanceFromDragStartY() / getTotalArea().getHeight();
 			auto delta = hmath::pow(2.0f, -1.0f * d);
-			auto skewStart = currentRangeAtDragStart.skew;
+			auto skewStart = currentRangeAtDragStart.rng.skew;
 
 			skewToUse = jmax(0.001, skewStart * delta);
 
-			currentRange.skew = skewToUse;
+			currentRange.rng.skew = skewToUse;
 			setNewRange(dontSendNotification);
 		}
 		else if (dragPos == Left || dragPos == Right)
@@ -901,13 +897,13 @@ struct ParameterSlider::RangeComponent : public Component,
 
 			if (dragPos == Left)
 			{
-				auto v = jmin(currentRangeAtDragStart.end - 0.05, currentRangeAtDragStart.start + d * currentRangeAtDragStart.getRange().getLength());
-				currentRange.start = v;
+				auto v = jmin(currentRangeAtDragStart.rng.end - 0.05, currentRangeAtDragStart.rng.start + d * currentRangeAtDragStart.getRange().getLength());
+				currentRange.rng.start = v;
 			}
 			else
 			{
-				auto v = jmax(currentRangeAtDragStart.start + 0.05, currentRangeAtDragStart.end + d * currentRangeAtDragStart.getRange().getLength());
-				currentRange.end = v;
+				auto v = jmax(currentRangeAtDragStart.rng.start + 0.05, currentRangeAtDragStart.rng.end + d * currentRangeAtDragStart.getRange().getLength());
+				currentRange.rng.end = v;
 			}
 
 			setNewRange(dontSendNotification);
@@ -921,12 +917,12 @@ struct ParameterSlider::RangeComponent : public Component,
 	double skewToUse = 1.0;
 
 	MousePosition dragPos = Nothing;
-	NormalisableRange<double> currentRangeAtDragStart;
-	NormalisableRange<double> currentRange = { 0.0, 1.0 };
+	InvertableParameterRange currentRangeAtDragStart;
+	InvertableParameterRange currentRange = { 0.0, 1.0 };
 
-	NormalisableRange<double> oldRange;
+	InvertableParameterRange oldRange;
 
-	NormalisableRange<double> resetRange;
+	InvertableParameterRange resetRange;
 
 	MousePosition currentTextPos;
 	ScopedPointer<TextEditor> editor;
@@ -1016,11 +1012,8 @@ void ParameterSlider::updateRange(Identifier, var)
 {
 	auto range = RangeHelpers::getDoubleRange(pTree);
 
-	if (range.start > range.end)
-		std::swap(range.start, range.end);
-
-	setRange(range.getRange(), range.interval);
-	setSkewFactor(range.skew);
+	setRange(range.rng.getRange(), range.rng.interval);
+	setSkewFactor(range.rng.skew);
 
 	repaint();
 }
@@ -1131,7 +1124,7 @@ void ParameterSlider::mouseDown(const MouseEvent& e)
         d.processorId = p->getId();
 
         d.parameterId = getName();
-        d.range = RangeHelpers::getDoubleRange(pTree);
+        d.range = RangeHelpers::getDoubleRange(pTree).rng;
         d.value = getValue();
         d.name = d.parameterId;
 

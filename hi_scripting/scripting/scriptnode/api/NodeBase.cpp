@@ -781,9 +781,9 @@ void NodeBase::addConnectionToBypass(var dragDetails)
 		newC.setProperty(PropertyIds::NodeId, getId(), nullptr);
 		newC.setProperty(PropertyIds::ParameterId, PropertyIds::Bypassed.toString(), nullptr);
 
-		NormalisableRange<double> r(0.5, 1.1, 0.5);
+		InvertableParameterRange r(0.5, 1.1, 0.5);
 
-		RangeHelpers::storeDoubleRange(newC, false, r, nullptr);
+		RangeHelpers::storeDoubleRange(newC, r, nullptr);
 
 		String connectionId = DragHelpers::getSourceNodeId(dragDetails) + "." + 
 							  DragHelpers::getSourceParameterId(dragDetails);
@@ -843,7 +843,7 @@ var NodeBase::Parameter::addConnectionFrom(var dragDetails)
 					ValueTree newC(PropertyIds::Connection);
 					newC.setProperty(PropertyIds::NodeId, parent->getId(), nullptr);
 					newC.setProperty(PropertyIds::ParameterId, getId(), nullptr);
-					RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(data), nullptr);
+					RangeHelpers::storeDoubleRange(newC, RangeHelpers::getDoubleRange(data), nullptr);
 					newC.setProperty(PropertyIds::Expression, "", nullptr);
 
 					cTree.addChild(newC, -1, parent->getUndoManager());
@@ -1030,7 +1030,7 @@ scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnect
 
 	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
 
-	chain->inputRange2 = RangeHelpers::getDoubleRange(connectionTree.getParent());
+	chain->inputRange = RangeHelpers::getDoubleRange(connectionTree.getParent());
 
 	for (auto c : connectionTree)
 	{

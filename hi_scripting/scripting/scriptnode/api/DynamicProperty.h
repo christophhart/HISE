@@ -215,7 +215,7 @@ struct dynamic_base_holder: public dynamic_base
 			base->setParentNumVoiceListener(l);
 	}
 
-	NormalisableRange<double> getParameterRange() const
+	InvertableParameterRange getParameterRange() const
 	{
 		if (base != nullptr)
 			return RangeHelpers::getDoubleRange(base->dataTree);
@@ -249,31 +249,11 @@ struct dynamic_inv : public dynamic_base
 	}
 };
 
-struct dynamic_from0to1_inv : public dynamic_base
-{
-	dynamic_from0to1_inv(parameter::dynamic& obj, const NormalisableRange<double>& r) :
-		dynamic_base(obj),
-		range(r)
-	{}
 
-	void call(double v) final override
-	{
-		setUIValue(v);
-		f(obj, lastValue);
-	}
-
-	void setUIValue(double v) final override
-	{
-		auto inv = 1.0 - v;
-		lastValue = range.convertFrom0to1(inv);
-	}
-
-	const NormalisableRange<double> range;
-};
 
 struct dynamic_step : public dynamic_base
 {
-	dynamic_step(parameter::dynamic& obj, const NormalisableRange<double>& r) :
+	dynamic_step(parameter::dynamic& obj, const InvertableParameterRange& r) :
 		dynamic_base(obj),
 		range(r)
 	{};
@@ -290,38 +270,15 @@ struct dynamic_step : public dynamic_base
 		f(obj, lastValue);
 	}
 
-	NormalisableRange<double> range;
+	const InvertableParameterRange range;
 };
 
-struct dynamic_step_inv : public dynamic_base
-{
-	dynamic_step_inv(parameter::dynamic& obj, const NormalisableRange<double>& r) :
-		dynamic_base(obj),
-		range(r)
-	{};
-
-	void setUIValue(double v) final override
-	{
-		auto inv = 1.0 - v;
-		lastValue = range.convertFrom0to1(inv);
-		lastValue = range.snapToLegalValue(lastValue);
-	}
-
-
-	void call(double v) final override
-	{
-		setUIValue(v);
-		f(obj, lastValue);
-	}
-
-	NormalisableRange<double> range;
-};
-
+using dynamic_step_inv = dynamic_step;
 
 
 struct dynamic_from0to1 : public dynamic_base
 {
-	dynamic_from0to1(parameter::dynamic& obj, const NormalisableRange<double>& r) :
+	dynamic_from0to1(parameter::dynamic& obj, const InvertableParameterRange& r) :
 		dynamic_base(obj),
 		range(r)
 	{}
@@ -337,12 +294,14 @@ struct dynamic_from0to1 : public dynamic_base
 		f(obj, lastValue);
 	}
 
-	const NormalisableRange<double> range;
+	const InvertableParameterRange range;
 };
+
+using dynamic_from0to1_inv = dynamic_from0to1;
 
 struct dynamic_to0to1 : public dynamic_base
 {
-	dynamic_to0to1(parameter::dynamic& obj, const NormalisableRange<double>& r) :
+	dynamic_to0to1(parameter::dynamic& obj, const InvertableParameterRange& r) :
 		dynamic_base(obj),
 		range(r)
 	{}
@@ -358,7 +317,7 @@ struct dynamic_to0to1 : public dynamic_base
 		f(obj, lastValue);
 	}
 
-	const NormalisableRange<double> range;
+	const InvertableParameterRange range;
 };
 
 #if HISE_INCLUDE_SNEX
@@ -409,7 +368,7 @@ struct dynamic_chain : public dynamic_base
 		{
 			auto first = targets.getFirst();
 
-			if(RangeHelpers::isIdentity(inputRange2))
+			if(RangeHelpers::isIdentity(inputRange))
 				return targets.removeAndReturn(0);
 
 #if HISE_INCLUDE_SNEX
@@ -419,7 +378,7 @@ struct dynamic_chain : public dynamic_base
 
 			auto outRange = RangeHelpers::getDoubleRange(first->dataTree);
 
-			if (RangeHelpers::isEqual(inputRange2, outRange))
+			if (RangeHelpers::isEqual(inputRange, outRange))
 			{
 				auto s = new dynamic_base();
 				s->obj = first->obj;
@@ -436,7 +395,7 @@ struct dynamic_chain : public dynamic_base
 	void call(double v)
 	{
 		if (scaleInput)
-			v = inputRange2.convertTo0to1(v);
+			v = inputRange.convertTo0to1(v);
 
 		for (auto& t : targets)
 			t->call(v);
@@ -476,7 +435,7 @@ struct dynamic_chain : public dynamic_base
 
 	bool scaleInput = true;
 	dynamic_base::List targets;
-	NormalisableRange<double> inputRange2;
+	InvertableParameterRange inputRange;
 };
 
 

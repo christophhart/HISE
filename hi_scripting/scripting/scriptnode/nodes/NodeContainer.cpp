@@ -493,7 +493,7 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 		{
 			nodeToBeBypassed = targetNode;
 			auto originalRange = RangeHelpers::getDoubleRange(d.getParent().getParent());
-			rangeMultiplerForBypass = jlimit(1.0, 9000.0, originalRange.end);
+			rangeMultiplerForBypass = jlimit(1.0, 9000.0, originalRange.rng.end);
 		}
 		else
 		{

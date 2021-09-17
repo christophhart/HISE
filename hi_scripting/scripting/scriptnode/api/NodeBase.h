@@ -629,7 +629,7 @@ public:
 	valuetree::RemoveListener nodeRemoveUpdater;
 	valuetree::RemoveListener sourceRemoveUpdater;
 
-	NormalisableRange<double> connectionRange;
+	InvertableParameterRange connectionRange;
 
 	ReferenceCountedObjectPtr<NodeBase::Parameter> targetParameter;
 

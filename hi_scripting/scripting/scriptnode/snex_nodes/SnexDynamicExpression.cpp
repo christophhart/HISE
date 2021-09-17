@@ -73,7 +73,7 @@ juce::NormalisableRange<double> dynamic_expression::graph::getXRange()
 	else
     {
         if(auto n = getNode())
-            return RangeHelpers::getDoubleRange(n->getParameter(0)->data);
+            return RangeHelpers::getDoubleRange(n->getParameter(0)->data).rng;
     }
     
     return {0.0, 1.0};

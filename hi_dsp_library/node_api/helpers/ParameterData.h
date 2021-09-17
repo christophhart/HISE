@@ -37,14 +37,68 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+struct InvertableParameterRange
+{
+	InvertableParameterRange(double start, double end) :
+		rng(start, end),
+		inv(false)
+	{};
+
+	InvertableParameterRange() :
+		rng(0.0, 1.0),
+		inv(false)
+	{};
+
+	InvertableParameterRange(double start, double end, double interval, double skew=1.0) :
+		rng(start, end, interval, skew),
+		inv(false)
+	{};
+
+	double convertFrom0to1(double input) const
+	{
+		input = inv ? (1.0 - input) : input;
+		return rng.convertFrom0to1(input);
+	}
+
+	InvertableParameterRange inverted() const
+	{
+		auto copy = *this;
+		copy.inv = !copy.inv;
+		return copy;
+	}
+
+	double convertTo0to1(double input) const
+	{
+		input = rng.convertTo0to1(input);
+		return inv ? (1.0 - input) : input;
+	}
+
+	Range<double> getRange() const
+	{
+		return rng.getRange();
+	}
+
+	double snapToLegalValue(double v) const
+	{
+		return rng.snapToLegalValue(v);
+	}
+
+	void setSkewForCentre(double value)
+	{
+		rng.setSkewForCentre(value);
+	}
+
+	juce::NormalisableRange<double> rng;
+	bool inv = false;
+};
 
 struct RangeHelpers
 {
 	static bool isRangeId(const Identifier& id);
 
-	static bool isBypassIdentity(NormalisableRange<double> d);
+	static bool isBypassIdentity(InvertableParameterRange d);
 
-	static bool isIdentity(NormalisableRange<double> d);
+	static bool isIdentity(InvertableParameterRange d);
 
 	static Array<Identifier> getRangeIds();
 
@@ -52,16 +106,17 @@ struct RangeHelpers
 	static bool isInverted(const ValueTree& v);
 
 	/** Creates a NormalisableRange from the ValueTree properties. It doesn't update the Inverted property. */
-	static NormalisableRange<double> getDoubleRange(const ValueTree& t);
+	static InvertableParameterRange getDoubleRange(const ValueTree& t);
 
-	static void storeDoubleRange(ValueTree& d, bool isInverted, NormalisableRange<double> r, UndoManager* um);
+	static void storeDoubleRange(ValueTree& d, InvertableParameterRange r, UndoManager* um);
 
-	static bool isEqual(const NormalisableRange<double>& r1, const NormalisableRange<double>& r2)
+	static bool isEqual(const InvertableParameterRange& r1, const InvertableParameterRange& r2)
 	{
-		return  r1.start == r2.start &&
-				r1.end == r2.end &&
-				r1.skew == r2.skew &&
-				r1.interval == r2.interval;
+		return  r1.rng.start == r2.rng.start &&
+				r1.rng.end == r2.rng.end &&
+				r1.rng.skew == r2.rng.skew &&
+				r1.rng.interval == r2.rng.interval &&
+				r1.inv == r2.inv;
 	}
 
 	static Array<Identifier> getHiddenIds()
@@ -144,9 +199,9 @@ struct pod
 		memset(parameterName, 0, MaxParameterNameLength);
 	}
 
-	void setRange(const NormalisableRange<double>& r);
+	void setRange(const InvertableParameterRange& r);
 
-	NormalisableRange<double> toRange() const;
+	InvertableParameterRange toRange() const;
 
 	using DataType = float;
 	int index = -1;
@@ -161,6 +216,7 @@ struct pod
 	DataType skew = DataType(1);
 	DataType interval = DataType(0);
 
+	bool inverted = false;
 	bool ok = false;
 
 	void writeToStream(MemoryOutputStream& b);
@@ -171,17 +227,17 @@ struct data
 {
 	data();
 	data(const String& id_);;
-	data(const String& id_, NormalisableRange<double> r);
-	data withRange(NormalisableRange<double> r);
+	data(const String& id_, InvertableParameterRange r);
+	data withRange(InvertableParameterRange r);
 
 	ValueTree createValueTree() const;
 
-	void setRange(const NormalisableRange<double>& r)
+	void setRange(const InvertableParameterRange& r)
 	{
 		info.setRange(r);
 	}
 
-	NormalisableRange<double> toRange() const
+	InvertableParameterRange toRange() const
 	{
 		return info.toRange();
 	}
@@ -189,8 +245,8 @@ struct data
 	void setSkewForCentre(double midPoint)
 	{
 		auto r = info.toRange();
-		r.setSkewForCentre(midPoint);
-		info.skew = r.skew;
+		r.rng.setSkewForCentre(midPoint);
+		info.skew = r.rng.skew;
 	}
 
 	void setDefaultValue(double newDefaultValue)

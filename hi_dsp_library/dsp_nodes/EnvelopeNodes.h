@@ -768,7 +768,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 
 	void createParameters(ParameterDataList& data)
 	{
-		NormalisableRange<double> timeRange(0.0, 10000.0, 0.1);
+		InvertableParameterRange timeRange(0.0, 10000.0, 0.1);
 		timeRange.setSkewForCentre(300.0);
 
 		

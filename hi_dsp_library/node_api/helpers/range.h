@@ -37,11 +37,6 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-
-
-
-
-
 /** This namespace contains template classes that define compile-time range objects which can be passed
 	into parameter connections. It has:
 
@@ -54,6 +49,9 @@ using namespace hise;
 namespace ranges
 {
 using namespace snex;
+
+
+
 
 /** The base class for a connection with a custom SNEX expression.
 

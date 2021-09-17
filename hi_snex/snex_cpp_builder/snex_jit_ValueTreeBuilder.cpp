@@ -544,26 +544,26 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 	return parseMod(u);
 }
 
-void ValueTreeBuilder::emitRangeDefinition(const Identifier& rangeId, NormalisableRange<double> r)
+void ValueTreeBuilder::emitRangeDefinition(const Identifier& rangeId, InvertableParameterRange r)
 {
 	StringArray args;
 
 	args.add(rangeId.toString());
 
-	args.add(Helpers::getCppValueString(r.start, Types::ID::Double));
-	args.add(Helpers::getCppValueString(r.end, Types::ID::Double));
+	args.add(Helpers::getCppValueString(r.rng.start, Types::ID::Double));
+	args.add(Helpers::getCppValueString(r.rng.end, Types::ID::Double));
 
 	String macroName = "DECLARE_PARAMETER_RANGE";
 
-	if (r.skew != 1.0)
+	if (r.rng.skew != 1.0)
 	{
 		macroName << "_SKEW";
-		args.add(Helpers::getCppValueString(r.skew, Types::ID::Double));
+		args.add(Helpers::getCppValueString(r.rng.skew, Types::ID::Double));
 	}
-	else if (r.interval > 0.001)
+	else if (r.rng.interval > 0.001)
 	{
 		macroName << "_STEP";
-		args.add(Helpers::getCppValueString(r.interval, Types::ID::Double));
+		args.add(Helpers::getCppValueString(r.rng.interval, Types::ID::Double));
 	}
 
 	for (auto& a : args)
@@ -841,8 +841,7 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 	Connection rc;
 
 	rc.targetRange = RangeHelpers::getDoubleRange(c);
-	rc.inverted = RangeHelpers::isInverted(c);
-
+	
 	if (c.getType() == PropertyIds::ModulationTarget)
 		rc.cableType = Connection::CableType::Modulation;
 	else
@@ -996,7 +995,7 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 		throw e;
 	}
 
-	auto parseRange = [&](const NormalisableRange<double>& r, const String& fWhat)
+	auto parseRange = [&](const InvertableParameterRange& r, const String& fWhat)
 	{
 		if (auto existing = pooledRanges.getExisting(r))
 		{
@@ -1088,7 +1087,7 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 
 		auto useNormalisedMod = CustomNodeProperties::nodeHasProperty(pTree, PropertyIds::UseUnnormalisedModulation);
 
-		if (RangeHelpers::isEqual(tr, sr) || useNormalisedMod && !c.inverted)
+		if (RangeHelpers::isEqual(tr, sr) || useNormalisedMod && !c.targetRange.inv)
 		{
 			// skip both ranges and just pass on the parameter;
 			auto up = makeParameter(p, "plain", c);
@@ -1099,7 +1098,7 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 		}
 		else
 		{
-			auto up = makeParameter(p, c.inverted ? "from0To1_inv" : "from0To1", c);
+			auto up = makeParameter(p, c.targetRange.inv ? "from0To1_inv" : "from0To1", c);
 			*up << *c.n;
 			*up << c.index;
 
@@ -1120,7 +1119,7 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 	}
 	default:
 	{
-		auto up = makeParameter(p, c.inverted ? "inverted" : "plain", c);
+		auto up = makeParameter(p, c.targetRange.inv ? "inverted" : "plain", c);
 		*up << *c.n;
 		*up << c.index;
 

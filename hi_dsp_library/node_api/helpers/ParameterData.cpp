@@ -47,17 +47,17 @@ bool RangeHelpers::isRangeId(const Identifier& id)
 }
 
 
-bool RangeHelpers::isBypassIdentity(NormalisableRange<double> d)
+bool RangeHelpers::isBypassIdentity(InvertableParameterRange d)
 {
-	if (d.start == 0.5 && d.end == 1.0 && d.skew == 1.0)
+	if (d.rng.start == 0.5 && d.rng.end == 1.0 && d.rng.skew == 1.0 && !d.inv)
 		return true;
 
 	return false;
 }
 
-bool RangeHelpers::isIdentity(NormalisableRange<double> d)
+bool RangeHelpers::isIdentity(InvertableParameterRange d)
 {
-	if (d.start == 0.0 && d.end == 1.0 && d.skew == 1.0)
+	if (d.rng.start == 0.0 && d.rng.end == 1.0 && d.rng.skew == 1.0)
 		return true;
 
 	return false;
@@ -84,21 +84,21 @@ bool RangeHelpers::isInverted(const ValueTree& v)
 	return min > max;
 }
 
-void RangeHelpers::storeDoubleRange(ValueTree& d, bool isInverted, NormalisableRange<double> r, UndoManager* um)
+void RangeHelpers::storeDoubleRange(ValueTree& d, InvertableParameterRange r, UndoManager* um)
 {
 	using namespace PropertyIds;
 
-	d.setProperty(isInverted ? MaxValue : MinValue, r.start, um);
-	d.setProperty(isInverted ? MinValue : MaxValue, r.end, um);
-	d.setProperty(StepSize, r.interval, um);
-	d.setProperty(SkewFactor, r.skew, um);
+	d.setProperty(r.inv ? MaxValue : MinValue, r.rng.start, um);
+	d.setProperty(r.inv ? MinValue : MaxValue, r.rng.end, um);
+	d.setProperty(StepSize, r.rng.interval, um);
+	d.setProperty(SkewFactor, r.rng.skew, um);
 }
 
-juce::NormalisableRange<double> RangeHelpers::getDoubleRange(const ValueTree& t)
+scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const ValueTree& t)
 {
 	using namespace PropertyIds;
 
-	NormalisableRange<double> r;
+	InvertableParameterRange r;
 
 	auto minValue = (double)t.getProperty(MinValue, 0.0);
 	auto maxValue = (double)t.getProperty(MaxValue, 1.0);
@@ -107,12 +107,15 @@ juce::NormalisableRange<double> RangeHelpers::getDoubleRange(const ValueTree& t)
 		maxValue += 0.01;
 
 	if (minValue > maxValue)
+	{
 		std::swap(minValue, maxValue);
-
-	r.start = minValue;
-	r.end = maxValue;
-	r.interval = jlimit(0.0, 1.0, (double)PropertyIds::Helpers::getWithDefault(t, PropertyIds::StepSize));
-	r.skew = jlimit(0.001, 100.0, (double)PropertyIds::Helpers::getWithDefault(t, PropertyIds::SkewFactor));
+		r.inv = true;
+	}
+	
+	r.rng.start = minValue;
+	r.rng.end = maxValue;
+	r.rng.interval = jlimit(0.0, 1.0, (double)PropertyIds::Helpers::getWithDefault(t, PropertyIds::StepSize));
+	r.rng.skew = jlimit(0.001, 100.0, (double)PropertyIds::Helpers::getWithDefault(t, PropertyIds::SkewFactor));
 
 	return r;
 }
@@ -127,7 +130,7 @@ namespace parameter
 		info.ok = id_.isNotEmpty();
 	}
 
-	data::data(const String& id_, NormalisableRange<double> r)
+	data::data(const String& id_, InvertableParameterRange r)
 	{
 		info.setId(id_);
 		info.setRange(r);
@@ -143,7 +146,7 @@ namespace parameter
 	{
 		ValueTree p(PropertyIds::Parameter);
 
-		RangeHelpers::storeDoubleRange(p, false, info.toRange(), nullptr);
+		RangeHelpers::storeDoubleRange(p, info.toRange(), nullptr);
 
 		p.setProperty(PropertyIds::ID, info.getId(), nullptr);
 		p.setProperty(PropertyIds::Value, info.defaultValue, nullptr);
@@ -151,7 +154,7 @@ namespace parameter
 		return p;
 	}
 
-	data data::withRange(NormalisableRange<double> r)
+	data data::withRange(InvertableParameterRange r)
 	{
 		data copy(*this);
 		copy.info.setRange(r);
@@ -253,10 +256,11 @@ namespace parameter
 		ok = setId(v[PropertyIds::ID].toString());
 
 		auto range = RangeHelpers::getDoubleRange(v);
-		min = (DataType)range.start;
-		max = (DataType)range.end;
-		skew = (DataType)range.skew;
-		interval = (DataType)range.interval;
+		min = (DataType)range.rng.start;
+		max = (DataType)range.rng.end;
+		inverted = range.inv;
+		skew = (DataType)range.rng.skew;
+		interval = (DataType)range.rng.interval;
 		defaultValue = (DataType)v[PropertyIds::Value];
 	}
 
@@ -295,21 +299,23 @@ namespace parameter
 		return s;
 	}
 
-	void pod::setRange(const NormalisableRange<double>& r)
+	void pod::setRange(const InvertableParameterRange& r)
 	{
-		min = r.start;
-		max = r.end;
-		interval = r.interval;
-		skew = r.skew;
+		min =	   r.rng.start;
+		max =	   r.rng.end;
+		interval = r.rng.interval;
+		skew =	   r.rng.skew;
+		inverted = r.inv;
 	}
 
-	juce::NormalisableRange<double> pod::toRange() const
+	scriptnode::InvertableParameterRange pod::toRange() const
 	{
-		NormalisableRange<double> r;
-		r.start = min;
-		r.end = max;
-		r.skew = skew;
-		r.interval = interval;
+		InvertableParameterRange r;
+		r.rng.start = min;
+		r.rng.end = max;
+		r.rng.skew = skew;
+		r.rng.interval = interval;
+		r.inv = inverted;
 
 		return r;
 	}

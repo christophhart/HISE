@@ -638,7 +638,7 @@ juce::String Resolver::getContent(const MarkdownLink& url)
 						content << "| " << pId;
 
 						auto range = RangeHelpers::getDoubleRange(pTree);
-						content << " | " << String(range.start, 2) << " - " << String(range.end, 2);
+						content << " | " << String(range.rng.start, 2) << " - " << String(range.rng.end, 2);
 						content << " | " << String((double)pTree[PropertyIds::Value], 2);
 
 						bool found = false;
