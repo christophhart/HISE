@@ -1210,9 +1210,11 @@ namespace control
 
 #if HISE_INCLUDE_SNEX
 		registerNoProcessNode<dynamic_expression::ControlNodeType, dynamic_expression::editor>();
+		
+#endif
+
 		registerModNode<midi_logic::dynamic::NodeType, midi_logic::dynamic::editor>();
 		registerPolyModNode<control::timer<1, snex_timer>, timer<NUM_POLYPHONIC_VOICES, snex_timer>, snex_timer::editor>();
-#endif
 
 		registerNoProcessNode<file_analysers::dynamic::NodeType, file_analysers::dynamic::editor, false>(); //>();
 

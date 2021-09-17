@@ -1356,6 +1356,16 @@ juce::Result FullInstrumentExpansion::initialise()
 
 		jassert(allData.isValid() && allData.getType() == ExpansionIds::FullData);
 
+		auto networkData = allData.getChildWithName("Networks");
+
+		if (networkData.isValid())
+		{
+			MemoryBlock nmb;
+			nmb.fromBase64Encoding(networkData[ExpansionIds::Data].toString());
+			zstd::ZDefaultCompressor comp;
+			comp.expand(nmb, networks);
+		}
+
 		data = new Data(getRootFolder(), allData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy(), getMainController());
 
 		auto iconData = allData.getChildWithName(ExpansionIds::HeaderData).getChildWithName(ExpansionIds::Icon)[ExpansionIds::Data].toString();
@@ -1474,6 +1484,13 @@ Result FullInstrumentExpansion::encodeExpansion()
 	auto& h = getMainController()->getExpansionHandler();
 	auto key = h.getEncryptionKey();
 
+	auto printStats = [&h](const String& name, int number)
+	{
+		String m;
+		m << String(number) << " " + name << ((number != 1) ? "s" : "") << " found.";
+		h.setErrorMessage(m, false);
+	};
+
 	if (key.isEmpty())
 	{
 		return returnFail("The encryption key has not been set");
@@ -1496,10 +1513,13 @@ Result FullInstrumentExpansion::encodeExpansion()
 
 			zstd::ZDefaultCompressor d;
 			MemoryBlock fontData;
-			d.compress(getMainController()->exportCustomFontsAsValueTree(), fontData);
+			auto fTree = getMainController()->exportCustomFontsAsValueTree();
+			d.compress(fTree, fontData);
 			fonts.setProperty(ExpansionIds::Data, fontData.toBase64Encoding(), nullptr);
 
 			hd.addChild(fonts, -1, nullptr);
+
+			printStats("font", fTree.getNumChildren());
 		}
 
 		PoolReference icon(getMainController(), String(isProjectExport ? "{PROJECT_FOLDER}" : getWildcard()) + "Icon.png", FileHandlerBase::Images);
@@ -1543,6 +1563,24 @@ Result FullInstrumentExpansion::encodeExpansion()
 
 	allData.addChild(scripts, -1, nullptr);
 
+	printStats("script", scripts.getNumChildren());
+	
+
+#if USE_BACKEND
+	{
+		h.setErrorMessage("Embedding networks", false);
+		auto allNetworks = BackendDllManager::exportAllNetworks(getMainController(), true);
+		zstd::ZDefaultCompressor d;
+		MemoryBlock networkData;
+		d.compress(networks, networkData);
+		ValueTree b64n("Networks");
+		b64n.setProperty(ExpansionIds::Data, networkData.toBase64Encoding(), nullptr);
+		allData.addChild(b64n, -1, nullptr);
+
+		printStats("network", networks.getNumChildren());
+	}
+#endif
+
 	h.setErrorMessage("Embedding currently loaded project", false);
 
 	{
@@ -1561,27 +1599,6 @@ Result FullInstrumentExpansion::encodeExpansion()
 			return true;
 		});
 
-#if 0
-		if (isProjectExport)
-		{
-			auto wc = getWildcard();
-			ScriptingApi::Content::Helpers::callRecursive(mTree, [scripts, wc](ValueTree& v)
-			{
-				// Replace any project folder wildcard reference with the expansion
-				for (int i = 0; i < v.getNumProperties(); i++)
-				{
-					auto id = v.getPropertyName(i);
-
-					auto value = v[id];
-
-					if (value.isString() && value.toString().contains("{PROJECT_FOLDER}"))
-						v.setProperty(id, value.toString().replace("{PROJECT_FOLDER}", wc), nullptr);
-				}
-
-				return true;
-			});
-		}
-#endif
 
 		zstd::ZCompressor<hise::PresetDictionaryProvider> comp;
 		MemoryBlock mb;

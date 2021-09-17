@@ -79,11 +79,13 @@
 #include "scripting/scriptnode/snex_nodes/SnexNode.cpp"
 #include "scripting/scriptnode/snex_nodes/SnexShaper.cpp"
 #include "scripting/scriptnode/snex_nodes/SnexOscillator.cpp"
-#include "scripting/scriptnode/snex_nodes/SnexTimer.cpp"
-#include "scripting/scriptnode/snex_nodes/SnexMidi.cpp"
+
 #include "scripting/scriptnode/snex_nodes/SnexEnvelope.cpp"
 #include "scripting/scriptnode/snex_nodes/SnexDynamicExpression.cpp"
 #endif
+
+#include "scripting/scriptnode/snex_nodes/SnexTimer.cpp"
+#include "scripting/scriptnode/snex_nodes/SnexMidi.cpp"
 
 #include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.cpp"
 #include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.cpp"

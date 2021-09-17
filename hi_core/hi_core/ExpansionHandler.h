@@ -175,41 +175,7 @@ public:
 
 	PooledAdditionalData loadAdditionalData(const String& relativePath);
 
-
-#if 0
-	ValueTree getSampleMap(const String& sampleMapId)
-	{
-		if (isEncrypted)
-		{
-			jassertfalse;
-			return ValueTree();
-		}
-		else
-		{
-			Array<File> sampleMapFiles;
-			getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
-
-			String expStart = "{EXP::" + name.get() + "}";
-
-			for (auto f : sampleMapFiles)
-			{
-				String thisId = expStart + f.getFileNameWithoutExtension();
-
-				if (thisId == sampleMapId)
-				{
-					ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
-
-					if (xml != nullptr)
-					{
-						return ValueTree::fromXml(*xml);
-					}
-				}
-			}
-
-			throw String("!Sample Map with id " + sampleMapId.fromFirstOccurrenceOf("}", false, false) + " not found");
-		}
-	}
-#endif
+	ValueTree getEmbeddedNetwork(const String& id) override;
 
 	bool isActive() const noexcept { return numActiveReferences != 0; }
 

@@ -582,49 +582,7 @@ void NodeContainer::MacroParameter::rebuildCallback()
 
 		if (newC->isValid())
 			connections.add(newC.release());
-
-#if 0
-		else
-		{
-			cTree.removeChild(c, nullptr);
-			break;
-		}
-#endif
 	}
-
-#if 0
-	if (connections.size() > 0)
-	{
-		Array<DspHelpers::ParameterCallback> connectionCallbacks;
-
-		for (auto c : connections)
-			connectionCallbacks.add(c->createCallbackForNormalisedInput());
-
-		if (RangeHelpers::isIdentity(inputRange))
-		{
-			setCallback([connectionCallbacks](double newValue)
-			{
-				for (auto& cb : connectionCallbacks)
-					cb(newValue);
-			});
-		}
-		else
-		{
-			auto cp = inputRange;
-			setCallback([cp, connectionCallbacks](double newValue)
-			{
-				auto normedValue = cp.convertTo0to1(newValue);
-
-				for (auto& cb : connectionCallbacks)
-					cb(normedValue);
-			});
-		}
-	}
-	else
-	{
-		setCallback({});
-	}
-#endif
 
 	ScopedPointer<parameter::dynamic_chain> chain = Connection::createParameterFromConnectionTree(parent, cTree);
 

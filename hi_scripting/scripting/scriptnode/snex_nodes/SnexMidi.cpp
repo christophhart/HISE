@@ -42,6 +42,7 @@ using namespace snex;
 
 String dynamic::getEmptyText(const Identifier& id) const
 {
+#if HISE_INCLUDE_SNEX
 	cppgen::Base c(cppgen::Base::OutputType::AddTabs);
 
 	
@@ -71,10 +72,13 @@ String dynamic::getEmptyText(const Identifier& id) const
 	s.flushIfNot();
 
 	return c.toString();
+#else
+	return {};
+#endif
 }
 
 dynamic::dynamic() :
-	SnexSource(),
+	OptionalSnexSource(),
 	callbacks(*this, object),
 	mode(PropertyIds::Mode, "Gate")
 {
@@ -109,7 +113,7 @@ void dynamic::prepare(PrepareSpecs ps)
 
 void dynamic::initialise(NodeBase* n)
 {
-	SnexSource::initialise(n);
+	OptionalSnexSource::initialise(n);
 
 	mode.initialise(n);
 	mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::setMode), true);
@@ -151,11 +155,17 @@ bool dynamic::getMidiValueWrapped(HiseEvent& e, double& v)
 		return notenumber<0>().getMidiValue(e, v);
 	case Mode::Frequency:
 		return frequency<0>().getMidiValue(e, v);
+
 	case Mode::Custom:
 	{
+#if HISE_INCLUDE_SNEX
 		HiseEvent* eptr = &e;
 		double* s = &v;
 		return callbacks.getMidiValue(eptr, s);
+#else
+		jassertfalse;
+		return 1.0f;
+#endif
 	}
 	}
 
@@ -164,7 +174,7 @@ bool dynamic::getMidiValueWrapped(HiseEvent& e, double& v)
 
 
 
-
+#if HISE_INCLUDE_SNEX
 dynamic::editor::editor(dynamic* t, PooledUIUpdater* updater) :
 	ScriptnodeExtraComponent<dynamic>(t, updater),
 	menuBar(t),
@@ -248,6 +258,7 @@ void dynamic::editor::timerCallback()
 	menuBar.setAlpha(snexEnabled ? 1.0f : 0.1f);
 }
 
+
 void dynamic::CustomMidiCallback::reset()
 {
 	SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
@@ -276,6 +287,7 @@ Result dynamic::CustomMidiCallback::recompiledOk(snex::jit::ComplexType::Ptr obj
 
 	return r;
 }
+#endif
 
 }
 

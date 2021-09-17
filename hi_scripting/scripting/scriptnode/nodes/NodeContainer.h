@@ -88,8 +88,6 @@ struct NodeContainer : public AssignableObject
 			getDynamicParameter()->updateUI();
 		}
 
-		
-
 		var addParameterTarget(NodeBase::Parameter* p)
 		{
 			p->data.setProperty(PropertyIds::Automated, true, p->parent->getUndoManager());

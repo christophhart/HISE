@@ -71,6 +71,8 @@ struct Selector : public Component,
 		{
 			auto n = PresetHandler::getCustomName("DspNetwork");
 
+			n = snex::cppgen::StringHelpers::makeValidCppName(n);
+
 			auto f = BackendDllManager::getSubFolder(getMainController(), BackendDllManager::FolderSubType::Networks).getChildFile(n).withFileExtension(".xml");
 
 			if (!f.existsAsFile())
@@ -126,10 +128,12 @@ struct Selector : public Component,
 		return MarkdownLink::Helpers::getSanitizedFilename(dynamic_cast<Processor*>(holder.get())->getId());
 	}
 
-	void setNetwork(const String& n)
+	void setNetwork(String n)
 	{
 		auto rootWindow = GET_BACKEND_ROOT_WINDOW(this);
 		auto jsp = dynamic_cast<JavascriptProcessor*>(holder.get());
+
+		n = snex::cppgen::StringHelpers::makeValidCppName(n);
 
 		holder->getOrCreate(n);
         
@@ -261,6 +265,11 @@ Component* DspNetworkGraphPanel::createComponentForNetwork(DspNetwork* p)
 Component* DspNetworkGraphPanel::createEmptyComponent()
 {
 #if USE_BACKEND
+
+	// don't show this in the workbench
+	if (findParentComponentOfClass<BackendRootWindow>() == nullptr)
+		return nullptr;
+
 	if (auto h = dynamic_cast<DspNetwork::Holder*>(getProcessor()))
 	{
 		return new Selector(h, getMainController());

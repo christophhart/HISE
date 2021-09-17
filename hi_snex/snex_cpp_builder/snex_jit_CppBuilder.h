@@ -49,6 +49,8 @@ static constexpr juce_wchar AlignMarker = '@';
 
 struct StringHelpers
 {
+	static String makeValidCppName(const String& input);
+
 	static String withToken(juce_wchar token, const String& s = {})
 	{
 		String t;

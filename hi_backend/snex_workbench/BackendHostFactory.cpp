@@ -213,6 +213,25 @@ bool BackendDllManager::allowPolyphonic(const File& networkFile)
 	return false;
 }
 
+juce::ValueTree BackendDllManager::exportAllNetworks(MainController* mc, bool includeCompilers)
+{
+	ValueTree networks("Networks");
+	auto allNetworks = getNetworkFiles(mc);
+
+	auto compilers = getNetworkFiles(mc, false);
+
+	for (auto n : allNetworks)
+	{
+		if (includeCompilers || !compilers.contains(n))
+		{
+			if (auto networkXml = XmlDocument::parse(n))
+				networks.addChild(ValueTree::fromXml(*networkXml), -1, nullptr);
+		}
+	}
+
+	return networks;
+}
+
 juce::File BackendDllManager::createIfNotDirectory(const File& f)
 {
 	if (!f.isDirectory())

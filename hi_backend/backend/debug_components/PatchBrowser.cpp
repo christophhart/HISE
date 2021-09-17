@@ -1035,7 +1035,7 @@ void PatchBrowser::PatchCollection::applyLayout()
     if (gotoWorkspace != nullptr)
     {
         gotoWorkspace->setBorderSize(BorderSize<int>(JUCE_LIVE_CONSTANT_OFF(12)));
-        gotoWorkspace->setBounds(b.removeFromRight(b.getHeight()));
+        gotoWorkspace->setBounds(rectSpace.removeFromRight(b.getHeight()).expanded(0, b.getHeight() - rectSpace.getHeight()));
     }
 
 	rectSpace.removeFromLeft(JUCE_LIVE_CONSTANT(5));

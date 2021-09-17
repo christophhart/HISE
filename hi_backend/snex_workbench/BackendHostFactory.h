@@ -122,6 +122,8 @@ struct BackendDllManager : public ReferenceCountedObject,
 	static bool allowCompilation(const File& networkFile);
 	static bool allowPolyphonic(const File& networkFile);
 
+	static ValueTree exportAllNetworks(MainController* mc, bool includeCompilers);
+
 	static File createIfNotDirectory(const File& f);
 	static File getSubFolder(const MainController* mc, FolderSubType t);
 

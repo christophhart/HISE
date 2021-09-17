@@ -144,12 +144,15 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #if HISE_INCLUDE_SNEX
 #include "scripting/scriptnode/snex_nodes/SnexShaper.h"
 #include "scripting/scriptnode/snex_nodes/SnexOscillator.h"
-#include "scripting/scriptnode/snex_nodes/SnexTimer.h"
-#include "scripting/scriptnode/snex_nodes/SnexMidi.h"
+
 #include "scripting/scriptnode/snex_nodes/SnexNode.h"
 #include "scripting/scriptnode/snex_nodes/SnexEnvelope.h"
 #include "scripting/scriptnode/snex_nodes/SnexDynamicExpression.h"
 #endif
+
+
+#include "scripting/scriptnode/snex_nodes/SnexTimer.h"
+#include "scripting/scriptnode/snex_nodes/SnexMidi.h"
 
 #include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.h"
 #include "scripting/scriptnode/dynamic_elements/DynamicSmootherNode.h"

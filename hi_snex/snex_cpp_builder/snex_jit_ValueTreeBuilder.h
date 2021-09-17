@@ -165,7 +165,7 @@ struct Node : public ReferenceCountedObject,
 
 	bool addOptionalModeTemplate()
 	{
-		if (readOnly)
+		if (readOnly || optionalModeWasAdded)
 			return false;
 
 		if (hasProperty(PropertyIds::HasModeTemplateArgument, false))
@@ -179,6 +179,8 @@ struct Node : public ReferenceCountedObject,
 				ud.addTemplateIntegerArgument("NV", true);
 
 			*this << ud;// fId.getChildId(cId).toString();
+
+			optionalModeWasAdded = true;
 
 			return true;
 		}
@@ -194,6 +196,7 @@ struct Node : public ReferenceCountedObject,
 	ValueTree nodeTree;
 
 	bool readOnly = false;
+	bool optionalModeWasAdded = false;
 };
 
 
@@ -559,6 +562,11 @@ struct ValueTreeBuilder: public Base
 		r(Result::ok()),
         numChannelsToCompile((int)v.getParent()[PropertyIds::CompileChannelAmount])
 	{
+		if (numChannelsToCompile == 0)
+			numChannelsToCompile = 2;
+
+		// The channel amount will not work otherwise...
+		jassert(v.getParent().isValid());
 		setHeaderForFormat();
 	}
 

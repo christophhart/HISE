@@ -41,6 +41,7 @@ namespace control
 {
 	String snex_timer::getEmptyText(const Identifier& id) const
 	{
+#if HISE_INCLUDE_SNEX
 		cppgen::Base c(cppgen::Base::OutputType::AddTabs);
 
 		cppgen::Struct s(c, id, {}, { TemplateParameter(NamespacedIdentifier("NumVoices"), 0, false) });
@@ -67,6 +68,9 @@ namespace control
 		s.flushIfNot();
 
 		return c.toString();
+#else
+		return {};
+#endif
 	}
 
 	double snex_timer::getTimerValue()
@@ -76,7 +80,14 @@ namespace control
 		switch (currentMode)
 		{
 		case TimerMode::Ping:   v = pingTimer.getTimerValue(); break;
-		case TimerMode::Custom: v = callbacks.getTimerValue(); break;
+
+		case TimerMode::Custom: 
+#if HISE_INCLUDE_SNEX
+			v = callbacks.getTimerValue(); 
+#else
+			jassertfalse;
+#endif
+			break;
 		case TimerMode::Toggle: v = toggleTimer.getTimerValue(); break;
 		case TimerMode::Random: v = randomTimer.getTimerValue(); break;
         default:                v = 0.0f; break;
@@ -86,6 +97,7 @@ namespace control
 		return v;
 	}
 
+#if HISE_INCLUDE_SNEX
 	snex_timer::editor::editor(snex_timer* t, PooledUIUpdater* updater) :
 		ScriptnodeExtraComponent<snex_timer>(t, updater),
 		menuBar(t),
@@ -148,7 +160,7 @@ namespace control
 			return;
 		}
 	}
-
+#endif
 }
 
 void FlashingModKnob::paint(Graphics& g)

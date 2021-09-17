@@ -734,6 +734,12 @@ PooledAdditionalData Expansion::loadAdditionalData(const String& relativePath)
 }
 
 
+juce::ValueTree Expansion::getEmbeddedNetwork(const String& id)
+{
+	// Return the embedded networks of the project (use full expansions to include networks into an expansion).
+	return getMainController()->getSampleManager().getProjectHandler().getEmbeddedNetwork(id);
+}
+
 void Expansion::saveExpansionInfoFile()
 {
 	if (Helpers::getExpansionInfoFile(root, Intermediate).existsAsFile() ||

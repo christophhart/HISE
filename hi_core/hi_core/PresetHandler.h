@@ -179,6 +179,8 @@ public:
 
 	void createLinkFileToGlobalSampleFolder(const String& suffix);
 
+	virtual ValueTree getEmbeddedNetwork(const String& id) { return {}; }
+
 	virtual File getRootFolder() const = 0;
 
 	virtual Array<SubDirectories> getSubDirectoryIds() const;
@@ -263,6 +265,8 @@ public:
 
 	File getWorkDirectory() const;
 
+	ValueTree getEmbeddedNetwork(const String& id) override;
+
 	/** Checks if a directory is redirected. */
 
 	bool isRedirected(ProjectHandler::SubDirectories dir) const
@@ -331,6 +335,8 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProjectHandler);
 };
+
+
 
 /** This class handles the file resources for compiled plugins. 
 */
@@ -416,6 +422,25 @@ public:
 
 		return ValueTree();
 	}
+
+	ValueTree getEmbeddedNetwork(const String& id) override
+	{
+		for (auto n : networks)
+		{
+			if (n["ID"].toString() == id)
+				return n;
+		}
+
+		jassertfalse;
+		return {};
+	}
+
+	void setNetworkData(const ValueTree& nData)
+	{
+		networks = nData;
+	}
+
+	ValueTree networks;
 
 	bool shouldLoadSamplesAfterSetup() const { return samplesCorrectlyLoaded; };
 

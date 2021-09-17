@@ -99,10 +99,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 		ownedFactories.add(new dll::BackendHostFactory(this, ah->projectDll));
 
 		if (ah->projectDll != nullptr)
-		{
-			
 			projectNodeHolder.init(ah->projectDll);
-		}
 	}
 #else
 	if (auto ah = dynamic_cast<Holder*>(p))
@@ -150,9 +147,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 		if (wasRemoved)
 		{
 			if (auto n = getNodeForValueTree(v))
-			{
 				this->getExceptionHandler().removeError(n);
-			}
 		}
 	});
     
@@ -930,6 +925,7 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 void DspNetwork::setUseFrozenNode(bool shouldBeEnabled)
 {
 	projectNodeHolder.setEnabled(shouldBeEnabled);
+	reset();
 }
 
 bool DspNetwork::hashMatches()
@@ -1102,20 +1098,16 @@ void DspNetwork::Holder::restoreNetworks(const ValueTree& d)
 
 		for (auto c : v)
 		{
-#if USE_BACKEND
-			auto f = BackendDllManager::getSubFolder(dynamic_cast<const ControlledObject*>(this)->getMainController(), BackendDllManager::FolderSubType::Networks);
-
-			auto nf = f.getChildFile(c[PropertyIds::ID].toString()).withFileExtension("xml");
-
-			if (nf.existsAsFile())
+			if (c.getNumChildren() == 0)
 			{
-				if (auto xml = XmlDocument::parse(nf))
-				{
-					debugToConsole(dynamic_cast<Processor*>(this), "Load network " + nf.getFileName() + " from project folder");
-					c = ValueTree::fromXml(*xml);
-				}
+				auto nid = c[PropertyIds::ID].toString();
+				auto mc = dynamic_cast<ControlledObject*>(this)->getMainController();
+
+				auto fh = mc->getActiveFileHandler();
+
+				c = fh->getEmbeddedNetwork(nid);
+				jassert(c.isValid());
 			}
-#endif
 
 			auto newNetwork = new DspNetwork(dynamic_cast<ProcessorWithScriptingContent*>(this),
 				c.createCopy(), isPolyphonic());

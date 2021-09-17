@@ -470,7 +470,8 @@ struct Graph : public TestDataComponentBase
 
 	~Graph()
 	{
-		getWorkbench()->removeListener(this);
+		if(getWorkbench() != nullptr)
+			getWorkbench()->removeListener(this);
 	}
 
 	void comboBoxChanged(ComboBox* cb) override;

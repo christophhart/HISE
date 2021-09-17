@@ -316,10 +316,10 @@ updater(*this)
 
 	if (externalFiles != nullptr)
 	{
+		getSampleManager().getProjectHandler().setNetworkData(externalFiles->getChildWithName("Networks"));
 		setExternalScriptData(externalFiles->getChildWithName("ExternalScripts"));
 		restoreCustomFontValueTree(externalFiles->getChildWithName("CustomFonts"));
 		restoreEmbeddedMarkdownDocs(externalFiles->getChildWithName("MarkdownDocs"));
-
 	}
     
 	numParameters = 0;

@@ -38,6 +38,63 @@ using namespace juce;
 using namespace hise;
 using namespace snex;
 
+#if HISE_INCLUDE_SNEX
+using OptionalSnexSource = SnexSource;
+#else
+struct OptionalSnexSource
+{
+	struct DummyCallbackHandler
+	{
+		void prepare(PrepareSpecs) {};
+
+		DummyCallbackHandler(OptionalSnexSource& , int) {};
+	};
+
+	struct SnexTestBase
+	{
+		virtual ~SnexTestBase() {};
+	};
+
+	template <typename T> struct Tester: public SnexTestBase
+	{
+		Tester(OptionalSnexSource& p) {};
+	};
+
+	virtual SnexTestBase* createTester() = 0;
+
+	void setCallbackHandler(DummyCallbackHandler*) {};
+
+	virtual void initialise(NodeBase* ) {};
+
+	virtual String getEmptyText(const Identifier& id) const { return {}; }
+
+	virtual Identifier getTypeId() const = 0;
+
+	virtual bool preprocess(String& code)
+	{
+		ignoreUnused(code);
+		return false;
+	}
+
+	virtual ~OptionalSnexSource() {};
+
+	int object;
+
+	NodeBase* getParentNode() { return p; }
+	
+	struct editor
+	{
+		static Component* createExtraComponent(void*, PooledUIUpdater*) { return nullptr; }
+	};
+
+	template <int P> void setParameter(double) {};
+
+private:
+	
+	NodeBase::Ptr p;
+};
+#endif
+
 struct FlashingModKnob : public Component,
 						 public PooledUIUpdater::SimpleTimer
 {
@@ -59,6 +116,7 @@ struct FlashingModKnob : public Component,
 		}
 	}
 
+	
 	void paint(Graphics& g) override;
 
 	ModValue* modValue;
@@ -71,7 +129,7 @@ namespace control
 
 
 
-struct snex_timer : public SnexSource
+struct snex_timer : public OptionalSnexSource
 {
 	enum class TimerMode
 	{
@@ -82,6 +140,7 @@ struct snex_timer : public SnexSource
 		numModes
 	};
 
+#if HISE_INCLUDE_SNEX
 	struct TimerCallbackHandler : public SnexSource::CallbackHandlerBase
 	{
 		TimerCallbackHandler(SnexSource& p, ObjectStorageType& o) :
@@ -160,9 +219,12 @@ struct snex_timer : public SnexSource
 		FunctionData resetFunc;
 		FunctionData prepareFunc;
 	};
+#else
+	using TimerCallbackHandler = OptionalSnexSource::DummyCallbackHandler;
+#endif
 
 	snex_timer() :
-		SnexSource(),
+		OptionalSnexSource(),
 		callbacks(*this, object),
 		mode(PropertyIds::Mode, "Ping")
 	{
@@ -182,7 +244,7 @@ struct snex_timer : public SnexSource
 
 	void initialise(NodeBase* n)
 	{
-		SnexSource::initialise(n);
+		OptionalSnexSource::initialise(n);
 
 		mode.initialise(n);
 		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(snex_timer::updateMode), true);
@@ -201,7 +263,9 @@ struct snex_timer : public SnexSource
 		switch (currentMode)
 		{
 		case TimerMode::Ping:	pingTimer.reset(); break;
+#if HISE_INCLUDE_SNEX
 		case TimerMode::Custom: callbacks.resetTimer(); break;
+#endif
 		case TimerMode::Toggle: toggleTimer.reset(); break;
 		case TimerMode::Random: randomTimer.reset(); break;
         default: break;
@@ -210,15 +274,13 @@ struct snex_timer : public SnexSource
 
 	bool preprocess(String& code) override
 	{
-		SnexSource::preprocess(code);
-
-		//code << "void tut() { " << getCurrentClassId().toString() << " <NUM_POLYPHONIC_VOICES> x;};";
+		OptionalSnexSource::preprocess(code);
 		return true;
 	}
 
+
 	void prepare(PrepareSpecs ps)
 	{
-
 		callbacks.prepare(ps);
 		toggleTimer.prepare(ps);
 		randomTimer.prepare(ps);
@@ -228,6 +290,7 @@ struct snex_timer : public SnexSource
 	TimerCallbackHandler callbacks;
 	mutable ModValue lastValue;
 
+#if HISE_INCLUDE_SNEX
 	class editor : public ScriptnodeExtraComponent<snex_timer>,
 				  SnexSource::SnexSourceListener
 	{
@@ -255,6 +318,7 @@ struct snex_timer : public SnexSource
 		ComboBoxWithModeProperty modeSelector;
 		ModulationSourceBaseComponent dragger;
 	};
+#endif
 
 	NodePropertyT<String> mode;
 

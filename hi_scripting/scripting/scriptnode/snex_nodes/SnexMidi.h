@@ -40,10 +40,11 @@ using namespace snex;
 
 namespace midi_logic
 {
-struct dynamic : public SnexSource
+struct dynamic : public OptionalSnexSource
 {
 	using NodeType = control::midi<dynamic>;
 
+#if HISE_INCLUDE_SNEX
 	struct CustomMidiCallback : public SnexSource::CallbackHandlerBase
 	{
 		CustomMidiCallback(SnexSource& parent, SnexSource::HandlerBase::ObjectStorageType& o) :
@@ -116,6 +117,9 @@ struct dynamic : public SnexSource
 		snex::jit::FunctionData prepareFunction;
 		snex::jit::FunctionData midiFunction;
 	};
+#else
+	using CustomMidiCallback = OptionalSnexSource::DummyCallbackHandler;
+#endif
 
 	enum class Mode
 	{
@@ -135,6 +139,7 @@ struct dynamic : public SnexSource
 
 	dynamic();;
 
+#if HISE_INCLUDE_SNEX
 	class editor : public ScriptnodeExtraComponent<dynamic>,
 		public SnexSource::SnexSourceListener,
 		public Value::Listener
@@ -182,7 +187,8 @@ struct dynamic : public SnexSource
 
 		ModulationSourceBaseComponent dragger;
 		VuMeterWithModValue meter;
-	};
+	};	
+#endif
 
 	void prepare(PrepareSpecs ps);
 
@@ -195,6 +201,7 @@ struct dynamic : public SnexSource
 	bool getMidiValueWrapped(HiseEvent& e, double& v);
 
 	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("midi"); };
+
 
 	SnexTestBase* createTester() override
 	{

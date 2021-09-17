@@ -667,5 +667,18 @@ void StackVariable::flush()
 	Op::flush();
 }
 
+String StringHelpers::makeValidCppName(const String& input)
+{
+	String s;
+
+	if (CharacterFunctions::isDigit(input[0]))
+		s << "_";
+
+	s << input;
+	s = s.replace("-", "_");
+	s = s.removeCharacters("\"/\\ \t\n\r!§$%&/()=[]{}");
+	return s;
+}
+
 }
 }
