@@ -1395,13 +1395,22 @@ bool DspNetworkGraph::Actions::foldSelection(DspNetworkGraph& g)
 
 bool DspNetworkGraph::Actions::foldUnselectedNodes(DspNetworkGraph& g)
 {
+    auto selection = g.network->getSelection();
+    
+    if(selection.isEmpty())
+    {
+        zoomFit(g);
+        return true;
+    }
+    
+    
 	auto parent = g.findParentComponentOfClass<ZoomableViewport>();
 
 	parent->makeSwapSnapshot(JUCE_LIVE_CONSTANT_OFF(1.005));
 
 	auto l = g.network->getListOfNodesWithType<NodeBase>(false);
 
-	auto selection = g.network->getSelection();
+	
 
 	auto isParentNode = [](NodeBase*n, NodeBase* possibleParent)
 	{

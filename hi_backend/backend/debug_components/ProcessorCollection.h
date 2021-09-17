@@ -106,6 +106,17 @@ public:
 
 		virtual void popupCallback(int /*menuIndex*/) {};
 
+        void paintItemBackground(Graphics& g, Rectangle<float> area)
+        {
+            g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0xff303030)), 0.0f, 0.0f,
+                JUCE_LIVE_CONSTANT_OFF(Colour(0xff282828)), 0.0f, (float)area.getHeight(), false));
+
+            g.fillRoundedRectangle(area, 2.0f);
+
+            g.setColour(Colours::white.withAlpha(0.1f));
+            g.drawRoundedRectangle(area.reduced(1.0f), 2.0f, 1.0f);
+        }
+        
 		void setUsePopupMenu(bool shouldUsePopupMenu) noexcept{ usePopupMenu = shouldUsePopupMenu; }
 
 		/** Overwrite this and return the height of the popup component. If you return 0 (default behaviour), the functionality is deactivated. */

@@ -363,7 +363,7 @@ private:
     
 	ScopedPointer<TreeView> tree;
 	
-	
+    ScrollbarFader sf;
 	
 	int scrollY = 0;
 

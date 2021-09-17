@@ -126,6 +126,7 @@ struct ParameterKnobLookAndFeel : public GlobalHiseLookAndFeel
 struct ParameterSlider : public Slider,
 	public Slider::Listener,
 	public DragAndDropTarget,
+    public hise::Learnable,
 	public PooledUIUpdater::SimpleTimer
 {
 	struct RangeButton : public Component

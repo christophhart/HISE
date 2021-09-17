@@ -107,13 +107,22 @@ void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
 	}
 	else
 	{
-		auto area = FLOAT_RECTANGLE(Rectangle<int>(0, 0, width, height-1).reduced(1));
+		auto area = FLOAT_RECTANGLE(Rectangle<int>(0, 0, width, height));
 
-		g.setColour(isSelected() ? Colour(SIGNAL_COLOUR).withAlpha(0.2f) : Colours::black.withAlpha(0.2f));
+        g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0xff303030)), 0.0f, 0.0f,
+            JUCE_LIVE_CONSTANT_OFF(Colour(0xff282828)), 0.0f, (float)area.getHeight(), false));
 
-		g.fillRoundedRectangle(area, 1.0f);
-		g.setColour(Colours::white.withAlpha(0.1f));
-		g.drawRoundedRectangle(area, 1.0f, 2.0f);
+        g.fillRoundedRectangle(area, 2.0f);
+        g.setColour(Colours::white.withAlpha(0.1f));
+        g.drawRoundedRectangle(area.reduced(1.0f), 2.0f, 1.0f);
+        
+		if(isSelected())
+        {
+            g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.2f));
+            g.fillRoundedRectangle(area, 2.0f);
+        }
+
+        
 
 
 		bool saveInPreset = false;
@@ -141,21 +150,46 @@ void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
 
 		c3 = c3.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.3f));
 
-		g.setColour(c3);
+        if(!ContentValueTreeHelpers::isShowing(tree))
+            c3 = c3.withMultipliedAlpha(0.5f);
+        
+		//g.setColour(c3);
 
 		const float offset = JUCE_LIVE_CONSTANT_OFF(8.0f);
 		Rectangle<float> circle(offset, offset, (float)ITEM_HEIGHT - 2.0f * offset, (float)ITEM_HEIGHT - 2.0f * offset);
 
-		g.fillEllipse(circle);
+        
+        
+        if(saveInPreset)
+        {
+            
+            g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.8f));
 
-		g.drawEllipse(circle, 1.0f);
+            if (!ContentValueTreeHelpers::isShowing(tree))
+            {
+                g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.3f));
+            }
+            
+            float v1 = JUCE_LIVE_CONSTANT_OFF(6.0f);
+            float v2 = JUCE_LIVE_CONSTANT_OFF(2.5f);
+            
+            Path p;
+            p.addStar({}, 5, v1, v2);
+            p.applyTransform(AffineTransform::rotation(float_Pi));
+            p.applyTransform(AffineTransform::translation(circle.getCentre()));
+            g.fillPath(p);
+        }
+        
+        g.setColour(Colours::white.withAlpha(0.9f));
 
-		g.setColour(Colours::white);
+        if (!ContentValueTreeHelpers::isShowing(tree))
+        {
+            g.setColour(Colours::white.withAlpha(0.3f));
+        }
+		
+		//g.drawEllipse(circle, 1.0f);
 
-		if (!ContentValueTreeHelpers::isShowing(tree))
-		{
-			g.setColour(Colours::white.withAlpha(0.4f));
-		}
+		
 
 		g.setFont(GLOBAL_BOLD_FONT());
 
@@ -415,7 +449,8 @@ ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
 	tree->setLookAndFeel(&laf);
 
 	//tree->setRootItemVisible(false);
-
+    tree->getViewport()->setScrollBarThickness(13);
+    sf.addScrollBarToAnimate(tree->getViewport()->getVerticalScrollBar());
 	
 	tree->addMouseListener(this, true);
 

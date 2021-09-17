@@ -943,6 +943,7 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index_) :
 	addAndMakeVisible(rangeButton);
 
 	setName(pTree[PropertyIds::ID].toString());
+    setLearnable(node->getRootNetwork()->getRootNode() == node);
 
 	connectionListener.setTypesToWatch({ PropertyIds::Connections, PropertyIds::ModulationTargets, PropertyIds::Nodes });
 	connectionListener.setCallback(pTree.getRoot(), valuetree::AsyncMode::Synchronously,
@@ -1122,14 +1123,21 @@ bool ParameterSlider::matchesConnection(ValueTree& c) const
 
 void ParameterSlider::mouseDown(const MouseEvent& e)
 {
-#if 0
-	if (e.mods.isCommandDown())
-	{
-		addAndMakeVisible(currentRangeComponent = new RangeComponent(false));
-		resized();
-	}
-#endif
+    auto p = dynamic_cast<Processor*>(parameterToControl->getScriptProcessor());
+    
+    if (isLearnable() && p->getMainController()->getScriptComponentEditBroadcaster()->getCurrentlyLearnedComponent() != nullptr)
+    {
+        Learnable::LearnData d;
+        d.processorId = p->getId();
 
+        d.parameterId = getName();
+        d.range = RangeHelpers::getDoubleRange(pTree);
+        d.value = getValue();
+        d.name = d.parameterId;
+
+        p->getMainController()->getScriptComponentEditBroadcaster()->setLearnData(d);
+    }
+    
 	if (e.mods.isShiftDown())
 	{
 		Slider::showTextBox();
@@ -1378,6 +1386,8 @@ MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
 	addAndMakeVisible(slider);
 	setWantsKeyboardFocus(true);
 
+    
+    
 	if (auto mp = dynamic_cast<NodeContainer::MacroParameter*>(slider.parameterToControl.get()))
 	{
 		setEditEnabled(mp->editEnabled);
@@ -1393,6 +1403,8 @@ void MacroParameterSlider::resized()
 
 void MacroParameterSlider::mouseDrag(const MouseEvent& )
 {
+    
+    
 	if (editEnabled)
 	{
 		if (auto container = DragAndDropContainer::findParentDragContainerFor(this))

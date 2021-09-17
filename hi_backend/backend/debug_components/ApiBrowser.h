@@ -372,23 +372,33 @@ public:
 				node->setValueTreeProperty(PropertyIds::Bypassed, !b->getToggleState());
 		}
 
-		void paint(Graphics& g) override
-		{
-			if (node != nullptr)
-			{
-				bool selected = node->getRootNetwork()->isSelected(node);
-
-				Colour c = selected ? Colour(SIGNAL_COLOUR) : Colours::white.withAlpha(0.3f);
-
-				g.setColour(c);
-				g.drawRect(getLocalBounds().reduced(1));
-			}
-		}
+        int getIntendation() const
+        {
+            auto networkData = node->getRootNetwork()->getValueTree();
+            
+            auto nTree = node->getValueTree();
+            
+            int index = 0;
+            
+            while(nTree.isValid() && nTree != networkData)
+            {
+                index++;
+                nTree = nTree.getParent();
+            }
+            
+            return index;
+        }
+        
+        void paint(Graphics& g) override;
+		
 
 		void resized() override
 		{
 			auto b = getLocalBounds().reduced(1);
-
+            b.removeFromLeft(getIntendation()*2);
+            area = b;
+            b.removeFromLeft(5);
+            
 			powerButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(2));
 			label.setBounds(b);
 		}
@@ -396,7 +406,11 @@ public:
 		void mouseUp(const MouseEvent& event) override
 		{
 			if (node != nullptr)
+            {
 				node->getRootNetwork()->addToSelection(node, event.mods);
+                
+                node->getRootNetwork()->zoomToSelection(this);
+            }
 		}
 
 		valuetree::PropertyListener idListener;
@@ -406,6 +420,8 @@ public:
 		NodeComponent::Factory f;
 		NiceLabel label;
 		HiseShapeButton powerButton;
+        
+        Rectangle<int> area;
 	};
 
 	struct NodeCollection : public SearchableListComponent::Collection

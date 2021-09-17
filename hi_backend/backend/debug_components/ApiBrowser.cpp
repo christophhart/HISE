@@ -30,7 +30,43 @@
 *   ===========================================================================
 */
 
+namespace scriptnode
+{
+using namespace hise;
+using namespace juce;
+
+void DspNodeList::NodeItem::paint(Graphics& g)
+{
+    if (node != nullptr)
+    {
+        bool selected = node->getRootNetwork()->isSelected(node);
+
+        
+        
+        auto ca = area.withWidth(5);
+        
+        
+        auto colour = node->getColour();
+        paintItemBackground(g, area.toFloat());
+        
+        g.setColour(colour);
+        g.fillRect(ca.reduced(1.0f));
+        
+        if(selected)
+        {
+            g.setColour(Colour(SIGNAL_COLOUR));
+            g.drawRoundedRectangle(area.toFloat(), 2.0f, 1.0f);
+        }
+        
+        
+    }
+}
+
+}
+
 namespace hise { using namespace juce;
+
+
 
 ApiCollection::ApiCollection(BackendRootWindow* window) :
 SearchableListComponent(window),

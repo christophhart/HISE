@@ -145,7 +145,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 		}
 	});
 
-	exceptionResetter.setTypeToWatch(PropertyIds::Node);
+	exceptionResetter.setTypeToWatch(PropertyIds::Nodes);
 	exceptionResetter.setCallback(data, valuetree::AsyncMode::Synchronously, [this](ValueTree v, bool wasRemoved)
 	{
 		if (wasRemoved)
@@ -156,6 +156,41 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 			}
 		}
 	});
+    
+    sortListener.setTypeToWatch(PropertyIds::Nodes);
+    sortListener.setCallback(data, valuetree::AsyncMode::Synchronously, [this](ValueTree v, bool wasRemoved)
+    {
+        struct Sorter
+        {
+            void addRecursive(NodeBase* n)
+            {
+                newList.add(n);
+                
+                if(auto c = dynamic_cast<NodeContainer*>(n))
+                    newList.addArray(c->getChildNodesRecursive());
+            }
+            int compareElements(NodeBase* n1, NodeBase* n2) const
+            {
+                auto i1 = newList.indexOf(n1);
+                auto i2 = newList.indexOf(n2);
+                
+                if(i1 == i2)
+                    return 0;
+                
+                if(i1 < i2)
+                    return -1;
+                
+                return 1;
+            }
+            
+            NodeBase::List newList;
+        } sorter;
+        
+        sorter.newList.ensureStorageAllocated(nodes.size());
+        sorter.addRecursive(getRootNode());
+        
+        nodes.sort(sorter);
+    });
 
 	checkIfDeprecated();
 }
@@ -729,9 +764,32 @@ void DspNetwork::addToSelection(NodeBase* node, ModifierKeys mods)
 		pNode = pNode->getParentNode();
 	}
 
-	selection.addToSelectionBasedOnModifiers(node, mods);
+    if(selection.getSelectedItem(0) == node && selection.getNumSelected() == 1)
+        selection.deselectAll();
+    else
+        selection.addToSelectionBasedOnModifiers(node, mods);
 }
 
+
+void DspNetwork::zoomToSelection(Component* c)
+{
+    using ButtonBase = DspNetworkGraph::ActionButton;
+    
+    Component::callRecursive<ButtonBase>(c->getTopLevelComponent(), [](ButtonBase* b)
+    {
+        if(b->getName() == "foldunselected")
+        {
+            auto g = b->findParentComponentOfClass<WrapperWithMenuBarBase>()->canvas.getContent<DspNetworkGraph>();
+            
+            jassert(g != nullptr);
+            
+            b->actionFunction(*g);
+            return true;
+        }
+        
+        return false;
+    });
+}
 
 bool DspNetwork::updateIdsInValueTree(ValueTree& v, StringArray& usedIds)
 {

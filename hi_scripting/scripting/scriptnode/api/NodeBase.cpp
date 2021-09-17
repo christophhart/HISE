@@ -431,6 +431,27 @@ void NodeBase::updateFrozenState(Identifier id, var newValue)
 	}
 }
 
+Colour NodeBase::getColour() const
+{
+    auto value = getValueTree()[PropertyIds::NodeColour];
+    auto colour = PropertyHelpers::getColourFromVar(value);
+    
+    if(getRootNetwork()->getRootNode() == this)
+    {
+        return dynamic_cast<const Processor*>(getScriptProcessor())->getColour();
+    }
+    
+    if(auto cont = dynamic_cast<const NodeContainer*>(this))
+    {
+        auto cc = cont->getContainerColour();
+        
+        if(!cc.isTransparent())
+            return cc;
+    }
+    
+    return colour;
+}
+
 var NodeBase::get(var id)
 {
 	checkValid();

@@ -168,6 +168,8 @@ public:
 
 	bool isModulated() const { return (bool)data.getProperty(PropertyIds::ModulationTarget, false); }
 
+    
+    
 private:
 
 
@@ -431,7 +433,7 @@ public:
 
 	Rectangle<int> getBoundsWithoutHelp(Rectangle<int> originalHeight) const;
 
-	
+    Colour getColour() const;
 
 	
 

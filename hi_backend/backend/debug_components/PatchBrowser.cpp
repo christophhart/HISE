@@ -1382,15 +1382,7 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 
 		const bool isRoot = GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()->getRootProcessor() == p.get();
 
-		g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0xff303030)), 0.0f, 0.0f,
-			JUCE_LIVE_CONSTANT_OFF(Colour(0xff282828)), 0.0f, (float)b.getHeight(), false));
-
-
-
-		g.fillRoundedRectangle(b, 2.0f);
-
-		g.setColour(Colours::white.withAlpha(0.1f));
-		g.drawRoundedRectangle(b.reduced(1.0f), 2.0f, 1.0f);
+        paintItemBackground(g, b);
 
 		if (isMouseOver(false))
 		{

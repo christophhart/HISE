@@ -718,6 +718,8 @@ public:
 
 	NodeBase::List getSelection() const { return selection.getItemArray(); }
 
+    void zoomToSelection(Component* c);
+    
 	struct NetworkParameterHandler : public hise::ScriptParameterHandler
 	{
 		int getNumParameters() const final override { return root->getNumParameters(); }
@@ -907,7 +909,7 @@ private:
 	valuetree::RecursivePropertyListener idUpdater;
 	valuetree::RecursiveTypedChildListener exceptionResetter;
 
-	
+    valuetree::RecursiveTypedChildListener sortListener;
 
 	WeakReference<Holder> parentHolder;
 
