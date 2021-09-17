@@ -752,10 +752,19 @@ public:
 		if (currentVoiceData->enabled == 0)
 			return;
 
-		for (auto& s : data[0])
+		if (data.getNumChannels() == 2)
 		{
-			auto asSpan = reinterpret_cast<span<float, 1>*>(&s);
-			processFrame(asSpan);
+			auto fd = data.as<ProcessData<2>>().toFrameData();
+			while (fd.next())
+				processFrame(fd.toSpan());
+		}
+		else
+		{
+			for (auto& s : data[0])
+			{
+				auto asSpan = reinterpret_cast<span<float, 1>*>(&s);
+				processFrame(*asSpan);
+			}
 		}
 	}
 
@@ -781,7 +790,8 @@ public:
         default: break;
 		}
         
-        data[0] = v;
+		for (auto& s : data)
+			s += v;
 	}
 
 	void handleHiseEvent(HiseEvent& e)
