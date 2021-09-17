@@ -1146,19 +1146,6 @@ Factory::Factory(DspNetwork* network) :
 
 }
 
-namespace stk_factory
-{
-Factory::Factory(DspNetwork* n):
-	NodeFactory(n)
-{
-	registerNode<stk::nodes::jcrev>();
-	registerNode<stk::nodes::delay_a>();
-	registerNode<stk::nodes::banded_wg>();
-}
-
-
-}
-
 namespace math
 {
 

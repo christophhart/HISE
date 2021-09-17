@@ -53,7 +53,6 @@ END_JUCE_MODULE_DECLARATION
 
 #include "AppConfig.h"
 #include "../hi_modules/hi_modules.h"
-#include "../stk_wrapper/stk_wrapper.h"
 
 
 /** Config: USE_WORKBENCH_EDITOR

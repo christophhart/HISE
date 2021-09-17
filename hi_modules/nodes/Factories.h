@@ -156,16 +156,6 @@ struct Factory : public NodeFactory
 
 }
 
-namespace stk_factory
-{
-struct Factory: public NodeFactory
-{
-	Factory(DspNetwork* n);;
-	Identifier getId() const override { return "stk"; }
-};
-	
-}
-
 namespace math
 {
 
