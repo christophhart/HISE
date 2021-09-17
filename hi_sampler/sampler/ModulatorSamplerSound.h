@@ -621,6 +621,11 @@ private:
 			IF_NOT_HEADLESS(startTimer(300));
 		};
 
+        ~AsyncCleaner()
+        {
+            stopTimer();
+        }
+        
 		void triggerAsyncUpdate()
 		{
 			flag = true;

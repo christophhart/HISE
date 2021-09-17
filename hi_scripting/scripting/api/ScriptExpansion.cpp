@@ -1686,7 +1686,7 @@ void ExpansionEncodingWindow::run()
 			{
 				if (auto e = h.getExpansion(i))
 				{
-					showStatusMessage("Encoding " + e->getProperty(ExpansionIds::Name));
+					//showStatusMessage("Encoding " + e->getProperty(ExpansionIds::Name));
 					setProgress((double)i / (double)h.getNumExpansions());
 
 					encodeResult = e->encodeExpansion();
@@ -1719,7 +1719,7 @@ void ExpansionEncodingWindow::threadFinished()
 	if (projectExport)
 	{
 		auto& h = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain());
-		Expansion::Helpers::getExpansionInfoFile(h.getWorkDirectory(), Expansion::Intermediate).revealToUser();
+		//Expansion::Helpers::getExpansionInfoFile(h.getWorkDirectory(), Expansion::Intermediate).revealToUser();
 		return;
 	}
 

@@ -1595,12 +1595,7 @@ void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * /*b
 	}
 }
 
-void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWindow * bpe)
-{
-	auto exporter = new SampleDataExporter(bpe->getMainController());
 
-	exporter->setModalBaseWindowComponent(bpe->mainEditor);
-}
 
 void BackendCommandTarget::Actions::importArchivedSamples(BackendRootWindow * bpe)
 {
@@ -2404,6 +2399,13 @@ void BackendCommandTarget::Actions::createExternalScriptFile(BackendRootWindow *
 	}
 }
 
+void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWindow * bpe)
+{
+    auto exporter = new SampleDataExporter(bpe->getMainController());
+
+    exporter->setModalBaseWindowComponent(bpe->mainEditor);
+}
+                         
 void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe)
 {
 	auto& h = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
@@ -2427,6 +2429,26 @@ void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendR
 		existingIntermediate.deleteFile();
 
 	auto e = new ExpansionEncodingWindow(bpe->owner, nullptr, true);
+    e->setAdditionalFinishCallback([bpe]()
+    {
+        if(PresetHandler::showYesNoWindow("Create a .hr1 archive", "Do you want to compress the samples and embed the exported expansion into a archive for distribution?"))
+        {
+            Timer::callAfterDelay(500, [bpe]()
+            {
+                auto infoFile = GET_PROJECT_HANDLER(bpe->getMainController()->getMainSynthChain()).getWorkDirectory().getChildFile("info.hxi");
+                
+                jassert(infoFile.existsAsFile());
+                auto exporter = new SampleDataExporter(bpe->getMainController());
+
+                exporter->setModalBaseWindowComponent(bpe->mainEditor);
+                if(auto fc = dynamic_cast<FilenameComponent*>(exporter->getCustomComponent(0)))
+                {
+                    fc->setCurrentFile(infoFile, dontSendNotification);
+                }
+            });
+        }
+    });
+    
 	e->setModalBaseWindowComponent(bpe);
 }
 
