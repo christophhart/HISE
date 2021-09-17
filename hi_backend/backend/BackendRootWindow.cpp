@@ -536,9 +536,14 @@ void BackendRootWindow::showWorkspace(int workspace)
 		if (wb == nullptr)
 		{
 			workspaces.set(i, FloatingTileHelpers::findTileWithId<FloatingTileContainer>(getRootFloatingTile(), ids[i])->getParentShell());
+
+			wb = workspaces[i];
 		}
 
-		workspaces[i].getComponent()->getLayoutData().setVisible(i == workspaceIndex);
+		if(i == workspaceIndex)
+			wb->ensureVisibility();
+		else
+			wb->getLayoutData().setVisible(false);
 	}
 
 	getRootFloatingTile()->refreshRootLayout();
@@ -639,7 +644,7 @@ void BackendPanelHelpers::showWorkspace(BackendRootWindow* root, Workspace works
 {
 	if (notifyCommandManager == sendNotification)
 	{
-		root->getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::WorkspaceScript + (int)workspaceToShow, false);
+		root->getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::WorkspaceScript + (int)workspaceToShow, false); 
 	}
 	else
 	{

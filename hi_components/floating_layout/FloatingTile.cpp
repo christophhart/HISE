@@ -578,8 +578,8 @@ void FloatingTile::ensureVisibility()
     
     while(p != nullptr)
     {
-        if(p->isFolded())
-            p->setFolded(false);
+        p->setFolded(false);
+		p->getLayoutData().setVisible(true);
         
         auto c = p->getParentContainer();
         
