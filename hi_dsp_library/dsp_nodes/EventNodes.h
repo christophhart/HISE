@@ -318,11 +318,13 @@ public:
 		DEF_PARAMETER(Active, timer);
 		DEF_PARAMETER(Interval, timer);
 
+#if HISE_INCLUDE_SNEX
 		if (P > 1)
 		{
 			auto typed = static_cast<timer*>(obj);
 			typed->tType.template setParameter<P - 2>(value);
 		}
+#endif
 	}
 
 	PARAMETER_MEMBER_FUNCTION;

@@ -90,6 +90,11 @@ template <typename ParameterType> struct envelope_base: public control::pimpl::p
 
 	static constexpr bool isProcessingHiseEvent() { return true; }
 
+	void resetNoteCounter()
+	{
+		numKeys = 0;
+	}
+
 	bool handleKeyEvent(HiseEvent& e, bool& newValue)
 	{
 		if (e.isNoteOn())
@@ -349,6 +354,14 @@ protected:
 			targetValue = on ? 1.0f : 0.0f;
 			smoothing = true;
 		}
+
+		void reset()
+		{
+			active = false;
+			smoothing = false;
+			env.reset();
+			targetValue = 0.0f;
+		}
 	};
 
 private:
@@ -418,8 +431,12 @@ template <int NV, typename ParameterType> struct simple_ar: public pimpl::envelo
 
 	void reset()
 	{
+		this->resetNoteCounter();
+
 		for (auto& s : states)
-			s.env.reset();
+		{
+			s.reset();
+		}
 	}
 
 	void handleHiseEvent(HiseEvent& e)
@@ -580,6 +597,8 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 
 	void reset()
 	{
+		this->resetNoteCounter();
+
 		for (state_base& s : states)
 			s.current_state = pimpl::ahdsr_base::state_base::IDLE;
 	}

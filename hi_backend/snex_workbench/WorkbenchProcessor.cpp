@@ -320,6 +320,9 @@ void SnexWorkbenchEditor::createNewFile()
 	auto f = BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks).getNonexistentChildFile("DspNetwork", ".xml", false);
 
 	auto fileName = PresetHandler::getCustomName(f.getFileNameWithoutExtension(), "Enter the name of the new dsp network.");
+
+	fileName = snex::cppgen::StringHelpers::makeValidCppName(fileName);
+
 	fileName = fileName.upToFirstOccurrenceOf(".", false, false);
 
 	if (!fileName.isEmpty())
@@ -898,10 +901,18 @@ void DspNetworkCompileExporter::run()
 	{
 		if (auto xml = XmlDocument::parse(e))
 		{
-			auto v = ValueTree::fromXml(*xml).getChild(0);
+			auto p = ValueTree::fromXml(*xml);
+			auto v = p.getChild(0);
 
 			auto id = v[scriptnode::PropertyIds::ID].toString();
 
+			if(cppgen::StringHelpers::makeValidCppName(id).compareIgnoreCase(id) != 0)
+			{
+				errorMessage << "Illegal ID: `" << id << "`  \n> The network ID must be a valid C++ identifier";
+				ok = ErrorCodes::ProjectXmlInvalid;
+				return;
+			}
+				
 			ValueTreeBuilder b(v, ValueTreeBuilder::Format::CppDynamicLibrary);
 
 			b.setCodeProvider(new BackendDllManager::FileCodeProvider(getMainController()));
