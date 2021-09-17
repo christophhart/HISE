@@ -440,53 +440,23 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(BackendProcessor* bp) :
 
 		builder.getContent<VerticalTile>(v)->setPanelColour(ResizableFloatingTileContainer::PanelColourId::bgColour, Colour(0xFF1D1D1D));
 
-		auto dg = builder.addChild<scriptnode::DspNetworkGraphPanel>(v);
-
 		int editor = builder.addChild<SnexEditorPanel>(v);
+		auto dg = builder.addChild<scriptnode::DspNetworkGraphPanel>(v);
 
 		ep = builder.getContent<SnexEditorPanel>(editor);
 
 		ep->setCustomTitle("SNEX Code Editor");
 		
-		auto testTab = builder.addChild<HorizontalTile>(v);
-
-		builder.setVisibility(v, true, { true, true, false, false });
-		//auto t = builder.addChild<FloatingTabComponent>(v);
-		//builder.getPanel(t)->setCustomIcon((int)FloatingTileContent::Factory::PopupMenuOptions::ScriptEditor);
-		//auto rightColumn = builder.addChild<HorizontalTile>(v);
-		//builder.getPanel(rightColumn)->setCustomIcon((int)FloatingTileContent::Factory::PopupMenuOptions::ModuleBrowser);
+		builder.setVisibility(v, true, { true, false, true });
 		
-
 		dgp = builder.getContent<scriptnode::DspNetworkGraphPanel>(dg);
 		dgp->setCustomTitle("Scriptnode DSP Graph");
 		dgp->setForceHideSelector(true);
 		
-		builder.getContent<HorizontalTile>(testTab)->setPanelColour(ResizableFloatingTileContainer::PanelColourId::bgColour, Colour(0xFF1D1D1D));
+		builder.setFoldable(v, false, { false, false, false });
 
-		builder.setDynamic(testTab, false);
-
-		auto pl = builder.addChild<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(testTab);
-		auto cpl = builder.addChild<SnexWorkbenchPanel<snex::ui::TestComplexDataManager>>(testTab);
-		auto uig = builder.addChild<SnexWorkbenchPanel<snex::ui::Graph>>(testTab);
-
-		builder.getContent<FloatingTileContent>(pl)->setCustomTitle("Test Events");
-		builder.getContent<FloatingTileContent>(cpl)->setCustomTitle("Test Complex Data");
-		builder.getContent<FloatingTileContent>(uig)->setCustomTitle("Test Signal Display");
-		builder.setFoldable(v, false, { false, false, false, false });
-
-		builder.setSizes(v, {30.0, -0.4, -0.4, -0.2 });
+		builder.setSizes(v, {30.0, -0.5, -0.5});
 		builder.setDynamic(v, false);
-
-		
-
-#if 0
-		builder.addChild<ScriptWatchTablePanel>(rightColumn);
-		builder.addChild<SnexWorkbenchPanel<snex::ui::OptimizationProperties>>(rightColumn);
-#endif
-		
-
-		//builder.getContent<VisibilityToggleBar>(htb)->setControlledContainer(builder.getContainer(r));
-
 		builder.getContent<VisibilityToggleBar>(vtb)->refreshButtons();;
 
 		builder.finalizeAndReturnRoot();
