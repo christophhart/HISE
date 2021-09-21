@@ -211,6 +211,7 @@ template <typename T> struct duplicate_node_reference
 
 		hn.firstObj = &o;
 		hn.objectDelta = objectDelta;
+        hn.sender = sender;
 		
 		return hn;
 	}
@@ -589,6 +590,8 @@ template <class ParameterClass> struct dupli
 
 	template <int P, typename DupliRefType> void connect(DupliRefType& t)
 	{
+        static_assert(std::is_same<typename DupliRefType::ObjectType, typename ParameterClass::TargetType>(), "class mismatch");
+        
 		sender = t.sender;
 		objectDelta = t.objectDelta;
 		firstObj = t.firstObj;
