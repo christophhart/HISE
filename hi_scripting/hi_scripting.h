@@ -71,7 +71,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 /** This will determine the timeout duration (in milliseconds) after which a server call will be aborted. */
 #ifndef HISE_SCRIPT_SERVER_TIMEOUT
-#define HISE_SCRIPT_SERVER_TIMEOUT 10000
+#define HISE_SCRIPT_SERVER_TIMEOUT 20000
 #endif
 
 #define MAX_SCRIPT_HEIGHT 700
