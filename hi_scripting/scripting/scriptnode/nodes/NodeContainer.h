@@ -134,7 +134,7 @@ struct NodeContainer : public AssignableObject
 		auto typed = static_cast<NodeContainer*>(obj);
 
 		if(auto p = typed->asNode()->getParameter(P))
-			p->setValueAndStoreAsync(v);
+			p->setValue(v);
 	}
 
 	void resetNodes();

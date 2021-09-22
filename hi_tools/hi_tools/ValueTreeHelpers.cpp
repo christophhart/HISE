@@ -490,7 +490,7 @@ void forEach(ValueTree& v, const std::function<void(ValueTree&)>& f)
 {
 	f(v);
 
-	for (auto& c : v)
+	for (auto c : v)
 		forEach(c, f);
 }
 

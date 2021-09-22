@@ -370,7 +370,7 @@ template <class T, int P, class Expression> struct expression : public single_ba
 	{
 		data p("exprUnNamed");
 		p.callback.referTo(this, single_base<T, P>::callStatic);
-		p.setRange(NormalisableRange<double>());
+        p.setRange({});
 		d.add(p);
 	}
 

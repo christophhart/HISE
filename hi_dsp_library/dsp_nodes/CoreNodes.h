@@ -754,7 +754,7 @@ public:
 
 		if (data.getNumChannels() == 2)
 		{
-			auto fd = data.as<ProcessData<2>>().toFrameData();
+			auto fd = data.template as<ProcessData<2>>().toFrameData();
 			while (fd.next())
 				processFrame(fd.toSpan());
 		}

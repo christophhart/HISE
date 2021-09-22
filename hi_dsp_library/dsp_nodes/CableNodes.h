@@ -665,7 +665,7 @@ namespace control
 		{
 			cppgen::CustomNodeProperties::addNodeIdManually(getStaticId(), PropertyIds::IsProcessingHiseEvent);
 
-			getParameter().setParentNumVoiceListener(this);
+			this->getParameter().setParentNumVoiceListener(this);
 		};
 
 		enum class Parameters
@@ -691,7 +691,7 @@ namespace control
 
 		static constexpr bool isProcessingHiseEvent() 
 		{ 
-			return (bool)prototypes::check::isProcessingHiseEvent<typename LogicType>::value; 
+			return (bool)prototypes::check::isProcessingHiseEvent<LogicType>::value; 
 		}
 
 		void setValue(double v)
