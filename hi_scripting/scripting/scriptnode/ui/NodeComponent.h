@@ -85,6 +85,11 @@ public:
 		WrapIntoSplit,
 		WrapIntoMulti,
 		WrapIntoFrame,
+		WrapIntoFix32,
+		WrapIntoMidiChain,
+		WrapIntoNoMidiChain,
+		WrapIntoCloneChain,
+		WrapIntoSoftBypass,
 		WrapIntoOversample4,
 		SurroundWithFeedback,
 		SurroundWithMSDecoder,
@@ -255,7 +260,7 @@ public:
 
 	Colour getHeaderColour() const;
 
-	void drawTopBodyGradient(Graphics& g, float alpha=0.1f, float height=15.0f);
+	static void drawTopBodyGradient(Graphics& g, Rectangle<float> b, float alpha=0.1f, float height=15.0f);
 
 	bool isRoot() const;
 	bool isFolded() const;

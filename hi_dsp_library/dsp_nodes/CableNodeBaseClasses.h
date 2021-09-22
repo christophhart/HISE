@@ -434,12 +434,12 @@ template <class ParameterType> struct duplicate_parameter_node_base : public par
 	duplicate_parameter_node_base(const Identifier& id):
 		parameter_node_base<ParameterType>(id)
 	{
-		this->getParameter().setParentNumVoiceListener(this);
+		//this->getParameter().setParentNumVoiceListener(this);
 	}
 
 	virtual ~duplicate_parameter_node_base()
 	{
-		this->getParameter().setParentNumVoiceListener(nullptr);
+//		this->getParameter().setParentNumVoiceListener(nullptr);
 	}
 };
 

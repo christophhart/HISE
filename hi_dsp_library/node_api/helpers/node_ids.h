@@ -74,6 +74,8 @@ DECLARE_ID(MaxValue);
 DECLARE_ID(UpperLimit);
 DECLARE_ID(SkewFactor);
 DECLARE_ID(ShowParameters);
+DECLARE_ID(ShowClones);
+DECLARE_ID(DisplayedClones);
 DECLARE_ID(Bypassed);
 DECLARE_ID(SoulPatch);
 DECLARE_ID(Debug);
@@ -225,6 +227,7 @@ struct Error
 		DeprecatedNode,
 		IllegalPolyphony,
 		IllegalBypassConnection,
+		CloneMismatch,
 		numErrorCodes
 	};
 

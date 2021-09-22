@@ -541,15 +541,30 @@ namespace control
 
 	template <typename ParameterType> struct dupli_pack: public data::base,
 														 public control::pimpl::no_processing,
-														 public control::pimpl::duplicate_parameter_node_base<ParameterType>,
+														 public pimpl::parameter_node_base<ParameterType>,
 														 public hise::ComplexDataUIUpdaterBase::EventListener
 	{
 		SN_GET_SELF_AS_OBJECT(dupli_pack);
 		SET_HISE_NODE_ID("dupli_pack");
-		HISE_ADD_SET_VALUE(dupli_pack);		
+		
+		enum class Parameters
+		{
+			NumClones,
+			Value,
+		};
+
+		DEFINE_PARAMETERS
+		{
+			DEF_PARAMETER(NumClones, dupli_pack);
+			DEF_PARAMETER(Value, dupli_pack);
+		};
+		PARAMETER_MEMBER_FUNCTION;
+
 		SN_DESCRIPTION("Scale unisono values using a slider pack");
 		
-        dupli_pack() : pimpl::duplicate_parameter_node_base<ParameterType>(getStaticId()) {};
+        dupli_pack() : 
+			pimpl::parameter_node_base<ParameterType>(getStaticId())
+		{};
 
 		void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType t, var data) override
 		{
@@ -560,16 +575,7 @@ namespace control
 				if (auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
 				{
 					auto v = sp->getValue(changedIndex) * lastValue;
-					this->getParameter().call(changedIndex, v);
-				}
-			}
-
-			if (t == ComplexDataUIUpdaterBase::EventType::ContentRedirected)
-			{
-				if (auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
-				{
-					if (this->p.getNumVoices() != sp->getNumSliders())
-						jassertfalse; // resize here?
+					this->p.callWithDuplicateIndex(changedIndex, v);
 				}
 			}
 		}
@@ -586,66 +592,96 @@ namespace control
 
 			this->externalData.referBlockTo(sliderData, 0);
 
+			setSliderAmountToNumClones();
+		}
+
+		void setValue(double newValue)
+		{
+			lastValue = newValue;
+			jassert(numClones == sliderData.size());
+
+			for (int i = 0; i < numClones; i++)
+			{
+				auto valueToSend = sliderData[i] * lastValue;
+				this->getParameter().callWithDuplicateIndex(i, valueToSend);
+			}
+		}
+
+		void setSliderAmountToNumClones()
+		{
+			if (auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
+				sp->setNumSliders(numClones);
+
 			setValue(lastValue);
 		}
 
-		void numVoicesChanged(int newNumVoices) override
+		void setNumClones(double newNumClones)
 		{
-			setValue(lastValue);
-
-			if (auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
+			if (numClones != newNumClones)
 			{
-				sp->setNumSliders(newNumVoices);
+				numClones = jlimit(1, 128, (int)newNumClones);
+				setSliderAmountToNumClones();
+			}
+		}
+
+		void createParameters(ParameterDataList& data)
+		{
+			{
+				DEFINE_PARAMETERDATA(dupli_pack, NumClones);
+				p.setRange({ 1.0, 16.0, 1.0 });
+				p.setDefaultValue(1.0);
+				data.add(std::move(p));
+			}
+			{
+				DEFINE_PARAMETERDATA(dupli_pack, Value);
+				p.setRange({ 0.0, 1.0 });
+				p.setDefaultValue(0.0);
+				data.add(std::move(p));
 			}
 		}
 
 		double lastValue = 0.0;
 		block sliderData;
+		int numClones = 1;
 
-		void setValue(double newValue)
-		{
-			lastValue = newValue;
-
-			int numVoices = this->p.getNumVoices();
-
-			if (numVoices == sliderData.size())
-			{
-				for (int i = 0; i < numVoices; i++)
-				{
-					auto valueToSend = sliderData[i] * lastValue;
-					this->getParameter().call(i, valueToSend);
-				}
-			}
-		}
+		
 	};
 		
 
-	template <typename ParameterType, typename LogicType> struct dupli_cable : public control::pimpl::no_processing,
-																			   public control::pimpl::templated_mode,
-																			   public control::pimpl::duplicate_parameter_node_base<ParameterType>
+	template <typename ParameterType, typename LogicType> 
+		struct dupli_cable : public control::pimpl::no_processing,
+							 public pimpl::parameter_node_base<ParameterType>,
+							 public mothernode,
+							 public wrap::duplicate_sender::Listener,
+							 public control::pimpl::templated_mode								
 	{
 		SN_GET_SELF_AS_OBJECT(dupli_cable);
 		SET_HISE_NODE_ID("dupli_cable");
 		SN_DESCRIPTION("Send different values to unisono nodes");
 
 		dupli_cable():
-            control::pimpl::duplicate_parameter_node_base<ParameterType>(getStaticId()),
+            control::pimpl::parameter_node_base<ParameterType>(getStaticId()),
             control::pimpl::templated_mode(getStaticId(), "duplilogic")
-		{};
+		{
+			cppgen::CustomNodeProperties::addNodeIdManually(getStaticId(), PropertyIds::IsProcessingHiseEvent);
+
+			getParameter().setParentNumVoiceListener(this);
+		};
 
 		enum class Parameters
 		{
+			NumClones,
 			Value,
 			Gamma,
 		};
 
 		DEFINE_PARAMETERS
 		{
+			DEF_PARAMETER(NumClones, dupli_cable);
 			DEF_PARAMETER(Value, dupli_cable);
 			DEF_PARAMETER(Gamma, dupli_cable);
 		};
 		PARAMETER_MEMBER_FUNCTION;
-
 
 		void initialise(NodeBase* n)
 		{
@@ -653,9 +689,9 @@ namespace control
 				obj.initialise(n);
 		}
 
-		void numVoicesChanged(int newNumVoices) override
-		{
-			sendValue();
+		static constexpr bool isProcessingHiseEvent() 
+		{ 
+			return (bool)prototypes::check::isProcessingHiseEvent<typename LogicType>::value; 
 		}
 
 		void setValue(double v)
@@ -664,25 +700,54 @@ namespace control
 			sendValue();
 		}
 
+		void numVoicesChanged(int newNumVoices) override
+		{
+			setNumClones(newNumVoices);
+		}
+
+		void handleHiseEvent(HiseEvent& e)
+		{
+			if constexpr (isProcessingHiseEvent())
+			{
+				double v = 0.0;
+
+				if (obj.getMidiValue(e, v))
+					setValue(v);
+			}
+		}
+
 		void setGamma(double gamma)
 		{
 			lastGamma = jlimit(0.0, 1.0, gamma);
 			sendValue();
 		}
 
+		void setNumClones(double newNumClones)
+		{
+			if (numClones != newNumClones)
+			{
+				numClones = jlimit(1, 128, (int)newNumClones);
+				sendValue();
+			}
+		}
+
 		void sendValue()
 		{
-			int numVoices = this->p.getNumVoices();
-
-			for (int i = 0; i < numVoices; i++)
+			for (int i = 0; i < numClones; i++)
 			{
-				auto valueToSend = obj.getValue(i, numVoices, lastValue, lastGamma);
-				this->getParameter().call(i, valueToSend);
+				auto valueToSend = obj.getValue(i, numClones, lastValue, lastGamma);
+				this->getParameter().callWithDuplicateIndex(i, valueToSend);
 			}
 		}
 
 		void createParameters(ParameterDataList& data)
 		{
+			{
+				DEFINE_PARAMETERDATA(dupli_cable, NumClones);
+				p.setRange({ 1.0, 16.0, 1.0 });
+				p.setDefaultValue(1.0);
+				data.add(std::move(p));
+			}
 			{
 				DEFINE_PARAMETERDATA(dupli_cable, Value);
 				p.setRange({ 0.0, 1.0 });
@@ -699,6 +764,7 @@ namespace control
 
 		double lastValue = 0.0;
 		double lastGamma = 0.0;
+		int numClones;
 		LogicType obj;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(dupli_cable);

@@ -670,6 +670,529 @@ void OfflineChainNode::reset()
 {
 }
 
+struct CloneOptionComponent : public Component,
+	public PathFactory,
+	public ButtonListener
+{
+	CloneOptionComponent(CloneNode* n) :
+		parent(n),
+		hideButton("hide", this, *this),
+		duplicateButton("duplicate", this, *this),
+		deleteButton("delete", this, *this)
+	{
+		hideButton.setToggleModeWithColourChange(true);
+
+		hideButton.setToggleStateAndUpdateIcon(parent->getValueTree()[PropertyIds::ShowClones]);
+
+		addAndMakeVisible(hideButton);
+		addAndMakeVisible(duplicateButton);
+		addAndMakeVisible(deleteButton);
+
+		setSize(24, 90);
+	}
+
+	void buttonClicked(Button* b) override
+	{
+		if (b == &hideButton)
+		{
+			parent->getValueTree().setProperty(PropertyIds::ShowClones, hideButton.getToggleState(), parent->getUndoManager());
+		}
+		if (b == &deleteButton)
+		{
+			
+			auto network = parent->getRootNetwork();
+			parent->getValueTree().removeProperty(PropertyIds::DisplayedClones, parent->getUndoManager());
+
+			SimpleReadWriteLock::ScopedWriteLock sl(network->getConnectionLock());
+
+			auto nt = dynamic_cast<NodeContainer*>(parent.get())->getNodeTree();
+			StringArray nodesToRemove;
+
+			while (nt.getNumChildren() > 1)
+			{
+				nodesToRemove.add(nt.getChild(1)[PropertyIds::ID].toString());
+				nt.removeChild(1, nullptr);
+			}
+
+			MessageManager::callAsync([nodesToRemove, network]()
+			{
+				for (auto nid : nodesToRemove)
+					network->deleteIfUnused(nid);
+			});
+
+		}
+		if (b == &duplicateButton)
+		{
+			auto parentNode = parent.get();
+
+			deleteButton.triggerClick(sendNotificationSync);
+
+			auto numToCloneString = PresetHandler::getCustomName("NumClones", "Enter the number of clones you want to create");
+
+			SimpleReadWriteLock::ScopedWriteLock sl(parent->getRootNetwork()->getConnectionLock());
+
+			auto numToAdd = jlimit(1, 128, numToCloneString.getIntValue());
+
+			while (numToAdd > 1)
+			{
+				auto nt = dynamic_cast<NodeContainer*>(parentNode)->getNodeTree();
+
+				auto copy = parentNode->getRootNetwork()->cloneValueTreeWithNewIds(nt.getChild(0));
+				parentNode->getRootNetwork()->createFromValueTree(true, copy, true);
+				nt.addChild(copy, -1, parentNode->getUndoManager());
+				numToAdd--;
+			}
+		}
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+
+		LOAD_PATH_IF_URL("hide", BackendBinaryData::ToolbarIcons::viewPanel);
+		LOAD_PATH_IF_URL("duplicate", SampleMapIcons::duplicateSamples);
+		LOAD_PATH_IF_URL("delete", SampleMapIcons::deleteSamples);
+
+		return p;
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		duplicateButton.setBounds(b.removeFromTop(getWidth()).reduced(2));
+		hideButton.setBounds(b.removeFromTop(getWidth()).reduced(2));
+		deleteButton.setBounds(b.removeFromTop(getWidth()).reduced(2));
+	}
+
+	void paint(Graphics& g) override
+	{
+
+	}
+
+	NodeBase::Ptr parent;
+
+	HiseShapeButton hideButton, duplicateButton, deleteButton;
+};
+
+
+CloneNode::CloneIterator::CloneIterator(CloneNode& n, const ValueTree& v, bool skipOriginal) :
+	cn(n),
+	original(v),
+	path(cn.getPathForValueTree(original))
+{
+	auto root = n.getNodeTree();
+
+	for (int i = 0; i < root.getNumChildren(); i++)
+	{
+		Array<int> tp;
+		tp.addArray(path, 1, path.size() - 1);
+		auto ch = cn.getValueTreeForPath(root.getChild(i), tp);
+
+		if (!skipOriginal || ch != original)
+			cloneSiblings.add(ch);
+	}
+
+	for (const auto& c : cloneSiblings)
+	{
+		jassert(c.getType() == original.getType());
+	}
+}
+
+scriptnode::Parameter* CloneNode::CloneIterator::getParameterForValueTree(const ValueTree& pTree, NodeBase::Ptr root) const
+{
+	if (root == nullptr)
+		root = &cn;
+
+	for (int i = 0; i < root->getNumParameters(); i++)
+	{
+		auto p = root->getParameter(i);
+
+		if (p->data == pTree)
+			return p;
+	}
+
+	if (auto cont = dynamic_cast<NodeContainer*>(root.get()))
+	{
+		for (auto& cn : cont->getNodeList())
+		{
+			if (auto p = getParameterForValueTree(pTree, cn))
+				return p;
+		}
+	}
+
+	return nullptr;
+}
+
+void CloneNode::CloneIterator::throwError(const String& e)
+{
+	Error error;
+	error.error = Error::CloneMismatch;
+	cn.getRootNetwork()->getExceptionHandler().addError(&cn, error, e);
+}
+
+void CloneNode::CloneIterator::resetError()
+{
+	cn.getRootNetwork()->getExceptionHandler().removeError(&cn, Error::CloneMismatch);
+}
+
+CloneNode::CloneNode(DspNetwork* n, ValueTree d) :
+	SerialNode(n, d),
+	cloneSender(*this)
+{
+	if (!d.hasProperty(PropertyIds::ShowClones))
+		d.setProperty(PropertyIds::ShowClones, true, getUndoManager());
+
+	showClones.referTo(d, PropertyIds::ShowClones, getUndoManager(), true);
+
+	
+
+	initListeners(false);
+	
+	
+
+	auto pData = createInternalParameterList();
+
+	d.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager());
+
+	for (auto p : pData)
+	{
+		auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.info.getId());
+
+		if (!existingChild.isValid())
+		{
+			existingChild = p.createValueTree();
+			getParameterTree().addChild(existingChild, -1, getUndoManager());
+		}
+
+		auto newP = new Parameter(this, existingChild);
+
+		auto ndb = new parameter::dynamic_base(p.callback);
+
+		newP->setCallbackNew(ndb);
+		newP->valueNames = p.parameterNames;
+
+		addParameter(newP);
+	}
+
+	numVoicesListener.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, [this](const ValueTree&, bool wasAdded)
+	{
+		auto numMax = jmax(1, getNodeTree().getNumChildren());
+		auto numTree = getParameterTree().getChildWithProperty(PropertyIds::ID, "NumVoices");
+		numTree.setProperty(PropertyIds::MaxValue, numMax, getUndoManager());
+	});
+
+	auto syncedParameterIds = RangeHelpers::getRangeIds(true);
+	syncedParameterIds.add(PropertyIds::Automated);
+
+	valueSyncer.setCallback(getNodeTree(), syncedParameterIds, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::syncChildValues));
+
+	cloneWatcher.setTypeToWatch(PropertyIds::Nodes);
+	cloneWatcher.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::checkValidClones));
+
+	Array<Identifier> uiIds = { PropertyIds::NodeColour, PropertyIds::Folded, PropertyIds::ShowParameters, PropertyIds::IsVertical, PropertyIds::Comment, PropertyIds::Frozen };
+
+	uiSyncer.setCallback(getNodeTree(), uiIds, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::syncChildValues));
+
+	connectionListener.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::updateConnections));
+
+	// prevent the initial execution
+	connectionListener.setTypesToWatch({ PropertyIds::Connections, PropertyIds::ModulationTargets });
+
+	displayCloneRangeListener.setCallback(d, { PropertyIds::DisplayedClones }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::updateDisplayedClones));
+}
+
+scriptnode::ParameterDataList CloneNode::createInternalParameterList()
+{
+	ParameterDataList data;
+
+	{
+		DEFINE_PARAMETERDATA(CloneNode, NumVoices);
+		p.setRange({ 1.0, 16.0, 1.0 });
+		p.setDefaultValue(1.0);
+		data.add(std::move(p));
+	}
+	{
+		DEFINE_PARAMETERDATA(CloneNode, SplitSignal);
+		p.setRange({ 0.0, 1.0, 1.0 });
+		p.setDefaultValue(1.0);
+		data.add(std::move(p));
+	}
+
+	return data;
+}
+
+void CloneNode::processFrame(FrameType& data) noexcept
+{
+	for (auto n : *this)
+		n->processFrame(data);
+}
+
+void CloneNode::process(ProcessDataDyn& data) noexcept
+{
+	NodeProfiler np(this);
+
+	if (isBypassed() && !nodes.isEmpty())
+		nodes.getFirst()->process(data);
+	else
+	{
+		if (splitSignal)
+		{
+			for (auto n : *this)
+			{
+				splitCopy.clear();
+				ProcessDataDyn copy(splitCopy.getArrayOfWritePointers(), data.getNumSamples(), data.getNumChannels());
+				n->process(copy);
+
+				for (int i = 0; i < splitCopy.getNumChannels(); i++)
+					FloatVectorOperations::add(data.getRawDataPointers()[i], splitCopy.getReadPointer(i), data.getNumSamples());
+			}
+		}
+		else
+		{
+			for (auto n : *this)
+				n->process(data);
+		}
+	}
+}
+
+void CloneNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	prepareNodes(ps);
+
+	lastSpecs = ps;
+
+	if (splitSignal)
+		DspHelpers::increaseBuffer(splitCopy, ps);
+	else
+		splitCopy = {};
+}
+
+void CloneNode::handleHiseEvent(HiseEvent& e)
+{
+	for (auto n : *this)
+		n->handleHiseEvent(e);
+}
+
+void CloneNode::reset()
+{
+	for (auto n : *this)
+		n->reset();
+}
+
+
+void CloneNode::setNumVoices(double newNumVoices)
+{
+	numVoices = newNumVoices;
+
+	for (int i = 0; i < nodes.size(); i++)
+	{
+		DynamicBypassParameter::ScopedUndoDeactivator sds(nodes[i]);
+		nodes[i]->setBypassed(i >= numVoices);
+	}
+
+	cloneSender.setVoiceAmount(numVoices);
+
+	reset();
+}
+
+void CloneNode::setSplitSignal(double shouldSplit)
+{
+	if (splitSignal != (bool)shouldSplit)
+	{
+		splitSignal = shouldSplit;
+
+		isVertical.storeValue(!splitSignal, getUndoManager());
+
+		if (lastSpecs)
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(getRootNetwork()->getConnectionLock());
+			prepare(lastSpecs);
+		}
+	}
+}
+
+int CloneNode::getCloneIndex(NodeBase* n)
+{
+	auto cn = n->findParentNodeOfType<CloneNode>();
+
+	if (cn == nullptr)
+		return -1;
+
+	return cn->getPathForValueTree(n->getValueTree()).getFirst();
+}
+
+void CloneNode::syncChildValues(const ValueTree& v, const Identifier& id)
+{
+	auto value = v[id];
+	
+	for(auto& cv: CloneIterator(*this, v, true))
+		cv.setPropertyExcludingListener(&valueSyncer, id, value, getUndoManager());
+}
+
+
+Component* CloneNode::createLeftTabComponent() const
+{
+	return new CloneOptionComponent(const_cast<CloneNode*>(this));
+}
+
+void CloneNode::updateConnections(const ValueTree& v, bool wasAdded)
+{
+	if (connectionRecursion)
+		return;
+
+	ScopedValueSetter<bool> svs(connectionRecursion, true);
+
+	if (!wasAdded)
+	{
+		CloneIterator cit(*this, connectionListener.getCurrentParent(), true);
+
+		for (auto& cv : cit)
+			cv.removeChild(connectionListener.getRemoveIndex(), getUndoManager());
+	}
+	else
+	{
+		CloneIterator cit(*this, connectionListener.getCurrentParent(), true);
+
+		
+
+		for (auto& cv : cit)
+		{
+			auto copy = v.createCopy();
+
+
+			auto originalId = v[PropertyIds::NodeId];
+			auto originalTree = getRootNetwork()->getNodeWithId(originalId)->getValueTree();
+			auto originalPath = getPathForValueTree(originalTree);
+
+			auto thisCloneIndex = getPathForValueTree(cv).getFirst();
+
+			originalPath.set(0, thisCloneIndex);
+			auto newPath = getValueTreeForPath(getNodeTree(), originalPath);
+			auto newId = newPath[PropertyIds::ID].toString();
+			copy.setProperty(PropertyIds::NodeId, newId, nullptr);
+
+			cv.addChild(copy, -1, getUndoManager());
+		}
+	}
+}
+
+void CloneNode::checkValidClones(const ValueTree& v, bool wasAdded)
+{
+	getRootNetwork()->getExceptionHandler().removeError(this, Error::CloneMismatch);
+
+	auto firstTree = getNodeTree().getChild(0);
+
+	for (int i = 1; i < getNodeTree().getNumChildren(); i++)
+	{
+		if (!sameNodes(firstTree, getNodeTree().getChild(i)))
+		{
+			Error e;
+			e.error = Error::CloneMismatch;
+
+			getRootNetwork()->getExceptionHandler().addError(this, e);
+		}
+	}
+
+	cloneChangeBroadcaster.sendMessage(sendNotificationSync, this);
+
+	if (wasAdded && getParameter(0)->getValue() == getNodeTree().getNumChildren() - 1)
+		getParameter(0)->setValueFromUI(getNodeTree().getNumChildren());
+	if (!wasAdded && getParameter(0)->getValue() == getNodeTree().getNumChildren() + 1)
+		getParameter(0)->setValueFromUI(getNodeTree().getNumChildren());
+
+	updateDisplayedClones({}, getValueTree()[PropertyIds::DisplayedClones]);
+}
+
+void CloneNode::updateDisplayedClones(const Identifier&, const var& v)
+{
+	auto s = v.toString();
+	s = s.replace(";", ",");
+
+	auto tokens = StringArray::fromTokens(s, ",", "");
+	tokens.removeEmptyStrings();
+
+	displayedCloneState.clear();
+
+	if (tokens.isEmpty())
+		displayedCloneState.setBit(0, true);
+		
+	for (auto t : tokens)
+	{
+		if (t.contains("-"))
+		{
+			auto range = StringArray::fromTokens(t, "-", "");
+			range.removeEmptyStrings();
+			int start = range[0].getIntValue()-1;
+			auto end = range[1].getIntValue();
+			displayedCloneState.setRange(start, end - start, true);
+		}
+		else
+		{
+			if (auto value = t.getIntValue())
+				displayedCloneState.setBit(value-1);
+		}
+	}
+
+	if (displayedCloneState.findNextClearBit(0) > nodes.size())
+		displayedCloneState.setBit(nodes.size() - 1, false);
+}
+
+bool CloneNode::sameNodes(const ValueTree& n1, const ValueTree& n2)
+{
+	if (n1[PropertyIds::FactoryPath] != n2[PropertyIds::FactoryPath])
+		return false;
+
+	auto c1 = n1.getChildWithName(PropertyIds::Nodes);
+	auto c2 = n2.getChildWithName(PropertyIds::Nodes);
+
+	if (c1.getNumChildren() != c2.getNumChildren())
+		return false;
+
+	for (int i = 0; i < c1.getNumChildren(); i++)
+	{
+		if (!sameNodes(c1.getChild(i), c2.getChild(i)))
+			return false;
+	}
+
+	return true;
+}
+
+juce::ValueTree CloneNode::getValueTreeForPath(const ValueTree& v, Array<int>& path)
+{
+	if (path.isEmpty())
+		return v;
+
+	auto firstIndex = path.removeAndReturn(0);
+	return getValueTreeForPath(v.getChild(firstIndex), path);
+}
+
+juce::Array<int> CloneNode::getPathForValueTree(const ValueTree& v)
+{
+	auto p = v;
+
+	Array<int> path;
+
+	while (p != getNodeTree() && p.isValid())
+	{
+		path.insert(0, p.getParent().indexOf(p));
+		p = p.getParent();
+	}
+
+	return path;
+}
+
+bool CloneNode::shouldCloneBeDisplayed(int index) const
+{
+	if (getValueTree()[PropertyIds::ShowClones])
+		return true;
+
+	if (displayedCloneState.isZero())
+		return index == 0;
+
+	return displayedCloneState[index];
+}
+
 FixedBlockXNode::FixedBlockXNode(DspNetwork* network, ValueTree d) :
 	SerialNode(network, d)
 {
@@ -772,5 +1295,10 @@ void SoftBypassNode::setBypassed(bool shouldBeBypassed)
 	SerialNode::setBypassed(shouldBeBypassed);
 	WrapperType::setParameter<bypass::ParameterId>(&this->obj, (double)shouldBeBypassed);
 }
+
+
+
+
+
 
 }

@@ -36,6 +36,101 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+namespace parameter
+{
+
+	struct clone_holder : public dynamic_base_holder
+	{
+		clone_holder()
+		{
+			lastValues.ensureStorageAllocated(16);
+		}
+
+		void callWithDuplicateIndex(int index, double v);
+
+		void setParameter(NodeBase* n, dynamic_base::Ptr b) override;
+
+		void rebuild(NodeBase* targetContainer);
+
+		ReferenceCountedArray<dynamic_base> cloneTargets;
+		Array<double> lastValues;
+
+		NodeBase::Ptr connectedCloneContainer;
+
+		void setParentNumVoiceListener(scriptnode::wrap::duplicate_sender::Listener* pl)
+		{
+			parentListener = pl;
+		}
+
+		WeakReference<scriptnode::wrap::duplicate_sender::Listener> parentListener;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(clone_holder);
+	};
+
+
+
+struct dynamic_duplispread : public dynamic_base_holder,
+							 public scriptnode::wrap::duplicate_sender::Listener
+{
+	static dynamic_base_holder* getParameterFunctionStatic(void* b);;
+
+	~dynamic_duplispread()
+	{
+		if (connectedDuplicateObject != nullptr)
+			connectedDuplicateObject->removeNumVoiceListener(this);
+	}
+
+	void callWithDuplicateIndex(int index, double v) final override
+	{
+		setDisplayValue(v);
+
+		if (auto obj = targets[index])
+		{
+			auto c = dynamic_cast<parameter::dynamic_chain<true>*>(base.get());
+
+			c->targets[0]->obj = obj;
+
+			base->call(v);
+		}
+	}
+
+	void setParameter(NodeBase* newUnisonoMode, dynamic_base::Ptr cb) override;
+
+	int getNumDuplicates() const override
+	{
+		if (connectedDuplicateObject != nullptr)
+		{
+			return connectedDuplicateObject->getNumVoices();
+		}
+
+		return 1;
+	}
+
+	void numVoicesChanged(int newNumVoices) override
+	{
+		rebuildTargets();
+
+		if (parentListener != nullptr)
+			parentListener->numVoicesChanged(newNumVoices);
+	}
+
+	void setParentNumVoiceListener(DupliListener* l) override
+	{
+		parentListener = l;
+	}
+
+	void rebuildTargets();
+
+	Array<void*> targets;
+	WeakReference<scriptnode::wrap::duplicate_sender> connectedDuplicateObject;
+	NodeBase::Ptr unisonoParent;
+	NodeBase::Ptr connectedNode;
+
+	WeakReference<DupliListener> parentListener;
+};
+}
+
+
 
 namespace duplilogic
 {
@@ -43,14 +138,18 @@ namespace duplilogic
 	{
 		enum class DupliMode
 		{
+
 			Spread,
 			Scale,
 			Harmonics,
 			Random,
-			Triangle
+			Triangle,
+			Fixed,
+			Nyquist,
+			Ducker
 		};
 
-		using NodeType = control::dupli_cable<parameter::dynamic_base_holder, dynamic>;
+		using NodeType = control::dupli_cable<parameter::clone_holder, dynamic>;
 
 		dynamic() :
 			mode(PropertyIds::Mode, "Spread")
@@ -68,6 +167,20 @@ namespace duplilogic
 			currentMode = (DupliMode)getSpreadModes().indexOf(m);
 		}
 
+		static constexpr bool isProcessingHiseEvent() { return true; }
+
+		bool getMidiValue(HiseEvent& e, double& v)
+		{
+			switch (currentMode)
+			{
+			case DupliMode::Fixed: return fixed().getMidiValue(e, v);
+			case DupliMode::Harmonics: return harmonics().getMidiValue(e, v);
+			case DupliMode::Nyquist: return nyquist().getMidiValue(e, v);
+			}
+
+			return false;
+		}
+
 		double getValue(int index, int numDuplicates, double input, double gamma)
 		{
 			switch (currentMode)
@@ -77,6 +190,9 @@ namespace duplilogic
 			case DupliMode::Harmonics: return harmonics().getValue(index, numDuplicates, input, gamma);
 			case DupliMode::Random: return random().getValue(index, numDuplicates, input, gamma);
 			case DupliMode::Triangle: return triangle().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Fixed: return fixed().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Nyquist: return nyquist().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Ducker: return ducker().getValue(index, numDuplicates, input, gamma);
 			}
 
 			return 0.0;
@@ -84,7 +200,7 @@ namespace duplilogic
 
 		static StringArray getSpreadModes()
 		{
-			return { "Spread", "Scale", "Harmonics", "Random", "Triangle"};
+			return { "Spread", "Scale", "Harmonics", "Random", "Triangle", "Fixed", "Nyquist", "Ducker"};
 		}
 
 		NodePropertyT<String> mode;
@@ -98,8 +214,8 @@ namespace duplilogic
 
 			static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
 			{
-				auto typed = static_cast<NodeType*>(obj);
-
+				auto mn = static_cast<mothernode*>(obj);
+				auto typed = dynamic_cast<NodeType*>(mn);
 				return new editor(typed, updater);
 			}
 
@@ -128,87 +244,7 @@ namespace duplilogic
 
 namespace parameter
 {
-	struct dynamic_duplispread : public dynamic_base,
-								 public scriptnode::wrap::duplicate_sender::Listener
-	{
-		static dynamic_base_holder* getParameterFunctionStatic(void* b)
-		{
-			using Type = control::dupli_cable<dynamic_base_holder, duplilogic::dynamic>;
-			auto typed = static_cast<Type*>(b);
-			return &typed->getParameter();
-		};
-
-		~dynamic_duplispread()
-		{
-			originalCallback = nullptr;
-
-			if (connectedDuplicateObject != nullptr)
-				connectedDuplicateObject->removeNumVoiceListener(this);
-		}
-
-		double getDisplayValue() const override
-		{
-			if (originalCallback != nullptr)
-				return originalCallback->getDisplayValue();
-
-			return lastValue;
-		}
-
-		void callWithDuplicateIndex(int index, double v) final override
-		{
-			lastValue = v;
-
-			if (auto obj = targets[index])
-			{
-				originalCallback->obj = obj;
-				originalCallback->call(v);
-			}
-		}
-
-		void call(double v) final override
-		{
-			lastValue = v;
-		}
-
-		void updateUI() override
-		{
-
-		}
-
-		void connect(NodeBase* newUnisonoMode, dynamic_base* cb);
-
-		int getNumDuplicates() const
-		{
-			if (connectedDuplicateObject != nullptr)
-			{
-				return connectedDuplicateObject->getNumVoices();
-			}
-
-			return 1;
-		}
-
-		void numVoicesChanged(int newNumVoices) override
-		{
-			rebuildTargets();
-
-			if (parentListener != nullptr)
-				parentListener->numVoicesChanged(newNumVoices);
-		}
-
-		void setParentNumVoiceListener(DupliListener* l) override
-		{
-			parentListener = l;
-		}
-
-		void rebuildTargets();
-
-		NodeBase::Ptr duplicateParentNode;
-		ScopedPointer<dynamic_base> originalCallback;
-		Array<void*> targets;
-		WeakReference<scriptnode::wrap::duplicate_sender> connectedDuplicateObject;
-		WeakReference<DupliListener> parentListener;
-	};
-
+	
 	struct dynamic_list
 	{
 		static constexpr int size = 2;
@@ -284,8 +320,6 @@ namespace parameter
 
 		Array<double> lastValues;
 		ReferenceCountedArray<MultiOutputConnection> targets;
-
-		
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic_list);
 };

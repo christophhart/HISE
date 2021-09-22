@@ -69,8 +69,10 @@ struct RangePresets
 		{
 			createDefaultRange("0-1", { 0.0, 1.0 }, 0.5);
 			createDefaultRange("Inverted 0-1", InvertableParameterRange().inverted(), -1.0);
+			createDefaultRange("1-16 steps", { 1.0, 16.0, 1.0 });
 			createDefaultRange("Osc LFO", { 0.0, 10.0, 0.01, 1.0 });
 			createDefaultRange("Osc Freq", { 20.0, 20000.0, 0.1 }, 1000.0);
+			createDefaultRange("Linear 0-20k Hz", { 0.0, 20000.0, 0.0});
 			createDefaultRange("Freq Ratio Harmonics", { 1.0, 16.0, 1.0 });
 			createDefaultRange("Freq Ratio Detune Coarse", { 0.5, 2.0, 0.0 }, 1.0);
 			createDefaultRange("Freq Ratio Detune Fine", { 1.0 / 1.1, 1.1, 0.0 }, 1.0);
@@ -1025,6 +1027,49 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 	if (details.sourceComponent == this)
 		return false;
 
+	auto sourceNode = details.sourceComponent->findParentComponentOfClass<NodeComponent>()->node;
+
+	if (CloneNode::getCloneIndex(sourceNode) > 0)
+	{
+		illegal = true;
+		return false;
+	}
+
+	if (CloneNode::getCloneIndex(node) > 0)
+	{
+		illegal = true;
+		return false;
+	}
+
+	if (sourceNode == node)
+	{
+		illegal = true;
+		repaint();
+		return false;
+	}
+		
+	auto h = dynamic_cast<ModulationSourceNode*>(sourceNode.get())->getParameterHolder();
+
+	auto isCloneSource = dynamic_cast<parameter::clone_holder*>(h);
+
+	if (isCloneSource)
+	{
+		if (CloneNode::getCloneIndex(node) != 0)
+		{
+			illegal = true;
+			return false;
+		}
+
+		return true;
+	}
+	
+	if (sourceNode->isClone() != node->isClone())
+	{
+		illegal = true;
+		repaint();
+		return false;
+	}
+
 	if(dynamic_cast<cable::dynamic::editor*>(details.sourceComponent.get()) != nullptr)
 		return false;
 
@@ -1039,6 +1084,24 @@ void ParameterSlider::paint(Graphics& g)
 	{
 		g.setColour(Colour(SIGNAL_COLOUR));
 		g.drawRect(getLocalBounds(), 1);
+	}
+
+	if (!isMouseButtonDownAnywhere())
+		illegal = false;
+
+	if (illegal)
+	{
+		g.setColour(Colours::white.withAlpha(0.4f));
+
+		static const unsigned char pathData[] = { 110,109,199,203,214,66,0,0,0,0,98,8,172,38,67,0,0,0,0,133,203,86,67,244,125,64,66,133,203,86,67,199,203,214,66,98,133,203,86,67,8,172,38,67,8,172,38,67,133,203,86,67,199,203,214,66,133,203,86,67,98,244,125,64,66,133,203,86,67,0,0,0,0,8,172,38,67,0,0,
+0,0,199,203,214,66,98,0,0,0,0,244,125,64,66,244,125,64,66,0,0,0,0,199,203,214,66,0,0,0,0,99,109,74,76,43,67,16,152,135,66,108,16,152,135,66,74,76,43,67,98,154,153,158,66,45,114,50,67,113,189,185,66,117,147,54,67,199,203,214,66,117,147,54,67,98,215,227,
+20,67,117,147,54,67,117,147,54,67,215,227,20,67,117,147,54,67,199,203,214,66,98,117,147,54,67,113,189,185,66,45,114,50,67,154,153,158,66,74,76,43,67,16,152,135,66,99,109,125,255,18,67,238,252,45,66,98,184,126,7,67,96,101,17,66,154,217,243,66,66,224,0,
+66,199,203,214,66,66,224,0,66,98,92,207,131,66,66,224,0,66,66,224,0,66,92,207,131,66,66,224,0,66,199,203,214,66,98,66,224,0,66,154,217,243,66,96,101,17,66,184,126,7,67,238,252,45,66,125,255,18,67,108,125,255,18,67,238,252,45,66,99,101,0,0 };
+
+		Path p;
+		p.loadPathFromData(pathData, sizeof(pathData));
+		PathFactory::scalePath(p, getLocalBounds().removeFromRight(16).removeFromTop(16).toFloat());
+		g.fillPath(p);
 	}
 }
 
@@ -1063,6 +1126,7 @@ void ParameterSlider::itemDragEnter(const SourceDetails& )
 
 void ParameterSlider::itemDragExit(const SourceDetails& )
 {
+	illegal = false;
 	macroHoverIndex = -1;
 	repaint();
 }
@@ -1071,18 +1135,27 @@ void ParameterSlider::itemDragExit(const SourceDetails& )
 
 void ParameterSlider::itemDropped(const SourceDetails& dragSourceDetails)
 {
+	macroHoverIndex = -1;
+	illegal = false;
+	repaint();
+
+	if (node->isClone())
+	{
+		CloneNode::CloneIterator cit(*node->findParentNodeOfType<CloneNode>(), node->getValueTree(), false);
+		if (cit.getCloneIndex() != 0)
+		{
+			PresetHandler::showMessageWindow("Must connect to first clone", "You need to connect the first clone", PresetHandler::IconType::Error);
+			return;
+		}
+	}
+
 	auto sourceNode = dragSourceDetails.sourceComponent->findParentComponentOfClass<NodeComponent>();
 	auto thisNode = this->findParentComponentOfClass<NodeComponent>();
-
-	
-
-	macroHoverIndex = -1;
 
 	if (sourceNode == thisNode)
 	{
 		PresetHandler::showMessageWindow("Can't assign to itself", "You cannot modulate the node with itself", PresetHandler::IconType::Error);
 
-		repaint();
 		return;
 	}
 
@@ -1095,7 +1168,6 @@ void ParameterSlider::itemDropped(const SourceDetails& dragSourceDetails)
 	}
 
 	currentConnection = parameterToControl->addConnectionFrom(dragSourceDetails.description);
-	repaint();	
 }
 
 Array<NodeContainer::MacroParameter*> ParameterSlider::getConnectedMacroParameters()
@@ -1222,6 +1294,18 @@ void ParameterSlider::mouseDoubleClick(const MouseEvent&)
 {
 	if (!isEnabled())
 	{
+		if (node->isClone())
+		{
+			CloneNode::CloneIterator cit(*node->findParentNodeOfType<CloneNode>(), parameterToControl->data, false);
+			auto cIndex = cit.getCloneIndex();
+
+			if (cIndex != 0)
+			{
+				PresetHandler::showMessageWindow("Use the first clone", "Double click on the first clone parameter to remove the connection");
+
+			}
+		}
+
 		parameterToControl->addConnectionFrom({});
 
 		

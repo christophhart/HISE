@@ -239,6 +239,9 @@ struct ParameterSlider : public Slider,
 	ScopedPointer<RangeComponent> currentRangeComponent;
 	var currentConnection;
 	const int index;
+	double lastDisplayValue = -1.0;
+	bool illegal = false;
+
 };
 
 

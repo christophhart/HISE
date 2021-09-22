@@ -48,7 +48,7 @@ juce::String NodeComponent::Header::getPowerButtonId(bool getOff) const
 			if (path.contains("frame") ||
 				path.contains("oversample") ||
 				path.contains("midi") ||
-				path.startsWith("fix"))
+				path.startsWith("fix")) 
 				return "chain";
 			else
 				return "on";
@@ -275,13 +275,11 @@ void NodeComponent::Header::paint(Graphics& g)
 	auto ar = getLocalBounds().toFloat();
 	ar.removeFromRight(ar.getHeight());
 
-	if (parent.node->isUINodeOfDuplicate())
+	if (parent.node->isClone())
 	{
-		g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.1f : 0.3f));
-		Path p;
-		p.loadPathFromData(SampleMapIcons::copySamples, sizeof(SampleMapIcons::copySamples));
-
-		PathFactory::scalePath(p, ar.removeFromRight(ar.getHeight()).reduced(2.0f));
+		g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.05f : 0.2f));
+		auto p = f.createPath("clone");
+		f.scalePath(p, ar.removeFromRight(ar.getHeight()).reduced(5.0f));
 
 		g.fillPath(p);
 	}
@@ -353,7 +351,10 @@ void NodeComponent::paint(Graphics& g)
 
 	g.fillAll();
 
-	drawTopBodyGradient(g, JUCE_LIVE_CONSTANT_OFF(0.15f));
+	auto b = getLocalBounds().toFloat();
+	b.removeFromTop(header.getHeight());
+
+	drawTopBodyGradient(g, b, JUCE_LIVE_CONSTANT_OFF(0.15f));
 
 	g.setColour(getOutlineColour());
 	g.drawRect(getLocalBounds().toFloat(), 1.0f);
@@ -788,10 +789,8 @@ juce::Colour NodeComponent::getHeaderColour() const
 	return Colours::white;
 }
 
-void NodeComponent::drawTopBodyGradient(Graphics& g, float alpha/*=0.1f*/, float height/*=20.0f*/)
+void NodeComponent::drawTopBodyGradient(Graphics& g, Rectangle<float> b, float alpha/*=0.1f*/, float height/*=20.0f*/)
 {
-	auto b = getLocalBounds().toFloat();
-	b.removeFromTop(header.getHeight());
 	b = b.removeFromTop(height);
 	g.setGradientFill(ColourGradient(Colours::black.withAlpha(alpha), 0.0f, b.getY(), Colours::transparentBlack, 0.0f, b.getBottom(), false));
 	g.fillRect(b);
@@ -902,6 +901,7 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("clipboard", SampleMapIcons::pasteSamples);
 	LOAD_PATH_IF_URL("newnode", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
 	LOAD_PATH_IF_URL("oldnode", EditorIcons::swapIcon);
+	LOAD_PATH_IF_URL("clone", SampleMapIcons::copySamples);
 
 	if (url.startsWith("fix"))
 	{
@@ -1060,7 +1060,7 @@ void NodeComponent::PopupHelpers::wrapIntoChain(NodeBase* node, MenuActions resu
 	auto framePath = "container.frame" + String(node->getCurrentChannelAmount()) + "_block";
 
 	StringArray ids = { "container.chain", "container.split", "container.multi",
-						  framePath, "container.oversample4x" };
+						  framePath, "container.fix32_block", "container.midichain", "container.no_midi", "container.clone", "container.soft_bypass", "container.oversample4x"};
 
 	int idIndex = (int)result - (int)MenuActions::WrapIntoChain;
 

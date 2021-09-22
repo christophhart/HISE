@@ -177,6 +177,11 @@ void NodePopupEditor::buttonClicked(Button* b)
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoSplit, "Wrap into split");
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoMulti, "Wrap into multi");
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoFrame, "Wrap into frame");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoFix32, "Wrap into fix32");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoMidiChain, "Wrap into midichain");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoCloneChain, "Wrap into clone");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoNoMidiChain, "Wrap into nomidi");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoNoMidiChain, "Wrap into soft bypass");
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoOversample4, "Wrap into oversample4");
 		}
 		else

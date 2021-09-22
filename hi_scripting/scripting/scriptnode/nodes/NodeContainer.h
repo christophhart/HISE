@@ -84,11 +84,6 @@ struct NodeContainer : public AssignableObject
 
 		void updateInputRange(Identifier, var);
 
-		void timerCallback() override
-		{
-			getDynamicParameter()->updateUI();
-		}
-
 		var addParameterTarget(NodeBase::Parameter* p)
 		{
 			p->data.setProperty(PropertyIds::Automated, true, p->parent->getUndoManager());
@@ -132,6 +127,8 @@ struct NodeContainer : public AssignableObject
 
 	NodeContainer();
 
+
+
 	template <int P> static void setParameterStatic(void* obj, double v)
 	{
 		auto typed = static_cast<NodeContainer*>(obj);
@@ -146,6 +143,10 @@ struct NodeContainer : public AssignableObject
 
 	NodeBase* asNode();
 	const NodeBase* asNode() const;
+
+	virtual bool hasFixedParameters() const { return false; }
+
+	virtual Component* createLeftTabComponent() const;
 
 	void prepareContainer(PrepareSpecs& ps);
 

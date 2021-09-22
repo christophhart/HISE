@@ -54,7 +54,7 @@ void duplilogic::dynamic::editor::paint(Graphics& g)
 {
 	ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, area, false);
 
-	auto numVoices = getObject()->getParameter().getNumVoices();
+	auto numVoices = getObject()->numClones;
 	auto v = getObject()->lastValue;
 	auto gm = getObject()->lastGamma;
 	auto b = area.reduced(5.0f);
@@ -152,588 +152,743 @@ void dynamic::editor::timerCallback()
 
 namespace parameter
 {
-
-	dynamic_list::MultiOutputConnection::MultiOutputConnection(NodeBase* n, ValueTree switchTarget) :
-		ConnectionBase(n->getScriptProcessor(), switchTarget),
-		parentNode(n)
+	void clone_holder::callWithDuplicateIndex(int index, double v)
 	{
-		jassert(switchTarget.getType() == PropertyIds::SwitchTarget);
-		connectionTree = switchTarget.getOrCreateChildWithName(PropertyIds::Connections, n->getUndoManager());
+		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
 
-		initRemoveUpdater(n);
+		lastValues.set(index, v);
 
-		connectionListener.setCallback(connectionTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(MultiOutputConnection::updateConnections));
-
-		auto ids = RangeHelpers::getRangeIds();
-		ids.add(PropertyIds::Expression);
-
-		connectionPropertyListener.setCallback(connectionTree, ids, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(MultiOutputConnection::updateConnectionProperty));
-
-		ok = rebuildConnections(true);
-	}
-
-	void dynamic_list::MultiOutputConnection::updateConnectionProperty(ValueTree, Identifier)
-	{
-		rebuildConnections(false);
-	}
-
-	bool dynamic_list::MultiOutputConnection::rebuildConnections(bool tryAgainIfFail)
-	{
-		try
+		if (auto p = cloneTargets[index])
 		{
-			ScopedPointer<dynamic_chain> dc = createParameterFromConnectionTree(parentNode, connectionTree, true);
-
-			if (auto fp = dc->getFirstIfSingle())
-				p.setParameter(fp);
-			else
-				p.setParameter(dc.release());
-
-			return true;
-		}
-		catch (String& s)
-		{
-			return false;
+			v = p->getRange().convertFrom0to1(v);
+			p->call(v);
 		}
 	}
 
-	void dynamic_list::MultiOutputConnection::updateConnections(ValueTree v, bool wasAdded)
+	Parameter* getParameterForDynamicParameter(NodeBase::Ptr root, dynamic_base::Ptr b)
 	{
-		rebuildConnections(true);
-	}
-
-	bool dynamic_list::MultiOutputConnection::matchesTarget(NodeBase::Parameter* np)
-	{
-		if (p.base == nullptr)
-			return false;
-
-		// Continue here...
-		
-		if (np->data == p.base->dataTree)
-			return true;
-
-		if (auto dc = dynamic_cast<parameter::dynamic_chain*>(p.base.get()))
+		Parameter* p = nullptr;
+		root->forEach([b, &p](NodeBase::Ptr n)
 		{
-			for (auto d : dc->targets)
-				if (d->dataTree == np->data)
+			for (int i = 0; i < n->getNumParameters(); i++)
+			{
+				auto tp = n->getParameter(i);
+				if (tp->getDynamicParameter() == b)
+				{
+					p = tp;
 					return true;
-		}
-
-		for (const auto& c : connectionTree)
-		{
-			if (c[PropertyIds::NodeId].toString() == np->parent->getId())
-			{
-				if (c[PropertyIds::ParameterId] == np->getId())
-					return true;
+				}
 			}
-		}
-
-		
-
-		return false;
-	}
-
-	void dynamic_list::initialise(NodeBase* n)
-	{
-		parentNode = n;
-
-		switchTree = n->getValueTree().getOrCreateChildWithName(PropertyIds::SwitchTargets, n->getUndoManager());
-
-		connectionUpdater.setCallback(switchTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(dynamic_list::updateConnections));
-
-		numParameters.initialise(n);
-		numParameters.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic_list::updateParameterAmount));
-
-		if (!rebuildMultiOutputConnections())
-		{
-			WeakReference<dynamic_list> safeThis(this);
-
-			n->getRootNetwork()->getScriptProcessor()->getMainController_()->getKillStateHandler().callLater([safeThis]()
-			{
-				if (safeThis.get() != nullptr)
-					safeThis.get()->rebuildMultiOutputConnections();
-			});
-		}
-	}
-
-	bool dynamic_list::rebuildMultiOutputConnections()
-	{
-		targets.clear();
-
-		for (auto c : switchTree)
-			targets.add(new MultiOutputConnection(parentNode, c));
-
-		for (auto t : targets)
-		{
-			if (!t->ok)
-				return false;
-		}
-
-		for (int i = 0; i < getNumParameters(); i++)
-		{
-			if (auto t = targets[i])
-				targets[i]->p.call(lastValues[i]);
-		}
-
-		return true;
-	}
-
-	int dynamic_list::getNumParameters() const
-	{
-		return targets.size();
-	}
-
-	void dynamic_list::updateConnections(ValueTree v, bool wasAdded)
-	{
-		if (deferUpdate)
-			return;
-
-		rebuildMultiOutputConnections();
-	}
-
-	void dynamic_list::updateParameterAmount(Identifier, var newValue)
-	{
-		auto numToUse = numParameters.getValue();
-
-		lastValues.ensureStorageAllocated(numToUse);
-
-		int numToRemove = switchTree.getNumChildren() - numToUse;
-		int numToAdd = -numToRemove;
-
-		if (numToAdd == 0)
-			return;
-
-		ScopedValueSetter<bool> svs(deferUpdate, true);
-
-		if (numToRemove > 0)
-		{
-			for (int i = 0; i < numToRemove; i++)
-			{
-				switchTree.removeChild(switchTree.getNumChildren() - 1, parentNode->getUndoManager());
-			}
-		}
-		else
-		{
-			for (int i = 0; i < numToAdd; i++)
-			{
-				ValueTree sv(PropertyIds::SwitchTarget);
-				ValueTree cv(PropertyIds::Connections);
-				sv.addChild(cv, -1, nullptr);
-				switchTree.addChild(sv, -1, parentNode->getUndoManager());
-			}
-		}
-
-		rebuildMultiOutputConnections();
-	}
-
-	juce::Path ui::Factory::createPath(const String& url) const
-	{
-		Path p;
-		LOAD_PATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
-		LOAD_PATH_IF_URL("delete", SampleMapIcons::deleteSamples);
-		LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
-		LOAD_PATH_IF_URL("edit", ColumnIcons::moveIcon);
+		});
 
 		return p;
 	}
 
-	namespace ui
+	ReferenceCountedArray<dynamic_base> getCloneParameters(Parameter* p)
 	{
-		struct dynamic_list_editor::MultiConnectionEditor::ConnectionEditor : public Component,
-			public ButtonListener
+		ReferenceCountedArray<dynamic_base> list;
+
+		if (auto root = p->parent->findParentNodeOfType<CloneNode>())
 		{
-			ConnectionEditor(NodeBase* n_, ValueTree connectionTree, int index_, int numParameters_) :
-				deleteButton("delete", this, f),
-				n(n_),
-				editor(n_, true, connectionTree, RangeHelpers::getHiddenIds()),
-				c(connectionTree),
-				index(index_),
-				numParameters(numParameters_)
-			{
-				addAndMakeVisible(deleteButton);
-				addAndMakeVisible(editor);
+			CloneNode::CloneIterator cit(*root, p->data, false);
+			cit.resetError();
 
-				setSize(editor.getWidth(), editor.p.getTotalContentHeight() + 24);
+			if (cit.getCloneIndex() != 0)
+			{
+				cit.throwError("You need to connect the first clone");
+				return list;
 			}
 
-			void buttonClicked(Button* b) override
+			for (const auto& cv : cit)
 			{
-				c.getParent().removeChild(c, n->getUndoManager());
+				jassert(cv.getType() == PropertyIds::Parameter);
+				list.add(cit.getParameterForValueTree(cv)->getDynamicParameter());
 			}
+		}
 
-			void paint(Graphics& g) override
-			{
-				auto b = getLocalBounds();
-				auto top = b.removeFromTop(24);
+		return list;
+	}
 
-				g.setColour(MultiOutputDragSource::getFadeColour(index, numParameters));
-				g.fillRoundedRectangle(top.removeFromLeft(top.getHeight()).toFloat().reduced(1.0f), 2.0f);
-				g.setColour(Colours::white);
-				g.setFont(GLOBAL_BOLD_FONT());
-				String title;
-				title << c[PropertyIds::NodeId].toString() << "." << c[PropertyIds::ParameterId].toString();
-				g.drawText(title, top.toFloat(), Justification::centred);
-			}
+	void clone_holder::setParameter(NodeBase* n, dynamic_base::Ptr b)
+	{
+		base = b;
 
-			void resized() override
-			{
-				auto b = getLocalBounds();
-
-				auto top = b.removeFromTop(24);
-				deleteButton.setBounds(top.removeFromRight(24).reduced(2));
-				editor.setBounds(b);
-			}
-
-			int index;
-			int numParameters;
-
-			NodeBase::Ptr n;
-			Factory f;
-			ValueTree c;
-			PropertyEditor editor;
-			HiseShapeButton deleteButton;
-		};
-
-		struct dynamic_list_editor::MultiConnectionEditor::OutputEditor : public Component
+		if (auto cn = dynamic_cast<CloneNode*>(connectedCloneContainer.get()))
 		{
-			valuetree::ChildListener removeListener;
+			cn->cloneChangeBroadcaster.removeListener(*this);
+			cn->cloneSender.removeNumVoiceListener(parentListener);
+		}
 
-			void rebuildEditors(ValueTree v, bool wasAdded)
+		if (auto c = dynamic_cast<dynamic_chain<true>*>(base.get()))
+		{
+			if (c->targets.size() == 1)
+				base = c->targets.getFirst();
+		}
+
+		if (n != nullptr)
+		{
+			if (!n->isClone())
 			{
-				editors.clear();
+				Error e;
+				e.error = Error::CloneMismatch;
+				n->getRootNetwork()->getExceptionHandler().addError(n, e, "Can't connect clone source to uncloned node");
+				setParameter(nullptr, nullptr);
+				return;
+			}
+			
+			auto cloneParent = n->findParentNodeOfType<CloneNode>();
+			connectedCloneContainer = cloneParent;
 
-				int y = 0;
+			rebuild(cloneParent);
+			cloneParent->cloneChangeBroadcaster.addListener(*this, [](clone_holder& c, NodeBase* tc) {c.rebuild(tc); });
+			cloneParent->cloneSender.addNumVoiceListener(parentListener);
+		}
 
-				for (auto v : c->connectionTree)
+	}
+
+	void clone_holder::rebuild(NodeBase* targetContainer)
+	{
+		if (auto ch = dynamic_cast<dynamic_chain<true>*>(base.get()))
+		{
+			ReferenceCountedArray<dynamic_base> chains;
+
+			auto b = ch->targets.getFirst();
+
+			{
+				auto p = getParameterForDynamicParameter(targetContainer, b);
+				auto firstTargets = getCloneParameters(p);
+
+				for (auto ft : firstTargets)
 				{
-					editors.add(new ConnectionEditor(c->parentNode, v, index, numParameters));
-
-					auto e = editors.getLast();
-					e->setTopLeftPosition(0, y);
-					addAndMakeVisible(e);
-					y += e->getHeight();
+					auto newChain = new parameter::dynamic_chain<true>();
+					newChain->addParameter(ft);
+					chains.add(newChain);
 				}
-
-				setSize(MultiConnectionEditor::ViewportWidth - 16, y);
 			}
+			
 
-			OutputEditor(parameter::dynamic_list::MultiOutputConnection* c_, int index_, int numParameters_) :
-				c(c_),
-				index(index_),
-				numParameters(numParameters_)
+			for (int i = 1; i < ch->targets.size(); i++)
 			{
-				rebuildEditors({}, true);
-				removeListener.setCallback(c->connectionTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(OutputEditor::rebuildEditors));
-			}
+				auto c = getParameterForDynamicParameter(targetContainer, ch->targets[i]);
+				auto cTargets = getCloneParameters(c);
 
-			int index;
-			int numParameters;
-
-			parameter::dynamic_list::MultiOutputConnection* c;
-			OwnedArray<ConnectionEditor> editors;
-		};
-
-		struct dynamic_list_editor::MultiConnectionEditor::WrappedOutputEditor : public Component
-		{
-			WrappedOutputEditor(parameter::dynamic_list::MultiOutputConnection* c)
-			{
-				index = c->data.getParent().indexOf(c->data);
-
-				setName("Output " + String(index + 1));
-
-				auto n = new OutputEditor(c, index, c->data.getParent().getNumChildren());
-				vp.setViewedComponent(n);
-				addAndMakeVisible(vp);
-
-				containsSomething = n->editors.size() > 0;
-
-				setSize(ViewportWidth, jmin(500, vp.getViewedComponent()->getHeight()));
-			}
-
-			bool containsSomething = false;
-
-			void resized() override
-			{
-				vp.setBounds(getLocalBounds());
-			}
-
-			int index = 0;
-			Viewport vp;
-		};
-
-		dynamic_list_editor::MultiConnectionEditor::MultiConnectionEditor(parameter::dynamic_list* l)
-		{
-			setName("Edit Connections");
-
-			int maxHeight = 0;
-
-			for (auto t : l->targets)
-			{
-				ScopedPointer<WrappedOutputEditor> n = new WrappedOutputEditor(t);
-
-				if (n->containsSomething)
+				for (int j = 0; j < chains.size(); j++)
 				{
-					maxHeight = jmax(maxHeight, n->getHeight());
-					addAndMakeVisible(n);
-					editors.add(n.release());
+					dynamic_cast<parameter::dynamic_chain<true>*>(chains[j].get())->addParameter(cTargets[j]);
 				}
 			}
 
-			setSize(editors.size() * ViewportWidth, jmin(500, maxHeight));
+			SimpleReadWriteLock::ScopedWriteLock sl(connectionLock);
+			cloneTargets = chains;
 		}
-
-		void dynamic_list_editor::MultiConnectionEditor::resized()
+		else
 		{
-			auto b = getLocalBounds();
-			for (auto v : editors)
+			auto p = getParameterForDynamicParameter(targetContainer, base);
+
+			if (p == nullptr)
 			{
-				v->setBounds(b.removeFromLeft(ViewportWidth));
-			}
-		}
-
-		dynamic_list_editor::dynamic_list_editor(parameter::dynamic_list* l, PooledUIUpdater* updater) :
-			ScriptnodeExtraComponent<parameter::dynamic_list>(l, updater),
-			addButton("add", this, f),
-			removeButton("delete", this, f),
-			editButton("edit", this, f)
-		{
-			addButton.setTooltip("Add a connection output");
-			removeButton.setTooltip("Remove the last connection output");
-
-			addAndMakeVisible(addButton);
-			addAndMakeVisible(removeButton);
-			addAndMakeVisible(editButton);
-		}
-
-		void dynamic_list_editor::timerCallback()
-		{
-			for (auto o : getObject()->targets)
-				o->p.updateUI();
-
-			if (dragSources.size() != getObject()->getNumParameters())
-			{
-				dragSources.clear();
-
-				for (int i = 0; i < getObject()->getNumParameters(); i++)
-				{
-					auto n = new DragComponent(getObject(), i);
-					dragSources.add(n);
-					addAndMakeVisible(n);
-				}
-
-				resized();
-			}
-		}
-
-		void dynamic_list_editor::buttonClicked(Button* b)
-		{
-			if (b == &editButton)
-			{
-				auto n = new MultiConnectionEditor(getObject());
-
-				NodeBase::showPopup(this, n);
-
+				SimpleReadWriteLock::ScopedWriteLock sl(connectionLock);
+				cloneTargets.clear();
 				return;
 			}
 
-			int newValue = 0;
+			auto newTargets = getCloneParameters(p);
 
-			if (b == &addButton)
-				newValue = jmin(getObject()->getNumParameters() + 1, 8);
-
-			if (b == &removeButton)
 			{
-				newValue = jmax(0, getObject()->getNumParameters() - 1);
+				SimpleReadWriteLock::ScopedWriteLock sl(connectionLock);
+				cloneTargets = newTargets;
 			}
-
-			getObject()->parentNode->setNodeProperty(PropertyIds::NumParameters, newValue);
 		}
 
-		void dynamic_list_editor::resized()
+		for (int i = 0; i < lastValues.size(); i++)
+		{
+			callWithDuplicateIndex(i, lastValues[i]);
+		}
+	}
+
+dynamic_list::MultiOutputConnection::MultiOutputConnection(NodeBase* n, ValueTree switchTarget) :
+	ConnectionBase(n->getScriptProcessor(), switchTarget),
+	parentNode(n)
+{
+	jassert(switchTarget.getType() == PropertyIds::SwitchTarget);
+	connectionTree = switchTarget.getOrCreateChildWithName(PropertyIds::Connections, n->getUndoManager());
+
+	initRemoveUpdater(n);
+
+	connectionListener.setCallback(connectionTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(MultiOutputConnection::updateConnections));
+
+	auto ids = RangeHelpers::getRangeIds();
+	ids.add(PropertyIds::Expression);
+
+	connectionPropertyListener.setCallback(connectionTree, ids, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(MultiOutputConnection::updateConnectionProperty));
+
+	ok = rebuildConnections(true);
+}
+
+void dynamic_list::MultiOutputConnection::updateConnectionProperty(ValueTree, Identifier)
+{
+	ok = rebuildConnections(false);
+}
+
+bool dynamic_list::MultiOutputConnection::rebuildConnections(bool tryAgainIfFail)
+{
+	auto dc = createParameterFromConnectionTree(parentNode, connectionTree, true);
+	p.setParameter(nullptr, dc);
+	return dc != nullptr;
+}
+
+void dynamic_list::MultiOutputConnection::updateConnections(ValueTree v, bool wasAdded)
+{
+	rebuildConnections(true);
+}
+
+bool dynamic_list::MultiOutputConnection::matchesTarget(NodeBase::Parameter* np)
+{
+	if (p.base == nullptr)
+		return false;
+
+	if (np->getDynamicParameter() == p.base)
+		return true;
+		
+	if (auto dc = dynamic_cast<parameter::dynamic_chain<true>*>(p.base.get()))
+	{
+		for (auto d : dc->targets)
+			if (d == np->getDynamicParameter().get())
+				return true;
+	}
+
+	return false;
+}
+
+void dynamic_list::initialise(NodeBase* n)
+{
+	parentNode = n;
+
+	switchTree = n->getValueTree().getOrCreateChildWithName(PropertyIds::SwitchTargets, n->getUndoManager());
+
+	connectionUpdater.setCallback(switchTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(dynamic_list::updateConnections));
+
+	numParameters.initialise(n);
+	numParameters.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic_list::updateParameterAmount));
+
+	if (!rebuildMultiOutputConnections())
+	{
+		WeakReference<dynamic_list> safeThis(this);
+
+		n->getRootNetwork()->getScriptProcessor()->getMainController_()->getKillStateHandler().callLater([safeThis]()
+		{
+			if (safeThis.get() != nullptr)
+				safeThis.get()->rebuildMultiOutputConnections();
+		});
+	}
+}
+
+bool dynamic_list::rebuildMultiOutputConnections()
+{
+	targets.clear();
+
+	for (auto c : switchTree)
+		targets.add(new MultiOutputConnection(parentNode, c));
+
+	for (auto t : targets)
+	{
+		if (!t->ok)
+			return false;
+	}
+
+	for (int i = 0; i < getNumParameters(); i++)
+	{
+		if (auto t = targets[i])
+			targets[i]->p.call(lastValues[i]);
+	}
+
+	return true;
+}
+
+int dynamic_list::getNumParameters() const
+{
+	return targets.size();
+}
+
+void dynamic_list::updateConnections(ValueTree v, bool wasAdded)
+{
+	if (deferUpdate)
+		return;
+
+	rebuildMultiOutputConnections();
+}
+
+void dynamic_list::updateParameterAmount(Identifier, var newValue)
+{
+	auto numToUse = numParameters.getValue();
+
+	lastValues.ensureStorageAllocated(numToUse);
+
+	int numToRemove = switchTree.getNumChildren() - numToUse;
+	int numToAdd = -numToRemove;
+
+	if (numToAdd == 0)
+		return;
+
+	ScopedValueSetter<bool> svs(deferUpdate, true);
+
+	if (numToRemove > 0)
+	{
+		for (int i = 0; i < numToRemove; i++)
+		{
+			switchTree.removeChild(switchTree.getNumChildren() - 1, parentNode->getUndoManager());
+		}
+	}
+	else
+	{
+		for (int i = 0; i < numToAdd; i++)
+		{
+			ValueTree sv(PropertyIds::SwitchTarget);
+			ValueTree cv(PropertyIds::Connections);
+			sv.addChild(cv, -1, nullptr);
+			switchTree.addChild(sv, -1, parentNode->getUndoManager());
+		}
+	}
+
+	rebuildMultiOutputConnections();
+}
+
+juce::Path ui::Factory::createPath(const String& url) const
+{
+	Path p;
+	LOAD_PATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
+	LOAD_PATH_IF_URL("delete", SampleMapIcons::deleteSamples);
+	LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
+	LOAD_PATH_IF_URL("edit", ColumnIcons::moveIcon);
+
+	return p;
+}
+
+namespace ui
+{
+	struct dynamic_list_editor::MultiConnectionEditor::ConnectionEditor : public Component,
+		public ButtonListener
+	{
+		ConnectionEditor(NodeBase* n_, ValueTree connectionTree, int index_, int numParameters_) :
+			deleteButton("delete", this, f),
+			n(n_),
+			editor(n_, true, connectionTree, RangeHelpers::getHiddenIds()),
+			c(connectionTree),
+			index(index_),
+			numParameters(numParameters_)
+		{
+			addAndMakeVisible(deleteButton);
+			addAndMakeVisible(editor);
+
+			setSize(editor.getWidth(), editor.p.getTotalContentHeight() + 24);
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			c.getParent().removeChild(c, n->getUndoManager());
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds();
+			auto top = b.removeFromTop(24);
+
+			g.setColour(MultiOutputDragSource::getFadeColour(index, numParameters));
+			g.fillRoundedRectangle(top.removeFromLeft(top.getHeight()).toFloat().reduced(1.0f), 2.0f);
+			g.setColour(Colours::white);
+			g.setFont(GLOBAL_BOLD_FONT());
+			String title;
+			title << c[PropertyIds::NodeId].toString() << "." << c[PropertyIds::ParameterId].toString();
+			g.drawText(title, top.toFloat(), Justification::centred);
+		}
+
+		void resized() override
 		{
 			auto b = getLocalBounds();
 
-			b.removeFromTop(5);
-			auto top = b.removeFromTop(UIConstants::ButtonHeight);
+			auto top = b.removeFromTop(24);
+			deleteButton.setBounds(top.removeFromRight(24).reduced(2));
+			editor.setBounds(b);
+		}
 
-			b.removeFromTop(5);
-			b.removeFromBottom(10);
+		int index;
+		int numParameters;
 
-			addButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
-			removeButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
-			editButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
+		NodeBase::Ptr n;
+		Factory f;
+		ValueTree c;
+		PropertyEditor editor;
+		HiseShapeButton deleteButton;
+	};
 
-			if (dragSources.size() > 0)
+	struct dynamic_list_editor::MultiConnectionEditor::OutputEditor : public Component
+	{
+		valuetree::ChildListener removeListener;
+
+		void rebuildEditors(ValueTree v, bool wasAdded)
+		{
+			editors.clear();
+
+			int y = 0;
+
+			for (auto v : c->connectionTree)
 			{
-				auto wPerDrag = b.getWidth() / dragSources.size();
+				editors.add(new ConnectionEditor(c->parentNode, v, index, numParameters));
 
-				for (auto d : dragSources)
-					d->setBounds(b.removeFromLeft(wPerDrag));
+				auto e = editors.getLast();
+				e->setTopLeftPosition(0, y);
+				addAndMakeVisible(e);
+				y += e->getHeight();
+			}
+
+			setSize(MultiConnectionEditor::ViewportWidth - 16, y);
+		}
+
+		OutputEditor(parameter::dynamic_list::MultiOutputConnection* c_, int index_, int numParameters_) :
+			c(c_),
+			index(index_),
+			numParameters(numParameters_)
+		{
+			rebuildEditors({}, true);
+			removeListener.setCallback(c->connectionTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(OutputEditor::rebuildEditors));
+		}
+
+		int index;
+		int numParameters;
+
+		parameter::dynamic_list::MultiOutputConnection* c;
+		OwnedArray<ConnectionEditor> editors;
+	};
+
+	struct dynamic_list_editor::MultiConnectionEditor::WrappedOutputEditor : public Component
+	{
+		WrappedOutputEditor(parameter::dynamic_list::MultiOutputConnection* c)
+		{
+			index = c->data.getParent().indexOf(c->data);
+
+			setName("Output " + String(index + 1));
+
+			auto n = new OutputEditor(c, index, c->data.getParent().getNumChildren());
+			vp.setViewedComponent(n);
+			addAndMakeVisible(vp);
+
+			containsSomething = n->editors.size() > 0;
+
+			setSize(ViewportWidth, jmin(500, vp.getViewedComponent()->getHeight()));
+		}
+
+		bool containsSomething = false;
+
+		void resized() override
+		{
+			vp.setBounds(getLocalBounds());
+		}
+
+		int index = 0;
+		Viewport vp;
+	};
+
+	dynamic_list_editor::MultiConnectionEditor::MultiConnectionEditor(parameter::dynamic_list* l)
+	{
+		setName("Edit Connections");
+
+		int maxHeight = 0;
+
+		for (auto t : l->targets)
+		{
+			ScopedPointer<WrappedOutputEditor> n = new WrappedOutputEditor(t);
+
+			if (n->containsSomething)
+			{
+				maxHeight = jmax(maxHeight, n->getHeight());
+				addAndMakeVisible(n);
+				editors.add(n.release());
 			}
 		}
 
-		dynamic_list_editor::DragComponent::DragComponent(parameter::dynamic_list* parent, int index_) :
-			index(index_),
-			pdl(parent)
+		setSize(editors.size() * ViewportWidth, jmin(500, maxHeight));
+	}
+
+	void dynamic_list_editor::MultiConnectionEditor::resized()
+	{
+		auto b = getLocalBounds();
+		for (auto v : editors)
 		{
-			n = dynamic_cast<ModulationSourceNode*>(pdl->parentNode);
-			p = Factory().createPath("drag");
+			v->setBounds(b.removeFromLeft(ViewportWidth));
+		}
+	}
 
-			setRepaintsOnMouseActivity(true);
+	dynamic_list_editor::dynamic_list_editor(parameter::dynamic_list* l, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<parameter::dynamic_list>(l, updater),
+		addButton("add", this, f),
+		removeButton("delete", this, f),
+		editButton("edit", this, f)
+	{
+		addButton.setTooltip("Add a connection output");
+		removeButton.setTooltip("Remove the last connection output");
 
-			setMouseCursor(ModulationSourceBaseComponent::createMouseCursor());
+		addAndMakeVisible(addButton);
+		addAndMakeVisible(removeButton);
+		addAndMakeVisible(editButton);
+	}
+
+	void dynamic_list_editor::timerCallback()
+	{
+		if (dragSources.size() != getObject()->getNumParameters())
+		{
+			dragSources.clear();
+
+			for (int i = 0; i < getObject()->getNumParameters(); i++)
+			{
+				auto n = new DragComponent(getObject(), i);
+				dragSources.add(n);
+				addAndMakeVisible(n);
+			}
+
+			resized();
+		}
+	}
+
+	void dynamic_list_editor::buttonClicked(Button* b)
+	{
+		if (b == &editButton)
+		{
+			auto n = new MultiConnectionEditor(getObject());
+
+			NodeBase::showPopup(this, n);
+
+			return;
 		}
 
-		bool dynamic_list_editor::DragComponent::matchesParameter(NodeBase::Parameter* p) const
+		int newValue = 0;
+
+		if (b == &addButton)
+			newValue = jmin(getObject()->getNumParameters() + 1, 8);
+
+		if (b == &removeButton)
+		{
+			newValue = jmax(0, getObject()->getNumParameters() - 1);
+		}
+
+		getObject()->parentNode->setNodeProperty(PropertyIds::NumParameters, newValue);
+	}
+
+	void dynamic_list_editor::resized()
+	{
+		auto b = getLocalBounds();
+
+		b.removeFromTop(5);
+		auto top = b.removeFromTop(UIConstants::ButtonHeight);
+
+		b.removeFromTop(5);
+		b.removeFromBottom(10);
+
+		addButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
+		removeButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
+		editButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
+
+		if (dragSources.size() > 0)
+		{
+			auto wPerDrag = b.getWidth() / dragSources.size();
+
+			for (auto d : dragSources)
+				d->setBounds(b.removeFromLeft(wPerDrag));
+		}
+	}
+
+	dynamic_list_editor::DragComponent::DragComponent(parameter::dynamic_list* parent, int index_) :
+		index(index_),
+		pdl(parent)
+	{
+		n = dynamic_cast<ModulationSourceNode*>(pdl->parentNode);
+		p = Factory().createPath("drag");
+
+		setRepaintsOnMouseActivity(true);
+
+		setMouseCursor(ModulationSourceBaseComponent::createMouseCursor());
+	}
+
+	bool dynamic_list_editor::DragComponent::matchesParameter(NodeBase::Parameter* p) const
+	{
+		if (auto t = pdl->targets[index])
+		{
+			return t->matchesTarget(p);
+		}
+
+		return false;
+	}
+
+	void dynamic_list_editor::DragComponent::mouseDown(const MouseEvent& e)
+	{
+		if (e.mods.isRightButtonDown())
 		{
 			if (auto t = pdl->targets[index])
 			{
-				return t->matchesTarget(p);
-			}
-
-			return false;
-		}
-
-		void dynamic_list_editor::DragComponent::mouseDown(const MouseEvent& e)
-		{
-			if (e.mods.isRightButtonDown())
-			{
-				if (auto t = pdl->targets[index])
-				{
-					NodeBase::showPopup(this, new MultiConnectionEditor::WrappedOutputEditor(t));
-				}
+				NodeBase::showPopup(this, new MultiConnectionEditor::WrappedOutputEditor(t));
 			}
 		}
+	}
 
-		void dynamic_list_editor::DragComponent::mouseDrag(const MouseEvent& e)
+	void dynamic_list_editor::DragComponent::mouseDrag(const MouseEvent& e)
+	{
+		if (e.mods.isRightButtonDown())
 		{
-			if (e.mods.isRightButtonDown())
-			{
-				return;
-			}
-
-			auto container = findParentComponentOfClass<ContainerComponent>();
-
-			auto root = pdl->parentNode->getRootNetwork()->getRootNode();
-
-			while (container != nullptr && container->node != root)
-			{
-				container = container->findParentComponentOfClass<ContainerComponent>();
-			}
-
-			if (container != nullptr)
-			{
-				var d;
-
-				DynamicObject::Ptr details = new DynamicObject();
-
-				auto nodeId = pdl->parentNode->getId();
-
-				details->setProperty(PropertyIds::ID, nodeId);
-				details->setProperty(PropertyIds::ParameterId, index);
-				details->setProperty(PropertyIds::SwitchTarget, true);
-
-				container->startDragging(var(details), this, ModulationSourceBaseComponent::createDragImageStatic(false));
-				findParentComponentOfClass<DspNetworkGraph>()->repaint();
-			}
+			return;
 		}
 
-		void dynamic_list_editor::DragComponent::mouseUp(const MouseEvent& event)
+		auto container = findParentComponentOfClass<ContainerComponent>();
+
+		auto root = pdl->parentNode->getRootNetwork()->getRootNode();
+
+		while (container != nullptr && container->node != root)
 		{
+			container = container->findParentComponentOfClass<ContainerComponent>();
+		}
+
+		if (container != nullptr)
+		{
+			var d;
+
+			DynamicObject::Ptr details = new DynamicObject();
+
+			auto nodeId = pdl->parentNode->getId();
+
+			details->setProperty(PropertyIds::ID, nodeId);
+			details->setProperty(PropertyIds::ParameterId, index);
+			details->setProperty(PropertyIds::SwitchTarget, true);
+
+			container->startDragging(var(details), this, ModulationSourceBaseComponent::createDragImageStatic(false));
 			findParentComponentOfClass<DspNetworkGraph>()->repaint();
 		}
+	}
+
+	void dynamic_list_editor::DragComponent::mouseUp(const MouseEvent& event)
+	{
+		findParentComponentOfClass<DspNetworkGraph>()->repaint();
+	}
 
 		
 
 		
 
-		void dynamic_list_editor::DragComponent::resized()
-		{
-			auto b = getLocalBounds().withSizeKeepingCentre(24, 24);
+	void dynamic_list_editor::DragComponent::resized()
+	{
+		auto b = getLocalBounds().withSizeKeepingCentre(24, 24);
 
-			auto isHigher = getWidth() > getHeight();
-			auto pathBounds = b.toFloat().reduced(2.0f).translated(isHigher ? -12.0f : 0, isHigher ? 0.0f : -12.0f);
+		auto isHigher = getWidth() > getHeight();
+		auto pathBounds = b.toFloat().reduced(2.0f).translated(isHigher ? -12.0f : 0, isHigher ? 0.0f : -12.0f);
 
-			Factory::scalePath(p, pathBounds);
+		Factory::scalePath(p, pathBounds);
 
-			auto xOffset = pathBounds.getCentreX() - (float)getWidth() / 2.0f;
-			auto yOffset = pathBounds.getCentreY() - (float)getHeight() - JUCE_LIVE_CONSTANT_OFF(3.f);
+		auto xOffset = pathBounds.getCentreX() - (float)getWidth() / 2.0f;
+		auto yOffset = pathBounds.getCentreY() - (float)getHeight() - JUCE_LIVE_CONSTANT_OFF(3.f);
 
-			getProperties().set("circleOffsetX", xOffset);
-			getProperties().set("circleOffsetY", yOffset);
-		}
-
-		void dynamic_list_editor::DragComponent::paint(Graphics& g)
-		{
-			auto b = getLocalBounds().toFloat().reduced(1.0f);
-
-			g.setColour(Colours::black.withAlpha(0.1f));
-
-			auto cornerSize = jmin(b.getWidth(), b.getHeight()) / 2.0f;
-
-			g.fillRoundedRectangle(b, cornerSize);
-
-			float alpha = 0.5f;
-
-			if (isMouseOver())
-				alpha += 0.1f;
-
-			if (isMouseButtonDown())
-				alpha += 0.2f;
-
-			auto c = getFadeColour(index, getNumOutputs());
-
-			g.setColour(c.withAlpha(alpha));
-			g.fillPath(p);
-			g.setFont(GLOBAL_BOLD_FONT());
-
-			auto isHigher = getWidth() > getHeight();
-
-			g.drawText(textFunction(index), p.getBounds().translated(isHigher ? 24.0f : 0.0f, isHigher ? 0.0f : 24.0f), Justification::centred);
-		}
+		getProperties().set("circleOffsetX", xOffset);
+		getProperties().set("circleOffsetY", yOffset);
 	}
 
-	void dynamic_duplispread::rebuildTargets()
+	void dynamic_list_editor::DragComponent::paint(Graphics& g)
 	{
-		targets.clear();
+		auto b = getLocalBounds().toFloat().reduced(1.0f);
 
-		if (auto un = dynamic_cast<InterpretedUnisonoWrapperNode*>(duplicateParentNode.get()))
-		{
-			auto numVoices = getNumDuplicates();
+		g.setColour(Colours::black.withAlpha(0.1f));
 
-			if (numVoices > 0)
-			{
-				auto dTree = dataTree;
-				auto l = un->getParameterList(dTree);
+		auto cornerSize = jmin(b.getWidth(), b.getHeight()) / 2.0f;
 
-				jassert(l.size() == numVoices);
+		g.fillRoundedRectangle(b, cornerSize);
 
-				for (int i = 0; i < numVoices; i++)
-				{
-					auto tp = l[i];
-					auto obj = tp->getDynamicParameter()->obj;
-					jassert(obj != nullptr);
-					targets.add(obj);
-				}
-			}
-		}
+		float alpha = 0.5f;
+
+		if (isMouseOver())
+			alpha += 0.1f;
+
+		if (isMouseButtonDown())
+			alpha += 0.2f;
+
+		auto c = getFadeColour(index, getNumOutputs());
+
+		g.setColour(c.withAlpha(alpha));
+		g.fillPath(p);
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		auto isHigher = getWidth() > getHeight();
+
+		g.drawText(textFunction(index), p.getBounds().translated(isHigher ? 24.0f : 0.0f, isHigher ? 0.0f : 24.0f), Justification::centred);
+	}
+}
+
+scriptnode::parameter::dynamic_base_holder* dynamic_duplispread::getParameterFunctionStatic(void* b)
+{
+	auto mn = static_cast<mothernode*>(b);
+	auto typed = dynamic_cast<control::pimpl::parameter_node_base<parameter::clone_holder>*>(mn);
+	jassert(typed != nullptr);
+	return &typed->getParameter();
+}
+
+void dynamic_duplispread::setParameter(NodeBase* newUnisonoMode, dynamic_base::Ptr cb)
+{
+	if (connectedDuplicateObject != nullptr)
+		connectedDuplicateObject->removeNumVoiceListener(this);
+
+	InterpretedUnisonoWrapperNode* n = nullptr;
+
+	connectedNode = newUnisonoMode;
+
+	while (newUnisonoMode != nullptr && n == nullptr)
+	{
+		n = dynamic_cast<InterpretedUnisonoWrapperNode*>(newUnisonoMode);
+		newUnisonoMode = newUnisonoMode->getParentNode();
 	}
 
-	void dynamic_duplispread::connect(NodeBase* newUnisonoMode, dynamic_base* cb)
+	if (n != nullptr)
 	{
-		if (connectedDuplicateObject != nullptr)
-			connectedDuplicateObject->removeNumVoiceListener(this);
-
-		duplicateParentNode = newUnisonoMode;
-		connectedDuplicateObject = dynamic_cast<InterpretedUnisonoWrapperNode*>(newUnisonoMode)->getUnisonoObject();
+		unisonoParent = n;
+		connectedDuplicateObject = n->getUnisonoObject();
 
 		if (connectedDuplicateObject != nullptr)
 			connectedDuplicateObject->addNumVoiceListener(this);
 
-		originalCallback = cb;
-		originalCallback->obj = nullptr;
-		
+		dynamic_base_holder::setParameter(newUnisonoMode, cb);
+
+		if (base != nullptr)
+			base->obj = nullptr;
+
 		rebuildTargets();
 	}
+}
+
+void dynamic_duplispread::rebuildTargets()
+{
+	targets.clear();
+
+	if (auto un = dynamic_cast<InterpretedUnisonoWrapperNode*>(unisonoParent.get()))
+	{
+		auto numVoices = getNumDuplicates();
+
+		if (numVoices > 0)
+		{
+			if (auto c = dynamic_cast<parameter::dynamic_chain<true>*>(base.get()))
+			{
+				for (auto cp : c->targets)
+				{
+					auto l = un->getParameterList(connectedNode->getValueTree(), cp);
+
+					jassert(l.size() == numVoices);
+
+					for (int i = 0; i < numVoices; i++)
+					{
+						auto tp = l[i];
+						auto obj = tp->getDynamicParameter()->obj;
+						jassert(obj != nullptr);
+						targets.add(obj);
+					}
+				}
+			}
+			else
+				jassertfalse;
+		}
+	}
+}
 }
 
 }

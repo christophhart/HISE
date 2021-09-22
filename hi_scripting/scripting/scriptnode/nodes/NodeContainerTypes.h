@@ -39,7 +39,7 @@ using namespace hise;
 
 class ChainNode : public SerialNode
 {
-	using InternalWrapper = bypass::smoothed<SerialNode::DynamicSerialProcessor>;
+	using InternalWrapper = bypass::simple<SerialNode::DynamicSerialProcessor>;
 
 public:
 
@@ -186,6 +186,171 @@ public:
 private:
 
 	wrap::data<wrap::offline<SerialNode::DynamicSerialProcessor>, scriptnode::data::dynamic::audiofile> obj;
+};
+
+namespace wrap {
+template <typename T> struct clone
+{
+	
+};
+}
+
+/** TODO:
+
+	- sync values? OK
+	- sync parameter ranges OK
+	- sync modulation connections (?)
+	- make toolbar: clone, delete all clones, hide clones OK
+	- make spread OK
+	- remove clone_holder as lambda listener somehow (enforce bug when switching to other clone container?) OK
+	- fix crashes, dupli_pack OK
+	- add clone-ducker OK
+	- make duplicable fix mode OK
+	- implement multiple target parameters
+	- force connection to first module
+	- disallow modulation, connections from outside
+	- cppgen
+	- rename everything from dupli to clone
+	- remove all old unisono stuff
+*/
+class CloneNode : public SerialNode
+{
+public:
+
+	enum class Parameters
+	{
+		NumVoices,
+		SplitSignal
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(NumVoices, CloneNode);
+		DEF_PARAMETER(SplitSignal, CloneNode);
+	}
+
+	PARAMETER_MEMBER_FUNCTION;
+
+	SCRIPTNODE_FACTORY(CloneNode, "clone");
+
+	String getNodeDescription() const override { return "Allows easy cloning of child nodes"; }
+
+	virtual bool hasFixedParameters() const { return true; }
+
+	CloneNode(DspNetwork* n, ValueTree t);
+
+	ParameterDataList createInternalParameterList() override;
+
+	void processFrame(FrameType& data) noexcept final override;
+	void process(ProcessDataDyn& data) noexcept final override;
+	void prepare(PrepareSpecs ps) override;
+	void handleHiseEvent(HiseEvent& e) final override;
+	void reset() final override;
+
+	void setNumVoices(double newNumVoices);
+
+	void setSplitSignal(double shouldSplit);
+
+	static int getCloneIndex(NodeBase* n);
+
+	void syncChildValues(const ValueTree& v, const Identifier& id);
+
+	Component* createLeftTabComponent() const override;
+
+	void updateConnections(const ValueTree& v, bool wasAdded);
+
+	void checkValidClones(const ValueTree& v, bool wasAdded);
+
+	ValueTree getValueTreeForPath(const ValueTree& v, Array<int>& path);
+
+	Array<int> getPathForValueTree(const ValueTree& v);
+
+	LambdaBroadcaster<NodeBase*> cloneChangeBroadcaster;
+
+	struct DynamicCloneSender : public wrap::duplicate_sender
+	{
+		DynamicCloneSender(CloneNode& p) :
+			parent(p),
+			duplicate_sender(1)
+		{};
+
+		void setVoiceAmount(int newNumVoices) override
+		{
+			wrap::duplicate_sender::setVoiceAmount(newNumVoices);
+			sendMessageToListeners();
+		}
+
+		CloneNode& parent;
+	} cloneSender;
+
+	struct CloneIterator
+	{
+		CloneIterator(CloneNode& n, const ValueTree& v, bool skipOriginal);
+
+		ValueTree* begin() { return cloneSiblings.begin(); }
+		ValueTree* end() { return cloneSiblings.end(); }
+
+		const ValueTree* begin() const { return cloneSiblings.begin(); }
+		const ValueTree* end() const { return cloneSiblings.end(); }
+
+		int getCloneIndex() const { return path[0]; }
+
+		Parameter* getParameterForValueTree(const ValueTree& pTree, NodeBase::Ptr root=nullptr) const;
+
+		void throwError(const String& e);
+
+		void resetError();
+
+	private:
+
+		CloneNode& cn;
+		ValueTree original;
+		const Array<int> path;
+		Array<ValueTree> cloneSiblings;
+	};
+
+	bool shouldCloneBeDisplayed(int index) const;
+
+private:
+
+	void updateDisplayedClones(const Identifier&, const var& v);
+
+	BigInteger displayedCloneState;
+
+	static bool sameNodes(const ValueTree& n1, const ValueTree& n2);
+
+	auto begin() const
+	{
+		return nodes.begin();
+	}
+
+	auto end() const
+	{
+		return nodes.begin() + jmin(nodes.size(), numVoices);
+	}
+
+	int numVoices = 1;
+	bool splitSignal = false;
+
+	
+
+	CachedValue<bool> showClones;
+
+	valuetree::ChildListener numVoicesListener;
+
+	valuetree::RecursivePropertyListener valueSyncer;
+	
+	valuetree::RecursivePropertyListener uiSyncer;
+
+	valuetree::RecursiveTypedChildListener cloneWatcher;
+
+	bool connectionRecursion = false;
+	valuetree::RecursiveTypedChildListener connectionListener;
+
+	valuetree::PropertyListener displayCloneRangeListener;
+
+	AudioSampleBuffer splitCopy;
+	PrepareSpecs lastSpecs;
 };
 
 template <int OversampleFactor> class OversampleNode : public SerialNode
@@ -568,6 +733,8 @@ public:
 
 	AudioSampleBuffer leftoverBuffer;
 };
+
+
 
 
 }

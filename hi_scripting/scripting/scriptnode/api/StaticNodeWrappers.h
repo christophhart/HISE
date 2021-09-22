@@ -35,6 +35,16 @@
 namespace scriptnode
 {
 
+namespace control
+{
+	/** Oh boy, this is ugly. The mothernode system does not work with dynamic data types, so the UI
+		offset crashes the component creation. Therefore we need to roll an own class .*/
+	struct dynamic_dupli_pack : public wrap::data<control::dupli_pack<parameter::clone_holder>, data::dynamic::sliderpack>
+	{
+		static parameter::dynamic_base_holder* getParameterFunction(void* obj);
+	};
+}
+
 namespace data { 
 namespace ui { namespace pimpl { struct editor_base; } }
 namespace pimpl { struct dynamic_base; }
@@ -325,8 +335,6 @@ public:
 
 	ParameterDataList createInternalParameterList() override;
 
-	void timerCallback() override;
-
 	bool isUsingNormalisedRange() const override;
 
 	parameter::dynamic_base_holder* getParameterHolder() override;
@@ -451,7 +459,7 @@ struct InterpretedUnisonoWrapperNode : public WrapperNode,
 									   public InterpretedNodeBase<UnisonoNodeBase::InterpretedObjectType>,
 								       public AssignableObject
 {
-	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("unisono2"); }
+	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("duplicator"); }
 
 	using Base = UnisonoNodeBase::InterpretedObjectType;
 
@@ -459,7 +467,7 @@ struct InterpretedUnisonoWrapperNode : public WrapperNode,
 
 	wrap::duplicate_sender* getUnisonoObject() { return static_cast<wrap::duplicate_sender*>(&obj); }
 
-	ReferenceCountedArray<Parameter> getParameterList(const ValueTree& pTree);
+	ReferenceCountedArray<Parameter> getParameterList(const ValueTree& nodeTree, parameter::dynamic_base::Ptr f);
 
 	static NodeBase* createNode(DspNetwork* n, ValueTree d)
 	{
@@ -548,13 +556,17 @@ struct InterpretedCableNode : public ModulationSourceNode,
 	{
 		constexpr bool isBaseOfDynamicParameterHolder = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_base_holder>, typename T::WrappedObjectType>();
 
+		constexpr bool isBaseOfDynamicDupliHolder = std::is_base_of<control::pimpl::parameter_node_base<parameter::clone_holder>, typename T::WrappedObjectType>();
+
 		constexpr bool isSpread = std::is_same<T, duplilogic::dynamic::NodeType>();
 
 		static_assert(std::is_base_of<control::pimpl::no_processing, typename T::WrappedObjectType>(), "not a base of no_processing");
 
 		auto mn = new InterpretedCableNode(n, d);
 
-		if constexpr (isSpread)
+		if constexpr (std::is_same<T, control::dynamic_dupli_pack>())
+			mn->getParameterFunction = control::dynamic_dupli_pack::getParameterFunction;
+		else if constexpr (isBaseOfDynamicDupliHolder)
 			mn->getParameterFunction = parameter::dynamic_duplispread::getParameterFunctionStatic;
 		else if constexpr (isBaseOfDynamicParameterHolder)
 			mn->getParameterFunction = InterpretedCableNode::getParameterFunctionStatic<T>;
@@ -585,6 +597,11 @@ struct InterpretedCableNode : public ModulationSourceNode,
 
 	parameter::dynamic_base_holder* getParameterHolder() override;
 
+	bool isProcessingHiseEvent() const override
+	{
+		return this->obj.isProcessingHiseEvent();
+	}
+
 	void process(ProcessDataDyn& data) final override
 	{
 		this->obj.process(data);
@@ -593,12 +610,6 @@ struct InterpretedCableNode : public ModulationSourceNode,
 	void reset() final override
 	{
 
-	}
-
-	void timerCallback() override
-	{
-		if(auto p = getParameterHolder())
-			p->updateUI();
 	}
 
 	bool isUsingNormalisedRange() const override

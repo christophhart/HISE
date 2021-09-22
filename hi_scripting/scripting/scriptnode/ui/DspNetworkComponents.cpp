@@ -259,11 +259,14 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 
 	rebuildListener.forwardCallbacksForChildEvents(true);
 
-	resizeListener.setCallback(dataReference, { PropertyIds::Folded, PropertyIds::ShowParameters },
+	resizeListener.setCallback(dataReference, { PropertyIds::Folded, PropertyIds::ShowParameters, PropertyIds::ShowClones, PropertyIds::DisplayedClones },
 		valuetree::AsyncMode::Asynchronously,
-		[this](ValueTree, Identifier)
+		[this](ValueTree, Identifier id)
 	{
-		this->resizeNodes();
+		if (id == PropertyIds::ShowClones || id == PropertyIds::DisplayedClones)
+			this->rebuildNodes();
+		else
+			this->resizeNodes();
 	});
 
 	setOpaque(true);
@@ -614,6 +617,31 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 						Colour hc = s->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
 						paintCable(g, start, end, cableColour, alpha, hc);
+
+						auto drawSiblingCables = s->node->isClone() && !sourceNode->isClone();
+
+						if (drawSiblingCables)
+						{
+							auto root = s->node->findParentNodeOfType<CloneNode>();
+
+							CloneNode::CloneIterator cit(*root, s->parameterToControl->data, true);
+
+							auto numClones = root->getParameter(0)->getValue();
+							int i = 0;
+
+							for (const auto& cv : cit)
+							{
+								for (const auto& cs : sliderList)
+								{
+									if (cs->parameterToControl->data == cv)
+									{
+										auto cend = getCircle(cs);
+										paintCable(g, start, cend, i++ < numClones ? cableColour : Colours::grey, alpha * 0.1f, hc);
+									}
+								}
+							}
+						}
+
 						break;
 					}
 				}
@@ -2347,6 +2375,11 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoSplit, "Wrap into split container");
 
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoFix32, "Wrap into fix32 container");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoCloneChain, "Wrap into clone container");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoMidiChain, "Wrap into midichain container");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoNoMidiChain, "Wrap into nomidi container");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoSoftBypass, "Wrap into soft bypass container");
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoOversample4, "Wrap into 4x oversample container");
 
 			m.addItem((int)NodeComponent::MenuActions::UnfreezeNode, "Explode DSP Network", s != nullptr && s->getEmbeddedNetwork() != nullptr);
