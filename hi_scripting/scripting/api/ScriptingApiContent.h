@@ -1592,7 +1592,7 @@ public:
 		void setLoadingCallback(var loadingCallback);
 
 		/** Disables the paint routine and just uses the given (clipped) image. */
-		void setImage(String imageName, int xOffset, int yOffset);
+		void setImage(String imageName, bool isHorizontal, int offset);
 
 		/** Loads a image which can be drawn with the paint function later on. */
 		void loadImage(String imageName, String prettyName);
