@@ -134,7 +134,6 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
     addAndMakeVisible(deviceSelector = new ComboBox("Driver"));
     addAndMakeVisible(soundCardSelector = new ComboBox("Device"));
     addAndMakeVisible(outputSelector = new ComboBox("Output"));
-    addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
     addAndMakeVisible(bufferSelector = new ComboBox("Buffer Sizes"));
     addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
         
