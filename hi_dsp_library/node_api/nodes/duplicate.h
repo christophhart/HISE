@@ -38,6 +38,81 @@ using namespace hise;
 using namespace snex;
 using namespace snex::Types;
 
+
+namespace midi_logic
+{
+
+	template <int Unused> struct gate
+	{
+		HISE_EMPTY_PREPARE;
+		HISE_EMPTY_INITIALISE;
+
+		bool getMidiValue(HiseEvent& e, double& v)
+		{
+			if (e.isNoteOnOrOff())
+			{
+				v = (double)e.isNoteOn();
+				return true;
+			}
+
+			return false;
+		}
+	};
+
+	template <int Unused> struct velocity
+	{
+		HISE_EMPTY_PREPARE;
+		HISE_EMPTY_INITIALISE;
+
+		bool getMidiValue(HiseEvent& e, double& v)
+		{
+			if (e.isNoteOn())
+			{
+				v = e.getFloatVelocity();
+				return true;
+			}
+
+			return false;
+		}
+	};
+
+	template <int Unused> struct notenumber
+	{
+		HISE_EMPTY_PREPARE;
+		HISE_EMPTY_INITIALISE;
+
+		bool getMidiValue(HiseEvent& e, double& v)
+		{
+			if (e.isNoteOn())
+			{
+				v = (double)e.getNoteNumber() / 127.0;
+				return true;
+			}
+
+			return false;
+		}
+	};
+
+	template <int Unused> struct frequency
+	{
+		HISE_EMPTY_PREPARE;
+		HISE_EMPTY_INITIALISE;
+
+		static constexpr bool IsProcessingHiseEvent() { return true; }
+
+		bool getMidiValue(HiseEvent& e, double& v)
+		{
+			if (e.isNoteOn())
+			{
+				v = (e.getFrequency()) / 20000.0;
+				return true;
+			}
+
+			return false;
+		}
+	};
+}
+
 namespace duplilogic
 {
 
@@ -88,11 +163,43 @@ struct triangle
 
 
 
-struct harmonics
+struct harmonics: public midi_logic::frequency<0>
 {
 	double getValue(int index, int numUsed, double inputValue, double gamma)
 	{
 		return (double)(index + 1) * inputValue;
+	}
+};
+
+struct nyquist: public midi_logic::frequency<0>
+{
+	double getValue(int index, int numUsed, double inputValue, double gamma)
+	{
+		auto hvalue = harmonics().getValue(index, numUsed, inputValue, gamma);
+		return hmath::smoothstep(hvalue, 1.0, jmin(0.99, gamma));
+	}
+};
+
+struct fixed: public midi_logic::frequency<0>
+{
+	double getValue(int /*index*/, int /*numUsed*/, double inputValue, double /*gamma*/)
+	{
+		return inputValue;
+	}
+};
+
+struct ducker
+{
+	double getValue(int /*index*/, int numUsed, double /*inputValue*/, double gamma)
+	{
+		auto v = 1.0 / jmax(1.0, (double)numUsed);
+		
+		if (gamma != 0.0)
+		{
+			v = std::pow(v, 1.0 - gamma);
+		}
+
+		return v;
 	}
 };
 
@@ -151,9 +258,10 @@ struct duplicate_sender
 		numVoices(initialVoiceAmount)
 	{};
 
-	void addNumVoiceListener(Listener* l)
+	virtual void addNumVoiceListener(Listener* l)
 	{
 		listeners.addIfNotAlreadyThere(l);
+		l->numVoicesChanged(numVoices);
 	}
 
 	void removeNumVoiceListener(Listener* l)
@@ -529,7 +637,7 @@ template <class ParameterClass> struct dupli
 
 	ParameterClass p;
 
-	void call(int index, double v)
+	void callWithDuplicateIndex(int index, double v)
 	{
 		jassert(sender != nullptr);
 
@@ -541,7 +649,7 @@ template <class ParameterClass> struct dupli
 		p.call(v);
 	}
 
-	int getNumVoices() const
+	int getNumDuplicates() const
 	{
 		jassert(sender != nullptr);
 		return sender->getNumVoices();
@@ -591,9 +699,9 @@ template <class... DupliParameters> struct duplichain : public advanced_tuple<Du
 
 	tuple_iterator2(call, int, index, double, v);
 
-	void call(int index, double v)
+	void callWithDuplicateIndex(int index, double v)
 	{
-		call_tuple_iterator2(call, index, v);
+		call_tuple_iterator2(callWithDuplicateIndex, index, v);
 	}
 
 	tuple_iterator1(setParentNumVoiceListener, SenderType::Listener*, l);
