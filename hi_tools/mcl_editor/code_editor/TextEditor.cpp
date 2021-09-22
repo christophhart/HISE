@@ -508,6 +508,22 @@ bool TextEditor::copy()
 	return true;
 }
 
+bool TextEditor::copyForConsolePrint()
+{
+    if(document.getNumSelections() != 1)
+    {
+        multiSelection.clear();
+        
+        for(int i = 0; i < document.getNumSelections(); i++)
+        {
+            multiSelection.add(document.getSelectionContent(document.getSelection(i)));
+        }
+    }
+    
+	SystemClipboard::copyTextToClipboard("Console.print(" + document.getSelectionContent(document.getSelections().getFirst()) + ");");
+	return true;
+}
+
 bool TextEditor::paste()
 {
     if(document.getNumSelections() == multiSelection.size())
@@ -1958,6 +1974,8 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		return cut();
     if (key == KeyPress ('c', ModifierKeys::commandModifier, 0))
 		return copy();
+	if (key == KeyPress ('p', ModifierKeys::commandModifier, 0))
+		return copyForConsolePrint();
 	if (key == KeyPress('v', ModifierKeys::commandModifier, 0))
 		return paste();
 	if (key == KeyPress('f', ModifierKeys::ctrlModifier, 0))
