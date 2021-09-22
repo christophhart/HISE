@@ -87,6 +87,8 @@ struct ScriptingApi::Content::Wrapper
 	static var setPosition(const var::NativeFunctionArgs& args);
 	static var setHeight(const var::NativeFunctionArgs& args);
 	static var setWidth(const var::NativeFunctionArgs& args);
+	static var getHeight(const var::NativeFunctionArgs& args);
+	static var getWidth(const var::NativeFunctionArgs& args);
 	static var setName(const var::NativeFunctionArgs& args);
     static var makeFrontInterface(const var::NativeFunctionArgs& args);
 	static var makeFullScreenInterface(const var::NativeFunctionArgs& args);
@@ -426,6 +428,16 @@ var ScriptingApi::Content::Wrapper::setHeight (const var::NativeFunctionArgs& ar
 	return var();
 };
 
+var ScriptingApi::Content::Wrapper::getHeight (const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		return thisObject->getHeight();
+	}
+
+	return var();
+};
+
 var ScriptingApi::Content::Wrapper::setContentTooltip (const var::NativeFunctionArgs& args)
 {
 	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
@@ -473,6 +485,16 @@ var ScriptingApi::Content::Wrapper::setWidth (const var::NativeFunctionArgs& arg
 		CHECK_ARGUMENTS("setWidth()", 1);
 
 		thisObject->setWidth((int)args.arguments[0]);
+	}
+
+	return var();
+};
+
+var ScriptingApi::Content::Wrapper::getWidth (const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		return thisObject->getWidth();
 	}
 
 	return var();

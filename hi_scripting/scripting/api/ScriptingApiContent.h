@@ -2087,6 +2087,12 @@ public:
 	/** Sets the height of the content. */
 	void setWidth(int newWidth) noexcept;
 
+	/** Gets the height of the interface. */
+	int getHeight() const;
+
+	/** Gets the width of the interface. */
+	int getWidth() const;
+
 	/** Creates a screenshot of the area relative to the content's origin. */
 	void createScreenshot(var area, var directory, String name);
 
