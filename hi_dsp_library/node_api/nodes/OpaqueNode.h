@@ -45,6 +45,12 @@ struct mothernode
 {
 	using DataProvider = scriptnode::data::pimpl::provider_base;
 
+    mothernode& operator=(const mothernode& other)
+    {
+        data_provider = other.data_provider;
+        return *this;
+    };
+    
 	virtual ~mothernode() {};
 
 	template <typename T> static constexpr bool isBaseOf()

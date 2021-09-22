@@ -252,7 +252,12 @@ struct duplicate_sender
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
-    virtual ~duplicate_sender() {};
+    virtual ~duplicate_sender()
+    {
+        SimpleReadWriteLock::ScopedWriteLock sl(getVoiceLock());
+        listeners.clear();
+        
+    };
     
 	duplicate_sender(int initialVoiceAmount) :
 		numVoices(initialVoiceAmount)
@@ -314,9 +319,25 @@ template <typename T> struct duplicate_node_reference
 
 		hn.firstObj = &o;
 		hn.objectDelta = objectDelta;
+        hn.sender = sender;
 		
 		return hn;
 	}
+    
+    template <int P> void setParameter(double v)
+    {
+        auto numVoices = sender->getNumVoices();
+        
+        auto obj = reinterpret_cast<uint64>(firstObj);
+        
+        for(int i = 0; i < numVoices; i++)
+        {
+            T::template setParameterStatic<P>(reinterpret_cast<void*>(obj), v);
+            obj += objectDelta;
+        }
+        
+    }
+    
 
 	T* firstObj = nullptr;
 	scriptnode::wrap::duplicate_sender* sender;
@@ -424,7 +445,7 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 
 				for (int i = 0; i < -delta; i++)
 				{
-					*ptr = T();
+					new (ptr) T();
 					ptr--;
 				}
 			}
@@ -600,8 +621,9 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 
 		duplicate_node_reference<TType> hn;
 
-		hn.objectDelta = sizeof(T);
-		hn.sender = static_cast<duplicate_sender*>(this);
+		hn.objectDelta = static_cast<size_t>(reinterpret_cast<uint64>(&data[1]) -
+                                             reinterpret_cast<uint64>(&data[0]));
+		hn.sender = dynamic_cast<duplicate_sender*>(this);
 		hn.firstObj = &o;
 
 		return hn;
@@ -637,6 +659,12 @@ template <class ParameterClass> struct dupli
 
 	ParameterClass p;
 
+    ~dupli()
+    {
+        if(sender != nullptr && parentListener != nullptr)
+            sender->removeNumVoiceListener(parentListener);
+    }
+    
 	void callWithDuplicateIndex(int index, double v)
 	{
 		jassert(sender != nullptr);
@@ -657,10 +685,10 @@ template <class ParameterClass> struct dupli
 
 	void setParentNumVoiceListener(SenderType::Listener* l)
 	{
+        parentListener = l;
+        
 		if (sender != nullptr)
 			sender->addNumVoiceListener(l);
-		else
-			parentListener = l;
 	}
 
 	template <int Unused> auto& getParameter()
@@ -670,18 +698,22 @@ template <class ParameterClass> struct dupli
 
 	template <int P, typename DupliRefType> void connect(DupliRefType& t)
 	{
+        static_assert(std::is_same<typename DupliRefType::ObjectType, typename ParameterClass::TargetType>(), "class mismatch");
+        
 		sender = t.sender;
 		objectDelta = t.objectDelta;
 		firstObj = t.firstObj;
 
+        jassert(sender != nullptr);
+        
 		if (parentListener != nullptr)
 			sender->addNumVoiceListener(parentListener);
 	}
 
-	SenderType* sender = nullptr;
+	WeakReference<SenderType> sender = nullptr;
 	void* firstObj = nullptr;
 	size_t objectDelta;
-	SenderType::Listener* parentListener = nullptr;
+	WeakReference<SenderType::Listener> parentListener = nullptr;
 };
 
 template <class... DupliParameters> struct duplichain : public advanced_tuple<DupliParameters...>
@@ -711,7 +743,7 @@ template <class... DupliParameters> struct duplichain : public advanced_tuple<Du
 		call_tuple_iterator1(setParentNumVoiceListener, l);
 	}
 
-	template <int Index, class Target> void connect(Target& t)
+	template <int Index, class Target> void connect(const Target& t)
 	{
 		this->template get<Index>().template connect<0>(t);
 	}
