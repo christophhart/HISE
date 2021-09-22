@@ -311,8 +311,7 @@ String DspNetworkCodeProvider::createCppForNetwork() const
 
 		auto r = v.createCppCode();
 
-		if (r.r.wasOk())
-			return r.code;
+		return r.code;
 	}
 
 	return {};

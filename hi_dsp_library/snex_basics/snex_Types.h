@@ -620,6 +620,15 @@ template <typename T, int NumVoices> struct PolyData
 		setAll(std::move(initValue));
 	}
 
+	PolyData& operator=(const PolyData& other)
+	{
+		voicePtr = other.voicePtr;
+		lastVoiceIndex = other.lastVoiceIndex;
+		unused = 0;
+		memcpy(data, other.data, sizeof(data));
+		return *this;
+	}
+
 	PolyData()
 	{
 		if(std::is_arithmetic<T>::value)

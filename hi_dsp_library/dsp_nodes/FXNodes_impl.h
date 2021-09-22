@@ -211,7 +211,7 @@ void phase_delay_impl<V>::setFrequency(double newFrequency)
 DEFINE_EXTERN_NODE_TEMPIMPL(phase_delay_impl);
 
 template <int V>
-void haas_impl<V>::setPosition(double newValue)
+void haas<V>::setPosition(double newValue)
 {
 	position = newValue;
 
@@ -242,14 +242,14 @@ void haas_impl<V>::setPosition(double newValue)
 
 
 template <int V>
-bool haas_impl<V>::handleModulation(double&)
+bool haas<V>::handleModulation(double&)
 {
 	return false;
 }
 
 
 template <int V>
-void haas_impl<V>::processFrame(FrameType& data)
+void haas<V>::processFrame(FrameType& data)
 {
 	data[0] = delay.get()[0].getDelayedValue(data[0]);
 	data[1] = delay.get()[1].getDelayedValue(data[1]);
@@ -257,7 +257,7 @@ void haas_impl<V>::processFrame(FrameType& data)
 
 
 template <int V>
-void haas_impl<V>::process(haas_impl<V>::ProcessType& d)
+void haas<V>::process(haas<V>::ProcessType& d)
 {
 	delay.get()[0].processBlock(d.getRawDataPointers()[0], d.getNumSamples());
 	delay.get()[1].processBlock(d.getRawDataPointers()[1], d.getNumSamples());
@@ -265,7 +265,7 @@ void haas_impl<V>::process(haas_impl<V>::ProcessType& d)
 
 
 template <int V>
-void haas_impl<V>::reset()
+void haas<V>::reset()
 {
 	for (auto& d : delay)
 	{
@@ -278,7 +278,7 @@ void haas_impl<V>::reset()
 }
 
 template <int V>
-void haas_impl<V>::prepare(PrepareSpecs ps)
+void haas<V>::prepare(PrepareSpecs ps)
 {
 	delay.prepare(ps);
 
@@ -297,18 +297,16 @@ void haas_impl<V>::prepare(PrepareSpecs ps)
 }
 
 template <int V>
-void haas_impl<V>::createParameters(ParameterDataList& data)
+void haas<V>::createParameters(ParameterDataList& data)
 {
 	{
-		DEFINE_PARAMETERDATA(haas_impl, Position);
+		DEFINE_PARAMETERDATA(haas, Position);
 		p.setRange({ -1.0, 1.0, 0.1 });
 		p.setDefaultValue(0.0);
 		data.add(std::move(p));
 	}
 }
 
-
-DEFINE_EXTERN_NODE_TEMPIMPL(haas_impl);
 
 
 }

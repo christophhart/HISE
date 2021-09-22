@@ -515,7 +515,6 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<CloneNode>();
 	registerNodeRaw<NoMidiChainNode>();
 	registerNodeRaw<SoftBypassNode>();
-	registerNodeRaw<InterpretedUnisonoWrapperNode>();
 }
 
 

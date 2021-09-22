@@ -168,7 +168,8 @@ namespace parameter
 	Parameter* getParameterForDynamicParameter(NodeBase::Ptr root, dynamic_base::Ptr b)
 	{
 		Parameter* p = nullptr;
-		root->forEach([b, &p](NodeBase::Ptr n)
+
+		root->forEach([&, b](NodeBase::Ptr n)
 		{
 			for (int i = 0; i < n->getNumParameters(); i++)
 			{
@@ -179,6 +180,8 @@ namespace parameter
 					return true;
 				}
 			}
+
+			return false;
 		});
 
 		return p;

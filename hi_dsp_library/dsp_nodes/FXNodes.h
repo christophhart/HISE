@@ -340,7 +340,8 @@ private:
 };
 
 
-template <int V> class haas_impl : public HiseDspBase
+template <int V> class haas : public HiseDspBase,
+							  public polyphonic_base
 {
 public:
 
@@ -356,13 +357,15 @@ public:
 		Position
 	};
 
+	haas() : polyphonic_base(haas::getStaticId(), false) {}
+
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(Position, haas_impl);
+		DEF_PARAMETER(Position, haas);
 	}
 
 	SET_HISE_POLY_NODE_ID("haas");
-	SN_GET_SELF_AS_OBJECT(haas_impl);
+	SN_GET_SELF_AS_OBJECT(haas);
 	SN_DESCRIPTION("A Haas effect (simulate stereo position using delay)");
 	HISE_EMPTY_HANDLE_EVENT;
 
@@ -380,8 +383,6 @@ public:
 	double position = 0.0;
 	PolyData<DelayType, NumVoices> delay;
 };
-
-DEFINE_EXTERN_NODE_TEMPLATE(haas, haas_poly, haas_impl);
 
 }
 

@@ -355,6 +355,8 @@ public:
 
 struct UnisonoNodeBase: public NodeBase::Holder
 {
+	static constexpr int NumChannels = 2;
+
 	using InterpretedObjectType = wrap::duplicate_base<UnisonoNodeBase, options::dynamic, options::yes, NUM_MAX_UNISONO_VOICES>;
 
 	SN_GET_SELF_AS_OBJECT(UnisonoNodeBase);

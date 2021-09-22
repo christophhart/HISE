@@ -1137,7 +1137,7 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<reverb, wrap::illegal_poly<reverb>, reverb_editor>();
 	registerPolyNode<sampleandhold, sampleandhold_poly, sampleandhold_editor>();
 	registerPolyNode<bitcrush, bitcrush_poly, bitcrush_editor>();
-	registerPolyNode<wrap::fix<2, haas>, wrap::fix<2, haas_poly>>();
+	registerPolyNode<wrap::fix<2, haas<1>>, wrap::fix<2, haas<NUM_POLYPHONIC_VOICES>>>();
 	registerPolyNode<phase_delay, phase_delay_poly, phase_delay_editor>();
 }
 

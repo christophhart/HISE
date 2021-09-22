@@ -992,7 +992,7 @@ scriptnode::ParameterDataList InterpretedUnisonoWrapperNode::createInternalParam
 	{
 		parameter::data p("NumVoices", { 1.0, 16.0, 1.0, 1.0 });
 		p.setDefaultValue(1.0);
-		p.callback.referTo(&obj, Base::setWrapParameterStatic<0>);
+		//p.callback.referTo(&obj, Base::setWrapParameterStatic<0>);
 		l.add(p);
 	}
 	

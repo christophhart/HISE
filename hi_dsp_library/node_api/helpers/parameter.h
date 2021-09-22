@@ -526,37 +526,7 @@ template <class T, int P, class RangeType> struct to0To1 : public single_base<T,
 };
 
 
-template <class T, int P> struct wrap : public single_base<T, P>
-{
-	void call(double v)
-	{
-		jassert(this->isConnected());
-		callStatic(this->obj, v);
-	}
 
-	static void callStatic(void* o, double v)
-	{
-		using ObjectType = typename T::ObjectType;
-
-		static_assert(std::is_same<T, typename T::ObjectType>(), "must be self-aware wrapper");
-
-		jassert(o != nullptr);
-
-		ObjectType::template setWrapParameterStatic<P>(o, v);
-	}
-
-	void addToList(ParameterDataList& d)
-	{
-		data p("plainUnNamed");
-		p.callback.referTo(this->obj, callStatic);
-		d.add(p);
-	}
-
-	template <int Unused> auto& getParameter()
-	{
-		return *this;
-	}
-};
 
 
 /** A parameter chain is a list of parameter callbacks that are processed serially.

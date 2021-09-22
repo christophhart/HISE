@@ -206,6 +206,7 @@ struct Connection
 	{
 		Parameter,
 		Modulation,
+		CloneCable,
 		SwitchTargets,
 		SwitchTarget,
 		numCableTypes
@@ -574,6 +575,7 @@ struct ValueTreeBuilder: public Base
 
 		BuildResult br;
 		br.r = r;
+
 
 		if (r.wasOk())
 			br.code = getCurrentCode();

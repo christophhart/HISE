@@ -91,6 +91,11 @@ struct CloneHelpers
         return s == "container.clone";
     }
     
+	static bool isCloneCable(const ValueTree& v)
+	{
+		return cppgen::CustomNodeProperties::nodeHasProperty(v, PropertyIds::IsCloneCableNode);
+	}
+
     static int getCloneIndex(const ValueTree& v)
     {
         ValueTree t = v;
@@ -657,6 +662,10 @@ void ValueTreeBuilder::emitRangeDefinition(const Identifier& rangeId, Invertable
 		macroName << "_STEP";
 		args.add(Helpers::getCppValueString(r.rng.interval, Types::ID::Double));
 	}
+	if (r.inv)
+	{
+		macroName << "_INV";
+	}
 
 	for (auto& a : args)
 		a = StringHelpers::withToken(IntendMarker, a);
@@ -773,6 +782,38 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 
 	auto pId = p[PropertyIds::ID].toString();
 
+	if (connectionType == Connection::CableType::CloneCable)
+	{
+		cTree = p.getChildWithName(PropertyIds::ModulationTargets);
+
+		if (cTree.getNumChildren() > 1)
+		{
+			auto chainId = pId;
+			chainId << "_cc";
+
+			int pIndex = 0;
+
+			auto dc = makeParameter(chainId, "duplichain", {});
+
+			for (auto c : cTree)
+			{
+				auto ip = createParameterFromConnection(getConnection(c), pId, pIndex++, {});
+				auto cp = makeParameter(pId, "dupli", {});
+				*cp << *ip;
+				*dc << *cp;
+			}
+
+			return dc;
+		}
+		else
+		{
+			auto rawParameter = parseParameter(p, Connection::CableType::Modulation);
+			pId << "_cable_mod";
+			auto cp = makeParameter(pId, "dupli", {});
+			*cp << *rawParameter;
+			return cp;
+		}
+	}
 	if (connectionType == Connection::CableType::Parameter)
 	{
 		cTree = p.getChildWithName(PropertyIds::Connections);
@@ -946,6 +987,9 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 	{
 		if (t.getType() == PropertyIds::Node)
 		{
+			if (CloneHelpers::getCloneIndex(t) > 0)
+				return false;
+
 			if (getNodeId(t) == nId)
 			{
 				auto pTree = t.getChildWithName(PropertyIds::Parameters);
@@ -989,8 +1033,18 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 	{
 		addEmptyLine();
 
-		auto mod = parseParameter(u->nodeTree, hasSingleModTree ? Connection::CableType::Modulation :
-																  Connection::CableType::SwitchTargets);
+		Connection::CableType c;
+
+		if (hasSingleModTree)
+		{
+			c = CloneHelpers::isCloneCable(u->nodeTree) ? 
+				  Connection::CableType::CloneCable :
+				  Connection::CableType::Modulation;
+		}
+		else
+			c = Connection::CableType::SwitchTargets;
+
+		auto mod = parseParameter(u->nodeTree, c);
 
 		mod->flushIfLong();
 
@@ -1613,6 +1667,9 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 			{
 				if (childNode.getType() == PropertyIds::Node)
 				{
+					if (CloneHelpers::getCloneIndex(childNode) > 0)
+						return false;
+
 					if (ValueTreeIterator::isComplexDataNode(childNode))
 					{
 						auto sv = getChildNodeAsStackVariable(childNode);
@@ -1663,6 +1720,8 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
         
 		auto pTree = child.getChildWithName(PropertyIds::Parameters);
 
+		
+
 		auto numParameters = getNumParametersToInitialise(child);
 
 		for (auto p : pTree)
@@ -1680,13 +1739,25 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 				continue;
 			}
 
+			if (CustomNodeProperties::nodeHasProperty(sv->nodeTree, PropertyIds::IsCloneCableNode))
+			{
+				// We don't want the NumClones property to be set as default value
+				// (if it's connected properly, it will automatically resize and this
+				// call would reset it otherwise.
+				if (p[PropertyIds::ID] == PropertyIds::NumClones.toString())
+				{
+					parent << ";";
+					comment << "" << np.getChildId(p[PropertyIds::ID].toString()).toString();
+					comment << " is deactivated";
+					parent.addComment(comment, Base::CommentType::AlignOnSameLine);
+					continue;
+				}
+			}
+
 			String v;
             
-            
-            
             v << sv->toExpression();
-            
-            v << (isCloneContainer ? ".setParameterWT(" : ".setParameterT(");
+            v << ".setParameterT(";
             v << pTree.indexOf(p) << ", ";
 			v << Types::Helpers::getCppValueString(p[PropertyIds::Value], Types::ID::Double);
 			v << ");";

@@ -276,6 +276,8 @@ struct duplicate_sender
 
 	int getNumVoices() const { return numVoices; }
 
+	virtual int getTotalNumVoices() const { return getNumVoices(); }
+
 	virtual void setVoiceAmount(int newNumVoices)
 	{
 		numVoices = newNumVoices;
@@ -338,6 +340,19 @@ template <typename T> struct duplicate_node_reference
         
     }
     
+	void setExternalData(const ExternalData& cd, int index)
+	{
+		auto numVoices = sender->getTotalNumVoices();
+
+		auto obj = reinterpret_cast<uint64>(firstObj);
+
+		for (int i = 0; i < numVoices; i++)
+		{
+			auto typed = reinterpret_cast<T*>(obj);
+			typed->setExternalData(cd, index);
+			obj += objectDelta;
+		}
+	}
 
 	T* firstObj = nullptr;
 	scriptnode::wrap::duplicate_sender* sender;
@@ -362,22 +377,6 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 		duplicate_sender(AllowResizing ? 1 : NumDuplicates)
 	{};
 
-	template <int P> static void setWrapParameterStatic(void* obj, double v)
-	{
-		auto value = (int)v;
-		auto typed = static_cast<duplicate_base*>(obj);
-
-		if constexpr (P == 0)
-			typed->setVoiceAmount(value);
-		if constexpr (P == 1)
-			typed->setDuplicateSignal(v > 0.0);
-	}
-    
-    template <int P> void setWrapParameter(double v)
-    {
-        setWrapParameterStatic<P>(this, v);
-    }
-    
 	void setDuplicateSignal(bool shouldDuplicateSignal)
 	{
 		if constexpr (options::isDynamic(AllowCopySignal))
@@ -392,10 +391,13 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 
 	template <int P> static void setParameterStatic(void* obj, double v)
 	{
+		auto value = (int)v;
 		auto typed = static_cast<duplicate_base*>(obj);
 
-		for (auto& e : *typed)
-			e.setParameterStatic<P>(v);
+		if constexpr (P == 0)
+			typed->setVoiceAmount(value);
+		if constexpr (P == 1)
+			typed->setDuplicateSignal(v > 0.0);
 	}
 
 	PARAMETER_MEMBER_FUNCTION;
@@ -486,6 +488,8 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 	{
 		return options::isTrue(copySignal, AllowCopySignal);
 	}
+
+	int getTotalNumVoices() const override { return NumDuplicates; }
 
 	void resetCopyBuffer()
 	{
@@ -677,14 +681,15 @@ template <class ParameterClass> struct dupli
     
 	void callWithDuplicateIndex(int index, double v)
 	{
-		jassert(sender != nullptr);
+		if (sender != nullptr)
+		{
+			jassert(isPositiveAndBelow(index, sender->getNumVoices()));
 
-		jassert(isPositiveAndBelow(index, sender->getNumVoices()));
+			auto thisPtr = (uint8*)firstObj + index * objectDelta;
 
-		auto thisPtr = (uint8*)firstObj + index * objectDelta;
-
-		p.setObjPtr(thisPtr);
-		p.call(v);
+			p.setObjPtr(thisPtr);
+			p.call(v);
+		}
 	}
 
 	int getNumDuplicates() const
@@ -739,7 +744,7 @@ template <class... DupliParameters> struct duplichain : public advanced_tuple<Du
 
 	void* getObjectPtr() { return this; }
 
-	tuple_iterator2(call, int, index, double, v);
+	tuple_iterator2(callWithDuplicateIndex, int, index, double, v);
 
 	void callWithDuplicateIndex(int index, double v)
 	{

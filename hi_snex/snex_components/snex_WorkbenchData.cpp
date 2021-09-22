@@ -34,6 +34,7 @@
 namespace snex {
 using namespace juce;
 
+using namespace scriptnode;
 DECLARE_PARAMETER_RANGE(FreqRange, 20.0, 20000.0);
 
 String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)

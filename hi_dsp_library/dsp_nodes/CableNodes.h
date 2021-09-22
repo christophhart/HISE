@@ -564,7 +564,9 @@ namespace control
 		
         dupli_pack() : 
 			pimpl::parameter_node_base<ParameterType>(getStaticId())
-		{};
+		{
+			cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsCloneCableNode);
+		};
 
 		void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType t, var data) override
 		{
@@ -663,6 +665,7 @@ namespace control
             control::pimpl::parameter_node_base<ParameterType>(getStaticId()),
             control::pimpl::templated_mode(getStaticId(), "duplilogic")
 		{
+			cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsCloneCableNode);
 			cppgen::CustomNodeProperties::addNodeIdManually(getStaticId(), PropertyIds::IsProcessingHiseEvent);
 
 			this->getParameter().setParentNumVoiceListener(this);

@@ -1074,6 +1074,7 @@ struct OpaqueNetworkHolder
 	void prepare(PrepareSpecs ps)
 	{
 		snex::Types::DllBoundaryTempoSyncer::ScopedModValueChange smvs(*ps.voiceIndex->getTempoSyncer(), ownedNetwork->getNetworkModValue());
+		ownedNetwork->setNumChannels(ps.numChannels);
 		ownedNetwork->prepareToPlay(ps.sampleRate, ps.blockSize);
 	}
 
