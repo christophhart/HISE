@@ -62,6 +62,7 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		ADD_API_METHOD_1(tanh);
 		ADD_API_METHOD_1(atanh);
 		ADD_API_METHOD_1(log);
+		ADD_API_METHOD_1(log2);
 		ADD_API_METHOD_1(log10);
 		ADD_API_METHOD_1(exp);
 		ADD_API_METHOD_2(pow);
@@ -109,6 +110,7 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		API_METHOD_WRAPPER_1(MathClass, tanh);
 		API_METHOD_WRAPPER_1(MathClass, atanh);
 		API_METHOD_WRAPPER_1(MathClass, log);
+		API_METHOD_WRAPPER_1(MathClass, log2);
 		API_METHOD_WRAPPER_1(MathClass, log10);
 		API_METHOD_WRAPPER_1(MathClass, exp);
 		API_METHOD_WRAPPER_2(MathClass, pow);
@@ -218,6 +220,9 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 
 	/** Calculates the log value (with base E). */
 	var log(var value) { return std::log((double)value); }
+
+	/** Calculates the log value (with base 2). */
+	var log2(var value) { return std::log2((double)value); }
 
 	/** Calculates the log value (with base 10). */
 	var log10(var value) { return std::log10((double)value); }
