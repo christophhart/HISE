@@ -82,14 +82,19 @@ class ScriptnodeExceptionHandler
 			return node.get() == other.node.get();
 		}
 
-		String toString() const
+		String toString(const String& customErrorMessage) const
 		{
 			if (node == nullptr || error.error == Error::OK)
 				return {};
 			else
 			{
 				String s;
-				s << node->getCurrentId() << " - " << getErrorMessage(error);
+				s << node->getCurrentId() << " - ";
+				
+				if (customErrorMessage.isNotEmpty())
+					s << customErrorMessage;
+				else
+					s << getErrorMessage(error);
 				return s;
 			}
 		}
@@ -106,8 +111,10 @@ public:
 		return items.isEmpty();
 	}
 
-	void addError(NodeBase* n, Error e)
+	void addError(NodeBase* n, Error e, const String& errorMessage = {})
 	{
+		customErrorMessage = errorMessage;
+
 		for (auto& i : items)
 		{
 			if (i.node == n)
@@ -115,7 +122,6 @@ public:
 				i.error = e;
 				return;
 			}
-				
 		}
 
 		items.add({ n, e });
@@ -123,6 +129,8 @@ public:
 
 	void removeError(NodeBase* n, Error::ErrorCode errorToRemove=Error::numErrorCodes)
 	{
+		customErrorMessage = {};
+
 		for (int i = 0; i < items.size(); i++)
 		{
 			auto e = items[i].error.error;
@@ -157,6 +165,8 @@ public:
 		case Error::NodeDebuggerEnabled: return "Node is being debugged";
 		case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
 		case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
+		case Error::IllegalBypassConnection: return "Use a `container.soft_bypass` node";
+		case Error::CloneMismatch:	return "Clone container must have equal child nodes";
 		case Error::CompileFail:	s << "Compilation error** at Line " << e.expected << ", Column " << e.actual; return s;
 		default:
 			break;
@@ -172,7 +182,9 @@ public:
 		for (auto& i : items)
 		{
 			if (i.node == n)
-				return i.toString();
+			{
+				return i.toString(customErrorMessage);
+			}
 		}
 
 		return {};
@@ -180,7 +192,7 @@ public:
 
 private:
 
-
+	String customErrorMessage;
 	Array<Item> items;
 };
 
