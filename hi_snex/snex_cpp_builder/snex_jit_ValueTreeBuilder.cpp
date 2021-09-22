@@ -51,6 +51,11 @@ namespace FactoryIds
 		return id.getParent().getIdentifier() == container;
 	}
 
+	static bool isClone(const NamespacedIdentifier& id)
+	{
+		return id.toString() == "container::clone";
+	}
+
 	static bool isParameter(const NamespacedIdentifier& id)
 	{
 		return id.getParent().getIdentifier() == parameter;
@@ -448,14 +453,20 @@ Node::Ptr ValueTreeBuilder::parseSnexNode(Node::Ptr u)
 
 Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 {
+	if (FactoryIds::isClone(getNodePath(u->nodeTree)))
+	{
+		return parseCloneContainer(u);
+	}
+
 	if (FactoryIds::isContainer(getNodePath(u->nodeTree)))
 	{
+		
+
         int numToUse = numChannelsToCompile;
         
         if(u->nodeTree[PropertyIds::FactoryPath] == "container.multi")
         {
             int numChildren = u->nodeTree.getChildWithName(PropertyIds::Nodes).getNumChildren();
-            
             numToUse /= jmax(1, numChildren);
         }
         
@@ -469,31 +480,11 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 
 		auto needsInitialisation = u->isRootNode();
 		
-#if 0
-		[](Node::Ptr u)
-		{
-			auto hasParameters = u->nodeTree.getChildWithName(PropertyIds::Parameters).getNumChildren() != 0;
-
-			bool hasNodesWithParameters = false;
-
-			for (auto c : u->nodeTree.getChildWithName(PropertyIds::Nodes))
-			{
-				hasNodesWithParameters |= c.getChildWithName(PropertyIds::Parameters).getNumChildren() != 0;
-			}
-
-			return hasParameters || hasNodesWithParameters;
-		};
-#endif
-
 		if (needsInitialisation)
-		{
 			return parseRootContainer(u);
-		}
 
 		auto realPath = u->nodeTree[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf("container.", false, false);
 
-        
-        
 		if (realPath.startsWith("modchain"))
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::control_rate"));
@@ -544,6 +535,42 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 	return parseMod(u);
 }
 
+Node::Ptr ValueTreeBuilder::parseCloneContainer(Node::Ptr u)
+{
+	auto hasNumCloneAutomation = (bool)u->nodeTree.getChildWithName(PropertyIds::Parameters).getChild(0)[PropertyIds::Automated];
+
+	auto isSplitSignal = (bool)u->nodeTree.getChildWithName(PropertyIds::Parameters).getChild(1)[PropertyIds::Value];
+
+	String cloneClassId;
+
+	if (hasNumCloneAutomation && isSplitSignal)
+		cloneClassId = "duplisplit";
+	if (!hasNumCloneAutomation && isSplitSignal)
+		cloneClassId = "fix_duplisplit";
+	if (hasNumCloneAutomation && !isSplitSignal)
+		cloneClassId = "duplichain";
+	if (!hasNumCloneAutomation && !isSplitSignal)
+		cloneClassId = "fix_duplichain";
+
+	auto firstChild = u->nodeTree.getChildWithName(PropertyIds::Nodes).getChild(0);
+
+	auto firstNode = parseNode(firstChild);
+
+	if (!FactoryIds::isContainer(getNodePath(firstChild)))
+	{
+		UsingTemplate innerChain(*this, "internal", NamespacedIdentifier::fromString("container::chain"));
+
+		innerChain << "parameter::empty";
+		innerChain << *firstNode;
+
+		*u << innerChain;
+	}
+	else
+		*u << *firstNode;
+
+	return u;
+}
+
 void ValueTreeBuilder::emitRangeDefinition(const Identifier& rangeId, InvertableParameterRange r)
 {
 	StringArray args;
@@ -576,8 +603,6 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
 {
 	Node::List children;
 
-    
-    
     auto nodeTree = container->nodeTree.getChildWithName(PropertyIds::Nodes);
     
 	ValueTreeIterator::forEach(nodeTree, ValueTreeIterator::OnlyChildren, [&](ValueTree& c)
@@ -1388,8 +1413,9 @@ snex::NamespacedIdentifier ValueTreeIterator::getNodeFactoryPath(const ValueTree
 	{
 		auto isSplit = fId.id.toString() == "split";
 		auto isMulti = fId.id.toString() == "multi";
+		auto isClone = fId.id.toString() == "clone";
 
-		if (!isSplit && !isMulti)
+		if (!isSplit && !isMulti && !isClone)
 		{
 			return NamespacedIdentifier::fromString("container::chain");
 		}

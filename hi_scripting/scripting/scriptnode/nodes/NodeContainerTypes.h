@@ -199,16 +199,16 @@ template <typename T> struct clone
 
 	- sync values? OK
 	- sync parameter ranges OK
-	- sync modulation connections (?)
+	- sync modulation connections OK
 	- make toolbar: clone, delete all clones, hide clones OK
 	- make spread OK
 	- remove clone_holder as lambda listener somehow (enforce bug when switching to other clone container?) OK
 	- fix crashes, dupli_pack OK
 	- add clone-ducker OK
 	- make duplicable fix mode OK
-	- implement multiple target parameters
-	- force connection to first module
-	- disallow modulation, connections from outside
+	- implement multiple target parameters OK
+	- force connection to first module OK
+	- disallow modulation, connections from outside OK
 	- cppgen
 	- rename everything from dupli to clone
 	- remove all old unisono stuff

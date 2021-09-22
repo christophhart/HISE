@@ -792,6 +792,8 @@ private:
 	
 	Node::Ptr parseContainer(Node::Ptr u);
 
+	Node::Ptr parseCloneContainer(Node::Ptr u);
+
 	void emitRangeDefinition(const Identifier& rangeId, InvertableParameterRange r);
 
 	void parseContainerChildren(Node::Ptr container);
