@@ -49,6 +49,12 @@ struct InvertableParameterRange
 		inv(false)
 	{};
 
+	bool operator==(const InvertableParameterRange& other) const;
+
+	InvertableParameterRange(const ValueTree& v);
+
+	void store(ValueTree& v, UndoManager* um);
+
 	InvertableParameterRange(double start, double end, double interval, double skew=1.0) :
 		rng(start, end, interval, skew),
 		inv(false)
@@ -56,6 +62,9 @@ struct InvertableParameterRange
 
 	double convertFrom0to1(double input) const
 	{
+		if (isIdentity)
+			return input;
+
 		input = inv ? (1.0 - input) : input;
 		return rng.convertFrom0to1(input);
 	}
@@ -69,6 +78,9 @@ struct InvertableParameterRange
 
 	double convertTo0to1(double input) const
 	{
+		if (isIdentity)
+			return input;
+
 		input = rng.convertTo0to1(input);
 		return inv ? (1.0 - input) : input;
 	}
@@ -88,8 +100,14 @@ struct InvertableParameterRange
 		rng.setSkewForCentre(value);
 	}
 
+	void checkIfIdentity();
+
 	juce::NormalisableRange<double> rng;
 	bool inv = false;
+
+private:
+
+	bool isIdentity = false;
 };
 
 struct RangeHelpers
@@ -100,7 +118,7 @@ struct RangeHelpers
 
 	static bool isIdentity(InvertableParameterRange d);
 
-	static Array<Identifier> getRangeIds();
+	static Array<Identifier> getRangeIds(bool includeValue=false);
 
 	/** Checks if the range should be inverted. */
 	static bool isInverted(const ValueTree& v);

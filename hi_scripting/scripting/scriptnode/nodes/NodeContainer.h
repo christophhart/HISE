@@ -41,8 +41,7 @@ using namespace hise;
 struct NodeContainer : public AssignableObject
 {
 	struct MacroParameter : public NodeBase::Parameter,
-							public SnexDebugHandler,
-							public PooledUIUpdater::SimpleTimer
+							public SnexDebugHandler
 	{
 		struct Connection: public ConnectionBase
 		{
@@ -75,6 +74,8 @@ struct NodeContainer : public AssignableObject
 
 		void rebuildCallback();
 		void updateRangeForConnection(ValueTree v, Identifier);
+
+		void setCallbackNew(parameter::dynamic_base::Ptr ownedNew) override;
 
 		void updateConnectionForExpression(ValueTree v, Identifier)
 		{
@@ -120,6 +121,7 @@ struct NodeContainer : public AssignableObject
 		valuetree::RecursivePropertyListener rangeListener;
 		valuetree::RecursivePropertyListener expressionListener;
 		valuetree::PropertyListener inputRangeListener;
+		ReferenceCountedObjectPtr<parameter::dynamic_base_holder> pholder;
 
 		ReferenceCountedArray<Connection> connections;
 		bool initialised = false;

@@ -57,18 +57,21 @@ bool RangeHelpers::isBypassIdentity(InvertableParameterRange d)
 
 bool RangeHelpers::isIdentity(InvertableParameterRange d)
 {
-	if (d.rng.start == 0.0 && d.rng.end == 1.0 && d.rng.skew == 1.0)
+	if (d.rng.start == 0.0 && d.rng.end == 1.0 && d.rng.skew == 1.0 && !d.inv)
 		return true;
 
 	return false;
 }
 
 
-juce::Array<juce::Identifier> RangeHelpers::getRangeIds()
+juce::Array<juce::Identifier> RangeHelpers::getRangeIds(bool includeValue)
 {
 	using namespace PropertyIds;
 
-	return { MinValue, MaxValue, StepSize, SkewFactor};
+	if(includeValue)
+		return { MinValue, MaxValue, StepSize, SkewFactor, Value};
+	else
+		return { MinValue, MaxValue, StepSize, SkewFactor };
 }
 
 
@@ -349,6 +352,26 @@ namespace parameter
 	}
 
 
+}
+
+InvertableParameterRange::InvertableParameterRange(const ValueTree& v)
+{
+	*this = RangeHelpers::getDoubleRange(v);
+}
+
+bool InvertableParameterRange::operator==(const InvertableParameterRange& other) const
+{
+	return RangeHelpers::isEqual(*this, other);
+}
+
+void InvertableParameterRange::checkIfIdentity()
+{
+	isIdentity = RangeHelpers::isIdentity(*this);
+}
+
+void InvertableParameterRange::store(ValueTree& v, UndoManager* um)
+{
+	RangeHelpers::storeDoubleRange(v, *this, um);
 }
 
 }

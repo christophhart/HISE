@@ -821,17 +821,14 @@ struct xy_editor : public ScriptnodeExtraComponent<control::xy<parameter::dynami
 		auto xValue = (pos.getX() - a.getX()) / a.getWidth();
 		auto yValue = 1.0f - (pos.getY() - a.getY()) / a.getHeight();
 
-		findParentComponentOfClass<NodeComponent>()->node->getParameter(0)->setValueAndStoreAsync(xValue);
-		findParentComponentOfClass<NodeComponent>()->node->getParameter(1)->setValueAndStoreAsync(yValue);
+		findParentComponentOfClass<NodeComponent>()->node->getParameter(0)->setValueFromUI(xValue);
+		findParentComponentOfClass<NodeComponent>()->node->getParameter(1)->setValueFromUI(yValue);
 	}
 
 	void timerCallback() override
 	{
-		for (auto o : getObject()->p.targets)
-			o->p.updateUI();
-
-		auto x = jlimit(0.0f, 1.0f, (float)getObject()->p.getParameter<0>().lastValue);
-		auto y = jlimit(0.0f, 1.0f, (float)getObject()->p.getParameter<1>().lastValue);
+		auto x = jlimit(0.0f, 1.0f, (float)getObject()->p.getParameter<0>().getDisplayValue());
+		auto y = jlimit(0.0f, 1.0f, (float)getObject()->p.getParameter<1>().getDisplayValue());
 
 		lastPositions.insert(0, normalisedPosition);
 
@@ -1186,7 +1183,8 @@ namespace control
 
 	using dynamic_smoother_parameter = control::smoothed_parameter<smoothers::dynamic>;
 
-	using dynamic_dupli_pack = wrap::data<control::dupli_pack<parameter::dynamic_base_holder>, data::dynamic::sliderpack>;
+
+	
 
  	Factory::Factory(DspNetwork* network) :
 		NodeFactory(network)
@@ -1218,7 +1216,7 @@ namespace control
 
 		registerNoProcessNode<file_analysers::dynamic::NodeType, file_analysers::dynamic::editor, false>(); //>();
 
-		registerNodeRaw<InterpretedUnisonoWrapperNode>();
+		
 
 		registerModNode<tempo_sync, TempoDisplay>();
 	}
@@ -1252,12 +1250,6 @@ namespace dynamic
 		static String getAxis(int index)
 		{
 			return index == 0 ? "CV" : "GT";
-		}
-
-		void timerCallback() override
-		{
-			for (auto o : getObject()->p.targets)
-				o->p.updateUI();
 		}
 
 		Dragger modValue, activeValue;
@@ -1340,6 +1332,11 @@ namespace dynamic
 		void paint(Graphics& g) override
 		{
 			
+		}
+
+		void timerCallback() override
+		{
+
 		}
 
 		static Component* createExtraComponent(void* o, PooledUIUpdater* updater)
@@ -1439,6 +1436,11 @@ namespace dynamic
 		{
 			addAndMakeVisible(visualiser);
 			setSize(300, 32 * 2 + 2 * UIValues::NodeMargin);
+		}
+
+		void timerCallback() override
+		{
+
 		}
 
 		void resized() override

@@ -53,9 +53,12 @@ dynamic_base::dynamic_base() :
 }
 
 
-scriptnode::parameter::dynamic_base* dynamic_base::createFromConnectionTree(const ValueTree& c, parameter::dynamic& callback, bool allowRange)
+scriptnode::parameter::dynamic_base::Ptr dynamic_base::createFromConnectionTree(const ValueTree& c, parameter::dynamic& callback, bool allowRange)
 {
-	ScopedPointer<dynamic_base> b;
+	dynamic_base::Ptr b = new dynamic_base(callback);
+	b->updateRange(c);
+
+#if 0
 
 	auto r = RangeHelpers::getDoubleRange(c);
 	auto e = c[PropertyIds::Expression].toString();
@@ -87,9 +90,20 @@ scriptnode::parameter::dynamic_base* dynamic_base::createFromConnectionTree(cons
 	}
 	else
 		b = new parameter::dynamic_base(callback);
+#endif
 
-	return b.release();
+	if (c.hasProperty(PropertyIds::Value))
+	{
+		b->lastValue = c[PropertyIds::Value];
+	}
+
+
+	return b;
 }
+
+
+
+
 
 }
 

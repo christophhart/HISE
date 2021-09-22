@@ -942,7 +942,7 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index_) :
     setLearnable(node->getRootNetwork()->getRootNode() == node);
 
 	connectionListener.setTypesToWatch({ PropertyIds::Connections, PropertyIds::ModulationTargets, PropertyIds::Nodes });
-	connectionListener.setCallback(pTree.getRoot(), valuetree::AsyncMode::Synchronously,
+	connectionListener.setCallback(pTree.getRoot(), valuetree::AsyncMode::Asynchronously,
 		BIND_MEMBER_FUNCTION_2(ParameterSlider::updateOnConnectionChange));
 
 	rangeListener.setCallback(pTree, RangeHelpers::getRangeIds(),
@@ -955,6 +955,12 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index_) :
 	{
 		setValue(newValue, dontSendNotification);
 		repaint();
+	});
+
+	automationListener.setCallback(pTree, {PropertyIds::Automated}, valuetree::AsyncMode::Asynchronously,
+	[this](const Identifier& id, var newValue)
+	{
+		checkEnabledState();
 	});
 
 	addListener(this);
@@ -992,17 +998,13 @@ void ParameterSlider::updateOnConnectionChange(ValueTree p, bool wasAdded)
 
 void ParameterSlider::checkEnabledState()
 {
-	modulationActive = getConnectionSourceTree().isValid();
-
+	modulationActive = parameterToControl->isModulated();
 	setEnabled(!modulationActive);
 
 	if (modulationActive)
 		start();
 	else
-	{
 		stop();
-		parameterToControl->getDynamicParameterAsHolder()->setDisplaySource(nullptr);
-	}
 
 	if (auto g = findParentComponentOfClass<DspNetworkGraph>())
 		g->repaint();
@@ -1040,6 +1042,17 @@ void ParameterSlider::paint(Graphics& g)
 	}
 }
 
+
+void ParameterSlider::timerCallback()
+{
+	auto thisDisplayValue = getValueToDisplay();
+
+	if (thisDisplayValue != lastDisplayValue)
+	{
+		lastDisplayValue = thisDisplayValue;
+		repaint();
+	}
+}
 
 void ParameterSlider::itemDragEnter(const SourceDetails& )
 {
@@ -1370,7 +1383,7 @@ void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int wid
 	b = b.removeFromTop(48);
 	b = b.withSizeKeepingCentre(48, 48).translated(0.0f, 3.0f);
 
-	drawVectorRotaryKnob(g, b.toFloat(), modProportion, isBipolar, s.isMouseOverOrDragging(true), s.isMouseButtonDown(), s.isEnabled(), modProportion);
+	drawVectorRotaryKnob(g, b.toFloat(), modProportion, isBipolar, s.isMouseOverOrDragging(true) || ps->parameterToControl->isModulated(), s.isMouseButtonDown(), s.isEnabled(), modProportion);
 }
 
 MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :

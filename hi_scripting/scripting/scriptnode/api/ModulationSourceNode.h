@@ -92,8 +92,7 @@ private:
 };
     
 class ModulationSourceNode: public WrapperNode,
-							public SnexDebugHandler,
-							public PooledUIUpdater::SimpleTimer
+							public SnexDebugHandler
 {
 public:
 
@@ -132,7 +131,7 @@ public:
 	virtual bool isUsingNormalisedRange() const = 0;
 	virtual parameter::dynamic_base_holder* getParameterHolder() { return nullptr; }
 
-	parameter::dynamic_base* createDynamicParameterData(ValueTree& m);
+	parameter::dynamic_base::Ptr createDynamicParameterData(ValueTree& m);
 
 	void rebuildModulationConnections();
 

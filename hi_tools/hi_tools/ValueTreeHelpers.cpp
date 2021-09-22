@@ -419,6 +419,7 @@ void ChildListener::valueTreeChildAdded(ValueTree& p, ValueTree& c)
 	case AsyncMode::Unregistered:
 		break;
 	case AsyncMode::Synchronously:
+		currentParent = p;
 		cb(c, true);
 		break;
 	case AsyncMode::Asynchronously:
@@ -444,15 +445,19 @@ void ChildListener::valueTreeChildAdded(ValueTree& p, ValueTree& c)
 }
 
 
-void ChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
+void ChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int r)
 {
 	if (!cb || ((p != v) && !allowCallbacksForChildEvents))
 		return;
+
+	
 
 	switch (mode)
 	{
 	case AsyncMode::Unregistered: break;
 	case AsyncMode::Synchronously:
+		removeIndex = r;
+		currentParent = p;
 		cb(c, false);
 		break;
 	case valuetree::AsyncMode::Coallescated: // don't coallescate removals
@@ -469,7 +474,42 @@ void ChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
 	}
 }
 
+juce::ValueTree ChildListener::getCurrentParent() const
+{
+	jassert(mode == AsyncMode::Synchronously); 
+	return currentParent;
+}
 
+int ChildListener::getRemoveIndex() const
+{
+	jassert(mode == AsyncMode::Synchronously);
+	return removeIndex;
+}
+
+void forEach(ValueTree& v, const std::function<void(ValueTree&)>& f)
+{
+	f(v);
+
+	for (auto& c : v)
+		forEach(c, f);
+}
+
+void RecursiveTypedChildListener::sendAddMessageForAllChildren()
+{
+	if (mode == AsyncMode::Synchronously)
+	{
+		forEach(v, [this](ValueTree& vt)
+		{
+			this->currentParent = vt.getParent();
+			this->removeIndex = -1;
+
+			if (parentTypes.contains(vt.getType()))
+				this->cb(vt, true);
+		});
+	}
+	else
+		ChildListener::sendAddMessageForAllChildren();
+}
 
 void RecursiveTypedChildListener::valueTreeChildAdded(ValueTree& p, ValueTree& c)
 {

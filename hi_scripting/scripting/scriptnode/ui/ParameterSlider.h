@@ -181,7 +181,7 @@ struct ParameterSlider : public Slider,
 	void updateRange(Identifier, var);
 	void paint(Graphics& g) override;
 
-	void timerCallback() override { repaint(); }
+	void timerCallback() override;
 
 	bool isInterestedInDragSource(const SourceDetails& details) override;
 	void itemDragEnter(const SourceDetails& dragSourceDetails) override;
@@ -194,6 +194,7 @@ struct ParameterSlider : public Slider,
 	
 	valuetree::PropertyListener valueListener;
 	valuetree::PropertyListener rangeListener;
+	valuetree::PropertyListener automationListener;
 
 	/** Returns either the Connection or the ModulationTarget, or SwitchTarget tree if it's connected. */
 	ValueTree getConnectionSourceTree();

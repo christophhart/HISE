@@ -422,7 +422,7 @@ struct ChildListener : public Base
 	void setCallback(ValueTree treeToListenTo, AsyncMode asyncMode, const ChildChangeCallback& newCallback);
 
 	/** Sends a message for all children of the parent. */
-	void sendAddMessageForAllChildren();
+	virtual void sendAddMessageForAllChildren();
 
 	void forwardCallbacksForChildEvents(bool shouldFireCallbacksForChildEvents)
 	{
@@ -431,6 +431,15 @@ struct ChildListener : public Base
 
 	/** Returns the tree that this class is listening to. */
 	ValueTree getParentTree() { return v; }
+
+	/** Use this function to get the current parent.
+
+		The value tree might be already removed from it and getParent() would return a invalid parent.
+	*/
+	ValueTree getCurrentParent() const;
+
+	/** Get the index of the valuetree before it was removed from its parent. */
+	int getRemoveIndex() const;
 
 protected:
 
@@ -454,8 +463,13 @@ protected:
 	void valueTreeChildAdded(ValueTree& p, ValueTree& c) override;
 	void valueTreeChildRemoved(ValueTree& p, ValueTree& c, int) override;
 
+	
+	
 	ValueTree v;
 	ChildChangeCallback cb;
+
+	ValueTree currentParent;
+	int removeIndex = 0;
 };
 
 /** A listener that watches all children of the root tree with the given ID for child changes. */
@@ -475,6 +489,8 @@ struct RecursiveTypedChildListener : public ChildListener
 	{
 		parentTypes = newParentTypes;
 	}
+
+	void sendAddMessageForAllChildren() override;
 
 private:
 

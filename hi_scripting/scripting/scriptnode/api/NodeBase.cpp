@@ -81,8 +81,6 @@ NodeBase::~NodeBase()
 
 void NodeBase::prepare(PrepareSpecs specs)
 {
-	jassert(!isUINodeOfDuplicate());
-
 	if(lastSpecs.numChannels == 0)
 		setBypassed(isBypassed());
 
@@ -95,7 +93,7 @@ void NodeBase::prepare(PrepareSpecs specs)
 			continue;
 
 		auto v = p->getValue();
-		p->setValueAndStoreAsync(v);
+		p->setValue(v);
 	}
 }
 
@@ -349,8 +347,6 @@ void NodeBase::addParameter(Parameter* p)
 	ParameterSorter sorter;
 
 	parameters.addSorted(sorter, p);
-
-	p->getDynamicParameter()->call(p->getValue());
 }
 
 
@@ -398,6 +394,11 @@ String NodeBase::getCpuUsageInPercent() const
 	}
 
 	return s;
+}
+
+bool NodeBase::isClone() const
+{
+	return findParentNodeOfType<CloneNode>() != nullptr;
 }
 
 void NodeBase::setEmbeddedNetwork(NodeBase::Holder* n)
@@ -553,21 +554,21 @@ struct Parameter::Wrapper
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getId);
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getValue);
 	API_METHOD_WRAPPER_1(NodeBase::Parameter, addConnectionFrom);
-	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValueAndStoreAsync);
+	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValue);
 };
 
 Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
 	ConstScriptingObject(parent_->getScriptProcessor(), 4),
 	parent(parent_),
 	data(data_),
-	dynamicParameter(new parameter::dynamic_base_holder())
+	dynamicParameter()
 {
 	auto initialValue = (double)data[PropertyIds::Value];
 	auto weakThis = WeakReference<Parameter>(this);
 
 	ADD_API_METHOD_0(getValue);
 	ADD_API_METHOD_1(addConnectionFrom);
-	ADD_API_METHOD_1(setValueAndStoreAsync);
+	ADD_API_METHOD_1(setValue);
 
 #define ADD_PROPERTY_ID_CONSTANT(id) addConstant(id.toString(), id.toString());
 
@@ -576,12 +577,18 @@ Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
 	ADD_PROPERTY_ID_CONSTANT(PropertyIds::MidPoint);
 	ADD_PROPERTY_ID_CONSTANT(PropertyIds::StepSize);
 
-	setValueAndStoreAsync(initialValue);
-
 	valuePropertyUpdater.setCallback(data, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
 		std::bind(&NodeBase::Parameter::updateFromValueTree, this, std::placeholders::_1, std::placeholders::_2));
 
+	rangeListener.setCallback(data, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(NodeBase::Parameter::updateRange));
+
 	automationRemover.setCallback(data, valuetree::AsyncMode::Synchronously, true, BIND_MEMBER_FUNCTION_1(Parameter::updateConnectionOnRemoval));
+}
+
+void Parameter::updateRange(Identifier, var)
+{
+	if (dynamicParameter != nullptr)
+		dynamicParameter->updateRange(data);
 }
 
 void Parameter::updateConnectionOnRemoval(ValueTree& c)
@@ -598,28 +605,41 @@ juce::String Parameter::getId() const
 
 double Parameter::getValue() const
 {
-	return dynamicParameter->getDisplayValue();
+	if(dynamicParameter != nullptr)
+		return dynamicParameter->getDisplayValue();
+
+	return (double)data[PropertyIds::Value];
 }
 
-void Parameter::setCallbackNew(parameter::dynamic_base* ownedNew)
+void Parameter::setCallbackNew(parameter::dynamic_base::Ptr ownedNew)
 {
 	// We don't need to lock if the network isn't active yet...
 	bool useLock = parent->isActive(true) && parent->getRootNetwork()->isInitialised();
 	SimpleReadWriteLock::ScopedWriteLock sl(parent->getRootNetwork()->getConnectionLock(), useLock);
 
-	if (auto ph = dynamic_cast<parameter::dynamic_base_holder*>(dynamicParameter.get()))
-		ph->setParameter(ownedNew);
+	dynamicParameter = ownedNew;
+
+	if (dynamicParameter != nullptr)
+	{
+		dynamicParameter->updateRange(data);
+
+		if (data.hasProperty(PropertyIds::Value))
+			dynamicParameter->call((double)data[PropertyIds::Value]);
+	}
 }
 
-void Parameter::setValueAndStoreAsync(double newValue)
+void Parameter::setValue(double newValue)
 {
-	if (!connectionSourceTree.isValid()) // prevent overriding all voice parameters
+	if (dynamicParameter != nullptr)
 	{
 		DspNetwork::NoVoiceSetter nvs(*parent->getRootNetwork());
 		dynamicParameter->call(newValue);
 	}
-	else
-		dynamicParameter->setUIValue(newValue);
+}
+
+void Parameter::setValueFromUI(double newValue)
+{
+	data.setProperty(PropertyIds::Value, newValue, parent->getUndoManager());
 }
 
 juce::ValueTree Parameter::getConnectionSourceTree(bool forceUpdate)
@@ -699,7 +719,7 @@ struct DragHelpers
 	{
 		DynamicObject::Ptr details = new DynamicObject();
 
-		details->setProperty(PropertyIds::ModulationTarget, isMod);
+		details->setProperty(PropertyIds::Automated, isMod);
 		details->setProperty(PropertyIds::ID, sourceNodeId);
 		details->setProperty(PropertyIds::ParameterId, parameterId);
 		
@@ -731,7 +751,7 @@ struct DragHelpers
 			return dynamic_cast<ModulationSourceNode*>(parent->getRootNetwork()->getNodeWithId(dragDetails.toString()));
 		}
 
-		if ((bool)dragDetails.getProperty(PropertyIds::ModulationTarget, false))
+		if ((bool)dragDetails.getProperty(PropertyIds::Automated, false))
 		{
 			auto sourceNodeId = getSourceNodeId(dragDetails);
 			auto list = parent->getRootNetwork()->getListOfNodesWithType<ModulationSourceNode>(false);
@@ -855,7 +875,7 @@ var NodeBase::Parameter::addConnectionFrom(var dragDetails)
 	}
 	else
 	{
-		auto c = getConnectionSourceTree(false);
+		auto c = getConnectionSourceTree(true);
 
 		if (c.isValid())
 			c.getParent().removeChild(c, parent->getUndoManager());
@@ -1024,13 +1044,25 @@ ConnectionBase::ConnectionBase(ProcessorWithScriptingContent* p, ValueTree data_
 	ADD_API_METHOD_2(set);
 }
 
-scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnectionTree(NodeBase* n, const ValueTree& connectionTree, bool throwIfNotFound)
+scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConnectionTree(NodeBase* n, const ValueTree& connectionTree, bool scaleInput)
 {
-	jassert(connectionTree.getType() == PropertyIds::Connections);
+	static const Array<Identifier> validIds =
+	{
+		PropertyIds::Connections,
+		PropertyIds::ModulationTargets,
+		PropertyIds::SwitchTargets
+	};
 
-	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
+	jassert(validIds.contains(connectionTree.getType()));
 
-	chain->inputRange = RangeHelpers::getDoubleRange(connectionTree.getParent());
+	parameter::dynamic_base::Ptr chain;
+	
+	auto numConnections = connectionTree.getNumChildren();
+
+	if (numConnections == 0)
+		return nullptr;
+
+	auto inputRange = RangeHelpers::getDoubleRange(connectionTree.getParent());
 
 	for (auto c : connectionTree)
 	{
@@ -1039,66 +1071,53 @@ scriptnode::parameter::dynamic_chain* ConnectionBase::createParameterFromConnect
 		auto tn = n->getRootNetwork()->getNodeWithId(nId);
 
 		if (tn == nullptr)
-		{
-			if (throwIfNotFound)
-				throw nId;
-			else
-				continue;
-		}
+			return nullptr;
+
+		parameter::dynamic_base::Ptr p;
 
 		if (pId == PropertyIds::Bypassed.toString())
 		{
-			auto r = RangeHelpers::getDoubleRange(c).getRange();
-
 			if (auto validNode = dynamic_cast<SoftBypassNode*>(tn))
 			{
-				chain->addParameter(new NodeBase::DynamicBypassParameter(tn, r));
+				auto r = RangeHelpers::getDoubleRange(c).getRange();
+				p = new NodeBase::DynamicBypassParameter(tn, r);
 			}
 			else
 			{
 				Error e;
 				e.error = Error::IllegalBypassConnection;
-
 				tn->getRootNetwork()->getExceptionHandler().addError(tn, e);
-				chain->addParameter(new NodeBase::DynamicBypassParameter(tn, r));
+				return nullptr;
 			}
 		}
 		else if (auto param = tn->getParameter(pId))
 		{
-#if HISE_INCLUDE_SNEX
-			if (auto sn = dynamic_cast<SnexSource::SnexParameter*>(param))
-			{
-				ScopedPointer<parameter::dynamic_base> b;
-				b = parameter::dynamic_base::createFromConnectionTree(c, sn->p);
-				b->setDataTree(sn->data);
-				chain->addParameter(b.release());
-				continue;
-			}
-#endif
-
-			if (auto mp = dynamic_cast<NodeContainer::MacroParameter*>(param))
-			{
-				chain->addParameter(mp->getDynamicParameter());
-			}
-			else
-			{
-				auto pList = tn->createInternalParameterList();
-
-				for (auto p : pList)
-				{
-					if (p.info.getId() == pId)
-					{
-						parameter::dynamic_base::Ptr b;
-						b = parameter::dynamic_base::createFromConnectionTree(c, p.callback);
-						b->setDataTree(param->data);
-						chain->addParameter(b);
-					}
-				}
-			}
+			p = param->getDynamicParameter();
 		}
+
+		if (numConnections == 1)
+		{
+			if (!scaleInput || p->getRange() == inputRange)
+				return p;
+		}
+
+		if (chain == nullptr)
+		{
+			if (scaleInput)
+				chain = new parameter::dynamic_chain<true>();
+			else
+				chain = new parameter::dynamic_chain<false>();
+
+			chain->updateRange(connectionTree.getParent());
+		}
+
+		if (scaleInput)
+			dynamic_cast<parameter::dynamic_chain<true>*>(chain.get())->addParameter(p);
+		else
+			dynamic_cast<parameter::dynamic_chain<false>*>(chain.get())->addParameter(p);
 	}
 
-	return chain.release();
+	return chain;
 }
 
 void ConnectionBase::initRemoveUpdater(NodeBase* parent)

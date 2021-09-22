@@ -1484,6 +1484,8 @@ template <typename ReturnType, typename... Ps> struct SafeLambdaBase
 	virtual ReturnType call(Ps... parameters) = 0;
 
 	virtual bool isValid() const = 0;
+
+	virtual bool matches(void* other) const = 0;
 };
 
 template <class T, typename ReturnType, typename...Ps> struct SafeLambda : public SafeLambdaBase<ReturnType, Ps...>
@@ -1498,6 +1500,8 @@ template <class T, typename ReturnType, typename...Ps> struct SafeLambda : publi
 	};
 
 	bool isValid() const final override { return item.get() != nullptr; };
+
+	bool matches(void* obj) const final override { return static_cast<void*>(item.get()) == obj; };
 
 	ReturnType call(Ps... parameters) override
 	{
@@ -1553,6 +1557,29 @@ template <typename...Ps> struct LambdaBroadcaster final
 		listeners.add(new SafeLambda<T, void, Ps...>(obj, f));
 
 		std::apply(*listeners.getLast(), lastValue);
+	}
+
+	/** Removes all callbacks for the given object. 
+	
+		You don't need to call this method unless you explicitely want to stop listening 
+		for a certain object as the broadcaster class will clean up dangling objects automatically. 
+	*/
+	template <typename T> bool removeListener(T& obj)
+	{
+		bool found = false;
+
+		for (int i = 0; i < listeners.size(); i++)
+		{
+			if (listeners[i]->matches(&obj))
+			{
+				listeners.remove(i--);
+				found = true;
+			}
+		}
+
+		removeDanglingObjects();
+
+		return true;
 	}
 
 	/** Sends a message to all registered listeners. Be aware that this call is not realtime safe as this class

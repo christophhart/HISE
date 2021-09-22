@@ -186,7 +186,6 @@ InterpretedModNode::InterpretedModNode(DspNetwork* parent, ValueTree d) :
 
 void InterpretedModNode::postInit()
 {
-	stop();
 	Base::postInit();
 }
 
@@ -198,11 +197,6 @@ void* InterpretedModNode::getObjectPtr()
 scriptnode::ParameterDataList InterpretedModNode::createInternalParameterList()
 {
 	return createInternalParameterListFromWrapper();
-}
-
-void InterpretedModNode::timerCallback()
-{
-	getParameterHolder()->updateUI();
 }
 
 bool InterpretedModNode::isUsingNormalisedRange() const
@@ -892,11 +886,11 @@ InterpretedUnisonoWrapperNode::InterpretedUnisonoWrapperNode(DspNetwork* n, Valu
 		auto np = new Parameter(this, pTree);
 
 		addParameter(np);
-		np->getDynamicParameterAsHolder()->setParameter(new parameter::dynamic_base(p.callback));
+		np->setCallbackNew(new parameter::dynamic_base(p.callback));
 	}
 }
 
-ReferenceCountedArray<Parameter> InterpretedUnisonoWrapperNode::getParameterList(const ValueTree& pTree)
+ReferenceCountedArray<Parameter> InterpretedUnisonoWrapperNode::getParameterList(const ValueTree& nodeTree, parameter::dynamic_base::Ptr cb)
 {
 	ReferenceCountedArray<Parameter> list;
 
@@ -904,16 +898,19 @@ ReferenceCountedArray<Parameter> InterpretedUnisonoWrapperNode::getParameterList
 
 	for (auto& o : obj)
 	{
-		o.getRootNode()->forEach([&list, &pTree](NodeBase::Ptr nb)
+		o.getRootNode()->forEach([&list, &nodeTree, cb](NodeBase::Ptr nb)
 		{
-			for (int i = 0; i < nb->getNumParameters(); i++)
+			if (nb->getValueTree() == nodeTree)
 			{
-				auto p = nb->getParameter(i);
-
-				if (p->data == pTree)
+				for (int i = 0; i < nb->getNumParameters(); i++)
 				{
-					list.add(p);
-					return true;
+					auto p = nb->getParameter(i);
+
+					if (p->getDynamicParameter()->f == cb->f)
+					{
+						list.add(p);
+						return true;
+					}
 				}
 			}
 
@@ -1000,6 +997,12 @@ scriptnode::ParameterDataList InterpretedUnisonoWrapperNode::createInternalParam
 	}
 	
 	return l;
+}
+
+scriptnode::parameter::dynamic_base_holder* control::dynamic_dupli_pack::getParameterFunction(void* obj)
+{
+	auto typed = static_cast<dynamic_dupli_pack*>(obj);
+	return &typed->getParameter();
 }
 
 }

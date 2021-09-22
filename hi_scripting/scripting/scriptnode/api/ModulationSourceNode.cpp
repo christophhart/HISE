@@ -112,8 +112,7 @@ juce::ValueTree ModulationSourceNode::getModulationTargetTree()
 
 
 ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
-	WrapperNode(n, d),
-	SimpleTimer(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
+	WrapperNode(n, d)
 {
 	targetListener.setCallback(getModulationTargetTree(),
 		valuetree::AsyncMode::Synchronously,
@@ -128,8 +127,6 @@ ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
 		}
 		else
 		{
-
-
 			for (auto t : targets)
 			{
 				if (t->data == c)
@@ -137,9 +134,8 @@ ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
 					if (auto tp = t->targetParameter)
 					{
 						auto v = tp->getValue();
-						tp->data.removeProperty(PropertyIds::ModulationTarget, getUndoManager());
-						tp->getDynamicParameterAsHolder()->setDisplaySource(nullptr);
-						tp->setValueAndStoreAsync(v);
+						tp->data.setProperty(PropertyIds::Automated, false, getUndoManager());
+						tp->setValueFromUI(v);
 					}
 
 					targets.removeObject(t);
@@ -166,7 +162,6 @@ var ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 	m.setProperty(PropertyIds::ParameterId, n->getId(), nullptr);
 	m.setProperty(PropertyIds::Enabled, true, nullptr);
 
-	n->data.setProperty(PropertyIds::ModulationTarget, true, getUndoManager());
 	n->data.setProperty(PropertyIds::Automated, true, getUndoManager());
 
 	auto range = RangeHelpers::getDoubleRange(n->data);
@@ -221,7 +216,7 @@ parameter::data ModulationSourceNode::getParameterData(const ValueTree& m) const
 	return parameter::data("");
 }
 
-scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParameterData(ValueTree& m)
+scriptnode::parameter::dynamic_base::Ptr ModulationSourceNode::createDynamicParameterData(ValueTree& m)
 {
 	auto allowRangeConversion = isUsingNormalisedRange();
 
@@ -232,55 +227,10 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 	if (targetNode == nullptr)
 		return nullptr;
 
-	auto expression = m[PropertyIds::Expression].toString();
-
-
 	auto pId = m[PropertyIds::ParameterId].toString();
 
-	if (auto mp = dynamic_cast<NodeContainer::MacroParameter*>(targetNode->getParameter(pId)))
-	{
-		return mp->getDynamicParameter();
-	}
-
-	if (auto p = getParameterData(m))
-	{
-		ScopedPointer<parameter::dynamic_base> np = parameter::dynamic_base::createFromConnectionTree(m, p.callback, allowRangeConversion);
-
-#if 0
-		if (expression.isNotEmpty())
-		{
-#if HISE_INCLUDE_SNEX
-			np = new parameter::dynamic_expression(p.callback, new JitExpression(expression, this));
-#else
-			// Set the default...
-			np = new parameter::dynamic_base(p.callback);
-#endif
-		}
-		else if (allowRangeConversion & !RangeHelpers::isIdentity(range))
-			np = new parameter::dynamic_from0to1(p.callback, range);
-		else
-			np = new parameter::dynamic_base(p.callback);
-#endif
-		
-		if (auto tp = targetNode->getParameter(p.info.parameterName))
-		{
-			tp->getDynamicParameterAsHolder()->setDisplaySource(np);
-
-			if (auto uWrapper = targetNode->findParentNodeOfType<InterpretedUnisonoWrapperNode>())
-			{
-				auto dd = new parameter::dynamic_duplispread();
-				dd->setDataTree(tp->data);
-				dd->connect(uWrapper, np.release());
-				np = dd;
-
-				tp->getDynamicParameterAsHolder()->setDisplaySource(np);
-			}
-		}
-
-		return np.release();
-	}
-
-	
+	if (auto p = targetNode->getParameter(pId))
+		return p->getDynamicParameter();
 
 	return nullptr;
 }
@@ -322,16 +272,21 @@ void ModulationSourceNode::rebuildModulationConnections()
 
 	if (modTree.getNumChildren() == 0)
 	{
-		p->setParameter(nullptr);
-		stop();
+		p->setParameter(nullptr, nullptr);
 		return;
 	}
 
-	start();
+	auto mp = ConnectionBase::createParameterFromConnectionTree(this, modTree, isUsingNormalisedRange());
 
-	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
-	chain->scaleInput = false;
+	NodeBase::Ptr firstChildNode = getRootNetwork()->getNodeWithId(modTree.getChild(0)[PropertyIds::NodeId].toString());
 
+	p->setParameter(firstChildNode, mp);
+
+#if 0
+	parameter::dynamic_base::createFromConnectionTree(modTree)
+
+	ReferenceCountedObjectPtr<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
+	
 	for (auto m : modTree)
 	{
 		if (auto c = createDynamicParameterData(m))
@@ -339,16 +294,16 @@ void ModulationSourceNode::rebuildModulationConnections()
 		else
 		{
 			p->setParameter(nullptr);
-			stop();
 			return;
 		}
 	}
 
-	if (auto s = chain->getFirstIfSingle())
 
+	if (auto s = chain->getFirstIfSingle())
 		p->setParameter(s);
 	else
-		p->setParameter(chain.release());
+		p->setParameter(chain);
+#endif
 }
 
 void ModulationSourceNode::checkTargets()
@@ -451,7 +406,7 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent&)
 		DynamicObject::Ptr details = new DynamicObject();
 
 		details->setProperty(PropertyIds::ID, sourceNode->getId());
-		details->setProperty(PropertyIds::ModulationTarget, true);
+		details->setProperty(PropertyIds::Automated, true);
 
 		container->startDragging(var(details), this, createDragImage());
 

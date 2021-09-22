@@ -57,25 +57,14 @@ struct dynamic_base: public ReferenceCountedObject
 
 	virtual void call(double value)
 	{
-		lastValue = value;
-		f(obj, value);
-	}
-
-	virtual void setUIValue(double value)
-	{
-		lastValue = value;
+		setDisplayValue(value);
+		f(obj, lastValue);
 	}
 
 	virtual void callWithDuplicateIndex(int index, double value) 
 	{
 
 	}
-
-	virtual void updateUI()
-	{
-		if (dataTree.isValid())
-			dataTree.setProperty(PropertyIds::Value, lastValue, nullptr);
-	};
 
 	virtual void setDelta(double v)
 	{
@@ -84,33 +73,40 @@ struct dynamic_base: public ReferenceCountedObject
 
 	virtual int getNumDuplicates() const { return 1; }
 
-	void setDataTree(ValueTree d) { dataTree = d; }
-
-	static dynamic_base* createFromConnectionTree(const ValueTree& v, parameter::dynamic& callback, bool allowRange=true);
+	static dynamic_base::Ptr createFromConnectionTree(const ValueTree& v, parameter::dynamic& callback, bool allowRange=true);
 
 	parameter::dynamic::Function f;
 	void* obj;
-
-	ValueTree dataTree;
 
 	virtual double getDisplayValue() const 
 	{ 
 		return lastValue; 
 	}
 
+	InvertableParameterRange getRange() const { return range; }
+
 	virtual void setParentNumVoiceListener(DupliListener* ) {}
+
+	virtual void updateRange(const ValueTree& v)
+	{
+		range = RangeHelpers::getDoubleRange(v);
+		range.checkIfIdentity();
+	}
 
 protected:
 
-	double lastValue = 0.0;
+	void setDisplayValue(double v)
+	{
+		lastValue = v;
+	}
 
 private:
 
+	InvertableParameterRange range;
+	double lastValue = 0.0;
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic_base);
 };
-
-
-
 
 struct dynamic_base_holder: public dynamic_base
 {
@@ -118,42 +114,19 @@ struct dynamic_base_holder: public dynamic_base
 
 	void call(double v) final override
 	{
-		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+		setDisplayValue(v);
 
-		lastValue = v;
+		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
 
 		if (base != nullptr)
 			base->call(v);
 	}
 
-	void setUIValue(double v) final override
+	virtual int getNumDuplicates() const
 	{
-		lastValue = v;
-
-		if (base != nullptr)
-			base->setUIValue(v);
+		jassertfalse;
+		return 0;
 	}
-
-	void call(int index, double v)
-	{
-		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
-
-		lastValue = v;
-
-		if (base != nullptr)
-			base->callWithDuplicateIndex(index, v);
-	}
-
-	int getNumVoices() const
-	{
-		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
-
-		if (base != nullptr)
-			return base->getNumDuplicates();
-
-		return 1;
-	}
-
 
 	void setDelta(double v) final override
 	{
@@ -163,46 +136,38 @@ struct dynamic_base_holder: public dynamic_base
 			base->setDelta(v);
 	}
 
-	void updateUI() final override
+	virtual void updateRange(const ValueTree& v) override
 	{
-		if (base != nullptr)
-			base->updateUI();
+		// Do nothing here because the holder is not supposed to 
+		// change the range?
 	}
 
-	void setParameter(dynamic_base* b)
+	virtual double getDisplayValue() const
 	{
+		if (base != nullptr)
+			return base->getDisplayValue();
+
+		return dynamic_base::getDisplayValue();
+	}
+
+	virtual void setParameter(NodeBase* n, dynamic_base::Ptr b)
+	{
+		dynamic_base::Ptr old = base;
+
 		{
 			SimpleReadWriteLock::ScopedWriteLock sl(connectionLock);
 			base = b;
 		}
-		
 
 		if (base != nullptr)
 			setParentNumVoiceListener(parentNumVoiceListener);
 
-		call(lastValue);
+		call(getDisplayValue());
 	}
 
 	bool isConnected() const
 	{
 		return base != nullptr;
-	}
-
-	double getDisplayValue() const
-	{
-		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
-
-		if (displaySource.get() != nullptr)
-			return displaySource->getDisplayValue();
-
-		return lastValue;
-	}
-
-	void setDisplaySource(dynamic_base* src)
-	{
-		SimpleReadWriteLock::ScopedWriteLock sl(connectionLock);
-
-		displaySource = src;
 	}
 
 	void setParentNumVoiceListener(DupliListener* l)
@@ -215,142 +180,21 @@ struct dynamic_base_holder: public dynamic_base
 			base->setParentNumVoiceListener(l);
 	}
 
-	InvertableParameterRange getParameterRange() const
-	{
-		if (base != nullptr)
-			return RangeHelpers::getDoubleRange(base->dataTree);
-
-		return {};
-	}
-
-	WeakReference<dynamic_base> displaySource;
-
 	WeakReference<DupliListener> parentNumVoiceListener;
 
 	dynamic_base::Ptr base;
-	double lastValue = 0.0;
 	
-private:
+protected:
 
 	mutable SimpleReadWriteLock connectionLock;
 };
 
-struct dynamic_inv : public dynamic_base
+
+
+template <bool ScaleInput> struct dynamic_chain : public dynamic_base
 {
-	dynamic_inv(parameter::dynamic& obj) :
-		dynamic_base(obj)
-	{}
+	using Ptr = ReferenceCountedObjectPtr<dynamic_chain>;
 
-	void call(double v) final override
-	{
-		auto inv = 1.0 - v;
-		lastValue = inv;
-		f(obj, inv);
-	}
-};
-
-
-
-struct dynamic_step : public dynamic_base
-{
-	dynamic_step(parameter::dynamic& obj, const InvertableParameterRange& r) :
-		dynamic_base(obj),
-		range(r)
-	{};
-
-	void setUIValue(double v) final override
-	{
-		lastValue = range.convertFrom0to1(v);
-		lastValue = range.snapToLegalValue(lastValue);
-	}
-
-	void call(double v) final override
-	{
-		setUIValue(v);
-		f(obj, lastValue);
-	}
-
-	const InvertableParameterRange range;
-};
-
-using dynamic_step_inv = dynamic_step;
-
-
-struct dynamic_from0to1 : public dynamic_base
-{
-	dynamic_from0to1(parameter::dynamic& obj, const InvertableParameterRange& r) :
-		dynamic_base(obj),
-		range(r)
-	{}
-
-	void setUIValue(double v) final override
-	{
-		lastValue = range.convertFrom0to1(v);
-	}
-
-	void call(double v) final override
-	{
-		setUIValue(v);
-		f(obj, lastValue);
-	}
-
-	const InvertableParameterRange range;
-};
-
-using dynamic_from0to1_inv = dynamic_from0to1;
-
-struct dynamic_to0to1 : public dynamic_base
-{
-	dynamic_to0to1(parameter::dynamic& obj, const InvertableParameterRange& r) :
-		dynamic_base(obj),
-		range(r)
-	{}
-
-	void setUIValue(double v) final override
-	{
-		lastValue = range.convertTo0to1(v);
-	}
-
-	void call(double v) final override
-	{
-		setUIValue(v);
-		f(obj, lastValue);
-	}
-
-	const InvertableParameterRange range;
-};
-
-#if HISE_INCLUDE_SNEX
-struct dynamic_expression : public dynamic_base
-{
-	dynamic_expression(parameter::dynamic& obj, snex::JitExpression* p_) :
-		dynamic_base(obj),
-		p(p_)
-	{
-		if (!p->isValid())
-			p = nullptr;
-	}
-
-	void setUIValue(double v) final override
-	{
-		if (p != nullptr)
-			lastValue = p->getValueUnchecked(v);
-		else
-			lastValue = v;
-	}
-
-	void call(double v) final override
-	{
-		setUIValue(v);
-		f(obj, lastValue);
-	}
-
-	snex::JitExpression::Ptr p;
-};
-#endif
-
-struct dynamic_chain : public dynamic_base
-{
 	dynamic_chain() :
 		dynamic_base()
 	{};
@@ -362,43 +206,16 @@ struct dynamic_chain : public dynamic_base
 		targets.add(p);
 	}
 
-	dynamic_base::Ptr getFirstIfSingle()
-	{
-		if (targets.size() == 1)
-		{
-			auto first = targets.getFirst();
-
-			if(RangeHelpers::isIdentity(inputRange))
-				return targets.removeAndReturn(0);
-
-#if HISE_INCLUDE_SNEX
-			if (auto expr = dynamic_cast<dynamic_expression*>(first.get()))
-				return nullptr;
-#endif
-
-			auto outRange = RangeHelpers::getDoubleRange(first->dataTree);
-
-			if (RangeHelpers::isEqual(inputRange, outRange))
-			{
-				auto s = new dynamic_base();
-				s->obj = first->obj;
-				s->f = first->f;
-				s->setDataTree(first->dataTree);
-
-				return s;
-			}
-		}
-
-		return nullptr;
-	}
-
 	void call(double v)
 	{
-		if (scaleInput)
-			v = inputRange.convertTo0to1(v);
+		setDisplayValue(v);
+		auto nv = ScaleInput ? getRange().convertTo0to1(v) : v;
 
 		for (auto& t : targets)
-			t->call(v);
+		{
+			auto tv = ScaleInput ? t->getRange().convertFrom0to1(nv) : v;
+			t->call(tv);
+		}
 	}
 
 	int getNumDuplicates() const override
@@ -427,16 +244,10 @@ struct dynamic_chain : public dynamic_base
 			t->setParentNumVoiceListener(l);
 	}
 
-	void updateUI() override
-	{
-		for (auto& t : targets)
-			t->updateUI();
-	}
-
-	bool scaleInput = true;
 	dynamic_base::List targets;
-	InvertableParameterRange inputRange;
 };
+
+
 
 
 

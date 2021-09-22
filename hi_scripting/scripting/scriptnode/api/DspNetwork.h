@@ -739,7 +739,7 @@ public:
 		void setParameter(int index, float newValue) final override
 		{
 			if(isPositiveAndBelow(index, getNumParameters()))
-				root->getParameter(index)->setValueAndStoreAsync((double)newValue);
+				root->getParameter(index)->setValue((double)newValue);
 		}
 
 		NodeBase::Ptr root;
