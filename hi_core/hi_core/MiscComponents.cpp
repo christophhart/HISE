@@ -613,7 +613,7 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 		const bool isIn = getLocalBounds().contains(event.position.toInt());
 
 		e->setProperty(insideDrag, isIn ? 1: 0);
-		e->setProperty(drag, event.getDistanceFromDragStart() > 4);
+		e->setProperty(drag, event.getDistanceFromDragStart() > 0);
 		e->setProperty(dragX, event.getDistanceFromDragStartX());
 		e->setProperty(dragY, event.getDistanceFromDragStartY());
 	}
