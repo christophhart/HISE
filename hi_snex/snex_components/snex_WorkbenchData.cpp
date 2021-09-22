@@ -540,7 +540,7 @@ void ui::WorkbenchData::TestData::rebuildTestSignal(NotificationType triggerTest
 	{
 		using namespace scriptnode;
 		using PType = parameter::from0To1<core::oscillator<1>, 1, FreqRange>;
-		using ProcessorType = container::chain<parameter::empty, wrap::fix<1, core::ramp<1, false>>, wrap::mod<PType, core::peak>, math::clear, core::oscillator<1>>;
+		using ProcessorType = container::chain<parameter::empty, wrap::fix<1, core::ramp<1, false>>, wrap::mod<PType, core::peak>, math::clear<1>, core::oscillator<1>>;
 
 		wrap::frame<1, ProcessorType> fObj;
 

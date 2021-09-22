@@ -1047,21 +1047,25 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 		repaint();
 		return false;
 	}
-		
-	auto h = dynamic_cast<ModulationSourceNode*>(sourceNode.get())->getParameterHolder();
+	
+    if(auto modSource = dynamic_cast<ModulationSourceNode*>(sourceNode.get()))
+    {
+        auto h = modSource->getParameterHolder();
 
-	auto isCloneSource = dynamic_cast<parameter::clone_holder*>(h);
+        auto isCloneSource = dynamic_cast<parameter::clone_holder*>(h);
 
-	if (isCloneSource)
-	{
-		if (CloneNode::getCloneIndex(node) != 0)
-		{
-			illegal = true;
-			return false;
-		}
+        if (isCloneSource)
+        {
+            if (CloneNode::getCloneIndex(node) != 0)
+            {
+                illegal = true;
+                return false;
+            }
 
-		return true;
-	}
+            return true;
+        }
+    }
+    
 	
 	if (sourceNode->isClone() != node->isClone())
 	{

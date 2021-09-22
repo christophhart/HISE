@@ -62,6 +62,57 @@ namespace FactoryIds
 	}
 };
 
+struct CloneHelpers
+{
+    static int indexOfRecursive(const ValueTree& root, const ValueTree& vToSearch)
+    {
+        auto thisIndex = root.indexOf(vToSearch);
+        
+        if(thisIndex != -1)
+            return thisIndex;
+        
+        int index = 0;
+        for(const auto& c: root)
+        {
+            auto idx = indexOfRecursive(c, vToSearch);
+            
+            if(idx != -1)
+                return index;
+            
+            index++;
+        }
+        
+        return -1;
+    }
+    
+    static bool isCloneContainer(const ValueTree& v)
+    {
+        auto s = v[scriptnode::PropertyIds::FactoryPath].toString();
+        return s == "container.clone";
+    }
+    
+    static int getCloneIndex(const ValueTree& v)
+    {
+        ValueTree t = v;
+        
+        if(isCloneContainer(t))
+            return -1;
+        
+        while(t.isValid() && !isCloneContainer(t))
+        {
+            t = t.getParent();
+        }
+        
+        if(!t.isValid())
+            return -1;
+        
+        auto idx = indexOfRecursive(t.getChildWithName(PropertyIds::Nodes), v);
+        
+        jassert(idx != -1);
+        return idx;
+    }
+};
+
 void ValueTreeBuilder::setHeaderForFormat()
 {
 	switch (outputFormat)
@@ -200,6 +251,7 @@ String ValueTreeBuilder::getGlueCode(ValueTreeBuilder::FormatGlueCode c)
             *this << "#define connectT(Idx, target) template connect<Idx>(target)";
             *this << "#define getParameterT(Idx) template getParameter<Idx>()";
             *this << "#define setParameterT(Idx, value) template setParameter<Idx>(value)";
+            *this << "#define setParameterWT(Idx, value) template setWrapParameter<Idx>(value)";
             
 			UsingNamespace(*this, NamespacedIdentifier("scriptnode"));
 			UsingNamespace(*this, NamespacedIdentifier("snex"));
@@ -214,6 +266,7 @@ String ValueTreeBuilder::getGlueCode(ValueTreeBuilder::FormatGlueCode c)
             *this << "#undef getT";
             *this << "#undef connectT";
             *this << "#undef setParameterT";
+            *this << "#undef setParameterWT";
             *this << "#undef getParameterT";
             
 			addComment("Public Definition", Base::CommentType::FillTo80);
@@ -541,6 +594,8 @@ Node::Ptr ValueTreeBuilder::parseCloneContainer(Node::Ptr u)
 
 	auto isSplitSignal = (bool)u->nodeTree.getChildWithName(PropertyIds::Parameters).getChild(1)[PropertyIds::Value];
 
+    int numClones = u->nodeTree.getChildWithName(PropertyIds::Nodes).getNumChildren();
+    
 	String cloneClassId;
 
 	if (hasNumCloneAutomation && isSplitSignal)
@@ -552,12 +607,18 @@ Node::Ptr ValueTreeBuilder::parseCloneContainer(Node::Ptr u)
 	if (!hasNumCloneAutomation && !isSplitSignal)
 		cloneClassId = "fix_duplichain";
 
+    u->setTemplateId(NamespacedIdentifier("wrap").getChildId(cloneClassId));
+    
 	auto firstChild = u->nodeTree.getChildWithName(PropertyIds::Nodes).getChild(0);
 
 	auto firstNode = parseNode(firstChild);
 
+    pooledTypeDefinitions.add(firstNode);
+    
 	if (!FactoryIds::isContainer(getNodePath(firstChild)))
 	{
+        firstNode = parseFixChannel(firstNode->nodeTree, numChannelsToCompile);
+        
 		UsingTemplate innerChain(*this, "internal", NamespacedIdentifier::fromString("container::chain"));
 
 		innerChain << "parameter::empty";
@@ -568,6 +629,10 @@ Node::Ptr ValueTreeBuilder::parseCloneContainer(Node::Ptr u)
 	else
 		*u << *firstNode;
 
+    *u << numClones;
+    
+    u->flushIfNot();
+    
 	return u;
 }
 
@@ -1267,9 +1332,19 @@ bool ValueTreeIterator::getNodePath(Array<int>& path, ValueTree& root, const Ide
 
 	for (auto c : n)
 	{
-		if (getNodePath(path, c, id))
+        if (getNodePath(path, c, id))
 		{
-			path.insert(0, getIndexInParent(c));
+            // If the node is cloned, we have to omit the clone index as
+            // path item. However if the clone is not a container, we can't
+            // omit it (because we have introduced an artificial container
+            // at parseCloneContainer), therefore, we have to insert the index
+            auto isClone = CloneHelpers::isCloneContainer(n.getParent());
+            
+            auto isContainer = FactoryIds::isContainer(getNodeFactoryPath(c));
+            
+            if(!isClone || !isContainer)
+                path.insert(0, getIndexInParent(c));
+            
 			return true;
 		}
 	}
@@ -1584,6 +1659,8 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 
 		auto child = sv->nodeTree;
 
+        auto isCloneContainer = CloneHelpers::isCloneContainer(child);
+        
 		auto pTree = child.getChildWithName(PropertyIds::Parameters);
 
 		auto numParameters = getNumParametersToInitialise(child);
@@ -1604,7 +1681,13 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 			}
 
 			String v;
-			v << sv->toExpression() << ".setParameterT(" << pTree.indexOf(p) << ", ";
+            
+            
+            
+            v << sv->toExpression();
+            
+            v << (isCloneContainer ? ".setParameterWT(" : ".setParameterT(");
+            v << pTree.indexOf(p) << ", ";
 			v << Types::Helpers::getCppValueString(p[PropertyIds::Value], Types::ID::Double);
 			v << ");";
 			parent << v;
@@ -1954,12 +2037,19 @@ void ValueTreeBuilder::RootContainerBuilder::addSendConnections()
 	parent.addEmptyLine();
 }
 
+
+
 void ValueTreeBuilder::RootContainerBuilder::createStackVariablesForChildNodes()
 {
 	ValueTreeIterator::forEach(root->nodeTree.getChildWithName(PropertyIds::Nodes), ValueTreeIterator::Forward, [&](ValueTree& childNode)
 	{
 		if (childNode.getType() == PropertyIds::Node)
 		{
+            auto cloneIndex = CloneHelpers::getCloneIndex(childNode);
+            
+            if(cloneIndex > 0)
+                return false;
+            
 			auto sv = getChildNodeAsStackVariable(childNode);
 			
 			sv->flushIfNot();
@@ -2051,7 +2141,7 @@ bool ValueTreeBuilder::RootContainerBuilder::hasComplexTypes() const
 }
 
 PooledStackVariable::PooledStackVariable(Base& p, const ValueTree& nodeTree_) :
-	StackVariable(p, nodeTree_[PropertyIds::ID].toString(), TypeInfo(Types::ID::Dynamic, false, true)),
+	StackVariable(p, nodeTree_[PropertyIds::ID].toString(), TypeInfo(Types::ID::Dynamic, false, CloneHelpers::getCloneIndex(nodeTree_) == -1)),
 	nodeTree(nodeTree_)
 {
 

@@ -353,6 +353,8 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 	constexpr auto& getWrappedObject() { return *begin(); }
 	constexpr const auto& getWrappedObject() const { return *begin(); }
 
+    static constexpr int NumChannels = T::NumChannels;
+    
 	using ObjectType = duplicate_base;
 	using WrappedObjectType = typename T::WrappedObjectType;
 
@@ -369,18 +371,23 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 			typed->setVoiceAmount(value);
 		if constexpr (P == 1)
 			typed->setDuplicateSignal(v > 0.0);
-
 	}
-
+    
+    template <int P> void setWrapParameter(double v)
+    {
+        setWrapParameterStatic<P>(this, v);
+    }
+    
 	void setDuplicateSignal(bool shouldDuplicateSignal)
 	{
-		static_assert(options::isDynamic(AllowCopySignal), "AllowCopySignal is not a dynamic property");
-
-		if (shouldDuplicateSignal != copySignal)
-		{
-			copySignal = shouldDuplicateSignal;
-			resetCopyBuffer();
-		}
+		if constexpr (options::isDynamic(AllowCopySignal))
+        {
+            if (shouldDuplicateSignal != copySignal)
+            {
+                copySignal = shouldDuplicateSignal;
+                resetCopyBuffer();
+            }
+        }
 	}
 
 	template <int P> static void setParameterStatic(void* obj, double v)
@@ -454,22 +461,25 @@ template <typename T, int AllowCopySignal, int AllowResizing, int NumDuplicates>
 
 	void setVoiceAmount(int numVoices)
 	{
-		// AllowResizing is not a dynamic property
-		jassert(AllowResizing);
+        if constexpr (AllowResizing)
+        {
+            // AllowResizing is not a dynamic property
+            jassert(AllowResizing);
 
-		numVoices = jlimit(1, NumDuplicates, numVoices);
+            numVoices = jlimit(1, NumDuplicates, numVoices);
 
-		auto delta = numVoices - getNumVoices();
+            auto delta = numVoices - getNumVoices();
 
-		if (delta != 0)
-			resize(delta);
+            if (delta != 0)
+                resize(delta);
 
-		duplicate_sender::setVoiceAmount(numVoices);
+            duplicate_sender::setVoiceAmount(numVoices);
 
-		if (lastSpecs)
-			prepare(lastSpecs);
+            if (lastSpecs)
+                prepare(lastSpecs);
 
-		sendMessageToListeners();
+            sendMessageToListeners();
+        }
 	}
 
 	bool shouldCopySignal() const
