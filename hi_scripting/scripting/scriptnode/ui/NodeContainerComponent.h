@@ -440,7 +440,8 @@ class ContainerComponent :  public NodeComponent,
 							public NodeDropTarget,
 							public DragAndDropContainer,
 							public HelpManager::Listener,
-							public Value::Listener
+							public Value::Listener,
+						    public LassoSource<NodeBase::Ptr>
 {
 public:
 
@@ -601,6 +602,10 @@ public:
 	void mouseMove(const MouseEvent& event) override;
 	void mouseExit(const MouseEvent& event) override;
 	void mouseDown(const MouseEvent& event) override;
+	void mouseDrag(const MouseEvent& event) override;
+	void mouseUp(const MouseEvent& e) override;
+
+	
 
 	virtual int getInsertPosition(Point<int> x) const = 0;
 	void removeDraggedNode(NodeComponent* draggedNode);
@@ -658,7 +663,17 @@ public:
 		resized();
 	}
 
+	void findLassoItemsInArea(Array<NodeBase::Ptr>& itemsFound,
+		const Rectangle<int>& area) override;
+
+	SelectedItemSet<NodeBase::Ptr>& getLassoSelection() override
+	{
+		return node->getRootNetwork()->getRawSelection();
+	}
+
 protected:
+
+
 
 	Value verticalValue;
 
@@ -703,6 +718,9 @@ private:
 
 	ScopedPointer<ParameterComponent> parameters;
 	ScopedPointer<Component> extraComponent;
+
+	LassoComponent<NodeBase::Ptr> lasso;
+	
 };
 
 struct SerialNodeComponent : public ContainerComponent

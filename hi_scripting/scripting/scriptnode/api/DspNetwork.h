@@ -728,6 +728,8 @@ public:
 
 	void addToSelection(NodeBase* node, ModifierKeys mods);
 
+	SelectedItemSet<NodeBase::Ptr>& getRawSelection() { return selection; };
+
 	NodeBase::List getSelection() const { return selection.getItemArray(); }
 
     void zoomToSelection(Component* c);

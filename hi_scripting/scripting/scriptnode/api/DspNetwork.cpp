@@ -420,8 +420,6 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(getConnectionLock(), isInitialised());
 
-		bool firstTime = !isInitialised();
-
 		try
 		{
 			originalSampleRate = sampleRate;
@@ -438,16 +436,6 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 
 				getRootNode()->prepare(currentSpecs);
 				getRootNode()->reset();
-
-				if (firstTime)
-				{
-					for (int i = 0; i < getRootNode()->getNumParameters(); i++)
-					{
-						auto p = getRootNode()->getParameter(i);
-						auto value = (double)p->data[PropertyIds::Value];
-						p->setValueAndStoreAsync(value);
-					}
-				}
 
 				if (projectNodeHolder.isActive())
 					projectNodeHolder.prepare(currentSpecs);

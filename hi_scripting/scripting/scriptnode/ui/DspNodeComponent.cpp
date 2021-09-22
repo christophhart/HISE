@@ -78,7 +78,7 @@ void DefaultParameterNodeComponent::resized()
 	staticIntend = (b.getWidth() - numPerRow * 100) / 2;
 		
 
-	auto intendOddRows = sliders.size() % numPerRow != 0;
+	auto intendOddRows = (sliders.size() % jmax(1, numPerRow)) != 0;
 
 	auto rowIndex = 0;
 

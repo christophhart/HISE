@@ -1684,7 +1684,7 @@ bool DspNetworkGraph::Actions::duplicateSelection(DspNetworkGraph& g)
 	for (auto n : g.network->getSelection())
 	{
 		auto tree = n->getValueTree();
-		insertIndex = jmax(insertIndex, tree.getParent().indexOf(tree));
+		insertIndex = jmax(insertIndex, tree.getParent().indexOf(tree) + 1);
 	}
 
 	for (auto n : g.network->getSelection())
@@ -2605,7 +2605,7 @@ KeyboardPopup::ImagePreviewCreator::ImagePreviewCreator(KeyboardPopup& kp_, cons
 				auto p = createdNode->getParameter(i);
 				auto nr = RangeHelpers::getDoubleRange(p->data);
 				auto v = nr.convertFrom0to1(Random::getSystemRandom().nextDouble());
-				p->setValueAndStoreAsync(v);
+				p->setValue(v);
 			}
 		}
 	}

@@ -794,11 +794,19 @@ public:
 		{
 			auto child = c->getChildComponent(i);
 
-			if (!child->isShowing())
-				continue;
-
 			if (auto typed = dynamic_cast<T*>(child))
 			{
+				bool isShowing = child->isVisible();
+				Component* c = child;
+				while (c != nullptr && isShowing)
+				{
+					isShowing &= c->isVisible();
+					c = c->getParentComponent();
+				}
+
+				if (!isShowing)
+					continue;
+
 				list.add(typed);
 			}
 

@@ -140,9 +140,11 @@ void ContainerComponent::mouseEnter(const MouseEvent& event)
 }
 
 
-void ContainerComponent::mouseMove(const MouseEvent& event)
+void ContainerComponent::mouseMove(const MouseEvent& e)
 {
-	addPosition = getInsertPosition(event.getPosition());
+	setMouseCursor(e.mods.isShiftDown() ? MouseCursor::CrosshairCursor : MouseCursor::NormalCursor);
+
+	addPosition = getInsertPosition(e.getPosition());
 	repaint();
 }
 
@@ -154,103 +156,39 @@ void ContainerComponent::mouseExit(const MouseEvent& )
 }
 
 
-void ContainerComponent::mouseDown(const MouseEvent& event)
+void ContainerComponent::mouseDown(const MouseEvent& e)
 {
 	if (auto n = findParentComponentOfClass<DspNetworkGraph>())
 	{
+		if (e.mods.isShiftDown())
+		{
+			if (!e.mods.isCommandDown())
+				node->getRootNetwork()->deselectAll();
+
+			n->addAndMakeVisible(lasso);
+			lasso.beginLasso(e.getEventRelativeTo(n), this);
+			return;
+		}
+
 		DspNetworkGraph::Actions::showKeyboardPopup(*n, KeyboardPopup::Mode::New);
-	}
-
-	if (event.mods.isRightButtonDown())
-	{
-		
-
-#if 0
-		PopupLookAndFeel plaf;
-		PopupMenu m;
-		m.setLookAndFeel(&plaf);
-
-		String clipboard = SystemClipboard::getTextFromClipboard();
-
-		if (clipboard.startsWith("ScriptNode"))
-		{
-			m.addItem(120000, "Add node from clipboard", true);
-		}
-
-		m.addSectionHeader("Add existing node");
-
-		auto network = node->getRootNetwork();
-
-		auto nodeList = network->getListOfUnconnectedNodes();
-
-		for (int i = 0; i < nodeList.size(); i++)
-		{
-			m.addItem(i + 1, "Add " + nodeList[i]->getId());
-		}
-
-		m.addSeparator();
-		m.addSectionHeader("Create new node");
-
-		auto sa = network->getListOfAllAvailableModuleIds();
-
-		//sa.sort(true);
-
-		
-
-		String currentFactory;
-		PopupMenu sub;
-		int newId = 11000;
-
-		for (const auto& s : sa)
-		{
-			auto thisFactory = s.upToFirstOccurrenceOf(".", false, false);
-
-			if (thisFactory != currentFactory)
-			{
-				if (sub.getNumItems() != 0)
-					m.addSubMenu(currentFactory, sub);
-
-				sub = PopupMenu();
-
-				currentFactory = thisFactory;
-			}
-
-			sub.addItem(newId++, s.fromFirstOccurrenceOf(".", false, false));
-		}
-
-		if (sub.getNumItems() != 0)
-			m.addSubMenu(currentFactory, sub);
-
-		int result = m.show();
-
-		if (result != 0)
-		{
-			var newNode;
-
-			auto container = dynamic_cast<NodeContainer*>(node.get());
-
-			if (result == 120000)
-			{
-				auto data = clipboard.fromFirstOccurrenceOf("ScriptNode", false, false);
-				auto newTree = ValueTreeConverters::convertBase64ToValueTree(data, true);
-
-				if (newTree.isValid())
-				{
-					newNode = network->createFromValueTree(network->isPolyphonic(), newTree, true);
-				}
-			}
-			else if (result >= 11000)
-			{
-				auto moduleId = sa[result - 11000];
-				newNode = network->create(moduleId, {}, container->isPolyphonic());
-			}
-
-			container->assign(addPosition, newNode);
-		}
-#endif
 	}
 }
 
+
+void ContainerComponent::mouseDrag(const MouseEvent& e)
+{
+	if (lasso.isVisible())
+		lasso.dragLasso(e.getEventRelativeTo(findParentComponentOfClass<DspNetworkGraph>()));
+}
+
+void ContainerComponent::mouseUp(const MouseEvent& e)
+{
+	if (lasso.isVisible())
+	{
+		lasso.endLasso();
+		findParentComponentOfClass<DspNetworkGraph>()->removeChildComponent(&lasso);
+	}
+}
 
 void ContainerComponent::removeDraggedNode(NodeComponent* draggedNode)
 {
@@ -357,6 +295,44 @@ void ContainerComponent::valueChanged(Value& v)
 			if(safeDnp.getComponent() != nullptr)
 				safeDnp.getComponent()->rebuildNodes();
 		});
+	}
+}
+
+void ContainerComponent::findLassoItemsInArea(Array<NodeBase::Ptr>& itemsFound, const Rectangle<int>& area)
+{
+	Array<NodeComponent*> nodeComponents;
+
+	auto dng = findParentComponentOfClass<DspNetworkGraph>();
+	dng->fillChildComponentList<NodeComponent>(nodeComponents, this);
+
+	for (auto n : nodeComponents)
+	{
+		if (n->node == node->getRootNetwork()->getRootNode())
+			continue;
+
+		if (n == this)
+			continue;
+
+		auto la = dng->getLocalArea(n, n->getLocalBounds());
+
+		if (area.intersectRectangle(la))
+		{
+			bool parentFound = false;
+
+			for (auto i : itemsFound)
+			{
+				auto p = n->node;
+
+				while (!parentFound && p != nullptr)
+				{
+					parentFound |= itemsFound.contains(p);
+					p = p->getParentNode();
+				}
+			}
+
+			if(!parentFound)
+				itemsFound.addIfNotAlreadyThere(n->node);
+		}
 	}
 }
 
