@@ -144,6 +144,8 @@ template <class ParameterClass, typename... Processors> struct chain: public con
 	chain() = default;
 	chain(const chain& other) = default;
 
+    ~chain() {};
+    
 	/** prepares all child nodes with the same specs. */
 	void prepare(PrepareSpecs ps)
 	{

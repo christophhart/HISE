@@ -322,7 +322,7 @@ private:
 
 juce::Result MathNodeLibrary::registerTypes()
 {
-	LibraryNode<math::add> ma(c, numChannels, getFactoryId());
+	LibraryNode<math::add<1>> ma(c, numChannels, getFactoryId());
 	ma.addPolyDataMember("value", Types::ID::Float);
 	
 
@@ -346,8 +346,8 @@ juce::Result MathNodeLibrary::registerTypes()
 		return SyntaxTreeInlineParser(b, { "newValue" }, c).flush();
 	});
 
-	LibraryNode<math::mul>(c, numChannels, getFactoryId());
-	LibraryNode<math::clear>(c, numChannels, getFactoryId());
+	LibraryNode<math::mul<1>>(c, numChannels, getFactoryId());
+	LibraryNode<math::clear<1>>(c, numChannels, getFactoryId());
 
 	return Result::ok();
 }

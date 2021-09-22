@@ -400,17 +400,16 @@ public:
 	PolyData<float, NumVoices> value;
 };
 
-#define DEFINE_MONO_OP_NODE(monoName) using monoName = OpNode<Operations::monoName, 1>;
+#define DEFINE_MONO_OP_NODE(monoName) template <int NV> using monoName = OpNode<Operations::monoName, 1>;
 
-#define DEFINE_OP_NODE(monoName, polyName) using monoName = OpNode<Operations::monoName, 1>; \
-using polyName = OpNode<Operations::monoName, NUM_POLYPHONIC_VOICES>;
+#define DEFINE_OP_NODE(monoName) template <int NV> using monoName = OpNode<Operations::monoName, 1>;
 
-DEFINE_OP_NODE(mul, mul_poly);
-DEFINE_OP_NODE(add, add_poly);
-DEFINE_OP_NODE(sub, sub_poly);
-DEFINE_OP_NODE(div, div_poly);
-DEFINE_OP_NODE(tanh, tanh_poly);
-DEFINE_OP_NODE(clip, clip_poly);
+DEFINE_OP_NODE(mul);
+DEFINE_OP_NODE(add);
+DEFINE_OP_NODE(sub);
+DEFINE_OP_NODE(div);
+DEFINE_OP_NODE(tanh);
+DEFINE_OP_NODE(clip);
 DEFINE_MONO_OP_NODE(sin);
 DEFINE_MONO_OP_NODE(pi);
 DEFINE_MONO_OP_NODE(sig2mod);

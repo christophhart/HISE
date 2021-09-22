@@ -1149,21 +1149,27 @@ namespace math
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
-	registerPolyNode<add, add_poly>();
-	registerNode<clear>();
-	registerPolyNode<tanh, tanh_poly>();
-	registerPolyNode<mul, mul_poly>();
-	registerPolyNode<sub, sub_poly>();
-	registerPolyNode<div, div_poly>();
-	
-	registerPolyNode<clip, clip_poly>();
-	registerNode<sin>();
-	registerNode<pi>();
-	registerNode<sig2mod>();
-	registerNode<abs>();
-	registerNode<square>();
-	registerNode<sqrt>();
-	registerNode<pow>();
+#define REGISTER_POLY_MATH_NODE(x) registerPolyNode<x<1>, x<NUM_POLYPHONIC_VOICES>>();
+#define REGISTER_MONO_MATH_NODE(x) registerNode<clear<1>>();
+    
+    REGISTER_POLY_MATH_NODE(add);
+    REGISTER_POLY_MATH_NODE(tanh);
+    REGISTER_POLY_MATH_NODE(mul );
+    REGISTER_POLY_MATH_NODE(sub );
+    REGISTER_POLY_MATH_NODE(div );
+    REGISTER_POLY_MATH_NODE(clip);
+    
+    REGISTER_MONO_MATH_NODE(clear);
+    REGISTER_MONO_MATH_NODE(sin);
+    REGISTER_MONO_MATH_NODE(pi);
+    REGISTER_MONO_MATH_NODE(sig2mod);
+    REGISTER_MONO_MATH_NODE(abs);
+    REGISTER_MONO_MATH_NODE(square);
+    REGISTER_MONO_MATH_NODE(sqrt);
+    REGISTER_MONO_MATH_NODE(pow);
+    
+#undef REGISTER_POLY_MATH_NODE
+#undef REGISTER_MONO_MATH_NODE;
 
 #if HISE_INCLUDE_SNEX
 	registerPolyNode<OpNode<dynamic_expression, 1>, OpNode<dynamic_expression, NUM_POLYPHONIC_VOICES>, dynamic_expression::editor>();

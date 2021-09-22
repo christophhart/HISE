@@ -76,6 +76,8 @@ template <class ParameterClass, typename... Processors> struct container_base
     
 	static constexpr bool isModulationSource = false;
 
+    virtual ~container_base() {};
+    
 	void initialise(NodeBase* b)
 	{
 		call_tuple_iterator1(initialise, b);
@@ -99,7 +101,7 @@ template <class ParameterClass, typename... Processors> struct container_base
 		jassertfalse;
     }
     
-	template <int P> static void setParameter(void* obj, double v)
+	template <int P> static void setParameterStatic(void* obj, double v)
 	{
 		static_cast<Type*>(obj)->setParameter<P>(v);
 	}

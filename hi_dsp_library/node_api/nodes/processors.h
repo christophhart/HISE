@@ -1175,7 +1175,7 @@ template <class T> struct node : public scriptnode::data::base
 	template <int P> static void setParameterStatic(void* ptr, double v)
 	{
 		auto* objPtr = &static_cast<node*>(ptr)->obj;
-		T::setParameter<P>(objPtr, v);
+		T::template setParameterStatic<P>(objPtr, v);
 	}
 
 	PARAMETER_MEMBER_FUNCTION;
