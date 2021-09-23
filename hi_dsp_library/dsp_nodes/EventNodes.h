@@ -38,57 +38,7 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-namespace timer_logic
-{
-template <int NV> struct ping
-{
-	HISE_EMPTY_PREPARE;
-	HISE_EMPTY_RESET;
 
-	double getTimerValue() const { return 1.0; }
-};
-
-template <int NV> struct random
-{
-	HISE_EMPTY_PREPARE;
-	HISE_EMPTY_RESET;
-
-	double getTimerValue() const
-	{
-		return hmath::randomDouble();
-	}
-};
-
-template <int NV> struct toggle
-{
-	PolyData<double, NV> state;
-
-	double getTimerValue()
-	{
-		double v = 0.0;
-
-		for (auto& s : state)
-		{
-			s = 1.0 - s;
-			v = s;
-		}
-		
-		return v;
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		state.prepare(ps);
-	}
-
-	void reset()
-	{
-		for (auto& s : state)
-			s = 0.0;
-	}
-};
-
-}
 
 
 namespace control

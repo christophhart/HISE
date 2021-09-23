@@ -37,51 +37,7 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-namespace file_analysers
-{
-struct pitch
-{
-	double getValue(const ExternalData& d)
-	{
-		if (d.numSamples > 0)
-		{
-			block b;
-			d.referBlockTo(b, 0);
 
-			return PitchDetection::detectPitch(b.begin(), b.size(), d.sampleRate);
-		}
-
-		return 0.0;
-	}
-};
-
-struct milliseconds
-{
-	double getValue(const ExternalData& d)
-	{
-		if (d.numSamples > 0 && d.sampleRate > 0.0)
-		{
-			return 1000.0 * (double)d.numSamples / d.sampleRate;
-		}
-
-		return 0.0;
-	}
-};
-
-struct peak
-{
-	double getValue(const ExternalData& d)
-	{
-		if (d.numSamples > 0)
-		{
-			auto b = d.toAudioSampleBuffer();
-			return (double)b.getMagnitude(0, d.numSamples);
-		}
-
-		return 0.0;
-	}
-};
-}
 
 
 namespace control
