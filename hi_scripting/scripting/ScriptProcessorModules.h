@@ -1000,31 +1000,6 @@ public:
 
 	bool isPolyphonic() const override { return true; }
 
-	void addProcessorsWhenEmpty() override
-	{
-		LockHelpers::freeToGo(getMainController());
-
-        
-        
-		jassert(finalised);
-
-		auto envList = ProcessorHelpers::getListOfAllProcessors<ScriptnodeVoiceKiller>(gainChain);
-
-		if (!envList.isEmpty())
-			return;
-
-		auto vk = new ScriptnodeVoiceKiller(getMainController(),
-			"ScriptnodeVoiceKiller",
-			voices.size());
-
-		gainChain->getHandler()->add(vk, nullptr);
-
-		setVoiceKillerToUse(vk);
-        
-        getSnippet(0)->replaceAllContent("const var dsp = Engine.createDspNetwork(\"dsp\");");
-        compileScript();
-	}
-
 	float getModValueForNode(int modIndex, int startSample) const
 	{
 		if (modIndex == BasicChains::PitchChain)
