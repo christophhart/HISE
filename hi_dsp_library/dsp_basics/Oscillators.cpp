@@ -122,10 +122,15 @@ void OscillatorDisplayProvider::OscillatorDisplayObject::initialiseRingBuffer(Si
 	b->setRingBufferSize(1, 256);
 }
 
+template<typename T>
+inline int64_t bitwiseOrZero(const T &t) {
+	return static_cast<int64_t>(t) | 0;
+}
+
 float OscillatorDisplayProvider::tickSaw(OscData& d)
 {
 	auto phase = d.tick() / 2048.0;;
-	phase = std::fmod(phase + 0.5, 1.0);
+	phase -= bitwiseOrZero(phase);
 
 	auto naiveValue = 2.0f * phase - 1.0f;
 
@@ -137,15 +142,13 @@ float OscillatorDisplayProvider::tickSaw(OscData& d)
 	return naiveValue;
 }
 
-template<typename T>
-inline int64_t bitwiseOrZero(const T &t) {
-    return static_cast<int64_t>(t) | 0;
-}
+
 
 float OscillatorDisplayProvider::tickTriangle(OscData& d)
 {
     auto phase = d.tick() / 2048.0;
-    phase = std::fmod(phase + 0.5, 1.0);
+
+	phase -= bitwiseOrZero(phase);
     auto t = phase;
     
     double t1 = t + 0.25;
