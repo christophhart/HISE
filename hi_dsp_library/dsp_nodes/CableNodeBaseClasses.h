@@ -141,7 +141,7 @@ template <class ParameterType> struct parameter_node_base
 };
 
 template <class ParameterType> struct duplicate_parameter_node_base : public parameter_node_base<ParameterType>,
-																	  public wrap::duplicate_sender::Listener
+																	  public wrap::clone_manager::Listener
 {
 	duplicate_parameter_node_base(const Identifier& id):
 		parameter_node_base<ParameterType>(id)

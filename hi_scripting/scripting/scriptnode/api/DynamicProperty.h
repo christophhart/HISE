@@ -37,7 +37,6 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-using DupliListener = wrap::duplicate_sender::Listener;
 
 namespace parameter
 {
@@ -61,18 +60,6 @@ struct dynamic_base: public ReferenceCountedObject
 		f(obj, lastValue);
 	}
 
-	virtual void callWithDuplicateIndex(int index, double value) 
-	{
-
-	}
-
-	virtual void setDelta(double v)
-	{
-
-	}
-
-	virtual int getNumDuplicates() const { return 1; }
-
 	static dynamic_base::Ptr createFromConnectionTree(const ValueTree& v, parameter::dynamic& callback, bool allowRange=true);
 
 	parameter::dynamic::Function f;
@@ -84,8 +71,6 @@ struct dynamic_base: public ReferenceCountedObject
 	}
 
 	InvertableParameterRange getRange() const { return range; }
-
-	virtual void setParentNumVoiceListener(DupliListener* ) {}
 
 	virtual void updateRange(const ValueTree& v)
 	{
@@ -122,20 +107,6 @@ struct dynamic_base_holder: public dynamic_base
 			base->call(v);
 	}
 
-	virtual int getNumDuplicates() const
-	{
-		jassertfalse;
-		return 0;
-	}
-
-	void setDelta(double v) final override
-	{
-		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
-
-		if (base != nullptr)
-			base->setDelta(v);
-	}
-
 	virtual void updateRange(const ValueTree& v) override
 	{
 		// Do nothing here because the holder is not supposed to 
@@ -159,9 +130,6 @@ struct dynamic_base_holder: public dynamic_base
 			base = b;
 		}
 
-		if (base != nullptr)
-			setParentNumVoiceListener(parentNumVoiceListener);
-
 		call(getDisplayValue());
 	}
 
@@ -169,18 +137,6 @@ struct dynamic_base_holder: public dynamic_base
 	{
 		return base != nullptr;
 	}
-
-	void setParentNumVoiceListener(DupliListener* l)
-	{
-		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
-
-		parentNumVoiceListener = l;
-
-		if (isConnected())
-			base->setParentNumVoiceListener(l);
-	}
-
-	WeakReference<DupliListener> parentNumVoiceListener;
 
 	dynamic_base::Ptr base;
 	
@@ -216,32 +172,6 @@ template <bool ScaleInput> struct dynamic_chain : public dynamic_base
 			auto tv = ScaleInput ? t->getRange().convertFrom0to1(nv) : v;
 			t->call(tv);
 		}
-	}
-
-	int getNumDuplicates() const override
-	{
-		if (targets.isEmpty())
-			return 0;
-
-		return targets[0]->getNumDuplicates();
-	}
-
-	void callWithDuplicateIndex(int index, double value) final override
-	{
-		for (auto& t : targets)
-			t->callWithDuplicateIndex(index, value);
-	}
-
-	void setDelta(double v)
-	{
-		for (auto& t : targets)
-			t->setDelta(v);
-	}
-
-	void setParentNumVoiceListener(DupliListener* l)
-	{
-		for (auto& t : targets)
-			t->setParentNumVoiceListener(l);
 	}
 
 	dynamic_base::List targets;

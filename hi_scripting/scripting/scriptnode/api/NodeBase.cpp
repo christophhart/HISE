@@ -611,7 +611,7 @@ double Parameter::getValue() const
 	return (double)data[PropertyIds::Value];
 }
 
-void Parameter::setCallbackNew(parameter::dynamic_base::Ptr ownedNew)
+void Parameter::setDynamicParameter(parameter::dynamic_base::Ptr ownedNew)
 {
 	// We don't need to lock if the network isn't active yet...
 	bool useLock = parent->isActive(true) && parent->getRootNetwork()->isInitialised();

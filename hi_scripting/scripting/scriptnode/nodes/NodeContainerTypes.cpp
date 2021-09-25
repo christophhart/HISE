@@ -729,7 +729,7 @@ struct CloneOptionComponent : public Component,
 
 			auto numToCloneString = PresetHandler::getCustomName("NumClones", "Enter the number of clones you want to create");
 
-			SimpleReadWriteLock::ScopedWriteLock sl(parent->getRootNetwork()->getConnectionLock());
+			SimpleReadWriteLock::ScopedWriteLock sl(parentNode->getRootNetwork()->getConnectionLock());
 
 			auto numToAdd = jlimit(1, 128, numToCloneString.getIntValue());
 
@@ -836,9 +836,10 @@ void CloneNode::CloneIterator::resetError()
 }
 
 CloneNode::CloneNode(DspNetwork* n, ValueTree d) :
-	SerialNode(n, d),
-	cloneSender(*this)
+	SerialNode(n, d)
 {
+    obj.cloneData.setCloneNode(this);
+    
 	if (!d.hasProperty(PropertyIds::ShowClones))
 		d.setProperty(PropertyIds::ShowClones, true, getUndoManager());
 
@@ -868,7 +869,7 @@ CloneNode::CloneNode(DspNetwork* n, ValueTree d) :
 
 		auto ndb = new parameter::dynamic_base(p.callback);
 
-		newP->setCallbackNew(ndb);
+		newP->setDynamicParameter(ndb);
 		newP->valueNames = p.parameterNames;
 
 		addParameter(newP);
@@ -877,21 +878,22 @@ CloneNode::CloneNode(DspNetwork* n, ValueTree d) :
 	numVoicesListener.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, [this](const ValueTree&, bool wasAdded)
 	{
 		auto numMax = jmax(1, getNodeTree().getNumChildren());
-		auto numTree = getParameterTree().getChildWithProperty(PropertyIds::ID, "NumVoices");
+		auto numTree = getParameterTree().getChildWithProperty(PropertyIds::ID, PropertyIds::NumClones.toString());
 		numTree.setProperty(PropertyIds::MaxValue, numMax, getUndoManager());
 	});
 
 	auto syncedParameterIds = RangeHelpers::getRangeIds(true);
 	syncedParameterIds.add(PropertyIds::Automated);
+    syncedParameterIds.add(PropertyIds::Bypassed);
 
-	valueSyncer.setCallback(getNodeTree(), syncedParameterIds, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::syncChildValues));
+	valueSyncer.setCallback(getNodeTree(), syncedParameterIds, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::syncCloneProperty));
 
 	cloneWatcher.setTypeToWatch(PropertyIds::Nodes);
 	cloneWatcher.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::checkValidClones));
 
 	Array<Identifier> uiIds = { PropertyIds::NodeColour, PropertyIds::Folded, PropertyIds::ShowParameters, PropertyIds::IsVertical, PropertyIds::Comment, PropertyIds::Frozen };
 
-	uiSyncer.setCallback(getNodeTree(), uiIds, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::syncChildValues));
+	uiSyncer.setCallback(getNodeTree(), uiIds, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::syncCloneProperty));
 
 	connectionListener.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::updateConnections));
 
@@ -899,6 +901,19 @@ CloneNode::CloneNode(DspNetwork* n, ValueTree d) :
 	connectionListener.setTypesToWatch({ PropertyIds::Connections, PropertyIds::ModulationTargets });
 
 	displayCloneRangeListener.setCallback(d, { PropertyIds::DisplayedClones }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::updateDisplayedClones));
+    
+    complexDataSyncer.setCallback(getNodeTree(), { PropertyIds::Index, PropertyIds::EmbeddedData }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::syncCloneProperty));
+    
+    if(getNodeTree().getNumChildren() == 0)
+    {
+        var s = getRootNetwork()->create("container.chain", getId() + "_child");
+        auto ct = dynamic_cast<NodeBase*>(s.getObject())->getValueTree();
+        
+        ct.setProperty(PropertyIds::NodeColour, 0xFF949494, getUndoManager());
+        
+        auto cp = ct.getParent();
+        getNodeTree().addChild(ct, -1, getUndoManager());
+    }
 }
 
 scriptnode::ParameterDataList CloneNode::createInternalParameterList()
@@ -906,15 +921,16 @@ scriptnode::ParameterDataList CloneNode::createInternalParameterList()
 	ParameterDataList data;
 
 	{
-		DEFINE_PARAMETERDATA(CloneNode, NumVoices);
+		DEFINE_PARAMETERDATA(CloneNode, NumClones);
 		p.setRange({ 1.0, 16.0, 1.0 });
 		p.setDefaultValue(1.0);
 		data.add(std::move(p));
 	}
 	{
 		DEFINE_PARAMETERDATA(CloneNode, SplitSignal);
-		p.setRange({ 0.0, 1.0, 1.0 });
-		p.setDefaultValue(1.0);
+		p.setRange({ 0.0, 2.0, 1.0 });
+        p.setParameterValueNames({"Serial", "Parallel", "Copy"});
+		p.setDefaultValue(2.0);
 		data.add(std::move(p));
 	}
 
@@ -923,8 +939,8 @@ scriptnode::ParameterDataList CloneNode::createInternalParameterList()
 
 void CloneNode::processFrame(FrameType& data) noexcept
 {
-	for (auto n : *this)
-		n->processFrame(data);
+    // implement compile time channel count
+    jassertfalse;
 }
 
 void CloneNode::process(ProcessDataDyn& data) noexcept
@@ -935,6 +951,8 @@ void CloneNode::process(ProcessDataDyn& data) noexcept
 		nodes.getFirst()->process(data);
 	else
 	{
+        obj.process(data);
+#if 0
 		if (splitSignal)
 		{
 			for (auto n : *this)
@@ -952,6 +970,7 @@ void CloneNode::process(ProcessDataDyn& data) noexcept
 			for (auto n : *this)
 				n->process(data);
 		}
+#endif
 	}
 }
 
@@ -960,56 +979,44 @@ void CloneNode::prepare(PrepareSpecs ps)
 	NodeBase::prepare(ps);
 	prepareNodes(ps);
 
+    obj.prepare(ps);
+    
+#if 0
 	lastSpecs = ps;
 
 	if (splitSignal)
 		DspHelpers::increaseBuffer(splitCopy, ps);
 	else
 		splitCopy = {};
+#endif
 }
 
 void CloneNode::handleHiseEvent(HiseEvent& e)
 {
-	for (auto n : *this)
-		n->handleHiseEvent(e);
+    obj.handleHiseEvent(e);
 }
 
 void CloneNode::reset()
 {
-	for (auto n : *this)
-		n->reset();
+    obj.reset();
 }
 
 
-void CloneNode::setNumVoices(double newNumVoices)
+void CloneNode::setNumClones(double newSize)
 {
-	numVoices = newNumVoices;
-
 	for (int i = 0; i < nodes.size(); i++)
 	{
 		DynamicBypassParameter::ScopedUndoDeactivator sds(nodes[i]);
-		nodes[i]->setBypassed(i >= numVoices);
+		nodes[i]->setBypassed(i >= newSize);
 	}
 
-	cloneSender.setVoiceAmount(numVoices);
-
-	reset();
+	obj.setNumClones(newSize);
 }
 
 void CloneNode::setSplitSignal(double shouldSplit)
 {
-	if (splitSignal != (bool)shouldSplit)
-	{
-		splitSignal = shouldSplit;
-
-		isVertical.storeValue(!splitSignal, getUndoManager());
-
-		if (lastSpecs)
-		{
-			SimpleReadWriteLock::ScopedWriteLock sl(getRootNetwork()->getConnectionLock());
-			prepare(lastSpecs);
-		}
-	}
+    isVertical.storeValue(shouldSplit < 1.0, getUndoManager());
+    obj.setCloneProcessType(shouldSplit);
 }
 
 int CloneNode::getCloneIndex(NodeBase* n)
@@ -1022,14 +1029,24 @@ int CloneNode::getCloneIndex(NodeBase* n)
 	return cn->getPathForValueTree(n->getValueTree()).getFirst();
 }
 
-void CloneNode::syncChildValues(const ValueTree& v, const Identifier& id)
+void CloneNode::syncCloneProperty(const ValueTree& v, const Identifier& id)
 {
-	auto value = v[id];
+    // do not sync the top level bypass state
+    if(id == PropertyIds::Bypassed && v.getParent() == getNodeTree())
+        return;
+    
+    if(currentlySyncedIds.contains(id))
+        return;
+    
+    currentlySyncedIds.addIfNotAlreadyThere(id);
+    
+    auto value = v[id];
 	
 	for(auto& cv: CloneIterator(*this, v, true))
-		cv.setPropertyExcludingListener(&valueSyncer, id, value, getUndoManager());
+		cv.setProperty(id, value, getUndoManager());
+    
+    currentlySyncedIds.removeAllInstancesOf(id);
 }
-
 
 Component* CloneNode::createLeftTabComponent() const
 {
@@ -1083,6 +1100,13 @@ void CloneNode::checkValidClones(const ValueTree& v, bool wasAdded)
 
 	auto firstTree = getNodeTree().getChild(0);
 
+    if(firstTree.isValid() && !firstTree[PropertyIds::FactoryPath].toString().startsWith("container."))
+    {
+        Error e;
+        e.error = Error::CloneMismatch;
+        getRootNetwork()->getExceptionHandler().addError(this, e, "clone root element must be a container");
+    }
+    
 	for (int i = 1; i < getNodeTree().getNumChildren(); i++)
 	{
 		if (!sameNodes(firstTree, getNodeTree().getChild(i)))

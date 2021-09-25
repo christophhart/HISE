@@ -181,8 +181,18 @@ void NodeContainer::parameterAddedOrRemoved(ValueTree child, bool wasAdded)
 {
 	auto n = asNode();
 
+    n->getRootNetwork()->getExceptionHandler().removeError(n, Error::CloneMismatch);
+    
 	if (wasAdded)
 	{
+        if(auto cn = dynamic_cast<CloneNode*>(asNode()->getParentNode()))
+        {
+            Error e;
+            e.error = Error::CloneMismatch;
+            cn->getRootNetwork()->getExceptionHandler().addError(asNode(), e, "A cloned container must not have any parameters of its own");
+            jassertfalse;
+        }
+        
 		auto newParameter = new MacroParameter(asNode(), child);
 		n->addParameter(newParameter);
 	}
@@ -627,7 +637,7 @@ void NodeContainer::MacroParameter::rebuildCallback()
 
 	auto nc = Connection::createParameterFromConnectionTree(parent, cTree, true);
 
-	setCallbackNew(nc);
+	setDynamicParameter(nc);
 }
 
 
@@ -637,10 +647,10 @@ void NodeContainer::MacroParameter::updateRangeForConnection(ValueTree v, Identi
 	rebuildCallback();
 }
 
-void NodeContainer::MacroParameter::setCallbackNew(parameter::dynamic_base::Ptr ownedNew)
+void NodeContainer::MacroParameter::setDynamicParameter(parameter::dynamic_base::Ptr ownedNew)
 {
 	pholder->setParameter(parent, ownedNew);
-	Parameter::setCallbackNew(pholder);
+	Parameter::setDynamicParameter(pholder);
 }
 
 void NodeContainer::MacroParameter::updateInputRange(Identifier, var)

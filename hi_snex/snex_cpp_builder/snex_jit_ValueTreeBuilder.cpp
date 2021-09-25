@@ -595,26 +595,31 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 
 Node::Ptr ValueTreeBuilder::parseCloneContainer(Node::Ptr u)
 {
-	auto hasNumCloneAutomation = (bool)u->nodeTree.getChildWithName(PropertyIds::Parameters).getChild(0)[PropertyIds::Automated];
+    auto v = u->nodeTree;
+    auto pTree = v.getChildWithName(PropertyIds::Parameters);
+    auto nTree = v.getChildWithName(PropertyIds::Nodes);
+    
+	auto hasNumCloneAutomation = (bool)pTree.getChild(0)[PropertyIds::Automated];
 
-	auto isSplitSignal = (bool)u->nodeTree.getChildWithName(PropertyIds::Parameters).getChild(1)[PropertyIds::Value];
+	auto processType = (CloneProcessType)(int)pTree.getChild(1)[PropertyIds::Value];
 
-    int numClones = u->nodeTree.getChildWithName(PropertyIds::Nodes).getNumChildren();
+    int numClones = hasNumCloneAutomation ?
+                    nTree.getNumChildren() :
+                    (int)pTree.getChild(0)[PropertyIds::Value];
     
 	String cloneClassId;
 
-	if (hasNumCloneAutomation && isSplitSignal)
-		cloneClassId = "duplisplit";
-	if (!hasNumCloneAutomation && isSplitSignal)
-		cloneClassId = "fix_duplisplit";
-	if (hasNumCloneAutomation && !isSplitSignal)
-		cloneClassId = "duplichain";
-	if (!hasNumCloneAutomation && !isSplitSignal)
-		cloneClassId = "fix_duplichain";
-
+    if(!hasNumCloneAutomation)
+        cloneClassId << "fix_";
+    
+    static const StringArray names = { "chain", "split", "copy"};
+    
+    cloneClassId << "clone";
+    cloneClassId << names[(int)processType];
+    
     u->setTemplateId(NamespacedIdentifier("wrap").getChildId(cloneClassId));
     
-	auto firstChild = u->nodeTree.getChildWithName(PropertyIds::Nodes).getChild(0);
+	auto firstChild = nTree.getChild(0);
 
 	auto firstNode = parseNode(firstChild);
 
@@ -793,12 +798,12 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 
 			int pIndex = 0;
 
-			auto dc = makeParameter(chainId, "duplichain", {});
+			auto dc = makeParameter(chainId, "clonechain", {});
 
 			for (auto c : cTree)
 			{
 				auto ip = createParameterFromConnection(getConnection(c), pId, pIndex++, {});
-				auto cp = makeParameter(pId, "dupli", {});
+				auto cp = makeParameter(pId, "cloned", {});
 				*cp << *ip;
 				*dc << *cp;
 			}
@@ -809,7 +814,7 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 		{
 			auto rawParameter = parseParameter(p, Connection::CableType::Modulation);
 			pId << "_cable_mod";
-			auto cp = makeParameter(pId, "dupli", {});
+			auto cp = makeParameter(pId, "cloned", {});
 			*cp << *rawParameter;
 			return cp;
 		}

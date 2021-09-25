@@ -143,7 +143,7 @@ public:
 		return dynamicParameter;
 	}
 
-	virtual void setCallbackNew(parameter::dynamic_base::Ptr ownedNew);
+	virtual void setDynamicParameter(parameter::dynamic_base::Ptr ownedNew);
 
 	StringArray valueNames;
 	NodeBase* parent;

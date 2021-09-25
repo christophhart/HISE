@@ -578,7 +578,7 @@ SnexSource::SnexParameter::SnexParameter(SnexSource* n, NodeBase* parent, ValueT
 
 	auto ndb = new parameter::dynamic_base(p);
 	
-	setCallbackNew(ndb);
+	setDynamicParameter(ndb);
 
 	auto ids = RangeHelpers::getRangeIds();
 	ids.add(PropertyIds::ID);

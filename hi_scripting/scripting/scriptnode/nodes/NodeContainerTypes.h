@@ -114,7 +114,7 @@ public:
 	Colour getContainerColour() const override {
 		return Colour(MIDI_PROCESSOR_COLOUR);
 	}
-
+    
 	String getNodeDescription() const override { return "Sends MIDI events to child nodes"; }
 
 private:
@@ -219,13 +219,13 @@ public:
 
 	enum class Parameters
 	{
-		NumVoices,
+		NumClones,
 		SplitSignal
 	};
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(NumVoices, CloneNode);
+		DEF_PARAMETER(NumClones, CloneNode);
 		DEF_PARAMETER(SplitSignal, CloneNode);
 	}
 
@@ -233,7 +233,7 @@ public:
 
 	SCRIPTNODE_FACTORY(CloneNode, "clone");
 
-	String getNodeDescription() const override { return "Allows easy cloning of child nodes"; }
+	String getNodeDescription() const override { return "An array of equal nodes with dynamic resizing"; }
 
 	virtual bool hasFixedParameters() const { return true; }
 
@@ -247,13 +247,13 @@ public:
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override;
 
-	void setNumVoices(double newNumVoices);
+	void setNumClones(double newNumVoices);
 
 	void setSplitSignal(double shouldSplit);
 
 	static int getCloneIndex(NodeBase* n);
 
-	void syncChildValues(const ValueTree& v, const Identifier& id);
+	void syncCloneProperty(const ValueTree& v, const Identifier& id);
 
 	Component* createLeftTabComponent() const override;
 
@@ -267,22 +267,69 @@ public:
 
 	LambdaBroadcaster<NodeBase*> cloneChangeBroadcaster;
 
-	struct DynamicCloneSender : public wrap::duplicate_sender
-	{
-		DynamicCloneSender(CloneNode& p) :
-			parent(p),
-			duplicate_sender(1)
-		{};
-
-		void setVoiceAmount(int newNumVoices) override
-		{
-			wrap::duplicate_sender::setVoiceAmount(newNumVoices);
-			sendMessageToListeners();
-		}
-
-		CloneNode& parent;
-	} cloneSender;
-
+    struct DynamicCloneData
+    {
+        // This class just forwards the node methods to the weak reference
+        struct NodeWrapper: public WeakReference<NodeBase>
+        {
+            using WrappedObjectType = NodeBase;
+            
+            void reset() { if(get() != nullptr) get()->reset(); }
+            void prepare(PrepareSpecs ps) { if (get() != nullptr) get()->prepare(ps); }
+            template <typename PT> void process(PT& d) { get()->process(d.template as<ProcessDataDyn>()); }
+            template <typename FT> void processFrame(FT& d) { get()->processFrame(d); };
+            void handleHiseEvent(HiseEvent& e) { get()->handleHiseEvent(e); }
+        };
+        
+        using ObjectType = NodeWrapper;
+        
+        DynamicCloneData(wrap::clone_manager& m):
+          manager(m)
+        {
+            static_assert(std::is_standard_layout<NodeWrapper>(), "wrapper is not a standard layout");
+            static_assert(std::is_standard_layout<WeakReference<NodeBase>>(), "wrapper is not a standard layout");
+        }
+        
+        static constexpr int getInitialCloneAmount() { return 1; }
+        
+        int getTotalNumClones() const { return n->nodes.size(); }
+        
+        template <bool AllNodes> struct Iterator
+        {
+            Iterator(DynamicCloneData& d):
+              parent(d)
+            {
+                
+            }
+            
+            NodeWrapper* begin() const
+            {
+                // rather ugly, but the node list is a array of weak references...
+                return static_cast<NodeWrapper*>(parent.n->nodes.begin());
+            }
+            
+            NodeWrapper* end() const
+            {
+                if constexpr (AllNodes)
+                    return static_cast<NodeWrapper*>(parent.n->nodes.end());
+                else
+                    return begin() + jmin(parent.getTotalNumClones(), parent.manager.getNumClones());
+            }
+            
+            DynamicCloneData& parent;
+        };
+        
+        void setCloneNode(CloneNode* n_)
+        {
+            n = n_;
+        }
+        
+        wrap::clone_manager& manager;
+        CloneNode* n = nullptr;
+    };
+    
+    wrap::clone_base<DynamicCloneData, CloneProcessType::Dynamic> obj;
+    
 	struct CloneIterator
 	{
 		CloneIterator(CloneNode& n, const ValueTree& v, bool skipOriginal);
@@ -311,9 +358,16 @@ public:
 
 	bool shouldCloneBeDisplayed(int index) const;
 
+    Colour getContainerColour() const override
+    {
+        return Colour(0xFF949494);
+    }
+    
+    
+    
 private:
 
-	void updateDisplayedClones(const Identifier&, const var& v);
+    void updateDisplayedClones(const Identifier&, const var& v);
 
 	BigInteger displayedCloneState;
 
@@ -326,13 +380,8 @@ private:
 
 	auto end() const
 	{
-		return nodes.begin() + jmin(nodes.size(), numVoices);
+		return nodes.begin() + jmin(nodes.size(), obj.getNumClones());
 	}
-
-	int numVoices = 1;
-	bool splitSignal = false;
-
-	
 
 	CachedValue<bool> showClones;
 
@@ -344,13 +393,14 @@ private:
 
 	valuetree::RecursiveTypedChildListener cloneWatcher;
 
+    Array<Identifier> currentlySyncedIds;
+    
 	bool connectionRecursion = false;
 	valuetree::RecursiveTypedChildListener connectionListener;
 
 	valuetree::PropertyListener displayCloneRangeListener;
-
-	AudioSampleBuffer splitCopy;
-	PrepareSpecs lastSpecs;
+    
+    valuetree::RecursivePropertyListener complexDataSyncer;
 };
 
 template <int OversampleFactor> class OversampleNode : public SerialNode

@@ -39,98 +39,36 @@ using namespace hise;
 namespace parameter
 {
 
-	struct clone_holder : public dynamic_base_holder
-	{
-		clone_holder()
-		{
-			lastValues.ensureStorageAllocated(16);
-		}
-
-		void callWithDuplicateIndex(int index, double v);
-
-		void setParameter(NodeBase* n, dynamic_base::Ptr b) override;
-
-		void rebuild(NodeBase* targetContainer);
-
-		ReferenceCountedArray<dynamic_base> cloneTargets;
-		Array<double> lastValues;
-
-		NodeBase::Ptr connectedCloneContainer;
-
-		void setParentNumVoiceListener(scriptnode::wrap::duplicate_sender::Listener* pl)
-		{
-			parentListener = pl;
-		}
-
-		WeakReference<scriptnode::wrap::duplicate_sender::Listener> parentListener;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(clone_holder);
-	};
-
-
-
-struct dynamic_duplispread : public dynamic_base_holder,
-							 public scriptnode::wrap::duplicate_sender::Listener
+struct clone_holder : public dynamic_base_holder
 {
-	static dynamic_base_holder* getParameterFunctionStatic(void* b);;
+    clone_holder()
+    {
+        lastValues.ensureStorageAllocated(16);
+    }
 
-	~dynamic_duplispread()
-	{
-		if (connectedDuplicateObject != nullptr)
-			connectedDuplicateObject->removeNumVoiceListener(this);
-	}
+    static dynamic_base_holder* getParameterFunctionStatic(void* b);
+    
+    void callEachClone(int index, double v);
 
-	void callWithDuplicateIndex(int index, double v) final override
-	{
-		setDisplayValue(v);
+    void setParameter(NodeBase* n, dynamic_base::Ptr b) override;
 
-		if (auto obj = targets[index])
-		{
-			auto c = dynamic_cast<parameter::dynamic_chain<true>*>(base.get());
+    void rebuild(NodeBase* targetContainer);
 
-			c->targets[0]->obj = obj;
+    ReferenceCountedArray<dynamic_base> cloneTargets;
+    Array<double> lastValues;
 
-			base->call(v);
-		}
-	}
+    NodeBase::Ptr connectedCloneContainer;
 
-	void setParameter(NodeBase* newUnisonoMode, dynamic_base::Ptr cb) override;
+    void setParentNumClonesListener(scriptnode::wrap::clone_manager::Listener* pl)
+    {
+        parentListener = pl;
+    }
 
-	int getNumDuplicates() const override
-	{
-		if (connectedDuplicateObject != nullptr)
-		{
-			return connectedDuplicateObject->getNumVoices();
-		}
+    WeakReference<scriptnode::wrap::clone_manager::Listener> parentListener;
 
-		return 1;
-	}
-
-	void numVoicesChanged(int newNumVoices) override
-	{
-		rebuildTargets();
-
-		if (parentListener != nullptr)
-			parentListener->numVoicesChanged(newNumVoices);
-	}
-
-	void setParentNumVoiceListener(DupliListener* l) override
-	{
-		parentListener = l;
-	}
-
-	void rebuildTargets();
-
-	Array<void*> targets;
-	WeakReference<scriptnode::wrap::duplicate_sender> connectedDuplicateObject;
-	NodeBase::Ptr unisonoParent;
-	NodeBase::Ptr connectedNode;
-
-	WeakReference<DupliListener> parentListener;
+    JUCE_DECLARE_WEAK_REFERENCEABLE(clone_holder);
 };
 }
-
-
 
 namespace duplilogic
 {
@@ -149,7 +87,7 @@ namespace duplilogic
 			Ducker
 		};
 
-		using NodeType = control::dupli_cable<parameter::clone_holder, dynamic>;
+		using NodeType = control::clone_cable<parameter::clone_holder, dynamic>;
 
 		dynamic() :
 			mode(PropertyIds::Mode, "Spread")

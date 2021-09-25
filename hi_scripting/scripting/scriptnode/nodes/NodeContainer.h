@@ -75,7 +75,7 @@ struct NodeContainer : public AssignableObject
 		void rebuildCallback();
 		void updateRangeForConnection(ValueTree v, Identifier);
 
-		void setCallbackNew(parameter::dynamic_base::Ptr ownedNew) override;
+		void setDynamicParameter(parameter::dynamic_base::Ptr ownedNew) override;
 
 		void updateConnectionForExpression(ValueTree v, Identifier)
 		{

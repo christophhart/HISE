@@ -39,7 +39,7 @@ namespace control
 {
 	/** Oh boy, this is ugly. The mothernode system does not work with dynamic data types, so the UI
 		offset crashes the component creation. Therefore we need to roll an own class .*/
-	struct dynamic_dupli_pack : public wrap::data<control::dupli_pack<parameter::clone_holder>, data::dynamic::sliderpack>
+	struct dynamic_dupli_pack : public wrap::data<control::clone_pack<parameter::clone_holder>, data::dynamic::sliderpack>
 	{
 		static parameter::dynamic_base_holder* getParameterFunction(void* obj);
 	};
@@ -50,10 +50,7 @@ namespace ui { namespace pimpl { struct editor_base; } }
 namespace pimpl { struct dynamic_base; }
 }
 
-namespace parameter
-{
-	struct dynamic_list;
-}
+namespace parameter { struct dynamic_list; }
 
 using namespace juce;
 using namespace hise;
@@ -63,8 +60,6 @@ struct ComponentHelpers
     static NodeComponent* createDefaultComponent(NodeBase* n);
     static void addExtraComponentToDefault(NodeComponent* nc, Component* c);
 };
-
-
 
 struct OpaqueNodeDataHolder: public data::base,
 						     public ExternalDataHolderWithForcedUpdate,
@@ -569,7 +564,7 @@ struct InterpretedCableNode : public ModulationSourceNode,
 		if constexpr (std::is_same<T, control::dynamic_dupli_pack>())
 			mn->getParameterFunction = control::dynamic_dupli_pack::getParameterFunction;
 		else if constexpr (isBaseOfDynamicDupliHolder)
-			mn->getParameterFunction = parameter::dynamic_duplispread::getParameterFunctionStatic;
+			mn->getParameterFunction = parameter::clone_holder::getParameterFunctionStatic;
 		else if constexpr (isBaseOfDynamicParameterHolder)
 			mn->getParameterFunction = InterpretedCableNode::getParameterFunctionStatic<T>;
 		else

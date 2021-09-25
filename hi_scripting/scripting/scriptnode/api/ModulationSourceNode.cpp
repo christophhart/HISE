@@ -524,7 +524,7 @@ void WrapperNode::initParameterData(ParameterDataList& pData)
 
 		auto ndb = new parameter::dynamic_base(p.callback);
 
-		newP->setCallbackNew(ndb);
+		newP->setDynamicParameter(ndb);
 		newP->valueNames = p.parameterNames;
 
 		addParameter(newP);

@@ -152,7 +152,7 @@ void dynamic::editor::timerCallback()
 
 namespace parameter
 {
-	void clone_holder::callWithDuplicateIndex(int index, double v)
+	void clone_holder::callEachClone(int index, double v)
 	{
 		SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
 
@@ -204,8 +204,13 @@ namespace parameter
 
 			for (const auto& cv : cit)
 			{
-				jassert(cv.getType() == PropertyIds::Parameter);
-				list.add(cit.getParameterForValueTree(cv)->getDynamicParameter());
+                if(auto cp = cit.getParameterForValueTree(cv))
+                {
+                    jassert(cv.getType() == PropertyIds::Parameter);
+                    list.add(cp->getDynamicParameter());
+                }
+                else
+                    jassertfalse;
 			}
 		}
 
@@ -219,7 +224,7 @@ namespace parameter
 		if (auto cn = dynamic_cast<CloneNode*>(connectedCloneContainer.get()))
 		{
 			cn->cloneChangeBroadcaster.removeListener(*this);
-			cn->cloneSender.removeNumVoiceListener(parentListener);
+			cn->obj.removeNumClonesListener(parentListener);
 		}
 
 		if (auto c = dynamic_cast<dynamic_chain<true>*>(base.get()))
@@ -244,7 +249,7 @@ namespace parameter
 
 			rebuild(cloneParent);
 			cloneParent->cloneChangeBroadcaster.addListener(*this, [](clone_holder& c, NodeBase* tc) {c.rebuild(tc); });
-			cloneParent->cloneSender.addNumVoiceListener(parentListener);
+			cloneParent->obj.addNumClonesListener(parentListener);
 		}
 
 	}
@@ -305,7 +310,7 @@ namespace parameter
 
 		for (int i = 0; i < lastValues.size(); i++)
 		{
-			callWithDuplicateIndex(i, lastValues[i]);
+			callEachClone(i, lastValues[i]);
 		}
 	}
 
@@ -820,7 +825,8 @@ namespace ui
 	}
 }
 
-scriptnode::parameter::dynamic_base_holder* dynamic_duplispread::getParameterFunctionStatic(void* b)
+
+scriptnode::parameter::dynamic_base_holder* clone_holder::getParameterFunctionStatic(void* b)
 {
 	auto mn = static_cast<mothernode*>(b);
 	auto typed = dynamic_cast<control::pimpl::parameter_node_base<parameter::clone_holder>*>(mn);

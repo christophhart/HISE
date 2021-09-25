@@ -156,8 +156,8 @@ enum class ParameterType
 	Single,
 	Chain,
 	List,
-	Dupli,
-	DupliChain
+	Clone,
+	CloneChain
 };
 
 /** This class wraps one of the other classes into an opaque pointer and is used by the data class. */
