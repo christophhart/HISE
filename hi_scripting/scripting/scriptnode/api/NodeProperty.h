@@ -83,34 +83,6 @@ private:
 	bool isPublic;
 };
 
-#if 0
-struct ScriptFunctionManager : public hise::GlobalScriptCompileListener,
-	public NodeProperty
-{
-	ScriptFunctionManager() :
-		NodeProperty(PropertyIds::Callback, "undefined", true) {};
-
-	~ScriptFunctionManager();
-
-	void scriptWasCompiled(JavascriptProcessor *processor) override;
-	void updateFunction(Identifier, var newValue);
-	double callWithDouble(double inputValue);
-
-	void postInit(NodeBase* n) override;
-
-	valuetree::PropertyListener functionListener;
-	WeakReference<JavascriptProcessor> jp;
-	Result lastResult = Result::ok();
-
-	var functionName;
-	var function;
-	var input[8];
-	bool ok = false;
-
-	MainController* mc;
-};
-#endif
-
 template <class T, int Value> struct StaticProperty
 {
 	constexpr T getValue() const { return Value; }

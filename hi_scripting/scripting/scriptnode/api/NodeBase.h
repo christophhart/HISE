@@ -460,24 +460,7 @@ public:
 
 	String getCpuUsageInPercent() const;
 
-	void setIsUINodeOfDuplicates(bool on)
-	{
-		uiNodeOfDuplicates = on;
-		forEach([&](NodeBase::Ptr p)
-		{
-			if (p == this)
-				return false;
-
-			p->setIsUINodeOfDuplicates(on); return false; 
-		});
-	}
-
 	bool isClone() const;
-
-	bool isUINodeOfDuplicate() const
-	{
-		return false;
-	}
 
 	void setEmbeddedNetwork(NodeBase::Holder* n);
 
@@ -499,14 +482,11 @@ private:
 	bool enableUndo = true;
 	mutable String dynamicBypassId;
 	
-
 	void updateFrozenState(Identifier id, var newValue);
 
 	bool containsNetwork = false;
 
 	valuetree::PropertyListener frozenListener;
-
-	bool uiNodeOfDuplicates = false;
 
 	WeakReference<NodeBase::Holder> embeddedNetwork;
 	WeakReference<NodeBase::Holder> parent;
@@ -524,7 +504,6 @@ private:
 
 	ReferenceCountedArray<Parameter> parameters;
 	WeakReference<NodeBase> parentNode;
-	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeBase);
 };

@@ -1163,14 +1163,6 @@ void ParameterSlider::itemDropped(const SourceDetails& dragSourceDetails)
 		return;
 	}
 
-	if (auto wc = findParentComponentOfClass<WrapperSlot>())
-	{
-		auto copy = SourceDetails(dragSourceDetails);
-		copy.description.getDynamicObject()->setProperty("NumVoices", 8);
-		
-		currentConnection = parameterToControl->addConnectionFrom(copy.description);
-	}
-
 	currentConnection = parameterToControl->addConnectionFrom(dragSourceDetails.description);
 }
 
