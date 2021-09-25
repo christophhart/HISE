@@ -216,7 +216,7 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
 		{
 #if HISE_INCLUDE_SNEX
-			if (auto network = h->getActiveNetwork())
+			if (auto network = h->getActiveOrDebuggedNetwork())
 			{
 				for (auto so : network->getSnexObjects())
 				{

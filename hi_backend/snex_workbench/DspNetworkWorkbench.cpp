@@ -91,9 +91,9 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 			if (np != nullptr)
 			{
 
-				auto rootNode = np->getActiveNetwork()->getRootNode();
+				auto rootNode = np->getActiveOrDebuggedNetwork()->getRootNode();
 
-				np->getActiveNetwork()->setExternalDataHolder(&getParent()->getTestData());
+				np->getActiveOrDebuggedNetwork()->setExternalDataHolder(&getParent()->getTestData());
 
 				for (int i = 0; i < rootNode->getNumParameters(); i++)
 				{
@@ -235,7 +235,7 @@ void DspNetworkCompileHandler::postCompile(WorkbenchData::CompileResult& lastRes
 				jitNode = nullptr;
 
 				if (np != nullptr)
-					interpreter = np->getActiveNetwork();
+					interpreter = np->getActiveOrDebuggedNetwork();
 			}
 			else if (dnp->source == DspNetworkCodeProvider::SourceMode::DynamicLibrary)
 			{
@@ -282,7 +282,7 @@ void DspNetworkCodeProvider::initNetwork()
 	else
 	{
 		n = np->getOrCreate(getXmlFile().getFileNameWithoutExtension());
-		currentTree = np->getActiveNetwork()->getValueTree();
+		currentTree = np->getActiveOrDebuggedNetwork()->getValueTree();
 	}
 
 	auto asP = dynamic_cast<Processor*>(np.get());

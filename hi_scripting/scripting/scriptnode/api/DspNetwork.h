@@ -283,7 +283,7 @@ public:
 
 		ScriptParameterHandler* getCurrentNetworkParameterHandler(const ScriptParameterHandler* contentHandler) const
 		{
-			if (auto n = getActiveNetwork())
+			if (auto n = getActiveOrDebuggedNetwork())
 			{
 				if (n->isForwardingControlsToParameters())
 				{
@@ -298,6 +298,17 @@ public:
 			return const_cast<ScriptParameterHandler*>(contentHandler);
 		}
 
+        DspNetwork* getActiveOrDebuggedNetwork() const
+        {
+            if(activeNetwork.get() != nullptr)
+                return activeNetwork;
+            
+            if(debuggedNetwork != nullptr)
+                return debuggedNetwork;
+            
+            return nullptr;
+        }
+        
 		DspNetwork* getActiveNetwork() const
 		{
 			return activeNetwork.get();

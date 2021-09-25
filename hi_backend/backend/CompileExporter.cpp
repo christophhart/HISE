@@ -872,7 +872,7 @@ bool CompileExporter::checkSanity(BuildOption option)
 
 	for (auto n : networks)
 	{
-		if (auto network = n->getActiveNetwork())
+		if (auto network = n->getActiveOrDebuggedNetwork())
 		{
 			auto r = network->checkBeforeCompilation();
 

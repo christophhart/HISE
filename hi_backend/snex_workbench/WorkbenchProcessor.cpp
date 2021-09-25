@@ -531,20 +531,13 @@ void SnexWorkbenchEditor::saveCurrentFile()
 
 		auto fh = getNetworkHolderForNewFile(getProcessor(), synthMode);
 
-		autosaver = new DspNetworkListeners::PatchAutosaver(fh->getActiveNetwork(), BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks));
+        if(auto nw = fh->getActiveOrDebuggedNetwork())
+        {
+            autosaver = new DspNetworkListeners::PatchAutosaver(nw, BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks));
+        }
+        else
+            jassertfalse;
 	}
-
-	
-#if 0
-	if (fh != nullptr)
-	{
-		if(auto n = fh->getActiveNetwork())
-		{
-			auto xml = n->getValueTree().createXml();
-			df->getXmlFile().replaceWithText(xml->createDocument(""));
-		}
-	}
-#endif
 }
 
 void SnexWorkbenchEditor::setSynthMode(bool shouldBeSynthMode)
@@ -707,7 +700,7 @@ void SnexWorkbenchEditor::loadNewNetwork(const File& f)
 		ep->setWorkbenchData(wb.get());
 		dgp->setContentWithUndo(dynamic_cast<Processor*>(h), 0);
 
-		autosaver = new DspNetworkListeners::PatchAutosaver(h->getActiveNetwork(), BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks));
+		autosaver = new DspNetworkListeners::PatchAutosaver(h->getActiveOrDebuggedNetwork(), BackendDllManager::getSubFolder(getProcessor(), BackendDllManager::FolderSubType::Networks));
 	});
 }
 
@@ -721,7 +714,7 @@ DspNetworkCompileExporter::DspNetworkCompileExporter(SnexWorkbenchEditor* e) :
 
 	if (auto fh = editor->getNetworkHolderForNewFile(editor->getProcessor(), editor->getSynthMode()))
 	{
-		if (auto n = fh->getActiveNetwork())
+		if (auto n = fh->getActiveOrDebuggedNetwork())
 			n->createAllNodesOnce();
 	}
 

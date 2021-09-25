@@ -331,7 +331,7 @@ public:
 
 	float getAttribute(int index) const override
 	{
-		if (auto n = getActiveNetwork())
+		if (auto n = getActiveOrDebuggedNetwork())
 			return n->networkParameterHandler.getParameter(index);
 		else
 			return contentParameterHandler.getParameter(index);
@@ -339,7 +339,7 @@ public:
 
 	void setInternalAttribute(int index, float newValue) override
 	{
-		if (auto n = getActiveNetwork())
+		if (auto n = getActiveOrDebuggedNetwork())
 			n->networkParameterHandler.setParameter(index, newValue);
 		else
 			contentParameterHandler.setParameter(index, newValue);
@@ -347,7 +347,7 @@ public:
 
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
-		if (auto n = getActiveNetwork())
+		if (auto n = getActiveOrDebuggedNetwork())
 			return n->networkParameterHandler.getParameterId(parameterIndex);
 		else
 			return contentParameterHandler.getParameterId(parameterIndex);
@@ -505,7 +505,7 @@ public:
 
 	float getAttribute(int index) const override
 	{
-		if (auto n = getActiveNetwork())
+		if (auto n = getActiveOrDebuggedNetwork())
 			return n->networkParameterHandler.getParameter(index);
 		else
 			return contentParameterHandler.getParameter(index);
@@ -526,7 +526,7 @@ public:
 
 	void setInternalAttribute(int index, float newValue) override
 	{
-		if (auto n = getActiveNetwork())
+		if (auto n = getActiveOrDebuggedNetwork())
 			n->networkParameterHandler.setParameter(index, newValue);
 		else
 			contentParameterHandler.setParameter(index, newValue);
@@ -534,7 +534,7 @@ public:
 
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
-		if (auto n = getActiveNetwork())
+		if (auto n = getActiveOrDebuggedNetwork())
 			return n->networkParameterHandler.getParameterId(parameterIndex);
 		else
 			return contentParameterHandler.getParameterId(parameterIndex);

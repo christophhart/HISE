@@ -1293,7 +1293,7 @@ struct ScriptnodeDebugPopup: public Component,
 
 	~ScriptnodeDebugPopup()
 	{
-		dynamic_cast<BackendProcessor*>(getMainController())->workbenches.setCurrentWorkbench(prevWb, false);
+		dynamic_cast<BackendProcessor*>(getMainController())->workbenches.setCurrentWorkbench(prevWb, true);
 		prevWb = nullptr;
 		wb = nullptr;
 	}
@@ -1328,7 +1328,8 @@ bool DspNetworkGraph::Actions::toggleDebug(DspNetworkGraph& g)
 
 	if (auto dbg = g.network->getParentHolder()->getDebuggedNetwork())
 	{
-		auto w = GET_BACKEND_ROOT_WINDOW((&g))->getRootFloatingTile();
+        auto w = g.findParentComponentOfClass<FloatingTile>()->getRootFloatingTile();
+		
 
 		Array<ActionButton*> list;
 		fillChildComponentList(list, g.findParentComponentOfClass<WrapperWithMenuBar>());
@@ -1337,10 +1338,10 @@ bool DspNetworkGraph::Actions::toggleDebug(DspNetworkGraph& g)
 		{
 			if (b->getName() == "debug")
 			{
-				auto wb = new snex::ui::WorkbenchData();
-				
-				wb->setCompileHandler(new PopupCompileHandler(wb, dbg));
-				wb->setCodeProvider(new PopupCodeProvider(wb, dbg));
+                auto wb = new snex::ui::WorkbenchData();
+            
+                wb->setCompileHandler(new PopupCompileHandler(wb, dbg));
+                wb->setCodeProvider(new PopupCodeProvider(wb, dbg));
 
 				w->showComponentInRootPopup(new ScriptnodeDebugPopup(w->getMainController(), wb, dbg), b, { b->getLocalBounds().getCentreX(), b->getHeight() }, false);
 				return true;
@@ -1829,7 +1830,7 @@ bool DspNetworkGraph::Actions::eject(DspNetworkGraph& g)
         {
             ReferenceCountedObjectPtr<DspNetwork> pendingDelete;
             
-            pendingDelete = jsp->getActiveNetwork();
+            pendingDelete = jsp->getActiveOrDebuggedNetwork();
             
             jsp->unload();
             BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rootWindow, jsp);
@@ -2698,6 +2699,7 @@ void KeyboardPopup::ImagePreviewCreator::timerCallback()
 	kp.screenshot = createdComponent->createComponentSnapshot(createdComponent->getLocalBounds(), true, 1.0f / sr);
 	kp.repaint();
 
+    createdComponent = nullptr;
 	stopTimer();
 }
 

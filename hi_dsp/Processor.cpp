@@ -207,7 +207,7 @@ int Processor::getNumParameters() const
 {
 	if (auto jp = dynamic_cast<const JavascriptProcessor*>(this))
 	{
-		if (auto n = jp->getActiveNetwork())
+		if (auto n = jp->getActiveOrDebuggedNetwork())
 			return n->networkParameterHandler.getNumParameters();
 	}
 
