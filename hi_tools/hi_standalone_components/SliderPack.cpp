@@ -354,7 +354,7 @@ void SliderPack::sliderValueChanged(Slider *s)
 
 	if(data.get() == nullptr) return;
     
-	data->setValue(index, (float)s->getValue(), sendNotificationAsync, true);
+	data->setValue(index, (float)s->getValue(), sendNotificationSync, true);
 }
 
 void SliderPack::mouseDown(const MouseEvent &e)

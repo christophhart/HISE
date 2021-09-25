@@ -837,7 +837,7 @@ public:
 
 	void sendContentChangeMessage(NotificationType notify, int indexThatChanged)
 	{
-		sendMessageToListeners(EventType::ContentChange, var(indexThatChanged), notify);
+		sendMessageToListeners(EventType::ContentChange, var(indexThatChanged), notify, true);
 	}
 
 	void sendContentRedirectMessage()

@@ -161,9 +161,12 @@ void dynamic_base::updateData(Identifier id, var newValue)
 		if (b64 == "-1")
 			b64 = "";
 
-		if (getIndex() == -1 && b64.isNotEmpty())
+		if (getIndex() == -1)
 		{
 			auto thisString = getInternalData()->toBase64String();
+            
+            if(thisString == "-1")
+                thisString = "";
 
 			if (thisString.compare(b64) != 0)
 				getInternalData()->fromBase64String(b64);

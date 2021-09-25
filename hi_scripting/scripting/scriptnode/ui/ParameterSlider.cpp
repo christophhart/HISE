@@ -1000,7 +1000,7 @@ void ParameterSlider::updateOnConnectionChange(ValueTree p, bool wasAdded)
 
 void ParameterSlider::checkEnabledState()
 {
-	modulationActive = parameterToControl->isModulated();
+	modulationActive = parameterToControl != nullptr && parameterToControl->isModulated();
 	setEnabled(!modulationActive);
 
 	if (modulationActive)
