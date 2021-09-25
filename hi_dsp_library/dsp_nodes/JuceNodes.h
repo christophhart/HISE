@@ -277,7 +277,7 @@ template <int NV> struct jpanner : public base::jwrapper<juce::dsp::Panner<float
 	void createParameters(ParameterDataList& d) override
 	{
 		{
-			parameter::data p("Frequency", { -1.0, 1.0 });
+			parameter::data p("Pan", { -1.0, 1.0 });
 
 			p.callback = parameter::inner<jpanner, 0>(*this);
 			p.setDefaultValue(0.0);

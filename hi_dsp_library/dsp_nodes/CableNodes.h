@@ -676,7 +676,7 @@ namespace control
 		{
 			if constexpr (isProcessingHiseEvent())
 			{
-				double v = 0.0;
+				double v = lastValue;
 
 				if (obj.getMidiValue(e, v))
 					setValue(v);

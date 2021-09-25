@@ -272,6 +272,7 @@ public:
         // This class just forwards the node methods to the weak reference
         struct NodeWrapper: public WeakReference<NodeBase>
         {
+			static constexpr int NumChannels = NUM_MAX_CHANNELS;
             using WrappedObjectType = NodeBase;
             
             void reset() { if(get() != nullptr) get()->reset(); }
