@@ -37,6 +37,40 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+struct RangePresets
+{
+	RangePresets();
 
+	static File getRangePresetFile();
+
+	void createDefaultRange(const String& id, InvertableParameterRange d, double midPoint = -10000000.0);
+
+	int getPresetIndex(const InvertableParameterRange& r)
+	{
+		for (int i = 0; i < presets.size(); i++)
+		{
+			if (presets[i].nr == r)
+				return i;
+		}
+
+		return -1;
+	}
+
+	~RangePresets();
+
+	struct Preset : public RestorableObject
+	{
+		void restoreFromValueTree(const ValueTree& v);
+
+		ValueTree exportAsValueTree() const override;
+
+		InvertableParameterRange nr;
+		String id;
+		int index;
+	};
+
+	File fileToLoad;
+	Array<Preset> presets;
+};
 
 }

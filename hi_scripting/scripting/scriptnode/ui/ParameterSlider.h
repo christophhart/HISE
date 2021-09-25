@@ -123,6 +123,8 @@ struct ParameterKnobLookAndFeel : public GlobalHiseLookAndFeel
 	void drawRotarySlider(Graphics& g, int x, int y, int width, int height, float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, Slider& s);
 };
 
+
+
 struct ParameterSlider : public Slider,
 	public Slider::Listener,
 	public DragAndDropTarget,

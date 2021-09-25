@@ -132,7 +132,7 @@ void pma_editor::paint(Graphics& g)
 	};
 
 	auto mulValue = nrm(data.value * data.mulValue);
-	auto totalValue = nrm(data.getPmaValue());
+	auto totalValue = nrm(data.getValue());
 
 	auto outerRing = createArc(oc, mulValue, totalValue);
 	auto midRing = createArc(mc, 0.0f, totalValue);
@@ -171,6 +171,206 @@ void pma_editor::paint(Graphics& g)
 	g.drawText(mid, t, Justification::centred);
 	g.drawText(end, t.translated(70.0f, 80.0f), Justification::centred);
 }
+
+minmax_editor::minmax_editor(MinMaxBase* b, PooledUIUpdater* u) :
+	ScriptnodeExtraComponent<MinMaxBase>(b, u),
+	dragger(u)
+{
+	addAndMakeVisible(rangePresets);
+	addAndMakeVisible(dragger);
+	rangePresets.setLookAndFeel(&slaf);
+	rangePresets.setColour(ComboBox::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
+
+	for (const auto& p : presets.presets)
+		rangePresets.addItem(p.id, p.index + 1);
+
+	rangePresets.onChange = [this]()
+	{
+		for (const auto& p : presets.presets)
+		{
+			if (p.id == rangePresets.getText())
+				setRange(p.nr);
+		}
+	};
+
+	setSize(256, 128);
+	start();
+}
+
+void minmax_editor::paint(Graphics& g)
+{
+	ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, pathArea, false);
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	auto r = lastData.range.rng;
+
+	String s;
+	s << "[" << r.start;
+	s << " - " << r.end << "]";
+
+	g.setColour(Colours::white);
+	g.drawText(s, pathArea.reduced(UIValues::NodeMargin), lastData.range.rng.skew < 1.0 ? Justification::centredTop : Justification::centredBottom);
+
+	auto c = Colours::white.withAlpha(0.8f);
+
+	if (auto nc = findParentComponentOfClass<NodeComponent>())
+	{
+		auto c2 = nc->header.colour;
+		if (!c2.isTransparent())
+			c = c2;
+	}
+
+	g.setColour(c);
+
+	Path dst;
+
+	UnblurryGraphics ug(g, *this, true);
+	auto ps = ug.getPixelSize();
+	float l[2] = { 4.0f * ps, 4.0f * ps };
+
+	PathStrokeType(2.0f * ps).createDashedStroke(dst, fullPath, l, 2);
+
+	g.fillPath(dst);
+
+	g.strokePath(valuePath, PathStrokeType(4.0f * ug.getPixelSize()));
+
+}
+
+void minmax_editor::timerCallback()
+{
+	auto thisData = getObject()->getUIData();
+
+	if (!(thisData == lastData))
+	{
+		lastData = thisData;
+		rebuildPaths();
+	}
+}
+
+void minmax_editor::setRange(InvertableParameterRange newRange)
+{
+	if (auto nc = findParentComponentOfClass<NodeComponent>())
+	{
+		auto n = nc->node;
+
+		RangeHelpers::storeDoubleRange(n->getParameter(1)->data, newRange, n->getUndoManager());
+		RangeHelpers::storeDoubleRange(n->getParameter(2)->data, newRange, n->getUndoManager());
+
+		n->getParameter(1)->setValueFromUI(newRange.inv ? newRange.rng.end : newRange.rng.start);
+		n->getParameter(2)->setValueFromUI(newRange.inv ? newRange.rng.start : newRange.rng.end);
+		n->getParameter(3)->setValueFromUI(newRange.rng.skew);
+		n->getParameter(4)->setValueFromUI(newRange.rng.interval);
+		rebuildPaths();
+	}
+}
+
+void minmax_editor::rebuildPaths()
+{
+	fullPath.clear();
+	valuePath.clear();
+
+	if (getWidth() == 0)
+		return;
+
+	auto maxValue = (float)lastData.range.convertFrom0to1(1.0);
+	auto minValue = (float)lastData.range.convertFrom0to1(0.0);
+
+	auto vToY = [&](float v)
+	{
+		return lastData.range.inv ? v : -v;
+	};
+
+	fullPath.startNewSubPath(1.0f, vToY(maxValue));
+	fullPath.startNewSubPath(1.0f, vToY(minValue));
+	fullPath.startNewSubPath(0.0f, vToY(maxValue));
+	fullPath.startNewSubPath(0.0f, vToY(minValue));
+	
+	valuePath.startNewSubPath(1.0f, vToY(maxValue));
+	valuePath.startNewSubPath(1.0f, vToY(minValue));
+	valuePath.startNewSubPath(0.0f, vToY(maxValue));
+	valuePath.startNewSubPath(0.0f, vToY(minValue));
+	
+	for (int i = 0; i < getWidth(); i += 3)
+	{
+		float normX = (float)i / (float)getWidth();
+
+		auto v = lastData.range.convertFrom0to1(normX);
+		v = lastData.range.snapToLegalValue(v);
+
+		auto y = vToY((float)v);
+
+		fullPath.lineTo(normX, y);
+
+		if (lastData.value > normX)
+			valuePath.lineTo(normX, y);
+	}
+
+	fullPath.lineTo(1.0, vToY(maxValue));
+
+	if (lastData.value == 1.0)
+		valuePath.lineTo(1.0, vToY(maxValue));
+
+	auto pb = pathArea.reduced((float)UIValues::NodeMargin);
+
+	fullPath.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), false);
+	valuePath.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), false);
+
+	repaint();
+}
+
+void minmax_editor::resized()
+{
+	auto b = getLocalBounds();
+	auto bottom = b.removeFromBottom(28);
+	b.removeFromBottom(UIValues::NodeMargin);
+	dragger.setBounds(bottom.removeFromRight(256));
+	bottom.removeFromRight(UIValues::NodeMargin);
+	rangePresets.setBounds(bottom);
+
+	b.reduced(UIValues::NodeWidth, 0);
+
+	pathArea = b.toFloat().reduced(128/2, 0);
+
+	rebuildPaths();
+}
+
+void bipolar_editor::paint(Graphics& g)
+{
+	ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, pathArea, false);
+
+	UnblurryGraphics ug(g, *this, true);
+
+	g.setColour(Colours::white.withAlpha(0.1f));
+
+	auto pb = pathArea.reduced(UIValues::NodeMargin / 2);
+
+	ug.draw1PxHorizontalLine(pathArea.getCentreY(), pb.getX(), pb.getRight());
+	ug.draw1PxVerticalLine(pathArea.getCentreX(), pb.getY(), pb.getBottom());
+	ug.draw1PxRect(pb);
+
+	auto c = Colours::white.withAlpha(0.8f);
+
+	if (auto nc = findParentComponentOfClass<NodeComponent>())
+	{
+		auto c2 = nc->header.colour;
+		if (!c2.isTransparent())
+			c = c2;
+	}
+
+	g.setColour(c);
+
+	Path dst;
+
+	auto ps = ug.getPixelSize();
+	float l[2] = { 4.0f * ps, 4.0f * ps };
+
+	PathStrokeType(2.0f * ps).createDashedStroke(dst, outlinePath, l, 2);
+
+	g.fillPath(dst);
+
+	g.strokePath(valuePath, PathStrokeType(4.0f * ug.getPixelSize()));
+}
+
 }
 
 namespace smoothers

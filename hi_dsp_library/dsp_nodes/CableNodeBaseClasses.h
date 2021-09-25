@@ -42,29 +42,9 @@ using namespace hise;
 
 namespace control
 {
+
 namespace pimpl
 {
-struct combined_parameter_base
-{
-	virtual ~combined_parameter_base() {};
-
-	struct Data
-	{
-		double getPmaValue() const { dirty = false; return value * mulValue + addValue; }
-		double getPamValue() const { dirty = false; return (value + addValue) * mulValue; }
-
-		double value = 0.0;
-		double mulValue = 1.0;
-		double addValue = 0.0;
-		mutable bool dirty = false;
-	};
-
-	virtual Data getUIData() const = 0;
-
-	NormalisableRange<double> currentRange;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(combined_parameter_base);
-};
 
 /** Subclass this interface whenever you define a node that has a mode property that will be used
 	as second template argument.
@@ -140,6 +120,19 @@ template <class ParameterType> struct parameter_node_base
 	ParameterType p;
 };
 
+template <typename DataType> struct combined_parameter_base
+{
+	using InternalDataType = DataType;
+
+	virtual ~combined_parameter_base() {};
+
+	virtual DataType getUIData() const = 0;
+
+	NormalisableRange<double> currentRange;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(combined_parameter_base);
+};
+
 template <class ParameterType> struct duplicate_parameter_node_base : public parameter_node_base<ParameterType>,
 																	  public wrap::clone_manager::Listener
 {
@@ -160,5 +153,5 @@ template <class ParameterType> struct duplicate_parameter_node_base : public par
 }
 
 
-
 }
+

@@ -38,6 +38,7 @@ using namespace juce;
 using namespace hise;
 
 
+
 struct PropertyHelpers
 {
 	static Colour getColour(ValueTree data)

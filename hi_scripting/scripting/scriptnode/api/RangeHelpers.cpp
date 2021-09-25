@@ -36,7 +36,86 @@ using namespace juce;
 using namespace hise;
 
 
+RangePresets::RangePresets() :
+	fileToLoad(getRangePresetFile())
+{
+	auto xml = XmlDocument::parse(fileToLoad);
 
+	if (xml != nullptr)
+	{
+		auto v = ValueTree::fromXml(*xml);
+
+		int index = 1;
+
+		for (auto c : v)
+		{
+			Preset p;
+			p.restoreFromValueTree(c);
+
+			p.index = index++;
+
+			presets.add(p);
+		}
+	}
+	else
+	{
+		createDefaultRange("0-1", { 0.0, 1.0 }, 0.5);
+		createDefaultRange("Inverted 0-1", InvertableParameterRange().inverted(), -1.0);
+		createDefaultRange("1-16 steps", { 1.0, 16.0, 1.0 });
+		createDefaultRange("Osc LFO", { 0.0, 10.0, 0.0, 1.0 });
+		createDefaultRange("Osc Freq", { 20.0, 20000.0, 0.0 }, 1000.0);
+		createDefaultRange("Linear 0-20k Hz", { 0.0, 20000.0, 0.0 });
+		createDefaultRange("Freq Ratio Harmonics", { 1.0, 16.0, 1.0 });
+		createDefaultRange("Freq Ratio Detune Coarse", { 0.5, 2.0, 0.0 }, 1.0);
+		createDefaultRange("Freq Ratio Detune Fine", { 1.0 / 1.1, 1.1, 0.0 }, 1.0);
+
+		ValueTree v("Ranges");
+
+		for (const auto& p : presets)
+			v.addChild(p.exportAsValueTree(), -1, nullptr);
+
+		auto xml = v.createXml();
+		fileToLoad.replaceWithText(xml->createDocument(""));
+	}
+}
+
+juce::File RangePresets::getRangePresetFile()
+{
+	return ProjectHandler::getAppDataDirectory().getChildFile("RangePresets").withFileExtension("xml");
+}
+
+void RangePresets::createDefaultRange(const String& id, InvertableParameterRange d, double midPoint /*= -10000000.0*/)
+{
+	Preset p;
+	p.id = id;
+	p.nr = d;
+
+	p.index = presets.size() + 1;
+
+	if (d.getRange().contains(midPoint))
+		p.nr.setSkewForCentre(midPoint);
+
+	presets.add(p);
+}
+
+RangePresets::~RangePresets()
+{
+
+}
+
+void RangePresets::Preset::restoreFromValueTree(const ValueTree& v)
+{
+	nr = RangeHelpers::getDoubleRange(v);
+	id = v[PropertyIds::ID].toString();
+}
+
+juce::ValueTree RangePresets::Preset::exportAsValueTree() const
+{
+	ValueTree v("Range");
+	v.setProperty(PropertyIds::ID, id, nullptr);
+	RangeHelpers::storeDoubleRange(v, nr, nullptr);
+	return v;
+}
 
 
 

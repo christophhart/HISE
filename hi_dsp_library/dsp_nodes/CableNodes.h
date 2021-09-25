@@ -793,22 +793,23 @@ namespace control
 		JUCE_DECLARE_WEAK_REFERENCEABLE(xfader);
 	};
 
-	namespace pimpl {
-	struct bipolar_base
+	namespace multilogic
 	{
-		virtual ~bipolar_base() {};
-
-		struct Data
+		struct bipolar
 		{
-			bool operator==(const Data& other) const 
+			SET_HISE_NODE_ID("bipolar");
+			SN_DESCRIPTION("Creates a bipolar mod signal from a 0...1 range");
+
+			static constexpr bool isNormalisedModulation() { return true; }
+
+			bool operator==(const bipolar& other) const
 			{
-				return gamma == other.gamma &&
-					   value == other.value &&
-					   scale == other.scale;
+				return value == other.value && gamma == other.gamma && scale == other.scale;
 			}
 
-			double getBipolarValue() const
+			double getValue() const
 			{
+				dirty = false;
 				double v = value - 0.5f;
 
 				if (gamma != 1.0)
@@ -819,224 +820,232 @@ namespace control
 				return v;
 			}
 
+			template <int P> void setParameter(double v)
+			{
+				if constexpr (P == 0)
+					value = v;
+				if constexpr (P == 1)
+					scale = v;
+				if constexpr (P == 2)
+					gamma = v;
+
+				dirty = true;
+			}
+
+			template <typename NodeType> static void createParameters(ParameterDataList& data, NodeType& n)
+			{
+				{
+					parameter::data p("Value");
+					p.callback = parameter::inner<NodeType, 0>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Scale");
+					p.callback = parameter::inner<NodeType, 1>(n);
+					p.setRange({ -1.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Gamma");
+					p.callback = parameter::inner<NodeType, 2>(n);
+					p.setRange({ 0.5, 2.0 });
+					p.setSkewForCentre(1.0);
+					p.setDefaultValue(1.0);
+					data.add(std::move(p));
+				}
+			}
+
 			double value = 0.5;
 			double scale = 0.0;
 			double gamma = 1.0;
-			bool dirty = false;
+			mutable bool dirty = false;
 		};
 
-		virtual Data getUIData() const = 0;
+		struct minmax
+		{
+			SET_HISE_NODE_ID("minmax");
+			SN_DESCRIPTION("Scales the input value to a modifyable range");
 
-		JUCE_DECLARE_WEAK_REFERENCEABLE(bipolar_base);
-	};
+			static constexpr bool isNormalisedModulation() { return false; }
+
+			bool operator==(const minmax& other) const { return other.range == range && value == other.value; }
+
+			double getValue() const 
+			{ 
+				dirty = false; 
+				auto v = range.convertFrom0to1(value); 
+				v = range.snapToLegalValue(v);
+				return v;
+			}
+
+			template <int P> void setParameter(double v)
+			{
+				if constexpr (P == 0)
+					value = v;
+				if constexpr (P == 1)
+					range.rng.start = v;
+				if constexpr (P == 2)
+					range.rng.end = v;
+				if constexpr (P == 3)
+				{
+					range.rng.skew = jlimit(0.1, 10.0, v);
+
+					if (v != 1.0)
+						range.rng.interval = 0.0;
+				}
+				if constexpr (P == 4)
+				{
+					range.rng.interval = v;
+
+					if (v != 0.0)
+						range.rng.skew = 1.0;
+				}
+				
+				if(range.rng.start > range.rng.end)
+				{
+					range.inv = true;
+					std::swap(range.rng.start, range.rng.end);
+				}
+				else
+					range.inv = false;
+
+				range.checkIfIdentity();
+
+				dirty = true;
+			}
+
+			template <typename NodeType> static void createParameters(ParameterDataList& data, NodeType& n)
+			{
+				{
+					parameter::data p("Value");
+					p.callback = parameter::inner<NodeType, 0>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Minimum");
+					p.callback = parameter::inner<NodeType, 1>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Maximum");
+					p.callback = parameter::inner<NodeType, 2>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(1.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Skew");
+					p.callback = parameter::inner<NodeType, 3>(n);
+					p.setRange({ 0.1, 10.0 });
+					p.setSkewForCentre(1.0);
+					p.setDefaultValue(1.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Step");
+					p.callback = parameter::inner<NodeType, 4>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+			}
+
+			double value = 0.0;
+			InvertableParameterRange range;
+			mutable bool dirty = false;
+		};
+
+		struct pma
+		{
+			SET_HISE_NODE_ID("pma");
+			SN_DESCRIPTION("Scales and offsets a modulation signal");
+
+			static constexpr bool isNormalisedModulation() { return true; }
+
+			double getValue() const { dirty = false; return value * mulValue + addValue; }
+
+			template <int P> void setParameter(double v)
+			{
+				if constexpr (P == 0)
+					value = v;
+				if constexpr (P == 1)
+					mulValue = v;
+				if constexpr (P == 2)
+					addValue = v;
+
+				dirty = true;
+			}
+
+			template <typename NodeType> static void createParameters(ParameterDataList& data, NodeType& n)
+			{
+				{
+					parameter::data p("Value");
+					p.callback = parameter::inner<NodeType, 0>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Multiply");
+					p.callback = parameter::inner<NodeType, 1>(n);
+					p.setRange({ -1.0, 1.0 });
+					p.setDefaultValue(1.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Add");
+					p.callback = parameter::inner<NodeType, 2>(n);
+					p.setRange({ -1.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+			}
+
+			double value = 0.0;
+			double mulValue = 1.0;
+			double addValue = 0.0;
+			mutable bool dirty = false;
+		};
 	}
 
-	template <int NV, class ParameterType> struct bipolar : public mothernode,
-															public polyphonic_base,
-															public pimpl::bipolar_base,
-															public pimpl::parameter_node_base<ParameterType>,
-															public pimpl::no_processing
+	
+
+	template <int NV, class ParameterType, typename DataType> 
+		struct multi_parameter : public mothernode,
+								 public polyphonic_base,
+								 public pimpl::combined_parameter_base<DataType>,
+								 public pimpl::parameter_node_base<ParameterType>,
+								 public pimpl::no_processing
 	{
 		static constexpr int NumVoices = NV;
 
-		SET_HISE_POLY_NODE_ID("bipolar");
-		SN_GET_SELF_AS_OBJECT(bipolar);
-		SN_DESCRIPTION("Creates a bipolar mod signal from a 0...1 range");
-
-		bipolar() :
-			polyphonic_base(getStaticId(), false),
-			control::pimpl::parameter_node_base<ParameterType>(getStaticId())
-		{};
-
-		enum class Parameters
-		{
-			Value,
-			Scale,
-			Gamma
-		};
-
-		DEFINE_PARAMETERS
-		{
-			DEF_PARAMETER(Value, bipolar);
-			DEF_PARAMETER(Scale, bipolar);
-			DEF_PARAMETER(Gamma, bipolar);
-		};
-		PARAMETER_MEMBER_FUNCTION;
-
-		void setValue(double v)
-		{
-			for (auto& s : this->data)
-			{
-				s.value = v;
-				s.dirty = true;
-			}
-
-			sendPending();
-		}
-
-		void setScale(double v)
-		{
-			for (auto& s : this->data)
-			{
-				s.scale = v;
-				s.dirty = true;
-			}
-
-			sendPending();
-		}
-
-		void setGamma(double v)
-		{
-			for (auto& s : this->data)
-			{
-				s.gamma = v;
-				s.dirty = true;
-			}
-
-			sendPending();
-		}
-
-
-		void sendPending()
-		{
-			if constexpr (isPolyphonic())
-			{
-				if (polyHandler == nullptr ||
-					!this->getParameter().isConnected() ||
-					polyHandler->getVoiceIndex() == -1)
-					return;
-
-				auto& d = data.get();
-
-				this->getParameter().call(d.getBipolarValue());
-			}
-			else
-			{
-				auto& d = data.get();
-
-				if (d.dirty && this->getParameter().isConnected())
-				{
-					auto v = d.getBipolarValue();
-					this->getParameter().call(v);
-				}
-
-			}
-		}
-
-		template <typename T> void process(T&)
-		{
-			sendPending();
-		}
-
-		template <typename T> void processFrame(T&)
-		{
-			sendPending();
-		}
-
-		void prepare(PrepareSpecs ps)
-		{
-			this->data.prepare(ps);
-			polyHandler = ps.voiceIndex;
-		}
-
-		void createParameters(ParameterDataList& data)
-		{
-			{
-				DEFINE_PARAMETERDATA(bipolar, Value);
-				p.setRange({ 0.0, 1.0 });
-				p.setDefaultValue(0.0);
-				data.add(std::move(p));
-			}
-			{
-				DEFINE_PARAMETERDATA(bipolar, Scale);
-				p.setRange({ -1.0, 1.0 });
-				p.setDefaultValue(0.0);
-				data.add(std::move(p));
-			}
-			{
-				DEFINE_PARAMETERDATA(bipolar, Gamma);
-				p.setRange({ 0.5, 2.0 });
-				p.setSkewForCentre(1.0);
-				p.setDefaultValue(1.0);
-				data.add(std::move(p));
-			}
-		}
-
-		Data getUIData() const override {
-			return data.getFirst();
-		}
-
-	private:
-
-		snex::Types::PolyHandler* polyHandler;
-		PolyData<Data, NumVoices> data;
-	};
-
-	template <int NV, class ParameterType> struct pma : public mothernode,
-														public polyphonic_base,
-														public pimpl::combined_parameter_base,
-														public pimpl::parameter_node_base<ParameterType>,
-														public pimpl::no_processing
-	{
-		static constexpr int NumVoices = NV;
-
-		SET_HISE_POLY_NODE_ID("pma");
-		SN_GET_SELF_AS_OBJECT(pma);
-		SN_DESCRIPTION("Scales and offsets a modulation signal");
+		SET_HISE_POLY_NODE_ID(DataType::getStaticId());
+		SN_GET_SELF_AS_OBJECT(multi_parameter);
+		SN_DESCRIPTION(DataType::getDescription());
 		
-		pma() : 
+		multi_parameter() :
 			polyphonic_base(getStaticId(), false),
 			control::pimpl::parameter_node_base<ParameterType>(getStaticId()) 
 		{};
 
-		enum class Parameters
-		{
-			Value,
-			Multiply,
-			Add
-		};
+		static constexpr bool isNormalisedModulation() { return DataType::isNormalisedModulation(); }
 
-		DEFINE_PARAMETERS
+		template <int P> static void setParameterStatic(void* obj, double v)
 		{
-			DEF_PARAMETER(Value, pma);
-			DEF_PARAMETER(Multiply, pma);
-			DEF_PARAMETER(Add, pma);
-		};
-		PARAMETER_MEMBER_FUNCTION;
+			auto typed = static_cast<multi_parameter<NumVoices, ParameterType, DataType>*>(obj);
 
-		void setValue(double v)
-		{
-			for (auto& s : this->data)
-			{
-				s.value = v;
-				s.dirty = true;
-			}
+			for (auto& s : typed->data)
+				s.setParameter<P>(v);
 
-			sendPending();
+			typed->sendPending();
 		}
-
-		void setAdd(double v)
-		{
-			for (auto& s : this->data)
-			{
-				s.addValue = v;
-				s.dirty = true;
-			}
-				
-			sendPending();
-		}
-
-		void setMultiply(double v)
-		{
-			for (auto& s : this->data)
-			{
-				s.mulValue = v;
-				s.dirty = true;
-			}
-
-			sendPending();
-		}
-		
 
 		void sendPending()
 		{
@@ -1049,7 +1058,7 @@ namespace control
 
 				auto& d = data.get();
 
-				this->getParameter().call(d.getPmaValue());
+				this->getParameter().call(d.getValue());
 			}
 			else
 			{
@@ -1057,7 +1066,7 @@ namespace control
 
 				if (d.dirty && this->getParameter().isConnected())
 				{
-					auto v = d.getPmaValue();
+					auto v = d.getValue();
 					this->getParameter().call(v);
 				}
 			}
@@ -1081,35 +1090,22 @@ namespace control
 
 		void createParameters(ParameterDataList& data)
 		{
-			{
-				DEFINE_PARAMETERDATA(pma, Value);
-				p.setRange({ 0.0, 1.0 });
-				p.setDefaultValue(0.0);
-				data.add(std::move(p));
-			}
-			{
-				DEFINE_PARAMETERDATA(pma, Multiply);
-				p.setRange({ -1.0, 1.0 });
-				p.setDefaultValue(1.0);
-				data.add(std::move(p));
-			}
-			{
-				DEFINE_PARAMETERDATA(pma, Add);
-				p.setRange({ -1.0, 1.0 });
-				p.setDefaultValue(0.0);
-				data.add(std::move(p));
-			}
+			DataType::createParameters(data, *this);
 		}
 
-		Data getUIData() const override {
+		DataType getUIData() const override {
 			return data.getFirst();
 		}
 
 	private:
 
 		snex::Types::PolyHandler* polyHandler;
-		PolyData<Data, NumVoices> data;
+		PolyData<DataType, NumVoices> data;
 	};
+
+	template <int NV, typename ParameterType> using pma = multi_parameter<NV, ParameterType, multilogic::pma>;
+	template <int NV, typename ParameterType> using bipolar = multi_parameter<NV, ParameterType, multilogic::bipolar>;
+	template <int NV, typename ParameterType> using minmax = multi_parameter<NV, ParameterType, multilogic::minmax>;
 
 	template <typename SmootherClass> struct smoothed_parameter: public control::pimpl::templated_mode
 	{

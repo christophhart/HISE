@@ -38,9 +38,42 @@ using namespace hise;
 
 namespace control
 {
-	struct bipolar_editor : public ScriptnodeExtraComponent<pimpl::bipolar_base>
+	struct minmax_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::minmax>>
 	{
-		using BipolarBase = pimpl::bipolar_base;
+		using MinMaxBase = pimpl::combined_parameter_base<multilogic::minmax>;
+
+		minmax_editor(MinMaxBase* b, PooledUIUpdater* u);
+
+		void paint(Graphics& g) override;
+
+		void timerCallback() override;
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			auto typed = static_cast<mothernode*>(obj);
+			return new minmax_editor(dynamic_cast<MinMaxBase*>(typed), updater);
+		}
+
+		void setRange(InvertableParameterRange newRange);
+
+		void rebuildPaths();
+
+		void resized() override;
+
+		multilogic::minmax lastData;
+
+		Path fullPath, valuePath;
+
+		ComboBox rangePresets;
+		ModulationSourceBaseComponent dragger;
+		Rectangle<float> pathArea;
+		ScriptnodeComboBoxLookAndFeel slaf;
+		RangePresets presets;
+	};
+
+	struct bipolar_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::bipolar>>
+	{
+		using BipolarBase = pimpl::combined_parameter_base<multilogic::bipolar>;
 
 		bipolar_editor(BipolarBase* b, PooledUIUpdater* u) :
 			ScriptnodeExtraComponent<BipolarBase>(b, u),
@@ -92,7 +125,7 @@ namespace control
 				float x = i / numPixels;
 
 				copy.value = x;
-				float y = 1.0f - copy.getBipolarValue();
+				float y = 1.0f - copy.getValue();
 
 				if (outlineEmpty)
 				{
@@ -123,42 +156,7 @@ namespace control
 			repaint();
 		}
 
-		void paint(Graphics& g) override
-		{
-			ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, pathArea, false);
-
-			UnblurryGraphics ug(g, *this, true);
-
-			g.setColour(Colours::white.withAlpha(0.1f));
-
-			auto pb = pathArea.reduced(UIValues::NodeMargin / 2);
-
-			ug.draw1PxHorizontalLine(pathArea.getCentreY(), pb.getX(), pb.getRight());
-			ug.draw1PxVerticalLine(pathArea.getCentreX(), pb.getY(), pb.getBottom());
-			ug.draw1PxRect(pb);
-
-			auto c = Colours::white.withAlpha(0.8f);
-
-			if (auto nc = findParentComponentOfClass<NodeComponent>())
-			{
-				auto c2 = nc->header.colour;
-				if (!c2.isTransparent())
-					c = c2;
-			}
-
-			g.setColour(c);
-
-			Path dst;
-
-			auto ps = ug.getPixelSize();
-			float l[2] = { 4.0f * ps, 4.0f * ps };
-
-			PathStrokeType(2.0f * ps).createDashedStroke(dst, outlinePath, l, 2);
-
-			g.fillPath(dst);
-
-			g.strokePath(valuePath, PathStrokeType(4.0f * ug.getPixelSize()));
-		}
+		void paint(Graphics& g) override;
 
 		void resized() override
 		{
@@ -179,7 +177,7 @@ namespace control
 		Path outlinePath;
 		Path valuePath;
 
-		pimpl::bipolar_base::Data lastData;
+		multilogic::bipolar lastData;
 
 		Rectangle<float> pathArea;
 		ModulationSourceBaseComponent dragger;
@@ -187,7 +185,7 @@ namespace control
 
 	struct pma_editor : public ModulationSourceBaseComponent
 	{
-		using PmaBase = control::pimpl::combined_parameter_base;
+		using PmaBase = control::pimpl::combined_parameter_base<control::multilogic::pma>;
 		using ParameterBase = control::pimpl::parameter_node_base<parameter::dynamic_base_holder>;
 
 		pma_editor(mothernode* b, PooledUIUpdater* u) :

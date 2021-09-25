@@ -42,92 +42,7 @@ namespace RangeIcons
 108,172,28,90,62,0,0,0,0,99,101,0,0 };
 }
 
-struct RangePresets
-{
-	RangePresets(const File& fileToLoad_):
-		fileToLoad(fileToLoad_)
-	{
-		auto xml = XmlDocument::parse(fileToLoad);
 
-		if (xml != nullptr)
-		{
-			auto v = ValueTree::fromXml(*xml);
-
-			int index = 1;
-
-			for (auto c : v)
-			{
-				Preset p;
-				p.restoreFromValueTree(c);
-
-				p.index = index++;
-
-				presets.add(p);
-			}
-		}
-		else
-		{
-			createDefaultRange("0-1", { 0.0, 1.0 }, 0.5);
-			createDefaultRange("Inverted 0-1", InvertableParameterRange().inverted(), -1.0);
-			createDefaultRange("1-16 steps", { 1.0, 16.0, 1.0 });
-			createDefaultRange("Osc LFO", { 0.0, 10.0, 0.01, 1.0 });
-			createDefaultRange("Osc Freq", { 20.0, 20000.0, 0.1 }, 1000.0);
-			createDefaultRange("Linear 0-20k Hz", { 0.0, 20000.0, 0.0});
-			createDefaultRange("Freq Ratio Harmonics", { 1.0, 16.0, 1.0 });
-			createDefaultRange("Freq Ratio Detune Coarse", { 0.5, 2.0, 0.0 }, 1.0);
-			createDefaultRange("Freq Ratio Detune Fine", { 1.0 / 1.1, 1.1, 0.0 }, 1.0);
-		}
-	}
-
-	void createDefaultRange(const String& id, InvertableParameterRange d, double midPoint = -10000000.0)
-	{
-		Preset p;
-		p.id = id;
-		p.nr = d;
-		
-		p.index = presets.size() + 1;
-
-		if (d.getRange().contains(midPoint))
-			p.nr.setSkewForCentre(midPoint);
-
-		presets.add(p);
-	}
-
-	~RangePresets()
-	{
-		ValueTree v("Ranges");
-
-		for (const auto& p : presets)
-			v.addChild(p.exportAsValueTree(), -1, nullptr);
-
-		auto xml = v.createXml();
-		fileToLoad.replaceWithText(xml->createDocument(""));
-	}
-
-	struct Preset: public RestorableObject
-	{
-		void restoreFromValueTree(const ValueTree& v)
-		{
-			nr = RangeHelpers::getDoubleRange(v);
-			id = v[PropertyIds::ID].toString();
-		}
-
-		ValueTree exportAsValueTree() const override
-		{
-			ValueTree v("Range");
-			v.setProperty(PropertyIds::ID, id, nullptr);
-			RangeHelpers::storeDoubleRange(v, nr, nullptr);
-			return v;
-		}
-
-		InvertableParameterRange nr;
-		String id;
-		int index;
-	};
-
-	File fileToLoad;
-	Array<Preset> presets;
-};
 
 
 struct ParameterSlider::RangeComponent : public Component,
@@ -152,7 +67,7 @@ struct ParameterSlider::RangeComponent : public Component,
 	RangeComponent(bool isTemporary, ParameterSlider& parent_):
 		temporary(isTemporary),
 		parent(parent_),
-		presets(File::getSpecialLocation(File::userDesktopDirectory).getChildFile("RangePresets.xml"))
+		presets()
 	{
 		connectionSource = getParent().getConnectionSourceTree();
 
@@ -1609,6 +1524,8 @@ void ParameterSlider::showRangeComponent(bool temporary)
 
 	currentRangeComponent->setBounds(getBoundsInParent());
 }
+
+
 
 }
 
