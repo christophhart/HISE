@@ -883,35 +883,19 @@ namespace control
 
 			template <int P> void setParameter(double v)
 			{
-				if constexpr (P == 0)
+                if constexpr (P == 0)
 					value = v;
 				if constexpr (P == 1)
-					range.rng.start = v;
+                    range.rng.start = v;
 				if constexpr (P == 2)
-					range.rng.end = v;
+                    range.rng.end = v;
 				if constexpr (P == 3)
-				{
 					range.rng.skew = jlimit(0.1, 10.0, v);
-
-					if (v != 1.0)
-						range.rng.interval = 0.0;
-				}
 				if constexpr (P == 4)
-				{
 					range.rng.interval = v;
-
-					if (v != 0.0)
-						range.rng.skew = 1.0;
-				}
+                if constexpr (P == 5)
+                    range.inv = v > 0.5;
 				
-				if(range.rng.start > range.rng.end)
-				{
-					range.inv = true;
-					std::swap(range.rng.start, range.rng.end);
-				}
-				else
-					range.inv = false;
-
 				range.checkIfIdentity();
 
 				dirty = true;
@@ -955,6 +939,14 @@ namespace control
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
 				}
+                {
+                    parameter::data p("Polarity");
+                    p.callback = parameter::inner<NodeType, 5>(n);
+                    p.setRange({ 0.0, 1.0, 1.0 });
+                    p.setParameterValueNames({"Normal", "Inverted"});
+                    p.setDefaultValue(0.0);
+                    data.add(std::move(p));
+                }
 			}
 
 			double value = 0.0;
@@ -1042,7 +1034,7 @@ namespace control
 			auto typed = static_cast<multi_parameter<NumVoices, ParameterType, DataType>*>(obj);
 
 			for (auto& s : typed->data)
-				s.setParameter<P>(v);
+				s.template setParameter<P>(v);
 
 			typed->sendPending();
 		}

@@ -260,6 +260,7 @@ void minmax_editor::setRange(InvertableParameterRange newRange)
 		n->getParameter(2)->setValueFromUI(newRange.inv ? newRange.rng.start : newRange.rng.end);
 		n->getParameter(3)->setValueFromUI(newRange.rng.skew);
 		n->getParameter(4)->setValueFromUI(newRange.rng.interval);
+        n->getParameter(5)->setValueFromUI(newRange.inv ? 1.0 : 0.0);
 		rebuildPaths();
 	}
 }
@@ -272,12 +273,15 @@ void minmax_editor::rebuildPaths()
 	if (getWidth() == 0)
 		return;
 
+    if(lastData.range.rng.getRange().isEmpty())
+        return;
+    
 	auto maxValue = (float)lastData.range.convertFrom0to1(1.0);
 	auto minValue = (float)lastData.range.convertFrom0to1(0.0);
 
 	auto vToY = [&](float v)
 	{
-		return lastData.range.inv ? v : -v;
+		return -v;
 	};
 
 	fullPath.startNewSubPath(1.0f, vToY(maxValue));
@@ -323,13 +327,13 @@ void minmax_editor::resized()
 	auto b = getLocalBounds();
 	auto bottom = b.removeFromBottom(28);
 	b.removeFromBottom(UIValues::NodeMargin);
-	dragger.setBounds(bottom.removeFromRight(256));
+	dragger.setBounds(bottom.removeFromRight(28));
 	bottom.removeFromRight(UIValues::NodeMargin);
 	rangePresets.setBounds(bottom);
 
 	b.reduced(UIValues::NodeWidth, 0);
 
-	pathArea = b.toFloat().reduced(128/2, 0);
+	pathArea = b.toFloat();
 
 	rebuildPaths();
 }
