@@ -63,16 +63,6 @@ END_JUCE_MODULE_DECLARATION
 #include "synthesisers/synths/WavetableTools.h"
 #include "synthesisers/editors/WavetableComponents.h"
 
-/**Config: HI_ENABLE_CUSTOM_NODE_LOCATION
-
-If enabled, HISE will include the hardcoded nodes found at the specified location.
-
-*/
-#ifndef HI_ENABLE_CUSTOM_NODE_LOCATION
-#define HI_ENABLE_CUSTOM_NODE_LOCATION 0
-#endif
-
-
 #ifndef ENABLE_PEAK_METERS_FOR_GAIN_EFFECT
 #define ENABLE_PEAK_METERS_FOR_GAIN_EFFECT 1
 #endif

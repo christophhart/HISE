@@ -241,9 +241,6 @@ void ModulationSourceNode::prepare(PrepareSpecs ps)
 
 	rebuildModulationConnections();
 
-	if (ps.sampleRate > 0.0)
-		sampleRateFactor = 32768.0 / ps.sampleRate;
-
 	prepareWasCalled = true;
 
 	checkTargets();
@@ -281,29 +278,6 @@ void ModulationSourceNode::rebuildModulationConnections()
 	NodeBase::Ptr firstChildNode = getRootNetwork()->getNodeWithId(modTree.getChild(0)[PropertyIds::NodeId].toString());
 
 	p->setParameter(firstChildNode, mp);
-
-#if 0
-	parameter::dynamic_base::createFromConnectionTree(modTree)
-
-	ReferenceCountedObjectPtr<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
-	
-	for (auto m : modTree)
-	{
-		if (auto c = createDynamicParameterData(m))
-			chain->addParameter(c);
-		else
-		{
-			p->setParameter(nullptr);
-			return;
-		}
-	}
-
-
-	if (auto s = chain->getFirstIfSingle())
-		p->setParameter(s);
-	else
-		p->setParameter(chain);
-#endif
 }
 
 void ModulationSourceNode::checkTargets()

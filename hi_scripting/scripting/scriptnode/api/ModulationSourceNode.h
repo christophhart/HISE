@@ -101,8 +101,6 @@ public:
 
 	struct ModulationTarget: public ConnectionBase
 	{
-		static void nothing(double) {}
-
 		ModulationTarget(ModulationSourceNode* parent_, ValueTree data_);
 
 		~ModulationTarget();
@@ -141,7 +139,6 @@ public:
 
 	void checkTargets();
 
-	double sampleRateFactor = 1.0;
 	bool prepareWasCalled = false;
 
 	double lastModValue = 0.0;

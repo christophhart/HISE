@@ -58,7 +58,7 @@ void HiseModuleDatabase::CommonData::Data::addFromFactory(FactoryType* f)
 {
 	for (int i = 0; i < f->getNumProcessors(); i++)
 	{
-		allProcessors.add(f->createProcessor(i, "id"));
+        allProcessors.add(f->createProcessor(i, "id"));
 	}
 }
 
@@ -141,6 +141,7 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFac
 
 	for (int i = 0; i < n; i++)
 	{
+        MessageManagerLock mm;
 		ScopedPointer<Processor> p = f->createProcessor(i, "funky");
 
 		if (p->getDescription() == "deprecated")
@@ -489,12 +490,18 @@ using namespace hise;
 ItemGenerator::ItemGenerator(File r, BackendProcessor& bp):
 	MarkdownDataBase::ItemGeneratorBase(r)
 {
+    auto wasAllowed = bp.isFlakyThreadingAllowed();
+    
+    bp.setAllowFlakyThreading(true);
+    
 	data->sine = new SineSynth(&bp, "Sine", NUM_POLYPHONIC_VOICES);
 	data->sine->prepareToPlay(44100.0, 512);
 	auto fxChain = dynamic_cast<EffectProcessorChain*>(data->sine->getChildProcessor(ModulatorSynth::EffectChain));
 	data->effect = new JavascriptMasterEffect(&bp, "dsp");
 	data->network = data->effect->getOrCreate("dsp");
 	fxChain->getHandler()->add(data->effect, nullptr);
+    
+    bp.setAllowFlakyThreading(wasAllowed);
 }
 
 

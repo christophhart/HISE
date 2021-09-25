@@ -177,17 +177,25 @@ void FloatingTilePopup::paint(Graphics &g)
 	auto b = getLocalBounds();
 
 #if USE_BACKEND
-	if (auto s = GET_BACKEND_ROOT_WINDOW(this)->getScreenshotter())
-	{
-		s->drawGlassSection(g, this, getRectangle(RectangleType::BoxPath));
-		g.setOpacity(1.0f);
+    
+    auto ok = false;
+    
+    if(auto p = findParentComponentOfClass<PeriodicScreenshotter::Holder>())
+    {
+        if (auto s = p->getScreenshotter())
+        {
+            s->drawGlassSection(g, this, getRectangle(RectangleType::BoxPath));
+            g.setOpacity(1.0f);
 
-		g.saveState();
-		g.setImageResamplingQuality(Graphics::lowResamplingQuality);
-		g.drawImageTransformed(shadowImage, AffineTransform::scale(4.0f));
-		g.restoreState();
-	}
-	else
+            g.saveState();
+            g.setImageResamplingQuality(Graphics::lowResamplingQuality);
+            g.drawImageTransformed(shadowImage, AffineTransform::scale(4.0f));
+            g.restoreState();
+            ok = true;
+        }
+    }
+	
+    if(!ok)
 	{
 		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xf4242424)));
 		g.fillPath(boxPath);

@@ -627,6 +627,9 @@ WorkbenchTestPlayer::WorkbenchTestPlayer(FloatingTile* parent) :
 
 void WorkbenchTestPlayer::postPostCompile(WorkbenchData::Ptr wb)
 {
+    if(wb == nullptr)
+        return;
+    
 	auto& td = wb->getTestData();
 
     auto& b1 = td.testSourceData;
@@ -634,6 +637,10 @@ void WorkbenchTestPlayer::postPostCompile(WorkbenchData::Ptr wb)
     
     auto size = b1.getNumSamples();
     int numChannels = b1.getNumChannels();
+    
+    if(b1.getNumSamples() * b1.getNumChannels() == 0 ||
+       b2.getNumSamples() * b2.getNumChannels() == 0)
+        return;
     
 	VariantBuffer::Ptr il = new VariantBuffer(b1.getWritePointer(0), size);
 	VariantBuffer::Ptr ir = new VariantBuffer(b1.getWritePointer(jmin(1, numChannels-1)), size);

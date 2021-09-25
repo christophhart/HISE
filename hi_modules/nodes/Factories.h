@@ -169,24 +169,6 @@ public:
 };
 }
 
-namespace meta
-{
-DECLARE_SINGLETON_FACTORY_FOR_NAMESPACE(meta);
-}
-
-#if HI_ENABLE_CUSTOM_NODE_LOCATION
-namespace custom
-{
-DECLARE_SINGLETON_FACTORY_FOR_NAMESPACE(custom);
-}
-
-namespace project
-{
-DECLARE_SINGLETON_FACTORY_FOR_NAMESPACE(project);
-}
-
-#endif
-
 namespace routing
 {
 class Factory : public NodeFactory

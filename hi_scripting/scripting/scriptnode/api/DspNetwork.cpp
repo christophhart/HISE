@@ -96,10 +96,13 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 #if USE_BACKEND
 	if (auto ah = dynamic_cast<Holder*>(p))
 	{
-		ownedFactories.add(new dll::BackendHostFactory(this, ah->projectDll));
+        if(!getScriptProcessor()->getMainController_()->isFlakyThreadingAllowed())
+        {
+            ownedFactories.add(new dll::BackendHostFactory(this, ah->projectDll));
 
-		if (ah->projectDll != nullptr)
-			projectNodeHolder.init(ah->projectDll);
+            if (ah->projectDll != nullptr)
+                projectNodeHolder.init(ah->projectDll);
+        }
 	}
 #else
 	if (auto ah = dynamic_cast<Holder*>(p))

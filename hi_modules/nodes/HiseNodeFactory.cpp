@@ -1150,7 +1150,7 @@ Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
 #define REGISTER_POLY_MATH_NODE(x) registerPolyNode<x<1>, x<NUM_POLYPHONIC_VOICES>>();
-#define REGISTER_MONO_MATH_NODE(x) registerNode<clear<1>>();
+#define REGISTER_MONO_MATH_NODE(x) registerNode<x<1>>();
     
     REGISTER_POLY_MATH_NODE(add);
     REGISTER_POLY_MATH_NODE(tanh);
