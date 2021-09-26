@@ -34,6 +34,104 @@
 
 namespace scriptnode { using namespace juce;
 
+namespace conversion_logic
+{
+struct ms2freq
+{
+    double getValue(double input) const
+    {
+        if(input == 0.0)
+            return 0.0;
+        
+        return 1.0 / (input * 0.001);
+    }
+};
+
+struct freq2ms
+{
+    double getValue(double input) const
+    {
+        if(input == 0.0)
+            return 0.0;
+        
+        return 1.0 / (input * 1000.0);
+    }
+};
+
+struct ms2samples
+{
+    double getValue(double input) const
+    {
+        return input * 0.001 * sampleRate;
+    }
+    
+    void prepare(PrepareSpecs ps)
+    {
+        sampleRate = ps.sampleRate;
+    }
+    
+    double sampleRate = 0.0;
+};
+
+struct samples2ms
+{
+    double getValue(double input) const
+    {
+        if(sampleRate == 0.0)
+            return 0.0;
+        
+        return input / sampleRate * 1000.0;
+    }
+    
+    void prepare(PrepareSpecs ps)
+    {
+        sampleRate = ps.sampleRate;
+    }
+    
+    double sampleRate = 0.0;
+};
+
+struct pitch2st
+{
+    double getValue(double input) const
+    {
+        return std::log2(input) * 12.0;
+    }
+};
+
+struct st2pitch
+{
+    double getValue(double input) const
+    {
+        return pow(2.0, input / 12.0);
+    }
+};
+
+struct midi2freq
+{
+    double getValue(double input) const
+    {
+        return MidiMessage::getMidiNoteInHertz(input);
+    }
+};
+
+struct db2gain
+{
+    double getValue(double input) const
+    {
+        return hmath::db2gain(input);
+    }
+};
+
+struct gain2db
+{
+    double getValue(double input) const
+    {
+        return hmath::gain2db(input);
+    }
+};
+};
+
 
 /** Contains all different MIDI processing units. */
 namespace midi_logic

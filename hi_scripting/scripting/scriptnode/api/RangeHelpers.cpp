@@ -61,6 +61,7 @@ RangePresets::RangePresets() :
 	{
 		createDefaultRange("0-1", { 0.0, 1.0 }, 0.5);
 		createDefaultRange("Inverted 0-1", InvertableParameterRange().inverted(), -1.0);
+        createDefaultRange("Decibel Gain", {-100.0, 0.0, 0.1}, -12.0);
 		createDefaultRange("1-16 steps", { 1.0, 16.0, 1.0 });
 		createDefaultRange("Osc LFO", { 0.0, 10.0, 0.0, 1.0 });
 		createDefaultRange("Osc Freq", { 20.0, 20000.0, 0.0 }, 1000.0);

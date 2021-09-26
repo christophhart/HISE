@@ -454,6 +454,33 @@ namespace control
 		double lastValue = 0.0;
 	};
 
+    template <typename ConverterClass, typename ParameterClass>
+        struct converter : public mothernode,
+                           public pimpl::parameter_node_base<ParameterClass>,
+                           public pimpl::no_processing
+    {
+        SET_HISE_NODE_ID("converter");
+        SN_GET_SELF_AS_OBJECT(converter);
+        SN_DESCRIPTION("converts a control value");
+
+        HISE_DEFAULT_INIT(ConverterClass);
+        HISE_DEFAULT_PREPARE(ConverterClass);
+        HISE_ADD_SET_VALUE(converter);
+        SN_PARAMETER_NODE_CONSTRUCTOR(converter, ParameterClass);
+
+        static constexpr bool isNormalisedModulation() { return false; }
+        
+        void setValue(double input)
+        {
+            auto v = obj.getValue(input);
+
+            if (this->getParameter().isConnected())
+                this->getParameter().call(v);
+        }
+
+        ConverterClass obj;
+    };
+
 	template <typename ParameterClass> struct cable_table : public scriptnode::data::base,
 															public pimpl::parameter_node_base<ParameterClass>,
 															public pimpl::no_processing
