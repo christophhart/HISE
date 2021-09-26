@@ -76,7 +76,7 @@ template <typename T, int NV> struct jwrapper
 	HISE_EMPTY_HANDLE_EVENT;
 	HISE_EMPTY_INITIALISE;
 	
-	void process(ProcessDataDyn& data)
+	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
 		juce::dsp::AudioBlock<float> b(data.getRawChannelPointers(), data.getNumChannels(), data.getNumSamples());
 		objects.get().process(JuceProcessType(b));

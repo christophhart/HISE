@@ -149,6 +149,11 @@ public:
 		return { data, (size_t)numChannels, (size_t)numSamples };
 	}
 
+    float** getRawChannelPointers()
+    {
+        return data;
+    }
+    
 protected:
 
 	float** data;						// 8 bytes
@@ -252,6 +257,8 @@ template <int C> struct ProcessData: public InternalData
 		return *this;
 	}
 
+    
+    
 protected:
 
 	ChannelDataType& getChannelDataType()
@@ -304,11 +311,6 @@ struct ProcessDataDyn: public InternalData
 		data = newData;
 		numChannels = newChannels;
 		numSamples = newSamples;
-	}
-
-	float** getRawChannelPointers()
-	{
-		return data;
 	}
 
 	ChannelPtr* begin() const

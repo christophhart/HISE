@@ -224,13 +224,49 @@ void DspNetwork::createAllNodesOnce()
 
 			currentNodeHolder = &s;
 			create(id, "unused");
-
 			exceptionHandler.removeError(nullptr);
-
 			currentNodeHolder = nullptr;
 		}
 	}
 
+#if USE_BACKEND
+    
+    // Now check whether the compiled nodes should be rendered with a template
+    // argument for their voice count
+    auto fileList = BackendDllManager::getNetworkFiles(getScriptProcessor()->getMainController_(), false);
+    
+    for(auto f: fileList)
+    {
+        using namespace snex::cppgen;
+        
+        if(auto xml = XmlDocument::parse(f))
+        {
+            auto v = ValueTree::fromXml(*xml);
+            
+            auto isPoly = ValueTreeIterator::forEach(v, ValueTreeIterator::Forward, [](ValueTree& v)
+            {
+                if(v.getType() == PropertyIds::Node)
+                {
+                    if(CustomNodeProperties::nodeHasProperty(v, PropertyIds::IsPolyphonic))
+                    {
+                        return true;
+                    }
+                }
+                
+                return false;
+            });
+            
+            if(isPoly)
+            {
+                CustomNodeProperties::addNodeIdManually(f.getFileNameWithoutExtension(), PropertyIds::IsPolyphonic);
+            }
+        }
+    }
+    
+    
+    
+#endif
+    
 	cppgen::CustomNodeProperties::setInitialised(true);
 }
 

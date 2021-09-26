@@ -250,6 +250,22 @@ String ValueTreeBuilder::getGlueCode(ValueTreeBuilder::FormatGlueCode c)
 
 			Include(*this, "JuceHeader.h");
             
+            ValueTreeIterator::forEach(v, ValueTreeIterator::Forward, [this](ValueTree& c)
+            {
+                if(c.getType() == PropertyIds::Node)
+                {
+                    auto id = ValueTreeIterator::getNodeFactoryPath(c);
+                    if(id.getParent().getIdentifier() == Identifier("project"))
+                    {
+                        auto f = File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory);
+                        
+                        Include(*this, f, f.getChildFile(id.getIdentifier().toString()).withFileExtension(".h"));
+                    }
+                }
+                
+                return false;
+            });
+            
             addComment("These will improve the readability of the connection definition", Base::CommentType::RawWithNewLine);
             
             *this << "#define getT(Idx) template get<Idx>()";
