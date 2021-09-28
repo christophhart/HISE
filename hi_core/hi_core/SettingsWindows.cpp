@@ -584,7 +584,7 @@ juce::ValueTree HiseSettings::ConversionHelpers::loadValueTreeFromXml(XmlElement
 #if IS_STANDALONE_APP
 			addChildWithValue(v2, HiseSettings::Audio::Driver, xml->getStringAttribute("deviceType"));
 			addChildWithValue(v2, HiseSettings::Audio::Device, xml->getStringAttribute("audioOutputDeviceName"));
-			addChildWithValue(v2, HiseSettings::Audio::Samplerate, xml->getStringAttribute("audioDeviceRate"));
+			addChildWithValue(v2, HiseSettings::Audio::Samplerate, xml->getStringAttribute("audioDeviceRate").getIntValue());
 			addChildWithValue(v2, HiseSettings::Audio::BufferSize, xml->getStringAttribute("bufferSize", "512"));
 #endif
 
