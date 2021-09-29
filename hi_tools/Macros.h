@@ -158,13 +158,13 @@ class LinuxFontHandler
         globalFont = Font(oxygenTypeFace).withHeight(13.0f);
         globalBoldFont = Font(oxygenBoldTypeFace).withHeight(14.0f);
         monospaceFont = Font(sourceCodeProTypeFace).withHeight(14.0f);
+        monospaceBoldFont = Font(sourceCodeProBoldTypeFace).withHeight(14.0f);
     }
-
-    
 
     Font globalFont;
     Font globalBoldFont;
     Font monospaceFont;
+    Font monospaceBoldFont;
 
     class Instance
     {
@@ -175,6 +175,7 @@ class LinuxFontHandler
         Font getGlobalFont() {return data->globalFont;};
         Font getGlobalBoldFont() {return data->globalBoldFont;};
         Font getGlobalMonospaceFont() {return data->monospaceFont; }
+        Font getGlobalMonospaceBoldFont() { return data->monospaceBoldFont; }
 
     private:
 
@@ -186,12 +187,14 @@ class LinuxFontHandler
 #define GLOBAL_FONT() (LinuxFontHandler::Instance().getGlobalFont())
 #define GLOBAL_BOLD_FONT() (LinuxFontHandler::Instance().getGlobalBoldFont())
 #define GLOBAL_MONOSPACE_FONT() (LinuxFontHandler::Instance().getGlobalMonospaceFont())
+#define GLOBAL_BOLD_MONOSPACE_FONT() (LinuxFontHandler::Instance().getGlobalMonospaceBoldFont())
 
 #else
 
 #define GLOBAL_FONT() (Font())
 #define GLOBAL_BOLD_FONT() (Font())
 #define GLOBAL_MONOSPACE_FONT() (Font())
+#define GLOBAL_BOLD_MONOSPACE_FONT() (Font())
 
 #endif
 

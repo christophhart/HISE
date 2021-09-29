@@ -35,7 +35,13 @@ juce::AttributedString Autocomplete::Item::createDisplayText() const
 	auto sf = findParentComponentOfClass<Autocomplete>()->getScaleFactor();
 
 	auto nf = GLOBAL_MONOSPACE_FONT().withHeight(16.0f * sf);
+    
+    
+#if JUCE_LINUX
+    auto bf = GLOBAL_BOLD_MONOSPACE_FONT();
+#else
 	auto bf = nf.boldened();
+#endif
 
 	s.append(before, nf, Colours::white.withAlpha(0.7f));
 	s.append(between, bf, Colours::white.withAlpha(1.0f));
