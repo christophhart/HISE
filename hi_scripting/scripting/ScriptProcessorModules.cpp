@@ -177,7 +177,7 @@ void JavascriptMidiProcessor::registerApiClasses()
 
 	currentMidiMessage = new ScriptingApi::Message(this);
 	engineObject = new ScriptingApi::Engine(this);
-	synthObject = new ScriptingApi::Synth(this, getOwnerSynth());
+	synthObject = new ScriptingApi::Synth(this, currentMidiMessage.get(), getOwnerSynth());
 
 	scriptEngine->registerApiClass(new ScriptingApi::ModuleIds(getOwnerSynth()));
 
@@ -213,7 +213,9 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 {
     if (currentEvent->isAllNotesOff())
     {
-        // All notes off are controller message, so they should not be processed, or it can lead to loop.
+		synthObject->handleNoteCounter(*currentEvent);
+		// All notes off are controller message, so they should not be processed, or it can lead to loop.
+		currentMidiMessage->onAllNotesOff();
         return;
     }
     
@@ -223,12 +225,12 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.03);
 
+	synthObject->handleNoteCounter(*currentEvent);
+
 	switch (currentEvent->getType())
 	{
 	case HiseEvent::Type::NoteOn:
 	{
-		synthObject->handleNoteCounter(*currentEvent, true);
-
 		if (onNoteOnCallback->isSnippetEmpty()) return;
 
 		scriptEngine->executeCallback(onNoteOn, &lastResult);
@@ -239,8 +241,6 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 	}
 	case HiseEvent::Type::NoteOff:
 	{
-		synthObject->handleNoteCounter(*currentEvent, false);
-
 		if (onNoteOffCallback->isSnippetEmpty()) return;
 
 		scriptEngine->executeCallback(onNoteOff, &lastResult);
@@ -281,7 +281,6 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 	}
 	case HiseEvent::Type::AllNotesOff:
 	{
-		synthObject->clearNoteCounter();
 		break;
 	}
         case HiseEvent::Type::Empty:
@@ -860,14 +859,10 @@ void JavascriptVoiceStartModulator::handleHiseEvent(const HiseEvent& m)
 {
 	currentMidiMessage->setHiseEvent(m);
 
-	if (m.isNoteOn())
-	{
-		synthObject->handleNoteCounter(m, true);
-	}
-	else if (m.isNoteOff())
-	{
-		synthObject->handleNoteCounter(m, false);
+	synthObject->handleNoteCounter(m);
 
+	if (m.isNoteOff())
+	{
 		if (!onVoiceStopCallback->isSnippetEmpty())
 		{
 			scriptEngine->setCallbackParameter(onVoiceStop, 0, 0);
@@ -930,7 +925,7 @@ void JavascriptVoiceStartModulator::registerApiClasses()
 {
 	currentMidiMessage = new ScriptingApi::Message(this);
 	engineObject = new ScriptingApi::Engine(this);
-	synthObject = new ScriptingApi::Synth(this, dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));
+	synthObject = new ScriptingApi::Synth(this, currentMidiMessage.get(), dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));
 
 	scriptEngine->registerNativeObject("Content", content);
 	scriptEngine->registerApiClass(currentMidiMessage);
@@ -1024,25 +1019,19 @@ void JavascriptTimeVariantModulator::handleHiseEvent(const HiseEvent &m)
 
 	currentMidiMessage->setHiseEvent(m);
 
+	synthObject->handleNoteCounter(m);
+
 	if (m.isNoteOn())
 	{
-		synthObject->handleNoteCounter(m, true);
-
 		if (!onNoteOnCallback->isSnippetEmpty())
-		{
 			scriptEngine->executeCallback(onNoteOn, &lastResult);
-		}
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
 	}
 	else if (m.isNoteOff())
 	{
-		synthObject->handleNoteCounter(m, false);
-
 		if (!onNoteOffCallback->isSnippetEmpty())
-		{
 			scriptEngine->executeCallback(onNoteOff, &lastResult);
-		}
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
 	}
@@ -1150,7 +1139,7 @@ void JavascriptTimeVariantModulator::registerApiClasses()
 {
 	currentMidiMessage = new ScriptingApi::Message(this);
 	engineObject = new ScriptingApi::Engine(this);
-	synthObject = new ScriptingApi::Synth(this, dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));
+	synthObject = new ScriptingApi::Synth(this, currentMidiMessage.get(), dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));
 
 	scriptEngine->registerNativeObject("Content", content);
 	scriptEngine->registerApiClass(currentMidiMessage);
@@ -1385,7 +1374,7 @@ void JavascriptEnvelopeModulator::registerApiClasses()
 {
 	currentMidiMessage = new ScriptingApi::Message(this);
 	engineObject = new ScriptingApi::Engine(this);
-	synthObject = new ScriptingApi::Synth(this, dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));
+	synthObject = new ScriptingApi::Synth(this, currentMidiMessage.get(), dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));
 
 	scriptEngine->registerNativeObject("Content", content);
 	scriptEngine->registerApiClass(currentMidiMessage);
@@ -1689,7 +1678,7 @@ void JavascriptModulatorSynth::registerApiClasses()
 
 	currentMidiMessage = new ScriptingApi::Message(this);
 	engineObject = new ScriptingApi::Engine(this);
-	synthObject = new ScriptingApi::Synth(this, this);
+	synthObject = new ScriptingApi::Synth(this, currentMidiMessage.get(), this);
 
 	scriptEngine->registerNativeObject("Content", content);
 	scriptEngine->registerApiClass(currentMidiMessage);

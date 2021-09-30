@@ -30,18 +30,10 @@ xcopy "xml\classhise_1_1_doxygen_string_functions.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_look_and_feel.xml" "xml\selection"
 
-
-
-
 xcopy "xml\classhise_1_1_script_expansion_handler.xml" "xml\selection"
 xcopy "xml\classhise_1_1_script_expansion_reference.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_dsp_instance.xml" "xml\selection"
-
-
-
-
-
 
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_modulator.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_synth.xml" "xml\selection"
@@ -84,6 +76,10 @@ xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_panel.xml" "xml\s
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_pack.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "xml\selection"
+
+xcopy "xml\classhise_1_1_script_user_preset_handler.xml" "xml\selection"
+
+
 
 xcopy "xml\classscriptnode_1_1_dsp_network.xml" "xml\selection"
 xcopy "xml\classscriptnode_1_1_node_base.xml" "xml\selection"
@@ -131,9 +127,7 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_slider_pack_proces
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_display_buffer_source.xml" "DisplayBufferSource.xml"
 
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_look_and_feel.xml" "ScriptLookAndFeel.xml"
-
-
-
+ren "xml\selection\classhise_1_1_script_user_preset_handler.xml" "UserPresetHandler.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_synth.xml" "ChildSynth.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_slot_f_x.xml" "SlotFX.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_routing_matrix.xml" "RoutingMatrix.xml"
@@ -149,9 +143,6 @@ ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_slider.xm
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_label.xml" "ScriptLabel.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_modulator_meter.xml" "ModulatorMeter.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_table.xml" "ScriptTable.xml"
-
-
-
 
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_shader.xml" "ScriptShader.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_image.xml" "ScriptImage.xml"

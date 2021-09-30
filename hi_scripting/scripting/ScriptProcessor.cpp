@@ -586,7 +586,6 @@ JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 JavascriptProcessor::~JavascriptProcessor()
 {
 	deleteAllPopups();
-	
 	scriptEngine = nullptr;
 }
 

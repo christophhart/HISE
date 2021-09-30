@@ -194,6 +194,12 @@ bool MainController::KillStateHandler::handleBufferDuringSuspension(AudioSampleB
 	return true;
 }
 
+bool MainController::KillStateHandler::hasRequestedQuit() const
+{
+	return currentState >= State::ShutdownSignalReceived;
+}
+
+
 
 void MainController::KillStateHandler::requestQuit()
 {

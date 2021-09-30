@@ -793,6 +793,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
     if (!masterEventBuffer.isEmpty()) setMidiInputFlag();
     
+	checkAllNotesOff();
 	eventIdHandler.handleEventIds();
 
 	getDebugLogger().logEvents(masterEventBuffer);
@@ -853,7 +854,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	buffer.clear();
 #endif
 
-	checkAllNotesOff();
+	
 
 #endif
 

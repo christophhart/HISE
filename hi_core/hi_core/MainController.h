@@ -636,7 +636,7 @@ public:
 		{
 		public:
 
-			virtual ~Listener() { masterReference.clear(); };
+			virtual ~Listener() {};
 
 			/** Called on the message thread whenever the new preset was loaded. */
 			virtual void presetChanged(const File& newPreset) = 0;
@@ -644,10 +644,17 @@ public:
 			/** Called whenever the number of presets changed. */
 			virtual void presetListUpdated() = 0;
 
+			/** This will be called synchronously just before the new preset is about to be loaded. 
+
+				You can use this method to actually modify the value tree that is being loaded
+				so you can implement eg. backward-compatibility migration routines. If you do so,
+				make sure to create a deep copy of the valuetree, then return the modified one.
+			*/
+			virtual ValueTree prePresetLoad(const ValueTree& dataToLoad, const File& fileToLoad) { return dataToLoad; };
+
 		private:
 
-			friend class WeakReference<Listener>;
-			WeakReference<Listener>::Master masterReference;
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 		};
 
 		UserPresetHandler(MainController* mc_);;
@@ -1020,6 +1027,8 @@ public:
 		void warn(int operationType) override;
 
 		void requestQuit();
+
+		bool hasRequestedQuit() const;
 
 		String getOperationName(int operationType) override;
 
@@ -1574,6 +1583,7 @@ protected:
 			masterEventBuffer.addEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
 
 			keyboardState.allNotesOff(0);
+			keyboardState.reset();
 
 			allNotesOffFlag = false;
 		}

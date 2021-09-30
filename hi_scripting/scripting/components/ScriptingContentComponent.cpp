@@ -551,6 +551,9 @@ void ScriptContentComponent::paintOverChildren(Graphics& g)
 {
 #if USE_BACKEND
 
+	if (p.get() == nullptr)
+		return;
+	
 	const auto& guides = processor->getScriptingContent()->guides;
 
 	if (!guides.isEmpty() && !ScriptingObjects::ScriptShader::isRenderingScreenshot())
