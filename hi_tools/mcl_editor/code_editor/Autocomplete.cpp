@@ -38,7 +38,7 @@ juce::AttributedString Autocomplete::Item::createDisplayText() const
     
     
 #if JUCE_LINUX
-    auto bf = GLOBAL_BOLD_MONOSPACE_FONT();
+    auto bf = GLOBAL_BOLD_MONOSPACE_FONT().withHeight(16.0f * sf);
 #else
 	auto bf = nf.boldened();
 #endif
