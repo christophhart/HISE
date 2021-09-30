@@ -188,15 +188,6 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Broadcaster)
 	};
 
-
-	enum ColourIds
-	{
-		bgColour = 1024,
-		fillColour,
-		lineColour,
-		numColourIds
-	};
-
 	WaveformComponent(Processor *p, int index = 0);
 
 	~WaveformComponent();
@@ -225,7 +216,10 @@ public:
 
 	void refresh() override;
 
-	Colour getColourForAnalyserBase(int colourId) override { return Colours::transparentBlack; }
+	Colour getColourForAnalyserBase(int colourId) override
+    {
+        return findColour(colourId);
+    }
 
 	void resized() override
 	{
