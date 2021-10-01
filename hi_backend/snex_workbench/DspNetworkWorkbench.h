@@ -636,7 +636,7 @@ struct WorkbenchInfoComponent : public Component,
 		if (b == &signalButton)
 		{
 			auto rootTile = findParentComponentOfClass<FloatingTile>()->getRootFloatingTile();
-			using PanelType = snex::ui::SnexWorkbenchPanel<snex::ui::Graph>;
+			using PanelType = snex::ui::SnexWorkbenchPanel<snex::ui::TestGraph>;
 			auto on = signalButton.getToggleState();
 
 			rootTile->forEach<PanelType>([on](PanelType* pl)

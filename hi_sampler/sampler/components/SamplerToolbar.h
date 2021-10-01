@@ -68,6 +68,11 @@ class SampleEditorToolbarFactory: public ToolbarItemFactory
 {
 public:
 
+	struct Factory : public PathFactory
+	{
+		Path createPath(const String& url) const override;
+	};
+
 	SampleEditorToolbarFactory(SampleEditor *editor_);
 
 	void getAllToolbarItemIds(Array<int> &ids) override;

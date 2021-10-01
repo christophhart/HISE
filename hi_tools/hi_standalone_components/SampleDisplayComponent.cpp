@@ -55,6 +55,37 @@ void AudioDisplayComponent::drawPlaybackBar(Graphics &g)
 	}
 }
 
+void AudioDisplayComponent::refreshSampleAreaBounds(SampleArea* areaToSkip/*=nullptr*/)
+{
+	bool somethingVisible = getTotalSampleAmount() != 0;
+
+	for (int i = 0; i < areas.size(); i++)
+	{
+		if (areas[i] == areaToSkip) continue;
+
+		//areas[i]->setVisible(somethingVisible);
+
+		Range<int> sampleRange = areas[i]->getSampleRange();
+
+		const int x = areas[i]->getXForSample(sampleRange.getStart(), false);
+		const int right = areas[i]->getXForSample(sampleRange.getEnd(), false);
+
+		areas[i]->leftEdge->setTooltip(String(sampleRange.getStart()));
+		areas[i]->rightEdge->setTooltip(String(sampleRange.getEnd()));
+
+		if (i == 0)
+		{
+			preview->setRange(x, right);
+		}
+
+		areas[i]->setBounds(x, 0, right - x, getHeight());
+	}
+
+
+
+	repaint();
+}
+
 void AudioDisplayComponent::paint(Graphics &g)
 {
 	//ProcessorEditorLookAndFeel::drawNoiseBackground(g, getLocalBounds(), Colours::darkgrey);
@@ -690,6 +721,8 @@ void HiseAudioThumbnail::LoadingThread::run()
 			parent->leftPeaks.swapWith(lRects);
 			parent->rightPeaks.swapWith(rRects);
 
+			
+
 			parent->isClear = false;
 
 			parent->refresh();
@@ -726,8 +759,8 @@ void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, RectangleLi
 
 		float half = h / 2.0f;
 
-		auto trimmedTop = (1.0f - std::fabs(levels.getEnd())) * half;
-		auto trimmedBottom = (1.0f - std::fabs(levels.getStart())) * half;
+		auto trimmedTop = (1.0f - std::fabs(parent->applyDisplayGain(levels.getEnd()))) * half;
+		auto trimmedBottom = (1.0f - std::fabs(parent->applyDisplayGain(levels.getStart()))) * half;
 
 		if (!scaleVertically)
 		{
@@ -831,7 +864,7 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 
 			const int numToCheck = jmin<int>(stride, numSamples - i);
 			auto value = jmax<float>(0.0f, FloatVectorOperations::findMaximum(l_ + i, numToCheck));
-			value = jlimit<float>(-1.0f, 1.0f, value);
+			value = parent->applyDisplayGain(value);
 			p.lineTo((float)i, -1.0f * value);
 		};
 
@@ -842,7 +875,7 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 
 			const int numToCheck = jmin<int>(stride, numSamples - i);
 			auto value = jmin<float>(0.0f, FloatVectorOperations::findMinimum(l_ + i, numToCheck));
-			value = jlimit<float>(-1.0f, 1.0f, value);
+			value = parent->applyDisplayGain(value);
 			p.lineTo((float)i, -1.0f * value);
 		};
 
@@ -905,6 +938,33 @@ void HiseAudioThumbnail::setBuffer(var bufferL, var bufferR /*= var()*/, bool sy
 
 
 
+void HiseAudioThumbnail::fillAudioSampleBuffer(AudioSampleBuffer& b)
+{
+	ScopedLock sl(lock);
+
+	if (currentReader != nullptr)
+	{
+		
+		b.setSize(currentReader->numChannels, currentReader->lengthInSamples);
+		currentReader->read(&b, 0, currentReader->lengthInSamples, 0, true, true);
+	}
+	else
+	{
+		auto numChannels = rBuffer.isBuffer() ? 2 : 1;
+		auto numSamples = lBuffer.isBuffer() ? lBuffer.getBuffer()->size : 0;
+
+		b.setSize(numChannels, numSamples);
+
+		if (auto lb = lBuffer.getBuffer())
+			FloatVectorOperations::copy(b.getWritePointer(0), lb->buffer.getReadPointer(0), numSamples);
+
+		if (auto rb = rBuffer.getBuffer())
+			FloatVectorOperations::copy(b.getWritePointer(1), rb->buffer.getReadPointer(0), numSamples);
+	}
+
+	
+}
+
 void HiseAudioThumbnail::paint(Graphics& g)
 {
 	if (isClear || rebuildOnUpdate)
@@ -951,7 +1011,7 @@ void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailBackground(Graphic
 		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
 	}
 
-	g.setColour(fillColour.withAlpha(0.05f));
+	g.setColour(fillColour.withAlpha(0.15f));
 
 	if (th.drawHorizontalLines)
 	{

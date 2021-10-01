@@ -369,7 +369,7 @@ public:
 
 	/** Overwrites the base class method and ignores the note off event if Parameters::OneShot is enabled. */
 	void noteOff(const HiseEvent &m) override;;
-	void preHiseEventCallback(const HiseEvent &m) override;
+	void preHiseEventCallback(HiseEvent &m) override;
 
 	bool isUsingCrossfadeGroups() const { return crossfadeGroups; }
 	float* calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
@@ -432,6 +432,9 @@ public:
 	bool isOneShot() const {return oneShotEnabled; };
 
 	bool isNoteNumberMapped(int noteNumber) const;
+
+	int getMidiInputLockValue(const Identifier& id) const;
+	void toggleMidiInputLock(const Identifier& propertyId, int lockValue);
 
 	CriticalSection &getSamplerLock() {	return lock; }
 
@@ -661,6 +664,9 @@ public:
 
 private:
 
+	int lockVelocity = -1;
+	int lockRRGroup = -1;
+
 	int realVoiceAmount = NUM_POLYPHONIC_VOICES;
 
 	SimpleReadWriteLock iteratorLock;
@@ -781,6 +787,7 @@ private:
 	int preloadSize;
 	int bufferSize;
 
+	hise::LockFreeUpdater midiSelectionUpdater;
 
 	bool useStaticMatrix = false;
 

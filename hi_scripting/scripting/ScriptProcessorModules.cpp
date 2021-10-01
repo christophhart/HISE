@@ -1599,7 +1599,7 @@ void JavascriptModulatorSynth::prepareToPlay(double newSampleRate, int samplesPe
 	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 }
 
-void JavascriptModulatorSynth::preHiseEventCallback(const HiseEvent& m)
+void JavascriptModulatorSynth::preHiseEventCallback(HiseEvent& m)
 {
 	scriptChain1->handleHiseEvent(m);
 	scriptChain2->handleHiseEvent(m);
@@ -1822,7 +1822,7 @@ void JavascriptSynthesiser::postCompileCallback()
 	prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
-void JavascriptSynthesiser::preHiseEventCallback(const HiseEvent &e)
+void JavascriptSynthesiser::preHiseEventCallback(HiseEvent &e)
 {
 	ModulatorSynth::preHiseEventCallback(e);
 

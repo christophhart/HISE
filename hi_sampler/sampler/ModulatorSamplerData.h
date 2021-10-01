@@ -397,7 +397,7 @@ private:
 			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PropertyChange);
 		};
 
-		void handleHeavyweightPropertyChangesIdle(const Array<AsyncPropertyChange, CriticalSection>& thisTime);
+		void handleHeavyweightPropertyChangesIdle(Array<AsyncPropertyChange, CriticalSection> thisTime);
 
 		void handleHeavyweightPropertyChanges();
 		void handleLightweightPropertyChanges();

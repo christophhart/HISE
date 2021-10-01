@@ -672,7 +672,7 @@ public:
 	virtual const Processor *getChildProcessor(int processorIndex) const override;;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
-	void preHiseEventCallback(const HiseEvent &m) override;
+	void preHiseEventCallback(HiseEvent &m) override;
 	void preStartVoice(int voiceIndex, const HiseEvent& e) override;;
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
@@ -992,7 +992,7 @@ public:
 	void registerApiClasses() override;
 	void postCompileCallback() override;
 
-	void preHiseEventCallback(const HiseEvent &e) override;
+	void preHiseEventCallback(HiseEvent &e) override;
 
 	void preStartVoice(int voiceIndex, const HiseEvent& e) override;
 

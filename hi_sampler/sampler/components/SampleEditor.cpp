@@ -27,10 +27,250 @@ namespace hise { using namespace juce;
 //[MiscUserDefs] You can add your own user definitions and misc code here...
 //[/MiscUserDefs]
 
+struct SamplerDisplayWithTimeline : public Component
+{
+	static constexpr int TimelineHeight = 24;
+
+	enum class TimeDomain
+	{
+		Samples,
+		Milliseconds,
+		Seconds
+	};
+
+	SamplerSoundWaveform* getWaveform() { return dynamic_cast<SamplerSoundWaveform*>(getChildComponent(0)); }
+	const SamplerSoundWaveform* getWaveform() const { return dynamic_cast<SamplerSoundWaveform*>(getChildComponent(0)); }
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		b.removeFromTop(TimelineHeight);
+		getWaveform()->setBounds(b);
+	}
+
+	void mouseDown(const MouseEvent& e) override
+	{
+		PopupLookAndFeel plaf;
+		PopupMenu m;
+		m.setLookAndFeel(&plaf);
+
+		m.addItem(1, "Samples", true, currentDomain == TimeDomain::Samples);
+		m.addItem(2, "Milliseconds", true, currentDomain == TimeDomain::Milliseconds);
+		m.addItem(3, "Seconds", true, currentDomain == TimeDomain::Seconds);
+
+		if (auto r = m.show())
+		{
+			currentDomain = (TimeDomain)(r - 1);
+			repaint();
+		}
+	}
+
+	String getText(float normalisedX) const
+	{
+		if (auto s = getWaveform()->getCurrentSound())
+		{
+			auto sampleValue = roundToInt(normalisedX * sampleLength);
+
+			if(currentDomain == TimeDomain::Samples)
+				return String(roundToInt(sampleValue));
+
+			auto msValue = sampleValue / jmax(1.0, sampleRate) * 1000.0;
+
+			if(currentDomain == TimeDomain::Milliseconds)
+				return String(roundToInt(msValue)) + " ms";
+
+			String sec;
+			sec << Time((int64)msValue).formatted("%M:%S:");
+
+			auto ms = String(roundToInt(msValue) % 1000);
+
+			while (ms.length() < 3)
+				ms = "0" + ms;
+
+			sec << ms;
+			return sec;
+		}
+
+		return {};
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto visibleArea = findParentComponentOfClass<Viewport>()->getViewArea();
+
+		auto b = getLocalBounds().removeFromTop(TimelineHeight);
+
+		g.setFont(GLOBAL_FONT());
+
+		int delta = 200;
+
+		if (auto s = getWaveform()->getCurrentSound())
+		{
+			sampleLength = s->getReferenceToSound(0)->getLengthInSamples();
+			sampleRate = s->getReferenceToSound(0)->getSampleRate();
+		}
+
+		for (int i = 0; i < getWidth(); i += delta)
+		{
+			auto textArea = b.removeFromLeft(delta).toFloat();
+
+			g.setColour(Colours::white.withAlpha(0.1f));
+			g.drawVerticalLine(i, 3.0f, (float)TimelineHeight);
+
+			g.setColour(Colours::white.withAlpha(0.4f));
+
+			auto normalisedX = (float)i / (float)getWidth();
+
+			g.drawText(getText(normalisedX), textArea.reduced(5.0f, 0.0f), Justification::centredLeft);
+		}
+	}
+
+	double sampleLength;
+	double sampleRate;
+
+	TimeDomain currentDomain = TimeDomain::Seconds;
+	
+};
+
+struct VerticalZoomer : public Component,
+						public Slider::Listener,
+						public SampleMap::Listener,
+						public SampleEditHandler::Listener
+						
+{
+	VerticalZoomer(SamplerSoundWaveform* waveform, ModulatorSampler* s):
+		display(waveform),
+		sampler(s)
+	{
+		sampler->getSampleMap()->addListener(this);
+		sampler->getSampleEditHandler()->addSelectionListener(this);
+
+		addAndMakeVisible(zoomSlider);
+		zoomSlider.setRange(1.0, 16.0);
+		zoomSlider.setSliderStyle(Slider::LinearBarVertical);
+		zoomSlider.addListener(this);
+		display->addMouseListener(this, true);
+	}
+
+	void mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& d) override
+	{
+		if (e.eventComponent == display && e.mods.isShiftDown())
+		{
+			zoomSlider.mouseWheelMove(e, d);
+		}
+	}
+
+	void soundSelectionChanged(SampleSelection& newSelection) override
+	{
+		repaint();
+	}
+
+	virtual void sampleMapWasChanged(PoolReference) {};
+
+	virtual void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue)
+	{
+		if (s == display->getCurrentSound())
+		{
+			if (id == SampleIds::Normalized || id == SampleIds::Volume)
+			{
+				display->refresh(sendNotificationSync);
+				repaint();
+			}
+		}
+	};
+
+	~VerticalZoomer()
+	{
+		sampler->getSampleMap()->removeListener(this);
+		sampler->getSampleEditHandler()->removeSelectionListener(this);
+	}
+
+	void sliderValueChanged(Slider* s) override
+	{
+		display->setVerticalZoom(s->getValue());
+		repaint();
+	};
+
+	void drawLevels(Graphics& g, Rectangle<float> area, float gain)
+	{
+		auto invGain = 1.0f / gain;
+		auto invGainHalf = invGain / 2.0f;
+
+		auto db = String(roundToInt(Decibels::gainToDecibels(invGain)));
+		auto dbHalf = String(roundToInt(Decibels::gainToDecibels(invGainHalf)));
+		auto silence = "-dB";
+		
+		g.setFont(GLOBAL_FONT());
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawText(db, area, Justification::topRight);
+		g.drawText(db, area, Justification::bottomRight);
+
+		area = area.withSizeKeepingCentre(area.getWidth(), area.getHeight() / 2.0f + 10.0f);
+
+		g.drawText(dbHalf, area, Justification::topRight);
+		g.drawText(dbHalf, area, Justification::bottomRight);
+
+		g.drawText(silence, area, Justification::centredRight);
+	}
+
+	void paint(Graphics& g) override
+	{
+		if (auto s = display->getCurrentSound())
+		{
+			auto isStereo = s->getReferenceToSound(0)->isStereo();
+
+			auto gain = display->getCurrentSampleGain();
+
+			auto b = getLocalBounds().toFloat();
+
+			if (isStereo)
+			{
+				drawLevels(g, b.removeFromTop(b.getHeight() / 2.0f), gain);
+				drawLevels(g, b, gain);
+			}
+			else
+			{
+				drawLevels(g, b, gain);
+			}
+		}
+	}
+
+	void resized() override
+	{
+		zoomSlider.setBounds(getLocalBounds().removeFromLeft(8));
+	}
+
+	WeakReference<ModulatorSampler> sampler;
+	SamplerSoundWaveform* display;
+	Slider zoomSlider;
+};
+
+struct SamplePositionPainter : public snex::ui::Graph::PeriodicUpdaterBase
+{
+	SamplePositionPainter(ModulatorSampler* s, snex::ui::Graph& g) :
+		PeriodicUpdaterBase(g, s->getMainController()->getGlobalUIUpdater()),
+		sampler(s)
+	{};
+
+	void paintPosition(Graphics& g, Range<int> range)
+	{
+		auto s = sampler->getSamplerDisplayValues().currentSamplePos;
+
+		if (parent.getSamplePosition(s))
+		{
+			g.setColour(Colours::white.withAlpha(0.7f));
+			g.drawVerticalLine((int)s, 24, parent.getHeight());
+		}
+	}
+
+	WeakReference<ModulatorSampler> sampler;
+};
+
 //==============================================================================
 SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	SamplerSubEditor(s->getSampleEditHandler()),
-	sampler(s)
+	sampler(s),
+	graphHandler(*this)
 {
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
@@ -38,22 +278,52 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
     addAndMakeVisible (viewport = new Viewport ("new viewport"));
     viewport->setScrollBarsShown (false, true);
 
-    addAndMakeVisible (volumeSetter = new ValueSettingComponent());
-    addAndMakeVisible (pitchSetter = new ValueSettingComponent());
-    addAndMakeVisible (sampleStartSetter = new ValueSettingComponent());
-    addAndMakeVisible (sampleEndSetter = new ValueSettingComponent());
-    addAndMakeVisible (loopStartSetter = new ValueSettingComponent());
-    addAndMakeVisible (loopEndSetter = new ValueSettingComponent());
-    addAndMakeVisible (loopCrossfadeSetter = new ValueSettingComponent());
-    addAndMakeVisible (startModulationSetter = new ValueSettingComponent());
+    addAndMakeVisible (volumeSetter = new ValueSettingComponent(s));
+    addAndMakeVisible (pitchSetter = new ValueSettingComponent(s));
+    addAndMakeVisible (sampleStartSetter = new ValueSettingComponent(s));
+    addAndMakeVisible (sampleEndSetter = new ValueSettingComponent(s));
+    addAndMakeVisible (loopStartSetter = new ValueSettingComponent(s));
+    addAndMakeVisible (loopEndSetter = new ValueSettingComponent(s));
+    addAndMakeVisible (loopCrossfadeSetter = new ValueSettingComponent(s));
+    addAndMakeVisible (startModulationSetter = new ValueSettingComponent(s));
     addAndMakeVisible (toolbar = new Toolbar());
     toolbar->setName ("new component");
 
-    addAndMakeVisible (panSetter = new ValueSettingComponent());
+	
+
+    addAndMakeVisible (panSetter = new ValueSettingComponent(s));
 
     //[UserPreSize]
 
-	viewport->setViewedComponent(currentWaveForm = new SamplerSoundWaveform(sampler), false);
+	viewContent = new SamplerDisplayWithTimeline();
+
+	viewContent->addAndMakeVisible(currentWaveForm = new SamplerSoundWaveform(sampler));
+
+	viewport->setViewedComponent(viewContent, false);
+	viewport->setScrollBarThickness(13);
+
+	fader.addScrollBarToAnimate(viewport->getHorizontalScrollBar());
+	viewport->getHorizontalScrollBar().setLookAndFeel(&laf);
+
+	addAndMakeVisible(verticalZoomer = new VerticalZoomer(currentWaveForm, sampler));
+
+	addAndMakeVisible(graph = new snex::ui::Graph());
+	graph->setVisible(false);
+
+	graph->getBufferFunction = BIND_MEMBER_FUNCTION_0(SampleEditor::getGraphBuffer);
+	graph->getSampleRateFunction = [this]()
+	{
+		if (auto c = currentWaveForm->getCurrentSound())
+			return c->getSampleRate();
+
+		return 0.0;
+	};
+
+	graph->drawMarkerFunction = [](Graphics& g)
+	{
+	};
+
+	graph->setPeriodicUpdater(new SamplePositionPainter(sampler, *graph));
 
 	currentWaveForm->setVisible(true);
 
@@ -69,6 +339,13 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	samplerEditorCommandManager->setFirstCommandTarget(this);
 
 	toolbarFactory = new SampleEditorToolbarFactory(this);
+
+	addButton(SampleMapCommands::ZoomIn, false, "zoom-in");
+	addButton(SampleMapCommands::ZoomOut, false, "zoom-out");
+	addButton(SampleMapCommands::SelectWithMidi, true, "select-midi", "select-mouse");
+	addButton(SampleMapCommands::EnablePlayArea, true, "play-area");
+	addButton(SampleMapCommands::EnableSampleStartArea, true, "samplestart-area");
+	addButton(SampleMapCommands::EnableLoopArea, true, "loop-area");
 
 	toolbar->setStyle(Toolbar::ToolbarItemStyle::iconsOnly);
 	toolbar->addDefaultItems(*toolbarFactory);
@@ -152,99 +429,181 @@ void SampleEditor::samplePropertyWasChanged(ModulatorSamplerSound* s, const Iden
 		
 }
 
+juce::AudioSampleBuffer& SampleEditor::getGraphBuffer()
+{
+	if (!graphHandler.lastSound)
+		graphHandler.graphBuffer.setSize(0, 0);
+	else
+	{
+		auto sound = graphHandler.lastSound->getReferenceToSound(0);
+
+		ScopedPointer<AudioFormatReader> afr;
+
+		if (sound->isMonolithic())
+			afr = sound->createReaderForPreview();
+		else
+			afr = PresetHandler::getReaderForFile(sound->getFileName(true));
+
+		graphHandler.graphBuffer.setSize(afr->numChannels, afr->lengthInSamples);
+		afr->read(&graphHandler.graphBuffer, 0, afr->lengthInSamples, 0, true, true);
+		afr = nullptr;
+	}
+	
+	return graphHandler.graphBuffer;
+}
+
 //==============================================================================
 void SampleEditor::paint (Graphics& g)
 {
-    //[UserPrePaint] Add your own custom painting code here..
+	auto b = getLocalBounds().reduced(8).removeFromTop(24);
 
-	int x = 0;
-	int y = 2;
-	int width = getWidth();
-	int height = getHeight() - 4;
+	Rectangle<float> ta;
 
-	Rectangle<int> a(x, y, width, height);
+	if (!isInWorkspace())
+		ta = b.removeFromRight(175 - 16).toFloat();
 
-	//ProcessorEditorLookAndFeel::drawShadowBox(g, a, Colour(0xFF333333));
+	g.setColour(Colour(0x13ffffff));
+	g.fillRect(b);
 
-    //[/UserPrePaint]
+	g.setColour(Colour(0x0fffffff));
+	g.drawRect(b, 1);
 
-    g.setColour (Colour (0x13ffffff));
-    g.fillRect (8, 8, getWidth() - 175, 24);
-
-    g.setColour (Colour (0x0fffffff));
-    g.drawRect (8, 8, getWidth() - 175, 24, 1);
-
-    g.setColour (Colour (0xccffffff));
-	g.setFont(GLOBAL_BOLD_FONT().withHeight(22.0f));
-    g.drawText (TRANS("SAMPLE EDITOR"),
-                getWidth() - 8 - 232, 4, 232, 30,
-                Justification::centredRight, true);
-
-    //[UserPaint] Add your own custom painting code here..
-    //[/UserPaint]
+	if (!isInWorkspace())
+	{
+		g.setColour(Colour(0xccffffff));
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(22.0f));
+		g.drawText("SAMPLE EDITOR", ta, Justification::centredRight, true);
+	}
 }
 
 void SampleEditor::resized()
 {
-    
+	auto b = getLocalBounds().reduced(12);
+
+	auto topBar = b.removeFromTop(20);
+	topBar.removeFromRight(150);
+
+	for (auto b : menuButtons)
+		b->setBounds(topBar.removeFromLeft(topBar.getHeight()).reduced(1));
+
+	//toolbar->setBounds(topBar);
+
+	b.removeFromTop(20);
+	int setterHeight = 32;
 	int width = 150;
 	int halfWidth = 75;
-	int setterHeight = 32;
+	static constexpr int Margin = 5;
 
-	int y1 = getHeight() - 50;
-	int y2 = y1 - 50;
+	if (isInWorkspace())
+	{
+		b.removeFromBottom(12);
+		auto bottom = b.removeFromBottom(setterHeight);
+		bottom = bottom.withSizeKeepingCentre(width * 8, bottom.getHeight());
 
-	int viewportY = 41;
-	int viewportHeight = y2 - 32;
+		volumeSetter->setBounds(bottom.removeFromLeft(width - Margin));
+		bottom.removeFromLeft(Margin);
 
-	int widthOfSetters = width * 3 + halfWidth * 2;
+		panSetter->setBounds(bottom.removeFromLeft(halfWidth - Margin));
+		bottom.removeFromLeft(Margin);
 
-	int x = (getWidth() - widthOfSetters) / 2;
+		pitchSetter->setBounds(bottom.removeFromLeft(halfWidth - Margin));
+		bottom.removeFromLeft(Margin);
 
-    viewport->setBounds (8, viewportY, getWidth() - 16, viewportHeight);
+		sampleStartSetter->setBounds(bottom.removeFromLeft(width - Margin));
+		bottom.removeFromLeft(Margin);
 
-	volumeSetter->setBounds(x, y1, width-5, setterHeight);
-	
-	panSetter->setBounds(x, y2, halfWidth-5, setterHeight);
-	x += halfWidth;
+		sampleEndSetter->setBounds(bottom.removeFromLeft(width - Margin));
+		bottom.removeFromLeft(Margin);
 
-	pitchSetter->setBounds(x, y2, halfWidth-5, setterHeight);
-	x += halfWidth;
+		startModulationSetter->setBounds(bottom.removeFromLeft(width - Margin));
+		bottom.removeFromLeft(Margin);
 
-	sampleStartSetter->setBounds(x, y1, width-5, setterHeight);
-	sampleEndSetter->setBounds(x, y2, width-5, setterHeight);
+		loopStartSetter->setBounds(bottom.removeFromLeft(width - Margin));
+		bottom.removeFromLeft(Margin);
 
-	x += width;
+		loopEndSetter->setBounds(bottom.removeFromLeft(width - Margin));
+		bottom.removeFromLeft(Margin);
 
-	loopStartSetter->setBounds(x, y1, width-5, setterHeight);
-	loopEndSetter->setBounds(x, y2, width-5, setterHeight);
+		loopCrossfadeSetter->setBounds(bottom.removeFromLeft(width - Margin));
+		bottom.removeFromLeft(Margin);
+	}
+	else
+	{
+		auto bottom = b.removeFromBottom(2 * setterHeight + 10);
 
-	x += width;
+		bottom = bottom.withSizeKeepingCentre(width * 4, bottom.getHeight());
 
-	startModulationSetter->setBounds(x, y1, width-5, setterHeight);
-	loopCrossfadeSetter->setBounds(x, y2, width-5, setterHeight);
+		auto r1 = bottom.removeFromTop(setterHeight);
+		auto r2 = bottom.removeFromBottom(setterHeight);
 
-#if 0
-    volumeSetter->setBounds (proportionOfWidth (0.3150f) - proportionOfWidth (0.1400f), 162, proportionOfWidth (0.1400f), 32);
-    pitchSetter->setBounds ((proportionOfWidth (0.3150f) - proportionOfWidth (0.1400f)) + 61, 195, proportionOfWidth (0.1000f), 32);
-    sampleStartSetter->setBounds ((getWidth() / 2) + 4 - proportionOfWidth (0.1400f), 162, proportionOfWidth (0.1400f), 32);
-    sampleEndSetter->setBounds (((getWidth() / 2) + 4 - proportionOfWidth (0.1400f)) + 0, 196, proportionOfWidth (0.1400f), 32);
-    loopStartSetter->setBounds (proportionOfWidth (0.5188f), 163, proportionOfWidth (0.1400f), 32);
-    loopEndSetter->setBounds (proportionOfWidth (0.5188f) + 0, 196, proportionOfWidth (0.1400f), 32);
-    loopCrossfadeSetter->setBounds (((getWidth() / 2) + 139) + roundToInt (proportionOfWidth (0.1400f) * 0.0000f), 196, proportionOfWidth (0.1400f), 32);
-    startModulationSetter->setBounds ((getWidth() / 2) + 139, 160, proportionOfWidth (0.1400f), 32);
-	panSetter->setBounds(proportionOfWidth(0.2388f) - proportionOfWidth(0.1000f), 195, proportionOfWidth(0.1000f), 32);
-#endif
-    toolbar->setBounds (12, 10, getWidth() - 175, 20);
-    
-    
+		volumeSetter->setBounds(r2.removeFromLeft(width - Margin));
+		r2.removeFromLeft(Margin);
 
-	currentWaveForm->setSize((int)(viewport->getWidth() * zoomFactor), viewport->getHeight() - (viewport->isHorizontalScrollBarShown() ? viewport->getScrollBarThickness() : 0));
+		panSetter->setBounds(r1.removeFromLeft(halfWidth - Margin));
+		r1.removeFromLeft(Margin);
 
-    
+		pitchSetter->setBounds(r1.removeFromLeft(halfWidth - Margin));
+		r1.removeFromLeft(Margin);
+
+		sampleEndSetter->setBounds(r2.removeFromLeft(width - Margin));
+		r2.removeFromLeft(Margin);
+
+		sampleStartSetter->setBounds(r1.removeFromLeft(width - Margin));
+		r1.removeFromLeft(Margin);
+
+		loopEndSetter->setBounds(r2.removeFromLeft(width - Margin));
+		r2.removeFromLeft(Margin);
+
+		loopStartSetter->setBounds(r1.removeFromLeft(width - Margin));
+		r1.removeFromLeft(Margin);
+
+		startModulationSetter->setBounds(r2.removeFromLeft(width - Margin));
+		r2.removeFromLeft(Margin);
+
+		loopCrossfadeSetter->setBounds(r1.removeFromLeft(width - Margin));
+		r1.removeFromLeft(Margin);
+	}
+
+	b.removeFromBottom(12);
+
+	if (viewport->isVisible())
+	{
+		if (isInWorkspace())
+		{
+			auto zb = b.removeFromLeft(40);
+			zb.removeFromBottom(viewport->getScrollBarThickness());
+			zb.removeFromTop(SamplerDisplayWithTimeline::TimelineHeight);
+			verticalZoomer->setBounds(zb);
+			b.removeFromLeft(8);
+		}
+		else
+		{
+			verticalZoomer->setVisible(false);
+		}
+
+		viewport->setBounds(b);
+
+		viewContent->setSize((int)(viewport->getWidth() * zoomFactor), viewport->getHeight() - (viewport->isHorizontalScrollBarShown() ? viewport->getScrollBarThickness() : 0));
+	}
+	else
+		graph->setBounds(b);
 }
 
 
+
+void SampleEditor::addButton(CommandID commandId, bool hasState, const String& name, const String& offName /*= String()*/)
+{
+	SampleEditorToolbarFactory::Factory f;
+	auto newButton = new HiseShapeButton(name, nullptr, f, offName);
+
+	if (hasState)
+		newButton->setToggleModeWithColourChange(true);
+
+	newButton->setClickingTogglesState(false);
+	newButton->setCommandToTrigger(samplerEditorCommandManager, commandId, true);
+	menuButtons.add(newButton);
+	addAndMakeVisible(newButton);
+}
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 
@@ -274,10 +633,91 @@ bool SampleEditor::perform (const InvocationInfo &info)
 	case EnablePlayArea:	currentWaveForm->toggleRangeEnabled(SamplerSoundWaveform::PlayArea); return true;
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
+	case Analyser:			toggleAnalyser(); return true;
 	}
 	return false;
 }
 
+
+void SampleEditor::toggleAnalyser()
+{
+	auto graphIsVisible = graph->isVisible();
+
+	graph->setVisible(!graphIsVisible);
+	viewport->setVisible(graphIsVisible);
+
+	updateWaveform();
+	resized();
+}
+
+void SampleEditor::paintOverChildren(Graphics &g)
+{
+	if (selection.size() != 0)
+	{
+		g.setColour(Colours::black.withAlpha(0.4f));
+
+		const bool useGain = selection.getLast()->getNormalizedPeak() != 1.0f;
+
+		String fileName = selection.getLast()->getPropertyAsString(SampleIds::FileName);
+
+		PoolReference ref(sampler->getMainController(), fileName, FileHandlerBase::Samples);
+
+		fileName = ref.getReferenceString();
+
+		const String autogain = useGain ? ("Autogain: " + String(Decibels::gainToDecibels(selection.getLast()->getNormalizedPeak()), 1) + " dB") : String();
+
+		int width = jmax<int>(GLOBAL_BOLD_FONT().getStringWidth(autogain), GLOBAL_BOLD_FONT().getStringWidth(fileName)) + 8;
+
+		Rectangle<int> area; 
+		
+		if (isInWorkspace())
+		{
+			area = getLocalBounds().reduced(12).removeFromTop(24);
+		}
+		else
+		{
+			area = { viewport->getRight() - width - 1, viewport->getY() + 1, width, useGain ? 32 : 16 };
+			g.fillRect(area);
+		}
+		
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_BOLD_FONT());
+
+
+		g.drawText(fileName, area, Justification::topRight, false);
+
+		if (useGain)
+			g.drawText(autogain, area, Justification::bottomRight, false);
+
+		if (auto f = selection.getFirst())
+		{
+			if (f->isMissing())
+			{
+				g.setColour(Colours::black.withAlpha(0.4f));
+
+
+				auto b = viewport->getBounds().toFloat();
+
+				g.fillRect(b);
+
+				g.setColour(Colours::white);
+				g.drawText(f->getReferenceToSound()->getFileName(true) + " is missing", b, Justification::centred);
+			}
+		}
+
+	}
+}
+
+void SampleEditor::updateWaveform()
+{
+	samplerEditorCommandManager->commandStatusChanged();
+
+	if(viewport->isVisible())
+		currentWaveForm->updateRanges();
+
+	if (graph->isVisible())
+		graphHandler.rebuildIfDirty();
+}
 
 //[/MiscUserCode]
 

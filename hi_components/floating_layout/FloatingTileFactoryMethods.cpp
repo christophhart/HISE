@@ -51,7 +51,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 
 	registerType<SnexEditorPanel>(PopupMenuOptions::SnexEditor);
 	registerType<SnexWorkbenchPanel<snex::ui::OptimizationProperties>>(PopupMenuOptions::SnexOptimisations);
-	registerType<SnexWorkbenchPanel<snex::ui::Graph>>(PopupMenuOptions::SnexGraph);
+	registerType<SnexWorkbenchPanel<snex::ui::TestGraph>>(PopupMenuOptions::SnexGraph);
 	registerType<SnexWorkbenchPanel<snex::ui::ParameterList>>(PopupMenuOptions::SnexParameterList);
 	registerType<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(PopupMenuOptions::SnexTestDataInfo);
 	registerType<SnexWorkbenchPanel<snex::ui::TestComplexDataManager>>(PopupMenuOptions::SnexComplexTestData);

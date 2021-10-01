@@ -1116,7 +1116,7 @@ int ModulatorSynthGroup::getNumActiveVoices() const
 	return thisNumActiveVoices;
 }
 
-void ModulatorSynthGroup::preHiseEventCallback(const HiseEvent &m)
+void ModulatorSynthGroup::preHiseEventCallback(HiseEvent &m)
 {
 	ModulatorSynth::preHiseEventCallback(m);
 

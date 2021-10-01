@@ -661,32 +661,7 @@ public:
 		p.addCommandItem(a, DeleteDuplicateSamples);
 	}
 
-	void mouseDown(const MouseEvent &e) override
-	{
-		if (e.eventComponent == currentRRGroupLabel)
-		{
-			toggleFollowRRGroup();
-			return;
-		}
-
-		getCommandManager()->setFirstCommandTarget(this);
-		getCommandManager()->commandStatusChanged();
-
-		if(e.mods.isRightButtonDown())
-		{
-			PopupMenu p;
-
-			ScopedPointer<PopupLookAndFeel> laf = new PopupLookAndFeel();
-
-			p.setLookAndFeel(laf);
-
-			getCommandManager()->commandStatusChanged();
-
-			fillPopupMenu(p);
-
-			p.show();
-		}
-	};
+	void mouseDown(const MouseEvent &e) override;;
 
 	void enablePopoutMode(SampleMapEditor *parent)
 	{

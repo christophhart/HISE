@@ -107,6 +107,8 @@ public:
 
 	void setBuffer(var bufferL, var bufferR = var(), bool synchronously=false);
 
+	void fillAudioSampleBuffer(AudioSampleBuffer& b);
+
 	void paint(Graphics& g) override;
 
 	void drawSection(Graphics &g, bool enabled);
@@ -122,6 +124,25 @@ public:
 	{
 		scaleVertically = shouldScale;
 	};
+
+	void setDisplayGain(float gainToApply, NotificationType notify=sendNotification)
+	{
+		if (gainToApply != 1.0f)
+			scaleVertically = false;
+
+		if (gainToApply != displayGain)
+		{
+			displayGain = gainToApply;
+
+			switch (notify)
+			{
+			case sendNotification:
+			case sendNotificationSync: rebuildPaths(true);
+			case sendNotificationAsync: rebuildPaths(false);
+			default: break;
+			}
+		}
+	}
 
 	void setReader(AudioFormatReader* r, int64 actualNumSamples=-1);
 
@@ -174,7 +195,14 @@ public:
 	void setRange(const int left, const int right);
 private:
 
+	float applyDisplayGain(float value)
+	{
+		return jlimit(-1.0f, 1.0f, value * displayGain);
+	}
+
 	double sampleRate = 44100.0;
+
+	float displayGain = 1.0f;
 
 	bool scaleVertically = false;
 	bool rebuildOnResize = true;
@@ -245,6 +273,8 @@ private:
 	ScopedPointer<AudioFormatReader> currentReader;
 
 	ScopedPointer<ScrollBar> scrollBar;
+
+	AudioSampleBuffer ab;
 
 	var lBuffer;
 	var rBuffer;
@@ -550,36 +580,7 @@ public:
 		list.remove(l);
 	}
 
-	void refreshSampleAreaBounds(SampleArea* areaToSkip=nullptr)
-	{
-		bool somethingVisible = getTotalSampleAmount() != 0;
-
-		for(int i=0; i < areas.size(); i++)
-		{
-			if(areas[i] == areaToSkip) continue;
-
-			areas[i]->setVisible(somethingVisible);
-
-			Range<int> sampleRange = areas[i]->getSampleRange();
-
-			const int x = areas[i]->getXForSample(sampleRange.getStart(), false);
-			const int right = areas[i]->getXForSample(sampleRange.getEnd(), false);
-
-			areas[i]->leftEdge->setTooltip(String(sampleRange.getStart()));
-			areas[i]->rightEdge->setTooltip(String(sampleRange.getEnd()));
-
-			if (i == 0)
-			{
-				preview->setRange(x, right);
-			}
-
-			areas[i]->setBounds(x,0,right-x, getHeight());
-		}
-
-		
-
-		repaint();
-	}
+	void refreshSampleAreaBounds(SampleArea* areaToSkip=nullptr);
 
 	/** Overwrite this method and update the ranges of all SampleAreas of the AudioDisplayComponent. 
 	*

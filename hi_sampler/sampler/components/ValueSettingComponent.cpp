@@ -28,8 +28,11 @@ namespace hise { using namespace juce;
 //[/MiscUserDefs]
 
 //==============================================================================
-ValueSettingComponent::ValueSettingComponent ()
+ValueSettingComponent::ValueSettingComponent (ModulatorSampler* sampler_):
+	sampler(sampler_)
 {
+	sampler->getSampleMap()->addListener(this);
+
     addAndMakeVisible (valueLabel = new Label ("new label",
                                                String()));
     valueLabel->setFont (Font ("Khmer UI", 14.00f, Font::plain));
@@ -89,6 +92,7 @@ ValueSettingComponent::ValueSettingComponent ()
 
 ValueSettingComponent::~ValueSettingComponent()
 {
+	sampler->getSampleMap()->removeListener(this);
     //[Destructor_pre]. You can add your own custom destruction code here..
     //[/Destructor_pre]
 
@@ -273,6 +277,14 @@ void ValueSettingComponent::mouseDown(const MouseEvent &e)
         
     }
     
+}
+
+void ValueSettingComponent::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue)
+{
+	if (currentSelection.contains(s) && soundProperty == id)
+	{
+		updateValue();
+	}
 }
 
 //[/MiscUserCode]

@@ -1592,7 +1592,7 @@ void SampleMap::Notifier::sendSampleAmountChangeMessage(NotificationType n)
 		handleLightweightPropertyChanges();
 }
 
-void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(const Array<AsyncPropertyChange, CriticalSection>& changesThisTime)
+void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(Array<AsyncPropertyChange, CriticalSection> changesThisTime)
 {
 	jassert_sample_loading_thread(parent.getSampler()->getMainController());
 	LockHelpers::freeToGo(parent.getSampler()->getMainController());
@@ -1617,6 +1617,27 @@ void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(const Array<Async
 				
 		}
 	}
+
+	MessageManager::callAsync([changesThisTime, this]()
+	{
+		for (const auto& c : changesThisTime)
+		{
+			for (int i = 0; i < c.values.size(); i++)
+			{
+				if (auto s = c.selection[i])
+				{
+					auto v = c.values[i];
+					auto id = c.id;
+
+					for (auto l : this->parent.listeners)
+					{
+						if (l != nullptr)
+							l->samplePropertyWasChanged(dynamic_cast<ModulatorSamplerSound*>(s.get()), id, v);
+					}
+				}
+			}
+		}
+	});
 }
 
 void SampleMap::Notifier::handleHeavyweightPropertyChanges()

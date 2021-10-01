@@ -336,10 +336,29 @@ public:
 
 	const ModulatorSamplerSound *getCurrentSound() const { return currentSound.get(); }
 
-
 	float getNormalizedPeak() override;
 
+	void refresh(NotificationType n)
+	{
+		getThumbnail()->setDisplayGain(getCurrentSampleGain(), n);
+	}
+
+	void setVerticalZoom(float zf)
+	{
+		if (zf != verticalZoomGain)
+		{
+			verticalZoomGain = zf;
+			refresh(sendNotificationSync);
+		}
+	}
+
+	float getCurrentSampleGain() const;
+
 private:
+
+	
+
+	float verticalZoomGain = 1.0f;
 
 	const ModulatorSampler *sampler;
 	ReferenceCountedObjectPtr<ModulatorSamplerSound> currentSound;

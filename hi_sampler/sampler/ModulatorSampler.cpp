@@ -115,7 +115,8 @@ repeatMode(RepeatMode::KillSecondOldestNote),
 deactivateUIUpdate(false),
 samplePreloadPending(false),
 realVoiceAmount(numVoices),
-temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
+temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0),
+midiSelectionUpdater(mc->getGlobalUIUpdater())
 {
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	sampleEditHandler = new SampleEditHandler(this);
@@ -162,6 +163,10 @@ temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 	setEditorState(EditorStates::MapPanelShown, true);
 	setEditorState(EditorStates::BigSampleMap, true);
 
+	midiSelectionUpdater.setFunction([this]()
+	{
+		getSampleEditHandler()->handleMidiSelection();
+	});
 	
 	sampleStartChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff5e8127)));
 	crossFadeChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff884b29)));
@@ -987,7 +992,7 @@ void ModulatorSampler::noteOff(const HiseEvent &m)
 	}
 }
 
-void ModulatorSampler::preHiseEventCallback(const HiseEvent &m)
+void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 {
 	if (m.isNoteOnOrOff())
 	{
@@ -999,6 +1004,17 @@ void ModulatorSampler::preHiseEventCallback(const HiseEvent &m)
 				if (currentRRGroupIndex > rrGroupAmount) currentRRGroupIndex = 1;
 			}
 
+#if USE_BACKEND
+			midiSelectionUpdater.triggerUpdateWithLambda();
+
+			if (lockRRGroup != -1)
+				currentRRGroupIndex = lockRRGroup;
+
+			if (lockVelocity > 0)
+				m.setVelocity(lockVelocity);
+
+#endif
+		
 			samplerDisplayValues.currentGroup = currentRRGroupIndex;
 		}
 
@@ -1301,6 +1317,33 @@ bool ModulatorSampler::isNoteNumberMapped(int noteNumber) const
 	}
 
 	return false;
+}
+
+int ModulatorSampler::getMidiInputLockValue(const Identifier& id) const
+{
+	if (id == SampleIds::RRGroup)
+		return lockRRGroup;
+	if (id == SampleIds::LoVel || id == SampleIds::HiVel)
+		return lockVelocity;
+}
+
+void ModulatorSampler::toggleMidiInputLock(const Identifier& id, int lockValue)
+{
+	if (id == SampleIds::RRGroup)
+	{
+		if (lockRRGroup == -1)
+			lockRRGroup = lockValue;
+		else
+			lockRRGroup = -1;
+	}
+		
+	if (id == SampleIds::LoVel || id == SampleIds::HiVel)
+	{
+		if (lockVelocity == -1)
+			lockVelocity = lockValue;
+		else
+			lockVelocity = -1;
+	}
 }
 
 bool ModulatorSampler::preloadAllSamples()

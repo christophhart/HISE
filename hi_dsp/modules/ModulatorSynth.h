@@ -205,7 +205,7 @@ public:
 	void handleVolumeFade(int eventId, int fadeTimeMilliseconds, float gain);
 	void handlePitchFade(uint16 eventId, int fadeTimeMilliseconds, double pitchFactor);
 
-	virtual void preHiseEventCallback(const HiseEvent &e);
+	virtual void preHiseEventCallback(HiseEvent &e);
 	virtual void preStartVoice(int voiceIndex, const HiseEvent& e);
 
 	void preStopVoice(int voiceIndex);

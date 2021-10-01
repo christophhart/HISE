@@ -82,12 +82,12 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 
 	s->getMainController()->getExpansionHandler().addListener(this);
 
-    addAndMakeVisible (rootNoteSetter = new ValueSettingComponent());
-    addAndMakeVisible (lowKeySetter = new ValueSettingComponent());
-    addAndMakeVisible (highKeySetter = new ValueSettingComponent());
-    addAndMakeVisible (lowVelocitySetter = new ValueSettingComponent());
-    addAndMakeVisible (highVelocitySetter = new ValueSettingComponent());
-    addAndMakeVisible (rrGroupSetter = new ValueSettingComponent());
+    addAndMakeVisible (rootNoteSetter = new ValueSettingComponent(s));
+    addAndMakeVisible (lowKeySetter = new ValueSettingComponent(s));
+    addAndMakeVisible (highKeySetter = new ValueSettingComponent(s));
+    addAndMakeVisible (lowVelocitySetter = new ValueSettingComponent(s));
+    addAndMakeVisible (highVelocitySetter = new ValueSettingComponent(s));
+    addAndMakeVisible (rrGroupSetter = new ValueSettingComponent(s));
     addAndMakeVisible (displayGroupLabel = new Label ("new label",
                                                       TRANS("Display Group")));
     displayGroupLabel->setFont (Font ("Khmer UI", 13.00f, Font::plain));
@@ -136,8 +136,8 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
     //[UserPreSize]
 
 
-	addAndMakeVisible(lowXFadeSetter = new ValueSettingComponent());
-	addAndMakeVisible(highXFadeSetter = new ValueSettingComponent());
+	addAndMakeVisible(lowXFadeSetter = new ValueSettingComponent(s));
+	addAndMakeVisible(highXFadeSetter = new ValueSettingComponent(s));
 
 	groupDisplay->setFont (GLOBAL_FONT());
 	displayGroupLabel->setFont (GLOBAL_FONT());
@@ -1013,6 +1013,70 @@ bool SampleMapEditor::keyPressed(const KeyPress& k)
 	}
 
 	return false;
+}
+
+void SampleMapEditor::mouseDown(const MouseEvent &e)
+{
+	if (e.eventComponent == currentRRGroupLabel)
+	{
+		toggleFollowRRGroup();
+		return;
+	}
+
+	getCommandManager()->setFirstCommandTarget(this);
+	getCommandManager()->commandStatusChanged();
+
+	if (e.mods.isRightButtonDown())
+	{
+		PopupMenu p;
+
+		ScopedPointer<PopupLookAndFeel> laf = new PopupLookAndFeel();
+
+		p.setLookAndFeel(laf);
+
+		getCommandManager()->commandStatusChanged();
+
+		p.addSectionHeader("Lock MIDI input");
+
+		auto velo = (float)e.getEventRelativeTo(map).getPosition().getY() / (float)(map->getHeight() - 32);
+		velo = 127.0f * (1.0f - velo);
+
+		auto vLocked = sampler->getMidiInputLockValue(SampleIds::LoVel) != -1;
+		auto rLocked = sampler->getMidiInputLockValue(SampleIds::RRGroup) != -1;
+
+		String lv;
+
+		if (!vLocked)
+			lv << "Lock Velocity at " << String(roundToInt(velo));
+		else
+			lv << "Unlock velocity";
+
+		p.addItem(90000, lv, true, vLocked);
+
+		String rv;
+
+		if (!rLocked)
+			rv << "Lock RR Group #" << String(sampler->getCurrentRRGroup());
+		else
+			rv << "unlock RR Group";
+
+		p.addItem(90001, rv, true, rLocked);
+
+		fillPopupMenu(p);
+
+		auto r = p.show();
+
+		if (r == 90000)
+		{
+			sampler->toggleMidiInputLock(SampleIds::LoVel, roundToInt(velo));
+			map->repaint();
+		}
+		if (r == 90001)
+		{
+			sampler->toggleMidiInputLock(SampleIds::RRGroup, sampler->getCurrentRRGroup());
+			map->repaint();
+		}
+	}
 }
 
 void SampleMapEditor::refreshSampleMapPool()

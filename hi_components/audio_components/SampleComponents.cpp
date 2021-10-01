@@ -319,6 +319,7 @@ SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler)
 
 #endif
 
+	getThumbnail()->setDrawHorizontalLines(true);
 
 };
 
@@ -511,6 +512,7 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 				numSamplesInCurrentSample = currentSound->getReferenceToSound()->getSampleLength();
 			}
 
+			refresh(dontSendNotification);
 			preview->setReader(afr.release(), numSamplesInCurrentSample);
 
 			updateRanges();
@@ -542,6 +544,25 @@ float SamplerSoundWaveform::getNormalizedPeak()
 		return s->getNormalizedPeak();
 	}
 	else return 1.0f;
+}
+
+float SamplerSoundWaveform::getCurrentSampleGain() const
+{
+	float gain = 1.0f;
+
+	if (auto s = getCurrentSound())
+	{
+		if (s->isNormalizedEnabled())
+		{
+			gain = s->getNormalizedPeak();
+		}
+
+		auto vol = (double)s->getSampleProperty(SampleIds::Volume);
+
+		gain *= Decibels::decibelsToGain(vol);
+	}
+
+	return gain * verticalZoomGain;
 }
 
 }

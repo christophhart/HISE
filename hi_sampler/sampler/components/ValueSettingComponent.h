@@ -40,11 +40,12 @@ class ValueSettingComponent  : public Component,
                                public SafeChangeBroadcaster,
                                public SliderListener,
                                public LabelListener,
+							   public SampleMap::Listener,
                                public ButtonListener
 {
 public:
     //==============================================================================
-    ValueSettingComponent ();
+    ValueSettingComponent (ModulatorSampler* sampler);
     ~ValueSettingComponent();
 
     //==============================================================================
@@ -81,6 +82,10 @@ public:
         
         return changed;
     }
+
+	virtual void sampleMapWasChanged(PoolReference ) {};
+
+	virtual void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue);;
 
 	void sliderDragStarted(Slider *s)
 	{
@@ -195,8 +200,6 @@ public:
 		valueLabel->setColour(Label::ColourIds::textWhenEditingColourId, t);
 	};
 
-	
-
     //[/UserMethods]
 
     void paint (Graphics& g);
@@ -205,6 +208,8 @@ public:
     void buttonClicked (Button* buttonThatWasClicked);
 
 private:
+
+	WeakReference<ModulatorSampler> sampler;
     //[UserVariables]   -- You can add your own custom variables in this section.
 
 	Identifier soundProperty;
