@@ -483,6 +483,9 @@ void JavascriptPolyphonicEffect::prepareToPlay(double sampleRate, int samplesPer
 
 	if (auto n = getActiveNetwork())
 	{
+		auto numChannels = dynamic_cast<RoutableProcessor*>(getParentProcessor(true))->getMatrix().getNumSourceChannels();
+
+		n->setNumChannels(numChannels);
 		n->prepareToPlay(sampleRate, (double)samplesPerBlock);
 	}
 }
@@ -499,7 +502,7 @@ void JavascriptPolyphonicEffect::renderVoice(int voiceIndex, AudioSampleBuffer &
 		for (int i = 0; i < numChannels; i++)
 			channels[i] += startSample;
 
-		scriptnode::ProcessDataDyn d(channels, numChannels, numSamples);
+		scriptnode::ProcessDataDyn d(channels, numSamples, numChannels);
 
 		scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
 		n->getRootNode()->process(d);
