@@ -489,6 +489,12 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 			mpeEnd = 16;
 		}
 	}
+	
+	else if (c == currentStepSlider)
+	{
+		currentStep = jlimit<int>(0, velocitySliderPack->getNumSliders()-1, (int)value);
+		curMasterStep = currentStep;
+	}
 }
 
 void Arpeggiator::onController()

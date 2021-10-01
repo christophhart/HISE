@@ -2651,13 +2651,9 @@ void BackendCommandTarget::Actions::convertSampleMapToWavetableBanks(BackendRoot
 {
 	ignoreUnused(bpe);
 
-#if USE_IPP
 	WavetableConverterDialog *converter = new WavetableConverterDialog(bpe->getMainSynthChain());
 
 	converter->setModalBaseWindowComponent(bpe);
-#else
-	PresetHandler::showMessageWindow("IPP required", "You need to build HISE with enabled IPP in order to use the resynthesis features", PresetHandler::IconType::Error);
-#endif
 }
 
 void BackendCommandTarget::Actions::exportCompileFilesInPool(BackendRootWindow* bpe)

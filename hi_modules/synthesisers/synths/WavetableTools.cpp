@@ -194,17 +194,24 @@ struct ResynthesisHelpers
 	{
 		ignoreUnused(buffer, sampleRate, pitch, harmonicSpectrum, windowType);
 
-#if USE_IPP
 		if (pitch != 0.0)
 		{
 			int size = buffer.getNumSamples();
 
-			IppFFT fft(IppFFT::DataType::RealFloat, 16);
+            auto order = log2(size);
+            
+            auto fft = juce::dsp::FFT(order);
+            
+            HeapBlock<float> dl_;
+            HeapBlock<float> dr_;
+            
+            dl_.calloc(size * 2);
+            dr_.calloc(size * 2);
+            
+            float* dl = dl_.get();
+            float* dr = dl_.get();
 
-			float* dl = (float*)alloca(sizeof(float)*size);
-			float* dr = (float*)alloca(sizeof(float)*size);
-
-			FloatVectorOperations::copy(dl, buffer.getReadPointer(0), size);
+            FloatVectorOperations::copy(dl, buffer.getReadPointer(0), size);
 			FloatVectorOperations::copy(dr, buffer.getReadPointer(1), size);
 
 			float* w = (float*)alloca(sizeof(float)*size);
@@ -227,11 +234,15 @@ struct ResynthesisHelpers
 			FloatVectorOperations::multiply(dl, w, size);
 			FloatVectorOperations::multiply(dr, w, size);
 
-			fft.realFFTInplace(dl, size);
-			fft.realFFTInplace(dr, size);
-
-			float* magL = (float*)alloca(sizeof(float)*size / 2);
-			float* magR = (float*)alloca(sizeof(float)*size / 2);
+            fft.performRealOnlyForwardTransform(dl);
+            
+            HeapBlock<float> magL_, magR_;
+            
+            magL_.calloc(size/2);
+            magR_.calloc(size/2);
+            
+            float* magL = magL_.get();
+            float* magR = magR_.get();
 
 			for (int i = 0; i < size / 2; i++)
 			{
@@ -296,9 +307,6 @@ struct ResynthesisHelpers
 		{
 			return false;
 		}
-#else
-		return false;
-#endif
 	}
 
 	static int getWavetableLength(int noteNumber, double sampleRate)

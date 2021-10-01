@@ -94,7 +94,7 @@ struct Helpers
 		{
 			if (id == RingBufferIds::BufferLength)
 			{
-				auto capped = jlimit<int>(512, 32768, desiredSize);
+				auto capped = jlimit<int>(8192, 32768, desiredSize);
 				auto ns = nextPowerOfTwo(capped);
 
 				if (ns != desiredSize)

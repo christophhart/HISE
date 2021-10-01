@@ -700,8 +700,6 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 	laf->drawOscilloscopeBackground(g, *this, dynamic_cast<Component*>(this)->getLocalBounds().toFloat());
 
-#if USE_IPP
-
 	if (rb != nullptr)
 	{
 		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(rb->getDataLock()))
@@ -710,6 +708,10 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 			int size = b.getNumSamples();
 
+            auto order = log2(size);
+            
+            auto fft = juce::dsp::FFT(order);
+            
 			if (windowBuffer.getNumSamples() == 0 || windowBuffer.getNumSamples() != size)
 			{
 				windowBuffer = AudioSampleBuffer(1, size);
@@ -721,34 +723,31 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 			{
 				auto d = windowBuffer.getWritePointer(0);
 
-				switch (fftProperties.window)
-				{
-				case BlackmannHarris: //icstdsp::VectorFunctions::bhw4(d, size); break;
-				case Hann:			  //icstdsp::VectorFunctions::hann(d, size); break;
-				case Flattop:		  //icstdsp::VectorFunctions::flattop(d, size); break;
-				case Rectangle:
-				default:			  FloatVectorOperations::fill(d, 1.0f, size); break;
-				}
+                juce::dsp::WindowingFunction<float> w(size, juce::dsp::WindowingFunction<float>::blackmanHarris);
 
+                
+                FloatVectorOperations::fill(d, 1.0f, size);
+                w.multiplyWithWindowingTable(d, size);
+                
 				lastWindowType = fftProperties.window;
 			}
 
-			AudioSampleBuffer b2(2, b.getNumSamples());
+			AudioSampleBuffer b2(2, size * 2);
+            b2.clear();
+            
+            auto data = b2.getWritePointer(0);
+            FloatVectorOperations::copy(data, rb->getReadBuffer().getReadPointer(0), size);
+            
+			
 
-			b2.makeCopyOf(rb->getReadBuffer());
-
-
-
-			auto data = b2.getWritePointer(0);
-
-			FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), b2.getNumSamples());
+			FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), size);
 
 			auto lastValues = fftBuffer.getWritePointer(0);
 
 			auto sampleRate = getSamplerate();
 
-			fftObject.realFFTInplace(data, size);
-
+            fft.performRealOnlyForwardTransform(data);
+            
 			if (fftProperties.domain == Amplitude)
 			{
 				for (int i = 2; i < size; i += 2)
@@ -823,7 +822,16 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 				if (fftProperties.freq2x)
 					xPos = (float)fftProperties.freq2x((float)f);
 				else
-					xPos = (float)log10((float)i) / maxPos * (float)(asComponent->getWidth() + xLog10Pos) - xLog10Pos;
+                {
+                    auto width = asComponent->getWidth();
+                    auto lowFreq = 20;
+                    auto highFreq = 20000.0;
+                    float freq = f;
+                    
+                    xPos = (width - 5) * (log (freq / lowFreq) / log (highFreq / lowFreq)) + 2.5f;
+                    //xPos = (float)log10((float)i) / maxPos * (float)(asComponent->getWidth() + xLog10Pos) - xLog10Pos;
+                }
+					
 
 				auto diff = xPos - lastIndex;
 
@@ -869,7 +877,7 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 					if (value > lastValues[i])
 						lastValues[i] = value;
 					else
-						lastValues[i] = jmax<float>(0.0f, lastValues[i] - 0.02f);
+						lastValues[i] = jmax<float>(0.0f, lastValues[i] - 0.05f);
 
 					auto yPos = lastValues[i];
 					yPos = 1.0f - yPos;
@@ -889,15 +897,6 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 			laf->drawOscilloscopePath(g, *this, lPath);
 		}
 	}
-
-#else
-
-	auto asComponent = dynamic_cast<Component*>(this);
-	g.setColour(Colours::grey);
-	g.setFont(GLOBAL_BOLD_FONT());
-	g.drawText("You need IPP for the FFT Analyser", asComponent->getLocalBounds().toFloat(), Justification::centred, false);
-
-#endif
 }
 
 void OscilloscopeBase::drawWaveform(Graphics& g)
