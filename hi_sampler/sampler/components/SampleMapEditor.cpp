@@ -288,38 +288,8 @@ SampleMapEditor::~SampleMapEditor()
 //==============================================================================
 void SampleMapEditor::paint (Graphics& g)
 {
-    //[UserPrePaint] Add your own custom painting code here..
-
-    int x = 0;
-    int y = 2;
-    int width = getWidth();
-    int height = getHeight()-4;
-    
-	Rectangle<int> a(x, y, width, height);
-
-	//ProcessorEditorLookAndFeel::drawShadowBox(g, a, JUCE_LIVE_CONSTANT_OFF(Colour(0xff333333)));
-
-	//g.drawRect(x, y, width, height);
-
-    //[/UserPrePaint]
-
-    g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour (0x13ffffff)));
-    g.fillRect (8, 8, getWidth() - 132, 24);
-
-    g.setColour (Colour (0x0fffffff));
-    g.drawRect (8, 8, getWidth() - 132, 24, 1);
-
-    g.setColour (Colour (0xccffffff));
-    g.setFont (GLOBAL_BOLD_FONT().withHeight(22.0f));
-    g.drawText (TRANS("MAP EDITOR"),
-                getWidth() - 12 - 244, 5, 244, 30,
-                Justification::centredRight, true);
-
-    //[UserPaint] Add your own custom painting code here..
-
-	
-
-    //[/UserPaint]
+    auto b = getLocalBounds().removeFromTop(24);
+    GlobalHiseLookAndFeel::drawFake3D(g, b);
 }
 
 #define PLACE_BUTTON(x) x->setBounds(topBar.removeFromLeft(24).reduced(2));
@@ -346,7 +316,7 @@ void SampleMapEditor::resized()
 
 	toolbar->setVisible(false);
 
-	auto topBar = Rectangle<int>(12, 8, getWidth() - 132, 24);
+	auto topBar = Rectangle<int>(0, 0, getWidth(), 24);
 
 	PLACE_BUTTON(getButton(NewSampleMap));
 	PLACE_BUTTON(getButton(ImportSfz));

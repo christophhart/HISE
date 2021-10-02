@@ -238,6 +238,7 @@ struct VerticalZoomer : public Component,
 	void resized() override
 	{
 		zoomSlider.setBounds(getLocalBounds().removeFromLeft(8));
+        zoomSlider.setVisible(false);
 	}
 
 	WeakReference<ModulatorSampler> sampler;
@@ -342,11 +343,27 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 
 	addButton(SampleMapCommands::ZoomIn, false, "zoom-in");
 	addButton(SampleMapCommands::ZoomOut, false, "zoom-out");
+    addButton(SampleMapCommands::Analyser, true, "analyse");
+    
 	addButton(SampleMapCommands::SelectWithMidi, true, "select-midi", "select-mouse");
 	addButton(SampleMapCommands::EnablePlayArea, true, "play-area");
 	addButton(SampleMapCommands::EnableSampleStartArea, true, "samplestart-area");
 	addButton(SampleMapCommands::EnableLoopArea, true, "loop-area");
-
+    addButton(SampleMapCommands::NormalizeVolume, true, "normalise-on", "normalise-off");
+    addButton(SampleMapCommands::LoopEnabled, true, "loop-on", "loop-off");
+    
+    addAndMakeVisible(sampleSelector = new ComboBox());
+    addAndMakeVisible(multimicSelector = new ComboBox());
+    
+    sampleSelector->setLookAndFeel(&claf);
+    multimicSelector->setLookAndFeel(&claf);
+    
+    sampleSelector->addListener(this);
+    multimicSelector->addListener(this);
+    
+    claf.setDefaultColours(*sampleSelector);
+    claf.setDefaultColours(*multimicSelector);
+    
 	toolbar->setStyle(Toolbar::ToolbarItemStyle::iconsOnly);
 	toolbar->addDefaultItems(*toolbarFactory);
 
@@ -388,6 +405,8 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	currentWaveForm->addAreaListener(this);
 
 
+    currentWaveForm->setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xff1d1d1d));
+    currentWaveForm->setColour(AudioDisplayComponent::ColourIds::outlineColour, Colour(0xff1d1d1d));
     //[/Constructor]
 }
 
@@ -455,43 +474,35 @@ juce::AudioSampleBuffer& SampleEditor::getGraphBuffer()
 //==============================================================================
 void SampleEditor::paint (Graphics& g)
 {
-	auto b = getLocalBounds().reduced(8).removeFromTop(24);
+	auto b = getLocalBounds().removeFromTop(24);
 
-	Rectangle<float> ta;
-
-	if (!isInWorkspace())
-		ta = b.removeFromRight(175 - 16).toFloat();
-
-	g.setColour(Colour(0x13ffffff));
-	g.fillRect(b);
-
-	g.setColour(Colour(0x0fffffff));
-	g.drawRect(b, 1);
-
-	if (!isInWorkspace())
-	{
-		g.setColour(Colour(0xccffffff));
-		g.setFont(GLOBAL_BOLD_FONT().withHeight(22.0f));
-		g.drawText("SAMPLE EDITOR", ta, Justification::centredRight, true);
-	}
+    claf.drawFake3D(g, b);
 }
 
 void SampleEditor::resized()
 {
-	auto b = getLocalBounds().reduced(12);
+	auto b = getLocalBounds();
 
-	auto topBar = b.removeFromTop(20);
-	topBar.removeFromRight(150);
-
+	auto topBar = b.removeFromTop(24);
+	
 	for (auto b : menuButtons)
-		b->setBounds(topBar.removeFromLeft(topBar.getHeight()).reduced(1));
+		b->setBounds(topBar.removeFromLeft(topBar.getHeight()).reduced(2));
 
+    b = b.reduced(8);
+    
+    multimicSelector->setBounds(topBar.removeFromRight(100));
+    sampleSelector->setBounds(topBar.removeFromRight(300));
+    
 	//toolbar->setBounds(topBar);
 
 	b.removeFromTop(20);
 	int setterHeight = 32;
 	int width = 150;
-	int halfWidth = 75;
+    
+    if(isInWorkspace())
+        width = jmin(b.getWidth() / 8, 150);
+    
+	int halfWidth = width / 2;
 	static constexpr int Margin = 5;
 
 	if (isInWorkspace())
@@ -570,11 +581,12 @@ void SampleEditor::resized()
 	{
 		if (isInWorkspace())
 		{
-			auto zb = b.removeFromLeft(40);
+			auto zb = b.removeFromLeft(18);
+            b.removeFromRight(24);
 			zb.removeFromBottom(viewport->getScrollBarThickness());
 			zb.removeFromTop(SamplerDisplayWithTimeline::TimelineHeight);
 			verticalZoomer->setBounds(zb);
-			b.removeFromLeft(8);
+			b.removeFromLeft(6);
 		}
 		else
 		{
@@ -684,10 +696,10 @@ void SampleEditor::paintOverChildren(Graphics &g)
 		g.setFont(GLOBAL_BOLD_FONT());
 
 
-		g.drawText(fileName, area, Justification::topRight, false);
+		//g.drawText(fileName, area, Justification::topRight, false);
 
-		if (useGain)
-			g.drawText(autogain, area, Justification::bottomRight, false);
+		//if (useGain)
+		//	g.drawText(autogain, area, Justification::bottomRight, false);
 
 		if (auto f = selection.getFirst())
 		{
@@ -717,6 +729,8 @@ void SampleEditor::updateWaveform()
 
 	if (graph->isVisible())
 		graphHandler.rebuildIfDirty();
+    
+    repaint();
 }
 
 //[/MiscUserCode]

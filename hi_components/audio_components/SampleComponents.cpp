@@ -319,6 +319,7 @@ SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler)
 
 #endif
 
+    getThumbnail()->setBufferedToImage(false);
 	getThumbnail()->setDrawHorizontalLines(true);
 
 };

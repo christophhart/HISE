@@ -45,6 +45,7 @@ class SampleEditor : public Component,
 	public SamplerSubEditor,
 	public ApplicationCommandTarget,
 	public AudioDisplayComponent::Listener,
+    public ComboBox::Listener,
 	public SafeChangeListener,
 	public SampleMap::Listener
 {
@@ -198,12 +199,15 @@ public:
 								break;
 		case EnableSampleStartArea:	result.setInfo("Enable SampleStart Dragging", "Enable Sample Start Modulation Area Dragging", "Areas", 0);
 									result.setActive(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::SampleStartMod) != 0);
+                                    result.setTicked(isSelected && !currentWaveForm->getSampleArea(SamplerSoundWaveform::AreaTypes::SampleStartArea)->isAreaEnabled());
 									break;
 		case EnableLoopArea:	result.setInfo("Enable SampleStart Dragging", "Enable Loop Area Dragging", "Areas", 0);
 								result.setActive(isSelected && selection.getLast()->getSampleProperty(SampleIds::LoopEnabled));
+                                result.setTicked(isSelected && !currentWaveForm->getSampleArea(SamplerSoundWaveform::AreaTypes::LoopArea)->isAreaEnabled());
 								break;
 		case EnablePlayArea:	result.setInfo("Enable Play Area Dragging", "Enable Playback Area Dragging", "Areas", 0);
 								result.setActive(isSelected);
+                                result.setTicked(isSelected && !currentWaveForm->getSampleArea(SamplerSoundWaveform::AreaTypes::PlayArea)->isAreaEnabled());
 								break;
 		case SelectWithMidi:	result.setInfo("Midi Select", "Autoselect the most recently triggered sound", "Tools", 0);
 								result.setActive(true);
@@ -252,6 +256,30 @@ public:
 		if(selectedSoundList.size() != 0 && selectedSoundList.getLast() != nullptr) currentWaveForm->setSoundToDisplay(selectedSoundList.getLast());
 		else currentWaveForm->setSoundToDisplay(nullptr);
 
+        sampleSelector->clear(dontSendNotification);
+        multimicSelector->clear(dontSendNotification);
+        int sampleIndex = 1;
+        
+        for(auto s: selectedSoundList)
+        {
+            sampleSelector->addItem(s->getSampleProperty(SampleIds::FileName).toString().replace("{PROJECT_FOLDER}", ""), sampleIndex++);
+        }
+        
+        sampleSelector->setSelectedId(selectedSoundList.size(), dontSendNotification);
+        
+        auto micPositions = StringArray::fromTokens(sampler->getStringForMicPositions(), ";", "");
+        micPositions.removeEmptyStrings();
+        
+        int micIndex = 1;
+        
+        for(auto t: micPositions)
+        {
+            multimicSelector->addItem(t, micIndex++);
+        }
+        
+        multimicSelector->setTextWhenNothingSelected("No multimics");
+        multimicSelector->setTextWhenNoChoicesAvailable("No multimics");
+        
 		updateWaveform();
 	}
 
@@ -286,6 +314,22 @@ public:
 
 	};
 
+    void comboBoxChanged(ComboBox* cb) override
+    {
+        refreshDisplayFromComboBox();
+    }
+    
+    void refreshDisplayFromComboBox()
+    {
+        auto idx = sampleSelector->getSelectedItemIndex();
+        
+        if(auto s = selection[idx])
+        {
+            currentWaveForm->setSoundToDisplay(s);
+        }
+    }
+    
+    
     //[/UserMethods]
 
     void paint (Graphics& g);
@@ -363,6 +407,10 @@ private:
     ScopedPointer<ValueSettingComponent> panSetter;
 
 	ScopedPointer<Component> verticalZoomer;
+    ScopedPointer<ComboBox> sampleSelector;
+    ScopedPointer<ComboBox> multimicSelector;
+    
+    GlobalHiseLookAndFeel claf;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SampleEditor)

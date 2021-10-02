@@ -2263,6 +2263,43 @@ public:
 
 };
 
+struct FFTHelpers
+{
+    
+    static void toFreqSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer& out)
+    {
+        auto input = inp.getReadPointer(0);
+        auto output = out.getWritePointer(0);
+        
+        jassert(inp.getNumSamples() == out.getNumSamples() * 2);
 
+        auto numOriginalSamples = out.getNumSamples();
+
+        for (int i = 0; i < numOriginalSamples; i++)
+        {
+            output[i] = input[i*2] * input[i*2] + input[i*2+1] * input[i*2+1];
+            output[i] = sqrt(output[i]);
+        }
+    }
+
+    static void scaleFrequencyOutput(AudioSampleBuffer& b, bool convertToDb)
+    {
+        auto data = b.getWritePointer(0);
+        auto numOriginalSamples = b.getNumSamples();
+
+        if (numOriginalSamples == 0)
+            return;
+
+        auto factor = 2.f / (float)numOriginalSamples;
+
+        FloatVectorOperations::multiply(data, factor, numOriginalSamples);
+
+        if (convertToDb)
+        {
+            for (int i = 0; i < numOriginalSamples; i++)
+                data[i] = Decibels::gainToDecibels(data[i]);
+        }
+    }
+};
 
 }

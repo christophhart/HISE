@@ -324,7 +324,8 @@ struct Graph: public Component,
 	{
 
 		InternalGraph(Graph& parent_) :
-			parent(parent_)
+			parent(parent_),
+            rebuildThread(*this)
 		{};
 
 		void paint(Graphics& g) override;
@@ -341,7 +342,7 @@ struct Graph: public Component,
 
 		GraphType getCurrentGraphType() const;
 
-		void calculatePath(Path& p, RectangleList<float>& boxes, const AudioSampleBuffer& b, int channel);
+		void calculatePath(Path& p, const AudioSampleBuffer& b, int channel);
 
 		void resizePath();
 
@@ -411,6 +412,24 @@ struct Graph: public Component,
 			return 0;
 		}
 
+        void signalRebuild()
+        {
+            rebuildThread.stopThread(1000);
+            rebuildThread.startThread();
+        }
+        
+        struct RebuildThread: public Thread
+        {
+            RebuildThread(InternalGraph& parent_):
+              Thread("SpectroRebuilder"),
+              parent(parent_)
+            {};
+            
+            void run() override;
+            
+            InternalGraph& parent;
+        } rebuildThread;
+        
 		Graph& parent;
 
 		AudioSampleBuffer lastBuffer;
@@ -424,8 +443,7 @@ struct Graph: public Component,
         
         struct ChannelData
         {
-			RectangleList<float> sampleBoxes;
-            Path path;
+			Path path;
             Range<float> peaks;
         };
         

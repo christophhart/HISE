@@ -413,6 +413,8 @@ public:
 			repaint();
 		};
 
+        bool isAreaEnabled() const { return areaEnabled; }
+        
 		/** Returns the x-coordinate of the given sample within its parent.
 		*
 		*	If a SampleArea is a child of another SampleArea, you can still get the absolute x value by passing 'true'.a

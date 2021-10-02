@@ -64,7 +64,7 @@ void Graph::InternalGraph::paint(Graphics& g)
     bool empty = true;
     
     for(const auto& cd: channelData)
-        empty &= (cd.path.isEmpty() && cd.sampleBoxes.isEmpty());
+        empty &= cd.path.isEmpty();
     
 	if (empty)
 	{
@@ -110,17 +110,10 @@ void Graph::InternalGraph::paint(Graphics& g)
 
             for(const auto& cd: channelData)
             {
-				if (!cd.sampleBoxes.isEmpty())
-				{
-					g.fillRectList(cd.sampleBoxes);
-				}
-				else
-				{
-					if (isHiresMode())
-						g.strokePath(cd.path, PathStrokeType(2.0f));
-					else
-						g.fillPath(cd.path);
-				}
+                if (isHiresMode())
+                    g.strokePath(cd.path, PathStrokeType(2.0f));
+                else
+                    g.fillPath(cd.path);
             }
 		}
 	}
@@ -224,7 +217,7 @@ void Graph::InternalGraph::setBuffer(const AudioSampleBuffer& b)
         for(int i = 0; i < b.getNumChannels(); i++)
         {
             ChannelData nd;
-            calculatePath(nd.path, nd.sampleBoxes, b, i);
+            calculatePath(nd.path, b, i);
             nd.peaks = b.findMinMax(i, 0, b.getNumSamples());
             newData.add(std::move(nd));
         }
@@ -240,12 +233,11 @@ Graph::GraphType Graph::InternalGraph::getCurrentGraphType() const
 	return findParentComponentOfClass<Graph>()->currentGraphType;
 }
 
-void Graph::InternalGraph::calculatePath(Path& p, RectangleList<float>& boxes, const AudioSampleBuffer& b, int channel)
+void Graph::InternalGraph::calculatePath(Path& p, const AudioSampleBuffer& b, int channel)
 {
 	numSamples = b.getNumSamples();
 	p.clear();
-	boxes.clear();
-
+	
 	if (numSamples == 0)
 		return;
 
@@ -279,28 +271,10 @@ void Graph::InternalGraph::calculatePath(Path& p, RectangleList<float>& boxes, c
 
 			auto x = getXPosition((float)i / b.getNumSamples());
 
-			if (bigMode)
-			{
-				auto y = (float)getYPosition(range.getEnd());
-				auto h = (float)getYPosition(range.getStart() - y);
-
-				auto w = (float)samplesPerPixel / (float)numSamples;
-
-				x *= (float)getWidth();
-				w *= (float)getWidth();
-
-				y *= (float)getHeight();
-				h *= (float)getHeight();
-
-				boxes.addWithoutMerging({ x, y, w, h });
-			}
-			else
-			{
-				p.lineTo(x, getYPosition(s));
-			}
+            p.lineTo(x, getYPosition(s));
 		}
 
-		if (boxes.isEmpty() && !isHiresMode())
+		if (!isHiresMode())
 		{
 			p.lineTo(1.0f, getYPosition(0.0f));
 			p.closeSubPath();
@@ -324,12 +298,7 @@ void Graph::InternalGraph::resizePath()
         auto lb = pb.removeFromTop(pathHeight).toFloat();
         lb.reduce(0.0f, 1.0f);
 
-		if(cd.sampleBoxes.isEmpty())
-			cd.path.scaleToFit(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight(), false);
-		else
-		{
-			auto sb = cd.sampleBoxes.getBounds();
-		}
+		cd.path.scaleToFit(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight(), false);
     }
     
 	repaint();
@@ -502,54 +471,65 @@ float Graph::InternalGraph::getYPosition(float level) const
 	return 0.0f;
 }
 
+void Graph::InternalGraph::RebuildThread::run()
+{
+    auto& lastBuffer = parent.lastBuffer;
+    
+    auto newImage = Image(Image::ARGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels() / 2, true);
+    
+    auto Spectrum2DSize = parent.findParentComponentOfClass<Graph>()->Spectrum2DSize / 2;
+
+    auto maxLevel = lastBuffer.getMagnitude(0, lastBuffer.getNumSamples());
+
+    if (maxLevel == 0.0f)
+        return;
+
+    for (int y = 0; y < Spectrum2DSize; y++)
+    {
+        auto skewedProportionY = parent.getYPosition((float)y / (float)Spectrum2DSize);
+
+        auto fftDataIndex = jlimit(0, Spectrum2DSize-1, (int)(skewedProportionY * (int)Spectrum2DSize));
+
+        for (int i = 0; i < lastBuffer.getNumSamples(); i++)
+        {
+            if(threadShouldExit())
+                return;
+            
+            auto s = lastBuffer.getSample(fftDataIndex, i);
+
+            //auto level = jmap(fftData[fftDataIndex], 0.0f, jmax(maxLevel.getEnd(), 1e-5f), 0.0f, 1.0f);
+            
+            s *= (1.0f / maxLevel);
+
+            auto alpha = jlimit(0.0f, 1.0f, s);
+
+            alpha = parent.getXPosition(alpha);
+
+            auto hueOffset = JUCE_LIVE_CONSTANT(0.5f);
+            auto hueGain = JUCE_LIVE_CONSTANT(0.8f);
+
+            auto hue = jlimit(0.0f, 1.0f, alpha * hueGain + hueOffset);
+
+            newImage.setPixelAt(i, y, Colour::fromHSV(hue, 1.0f, 1.0f, alpha));
+        }
+    }
+
+    std::swap(parent.spectroImage, newImage);
+    
+    MessageManager::callAsync([this]()
+    {
+        parent.repaint();
+    });
+}
+
 void Graph::InternalGraph::rebuildSpectrumRectangles()
 {
 	if (lastBuffer.getNumSamples() == 0)
 		return;
 
-	spectroImage = Image(Image::ARGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels() / 2, true);
-
-	auto Spectrum2DSize = findParentComponentOfClass<Graph>()->Spectrum2DSize / 2;
-
-
-	auto maxLevel = lastBuffer.getMagnitude(0, lastBuffer.getNumSamples());
-
-	if (maxLevel == 0.0f)
-		return;
-
-	for (int y = 0; y < Spectrum2DSize; y++)
-	{
-		auto skewedProportionY = getYPosition((float)y / (float)Spectrum2DSize);
-
-		auto fftDataIndex = jlimit(0, Spectrum2DSize-1, (int)(skewedProportionY * (int)Spectrum2DSize));
-
-		for (int i = 0; i < lastBuffer.getNumSamples(); i++)
-		{
-			auto s = lastBuffer.getSample(fftDataIndex, i);
-
-			//auto level = jmap(fftData[fftDataIndex], 0.0f, jmax(maxLevel.getEnd(), 1e-5f), 0.0f, 1.0f);
-			
-			s *= (1.0f / maxLevel);
-
-			auto alpha = jlimit(0.0f, 1.0f, s);
-
-			alpha = getXPosition(alpha);
-
-			auto hueOffset = JUCE_LIVE_CONSTANT_OFF(0.4f);
-			auto hueGain = JUCE_LIVE_CONSTANT_OFF(0.6f);
-
-			auto hue = jlimit(0.0f, 1.0f, alpha * hueGain + hueOffset);
-
-			spectroImage.setPixelAt(i, y, Colour::fromHSV(hue, 1.0f, 1.0f, alpha));
-		}
-	}
-
-#if 0
-	for (auto& sr : spectrumRectangles)
-		sr.areas.consolidate();
-#endif
-
-	repaint();
+    signalRebuild();
+    
+    this->repaint();
 }
 
 namespace GraphIcons
@@ -739,15 +719,15 @@ void Graph::refreshDisplayedBuffer()
 
 void Graph::processFFT(const AudioSampleBuffer& originalSource)
 {
-#if USE_IPP
-
 	auto numSamplesToCheck = (double)originalSource.getNumSamples();
 
 	if (currentGraphType == GraphType::Spectrograph)
-		numSamplesToCheck = hmath::sqrt(numSamplesToCheck);
+		numSamplesToCheck = hmath::pow(numSamplesToCheck, JUCE_LIVE_CONSTANT_OFF(0.54));
 
 	auto order = jlimit(8, 13, (int)log2(nextPowerOfTwo(numSamplesToCheck)));
 
+    auto oversamplingFactor = JUCE_LIVE_CONSTANT_OFF(16);
+    
 	if (logScaleButton->getToggleState())
 		order = jmin(15, order + 2);
 
@@ -757,7 +737,7 @@ void Graph::processFFT(const AudioSampleBuffer& originalSource)
 
 		Spectrum2DSize = roundToInt(hmath::pow(2.0, (double)order));
 
-		auto numSamplesToFill = jmax(0, originalSource.getNumSamples() / Spectrum2DSize * 2 - 1);
+		auto numSamplesToFill = jmax(0, originalSource.getNumSamples() / Spectrum2DSize * oversamplingFactor - 1);
 
 		if (numSamplesToFill == 0)
 			return;
@@ -766,7 +746,7 @@ void Graph::processFFT(const AudioSampleBuffer& originalSource)
 
 		for (int i = 0; i < numSamplesToFill; i++)
 		{
-			auto offset = i * Spectrum2DSize / 2;
+			auto offset = (i * Spectrum2DSize) / oversamplingFactor;
 			AudioSampleBuffer sb(1, Spectrum2DSize * 2);
 			sb.clear();
 
@@ -780,8 +760,8 @@ void Graph::processFFT(const AudioSampleBuffer& originalSource)
 
 			AudioSampleBuffer out(1, Spectrum2DSize);
 
-			IppFFT::Helpers::toFreqSpectrum(sb, out);
-			IppFFT::Helpers::scaleFrequencyOutput(out, false);
+			FFTHelpers::toFreqSpectrum(sb, out);
+            FFTHelpers::scaleFrequencyOutput(out, false);
 
 			for (int c = 0; c < b.getNumChannels(); c++)
 			{
@@ -819,14 +799,13 @@ void Graph::processFFT(const AudioSampleBuffer& originalSource)
 
 
 		fft.performRealOnlyForwardTransform(temp.getWritePointer(0), true);
-		hise::IppFFT::Helpers::toFreqSpectrum(temp, fftSource);
-		hise::IppFFT::Helpers::scaleFrequencyOutput(fftSource, false);
+        FFTHelpers::toFreqSpectrum(temp, fftSource);
+        FFTHelpers::scaleFrequencyOutput(fftSource, false);
 
 		fftSource.setSize(fftSource.getNumChannels(), fftSource.getNumSamples() / 2, true, true, true);
 
 		internalGraph.setBuffer(fftSource);
 	}
-#endif
 }
 
 void ParameterList::rebuild()
