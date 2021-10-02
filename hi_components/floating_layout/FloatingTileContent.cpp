@@ -346,9 +346,11 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
     ib.setDynamic(fileBrowserTab, false);
     ib.getPanel(fileBrowser)->setForceShowTitle(false);
     ib.setFoldable(fileBrowserTab, false, {false, false});
+    auto apiBrowser = ib.addChild<GenericPanel<ApiCollection>>(leftTab);
     
     ib.setCustomName(mainArea, "Module Tree");
     ib.setCustomName(fileBrowserTab, "Project Directory");
+    ib.setCustomName(apiBrowser, "API");
     
 	ib.setDynamic(leftTab, false);
 	ib.setDynamic(masterVertical, false);

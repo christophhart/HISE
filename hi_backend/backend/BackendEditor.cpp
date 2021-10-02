@@ -901,6 +901,8 @@ struct PopupFloatingTile: public Component,
                     c->getComponent(0)->setForceShowTitle(false);
                 }
             }
+            
+            setName("Popup");
         }
         else
         {
@@ -919,11 +921,28 @@ struct PopupFloatingTile: public Component,
         int w = data.getProperty("Width", getWidth());
         int h = data.getProperty("Height", getHeight());
 
-        t.loadFromJSON(jsonString);
+        setContent(jsonString);
+        
         layoutButton.setToggleStateAndUpdateIcon(false);
         t.setLayoutModeEnabled(false);
-        setName(t.getCurrentFloatingPanel()->getBestTitle());
+        
         setSize(w, h - ButtonHeight);
+    }
+    
+    void setContent(String c)
+    {
+        if(findParentComponentOfClass<BackendRootWindow>() == nullptr)
+        {
+            Timer::callAfterDelay(30, [this, c]()
+            {
+                this->setContent(c);
+            });
+                                  
+            return;
+        }
+        
+        t.loadFromJSON(c);
+        setName(t.getCurrentFloatingPanel()->getBestTitle());
     }
     
 	void clear()
