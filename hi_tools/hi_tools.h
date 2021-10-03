@@ -163,10 +163,15 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_tools/HiseEventBuffer.h"
 
 #include "hi_tools/UpdateMerger.h"
+
 #include "hi_tools/MiscToolClasses.h"
 
 #include "hi_tools/PathFactory.h"
 #include "hi_tools/HI_LookAndFeels.h"
+
+
+
+
 
 #include "hi_tools/VariantBuffer.h"
 #include "hi_tools/Tables.h"

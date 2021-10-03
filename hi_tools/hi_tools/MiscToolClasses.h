@@ -2268,17 +2268,18 @@ struct FFTHelpers
     enum WindowType
     {
         Rectangle,
+		Triangle,
         Hamming,
         Hann,
         BlackmanHarris,
-        Triangle,
+		Kaiser,
         FlatTop,
         numWindowType
     };
     
-    Array<WindowType> getAvailableWindowTypes()
+    static Array<WindowType> getAvailableWindowTypes()
     {
-        return { Hamming, Hann, BlackmanHarris, Triangle, FlatTop };
+        return { Rectangle, Triangle, Hamming, Hann, BlackmanHarris, Kaiser, FlatTop };
     }
 
     static String getWindowType(WindowType w)
@@ -2291,6 +2292,7 @@ struct FFTHelpers
         case BlackmanHarris: return "Blackman Harris";
         case Triangle: return "Triangle";
         case FlatTop: return "FlatTop";
+		case Kaiser: return "Kaiser";
         default: return {};
         }
     }
@@ -2335,6 +2337,57 @@ struct FFTHelpers
 
 struct Spectrum2D
 {
+	struct Parameters: public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<Parameters>;
+
+		void setFromBuffer(const AudioSampleBuffer& originalSource)
+		{
+			auto numSamplesToCheck = (double)originalSource.getNumSamples();
+			numSamplesToCheck = std::pow(numSamplesToCheck, JUCE_LIVE_CONSTANT_OFF(0.54));
+
+			auto bestOrder = (int)log2(nextPowerOfTwo(numSamplesToCheck));
+
+			set("FFTSize", bestOrder, dontSendNotification);
+
+			notifier.sendMessage(sendNotificationSync, "All", -1);
+		}
+
+		struct Editor : public Component,
+					    public ComboBox::Listener
+		{
+			static constexpr int RowHeight = 32;
+
+			Editor(Parameters* p);
+
+			void addEditor(const Identifier& id);
+
+			void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
+
+			void resized() override;
+
+			OwnedArray<ComboBox> editors;
+			OwnedArray<Label> labels;
+
+			ScopedPointer<LookAndFeel> claf;
+
+			Parameters::Ptr param;
+		};
+
+		void set(const Identifier& id, int value, NotificationType n);
+
+		int get(const Identifier& id) const;
+
+		LambdaBroadcaster<Identifier, int> notifier;
+
+		int order;
+		int oversamplingFactor = 8;
+		int Spectrum2DSize;
+		FFTHelpers::WindowType currentWindowType = FFTHelpers::WindowType::Triangle;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Parameters);
+	};
+
     struct Holder
     {
         virtual ~Holder() {};
@@ -2348,25 +2401,19 @@ struct Spectrum2D
     
     Spectrum2D(Holder* h, const AudioSampleBuffer& s):
       holder(h),
-      originalSource(s)
+      originalSource(s),
+	  parameters(new Parameters())
     {
-        auto numSamplesToCheck = (double)originalSource.getNumSamples();
-        numSamplesToCheck = std::pow(numSamplesToCheck, JUCE_LIVE_CONSTANT_OFF(0.54));
-        order = jlimit(8, 13, (int)log2(nextPowerOfTwo(numSamplesToCheck)));
-        Spectrum2DSize = roundToInt(std::pow(2.0, (double)order));
+		parameters->setFromBuffer(s);
     };
     
-    int order;
-    int oversamplingFactor = JUCE_LIVE_CONSTANT(8);
-    int Spectrum2DSize;
-    FFTHelpers::WindowType currentWindowType = FFTHelpers::WindowType::Triangle;
+	Parameters::Ptr parameters;
     WeakReference<Holder> holder;
     const AudioSampleBuffer& originalSource;
     
     Image createSpectrumImage(AudioSampleBuffer& lastBuffer);
     
     AudioSampleBuffer createSpectrumBuffer();
-    
 };
 
 }

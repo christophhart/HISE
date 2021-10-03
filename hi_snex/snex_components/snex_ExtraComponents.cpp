@@ -479,7 +479,7 @@ void Graph::InternalGraph::RebuildThread::run()
 {
     
     hise::Spectrum2D options(&parent, parent.lastBuffer);
-    options.Spectrum2DSize = parent.findParentComponentOfClass<Graph>()->Spectrum2DSize;
+    options.parameters->Spectrum2DSize = parent.findParentComponentOfClass<Graph>()->Spectrum2DSize;
     
     auto newImage = options.createSpectrumImage(parent.lastBuffer);
     
@@ -709,11 +709,11 @@ void Graph::processFFT(const AudioSampleBuffer& originalSource)
 	if (currentGraphType == GraphType::Spectrograph)
 	{
         hise::Spectrum2D options(&internalGraph, originalSource);
-        options.currentWindowType = currentWindowType;
+        options.parameters->currentWindowType = currentWindowType;
         
         auto b = options.createSpectrumBuffer();
         
-        Spectrum2DSize = options.Spectrum2DSize;
+        Spectrum2DSize = options.parameters->Spectrum2DSize;
         
 		internalGraph.setBuffer(b);
 	}

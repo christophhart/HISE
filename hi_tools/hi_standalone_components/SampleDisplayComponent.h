@@ -157,6 +157,8 @@ public:
 		}
 	}
 
+	Spectrum2D::Parameters::Ptr getSpectrumParameters() { return spectrumParameters; };
+
 	void setReader(AudioFormatReader* r, int64 actualNumSamples=-1);
 
 	void clear();
@@ -205,19 +207,7 @@ public:
 		rebuildOnResize = shouldRebuild;
 	}
 
-    void setSpectrumAndWaveformAlpha(float wAlpha, float sAlpha)
-    {
-        auto wChanged = (waveformAlpha == 0.0f) == (wAlpha == 0.0f);
-        auto sChanged = (spectrumAlpha == 0.0f) == (sAlpha == 0.0f);
-        
-        waveformAlpha = wAlpha;
-        spectrumAlpha = sAlpha;
-        
-        if(wChanged || sChanged)
-        {
-            rebuildPaths();
-        }
-    }
+    void setSpectrumAndWaveformAlpha(float wAlpha, float sAlpha);
     
 	void setRange(const int left, const int right);
 private:
@@ -299,6 +289,8 @@ private:
 	CriticalSection lock;
 
 	LoadingThread loadingThread;
+
+	Spectrum2D::Parameters::Ptr spectrumParameters;
 
 	ScopedPointer<AudioFormatReader> currentReader;
 

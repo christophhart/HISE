@@ -610,6 +610,10 @@ void HiseAudioThumbnail::LoadingThread::run()
 		}
 	}
 
+	AudioSampleBuffer specBuffer;
+
+	float* d[2];
+
 	if (reader != nullptr)
 	{
 		VariantBuffer::Ptr l = new VariantBuffer((int)reader->lengthInSamples);
@@ -618,30 +622,15 @@ void HiseAudioThumbnail::LoadingThread::run()
 		if (reader->numChannels > 1)
 			r = new VariantBuffer((int)reader->lengthInSamples);
 
-		float* d[2];
-
 		d[0] = l->buffer.getWritePointer(0);
 		d[1] = r != nullptr ? r->buffer.getWritePointer(0) : nullptr;
 
-		AudioSampleBuffer tempBuffer = AudioSampleBuffer(d, reader->numChannels, (int)reader->lengthInSamples);
+		specBuffer = AudioSampleBuffer(d, reader->numChannels, (int)reader->lengthInSamples);
 		
-
 		if (threadShouldExit())
 			return;
 
-		reader->read(&tempBuffer, 0, (int)reader->lengthInSamples, 0, true, true);
-        
-        if(parent->spectrumAlpha != 0.0f)
-        {
-            Spectrum2D spec(parent, tempBuffer);
-            
-            auto b = spec.createSpectrumBuffer();
-            parent->spectrum = spec.createSpectrumImage(b);
-        }
-        else
-        {
-            parent->spectrum = {};
-        }
+		reader->read(&specBuffer, 0, (int)reader->lengthInSamples, 0, true, true);
             
 		if (threadShouldExit())
 			return;
@@ -660,6 +649,29 @@ void HiseAudioThumbnail::LoadingThread::run()
 			parent->lBuffer = lb;
 			parent->rBuffer = rb;
 		}
+	}
+	else if(lb.isBuffer())
+	{
+		d[0] = lb.getBuffer()->buffer.getWritePointer(0);
+		d[0] = rb.getBuffer() ? rb.getBuffer()->buffer.getWritePointer(0) : nullptr;
+		specBuffer = AudioSampleBuffer(d, rb.isBuffer() ? 2 : 1, lb.getBuffer()->size);
+	}
+
+	if (specBuffer.getNumSamples() > 0 && parent->spectrumAlpha != 0.0f)
+	{
+		Spectrum2D spec(parent, specBuffer);
+
+		spec.parameters = parent->getSpectrumParameters();
+
+		if (spec.parameters->Spectrum2DSize == 0)
+			spec.parameters->setFromBuffer(specBuffer);
+
+		auto b = spec.createSpectrumBuffer();
+		parent->spectrum = spec.createSpectrumImage(b);
+	}
+	else
+	{
+		parent->spectrum = {};
 	}
 
 	Path lPath;
@@ -838,7 +850,7 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 
             int numRemoved = 0;
 
-            float distanceThreshold = JUCE_LIVE_CONSTANT(0.00f);
+            float distanceThreshold = JUCE_LIVE_CONSTANT_OFF(0.00f);
 
             bool lastWasZero = false;
 
@@ -935,8 +947,14 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 }
 
 HiseAudioThumbnail::HiseAudioThumbnail() :
-	loadingThread(this)
+	loadingThread(this),
+	spectrumParameters(new Spectrum2D::Parameters())
 {
+	spectrumParameters->notifier.addListener(*this, [](HiseAudioThumbnail& t, Identifier id, int newValue)
+	{
+		t.rebuildPaths();
+	});
+
 	setLookAndFeel(&defaultLaf);
 
 	setEnablePaintProfiling("AudioThumbnail");
@@ -1236,6 +1254,22 @@ void HiseAudioThumbnail::clear()
 	isClear = true;
 
 	currentReader = nullptr;
+
+	repaint();
+}
+
+void HiseAudioThumbnail::setSpectrumAndWaveformAlpha(float wAlpha, float sAlpha)
+{
+	auto wChanged = (waveformAlpha == 0.0f) != (wAlpha == 0.0f);
+	auto sChanged = (spectrumAlpha == 0.0f) != (sAlpha == 0.0f);
+
+	waveformAlpha = wAlpha;
+	spectrumAlpha = sAlpha;
+
+	if (wChanged || sChanged)
+	{
+		rebuildPaths();
+	}
 
 	repaint();
 }

@@ -925,8 +925,11 @@ void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b)
         DspWindowType(s, DspWindowType::hamming, true).multiplyWithWindowingTable(data, s);
         break;
     case Hann:
-        DspWindowType(s, DspWindowType::hamming, true).multiplyWithWindowingTable(data, s);
+        DspWindowType(s, DspWindowType::hann, true).multiplyWithWindowingTable(data, s);
         break;
+	case Kaiser:
+		DspWindowType(s, DspWindowType::kaiser, true, 0.5f).multiplyWithWindowingTable(data, s);
+		break;
     case Triangle:
         DspWindowType(s, DspWindowType::triangular, true).multiplyWithWindowingTable(data, s);
         break;
@@ -945,7 +948,7 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
     auto newImage = Image(Image::ARGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels() / 2, true);
     auto maxLevel = lastBuffer.getMagnitude(0, lastBuffer.getNumSamples());
 
-    auto s2dHalf = Spectrum2DSize / 2;
+    auto s2dHalf = parameters->Spectrum2DSize / 2;
     
     if (maxLevel == 0.0f)
         return newImage;
@@ -967,11 +970,11 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 
             alpha = std::sqrt(alpha);
             
-            auto hueOffset = JUCE_LIVE_CONSTANT(0.5f);
-            auto hueGain = JUCE_LIVE_CONSTANT(0.9f);
+            auto hueOffset = JUCE_LIVE_CONSTANT_OFF(0.5f);
+            auto hueGain = JUCE_LIVE_CONSTANT_OFF(0.9f);
             auto hue = jmax(0.0f, std::fmodf(alpha * hueGain + hueOffset, 1.0f));
 
-            newImage.setPixelAt(i, y, Colour::fromHSV(hue, JUCE_LIVE_CONSTANT(0.6f), 1.0f, alpha));
+            newImage.setPixelAt(i, y, Colour::fromHSV(hue, JUCE_LIVE_CONSTANT_OFF(0.6f), 1.0f, alpha));
         }
     }
 
@@ -980,35 +983,33 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 
 AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
 {
-    auto fft = juce::dsp::FFT(order);
+    auto fft = juce::dsp::FFT(parameters->order);
 
-    
-
-    auto numSamplesToFill = jmax(0, originalSource.getNumSamples() / Spectrum2DSize * oversamplingFactor - 1);
+    auto numSamplesToFill = jmax(0, originalSource.getNumSamples() / parameters->Spectrum2DSize * parameters->oversamplingFactor - 1);
 
     if (numSamplesToFill == 0)
         return {};
 
-    auto paddingSize = JUCE_LIVE_CONSTANT(2);
+    auto paddingSize = JUCE_LIVE_CONSTANT_OFF(0);
     
-    AudioSampleBuffer b(Spectrum2DSize, numSamplesToFill);
+    AudioSampleBuffer b(parameters->Spectrum2DSize, numSamplesToFill);
     b.clear();
 
     for (int i = 0; i < numSamplesToFill; i++)
     {
-        auto offset = (i * Spectrum2DSize) / oversamplingFactor;
-        AudioSampleBuffer sb(1, Spectrum2DSize * 2);
+        auto offset = (i * parameters->Spectrum2DSize) / parameters->oversamplingFactor;
+        AudioSampleBuffer sb(1, parameters->Spectrum2DSize * 2);
         sb.clear();
 
-        auto numToCopy = jmin(Spectrum2DSize, originalSource.getNumSamples() - offset);
+        auto numToCopy = jmin(parameters->Spectrum2DSize, originalSource.getNumSamples() - offset);
 
         FloatVectorOperations::copy(sb.getWritePointer(0), originalSource.getReadPointer(0, offset), numToCopy);
 
-        FFTHelpers::applyWindow(currentWindowType, sb);
+        FFTHelpers::applyWindow(parameters->currentWindowType, sb);
 
         fft.performRealOnlyForwardTransform(sb.getWritePointer(0), false);
 
-        AudioSampleBuffer out(1, Spectrum2DSize);
+        AudioSampleBuffer out(1, parameters->Spectrum2DSize);
 
         FFTHelpers::toFreqSpectrum(sb, out);
         FFTHelpers::scaleFrequencyOutput(out, false);
@@ -1020,6 +1021,118 @@ AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
     }
     
     return b;
+}
+
+void Spectrum2D::Parameters::set(const Identifier& id, int value, NotificationType n)
+{
+	if (id == Identifier("FFTSize"))
+	{
+		order = jlimit(8, 13, value);
+		Spectrum2DSize = roundToInt(std::pow(2.0, (double)order));
+	}
+	if (id == Identifier("Oversampling"))
+		oversamplingFactor = value;
+	if (id == Identifier("WindowType"))
+		currentWindowType = (FFTHelpers::WindowType)value;
+
+	if (n != dontSendNotification)
+		notifier.sendMessage(n, id, value);
+}
+
+int Spectrum2D::Parameters::get(const Identifier& id) const
+{
+	if (id == Identifier("FFTSize"))
+		return order;
+	if (id == Identifier("Oversampling"))
+		return oversamplingFactor;
+	if (id == Identifier("WindowType"))
+		return currentWindowType;
+
+	return 0;
+}
+
+Spectrum2D::Parameters::Editor::Editor(Parameters* p) :
+	param(p)
+{
+	claf = new GlobalHiseLookAndFeel();
+
+	setName("Spectrogram Properties");
+
+	addEditor("FFTSize");
+	addEditor("Oversampling");
+	addEditor("WindowType");
+
+	setSize(300, RowHeight * editors.size());
+}
+
+void Spectrum2D::Parameters::Editor::addEditor(const Identifier& id)
+{
+	auto cb = new ComboBox();
+	cb->setName(id.toString());
+
+	cb->setLookAndFeel(claf);
+	GlobalHiseLookAndFeel::setDefaultColours(*cb);
+	
+	if (id == Identifier("FFTSize"))
+	{
+		for (int i = 8; i < 14; i++)
+		{
+			auto id = i + 1;
+			auto pow = std::pow(2, i);
+			cb->addItem(String(pow), id);
+		}
+	}
+	if (id == Identifier("Oversampling"))
+	{
+		cb->addItem("1x", 2);
+		cb->addItem("2x", 3);
+		cb->addItem("4x", 5);
+		cb->addItem("8x", 9);
+	}
+	if (id == Identifier("WindowType"))
+	{
+		for (auto w : FFTHelpers::getAvailableWindowTypes())
+			cb->addItem(FFTHelpers::getWindowType(w), (int)w + 1);
+	}
+
+
+	
+	addAndMakeVisible(cb);
+	editors.add(cb);
+	cb->addListener(this);
+
+
+	cb->setSelectedId(param->get(id)+1, dontSendNotification);
+
+	auto l = new Label();
+	l->setEditable(false);
+	l->setFont(GLOBAL_FONT());
+	l->setText(id.toString(), dontSendNotification);
+
+	addAndMakeVisible(l);
+	labels.add(l);
+
+}
+
+void Spectrum2D::Parameters::Editor::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
+{
+	auto id = Identifier(comboBoxThatHasChanged->getName());
+	auto v = comboBoxThatHasChanged->getSelectedId() - 1;
+
+	param->set(id, v, sendNotificationSync);
+}
+
+void Spectrum2D::Parameters::Editor::resized()
+{
+	auto b = getLocalBounds();
+
+	for (int i = 0; i < editors.size(); i++)
+	{
+		auto r = b.removeFromTop(RowHeight);
+		labels[i]->setBounds(r.removeFromLeft(128));
+		editors[i]->setBounds(r);
+	}
+		
 }
 
 }
