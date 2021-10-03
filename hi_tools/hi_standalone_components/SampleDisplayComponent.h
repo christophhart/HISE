@@ -50,7 +50,8 @@ class AudioDisplayComponent;
 
 
 class HiseAudioThumbnail: public Component,
-						  public AsyncUpdater
+						  public AsyncUpdater,
+                          public Spectrum2D::Holder
 {
 public:
 
@@ -113,6 +114,18 @@ public:
 
 	void drawSection(Graphics &g, bool enabled);
 
+    float getXPosition(float input) const override
+    {
+        auto l = Decibels::gainToDecibels(input);
+        l = (l + 100.0f) / 100.0f;
+        return l * l;
+    }
+    
+    float getYPosition(float input) const override
+    {
+        return 1.0f - std::exp(std::log(input) * 0.2f);
+    }
+    
 	double getTotalLength() const
 	{
 		return lengthInSeconds;
@@ -192,9 +205,26 @@ public:
 		rebuildOnResize = shouldRebuild;
 	}
 
+    void setSpectrumAndWaveformAlpha(float wAlpha, float sAlpha)
+    {
+        auto wChanged = (waveformAlpha == 0.0f) == (wAlpha == 0.0f);
+        auto sChanged = (spectrumAlpha == 0.0f) == (sAlpha == 0.0f);
+        
+        waveformAlpha = wAlpha;
+        spectrumAlpha = sAlpha;
+        
+        if(wChanged || sChanged)
+        {
+            rebuildPaths();
+        }
+    }
+    
 	void setRange(const int left, const int right);
 private:
 
+    float waveformAlpha = 1.0f;
+    float spectrumAlpha = 0.0f;
+    
 	float applyDisplayGain(float value)
 	{
 		return jlimit(-1.0f, 1.0f, value * displayGain);
@@ -290,6 +320,8 @@ private:
 	int rightBound = -1;
 
 	double lengthInSeconds = 0.0;
+    
+    Image spectrum;
 };
 
 /** An AudioDisplayComponent displays the content of audio data and has some areas that can be dragged and send a change message on Mouse up

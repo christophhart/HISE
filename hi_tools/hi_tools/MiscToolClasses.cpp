@@ -907,4 +907,119 @@ void ScrollbarFader::startFadeOut()
     startTimer(500);
 }
 
+void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b)
+{
+    auto s = b.getNumSamples() / 2;
+    auto data = b.getWritePointer(0);
+
+    using DspWindowType = juce::dsp::WindowingFunction<float>;
+
+    switch (t)
+    {
+    case Rectangle:
+        break;
+    case BlackmanHarris:
+        DspWindowType(s, DspWindowType::blackmanHarris, true).multiplyWithWindowingTable(data, s);
+        break;
+    case Hamming:
+        DspWindowType(s, DspWindowType::hamming, true).multiplyWithWindowingTable(data, s);
+        break;
+    case Hann:
+        DspWindowType(s, DspWindowType::hamming, true).multiplyWithWindowingTable(data, s);
+        break;
+    case Triangle:
+        DspWindowType(s, DspWindowType::triangular, true).multiplyWithWindowingTable(data, s);
+        break;
+    case FlatTop:
+        DspWindowType(s, DspWindowType::flatTop, true).multiplyWithWindowingTable(data, s);
+        break;
+    default:
+        jassertfalse;
+        FloatVectorOperations::clear(data, s);
+        break;
+    }
+}
+
+Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
+{
+    auto newImage = Image(Image::ARGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels() / 2, true);
+    auto maxLevel = lastBuffer.getMagnitude(0, lastBuffer.getNumSamples());
+
+    auto s2dHalf = Spectrum2DSize / 2;
+    
+    if (maxLevel == 0.0f)
+        return newImage;
+
+    for (int y = 0; y < s2dHalf; y++)
+    {
+        auto skewedProportionY = holder->getYPosition((float)y / (float)s2dHalf);
+        auto fftDataIndex = jlimit(0, s2dHalf-1, (int)(skewedProportionY * (int)s2dHalf));
+
+        for (int i = 0; i < lastBuffer.getNumSamples(); i++)
+        {
+            auto s = lastBuffer.getSample(fftDataIndex, i);
+
+            s *= (1.0f / maxLevel);
+
+            auto alpha = jlimit(0.0f, 1.0f, s);
+
+            alpha = holder->getXPosition(alpha);
+
+            alpha = std::sqrt(alpha);
+            
+            auto hueOffset = JUCE_LIVE_CONSTANT(0.5f);
+            auto hueGain = JUCE_LIVE_CONSTANT(0.9f);
+            auto hue = jmax(0.0f, std::fmodf(alpha * hueGain + hueOffset, 1.0f));
+
+            newImage.setPixelAt(i, y, Colour::fromHSV(hue, JUCE_LIVE_CONSTANT(0.6f), 1.0f, alpha));
+        }
+    }
+
+    return newImage;
+}
+
+AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
+{
+    auto fft = juce::dsp::FFT(order);
+
+    
+
+    auto numSamplesToFill = jmax(0, originalSource.getNumSamples() / Spectrum2DSize * oversamplingFactor - 1);
+
+    if (numSamplesToFill == 0)
+        return {};
+
+    auto paddingSize = JUCE_LIVE_CONSTANT(2);
+    
+    AudioSampleBuffer b(Spectrum2DSize, numSamplesToFill);
+    b.clear();
+
+    for (int i = 0; i < numSamplesToFill; i++)
+    {
+        auto offset = (i * Spectrum2DSize) / oversamplingFactor;
+        AudioSampleBuffer sb(1, Spectrum2DSize * 2);
+        sb.clear();
+
+        auto numToCopy = jmin(Spectrum2DSize, originalSource.getNumSamples() - offset);
+
+        FloatVectorOperations::copy(sb.getWritePointer(0), originalSource.getReadPointer(0, offset), numToCopy);
+
+        FFTHelpers::applyWindow(currentWindowType, sb);
+
+        fft.performRealOnlyForwardTransform(sb.getWritePointer(0), false);
+
+        AudioSampleBuffer out(1, Spectrum2DSize);
+
+        FFTHelpers::toFreqSpectrum(sb, out);
+        FFTHelpers::scaleFrequencyOutput(out, false);
+
+        for (int c = 0; c < b.getNumChannels(); c++)
+        {
+            b.setSample(c, jmin(numSamplesToFill-1, i+paddingSize), out.getSample(0, c));
+        }
+    }
+    
+    return b;
+}
+
 }

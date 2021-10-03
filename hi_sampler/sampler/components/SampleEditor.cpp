@@ -290,7 +290,15 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
     addAndMakeVisible (toolbar = new Toolbar());
     toolbar->setName ("new component");
 
-	
+    addAndMakeVisible(spectrumSlider);
+    spectrumSlider.setRange(0.0, 1.0, 0.0);
+    spectrumSlider.setSliderStyle(Slider::SliderStyle::LinearBar);
+	spectrumSlider.onValueChange = [this]()
+    {
+        auto sAlpha = spectrumSlider.getValue();
+        auto wAlpha = 1.0f - sAlpha;
+        currentWaveForm->getThumbnail()->setSpectrumAndWaveformAlpha(sAlpha, wAlpha);
+    };
 
     addAndMakeVisible (panSetter = new ValueSettingComponent(s));
 
@@ -490,8 +498,12 @@ void SampleEditor::resized()
 
     b = b.reduced(8);
     
+    
+    
     multimicSelector->setBounds(topBar.removeFromRight(100));
     sampleSelector->setBounds(topBar.removeFromRight(300));
+    
+    spectrumSlider.setBounds(topBar.removeFromRight(100));
     
 	//toolbar->setBounds(topBar);
 

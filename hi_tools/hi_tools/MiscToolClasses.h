@@ -2265,6 +2265,37 @@ public:
 
 struct FFTHelpers
 {
+    enum WindowType
+    {
+        Rectangle,
+        Hamming,
+        Hann,
+        BlackmanHarris,
+        Triangle,
+        FlatTop,
+        numWindowType
+    };
+    
+    Array<WindowType> getAvailableWindowTypes()
+    {
+        return { Hamming, Hann, BlackmanHarris, Triangle, FlatTop };
+    }
+
+    static String getWindowType(WindowType w)
+    {
+        switch (w)
+        {
+        case Rectangle: return "Rectangle";
+        case Hamming: return "Hamming";
+        case Hann: return "Hann";
+        case BlackmanHarris: return "Blackman Harris";
+        case Triangle: return "Triangle";
+        case FlatTop: return "FlatTop";
+        default: return {};
+        }
+    }
+
+    static void applyWindow(WindowType t, AudioSampleBuffer& b);
     
     static void toFreqSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer& out)
     {
@@ -2300,6 +2331,42 @@ struct FFTHelpers
                 data[i] = Decibels::gainToDecibels(data[i]);
         }
     }
+};
+
+struct Spectrum2D
+{
+    struct Holder
+    {
+        virtual ~Holder() {};
+        virtual float getXPosition(float input) const = 0;
+        virtual float getYPosition(float input) const = 0;
+        
+    private:
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE(Holder);
+    };
+    
+    Spectrum2D(Holder* h, const AudioSampleBuffer& s):
+      holder(h),
+      originalSource(s)
+    {
+        auto numSamplesToCheck = (double)originalSource.getNumSamples();
+        numSamplesToCheck = std::pow(numSamplesToCheck, JUCE_LIVE_CONSTANT_OFF(0.54));
+        order = jlimit(8, 13, (int)log2(nextPowerOfTwo(numSamplesToCheck)));
+        Spectrum2DSize = roundToInt(std::pow(2.0, (double)order));
+    };
+    
+    int order;
+    int oversamplingFactor = JUCE_LIVE_CONSTANT(8);
+    int Spectrum2DSize;
+    FFTHelpers::WindowType currentWindowType = FFTHelpers::WindowType::Triangle;
+    WeakReference<Holder> holder;
+    const AudioSampleBuffer& originalSource;
+    
+    Image createSpectrumImage(AudioSampleBuffer& lastBuffer);
+    
+    AudioSampleBuffer createSpectrumBuffer();
+    
 };
 
 }

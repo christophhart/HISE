@@ -283,44 +283,12 @@ struct Graph: public Component,
 		numGraphTypes
 	};
 
-	struct Helpers
-	{
-		enum WindowType
-		{
-			Rectangle,
-			Hamming,
-			Hann,
-			BlackmanHarris,
-			Triangle,
-			FlatTop,
-			numWindowType
-		};
-
-		Array<WindowType> getAvailableWindowTypes()
-		{
-			return { Hamming, Hann, BlackmanHarris, Triangle, FlatTop };
-		}
-
-		static String getWindowType(WindowType w)
-		{
-			switch (w)
-			{
-			case Rectangle: return "Rectangle";
-			case Hamming: return "Hamming";
-			case Hann: return "Hann";
-			case BlackmanHarris: return "Blackman Harris";
-			case Triangle: return "Triangle";
-			case FlatTop: return "FlatTop";
-			default: return {};
-			}
-		}
-
-		static void applyWindow(WindowType t, AudioSampleBuffer& b);
-	};
-
+    using Helpers = hise::FFTHelpers;
+    
 	struct InternalGraph : public Component,
 		public Timer,
-		public TooltipClient
+		public TooltipClient,
+        public hise::Spectrum2D::Holder
 	{
 
 		InternalGraph(Graph& parent_) :
@@ -356,9 +324,9 @@ struct Graph: public Component,
 
 		String getTooltip() override;
 
-		float getYPosition(float level) const;
+		float getYPosition(float level) const override;
 
-		float getXPosition(float normalisedIndex) const;
+		float getXPosition(float normalisedIndex) const override;
 
 		void rebuildSpectrumRectangles();
 

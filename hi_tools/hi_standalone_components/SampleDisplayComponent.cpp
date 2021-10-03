@@ -630,7 +630,19 @@ void HiseAudioThumbnail::LoadingThread::run()
 			return;
 
 		reader->read(&tempBuffer, 0, (int)reader->lengthInSamples, 0, true, true);
-
+        
+        if(parent->spectrumAlpha != 0.0f)
+        {
+            Spectrum2D spec(parent, tempBuffer);
+            
+            auto b = spec.createSpectrumBuffer();
+            parent->spectrum = spec.createSpectrumImage(b);
+        }
+        else
+        {
+            parent->spectrum = {};
+        }
+            
 		if (threadShouldExit())
 			return;
 
@@ -1005,6 +1017,14 @@ void HiseAudioThumbnail::paint(Graphics& g)
 
 	ScopedTryLock sl(lock);
 
+    {
+        g.setColour(Colours::black.withAlpha(spectrumAlpha));
+        g.saveState();
+        g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
+        g.drawImageWithin(spectrum, 0, 0, getWidth(), getHeight(), RectanglePlacement::stretchToFit);
+        g.restoreState();
+    }
+    
 	if (sl.isLocked())
 	{
 		auto bounds = getLocalBounds();
@@ -1044,7 +1064,9 @@ void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailBackground(Graphic
 		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
 	}
 
-	g.setColour(fillColour.withAlpha(0.15f));
+    float wAlpha = th.waveformAlpha * th.waveformAlpha;
+    
+	g.setColour(fillColour.withAlpha(0.15f * wAlpha));
 
 	if (th.drawHorizontalLines)
 	{
@@ -1055,9 +1077,13 @@ void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailBackground(Graphic
 
 void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path)
 {
-	Colour fillColour = th.findColour(AudioDisplayComponent::ColourIds::fillColour);
-	Colour outlineColour = th.findColour(AudioDisplayComponent::ColourIds::outlineColour);
+    float wAlpha = th.waveformAlpha * th.waveformAlpha;
+    
+	Colour fillColour = th.findColour(AudioDisplayComponent::ColourIds::fillColour).withMultipliedAlpha(wAlpha);
+	Colour outlineColour = th.findColour(AudioDisplayComponent::ColourIds::outlineColour).withMultipliedAlpha(wAlpha);
 
+    
+    
 	if (!areaIsEnabled)
 	{
 		fillColour = fillColour.withMultipliedAlpha(0.3f);
@@ -1118,6 +1144,8 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 
 		laf->drawHiseThumbnailBackground(g, *this, enabled, a);
 
+        g.setOpacity(waveformAlpha);
+        
 		if (!leftWaveform.isEmpty())
 			laf->drawHiseThumbnailPath(g, *this, enabled, leftWaveform);
 		else if (!leftPeaks.isEmpty())
@@ -1130,6 +1158,8 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 
 		laf->drawHiseThumbnailBackground(g, *this, enabled, a1);
 
+        g.setOpacity(waveformAlpha);
+        
 		if (!leftWaveform.isEmpty())
 			laf->drawHiseThumbnailPath(g, *this, enabled, leftWaveform);
 		else if (!leftPeaks.isEmpty())
@@ -1137,6 +1167,8 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 
 		laf->drawHiseThumbnailBackground(g, *this, enabled, a2);
 
+        g.setOpacity(waveformAlpha);
+        
 		if (!rightWaveform.isEmpty())
 			laf->drawHiseThumbnailPath(g, *this, enabled, rightWaveform);
 		else if (!rightPeaks.isEmpty())

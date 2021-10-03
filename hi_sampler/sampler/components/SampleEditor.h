@@ -374,6 +374,8 @@ private:
 	ModulatorSampler *sampler;
 	SamplerBody	*body;
 
+    Slider spectrumSlider;
+    
 	ScrollbarFader fader;
 	ScrollbarFader::Laf laf;
 

@@ -30,6 +30,10 @@
 *   ===========================================================================
 */
 
+namespace hise
+{
+
+}
 
 namespace snex {
 using namespace juce;
@@ -449,10 +453,8 @@ float Graph::InternalGraph::getYPosition(float level) const
 		if (logPeak)
 		{
 			auto l = Decibels::gainToDecibels(level);
-
 			return 1.0f - (l + 100.0f) / 100.0f;
 		}
-			
 		else
 			return 1.0f - level;
 	}
@@ -471,49 +473,16 @@ float Graph::InternalGraph::getYPosition(float level) const
 	return 0.0f;
 }
 
+
+
 void Graph::InternalGraph::RebuildThread::run()
 {
-    auto& lastBuffer = parent.lastBuffer;
     
-    auto newImage = Image(Image::ARGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels() / 2, true);
+    hise::Spectrum2D options(&parent, parent.lastBuffer);
+    options.Spectrum2DSize = parent.findParentComponentOfClass<Graph>()->Spectrum2DSize;
     
-    auto Spectrum2DSize = parent.findParentComponentOfClass<Graph>()->Spectrum2DSize / 2;
-
-    auto maxLevel = lastBuffer.getMagnitude(0, lastBuffer.getNumSamples());
-
-    if (maxLevel == 0.0f)
-        return;
-
-    for (int y = 0; y < Spectrum2DSize; y++)
-    {
-        auto skewedProportionY = parent.getYPosition((float)y / (float)Spectrum2DSize);
-
-        auto fftDataIndex = jlimit(0, Spectrum2DSize-1, (int)(skewedProportionY * (int)Spectrum2DSize));
-
-        for (int i = 0; i < lastBuffer.getNumSamples(); i++)
-        {
-            if(threadShouldExit())
-                return;
-            
-            auto s = lastBuffer.getSample(fftDataIndex, i);
-
-            //auto level = jmap(fftData[fftDataIndex], 0.0f, jmax(maxLevel.getEnd(), 1e-5f), 0.0f, 1.0f);
-            
-            s *= (1.0f / maxLevel);
-
-            auto alpha = jlimit(0.0f, 1.0f, s);
-
-            alpha = parent.getXPosition(alpha);
-
-            auto hueOffset = JUCE_LIVE_CONSTANT(0.5f);
-            auto hueGain = JUCE_LIVE_CONSTANT(0.8f);
-
-            auto hue = jlimit(0.0f, 1.0f, alpha * hueGain + hueOffset);
-
-            newImage.setPixelAt(i, y, Colour::fromHSV(hue, 1.0f, 1.0f, alpha));
-        }
-    }
-
+    auto newImage = options.createSpectrumImage(parent.lastBuffer);
+    
     std::swap(parent.spectroImage, newImage);
     
     MessageManager::callAsync([this]()
@@ -717,6 +686,12 @@ void Graph::refreshDisplayedBuffer()
 	repaint();
 }
 
+
+
+
+
+
+
 void Graph::processFFT(const AudioSampleBuffer& originalSource)
 {
 	auto numSamplesToCheck = (double)originalSource.getNumSamples();
@@ -726,49 +701,20 @@ void Graph::processFFT(const AudioSampleBuffer& originalSource)
 
 	auto order = jlimit(8, 13, (int)log2(nextPowerOfTwo(numSamplesToCheck)));
 
-    auto oversamplingFactor = JUCE_LIVE_CONSTANT_OFF(16);
+    
     
 	if (logScaleButton->getToggleState())
 		order = jmin(15, order + 2);
 
 	if (currentGraphType == GraphType::Spectrograph)
 	{
-		auto fft = juce::dsp::FFT(order);
-
-		Spectrum2DSize = roundToInt(hmath::pow(2.0, (double)order));
-
-		auto numSamplesToFill = jmax(0, originalSource.getNumSamples() / Spectrum2DSize * oversamplingFactor - 1);
-
-		if (numSamplesToFill == 0)
-			return;
-
-		AudioSampleBuffer b(Spectrum2DSize, numSamplesToFill);
-
-		for (int i = 0; i < numSamplesToFill; i++)
-		{
-			auto offset = (i * Spectrum2DSize) / oversamplingFactor;
-			AudioSampleBuffer sb(1, Spectrum2DSize * 2);
-			sb.clear();
-
-			auto numToCopy = jmin(Spectrum2DSize, originalSource.getNumSamples() - offset);
-
-			FloatVectorOperations::copy(sb.getWritePointer(0), originalSource.getReadPointer(0, offset), numToCopy);
-
-			Helpers::applyWindow(currentWindowType, sb);
-
-			fft.performRealOnlyForwardTransform(sb.getWritePointer(0), false);
-
-			AudioSampleBuffer out(1, Spectrum2DSize);
-
-			FFTHelpers::toFreqSpectrum(sb, out);
-            FFTHelpers::scaleFrequencyOutput(out, false);
-
-			for (int c = 0; c < b.getNumChannels(); c++)
-			{
-				b.setSample(c, i, out.getSample(0, c));
-			}
-		}
-
+        hise::Spectrum2D options(&internalGraph, originalSource);
+        options.currentWindowType = currentWindowType;
+        
+        auto b = options.createSpectrumBuffer();
+        
+        Spectrum2DSize = options.Spectrum2DSize;
+        
 		internalGraph.setBuffer(b);
 	}
 	else
@@ -870,38 +816,7 @@ void ParameterList::sliderValueChanged(Slider* slider)
 	}
 }
 
-void Graph::Helpers::applyWindow(WindowType t, AudioSampleBuffer& b)
-{
-	auto s = b.getNumSamples() / 2;
-	auto data = b.getWritePointer(0);
 
-	using DspWindowType = juce::dsp::WindowingFunction<float>;
-
-	switch (t)
-	{
-	case Rectangle: 
-		break;
-	case BlackmanHarris:
-		DspWindowType(s, DspWindowType::blackmanHarris, true).multiplyWithWindowingTable(data, s);
-		break;
-	case Hamming:
-		DspWindowType(s, DspWindowType::hamming, true).multiplyWithWindowingTable(data, s);
-		break;
-	case Hann:
-		DspWindowType(s, DspWindowType::hamming, true).multiplyWithWindowingTable(data, s);
-		break;
-	case Triangle:
-		DspWindowType(s, DspWindowType::triangular, true).multiplyWithWindowingTable(data, s);
-		break;
-	case FlatTop:
-		DspWindowType(s, DspWindowType::flatTop, true).multiplyWithWindowingTable(data, s);
-		break;
-	default:
-		jassertfalse;
-		FloatVectorOperations::clear(data, s);
-		break;
-	}
-}
 
 TestDataComponent::Item::Item(WorkbenchData::TestData& d, int i, bool isParameter_) :
 	data(d),
