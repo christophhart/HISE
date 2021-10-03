@@ -46,7 +46,7 @@ public:
 		public ButtonListener,
 		public TextEditor::Listener
 	{
-		MyFunkyFilenameComponent(FileNameValuePropertyComponent& p) :
+		MyFunkyFilenameComponent(FileNameValuePropertyComponent& p, File::TypesOfFileToFind fileType) :
 			parent(p),
 			browseButton("Browse")
 		{
@@ -64,12 +64,25 @@ public:
 
 		void buttonClicked(Button*) override
 		{
-			FileChooser fileChooser("Select Folder");
-
-			if (fileChooser.browseForDirectory())
+			if (fileType == File::findDirectories)
 			{
-				parent.v = fileChooser.getResult().getFullPathName();
-				parent.refresh();
+				FileChooser fileChooser("Select Folder");
+
+				if (fileChooser.browseForDirectory())
+				{
+					parent.v = fileChooser.getResult().getFullPathName();
+					parent.refresh();
+				}
+			}
+			else
+			{
+				FileChooser fileChooser("Select Folder");
+
+				if (fileChooser.browseForFileToOpen())
+				{
+					parent.v = fileChooser.getResult().getFullPathName();
+					parent.refresh();
+				}
 			}
 		}
 
@@ -99,6 +112,7 @@ public:
 			editor.setBounds(area);
 		}
 
+		File::TypesOfFileToFind fileType;
 		FileNameValuePropertyComponent& parent;
 
 		TextEditor editor;
@@ -107,9 +121,9 @@ public:
 		AlertWindowLookAndFeel alaf;
 	};
 
-	FileNameValuePropertyComponent(const String& name, File initialFile, Value v_) :
+	FileNameValuePropertyComponent(const String& name, File initialFile, File::TypesOfFileToFind ft, Value v_) :
 		PropertyComponent(name),
-		fc(*this),
+		fc(*this, ft),
 		v(v_)
 	{
 		addAndMakeVisible(fc);

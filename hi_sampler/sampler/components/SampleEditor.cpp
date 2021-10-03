@@ -351,7 +351,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 
 	addButton(SampleMapCommands::ZoomIn, false, "zoom-in");
 	addButton(SampleMapCommands::ZoomOut, false, "zoom-out");
-    addButton(SampleMapCommands::Analyser, true, "analyse");
+    analyseButton = addButton(SampleMapCommands::Analyser, true, "analyse");
     
 	addButton(SampleMapCommands::SelectWithMidi, true, "select-midi", "select-mouse");
 	addButton(SampleMapCommands::EnablePlayArea, true, "play-area");
@@ -359,6 +359,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	addButton(SampleMapCommands::EnableLoopArea, true, "loop-area");
     addButton(SampleMapCommands::NormalizeVolume, true, "normalise-on", "normalise-off");
     addButton(SampleMapCommands::LoopEnabled, true, "loop-on", "loop-off");
+	addButton(SampleMapCommands::ExternalEditor, false, "external");
     
     addAndMakeVisible(sampleSelector = new ComboBox());
     addAndMakeVisible(multimicSelector = new ComboBox());
@@ -615,7 +616,7 @@ void SampleEditor::resized()
 
 
 
-void SampleEditor::addButton(CommandID commandId, bool hasState, const String& name, const String& offName /*= String()*/)
+Component* SampleEditor::addButton(CommandID commandId, bool hasState, const String& name, const String& offName /*= String()*/)
 {
 	SampleEditorToolbarFactory::Factory f;
 	auto newButton = new HiseShapeButton(name, nullptr, f, offName);
@@ -627,9 +628,67 @@ void SampleEditor::addButton(CommandID commandId, bool hasState, const String& n
 	newButton->setCommandToTrigger(samplerEditorCommandManager, commandId, true);
 	menuButtons.add(newButton);
 	addAndMakeVisible(newButton);
+	return newButton;
 }
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
+
+struct ExternalFileChangeWatcher : public Timer,
+								   public SampleMap::Listener
+{
+	ExternalFileChangeWatcher(ModulatorSampler* s, Array<File> fileList_):
+		fileList(fileList_),
+		sampler(s)
+	{
+		startTimer(1000);
+
+		sampler->getSampleMap()->addListener(this);
+
+		for (const File& f : fileList)
+			modificationTimes.add(f.getLastModificationTime());
+	}
+
+	virtual void sampleMapWasChanged(PoolReference newSampleMap)
+	{
+		stopTimer();
+		sampler->getSampleMap()->removeListener(this);
+	}
+
+	virtual void sampleMapCleared()
+	{
+		stopTimer();
+		sampler->getSampleMap()->removeListener(this);
+	};
+
+	void timerCallback() override
+	{
+		for (int i = 0; i < fileList.size(); i++)
+		{
+			auto t = fileList[i].getLastModificationTime();
+
+			if (t != modificationTimes[i])
+			{
+				stopTimer();
+
+				if (PresetHandler::showYesNoWindow("Detected File change", "Press OK to reload the samplemap"))
+				{
+					sampler->getSampleMap()->saveAndReloadMap();
+				}
+				
+				modificationTimes.clear();
+
+				for (const auto& l : fileList)
+					modificationTimes.add(l.getLastModificationTime());
+				
+				startTimer(1000);
+			}
+		}
+	}
+
+	WeakReference<ModulatorSampler> sampler;
+	const Array<File> fileList;
+	Array<Time> modificationTimes;
+};
 
 bool SampleEditor::perform (const InvocationInfo &info)
 {
@@ -657,7 +716,59 @@ bool SampleEditor::perform (const InvocationInfo &info)
 	case EnablePlayArea:	currentWaveForm->toggleRangeEnabled(SamplerSoundWaveform::PlayArea); return true;
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
-	case Analyser:			toggleAnalyser(); return true;
+	case Analyser:			
+	{
+		auto n = new Spectrum2D::Parameters::Editor(currentWaveForm->getThumbnail()->getSpectrumParameters());
+		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentInRootPopup(n, analyseButton, {8, 16});
+		return true;
+	}
+	case ExternalEditor:
+	{
+		if (sampler->getSampleMap()->isMonolith())
+		{
+			PresetHandler::showMessageWindow("Monolith file", "You can't edit a monolith file", PresetHandler::IconType::Error);
+			return true;
+		}
+
+		if (sampler->getSampleMap()->isUsingUnsavedValueTree())
+		{
+			PresetHandler::showMessageWindow("Unsaved samplemap", "You need to save your samplemap to a file before starting the external editor.  \n> This is required so that you can reload the map after editing");
+			return true;
+		}
+
+		auto fp = GET_HISE_SETTING(sampler, HiseSettings::Other::ExternalEditorPath).toString();
+
+		if (fp.isEmpty())
+		{
+			PresetHandler::showMessageWindow("No external editor specified", "You need to set an audio editor you want to use for this operation.  \n> Settings -> Other -> ExternalEditorPath", PresetHandler::IconType::Error);
+
+			return true;
+		}
+
+		File editor(fp);
+
+		String args;
+
+		Array<File> editedFiles;
+
+		for (auto s : selection)
+		{
+			for (int i = 0; i < s->getNumMultiMicSamples(); i++)
+			{
+				editedFiles.add(File(s->getReferenceToSound(i)->getFileName(true)));
+				s->getReferenceToSound(i)->closeFileHandle();
+			}
+		}
+
+		for(auto& f: editedFiles)
+			args << "\"" << f.getFullPathName() << "\" ";
+
+		externalWatcher = new ExternalFileChangeWatcher(sampler, editedFiles);
+
+		editor.startAsProcess(args);
+
+		return true;
+	}
 	}
 	return false;
 }

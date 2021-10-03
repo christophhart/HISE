@@ -137,7 +137,8 @@ DECLARE_ID(UseOpenGL);
 DECLARE_ID(GlassEffect);
 DECLARE_ID(EnableAutosave);
 DECLARE_ID(AutosaveInterval);
-DECLARE_ID(AudioThreadGuardEnabled)
+DECLARE_ID(AudioThreadGuardEnabled);
+DECLARE_ID(ExternalEditorPath);
 
 Array<Identifier> getAllIds();
 

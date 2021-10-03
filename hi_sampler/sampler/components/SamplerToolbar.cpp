@@ -474,6 +474,7 @@ juce::Path SampleEditorToolbarFactory::Factory::createPath(const String& url) co
 	LOAD_PATH_IF_URL("samplestart-area", SampleToolbarIcons::sampleStartArea);
 	LOAD_PATH_IF_URL("play-area", SampleToolbarIcons::playArea);
 	LOAD_PATH_IF_URL("loop-area", SampleToolbarIcons::loopArea);
+	LOAD_PATH_IF_URL("external", ColumnIcons::openWorkspaceIcon);
 
 	return p;
 }

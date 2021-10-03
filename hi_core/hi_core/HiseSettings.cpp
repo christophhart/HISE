@@ -150,6 +150,7 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 	ids.add(EnableAutosave);
 	ids.add(AutosaveInterval);
 	ids.add(AudioThreadGuardEnabled);
+	ids.add(ExternalEditorPath);
 
 	return ids;
 }
@@ -492,6 +493,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("Then you can just put a redirection file using the `{GLOBAL_SAMPLE_FOLDER}` wildcard into each sample folder that you want to redirect");
 		P_();
 
+		P(HiseSettings::Other::ExternalEditorPath);
+		D("You can specifiy the executable of an audio editor here and then use the button in the sample editor to open the currently selected files in the editor");
+		D("> You can use any editor that accepts filenames as command-line argument");
+		P_();
+
 		P(HiseSettings::Other::EnableAutosave);
 		D("The autosave function will store up to 5 archive files called `AutosaveXXX.hip` in the archive folder of the project.");
 		D("In a rare and almost never occuring event of a crash, this might be your saviour...");
@@ -775,6 +781,7 @@ bool HiseSettings::Data::isFileId(const Identifier& id)
 		   id == Project::RedirectSampleFolder ||
 		   id == Compiler::CustomNodePath ||
 		   id == Other::GlobalSamplePath ||
+		   id == Other::ExternalEditorPath ||
 		   id == Documentation::DocRepository;
 }
 
@@ -864,6 +871,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
+	else if (id == Other::ExternalEditorPath)		return "";
 	else if (id == Documentation::DocRepository)	return "";
 	else if (id == Documentation::RefreshOnStartup) return "Yes";
 	else if (id == Scripting::CodeFontSize)			return 17.0;

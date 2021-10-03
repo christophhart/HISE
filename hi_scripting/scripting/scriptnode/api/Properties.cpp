@@ -724,7 +724,7 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 		if (ref.isValid())
 			file = ref.getFile();
 
-		return new FileNameValuePropertyComponent(id.toString(), file, value);
+		return new FileNameValuePropertyComponent(id.toString(), file, File::findDirectories, value);
 	}
 
 	if (propId == Enabled || 

@@ -24,6 +24,7 @@
 namespace hise {
 using namespace juce;
 
+struct ExternalFileChangeWatcher;
 class SamplerBody;
 class SampleEditHandler;
 
@@ -158,6 +159,7 @@ public:
 		NormalizeVolume,
 		LoopEnabled,
 		Analyser,
+		ExternalEditor,
 		numCommands
 	};
 
@@ -177,7 +179,8 @@ public:
 								SelectWithMidi,
 								NormalizeVolume,
 								LoopEnabled,
-								Analyser
+								Analyser,
+								ExternalEditor,
 								};
 
 		commands.addArray(id, numElementsInArray(id));
@@ -221,9 +224,11 @@ public:
 								result.setActive(isSelected);
 								result.setTicked(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled));
 								break;
-		case Analyser:			result.setInfo("Show FFT analyser", "FFT Analyser", "Properties", 0);
+		case Analyser:			result.setInfo("Show Spectrogram properties", "FFT Analyser", "Properties", 0);
 								result.setActive(isSelected);
-								result.setTicked(isSelected && viewport->isVisible());
+								break;
+		case ExternalEditor:    result.setInfo("Edit in external editor", "External Editor", "Properties", 0);
+								result.setActive(isSelected);
 								break;
 		}
 	};
@@ -335,7 +340,7 @@ public:
     void paint (Graphics& g);
     void resized();
 
-	void addButton(CommandID commandId, bool hasState, const String& name, const String& offName = String());
+	Component* addButton(CommandID commandId, bool hasState, const String& name, const String& offName = String());
 
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
@@ -393,6 +398,8 @@ private:
 
 	OwnedArray<HiseShapeButton> menuButtons;
 
+	Component* analyseButton;
+
     //[/UserVariables]
 
     //==============================================================================
@@ -407,6 +414,7 @@ private:
     ScopedPointer<ValueSettingComponent> startModulationSetter;
     ScopedPointer<Toolbar> toolbar;
     ScopedPointer<ValueSettingComponent> panSetter;
+	ScopedPointer<ExternalFileChangeWatcher> externalWatcher;
 
 	ScopedPointer<Component> verticalZoomer;
     ScopedPointer<ComboBox> sampleSelector;

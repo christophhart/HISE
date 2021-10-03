@@ -479,7 +479,9 @@ void SettingWindows::addProperty(ValueTree& c, Array<PropertyComponent*>& props)
 
 	if (HiseSettings::Data::isFileId(id))
 	{
-		auto fpc = new FileNameValuePropertyComponent(name, File(value.toString()), value);
+		auto ft = (id == HiseSettings::Other::ExternalEditorPath) ? File::findFiles : File::findDirectories;
+
+		auto fpc = new FileNameValuePropertyComponent(name, File(value.toString()), ft, value);
 		props.add(fpc);
 	}
 	else if (HiseSettings::Data::isToggleListId(id))
