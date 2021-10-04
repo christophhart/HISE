@@ -283,6 +283,35 @@ private:
 
 };
 
+class SamplerSoundWaveform;
+
+struct SamplerDisplayWithTimeline : public Component
+{
+	static constexpr int TimelineHeight = 24;
+
+	enum class TimeDomain
+	{
+		Samples,
+		Milliseconds,
+		Seconds
+	};
+
+	struct Properties
+	{
+		double sampleLength;
+		double sampleRate;
+		TimeDomain currentDomain = TimeDomain::Seconds;
+	};
+
+	SamplerSoundWaveform* getWaveform();
+	const SamplerSoundWaveform* getWaveform() const;
+	void resized() override;
+	void mouseDown(const MouseEvent& e) override;
+	static String getText(const Properties& p, float normalisedX);
+	void paint(Graphics& g) override;
+
+	Properties props;
+};
 
 /** A component that displays the waveform of a sample.
 *
@@ -292,7 +321,8 @@ private:
 *	It uses a timer to display the current playbar.
 */
 class SamplerSoundWaveform : public AudioDisplayComponent,
-	public Timer
+	public Timer,
+	public SettableTooltipClient
 {
 public:
 
@@ -334,6 +364,10 @@ public:
 	*/
 	void setSoundToDisplay(const ModulatorSamplerSound *s, int multiMicIndex = 0);
 
+	void mouseDown(const MouseEvent& e) override;
+
+	void mouseMove(const MouseEvent& e) override;
+
 	const ModulatorSamplerSound *getCurrentSound() const { return currentSound.get(); }
 
 	float getNormalizedPeak() override;
@@ -352,11 +386,27 @@ public:
 		}
 	}
 
+	void setClickArea(AreaTypes newArea)
+	{
+		if (newArea == currentClickArea)
+			currentClickArea = AreaTypes::numAreas;
+		else
+			currentClickArea = newArea;
+
+		setMouseCursor(currentClickArea == MultiChannelAudioBufferDisplay::numAreas ? MouseCursor::NormalCursor : MouseCursor::CrosshairCursor);
+	}
+
 	float getCurrentSampleGain() const;
+
+	SamplerDisplayWithTimeline::Properties timeProperties;
+
+	AreaTypes currentClickArea = AreaTypes::numAreas;
 
 private:
 
-	
+	AudioDisplayComponent::AreaTypes getAreaForModifiers(const MouseEvent& e) const;
+
+	Identifier getSampleIdToChange(AreaTypes a, const MouseEvent& e) const;
 
 	float verticalZoomGain = 1.0f;
 
@@ -370,6 +420,8 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SamplerSoundWaveform)
 };
+
+
 
 
 }

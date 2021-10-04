@@ -2337,6 +2337,32 @@ struct FFTHelpers
 
 struct Spectrum2D
 {
+	struct LookupTable
+	{
+		enum class ColourScheme
+		{
+			blackWhite,
+			rainbow,
+			violetToOrange,
+			hiseColours,
+			numColourSchemes
+		};
+
+		static StringArray getColourSchemes() { return { "BlackWhite", "Rainbow", "VioletOrange", "HiseColours" }; }
+
+		void setColourScheme(ColourScheme cs);
+
+		static constexpr int LookupTableSize = 512;
+
+		PixelARGB getColouredPixel(float normalisedInput);
+
+		LookupTable();
+
+		ColourGradient grad;
+		ColourScheme colourScheme;
+		juce::PixelARGB data[LookupTableSize];
+	};
+
 	struct Parameters: public ReferenceCountedObject
 	{
 		using Ptr = ReferenceCountedObjectPtr<Parameters>;
@@ -2364,6 +2390,8 @@ struct Spectrum2D
 
 			void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
 
+			void paint(Graphics& g) override;
+
 			void resized() override;
 
 			OwnedArray<ComboBox> editors;
@@ -2385,6 +2413,8 @@ struct Spectrum2D
 		int oversamplingFactor = 4;
 		int Spectrum2DSize;
 		FFTHelpers::WindowType currentWindowType = FFTHelpers::WindowType::BlackmanHarris;
+
+		SharedResourcePointer<LookupTable> lut;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Parameters);
 	};

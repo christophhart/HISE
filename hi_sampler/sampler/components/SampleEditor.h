@@ -48,7 +48,8 @@ class SampleEditor : public Component,
 	public AudioDisplayComponent::Listener,
     public ComboBox::Listener,
 	public SafeChangeListener,
-	public SampleMap::Listener
+	public SampleMap::Listener,
+	public ScrollBar::Listener
 {
 public:
 	//==============================================================================
@@ -64,6 +65,8 @@ public:
 	{
 		updateWaveform();
 	}
+
+	void scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
 
 	bool isInWorkspace() const { return findParentComponentOfClass<ProcessorEditor>() == nullptr; }
 
@@ -186,52 +189,7 @@ public:
 		commands.addArray(id, numElementsInArray(id));
 	};
 
-	void getCommandInfo (CommandID commandID, ApplicationCommandInfo &result) override
-	{
-		const bool isSelected = selection.size() > 0 && selection.getLast() != nullptr;
-
-		switch (commandID)
-		{
-		case ZoomIn:			result.setInfo("Zoom In", "Zoom in the sample map", "Zooming", 0);
-								result.addDefaultKeypress('+', ModifierKeys::commandModifier);
-								result.setActive(isSelected && zoomFactor != 16.0f);
-								break;
-		case ZoomOut:			result.setInfo("Zoom Out", "Zoom out the sample map", "Zooming", 0);
-								result.addDefaultKeypress('-', ModifierKeys::commandModifier);
-								result.setActive(isSelected && zoomFactor != 1.0f);
-								break;
-		case EnableSampleStartArea:	result.setInfo("Enable SampleStart Dragging", "Enable Sample Start Modulation Area Dragging", "Areas", 0);
-									result.setActive(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::SampleStartMod) != 0);
-                                    result.setTicked(isSelected && !currentWaveForm->getSampleArea(SamplerSoundWaveform::AreaTypes::SampleStartArea)->isAreaEnabled());
-									break;
-		case EnableLoopArea:	result.setInfo("Enable SampleStart Dragging", "Enable Loop Area Dragging", "Areas", 0);
-								result.setActive(isSelected && selection.getLast()->getSampleProperty(SampleIds::LoopEnabled));
-                                result.setTicked(isSelected && !currentWaveForm->getSampleArea(SamplerSoundWaveform::AreaTypes::LoopArea)->isAreaEnabled());
-								break;
-		case EnablePlayArea:	result.setInfo("Enable Play Area Dragging", "Enable Playback Area Dragging", "Areas", 0);
-								result.setActive(isSelected);
-                                result.setTicked(isSelected && !currentWaveForm->getSampleArea(SamplerSoundWaveform::AreaTypes::PlayArea)->isAreaEnabled());
-								break;
-		case SelectWithMidi:	result.setInfo("Midi Select", "Autoselect the most recently triggered sound", "Tools", 0);
-								result.setActive(true);
-								result.setTicked(!sampler->getEditorState(ModulatorSampler::MidiSelectActive));
-								break;
-		case NormalizeVolume:	result.setInfo("Normalize Volume", "Normalize the sample volume to 0dB", "Properties", 0);
-								result.setActive(isSelected);
-								result.setTicked(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::Normalized));
-								break;
-		case LoopEnabled:		result.setInfo("Loop Enabled", "Enable Loop Playback", "Properties", 0);
-								result.setActive(isSelected);
-								result.setTicked(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled));
-								break;
-		case Analyser:			result.setInfo("Show Spectrogram properties", "FFT Analyser", "Properties", 0);
-								result.setActive(isSelected);
-								break;
-		case ExternalEditor:    result.setInfo("Edit in external editor", "External Editor", "Properties", 0);
-								result.setActive(isSelected);
-								break;
-		}
-	};
+	void getCommandInfo (CommandID commandID, ApplicationCommandInfo &result) override;;
 
 	bool perform (const InvocationInfo &info) override;
 
@@ -239,84 +197,20 @@ public:
 	void toggleAnalyser();
 	
 
-	void soundsSelected(const SampleSelection  &selectedSoundList) override
-	{
-		selection.clear();
-
-		for (int i = 0; i < selectedSoundList.size(); i++)
-			selection.add(selectedSoundList[i]);
-
-		panSetter->setCurrentSelection(selectedSoundList);
-		volumeSetter->setCurrentSelection(selectedSoundList);
-		pitchSetter->setCurrentSelection(selectedSoundList);
-		sampleStartSetter->setCurrentSelection(selectedSoundList);
-		sampleEndSetter->setCurrentSelection(selectedSoundList);
-		startModulationSetter->setCurrentSelection(selectedSoundList);
-		loopStartSetter->setCurrentSelection(selectedSoundList);
-		loopEndSetter->setCurrentSelection(selectedSoundList);
-		loopCrossfadeSetter->setCurrentSelection(selectedSoundList);
-
-		samplerEditorCommandManager->commandStatusChanged();
-
-		if(selectedSoundList.size() != 0 && selectedSoundList.getLast() != nullptr) currentWaveForm->setSoundToDisplay(selectedSoundList.getLast());
-		else currentWaveForm->setSoundToDisplay(nullptr);
-
-        sampleSelector->clear(dontSendNotification);
-        multimicSelector->clear(dontSendNotification);
-        int sampleIndex = 1;
-        
-        for(auto s: selectedSoundList)
-        {
-            sampleSelector->addItem(s->getSampleProperty(SampleIds::FileName).toString().replace("{PROJECT_FOLDER}", ""), sampleIndex++);
-        }
-        
-        sampleSelector->setSelectedId(selectedSoundList.size(), dontSendNotification);
-        
-        auto micPositions = StringArray::fromTokens(sampler->getStringForMicPositions(), ";", "");
-        micPositions.removeEmptyStrings();
-        
-        int micIndex = 1;
-        
-        for(auto t: micPositions)
-        {
-            multimicSelector->addItem(t, micIndex++);
-        }
-        
-        multimicSelector->setTextWhenNothingSelected("No multimics");
-        multimicSelector->setTextWhenNoChoicesAvailable("No multimics");
-        
-		updateWaveform();
-	}
+	void soundsSelected(const SampleSelection  &selectedSoundList) override;
 
 	void paintOverChildren(Graphics &g);
 
 	void updateWaveform();
 
-	void zoom(bool zoomOut)
+	void zoom(bool zoomOut, int mousePos=0);
+
+	void mouseWheelMove	(const MouseEvent & e, const MouseWheelDetails & 	wheel )	override
 	{
-		if(!zoomOut)
-		{
-			zoomFactor = jmin(64.0f, zoomFactor * 1.5f); resized();
-		}
+		if(e.mods.isCtrlDown())
+			zoom(wheel.deltaY < 0, e.getEventRelativeTo(viewport).getPosition().getX());
 		else
-		{
-			zoomFactor = jmax(1.0f, zoomFactor / 1.5f); resized();
-		}
-
-		resized();
-	}
-
-	void mouseWheelMove	(	const MouseEvent & 	event, const MouseWheelDetails & 	wheel )	override
-	{
-		if(event.mods.isCtrlDown())
-		{
-			zoom(wheel.deltaY < 0);
-		}
-		else
-		{
-			getParentComponent()->mouseWheelMove(event, wheel);
-		}
-
+			getParentComponent()->mouseWheelMove(e, wheel);
 	};
 
     void comboBoxChanged(ComboBox* cb) override
@@ -399,6 +293,9 @@ private:
 	OwnedArray<HiseShapeButton> menuButtons;
 
 	Component* analyseButton;
+	Component* externalButton;
+
+	LookAndFeel_V4 slaf;
 
     //[/UserVariables]
 
@@ -420,6 +317,8 @@ private:
     ScopedPointer<ComboBox> sampleSelector;
     ScopedPointer<ComboBox> multimicSelector;
     
+	HiseAudioThumbnail overview;
+
     GlobalHiseLookAndFeel claf;
 
     //==============================================================================

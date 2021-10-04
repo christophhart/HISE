@@ -943,6 +943,68 @@ void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b)
     }
 }
 
+
+
+juce::PixelARGB Spectrum2D::LookupTable::getColouredPixel(float normalisedInput)
+{
+	auto lutValue = data[jlimit(0, LookupTableSize - 1, roundToInt(normalisedInput * (float)LookupTableSize))];
+	float a = JUCE_LIVE_CONSTANT_OFF(0.3f);
+	auto v = jlimit(0.0f, 1.0f, a + (1.0f - a) * normalisedInput);
+	auto r = (float)lutValue.getRed() * v;
+	auto g = (float)lutValue.getGreen() * v;
+	auto b = (float)lutValue.getBlue() * v;
+	lutValue.setARGB(255, (uint8)r, (uint8)g, (uint8)b);
+	return lutValue;
+}
+
+void Spectrum2D::LookupTable::setColourScheme(ColourScheme cs)
+{
+	ColourGradient grad(Colours::black, 0.0f, 0.0f, Colours::white, 1.0f, 1.0f, false);
+
+	if (cs != colourScheme)
+	{
+		colourScheme = cs;
+
+		switch (colourScheme)
+		{
+		case ColourScheme::violetToOrange:
+		{
+			grad.addColour(0.2f, Colour(0xFF537374).withMultipliedBrightness(0.5f));
+			grad.addColour(0.4f, Colour(0xFF57339D).withMultipliedBrightness(0.8f));
+
+			grad.addColour(0.6f, Colour(0xFFB35259).withMultipliedBrightness(0.9f));
+			grad.addColour(0.8f, Colour(0xFFFF8C00));
+			grad.addColour(0.9f, Colour(0xFFC0A252));
+			break;
+		}
+		case ColourScheme::blackWhite: break;
+		case ColourScheme::rainbow:
+		{
+			grad.addColour(0.2f, Colours::blue);
+			grad.addColour(0.4f, Colours::green);
+			grad.addColour(0.6f, Colours::yellow);
+			grad.addColour(0.8f, Colours::orange);
+			grad.addColour(0.9f, Colours::red);
+			break;
+		}
+		case ColourScheme::hiseColours:
+		{
+			grad.addColour(0.33f, Colour(0xff3a6666));
+			grad.addColour(0.66f, Colour(SIGNAL_COLOUR));
+		}
+		}
+
+		grad.createLookupTable(data, LookupTableSize);
+	}
+}
+
+Spectrum2D::LookupTable::LookupTable()
+{
+	setColourScheme(ColourScheme::violetToOrange);
+
+	
+}
+
 Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 {
     auto newImage = Image(Image::ARGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels() / 2, true);
@@ -951,23 +1013,6 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
     auto s2dHalf = parameters->Spectrum2DSize / 2;
     
     int LookupTableSize = JUCE_LIVE_CONSTANT_OFF(512);
-    
-    HeapBlock<PixelARGB> lut;
-    lut.calloc(LookupTableSize);
-    
-    ColourGradient grad(Colours::black, 0.0f, 0.0f, Colours::white, 1.0f, 1.0f, false);
-    
-    grad.addColour(0.2f, Colour(0xFF537374).withMultipliedBrightness(0.5f));
-    grad.addColour(0.4f, Colour(0xFF57339D).withMultipliedBrightness(0.8f));
-    
-    grad.addColour(0.6f, Colour(0xFFB35259).withMultipliedBrightness(0.9f));
-    grad.addColour(0.8f,  Colour(0xFFFF8C00));
-    grad.addColour(0.9f, Colour(0xFFC0A252));
-    
-    grad.createLookupTable(lut.get(), LookupTableSize);
-    
-    
-    
     
     if (maxLevel == 0.0f)
         return newImage;
@@ -986,20 +1031,9 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
             auto alpha = jlimit(0.0f, 1.0f, s);
 
             alpha = holder->getXPosition(alpha);
-
             alpha = std::pow(alpha, JUCE_LIVE_CONSTANT_OFF(0.6f));
-            auto lutValue = lut[jlimit(0, LookupTableSize-1, roundToInt(alpha * (float)LookupTableSize))];
-            
-            float a = JUCE_LIVE_CONSTANT_OFF(0.3f);
-            
-            auto v = jlimit(0.0f, 1.0f, a + (1.0f - a) * alpha);
-            
-            auto r = (float)lutValue.getRed() * v;
-            auto g = (float)lutValue.getGreen() * v;
-            auto b = (float)lutValue.getBlue() * v;
-            
-            lutValue.setARGB(255, (uint8)r, (uint8)g, (uint8)b);
-            
+
+			auto lutValue = parameters->lut->getColouredPixel(alpha);
             newImage.setPixelAt(i, y, lutValue);//Colour::fromHSV(hue, JUCE_LIVE_CONSTANT(1.0f), 1.0f, alpha));
         }
     }
@@ -1060,9 +1094,10 @@ void Spectrum2D::Parameters::set(const Identifier& id, int value, NotificationTy
         minDb = value;
 	if (id == Identifier("Oversampling"))
 		oversamplingFactor = value;
+	if (id == Identifier("ColourScheme"))
+		lut->setColourScheme((LookupTable::ColourScheme)value);
 	if (id == Identifier("WindowType"))
 		currentWindowType = (FFTHelpers::WindowType)value;
-
 	if (n != dontSendNotification)
 		notifier.sendMessage(n, id, value);
 }
@@ -1075,6 +1110,8 @@ int Spectrum2D::Parameters::get(const Identifier& id) const
         return minDb;
 	if (id == Identifier("Oversampling"))
 		return oversamplingFactor;
+	if (id == Identifier("ColourScheme"))
+		return (int)lut->colourScheme;
 	if (id == Identifier("WindowType"))
 		return currentWindowType;
 
@@ -1092,8 +1129,9 @@ Spectrum2D::Parameters::Editor::Editor(Parameters* p) :
 	addEditor("Oversampling");
 	addEditor("WindowType");
     addEditor("DynamicRange");
+	addEditor("ColourScheme");
 
-	setSize(300, RowHeight * editors.size());
+	setSize(450, RowHeight * editors.size() + 60);
 }
 
 void Spectrum2D::Parameters::Editor::addEditor(const Identifier& id)
@@ -1122,6 +1160,10 @@ void Spectrum2D::Parameters::Editor::addEditor(const Identifier& id)
         cb->addItem("120dB", 121);
         cb->addItem("130dB", 131);
     }
+	if (id == Identifier("ColourScheme"))
+	{
+		cb->addItemList(LookupTable::getColourSchemes(), 1);
+	}
 	if (id == Identifier("Oversampling"))
 	{
 		cb->addItem("1x", 2);
@@ -1146,6 +1188,7 @@ void Spectrum2D::Parameters::Editor::addEditor(const Identifier& id)
 	l->setEditable(false);
 	l->setFont(GLOBAL_FONT());
 	l->setText(id.toString(), dontSendNotification);
+	l->setColour(Label::ColourIds::textColourId, Colours::white);
 
 	addAndMakeVisible(l);
 	labels.add(l);
@@ -1158,19 +1201,64 @@ void Spectrum2D::Parameters::Editor::comboBoxChanged(ComboBox* comboBoxThatHasCh
 	auto v = comboBoxThatHasChanged->getSelectedId() - 1;
 
 	param->set(id, v, sendNotificationSync);
+	repaint();
+}
+
+void Spectrum2D::Parameters::Editor::paint(Graphics& g)
+{
+	g.fillAll(Colour(0xFF222222));
+	auto b = getLocalBounds().removeFromBottom(60);
+
+	auto specArea = b.reduced(12);
+	auto textArea = specArea.removeFromTop(13);
+	auto range = param->get("DynamicRange");
+
+	auto parts = (float)specArea.getWidth() / (float)(range / 10);
+	auto tparts = (float)textArea.getWidth() / (float)(range / 10);
+
+	auto meterArea = specArea.removeFromTop(8).toFloat();
+
+	g.setColour(Colours::white.withAlpha(0.8f));
+
+	g.setFont(GLOBAL_FONT().withHeight(12.0f));
+
+	for (int i = 0; i < range; i += 10)
+	{
+		auto mm = meterArea.removeFromLeft(parts);
+		g.drawVerticalLine(mm.getX(), meterArea.getY(), meterArea.getBottom());
+
+		auto tm = textArea.removeFromLeft(tparts).toFloat();
+
+		String s;
+		s << "-" << String(range - i) << "dB";
+		g.drawText(s, tm, Justification::centredLeft);
+	}
+
+	for (int i = 0; i < specArea.getWidth(); i+= 2)
+	{
+		auto ninput = (float)i / (float)specArea.getWidth();
+		auto p = param->lut->getColouredPixel(ninput);
+
+		Colour c(p.getNativeARGB());
+		g.setColour(c);
+		g.fillRect(specArea.getX() + i, specArea.getY(), 3, specArea.getHeight());
+	}
 }
 
 void Spectrum2D::Parameters::Editor::resized()
 {
 	auto b = getLocalBounds();
+	
+	b.removeFromLeft(12);
 
 	for (int i = 0; i < editors.size(); i++)
 	{
 		auto r = b.removeFromTop(RowHeight);
 		labels[i]->setBounds(r.removeFromLeft(128));
 		editors[i]->setBounds(r);
-	}
-		
+	}	
 }
+
+
 
 }

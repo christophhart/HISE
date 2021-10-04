@@ -27,110 +27,7 @@ namespace hise { using namespace juce;
 //[MiscUserDefs] You can add your own user definitions and misc code here...
 //[/MiscUserDefs]
 
-struct SamplerDisplayWithTimeline : public Component
-{
-	static constexpr int TimelineHeight = 24;
 
-	enum class TimeDomain
-	{
-		Samples,
-		Milliseconds,
-		Seconds
-	};
-
-	SamplerSoundWaveform* getWaveform() { return dynamic_cast<SamplerSoundWaveform*>(getChildComponent(0)); }
-	const SamplerSoundWaveform* getWaveform() const { return dynamic_cast<SamplerSoundWaveform*>(getChildComponent(0)); }
-
-	void resized() override
-	{
-		auto b = getLocalBounds();
-		b.removeFromTop(TimelineHeight);
-		getWaveform()->setBounds(b);
-	}
-
-	void mouseDown(const MouseEvent& e) override
-	{
-		PopupLookAndFeel plaf;
-		PopupMenu m;
-		m.setLookAndFeel(&plaf);
-
-		m.addItem(1, "Samples", true, currentDomain == TimeDomain::Samples);
-		m.addItem(2, "Milliseconds", true, currentDomain == TimeDomain::Milliseconds);
-		m.addItem(3, "Seconds", true, currentDomain == TimeDomain::Seconds);
-
-		if (auto r = m.show())
-		{
-			currentDomain = (TimeDomain)(r - 1);
-			repaint();
-		}
-	}
-
-	String getText(float normalisedX) const
-	{
-		if (auto s = getWaveform()->getCurrentSound())
-		{
-			auto sampleValue = roundToInt(normalisedX * sampleLength);
-
-			if(currentDomain == TimeDomain::Samples)
-				return String(roundToInt(sampleValue));
-
-			auto msValue = sampleValue / jmax(1.0, sampleRate) * 1000.0;
-
-			if(currentDomain == TimeDomain::Milliseconds)
-				return String(roundToInt(msValue)) + " ms";
-
-			String sec;
-			sec << Time((int64)msValue).formatted("%M:%S:");
-
-			auto ms = String(roundToInt(msValue) % 1000);
-
-			while (ms.length() < 3)
-				ms = "0" + ms;
-
-			sec << ms;
-			return sec;
-		}
-
-		return {};
-	}
-
-	void paint(Graphics& g) override
-	{
-		auto visibleArea = findParentComponentOfClass<Viewport>()->getViewArea();
-
-		auto b = getLocalBounds().removeFromTop(TimelineHeight);
-
-		g.setFont(GLOBAL_FONT());
-
-		int delta = 200;
-
-		if (auto s = getWaveform()->getCurrentSound())
-		{
-			sampleLength = s->getReferenceToSound(0)->getLengthInSamples();
-			sampleRate = s->getReferenceToSound(0)->getSampleRate();
-		}
-
-		for (int i = 0; i < getWidth(); i += delta)
-		{
-			auto textArea = b.removeFromLeft(delta).toFloat();
-
-			g.setColour(Colours::white.withAlpha(0.1f));
-			g.drawVerticalLine(i, 3.0f, (float)TimelineHeight);
-
-			g.setColour(Colours::white.withAlpha(0.4f));
-
-			auto normalisedX = (float)i / (float)getWidth();
-
-			g.drawText(getText(normalisedX), textArea.reduced(5.0f, 0.0f), Justification::centredLeft);
-		}
-	}
-
-	double sampleLength;
-	double sampleRate;
-
-	TimeDomain currentDomain = TimeDomain::Seconds;
-	
-};
 
 struct VerticalZoomer : public Component,
 						public Slider::Listener,
@@ -290,20 +187,33 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
     addAndMakeVisible (toolbar = new Toolbar());
     toolbar->setName ("new component");
 
+	addAndMakeVisible(overview);
+
     addAndMakeVisible(spectrumSlider);
-    spectrumSlider.setRange(0.0, 1.0, 0.0);
+    spectrumSlider.setRange(-1.0, 1.0, 0.0);
     spectrumSlider.setSliderStyle(Slider::SliderStyle::LinearHorizontal);
     spectrumSlider.setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
+	spectrumSlider.setLookAndFeel(&slaf);
+	spectrumSlider.setValue(-1.0f, dontSendNotification);
+
 	spectrumSlider.onValueChange = [this]()
     {
-        auto sAlpha = spectrumSlider.getValue();
+        auto nAlpha = spectrumSlider.getValue() * 0.5f + 0.5f;
+		auto sAlpha = nAlpha;
         auto wAlpha = sAlpha;
         
         sAlpha = scriptnode::faders::overlap().getFadeValue<0>(2, sAlpha);
         wAlpha = scriptnode::faders::overlap().getFadeValue<1>(2, wAlpha);
         
+		spectrumSlider.setColour(Slider::trackColourId, Colours::orange.withSaturation(wAlpha).withAlpha(0.5f));
+
         currentWaveForm->getThumbnail()->setSpectrumAndWaveformAlpha(sAlpha, wAlpha);
     };
+	spectrumSlider.setColour(Slider::backgroundColourId, Colours::white.withAlpha(0.2f));
+	spectrumSlider.setColour(Slider::trackColourId, Colours::orange.withSaturation(0.0f).withAlpha(0.5f));
+
+	spectrumSlider.setColour(Slider::thumbColourId, Colour(0xFFDDDDDD));
+	spectrumSlider.setTooltip("Blend spectrogram over waveform");
 
     addAndMakeVisible (panSetter = new ValueSettingComponent(s));
 
@@ -318,6 +228,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 
 	fader.addScrollBarToAnimate(viewport->getHorizontalScrollBar());
 	viewport->getHorizontalScrollBar().setLookAndFeel(&laf);
+	viewport->getHorizontalScrollBar().addListener(this);
 
 	addAndMakeVisible(verticalZoomer = new VerticalZoomer(currentWaveForm, sampler));
 
@@ -364,7 +275,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	addButton(SampleMapCommands::EnableLoopArea, true, "loop-area");
     addButton(SampleMapCommands::NormalizeVolume, true, "normalise-on", "normalise-off");
     addButton(SampleMapCommands::LoopEnabled, true, "loop-on", "loop-off");
-	addButton(SampleMapCommands::ExternalEditor, false, "external");
+	externalButton = addButton(SampleMapCommands::ExternalEditor, false, "external");
     
     addAndMakeVisible(sampleSelector = new ComboBox());
     addAndMakeVisible(multimicSelector = new ComboBox());
@@ -406,6 +317,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 
     setSize (800, 250);
 
+	viewport->setScrollOnDragEnabled(true);
 
     //[Constructor] You can add your own custom stuff here..
 
@@ -418,6 +330,8 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 
 	currentWaveForm->addAreaListener(this);
 
+	overview.setShouldScaleVertically(true);
+	overview.setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xFF333333));
 
     currentWaveForm->setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xff1d1d1d));
     currentWaveForm->setColour(AudioDisplayComponent::ColourIds::outlineColour, Colour(0xff1d1d1d));
@@ -451,6 +365,19 @@ SampleEditor::~SampleEditor()
 
     //[Destructor]. You can add your own custom destruction code here..
     //[/Destructor]
+}
+
+void SampleEditor::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart)
+{
+	auto s = scrollBarThatHasMoved->getCurrentRange();
+
+	auto start = s.getStart();
+	auto end = s.getEnd();
+
+	start /= (double)jmax(1, currentWaveForm->getWidth());
+	end /= (double)jmax(1, currentWaveForm->getWidth());
+
+	overview.setRange(start * overview.getWidth(), end * overview.getWidth());
 }
 
 void SampleEditor::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& /*newValue*/)
@@ -505,12 +432,16 @@ void SampleEditor::resized()
     b = b.reduced(8);
     
     
-    
+	externalButton->setBounds(topBar.removeFromRight(topBar.getHeight()).reduced(3));
+
     multimicSelector->setBounds(topBar.removeFromRight(100));
     sampleSelector->setBounds(topBar.removeFromRight(300));
     
-    spectrumSlider.setBounds(topBar.removeFromRight(100));
-    
+	topBar.removeFromRight(10);
+	analyseButton->setBounds(topBar.removeFromRight(topBar.getHeight()).reduced(3));
+    spectrumSlider.setBounds(topBar.removeFromRight(100).reduced(2));
+	
+
 	//toolbar->setBounds(topBar);
 
 	b.removeFromTop(20);
@@ -595,28 +526,31 @@ void SampleEditor::resized()
 
 	b.removeFromBottom(12);
 
-	if (viewport->isVisible())
+	if (isInWorkspace())
 	{
-		if (isInWorkspace())
-		{
-			auto zb = b.removeFromLeft(18);
-            b.removeFromRight(24);
-			zb.removeFromBottom(viewport->getScrollBarThickness());
-			zb.removeFromTop(SamplerDisplayWithTimeline::TimelineHeight);
-			verticalZoomer->setBounds(zb);
-			b.removeFromLeft(6);
-		}
-		else
-		{
-			verticalZoomer->setVisible(false);
-		}
+		auto zb = b.removeFromLeft(18);
+		b.removeFromRight(24);
+		zb.removeFromBottom(viewport->getScrollBarThickness());
+		
+		zb.removeFromTop(32);
+		zb.removeFromTop(SamplerDisplayWithTimeline::TimelineHeight);
+		verticalZoomer->setBounds(zb);
+		b.removeFromLeft(6);
 
-		viewport->setBounds(b);
+		overview.setBounds(b.removeFromTop(32));
 
-		viewContent->setSize((int)(viewport->getWidth() * zoomFactor), viewport->getHeight() - (viewport->isHorizontalScrollBarShown() ? viewport->getScrollBarThickness() : 0));
 	}
 	else
-		graph->setBounds(b);
+	{
+		verticalZoomer->setVisible(false);
+
+		overview.setVisible(false);
+
+	}
+
+	viewport->setBounds(b);
+
+	viewContent->setSize((int)(viewport->getWidth() * zoomFactor), viewport->getHeight() - (viewport->isHorizontalScrollBarShown() ? viewport->getScrollBarThickness() : 0));
 }
 
 
@@ -695,6 +629,53 @@ struct ExternalFileChangeWatcher : public Timer,
 	Array<Time> modificationTimes;
 };
 
+void SampleEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo &result)
+{
+	const bool isSelected = selection.size() > 0 && selection.getLast() != nullptr;
+
+	switch (commandID)
+	{
+	case ZoomIn:			result.setInfo("Zoom In", "Zoom in the sample map", "Zooming", 0);
+		result.addDefaultKeypress('+', ModifierKeys::commandModifier);
+		result.setActive(isSelected && zoomFactor != 16.0f);
+		break;
+	case ZoomOut:			result.setInfo("Zoom Out", "Zoom out the sample map", "Zooming", 0);
+		result.addDefaultKeypress('-', ModifierKeys::commandModifier);
+		result.setActive(isSelected && zoomFactor != 1.0f);
+		break;
+	case EnableSampleStartArea:	result.setInfo("Change SampleStart", "Change SampleStart", "Areas", 0);
+		result.setActive(true);
+		result.setTicked(currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::SampleStartArea);
+		break;
+	case EnableLoopArea:	result.setInfo("Change loop range", "Change loop range", "Areas", 0);
+		result.setActive(true);
+		result.setTicked(currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::LoopArea);
+		break;
+	case EnablePlayArea:	result.setInfo("Change sample range", "Change sample range", "Areas", 0);
+		result.setActive(true);
+		result.setTicked(currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::PlayArea);
+		break;
+	case SelectWithMidi:	result.setInfo("Midi Select", "Autoselect the most recently triggered sound", "Tools", 0);
+		result.setActive(true);
+		result.setTicked(!sampler->getEditorState(ModulatorSampler::MidiSelectActive));
+		break;
+	case NormalizeVolume:	result.setInfo("Normalize Volume", "Normalize the sample volume to 0dB", "Properties", 0);
+		result.setActive(isSelected);
+		result.setTicked(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::Normalized));
+		break;
+	case LoopEnabled:		result.setInfo("Loop Enabled", "Enable Loop Playback", "Properties", 0);
+		result.setActive(isSelected);
+		result.setTicked(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled));
+		break;
+	case Analyser:			result.setInfo("Show Spectrogram properties", "Edit Spectrogram properties", "Properties", 0);
+		result.setActive(isSelected);
+		break;
+	case ExternalEditor:    result.setInfo("Edit in external editor", "External Editor", "Properties", 0);
+		result.setActive(isSelected);
+		break;
+	}
+}
+
 bool SampleEditor::perform (const InvocationInfo &info)
 {
 
@@ -715,16 +696,19 @@ bool SampleEditor::perform (const InvocationInfo &info)
 	case SelectWithMidi:   sampler->setEditorState(ModulatorSampler::MidiSelectActive, !sampler->getEditorState(ModulatorSampler::MidiSelectActive));
 						   samplerEditorCommandManager->commandStatusChanged();
 						   return true;
-	case EnableSampleStartArea:	currentWaveForm->toggleRangeEnabled(SamplerSoundWaveform::SampleStartArea);
+	case EnableSampleStartArea:	currentWaveForm->setClickArea(SamplerSoundWaveform::SampleStartArea);
+		samplerEditorCommandManager->commandStatusChanged();
 								return true;
-	case EnableLoopArea:	currentWaveForm->toggleRangeEnabled(SamplerSoundWaveform::LoopArea); return true;
-	case EnablePlayArea:	currentWaveForm->toggleRangeEnabled(SamplerSoundWaveform::PlayArea); return true;
+	case EnableLoopArea:	currentWaveForm->setClickArea(SamplerSoundWaveform::LoopArea);
+		samplerEditorCommandManager->commandStatusChanged();  return true;
+	case EnablePlayArea:	currentWaveForm->setClickArea(SamplerSoundWaveform::PlayArea);
+		samplerEditorCommandManager->commandStatusChanged(); return true;
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
 	case Analyser:			
 	{
 		auto n = new Spectrum2D::Parameters::Editor(currentWaveForm->getThumbnail()->getSpectrumParameters());
-		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentInRootPopup(n, analyseButton, {8, 16});
+		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, analyseButton, {8, 16});
 		return true;
 	}
 	case ExternalEditor:
@@ -793,6 +777,81 @@ void SampleEditor::toggleAnalyser()
 
 	updateWaveform();
 	resized();
+}
+
+void SampleEditor::soundsSelected(const SampleSelection &selectedSoundList)
+{
+	selection.clear();
+
+	for (int i = 0; i < selectedSoundList.size(); i++)
+		selection.add(selectedSoundList[i]);
+
+	panSetter->setCurrentSelection(selectedSoundList);
+	volumeSetter->setCurrentSelection(selectedSoundList);
+	pitchSetter->setCurrentSelection(selectedSoundList);
+	sampleStartSetter->setCurrentSelection(selectedSoundList);
+	sampleEndSetter->setCurrentSelection(selectedSoundList);
+	startModulationSetter->setCurrentSelection(selectedSoundList);
+	loopStartSetter->setCurrentSelection(selectedSoundList);
+	loopEndSetter->setCurrentSelection(selectedSoundList);
+	loopCrossfadeSetter->setCurrentSelection(selectedSoundList);
+
+	samplerEditorCommandManager->commandStatusChanged();
+
+	if (selectedSoundList.size() != 0 && selectedSoundList.getLast() != nullptr)
+	{
+		auto ms = selectedSoundList.getLast();
+
+		auto micIndex = jlimit<int>(0, ms->getNumMultiMicSamples() - 1, multimicSelector->getSelectedItemIndex());
+
+		currentWaveForm->setSoundToDisplay(ms, micIndex);
+
+		auto sound = ms->getReferenceToSound(micIndex);
+
+		ScopedPointer<AudioFormatReader> afr;
+
+		if (sound->isMonolithic())
+		{
+			afr = sound->createReaderForPreview();
+		}
+		else
+		{
+			afr = PresetHandler::getReaderForFile(sound->getFileName(true));
+		}
+
+		overview.setReader(afr.release());
+	}
+	else
+	{
+		currentWaveForm->setSoundToDisplay(nullptr);
+		overview.setReader(nullptr);
+	}
+
+	sampleSelector->clear(dontSendNotification);
+	multimicSelector->clear(dontSendNotification);
+	int sampleIndex = 1;
+
+	for (auto s : selectedSoundList)
+	{
+		sampleSelector->addItem(s->getSampleProperty(SampleIds::FileName).toString().replace("{PROJECT_FOLDER}", ""), sampleIndex++);
+	}
+
+	sampleSelector->setSelectedId(selectedSoundList.size(), dontSendNotification);
+
+	auto micPositions = StringArray::fromTokens(sampler->getStringForMicPositions(), ";", "");
+	micPositions.removeEmptyStrings();
+
+	int micIndex = 1;
+
+	for (auto t : micPositions)
+	{
+		multimicSelector->addItem(t, micIndex++);
+	}
+
+	multimicSelector->setTextWhenNothingSelected("No multimics");
+	multimicSelector->setTextWhenNoChoicesAvailable("No multimics");
+
+	updateWaveform();
 }
 
 void SampleEditor::paintOverChildren(Graphics &g)
@@ -864,6 +923,31 @@ void SampleEditor::updateWaveform()
 		graphHandler.rebuildIfDirty();
     
     repaint();
+}
+
+void SampleEditor::zoom(bool zoomOut, int mousePos/*=0*/)
+{
+	auto oldPos = (float)(viewport->getViewPositionX() + mousePos);
+	oldPos /= (double)jmax(1, viewport->getViewedComponent()->getWidth());
+
+
+
+	if (!zoomOut)
+	{
+		zoomFactor = jmin(128.0f, zoomFactor * 1.25f); resized();
+	}
+	else
+	{
+		zoomFactor = jmax(1.0f, zoomFactor / 1.25f); resized();
+	}
+
+	resized();
+
+	scrollBarMoved(&viewport->getHorizontalScrollBar(), 0.0f);
+
+	auto newWidth = viewport->getViewedComponent()->getWidth();
+
+	viewport->setViewPositionProportionately(oldPos, 0.0);
 }
 
 //[/MiscUserCode]

@@ -55,6 +55,13 @@ class HiseAudioThumbnail: public Component,
 {
 public:
 
+	enum class DisplayMode
+	{
+		SymmetricArea,
+		DownsampledCurve,
+		numDisplayModes
+	};
+
 	struct LookAndFeelMethods
 	{
 		virtual ~LookAndFeelMethods() {};
@@ -175,6 +182,15 @@ public:
 			
 	}
 
+	void setDisplayMode(DisplayMode newDisplayMode)
+	{
+		if (newDisplayMode != displayMode)
+		{
+			displayMode = newDisplayMode;
+			rebuildPaths();
+		}
+	};
+
 	void setDrawHorizontalLines(bool shouldDrawHorizontalLines)
 	{
 		drawHorizontalLines = shouldDrawHorizontalLines;
@@ -186,9 +202,6 @@ public:
 		if (rebuildOnUpdate)
 		{
 			loadingThread.stopThread(-1);
-			
-			
-
 			loadingThread.startThread(5);
 				
 			repaint();
@@ -212,6 +225,11 @@ public:
     
 	void setRange(const int left, const int right);
 private:
+
+	DisplayMode displayMode = DisplayMode::SymmetricArea;
+	AudioSampleBuffer downsampledValues;
+
+	void createCurvePathForCurrentView(bool isLeft, Rectangle<int> area);
 
     float waveformAlpha = 1.0f;
     float spectrumAlpha = 0.0f;
@@ -275,7 +293,7 @@ private:
 
 		void scalePathFromLevels(Path &lPath, RectangleList<float>& rects, Rectangle<float> bounds, const float* data, const int numSamples, bool scaleVertically);
 
-		void calculatePath(Path &p, float width, const float* l_, int numSamples, RectangleList<float>& rects);
+		void calculatePath(Path &p, float width, const float* l_, int numSamples, RectangleList<float>& rects, bool isLeft);
 
 	private:
 
@@ -292,6 +310,8 @@ private:
 	LoadingThread loadingThread;
 
 	Spectrum2D::Parameters::Ptr spectrumParameters;
+
+	bool specDirty = true;
 
 	ScopedPointer<AudioFormatReader> currentReader;
 
