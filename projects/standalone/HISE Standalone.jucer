@@ -89,7 +89,6 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="stk_wrapper" path="../../"/>
         <MODULEPATH id="hi_snex" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
@@ -135,7 +134,6 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="stk_wrapper" path="../../"/>
         <MODULEPATH id="hi_snex" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
@@ -199,7 +197,6 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="stk_wrapper" path="../../"/>
         <MODULEPATH id="hi_snex" path="../../"/>
       </MODULEPATHS>
     </VS2017>
@@ -242,7 +239,6 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="stk_wrapper" path="../../"/>
         <MODULEPATH id="hi_snex" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
@@ -277,7 +273,6 @@
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
             useGlobalPath="0"/>
-    <MODULE id="stk_wrapper" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <JUCEOPTIONS USE_IPP="1" USE_BACKEND="1" USE_FRONTEND="0" USE_RAW_FRONTEND="0"
                IS_STANDALONE_APP="1" USE_COPY_PROTECTION="0" HI_EXPORT_DSP_LIBRARY="0"
