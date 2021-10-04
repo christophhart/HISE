@@ -328,37 +328,12 @@ SampleEditorToolbarFactory::SampleEditorToolbarFactory(SampleEditor *editor_):
 
 ToolbarItemComponent * SampleEditorToolbarFactory::createItem(int itemId)
 {
-	ApplicationCommandManager *a = editor->samplerEditorCommandManager;
-
-	ToolbarButton *tb = new ToolbarButton(itemId, "", ToolbarPaths::createPath(itemId, false),
-													  ToolbarPaths::createPath(itemId, true));
-	tb->setCommandToTrigger(a, itemId, true);
-	
-	return tb;
+    return nullptr;
 }
 
 void SampleEditorToolbarFactory::getAllToolbarItemIds(Array<int> &ids)
 {
-	ids.clear();
 	
-	ids.add(SampleEditor::ZoomIn);
-	ids.add(SampleEditor::ZoomOut);
-	ids.add(SampleEditor::Analyser);
-
-	ids.add(spacerId);
-		
-	ids.add(SampleEditor::SelectWithMidi);
-
-	ids.add(spacerId);
-
-	ids.add(SampleEditor::EnableSampleStartArea);
-	ids.add(SampleEditor::EnableLoopArea);
-	ids.add(SampleEditor::EnablePlayArea);
-
-	ids.add(spacerId);
-
-	ids.add(SampleEditor::NormalizeVolume);
-	ids.add(SampleEditor::LoopEnabled);
 		
 };
 
@@ -461,6 +436,12 @@ static const unsigned char more[] = { 110,109,190,223,129,66,63,213,213,67,98,21
 157,67,211,141,201,66,127,218,171,67,190,223,129,66,127,218,171,67,98,168,198,232,65,127,218,171,67,0,0,0,0,20,78,157,67,0,0,0,0,143,98,139,67,98,0,0,0,0,20,238,114,67,168,198,232,65,63,213,85,67,190,223,129,66,63,213,85,67,99,109,190,223,129,66,0,0,
 0,0,98,211,141,201,66,0,0,0,0,190,223,1,67,168,198,232,65,190,223,1,67,190,223,129,66,98,190,223,1,67,211,141,201,66,211,141,201,66,190,223,1,67,190,223,129,66,190,223,1,67,98,168,198,232,65,190,223,1,67,0,0,0,0,211,141,201,66,0,0,0,0,190,223,129,66,
 98,0,0,0,0,168,198,232,65,168,198,232,65,0,0,0,0,190,223,129,66,0,0,0,0,99,101,0,0 };
+
+static const unsigned char zero[] = { 110,109,47,221,95,68,92,215,203,68,108,184,230,136,68,51,75,168,68,108,229,232,76,68,51,75,168,68,108,164,248,26,68,92,215,203,68,108,47,221,95,68,92,215,203,68,99,109,215,115,190,68,41,244,152,68,98,215,115,190,68,41,196,149,68,113,221,187,68,20,46,
+147,68,195,173,184,68,20,46,147,68,108,45,10,35,68,20,46,147,68,98,160,170,28,68,20,46,147,68,244,125,23,68,41,196,149,68,244,125,23,68,41,244,152,68,98,244,125,23,68,215,35,156,68,160,170,28,68,61,186,158,68,45,10,35,68,61,186,158,68,108,195,173,184,
+68,61,186,158,68,98,113,221,187,68,61,186,158,68,215,115,190,68,215,35,156,68,215,115,190,68,41,244,152,68,99,109,133,147,185,68,250,254,69,68,108,72,33,151,68,250,254,69,68,108,193,2,120,68,205,156,137,68,108,215,115,158,68,205,156,137,68,108,133,147,
+185,68,250,254,69,68,99,101,0,0 };
+
 }
 
 
@@ -481,6 +462,7 @@ juce::Path SampleEditorToolbarFactory::Factory::createPath(const String& url) co
 	LOAD_PATH_IF_URL("play-area", SampleToolbarIcons::playArea);
 	LOAD_PATH_IF_URL("loop-area", SampleToolbarIcons::loopArea);
 	LOAD_PATH_IF_URL("external", ColumnIcons::openWorkspaceIcon);
+    LOAD_PATH_IF_URL("zero", SampleToolbarIcons::zero);
 
 	return p;
 }

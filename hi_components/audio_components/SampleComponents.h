@@ -393,7 +393,7 @@ public:
 		else
 			currentClickArea = newArea;
 
-		setMouseCursor(currentClickArea == MultiChannelAudioBufferDisplay::numAreas ? MouseCursor::NormalCursor : MouseCursor::CrosshairCursor);
+		setMouseCursor(currentClickArea == AreaTypes::numAreas ? MouseCursor::NormalCursor : MouseCursor::CrosshairCursor);
 	}
 
 	float getCurrentSampleGain() const;
@@ -402,6 +402,8 @@ public:
 
 	AreaTypes currentClickArea = AreaTypes::numAreas;
 
+    bool zeroCrossing = true;
+    
 private:
 
 	AudioDisplayComponent::AreaTypes getAreaForModifiers(const MouseEvent& e) const;

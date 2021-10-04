@@ -1,26 +1,7 @@
-/*
-  ==============================================================================
-
-  This is an automatically generated GUI class created by the Introjucer!
-
-  Be careful when adding custom code to these files, as only the code within
-  the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
-  and re-saved.
-
-  Created with Introjucer version: 4.1.0
-
-  ------------------------------------------------------------------------------
-
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
-  Copyright (c) 2015 - ROLI Ltd.
-
-  ==============================================================================
-*/
 
 #ifndef __JUCE_HEADER_A3E3B1B2DF55A952__
 #define __JUCE_HEADER_A3E3B1B2DF55A952__
 
-//[Headers]     -- You can add your own extra header files here --
 namespace hise {
 using namespace juce;
 
@@ -28,34 +9,112 @@ struct ExternalFileChangeWatcher;
 class SamplerBody;
 class SampleEditHandler;
 
-//[/Headers]
+struct ExternalFileChangeWatcher : public Timer,
+                                   public SampleMap::Listener
+{
+    ExternalFileChangeWatcher(ModulatorSampler* s, Array<File> fileList_):
+        fileList(fileList_),
+        sampler(s)
+    {
+        startTimer(1000);
 
-#include "ValueSettingComponent.h"
+        sampler->getSampleMap()->addListener(this);
+
+        for (const File& f : fileList)
+            modificationTimes.add(f.getLastModificationTime());
+    }
+
+    virtual void sampleMapWasChanged(PoolReference newSampleMap)
+    {
+        stopTimer();
+        sampler->getSampleMap()->removeListener(this);
+    }
+
+    virtual void sampleMapCleared()
+    {
+        stopTimer();
+        sampler->getSampleMap()->removeListener(this);
+    };
+
+    void timerCallback() override
+    {
+        for (int i = 0; i < fileList.size(); i++)
+        {
+            auto t = fileList[i].getLastModificationTime();
+
+            if (t != modificationTimes[i])
+            {
+                stopTimer();
+
+                if (PresetHandler::showYesNoWindow("Detected File change", "Press OK to reload the samplemap"))
+                {
+                    sampler->getSampleMap()->saveAndReloadMap();
+                }
+                
+                modificationTimes.clear();
+
+                for (const auto& l : fileList)
+                    modificationTimes.add(l.getLastModificationTime());
+                
+                startTimer(1000);
+            }
+        }
+    }
+
+    WeakReference<ModulatorSampler> sampler;
+    const Array<File> fileList;
+    Array<Time> modificationTimes;
+};
 
 
-//==============================================================================
-/**
-																	//[Comments]
-	\cond HIDDEN_SYMBOLS
-	An auto-generated component, created by the Introjucer.
-
-	Describe your class and how it works here!
-																	//[/Comments]
-*/
 class SampleEditor : public Component,
 	public SamplerSubEditor,
-	public ApplicationCommandTarget,
 	public AudioDisplayComponent::Listener,
     public ComboBox::Listener,
 	public SafeChangeListener,
 	public SampleMap::Listener,
-	public ScrollBar::Listener
+	public ScrollBar::Listener,
+    public Timer
 {
 public:
+    
+    /** All application commands are collected here. */
+    enum class SampleMapCommands
+    {
+        // Undo / Redo
+        ZoomIn = 0x3000,
+        ZoomOut,
+        EnableSampleStartArea,
+        EnableLoopArea,
+        EnablePlayArea,
+        SelectWithMidi,
+        NormalizeVolume,
+        LoopEnabled,
+        Analyser,
+        ExternalEditor,
+        ZeroCrossing,
+        numCommands
+    };
+    
 	//==============================================================================
 	SampleEditor(ModulatorSampler *s, SamplerBody *b);
 	~SampleEditor();
 
+    void timerCallback() override
+    {
+        for(auto b: menuButtons)
+        {
+            auto state = getCommandIdForName(b->getName());
+            b->setToggleStateAndUpdateIcon(getState(state));
+        }
+    }
+    
+    static String getNameForCommand(SampleMapCommands c, bool on=true);
+    static SampleMapCommands getCommandIdForName(const String& n);
+    static String getTooltipForCommand(SampleMapCommands c);
+    bool getState(SampleMapCommands c) const;
+    void perform(SampleMapCommands c);
+    
 	void changeListenerCallback(SafeChangeBroadcaster *)
 	{
 		updateWaveform();
@@ -85,8 +144,6 @@ public:
 			currentWaveForm->setSoundToDisplay(nullptr);
 		}
 	}
-
-	AudioSampleBuffer& getGraphBuffer();
 
 	void rangeChanged(AudioDisplayComponent *c, int areaThatWasChanged) override
 	{
@@ -149,53 +206,8 @@ public:
 		}
 	};
 
-	/** All application commands are collected here. */
-	enum SampleMapCommands
-	{
-		// Undo / Redo
-		ZoomIn = 0x3000,
-		ZoomOut,
-		EnableSampleStartArea,
-		EnableLoopArea,
-		EnablePlayArea,
-		SelectWithMidi,
-		NormalizeVolume,
-		LoopEnabled,
-		Analyser,
-		ExternalEditor,
-		numCommands
-	};
-
-	ApplicationCommandTarget* getNextCommandTarget() override
-	{
-		return findFirstTargetParentComponent();
-	};
-
-	void getAllCommands (Array<CommandID>& commands) override
-	{
-		const CommandID id[] = {ZoomIn,
-								ZoomOut,
-								
-								EnableSampleStartArea,
-								EnableLoopArea,
-								EnablePlayArea,
-								SelectWithMidi,
-								NormalizeVolume,
-								LoopEnabled,
-								Analyser,
-								ExternalEditor,
-								};
-
-		commands.addArray(id, numElementsInArray(id));
-	};
-
-	void getCommandInfo (CommandID commandID, ApplicationCommandInfo &result) override;;
-
-	bool perform (const InvocationInfo &info) override;
-
-
-	void toggleAnalyser();
 	
+
 
 	void soundsSelected(const SampleSelection  &selectedSoundList) override;
 
@@ -234,38 +246,13 @@ public:
     void paint (Graphics& g);
     void resized();
 
-	Component* addButton(CommandID commandId, bool hasState, const String& name, const String& offName = String());
+	Component* addButton(SampleMapCommands commandId, bool hasState);
 
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	friend class SampleEditorToolbarFactory;
 
-	struct GraphHandler : public AsyncUpdater
-	{
-		GraphHandler(SampleEditor& parent_) :
-			parent(parent_)
-		{};
-
-		void handleAsyncUpdate()
-		{
-			parent.graph->refreshDisplayedBuffer();
-		}
-
-		void rebuildIfDirty()
-		{
-			auto cs = parent.currentWaveForm->getCurrentSound();
-			if (lastSound != cs)
-			{
-				lastSound = const_cast<ModulatorSamplerSound*>(cs);
-				triggerAsyncUpdate();
-			}
-		};
-
-		SampleEditor& parent;
-		AudioSampleBuffer graphBuffer;
-		ModulatorSamplerSound::WeakPtr lastSound;
-	} graphHandler;
-
+	
 	
 
 	float zoomFactor;
@@ -278,17 +265,11 @@ private:
 	ScrollbarFader fader;
 	ScrollbarFader::Laf laf;
 
-	ScopedPointer<snex::ui::Graph> graph;
-
 	ScopedPointer<Component> viewContent;
 
 	ScopedPointer<SamplerSoundWaveform> currentWaveForm;
 
 	ReferenceCountedArray<ModulatorSamplerSound> selection;
-
-	ScopedPointer<SampleEditorToolbarFactory> toolbarFactory;
-
-	ScopedPointer<ApplicationCommandManager> samplerEditorCommandManager;
 
 	OwnedArray<HiseShapeButton> menuButtons;
 
@@ -309,7 +290,6 @@ private:
     ScopedPointer<ValueSettingComponent> loopEndSetter;
     ScopedPointer<ValueSettingComponent> loopCrossfadeSetter;
     ScopedPointer<ValueSettingComponent> startModulationSetter;
-    ScopedPointer<Toolbar> toolbar;
     ScopedPointer<ValueSettingComponent> panSetter;
 	ScopedPointer<ExternalFileChangeWatcher> externalWatcher;
 

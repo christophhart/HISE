@@ -1,33 +1,5 @@
-/*
-  ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
-
-  Be careful when adding custom code to these files, as only the code within
-  the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
-  and re-saved.
-
-  Created with Introjucer version: 4.1.0
-
-  ------------------------------------------------------------------------------
-
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
-  Copyright (c) 2015 - ROLI Ltd.
-
-  ==============================================================================
-*/
-
-//[Headers] You can add your own extra header files here...
 namespace hise { using namespace juce;
-//[/Headers]
-
-#include "SampleEditor.h"
-
-
-//[MiscUserDefs] You can add your own user definitions and misc code here...
-//[/MiscUserDefs]
-
-
 
 struct VerticalZoomer : public Component,
 						public Slider::Listener,
@@ -143,36 +115,11 @@ struct VerticalZoomer : public Component,
 	Slider zoomSlider;
 };
 
-struct SamplePositionPainter : public snex::ui::Graph::PeriodicUpdaterBase
-{
-	SamplePositionPainter(ModulatorSampler* s, snex::ui::Graph& g) :
-		PeriodicUpdaterBase(g, s->getMainController()->getGlobalUIUpdater()),
-		sampler(s)
-	{};
-
-	void paintPosition(Graphics& g, Range<int> range)
-	{
-		auto s = sampler->getSamplerDisplayValues().currentSamplePos;
-
-		if (parent.getSamplePosition(s))
-		{
-			g.setColour(Colours::white.withAlpha(0.7f));
-			g.drawVerticalLine((int)s, 24, parent.getHeight());
-		}
-	}
-
-	WeakReference<ModulatorSampler> sampler;
-};
-
 //==============================================================================
 SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	SamplerSubEditor(s->getSampleEditHandler()),
-	sampler(s),
-	graphHandler(*this)
+	sampler(s)
 {
-    //[Constructor_pre] You can add your own custom stuff here..
-    //[/Constructor_pre]
-
     addAndMakeVisible (viewport = new Viewport ("new viewport"));
     viewport->setScrollBarsShown (false, true);
 
@@ -184,9 +131,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
     addAndMakeVisible (loopEndSetter = new ValueSettingComponent(s));
     addAndMakeVisible (loopCrossfadeSetter = new ValueSettingComponent(s));
     addAndMakeVisible (startModulationSetter = new ValueSettingComponent(s));
-    addAndMakeVisible (toolbar = new Toolbar());
-    toolbar->setName ("new component");
-
+    
 	addAndMakeVisible(overview);
 
     addAndMakeVisible(spectrumSlider);
@@ -217,9 +162,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 
     addAndMakeVisible (panSetter = new ValueSettingComponent(s));
 
-    //[UserPreSize]
-
-	viewContent = new SamplerDisplayWithTimeline();
+    viewContent = new SamplerDisplayWithTimeline();
 
 	viewContent->addAndMakeVisible(currentWaveForm = new SamplerSoundWaveform(sampler));
 
@@ -232,50 +175,29 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 
 	addAndMakeVisible(verticalZoomer = new VerticalZoomer(currentWaveForm, sampler));
 
-	addAndMakeVisible(graph = new snex::ui::Graph());
-	graph->setVisible(false);
-
-	graph->getBufferFunction = BIND_MEMBER_FUNCTION_0(SampleEditor::getGraphBuffer);
-	graph->getSampleRateFunction = [this]()
-	{
-		if (auto c = currentWaveForm->getCurrentSound())
-			return c->getSampleRate();
-
-		return 0.0;
-	};
-
-	graph->drawMarkerFunction = [](Graphics& g)
-	{
-	};
-
-	graph->setPeriodicUpdater(new SamplePositionPainter(sampler, *graph));
-
 	currentWaveForm->setVisible(true);
 
 	zoomFactor = 1.0f;
 
 	body = b;
 
-	samplerEditorCommandManager = new ApplicationCommandManager();
-
-	samplerEditorCommandManager->registerAllCommandsForTarget(this);
-	samplerEditorCommandManager->getKeyMappings()->resetToDefaultMappings();
-
-	samplerEditorCommandManager->setFirstCommandTarget(this);
-
-	toolbarFactory = new SampleEditorToolbarFactory(this);
-
-	addButton(SampleMapCommands::ZoomIn, false, "zoom-in");
-	addButton(SampleMapCommands::ZoomOut, false, "zoom-out");
-    analyseButton = addButton(SampleMapCommands::Analyser, true, "analyse");
+	addButton(SampleMapCommands::ZoomIn, false);
+	addButton(SampleMapCommands::ZoomOut, false);
+    addButton(SampleMapCommands::SelectWithMidi, true);
     
-	addButton(SampleMapCommands::SelectWithMidi, true, "select-midi", "select-mouse");
-	addButton(SampleMapCommands::EnablePlayArea, true, "play-area");
-	addButton(SampleMapCommands::EnableSampleStartArea, true, "samplestart-area");
-	addButton(SampleMapCommands::EnableLoopArea, true, "loop-area");
-    addButton(SampleMapCommands::NormalizeVolume, true, "normalise-on", "normalise-off");
-    addButton(SampleMapCommands::LoopEnabled, true, "loop-on", "loop-off");
-	externalButton = addButton(SampleMapCommands::ExternalEditor, false, "external");
+    analyseButton = addButton(SampleMapCommands::Analyser, true);
+    
+	addButton(SampleMapCommands::EnablePlayArea, true);
+	addButton(SampleMapCommands::EnableSampleStartArea, true);
+	addButton(SampleMapCommands::EnableLoopArea, true);
+    addButton(SampleMapCommands::ZeroCrossing, false);
+    
+    externalButton = addButton(SampleMapCommands::ExternalEditor, false);
+    
+    addButton(SampleMapCommands::NormalizeVolume, true);
+    addButton(SampleMapCommands::LoopEnabled, true);
+	
+    
     
     addAndMakeVisible(sampleSelector = new ComboBox());
     addAndMakeVisible(multimicSelector = new ComboBox());
@@ -289,13 +211,6 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
     claf.setDefaultColours(*sampleSelector);
     claf.setDefaultColours(*multimicSelector);
     
-	toolbar->setStyle(Toolbar::ToolbarItemStyle::iconsOnly);
-	toolbar->addDefaultItems(*toolbarFactory);
-
-	toolbar->setColour(Toolbar::ColourIds::backgroundColourId, Colours::transparentBlack);
-	toolbar->setColour(Toolbar::ColourIds::buttonMouseOverBackgroundColourId, Colours::white.withAlpha(0.3f));
-	toolbar->setColour(Toolbar::ColourIds::buttonMouseDownBackgroundColourId, Colours::white.withAlpha(0.4f));
-
 	panSetter->setPropertyType(SampleIds::Pan);
 	volumeSetter->setPropertyType(SampleIds::Volume);
 	pitchSetter->setPropertyType(SampleIds::Pitch);
@@ -332,23 +247,192 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 
 	overview.setShouldScaleVertically(true);
 	overview.setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xFF333333));
-
+    overview.setBufferedToImage(false);
+    
     currentWaveForm->setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xff1d1d1d));
     currentWaveForm->setColour(AudioDisplayComponent::ColourIds::outlineColour, Colour(0xff1d1d1d));
+    
+    startTimer(200);
     //[/Constructor]
+}
+
+String SampleEditor::getNameForCommand(SampleMapCommands c, bool on)
+{
+    switch(c)
+    {
+        case SampleMapCommands::ZoomIn: return on ? "zoom-in" : "";
+        case SampleMapCommands::ZoomOut: return on ? "zoom-out" : "";
+        case SampleMapCommands::Analyser: return on ? "analyse" : "";
+        case SampleMapCommands::SelectWithMidi: return on ?"select-midi" : "select-mouse";
+        case SampleMapCommands::EnablePlayArea: return on ? "play-area" : "";
+        case SampleMapCommands::EnableSampleStartArea: return on ? "samplestart-area" : "";
+        case SampleMapCommands::EnableLoopArea: return on ? "loop-area" : "";
+        case SampleMapCommands::NormalizeVolume: return on ? "normalise-on" : "normalise-off";
+        case SampleMapCommands::LoopEnabled: return on ? "loop-on" : "loop-off";
+        case SampleMapCommands::ExternalEditor: return on ? "external" : "";
+        case SampleMapCommands::ZeroCrossing: return on ? "zero" : "";
+        default: return "";
+    }
+}
+
+SampleEditor::SampleMapCommands SampleEditor::getCommandIdForName(const String& n)
+{
+    for(int i = 0; i < (int)SampleMapCommands::numCommands; i++)
+    {
+        if(getNameForCommand((SampleMapCommands)i) == n)
+            return (SampleMapCommands)i;
+    }
+    
+    return {};
+}
+
+String SampleEditor::getTooltipForCommand(SampleMapCommands c)
+{
+    switch(c)
+    {
+        case SampleMapCommands::ZoomIn:                 return "Zoom in the waveform";
+        case SampleMapCommands::ZoomOut:                return "Zoom out the waveform";
+        case SampleMapCommands::Analyser:               return "Edit spectrogram properties";
+        case SampleMapCommands::SelectWithMidi:         return "Enable MIDI selection";
+        case SampleMapCommands::EnablePlayArea:         return "Enable Sample range editing";
+        case SampleMapCommands::EnableSampleStartArea:  return "Enable SampleStartMod editing";
+        case SampleMapCommands::EnableLoopArea:         return "Enable loop range editing";
+        case SampleMapCommands::NormalizeVolume:        return "Normalise selected samples";
+        case SampleMapCommands::LoopEnabled:            return "Enable looping for selection";
+        case SampleMapCommands::ExternalEditor:         return "Open current sample selection in external audio editor";
+        case SampleMapCommands::ZeroCrossing:           return "Enable zero crossing";
+            
+        default: return "";
+    }
+}
+
+bool SampleEditor::getState(SampleMapCommands c) const
+{
+    bool isSelected = !selection.isEmpty();
+    
+    switch(c)
+    {
+        case SampleMapCommands::ZoomIn:         return false;
+        case SampleMapCommands::ZoomOut:        return false;
+        case SampleMapCommands::Analyser:       return false;
+        case SampleMapCommands::SelectWithMidi: return sampler->getEditorState(ModulatorSampler::MidiSelectActive);
+        case SampleMapCommands::EnablePlayArea: return currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::PlayArea;
+        case SampleMapCommands::EnableSampleStartArea: return currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::SampleStartArea;
+        case SampleMapCommands::EnableLoopArea: return currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::LoopArea;
+        case SampleMapCommands::NormalizeVolume: return isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::Normalized);
+        case SampleMapCommands::LoopEnabled:    return isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled);
+        case SampleMapCommands::ExternalEditor: return false;
+        case SampleMapCommands::ZeroCrossing:   return currentWaveForm->zeroCrossing;
+        default: return false;
+    }
+}
+
+void SampleEditor::perform(SampleMapCommands c)
+{
+    switch(c)
+    {
+    case SampleMapCommands::NormalizeVolume:  SampleEditHandler::SampleEditingActions::normalizeSamples(handler, this); return;
+    case SampleMapCommands::LoopEnabled:
+    {
+        for(int i = 0; i < selection.size(); i++)
+        {
+           selection[i]->toggleBoolProperty(SampleIds::LoopEnabled);
+        };
+
+        const bool isOn = (selection.size() != 0) ? (bool)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled) : false;
+
+        currentWaveForm->getSampleArea(SamplerSoundWaveform::LoopArea)->setVisible(isOn);
+        currentWaveForm->getSampleArea(SamplerSoundWaveform::LoopCrossfadeArea)->setVisible(isOn);
+        return;
+    }
+    case SampleMapCommands::SelectWithMidi:   sampler->setEditorState(ModulatorSampler::MidiSelectActive, !sampler->getEditorState(ModulatorSampler::MidiSelectActive));
+        return;
+    case SampleMapCommands::EnableSampleStartArea:
+        currentWaveForm->setClickArea(SamplerSoundWaveform::SampleStartArea);
+        return;
+    case SampleMapCommands::EnableLoopArea:
+        currentWaveForm->setClickArea(SamplerSoundWaveform::LoopArea);
+        return;
+    case SampleMapCommands::EnablePlayArea:
+        currentWaveForm->setClickArea(SamplerSoundWaveform::PlayArea);
+        return;
+    case SampleMapCommands::ZeroCrossing:
+        currentWaveForm->zeroCrossing = !currentWaveForm->zeroCrossing;
+        return;
+    case SampleMapCommands::ZoomIn:
+        zoom(false);
+        return;
+    case SampleMapCommands::ZoomOut:
+        zoom(true);
+        return;
+    case SampleMapCommands::Analyser:
+    {
+        auto n = new Spectrum2D::Parameters::Editor(currentWaveForm->getThumbnail()->getSpectrumParameters());
+        findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, analyseButton, {8, 16});
+        return;
+    }
+    case SampleMapCommands::ExternalEditor:
+    {
+        if (sampler->getSampleMap()->isMonolith())
+        {
+            PresetHandler::showMessageWindow("Monolith file", "You can't edit a monolith file", PresetHandler::IconType::Error);
+            return;
+        }
+
+        if (sampler->getSampleMap()->isUsingUnsavedValueTree())
+        {
+            PresetHandler::showMessageWindow("Unsaved samplemap", "You need to save your samplemap to a file before starting the external editor.  \n> This is required so that you can reload the map after editing");
+            return;
+        }
+
+        auto fp = GET_HISE_SETTING(sampler, HiseSettings::Other::ExternalEditorPath).toString();
+
+        if (fp.isEmpty())
+        {
+            PresetHandler::showMessageWindow("No external editor specified", "You need to set an audio editor you want to use for this operation.  \n> Settings -> Other -> ExternalEditorPath", PresetHandler::IconType::Error);
+
+            return;
+        }
+
+        File editor(fp);
+
+        String args;
+
+        Array<File> editedFiles;
+
+        for (auto s : selection)
+        {
+            for (int i = 0; i < s->getNumMultiMicSamples(); i++)
+            {
+                editedFiles.add(File(s->getReferenceToSound(i)->getFileName(true)));
+                s->getReferenceToSound(i)->closeFileHandle();
+            }
+        }
+
+#if JUCE_WINDOWS
+        for(auto& f: editedFiles)
+            args << "\"" << f.getFullPathName() << "\" ";
+#else
+        for(auto& f: editedFiles)
+            args << f.getFullPathName() << " ";
+#endif
+
+        externalWatcher = new ExternalFileChangeWatcher(sampler, editedFiles);
+        editor.startAsProcess(args);
+
+        return;
+    }
+    }
+    return;
 }
 
 SampleEditor::~SampleEditor()
 {
-    //[Destructor_pre]. You can add your own custom destruction code here..
-	samplerEditorCommandManager->setFirstCommandTarget(nullptr);
-
-
 	if (sampler != nullptr)
 	{
 		sampler->getSampleMap()->removeListener(this);
 	}
-    //[/Destructor_pre]
+    
 
     viewport = nullptr;
     volumeSetter = nullptr;
@@ -359,12 +443,7 @@ SampleEditor::~SampleEditor()
     loopEndSetter = nullptr;
     loopCrossfadeSetter = nullptr;
     startModulationSetter = nullptr;
-    toolbar = nullptr;
     panSetter = nullptr;
-
-
-    //[Destructor]. You can add your own custom destruction code here..
-    //[/Destructor]
 }
 
 void SampleEditor::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart)
@@ -389,28 +468,6 @@ void SampleEditor::samplePropertyWasChanged(ModulatorSamplerSound* s, const Iden
 		
 }
 
-juce::AudioSampleBuffer& SampleEditor::getGraphBuffer()
-{
-	if (!graphHandler.lastSound)
-		graphHandler.graphBuffer.setSize(0, 0);
-	else
-	{
-		auto sound = graphHandler.lastSound->getReferenceToSound(0);
-
-		ScopedPointer<AudioFormatReader> afr;
-
-		if (sound->isMonolithic())
-			afr = sound->createReaderForPreview();
-		else
-			afr = PresetHandler::getReaderForFile(sound->getFileName(true));
-
-		graphHandler.graphBuffer.setSize(afr->numChannels, afr->lengthInSamples);
-		afr->read(&graphHandler.graphBuffer, 0, afr->lengthInSamples, 0, true, true);
-		afr = nullptr;
-	}
-	
-	return graphHandler.graphBuffer;
-}
 
 //==============================================================================
 void SampleEditor::paint (Graphics& g)
@@ -555,229 +612,27 @@ void SampleEditor::resized()
 
 
 
-Component* SampleEditor::addButton(CommandID commandId, bool hasState, const String& name, const String& offName /*= String()*/)
+Component* SampleEditor::addButton(SampleMapCommands commandId, bool hasState)
 {
 	SampleEditorToolbarFactory::Factory f;
-	auto newButton = new HiseShapeButton(name, nullptr, f, offName);
+    auto newButton = new HiseShapeButton(getNameForCommand(commandId, true), nullptr, f, getNameForCommand(commandId, false));
 
 	if (hasState)
 		newButton->setToggleModeWithColourChange(true);
 
+    newButton->setTooltip(getTooltipForCommand(commandId));
 	newButton->setClickingTogglesState(false);
-	newButton->setCommandToTrigger(samplerEditorCommandManager, commandId, true);
+	
+    newButton->onClick = [commandId, this]()
+    {
+        perform(commandId);
+    };
+    
 	menuButtons.add(newButton);
 	addAndMakeVisible(newButton);
 	return newButton;
 }
 
-//[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
-
-struct ExternalFileChangeWatcher : public Timer,
-								   public SampleMap::Listener
-{
-	ExternalFileChangeWatcher(ModulatorSampler* s, Array<File> fileList_):
-		fileList(fileList_),
-		sampler(s)
-	{
-		startTimer(1000);
-
-		sampler->getSampleMap()->addListener(this);
-
-		for (const File& f : fileList)
-			modificationTimes.add(f.getLastModificationTime());
-	}
-
-	virtual void sampleMapWasChanged(PoolReference newSampleMap)
-	{
-		stopTimer();
-		sampler->getSampleMap()->removeListener(this);
-	}
-
-	virtual void sampleMapCleared()
-	{
-		stopTimer();
-		sampler->getSampleMap()->removeListener(this);
-	};
-
-	void timerCallback() override
-	{
-		for (int i = 0; i < fileList.size(); i++)
-		{
-			auto t = fileList[i].getLastModificationTime();
-
-			if (t != modificationTimes[i])
-			{
-				stopTimer();
-
-				if (PresetHandler::showYesNoWindow("Detected File change", "Press OK to reload the samplemap"))
-				{
-					sampler->getSampleMap()->saveAndReloadMap();
-				}
-				
-				modificationTimes.clear();
-
-				for (const auto& l : fileList)
-					modificationTimes.add(l.getLastModificationTime());
-				
-				startTimer(1000);
-			}
-		}
-	}
-
-	WeakReference<ModulatorSampler> sampler;
-	const Array<File> fileList;
-	Array<Time> modificationTimes;
-};
-
-void SampleEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo &result)
-{
-	const bool isSelected = selection.size() > 0 && selection.getLast() != nullptr;
-
-	switch (commandID)
-	{
-	case ZoomIn:			result.setInfo("Zoom In", "Zoom in the sample map", "Zooming", 0);
-		result.addDefaultKeypress('+', ModifierKeys::commandModifier);
-		result.setActive(isSelected && zoomFactor != 16.0f);
-		break;
-	case ZoomOut:			result.setInfo("Zoom Out", "Zoom out the sample map", "Zooming", 0);
-		result.addDefaultKeypress('-', ModifierKeys::commandModifier);
-		result.setActive(isSelected && zoomFactor != 1.0f);
-		break;
-	case EnableSampleStartArea:	result.setInfo("Change SampleStart", "Change SampleStart", "Areas", 0);
-		result.setActive(true);
-		result.setTicked(currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::SampleStartArea);
-		break;
-	case EnableLoopArea:	result.setInfo("Change loop range", "Change loop range", "Areas", 0);
-		result.setActive(true);
-		result.setTicked(currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::LoopArea);
-		break;
-	case EnablePlayArea:	result.setInfo("Change sample range", "Change sample range", "Areas", 0);
-		result.setActive(true);
-		result.setTicked(currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::PlayArea);
-		break;
-	case SelectWithMidi:	result.setInfo("Midi Select", "Autoselect the most recently triggered sound", "Tools", 0);
-		result.setActive(true);
-		result.setTicked(!sampler->getEditorState(ModulatorSampler::MidiSelectActive));
-		break;
-	case NormalizeVolume:	result.setInfo("Normalize Volume", "Normalize the sample volume to 0dB", "Properties", 0);
-		result.setActive(isSelected);
-		result.setTicked(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::Normalized));
-		break;
-	case LoopEnabled:		result.setInfo("Loop Enabled", "Enable Loop Playback", "Properties", 0);
-		result.setActive(isSelected);
-		result.setTicked(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled));
-		break;
-	case Analyser:			result.setInfo("Show Spectrogram properties", "Edit Spectrogram properties", "Properties", 0);
-		result.setActive(isSelected);
-		break;
-	case ExternalEditor:    result.setInfo("Edit in external editor", "External Editor", "Properties", 0);
-		result.setActive(isSelected);
-		break;
-	}
-}
-
-bool SampleEditor::perform (const InvocationInfo &info)
-{
-
-	switch(info.commandID)
-	{
-	case NormalizeVolume:  SampleEditHandler::SampleEditingActions::normalizeSamples(handler, this); return true;
-	case LoopEnabled:	   {for(int i = 0; i < selection.size(); i++)
-						   {
-							   selection[i]->toggleBoolProperty(SampleIds::LoopEnabled);
-						   };
-
-						   const bool isOn = (selection.size() != 0) ? (bool)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled) : false;
-
-						   currentWaveForm->getSampleArea(SamplerSoundWaveform::LoopArea)->setVisible(isOn);
-						   currentWaveForm->getSampleArea(SamplerSoundWaveform::LoopCrossfadeArea)->setVisible(isOn);
-						   return true;
-						   }
-	case SelectWithMidi:   sampler->setEditorState(ModulatorSampler::MidiSelectActive, !sampler->getEditorState(ModulatorSampler::MidiSelectActive));
-						   samplerEditorCommandManager->commandStatusChanged();
-						   return true;
-	case EnableSampleStartArea:	currentWaveForm->setClickArea(SamplerSoundWaveform::SampleStartArea);
-		samplerEditorCommandManager->commandStatusChanged();
-								return true;
-	case EnableLoopArea:	currentWaveForm->setClickArea(SamplerSoundWaveform::LoopArea);
-		samplerEditorCommandManager->commandStatusChanged();  return true;
-	case EnablePlayArea:	currentWaveForm->setClickArea(SamplerSoundWaveform::PlayArea);
-		samplerEditorCommandManager->commandStatusChanged(); return true;
-	case ZoomIn:			zoom(false); return true;
-	case ZoomOut:			zoom(true); return true;
-	case Analyser:			
-	{
-		auto n = new Spectrum2D::Parameters::Editor(currentWaveForm->getThumbnail()->getSpectrumParameters());
-		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, analyseButton, {8, 16});
-		return true;
-	}
-	case ExternalEditor:
-	{
-		if (sampler->getSampleMap()->isMonolith())
-		{
-			PresetHandler::showMessageWindow("Monolith file", "You can't edit a monolith file", PresetHandler::IconType::Error);
-			return true;
-		}
-
-		if (sampler->getSampleMap()->isUsingUnsavedValueTree())
-		{
-			PresetHandler::showMessageWindow("Unsaved samplemap", "You need to save your samplemap to a file before starting the external editor.  \n> This is required so that you can reload the map after editing");
-			return true;
-		}
-
-		auto fp = GET_HISE_SETTING(sampler, HiseSettings::Other::ExternalEditorPath).toString();
-
-		if (fp.isEmpty())
-		{
-			PresetHandler::showMessageWindow("No external editor specified", "You need to set an audio editor you want to use for this operation.  \n> Settings -> Other -> ExternalEditorPath", PresetHandler::IconType::Error);
-
-			return true;
-		}
-
-		File editor(fp);
-
-		String args;
-
-		Array<File> editedFiles;
-
-		for (auto s : selection)
-		{
-			for (int i = 0; i < s->getNumMultiMicSamples(); i++)
-			{
-				editedFiles.add(File(s->getReferenceToSound(i)->getFileName(true)));
-				s->getReferenceToSound(i)->closeFileHandle();
-			}
-		}
-
-#if JUCE_WINDOWS
-		for(auto& f: editedFiles)
-			args << "\"" << f.getFullPathName() << "\" ";
-#else
-        for(auto& f: editedFiles)
-            args << f.getFullPathName() << " ";
-#endif
-
-		externalWatcher = new ExternalFileChangeWatcher(sampler, editedFiles);
-
-		editor.startAsProcess(args);
-
-		return true;
-	}
-	}
-	return false;
-}
-
-
-void SampleEditor::toggleAnalyser()
-{
-	auto graphIsVisible = graph->isVisible();
-
-	graph->setVisible(!graphIsVisible);
-	viewport->setVisible(graphIsVisible);
-
-	updateWaveform();
-	resized();
-}
 
 void SampleEditor::soundsSelected(const SampleSelection &selectedSoundList)
 {
@@ -795,8 +650,6 @@ void SampleEditor::soundsSelected(const SampleSelection &selectedSoundList)
 	loopStartSetter->setCurrentSelection(selectedSoundList);
 	loopEndSetter->setCurrentSelection(selectedSoundList);
 	loopCrossfadeSetter->setCurrentSelection(selectedSoundList);
-
-	samplerEditorCommandManager->commandStatusChanged();
 
 	if (selectedSoundList.size() != 0 && selectedSoundList.getLast() != nullptr)
 	{
@@ -914,14 +767,9 @@ void SampleEditor::paintOverChildren(Graphics &g)
 
 void SampleEditor::updateWaveform()
 {
-	samplerEditorCommandManager->commandStatusChanged();
-
 	if(viewport->isVisible())
 		currentWaveForm->updateRanges();
 
-	if (graph->isVisible())
-		graphHandler.rebuildIfDirty();
-    
     repaint();
 }
 

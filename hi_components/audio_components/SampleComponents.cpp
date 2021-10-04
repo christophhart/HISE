@@ -546,8 +546,34 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 
 void SamplerSoundWaveform::mouseDown(const MouseEvent& e)
 {
+    auto a =getAreaForModifiers(e);
+    auto propId = getSampleIdToChange(a, e);
+    
+    if(propId.isValid())
+    {
+        auto n = (double)e.getPosition().getX() / (double)getWidth();
+        
+        auto value = roundToInt(timeProperties.sampleLength * n);
+        
+        if(propId == SampleIds::SampleStartMod)
+            value -= (int)currentSound->getSampleProperty(SampleIds::SampleStart);
+        
+        if(zeroCrossing)
+        {
+            value = getThumbnail()->getNextZero(value);
+        }
+        
+        auto r = currentSound->getPropertyRange(propId);
+        
+        value = jlimit(r.getStart(), r.getEnd(), value);
+        
+        currentSound->setSampleProperty(propId, value, true);
+        return;
+    }
+    
 	if (e.mods.isAltDown())
 	{
+        
 		jassertfalse;
 	}
 }

@@ -527,6 +527,8 @@ void HiseAudioThumbnail::LoadingThread::run()
 			parent->rightPeaks.swapWith(rRects);
 			std::swap(newSpec, parent->spectrum);
 
+            std::swap(parent->downsampledValues, tempBuffer);
+            
 			parent->isClear = false;
 
 			parent->refresh();
@@ -580,36 +582,51 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 	if (parent->displayMode == DisplayMode::DownsampledCurve)
 	{
 		p.clear();
-		stride = jmax(1, roundToInt(1.5f * rawStride));
+		stride = jmax(1, roundToInt(rawStride));
 
+        parent->useRectList = stride > JUCE_LIVE_CONSTANT(40);
+        
+        if(parent->useRectList)
+            stride /= 2;
+        
 		auto numDownsampled = numSamples / stride;
-
-		parent->downsampledValues.setSize(parent->rBuffer.isBuffer() ? 2 : 1, numDownsampled);
+        bool forceMaxValue = false;
+        
+        if(isLeft)
+            tempBuffer = AudioSampleBuffer(parent->rBuffer.isBuffer() ? 2 : 1, numDownsampled);
 
 		bool useMax = false;
 
+        auto getBufferValue = [&](int i)
+        {
+            int numToCheck = jmin(numSamples - i, parent->useRectList ? stride * 2 : stride);
+            auto range = FloatVectorOperations::findMinAndMax(l_ + i, numToCheck);
+
+            float v = useMax ? range.getStart() : range.getEnd();
+
+            
+
+            if (stride < 10)
+            {
+                if (std::abs(range.getStart()) > std::abs(range.getEnd()))
+                    v = range.getStart();
+                else
+                    v = range.getEnd();
+            }
+            
+            v = jlimit<float>(-1.0f, 1.0f, v);
+            
+            return v;
+        };
+        
 		for (int i = 0; i < numSamples; i += stride)
 		{
-			int numToCheck = jmin(numSamples - i, stride);
-			auto range = FloatVectorOperations::findMinAndMax(l_ + i, numToCheck);
-
-			auto bIndex = jlimit(0, numDownsampled - 1, i / stride);
-
-			float v = useMax ? range.getStart() : range.getEnd();
-
-			useMax = !useMax;
-
-			if (stride < 10)
-			{
-				if (std::abs(range.getStart()) > std::abs(range.getEnd()))
-					v = range.getStart();
-				else
-					v = range.getEnd();
-			}
-			
-			v = jlimit<float>(-1.0f, 1.0f, v);
-			
-			parent->downsampledValues.setSample(isLeft ? 0 : 1, bIndex, v);
+            auto b1 = jlimit(0, numDownsampled - 1, i / stride);
+            auto v1 = getBufferValue(i);
+            
+            useMax = !useMax;
+            
+            tempBuffer.setSample(isLeft ? 0 : 1, b1, v1);
 		}
 
 		return;
@@ -814,23 +831,31 @@ void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailPath(Graphics& g, 
 	if (!outlineColour.isTransparent())
 	{
 		g.setColour(outlineColour);
-		g.strokePath(path, PathStrokeType(th.displayMode == DisplayMode::DownsampledCurve ? 1.5f : 1.0f));
+		g.strokePath(path, PathStrokeType(1.0f));
 	}
 }
 
 void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleList<float>& rectList)
 {
-	Colour fillColour = th.findColour(AudioDisplayComponent::ColourIds::fillColour);
-	Colour outlineColour = th.findColour(AudioDisplayComponent::ColourIds::outlineColour);
+    float wAlpha = th.waveformAlpha * th.waveformAlpha;
+    
+	Colour fillColour = th.findColour(AudioDisplayComponent::ColourIds::fillColour).withMultipliedAlpha(wAlpha);
+	Colour outlineColour = th.findColour(AudioDisplayComponent::ColourIds::outlineColour).withMultipliedAlpha(wAlpha);
 
+    if(th.displayMode == DisplayMode::DownsampledCurve)
+        fillColour = outlineColour;
+    
 	if (!areaIsEnabled)
 	{
 		fillColour = fillColour.withMultipliedAlpha(0.3f);
 		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
 	}
 
-	g.setColour(fillColour);
-	g.fillRectList(rectList);
+    if(!fillColour.isTransparent())
+    {
+        g.setColour(fillColour);
+        g.fillRectList(rectList);
+    }
 }
 
 
@@ -933,10 +958,10 @@ void HiseAudioThumbnail::fillAudioSampleBuffer(AudioSampleBuffer& b)
 
 void HiseAudioThumbnail::paint(Graphics& g)
 {
-	if (isClear || rebuildOnUpdate)
+	if (isClear)
 		return;
 
-	ScopedTryLock sl(lock);
+	ScopedLock sl(lock);
 
 	{
 		g.setColour(Colours::black.withAlpha(spectrumAlpha));
@@ -966,32 +991,54 @@ void HiseAudioThumbnail::paint(Graphics& g)
 		g.restoreState();
 	}
 
-	if (sl.isLocked())
-	{
-		auto bounds = getLocalBounds();
+    auto bounds = getLocalBounds();
 
-		if (leftBound > 0 || rightBound > 0)
-		{
-			auto left = bounds.removeFromLeft(leftBound);
-			auto right = bounds.removeFromRight(rightBound);
+    if (leftBound > 0 || rightBound > 0)
+    {
+        auto left = bounds.removeFromLeft(leftBound);
+        auto right = bounds.removeFromRight(rightBound);
 
-			g.saveState();
+        g.saveState();
 
-			g.excludeClipRegion(left);
-			g.excludeClipRegion(right);
+        g.excludeClipRegion(left);
+        g.excludeClipRegion(right);
 
-			drawSection(g, true);
+        drawSection(g, true);
 
-			g.restoreState();
-			g.excludeClipRegion(bounds);
+        g.restoreState();
+        g.excludeClipRegion(bounds);
 
-			drawSection(g, false);
-		}
-		else
-		{
-			drawSection(g, true);
-		}
-	}
+        drawSection(g, false);
+    }
+    else
+    {
+        drawSection(g, true);
+    }
+}
+
+int HiseAudioThumbnail::getNextZero(int value) const
+{
+    if(!lBuffer.isBuffer())
+        return value;
+    
+    const auto& b = lBuffer.getBuffer()->buffer;
+    
+    if(isPositiveAndBelow(value, b.getNumSamples()))
+    {
+        auto start = b.getSample(0, value);
+        
+        auto sig = start > 0.0f;
+        
+        for(int i = value; i < b.getNumSamples(); i++)
+        {
+            auto thisSig = b.getSample(0, i) > 0.0f;
+            
+            if(sig != thisSig)
+                return i;
+        }
+    }
+    
+    return value;
 }
 
 void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
@@ -1141,10 +1188,12 @@ void HiseAudioThumbnail::createCurvePathForCurrentView(bool isLeft, Rectangle<in
 	if (displayMode != DisplayMode::DownsampledCurve)
 		return;
 
+    auto& rToUse = isLeft ? leftPeaks : rightPeaks;
 	auto& pToUse = isLeft ? leftWaveform : rightWaveform;
 
-	pToUse.clear();
-
+    pToUse.clear();
+    rToUse.clear();
+    
 	if (downsampledValues.getNumSamples() == 0)
 		return;
 
@@ -1168,21 +1217,44 @@ void HiseAudioThumbnail::createCurvePathForCurrentView(bool isLeft, Rectangle<in
 		start = jlimit(0, numSamples - 1, start);
 		end = jlimit(0, numSamples - 1, end);
 
-		pToUse.startNewSubPath((float)start, -1.0f);
-		pToUse.startNewSubPath((float)end, 1.0f);
-
-		auto getBufferValue = [&](int index)
-		{
-			auto v = downsampledValues.getSample(isLeft ? 0 : 1, index);
-			return applyDisplayGain(v);
-		};
-
-		pToUse.startNewSubPath(start, -1.0f * getBufferValue(start));
-
-		for (int i = start + 1; i < end; i++)
-			pToUse.lineTo(i, -1.0f * getBufferValue(i));
-
-		pToUse.scaleToFit(va.getX(), (float)area.getY(), va.getWidth(), (float)area.getHeight(), false);
+        auto getBufferValue = [&](int index)
+        {
+            auto v = downsampledValues.getSample(isLeft ? 0 : 1, index);
+            v = applyDisplayGain(v);
+            
+            FloatSanitizers::sanitizeFloatNumber(v);
+            return -1.0f * v;
+        };
+        
+        if(!useRectList)
+        {
+            pToUse.startNewSubPath((float)start, -1.0f);
+            pToUse.startNewSubPath((float)end, 1.0f);
+            pToUse.startNewSubPath(start, getBufferValue(start));
+            
+            for (int i = start + 1; i < end; i++)
+            {
+                pToUse.lineTo(i, getBufferValue(i));
+            }
+            
+            pToUse.scaleToFit(va.getX(), (float)area.getY(), va.getWidth(), (float)area.getHeight(), false);
+        }
+        else
+        {
+            auto pw = (float)va.getWidth() / (float)(end - start);
+            
+            
+            for (int i = start + 1; i < end; i++)
+            {
+                auto v = getBufferValue(i);
+                auto x = (float)va.getX() + (i - start) * pw;
+                auto y = (float)area.getCentreY() - v *  (float)area.getHeight() * 0.5f;
+                auto w = pw * 1.5f;
+                auto h = (float)area.getHeight() * v;
+                
+                rToUse.addWithoutMerging({x, y, w, h});
+            }
+        }
 	}
 }
 
