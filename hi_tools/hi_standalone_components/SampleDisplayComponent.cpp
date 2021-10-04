@@ -86,7 +86,7 @@ void AudioDisplayComponent::refreshSampleAreaBounds(SampleArea* areaToSkip/*=nul
 	repaint();
 }
 
-void AudioDisplayComponent::paint(Graphics &g)
+void AudioDisplayComponent::paintOverChildren(Graphics &g)
 {
 	//ProcessorEditorLookAndFeel::drawNoiseBackground(g, getLocalBounds(), Colours::darkgrey);
 
@@ -1260,16 +1260,13 @@ void HiseAudioThumbnail::clear()
 
 void HiseAudioThumbnail::setSpectrumAndWaveformAlpha(float wAlpha, float sAlpha)
 {
-	auto wChanged = (waveformAlpha == 0.0f) != (wAlpha == 0.0f);
-	auto sChanged = (spectrumAlpha == 0.0f) != (sAlpha == 0.0f);
-
-	waveformAlpha = wAlpha;
+	auto wChanged = (spectrumAlpha == 0.0f) && (sAlpha != 0.0f);
+	
+    waveformAlpha = wAlpha;
 	spectrumAlpha = sAlpha;
 
-	if (wChanged || sChanged)
-	{
+	if (wChanged)
 		rebuildPaths();
-	}
 
 	repaint();
 }

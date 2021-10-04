@@ -928,7 +928,7 @@ void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b)
         DspWindowType(s, DspWindowType::hann, true).multiplyWithWindowingTable(data, s);
         break;
 	case Kaiser:
-		DspWindowType(s, DspWindowType::kaiser, true, 0.5f).multiplyWithWindowingTable(data, s);
+		DspWindowType(s, DspWindowType::kaiser, true, 15.0f).multiplyWithWindowingTable(data, s);
 		break;
     case Triangle:
         DspWindowType(s, DspWindowType::triangular, true).multiplyWithWindowingTable(data, s);
@@ -950,6 +950,25 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 
     auto s2dHalf = parameters->Spectrum2DSize / 2;
     
+    int LookupTableSize = JUCE_LIVE_CONSTANT_OFF(512);
+    
+    HeapBlock<PixelARGB> lut;
+    lut.calloc(LookupTableSize);
+    
+    ColourGradient grad(Colours::black, 0.0f, 0.0f, Colours::white, 1.0f, 1.0f, false);
+    
+    grad.addColour(0.2f, Colour(0xFF537374).withMultipliedBrightness(0.5f));
+    grad.addColour(0.4f, Colour(0xFF57339D).withMultipliedBrightness(0.8f));
+    
+    grad.addColour(0.6f, Colour(0xFFB35259).withMultipliedBrightness(0.9f));
+    grad.addColour(0.8f,  Colour(0xFFFF8C00));
+    grad.addColour(0.9f, Colour(0xFFC0A252));
+    
+    grad.createLookupTable(lut.get(), LookupTableSize);
+    
+    
+    
+    
     if (maxLevel == 0.0f)
         return newImage;
 
@@ -968,13 +987,20 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 
             alpha = holder->getXPosition(alpha);
 
-            alpha = std::sqrt(alpha);
+            alpha = std::pow(alpha, JUCE_LIVE_CONSTANT_OFF(0.6f));
+            auto lutValue = lut[jlimit(0, LookupTableSize-1, roundToInt(alpha * (float)LookupTableSize))];
             
-            auto hueOffset = JUCE_LIVE_CONSTANT_OFF(0.5f);
-            auto hueGain = JUCE_LIVE_CONSTANT_OFF(0.9f);
-            auto hue = jmax(0.0f, std::fmodf(alpha * hueGain + hueOffset, 1.0f));
-
-            newImage.setPixelAt(i, y, Colour::fromHSV(hue, JUCE_LIVE_CONSTANT_OFF(0.6f), 1.0f, alpha));
+            float a = JUCE_LIVE_CONSTANT_OFF(0.3f);
+            
+            auto v = jlimit(0.0f, 1.0f, a + (1.0f - a) * alpha);
+            
+            auto r = (float)lutValue.getRed() * v;
+            auto g = (float)lutValue.getGreen() * v;
+            auto b = (float)lutValue.getBlue() * v;
+            
+            lutValue.setARGB(255, (uint8)r, (uint8)g, (uint8)b);
+            
+            newImage.setPixelAt(i, y, lutValue);//Colour::fromHSV(hue, JUCE_LIVE_CONSTANT(1.0f), 1.0f, alpha));
         }
     }
 
@@ -1027,9 +1053,11 @@ void Spectrum2D::Parameters::set(const Identifier& id, int value, NotificationTy
 {
 	if (id == Identifier("FFTSize"))
 	{
-		order = jlimit(8, 13, value);
+		order = jlimit(7, 13, value);
 		Spectrum2DSize = roundToInt(std::pow(2.0, (double)order));
 	}
+    if(id == Identifier("DynamicRange"))
+        minDb = value;
 	if (id == Identifier("Oversampling"))
 		oversamplingFactor = value;
 	if (id == Identifier("WindowType"))
@@ -1043,6 +1071,8 @@ int Spectrum2D::Parameters::get(const Identifier& id) const
 {
 	if (id == Identifier("FFTSize"))
 		return order;
+    if (id == Identifier("DynamicRange"))
+        return minDb;
 	if (id == Identifier("Oversampling"))
 		return oversamplingFactor;
 	if (id == Identifier("WindowType"))
@@ -1061,6 +1091,7 @@ Spectrum2D::Parameters::Editor::Editor(Parameters* p) :
 	addEditor("FFTSize");
 	addEditor("Oversampling");
 	addEditor("WindowType");
+    addEditor("DynamicRange");
 
 	setSize(300, RowHeight * editors.size());
 }
@@ -1075,13 +1106,22 @@ void Spectrum2D::Parameters::Editor::addEditor(const Identifier& id)
 	
 	if (id == Identifier("FFTSize"))
 	{
-		for (int i = 8; i < 14; i++)
+		for (int i = 7; i < 14; i++)
 		{
 			auto id = i + 1;
 			auto pow = std::pow(2, i);
 			cb->addItem(String(pow), id);
 		}
 	}
+    if(id == Identifier("DynamicRange"))
+    {
+        cb->addItem("60dB", 61);
+        cb->addItem("80dB", 81);
+        cb->addItem("100dB", 101);
+        cb->addItem("110dB", 111);
+        cb->addItem("120dB", 121);
+        cb->addItem("130dB", 131);
+    }
 	if (id == Identifier("Oversampling"))
 	{
 		cb->addItem("1x", 2);
@@ -1095,8 +1135,6 @@ void Spectrum2D::Parameters::Editor::addEditor(const Identifier& id)
 			cb->addItem(FFTHelpers::getWindowType(w), (int)w + 1);
 	}
 
-
-	
 	addAndMakeVisible(cb);
 	editors.add(cb);
 	cb->addListener(this);

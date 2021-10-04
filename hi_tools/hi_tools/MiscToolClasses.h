@@ -2346,7 +2346,7 @@ struct Spectrum2D
 			auto numSamplesToCheck = (double)originalSource.getNumSamples();
 			numSamplesToCheck = std::pow(numSamplesToCheck, JUCE_LIVE_CONSTANT_OFF(0.54));
 
-			auto bestOrder = (int)log2(nextPowerOfTwo(numSamplesToCheck));
+            auto bestOrder = 11;
 
 			set("FFTSize", bestOrder, dontSendNotification);
 
@@ -2380,10 +2380,11 @@ struct Spectrum2D
 
 		LambdaBroadcaster<Identifier, int> notifier;
 
+        int minDb = 110;
 		int order;
-		int oversamplingFactor = 8;
+		int oversamplingFactor = 4;
 		int Spectrum2DSize;
-		FFTHelpers::WindowType currentWindowType = FFTHelpers::WindowType::Triangle;
+		FFTHelpers::WindowType currentWindowType = FFTHelpers::WindowType::BlackmanHarris;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Parameters);
 	};

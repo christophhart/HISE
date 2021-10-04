@@ -292,11 +292,16 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 
     addAndMakeVisible(spectrumSlider);
     spectrumSlider.setRange(0.0, 1.0, 0.0);
-    spectrumSlider.setSliderStyle(Slider::SliderStyle::LinearBar);
+    spectrumSlider.setSliderStyle(Slider::SliderStyle::LinearHorizontal);
+    spectrumSlider.setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
 	spectrumSlider.onValueChange = [this]()
     {
         auto sAlpha = spectrumSlider.getValue();
-        auto wAlpha = 1.0f - sAlpha;
+        auto wAlpha = sAlpha;
+        
+        sAlpha = scriptnode::faders::overlap().getFadeValue<0>(2, sAlpha);
+        wAlpha = scriptnode::faders::overlap().getFadeValue<1>(2, wAlpha);
+        
         currentWaveForm->getThumbnail()->setSpectrumAndWaveformAlpha(sAlpha, wAlpha);
     };
 
@@ -760,8 +765,13 @@ bool SampleEditor::perform (const InvocationInfo &info)
 			}
 		}
 
+#if JUCE_WINDOWS
 		for(auto& f: editedFiles)
 			args << "\"" << f.getFullPathName() << "\" ";
+#else
+        for(auto& f: editedFiles)
+            args << f.getFullPathName() << " ";
+#endif
 
 		externalWatcher = new ExternalFileChangeWatcher(sampler, editedFiles);
 

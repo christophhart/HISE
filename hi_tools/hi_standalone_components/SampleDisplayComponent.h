@@ -116,8 +116,9 @@ public:
 
     float getXPosition(float input) const override
     {
-        auto l = Decibels::gainToDecibels(input);
-        l = (l + 100.0f) / 100.0f;
+        auto db = (float)spectrumParameters->minDb;
+        auto l = Decibels::gainToDecibels(input, -1.0f * db);
+        l = (l + db) / db;
         return l * l;
     }
     
@@ -633,7 +634,7 @@ public:
 		refreshSampleAreaBounds();
 	}
 
-	virtual void paint(Graphics &g) override;
+	virtual void paintOverChildren(Graphics &g) override;
 
 	HiseAudioThumbnail* getThumbnail()
 	{

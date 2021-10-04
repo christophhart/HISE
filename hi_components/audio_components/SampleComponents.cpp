@@ -446,8 +446,6 @@ void SamplerSoundWaveform::paint(Graphics &g)
 	auto bgColour = findColour(AudioDisplayComponent::ColourIds::bgColour);
 	g.fillAll(bgColour);
 
-	AudioDisplayComponent::paint(g);
-
 	if (getTotalSampleAmount() == 0) return;
 
 	if (areas[SampleStartArea]->getSampleRange().getLength() != 0)

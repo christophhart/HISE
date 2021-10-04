@@ -414,6 +414,8 @@ void SampleMap::saveAndReloadMap()
 	pool->removeListener(this);
 	pool->loadFromReference(getReference(), PoolHelpers::ForceReloadStrong);
 	pool->addListener(this);
+    sampler->refreshPreloadSizes();
+    
 
 	changeWatcher = new ChangeWatcher(data);
 }
