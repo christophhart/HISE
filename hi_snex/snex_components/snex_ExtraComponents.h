@@ -509,7 +509,8 @@ struct Graph: public Component,
 		auto b = getLocalBounds();
 		b.removeFromTop(24);
 
-		b.removeFromRight(32);
+        if(currentGraphType != GraphType::Spectrograph)
+            b.removeFromRight(32);
 		
 		internalGraph.setBounds(0, 0, viewport.getWidth() * internalGraph.zoomFactor, viewport.getMaximumVisibleHeight());
 		viewport.setBounds(b);
