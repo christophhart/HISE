@@ -366,6 +366,8 @@ public:
 
 	void mouseDown(const MouseEvent& e) override;
 
+	void mouseUp(const MouseEvent& e) override;
+
 	void mouseMove(const MouseEvent& e) override;
 
 	const ModulatorSamplerSound *getCurrentSound() const { return currentSound.get(); }
@@ -418,6 +420,7 @@ private:
 	int numSamplesInCurrentSample;
 
 
+	int previewStart = -1;
 	double sampleStartPosition;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SamplerSoundWaveform)

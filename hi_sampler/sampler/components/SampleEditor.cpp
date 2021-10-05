@@ -271,6 +271,7 @@ String SampleEditor::getNameForCommand(SampleMapCommands c, bool on)
         case SampleMapCommands::LoopEnabled: return on ? "loop-on" : "loop-off";
         case SampleMapCommands::ExternalEditor: return on ? "external" : "";
         case SampleMapCommands::ZeroCrossing: return on ? "zero" : "";
+		case SampleMapCommands::ImproveLoopPoints: return on ? "improve-loop" : "";
         default: return "";
     }
 }
@@ -301,6 +302,7 @@ String SampleEditor::getTooltipForCommand(SampleMapCommands c)
         case SampleMapCommands::LoopEnabled:            return "Enable looping for selection";
         case SampleMapCommands::ExternalEditor:         return "Open current sample selection in external audio editor";
         case SampleMapCommands::ZeroCrossing:           return "Enable zero crossing";
+		case SampleMapCommands::ImproveLoopPoints:		return "Tries to optimise the loop points using correlation";
             
         default: return "";
     }
@@ -323,6 +325,7 @@ bool SampleEditor::getState(SampleMapCommands c) const
         case SampleMapCommands::LoopEnabled:    return isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled);
         case SampleMapCommands::ExternalEditor: return false;
         case SampleMapCommands::ZeroCrossing:   return currentWaveForm->zeroCrossing;
+		case SampleMapCommands::ImproveLoopPoints: return false;
         default: return false;
     }
 }
@@ -371,6 +374,10 @@ void SampleEditor::perform(SampleMapCommands c)
         findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, analyseButton, {8, 16});
         return;
     }
+	case SampleMapCommands::ImproveLoopPoints:
+	{
+		
+	}
     case SampleMapCommands::ExternalEditor:
     {
         if (sampler->getSampleMap()->isMonolith())

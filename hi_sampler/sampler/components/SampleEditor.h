@@ -93,6 +93,7 @@ public:
         Analyser,
         ExternalEditor,
         ZeroCrossing,
+		ImproveLoopPoints,
         numCommands
     };
     

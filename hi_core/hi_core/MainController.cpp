@@ -602,9 +602,10 @@ void MainController::stopBufferToPlay()
 {
 	if (previewBufferIndex != -1)
 	{
-
 		{
 			LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+
+			previewFunction = {};
 
 			if (previewBufferIndex != -1 && !fadeOutPreviewBuffer)
 			{
@@ -620,14 +621,14 @@ void MainController::stopBufferToPlay()
 	}
 }
 
-void MainController::setBufferToPlay(const AudioSampleBuffer& buffer)
+void MainController::setBufferToPlay(const AudioSampleBuffer& buffer, const std::function<void(int)>& pf)
 {
 	{
-
 		LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
 
 		previewBufferIndex = 0;
 		previewBuffer = buffer;
+		previewFunction = pf;
 		fadeOutPreviewBuffer = false;
 		fadeOutPreviewBufferGain = 1.0f;
 	}
@@ -976,13 +977,16 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
                 }
             }
             
+			if (previewFunction)
+				previewFunction(previewBufferIndex);
+
 			previewBufferIndex += numToPlay;
 		}
 
 		if (fadeOutPreviewBuffer)
 		{
 			float thisGain = fadeOutPreviewBufferGain;
-			fadeOutPreviewBufferGain = jmax<float>(thisGain * 0.93f, 0.0f);
+			fadeOutPreviewBufferGain = jmax<float>(thisGain * 0.75f, 0.0f);
 
 			multiChannelBuffer.applyGainRamp(0, numSamplesThisBlock, thisGain, fadeOutPreviewBufferGain);
 

@@ -337,11 +337,11 @@ SamplerSoundWaveform::~SamplerSoundWaveform()
 
 void SamplerSoundWaveform::timerCallback()
 {
-	if (sampler->getLastStartedVoice() != nullptr)
-	{
-		ModulatorSamplerSound *s = dynamic_cast<ModulatorSamplerVoice*>(sampler->getLastStartedVoice())->getCurrentlyPlayingSamplerSound();
+	auto previewActive = (previewStart != -1);
 
-		if (s == currentSound.get())
+	if (sampler->getLastStartedVoice() != nullptr || previewActive)
+	{
+		if (previewActive || dynamic_cast<ModulatorSamplerVoice*>(sampler->getLastStartedVoice())->getCurrentlyPlayingSamplerSound() == currentSound.get())
 		{
 			sampleStartPosition = sampler->getSamplerDisplayValues().currentSampleStartPos;
 			setPlaybackPosition(sampler->getSamplerDisplayValues().currentSamplePos);
@@ -457,6 +457,13 @@ void SamplerSoundWaveform::paint(Graphics &g)
 		drawSampleStartBar(g);
 	};
 
+	if (previewStart != -1)
+	{
+		auto pos = roundToInt((double)previewStart / (double)getTotalSampleAmount() * (double)getWidth());
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawVerticalLine(pos, 0.0f, (float)getHeight());
+	}
+
 	if (!onInterface && currentSound.get() != nullptr)
 	{
 		if (currentSound->getReferenceToSound()->isMonolithic())
@@ -546,6 +553,36 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 
 void SamplerSoundWaveform::mouseDown(const MouseEvent& e)
 {
+	if (e.mods.isAltDown())
+	{
+		auto mc = currentSound->getMainController();
+
+		auto numSamples = getTotalSampleAmount();
+
+		auto posNorm = (double)e.getPosition().getX() / (double)getWidth();
+
+		auto start = roundToInt((double)numSamples * posNorm);
+		start = getThumbnail()->getNextZero(start);
+
+		AudioSampleBuffer b = getThumbnail()->getBufferCopy({ start, numSamples });
+
+		b.applyGainRamp(0, 1024, 0.0f, 1.0f);
+
+		auto s = const_cast<ModulatorSampler*>(sampler);
+
+		previewStart = start;
+
+		start -= (int)currentSound->getSampleProperty(SampleIds::SampleStart);
+
+		mc->setBufferToPlay(b, [start, s, numSamples](int pos)
+		{
+			s->getSamplerDisplayValues().currentSampleStartPos = start;
+			s->getSamplerDisplayValues().currentSamplePos = (double)(start + pos) / (double)numSamples;
+		});
+
+		return;
+	}
+
     auto a =getAreaForModifiers(e);
     auto propId = getSampleIdToChange(a, e);
     
@@ -571,11 +608,15 @@ void SamplerSoundWaveform::mouseDown(const MouseEvent& e)
         return;
     }
     
-	if (e.mods.isAltDown())
-	{
-        
-		jassertfalse;
-	}
+	
+}
+
+void SamplerSoundWaveform::mouseUp(const MouseEvent& e)
+{
+	previewStart = -1;
+
+	if (currentSound != nullptr)
+		currentSound->getMainController()->stopBufferToPlay();
 }
 
 void SamplerSoundWaveform::mouseMove(const MouseEvent& e)

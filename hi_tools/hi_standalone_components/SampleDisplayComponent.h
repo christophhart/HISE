@@ -117,6 +117,8 @@ public:
 
 	void fillAudioSampleBuffer(AudioSampleBuffer& b);
 
+	AudioSampleBuffer getBufferCopy(Range<int> sampleRange) const;
+
 	void paint(Graphics& g) override;
 
     int getNextZero(int samplePos) const;

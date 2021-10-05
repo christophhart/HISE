@@ -956,6 +956,29 @@ void HiseAudioThumbnail::fillAudioSampleBuffer(AudioSampleBuffer& b)
 
 }
 
+juce::AudioSampleBuffer HiseAudioThumbnail::getBufferCopy(Range<int> sampleRange) const
+{
+	auto numChannels = rBuffer.isBuffer() ? 2 : 1;
+	auto numSamples = lBuffer.isBuffer() ? lBuffer.getBuffer()->size : 0;
+
+	if (numSamples == 0)
+		return {};
+
+	sampleRange.setEnd(jmin(numSamples, sampleRange.getEnd()));
+	
+	AudioSampleBuffer b(2, sampleRange.getLength());
+
+	FloatVectorOperations::copy(b.getWritePointer(0), lBuffer.getBuffer()->buffer.getReadPointer(0, sampleRange.getStart()), sampleRange.getLength());
+
+	if (numChannels == 2)
+		FloatVectorOperations::copy(b.getWritePointer(1), rBuffer.getBuffer()->buffer.getReadPointer(0, sampleRange.getStart()), sampleRange.getLength());
+	else
+		FloatVectorOperations::copy(b.getWritePointer(1), b.getReadPointer(0), b.getNumSamples());
+
+
+	return b;
+}
+
 void HiseAudioThumbnail::paint(Graphics& g)
 {
 	if (isClear)

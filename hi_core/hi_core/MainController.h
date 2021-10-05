@@ -1342,7 +1342,7 @@ public:
 
 	void stopBufferToPlay();
 
-	void setBufferToPlay(const AudioSampleBuffer& buffer);
+	void setBufferToPlay(const AudioSampleBuffer& buffer, const std::function<void(int)>& previewFunction = {});
 
 	int getPreviewBufferPosition() const;
 
@@ -1467,6 +1467,8 @@ public:
     
 	LambdaBroadcaster<float> &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
     
+	
+
     /** This sets the global pitch factor. */
     void setGlobalPitchFactor(double pitchFactorInSemiTones)
     {
@@ -1722,7 +1724,7 @@ private:
 	ScopedPointer<SampleManager> sampleManager;
 	ExpansionHandler expansionHandler;
 	
-
+	std::function<void(int)> previewFunction;
 	MacroManager macroManager;
 
 	KillStateHandler killStateHandler;
