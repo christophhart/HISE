@@ -48,6 +48,8 @@ struct DspNetwork::Wrapper
 	//API_VOID_METHOD_WRAPPER_3(DspNetwork, injectAfter);
 };
 
+bool DspNetwork::deactivateEmbedding = false;
+
 DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, bool poly, ExternalDataHolder* dataHolder_) :
 	ConstScriptingObject(p, 2),
 	ControlledObject(p->getMainController_()),
@@ -1089,23 +1091,26 @@ void DspNetwork::Holder::saveNetworks(ValueTree& d) const
 
 #if USE_BACKEND
 
-			cppgen::ValueTreeIterator::forEach(c, 
-				snex::cppgen::ValueTreeIterator::IterationType::Forward, 
-				DspNetworkListeners::PatchAutosaver::stripValueTree);
+            if(!DspNetwork::deactivateEmbedding)
+            {
+                cppgen::ValueTreeIterator::forEach(c,
+                    snex::cppgen::ValueTreeIterator::IterationType::Forward,
+                    DspNetworkListeners::PatchAutosaver::stripValueTree);
 
-			auto f = BackendDllManager::getSubFolder(dynamic_cast<const ControlledObject*>(this)->getMainController(), BackendDllManager::FolderSubType::Networks);
+                auto f = BackendDllManager::getSubFolder(dynamic_cast<const ControlledObject*>(this)->getMainController(), BackendDllManager::FolderSubType::Networks);
 
-			auto nf = f.getChildFile(c[PropertyIds::ID].toString()).withFileExtension("xml");
+                auto nf = f.getChildFile(c[PropertyIds::ID].toString()).withFileExtension("xml");
 
-			if (nf.existsAsFile())
-			{
-				auto xml = c.createXml();
-				nf.replaceWithText(xml->createDocument(""));
+                if (nf.existsAsFile())
+                {
+                    auto xml = c.createXml();
+                    nf.replaceWithText(xml->createDocument(""));
 
-				debugToConsole(dynamic_cast<Processor*>(const_cast<Holder*>(this)), "Save network to " + nf.getFileName() + " from project folder");
+                    debugToConsole(dynamic_cast<Processor*>(const_cast<Holder*>(this)), "Save network to " + nf.getFileName() + " from project folder");
 
-				c.removeAllChildren(nullptr);
-			}
+                    c.removeAllChildren(nullptr);
+                }
+            }
 #endif
 
 			v.addChild(c, -1, nullptr);
