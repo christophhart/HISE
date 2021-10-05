@@ -1228,6 +1228,8 @@ void HiseAudioThumbnail::createCurvePathForCurrentView(bool isLeft, Rectangle<in
         
         if(!useRectList)
         {
+            pToUse.preallocateSpace((end - start) + 3);
+            
             pToUse.startNewSubPath((float)start, -1.0f);
             pToUse.startNewSubPath((float)end, 1.0f);
             pToUse.startNewSubPath(start, getBufferValue(start));
@@ -1241,10 +1243,12 @@ void HiseAudioThumbnail::createCurvePathForCurrentView(bool isLeft, Rectangle<in
         }
         else
         {
+            rToUse.ensureStorageAllocated(end - start);
+            
             auto pw = (float)va.getWidth() / (float)(end - start);
             
             
-            for (int i = start + 1; i < end; i++)
+            for (int i = start; i < end; i++)
             {
                 auto v = getBufferValue(i);
                 auto x = (float)va.getX() + (i - start) * pw;

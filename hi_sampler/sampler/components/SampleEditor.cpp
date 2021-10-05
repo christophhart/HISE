@@ -775,27 +775,29 @@ void SampleEditor::updateWaveform()
 
 void SampleEditor::zoom(bool zoomOut, int mousePos/*=0*/)
 {
-	auto oldPos = (float)(viewport->getViewPositionX() + mousePos);
-	oldPos /= (double)jmax(1, viewport->getViewedComponent()->getWidth());
-
-
-
+	auto oldPos = (double)(viewport->getViewPositionX());
+    auto oldMousePos = oldPos + mousePos;
+    auto oldWidth = (double)currentWaveForm->getWidth();
+    auto normDelta = mousePos / oldWidth;
+    auto normPos = (double)oldPos / (double)currentWaveForm->getWidth();
+    auto oldMousePosNorm = normDelta + normPos;
+    
 	if (!zoomOut)
-	{
-		zoomFactor = jmin(128.0f, zoomFactor * 1.25f); resized();
-	}
+		zoomFactor = jmin(128.0f, zoomFactor * 1.125f);
 	else
-	{
-		zoomFactor = jmax(1.0f, zoomFactor / 1.25f); resized();
-	}
-
+		zoomFactor = jmax(1.0f, zoomFactor / 1.125f);
+    
 	resized();
 
 	scrollBarMoved(&viewport->getHorizontalScrollBar(), 0.0f);
 
-	auto newWidth = viewport->getViewedComponent()->getWidth();
-
-	viewport->setViewPositionProportionately(oldPos, 0.0);
+	auto newWidth = (double)viewport->getViewedComponent()->getWidth();
+    
+    auto newMousePos = oldMousePosNorm * newWidth;
+    auto newPos = newMousePos - mousePos;
+    
+    
+	viewport->setViewPosition(roundToInt(newPos), 0.0);
 }
 
 //[/MiscUserCode]
