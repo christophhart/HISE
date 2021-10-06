@@ -231,15 +231,7 @@ public:
         refreshDisplayFromComboBox();
     }
     
-    void refreshDisplayFromComboBox()
-    {
-        auto idx = sampleSelector->getSelectedItemIndex();
-        
-        if(auto s = selection[idx])
-        {
-            currentWaveForm->setSoundToDisplay(s);
-        }
-    }
+    void refreshDisplayFromComboBox();
     
     
     //[/UserMethods]
@@ -278,6 +270,7 @@ private:
 
 	Component* analyseButton;
 	Component* externalButton;
+	Component* improveButton;
 
 	LookAndFeel_V4 slaf;
 

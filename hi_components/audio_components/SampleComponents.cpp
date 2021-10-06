@@ -688,7 +688,7 @@ juce::Identifier SamplerSoundWaveform::getSampleIdToChange(AreaTypes a, const Mo
 	if (auto area = areas[a])
 	{
         auto ae = e.getEventRelativeTo(area);
-        bool isEnd = (ae.getPosition().getX() > area->getWidth() / 2) || a == AudioDisplayComponent::SampleStartArea;
+        bool isEnd = e.mods.isRightButtonDown() || a == AudioDisplayComponent::SampleStartArea;
 
 		switch (a)
 		{

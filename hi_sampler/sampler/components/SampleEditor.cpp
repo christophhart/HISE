@@ -191,7 +191,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	addButton(SampleMapCommands::EnableSampleStartArea, true);
 	addButton(SampleMapCommands::EnableLoopArea, true);
     addButton(SampleMapCommands::ZeroCrossing, false);
-    addButton(SampleMapCommands::ImproveLoopPoints, false);
+    improveButton = addButton(SampleMapCommands::ImproveLoopPoints, false);
     
     externalButton = addButton(SampleMapCommands::ExternalEditor, false);
     
@@ -366,7 +366,8 @@ struct LoopImproveWindow: public Component,
       applyButton("apply", this, *this),
       previewButton("preview", this, *this),
       findButton("find", this, *this),
-      dragger(this, nullptr)
+      dragger(this, nullptr),
+	  findThread(*this)
     {
         addAndMakeVisible(dragger);
         
@@ -452,13 +453,13 @@ struct LoopImproveWindow: public Component,
         
         auto delta = roundToInt(deltaNorm * ds);
         
-        
-        
         if(dragStart)
             currentLoop.setStart(mouseDownLoop.getStart() - delta);
         else
             currentLoop.setEnd(mouseDownLoop.getEnd() - delta);
         
+		unappliedChanges = true;
+
         refreshThumbnails();
     }
     
@@ -477,84 +478,236 @@ struct LoopImproveWindow: public Component,
         amountSlider.setValue(cb->getText().getIntValue(), sendNotificationSync);
     }
     
-    void refreshThumbnails()
-    {
-        if(sound == nullptr || !sound->getSampleProperty(SampleIds::LoopEnabled))
-        {
-            ok = false;
-            return;
-        }
-        
-        ok = true;
-        
-        auto DisplaySize = getDisplaySize();
-        
-        VariantBuffer::Ptr ls = new VariantBuffer(DisplaySize);
-        VariantBuffer::Ptr rs = new VariantBuffer(DisplaySize);
-        
-        VariantBuffer::Ptr le = new VariantBuffer(DisplaySize);
-        VariantBuffer::Ptr re = new VariantBuffer(DisplaySize);
-       
-        auto os = jmax(0, currentLoop.getStart() - DisplaySize/2);
-        auto nums = jmin(DisplaySize, fullBuffer.getNumSamples() - os);
-        
-        auto oe = jmax(0, currentLoop.getEnd() - DisplaySize/2);
-        auto nume = jmin(DisplaySize, fullBuffer.getNumSamples() - oe);
-        
-        FloatVectorOperations::copy(ls->buffer.getWritePointer(0), fullBuffer.getReadPointer(0, os), nums);
-        FloatVectorOperations::copy(rs->buffer.getWritePointer(0), fullBuffer.getReadPointer(1, os), nums);
-        
-        FloatVectorOperations::copy(le->buffer.getWritePointer(0), fullBuffer.getReadPointer(0, oe), nume);
-        FloatVectorOperations::copy(re->buffer.getWritePointer(0), fullBuffer.getReadPointer(1, oe), nume);
-        
-        
-        auto maxS = 1.0f / jmax(0.001f, fullBuffer.getMagnitude(os, nums));
-        auto maxE = 1.0f / jmax(0.001f, fullBuffer.getMagnitude(oe, nume));
-        
-        float diff[2] = { 0.0f };
-        
-        for(int i = DisplaySize / 4; i < DisplaySize * 3 / 4; i++)
-        {
-            float window = (float)(i - DisplaySize/4) / (float)(DisplaySize/4);
-            
-            if(i > DisplaySize / 2)
-                window = 2.0f - window;
-            
-            diff[0] += window * std::abs((float)le->getSample(i) - (float)ls->getSample(i));
-            diff[1] += window * std::abs((float)re->getSample(i) - (float)rs->getSample(i));
-        }
-        
-        auto p2le = (float)le->getSample(DisplaySize / 2 - 2);
-        auto p1le = (float)le->getSample(DisplaySize / 2 - 1);
-        auto p2re = (float)re->getSample(DisplaySize / 2 - 2);
-        auto p1re = (float)re->getSample(DisplaySize / 2 - 1);
-        
-        auto expectedl = p1le + (p1le - p2le);
-        auto expectedr = p1re + (p1re - p2re);
-        
-        auto actuall = (float)ls->getSample(DisplaySize/2);
-        auto actualr = (float)rs->getSample(DisplaySize/2);
-        
-        error = jmax(std::abs(expectedl - actuall), std::abs(expectedr - actualr));
-        error = Decibels::gainToDecibels(error);
-        
-        diff[0] /= (float)(DisplaySize/4);
-        diff[1] /= (float)(DisplaySize/4);
-        
-        
-        
-        maxdiff = jmax(diff[0], diff[1]);
-        
-        maxdiff = Decibels::gainToDecibels(maxdiff);
-        
-        loopStart.setDisplayGain(jmin(maxS, maxE));
-        loopEnd.setDisplayGain(jmin(maxS, maxE));
-        
-        loopStart.setBuffer(var(ls), var(rs));
-        loopEnd.setBuffer(var(le), var(re));
-        
-        
-        
+	Range<int> getLoopEdgeRange(bool getEnd)
+	{
+		auto DisplaySize = getDisplaySize();
+		auto os = jmax(0, currentLoop.getStart() - DisplaySize / 2);
+		auto nums = jmin(DisplaySize, fullBuffer.getNumSamples() - os);
+
+		auto oe = jmax(0, currentLoop.getEnd() - DisplaySize / 2);
+		auto nume = jmin(DisplaySize, fullBuffer.getNumSamples() - oe);
+
+		if(getEnd)
+			return { oe, oe + nume };
+		else
+			return { os, os + nums };
+	}
+
+	var getLoopEdgesAsChannelBuffers(Range<int> startRange = {}, Range<int> endRange = {})
+	{
+		if (sound == nullptr || !sound->getSampleProperty(SampleIds::LoopEnabled))
+		{
+			ok = false;
+			return {};
+		}
+
+		ok = true;
+
+		auto DisplaySize = getDisplaySize();
+
+		VariantBuffer::Ptr ls = new VariantBuffer(DisplaySize);
+		VariantBuffer::Ptr rs = new VariantBuffer(DisplaySize);
+
+		VariantBuffer::Ptr le = new VariantBuffer(DisplaySize);
+		VariantBuffer::Ptr re = new VariantBuffer(DisplaySize);
+
+		if(startRange.isEmpty())
+			startRange = getLoopEdgeRange(false);
+
+		if(endRange.isEmpty())
+			endRange = getLoopEdgeRange(true);
+
+		auto copyTo = [&](VariantBuffer::Ptr dst, int channel, Range<int> r)
+		{
+			FloatVectorOperations::copy(dst->buffer.getWritePointer(0), fullBuffer.getReadPointer(channel, r.getStart()), r.getLength());
+		};
+
+		copyTo(ls, 0, startRange);
+		copyTo(rs, 1, startRange);
+		copyTo(le, 0, endRange);
+		copyTo(re, 1, endRange);
+
+		Array<var> channels;
+		channels.add(var(ls));
+		channels.add(var(rs));
+		channels.add(var(le));
+		channels.add(var(re));
+
+		return channels;
+	}
+
+	struct FindThread : public Thread
+	{
+		FindThread(LoopImproveWindow& w) :
+			Thread("Find best loop"),
+			parent(w)
+		{};
+
+		void run() override
+		{
+			auto DisplaySize = parent.getDisplaySize();
+
+			auto endRange = parent.getLoopEdgeRange(true);
+			auto startRange = parent.getLoopEdgeRange(false);
+
+			Array<ErrorStats> allStats;
+
+			allStats.ensureStorageAllocated(DisplaySize);
+
+			{
+				ScopedLock sl(parent.fullBufferLock);
+
+				for (int i = 0; i < DisplaySize; i++)
+				{
+					if (threadShouldExit())
+						return;
+
+					auto delta = -1 * DisplaySize / 2 + i;
+					ErrorStats thisStats;
+					thisStats.loopRange = parent.currentLoop;
+					thisStats.loopRange.setStart(thisStats.loopRange.getStart() + delta);
+					auto thisStart = startRange + delta;
+					thisStats.calculate(parent.fullBuffer, thisStart, endRange, parent.getDisplaySize());
+					allStats.add(thisStats);
+				}
+			}
+			
+
+			ErrorStats::Comparator comparator;
+			allStats.sort(comparator);
+
+			auto best = allStats.getFirst();
+
+			auto r = best.loopRange;
+
+			if (!threadShouldExit() && !r.isEmpty())
+			{
+				WeakReference<LoopImproveWindow> p = &parent;
+
+				MessageManager::callAsync([r, p]()
+				{
+					p->currentLoop = r;
+					p->unappliedChanges = true;
+					p->refreshThumbnails();
+					p->repaint();
+				});
+			}
+		}
+
+		LoopImproveWindow& parent;
+	} findThread;
+
+	struct ErrorStats
+	{
+		String toString() const
+		{
+			String s;
+			s << "Average Diff: " << String(maxdiff, 1) << "dB, ";
+			s << "Error: " << String(error, 1) << "dB";
+			return s;
+		}
+
+		struct Comparator
+		{
+			static int compareElements(const ErrorStats& first, const ErrorStats& second)
+			{
+				auto firstScore = first.getScore();
+				auto secondScore = second.getScore();
+
+				if (firstScore == secondScore)
+					return 0;
+				else if (firstScore < secondScore)
+					return 1;
+				else
+					return -1;
+			}
+		};
+
+		float getScore() const
+		{
+			return -1.0f * error + -1.0f * maxdiff * 2.0f;
+		}
+
+		void calculate(AudioSampleBuffer& fullBuffer, Range<int> startRange, Range<int> endRange, int DisplaySize)
+		{
+			float diff[2] = { 0.0f };
+
+			auto getSample = [&](bool getEnd, bool getRight, int sampleIndex)
+			{
+				auto index = (getEnd ? endRange.getStart() : startRange.getStart()) + sampleIndex;
+
+				return fullBuffer.getSample((int)getRight, index);
+			};
+
+			for (int i = DisplaySize / 4; i < DisplaySize * 3 / 4; i++)
+			{
+				float window = (float)(i - DisplaySize / 4) / (float)(DisplaySize / 4);
+
+				if (i > DisplaySize / 2)
+					window = 2.0f - window;
+
+				diff[0] += window * std::abs(getSample(false, false, i) - getSample(true, false, i));
+				diff[1] += window * std::abs(getSample(false, true, i) - getSample(true, true, i));
+			}
+
+			auto p2le = getSample(true, false, DisplaySize / 2 - 2);
+			auto p1le = getSample(true, false, DisplaySize / 2 - 1);
+			auto p2re = getSample(true, true, DisplaySize / 2 - 2);
+			auto p1re = getSample(true, true, DisplaySize / 2 - 1);
+
+			auto expectedl = p1le + (p1le - p2le);
+			auto expectedr = p1re + (p1re - p2re);
+
+			auto actuall = getSample(false, false, DisplaySize / 2);
+			auto actualr = getSample(false, true, DisplaySize / 2);
+
+			error = jmax(std::abs(expectedl - actuall), std::abs(expectedr - actualr));
+			error = Decibels::gainToDecibels(error);
+
+			diff[0] /= (float)(DisplaySize / 4);
+			diff[1] /= (float)(DisplaySize / 4);
+
+			maxdiff = jmax(diff[0], diff[1]);
+			maxdiff = Decibels::gainToDecibels(maxdiff);
+		}
+
+		Range<int> loopRange;
+		float maxdiff = 0.0f;
+		float error = 0.0f;
+	};
+
+	void refreshThumbnails()
+	{
+		ScopedLock sl(fullBufferLock);
+		auto channels = getLoopEdgesAsChannelBuffers();
+
+		if (channels.size() != 4)
+		{
+			loopStart.clear();
+			loopEnd.clear();
+			statistics = {};
+
+			repaint();
+			return;
+		}
+
+		auto startRange = getLoopEdgeRange(false);
+		auto endRange = getLoopEdgeRange(true);
+
+		auto DisplaySize = getDisplaySize();
+
+		auto maxS = 1.0f / jmax(0.001f, fullBuffer.getMagnitude(startRange.getStart(), startRange.getLength()));
+		auto maxE = 1.0f / jmax(0.001f, fullBuffer.getMagnitude(endRange.getStart(), endRange.getLength()));
+
+		statistics.loopRange = currentLoop;
+		statistics.calculate(fullBuffer, startRange, endRange, DisplaySize);
+
+		auto gain = jmin(maxS, maxE);
+
+        loopStart.setDisplayGain(gain, dontSendNotification);
+        loopEnd.setDisplayGain(gain, dontSendNotification);
+		loopStart.setBuffer(channels[0], channels[1]);
+		loopEnd.setBuffer(channels[2], channels[3]);
         
         repaint();
     }
@@ -574,6 +727,7 @@ struct LoopImproveWindow: public Component,
     
     static void selectionChanged(LoopImproveWindow& w, ModulatorSamplerSound::Ptr newSound, int micIndex)
     {
+		
         w.sound = newSound;
         
         if(newSound == nullptr)
@@ -600,6 +754,7 @@ struct LoopImproveWindow: public Component,
 
         if (afr != nullptr)
         {
+			ScopedLock sl(w.fullBufferLock);
             w.fullBuffer.setSize(2, afr->lengthInSamples);
             afr->read(&w.fullBuffer, 0, afr->lengthInSamples, 0, true, true);
         }
@@ -632,20 +787,52 @@ struct LoopImproveWindow: public Component,
     {
         if(b == &previewButton && fullBuffer.getNumSamples() > 0)
         {
-            // Implement me...
-            jassertfalse;
-            
-            //getMainController()->setBufferToPlay(pBuffer);
+			int PreviewLength = 44100 * 2;
+
+			AudioSampleBuffer b(2, PreviewLength);
+
+			auto useMultipleLoops = currentLoop.getLength() < (PreviewLength / 2);
+
+			if (useMultipleLoops)
+			{
+				auto l = fullBuffer.getReadPointer(0, currentLoop.getStart());
+				auto r = fullBuffer.getReadPointer(0, currentLoop.getStart());
+
+				for (int i = 0; i < PreviewLength; i += currentLoop.getLength())
+				{
+					auto numToCopy = jmin(currentLoop.getLength(), PreviewLength - i);
+					b.copyFrom(0, i, fullBuffer, 0, currentLoop.getStart(), numToCopy);
+					b.copyFrom(1, i, fullBuffer, 1, currentLoop.getStart(), numToCopy);
+				}
+			}
+			else
+			{
+				auto o1 = currentLoop.getEnd() - (PreviewLength / 2);
+				
+				b.copyFrom(0, 0, fullBuffer, 0, o1, PreviewLength / 2);
+				b.copyFrom(1, 0, fullBuffer, 1, o1, PreviewLength / 2);
+
+				b.copyFrom(0, PreviewLength / 2, fullBuffer, 0, currentLoop.getStart(), PreviewLength / 2);
+				b.copyFrom(1, PreviewLength / 2, fullBuffer, 1, currentLoop.getStart(), PreviewLength / 2);
+			}
+
+			b.applyGainRamp(0, 1024, 0.0f, 1.0f);
+			b.applyGainRamp(PreviewLength - 1024, 1024, 1.0f, 0.0f);
+
+            getMainController()->setBufferToPlay(b);
         }
         if(b == &findButton)
         {
-            // implement me...
-            jassertfalse;
+			findThread.stopThread(1000);
+			findThread.startThread();
+			repaint();
         }
         if(b == &applyButton && sound != nullptr)
         {
             sound->setSampleProperty(SampleIds::LoopStart, currentLoop.getStart(), true);
             sound->setSampleProperty(SampleIds::LoopEnd, currentLoop.getEnd(), true);
+			unappliedChanges = false;
+			repaint();
         }
     }
     
@@ -678,6 +865,14 @@ struct LoopImproveWindow: public Component,
     
     void paint(Graphics& g) override
     {
+		if (findThread.isThreadRunning())
+		{
+			g.setColour(Colours::white.withAlpha(0.6f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("Searching best loop point in area", getLocalBounds().toFloat(), Justification::centred);
+			return;
+		}
+
         auto b = getLocalBounds().toFloat();
         
         b.removeFromTop(24);
@@ -695,26 +890,30 @@ struct LoopImproveWindow: public Component,
         g.drawHorizontalLine(lb.getY() + lb.getHeight() / 4, 0.0f, (float)getWidth());
         g.drawHorizontalLine(lb.getY() + 3 * lb.getHeight() / 4, 0.0f, (float)getWidth());
         
-        String s;
-        s << "Average Diff: " << String(maxdiff, 1) << "dB, ";
-        s << "Error: " << String(error, 1) << "dB";
-        
         g.setFont(GLOBAL_BOLD_FONT());
         g.setColour(Colours::white.withAlpha(0.9f));
         
         if(!ok)
         {
-            g.drawText("Loop is disabled for current sample", getLocalBounds().toFloat(), Justification::centred);
+			if(sound == nullptr)
+				g.drawText("No sample selected", getLocalBounds().toFloat(), Justification::centred);
+			else
+				g.drawText("Loop is disabled for current sample", getLocalBounds().toFloat(), Justification::centred);
             return;
         }
         
+		String s;
+		s << statistics.toString();
+		s << (unappliedChanges ? "*" : "");
+
         g.drawText(s, getLocalBounds().toFloat().removeFromTop(24.0f).reduced(10.0f, 0.0f), Justification::centredLeft);
     }
     
     bool ok;
     
-    float maxdiff = 0.0f;
-    float error = 0.0f;
+	ErrorStats statistics;
+
+	CriticalSection fullBufferLock;
     
     AudioSampleBuffer fullBuffer;
     
@@ -729,6 +928,7 @@ struct LoopImproveWindow: public Component,
     Range<int> currentLoop;
     Range<int> mouseDownLoop;
     bool dragStart = false;
+	bool unappliedChanges = false;
     
     Slider amountSlider;
     ModulatorSamplerSound::Ptr sound;
@@ -795,7 +995,7 @@ void SampleEditor::perform(SampleMapCommands c)
         
         selectionBroadcaster.addListener(*n, LoopImproveWindow::selectionChanged);
         
-        findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, analyseButton, {8, 16});
+        findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, improveButton, {8, 16});
         
         return;
 	}
@@ -896,6 +1096,18 @@ void SampleEditor::samplePropertyWasChanged(ModulatorSamplerSound* s, const Iden
 		
 }
 
+
+void SampleEditor::refreshDisplayFromComboBox()
+{
+	auto idx = sampleSelector->getSelectedItemIndex();
+
+	if (auto s = selection[idx])
+	{
+		selectionBroadcaster.sendMessage(sendNotification, s, multimicSelector->getSelectedItemIndex());
+
+		currentWaveForm->setSoundToDisplay(s);
+	}
+}
 
 //==============================================================================
 void SampleEditor::paint (Graphics& g)
@@ -1106,6 +1318,8 @@ void SampleEditor::soundsSelected(const SampleSelection &selectedSoundList)
 	}
 	else
 	{
+		selectionBroadcaster.sendMessage(sendNotificationSync, nullptr, 0);
+
 		currentWaveForm->setSoundToDisplay(nullptr);
 		overview.setReader(nullptr);
 	}

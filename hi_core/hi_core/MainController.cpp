@@ -623,6 +623,20 @@ void MainController::stopBufferToPlay()
 
 void MainController::setBufferToPlay(const AudioSampleBuffer& buffer, const std::function<void(int)>& pf)
 {
+	if (buffer.getNumSamples() > 400000 && getKillStateHandler().getCurrentThread() != KillStateHandler::SampleLoadingThread)
+	{
+		AudioSampleBuffer copy;
+		copy.makeCopyOf(buffer);
+
+		killAndCallOnLoadingThread([copy, pf](Processor* p)
+		{
+			p->getMainController()->setBufferToPlay(copy, pf);
+			return SafeFunctionCall::OK;
+		});
+
+		return;
+	}
+
 	{
 		LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
 

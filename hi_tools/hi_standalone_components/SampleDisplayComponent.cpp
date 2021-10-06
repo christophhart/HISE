@@ -908,6 +908,8 @@ void HiseAudioThumbnail::setBufferAndSampleRate(double newSampleRate, var buffer
 
 void HiseAudioThumbnail::setBuffer(var bufferL, var bufferR /*= var()*/, bool synchronously)
 {
+	ScopedLock sl(lock);
+
 	currentReader = nullptr;
 
 	const bool shouldBeNotEmpty = bufferL.isBuffer() && bufferL.getBuffer()->size != 0;
