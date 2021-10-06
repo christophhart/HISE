@@ -191,6 +191,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	addButton(SampleMapCommands::EnableSampleStartArea, true);
 	addButton(SampleMapCommands::EnableLoopArea, true);
     addButton(SampleMapCommands::ZeroCrossing, false);
+    addButton(SampleMapCommands::ImproveLoopPoints, false);
     
     externalButton = addButton(SampleMapCommands::ExternalEditor, false);
     
@@ -302,7 +303,7 @@ String SampleEditor::getTooltipForCommand(SampleMapCommands c)
         case SampleMapCommands::LoopEnabled:            return "Enable looping for selection";
         case SampleMapCommands::ExternalEditor:         return "Open current sample selection in external audio editor";
         case SampleMapCommands::ZeroCrossing:           return "Enable zero crossing";
-		case SampleMapCommands::ImproveLoopPoints:		return "Tries to optimise the loop points using correlation";
+		case SampleMapCommands::ImproveLoopPoints:		return "Open the Loop Finder Popup";
             
         default: return "";
     }
@@ -329,6 +330,420 @@ bool SampleEditor::getState(SampleMapCommands c) const
         default: return false;
     }
 }
+
+namespace LoopIcons
+{
+static const unsigned char apply[] = { 110,109,6,161,63,67,31,93,227,68,108,80,141,144,67,31,61,245,68,108,221,52,169,67,215,211,243,68,98,221,52,169,67,215,211,243,68,195,117,177,67,20,222,235,68,170,209,192,67,205,60,228,68,98,180,56,202,67,72,145,223,68,248,35,214,67,123,236,218,68,8,12,
+229,67,174,199,216,68,108,162,213,241,67,246,240,214,68,108,219,105,229,67,184,94,207,68,108,33,160,216,67,113,53,209,68,98,195,37,197,67,61,2,212,68,53,174,180,67,51,211,217,68,31,101,168,67,195,237,223,68,98,121,41,161,67,113,133,227,68,207,87,155,
+67,102,46,231,68,207,7,151,67,102,54,234,68,98,207,7,151,67,102,54,234,68,106,188,125,67,236,89,225,68,106,188,125,67,236,89,225,68,108,197,224,107,67,133,19,222,68,108,6,161,63,67,31,93,227,68,99,101,0,0 };
+
+static const unsigned char find[] = { 110,109,106,44,20,68,225,154,169,68,108,119,246,35,68,225,154,169,68,98,147,224,39,68,0,136,181,68,88,233,58,68,205,236,190,68,61,226,82,68,225,178,192,68,108,61,226,82,68,215,147,200,68,98,141,71,50,68,205,180,198,68,174,79,24,68,236,217,185,68,106,
+44,20,68,225,154,169,68,99,109,0,8,145,68,225,154,169,68,98,154,1,143,68,31,133,185,68,82,128,130,68,10,47,198,68,219,81,101,68,133,115,200,68,108,219,81,101,68,246,136,192,68,98,133,91,124,68,82,104,190,68,133,59,135,68,41,52,181,68,225,34,137,68,225,
+154,169,68,108,0,8,145,68,225,154,169,68,99,109,47,181,54,68,225,154,169,68,108,193,50,71,68,225,154,169,68,98,90,132,73,68,225,34,172,68,113,181,77,68,20,38,174,68,61,226,82,68,133,51,175,68,108,61,226,82,68,123,92,183,68,98,236,17,69,68,174,207,181,
+68,49,32,58,68,51,115,176,68,47,181,54,68,225,154,169,68,99,109,10,135,127,68,225,154,169,68,98,195,69,124,68,92,31,176,68,111,50,114,68,133,75,181,68,219,81,101,68,123,28,183,68,108,219,81,101,68,20,190,174,68,98,211,149,105,68,195,157,173,68,254,4,
+109,68,102,206,171,68,104,9,111,68,225,154,169,68,108,10,135,127,68,225,154,169,68,99,109,61,226,82,68,92,135,129,68,108,61,226,82,68,82,104,137,68,98,57,252,58,68,205,44,139,68,250,254,39,68,41,132,148,68,16,0,36,68,51,99,160,68,108,231,51,20,68,51,
+99,160,68,98,195,109,24,68,143,50,144,68,170,89,50,68,113,101,131,68,61,226,82,68,92,135,129,68,99,109,61,226,82,68,184,190,146,68,108,61,226,82,68,174,231,154,68,98,88,201,77,68,246,240,155,68,172,164,73,68,246,232,157,68,162,77,71,68,51,99,160,68,108,
+215,195,54,68,51,99,160,68,98,217,62,58,68,164,152,153,68,129,37,69,68,246,72,148,68,61,226,82,68,184,190,146,68,99,109,219,81,101,68,102,254,146,68,98,141,31,114,68,31,205,148,68,82,40,124,68,123,236,153,68,82,120,127,68,51,99,160,68,108,135,238,110,
+68,51,99,160,68,98,152,230,108,68,205,60,158,68,225,130,105,68,82,120,156,68,219,81,101,68,31,93,155,68,108,219,81,101,68,102,254,146,68,99,109,219,81,101,68,174,167,129,68,98,20,118,130,68,61,234,131,68,61,242,142,68,20,134,144,68,41,4,145,68,51,99,
+160,68,108,20,30,137,68,51,99,160,68,98,41,44,135,68,174,215,148,68,82,72,124,68,72,177,139,68,219,81,101,68,61,146,137,68,108,219,81,101,68,174,167,129,68,99,101,0,0 };
+
+static const unsigned char preview[] = { 110,109,164,232,154,68,188,68,221,67,108,215,131,181,68,242,34,134,67,108,215,131,181,68,217,78,68,68,108,164,232,154,68,244,189,24,68,108,246,248,132,68,244,189,24,68,108,246,248,132,68,188,68,221,67,108,164,232,154,68,188,68,221,67,99,101,0,0 };
+}
+
+struct LoopImproveWindow: public Component,
+                          public ControlledObject,
+                          public ComboBox::Listener,
+                          public ButtonListener,
+                          public SampleMap::Listener,
+                          public PathFactory
+{
+    int getDisplaySize() const { return amountSlider.getValue(); }
+    
+    LoopImproveWindow(ModulatorSamplerSound* s, ModulatorSampler* sampler_):
+      ControlledObject(sampler_->getMainController()),
+      sound(s),
+      sampler(sampler_),
+      applyButton("apply", this, *this),
+      previewButton("preview", this, *this),
+      findButton("find", this, *this),
+      dragger(this, nullptr)
+    {
+        addAndMakeVisible(dragger);
+        
+        addAndMakeVisible(loopStart);
+        addAndMakeVisible(loopEnd);
+        addAndMakeVisible(&amountSlider);
+        
+        addAndMakeVisible(applyButton);
+        addAndMakeVisible(findButton);
+        addAndMakeVisible(previewButton);
+        
+        
+        previewButton.setToggleModeWithColourChange(true);
+        
+        sampler->getSampleMap()->addListener(this);
+        
+        addAndMakeVisible(sizeSelector);
+        sizeSelector.setLookAndFeel(&claf);
+        GlobalHiseLookAndFeel::setDefaultColours(sizeSelector);
+        sizeSelector.addItemList({"256", "512", "1024", "2048", "4096", "8192", "16384" }, 1);
+        sizeSelector.setText("1024", dontSendNotification);
+        sizeSelector.addListener(this);
+        
+        amountSlider.setRange(256, 8192, 1.0);
+        amountSlider.setSkewFactor(0.3f);
+        amountSlider.setSliderStyle(Slider::SliderStyle::LinearHorizontal);
+        amountSlider.setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
+        amountSlider.setLookAndFeel(&laf);
+        amountSlider.setValue(1024.0, dontSendNotification);
+        
+        amountSlider.onValueChange = [this]()
+        {
+            this->refreshThumbnails();
+        };
+        
+        amountSlider.setColour(Slider::backgroundColourId, Colours::white.withAlpha(0.2f));
+        amountSlider.setColour(Slider::trackColourId, Colours::orange.withSaturation(0.0f).withAlpha(0.5f));
+
+        amountSlider.setColour(Slider::thumbColourId, Colour(0xFFDDDDDD));
+        amountSlider.setTooltip("Change waveform zoom");
+        
+        
+        previewButton.setTooltip("Preview the current loop");
+        applyButton.setTooltip("Write the current loop to the sample properties");
+        sizeSelector.setTooltip("Select a zoom size");
+        findButton.setTooltip("Find the best loop point");
+        
+        loopStart.setDisplayMode(HiseAudioThumbnail::DisplayMode::DownsampledCurve);
+        loopEnd.setDisplayMode(HiseAudioThumbnail::DisplayMode::DownsampledCurve);
+        
+        loopStart.setColour(AudioDisplayComponent::ColourIds::bgColour, Colours::transparentBlack);
+        loopStart.setColour(AudioDisplayComponent::ColourIds::fillColour, Colours::transparentBlack);
+        loopStart.setColour(AudioDisplayComponent::ColourIds::outlineColour, Colours::red.withSaturation(0.43f).withAlpha(0.6f));
+        loopEnd.setColour(AudioDisplayComponent::ColourIds::bgColour, Colours::transparentBlack);
+        loopEnd.setColour(AudioDisplayComponent::ColourIds::fillColour, Colours::transparentBlack);
+        loopEnd.setColour(AudioDisplayComponent::ColourIds::outlineColour, Colours::blue.withSaturation(0.43f).withAlpha(0.6f));
+        
+        setName("Loop Finder");
+        setSize(600, 300);
+        
+        selectionChanged(*this, sound, 0);
+    }
+    
+    ~LoopImproveWindow()
+    {
+        sampler->getSampleMap()->removeListener(this);
+    }
+    
+    void mouseDown(const MouseEvent& e)
+    {
+        mouseDownLoop = currentLoop;
+        dragStart = e.getPosition().getX() > getWidth() / 2;
+    }
+    
+    void mouseDrag(const MouseEvent& e)
+    {
+        auto ds = (float)getDisplaySize();
+        
+        auto deltaNorm = (float)e.getDistanceFromDragStartX() / (float)getWidth();
+        
+        if(e.mods.isShiftDown())
+            deltaNorm *= 0.25f;
+        
+        auto delta = roundToInt(deltaNorm * ds);
+        
+        
+        
+        if(dragStart)
+            currentLoop.setStart(mouseDownLoop.getStart() - delta);
+        else
+            currentLoop.setEnd(mouseDownLoop.getEnd() - delta);
+        
+        refreshThumbnails();
+    }
+    
+    Path createPath(const String& url) const override
+    {
+        Path p;
+        LOAD_PATH_IF_URL("preview", LoopIcons::preview);
+        LOAD_PATH_IF_URL("apply", LoopIcons::apply);
+        LOAD_PATH_IF_URL("find", LoopIcons::find);
+        
+        return p;
+    }
+    
+    void comboBoxChanged(ComboBox* cb) override
+    {
+        amountSlider.setValue(cb->getText().getIntValue(), sendNotificationSync);
+    }
+    
+    void refreshThumbnails()
+    {
+        if(sound == nullptr || !sound->getSampleProperty(SampleIds::LoopEnabled))
+        {
+            ok = false;
+            return;
+        }
+        
+        ok = true;
+        
+        auto DisplaySize = getDisplaySize();
+        
+        VariantBuffer::Ptr ls = new VariantBuffer(DisplaySize);
+        VariantBuffer::Ptr rs = new VariantBuffer(DisplaySize);
+        
+        VariantBuffer::Ptr le = new VariantBuffer(DisplaySize);
+        VariantBuffer::Ptr re = new VariantBuffer(DisplaySize);
+       
+        auto os = jmax(0, currentLoop.getStart() - DisplaySize/2);
+        auto nums = jmin(DisplaySize, fullBuffer.getNumSamples() - os);
+        
+        auto oe = jmax(0, currentLoop.getEnd() - DisplaySize/2);
+        auto nume = jmin(DisplaySize, fullBuffer.getNumSamples() - oe);
+        
+        FloatVectorOperations::copy(ls->buffer.getWritePointer(0), fullBuffer.getReadPointer(0, os), nums);
+        FloatVectorOperations::copy(rs->buffer.getWritePointer(0), fullBuffer.getReadPointer(1, os), nums);
+        
+        FloatVectorOperations::copy(le->buffer.getWritePointer(0), fullBuffer.getReadPointer(0, oe), nume);
+        FloatVectorOperations::copy(re->buffer.getWritePointer(0), fullBuffer.getReadPointer(1, oe), nume);
+        
+        
+        auto maxS = 1.0f / jmax(0.001f, fullBuffer.getMagnitude(os, nums));
+        auto maxE = 1.0f / jmax(0.001f, fullBuffer.getMagnitude(oe, nume));
+        
+        float diff[2] = { 0.0f };
+        
+        for(int i = DisplaySize / 4; i < DisplaySize * 3 / 4; i++)
+        {
+            float window = (float)(i - DisplaySize/4) / (float)(DisplaySize/4);
+            
+            if(i > DisplaySize / 2)
+                window = 2.0f - window;
+            
+            diff[0] += window * std::abs((float)le->getSample(i) - (float)ls->getSample(i));
+            diff[1] += window * std::abs((float)re->getSample(i) - (float)rs->getSample(i));
+        }
+        
+        auto p2le = (float)le->getSample(DisplaySize / 2 - 2);
+        auto p1le = (float)le->getSample(DisplaySize / 2 - 1);
+        auto p2re = (float)re->getSample(DisplaySize / 2 - 2);
+        auto p1re = (float)re->getSample(DisplaySize / 2 - 1);
+        
+        auto expectedl = p1le + (p1le - p2le);
+        auto expectedr = p1re + (p1re - p2re);
+        
+        auto actuall = (float)ls->getSample(DisplaySize/2);
+        auto actualr = (float)rs->getSample(DisplaySize/2);
+        
+        error = jmax(std::abs(expectedl - actuall), std::abs(expectedr - actualr));
+        error = Decibels::gainToDecibels(error);
+        
+        diff[0] /= (float)(DisplaySize/4);
+        diff[1] /= (float)(DisplaySize/4);
+        
+        
+        
+        maxdiff = jmax(diff[0], diff[1]);
+        
+        maxdiff = Decibels::gainToDecibels(maxdiff);
+        
+        loopStart.setDisplayGain(jmin(maxS, maxE));
+        loopEnd.setDisplayGain(jmin(maxS, maxE));
+        
+        loopStart.setBuffer(var(ls), var(rs));
+        loopEnd.setBuffer(var(le), var(re));
+        
+        
+        
+        
+        repaint();
+    }
+    
+    void sampleMapWasChanged(PoolReference newSampleMap) {}
+
+    void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) override
+    {
+        if(s == sound.get())
+        {
+            if(id == SampleIds::LoopStart || id == SampleIds::LoopEnd || id == SampleIds::LoopEnabled)
+            {
+                refreshThumbnailAndRanges();
+            }
+        }
+    };
+    
+    static void selectionChanged(LoopImproveWindow& w, ModulatorSamplerSound::Ptr newSound, int micIndex)
+    {
+        w.sound = newSound;
+        
+        if(newSound == nullptr)
+        {
+            w.fullBuffer = {};
+            w.refreshThumbnailAndRanges();
+            return;
+        }
+        
+        StreamingSamplerSound::Ptr ss = newSound->getReferenceToSound(micIndex);
+
+        if (ss == nullptr)
+        {
+            jassertfalse;
+            return;
+        }
+
+        ScopedPointer<AudioFormatReader> afr;
+
+        if (ss->isMonolithic())
+            afr = ss->createReaderForPreview();
+        else
+            afr = PresetHandler::getReaderForFile(ss->getFileName(true));
+
+        if (afr != nullptr)
+        {
+            w.fullBuffer.setSize(2, afr->lengthInSamples);
+            afr->read(&w.fullBuffer, 0, afr->lengthInSamples, 0, true, true);
+        }
+        
+        w.refreshThumbnailAndRanges();
+    }
+    
+    void refreshThumbnailAndRanges()
+    {
+        if(sound != nullptr)
+        {
+            originalLoop = { (int)sound->getSampleProperty(SampleIds::LoopStart), (int)sound->getSampleProperty(SampleIds::LoopEnd)};
+            currentLoop = originalLoop;
+        }
+        else
+        {
+            originalLoop = {};
+            currentLoop = {};
+        }
+        
+        refreshThumbnails();
+    }
+    
+    void mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& d) override
+    {
+        amountSlider.mouseWheelMove(e, d);
+    }
+    
+    void buttonClicked(Button* b) override
+    {
+        if(b == &previewButton && fullBuffer.getNumSamples() > 0)
+        {
+            // Implement me...
+            jassertfalse;
+            
+            //getMainController()->setBufferToPlay(pBuffer);
+        }
+        if(b == &findButton)
+        {
+            // implement me...
+            jassertfalse;
+        }
+        if(b == &applyButton && sound != nullptr)
+        {
+            sound->setSampleProperty(SampleIds::LoopStart, currentLoop.getStart(), true);
+            sound->setSampleProperty(SampleIds::LoopEnd, currentLoop.getEnd(), true);
+        }
+    }
+    
+    void resized() override
+    {
+        auto b = getLocalBounds();
+        auto top = b.removeFromTop(24);
+        applyButton.setBounds(top.removeFromRight(24).reduced(2));
+        
+        previewButton.setBounds(top.removeFromRight(24).reduced(2));
+        
+        findButton.setBounds(top.removeFromRight(24).reduced(2));
+        
+        auto bottom = b.removeFromBottom(24);
+        
+        dragger.setBounds(bottom.removeFromRight(15).removeFromBottom(15));
+        
+        sizeSelector.setBounds(bottom.removeFromLeft(150));
+        
+        amountSlider.setBounds(bottom);
+        
+        b.removeFromBottom(10);
+        
+        loopStart.setBounds(b);//.removeFromTop(b.getHeight()/2));
+        loopEnd.setBounds(b);
+        
+        loopStart.setRange(getWidth()/2, getWidth());
+        loopEnd.setRange(0, getWidth() / 2);
+    }
+    
+    void paint(Graphics& g) override
+    {
+        auto b = getLocalBounds().toFloat();
+        
+        b.removeFromTop(24);
+        
+        
+        
+        g.setColour(Colours::white.withAlpha(0.2f));
+        g.drawVerticalLine(getWidth() / 2, 28, getHeight() - 32.0f);
+        
+        auto lb = loopStart.getBounds();
+        
+        g.setColour(Colours::black.withAlpha(0.2f));
+        g.fillRoundedRectangle(lb.toFloat(), 3.0f);
+        
+        g.drawHorizontalLine(lb.getY() + lb.getHeight() / 4, 0.0f, (float)getWidth());
+        g.drawHorizontalLine(lb.getY() + 3 * lb.getHeight() / 4, 0.0f, (float)getWidth());
+        
+        String s;
+        s << "Average Diff: " << String(maxdiff, 1) << "dB, ";
+        s << "Error: " << String(error, 1) << "dB";
+        
+        g.setFont(GLOBAL_BOLD_FONT());
+        g.setColour(Colours::white.withAlpha(0.9f));
+        
+        if(!ok)
+        {
+            g.drawText("Loop is disabled for current sample", getLocalBounds().toFloat(), Justification::centred);
+            return;
+        }
+        
+        g.drawText(s, getLocalBounds().toFloat().removeFromTop(24.0f).reduced(10.0f, 0.0f), Justification::centredLeft);
+    }
+    
+    bool ok;
+    
+    float maxdiff = 0.0f;
+    float error = 0.0f;
+    
+    AudioSampleBuffer fullBuffer;
+    
+    HiseAudioThumbnail loopStart;
+    HiseAudioThumbnail loopEnd;
+    
+    HiseShapeButton applyButton;
+    HiseShapeButton findButton;
+    HiseShapeButton previewButton;
+    
+    Range<int> originalLoop;
+    Range<int> currentLoop;
+    Range<int> mouseDownLoop;
+    bool dragStart = false;
+    
+    Slider amountSlider;
+    ModulatorSamplerSound::Ptr sound;
+    
+    ComboBox sizeSelector;
+    GlobalHiseLookAndFeel claf;
+    
+    WeakReference<ModulatorSampler> sampler;
+    
+    LookAndFeel_V4 laf;
+    
+    juce::ResizableCornerComponent dragger;
+    
+    JUCE_DECLARE_WEAK_REFERENCEABLE(LoopImproveWindow);
+};
 
 void SampleEditor::perform(SampleMapCommands c)
 {
@@ -376,7 +791,13 @@ void SampleEditor::perform(SampleMapCommands c)
     }
 	case SampleMapCommands::ImproveLoopPoints:
 	{
-		
+        auto n = new LoopImproveWindow(const_cast<ModulatorSamplerSound*>(currentWaveForm->getCurrentSound()), sampler);
+        
+        selectionBroadcaster.addListener(*n, LoopImproveWindow::selectionChanged);
+        
+        findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, analyseButton, {8, 16});
+        
+        return;
 	}
     case SampleMapCommands::ExternalEditor:
     {
@@ -643,7 +1064,7 @@ Component* SampleEditor::addButton(SampleMapCommands commandId, bool hasState)
 
 void SampleEditor::soundsSelected(const SampleSelection &selectedSoundList)
 {
-	selection.clear();
+    selection.clear();
 
 	for (int i = 0; i < selectedSoundList.size(); i++)
 		selection.add(selectedSoundList[i]);
@@ -666,6 +1087,8 @@ void SampleEditor::soundsSelected(const SampleSelection &selectedSoundList)
 
 		currentWaveForm->setSoundToDisplay(ms, micIndex);
 
+        selectionBroadcaster.sendMessage(sendNotificationSync, ms, micIndex);
+        
 		auto sound = ms->getReferenceToSound(micIndex);
 
 		ScopedPointer<AudioFormatReader> afr;
@@ -712,6 +1135,8 @@ void SampleEditor::soundsSelected(const SampleSelection &selectedSoundList)
 	multimicSelector->setTextWhenNoChoicesAvailable("No multimics");
 
 	updateWaveform();
+    
+    
 }
 
 void SampleEditor::paintOverChildren(Graphics &g)

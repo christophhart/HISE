@@ -786,7 +786,7 @@ void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailBackground(Graphic
 	{
 		fillColour = fillColour.withMultipliedAlpha(0.3f);
 		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
-		bgColour = outlineColour.withMultipliedAlpha(0.3f);
+		bgColour = bgColour.withMultipliedAlpha(0.3f);
 	}
 
 	if (!bgColour.isTransparent())
@@ -1220,69 +1220,73 @@ void HiseAudioThumbnail::createCurvePathForCurrentView(bool isLeft, Rectangle<in
 	if (downsampledValues.getNumSamples() == 0)
 		return;
 
+    Rectangle<int> vBounds = getLocalBounds();
+    Rectangle<float> va = vBounds.toFloat();
+    auto w = (float)area.getWidth();
+    
 	if (auto vp = findParentComponentOfClass<Viewport>())
 	{
 		// this must be the same size
-		auto vBounds = vp->getViewedComponent()->getLocalBounds();
+		vBounds = vp->getViewedComponent()->getLocalBounds();
 		jassert(vBounds.getWidth() == area.getWidth());
 
-		auto w = (float)area.getWidth();
 		
-		auto va = vp->getViewArea().toFloat();
 		
-		Range<float> rangeToDisplay(va.getX() / w, va.getRight() / w);
+		va = vp->getViewArea().toFloat();
+    }
+		
+    Range<float> rangeToDisplay(va.getX() / w, va.getRight() / w);
 
-		auto numSamples = downsampledValues.getNumSamples();
+    auto numSamples = downsampledValues.getNumSamples();
 
-		auto start = roundToInt((float)numSamples * rangeToDisplay.getStart());
-		auto end = roundToInt((float)numSamples * rangeToDisplay.getEnd());
+    auto start = roundToInt((float)numSamples * rangeToDisplay.getStart());
+    auto end = roundToInt((float)numSamples * rangeToDisplay.getEnd());
 
-		start = jlimit(0, numSamples - 1, start);
-		end = jlimit(0, numSamples - 1, end);
+    start = jlimit(0, numSamples - 1, start);
+    end = jlimit(0, numSamples - 1, end);
 
-        auto getBufferValue = [&](int index)
-        {
-            auto v = downsampledValues.getSample(isLeft ? 0 : 1, index);
-            v = applyDisplayGain(v);
-            
-            FloatSanitizers::sanitizeFloatNumber(v);
-            return -1.0f * v;
-        };
+    auto getBufferValue = [&](int index)
+    {
+        auto v = downsampledValues.getSample(isLeft ? 0 : 1, index);
+        v = applyDisplayGain(v);
         
-        if(!useRectList)
+        FloatSanitizers::sanitizeFloatNumber(v);
+        return -1.0f * v;
+    };
+    
+    if(!useRectList)
+    {
+        pToUse.preallocateSpace((end - start) + 3);
+        
+        pToUse.startNewSubPath((float)start, -1.0f);
+        pToUse.startNewSubPath((float)end, 1.0f);
+        pToUse.startNewSubPath(start, getBufferValue(start));
+        
+        for (int i = start + 1; i < end; i++)
         {
-            pToUse.preallocateSpace((end - start) + 3);
-            
-            pToUse.startNewSubPath((float)start, -1.0f);
-            pToUse.startNewSubPath((float)end, 1.0f);
-            pToUse.startNewSubPath(start, getBufferValue(start));
-            
-            for (int i = start + 1; i < end; i++)
-            {
-                pToUse.lineTo(i, getBufferValue(i));
-            }
-            
-            pToUse.scaleToFit(va.getX(), (float)area.getY(), va.getWidth(), (float)area.getHeight(), false);
+            pToUse.lineTo(i, getBufferValue(i));
         }
-        else
+        
+        pToUse.scaleToFit(va.getX(), (float)area.getY(), va.getWidth(), (float)area.getHeight(), false);
+    }
+    else
+    {
+        rToUse.ensureStorageAllocated(end - start);
+        
+        auto pw = (float)va.getWidth() / (float)(end - start);
+        
+        
+        for (int i = start; i < end; i++)
         {
-            rToUse.ensureStorageAllocated(end - start);
+            auto v = getBufferValue(i);
+            auto x = (float)va.getX() + (i - start) * pw;
+            auto y = (float)area.getCentreY() - v *  (float)area.getHeight() * 0.5f;
+            auto w = pw * 1.5f;
+            auto h = (float)area.getHeight() * v;
             
-            auto pw = (float)va.getWidth() / (float)(end - start);
-            
-            
-            for (int i = start; i < end; i++)
-            {
-                auto v = getBufferValue(i);
-                auto x = (float)va.getX() + (i - start) * pw;
-                auto y = (float)area.getCentreY() - v *  (float)area.getHeight() * 0.5f;
-                auto w = pw * 1.5f;
-                auto h = (float)area.getHeight() * v;
-                
-                rToUse.addWithoutMerging({x, y, w, h});
-            }
+            rToUse.addWithoutMerging({x, y, w, h});
         }
-	}
+    }
 }
 
 void XYZMultiChannelAudioBufferEditor::setComplexDataUIBase(ComplexDataUIBase* newData)

@@ -687,14 +687,14 @@ juce::Identifier SamplerSoundWaveform::getSampleIdToChange(AreaTypes a, const Mo
 {
 	if (auto area = areas[a])
 	{
-		auto distStart = hmath::abs(area->getX() - e.getPosition().getX());
-		auto distEnd = hmath::abs(area->getX() + area->getWidth() - e.getPosition().getX());
-		bool isEnd = distEnd < distStart || a == AudioDisplayComponent::SampleStartArea;
+        auto ae = e.getEventRelativeTo(area);
+        bool isEnd = (ae.getPosition().getX() > area->getWidth() / 2) || a == AudioDisplayComponent::SampleStartArea;
 
 		switch (a)
 		{
 		case AudioDisplayComponent::AreaTypes::PlayArea: return (isEnd ? SampleIds::SampleEnd : SampleIds::SampleStart);
 		case AudioDisplayComponent::AreaTypes::SampleStartArea: return SampleIds::SampleStartMod;
+        case AudioDisplayComponent::AreaTypes::LoopArea: return (isEnd ? SampleIds::LoopEnd : SampleIds::LoopStart);
 		default: return {};
 		}
 	}
