@@ -565,7 +565,7 @@ bool TextEditor::paste()
 
 		for (auto& l : sa)
 		{
-			auto trimmed = whitespaceToRemove.isEmpty() ? l : l.fromFirstOccurrenceOf(whitespaceToRemove, false, false);
+            auto trimmed = (whitespaceToRemove.isEmpty() || !l.startsWith(whitespaceToRemove)) ? l : l.fromFirstOccurrenceOf(whitespaceToRemove, false, false);
 
 			if (first)
 			{
