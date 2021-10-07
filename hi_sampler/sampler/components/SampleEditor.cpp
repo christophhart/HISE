@@ -636,7 +636,10 @@ struct LoopImproveWindow: public Component,
 			{
 				auto index = (getEnd ? endRange.getStart() : startRange.getStart()) + sampleIndex;
 
-				return fullBuffer.getSample((int)getRight, index);
+                if(isPositiveAndBelow(index, fullBuffer.getNumSamples()))
+                    return fullBuffer.getSample((int)getRight, index);
+                
+                return 0.0f;
 			};
 
 			for (int i = DisplaySize / 4; i < DisplaySize * 3 / 4; i++)
@@ -655,6 +658,28 @@ struct LoopImproveWindow: public Component,
 			auto p2re = getSample(true, true, DisplaySize / 2 - 2);
 			auto p1re = getSample(true, true, DisplaySize / 2 - 1);
 
+            auto p2ls = getSample(false, false, DisplaySize / 2 - 2);
+            auto p1ls = getSample(false, false, DisplaySize / 2 - 1);
+            auto p2rs = getSample(false, true, DisplaySize / 2 - 2);
+            auto p1rs = getSample(false, true, DisplaySize / 2 - 1);
+            
+            auto n2le = getSample(true, false, DisplaySize / 2 + 2);
+            auto n1le = getSample(true, false, DisplaySize / 2 + 1);
+            auto n2re = getSample(true, true, DisplaySize / 2 + 2);
+            auto n1re = getSample(true, true, DisplaySize / 2 + 1);
+
+            auto n2ls = getSample(false, false, DisplaySize / 2 + 2);
+            auto n1ls = getSample(false, false, DisplaySize / 2 + 1);
+            auto n2rs = getSample(false, true, DisplaySize / 2 + 2);
+            auto n1rs = getSample(false, true, DisplaySize / 2 + 1);
+            
+            auto errL = std::abs(p2le - p2ls) + std::abs(p1le - p2ls) +
+                        std::abs(n1le - n1ls) + std::abs(n2le - n2ls);
+            
+            auto errR = std::abs(p2re - p2rs) + std::abs(p1re - p2rs) +
+                        std::abs(n1re - n1rs) + std::abs(n2re - n2rs);
+            
+            
 			auto expectedl = p1le + (p1le - p2le);
 			auto expectedr = p1re + (p1re - p2re);
 
@@ -662,6 +687,8 @@ struct LoopImproveWindow: public Component,
 			auto actualr = getSample(false, true, DisplaySize / 2);
 
 			error = jmax(std::abs(expectedl - actuall), std::abs(expectedr - actualr));
+            
+            error = jmax(errL, errR);
 			error = Decibels::gainToDecibels(error);
 
 			diff[0] /= (float)(DisplaySize / 4);
