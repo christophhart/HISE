@@ -1510,7 +1510,7 @@ void MultiChannelAudioBufferDisplay::paint(Graphics &g)
 	bgColour = findColour(AudioDisplayComponent::ColourIds::bgColour);
 	g.fillAll(bgColour);
 
-	AudioDisplayComponent::paint(g);
+	//AudioDisplayComponent::paint(g);
 
 	if (over)
 	{
@@ -1539,7 +1539,7 @@ void MultiChannelAudioBufferDisplay::paintOverChildren(Graphics& g)
 		laf->drawTextOverlay(g, *preview, text, r.toFloat());
 	}
 
-	AudioDisplayComponent::paint(g);
+	AudioDisplayComponent::paintOverChildren(g);
 
 	String fileNameToShow = getCurrentlyLoadedFileName();
 

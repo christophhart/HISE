@@ -1428,10 +1428,16 @@ void SampleEditor::zoom(bool zoomOut, int mousePos/*=0*/)
     auto normPos = (double)oldPos / (double)currentWaveForm->getWidth();
     auto oldMousePosNorm = normDelta + normPos;
     
+#if JUCE_WINDOWS || JUCE_LINUX
+	auto factor = 1.25f;
+#else
+	auto factor = 1.125f;
+#endif
+
 	if (!zoomOut)
-		zoomFactor = jmin(128.0f, zoomFactor * 1.125f);
+		zoomFactor = jmin(128.0f, zoomFactor * factor);
 	else
-		zoomFactor = jmax(1.0f, zoomFactor / 1.125f);
+		zoomFactor = jmax(1.0f, zoomFactor / factor);
     
 	resized();
 
