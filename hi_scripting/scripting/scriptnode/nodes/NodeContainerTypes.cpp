@@ -749,9 +749,11 @@ struct CloneOptionComponent : public Component,
 	{
 		Path p;
 
+#if USE_BACKEND
 		LOAD_PATH_IF_URL("hide", BackendBinaryData::ToolbarIcons::viewPanel);
 		LOAD_PATH_IF_URL("duplicate", SampleMapIcons::duplicateSamples);
 		LOAD_PATH_IF_URL("delete", SampleMapIcons::deleteSamples);
+#endif
 
 		return p;
 	}

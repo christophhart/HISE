@@ -446,7 +446,9 @@ struct DuplicateComponent : public Component,
 			alpha += 0.07f;
 
 		Path p;
+#if USE_BACKEND
 		p.loadPathFromData(BackendBinaryData::ToolbarIcons::viewPanel, sizeof(BackendBinaryData::ToolbarIcons::viewPanel));
+#endif
 		PathFactory::scalePath(p, getLocalBounds().toFloat().withSizeKeepingCentre(32.0f, 32.0f));
 
 		g.setColour(Colours::white.withAlpha(alpha));
