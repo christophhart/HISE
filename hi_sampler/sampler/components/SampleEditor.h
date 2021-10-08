@@ -241,7 +241,7 @@ public:
 
 	Component* addButton(SampleMapCommands commandId, bool hasState);
 
-    LambdaBroadcaster<ModulatorSamplerSound::Ptr, int> selectionBroadcaster;
+    
     
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.

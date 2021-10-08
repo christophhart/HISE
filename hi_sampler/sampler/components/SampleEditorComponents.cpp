@@ -115,6 +115,40 @@ SampleComponent::SampleComponent(ModulatorSamplerSound *s, SamplerSoundMap *pare
 #pragma warning( pop )
 
 
+juce::Colour SampleComponent::getColourForSound(bool wantsOutlineColour) const
+{
+	if (sound.get() == nullptr) return Colours::transparentBlack;
+
+	if (selected)
+	{
+		if (wantsOutlineColour)
+		{
+			return Colour(SIGNAL_COLOUR);
+		}
+		else
+		{
+			auto base = JUCE_LIVE_CONSTANT_OFF(0.2f);
+			auto alpha = JUCE_LIVE_CONSTANT_OFF(0.45f);
+			auto delta = JUCE_LIVE_CONSTANT_OFF(0.7f);
+
+			auto b = jlimit(0.0f, 1.0f, transparency + base + (isMainSelection ? delta : 0.0f));
+
+			return Colour(SIGNAL_COLOUR).withBrightness(b).withAlpha(alpha);
+		}
+	}
+
+	if (sound->isMissing())
+	{
+		if (sound->isPurged()) return Colours::violet.withAlpha(0.3f);
+		else return Colours::violet.withAlpha(0.3f);
+	}
+	else
+	{
+		if (sound->isPurged()) return Colours::brown.withAlpha(0.3f);
+		else return wantsOutlineColour ? Colours::white.withAlpha(0.7f) : Colours::white.withAlpha(transparency);
+	}
+}
+
 bool SampleComponent::samplePathContains(Point<int> localPoint) const
 {
 	if (outline.isEmpty())
@@ -171,14 +205,24 @@ void SampleComponent::drawSampleRectangle(Graphics &g, Rectangle<int> areaInt)
     }
     else
     {
-        g.setColour(getColourForSound(false));
+		auto strokeColour = getColourForSound(true);
+		auto fillColour = getColourForSound(false);
+
+        g.setColour(fillColour);
+
         g.fillRect(areaInt);
         
-        g.setColour(getColourForSound(true));
+        g.setColour(strokeColour);
         g.drawHorizontalLine(areaInt.getY(), area.getX(), area.getRight());
         g.drawHorizontalLine(areaInt.getBottom()-1, area.getX(), area.getRight());
         g.drawVerticalLine(areaInt.getX(), area.getY(), area.getBottom());
         g.drawVerticalLine(areaInt.getRight()-1, area.getY(), area.getBottom());
+
+		if (played)
+		{
+			g.setColour(fillColour.withMultipliedAlpha(0.4f));
+			g.fillRect(area.reduced(3));
+		}
     }
 }
 
@@ -204,7 +248,8 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
     sampleLasso->setColour(LassoComponent<SampleComponent>::ColourIds::lassoFillColourId, Colours::white.withAlpha(0.1f));
     sampleLasso->setColour(LassoComponent<SampleComponent>::ColourIds::lassoOutlineColourId, Colour(SIGNAL_COLOUR));
     
-    
+	ownerSampler->getSampleEditHandler()->noteBroadcaster.addListener(*this, keyChanged);
+
 	ownerSampler->getSampleMap()->addListener(this);
 
 	for (uint8 i = 0; i < 128; i++)
@@ -231,6 +276,33 @@ SamplerSoundMap::~SamplerSoundMap()
 	}
 		
 	sampleComponents.clear();
+}
+
+void SamplerSoundMap::keyChanged(SamplerSoundMap& map, int noteNumber, int velocity)
+{
+	map.pressedKeys[noteNumber] = velocity;
+
+	auto currentGroup = map.ownerSampler->getSamplerDisplayValues().currentGroup;
+
+	for (auto s: map.sampleComponents)
+	{
+		if (!s->isVisible() || s->getSound() == nullptr)
+			continue;
+
+		if (currentGroup != -1 && !s->getSound()->appliesToRRGroup(currentGroup))
+			continue;
+
+		
+
+		auto thisVelocity = velocity;
+		if (thisVelocity == 0)
+			thisVelocity = s->getSound()->getSampleProperty(SampleIds::LoVel);
+
+		if (s->getSound()->appliesToMessage(1, noteNumber, thisVelocity))
+			s->setSampleIsPlayed(velocity > 0);
+	}
+
+	map.repaint();
 }
 
 void SamplerSoundMap::changeListenerCallback(ChangeBroadcaster *b)
@@ -266,6 +338,16 @@ void SamplerSoundMap::changeListenerCallback(ChangeBroadcaster *b)
 		jassertfalse;
 	}
 
+}
+
+void SamplerSoundMap::setDisplayedSound(SamplerSoundMap& map, ModulatorSamplerSound::Ptr sound, int)
+{
+	for (SampleComponent* s : map.sampleComponents)
+	{
+		s->checkSelected(sound);
+	}
+
+	map.repaint();
 }
 
 void SamplerSoundMap::selectNeighbourSample(Neighbour direction)
@@ -1000,34 +1082,6 @@ void SamplerSoundMap::mouseDrag(const MouseEvent &e)
     
     refreshGraphics();
 }
-
-void SamplerSoundMap::setPressedKeys(const uint8 *pressedKeyData)
-{
-	for(int i = 0; i < 127; i++)
-	{
-		const int number = i;
-		const int velocity = pressedKeyData[i];
-
-		const bool change = velocity != pressedKeys[i];
-
-		if(change)
-		{
-			for (int j = 0; j < sampleComponents.size(); j++)
-			{
-				if (sampleComponents[j]->isVisible() && sampleComponents[j]->getSound() != nullptr &&
-					sampleComponents[j]->getSound()->appliesToMessage(1, number, velocity) &&
-					sampleComponents[j]->getSound()->appliesToRRGroup(ownerSampler->getSamplerDisplayValues().currentGroup))
-				{
-					sampleComponents[j]->setSampleIsPlayed(velocity > 0);
-				}
-			}
-		}
-
-		pressedKeys[i] = (uint8)velocity;
-	}
-
-	repaint();
-}
 	
 
 SampleComponent* SamplerSoundMap::getSampleComponentAt(Point<int> point)
@@ -1094,15 +1148,20 @@ void SamplerSoundMap::soloGroup(int groupIndex)
 {
 	handler->setDisplayOnlyRRGroup(groupIndex);
 
-	for(int i = 0; i < sampleComponents.size(); i++)
+	if (groupIndex != currentSoloGroup)
 	{
-		const bool visible = (groupIndex == - 1) || sampleComponents[i]->appliesToGroup(groupIndex);
+		currentSoloGroup = groupIndex;
 
-		sampleComponents[i]->setVisible(visible);
-		sampleComponents[i]->setEnabled(visible);
+		for (int i = 0; i < sampleComponents.size(); i++)
+		{
+			const bool visible = (groupIndex == -1) || sampleComponents[i]->appliesToGroup(groupIndex);
+
+			sampleComponents[i]->setVisible(visible);
+			sampleComponents[i]->setEnabled(visible);
+		}
+
+		refreshGraphics();
 	}
-
-    refreshGraphics();
 }
 
 

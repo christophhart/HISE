@@ -32,6 +32,19 @@
 
 namespace hise { using namespace juce;
 
+SampleEditHandler::SampleEditHandler(ModulatorSampler* sampler_) :
+	sampler(sampler_)
+{
+	MessageManagerLock mml;
+	selectedSamplerSounds.addChangeListener(this);
+	noteBroadcaster.enableLockFreeUpdate(sampler->getMainController()->getGlobalUIUpdater());
+	noteBroadcaster.setEnableQueue(true, NUM_POLYPHONIC_VOICES);
+	
+	groupBroadcaster.enableLockFreeUpdate(sampler->getMainController()->getGlobalUIUpdater());
+
+	noteBroadcaster.addListener(*this, handleMidiSelection);
+}
+
 void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 {
 	int lowestValue = 127;
@@ -104,33 +117,24 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 	}
 }
 
-void SampleEditHandler::handleMidiSelection()
+void SampleEditHandler::handleMidiSelection(SampleEditHandler& handler, int noteNumber, int velocity)
 {
+	auto sampler = handler.sampler;
 	auto& x = sampler->getSamplerDisplayValues();
 
-	if (sampler->getEditorState(ModulatorSampler::MidiSelectActive) && newKeysPressed(x.currentNotes))
+	if (sampler->getEditorState(ModulatorSampler::MidiSelectActive))
 	{
-		selectedSamplerSounds.deselectAll();
+		handler.selectedSamplerSounds.deselectAll();
 
 		SelectedItemSet<const ModulatorSamplerSound*> midiSounds;
 
-		for (int i = 0; i < 127; i++)
+		ModulatorSampler::SoundIterator sIter(sampler);
+
+		while (auto sound = sIter.getNextSound())
 		{
-			if (x.currentNotes[i] != 0)
+			if (sampler->soundCanBePlayed(sound, 1, noteNumber, (float)velocity / 127.0f))
 			{
-				const int noteNumber = i;
-				const int velocity = x.currentNotes[i];
-
-				ModulatorSampler::SoundIterator sIter(sampler);
-
-				while (auto sound = sIter.getNextSound())
-				{
-					if (sampler->soundCanBePlayed(sound, 1, noteNumber, (float)velocity / 127.0f))
-					{
-						selectedSamplerSounds.addToSelection(sound.get());
-					}
-				}
-
+				handler.selectedSamplerSounds.addToSelection(sound.get());
 			}
 		}
 	}

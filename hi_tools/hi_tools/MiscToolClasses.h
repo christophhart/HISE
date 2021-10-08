@@ -1776,8 +1776,9 @@ private:
 		{
 			if (dirty.load())
 			{
-				parent.sendInternal();
+				// set it before since one of the callbacks could send a message again
 				dirty.store(false);
+				parent.sendInternal();
 			}
 		}
 

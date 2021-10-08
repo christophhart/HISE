@@ -208,26 +208,10 @@ public:
 
 	void setSampleIsPlayed(bool isPlayed)
 	{
-		transparency = isPlayed ? 0.8f : 0.3f;
+		played = isPlayed;
 	}
 
-	Colour getColourForSound(bool wantsOutlineColour) const
-	{
-		if(sound.get() == nullptr) return Colours::transparentBlack;
-        
-		if (selected) return wantsOutlineColour ? Colour(SIGNAL_COLOUR) : Colour(SIGNAL_COLOUR).withBrightness(transparency).withAlpha(0.6f);
-
-		if (sound->isMissing())
-		{
-			if (sound->isPurged()) return Colours::violet.withAlpha(0.3f);
-			else return Colours::violet.withAlpha(0.3f);
-		}
-		else
-		{
-			if (sound->isPurged()) return Colours::brown.withAlpha(0.3f);
-			else return wantsOutlineColour ? Colours::white.withAlpha(0.7f) : Colours::white.withAlpha(transparency);
-		}
-	}
+	Colour getColourForSound(bool wantsOutlineColour) const;
 
 	bool samplePathContains(Point<int> localPoint) const;
 
@@ -269,7 +253,14 @@ public:
 		else return false;
 	}
 
+	void checkSelected(ModulatorSamplerSound::Ptr currentSelection)
+	{
+		isMainSelection = currentSelection == sound;
+	}
+
 private:
+
+	bool isMainSelection = false;
 
 	friend class WeakReference < SampleComponent > ;
 
@@ -280,6 +271,7 @@ private:
 	bool selected;
 	bool enabled;
 	bool visible;
+	bool played = false;
 
 	float transparency;
 
@@ -330,6 +322,8 @@ public:
 	{
 		return;
 	}
+
+	static void keyChanged(SamplerSoundMap& map, int noteNumber, int velocity);
 
 	void sampleMapWasChanged(PoolReference newSampleMap) override
 	{
@@ -387,6 +381,8 @@ public:
 
 	void changeListenerCallback(ChangeBroadcaster *b) override;
 
+	static void setDisplayedSound(SamplerSoundMap& map, ModulatorSamplerSound::Ptr sound, int);
+
 	void paint(Graphics &g) override;
 	void paintOverChildren(Graphics &g) override;
     
@@ -420,7 +416,8 @@ public:
 	*
 	*	@param pressedKeyData the array with the velocities (-1 if the key is not pressed). @see ModulatorSampler::SamplerDisplayValues
 	*/
-	void setPressedKeys(const uint8 *pressedKeyData);
+
+	
 
 	/** change the selection to the supplied list of sounds. */
 	void setSelectedIds(const SampleSelection& newSelectionList);
@@ -454,6 +451,10 @@ public:
 	const ModulatorSampler* getSampler() const { return ownerSampler; }
 
 private:
+
+	int currentSoloGroup = -1;
+
+	ModulatorSamplerSound::WeakPtr selectedSound;
 
 	PoolReference oldReference;
 
@@ -511,6 +512,8 @@ private:
     Image currentSnapshot;
 
 	ScopedPointer<valuetree::RecursivePropertyListener> propertyUpdater;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SamplerSoundMap);
 };
 
 /** A wrapper class around a SamplerSoundMap which adds a keyboard that can be clicked to trigger the note. 

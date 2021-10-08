@@ -55,12 +55,7 @@ public:
 		WeakReference<Listener>::Master masterReference;
 	};
 
-	SampleEditHandler(ModulatorSampler* sampler_):
-		sampler(sampler_)
-	{
-		MessageManagerLock mml;
-		selectedSamplerSounds.addChangeListener(this);
-	}
+	SampleEditHandler(ModulatorSampler* sampler_);
 
 	~SampleEditHandler()
 	{
@@ -127,7 +122,7 @@ public:
 		}
 	}
 
-	void handleMidiSelection();
+	static void handleMidiSelection(SampleEditHandler& handler, int noteNumber, int velocity);
 
 	struct SampleEditingActions
 	{
@@ -161,7 +156,9 @@ public:
 		static void writeSamplesWithAiffData(ModulatorSampler* sampler);
 	};
 
-	
+	LambdaBroadcaster<ModulatorSamplerSound::Ptr, int> selectionBroadcaster;
+	LambdaBroadcaster<int, int> noteBroadcaster;
+	LambdaBroadcaster<int, int> groupBroadcaster;
 
 private:
 
@@ -184,6 +181,8 @@ private:
 	ModulatorSampler* sampler;
 public:
 	File getCurrentSampleMapDirectory() const;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SampleEditHandler);
 };
 
 

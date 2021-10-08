@@ -458,7 +458,7 @@ public:
 		double currentSampleStartPos;
 		float crossfadeTableValue;
 		int currentGroup = 1;
-		int currentlyDisplayedGroup = 0;
+		int currentlyDisplayedGroup = -1;
 
 		uint8 currentNotes[128];
 	};
@@ -640,6 +640,7 @@ public:
     
     bool isUsingStaticMatrix() const noexcept { return useStaticMatrix; };
 
+	void setDisplayedGroup(int index);
 	
 	void setSortByGroup(bool shouldSortByGroup);
 
@@ -786,8 +787,6 @@ private:
 
 	int preloadSize;
 	int bufferSize;
-
-	hise::LockFreeUpdater midiSelectionUpdater;
 
 	bool useStaticMatrix = false;
 

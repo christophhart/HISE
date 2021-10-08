@@ -69,6 +69,516 @@ END_MARKDOWN_CHAPTER()
 
 //[/MiscUserDefs]
 
+
+struct RRDisplayComponent : public Component,
+						    public PathFactory,
+							public SampleMap::Listener
+{
+	struct XFadeEditor : public Component
+	{
+		XFadeEditor(ModulatorSampler* s):
+			dragger(this, nullptr)
+		{
+			auto numGroups = s->getAttribute(ModulatorSampler::RRGroupAmount);
+
+			for (int i = 0; i < numGroups; i++)
+			{
+				auto t = new TableEditor(s->getMainController()->getControlUndoManager(), s->getTable(i));
+				addAndMakeVisible(t);
+				tables.add(t);
+			}
+
+			presetSelector.addItem("Reset to 0-1", 1);
+			presetSelector.addItem("Crossfade for " + String(numGroups) + " tables", 2);
+
+			presetSelector.onChange = [this]()
+			{
+				auto shouldReset = presetSelector.getSelectedId() == 1;
+
+				for (int i = 0; i < tables.size(); i++)
+				{
+					setTablePoints(tables[i]->getEditedTable(), shouldReset, i, tables.size());
+				}
+			};
+
+			addAndMakeVisible(presetSelector);
+			presetSelector.setLookAndFeel(&claf);
+			claf.setDefaultColours(presetSelector);
+
+			setSize(500, numGroups * 100 + 28);
+			setName("Crossfade Table Editor");
+
+			addAndMakeVisible(dragger);
+		}
+
+		static void setTablePoints(Table* t, bool shouldReset, int tableIndex, int numTables)
+		{
+			t->reset();
+
+			if(!shouldReset)
+			{
+				for (int i = 0; i < numTables - 2; i++)
+					t->addTablePoint(0.5f + (float)i * 0.05f, 0.5f);
+
+				for (int i = 0; i < numTables; i++)
+				{
+					auto normX = (float)i / (float)(numTables - 1);
+
+					float y = i == tableIndex ? 1.0f : 0.0f;
+					t->setTablePoint(i, normX, y, 0.5f);
+				}
+			}
+			
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+
+			presetSelector.setBounds(b.removeFromTop(28));
+
+			auto h = getHeight() / jmax(1, tables.size());
+
+			for (auto t : tables)
+			{
+				t->setBounds(b.removeFromTop(h - 10));
+				b.removeFromTop(10);
+			}
+
+			dragger.setBounds(getLocalBounds().removeFromBottom(15).removeFromRight(15));
+		}
+
+		ComboBox presetSelector;
+		juce::ResizableCornerComponent dragger;
+		OwnedArray<TableEditor> tables;
+		GlobalHiseLookAndFeel claf;
+	};
+
+	struct RRNumberDisplay : public Component,
+						     public SettableTooltipClient,
+							 public PooledUIUpdater::SimpleTimer
+	{
+		RRNumberDisplay(ModulatorSampler* s):
+			SimpleTimer(s->getMainController()->getGlobalUIUpdater()),
+			sampler(s)
+		{
+			sampler->getSampleEditHandler()->groupBroadcaster.addListener(*this, updateNumber);
+			setRepaintsOnMouseActivity(true);
+			setTooltip("Click to change RR amount");
+		}
+
+		void timerCallback() override
+		{
+			auto thisAlpha = jmax(alpha * 0.9f, 0.5f);
+
+			if (thisAlpha != alpha)
+			{
+				alpha = thisAlpha;
+				repaint();
+			}
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			if (sampler->isUsingCrossfadeGroups())
+			{
+				auto t = new XFadeEditor(sampler);
+				auto root = findParentComponentOfClass<FloatingTile>()->getRootFloatingTile();
+
+				root->showComponentInRootPopup(t, this, { getLocalBounds().getCentreX(), 15 }, false);
+				return;
+			}
+
+			auto d = PresetHandler::getCustomName(String(numGroups), "Enter the amount of RR groups you need");
+
+			if (d.getIntValue() != 0)
+			{
+				sampler->setAttribute(ModulatorSampler::RRGroupAmount, (float)d.getIntValue(), sendNotification);
+			}
+		}
+
+		static void updateNumber(RRNumberDisplay& d, int group, int displayedGroup)
+		{
+			d.numGroups = (int)d.sampler->getAttribute(ModulatorSampler::RRGroupAmount);
+
+			if (group != d.currentGroup)
+			{
+				d.currentGroup = jmax(1, group);
+				d.alpha = 1.0f;
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().toFloat();
+
+			auto ha = 0.0f;
+
+			if (isMouseButtonDown())
+				ha += 0.1f;
+
+			if (isMouseOverOrDragging())
+				ha += 0.1f;
+
+			g.setColour(Colours::white.withAlpha(ha));
+			g.fillRoundedRectangle(b.reduced(1.0f), 3.0f);
+
+			g.setFont(GLOBAL_BOLD_FONT());
+
+			auto c = sampler->getMidiInputLockValue(SampleIds::RRGroup) != -1 ? Colour(SIGNAL_COLOUR) : Colours::white;
+
+			g.setColour(c.withAlpha(alpha));
+			
+			String s;
+
+			if (sampler->isUsingCrossfadeGroups())
+				s << "XFade on";
+			else
+				s << "RR " << String(currentGroup) << " / " << String(numGroups);
+
+			g.drawText(s, b, Justification::centred);
+		}
+
+		int currentGroup = 1;
+		int numGroups = 1;
+
+		float alpha = 0.5f;
+
+		WeakReference<ModulatorSampler> sampler;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(RRNumberDisplay);
+	};
+
+	RRDisplayComponent(ModulatorSampler* s) :
+		sampler(s),
+		numberDisplay(s),
+		midiButton("midi", nullptr, *this),
+		lockButton("lock", nullptr, *this)
+	{
+
+		addAndMakeVisible(lockButton);
+		addAndMakeVisible(midiButton);
+		lockButton.setToggleModeWithColourChange(true);
+		midiButton.setToggleModeWithColourChange(true);
+
+		lockButton.setTooltip("Lock the current RR group");
+		midiButton.setTooltip("Always show the currently played RR group");
+
+		lockButton.onClick = [this]()
+		{
+			sampler->toggleMidiInputLock(SampleIds::RRGroup, sampler->getCurrentRRGroup());
+			numberDisplay.repaint();
+			repaint();
+		};
+
+		midiButton.onClick = [this]()
+		{
+			auto isOn = midiButton.getToggleState();
+			auto idx = isOn ? sampler->getCurrentRRGroup() : -1;
+			sampler->setDisplayedGroup(idx);
+		};
+
+		sampler->getSampleEditHandler()->selectionBroadcaster.addListener(*this, setMainSelection);
+		sampler->getSampleMap()->addListener(this);
+
+		sampler->getSampleEditHandler()->groupBroadcaster.addListener(*this, groupChanged);
+
+		addAndMakeVisible(numberDisplay);
+
+	};
+
+	~RRDisplayComponent()
+	{
+		if (sampler != nullptr)
+		{
+			sampler->getSampleMap()->removeListener(this);
+		}
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+
+		LOAD_PATH_IF_URL("lock", ColumnIcons::lockIcon);
+		LOAD_PATH_IF_URL("midi", SampleToolbarIcons::selectMidi);
+
+		return p;
+	}
+
+	static void groupChanged(RRDisplayComponent& d, int rrGroup, int displayedGroup)
+	{
+		d.currentDisplayGroup = displayedGroup;
+
+		if (d.midiButton.getToggleState() && rrGroup != displayedGroup)
+		{
+			d.sampler->setDisplayedGroup(rrGroup);
+		}
+
+		auto shouldLock = d.sampler->getMidiInputLockValue(SampleIds::RRGroup) != -1;
+		d.lockButton.setToggleStateAndUpdateIcon(shouldLock);
+
+		d.rebuildStates();
+	}
+
+	void sampleMapWasChanged(PoolReference newSampleMap) override
+	{
+		rebuildStates();
+	}
+
+	void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) override
+	{
+		if (id == SampleIds::RRGroup)
+			rebuildStates();
+	};
+
+	void sampleAmountChanged() override
+	{
+		rebuildStates();
+	};
+
+	void sampleMapCleared() override
+	{
+		rebuildStates();
+	};
+
+	struct State
+	{
+		void draw(Graphics& g) const
+		{
+			if (over)
+			{
+				g.setColour(Colours::white.withAlpha(0.05f));
+				g.fillRect(area);
+			}
+
+			auto circleSize = 11.0f;
+
+			auto circle = area.withSizeKeepingCentre(circleSize, circleSize);
+
+			auto whiteColour = Colours::white.withAlpha(over ? 1.0f : 0.8f);
+
+			auto strokeColour = isSelected ? Colour(SIGNAL_COLOUR) : whiteColour;
+		
+			Colour fillColour;
+
+			if (isSelected)
+				fillColour = Colour(SIGNAL_COLOUR).withAlpha(isMainSelection ? 0.6f : 0.1f);
+			else
+				fillColour = Colours::white.withAlpha(isEmpty ? 0.0f : 0.2f);
+
+			g.setColour(fillColour);
+			g.fillEllipse(circle);
+			g.setColour(strokeColour);
+			g.drawEllipse(circle, 1.5f);
+
+			if (isActive)
+			{
+				g.fillEllipse(circle.reduced(3.0f));
+			}
+		};
+
+		bool isSelected = false;
+		bool isMainSelection = false;
+		bool isActive = false;
+		bool isEmpty = false;
+		bool over = false;
+
+		Rectangle<float> area;
+
+		
+	};
+
+	void mouseMove(const MouseEvent& e) override
+	{
+		for (auto& s : states)
+			s.over = s.area.toNearestInt().contains(e.getPosition());
+
+		repaint();
+	}
+
+	void mouseDown(const MouseEvent& e) override
+	{
+		if (e.mods.isRightButtonDown())
+		{
+			PopupLookAndFeel plaf;
+			PopupMenu m;
+			m.setLookAndFeel(&plaf);
+			m.addItem(-1, "Show all groups");
+
+			for (int i = 0; i < states.size(); i++)
+			{
+				m.addItem(i + 1, "RR Group " + String(i + 1));
+			}
+
+			auto r = m.showAt(this);
+
+			if(r != 0)
+				sampler->setDisplayedGroup(r);
+
+			return;
+		}
+
+		int index = 1;
+		for (auto& s : states)
+		{
+			if (s.area.toNearestInt().contains(e.getPosition()))
+			{
+				auto indexToUse = sampler->getSamplerDisplayValues().currentlyDisplayedGroup == index ? -1 : index;
+
+				sampler->setDisplayedGroup(indexToUse);
+				return;
+			}
+
+			index++;
+		}
+		
+		repaint();
+	}
+
+	void mouseExit(const MouseEvent& e) override
+	{
+		for (auto& s : states)
+			s.over = false;
+
+		repaint();
+	}
+
+	static void setMainSelection(RRDisplayComponent& d, ModulatorSamplerSound::Ptr sound, int)
+	{
+		auto groupIndex = sound != nullptr ? (int)sound->getSampleProperty(SampleIds::RRGroup) : -1;
+		int index = 1;
+
+		d.rebuildStates();
+
+		for (auto& s : d.states)
+		{
+			s.isMainSelection = groupIndex == index++;
+		}
+
+		d.repaint();
+	}
+
+	void rebuildStates()
+	{
+		int mainSelection = -1;
+		int mi = 0;
+
+		for (const auto& s : states)
+		{
+			if (s.isMainSelection)
+				mainSelection = mi;
+
+			mi++;
+		}
+
+		states.clear();
+
+		auto numGroups = (int)sampler->getAttribute(ModulatorSampler::RRGroupAmount);
+
+		if (numGroups == 1)
+			return;
+
+		auto selection = sampler->getSampleEditHandler()->getSelection().getItemArray();
+		BigInteger selectState;
+		
+		for (auto sound : selection)
+		{
+			selectState.setBit((int)sound->getSampleProperty(SampleIds::RRGroup) - 1, true);
+		}
+
+		ModulatorSampler::SoundIterator it(sampler);
+
+		BigInteger emptyState;
+
+		while (auto s = it.getNextSound())
+		{
+			emptyState.setBit((int)s->getSampleProperty(SampleIds::RRGroup)-1, true);
+		}
+
+
+		for (int i = 0; i < numGroups; i++)
+		{
+			State s;
+			s.isActive = sampler->getCurrentRRGroup() == (i+1) || sampler->isUsingCrossfadeGroups();
+			s.isEmpty = !emptyState[i];
+			s.isSelected = selectState[i];
+			s.isMainSelection = i == mainSelection;
+			states.add(s);
+		}
+
+		resizeStates();
+	}
+
+	void resizeStates()
+	{
+		if (getLocalBounds().isEmpty())
+			return;
+
+		auto b = getLocalBounds().toFloat().reduced(2.0f);
+
+		auto firstComponent = &midiButton;
+
+		b.removeFromRight(getWidth() - firstComponent->getX());
+
+		b = b.removeFromRight(states.size() * getHeight());
+
+		for (auto& s : states)
+			s.area = b.removeFromLeft(b.getHeight());
+
+		repaint();
+	}
+
+	void resized()
+	{
+		auto b = getLocalBounds();
+		lockButton.setBounds(b.removeFromRight(b.getHeight()).reduced(2));
+		numberDisplay.setBounds(b.removeFromRight(55));
+		midiButton.setBounds(b.removeFromRight(b.getHeight()).reduced(2));
+
+
+		resizeStates();
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = getLocalBounds().toFloat().reduced(2.0f);
+
+		b = b.removeFromRight(states.size() * getHeight());
+
+		RectangleList<float> displayArea;
+
+		for (const auto& s : states)
+		{
+			s.draw(g);
+		}
+
+		if (currentDisplayGroup == -1)
+			displayArea = states.getFirst().area.getUnion(states.getLast().area);
+		else
+			displayArea = states[currentDisplayGroup - 1].area;
+
+		g.setColour(Colours::white.withAlpha(0.5f));
+
+		UnblurryGraphics ug(g, *this);
+
+		ug.draw1PxRect(displayArea.getBounds());
+	};
+
+	Array<State> states;
+
+	WeakReference<ModulatorSampler> sampler;
+
+	RRNumberDisplay numberDisplay;
+	HiseShapeButton lockButton;
+	HiseShapeButton midiButton;
+
+	int currentDisplayGroup = -1;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(RRDisplayComponent);
+};
+
+
+
 //==============================================================================
 SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	SamplerSubEditor(s->getSampleEditHandler()),
@@ -88,40 +598,8 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
     addAndMakeVisible (lowVelocitySetter = new ValueSettingComponent(s));
     addAndMakeVisible (highVelocitySetter = new ValueSettingComponent(s));
     addAndMakeVisible (rrGroupSetter = new ValueSettingComponent(s));
-    addAndMakeVisible (displayGroupLabel = new Label ("new label",
-                                                      TRANS("Display Group")));
-    displayGroupLabel->setFont (Font ("Khmer UI", 13.00f, Font::plain));
-    displayGroupLabel->setJustificationType (Justification::centredLeft);
-    displayGroupLabel->setEditable (false, false, false);
-    displayGroupLabel->setColour (Label::textColourId, Colours::white);
-    displayGroupLabel->setColour (TextEditor::textColourId, Colours::black);
-    displayGroupLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    addAndMakeVisible (groupDisplay = new PopupLabel ("new label",
-                                                      TRANS("All")));
-    groupDisplay->setFont (Font ("Khmer UI", 14.00f, Font::plain));
-    groupDisplay->setJustificationType (Justification::centred);
-    groupDisplay->setEditable (true, true, false);
-    groupDisplay->setColour (Label::backgroundColourId, Colour (0x38ffffff));
-    groupDisplay->setColour (Label::outlineColourId, Colour (0x38ffffff));
-    groupDisplay->setColour (TextEditor::textColourId, Colours::black);
-    groupDisplay->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-    groupDisplay->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
-    groupDisplay->addListener (this);
-
-	addAndMakeVisible(currentRRGroupLabel = new Label("new label",
-		TRANS("All")));
-	currentRRGroupLabel->setFont(GLOBAL_BOLD_FONT());
-	currentRRGroupLabel->setJustificationType(Justification::centred);
-	currentRRGroupLabel->setEditable(false, false, false);
-	currentRRGroupLabel->setColour(Label::backgroundColourId, Colour(0x44ffffff));
-	currentRRGroupLabel->setColour(Label::outlineColourId, Colour(0x38ffffff));
-	currentRRGroupLabel->setColour(TextEditor::textColourId, Colours::black);
-	currentRRGroupLabel->setColour(TextEditor::backgroundColourId, Colour(0x00000000));
-	currentRRGroupLabel->setColour(TextEditor::highlightColourId, Colour(0x407a0000));
-	currentRRGroupLabel->setText("1", dontSendNotification);
-	currentRRGroupLabel->setTooltip("The current RR group. Click to enable auto-follow");
-	currentRRGroupLabel->addMouseListener(this, true);
+	addAndMakeVisible(newRRDisplay = new RRDisplayComponent(sampler));
 
     addAndMakeVisible (viewport = new Viewport ("new viewport"));
     viewport->setScrollBarsShown (false, true);
@@ -138,9 +616,6 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 
 	addAndMakeVisible(lowXFadeSetter = new ValueSettingComponent(s));
 	addAndMakeVisible(highXFadeSetter = new ValueSettingComponent(s));
-
-	groupDisplay->setFont (GLOBAL_FONT());
-	displayGroupLabel->setFont (GLOBAL_FONT());
 
 	selectionIsNotEmpty = false;
 	zoomFactor = 1.0f;
@@ -169,8 +644,6 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 
 	lowXFadeSetter->setVisible(false);
 	highXFadeSetter->setVisible(false);
-
-	groupDisplay->setEditable(false);
 
 	rrGroupSetter->setPropertyType(SampleIds::RRGroup);
 	rootNoteSetter->setPropertyType(SampleIds::Root);
@@ -236,7 +709,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	addMenuButton(FillVelocityGaps);
 	addMenuButton(RefreshVelocityXFade);
 
-	
+	handler->selectionBroadcaster.addListener(*map->map, SamplerSoundMap::setDisplayedSound);
 
     //[/UserPreSize]
 
@@ -246,6 +719,11 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
     //[Constructor] You can add your own custom stuff here..
 
 	getCommandManager()->commandStatusChanged();
+
+	handler->groupBroadcaster.addListener(*map->map, [](SamplerSoundMap& m, int rrGroup, int displayedGroup)
+	{
+		m.soloGroup(displayedGroup);
+	});
 
     //[/Constructor]
 }
@@ -275,8 +753,6 @@ SampleMapEditor::~SampleMapEditor()
     lowVelocitySetter = nullptr;
     highVelocitySetter = nullptr;
     rrGroupSetter = nullptr;
-    displayGroupLabel = nullptr;
-    groupDisplay = nullptr;
     viewport = nullptr;
     toolbar = nullptr;
 
@@ -306,13 +782,12 @@ void SampleMapEditor::resized()
     lowVelocitySetter->setBounds ((getWidth() / 2) + 181 - (90 / 2), 206, 90, 32);
     highVelocitySetter->setBounds ((getWidth() / 2) + 277 - (90 / 2), 206, 90, 32);
     rrGroupSetter->setBounds ((getWidth() / 2) + -196 - (76 / 2), 206, 76, 32);
-    displayGroupLabel->setBounds ((getWidth() / 2) + -281 - (82 / 2), 201, 82, 24);
-    groupDisplay->setBounds ((getWidth() / 2) + -281 - (80 / 2), 221, 80, 16);
     viewport->setBounds ((getWidth() / 2) - (640 / 2), 42, 640, 160);
     toolbar->setBounds (12, 10, getWidth() - 140, 20);
     //[UserResized] Add your own custom resize handling here..
 
-
+	auto b = getLocalBounds().removeFromTop(24);
+	newRRDisplay->setBounds(b.removeFromRight(300));
 
 	toolbar->setVisible(false);
 
@@ -420,20 +895,11 @@ void SampleMapEditor::resized()
 	lowVelocitySetter->setBounds((getWidth() / 2) + 181 - (90 / 2), y, 90, 32);
 	highVelocitySetter->setBounds((getWidth() / 2) + 277 - (90 / 2), y, 90, 32);
 	rrGroupSetter->setBounds((getWidth() / 2) + -196 - (76 / 2), y, 76, 32);
-	displayGroupLabel->setBounds((getWidth() / 2) + -281 - (82 / 2), y-5, 82, 24);
-	groupDisplay->setBounds((getWidth() / 2) + -281 - (80 / 2), y+16, 80, 16);
-
 	
 	lowXFadeSetter->setBounds(lowKeySetter->getBounds());
 	highXFadeSetter->setBounds(highKeySetter->getBounds());
 
 	
-	auto gb = groupDisplay->getBounds();
-
-	currentRRGroupLabel->setBounds(gb.removeFromRight(gb.getHeight()*3/2));
-
-	groupDisplay->setBounds(gb);
-
     //[/UserResized]
 }
 
@@ -442,16 +908,7 @@ void SampleMapEditor::labelTextChanged (Label* labelThatHasChanged)
     //[UserlabelTextChanged_Pre]
     //[/UserlabelTextChanged_Pre]
 
-    if (labelThatHasChanged == groupDisplay)
-    {
-        //[UserLabelCode_groupDisplay] -- add your label text handling code here..
-
-		int index = getCurrentRRGroup();
-
-		map->map->soloGroup(index);
-		sampler->getSamplerDisplayValues().currentlyDisplayedGroup = index;
-        //[/UserLabelCode_groupDisplay]
-    }
+    
 
     //[UserlabelTextChanged_Post]
     //[/UserlabelTextChanged_Post]
@@ -873,10 +1330,6 @@ void SampleMapEditor::samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, con
 
 	if (id == SampleIds::Root)
 		refreshRootNotes();
-
-	if (id == SampleIds::RRGroup)
-		setCurrentRRGroup((int)newValue);
-
 }
 
 void SampleMapEditor::updateWarningButton()
@@ -924,31 +1377,6 @@ bool SampleMapEditor::keyPressed(const KeyPress& k)
 		return true;
 	}
 
-	if (k.getModifiers().isShiftDown())
-	{
-		if (k.getKeyCode() == k.upKey)
-		{
-			int index = getCurrentRRGroup();
-
-			if (index == -1) index = 0;
-
-			index++;
-
-			setCurrentRRGroup(index);
-
-			return true;
-		}
-		else if (k.getKeyCode() == k.downKey)
-		{
-			int index = getCurrentRRGroup();
-
-			index--;
-
-			setCurrentRRGroup(index);
-
-			return true;
-		}
-	}
 	if (k.getKeyCode() == KeyPress::leftKey)
 	{
 		if (k.getModifiers().isCommandDown())
@@ -987,12 +1415,6 @@ bool SampleMapEditor::keyPressed(const KeyPress& k)
 
 void SampleMapEditor::mouseDown(const MouseEvent &e)
 {
-	if (e.eventComponent == currentRRGroupLabel)
-	{
-		toggleFollowRRGroup();
-		return;
-	}
-
 	getCommandManager()->setFirstCommandTarget(this);
 	getCommandManager()->commandStatusChanged();
 
@@ -1059,21 +1481,6 @@ void SampleMapEditor::refreshSampleMapPool()
 	{
 		if (auto e = exp.getExpansion(i))
 			e->pool->getSampleMapPool().refreshPoolAfterUpdate();
-	}
-}
-
-void SampleMapEditor::toggleFollowRRGroup()
-{
-	followRRGroup = !followRRGroup;
-
-	if (followRRGroup)
-	{
-		currentRRGroupLabel->setColour(Label::ColourIds::outlineColourId, Colour(SIGNAL_COLOUR));
-	}
-	else
-	{
-		currentRRGroupLabel->setColour(Label::ColourIds::outlineColourId, Colour(0x38FFFFFF));
-		setCurrentRRGroup(0);
 	}
 }
 

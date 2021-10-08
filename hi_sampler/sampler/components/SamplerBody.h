@@ -55,7 +55,7 @@ public:
 	{
 		if (!dynamic_cast<ModulatorSampler*>(getProcessor())->shouldUpdateUI()) return;
 
-		getSampleEditHandler()->handleMidiSelection();
+		
 
 		settingsPanel->updateInterface();
 		sampleEditor->updateInterface();
@@ -106,26 +106,19 @@ public:
 
 		if (k.getModifiers().isShiftDown())
 		{
-			if (k.getKeyCode() == k.upKey)
+			if (k.getKeyCode() == k.upKey ||
+				k.getKeyCode() == k.downKey)
 			{
-				int index = map->getCurrentRRGroup();
+				auto sampler = dynamic_cast<ModulatorSampler*>(getProcessor());
 
-				if (index == -1) index = 0;
+				int index = sampler->getSamplerDisplayValues().currentlyDisplayedGroup;
 
-				index++;
+				index = index + (k.getKeyCode() == k.upKey ? -1 : 1);
 
-				map->setCurrentRRGroup(index);
+				if (index == 0)
+					index = -1;
 
-				return true;
-			}
-			else if (k.getKeyCode() == k.downKey)
-			{
-				int index = map->getCurrentRRGroup();
-
-				index--;
-
-				map->setCurrentRRGroup(index);
-
+				sampler->setDisplayedGroup(index);
 				return true;
 			}
 		}

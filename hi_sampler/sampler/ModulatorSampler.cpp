@@ -115,8 +115,7 @@ repeatMode(RepeatMode::KillSecondOldestNote),
 deactivateUIUpdate(false),
 samplePreloadPending(false),
 realVoiceAmount(numVoices),
-temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0),
-midiSelectionUpdater(mc->getGlobalUIUpdater())
+temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 {
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	sampleEditHandler = new SampleEditHandler(this);
@@ -163,11 +162,6 @@ midiSelectionUpdater(mc->getGlobalUIUpdater())
 	setEditorState(EditorStates::MapPanelShown, true);
 	setEditorState(EditorStates::BigSampleMap, true);
 
-	midiSelectionUpdater.setFunction([this]()
-	{
-		getSampleEditHandler()->handleMidiSelection();
-	});
-	
 	sampleStartChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff5e8127)));
 	crossFadeChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff884b29)));
 
@@ -800,6 +794,12 @@ bool ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool res
 	}
 }
 
+void ModulatorSampler::setDisplayedGroup(int index)
+{
+	getSamplerDisplayValues().currentlyDisplayedGroup = index;
+	getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, getCurrentRRGroup(), index);
+}
+
 void ModulatorSampler::setSortByGroup(bool shouldSortByGroup)
 {
 	if (shouldSortByGroup != (soundCollector != nullptr))
@@ -1005,7 +1005,8 @@ void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 			}
 
 #if USE_BACKEND
-			midiSelectionUpdater.triggerUpdateWithLambda();
+
+			getSampleEditHandler()->noteBroadcaster.sendMessage(sendNotificationAsync, m.getNoteNumber(), m.getVelocity());
 
 			if (lockRRGroup != -1)
 				currentRRGroupIndex = lockRRGroup;
@@ -1013,6 +1014,7 @@ void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 			if (lockVelocity > 0)
 				m.setVelocity(lockVelocity);
 
+			getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, currentRRGroupIndex, getSamplerDisplayValues().currentlyDisplayedGroup);
 #endif
 		
 			samplerDisplayValues.currentGroup = currentRRGroupIndex;
@@ -1024,6 +1026,8 @@ void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 		}
 		else
 		{
+			getSampleEditHandler()->noteBroadcaster.sendMessage(sendNotificationAsync, m.getNoteNumber(), 0);
+
             samplerDisplayValues.currentNotes[m.getNoteNumber() + m.getTransposeAmount()] = 0;
 		}
 		
@@ -1302,6 +1306,8 @@ void ModulatorSampler::setRRGroupAmount(int newGroupLimit)
 	useRRGain = false;
 
 	ModulatorSynth::setVoiceLimit(realVoiceAmount * getNumActiveGroups());
+
+	getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, getCurrentRRGroup(), getSamplerDisplayValues().currentlyDisplayedGroup);
 }
 
 

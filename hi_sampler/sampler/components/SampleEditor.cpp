@@ -1020,7 +1020,7 @@ void SampleEditor::perform(SampleMapCommands c)
 	{
         auto n = new LoopImproveWindow(const_cast<ModulatorSamplerSound*>(currentWaveForm->getCurrentSound()), sampler);
         
-        selectionBroadcaster.addListener(*n, LoopImproveWindow::selectionChanged);
+        handler->selectionBroadcaster.addListener(*n, LoopImproveWindow::selectionChanged);
         
         findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, improveButton, {8, 16});
         
@@ -1130,7 +1130,7 @@ void SampleEditor::refreshDisplayFromComboBox()
 
 	if (auto s = selection[idx])
 	{
-		selectionBroadcaster.sendMessage(sendNotification, s, multimicSelector->getSelectedItemIndex());
+		handler->selectionBroadcaster.sendMessage(sendNotification, s, multimicSelector->getSelectedItemIndex());
 
 		currentWaveForm->setSoundToDisplay(s);
 	}
@@ -1326,7 +1326,7 @@ void SampleEditor::soundsSelected(const SampleSelection &selectedSoundList)
 
 		currentWaveForm->setSoundToDisplay(ms, micIndex);
 
-        selectionBroadcaster.sendMessage(sendNotificationSync, ms, micIndex);
+		handler->selectionBroadcaster.sendMessage(sendNotificationSync, ms, micIndex);
         
 		auto sound = ms->getReferenceToSound(micIndex);
 
@@ -1345,7 +1345,7 @@ void SampleEditor::soundsSelected(const SampleSelection &selectedSoundList)
 	}
 	else
 	{
-		selectionBroadcaster.sendMessage(sendNotificationSync, nullptr, 0);
+		handler->selectionBroadcaster.sendMessage(sendNotificationSync, nullptr, 0);
 
 		currentWaveForm->setSoundToDisplay(nullptr);
 		overview.setReader(nullptr);
