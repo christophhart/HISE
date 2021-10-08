@@ -1472,179 +1472,6 @@ struct SimpleReadWriteLock
 };
 
 
-template <typename ReturnType, typename... Ps> struct SafeLambdaBase
-{
-	ReturnType operator()(Ps...parameters)
-	{
-		return call(parameters...);
-	}
-
-	virtual ~SafeLambdaBase() {};
-
-	virtual ReturnType call(Ps... parameters) = 0;
-
-	virtual bool isValid() const = 0;
-
-	virtual bool matches(void* other) const = 0;
-};
-
-template <class T, typename ReturnType, typename...Ps> struct SafeLambda : public SafeLambdaBase<ReturnType, Ps...>
-{
-	using InternalLambda = std::function<ReturnType(T&, Ps...)>;
-
-	SafeLambda(T& obj, const InternalLambda& f_) :
-		item(&obj),
-		f(f_)
-	{
-
-	};
-
-	bool isValid() const final override { return item.get() != nullptr; };
-
-	bool matches(void* obj) const final override { return static_cast<void*>(item.get()) == obj; };
-
-	ReturnType call(Ps... parameters) override
-	{
-		if (item != nullptr)
-			return f(*item, parameters...);
-
-		return ReturnType();
-	}
-
-private:
-
-	WeakReference<T> item;
-	InternalLambda f;
-};
-
-/** A listener class that can be used as member to implement a safe listener communication system.
-
-	You can specify the parameters that the callback will contain as template parameters.
-
-	This is most suitable for non-performance critical tasks that require the least amount of boilerplate
-	where you just want to implement a safe and simple listener system with a lean syntax.
-*/
-template <typename...Ps> struct LambdaBroadcaster final
-{
-	/** Creates a broadcaster. */
-	LambdaBroadcaster() :
-		updater(*this)
-	{};
-
-	/** This will cancel all pending callbacks. */
-	~LambdaBroadcaster()
-	{
-		updater.cancelPendingUpdate();
-
-		SimpleReadWriteLock::ScopedWriteLock sl(lock);
-		listeners.clear();
-	}
-
-	/** Use this method to add a listener to this class. You can use any object as obj. The second parameter
-		can be either a function pointer to a static function or a lambda with the signature
-
-		void callback(T& obj, Ps... parameters)
-
-		You don't need to bother about removing the listeners, they are automatically removed as soon before a
-		message is being sent out.
-
-		It will also fire the callback once with the last value so that the object will be initialised correctly.
-	*/
-	template <typename T, typename F> void addListener(T& obj, const F& f)
-	{
-		SimpleReadWriteLock::ScopedWriteLock sl(lock);
-		removeDanglingObjects();
-		listeners.add(new SafeLambda<T, void, Ps...>(obj, f));
-
-		std::apply(*listeners.getLast(), lastValue);
-	}
-
-	/** Removes all callbacks for the given object. 
-	
-		You don't need to call this method unless you explicitely want to stop listening 
-		for a certain object as the broadcaster class will clean up dangling objects automatically. 
-	*/
-	template <typename T> bool removeListener(T& obj)
-	{
-		bool found = false;
-
-		for (int i = 0; i < listeners.size(); i++)
-		{
-			if (listeners[i]->matches(&obj))
-			{
-				listeners.remove(i--);
-				found = true;
-			}
-		}
-
-		removeDanglingObjects();
-
-		return true;
-	}
-
-	/** Sends a message to all registered listeners. Be aware that this call is not realtime safe as this class
-		is supposed to be used for non-audio related tasks.
-	*/
-	void sendMessage(NotificationType n, Ps... parameters)
-	{
-		lastValue = std::make_tuple(parameters...);
-
-		if (n != sendNotificationAsync)
-			sendInternal();
-		else
-			updater.triggerAsyncUpdate();
-	}
-
-private:
-
-	void removeDanglingObjects()
-	{
-		for (int i = 0; i < listeners.size(); i++)
-		{
-			if (!listeners[i]->isValid())
-			{
-				SimpleReadWriteLock::ScopedWriteLock sl(lock);
-				listeners.remove(i--);
-			}
-		}
-	}
-
-	std::tuple<Ps...> lastValue;
-
-	void sendInternal()
-	{
-		removeDanglingObjects();
-
-		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
-		{
-			for (auto i : listeners)
-			{
-				if (i->isValid())
-					std::apply(*i, lastValue);
-			}
-		}
-		else
-			updater.triggerAsyncUpdate();
-	}
-
-	struct Updater : public AsyncUpdater
-	{
-		Updater(LambdaBroadcaster& p) :
-			parent(p)
-		{};
-
-		void handleAsyncUpdate() override
-		{
-			parent.sendInternal();
-		};
-
-		LambdaBroadcaster& parent;
-	} updater;
-
-	hise::SimpleReadWriteLock lock;
-	OwnedArray<SafeLambdaBase<void, Ps...>> listeners;
-};
-
 /** This is a non allocating alternative to the AsyncUpdater.
 *	@ingroup event_handling
 *
@@ -1720,6 +1547,258 @@ protected:
 
 	static int instanceCount;
 };
+
+template <typename ReturnType, typename... Ps> struct SafeLambdaBase
+{
+	ReturnType operator()(Ps...parameters)
+	{
+		return call(parameters...);
+	}
+
+	virtual ~SafeLambdaBase() {};
+
+	virtual ReturnType call(Ps... parameters) = 0;
+
+	virtual bool isValid() const = 0;
+
+	virtual bool matches(void* other) const = 0;
+};
+
+template <class T, typename ReturnType, typename...Ps> struct SafeLambda : public SafeLambdaBase<ReturnType, Ps...>
+{
+	using InternalLambda = std::function<ReturnType(T&, Ps...)>;
+
+	SafeLambda(T& obj, const InternalLambda& f_) :
+		item(&obj),
+		f(f_)
+	{
+
+	};
+
+	bool isValid() const final override { return item.get() != nullptr; };
+
+	bool matches(void* obj) const final override { return static_cast<void*>(item.get()) == obj; };
+
+	ReturnType call(Ps... parameters) override
+	{
+		if (item != nullptr)
+			return f(*item, parameters...);
+
+		return ReturnType();
+	}
+
+private:
+
+	WeakReference<T> item;
+	InternalLambda f;
+};
+
+/** A listener class that can be used as member to implement a safe listener communication system.
+
+	You can specify the parameters that the callback will contain as template parameters.
+
+	This is most suitable for non-performance critical tasks that require the least amount of boilerplate
+	where you just want to implement a safe and simple listener system with a lean syntax.
+*/
+template <typename...Ps> struct LambdaBroadcaster final
+{
+	/** Creates a broadcaster. */
+	LambdaBroadcaster() :
+		updater(*this)
+	{
+	};
+
+	/** This will cancel all pending callbacks. */
+	~LambdaBroadcaster()
+	{
+		updater.cancelPendingUpdate();
+		lockfreeUpdater = nullptr;
+
+		SimpleReadWriteLock::ScopedWriteLock sl(lock);
+		listeners.clear();
+	}
+
+	/** Use this method to add a listener to this class. You can use any object as obj. The second parameter
+		can be either a function pointer to a static function or a lambda with the signature
+
+		void callback(T& obj, Ps... parameters)
+
+		You don't need to bother about removing the listeners, they are automatically removed as soon before a
+		message is being sent out.
+
+		It will also fire the callback once with the last value so that the object will be initialised correctly.
+	*/
+	template <typename T, typename F> void addListener(T& obj, const F& f)
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(lock);
+		removeDanglingObjects();
+		listeners.add(new SafeLambda<T, void, Ps...>(obj, f));
+
+		std::apply(*listeners.getLast(), lastValue);
+	}
+
+	/** Removes all callbacks for the given object. 
+	
+		You don't need to call this method unless you explicitely want to stop listening 
+		for a certain object as the broadcaster class will clean up dangling objects automatically. 
+	*/
+	template <typename T> bool removeListener(T& obj)
+	{
+		bool found = false;
+
+		for (int i = 0; i < listeners.size(); i++)
+		{
+			if (listeners[i]->matches(&obj))
+			{
+				listeners.remove(i--);
+				found = true;
+			}
+		}
+
+		removeDanglingObjects();
+
+		return true;
+	}
+
+	void enableLockFreeUpdate(PooledUIUpdater* updater)
+	{
+		if (updater != nullptr)
+			lockfreeUpdater = new LockFreeUpdater(*this, updater);
+	}
+
+	/** Sends a message to all registered listeners. Be aware that this call is not realtime safe as this class
+		is supposed to be used for non-audio related tasks.
+	*/
+	void sendMessage(NotificationType n, Ps... parameters)
+	{
+		lastValue = std::make_tuple(parameters...);
+
+		if (valueQueue != nullptr)
+			valueQueue.get()->push(lastValue);
+
+		if (n != sendNotificationAsync)
+			sendInternal();
+		else
+		{
+			if (lockfreeUpdater != nullptr)
+				lockfreeUpdater->triggerAsyncUpdate();
+			else
+				updater.triggerAsyncUpdate();
+		}
+	}
+
+	/** By default, the lambda broadcaster will be called only with the last element whic
+	    might result in skipped notifications if there are multiple calls to sendMessage in between. 
+		
+		Use this method to enable a lockfree queue that will ensure that all values that have been send
+		with sendMessage will result in a notification to all listeners. 
+	*/
+	void setEnableQueue(bool shouldUseQueue, int numElements=512)
+	{
+		if (shouldUseQueue)
+			valueQueue = new LockfreeQueue<std::tuple<Ps...>>(numElements);
+		else
+			valueQueue = nullptr;
+	}
+
+private:
+
+	void removeDanglingObjects()
+	{
+		for (int i = 0; i < listeners.size(); i++)
+		{
+			if (!listeners[i]->isValid())
+			{
+				SimpleReadWriteLock::ScopedWriteLock sl(lock);
+				listeners.remove(i--);
+			}
+		}
+	}
+
+	std::tuple<Ps...> lastValue;
+
+	void sendInternal()
+	{
+		removeDanglingObjects();
+
+		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
+		{
+			if (valueQueue != nullptr)
+			{
+				valueQueue.get()->callForEveryElementInQueue([&](std::tuple<Ps...>& v)
+				{
+					for (auto i : listeners)
+					{
+						if (i->isValid())
+							std::apply(*i, v);
+					}
+
+					return true;
+				});
+			}
+			else
+			{
+				for (auto i : listeners)
+				{
+					if (i->isValid())
+						std::apply(*i, lastValue);
+				}
+			}
+		}
+		else
+			updater.triggerAsyncUpdate();
+	}
+
+	struct Updater : public AsyncUpdater
+	{
+		Updater(LambdaBroadcaster& p) :
+			parent(p)
+		{};
+
+		void handleAsyncUpdate() override
+		{
+			parent.sendInternal();
+		};
+
+		LambdaBroadcaster& parent;
+	} updater;
+
+	struct LockFreeUpdater : public PooledUIUpdater::SimpleTimer
+	{
+		LockFreeUpdater(LambdaBroadcaster& p, PooledUIUpdater* updater) :
+			SimpleTimer(updater),
+			parent(p)
+		{
+			start();
+		};
+
+		void timerCallback() override
+		{
+			if (dirty.load())
+			{
+				parent.sendInternal();
+				dirty.store(false);
+			}
+		}
+
+		void triggerAsyncUpdate()
+		{
+			dirty.store(true);
+		}
+
+		LambdaBroadcaster& parent;
+
+		std::atomic<bool> dirty = { false };
+	};
+
+	ScopedPointer<LockFreeUpdater> lockfreeUpdater;
+
+	ScopedPointer<hise::LockfreeQueue<std::tuple<Ps...>>> valueQueue;
+
+	hise::SimpleReadWriteLock lock;
+	OwnedArray<SafeLambdaBase<void, Ps...>> listeners;
+};
+
 
 
 struct ComplexDataUIBase : public ReferenceCountedObject
