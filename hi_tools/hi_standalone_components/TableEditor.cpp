@@ -835,7 +835,7 @@ bool TableEditor::TableAction::undo()
 	return true;
 }
 
-void TableEditor::HiseTableLookAndFeel::drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float )
+void TableEditor::LookAndFeelMethods::drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float )
 {
 	g.setColour(Colours::lightgrey.withAlpha(0.1f));
 	g.drawRect(area, 1);
@@ -843,7 +843,7 @@ void TableEditor::HiseTableLookAndFeel::drawTablePath(Graphics& g, TableEditor& 
 	GlobalHiseLookAndFeel::fillPathHiStyle(g, p, area.getWidth(), area.getHeight());
 }
 
-void TableEditor::HiseTableLookAndFeel::drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged)
+void TableEditor::LookAndFeelMethods::drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged)
 {
 	const float width = (float)tablePoint.getWidth() - 6.0f;
 	const float round = width * 0.2f;
@@ -864,7 +864,7 @@ void TableEditor::HiseTableLookAndFeel::drawTablePoint(Graphics& g, TableEditor&
 	}
 }
 
-void TableEditor::HiseTableLookAndFeel::drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition)
+void TableEditor::LookAndFeelMethods::drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition)
 {
 	g.setColour(Colours::lightgrey.withAlpha(0.05f));
 	g.fillRect(jmax(0.0f, (float)rulerPosition * area.getWidth() - 5.0f), 0.0f, rulerPosition == 0.0f ? 5.0f : 10.0f, area.getHeight());

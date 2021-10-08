@@ -5049,8 +5049,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTablePath(Graphics& g_, Tab
 			return;
 	}
 
-	if (auto tl = dynamic_cast<TableEditor::LookAndFeelMethods*>(&te.getLookAndFeel()))
-		tl->drawTablePath(g_, te, p, area, lineThickness);
+    TableEditor::LookAndFeelMethods::drawTablePath(g_, te, p, area, lineThickness);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTablePoint(Graphics& g_, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged)
@@ -5074,8 +5073,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTablePoint(Graphics& g_, Ta
 			return;
 	}
 
-	if (auto tl = dynamic_cast<TableEditor::LookAndFeelMethods*>(&te.getLookAndFeel()))
-		tl->drawTablePoint(g_, te, tablePoint, isEdge, isHover, isDragged);
+    TableEditor::LookAndFeelMethods::drawTablePoint(g_, te, tablePoint, isEdge, isHover, isDragged);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableRuler(Graphics& g_, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition)
@@ -5098,8 +5096,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableRuler(Graphics& g_, Ta
 			return;
 	}
 
-	if (auto tl = dynamic_cast<TableEditor::LookAndFeelMethods*>(&te.getLookAndFeel()))
-		tl->drawTableRuler(g_, te, area, lineThickness, rulerPosition);
+    TableEditor::LookAndFeelMethods::drawTableRuler(g_, te, area, lineThickness, rulerPosition);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawScrollbar(Graphics& g_, ScrollBar& scrollbar, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown)

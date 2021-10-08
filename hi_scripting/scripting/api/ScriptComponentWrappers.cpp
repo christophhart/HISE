@@ -1200,18 +1200,20 @@ ScriptCreatedComponentWrapper(content, index)
 	t->setName(table->name.toString());
 	t->popupFunction = BIND_MEMBER_FUNCTION_2(TableWrapper::getTextForTablePopup);
 
-	auto slaf = &mc->getGlobalLookAndFeel();
-
-	if (auto s = dynamic_cast<TableEditor::LookAndFeelMethods*>(slaf))
-	{
-		t->setTableLookAndFeel(s, true);
-	}
+	
 
 	component = t;
 	
 	t->addEditListener(this);
 
 	initAllProperties();
+    
+    auto slaf = &mc->getGlobalLookAndFeel();
+
+    if (auto s = dynamic_cast<TableEditor::LookAndFeelMethods*>(slaf))
+    {
+        t->setTableLookAndFeel(s, true);
+    }
 }
 
 ScriptCreatedComponentWrappers::TableWrapper::~TableWrapper()
