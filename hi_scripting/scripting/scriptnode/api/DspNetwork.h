@@ -233,19 +233,6 @@ public:
 		const snex::Types::PolyHandler::ScopedVoiceSetter internalSetter;
 	};
 
-    struct ScopedEmbedDeactivator
-    {
-        ScopedEmbedDeactivator()
-        {
-            DspNetwork::deactivateEmbedding = true;
-        }
-        ~ScopedEmbedDeactivator()
-        {
-            DspNetwork::deactivateEmbedding = false;
-        }
-    };
-    
-    
 	struct NoVoiceSetter
 	{
 		NoVoiceSetter(DspNetwork& p):
@@ -1051,8 +1038,6 @@ private:
 		bool loaded = false;
 		bool forwardToNode = false;
 	} projectNodeHolder;
-
-    static bool deactivateEmbedding;
     
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetwork);
 };

@@ -79,6 +79,30 @@ public:
 
 #endif
 
+	/** This class will set a flag in the MainController to embed all
+	    external resources (that are usually saved in dedicated files) into the preset.
+		This is being used when exporting a HiseSnippet to ensure that it contains all
+		relevant external data (DspNetwork, SNEX code files, external scripts. 
+
+		You can query this flag with MainController::shouldEmbedAllResources.
+	*/
+	struct ScopedEmbedAllResources: public ControlledObject
+	{
+		ScopedEmbedAllResources(MainController* mc):
+			ControlledObject(mc)
+		{
+			prevState = mc->embedAllResources;
+			mc->embedAllResources = true;
+		}
+
+		~ScopedEmbedAllResources()
+		{
+			getMainController()->embedAllResources = prevState;
+		}
+
+		bool prevState = false;
+	};
+
 	/** Contains all methods related to sample management. */
 	class SampleManager
 	{
@@ -1350,6 +1374,8 @@ public:
 
 	CustomKeyboardState &getKeyboardState();
 
+	bool shouldEmbedAllResources() const { return embedAllResources; }
+
 	void setLowestKeyToDisplay(int lowestKeyToDisplay);
 
 	float getVoiceAmountMultiplier() const;
@@ -1641,6 +1667,7 @@ private:
 	Array<WeakReference<ControlledObject>> registeredObjects;
 
 	int maxEventTimestamp = 0;
+	bool embedAllResources = false;
 
 	PooledUIUpdater globalUIUpdater;
 

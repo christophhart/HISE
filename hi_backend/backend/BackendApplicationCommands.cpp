@@ -1804,7 +1804,7 @@ void BackendCommandTarget::Actions::collectExternalFiles(BackendRootWindow * bpe
 
 void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)
 {
-    DspNetwork::ScopedEmbedDeactivator d;
+	MainController::ScopedEmbedAllResources sd(bp);
     
 	ValueTree v = bp->getMainSynthChain()->exportAsValueTree();
 

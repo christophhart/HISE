@@ -48,8 +48,6 @@ struct DspNetwork::Wrapper
 	//API_VOID_METHOD_WRAPPER_3(DspNetwork, injectAfter);
 };
 
-bool DspNetwork::deactivateEmbedding = false;
-
 DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, bool poly, ExternalDataHolder* dataHolder_) :
 	ConstScriptingObject(p, 2),
 	ControlledObject(p->getMainController_()),
@@ -1091,8 +1089,19 @@ void DspNetwork::Holder::saveNetworks(ValueTree& d) const
 
 #if USE_BACKEND
 
-            if(!DspNetwork::deactivateEmbedding)
+			auto embedResources = dynamic_cast<const ControlledObject*>(this)->getMainController()->shouldEmbedAllResources();
+
+			if (embedResources)
+			{
+				// Include all SNEX files here
+
+				// implement me...
+				jassertfalse;
+			}
+			else
             {
+				// look if there's a network file that we 
+				// need to replace with this content
                 cppgen::ValueTreeIterator::forEach(c,
                     snex::cppgen::ValueTreeIterator::IterationType::Forward,
                     DspNetworkListeners::PatchAutosaver::stripValueTree);
