@@ -1693,10 +1693,22 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
         if (key.isKeyCode (KeyPress::downKey)) return addCaret (Target::character, Direction::forwardRow);
         if (key.isKeyCode (KeyPress::upKey  )) return addCaret (Target::character, Direction::backwardRow);
     }
+    
+#if JUCE_MAC
+    if(mods.isAltDown())
+    {
+        if (key.isKeyCode(KeyPress::rightKey)) return nav(mods, Target::commandTokenNav, Direction::forwardCol);
+        if (key.isKeyCode(KeyPress::leftKey))  return nav(mods, Target::commandTokenNav, Direction::backwardCol);
+    }
+#endif
+    
+    
     if (mods.isCtrlDown())
     {
+#if !JUCE_MAC
 		if (key.isKeyCode(KeyPress::rightKey)) return nav(mods, Target::commandTokenNav, Direction::forwardCol);
 		if (key.isKeyCode(KeyPress::leftKey))  return nav(mods, Target::commandTokenNav, Direction::backwardCol);
+#endif
         if (key.isKeyCode (KeyPress::downKey )) return nav (mods, Target::word, Direction::forwardCol)  && nav (mods, Target::paragraph, Direction::forwardRow);
         if (key.isKeyCode (KeyPress::upKey   )) return nav (mods, Target::word, Direction::backwardCol) && nav (mods, Target::paragraph, Direction::backwardRow);
 
