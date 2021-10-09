@@ -796,8 +796,10 @@ bool ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool res
 
 void ModulatorSampler::setDisplayedGroup(int index)
 {
+#if USE_BACKEND
 	getSamplerDisplayValues().currentlyDisplayedGroup = index;
 	getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, getCurrentRRGroup(), index);
+#endif
 }
 
 void ModulatorSampler::setSortByGroup(bool shouldSortByGroup)
@@ -1026,7 +1028,9 @@ void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 		}
 		else
 		{
+#if USE_BACKEND
 			getSampleEditHandler()->noteBroadcaster.sendMessage(sendNotificationAsync, m.getNoteNumber(), 0);
+#endif
 
             samplerDisplayValues.currentNotes[m.getNoteNumber() + m.getTransposeAmount()] = 0;
 		}
@@ -1307,7 +1311,9 @@ void ModulatorSampler::setRRGroupAmount(int newGroupLimit)
 
 	ModulatorSynth::setVoiceLimit(realVoiceAmount * getNumActiveGroups());
 
+#if USE_BACKEND
 	getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, getCurrentRRGroup(), getSamplerDisplayValues().currentlyDisplayedGroup);
+#endif
 }
 
 
