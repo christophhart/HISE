@@ -4485,6 +4485,11 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawTableRuler",
 		"drawScrollbar",
 		"drawMidiDropper",
+        "drawThumbnailBackground",
+        "drawThumbnailText",
+        "drawThumbnailPath",
+        "drawThumbnailRange",
+        "drawThumbnailRuler",
 		"drawAhdsrBall",
 		"drawAhdsrPath"
 	};
@@ -5207,6 +5212,98 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawMidiDropper(Graphics& g_, R
 	}
 
 	MidiFileDragAndDropper::LookAndFeelMethods::drawMidiDropper(g_, area, text, d);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawHiseThumbnailBackground(Graphics& g_, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area)
+{
+    if (functionDefined("drawThumbnailBackground"))
+    {
+        DynamicObject::Ptr obj = new DynamicObject();
+        obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
+        obj->setProperty("enabled", areaIsEnabled);
+        
+        obj->setProperty("bgColour", th.findColour  (AudioDisplayComponent::ColourIds::bgColour).getARGB());
+        obj->setProperty("itemColour", th.findColour(AudioDisplayComponent::ColourIds::fillColour).getARGB());
+        obj->setProperty("textColour", th.findColour(AudioDisplayComponent::ColourIds::outlineColour).getARGB());
+        
+        if (get()->callWithGraphics(g_, "drawThumbnailBackground", var(obj)))
+            return;
+    }
+
+    HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailBackground(g_, th, areaIsEnabled, area);
+}
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawHiseThumbnailPath(Graphics& g_, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path)
+{
+    if (functionDefined("drawThumbnailPath"))
+    {
+        DynamicObject::Ptr obj = new DynamicObject();
+        auto area = path.getBounds();
+        obj->setProperty("area", ApiHelpers::getVarRectangle(area));
+        obj->setProperty("enabled", areaIsEnabled);
+        
+        auto sp = new ScriptingObjects::PathObject(get()->getScriptProcessor());
+
+        var keeper(sp);
+
+        sp->getPath() = path;
+
+        obj->setProperty("path", var(sp));
+        
+        obj->setProperty("bgColour", th.findColour  (AudioDisplayComponent::ColourIds::bgColour).getARGB());
+        obj->setProperty("itemColour", th.findColour(AudioDisplayComponent::ColourIds::fillColour).getARGB());
+        obj->setProperty("textColour", th.findColour(AudioDisplayComponent::ColourIds::outlineColour).getARGB());
+        
+        if (get()->callWithGraphics(g_, "drawThumbnailPath", var(obj)))
+            return;
+    }
+
+    HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailPath(g_, th, areaIsEnabled, path);
+        
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleList<float>& rectList)
+{
+    jassertfalse; // should never happen
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailRange(Graphics& g_, HiseAudioThumbnail& th, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled)
+{
+    if (functionDefined("drawThumbnailRange"))
+    {
+        DynamicObject::Ptr obj = new DynamicObject();
+        obj->setProperty("area", ApiHelpers::getVarRectangle(area));
+        obj->setProperty("rangeIndex", areaIndex);
+        obj->setProperty("rangeColour", c.getARGB());
+        obj->setProperty("enabled", areaEnabled);
+        
+        obj->setProperty("bgColour", th.findColour  (AudioDisplayComponent::ColourIds::bgColour).getARGB());
+        obj->setProperty("itemColour", th.findColour(AudioDisplayComponent::ColourIds::fillColour).getARGB());
+        obj->setProperty("textColour", th.findColour(AudioDisplayComponent::ColourIds::outlineColour).getARGB());
+        
+        if (get()->callWithGraphics(g_, "drawThumbnailRange", var(obj)))
+            return;
+    }
+
+    HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRange(g_, th, area, areaIndex, c, areaEnabled);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTextOverlay(Graphics& g_, HiseAudioThumbnail& th, const String& text, Rectangle<float> area)
+{
+    if (functionDefined("drawThumbnailText"))
+    {
+        DynamicObject::Ptr obj = new DynamicObject();
+        obj->setProperty("area", ApiHelpers::getVarRectangle(area));
+        obj->setProperty("text", text);
+        
+        obj->setProperty("bgColour", th.findColour  (AudioDisplayComponent::ColourIds::bgColour).getARGB());
+        obj->setProperty("itemColour", th.findColour(AudioDisplayComponent::ColourIds::fillColour).getARGB());
+        obj->setProperty("textColour", th.findColour(AudioDisplayComponent::ColourIds::outlineColour).getARGB());
+        
+        if (get()->callWithGraphics(g_, "drawThumbnailText", var(obj)))
+            return;
+    }
+
+    HiseAudioThumbnail::LookAndFeelMethods::drawTextOverlay(g_, th, text, area);
 }
 
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)

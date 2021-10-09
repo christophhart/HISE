@@ -211,10 +211,19 @@ void AudioDisplayComponent::SampleArea::mouseDrag(const MouseEvent &)
 	parentWaveform->refreshSampleAreaBounds(this);
 };
 
+void HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled)
+{
+    UnblurryGraphics ug(g, te, true);
+    
+    g.setColour(c.withAlpha(areaEnabled ? 0.1f : 0.02f));
+    g.fillAll();
+
+    g.setColour(c.withAlpha(0.3f));
+    ug.draw1PxRect(area);
+}
+
 void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 {
-	UnblurryGraphics ug(g, *this, true);
-	
 	if(area == AreaTypes::LoopCrossfadeArea)
 	{
 		Path fadeInPath;
@@ -231,26 +240,17 @@ void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 		PathStrokeType stroke(1.0f);
 		g.strokePath(fadeInPath, stroke);
 	}
-	else if (area == AreaTypes::PlayArea)
-	{
-		g.setColour(getAreaColour().withAlpha(areaEnabled ? 0.1f : 0.02f));
-		g.fillAll();
-
-		g.setColour(getAreaColour().withAlpha(0.3f));
-		ug.draw1PxRect(getLocalBounds().toFloat());
-	}
 	else
 	{
-		g.setColour(getAreaColour().withAlpha(areaEnabled ? 0.15f : 0.06f));
-		g.fillAll();
-
-		g.setColour(getAreaColour().withAlpha(0.3f));
-		ug.draw1PxRect(getLocalBounds().toFloat());
-
-		g.setColour(getAreaColour());
-
-		g.drawVerticalLine(0, 0.0, (float)getHeight());
-		g.drawVerticalLine(getWidth() - 1, 0.0, (float)getHeight());
+        auto p = findParentComponentOfClass<AudioDisplayComponent>();
+        if(auto laf = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(&p->getThumbnail()->getLookAndFeel()))
+        {
+            auto a = getLocalBounds().toFloat();
+            
+            laf->drawThumbnailRange(g, *p->getThumbnail(), a, (int)area, getAreaColour(), areaEnabled);
+        }
+        else
+            jassertfalse;
 	}
 }
 

@@ -306,26 +306,7 @@ SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler)
 	areas[SampleStartArea]->leftEdge->setVisible(false);
 	areas[LoopCrossfadeArea]->rightEdge->setVisible(false);
 
-	setOpaque(true);
-
-	setMouseCursor(MouseCursor::CrosshairCursor);
-
-#ifdef JUCE_DEBUG
-
 	startTimer(30);
-
-#else
-
-	startTimer(30);
-
-#endif
-
-    getThumbnail()->setBufferedToImage(false);
-	getThumbnail()->setDrawHorizontalLines(true);
-	getThumbnail()->setDisplayMode(HiseAudioThumbnail::DisplayMode::DownsampledCurve);
-	getThumbnail()->setColour(AudioDisplayComponent::ColourIds::bgColour, Colours::transparentBlack);
-	getThumbnail()->setColour(AudioDisplayComponent::ColourIds::fillColour, Colours::transparentBlack);
-	getThumbnail()->setColour(AudioDisplayComponent::ColourIds::outlineColour, Colours::white.withAlpha(0.7f));
 };
 
 SamplerSoundWaveform::~SamplerSoundWaveform()
@@ -333,7 +314,18 @@ SamplerSoundWaveform::~SamplerSoundWaveform()
 
 }
 
-
+void SamplerSoundWaveform::setIsSamplerWorkspacePreview()
+{
+    inWorkspace = true;
+    setOpaque(true);
+    setMouseCursor(MouseCursor::CrosshairCursor);
+    getThumbnail()->setBufferedToImage(false);
+    getThumbnail()->setDrawHorizontalLines(true);
+    getThumbnail()->setDisplayMode(HiseAudioThumbnail::DisplayMode::DownsampledCurve);
+    getThumbnail()->setColour(AudioDisplayComponent::ColourIds::bgColour, Colours::transparentBlack);
+    getThumbnail()->setColour(AudioDisplayComponent::ColourIds::fillColour, Colours::transparentBlack);
+    getThumbnail()->setColour(AudioDisplayComponent::ColourIds::outlineColour, Colours::white.withAlpha(0.7f));
+}
 
 void SamplerSoundWaveform::timerCallback()
 {
@@ -658,6 +650,8 @@ float SamplerSoundWaveform::getNormalizedPeak()
 	}
 	else return 1.0f;
 }
+
+
 
 float SamplerSoundWaveform::getCurrentSampleGain() const
 {

@@ -182,16 +182,6 @@ public:
         virtual ~HiseTableLookAndFeel() {};
 	};
 
-	struct FlatTableLookAndFeel : public LookAndFeel_V3,
-								  public LookAndFeelMethods
-	{
-        virtual ~FlatTableLookAndFeel() {};
-        
-		void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
-		void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
-		void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
-	};
-
 	/** This listener can be used to react on user interaction to display stuff.
 	*
 	*	It shouldn't be used for any kind of serious data processing though...
@@ -354,11 +344,8 @@ public:
 
 	void setUseFlatDesign(bool shouldUseFlatDesign)
 	{
-		if (shouldUseFlatDesign)
-			setSpecialLookAndFeel(new FlatTableLookAndFeel(), true);
-		else
-			setSpecialLookAndFeel(new HiseTableLookAndFeel(), true);
-
+        useFlatDesign = shouldUseFlatDesign;
+		
 		setLookAndFeel(getSpecialLookAndFeel<LookAndFeel>());
 		
 		repaint();
@@ -902,7 +889,7 @@ private:
 
 	ScopedPointer<TouchOverlay> touchOverlay;
 
-	//bool flatDesign = false;
+	bool useFlatDesign = false;
 
 	float lineThickness = 2.0f;
 

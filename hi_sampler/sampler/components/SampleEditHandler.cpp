@@ -122,7 +122,7 @@ void SampleEditHandler::handleMidiSelection(SampleEditHandler& handler, int note
 	auto sampler = handler.sampler;
 	auto& x = sampler->getSamplerDisplayValues();
 
-	if (sampler->getEditorState(ModulatorSampler::MidiSelectActive))
+	if (velocity > 0 && sampler->getEditorState(ModulatorSampler::MidiSelectActive))
 	{
 		handler.selectedSamplerSounds.deselectAll();
 

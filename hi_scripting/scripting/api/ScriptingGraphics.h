@@ -426,6 +426,7 @@ namespace ScriptingObjects
 		struct Laf : public GlobalHiseLookAndFeel,
 			public PresetBrowserLookAndFeelMethods,
 			public TableEditor::LookAndFeelMethods,
+            public HiseAudioThumbnail::LookAndFeelMethods,
 			public NumberTag::LookAndFeelMethods,
 			public MessageWithIcon::LookAndFeelMethods,
 			public ControlledObject,
@@ -507,6 +508,12 @@ namespace ScriptingObjects
 
 			void drawMidiDropper(Graphics& g, Rectangle<float> area, const String& text, MidiFileDragAndDropper& d) override;
 
+            void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled);
+            void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override;
+            void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
+            void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleList<float>& rectList) override;
+            void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
+            
 			Image createIcon(PresetHandler::IconType type) override;
 
 			bool functionDefined(const String& s);

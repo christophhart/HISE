@@ -2146,6 +2146,10 @@ public:
 ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptAudioWaveform *form, int index) :
 	ScriptCreatedComponentWrapper(content, index)
 {
+    auto slaf = &form->getScriptProcessor()->getMainController_()->getGlobalLookAndFeel();
+    
+    
+    
 	if (auto s = form->getSampler())
 	{
 		SamplerSoundWaveform* ssw = new SamplerSoundWaveform(s);
@@ -2157,12 +2161,24 @@ ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(Scrip
 
 		component = ssw;
 
+        if (auto s = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(slaf))
+        {
+            ssw->getThumbnail()->setLookAndFeel(slaf);
+        }
+        
 		samplerListener = new SamplerListener(s, ssw);
 	}
 	else
 	{
 		auto asb = new MultiChannelAudioBufferDisplay();
 		asb->setName(form->name.toString());
+        
+        
+        if (auto s = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(slaf))
+        {
+            asb->getThumbnail()->setLookAndFeel(slaf);
+        }
+        
 		component = asb;
 	}
 

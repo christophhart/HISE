@@ -358,6 +358,8 @@ public:
 
 	void resized() override;
 
+    void setIsSamplerWorkspacePreview();
+    
 	/** Sets the currently displayed sound.
 	*
 	*	It listens for the global sound selection and displays the last selected sound if the selection changes.
@@ -419,7 +421,7 @@ private:
 
 	int numSamplesInCurrentSample;
 
-
+    bool inWorkspace = false;
 	int previewStart = -1;
 	double sampleStartPosition;
 

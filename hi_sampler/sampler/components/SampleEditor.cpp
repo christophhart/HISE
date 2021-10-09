@@ -165,7 +165,8 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
     viewContent = new SamplerDisplayWithTimeline();
 
 	viewContent->addAndMakeVisible(currentWaveForm = new SamplerSoundWaveform(sampler));
-
+    currentWaveForm->setIsSamplerWorkspacePreview();
+    
 	viewport->setViewedComponent(viewContent, false);
 	viewport->setScrollBarThickness(13);
 
