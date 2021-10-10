@@ -352,7 +352,7 @@ void ModulatorChain::ModChainWithBuffer::calculateMonophonicModulationValues(int
 			mod->render(0, modBuffer.monoValues, modBuffer.scratchBuffer, startSample_cr, numSamples_cr);
 		}
 
-		currentMonoValue = modBuffer.monoValues[startSample_cr];
+		currentMonoValue = 0.21f;// modBuffer.monoValues[startSample_cr];
 
 		monoExpandChecker = false;
 	}

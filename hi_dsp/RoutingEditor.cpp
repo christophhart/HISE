@@ -151,9 +151,14 @@ void RouterComponent::paint(Graphics& g)
 
 	for (int i = 0; i < sourceChannels.size(); i++)
 	{
+		auto thisComponent = sourceChannels[i];
+		auto nextComponent = sourceChannels[i + 1];
+
+		auto b = thisComponent->getBounds().toFloat();
+
 		if (i % 2 == 0)
 		{
-			g.drawLine((float)sourceChannels[i]->getX(), (float)sourceChannels[i]->getY() - 2.0f, (float)sourceChannels[i + 1]->getRight(), (float)sourceChannels[i]->getY() - 2.0f, 2.0f);
+			g.drawLine(b.getX(), b.getY() - 2.0f, nextComponent != nullptr ? nextComponent->getRight() : b.getRight(), b.getY() - 2.0f, 2.0f);
 		}
 
 

@@ -652,4 +652,65 @@ void TimeVariantModulator::render(float* monoModulationValues, float* scratchBuf
 #endif
 }
 
+void Modulation::PitchConverters::normalisedRangeToPitchFactor(float* rangeValues, int numValues)
+{
+	if (numValues > 1)
+	{
+#if HISE_ENABLE_FULL_CONTROL_RATE_PITCH_MOD
+
+		bool hasDeltaSignChange = false;
+
+		float prevValue = rangeValues[0];
+		float delta = 0.0f;
+
+		for (int i = 1; i < numValues; i++)
+		{
+			auto thisValue = rangeValues[i];
+			auto thisDelta = thisValue - prevValue;
+
+			hasDeltaSignChange |= (delta != 0.0f && (hmath::sign(thisDelta) != hmath::sign(delta)));
+			delta = thisDelta;
+			prevValue = thisValue;
+		}
+
+#else
+		auto hasDeltaSignChange = false;
+#endif
+
+		if (hasDeltaSignChange)
+		{
+			DBG("USE RANGE");
+			
+			for (int i = 0; i < numValues; i++)
+				rangeValues[i] = normalisedRangeToPitchFactor(rangeValues[i]);
+		}
+		else
+		{
+			float startValue = normalisedRangeToPitchFactor(rangeValues[0]);
+			const float endValue = normalisedRangeToPitchFactor(rangeValues[numValues - 1]);
+			float delta = (endValue - startValue);
+
+
+			if (delta < 0.0003f)
+			{
+				FloatVectorOperations::fill(rangeValues, (startValue + endValue) * 0.5f, numValues);
+			}
+			else
+			{
+				delta /= (float)numValues;
+
+				while (--numValues >= 0)
+				{
+					*rangeValues++ = startValue;
+					startValue += delta;
+				}
+			}
+		}
+	}
+	else if (numValues == 1)
+	{
+		rangeValues[0] = normalisedRangeToPitchFactor(rangeValues[0]);
+	}
+}
+
 } // namespace hise

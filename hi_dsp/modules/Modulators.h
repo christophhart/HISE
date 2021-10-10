@@ -195,35 +195,7 @@ public:
 			FloatVectorOperations::add(octaveValues, 0.5f, numValues);
 		}
 
-		static inline void normalisedRangeToPitchFactor(float* rangeValues, int numValues)
-		{
-			if (numValues > 1)
-			{
-				float startValue = normalisedRangeToPitchFactor(rangeValues[0]);
-				const float endValue = normalisedRangeToPitchFactor(rangeValues[numValues - 1]);
-				float delta = (endValue - startValue);
-
-
-				if (delta < 0.0003f)
-				{
-					FloatVectorOperations::fill(rangeValues, (startValue + endValue) * 0.5f, numValues);	
-				}
-				else
-				{
-					delta /= (float)numValues;
-
-					while (--numValues >= 0)
-					{
-						*rangeValues++ = startValue;
-						startValue += delta;
-					}
-				}
-			}
-			else if (numValues == 1)
-			{
-				rangeValues[0] = normalisedRangeToPitchFactor(rangeValues[0]);
-			}
-		}
+		static void normalisedRangeToPitchFactor(float* rangeValues, int numValues);
 
 		static inline void octaveRangeToPitchFactor(float* octaveValues, int numValues)
 		{
