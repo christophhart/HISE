@@ -346,8 +346,6 @@ public:
 	{
         useFlatDesign = shouldUseFlatDesign;
 		
-		setLookAndFeel(getSpecialLookAndFeel<LookAndFeel>());
-		
 		repaint();
 	}
 

@@ -45,7 +45,8 @@ TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 	else
 		setEditedTable(&dummyTable);
 
-	
+	setSpecialLookAndFeel(&defaultLaf, false);
+
 	setEnablePaintProfiling("TableEditor");
 
     // MUST BE SET!
