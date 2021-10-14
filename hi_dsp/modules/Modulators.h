@@ -91,7 +91,8 @@ public:
 		**/
 		PitchMode,
 		/** Range is -1.0 ... 1.0 */
-		PanMode
+		PanMode,
+		numModes
 	};
 
 	static void applyModulationValue(Mode m, float& target, const float modValue)

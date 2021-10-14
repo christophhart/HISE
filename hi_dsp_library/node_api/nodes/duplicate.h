@@ -552,7 +552,7 @@ template <class ParameterClass> struct cloned
 	{
         static_assert(std::is_same<typename CloneRefType::ObjectType, typename ParameterClass::TargetType>(), "class mismatch");
         
-		sender = t.sender;
+		sender = t.cloneManager;
 		objectDelta = t.objectDelta;
 		firstObj = t.firstObj;
 

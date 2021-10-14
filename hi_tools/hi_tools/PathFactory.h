@@ -165,6 +165,8 @@ using namespace juce;
 			{
 				setColours(offColour.withMultipliedAlpha(0.5f), offColour.withMultipliedAlpha(0.8f), offColour);
 			}
+
+			repaint();
 		}
 
 		bool operator==(const String& id) const
