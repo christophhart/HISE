@@ -141,7 +141,7 @@ struct audio_spin_mutex_shared
 				_mm_pause();
 			}
 
-			jassertfalse;
+ 			jassertfalse;
 		}
 	}
 
@@ -1628,13 +1628,14 @@ template <typename...Ps> struct LambdaBroadcaster final
 
 		It will also fire the callback once with the last value so that the object will be initialised correctly.
 	*/
-	template <typename T, typename F> void addListener(T& obj, const F& f)
+	template <typename T, typename F> void addListener(T& obj, const F& f, bool sendWithInitialValue=true)
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(lock);
 		removeDanglingObjects();
 		listeners.add(new SafeLambda<T, void, Ps...>(obj, f));
 
-		std::apply(*listeners.getLast(), lastValue);
+		if(sendWithInitialValue)
+			std::apply(*listeners.getLast(), lastValue);
 	}
 
 	/** Removes all callbacks for the given object. 
@@ -1660,10 +1661,21 @@ template <typename...Ps> struct LambdaBroadcaster final
 		return true;
 	}
 
+	void removeAllListeners()
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(lock);
+		listeners.clear();
+	}
+
 	void enableLockFreeUpdate(PooledUIUpdater* updater)
 	{
 		if (updater != nullptr)
 			lockfreeUpdater = new LockFreeUpdater(*this, updater);
+	}
+
+	void resendLastMessage(NotificationType n)
+	{
+		sendMessageInternal(n, lastValue);
 	}
 
 	/** Sends a message to all registered listeners. Be aware that this call is not realtime safe as this class
@@ -1672,19 +1684,7 @@ template <typename...Ps> struct LambdaBroadcaster final
 	void sendMessage(NotificationType n, Ps... parameters)
 	{
 		lastValue = std::make_tuple(parameters...);
-
-		if (valueQueue != nullptr)
-			valueQueue.get()->push(lastValue);
-
-		if (n != sendNotificationAsync)
-			sendInternal();
-		else
-		{
-			if (lockfreeUpdater != nullptr)
-				lockfreeUpdater->triggerAsyncUpdate();
-			else
-				updater.triggerAsyncUpdate();
-		}
+		sendMessageInternal(n, lastValue);
 	}
 
 	/** By default, the lambda broadcaster will be called only with the last element whic
@@ -1702,6 +1702,22 @@ template <typename...Ps> struct LambdaBroadcaster final
 	}
 
 private:
+
+	void sendMessageInternal(NotificationType n, const std::tuple<Ps...>& value)
+	{
+		if (valueQueue != nullptr)
+			valueQueue.get()->push(value);
+
+		if (n != sendNotificationAsync)
+			sendInternal();
+		else
+		{
+			if (lockfreeUpdater != nullptr)
+				lockfreeUpdater->triggerAsyncUpdate();
+			else
+				updater.triggerAsyncUpdate();
+		}
+	}
 
 	void removeDanglingObjects()
 	{
@@ -1839,7 +1855,7 @@ struct ComplexDataUIBase : public ReferenceCountedObject
 	private:
 
 		ScopedPointer<LookAndFeel> ownedLaf;
-		LookAndFeel* laf;
+		LookAndFeel* laf = nullptr;
 	};
 
 	/** A SourceWatcher notifies its registered listeners about changes to a source. */
@@ -2485,6 +2501,11 @@ struct Spectrum2D
 		void set(const Identifier& id, int value, NotificationType n);
 
 		int get(const Identifier& id) const;
+
+		void saveToJSON(var v) const;
+		void loadFromJSON(const var& v);
+
+		static Array<Identifier> getAllIds();
 
 		LambdaBroadcaster<Identifier, int> notifier;
 

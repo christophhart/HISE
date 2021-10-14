@@ -1085,6 +1085,8 @@ AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
 
 void Spectrum2D::Parameters::set(const Identifier& id, int value, NotificationType n)
 {
+	jassert(getAllIds().contains(id));
+
 	if (id == Identifier("FFTSize"))
 	{
 		order = jlimit(7, 13, value);
@@ -1104,6 +1106,8 @@ void Spectrum2D::Parameters::set(const Identifier& id, int value, NotificationTy
 
 int Spectrum2D::Parameters::get(const Identifier& id) const
 {
+	jassert(getAllIds().contains(id));
+
 	if (id == Identifier("FFTSize"))
 		return order;
     if (id == Identifier("DynamicRange"))
@@ -1116,6 +1120,40 @@ int Spectrum2D::Parameters::get(const Identifier& id) const
 		return currentWindowType;
 
 	return 0;
+}
+
+void Spectrum2D::Parameters::saveToJSON(var v) const
+{
+	if (auto dyn = v.getDynamicObject())
+	{
+		for (auto id : getAllIds())
+			dyn->setProperty(id, get(id));
+	}
+}
+
+void Spectrum2D::Parameters::loadFromJSON(const var& v)
+{
+	for (auto id : getAllIds())
+	{
+		if (v.hasProperty(id))
+			set(id, v.getProperty(id, ""), dontSendNotification);
+	}
+
+	notifier.sendMessage(sendNotificationAsync, "Allofem", var());
+}
+
+juce::Array<juce::Identifier> Spectrum2D::Parameters::getAllIds()
+{
+	static const Array<Identifier> ids =
+	{
+		Identifier("FFTSize"),
+		Identifier("DynamicRange"),
+		Identifier("Oversampling"),
+		Identifier("ColourScheme"),
+		Identifier("WindowType")
+	};
+	
+	return ids;
 }
 
 Spectrum2D::Parameters::Editor::Editor(Parameters* p) :
