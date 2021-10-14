@@ -50,9 +50,7 @@ public:
 
 	Identifier getProcessorTypeId() const override;
 
-
     void paint(Graphics& g) override;
-    
     
 	void fillModuleList(StringArray& moduleList) override
 	{
@@ -63,10 +61,6 @@ public:
 	void contentChanged() override;
 	
 private:
-
-	struct EditListener;
-
-	ScopedPointer<EditListener> editListener;
 
 };
 

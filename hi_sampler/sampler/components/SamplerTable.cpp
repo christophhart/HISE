@@ -220,7 +220,7 @@ void SamplerTable::labelTextChanged (Label* labelThatHasChanged)
         //[UserLabelCode_searchLabel] -- add your label text handling code here..
 		String wildcard = searchLabel->getText(false);
 
-		ModulatorSamplerSound::selectSoundsBasedOnRegex(wildcard, sampler, handler->getSelection());
+		ModulatorSamplerSound::selectSoundsBasedOnRegex(wildcard, sampler, handler->getSelectionReference());
 
         //[/UserLabelCode_searchLabel]
     }

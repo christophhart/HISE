@@ -9,6 +9,37 @@ struct ExternalFileChangeWatcher;
 class SamplerBody;
 class SampleEditHandler;
 
+struct DraggableThumbnail : public HiseAudioThumbnail
+{
+	struct Laf : public HiseAudioThumbnail::LookAndFeelMethods,
+				 public LookAndFeel_V3
+	{
+		void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
+
+		void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override;
+	} laf;
+
+	DraggableThumbnail();
+
+	void setPosition(const MouseEvent& e);
+
+	void mouseDown(const MouseEvent& e) override;
+
+	void mouseDrag(const MouseEvent& e) override;
+
+	void mouseDoubleClick(const MouseEvent& e) override;
+
+	void paint(Graphics& g) override;
+
+	static void mainSoundSelected(DraggableThumbnail& d, ModulatorSamplerSound::Ptr, int);
+
+	ModulatorSamplerSound::Ptr currentSound;
+	float downZoomFactor = 1.0f;
+	int downX = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(DraggableThumbnail);
+};
+
 struct ExternalFileChangeWatcher : public Timer,
                                    public SampleMap::Listener
 {
@@ -88,11 +119,14 @@ public:
         EnableLoopArea,
         EnablePlayArea,
         SelectWithMidi,
+		ApplyToMainOnly,
         NormalizeVolume,
         LoopEnabled,
+		PreviewCurrentSound,
         Analyser,
         ExternalEditor,
         ZeroCrossing,
+		ShowEnvelopePopup,
 		ImproveLoopPoints,
         numCommands
     };
@@ -120,6 +154,8 @@ public:
 	{
 		updateWaveform();
 	}
+
+	KeyboardFocusTraverser* createFocusTraverser() override;
 
 	void updateInterface() override
 	{
@@ -207,16 +243,26 @@ public:
 		}
 	};
 
+	static File getPropertyFile()
+	{
+		return ProjectHandler::getAppDataDirectory().getChildFile("SampleEditorSettings").withFileExtension("js");
+	}
+
+	void saveEditorSettings();
+
+	void loadEditorSettings();
 	
+	static void mainSelectionChanged(SampleEditor& editor, ModulatorSamplerSound::Ptr sound, int micIndex);
 
-
-	void soundsSelected(const SampleSelection  &selectedSoundList) override;
+	void soundsSelected(int numSelected) override;
 
 	void paintOverChildren(Graphics &g);
 
 	void updateWaveform();
 
 	void zoom(bool zoomOut, int mousePos=0);
+
+	void setZoomFactor(float factor, int mousePos = 0);
 
 	void mouseWheelMove	(const MouseEvent & e, const MouseWheelDetails & 	wheel )	override
 	{
@@ -241,22 +287,29 @@ public:
 
 	Component* addButton(SampleMapCommands commandId, bool hasState);
 
+	bool keyPressed(const KeyPress& key) override;
+
+	float zoomFactor;
     
-    
+	Viewport& getViewport() { return *viewport; }
+
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	friend class SampleEditorToolbarFactory;
 
 	
-	
 
-	float zoomFactor;
+	
 
 	ModulatorSampler *sampler;
 	SamplerBody	*body;
 
     Slider spectrumSlider;
     
+	HiseShapeButton* envelopeButton;
+
+	
+
 	ScrollbarFader fader;
 	ScrollbarFader::Laf laf;
 
@@ -264,7 +317,7 @@ private:
 
 	ScopedPointer<SamplerSoundWaveform> currentWaveForm;
 
-	ReferenceCountedArray<ModulatorSamplerSound> selection;
+	SampleSelection selection;
 
 	OwnedArray<HiseShapeButton> menuButtons;
 
@@ -293,9 +346,11 @@ private:
     ScopedPointer<ComboBox> sampleSelector;
     ScopedPointer<ComboBox> multimicSelector;
     
-	HiseAudioThumbnail overview;
+	DraggableThumbnail overview;
 
     GlobalHiseLookAndFeel claf;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SampleEditor);
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SampleEditor)

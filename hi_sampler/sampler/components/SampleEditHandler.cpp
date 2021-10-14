@@ -33,16 +33,17 @@
 namespace hise { using namespace juce;
 
 SampleEditHandler::SampleEditHandler(ModulatorSampler* sampler_) :
-	sampler(sampler_)
+	sampler(sampler_),
+	internalSelectionListener(*this, sampler_->getMainController()),
+	previewer(sampler_)
 {
-	MessageManagerLock mml;
-	selectedSamplerSounds.addChangeListener(this);
 	noteBroadcaster.enableLockFreeUpdate(sampler->getMainController()->getGlobalUIUpdater());
 	noteBroadcaster.setEnableQueue(true, NUM_POLYPHONIC_VOICES);
-	
 	groupBroadcaster.enableLockFreeUpdate(sampler->getMainController()->getGlobalUIUpdater());
-
 	noteBroadcaster.addListener(*this, handleMidiSelection);
+
+	selectionBroadcaster.addListener(*this, updateMainSound);
+
 }
 
 void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
@@ -117,6 +118,18 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 	}
 }
 
+void SampleEditHandler::resizeSamples(SamplerSoundMap::Neighbour direction)
+{
+	bool increase = (direction == SamplerSoundMap::Neighbour::Right) || (direction == SamplerSoundMap::Up);
+	bool velocity = (direction == SamplerSoundMap::Neighbour::Up) || (direction == SamplerSoundMap::Down);
+
+	for (auto sound : selectedSamplerSounds)
+	{
+		changeProperty(sound, velocity ? SampleIds::HiVel : SampleIds::HiKey, increase ? 1 : -1);
+	}
+
+}
+
 void SampleEditHandler::handleMidiSelection(SampleEditHandler& handler, int noteNumber, int velocity)
 {
 	auto sampler = handler.sampler;
@@ -140,21 +153,150 @@ void SampleEditHandler::handleMidiSelection(SampleEditHandler& handler, int note
 	}
 }
 
-SampleSelection SampleEditHandler::getSanitizedSelection()
+void SampleEditHandler::cycleMainSelection(int indexToUse, int micIndexToUse, bool back)
 {
-	auto& sounds = selectedSamplerSounds.getItemArray();
+	
 
-	SampleSelection existingSounds;
+	auto s = getNumSelected();
 
-	existingSounds.ensureStorageAllocated(sounds.size());
+	if (s == 0)
+		return;
 
-	for (int i = 0; i < sounds.size(); i++)
+	if (micIndexToUse == -1)
 	{
-		if (sounds[i].get() != nullptr) 
-			existingSounds.add(sounds[i].get());
+		micIndexToUse = currentMicIndex;
 	}
 
-	return existingSounds;
+	if (indexToUse == -1)
+	{
+		indexToUse = selectedSamplerSounds.getItemArray().indexOf(currentMainSound);
+
+		if (back)
+			indexToUse = hmath::wrap(indexToUse - 1, s);
+		else
+			indexToUse = hmath::wrap(indexToUse +1, s);
+	}
+
+	auto sound = selectedSamplerSounds.getItemArray()[indexToUse];
+	selectionBroadcaster.sendMessage(sendNotificationAsync, sound, micIndexToUse);
+}
+
+hise::SampleSelection SampleEditHandler::getSelectionOrMainOnlyInTabMode()
+{
+	SampleSelection s;
+
+	if (applyToMainSelection && getNumSelected() > 0)
+		s.add(currentMainSound);
+	else
+		s = selectedSamplerSounds.getItemArray();
+
+	return s;
+}
+
+bool SampleEditHandler::keyPressed(const KeyPress& k, Component* originatingComponent)
+{
+	if (k == KeyPress('z', ModifierKeys::commandModifier, 'z'))
+	{
+		return getSampler()->getUndoManager()->undo();
+	}
+	if (k == KeyPress('z', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 'z'))
+	{
+		return getSampler()->getUndoManager()->redo();
+	}
+
+	if (k.getKeyCode() == KeyPress::escapeKey)
+	{
+		SampleEditingActions::deselectAllSamples(this);
+		return true;
+	}
+	if (k.getKeyCode() == KeyPress::leftKey)
+	{
+		if (k.getModifiers().isCommandDown())
+		{
+			if (k.getModifiers().isShiftDown())
+				resizeSamples(SamplerSoundMap::Left);
+			else
+				moveSamples(SamplerSoundMap::Left);
+		}
+		else
+			SampleEditingActions::selectNeighbourSample(this, SamplerSoundMap::Left, k.getModifiers());
+		return true;
+	}
+	else if (k.getKeyCode() == KeyPress::rightKey)
+	{
+		if (k.getModifiers().isCommandDown())
+		{
+			if (k.getModifiers().isShiftDown())
+				resizeSamples(SamplerSoundMap::Right);
+			else
+				moveSamples(SamplerSoundMap::Right);
+		}
+		else
+			SampleEditingActions::selectNeighbourSample(this, SamplerSoundMap::Right, k.getModifiers());
+		return true;
+	}
+	else if (k.getKeyCode() == KeyPress::upKey)
+	{
+		if (k.getModifiers().isCommandDown())
+		{
+			if (k.getModifiers().isShiftDown())
+				resizeSamples(SamplerSoundMap::Up);
+			else
+				moveSamples(SamplerSoundMap::Up);
+		}
+		else
+			SampleEditingActions::selectNeighbourSample(this, SamplerSoundMap::Up, k.getModifiers());
+		return true;
+	}
+	else if (k.getKeyCode() == KeyPress::downKey)
+	{
+		if (k.getModifiers().isCommandDown())
+		{
+			if (k.getModifiers().isShiftDown())
+				resizeSamples(SamplerSoundMap::Down);
+			else
+				moveSamples(SamplerSoundMap::Down);
+		}
+		else
+			SampleEditingActions::selectNeighbourSample(this, SamplerSoundMap::Down, k.getModifiers());
+		return true;
+	}
+	if (k == KeyPress::tabKey)
+	{
+		if (!applyToMainSelection)
+		{
+			if (PresetHandler::showYesNoWindow("Enable Tab cycle mode", "Do you want to enable the tab key cycle mode?  \nIf this is enabled, all changes will only be applied to the single sample that is highlighted in the map editor."))
+			{
+				applyToMainSelection = true;
+				selectionBroadcaster.resendLastMessage(sendNotificationAsync);
+			}
+		}
+
+		cycleMainSelection(-1, -1, k.getModifiers().isShiftDown());
+
+		return true;
+	}
+
+	return false;
+}
+
+void SampleEditHandler::setMainSelectionToLast()
+{
+	sampler->getMainController()->stopBufferToPlay();
+	selectionBroadcaster.sendMessage(sendNotificationSync, selectedSamplerSounds.getItemArray().getLast(), currentMicIndex);
+}
+
+void SampleEditHandler::updateMainSound(SampleEditHandler& s, ModulatorSamplerSound::Ptr sound, int micIndex)
+{
+	s.currentMainSound = sound;
+	s.currentMicIndex = micIndex;
+
+	s.previewer.setPreviewStart(-1);
+
+	if (sound != nullptr && s.getNumSelected() == 0)
+	{
+		s.selectedSamplerSounds.addToSelection(sound);
+	}
 }
 
 bool SampleEditHandler::newKeysPressed(const uint8 *currentNotes)
@@ -318,5 +460,95 @@ void SampleEditHandler::SampleEditingActions::encodeAllMonoliths(Component * com
 
 
 
+
+void SampleEditHandler::SampleEditingActions::selectNeighbourSample(SampleEditHandler* handler, SamplerSoundMap::Neighbour direction, ModifierKeys mods)
+{
+	if (handler->getNumSelected() > 0)
+	{
+		auto sound = *handler->begin();
+
+		if (sound == nullptr)
+			return;
+
+		Array<int> lowKeys;
+		Array<int> hiKeys;
+		Array<int> lowVelos;
+		Array<int> hiVelos;
+
+		for (auto ts : *handler)
+		{
+			const int lowKey = ts->getSampleProperty(SampleIds::LoKey);
+			const int lowVelo = ts->getSampleProperty(SampleIds::LoVel);
+
+			const int hiKey = ts->getSampleProperty(SampleIds::HiKey);
+			const int hiVelo = ts->getSampleProperty(SampleIds::HiVel);
+
+			lowKeys.add(lowKey);
+			lowVelos.add(lowVelo);
+			hiKeys.add(hiKey);
+			hiVelos.add(hiVelo);
+		}
+
+		const int group = sound->getSampleProperty(SampleIds::RRGroup);
+
+		ModulatorSampler::SoundIterator iter(handler->getSampler());
+
+		while(auto s = iter.getNextSound())
+		{
+			const int thisLowKey = s->getSampleProperty(SampleIds::LoKey);
+			const int thisLowVelo = s->getSampleProperty(SampleIds::LoVel);
+
+			const int thisHiKey = s->getSampleProperty(SampleIds::HiKey);
+			const int thisHiVelo = s->getSampleProperty(SampleIds::HiVel);
+
+			const int thisGroup = s->getSampleProperty(SampleIds::RRGroup);
+
+			if (thisGroup != group) continue;
+
+			if ((direction == SamplerSoundMap::Left || direction == SamplerSoundMap::Right) &&
+				!hiVelos.contains(thisHiVelo) && !lowVelos.contains(thisLowVelo)) continue;
+
+			if ((direction == SamplerSoundMap::Up || direction == SamplerSoundMap::Down) &&
+				!hiKeys.contains(thisHiKey) && !lowKeys.contains(thisLowKey)) continue;
+
+			bool selectThisComponent = false;
+
+			switch (direction)
+			{
+			case SamplerSoundMap::Left:		selectThisComponent = lowKeys.contains(thisHiKey + 1); break;
+			case SamplerSoundMap::Right:	selectThisComponent = hiKeys.contains(thisLowKey - 1); break;
+			case SamplerSoundMap::Up:		selectThisComponent = hiVelos.contains(thisLowVelo - 1); break;
+			case SamplerSoundMap::Down:		selectThisComponent = lowVelos.contains(thisHiVelo + 1); break;
+			}
+
+			if (selectThisComponent)
+			{
+				handler->getSelectionReference().addToSelectionBasedOnModifiers(s.get(), mods);
+				handler->setMainSelectionToLast();
+			}
+		}
+	}
+
+}
+
+SampleEditHandler::PrivateSelectionUpdater::PrivateSelectionUpdater(SampleEditHandler& parent_, MainController* mc) :
+	parent(parent_)
+{
+	parent.selectedSamplerSounds.addChangeListener(this);
+}
+
+void SampleEditHandler::PrivateSelectionUpdater::changeListenerCallback(ChangeBroadcaster*)
+{
+	parent.allSelectionBroadcaster.sendMessage(sendNotificationSync, parent.getNumSelected());
+}
+
+SampleEditHandler::SubEditorTraverser::SubEditorTraverser(Component* sub) :
+	component(sub)
+{
+	if (dynamic_cast<SamplerSubEditor*>(sub) == nullptr)
+	{
+		component = dynamic_cast<Component*>(sub->findParentComponentOfClass<SamplerSubEditor>());
+	}
+}
 
 } // namespace hise

@@ -233,41 +233,17 @@ public:
 
 	void loadSampleMap();
 
-	void soundsSelected(const SampleSelection &selectedSounds) override
-	{
-		selectionIsNotEmpty = selectedSounds.size() != 0;
-
-		selectedSoundList.clear();
-		selectedSoundList.addArray(selectedSounds);
-
-		map->map->setSelectedIds(selectedSounds);
-
-		getCommandManager()->commandStatusChanged();
-
-		refreshRootNotes();
-
-		rrGroupSetter->setCurrentSelection(selectedSounds);
-		rootNoteSetter->setCurrentSelection(selectedSounds);
-		lowKeySetter->setCurrentSelection(selectedSounds);
-		highKeySetter->setCurrentSelection(selectedSounds);
-		lowVelocitySetter->setCurrentSelection(selectedSounds);
-		highVelocitySetter->setCurrentSelection(selectedSounds);
-		lowXFadeSetter->setCurrentSelection(selectedSounds);
-		highXFadeSetter->setCurrentSelection(selectedSounds);
-
-		if (popoutCopy != nullptr && popoutCopy->isVisible())
-		{
-			popoutCopy->soundsSelected(selectedSounds);
-		}
-
-	}
+	void soundsSelected(int numSelected) override;
 
 	void updateInterface() override
 	{
+		if (!sampler->shouldUpdateUI())
+			return;
+
 		updateSoundData();
 	}
 
-	void refreshRootNotes();
+	static void refreshRootNotes(SampleMapEditor& sme, int numSelected);
 
 	void itemDragEnter(const SourceDetails& dragSourceDetails)
 	{
@@ -340,6 +316,8 @@ public:
 
 	void updateWarningButton();
 
+	KeyboardFocusTraverser* createFocusTraverser() override;
+
 	void itemDropped(const SourceDetails &dragSourceDetails) override
 	{
 		if (dragSourceDetails.description.isString())
@@ -408,7 +386,7 @@ public:
 	void poolEntryRemoved() override { updateSampleMapSelector(true); }
 	void poolEntryReloaded(PoolReference ref) override { updateSampleMapSelector(true); }
 
-	
+	void mouseDown(const MouseEvent &e);
 
 	void fileDragEnter(const StringArray& /*files*/, int /*x*/, int /*y*/) override
 	{
@@ -613,24 +591,7 @@ public:
 		p.addCommandItem(a, DeleteDuplicateSamples);
 	}
 
-	void mouseDown(const MouseEvent &e) override;;
-
-	void enablePopoutMode(SampleMapEditor *parent)
-	{
-		parentCopy = parent;
-		popoutMode = true;
-		resized();
-	}
-
 	void refreshSampleMapPool();
-
-	void deletePopup()
-	{
-		if (parentCopy.getComponent() != nullptr)
-		{
-			parentCopy->popoutCopy = nullptr;
-		}
-	}
 
 	void toggleVerticalSize();
 
@@ -655,6 +616,8 @@ private:
 
 	ModulatorSampler *sampler;
 
+	HiseEvent previewNote;
+
 	SamplerBody *body;
 
 	bool selectionIsNotEmpty;
@@ -663,7 +626,7 @@ private:
 
 	bool mapIsHovered = false;
 
-	Array<ModulatorSamplerSound*> selectedSoundList;
+	SampleSelection selection;
 
 	ScopedPointer<ApplicationCommandManager> sampleMapEditorCommandManager;
 
@@ -671,13 +634,7 @@ private:
 
 	ScopedPointer<SampleMapEditorToolbarFactory> toolbarFactory;
 
-	ScopedPointer<SampleMapEditor> popoutCopy;
-
-	Component::SafePointer<SampleMapEditor> parentCopy;
-
 	bool verticalBigSize;
-
-	bool popoutMode;
 
 	bool isDraggingFolder;
 	StringArray filesInFolder;
@@ -687,8 +644,6 @@ private:
 	
 	OwnedArray<HiseShapeButton> ownedMenuButtons;
 	Array<Component::SafePointer<HiseShapeButton>> menuButtons;
-
-	ScopedPointer<MarkdownHelpButton> helpButton;
 
 	ScopedPointer<ComboBox> sampleMaps;
 
@@ -709,6 +664,8 @@ private:
     ScopedPointer<Toolbar> toolbar;
 
 	ScopedPointer<Component> newRRDisplay;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SampleMapEditor);
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SampleMapEditor)

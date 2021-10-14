@@ -478,10 +478,9 @@ struct RRDisplayComponent : public Component,
 		if (numGroups == 1)
 			return;
 
-		auto selection = sampler->getSampleEditHandler()->getSelection().getItemArray();
 		BigInteger selectState;
 		
-		for (auto sound : selection)
+		for (auto sound : *sampler->getSampleEditHandler())
 		{
 			selectState.setBit((int)sound->getSampleProperty(SampleIds::RRGroup) - 1, true);
 		}
@@ -586,8 +585,6 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 {
     //[Constructor_pre] You can add your own custom stuff here..
 
-	popoutMode = false;
-
     //[/Constructor_pre]
 
 	s->getMainController()->getExpansionHandler().addListener(this);
@@ -606,10 +603,12 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
     viewport->setScrollBarThickness (12);
     viewport->setViewedComponent (new MapWithKeyboard (sampler));
 
+	viewport->setWantsKeyboardFocus(false);
+
     addAndMakeVisible (toolbar = new Toolbar());
     toolbar->setName ("new component");
 
-	
+	addKeyListener(sampler->getSampleEditHandler());
 
     //[UserPreSize]
 
@@ -621,6 +620,8 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	zoomFactor = 1.0f;
 
 	sampleMapEditorCommandManager = new ApplicationCommandManager();
+
+	addKeyListener(sampler->getSampleEditHandler());
 
 	getCommandManager()->registerAllCommandsForTarget(this);
 	sampleMapEditorCommandManager->getKeyMappings()->resetToDefaultMappings();
@@ -682,12 +683,6 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	warningButton->setFontSize(14.0f);
 	warningButton->setPopupWidth(400);
 
-	addAndMakeVisible(helpButton = new MarkdownHelpButton());
-
-	helpButton->setHelpText<PathProvider<Factory>>(SampleMapEditorHelp::Help());
-	helpButton->setFontSize(14.0f);
-	helpButton->setPopupWidth(600);
-
 	menuButtons.insertMultiple(0, nullptr, SampleMapCommands::numCommands);
 
 	addMenuButton(ZoomIn);
@@ -698,11 +693,11 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	addMenuButton(ImportSfz);
 	addMenuButton(Undo);
 	addMenuButton(Redo);
-	addMenuButton(DuplicateSamples);
-	addMenuButton(CutSamples);
-	addMenuButton(CopySamples);
-	addMenuButton(PasteSamples);
-	addMenuButton(DeleteSamples);
+	//addMenuButton(DuplicateSamples);
+	//addMenuButton(CutSamples);
+	//addMenuButton(CopySamples);
+	//addMenuButton(PasteSamples);
+	//addMenuButton(DeleteSamples);
 	addMenuButton(SelectAllSamples);
 	addMenuButton(DeselectAllSamples);
 	addMenuButton(FillNoteGaps);
@@ -724,6 +719,8 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	{
 		m.soloGroup(displayedGroup);
 	});
+
+	setFocusContainer(true);
 
     //[/Constructor]
 }
@@ -834,14 +831,14 @@ void SampleMapEditor::resized()
 
 	ADD_SPACER(4);
 
-	PLACE_BUTTON(getButton(CutSamples));
-	PLACE_BUTTON(getButton(CopySamples));
-	PLACE_BUTTON(getButton(PasteSamples));
+	//PLACE_BUTTON(getButton(CutSamples));
+	//PLACE_BUTTON(getButton(CopySamples));
+	//PLACE_BUTTON(getButton(PasteSamples));
 
-	ADD_SPACER(4);
+	//ADD_SPACER(4);
 
-	PLACE_BUTTON(getButton(DuplicateSamples));
-	PLACE_BUTTON(getButton(DeleteSamples));
+	//PLACE_BUTTON(getButton(DuplicateSamples));
+	//PLACE_BUTTON(getButton(DeleteSamples));
 	
 	ADD_SPACER(8);
 
@@ -851,7 +848,6 @@ void SampleMapEditor::resized()
 
 	ADD_SPACER(8);
 
-	PLACE_BUTTON(helpButton);
 
 
 	const bool isInMainPanel = findParentComponentOfClass<PanelWithProcessorConnection>() == nullptr;
@@ -933,6 +929,7 @@ void SampleMapEditor::addMenuButton(SampleMapCommands commandId)
 	ownedMenuButtons.add(b);
 	menuButtons.set(commandId, b);
 }
+
 
 
 void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo &result)
@@ -1065,7 +1062,8 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 
 		bool containsVelocityMaterial = false;
 
-		if (selectedSoundList.size() > 1)
+#if 0
+		if (handler->getNumSelected() > 1)
 		{
 			containsVelocityMaterial = true;
 
@@ -1082,6 +1080,7 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 				}
 			}
 		}
+#endif 
 		result.setActive(selectionIsNotEmpty && containsVelocityMaterial);
 		break;
 	}
@@ -1211,12 +1210,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 							}
 	case FillVelocityGaps:
 	case FillNoteGaps:		{
-
-							SampleImporter::closeGaps(selectedSoundList, info.commandID == FillNoteGaps);
-
-
-
-							return true;
+							SampleImporter::closeGaps(handler->getSelectionReference().getItemArray(), info.commandID == FillNoteGaps);
+ 							return true;
 							}
 	case AutomapVelocity:	SampleEditHandler::SampleEditingActions::automapVelocity(handler);
 							return true;
@@ -1285,27 +1280,26 @@ void SampleMapEditor::loadSampleMap()
 	}
 }
 
-void SampleMapEditor::refreshRootNotes()
+void SampleMapEditor::soundsSelected(int numSelected)
 {
-	auto& sounds = handler->getSelection().getItemArray();
+	selectionIsNotEmpty = numSelected != 0;
 
-	if (sounds.size() == 0 && map->selectedRootNotes == 0) return;
+	selection = handler->getSelectionReference().getItemArray();
 
-	BigInteger previousState = map->selectedRootNotes;
+	getCommandManager()->commandStatusChanged();
 
-	map->selectedRootNotes.setRange(0, 128, false);
-	for (int i = 0; i < sounds.size(); i++)
-	{
-		if (sounds[i].get() != nullptr)
-		{
-			map->selectedRootNotes.setBit(sounds[i]->getSampleProperty(SampleIds::Root), true);
-		}
-	}
+	refreshRootNotes(*this, numSelected);
 
-	if (map->selectedRootNotes != previousState)
-	{
-		map->repaint();
-	}
+	auto selectionToUse = handler->getSelectionOrMainOnlyInTabMode();
+
+	rrGroupSetter->setCurrentSelection(selectionToUse);
+	rootNoteSetter->setCurrentSelection(selectionToUse);
+	lowKeySetter->setCurrentSelection(selectionToUse);
+	highKeySetter->setCurrentSelection(selectionToUse);
+	lowVelocitySetter->setCurrentSelection(selectionToUse);
+	highVelocitySetter->setCurrentSelection(selectionToUse);
+	lowXFadeSetter->setCurrentSelection(selectionToUse);
+	highXFadeSetter->setCurrentSelection(selectionToUse);
 }
 
 void SampleMapEditor::expansionPackLoaded(Expansion* /*currentExpansion*/)
@@ -1329,7 +1323,7 @@ void SampleMapEditor::samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, con
 	updateWarningButton();
 
 	if (id == SampleIds::Root)
-		refreshRootNotes();
+		refreshRootNotes(*this, selection.size());
 }
 
 void SampleMapEditor::updateWarningButton()
@@ -1339,6 +1333,11 @@ void SampleMapEditor::updateWarningButton()
 
 	if (unsavedChanges != warningVisible)
 		resized();
+}
+
+juce::KeyboardFocusTraverser* SampleMapEditor::createFocusTraverser()
+{
+	return new SampleEditHandler::SubEditorTraverser(this);
 }
 
 void SampleMapEditor::comboBoxChanged(ComboBox* b)
@@ -1376,38 +1375,10 @@ bool SampleMapEditor::keyPressed(const KeyPress& k)
 		getCommandManager()->invokeDirectly(commandId, false);
 		return true;
 	}
-
-	if (k.getKeyCode() == KeyPress::leftKey)
+	
+	if (k == KeyPress::spaceKey)
 	{
-		if (k.getModifiers().isCommandDown())
-			handler->moveSamples(SamplerSoundMap::Left);
-		else
-			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Left);
-		return true;
-	}
-	else if (k.getKeyCode() == KeyPress::rightKey)
-	{
-		if (k.getModifiers().isCommandDown())
-			handler->moveSamples(SamplerSoundMap::Right);
-		else
-			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Right);
-		return true;
-	}
-	else if (k.getKeyCode() == KeyPress::upKey)
-	{
-		if (k.getModifiers().isCommandDown())
-			handler->moveSamples(SamplerSoundMap::Up);
-		else
-			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Up);
-		return true;
-	}
-	else if (k.getKeyCode() == KeyPress::downKey)
-	{
-		if (k.getModifiers().isCommandDown())
-			handler->moveSamples(SamplerSoundMap::Down);
-		else
-			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Down);
-		return true;
+		handler->togglePreview();
 	}
 
 	return false;
@@ -1415,6 +1386,8 @@ bool SampleMapEditor::keyPressed(const KeyPress& k)
 
 void SampleMapEditor::mouseDown(const MouseEvent &e)
 {
+	
+
 	getCommandManager()->setFirstCommandTarget(this);
 	getCommandManager()->commandStatusChanged();
 
@@ -1469,7 +1442,16 @@ void SampleMapEditor::mouseDown(const MouseEvent &e)
 			map->repaint();
 		}
 	}
+	else
+	{
+		if (e.eventComponent == this)
+		{
+			SampleEditHandler::SampleEditingActions::deselectAllSamples(handler);
+		}
+	}
 }
+
+
 
 void SampleMapEditor::refreshSampleMapPool()
 {
@@ -1586,6 +1568,24 @@ void SampleMapEditor::updateSampleMapSelector(bool rebuild)
 	};
 
 	MessageManager::callAsync(f2);
+}
+
+void SampleMapEditor::refreshRootNotes(SampleMapEditor& sme, int numSelected)
+{
+	if (numSelected == 0 && sme.map->selectedRootNotes == 0)
+		return;
+
+	BigInteger previousState = sme.map->selectedRootNotes;
+
+	sme.map->selectedRootNotes.setRange(0, 128, false);
+
+	for (auto sound : *sme.handler)
+	{
+		if (sound != nullptr)
+			sme.map->selectedRootNotes.setBit(sound->getSampleProperty(SampleIds::Root), true);
+	}
+
+	sme.map->repaint();
 }
 
 //[/MiscUserCode]

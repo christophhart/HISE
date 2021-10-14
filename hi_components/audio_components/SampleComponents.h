@@ -35,6 +35,8 @@
 namespace hise {
 using namespace juce;
 
+
+
 class WaveformComponent : public Component,
 	public RingBufferComponentBase,
 	public SafeChangeListener
@@ -303,14 +305,27 @@ struct SamplerDisplayWithTimeline : public Component
 		TimeDomain currentDomain = TimeDomain::Seconds;
 	};
 
+	SamplerDisplayWithTimeline(ModulatorSampler* sampler);
+
 	SamplerSoundWaveform* getWaveform();
 	const SamplerSoundWaveform* getWaveform() const;
 	void resized() override;
 	void mouseDown(const MouseEvent& e) override;
 	static String getText(const Properties& p, float normalisedX);
+
+	static Colour getColourForEnvelope(Modulation::Mode m);
+
 	void paint(Graphics& g) override;
 
+	void setEnvelope(Modulation::Mode m, ModulatorSamplerSound* sound);
+
 	Properties props;
+
+	ScopedPointer<TableEditor> tableEditor;
+	SampleLookupTable table;
+	Modulation::Mode envelope = Modulation::Mode::numModes;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SamplerDisplayWithTimeline);
 };
 
 /** A component that displays the waveform of a sample.
@@ -325,6 +340,7 @@ class SamplerSoundWaveform : public AudioDisplayComponent,
 	public SettableTooltipClient
 {
 public:
+
 
 	/** Creates a new SamplerSoundWaveform.
 	*
@@ -356,6 +372,8 @@ public:
 
 	void paint(Graphics &g) override;
 
+	void paintOverChildren(Graphics &g) override;
+
 	void resized() override;
 
     void setIsSamplerWorkspacePreview();
@@ -371,6 +389,8 @@ public:
 	void mouseUp(const MouseEvent& e) override;
 
 	void mouseMove(const MouseEvent& e) override;
+
+	void mouseExit(const MouseEvent& e) override;
 
 	const ModulatorSamplerSound *getCurrentSound() const { return currentSound.get(); }
 
@@ -390,14 +410,22 @@ public:
 		}
 	}
 
-	void setClickArea(AreaTypes newArea)
+	void setClickArea(AreaTypes newArea, bool resetIfSame=true)
 	{
-		if (newArea == currentClickArea)
+		if (newArea == currentClickArea && resetIfSame)
 			currentClickArea = AreaTypes::numAreas;
 		else
 			currentClickArea = newArea;
 
-		setMouseCursor(currentClickArea == AreaTypes::numAreas ? MouseCursor::NormalCursor : MouseCursor::CrosshairCursor);
+		for (int i = 0; i < areas.size(); i++)
+		{
+			areas[i]->setAreaEnabled(currentClickArea == i);
+		}
+
+		auto isSomething = currentClickArea != AreaTypes::numAreas;
+
+		setMouseCursor(!isSomething ? MouseCursor::DraggingHandCursor : MouseCursor::CrosshairCursor);
+		
 	}
 
 	float getCurrentSampleGain() const;
@@ -409,6 +437,12 @@ public:
     bool zeroCrossing = true;
     
 private:
+
+	bool lastActive = false;
+	int xPos = -1;
+	bool previewHover = false;
+
+	ScopedPointer<LookAndFeel> slaf;
 
 	AudioDisplayComponent::AreaTypes getAreaForModifiers(const MouseEvent& e) const;
 
@@ -422,10 +456,10 @@ private:
 	int numSamplesInCurrentSample;
 
     bool inWorkspace = false;
-	int previewStart = -1;
 	double sampleStartPosition;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SamplerSoundWaveform)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SamplerSoundWaveform);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SamplerSoundWaveform);
 };
 
 

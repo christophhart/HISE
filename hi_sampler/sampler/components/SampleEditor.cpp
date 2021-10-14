@@ -1,10 +1,579 @@
 
 namespace hise { using namespace juce;
 
+struct EnvelopePopup : public Component
+{
+	using EnvelopeType = Modulation::Mode;
+
+	struct Row : public Component,
+				 public PathFactory,
+				 public ButtonListener
+	{
+	public:
+
+		Row(EnvelopeType m_):
+			m(m_),
+			powerButton("power", this, *this),
+			applyButton("apply", this, *this),
+			showButton("view", this, *this)
+		{
+			auto c = SamplerDisplayWithTimeline::getColourForEnvelope(m);
+
+			addAndMakeVisible(leftSlider);
+			leftSlider.setSliderStyle(Slider::SliderStyle::LinearHorizontal);
+			leftSlider.setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
+			leftSlider.setLookAndFeel(&slaf);
+			leftSlider.setValue(-1.0f, dontSendNotification);
+			leftSlider.setColour(Slider::backgroundColourId, Colours::white.withAlpha(0.2f));
+			leftSlider.setColour(Slider::trackColourId, c.withSaturation(0.7f).withAlpha(0.5f));
+			leftSlider.setColour(Slider::thumbColourId, Colour(0xFFDDDDDD));
+			leftSlider.setPopupDisplayEnabled(true, true, nullptr);
+			
+
+			addAndMakeVisible(rightSlider);
+			rightSlider.setSliderStyle(Slider::SliderStyle::LinearHorizontal);
+			rightSlider.setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
+			rightSlider.setLookAndFeel(&slaf);
+			rightSlider.setValue(-1.0f, dontSendNotification);
+			rightSlider.setColour(Slider::backgroundColourId, Colours::white.withAlpha(0.2f));
+			rightSlider.setPopupDisplayEnabled(true, true, nullptr);
+			rightSlider.setColour(BubbleComponent::ColourIds::outlineColourId, c);
+			rightSlider.setColour(BubbleComponent::ColourIds::backgroundColourId, c.withAlpha(0.3f));
+			rightSlider.setColour(Slider::trackColourId, c.withSaturation(0.7f).withAlpha(0.5f));
+			rightSlider.setColour(Slider::thumbColourId, Colour(0xFFDDDDDD));
+
+			addAndMakeVisible(gammaSlider);
+			gammaSlider.setSliderStyle(Slider::SliderStyle::LinearHorizontal);
+			gammaSlider.setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
+			gammaSlider.setLookAndFeel(&slaf);
+			gammaSlider.setValue(-1.0f, dontSendNotification);
+			gammaSlider.setColour(Slider::backgroundColourId, Colours::white.withAlpha(0.2f));
+			gammaSlider.setPopupDisplayEnabled(true, true, nullptr);
+			gammaSlider.setColour(BubbleComponent::ColourIds::outlineColourId, c);
+			gammaSlider.setColour(BubbleComponent::ColourIds::backgroundColourId, c.withAlpha(0.3f));
+			gammaSlider.setColour(Slider::trackColourId, c.withSaturation(0.7f).withAlpha(0.5f));
+			gammaSlider.setColour(Slider::thumbColourId, Colour(0xFFDDDDDD));
+			gammaSlider.setRange(0.0, 100.0, 1.0);
+			gammaSlider.setTextValueSuffix("%");
+			gammaSlider.setValue(50.0);
+
+			showButton.setToggleModeWithColourChange(true);
+			powerButton.setToggleModeWithColourChange(true);
+
+			
+			setupSlider(leftSlider, true);
+			setupSlider(rightSlider, false);
+
+			addAndMakeVisible(showButton);
+			addAndMakeVisible(powerButton);
+			addAndMakeVisible(applyButton);
+
+			for (int i = 0; i < getNumChildComponents(); i++)
+				getChildComponent(i)->setWantsKeyboardFocus(false);
+		}
+
+		void setupSlider(Slider& s, bool isLeft)
+		{
+			switch (m)
+			{
+			case EnvelopeType::GainMode:
+				s.setRange(0.0, 100.0, 0.1);
+				s.setSkewFactorFromMidPoint(30.0);
+				s.setTextValueSuffix("ms");
+				s.setTooltip(isLeft ? "The fade in time at the sample start" :
+									  "The fade out time at the sample end");
+				s.setValue(10.0);
+				break;
+			case EnvelopeType::PitchMode:
+				s.setRange(0.0, 100.0, 1.0);
+				s.setTextValueSuffix("%");
+				s.setTooltip(isLeft ? "The length of each pitch correction slice" :
+									  "The intensity of the pitch correction");
+				s.setValue(isLeft ? 50.0 : 100.0);
+				break;
+			case EnvelopeType::PanMode:
+				if (isLeft)
+				{
+					s.setRange(0.0, 2000.0, 1.0);
+					s.setTextValueSuffix("ms");
+					s.setValue(1000.0);
+					s.setTooltip("The time before the frequency decay starts");
+					break;
+				}
+				else
+				{
+					s.setRange(20.0, 20000.0, 1.0);
+					s.setSkewFactorFromMidPoint(2600.0);
+					s.setTextValueSuffix("Hz");
+					s.setValue(2600.0);
+					s.setTooltip("The frequency decay end point");
+					break;
+				}
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto c = SamplerDisplayWithTimeline::getColourForEnvelope(m);
+
+			auto b = getLocalBounds().toFloat().reduced(1.0f);
+
+			g.setColour(c.withAlpha(0.15f));
+			g.fillRoundedRectangle(b, 3.0f);
+			g.setColour(c);
+			g.drawRoundedRectangle(b, 3.0f, 1.0f);
+
+			b.removeFromBottom(5.0f);
+			auto text = b.removeFromBottom(15.0f);
+
+			auto larea = text.withLeft(leftSlider.getX()).withRight(leftSlider.getRight());
+			auto rarea = text.withLeft(rightSlider.getX()).withRight(rightSlider.getRight());
+			auto garea = text.withLeft(gammaSlider.getX()).withRight(gammaSlider.getRight());
+
+			g.setColour(Colours::white.withAlpha(0.7f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(getText(true), larea, Justification::centred);
+			g.drawText(getText(false), rarea, Justification::centred);
+			g.drawText("Gamma", garea, Justification::centred);
+		}
+
+		String getText(bool getLeft)
+		{
+			switch (m)
+			{
+			case EnvelopeType::GainMode: return getLeft ? "Fade in" : "Fade out";
+			case EnvelopeType::PitchMode: return getLeft ? "Resolution" : "Intensity";
+			case EnvelopeType::PanMode: return getLeft ? "Hold" : "Target Frequency";
+			}
+		}
+
+		Path createPath(const String& url) const override
+		{
+			Path p;
+			LOAD_PATH_IF_URL("power", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+			LOAD_PATH_IF_URL("view", SampleToolbarIcons::envelope);
+			LOAD_PATH_IF_URL("apply", LoopIcons::apply);
+			return p;
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			if (b == &powerButton)
+			{
+				findParentComponentOfClass<EnvelopePopup>()->setEnvelopeActive(m, b->getToggleState());
+				showButton.setToggleState(b->getToggleState(), sendNotificationSync);
+			}
+			if (b == &showButton)
+			{
+				findParentComponentOfClass<EnvelopePopup>()->setDisplayedEnvelope(!b->getToggleState() ? Modulation::Mode::numModes : m);
+			}
+			if (b == &applyButton)
+			{
+				powerButton.setToggleState(true, sendNotificationSync);
+				findParentComponentOfClass<EnvelopePopup>()->applyToSelection(m, leftSlider.getValue(), rightSlider.getValue(), gammaSlider.getValue() / 100.0);
+			}
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			b.removeFromBottom(15);
+			b.removeFromLeft(5);
+			powerButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(5));
+			showButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(5));
+			b.removeFromLeft(10);
+			applyButton.setBounds(b.removeFromRight(b.getHeight()).reduced(5));
+			leftSlider.setBounds(b.removeFromLeft(b.getWidth() / 3));
+			rightSlider.setBounds(b.removeFromLeft(b.getWidth() / 2));
+			gammaSlider.setBounds(b);
+		}
+
+		const Modulation::Mode m;
+		LookAndFeel_V4 slaf;
+		HiseShapeButton showButton;
+		HiseShapeButton applyButton;
+		HiseShapeButton powerButton;
+		Slider leftSlider, rightSlider, gammaSlider;
+	};
+
+	void setDisplayedEnvelope(Modulation::Mode m)
+	{
+		gain.showButton.setToggleStateAndUpdateIcon(m == gain.m);
+		pitch.showButton.setToggleStateAndUpdateIcon(m == pitch.m);
+		filter.showButton.setToggleStateAndUpdateIcon(m == filter.m);
+
+		display->setEnvelope(m, sampler->getSampleEditHandler()->getMainSelection());
+		
+		if (m != Modulation::Mode::numModes)
+			waveform->setClickArea(AudioDisplayComponent::AreaTypes::numAreas);
+	}
+
+	void setEnvelopeActive(EnvelopeType m, bool shouldBeActive)
+	{
+		for(auto s: *sampler->getSampleEditHandler())
+		{
+			bool hasTable = s->getEnvelope(m) == nullptr;
+
+			String v;
+
+			if (shouldBeActive)
+				v << "24..........7C...vO...f+....7C...vO";
+
+			auto id = SampleIds::Helpers::getEnvelopeId(m);
+
+			s->setSampleProperty(id, v);
+		}
+
+		if (auto mainSelection = sampler->getSampleEditHandler()->getMainSelection())
+		{
+			if (m == EnvelopeType::GainMode || m == EnvelopeType::PanMode)
+				mainSelection->addEnvelopeProcessor(*waveform->getThumbnail());
+		}
+	}
+
+	struct LambdaTableEditWithUndo : public UndoableAction
+	{
+		using TableFunction = std::function<bool(Table&)>;
+
+		LambdaTableEditWithUndo(Table* t, const TableFunction& f_):
+			UndoableAction(),
+			table(t),
+			b64(t->exportData()),
+			f(f_)
+		{
+			
+		}
+
+		bool perform() override
+		{
+			if (table != nullptr)
+			{
+				Table::ScopedUpdateDelayer sds(*table);
+				return f(*table);
+			}
+				
+
+			return false;
+		}
+
+		bool undo() override
+		{
+			if (table != nullptr)
+			{
+				Table::ScopedUpdateDelayer sds(*table);
+				table->restoreData(b64);
+				return true;
+			}
+				
+			return false;
+		}
+
+		TableFunction f;
+		WeakReference<Table> table;
+		String b64;
+	};
+
+	void applyToSelection(Modulation::Mode m, double leftValue, double rightValue, double gamma)
+	{
+		for (auto s : *sampler->getSampleEditHandler())
+		{
+			Range<double> normRange;
+			auto length = (double)s->getReferenceToSound(0)->getLengthInSamples();
+			auto sr = s->getSampleRate();
+
+			auto msToNorm = [length, sr](double ms)
+			{
+				conversion_logic::ms2samples s2s;
+
+				PrepareSpecs ps;
+				ps.sampleRate = sr;
+				s2s.prepare(ps);
+				auto smp = s2s.getValue(ms);
+				return smp / length;
+			};
+
+			normRange.setStart((double)s->getSampleProperty(SampleIds::SampleStart) / length);
+			normRange.setEnd((double)s->getSampleProperty(SampleIds::SampleEnd) / length);
+
+			switch (m)
+			{
+			case EnvelopeType::GainMode:
+			{
+				if (auto ge = s->getEnvelope(m))
+				{
+					auto l = msToNorm(leftValue);
+					auto r = msToNorm(rightValue);
+
+					auto f = [normRange, l, r, gamma](Table& t)
+					{
+						t.reset();
+						t.setTablePoint(1, 1.0f, 0.0f, gamma);
+						t.addTablePoint(normRange.getStart(), 0.0f);
+						t.addTablePoint(normRange.getStart() + l, 0.5f, 1.0f - gamma);
+						t.addTablePoint(normRange.getEnd() - r, 0.5f, gamma);
+						t.addTablePoint(normRange.getEnd(), 0.0f, gamma);
+
+						return true;
+					};
+					
+					sampler->getUndoManager()->perform(new LambdaTableEditWithUndo(&ge->table, f));
+				}
+				break;
+			}
+			case EnvelopeType::PitchMode:
+			{
+				if (auto pe = s->getEnvelope(m))
+				{
+					PitchDetection detector;
+
+					auto noteNumber = (int)s->getSampleProperty(SampleIds::Root);
+
+					auto freq = MidiMessage::getMidiNoteInHertz(noteNumber);
+
+					auto numSamples = detector.getNumSamplesNeeded(sr, freq);
+
+					auto sensitivityNormed = jlimit(0.0f, 1.0f, (float)leftValue / 100.0f);
+					auto numSamplesToUse = jmap<float>(sensitivityNormed, (float)numSamples, (float)numSamples * 6.0f);
+
+					auto intensity = rightValue / 100.0;
+
+					AudioSampleBuffer b(2, numSamplesToUse);
+
+					ScopedPointer<AudioFormatReader> afr = s->createAudioReader(0);
+
+					jassert(length == afr->lengthInSamples);
+					int numToDo = (int)afr->lengthInSamples;
+
+					conversion_logic::st2pitch s2p;
+					conversion_logic::pitch2st p2s;
+
+					Range<double> nonErrorRange(s2p.getValue(-1.0), s2p.getValue(1.0));
+					Range<double> validRange(s2p.getValue(-1.0), s2p.getValue(1.0));
+
+					int offset = 0;
+
+					Array<Point<double>> list;
+					list.ensureStorageAllocated(length / numSamplesToUse);
+
+					auto lastValue = 1.0;
+
+					while (numToDo > 0)
+					{
+						afr->read(&b, 0, numSamplesToUse, offset, true, true);
+
+						auto pitch = detector.detectPitch(b, 0, numSamplesToUse, sr);
+
+						auto pf = pitch / freq;
+
+						if (!nonErrorRange.contains(pf))
+						{
+							pf = 0.4f + 0.6f * lastValue;
+						}
+						else
+						{
+							pf = validRange.clipValue(pf);
+							pf = gamma * lastValue + (1.0 - gamma) * pf;
+						}
+
+						auto lastWasNotOne = std::abs(lastValue - 1.0) > 0.0001;
+
+						lastValue = pf;
+						
+						if (lastWasNotOne)
+						{
+							auto x = (double)offset / (double)length;
+							auto y = p2s.getValue(1.0 / pf);
+							y *= 0.5;
+							y += 0.5;
+
+							y = 0.5 * (1.0 - intensity) + intensity * y;
+
+							list.add({ x, y });
+						}
+						
+						numToDo -= numSamplesToUse;
+						offset += numSamplesToUse;
+					}
+
+					if (!list.isEmpty())
+					{
+						auto f = [list](Table& t)
+						{
+							t.reset();
+
+							for (auto p : list)
+								t.addTablePoint(p.x, p.y);
+
+							return true;
+						};
+
+						sampler->getUndoManager()->perform(new LambdaTableEditWithUndo(&pe->table, f));
+					}
+				}
+				break;
+			}
+			case EnvelopeType::PanMode:
+			{
+				if (auto fe = s->getEnvelope(m))
+				{
+					auto l = msToNorm(leftValue);
+					auto r = ModulatorSamplerSound::EnvelopeTable::getFreqValueInverse(rightValue);
+					
+					auto f = [normRange, l, r, gamma](Table& t)
+					{
+						t.reset();
+						t.setTablePoint(0, 0.0f, 1.0f, 0.5f);
+						t.setTablePoint(1, 1.0, r, gamma);
+						t.addTablePoint(normRange.getStart(), 1.0f);
+						t.addTablePoint(normRange.getStart() + l, 1.0f, gamma);
+						t.addTablePoint(normRange.getEnd(), r, gamma);
+						return true;
+					};
+
+					sampler->getUndoManager()->perform(new LambdaTableEditWithUndo(&fe->table, f));
+				}
+				break;
+			}
+			}
+		}
+	}
+
+	EnvelopePopup(ModulatorSampler* sampler_, SamplerDisplayWithTimeline* display_, SamplerSoundWaveform* waveform_):
+		sampler(sampler_),
+		waveform(waveform_),
+		display(display_),
+		gain(Modulation::Mode::GainMode),
+		pitch(Modulation::Mode::PitchMode),
+		filter(Modulation::Mode::PanMode)
+	{
+		addAndMakeVisible(gain);
+		addAndMakeVisible(pitch);
+		addAndMakeVisible(filter);
+
+		setSize(500, 45 * 3 + 10);
+		setName("Sample Envelope Editor");
+
+		sampler->getSampleEditHandler()->selectionBroadcaster.addListener(*this, mainSelectionChanged);
+		
+		grabKeyboardFocusAsync();
+		setWantsKeyboardFocus(false);
+		setFocusContainer(true);
+
+
+#if 0
+
+		using EnvelopeType = Modulation::Mode;
+
+		auto mainSelection = handler->getMainSelection();
+		auto mainSelected = mainSelection != nullptr;
+
+		bool gainShown = tl->envelope == EnvelopeType::GainMode;
+		bool pitchShown = tl->envelope == EnvelopeType::PitchMode;
+		bool filterShown = tl->envelope == EnvelopeType::PanMode;
+
+		bool gainActive = mainSelection != nullptr && mainSelection->getEnvelope(EnvelopeType::GainMode) != nullptr;
+		bool pitchActive = mainSelection != nullptr && mainSelection->getEnvelope(EnvelopeType::PitchMode) != nullptr;
+
+		bool filterActive = mainSelection != nullptr && mainSelection->getEnvelope(EnvelopeType::PanMode) != nullptr;
+
+		PopupLookAndFeel plaf;
+		PopupMenu m;
+		m.setLookAndFeel(&plaf);
+
+		m.addItem(1, "Show gain envelope", gainActive, gainShown);
+		m.addItem(2, "Show pitch envelope", pitchActive, pitchShown);
+		m.addItem(3, "Show filter envelope", filterActive, filterShown);
+		m.addSeparator();
+		m.addItem(4, "Enable gain envelope", mainSelected, gainActive);
+		m.addItem(5, "Enable pitch envelope", mainSelected, pitchActive);
+		m.addItem(6, "Enable filter envelope", mainSelected, filterActive);
+
+		if (auto r = m.show())
+		{
+			if (r == 1 || r == 2 || r == 3)
+			{
+				tl->setEnvelope((EnvelopeType)(r - 1), mainSelection);
+			}
+			if (r == 4 || r == 5 || r == 6)
+			{
+				auto t = (EnvelopeType)(r - 4);
+				bool enableTable = mainSelection->getEnvelope(t) == nullptr;
+
+				String v;
+
+				if (enableTable)
+					v << "24..........7C...vO...f+....7C...vO";
+
+				if (r == 4)
+					mainSelection->setSampleProperty(SampleIds::GainTable, v);
+				else if (r == 5)
+					mainSelection->setSampleProperty(SampleIds::PitchTable, v);
+				else
+					mainSelection->setSampleProperty(SampleIds::LowPassTable, v);
+
+				tl->setEnvelope(t, mainSelection);
+
+				if (t == EnvelopeType::GainMode || t == EnvelopeType::PanMode)
+					mainSelection->addEnvelopeProcessor(*currentWaveForm->getThumbnail());
+			}
+		}
+
+		Colour c = tl->tableEditor != nullptr ? tl->tableEditor->findColour(TableEditor::ColourIds::lineColour) : Colour(0xFFAAAAAA);
+
+		auto on = tl->tableEditor != nullptr;
+
+
+
+		if (on)
+		{
+			currentWaveForm->setClickArea(AudioDisplayComponent::numAreas);
+		}
+
+		envelopeButton->onColour = c;
+		envelopeButton->offColour = c;
+		envelopeButton->refreshButtonColours();
+
+#endif
+	}
+
+	KeyboardFocusTraverser* createFocusTraverser() override
+	{
+		return new SampleEditHandler::SubEditorTraverser(display);
+	}
+
+	static void mainSelectionChanged(EnvelopePopup& p, ModulatorSamplerSound::Ptr s, int index)
+	{
+		auto ok = s != nullptr;
+
+		p.gain.powerButton.setToggleStateAndUpdateIcon(ok && s->getEnvelope(EnvelopeType::GainMode));
+		p.pitch.powerButton.setToggleStateAndUpdateIcon(ok && s->getEnvelope(EnvelopeType::PitchMode));
+		p.filter.powerButton.setToggleStateAndUpdateIcon(ok && s->getEnvelope(EnvelopeType::PanMode));
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		auto h = (b.getHeight()-10) / 3;
+		gain.setBounds(b.removeFromTop(h));
+		b.removeFromTop(5);
+		pitch.setBounds(b.removeFromTop(h));
+		b.removeFromTop(5);
+		filter.setBounds(b.removeFromTop(h));
+	}
+
+	WeakReference<SamplerDisplayWithTimeline> display;
+	WeakReference<SamplerSoundWaveform> waveform;
+	WeakReference<ModulatorSampler> sampler;
+
+	Row gain, pitch, filter;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(EnvelopePopup);
+};
+
 struct VerticalZoomer : public Component,
 						public Slider::Listener,
-						public SampleMap::Listener,
-						public SampleEditHandler::Listener
+					    public SettableTooltipClient,
+						public SampleMap::Listener
 						
 {
 	VerticalZoomer(SamplerSoundWaveform* waveform, ModulatorSampler* s):
@@ -12,26 +581,26 @@ struct VerticalZoomer : public Component,
 		sampler(s)
 	{
 		sampler->getSampleMap()->addListener(this);
-		sampler->getSampleEditHandler()->addSelectionListener(this);
+		sampler->getSampleEditHandler()->allSelectionBroadcaster.addListener(*this, soundSelectionChanged);
 
 		addAndMakeVisible(zoomSlider);
 		zoomSlider.setRange(1.0, 16.0);
 		zoomSlider.setSliderStyle(Slider::LinearBarVertical);
 		zoomSlider.addListener(this);
 		display->addMouseListener(this, true);
+
+		setTooltip("Use the mousewheel to change display gain");
 	}
 
 	void mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& d) override
 	{
-		if (e.eventComponent == display && e.mods.isShiftDown())
-		{
+		if(e.eventComponent == this)
 			zoomSlider.mouseWheelMove(e, d);
-		}
 	}
 
-	void soundSelectionChanged(SampleSelection& newSelection) override
+	static void soundSelectionChanged(VerticalZoomer& z, int numSelected)
 	{
-		repaint();
+		z.repaint();
 	}
 
 	virtual void sampleMapWasChanged(PoolReference) {};
@@ -51,7 +620,6 @@ struct VerticalZoomer : public Component,
 	~VerticalZoomer()
 	{
 		sampler->getSampleMap()->removeListener(this);
-		sampler->getSampleEditHandler()->removeSelectionListener(this);
 	}
 
 	void sliderValueChanged(Slider* s) override
@@ -113,7 +681,11 @@ struct VerticalZoomer : public Component,
 	WeakReference<ModulatorSampler> sampler;
 	SamplerSoundWaveform* display;
 	Slider zoomSlider;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(VerticalZoomer);
 };
+
+
 
 //==============================================================================
 SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
@@ -160,9 +732,11 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	spectrumSlider.setColour(Slider::thumbColourId, Colour(0xFFDDDDDD));
 	spectrumSlider.setTooltip("Blend spectrogram over waveform");
 
+
+
     addAndMakeVisible (panSetter = new ValueSettingComponent(s));
 
-    viewContent = new SamplerDisplayWithTimeline();
+    viewContent = new SamplerDisplayWithTimeline(sampler);
 
 	viewContent->addAndMakeVisible(currentWaveForm = new SamplerSoundWaveform(sampler));
     currentWaveForm->setIsSamplerWorkspacePreview();
@@ -185,12 +759,17 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	addButton(SampleMapCommands::ZoomIn, false);
 	addButton(SampleMapCommands::ZoomOut, false);
     addButton(SampleMapCommands::SelectWithMidi, true);
-    
+	addButton(SampleMapCommands::ApplyToMainOnly, true);
+	addButton(SampleMapCommands::PreviewCurrentSound, true);
+
     analyseButton = addButton(SampleMapCommands::Analyser, true);
     
 	addButton(SampleMapCommands::EnablePlayArea, true);
 	addButton(SampleMapCommands::EnableSampleStartArea, true);
 	addButton(SampleMapCommands::EnableLoopArea, true);
+	envelopeButton = dynamic_cast<HiseShapeButton*>(addButton(SampleMapCommands::ShowEnvelopePopup, false));
+	
+
     addButton(SampleMapCommands::ZeroCrossing, false);
     improveButton = addButton(SampleMapCommands::ImproveLoopPoints, false);
     
@@ -223,18 +802,20 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	loopEndSetter->setPropertyType(SampleIds::LoopEnd);
 	loopCrossfadeSetter->setPropertyType(SampleIds::LoopXFade);
 
-	loopStartSetter->setLabelColour(Colours::green.withAlpha(0.1f), Colours::white);
-	loopEndSetter->setLabelColour(Colours::green.withAlpha(0.1f), Colours::white);
-	loopCrossfadeSetter->setLabelColour(Colours::yellow.withAlpha(0.1f), Colours::white);
-	startModulationSetter->setLabelColour(Colours::blue.withAlpha(0.1f), Colours::white);
+	auto lc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::LoopArea);
+	auto xc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::LoopCrossfadeArea);
+	auto sc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::SampleStartArea);
+
+	loopStartSetter->setLabelColour(lc, Colours::white);
+	loopEndSetter->setLabelColour(lc, Colours::white);
+	loopCrossfadeSetter->setLabelColour(xc, Colours::white);
+	startModulationSetter->setLabelColour(sc, Colours::white);
 
 	sampler->getSampleMap()->addListener(this);
 
     //[/UserPreSize]
 
     setSize (800, 250);
-
-	viewport->setScrollOnDragEnabled(true);
 
     //[Constructor] You can add your own custom stuff here..
 
@@ -246,15 +827,28 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
     startModulationSetter->addChangeListener(this);
 
 	currentWaveForm->addAreaListener(this);
-
-	overview.setShouldScaleVertically(true);
-	overview.setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xFF333333));
-    overview.setBufferedToImage(false);
-    
     currentWaveForm->setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xff1d1d1d));
     currentWaveForm->setColour(AudioDisplayComponent::ColourIds::outlineColour, Colour(0xff1d1d1d));
     
-    startTimer(200);
+	handler->selectionBroadcaster.addListener(*this, mainSelectionChanged);
+	handler->selectionBroadcaster.addListener(overview, DraggableThumbnail::mainSoundSelected);
+	handler->selectionBroadcaster.addListener(*dynamic_cast<SamplerDisplayWithTimeline*>(viewContent.get()),
+	[this](SamplerDisplayWithTimeline& tl, ModulatorSamplerSound::Ptr newSound, int m)
+	{
+		if(newSound != nullptr)
+			newSound->addEnvelopeProcessor(*currentWaveForm->getThumbnail());
+
+		tl.setEnvelope(tl.envelope, newSound);
+	});
+
+	setFocusContainer(true);
+	setWantsKeyboardFocus(true);
+	addKeyListener(handler);
+
+    startTimer(60);
+
+	loadEditorSettings();
+
     //[/Constructor]
 }
 
@@ -274,6 +868,9 @@ String SampleEditor::getNameForCommand(SampleMapCommands c, bool on)
         case SampleMapCommands::ExternalEditor: return on ? "external" : "";
         case SampleMapCommands::ZeroCrossing: return on ? "zero" : "";
 		case SampleMapCommands::ImproveLoopPoints: return on ? "improve-loop" : "";
+		case SampleMapCommands::ApplyToMainOnly: return on ? "main-only" : "";
+		case SampleMapCommands::PreviewCurrentSound: return on ? "preview" : "";
+		case SampleMapCommands::ShowEnvelopePopup: return on ? "envelope" : "";
         default: return "";
     }
 }
@@ -302,9 +899,12 @@ String SampleEditor::getTooltipForCommand(SampleMapCommands c)
         case SampleMapCommands::EnableLoopArea:         return "Enable loop range editing";
         case SampleMapCommands::NormalizeVolume:        return "Normalise selected samples";
         case SampleMapCommands::LoopEnabled:            return "Enable looping for selection";
+		case SampleMapCommands::PreviewCurrentSound:    return "Preview the current sound";
         case SampleMapCommands::ExternalEditor:         return "Open current sample selection in external audio editor";
         case SampleMapCommands::ZeroCrossing:           return "Enable zero crossing";
+		case SampleMapCommands::ApplyToMainOnly:		return "Enable single selection cycling with tab key";
 		case SampleMapCommands::ImproveLoopPoints:		return "Open the Loop Finder Popup";
+		case SampleMapCommands::ShowEnvelopePopup:		return "Show the gain / pitch / filter envelope";
             
         default: return "";
     }
@@ -325,30 +925,15 @@ bool SampleEditor::getState(SampleMapCommands c) const
         case SampleMapCommands::EnableLoopArea: return currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::LoopArea;
         case SampleMapCommands::NormalizeVolume: return isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::Normalized);
         case SampleMapCommands::LoopEnabled:    return isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled);
+		case SampleMapCommands::ApplyToMainOnly: return handler->applyToMainSelection;
+		case SampleMapCommands::PreviewCurrentSound:
+			return handler->getPreviewer().isPlaying();
         case SampleMapCommands::ExternalEditor: return false;
         case SampleMapCommands::ZeroCrossing:   return currentWaveForm->zeroCrossing;
 		case SampleMapCommands::ImproveLoopPoints: return false;
+		case SampleMapCommands::ShowEnvelopePopup: return false;
         default: return false;
     }
-}
-
-namespace LoopIcons
-{
-static const unsigned char apply[] = { 110,109,6,161,63,67,31,93,227,68,108,80,141,144,67,31,61,245,68,108,221,52,169,67,215,211,243,68,98,221,52,169,67,215,211,243,68,195,117,177,67,20,222,235,68,170,209,192,67,205,60,228,68,98,180,56,202,67,72,145,223,68,248,35,214,67,123,236,218,68,8,12,
-229,67,174,199,216,68,108,162,213,241,67,246,240,214,68,108,219,105,229,67,184,94,207,68,108,33,160,216,67,113,53,209,68,98,195,37,197,67,61,2,212,68,53,174,180,67,51,211,217,68,31,101,168,67,195,237,223,68,98,121,41,161,67,113,133,227,68,207,87,155,
-67,102,46,231,68,207,7,151,67,102,54,234,68,98,207,7,151,67,102,54,234,68,106,188,125,67,236,89,225,68,106,188,125,67,236,89,225,68,108,197,224,107,67,133,19,222,68,108,6,161,63,67,31,93,227,68,99,101,0,0 };
-
-static const unsigned char find[] = { 110,109,106,44,20,68,225,154,169,68,108,119,246,35,68,225,154,169,68,98,147,224,39,68,0,136,181,68,88,233,58,68,205,236,190,68,61,226,82,68,225,178,192,68,108,61,226,82,68,215,147,200,68,98,141,71,50,68,205,180,198,68,174,79,24,68,236,217,185,68,106,
-44,20,68,225,154,169,68,99,109,0,8,145,68,225,154,169,68,98,154,1,143,68,31,133,185,68,82,128,130,68,10,47,198,68,219,81,101,68,133,115,200,68,108,219,81,101,68,246,136,192,68,98,133,91,124,68,82,104,190,68,133,59,135,68,41,52,181,68,225,34,137,68,225,
-154,169,68,108,0,8,145,68,225,154,169,68,99,109,47,181,54,68,225,154,169,68,108,193,50,71,68,225,154,169,68,98,90,132,73,68,225,34,172,68,113,181,77,68,20,38,174,68,61,226,82,68,133,51,175,68,108,61,226,82,68,123,92,183,68,98,236,17,69,68,174,207,181,
-68,49,32,58,68,51,115,176,68,47,181,54,68,225,154,169,68,99,109,10,135,127,68,225,154,169,68,98,195,69,124,68,92,31,176,68,111,50,114,68,133,75,181,68,219,81,101,68,123,28,183,68,108,219,81,101,68,20,190,174,68,98,211,149,105,68,195,157,173,68,254,4,
-109,68,102,206,171,68,104,9,111,68,225,154,169,68,108,10,135,127,68,225,154,169,68,99,109,61,226,82,68,92,135,129,68,108,61,226,82,68,82,104,137,68,98,57,252,58,68,205,44,139,68,250,254,39,68,41,132,148,68,16,0,36,68,51,99,160,68,108,231,51,20,68,51,
-99,160,68,98,195,109,24,68,143,50,144,68,170,89,50,68,113,101,131,68,61,226,82,68,92,135,129,68,99,109,61,226,82,68,184,190,146,68,108,61,226,82,68,174,231,154,68,98,88,201,77,68,246,240,155,68,172,164,73,68,246,232,157,68,162,77,71,68,51,99,160,68,108,
-215,195,54,68,51,99,160,68,98,217,62,58,68,164,152,153,68,129,37,69,68,246,72,148,68,61,226,82,68,184,190,146,68,99,109,219,81,101,68,102,254,146,68,98,141,31,114,68,31,205,148,68,82,40,124,68,123,236,153,68,82,120,127,68,51,99,160,68,108,135,238,110,
-68,51,99,160,68,98,152,230,108,68,205,60,158,68,225,130,105,68,82,120,156,68,219,81,101,68,31,93,155,68,108,219,81,101,68,102,254,146,68,99,109,219,81,101,68,174,167,129,68,98,20,118,130,68,61,234,131,68,61,242,142,68,20,134,144,68,41,4,145,68,51,99,
-160,68,108,20,30,137,68,51,99,160,68,98,41,44,135,68,174,215,148,68,82,72,124,68,72,177,139,68,219,81,101,68,61,146,137,68,108,219,81,101,68,174,167,129,68,99,101,0,0 };
-
-static const unsigned char preview[] = { 110,109,164,232,154,68,188,68,221,67,108,215,131,181,68,242,34,134,67,108,215,131,181,68,217,78,68,68,108,164,232,154,68,244,189,24,68,108,246,248,132,68,244,189,24,68,108,246,248,132,68,188,68,221,67,108,164,232,154,68,188,68,221,67,99,101,0,0 };
 }
 
 struct LoopImproveWindow: public Component,
@@ -975,6 +1560,8 @@ struct LoopImproveWindow: public Component,
 
 void SampleEditor::perform(SampleMapCommands c)
 {
+	auto tl = dynamic_cast<SamplerDisplayWithTimeline*>(viewContent.get());
+
     switch(c)
     {
     case SampleMapCommands::NormalizeVolume:  SampleEditHandler::SampleEditingActions::normalizeSamples(handler, this); return;
@@ -995,12 +1582,15 @@ void SampleEditor::perform(SampleMapCommands c)
         return;
     case SampleMapCommands::EnableSampleStartArea:
         currentWaveForm->setClickArea(SamplerSoundWaveform::SampleStartArea);
+		tl->setEnvelope(Modulation::Mode::numModes, nullptr);
         return;
     case SampleMapCommands::EnableLoopArea:
         currentWaveForm->setClickArea(SamplerSoundWaveform::LoopArea);
+		tl->setEnvelope(Modulation::Mode::numModes, nullptr);
         return;
     case SampleMapCommands::EnablePlayArea:
         currentWaveForm->setClickArea(SamplerSoundWaveform::PlayArea);
+		tl->setEnvelope(Modulation::Mode::numModes, nullptr);
         return;
     case SampleMapCommands::ZeroCrossing:
         currentWaveForm->zeroCrossing = !currentWaveForm->zeroCrossing;
@@ -1011,6 +1601,15 @@ void SampleEditor::perform(SampleMapCommands c)
     case SampleMapCommands::ZoomOut:
         zoom(true);
         return;
+	case SampleMapCommands::ApplyToMainOnly: 
+		handler->applyToMainSelection = !handler->applyToMainSelection;
+		handler->selectionBroadcaster.resendLastMessage(sendNotificationAsync);
+		return;
+	case SampleMapCommands::PreviewCurrentSound:
+	{
+		handler->togglePreview();
+		return;
+	}
     case SampleMapCommands::Analyser:
     {
         auto n = new Spectrum2D::Parameters::Editor(currentWaveForm->getThumbnail()->getSpectrumParameters());
@@ -1026,6 +1625,12 @@ void SampleEditor::perform(SampleMapCommands c)
         findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, improveButton, {8, 16});
         
         return;
+	}
+	case SampleMapCommands::ShowEnvelopePopup:
+	{
+		auto n = new EnvelopePopup(sampler, tl, currentWaveForm);
+		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, envelopeButton, { 8, 16 });
+		return;
 	}
     case SampleMapCommands::ExternalEditor:
     {
@@ -1082,8 +1687,15 @@ void SampleEditor::perform(SampleMapCommands c)
     return;
 }
 
+juce::KeyboardFocusTraverser* SampleEditor::createFocusTraverser()
+{
+	return new SampleEditHandler::SubEditorTraverser(this);
+}
+
 SampleEditor::~SampleEditor()
 {
+	saveEditorSettings();
+
 	if (sampler != nullptr)
 	{
 		sampler->getSampleMap()->removeListener(this);
@@ -1119,21 +1731,42 @@ void SampleEditor::samplePropertyWasChanged(ModulatorSamplerSound* s, const Iden
 {
 	if (s == currentWaveForm->getCurrentSound() && SampleIds::Helpers::isAudioProperty(id))
 	{
+		if (id == SampleIds::SampleStartMod)
+		{
+			if (!getState(SampleMapCommands::EnableSampleStartArea))
+				perform(SampleMapCommands::EnableSampleStartArea);
+		}
+		if (id == SampleIds::SampleStart || id == SampleIds::SampleEnd)
+		{
+			if (!getState(SampleMapCommands::EnablePlayArea))
+				perform(SampleMapCommands::EnablePlayArea);
+		}
+		if (id == SampleIds::LoopEnabled || id == SampleIds::LoopEnd ||
+			id == SampleIds::LoopStart)
+		{
+			if (!getState(SampleMapCommands::EnableLoopArea))
+				perform(SampleMapCommands::EnableLoopArea);
+		}
+
 		currentWaveForm->updateRanges();
-	}
-		
+	}	
 }
 
 
 void SampleEditor::refreshDisplayFromComboBox()
 {
+	handler->cycleMainSelection(sampleSelector->getSelectedItemIndex(), multimicSelector->getSelectedItemIndex());
+
+	
+
 	auto idx = sampleSelector->getSelectedItemIndex();
+
 
 	if (auto s = selection[idx])
 	{
 		handler->selectionBroadcaster.sendMessage(sendNotification, s, multimicSelector->getSelectedItemIndex());
 
-		currentWaveForm->setSoundToDisplay(s);
+		
 	}
 }
 
@@ -1264,6 +1897,8 @@ void SampleEditor::resized()
 
 		overview.setBounds(b.removeFromTop(32));
 
+		b.removeFromTop(5);
+
 	}
 	else
 	{
@@ -1290,78 +1925,160 @@ Component* SampleEditor::addButton(SampleMapCommands commandId, bool hasState)
 
     newButton->setTooltip(getTooltipForCommand(commandId));
 	newButton->setClickingTogglesState(false);
-	
+	newButton->setWantsKeyboardFocus(false);
+
     newButton->onClick = [commandId, this]()
     {
         perform(commandId);
     };
     
+	if (commandId == SampleMapCommands::EnableLoopArea)
+	{
+		auto lc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::LoopArea);
+
+		newButton->onColour = lc.withMultipliedBrightness(1.5f);
+		newButton->offColour = lc;
+		newButton->refreshButtonColours();
+	}
+
+	if (commandId == SampleMapCommands::EnablePlayArea)
+	{
+		auto lc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::PlayArea);
+
+		newButton->onColour = lc.withMultipliedBrightness(1.5f);
+		newButton->offColour = lc.withBrightness(0.7f);
+		newButton->refreshButtonColours();
+	}
+
+	if (commandId == SampleMapCommands::EnableSampleStartArea)
+	{
+		auto lc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::SampleStartArea);
+
+		newButton->onColour = lc.withMultipliedBrightness(1.5f);
+		newButton->offColour = lc;
+		newButton->refreshButtonColours();
+	}
+
 	menuButtons.add(newButton);
 	addAndMakeVisible(newButton);
 	return newButton;
 }
 
 
-void SampleEditor::soundsSelected(const SampleSelection &selectedSoundList)
+bool SampleEditor::keyPressed(const KeyPress& key)
+{
+	if (key == KeyPress('l', {}, 'l'))
+	{
+		perform(SampleMapCommands::EnableLoopArea);
+		return true;
+	}
+	if (key == KeyPress('p', {}, 'p'))
+	{
+		perform(SampleMapCommands::EnablePlayArea);
+		return true;
+	}
+	if (key == KeyPress('s', {}, 's'))
+	{
+		perform(SampleMapCommands::EnableSampleStartArea);
+		return true;
+	}
+	if (key == KeyPress::spaceKey)
+	{
+		perform(SampleMapCommands::PreviewCurrentSound);
+		return true;
+	}
+
+	return false;
+}
+
+void SampleEditor::saveEditorSettings()
+{
+	var d(new DynamicObject());
+
+	auto obj = d.getDynamicObject();
+
+	obj->setProperty("SpectrumSlider", spectrumSlider.getValue());
+	obj->setProperty("ZeroCrossing", currentWaveForm->zeroCrossing);
+	obj->setProperty("ClickArea", (int)currentWaveForm->currentClickArea);
+	obj->setProperty("Envelope", (int)dynamic_cast<SamplerDisplayWithTimeline*>(viewContent.get())->envelope);
+
+	auto sp = currentWaveForm->getThumbnail()->getSpectrumParameters();
+	sp->saveToJSON(d);
+
+	getPropertyFile().replaceWithText(JSON::toString(d));
+
+}
+
+void SampleEditor::loadEditorSettings()
+{
+	auto v = JSON::parse(getPropertyFile());
+
+	if (auto obj = v.getDynamicObject())
+	{
+		auto sp = currentWaveForm->getThumbnail()->getSpectrumParameters();
+		sp->loadFromJSON(v);
+		spectrumSlider.setValue(v.getProperty("SpectrumSlider", 0.0));
+
+		currentWaveForm->zeroCrossing = v.getProperty("ZeroCrossing", true);
+		currentWaveForm->setClickArea((AudioDisplayComponent::AreaTypes)(int)v.getProperty("ClickArea", (int)AudioDisplayComponent::AreaTypes::numAreas), false);
+
+		dynamic_cast<SamplerDisplayWithTimeline*>(viewContent.get())->setEnvelope((Modulation::Mode)(int)v.getProperty("Envelope", (int)Modulation::Mode::numModes), handler->getMainSelection());
+	}
+}
+
+void SampleEditor::mainSelectionChanged(SampleEditor& editor, ModulatorSamplerSound::Ptr sound, int micIndex)
+{
+	auto sampleIndex = editor.handler->getSelectionReference().getItemArray().indexOf(sound);
+
+	editor.sampleSelector->setSelectedItemIndex(sampleIndex, dontSendNotification);
+	editor.multimicSelector->setSelectedItemIndex(micIndex, dontSendNotification);
+	
+	editor.currentWaveForm->setSoundToDisplay(sound, micIndex);
+
+	ScopedPointer<AudioFormatReader> afr;
+
+	if (sound != nullptr)
+	{
+		auto ss = sound->getReferenceToSound(micIndex);
+
+		if (ss->isMonolithic())
+			afr = ss->createReaderForPreview();
+		else
+			afr = PresetHandler::getReaderForFile(ss->getFileName(true));
+	}
+
+	editor.overview.setReader(afr.release());
+}
+
+void SampleEditor::soundsSelected(int numSelected)
 {
     selection.clear();
 
-	for (int i = 0; i < selectedSoundList.size(); i++)
-		selection.add(selectedSoundList[i]);
+	for (auto sound: *handler)
+		selection.add(sound);
 
-	panSetter->setCurrentSelection(selectedSoundList);
-	volumeSetter->setCurrentSelection(selectedSoundList);
-	pitchSetter->setCurrentSelection(selectedSoundList);
-	sampleStartSetter->setCurrentSelection(selectedSoundList);
-	sampleEndSetter->setCurrentSelection(selectedSoundList);
-	startModulationSetter->setCurrentSelection(selectedSoundList);
-	loopStartSetter->setCurrentSelection(selectedSoundList);
-	loopEndSetter->setCurrentSelection(selectedSoundList);
-	loopCrossfadeSetter->setCurrentSelection(selectedSoundList);
+	auto selectionToUse = handler->getSelectionOrMainOnlyInTabMode();
 
-	if (selectedSoundList.size() != 0 && selectedSoundList.getLast() != nullptr)
-	{
-		auto ms = selectedSoundList.getLast();
-
-		auto micIndex = jlimit<int>(0, ms->getNumMultiMicSamples() - 1, multimicSelector->getSelectedItemIndex());
-
-		currentWaveForm->setSoundToDisplay(ms, micIndex);
-
-		handler->selectionBroadcaster.sendMessage(sendNotificationSync, ms, micIndex);
-        
-		auto sound = ms->getReferenceToSound(micIndex);
-
-		ScopedPointer<AudioFormatReader> afr;
-
-		if (sound->isMonolithic())
-		{
-			afr = sound->createReaderForPreview();
-		}
-		else
-		{
-			afr = PresetHandler::getReaderForFile(sound->getFileName(true));
-		}
-
-		overview.setReader(afr.release());
-	}
-	else
-	{
-		handler->selectionBroadcaster.sendMessage(sendNotificationSync, nullptr, 0);
-
-		currentWaveForm->setSoundToDisplay(nullptr);
-		overview.setReader(nullptr);
-	}
+	panSetter->setCurrentSelection(selectionToUse);
+	volumeSetter->setCurrentSelection(selectionToUse);
+	pitchSetter->setCurrentSelection(selectionToUse);
+	sampleStartSetter->setCurrentSelection(selectionToUse);
+	sampleEndSetter->setCurrentSelection(selectionToUse);
+	startModulationSetter->setCurrentSelection(selectionToUse);
+	loopStartSetter->setCurrentSelection(selectionToUse);
+	loopEndSetter->setCurrentSelection(selectionToUse);
+	loopCrossfadeSetter->setCurrentSelection(selectionToUse);
 
 	sampleSelector->clear(dontSendNotification);
 	multimicSelector->clear(dontSendNotification);
 	int sampleIndex = 1;
 
-	for (auto s : selectedSoundList)
+	for (auto s : selection)
 	{
 		sampleSelector->addItem(s->getSampleProperty(SampleIds::FileName).toString().replace("{PROJECT_FOLDER}", ""), sampleIndex++);
 	}
 
-	sampleSelector->setSelectedId(selectedSoundList.size(), dontSendNotification);
+	//sampleSelector->setSelectedId(selection.size(), dontSendNotification);
 
 	auto micPositions = StringArray::fromTokens(sampler->getStringForMicPositions(), ";", "");
 	micPositions.removeEmptyStrings();
@@ -1377,8 +2094,6 @@ void SampleEditor::soundsSelected(const SampleSelection &selectedSoundList)
 	multimicSelector->setTextWhenNoChoicesAvailable("No multimics");
 
 	updateWaveform();
-    
-    
 }
 
 void SampleEditor::paintOverChildren(Graphics &g)
@@ -1447,14 +2162,33 @@ void SampleEditor::updateWaveform()
     repaint();
 }
 
+void SampleEditor::setZoomFactor(float factor, int mousePos /*= 0*/)
+{
+	zoomFactor = jlimit(1.0f, 128.0f, factor);
+	auto oldPos = (double)(viewport->getViewPositionX());
+	auto oldMousePos = oldPos + mousePos;
+	auto oldWidth = (double)currentWaveForm->getWidth();
+	auto normDelta = mousePos / oldWidth;
+	auto normPos = (double)oldPos / (double)currentWaveForm->getWidth();
+	auto oldMousePosNorm = normDelta + normPos;
+
+	resized();
+
+	scrollBarMoved(&viewport->getHorizontalScrollBar(), 0.0f);
+
+	auto newWidth = (double)viewport->getViewedComponent()->getWidth();
+
+	auto newMousePos = oldMousePosNorm * newWidth;
+	auto newPos = newMousePos - mousePos;
+
+	viewport->setViewPosition(roundToInt(newPos), 0.0);
+}
+
+
+
 void SampleEditor::zoom(bool zoomOut, int mousePos/*=0*/)
 {
-	auto oldPos = (double)(viewport->getViewPositionX());
-    auto oldMousePos = oldPos + mousePos;
-    auto oldWidth = (double)currentWaveForm->getWidth();
-    auto normDelta = mousePos / oldWidth;
-    auto normPos = (double)oldPos / (double)currentWaveForm->getWidth();
-    auto oldMousePosNorm = normDelta + normPos;
+	
     
 #if JUCE_WINDOWS || JUCE_LINUX
 	auto factor = 1.25f;
@@ -1463,21 +2197,13 @@ void SampleEditor::zoom(bool zoomOut, int mousePos/*=0*/)
 #endif
 
 	if (!zoomOut)
-		zoomFactor = jmin(128.0f, zoomFactor * factor);
+		zoomFactor = zoomFactor * factor;
 	else
-		zoomFactor = jmax(1.0f, zoomFactor / factor);
+		zoomFactor = zoomFactor / factor;
     
-	resized();
+	setZoomFactor(zoomFactor, mousePos);
 
-	scrollBarMoved(&viewport->getHorizontalScrollBar(), 0.0f);
-
-	auto newWidth = (double)viewport->getViewedComponent()->getWidth();
-    
-    auto newMousePos = oldMousePosNorm * newWidth;
-    auto newPos = newMousePos - mousePos;
-    
-    
-	viewport->setViewPosition(roundToInt(newPos), 0.0);
+	
 }
 
 //[/MiscUserCode]
@@ -1545,5 +2271,164 @@ END_JUCER_METADATA
 
 
 //[EndFile] You can add extra defines here...
+
+void DraggableThumbnail::Laf::drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path)
+{
+	g.setColour(Colours::white.withAlpha(areaIsEnabled ? 0.6f : 0.4f));
+	g.fillPath(path);
+}
+
+void DraggableThumbnail::Laf::drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area)
+{
+	if (area.getY() != 0)
+		return;
+
+	if(areaIsEnabled)
+	{
+		area = g.getClipBounds();
+
+		float alpha = 0.7f;
+		if (th.isMouseOverOrDragging())
+			alpha += 0.2f;
+
+		if (th.isMouseButtonDown())
+			alpha += 0.2f;
+
+		auto farea = area.toFloat().reduced(0.5f);
+
+		auto c = th.isMouseButtonDown() ? Colour(SIGNAL_COLOUR) : Colours::white.withBrightness(alpha);
+
+		g.setColour(c);
+		g.drawRoundedRectangle(farea, 2.0f, 1.5f);
+
+		g.setGradientFill(ColourGradient(c.withMultipliedAlpha(0.14f), 0.0f, 0.0f, c.withMultipliedAlpha(0.06f), 0.0f, th.getHeight(), false));
+
+		g.fillRoundedRectangle(farea, 2.0f);
+	}
+}
+
+DraggableThumbnail::DraggableThumbnail()
+{
+	setLookAndFeel(&laf);
+	setShouldScaleVertically(true);
+	setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xFF333333));
+	setBufferedToImage(false);
+	setInterceptsMouseClicks(true, true);
+	setRepaintsOnMouseActivity(true);
+}
+
+void DraggableThumbnail::setPosition(const MouseEvent& e)
+{
+	auto se = findParentComponentOfClass<SampleEditor>();
+	auto& vp = se->getViewport();
+
+	auto posX = (float)e.getPosition().getX() / (float)getWidth();
+	posX = jlimit(0.0f, 1.0f, posX);
+
+	vp.setViewPositionProportionately(posX, 0.0f);
+}
+
+void DraggableThumbnail::mouseDown(const MouseEvent& e)
+{
+	auto se = findParentComponentOfClass<SampleEditor>();
+	downZoomFactor = se->zoomFactor;
+	downX = e.getPosition().getX();
+
+	setPosition(e);
+}
+
+void DraggableThumbnail::mouseDrag(const MouseEvent& e)
+{
+	auto se = findParentComponentOfClass<SampleEditor>();
+	auto thisY = (float)e.getDistanceFromDragStartY();
+
+	if (std::abs(thisY) > getHeight() / 2)
+	{
+		if(thisY > 0)
+			thisY -= getHeight() / 2;
+		else
+			thisY += getHeight() / 2;
+
+		auto yFactor = jmax(0.0f, 1.0f + (thisY / JUCE_LIVE_CONSTANT_OFF(80.0f)));
+		se->setZoomFactor(yFactor * downZoomFactor, downX);
+	}
+
+	setPosition(e);
+
+}
+
+void DraggableThumbnail::mouseDoubleClick(const MouseEvent& e)
+{
+	auto se = findParentComponentOfClass<SampleEditor>();
+	se->setZoomFactor(1.0f, 0);
+}
+
+void DraggableThumbnail::paint(Graphics& g)
+{
+	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xff1e1e1e)));
+
+	if (isEmpty())
+	{
+		g.setColour(Colours::white.withAlpha(0.2f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("No sample selected", getLocalBounds().toFloat(), Justification::centred);
+		return;
+	}
+		
+
+	HiseAudioThumbnail::paint(g);
+
+	if (currentSound != nullptr)
+	{
+		auto pc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::PlayArea);
+
+		auto lc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::LoopArea);
+
+		auto sc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::SampleStartArea);
+
+		auto xc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::LoopCrossfadeArea);
+
+		auto getRange = [&](const Identifier& startId, const Identifier& endId)
+		{
+			auto start = startId.isValid() ? (int)currentSound->getSampleProperty(startId) : 0;
+			auto end = (int)currentSound->getSampleProperty(endId);
+
+			auto totalLength = (double)currentSound->getReferenceToSound(0)->getLengthInSamples();
+
+			auto normStart = (double)start / totalLength;
+			auto normEnd = (double)end / totalLength;
+
+			auto x = roundToInt(normStart * (double)getWidth());
+			auto y = 0;
+			auto w = roundToInt((normEnd - normStart) * (double)getWidth());
+			auto h = getHeight();
+			return Rectangle<int>(x, y, w, h);
+		};
+
+		auto playArea = getRange(SampleIds::SampleStart, SampleIds::SampleEnd);
+		g.setColour(pc.withAlpha(0.03f));
+		g.fillRect(playArea);
+
+		if (currentSound->getSampleProperty(SampleIds::LoopEnabled))
+		{
+			auto loopArea = getRange(SampleIds::LoopStart, SampleIds::LoopEnd);
+			g.setColour(lc.withAlpha(0.3f));
+			g.fillRect(loopArea);
+		}
+		
+		auto modArea = getRange({}, SampleIds::SampleStartMod);
+		modArea = modArea.translated(playArea.getX(), 0);
+		g.setColour(sc.withAlpha(0.3f));
+		g.fillRect(modArea);
+
+	}
+}
+
+void DraggableThumbnail::mainSoundSelected(DraggableThumbnail& d, ModulatorSamplerSound::Ptr sound, int)
+{
+	d.currentSound = sound;
+	d.repaint();
+}
+
 } // namespace hise
 //[/EndFile]

@@ -91,12 +91,9 @@ public:
 		table->refreshList();
 	}
 
-	void soundsSelected(const SampleSelection &selection) override
+	void soundsSelected(int numSelected_) override
 	{
-		table->soundsSelected(selection);
-
-		numSelected = selection.size();
-
+		numSelected = numSelected_;
 		repaint();
 	}
 

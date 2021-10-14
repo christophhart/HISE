@@ -970,11 +970,21 @@ void LookAndFeel_V4::drawLinearSlider (Graphics& g, int x, int y, int width, int
 
         auto trackWidth = jmin (6.0f, slider.isHorizontal() ? (float) height * 0.25f : (float) width * 0.25f);
 
-        Point<float> startPoint (slider.isHorizontal() ? (float) x : (float) x + (float) width * 0.5f,
-                                 slider.isHorizontal() ? (float) y + (float) height * 0.5f : (float) (height + y));
+		auto isBipolar = slider.getRange().expanded(-0.1).contains(0.0);
 
-        Point<float> endPoint (slider.isHorizontal() ? (float) (width + x) : startPoint.x,
-                               slider.isHorizontal() ? startPoint.y : (float) y);
+		Point<float> startPoint, endPoint;
+
+
+		if (slider.isHorizontal())
+		{
+			startPoint = { (float)x, (float)y + (float)height * 0.5f };
+			endPoint = { (float)(width + x) , startPoint.y };
+		}
+		else
+		{
+			startPoint = { (float)x + (float)width * 0.5f , (float)(height + y) };
+			endPoint = { startPoint.x , (float)y };
+		}
 
         Path backgroundTrack;
         backgroundTrack.startNewSubPath (startPoint);
@@ -1002,7 +1012,7 @@ void LookAndFeel_V4::drawLinearSlider (Graphics& g, int x, int y, int width, int
             auto kx = slider.isHorizontal() ? sliderPos : ((float) x + (float) width * 0.5f);
             auto ky = slider.isHorizontal() ? ((float) y + (float) height * 0.5f) : sliderPos;
 
-			if (slider.getRange().getStart() > 0.0 != slider.getRange().getEnd() > 0.0)
+			if (isBipolar)
 			{
 				startPoint.x = (float)x + (float)width * 0.5f;
 			}

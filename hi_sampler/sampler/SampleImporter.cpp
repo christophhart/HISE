@@ -76,7 +76,7 @@ struct GapCloseHelpers
 	}
 };
 
-void SampleImporter::closeGaps(Array<ModulatorSamplerSound*> &selection, bool closeNoteGaps, bool /*increaseUpperLimit*/)
+void SampleImporter::closeGaps(const SampleSelection &selection, bool closeNoteGaps, bool /*increaseUpperLimit*/)
 {
 	if (selection.isEmpty())
 		return;

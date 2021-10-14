@@ -163,6 +163,7 @@ public:
 		{
 			getProcessor()->addDeleteListener(this);
 
+			content = nullptr;
 			content = createContentComponent(currentIndex);
 			
 			if(content != nullptr)

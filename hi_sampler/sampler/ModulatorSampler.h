@@ -216,6 +216,7 @@ public:
 		Purged, 
 		Reversed,
         UseStaticMatrix,
+		LowPassEnvelopeOrder,
 		numModulatorSamplerParameters
 	};
 
@@ -413,6 +414,8 @@ public:
 	bool saveSampleMapAsReference() const;
 
 	bool saveSampleMapAsMonolith (Component* mainEditor) const;
+
+	bool shouldUseRoundRobinLogic() const { return useRoundRobinCycleLogic; }
 
 	/** Disables the automatic cycling and allows custom setting of the used round robin group. */
 	void setUseRoundRobinLogic(bool shouldUseRoundRobinLogic) noexcept { useRoundRobinCycleLogic = shouldUseRoundRobinLogic; };
@@ -663,6 +666,10 @@ public:
 
 	bool& getIterationFlag() { return abortIteration; };
 
+	CascadedEnvelopeLowPass* getEnvelopeFilter() { return envelopeFilter.get(); }
+
+	void setEnableEnvelopeFilter();
+
 private:
 
 	int lockVelocity = -1;
@@ -797,6 +804,7 @@ private:
 	hlac::HiseSampleBuffer temporaryVoiceBuffer;
 
 	bool delayUpdate = false;
+	int lowPassOrder = 0;
 
 	float groupGainValues[8];
 	float currentCrossfadeValue;
@@ -809,6 +817,8 @@ private:
 	ModulatorChain* crossFadeChain = nullptr;
 	ScopedPointer<AudioThumbnailCache> soundCache;
 	
+	ScopedPointer<CascadedEnvelopeLowPass> envelopeFilter;
+
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	ScopedPointer<SampleEditHandler> sampleEditHandler;
 #endif

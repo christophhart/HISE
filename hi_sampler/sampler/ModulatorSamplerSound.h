@@ -30,10 +30,59 @@
 *   ===========================================================================
 */
 
-#ifndef MODULATORSAMPLERSOUND_H_INCLUDED
-#define MODULATORSAMPLERSOUND_H_INCLUDED
+#pragma once 
 
 namespace hise { using namespace juce;
+
+struct CascadedEnvelopeLowPass
+{
+	static constexpr int NumMaxOrders = 5;
+
+	CascadedEnvelopeLowPass(bool isPoly);
+
+	using FilterType = scriptnode::filters::one_pole_poly;
+
+	FilterType** begin()
+	{
+		return filters.begin();
+	}
+
+	FilterType** end()
+	{
+		return begin() + order;
+	}
+
+	void process(float frequency, AudioSampleBuffer& b, int startSampleInBuffer=0, int maxNumSamples=0);
+
+	void setOrder(int newOrder)
+	{
+		order = jlimit(1, filters.size(), order);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		if (polyManager.isEnabled())
+			ps.voiceIndex = &polyManager;
+
+		for (auto f : filters)
+			f->prepare(ps);
+
+		reset();
+	}
+
+	void reset()
+	{
+		for (auto f : filters)
+			f->reset();
+	}
+
+	snex::PolyHandler polyManager;
+
+private:
+
+	int order = 1;
+	OwnedArray<scriptnode::filters::one_pole_poly> filters;
+};
 
 typedef ReferenceCountedArray<StreamingSamplerSound> StreamingSamplerSoundArray;
 typedef Array<WeakReference<StreamingSamplerSound>> WeakStreamingSamplerSoundArray;
@@ -90,11 +139,34 @@ DECLARE_ID(LowerVelocityXFade);
 DECLARE_ID(UpperVelocityXFade);
 DECLARE_ID(SampleState);
 DECLARE_ID(Reversed);
+DECLARE_ID(GainTable);
+DECLARE_ID(PitchTable);
+DECLARE_ID(LowPassTable);
 
 #undef DECLARE_ID
 
 struct Helpers
 {
+	static const Identifier& getEnvelopeId(Modulation::Mode m)
+	{
+		switch (m)
+		{
+		case Modulation::Mode::GainMode: return SampleIds::GainTable;
+		case Modulation::Mode::PitchMode: return SampleIds::PitchTable;
+		case Modulation::Mode::PanMode: return SampleIds::LowPassTable;
+		}
+			
+		return {};
+	}
+	static Modulation::Mode getEnvelopeType(const Identifier& id)
+	{
+		if (id == GainTable)
+			return Modulation::Mode::GainMode;
+		if (id == PitchTable)
+			return Modulation::Mode::PitchMode;
+		if (id == LowPassTable)
+			return Modulation::Mode::PanMode;
+	}
 
 	static const Array<Identifier>& getMapIds()
 	{
@@ -126,7 +198,7 @@ struct Helpers
 
 };
 
-const int numProperties = 23;
+const int numProperties = 26;
 }
 
 
@@ -142,11 +214,7 @@ class ModulatorSamplerSound : public ModulatorSynthSound,
 {
 public:
 
-	
-
 	using Ptr = ReferenceCountedObjectPtr<ModulatorSamplerSound>;
-
-	
 
 	// ====================================================================================================================
 
@@ -177,6 +245,8 @@ public:
 		UpperVelocityXFade, ///< the length of the velocity crossfade (0 if there is no crossfade). If the crossfade starts at the bottom, it will have negative values.
 		SampleState, ///< this property allows to set the state of samples between 'Normal', 'Disabled' and 'Purged'
 		Reversed,
+		GainTable,
+		PitchTable,
 		numProperties
 	};
 
@@ -403,7 +473,6 @@ public:
 
 	static void selectSoundsBasedOnRegex(const String &regexWildcard, ModulatorSampler *sampler, SelectedItemSet<ModulatorSamplerSound::Ptr> &set);
 
-
 	ValueTree getData() const { return data; }
 
 	void updateInternalData(const Identifier& id, const var& newValue);
@@ -426,6 +495,139 @@ public:
 		return deletePending;
 	}
 	
+	void addEnvelopeProcessor(HiseAudioThumbnail& th);
+
+	AudioFormatReader* createAudioReader(int micIndex);
+
+	struct EnvelopeTable : public ComplexDataUIUpdaterBase::EventListener,
+		public Timer
+	{
+		static constexpr int DownsamplingFactor = 32;
+
+		using Type = Modulation::Mode;
+
+		void timerCallback() override;
+
+		EnvelopeTable(ModulatorSamplerSound& parent_, Type type_, const String& b64);
+
+		~EnvelopeTable();
+
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override;
+
+		void rebuildBuffer();
+
+		MidiTable table;
+		WeakReference<HiseAudioThumbnail> thumbnailToPreview;
+
+		static void processThumbnail(EnvelopeTable& t, var left, var right);
+
+		void processBuffer(AudioSampleBuffer& b, int srcOffset, int dstOffset);
+
+		float getUptimeValue(double uptime) const
+		{
+			if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
+			{
+				auto s = parent.getReferenceToSound(0);
+
+				auto ls = (double)s->getLoopStart();
+
+				if (s->isLoopEnabled() && uptime > (ls - (double)sampleRange.getStart()))
+				{
+					uptime -= ls;
+					uptime = hmath::wrap(uptime, (double)s->getLoopLength());
+					uptime += ls;
+				}
+				else
+					uptime += (double)sampleRange.getStart();
+
+				uptime /= (double)DownsamplingFactor;
+
+				auto idx = jlimit(0, numElements - 1, roundToInt(uptime));
+				return lookupTable[idx];
+			}
+
+			return 1.0f;
+		}
+
+		static float getFreqValueInverse(float input);
+
+	private:
+
+		static float getFreqValue(float input);
+
+		
+
+		static float getGainValue(float input)
+		{
+			return input * 2.0f;
+		}
+
+		static String getFreqencyString(float input)
+		{
+			input = getFreqValue(input);
+			
+			String s;
+
+			if (input > 1000.0f)
+			{
+				s << String(input / 1000.0, 1);
+				s << " kHz";
+			}
+			else
+			{
+				s << String(roundToInt(input));
+				s << " Hz";
+			}
+
+			
+			return s;
+		}
+
+		static String getGainString(float input)
+		{
+			auto v = getGainValue(input);
+			
+			v = Decibels::gainToDecibels(v);
+
+			String s;
+			s << String(v, 1) << "dB";
+			return s;
+		}
+
+		static String getPitchString(float input)
+		{
+			auto v = getSemitones(input) * 100.0f;
+			String s;
+			s << String(roundToInt(v)) << " ct";
+			return s;
+		}
+
+		static float getSemitones(float input)
+		{
+			input = input * 2.0f - 1.0f;
+			return input;
+		}
+
+		static float getPitchValue(float input);
+
+		Range<int> sampleRange;
+		HeapBlock<float> lookupTable;
+		int numElements;
+		Type type;
+		ModulatorSamplerSound& parent;
+
+		mutable SimpleReadWriteLock lock;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(EnvelopeTable);
+	};
+
+	EnvelopeTable* getEnvelope(Modulation::Mode m)
+	{
+		if (m < Modulation::Mode::numModes)
+			return envelopes[m];
+		else
+			return nullptr;
+	}
 
 private:
 
@@ -434,6 +636,8 @@ private:
 	WeakReference<SampleMap> parentMap;
 	ValueTree data;
 	UndoManager *undoManager;
+
+	ScopedPointer<EnvelopeTable> envelopes[Modulation::Mode::numModes];
 
 	// ================================================================================================================
 
@@ -449,6 +653,7 @@ private:
 	bool isNormalized = false;
 	bool purged = false;
 	bool reversed = false;
+	
 	int upperVeloXFadeValue = 0;
 	int lowerVeloXFadeValue = 0;
 	int rrGroup = 1;
@@ -673,5 +878,33 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSamplerSoundPool)
 };
 
+struct SamplePreviewer : public ControlledObject
+{
+	SamplePreviewer(ModulatorSampler* sampler_);;
+
+	static void applySampleProperty(AudioSampleBuffer& b, ModulatorSamplerSound::Ptr sound, const Identifier& id, int offset);
+
+	void previewSample(ModulatorSamplerSound::Ptr soundToPlay, int micIndex);
+
+	void setPreviewStart(int previewStart)
+	{
+		previewOffset = previewStart;
+	}
+
+	int getPreviewStart() const { return previewOffset; }
+
+	bool isPlaying() const;
+
+private:
+
+	void previewSampleFromDisk(ModulatorSamplerSound::Ptr soundToPlay, int micIndex);
+
+	void previewSampleWithMidi(ModulatorSamplerSound::Ptr soundToPlay);
+
+	WeakReference<ModulatorSampler> sampler;
+	ModulatorSamplerSound::Ptr currentlyPlayedSound;
+	int previewOffset = 0;
+	HiseEvent previewNote;
+};
+
 } // namespace hise
-#endif  // MODULATORSAMPLERSOUND_H_INCLUDED

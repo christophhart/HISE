@@ -113,21 +113,9 @@ public:
 		descriptionLabel->setTooltip(p.toString());
 	}
 
-	void setCurrentSelection(const SampleSelection &newSelection)
-	{
-		currentSelection.clear();
-		currentSelection.addArray(newSelection);
+	void setCurrentSelection(const SampleSelection &newSelection);;
 
-		if(newSelection.size() != 0 && currentSlider.getComponent() != nullptr)
-		{
-			currentSlider->setValue(newSelection[0]->getSampleProperty(soundProperty));
-			currentSlider->setEnabled(true);
-		}
-
-		updateValue();
-	};
-
-	
+	KeyboardFocusTraverser* createFocusTraverser() override;
 
 	void setPropertyForAllSelectedSounds(const Identifier& p, int newValue);;
 
@@ -195,10 +183,18 @@ public:
 
 	void setLabelColour(Colour c, Colour t)
 	{
-		valueLabel->setColour(Label::backgroundColourId, c);
-		valueLabel->setColour(Label::textColourId, t);
-		valueLabel->setColour(Label::ColourIds::textWhenEditingColourId, t);
+		valueLabel->setColour(Label::outlineColourId, c);
+		valueLabel->setColour(Label::backgroundColourId, c.withAlpha(0.2f));
+		//valueLabel->setColour(Label::textColourId, t);
+		//valueLabel->setColour(Label::ColourIds::textWhenEditingColourId, t);
 	};
+
+	static Component* getSubEditorComponent(Component* c)
+	{
+		return dynamic_cast<Component*>(c->findParentComponentOfClass<SamplerSubEditor>());
+	}
+
+	void resetValueSlider();
 
     //[/UserMethods]
 
@@ -208,6 +204,10 @@ public:
     void buttonClicked (Button* buttonThatWasClicked);
 
 private:
+
+	ChainBarButtonLookAndFeel cb;
+
+	struct ValueSlider;
 
 	WeakReference<ModulatorSampler> sampler;
     //[UserVariables]   -- You can add your own custom variables in this section.
@@ -222,7 +222,7 @@ private:
 
 	int sliderStartValue;
 
-	Component::SafePointer<Slider> currentSlider;
+	ScopedPointer<ValueSlider> newSlider;
 
     //[/UserVariables]
 

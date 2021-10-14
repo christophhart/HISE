@@ -636,6 +636,22 @@ void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& 
 		{
 			upperVeloXFadeValue = newValue;
 		}
+		else if (id == SampleIds::GainTable || id == SampleIds::PitchTable || id == SampleIds::LowPassTable)
+		{
+			auto type = SampleIds::Helpers::getEnvelopeType(id);
+			auto& t = envelopes[type];
+			auto b64 = newValueVar.toString();
+
+			if (b64.isEmpty())
+				t = nullptr;
+			else if (t == nullptr)
+			{
+				t = new EnvelopeTable(*this, type, b64);
+
+				if (id == SampleIds::LowPassTable)
+					parentMap->getSampler()->setEnableEnvelopeFilter();
+			}
+		}
 
 		loadEntireSampleIfMaxPitch();
 	}
@@ -724,7 +740,16 @@ var ModulatorSamplerSound::getDefaultValue(const Identifier& id) const
 
 void ModulatorSamplerSound::setSampleProperty(const Identifier& id, const var& newValue, bool useUndo)
 {
-	data.setProperty(id, newValue, useUndo ? undoManager : nullptr);
+	if (id == SampleIds::GainTable || id == SampleIds::PitchTable || id == SampleIds::LowPassTable)
+	{
+		data.setProperty(id, newValue.toString(), useUndo ? undoManager : nullptr);
+		return;
+	}
+
+	jassert(!newValue.isString());
+	auto v = getPropertyRange(id).clipValue((int)newValue);
+
+	data.setProperty(id, v, useUndo ? undoManager : nullptr);
 }
 
 var ModulatorSamplerSound::getSampleProperty(const Identifier& id) const
@@ -743,6 +768,47 @@ var ModulatorSamplerSound::getSampleProperty(const Identifier& id) const
 	}
 	else
 		return rv;
+}
+
+void ModulatorSamplerSound::addEnvelopeProcessor(HiseAudioThumbnail& th)
+{
+	th.getAudioDataProcessor().removeAllListeners();
+
+	if (auto e = getEnvelope(Modulation::Mode::GainMode))
+	{
+		e->thumbnailToPreview = &th;
+		th.getAudioDataProcessor().addListener(*e, EnvelopeTable::processThumbnail);
+	}
+
+	if (auto f = getEnvelope(Modulation::Mode::PanMode))
+	{
+		f->thumbnailToPreview = &th;
+		th.getAudioDataProcessor().addListener(*f, EnvelopeTable::processThumbnail);
+	}
+}
+
+juce::AudioFormatReader* ModulatorSamplerSound::createAudioReader(int micIndex)
+{
+	micIndex = jlimit(0, getNumMultiMicSamples() - 1, micIndex);
+
+	StreamingSamplerSound::Ptr sound = getReferenceToSound(micIndex);
+
+	if (sound == nullptr)
+	{
+		jassertfalse;
+		return nullptr;
+	}
+
+	ScopedPointer<AudioFormatReader> afr;
+
+	if (sound->isMonolithic())
+	{
+		return sound->createReaderForPreview();
+	}
+	else
+	{
+		return PresetHandler::getReaderForFile(sound->getFileName(true));
+	}
 }
 
 // ====================================================================================================================
@@ -1302,5 +1368,537 @@ void MappingData::fillOtherProperties(ModulatorSamplerSound* sound)
 
 #undef SET_IF_NOT_ZERO
 
+
+
+SamplePreviewer::SamplePreviewer(ModulatorSampler* sampler_) :
+	ControlledObject(sampler_->getMainController()),
+	sampler(sampler_)
+{
+
+}
+
+void SamplePreviewer::applySampleProperty(AudioSampleBuffer& b, ModulatorSamplerSound::Ptr sound, const Identifier& id, int offset)
+{
+	auto value = (int)sound->getSampleProperty(id);
+
+	if (id == SampleIds::Normalized)
+	{
+		if (sound->isNormalizedEnabled())
+		{
+			auto gain = sound->getNormalizedPeak();
+			b.applyGain(gain);
+		}
+	}
+
+	if (id == SampleIds::Volume)
+	{
+		b.applyGain(Decibels::decibelsToGain((float)value));
+	}
+
+	if (id == SampleIds::Pan)
+	{
+		if (b.getNumChannels() == 2)
+		{
+			auto lGain = BalanceCalculator::getGainFactorForBalance((float)value, true);
+			FloatVectorOperations::multiply(b.getWritePointer(0), lGain, b.getNumSamples());
+
+			auto rGain = BalanceCalculator::getGainFactorForBalance((float)value, false);
+			FloatVectorOperations::multiply(b.getWritePointer(1), rGain, b.getNumSamples());
+		}
+	}
+
+	if (id == SampleIds::LoopEnabled)
+	{
+		if (!value)
+			return;
+
+ 		auto numMinSamples = roundToInt(sound->getMainController()->getMainSynthChain()->getSampleRate() * 3.0);
+
+		auto numSamplesToUse = jmax(b.getNumSamples(), numMinSamples);
+
+		if (numSamplesToUse != b.getNumSamples())
+		{
+			AudioSampleBuffer lb(2, numSamplesToUse);
+
+			int numBeforeLoop = (int)sound->getSampleProperty(SampleIds::LoopEnd) - offset;
+
+			lb.copyFrom(0, 0, b, 0, 0, numBeforeLoop);
+			lb.copyFrom(1, 0, b, 1, 0, numBeforeLoop);
+
+			int numLeft = numSamplesToUse - numBeforeLoop;
+			auto loopStart = (int)sound->getSampleProperty(SampleIds::LoopStart) - offset;
+			int loopLength = numBeforeLoop - loopStart;
+			int dstPos = numBeforeLoop;
+
+			while (numLeft > 0)
+			{
+				auto numThisTime = jmin(numLeft, loopLength);
+
+				lb.copyFrom(0, dstPos, b, 0, loopStart, numThisTime);
+				lb.copyFrom(1, dstPos, b, 1, loopStart, numThisTime);
+
+				numLeft -= numThisTime;
+				dstPos += numThisTime;
+			}
+
+			std::swap(b, lb);
+		}
+
+	}
+	if (id == SampleIds::PitchTable)
+	{
+		if (auto env = sound->getEnvelope(Modulation::Mode::PitchMode))
+		{
+			env->processBuffer(b, offset, 0);
+		}
+	}
+	if (id == SampleIds::LowPassTable)
+	{
+		if (auto env = sound->getEnvelope(Modulation::Mode::PanMode))
+		{
+			env->processBuffer(b, offset, 0);
+		}
+	}
+	if (id == SampleIds::GainTable)
+	{
+		if (auto env = sound->getEnvelope(Modulation::Mode::GainMode))
+		{
+			env->processBuffer(b, offset, 0);
+		}
+	}
+}
+
+void SamplePreviewer::previewSample(ModulatorSamplerSound::Ptr soundToPlay, int micIndex)
+{
+	if (previewOffset == -1)
+	{
+		previewSampleWithMidi(soundToPlay);
+	}
+	else
+	{
+		previewSampleFromDisk(soundToPlay, micIndex);
+	}
+}
+
+
+bool SamplePreviewer::isPlaying() const
+{
+	if (previewOffset == -1)
+		return !previewNote.isEmpty();
+	else
+		return sampler->getMainController()->getPreviewBufferPosition() > 0;
+}
+
+void SamplePreviewer::previewSampleFromDisk(ModulatorSamplerSound::Ptr soundToPlay, int micIndex)
+{
+	if (soundToPlay == nullptr || currentlyPlayedSound == soundToPlay)
+	{
+		sampler->getMainController()->stopBufferToPlay();
+		currentlyPlayedSound = nullptr;
+		return;
+	}
+
+	currentlyPlayedSound = soundToPlay;
+
+	auto mc = getMainController();
+
+	micIndex = jlimit<int>(0, soundToPlay->getNumMultiMicSamples() - 1, micIndex);
+
+	auto offset = previewOffset;
+
+	auto f = [micIndex, offset, soundToPlay](Processor* p)
+	{
+		auto sampler = dynamic_cast<ModulatorSampler*>(p);
+
+		ScopedPointer<AudioFormatReader> afr = soundToPlay->createAudioReader(micIndex);
+
+		int numPreview = 0;
+		
+		if (afr != nullptr)
+			numPreview = (int)afr->lengthInSamples - offset;
+		else
+			return SafeFunctionCall::OK;
+
+		AudioSampleBuffer copy;
+
+		copy.setSize(2, numPreview);
+
+		afr->read(&copy, 0, numPreview, offset, true, true);
+
+		auto pitchFactor = soundToPlay->getSampleRate() / sampler->getSampleRate();
+
+		auto pitchValue = conversion_logic::st2pitch().getValue((double)soundToPlay->getSampleProperty(SampleIds::Pitch) * 0.01);
+
+		pitchFactor *= pitchValue;
+
+		if (pitchFactor != 1.0f)
+		{
+			auto newNum = roundToInt(numPreview / pitchFactor);
+
+			AudioSampleBuffer resampled(copy.getNumChannels(), newNum);
+			resampled.clear();
+			LagrangeInterpolator interpolator;
+
+			for (int i = 0; i < copy.getNumChannels(); i++)
+			{
+				interpolator.process(pitchFactor, copy.getReadPointer(i), resampled.getWritePointer(i), newNum);
+			}
+
+			numPreview = newNum;
+			std::swap(resampled, copy);
+		}
+
+		auto o = offset - (int)soundToPlay->getSampleProperty(SampleIds::SampleStart);
+
+		applySampleProperty(copy, soundToPlay, SampleIds::PitchTable, offset);
+		applySampleProperty(copy, soundToPlay, SampleIds::Pan, offset);
+		applySampleProperty(copy, soundToPlay, SampleIds::Normalized, offset);
+		applySampleProperty(copy, soundToPlay, SampleIds::Volume, offset);
+		applySampleProperty(copy, soundToPlay, SampleIds::GainTable, offset);
+		applySampleProperty(copy, soundToPlay, SampleIds::LowPassTable, offset);
+		applySampleProperty(copy, soundToPlay, SampleIds::LoopXFade, offset);
+		applySampleProperty(copy, soundToPlay, SampleIds::LoopEnabled, offset);
+		
+		auto sampleLength = soundToPlay->getReferenceToSound(0)->getSampleLength();
+
+		sampler->getMainController()->setBufferToPlay(copy, [o, sampler, sampleLength](int pos)
+		{
+			sampler->getSamplerDisplayValues().currentSamplePos = (double)(pos + o) / (double)sampleLength;
+		});
+
+		return SafeFunctionCall::OK;
+	};
+
+	sampler->killAllVoicesAndCall(f);
+}
+
+void SamplePreviewer::previewSampleWithMidi(ModulatorSamplerSound::Ptr soundToPlay)
+{
+	if (!previewNote.isEmpty())
+	{
+		HiseEvent m(HiseEvent::Type::NoteOff, previewNote.getNoteNumber(), 0, 1);
+
+		m.setEventId(previewNote.getEventId());
+		m.setArtificial();
+		previewNote = {};
+
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+		sampler->preHiseEventCallback(m);
+		sampler->noteOff(m);
+	}
+
+	if (currentlyPlayedSound != soundToPlay && soundToPlay != nullptr)
+	{
+		currentlyPlayedSound = soundToPlay;
+
+		auto note = (int)soundToPlay->getSampleProperty(SampleIds::Root);
+		auto vel = (int)soundToPlay->getSampleProperty(SampleIds::HiVel) - 1;
+		auto group = (int)soundToPlay->getSampleProperty(SampleIds::RRGroup);
+
+		bool useRR = sampler->shouldUseRoundRobinLogic();
+
+		sampler->setUseRoundRobinLogic(false);
+
+		previewNote = HiseEvent(HiseEvent::Type::NoteOn, note, vel, 1);
+		previewNote.setArtificial();
+		getMainController()->getEventHandler().pushArtificialNoteOn(previewNote);
+
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+		sampler->preHiseEventCallback(previewNote);
+		sampler->noteOn(previewNote);
+		sampler->setCurrentGroupIndex(group);
+		sampler->setUseRoundRobinLogic(useRR);
+	}
+	else
+	{
+		currentlyPlayedSound = nullptr;
+	}
+}
+
+void ModulatorSamplerSound::EnvelopeTable::timerCallback()
+{
+	rebuildBuffer();
+	stopTimer();
+}
+
+ModulatorSamplerSound::EnvelopeTable::EnvelopeTable(ModulatorSamplerSound& parent_, Type type_, const String& b64) :
+	parent(parent_),
+	type(type_)
+{
+	table.setUndoManager(parent.undoManager);
+	table.getUpdater().addEventListener(this);
+	table.setGlobalUIUpdater(parent.getMainController()->getGlobalUIUpdater());
+	table.restoreData(b64);
+	
+	
+	switch (type)
+	{
+	case Type::GainMode:
+		table.setYTextConverterRaw(getGainString);
+		table.setStartAndEndY(0.5f, 0.5f);
+		break;
+	case Type::PitchMode:
+		table.setYTextConverterRaw(getPitchString);
+		table.setStartAndEndY(0.5f, 0.5f);
+		break;
+	case Type::PanMode:
+		table.setYTextConverterRaw(getFreqencyString);
+		table.setStartAndEndY(1.0f, 1.0f);
+		break;
+	}
+
+	stopTimer();
+	rebuildBuffer();
+}
+
+ModulatorSamplerSound::EnvelopeTable::~EnvelopeTable()
+{
+	SimpleReadWriteLock::ScopedWriteLock sl(lock);
+	table.getUpdater().removeEventListener(this);
+}
+
+void ModulatorSamplerSound::EnvelopeTable::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
+{
+	if (t != ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+	{
+		auto propId = type == Type::GainMode ? SampleIds::GainTable : SampleIds::PitchTable;
+		parent.setSampleProperty(propId, table.exportData());
+		startTimer(JUCE_LIVE_CONSTANT(200));
+	}
+}
+
+void ModulatorSamplerSound::EnvelopeTable::rebuildBuffer()
+{
+	numElements = parent.getReferenceToSound(0)->getLengthInSamples() / DownsamplingFactor + 1;
+	sampleRange.setStart((int)parent.getSampleProperty(SampleIds::SampleStart));
+	sampleRange.setEnd((int)parent.getSampleProperty(SampleIds::SampleEnd));
+
+	if (numElements > 0)
+	{
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(lock);
+
+			lookupTable.realloc(numElements);
+			table.fillExternalLookupTable(lookupTable, numElements - 1);
+			lookupTable[numElements - 1] = lookupTable[numElements - 2];
+
+			for (int i = 0; i < numElements; i++)
+			{
+				auto& v = lookupTable[i];
+
+				switch (type)
+				{
+				case Type::GainMode:
+					v = getGainValue(v);
+					break;
+				case Type::PitchMode:
+					v = getPitchValue(v);
+					break;
+				case Type::PanMode:
+					v = getFreqValue(v);
+					break;
+				}
+			}
+		}
+		
+		if(thumbnailToPreview != nullptr)
+			thumbnailToPreview->setReader(parent.createAudioReader(0));
+	}
+}
+
+void ModulatorSamplerSound::EnvelopeTable::processThumbnail(EnvelopeTable& t, var left, var right)
+{
+	if (t.sampleRange.getLength() == 0)
+		return;
+
+	float* data[2] = { nullptr, nullptr };
+	data[0] = left.isBuffer() ? left.getBuffer()->buffer.getWritePointer(0, 0) : nullptr;
+	data[1] = right.isBuffer() ? right.getBuffer()->buffer.getWritePointer(0, 0) : nullptr;
+
+	if (data[0] == nullptr)
+		return;
+
+	AudioSampleBuffer b(data, data[1] != nullptr ? 2 : 1, left.getBuffer()->size);
+
+	t.processBuffer(b, 0, 0);
+}
+
+namespace FilterEnvelopeProcessor
+{
+	using clone_child = container::chain<parameter::plain<filters::one_pole, 0>, wrap::fix<2, filters::one_pole>>;
+
+	using clone_parent = wrap::clonechain<clone_child, 16>;
+
+	struct myProcessor : public clone_parent
+	{
+		myProcessor()
+		{
+			auto p = this->get<0>();
+			
+		}
+	};
+}
+
+void ModulatorSamplerSound::EnvelopeTable::processBuffer(AudioSampleBuffer& b, int srcOffset, int dstOffset)
+{
+	SimpleReadWriteLock::ScopedReadLock sl(lock);
+
+	auto lutOffset = srcOffset / DownsamplingFactor;
+
+	if (type == Type::GainMode)
+	{
+		for (int i = 0; i < numElements - 1; i++)
+		{
+			auto i0 = jlimit(0, numElements - 1, i + lutOffset);
+			auto i1 = jlimit(0, numElements - 1, i + lutOffset + 1);
+			auto v0 = lookupTable[i0];
+			auto v1 = lookupTable[i1];
+
+			auto o0 = i * DownsamplingFactor + dstOffset;
+
+			if (isPositiveAndBelow(o0 + DownsamplingFactor, b.getNumSamples()))
+				b.applyGainRamp(o0, DownsamplingFactor, v0, v1);
+			else
+				break;
+		}
+	}
+	else if (type == Type::PitchMode)
+	{
+		double uptime = 0;
+
+		Array<double> deltas;
+		deltas.ensureStorageAllocated(b.getNumSamples());
+
+		for (int i = 0; i < b.getNumSamples(); i++)
+		{
+			auto i0 = jlimit(0, numElements - 1, (i / DownsamplingFactor) + lutOffset);
+			auto i1 = jlimit(0, numElements - 1, (i / DownsamplingFactor) + lutOffset + 1);
+
+			auto indexDouble = (double)i / (double)DownsamplingFactor + (double)lutOffset;
+			auto alpha = indexDouble - (double)i0;
+
+			auto v0 = (double)lookupTable[i0];
+			auto v1 = (double)lookupTable[i1];
+
+			auto v = Interpolator::interpolateLinear(v0, v1, alpha);
+			deltas.add(v);
+			uptime += 1.0 / v;
+		}
+
+		auto numSamples = roundToInt(uptime);
+
+		AudioSampleBuffer copy(b.getNumChannels(), numSamples);
+
+		uptime = 0.0;
+
+		auto oldNumSamples = b.getNumSamples();
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			
+
+			auto i0 = jlimit(0, oldNumSamples -1, ((int)uptime));
+			auto i1 = jlimit(0, oldNumSamples - 1, i0 + 1);
+			auto alpha = jlimit(0.0f, 1.0f, (float)(uptime - (float)i0));
+
+			auto l = Interpolator::interpolateLinear(b.getSample(0, i0), b.getSample(0, i1), alpha);
+			auto r = Interpolator::interpolateLinear(b.getSample(1, i0), b.getSample(1, i1), alpha);
+
+			copy.setSample(0, i, l);
+			copy.setSample(1, i, r);
+
+			uptime += deltas[i];
+		}
+
+		std::swap(copy, b);
+	}
+	else
+	{
+		using namespace scriptnode;
+
+		CascadedEnvelopeLowPass filter(true);
+
+		PrepareSpecs ps;
+		ps.sampleRate = parent.getMainController()->getMainSynthChain()->getSampleRate();
+		ps.blockSize = DownsamplingFactor;
+		ps.numChannels = b.getNumChannels();
+
+		filter.prepare(ps);
+		filter.setOrder(JUCE_LIVE_CONSTANT(1));
+		
+		int offset = 0;
+
+		snex::PolyHandler::ScopedVoiceSetter svs(filter.polyManager, 0);
+
+		for (int i = 0; i < b.getNumSamples(); i += DownsamplingFactor)
+		{
+			auto numThisTime = jmin(DownsamplingFactor, b.getNumSamples() - i);
+			auto f = lookupTable[i / DownsamplingFactor];
+
+			filter.process(f, b, offset, numThisTime);
+			offset += numThisTime;
+		}
+	}
+}
+
+float ModulatorSamplerSound::EnvelopeTable::getFreqValue(float input)
+{
+	input = 1.0f - input;
+	auto v = 1.0f - std::exp(std::log(input) * 0.2f);
+	return v * 20000.0f;
+}
+
+float ModulatorSamplerSound::EnvelopeTable::getFreqValueInverse(float input)
+{
+	input /= 20000.0f;
+	auto v = 1.0f - input;
+	auto v0 = std::log(v);
+	auto v1 = v0 / 0.2f;
+	auto v2 = std::exp(v1);
+	input = 1.0f - v2;
+	return input;
+}
+
+float ModulatorSamplerSound::EnvelopeTable::getPitchValue(float input)
+{
+	input = getSemitones(input);
+	return scriptnode::conversion_logic::st2pitch().getValue(input);
+}
+
+CascadedEnvelopeLowPass::CascadedEnvelopeLowPass(bool isPoly) :
+	polyManager(isPoly)
+{
+	for (int i = 0; i < NumMaxOrders; i++)
+		filters.add(new FilterType());
+
+	for (auto f : filters)
+	{
+		f->setSmoothing(0.0);
+		f->setFrequency(20000.0);
+	}
+}
+
+void CascadedEnvelopeLowPass::process(float frequency, AudioSampleBuffer& b, int startSampleInBuffer, int maxNumSamples)
+{
+	int numChannels = b.getNumChannels();
+	int numSamples = b.getNumSamples() - startSampleInBuffer;
+
+	if (maxNumSamples != 0)
+		numSamples = jmin(numSamples, maxNumSamples);
+
+	auto data = (float**)alloca(numChannels * sizeof(float*));
+	memcpy(data, b.getArrayOfReadPointers(), numChannels * sizeof(float**));
+
+	for (int i = 0; i < numChannels; i++)
+		data[i] += startSampleInBuffer;
+
+	snex::Types::ProcessDataDyn pd(data, numSamples, numChannels);
+
+	for (auto f : *this)
+	{
+		f->setFrequency(frequency);
+		f->process(pd);
+	}
+}
 
 } // namespace hise

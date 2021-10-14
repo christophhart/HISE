@@ -27,6 +27,83 @@ namespace hise { using namespace juce;
 //[MiscUserDefs] You can add your own user definitions and misc code here...
 //[/MiscUserDefs]
 
+struct ValueSettingComponent::ValueSlider : public Component
+{
+	ValueSlider(ValueSettingComponent* c):
+		valueParent(c)
+	{
+		addAndMakeVisible(slider);
+		slider.setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
+		slider.setSliderStyle(Slider::LinearHorizontal);
+		slider.setLookAndFeel(&slaf);
+		slider.setColour(Slider::backgroundColourId, Colours::white.withAlpha(0.2f));
+		slider.setColour(Slider::trackColourId, Colours::orange.withSaturation(0.4f).withAlpha(0.5f));
+		slider.setColour(Slider::thumbColourId, Colour(0xFFDDDDDD));
+
+		slider.onValueChange = [this]()
+		{
+			valueParent->setPropertyForAllSelectedSounds(valueParent->soundProperty, (int)slider.getValue());
+		};
+
+		setSelection(c->currentSelection);
+
+		if (auto parent = c->findParentComponentOfClass<SamplerSubEditor>())
+		{
+			auto parentC = dynamic_cast<Component*>(parent);
+			parentC->addAndMakeVisible(this);
+			
+			auto b = parentC->getLocalArea(c, c->getLocalBounds());
+			b = b.withSizeKeepingCentre(600, 32).translated(0, -40);
+			setWantsKeyboardFocus(false);
+			setBounds(b);
+		}
+	}
+
+	void resized() override
+	{
+		slider.setBounds(getLocalBounds().removeFromBottom(28));
+	}
+
+	void setSelection(const SampleSelection& selection)
+	{
+		fullRange = Range<int>(INT_MIN, INT_MAX);
+
+		for (auto s : valueParent->currentSelection)
+			fullRange = fullRange.getIntersectionWith(s->getPropertyRange(valueParent->soundProperty));
+
+		slider.setRange(fullRange.getStart(), fullRange.getEnd(), 1);
+
+		if(auto first = selection.getFirst())
+			slider.setValue(first->getSampleProperty(valueParent->soundProperty), dontSendNotification);
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.setColour(Colour(0x88222222));
+		g.fillAll();
+		g.setColour(Colours::white.withAlpha(0.2f));
+		g.drawRect(getLocalBounds().toFloat().reduced(1.0f), 1.0f);
+
+		auto b = getLocalBounds().toFloat().reduced(3.0f);
+		g.setFont(GLOBAL_FONT());
+		
+		g.drawText(String(roundToInt(slider.getValue())), b, Justification::centredTop);
+		g.drawText(String(fullRange.getStart()), b, Justification::topLeft);
+		g.drawText(String(fullRange.getEnd()), b, Justification::topRight);
+	}
+
+	void mouseDown(const MouseEvent& e) override
+	{
+		valueParent->newSlider = nullptr;
+	}
+
+	Range<int> fullRange;
+	Component::SafePointer<ValueSettingComponent> valueParent;
+
+	LookAndFeel_V4 slaf;
+	Slider slider;
+};
+
 //==============================================================================
 ValueSettingComponent::ValueSettingComponent (ModulatorSampler* sampler_):
 	sampler(sampler_)
@@ -38,22 +115,24 @@ ValueSettingComponent::ValueSettingComponent (ModulatorSampler* sampler_):
     valueLabel->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     valueLabel->setJustificationType (Justification::centred);
     valueLabel->setEditable (true, true, false);
-    valueLabel->setColour (Label::backgroundColourId, Colour (0x38ffffff));
-    valueLabel->setColour (Label::outlineColourId, Colour (0x38ffffff));
-    valueLabel->setColour (TextEditor::textColourId, Colours::black);
+    valueLabel->setColour (Label::backgroundColourId, Colour (0x22ffffff));
+    valueLabel->setColour (Label::outlineColourId, Colour (0x55ffffff));
+    valueLabel->setColour (Label::textColourId, Colours::white.withAlpha(0.8f));
+	valueLabel->setColour(Label::ColourIds::textWhenEditingColourId, Colours::white.withAlpha(0.8f));
     valueLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
     valueLabel->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
     valueLabel->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
     valueLabel->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
     valueLabel->addListener (this);
 
+	
+
     addAndMakeVisible (descriptionLabel = new Label ("new label",
                                                      TRANS("Unused")));
     descriptionLabel->setFont (Font ("Khmer UI", 13.00f, Font::plain));
     descriptionLabel->setJustificationType (Justification::centred);
     descriptionLabel->setEditable (false, false, false);
-    descriptionLabel->setColour (Label::textColourId, Colours::white);
-    descriptionLabel->setColour (TextEditor::textColourId, Colours::black);
+    descriptionLabel->setColour (Label::textColourId, Colours::white.withAlpha(0.7f));
     descriptionLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
     addAndMakeVisible (minusButton = new TextButton ("new button"));
@@ -70,16 +149,21 @@ ValueSettingComponent::ValueSettingComponent (ModulatorSampler* sampler_):
     plusButton->setColour (TextButton::buttonColourId, Colour (0x3fffffff));
     plusButton->setColour (TextButton::buttonOnColourId, Colour (0xff700000));
 
+	minusButton->setWantsKeyboardFocus(false);
+	plusButton->setWantsKeyboardFocus(false);
 	
+	setWantsKeyboardFocus(true);
+	setFocusContainer(true);
     //[UserPreSize]
 
-	valueLabel->setFont (GLOBAL_FONT());
-	descriptionLabel->setFont (GLOBAL_BOLD_FONT());
+	plusButton->setLookAndFeel(&cb);
+	minusButton->setLookAndFeel(&cb);
+
+	valueLabel->setFont (GLOBAL_BOLD_FONT());
+	descriptionLabel->setFont (GLOBAL_FONT());
 
 	valueLabel->addMouseListener(this, true);
 	descriptionLabel->addMouseListener(this, true);
-
-	currentSlider = nullptr;
 
     //[/UserPreSize]
 
@@ -104,6 +188,30 @@ ValueSettingComponent::~ValueSettingComponent()
 
     //[Destructor]. You can add your own custom destruction code here..
     //[/Destructor]
+}
+
+void ValueSettingComponent::setCurrentSelection(const SampleSelection &newSelection)
+{
+	if (newSelection.isEmpty())
+		newSlider = nullptr;
+	else if (newSlider != nullptr)
+		newSlider->setSelection(newSelection);
+
+
+	currentSelection.clear();
+	currentSelection.addArray(newSelection);
+
+	updateValue();
+}
+
+juce::KeyboardFocusTraverser* ValueSettingComponent::createFocusTraverser()
+{
+	if (auto sub = findParentComponentOfClass<SamplerSubEditor>())
+	{
+		return new SampleEditHandler::SubEditorTraverser(dynamic_cast<Component*>(sub));
+	}
+
+	return Component::createFocusTraverser();
 }
 
 void ValueSettingComponent::setPropertyForAllSelectedSounds(const Identifier& p, int newValue)
@@ -135,6 +243,8 @@ void ValueSettingComponent::setPropertyForAllSelectedSounds(const Identifier& p,
 	updateValue();
 }
 
+
+
 //==============================================================================
 void ValueSettingComponent::paint (Graphics& g)
 {
@@ -148,12 +258,13 @@ void ValueSettingComponent::paint (Graphics& g)
 
 void ValueSettingComponent::resized()
 {
-    valueLabel->setBounds ((getWidth() / 2) - ((getWidth() - 36) / 2), 15, getWidth() - 36, 16);
-    descriptionLabel->setBounds ((getWidth() / 2) - ((proportionOfWidth (1.0000f)) / 2), -4, proportionOfWidth (1.0000f), 24);
-    minusButton->setBounds (1, 14, 16, 18);
-    plusButton->setBounds (getWidth() - 1 - 16, 14, 16, 18);
-    //[UserResized] Add your own custom resize handling here..
-    //[/UserResized]
+	auto b = getLocalBounds().reduced(2, 0);
+
+	descriptionLabel->setBounds(b.removeFromTop(JUCE_LIVE_CONSTANT(15)));
+
+	minusButton->setBounds(b.removeFromLeft(b.getHeight()));
+	plusButton->setBounds(b.removeFromRight(b.getHeight()));
+	valueLabel->setBounds(b);
 }
 
 void ValueSettingComponent::labelTextChanged (Label* labelThatHasChanged)
@@ -226,6 +337,14 @@ void ValueSettingComponent::buttonClicked (Button* buttonThatWasClicked)
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 
+void ValueSettingComponent::resetValueSlider()
+{
+	newSlider = nullptr;
+	descriptionLabel->setFont(GLOBAL_FONT());
+	descriptionLabel->setColour(Label::textColourId, Colours::white.withAlpha(0.7f));
+	
+}
+
 void ValueSettingComponent::mouseDown(const MouseEvent &e)
 {
 #if USE_BACKEND
@@ -239,8 +358,29 @@ void ValueSettingComponent::mouseDown(const MouseEvent &e)
     
     if(currentSelection.size() != 0 && e.mods.isRightButtonDown())
     {
+		if (newSlider != nullptr)
+		{
+			resetValueSlider();
+			return;
+		}
+
+		auto se = getSubEditorComponent(this);
+
+		callRecursive<ValueSettingComponent>(se, [](ValueSettingComponent* v)
+		{
+			v->resetValueSlider();
+			return false;
+		});
+
+		newSlider = new ValueSlider(this);
+		descriptionLabel->setFont(GLOBAL_BOLD_FONT());
+		descriptionLabel->setColour(Label::textColourId, Colours::white);
+
+#if 0
         Slider *s = new Slider();
         
+		
+
         s->setSliderStyle(Slider::LinearBar);
         s->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
         s->setRange(currentSelection[0]->getPropertyRange(soundProperty).getStart(),
@@ -256,6 +396,8 @@ void ValueSettingComponent::mouseDown(const MouseEvent &e)
         
         currentSlider = s;
         
+		s->setWantsKeyboardFocus(false);
+
         if(currentSelection.size() != 0)
         {
             s->setValue(currentSelection[0]->getSampleProperty(soundProperty), dontSendNotification);
@@ -271,12 +413,11 @@ void ValueSettingComponent::mouseDown(const MouseEvent &e)
 		{
 			auto rootPos = root->getLocalArea(getParentComponent(), getBoundsInParent());
 
-			CallOutBox::launchAsynchronously(std::unique_ptr<Component>(s), rootPos, root);
+			auto& cb = CallOutBox::launchAsynchronously(std::unique_ptr<Component>(s), rootPos, root);
+			cb.setWantsKeyboardFocus(false);
 		}
-		
-        
+#endif
     }
-    
 }
 
 void ValueSettingComponent::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue)
