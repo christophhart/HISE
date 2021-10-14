@@ -822,6 +822,7 @@ StreamingSamplerSound::FileReader::FileReader(StreamingSamplerSound *soundForRea
 	missing(true),
 	hashCode(0),
 	voiceCount(0),
+	sampleLength(0),
 	fileHandlesOpen(false)
 {}
 

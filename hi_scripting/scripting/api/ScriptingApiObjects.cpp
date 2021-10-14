@@ -5261,7 +5261,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawHiseThumbnailPath(Graphics&
         
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleList<float>& rectList)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList)
 {
     jassertfalse; // should never happen
 }

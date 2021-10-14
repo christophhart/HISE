@@ -42,7 +42,7 @@ class ModulatorSamplerSound;
 
 class AudioDisplayComponent;
 
-#define EDGE_WIDTH 5
+#define EDGE_WIDTH 8
 
 #ifndef HISE_USE_SYMMETRIC_WAVEFORMS
 #define HISE_USE_SYMMETRIC_WAVEFORMS 0
@@ -54,6 +54,8 @@ class HiseAudioThumbnail: public Component,
                           public Spectrum2D::Holder
 {
 public:
+
+	using RectangleListType = RectangleList<int>;
 
 	enum class DisplayMode
 	{
@@ -68,7 +70,7 @@ public:
 
 		virtual void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area);
 		virtual void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path);
-		virtual void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleList<float>& rectList);
+		virtual void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleListType& rectList);
 		virtual void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area);
         virtual void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled);
 	};
@@ -229,7 +231,22 @@ public:
     void setSpectrumAndWaveformAlpha(float wAlpha, float sAlpha);
     
 	void setRange(const int left, const int right);
+
+	bool isEmpty() const noexcept
+	{
+		return isClear || !lBuffer.isBuffer();
+	}
+
+	using AudioDataProcessor = LambdaBroadcaster<var, var>;
+
+	AudioDataProcessor& getAudioDataProcessor() { return sampleProcessor; };
+
+	float waveformAlpha = 1.0f;
+	float spectrumAlpha = 0.0f;
+
 private:
+
+	AudioDataProcessor sampleProcessor;
 
 	DisplayMode displayMode = DisplayMode::SymmetricArea;
 	AudioSampleBuffer downsampledValues;
@@ -238,8 +255,7 @@ private:
     
 	void createCurvePathForCurrentView(bool isLeft, Rectangle<int> area);
 
-    float waveformAlpha = 1.0f;
-    float spectrumAlpha = 0.0f;
+    
     
 	float applyDisplayGain(float value)
 	{
@@ -298,9 +314,9 @@ private:
 
 		void run() override;;
 
-		void scalePathFromLevels(Path &lPath, RectangleList<float>& rects, Rectangle<float> bounds, const float* data, const int numSamples, bool scaleVertically);
+		void scalePathFromLevels(Path &lPath, RectangleListType& rects, Rectangle<float> bounds, const float* data, const int numSamples, bool scaleVertically);
 
-		void calculatePath(Path &p, float width, const float* l_, int numSamples, RectangleList<float>& rects, bool isLeft);
+		void calculatePath(Path &p, float width, const float* l_, int numSamples, RectangleListType& rects, bool isLeft);
 
 	private:
 
@@ -334,7 +350,7 @@ private:
 
 	Path leftWaveform, rightWaveform;
 
-	RectangleList<float> leftPeaks, rightPeaks;
+	RectangleListType leftPeaks, rightPeaks;
 
 	int leftBound = -1;
 	int rightBound = -1;
@@ -530,7 +546,7 @@ public:
 		}
 
 		/** Returns the hardcoded colour depending on the AreaType. */
-		Colour getAreaColour() const;
+		static Colour getAreaColour(AreaTypes a);
 
 		bool leftEdgeClicked;
 
@@ -659,6 +675,7 @@ public:
 		preview->setBounds(getLocalBounds());
 		preview->resized();
 		refreshSampleAreaBounds();
+		updateRanges();
 	}
 
 	virtual void paintOverChildren(Graphics &g) override;
