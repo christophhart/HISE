@@ -150,6 +150,8 @@ void SampleEditHandler::handleMidiSelection(SampleEditHandler& handler, int note
 				handler.selectedSamplerSounds.addToSelection(sound.get());
 			}
 		}
+
+		handler.setMainSelectionToLast();
 	}
 }
 

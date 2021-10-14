@@ -76,7 +76,8 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 
 		LockHelpers::freeToGo(s->getMainController());
 
-		handler->getSelectionReference().deselectAll();
+		SampleSelection oldSelection = handler->getSelectionReference().getItemArray();
+		
 
 		Array<int> newSelectedIndexes;
 
@@ -93,18 +94,6 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 
 		s->refreshPreloadSizes();
 
-		auto f2 = [handler, newSelectedIndexes]()
-		{
-			for (auto i : newSelectedIndexes)
-			{
-				auto newSound = dynamic_cast<ModulatorSamplerSound*>(handler->getSampler()->getSound(i));
-
-				if (newSound != nullptr)
-					handler->getSelectionReference().addToSelection(newSound);
-			}
-		};
-
-		MessageManager::callAsync(f2);
 		return SafeFunctionCall::OK;
 	};
 

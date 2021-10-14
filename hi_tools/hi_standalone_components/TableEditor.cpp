@@ -358,6 +358,9 @@ void TableEditor::mouseDown(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
 
+	if (e.mods.isAltDown())
+		return;
+
 	grabCopyAndPasteFocus();
 
 	MouseEvent parentEvent = e.getEventRelativeTo(this);
@@ -470,9 +473,12 @@ void TableEditor::mouseDoubleClick(const MouseEvent& e)
 	repaint();
 }
 
-void TableEditor::mouseUp(const MouseEvent &)
+void TableEditor::mouseUp(const MouseEvent& e)
 {	
 	if (!isEnabled()) return;
+
+	if (e.mods.isAltDown())
+		return;
 
 	closeTouchOverlay();
 
@@ -494,6 +500,9 @@ void TableEditor::mouseUp(const MouseEvent &)
 void TableEditor::mouseDrag(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
+
+	if (e.mods.isAltDown())
+		return;
 
 	MouseEvent parentEvent = e.getEventRelativeTo(this);
 

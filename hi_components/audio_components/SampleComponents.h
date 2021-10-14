@@ -317,7 +317,7 @@ struct SamplerDisplayWithTimeline : public Component
 
 	void paint(Graphics& g) override;
 
-	void setEnvelope(Modulation::Mode m, ModulatorSamplerSound* sound);
+	void setEnvelope(Modulation::Mode m, ModulatorSamplerSound* sound, bool setVisible);
 
 	Properties props;
 

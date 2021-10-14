@@ -60,7 +60,6 @@ struct EnvelopePopup : public Component
 			showButton.setToggleModeWithColourChange(true);
 			powerButton.setToggleModeWithColourChange(true);
 
-			
 			setupSlider(leftSlider, true);
 			setupSlider(rightSlider, false);
 
@@ -161,11 +160,10 @@ struct EnvelopePopup : public Component
 			if (b == &powerButton)
 			{
 				findParentComponentOfClass<EnvelopePopup>()->setEnvelopeActive(m, b->getToggleState());
-				showButton.setToggleState(b->getToggleState(), sendNotificationSync);
 			}
 			if (b == &showButton)
 			{
-				findParentComponentOfClass<EnvelopePopup>()->setDisplayedEnvelope(!b->getToggleState() ? Modulation::Mode::numModes : m);
+				findParentComponentOfClass<EnvelopePopup>()->setDisplayedEnvelope(m, b->getToggleState());
 			}
 			if (b == &applyButton)
 			{
@@ -196,15 +194,15 @@ struct EnvelopePopup : public Component
 		Slider leftSlider, rightSlider, gammaSlider;
 	};
 
-	void setDisplayedEnvelope(Modulation::Mode m)
+	void setDisplayedEnvelope(Modulation::Mode m, bool shouldShow)
 	{
-		gain.showButton.setToggleStateAndUpdateIcon(m == gain.m);
-		pitch.showButton.setToggleStateAndUpdateIcon(m == pitch.m);
-		filter.showButton.setToggleStateAndUpdateIcon(m == filter.m);
+		gain.showButton.setToggleStateAndUpdateIcon(m == gain.m && shouldShow);
+		pitch.showButton.setToggleStateAndUpdateIcon(m == pitch.m && shouldShow);
+		filter.showButton.setToggleStateAndUpdateIcon(m == filter.m && shouldShow);
 
-		display->setEnvelope(m, sampler->getSampleEditHandler()->getMainSelection());
+		display->setEnvelope(shouldShow ? m : Modulation::Mode::numModes, sampler->getSampleEditHandler()->getMainSelection(), shouldShow);
 		
-		if (m != Modulation::Mode::numModes)
+		if (shouldShow)
 			waveform->setClickArea(AudioDisplayComponent::AreaTypes::numAreas);
 	}
 
@@ -227,8 +225,12 @@ struct EnvelopePopup : public Component
 		if (auto mainSelection = sampler->getSampleEditHandler()->getMainSelection())
 		{
 			if (m == EnvelopeType::GainMode || m == EnvelopeType::PanMode)
+			{
 				mainSelection->addEnvelopeProcessor(*waveform->getThumbnail());
+			}			
 		}
+
+		display->setEnvelope(m, sampler->getSampleEditHandler()->getMainSelection(), shouldBeActive);
 	}
 
 	struct LambdaTableEditWithUndo : public UndoableAction
@@ -455,6 +457,10 @@ struct EnvelopePopup : public Component
 
 		sampler->getSampleEditHandler()->selectionBroadcaster.addListener(*this, mainSelectionChanged);
 		
+		gain.showButton.setToggleStateAndUpdateIcon(display->envelope == gain.m);
+		pitch.showButton.setToggleStateAndUpdateIcon(display->envelope == pitch.m);
+		filter.showButton.setToggleStateAndUpdateIcon(display->envelope == filter.m);
+
 		grabKeyboardFocusAsync();
 		setWantsKeyboardFocus(false);
 		setFocusContainer(true);
@@ -838,7 +844,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 		if(newSound != nullptr)
 			newSound->addEnvelopeProcessor(*currentWaveForm->getThumbnail());
 
-		tl.setEnvelope(tl.envelope, newSound);
+		tl.setEnvelope(tl.envelope, newSound, tl.envelope != Modulation::Mode::numModes);
 	});
 
 	setFocusContainer(true);
@@ -1582,15 +1588,15 @@ void SampleEditor::perform(SampleMapCommands c)
         return;
     case SampleMapCommands::EnableSampleStartArea:
         currentWaveForm->setClickArea(SamplerSoundWaveform::SampleStartArea);
-		tl->setEnvelope(Modulation::Mode::numModes, nullptr);
+		tl->setEnvelope(Modulation::Mode::numModes, nullptr, false);
         return;
     case SampleMapCommands::EnableLoopArea:
         currentWaveForm->setClickArea(SamplerSoundWaveform::LoopArea);
-		tl->setEnvelope(Modulation::Mode::numModes, nullptr);
+		tl->setEnvelope(Modulation::Mode::numModes, nullptr, false);
         return;
     case SampleMapCommands::EnablePlayArea:
         currentWaveForm->setClickArea(SamplerSoundWaveform::PlayArea);
-		tl->setEnvelope(Modulation::Mode::numModes, nullptr);
+		tl->setEnvelope(Modulation::Mode::numModes, nullptr, false);
         return;
     case SampleMapCommands::ZeroCrossing:
         currentWaveForm->zeroCrossing = !currentWaveForm->zeroCrossing;
@@ -1629,7 +1635,7 @@ void SampleEditor::perform(SampleMapCommands c)
 	case SampleMapCommands::ShowEnvelopePopup:
 	{
 		auto n = new EnvelopePopup(sampler, tl, currentWaveForm);
-		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, envelopeButton, { 8, 16 });
+		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentInRootPopup(n, envelopeButton, { 8, 16 });
 		return;
 	}
     case SampleMapCommands::ExternalEditor:
@@ -1764,7 +1770,8 @@ void SampleEditor::refreshDisplayFromComboBox()
 
 	if (auto s = selection[idx])
 	{
-		handler->selectionBroadcaster.sendMessage(sendNotification, s, multimicSelector->getSelectedItemIndex());
+		auto micIndex = jlimit(0, sampler->getNumMicPositions()-1, multimicSelector->getSelectedItemIndex());
+		handler->selectionBroadcaster.sendMessage(sendNotification, s, micIndex);
 
 		
 	}
@@ -2022,13 +2029,37 @@ void SampleEditor::loadEditorSettings()
 		currentWaveForm->zeroCrossing = v.getProperty("ZeroCrossing", true);
 		currentWaveForm->setClickArea((AudioDisplayComponent::AreaTypes)(int)v.getProperty("ClickArea", (int)AudioDisplayComponent::AreaTypes::numAreas), false);
 
-		dynamic_cast<SamplerDisplayWithTimeline*>(viewContent.get())->setEnvelope((Modulation::Mode)(int)v.getProperty("Envelope", (int)Modulation::Mode::numModes), handler->getMainSelection());
+		dynamic_cast<SamplerDisplayWithTimeline*>(viewContent.get())->setEnvelope((Modulation::Mode)(int)v.getProperty("Envelope", (int)Modulation::Mode::numModes), handler->getMainSelection(), true);
 	}
 }
 
 void SampleEditor::mainSelectionChanged(SampleEditor& editor, ModulatorSamplerSound::Ptr sound, int micIndex)
 {
 	auto sampleIndex = editor.handler->getSelectionReference().getItemArray().indexOf(sound);
+
+	editor.sampleSelector->clear(dontSendNotification);
+	editor.multimicSelector->clear(dontSendNotification);
+
+	auto sIndex = 1;
+
+	for (auto s : *editor.handler)
+	{
+		editor.sampleSelector->addItem(s->getSampleProperty(SampleIds::FileName).toString().replace("{PROJECT_FOLDER}", ""), sIndex++);
+	}
+
+	auto micPositions = StringArray::fromTokens(editor.sampler->getStringForMicPositions(), ";", "");
+	micPositions.removeEmptyStrings();
+
+	auto mIndex = 1;
+
+	for (auto t : micPositions)
+	{
+		editor.multimicSelector->addItem(t, mIndex++);
+	}
+
+	editor.multimicSelector->setTextWhenNothingSelected("No multimics");
+	editor.multimicSelector->setTextWhenNoChoicesAvailable("No multimics");
+
 
 	editor.sampleSelector->setSelectedItemIndex(sampleIndex, dontSendNotification);
 	editor.multimicSelector->setSelectedItemIndex(micIndex, dontSendNotification);
@@ -2069,30 +2100,7 @@ void SampleEditor::soundsSelected(int numSelected)
 	loopEndSetter->setCurrentSelection(selectionToUse);
 	loopCrossfadeSetter->setCurrentSelection(selectionToUse);
 
-	sampleSelector->clear(dontSendNotification);
-	multimicSelector->clear(dontSendNotification);
-	int sampleIndex = 1;
-
-	for (auto s : selection)
-	{
-		sampleSelector->addItem(s->getSampleProperty(SampleIds::FileName).toString().replace("{PROJECT_FOLDER}", ""), sampleIndex++);
-	}
-
-	//sampleSelector->setSelectedId(selection.size(), dontSendNotification);
-
-	auto micPositions = StringArray::fromTokens(sampler->getStringForMicPositions(), ";", "");
-	micPositions.removeEmptyStrings();
-
-	int micIndex = 1;
-
-	for (auto t : micPositions)
-	{
-		multimicSelector->addItem(t, micIndex++);
-	}
-
-	multimicSelector->setTextWhenNothingSelected("No multimics");
-	multimicSelector->setTextWhenNoChoicesAvailable("No multimics");
-
+	
 	updateWaveform();
 }
 

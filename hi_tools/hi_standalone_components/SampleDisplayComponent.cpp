@@ -628,8 +628,12 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
             
             useMax = !useMax;
             
-			if(isPositiveAndBelow(b1, tempBuffer.getNumSamples()))
-				tempBuffer.setSample(isLeft ? 0 : 1, b1, v1);
+			if (isPositiveAndBelow(b1, tempBuffer.getNumSamples()))
+			{
+				auto c = jmin(tempBuffer.getNumChannels()-1, isLeft ? 0 : 1);
+				tempBuffer.setSample(c, b1, v1);
+			}
+				
 		}
 
 		return;
@@ -1301,7 +1305,8 @@ void HiseAudioThumbnail::createCurvePathForCurrentView(bool isLeft, Rectangle<in
 
     auto getBufferValue = [&](int index)
     {
-        auto v = downsampledValues.getSample(isLeft ? 0 : 1, index);
+		auto c = jmin(downsampledValues.getNumChannels() - 1, isLeft ? 0 : 1);
+        auto v = downsampledValues.getSample(c, index);
         v = applyDisplayGain(v);
         
         FloatSanitizers::sanitizeFloatNumber(v);

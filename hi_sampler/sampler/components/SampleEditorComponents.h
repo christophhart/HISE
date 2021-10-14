@@ -323,16 +323,13 @@ public:
 
 	void sampleMapWasChanged(PoolReference newSampleMap) override
 	{
-		if (newSampleMap != oldReference)
-		{
-			oldReference = newSampleMap;
+		oldReference = newSampleMap;
 
-			propertyUpdater = new valuetree::RecursivePropertyListener();
+		propertyUpdater = new valuetree::RecursivePropertyListener();
 
-			propertyUpdater->setCallback(ownerSampler->getSampleMap()->getValueTree(),
-				SampleIds::Helpers::getMapIds(), valuetree::AsyncMode::Asynchronously,
-				BIND_MEMBER_FUNCTION_2(SamplerSoundMap::updateSamplesFromValueTree));
-		}
+		propertyUpdater->setCallback(ownerSampler->getSampleMap()->getValueTree(),
+			SampleIds::Helpers::getMapIds(), valuetree::AsyncMode::Asynchronously,
+			BIND_MEMBER_FUNCTION_2(SamplerSoundMap::updateSamplesFromValueTree));
 
 		updateSampleComponents();
 	}

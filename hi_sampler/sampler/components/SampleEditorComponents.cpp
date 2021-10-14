@@ -133,6 +133,9 @@ juce::Colour SampleComponent::getColourForSound(bool wantsOutlineColour) const
 			auto b = jlimit(0.0f, 1.0f, transparency + base + (isMainSelection ? delta : 0.0f));
 
 			auto w = Colours::white.withAlpha(transparency);
+
+			
+
 			auto c = Colour(SIGNAL_COLOUR).withBrightness(b).withAlpha(alpha);
 
 			if (dragSelection)
@@ -154,8 +157,10 @@ juce::Colour SampleComponent::getColourForSound(bool wantsOutlineColour) const
 	}
 	else
 	{
+		auto w = Colours::white.withAlpha(transparency);
+
 		if (sound->isPurged()) return Colours::brown.withAlpha(0.3f);
-		else return wantsOutlineColour ? Colours::white.withAlpha(0.7f) : Colours::white.withAlpha(transparency);
+		else return wantsOutlineColour ? w.withAlpha(0.7f) : w;
 	}
 }
 
@@ -332,14 +337,16 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 
 	auto f = [this, copyDraggedSounds](Processor* )
 	{
+		SampleSelection oldSelection;
+
 		for (int i = 0; i < dragStartData.size(); i++)
 		{
 			DragData d = dragStartData[i];
 
+			oldSelection.add(d.sound);
+
 			if (currentDragDeltaX < 0)
 			{
-				
-
 				d.sound->setSampleProperty(SampleIds::Root, d.data.rootNote + currentDragDeltaX);
 				d.sound->setSampleProperty(SampleIds::LoKey, d.data.lowKey + currentDragDeltaX);
 				d.sound->setSampleProperty(SampleIds::HiKey, d.data.highKey + currentDragDeltaX);
@@ -372,8 +379,14 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 
 		dragStartData.clear();
 
-		auto f2 = [this]()
+		auto f2 = [this, oldSelection]()
 		{
+			handler->getSelectionReference().deselectAll();
+
+			for (auto s : oldSelection)
+				handler->getSelectionReference().addToSelection(s);
+
+			handler->setMainSelectionToLast();
 			this->refreshGraphics();
 		};
 

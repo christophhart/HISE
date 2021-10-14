@@ -777,14 +777,16 @@ void ModulatorSamplerSound::addEnvelopeProcessor(HiseAudioThumbnail& th)
 	if (auto e = getEnvelope(Modulation::Mode::GainMode))
 	{
 		e->thumbnailToPreview = &th;
-		th.getAudioDataProcessor().addListener(*e, EnvelopeTable::processThumbnail);
+		th.getAudioDataProcessor().addListener(*e, EnvelopeTable::processThumbnail, false);
 	}
 
 	if (auto f = getEnvelope(Modulation::Mode::PanMode))
 	{
 		f->thumbnailToPreview = &th;
-		th.getAudioDataProcessor().addListener(*f, EnvelopeTable::processThumbnail);
+		th.getAudioDataProcessor().addListener(*f, EnvelopeTable::processThumbnail, false);
 	}
+
+	th.setReader(createAudioReader(0));
 }
 
 juce::AudioFormatReader* ModulatorSamplerSound::createAudioReader(int micIndex)
@@ -1653,6 +1655,7 @@ ModulatorSamplerSound::EnvelopeTable::EnvelopeTable(ModulatorSamplerSound& paren
 
 ModulatorSamplerSound::EnvelopeTable::~EnvelopeTable()
 {
+	stopTimer();
 	SimpleReadWriteLock::ScopedWriteLock sl(lock);
 	table.getUpdater().removeEventListener(this);
 }
@@ -1775,7 +1778,7 @@ void ModulatorSamplerSound::EnvelopeTable::processBuffer(AudioSampleBuffer& b, i
 			auto i1 = jlimit(0, numElements - 1, (i / DownsamplingFactor) + lutOffset + 1);
 
 			auto indexDouble = (double)i / (double)DownsamplingFactor + (double)lutOffset;
-			auto alpha = indexDouble - (double)i0;
+			auto alpha = jlimit(0.0, 1.0, indexDouble - (double)i0);
 
 			auto v0 = (double)lookupTable[i0];
 			auto v1 = (double)lookupTable[i1];

@@ -1041,24 +1041,22 @@ struct EnvelopeLaf : public TableEditor::LookAndFeelMethods,
 	};
 };
 
-void SamplerDisplayWithTimeline::setEnvelope(Modulation::Mode m, ModulatorSamplerSound* sound)
+void SamplerDisplayWithTimeline::setEnvelope(Modulation::Mode m, ModulatorSamplerSound* sound, bool setVisible)
 {
 	envelope = m;
+
+	if (!setVisible || sound == nullptr || envelope == Modulation::Mode::numModes)
+	{
+		tableEditor = nullptr;
+		resized();
+		return;
+	}
 
 	if (sound != nullptr)
 	{
 		if (auto t = sound->getEnvelope(m))
 		{
 			auto table = &t->table;
-
-			if (tableEditor != nullptr && table == tableEditor->getEditedTable())
-			{
-				envelope = Modulation::Mode::numModes;
-				tableEditor = nullptr;
-				resized();
-				return;
-			}
-
 			auto p = &getWaveform()->timeProperties;
 
 			addAndMakeVisible(tableEditor = new TableEditor(nullptr, table));
@@ -1081,22 +1079,15 @@ void SamplerDisplayWithTimeline::setEnvelope(Modulation::Mode m, ModulatorSample
 			tableEditor->addMouseListener(getWaveform(), false);
 
 			resized();
-
 			return;
-
-#if 0
-			table.setYTextConverterRaw([](float v)
-			{
-				String s;
-				s << String(Decibels::gainToDecibels(v), 1) << " dB";
-				return s;
-			});
-#endif
+		}
+		else
+		{
+			tableEditor = nullptr;
+			resized();
+			return;
 		}
 	}
-
-	tableEditor = nullptr;
-	resized();
 }
 
 }
