@@ -46,9 +46,10 @@ public:
 		public ButtonListener,
 		public TextEditor::Listener
 	{
-		MyFunkyFilenameComponent(FileNameValuePropertyComponent& p, File::TypesOfFileToFind fileType) :
+		MyFunkyFilenameComponent(FileNameValuePropertyComponent& p, File::TypesOfFileToFind fileType_) :
 			parent(p),
-			browseButton("Browse")
+			browseButton("Browse"),
+			fileType(fileType_)
 		{
 			addAndMakeVisible(&editor);
 			editor.addListener(this);

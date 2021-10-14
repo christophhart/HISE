@@ -419,7 +419,11 @@ bool ScriptingObjects::ScriptFile::writeAudioFile(var audioData, double sampleRa
 
 bool ScriptingObjects::ScriptFile::writeString(String text)
 {
-	return f.replaceWithText(text);
+	#if JUCE_LINUX
+		return f.replaceWithText(text, false, false, "\n");
+	#else
+		return f.replaceWithText(text);
+	#endif	
 }
 
 bool ScriptingObjects::ScriptFile::writeEncryptedObject(var jsonData, String key)
