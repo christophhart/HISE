@@ -55,8 +55,20 @@ void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoint
 void Table::createPath(Path &normalizedPath, bool fillPath) const
 {
 	normalizedPath.clear();
-	normalizedPath.startNewSubPath(-0.00000001f, 1.0000001f);
-	normalizedPath.lineTo(0.0f, 1.0f - graphPoints[0].y);
+	
+	if (!fillPath && startY >= 0.0f)
+	{
+		normalizedPath.startNewSubPath(0.0f, 0.0f);
+		normalizedPath.startNewSubPath(1.0f, 1.0f);
+		normalizedPath.startNewSubPath(-0.0001f, startY);
+		normalizedPath.lineTo(0.0f, 1.0f - graphPoints[0].y);
+	}
+	else
+	{
+		normalizedPath.startNewSubPath(-0.00000001f, 1.0000001f);
+		normalizedPath.lineTo(0.0f, 1.0f - graphPoints[0].y);
+	}
+		
 
 	for(int i = 1; i < graphPoints.size(); ++i)
 	{
@@ -82,10 +94,12 @@ void Table::createPath(Path &normalizedPath, bool fillPath) const
 		
 	}
 
-	normalizedPath.lineTo(1.0000001f, 0.0000001f); // fix wrong scaling if greatest value is < 1
+	if (!fillPath && endY >= 0.0f)
+		normalizedPath.lineTo(1.0001f, endY);
 
 	if (fillPath)
 	{
+		normalizedPath.lineTo(1.0000001f, 0.0000001f); // fix wrong scaling if greatest value is < 1
 		normalizedPath.lineTo(1.0000001f, 1.0000001f);
 		normalizedPath.closeSubPath();
 	}
@@ -93,32 +107,36 @@ void Table::createPath(Path &normalizedPath, bool fillPath) const
 
 void Table::fillLookUpTable()
 {
+	HeapBlock<float> newValues;
+	newValues.calloc(getTableSize());
+
 	GraphPointComparator gpc;
 	graphPoints.sort(gpc);
 
+	fillExternalLookupTable(newValues, getTableSize());
+	
+	ScopedLock sl(getLock());
+	FloatVectorOperations::copy(getWritePointer(), newValues, getTableSize());
+};
+
+void Table::fillExternalLookupTable(float* d, int numValues)
+{
 	Path renderPath;
-
 	createPath(renderPath, true);
-
-	renderPath.applyTransform(AffineTransform::scale((float)getTableSize(), 1.0f));
+	renderPath.applyTransform(AffineTransform::scale((float)numValues, 1.0f));
 
 	Line<float> l;
 	Line<float> clipped;
 
-	Array<float> newValues;
-
-	for(int i = 0; i < getTableSize(); i++)
+	for (int i = 0; i < numValues; i++)
 	{
 		l = Line<float>((float)i, 0.0f, (float)i, 1.0f);
 		clipped = renderPath.getClippedLine(l, false);
 		const float value = 1.0f - (clipped.getStartY());
-		jassert(i < getTableSize());
-		newValues.add(value);
+		auto idx = jlimit(0, numValues-1, i);
+		d[idx] = value;
 	};
-
-	ScopedLock sl(getLock());
-	FloatVectorOperations::copy(getWritePointer(), newValues.getRawDataPointer(), getTableSize());
-};
+}
 
 float *MidiTable::getWritePointer() {return data;};
 
