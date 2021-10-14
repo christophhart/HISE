@@ -491,11 +491,6 @@ public:
 	String getPopupString(float x, float y);
 	std::function<String(float, float)> popupFunction;
 
-	void setTableLookAndFeel(LookAndFeelMethods* lm, bool isExternalLaf)
-	{
-		setSpecialLookAndFeel(dynamic_cast<LookAndFeel*>(lm), !isExternalLaf);
-	}
-
 	float getLastIndex() const { return jlimit(0.0f, 1.0f, lastIndex); }
 
 	Rectangle<int> getPointAreaBetweenMouse() const;

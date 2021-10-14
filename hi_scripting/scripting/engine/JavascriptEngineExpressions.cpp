@@ -400,6 +400,8 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		lastScope = functionRoot;
 #endif
 
+		functionRoot->removeProperty("this");
+
 		return result;
 	}
 

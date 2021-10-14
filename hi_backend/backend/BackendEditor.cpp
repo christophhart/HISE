@@ -243,39 +243,7 @@ void BackendProcessorEditor::resized()
 
 void BackendProcessorEditor::clearPopup()
 {
-	if (ownedPopupComponent == nullptr)
-	{
-		if (currentPopupComponent == nullptr) return;
-
-		else if (currentPopupComponent == popupEditor)
-		{
-			// Update the original editor
-			popupEditor->getProcessor()->sendChangeMessage();
-			popupEditor = nullptr;
-
-			currentPopupComponent = nullptr;
-		}
-		else if (dynamic_cast<SampleMapEditor*>(currentPopupComponent.get()) != nullptr)
-		{
-			stupidRectangle->setVisible(false);
-			currentPopupComponent->setVisible(false);
-
-			dynamic_cast<SampleMapEditor*>(currentPopupComponent.get())->deletePopup();
-			currentPopupComponent = nullptr;
-		}
-	}
-	else
-	{
-		stupidRectangle->setVisible(false);
-
-		ownedPopupComponent = nullptr;
-	}
-
 	
-	
-	stupidRectangle = nullptr;
-	viewport->setEnabled(true);
-	viewport->viewport->setScrollBarsShown(true, false);
 }
 
 void BackendProcessorEditor::scriptWasCompiled(JavascriptProcessor * /*sp*/)

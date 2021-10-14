@@ -768,7 +768,7 @@ void PeriodicScreenshotter::run()
 
 		std::swap(newImage, img);
 
-		wait(1000);
+		wait(6000);
 	}
 }
 

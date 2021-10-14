@@ -521,6 +521,8 @@ namespace ScriptingObjects
 			static Identifier getIdOfParentFloatingTile(Component& c);
 
 			static bool addParentFloatingTile(Component& c, DynamicObject* obj);
+
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Laf);
 		};
 
 		struct Wrapper;
@@ -587,6 +589,7 @@ namespace ScriptingObjects
 		var functions;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedLookAndFeel);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptedLookAndFeel);
 	};
 }
 

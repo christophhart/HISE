@@ -1212,7 +1212,7 @@ ScriptCreatedComponentWrapper(content, index)
 
     if (auto s = dynamic_cast<TableEditor::LookAndFeelMethods*>(slaf))
     {
-        t->setTableLookAndFeel(s, true);
+        t->setSpecialLookAndFeel(slaf, false);
     }
 }
 
