@@ -663,6 +663,8 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
     
     map->addMouseListener(this, true);
 
+    handler->toolBroadcaster.broadcaster.addListener(*map->map, SamplerSoundMap::updateToolMode);
+    
 	addAndMakeVisible(sampleMaps = new ComboBox());
 
 	sampleMaps->setTextWhenNoChoicesAvailable("No samplemaps found");

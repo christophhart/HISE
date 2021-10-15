@@ -287,6 +287,8 @@ private:
 
 class SamplerSoundWaveform;
 
+
+
 struct SamplerDisplayWithTimeline : public Component
 {
 	static constexpr int TimelineHeight = 24;
@@ -326,6 +328,61 @@ struct SamplerDisplayWithTimeline : public Component
 	Modulation::Mode envelope = Modulation::Mode::numModes;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SamplerDisplayWithTimeline);
+};
+
+struct SamplerTools
+{
+    enum class Mode
+    {
+        Nothing,
+        Zoom,
+        Preview,
+        PlayArea,
+        SampleStartArea,
+        LoopArea,
+        LoopCrossfadeArea,
+        GainEnvelope,
+        PitchEnvelope,
+        FilterEnvelope,
+        ToolModes
+    };
+    
+    static Colour getToolColour(Mode m)
+    {
+        switch(m)
+        {
+            case Mode::GainEnvelope:
+            case Mode::PitchEnvelope:
+            case Mode::FilterEnvelope:  return SamplerDisplayWithTimeline::getColourForEnvelope((Modulation::Mode)((int)m - (int)Mode::GainEnvelope));
+            case Mode::PlayArea:
+            case Mode::LoopArea:
+            case Mode::LoopCrossfadeArea:
+            case Mode::SampleStartArea: return AudioDisplayComponent::SampleArea::getAreaColour((AudioDisplayComponent::AreaTypes)((int)m - (int)Mode::PlayArea));
+            default: return Colours::white;
+        }
+    }
+    
+    void toggleMode(Mode newMode)
+    {
+        if(currentMode == newMode)
+            currentMode = Mode::Nothing;
+        else
+            currentMode = newMode;
+        
+        broadcaster.sendMessage(sendNotificationSync, currentMode);
+    }
+    
+    void setMode(Mode newMode)
+    {
+        if(currentMode != newMode)
+        {
+            currentMode = newMode;
+            broadcaster.sendMessage(sendNotificationSync, currentMode);
+        }
+    }
+    
+    Mode currentMode = Mode::Nothing;
+    LambdaBroadcaster<Mode> broadcaster;
 };
 
 /** A component that displays the waveform of a sample.

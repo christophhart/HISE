@@ -36,6 +36,7 @@ namespace hise { using namespace juce;
 
 
 
+
 class SampleEditHandler: public KeyListener
 {
 public:
@@ -121,7 +122,8 @@ public:
 	LambdaBroadcaster<int, int> noteBroadcaster;
 	LambdaBroadcaster<int, int> groupBroadcaster;
 	LambdaBroadcaster<int> allSelectionBroadcaster;
-
+    SamplerTools toolBroadcaster;
+    
 	const ModulatorSamplerSound::Ptr* begin() const
 	{
 		return selectedSamplerSounds.begin();

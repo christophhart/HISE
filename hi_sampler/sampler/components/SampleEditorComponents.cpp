@@ -112,10 +112,48 @@ SampleComponent::SampleComponent(ModulatorSamplerSound *s, SamplerSoundMap *pare
 #pragma warning( pop )
 
 
+SamplerTools::Mode SampleComponent::getModeForSample() const
+{
+    auto nothing = SamplerTools::Mode::Nothing;
+    
+    switch(toolMode)
+    {
+        case SamplerTools::Mode::LoopArea:
+            return sound->getSampleProperty(SampleIds::LoopEnabled) ? toolMode : nothing;
+        case SamplerTools::Mode::SampleStartArea:
+            return sound->getSampleProperty(SampleIds::SampleStartMod) ? toolMode: nothing;
+        case SamplerTools::Mode::GainEnvelope:
+            return sound->getEnvelope(Modulation::Mode::GainMode) != nullptr ? toolMode : nothing;
+        case SamplerTools::Mode::PitchEnvelope:
+            return sound->getEnvelope(Modulation::Mode::PitchMode) != nullptr ? toolMode : nothing;
+        case SamplerTools::Mode::FilterEnvelope:
+            return sound->getEnvelope(Modulation::Mode::PanMode) != nullptr ? toolMode : nothing;
+        default:
+            return nothing;
+    }
+}
+
 juce::Colour SampleComponent::getColourForSound(bool wantsOutlineColour) const
 {
 	if (sound.get() == nullptr) return Colours::transparentBlack;
 
+    auto toolToUse = getModeForSample();
+    
+    auto base = JUCE_LIVE_CONSTANT_OFF(0.2f);
+    auto alpha = JUCE_LIVE_CONSTANT_OFF(0.45f);
+    auto delta = JUCE_LIVE_CONSTANT_OFF(0.7f);
+
+    auto b = jlimit(0.0f, 1.0f, transparency + base + (isMainSelection ? delta : 0.0f));
+    
+    if((int)toolToUse > 0)
+    {
+        if(!wantsOutlineColour)
+        {
+            
+            return SamplerTools::getToolColour(toolToUse).withAlpha(b);
+        }
+    }
+    
 	if (selected || dragSelection)
 	{
 		if (wantsOutlineColour)
@@ -124,20 +162,15 @@ juce::Colour SampleComponent::getColourForSound(bool wantsOutlineColour) const
 		}
 		else
 		{
+            
+            
 			
-
-			auto base = JUCE_LIVE_CONSTANT_OFF(0.2f);
-			auto alpha = JUCE_LIVE_CONSTANT_OFF(0.45f);
-			auto delta = JUCE_LIVE_CONSTANT_OFF(0.7f);
-
-			auto b = jlimit(0.0f, 1.0f, transparency + base + (isMainSelection ? delta : 0.0f));
 
 			auto w = Colours::white.withAlpha(transparency);
-
-			
-
 			auto c = Colour(SIGNAL_COLOUR).withBrightness(b).withAlpha(alpha);
 
+            
+            
 			if (dragSelection)
 				return w.interpolatedWith(c, 0.4f);
 			else

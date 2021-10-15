@@ -196,14 +196,25 @@ struct EnvelopePopup : public Component
 
 	void setDisplayedEnvelope(Modulation::Mode m, bool shouldShow)
 	{
-		gain.showButton.setToggleStateAndUpdateIcon(m == gain.m && shouldShow);
-		pitch.showButton.setToggleStateAndUpdateIcon(m == pitch.m && shouldShow);
-		filter.showButton.setToggleStateAndUpdateIcon(m == filter.m && shouldShow);
-
-		display->setEnvelope(shouldShow ? m : Modulation::Mode::numModes, sampler->getSampleEditHandler()->getMainSelection(), shouldShow);
-		
-		if (shouldShow)
-			waveform->setClickArea(AudioDisplayComponent::AreaTypes::numAreas);
+        auto& b = sampler->getSampleEditHandler()->toolBroadcaster;
+        
+        if(!shouldShow)
+            b.setMode(SamplerTools::Mode::Nothing);
+        else
+        {
+            switch(m)
+            {
+                case Modulation::Mode::GainMode:
+                    b.setMode(SamplerTools::Mode::GainEnvelope);
+                    break;
+                case Modulation::Mode::PitchMode:
+                    b.setMode(SamplerTools::Mode::PitchEnvelope);
+                    break;
+                case Modulation::Mode::PanMode:
+                    b.setMode(SamplerTools::Mode::FilterEnvelope);
+                    break;
+            }
+        }
 	}
 
 	void setEnvelopeActive(EnvelopeType m, bool shouldBeActive)
@@ -230,7 +241,7 @@ struct EnvelopePopup : public Component
 			}			
 		}
 
-		display->setEnvelope(m, sampler->getSampleEditHandler()->getMainSelection(), shouldBeActive);
+        setDisplayedEnvelope(m, shouldBeActive);
 	}
 
 	struct LambdaTableEditWithUndo : public UndoableAction
@@ -457,95 +468,25 @@ struct EnvelopePopup : public Component
 
 		sampler->getSampleEditHandler()->selectionBroadcaster.addListener(*this, mainSelectionChanged);
 		
-		gain.showButton.setToggleStateAndUpdateIcon(display->envelope == gain.m);
-		pitch.showButton.setToggleStateAndUpdateIcon(display->envelope == pitch.m);
-		filter.showButton.setToggleStateAndUpdateIcon(display->envelope == filter.m);
+		
+        sampler->getSampleEditHandler()->toolBroadcaster.broadcaster.addListener(*this, toolChanged);
 
 		grabKeyboardFocusAsync();
 		setWantsKeyboardFocus(false);
 		setFocusContainer(true);
-
-
-#if 0
-
-		using EnvelopeType = Modulation::Mode;
-
-		auto mainSelection = handler->getMainSelection();
-		auto mainSelected = mainSelection != nullptr;
-
-		bool gainShown = tl->envelope == EnvelopeType::GainMode;
-		bool pitchShown = tl->envelope == EnvelopeType::PitchMode;
-		bool filterShown = tl->envelope == EnvelopeType::PanMode;
-
-		bool gainActive = mainSelection != nullptr && mainSelection->getEnvelope(EnvelopeType::GainMode) != nullptr;
-		bool pitchActive = mainSelection != nullptr && mainSelection->getEnvelope(EnvelopeType::PitchMode) != nullptr;
-
-		bool filterActive = mainSelection != nullptr && mainSelection->getEnvelope(EnvelopeType::PanMode) != nullptr;
-
-		PopupLookAndFeel plaf;
-		PopupMenu m;
-		m.setLookAndFeel(&plaf);
-
-		m.addItem(1, "Show gain envelope", gainActive, gainShown);
-		m.addItem(2, "Show pitch envelope", pitchActive, pitchShown);
-		m.addItem(3, "Show filter envelope", filterActive, filterShown);
-		m.addSeparator();
-		m.addItem(4, "Enable gain envelope", mainSelected, gainActive);
-		m.addItem(5, "Enable pitch envelope", mainSelected, pitchActive);
-		m.addItem(6, "Enable filter envelope", mainSelected, filterActive);
-
-		if (auto r = m.show())
-		{
-			if (r == 1 || r == 2 || r == 3)
-			{
-				tl->setEnvelope((EnvelopeType)(r - 1), mainSelection);
-			}
-			if (r == 4 || r == 5 || r == 6)
-			{
-				auto t = (EnvelopeType)(r - 4);
-				bool enableTable = mainSelection->getEnvelope(t) == nullptr;
-
-				String v;
-
-				if (enableTable)
-					v << "24..........7C...vO...f+....7C...vO";
-
-				if (r == 4)
-					mainSelection->setSampleProperty(SampleIds::GainTable, v);
-				else if (r == 5)
-					mainSelection->setSampleProperty(SampleIds::PitchTable, v);
-				else
-					mainSelection->setSampleProperty(SampleIds::LowPassTable, v);
-
-				tl->setEnvelope(t, mainSelection);
-
-				if (t == EnvelopeType::GainMode || t == EnvelopeType::PanMode)
-					mainSelection->addEnvelopeProcessor(*currentWaveForm->getThumbnail());
-			}
-		}
-
-		Colour c = tl->tableEditor != nullptr ? tl->tableEditor->findColour(TableEditor::ColourIds::lineColour) : Colour(0xFFAAAAAA);
-
-		auto on = tl->tableEditor != nullptr;
-
-
-
-		if (on)
-		{
-			currentWaveForm->setClickArea(AudioDisplayComponent::numAreas);
-		}
-
-		envelopeButton->onColour = c;
-		envelopeButton->offColour = c;
-		envelopeButton->refreshButtonColours();
-
-#endif
 	}
 
 	KeyboardFocusTraverser* createFocusTraverser() override
 	{
 		return new SampleEditHandler::SubEditorTraverser(display);
 	}
+    
+    static void toolChanged(EnvelopePopup& p, SamplerTools::Mode m)
+    {
+        p.gain.showButton.setToggleStateAndUpdateIcon(m == SamplerTools::Mode::GainEnvelope);
+        p.pitch.showButton.setToggleStateAndUpdateIcon(m == SamplerTools::Mode::PitchEnvelope);
+        p.filter.showButton.setToggleStateAndUpdateIcon(m == SamplerTools::Mode::FilterEnvelope);
+    }
 
 	static void mainSelectionChanged(EnvelopePopup& p, ModulatorSamplerSound::Ptr s, int index)
 	{
@@ -847,6 +788,37 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 		tl.setEnvelope(tl.envelope, newSound, tl.envelope != Modulation::Mode::numModes);
 	});
 
+    handler->toolBroadcaster.broadcaster.addListener(*currentWaveForm, [](SamplerSoundWaveform& wf, SamplerTools::Mode m)
+    {
+        switch(m)
+        {
+            case SamplerTools::Mode::PlayArea: wf.setClickArea(SamplerSoundWaveform::PlayArea); break;
+            case SamplerTools::Mode::LoopArea: wf.setClickArea(SamplerSoundWaveform::LoopArea); break;
+            case SamplerTools::Mode::LoopCrossfadeArea: wf.setClickArea(SamplerSoundWaveform::LoopCrossfadeArea); break;
+            case SamplerTools::Mode::SampleStartArea: wf.setClickArea(SamplerSoundWaveform::SampleStartArea); break;
+            default:    wf.setClickArea(SamplerSoundWaveform::AreaTypes::numAreas); break;
+        }
+    });
+                                         
+    handler->toolBroadcaster.broadcaster.addListener(*dynamic_cast<SamplerDisplayWithTimeline*>(viewContent.get()), [&](SamplerDisplayWithTimeline& d, SamplerTools::Mode m)
+    {
+        switch(m)
+        {
+            case SamplerTools::Mode::GainEnvelope:
+                d.setEnvelope(Modulation::Mode::GainMode, handler->getMainSelection(), true);
+                break;
+            case SamplerTools::Mode::PitchEnvelope:
+                d.setEnvelope(Modulation::Mode::PitchMode, handler->getMainSelection(), true);
+                break;
+            case SamplerTools::Mode::FilterEnvelope:
+                d.setEnvelope(Modulation::Mode::PanMode, handler->getMainSelection(), true);
+                break;
+            default:
+                d.setEnvelope(Modulation::Mode::numModes, nullptr, true);
+                break;
+        }
+    });
+    
 	setFocusContainer(true);
 	setWantsKeyboardFocus(true);
 	addKeyListener(handler);
@@ -1587,16 +1559,13 @@ void SampleEditor::perform(SampleMapCommands c)
     case SampleMapCommands::SelectWithMidi:   sampler->setEditorState(ModulatorSampler::MidiSelectActive, !sampler->getEditorState(ModulatorSampler::MidiSelectActive));
         return;
     case SampleMapCommands::EnableSampleStartArea:
-        currentWaveForm->setClickArea(SamplerSoundWaveform::SampleStartArea);
-		tl->setEnvelope(Modulation::Mode::numModes, nullptr, false);
+        handler->toolBroadcaster.toggleMode(SamplerTools::Mode::SampleStartArea);
         return;
     case SampleMapCommands::EnableLoopArea:
-        currentWaveForm->setClickArea(SamplerSoundWaveform::LoopArea);
-		tl->setEnvelope(Modulation::Mode::numModes, nullptr, false);
+        handler->toolBroadcaster.toggleMode(SamplerTools::Mode::LoopArea);
         return;
     case SampleMapCommands::EnablePlayArea:
-        currentWaveForm->setClickArea(SamplerSoundWaveform::PlayArea);
-		tl->setEnvelope(Modulation::Mode::numModes, nullptr, false);
+        handler->toolBroadcaster.toggleMode(SamplerTools::Mode::PlayArea);
         return;
     case SampleMapCommands::ZeroCrossing:
         currentWaveForm->zeroCrossing = !currentWaveForm->zeroCrossing;

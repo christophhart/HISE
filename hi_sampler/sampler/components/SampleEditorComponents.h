@@ -41,6 +41,8 @@ class SamplerSoundWaveform;
 class SamplerSoundMap;
 
 
+
+
 /** A base class for all sample editing components.
 *
 *	It offers a synchronous callback system for selecting sounds with recursive protection.
@@ -212,6 +214,8 @@ public:
 
 	Colour getColourForSound(bool wantsOutlineColour) const;
 
+    SamplerTools::Mode getModeForSample() const;
+    
 	bool samplePathContains(Point<int> localPoint) const;
 
     void drawSampleRectangle(Graphics &g, Rectangle<int> area);
@@ -241,6 +245,11 @@ public:
 		bounds = Rectangle<int>(x, y, width, height);
 	}
 
+    void setToolMode(SamplerTools::Mode m)
+    {
+        toolMode = m;
+    }
+    
 	void setVisible(bool shouldBeVisible) { visible = shouldBeVisible; }
 	void setEnabled(bool shouldBeEnabled) { enabled = shouldBeEnabled; };
 
@@ -262,6 +271,7 @@ public:
 
 private:
 
+    SamplerTools::Mode toolMode = SamplerTools::Mode::Nothing;
 	bool isMainSelection = false;
 
 	friend class WeakReference < SampleComponent > ;
@@ -349,6 +359,14 @@ public:
 		}
 	}
 
+    static void updateToolMode(SamplerSoundMap& map, SamplerTools::Mode newMode)
+    {
+        for(auto s: map.sampleComponents)
+            s->setToolMode(newMode);
+        
+        map.repaint();
+    }
+    
 	void sampleAmountChanged() override
 	{
 		updateSampleComponents();
