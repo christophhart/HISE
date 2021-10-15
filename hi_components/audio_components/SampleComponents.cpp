@@ -571,6 +571,7 @@ void SamplerSoundWaveform::paint(Graphics &g)
 		drawSampleStartBar(g);
 	};
 
+#if USE_BACKEND
 	const auto& p = sampler->getSampleEditHandler()->getPreviewer();
 
 	auto previewStart = p.getPreviewStart();
@@ -605,6 +606,7 @@ void SamplerSoundWaveform::paint(Graphics &g)
 			g.drawText("Monolith", 0, 0, 80, 20, Justification::centred);
 		}
 	}
+#endif
 }
 
 void SamplerSoundWaveform::paintOverChildren(Graphics &g)
@@ -708,6 +710,7 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 
 void SamplerSoundWaveform::mouseDown(const MouseEvent& e)
 {
+#if USE_BACKEND
 	if (e.mods.isAnyModifierKeyDown())
 	{
 		auto mc = currentSound->getMainController();
@@ -755,14 +758,15 @@ void SamplerSoundWaveform::mouseDown(const MouseEvent& e)
         currentSound->setSampleProperty(propId, value, true);
         return;
     }
-    
-	
+#endif
 }
 
 void SamplerSoundWaveform::mouseUp(const MouseEvent& e)
 {
+#if USE_BACKEND
 	if(e.mods.isAnyModifierKeyDown())
 		const_cast<ModulatorSampler*>(sampler)->getSampleEditHandler()->togglePreview();
+#endif
 }
 
 void SamplerSoundWaveform::mouseMove(const MouseEvent& e)
