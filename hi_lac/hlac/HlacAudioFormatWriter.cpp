@@ -30,15 +30,15 @@
  *   ===========================================================================
  */
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
-HiseLosslessAudioFormatWriter::HiseLosslessAudioFormatWriter(EncodeMode mode_, OutputStream* output, double sampleRate, int numChannels, uint32* blockOffsetBuffer) :
-	AudioFormatWriter(output, "HLAC", sampleRate, numChannels, 16),
-	mode(mode_),
-	tempOutputStream(new MemoryOutputStream()),
-	blockOffsets(blockOffsetBuffer)
+HiseLosslessAudioFormatWriter::HiseLosslessAudioFormatWriter(EncodeMode mode_, juce::OutputStream* output, double sampleRate, int numChannels, uint32_t* blockOffsetBuffer) :
+    juce::AudioFormatWriter(output, "HLAC", sampleRate, numChannels, 16),
+    tempOutputStream(new juce::MemoryOutputStream()),
+    blockOffsets(blockOffsetBuffer),
+    mode(mode_)
 {
-	auto option = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Diff);
+	auto option = HlacEncoder::CompressorOptions::getPreset (HlacEncoder::CompressorOptions::Presets::Diff);
 
 	encoder.setOptions(option);
 
@@ -95,7 +95,7 @@ bool HiseLosslessAudioFormatWriter::write(const int** samplesToWrite, int numSam
 		{
 			float* const* r = const_cast<float**>(reinterpret_cast<const float**>(samplesToWrite));
 
-			AudioSampleBuffer b = AudioSampleBuffer(r, 2, numSamples);
+            auto b = juce::AudioSampleBuffer(r, 2, numSamples);
 
 			encoder.compress(b, *tempOutputStream, blockOffsets);
 		}
@@ -103,7 +103,7 @@ bool HiseLosslessAudioFormatWriter::write(const int** samplesToWrite, int numSam
 		{
 			float* r = const_cast<float*>(reinterpret_cast<const float*>(samplesToWrite[0]));
 
-			AudioSampleBuffer b = AudioSampleBuffer(&r, 1, numSamples);
+			auto b = juce::AudioSampleBuffer(&r, 1, numSamples);
 
 			encoder.compress(b, *tempOutputStream, blockOffsets);
 		}
@@ -114,15 +114,15 @@ bool HiseLosslessAudioFormatWriter::write(const int** samplesToWrite, int numSam
 		float* const* r = const_cast<float**>(reinterpret_cast<const float**>(samplesToWrite));
 		numChannels = isStereo ? 2 : 1;
 
-		AudioSampleBuffer source = AudioSampleBuffer(r, numChannels, numSamples);
+		auto source = juce::AudioSampleBuffer (r, numChannels, numSamples);
 
-		MemoryBlock tempBlock;
+        juce::MemoryBlock tempBlock;
 
-		const int bytesToWrite = numSamples * numChannels * sizeof(int16);
+		const int bytesToWrite = numSamples * numChannels * sizeof(int16_t);
 
 		tempBlock.setSize(bytesToWrite, false);
 
-		AudioFormatWriter::WriteHelper<AudioData::Int16, AudioData::Float32, AudioData::LittleEndian>::write(
+		AudioFormatWriter::WriteHelper<juce::AudioData::Int16, juce::AudioData::Float32, juce::AudioData::LittleEndian>::write(
 			tempBlock.getData(), numChannels, (const int* const *)source.getArrayOfReadPointers(), numSamples);
 
 		tempOutputStream->write(tempBlock.getData(), bytesToWrite);
@@ -142,38 +142,38 @@ void HiseLosslessAudioFormatWriter::setTemporaryBufferType(bool shouldUseTempora
 
 	if (shouldUseTemporaryFile)
 	{
-		FileOutputStream* fosOriginal = dynamic_cast<FileOutputStream*>(output);
+		auto* fosOriginal = dynamic_cast<juce::FileOutputStream*>(output);
 
 		const bool createTempFileInTargetDirectory = fosOriginal != nullptr;
 
 		if (createTempFileInTargetDirectory)
 		{
-			File originalFile = fosOriginal->getFile();
-			tempFile = new TemporaryFile(originalFile, TemporaryFile::OptionFlags::putNumbersInBrackets);
-			File tempTarget = tempFile->getFile();
-			tempOutputStream = new FileOutputStream(tempTarget);
+			auto originalFile = fosOriginal->getFile();
+			tempFile = std::make_unique<juce::TemporaryFile>(originalFile, juce::TemporaryFile::OptionFlags::putNumbersInBrackets);
+			auto tempTarget = tempFile->getFile();
+			tempOutputStream = tempFile->getFile().createOutputStream();
 		}
 		else
 		{
-			tempFile = new TemporaryFile(File::getCurrentWorkingDirectory(), TemporaryFile::OptionFlags::putNumbersInBrackets);
-			File tempTarget = tempFile->getFile();
+			tempFile = std::make_unique<juce::TemporaryFile>(juce::File::getCurrentWorkingDirectory(), juce::TemporaryFile::OptionFlags::putNumbersInBrackets);
+			auto tempTarget = tempFile->getFile();
 		}
 	}
 	else
 	{
-		tempOutputStream = new MemoryOutputStream();
+		tempOutputStream = std::make_unique<juce::MemoryOutputStream>();
 	}
 }
 
 
-void HiseLosslessAudioFormatWriter::preallocateMemory(int64 numSamplesToWrite, int numChannelsToAllocate)
+void HiseLosslessAudioFormatWriter::preallocateMemory(int64_t numSamplesToWrite, int numChannelsToAllocate)
 {
-	if (auto mos = dynamic_cast<MemoryOutputStream*>(tempOutputStream.get()))
+	if (auto* mos = dynamic_cast<juce::MemoryOutputStream*>(tempOutputStream.get()))
 	{
-		int64 b = numSamplesToWrite * numChannelsToAllocate * 2 * 2 / 3;
+		int64_t b = numSamplesToWrite * numChannelsToAllocate * 2 * 2 / 3;
 
 		// Set the limit to 1.5GB
-		int64 limit = 1024;
+		int64_t limit = 1024;
 		limit *= 1024;
 		limit *= 1024;
 		limit *= 3;
@@ -186,7 +186,7 @@ void HiseLosslessAudioFormatWriter::preallocateMemory(int64 numSamplesToWrite, i
 	}
 }
 
-int64 HiseLosslessAudioFormatWriter::getNumBytesWritten() const
+int64_t HiseLosslessAudioFormatWriter::getNumBytesWritten() const
 {
 	return numBytesWritten;
 }
@@ -223,20 +223,20 @@ bool HiseLosslessAudioFormatWriter::writeDataFromTemp()
 {
 	if (usesTempFile)
 	{
-		FileOutputStream* to = dynamic_cast<FileOutputStream*>(tempOutputStream.get());
+		auto* to = dynamic_cast<juce::FileOutputStream*>(tempOutputStream.get());
 
 		jassert(to != nullptr);
 
-		FileInputStream fis(to->getFile());
+        juce::FileInputStream fis(to->getFile());
 		return output->writeFromInputStream(fis, fis.getTotalLength()) == fis.getTotalLength();
 	}
 	else
 	{
-		MemoryOutputStream* to = dynamic_cast<MemoryOutputStream*>(tempOutputStream.get());
+		auto* to = dynamic_cast<juce::MemoryOutputStream*>(tempOutputStream.get());
 
 		jassert(to != nullptr);
 
-		MemoryInputStream mis(to->getData(), to->getDataSize(), false);
+        juce::MemoryInputStream mis(to->getData(), to->getDataSize(), false);
 		return output->writeFromInputStream(mis, mis.getTotalLength()) == mis.getTotalLength();
 	}
 }

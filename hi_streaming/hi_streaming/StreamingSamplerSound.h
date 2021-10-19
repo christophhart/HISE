@@ -34,7 +34,7 @@
 #ifndef STREAMINGSAMPLERSOUND_H_INCLUDED
 #define STREAMINGSAMPLERSOUND_H_INCLUDED
 
-namespace hise { using namespace juce;
+namespace hise {
 
 // ==================================================================================================================================================
 
@@ -44,7 +44,7 @@ namespace hise { using namespace juce;
 	This class is not directly used in HISE, but wrapped into a ModulatorSamplerSound which provides extra functionality.
 	However, if you roll your own sampler class and just need to reuse the streaming facilities, you can tinker around with this class.
 */
-class StreamingSamplerSound : public SynthesiserSound
+class StreamingSamplerSound : public juce::SynthesiserSound
 {
 public:
 
@@ -65,13 +65,13 @@ public:
 		*	@param fileName the file that caused the error.
 		*	@param errorDescription a description of what went wrong.
 		*/
-		LoadingError(const String &fileName_, const String &errorDescription_) :
+		LoadingError(const juce::String &fileName_, const juce::String &errorDescription_) :
 			fileName(fileName_),
 			errorDescription(errorDescription_)
 		{};
 
-		String fileName;
-		String errorDescription;
+        juce::String fileName;
+        juce::String errorDescription;
 	};
 
 	// ==============================================================================================================================================
@@ -82,7 +82,7 @@ public:
 	*	@param midiNotes the note map
 	*	@param midiNoteForNormalPitch the root note
 	*/
-	StreamingSamplerSound(const String &fileNameToLoad, StreamingSamplerSoundPool *pool);
+	StreamingSamplerSound(const juce::String &fileNameToLoad, StreamingSamplerSoundPool *pool);
 
 	/** Creates a new StreamingSamplerSound from a monolithic file. */
 	StreamingSamplerSound(MonolithInfoToUse *info, int channelIndex, int sampleIndex);
@@ -205,32 +205,32 @@ public:
 
 	int getBitRate() const;
 
-	bool replaceAudioFile(const AudioSampleBuffer& b);
+	bool replaceAudioFile(const juce::AudioSampleBuffer& b);
 
 	bool isMonolithic() const;
-	AudioFormatReader* createReaderForPreview();
+    juce::AudioFormatReader* createReaderForPreview();
 
-	AudioFormatReader* createReaderForAnalysis();
+    juce::AudioFormatReader* createReaderForAnalysis();
 
-	int64 getMonolithOffset() const { return fileReader.getMonolithOffset(); }
-	int64 getMonolithLength() const { return fileReader.getMonolithLength(); }
+	int64_t getMonolithOffset() const { return fileReader.getMonolithOffset(); }
+	int64_t getMonolithLength() const { return fileReader.getMonolithLength(); }
 	double getMonolithSampleRate() const { return fileReader.getMonolithSampleRate(); }
 
 	// ==============================================================================================================================================
 
-	String getFileName(bool getFullPath = false) const;
+    juce::String getFileName(bool getFullPath = false) const;
 
-	int64 getHashCode();
+	int64_t getHashCode();
 
 
 	void refreshFileInformation();
 	void checkFileReference();
-	void replaceFileReference(const String &newFileName);
+	void replaceFileReference(const juce::String &newFileName);
 
 	bool isMissing() const noexcept;
 	bool hasActiveState() const noexcept;
 
-	String getSampleStateAsString() const;;
+    juce::String getSampleStateAsString() const;;
 
 	// ==============================================================================================================================================
 
@@ -243,7 +243,7 @@ public:
 	};
 
 	/** Returns the length of the loaded audio file in samples. */
-	int64 getLengthInSamples() const noexcept { return fileReader.getSampleLength(); };
+	int64_t getLengthInSamples() const noexcept { return fileReader.getSampleLength(); };
 
 	/** Gets the sound into active memory.
 	*
@@ -280,9 +280,9 @@ public:
 
 	// ==============================================================================================================================================
 
-	typedef ReferenceCountedObjectPtr<StreamingSamplerSound> Ptr;
+	typedef juce::ReferenceCountedObjectPtr<StreamingSamplerSound> Ptr;
 
-	const CriticalSection& getSampleLock() const { return lock; };
+	const juce::CriticalSection& getSampleLock() const { return lock; };
 
     /** Use this in order to skip the preloading before all properties have been set. */
     void setDelayPreloadInitialisation(bool shouldDelay);
@@ -303,12 +303,12 @@ private:
 
 		// ==============================================================================================================================================
 
-		void setFile(const String &fileName);
+		void setFile(const juce::String &fileName);
 		void setMonolithicInfo(MonolithInfoToUse* info, int channelIndex, int sampleIndex);
 
-		String getFileName(bool getFullPath);
+        juce::String getFileName(bool getFullPath);
 		void checkFileReference();
-		int64 getHashCode() { return hashCode; };
+		int64_t getHashCode() { return hashCode; };
 
 		/** Refreshes the information about the file (if it is missing, if it supports memory-mapping). */
 		void refreshFileInformation();
@@ -316,25 +316,25 @@ private:
 		// ==============================================================================================================================================
 
 		/** Returns the best reader for the file. If a memorymapped reader can be used, it will return a MemoryMappedAudioFormatReader. */
-		AudioFormatReader *getReader();
+        juce::AudioFormatReader *getReader();
 
 		/** Encapsulates all reading operations. It will use the best available reader type and opens the file handle if it is not open yet. */
 		void readFromDisk(hlac::HiseSampleBuffer &buffer, int startSample, int numSamples, int readerPosition, bool useMemoryMappedReader);
 
 		/** Call this method if you want to close the file handle. If voices are playing, it won't close it. */
-		void closeFileHandles(NotificationType notifyPool = sendNotification);
+		void closeFileHandles(juce::NotificationType notifyPool = juce::sendNotification);
 
 		/** Call this method if you want to open the file handles. If you just want to read the file, you don't need to call it. */
-		void openFileHandles(NotificationType notifyPool = sendNotification);
+		void openFileHandles(juce::NotificationType notifyPool = juce::sendNotification);
 
 		// ==============================================================================================================================================
 
 		void increaseVoiceCount() { ++voiceCount; };
-		void decreaseVoiceCount() { --voiceCount; voiceCount.compareAndSetBool(0, -1); }
+        void decreaseVoiceCount() { --voiceCount; }
 
 		// ==============================================================================================================================================
 
-		bool isUsed() const noexcept { return voiceCount.get() != 0; }
+		bool isUsed() const noexcept { return voiceCount.load() != 0; }
 		bool isOpened() const noexcept { return fileHandlesOpen; }
 		bool isMonolithic() const noexcept { return monolithicInfo != nullptr; }
 
@@ -343,7 +343,7 @@ private:
 		bool isMissing() const { return missing; }
 		void setMissing() { missing = true; }
 
-		int64 getMonolithOffset() const
+		int64_t getMonolithOffset() const
 		{
 			if (monolithicInfo != nullptr)
 				return monolithicInfo->getMonolithOffset(monolithicIndex);
@@ -351,7 +351,7 @@ private:
 			return 0;
 		}
 
-		int64 getMonolithLength() const
+		int64_t getMonolithLength() const
 		{
 			if (monolithicInfo != nullptr)
 				return monolithicInfo->getMonolithLength(monolithicIndex);
@@ -359,7 +359,7 @@ private:
 			return 0;
 		}
 
-		int64 getSampleLength() const
+		int64_t getSampleLength() const
 		{
 			return sampleLength;
 		}
@@ -380,9 +380,9 @@ private:
 
 		float calculatePeakValue();
 
-		AudioFormatReader* createMonolithicReaderForPreview();
+        juce::AudioFormatReader* createMonolithicReaderForPreview();
 
-		AudioFormatWriter* createWriterWithSameFormat(OutputStream* out);
+        juce::AudioFormatWriter* createWriterWithSameFormat(juce::OutputStream* out);
 
 		// ==============================================================================================================================================
 
@@ -390,34 +390,34 @@ private:
 
 		StreamingSamplerSoundPool *pool;
 
-		ReferenceCountedObjectPtr<MonolithInfoToUse> monolithicInfo = nullptr;
+        juce::ReferenceCountedObjectPtr<MonolithInfoToUse> monolithicInfo = nullptr;
 		int monolithicIndex = -1;
 		int monolithicChannelIndex = -1;
-		String monolithicName;
+        juce::String monolithicName;
 
-		CriticalSection readLock2;
+        juce::CriticalSection readLock2;
 
-		ReadWriteLock fileAccessLock;
+        juce::ReadWriteLock fileAccessLock;
 
 		bool stereo = true;
 
 		bool isReading;
 
-		int64 sampleLength;
+		int64_t sampleLength;
 
-		File loadedFile;
+        juce::File loadedFile;
 
-		String faultyFileName;
+        juce::String faultyFileName;
 
-		int64 hashCode;
+		int64_t hashCode;
 
 		StreamingSamplerSound *sound;
 
-		ScopedPointer<MemoryMappedAudioFormatReader> memoryReader;
-		ScopedPointer<AudioFormatReader> normalReader;
+		std::unique_ptr<juce::MemoryMappedAudioFormatReader> memoryReader;
+        std::unique_ptr<juce::AudioFormatReader> normalReader;
 		bool fileHandlesOpen;
 
-		Atomic<int> voiceCount;
+        std::atomic<int> voiceCount {0};
 
         bool fileFormatSupportsMemoryReading = true;
 
@@ -429,9 +429,9 @@ private:
 
 	struct ScopedFileHandler
 	{
-		ScopedFileHandler(StreamingSamplerSound* s, NotificationType notifyPool_ = NotificationType::sendNotification) :
-			reader(s->fileReader),
-			notifyPool(notifyPool_)
+		ScopedFileHandler(StreamingSamplerSound* s, juce::NotificationType notifyPool_ = juce::NotificationType::sendNotification) :
+            notifyPool(notifyPool_),
+            reader(s->fileReader)
 		{
 			reader.openFileHandles(notifyPool);
 		}
@@ -441,7 +441,7 @@ private:
 			reader.closeFileHandles(notifyPool);
 		}
 
-		NotificationType notifyPool;
+        juce::NotificationType notifyPool;
 		FileReader& reader;
 	};
 
@@ -467,7 +467,7 @@ private:
 	// ==============================================================================================================================================
 
 
-	CriticalSection lock;
+    juce::CriticalSection lock;
 
 	mutable FileReader fileReader;
 
@@ -503,12 +503,12 @@ private:
 	int loopLength;
 	int crossfadeLength;
 
-	Range<int> crossfadeArea;
+    juce::Range<int> crossfadeArea;
 
-	int8 rootNote = 0;
+	int8_t rootNote = 0;
 	
-	BigInteger midiNotes = 0;
-	BigInteger velocityRange = 0;
+    juce::BigInteger midiNotes = 0;
+    juce::BigInteger velocityRange = 0;
 	
 	// contains the precalculated crossfade
 	hlac::HiseSampleBuffer loopBuffer;
@@ -517,10 +517,8 @@ private:
 
 	// ==============================================================================================================================================
 
-	friend class WeakReference < StreamingSamplerSound >;
-	WeakReference<StreamingSamplerSound>::Master masterReference;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StreamingSamplerSound)
+    JUCE_DECLARE_WEAK_REFERENCEABLE (StreamingSamplerSound)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StreamingSamplerSound)
 };
 
 } // namespace hise

@@ -30,17 +30,17 @@
  *   ===========================================================================
  */
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
-void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint32* blockOffsetData)
+void HlacEncoder::compress(juce::AudioSampleBuffer& source, juce::OutputStream& output, uint32_t* blockOffsetData)
 {
 	bool compressStereo = source.getNumChannels() == 2;
 
 	if (options.normalisationMode == CompressionHelpers::NormaliseMap::Mode::StaticNormalisation)
 	{
 		auto maxLevel = source.getMagnitude(0, source.getNumSamples());
-		auto db = -1.0f * Decibels::gainToDecibels(maxLevel);
-		currentNormaliseBitShiftAmount = jmin<int>(8, (int)(db / 6.0f));
+		auto db = -1.0f * juce::Decibels::gainToDecibels(maxLevel);
+		currentNormaliseBitShiftAmount = juce::jmin<int>(8, (int)(db / 6.0f));
 	}
 	else
 		currentNormaliseBitShiftAmount = 0;
@@ -65,14 +65,14 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint
 	}
 
 	blockOffset = 0;
-	int32 numSamplesRemaining = source.getNumSamples();
+	int32_t numSamplesRemaining = source.getNumSamples();
 
 	while (numSamplesRemaining >= COMPRESSION_BLOCK_SIZE)
 	{
 		blockOffsetData[blockIndex] = numBytesWritten;
 		++blockIndex;
 
-		uint32 numTodo = jmin<int>(COMPRESSION_BLOCK_SIZE, source.getNumSamples());
+		uint32_t numTodo = juce::jmin<int>(COMPRESSION_BLOCK_SIZE, source.getNumSamples());
 
 		if (compressStereo)
 		{
@@ -150,7 +150,7 @@ float HlacEncoder::getCompressionRatio() const
 	return (float)(numBytesWritten) / (float)(numBytesUncompressed);
 }
 
-bool HlacEncoder::encodeBlock(AudioSampleBuffer& block, OutputStream& output)
+bool HlacEncoder::encodeBlock(juce::AudioSampleBuffer& block, juce::OutputStream& output)
 {
 	auto block16 = CompressionHelpers::AudioBufferInt16(block, 0, options.normalisationMode, options.normalisationThreshold);
 
@@ -160,7 +160,7 @@ bool HlacEncoder::encodeBlock(AudioSampleBuffer& block, OutputStream& output)
 	return encodeBlock(block16, output);
 }
 
-bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, OutputStream& output)
+bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, juce::OutputStream& output)
 {
 	auto compressedBlock = createCompressedBlock(block16);
 	auto thisBlockSize = compressedBlock.getSize();
@@ -171,19 +171,19 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 	{
 		writeCycleHeader(true, 16, COMPRESSION_BLOCK_SIZE, output);
 
-		numBytesWritten += sizeof(int16)*COMPRESSION_BLOCK_SIZE + 3;
+		numBytesWritten += sizeof(int16_t)*COMPRESSION_BLOCK_SIZE + 3;
 
-		return output.write(block16.getReadPointer(), sizeof(int16) * COMPRESSION_BLOCK_SIZE);
+		return output.write(block16.getReadPointer(), sizeof(int16_t) * COMPRESSION_BLOCK_SIZE);
 	}
 	else
 	{
-		numBytesWritten += (uint32)compressedBlock.getSize();
+		numBytesWritten += (uint32_t)compressedBlock.getSize();
 		return output.write(compressedBlock.getData(), compressedBlock.getSize());
 	}
 }
 
 
-bool HlacEncoder::normaliseBlockAndAddHeader(CompressionHelpers::AudioBufferInt16& block16, OutputStream& output)
+bool HlacEncoder::normaliseBlockAndAddHeader(CompressionHelpers::AudioBufferInt16& block16, juce::OutputStream& output)
 {
 #if HLAC_VERSION > 2
 	numBytesWritten += 4;
@@ -191,11 +191,11 @@ bool HlacEncoder::normaliseBlockAndAddHeader(CompressionHelpers::AudioBufferInt1
 #endif
 }
 
-MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferInt16& block16)
+juce::MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferInt16& block16)
 {
 	jassert(block16.size == COMPRESSION_BLOCK_SIZE);
 
-	MemoryOutputStream blockMos;
+    juce::MemoryOutputStream blockMos;
 	blockMos.preallocate(COMPRESSION_BLOCK_SIZE * 2);
 
 	firstCycleLength = -1;
@@ -212,7 +212,7 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 		{
 			while (!isBlockExhausted())
 			{
-				int numRemaining = jmin<int>(options.fixedBlockWidth, COMPRESSION_BLOCK_SIZE - indexInBlock);
+				int numRemaining = juce::jmin<int>(options.fixedBlockWidth, COMPRESSION_BLOCK_SIZE - indexInBlock);
 				auto part = CompressionHelpers::getPart(block16, indexInBlock, numRemaining);
 				encodeCycle(part, blockMos);
 				indexInBlock += numRemaining;
@@ -244,7 +244,7 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 
 
 			if (!encodeCycleDelta(rest, blockMos))
-				return MemoryBlock();
+                return {};
 
 			indexInBlock += numRemaining;
 
@@ -263,7 +263,7 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 		else
 			idealCycleLength = firstCycleLength;
 
-		int cycleLength = idealCycleLength == 0 ? numRemaining : jmin<int>(numRemaining, idealCycleLength);
+		int cycleLength = idealCycleLength == 0 ? numRemaining : juce::jmin<int>(numRemaining, idealCycleLength);
 
 		currentCycle = CompressionHelpers::getPart(rest, 0, cycleLength);
 
@@ -287,7 +287,7 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 		indexInBlock += cycleLength;
 
 		if (!encodeCycle(currentCycle, blockMos))
-			return MemoryBlock();
+            return {};
 
 	}
 
@@ -295,7 +295,7 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 	return blockMos.getMemoryBlock();
 }
 
-uint8 HlacEncoder::getBitReductionAmountForMSEncoding(AudioSampleBuffer& block)
+uint8_t HlacEncoder::getBitReductionAmountForMSEncoding (juce::AudioSampleBuffer& block)
 {
 	ignoreUnused(block);
 
@@ -332,7 +332,7 @@ uint8 HlacEncoder::getBitReductionAmountForMSEncoding(AudioSampleBuffer& block)
 }
 
 
-bool HlacEncoder::writeChecksumBytesForBlock(OutputStream& output)
+bool HlacEncoder::writeChecksumBytesForBlock (juce::OutputStream& output)
 {
 	
 	auto checkSum = CompressionHelpers::Misc::createChecksum();
@@ -344,10 +344,10 @@ bool HlacEncoder::writeChecksumBytesForBlock(OutputStream& output)
 	return true;
 }
 
-bool HlacEncoder::writeNormalisationAmount(OutputStream& output)
+bool HlacEncoder::writeNormalisationAmount (juce::OutputStream& output)
 {
 #if HLAC_VERSION > 2
-	if (!output.writeByte((uint8)currentNormaliseBitShiftAmount))
+	if (!output.writeByte((uint8_t)currentNormaliseBitShiftAmount))
 		return false;
 
 	numBytesWritten += 1;
@@ -357,7 +357,7 @@ bool HlacEncoder::writeNormalisationAmount(OutputStream& output)
 #endif
 }
 
-bool HlacEncoder::writeUncompressed(CompressionHelpers::AudioBufferInt16& block, OutputStream& output)
+bool HlacEncoder::writeUncompressed(CompressionHelpers::AudioBufferInt16& block, juce::OutputStream& output)
 {
 	jassert(block.size == COMPRESSION_BLOCK_SIZE);
 
@@ -369,7 +369,7 @@ bool HlacEncoder::writeUncompressed(CompressionHelpers::AudioBufferInt16& block,
 	return output.write(block.getReadPointer(), block.size * 2);
 }
 
-bool HlacEncoder::encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, OutputStream& output)
+bool HlacEncoder::encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, juce::OutputStream& output)
 {
 	if (cycle.size == 0)
 		return true;
@@ -387,9 +387,9 @@ bool HlacEncoder::encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, Outpu
 
 	if (numBytesToWrite > 0)
 	{
-		MemoryBlock mb;
+        juce::MemoryBlock mb;
 		mb.setSize(numBytesToWrite, true);
-		compressor->compress((uint8*)mb.getData(), cycle.getReadPointer(), cycle.size);
+		compressor->compress((uint8_t*)mb.getData(), cycle.getReadPointer(), cycle.size);
 
 		bool checkDecompression = false;
 
@@ -397,10 +397,10 @@ bool HlacEncoder::encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, Outpu
 		{
 			CompressionHelpers::AudioBufferInt16 shouldBeZero(cycle.size);
 
-			memcpy(shouldBeZero.getWritePointer(), cycle.getReadPointer(), sizeof(int16)*cycle.size);
+			memcpy(shouldBeZero.getWritePointer(), cycle.getReadPointer(), sizeof(int16_t)*cycle.size);
 
 
-			compressor->decompress(shouldBeZero.getWritePointer(), (uint8*)mb.getData(), cycle.size);
+			compressor->decompress(shouldBeZero.getWritePointer(), (uint8_t*)mb.getData(), cycle.size);
 
 			CompressionHelpers::IntVectorOperations::sub(shouldBeZero.getWritePointer(), cycle.getReadPointer(), cycle.size);
 			
@@ -416,7 +416,7 @@ bool HlacEncoder::encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, Outpu
 }
 
 
-bool HlacEncoder::encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, OutputStream& output)
+bool HlacEncoder::encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, juce::OutputStream& output)
 {
 	jassert(cycle.size % 4 == 0);
 
@@ -444,9 +444,9 @@ bool HlacEncoder::encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, Output
 
 	if (numBytesForFull > 0)
 	{
-		MemoryBlock mbFull;
+        juce::MemoryBlock mbFull;
 		mbFull.setSize(numBytesForFull);
-		compressorFull->compress((uint8*)mbFull.getData(), packedBuffer.getReadPointer(), numFullValues);
+		compressorFull->compress((uint8_t*)mbFull.getData(), packedBuffer.getReadPointer(), numFullValues);
 
 		if (!output.write(mbFull.getData(), numBytesForFull))
 			return false;
@@ -456,9 +456,9 @@ bool HlacEncoder::encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, Output
 
 	if (numBytesForError > 0)
 	{
-		MemoryBlock mbError;
+        juce::MemoryBlock mbError;
 		mbError.setSize(numBytesForError);
-		compressorError->compress((uint8*)mbError.getData(), packedErrorBuffer.getReadPointer(), numErrorValues);
+		compressorError->compress((uint8_t*)mbError.getData(), packedErrorBuffer.getReadPointer(), numErrorValues);
 
 		
 
@@ -469,7 +469,7 @@ bool HlacEncoder::encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, Output
 	
 }
 
-bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCycle, OutputStream& output)
+bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCycle, juce::OutputStream& output)
 {
 	jassertfalse;
 
@@ -492,20 +492,20 @@ bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCyc
 
 	if (numBytesToWrite > 0)
 	{
-		MemoryBlock mb;
+        juce::MemoryBlock mb;
 		mb.setSize(numBytesToWrite, true);
-		compressor->compress((uint8*)mb.getData(), workBuffer.getReadPointer(), nextCycle.size);
+		compressor->compress((uint8_t*)mb.getData(), workBuffer.getReadPointer(), nextCycle.size);
 		return output.write(mb.getData(), numBytesToWrite);
 	}
     
     return true;
 }
 
-bool HlacEncoder::writeCycleHeader(bool isTemplate, int bitDepth, int numSamples, OutputStream& output)
+bool HlacEncoder::writeCycleHeader(bool isTemplate, int bitDepth, int numSamples, juce::OutputStream& output)
 {
 	jassert(bitDepth != 15);
 
-	uint8 headerByte = (uint8)bitDepth;
+	uint8_t headerByte = (uint8_t)bitDepth;
 	
 	if (isTemplate)
 		headerByte |= 0x20;
@@ -513,34 +513,34 @@ bool HlacEncoder::writeCycleHeader(bool isTemplate, int bitDepth, int numSamples
 	if (!output.writeByte(headerByte))
 		return false;
 
-	return output.writeShort((int16)numSamples);
+	return output.writeShort((int16_t)numSamples);
 }
 
 
-bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSize, OutputStream& output)
+bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSize, juce::OutputStream& output)
 {
-	uint8 firstbyte = 0xC0;
-	firstbyte |= (uint8)fullBitRate;
+	uint8_t firstbyte = 0xC0;
+	firstbyte |= (uint8_t)fullBitRate;
 	
 	if (!output.writeByte(firstbyte))
 		return false;
 
-	uint8 secondByte = (uint8)errorBitRate;
-	uint8 blockSizeLog = (uint8)log2(blockSize) & 0x0F;
-	uint16 shortPacked = ((uint16)secondByte << 8) | (uint16)blockSizeLog;
+	auto secondByte = (uint8_t)errorBitRate;
+	auto blockSizeLog = (uint8_t)log2(blockSize) & 0x0F;
+	auto shortPacked = ((uint16_t)secondByte << 8) | (uint16_t)blockSizeLog;
 
 	return output.writeShort(shortPacked);
 }
 
 
-void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output)
+void HlacEncoder::encodeLastBlock(juce::AudioSampleBuffer& block, juce::OutputStream& output)
 {
 	CompressionHelpers::AudioBufferInt16 a(block, 0, options.normalisationMode, options.normalisationThreshold);
 
 	normaliseBlockAndAddHeader(a, output);
 	writeChecksumBytesForBlock(output);
 	
-	MemoryOutputStream lastTemp;
+    juce::MemoryOutputStream lastTemp;
 
 	if (options.fixedBlockWidth > 0)
 	{
@@ -548,7 +548,7 @@ void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output
 
 		while (indexInBlock < a.size)
 		{
-			int numRemaining = jmin<int>(a.size - indexInBlock, options.fixedBlockWidth);
+			int numRemaining = juce::jmin<int>(a.size - indexInBlock, options.fixedBlockWidth);
 
 			auto part = CompressionHelpers::getPart(a, indexInBlock, numRemaining);
 
@@ -571,7 +571,7 @@ void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output
 
 	output.write(lastTemp.getData(), lastTemp.getDataSize());
 
-	numBytesWritten += (uint32)lastTemp.getDataSize();
+	numBytesWritten += (uint32_t)lastTemp.getDataSize();
 }
 
 

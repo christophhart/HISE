@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
 HiseSampleBuffer::HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset)
 {
@@ -59,7 +59,7 @@ void HiseSampleBuffer::reverse(int startSample, int numSamples)
 	{
 		floatBuffer.reverse(startSample, numSamples);
 
-		int fadeLength = jmin<int>(500, numSamples);
+		int fadeLength = juce::jmin<int>(500, numSamples);
 
 		floatBuffer.applyGainRamp(numSamples - fadeLength, fadeLength, 1.0f, 0.0f);
 
@@ -80,7 +80,7 @@ void HiseSampleBuffer::reverse(int startSample, int numSamples)
 
 void HiseSampleBuffer::setSize(int numChannels_, int numSamples)
 {
-	jassert(isPositiveAndBelow(numChannels, 3));
+	jassert(juce::isPositiveAndBelow(numChannels, 3));
 
 
 
@@ -149,7 +149,7 @@ void HiseSampleBuffer::allocateNormalisationTables(int offsetToUse)
 }
 
 
-void HiseSampleBuffer::flushNormalisationInfo(Range<int> rangeToFlush)
+void HiseSampleBuffer::flushNormalisationInfo(juce::Range<int> rangeToFlush)
 {
 	//DBG("-- FLUSHING {" + String(rangeToFlush.getStart()) + ", " + String(rangeToFlush.getEnd()) + "}");
 
@@ -158,10 +158,10 @@ void HiseSampleBuffer::flushNormalisationInfo(Range<int> rangeToFlush)
 
 	auto offset = getNormaliseMap(0).getOffset();
 
-	int numToFlush = jmin<int>(size, rangeToFlush.getLength());
+	int numToFlush = juce::jmin<int>(size, rangeToFlush.getLength());
 
-	uint8 lastL = 128;
-	uint8 lastR = 128;
+	uint8_t lastL = 128;
+	uint8_t lastR = 128;
 
 	int currentStart = 0;
 	int currentEnd = 0;
@@ -170,14 +170,14 @@ void HiseSampleBuffer::flushNormalisationInfo(Range<int> rangeToFlush)
 
 	while (numToFlush > 0)
 	{
-		int numThisTime = jmin<int>(numToFlush, 1024 - (thisIndex % 1024));
+		int numThisTime = juce::jmin<int>(numToFlush, 1024 - (thisIndex % 1024));
 
 		//DBG("--- READING " + String(numThisTime) + " / " + String(numToFlush) + " at " + String(thisIndex));
 
 		auto pos = lMap.getIndexForSamplePosition(thisIndex);
 
-		uint8 nextL = lMap.getTableData()[pos];
-		uint8 nextR = rMap.getTableData()[pos];
+		uint8_t nextL = lMap.getTableData()[pos];
+		uint8_t nextR = rMap.getTableData()[pos];
 
 		currentEnd += numThisTime;
 		numToFlush -= numThisTime;
@@ -241,12 +241,12 @@ hlac::FixedSampleBuffer& HiseSampleBuffer::getFixedBuffer(int channelIndex)
 
 void HiseSampleBuffer::convertToFloatWithNormalisation(float** data, int numTargetChannels, int startSampleInSource, int numSamples) const
 {
-	Range<int> rangeInBuffer({ startSampleInSource, startSampleInSource + numSamples });
+    juce::Range<int> rangeInBuffer({ startSampleInSource, startSampleInSource + numSamples });
 
 	if (useOneMap)
 	{
 		float* ptr = data[0];
-		auto int_ptr = static_cast<const int16*>(getReadPointer(0, startSampleInSource));
+		auto int_ptr = static_cast<const int16_t*>(getReadPointer(0, startSampleInSource));
 
 		CompressionHelpers::fastInt16ToFloat(int_ptr, ptr, numSamples);
 
@@ -254,7 +254,7 @@ void HiseSampleBuffer::convertToFloatWithNormalisation(float** data, int numTarg
 
 		if (numTargetChannels == 2)
 		{
-			FloatVectorOperations::copy(data[1], data[0], numSamples);
+            juce::FloatVectorOperations::copy(data[1], data[0], numSamples);
 		}
 	}
 	else
@@ -262,8 +262,8 @@ void HiseSampleBuffer::convertToFloatWithNormalisation(float** data, int numTarg
 		float* l_ptr = data[0];
 		float* r_ptr = numTargetChannels == 2 ? data[1] : nullptr;
 
-		auto int_l_ptr = static_cast<const int16*>(getReadPointer(0, startSampleInSource));
-		auto int_r_ptr = static_cast<const int16*>(getReadPointer(1, startSampleInSource));
+		auto int_l_ptr = static_cast<const int16_t*>(getReadPointer(0, startSampleInSource));
+		auto int_r_ptr = static_cast<const int16_t*>(getReadPointer(1, startSampleInSource));
 		
 		CompressionHelpers::fastInt16ToFloat(int_l_ptr, l_ptr, numSamples);
 		
@@ -275,7 +275,7 @@ void HiseSampleBuffer::convertToFloatWithNormalisation(float** data, int numTarg
 }
 
 
-void HiseSampleBuffer::clearNormalisation(Range<int> r)
+void HiseSampleBuffer::clearNormalisation(juce::Range<int> r)
 {
 	if (r.getStart() == 0 && r.getLength() == size)
 		normaliser.clear();
@@ -297,7 +297,7 @@ void HiseSampleBuffer::burnNormalisation()
 	if (getNumSamples() == 0)
 		return;
 
-	AudioSampleBuffer fb(getNumChannels(), getNumSamples());
+    juce::AudioSampleBuffer fb(getNumChannels(), getNumSamples());
 	convertToFloatWithNormalisation(fb.getArrayOfWritePointers(), getNumChannels(), 0, getNumSamples());
 
 	auto l = leftIntBuffer.getWritePointer(0);
@@ -308,10 +308,10 @@ void HiseSampleBuffer::burnNormalisation()
 
 	for (int i = 0; i < fb.getNumSamples(); i++)
 	{
-		l[i] = (int16)(int)(lr[i] * INT16_MAX);
+		l[i] = (int16_t)(int)(lr[i] * INT16_MAX);
 
 		if(r != nullptr)
-			r[i] = (int16)(int)(rr[i] * INT16_MAX);
+			r[i] = (int16_t)(int)(rr[i] * INT16_MAX);
 	}
 
 	normaliser.clear();
@@ -319,7 +319,7 @@ void HiseSampleBuffer::burnNormalisation()
 
 void HiseSampleBuffer::copyNormalisationRanges(const HiseSampleBuffer& otherBuffer, int startOffsetInBuffer)
 {
-	Range<int> rangeToClear({ startOffsetInBuffer, startOffsetInBuffer + otherBuffer.size });
+    juce::Range<int> rangeToClear({ startOffsetInBuffer, startOffsetInBuffer + otherBuffer.size });
 
 	clearNormalisation(rangeToClear);
 
@@ -341,8 +341,8 @@ void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& sourc
 	if (numSamples <= 0)
 		return;
 
-    jassert(isPositiveAndBelow(startSampleDst + numSamples, dst.getNumSamples()+1));
-    jassert(isPositiveAndBelow(startSampleSource + numSamples, source.getNumSamples()+1));
+    jassert(juce::isPositiveAndBelow(startSampleDst + numSamples, dst.getNumSamples()+1));
+    jassert(juce::isPositiveAndBelow(startSampleSource + numSamples, source.getNumSamples()+1));
     
 	if (source.isFloatingPoint() == dst.isFloatingPoint())
 	{
@@ -362,7 +362,7 @@ void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& sourc
 		}
 		else
 		{
-			auto byteToCopy = sizeof(int16) * numSamples;
+			auto byteToCopy = sizeof(int16_t) * numSamples;
 
 			memcpy(dst.getWritePointer(0, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
 
@@ -374,8 +374,8 @@ void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& sourc
 					memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
 			}
 
-			Range<int> srcRange({ startSampleSource, startSampleSource + numSamples });
-			Range<int> dstRange({ startSampleDst, startSampleDst + numSamples });
+            juce::Range<int> srcRange({ startSampleSource, startSampleSource + numSamples });
+            juce::Range<int> dstRange({ startSampleDst, startSampleDst + numSamples });
 
 			dst.normaliser.copyFrom(source.normaliser, srcRange, dstRange);
 		}
@@ -438,7 +438,7 @@ void HiseSampleBuffer::add(HiseSampleBuffer& dst, const HiseSampleBuffer& source
 
 void* HiseSampleBuffer::getWritePointer(int channel, int startSample)
 {
-    jassert(isPositiveAndBelow(startSample, size));
+    jassert(juce::isPositiveAndBelow(startSample, size));
     
 	if (isFloatingPoint())
 	{
@@ -498,7 +498,7 @@ void HiseSampleBuffer::applyGainRamp(int channelIndex, int startOffset, int ramp
 	}
 }
 
-AudioSampleBuffer* HiseSampleBuffer::getFloatBufferForFileReader()
+juce::AudioSampleBuffer* HiseSampleBuffer::getFloatBufferForFileReader()
 {
 	jassert(isFloatingPoint());
 
@@ -536,7 +536,7 @@ void HiseSampleBuffer::minimizeNormalisationInfo()
 	}
 }
 
-void HiseSampleBuffer::Normaliser::clear(Range<int> rangeToClear /*= Range<int>()*/)
+void HiseSampleBuffer::Normaliser::clear(juce::Range<int> rangeToClear /*= Range<int>()*/)
 {
 	if (rangeToClear.isEmpty())
 		infos.clearQuick();
@@ -572,7 +572,7 @@ void HiseSampleBuffer::Normaliser::clear(Range<int> rangeToClear /*= Range<int>(
 	}
 }
 
-void HiseSampleBuffer::Normaliser::apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const
+void HiseSampleBuffer::Normaliser::apply(float* dataLWithoutOffset, float* dataRWithoutOffset, juce::Range<int> rangeInData) const
 {
 	for (const auto& i : infos)
 	{
@@ -580,7 +580,7 @@ void HiseSampleBuffer::Normaliser::apply(float* dataLWithoutOffset, float* dataR
 	}
 }
 
-void HiseSampleBuffer::Normaliser::copyFrom(const Normaliser& source, Range<int> srcRange, Range<int> dstRange)
+void HiseSampleBuffer::Normaliser::copyFrom(const Normaliser& source, juce::Range<int> srcRange, juce::Range<int> dstRange)
 {
 	int offset = dstRange.getStart() - srcRange.getStart();
 	
@@ -661,11 +661,11 @@ bool HiseSampleBuffer::Normaliser::NormalisationInfo::canBeJoined(const Normalis
 
 void HiseSampleBuffer::Normaliser::NormalisationInfo::join(NormalisationInfo&& other)
 {
-	range = { jmin<int>(range.getStart(), other.range.getStart()),
-			 jmax<int>(range.getEnd(), other.range.getEnd()) };
+	range = { juce::jmin<int>(range.getStart(), other.range.getStart()),
+        juce::jmax<int>(range.getEnd(), other.range.getEnd()) };
 }
 
-void HiseSampleBuffer::Normaliser::NormalisationInfo::apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const
+void HiseSampleBuffer::Normaliser::NormalisationInfo::apply(float* dataLWithoutOffset, float* dataRWithoutOffset, juce::Range<int> rangeInData) const
 {
 	auto intersection = range.getIntersectionWith(rangeInData);
 
@@ -678,11 +678,11 @@ void HiseSampleBuffer::Normaliser::NormalisationInfo::apply(float* dataLWithoutO
 
 		int offsetInFloatArray = intersection.getStart() - rangeInData.getStart();
 
-		FloatVectorOperations::multiply(dataLWithoutOffset + offsetInFloatArray, lGain, l);
+        juce::FloatVectorOperations::multiply(dataLWithoutOffset + offsetInFloatArray, lGain, l);
 
 		if (dataRWithoutOffset != nullptr)
 		{
-			FloatVectorOperations::multiply(dataRWithoutOffset + offsetInFloatArray, rGain, l);
+            juce::FloatVectorOperations::multiply(dataRWithoutOffset + offsetInFloatArray, rGain, l);
 		}
 	}
 }

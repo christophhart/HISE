@@ -33,9 +33,9 @@
 #ifndef SAMPLETHREADPOOL_H_INCLUDED
 #define SAMPLETHREADPOOL_H_INCLUDED
 
-namespace hise { using namespace juce;
+namespace hise {
 
-class SampleThreadPool : public Thread
+class SampleThreadPool : public juce::Thread
 {
 public:
 
@@ -48,13 +48,13 @@ public:
 	{
 	public:
 
-		Job(const String &name_) : 
-			name(name_),
-			queued(false),
-			running(false),
-			shouldStop(false)
-		{};
-        
+        Job(const juce::String &name_) :
+            queued(false),
+            running(false),
+            shouldStop(false),
+            name(name_)
+        {}
+
         virtual ~Job() { masterReference.clear(); }
 
 		enum JobStatus
@@ -82,15 +82,15 @@ public:
 	private:
 
 		friend class SampleThreadPool;
-        friend class WeakReference<Job>;
-        WeakReference<Job>::Master masterReference;
 
 		std::atomic<bool> queued;
 		std::atomic<bool> running;
 		std::atomic<bool> shouldStop;
 		std::atomic<Thread*> currentThread;
 
-		const String name;
+		const juce::String name;
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE (Job)
 	};
 
 	double getDiskUsage() const noexcept;
@@ -104,7 +104,7 @@ public:
 	struct Pimpl;
 
 	
-	ScopedPointer<Pimpl> pimpl;
+	std::unique_ptr<Pimpl> pimpl;
 
 };
 

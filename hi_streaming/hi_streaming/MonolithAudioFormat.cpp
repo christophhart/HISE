@@ -30,11 +30,11 @@
 *   ===========================================================================
 */
 
-namespace hise { using namespace juce;
+namespace hise {
 
 #if USE_OLD_MONOLITH_FORMAT
 
-void HiseMonolithAudioFormat::fillMetadataInfo(const ValueTree &sampleMap)
+void HiseMonolithAudioFormat::fillMetadataInfo(const juce::ValueTree &sampleMap)
 {
 	int numChannels = sampleMap.getChild(0).getNumChildren();
 	if (numChannels == 0) numChannels = 1;
@@ -107,14 +107,14 @@ void HiseMonolithAudioFormat::fillMetadataInfo(const ValueTree &sampleMap)
 
 #else
 
-void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
+void HlacMonolithInfo::fillMetadataInfo(const juce::ValueTree& sampleMap)
 {
 	int numChannels = sampleMap.getChild(0).getNumChildren();
 	if (numChannels == 0) numChannels = 1;
 
 	int numSplitFiles = (int)sampleMap.getProperty("MonolithSplitAmount", 0);
 
-	numChannels = jmax(numSplitFiles, numChannels);
+	numChannels = std::max(numSplitFiles, numChannels);
 
 	multiChannelSampleInformation.reserve(numChannels);
 
@@ -128,7 +128,7 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 
 	for (int i = 0; i < sampleMap.getNumChildren(); i++)
 	{
-		ValueTree sample = sampleMap.getChild(i);
+        auto sample = sampleMap.getChild(i);
 
 		if (!sample.hasProperty("MonolithLength") || !sample.hasProperty("MonolithOffset"))
 		{
@@ -181,8 +181,8 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
         else
             dummyReader.sampleRate = multiChannelSampleInformation[i][0].sampleRate;
 
-		const int bytesPerFrame = sizeof(int16) * dummyReader.numChannels;
-		FileInputStream fis(monolithicFiles[i]);
+		const int bytesPerFrame = sizeof(int16_t) * dummyReader.numChannels;
+        juce::FileInputStream fis(monolithicFiles[i]);
         
         if(fis.getTotalLength() == 0)
         {
@@ -193,7 +193,7 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
         
 		dummyReader.lengthInSamples = (fis.getTotalLength() - 1) / bytesPerFrame;
 
-		ScopedPointer<MemoryMappedAudioFormatReader> reader = hlaf.createMemoryMappedReader(monolithicFiles[i]);
+        juce::ScopedPointer<juce::MemoryMappedAudioFormatReader> reader = hlaf.createMemoryMappedReader(monolithicFiles[i]);
 
 		
 
@@ -202,7 +202,7 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 
 		memoryReaders.add(dynamic_cast<hlac::HlacMemoryMappedAudioFormatReader*>(reader.release()));
 
-		memoryReaders.getLast()->setTargetAudioDataType(AudioDataConverters::DataFormat::int16BE);
+		memoryReaders.getLast()->setTargetAudioDataType(juce::AudioDataConverters::DataFormat::int16BE);
 
 		if (memoryReaders.getLast()->getMappedSection().isEmpty())
 		{

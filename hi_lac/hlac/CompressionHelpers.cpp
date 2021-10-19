@@ -30,9 +30,9 @@
  *   ===========================================================================
  */
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
-CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, uint8 normalizeBeforeStoring, uint8 normalisationThreshold)
+CompressionHelpers::AudioBufferInt16::AudioBufferInt16(juce::AudioSampleBuffer& b, int channelToUse, uint8_t normalizeBeforeStoring, uint8_t normalisationThreshold)
 {
 	allocate(b.getNumSamples());
 	
@@ -45,11 +45,11 @@ CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int
 	}
 	else
 	{
-		AudioDataConverters::convertFloatToInt16LE(b.getReadPointer(channelToUse), data, b.getNumSamples());
+        juce::AudioDataConverters::convertFloatToInt16LE(b.getReadPointer(channelToUse), data, b.getNumSamples());
 	}
 }
 
-CompressionHelpers::AudioBufferInt16::AudioBufferInt16(int16* externalData_, int numSamples)
+CompressionHelpers::AudioBufferInt16::AudioBufferInt16(int16_t* externalData_, int numSamples)
 {
 	size = numSamples;
 
@@ -58,10 +58,10 @@ CompressionHelpers::AudioBufferInt16::AudioBufferInt16(int16* externalData_, int
 	externalData = externalData_;
 }
 
-CompressionHelpers::AudioBufferInt16::AudioBufferInt16(const int16* externalData_, int numSamples)
+CompressionHelpers::AudioBufferInt16::AudioBufferInt16(const int16_t* externalData_, int numSamples)
 {
 	size = numSamples;
-	externalData = const_cast<int16*>(externalData_);
+	externalData = const_cast<int16_t*>(externalData_);
 	isReadOnly = true;
 }
 
@@ -76,9 +76,9 @@ CompressionHelpers::AudioBufferInt16::~AudioBufferInt16()
 	deAllocate();
 }
 
-AudioSampleBuffer CompressionHelpers::AudioBufferInt16::getFloatBuffer() const
+juce::AudioSampleBuffer CompressionHelpers::AudioBufferInt16::getFloatBuffer() const
 {
-	AudioSampleBuffer b(1, size);
+    juce::AudioSampleBuffer b(1, size);
 
 	map.normalisedInt16ToFloat(b.getWritePointer(0), data, 0, size);
 
@@ -96,12 +96,12 @@ void CompressionHelpers::AudioBufferInt16::reverse(int startSample, int numSampl
 
 	for (int i = 0; i < numToReverse; i++)
 	{
-		int16 temp = *s;
+		int16_t temp = *s;
 		*s++ = *t;
 		*t-- = temp;
 	}
 
-	const int fadeLength = jmin<int>(500, numSamples-1);
+	const int fadeLength = juce::jmin<int>(500, numSamples-1);
 
 	auto s2 = getWritePointer(startSample + numSamples - fadeLength);
 	
@@ -109,7 +109,7 @@ void CompressionHelpers::AudioBufferInt16::reverse(int startSample, int numSampl
 
 	for (int i = 0; i < fadeLength; i++)
 	{
-		s2[i] = (int16)((float)s2[i] * g);
+		s2[i] = (int16_t)((float)s2[i] * g);
 		g -= 1.0f / (float)(fadeLength-1);
 	}
 
@@ -117,7 +117,7 @@ void CompressionHelpers::AudioBufferInt16::reverse(int startSample, int numSampl
 
 void CompressionHelpers::AudioBufferInt16::negate()
 {
-	int16* d = getWritePointer();
+	auto* d = getWritePointer();
 
 	for (int i = 0; i < size; i++)
 	{
@@ -128,9 +128,9 @@ void CompressionHelpers::AudioBufferInt16::negate()
 
 void CompressionHelpers::AudioBufferInt16::applyGainRamp(int startOffset, int rampLength, float startGain, float endGain)
 {
-	int16* d = getWritePointer(startOffset);
+	auto* d = getWritePointer(startOffset);
 
-	const int numToDo = jmin<int>(size - startOffset, rampLength);
+	const int numToDo = juce::jmin<int>(size - startOffset, rampLength);
 
 	const float delta = (endGain - startGain) / (float)(rampLength-1);
 
@@ -138,12 +138,12 @@ void CompressionHelpers::AudioBufferInt16::applyGainRamp(int startOffset, int ra
 
 	for (int i = 0; i < numToDo; i++)
 	{
-		d[i] = (int16)(level * (float)d[i]);
+		d[i] = (int16_t)(level * (float)d[i]);
 		level += delta;
 	}
 }
 
-int16* CompressionHelpers::AudioBufferInt16::getWritePointer(int startSample /*= 0*/)
+int16_t* CompressionHelpers::AudioBufferInt16::getWritePointer(int startSample /*= 0*/)
 {
 	jassert(startSample < size);
 
@@ -157,7 +157,7 @@ int16* CompressionHelpers::AudioBufferInt16::getWritePointer(int startSample /*=
 	return externalData != nullptr ? externalData + startSample : data + startSample;
 }
 
-const int16* CompressionHelpers::AudioBufferInt16::getReadPointer(int startSample /*= 0*/) const
+const int16_t* CompressionHelpers::AudioBufferInt16::getReadPointer(int startSample /*= 0*/) const
 {
 	jassert(startSample < size);
 	
@@ -171,15 +171,15 @@ void CompressionHelpers::AudioBufferInt16::allocate(int newNumSamples)
 	if (size != 0)
 	{
 #if  JUCE_WINDOWS
-		data = static_cast<int16*>(_aligned_malloc(size * sizeof(int16), 16));
+		data = static_cast<int16_t*>(_aligned_malloc(size * sizeof(int16_t), 16));
 #else
-        data = static_cast<int16*>(malloc(size * sizeof(int16)));
+        data = static_cast<int16_t*>(malloc(size * sizeof(int16_t)));
 #endif
 
         jassert(data != nullptr);
         
 		if (data != nullptr)
-			memset(data, 0, size * sizeof(int16));
+			memset(data, 0, size * sizeof(int16_t));
 		else
 			size = 0;
 	}
@@ -198,64 +198,57 @@ void CompressionHelpers::AudioBufferInt16::deAllocate()
 	}
 }
 
-AudioSampleBuffer CompressionHelpers::loadFile(const File& f, double& speed)
+juce::AudioSampleBuffer CompressionHelpers::loadFile(const juce::File& f, double& speed)
 {
 	if (!f.existsAsFile())
 	{
-		throw String("File " + f.getFullPathName() + " does not exist");
+		throw juce::String("File " + f.getFullPathName() + " does not exist");
 	}
 	
-	AudioFormatManager afm;
+    juce::AudioFormatManager afm;
 	afm.registerBasicFormats();
 
-	MemoryBlock mb;
+    juce::MemoryBlock mb;
 
-	FileInputStream fis(f);
+    juce::FileInputStream fis(f);
 
 	fis.readIntoMemoryBlock(mb);
 
+	std::unique_ptr<juce::InputStream> mis(new juce::MemoryInputStream(mb, false));
 
-	std::unique_ptr<InputStream> mis(new MemoryInputStream(mb, false));
+	auto reader = afm.createReaderFor(std::move(mis));
 
-	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(std::move(mis));
+	if (!reader)
+        throw juce::String("File " + f.getFileName() + " can not be opened");
 
-	if (reader != nullptr)
-	{
-		AudioSampleBuffer b(reader->numChannels, (int)reader->lengthInSamples);
+    juce::AudioSampleBuffer b(reader->numChannels, (int)reader->lengthInSamples);
 
-		double start = Time::getMillisecondCounterHiRes();
-		reader->read(&b, 0, (int)reader->lengthInSamples, 0, true, true);
-		double stop = Time::getMillisecondCounterHiRes();
-		
-		double sampleLength = reader->lengthInSamples / reader->sampleRate;
+    double start = juce::Time::getMillisecondCounterHiRes();
+    reader->read(&b, 0, (int)reader->lengthInSamples, 0, true, true);
+    double stop = juce::Time::getMillisecondCounterHiRes();
 
-		double delta = (stop - start) / 1000.0;
+    double sampleLength = reader->lengthInSamples / reader->sampleRate;
 
-		speed = sampleLength / delta;
+    double delta = (stop - start) / 1000.0;
 
-		
+    speed = sampleLength / delta;
 
-		return b;
-	}
-	else
-	{
-		throw String("File " + f.getFileName() + " can not be opened");
-	}
+    return b;
 }
 
-float CompressionHelpers::getFLACRatio(const File& f, double& speed)
+float CompressionHelpers::getFLACRatio(const juce::File& f, double& speed)
 {
-	FlacAudioFormat flac;
+    juce::FlacAudioFormat flac;
 
-	AudioFormatManager afm;
+    juce::AudioFormatManager afm;
 
 	afm.registerBasicFormats();
 
-	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(f);
+	auto reader = afm.createReaderFor(f);
 
-	MemoryOutputStream* mos = new MemoryOutputStream();
+    auto* mos = new juce::MemoryOutputStream();
 
-	ScopedPointer<AudioFormatWriter> writer = flac.createWriterFor(mos, reader->sampleRate, reader->numChannels, 16, reader->metadataValues, 5);
+	auto writer = flac.createWriterFor(mos, reader->sampleRate, reader->numChannels, 16, reader->metadataValues, 5);
 
 	writer->writeFromAudioReader(*reader, 0, reader->lengthInSamples);
 
@@ -263,17 +256,17 @@ float CompressionHelpers::getFLACRatio(const File& f, double& speed)
 
 	const int flacSize = (int)mos->getDataSize();
 
-	MemoryInputStream* mis = new MemoryInputStream(mos->getMemoryBlock(), true);
+	auto* mis = new juce::MemoryInputStream(mos->getMemoryBlock(), true);
 
-	ScopedPointer<AudioFormatReader> flacReader = flac.createReaderFor(mis, true);
+	auto flacReader = flac.createReaderFor(mis, true);
 
-	AudioSampleBuffer b(flacReader->numChannels, (int)flacReader->lengthInSamples);
+    juce::AudioSampleBuffer b(flacReader->numChannels, (int)flacReader->lengthInSamples);
 
-	double start = Time::getMillisecondCounterHiRes();
+	double start = juce::Time::getMillisecondCounterHiRes();
 
 	flacReader->read(&b, 0, (int)flacReader->lengthInSamples, 0, true, true);
 
-	double stop = Time::getMillisecondCounterHiRes();
+	double stop = juce::Time::getMillisecondCounterHiRes();
 
 	double sampleLength = flacReader->lengthInSamples / flacReader->sampleRate;
 
@@ -281,23 +274,23 @@ float CompressionHelpers::getFLACRatio(const File& f, double& speed)
 
 	speed = sampleLength / delta;
 
-	Logger::writeToLog("FLAC Decoding Performance: " + String(speed, 1) + "x realtime");
+    juce::Logger::writeToLog("FLAC Decoding Performance: " + juce::String(speed, 1) + "x realtime");
 
 	return (float)flacSize / (float)fileUncompressed;
 
 }
 
-uint8 CompressionHelpers::getPossibleBitReductionAmount(const AudioBufferInt16& b)
+uint8_t CompressionHelpers::getPossibleBitReductionAmount(const AudioBufferInt16& b)
 {
 	return BitCompressors::getMinBitDepthForData(b.getReadPointer(), b.size);
 }
 
-int CompressionHelpers::getBlockAmount(AudioSampleBuffer& b)
+int CompressionHelpers::getBlockAmount(juce::AudioSampleBuffer& b)
 {
 	return b.getNumSamples() / COMPRESSION_BLOCK_SIZE + 1;
 }
 
-uint8 CompressionHelpers::getBitrateForCycleLength(const AudioBufferInt16& block, int cycleLength, AudioBufferInt16& workBuffer)
+uint8_t CompressionHelpers::getBitrateForCycleLength(const AudioBufferInt16& block, int cycleLength, AudioBufferInt16& workBuffer)
 {
 	auto part = getPart(block, 0, cycleLength);
 
@@ -306,7 +299,7 @@ uint8 CompressionHelpers::getBitrateForCycleLength(const AudioBufferInt16& block
 	return BitCompressors::getMinBitDepthForData(workBuffer.getReadPointer(), cycleLength);
 }
 
-void CompressionHelpers::normaliseBlock(int16* data, int numSamples, int normalisationAmount, int direction, bool /*useDither*/)
+void CompressionHelpers::normaliseBlock(int16_t* data, int numSamples, int normalisationAmount, int direction, bool /*useDither*/)
 {
 	int shiftAmount = 1 << normalisationAmount;
 
@@ -319,9 +312,9 @@ void CompressionHelpers::normaliseBlock(int16* data, int numSamples, int normali
 
 			//jassert(v > INT16_MIN && v < INT16_MAX);
 
-			v = jlimit<int>(INT16_MIN, INT16_MAX, v);
+			v = juce::jlimit<int>(INT16_MIN, INT16_MAX, v);
 
-			data[i] = (int16)v;
+			data[i] = (int16_t)v;
 		}
 	}
 	else
@@ -330,7 +323,7 @@ void CompressionHelpers::normaliseBlock(int16* data, int numSamples, int normali
 		{
 			int v = (int)data[i];
 			v /= shiftAmount;
-			data[i] = (int16)v;
+			data[i] = (int16_t)v;
 		}
 	}
 
@@ -356,11 +349,11 @@ int CompressionHelpers::getCycleLengthWithLowestBitRate(const AudioBufferInt16& 
 	return lowestCycleSize;
 }
 
-uint8 CompressionHelpers::getBitReductionWithTemplate(AudioBufferInt16& lastCycle, AudioBufferInt16& nextCycle, bool removeDc)
+uint8_t CompressionHelpers::getBitReductionWithTemplate(AudioBufferInt16& lastCycle, AudioBufferInt16& nextCycle, bool removeDc)
 {
 	jassert(lastCycle.size == nextCycle.size);
 
-	uint8 templateBitRate = getPossibleBitReductionAmount(lastCycle);
+	uint8_t templateBitRate = getPossibleBitReductionAmount(lastCycle);
 
 	AudioBufferInt16 workBuffer(lastCycle.size);
 
@@ -369,7 +362,7 @@ uint8 CompressionHelpers::getBitReductionWithTemplate(AudioBufferInt16& lastCycl
 	if(removeDc)
 		IntVectorOperations::removeDCOffset(workBuffer.getWritePointer(), lastCycle.size);
 
-	int8 deltaBitRate = getPossibleBitReductionAmount(workBuffer);
+	int8_t deltaBitRate = getPossibleBitReductionAmount(workBuffer);
 
 	if (deltaBitRate < 0 || deltaBitRate > templateBitRate)
 		return 0;
@@ -380,33 +373,33 @@ uint8 CompressionHelpers::getBitReductionWithTemplate(AudioBufferInt16& lastCycl
 
 CompressionHelpers::AudioBufferInt16 CompressionHelpers::getPart(AudioBufferInt16& b, int startIndex, int numSamples)
 {
-	int16* d = b.getWritePointer(startIndex);
+	auto* d = b.getWritePointer(startIndex);
 
 	return AudioBufferInt16(d, numSamples);
 }
 
 CompressionHelpers::AudioBufferInt16 CompressionHelpers::getPart(const AudioBufferInt16& b, int startIndex, int numSamples)
 {
-	const int16* d = b.getReadPointer(startIndex);
+	const auto* d = b.getReadPointer(startIndex);
 
 	return AudioBufferInt16(d, numSamples);
 }
 
-AudioSampleBuffer CompressionHelpers::getPart(AudioSampleBuffer& b, int startIndex, int numSamples)
+juce::AudioSampleBuffer CompressionHelpers::getPart(juce::AudioSampleBuffer& b, int startIndex, int numSamples)
 {
 	return getPart(b, 0, startIndex, numSamples);
 }
 
 
-AudioSampleBuffer CompressionHelpers::getPart(AudioSampleBuffer& b, int channelIndex, int startIndex, int numSamples)
+juce::AudioSampleBuffer CompressionHelpers::getPart(juce::AudioSampleBuffer& b, int channelIndex, int startIndex, int numSamples)
 {
 	float* d = b.getWritePointer(channelIndex, startIndex);
 
-	return AudioSampleBuffer(&d, 1, numSamples);
+    return { &d, 1, numSamples };
 }
 
 
-AudioSampleBuffer CompressionHelpers::getPart(HiseSampleBuffer& b, int startIndex, int numSamples)
+juce::AudioSampleBuffer CompressionHelpers::getPart(HiseSampleBuffer& b, int startIndex, int numSamples)
 {
 	jassert(startIndex + numSamples <= b.getNumSamples());
 
@@ -416,11 +409,11 @@ AudioSampleBuffer CompressionHelpers::getPart(HiseSampleBuffer& b, int startInde
 	}
 	else
 	{
-		AudioSampleBuffer buffer(b.getNumChannels(), numSamples);
+        juce::AudioSampleBuffer buffer(b.getNumChannels(), numSamples);
 
 		for (int i = 0; i < b.getNumChannels(); i++)
 		{
-			auto src = static_cast<const int16*>(b.getReadPointer(i, startIndex));
+			auto src = static_cast<const int16_t*>(b.getReadPointer(i, startIndex));
 
 			b.getNormaliseMap(i).normalisedInt16ToFloat(buffer.getWritePointer(i), src, 0, numSamples);
 		}
@@ -442,7 +435,7 @@ int CompressionHelpers::getPaddedSampleSize(int samplesNeeded)
     }
 }
 
-uint8 CompressionHelpers::getBitReductionForDifferential(AudioBufferInt16& b)
+uint8_t CompressionHelpers::getBitReductionForDifferential(AudioBufferInt16& b)
 {
 	AudioBufferInt16 copy(b.size);
 
@@ -476,25 +469,25 @@ int CompressionHelpers::getByteAmountForDifferential(AudioBufferInt16& b)
 }
 
 
-void CompressionHelpers::dump(const AudioBufferInt16& b, String fileName)
+void CompressionHelpers::dump(const AudioBufferInt16& b, juce::String fileName)
 {
-	AudioSampleBuffer fb = b.getFloatBuffer();
+	auto fb = b.getFloatBuffer();
 
 	dump(fb, fileName);
 }
 
 
-void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
+void CompressionHelpers::dump(const juce::AudioSampleBuffer& b, juce::String fileName)
 {
-	WavAudioFormat afm;
+    juce::WavAudioFormat afm;
     
 	bool sibling = false;
 
-	File dumpFile;
+    juce::File dumpFile;
 
-	if (File::isAbsolutePath(fileName))
+	if (juce::File::isAbsolutePath(fileName))
 	{
-		dumpFile = File(fileName);
+		dumpFile = juce::File(fileName);
 	}
 	else
 	{
@@ -505,9 +498,9 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
 		}
 
 #if JUCE_WINDOWS
-		dumpFile = File("D:\\dumps").getChildFile(fileName);
+		dumpFile = juce::File("D:\\dumps").getChildFile(fileName);
 #else
-		dumpFile = File("/Volumes/Shared/").getChildFile(fileName);
+		dumpFile = juce::File("/Volumes/Shared/").getChildFile(fileName);
 #endif
 
 		if (sibling)
@@ -517,11 +510,11 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
 	dumpFile.deleteFile();
 	dumpFile.create();
 
-	FileOutputStream* fis = new FileOutputStream(dumpFile);
-	StringPairArray metadata;
-	ScopedPointer<AudioFormatWriter> writer = afm.createWriterFor(fis, 44100, b.getNumChannels(), 16, metadata, 5);
+	auto* fis = new juce::FileOutputStream(dumpFile);
+    juce::StringPairArray metadata;
+	auto writer = afm.createWriterFor(fis, 44100, b.getNumChannels(), 16, metadata, 5);
 
-	if (writer != nullptr)
+	if (writer)
 		writer->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
 }
 
@@ -530,7 +523,7 @@ void CompressionHelpers::fastInt16ToFloat(const void* source, float* dest, int n
 {
 #if HI_ENABLE_LEGACY_CPU_SUPPORT || !JUCE_WINDOWS
 
-	AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
+    juce::AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
 
 #else
 
@@ -578,7 +571,7 @@ void CompressionHelpers::fastInt16ToFloat(const void* source, float* dest, int n
 
 void CompressionHelpers::applyDithering(float* data, int numSamples)
 {
-	ignoreUnused(data, numSamples);
+    juce::ignoreUnused(data, numSamples);
 
 #if 0
 	int   r1, r2;                //rectangular-PDF random numbers
@@ -615,7 +608,7 @@ void CompressionHelpers::applyDithering(float* data, int numSamples)
 #endif
 }
 
-uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer)
+uint8_t CompressionHelpers::checkBuffersEqual(juce::AudioSampleBuffer& workBuffer, juce::AudioSampleBuffer& referenceBuffer)
 {
     int numToCheck = referenceBuffer.getNumSamples();
     
@@ -631,17 +624,17 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 	
 	if (br != 0)
 	{
-		DBG("Bit rate for error signal: " + String(br));
+		DBG("Bit rate for error signal: " + juce::String(br));
 
 
 		float* w = workBuffer.getWritePointer(0);
 		const float* r = referenceBuffer.getReadPointer(0);
 
-		FloatVectorOperations::subtract(w, r, numToCheck);
+        juce::FloatVectorOperations::subtract(w, r, numToCheck);
 
 		float x = workBuffer.getMagnitude(0, 0, numToCheck);
 
-		float db = Decibels::gainToDecibels(x);
+		float db = juce::Decibels::gainToDecibels(x);
 
 		if (db > -96.0f)
 		{
@@ -673,8 +666,8 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 				}
 			}
 
-			DBG("Min index: " + String(minIndex) + ", value: " + String(minValue));
-			DBG("Max index: " + String(maxIndex) + ", value: " + String(maxValue));
+			DBG("Min index: " + juce::String(minIndex) + ", value: " + juce::String(minValue));
+			DBG("Max index: " + juce::String(maxIndex) + ", value: " + juce::String(maxValue));
 		}
 		else
 			return 0;
@@ -694,7 +687,7 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 
 		if (brR != 0)
 		{
-			DBG("Second channel error: " + String(br));
+			DBG("Second channel error: " + juce::String(br));
 
 			//DUMP(wbInt);
 			DUMP(referenceBuffer);
@@ -709,7 +702,7 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 
 
 
-void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src1, const int16* src2, int numValues)
+void CompressionHelpers::IntVectorOperations::sub(int16_t* dst, const int16_t* src1, const int16_t* src2, int numValues)
 {
 	for (int s = 0; s < numValues; s++)
 	{
@@ -718,7 +711,7 @@ void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src1,
 }
 
 
-void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src, int numValues)
+void CompressionHelpers::IntVectorOperations::sub(int16_t* dst, const int16_t* src, int numValues)
 {
 	for (int i = 0; i < numValues; i++)
 	{
@@ -726,7 +719,7 @@ void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src, 
 	}
 }
 
-void CompressionHelpers::IntVectorOperations::add(int16* dst, const int16* src, int numSamples)
+void CompressionHelpers::IntVectorOperations::add(int16_t* dst, const int16_t* src, int numSamples)
 {
 	for (int i = 0; i < numSamples; i++)
 	{
@@ -735,7 +728,7 @@ void CompressionHelpers::IntVectorOperations::add(int16* dst, const int16* src, 
 }
 
 
-void CompressionHelpers::IntVectorOperations::mul(int16*dst, const int16 value, int numSamples)
+void CompressionHelpers::IntVectorOperations::mul(int16_t* dst, const int16_t value, int numSamples)
 {
 	for (int i = 0; i < numSamples; i++)
 	{
@@ -744,7 +737,7 @@ void CompressionHelpers::IntVectorOperations::mul(int16*dst, const int16 value, 
 }
 
 
-void CompressionHelpers::IntVectorOperations::div(int16* dst, const int16 value, int numSamples)
+void CompressionHelpers::IntVectorOperations::div(int16_t* dst, const int16_t value, int numSamples)
 {
 	for (int i = 0; i < numSamples; i++)
 	{
@@ -752,16 +745,16 @@ void CompressionHelpers::IntVectorOperations::div(int16* dst, const int16 value,
 	}
 }
 
-int16 CompressionHelpers::IntVectorOperations::removeDCOffset(int16* data, int numValues)
+int16_t CompressionHelpers::IntVectorOperations::removeDCOffset(int16_t* data, int numValues)
 {
-	int64 sum = 0;
+	int64_t sum = 0;
 
 	for (int i = 0; i < numValues; i++)
 	{
 		sum += data[i];
 	}
 
-	int16 dcOffset = (int16)(sum /= numValues);
+	auto dcOffset = (int16_t)(sum /= numValues);
 
 	for (int i = 0; i < numValues; i++)
 	{
@@ -771,27 +764,27 @@ int16 CompressionHelpers::IntVectorOperations::removeDCOffset(int16* data, int n
 	return dcOffset;
 }
 
-int16 CompressionHelpers::IntVectorOperations::max(const int16* d, int numValues)
+int16_t CompressionHelpers::IntVectorOperations::max(const int16_t* d, int numValues)
 {
-	int16 m = 0;
+	int16_t m = 0;
 
 	for (int i = 0; i < numValues; i++)
 	{
-		m = jmax<int16>(m, (int16)abs(d[i]));
+		m = juce::jmax<int16_t>(m, (int16_t)abs(d[i]));
 	}
 
 	return m;
 }
 
 
-void CompressionHelpers::IntVectorOperations::clear(int16* d, int numValues)
+void CompressionHelpers::IntVectorOperations::clear(int16_t* d, int numValues)
 {
-	memset(d, 0, sizeof(int16)*numValues);
+	memset(d, 0, sizeof(int16_t)*numValues);
 }
 
 int CompressionHelpers::Diff::getNumFullValues(int bufferSize)
 {
-	jassert(isPowerOfTwo(bufferSize));
+	jassert(juce::isPowerOfTwo(bufferSize));
 
 	return bufferSize / 4 + 1;
 }
@@ -799,7 +792,7 @@ int CompressionHelpers::Diff::getNumFullValues(int bufferSize)
 
 int CompressionHelpers::Diff::getNumErrorValues(int bufferSize)
 {
-	jassert(isPowerOfTwo(bufferSize));
+	jassert(juce::isPowerOfTwo(bufferSize));
 
 	return bufferSize - getNumFullValues(bufferSize);
 }
@@ -836,14 +829,14 @@ CompressionHelpers::AudioBufferInt16 CompressionHelpers::Diff::createBufferWithE
 {
 	AudioBufferInt16 workBuffer(b.size);
 
-	distributeFullSamples(workBuffer, reinterpret_cast<const uint16*>(packedFullValues.getReadPointer()), packedFullValues.size);
+	distributeFullSamples(workBuffer, reinterpret_cast<const uint16_t*>(packedFullValues.getReadPointer()), packedFullValues.size);
 
 	IntVectorOperations::sub(workBuffer.getWritePointer(), b.getReadPointer(), b.size);
 
 	AudioBufferInt16 packedBuffer(getNumErrorValues(b.size));
 
-	int16* w = packedBuffer.getWritePointer();
-	const int16* r = workBuffer.getReadPointer();
+	auto* w = packedBuffer.getWritePointer();
+	const auto* r = workBuffer.getReadPointer();
 
 	for (int i = 0; i < b.size - 4; i += 4)
 	{
@@ -870,12 +863,12 @@ void CompressionHelpers::Diff::downSampleBuffer(AudioBufferInt16& b)
 {
 	jassert(b.size % 4 == 0);
 	
-	int16* d = b.getWritePointer();
+	auto* d = b.getWritePointer();
 
 	for (int i = 0; i < b.size - 4; i += 4)
 	{
-		int16 firstValue = d[0];
-		int16 lastValue = d[4];
+		int16_t firstValue = d[0];
+		int16_t lastValue = d[4];
 
 		d[1] = 3 * firstValue / 4 + lastValue / 4;
 		d[2] = firstValue / 2 + lastValue / 2;
@@ -894,19 +887,19 @@ void CompressionHelpers::Diff::downSampleBuffer(AudioBufferInt16& b)
 
 #define OPTIMIZED 0
 
-void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, const uint16* fullSamplesPacked, int numSamples)
+void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, const uint16_t* fullSamplesPacked, int numSamples)
 {
 	// Use this only on power two block sizes (512 samples = 128 four packs + 1 last value)
-	jassert(isPowerOfTwo(numSamples - 1));
+	jassert(juce::isPowerOfTwo(numSamples - 1));
 
 	// Needs 128 bit alignment for the destination buffer.
-	jassert(reinterpret_cast<uint64>(dst.getReadPointer()) % 16 == 0);
+	jassert(reinterpret_cast<uint64_t>(dst.getReadPointer()) % 16 == 0);
 
-	jassert(reinterpret_cast<uint64>(fullSamplesPacked) % 16 == 0);
+	jassert(reinterpret_cast<uint64_t>(fullSamplesPacked) % 16 == 0);
 
-	int16* d = dst.getWritePointer();
+	auto* d = dst.getWritePointer();
 
-	int16* r = const_cast<int16*>(reinterpret_cast<const int16*>(fullSamplesPacked));
+	auto* r = const_cast<int16_t*>(reinterpret_cast<const int16_t*>(fullSamplesPacked));
 
 	int thisValue = 0;
 	int nextValue = 0;
@@ -918,10 +911,10 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 		thisValue = (int)r[i];
 		nextValue = (int)r[i + 1];
 
-		d[0] = (int16)(thisValue);
-		d[1] = (int16)((3 * thisValue + nextValue) / 4);
-		d[2] = (int16)((thisValue + nextValue) / 2);
-		d[3] = (int16)((thisValue + 3 * nextValue) / 4);
+		d[0] = (int16_t)(thisValue);
+		d[1] = (int16_t)((3 * thisValue + nextValue) / 4);
+		d[2] = (int16_t)((thisValue + nextValue) / 2);
+		d[3] = (int16_t)((thisValue + 3 * nextValue) / 4);
 
 		d += 4;
 	}
@@ -1002,22 +995,22 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 	thisValue = r[numSamples - 2];
 	nextValue = r[numSamples - 1];
 	
-	d[0] = (int16)(thisValue);
-	d[1] = (int16)((2 * thisValue + nextValue) / 3);
-	d[2] = (int16)((thisValue + 2 * nextValue) / 3);
-	d[3] = (int16)(nextValue);
+	d[0] = (int16_t)(thisValue);
+	d[1] = (int16_t)((2 * thisValue + nextValue) / 3);
+	d[2] = (int16_t)((thisValue + 2 * nextValue) / 3);
+	d[3] = (int16_t)(nextValue);
 }
 
-void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint16* errorSignalPacked, int numSamples)
+void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint16_t* errorSignalPacked, int numSamples)
 {
-	jassert(isPowerOfTwo(4*(numSamples+1)/3));
+	jassert(juce::isPowerOfTwo(4*(numSamples+1)/3));
 
 	// Needs 64 bit alignment for the destination buffer.
-	jassert(reinterpret_cast<uint64>(dst.getReadPointer()) % 16 == 0);
+	jassert(reinterpret_cast<uint64_t>(dst.getReadPointer()) % 16 == 0);
 
-	int16* d = dst.getWritePointer();
+	auto* d = dst.getWritePointer();
 
-	int16* e = const_cast<int16*>(reinterpret_cast<const int16*>(errorSignalPacked));
+	auto* e = const_cast<int16_t*>(reinterpret_cast<const int16_t*>(errorSignalPacked));
 
 	int counter = 0;
 
@@ -1087,19 +1080,19 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 #endif
 }
 
-uint64 CompressionHelpers::Misc::NumberOfSetBits(uint64 i)
+uint64_t CompressionHelpers::Misc::NumberOfSetBits(uint64_t i)
 {
 #if JUCE_MSVC && JUCE_64BIT && !HI_ENABLE_LEGACY_CPU_SUPPORT
 	return __popcnt64(i);
 #else
     
-    BigInteger b((int64)i);
+    juce::BigInteger b((int64_t)i);
     return b.countNumberOfSetBits();
     
 #endif
 }
 
-uint8 CompressionHelpers::Misc::getSampleRateIndex(double sampleRate)
+uint8_t CompressionHelpers::Misc::getSampleRateIndex(double sampleRate)
 {
 	if (sampleRate == 44100.0)
 		return 0;
@@ -1115,61 +1108,61 @@ uint8 CompressionHelpers::Misc::getSampleRateIndex(double sampleRate)
 	return 0;
 }
 
-uint32 CompressionHelpers::Misc::createChecksum()
+uint32_t CompressionHelpers::Misc::createChecksum()
 {
-	Random r;
+    juce::Random r;
 	r.setSeedRandomly();
 	r.setSeedRandomly();
 	r.setSeedRandomly();
 
-	uint16 randomNumber = (uint16)r.nextInt(Range<int>(2, UINT16_MAX));
+	auto randomNumber = (uint16_t)r.nextInt(juce::Range<int>(2, UINT16_MAX));
 
-	uint8* d = reinterpret_cast<uint8*>(&randomNumber);
-	uint16 product = (uint16)(d[0] * d[1]);
+	auto* d = reinterpret_cast<uint8_t*>(&randomNumber);
+	auto product = (uint16_t)(d[0] * d[1]);
 
-	uint32 result;
+	uint32_t result;
 
-	uint16* resultPointer = reinterpret_cast<uint16*>(&result);
+	auto* resultPointer = reinterpret_cast<uint16_t*>(&result);
 	resultPointer[0] = randomNumber;
 	resultPointer[1] = product;
 
 	return result;
 }
 
-bool CompressionHelpers::Misc::validateChecksum(uint32 data)
+bool CompressionHelpers::Misc::validateChecksum(uint32_t data)
 {
 	if (data == 0) return false;
 
-	uint16* numbers = reinterpret_cast<uint16*>(&data);
+	auto* numbers = reinterpret_cast<uint16_t*>(&data);
 
-	uint16 randomNumber = numbers[0];
-	uint16 product = numbers[1];
+	auto randomNumber = numbers[0];
+	auto product = numbers[1];
 
-	uint8* bytes = reinterpret_cast<uint8*>(&randomNumber);
+	auto* bytes = reinterpret_cast<uint8_t*>(&randomNumber);
 
-	return (uint16)(bytes[0] * bytes[1]) == product;
+	return (uint16_t)(bytes[0] * bytes[1]) == product;
 }
 
-#define CHECK_FLAG(x) if(!readAndCheckFlag(fis, x)) { if(listener != nullptr) listener->criticalErrorOccured("Read error"); return false; }
+#define CHECK_FLAG(x) if(!readAndCheckFlag(fis.get(), x)) { if(listener != nullptr) listener->criticalErrorOccured("Read error"); return false; }
 
 #define VERBOSE_LOG(x) if(listener != nullptr) listener->logVerboseMessage(x);
 #define STATUS_LOG(x) if(listener != nullptr) listener->logStatusMessage(x);
 
-var HlacArchiver::readMetadataFromArchive(const File& sourceFile)
+juce::var HlacArchiver::readMetadataFromArchive(const juce::File& sourceFile)
 {
-	ScopedPointer<FileInputStream> fis = new FileInputStream(sourceFile);
+	auto fis = sourceFile.createInputStream();
 
-	auto flag = readFlag(fis);
+	auto flag = readFlag(fis.get());
 
 	if (flag == Flag::BeginMetadata)
 	{
-		auto obj = JSON::parse(fis->readString());
+		auto obj = juce::JSON::parse(fis->readString());
 
-		if (readFlag(fis) == Flag::EndMetadata)
+		if (readFlag(fis.get()) == Flag::EndMetadata)
 			return obj;
 	}
 	
-	return var();
+	return juce::var();
 }
 
 bool HlacArchiver::extractSampleData(const DecompressData& data)
@@ -1191,15 +1184,15 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		}
 	}
 
-	Array<File> parts;
+    juce::Array<juce::File> parts;
 
-	sourceFile.getParentDirectory().findChildFiles(parts, File::findFiles, false, sourceFile.getFileNameWithoutExtension() + ".*");
+	sourceFile.getParentDirectory().findChildFiles(parts, juce::File::findFiles, false, sourceFile.getFileNameWithoutExtension() + ".*");
 
 	const int numParts = parts.size();
 
-	ScopedPointer<FileInputStream> fis = new FileInputStream(sourceFile);
+	auto fis = sourceFile.createInputStream();
 
-	FlacAudioFormat flacFormat;
+    juce::FlacAudioFormat flacFormat;
 	hlac::HiseLosslessAudioFormat hlacFormat;
 
 	CHECK_FLAG(Flag::BeginMetadata);
@@ -1208,24 +1201,24 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 	VERBOSE_LOG(metadataString);
 
-	StringPairArray metadata;
+    juce::StringPairArray metadata;
 
 	int partIndex = 1;
 
-	currentFlag = readFlag(fis);
+	currentFlag = readFlag(fis.get());
 
 	if (currentFlag == Flag::BeginHeaderFile)
 	{
 		VERBOSE_LOG("    Read Header file");
 
 		auto numBytesForHeaderFile = fis->readInt64();
-		VERBOSE_LOG(String(numBytesForHeaderFile) + String(" bytes"));
+		VERBOSE_LOG(juce::String(numBytesForHeaderFile) + juce::String(" bytes"));
 		auto headerTargetFile = data.targetDirectory.getChildFile("header.dat");
 		headerTargetFile.create();
-		ScopedPointer<FileOutputStream> fos = new FileOutputStream(headerTargetFile);
+		auto fos = headerTargetFile.createOutputStream();
 		fos->writeFromInputStream(*fis, numBytesForHeaderFile);
 		CHECK_FLAG(Flag::EndHeaderFile);
-		currentFlag = readFlag(fis);
+		currentFlag = readFlag(fis.get());
 	}
 
 	while (currentFlag == Flag::BeginName)
@@ -1245,14 +1238,14 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		*data.totalProgress = totalProgress + totalPartProgress;
 
 		CHECK_FLAG(Flag::BeginTime);
-		auto archiveTime = Time::fromISO8601(fis->readString());
+		auto archiveTime = juce::Time::fromISO8601(fis->readString());
 		CHECK_FLAG(Flag::EndTime);
 
 		if (thread->threadShouldExit())
 			return false;
 
 		
-		File targetHlacFile = targetDirectory.getChildFile(name);
+		auto targetHlacFile = targetDirectory.getChildFile(name);
 
 		bool overwriteThisFile = true;
 
@@ -1268,7 +1261,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 		if (targetHlacFile.existsAsFile() && option == OverwriteOption::OverwriteIfNewer)
 		{
-			Time existingTime = targetHlacFile.getCreationTime();
+            juce::Time existingTime = targetHlacFile.getCreationTime();
 
 			if (archiveTime > existingTime)
 				targetHlacFile.deleteFile();
@@ -1283,12 +1276,12 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			bool ok = true;
 
-			File tmpFlacFile = targetHlacFile.getSiblingFile("TmpFlac.flac").getNonexistentSibling();
+            auto tmpFlacFile = targetHlacFile.getSiblingFile("TmpFlac.flac").getNonexistentSibling();
 
 			if (tmpFlacFile.existsAsFile())
 				tmpFlacFile.deleteFile();
 
-			ScopedPointer<FileOutputStream> flacTempWriteStream = new FileOutputStream(tmpFlacFile);
+			auto flacTempWriteStream = tmpFlacFile.createOutputStream();
 
 			CHECK_FLAG(Flag::BeginMonolithLength);
 			auto bytesToRead = fis->readInt64();
@@ -1300,15 +1293,13 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			flacTempWriteStream->writeFromInputStream(*fis, bytesToRead);
 
-			currentFlag = readFlag(fis);
+			currentFlag = readFlag(fis.get());
 
 			while (currentFlag == Flag::SplitMonolith)
 			{
 				partIndex++;
 
-				fis = nullptr;
-
-				fis = new FileInputStream(getPartFile(sourceFile, partIndex));
+				fis = getPartFile(sourceFile, partIndex).createInputStream();
 
 				CHECK_FLAG(Flag::BeginMonolithLength);
 				bytesToRead = fis->readInt64();
@@ -1318,7 +1309,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 				flacTempWriteStream->writeFromInputStream(*fis, bytesToRead);
 
-				currentFlag = readFlag(fis);
+				currentFlag = readFlag(fis.get());
 			}
 
 			if (thread->threadShouldExit())
@@ -1329,29 +1320,27 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 			flacTempWriteStream->flush();
 			flacTempWriteStream = nullptr;
 
-			FileInputStream* flacTempInputStream = new FileInputStream(tmpFlacFile);
+			auto* flacTempInputStream = new juce::FileInputStream(tmpFlacFile);
 
 			jassert(flacTempInputStream->openedOk());
 
-			ScopedPointer<AudioFormatReader> flacReader = flacFormat.createReaderFor(flacTempInputStream, true);
+			std::unique_ptr<juce::AudioFormatReader> flacReader (flacFormat.createReaderFor(flacTempInputStream, true));
 
-			if (flacReader == nullptr)
+			if (!flacReader)
 				return false;
 
-			VERBOSE_LOG("    Samplerate: " + String(flacReader->sampleRate, 1));
-			VERBOSE_LOG("    Channels: " + String(flacReader->numChannels));
-			VERBOSE_LOG("    Length: " + String(flacReader->lengthInSamples));
+			VERBOSE_LOG("    Samplerate: " + juce::String(flacReader->sampleRate, 1));
+			VERBOSE_LOG("    Channels: " + juce::String(flacReader->numChannels));
+			VERBOSE_LOG("    Length: " + juce::String(flacReader->lengthInSamples));
 
-			FileOutputStream* monolithOutputStream; 
-			ScopedPointer<AudioFormatWriter> writer;
+            juce::ScopedPointer<juce::AudioFormatWriter> writer;
 
 			if (!data.debugLogMode)
 			{
 				if (targetHlacFile.existsAsFile())
 					targetHlacFile.create();
 
-				monolithOutputStream = new FileOutputStream(targetHlacFile);
-				writer = hlacFormat.createWriterFor(monolithOutputStream, flacReader->sampleRate, flacReader->numChannels, 5, metadata, 5);
+				writer = hlacFormat.createWriterFor(new juce::FileOutputStream(targetHlacFile), flacReader->sampleRate, flacReader->numChannels, 5, metadata, 5);
 			}
 
 			STATUS_LOG("Decompressing " + name);
@@ -1373,14 +1362,14 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 			if(!data.debugLogMode)
 				dynamic_cast<HiseLosslessAudioFormatWriter*>(writer.get())->setOptions(options);
 
-			AudioSampleBuffer tempBuffer(flacReader->numChannels, data.debugLogMode ? 0 : bufferSize);
+            juce::AudioSampleBuffer tempBuffer(flacReader->numChannels, data.debugLogMode ? 0 : bufferSize);
 
-			for (int64 readerOffset = 0; readerOffset < flacReader->lengthInSamples; readerOffset += bufferSize)
+			for (int64_t readerOffset = 0; readerOffset < flacReader->lengthInSamples; readerOffset += bufferSize)
 			{
 				if (thread->threadShouldExit())
 					return false;
 
-				const int numToRead = jmin<int>(bufferSize, (int)(flacReader->lengthInSamples - readerOffset));
+				const int numToRead = juce::jmin<int>(bufferSize, (int)(flacReader->lengthInSamples - readerOffset));
 
 				if (!data.debugLogMode)
 				{
@@ -1414,7 +1403,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			flacReader = nullptr;
 			tmpFlacFile.deleteFile();
-			currentFlag = readFlag(fis);
+			currentFlag = readFlag(fis.get());
 		}
 		else
 		{
@@ -1426,14 +1415,14 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			CHECK_FLAG(Flag::BeginMonolith);
 			fis->skipNextBytes(bytesToSkip);
-			currentFlag = readFlag(fis);
+			currentFlag = readFlag(fis.get());
 
 			while (currentFlag == Flag::SplitMonolith)
 			{
 				partIndex++;
 
 				fis = nullptr;
-				fis = new FileInputStream(getPartFile(sourceFile, partIndex));
+				fis = getPartFile(sourceFile, partIndex).createInputStream();
 
 				CHECK_FLAG(Flag::BeginMonolithLength);
 				bytesToSkip = fis->readInt64();
@@ -1445,11 +1434,11 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				CHECK_FLAG(Flag::ResumeMonolith);
 				fis->skipNextBytes(bytesToSkip);
 
-				currentFlag = readFlag(fis);
+				currentFlag = readFlag(fis.get());
 			}
 
 			jassert(currentFlag == Flag::EndMonolith);
-			currentFlag = readFlag(fis);
+			currentFlag = readFlag(fis.get());
 		}
 	}
 
@@ -1462,24 +1451,24 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 #define WRITE_FLAG(x) writeFlag(fos, x)
 
-FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader, int bitDepth)
+juce::FileInputStream* HlacArchiver::writeTempFile(juce::AudioFormatReader* reader, int bitDepth)
 {
-	FlacAudioFormat flacFormat;
+    juce::FlacAudioFormat flacFormat;
 
-	StringPairArray metadata;
+    juce::StringPairArray metadata;
 
 	tmpFile.deleteFile();
-	FileOutputStream* tempOutput = new FileOutputStream(tmpFile);
+	auto* tempOutput = new juce::FileOutputStream(tmpFile);
 
 	const int bufferSize = 8192 * 32;
 
-	AudioSampleBuffer tempBuffer(reader->numChannels, bufferSize);
+    juce::AudioSampleBuffer tempBuffer(reader->numChannels, bufferSize);
 
-	ScopedPointer<AudioFormatWriter> writer = flacFormat.createWriterFor(tempOutput, reader->sampleRate, reader->numChannels, bitDepth, metadata, 9);
+	auto writer = flacFormat.createWriterFor(tempOutput, reader->sampleRate, reader->numChannels, bitDepth, metadata, 9);
 
 	bool writeResult = true;
 
-	dynamic_cast<HiseLosslessAudioFormatReader*>(reader)->setTargetAudioDataType(AudioDataConverters::float32BE);
+	dynamic_cast<HiseLosslessAudioFormatReader*>(reader)->setTargetAudioDataType(juce::AudioDataConverters::float32BE);
 
 	for (int offsetInReader = 0; offsetInReader < reader->lengthInSamples; offsetInReader += bufferSize)
 	{
@@ -1498,7 +1487,7 @@ FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader, int bitD
 		if (progress != nullptr)
 			*progress = partProgress;
 
-		const int numToRead = jmin<int>(bufferSize, (int)(reader->lengthInSamples - offsetInReader));
+		const int numToRead = juce::jmin<int>(bufferSize, (int)(reader->lengthInSamples - offsetInReader));
 
 		reader->read(&tempBuffer, 0, numToRead, offsetInReader, true, true);
 
@@ -1506,7 +1495,7 @@ FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader, int bitD
 
 		if (!writeResult)
 		{
-			listener->criticalErrorOccured("Error at writing from temp buffer at position " + String(offsetInReader) + ", chunk-length: " + String(numToRead));
+			listener->criticalErrorOccured("Error at writing from temp buffer at position " + juce::String(offsetInReader) + ", chunk-length: " + juce::String(numToRead));
 			return nullptr;
 		}
 	}
@@ -1514,7 +1503,7 @@ FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader, int bitD
 	tempOutput->flush();
 	writer = nullptr;
 
-	return new FileInputStream(tmpFile);
+	return new juce::FileInputStream(tmpFile);
 }
 
 #define CHECK_FILE_WRITE_OP if (!ok) { listener->criticalErrorOccured("file write error at " + fos->getFile().getFileName()); return; }
@@ -1667,22 +1656,21 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 	}
 #else
 
-    ignoreUnused(data);
+    juce::ignoreUnused(data);
 
 
 #endif
 }
 
-String HlacArchiver::getMetadataJSON(const File& sourceFile)
+juce::String HlacArchiver::getMetadataJSON(const juce::File& sourceFile)
 {
-	ScopedPointer<FileInputStream> fis = new FileInputStream(sourceFile);
-
+	auto fis = sourceFile.createInputStream();
 	return fis->readString();
 }
 
 #define RETURN_FLAG(x) if(f == Flag::x) return #x;
 
-String HlacArchiver::getFlagName(Flag f)
+juce::String HlacArchiver::getFlagName(Flag f)
 {
 	RETURN_FLAG(BeginMetadata);
 	RETURN_FLAG(EndMetadata);
@@ -1703,16 +1691,16 @@ String HlacArchiver::getFlagName(Flag f)
 
 #undef RETURN
 
-File HlacArchiver::getPartFile(const File& originalFile, int partIndex)
+juce::File HlacArchiver::getPartFile(const juce::File& originalFile, int partIndex)
 {
-	String newFileName = originalFile.getFileNameWithoutExtension() + ".hr" + String(partIndex);
+	auto newFileName = originalFile.getFileNameWithoutExtension() + ".hr" + juce::String(partIndex);
 
 	VERBOSE_LOG("New Part " + newFileName);
 
 	return originalFile.getSiblingFile(newFileName);
 }
 
-bool HlacArchiver::writeFlag(FileOutputStream* fos, Flag flag)
+bool HlacArchiver::writeFlag(juce::FileOutputStream* fos, Flag flag)
 {
 	VERBOSE_LOG("    W " + getFlagName(flag));
 
@@ -1722,7 +1710,7 @@ bool HlacArchiver::writeFlag(FileOutputStream* fos, Flag flag)
 	return false;
 }
 
-bool HlacArchiver::readAndCheckFlag(FileInputStream* fis, Flag flag)
+bool HlacArchiver::readAndCheckFlag(juce::FileInputStream* fis, Flag flag)
 {
 	VERBOSE_LOG("    R " + getFlagName(flag));
 
@@ -1736,7 +1724,7 @@ bool HlacArchiver::readAndCheckFlag(FileInputStream* fis, Flag flag)
 	return false;
 }
 
-HlacArchiver::Flag HlacArchiver::readFlag(FileInputStream* fis)
+HlacArchiver::Flag HlacArchiver::readFlag(juce::FileInputStream* fis)
 {
 	const Flag actualFlag = (Flag)fis->readInt();
 	VERBOSE_LOG("    R " + getFlagName(actualFlag));
@@ -1748,7 +1736,7 @@ HlacArchiver::Flag HlacArchiver::readFlag(FileInputStream* fis)
 #undef STATUS_LOG
 
 
-void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination, const int16* src, int start, int numSamples) const
+void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination, const int16_t* src, int start, int numSamples) const
 {
 	if (!active)
 	{
@@ -1769,7 +1757,7 @@ void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination
 		auto thisAmount = getTableData()[tableIndex];
 
 		int nextLimit = (tableIndex + 1) * normaliseBlockSize;
-		nextLimit = jmin<int>(nextLimit, totalLimit);
+		nextLimit = juce::jmin<int>(nextLimit, totalLimit);
 		int numThisTime = nextLimit - index;
 
 		if (numThisTime == 0)
@@ -1809,26 +1797,26 @@ void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination
 	}
 }
 
-void CompressionHelpers::NormaliseMap::setUseStaticNormalisation(uint8 staticNormalisationAmount)
+void CompressionHelpers::NormaliseMap::setUseStaticNormalisation(uint8_t staticNormalisationAmount)
 {
 	normalisationMode = Mode::StaticNormalisation;
 	memset(preallocated, staticNormalisationAmount, PreallocatedSize);
 }
 
-bool CompressionHelpers::NormaliseMap::writeNormalisationHeader(OutputStream& output)
+bool CompressionHelpers::NormaliseMap::writeNormalisationHeader(juce::OutputStream& output)
 {
 	// Can't use this with a non-fixed size block size...
 	jassert(allocated == nullptr);
 
 	constexpr int numBytes = COMPRESSION_BLOCK_SIZE / normaliseBlockSize;
 
-	String s;
+    juce::String s;
 
 	s << "Normalisation bits: ";
-	s << "0: " << String((int)preallocated[0]) << "\t";
-	s << "1: " << String((int)preallocated[1]) << "\t";
-	s << "2: " << String((int)preallocated[2]) << "\t";
-	s << "3: " << String((int)preallocated[3]) << "\t";
+	s << "0: " << juce::String((int)preallocated[0]) << "\t";
+	s << "1: " << juce::String((int)preallocated[1]) << "\t";
+	s << "2: " << juce::String((int)preallocated[2]) << "\t";
+	s << "3: " << juce::String((int)preallocated[3]) << "\t";
 
 	LOG(s);
 
@@ -1840,10 +1828,10 @@ void CompressionHelpers::NormaliseMap::setNormalisationValues(int readOffset, in
 {
 	active |= (normalisedValues > 0);
 
-	uint8* ptr = reinterpret_cast<uint8*>(&normalisedValues);
-	uint16 index = getIndexForSamplePosition(readOffset);
+	auto* ptr = reinterpret_cast<uint8_t*>(&normalisedValues);
+	auto  index = getIndexForSamplePosition(readOffset);
 
-	uint16 maxSize = allocated != nullptr ? numAllocated : PreallocatedSize;
+	uint16_t maxSize = allocated != nullptr ? numAllocated : PreallocatedSize;
 
 	if ((index + 3) >= maxSize)
 	{
@@ -1857,7 +1845,7 @@ void CompressionHelpers::NormaliseMap::setNormalisationValues(int readOffset, in
 	getTableData()[index + 3] = ptr[3];
 }
 
-void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, int numSamples)
+void CompressionHelpers::NormaliseMap::normalise(const float* src, int16_t* dst, int numSamples)
 {
 	if (normalisationMode == Mode::NoNormalisation)
 		return;
@@ -1871,10 +1859,10 @@ void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, i
 
 		while (index < numSamples)
 		{
-			int thisTime = jmin<int>(numSamples - index, normaliseBlockSize);
+			int thisTime = juce::jmin<int>(numSamples - index, normaliseBlockSize);
 			auto data = dst + index;
 
-			AudioDataConverters::convertFloatToInt16LE(src + index, data, thisTime);
+            juce::AudioDataConverters::convertFloatToInt16LE(src + index, data, thisTime);
 
 			CompressionHelpers::AudioBufferInt16 l(data, thisTime);
 
@@ -1888,7 +1876,7 @@ void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, i
 			}
 			else
 			{
-				auto normalisationAmount = jmin<uint8>(8, 16 - lMax);
+				auto normalisationAmount = juce::jmin<uint8_t>(8, 16 - lMax);
 
 				if (normalisationAmount < minNormalisation)
 					normalisationAmount = 0;
@@ -1920,7 +1908,7 @@ void CompressionHelpers::NormaliseMap::allocateTableIndexes(int numSamples)
 	}
 	else
 	{
-		uint16 newNumAllocated = (uint16)((numSamples / normaliseBlockSize) + 4);
+		auto newNumAllocated = (uint16_t)((numSamples / normaliseBlockSize) + 4);
 
 		if (newNumAllocated != numAllocated)
 		{
@@ -1942,7 +1930,7 @@ void CompressionHelpers::NormaliseMap::copyNormalisationTable(NormaliseMap& dst,
 	memcpy(dst.getTableData() + end , getTableData() + start, numIndexes);
 }
 
-void CompressionHelpers::NormaliseMap::copyIntBufferWithNormalisation(const NormaliseMap& srcMap, const int16* srcWithoutOffset, int16* dstWithoutOffset, int startSampleSource, int startSampleDst, int numSamples, bool overwriteTable)
+void CompressionHelpers::NormaliseMap::copyIntBufferWithNormalisation(const NormaliseMap& srcMap, const int16_t* srcWithoutOffset, int16_t* dstWithoutOffset, int startSampleSource, int startSampleDst, int numSamples, bool overwriteTable)
 {
 	auto srcOffset = (srcMap.getOffset() + startSampleSource) % normaliseBlockSize;
 	auto dstOffset = (getOffset() + startSampleDst) % normaliseBlockSize;
@@ -1959,7 +1947,7 @@ void CompressionHelpers::NormaliseMap::copyIntBufferWithNormalisation(const Norm
 
 	auto d = dstWithoutOffset + startSampleDst;
 	auto s = srcWithoutOffset + startSampleSource;
-	memcpy(d, s, sizeof(int16) * numSamples);
+	memcpy(d, s, sizeof(int16_t) * numSamples);
 }
 
 void CompressionHelpers::NormaliseMap::setOffset(int offsetToUse)
@@ -1972,7 +1960,7 @@ juce::int16 CompressionHelpers::NormaliseMap::size() const
 	return allocated != nullptr ? numAllocated : PreallocatedSize;
 }
 
-void CompressionHelpers::NormaliseMap::internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount) const
+void CompressionHelpers::NormaliseMap::internalNormalisation(const float* src, int16_t* dst, int numSamples, uint8_t amount) const
 {
 	if (amount == 0)
 		return;
@@ -1982,7 +1970,7 @@ void CompressionHelpers::NormaliseMap::internalNormalisation(const float* src, i
 	for (int i = 0; i < numSamples; i++)
 	{
 		auto gainedValue = src[i] * (float)gainFactor * (float)INT16_MAX;
-		dst[i] = (int16)(gainedValue);
+		dst[i] = (int16_t)(gainedValue);
 	};
 }
 

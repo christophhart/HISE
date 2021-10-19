@@ -33,7 +33,7 @@
 #ifndef SAMPLEBUFFER_H_INCLUDED
 #define SAMPLEBUFFER_H_INCLUDED
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
 typedef CompressionHelpers::AudioBufferInt16 FixedSampleBuffer;
 
@@ -82,7 +82,7 @@ public:
 
 	const ElementType& operator[](int index) const
 	{
-		jassert(isPositiveAndBelow(index, numUsed));
+		jassert(juce::isPositiveAndBelow(index, numUsed));
 
 		return *(begin() + index);
 	}
@@ -109,7 +109,7 @@ public:
 
 	void remove(int indexToRemove)
 	{
-		if (isPositiveAndBelow(indexToRemove, numUsed))
+		if (juce::isPositiveAndBelow(indexToRemove, numUsed))
 		{
 			--numUsed;
 			ElementType* const e = begin() + indexToRemove;
@@ -143,7 +143,7 @@ public:
 
 	ElementType& getReference(int index)
 	{
-		jassert(isPositiveAndBelow(index, numUsed));
+		jassert(juce::isPositiveAndBelow(index, numUsed));
 
 		return *(begin() + index);
 	}
@@ -155,7 +155,7 @@ private:
 
 	ElementType* dataPtr;
 	ElementType preallocated[PreallocatedSize];
-	HeapBlock<ElementType> allocatedData;
+    juce::HeapBlock<ElementType> allocatedData;
 };
 
 
@@ -179,84 +179,78 @@ public:
 
 		void allocate(int numSamples)
 		{
-			auto minNumToUse = jmax<int>(16, numSamples / 1024 + 3);
+			auto minNumToUse = juce::jmax<int>(16, numSamples / 1024 + 3);
 			infos.ensureStorageAllocated(minNumToUse);
 		}
 
-		void clear(Range<int> rangeToClear = Range<int>());
+		void clear(juce::Range<int> rangeToClear = juce::Range<int>());
 
-		void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const;
+		void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, juce::Range<int> rangeInData) const;
 
 		/** Copies the normalisation ranges from the source than intersect with the given range. */
-		void copyFrom(const Normaliser& source, Range<int> srcRange, Range<int> dstRange);
+		void copyFrom(const Normaliser& source, juce::Range<int> srcRange, juce::Range<int> dstRange);
 
 		struct NormalisationInfo
 		{
-			uint8 leftNormalisation = 0;
-			uint8 rightNormalisation = 0;
-			Range<int> range;
+			uint8_t leftNormalisation = 0;
+			uint8_t rightNormalisation = 0;
+            juce::Range<int> range;
 
 			bool canBeJoined(const NormalisationInfo& other) const;
 
 			void join(NormalisationInfo&& other);
 
-			void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const;
+			void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, juce::Range<int> rangeInData) const;
 		};
 
 		OptionalDynamicArray<NormalisationInfo, 16> infos;
 	};
 
 	HiseSampleBuffer() :
-		isFloat(true),
-		leftIntBuffer(0),
-		rightIntBuffer(0),
+        useOneMap(false),
 		numChannels(0),
 		size(0),
-		useOneMap(false)
-	{};
+        isFloat(true)
+	{}
 
 	HiseSampleBuffer(bool isFloat_, int numChannels_, int numSamples) :
+        useOneMap(numChannels_ == 1),
+        numChannels(numChannels_),
+        size(numSamples),
 		isFloat(isFloat_),
-		floatBuffer(numChannels_, isFloat_ ? numSamples : 0),
-		leftIntBuffer(isFloat_ ? 0 : numSamples),
-		rightIntBuffer(isFloat_ ? 0 : numSamples),
-		numChannels(numChannels_),
-		size(numSamples)
-	{
-		useOneMap = numChannels == 1;
-	}
+		floatBuffer(numChannels, isFloat ? numSamples : 0),
+		leftIntBuffer(isFloat ? 0 : numSamples),
+		rightIntBuffer(isFloat ? 0 : numSamples)
+    {}
 
 	HiseSampleBuffer(HiseSampleBuffer&& otherBuffer) :
-		floatBuffer(otherBuffer.floatBuffer),
-		isFloat(otherBuffer.isFloat),
+        useOneMap(otherBuffer.useOneMap),
+        numChannels(otherBuffer.numChannels),
+        size(otherBuffer.size),
+        isFloat(otherBuffer.isFloat),
+        floatBuffer(otherBuffer.floatBuffer),
 		leftIntBuffer(std::move(otherBuffer.leftIntBuffer)),
-		rightIntBuffer(std::move(otherBuffer.rightIntBuffer)),
-		numChannels(otherBuffer.numChannels),
-		size(otherBuffer.size),
-		useOneMap(otherBuffer.useOneMap)
-	{};
+		rightIntBuffer(std::move(otherBuffer.rightIntBuffer))
+	{}
 
 	/** Creates an HiseSampleBuffer from an array of data pointers. */
-	HiseSampleBuffer(int16** sampleData, int numChannels_, int numSamples):
-		leftIntBuffer(sampleData[0], numSamples),
-		rightIntBuffer(numChannels_ > 1 ? sampleData[0] : nullptr, numSamples),
-		isFloat(false),
-		size(numSamples),
-		numChannels(numChannels_),
-		useOneMap(numChannels_ == 1)
-	{
-		
-	}
+	HiseSampleBuffer(int16_t** sampleData, int numChannels_, int numSamples):
+        useOneMap(numChannels_ == 1),
+        numChannels(numChannels_),
+        size(numSamples),
+        leftIntBuffer(sampleData[0], numSamples),
+        rightIntBuffer(numChannels > 1 ? sampleData[0] : nullptr, numSamples)
+	{}
 
 	HiseSampleBuffer& operator= (HiseSampleBuffer&& other)
 	{
+        useOneMap = other.useOneMap;
 		isFloat = other.isFloat;
 		leftIntBuffer = std::move(other.leftIntBuffer);
 		rightIntBuffer = std::move(other.rightIntBuffer);
 		floatBuffer = other.floatBuffer;
 		numChannels = other.numChannels;
 		size = other.size;
-		useOneMap = other.useOneMap;
 
 		return *this;
 	}
@@ -264,29 +258,25 @@ public:
 	HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset);
 
 	HiseSampleBuffer(FixedSampleBuffer&& intBuffer) :
-		isFloat(false),
-		size(intBuffer.size),
-		floatBuffer(),
-		numChannels(1),
-		leftIntBuffer(std::move(intBuffer)),
-		rightIntBuffer(0),
-		useOneMap(true)
+        useOneMap(true),
+        numChannels(1),
+        size(intBuffer.size),
+        floatBuffer(),
+        leftIntBuffer(std::move(intBuffer))
 	{
-		flushNormalisationInfo({ 0, size });
+        flushNormalisationInfo({ 0, size });
 	}
 
 	/** Creates a HiseSampleBuffer from an existing AudioSampleBuffer. */
-	HiseSampleBuffer(AudioSampleBuffer& floatBuffer_):
+	HiseSampleBuffer(juce::AudioSampleBuffer& floatBuffer_):
+        useOneMap(floatBuffer_.getNumChannels() == 1),
+        numChannels(floatBuffer_.getNumChannels()),
+        size(floatBuffer_.getNumSamples()),
 		isFloat(true),
 		floatBuffer(floatBuffer_),
 		leftIntBuffer(0),
-		rightIntBuffer(0),
-		numChannels(floatBuffer_.getNumChannels()),
-		size(floatBuffer_.getNumSamples()),
-		useOneMap(floatBuffer_.getNumChannels() == 1)
-	{
-		
-	};
+		rightIntBuffer(0)
+	{}
 
 	~HiseSampleBuffer() {};
 
@@ -304,15 +294,15 @@ public:
 
 	int getNumChannels() const { return numChannels; }
 
-	void allocateNormalisationTables(int offsetToUse);
+	void allocateNormalisationTables (int offsetToUse);
 
-	void flushNormalisationInfo(Range<int> rangeToFlush);
+	void flushNormalisationInfo (juce::Range<int> rangeToFlush);
 
 	FixedSampleBuffer& getFixedBuffer(int channelIndex);
 
 	void convertToFloatWithNormalisation(float** data, int numChannels, int startSampleInSource, int numSamples) const;
 
-	void clearNormalisation(Range<int> r);
+	void clearNormalisation (juce::Range<int> r);
 
 	bool usesNormalisation() const noexcept;
 
@@ -336,7 +326,7 @@ public:
 	void applyGainRamp(int channelIndex, int startOffset, int rampLength, float startGain, float endGain);
 
 	/** Returns the internal AudioSampleBuffer for convenient usage with AudioFormatReader classes. */
-	AudioSampleBuffer* getFloatBufferForFileReader();
+    juce::AudioSampleBuffer* getFloatBufferForFileReader();
 
 	CompressionHelpers::NormaliseMap& getNormaliseMap(int channelIndex);
 
@@ -359,7 +349,7 @@ private:
 
 	bool isFloat = false;
 
-	AudioSampleBuffer floatBuffer;
+    juce::AudioSampleBuffer floatBuffer;
 
 	FixedSampleBuffer leftIntBuffer;
 	FixedSampleBuffer rightIntBuffer;

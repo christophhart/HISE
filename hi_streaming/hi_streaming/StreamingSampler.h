@@ -33,7 +33,7 @@
 #ifndef STREAMINGSAMPLER_H_INCLUDED
 #define STREAMINGSAMPLER_H_INCLUDED
 
-namespace hise { using namespace juce;
+namespace hise {
 
 class ModulatorSampler;
 
@@ -44,19 +44,19 @@ struct StreamingHelpers
 	/** This contains the minimal MIDI information that can be extracted from a SampleMap. */
 	struct BasicMappingData
 	{
-		int8 lowKey = -1;
-		int8 highKey = -1;
-		int8 lowVelocity = -1;
-		int8 highVelocity = -1;
-		int8 rootNote = -1;
+		int8_t lowKey = -1;
+		int8_t highKey = -1;
+		int8_t lowVelocity = -1;
+		int8_t highVelocity = -1;
+		int8_t rootNote = -1;
 	};
 
 	static void increaseBufferIfNeeded(hlac::HiseSampleBuffer& b, int numSamplesNeeded);
 
-	static bool preloadSample(StreamingSamplerSound * s, const int preloadSize, String& errorMessage);
+	static bool preloadSample(StreamingSamplerSound * s, const int preloadSize, juce::String& errorMessage);
 
 	/** Creates a BasicMappingData object from the given samplemap entry. */
-	static BasicMappingData getBasicMappingDataFromSample(const ValueTree& sampleData);
+	static BasicMappingData getBasicMappingDataFromSample(const juce::ValueTree& sampleData);
 };
 
 
@@ -89,7 +89,7 @@ public:
 		if (numOpenFileHandles < 0) numOpenFileHandles = 0;
 	}
 
-	AudioFormatManager afm;
+    juce::AudioFormatManager afm;
 
 	int getNumOpenFileHandles() const { return numOpenFileHandles; }
 
