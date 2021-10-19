@@ -33,7 +33,7 @@
 #ifndef STREAMINGSAMPLERVOICE_H_INCLUDED
 #define STREAMINGSAMPLERVOICE_H_INCLUDED
 
-namespace hise { using namespace juce;
+namespace hise {
 
 
 /** This is a utility class that handles buffered sample streaming in a background thread.
@@ -67,7 +67,7 @@ public:
 	*
 	*	The write buffer will be locked for the time of the read operation. Also it measures the time for getDiskUsage();
 	*/
-	JobStatus runJob() override;
+    JobStatus runJob() override;
 
 	size_t getActualStreamingBufferSize() const;
 
@@ -123,7 +123,7 @@ public:
 
 
 	void setLogger(DebugLogger* l) { logger = l; }
-	const CriticalSection &getLock() const { return lock; }
+	const juce::CriticalSection &getLock() const { return lock; }
 
 	/** Sets a function that checks whether the streaming engine should work asynchronously or fetch the data directly
 	    in the caller thread. 
@@ -160,45 +160,45 @@ private:
 	*	during the read operation, but I have to lock everything for a few calls, so that's why
 	*	there is a critical section.
 	*/
-	CriticalSection lock;
+	juce::CriticalSection lock;
 
 	/** A mutex for the buffer that is being used for loading. */
-	bool writeBufferIsBeingFilled;
+	bool writeBufferIsBeingFilled = false;
 
 	// variables for handling of the internal buffers
 
-	double readIndexDouble;
+	double readIndexDouble = 0.0;
 
 	double lastSwapPosition = 0.0;
 
-	Atomic<StreamingSamplerSound const *> sound;
+    juce::Atomic<StreamingSamplerSound const *> sound { nullptr };
 
-	int readIndex;
-	int idealBufferSize;
-	int minimumBufferSizeForSamplesPerBlock;
+	int readIndex   = 0;
+	int idealBufferSize = 0;
+	int minimumBufferSizeForSamplesPerBlock = 0;
 
-	int positionInSampleFile;
+	int positionInSampleFile = 0;
 
-	bool isReadingFromPreloadBuffer;
+	bool isReadingFromPreloadBuffer = true;
 
-	bool entireSampleIsLoaded;
+	bool entireSampleIsLoaded = false;
 
-	bool voiceCounterWasIncreased;
+	bool voiceCounterWasIncreased = false;
 
-	int sampleStartModValue;
+	int sampleStartModValue = 0;
 
-	DebugLogger* logger;
+	DebugLogger* logger = nullptr;
 
-	Atomic<hlac::HiseSampleBuffer const *> readBuffer;
-	Atomic<hlac::HiseSampleBuffer *> writeBuffer;
+    juce::Atomic<hlac::HiseSampleBuffer const *> readBuffer { nullptr };
+    juce::Atomic<hlac::HiseSampleBuffer *> writeBuffer      { nullptr };
 
 	// variables for disk usage measurement
 
-	Atomic<float> diskUsage;
-	double lastCallToRequestData;
+    juce::Atomic<float> diskUsage { 0.0 };
+	double lastCallToRequestData = 0.0;
 
 	// just a pointer to the used pool
-	SampleThreadPool *backgroundPool;
+	SampleThreadPool *backgroundPool = nullptr;
 
 	// the internal buffers
 
@@ -213,7 +213,7 @@ private:
 *	It uses a SampleLoader object to fetch the data and copies the values into an internal buffer, so you
 *	don't have to bother with the SampleLoader's internals.
 */
-class StreamingSamplerVoice : public SynthesiserVoice
+class StreamingSamplerVoice : public juce::SynthesiserVoice
 {
 public:
 	StreamingSamplerVoice(SampleThreadPool *backgroundThreadPool);
@@ -221,22 +221,22 @@ public:
 	~StreamingSamplerVoice() {};
 
 	/** Always returns true. */
-	bool canPlaySound(SynthesiserSound*) { return true; };
+	bool canPlaySound(juce::SynthesiserSound*) override { return true; }
 
 	/** starts the streaming of the sound. */
-	void startNote(int midiNoteNumber, float velocity, SynthesiserSound* s, int /*currentPitchWheelPosition*/) override;
+	void startNote(int midiNoteNumber, float velocity, juce::SynthesiserSound* s, int /*currentPitchWheelPosition*/) override;
 
 	const StreamingSamplerSound *getLoadedSound();
 
 	void setLoaderBufferSize(int newBufferSize);;
 
 	/** Clears the note data and resets the loader. */
-	void stopNote(float, bool /*allowTailOff*/);;
+	void stopNote(float, bool /*allowTailOff*/) override;
 
 	void setDebugLogger(DebugLogger* newLogger);
 
 	/** Adds it's output to the outputBuffer. */
-	void renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples) override;
+	void renderNextBlock(juce::AudioSampleBuffer &outputBuffer, int startSample, int numSamples) override;
 
 	/** You can pass a pointer with float values containing pitch information for each sample and the delta pitch value for each sample.
 	*
@@ -315,7 +315,7 @@ private:
 	// will be calculated at note on
 	double constUptimeDelta = 1.0;
 
-	int sampleStartModValue;
+	int sampleStartModValue = 0;
 
 	DebugLogger* logger = nullptr;
 

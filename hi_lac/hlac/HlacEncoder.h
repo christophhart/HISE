@@ -34,7 +34,7 @@
 #ifndef HLACENCODER_H_INCLUDED
 #define HLACENCODER_H_INCLUDED
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
 class HlacEncoder
 {
@@ -60,28 +60,28 @@ public:
 		};
 
 		bool useCompression = true;
-		int16 fixedBlockWidth = -1;
+		int16_t fixedBlockWidth = -1;
 		bool removeDcOffset = true;
 		bool applyDithering = false;
-		uint8 normalisationMode = 0;
-		uint8 normalisationThreshold = 4;
+		uint8_t normalisationMode = 0;
+		uint8_t normalisationThreshold = 4;
 		int bitRateForWholeBlock = 6;
 		bool useDiffEncodingWithFixedBlocks = false;
 
-		static String getBoolString(bool b)
+		static juce::String getBoolString(bool b)
 		{
 			return b ? "true" : "false";
 		}
 
-		String toString() const
+        juce::String toString() const
 		{
-			String s;
-			NewLine nl;
+            juce::String s;
+            juce::NewLine nl;
 
 			s << "useCompression: " << getBoolString(useCompression) << nl;
-			s << "fixedBlockWidth: " << String(fixedBlockWidth) << nl;
+			s << "fixedBlockWidth: " << juce::String(fixedBlockWidth) << nl;
 			s << "removeDCOffset: " << getBoolString(removeDcOffset) << nl;
-			s << "bitRateForWholeBlock: " << String(bitRateForWholeBlock) << nl;
+			s << "bitRateForWholeBlock: " << juce::String(bitRateForWholeBlock) << nl;
 			s << "useDiffEncodingWithFixedBlocks: " << getBoolString(useDiffEncodingWithFixedBlocks) << nl;
 
 			return s;
@@ -128,7 +128,7 @@ public:
 	};
 
 
-	void compress(AudioSampleBuffer& source, OutputStream& output, uint32* blockOffsetData);
+	void compress(juce::AudioSampleBuffer& source, juce::OutputStream& output, uint32_t* blockOffsetData);
 	
 	void reset();
 
@@ -139,38 +139,38 @@ public:
 
 	float getCompressionRatio() const;
 
-	uint32 getNumBlocksWritten() const { return blockIndex; }
+	uint32_t getNumBlocksWritten() const { return blockIndex; }
 
 private:
 
-	bool encodeBlock(AudioSampleBuffer& block, OutputStream& output);
+	bool encodeBlock (juce::AudioSampleBuffer& block, juce::OutputStream& output);
 
-	bool encodeBlock(CompressionHelpers::AudioBufferInt16& block, OutputStream& output);
+	bool encodeBlock(CompressionHelpers::AudioBufferInt16& block, juce::OutputStream& output);
 
-	bool normaliseBlockAndAddHeader(CompressionHelpers::AudioBufferInt16& block16, OutputStream& output);
+	bool normaliseBlockAndAddHeader(CompressionHelpers::AudioBufferInt16& block16, juce::OutputStream& output);
 
-	MemoryBlock createCompressedBlock(CompressionHelpers::AudioBufferInt16& block);
+    juce::MemoryBlock createCompressedBlock(CompressionHelpers::AudioBufferInt16& block);
 
-	uint8 getBitReductionAmountForMSEncoding(AudioSampleBuffer& block);
+	uint8_t getBitReductionAmountForMSEncoding (juce::AudioSampleBuffer& block);
 
 	bool isBlockExhausted() const
 	{
 		return indexInBlock >= COMPRESSION_BLOCK_SIZE;
 	}
 
-	bool writeChecksumBytesForBlock(OutputStream& output);
+	bool writeChecksumBytesForBlock (juce::OutputStream& output);
 
-	bool writeNormalisationAmount(OutputStream& output);
+	bool writeNormalisationAmount (juce::OutputStream& output);
 
-	bool writeUncompressed(CompressionHelpers::AudioBufferInt16& block, OutputStream& output);
+	bool writeUncompressed (CompressionHelpers::AudioBufferInt16& block, juce::OutputStream& output);
 
-	bool encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, OutputStream& output);
-	bool encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, OutputStream& output);
-	bool encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCycle, OutputStream& output);
-	void  encodeLastBlock(AudioSampleBuffer& block, OutputStream& output);
+	bool encodeCycle (CompressionHelpers::AudioBufferInt16& cycle, juce::OutputStream& output);
+	bool encodeDiff (CompressionHelpers::AudioBufferInt16& cycle, juce::OutputStream& output);
+	bool encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCycle, juce::OutputStream& output);
+	void  encodeLastBlock (juce::AudioSampleBuffer& block, juce::OutputStream& output);
 
-	bool writeCycleHeader(bool isTemplate, int bitDepth, int numSamples, OutputStream& output);
-	bool writeDiffHeader(int fullBitRate, int errorBitRate, int blockSize, OutputStream& output);
+	bool writeCycleHeader(bool isTemplate, int bitDepth, int numSamples, juce::OutputStream& output);
+	bool writeDiffHeader(int fullBitRate, int errorBitRate, int blockSize, juce::OutputStream& output);
 
 	int getCycleLength(CompressionHelpers::AudioBufferInt16& block);
 	int getCycleLengthFromTemplate(CompressionHelpers::AudioBufferInt16& newCycle, CompressionHelpers::AudioBufferInt16& rest);
@@ -183,20 +183,20 @@ private:
 
 	int indexInBlock = 0;
 
-	uint32 numBytesWritten = 0;
-	uint32 numBytesUncompressed = 0;
+	uint32_t numBytesWritten = 0;
+	uint32_t numBytesUncompressed = 0;
 
-	uint32 numTemplates = 0;
-	uint32 numDeltas = 0;
+	uint32_t numTemplates = 0;
+	uint32_t numDeltas = 0;
 
-	uint32 blockOffset = 0;
-	uint32 blockIndex = 0;
+	uint32_t blockOffset = 0;
+	uint32_t blockIndex = 0;
 
-	uint8 bitRateForCurrentCycle = 0;
+	uint8_t bitRateForCurrentCycle = 0;
 
 	int firstCycleLength = -1;
 
-	MemoryBlock readBuffer;
+    juce::MemoryBlock readBuffer;
 
 	CompressorOptions options;
 
@@ -204,7 +204,7 @@ private:
 
 	float ratio = 0.0f;
 
-	uint64 readIndex = 0;
+	uint64_t readIndex = 0;
 
 	double decompressionSpeed = 0.0;
 };

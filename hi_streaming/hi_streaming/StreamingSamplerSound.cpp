@@ -30,13 +30,13 @@
 *   ===========================================================================
 */
 
-namespace hise { using namespace juce;
+namespace hise {
 
 #define MAX_SAMPLE_NUMBER 2147483647
 
 // ==================================================================================================== StreamingSamplerSound methods
 
-StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad, StreamingSamplerSoundPool *pool) :
+StreamingSamplerSound::StreamingSamplerSound(const juce::String &fileNameToLoad, StreamingSamplerSoundPool *pool) :
 	fileReader(this, pool),
 	sampleRate(-1.0),
 	purged(false),
@@ -54,7 +54,7 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad, Strea
 	loopEnd(MAX_SAMPLE_NUMBER),
 	loopLength(0),
 	crossfadeLength(0),
-	crossfadeArea(Range<int>())
+	crossfadeArea(juce::Range<int>())
 {
 	fileReader.setFile(fileNameToLoad);
 
@@ -79,7 +79,7 @@ StreamingSamplerSound::StreamingSamplerSound(MonolithInfoToUse *info, int channe
 	loopEnd(MAX_SAMPLE_NUMBER),
 	loopLength(0),
 	crossfadeLength(0),
-	crossfadeArea(Range<int>())
+	crossfadeArea(juce::Range<int>())
 {
 	fileReader.setMonolithicInfo(info, channelIndex, sampleIndex);
 
@@ -149,7 +149,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 	if (!forceReload && (preloadSizeChanged || streamingDeactivated)) return;
 
-	ScopedLock sl(getSampleLock());
+    juce::ScopedLock sl(getSampleLock());
 
 	const bool sampleDeactivated = !hasActiveState() || newPreloadSize == 0;
 
@@ -169,10 +169,10 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	{
 		// this hasn't been initialised, so we need to do it here...
 
-		fileReader.openFileHandles(dontSendNotification);
+		fileReader.openFileHandles(juce::dontSendNotification);
 		sampleLength = (int)fileReader.getSampleLength();
-		loopLength = jmin<int>(loopLength, sampleLength);
-		loopEnd = jmin<int>(loopEnd, sampleLength);
+		loopLength = std::min<int>(loopLength, sampleLength);
+		loopEnd = std::min<int>(loopEnd, sampleLength);
 	}
 
 	if (newPreloadSize == -1 || (preloadSize + sampleStartMod) > sampleLength)
@@ -193,7 +193,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 		entireSampleLoaded = true;
 	}
 
-	internalPreloadSize = jmax(preloadSize, internalPreloadSize, 2048);
+	internalPreloadSize = juce::jmax(preloadSize, internalPreloadSize, 2048);
 
 	fileReader.openFileHandles();
 
@@ -220,12 +220,12 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 	if (sampleRate <= 0.0)
 	{
-		if (AudioFormatReader *reader = fileReader.getReader())
+		if (auto* reader = fileReader.getReader())
 		{
 			sampleRate = reader->sampleRate;
-			sampleEnd = jmin<int>(sampleEnd, (int)reader->lengthInSamples);
-			sampleLength = jmax<int>(0, sampleEnd - sampleStart);
-			loopEnd = jmin(loopEnd, sampleEnd);
+			sampleEnd = std::min<int>(sampleEnd, (int)reader->lengthInSamples);
+			sampleLength = std::max<int>(0, sampleEnd - sampleStart);
+			loopEnd = std::min(loopEnd, sampleEnd);
 		}
 	}
 
@@ -242,7 +242,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 		while (numTodo > 0)
 		{
-			int numThisTime = jmin<int>(numTodo, samplesPerFillOp);
+			int numThisTime = std::min<int>(numTodo, samplesPerFillOp);
 
 			hlac::HiseSampleBuffer::copy(preloadBuffer, preloadBuffer, pos, loopStart - sampleStart, numThisTime);
 
@@ -252,7 +252,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	}
 	else
 	{
-		auto samplesToRead = jmin<int>(sampleLength, internalPreloadSize);
+		auto samplesToRead = std::min<int>(sampleLength, internalPreloadSize);
 
 		if(samplesToRead > 0)
 			fileReader.readFromDisk(preloadBuffer, 0, samplesToRead, sampleStart + monolithOffset, true);
@@ -265,7 +265,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 size_t StreamingSamplerSound::getActualPreloadSize() const
 {
-	auto bytesPerSample = fileReader.isMonolithic() ? sizeof(int16) : sizeof(float);
+	auto bytesPerSample = fileReader.isMonolithic() ? sizeof(int16_t) : sizeof(float);
 
 	return hasActiveState() ? (size_t)(internalPreloadSize *preloadBuffer.getNumChannels()) * bytesPerSample + (size_t)(loopBuffer.getNumSamples() *loopBuffer.getNumChannels()) * bytesPerSample : 0;
 }
@@ -297,7 +297,7 @@ bool StreamingSamplerSound::isStereo() const
 
 int StreamingSamplerSound::getBitRate() const
 {
-	ScopedPointer<AudioFormatReader> reader = fileReader.createMonolithicReaderForPreview();
+    juce::ScopedPointer<juce::AudioFormatReader> reader = fileReader.createMonolithicReaderForPreview();
 	
 	if (reader != nullptr)
 		return reader->bitsPerSample;
@@ -305,17 +305,17 @@ int StreamingSamplerSound::getBitRate() const
 	return -1;
 }
 
-bool StreamingSamplerSound::replaceAudioFile(const AudioSampleBuffer& b)
+bool StreamingSamplerSound::replaceAudioFile(const juce::AudioSampleBuffer& b)
 {
 	if (b.getNumChannels() == (fileReader.isStereo() ? 2 : 1))
 	{
-		TemporaryFile tmp(File(fileReader.getFileName(true)));
+        juce::TemporaryFile tmp(juce::File(fileReader.getFileName(true)));
 
 		tmp.getFile().create();
 
-		auto fos = new FileOutputStream(tmp.getFile());
+		auto fos = new juce::FileOutputStream(tmp.getFile());
 
-		ScopedPointer<AudioFormatWriter> writer = fileReader.createWriterWithSameFormat(fos);
+        juce::ScopedPointer<juce::AudioFormatWriter> writer = fileReader.createWriterWithSameFormat(fos);
 
 		if (writer != nullptr)
 		{
@@ -326,7 +326,7 @@ bool StreamingSamplerSound::replaceAudioFile(const AudioSampleBuffer& b)
 
 			writer = nullptr;
 
-			fileReader.closeFileHandles(sendNotification);
+			fileReader.closeFileHandles(juce::sendNotification);
 
 			if (ok)
 				return tmp.overwriteTargetFileWithTemporary();
@@ -350,12 +350,12 @@ juce::AudioFormatReader* StreamingSamplerSound::createReaderForPreview()
 	return fileReader.createMonolithicReaderForPreview();
 }
 
-AudioFormatReader* StreamingSamplerSound::createReaderForAnalysis()
+juce::AudioFormatReader* StreamingSamplerSound::createReaderForAnalysis()
 {
 	return fileReader.getReader();
 }
 
-String StreamingSamplerSound::getSampleStateAsString() const
+juce::String StreamingSamplerSound::getSampleStateAsString() const
 {
 	if (isMissing())
 	{
@@ -369,9 +369,9 @@ String StreamingSamplerSound::getSampleStateAsString() const
 	}
 }
 
-String StreamingSamplerSound::getFileName(bool getFullPath /*= false*/) const { return fileReader.getFileName(getFullPath); }
+juce::String StreamingSamplerSound::getFileName(bool getFullPath /*= false*/) const { return fileReader.getFileName(getFullPath); }
 
-int64 StreamingSamplerSound::getHashCode() { return fileReader.getHashCode(); }
+int64_t StreamingSamplerSound::getHashCode() { return fileReader.getHashCode(); }
 
 
 void StreamingSamplerSound::checkFileReference()
@@ -380,7 +380,7 @@ void StreamingSamplerSound::checkFileReference()
 }
 
 
-void StreamingSamplerSound::replaceFileReference(const String &newFileName)
+void StreamingSamplerSound::replaceFileReference(const juce::String &newFileName)
 {
 	fileReader.setFile(newFileName);
 
@@ -388,7 +388,7 @@ void StreamingSamplerSound::replaceFileReference(const String &newFileName)
 
 	fileReader.openFileHandles();
 
-	AudioFormatReader *reader = fileReader.getReader();
+	auto *reader = fileReader.getReader();
 
 	if (reader != nullptr)
 	{
@@ -432,7 +432,7 @@ void StreamingSamplerSound::setSampleStartModulation(int newModulationDelta)
 {
 	if (sampleStartMod != newModulationDelta)
 	{
-		ScopedLock sl(getSampleLock());
+        juce::ScopedLock sl(getSampleLock());
 
 		sampleStartMod = newModulationDelta;
 		lengthChanged();
@@ -464,7 +464,7 @@ void StreamingSamplerSound::setLoopStart(int newLoopStart)
 {
 	if (loopStart != newLoopStart)
 	{
-		loopStart = jmax(sampleStart, newLoopStart);
+		loopStart = std::max(sampleStart, newLoopStart);
 		loopChanged();
 	}
 }
@@ -473,8 +473,8 @@ void StreamingSamplerSound::setLoopEnd(int newLoopEnd)
 {
 	if (loopEnd != newLoopEnd)
 	{
-		loopEnd = jmin(sampleEnd, newLoopEnd);
-		crossfadeArea = Range<int>((int)(loopEnd - crossfadeLength), (int)loopEnd);
+		loopEnd = std::min(sampleEnd, newLoopEnd);
+		crossfadeArea = juce::Range<int>((int)(loopEnd - crossfadeLength), (int)loopEnd);
 		loopChanged();
 	}
 }
@@ -484,7 +484,7 @@ void StreamingSamplerSound::setLoopCrossfade(int newCrossfadeLength)
 	if (crossfadeLength != newCrossfadeLength)
 	{
 		crossfadeLength = newCrossfadeLength;
-		crossfadeArea = Range<int>((int)(loopEnd - crossfadeLength), (int)loopEnd);
+		crossfadeArea = juce::Range<int>((int)(loopEnd - crossfadeLength), (int)loopEnd);
 		loopChanged();
 	}
 }
@@ -502,11 +502,11 @@ void StreamingSamplerSound::setSampleEnd(int newSampleEnd)
 
 void StreamingSamplerSound::lengthChanged()
 {
-	ScopedLock sl(getSampleLock());
+    juce::ScopedLock sl(getSampleLock());
 
 	if (sampleEnd != MAX_SAMPLE_NUMBER)
 	{
-		sampleLength = jmax<int>(0, sampleEnd - sampleStart);
+		sampleLength = std::max<int>(0, sampleEnd - sampleStart);
 		setPreloadSize(preloadSize, true);
 	}
 }
@@ -530,7 +530,7 @@ void StreamingSamplerSound::applyCrossfadeToPreloadBuffer()
 
 			while (fadePos < numInBuffer)
 			{
-				int numToCopy = jmin(crossfadeLength, numInBuffer - fadePos);
+				int numToCopy = std::min(crossfadeLength, numInBuffer - fadePos);
 
 				hlac::HiseSampleBuffer::copy(preloadBuffer, loopBuffer, fadePos, 0, numToCopy);
 				fadePos += loopLength;
@@ -544,7 +544,7 @@ void StreamingSamplerSound::loopChanged()
     if(delayPreloadInitialisation)
         return;
     
-	ScopedLock sl(getSampleLock());
+    juce::ScopedLock sl(getSampleLock());
 
 	if (sampleEnd == MAX_SAMPLE_NUMBER && loopEnabled)
 	{
@@ -552,9 +552,9 @@ void StreamingSamplerSound::loopChanged()
 		sampleEnd = (int)fileReader.getSampleLength();
 	}
 
-	loopStart = jmax<int>(loopStart, sampleStart);
-	loopEnd = jmin<int>(loopEnd, sampleEnd);
-	loopLength = jmax<int>(0, loopEnd - loopStart);
+	loopStart  = std::max<int>(loopStart, sampleStart);
+	loopEnd    = std::min<int>(loopEnd, sampleEnd);
+	loopLength = std::max<int>(0, loopEnd - loopStart);
 
 	if (loopEnabled)
 	{
@@ -657,7 +657,7 @@ float StreamingSamplerSound::calculatePeakValue()
 
 void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const
 {
-	ScopedLock sl(getSampleLock());
+    juce::ScopedLock sl(getSampleLock());
 
 	if (sampleBuffer.getNumSamples() == samplesToCopy)
 		sampleBuffer.clearNormalisation({});
@@ -678,13 +678,13 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 
 			if (indexInLoop < 0)
 			{
-				numSamplesBeforeFirstWrap = jmin<int>(samplesToCopy, loopStart - (uptime + sampleStart));
+				numSamplesBeforeFirstWrap = std::min<int>(samplesToCopy, loopStart - (uptime + sampleStart));
 
 				fillInternal(sampleBuffer, numSamplesBeforeFirstWrap, uptime + (int)sampleStart, 0);
 			}
 			else
 			{
-				numSamplesBeforeFirstWrap = jmin<int>(samplesToCopy, numSamplesInThisLoop);
+				numSamplesBeforeFirstWrap = std::min<int>(samplesToCopy, numSamplesInThisLoop);
 				int startSample = indexInLoop;
 
 				hlac::HiseSampleBuffer::copy(sampleBuffer, smallLoopBuffer, 0, startSample, numSamplesBeforeFirstWrap);
@@ -762,20 +762,20 @@ void StreamingSamplerSound::fillInternal(hlac::HiseSampleBuffer &sampleBuffer, i
 	jassert(uptime + samplesToCopy <= sampleEnd);
 
 	// Some samples from the loop crossfade buffer are required
-	if (loopEnabled && Range<int>(uptime, uptime + samplesToCopy).intersects(crossfadeArea))
+	if (loopEnabled && juce::Range<int>(uptime, uptime + samplesToCopy).intersects(crossfadeArea))
 	{
-		const int numSamplesBeforeCrossfade = jmax(0, crossfadeArea.getStart() - uptime);
+		const int numSamplesBeforeCrossfade = std::max(0, crossfadeArea.getStart() - uptime);
 
 		if (numSamplesBeforeCrossfade > 0)
 		{
 			fillInternal(sampleBuffer, numSamplesBeforeCrossfade, uptime, 0);
 		}
 
-		const int numSamplesInCrossfade = jmin(samplesToCopy - numSamplesBeforeCrossfade, (int)crossfadeLength);
+		const int numSamplesInCrossfade = std::min(samplesToCopy - numSamplesBeforeCrossfade, (int)crossfadeLength);
 
 		if (numSamplesInCrossfade > 0)
 		{
-			const int indexInLoopBuffer = jmax(0, uptime - crossfadeArea.getStart());
+			const int indexInLoopBuffer = std::max(0, uptime - crossfadeArea.getStart());
 
 			hlac::HiseSampleBuffer::copy(sampleBuffer, loopBuffer, numSamplesBeforeCrossfade, indexInLoopBuffer, numSamplesInCrossfade);
 		}
@@ -827,21 +827,21 @@ StreamingSamplerSound::FileReader::FileReader(StreamingSamplerSound *soundForRea
 
 StreamingSamplerSound::FileReader::~FileReader()
 {
-	ScopedWriteLock sl(fileAccessLock);
+    juce::ScopedWriteLock sl(fileAccessLock);
 
 	memoryReader = nullptr;
 	normalReader = nullptr;
 }
 
-void StreamingSamplerSound::FileReader::setFile(const String &fileName)
+void StreamingSamplerSound::FileReader::setFile(const juce::String &fileName)
 {
 	monolithicInfo = nullptr;
 
-	if (File::isAbsolutePath(fileName))
+	if (juce::File::isAbsolutePath(fileName))
 	{
-		loadedFile = File(fileName);
+		loadedFile = juce::File(fileName);
 
-		const String fileExtension = loadedFile.getFileExtension();
+		const juce::String fileExtension = loadedFile.getFileExtension();
 
 		fileFormatSupportsMemoryReading = fileExtension.contains("wav") || fileExtension.contains("aif");// || fileExtension.contains("hlac");
 
@@ -850,11 +850,11 @@ void StreamingSamplerSound::FileReader::setFile(const String &fileName)
 	else
 	{
 		faultyFileName = fileName;
-		loadedFile = File();
+		loadedFile = juce::File();
 	}
 }
 
-String StreamingSamplerSound::FileReader::getFileName(bool getFullPath)
+juce::String StreamingSamplerSound::FileReader::getFileName(bool getFullPath)
 {
 	if (monolithicInfo != nullptr)
 	{
@@ -892,9 +892,9 @@ void StreamingSamplerSound::FileReader::refreshFileInformation()
 
 	if (!missing)
 	{
-		faultyFileName = String();
+		faultyFileName = juce::String();
 
-		const String fileExtension = loadedFile.getFileExtension();
+		const juce::String fileExtension = loadedFile.getFileExtension();
 
 		fileFormatSupportsMemoryReading = fileExtension.compareIgnoreCase(".wav") || fileExtension.startsWithIgnoreCase(".aif");// || fileExtension.startsWithIgnoreCase("hlac");
 
@@ -904,13 +904,13 @@ void StreamingSamplerSound::FileReader::refreshFileInformation()
 
 
 
-AudioFormatReader * StreamingSamplerSound::FileReader::getReader()
+juce::AudioFormatReader * StreamingSamplerSound::FileReader::getReader()
 {
 	if (!fileHandlesOpen) 
 		openFileHandles();
 
-	if (memoryReader != nullptr) return memoryReader;
-	else if (normalReader != nullptr) return normalReader;
+	if (memoryReader) return memoryReader.get();
+	else if (normalReader) return normalReader.get();
 	else return nullptr;
 }
 
@@ -922,7 +922,7 @@ void StreamingSamplerSound::FileReader::wakeSound()
 }
 
 
-void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyPool)
+void StreamingSamplerSound::FileReader::openFileHandles(juce::NotificationType notifyPool)
 {
 	if (fileHandlesOpen)
 	{
@@ -933,7 +933,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 	{
 		jassert(memoryReader == nullptr || normalReader == nullptr);
 
-		ScopedWriteLock sl(fileAccessLock);
+        juce::ScopedWriteLock sl(fileAccessLock);
 
 		fileHandlesOpen = true;
 
@@ -945,7 +945,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 #if USE_FALLBACK_READERS_FOR_MONOLITH
 			normalReader = monolithicInfo->createFallbackReader(monolithicIndex, monolithicChannelIndex);
 #else
-			normalReader = monolithicInfo->createMonolithicReader(monolithicIndex, monolithicChannelIndex);
+			normalReader.reset (monolithicInfo->createMonolithicReader (monolithicIndex, monolithicChannelIndex));
 #endif
 
 			if (normalReader != nullptr)
@@ -958,23 +958,23 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 		{
 			if (fileFormatSupportsMemoryReading)
 			{
-				AudioFormat* format = pool->afm.findFormatForFileExtension(loadedFile.getFileExtension());
+				auto* format = pool->afm.findFormatForFileExtension(loadedFile.getFileExtension());
 
 				if (format != nullptr)
 				{
-					memoryReader = format->createMemoryMappedReader(loadedFile);
+					memoryReader.reset (format->createMemoryMappedReader(loadedFile));
 
 					if (memoryReader != nullptr)
 					{
-						memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
-						sampleLength = jmax<int64>(0, memoryReader->getMappedSection().getLength());
+						memoryReader->mapSectionOfFile(juce::Range<int64_t>((int64_t)(sound->sampleStart) + (int64_t)(sound->monolithOffset), (int64_t)(sound->sampleEnd)));
+						sampleLength = std::max<int64_t>(0, memoryReader->getMappedSection().getLength());
 						stereo = memoryReader->numChannels > 1;
 					}
 				}
 			}
 
 
-			normalReader = pool->afm.createReaderFor(loadedFile);
+			normalReader.reset (pool->afm.createReaderFor(loadedFile));
 			sampleLength = normalReader != nullptr ? normalReader->lengthInSamples : 0;
 			stereo = (normalReader != nullptr) ? (normalReader->numChannels > 1) : false;
 		}
@@ -993,20 +993,20 @@ bool StreamingSamplerSound::FileReader::isStereo() const noexcept
 	return stereo;
 }
 
-void StreamingSamplerSound::FileReader::closeFileHandles(NotificationType notifyPool)
+void StreamingSamplerSound::FileReader::closeFileHandles(juce::NotificationType notifyPool)
 {
 	if (monolithicIndex != -1) return; // don't close the reader for monolithic files...
 
-	if (voiceCount.get() == 0)
+	if (voiceCount.load() == 0)
 	{
-		ScopedWriteLock sl(fileAccessLock);
+        juce::ScopedWriteLock sl(fileAccessLock);
 
 		fileHandlesOpen = false;
 
 		memoryReader = nullptr;
 		normalReader = nullptr;
 
-		if (monolithicInfo == nullptr && notifyPool == sendNotification) pool->decreaseNumOpenFileHandles();
+		if (monolithicInfo == nullptr && notifyPool == juce::sendNotification) pool->decreaseNumOpenFileHandles();
 	}
 }
 
@@ -1015,7 +1015,7 @@ void StreamingSamplerSound::FileReader::closeFileHandles(NotificationType notify
 
 void StreamingSamplerSound::FileReader::readFromDisk(hlac::HiseSampleBuffer &buffer, int startSample, int numSamples, int readerPosition, bool useMemoryMappedReader)
 {
-	if (!fileHandlesOpen) openFileHandles(sendNotification);
+	if (!fileHandlesOpen) openFileHandles(juce::sendNotification);
 
 #if USE_SAMPLE_DEBUG_COUNTER
 
@@ -1040,9 +1040,9 @@ void StreamingSamplerSound::FileReader::readFromDisk(hlac::HiseSampleBuffer &buf
 
 	if (!isMonolithic() && useMemoryMappedReader)
 	{
-		if (memoryReader != nullptr && memoryReader->getMappedSection().contains(Range<int64>(readerPosition, readerPosition + numSamples)))
+		if (memoryReader != nullptr && memoryReader->getMappedSection().contains(juce::Range<int64_t>(readerPosition, readerPosition + numSamples)))
 		{
-			ScopedReadLock sl(fileAccessLock);
+            juce::ScopedReadLock sl(fileAccessLock);
 
 			if (buffer.isFloatingPoint())
 				memoryReader->read(buffer.getFloatBufferForFileReader(), startSample, numSamples, readerPosition, true, true);
@@ -1055,7 +1055,7 @@ void StreamingSamplerSound::FileReader::readFromDisk(hlac::HiseSampleBuffer &buf
 
 	if (normalReader != nullptr)
 	{
-		ScopedReadLock sl(fileAccessLock);
+        juce::ScopedReadLock sl(fileAccessLock);
 
 		if (buffer.isFloatingPoint())
 			normalReader->read(buffer.getFloatBufferForFileReader(), startSample, numSamples, readerPosition, true, true);
@@ -1088,7 +1088,7 @@ float StreamingSamplerSound::FileReader::calculatePeakValue()
 
 	openFileHandles();
 
-	ScopedPointer<AudioFormatReader> readerToUse = createMonolithicReaderForPreview();// getReader();
+    juce::ScopedPointer<juce::AudioFormatReader> readerToUse = createMonolithicReaderForPreview();// getReader();
 	
 	if (readerToUse != nullptr) 
 		readerToUse->readMaxLevels(sound->sampleStart + sound->monolithOffset, sound->sampleLength, l1, l2, r1, r2);
@@ -1097,14 +1097,14 @@ float StreamingSamplerSound::FileReader::calculatePeakValue()
 	closeFileHandles();
 
     // so tired of std::abs...
-    const float maxLeft = jmax<float>(getAbsoluteValue(l1), getAbsoluteValue(l2));
-	const float maxRight = jmax<float>(getAbsoluteValue(r1), getAbsoluteValue(r2));
+    const float maxLeft = std::max<float>(getAbsoluteValue(l1), getAbsoluteValue(l2));
+	const float maxRight = std::max<float>(getAbsoluteValue(r1), getAbsoluteValue(r2));
 
-	return jmax<float>(maxLeft, maxRight);
+	return std::max<float>(maxLeft, maxRight);
 }
 
 
-AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForPreview()
+juce::AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForPreview()
 {
 	if (monolithicInfo != nullptr)
 		return monolithicInfo->createThumbnailReader(monolithicIndex, monolithicChannelIndex);
@@ -1113,9 +1113,9 @@ AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForP
 }
 
 
-juce::AudioFormatWriter* StreamingSamplerSound::FileReader::createWriterWithSameFormat(OutputStream* out)
+juce::AudioFormatWriter* StreamingSamplerSound::FileReader::createWriterWithSameFormat(juce::OutputStream* out)
 {
-	ScopedPointer<OutputStream> ownedOutput = out;
+    juce::ScopedPointer<juce::OutputStream> ownedOutput = out;
 
 	if (monolithicInfo != nullptr)
 	{
@@ -1126,7 +1126,7 @@ juce::AudioFormatWriter* StreamingSamplerSound::FileReader::createWriterWithSame
 
 	auto extension = loadedFile.getFileExtension();
 
-	ScopedPointer<AudioFormatReader> r = createMonolithicReaderForPreview();
+    juce::ScopedPointer<juce::AudioFormatReader> r = createMonolithicReaderForPreview();
 
 	for (int i = 0; i < pool->afm.getNumKnownFormats(); i++)
 	{

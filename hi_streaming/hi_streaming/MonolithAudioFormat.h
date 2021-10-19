@@ -34,7 +34,7 @@
 #ifndef MONOLITHAUDIOFORMAT_H_INCLUDED
 #define MONOLITHAUDIOFORMAT_H_INCLUDED
 
-namespace hise { using namespace juce;
+namespace hise {
 
 #define USE_OLD_MONOLITH_FORMAT 0
 
@@ -363,11 +363,11 @@ typedef HiseMonolithAudioFormat MonolithInfoToUse;
 
 #else
 
-struct HlacMonolithInfo : public ReferenceCountedObject
+struct HlacMonolithInfo : public juce::ReferenceCountedObject
 {
 public:
 
-	bool operator ==(const Identifier& sampleMapId) const
+	bool operator ==(const juce::Identifier& sampleMapId) const
 	{
 		auto first = sampleMapId.toString().replaceCharacter('/', '_');
 		auto second = id.toString().replaceCharacter('/', '_');
@@ -375,7 +375,7 @@ public:
 		return first == second;
 	}
 
-	HlacMonolithInfo(const Array<File>& monolithicFiles_)
+	HlacMonolithInfo(const juce::Array<juce::File>& monolithicFiles_)
 	{
 		id = monolithicFiles_.getFirst().getFileNameWithoutExtension().replaceCharacter('_', '/');
 
@@ -384,11 +384,11 @@ public:
 
 		for (int i = 0; i < monolithicFiles_.size(); i++)
 		{
-			FileInputStream fis(monolithicFiles_[i]);
+            juce::FileInputStream fis(monolithicFiles_[i]);
 
 			monolithicFiles.push_back(monolithicFiles_[i]);
 
-			ScopedPointer<FileInputStream> fallbackStream = new FileInputStream(monolithicFiles_[i]);
+			auto fallbackStream = monolithicFiles_[i].createInputStream();
 			fallbackReaders.add(new hlac::HiseLosslessAudioFormatReader(fallbackStream.release()));
 			isMonoChannel[i] = fallbackReaders.getLast()->numChannels == 1;
 		}
@@ -397,14 +397,14 @@ public:
 		dummyReader.bitsPerSample = 16;
 	}
 
-	void fillMetadataInfo(const ValueTree& sampleMap);
+	void fillMetadataInfo(const juce::ValueTree& sampleMap);
 
-	String getFileName(int channelIndex, int sampleIndex) const
+    juce::String getFileName(int channelIndex, int sampleIndex) const
 	{
 		return multiChannelSampleInformation[channelIndex][sampleIndex].fileName;
 	}
 
-	int64 getMonolithOffset(int sampleIndex) const
+	int64_t getMonolithOffset(int sampleIndex) const
 	{
 		return multiChannelSampleInformation[0][sampleIndex].start;
 	}
@@ -414,9 +414,9 @@ public:
 		return (int)multiChannelSampleInformation[0].size();
 	}
 
-	int64 getMonolithLength(int sampleIndex) const
+	int64_t getMonolithLength(int sampleIndex) const
 	{
-		return (int64)jmax<int>(0, (int)multiChannelSampleInformation[0][sampleIndex].length);
+		return (int64_t)juce::jmax<int>(0, (int)multiChannelSampleInformation[0][sampleIndex].length);
 	}
 
 	double getMonolithSampleRate(int sampleIndex) const
@@ -424,7 +424,7 @@ public:
 		return multiChannelSampleInformation[0][sampleIndex].sampleRate;
 	}
 
-	AudioFormatReader* createMonolithicReader(int sampleIndex, int channelIndex)
+    juce::AudioFormatReader* createMonolithicReader(int sampleIndex, int channelIndex)
 	{
 		const int sizeOfFirstChannelList = (int)multiChannelSampleInformation[0].size();
 		const int sizeOfChannelList = (int)multiChannelSampleInformation.size();
@@ -433,8 +433,8 @@ public:
 		{
 			auto info = &multiChannelSampleInformation[channelIndex][sampleIndex];
 
-			const int64 start = info->start;
-			const int64 length = info->length;
+			const auto start = info->start;
+			const auto length = info->length;
 
             if(memoryReaders[channelIndex] != nullptr)
             {
@@ -449,7 +449,7 @@ public:
 		return nullptr;
 	}
 
-	AudioFormatReader* createFallbackReader(int sampleIndex, int channelIndex)
+    juce::AudioFormatReader* createFallbackReader(int sampleIndex, int channelIndex)
 	{
 		const int sizeOfFirstChannelList = (int)multiChannelSampleInformation[0].size();
 		const int sizeOfChannelList = (int)multiChannelSampleInformation.size();
@@ -458,8 +458,8 @@ public:
 		{
 			auto info = &multiChannelSampleInformation[channelIndex][sampleIndex];
 
-			const int64 start = info->start;
-			const int64 length = info->length;
+			const auto start = info->start;
+			const auto length = info->length;
 
 			fallbackReaders[channelIndex]->sampleRate = info->sampleRate;
 
@@ -470,7 +470,7 @@ public:
 	}
 
 	/** Use this for UI rendering stuff to avoid multithreading issues. */
-	AudioFormatReader* createThumbnailReader(int sampleIndex, int channelIndex)
+    juce::AudioFormatReader* createThumbnailReader(int sampleIndex, int channelIndex)
 	{
 		const int sizeOfFirstChannelList = (int)multiChannelSampleInformation[0].size();
 		const int sizeOfChannelList = (int)multiChannelSampleInformation.size();
@@ -479,18 +479,18 @@ public:
 		{
 			auto info = &multiChannelSampleInformation[channelIndex][sampleIndex];
 
-			const int64 start = info->start;
-			const int64 length = info->length;
+			const int64_t start = info->start;
+			const int64_t length = info->length;
 
-			ScopedPointer<FileInputStream> fallbackStream = new FileInputStream(monolithicFiles[channelIndex]);
+			auto fallbackStream = monolithicFiles[channelIndex].createInputStream();
 			
-			ScopedPointer<hlac::HiseLosslessAudioFormatReader> thumbnailReader = new hlac::HiseLosslessAudioFormatReader(fallbackStream.release());
+			auto thumbnailReader = std::make_unique<hlac::HiseLosslessAudioFormatReader>(fallbackStream.release());
 
-			thumbnailReader->setTargetAudioDataType(AudioDataConverters::float32BE);
+			thumbnailReader->setTargetAudioDataType(juce::AudioDataConverters::float32BE);
 
 			thumbnailReader->sampleRate = info->sampleRate;
 
-			return new AudioSubsectionReader(thumbnailReader.release(), start, length, true);
+			return new juce::AudioSubsectionReader(thumbnailReader.release(), start, length, true);
 
 		}
 
@@ -501,16 +501,16 @@ public:
 	struct SampleInfo
 	{
 		double sampleRate;
-		int64 length;
-		int64 start;
-		String fileName;
+		int64_t length;
+		int64_t start;
+        juce::String fileName;
 	};
 
-	typedef ReferenceCountedObjectPtr<HlacMonolithInfo> Ptr;
+	typedef juce::ReferenceCountedObjectPtr<HlacMonolithInfo> Ptr;
 
 private:
 
-	struct DummyReader : public AudioFormatReader
+	struct DummyReader : public juce::AudioFormatReader
 	{
 	public:
 
@@ -518,7 +518,7 @@ private:
 			AudioFormatReader(nullptr, "HISE Monolith")
 		{};
 
-		bool readSamples(int ** /*destSamples*/, int /*numDestChannels*/, int /*startOffsetInDestBuffer*/, int64 /*startSampleInFile*/, int /*numSamples*/) override
+		bool readSamples(int ** /*destSamples*/, int /*numDestChannels*/, int /*startOffsetInDestBuffer*/, int64_t /*startSampleInFile*/, int /*numSamples*/) override
 		{
 			jassertfalse;
 			return false;
@@ -526,7 +526,7 @@ private:
 
 	};
 
-	Identifier id;
+    juce::Identifier id;
 
 	hlac::HiseLosslessAudioFormat hlaf;
 
@@ -534,13 +534,13 @@ private:
 
 	std::vector<std::vector<SampleInfo>> multiChannelSampleInformation;
 
-	std::vector<File> monolithicFiles;
+	std::vector<juce::File> monolithicFiles;
 
 	bool isMonoChannel[6];
 
-	OwnedArray<hlac::HiseLosslessAudioFormatReader> fallbackReaders;
+    juce::OwnedArray<hlac::HiseLosslessAudioFormatReader> fallbackReaders;
 
-	OwnedArray<hlac::HlacMemoryMappedAudioFormatReader> memoryReaders;
+    juce::OwnedArray<hlac::HlacMemoryMappedAudioFormatReader> memoryReaders;
 
 	
 

@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-namespace hise { using namespace juce;
+namespace hise {
 
 #define LOG_SAMPLE_RENDERING 0
 
@@ -46,7 +46,7 @@ void StreamingHelpers::increaseBufferIfNeeded(hlac::HiseSampleBuffer& b, int num
 	}
 }
 
-bool StreamingHelpers::preloadSample(StreamingSamplerSound * s, const int preloadSize, String& errorMessage)
+bool StreamingHelpers::preloadSample(StreamingSamplerSound * s, const int preloadSize, juce::String& errorMessage)
 {
 	try
 	{
@@ -62,21 +62,21 @@ bool StreamingHelpers::preloadSample(StreamingSamplerSound * s, const int preloa
 	}
 }
 
-hise::StreamingHelpers::BasicMappingData StreamingHelpers::getBasicMappingDataFromSample(const ValueTree& sampleData)
+hise::StreamingHelpers::BasicMappingData StreamingHelpers::getBasicMappingDataFromSample(const juce::ValueTree& sampleData)
 {
 	BasicMappingData data;
 
-	static const Identifier hiKey("HiKey");
-	static const Identifier loKey("LoKey");
-	static const Identifier loVel("LoVel");
-	static const Identifier hiVel("HiVel");
-	static const Identifier root("Root");
+	static const juce::Identifier hiKey("HiKey");
+	static const juce::Identifier loKey("LoKey");
+	static const juce::Identifier loVel("LoVel");
+	static const juce::Identifier hiVel("HiVel");
+	static const juce::Identifier root("Root");
 
-	data.highKey = (int8)(int)sampleData.getProperty(hiKey);
-	data.lowKey = (int8)(int)sampleData.getProperty(loKey);
-	data.lowVelocity = (int8)(int)sampleData.getProperty(loVel);
-	data.highVelocity = (int8)(int)sampleData.getProperty(hiVel);
-	data.rootNote = (int8)(int)sampleData.getProperty(root);
+	data.highKey = (int8_t)(int)sampleData.getProperty(hiKey);
+	data.lowKey = (int8_t)(int)sampleData.getProperty(loKey);
+	data.lowVelocity = (int8_t)(int)sampleData.getProperty(loVel);
+	data.highVelocity = (int8_t)(int)sampleData.getProperty(hiVel);
+	data.rootNote = (int8_t)(int)sampleData.getProperty(root);
 
 	return data;
 }

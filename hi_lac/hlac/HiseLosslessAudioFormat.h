@@ -34,10 +34,10 @@
 #ifndef HISELOSSLESSAUDIOFORMAT_H_INCLUDED
 #define HISELOSSLESSAUDIOFORMAT_H_INCLUDED
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
 
-class HiseLosslessAudioFormat : public AudioFormat
+class HiseLosslessAudioFormat : public juce::AudioFormat
 {
 public:
 
@@ -47,10 +47,10 @@ public:
 
 	~HiseLosslessAudioFormat() {}
 
-	bool canHandleFile(const File& fileToTest) override;
+	bool canHandleFile(const juce::File& fileToTest) override;
 
-	Array<int> getPossibleSampleRates() override;
-	Array<int> getPossibleBitDepths() override;
+    juce::Array<int> getPossibleSampleRates() override;
+    juce::Array<int> getPossibleBitDepths() override;
 
 	bool canDoMono() override;
 	bool canDoStereo() override;
@@ -58,16 +58,16 @@ public:
 
 	
 
-	StringArray getQualityOptions() override;
+    juce::StringArray getQualityOptions() override;
 
-	AudioFormatReader* createReaderFor(InputStream* sourceStream, bool deleteStreamIfOpeningFails) override;
-	AudioFormatWriter* createWriterFor(OutputStream* streamToWriteTo, double sampleRateToUse, unsigned int numberOfChannels, int /*bitsPerSample*/, const StringPairArray& metadataValues, int /*qualityOptionIndex*/) override;
+    juce::AudioFormatReader* createReaderFor (juce::InputStream* sourceStream, bool deleteStreamIfOpeningFails) override;
+    juce::AudioFormatWriter* createWriterFor (juce::OutputStream* streamToWriteTo, double sampleRateToUse, unsigned int numberOfChannels, int /*bitsPerSample*/, const juce::StringPairArray& metadataValues, int /*qualityOptionIndex*/) override;
 
-	MemoryMappedAudioFormatReader* createMemoryMappedReader(FileInputStream* fin) override;
+    juce::MemoryMappedAudioFormatReader* createMemoryMappedReader (juce::FileInputStream* fin) override;
 
-	MemoryMappedAudioFormatReader* createMemoryMappedReader(const File& file) override;
+    juce::MemoryMappedAudioFormatReader* createMemoryMappedReader (const juce::File& file) override;
 
-	HeapBlock<uint32> blockOffsets;
+    juce::HeapBlock<uint32_t> blockOffsets;
 };
 
 } // namespace hlac

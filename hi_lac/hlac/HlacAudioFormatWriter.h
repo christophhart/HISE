@@ -33,9 +33,9 @@
 #ifndef HLACAUDIOFORMATWRITER_H_INCLUDED
 #define HLACAUDIOFORMATWRITER_H_INCLUDED
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
-class HiseLosslessAudioFormatWriter : public AudioFormatWriter
+class HiseLosslessAudioFormatWriter : public juce::AudioFormatWriter
 {
 public:
 
@@ -47,7 +47,7 @@ public:
 		numEncodeModes
 	};
 
-	HiseLosslessAudioFormatWriter(EncodeMode mode_, OutputStream* output, double sampleRate, int numChannels, uint32* blockOffsetBuffer);
+	HiseLosslessAudioFormatWriter(EncodeMode mode_, juce::OutputStream* output, double sampleRate, int numChannels, uint32_t* blockOffsetBuffer);
 
 	~HiseLosslessAudioFormatWriter();
 
@@ -66,27 +66,27 @@ public:
 	void setTemporaryBufferType(bool shouldUseTemporaryFile);
 
 	/** Call this to preallocate the amount of memory approximately required for the extraction. */
-	void preallocateMemory(int64 numSamplesToWrite, int numChannels);
+	void preallocateMemory(int64_t numSamplesToWrite, int numChannels);
 
 	/** Returns the number of written bytes for this reader. */
-	int64 getNumBytesWritten() const;
+	int64_t getNumBytesWritten() const;
 
 private:
 
 	bool writeHeader();
 	bool writeDataFromTemp();
 
-	int64 numBytesWritten = 0;
+	int64_t numBytesWritten = 0;
 
 	void deleteTemp();
 
-	ScopedPointer<TemporaryFile> tempFile;
-	ScopedPointer<OutputStream> tempOutputStream;
+	std::unique_ptr<juce::TemporaryFile> tempFile;
+    std::unique_ptr<juce::OutputStream> tempOutputStream;
 
 	bool tempWasFlushed = true;
 	bool usesTempFile = false;
 
-	uint32* blockOffsets;
+	uint32_t* blockOffsets;
 
 	HlacEncoder encoder;
 
@@ -96,7 +96,7 @@ private:
 	bool useEncryption = false;
 	bool useCompression = true;
 
-	uint8 globalBitShiftAmount = 0;
+	uint8_t globalBitShiftAmount = 0;
 };
 
 } // namespace hlac

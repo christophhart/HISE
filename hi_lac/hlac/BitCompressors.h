@@ -34,7 +34,7 @@
 #ifndef BITCOMPRESSORS_H_INCLUDED
 #define BITCOMPRESSORS_H_INCLUDED
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
 #define LOG_RATIO(x) 
 
@@ -52,9 +52,9 @@ struct BitCompressors
 		virtual ~Base() {};
 
 		virtual int getAllowedBitRange() const { return -1; };
-		virtual bool compress(uint8* destination, const int16* data, int numValues) { ignoreUnused(destination, data, numValues); return false; }
-		virtual bool decompress(int16* destination, const uint8* data, int numValuesToDecompress) { ignoreUnused(destination, data, numValuesToDecompress); return false; }
-		virtual int getByteAmount(int numValuesToCompress) { ignoreUnused(numValuesToCompress); return 0; };
+		virtual bool compress(uint8_t* destination, const int16_t* data, int numValues) { juce::ignoreUnused(destination, data, numValues); return false; }
+		virtual bool decompress(int16_t* destination, const uint8_t* data, int numValuesToDecompress) { juce::ignoreUnused(destination, data, numValuesToDecompress); return false; }
+		virtual int getByteAmount(int numValuesToCompress) { juce::ignoreUnused(numValuesToCompress); return 0; };
 	};
 
 	struct Collection
@@ -83,11 +83,11 @@ struct BitCompressors
 			compressors.add(new SixteenBit());
 		}
 
-		Base* getSuitableCompressorForBitRate(uint8 bitRate);
+		Base* getSuitableCompressorForBitRate(uint8_t bitRate);
 
-		Base* getSuitableCompressorForData(const int16* data, int numValues);
+		Base* getSuitableCompressorForData(const int16_t* data, int numValues);
 
-		int getNumBytesForBitRate(uint8 bitRate, int elements);
+		int getNumBytesForBitRate(uint8_t bitRate, int elements);
 
 	private:
 
@@ -98,26 +98,26 @@ struct BitCompressors
 
 		bool useOddCompressors = true;
 
-		OwnedArray<Base> compressors;
+        juce::OwnedArray<Base> compressors;
 	};
 
 
-	static uint8 getMinBitDepthForData(const int16* data, int numValues, int8 expectedBitDepth = -1);
+	static uint8_t getMinBitDepthForData(const int16_t* data, int numValues, int8_t expectedBitDepth = -1);
 
 
 	struct ZeroBit : public Base
 	{
 		int getAllowedBitRange() const override;
-		bool compress(uint8* destination, const int16* data, int numValues) override;;
-		bool decompress(int16* destination, const uint8* data, int numValuesToDecompress) override;;
+		bool compress(uint8_t* destination, const int16_t* data, int numValues) override;;
+		bool decompress(int16_t* destination, const uint8_t* data, int numValuesToDecompress) override;;
 		int getByteAmount(int numValuesToCompress) override;;
 	};
 
 	struct OneBit : public Base
 	{
 		int getAllowedBitRange() const override;
-		bool compress(uint8* destination, const int16* data, int numValues) override;;
-		bool decompress(int16* destination, const uint8* data, int numValuesToDecompress) override;;
+		bool compress(uint8_t* destination, const int16_t* data, int numValues) override;;
+		bool decompress(int16_t* destination, const uint8_t* data, int numValuesToDecompress) override;;
 		int getByteAmount(int numValuesToCompress) override;;
 		
 	};
@@ -125,40 +125,40 @@ struct BitCompressors
 	struct TwoBit : public Base
 	{
 		int getAllowedBitRange() const override;
-		bool compress(uint8* destination, const int16* data, int numValues) override;
-		bool decompress(int16* destination, const uint8* data, int numValuesToDecompress) override;
+		bool compress(uint8_t* destination, const int16_t* data, int numValues) override;
+		bool decompress(int16_t* destination, const uint8_t* data, int numValuesToDecompress) override;
 		int getByteAmount(int numValuesToCompress) override;
 	};
 
 	struct FourBit : public Base
 	{
 		int getAllowedBitRange() const override;
-		bool compress(uint8* destination, const int16* data, int numValues) override;
-		bool decompress(int16* destination, const uint8* data, int numValuesToDecompress) override;
+		bool compress(uint8_t* destination, const int16_t* data, int numValues) override;
+		bool decompress(int16_t* destination, const uint8_t* data, int numValuesToDecompress) override;
 		int getByteAmount(int numValuesToCompress) override;
 	};
 
 	struct SixBit : public Base
 	{
 		int getAllowedBitRange() const override;
-		bool compress(uint8* destination, const int16* data, int numValues) override;
-		bool decompress(int16* destination, const uint8* data, int numValuesToDecompress) override;
+		bool compress(uint8_t* destination, const int16_t* data, int numValues) override;
+		bool decompress(int16_t* destination, const uint8_t* data, int numValuesToDecompress) override;
 		int getByteAmount(int numValuesToCompress) override;
 	};
 
 	struct EightBit: public Base
 	{
 		int getAllowedBitRange() const override;
-		bool compress(uint8* destination, const int16* data, int numValues) override;
-		bool decompress(int16* destination, const uint8* data, int numValuesToDecompress) override;
+		bool compress(uint8_t* destination, const int16_t* data, int numValues) override;
+		bool decompress(int16_t* destination, const uint8_t* data, int numValuesToDecompress) override;
 		int getByteAmount(int numValuesToCompress) override;
 	};
 
 	struct TenBit : public Base
 	{
 		int getAllowedBitRange() const override;
-		bool compress(uint8* destination, const int16* data, int numValues) override;
-		bool decompress(int16* destination, const uint8* data, int numValuesToDecompress) override;
+		bool compress(uint8_t* destination, const int16_t* data, int numValues) override;
+		bool decompress(int16_t* destination, const uint8_t* data, int numValuesToDecompress) override;
 		int getByteAmount(int numValuesToCompress) override;
 	};
 
@@ -179,8 +179,8 @@ struct BitCompressors
 #endif
 
 		int getAllowedBitRange() const override;
-		bool compress(uint8* destination, const int16* data, int numValues) override;
-		bool decompress(int16* destination, const uint8* data, int numValuesToDecompress) override;
+		bool compress(uint8_t* destination, const int16_t* data, int numValues) override;
+		bool decompress(int16_t* destination, const uint8_t* data, int numValuesToDecompress) override;
 		int getByteAmount(int numValuesToCompress) override;
 
 #if USE_SSE
@@ -193,16 +193,16 @@ struct BitCompressors
 	struct FourteenBit : public Base
 	{
 		int getAllowedBitRange() const override;
-		bool compress(uint8* destination, const int16* data, int numValues) override;
-		bool decompress(int16* destination, const uint8* data, int numValuesToDecompress) override;
+		bool compress(uint8_t* destination, const int16_t* data, int numValues) override;
+		bool decompress(int16_t* destination, const uint8_t* data, int numValuesToDecompress) override;
 		int getByteAmount(int numValuesToCompress) override;
 	};
 
 	struct SixteenBit : public Base
 	{
 		int getAllowedBitRange() const override;
-		bool compress(uint8* destination, const int16* data, int numValues) override;
-		bool decompress(int16* destination, const uint8* data, int numValuesToDecompress) override;
+		bool compress(uint8_t* destination, const int16_t* data, int numValues) override;
+		bool decompress(int16_t* destination, const uint8_t* data, int numValuesToDecompress) override;
 		int getByteAmount(int numValuesToCompress) override;
 	};
 

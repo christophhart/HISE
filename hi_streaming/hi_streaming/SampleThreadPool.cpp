@@ -30,16 +30,12 @@
 *   ===========================================================================
 */
 
-namespace hise { using namespace juce;
+namespace hise {
 
 
 struct SampleThreadPool::Pimpl
 {
-	Pimpl() :
-		jobQueue(8192),
-		currentlyExecutedJob(nullptr),
-		diskUsage(0.0)
-	{};
+    Pimpl() = default;
 
 	~Pimpl()
 	{
@@ -49,13 +45,13 @@ struct SampleThreadPool::Pimpl
 		}
 	}
 
-	CriticalSection clearLock;
+    juce::CriticalSection clearLock;
 
-	std::atomic<double> diskUsage;
-	int64 startTime, endTime;
-	moodycamel::ReaderWriterQueue<WeakReference<Job>> jobQueue;
-	std::atomic<Job*> currentlyExecutedJob;
-	static const String errorMessage;
+    std::atomic<double> diskUsage { 0.0 };
+	int64_t startTime, endTime;
+    moodycamel::ReaderWriterQueue<juce::WeakReference<Job>> jobQueue { 8192 };
+    std::atomic<Job*> currentlyExecutedJob { nullptr };
+	static const juce::String errorMessage;
 };
 
 SampleThreadPool::SampleThreadPool() :
@@ -80,9 +76,9 @@ double SampleThreadPool::getDiskUsage() const noexcept
 
 void SampleThreadPool::clearPendingTasks()
 {
-	ScopedLock sl(pimpl->clearLock);
+    juce::ScopedLock sl(pimpl->clearLock);
 		
-	WeakReference<Job> next;
+    juce::WeakReference<Job> next;
 
 	while (pimpl->jobQueue.try_dequeue(next))
 	{
@@ -93,7 +89,7 @@ void SampleThreadPool::clearPendingTasks()
 
 void SampleThreadPool::addJob(Job* jobToAdd, bool unused)
 {
-	ignoreUnused(unused);
+    juce::ignoreUnused(unused);
 
 #if ENABLE_CONSOLE_OUTPUT
 	if (jobToAdd->isQueued())
@@ -113,11 +109,11 @@ void SampleThreadPool::run()
 {
 	while (!threadShouldExit())
 	{
-		WeakReference<Job> next;
+        juce::WeakReference<Job> next;
 
 		if (pimpl->jobQueue.try_dequeue(next))
 		{
-			ScopedLock sl(pimpl->clearLock);
+            juce::ScopedLock sl(pimpl->clearLock);
 
 			Job* j = next.get();
 
@@ -178,7 +174,7 @@ void SampleThreadPool::run()
 	}
 }
 
-const String SampleThreadPool::Pimpl::errorMessage("HDD overflow");
+const juce::String SampleThreadPool::Pimpl::errorMessage("HDD overflow");
 
 
 void SampleThreadPool::Job::resetJob()

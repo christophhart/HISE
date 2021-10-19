@@ -30,22 +30,22 @@
  *   ===========================================================================
  */
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
 HiseLosslessAudioFormat::HiseLosslessAudioFormat() :
-	AudioFormat("HLAC", StringArray({ ".hlac", ".ch1", ".ch2", ".ch3", ".ch4", ".ch5" }))
+    juce::AudioFormat("HLAC", juce::StringArray({ ".hlac", ".ch1", ".ch2", ".ch3", ".ch4", ".ch5" }))
 {
 
 }
 
-bool HiseLosslessAudioFormat::canHandleFile(const File& fileToTest)
+bool HiseLosslessAudioFormat::canHandleFile(const juce::File& fileToTest)
 {
 	return fileToTest.getFileExtension() == ".hlac" || fileToTest.getFileExtension().contains("ch");
 }
 
-Array<int> HiseLosslessAudioFormat::getPossibleSampleRates()
+juce::Array<int> HiseLosslessAudioFormat::getPossibleSampleRates()
 {
-	Array<int> sampleRates;
+    juce::Array<int> sampleRates;
 
 	sampleRates.add(11025);
 	sampleRates.add(22050);
@@ -58,9 +58,9 @@ Array<int> HiseLosslessAudioFormat::getPossibleSampleRates()
 	return sampleRates;
 }
 
-Array<int> HiseLosslessAudioFormat::getPossibleBitDepths()
+juce::Array<int> HiseLosslessAudioFormat::getPossibleBitDepths()
 {
-	Array<int> bitRates;
+    juce::Array<int> bitRates;
 
 	bitRates.add(16); // that's it folks :)
 
@@ -83,23 +83,23 @@ bool HiseLosslessAudioFormat::isCompressed()
 	return true;
 }
 
-StringArray HiseLosslessAudioFormat::getQualityOptions()
+juce::StringArray HiseLosslessAudioFormat::getQualityOptions()
 {
-	StringArray options;
+    juce::StringArray options;
 
 	options.add("EncodeMode");
 
 	return options;
 }
 
-AudioFormatReader* HiseLosslessAudioFormat::createReaderFor(InputStream* sourceStream, bool deleteStreamIfOpeningFails)
+juce::AudioFormatReader* HiseLosslessAudioFormat::createReaderFor(juce::InputStream* sourceStream, bool deleteStreamIfOpeningFails)
 {
-	ignoreUnused(deleteStreamIfOpeningFails);
+    juce::ignoreUnused(deleteStreamIfOpeningFails);
 
 	return new HiseLosslessAudioFormatReader(sourceStream);
 }
 
-AudioFormatWriter* HiseLosslessAudioFormat::createWriterFor(OutputStream* streamToWriteTo, double sampleRateToUse, unsigned int numberOfChannels, int /*bitsPerSample*/, const StringPairArray& metadataValues, int /*qualityOptionIndex*/)
+juce::AudioFormatWriter* HiseLosslessAudioFormat::createWriterFor(juce::OutputStream* streamToWriteTo, double sampleRateToUse, unsigned int numberOfChannels, int /*bitsPerSample*/, const juce::StringPairArray& metadataValues, int /*qualityOptionIndex*/)
 {
 	HiseLosslessAudioFormatWriter::EncodeMode mode = metadataValues.getValue("EncodeMode", "Diff") == "Block" ?
 		HiseLosslessAudioFormatWriter::EncodeMode::Block :
@@ -114,17 +114,17 @@ AudioFormatWriter* HiseLosslessAudioFormat::createWriterFor(OutputStream* stream
 }
 
 
-MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader(FileInputStream* fin)
+juce::MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader(juce::FileInputStream* fin)
 {
 #if JUCE_64BIT
-	ScopedPointer<AudioFormatReader> normalReader = new HiseLosslessAudioFormatReader(fin);
+    juce::ScopedPointer<juce::AudioFormatReader> normalReader = new HiseLosslessAudioFormatReader(fin);
 
-	ScopedPointer<HlacMemoryMappedAudioFormatReader> reader = new HlacMemoryMappedAudioFormatReader(fin->getFile(), *normalReader, 0, normalReader->lengthInSamples, 1);
+    juce::ScopedPointer<HlacMemoryMappedAudioFormatReader> reader = new HlacMemoryMappedAudioFormatReader(fin->getFile(), *normalReader, 0, normalReader->lengthInSamples, 1);
 
 	return reader.release();
 #else
 
-	ignoreUnused(fin);
+    juce::ignoreUnused(fin);
 
 	// Memory mapped file support on 32bit is pretty useless so we don't bother at all...
 	jassertfalse;
@@ -132,14 +132,14 @@ MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader
 #endif
 }
 
-MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader(const File& file)
+juce::MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader(const juce::File& file)
 {
-	FileInputStream* fis = new FileInputStream(file);
+    auto* fis = new juce::FileInputStream(file);
 
 	return createMemoryMappedReader(fis);
 }
 
-HiseLosslessHeader::HiseLosslessHeader(bool useEncryption, uint8 globalBitShiftAmount, double sampleRate, int numChannels, int bitsPerSample, bool useCompression, uint32 numBlocks)
+HiseLosslessHeader::HiseLosslessHeader(bool useEncryption, uint8_t globalBitShiftAmount, double sampleRate, int numChannels, int bitsPerSample, bool useCompression, uint32_t numBlocks)
 {
 	headerByte1 = HLAC_VERSION;
 
@@ -159,7 +159,7 @@ HiseLosslessHeader::HiseLosslessHeader(bool useEncryption, uint8 globalBitShiftA
 	blockOffsets.calloc(blockAmount);
 }
 
-HiseLosslessHeader::HiseLosslessHeader(InputStream* input)
+HiseLosslessHeader::HiseLosslessHeader(juce::InputStream* input)
 {
 	if (input == nullptr)
 	{
@@ -170,14 +170,14 @@ HiseLosslessHeader::HiseLosslessHeader(InputStream* input)
 	readMetadataFromStream(input);
 }
 
-HiseLosslessHeader::HiseLosslessHeader(const File& f)
+HiseLosslessHeader::HiseLosslessHeader(const juce::File& f)
 {
-	ScopedPointer<FileInputStream> fis = new FileInputStream(f);
+	auto fis = f.createInputStream();
 
-	readMetadataFromStream(fis);
+	readMetadataFromStream(fis.get());
 }
 
-void HiseLosslessHeader::readMetadataFromStream(InputStream* input)
+void HiseLosslessHeader::readMetadataFromStream (juce::InputStream* input)
 {
 	//metadata = input->readInt64();
 
@@ -196,7 +196,7 @@ void HiseLosslessHeader::readMetadataFromStream(InputStream* input)
 	}
 	else
 	{
-		const uint32 checkSum = (uint32)input->readInt();
+		const uint32_t checkSum = (uint32_t)input->readInt();
 		headerValid = CompressionHelpers::Misc::validateChecksum(checkSum);
 
 		if (!headerValid)
@@ -211,18 +211,18 @@ void HiseLosslessHeader::readMetadataFromStream(InputStream* input)
 		{
 			headerByte2 = input->readByte();
 			sampleDataByte = input->readByte();
-			blockAmount = (uint32)input->readInt();
+			blockAmount = (uint32_t)input->readInt();
 
 			blockOffsets.malloc(blockAmount);
 
-			for (uint32 i = 0; i < blockAmount; i++)
+			for (uint32_t i = 0; i < blockAmount; i++)
 			{
-				blockOffsets[i] = (uint32)input->readInt();
+				blockOffsets[i] = (uint32_t)input->readInt();
 			}
 		}
 	}
 
-	headerSize = (uint32)input->getPosition();
+	headerSize = (uint32_t)input->getPosition();
 }
 
 
@@ -282,17 +282,17 @@ double HiseLosslessHeader::getSampleRate() const
 	else
 	{
 		const static double sampleRates[4] = { 44100.0, 48000.0, 88200.0, 96000.0 };
-		const uint8 srIndex = (sampleDataByte & 0xC0) >> 6;
+		const uint8_t srIndex = (sampleDataByte & 0xC0) >> 6;
 		return sampleRates[srIndex];
 	}
 }
 
-uint32 HiseLosslessHeader::getBlockAmount() const 
+uint32_t HiseLosslessHeader::getBlockAmount() const
 {
 	return blockAmount;
 }
 
-bool HiseLosslessHeader::write(OutputStream* output)
+bool HiseLosslessHeader::write (juce::OutputStream* output)
 {
 	output->writeByte(headerByte1);
 
@@ -308,7 +308,7 @@ bool HiseLosslessHeader::write(OutputStream* output)
 
 	output->writeInt((int)blockAmount);
 	
-	for (uint32 i = 0; i < blockAmount; i++)
+	for (uint32_t i = 0; i < blockAmount; i++)
 	{
 		if (!output->writeInt(blockOffsets[i]))
 			return false;
@@ -317,9 +317,9 @@ bool HiseLosslessHeader::write(OutputStream* output)
 	return true;
 }
 
-void HiseLosslessHeader::storeOffsets(uint32* offsets, int numOffsets)
+void HiseLosslessHeader::storeOffsets(uint32_t* offsets, int numOffsets)
 {
-	memcpy(blockOffsets, offsets, sizeof(uint32)*numOffsets);
+	memcpy(blockOffsets, offsets, sizeof(uint32_t)*numOffsets);
 }
 
 } // namespace hlac

@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-namespace hise { using namespace juce;
+namespace hise {
 
 // =============================================================================================================================================== SampleLoader methods
 
@@ -39,19 +39,6 @@ namespace hise { using namespace juce;
 SampleLoader::SampleLoader(SampleThreadPool *pool_) :
 	SampleThreadPoolJob("SampleLoader"),
 	backgroundPool(pool_),
-	writeBufferIsBeingFilled(false),
-	sound(0),
-	readIndex(0),
-	readIndexDouble(0.0),
-	idealBufferSize(0),
-	minimumBufferSizeForSamplesPerBlock(0),
-	positionInSampleFile(0),
-	isReadingFromPreloadBuffer(true),
-	sampleStartModValue(0),
-	readBuffer(nullptr),
-	writeBuffer(nullptr),
-	diskUsage(0.0),
-	lastCallToRequestData(0.0),
 	b1(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0),
 	b2(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 {
@@ -69,7 +56,7 @@ SampleLoader::~SampleLoader()
 /** Sets the buffer size in samples. */
 void SampleLoader::setBufferSize(int newBufferSize)
 {
-	ScopedLock sl(getLock());
+	juce::ScopedLock sl(getLock());
 
 #if HISE_IOS 
 
@@ -181,7 +168,7 @@ void SampleLoader::setStreamingBufferDataType(bool shouldBeFloat)
 {
 	if (b1.isFloatingPoint() != shouldBeFloat)
 	{
-		ScopedLock sl(getLock());
+        juce::ScopedLock sl(getLock());
 
 		b1 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
 		b2 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
@@ -206,7 +193,7 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 			const int index = (int)readIndexDouble;
 			StereoChannelData returnData;
             
-            if(isPositiveAndBelow(maxSampleIndexForFillOperation, localReadBuffer->getNumSamples()))
+            if(juce::isPositiveAndBelow(maxSampleIndexForFillOperation, localReadBuffer->getNumSamples()))
             {
                 returnData.b = localReadBuffer;
                 returnData.offsetInBuffer = index;
@@ -214,7 +201,7 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
             }
 		}
 
-		const int indexBeforeWrap = jmax<int>(0, (int)(readIndexDouble));
+		const int indexBeforeWrap = juce::jmax<int>(0, (int)(readIndexDouble));
 		const int numSamplesInFirstBuffer = localReadBuffer->getNumSamples() - indexBeforeWrap;
 
 		voiceBuffer.setUseOneMap(localReadBuffer->useOneMap);
@@ -262,7 +249,7 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
             {
                 //const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
                 
-                numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesToCopyFromSecondBuffer, numSamplesAvailableInSecondBuffer);
+                numSamplesToCopyFromSecondBuffer = juce::jmin<int>(numSamplesToCopyFromSecondBuffer, numSamplesAvailableInSecondBuffer);
                 
                 if (writeBufferIsBeingFilled || entireSampleIsLoaded)
                     voiceBuffer.clear(offset, numSamplesToCopyFromSecondBuffer);
@@ -395,7 +382,7 @@ SampleThreadPoolJob::JobStatus SampleLoader::runJob()
 		return SampleThreadPoolJob::jobHasFinished;
 	}
 
-	const double readStart = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks());
+	const double readStart = juce::Time::highResolutionTicksToSeconds (juce::Time::getHighResolutionTicks());
 
 	if (writeBufferIsBeingFilled)
 	{
@@ -416,10 +403,10 @@ SampleThreadPoolJob::JobStatus SampleLoader::runJob()
 
 	writeBufferIsBeingFilled = false;
 
-	const double readStop = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks());
+	const double readStop = juce::Time::highResolutionTicksToSeconds (juce::Time::getHighResolutionTicks());
 	const double readTime = (readStop - readStart);
 	const double timeSinceLastCall = readStop - lastCallToRequestData;
-	const float diskUsageThisTime = jmax<float>(diskUsage.get(), (float)(readTime / timeSinceLastCall));
+	const float diskUsageThisTime = juce::jmax<float>(diskUsage.get(), (float)(readTime / timeSinceLastCall));
 	diskUsage = diskUsageThisTime;
 	lastCallToRequestData = readStart;
 
@@ -487,7 +474,7 @@ void SampleLoader::fillInactiveBuffer()
 
 void SampleLoader::refreshBufferSizes()
 {
-	const int numSamplesToUse = jmax<int>(idealBufferSize, minimumBufferSizeForSamplesPerBlock);
+	const int numSamplesToUse = juce::jmax<int>(idealBufferSize, minimumBufferSizeForSamplesPerBlock);
 
 	if (getNumSamplesForStreamingBuffers() < numSamplesToUse)
 	{
@@ -525,17 +512,16 @@ bool SampleLoader::swapBuffers()
 // ==================================================================================================== StreamingSamplerVoice methods
 
 StreamingSamplerVoice::StreamingSamplerVoice(SampleThreadPool *pool) :
-	loader(pool),
-	sampleStartModValue(0)
+	loader(pool)
 {
 	pitchData = nullptr;
-};
+}
 
 
 void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
-	float /*velocity*/,
-	SynthesiserSound* s,
-	int /*currentPitchWheelPosition*/)
+                                      float /*velocity*/,
+                                      juce::SynthesiserSound* s,
+                                      int /*currentPitchWheelPosition*/)
 {
 	StreamingSamplerSound *sound = dynamic_cast<StreamingSamplerSound*>(s);
 
@@ -554,7 +540,7 @@ void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 		uptimeDelta *= (sound->getSampleRate() / getSampleRate());
 
 		if(!sound->isEntireSampleLoaded())
-			uptimeDelta = jmin<double>((double)MAX_SAMPLER_PITCH, uptimeDelta);
+			uptimeDelta = juce::jmin<double>((double)MAX_SAMPLER_PITCH, uptimeDelta);
 
 		constUptimeDelta = uptimeDelta;
 
@@ -594,7 +580,7 @@ static int unalignedCalls = 0;
 
 template <typename SignalType, bool isFloat> void interpolateMonoSamples(const SignalType* inL, const SignalType* unusedIn, const float* pitchData, float* outL, float* unusedOut, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
 {
-	ignoreUnused(unusedIn, unusedOut);
+    juce::ignoreUnused(unusedIn, unusedOut);
 
 	constexpr float gainFactor = isFloat ? 1.0f : (1.0f / (float)INT16_MAX);
 
@@ -681,7 +667,7 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 
 		jassert(numTargetSamples > 0.0);
 
-		numSamples = jmin(numSamples, (int)(numTargetSamples / uptimeDelta));
+		numSamples = juce::jmin(numSamples, (int)(numTargetSamples / uptimeDelta));
 
 		while (numSamples > 0)
 		{
@@ -704,7 +690,7 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 
 
 
-void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples)
+void StreamingSamplerVoice::renderNextBlock(juce::AudioSampleBuffer &outputBuffer, int startSample, int numSamples)
 {
 	const StreamingSamplerSound *sound = loader.getLoadedSound();
 
@@ -722,10 +708,10 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		auto tempVoiceBuffer = getTemporaryVoiceBuffer();
 
 		jassert(tempVoiceBuffer != nullptr);
-		if (!isPositiveAndBelow(pitchCounter + startAlpha, (double)tempVoiceBuffer->getNumSamples()))
+		if (!juce::isPositiveAndBelow(pitchCounter + startAlpha, (double)tempVoiceBuffer->getNumSamples()))
 		{
 			jassertfalse;
-			tempVoiceBuffer->setSize(tempVoiceBuffer->getNumChannels(), roundToInt((pitchCounter + startAlpha) * 1.5));
+			tempVoiceBuffer->setSize(tempVoiceBuffer->getNumChannels(), juce::roundToInt((pitchCounter + startAlpha) * 1.5));
 		}
 
 		// Copy the not resampled values into the voice buffer.
@@ -754,8 +740,8 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		}
 		else
 		{
-			const int16* const inL = static_cast<const int16*>(data.b->getReadPointer(0, data.offsetInBuffer));
-			const int16* const inR = static_cast<const int16*>(data.b->getReadPointer(1, data.offsetInBuffer));
+			const auto* const inL = static_cast<const int16_t*>(data.b->getReadPointer(0, data.offsetInBuffer));
+			const auto* const inR = static_cast<const int16_t*>(data.b->getReadPointer(1, data.offsetInBuffer));
 
 			bool useNormalisation = data.b->usesNormalisation();
 
@@ -787,7 +773,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			}
 			else
 			{
-				interpolateStereoSamples<int16, false>(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples, indexInBuffer + samplesAvailable);
+				interpolateStereoSamples<int16_t, false>(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples, indexInBuffer + samplesAvailable);
 			}
 		}
 
@@ -850,7 +836,7 @@ void StreamingSamplerVoice::setPitchFactor(int midiNote, int rootNote, Streaming
 
 	if (!sound->isEntireSampleLoaded())
 	{
-		uptimeDelta = jmin(uptimeDelta, (double)MAX_SAMPLER_PITCH);
+		uptimeDelta = juce::jmin(uptimeDelta, (double)MAX_SAMPLER_PITCH);
 	}
 }
 
@@ -897,7 +883,7 @@ void StreamingSamplerVoice::initTemporaryVoiceBuffer(hlac::HiseSampleBuffer* buf
 	// The channel amount must be set correctly in the constructor
 	jassert(bufferToUse->getNumChannels() > 0);
 
-    auto requiredSampleAmount = roundToInt((double)samplesPerBlock* maxPitchRatio);
+    auto requiredSampleAmount = juce::roundToInt((double)samplesPerBlock* maxPitchRatio);
     
 	if (bufferToUse->getNumSamples() < requiredSampleAmount)
 	{

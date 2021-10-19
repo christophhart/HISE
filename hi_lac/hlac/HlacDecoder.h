@@ -34,7 +34,7 @@
 #ifndef HLACDECODER_H_INCLUDED
 #define HLACDECODER_H_INCLUDED
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
 class HlacDecoder
 {
@@ -51,49 +51,49 @@ public:
 		hlacVersion = version;
 	}
 
-	void decode(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int offsetInSource=0, int numSamples=-1);
+	void decode(HiseSampleBuffer& destination, bool decodeStereo, juce::InputStream& input, int offsetInSource=0, int numSamples=-1);
 
 	void setupForDecompression();
 
 	double getDecompressionPerformance() const;
 
-	uint32 getCurrentReadPosition() const
+	uint32_t getCurrentReadPosition() const
 	{
 		return readOffset;
 	}
 
-	void seekToPosition(InputStream& input, uint32 samplePosition, uint32 byteOffset);
+	void seekToPosition(juce::InputStream& input, uint32_t samplePosition, uint32_t byteOffset);
 
 private:
 
 	struct CycleHeader
 	{
-		CycleHeader(uint8 headerInfo_, uint16 numSamples_) :
+		CycleHeader(uint8_t headerInfo_, uint16_t numSamples_) :
 			headerInfo(headerInfo_),
 			numSamples(numSamples_)
 		{}
 
 		bool isTemplate() const;
-		uint8 getBitRate(bool getFullBitRate = true) const;
+		uint8_t getBitRate(bool getFullBitRate = true) const;
 		bool isDiff() const;
 
-		uint16 getNumSamples() const;
+		uint16_t getNumSamples() const;
 
 	private:
 
-		uint8 headerInfo;
-		uint16 numSamples;
+		uint8_t headerInfo;
+		uint16_t numSamples;
 	};
 
 	void reset();
 	
 	
 
-	bool decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int channelIndex);
+	bool decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, juce::InputStream& input, int channelIndex);
 
-	void decodeDiff(const CycleHeader& header, bool decodeStereo, HiseSampleBuffer& destination, InputStream& input, int channelIndex);
+	void decodeDiff(const CycleHeader& header, bool decodeStereo, HiseSampleBuffer& destination, juce::InputStream& input, int channelIndex);
 
-	void decodeCycle(const CycleHeader& header, bool decodeStereo, HiseSampleBuffer& destination, InputStream& input, int channelIndex);
+	void decodeCycle(const CycleHeader& header, bool decodeStereo, HiseSampleBuffer& destination, juce::InputStream& input, int channelIndex);
 
 	enum class FloatWriteMode
 	{
@@ -105,7 +105,7 @@ private:
 
 	void writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSampleBuffer& destination, int channelIndex, int numSamples);
 
-	CycleHeader readCycleHeader(InputStream& input);
+	CycleHeader readCycleHeader(juce::InputStream& input);
 
 	BitCompressors::Collection collection;
 
@@ -113,20 +113,20 @@ private:
 
 	CompressionHelpers::AudioBufferInt16 workBuffer;
 
-	uint16 indexInBlock = 0;
+	uint16_t indexInBlock = 0;
 	int leftFloatIndex = 0;
 	int rightFloatIndex = 0;
 	
 	int leftNumToSkip = 0;
 	int rightNumToSkip = 0;
 	
-	uint32 blockOffset = 0;
+	uint32_t blockOffset = 0;
 
-	uint8 bitRateForCurrentCycle;
+	uint8_t bitRateForCurrentCycle;
 
-	int16 firstCycleLength = -1;
+	int16_t firstCycleLength = -1;
 
-	MemoryBlock readBuffer;
+    juce::MemoryBlock readBuffer;
 
 	float ratio = 0.0f;
 
@@ -134,7 +134,7 @@ private:
 
 	int readIndex = 0;
 
-	Array<double> decompressionSpeeds;
+    juce::Array<double> decompressionSpeeds;
 
 	double decompressionSpeed = 0.0;
 

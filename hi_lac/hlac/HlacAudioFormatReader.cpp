@@ -30,11 +30,11 @@
  *   ===========================================================================
  */
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
-HiseLosslessAudioFormatReader::HiseLosslessAudioFormatReader(InputStream* input_) :
-	AudioFormatReader(input_, "HLAC"),
-	internalReader(input_)
+HiseLosslessAudioFormatReader::HiseLosslessAudioFormatReader(juce::InputStream* input_) :
+    juce::AudioFormatReader(input_, "HLAC"),
+    internalReader(input_)
 {
 	numChannels = internalReader.header.getNumChannels();
 	sampleRate = internalReader.header.getSampleRate();
@@ -45,11 +45,11 @@ HiseLosslessAudioFormatReader::HiseLosslessAudioFormatReader(InputStream* input_
 
 	if (isMonolith)
 	{
-		lengthInSamples = (input_->getTotalLength() - 1) / numChannels / sizeof(int16);
+		lengthInSamples = (input_->getTotalLength() - 1) / numChannels / sizeof(int16_t);
 	}
 }
 
-bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples)
+bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64_t startSampleInFile, int numSamples)
 {
 	if (isMonolith)
 	{
@@ -59,7 +59,7 @@ bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestCh
 		if (numSamples <= 0)
 			return true;
 
-		const int bytesPerFrame = sizeof(int16) * numChannels;
+		const int bytesPerFrame = sizeof(int16_t) * numChannels;
 
 		input->setPosition(1 + startSampleInFile * bytesPerFrame);
 
@@ -68,13 +68,13 @@ bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestCh
 			const int tempBufSize = 480 * 3 * 4; // (keep this a multiple of 3)
 			char tempBuffer[tempBufSize];
 
-			const int numThisTime = jmin(tempBufSize / bytesPerFrame, numSamples);
+			const int numThisTime = juce::jmin(tempBufSize / bytesPerFrame, numSamples);
 			const int bytesRead = input->read(tempBuffer, numThisTime * bytesPerFrame);
 
 			if (bytesRead < numThisTime * bytesPerFrame)
 			{
 				jassert(bytesRead >= 0);
-				zeromem(tempBuffer + bytesRead, (size_t)(numThisTime * bytesPerFrame - bytesRead));
+                juce::zeromem(tempBuffer + bytesRead, (size_t)(numThisTime * bytesPerFrame - bytesRead));
 			}
 
 			copySampleData(destSamples, startOffsetInDestBuffer, numDestChannels,
@@ -93,20 +93,20 @@ bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestCh
 }
 
 
-void HiseLosslessAudioFormatReader::setTargetAudioDataType(AudioDataConverters::DataFormat dataType)
+void HiseLosslessAudioFormatReader::setTargetAudioDataType(juce::AudioDataConverters::DataFormat dataType)
 {
-	usesFloatingPointData = (dataType == AudioDataConverters::DataFormat::float32BE) ||
-		(dataType == AudioDataConverters::DataFormat::float32LE);
+	usesFloatingPointData = (dataType == juce::AudioDataConverters::DataFormat::float32BE) ||
+		(dataType == juce::AudioDataConverters::DataFormat::float32LE);
 
 	internalReader.setTargetAudioDataType(dataType);
 }
 
 
-uint32 HiseLosslessHeader::getOffsetForReadPosition(int64 samplePosition, bool addHeaderOffset)
+uint32_t HiseLosslessHeader::getOffsetForReadPosition(int64_t samplePosition, bool addHeaderOffset)
 {
 	if (samplePosition % COMPRESSION_BLOCK_SIZE == 0)
 	{
-		uint32 blockIndex = (uint32)samplePosition / COMPRESSION_BLOCK_SIZE;
+		auto blockIndex = (uint32_t)samplePosition / COMPRESSION_BLOCK_SIZE;
 
 		if (blockIndex < blockAmount)
 		{
@@ -120,7 +120,7 @@ uint32 HiseLosslessHeader::getOffsetForReadPosition(int64 samplePosition, bool a
 	}
 	else
 	{
-		auto blockIndex = (uint32)samplePosition / COMPRESSION_BLOCK_SIZE;
+		auto blockIndex = (uint32_t)samplePosition / COMPRESSION_BLOCK_SIZE;
 
 		if (blockIndex < blockAmount)
 		{
@@ -134,11 +134,11 @@ uint32 HiseLosslessHeader::getOffsetForReadPosition(int64 samplePosition, bool a
 	}
 }
 
-uint32 HiseLosslessHeader::getOffsetForNextBlock(int64 samplePosition, bool addHeaderOffset)
+uint32_t HiseLosslessHeader::getOffsetForNextBlock(int64_t samplePosition, bool addHeaderOffset)
 {
 	if (samplePosition % COMPRESSION_BLOCK_SIZE == 0)
 	{
-		uint32 blockIndex = (uint32)samplePosition / COMPRESSION_BLOCK_SIZE;
+		auto blockIndex = (uint32_t)samplePosition / COMPRESSION_BLOCK_SIZE;
 
 		if (blockIndex < blockAmount-1)
 		{
@@ -152,7 +152,7 @@ uint32 HiseLosslessHeader::getOffsetForNextBlock(int64 samplePosition, bool addH
 	}
 	else
 	{
-		auto blockIndex = (uint32)samplePosition / COMPRESSION_BLOCK_SIZE;
+		auto blockIndex = (uint32_t)samplePosition / COMPRESSION_BLOCK_SIZE;
 
 		if (blockIndex < blockAmount-1)
 		{
@@ -178,16 +178,16 @@ HiseLosslessHeader HiseLosslessHeader::createMonolithHeader(int numChannels, dou
 	return monoHeader;
 }
 
-void HlacReaderCommon::setTargetAudioDataType(AudioDataConverters::DataFormat dataType)
+void HlacReaderCommon::setTargetAudioDataType(juce::AudioDataConverters::DataFormat dataType)
 {
-	usesFloatingPointData = (dataType == AudioDataConverters::DataFormat::float32BE) ||
-		(dataType == AudioDataConverters::DataFormat::float32LE);
+	usesFloatingPointData = (dataType == juce::AudioDataConverters::DataFormat::float32BE) ||
+		(dataType == juce::AudioDataConverters::DataFormat::float32LE);
 }
 
-bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples)
+bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64_t startSampleInFile, int numSamples)
 {
-	ignoreUnused(startSampleInFile);
-	ignoreUnused(numDestChannels);
+    juce::ignoreUnused(startSampleInFile);
+    juce::ignoreUnused(numDestChannels);
 
 	decoder.setHlacVersion(header.getVersion());
 
@@ -197,7 +197,7 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 	{
 		auto byteOffset = header.getOffsetForReadPosition(startSampleInFile, useHeaderOffsetWhenSeeking);
 
-		decoder.seekToPosition(*input, (uint32)startSampleInFile, byteOffset);
+		decoder.seekToPosition(*input, (uint32_t)startSampleInFile, byteOffset);
 	}
 
 	if (isStereo)
@@ -219,14 +219,14 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 				}
 			}
 
-			AudioSampleBuffer b(destinationFloat, 2, numSamples);
+            juce::AudioSampleBuffer b(destinationFloat, 2, numSamples);
 			HiseSampleBuffer hsb(b);
 
 			decoder.decode(hsb, true, *input, (int)startSampleInFile, numSamples);
 		}
 		else
 		{
-			int16** destinationFixed = reinterpret_cast<int16**>(destSamples);
+			auto** destinationFixed = reinterpret_cast<int16_t**>(destSamples);
 
 			if (isStereo)
 			{
@@ -249,7 +249,7 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 		{
 			float* destinationFloat = reinterpret_cast<float*>(destSamples[0]);
 
-			AudioSampleBuffer b(&destinationFloat, 1, numSamples);
+            juce::AudioSampleBuffer b(&destinationFloat, 1, numSamples);
 			HiseSampleBuffer hsb(b);
 			hsb.allocateNormalisationTables((int)startSampleInFile);
 
@@ -257,7 +257,7 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 		}
 		else
 		{
-			int16** destinationFixed = reinterpret_cast<int16**>(destSamples);
+			auto** destinationFixed = reinterpret_cast<int16_t**>(destSamples);
 
 			HiseSampleBuffer hsb(destinationFixed, 1, numSamples);
 			hsb.allocateNormalisationTables((int)startSampleInFile);
@@ -269,15 +269,15 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 	return true;
 }
 
-bool HlacReaderCommon::fixedBufferRead(HiseSampleBuffer& buffer, int numDestChannels, int startOffsetInBuffer, int64 startSampleInFile, int numSamples)
+bool HlacReaderCommon::fixedBufferRead(HiseSampleBuffer& buffer, int numDestChannels, int startOffsetInBuffer, int64_t startSampleInFile, int numSamples)
 {
 	bool isStereo = numDestChannels == 2;
 
 	if (startSampleInFile < 0)
 	{
-		auto silence = (int)jmin(-startSampleInFile, (int64)numSamples);
+		auto silence = (int)juce::jmin(-startSampleInFile, (int64_t)numSamples);
 
-		auto numToClear = jmin(silence, buffer.getNumSamples() - startOffsetInBuffer);
+		auto numToClear = juce::jmin(silence, buffer.getNumSamples() - startOffsetInBuffer);
 
 		buffer.clear(startOffsetInBuffer, numToClear);
 
@@ -293,7 +293,7 @@ bool HlacReaderCommon::fixedBufferRead(HiseSampleBuffer& buffer, int numDestChan
 	{
 		auto byteOffset = header.getOffsetForReadPosition(startSampleInFile, useHeaderOffsetWhenSeeking);
 
-		decoder.seekToPosition(*input, (uint32)startSampleInFile, byteOffset);
+		decoder.seekToPosition(*input, (uint32_t)startSampleInFile, byteOffset);
 	}
 
 	decoder.setHlacVersion(header.getVersion());
@@ -316,20 +316,20 @@ void HiseLosslessAudioFormatReader::copySampleData(int* const* destSamples, int 
 
 	if (numChannels == 1)
 	{
-		ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
+		ReadHelper<juce::AudioData::Float32, juce::AudioData::Int16, juce::AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
 	}
 	else
 	{
-		ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
+		ReadHelper<juce::AudioData::Float32, juce::AudioData::Int16, juce::AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
 	}
 }
 
-bool HiseLosslessAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannelsToCopy, int numSamples)
+bool HiseLosslessAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64_t offsetInFile, int numChannelsToCopy, int numSamples)
 {
 	if (numSamples <= 0)
 		return true;
 
-	const int bytesPerFrame = sizeof(int16) * numChannelsToCopy;
+	const int bytesPerFrame = sizeof(int16_t) * numChannelsToCopy;
 
 	input->setPosition(1 + offsetInFile * bytesPerFrame);
 
@@ -338,13 +338,13 @@ bool HiseLosslessAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destinati
 		const int tempBufSize = 480 * 3 * 4; // (keep this a multiple of 3)
 		char tempBuffer[tempBufSize];
 
-		const int numThisTime = jmin(tempBufSize / bytesPerFrame, numSamples);
+		const int numThisTime = juce::jmin(tempBufSize / bytesPerFrame, numSamples);
 		const int bytesRead = input->read(tempBuffer, numThisTime * bytesPerFrame);
 
 		if (bytesRead < numThisTime * bytesPerFrame)
 		{
 			jassert(bytesRead >= 0);
-			zeromem(tempBuffer + bytesRead, (size_t)(numThisTime * bytesPerFrame - bytesRead));
+            juce::zeromem(tempBuffer + bytesRead, (size_t)(numThisTime * bytesPerFrame - bytesRead));
 		}
 
 
@@ -354,20 +354,20 @@ bool HiseLosslessAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destinati
 
 		if (numChannelsToCopy == 1)
 		{
-			memcpy(destination.getWritePointer(0, startOffsetInBuffer), tempBuffer, numThisTime * sizeof(int16));
+			memcpy(destination.getWritePointer(0, startOffsetInBuffer), tempBuffer, numThisTime * sizeof(int16_t));
 
 			if (numDestChannels == 2)
 			{
-				memcpy(destination.getWritePointer(1, startOffsetInBuffer), tempBuffer, numThisTime * sizeof(int16));
+				memcpy(destination.getWritePointer(1, startOffsetInBuffer), tempBuffer, numThisTime * sizeof(int16_t));
 			}
 		}
 		else
 		{
 			jassert(destination.getNumChannels() == 2);
 
-			int16* channels[2] = { static_cast<int16*>(destination.getWritePointer(0, 0)), static_cast<int16*>(destination.getWritePointer(1, 0)) };
+			int16_t* channels[2] = { static_cast<int16_t*>(destination.getWritePointer(0, 0)), static_cast<int16_t*>(destination.getWritePointer(1, 0)) };
 
-			ReadHelper<AudioData::Int16, AudioData::Int16, AudioData::LittleEndian>::read(channels, startOffsetInBuffer, numDestChannels, tempBuffer, 2, numThisTime);
+			ReadHelper<juce::AudioData::Int16, juce::AudioData::Int16, juce::AudioData::LittleEndian>::read(channels, startOffsetInBuffer, numDestChannels, tempBuffer, 2, numThisTime);
 		}
 
 		startOffsetInBuffer += numThisTime;
@@ -377,14 +377,14 @@ bool HiseLosslessAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destinati
 	return true;
 }
 
-bool HlacMemoryMappedAudioFormatReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples)
+bool HlacMemoryMappedAudioFormatReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64_t startSampleInFile, int numSamples)
 {
 	if (isMonolith)
 	{
 		clearSamplesBeyondAvailableLength(destSamples, numDestChannels, startOffsetInDestBuffer,
 			startSampleInFile, numSamples, lengthInSamples);
 
-		if (map == nullptr || !mappedSection.contains(Range<int64>(startSampleInFile, startSampleInFile + numSamples)))
+		if (map == nullptr || !mappedSection.contains(juce::Range<int64_t>(startSampleInFile, startSampleInFile + numSamples)))
 		{
 			jassertfalse; // you must make sure that the window contains all the samples you're going to attempt to read.
 			return false;
@@ -408,7 +408,7 @@ bool HlacMemoryMappedAudioFormatReader::readSamples(int** destSamples, int numDe
 }
 
 
-bool HlacMemoryMappedAudioFormatReader::mapSectionOfFile(Range<int64> samplesToMap)
+bool HlacMemoryMappedAudioFormatReader::mapSectionOfFile(juce::Range<int64_t> samplesToMap)
 {
 	if (isMonolith)
 	{
@@ -419,11 +419,11 @@ bool HlacMemoryMappedAudioFormatReader::mapSectionOfFile(Range<int64> samplesToM
 	}
 	else
 	{
-		dataChunkStart = (int64)internalReader.header.getOffsetForReadPosition(0, true);
+		dataChunkStart = (int64_t)internalReader.header.getOffsetForReadPosition(0, true);
 		dataLength = getFile().getSize() - dataChunkStart;
 
-		int64 start = (int64)internalReader.header.getOffsetForReadPosition(samplesToMap.getStart(), true);
-		int64 end = 0;
+		int64_t start = (int64_t)internalReader.header.getOffsetForReadPosition(samplesToMap.getStart(), true);
+		int64_t end = 0;
 
 		if (samplesToMap.getEnd() >= lengthInSamples)
 		{
@@ -434,25 +434,25 @@ bool HlacMemoryMappedAudioFormatReader::mapSectionOfFile(Range<int64> samplesToM
 			end = internalReader.header.getOffsetForNextBlock(samplesToMap.getEnd(), true);
 		}
 
-		auto fileRange = Range<int64>(start, end);
+		auto fileRange = juce::Range<int64_t>(start, end);
 
-		map.reset(new MemoryMappedFile(getFile(), fileRange, MemoryMappedFile::readOnly, false));
+		map.reset(new juce::MemoryMappedFile(getFile(), fileRange, juce::MemoryMappedFile::readOnly, false));
 
 		if (map != nullptr && !map->getRange().isEmpty())
 		{
-			int64 mappedStart = samplesToMap.getStart() / COMPRESSION_BLOCK_SIZE;
+			int64_t mappedStart = samplesToMap.getStart() / COMPRESSION_BLOCK_SIZE;
 
-			int64 mappedEnd = jmin<int64>(lengthInSamples, samplesToMap.getEnd() - (samplesToMap.getEnd() % COMPRESSION_BLOCK_SIZE) + 1);
-			mappedSection = Range<int64>(mappedStart, mappedEnd);
+			int64_t mappedEnd = juce::jmin<int64_t>(lengthInSamples, samplesToMap.getEnd() - (samplesToMap.getEnd() % COMPRESSION_BLOCK_SIZE) + 1);
+			mappedSection = juce::Range<int64_t>(mappedStart, mappedEnd);
 
 			auto actualMappedRange = map->getRange();
 
 			int offset = (int)(fileRange.getStart() - actualMappedRange.getStart());
 			int length = (int)(actualMappedRange.getLength() - offset);
 
-			mis = new MemoryInputStream((uint8*)map->getData() + offset, length, false);
+			mis = std::make_unique<juce::MemoryInputStream>((uint8_t*)map->getData() + offset, length, false);
 
-			internalReader.input = mis;
+			internalReader.input = mis.get();
 
 			internalReader.setUseHeaderOffsetWhenSeeking(false);
 
@@ -464,10 +464,10 @@ bool HlacMemoryMappedAudioFormatReader::mapSectionOfFile(Range<int64> samplesToM
 	}
 }
 
-void HlacMemoryMappedAudioFormatReader::setTargetAudioDataType(AudioDataConverters::DataFormat dataType)
+void HlacMemoryMappedAudioFormatReader::setTargetAudioDataType(juce::AudioDataConverters::DataFormat dataType)
 {
-	usesFloatingPointData = (dataType == AudioDataConverters::DataFormat::float32BE) ||
-		(dataType == AudioDataConverters::DataFormat::float32LE);
+	usesFloatingPointData = (dataType == juce::AudioDataConverters::DataFormat::float32BE) ||
+		(dataType == juce::AudioDataConverters::DataFormat::float32LE);
 
 	internalReader.setTargetAudioDataType(dataType);
 }
@@ -478,44 +478,44 @@ void HlacMemoryMappedAudioFormatReader::copySampleData(int* const* destSamples, 
 
 	if (numChannels == 1)
 	{
-		ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
+		ReadHelper<juce::AudioData::Float32, juce::AudioData::Int16, juce::AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
 	}
 	else
 	{
-		ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
+		ReadHelper<juce::AudioData::Float32, juce::AudioData::Int16, juce::AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
 	}
 }
 
-bool HlacMemoryMappedAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numSrcChannels, int numSamples)
+bool HlacMemoryMappedAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64_t offsetInFile, int numSrcChannels, int numSamples)
 {
 	auto sourceData = sampleToPointer(offsetInFile);
 
 	if (numSrcChannels == 1)
 	{
-		memcpy(destination.getWritePointer(0, startOffsetInBuffer), sourceData, numSamples * sizeof(int16));
+		memcpy(destination.getWritePointer(0, startOffsetInBuffer), sourceData, numSamples * sizeof(int16_t));
 
 		if (numDestChannels == 2)
 		{
-			memcpy(destination.getWritePointer(1, startOffsetInBuffer), sourceData, numSamples * sizeof(int16));
+			memcpy(destination.getWritePointer(1, startOffsetInBuffer), sourceData, numSamples * sizeof(int16_t));
 		}
 	}
 	else
 	{
 		jassert(destination.getNumChannels() == 2);
 
-		int16* channels[2] = { static_cast<int16*>(destination.getWritePointer(0, 0)), static_cast<int16*>(destination.getWritePointer(1, 0)) };
+		int16_t* channels[2] = { static_cast<int16_t*>(destination.getWritePointer(0, 0)), static_cast<int16_t*>(destination.getWritePointer(1, 0)) };
 
-		ReadHelper<AudioData::Int16, AudioData::Int16, AudioData::LittleEndian>::read(channels, startOffsetInBuffer, numDestChannels, sourceData, 2, numSamples);
+		ReadHelper<juce::AudioData::Int16, juce::AudioData::Int16, juce::AudioData::LittleEndian>::read(channels, startOffsetInBuffer, numDestChannels, sourceData, 2, numSamples);
 	}
 
 	return true;
 }
 
-HlacSubSectionReader::HlacSubSectionReader(AudioFormatReader* sourceReader, int64 subsectionStartSample, int64 subsectionLength) :
+HlacSubSectionReader::HlacSubSectionReader(AudioFormatReader* sourceReader, int64_t subsectionStartSample, int64_t subsectionLength) :
 	AudioFormatReader(0, sourceReader->getFormatName()),
 	start(subsectionStartSample)
 {
-	length = jmin(jmax((int64)0, sourceReader->lengthInSamples - subsectionStartSample), subsectionLength);
+	length = juce::jmin (juce::jmax ((int64_t)0, sourceReader->lengthInSamples - subsectionStartSample), subsectionLength);
 
 	sampleRate = sourceReader->sampleRate;
 	bitsPerSample = sourceReader->bitsPerSample;
@@ -544,7 +544,7 @@ HlacSubSectionReader::HlacSubSectionReader(AudioFormatReader* sourceReader, int6
 	}
 }
 
-bool HlacSubSectionReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples)
+bool HlacSubSectionReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64_t startSampleInFile, int numSamples)
 {
 	clearSamplesBeyondAvailableLength(destSamples, numDestChannels, startOffsetInDestBuffer,
 		startSampleInFile, numSamples, length);
@@ -555,10 +555,10 @@ bool HlacSubSectionReader::readSamples(int** destSamples, int numDestChannels, i
 		return normalReader->readSamples(destSamples, numDestChannels, startOffsetInDestBuffer, startSampleInFile + start, numSamples);
 }
 
-void HlacSubSectionReader::readMaxLevels(int64 startSampleInFile, int64 numSamples, Range<float>* results, int numChannelsToRead)
+void HlacSubSectionReader::readMaxLevels(int64_t startSampleInFile, int64_t numSamples, juce::Range<float>* results, int numChannelsToRead)
 {
-	startSampleInFile = jmax((int64)0, startSampleInFile);
-	numSamples = jmax((int64)0, jmin(numSamples, length - startSampleInFile));
+	startSampleInFile = juce::jmax((int64_t)0, startSampleInFile);
+	numSamples = juce::jmax((int64_t)0, juce::jmin(numSamples, length - startSampleInFile));
 
 	if(memoryReader != nullptr)
 		memoryReader->readMaxLevels(startSampleInFile + start, numSamples, results, numChannelsToRead);
@@ -566,7 +566,7 @@ void HlacSubSectionReader::readMaxLevels(int64 startSampleInFile, int64 numSampl
 		normalReader->readMaxLevels(startSampleInFile + start, numSamples, results, numChannelsToRead);
 }
 
-void HlacSubSectionReader::readIntoFixedBuffer(HiseSampleBuffer& buffer, int startSample, int numSamples, int64 readerStartSample)
+void HlacSubSectionReader::readIntoFixedBuffer(HiseSampleBuffer& buffer, int startSample, int numSamples, int64_t readerStartSample)
 {
 	if (isMonolith)
 	{

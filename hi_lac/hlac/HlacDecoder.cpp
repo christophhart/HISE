@@ -30,7 +30,7 @@
  *   ===========================================================================
  */
 
-namespace hlac { using namespace juce; 
+namespace hlac {
 
 void HlacDecoder::setupForDecompression()
 {
@@ -76,7 +76,7 @@ void HlacDecoder::reset()
 }
 
 
-bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int channelIndex)
+bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, juce::InputStream& input, int channelIndex)
 {
 	if (hlacVersion > 2)
 	{
@@ -87,7 +87,7 @@ bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, 
 
 	auto checksum = input.readInt();
 	
-	if (!CompressionHelpers::Misc::validateChecksum((uint32)checksum))
+	if (!CompressionHelpers::Misc::validateChecksum((uint32_t)checksum))
 	{
 		// Something is wrong here...
 		jassertfalse;
@@ -97,7 +97,7 @@ bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, 
 	
 	const int floatIndexToUse = channelIndex == 0 ? leftFloatIndex : rightFloatIndex;
 
-	int numTodo = jmin<int>(destination.getNumSamples() - floatIndexToUse, COMPRESSION_BLOCK_SIZE);
+	int numTodo = juce::jmin<int>(destination.getNumSamples() - floatIndexToUse, COMPRESSION_BLOCK_SIZE);
 
     LOG("DEC " + String(readOffset + readIndex) + "\t\tNew Block");
     
@@ -122,7 +122,7 @@ bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, 
 	return numTodo != 0;
 }
 
-void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int offsetInSource/*=0*/, int numSamples/*=-1*/)
+void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, juce::InputStream& input, int offsetInSource/*=0*/, int numSamples/*=-1*/)
 {
 	if (hlacVersion > 2)
 	{
@@ -180,22 +180,22 @@ void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, Input
 #endif
 }
 
-void HlacDecoder::decodeDiff(const CycleHeader& header, bool /*decodeStereo*/, HiseSampleBuffer& destination, InputStream& input, int channelIndex)
+void HlacDecoder::decodeDiff(const CycleHeader& header, bool /*decodeStereo*/, HiseSampleBuffer& destination, juce::InputStream& input, int channelIndex)
 {
-	uint16 blockSize = header.getNumSamples();
+	uint16_t blockSize = header.getNumSamples();
 
-	uint8 fullBitRate = header.getBitRate(true);
+	uint8_t fullBitRate = header.getBitRate(true);
 	auto compressorFull = collection.getSuitableCompressorForBitRate(fullBitRate);
 	auto numFullValues = CompressionHelpers::Diff::getNumFullValues(blockSize);
 	auto numFullBytes = compressorFull->getByteAmount(numFullValues);
 
 	input.read(readBuffer.getData(), numFullBytes);
 
-	compressorFull->decompress(workBuffer.getWritePointer(), (uint8*)readBuffer.getData(), numFullValues);
+	compressorFull->decompress(workBuffer.getWritePointer(), (uint8_t*)readBuffer.getData(), numFullValues);
 
-	CompressionHelpers::Diff::distributeFullSamples(currentCycle, (const uint16*)workBuffer.getReadPointer(), numFullValues);
+	CompressionHelpers::Diff::distributeFullSamples(currentCycle, (const uint16_t*)workBuffer.getReadPointer(), numFullValues);
 
-	uint8 errorBitRate = header.getBitRate(false);
+	uint8_t errorBitRate = header.getBitRate(false);
 
 	LOG("DEC  " + String(readOffset + readIndex + indexInBlock) + "\t\t\tNew diff with bit depth " + String(fullBitRate) + "/" + String(errorBitRate) + ": " + String(blockSize));
 
@@ -207,9 +207,9 @@ void HlacDecoder::decodeDiff(const CycleHeader& header, bool /*decodeStereo*/, H
 
 		input.read(readBuffer.getData(), numErrorBytes);
 
-		compressorError->decompress(workBuffer.getWritePointer(), (uint8*)readBuffer.getData(), numErrorValues);
+		compressorError->decompress(workBuffer.getWritePointer(), (uint8_t*)readBuffer.getData(), numErrorValues);
 
-		CompressionHelpers::Diff::addErrorSignal(currentCycle, (const uint16*)workBuffer.getReadPointer(), numErrorValues);
+		CompressionHelpers::Diff::addErrorSignal(currentCycle, (const uint16_t*)workBuffer.getReadPointer(), numErrorValues);
 	}
 
 	writeToFloatArray(true, false, destination, channelIndex, blockSize);
@@ -220,14 +220,14 @@ void HlacDecoder::decodeDiff(const CycleHeader& header, bool /*decodeStereo*/, H
 
 
 
-void HlacDecoder::decodeCycle(const CycleHeader& header, bool /*decodeStereo*/, HiseSampleBuffer& destination, InputStream& input, int channelIndex)
+void HlacDecoder::decodeCycle(const CycleHeader& header, bool /*decodeStereo*/, HiseSampleBuffer& destination, juce::InputStream& input, int channelIndex)
 {
-	uint8 br = header.getBitRate();
+	uint8_t br = header.getBitRate();
 
 	jassert(header.getBitRate() <= 16);
 	jassert(header.getNumSamples() <= COMPRESSION_BLOCK_SIZE);
 
-	uint16 numSamples = header.getNumSamples();
+	uint16_t numSamples = header.getNumSamples();
 
     jassert(indexInBlock+numSamples <= COMPRESSION_BLOCK_SIZE);
     
@@ -243,7 +243,7 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, bool /*decodeStereo*/, 
 
         if (compressor->getAllowedBitRange() != 0)
 		{
-			compressor->decompress(currentCycle.getWritePointer(), (const uint8*)readBuffer.getData(), numSamples);
+			compressor->decompress(currentCycle.getWritePointer(), (const uint8_t*)readBuffer.getData(), numSamples);
 
 			writeToFloatArray(true, false, destination, channelIndex, numSamples);
 		}
@@ -258,7 +258,7 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, bool /*decodeStereo*/, 
         
 		if (compressor->getAllowedBitRange() > 0)
 		{
-			compressor->decompress(workBuffer.getWritePointer(), (const uint8*)readBuffer.getData(), numSamples);
+			compressor->decompress(workBuffer.getWritePointer(), (const uint8_t*)readBuffer.getData(), numSamples);
 
 			CompressionHelpers::IntVectorOperations::add(workBuffer.getWritePointer(), currentCycle.getReadPointer(), numSamples);
 			
@@ -286,7 +286,7 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 	{
 		auto bufferOffset = channelIndex == 0 ? leftFloatIndex : rightFloatIndex;
 
-		auto numThisTime = jmin<int>(numSamples, destination.getNumSamples() - bufferOffset);
+		auto numThisTime = juce::jmin<int>(numSamples, destination.getNumSamples() - bufferOffset);
 
 		if (numThisTime > 0)
 		{
@@ -309,8 +309,8 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 						CompressionHelpers::AudioBufferInt16::copyWithNormalisation(destination.getFixedBuffer(channelIndex), srcBuffer, bufferOffset, 0, numThisTime, false);
 					else
 					{
-						auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
-						memcpy(dst, src, sizeof(int16) * numThisTime);
+						auto dst = static_cast<int16_t*>(destination.getWritePointer(channelIndex, bufferOffset));
+						memcpy(dst, src, sizeof(int16_t) * numThisTime);
 					}
 					
 				}
@@ -319,9 +319,9 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 			else
 			{
 				if (destination.isFloatingPoint())
-					FloatVectorOperations::clear(static_cast<float*>(destination.getWritePointer(channelIndex, bufferOffset)), numThisTime);
+                    juce::FloatVectorOperations::clear(static_cast<float*>(destination.getWritePointer(channelIndex, bufferOffset)), numThisTime);
 				else
-					CompressionHelpers::IntVectorOperations::clear(static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset)), numThisTime);
+					CompressionHelpers::IntVectorOperations::clear(static_cast<int16_t*>(destination.getWritePointer(channelIndex, bufferOffset)), numThisTime);
 			}
 				
 
@@ -341,7 +341,7 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 		else
 		{
 			auto bufferOffset = readIndex;
-            int numThisTime = jmin<int>(numSamples - skipToUse, destination.getNumSamples() - bufferOffset);
+            int numThisTime = juce::jmin<int>(numSamples - skipToUse, destination.getNumSamples() - bufferOffset);
 			//leftSeekOffset = numToSkipLeft;
 
 			if (shouldCopy)
@@ -367,9 +367,9 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 					}
 					else
 					{
-						auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
+						auto dst = static_cast<int16_t*>(destination.getWritePointer(channelIndex, bufferOffset));
 
-						memcpy(dst, src + skipToUse, sizeof(int16) * numThisTime);
+						memcpy(dst, src + skipToUse, sizeof(int16_t) * numThisTime);
 					}
 				}
 			}
@@ -377,9 +377,9 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 			else
 			{
 				if (destination.isFloatingPoint())
-					FloatVectorOperations::clear(static_cast<float*>(destination.getWritePointer(channelIndex, bufferOffset)), numThisTime);
+                    juce::FloatVectorOperations::clear(static_cast<float*>(destination.getWritePointer(channelIndex, bufferOffset)), numThisTime);
 				else
-					CompressionHelpers::IntVectorOperations::clear(static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset)), numThisTime);
+					CompressionHelpers::IntVectorOperations::clear(static_cast<int16_t*>(destination.getWritePointer(channelIndex, bufferOffset)), numThisTime);
 			}
 				
 
@@ -396,7 +396,7 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 	
 }
 
-void HlacDecoder::seekToPosition(InputStream& input, uint32 position, uint32 byteOffset)
+void HlacDecoder::seekToPosition(juce::InputStream& input, uint32_t position, uint32_t byteOffset)
 {
 	if (position % COMPRESSION_BLOCK_SIZE == 0)
 	{
@@ -411,10 +411,10 @@ void HlacDecoder::seekToPosition(InputStream& input, uint32 position, uint32 byt
 	}
 }
 
-HlacDecoder::CycleHeader HlacDecoder::readCycleHeader(InputStream& input)
+HlacDecoder::CycleHeader HlacDecoder::readCycleHeader(juce::InputStream& input)
 {
-	uint8 h = input.readByte();
-	uint16 s = input.readShort();
+	uint8_t h = input.readByte();
+	uint16_t s = input.readShort();
 
 	CycleHeader header(h, s);
 
@@ -427,7 +427,7 @@ bool HlacDecoder::CycleHeader::isTemplate() const
 	return (headerInfo & 0x20) > 0;
 }
 
-uint8 HlacDecoder::CycleHeader::getBitRate(bool getFullBitRate) const
+uint8_t HlacDecoder::CycleHeader::getBitRate(bool getFullBitRate) const
 {
 	if (isDiff())
 	{
@@ -436,7 +436,7 @@ uint8 HlacDecoder::CycleHeader::getBitRate(bool getFullBitRate) const
 
 		else
 		{
-			uint8 b = (uint8)((numSamples & 0xFF00) >> 8);
+			auto b = (uint8_t)((numSamples & 0xFF00) >> 8);
 			return b & 0x1f;
 		}
 	}
@@ -451,11 +451,11 @@ bool HlacDecoder::CycleHeader::isDiff() const
 	return (headerInfo & 0xC0) > 0;
 }
 
-uint16 HlacDecoder::CycleHeader::getNumSamples() const
+uint16_t HlacDecoder::CycleHeader::getNumSamples() const
 {
 	if (isDiff())
 	{
-		uint16 numSamplesLog = numSamples & 0xFF;
+		uint16_t numSamplesLog = numSamples & 0xFF;
 		return 1 << numSamplesLog;
 	}
 	else
