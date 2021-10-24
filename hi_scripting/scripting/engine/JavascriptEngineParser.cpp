@@ -934,13 +934,29 @@ private:
 
 	Statement* parseNamespace()
 	{
+        auto prevLoc = location;
 		Identifier namespaceId = parseIdentifier();
 
+        static const Array<Identifier> illegalIds =
+        {
+            Identifier("Settings"),
+            Identifier("Engine"),
+            Identifier("Message"),
+            Identifier("Server"),
+            Identifier("FileSystem"),
+            Identifier("Synth"),
+            Identifier("Sampler"),
+            Identifier("Console")
+        };
+        
+        if(illegalIds.contains(namespaceId))
+            prevLoc.throwError("Illegal namespace ID");
+        
 		currentNamespace = hiseSpecialData->getNamespace(namespaceId);
 
 		if (currentNamespace == nullptr)
 		{
-			location.throwError("Error at parsing namespace");
+            prevLoc.throwError("Error at parsing namespace");
 		}
 
 		ScopedPointer<BlockStatement> block = parseBlock();
