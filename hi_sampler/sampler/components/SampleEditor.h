@@ -264,6 +264,11 @@ public:
 
 	void setZoomFactor(float factor, int mousePos = 0);
 
+    void mouseMagnify(const MouseEvent& e, float scaleFactor) override
+    {
+        setZoomFactor(scaleFactor * zoomFactor, e.getPosition().getX());
+    }
+    
 	void mouseWheelMove	(const MouseEvent & e, const MouseWheelDetails & 	wheel )	override
 	{
 		if(e.mods.isCtrlDown())

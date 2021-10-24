@@ -62,6 +62,22 @@ int FloatingTileContainer::getNumVisibleComponents() const
     return num;
 }
 
+int FloatingTileContainer::getNumVisibleAndResizableComponents() const
+{
+    int num = 0;
+    
+    for(auto t: components)
+    {
+        auto& l = t->getLayoutData();
+        
+        if(l.isVisible() && !l.isFolded() && !l.isAbsolute())
+            num++;
+    }
+    
+    return num;
+}
+
+
 void FloatingTileContainer::clear()
 {
 	// if this doesn't work, you're in trouble soon...

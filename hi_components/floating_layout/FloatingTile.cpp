@@ -518,9 +518,37 @@ void FloatingTile::FoldButton::buttonClicked(Button* )
 		return;
 
 	pc->setFolded(!pc->isFolded());
-
+    
 	if (auto cl = dynamic_cast<ResizableFloatingTileContainer*>(pc->getParentContainer()))
 	{
+        auto numVisible = pc->getParentContainer()->getNumVisibleAndResizableComponents();
+        auto aboutToClose = pc->isFolded();
+        auto isAbsolute = pc->getLayoutData().isAbsolute();
+        
+        auto shouldOpenOther = aboutToClose && numVisible == 0 && !isAbsolute;
+        
+        if(shouldOpenOther)
+        {
+            for(int i = 0; i < cl->getNumComponents(); i++)
+            {
+                auto c = cl->getComponent(i);
+                
+                if(c == pc)
+                    continue;
+                
+                auto& l = c->getLayoutData();
+                
+                if(l.isAbsolute())
+                    continue;
+                
+                if(l.isFolded())
+                {
+                    c->setFolded(false);
+                    break;
+                }
+            }
+        }
+        
 		cl->enableAnimationForNextLayout();
 		cl->refreshLayout();
 	}
@@ -1183,8 +1211,16 @@ void FloatingTile::resized()
 
 		if (dynamic_cast<FloatingTabComponent*>(getCurrentFloatingPanel()))
 		{
-			foldButton->setBounds(getLocalBounds().removeFromLeft(TitleHeight + 2).removeFromTop(TitleHeight + 2));
-			openBorders = BorderSize<int>(2);
+            if(getLayoutData().isFolded())
+            {
+                foldButton->setBounds(getLocalBounds().removeFromLeft(TitleHeight + 2));
+                openBorders = BorderSize<int>(1, 1, getHeight() - TitleHeight, 1);
+            }
+            else
+            {
+                foldButton->setBounds(getLocalBounds().removeFromLeft(TitleHeight + 2).removeFromTop(TitleHeight + 2));
+                openBorders = BorderSize<int>(2);
+            }
 		}
         
         foldButton->setBorderSize(openBorders);

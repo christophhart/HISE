@@ -73,6 +73,7 @@ public:
 
     int getNumVisibleComponents() const;
     
+    int getNumVisibleAndResizableComponents() const;
     
 	/** Deletes all floating tiles in this container. */
 	void clear();
