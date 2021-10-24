@@ -541,7 +541,13 @@ void BackendRootWindow::showWorkspace(int workspace)
 		}
 
 		if(i == workspaceIndex)
-			wb->ensureVisibility();
+        {
+            if(GET_HISE_SETTING(getBackendProcessor()->getMainSynthChain(), HiseSettings::Other::AutoShowWorkspace))
+            {
+                wb->ensureVisibility();
+            }
+			
+        }
 		else
 			wb->getLayoutData().setVisible(false);
 	}

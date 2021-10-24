@@ -151,6 +151,7 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 	ids.add(AutosaveInterval);
 	ids.add(AudioThreadGuardEnabled);
 	ids.add(ExternalEditorPath);
+    ids.add(AutoShowWorkspace);
 
 	return ids;
 }
@@ -507,6 +508,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("The interval for the autosaver in minutes. This must be a number between `1` and `30`.");
 		P_();
 
+        P(HiseSettings::Other::AutoShowWorkspace);
+        D("If this is activated, clicking on a workspace icon (or loading a new patch) will ensure that the workspace is visible (so if it's folded, it will be unfolded.");
+        D("> Disable this setting if you are using a custom workspace environment with a second window.");
+        P_();
+        
 		P(HiseSettings::Other::AudioThreadGuardEnabled);
 		D("Watches for illegal calls in the audio thread. Use this during script development to catch allocations etc.");
 		P_();
@@ -674,6 +680,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Other::AudioThreadGuardEnabled ||
 		id == Other::UseOpenGL ||
 		id == Other::GlassEffect ||
+        id == Other::AutoShowWorkspace ||
 		id == Compiler::RebuildPoolFiles ||
 		id == Compiler::Support32BitMacOS ||
 		id == Project::SupportMonoFX ||
@@ -871,6 +878,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
+    else if (id == Other::AutoShowWorkspace)        return "Yes";
 	else if (id == Other::ExternalEditorPath)		return "";
 	else if (id == Documentation::DocRepository)	return "";
 	else if (id == Documentation::RefreshOnStartup) return "Yes";

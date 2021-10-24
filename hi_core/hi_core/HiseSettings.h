@@ -139,6 +139,7 @@ DECLARE_ID(EnableAutosave);
 DECLARE_ID(AutosaveInterval);
 DECLARE_ID(AudioThreadGuardEnabled);
 DECLARE_ID(ExternalEditorPath);
+DECLARE_ID(AutoShowWorkspace);
 
 Array<Identifier> getAllIds();
 
