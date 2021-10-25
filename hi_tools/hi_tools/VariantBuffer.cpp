@@ -150,7 +150,7 @@ void VariantBuffer::addMethods()
 		return var(0);
 	});
 
-	setMethod("getRMSLevel", [](const var::NativeFunctionArgs& n)
+	setMethod("getPeakRange", [](const var::NativeFunctionArgs& n)
 	{
 		Array<var> range;
 
