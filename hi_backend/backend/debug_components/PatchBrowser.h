@@ -216,7 +216,7 @@ private:
         
         ScopedPointer<HiseShapeButton> gotoWorkspace;
         
-        static void setWorkspace(ModuleDragTarget& p, Processor* pr)
+        static void setWorkspace(ModuleDragTarget& p, const Identifier& id, Processor* pr)
         {
             p.gotoWorkspace->setToggleStateAndUpdateIcon(pr == p.getProcessor());
         }

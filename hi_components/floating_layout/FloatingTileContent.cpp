@@ -319,6 +319,8 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 
 	auto con = ib.addChild<GlobalConnectorPanel<JavascriptProcessor>>(root);
 
+	ib.getContent<GlobalConnectorPanel<JavascriptProcessor>>(con)->setFollowWorkspace(true);
+
 	ib.setVisibility(con, false, {});
 
 	const int masterVertical = ib.addChild<VerticalTile>(root);
@@ -430,6 +432,8 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	ib.setDynamic(sampleHorizontal, false);
 	auto con = ib.addChild<GlobalConnectorPanel<ModulatorSampler>>(sampleHorizontal);
     
+	ib.getContent<GlobalConnectorPanel<ModulatorSampler>>(con)->setFollowWorkspace(true);
+
     ib.setVisibility(con, false, {});
     
     ib.getContent(samplePanel)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xFF404040));

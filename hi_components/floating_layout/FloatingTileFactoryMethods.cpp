@@ -653,9 +653,36 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	m.addItem((int)PopupMenuOptions::exportAsJSON, "Export as JSON", true, false);
 	m.addItem((int)PopupMenuOptions::loadFromJSON, "Load JSON from clipboard", parent->canBeDeleted(), false);
 
+	auto popupDir = ProjectHandler::getAppDataDirectory().getChildFile("custom_popups");
 
+	auto fileList = popupDir.findChildFiles(File::findFiles, false, "*.json");
+	fileList.sort();
+
+	PopupMenu customPopups;
+
+	static constexpr int CustomOffset = 90000;
+	int cIndex = CustomOffset;
+
+	for (auto f : fileList)
+		customPopups.addItem(cIndex++, f.getFileNameWithoutExtension());
+
+	m.addSubMenu("Custom Popups", customPopups);
 
 	const int result = m.show();
+
+	if (result >= CustomOffset)
+	{
+		auto f = fileList[result - CustomOffset];
+		auto obj = JSON::parse(f);
+
+		if (obj.isObject())
+		{
+			parent->loadFromJSON(f.loadFileAsString());
+			
+		}
+
+		return;
+	}
 
 	if (result > (int)PopupMenuOptions::MenuCommandOffset)
 	{

@@ -120,6 +120,8 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 			const int workspace = editorState.getDynamicObject()->getProperty("CurrentWorkspace");
 
+
+
 			if(workspace > 0)
 				showWorkspace(workspace);
             
@@ -237,11 +239,14 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 	if (useOpenGL)
 		setEnableOpenGL(this);
     
-    auto jsp = ProcessorHelpers::getFirstProcessorWithType<JavascriptMidiProcessor>(getBackendProcessor()->getMainSynthChain());
-    
-    BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
-    BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
-    
+	if (GET_HISE_SETTING(getBackendProcessor()->getMainSynthChain(), HiseSettings::Other::AutoShowWorkspace))
+	{
+		auto jsp = ProcessorHelpers::getFirstProcessorWithType<JavascriptMidiProcessor>(getBackendProcessor()->getMainSynthChain());
+
+		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
+		BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+	}
+
     getBackendProcessor()->workbenches.addListener(this);
 
 	getBackendProcessor()->getScriptComponentEditBroadcaster()->getLearnBroadcaster().addListener(*this, BackendRootWindow::learnModeChanged);
@@ -542,11 +547,7 @@ void BackendRootWindow::showWorkspace(int workspace)
 
 		if(i == workspaceIndex)
         {
-            if(GET_HISE_SETTING(getBackendProcessor()->getMainSynthChain(), HiseSettings::Other::AutoShowWorkspace))
-            {
-                wb->ensureVisibility();
-            }
-			
+			wb->ensureVisibility();
         }
 		else
 			wb->getLayoutData().setVisible(false);
@@ -672,15 +673,8 @@ void BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(BackendRootWind
 {
 	auto workspace = get(rootWindow);
 
-    rootWindow->workspaceListeners.sendMessage(sendNotificationAsync, dynamic_cast<Processor*>(jsp));
+    rootWindow->getBackendProcessor()->workspaceBroadcaster.sendMessage(sendNotificationAsync, JavascriptProcessor::getConnectorId(),  dynamic_cast<Processor*>(jsp));
     
-	FloatingTile::Iterator<GlobalConnectorPanel<JavascriptProcessor>> iter(workspace);
-
-	if (auto connector = iter.getNextPanel())
-	{
-		connector->setContentWithUndo(dynamic_cast<Processor*>(jsp), 0);
-	}
-
 	auto shouldShowInterface = dynamic_cast<JavascriptMidiProcessor*>(jsp) != nullptr;
 
 	auto sn = FloatingTileHelpers::findTileWithId<VerticalTile>(workspace, "ScriptingWorkspaceScriptnode")->getParentShell();
@@ -745,16 +739,7 @@ FloatingTile* BackendPanelHelpers::SamplerWorkspace::get(BackendRootWindow* root
 
 void BackendPanelHelpers::SamplerWorkspace::setGlobalProcessor(BackendRootWindow* rootWindow, ModulatorSampler* sampler)
 {
-	auto workspace = get(rootWindow);
-
-    rootWindow->workspaceListeners.sendMessage(sendNotificationAsync, sampler);
-    
-	FloatingTile::Iterator<GlobalConnectorPanel<ModulatorSampler>> iter(workspace);
-
-	if (auto connector = iter.getNextPanel())
-	{
-		connector->setContentWithUndo(dynamic_cast<Processor*>(sampler), 0);
-	}
+	rootWindow->getBackendProcessor()->workspaceBroadcaster.sendMessage(sendNotificationAsync, ModulatorSampler::getConnectorId(), sampler);
 }
 
 

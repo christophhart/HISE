@@ -614,7 +614,11 @@ void FloatingTile::ensureVisibility()
     
     while(p != nullptr)
     {
-        p->setFolded(false);
+		if (GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Other::AutoShowWorkspace))
+		{
+			p->setFolded(false);
+		}
+        
 		p->getLayoutData().setVisible(true);
         
         auto c = p->getParentContainer();

@@ -564,7 +564,7 @@ void PatchBrowser::rebuilt()
 
 			if (d->gotoWorkspace != nullptr)
 			{
-				root->workspaceListeners.addListener(*d, ModuleDragTarget::setWorkspace);
+				root->getBackendProcessor()->workspaceBroadcaster.addListener(*d, ModuleDragTarget::setWorkspace);
 			}
 
 			d->applyLayout();

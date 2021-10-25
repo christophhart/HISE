@@ -199,6 +199,7 @@ public:
 	
     LambdaBroadcaster<Processor*> processorAddBroadcaster;
 	
+	LambdaBroadcaster<Identifier, Processor*> workspaceBroadcaster;
 
 private:
 

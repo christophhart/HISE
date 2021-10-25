@@ -34,11 +34,16 @@ namespace hise { using namespace juce;
 
 PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent) :
 	FloatingTileContent(parent),
-	showConnectionBar("showConnectionBar")
+	showConnectionBar("showConnectionBar"),
+	followWorkspaceButton("workspace", nullptr, factory)
 {
+	addAndMakeVisible(followWorkspaceButton);
 	addAndMakeVisible(connectionSelector = new ComboBox());
 	connectionSelector->addListener(this);
 	getMainSynthChain()->getMainController()->skin(*connectionSelector);
+
+	followWorkspaceButton.setToggleModeWithColourChange(true);
+	followWorkspaceButton.setTooltip("Enables updating the content when a workspace button is clicked in the patch browser");
 
 	connectionSelector->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::transparentBlack);
 	connectionSelector->setColour(HiseColourScheme::ComponentFillBottomColourId, Colours::transparentBlack);
@@ -57,7 +62,16 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	connectionSelector->setLookAndFeel(&hlaf);
 	indexSelector->setLookAndFeel(&hlaf);
 
-	BACKEND_ONLY(getMainController()->getProcessorChangeHandler().addProcessorChangeListener(this);)
+#if USE_BACKEND
+
+	getMainController()->getProcessorChangeHandler().addProcessorChangeListener(this);
+
+	dynamic_cast<BackendProcessor*>(getMainController())->workspaceBroadcaster.addListener(*this, [](PanelWithProcessorConnection& pc, const Identifier& id, Processor* p)
+	{
+		if (pc.shouldFollowNewWorkspace(p, id))
+			pc.setContentWithUndo(p, pc.getCurrentIndex());
+	});
+#endif
 }
 
 PanelWithProcessorConnection::~PanelWithProcessorConnection()
@@ -99,7 +113,8 @@ var PanelWithProcessorConnection::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::ProcessorId, getConnectedProcessor() != nullptr ? getConnectedProcessor()->getId() : "");
 	storePropertyInObject(obj, SpecialPanelIds::Index, currentIndex);
 	storePropertyInObject(obj, SpecialPanelIds::Index, currentIndex);
-	
+	storePropertyInObject(obj, SpecialPanelIds::FollowWorkspace, followWorkspaceButton.getToggleState());
+
 	return obj;
 }
 
@@ -120,6 +135,8 @@ void PanelWithProcessorConnection::fromDynamicObject(const var& object)
 			setContentWithUndo(p, index);
 		}
 	}
+
+	followWorkspaceButton.setToggleStateAndUpdateIcon(getPropertyWithDefault(object, SpecialPanelIds::FollowWorkspace));
 }
 
 int PanelWithProcessorConnection::getNumDefaultableProperties() const
@@ -134,6 +151,7 @@ Identifier PanelWithProcessorConnection::getDefaultablePropertyId(int index) con
 
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ProcessorId, "ProcessorId");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Index, "Index");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FollowWorkspace, "FollowWorkspace");
 
 	jassertfalse;
 	return{};
@@ -146,6 +164,7 @@ var PanelWithProcessorConnection::getDefaultProperty(int index) const
 
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ProcessorId, var(""));
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Index, var(-1));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FollowWorkspace, false);
 
 	jassertfalse;
 	return{};
@@ -233,6 +252,7 @@ void PanelWithProcessorConnection::resized()
 	{
 		connectionSelector->setVisible(false);
 		indexSelector->setVisible(false);
+		followWorkspaceButton.setVisible(false);
 
 		if (content != nullptr)
 		{
@@ -259,15 +279,20 @@ void PanelWithProcessorConnection::resized()
 
 		Rectangle<int> contentArea = getParentShell()->getContentBounds();
 
+		
+
 		if (scb)
 		{
+			auto topArea = contentArea.removeFromTop(18);
+
+			topArea.removeFromLeft(topArea.getHeight());
+			followWorkspaceButton.setBounds(topArea.removeFromLeft(topArea.getHeight()).reduced(2));
+
 			connectionSelector->setVisible(!getParentShell()->isFolded());
-			connectionSelector->setBounds(18, bounds.getY(), 128, 18);
-
+			connectionSelector->setBounds(topArea.removeFromLeft(128));;
+			topArea.removeFromLeft(5);
 			indexSelector->setVisible(!getParentShell()->isFolded() && hasSubIndex());
-			indexSelector->setBounds(connectionSelector->getRight() + 5, bounds.getY(), 128, 18);
-
-			contentArea = contentArea.withTrimmedTop(18);
+			indexSelector->setBounds(topArea.removeFromLeft(128));
 		}
 		else
 		{
