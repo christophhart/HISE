@@ -102,7 +102,8 @@ public:
 		PitchFade, ///< a pitch fade that is applied to all voices started with the given EventID
 		TimerEvent, ///< this event will fire the onTimer callback of MIDI Processors.
 		ProgramChange, ///< the MIDI ProgramChange message.
-		numTypes
+		numTypes,
+        NRPNController
 	};
 
 	/** Creates an empty HiseEvent. */
@@ -369,6 +370,9 @@ public:
 
 	/** Copied from MidiMessage. */
 	bool isController() const noexcept{ return type == Type::Controller; }
+    
+    /** Copied from MidiMessage. */
+    bool isNRPNController() const noexcept{ return type == Type::NRPNController; }
 
 	/** Copied from MidiMessage. */
 	bool isControllerOfType(int controllerType) const noexcept{ return type == Type::Controller && controllerType == (int)number; };
@@ -378,12 +382,24 @@ public:
 
 	/** Copied from MidiMessage. */
 	int getControllerValue() const noexcept{ return value; };
+    
+    /** Copied from MidiMessage. */
+    int getParameterNumber() const noexcept{ return parameterNumber; };
+    
+    /** Copied from MidiMessage. */
+    int getNRPNValue() const noexcept{ return nrpnValue; };
 
 	/** Copied from MidiMessage. */
 	void setControllerNumber(int controllerNumber) noexcept{ number = (uint8)controllerNumber; };
 
 	/** Copied from MidiMessage. */
 	void setControllerValue(int controllerValue) noexcept{ value = (uint8)controllerValue; };
+    
+    /** Copied from MidiMessage. */
+    void setParameterNumber(int pNumber) noexcept{ parameterNumber = (uint16)pNumber; };
+    
+    /** Copied from MidiMessage. */
+    void setNRPNValue(int nValue) noexcept{ nrpnValue = (uint16)nValue; };
 
 	/** Copied from MidiMessage. */
 	bool isProgramChange() const noexcept { return type == Type::ProgramChange; };
@@ -470,11 +486,13 @@ public:
 	};
 
 private:
-
+    //MidiRPNDetector rpnHISEDetector;
 	Type type = Type::Empty;		// DWord 1
 	uint8 channel = 0;
 	uint8 number = 0;
 	uint8 value = 0;
+    uint16 parameterNumber = 0;
+    uint16 nrpnValue = 0;
 
 	int8 transposeValue = 0;		// DWord 2
 	int8 gain = 0;
@@ -489,9 +507,12 @@ private:
 
 #define HISE_EVENT_BUFFER_SIZE 256
 
+    
+    
 /** The buffer type for the HiseEvent.
 
 */
+
 class HiseEventBuffer
 {
 public:
@@ -707,7 +728,7 @@ public:
 	private:
 
 		HiseEventBuffer *buffer;
-
+        MidiRPNDetector rpnHISEDetector;
 		mutable int index;
 	};
 

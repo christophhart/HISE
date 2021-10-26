@@ -542,7 +542,13 @@ MidiMessage MidiMessage::pitchWheel (const int channel, const int position) noex
 
 bool MidiMessage::isController() const noexcept
 {
+    
     return (getRawData()[0] & 0xf0) == 0xb0;
+}
+    //User added, only use if it message is controller
+bool MidiMessage::isNRPNController() const noexcept
+{
+ return ((getRawData()[1] == 0x62) || (getRawData()[1] == 0x63) ||(getRawData()[1] == 0x06) ||(getRawData()[1] == 0x26) );
 }
 
 bool MidiMessage::isControllerOfType (const int controllerType) const noexcept

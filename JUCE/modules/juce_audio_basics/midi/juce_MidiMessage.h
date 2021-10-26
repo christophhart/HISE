@@ -459,6 +459,8 @@ public:
         @see getControllerNumber, getControllerValue, controllerEvent
     */
     bool isController() const noexcept;
+    
+    bool isNRPNController() const noexcept;
 
     /** Returns the controller number of a controller message.
 

@@ -4124,6 +4124,8 @@ struct ScriptingObjects::ScriptingMessageHolder::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getVelocity);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getControllerNumber);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getControllerValue);
+   // API_METHOD_WRAPPER_0(ScriptingMessageHolder, getParameterNumber);
+    //API_METHOD_WRAPPER_0(ScriptingMessageHolder, getNRPNValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, ignoreEvent);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getEventId);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getChannel);
@@ -4142,6 +4144,7 @@ struct ScriptingObjects::ScriptingMessageHolder::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isNoteOn);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isNoteOff);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isController);
+    API_METHOD_WRAPPER_0(ScriptingMessageHolder, isNRPNController);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, dump);
 };
 
@@ -4174,6 +4177,7 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 	ADD_API_METHOD_0(isNoteOn);
 	ADD_API_METHOD_0(isNoteOff);
 	ADD_API_METHOD_0(isController);
+    ADD_API_METHOD_0(isNRPNController);
 	ADD_API_METHOD_0(dump);
 
 	addConstant("Empty", 0);
@@ -4190,6 +4194,7 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 	addConstant("PitchFade", 11);
 	addConstant("TimerEvent", 12);
 	addConstant("ProgramChange", 13);
+    addConstant("NRPNController", 14);
 }
 
 int ScriptingObjects::ScriptingMessageHolder::getNoteNumber() const { return (int)e.getNoteNumber(); }
@@ -4227,6 +4232,7 @@ void ScriptingObjects::ScriptingMessageHolder::addToTimestamp(int deltaSamples) 
 bool ScriptingObjects::ScriptingMessageHolder::isNoteOn() const { return e.isNoteOn(); }
 bool ScriptingObjects::ScriptingMessageHolder::isNoteOff() const { return e.isNoteOff(); }
 bool ScriptingObjects::ScriptingMessageHolder::isController() const { return e.isController(); }
+    bool ScriptingObjects::ScriptingMessageHolder::isNRPNController() const { return e.isNRPNController(); }
 
 String ScriptingObjects::ScriptingMessageHolder::dump() const
 {

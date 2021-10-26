@@ -249,6 +249,8 @@ struct ScriptingApi::Message::Wrapper
 	API_METHOD_WRAPPER_0(Message, getVelocity);
 	API_METHOD_WRAPPER_0(Message, getControllerNumber);
 	API_METHOD_WRAPPER_0(Message, getControllerValue);
+    API_METHOD_WRAPPER_0(Message, getParameterNumber);
+    API_METHOD_WRAPPER_0(Message, getNRPNValue);
 	API_METHOD_WRAPPER_0(Message, isProgramChange);
 	API_METHOD_WRAPPER_0(Message, getProgramChangeNumber);
 	API_VOID_METHOD_WRAPPER_1(Message, ignoreEvent);
@@ -288,6 +290,8 @@ constMessageHolder(nullptr)
 	ADD_API_METHOD_1(setControllerValue);
 	ADD_API_METHOD_0(getControllerNumber);
 	ADD_API_METHOD_0(getControllerValue);
+    ADD_API_METHOD_0(getParameterNumber);
+    ADD_API_METHOD_0(getNRPNValue);
 	ADD_API_METHOD_0(isProgramChange);
 	ADD_API_METHOD_0(getProgramChangeNumber);
 	ADD_API_METHOD_0(getNoteNumber);
@@ -457,14 +461,17 @@ int ScriptingApi::Message::getProgramChangeNumber()
 var ScriptingApi::Message::getControllerNumber() const
 {
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-	if(constMessageHolder == nullptr || ( !constMessageHolder->isController() && !constMessageHolder->isPitchWheel() && !constMessageHolder->isAftertouch() ))
+    if(constMessageHolder == nullptr || (!constMessageHolder->isController() && !constMessageHolder->isPitchWheel()  && !constMessageHolder->isAftertouch()))
 	{
+       
 		reportIllegalCall("getControllerNumber()", "onController");
 		RETURN_IF_NO_THROW(var())
+        
 	}
 #endif
 
-	if(constMessageHolder->isController())		  return constMessageHolder->getControllerNumber();
+	if(constMessageHolder->isController()||constMessageHolder->isNRPNController())
+        return constMessageHolder->getControllerNumber();
 	else if (constMessageHolder->isPitchWheel())	  return 128;
 	else if (constMessageHolder->isAftertouch())   return 129;
 	else									  return var::undefined();
@@ -474,18 +481,53 @@ var ScriptingApi::Message::getControllerNumber() const
 var ScriptingApi::Message::getControllerValue() const
 {
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-	if(constMessageHolder == nullptr || ( !constMessageHolder->isController() && !constMessageHolder->isPitchWheel() && !constMessageHolder->isAftertouch() ))
+    if(constMessageHolder == nullptr || (!constMessageHolder->isController() && !constMessageHolder->isPitchWheel()  && !constMessageHolder->isAftertouch() ))
 	{
+        
 		reportIllegalCall("getControllerValue()", "onController");
 		RETURN_IF_NO_THROW(var())
 	}
 #endif
 
-	if      (constMessageHolder->isController())	  return constMessageHolder->getControllerValue();
+	if      (constMessageHolder->isController()||constMessageHolder->isNRPNController())
+        return constMessageHolder->getControllerValue();
 	else if (constMessageHolder->isAftertouch())	  return constMessageHolder->getAfterTouchValue();
 	else if (constMessageHolder->isPitchWheel())	  return constMessageHolder->getPitchWheelValue();
 	else									  return var::undefined();
 };
+    
+    var ScriptingApi::Message::getParameterNumber() const
+    {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+        if(constMessageHolder == nullptr ||  !constMessageHolder->isNRPNController())
+        {
+            
+            reportIllegalCall("getParameterNumber()", "onNRPNController");
+            RETURN_IF_NO_THROW(var())
+            
+        }
+#endif
+        
+        if(constMessageHolder->isNRPNController())
+            return constMessageHolder->getParameterNumber();
+        else                                      return var::undefined();
+    };
+    
+    var ScriptingApi::Message::getNRPNValue() const
+    {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+        if(constMessageHolder == nullptr ||  !constMessageHolder->isNRPNController())
+        {
+            
+            reportIllegalCall("getNRPNValue()", "onNRPNController");
+            RETURN_IF_NO_THROW(var())
+        }
+#endif
+        
+        if      (constMessageHolder->isNRPNController())
+            return constMessageHolder->getNRPNValue();
+        else                                      return var::undefined();
+    };
 
 int ScriptingApi::Message::getVelocity() const
 {
@@ -3380,6 +3422,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_0(Synth, getTimerInterval);
 	API_VOID_METHOD_WRAPPER_2(Synth, setMacroControl);
 	API_VOID_METHOD_WRAPPER_2(Synth, sendController);
+    API_VOID_METHOD_WRAPPER_4(Synth, sendNRPNController);
 	API_VOID_METHOD_WRAPPER_2(Synth, sendControllerToChildSynths);
 	API_VOID_METHOD_WRAPPER_4(Synth, setModulatorAttribute);
 	API_METHOD_WRAPPER_3(Synth, addModulator);
@@ -3449,6 +3492,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_0(getTimerInterval);
 	ADD_API_METHOD_2(setMacroControl);
 	ADD_API_METHOD_2(sendController);
+    ADD_API_METHOD_4(sendNRPNController);
 	ADD_API_METHOD_2(sendControllerToChildSynths);
 	ADD_API_METHOD_4(setModulatorAttribute);
 	ADD_API_METHOD_3(addModulator);
@@ -3850,6 +3894,96 @@ void ScriptingApi::Synth::sendController(int controllerNumber, int controllerVal
 	}
 	else reportScriptError("Only valid in MidiProcessors");
 };
+
+void ScriptingApi::Synth::sendNRPNController(int LSBaddress, int MSBaddress, int LSBdata, int MSBdata )
+{
+    if (parentMidiProcessor != nullptr)
+    {
+        if (MSBaddress > 0 && LSBaddress >= 0)
+        {
+            if (MSBdata >= 0 && LSBdata >= 0)
+            {
+                int nrpn[4] = {98, 99, 38, 6};
+                int nrpnData[4] = {LSBaddress, MSBaddress, LSBdata, MSBdata};
+                
+                HiseEvent e;
+                
+                for (int i = 0; i < 4; i++) {
+                        e = HiseEvent(HiseEvent::Type::NRPNController, (uint8)nrpn[i] , (uint8)nrpnData[i] );
+                        if (const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent())
+                        {
+                            e.setTimeStamp((int)current->getTimeStamp());
+                        }
+                        parentMidiProcessor->addHiseEventToBuffer(e);
+                }
+            }
+            else reportScriptError("CC value must be positive");
+        }
+        else reportScriptError("CC number must be positive");
+    }
+    else reportScriptError("Only valid in MidiProcessors");
+};
+    
+void ScriptingApi::Synth::sendNRPNController(int LSBaddress, int MSBaddress, int MSBdata )
+{
+    if (parentMidiProcessor != nullptr)
+    {
+        if (MSBaddress > 0 && LSBaddress >= 0)
+        {
+            if (MSBdata >= 0)
+            {
+                int nrpn[3] = {98, 99, 38};
+                int nrpnData[3] = {LSBaddress, MSBaddress, MSBdata};
+    
+                HiseEvent e;
+                
+                for (int i = 0; i < 3; i++) {
+                    e = HiseEvent(HiseEvent::Type::NRPNController, (uint8)nrpn[i] , (uint8)nrpnData[i] );
+                    if (const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent())
+                    {
+                        e.setTimeStamp((int)current->getTimeStamp());
+                    }
+                    parentMidiProcessor->addHiseEventToBuffer(e);
+                }
+            }
+            else reportScriptError("CC value must be positive");
+        }
+        else reportScriptError("CC number must be positive");
+    }
+    else reportScriptError("Only valid in MidiProcessors");
+};
+    
+void ScriptingApi::Synth::sendNRPNController(int parameterNumber, int value )
+{
+    if (parentMidiProcessor != nullptr)
+    {
+        if (parameterNumber > 0 )
+        {
+            if (value >= 0 )
+            {
+                int nrpn[4] = {98, 99, 38, 6};
+                int nrpnData[4] = {parameterNumber/128, parameterNumber%128, value/128,value%128};
+                int entries = (value > 128) ? 4: 3;
+                
+                HiseEvent e;
+                
+                for (int i = 0; i < entries; i++) {
+                    e = HiseEvent(HiseEvent::Type::NRPNController, (uint8)nrpn[i] , (uint8)nrpnData[i] );
+                    if (const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent())
+                    {
+                        e.setTimeStamp((int)current->getTimeStamp());
+                    }
+                    parentMidiProcessor->addHiseEventToBuffer(e);
+                }
+            }
+            else reportScriptError("CC value must be positive");
+        }
+        else reportScriptError("CC number must be positive");
+    }
+    else reportScriptError("Only valid in MidiProcessors");
+};
+    
+
 
 void ScriptingApi::Synth::sendControllerToChildSynths(int controllerNumber, int controllerValue)
 {

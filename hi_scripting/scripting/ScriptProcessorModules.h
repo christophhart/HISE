@@ -62,6 +62,7 @@ public:
 		onNoteOnOpen = ProcessorWithScriptingContent::EditorStates::numEditorStates,
 		onNoteOffOpen,
 		onControllerOpen,
+        onNRPNControllerOpen,
 		onTimerOpen,
 		onControlOpen,
 		externalPopupShown,
@@ -190,6 +191,7 @@ private:
 	ScopedPointer<SnippetDocument> onNoteOnCallback;
 	ScopedPointer<SnippetDocument> onNoteOffCallback;
 	ScopedPointer<SnippetDocument> onControllerCallback;
+    ScopedPointer<SnippetDocument> onNRPNControllerCallback;
 	ScopedPointer<SnippetDocument> onControlCallback;
 	ScopedPointer<SnippetDocument> onTimerCallback;
 
@@ -226,6 +228,7 @@ public:
 		onVoiceStart,
 		onVoiceStop,
 		onController,
+        onNRPNController,
 		onControl,
 		numCallbacks
 	};
@@ -235,6 +238,7 @@ public:
 		onVoiceStartOpen = ProcessorWithScriptingContent::EditorStates::numEditorStates,
 		onVoiceStopOpen,
 		onControllerOpen,
+        onNRPNControllerOpen,
 		onControlOpen,
 		externalPopupShown,
 		numScriptEditorStates
@@ -286,6 +290,7 @@ private:
 	ScopedPointer<SnippetDocument> onVoiceStartCallback;
 	ScopedPointer<SnippetDocument> onVoiceStopCallback;
 	ScopedPointer<SnippetDocument> onControllerCallback;
+    ScopedPointer<SnippetDocument> onNRPNControllerCallback;
 	ScopedPointer<SnippetDocument> onControlCallback;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptVoiceStartModulator)
@@ -308,6 +313,7 @@ public:
 		onNoteOn,
 		onNoteOff,
 		onController,
+        onNRPNController,
 		onControl,
 		numCallbacks
 	};
@@ -319,6 +325,7 @@ public:
 		onNoteOnOpen,
 		onNoteOffOpen,
 		onControllerOpen,
+        onNRPNControllerOpen,
 		onControlOpen,
 		externalPopupShown,
 		numScriptEditorStates
@@ -391,6 +398,7 @@ private:
 	ScopedPointer<SnippetDocument> onNoteOnCallback;
 	ScopedPointer<SnippetDocument> onNoteOffCallback;
 	ScopedPointer<SnippetDocument> onControllerCallback;
+    ScopedPointer<SnippetDocument> onNRPNControllerCallback;
 	ScopedPointer<SnippetDocument> onControlCallback;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptTimeVariantModulator)
@@ -543,6 +551,7 @@ public:
 		onNoteOnOpen,
 		onNoteOffOpen,
 		onControllerOpen,
+        onNRPNControllerOpen,
 		onControlOpen,
 		externalPopupShown,
 		numEditorStates
@@ -564,6 +573,7 @@ public:
 		onNoteOn,
 		onNoteOff,
 		onController,
+        onNRPNController,
 		onControl,
 		numCallbacks
 	};
@@ -620,6 +630,7 @@ private:
 	ScopedPointer<SnippetDocument> onNoteOnCallback;
 	ScopedPointer<SnippetDocument> onNoteOffCallback;
 	ScopedPointer<SnippetDocument> onControllerCallback;
+    ScopedPointer<SnippetDocument> onNRPNControllerCallback;
 	ScopedPointer<SnippetDocument> onControlCallback;
 
 	ReferenceCountedObjectPtr<ScriptingApi::Message> currentMidiMessage;

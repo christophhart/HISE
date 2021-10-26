@@ -85,6 +85,12 @@ public:
 		/** Returns the value of the controller. */
 		var getControllerValue() const;
 
+       
+        var getParameterNumber() const;
+        
+        /** Returns the value of the controller. */
+        var getNRPNValue() const;
+        
 		/** Returns the MIDI Channel from 1 to 16. */
 		int getChannel() const;
 
@@ -861,6 +867,13 @@ public:
 
 		/** Sends a controller event to the synth. */
 		void sendController(int controllerNumber, int controllerValue);
+        
+        /** Sends an NRPN controller event to the synth. */
+        void sendNRPNController(int LSBaddress, int MSBAddress, int LSBData, int MSBData );
+        
+        void sendNRPNController(int LSBaddress, int MSBAddress, int MSBData );
+        
+        void sendNRPNController(int parameterNumber, int value);
 
 		/** The same as sendController (for backwards compatibility) */
 		void sendControllerToChildSynths(int controllerNumber, int controllerValue);

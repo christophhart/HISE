@@ -109,6 +109,8 @@ public:
 	void onControl(ScriptingApi::Content::ScriptComponent *c, var value) override;
 
 	void onController() override;
+    
+   
 
 	void onAllNotesOff() override;
 

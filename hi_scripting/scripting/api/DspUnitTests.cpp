@@ -427,7 +427,7 @@ private:
 
 
 		const String pitchMidiProcessor = R"(function onNoteOn(){Synth.addPitchFade(Message.getEventId(),500,12,0);})" \
-			R"(function onNoteOff(){}function onController(){}function onTimer(){}function onControl(number, value){})";
+			R"(function onNoteOff(){}function onController(){}function onNRPNController(){}function onTimer(){}function onControl(number, value){})";
 
 		auto jp = new JavascriptMidiProcessor(bp, "scripter");
 
