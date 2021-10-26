@@ -195,6 +195,7 @@ public:
 		onNoteOn,
 		onNoteOff,
 		onController,
+        onNRPNController,
 		onTimer,
 		onControl,
 		numCallbacks

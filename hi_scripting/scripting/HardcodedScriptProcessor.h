@@ -69,6 +69,9 @@ public:
 
 	/** called if a cc message is processed. */
 	virtual void onController() {} ;
+    
+    /** called if a cc message is processed. */
+    virtual void onNRPNController() {} ;
 
 	/** called periodically if the timer was started. */
 	virtual void onTimer(int /*offsetInBuffer*/) {};
@@ -319,6 +322,19 @@ public:
 			Message.setControllerNumber(firstCC->getValue());
 		}
 	};
+    
+    void onNRPNController() override
+    {
+        if(Message.getControllerNumber() == firstCC->getValue())
+        {
+            Message.setControllerNumber(secondCC->getValue());
+        }
+        else if(Message.getControllerNumber() == secondCC->getValue())
+        {
+            Message.setControllerNumber(firstCC->getValue());
+        }
+    };
+
 
 	
 	
@@ -571,6 +587,36 @@ public:
 			}
 		}
 	};
+    
+    void onNRPNController() override
+    {
+        if (lastNote != -1 && ((int)Message.getControllerNumber() == selectorValue))
+        {
+            if ((double)bypassButton->getValue() < 0.5)
+            {
+                updown = !updown;
+                
+                if (!updown)
+                {
+                    
+                    thisGroup = (int)floor(r.nextFloat() * (float)(rrAmount) / 2.0f);
+                    
+                    while (thisGroup == lastGroup) thisGroup = (int)(floor(r.nextFloat() * (float)(rrAmount) / 2.0f));
+                    
+                    lastGroup = thisGroup;
+                }
+                
+                const int thisGroupNumber = thisGroup * 2 + (updown ? 1 : 0) + 1;
+                
+                Sampler.setActiveGroup(thisGroupNumber);
+            }
+            
+            if (lastNote != -1)
+            {
+                Synth.playNote(lastNote, Message.getControllerValue());
+            }
+        }
+    };
 
 	void onControl(ScriptingApi::Content::ScriptComponent * controllerThatWasMoved, var value) override
 	{
@@ -711,6 +757,23 @@ public:
 		}
 		
 	};
+    
+    void onNRPNController() override
+    {
+        if (mpeEnabled)
+        {
+            if (!mpeRange[Message.getChannel()-1])
+                Message.ignoreEvent(true);
+        }
+        else
+        {
+            if (Message.getChannel() != channel)
+            {
+                Message.ignoreEvent(true);
+            }
+        }
+        
+    };
 
 	void onControl(ScriptingApi::Content::ScriptComponent *c, var value) override
 	{
@@ -788,6 +851,11 @@ public:
 	{
 		Message.setChannel(channel);
 	};
+    
+    void onNRPNController() override
+    {
+        Message.setChannel(channel);
+    };
 
 	void onControl(ScriptingApi::Content::ScriptComponent *, var value) override
 	{

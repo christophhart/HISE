@@ -619,15 +619,18 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 	else if (m.isController())
 	{
 		const int controllerNumber = m.getControllerNumber();
-
-		switch (controllerNumber)
-		{
-		case 0x40:  handleSustainPedal(channel, m.getControllerValue() >= 64); break;
-		case 0x42:  handleSostenutoPedal(channel, m.getControllerValue() >= 64); break;
-		case 0x43:  handleSoftPedal(channel, m.getControllerValue() >= 64); break;
-		default:    break;
-		}
+        
+        if (!m.isNRPNController()){
+            switch (controllerNumber)
+            {
+            case 0x40:  handleSustainPedal(channel, m.getControllerValue() >= 64); break;
+            case 0x42:  handleSostenutoPedal(channel, m.getControllerValue() >= 64); break;
+            case 0x43:  handleSoftPedal(channel, m.getControllerValue() >= 64); break;
+            default:    break;
+            }
+        }
 	}
+
 	else if (m.isVolumeFade())
 	{
 		handleVolumeFade(m.getEventId(), m.getFadeTime(), m.getGainFactor());
