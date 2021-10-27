@@ -1345,16 +1345,14 @@ public:
 ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptedViewport* viewport, int index):
 	ScriptCreatedComponentWrapper(content, index)
 {
-	
-
 	shouldUseList = (bool)viewport->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::useList);
+
+	Viewport* vp = nullptr;
 
 	if (!shouldUseList)
 	{
-		Viewport* vp = new Viewport();
-
+		vp = new Viewport();
 		vp->setName(viewport->name.toString());
-
 		vp->setViewedComponent(new DummyComponent(), true);
 
 		auto mc = viewport->getScriptProcessor()->getMainController_();
@@ -1383,12 +1381,18 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 		if (HiseDeviceSimulator::isMobileDevice())
 			table->setRowSelectedOnMouseDown(false);
 
-
 		table->getViewport()->setScrollOnDragEnabled(true);
+
+		vp = table->getViewport();
 
 		component = table;
 	}
 	
+	viewport->positionBroadcaster.addListener(*this, [vp](ViewportWrapper& v, double x, double y)
+	{
+		vp->setViewPositionProportionately(x, y);
+	});
+
 	initAllProperties();
 	updateValue(viewport->value);
 }

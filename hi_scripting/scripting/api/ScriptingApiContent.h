@@ -1891,6 +1891,8 @@ public:
 			scrollbarThickness = ScriptComponent::numProperties,
 			autoHide,
 			useList,
+			viewPositionX,
+			viewPositionY,
 			Items,
 			FontName,
 			FontSize,
@@ -1919,10 +1921,11 @@ public:
 
 		Array<PropertyWithValue> getLinkProperties() const override;
 
+		LambdaBroadcaster<double, double> positionBroadcaster;
+
 	private:
 
 		StringArray currentItems;
-
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedViewport);
 	};

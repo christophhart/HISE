@@ -701,6 +701,7 @@ public:
 		ScopedPointer<ColumnListBoxModel> model;
 		ScopedPointer<LookAndFeel> slaf;
 
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ViewportWrapper);
 	};
 
 	class SliderPackWrapper : public ScriptCreatedComponentWrapper,
