@@ -52,23 +52,24 @@ void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoint
 	internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
 };
 
-void Table::createPath(Path &normalizedPath, bool fillPath) const
+void Table::createPath(Path &normalizedPath, bool fillPath, bool addStartEnd) const
 {
 	normalizedPath.clear();
 	
-	if (!fillPath && startY >= 0.0f)
+	normalizedPath.startNewSubPath(0.0f, 0.0f);
+	normalizedPath.startNewSubPath(1.0f, 1.0f);
+	normalizedPath.startNewSubPath(0.0f, 1.0f);
+	normalizedPath.startNewSubPath(1.0f, 0.0f);
+
+	if (addStartEnd)
 	{
-		normalizedPath.startNewSubPath(0.0f, 0.0f);
-		normalizedPath.startNewSubPath(1.0f, 1.0f);
-		normalizedPath.startNewSubPath(-0.0001f, startY);
+		normalizedPath.startNewSubPath(0.0f, 1.0f - jmax(0.0f, startY));
 		normalizedPath.lineTo(0.0f, 1.0f - graphPoints[0].y);
 	}
 	else
 	{
-		normalizedPath.startNewSubPath(-0.00000001f, 1.0000001f);
-		normalizedPath.lineTo(0.0f, 1.0f - graphPoints[0].y);
+		normalizedPath.startNewSubPath(0.0f, 1.0f - graphPoints[0].y);
 	}
-		
 
 	for(int i = 1; i < graphPoints.size(); ++i)
 	{
@@ -94,15 +95,11 @@ void Table::createPath(Path &normalizedPath, bool fillPath) const
 		
 	}
 
-	if (!fillPath && endY >= 0.0f)
-		normalizedPath.lineTo(1.0001f, endY);
+	if(addStartEnd)
+		normalizedPath.lineTo(1.0f, 1.0f - jmax(0.0f, endY));
 
 	if (fillPath)
-	{
-		normalizedPath.lineTo(1.0000001f, 0.0000001f); // fix wrong scaling if greatest value is < 1
-		normalizedPath.lineTo(1.0000001f, 1.0000001f);
 		normalizedPath.closeSubPath();
-	}
 };
 
 void Table::fillLookUpTable()
@@ -122,19 +119,41 @@ void Table::fillLookUpTable()
 void Table::fillExternalLookupTable(float* d, int numValues)
 {
 	Path renderPath;
-	createPath(renderPath, true);
-	renderPath.applyTransform(AffineTransform::scale((float)numValues, 1.0f));
-
-	Line<float> l;
-	Line<float> clipped;
+	createPath(renderPath, false, false);
+	
+	PathFlatteningIterator it(renderPath);
 
 	for (int i = 0; i < numValues; i++)
 	{
-		l = Line<float>((float)i, 0.0f, (float)i, 1.0f);
-		clipped = renderPath.getClippedLine(l, false);
-		const float value = 1.0f - (clipped.getStartY());
-		auto idx = jlimit(0, numValues-1, i);
-		d[idx] = value;
+		float xIndex = (float)i / (float)(numValues-1);
+
+		Range<float> r(it.x1, it.x2);
+
+		bool isLast = false;
+
+		while (!r.contains(xIndex))
+		{
+			if (!it.next())
+			{
+				isLast = true;
+				break;
+			}
+				
+
+			r = Range<float>(it.x1, it.x2);
+		}
+
+		if (isLast)
+			d[i] = 1.0f - it.y1;
+		else
+		{
+			Line<float> section(it.x1, it.y1, it.x2, it.y2);
+
+			Line<float> scanLine(xIndex, -0.1f, xIndex, 1.1f);
+
+			auto v = section.getIntersection(scanLine).getY();
+			d[i] = 1.0f - v;
+		}
 	};
 }
 

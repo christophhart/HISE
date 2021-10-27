@@ -272,7 +272,7 @@ public:
 	*
 	*	This is called by the editor to draw the path under the DragPoints.
 	*/
-	void createPath(Path &normalizedPath, bool fillPath) const;
+	void createPath(Path &normalizedPath, bool fillPath, bool addStartEnd=true) const;
 
 	void setStartAndEndY(float newStartY, float newEndY)
 	{
