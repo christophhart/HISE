@@ -40,9 +40,13 @@
 
 
 
-
-#define ADD_TO_TYPE_SELECTOR(x) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::x, propertyIds.getLast()))
-#define ADD_AS_SLIDER_TYPE(min, max, interval) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::SliderSelector, propertyIds.getLast(), min, max, interval))
+#if USE_BACKEND
+#define ADD_TO_TYPE_SELECTOR(x) (selectorTypes->addToTypeSelector(ScriptComponentPropertyTypeSelector::x, propertyIds.getLast()))
+#define ADD_AS_SLIDER_TYPE(min, max, interval) (selectorTypes->addToTypeSelector(ScriptComponentPropertyTypeSelector::SliderSelector, propertyIds.getLast(), min, max, interval))
+#else
+#define ADD_TO_TYPE_SELECTOR(x)
+#define ADD_AS_SLIDER_TYPE(min, max, interval)
+#endif
 
 
 
@@ -5465,6 +5469,61 @@ var ScriptingApi::Content::Helpers::getCleanedComponentValue(const var& data, bo
 		float d = (float)data;
 		FloatSanitizers::sanitizeFloatNumber(d);
 		return var(d);
+	}
+}
+
+hise::ScriptComponentPropertyTypeSelector::SelectorTypes ScriptComponentPropertyTypeSelector::getTypeForId(const Identifier &id) const
+{
+	if (toggleProperties.contains(id)) return ToggleSelector;
+	else if (sliderProperties.contains(id)) return SliderSelector;
+	else if (colourProperties.contains(id)) return ColourPickerSelector;
+	else if (choiceProperties.contains(id)) return ChoiceSelector;
+	else if (multilineProperties.contains(id)) return MultilineSelector;
+	else if (fileProperties.contains(id)) return FileSelector;
+	else if (codeProperties.contains(id)) return CodeSelector;
+	else return TextSelector;
+}
+
+void ScriptComponentPropertyTypeSelector::addToTypeSelector(SelectorTypes type, Identifier id, double min /*= 0.0*/, double max /*= 1.0*/, double interval /*= 0.01*/)
+{
+	switch (type)
+	{
+	case ScriptComponentPropertyTypeSelector::ToggleSelector:
+		toggleProperties.addIfNotAlreadyThere(id);
+		break;
+	case ScriptComponentPropertyTypeSelector::ColourPickerSelector:
+		colourProperties.addIfNotAlreadyThere(id);
+		break;
+	case ScriptComponentPropertyTypeSelector::SliderSelector:
+	{
+		sliderProperties.addIfNotAlreadyThere(id);
+		int index = sliderProperties.indexOf(id);
+		SliderRange range;
+
+		range.min = min;
+		range.max = max;
+		range.interval = interval;
+
+		sliderRanges.set(id.toString(), range);
+		break;
+	}
+	case ScriptComponentPropertyTypeSelector::ChoiceSelector:
+		choiceProperties.addIfNotAlreadyThere(id);
+		break;
+	case ScriptComponentPropertyTypeSelector::MultilineSelector:
+		multilineProperties.addIfNotAlreadyThere(id);
+		break;
+	case ScriptComponentPropertyTypeSelector::FileSelector:
+		fileProperties.addIfNotAlreadyThere(id);
+		break;
+	case ScriptComponentPropertyTypeSelector::TextSelector:
+		break;
+	case ScriptComponentPropertyTypeSelector::CodeSelector:
+		codeProperties.addIfNotAlreadyThere(id);
+	case ScriptComponentPropertyTypeSelector::numSelectorTypes:
+		break;
+	default:
+		break;
 	}
 }
 

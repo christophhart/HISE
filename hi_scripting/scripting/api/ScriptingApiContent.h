@@ -186,6 +186,50 @@ private:
     JUCE_DECLARE_WEAK_REFERENCEABLE(ValueTreeUpdateWatcher);
 };
 
+
+class ScriptComponentPropertyTypeSelector
+{
+public:
+
+	struct SliderRange
+	{
+		double min, max, interval;
+	};
+
+	enum SelectorTypes
+	{
+		ToggleSelector = 0,
+		ColourPickerSelector,
+		SliderSelector,
+		ChoiceSelector,
+		MultilineSelector,
+		TextSelector,
+		FileSelector,
+		CodeSelector,
+		numSelectorTypes
+	};
+
+	SelectorTypes getTypeForId(const Identifier &id) const;
+
+	void addToTypeSelector(SelectorTypes type, Identifier id, double min = 0.0, double max = 1.0, double interval = 0.01);
+
+	SliderRange getRangeForId(const Identifier &id) const
+	{
+		return sliderRanges[id.toString()];
+	}
+
+private:
+
+	Array<Identifier> toggleProperties;
+	Array<Identifier> sliderProperties;
+	Array<Identifier> colourProperties;
+	Array<Identifier> choiceProperties;
+	Array<Identifier> multilineProperties;
+	Array<Identifier> fileProperties;
+	Array<Identifier> codeProperties;
+	HashMap<String, SliderRange> sliderRanges;
+};
+
 /** This is the interface area that can be filled with buttons, knobs, etc.
 *	@ingroup scriptingApi
 *
@@ -697,6 +741,10 @@ public:
 		Array<Identifier> priorityProperties;
 		
 		bool removePropertyIfDefault = true;
+
+#if USE_BACKEND
+		juce::SharedResourcePointer<hise::ScriptComponentPropertyTypeSelector> selectorTypes;
+#endif
 
 	private:
 

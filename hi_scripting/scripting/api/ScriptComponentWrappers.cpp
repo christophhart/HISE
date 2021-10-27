@@ -42,17 +42,6 @@ namespace hise { using namespace juce;
 
 #define GET_OBJECT_COLOUR(id) (ScriptingApi::Content::Helpers::getCleanedObjectColour(GET_SCRIPT_PROPERTY(id)))
 
-
-Array<Identifier> ScriptComponentPropertyTypeSelector::toggleProperties = Array<Identifier>();
-Array<Identifier> ScriptComponentPropertyTypeSelector::sliderProperties = Array<Identifier>();
-Array<Identifier> ScriptComponentPropertyTypeSelector::colourProperties = Array<Identifier>();
-Array<Identifier> ScriptComponentPropertyTypeSelector::choiceProperties = Array<Identifier>();
-Array<Identifier> ScriptComponentPropertyTypeSelector::multilineProperties = Array<Identifier>();
-Array<Identifier> ScriptComponentPropertyTypeSelector::fileProperties = Array<Identifier>();
-Array<Identifier> ScriptComponentPropertyTypeSelector::codeProperties = Array<Identifier>();
-Array<ScriptComponentPropertyTypeSelector::SliderRange> ScriptComponentPropertyTypeSelector::sliderRanges = Array<ScriptComponentPropertyTypeSelector::SliderRange>();
-
-
 ScriptCreatedComponentWrapper::~ScriptCreatedComponentWrapper()
 {
 	Desktop::getInstance().removeFocusChangeListener(this);

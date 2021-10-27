@@ -275,6 +275,17 @@ void HiSliderPropertyComponent::updateRange()
 	static const Identifier w("width");
 	static const Identifier h("height");
 
+	static const Array<Identifier> posIds = { x, y, w, h };
+
+
+	if (!posIds.contains(getId()))
+	{
+		SharedResourcePointer<hise::ScriptComponentPropertyTypeSelector> ptr;
+		auto r = ptr->getRangeForId(getId());
+		comp.slider.setRange(r.min, r.max, r.interval);
+		return;
+	}
+
 	if (auto sc = panel->getScriptComponentEditBroadcaster()->getFirstFromSelection())
 	{
 		int maxWidth = sc->parent->getContentWidth();

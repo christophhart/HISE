@@ -249,7 +249,9 @@ void ScriptComponentEditPanel::rebuildScriptedComponents()
 
 void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAddTo, const Identifier &id)
 {
-	ScriptComponentPropertyTypeSelector::SelectorTypes t = ScriptComponentPropertyTypeSelector::getTypeForId(id);
+	SharedResourcePointer<ScriptComponentPropertyTypeSelector> ptr;
+
+	ScriptComponentPropertyTypeSelector::SelectorTypes t = ptr->getTypeForId(id);
 
 	static const Identifier pc("parentComponent");
 
@@ -259,7 +261,6 @@ void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAdd
 	if (t == ScriptComponentPropertyTypeSelector::SliderSelector)
 	{
 		HiSliderPropertyComponent *slider = new HiSliderPropertyComponent(id, this);
-
 		arrayToAddTo.add(slider);
 
 		slider->setLookAndFeel(&pplaf);
