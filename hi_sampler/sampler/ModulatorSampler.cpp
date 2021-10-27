@@ -808,11 +808,31 @@ bool ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool res
 	}
 }
 
-void ModulatorSampler::setDisplayedGroup(int index)
+void ModulatorSampler::setDisplayedGroup(int index, bool shouldBeVisible, ModifierKeys mods)
 {
 #if USE_BACKEND
-	getSamplerDisplayValues().currentlyDisplayedGroup = index;
-	getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, getCurrentRRGroup(), index);
+	auto& s = getSamplerDisplayValues().visibleGroups;
+	
+	if (index == -1 || !mods.isAnyModifierKeyDown())
+		s.clear();
+	
+	if (index >= 0)
+	{
+		if (mods.isShiftDown())
+		{
+			auto startBit = s.getHighestBit();
+			auto numToSet = index - startBit + 1;
+
+			if (numToSet > 0)
+				s.setRange(startBit, numToSet, true);
+		}
+		else
+		{
+			s.setBit(index, shouldBeVisible);
+		}
+	}
+
+	getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, getCurrentRRGroup(), &getSamplerDisplayValues().visibleGroups);
 #endif
 }
 
@@ -1044,7 +1064,7 @@ void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 			if (lockVelocity > 0)
 				m.setVelocity(lockVelocity);
 
-			getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, currentRRGroupIndex, getSamplerDisplayValues().currentlyDisplayedGroup);
+			getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, currentRRGroupIndex, &getSamplerDisplayValues().visibleGroups);
 #endif
 		
 			samplerDisplayValues.currentGroup = currentRRGroupIndex;
@@ -1340,7 +1360,7 @@ void ModulatorSampler::setRRGroupAmount(int newGroupLimit)
 	ModulatorSynth::setVoiceLimit(realVoiceAmount * getNumActiveGroups());
 
 #if USE_BACKEND
-	getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, getCurrentRRGroup(), getSamplerDisplayValues().currentlyDisplayedGroup);
+	getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, getCurrentRRGroup(), &getSamplerDisplayValues().visibleGroups);
 #endif
 }
 
@@ -1485,18 +1505,22 @@ bool ModulatorSampler::preloadSample(StreamingSamplerSound * s, const int preloa
 }
 
 ModulatorSampler::ScopedUpdateDelayer::ScopedUpdateDelayer(ModulatorSampler* s) :
-	sampler(s)
+	sampler(s),
+	prevValue(s->delayUpdate)
 {
 	sampler->delayUpdate = true;
 }
 
 ModulatorSampler::ScopedUpdateDelayer::~ScopedUpdateDelayer()
 {
-	sampler->delayUpdate = false;
+	sampler->delayUpdate = prevValue;
 
-	sampler->refreshMemoryUsage();
-	sampler->sendChangeMessage();
-	sampler->getSampleMap()->sendSampleMapChangeMessage(sendNotificationAsync);
+	if (!prevValue)
+	{
+		sampler->refreshMemoryUsage();
+		sampler->sendChangeMessage();
+		sampler->getSampleMap()->sendSampleMapChangeMessage(sendNotificationAsync);
+	}
 }
 
 ModulatorSampler::GroupedRoundRobinCollector::GroupedRoundRobinCollector(ModulatorSampler* s):

@@ -282,6 +282,18 @@ bool SampleComponent::needsToBeDrawn()
 	return isVisible() && (isSelected() || !enoughSiblings);
 }
 
+bool SampleComponent::appliesToGroup(const Array<int>& groupIndexesToCompare) const
+{
+	if (sound.get() != nullptr)
+	{
+		for (auto rr : groupIndexesToCompare)
+			if (sound->appliesToRRGroup(rr))
+				return true;
+	}
+	
+	return false;
+}
+
 // =================================================================================================================== SamplerSoundMap
 
 SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
@@ -504,6 +516,9 @@ void SamplerSoundMap::findLassoItemsInArea(Array<ModulatorSamplerSound::Ptr> &it
 {
 	for (auto s : sampleComponents)
 	{
+		if (!s->isVisible())
+			continue;
+
 		s->setSelected(false, true);
 
 		if (itemsFound.contains(s->getSound()))
@@ -511,6 +526,10 @@ void SamplerSoundMap::findLassoItemsInArea(Array<ModulatorSamplerSound::Ptr> &it
 
 		auto sb = s->getBoundsInParent();
 		
+		
+
+		
+
 		if (area.expanded(1).intersects(sb))
 		{
 			itemsFound.add(s->getSound());
@@ -750,6 +769,7 @@ void SamplerSoundMap::updateSampleComponent(int index, NotificationType )
 		
 		repaint();
 	}
+
 }
 
 
@@ -1009,15 +1029,25 @@ void SamplerSoundMap::createDragData(const MouseEvent& e)
 	}
 }
 
-void SamplerSoundMap::soloGroup(int groupIndex)
+void SamplerSoundMap::soloGroup(BigInteger groupIndex)
 {
 	if (groupIndex != currentSoloGroup)
 	{
 		currentSoloGroup = groupIndex;
 
+		Array<int> indexes;
+
+		auto limit = groupIndex.getHighestBit() + 1;
+
+		for (int i = 0; i < limit; i++)
+		{
+			if (groupIndex[i])
+				indexes.add(i + 1);
+		}
+
 		for (int i = 0; i < sampleComponents.size(); i++)
 		{
-			const bool visible = (groupIndex == -1) || sampleComponents[i]->appliesToGroup(groupIndex);
+			const bool visible = groupIndex.isZero() || sampleComponents[i]->appliesToGroup(indexes);
 
 			sampleComponents[i]->setVisible(visible);
 			sampleComponents[i]->setEnabled(visible);
@@ -1256,7 +1286,7 @@ void SamplerSoundTable::refreshList()
 	if (sortId == 0)
 	{
 		// sort forwards by the ID column
-		sortId = 2;
+		sortId = 1;
 		forward = true;
 	}
 

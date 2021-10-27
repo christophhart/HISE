@@ -77,7 +77,9 @@ public:
 
 
 	private:
+
 		WeakReference<ModulatorSampler> sampler;
+		bool prevValue;
 	};
 
 	class GroupedRoundRobinCollector : public ModulatorSynth::SoundCollectorBase,
@@ -461,7 +463,7 @@ public:
 		double currentSampleStartPos;
 		float crossfadeTableValue;
 		int currentGroup = 1;
-		int currentlyDisplayedGroup = -1;
+		BigInteger visibleGroups;
 
 		uint8 currentNotes[128];
 	};
@@ -643,7 +645,7 @@ public:
     
     bool isUsingStaticMatrix() const noexcept { return useStaticMatrix; };
 
-	void setDisplayedGroup(int index);
+	void setDisplayedGroup(int index, bool shouldBeVisible, ModifierKeys mods);
 	
 	void setSortByGroup(bool shouldSortByGroup);
 

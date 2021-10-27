@@ -120,7 +120,7 @@ public:
 
 	LambdaBroadcaster<ModulatorSamplerSound::Ptr, int> selectionBroadcaster;
 	LambdaBroadcaster<int, int> noteBroadcaster;
-	LambdaBroadcaster<int, int> groupBroadcaster;
+	LambdaBroadcaster<int, BigInteger*> groupBroadcaster;
 	LambdaBroadcaster<int> allSelectionBroadcaster;
     SamplerTools toolBroadcaster;
     

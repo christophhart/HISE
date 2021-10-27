@@ -342,7 +342,7 @@ void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfM
 		data.rootNote = noteNumber;
 		data.lowKey = noteNumber;
 		
-		auto currentGroup = sampler->getSamplerDisplayValues().currentlyDisplayedGroup;
+		auto currentGroup = sampler->getSamplerDisplayValues().visibleGroups.getHighestBit()+1;
 
 		if (currentGroup > 0)
 			data.group = currentGroup;

@@ -258,11 +258,7 @@ public:
 
 	Rectangle<int> getBoundsInParent() { return bounds; }
 
-	bool appliesToGroup(int groupIndexToCompare)
-	{ 
-		if (sound.get() != nullptr) return sound->appliesToRRGroup(groupIndexToCompare);
-		else return false;
-	}
+	bool appliesToGroup(const Array<int>& groupIndexToCompare) const;
 
 	void checkSelected(ModulatorSamplerSound::Ptr currentSelection)
 	{
@@ -370,6 +366,10 @@ public:
 	void sampleAmountChanged() override
 	{
 		updateSampleComponents();
+
+		auto old = currentSoloGroup;
+		currentSoloGroup.clear();
+		soloGroup(old);
 	}
 
 	static void selectionChanged(SamplerSoundMap& map, int numSelected);
@@ -418,7 +418,7 @@ public:
 
 	
 	/** This hides all sounds that to not belong to the specified group index. If you want to display all sounds, pass -1. */
-	void soloGroup(int groupIndex);
+	void soloGroup(BigInteger groupIndex);
 
 	/** updates all sounds. It deletes all SampleComponents and recreates them if new samples are detected. */
 	void updateSoundData();
@@ -444,7 +444,7 @@ public:
 
 private:
 
-	int currentSoloGroup = -1;
+	BigInteger currentSoloGroup;
 
 	ModulatorSamplerSound::WeakPtr selectedSound;
 
@@ -596,7 +596,8 @@ private:
     public:
 		DemoDataSorter (const Identifier& propertyToSort_, bool forwards)
             : propertyToSort (propertyToSort_),
-              direction (forwards ? 1 : -1)
+              direction (forwards ? 1 : -1),
+			  isStringProperty(propertyToSort_ == SampleIds::FileName)
         {}
 
 		int compareElements (const ModulatorSamplerSound* first, const ModulatorSamplerSound* second) const
@@ -604,13 +605,32 @@ private:
 			if (first == nullptr || second == nullptr)
 				return direction;
 
-			int result = first->getSampleProperty(propertyToSort).toString()
-                           .compareNatural (second->getSampleProperty(propertyToSort).toString());
+			if (isStringProperty)
+			{
+				int result = first->getSampleProperty(propertyToSort).toString()
+					.compareNatural(second->getSampleProperty(propertyToSort).toString());
 
-            return direction * result;
+				return direction * result;
+			}
+			else
+			{
+				auto v1 = (int)first->getSampleProperty(propertyToSort);
+				auto v2 = (int)first->getSampleProperty(propertyToSort);
+
+				int result = 0;
+
+				if (v1 < v2)
+					result = -1;
+				else if (v1 > v2)
+					result = 1;
+
+				return direction * result;
+			}
         }
 
     private:
+
+		const bool isStringProperty;
 		Identifier propertyToSort;
         int direction;
     };

@@ -36,16 +36,19 @@ void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHan
 {
 	auto f = [handler](Processor* /*s*/)
 	{
-		ModulatorSampler::ScopedUpdateDelayer sud(handler->getSampler());
-
-		for (auto sound: *handler)
 		{
-			if (sound != nullptr)
-				handler->sampler->getSampleMap()->removeSound(sound);
-		}
+			ModulatorSampler::ScopedUpdateDelayer sud(handler->getSampler());
 
-		handler->getSelectionReference().deselectAll();
+			for (auto sound : *handler)
+			{
+				if (sound != nullptr)
+					handler->sampler->getSampleMap()->removeSound(sound);
+			}
+		}
 		
+		handler->getSelectionReference().deselectAll();
+		handler->getSampler()->getSampleMap()->sendSampleDeletedMessage(handler->getSampler());
+
 		return SafeFunctionCall::OK;
 	};
 
@@ -308,12 +311,12 @@ void SampleEditHandler::SampleEditingActions::selectAllSamples(SampleEditHandler
 
 	ModulatorSampler *s = handler->sampler;
 
-	int thisIndex = s->getSamplerDisplayValues().currentlyDisplayedGroup;
+	auto thisIndex = s->getSamplerDisplayValues().visibleGroups;
 	ModulatorSampler::SoundIterator sIter(s);
 
 	while (auto sound = sIter.getNextSound())
 	{
-		if (thisIndex == -1 || sound->getRRGroup() == thisIndex)
+		if(thisIndex.isZero() || thisIndex[sound->getRRGroup() - 1])
 			handler->getSelectionReference().addToSelection(sound.get());
 	}
 

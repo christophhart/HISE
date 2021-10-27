@@ -197,7 +197,7 @@ struct RRDisplayComponent : public Component,
 			}
 		}
 
-		static void updateNumber(RRNumberDisplay& d, int group, int displayedGroup)
+		static void updateNumber(RRNumberDisplay& d, int group, BigInteger*)
 		{
 			d.numGroups = (int)d.sampler->getAttribute(ModulatorSampler::RRGroupAmount);
 
@@ -275,7 +275,7 @@ struct RRDisplayComponent : public Component,
 		{
 			auto isOn = midiButton.getToggleState();
 			auto idx = isOn ? sampler->getCurrentRRGroup() : -1;
-			sampler->setDisplayedGroup(idx);
+			sampler->setDisplayedGroup(idx, true, {});
 		};
 
 		sampler->getSampleEditHandler()->selectionBroadcaster.addListener(*this, setMainSelection);
@@ -305,13 +305,14 @@ struct RRDisplayComponent : public Component,
 		return p;
 	}
 
-	static void groupChanged(RRDisplayComponent& d, int rrGroup, int displayedGroup)
+	static void groupChanged(RRDisplayComponent& d, int rrGroup, BigInteger* visibleGroups)
 	{
-		d.currentDisplayGroup = displayedGroup;
+		if(visibleGroups != nullptr)
+			d.currentDisplayGroup = *visibleGroups;
 
-		if (d.midiButton.getToggleState() && rrGroup != displayedGroup)
+		if (d.midiButton.getToggleState())
 		{
-			d.sampler->setDisplayedGroup(rrGroup);
+			d.sampler->setDisplayedGroup(rrGroup, true, {});
 		}
 
 		auto shouldLock = d.sampler->getMidiInputLockValue(SampleIds::RRGroup) != -1;
@@ -328,7 +329,9 @@ struct RRDisplayComponent : public Component,
 	void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) override
 	{
 		if (id == SampleIds::RRGroup)
-			rebuildStates();
+		{
+			sampler->setDisplayedGroup((int)newValue-1, true, {});
+		}
 	};
 
 	void sampleAmountChanged() override
@@ -413,19 +416,19 @@ struct RRDisplayComponent : public Component,
 			auto r = m.showAt(this);
 
 			if(r != 0)
-				sampler->setDisplayedGroup(r);
+				sampler->setDisplayedGroup(r, true, e.mods);
 
 			return;
 		}
 
-		int index = 1;
+		int index = 0;
 		for (auto& s : states)
 		{
 			if (s.area.toNearestInt().contains(e.getPosition()))
 			{
-				auto indexToUse = sampler->getSamplerDisplayValues().currentlyDisplayedGroup == index ? -1 : index;
+				auto value = sampler->getSamplerDisplayValues().visibleGroups[index];
 
-				sampler->setDisplayedGroup(indexToUse);
+				sampler->setDisplayedGroup(index, !value, e.mods);
 				return;
 			}
 
@@ -551,16 +554,26 @@ struct RRDisplayComponent : public Component,
 			s.draw(g);
 		}
 
-		if (currentDisplayGroup == -1)
+		if (currentDisplayGroup.isZero())
 			displayArea = states.getFirst().area.getUnion(states.getLast().area);
 		else
-			displayArea = states[currentDisplayGroup - 1].area;
+		{
+			displayArea.clear();
+
+			auto limit = currentDisplayGroup.getHighestBit() + 1;
+			for (int i = 0; i < limit; i++)
+			{
+				if (currentDisplayGroup[i])
+					displayArea.addWithoutMerging(states[i].area);
+			}
+		}
 
 		g.setColour(Colours::white.withAlpha(0.5f));
 
 		UnblurryGraphics ug(g, *this);
 
-		ug.draw1PxRect(displayArea.getBounds());
+		for(auto& a: displayArea)
+			ug.draw1PxRect(a);
 	};
 
 	Array<State> states;
@@ -571,7 +584,7 @@ struct RRDisplayComponent : public Component,
 	HiseShapeButton lockButton;
 	HiseShapeButton midiButton;
 
-	int currentDisplayGroup = -1;
+	BigInteger currentDisplayGroup;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(RRDisplayComponent);
 };
@@ -717,9 +730,10 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 
 	getCommandManager()->commandStatusChanged();
 
-	handler->groupBroadcaster.addListener(*map->map, [](SamplerSoundMap& m, int rrGroup, int displayedGroup)
+	handler->groupBroadcaster.addListener(*map->map, [](SamplerSoundMap& m, int rrGroup, BigInteger* displayedGroup)
 	{
-		m.soloGroup(displayedGroup);
+		if(displayedGroup != nullptr)
+			m.soloGroup(*displayedGroup);
 	});
 
 	setFocusContainer(true);
