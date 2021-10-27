@@ -940,7 +940,8 @@ public:
 		audioLooper,
 		modulatorSynthGroup,
 		scriptSynth,
-		macroModulationSource
+		macroModulationSource,
+		sendContainer
 	};
 
 	ModulatorSynthChainFactoryType(int numVoices_, Processor *ownerProcessor):

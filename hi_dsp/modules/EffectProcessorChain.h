@@ -333,6 +333,7 @@ public:
 		chorus,
         phaser,
 		routeFX,
+		sendFX,
 		saturation,
 		scriptFxProcessor,
 		polyScriptFxProcessor,

@@ -1781,6 +1781,7 @@ void ModulatorSynthChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(ModulatorSynthGroup);
 	ADD_NAME_TO_TYPELIST(JavascriptSynthesiser);
 	ADD_NAME_TO_TYPELIST(MacroModulationSource);
+	ADD_NAME_TO_TYPELIST(SendContainer);
 }
 
 
@@ -1802,6 +1803,7 @@ Processor* ModulatorSynthChainFactoryType::createProcessor	(int typeIndex, const
 	case globalModulatorContainer:	return new GlobalModulatorContainer(m, id, numVoices);
 	case scriptSynth:			return new JavascriptSynthesiser(m, id, numVoices);
 	case macroModulationSource: return new MacroModulationSource(m, id, numVoices);
+	case sendContainer:			return new SendContainer(m, id);
 	default:					jassertfalse; return nullptr;
 	}
 };
