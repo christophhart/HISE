@@ -187,8 +187,10 @@ struct HiseMarkdownPreview : public MarkdownPreview
 
 	void showDoc() override
 	{
+#if USE_BACKEND || HISE_USE_ONLINE_DOC_UPDATER
 		auto doc = new DocUpdater(getHolder(), false, editingEnabled);
 		doc->setModalBaseWindowComponent(this);
+#endif
 	}
 
 	void enableEditing(bool shouldBeEnabled) override; 

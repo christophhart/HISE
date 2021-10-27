@@ -153,6 +153,11 @@ END_JUCE_MODULE_DECLARATION
 #endif
 #endif
 
+
+#ifndef HISE_USE_ONLINE_DOC_UPDATER
+#define HISE_USE_ONLINE_DOC_UPDATER 1
+#endif
+
 #if !HISE_NO_GUI_TOOLS
 #include "hi_binary_data/hi_binary_data.h"
 #endif
