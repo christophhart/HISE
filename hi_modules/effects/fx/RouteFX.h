@@ -144,25 +144,56 @@ struct SendContainer : public ModulatorSynth
 #endif
 	}
 
-	void addSendSignal(AudioSampleBuffer& b, int startSample, int numSamples, float gain, int channelOffset)
+	void addSendSignal(AudioSampleBuffer& b, int startSample, int numSamples, float startGain, float endGain, int channelOffset)
 	{
-		sendBuffer.addFrom(channelOffset, startSample, b, 0, startSample, numSamples, gain);
-		sendBuffer.addFrom(channelOffset+1, startSample, b, 1, startSample, numSamples, gain);
+        channelOffset = jlimit(0, internalBuffer.getNumChannels() - 2, channelOffset);
+        
+        if(startGain == endGain)
+        {
+            internalBuffer.addFrom(channelOffset, startSample, b, 0, startSample, numSamples, startGain);
+            internalBuffer.addFrom(channelOffset+1, startSample, b, 1, startSample, numSamples, startGain);
+        }
+        else
+        {
+            auto l = b.getReadPointer(0, startSample);
+            auto r = b.getReadPointer(1, startSample);
+            
+            internalBuffer.addFromWithRamp(channelOffset, startSample, l, numSamples, startGain, endGain);
+            internalBuffer.addFromWithRamp(channelOffset+1, startSample, r, numSamples, startGain, endGain);
+        }
 	}
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
 		ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
-		sendBuffer.setSize(getMatrix().getNumSourceChannels(), samplesPerBlock);
+        internalBuffer.setSize(getMatrix().getNumSourceChannels(), samplesPerBlock);
 	}
 
 	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi) override
 	{
-		effectChain->renderMasterEffects(sendBuffer);
-		sendBuffer.clear();
+		effectChain->renderMasterEffects(internalBuffer);
+		
+        
+        for(int i = 0; i < internalBuffer.getNumChannels(); i++)
+        {
+            auto idx = getMatrix().getConnectionForSourceChannel(i);
+            
+            if(isPositiveAndBelow(idx, outputAudio.getNumChannels()))
+            {
+                outputAudio.addFrom(idx, 0, internalBuffer, i, 0, internalBuffer.getNumSamples());
+            }
+        }
+        
+        getMatrix().handleDisplayValues(internalBuffer, outputAudio);
+
+        
+
+        handlePeakDisplay(internalBuffer.getNumSamples());
+        
+        internalBuffer.clear();
 	}
 
-	AudioSampleBuffer sendBuffer;
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SendContainer);
 };
@@ -175,6 +206,7 @@ struct SendEffect : public MasterEffectProcessor
 	{
 		Gain,
 		ChannelOffset,
+        SendIndex,
 		numParameters
 	};
 
@@ -182,6 +214,10 @@ struct SendEffect : public MasterEffectProcessor
 		MasterEffectProcessor(mc, id)
 	{
 		finaliseModChains();
+        
+        parameterNames.add("Gain");
+        parameterNames.add("ChannelOffset");
+        parameterNames.add("SendIndex");
 	};
 
 	float getAttribute(int index) const override 
@@ -190,6 +226,7 @@ struct SendEffect : public MasterEffectProcessor
 		{
 		case Parameters::Gain: return Decibels::gainToDecibels(gain.getTargetValue());
 		case Parameters::ChannelOffset: return (float)channelOffset;
+        case Parameters::SendIndex: return sendIndex;
 		}
 	};
 	void setInternalAttribute(int index, float newValue) override 
@@ -197,18 +234,28 @@ struct SendEffect : public MasterEffectProcessor
 		switch (index)
 		{
 		case Parameters::Gain: gain.setValue(Decibels::decibelsToGain(newValue)); break;
-		case Parameters::ChannelOffset: channelOffset = (int)newValue;
+        case Parameters::ChannelOffset: channelOffset = (int)newValue; break;
+        case Parameters::SendIndex: connect((int)newValue); break;
 		}
 	};
 
 	void restoreFromValueTree(const ValueTree &v) override
 	{
 		MasterEffectProcessor::restoreFromValueTree(v);
+        
+        loadAttribute(Gain, "Gain");
+        loadAttribute(ChannelOffset, "ChannelOffset");
+        loadAttribute(SendIndex, "SendIndex");
 	};
 
 	ValueTree exportAsValueTree() const override
 	{
 		ValueTree v = MasterEffectProcessor::exportAsValueTree();
+        
+        saveAttribute(Gain, "Gain");
+        saveAttribute(ChannelOffset, "ChannelOffset");
+        saveAttribute(SendIndex, "SendIndex");
+        
 		return v;
 	}
 
@@ -223,13 +270,13 @@ struct SendEffect : public MasterEffectProcessor
 	int getNumChildProcessors() const override { return 0; };
 
 #if 1 || USE_BACKEND
-	struct Editor : public ProcessorEditorBody,
-					public ComboBox::Listener
+	struct Editor : public ProcessorEditorBody
 	{
 		Editor(ProcessorEditor* parent) :
 			ProcessorEditorBody(parent),
 			gainSlider("Gain"),
-			offsetSlider("Offset")
+			offsetSlider("Offset"),
+            connectionBox("SendIndex")
 		{
 			gainSlider.setup(parent->getProcessor(), Parameters::Gain, "Gain");
 			
@@ -249,7 +296,7 @@ struct SendEffect : public MasterEffectProcessor
 			addAndMakeVisible(connectionBox);
 			connectionBox.setLookAndFeel(&claf);
 			claf.setDefaultColours(connectionBox);
-			connectionBox.addListener(this);
+            connectionBox.setup(parent->getProcessor(), Parameters::SendIndex, "SendIndex");
 
 			auto list = ProcessorHelpers::getListOfAllProcessors<SendContainer>(getProcessor()->getMainController()->getMainSynthChain());
 
@@ -259,22 +306,11 @@ struct SendEffect : public MasterEffectProcessor
 				connectionBox.addItem(c->getId(), index++);
 		};
 
-		void comboBoxChanged(ComboBox* c) override
-		{
-			dynamic_cast<SendEffect*>(getProcessor())->connect(c->getText());
-		}
-
 		void updateGui() override
 		{
 			gainSlider.updateValue(dontSendNotification);
 			offsetSlider.updateValue(dontSendNotification);
-
-			auto target = dynamic_cast<SendEffect*>(getProcessor())->container;
-
-			if (target == nullptr)
-				connectionBox.setText("", dontSendNotification);
-			else
-				connectionBox.setText(target->getId());
+            connectionBox.updateValue(dontSendNotification);
 		}
 
 		int getBodyHeight() const override
@@ -295,7 +331,7 @@ struct SendEffect : public MasterEffectProcessor
 
 		HiSlider gainSlider;
 		HiSlider offsetSlider;
-		ComboBox connectionBox;
+		HiComboBox connectionBox;
 		GlobalHiseLookAndFeel claf;
 	};
 #endif
@@ -315,29 +351,69 @@ struct SendEffect : public MasterEffectProcessor
 
 		if (container != nullptr)
 		{
-			container->addSendSignal(b, startSample, numSamples, gain.getNextValue(), channelOffset);
+            auto thisGain = gain.getCurrentValue();
+            auto nextGain = gain.getNextValue();
+            
+            if(wasBypassed)
+                thisGain = 0.0f;
+            
+            if(shouldBeBypassed)
+                nextGain = 0.0f;
+            
+            wasBypassed = shouldBeBypassed;
+            
+            container->addSendSignal(b, startSample, numSamples, thisGain, nextGain, channelOffset);
 		}
 	}
-
-	void connect(const String& sendId)
+    
+    void prepareToPlay(double sampleRate, int samplesPerBlock) override
+    {
+        MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+        
+        auto blockRate = sampleRate / (double)jmax(1, samplesPerBlock);
+        
+        gain.reset(blockRate, 0.08);
+        
+        if(sendIndex != 0 && container == nullptr)
+            connect(sendIndex);
+    }
+    
+    void setSoftBypass(bool shouldBeSoftBypassed, bool useRamp) override
+    {
+        shouldBeBypassed = shouldBeSoftBypassed;
+        MasterEffectProcessor::setSoftBypass(shouldBeSoftBypassed, useRamp);
+    };
+    
+    void connect(int index)
 	{
-		if (auto c = ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), sendId))
-		{
-			if (auto typed = dynamic_cast<SendContainer*>(c))
-			{
-				SimpleReadWriteLock::ScopedWriteLock sl(lock);
-				container = typed;
-				return;
-			}
-		}
-
+        sendIndex = index;
+        auto list = ProcessorHelpers::getListOfAllProcessors<SendContainer>(getMainController()->getMainSynthChain());
+        
+        if(index == 0)
+        {
+            SimpleReadWriteLock::ScopedWriteLock sl(lock);
+            container = nullptr;
+            return;
+        }
+        
+        if(auto c = list[index-1])
+        {
+            SimpleReadWriteLock::ScopedWriteLock sl(lock);
+            container = c;
+            return;
+        }
+        
 		SimpleReadWriteLock::ScopedWriteLock sl(lock);
 		container = nullptr;
 	}
 
 	juce::SmoothedValue<float> gain;
-	int channelOffset;
+    int channelOffset = 0;
+    int sendIndex = 0;
 
+    bool wasBypassed = false;
+    bool shouldBeBypassed = false;
+    
 	SimpleReadWriteLock lock;
 	WeakReference<SendContainer> container;
 };
