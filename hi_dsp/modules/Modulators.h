@@ -574,7 +574,15 @@ public:
 		Processor::restoreFromValueTree(v);
 
 		if (getMode() != Modulation::GainMode)
-			setIsBipolar(v.getProperty("Bipolar", true));
+        {
+            auto defaultMode = true;
+            
+            if(getMode() == Modulation::GlobalMode)
+                defaultMode = false;
+            
+            setIsBipolar(v.getProperty("Bipolar", defaultMode));
+        }
+			
 
 		setIntensity(v.getProperty("Intensity", 1.0f));
 	};
@@ -681,8 +689,15 @@ protected:
 
 		setIntensity(v.getProperty("Intensity", 1.0f));
 
-		if (getMode() != Modulation::GainMode)
-			setIsBipolar(v.getProperty("Bipolar", true));
+        if (getMode() != Modulation::GainMode)
+        {
+            auto defaultMode = true;
+            
+            if(getMode() == Modulation::GlobalMode)
+                defaultMode = false;
+            
+            setIsBipolar(v.getProperty("Bipolar", defaultMode));
+        }
 	}
 
 	Processor *getProcessor() override { return this; };
@@ -798,8 +813,15 @@ public:
 			loadAttribute(Monophonic, "Monophonic");
 			loadAttribute(Retrigger, "Retrigger");
 
-			if(getMode() != Modulation::GainMode)
-				setIsBipolar(v.getProperty("Bipolar", true));
+            if (getMode() != Modulation::GainMode)
+            {
+                auto defaultMode = true;
+                
+                if(getMode() == Modulation::GlobalMode)
+                    defaultMode = false;
+                
+                setIsBipolar(v.getProperty("Bipolar", defaultMode));
+            }
 		}
 
 		setIntensity(v.getProperty("Intensity", 1.0f));
