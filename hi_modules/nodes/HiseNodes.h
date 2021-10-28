@@ -106,10 +106,7 @@ struct OscDisplay : public ScriptnodeExtraComponent<OscillatorDisplayProvider>
 };
 
 
-
-
-
-class hise_mod : public HiseDspBase
+class hise_mod_base : public data::display_buffer_base<true>
 {
 public:
 
@@ -119,36 +116,21 @@ public:
 		numParameters
 	};
 
-	enum Index
-	{
-		Pitch,
-		Extra1,
-		Extra2,
-		numIndexes
-	};
-
-	SET_HISE_NODE_ID("hise_mod");
-	SN_GET_SELF_AS_OBJECT(hise_mod);
-
-	hise_mod();
-
 	constexpr bool isPolyphonic() const { return true; }
 
-	static constexpr bool isNormalisedModulation() { return true; }
-
-	void initialise(NodeBase* b);
-	void prepare(PrepareSpecs ps);
+	virtual void initialise(NodeBase* b);
+	virtual void prepare(PrepareSpecs ps);
 	
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
-		if (parentProcessor != nullptr)
-		{
-			auto numToDo = (double)d.getNumSamples();
-			auto& u = uptime.get();
-
-			modValues.get().setModValueIfChanged(parentProcessor->getModValueForNode(modIndex, roundToInt(u)));
-			u = fmod(u + numToDo * uptimeDelta, synthBlockSize);
-		}
+		auto numToDo = (double)d.getNumSamples();
+		auto& u = uptime.get();
+		u = fmod(u + numToDo * uptimeDelta, synthBlockSize);
+		auto v = getModulationValue(roundToInt(u));
+		modValues.get().setModValueIfChanged(v);
+		
+		if(&uptime.getFirst() == &u)
+			updateBuffer(v, d.getNumSamples());
 	}
 
 	bool handleModulation(double& v);;
@@ -156,28 +138,33 @@ public:
 	template <typename FrameDataType> void processFrame(FrameDataType& d)
 	{
 		auto& u = uptime.get();
-
-		modValues.get().setModValueIfChanged(parentProcessor->getModValueForNode(modIndex, roundToInt(u)));
 		u = Math.fmod(u + 1.0 * uptimeDelta, synthBlockSize);
+
+		auto v = getModulationValue(roundToInt(u));
+		modValues.get().setModValueIfChanged(v);
+
+		if (&uptime.getFirst() == &u)
+			updateBuffer(v, 1);
 	}
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(Index, hise_mod);
+		DEF_PARAMETER(Index, extra_mod);
 	}
 
-	void handleHiseEvent(HiseEvent& e);
+	virtual void handleHiseEvent(HiseEvent& e);
 	
-	void createParameters(ParameterDataList& data) override;
-
-	void setIndex(double index);
+	virtual void setIndex(double index) = 0;
 
 	void reset();
 
-private:
+protected:
+
+	virtual double getModulationValue(int uptimeValue) = 0;
+
+	virtual bool isConnected() const = 0;
 
 	WeakReference<ModulationSourceNode> parentNode;
-	int modIndex = -1;
 
 	PolyData<ModValue, NUM_POLYPHONIC_VOICES> modValues;
 	PolyData<double, NUM_POLYPHONIC_VOICES> uptime;
@@ -186,10 +173,274 @@ private:
 	double synthBlockSize = 0.0;
 
 	hmath Math;
-
-	WeakReference<JavascriptSynthesiser> parentProcessor;
 };
 
+class extra_mod : public hise_mod_base
+{
+public:
+
+	SET_HISE_NODE_ID("extra_mod");
+	SN_GET_SELF_AS_OBJECT(extra_mod);
+
+	enum Index
+	{
+		Extra1,
+		Extra2,
+		numIndexes
+	};
+
+	static constexpr bool isNormalisedModulation() { return true; }
+
+	void setIndex(double index) override
+	{
+		auto inp = roundToInt(index);
+
+		if (inp == 0)
+			modIndex = JavascriptSynthesiser::ModChains::Extra1;
+		else if (inp == 1)
+			modIndex = JavascriptSynthesiser::ModChains::Extra2;
+	}
+
+	void initialise(NodeBase* b) override
+	{
+		hise_mod_base::initialise(b);
+		parentProcessor = dynamic_cast<JavascriptSynthesiser*>(b->getScriptProcessor());
+	}
+
+	void prepare(PrepareSpecs ps) override
+	{
+		hise_mod_base::prepare(ps);
+
+		if (!isConnected())
+		{
+			Error e;
+			e.error = Error::IllegalMod;
+			parentNode->getRootNetwork()->getExceptionHandler().addError(parentNode, e, "the extra_mod node must only be used in a scriptnode synthesiser");
+		}
+
+		if (parentProcessor != nullptr && ps.sampleRate > 0.0)
+		{
+			synthBlockSize = (double)parentProcessor->getLargestBlockSize();
+			uptimeDelta = parentProcessor->getSampleRate() / ps.sampleRate;
+		}
+	}
+
+	double getModulationValue(int startSample) final override 
+	{
+		return isConnected() ? parentProcessor->getModValueForNode(modIndex, startSample) : 0.0;
+	}
+
+	bool isConnected() const final override
+	{
+		return parentProcessor != nullptr;
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(extra_mod, Index);
+			p.setParameterValueNames({ "Extra 1", "Extra 2" });
+			p.setDefaultValue(0.0);
+			data.add(std::move(p));
+		}
+	}
+
+private:
+
+	WeakReference<JavascriptSynthesiser> parentProcessor;
+	int modIndex = -1;
+};
+
+
+class pitch_mod : public hise_mod_base
+{
+public:
+
+	SET_HISE_NODE_ID("pitch_mod");
+	SN_GET_SELF_AS_OBJECT(pitch_mod);
+
+	static constexpr bool isNormalisedModulation() { return false; }
+
+	void setIndex(double ) override
+	{
+	}
+
+	void initialise(NodeBase* b) override
+	{
+		hise_mod_base::initialise(b);
+
+		auto p = dynamic_cast<Processor*>(b->getScriptProcessor());
+
+		if (parentSynth = dynamic_cast<ModulatorSynth*>(p))
+			return;
+
+		parentSynth = dynamic_cast<ModulatorSynth*>(p->getParentProcessor(true));
+	}
+
+	static void transformModValues(float* d, int numSamples);
+
+	void setExternalData(const snex::ExternalData& d, int index) override
+	{
+		hise_mod_base::setExternalData(d, index);
+
+		if (auto rb = dynamic_cast<SimpleRingBuffer*>(d.obj))
+		{
+			if (auto mp = dynamic_cast<ModPlotter::ModPlotterPropertyObject*>(rb->getPropertyObject().get()))
+			{
+				mp->transformFunction = transformModValues;
+			}
+		}
+	}
+
+	void prepare(PrepareSpecs ps) override
+	{
+		hise_mod_base::prepare(ps);
+
+		if (!isConnected())
+		{
+			Error e;
+			e.error = Error::IllegalMod;
+			parentNode->getRootNetwork()->getExceptionHandler().addError(parentNode, e, "the pitch_mod node must only be used in a sound generator with a pitch chain");
+		}
+		else if (dynamic_cast<ModulatorSynthChain*>(parentSynth.get()))
+		{
+			Error e;
+			e.error = Error::IllegalMod;
+			parentNode->getRootNetwork()->getExceptionHandler().addError(parentNode, e, "the pitch_mod node cannot be used in a container");
+		}
+		else if (ps.sampleRate > 0.0)
+		{
+			synthBlockSize = (double)parentSynth->getLargestBlockSize();
+			uptimeDelta = parentSynth->getSampleRate() / ps.sampleRate;
+			valueRange = { 0, (int)synthBlockSize };
+		}
+	}
+
+	double getModulationValue(int startSample) final override
+	{
+		if (isConnected())
+		{
+			auto ptr = parentSynth->getPitchValuesForVoice();
+
+			if (!valueRange.contains(startSample))
+				ptr = nullptr;
+			
+			if(ptr != nullptr)
+				return ptr[startSample];
+			else
+				return parentSynth->getConstantPitchModValue();
+		}
+		
+		return 0.0;
+	}
+
+	bool isConnected() const final override
+	{
+		return parentSynth != nullptr;
+	}
+
+private:
+
+	Range<int> valueRange;
+	WeakReference<ModulatorSynth> parentSynth;
+	int modIndex = -1;
+};
+
+class global_mod : public hise_mod_base
+{
+public:
+
+	SET_HISE_NODE_ID("global_mod");
+	SN_GET_SELF_AS_OBJECT(global_mod);
+
+	static constexpr bool isNormalisedModulation() { return true; }
+
+	void setIndex(double newIndex) final override
+	{
+		if (globalContainer != nullptr)
+		{
+			auto p = globalContainer->getChildProcessor(ModulatorSynth::GainModulation)->getChildProcessor(roundToInt(newIndex));
+
+			if (auto m = dynamic_cast<Modulator*>(p))
+				connectedMod = m;
+		}
+	}
+
+	void initialise(NodeBase* b) override
+	{
+		hise_mod_base::initialise(b);
+
+		globalContainer = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(b->getScriptProcessor()->getMainController_()->getMainSynthChain());
+
+	}
+
+	void prepare(PrepareSpecs ps) override
+	{
+		hise_mod_base::prepare(ps);
+
+		noteNumbers.prepare(ps);
+
+		if (globalContainer == nullptr)
+		{
+			Error e;
+			e.error = Error::IllegalMod;
+			parentNode->getRootNetwork()->getExceptionHandler().addError(parentNode, e, "You need a global modulator container in your signal path");
+		}
+		else if (ps.sampleRate > 0.0)
+		{
+			synthBlockSize = (double)globalContainer->getLargestBlockSize();
+			uptimeDelta = globalContainer->getSampleRate() / ps.sampleRate;
+			valueRange = { 0, (int)synthBlockSize };
+		}
+	}
+
+	double getModulationValue(int startSample) final override
+	{
+		if (isConnected())
+		{
+			if(auto ptr = globalContainer->getModulationValuesForModulator(connectedMod, jmax(0, startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR)))
+				return ptr[0];
+
+			return globalContainer->getConstantVoiceValue(connectedMod, noteNumbers.get());
+		}
+
+		return 0.0;
+	}
+
+	bool isConnected() const final override
+	{
+		return connectedMod != nullptr;
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		hise_mod_base::handleHiseEvent(e);
+
+		if (e.isNoteOn())
+		{
+			noteNumbers.get() = e.getNoteNumberIncludingTransposeAmount();
+		}
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(global_mod, Index);
+			p.setRange({ 0.0, 16.0, 1.0 });
+			p.setDefaultValue(0.0);
+			data.add(std::move(p));
+		}
+	}
+
+private:
+
+	PolyData<int, NUM_POLYPHONIC_VOICES> noteNumbers;
+
+	Range<int> valueRange;
+	
+	WeakReference<GlobalModulatorContainer> globalContainer;
+	WeakReference<Modulator> connectedMod;
+};
 
 
 } // namespace core

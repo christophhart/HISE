@@ -1002,6 +1002,9 @@ public:
 
 	float getModValueForNode(int modIndex, int startSample) const
 	{
+		if (startSample == -1)
+			startSample = currentVoiceStartSample;
+
 		if (modIndex == BasicChains::PitchChain)
 		{
 			auto& pc = modChains[BasicChains::PitchChain];
@@ -1016,10 +1019,6 @@ public:
 		}
 		
 	}
-
-	float getModValueAtVoiceStart(int modIndex) const;
-
-	
 
 	Processor* getChildProcessor(int processorIndex) override
 	{

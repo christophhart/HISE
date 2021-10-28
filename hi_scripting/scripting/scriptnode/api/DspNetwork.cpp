@@ -145,9 +145,9 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	});
 
 	exceptionResetter.setTypeToWatch(PropertyIds::Nodes);
-	exceptionResetter.setCallback(data, valuetree::AsyncMode::Synchronously, [this](ValueTree v, bool wasRemoved)
+	exceptionResetter.setCallback(data, valuetree::AsyncMode::Synchronously, [this](ValueTree v, bool wasAdded)
 	{
-		if (wasRemoved)
+		if (!wasAdded)
 		{
 			if (auto n = getNodeForValueTree(v))
 				this->getExceptionHandler().removeError(n);
@@ -155,7 +155,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	});
     
     sortListener.setTypeToWatch(PropertyIds::Nodes);
-    sortListener.setCallback(data, valuetree::AsyncMode::Synchronously, [this](ValueTree v, bool wasRemoved)
+    sortListener.setCallback(data, valuetree::AsyncMode::Synchronously, [this](ValueTree v, bool )
     {
         struct Sorter
         {

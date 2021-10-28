@@ -1519,7 +1519,9 @@ Factory::Factory(DspNetwork* network) :
 	registerNode<waveshapers::dynamic::NodeType, waveshapers::dynamic::editor>();
 #endif
 
-	registerModNode<hise_mod>();
+	registerModNode<dp<extra_mod>, data::ui::displaybuffer_editor>();
+	registerModNode<dp<pitch_mod>, data::ui::displaybuffer_editor>();
+	registerModNode<dp<global_mod>, data::ui::displaybuffer_editor>();
 	
 	registerModNode<dp<peak>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<ramp<1, true>>, dp<ramp<NUM_POLYPHONIC_VOICES, true>>, data::ui::displaybuffer_editor>();

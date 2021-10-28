@@ -230,6 +230,7 @@ struct Error
 		IllegalPolyphony,
 		IllegalBypassConnection,
 		CloneMismatch,
+		IllegalMod,
 		numErrorCodes
 	};
 

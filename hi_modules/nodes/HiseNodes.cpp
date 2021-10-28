@@ -39,41 +39,27 @@ using namespace hise;
 namespace core
 {
 
-
-hise_mod::hise_mod()
+void hise_mod_base::initialise(NodeBase* b)
 {
-	
-}
-
-void hise_mod::initialise(NodeBase* b)
-{
-	parentProcessor = dynamic_cast<JavascriptSynthesiser*>(b->getScriptProcessor());
 	parentNode = dynamic_cast<ModulationSourceNode*>(b);
 }
 
-void hise_mod::prepare(PrepareSpecs ps)
+void hise_mod_base::prepare(PrepareSpecs ps)
 {
 	modValues.prepare(ps);
 	uptime.prepare(ps);
 
 	for (auto& u : uptime)
 		u = 0.0;
-
-	if (parentProcessor != nullptr && ps.sampleRate > 0.0)
-	{
-		synthBlockSize = (double)parentProcessor->getLargestBlockSize();
-		uptimeDelta = parentProcessor->getSampleRate() / ps.sampleRate;
-	}
-	
 }
 
-bool hise_mod::handleModulation(double& v)
+bool hise_mod_base::handleModulation(double& v)
 {
 	return modValues.get().getChangedValue(v);
 }
 
 
-void hise_mod::handleHiseEvent(HiseEvent& e)
+void hise_mod_base::handleHiseEvent(HiseEvent& e)
 {
 	if (e.isNoteOn())
 	{
@@ -81,43 +67,37 @@ void hise_mod::handleHiseEvent(HiseEvent& e)
 	}
 }
 
-void hise_mod::createParameters(ParameterDataList& data)
+
+
+void hise_mod_base::reset()
 {
-	{
-		DEFINE_PARAMETERDATA(hise_mod, Index);
-		p.setParameterValueNames({ "Pitch", "Extra 1", "Extra 2" });
-		p.setDefaultValue(0.0);
-		data.add(std::move(p));
-	}
+	auto startValue = getModulationValue(-1);
+
+	for (auto& m : modValues)
+		m.setModValue(startValue);
 }
 
-void hise_mod::setIndex(double index)
+
+void pitch_mod::transformModValues(float* d, int numSamples)
 {
-	auto inp = roundToInt(index);
+	auto lastValue = -1.0f;
+	auto lastPitchValue = 0.5f;
 
-	if (inp == 0)
+	for (int i = 0; i < numSamples; i++)
 	{
-		modIndex = ModulatorSynth::BasicChains::PitchChain;
-	}
+		auto thisValue = d[i];
 
-	else if (inp == 1)
-		modIndex = JavascriptSynthesiser::ModChains::Extra1;
+		if (thisValue != lastValue)
+		{
+			lastPitchValue = log2(thisValue);
+			lastPitchValue += 1.0f;
+			lastPitchValue *= 0.5f;
+			lastValue = thisValue;
+		}
 
-	else if (inp == 2)
-		modIndex = JavascriptSynthesiser::ModChains::Extra2;
-}
-
-void hise_mod::reset()
-{
-	if (parentProcessor != nullptr)
-	{
-		auto startValue = parentProcessor->getModValueAtVoiceStart(modIndex);
-
-		for (auto& m : modValues)
-			m.setModValue(startValue);
+		d[i] = lastPitchValue;
 	}
 }
-
 
 } // namespace core
 

@@ -443,6 +443,8 @@ ModulationSourcePlotter::ModulationSourcePlotter(PooledUIUpdater* updater) :
 	ModulationSourceBaseComponent(updater)
 {
 	
+	p.setSpecialLookAndFeel(new data::ui::pimpl::complex_ui_laf(), true);
+
 	start();
 	setOpaque(true);
 	setSize(256, ModulationSourceNode::ModulationBarHeight);

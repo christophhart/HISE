@@ -485,6 +485,14 @@ struct ModPlotter : public Component,
 		{
 			return new ModPlotter();
 		}
+
+		void transformReadBuffer(AudioSampleBuffer& b) override
+		{
+			if (transformFunction)
+				transformFunction(b.getWritePointer(0), b.getNumSamples());
+		}
+
+		std::function<void(float*, int)> transformFunction;
 	};
 
 	ModPlotter();
@@ -493,6 +501,7 @@ struct ModPlotter : public Component,
 	
 	Rectangle<int> getFixedBounds() const override { return { 0, 0, 256, 80 }; }
 
+	Colour getColourForAnalyserBase(int colourId) override;
 	
 
 	int getSamplesPerPixel(float rectangleWidth) const;

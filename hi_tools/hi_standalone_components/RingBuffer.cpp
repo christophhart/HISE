@@ -313,6 +313,16 @@ void ModPlotter::paint(Graphics& g)
 
 }
 
+juce::Colour ModPlotter::getColourForAnalyserBase(int colourId)
+{
+	switch (colourId)
+	{
+	case RingBufferComponentBase::ColourId::bgColour: return findColour(ColourIds::backgroundColour);
+	case RingBufferComponentBase::ColourId::fillColour: return findColour(ColourIds::pathColour);
+	case RingBufferComponentBase::ColourId::lineColour: return findColour(ColourIds::outlineColour);
+	}
+}
+
 int ModPlotter::getSamplesPerPixel(float rectangleWidth) const
 {
 	float offset = 2.0f;
