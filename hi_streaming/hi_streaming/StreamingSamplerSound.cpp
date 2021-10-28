@@ -524,6 +524,9 @@ void StreamingSamplerSound::applyCrossfadeToPreloadBuffer()
             rebuildCrossfadeBuffer(preloadContainsLoop);
         }
         
+        if(loopBuffer.getNumSamples() == 0)
+            return;
+        
 		if (fadePos < numInBuffer)
 		{
 			preloadBuffer.burnNormalisation();

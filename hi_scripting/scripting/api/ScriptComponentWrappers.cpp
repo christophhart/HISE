@@ -1743,12 +1743,16 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateRange(BorderPanel * bpc
 {
 	const double min = GET_SCRIPT_PROPERTY(min);
 	const double max = GET_SCRIPT_PROPERTY(max);
-	const double stepSize = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::stepSize);
+    
+    if(min < max)
+    {
+        const double stepSize = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::stepSize);
 
-	NormalisableRange<double> r(min, max);
-	r.interval = stepSize;
+        NormalisableRange<double> r(min, max);
+        r.interval = stepSize;
 
-	bpc->setRange(r);
+        bpc->setRange(r);
+    }
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::updateColourAndBorder(BorderPanel * bpc)

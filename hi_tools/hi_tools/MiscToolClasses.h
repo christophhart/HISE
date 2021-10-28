@@ -1614,8 +1614,7 @@ template <typename...Ps> struct LambdaBroadcaster final
 		updater.cancelPendingUpdate();
 		lockfreeUpdater = nullptr;
 
-		SimpleReadWriteLock::ScopedWriteLock sl(lock);
-		listeners.clear();
+        removeAllListeners();
 	}
 
 	/** Use this method to add a listener to this class. You can use any object as obj. The second parameter
@@ -1630,9 +1629,14 @@ template <typename...Ps> struct LambdaBroadcaster final
 	*/
 	template <typename T, typename F> void addListener(T& obj, const F& f, bool sendWithInitialValue=true)
 	{
-		SimpleReadWriteLock::ScopedWriteLock sl(lock);
-		removeDanglingObjects();
-		listeners.add(new SafeLambda<T, void, Ps...>(obj, f));
+        {
+            
+            removeDanglingObjects();
+            
+            auto t = new SafeLambda<T, void, Ps...>(obj, f);
+            SimpleReadWriteLock::ScopedWriteLock sl(lock);
+            listeners.add(t);
+        }
 
 		if(sendWithInitialValue)
 			std::apply(*listeners.getLast(), lastValue);
@@ -1647,6 +1651,8 @@ template <typename...Ps> struct LambdaBroadcaster final
 	{
 		bool found = false;
 
+        SimpleReadWriteLock::ScopedWriteLock sl(lock);
+        
 		for (int i = 0; i < listeners.size(); i++)
 		{
 			if (listeners[i]->matches(&obj))
@@ -1663,8 +1669,10 @@ template <typename...Ps> struct LambdaBroadcaster final
 
 	void removeAllListeners()
 	{
+        OwnedArray<SafeLambdaBase<void, Ps...>> pendingDelete;
+        
 		SimpleReadWriteLock::ScopedWriteLock sl(lock);
-		listeners.clear();
+        std::swap(listeners, pendingDelete);
 	}
 
 	void enableLockFreeUpdate(PooledUIUpdater* updater)
