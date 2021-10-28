@@ -149,7 +149,7 @@ public:
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(Index, extra_mod);
+		DEF_PARAMETER(Index, hise_mod_base);
 	}
 
 	virtual void handleHiseEvent(HiseEvent& e);
