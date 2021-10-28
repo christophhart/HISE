@@ -269,7 +269,7 @@ struct SendEffect : public MasterEffectProcessor
 
 	int getNumChildProcessors() const override { return 0; };
 
-#if 1 || USE_BACKEND
+#if USE_BACKEND
 	struct Editor : public ProcessorEditorBody
 	{
 		Editor(ProcessorEditor* parent) :
