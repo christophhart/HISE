@@ -447,8 +447,21 @@ float LfoModulator::calculateNewValue ()
 
 	jassert(attackValue >= 0.0f);
 
-	// Apply a little smoothing to filter hard edges
-	currentValue = smoother.smooth(1.0f - newValue * attackValue);
+	switch (getMode())
+	{
+	case Modulation::GainMode:
+		newValue = 1.0f - newValue * attackValue;
+		break;
+	case Modulation::PanMode:
+	case Modulation::PitchMode:
+		if (isBipolar())
+			newValue = (1.0f - attackValue) * 0.5f + attackValue * newValue;
+		else
+			newValue *= attackValue;
+		break;
+	}
+	
+	currentValue = smoother.smooth(newValue);
 
 	uptime += (angleDelta);
 	
@@ -524,19 +537,61 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 		calcAngleDelta();
 	}
 
-	
-	
+	auto m = getMode();
 
-	if (auto intensityModValues = modChains[IntensityChain].getWritePointerForManualExpansion(pseudoOffset))
+	if (m == Modulation::PitchMode || m == Modulation::PanMode)
 	{
-		applyIntensityForGainValues(mod, 1.0f, intensityModValues, numValues);
+		if (auto intensityModValues = modChains[IntensityChain].getWritePointerForManualExpansion(pseudoOffset))
+		{
+			// and the nomination for the worst LFO code
+			// goes to:
+
+			if (!isBipolar())
+			{
+				applyIntensityForPitchValues(mod, 1.0f, intensityModValues, numValues);
+			}
+			else
+			{
+				for (int i = 0; i < numValues; i++)
+				{
+					auto base = (1.0f - intensityModValues[i]) * 0.5f;
+					mod[i] = base + intensityModValues[i] * mod[i];
+				}
+			}
+		}
+		else
+		{
+			const float intensityToUse = modChains[IntensityChain].getConstantModulationValue();
+			if (!isBipolar())
+			{
+				applyIntensityForPitchValues(mod, intensityToUse, numValues);
+			}
+			else
+			{
+				// at this point I'm not even mad anymore
+
+				auto base = (1.0f - intensityToUse) * 0.5f;
+
+				for (int i = 0; i < numValues; i++)
+					mod[i] = base + intensityToUse * mod[i];
+			}
+
+		}
 	}
 	else
 	{
-		const float intensityToUse = modChains[IntensityChain].getConstantModulationValue();
-
-		applyIntensityForGainValues(mod, intensityToUse, numValues);
+		if (auto intensityModValues = modChains[IntensityChain].getWritePointerForManualExpansion(pseudoOffset))
+		{
+			applyIntensityForGainValues(mod, 1.0f, intensityModValues, numValues);
+		}
+		else
+		{
+			const float intensityToUse = modChains[IntensityChain].getConstantModulationValue();
+			applyIntensityForGainValues(mod, intensityToUse, numValues);
+		}
 	}
+	
+	
 }
 
 void LfoModulator::handleHiseEvent(const HiseEvent &m)
