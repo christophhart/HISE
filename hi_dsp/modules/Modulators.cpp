@@ -41,10 +41,11 @@ float Modulation::calcIntensityValue(float calculatedModulationValue) const noex
 {
 	switch (modulationMode)
 	{
-	case PitchMode: return calcPitchIntensityValue(calculatedModulationValue);
-	case GainMode: return calcGainIntensityValue(calculatedModulationValue);
-	case PanMode:	return calcPanIntensityValue(calculatedModulationValue);
-	default: jassertfalse; return -1.0f;
+	case PitchMode:		return calcPitchIntensityValue(calculatedModulationValue);
+	case GainMode:		return calcGainIntensityValue(calculatedModulationValue);
+	case PanMode:		return calcPanIntensityValue(calculatedModulationValue);
+	case GlobalMode:	return calcGlobalIntensityValue(calculatedModulationValue);
+	default: jassertfalse; return 0.0f;
 	}
 }
 
@@ -60,6 +61,11 @@ float Modulation::calcPitchIntensityValue(float calculatedModulationValue) const
 }
 
 float Modulation::calcPanIntensityValue(float calculatedModulationValue) const noexcept
+{
+	return getIntensity() * calculatedModulationValue;
+}
+
+float Modulation::calcGlobalIntensityValue(float calculatedModulationValue) const noexcept
 {
 	return getIntensity() * calculatedModulationValue;
 }
@@ -83,6 +89,7 @@ void Modulation::setIntensityFromSlider(float sliderValue) noexcept
 	case GainMode:	setIntensity(sliderValue); break;
 	case PitchMode:	setIntensity(PitchConverters::octaveRangeToSignedNormalisedRange(sliderValue)); break;
 	case PanMode:	setIntensity(sliderValue / 100.0f); break;
+	case GlobalMode: setIntensity(sliderValue); break;
 	}
 }
 
@@ -93,7 +100,9 @@ bool Modulation::isBipolar() const noexcept
 
 void Modulation::setIsBipolar(bool shouldBeBiPolar) noexcept
 {
-	jassert(modulationMode == PitchMode || modulationMode == PanMode);
+	jassert(modulationMode == PitchMode || 
+			modulationMode == PanMode ||
+			modulationMode == GlobalMode);
 
 	bipolar = shouldBeBiPolar;
 }
@@ -117,6 +126,7 @@ float Modulation::getDisplayIntensity() const noexcept
 	case GainMode:			return intensity;
 	case PitchMode:			return intensity * 12.0f; // return (log(intensity) / log(2.0f)) * 12.0f;
 	case PanMode:			return intensity * 100.0f;
+	case GlobalMode:		return intensity;
 	default:				jassertfalse; return 0.0f;
 	}
 }
@@ -200,6 +210,7 @@ void TimeModulation::applyTimeModulation(float* destinationBuffer, int startInde
 		case GainMode: applyGainModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
 		case PitchMode: applyPitchModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
 		case PanMode:	applyPanModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
+		case GlobalMode: applyGlobalModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
 		}
 	}
 	else
@@ -209,6 +220,7 @@ void TimeModulation::applyTimeModulation(float* destinationBuffer, int startInde
 		case GainMode:	applyGainModulation(mod, dest, getIntensity(), samplesToCopy); break;
 		case PitchMode: applyPitchModulation(mod, dest, getIntensity(), samplesToCopy); break;
 		case PanMode:	applyPanModulation(mod, dest, getIntensity(), samplesToCopy); break;
+		case GlobalMode:	applyGlobalModulation(mod, dest, getIntensity(), samplesToCopy); break;
 		}
 	}
 
@@ -389,6 +401,24 @@ void TimeModulation::applyPitchModulation(float *calculatedModulationValues, flo
 	
 }
 
+
+void TimeModulation::applyGlobalModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, float* intensityValues, int numValues) const noexcept
+{
+	if (isBipolar())
+		FloatVectorOperations::copy(destinationValues, calculatedModValues, numValues);
+	else
+		applyGainModulation(calculatedModValues, destinationValues, fixedIntensity, intensityValues, numValues);
+}
+
+void TimeModulation::applyGlobalModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, int numValues) const noexcept
+{
+	if (isBipolar())
+	{
+		FloatVectorOperations::copy(destinationValues, calculatedModValues, numValues);
+	}
+	else
+		applyGainModulation(calculatedModValues, destinationValues, fixedIntensity, numValues);
+}
 
 void TimeModulation::applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const
 {

@@ -617,7 +617,10 @@ ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoi
 	isVoiceStartChain(false)
 {
 	activeVoices.setRange(0, numVoices, false);
-	setFactoryType(new ModulatorChainFactoryType(numVoices, m, p));
+
+	setMode(m);
+
+	
 
 	FloatVectorOperations::fill(lastVoiceValues, 1.0, NUM_POLYPHONIC_VOICES);
 
@@ -925,6 +928,12 @@ void ModulatorChain::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	jassert(checkModulatorStructure());
 };
+
+void ModulatorChain::setMode(Mode newMode)
+{
+	Modulation::setMode(newMode);
+	setFactoryType(new ModulatorChainFactoryType(polyManager.getVoiceAmount(), newMode, parentProcessor));
+}
 
 void ModulatorChain::setIsVoiceStartChain(bool isVoiceStartChain_)
 {

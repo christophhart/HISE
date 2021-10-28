@@ -452,6 +452,12 @@ float LfoModulator::calculateNewValue ()
 	case Modulation::GainMode:
 		newValue = 1.0f - newValue * attackValue;
 		break;
+	case Modulation::GlobalMode:
+		if(isBipolar())
+			newValue = (1.0f - attackValue) * 0.5f + attackValue * newValue;
+		else
+			newValue = 1.0f - newValue * attackValue;
+		break;
 	case Modulation::PanMode:
 	case Modulation::PitchMode:
 		if (isBipolar())
@@ -539,7 +545,9 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 
 	auto m = getMode();
 
-	if (m == Modulation::PitchMode || m == Modulation::PanMode)
+	
+
+	if (m == Modulation::PitchMode || m == Modulation::PanMode || m == Modulation::GlobalMode)
 	{
 		if (auto intensityModValues = modChains[IntensityChain].getWritePointerForManualExpansion(pseudoOffset))
 		{
@@ -548,7 +556,10 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 
 			if (!isBipolar())
 			{
-				applyIntensityForPitchValues(mod, 1.0f, intensityModValues, numValues);
+				if (m == Modulation::GlobalMode)
+					applyIntensityForGainValues(mod, 1.0f, intensityModValues, numValues);
+				else
+					applyIntensityForPitchValues(mod, 1.0f, intensityModValues, numValues);
 			}
 			else
 			{
@@ -564,7 +575,10 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 			const float intensityToUse = modChains[IntensityChain].getConstantModulationValue();
 			if (!isBipolar())
 			{
-				applyIntensityForPitchValues(mod, intensityToUse, numValues);
+				if (m == Mode::GlobalMode)
+					applyIntensityForGainValues(mod, intensityToUse, numValues);
+				else
+					applyIntensityForPitchValues(mod, intensityToUse, numValues);
 			}
 			else
 			{

@@ -230,7 +230,9 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 		bipolarModButton->setVisible(false);
 
-		if(getModulatorMode() == Modulation::PitchMode)
+		auto m = getModulatorMode();
+
+		if(m == Modulation::PitchMode)
 		{
 			intensitySlider->setRange(-12.0, 12.0, 0.01);
 			intensitySlider->setTextValueSuffix(" st");
@@ -238,11 +240,16 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 			bipolarModButton->setVisible(!isHeaderOfChain());
 			bipolarModButton->addListener(this);
 		}
-		else if (getModulatorMode() == Modulation::PanMode)
+		else if (m == Modulation::PanMode)
 		{
 			intensitySlider->setRange(-100.0, 100.0, 1);
 			intensitySlider->setTextValueSuffix("%");
 			intensitySlider->setTextBoxIsEditable(true);
+			bipolarModButton->setVisible(!isHeaderOfChain());
+			bipolarModButton->addListener(this);
+		}
+		else if (m == Modulation::GlobalMode)
+		{
 			bipolarModButton->setVisible(!isHeaderOfChain());
 			bipolarModButton->addListener(this);
 		}

@@ -92,6 +92,8 @@ public:
 		PitchMode,
 		/** Range is -1.0 ... 1.0 */
 		PanMode,
+		/** Range is -1.0 ... 1.0 and the intensity will be ignored. */
+		GlobalMode,
 		numModes
 	};
 
@@ -131,6 +133,8 @@ public:
 	inline float calcPitchIntensityValue(float calculatedModulationValue) const noexcept;
 
 	inline float calcPanIntensityValue(float calculatedModulationValue) const noexcept;
+
+	inline float calcGlobalIntensityValue(float calculatedModulationValue) const noexcept;
 
 	/** This applies the previously calculated value to the supplied destination value depending on the modulation mode (adding or multiplying). */
 	void applyModulationValue(float calculatedModulationValue, float &destinationValue) const noexcept;;
@@ -220,9 +224,14 @@ public:
 		smoothedIntensity.reset(44100.0, 0.0);
 	}
 
+	virtual void setMode(Mode newMode)
+	{
+		modulationMode = newMode;
+	}
+
 protected:
 
-	const Mode modulationMode;
+	Mode modulationMode;
 
 	LinearSmoothedValue<float> smoothedIntensity;
 
@@ -379,6 +388,9 @@ protected:
 
 	void applyPanModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, float* intensityValues, int numValues) const noexcept;
 	void applyPanModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, int numValues) const noexcept;
+
+	void applyGlobalModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, float* intensityValues, int numValues) const noexcept;
+	void applyGlobalModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, int numValues) const noexcept;
 
 	void applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const;
 
