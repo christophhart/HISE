@@ -96,6 +96,8 @@ public:
 
 	void changeListenerCallback(SafeChangeBroadcaster *b);
 	
+	int getNumFilterBands() const { return numFilters; }
+
 	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var newValue) override
 	{
 		if (e == ComplexDataUIUpdaterBase::EventType::DisplayIndex)

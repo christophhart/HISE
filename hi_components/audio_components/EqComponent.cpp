@@ -167,6 +167,12 @@ private:
 		{
 			if (auto c = dynamic_cast<CurveEq*>(getProcessor()))
 			{
+				if (c->getNumFilterBands() != filterGraph->getNumFilterBands())
+				{
+					updateEq(c, filterGraph);
+					return;
+				}
+
 				for (int i = 0; i < c->getNumFilterBands(); i++)
 				{
 					IIRCoefficients ic = c->getCoefficients(i);
