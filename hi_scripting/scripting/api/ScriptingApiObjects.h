@@ -9,6 +9,7 @@
 *   (at your option) any later version.
 *
 *   HISE is distributed in the hope that it will be useful,
+*   HISE is distributed in the hope that it will be useful,
 *   but WITHOUT ANY WARRANTY; without even the implied warranty of
 *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *   GNU General Public License for more details.
@@ -259,6 +260,9 @@ namespace ScriptingObjects
 		/** Extracts the ZIP archive if this file is a .zip file. */
 		void extractZipFile(var targetDirectory, bool overwriteFiles, var callback);
 
+		/** Changes the read/write permission for the given file. */
+		void setReadOnly(bool shouldBeReadOnly, bool applyRecursively);
+
 		// ================================================= End of API calls
 
 		File f;
@@ -382,7 +386,8 @@ namespace ScriptingObjects
 		JavascriptProcessor* jp = nullptr;
 	};
 
-	class ScriptComplexDataReferenceBase: public ConstScriptingObject
+	class ScriptComplexDataReferenceBase: public ConstScriptingObject,
+										  public ComplexDataUIUpdaterBase::EventListener
 	{
 	public:
 
@@ -399,6 +404,8 @@ namespace ScriptingObjects
 
 		ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type, ExternalDataHolder* otherHolder=nullptr);;
 
+		virtual ~ScriptComplexDataReferenceBase();
+
 		void setPosition(double newPosition);
 
 		float getCurrentDisplayIndexBase() const;
@@ -406,11 +413,32 @@ namespace ScriptingObjects
 		int getIndex() const { return index; }
 		ExternalDataHolder* getHolder() { return holder; }
 
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
+		{
+			if (t == ComplexDataUIUpdaterBase::EventType::DisplayIndex &&
+				displayCallback)
+			{
+				displayCallback.call1(data);
+			}
+			else if (contentCallback)
+			{
+				contentCallback.call1(data);
+			}
+		}
+
+		
+
 	protected:
+
+		void setCallbackInternal(bool isDisplay, var f);
 
 		WeakReference<ComplexDataUIBase> complexObject;
 
+		WeakCallbackHolder displayCallback;
+		WeakCallbackHolder contentCallback;
+
 	private:
+
 
 		const snex::ExternalData::DataType type;
 		WeakReference<ExternalDataHolder> holder;
@@ -450,6 +478,12 @@ namespace ScriptingObjects
 
 		/** Returns the reference string for the currently loaded file. */
 		String getCurrentlyLoadedFile() const;
+
+		/** Sets a callback that is being executed when the playback position changes. */
+		void setDisplayCallback(var displayFunction);
+
+		/** Sets a callback that is being executed when a new file is loaded (or the sample range changed). */
+		void setContentCallback(var contentFunction);
 
 		// ============================================================================================================
 
@@ -513,6 +547,18 @@ namespace ScriptingObjects
 		/** Returns the current ruler position (from 0 to 1). */
 		float getCurrentlyDisplayedIndex() const;
 
+		/** Sets a callback that is being executed when the ruler position changes. */
+		void setDisplayCallback(var displayFunction);
+
+		/** Sets a callback that is being executed when a point is added / removed / changed. */
+		void setContentCallback(var contentFunction);
+
+		/** Returns an array containing all table points ([[x0, y0, curve0], ...]). */
+		var getTablePointsAsArray();
+
+		/** Sets the table points from a multidimensional array ([x0, y0, curve0], ...]). */
+		void setTablePointsFromArray(var pointList);
+
 		// ============================================================================================================
 
 	private:
@@ -553,6 +599,12 @@ namespace ScriptingObjects
 
 		/** Returns the currently displayed slider index. */
 		float getCurrentlyDisplayedIndex() const;
+
+		/** Sets a callback that is being executed when the ruler position changes. */
+		void setDisplayCallback(var displayFunction);
+
+		/** Sets a callback that is being executed when a point is added / removed / changed. */
+		void setContentCallback(var contentFunction);
 
 		// ============================================================================================================
 

@@ -1226,7 +1226,7 @@ public:
 
 		ComplexDataUIBase* getCachedDataObject() const { return cachedObjectReference.get(); };
 
-		void registerComplexDataObjectAtParent(int index = -1);
+		var registerComplexDataObjectAtParent(int index = -1);
 
 	protected:
 
@@ -1297,8 +1297,8 @@ public:
 		/** Connects it to a table data object (or UI element in the same interface). */
 		void referToData(var tableData);
 
-		/** Registers this table with the given index so you can use it from the outside. */
-		void registerAtParent(int index);
+		/** Registers this table (and returns a reference to the data) with the given index so you can use it from the outside. */
+		var registerAtParent(int index);
 
 		// ========================================================================================================
 
@@ -1374,6 +1374,9 @@ public:
 		/** Sets a non-uniform width per slider using an array in the form [0.0, ... a[i], ... 1.0]. */
 		void setWidthArray(var normalizedWidths);
         
+		/** Registers this sliderpack to the script processor to be acessible from the outside. */
+		var registerAtParent(int pIndex);
+
 		// ========================================================================================================
 
 		struct Wrapper;

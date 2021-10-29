@@ -2109,15 +2109,26 @@ void ScriptingApi::Content::ComplexDataScriptComponent::handleDefaultDeactivated
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
 }
 
-void ScriptingApi::Content::ComplexDataScriptComponent::registerComplexDataObjectAtParent(int index /*= -1*/)
+var ScriptingApi::Content::ComplexDataScriptComponent::registerComplexDataObjectAtParent(int index /*= -1*/)
 {
 	if (auto d = dynamic_cast<ProcessorWithDynamicExternalData*>(getScriptProcessor()))
 	{
 		otherHolder = d;
 		d->registerExternalObject(type, index, ownedObject);
+
 		setScriptObjectProperty(getIndexPropertyId(), index, sendNotification);
 		updateCachedObjectReference();
+
+		switch (type)
+		{
+		case ExternalData::DataType::Table: return new ScriptingObjects::ScriptTableData(getScriptProcessor(), index);
+		case ExternalData::DataType::SliderPack: return new ScriptingObjects::ScriptSliderPackData(getScriptProcessor(), index);
+		case ExternalData::DataType::AudioFile: return new ScriptingObjects::ScriptAudioFile(getScriptProcessor(), index);
+		default: jassertfalse; return var();
+		}
 	}
+
+	return var();
 }
 
 void ScriptingApi::Content::ScriptAudioWaveform::handleDefaultDeactivatedProperties()
@@ -2147,7 +2158,7 @@ struct ScriptingApi::Content::ScriptTable::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, setTablePopupFunction);
 	API_VOID_METHOD_WRAPPER_2(ScriptTable, connectToOtherTable);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, setSnapValues);
-	API_VOID_METHOD_WRAPPER_1(ScriptTable, registerAtParent);
+	API_METHOD_WRAPPER_1(ScriptTable, registerAtParent);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, referToData);
 };
 
@@ -2240,9 +2251,9 @@ void ScriptingApi::Content::ScriptTable::referToData(var tableData)
 	referToDataBase(tableData);
 }
 
-void ScriptingApi::Content::ScriptTable::registerAtParent(int index)
+var ScriptingApi::Content::ScriptTable::registerAtParent(int index)
 {
-	registerComplexDataObjectAtParent(index);
+	return registerComplexDataObjectAtParent(index);
 }
 
 struct ScriptingApi::Content::ScriptSliderPack::Wrapper
@@ -2253,6 +2264,7 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 	API_METHOD_WRAPPER_0(ScriptSliderPack, getNumSliders);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, referToData);
     API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setWidthArray);
+	API_METHOD_WRAPPER_1(ScriptSliderPack, registerAtParent);
 };
 
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int , int ) :
@@ -2302,6 +2314,7 @@ ComplexDataScriptComponent(base, name_, snex::ExternalData::DataType::SliderPack
 	ADD_API_METHOD_0(getNumSliders);
 	ADD_API_METHOD_1(referToData);
     ADD_API_METHOD_1(setWidthArray);
+	ADD_API_METHOD_1(registerAtParent);
 }
 
 ScriptingApi::Content::ScriptSliderPack::~ScriptSliderPack()
@@ -2463,6 +2476,11 @@ void ScriptingApi::Content::ScriptSliderPack::setWidthArray(var normalizedWidths
         widthArray = *ar;
         sendChangeMessage();
     }
+}
+
+var ScriptingApi::Content::ScriptSliderPack::registerAtParent(int pIndex)
+{
+	return registerComplexDataObjectAtParent(pIndex);
 }
 
 ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int, int) :

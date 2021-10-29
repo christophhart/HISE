@@ -1297,6 +1297,8 @@ struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWith
 			replaceArgs("paintFunction", "g");
 			replaceArgs("mouseCallbackFunction", "event");
 			replaceArgs("loadingCallback", "isPreloading");
+			replaceArgs("displayFunction", "displayValue");
+			replaceArgs("contentFunction", "changedIndex");
 			
 			replaceArgs("presetPreCallback", "presetData");
 			replaceArgs("presetPostCallback", "presetFile");
