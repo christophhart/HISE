@@ -37,7 +37,7 @@ struct ScriptUserPresetHandler::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPreCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPostCallback);
-	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setEnableUserPresetPreprocessing);
+	API_VOID_METHOD_WRAPPER_2(ScriptUserPresetHandler, setEnableUserPresetPreprocessing);
 	API_METHOD_WRAPPER_1(ScriptUserPresetHandler, isOldVersion);
 };
 
@@ -52,7 +52,7 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_1(isOldVersion);
 	ADD_API_METHOD_1(setPostCallback);
 	ADD_API_METHOD_1(setPreCallback);
-	ADD_API_METHOD_1(setEnableUserPresetPreprocessing);
+	ADD_API_METHOD_2(setEnableUserPresetPreprocessing);
 }
 
 
@@ -76,9 +76,10 @@ void ScriptUserPresetHandler::setPostCallback(var presetPostCallback)
 	postCallback.incRefCount();
 }
 
-void ScriptUserPresetHandler::setEnableUserPresetPreprocessing(bool processBeforeLoading)
+void ScriptUserPresetHandler::setEnableUserPresetPreprocessing(bool processBeforeLoading, bool shouldUnpackComplexData)
 {
 	enablePreprocessing = processBeforeLoading;
+	unpackComplexData = shouldUnpackComplexData;
 }
 
 bool ScriptUserPresetHandler::isOldVersion(const String& version)
@@ -93,6 +94,160 @@ bool ScriptUserPresetHandler::isOldVersion(const String& version)
 
 	return svs.isUpdate();
 }
+
+struct JSONConversionHelpers
+{
+	static var valueTreeToJSON(const ValueTree& v)
+	{
+		DynamicObject::Ptr p = new DynamicObject();
+
+		for (int i = 0; i < v.getNumProperties(); i++)
+		{
+			auto id = v.getPropertyName(i);
+			p->setProperty(id, v[id]);
+		}
+
+		bool hasChildrenWithSameName = v.getNumChildren() > 0;
+		auto firstType = v.getChild(0).getType();
+
+		for (auto c : v)
+		{
+			if (c.getType() != firstType)
+			{
+				hasChildrenWithSameName = false;
+				break;
+			}
+		}
+
+		Array<var> childList;
+		
+		
+		
+		for (auto c : v)
+		{
+			if (c.getNumChildren() == 0 && c.getNumProperties() == 0)
+			{
+				p->setProperty(c.getType(), new DynamicObject());
+				continue;
+			}
+
+			auto jsonChild = valueTreeToJSON(c);
+
+			if (hasChildrenWithSameName)
+				childList.add(jsonChild);
+			else
+				p->setProperty(c.getType(), jsonChild);
+		}
+
+		if (hasChildrenWithSameName)
+		{
+			p->setProperty("ChildId", firstType.toString());
+			p->setProperty("Children", var(childList));
+		}
+
+		return var(p);
+	}
+
+	static ValueTree jsonToValueTree(var data, const Identifier& typeId, bool isParentData=true)
+	{
+		if (isParentData)
+		{
+			data = data.getProperty(typeId, {});
+			jassert(data.isObject());
+			DBG(JSON::toString(data));
+		}
+
+		
+
+		ValueTree v(typeId);
+
+		if (data.hasProperty("ChildId"))
+		{
+			Identifier childId(data.getProperty("ChildId", "").toString());
+
+			for (auto& nv : data.getDynamicObject()->getProperties())
+			{
+				if (nv.name.toString() == "ChildId")
+					continue;
+
+				if (nv.name.toString() == "Children")
+					continue;
+
+				v.setProperty(nv.name, nv.value, nullptr);
+			}
+
+			auto lv = data.getProperty("Children", var());
+			if (auto l = lv.getArray())
+			{
+				for (auto& c : *l)
+				{
+					v.addChild(jsonToValueTree(c, childId, false), -1, nullptr);
+				}
+			}
+		}
+		else
+		{
+			if (auto dyn = data.getDynamicObject())
+			{
+				for (const auto& nv : dyn->getProperties())
+				{
+					if (nv.value.isObject())
+					{
+						v.addChild(jsonToValueTree(nv.value, nv.name, false), -1, nullptr);
+					}
+					else if (nv.value.isArray())
+					{
+						// must not happen
+						jassertfalse;
+					}
+					else
+					{
+						v.setProperty(nv.name, nv.value, nullptr);
+					}
+				}
+			}
+		}
+
+		if(isParentData)
+			DBG(v.createXml()->createDocument(""));
+
+		return v;
+	}
+
+	static var convertBase64Data(const String& d, const ValueTree& cTree)
+	{
+		if (d.isEmpty())
+			return var();
+
+		auto typeId = Identifier(cTree["type"].toString());
+
+		if (typeId == ScriptingApi::Content::ScriptTable::getStaticObjectName())
+			return Table::base64ToDataVar(d);
+		if (typeId == ScriptingApi::Content::ScriptSliderPack::getStaticObjectName())
+			return SliderPackData::base64ToDataVar(d);
+		if (typeId == ScriptingApi::Content::ScriptAudioWaveform::getStaticObjectName())
+			return var(d);
+
+		return var();
+	}
+
+	static String convertDataToBase64(const var& d, const ValueTree& cTree)
+	{
+		if (!d.isArray())
+			return "";
+
+		auto typeId = Identifier(cTree["type"].toString());
+
+		if (typeId == ScriptingApi::Content::ScriptTable::getStaticObjectName())
+			return Table::dataVarToBase64(d);
+		if (typeId == ScriptingApi::Content::ScriptSliderPack::getStaticObjectName())
+			return SliderPackData::dataVarToBase64(d);
+		if (typeId == ScriptingApi::Content::ScriptAudioWaveform::getStaticObjectName())
+			return d.toString();
+		
+		return "";
+	}
+};
 
 var ScriptUserPresetHandler::convertToJson(const ValueTree& d)
 {
@@ -109,26 +264,42 @@ var ScriptUserPresetHandler::convertToJson(const ValueTree& d)
 		{
 			DynamicObject::Ptr cd = new DynamicObject();
 
-			auto value = c["value"];
-
-			if (value.toString().startsWith("[") ||
-				value.toString().startsWith("{"))
+			for (int i = 0; i < c.getNumProperties(); i++)
 			{
-				value = JSON::parse(value.toString());
-			}
+				auto id = c.getPropertyName(i);
 
-			cd->setProperty("id", c["id"].toString());
-			cd->setProperty("type", c["type"].toString());
-			cd->setProperty("value", value);
+				auto value = c[id];
+
+				if (id == Identifier("value"))
+				{
+					if (value.toString().startsWith("[") ||
+						value.toString().startsWith("{"))
+					{
+						value = JSON::parse(value.toString());
+					}
+				}
+
+				if (unpackComplexData && id == Identifier("data"))
+					value = JSONConversionHelpers::convertBase64Data(value.toString(), c);
+
+				cd->setProperty(id, value);
+			}
 
 			dataArray.add(var(cd));
 		}
 
-		p->setProperty("content", var(dataArray));
+		p->setProperty("Content", var(dataArray));
+		
+		p->setProperty("Modules", JSONConversionHelpers::valueTreeToJSON(d.getChildWithName("Modules")));
+		p->setProperty("MidiAutomation", JSONConversionHelpers::valueTreeToJSON(d.getChildWithName("MidiAutomation")));
+		p->setProperty("MPEData", JSONConversionHelpers::valueTreeToJSON(d.getChildWithName("MPEData")));
+
 	}
 
 	return var(p);
 }
+
+
 
 juce::ValueTree ScriptUserPresetHandler::applyJSON(const ValueTree& original, DynamicObject::Ptr obj)
 {
@@ -144,21 +315,40 @@ juce::ValueTree ScriptUserPresetHandler::applyJSON(const ValueTree& original, Dy
 	{
 		for (const auto& p : *dataArray)
 		{
-			auto id = p.getProperty("id", "");;
-			auto type = p.getProperty("type", "");
-			auto value = p.getProperty("value", 0.0);
-
-			if (value.isArray() || value.isObject())
-				value = JSON::toString(value);
-
 			ValueTree c("Control");
-			c.setProperty("type", type, nullptr);
-			c.setProperty("id", id.toString(), nullptr);
-			c.setProperty("value", value, nullptr);
+
+			if (auto obj = p.getDynamicObject())
+			{
+				for (const auto& nv : obj->getProperties())
+				{
+					auto vTouse = nv.value;
+
+					if (nv.name == Identifier("value"))
+					{
+						if(vTouse.isArray() || vTouse.isObject())
+							vTouse = JSON::toString(vTouse);
+					}
+
+					if (unpackComplexData && nv.name == Identifier("data"))
+					{
+						vTouse = JSONConversionHelpers::convertDataToBase64(vTouse, c);
+					}
+
+					c.setProperty(nv.name, vTouse, nullptr);
+				}
+			}
+			
 			dataTree.addChild(c, -1, nullptr);
 		}
 	}
 
+	copy.removeChild(copy.getChildWithName("Modules"), nullptr);
+	copy.removeChild(copy.getChildWithName("MidiAutomation"), nullptr);
+	copy.removeChild(copy.getChildWithName("MPEData"), nullptr);
+
+	copy.addChild(JSONConversionHelpers::jsonToValueTree(var(obj), "Modules"), -1, nullptr);
+	copy.addChild(JSONConversionHelpers::jsonToValueTree(var(obj), "MidiAutomation"), -1, nullptr);
+	copy.addChild(JSONConversionHelpers::jsonToValueTree(var(obj), "MPEData"), -1, nullptr);
 	return copy;
 }
 

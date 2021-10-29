@@ -128,6 +128,9 @@ public:
 		
 	}
 
+	static String dataVarToBase64(const var& data);
+	static var base64ToDataVar(const String& b64);
+
 	bool fromBase64String(const String& b64) override
 	{
 		fromBase64(b64);

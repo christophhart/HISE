@@ -52,6 +52,83 @@ void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoint
 	internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
 };
 
+String Table::exportData() const
+{
+	if (graphPoints.size() == 2)
+	{
+		auto first = graphPoints.getFirst();
+		auto second = graphPoints.getLast();
+
+		if (first.x == 0.0f && first.y == 0.0f)
+		{
+			if (second.x == 1.0f && second.y == 1.0f && second.curve == 0.5f)
+				return "";
+		}
+	}
+
+	Array<GraphPoint> copy = Array<GraphPoint>(graphPoints);
+
+	MemoryBlock b(copy.getRawDataPointer(), sizeof(Table::GraphPoint) * copy.size());
+
+	return b.toBase64Encoding();
+}
+
+String Table::dataVarToBase64(const var& data)
+{
+	Array<GraphPoint> gpd;
+
+	if (auto d = data.getArray())
+	{
+		for (const auto& vgp : *d)
+		{
+			if (auto a = vgp.getArray())
+			{
+				gpd.add({ (float)(*a)[0], (float)(*a)[1], (float)(*a)[2] });
+			}
+		}
+	}
+
+	MemoryBlock b(gpd.getRawDataPointer(), sizeof(Table::GraphPoint) * gpd.size());
+	return b.toBase64Encoding();
+}
+
+var Table::base64ToDataVar(const String& b64)
+{
+	MemoryBlock b;
+
+	b.fromBase64Encoding(b64);
+
+	if (b.getSize() == 0)
+		return var();
+
+	Array<GraphPoint> gpd;
+	gpd.insertArray(0, static_cast<const Table::GraphPoint*>(b.getData()), (int)(b.getSize() / sizeof(Table::GraphPoint)));
+
+	Array<var> data;
+
+	for (auto& gp : gpd)
+	{
+		Array<var> vgp;
+		vgp.add(gp.x);
+		vgp.add(gp.y);
+		vgp.add(gp.curve);
+		data.add(var(vgp));
+	}
+
+	return data;
+}
+
+bool Table::fromBase64String(const String& b64)
+{
+	restoreData(b64);
+	return true;
+}
+
+String Table::toBase64String() const
+{
+	return exportData();
+}
+
 void Table::createPath(Path &normalizedPath, bool fillPath, bool addStartEnd) const
 {
 	normalizedPath.clear();

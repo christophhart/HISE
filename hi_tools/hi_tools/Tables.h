@@ -148,37 +148,14 @@ public:
 	*
 	*	@see restoreData()
 	*/
-	virtual String exportData() const
-	{
-		if (graphPoints.size() == 2)
-		{
-			auto first = graphPoints.getFirst();
-			auto second = graphPoints.getLast();
+	virtual String exportData() const;;
 
-			if (first.x == 0.0f && first.y == 0.0f)
-			{
-				if (second.x == 1.0f && second.y == 1.0f && second.curve == 0.5f)
-					return "";
-			}
-		}
+	static String dataVarToBase64(const var& data);
+	static var base64ToDataVar(const String& b64);
 
-		Array<GraphPoint> copy = Array<GraphPoint>(graphPoints);
+	bool fromBase64String(const String& b64) override;
 
-		MemoryBlock b(copy.getRawDataPointer(), sizeof(Table::GraphPoint) * copy.size());
-
-		return b.toBase64Encoding();
-	};
-
-	bool fromBase64String(const String& b64) override
-	{
-		restoreData(b64);
-		return true;
-	}
-
-	String toBase64String() const override
-	{
-		return exportData();
-	}
+	String toBase64String() const override;
 
 	
 

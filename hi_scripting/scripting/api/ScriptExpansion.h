@@ -73,16 +73,16 @@ public:
 	void setPostCallback(var presetPostCallback);
 
 	/** Enables a preprocessing of every user preset that is being loaded. */
-	void setEnableUserPresetPreprocessing(bool processBeforeLoading);
+	void setEnableUserPresetPreprocessing(bool processBeforeLoading, bool shouldUnpackComplexData);
 
 	/** Checks if the given version string is a older version than the current project version number. */
 	bool isOldVersion(const String& version);
 
 	// ===============================================================================================
 
-	static var convertToJson(const ValueTree& d);
+	var convertToJson(const ValueTree& d);
 
-	static ValueTree applyJSON(const ValueTree& original, DynamicObject::Ptr obj);
+	ValueTree applyJSON(const ValueTree& original, DynamicObject::Ptr obj);
 
 	ValueTree prePresetLoad(const ValueTree& dataToLoad, const File& fileToLoad) override;
 
@@ -96,6 +96,7 @@ public:
 private:
 
 	bool enablePreprocessing = false;
+	bool unpackComplexData = false;
 	WeakCallbackHolder preCallback;
 	WeakCallbackHolder postCallback;
 	File currentlyLoadedFile;
