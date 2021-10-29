@@ -230,24 +230,43 @@ void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound *
 {
     if(sound == nullptr) return;
     
+	double normPos = 0.0;
+
 	if (sound->isLoopEnabled() && sound->getLoopLength() != 0)
 	{
 		int samplePosition = (int)voiceUptime;
 
-		if (samplePosition + sound->getSampleStart() > sound->getLoopEnd())
+		if (sound->isReversed())
 		{
-			auto offset = sound->getLoopStart() + sound->getLoopEnd();
+			if (samplePosition > sound->getSampleEnd() - sound->getLoopStart())
+			{
+				auto offset = sound->getSampleEnd() - sound->getLoopEnd();
+				samplePosition = hmath::wrap(samplePosition - offset, sound->getLoopLength()) + offset;
+			}
+		}
+		else
+		{
+			if (samplePosition + sound->getSampleStart() > sound->getLoopEnd())
+			{
+				auto offset = sound->getLoopStart() + sound->getLoopEnd();
 
-			samplePosition = hmath::wrap(samplePosition - sound->getLoopStart(), sound->getLoopLength()) + sound->getLoopStart() - sound->getSampleStart();
+					samplePosition = hmath::wrap(samplePosition - sound->getLoopStart(), sound->getLoopLength()) + sound->getLoopStart() - sound->getSampleStart();
+			}
 		}
 
-		sampler->setCurrentPlayingPosition((double)samplePosition / (double)sound->getSampleLength());
+		normPos = (double)samplePosition / (double)sound->getSampleLength();
 	}
 	else
 	{
-		const double normalizedPosition = voiceUptime / (double)sound->getSampleLength();
-		sampler->setCurrentPlayingPosition(normalizedPosition);
+		normPos = voiceUptime / (double)sound->getSampleLength();
+	
 	}
+
+	if (sound->isReversed())
+		normPos = 1.0 - normPos;
+	
+
+	sampler->setCurrentPlayingPosition(normPos);
 }
 
 double ModulatorSamplerVoice::limitPitchDataToMaxSamplerPitch(float * pitchData, double uptimeDelta, int startSample, int numSamples)

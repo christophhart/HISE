@@ -108,8 +108,12 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 
 	lastSwapPosition = 0.0;
 
+	startTime += s->getReverseBufferOffset();
+
 	readIndex = startTime;
 	readIndexDouble = (double)startTime;
+
+	
 
 	isReadingFromPreloadBuffer = true;
 
@@ -318,8 +322,13 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 bool SampleLoader::advanceReadIndex(double uptime)
 {
-	const int numSamplesInBuffer = readBuffer.get()->getNumSamples();
+	int numSamplesInBuffer = readBuffer.get()->getNumSamples();
 	readIndexDouble = uptime - lastSwapPosition;
+
+	if (sound.get()->isLoopEnabled() && sound.get()->isReversed())
+	{
+		numSamplesInBuffer = sound.get()->getSampleEnd() - sound.get()->getLoopStart();
+	}
 
 	if (readIndexDouble >= numSamplesInBuffer)
 	{

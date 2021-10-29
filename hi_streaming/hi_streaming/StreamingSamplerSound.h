@@ -123,6 +123,9 @@ public:
 	/** Returns the length of the sample. */
 	int getSampleLength() const noexcept { return sampleLength; };
 
+	/** This will return a positive value if the sample end != the actual sample end. */
+	int getReverseBufferOffset() const;
+
 	/** Sets the sample start modulation. The preload buffer will be enhanced by this amount in order to ensure immediate playback. */
 	void setSampleStartModulation(int maxSampleStartDelta);
 
@@ -168,6 +171,9 @@ public:
 	/** Loads the entire sample into the preload buffer and reverses it. */
 	void setReversed(bool shouldBeReversed);
 
+	/** Checks if the sound is reversed. */
+	bool isReversed() const { return reversed; }
+
 	/** Sets the basic MIDI mapping data (key-range, velocity-range and root note) from the given data object. */
 	void setBasicMappingData(const StreamingHelpers::BasicMappingData& data);
 
@@ -180,7 +186,7 @@ public:
 	*	If the preload size is not changed, it will do nothing, but you can force it to reload it with 'forceReload'.
 	*	You can also tell the sound to load everything into memory by calling loadEntireSample().
 	*/
-	void setPreloadSize(int newPreloadSizeInSamples, bool forceReload = false);
+	void setPreloadSize(int newPreloadSizeInSamples, bool forceReload = false, bool applyLoop=true);
 
 	/** Returns the size of the preload buffer in bytes. You can use this method to check how much memory the sound uses. It also includes the memory used for the crossfade buffer. */
 	size_t getActualPreloadSize() const;
@@ -496,6 +502,8 @@ private:
 	int sampleEnd;
 	int sampleLength;
 	int sampleStartMod;
+
+	int reverseOffset = 0;
 
 	bool loopEnabled;
 	int loopStart;
