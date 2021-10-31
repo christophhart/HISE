@@ -280,7 +280,6 @@ template <typename DataType, CloneProcessType ProcessType>
 
 	template <int P> static void setParameterStatic(void* obj, double v)
 	{
-		auto value = (int)v;
 		auto typed = static_cast<clone_base*>(obj);
 
 		if constexpr (P == 0)

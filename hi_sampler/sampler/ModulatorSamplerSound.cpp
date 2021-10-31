@@ -1502,8 +1502,6 @@ void SamplePreviewer::previewSampleFromDisk(ModulatorSamplerSound::Ptr soundToPl
 
 	currentlyPlayedSound = soundToPlay;
 
-	auto mc = getMainController();
-
 	micIndex = jlimit<int>(0, soundToPlay->getNumMultiMicSamples() - 1, micIndex);
 
 	auto offset = previewOffset;
@@ -1724,22 +1722,6 @@ void ModulatorSamplerSound::EnvelopeTable::processThumbnail(EnvelopeTable& t, va
 	AudioSampleBuffer b(data, data[1] != nullptr ? 2 : 1, left.getBuffer()->size);
 
 	t.processBuffer(b, 0, 0);
-}
-
-namespace FilterEnvelopeProcessor
-{
-	using clone_child = container::chain<parameter::plain<filters::one_pole, 0>, wrap::fix<2, filters::one_pole>>;
-
-	using clone_parent = wrap::clonechain<clone_child, 16>;
-
-	struct myProcessor : public clone_parent
-	{
-		myProcessor()
-		{
-			auto p = this->get<0>();
-			
-		}
-	};
 }
 
 void ModulatorSamplerSound::EnvelopeTable::processBuffer(AudioSampleBuffer& b, int srcOffset, int dstOffset)

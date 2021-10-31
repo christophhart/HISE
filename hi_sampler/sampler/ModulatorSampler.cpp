@@ -1385,6 +1385,8 @@ int ModulatorSampler::getMidiInputLockValue(const Identifier& id) const
 		return lockRRGroup;
 	if (id == SampleIds::LoVel || id == SampleIds::HiVel)
 		return lockVelocity;
+    
+    return 0;
 }
 
 void ModulatorSampler::toggleMidiInputLock(const Identifier& id, int lockValue)

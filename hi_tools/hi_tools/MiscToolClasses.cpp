@@ -1012,8 +1012,6 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 
     auto s2dHalf = parameters->Spectrum2DSize / 2;
     
-    int LookupTableSize = JUCE_LIVE_CONSTANT_OFF(512);
-    
     if (maxLevel == 0.0f)
         return newImage;
 

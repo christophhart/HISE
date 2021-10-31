@@ -183,8 +183,6 @@ void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& t
                     
                     if(partIndex != parts.size()-1)
                     {
-                        auto x2 = xOffset;
-                        
                         glyphs.add(PositionedGlyph (font, ' ', 0,
                                                     xOffset, yOffset, widthToAdd, true));
                         

@@ -239,7 +239,6 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
                 UnblurryGraphics ug(g, *this);
 
                 auto sf = ug.getTotalScaleFactor();
-                auto st = AffineTransform::scale(jmin<double>(2.0, sf));
                 auto st2 = AffineTransform::scale(sf);
                 
 				auto gb = getLocalArea(getTopLevelComponent(), getLocalBounds()).transformed(st2);
@@ -262,8 +261,6 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
 					glEnable(GL_BLEND);
 					glBlendFunc((int)obj->src, (int)obj->dst);
 				}
-
-				auto time = Time::getMillisecondCounterHiRes();
 
 				obj->shader->fillRect(g.getInternalContext(), localBounds);
 

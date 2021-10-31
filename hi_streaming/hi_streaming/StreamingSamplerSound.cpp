@@ -100,7 +100,7 @@ void StreamingSamplerSound::setReversed(bool shouldBeReversed)
 		{
 			reversed = true;
 			loopChanged();
-			reverseOffset = fileReader.getSampleLength() - preloadBuffer.getNumSamples();
+			reverseOffset = (int)fileReader.getSampleLength() - preloadBuffer.getNumSamples();
 		}
 		else
 		{

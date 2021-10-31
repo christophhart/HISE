@@ -367,8 +367,6 @@ struct InterpretedCableNode : public ModulationSourceNode,
 
 		constexpr bool isBaseOfDynamicDupliHolder = std::is_base_of<control::pimpl::parameter_node_base<parameter::clone_holder>, typename T::WrappedObjectType>();
 
-		constexpr bool isSpread = std::is_same<T, duplilogic::dynamic::NodeType>();
-
 		static_assert(std::is_base_of<control::pimpl::no_processing, typename T::WrappedObjectType>(), "not a base of no_processing");
 
 		auto mn = new InterpretedCableNode(n, d);

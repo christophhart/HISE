@@ -248,9 +248,7 @@ void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound *
 		{
 			if (samplePosition + sound->getSampleStart() > sound->getLoopEnd())
 			{
-				auto offset = sound->getLoopStart() + sound->getLoopEnd();
-
-					samplePosition = hmath::wrap(samplePosition - sound->getLoopStart(), sound->getLoopLength()) + sound->getLoopStart() - sound->getSampleStart();
+                samplePosition = hmath::wrap(samplePosition - sound->getLoopStart(), sound->getLoopLength()) + sound->getLoopStart() - sound->getSampleStart();
 			}
 		}
 

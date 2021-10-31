@@ -184,12 +184,8 @@ int MarkdownParser::getLineNumberForY(float y) const
 {
 	float thisY = 0.0f;
 
-	float lastSize = 0.0f;
-
 	for (auto e : elements)
 	{
-		auto lastY = thisY;
-
 		auto thisHeight = e->getTopMargin();
 		thisHeight += e->getLastHeight();
 

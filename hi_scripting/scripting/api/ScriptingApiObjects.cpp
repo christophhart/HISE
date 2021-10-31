@@ -978,7 +978,7 @@ ScriptingObjects::ScriptComplexDataReferenceBase::ScriptComplexDataReferenceBase
 {
 	if (holder != nullptr)
 	{
-		if(complexObject = holder->getComplexBaseType(getDataType(), index))
+		if((complexObject = holder->getComplexBaseType(getDataType(), index)))
 			complexObject->getUpdater().addEventListener(this);
 	}
 }
@@ -3787,11 +3787,12 @@ hise::DebugInformationBase* ScriptingObjects::TimerObject::getChildElement(int i
 		return new LambdaValueInformation(vf, id, {}, (DebugInformation::Type)getTypeNumber(), getLocation());
 	}
 
-	if (index = 1)
+	if (index == 1)
 	{
 		return tc.createDebugObject("timerCallback");
 	}
 	
+    return nullptr;
 }
 
 void ScriptingObjects::TimerObject::startTimer(int intervalInMilliSeconds)

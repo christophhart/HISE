@@ -1079,7 +1079,7 @@ int HiseAudioThumbnail::getNextZero(int value) const
 			{
 				deltaUp = i;
 
-				if (std::abs(b.getSample(0, i - 1) < std::abs(b.getSample(0, i))))
+				if (std::abs(b.getSample(0, i - 1)) < std::abs(b.getSample(0, i)))
 					deltaUp = i - 1;
 
 				break;
@@ -1099,7 +1099,7 @@ int HiseAudioThumbnail::getNextZero(int value) const
 			{
 				deltaDown = i;
 
-				if (std::abs(b.getSample(0, i + 1) < std::abs(b.getSample(0, i))))
+				if (std::abs(b.getSample(0, i + 1)) < std::abs(b.getSample(0, i)))
 					deltaDown = i + 1;
 
 				break;

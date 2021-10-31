@@ -271,7 +271,7 @@ public:
 
 		auto p = dynamic_cast<Processor*>(b->getScriptProcessor());
 
-		if (parentSynth = dynamic_cast<ModulatorSynth*>(p))
+		if ((parentSynth = dynamic_cast<ModulatorSynth*>(p)))
 			return;
 
 		parentSynth = dynamic_cast<ModulatorSynth*>(p->getParentProcessor(true));

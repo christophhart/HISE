@@ -535,7 +535,7 @@ public:
 		{
 			parameterTree.addListener(this);
 
-			if (leftTabComponent = dynamic_cast<NodeContainer*>(parent.node.get())->createLeftTabComponent())
+			if ((leftTabComponent = dynamic_cast<NodeContainer*>(parent.node.get())->createLeftTabComponent()))
 				addAndMakeVisible(leftTabComponent);
 
 			rebuildParameters();

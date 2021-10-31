@@ -461,8 +461,6 @@ struct DuplicateComponent : public Component,
 		
 		r << "[" << parent->getValueTree()[PropertyIds::DisplayedClones].toString() << "]";
 
-		auto j = Justification::centred;
-
 		if (r.isNotEmpty())
 		{
 			g.setColour(Colours::white.withAlpha(alpha));

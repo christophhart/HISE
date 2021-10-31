@@ -234,7 +234,7 @@ int GlyphArrangementArray::getLineLength(const String& s, int maxCharacterIndex)
 	int l = 0;
 	int characterIndex = 0;
 
-	for (const auto& c : s)
+	for (auto c : s)
 	{
 		if (maxCharacterIndex != -1 && characterIndex++ >= maxCharacterIndex)
 			return l;

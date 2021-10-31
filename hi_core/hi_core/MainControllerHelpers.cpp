@@ -151,7 +151,7 @@ void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *i
 		{
 			for (int j = 0; j < automationData[i].size(); j++)
 			{
-				auto& a = automationData[i][j];
+				auto a = automationData[i][j];
 
 				if (a.processor == interfaceProcessor && a.attribute == attributeIndex)
 				{

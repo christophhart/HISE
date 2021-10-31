@@ -62,6 +62,8 @@ public:
 			return preCallback.createDebugObject("preCallback");
 		if (index == 1)
 			return postCallback.createDebugObject("postCallback");
+        
+        return nullptr;
 	}
 
 	// =================================================================================== API Methods

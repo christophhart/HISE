@@ -563,7 +563,6 @@ Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
 	data(data_),
 	dynamicParameter()
 {
-	auto initialValue = (double)data[PropertyIds::Value];
 	auto weakThis = WeakReference<Parameter>(this);
 
 	ADD_API_METHOD_0(getValue);

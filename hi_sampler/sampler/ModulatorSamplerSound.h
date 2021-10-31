@@ -147,7 +147,7 @@ DECLARE_ID(LowPassTable);
 
 struct Helpers
 {
-	static const Identifier& getEnvelopeId(Modulation::Mode m)
+	static Identifier getEnvelopeId(Modulation::Mode m)
 	{
 		switch (m)
 		{
@@ -166,6 +166,8 @@ struct Helpers
 			return Modulation::Mode::PitchMode;
 		if (id == LowPassTable)
 			return Modulation::Mode::PanMode;
+        
+        return Modulation::Mode::numModes;
 	}
 
 	static const Array<Identifier>& getMapIds()

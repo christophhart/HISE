@@ -111,10 +111,11 @@ namespace duplilogic
 		{
 			switch (currentMode)
 			{
-			case DupliMode::Random: return random().getMidiValue(e, v);
-			case DupliMode::Fixed: return fixed().getMidiValue(e, v);
-			case DupliMode::Harmonics: return harmonics().getMidiValue(e, v);
-			case DupliMode::Nyquist: return nyquist().getMidiValue(e, v);
+			case DupliMode::Random:     return random().getMidiValue(e, v);
+			case DupliMode::Fixed:      return fixed().getMidiValue(e, v);
+			case DupliMode::Harmonics:  return harmonics().getMidiValue(e, v);
+			case DupliMode::Nyquist:    return nyquist().getMidiValue(e, v);
+            default:                    return false;
 			}
 
 			return false;

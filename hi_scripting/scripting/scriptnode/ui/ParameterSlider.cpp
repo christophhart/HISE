@@ -734,7 +734,6 @@ struct ParameterSlider::RangeComponent : public Component,
 
 				if (sourceParameterTree.isValid() && sourceParameterTree.getType() == PropertyIds::Parameter)
 				{
-					auto inv = RangeHelpers::isInverted(connectionSource);
 					RangeHelpers::storeDoubleRange(sourceParameterTree, cr, getParent().node->getUndoManager());
 				}
 			}

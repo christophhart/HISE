@@ -228,7 +228,10 @@ struct SendEffect : public MasterEffectProcessor
 		case Parameters::ChannelOffset: return (float)channelOffset;
         case Parameters::SendIndex: return sendIndex;
 		}
+        
+        return 0.0f;
 	};
+    
 	void setInternalAttribute(int index, float newValue) override 
 	{
 		switch (index)

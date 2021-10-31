@@ -5530,7 +5530,6 @@ void ScriptComponentPropertyTypeSelector::addToTypeSelector(SelectorTypes type, 
 	case ScriptComponentPropertyTypeSelector::SliderSelector:
 	{
 		sliderProperties.addIfNotAlreadyThere(id);
-		int index = sliderProperties.indexOf(id);
 		SliderRange range;
 
 		range.min = min;
