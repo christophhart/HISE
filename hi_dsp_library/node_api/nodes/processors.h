@@ -532,6 +532,13 @@ struct oversample_base
 	{
 		ScopedPointer<Oversampler> newOverSampler;
 
+        if(ps.voiceIndex != nullptr)
+        {
+            scriptnode::Error e;
+            e.error = Error::IllegalPolyphony;
+            throw e;
+        }
+        
 		auto originalBlockSize = ps.blockSize;
 
 		ps.sampleRate *= (double)oversamplingFactor;
@@ -1099,7 +1106,7 @@ private:
 };
 
 
-template <typename T> struct illegal_poly
+template <typename T> struct illegal_poly: public scriptnode::data::base
 {
 	SN_GET_SELF_AS_OBJECT(illegal_poly);
 
@@ -1114,6 +1121,12 @@ template <typename T> struct illegal_poly
 		throw e;
 	}
 
+    void setExternalData(const ExternalData& d, int index) override
+    {
+        if constexpr (prototypes::check::setExternalData<T>::value)
+            obj.setExternalData(d, index);
+    }
+    
 	SN_DESCRIPTION("(not available in a poly network)");
 
 	HISE_EMPTY_PROCESS;

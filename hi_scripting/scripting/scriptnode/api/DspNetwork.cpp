@@ -676,8 +676,15 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 
 		if (newNode != nullptr)
 		{
-			if(originalSampleRate > 0.0)
-				newNode->prepare(currentSpecs);
+            try
+            {
+			    if(originalSampleRate > 0.0)
+				    newNode->prepare(currentSpecs);
+            }
+            catch(Error& e)
+            {
+                getExceptionHandler().addError(newNode, e);
+            }
 
 			if (currentNodeHolder == nullptr)
 			{
