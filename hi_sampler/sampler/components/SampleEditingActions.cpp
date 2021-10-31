@@ -1451,16 +1451,11 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 		Window(SampleEditHandler* handler_):
 			handler(handler_)
 		{
-			handler->allSelectionBroadcaster.addListener(*this, soundSelectionChanged);
-
+            firstPreview = new SamplerSoundWaveform(handler_->getSampler());
+            
 			addAndMakeVisible(viewport = new Viewport());
-
-			firstPreview = new SamplerSoundWaveform(handler_->getSampler());
-
-			viewport->setViewedComponent(firstPreview, false);
-
+            viewport->setViewedComponent(firstPreview, false);
 			viewport->setScrollBarsShown(false, false, false, false);
-
 
 			addAndMakeVisible(properties = new PropertyPanel());
 
@@ -1493,6 +1488,8 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 
 			setSize(800, 600);
 
+            handler->allSelectionBroadcaster.addListener(*this, soundSelectionChanged);
+            
 			updatePreview();
 			updatePropertyList();
 		}
@@ -1742,6 +1739,9 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 			if (currentlyDisplayedSound == nullptr)
 				return;
 
+            if(firstPreview == nullptr)
+                return;
+            
 			firstPreview->setSoundToDisplay(currentlyDisplayedSound, multimicIndex.getValue());
 			firstPreview->getSampleArea(SamplerSoundWaveform::PlayArea)->setAreaEnabled(false);
 			firstPreview->getSampleArea(SamplerSoundWaveform::LoopArea)->setAreaEnabled(false);
