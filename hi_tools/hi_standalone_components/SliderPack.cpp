@@ -197,7 +197,7 @@ void SliderPackData::swapData(const var &otherData)
 		{
 			auto v = (float)otherData[i];;
 			FloatSanitizers::sanitizeFloatNumber(v);
-			newBuffer[i] = v;
+			(*newBuffer)[i] = (float)v;
 		}
 
 		swapBuffer(newBuffer);

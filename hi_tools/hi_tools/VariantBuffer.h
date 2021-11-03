@@ -127,20 +127,20 @@ public:
 	void addSum(const VariantBuffer &a, const VariantBuffer &b);
 	void addMul(const VariantBuffer &a, const VariantBuffer &b);
 
-	VariantBuffer operator *(const VariantBuffer &b);
+	VariantBuffer& operator *(const VariantBuffer &b);
 	VariantBuffer& operator *=(const VariantBuffer &b);
-	VariantBuffer operator *(float gain);
+	VariantBuffer& operator *(float gain);
 	VariantBuffer& operator *=(float gain);
-	VariantBuffer operator +(const VariantBuffer &b);
+	VariantBuffer& operator +(const VariantBuffer &b);
 	VariantBuffer& operator +=(const VariantBuffer &b);
-	VariantBuffer operator +(float gain);
+	VariantBuffer& operator +(float gain);
 	VariantBuffer& operator +=(float gain);
 
-	VariantBuffer & operator -(float value);
-	VariantBuffer & operator -=(float value);
+	VariantBuffer& operator -(float value);
+	VariantBuffer& operator -=(float value);
 
-	VariantBuffer & operator -(const VariantBuffer &b);
-	VariantBuffer & operator -=(const VariantBuffer &b);
+	VariantBuffer& operator -(const VariantBuffer &b);
+	VariantBuffer& operator -=(const VariantBuffer &b);
 
 	VariantBuffer& operator <<(const VariantBuffer &b);
 	VariantBuffer& operator << (float f);
@@ -186,6 +186,8 @@ public:
 	private:
 
 	void addMethods();
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(VariantBuffer);
 };
 
 void operator >> (float f, VariantBuffer &b);

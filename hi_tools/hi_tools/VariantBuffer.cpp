@@ -208,7 +208,7 @@ VariantBuffer& VariantBuffer::operator+=(float gain)
 	return *this;
 }
 
-VariantBuffer VariantBuffer::operator+(float gain)
+VariantBuffer& VariantBuffer::operator+(float gain)
 {
 	FloatVectorOperations::add(buffer.getWritePointer(0), FloatSanitizers::sanitizeFloatNumber(gain), buffer.getNumSamples());
 
@@ -224,7 +224,7 @@ VariantBuffer& VariantBuffer::operator+=(const VariantBuffer &b)
 	return *this;
 }
 
-VariantBuffer VariantBuffer::operator+(const VariantBuffer &b)
+VariantBuffer& VariantBuffer::operator+(const VariantBuffer &b)
 {
 	CHECK_CONDITION((b.size >= size), "second buffer too small: " + String(size));
 
@@ -276,7 +276,7 @@ VariantBuffer& VariantBuffer::operator*=(float gain)
 	return *this;
 }
 
-VariantBuffer VariantBuffer::operator*(float gain)
+VariantBuffer& VariantBuffer::operator*(float gain)
 {
 	buffer.applyGain(FloatSanitizers::sanitizeFloatNumber(gain));
 
@@ -292,7 +292,7 @@ VariantBuffer& VariantBuffer::operator*=(const VariantBuffer &b)
 	return *this;
 }
 
-VariantBuffer VariantBuffer::operator*(const VariantBuffer &b)
+VariantBuffer& VariantBuffer::operator*(const VariantBuffer &b)
 {
 	CHECK_CONDITION((b.size >= size), "second buffer too small: " + String(b.size));
 
