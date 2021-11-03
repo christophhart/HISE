@@ -1302,6 +1302,9 @@ struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWith
 			
 			replaceArgs("presetPreCallback", "presetData");
 			replaceArgs("presetPostCallback", "presetFile");
+			replaceArgs("newProcessFunction", "fftData, startIndex");
+			replaceArgs("backgroundTaskFunction", "thread");
+			replaceArgs("newFinishCallback", "isFinished, wasCancelled");
 
 			replaceFCallback("setOnBeatChange", "beatIndex, isNewBar");
 			replaceFCallback("setOnSignatureChange", "nom, denom");

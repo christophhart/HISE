@@ -6092,7 +6092,7 @@ ScriptingObjects::ScriptBackgroundTask::TaskViewer::TaskViewer(ScriptBackgroundT
 	cancelButton.onClick = [this]()
 	{
 		if(auto obj = getObject<ScriptBackgroundTask>())
-			obj->abort();
+			obj->signalThreadShouldExit();
 	};
 
 	cancelButton.setLookAndFeel(&laf);
@@ -6143,6 +6143,61 @@ void ScriptingObjects::ScriptBackgroundTask::TaskViewer::paint(Graphics& g)
 	}
 }
 
+struct ScriptingObjects::ScriptBackgroundTask::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, sendAbortSignal);
+	API_METHOD_WRAPPER_0(ScriptBackgroundTask, shouldAbort);
+	API_VOID_METHOD_WRAPPER_2(ScriptBackgroundTask, setProperty);
+	API_METHOD_WRAPPER_1(ScriptBackgroundTask, getProperty);
+	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setFinishCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, callOnBackgroundThread);
+	API_METHOD_WRAPPER_0(ScriptBackgroundTask, getProgress);
+	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setProgress);
+	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setTimeOut);
+	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setStatusMessage);
+	API_METHOD_WRAPPER_0(ScriptBackgroundTask, getStatusMessage);
+	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setForwardStatusToLoadingThread);
+};
+
+ScriptingObjects::ScriptBackgroundTask::ScriptBackgroundTask(ProcessorWithScriptingContent* p, const String& name) :
+	ConstScriptingObject(p, 0),
+	Thread(name),
+	currentTask(p, var(), 1),
+	finishCallback(p, var(), 2)
+{
+	ADD_API_METHOD_1(sendAbortSignal);
+	ADD_API_METHOD_0(shouldAbort);
+	ADD_API_METHOD_2(setProperty);
+	ADD_API_METHOD_1(getProperty);
+	ADD_API_METHOD_1(setFinishCallback);
+	ADD_API_METHOD_1(callOnBackgroundThread);
+	ADD_API_METHOD_0(getProgress);
+	ADD_API_METHOD_1(setProgress);
+	ADD_API_METHOD_1(setTimeOut);
+	ADD_API_METHOD_1(setStatusMessage);
+	ADD_API_METHOD_0(getStatusMessage);
+	ADD_API_METHOD_1(setForwardStatusToLoadingThread);
+}
+
+void ScriptingObjects::ScriptBackgroundTask::sendAbortSignal(bool blockUntilStopped)
+{
+	if (isThreadRunning())
+	{
+		if (blockUntilStopped)
+		{
+			if (auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine())
+			{
+				// extend the timeout while we're waiting for the thread to stop
+				engine->extendTimeout(timeOut + 10);
+			}
+
+			stopThread(timeOut);
+		}
+		else
+			signalThreadShouldExit();
+	}
+}
+
 bool ScriptingObjects::ScriptBackgroundTask::shouldAbort()
 {
 	if (auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine())
@@ -6155,6 +6210,42 @@ bool ScriptingObjects::ScriptBackgroundTask::shouldAbort()
 	}
 
 	return threadShouldExit();
+}
+
+void ScriptingObjects::ScriptBackgroundTask::setProperty(String id, var value)
+{
+	auto i = Identifier(id);
+	SimpleReadWriteLock::ScopedWriteLock sl(lock);
+	synchronisedData.set(i, value);
+}
+
+var ScriptingObjects::ScriptBackgroundTask::getProperty(String id)
+{
+	auto i = Identifier(id);
+	SimpleReadWriteLock::ScopedReadLock sl(lock);
+	return synchronisedData.getWithDefault(i, var());
+}
+
+void ScriptingObjects::ScriptBackgroundTask::setFinishCallback(var newFinishCallback)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(newFinishCallback))
+	{
+		finishCallback = WeakCallbackHolder(getScriptProcessor(), newFinishCallback, 2);
+		finishCallback.setThisObject(this);
+		finishCallback.incRefCount();
+	}
+}
+
+void ScriptingObjects::ScriptBackgroundTask::callOnBackgroundThread(var backgroundTaskFunction)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(backgroundTaskFunction))
+	{
+		callFinishCallback(false, false);
+		stopThread(timeOut);
+		currentTask = WeakCallbackHolder(getScriptProcessor(), backgroundTaskFunction, 1);
+		currentTask.incRefCount();
+		startThread(6);
+	}
 }
 
 void ScriptingObjects::ScriptBackgroundTask::setProgress(double p)

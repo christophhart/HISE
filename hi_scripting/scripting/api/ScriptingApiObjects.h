@@ -280,41 +280,10 @@ namespace ScriptingObjects
 	struct ScriptBackgroundTask : public ConstScriptingObject,
 								  public Thread
 	{
-		struct Wrapper
-		{
-			API_VOID_METHOD_WRAPPER_0(ScriptBackgroundTask, abort);
-			API_METHOD_WRAPPER_0(ScriptBackgroundTask, shouldAbort);
-			API_VOID_METHOD_WRAPPER_2(ScriptBackgroundTask, setProperty);
-			API_METHOD_WRAPPER_1(ScriptBackgroundTask, getProperty);
-			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setFinishCallback);
-			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, callOnBackgroundThread);
-			API_METHOD_WRAPPER_0(ScriptBackgroundTask, getProgress);
-			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setProgress);
-			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setTimeOut);
-			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setStatusMessage);
-			API_METHOD_WRAPPER_0(ScriptBackgroundTask, getStatusMessage);
-			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setForwardStatusToLoadingThread);
-		};
+		struct Wrapper;
+		
 
-		ScriptBackgroundTask(ProcessorWithScriptingContent* p, const String& name):
-			ConstScriptingObject(p, 0),
-			Thread(name),
-			currentTask(p, var(), 1),
-			finishCallback(p, var(), 2)
-		{
-			ADD_API_METHOD_0(abort);
-			ADD_API_METHOD_0(shouldAbort);
-			ADD_API_METHOD_2(setProperty);
-			ADD_API_METHOD_1(getProperty);
-			ADD_API_METHOD_1(setFinishCallback);
-			ADD_API_METHOD_1(callOnBackgroundThread);
-			ADD_API_METHOD_0(getProgress);
-			ADD_API_METHOD_1(setProgress);
-			ADD_API_METHOD_1(setTimeOut);
-			ADD_API_METHOD_1(setStatusMessage);
-			ADD_API_METHOD_0(getStatusMessage);
-			ADD_API_METHOD_1(setForwardStatusToLoadingThread);
-		}
+		ScriptBackgroundTask(ProcessorWithScriptingContent* p, const String& name);
 
 		~ScriptBackgroundTask()
 		{
@@ -353,54 +322,22 @@ namespace ScriptingObjects
 		// ==================================================================================== Start of API Methods
 
 		/** Signal that this thread should exit. */
-		void abort()
-		{
-			Thread::signalThreadShouldExit();
-		}
+		void sendAbortSignal(bool blockUntilStopped);
 
 		/** Checks whether the task should be aborted (either because of recompilation or when you called abort(). */
 		bool shouldAbort();
 
 		/** Set a property to a thread safe container. */
-		void setProperty(String id, var value)
-		{
-			auto i = Identifier(id);
-			SimpleReadWriteLock::ScopedWriteLock sl(lock);
-			synchronisedData.set(i, value);
-
-		}
+		void setProperty(String id, var value);
 
 		/** Retrieve a property through a thread safe container. */
-		var getProperty(String id)
-		{
-			auto i = Identifier(id);
-			SimpleReadWriteLock::ScopedReadLock sl(lock);
-			return synchronisedData.getWithDefault(i, var());
-		}
+		var getProperty(String id);
 
 		/** Set a function that will be called when the task has started / stopped. */
-		void setFinishCallback(var newFinishCallback)
-		{
-			if (HiseJavascriptEngine::isJavascriptFunction(newFinishCallback))
-			{
-				finishCallback = WeakCallbackHolder(getScriptProcessor(), newFinishCallback, 2);
-				finishCallback.setThisObject(this);
-				finishCallback.incRefCount();
-			}
-		}
+		void setFinishCallback(var newFinishCallback);
 
 		/** Call a function on the background thread. */
-		void callOnBackgroundThread(var f)
-		{
-			if (HiseJavascriptEngine::isJavascriptFunction(f))
-			{
-				callFinishCallback(false, false);
-				stopThread(timeOut);
-				currentTask = WeakCallbackHolder(getScriptProcessor(), f, 1);
-				currentTask.incRefCount();
-				startThread(6);
-			}
-		}
+		void callOnBackgroundThread(var backgroundTaskFunction);
 
 		/** Set a progress for this task. */
 		void setProgress(double p);
