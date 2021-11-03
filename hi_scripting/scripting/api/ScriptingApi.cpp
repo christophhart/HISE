@@ -2460,6 +2460,8 @@ struct ScriptingApi::Sampler::Wrapper
     API_METHOD_WRAPPER_1(Sampler, loadSampleForAnalysis);
 	API_METHOD_WRAPPER_1(Sampler, loadSfzFile);
 	API_VOID_METHOD_WRAPPER_1(Sampler, loadSampleMapFromJSON);
+	API_VOID_METHOD_WRAPPER_1(Sampler, loadSampleMapFromBase64);
+	API_METHOD_WRAPPER_0(Sampler, getSampleMapAsBase64);
 	API_METHOD_WRAPPER_1(Sampler, createSelection);
 	API_METHOD_WRAPPER_1(Sampler, createSelectionFromIndexes);
 	API_METHOD_WRAPPER_1(Sampler, createSelectionWithFilter);
@@ -2517,6 +2519,8 @@ sampler(sampler_)
 	ADD_API_METHOD_0(clearSampleMap);
 	ADD_API_METHOD_2(setGUISelection);
 	ADD_API_METHOD_1(loadSampleMapFromJSON);
+	ADD_API_METHOD_1(loadSampleMapFromBase64);
+	ADD_API_METHOD_0(getSampleMapAsBase64);
 
 	sampleIds.add(SampleIds::ID);
 	sampleIds.add(SampleIds::FileName);
@@ -3248,6 +3252,41 @@ void ScriptingApi::Sampler::loadSampleMapFromJSON(var jsonSampleList)
 			return SafeFunctionCall::OK;
 		}, true);
 	}
+}
+
+void ScriptingApi::Sampler::loadSampleMapFromBase64(const String& b64)
+{
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+		reportScriptError("Invalid sampler call");
+
+	s->killAllVoicesAndCall([b64](Processor* p)
+	{
+		juce::MemoryBlock mb;
+		mb.fromBase64Encoding(b64);
+
+		zstd::ZDefaultCompressor comp;
+		ValueTree v;
+		comp.expand(mb, v);
+		dynamic_cast<ModulatorSampler*>(p)->getSampleMap()->loadUnsavedValueTree(v);
+		return SafeFunctionCall::OK;
+	}, true);
+}
+
+String ScriptingApi::Sampler::getSampleMapAsBase64()
+{
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+		reportScriptError("Invalid sampler call");
+
+	MemoryBlock mb;
+	auto v = s->getSampleMap()->getValueTree();
+
+	zstd::ZDefaultCompressor comp;
+	comp.compress(v, mb);
+	return mb.toBase64Encoding();
 }
 
 var ScriptingApi::Sampler::loadSfzFile(var sfzFile)

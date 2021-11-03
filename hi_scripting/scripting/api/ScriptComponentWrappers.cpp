@@ -2044,7 +2044,8 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateValue(var newValue
 }
 
 class ScriptCreatedComponentWrappers::AudioWaveformWrapper::SamplerListener : public SafeChangeListener,
-																			  public SampleMap::Listener
+																			  public SampleMap::Listener,
+																			  public AudioDisplayComponent::Listener
 {
 public:
 
@@ -2055,6 +2056,9 @@ public:
 	{
 		samplemap->addListener(this);
 		s->addChangeListener(this);
+
+		if(waveform->getSampleArea(0)->isAreaEnabled())
+			waveform->addAreaListener(this);
 
 		if (auto v = s->getLastStartedVoice())
 			lastSound = v->getCurrentlyPlayingSound();
@@ -2067,8 +2071,37 @@ public:
 		if (s != nullptr)
 			s->removeChangeListener(this);
 
+		if (waveform != nullptr)
+			waveform->removeAreaListener(this);
+
 		if (samplemap.get() != nullptr)
 			samplemap->removeListener(this);
+	}
+
+	void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea) override
+	{
+		if (auto a = waveform->getSampleArea(changedArea))
+		{
+			if (auto sound = const_cast<ModulatorSamplerSound*>(waveform->getCurrentSound()))
+			{
+				auto sr = a->getSampleRange();
+
+				if (sound->getSampleProperty(SampleIds::LoopEnabled))
+				{
+					auto lr = Range<int>(sound->getSampleProperty(SampleIds::LoopStart), sound->getSampleProperty(SampleIds::LoopEnd));
+
+					lr = lr.getIntersectionWith(sr);
+
+					sound->setSampleProperty(SampleIds::LoopStart, lr.getStart());
+					sound->setSampleProperty(SampleIds::LoopEnd, lr.getEnd());
+				}
+
+				sound->setSampleProperty(SampleIds::SampleStart, sr.getStart());
+				sound->setSampleProperty(SampleIds::SampleEnd, sr.getEnd());
+
+				waveform->updateRanges();
+			}
+		}
 	}
 
 	void refreshAfterSampleMapChange()
@@ -2152,7 +2185,7 @@ ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(Scrip
 		SamplerSoundWaveform* ssw = new SamplerSoundWaveform(s);
 		ssw->setName(form->name.toString());
 
-		ssw->getSampleArea(SamplerSoundWaveform::PlayArea)->setAreaEnabled(false);
+		ssw->getSampleArea(SamplerSoundWaveform::PlayArea)->setAreaEnabled(true);
 
 		ssw->setIsOnInterface(true);
 

@@ -749,7 +749,16 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
+		/** Loads a samplemap from a list of JSON objects. */
 		void loadSampleMapFromJSON(var jsonSampleMap);
+
+		/** Loads a base64 compressed string with the samplemap. */
+		void loadSampleMapFromBase64(const String& b64);
+
+		/** Returns a base64 compressed string containing the entire samplemap. */
+		String getSampleMapAsBase64();
+
+
 
 		/** Loads an SFZ file into the sampler. */
 		var loadSfzFile(var sfzFile);
