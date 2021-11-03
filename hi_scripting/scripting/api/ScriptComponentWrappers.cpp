@@ -126,7 +126,7 @@ void ScriptCreatedComponentWrapper::asyncValueTreePropertyChanged(ValueTree& v, 
 	jassert(v == getScriptComponent()->getPropertyValueTree());
 
 	auto idIndex = getScriptComponent()->getIndexForProperty(id);
-	auto value = v.getProperty(id);
+	auto value = v.getProperty(id, getScriptComponent()->getScriptObjectProperty(id));
 
 	if (idIndex == -1)
 	{
@@ -2245,10 +2245,20 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int p
 			PROPERTY_CASE::ScriptComponent::bgColour :
 			PROPERTY_CASE::ScriptComponent::textColour : updateColours(adc); break;
 			PROPERTY_CASE::ScriptAudioWaveform::Properties::showLines: adc->getThumbnail()->setDrawHorizontalLines((bool)newValue); break;
+			PROPERTY_CASE::ScriptAudioWaveform::Properties::enableRange:
+			{
+				if (auto w = dynamic_cast<AudioDisplayComponent*>(component.get()))
+				{
+					w->getSampleArea(0)->setAreaEnabled(newValue);
+				}
+				break;
+			}
 		}
 
 		if (auto asb = dynamic_cast<MultiChannelAudioBufferDisplay*>(component.get()))
 		{
+			
+
 			switch (propertyIndex)
 			{
 				PROPERTY_CASE::ScriptAudioWaveform::Properties::showFileName: asb->setShowFileName((bool)newValue); break;

@@ -2490,7 +2490,9 @@ ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScr
 	ADD_SCRIPT_PROPERTY(i02, "opaque"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i03, "showLines"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i04, "showFileName"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	
 	ADD_SCRIPT_PROPERTY(i05, "sampleIndex");
+	ADD_SCRIPT_PROPERTY(i06, "enableRange"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
@@ -2506,6 +2508,7 @@ ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScr
 	setDefaultValue(Properties::showLines, false);
 	setDefaultValue(Properties::showFileName, true);
 	setDefaultValue(Properties::sampleIndex, -1);
+	setDefaultValue(Properties::enableRange, true);
 
 	handleDefaultDeactivatedProperties();
 

@@ -1405,6 +1405,7 @@ public:
 			showLines,
 			showFileName,
 			sampleIndex,
+			enableRange,
 			numProperties
 		};
 
