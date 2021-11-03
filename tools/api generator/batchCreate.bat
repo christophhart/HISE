@@ -51,6 +51,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_audio_sample_processor.
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_table_processor.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_display_buffer_source.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_slider_pack_processor.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_script_f_f_t.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_effect.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_routing_matrix.xml" "xml\selection"
@@ -63,6 +64,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_path_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_midi_player.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_timer_object.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_objects_1_1_script_download_object.xml" "xml\selection"
+xcopy "xml\structhise_1_1_scripting_objects_1_1_script_background_task.xml" "xml\selection"
 
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_button.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_combo_box.xml" "xml\selection"
@@ -101,6 +103,7 @@ ren "xml\selection\classhise_1_1_scripting_api_1_1_module_ids.xml" "ModuleIds.xm
 ren "xml\selection\classhise_1_1_dsp_instance.xml" "DspModule.xml"
 ren "xml\selection\classhise_1_1_doxygen_string_functions.xml" "String.xml"
 ren "xml\selection\classhise_1_1_doxygen_array_functions.xml" "Array.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_f_f_t.xml" "FFT.xml"
 
 ren "xml\selection\structhise_1_1_scripting_objects_1_1_script_download_object.xml" "Download.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_file.xml" "File.xml"
@@ -137,12 +140,14 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_path_object.xml" "Path.xm
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_timer_object.xml" "Timer.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_midi_player.xml" "MidiPlayer.xml"
 
+
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_button.xml" "ScriptButton.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_combo_box.xml" "ScriptComboBox.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_slider.xml" "ScriptSlider.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_label.xml" "ScriptLabel.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_modulator_meter.xml" "ModulatorMeter.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_table.xml" "ScriptTable.xml"
+ren "xml\selection\structhise_1_1_scripting_objects_1_1_script_background_task.xml" "BackgroundTask.xml"
 
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_shader.xml" "ScriptShader.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_image.xml" "ScriptImage.xml"

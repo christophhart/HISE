@@ -197,6 +197,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsObject);
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
+	API_METHOD_WRAPPER_1(ScriptFile, toReferenceString);
 	API_VOID_METHOD_WRAPPER_2(ScriptFile, setReadOnly);
 	API_VOID_METHOD_WRAPPER_3(ScriptFile, extractZipFile);
 	API_VOID_METHOD_WRAPPER_0(ScriptFile, show);
@@ -241,6 +242,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_0(show);
 	ADD_API_METHOD_3(extractZipFile);
 	ADD_API_METHOD_2(setReadOnly);
+	ADD_API_METHOD_1(toReferenceString);
 }
 
 
@@ -275,6 +277,32 @@ String ScriptingObjects::ScriptFile::toString(int formatType) const
 	}
 
 	return {};
+}
+
+String ScriptingObjects::ScriptFile::toReferenceString(String folderType)
+{
+	FileHandlerBase::SubDirectories dirToUse = FileHandlerBase::SubDirectories::numSubDirectories;
+
+	if (!folderType.endsWithChar('/'))
+		folderType << '/';
+
+	for (int i = 0; i < FileHandlerBase::SubDirectories::numSubDirectories; i++)
+	{
+		if (FileHandlerBase::getIdentifier((FileHandlerBase::SubDirectories)i) == folderType)
+		{
+			dirToUse = (FileHandlerBase::SubDirectories)i;
+			break;
+		}
+	}
+
+	if (dirToUse != FileHandlerBase::numSubDirectories)
+	{
+		PoolReference ref(getScriptProcessor()->getMainController_(), f.getFullPathName(), dirToUse);
+		return ref.getReferenceString();
+	}
+
+	reportScriptError("Illegal folder type");
+	RETURN_IF_NO_THROW(var());
 }
 
 bool ScriptingObjects::ScriptFile::isFile() const
@@ -1230,7 +1258,7 @@ var ScriptingObjects::ScriptRingBuffer::createPath(var dstArea, var sourceRange,
 	if (!r.wasOk())
 		reportScriptError(r.getErrorMessage());
 	
-	auto b = *getReadBuffer().getBuffer();
+	auto& b = *getReadBuffer().getBuffer();
 
 	auto hToUse = (int)src.getHeight();
 
@@ -6052,5 +6080,401 @@ void ScriptingObjects::ScriptUnorderedStack::setIsEventStack(bool shouldBeEventS
 }
 
 
+
+ScriptingObjects::ScriptBackgroundTask::TaskViewer::TaskViewer(ScriptBackgroundTask* t) :
+	Component("Task Viewer"),
+	ComponentForDebugInformation(t, dynamic_cast<JavascriptProcessor*>(t->getScriptProcessor())),
+	SimpleTimer(t->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
+	cancelButton("Cancel")
+{
+	setSize(500, 200);
+	addAndMakeVisible(cancelButton);
+	cancelButton.onClick = [this]()
+	{
+		if(auto obj = getObject<ScriptBackgroundTask>())
+			obj->abort();
+	};
+
+	cancelButton.setLookAndFeel(&laf);
+}
+
+void ScriptingObjects::ScriptBackgroundTask::TaskViewer::timerCallback()
+{
+	repaint();
+}
+
+void ScriptingObjects::ScriptBackgroundTask::TaskViewer::paint(Graphics& g)
+{
+	g.fillAll(Colours::black.withAlpha(0.2f));
+	
+	if (auto o = getObject<ScriptBackgroundTask>())
+	{
+		g.setColour(Colour(0xFFDDDDDD));
+
+		auto b = getLocalBounds().toFloat();
+
+		auto pb = b.removeFromTop(24.0f);
+
+		pb = pb.reduced(4.0f);
+
+		g.drawRoundedRectangle(pb, pb.getHeight() / 2.0f, 2.0f);
+
+		pb = pb.reduced(4.0f);
+		pb = pb.removeFromLeft(o->progress * pb.getWidth());
+		pb.setWidth(jmax<float>(pb.getWidth(), pb.getHeight()));
+
+		g.fillRoundedRectangle(pb, pb.getHeight() / 2.0f);
+
+		b.removeFromTop(10.0f);
+
+		b.removeFromBottom(cancelButton.getHeight());
+
+		String s;
+
+		s << "**Name: ** " << o->getThreadName() << "  \n";
+		s << "**Active: ** " << (o->isThreadRunning() ? "Yes" : "No") << "  \n";
+
+		auto sm = o->getStatusMessage();
+
+		MarkdownRenderer r(s);
+
+		r.parse();
+		r.draw(g, b.reduced(10.0f));
+	}
+}
+
+bool ScriptingObjects::ScriptBackgroundTask::shouldAbort()
+{
+	if (auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine())
+	{
+		engine->extendTimeout(timeOut + 10);
+	}
+	else
+	{
+		signalThreadShouldExit();
+	}
+
+	return threadShouldExit();
+}
+
+void ScriptingObjects::ScriptBackgroundTask::setProgress(double p)
+{
+	progress.store(jlimit(0.0, 1.0, p));
+
+	if (forwardToLoadingThread)
+	{
+		auto& flag = getScriptProcessor()->getMainController_()->getSampleManager().getPreloadProgress();
+		flag = p;
+	}
+}
+
+void ScriptingObjects::ScriptBackgroundTask::setStatusMessage(String m)
+{
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(lock);
+		message = m;
+	}
+
+	if (forwardToLoadingThread)
+	{
+		getScriptProcessor()->getMainController_()->getSampleManager().setCurrentPreloadMessage(m);
+	}
+}
+
+void ScriptingObjects::ScriptBackgroundTask::run()
+{
+	if (currentTask)
+	{
+		if (forwardToLoadingThread)
+		{
+			getScriptProcessor()->getMainController_()->getSampleManager().setPreloadFlag();
+		}
+
+		var t(this);
+
+		auto r = currentTask.callSync(&t, 1);
+
+		if (!r.wasOk())
+			getScriptProcessor()->getMainController_()->writeToConsole(r.getErrorMessage(), 1, dynamic_cast<Processor*>(getScriptProcessor()));
+
+		if (forwardToLoadingThread)
+		{
+			getScriptProcessor()->getMainController_()->getSampleManager().clearPreloadFlag();
+		}
+	}
+
+
+	callFinishCallback(true, threadShouldExit());
+}
+
+ScriptingObjects::ScriptFFT::ScriptFFT(ProcessorWithScriptingContent* p) :
+	ConstScriptingObject(p, DomainType::numDomainTypes),
+	processFunction(p, var(), 2)
+{
+	addConstant("Rectangle", WindowType::Rectangle);
+	addConstant("Triangle", WindowType::Triangle);
+	addConstant("Hamming", WindowType::Hamming);
+	addConstant("Hann", WindowType::Hann);
+	addConstant("BlackmanHarris", WindowType::BlackmanHarris);
+	addConstant("Kaiser", WindowType::Kaiser);
+	addConstant("FlatTop", WindowType::FlatTop);
+	addConstant("Magnitude", DomainType::Magnitude);
+	addConstant("Phase", DomainType::Phase);
+
+	ADD_API_METHOD_1(setWindowType);
+	ADD_API_METHOD_2(prepare);
+	ADD_API_METHOD_1(setDomain);
+	ADD_API_METHOD_1(setOverlap);
+	ADD_API_METHOD_1(process);
+	ADD_API_METHOD_1(setProcessFunction);
+	ADD_API_METHOD_1(setEnableSpectrum2D);
+
+	spectrumParameters = new Spectrum2D::Parameters();
+}
+
+ScriptingObjects::ScriptFFT::~ScriptFFT()
+{
+
+}
+
+struct ScriptingObjects::ScriptFFT::FFTDebugComponent : public Component,
+									  public ComponentForDebugInformation,
+									  public PooledUIUpdater::SimpleTimer
+{
+	FFTDebugComponent(ScriptFFT* fft) :
+		ComponentForDebugInformation(fft, dynamic_cast<ApiProviderBase::Holder*>(fft->getScriptProcessor())),
+		Component("FFT Display"),
+		SimpleTimer(fft->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
+		resizer(this, nullptr)
+	{
+		addAndMakeVisible(resizer);
+		setSize(500, 500);
+	};
+
+	void timerCallback() override
+	{
+		repaint();
+	}
+
+	void paint(Graphics& g) override
+	{
+		if (auto obj = getObject<ScriptFFT>())
+		{
+			if (obj->enableSpectrum)
+			{
+				g.drawImage(obj->spectrum, getLocalBounds().toFloat());
+			}
+			else
+			{
+				g.setColour(Colours::white.withAlpha(0.7f));
+				g.setFont(GLOBAL_BOLD_FONT());
+				g.drawText("Spectrum is disabled", getLocalBounds().toFloat(), Justification::centred);
+			}
+		}
+	}
+
+	void resized() override
+	{
+		resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
+	}
+
+	ResizableCornerComponent resizer;
+};
+
+Component* ScriptingObjects::ScriptFFT::createPopupComponent(const MouseEvent& e, Component *c)
+{
+	return new FFTDebugComponent(this);
+}
+
+void ScriptingObjects::ScriptFFT::setProcessFunction(var newProcessFunction)
+{
+	SimpleReadWriteLock::ScopedWriteLock sl(lock);
+
+	if (HiseJavascriptEngine::isJavascriptFunction(newProcessFunction))
+	{
+		processFunction = WeakCallbackHolder(getScriptProcessor(), newProcessFunction, 2);
+		processFunction.incRefCount();
+	}
+}
+
+void ScriptingObjects::ScriptFFT::setWindowType(int windowType_)
+{
+	currentWindowType = (WindowType)windowType_;
+
+	spectrumParameters->currentWindowType = currentWindowType;
+}
+
+void ScriptingObjects::ScriptFFT::setDomain(int domainType_)
+{
+	currentDomainType = (DomainType)domainType_;
+}
+
+void ScriptingObjects::ScriptFFT::setOverlap(double percentageOfOverlap)
+{
+	overlap = jlimit(0.0, 0.99, percentageOfOverlap);
+
+	spectrumParameters->oversamplingFactor = nextPowerOfTwo(1.0 / (1.0 - overlap));
+}
+
+void ScriptingObjects::ScriptFFT::prepare(int powerOfTwoSize, int maxNumChannels)
+{
+	maxNumChannels = jlimit(1, NUM_MAX_CHANNELS, maxNumChannels);
+
+	if (isPowerOfTwo(powerOfTwoSize))
+	{
+		spectrumParameters->order = log2(powerOfTwoSize);
+		spectrumParameters->Spectrum2DSize = powerOfTwoSize;
+
+		maxNumSamples = powerOfTwoSize;
+
+		Array<var> newWorkBuffer;
+
+		for (int i = 0; i < maxNumChannels; i++)
+		{
+			WorkBuffer wb;
+			wb.workBuffer = new VariantBuffer(maxNumSamples * 2);
+			wb.processBuffer = new VariantBuffer(maxNumSamples);
+			scratchBuffers.add(std::move(wb));
+		}
+			
+		SimpleReadWriteLock::ScopedWriteLock sl(lock);
+
+		fft = new juce::dsp::FFT(log2(maxNumSamples));
+	}
+	else
+	{
+		reportScriptError("powerOfTwoSize must be ... a power of two!");
+	}
+}
+
+void ScriptingObjects::ScriptFFT::process(var dataToProcess)
+{
+	if (scratchBuffers.isEmpty() || fft == nullptr || maxNumSamples == 0)
+		reportScriptError("You must call prepare before process");
+
+	if (enableSpectrum)
+	{
+		if (dataToProcess.isArray())
+		{
+			fullBuffer.setSize(dataToProcess.size(), getNumToProcess(dataToProcess));
+			int index = 0;
+
+			for (auto& d : *dataToProcess.getArray())
+			{
+				FloatVectorOperations::copy(fullBuffer.getWritePointer(index++), d.getBuffer()->buffer.getReadPointer(0), fullBuffer.getNumSamples());
+			}
+		}
+		else if (dataToProcess.isBuffer())
+		{
+			fullBuffer.makeCopyOf(dataToProcess.getBuffer()->buffer);
+		}
+
+		Spectrum2D fb(this, fullBuffer);
+		fb.parameters = spectrumParameters;
+		auto b = fb.createSpectrumBuffer();
+		spectrum = fb.createSpectrumImage(b);
+	}
+	
+
+	SimpleReadWriteLock::ScopedReadLock sl(lock);
+
+	if (processFunction)
+	{
+		int offset = 0;
+		int numDelta = roundToInt((double)maxNumSamples * (1.0 - overlap));
+
+		auto numToProcess = getNumToProcess(dataToProcess);
+
+		while (offset < numToProcess)
+		{
+			var args[2];
+			args[0] = copyToWorkBuffer(dataToProcess, offset, 0);
+			args[1] = offset;
+
+			int numChannels = args[0].isArray() ? args[0].size() : 1;
+
+			applyFFT(numChannels);
+
+			auto r = processFunction.callSync(args, 2);
+
+			if (!r.wasOk())
+				reportScriptError(r.getErrorMessage());
+
+			offset += numDelta;
+		}
+	}
+	else
+		reportScriptError("the process function is not defined");
+}
+
+void ScriptingObjects::ScriptFFT::setEnableSpectrum2D(bool shouldBeEnabled)
+{
+	enableSpectrum = shouldBeEnabled;
+}
+
+int ScriptingObjects::ScriptFFT::getNumToProcess(var inputData)
+{
+	if (inputData.isArray())
+		return getNumToProcess(inputData[0]);
+	if (auto b = inputData.getBuffer())
+		return b->size;
+
+	return 0;
+}
+
+var ScriptingObjects::ScriptFFT::copyToWorkBuffer(var inputData, int offset, int channel)
+{
+	if (auto a = inputData.getArray())
+	{
+		if (channel != 0)
+		{
+			reportScriptError("Illegal nested arrays");
+		}
+
+		for (auto& b : *a)
+		{
+			thisProcessBuffer.set(channel, copyToWorkBuffer(b, offset, channel));
+			channel++;
+		}
+
+		return var(thisProcessBuffer);
+	}
+	else if (auto b = inputData.getBuffer())
+	{
+		if (auto dst = scratchBuffers[channel].workBuffer)
+		{
+			dst->clear();
+			int numToCopy = jmin(b->size - offset, maxNumSamples);
+			dst->buffer.copyFrom(0, 0, b->buffer, 0, offset, numToCopy);
+
+			return var(scratchBuffers[channel].processBuffer);
+		}
+		else
+		{
+			reportScriptError("channel mismatch");
+			RETURN_IF_NO_THROW(var());
+		}
+	}
+}
+
+void ScriptingObjects::ScriptFFT::applyFFT(int numChannelsThisTime)
+{
+	if (numChannelsThisTime > scratchBuffers.size())
+		reportScriptError("Channel amount mismatch");
+
+	for (int i = 0; i < numChannelsThisTime; i++)
+	{
+		auto wb = scratchBuffers[i];
+
+		FFTHelpers::applyWindow(currentWindowType, wb.workBuffer->buffer);
+		fft->performRealOnlyForwardTransform(wb.workBuffer->buffer.getWritePointer(0), true);
+
+		if (currentDomainType != Phase)
+		{
+			FFTHelpers::toFreqSpectrum(wb.workBuffer->buffer, wb.processBuffer->buffer);
+			FFTHelpers::scaleFrequencyOutput(wb.processBuffer->buffer, currentDomainType == MagnitudeDb);
+		}
+	}
+}
 
 } // namespace hise

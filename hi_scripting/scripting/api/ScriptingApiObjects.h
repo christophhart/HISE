@@ -224,6 +224,9 @@ namespace ScriptingObjects
 		/** Returns a String representation of that file. */
 		String toString(int formatType) const;
 		
+		/** Returns a reference string with a wildcard. */
+		String toReferenceString(String folderType);
+
 		/** Checks if this file exists and is a file. */
 		bool isFile() const;
 
@@ -272,6 +275,284 @@ namespace ScriptingObjects
 		struct Wrapper;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptFile);
+	};
+
+	struct ScriptBackgroundTask : public ConstScriptingObject,
+								  public Thread
+	{
+		struct Wrapper
+		{
+			API_VOID_METHOD_WRAPPER_0(ScriptBackgroundTask, abort);
+			API_METHOD_WRAPPER_0(ScriptBackgroundTask, shouldAbort);
+			API_VOID_METHOD_WRAPPER_2(ScriptBackgroundTask, setProperty);
+			API_METHOD_WRAPPER_1(ScriptBackgroundTask, getProperty);
+			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setFinishCallback);
+			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, callOnBackgroundThread);
+			API_METHOD_WRAPPER_0(ScriptBackgroundTask, getProgress);
+			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setProgress);
+			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setTimeOut);
+			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setStatusMessage);
+			API_METHOD_WRAPPER_0(ScriptBackgroundTask, getStatusMessage);
+			API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setForwardStatusToLoadingThread);
+		};
+
+		ScriptBackgroundTask(ProcessorWithScriptingContent* p, const String& name):
+			ConstScriptingObject(p, 0),
+			Thread(name),
+			currentTask(p, var(), 1),
+			finishCallback(p, var(), 2)
+		{
+			ADD_API_METHOD_0(abort);
+			ADD_API_METHOD_0(shouldAbort);
+			ADD_API_METHOD_2(setProperty);
+			ADD_API_METHOD_1(getProperty);
+			ADD_API_METHOD_1(setFinishCallback);
+			ADD_API_METHOD_1(callOnBackgroundThread);
+			ADD_API_METHOD_0(getProgress);
+			ADD_API_METHOD_1(setProgress);
+			ADD_API_METHOD_1(setTimeOut);
+			ADD_API_METHOD_1(setStatusMessage);
+			ADD_API_METHOD_0(getStatusMessage);
+			ADD_API_METHOD_1(setForwardStatusToLoadingThread);
+		}
+
+		~ScriptBackgroundTask()
+		{
+			stopThread(timeOut);
+		}
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("BackgroundTask"); }
+
+		struct TaskViewer : public Component,
+							public ComponentForDebugInformation,
+							public PooledUIUpdater::SimpleTimer
+		{
+			TaskViewer(ScriptBackgroundTask* t);;
+
+			void timerCallback() override;
+
+			void paint(Graphics& g) override;
+
+			void resized() override
+			{
+				auto b = getLocalBounds();
+				cancelButton.setBounds(b.removeFromBottom(24));
+			}
+
+			
+			BlackTextButtonLookAndFeel laf;
+			TextButton cancelButton;
+			
+		};
+
+		Component* createPopupComponent(const MouseEvent& e, Component *c) override
+		{
+			return new TaskViewer(this);
+		}
+
+		// ==================================================================================== Start of API Methods
+
+		/** Signal that this thread should exit. */
+		void abort()
+		{
+			Thread::signalThreadShouldExit();
+		}
+
+		/** Checks whether the task should be aborted (either because of recompilation or when you called abort(). */
+		bool shouldAbort();
+
+		/** Set a property to a thread safe container. */
+		void setProperty(String id, var value)
+		{
+			auto i = Identifier(id);
+			SimpleReadWriteLock::ScopedWriteLock sl(lock);
+			synchronisedData.set(i, value);
+
+		}
+
+		/** Retrieve a property through a thread safe container. */
+		var getProperty(String id)
+		{
+			auto i = Identifier(id);
+			SimpleReadWriteLock::ScopedReadLock sl(lock);
+			return synchronisedData.getWithDefault(i, var());
+		}
+
+		/** Set a function that will be called when the task has started / stopped. */
+		void setFinishCallback(var newFinishCallback)
+		{
+			if (HiseJavascriptEngine::isJavascriptFunction(newFinishCallback))
+			{
+				finishCallback = WeakCallbackHolder(getScriptProcessor(), newFinishCallback, 2);
+				finishCallback.setThisObject(this);
+				finishCallback.incRefCount();
+			}
+		}
+
+		/** Call a function on the background thread. */
+		void callOnBackgroundThread(var f)
+		{
+			if (HiseJavascriptEngine::isJavascriptFunction(f))
+			{
+				callFinishCallback(false, false);
+				stopThread(timeOut);
+				currentTask = WeakCallbackHolder(getScriptProcessor(), f, 1);
+				currentTask.incRefCount();
+				startThread(6);
+			}
+		}
+
+		/** Set a progress for this task. */
+		void setProgress(double p);
+
+		/** Get the progress for this task. */
+		double getProgress() const { return progress.load(); }
+
+		/** Set timeout. */
+		void setTimeOut(int ms)
+		{
+			timeOut = ms;
+		}
+
+		/** Returns the current status message. */
+		String getStatusMessage()
+		{
+			SimpleReadWriteLock::ScopedReadLock sl(lock);
+			return message;
+		}
+
+		/** Sets a status message. */
+		void setStatusMessage(String m);
+
+		/** Forward the state of this thread to the sample loading thread notification system. */
+		void setForwardStatusToLoadingThread(bool shouldForward)
+		{
+			forwardToLoadingThread = shouldForward;
+		}
+
+		// ==================================================================================== End of API Methods
+
+		void run() override;
+
+	private:
+
+		bool forwardToLoadingThread = false;
+
+		void callFinishCallback(bool isFinished, bool wasCancelled)
+		{
+			
+
+			if (finishCallback)
+			{
+				var args[2] = { var(isFinished), var(wasCancelled) };
+				finishCallback.call(args, 2);
+			}
+		}
+
+		std::atomic<double> progress = { 0.0 };
+		String message;
+		int timeOut = 500;
+		SimpleReadWriteLock lock;
+		NamedValueSet synchronisedData;
+		WeakCallbackHolder currentTask;
+		WeakCallbackHolder finishCallback;
+	};
+
+	class ScriptFFT : public ConstScriptingObject,
+					  public Spectrum2D::Holder
+	{
+	public:
+
+		using WindowType = FFTHelpers::WindowType;
+		
+		enum DomainType
+		{
+			Magnitude = (int)WindowType::numWindowType,
+			MagnitudeDb,
+			Phase,
+			numDomainTypes
+		};
+
+		struct Wrapper
+		{
+			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setWindowType);
+			API_VOID_METHOD_WRAPPER_2(ScriptFFT, prepare);
+			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setDomain);
+			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setOverlap);
+			API_VOID_METHOD_WRAPPER_1(ScriptFFT, process);
+			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setProcessFunction);
+			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setEnableSpectrum2D);
+		};
+
+		ScriptFFT(ProcessorWithScriptingContent* pwsc);
+
+		~ScriptFFT();
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("FFT"); }
+
+		struct FFTDebugComponent;
+
+		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
+
+		Spectrum2D::Parameters::Ptr getParameters() const override { return spectrumParameters; }
+
+		// ======================================================================================================= API Methods
+
+		/** Sets a function that will be executed with the FFT data chunks. */
+		void setProcessFunction(var newProcessFunction);
+
+		/** Sets a window function that will be applied to the data chunks before processing. */
+		void setWindowType(int windowType);
+
+		/** Sets the domain for the transformed data (phase or magnitude). */
+		void setDomain(int domainType);
+
+		/** Sets an overlap (from 0...1) for the chunks. */
+		void setOverlap(double percentageOfOverlap);
+
+		/** Allocates the buffers required for processing. */
+		void prepare(int powerOfTwoSize, int maxNumChannels);
+
+		/** Process the given data (either a buffer or a array of buffers. */
+		void process(var dataToProcess);
+
+		/** Enables the creation of a 2D spectrograph image. */
+		void setEnableSpectrum2D(bool shouldBeEnabled);
+
+		// ======================================================================================================= End of API Methods
+
+	private:
+
+		bool enableSpectrum = false;
+
+		AudioSampleBuffer fullBuffer;
+		Image spectrum;
+		Spectrum2D::Parameters::Ptr spectrumParameters;
+		SimpleReadWriteLock lock;
+
+		static int getNumToProcess(var inputData);
+
+		var copyToWorkBuffer(var inputData, int offset, int channel);
+
+		void applyFFT(int numChannelsThisTime);
+
+		struct WorkBuffer
+		{
+			VariantBuffer::Ptr workBuffer;
+			VariantBuffer::Ptr processBuffer;
+		};
+		
+		Array<WorkBuffer> scratchBuffers;
+
+		Array<var> thisProcessBuffer;
+
+		ScopedPointer<juce::dsp::FFT> fft;
+		WeakCallbackHolder processFunction;
+
+		DomainType currentDomainType = DomainType::Magnitude;
+		WindowType currentWindowType = WindowType::Rectangle;
+		double overlap = 0.0;
+		int maxNumSamples = 0;
 	};
 
 	struct ScriptDownloadObject : public ConstScriptingObject,
@@ -569,6 +850,8 @@ namespace ScriptingObjects
 		struct Wrapper;
 	};
 
+	
+
 	class ScriptSliderPackData : public ScriptComplexDataReferenceBase
 	{
 	public:
@@ -643,6 +926,8 @@ namespace ScriptingObjects
 		var getAssignedValue(int index) const override;
 
 		int getCachedIndex(const var &indexExpression) const override;
+
+		ModulatorSamplerSound::Ptr getSoundPtr() { return sound; }
 
 		// ============================================================================================================
 

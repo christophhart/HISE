@@ -286,6 +286,8 @@ public:
 		/** Creates a (or returns an existing ) script look and feel object. */
 		var createGlobalScriptLookAndFeel();
 
+		var createFFT();
+
 		/** Returns the latency of the plugin as reported to the host. Default is 0. */
 		int getLatencySamples() const;
 
@@ -309,6 +311,9 @@ public:
 
 		/** Creates a reference to the DSP network of another script processor. */
 		var getDspNetworkReference(String processorId, String id);
+
+		/** Creates a background task that can execute heavyweight functions. */
+		var createBackgroundTask(String name);
 
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();
@@ -721,6 +726,9 @@ public:
 		/** Returns a list of the sounds selected in the samplemap. */
 		var createListFromGUISelection();
 
+		/** Sets the currently selected samples on the interface to the given list. */
+		void setGUISelection(var sampleList, bool addToSelection);
+
         /** Loads the content of the given sample into an array of VariantBuffers that can be used
             for analysis.
         */
@@ -740,6 +748,8 @@ public:
 
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
+
+		void loadSampleMapFromJSON(var jsonSampleMap);
 
 		/** Loads an SFZ file into the sampler. */
 		var loadSfzFile(var sfzFile);
