@@ -116,7 +116,8 @@ struct WorkbenchTestPlayer : public FloatingTileContent,
 
 		wb = newWorkbench;
 
-		wb->addListener(this);
+		if(wb != nullptr)
+			wb->addListener(this);
 	}
 
 	void resized() override;

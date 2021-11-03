@@ -160,6 +160,21 @@ void MarkdownPreviewSyncer::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, dou
     synchroniseTabs(scrollBarThatHasMoved == &e.editor.getVerticalScrollBar());
 }
 
+void MarkdownPreviewSyncer::timerCallback()
+{
+	{
+		MarkdownRenderer::ScopedScrollDisabler sds(p.renderer);
+		ScopedValueSetter<bool> svs(recursiveScrollProtector, true);
+
+		if (p.isShowing())
+			p.setNewText(e.editor.getTextDocument().getCodeDocument().getAllContent(), {}, false);
+
+		stopTimer();
+	}
+
+	synchroniseTabs(true);
+}
+
 void MarkdownPreviewSyncer::setEnableScrollbarListening(bool shouldListenToScrollBars)
 {
     if (shouldListenToScrollBars)

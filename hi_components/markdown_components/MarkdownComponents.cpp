@@ -807,4 +807,33 @@ juce::File MarkdownEditorPanel::getRootFile()
 	return getMainController()->getProjectDocHolder()->getDatabaseRootDirectory();
 }
 
+void MarkdownEditorPanel::resized()
+{
+	auto area = getParentShell()->getContentBounds();
+
+	auto top = area.removeFromTop(46);
+
+	int button_margin = 10;
+
+	livePreview.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+
+	top.removeFromLeft(20);
+
+	newButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+	openButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+	saveButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+
+	top.removeFromLeft(20);
+
+	urlButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+	imageButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+	tableButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+
+	settingsButton.setBounds(top.removeFromRight(top.getHeight()).reduced(button_margin));
+
+	int w = jmin(area.getWidth(), 2000);
+
+	editor.setBounds(area.withSizeKeepingCentre(w, area.getHeight()));
+}
+
 }

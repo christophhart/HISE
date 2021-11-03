@@ -251,20 +251,7 @@ struct MarkdownPreviewSyncer : public Timer,
         e.editor.getTextDocument().getCodeDocument().removeListener(this);
     }
     
-    void timerCallback() override
-    {
-        {
-            MarkdownRenderer::ScopedScrollDisabler sds(p.renderer);
-            ScopedValueSetter<bool> svs(recursiveScrollProtector, true);
-
-            if (p.isVisible())
-                p.setNewText(e.editor.getTextDocument().getCodeDocument().getAllContent(), {}, false);
-
-            stopTimer();
-        }
-        
-        synchroniseTabs(true);
-    }
+    void timerCallback() override;
 
     bool recursiveScrollProtector = false;
     
