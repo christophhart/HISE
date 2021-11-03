@@ -371,6 +371,18 @@ public:
 };
 
 
+struct JSONConversionHelpers
+{
+	static var valueTreeToJSON(const ValueTree& v);
+
+	static ValueTree jsonToValueTree(var data, const Identifier& typeId, bool isParentData = true);
+
+	static var convertBase64Data(const String& d, const ValueTree& cTree);
+
+	static String convertDataToBase64(const var& d, const ValueTree& cTree);
+};
+
+
 
 struct ValueTreeConverters
 {

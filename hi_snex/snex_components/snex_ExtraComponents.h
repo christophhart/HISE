@@ -328,6 +328,11 @@ struct Graph: public Component,
 
 		float getXPosition(float normalisedIndex) const override;
 
+		Spectrum2D::Parameters::Ptr getParameters() const override
+		{
+			return new Spectrum2D::Parameters();
+		}
+
 		void rebuildSpectrumRectangles();
 
 		void mouseExit(const MouseEvent&) override
