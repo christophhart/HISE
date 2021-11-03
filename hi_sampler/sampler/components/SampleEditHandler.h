@@ -85,6 +85,7 @@ public:
 
 	struct SampleEditingActions
 	{
+		static void toggleFirstScriptButton(SampleEditHandler* handler);
 		static void deleteSelectedSounds(SampleEditHandler *body);
 		static void duplicateSelectedSounds(SampleEditHandler *body);
 		static void removeDuplicateSounds(SampleEditHandler *body);
@@ -114,6 +115,8 @@ public:
 
 		static void writeSamplesWithAiffData(ModulatorSampler* sampler);
 
+
+		static ModulatorSamplerSound* getNeighbourSample(SampleEditHandler* handler, SamplerSoundMap::Neighbour direction);
 
 		static void selectNeighbourSample(SampleEditHandler* handler, SamplerSoundMap::Neighbour direction, ModifierKeys mods);
 	};
@@ -178,6 +181,8 @@ public:
 	const SamplePreviewer& getPreviewer() const { return previewer; }
 
 private:
+
+	SamplerSoundMap::Neighbour currentDirection = SamplerSoundMap::Right;
 
 	SamplePreviewer previewer;
 

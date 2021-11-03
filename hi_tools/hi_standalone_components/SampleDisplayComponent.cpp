@@ -228,10 +228,25 @@ void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 	{
 		Path fadeInPath;
 
-		fadeInPath.startNewSubPath(0.0f, (float)getHeight());
-		fadeInPath.lineTo((float)getWidth(), 0.0f);
-		fadeInPath.lineTo((float)getWidth(), (float)getHeight());
-		fadeInPath.closeSubPath();
+		auto w = (float)getWidth();
+		auto h = (float)getHeight();
+		auto z = 0.0f;
+
+		if (!reversed)
+		{
+			fadeInPath.startNewSubPath(z, h);
+			fadeInPath.lineTo(w, z);
+			fadeInPath.lineTo(w, h);
+			fadeInPath.closeSubPath();
+		}
+		else
+		{
+			fadeInPath.startNewSubPath(z, z);
+			fadeInPath.lineTo(w, h);
+			fadeInPath.lineTo(z, h);
+			fadeInPath.closeSubPath();
+		}
+		
 
 		g.setColour(getAreaColour((AreaTypes)area).withAlpha(areaEnabled ? 0.1f : 0.05f));
 		g.fillPath(fadeInPath);
@@ -445,7 +460,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 	{
 		Spectrum2D spec(parent, specBuffer);
 
-		spec.parameters = parent->getSpectrumParameters();
+		spec.parameters = parent->getParameters();
 
 		if (spec.parameters->Spectrum2DSize == 0)
 			spec.parameters->setFromBuffer(specBuffer);

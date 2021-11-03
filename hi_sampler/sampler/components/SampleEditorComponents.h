@@ -299,7 +299,8 @@ class SamplerSoundMap: public Component,
 					   public LassoSource<ModulatorSamplerSound::Ptr>,
 					   public SettableTooltipClient,
 					   public MainController::SampleManager::PreloadListener,
-					   public SampleMap::Listener
+					   public SampleMap::Listener,
+					   public PooledUIUpdater::SimpleTimer
 {
 public:
 	
@@ -309,7 +310,8 @@ public:
 		Left, ///<
 		Right, ///<
 		Up, ///<
-		Down ///<
+		Down, ///<
+		numNeighbours
 	};
 
 	enum DragLimiters
@@ -324,6 +326,11 @@ public:
 
 	~SamplerSoundMap();;
 
+	void timerCallback() override
+	{
+		if(pCounter++ % 10 == 0)
+			repaint();
+	}
 	
 	static void keyChanged(SamplerSoundMap& map, int noteNumber, int velocity);
 
@@ -365,11 +372,10 @@ public:
     
 	void sampleAmountChanged() override
 	{
-		updateSampleComponents();
-
 		auto old = currentSoloGroup;
 		currentSoloGroup.clear();
 		soloGroup(old);
+		updateSampleComponents();
 	}
 
 	static void selectionChanged(SamplerSoundMap& map, int numSelected);
@@ -443,6 +449,8 @@ public:
 	const ModulatorSampler* getSampler() const { return ownerSampler; }
 
 private:
+
+	int pCounter = 0;
 
 	BigInteger currentSoloGroup;
 

@@ -146,11 +146,22 @@ public:
 
 		switch (tokenProperty)
 		{
-		case SingleKey:			data.rootNote = value;
-								data.lowKey = value;
-								data.hiKey = value;
-								break;
+		case SingleKey:			
+		{
+			auto valueToUse = value % 128;
 
+			data.rootNote = valueToUse;
+			data.lowKey = valueToUse;
+			data.hiKey = valueToUse;
+			
+			// just bump the RR amount to avoid 
+			// sticking them all at 127
+			if (valueToUse != value)
+				data.group = value / 128 + 1;
+
+			break;
+		}
+								
 		case Group:				data.group = value;
 								break;
 		case MultiMic:			data.multiMic = value - 1;

@@ -429,7 +429,8 @@ void SampleMap::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged,
 
 	if (i != -1)
 	{
-		notifier.addPropertyChange(i, property, treeWhosePropertyHasChanged.getProperty(property));
+		auto v = treeWhosePropertyHasChanged.getProperty(property);
+		notifier.addPropertyChange(i, property, v);
 	}
 }
 
@@ -1529,8 +1530,10 @@ void SampleMap::Notifier::addPropertyChange(int index, const Identifier& id, con
 
 			bool found = false;
 
-			for (auto p : pendingChanges)
+			for (int i = 0; i < pendingChanges.size(); i++)
 			{
+				auto p = pendingChanges[i];
+
 				if (*p == index)
 				{
 					p->set(id, newValue);

@@ -128,18 +128,7 @@ public:
     
 	void drawSection(Graphics &g, bool enabled);
 
-    float getXPosition(float input) const override
-    {
-        auto db = (float)spectrumParameters->minDb;
-        auto l = Decibels::gainToDecibels(input, -1.0f * db);
-        l = (l + db) / db;
-        return l * l;
-    }
     
-    float getYPosition(float input) const override
-    {
-        return 1.0f - std::exp(std::log(input) * 0.2f);
-    }
     
 	double getTotalLength() const
 	{
@@ -172,7 +161,7 @@ public:
 		}
 	}
 
-	Spectrum2D::Parameters::Ptr getSpectrumParameters() { return spectrumParameters; };
+	Spectrum2D::Parameters::Ptr getParameters() const override { return spectrumParameters; };
 
 	void setReader(AudioFormatReader* r, int64 actualNumSamples=-1);
 
@@ -563,8 +552,15 @@ public:
 		ScopedPointer<AreaEdge> leftEdge;
 		ScopedPointer<AreaEdge> rightEdge;
 
+		void setReversed(bool isReversed)
+		{
+			reversed = isReversed;
+			repaint();
+		}
+
 	private:
 
+		bool reversed = false;
 		bool useConstrainer;
 
 		bool areaEnabled;

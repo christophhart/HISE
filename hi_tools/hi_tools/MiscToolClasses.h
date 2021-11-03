@@ -2531,9 +2531,22 @@ struct Spectrum2D
     struct Holder
     {
         virtual ~Holder() {};
-        virtual float getXPosition(float input) const = 0;
-        virtual float getYPosition(float input) const = 0;
-        
+
+		virtual Parameters::Ptr getParameters() const = 0;
+
+		virtual float getXPosition(float input) const
+		{
+			auto db = (float)getParameters()->minDb;
+			auto l = Decibels::gainToDecibels(input, -1.0f * db);
+			l = (l + db) / db;
+			return l * l;
+		}
+
+		virtual float getYPosition(float input) const
+		{
+			return 1.0f - std::exp(std::log(input) * 0.2f);
+		}
+
     private:
         
         JUCE_DECLARE_WEAK_REFERENCEABLE(Holder);

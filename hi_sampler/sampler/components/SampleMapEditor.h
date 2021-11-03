@@ -78,6 +78,7 @@ public:
 			dm.add({ "Import SFZ file format", "Import SFZ file format" });
 			dm.add({ "Undo", "Undo the last operation" });
 			dm.add({ "Redo", "Redo the last operation" });
+			dm.add({ "AutoPreview", "Autopreview the selected sample" });
 			
 			dm.add({ "Duplicate", "Duplicate all selected samples" });
 			dm.add({ "Cut", "Cut selected samples"});
@@ -150,7 +151,6 @@ public:
 		// Sample Editing
 		DuplicateSamples,
 		DeleteDuplicateSamples,
-		
 		CutSamples,
 		CopySamples,
 		PasteSamples,
@@ -242,6 +242,8 @@ public:
 
 		updateSoundData();
 	}
+
+	static void autoPreviewCallback(SampleMapEditor& m, ModulatorSamplerSound::Ptr s, int micIndex);
 
 	static void refreshRootNotes(SampleMapEditor& sme, int numSelected);
 
@@ -605,12 +607,16 @@ public:
     void resized();
     void labelTextChanged (Label* labelThatHasChanged);
 
+	HiseShapeButton* addSimpleToggleButton(const String& title);
+
 	void addMenuButton(SampleMapCommands commandId);
 
 	HiseShapeButton* getButton(SampleMapCommands id) { return menuButtons[id].getComponent(); }
 
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
+
+	ModulatorSamplerSound::WeakPtr nextSelection;
 
 	friend class SampleMapEditorToolbarFactory;
 
@@ -623,6 +629,8 @@ private:
 	bool selectionIsNotEmpty;
 
 	float zoomFactor;
+
+	HiseShapeButton* autoPreviewButton;
 
 	bool mapIsHovered = false;
 

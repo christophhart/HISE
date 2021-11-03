@@ -517,9 +517,24 @@ void SamplerSoundWaveform::updateRange(AreaTypes a, bool refreshBounds)
 	}
 	case hise::AudioDisplayComponent::LoopCrossfadeArea:
 	{
-		const int64 start = (int64)currentSound->getSampleProperty(SampleIds::LoopStart) - (int64)currentSound->getSampleProperty(SampleIds::LoopXFade);
+		int start = 0;
+		int end = 0;
 
-		area->setSampleRange(Range<int>((int)start, currentSound->getSampleProperty(SampleIds::LoopStart)));
+		auto rev = currentSound->getReferenceToSound(0)->isReversed();
+		area->setReversed(rev);
+
+		if (rev)
+		{
+			start = (int)currentSound->getSampleProperty(SampleIds::LoopEnd);
+			end = (int)currentSound->getSampleProperty(SampleIds::LoopEnd) + (int)currentSound->getSampleProperty(SampleIds::LoopXFade);;
+		}
+		else
+		{
+			start = (int)currentSound->getSampleProperty(SampleIds::LoopStart) - (int)currentSound->getSampleProperty(SampleIds::LoopXFade);
+			end = currentSound->getSampleProperty(SampleIds::LoopStart);
+		}
+
+		area->setSampleRange(Range<int>(start, end));
 		break;
 	}
 	case hise::AudioDisplayComponent::numAreas:

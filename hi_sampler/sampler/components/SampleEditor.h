@@ -128,6 +128,8 @@ public:
         ZeroCrossing,
 		ShowEnvelopePopup,
 		ImproveLoopPoints,
+		ShowScriptPopup,
+		ToggleFirstScriptButton,
         numCommands
     };
     
@@ -329,6 +331,7 @@ private:
 	Component* analyseButton;
 	Component* externalButton;
 	Component* improveButton;
+	Component* scriptButton;
 
 	LookAndFeel_V4 slaf;
 

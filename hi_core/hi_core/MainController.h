@@ -249,6 +249,8 @@ public:
 
 		double& getPreloadProgress();
 
+		double getPreloadProgressConst() const;
+
 		const CriticalSection& getSampleLock() const noexcept { return sampleLock; }
 
 		void cancelAllJobs();

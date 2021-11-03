@@ -78,6 +78,7 @@ void SampleMapEditorToolbarFactory::getAllToolbarItemIds(Array<int> &ids)
 
 	ids.add(SampleMapEditor::DuplicateSamples);
 	ids.add(SampleMapEditor::DeleteSamples);
+	
 
 	ids.add(spacerId);
 
@@ -371,6 +372,8 @@ juce::Path SampleEditorToolbarFactory::Factory::createPath(const String& url) co
 	LOAD_PATH_IF_URL("main-only", SampleToolbarIcons::tabIcon);
 	LOAD_PATH_IF_URL("preview", LoopIcons::preview);
 	LOAD_PATH_IF_URL("envelope", SampleToolbarIcons::envelope);
+	LOAD_PATH_IF_URL("script-popup", HiBinaryData::SpecialSymbols::scriptProcessor);
+	LOAD_PATH_IF_URL("toggle-first", SampleToolbarIcons::toggleFirst);
 
 	return p;
 }

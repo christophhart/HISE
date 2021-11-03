@@ -298,6 +298,7 @@ bool SampleComponent::appliesToGroup(const Array<int>& groupIndexesToCompare) co
 
 SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
 	PreloadListener(ownerSampler_->getMainController()->getSampleManager()),
+	SimpleTimer(ownerSampler_->getMainController()->getGlobalUIUpdater()),
 	ownerSampler(ownerSampler_),
 	handler(ownerSampler->getSampleEditHandler()),
 	notePosition(-1),
@@ -489,6 +490,11 @@ void SamplerSoundMap::preloadStateChanged(bool isPreloading_)
 	if (!isPreloading)
 		updateSoundData();
 
+	if (isPreloading)
+		start();
+	else
+		stop();
+
 	repaint();
 }
 
@@ -628,8 +634,25 @@ void SamplerSoundMap::paintOverChildren(Graphics &g)
 	{
 		g.fillAll(Colour(0xAA222222));
 		g.setFont(GLOBAL_BOLD_FONT());
-		g.setColour(Colours::white);
-		g.drawText("Preloading", getLocalBounds().toFloat(), Justification::centred);
+		g.setColour(Colours::white.withAlpha(0.8f));
+
+		auto s = getSampler()->getMainController()->getSampleManager().getPreloadMessage();
+
+		if (s.isEmpty())
+			s = "Preloading";
+
+		g.drawText(s, getLocalBounds().toFloat(), Justification::centred);
+
+		auto b = getLocalBounds().toFloat().withSizeKeepingCentre(200.0f, 15.0f).translated(0.0f, 30.0f);
+
+		g.drawRoundedRectangle(b, b.getHeight() / 2.0f, 2.0f);
+		b = b.reduced(3.0f);
+
+		auto w = (float)getSampler()->getMainController()->getSampleManager().getPreloadProgressConst() * b.getWidth();
+
+		b.setWidth(jmax(w, b.getHeight()));
+
+		g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
 	}
 	else
 	{
@@ -797,6 +820,8 @@ void SamplerSoundMap::updateSoundData()
 		{
 			sampleComponents.add(new SampleComponent(sound, this));
 		}
+
+		sampleAmountChanged();
 	}
 	else
 	{

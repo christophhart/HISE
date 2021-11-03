@@ -1706,6 +1706,11 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, maxBufferSize.get());
 }
 
+double MainController::SampleManager::getPreloadProgressConst() const
+{
+	return internalPreloadJob.progress;
+}
+
 void MainController::SampleManager::handleNonRealtimeState()
 {
 	if (isNonRealtime() != internalsSetToNonRealtime)

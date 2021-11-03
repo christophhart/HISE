@@ -623,6 +623,8 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 
 	addKeyListener(sampler->getSampleEditHandler());
 
+	
+
     //[UserPreSize]
 
 
@@ -712,7 +714,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	//addMenuButton(CutSamples);
 	//addMenuButton(CopySamples);
 	//addMenuButton(PasteSamples);
-	//addMenuButton(DeleteSamples);
+	autoPreviewButton = addSimpleToggleButton("enable-autopreview");
 	addMenuButton(SelectAllSamples);
 	addMenuButton(DeselectAllSamples);
 	addMenuButton(FillNoteGaps);
@@ -720,6 +722,8 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	addMenuButton(RefreshVelocityXFade);
 
 	handler->selectionBroadcaster.addListener(*map->map, SamplerSoundMap::setDisplayedSound);
+
+	handler->selectionBroadcaster.addListener(*this, SampleMapEditor::autoPreviewCallback);
 
     //[/UserPreSize]
 
@@ -737,6 +741,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	});
 
 	setFocusContainer(true);
+
 
     //[/Constructor]
 }
@@ -844,6 +849,7 @@ void SampleMapEditor::resized()
 
 	PLACE_BUTTON(getButton(SelectAllSamples));
 	PLACE_BUTTON(getButton(DeselectAllSamples));
+	PLACE_BUTTON(autoPreviewButton);
 
 	ADD_SPACER(4);
 
@@ -930,17 +936,27 @@ void SampleMapEditor::labelTextChanged (Label* labelThatHasChanged)
 
 
 
+HiseShapeButton* SampleMapEditor::addSimpleToggleButton(const String& title)
+{
+	auto b = new HiseShapeButton(title, nullptr, f);
+	b->setToggleModeWithColourChange(true);
+
+	addAndMakeVisible(b);
+	ownedMenuButtons.add(b);
+	return b;
+}
+
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 
 void SampleMapEditor::addMenuButton(SampleMapCommands commandId)
 {
 	ApplicationCommandInfo r(commandId);
-
 	getCommandInfo(commandId, r);
-
 	auto b = new HiseShapeButton(r.shortName, nullptr, f);
-	b->setCommandToTrigger(getCommandManager(), commandId, true);
 
+	
+	b->setCommandToTrigger(getCommandManager(), commandId, true);
+	
 	addAndMakeVisible(b);
 	ownedMenuButtons.add(b);
 	menuButtons.set(commandId, b);
@@ -1133,7 +1149,19 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	{
 	case DuplicateSamples:	SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(handler); return true;
 	case DeleteDuplicateSamples: SampleEditHandler::SampleEditingActions::removeDuplicateSounds(handler); return true;
-	case DeleteSamples:		SampleEditHandler::SampleEditingActions::deleteSelectedSounds(handler); return true;
+	case DeleteSamples:		
+	{
+		if (handler->getNumSelected() == 1)
+		{
+			nextSelection = SampleEditHandler::SampleEditingActions::getNeighbourSample(handler, SamplerSoundMap::numNeighbours);
+		}
+		else
+			nextSelection = nullptr;
+		
+		SampleEditHandler::SampleEditingActions::deleteSelectedSounds(handler); 
+		return true;
+	}
+	
 	case CutSamples:		SampleEditHandler::SampleEditingActions::cutSelectedSounds(handler); return true;
 	case CopySamples:		SampleEditHandler::SampleEditingActions::copySelectedSounds(handler); return true;
 	case PasteSamples:		SampleEditHandler::SampleEditingActions::pasteSelectedSounds(handler); return true;
@@ -1332,6 +1360,12 @@ void SampleMapEditor::sampleMapWasChanged(PoolReference newSampleMap)
 void SampleMapEditor::sampleAmountChanged()
 {
 	updateWarningButton();
+
+	if (nextSelection != nullptr)
+	{
+		handler->getSelectionReference().selectOnly(nextSelection.get());
+		handler->setMainSelectionToLast();
+	}
 }
 
 void SampleMapEditor::samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& id, const var& newValue)
@@ -1586,6 +1620,14 @@ void SampleMapEditor::updateSampleMapSelector(bool rebuild)
 	MessageManager::callAsync(f2);
 }
 
+void SampleMapEditor::autoPreviewCallback(SampleMapEditor& m, ModulatorSamplerSound::Ptr s, int micIndex)
+{
+	if (m.autoPreviewButton->getToggleState())
+	{
+		m.handler->togglePreview();
+	}
+}
+
 void SampleMapEditor::refreshRootNotes(SampleMapEditor& sme, int numSelected)
 {
 	if (numSelected == 0 && sme.map->selectedRootNotes == 0)
@@ -1690,7 +1732,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 	LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
 	LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
-
+	LOAD_PATH_IF_URL("enable-autopreview", SampleMapIcons::autoPreview);
 	LOAD_PATH_IF_URL("select-all-samples", SampleMapIcons::selectAll);
 	LOAD_PATH_IF_URL("deselect-all-samples", EditorIcons::cancelIcon);
 
