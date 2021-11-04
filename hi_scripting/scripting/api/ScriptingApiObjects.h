@@ -1013,6 +1013,9 @@ namespace ScriptingObjects
 		/** Creates a info string for debugging. */
 		String dump() const;
 
+		/** Sets the start offset. */
+		void setStartOffset(int offset);
+
 		// ============================================================================================================
 
 		void setMessage(const HiseEvent &newEvent) { e = HiseEvent(newEvent); }
@@ -1069,6 +1072,9 @@ namespace ScriptingObjects
 
 		/** Stores the event into the message holder. */
 		bool storeEvent(int index, var holder);
+
+		/** Removes the matching event from the stack and puts it in the holder. */
+		bool removeIfEqual(var holder);
 
 		/** Inserts a number at the end of the stack. */
 		bool insert(var value);

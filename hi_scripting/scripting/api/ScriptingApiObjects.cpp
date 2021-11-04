@@ -3888,6 +3888,7 @@ struct ScriptingObjects::ScriptingMessageHolder::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getGain);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getTimestamp);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setTimestamp);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setStartOffset);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isNoteOn);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isNoteOff);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isController);
@@ -3923,6 +3924,7 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 	ADD_API_METHOD_0(isNoteOn);
 	ADD_API_METHOD_0(isNoteOff);
 	ADD_API_METHOD_0(isController);
+	ADD_API_METHOD_1(setStartOffset);
 	ADD_API_METHOD_0(dump);
 
 	addConstant("Empty", 0);
@@ -3959,6 +3961,7 @@ void ScriptingObjects::ScriptingMessageHolder::setType(int type)
 		reportScriptError("Unknown Type: " + String(type));
 }
 
+
 int ScriptingObjects::ScriptingMessageHolder::getVelocity() const { return e.getVelocity(); }
 void ScriptingObjects::ScriptingMessageHolder::ignoreEvent(bool shouldBeIgnored /*= true*/) { e.ignoreEvent(shouldBeIgnored); }
 int ScriptingObjects::ScriptingMessageHolder::getEventId() const { return (int)e.getEventId(); }
@@ -3973,6 +3976,7 @@ int ScriptingObjects::ScriptingMessageHolder::getGain() const { return (int)e.ge
 int ScriptingObjects::ScriptingMessageHolder::getTimestamp() const { return (int)e.getTimeStamp(); }
 void ScriptingObjects::ScriptingMessageHolder::setTimestamp(int timestampSamples) { e.setTimeStamp(timestampSamples);}
 void ScriptingObjects::ScriptingMessageHolder::addToTimestamp(int deltaSamples) { e.addToTimeStamp((int16)deltaSamples); }
+void ScriptingObjects::ScriptingMessageHolder::setStartOffset(int offset) { e.setStartOffset((uint16)offset); }
 bool ScriptingObjects::ScriptingMessageHolder::isNoteOn() const { return e.isNoteOn(); }
 bool ScriptingObjects::ScriptingMessageHolder::isNoteOff() const { return e.isNoteOff(); }
 bool ScriptingObjects::ScriptingMessageHolder::isController() const { return e.isController(); }
@@ -5673,6 +5677,7 @@ struct ScriptingObjects::ScriptUnorderedStack::Wrapper
 	API_METHOD_WRAPPER_0(ScriptUnorderedStack, clear);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, contains);
 	API_METHOD_WRAPPER_2(ScriptUnorderedStack, storeEvent);
+	API_METHOD_WRAPPER_1(ScriptUnorderedStack, removeIfEqual);
 	API_METHOD_WRAPPER_1(ScriptUnorderedStack, copyTo);
 	API_VOID_METHOD_WRAPPER_2(ScriptUnorderedStack, setIsEventStack);
 };
@@ -5691,6 +5696,7 @@ ScriptingObjects::ScriptUnorderedStack::ScriptUnorderedStack(ProcessorWithScript
 	ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_2(setIsEventStack);
 	ADD_API_METHOD_2(storeEvent);
+	ADD_API_METHOD_1(removeIfEqual);
 	ADD_API_METHOD_1(copyTo);
 
 	elementBuffer = new VariantBuffer(data.begin(), 0);
@@ -5917,6 +5923,27 @@ bool ScriptingObjects::ScriptUnorderedStack::storeEvent(int index, var holder)
 		reportScriptError("holder must be a MessageHolder");
 
 	RETURN_IF_NO_THROW(false);
+}
+
+bool ScriptingObjects::ScriptUnorderedStack::removeIfEqual(var holder)
+{
+	if (!isEventStack)
+	{
+		reportScriptError("removeIfEqual does not work with float number stack");
+		RETURN_IF_NO_THROW(false);
+	}
+
+	auto idx = getIndexForEvent(holder);
+
+	if (idx != -1)
+	{
+		auto eventFromStack = eventData[idx];
+		eventData.removeElement(idx);
+		dynamic_cast<ScriptingMessageHolder*>(holder.getObject())->setMessage(eventFromStack);
+		return true;
+	}
+
+	return false;
 }
 
 bool ScriptingObjects::ScriptUnorderedStack::insert(var value)
