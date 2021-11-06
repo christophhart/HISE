@@ -177,7 +177,7 @@ END_JUCE_MODULE_DECLARATION
 
 
 
-
+#include "hi_tools/PitchDetection.h"
 #include "hi_tools/VariantBuffer.h"
 #include "hi_tools/Tables.h"
 

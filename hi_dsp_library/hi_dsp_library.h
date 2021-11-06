@@ -110,8 +110,6 @@ Set this to 1 if you want to embed the libraries created with this module into y
 
 #include "node_api/helpers/node_macros.h"
 
-#include "dywapitchtrack/dywapitchtrack.h"
-#include "dywapitchtrack/PitchDetection.h"
 
 #include "snex_basics/snex_Types.h"
 

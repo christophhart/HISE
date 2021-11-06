@@ -40,7 +40,9 @@
 #else
 #include "hi_dsp_library.h"
 
+#include "dywapitchtrack/dywapitchtrack.h"
 #include "dywapitchtrack/dywapitchtrack.c"
+#include "dywapitchtrack/PitchDetection.cpp"
 
 #include "dsp_library/DspBaseModule.cpp"
 
