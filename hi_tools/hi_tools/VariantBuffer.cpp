@@ -126,6 +126,9 @@ String VariantBuffer::toDebugString() const
 
 	description << "Buffer (size: " << size << ")";
 
+	if (buffer.getNumSamples() == 0)
+		return description;
+
 	description << ", Max: " << String(buffer.getMagnitude(0, size), 3);
 	description << ", RMS: " << String(buffer.getRMSLevel(0, 0, size), 3);
 
@@ -134,10 +137,156 @@ String VariantBuffer::toDebugString() const
 
 void VariantBuffer::addMethods()
 {
+	setMethod("normalise", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			auto ptr = bf->buffer.getWritePointer(0, 0);
+
+			auto mag = bf->buffer.getMagnitude(0, bf->size);
+
+			float gain = 1.0f;
+
+			if (n.numArguments > 0)
+				gain = jlimit<float>(0.0f, 1.0f, Decibels::decibelsToGain(gain));
+
+			if (mag > 0.0f)
+				gain /= mag;
+
+			FloatVectorOperations::multiply(ptr, gain, bf->size);
+		}
+
+		return var(0);
+	});
+
+	setMethod("detectPitch", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			if (n.numArguments == 0)
+			{
+				throw String("samplerate expected as first argument");
+				return var(0);
+			}
+
+			auto sampleRate = (double)n.arguments[0];
+
+			int numSamples = bf->buffer.getNumSamples();
+
+			if (n.numArguments > 2)
+				numSamples = jmin(numSamples, (int)n.arguments[2]);
+
+			int offset = 0;
+
+			if (n.numArguments > 1)
+				offset = jmin((int)n.arguments[1], bf->buffer.getNumSamples() - numSamples);
+
+			return var(PitchDetection::detectPitch(bf->buffer, offset, numSamples, sampleRate));
+		}
+
+		return var(0);
+	});
+
+	setMethod("indexOfPeak", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			int numSamples = bf->buffer.getNumSamples();
+
+			if (n.numArguments > 1)
+				numSamples = jmin(numSamples, (int)n.arguments[1]);
+
+			int offset = 0;
+
+			if (n.numArguments > 0)
+				offset = jmin((int)n.arguments[0], bf->buffer.getNumSamples() - numSamples);
+
+			auto ptr = bf->buffer.getReadPointer(0, offset);
+
+			int index = 0;
+			int maxValue = 0.0f;
+
+			for (int i = 0; i < numSamples; i++)
+			{
+				auto thisValue = std::abs(ptr[i]);
+				if (thisValue > maxValue)
+				{
+					maxValue = thisValue;
+					index = i;
+				}
+			}
+
+			return var(index + offset);
+		}
+
+		return var(0);
+	});
+
+	setMethod("toBase64", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			juce::MemoryBlock mb(bf->buffer.getReadPointer(0), sizeof(float) * bf->size);
+
+			String b = "Buffer";
+			b << mb.toBase64Encoding();
+			return var(b);
+		}
+
+		return var(0);
+	});
+
+	setMethod("fromBase64", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			if (n.numArguments == 0)
+				throw String("expected string");
+
+			auto s = n.arguments[0].toString();
+			MemoryBlock mb;
+
+			if (!s.startsWith("Buffer"))
+				return var(false);
+
+			if (!mb.fromBase64Encoding(s.substring(6)))
+				return var(false);
+
+			auto newSize = mb.getSize() / sizeof(float);
+
+			if (newSize > 44100)
+				throw String("Too big");
+
+			bf->buffer.setSize(1, newSize);
+			bf->size = newSize;
+
+			auto asFloatArray = reinterpret_cast<float*>(mb.getData());
+
+			FloatVectorOperations::copy(bf->buffer.getWritePointer(0), asFloatArray, newSize);
+
+			return var(true);
+		}
+
+		return var(0);
+	});
+
 	setMethod("getMagnitude", [](const var::NativeFunctionArgs& n)
 	{
-		if(auto bf = n.thisObject.getBuffer())
-			return var(bf->buffer.getMagnitude(0, 0, bf->buffer.getNumSamples()));
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			int numSamples = bf->buffer.getNumSamples();
+
+			if (n.numArguments > 1)
+				numSamples = jmin(numSamples, (int)n.arguments[1]);
+
+			int offset = 0;
+
+			if (n.numArguments > 0)
+				offset = jmin((int)n.arguments[0], bf->buffer.getNumSamples() - numSamples);
+
+			return var(bf->buffer.getMagnitude(0, offset, numSamples));
+		}
+			
 
 		return var(0);
 	});
@@ -145,7 +294,20 @@ void VariantBuffer::addMethods()
 	setMethod("getRMSLevel", [](const var::NativeFunctionArgs& n)
 	{
 		if (auto bf = n.thisObject.getBuffer())
-			return var(bf->buffer.getRMSLevel(0, 0, bf->buffer.getNumSamples()));
+		{
+			int numSamples = bf->buffer.getNumSamples();
+
+			if (n.numArguments > 1)
+				numSamples = jmin(numSamples, (int)n.arguments[1]);
+
+			int offset = 0;
+
+			if (n.numArguments > 0)
+				offset = jmin((int)n.arguments[0], bf->buffer.getNumSamples() - numSamples);
+
+			return var(bf->buffer.getRMSLevel(0, offset, numSamples));
+		}
+			
 
 		return var(0);
 	});
@@ -156,7 +318,17 @@ void VariantBuffer::addMethods()
 
 		if (auto bf = n.thisObject.getBuffer())
 		{
-			auto r = bf->buffer.findMinMax(0, 0, bf->buffer.getNumSamples());
+			int numSamples = bf->buffer.getNumSamples();
+
+			if (n.numArguments > 1)
+				numSamples = jmin(numSamples, (int)n.arguments[1]);
+
+			int offset = 0;
+
+			if (n.numArguments > 0)
+				offset = jmin((int)n.arguments[0], bf->buffer.getNumSamples() - numSamples);
+
+			auto r = bf->buffer.findMinMax(0, offset, numSamples);
 			range.add(r.getStart());
 			range.add(r.getEnd());
 		}

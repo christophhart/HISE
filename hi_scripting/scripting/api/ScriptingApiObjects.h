@@ -108,6 +108,65 @@ class SlotFX;
 */
 namespace ScriptingObjects
 {
+	class ScriptBuffer : public ConstScriptingObject
+	{
+	public:
+
+		ScriptBuffer(ProcessorWithScriptingContent* p, int size) :
+			ConstScriptingObject(p, 0)
+		{
+			jassertfalse;
+		};
+
+		Identifier getObjectName() const override { return "Buffer"; }
+
+		/** Returns the magnitude in the given range. */
+		float getMagnitude(int startSample, int numSamples)
+		{
+			jassertfalse;
+		}
+
+		/** Returns the RMS value in the given range. */
+		float getRMSLevel(int startSample, int numSamples)
+		{
+
+		}
+
+		/** Normalises the buffer to the given decibel value. */
+		void normalise(float gainInDecibels)
+		{
+			jassertfalse;
+		};
+
+		/** Detects the pitch of the given buffer. */
+		double detectPitch(double sampleRate, int startSample, int numSamples)
+		{
+			return 0.0;
+		}
+
+		/** Converts a buffer with up to 44100 samples to a Base64 string. */
+		String toBase64()
+		{
+
+		}
+
+		/** Loads the content from the Base64 string (and resizes the buffer if necessary). */
+		void fromBase64(String b64String)
+		{
+
+		}
+
+		/** Returns the sample index with the highest peak. */
+		int indexOfPeak(int startSample, int numSamples)
+		{
+			jassertfalse;
+		}
+
+		/** Returns an array with the min and max value in the given range. */
+		var getPeakRange(int startSample, int numSamples);
+
+	};
+
 	class MidiList : public ConstScriptingObject,
 					 public AssignableObject
 	{
