@@ -286,13 +286,14 @@ Rectangle<float> mcl::TextDocument::getGlyphBounds(Point<int> index, GlyphArrang
 	return getBoundsOnRow(index.x, Range<int>(first, first + 1), m).getRectangle(0);
 }
 
-GlyphArrangement mcl::TextDocument::getGlyphsForRow(int row, int token, bool withTrailingSpace) const
+GlyphArrangement mcl::TextDocument::getGlyphsForRow(int row, Range<float> visibleRange, int token, bool withTrailingSpace) const
 {
 	lines.lines[row]->ensureReadyToPaint(lines.font);
 
 	return lines.getGlyphs(row,
 		getVerticalPosition(row, Metric::baseline),
 		token,
+		visibleRange,
 		withTrailingSpace);
 }
 
@@ -302,12 +303,25 @@ GlyphArrangement mcl::TextDocument::findGlyphsIntersecting(Rectangle<float> area
 	auto rows = Array<RowData>();
 	auto glyphs = GlyphArrangement();
 
-	
+	Range<float> visibleRange;
+
+	if (!lines.isLineBreakEnabled())
+	{
+		visibleRange = { area.getX(), area.getRight() };
+	}
 
 	for (int n = range.getStart(); n < range.getEnd(); ++n)
 	{
-		if(!foldManager.isFolded(n))
-			glyphs.addGlyphArrangement(getGlyphsForRow(n, token));
+		if (!foldManager.isFolded(n))
+		{
+			if (!lines.containsToken(n, token))
+				continue;
+
+			auto l = getGlyphsForRow(n, visibleRange, token);
+
+			glyphs.addGlyphArrangement(std::move(l));
+		}
+
 	}
 
 	return glyphs;
@@ -453,7 +467,7 @@ Point<int> mcl::TextDocument::findIndexNearestPosition(Point<float> position) co
 
 		if (p.contains(position.y))
 		{
-			auto glyphs = getGlyphsForRow(l, -1, true);
+			auto glyphs = getGlyphsForRow(l, {}, -1, true);
 
 			int numGlyphs = glyphs.getNumGlyphs();
 			auto col = numGlyphs;
@@ -530,6 +544,10 @@ void TextDocument::drawWhitespaceRectangles(int row, Graphics& g)
 	{
 		const auto& s = l->string;
 		auto numChars = s.length();
+
+		// let's skip this for big lines
+		if (numChars > 400)
+			return;
 
 		for (int i = 0; i < numChars; i++)
 		{

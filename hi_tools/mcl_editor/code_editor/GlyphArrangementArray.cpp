@@ -73,6 +73,7 @@ void mcl::GlyphArrangementArray::applyTokens(int index, Selection zone)
 GlyphArrangement mcl::GlyphArrangementArray::getGlyphs(int index,
 	float baseline,
 	int token,
+	Range<float> visibleRange,
 	bool withTrailingSpace) const
 {
 	if (!isPositiveAndBelow(index, lines.size()))
@@ -91,25 +92,6 @@ GlyphArrangement mcl::GlyphArrangementArray::getGlyphs(int index,
 	auto glyphSource = withTrailingSpace ? entry->glyphsWithTrailingSpace : entry->glyphs;
 	auto glyphs = GlyphArrangement();
 
-
-
-	if (DEBUG_TOKENS)
-	{
-		String line;
-		String hex("0123456789abcdefg");
-
-		for (auto token : entry->tokens)
-			line << hex[token % 16];
-
-		if (withTrailingSpace)
-			line << " ";
-
-		glyphSource.clear();
-		glyphSource.addLineOfText(font, line, 0.f, 0.f);
-	}
-
-
-
 	for (int n = 0; n < glyphSource.getNumGlyphs(); ++n)
 	{
 		if (token == -1 || entry->tokens[n] == token)
@@ -120,7 +102,8 @@ GlyphArrangement mcl::GlyphArrangementArray::getGlyphs(int index,
 
 			glyph.moveBy(TEXT_INDENT, baseline);
 
-			glyphs.addGlyph(glyph);
+			if(visibleRange.isEmpty() || visibleRange.expanded(glyph.getBounds().getWidth()).contains(glyph.getRight()))
+				glyphs.addGlyph(glyph);
 		}
 	}
 
@@ -260,6 +243,20 @@ int GlyphArrangementArray::roundToTab(int c)
 	c -= (c % TabSize);
 	c += TabSize;
 	return c;
+}
+
+bool GlyphArrangementArray::containsToken(int lineNumber, int token) const
+{
+	if (auto l = lines[lineNumber])
+	{
+		for (const auto& n : l->tokens)
+		{
+			if (n == token)
+				return true;
+		}
+	}
+	
+	return false;
 }
 
 void GlyphArrangementArray::ensureReadyToPaint(Range<int> lineRange)

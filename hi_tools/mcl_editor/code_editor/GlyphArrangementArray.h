@@ -66,6 +66,7 @@ public:
 	juce::GlyphArrangement getGlyphs(int index,
 		float baseline,
 		int token,
+		Range<float> visibleRange,
 		bool withTrailingSpace = false) const;
 
 	struct Entry : public ReferenceCountedObject
@@ -330,6 +331,10 @@ public:
 	mutable juce::ReferenceCountedArray<Entry> lines;
 
 	Rectangle<float> characterRectangle;
+
+	bool isLineBreakEnabled() const { return maxLineWidth != -1; }
+
+	bool containsToken(int lineNumber, int token) const;
 
 private:
 

@@ -385,11 +385,16 @@ struct SimpleDocumentTokenProvider : public TokenCollection::Provider,
 		{
 			auto c = it.nextChar();
 
+			int numChars = 0;
+
 			if (CharacterFunctions::isLetter(c) || (c == '_') || (currentString.isNotEmpty() && CharacterFunctions::isLetterOrDigit(c)))
+			{
 				currentString << c;
+				numChars++;
+			}
 			else
 			{
-				if (currentString.length() > 2)
+				if (numChars > 2 && numChars < 60)
 				{
 					bool found = false;
 

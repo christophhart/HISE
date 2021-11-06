@@ -635,7 +635,7 @@ public:
 	/** Return a glyph arrangement for the given row. If token != -1, then
 	 only glyphs with that token are returned.
 	 */
-	juce::GlyphArrangement getGlyphsForRow(int row, int token = -1, bool withTrailingSpace = false) const;
+	juce::GlyphArrangement getGlyphsForRow(int row, Range<float> visibleRange, int token = -1, bool withTrailingSpace = false) const;
 
 	/** Return all glyphs whose bounding boxes intersect the given area. This method
 		may be generous (including glyphs that don't intersect). If token != -1, then
