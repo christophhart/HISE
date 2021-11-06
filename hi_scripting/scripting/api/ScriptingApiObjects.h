@@ -461,23 +461,16 @@ namespace ScriptingObjects
 
 		using WindowType = FFTHelpers::WindowType;
 		
-		enum DomainType
-		{
-			Magnitude = (int)WindowType::numWindowType,
-			MagnitudeDb,
-			Phase,
-			numDomainTypes
-		};
-
 		struct Wrapper
 		{
 			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setWindowType);
 			API_VOID_METHOD_WRAPPER_2(ScriptFFT, prepare);
-			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setDomain);
 			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setOverlap);
-			API_VOID_METHOD_WRAPPER_1(ScriptFFT, process);
-			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setProcessFunction);
+			API_METHOD_WRAPPER_1(ScriptFFT, process);
+			API_VOID_METHOD_WRAPPER_2(ScriptFFT, setMagnitudeFunction);
+			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setPhaseFunction);
 			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setEnableSpectrum2D);
+			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setEnableInverseFFT);
 		};
 
 		ScriptFFT(ProcessorWithScriptingContent* pwsc);
@@ -494,14 +487,14 @@ namespace ScriptingObjects
 
 		// ======================================================================================================= API Methods
 
-		/** Sets a function that will be executed with the FFT data chunks. */
-		void setProcessFunction(var newProcessFunction);
+		/** Sets a function that will be executed with the amplitude information of the FFT bins. */
+		void setMagnitudeFunction(var newMagnitudeFunction, bool convertToDecibels);
+
+		/** Sets a function that will be executed with the phase information of the FFT bins. */
+		void setPhaseFunction(var newPhaseFunction);
 
 		/** Sets a window function that will be applied to the data chunks before processing. */
 		void setWindowType(int windowType);
-
-		/** Sets the domain for the transformed data (phase or magnitude). */
-		void setDomain(int domainType);
 
 		/** Sets an overlap (from 0...1) for the chunks. */
 		void setOverlap(double percentageOfOverlap);
@@ -510,42 +503,74 @@ namespace ScriptingObjects
 		void prepare(int powerOfTwoSize, int maxNumChannels);
 
 		/** Process the given data (either a buffer or a array of buffers. */
-		void process(var dataToProcess);
+		var process(var dataToProcess);
 
 		/** Enables the creation of a 2D spectrograph image. */
 		void setEnableSpectrum2D(bool shouldBeEnabled);
+
+		/** This enables the inverse transform that will reconstruct the signal from the
+			processed FFT. */
+		void setEnableInverseFFT(bool shouldApplyReverseTransformToInput);
 
 		// ======================================================================================================= End of API Methods
 
 	private:
 
+		AudioSampleBuffer windowBuffer;
+
+		var getBufferArgs(bool useMagnitude, int numToUse);
+
+		void reinitialise()
+		{
+			if (lastSpecs)
+			{
+				prepare(lastSpecs.blockSize, lastSpecs.numChannels);
+			}
+		}
+
+		bool convertMagnitudesToDecibel = false;
+
+		PrepareSpecs lastSpecs;
+
+		bool enableInverse = false;
 		bool enableSpectrum = false;
 
 		AudioSampleBuffer fullBuffer;
 		Image spectrum;
+		Image outputSpectrum;
 		Spectrum2D::Parameters::Ptr spectrumParameters;
 		SimpleReadWriteLock lock;
 
 		static int getNumToProcess(var inputData);
 
-		var copyToWorkBuffer(var inputData, int offset, int channel);
+		void copyToWorkBuffer(var inputData, int offset, int channel);
 
-		void applyFFT(int numChannelsThisTime);
+		void copyFromWorkBuffer(int offset, int channel);
+
+		void applyFFT(int numChannelsThisTime, bool skipFirstWindowHalf);
+
+		void applyInverseFFT(int numChannelsThisTime);
 
 		struct WorkBuffer
 		{
-			VariantBuffer::Ptr workBuffer;
-			VariantBuffer::Ptr processBuffer;
+			VariantBuffer::Ptr chunkInput;
+			VariantBuffer::Ptr chunkOutput;
+			VariantBuffer::Ptr magBuffer;
+			VariantBuffer::Ptr phaseBuffer;
+
+			
 		};
 		
 		Array<WorkBuffer> scratchBuffers;
 
 		Array<var> thisProcessBuffer;
 
-		ScopedPointer<juce::dsp::FFT> fft;
-		WeakCallbackHolder processFunction;
+		Array<var> outputData;
 
-		DomainType currentDomainType = DomainType::Magnitude;
+		ScopedPointer<juce::dsp::FFT> fft;
+		WeakCallbackHolder magnitudeFunction;
+		WeakCallbackHolder phaseFunction;
+
 		WindowType currentWindowType = WindowType::Rectangle;
 		double overlap = 0.0;
 		int maxNumSamples = 0;

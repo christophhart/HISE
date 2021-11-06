@@ -2401,8 +2401,47 @@ struct FFTHelpers
         }
     }
 
-    static void applyWindow(WindowType t, AudioSampleBuffer& b);
+    static void applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise=true);
     
+	static void toComplexArray(const AudioSampleBuffer& phaseBuffer, const AudioSampleBuffer& magBuffer, AudioSampleBuffer& out)
+	{
+		auto phase = phaseBuffer.getReadPointer(0);
+		auto mag = magBuffer.getReadPointer(0);
+
+		auto output = out.getWritePointer(0);
+		
+		jassert(phaseBuffer.getNumSamples() == magBuffer.getNumSamples());
+		jassert(phaseBuffer.getNumSamples() * 2 == out.getNumSamples());
+
+		int size = phaseBuffer.getNumSamples();
+
+		for (int i = 0; i < size; i++)
+		{
+			auto re = mag[i] * std::cos(phase[i]);
+			auto im = mag[i] * std::sin(phase[i]);
+
+			output[i * 2] = re;
+			output[i * 2 + 1] = im;
+		}
+	}
+
+	static void toPhaseSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer& out)
+	{
+		auto input = inp.getReadPointer(0);
+		auto output = out.getWritePointer(0);
+
+		jassert(inp.getNumSamples() == out.getNumSamples() * 2);
+
+		auto numOriginalSamples = out.getNumSamples();
+
+		for (int i = 0; i < numOriginalSamples; i++)
+		{
+			auto re = input[i * 2];
+			auto im = input[i * 2 + 1];
+			output[i] = std::atan2(im, re);
+		}
+	}
+
     static void toFreqSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer& out)
     {
         auto input = inp.getReadPointer(0);
@@ -2414,14 +2453,15 @@ struct FFTHelpers
 
         for (int i = 0; i < numOriginalSamples; i++)
         {
-            output[i] = input[i*2] * input[i*2] + input[i*2+1] * input[i*2+1];
-            output[i] = sqrt(output[i]);
+			auto re = input[i * 2];
+			auto im = input[i * 2 + 1];
+            output[i] = sqrt(re * re + im * im);
         }
     }
 
-    static void scaleFrequencyOutput(AudioSampleBuffer& b, bool convertToDb)
+    static void scaleFrequencyOutput(AudioSampleBuffer& b, bool convertToDb, bool invert=false)
     {
-        auto data = b.getWritePointer(0);
+		auto data = b.getWritePointer(0);
         auto numOriginalSamples = b.getNumSamples();
 
         if (numOriginalSamples == 0)
@@ -2429,11 +2469,23 @@ struct FFTHelpers
 
         auto factor = 2.f / (float)numOriginalSamples;
 
+		if (invert)
+		{
+			factor = 1.0f / factor;
+			factor *= 0.5f;
+
+			if (convertToDb)
+			{
+				for (int i = 0; i < numOriginalSamples; i++)
+					data[i] = Decibels::decibelsToGain(data[i]);
+			}
+		}
+
         FloatVectorOperations::multiply(data, factor, numOriginalSamples);
 
-        if (convertToDb)
+        if (!invert && convertToDb)
         {
-            for (int i = 0; i < numOriginalSamples; i++)
+			for (int i = 0; i < numOriginalSamples; i++)
                 data[i] = Decibels::gainToDecibels(data[i]);
         }
     }

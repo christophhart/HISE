@@ -907,7 +907,7 @@ void ScrollbarFader::startFadeOut()
     startTimer(500);
 }
 
-void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b)
+void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise)
 {
     auto s = b.getNumSamples() / 2;
     auto data = b.getWritePointer(0);
@@ -919,22 +919,22 @@ void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b)
     case Rectangle:
         break;
     case BlackmanHarris:
-        DspWindowType(s, DspWindowType::blackmanHarris, true).multiplyWithWindowingTable(data, s);
+        DspWindowType(s, DspWindowType::blackmanHarris, normalise).multiplyWithWindowingTable(data, s);
         break;
     case Hamming:
-        DspWindowType(s, DspWindowType::hamming, true).multiplyWithWindowingTable(data, s);
+        DspWindowType(s, DspWindowType::hamming, normalise).multiplyWithWindowingTable(data, s);
         break;
     case Hann:
-        DspWindowType(s, DspWindowType::hann, true).multiplyWithWindowingTable(data, s);
+        DspWindowType(s, DspWindowType::hann, normalise).multiplyWithWindowingTable(data, s);
         break;
 	case Kaiser:
-		DspWindowType(s, DspWindowType::kaiser, true, 15.0f).multiplyWithWindowingTable(data, s);
+		DspWindowType(s, DspWindowType::kaiser, normalise, 15.0f).multiplyWithWindowingTable(data, s);
 		break;
     case Triangle:
-        DspWindowType(s, DspWindowType::triangular, true).multiplyWithWindowingTable(data, s);
+        DspWindowType(s, DspWindowType::triangular, normalise).multiplyWithWindowingTable(data, s);
         break;
     case FlatTop:
-        DspWindowType(s, DspWindowType::flatTop, true).multiplyWithWindowingTable(data, s);
+        DspWindowType(s, DspWindowType::flatTop, normalise).multiplyWithWindowingTable(data, s);
         break;
     default:
         jassertfalse;

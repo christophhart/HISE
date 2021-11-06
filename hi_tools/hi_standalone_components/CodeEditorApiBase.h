@@ -332,6 +332,7 @@ public:
 		else if (v.isBool())	return "bool";
 		else if (v.isInt() ||
 			v.isInt64())	return "int";
+		else if (v.isBuffer()) return "Buffer";
 		else if (v.isObject())
 		{
 			if (auto d = dynamic_cast<DebugableObjectBase*>(v.getObject()))
@@ -340,7 +341,6 @@ public:
 			}
 			else return "Object";
 		}
-		else if (v.isObject()) return "Object";
 		else if (v.isDouble()) return "double";
 		else if (v.isString()) return "String";
 		else if (v.isMethod()) return "function";
