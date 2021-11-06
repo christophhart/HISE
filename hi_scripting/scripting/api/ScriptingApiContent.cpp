@@ -2483,6 +2483,14 @@ var ScriptingApi::Content::ScriptSliderPack::registerAtParent(int pIndex)
 	return registerComplexDataObjectAtParent(pIndex);
 }
 
+struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptAudioWaveform, referToData);
+	API_METHOD_WRAPPER_0(ScriptAudioWaveform, getRangeStart);
+	API_METHOD_WRAPPER_0(ScriptAudioWaveform, getRangeEnd);
+	API_METHOD_WRAPPER_1(ScriptAudioWaveform, registerAtParent);
+};
+
 ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int, int) :
 	ComplexDataScriptComponent(base, waveformName, snex::ExternalData::DataType::AudioFile)
 {
@@ -2513,6 +2521,11 @@ ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScr
 	handleDefaultDeactivatedProperties();
 
 	updateCachedObjectReference();
+
+	ADD_API_METHOD_1(referToData);
+	ADD_API_METHOD_0(getRangeStart);
+	ADD_API_METHOD_0(getRangeEnd);
+	ADD_API_METHOD_1(registerAtParent);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptAudioWaveform::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -2581,6 +2594,31 @@ void ScriptingApi::Content::ScriptAudioWaveform::resetValueToDefault()
 		af->fromBase64String({});
 }
 
+void ScriptingApi::Content::ScriptAudioWaveform::referToData(var audioData)
+{
+	referToDataBase(audioData);
+}
+
+int ScriptingApi::Content::ScriptAudioWaveform::getRangeStart()
+{
+	if (auto af = getCachedAudioFile())
+		return af->getCurrentRange().getStart();
+
+	return 0;
+}
+
+int ScriptingApi::Content::ScriptAudioWaveform::getRangeEnd()
+{
+	if (auto af = getCachedAudioFile())
+		return af->getCurrentRange().getEnd();
+
+	return 0;
+}
+
+var ScriptingApi::Content::ScriptAudioWaveform::registerAtParent(int pIndex)
+{
+	return registerComplexDataObjectAtParent(pIndex);
+}
 
 struct ScriptingApi::Content::ScriptImage::Wrapper
 {

@@ -52,6 +52,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_table_processor.xml" "x
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_display_buffer_source.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_slider_pack_processor.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_f_f_t.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_script_buffer.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_effect.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_routing_matrix.xml" "xml\selection"
@@ -78,6 +79,7 @@ xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_panel.xml" "xml\s
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_pack.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "xml\selection"
+xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_audio_waveform.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_script_user_preset_handler.xml" "xml\selection"
 
@@ -156,7 +158,8 @@ ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_scripted_plotter
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_pack.xml" "ScriptSliderPack.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport.xml" "ScriptedViewport.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "ScriptFloatingTile.xml"
-
+ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_audio_waveform.xml" "ScriptAudioWaveform.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_buffer.xml" "Buffer.xml"
 
 ren "xml\selection\classhise_1_1_script_expansion_handler.xml" "ExpansionHandler.xml"
 ren "xml\selection\classhise_1_1_script_expansion_reference.xml" "Expansion.xml"

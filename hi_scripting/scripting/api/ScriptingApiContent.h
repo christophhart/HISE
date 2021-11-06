@@ -1422,6 +1422,22 @@ public:
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); };
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
+		// ======================================================================================================== API Methods
+
+		/** Connects this AudioFile to an existing ScriptAudioFile object. */
+		void referToData(var audioData);
+
+		/** Returns the current range start. */
+		int getRangeStart();
+
+		/** Returns the current range end. */
+		int getRangeEnd();
+
+		/** Registers this waveform to the script processor to be acessible from the outside. */
+		var registerAtParent(int pIndex);
+
+		// ========================================================================================================
+
 		void handleDefaultDeactivatedProperties() override;
 
 		void resetValueToDefault() override;
@@ -1435,6 +1451,8 @@ public:
 		// ========================================================================================================
 
 	private:
+
+		struct Wrapper;
 
 		MultiChannelAudioBuffer* getCachedAudioFile() { return static_cast<MultiChannelAudioBuffer*>(getCachedDataObject()); };
 		const MultiChannelAudioBuffer* getCachedAudioFile() const { return static_cast<const MultiChannelAudioBuffer*>(getCachedDataObject()); };
