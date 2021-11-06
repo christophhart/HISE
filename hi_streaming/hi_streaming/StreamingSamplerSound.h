@@ -123,9 +123,6 @@ public:
 	/** Returns the length of the sample. */
 	int getSampleLength() const noexcept { return sampleLength; };
 
-	/** This will return a positive value if the sample end != the actual sample end. */
-	int getReverseBufferOffset() const;
-
 	/** Sets the sample start modulation. The preload buffer will be enhanced by this amount in order to ensure immediate playback. */
 	void setSampleStartModulation(int maxSampleStartDelta);
 
@@ -154,10 +151,10 @@ public:
 	void setLoopEnd(int newLoopEnd);;
 
 	/** Returns the loop start. */
-	int getLoopStart() const noexcept { return loopStart; };
+	int getLoopStart(bool getReverseLoopPoint=false) const noexcept;;
 
 	/** Returns the loop end. */
-	int getLoopEnd() const noexcept { return loopEnd; };
+	int getLoopEnd(bool getReverseLoopPoint=false) const noexcept;;
 
 	/** Returns the loop length. */
 	int getLoopLength() const noexcept { return loopEnd - loopStart; };
@@ -172,7 +169,7 @@ public:
 	void setReversed(bool shouldBeReversed);
 
 	/** Checks if the sound is reversed. */
-	bool isReversed() const { return reversed; }
+	bool isReversed() const { return fileReader.isReversed(); }
 
 	/** Sets the basic MIDI mapping data (key-range, velocity-range and root note) from the given data object. */
 	void setBasicMappingData(const StreamingHelpers::BasicMappingData& data);
@@ -186,7 +183,7 @@ public:
 	*	If the preload size is not changed, it will do nothing, but you can force it to reload it with 'forceReload'.
 	*	You can also tell the sound to load everything into memory by calling loadEntireSample().
 	*/
-	void setPreloadSize(int newPreloadSizeInSamples, bool forceReload = false, bool applyLoop=true);
+	void setPreloadSize(int newPreloadSizeInSamples, bool forceReload = false);
 
 	/** Returns the size of the preload buffer in bytes. You can use this method to check how much memory the sound uses. It also includes the memory used for the crossfade buffer. */
 	size_t getActualPreloadSize() const;
@@ -390,9 +387,18 @@ private:
 
 		AudioFormatWriter* createWriterWithSameFormat(OutputStream* out);
 
+		void setReversed(bool shouldBeReversed)
+		{
+			reversed = shouldBeReversed;
+		}
+
+		bool isReversed() const { return reversed; }
+
 		// ==============================================================================================================================================
 
 	private:
+
+		bool reversed = false;
 
 		StreamingSamplerSoundPool *pool;
 
@@ -400,8 +406,6 @@ private:
 		int monolithicIndex = -1;
 		int monolithicChannelIndex = -1;
 		String monolithicName;
-
-		CriticalSection readLock2;
 
 		ReadWriteLock fileAccessLock;
 
@@ -457,7 +461,7 @@ private:
 	void lengthChanged();
 
     void rebuildCrossfadeBuffer(bool preloadContainsLoop);
-	void applyCrossfadeToPreloadBuffer();
+	void applyCrossfadeToInternalBuffers();
 
 	/** This fills the supplied AudioSampleBuffer with samples.
 	*
@@ -486,10 +490,7 @@ private:
 	hlac::HiseSampleBuffer preloadBuffer;
 	double sampleRate;
 
-	int monolithOffset;
-	int monolithLength;
-
-	bool reversed = false;
+	
 
 	bool useSmallLoopBuffer = false;
 
@@ -503,12 +504,9 @@ private:
 	int sampleLength;
 	int sampleStartMod;
 
-	int reverseOffset = 0;
-
 	bool loopEnabled;
 	int loopStart;
 	int loopEnd;
-	int loopLength;
 	int crossfadeLength;
 
 	Range<int> crossfadeArea;
