@@ -303,8 +303,7 @@ SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler)
 	areas[PlayArea]->addAndMakeVisible(areas[LoopCrossfadeArea]);
 	areas[PlayArea]->setAreaEnabled(false);
 	
-	areas[SampleStartArea]->leftEdge->setVisible(false);
-	areas[LoopCrossfadeArea]->rightEdge->setVisible(false);
+	
 
 	startTimer(30);
 };
@@ -454,7 +453,8 @@ void SamplerSoundWaveform::timerCallback()
 		if (previewActive || dynamic_cast<ModulatorSamplerVoice*>(sampler->getLastStartedVoice())->getCurrentlyPlayingSamplerSound() == currentSound.get())
 		{
 			auto dv = sampler->getSamplerDisplayValues();
-			sampleStartPosition = dv.currentSampleStartPos;
+			auto reversed = currentSound->getReferenceToSound(0)->isReversed();
+			sampleStartPosition = reversed ? 1.0 - dv.currentSampleStartPos : dv.currentSampleStartPos;
 
 			setPlaybackPosition(dv.currentSamplePos);
 		}
@@ -499,11 +499,35 @@ void SamplerSoundWaveform::updateRange(AreaTypes a, bool refreshBounds)
 		break;
 	case hise::AudioDisplayComponent::SampleStartArea:
 	{
-		auto offset = (int)currentSound->getSampleProperty(SampleIds::SampleStart);
+		
 
-		area->setSampleRange(Range<int>(offset, offset + (int)currentSound->getSampleProperty(SampleIds::SampleStartMod)));
-		area->setAllowedPixelRanges(currentSound->getPropertyRange(SampleIds::SampleStart),
-			currentSound->getPropertyRange(SampleIds::SampleStartMod) + offset);
+		auto isReversed = currentSound->getReferenceToSound(0)->isReversed();
+
+		Range<int> displayArea;
+		Range<int> leftDragRange, rightDragRange;
+		
+		auto startMod = (int)currentSound->getSampleProperty(SampleIds::SampleStartMod);
+
+		if (isReversed)
+		{
+			auto offset = (int)currentSound->getSampleProperty(SampleIds::SampleEnd) - startMod;
+
+			displayArea = { offset, offset + startMod };
+
+			leftDragRange = { 0, offset + startMod };
+			rightDragRange = currentSound->getPropertyRange(SampleIds::SampleEnd);
+		}
+		else
+		{
+			auto offset = (int)currentSound->getSampleProperty(SampleIds::SampleStart);
+
+			displayArea = { offset, offset + startMod };
+			leftDragRange = currentSound->getPropertyRange(SampleIds::SampleStart);
+			rightDragRange = currentSound->getPropertyRange(SampleIds::SampleStartMod) + offset;
+		}
+		
+		area->setSampleRange(displayArea);
+		area->setAllowedPixelRanges(leftDragRange, rightDragRange);
 		break;
 	}
 	case hise::AudioDisplayComponent::LoopArea:
@@ -565,7 +589,7 @@ void SamplerSoundWaveform::drawSampleStartBar(Graphics &g)
 		auto c = SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::SampleStartArea);
 		g.setColour(c);
 
-		const int x = areas[PlayArea]->getX() + (int)(sampleStartPosition * areas[SampleStartArea]->getWidth());
+		const int x = areas[PlayArea]->getX() + areas[SampleStartArea]->getX() + (int)(sampleStartPosition * areas[SampleStartArea]->getWidth());
 
 		g.drawVerticalLine(x, 1, (float)getBottom() - 1);
 
@@ -689,6 +713,13 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 
 	if (s != nullptr && !s->isMissing() && !s->isPurged())
 	{
+		auto reversed = s->getReferenceToSound(0)->isReversed();
+
+		areas[SampleStartArea]->leftEdge->setVisible(reversed);
+		areas[LoopCrossfadeArea]->rightEdge->setVisible(reversed);
+		areas[SampleStartArea]->rightEdge->setVisible(!reversed);
+		areas[LoopCrossfadeArea]->leftEdge->setVisible(!reversed);
+
 		if (auto afr = currentSound->createAudioReader(multiMicIndex))
 		{
 			numSamplesInCurrentSample = (int)afr->lengthInSamples;

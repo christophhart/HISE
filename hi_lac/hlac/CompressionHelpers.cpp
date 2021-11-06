@@ -101,6 +101,7 @@ void CompressionHelpers::AudioBufferInt16::reverse(int startSample, int numSampl
 		*t-- = temp;
 	}
 
+#if 0
 	const int fadeLength = jmin<int>(500, numSamples-1);
 
 	auto s2 = getWritePointer(startSample + numSamples - fadeLength);
@@ -112,7 +113,7 @@ void CompressionHelpers::AudioBufferInt16::reverse(int startSample, int numSampl
 		s2[i] = (int16)((float)s2[i] * g);
 		g -= 1.0f / (float)(fadeLength-1);
 	}
-
+#endif
 }
 
 void CompressionHelpers::AudioBufferInt16::negate()
