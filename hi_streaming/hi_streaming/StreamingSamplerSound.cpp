@@ -302,7 +302,9 @@ size_t StreamingSamplerSound::getActualPreloadSize() const
 {
 	auto bytesPerSample = fileReader.isMonolithic() ? sizeof(int16) : sizeof(float);
 
-	return hasActiveState() ? (size_t)(internalPreloadSize *preloadBuffer.getNumChannels()) * bytesPerSample + (size_t)(loopBuffer.getNumSamples() *loopBuffer.getNumChannels()) * bytesPerSample : 0;
+	auto loopBytes = loopBuffer != nullptr ? loopBuffer->getNumSamples() * loopBuffer->getNumChannels() : 0;
+
+	return hasActiveState() ? (size_t)(internalPreloadSize *preloadBuffer.getNumChannels()) * bytesPerSample + (size_t)(loopBytes) * bytesPerSample : 0;
 }
 
 void StreamingSamplerSound::loadEntireSample() { setPreloadSize(-1); }
@@ -560,18 +562,18 @@ void StreamingSamplerSound::lengthChanged()
 
 void StreamingSamplerSound::applyCrossfadeToInternalBuffers()
 {
-	if (loopEnabled && crossfadeLength > 0 && getLoopLength() > 0)
+	if (loopBuffer != nullptr && getLoopLength() > 0)
 	{
 		auto fadePos = loopEnd - sampleStart - crossfadeLength;
 		auto numInBuffer = preloadBuffer.getNumSamples();
         
-        if(loopBuffer.getNumSamples() == 0)
+        if(loopBuffer == nullptr)
         {
             bool preloadContainsLoop = loopEnd <= preloadBuffer.getNumSamples() - sampleStart;
             rebuildCrossfadeBuffer(preloadContainsLoop);
         }
         
-        if(loopBuffer.getNumSamples() == 0)
+        if(loopBuffer = nullptr)
             return;
         
 		if (fadePos < numInBuffer)
@@ -582,20 +584,20 @@ void StreamingSamplerSound::applyCrossfadeToInternalBuffers()
 			{
 				int numToCopy = jmin(crossfadeLength, numInBuffer - fadePos);
 
-				hlac::HiseSampleBuffer::copy(preloadBuffer, loopBuffer, fadePos, 0, numToCopy);
+				hlac::HiseSampleBuffer::copy(preloadBuffer, *loopBuffer, fadePos, 0, numToCopy);
 				fadePos += getLoopLength();
 			}
 		}
 
-		if (useSmallLoopBuffer)
+		if (smallLoopBuffer != nullptr)
 		{
-			int numToCopy = jmin(smallLoopBuffer.getNumSamples(), loopBuffer.getNumSamples());
+			int numToCopy = jmin(smallLoopBuffer->getNumSamples(), loopBuffer->getNumSamples());
 
-			int srcOffset = loopBuffer.getNumSamples() - numToCopy;
-			int dstOffset = smallLoopBuffer.getNumSamples() - numToCopy;
+			int srcOffset = loopBuffer->getNumSamples() - numToCopy;
+			int dstOffset = smallLoopBuffer->getNumSamples() - numToCopy;
 
 
-			hlac::HiseSampleBuffer::copy(smallLoopBuffer, loopBuffer, dstOffset, srcOffset, numToCopy);
+			hlac::HiseSampleBuffer::copy(*smallLoopBuffer, *loopBuffer, dstOffset, srcOffset, numToCopy);
 		}
 	}
 }
@@ -627,22 +629,18 @@ void StreamingSamplerSound::loopChanged()
 
 		if (preloadContainsLoop)
 		{
-			useSmallLoopBuffer = false;
-			smallLoopBuffer.setSize(1, 0);
+			smallLoopBuffer = nullptr;
 			setPreloadSize(preloadSize, true);
 		}
 		else if (getLoopLength() < 8192)
 		{
-			useSmallLoopBuffer = true;
-
 			ScopedFileHandler sfh(this);
-			smallLoopBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), fileReader.isStereo() ? 2 : 1, getLoopLength());
-			fileReader.readFromDisk(smallLoopBuffer, 0, getLoopLength(), getLoopStart(isReversed()), true);
+			smallLoopBuffer = new hlac::HiseSampleBuffer(!fileReader.isMonolithic(), fileReader.isStereo() ? 2 : 1, getLoopLength());
+			fileReader.readFromDisk(*smallLoopBuffer, 0, getLoopLength(), getLoopStart(isReversed()), true);
 		}
 		else
 		{
-			useSmallLoopBuffer = false;
-			smallLoopBuffer.setSize(2, 0);
+			smallLoopBuffer = nullptr;
 		}
 
         if(crossfadeLength != 0)
@@ -655,8 +653,7 @@ void StreamingSamplerSound::loopChanged()
 	{
 		if (getLoopEnd(true) < internalPreloadSize)
 		{
-			useSmallLoopBuffer = false;
-			smallLoopBuffer.setSize(1, 0);
+			smallLoopBuffer = nullptr;
 			setPreloadSize(preloadSize, true);
 		}
 	}
@@ -690,13 +687,16 @@ void StreamingSamplerSound::rebuildCrossfadeBuffer(bool preloadContainsLoop)
 
 	int numToCopy = crossfadeLength;
 
-    if (fadeInStartOffset < 0)
-        return;
+	if (fadeInStartOffset < 0 || crossfadeLength == 0)
+	{
+		loopBuffer = nullptr;
+		return;
+	}
     
     auto isHlac = fileReader.isMonolithic();
     
-    loopBuffer = hlac::HiseSampleBuffer(!isHlac, 2, numToCopy);
-    loopBuffer.clear();
+    loopBuffer = new hlac::HiseSampleBuffer(!isHlac, 2, numToCopy);
+    loopBuffer->clear();
     
     hlac::HiseSampleBuffer tempBuffer(!isHlac, 2, numToCopy);
     
@@ -706,11 +706,13 @@ void StreamingSamplerSound::rebuildCrossfadeBuffer(bool preloadContainsLoop)
     
     ScopedFileHandler sfh(this);
     
-    fileReader.readFromDisk(loopBuffer, 0, numToCopy, fadeInStartOffset, false);
+	jassert(loopBuffer != nullptr);
+
+    fileReader.readFromDisk(*loopBuffer, 0, numToCopy, fadeInStartOffset, false);
     
-    loopBuffer.burnNormalisation();
-	loopBuffer.applyGainRamp(0, 0, numToCopy, 0.0f, 1.0f);
-	loopBuffer.applyGainRamp(1, 0, numToCopy, 0.0f, 1.0f);
+    loopBuffer->burnNormalisation();
+	loopBuffer->applyGainRamp(0, 0, numToCopy, 0.0f, 1.0f);
+	loopBuffer->applyGainRamp(1, 0, numToCopy, 0.0f, 1.0f);
     
     // Calculate the fade out
     tempBuffer.clear();
@@ -721,7 +723,7 @@ void StreamingSamplerSound::rebuildCrossfadeBuffer(bool preloadContainsLoop)
 	tempBuffer.applyGainRamp(0, 0, numToCopy, 1.0f, 0.0f);
 	tempBuffer.applyGainRamp(1, 0, numToCopy, 1.0f, 0.0f);
     
-    hlac::HiseSampleBuffer::add(loopBuffer, tempBuffer, 0, 0, numToCopy);
+    hlac::HiseSampleBuffer::add(*loopBuffer, tempBuffer, 0, 0, numToCopy);
 }
     
 void StreamingSamplerSound::wakeSound() const { fileReader.wakeSound(); }
@@ -762,7 +764,7 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 
 		const int numSamplesInThisLoop = getLoopLength() - indexInLoop;
 
-		if (useSmallLoopBuffer)
+		if (smallLoopBuffer != nullptr)
 		{
 			int numSamplesBeforeFirstWrap = 0;
 
@@ -777,7 +779,7 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 				numSamplesBeforeFirstWrap = jmin<int>(samplesToCopy, numSamplesInThisLoop);
 				int startSample = indexInLoop;
 
-				hlac::HiseSampleBuffer::copy(sampleBuffer, smallLoopBuffer, 0, startSample, numSamplesBeforeFirstWrap);
+				hlac::HiseSampleBuffer::copy(sampleBuffer, *smallLoopBuffer, 0, startSample, numSamplesBeforeFirstWrap);
 			}
 
 			int numSamples = samplesToCopy - numSamplesBeforeFirstWrap;
@@ -793,13 +795,13 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 			{
 				jassert(indexInSampleBuffer < sampleBuffer.getNumSamples());
 
-				hlac::HiseSampleBuffer::copy(sampleBuffer, smallLoopBuffer, indexInSampleBuffer, 0, getLoopLength());
+				hlac::HiseSampleBuffer::copy(sampleBuffer, *smallLoopBuffer, indexInSampleBuffer, 0, getLoopLength());
 
 				numSamples -= getLoopLength();
 				indexInSampleBuffer += getLoopLength();
 			}
 
-			hlac::HiseSampleBuffer::copy(sampleBuffer, smallLoopBuffer, indexInSampleBuffer, 0, numSamples);
+			hlac::HiseSampleBuffer::copy(sampleBuffer, *smallLoopBuffer, indexInSampleBuffer, 0, numSamples);
 		}
 
 		// Loop is smaller than streaming buffers
@@ -867,7 +869,10 @@ void StreamingSamplerSound::fillInternal(hlac::HiseSampleBuffer &sampleBuffer, i
 		{
 			const int indexInLoopBuffer = jmax(0, uptime - crossfadeArea.getStart());
 
-			hlac::HiseSampleBuffer::copy(sampleBuffer, loopBuffer, numSamplesBeforeCrossfade, indexInLoopBuffer, numSamplesInCrossfade);
+			if (loopBuffer != nullptr)
+				hlac::HiseSampleBuffer::copy(sampleBuffer, *loopBuffer, numSamplesBeforeCrossfade, indexInLoopBuffer, numSamplesInCrossfade);
+			else
+				jassertfalse;
 		}
 
 		// Should be taken care by higher logic (fillSampleBuffer should wrap the loop)

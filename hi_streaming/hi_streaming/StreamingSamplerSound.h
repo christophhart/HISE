@@ -431,7 +431,7 @@ private:
 
         bool fileFormatSupportsMemoryReading = true;
 
-		bool missing;
+		bool missing = false;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FileReader)
 
@@ -473,9 +473,7 @@ private:
 	// used to wrap the read process for looping
 	void fillInternal(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime, int offsetInBuffer = 0) const;
 
-
 	// ==============================================================================================================================================
-
 
 	CriticalSection lock;
 
@@ -489,10 +487,6 @@ private:
 
 	hlac::HiseSampleBuffer preloadBuffer;
 	double sampleRate;
-
-	
-
-	bool useSmallLoopBuffer = false;
 
 	int preloadSize;
 	int internalPreloadSize;
@@ -517,9 +511,8 @@ private:
 	BigInteger velocityRange = 0;
 	
 	// contains the precalculated crossfade
-	hlac::HiseSampleBuffer loopBuffer;
-
-	hlac::HiseSampleBuffer smallLoopBuffer;
+	ScopedPointer<hlac::HiseSampleBuffer> loopBuffer;
+	ScopedPointer<hlac::HiseSampleBuffer> smallLoopBuffer;
 
 	// ==============================================================================================================================================
 
