@@ -49,7 +49,7 @@ void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHan
 					indexThatWasRemoved = sound->getSampleProperty(SampleIds::ID);
 
 				if (sound != nullptr)
-					handler->sampler->getSampleMap()->removeSound(sound);
+					handler->sampler->getSampleMap()->removeSound(sound.get());
 			}
 		}
 		
@@ -138,7 +138,7 @@ void SampleEditHandler::SampleEditingActions::removeDuplicateSounds(SampleEditHa
 
 		for (auto s: soundsToDelete)
 		{
-			handler->getSampler()->getSampleMap()->removeSound(s);
+			handler->getSampler()->getSampleMap()->removeSound(s.get());
 		}
 
 		if (!soundsToDelete.isEmpty())
@@ -665,7 +665,7 @@ private:
 
 		for (auto sound: *handler)
 		{
-			String thisChannel = getChannelNameFromSound(sound);
+			String thisChannel = getChannelNameFromSound(sound.get());
 			channelNames.addIfNotAlreadyThere(thisChannel);
 		}
 
@@ -1537,7 +1537,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 		{
 			auto offset = (int)currentlyDisplayedSound->getReferenceToSound()->getLengthInSamples();
 
-			AudioSampleBuffer endBuffer = SampleStartTrimmer::getBufferForAnalysis(currentlyDisplayedSound, multimicIndex.getValue());
+			AudioSampleBuffer endBuffer = SampleStartTrimmer::getBufferForAnalysis(currentlyDisplayedSound.get(), multimicIndex.getValue());
 
 			auto newSampleEndDelta = SampleStartTrimmer::calculateSampleEnd(offset, endBuffer, handler->getSampler(), endThreshhold.getValue(), shouldSnapToZero());
 
@@ -1716,7 +1716,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 
 			startArea->setSampleRange(Range<int>(0, max.getValue()));
 
-			analyseBuffer = SampleStartTrimmer::getBufferForAnalysis(currentlyDisplayedSound, multimicIndex.getValue(), max.getValue());
+			analyseBuffer = SampleStartTrimmer::getBufferForAnalysis(currentlyDisplayedSound.get(), multimicIndex.getValue(), max.getValue());
 
 			firstPreview->refreshSampleAreaBounds();
 		}
@@ -1748,7 +1748,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
             if(firstPreview == nullptr)
                 return;
             
-			firstPreview->setSoundToDisplay(currentlyDisplayedSound, multimicIndex.getValue());
+			firstPreview->setSoundToDisplay(currentlyDisplayedSound.get(), multimicIndex.getValue());
 			firstPreview->getSampleArea(SamplerSoundWaveform::PlayArea)->setAreaEnabled(false);
 			firstPreview->getSampleArea(SamplerSoundWaveform::LoopArea)->setAreaEnabled(false);
 

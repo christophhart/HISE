@@ -908,7 +908,7 @@ Result WrapLibraryBuilder::registerTypes()
 				auto initRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(ic, false), ioffset);
 
 
-				WrapBuilder::InnerData id(st->getMemberComplexType("obj"), WrapBuilder::GetSelfAsObject);
+				WrapBuilder::InnerData id(st->getMemberComplexType("obj").get(), WrapBuilder::GetSelfAsObject);
 
 				if (id.resolve())
 				{
@@ -1230,7 +1230,7 @@ snex::jit::FunctionData WrapLibraryBuilder::Callbacks::mod::checkModValue(Struct
 	cmv.inliner = Inliner::createHighLevelInliner({}, [](InlineData* b)
 	{
 		auto st = b->toSyntaxTreeData()->object->getTypeInfo().getComplexType();
-		WrapBuilder::InnerData inner(st, WrapBuilder::ForwardToObj);
+		WrapBuilder::InnerData inner(st.get(), WrapBuilder::ForwardToObj);
 
 		if (inner.resolve())
 		{

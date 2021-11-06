@@ -59,7 +59,7 @@ struct DebuggableSnexProcessor : public snex::ui::WorkbenchManager::WorkbenchCha
 			
 			if (isRoot)
 			{
-				rootWb = newWorkbench;
+				rootWb = newWorkbench.get();
 				rootWb->addListener(this);
 			}
 		}
@@ -626,7 +626,7 @@ struct WorkbenchInfoComponent : public Component,
 	{
 		if (b == &parameterButton)
 		{
-			auto np = new ParameterList(getWorkbench());
+			auto np = new ParameterList(getWorkbench().get());
 			np->setSize(jmax(1, np->sliders.size()) * 160, 48);
 			np->setName("Parameters");
 

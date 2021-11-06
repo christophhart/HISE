@@ -88,7 +88,7 @@ snex::jit::TemplateParameter::List Operations::collectParametersFromParentClass(
 	}
 	else
 	{
-		while (auto cs = findParentStatementOfType<ClassStatement>(p))
+		while (auto cs = findParentStatementOfType<ClassStatement>(p.get()))
 		{
 			list.addArray(cs->getStructType()->getTemplateInstanceParameters());
 			p = cs->parent;
@@ -141,16 +141,16 @@ snex::jit::Operations::Expression::Ptr Operations::evalConstExpr(Expression::Ptr
 	as<SyntaxTree>(tr)->addStatement(expr.get());
 
 	BaseCompiler::ScopedPassSwitcher sp1(compiler, BaseCompiler::DataAllocation);
-	compiler->executePass(BaseCompiler::DataAllocation, scope, tr);
+	compiler->executePass(BaseCompiler::DataAllocation, scope, tr.get());
 
 	BaseCompiler::ScopedPassSwitcher sp2(compiler, BaseCompiler::PreSymbolOptimization);
-	compiler->optimize(expr, scope, false);
+	compiler->optimize(expr.get(), scope, false);
 
 	BaseCompiler::ScopedPassSwitcher sp3(compiler, BaseCompiler::ResolvingSymbols);
-	compiler->executePass(BaseCompiler::ResolvingSymbols, scope, tr);
+	compiler->executePass(BaseCompiler::ResolvingSymbols, scope, tr.get());
 
 	BaseCompiler::ScopedPassSwitcher sp4(compiler, BaseCompiler::PostSymbolOptimization);
-	compiler->optimize(expr, scope, false);
+	compiler->optimize(expr.get(), scope, false);
 
 	return dynamic_cast<Operations::Expression*>(tr->getChildStatement(0).get());
 }
@@ -535,7 +535,7 @@ bool Operations::Statement::isConstExpr() const
 	return isStatementType<Immediate>(static_cast<const Statement*>(this));
 }
 
-void Operations::Statement::addStatement(Statement* b, bool addFirst/*=false*/)
+void Operations::Statement::addStatement(Statement::Ptr b, bool addFirst/*=false*/)
 {
 	if (addFirst)
 		childStatements.insert(0, b);
@@ -620,7 +620,7 @@ void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(
 	if (asScope == nullptr)
 	{
 		// just grab the nearest scope
-		asScope = findParentStatementOfType<ScopeStatementBase>(statementToSearchFor);
+		asScope = findParentStatementOfType<ScopeStatementBase>(statementToSearchFor.get());
 	}
 
 	jassert(asScope != nullptr);
@@ -876,7 +876,7 @@ void Operations::ClassDefinitionBase::addMembersFromStatementBlock(StructType* t
 		// A constructor is wrapped in anonymous block
 		if (auto ab = dynamic_cast<AnonymousBlock*>(s))
 		{
-			s = ab->getSubExpr(0);
+			s = ab->getSubExpr(0).get();
 		}
 			
 

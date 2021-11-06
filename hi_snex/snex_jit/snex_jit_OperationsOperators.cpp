@@ -944,7 +944,7 @@ void Operations::VectorOp::initChildOps()
 			if (this->isChildOp)
 				return true;
 
-			if (this == p)
+			if (this == p.get())
 				return false;
 
 			if (auto pt = as<VectorOp>(p))
@@ -1373,7 +1373,7 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
-		if (subscriptType == Span && compiler->fitsIntoNativeRegister(getSubExpr(0)->getTypeInfo().getComplexType()))
+		if (subscriptType == Span && compiler->fitsIntoNativeRegister(getSubExpr(0)->getTypeInfo().getComplexType().get()))
 		{
 			reg = getSubRegister(0);
 			return;

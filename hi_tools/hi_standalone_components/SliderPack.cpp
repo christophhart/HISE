@@ -256,7 +256,7 @@ dummyData(new SliderPackData(nullptr, nullptr))
 
 	if (data == nullptr)
 	{
-		data = dummyData;
+		data = dummyData.get();
 		data->setNumSliders(128);
 	}
 		

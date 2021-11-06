@@ -100,7 +100,7 @@ public:
 
 	void setHardcodedClassType(ComplexType::Ptr cs)
 	{
-		hardcodedClassType = cs;
+		hardcodedClassType = cs.get();
 	}
 
 	void addAssemblyRegister(AssemblyRegister* newRegister)

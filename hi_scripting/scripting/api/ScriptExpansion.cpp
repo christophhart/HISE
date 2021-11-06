@@ -133,7 +133,7 @@ var ScriptUserPresetHandler::convertToJson(const ValueTree& d)
 				cd->setProperty(id, value);
 			}
 
-			dataArray.add(var(cd));
+			dataArray.add(var(cd.get()));
 		}
 
 		p->setProperty("Content", var(dataArray));
@@ -144,7 +144,7 @@ var ScriptUserPresetHandler::convertToJson(const ValueTree& d)
 
 	}
 
-	return var(p);
+	return var(p.get());
 }
 
 
@@ -194,9 +194,9 @@ juce::ValueTree ScriptUserPresetHandler::applyJSON(const ValueTree& original, Dy
 	copy.removeChild(copy.getChildWithName("MidiAutomation"), nullptr);
 	copy.removeChild(copy.getChildWithName("MPEData"), nullptr);
 
-	copy.addChild(JSONConversionHelpers::jsonToValueTree(var(obj), "Modules"), -1, nullptr);
-	copy.addChild(JSONConversionHelpers::jsonToValueTree(var(obj), "MidiAutomation"), -1, nullptr);
-	copy.addChild(JSONConversionHelpers::jsonToValueTree(var(obj), "MPEData"), -1, nullptr);
+	copy.addChild(JSONConversionHelpers::jsonToValueTree(var(obj.get()), "Modules"), -1, nullptr);
+	copy.addChild(JSONConversionHelpers::jsonToValueTree(var(obj.get()), "MidiAutomation"), -1, nullptr);
+	copy.addChild(JSONConversionHelpers::jsonToValueTree(var(obj.get()), "MPEData"), -1, nullptr);
 	return copy;
 }
 
@@ -602,7 +602,7 @@ void ScriptExpansionHandler::InstallState::timerCallback()
 
 var ScriptExpansionHandler::InstallState::getObject()
 {
-	DynamicObject::Ptr newObj = new DynamicObject();
+	auto newObj = new DynamicObject();
 	newObj->setProperty("Status", status);
 	newObj->setProperty("Progress", getProgress());
 	newObj->setProperty("SourceFile", new ScriptingObjects::ScriptFile(parent.getScriptProcessor(), sourceFile));

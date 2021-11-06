@@ -144,7 +144,7 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 			meta->setProperty(MetadataIDs::LoopEnabled, loopEnabled);
 		}
 
-		*additionalData = var(meta);
+		*additionalData = var(meta.get());
 	}
 }
 
@@ -210,7 +210,7 @@ void PoolHelpers::fillMetadata(Image& data, var* additionalData)
 		meta->setProperty("Non-retina size: ", String(data.getWidth() / 2) + " px x " + String(data.getHeight() / 2) + " px");
 	}
 
-	*additionalData = var(meta);
+	*additionalData = var(meta.get());
 }
 
 void PoolHelpers::fillMetadata(ValueTree& data, var* additionalData)
@@ -226,7 +226,7 @@ void PoolHelpers::fillMetadata(ValueTree& data, var* additionalData)
 	meta->setProperty("Mic Positions", data.getProperty("MicPositions"));
 	meta->setProperty("Samples", data.getNumChildren());
 
-	*additionalData = var(meta);
+	*additionalData = var(meta.get());
 }
 
 void PoolHelpers::fillMetadata(MidiFileReference& data, var* additionalData)
@@ -238,14 +238,14 @@ void PoolHelpers::fillMetadata(MidiFileReference& data, var* additionalData)
 
 	meta->setProperty("ID", data.getId().toString());
 
-	*additionalData = var(meta);
+	*additionalData = var(meta.get());
 }
 
 void PoolHelpers::fillMetadata(AdditionalDataReference& /*data*/, var* additionalData)
 {
 	DynamicObject::Ptr meta = new DynamicObject();
 
-	*additionalData = var(meta);
+	*additionalData = var(meta.get());
 }
 
 size_t PoolHelpers::getDataSize(const Image* img)
@@ -465,7 +465,7 @@ hise::ProjectHandler::SubDirectories PoolHelpers::Reference::getFileType() const
 
 var PoolHelpers::Reference::createDragDescription() const
 {
-	DynamicObject::Ptr obj = new DynamicObject();
+	auto obj = new DynamicObject();
 	obj->setProperty("HashCode", hashCode);
 	obj->setProperty("Mode", (int)m);
 	obj->setProperty("Reference", reference);

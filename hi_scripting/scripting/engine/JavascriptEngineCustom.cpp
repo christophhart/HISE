@@ -355,21 +355,15 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			if (functionCallToUse == nullptr)
 				return var();
 
-			DynamicObject::Ptr object = new DynamicObject();
+			auto object = new DynamicObject();
+			auto arguments = new DynamicObject();
+			auto locals = new DynamicObject();
 
-			DynamicObject::Ptr arguments = new DynamicObject();
-			
 			for (int i = 0; i < parameterNames.size(); i++)
-			{
 				arguments->setProperty(parameterNames[i], functionCallToUse->parameterResults[i]);
-			}
-
-			DynamicObject::Ptr locals = new DynamicObject();
 
 			for (int i = 0; i < localProperties.size(); i++)
-			{
 				locals->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
-			}
 
 			object->setProperty("args", var(arguments));
 			object->setProperty("locals", var(locals));

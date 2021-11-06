@@ -388,7 +388,7 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 	{
 		if (staticFactories[i]->getId() == id)
 		{
-			return staticFactories[i];
+			return staticFactories[i].get();
 		}
 	}
 
@@ -396,7 +396,7 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 	{
 		if (loadedPlugins[i]->getId() == id)
 		{
-			return loadedPlugins[i];
+			return loadedPlugins[i].get();
 		}
 	}
 
@@ -404,7 +404,7 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 	{
 		ScopedPointer<DynamicDspFactory> newLib = new DynamicDspFactory(name, password);
 		loadedPlugins.add(newLib.release());
-		return loadedPlugins.getLast();
+		return loadedPlugins.getLast().get();
 	}
 	catch (String& errorMessage)
 	{

@@ -732,7 +732,7 @@ namespace ui
 		{
 			if (auto t = pdl->targets[index])
 			{
-				NodeBase::showPopup(this, new MultiConnectionEditor::WrappedOutputEditor(t));
+				NodeBase::showPopup(this, new MultiConnectionEditor::WrappedOutputEditor(t.get()));
 			}
 		}
 	}
@@ -755,10 +755,7 @@ namespace ui
 
 		if (container != nullptr)
 		{
-			var d;
-
-			DynamicObject::Ptr details = new DynamicObject();
-
+			auto details = new DynamicObject();
 			auto nodeId = pdl->parentNode->getId();
 
 			details->setProperty(PropertyIds::ID, nodeId);

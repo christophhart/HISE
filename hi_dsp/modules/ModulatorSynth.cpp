@@ -1146,7 +1146,7 @@ void ModulatorSynth::noteOff(const HiseEvent &m)
 		if (mvoice->getCurrentHiseEvent().getEventId() == eventId
 			&& voice->isPlayingChannel(midiChannel))
 		{
-			if (SynthesiserSound* const sound = voice->getCurrentlyPlayingSound())
+			if (auto sound = voice->getCurrentlyPlayingSound().get())
 			{
 				if (sound->appliesToChannel(midiChannel))
 				{

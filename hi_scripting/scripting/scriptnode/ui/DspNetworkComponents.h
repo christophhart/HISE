@@ -824,7 +824,7 @@ public:
 
 		if (!probeSelectionEnabled && !ft->isRootPopupShown())
 		{
-			DynamicObject::Ptr obj = new DynamicObject();
+			auto obj = new DynamicObject();
 			
 			auto l = network->getListOfProbedParameters();
 

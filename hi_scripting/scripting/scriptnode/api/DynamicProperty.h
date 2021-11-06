@@ -157,7 +157,7 @@ template <bool ScaleInput> struct dynamic_chain : public dynamic_base
 
 	bool isEmpty() const { return targets.isEmpty(); }
 
-	void addParameter(dynamic_base* p)
+	void addParameter(dynamic_base::Ptr p)
 	{
 		targets.add(p);
 	}

@@ -1801,10 +1801,11 @@ void FloatingTile::setContent(const var& data)
 
 void FloatingTile::setContent(NamedValueSet&& data)
 {
-	DynamicObject::Ptr d = new DynamicObject();
-	d->swapProperties(std::move(data));
+	auto d = new DynamicObject();
 	var newData(d);
 
+	d->swapProperties(std::move(data));
+	
 	setContent(newData);
 }
 

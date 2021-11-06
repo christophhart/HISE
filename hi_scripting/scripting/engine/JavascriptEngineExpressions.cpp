@@ -16,16 +16,16 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 	void assign(const Scope& s, const var& newValue) const override
 	{
 		const Scope* currentScope = &s;
-		var* v = getPropertyPointer(currentScope->scope, name);
+		var* v = getPropertyPointer(currentScope->scope.get(), name);
 
 		while (v == nullptr && currentScope->parent != nullptr)
 		{
 			currentScope = currentScope->parent;
-			v = getPropertyPointer(currentScope->scope, name);
+			v = getPropertyPointer(currentScope->scope.get(), name);
 		}
 
 		if (v == nullptr)
-			v = getPropertyPointer(currentScope->root, name);
+			v = getPropertyPointer(currentScope->root.get(), name);
 
 		if (v != nullptr)
 			*v = newValue;
@@ -389,11 +389,11 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 			i < args.numArguments ? args.arguments[i] : var::undefined());
 
 		var result;
-		body->perform(Scope(&s, s.root, functionRoot), &result);
+		body->perform(Scope(&s, s.root.get(), functionRoot.get()), &result);
 
 #if ENABLE_SCRIPTING_SAFE_CHECKS
 		if(enableCycleCheck)
-			lastScopeForCycleCheck = var(functionRoot);
+			lastScopeForCycleCheck = var(functionRoot.get());
 #endif
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
@@ -415,7 +415,7 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 				i < args.numArguments ? args.arguments[i] : var::undefined());
 		}
 
-		body->perform(Scope(&s, s.root, scope), &result);
+		body->perform(Scope(&s, s.root.get(), scope), &result);
 
 		return result;
 	}
@@ -585,7 +585,7 @@ bool HiseJavascriptEngine::RootObject::Scope::findAndInvokeMethod(const Identifi
 
 	if (target == nullptr || target == scope.get())
 	{
-		if (const var* m = getPropertyPointer(scope, function))
+		if (const var* m = getPropertyPointer(scope.get(), function))
 		{
 			if (FunctionObject* fo = dynamic_cast<FunctionObject*> (m->getObject()))
 			{
@@ -599,7 +599,7 @@ bool HiseJavascriptEngine::RootObject::Scope::findAndInvokeMethod(const Identifi
 
 	for (int i = 0; i < props.size(); ++i)
 		if (DynamicObject* o = props.getValueAt(i).getDynamicObject())
-			if (Scope(this, root, o).findAndInvokeMethod(function, args, result))
+			if (Scope(this, root.get(), o).findAndInvokeMethod(function, args, result))
 				return true;
 
 	return false;
@@ -607,7 +607,7 @@ bool HiseJavascriptEngine::RootObject::Scope::findAndInvokeMethod(const Identifi
 
 bool HiseJavascriptEngine::RootObject::Scope::invokeMidiCallback(const Identifier &callbackName, const var::NativeFunctionArgs &args, var &result, DynamicObject*functionScope) const
 {
-	if (const var* m = getPropertyPointer(scope, callbackName))
+	if (const var* m = getPropertyPointer(scope.get(), callbackName))
 	{
 		if (FunctionObject* fo = dynamic_cast<FunctionObject*> (m->getObject()))
 		{

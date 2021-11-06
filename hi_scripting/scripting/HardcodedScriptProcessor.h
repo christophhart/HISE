@@ -363,7 +363,7 @@ public:
 	void onInit() override
 	{
 		currentMessageHolder = Engine.createMessageHolder();
-		currentMessageVar = var(currentMessageHolder);
+		currentMessageVar = var(currentMessageHolder.get());
 
 		messageHolders.ensureStorageAllocated(128);
 

@@ -61,7 +61,7 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad, Strea
 	setPreloadSize(0);
 }
 
-StreamingSamplerSound::StreamingSamplerSound(MonolithInfoToUse *info, int channelIndex, int sampleIndex) :
+StreamingSamplerSound::StreamingSamplerSound(MonolithInfoToUse::Ptr info, int channelIndex, int sampleIndex) :
 	fileReader(this, nullptr),
 	sampleRate(-1.0),
 	purged(false),
@@ -1223,7 +1223,7 @@ juce::AudioFormatWriter* StreamingSamplerSound::FileReader::createWriterWithSame
 	return nullptr;
 }
 
-void StreamingSamplerSound::FileReader::setMonolithicInfo(MonolithInfoToUse* info, int channelIndex, int sampleIndex)
+void StreamingSamplerSound::FileReader::setMonolithicInfo(MonolithInfoToUse::Ptr info, int channelIndex, int sampleIndex)
 {
 	monolithicInfo = info;
 	monolithicIndex = sampleIndex;

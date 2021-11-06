@@ -900,7 +900,7 @@ void Operations::IfStatement::process(BaseCompiler* compiler, BaseScope* scope)
 		auto trueBranch = getTrueBranch();
 		auto falseBranch = getFalseBranch();
 
-		acg.emitBranch(TypeInfo(Types::ID::Void), cond, trueBranch, falseBranch, compiler, scope);
+		acg.emitBranch(TypeInfo(Types::ID::Void), cond, trueBranch.get(), falseBranch.get(), compiler, scope);
 	}
 }
 

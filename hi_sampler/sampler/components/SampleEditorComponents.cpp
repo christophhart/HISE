@@ -1418,7 +1418,7 @@ void SamplerSoundTable::soundsSelected(int numSelected)
     
 	for (int i = 0; i < sortedSoundList.size(); i++)
 	{
-		ModulatorSamplerSound *sound = sortedSoundList[i];
+		ModulatorSamplerSound *sound = sortedSoundList[i].get();
 
 		if (handler->getSelectionReference().isSelected(sound))
 			selection.addRange(Range<int>(i, i + 1));

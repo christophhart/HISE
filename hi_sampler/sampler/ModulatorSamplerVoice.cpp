@@ -75,9 +75,9 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 		BACKEND_ONLY(sampler->getSamplerDisplayValues().currentSampleStartPos = jlimit<float>(0.0f, 1.0f, sampleStartModulationDelta / (float)maxOffset));
 	}
 
-	wrappedVoice.setPitchFactor(midiNoteNumber, samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote(), sound, getOwnerSynth()->getMainController()->getGlobalPitchFactor());
+	wrappedVoice.setPitchFactor(midiNoteNumber, samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote(), sound.get(), getOwnerSynth()->getMainController()->getGlobalPitchFactor());
 	wrappedVoice.setSampleStartModValue(sampleStartModulationDelta);
-	wrappedVoice.startNote(midiNoteNumber, velocity, sound, -1);
+	wrappedVoice.startNote(midiNoteNumber, velocity, sound.get(), -1);
 
 	voiceUptime = wrappedVoice.voiceUptime;
 	uptimeDelta = wrappedVoice.uptimeDelta;
@@ -437,9 +437,9 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 
 		StreamingSamplerVoice *voiceToUse = wrappedVoices[i];
 
-		voiceToUse->setPitchFactor(midiNoteNumber, rootNote, micSound, globalPitchFactor);
+		voiceToUse->setPitchFactor(midiNoteNumber, rootNote, micSound.get(), globalPitchFactor);
 		voiceToUse->setSampleStartModValue(sampleStartModulationDelta);
-		voiceToUse->startNote(midiNoteNumber, velocity, micSound, -1);
+		voiceToUse->startNote(midiNoteNumber, velocity, micSound.get(), -1);
 
 		voiceUptime = wrappedVoices[i]->voiceUptime;
 		uptimeDelta = wrappedVoices[i]->uptimeDelta;

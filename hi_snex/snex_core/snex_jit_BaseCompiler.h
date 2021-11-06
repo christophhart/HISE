@@ -188,7 +188,7 @@ public:
 
 	FunctionClass* getInbuiltFunctionClass()
 	{
-		return inbuildFunctions;
+		return inbuildFunctions.get();
 	}
 
 	Pass getCurrentPass() { return currentPass; }

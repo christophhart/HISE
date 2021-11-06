@@ -220,7 +220,7 @@ public:
 
     void drawSampleRectangle(Graphics &g, Rectangle<int> area);
 
-	const ModulatorSamplerSound *getSound() const noexcept { return sound; };
+	const ModulatorSamplerSound *getSound() const noexcept { return sound.get(); };
 
 	ModulatorSamplerSound *getSound() noexcept { return sound.get(); };
 
@@ -463,7 +463,7 @@ private:
 	/** A POD object containing data for a dragged sound. */
 	struct DragData
 	{
-		ModulatorSamplerSound *sound;
+		ModulatorSamplerSound::Ptr sound;
 		StreamingHelpers::BasicMappingData data;
 	};
 
@@ -608,7 +608,7 @@ private:
 			  isStringProperty(propertyToSort_ == SampleIds::FileName)
         {}
 
-		int compareElements (const ModulatorSamplerSound* first, const ModulatorSamplerSound* second) const
+		int compareElements (ModulatorSamplerSound::Ptr first, ModulatorSamplerSound::Ptr second) const
         {
 			if (first == nullptr || second == nullptr)
 				return direction;

@@ -673,7 +673,7 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 			{
 				auto sc = components[result - editComponentOffset];
 
-				getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
+				getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc.get(), e.mods, sendNotification);
 			}
 		}
 		else

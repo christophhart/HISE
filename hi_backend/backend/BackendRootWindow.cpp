@@ -388,7 +388,7 @@ void BackendRootWindow::saveInterfaceData()
 
 		obj->setProperty("FloatingWindows", windowList);
 
-		getBackendProcessor()->setEditorData(var(obj));
+		getBackendProcessor()->setEditorData(var(obj.get()));
 	}
 
 }

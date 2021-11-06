@@ -56,8 +56,7 @@ var FloatingTileContent::getDefaultProperty(int id) const
 	case PanelPropertyId::Title: return "";
 	case PanelPropertyId::StyleData:
 	{ 
-		DynamicObject::Ptr newStyleData = new DynamicObject(); 
-		return var(newStyleData);	
+		return var(new DynamicObject());
 	}
 	case PanelPropertyId::ColourData:
 	{
@@ -96,8 +95,7 @@ const BackendRootWindow* FloatingTileContent::getRootWindow() const
 
 var FloatingTileContent::toDynamicObject() const
 {
-	DynamicObject::Ptr o = new DynamicObject();
-
+	auto o = new DynamicObject();
 	var obj(o);
 
 	storePropertyInObject(obj, (int)PanelPropertyId::Type, getIdentifierForBaseClass().toString());

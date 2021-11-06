@@ -282,7 +282,7 @@ namespace Operations
 
 		WeakReference<Statement> parent;
 
-		void addStatement(Statement* b, bool addFirst=false);
+		void addStatement(Ptr b, bool addFirst=false);
 
 		Ptr replaceInParent(Ptr newExpression);
 		Ptr replaceChildStatement(int index, Ptr newExpr);
@@ -913,7 +913,7 @@ juce::ReferenceCountedObject* InitialiserList::getExpression(int index)
 	{
 		if (auto ec = dynamic_cast<ExpressionChild*>(child.get()))
 		{
-			return ec->expression;
+			return ec->expression.get();
 		}
 	}
 

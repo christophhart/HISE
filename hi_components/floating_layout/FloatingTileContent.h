@@ -875,7 +875,7 @@ private:
 
 		var toDynamicObject() const override
 		{
-			DynamicObject::Ptr o = new DynamicObject();
+			auto o = new DynamicObject();
 
 			var obj(o);
 

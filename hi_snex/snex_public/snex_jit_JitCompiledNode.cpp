@@ -113,7 +113,7 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 #endif
 			if (auto st = dynamic_cast<StructType*>(instanceType.get()))
 			{
-				WrapBuilder::InnerData inner(instanceType, WrapBuilder::GetObj);
+				WrapBuilder::InnerData inner(instanceType.get(), WrapBuilder::GetObj);
 
 				Array<scriptnode::parameter::pod> encoderData;
 

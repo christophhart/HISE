@@ -3236,7 +3236,7 @@ void ScriptingApi::Sampler::loadSampleMapFromJSON(var jsonSampleList)
 				c.setProperty(id, defaultValue, nullptr);
 		};
 
-		for (auto& c : v)
+		for (auto c : v)
 		{
 			addMissingProp(c, SampleIds::LoVel, 0);
 			addMissingProp(c, SampleIds::HiVel, 127);

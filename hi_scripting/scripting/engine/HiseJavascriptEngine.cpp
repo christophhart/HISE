@@ -538,7 +538,7 @@ struct HiseJavascriptEngine::RootObject::Scope
 
 	var findSymbolInParentScopes(const Identifier& name) const
 	{
-		if (const var* v = getPropertyPointer(scope, name))
+		if (const var* v = getPropertyPointer(scope.get(), name))
 			return *v;
 
 		return parent != nullptr ? parent->findSymbolInParentScopes(name)
@@ -844,7 +844,7 @@ var HiseJavascriptEngine::callFunction(const Identifier& function, const var::Na
 	{
 		prepareTimeout();
 		if (result != nullptr) *result = Result::ok();
-		RootObject::Scope(nullptr, root, root).findAndInvokeMethod(function, args, returnVal);
+		RootObject::Scope(nullptr, root.get(), root.get()).findAndInvokeMethod(function, args, returnVal);
 	}
 	catch (String &error)
 	{
@@ -960,9 +960,8 @@ var HiseJavascriptEngine::getScriptVariableFromRootNamespace(const Identifier & 
 		if (!v.isVoid())
 			return v;
 	}
-
-	DynamicObject* globals = root->hiseSpecialData.globals;
-	if (globals != nullptr)
+	
+	if (auto globals = root->hiseSpecialData.globals)
 	{
 		v = globals->getProperty(id);
 
@@ -1009,7 +1008,7 @@ void HiseJavascriptEngine::rebuildDebugInformation()
 {
 	root->hiseSpecialData.clearDebugInformation();
 
-	root->hiseSpecialData.createDebugInformation(root);
+	root->hiseSpecialData.createDebugInformation(root.get());
 }
 
 var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/, DynamicObject *scopeToUse)
@@ -1025,7 +1024,7 @@ var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, c
 	{
 		prepareTimeout();
 		if (result != nullptr) *result = Result::ok();
-		RootObject::Scope(nullptr, root, root).invokeMidiCallback(function, args, returnVal, (scopeToUse != nullptr ? scopeToUse : unneededScope.get()));
+		RootObject::Scope(nullptr, root.get(), root.get()).invokeMidiCallback(function, args, returnVal, (scopeToUse != nullptr ? scopeToUse : unneededScope.get()));
 	}
 	catch (String& error)
 	{

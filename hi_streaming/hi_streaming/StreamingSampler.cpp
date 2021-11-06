@@ -46,7 +46,7 @@ void StreamingHelpers::increaseBufferIfNeeded(hlac::HiseSampleBuffer& b, int num
 	}
 }
 
-bool StreamingHelpers::preloadSample(StreamingSamplerSound * s, const int preloadSize, String& errorMessage)
+bool StreamingHelpers::preloadSample(StreamingSamplerSound* s, const int preloadSize, String& errorMessage)
 {
 	try
 	{

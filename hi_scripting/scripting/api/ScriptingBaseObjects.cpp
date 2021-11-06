@@ -171,8 +171,7 @@ var ValueTreeConverters::convertValueTreeToDynamicObject(const ValueTree& v)
 {
 	jassert(v.isValid());
 
-	DynamicObject::Ptr d = new DynamicObject();
-	var dData = var(d);
+	var dData(new DynamicObject());
 
 	v2d_internal(dData, v);
 	return dData;
@@ -186,7 +185,7 @@ var ValueTreeConverters::convertFlatValueTreeToVarArray(const ValueTree& v)
 	{
 		auto child = v.getChild(i);
 
-		DynamicObject::Ptr obj = new DynamicObject();
+		auto obj = new DynamicObject();
 		var d(obj);
 
 		copyValueTreePropertiesToDynamicObject(v.getChild(i), d);
@@ -246,7 +245,7 @@ var ValueTreeConverters::convertContentPropertiesToDynamicObject(const ValueTree
 {
 	static const Identifier ch("childComponents");
 
-	DynamicObject::Ptr vDyn = new DynamicObject();
+	auto vDyn = new DynamicObject();
 	var vDynVar(vDyn);
 
 	copyValueTreePropertiesToDynamicObject(v, vDynVar);
@@ -343,7 +342,7 @@ var ValueTreeConverters::convertScriptNodeToDynamicObject(ValueTree v)
 	if (nodes.size() > 0)
 		root->setProperty(scriptnode::PropertyIds::Nodes, nodes);
 
-	return var(root);
+	return var(root.get());
 }
 
 juce::ValueTree ValueTreeConverters::convertDynamicObjectToScriptNodeTree(var objVar)
@@ -410,7 +409,7 @@ void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)
 
 		for (int i = 0; i < v.getNumChildren(); i++)
 		{
-			DynamicObject::Ptr child = new DynamicObject();
+			auto child = new DynamicObject();
 			var childVar(child);
 
 			auto childTree = v.getChild(i);
@@ -696,7 +695,7 @@ var JSONConversionHelpers::valueTreeToJSON(const ValueTree& v)
 		p->setProperty("Children", var(childList));
 	}
 
-	return var(p);
+	return var(p.get());
 }
 
 juce::ValueTree JSONConversionHelpers::jsonToValueTree(var data, const Identifier& typeId, bool isParentData /*= true*/)

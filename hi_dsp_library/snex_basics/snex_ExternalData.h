@@ -85,7 +85,7 @@ using namespace Types;
             return singleList;
         }
         
-        void addChildList(const InitialiserList* other)
+        void addChildList(InitialiserList::Ptr other)
         {
             addChild(new ListChild(other->root));
         }

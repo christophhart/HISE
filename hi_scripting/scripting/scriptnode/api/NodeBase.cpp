@@ -315,7 +315,7 @@ NodeBase::Parameter* NodeBase::getParameter(int index) const
 {
 	if (isPositiveAndBelow(index, parameters.size()))
 	{
-		return parameters[index];
+		return parameters[index].get();
 	}
     
     return nullptr;

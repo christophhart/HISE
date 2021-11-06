@@ -251,7 +251,7 @@ void ComponentForDebugInformation::search()
 
 		for (int i = 0; i < provider->getNumDebugObjects(); i++)
 		{
-			if (searchRecursive(provider->getDebugInformation(i)))
+			if (searchRecursive(provider->getDebugInformation(i).get()))
 				break;
 		}
 	}
@@ -271,7 +271,7 @@ bool ComponentForDebugInformation::searchRecursive(DebugInformationBase* b)
 
 	for (int i = 0; i < b->getNumChildElements(); i++)
 	{
-		if (searchRecursive(b->getChildElement(i)))
+		if (searchRecursive(b->getChildElement(i).get()))
 			return true;
 	}
 

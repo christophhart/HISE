@@ -164,7 +164,7 @@ void FloatingTileProperties::set(FloatingTile& floatingTile, const std::initiali
 		obj->setProperty(id, p.value);
 	}
 
-	content->fromDynamicObject(var(obj));
+	content->fromDynamicObject(var(obj.get()));
 }
 
 FloatingTileProperties::Property::Property(int id_, const var& value_) :

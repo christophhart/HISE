@@ -45,7 +45,7 @@ var GlobalServer::addDownload(ScriptingObjects::ScriptDownloadObject::Ptr newDow
 	{
 		if (*newDownload == *ep)
 		{
-			ep->copyCallBackFrom(newDownload);
+			ep->copyCallBackFrom(newDownload.get());
 			return var(ep);
 		}
 	}
@@ -55,7 +55,7 @@ var GlobalServer::addDownload(ScriptingObjects::ScriptDownloadObject::Ptr newDow
 	internalThread.pendingDownloads.add(newDownload);
 	internalThread.notify();
 	sendMessage(true);
-	return var(newDownload);
+	return var(newDownload.get());
 }
 
 var GlobalServer::getPendingDownloads()

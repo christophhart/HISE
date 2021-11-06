@@ -102,10 +102,10 @@ namespace waveshapers
 		t->addCompileListener(this);
 		addAndMakeVisible(menuBar);
 
-		connectWaveformUpdaterToComplexUI(t->getMainDisplayBuffer(), true);
+		connectWaveformUpdaterToComplexUI(t->getMainDisplayBuffer().get(), true);
 
 		waveform.setSpecialLookAndFeel(new data::ui::pimpl::complex_ui_laf(), true);
-		waveform.setComplexDataUIBase(t->getMainDisplayBuffer());
+		waveform.setComplexDataUIBase(t->getMainDisplayBuffer().get());
 
 		addAndMakeVisible(waveform);
 		addWaveformListener(&waveform);
@@ -115,7 +115,7 @@ namespace waveshapers
 
 	dynamic::editor::~editor()
 	{
-		connectWaveformUpdaterToComplexUI(getObject()->getMainDisplayBuffer(), false);
+		connectWaveformUpdaterToComplexUI(getObject()->getMainDisplayBuffer().get(), false);
 		getObject()->removeCompileListener(this);
 	}
 

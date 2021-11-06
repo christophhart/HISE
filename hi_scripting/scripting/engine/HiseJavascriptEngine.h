@@ -655,13 +655,13 @@ public:
 
 			var createDynamicObjectForBreakpoint()
 			{
-				DynamicObject::Ptr object = new DynamicObject();
-				DynamicObject::Ptr arguments = new DynamicObject();
+				auto object = new DynamicObject();
+				auto arguments = new DynamicObject();
 
 				for (int i = 0; i < numArgs; i++)
 					arguments->setProperty(parameters[i], parameterValues[i]);
 
-				DynamicObject::Ptr locals = new DynamicObject();
+				auto locals = new DynamicObject();
 
 				for (int i = 0; i < localProperties.size(); i++)
 					locals->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
@@ -870,7 +870,7 @@ public:
 			{
 				if (debugIndex < debugInformation.size())
 				{
-					return debugInformation[debugIndex];
+					return debugInformation[debugIndex].get();
 				}
 
 				return nullptr;

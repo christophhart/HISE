@@ -195,7 +195,7 @@ void TemplateClassBuilder::Helpers::addChildObjectPtr(StatementPtr newCall, Synt
 
 snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::createBlock(SyntaxTreeInlineData* d)
 {
-	auto parentScope = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(d->expression);
+	auto parentScope = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(d->expression.get());
 	auto blPath = d->expression->currentCompiler->namespaceHandler.createNonExistentIdForLocation(parentScope->getPath(), Random::getSystemRandom().nextInt({0, 99999}));
 	return new Operations::StatementBlock(d->location, blPath);
 }
@@ -375,7 +375,7 @@ snex::jit::FunctionData TemplateClassBuilder::VariadicHelpers::getFunction(Struc
 
 		auto pId = getVariadicMemberIdFromIndex(d->templateParameters.getFirst().constant);
 
-		WrapBuilder::InnerData id(st->getMemberComplexType(pId), WrapBuilder::GetSelfAsObject);
+		WrapBuilder::InnerData id(st->getMemberComplexType(pId).get(), WrapBuilder::GetSelfAsObject);
 		id.offset = st->getMemberOffset(pId);
 
 		if (id.resolve())
@@ -393,7 +393,7 @@ snex::jit::FunctionData TemplateClassBuilder::VariadicHelpers::getFunction(Struc
 		auto pId = getVariadicMemberIdFromIndex(rt->templateParameters.getFirst().constant);
 		auto t = st->getMemberComplexType(pId);
 
-		WrapBuilder::InnerData id(t, WrapBuilder::GetSelfAsObject);
+		WrapBuilder::InnerData id(t.get(), WrapBuilder::GetSelfAsObject);
 		
 		if (id.resolve())
 			rt->f.returnType = id.getRefType();

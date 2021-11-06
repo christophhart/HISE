@@ -184,8 +184,8 @@ void JavascriptMidiProcessor::registerApiClasses()
 	samplerObject = new ScriptingApi::Sampler(this, dynamic_cast<ModulatorSampler*>(getOwnerSynth()));
 
 	scriptEngine->registerNativeObject("Content", getScriptingContent());
-	scriptEngine->registerApiClass(currentMidiMessage);
-	scriptEngine->registerApiClass(engineObject);
+	scriptEngine->registerApiClass(currentMidiMessage.get());
+	scriptEngine->registerApiClass(engineObject.get());
 	scriptEngine->registerApiClass(new ScriptingApi::Settings(this));
 	scriptEngine->registerApiClass(new ScriptingApi::FileSystem(this));
 	scriptEngine->registerApiClass(serverObject = new ScriptingApi::Server(this));
@@ -460,7 +460,7 @@ void JavascriptPolyphonicEffect::registerApiClasses()
 {
 	engineObject = new ScriptingApi::Engine(this);
 
-	scriptEngine->registerNativeObject("Content", content);
+	scriptEngine->registerNativeObject("Content", content.get());
 	scriptEngine->registerApiClass(engineObject);
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 
@@ -693,7 +693,7 @@ void JavascriptMasterEffect::registerApiClasses()
 
 	engineObject = new ScriptingApi::Engine(this);
 	
-	scriptEngine->registerNativeObject("Content", content);
+	scriptEngine->registerNativeObject("Content", content.get());
 	scriptEngine->registerApiClass(engineObject);
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 
@@ -930,9 +930,9 @@ void JavascriptVoiceStartModulator::registerApiClasses()
 	engineObject = new ScriptingApi::Engine(this);
 	synthObject = new ScriptingApi::Synth(this, currentMidiMessage.get(), dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));
 
-	scriptEngine->registerNativeObject("Content", content);
-	scriptEngine->registerApiClass(currentMidiMessage);
-	scriptEngine->registerApiClass(engineObject);
+	scriptEngine->registerNativeObject("Content", content.get());
+	scriptEngine->registerApiClass(currentMidiMessage.get());
+	scriptEngine->registerApiClass(engineObject.get());
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerApiClass(new ScriptingApi::ModulatorApi(this));
 	scriptEngine->registerApiClass(synthObject);
@@ -1061,7 +1061,7 @@ void JavascriptTimeVariantModulator::prepareToPlay(double sampleRate, int sample
 	if(internalBuffer.getNumChannels() > 0)
 		buffer->referToData(internalBuffer.getWritePointer(0), samplesPerBlock);
 
-	bufferVar = var(buffer);
+	bufferVar = var(buffer.get());
 
 	if (!prepareToPlayCallback->isSnippetEmpty())
 	{
@@ -1144,9 +1144,9 @@ void JavascriptTimeVariantModulator::registerApiClasses()
 	engineObject = new ScriptingApi::Engine(this);
 	synthObject = new ScriptingApi::Synth(this, currentMidiMessage.get(), dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));
 
-	scriptEngine->registerNativeObject("Content", content);
-	scriptEngine->registerApiClass(currentMidiMessage);
-	scriptEngine->registerApiClass(engineObject);
+	scriptEngine->registerNativeObject("Content", content.get());
+	scriptEngine->registerApiClass(currentMidiMessage.get());
+	scriptEngine->registerApiClass(engineObject.get());
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerApiClass(new ScriptingApi::ModulatorApi(this));
 	scriptEngine->registerApiClass(synthObject);
@@ -1379,9 +1379,9 @@ void JavascriptEnvelopeModulator::registerApiClasses()
 	engineObject = new ScriptingApi::Engine(this);
 	synthObject = new ScriptingApi::Synth(this, currentMidiMessage.get(), dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));
 
-	scriptEngine->registerNativeObject("Content", content);
-	scriptEngine->registerApiClass(currentMidiMessage);
-	scriptEngine->registerApiClass(engineObject);
+	scriptEngine->registerNativeObject("Content", content.get());
+	scriptEngine->registerApiClass(currentMidiMessage.get());
+	scriptEngine->registerApiClass(engineObject.get());
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerApiClass(new ScriptingApi::ModulatorApi(this));
 	scriptEngine->registerApiClass(synthObject);
@@ -1419,9 +1419,9 @@ public:
 		rightBuffer = new VariantBuffer(0);
 		pitchData = new VariantBuffer(0);
 
-		channels.add(var(leftBuffer));
-		channels.add(var(rightBuffer));
-		channels.add(var(pitchData));
+		channels.add(var(leftBuffer.get()));
+		channels.add(var(rightBuffer.get()));
+		channels.add(var(pitchData.get()));
 	};
 
 	bool canPlaySound(SynthesiserSound *) override
@@ -1683,9 +1683,9 @@ void JavascriptModulatorSynth::registerApiClasses()
 	engineObject = new ScriptingApi::Engine(this);
 	synthObject = new ScriptingApi::Synth(this, currentMidiMessage.get(), this);
 
-	scriptEngine->registerNativeObject("Content", content);
-	scriptEngine->registerApiClass(currentMidiMessage);
-	scriptEngine->registerApiClass(engineObject);
+	scriptEngine->registerNativeObject("Content", content.get());
+	scriptEngine->registerApiClass(currentMidiMessage.get());
+	scriptEngine->registerApiClass(engineObject.get());
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerApiClass(synthObject);
 
@@ -1809,7 +1809,7 @@ void JavascriptSynthesiser::registerApiClasses()
 {
 	engineObject = new ScriptingApi::Engine(this);
 
-	scriptEngine->registerNativeObject("Content", content);
+	scriptEngine->registerNativeObject("Content", content.get());
 	scriptEngine->registerApiClass(engineObject);
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 

@@ -286,7 +286,7 @@ public:
 
 	BackgroundCompileThread(ui::WorkbenchData::Ptr data_) :
 		Thread("SnexPlaygroundThread"),
-		CompileHandler(data_)
+		CompileHandler(data_.get())
 	{
 		getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(this);
 		setPriority(4);

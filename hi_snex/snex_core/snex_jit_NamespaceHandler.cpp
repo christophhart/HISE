@@ -265,7 +265,7 @@ void NamespaceHandler::pushNamespace(const NamespacedIdentifier& namespaceId)
 {
 	if (auto e = get(namespaceId))
 	{
-		currentNamespace = e;
+		currentNamespace = e.get();
 		currentParent = e->parent;
 		return;
 	}
@@ -309,7 +309,7 @@ void NamespaceHandler::pushNamespace(const Identifier& id)
 
 	if (auto existing = get(newId))
 	{
-		currentNamespace = existing;
+		currentNamespace = existing.get();
 	}
 	else
 	{
@@ -904,7 +904,7 @@ int NamespaceHandler::getDefinitionLine(int lineNumber, const String& token)
 
 	if (auto ns = get(id))
 	{
-		return getLineNumberN(ns);
+		return getLineNumberN(ns.get());
 	}
 
 	if (auto existing = get(id.getParent()))
@@ -1020,7 +1020,7 @@ juce::Result NamespaceHandler::switchToExistingNamespace(const NamespacedIdentif
 {
 	if (auto e = get(id))
 	{
-		currentNamespace = e;
+		currentNamespace = e.get();
 	}
 
 	return Result::ok();

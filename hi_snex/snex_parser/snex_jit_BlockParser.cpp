@@ -1052,7 +1052,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 			auto r = Result::ok();
 
-			ct = compiler->namespaceHandler.registerComplexTypeOrReturnExisting(tc->createTemplatedInstance(tp, r));
+			ct = compiler->namespaceHandler.registerComplexTypeOrReturnExisting(tc->createTemplatedInstance(tp, r)).get();
 
 			location.test(r);
 		}

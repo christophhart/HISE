@@ -39,7 +39,7 @@ mcl::FoldableLineRange::List LanguageManager::createLineRange(const juce::CodeDo
 
             if (currentElement == nullptr)
             {
-                currentElement = newElement;
+                currentElement = newElement.get();
                 lineRanges.add(newElement);
             }
             else

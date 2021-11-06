@@ -407,7 +407,7 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 
 	String itemName = result != 0 ? itemList[result - 1] : "";
 
-	DynamicObject::Ptr obj = new DynamicObject();
+	auto obj = new DynamicObject();
 
 	static const Identifier r("result");
 	static const Identifier itemText("itemText");
@@ -547,14 +547,16 @@ void MouseCallbackComponent::sendFileMessage(Action a, const String& f, Point<in
 	static const Identifier drop("drop");
 	static const Identifier file("fileName");
 
-	DynamicObject::Ptr e = new DynamicObject();
+	auto e = new DynamicObject();
+	var fileInformation(e);
+
 	e->setProperty(x, pos.getX());
 	e->setProperty(y, pos.getY());
 	e->setProperty(hover, a != Action::FileExit);
 	e->setProperty(drop, a == Action::FileDrop);
 	e->setProperty(file, f);
 
-	var fileInformation(e);
+	
 
 	for(auto l: listenerList)
 	{
@@ -566,7 +568,8 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 {
 	if (callbackLevel == CallbackLevel::NoCallbacks) return;
 
-	DynamicObject::Ptr e = new DynamicObject();
+	auto e = new DynamicObject();
+	var clickInformation(e);
 
 	static const Identifier x("x");
 	static const Identifier y("y");
@@ -618,7 +621,7 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 		e->setProperty(dragY, event.getDistanceFromDragStartY());
 	}
 
-	var clickInformation(e);
+	
 
 	sendToListeners(clickInformation);
 }

@@ -189,7 +189,7 @@ core::NewSnexOscillatorDisplay::NewSnexOscillatorDisplay(SnexOscillator* osc, Po
 	menuBar(osc),
 	display()
 {
-	display.setComplexDataUIBase(osc->getMainDisplayBuffer());
+	display.setComplexDataUIBase(osc->getMainDisplayBuffer().get());
 	display.setSpecialLookAndFeel(new data::ui::pimpl::complex_ui_laf(), true);
 
 	addAndMakeVisible(display);

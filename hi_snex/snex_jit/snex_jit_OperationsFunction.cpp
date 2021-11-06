@@ -590,8 +590,8 @@ void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
 		asg.emitParameter(this, objectPtr, -1);
 	}
 
-	compiler->executePass(BaseCompiler::RegisterAllocation, f.functionScopeToUse, f.statementToCompile);
-	compiler->executePass(BaseCompiler::CodeGeneration, f.functionScopeToUse, f.statementToCompile);
+	compiler->executePass(BaseCompiler::RegisterAllocation, f.functionScopeToUse, f.statementToCompile.get());
+	compiler->executePass(BaseCompiler::CodeGeneration, f.functionScopeToUse, f.statementToCompile.get());
 }
 
 void Operations::Function::compileAsmInlinerBeforeCodegen(FunctionCompileData& f)

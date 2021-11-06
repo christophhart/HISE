@@ -134,7 +134,7 @@ void DspInstance::initialise()
 
 				if (object->getConstant(i, &externalData, externalDataSize))
 				{
-					VariantBuffer::Ptr b = new VariantBuffer(externalData, externalDataSize);
+					auto b = new VariantBuffer(externalData, externalDataSize);
 					addConstant(thisName, var(b));
 					continue;
 				}

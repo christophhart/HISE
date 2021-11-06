@@ -658,7 +658,8 @@ juce::String SampleDataExporter::getExpansionName() const
 
 String SampleDataExporter::getMetadataJSON() const
 {
-	DynamicObject::Ptr d = new DynamicObject();
+	auto d = new DynamicObject();
+	var data(d);
 
 	d->setProperty("Name", getProjectName());
 	d->setProperty("Version", getProjectVersion());
@@ -702,7 +703,7 @@ String SampleDataExporter::getMetadataJSON() const
 	int index = getComboBoxComponent("supportFull")->getSelectedItemIndex();
 
 	d->setProperty("BitDepth", index == 0 ? 24 : 16);
-	var data(d);
+	
 
 	return JSON::toString(data, true);
 }

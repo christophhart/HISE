@@ -231,7 +231,7 @@ struct TestDataComponentBase : public WorkbenchComponent,
 	public WorkbenchData::TestData::TestListener
 {
 	TestDataComponentBase(WorkbenchData::Ptr data) :
-		WorkbenchComponent(data)
+		WorkbenchComponent(data.get())
 	{
 		data->addListener(this);
 		data->getTestData().addListener(this);

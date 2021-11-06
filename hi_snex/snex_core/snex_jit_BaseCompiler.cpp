@@ -233,7 +233,7 @@ using namespace asmjit;
 				for (auto o : passes)
 					o->reset();
 
-				optimize(s, scope, true);
+				optimize(s.get(), scope, true);
 
 				st->removeNoops();
 			}

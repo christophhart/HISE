@@ -224,7 +224,7 @@ void SfzImporter::parseOpcodes()
 
 		if (currentLine.startsWith(Control::getTag()))
 		{
-			currentTarget = new Control(currentTarget);
+			currentTarget = new Control(currentTarget.get());
 
 			setIfRoot(currentTarget);
 		}
@@ -232,7 +232,7 @@ void SfzImporter::parseOpcodes()
 		{
 			navigateToParent<Control>(AllowNoParent);
 			
-			currentTarget = new Global(currentTarget);
+			currentTarget = new Global(currentTarget.get());
 
 			setIfRoot(currentTarget);
 		}
@@ -242,7 +242,7 @@ void SfzImporter::parseOpcodes()
 
 			if (i < fileData.size() - 1)
 			{
-				auto g = new Group(currentTarget);
+				auto g = new Group(currentTarget.get());
 				currentTarget = g;
 				auto groupIndex = currentTarget->parent->children.size();
 				g->groupName = "Group " + String(groupIndex);
@@ -257,7 +257,7 @@ void SfzImporter::parseOpcodes()
 		{
 			navigateToParent<Group>(ThrowErrorIfNotFound, "No Group for region");
 
-			currentTarget = new Region(currentTarget);
+			currentTarget = new Region(currentTarget.get());
 		}
 
 		parseTagLine(currentLine);

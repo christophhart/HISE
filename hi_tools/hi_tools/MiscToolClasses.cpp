@@ -1154,7 +1154,7 @@ juce::Array<juce::Identifier> Spectrum2D::Parameters::getAllIds()
 	return ids;
 }
 
-Spectrum2D::Parameters::Editor::Editor(Parameters* p) :
+Spectrum2D::Parameters::Editor::Editor(Parameters::Ptr p) :
 	param(p)
 {
 	claf = new GlobalHiseLookAndFeel();

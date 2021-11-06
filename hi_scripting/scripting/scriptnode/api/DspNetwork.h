@@ -526,10 +526,10 @@ public:
 			{
 				targetFile.create();
 
-				cp = new snex::ui::WorkbenchData::DefaultCodeProvider(wb, targetFile);
+				cp = new snex::ui::WorkbenchData::DefaultCodeProvider(wb.get(), targetFile);
 				wb = new snex::ui::WorkbenchData();
 				wb->setCodeProvider(cp, dontSendNotification);
-				wb->setCompileHandler(new SnexSourceCompileHandler(wb, sp));
+				wb->setCompileHandler(new SnexSourceCompileHandler(wb.get(), sp));
 
 				if (auto xml = XmlDocument::parse(parameterFile))
 					parameterTree = ValueTree::fromXml(*xml);
@@ -1102,7 +1102,7 @@ struct OpaqueNetworkHolder
 	void setNetwork(DspNetwork* n);
 
 	DspNetwork* getNetwork() {
-		return ownedNetwork;
+		return ownedNetwork.get();
 	}
 
 	void setExternalData(const ExternalData& d, int index);

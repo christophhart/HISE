@@ -291,12 +291,12 @@ bool ScriptComponentEditBroadcaster::isFirstComponentInSelection(ScriptComponent
 
 ScriptComponent* ScriptComponentEditBroadcaster::getFirstFromSelection()
 {
-	return currentSelection.getFirst();
+	return currentSelection.getFirst().get();
 }
 
 const ScriptComponent* ScriptComponentEditBroadcaster::getFirstFromSelection() const
 {
-	return currentSelection.getFirst();
+	return currentSelection.getFirst().get();
 }
 
 bool ScriptComponentEditBroadcaster::isPositionId(const Identifier& id)

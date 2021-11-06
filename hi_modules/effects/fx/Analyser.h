@@ -237,7 +237,7 @@ public:
 	   FFTDisplayBase(),
        AudioAnalyserComponent(p)
 	{
-		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer());
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer().get());
 	};
 
 	void paint(Graphics& g) override
@@ -259,7 +259,7 @@ public:
 		AudioAnalyserComponent(p),
 		OscilloscopeBase()
 	{
-		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer());
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer().get());
 	};
 
 	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((RingBufferComponentBase::ColourId)colourId); }
@@ -280,7 +280,7 @@ public:
 		AudioAnalyserComponent(p),
 		GoniometerBase()
 	{
-		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer());
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer().get());
 	}
 
 	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((RingBufferComponentBase::ColourId)colourId); }

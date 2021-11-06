@@ -362,7 +362,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 			var toJson() const
 			{
-				DynamicObject::Ptr obj = new DynamicObject();
+				auto obj = new DynamicObject();
 
 				obj->setProperty("Index", parameterIndex);
 				obj->setProperty("Value", valueToUse);
@@ -631,21 +631,21 @@ struct WorkbenchData : public ReferenceCountedObject,
 		{
 			if (isPositiveAndBelow(index, tables.size()))
 			{
-				return tables[index];
+				return tables[index].get();
 			}
 
 			tables.add(new SampleLookupTable());
 
 			sendMessageToListeners(true);
 
-			return tables.getLast();
+			return tables.getLast().get();
 		}
 
 		SliderPackData* getSliderPack(int index) override
 		{
 			if (isPositiveAndBelow(index, sliderPacks.size()))
 			{
-				return sliderPacks[index];
+				return sliderPacks[index].get();
 			}
 
 			sliderPacks.add(new SliderPackData(nullptr, updater));
@@ -653,14 +653,14 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 			sendMessageToListeners(true);
 
-			return sliderPacks.getLast();
+			return sliderPacks.getLast().get();
 		}
 
 		MultiChannelAudioBuffer* getAudioFile(int index) override
 		{
 			if (isPositiveAndBelow(index, buffers.size()))
 			{
-				return buffers[index];
+				return buffers[index].get();
 			}
 
 			auto b = new MultiChannelAudioBuffer();
@@ -669,29 +669,29 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 			sendMessageToListeners(true);
 
-			return buffers.getLast();
+			return buffers.getLast().get();
 		}
 
 		FilterDataObject* getFilterData(int index) override
 		{
 			if (isPositiveAndBelow(index, filterData.size()))
-				return filterData[index];
+				return filterData[index].get();
 
 			auto fd = new FilterDataObject();
 			filterData.add(fd);
 			sendMessageToListeners(true);
-			return filterData.getLast();
+			return filterData.getLast().get();
 		}
 
 		SimpleRingBuffer* getDisplayBuffer(int index) override
 		{
 			if (isPositiveAndBelow(index, displayBuffers.size()))
-				return displayBuffers[index];
+				return displayBuffers[index].get();
 
 			auto fd = new SimpleRingBuffer();
 			displayBuffers.add(fd);
 			sendMessageToListeners(true);
-			return displayBuffers.getLast();
+			return displayBuffers.getLast().get();
 		}
 
 

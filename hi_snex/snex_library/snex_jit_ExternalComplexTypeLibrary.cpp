@@ -1635,41 +1635,28 @@ void InbuiltTypeLibraryBuilder::registerRangeFunctions()
 		}
 
 		// static constexpr T from0To1(T min, T max, T value) { return hmath::map(value, min, max); }
-		addRangeFunction(bf, "from0To1", { "min", "max", "value" }, 
+		addRangeFunction(bf.get(), "from0To1", { "min", "max", "value" }, 
 							 "{ return Math.map(value, min, max); }");
 
 		// static constexpr T to0To1(T min, T max, T value) { return (value - min) / (max - min); }
-		addRangeFunction(bf, "to0To1", { "min", "max", "value" },
+		addRangeFunction(bf.get(), "to0To1", { "min", "max", "value" },
 							 "{ return (value - min) / (max - min); }");
 
 		// static constexpr T from0To1Skew(T min, T max, T skew, T value) { return from0To1(min, max, hmath::pow(value, skew)); }
-		addRangeFunction(bf, "from0To1Skew", { "min", "max", "skew", "value" },
+		addRangeFunction(bf.get(), "from0To1Skew", { "min", "max", "skew", "value" },
 							 "{ return min + (max - min) * Math.exp(Math.log(value) / skew); }");
 
 		// static constexpr T to0To1Skew(T min, T max, T skew, T value) { return hmath::pow(to0To1(min, max, value), skew); }
-		addRangeFunction(bf, "to0To1Skew", { "min", "max", "skew", "value" },
+		addRangeFunction(bf.get(), "to0To1Skew", { "min", "max", "skew", "value" },
 							 "{ return Math.pow(to0To1(min, max, value), skew); }");
 
 		// static constexpr T to0To1Step(T min, T max, T step, T value) { return to0To1(min, max, value - hmath::fmod(value, step)); }
-		addRangeFunction(bf, "to0To1Step", { "min", "max", "step", "value" },
+		addRangeFunction(bf.get(), "to0To1Step", { "min", "max", "step", "value" },
 							 "{ return to0To1(min, max, value - Math.fmod(value, step)); }");
 
 		// static constexpr T from0To1Step(T min, T max, T step, T value) { auto v = from0To1(min, max, value); return v - hmath::fmod(v, step); }
-		addRangeFunction(bf, "from0To1Step", { "min", "max", "step", "value" },
+		addRangeFunction(bf.get(), "from0To1Step", { "min", "max", "step", "value" },
 			"{ return from0To1(min, max, value) - Math.fmod(from0To1(min, max, value), step); }");
-
-#if 0
-		
-		
-		static constexpr T to0To1StepSkew(T min, T max, T step, T skew, T value) { return to0To1(min, max, skew, value - hmath::fmod(value, step)); }
-
-		
-		static constexpr T from0To1StepSkew(T min, T max, T step, T skew, T value)
-		{
-			auto v = from0To1(min, max, skew, value);
-			return v - hmath::fmod(v, step);
-		}
-#endif
 	}
 }
 

@@ -819,7 +819,7 @@ void SnexMenuBar::workbenchChanged(snex::ui::WorkbenchData::Ptr newWb)
 		if (lastBench != nullptr)
 			lastBench->removeListener(this);
 
-		lastBench = newWb;
+		lastBench = newWb.get();
 		if (lastBench != nullptr)
 		{
 			lastBench->addListener(this);

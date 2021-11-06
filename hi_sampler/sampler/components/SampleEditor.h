@@ -194,7 +194,7 @@ public:
 
 		if(currentSound != nullptr && selection.getLast() == currentSound)
 		{
-			ModulatorSamplerSound *soundToChange = selection.getLast();
+			auto soundToChange = selection.getLast();
 
 			AudioDisplayComponent::SampleArea *area = c->getSampleArea(areaThatWasChanged);
 

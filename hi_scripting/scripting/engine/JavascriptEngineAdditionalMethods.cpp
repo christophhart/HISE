@@ -251,7 +251,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 		}
 
 		var function(r);
-		return invokeFunction(s, function, var(s.scope));
+		return invokeFunction(s, function, var(s.scope.get()));
 	}
 	catch (String& errorMessage)
 	{
@@ -305,11 +305,11 @@ var HiseJavascriptEngine::callExternalFunctionRaw(var function, const var::Nativ
 
 	if (auto fo = dynamic_cast<RootObject::FunctionObject*>(function.getObject()))
 	{
-		return fo->invoke(RootObject::Scope(nullptr, root, root), args);;
+		return fo->invoke(RootObject::Scope(nullptr, root.get(), root.get()), args);;
 	}
 	else if (auto ifo = dynamic_cast<RootObject::InlineFunction::Object*>(function.getObject()))
 	{
-		return ifo->performDynamically(RootObject::Scope(nullptr, root, root), const_cast<var*>(args.arguments), args.numArguments);
+		return ifo->performDynamically(RootObject::Scope(nullptr, root.get(), root.get()), const_cast<var*>(args.arguments), args.numArguments);
 	}
     
     return var();
@@ -422,7 +422,7 @@ HiseJavascriptEngine::RootObject::Callback *HiseJavascriptEngine::RootObject::Hi
 	{
 		if (callbackNEW[i]->getName() == callbackId)
 		{
-			return callbackNEW[i];
+			return callbackNEW[i].get();
 		}
 	}
 
@@ -618,7 +618,7 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 
 	for (int i = 0; i < namespaces.size(); i++)
 	{
-		JavascriptNamespace* ns = namespaces[i];
+		auto ns = namespaces[i].get();
 
 		debugInformation.add(new DebugableObjectInformation(ns, ns->id, DebugInformation::Type::Namespace));
 
@@ -643,7 +643,7 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 	{
 		if (!callbackNEW[i]->isDefined()) continue;
 
-		debugInformation.add(new DebugableObjectInformation(callbackNEW[i], callbackNEW[i]->getName(), DebugInformation::Type::Callback));
+		debugInformation.add(new DebugableObjectInformation(callbackNEW[i].get(), callbackNEW[i]->getName(), DebugInformation::Type::Callback));
 	}
 
 
@@ -955,7 +955,7 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 	LockHelpers::noMessageThreadBeyondInitialisation(mc);
 #endif
 
-	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex];
+	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex].get();
 	
 
 	// You need to register the callback correctly...
@@ -967,7 +967,7 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		{
 			prepareTimeout();
 
-			var returnVal = c->perform(root);
+			var returnVal = c->perform(root.get());
 
 			if (result != nullptr) *result = Result::ok();
 

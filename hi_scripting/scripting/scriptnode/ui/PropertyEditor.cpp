@@ -263,7 +263,7 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 
 							auto wb = m->getWorkbenchDataForCodeProvider(cp, true);
 
-							auto pg = new snex::jit::SnexPlayground(wb);
+							auto pg = new snex::jit::SnexPlayground(wb.get());
 
 							auto bounds = sp->getBounds().reduced(100);
 

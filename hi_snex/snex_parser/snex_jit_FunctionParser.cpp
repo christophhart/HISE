@@ -315,7 +315,7 @@ void CodeParser::finaliseSyntaxTree(SyntaxTree* tree)
 	auto lastStatement = tree->getLastStatement().get();
 
 	while (auto bl = dynamic_cast<Operations::StatementBlock*>(lastStatement))
-		lastStatement = bl->getLastStatement();
+		lastStatement = bl->getLastStatement().get();
 
 	auto isReturn = [](Operations::Statement* s)
 	{

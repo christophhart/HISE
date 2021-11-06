@@ -172,7 +172,7 @@ var ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 	
 	getModulationTargetTree().addChild(m, -1, getUndoManager());
 
-	return var(targets.getLast());
+	return var(targets.getLast().get());
 }
 
 scriptnode::NodeBase* ModulationSourceNode::getTargetNode(const ValueTree& m) const
@@ -377,7 +377,7 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent&)
 
 		var d;
 
-		DynamicObject::Ptr details = new DynamicObject();
+		auto details = new DynamicObject();
 
 		details->setProperty(PropertyIds::ID, sourceNode->getId());
 		details->setProperty(PropertyIds::Automated, true);

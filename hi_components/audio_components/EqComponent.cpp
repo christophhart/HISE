@@ -769,7 +769,7 @@ FilterDragOverlay::FFTDisplay::FFTDisplay(FilterDragOverlay& parent_) :
 	FFTDisplayBase(),
 	parent(parent_)
 {
-	setComplexDataUIBase(parent_.eq->getFFTBuffer());
+	setComplexDataUIBase(parent_.eq->getFFTBuffer().get());
 
 	setColour(RingBufferComponentBase::ColourId::fillColour, Colours::white.withAlpha(0.6f));
 	fftProperties.freq2x = std::bind(&FilterGraph::freqToX, &parent.filterGraph, std::placeholders::_1);

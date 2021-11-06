@@ -212,7 +212,7 @@ juce::Identifier XYZSampleMapProvider::getId() const
 
 hise::MultiChannelAudioBuffer::DataProvider* XYZSampleMapProvider::getDataProvider()
 {
-	return sampleMapDataProvider;
+	return sampleMapDataProvider.get();
 }
 
 bool XYZSampleMapProvider::parseAdditionalProperties(const ValueTree& s, MultiChannelAudioBuffer::XYZItem& d)

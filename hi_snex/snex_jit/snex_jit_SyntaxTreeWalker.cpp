@@ -41,7 +41,7 @@ void SyntaxTreeWalker::add(Operations::Statement* s)
 	statements.add(s);
 
 	for (int i = 0; i < s->getNumChildStatements(); i++)
-		add(s->getChildStatement(i));
+		add(s->getChildStatement(i).get());
 }
 
 

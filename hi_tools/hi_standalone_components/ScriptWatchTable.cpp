@@ -661,7 +661,7 @@ String ScriptWatchTable::getTextForColumn(ScriptWatchTable::ColumnId columnId, I
 	return text;
 }
 
-DebugInformationBase* ScriptWatchTable::getDebugInformationForRow(int rowIndex)
+DebugInformationBase::Ptr ScriptWatchTable::getDebugInformationForRow(int rowIndex)
 {
 	if (auto r = filteredFlatList[rowIndex])
 		return r->source;

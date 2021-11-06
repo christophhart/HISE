@@ -171,7 +171,7 @@ struct MidiProcessor::EventLogger
 			#undef GET_PROPERTY
 			#undef SET_METHOD
 
-			engine->registerNativeObject("Message", data);
+			engine->registerNativeObject("Message", data.get());
         }
 
 		~Display()

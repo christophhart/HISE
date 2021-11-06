@@ -470,7 +470,7 @@ void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
 		throw String("Can't find monolith");
 	}
 
-	auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith);
+	auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith.get());
 
 	{
 		LockHelpers::SafeLock sl(sampler->getMainController(), LockHelpers::SampleLock);

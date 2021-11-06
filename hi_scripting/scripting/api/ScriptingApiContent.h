@@ -2206,7 +2206,7 @@ public:
 	bool isEmpty();
 	int getNumComponents() const noexcept{ return components.size(); };
 	ScriptComponent *getComponent(int index);
-	const ScriptComponent *getComponent(int index) const { return components[index]; };
+	const ScriptComponent *getComponent(int index) const { return components[index].get(); };
 	ScriptComponent * getComponentWithName(const Identifier &componentName);
 	const ScriptComponent * getComponentWithName(const Identifier &componentName) const;
 	int getComponentIndex(const Identifier &componentName) const;

@@ -309,12 +309,12 @@ public:
 
 	ScriptingApi::Content::ScriptComponent *getScriptComponent()
 	{
-		return scriptComponent;
+		return scriptComponent.get();
 	};
 
 	const ScriptingApi::Content::ScriptComponent *getScriptComponent() const
 	{
-		return scriptComponent;
+		return scriptComponent.get();
 	};
 
 	ScopedPointer<ValuePopup> currentPopup;

@@ -434,7 +434,8 @@ void ScriptComponentEditPanel::copyAction()
 
 	if (sc != nullptr)
 	{
-		DynamicObject::Ptr newObject = new DynamicObject();
+		auto newObject = new DynamicObject();
+		var newData(newObject);
 
 		String prop;
 		NewLine nl;
@@ -459,7 +460,7 @@ void ScriptComponentEditPanel::copyAction()
 			newObject->setProperty(id, value);
 		}
 
-		var newData(newObject);
+		
 
 		auto clipboardContent = JSON::toString(newData, false, DOUBLE_TO_STRING_DIGITS);
 		SystemClipboard::copyTextToClipboard(clipboardContent);

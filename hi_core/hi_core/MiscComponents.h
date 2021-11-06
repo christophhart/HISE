@@ -271,6 +271,8 @@ struct DrawActions
 	{
 	public:
 
+		using Ptr = ReferenceCountedObjectPtr<ActionBase>;
+
 		ActionBase() {};
 		virtual ~ActionBase() {};
 		virtual void perform(Graphics& g) = 0;
@@ -388,7 +390,7 @@ struct DrawActions
 				}
 			}
 
-			ActionBase* getNextAction()
+			ActionBase::Ptr getNextAction()
 			{
 				if (index < actionsInIterator.size())
 					return actionsInIterator[index++];

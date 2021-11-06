@@ -105,7 +105,7 @@ ModulatorSamplerSound::ModulatorSamplerSound(SampleMap* parent, const ValueTree&
 		loadSampleFromValueTree(data, hmaf);	
 	}
 
-	firstSound = soundArray.getFirst();
+	firstSound = soundArray.getFirst().get();
 
     for(auto s: soundArray)
         s->setDelayPreloadInitialisation(true);
@@ -878,7 +878,7 @@ HlacMonolithInfo::Ptr ModulatorSamplerSoundPool::loadMonolithicData(const ValueT
 	
 	loadedMonoliths.add(new MonolithInfoToUse(monolithicFiles));
 
-	MonolithInfoToUse* hmaf = loadedMonoliths.getLast();
+	auto hmaf = loadedMonoliths.getLast();
 
 	try
 	{

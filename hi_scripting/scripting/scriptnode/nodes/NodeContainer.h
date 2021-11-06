@@ -102,7 +102,7 @@ struct NodeContainer : public AssignableObject
 
 			getConnectionTree().addChild(newC, -1, p->parent->getUndoManager());
 
-			return var(connections.getLast());
+			return var(connections.getLast().get());
 		}
 
 		void logMessage(int level, const String& s) override

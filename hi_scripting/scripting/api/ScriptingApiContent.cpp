@@ -547,7 +547,7 @@ var ScriptingApi::Content::ScriptComponent::getNonDefaultScriptObjectProperties(
 		clone->setProperty(id, propValue);
 	}
 
-	return var(clone);
+	return var(clone.get());
 }
 
 
@@ -987,7 +987,8 @@ void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(Notificat
 
 	if (auto lc = getLinkedComponent())
 	{
-		DynamicObject::Ptr obj = new DynamicObject();
+		auto obj = new DynamicObject();
+		var obj_(obj);
 
 		for (const auto& v : idList)
 		{
@@ -996,8 +997,6 @@ void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(Notificat
 
 			obj->setProperty(id, linkedValue);
 		}
-
-		var obj_(obj);
 
 		setPropertiesFromJSON(obj_);
 
@@ -1124,7 +1123,9 @@ bool ScriptingApi::Content::ScriptComponent::handleKeyPress(const KeyPress& k)
 {
 	if (keyboardCallback)
 	{
-		DynamicObject::Ptr obj = new DynamicObject();
+		auto obj = new DynamicObject();
+		var args(obj);
+
 		obj->setProperty("isFocusChange", false);
 
 		auto c = k.getTextCharacter();
@@ -1139,7 +1140,6 @@ bool ScriptingApi::Content::ScriptComponent::handleKeyPress(const KeyPress& k)
 		obj->setProperty("cmd", k.getModifiers().isCommandDown() || k.getModifiers().isCtrlDown());
 		obj->setProperty("alt", k.getModifiers().isAltDown());
 
-		var args(obj);
 		var rv;
 
 		auto ok = keyboardCallback.callSync(&args, 1, &rv);
@@ -1157,11 +1157,11 @@ void ScriptingApi::Content::ScriptComponent::handleFocusChange(bool isFocused)
 {
 	if (keyboardCallback)
 	{
-		DynamicObject::Ptr obj = new DynamicObject();
+		auto obj = new DynamicObject();
+		var args(obj);
+
 		obj->setProperty("isFocusChange", true);
 		obj->setProperty("hasFocus", isFocused);
-		
-		var args(obj);
 		
 		auto ok = keyboardCallback.callSync(&args, 1);
 
@@ -2114,7 +2114,7 @@ var ScriptingApi::Content::ComplexDataScriptComponent::registerComplexDataObject
 	if (auto d = dynamic_cast<ProcessorWithDynamicExternalData*>(getScriptProcessor()))
 	{
 		otherHolder = d;
-		d->registerExternalObject(type, index, ownedObject);
+		d->registerExternalObject(type, index, ownedObject.get());
 
 		setScriptObjectProperty(getIndexPropertyId(), index, sendNotification);
 		updateCachedObjectReference();
@@ -2989,7 +2989,7 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 	}
 
 	var thisObject(this);
-	var arguments = var(graphics);
+	var arguments = var(graphics.get());
 	var::NativeFunctionArgs args(thisObject, &arguments, 1);
 
 
@@ -3412,7 +3412,7 @@ var ScriptingApi::Content::ScriptPanel::addChildPanel()
 	sendSubComponentChangeMessage(s, true);
 
 	childPanels.getLast()->isChildPanel = true;
-	return var(childPanels.getLast());
+	return var(childPanels.getLast().get());
 }
 
 #if HISE_INCLUDE_RLOTTIE
@@ -3480,7 +3480,7 @@ void ScriptingApi::Content::ScriptPanel::updateAnimationData()
 		obj->setProperty("frameRate", 0);
 	}
 
-	animationData = var(obj);
+	animationData = var(obj.get());
 }
 
 bool ScriptingApi::Content::ScriptPanel::removeFromParent()
@@ -3594,7 +3594,7 @@ void ScriptingApi::Content::ScriptPanel::buildDebugListIfEmpty() const
 
 hise::DebugInformationBase* ScriptingApi::Content::ScriptPanel::getChildElement(int index)
 {
-	return cachedList[index];
+	return cachedList[index].get();
 }
 
 int ScriptingApi::Content::ScriptPanel::getNumChildElements() const
@@ -4028,7 +4028,7 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponentWith
 	{
 		if (components[i]->name == componentName)
 		{
-			return components[i];
+			return components[i].get();
 		}
 	}
 
@@ -4041,7 +4041,7 @@ const ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getCompone
 	{
 		if (components[i]->name == componentName)
 		{
-			return components[i];
+			return components[i].get();
 		}
 	}
 
@@ -4127,7 +4127,7 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponent(int
 	if (index == -1) return nullptr;
 
 	if(index < components.size())
-		return components[index];
+		return components[index].get();
 
 	return nullptr;
 }
@@ -4139,7 +4139,7 @@ var ScriptingApi::Content::getComponent(var componentName)
 	for (int i = 0; i < components.size(); i++)
 	{
 		if (n == components[i]->getName())
-			return var(components[i]);
+			return var(components[i].get());
 	}
 
 	logErrorAndContinue("Component with name " + componentName.toString() + " wasn't found.");
@@ -4155,7 +4155,7 @@ var ScriptingApi::Content::getAllComponents(String regex)
 	{	    
 		if (RegexFunctions::matchesWildcard(regex, components[i]->getName().toString()))
 		{
-			list.add(var(components[i]));
+			list.add(var(components[i].get()));
 		}
 	}
 
@@ -4456,7 +4456,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 
 		if (dynamic_cast<ScriptingApi::Content::ScriptLabel*>(components[i].get()) != nullptr)
 		{
-			getScriptProcessor()->controlCallback(components[i], v);
+			getScriptProcessor()->controlCallback(components[i].get(), v);
 		}
         else if (auto ssp = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(components[i].get()))
         {
@@ -4468,7 +4468,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
         }
 		else if (v.isObject())
 		{
-			getScriptProcessor()->controlCallback(components[i], v);
+			getScriptProcessor()->controlCallback(components[i].get(), v);
 		}
 		else
 		{
@@ -4669,7 +4669,7 @@ void ScriptingApi::Content::addComponentsFromValueTree(const ValueTree& v)
 
 			components.add(sc);
 
-			ScriptComponent::ScopedPropertyEnabler spe(sc);
+			ScriptComponent::ScopedPropertyEnabler spe(sc.get());
 			sc->setPropertiesFromJSON(d);
 		}
 

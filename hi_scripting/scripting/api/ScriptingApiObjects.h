@@ -2016,7 +2016,7 @@ namespace ScriptingObjects
 		WeakReference<ConstScriptingObject> connectedPanel;
 
 		bool sequenceValid() const { return getPlayer() != nullptr && getSequence() != nullptr; }
-		HiseMidiSequence* getSequence() const { return getPlayer()->getCurrentSequence(); }
+		HiseMidiSequence::Ptr getSequence() const { return getPlayer()->getCurrentSequence(); }
 	};
 
 	

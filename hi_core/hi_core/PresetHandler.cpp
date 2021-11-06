@@ -2146,7 +2146,7 @@ void PresetHandler::checkMetaParameters(Processor* p)
 
 				DynamicObject::Ptr values = new DynamicObject();
 
-				forEachScriptComponent(content, values, writeToObj, c);
+				forEachScriptComponent(content, values.get(), writeToObj, c);
 
 				var newValue;
 
@@ -2175,7 +2175,7 @@ void PresetHandler::checkMetaParameters(Processor* p)
 
 				try
 				{
-					forEachScriptComponent(content, values, checkAsExpected, c);
+					forEachScriptComponent(content, values.get(), checkAsExpected, c);
 				}
 				catch (String& s)
 				{

@@ -334,7 +334,7 @@ public:
         {
             if(newWorkbench != nullptr && newWorkbench->getCodeProvider()->providesCode())
             {
-                w->setHolder(newWorkbench);
+                w->setHolder(newWorkbench.get());
             }
             else
             {

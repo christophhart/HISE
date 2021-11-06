@@ -159,7 +159,7 @@ public:
 			while (index < broadcaster->currentSelection.size())
 			{
 				if (auto r = broadcaster->currentSelection[index++])
-					return r;
+					return r.get();
 			}
 
 			return nullptr;
@@ -170,7 +170,7 @@ public:
 			while (index < broadcaster->currentSelection.size())
 			{
 				if (auto r = broadcaster->currentSelection[index++])
-					return r;
+					return r.get();
 			}
 
 			return nullptr;
@@ -291,7 +291,7 @@ public:
 				if (auto sc = selection[i])
 				{
 					var oldValue = oldValues[i];
-					b->setPropertyInternal(sc, id, oldValue, notifyListeners);
+					b->setPropertyInternal(sc.get(), id, oldValue, notifyListeners);
 				}
 				else
 				{

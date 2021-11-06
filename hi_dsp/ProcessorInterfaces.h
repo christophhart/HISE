@@ -145,7 +145,7 @@ private:
 	{
 		if (dataType == requiredType && isPositiveAndBelow(index, ownedObjects.size()))
 		{
-			return ownedObjects[index];
+			return ownedObjects[index].get();
 		}
 
 		return nullptr;
@@ -193,7 +193,7 @@ public:
 	Table* getTable(int index) final override
 	{
 		if(isPositiveAndBelow(index, tables.size()))
-			return tables[index];
+			return tables[index].get();
 
 		return nullptr;
 	}
@@ -201,7 +201,7 @@ public:
 	SliderPackData* getSliderPack(int index) final override
 	{
 		if (isPositiveAndBelow(index, sliderPacks.size()))
-			return sliderPacks[index];
+			return sliderPacks[index].get();
 
 		return nullptr;
 	}
@@ -209,7 +209,7 @@ public:
 	MultiChannelAudioBuffer* getAudioFile(int index) final override
 	{
 		if (isPositiveAndBelow(index, audioFiles.size()))
-			return audioFiles[index];
+			return audioFiles[index].get();
 
 		return nullptr;
 	}
@@ -217,7 +217,7 @@ public:
 	SimpleRingBuffer* getDisplayBuffer(int index) final override
 	{
 		if (isPositiveAndBelow(index, displayBuffers.size()))
-			return displayBuffers[index];
+			return displayBuffers[index].get();
 
 		return nullptr;
 	}
@@ -287,45 +287,45 @@ public:
 	SliderPackData* getSliderPack(int index)  final override
 	{
 		if (auto d = sliderPacks[index])
-			return d;
+			return d.get();
 
 		auto s = createAndInit(snex::ExternalData::DataType::SliderPack, useSampleLookup);
 
 		sliderPacks.set(index, static_cast<SliderPackData*>(s));
-		return sliderPacks[index];
+		return sliderPacks[index].get();
 	}
 
 	Table* getTable(int index) final override
 	{
 		if (auto d = tables[index])
-			return d;
+			return d.get();
 
 		auto s = createAndInit(snex::ExternalData::DataType::Table, useSampleLookup);
 
 		tables.set(index, static_cast<Table*>(s));
-		return tables[index];
+		return tables[index].get();
 	}
 
 	MultiChannelAudioBuffer* getAudioFile(int index) final  override
 	{
 		if (auto d = audioFiles[index])
-			return d;
+			return d.get();
 
 		auto s = createAndInit(snex::ExternalData::DataType::AudioFile, useSampleLookup);
 
 		audioFiles.set(index, static_cast<MultiChannelAudioBuffer*>(s));
-		return audioFiles[index];
+		return audioFiles[index].get();
 	}
 
 	SimpleRingBuffer* getDisplayBuffer(int index) final override
 	{
 		if (auto d = ringBuffers[index])
-			return d;
+			return d.get();
 
 		auto s = createAndInit(snex::ExternalData::DataType::DisplayBuffer, true);
 
 		ringBuffers.set(index, static_cast<SimpleRingBuffer*>(s));
-		return ringBuffers[index];
+		return ringBuffers[index].get();
 	}
 
 	int getNumDataObjects(ExternalData::DataType t) const

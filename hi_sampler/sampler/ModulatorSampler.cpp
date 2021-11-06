@@ -1438,7 +1438,7 @@ bool ModulatorSampler::preloadAllSamples()
 
 		if (getNumMicPositions() == 1)
 		{
-			auto s = sound->getReferenceToSound();
+			auto s = sound->getReferenceToSound().get();
 
 			progress = (double)currentIndex++ / (double)numToLoad;
 
@@ -1457,7 +1457,7 @@ bool ModulatorSampler::preloadAllSamples()
 				{
 					if (isEnabled)
 					{
-						if (!preloadSample(s, preloadSizeToUse))
+						if (!preloadSample(s.get(), preloadSizeToUse))
 							return false;
 					}
 					else

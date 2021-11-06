@@ -1121,7 +1121,7 @@ public:
 				{
 					if (useSharedCache)
 					{
-						sharedCache->store(ne);
+						sharedCache->store(ne.get());
 					}
 					else
 					{
@@ -1155,7 +1155,7 @@ public:
 
 				if (useSharedCache && loadingType != PoolHelpers::LoadAndCacheStrong)
 				{
-					sharedCache->store(ne);
+					sharedCache->store(ne.get());
 				}
 				else
 				{

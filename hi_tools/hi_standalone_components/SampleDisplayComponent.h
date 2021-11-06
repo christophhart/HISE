@@ -1068,7 +1068,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		return {};
 	}
 	
-	void setProvider(DataProvider* p)
+	void setProvider(DataProvider::Ptr p)
 	{
 		provider = p;
 	}

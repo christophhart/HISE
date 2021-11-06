@@ -786,7 +786,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 		if(newSound != nullptr)
 			newSound->addEnvelopeProcessor(*currentWaveForm->getThumbnail());
 
-		tl.setEnvelope(tl.envelope, newSound, tl.envelope != Modulation::Mode::numModes);
+		tl.setEnvelope(tl.envelope, newSound.get(), tl.envelope != Modulation::Mode::numModes);
 	});
 
     handler->toolBroadcaster.broadcaster.addListener(*currentWaveForm, [](SamplerSoundWaveform& wf, SamplerTools::Mode m)
@@ -806,13 +806,13 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
         switch(m)
         {
             case SamplerTools::Mode::GainEnvelope:
-                d.setEnvelope(Modulation::Mode::GainMode, handler->getMainSelection(), true);
+                d.setEnvelope(Modulation::Mode::GainMode, handler->getMainSelection().get(), true);
                 break;
             case SamplerTools::Mode::PitchEnvelope:
-                d.setEnvelope(Modulation::Mode::PitchMode, handler->getMainSelection(), true);
+                d.setEnvelope(Modulation::Mode::PitchMode, handler->getMainSelection().get(), true);
                 break;
             case SamplerTools::Mode::FilterEnvelope:
-                d.setEnvelope(Modulation::Mode::PanMode, handler->getMainSelection(), true);
+                d.setEnvelope(Modulation::Mode::PanMode, handler->getMainSelection().get(), true);
                 break;
             default:
                 d.setEnvelope(Modulation::Mode::numModes, nullptr, true);
@@ -1107,10 +1107,10 @@ struct LoopImproveWindow: public Component,
 		copyTo(re, 1, endRange);
 
 		Array<var> channels;
-		channels.add(var(ls));
-		channels.add(var(rs));
-		channels.add(var(le));
-		channels.add(var(re));
+		channels.add(var(ls.get()));
+		channels.add(var(rs.get()));
+		channels.add(var(le.get()));
+		channels.add(var(re.get()));
 
 		return channels;
 	}
@@ -2035,7 +2035,7 @@ void SampleEditor::loadEditorSettings()
 		currentWaveForm->zeroCrossing = v.getProperty("ZeroCrossing", true);
 		currentWaveForm->setClickArea((AudioDisplayComponent::AreaTypes)(int)v.getProperty("ClickArea", (int)AudioDisplayComponent::AreaTypes::numAreas), false);
 
-		dynamic_cast<SamplerDisplayWithTimeline*>(viewContent.get())->setEnvelope((Modulation::Mode)(int)v.getProperty("Envelope", (int)Modulation::Mode::numModes), handler->getMainSelection(), true);
+		dynamic_cast<SamplerDisplayWithTimeline*>(viewContent.get())->setEnvelope((Modulation::Mode)(int)v.getProperty("Envelope", (int)Modulation::Mode::numModes), handler->getMainSelection().get(), true);
 	}
 }
 
@@ -2070,7 +2070,7 @@ void SampleEditor::mainSelectionChanged(SampleEditor& editor, ModulatorSamplerSo
 	editor.sampleSelector->setSelectedItemIndex(sampleIndex, dontSendNotification);
 	editor.multimicSelector->setSelectedItemIndex(micIndex, dontSendNotification);
 	
-	editor.currentWaveForm->setSoundToDisplay(sound, micIndex);
+	editor.currentWaveForm->setSoundToDisplay(sound.get(), micIndex);
 
 	ScopedPointer<AudioFormatReader> afr;
 

@@ -579,7 +579,7 @@ public:
 	virtual double getLastValue() const { return 0.0; }
 
 	/** Returns the target parameter of this connection. */
-	var getTarget() const { return var(targetParameter); }
+	var getTarget() const { return var(targetParameter.get()); }
 
 	/** Returns true if this connection is between a modulation signal and a parameter. */
 	virtual bool isModulationConnection() const { return false; }

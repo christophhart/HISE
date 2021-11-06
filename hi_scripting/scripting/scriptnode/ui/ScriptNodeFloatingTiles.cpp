@@ -642,10 +642,10 @@ void WorkbenchTestPlayer::postPostCompile(WorkbenchData::Ptr wb)
        b2.getNumSamples() * b2.getNumChannels() == 0)
         return;
     
-	VariantBuffer::Ptr il = new VariantBuffer(b1.getWritePointer(0), size);
-	VariantBuffer::Ptr ir = new VariantBuffer(b1.getWritePointer(jmin(1, numChannels-1)), size);
-	VariantBuffer::Ptr ol = new VariantBuffer(b2.getWritePointer(0), size);
-	VariantBuffer::Ptr or_ = new VariantBuffer(b2.getWritePointer(jmin(1, numChannels-1)), size);
+	auto il = new VariantBuffer(b1.getWritePointer(0), size);
+	auto ir = new VariantBuffer(b1.getWritePointer(jmin(1, numChannels-1)), size);
+	auto ol = new VariantBuffer(b2.getWritePointer(0), size);
+	auto or_ = new VariantBuffer(b2.getWritePointer(jmin(1, numChannels-1)), size);
 
 	inputPreview.setBuffer(var(il), var(ir));
 	outputPreview.setBuffer(var(ol), var(or_));

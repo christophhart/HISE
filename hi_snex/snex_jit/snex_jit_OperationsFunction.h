@@ -225,7 +225,7 @@ struct Operations::FunctionCall : public Expression
 
 	Expression* getArgument(int index) const
 	{
-		return getSubExpr(!hasObjectExpression ? index : (index + 1));
+		return getSubExpr(!hasObjectExpression ? index : (index + 1)).get();
 	}
 
 	int getNumArguments() const

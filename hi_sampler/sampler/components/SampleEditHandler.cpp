@@ -86,7 +86,7 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 	{
 		for (int i = 0; i < selectedSamplerSounds.getNumSelected(); i++)
 		{
-			ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
+			auto sound = selectedSamplerSounds.getSelectedItem(i);
 
 			if (direction == SamplerSoundMap::Right)
 			{
@@ -108,7 +108,7 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 	{
 		for (int i = 0; i < selectedSamplerSounds.getNumSelected(); i++)
 		{
-			ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
+			auto sound = selectedSamplerSounds.getSelectedItem(i);
 
 			changeProperty(sound, SampleIds::HiVel, direction == SamplerSoundMap::Up ? 1 : -1);
 			changeProperty(sound, SampleIds::LoVel, direction == SamplerSoundMap::Up ? 1 : -1);
@@ -315,7 +315,7 @@ bool SampleEditHandler::newKeysPressed(const uint8 *currentNotes)
 	return false;
 }
 
-void SampleEditHandler::changeProperty(ModulatorSamplerSound *s, const Identifier& p, int delta)
+void SampleEditHandler::changeProperty(ModulatorSamplerSound::Ptr s, const Identifier& p, int delta)
 {
 	const int v = s->getSampleProperty(p);
 

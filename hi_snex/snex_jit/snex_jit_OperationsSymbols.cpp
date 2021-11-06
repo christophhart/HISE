@@ -370,7 +370,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 			if (!objectAdress.isVoid() || objectExpression != nullptr)
 			{
-				if (objectExpression != nullptr && compiler->fitsIntoNativeRegister(objectExpression->getTypeInfo().getComplexType()))
+				if (objectExpression != nullptr && compiler->fitsIntoNativeRegister(objectExpression->getTypeInfo().getComplexType().get()))
 				{
 					auto t = compiler->getRegisterType(getTypeInfo());
 					auto ot = compiler->getRegisterType(objectExpression->getTypeInfo());
@@ -390,7 +390,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 					if (objectExpression == nullptr)
 						location.throwError("Can't resolve object pointer");
 
-					objectPtr = objectExpression->getTypeInfo().getComplexType();
+					objectPtr = objectExpression->getTypeInfo().getComplexType().get();
 				}
 
 				auto regType = objectAdress.getType() == Types::ID::Pointer ? TypeInfo(objectPtr.get()) : TypeInfo(Types::ID::Integer);
@@ -595,7 +595,7 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 				jassert(childId.id.getParent() == classId);
 			}
 
-			if (compiler->fitsIntoNativeRegister(getSubExpr(0)->getTypeInfo().getComplexType()))
+			if (compiler->fitsIntoNativeRegister(getSubExpr(0)->getTypeInfo().getComplexType().get()))
 				reg = getSubRegister(0);
 			else
 			{

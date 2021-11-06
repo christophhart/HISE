@@ -54,7 +54,7 @@ void OptimizationPass::processPreviousPasses(BaseCompiler* c, BaseScope* s, Stat
 
 		BaseCompiler::ScopedPassSwitcher svs(c, p);
 
-		c->executePass(p, s, st);
+		c->executePass(p, s, st.get());
 	}
 }
 
@@ -550,7 +550,7 @@ bool FunctionInliner::processStatementInternal(BaseCompiler* compiler, BaseScope
 				{
 					if (newFalseBranch == nullptr)
 					{
-						auto base = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(s);
+						auto base = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(s.get());
 
 						newFalseBranch = new Operations::StatementBlock(s->location, compiler->namespaceHandler.createNonExistentIdForLocation(base->getPath(), s->location.getLine()));
 					}
@@ -821,12 +821,12 @@ bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 
 				auto cantBeSwapped = false;
 
-				cantBeSwapped |= findParentStatementOfType<Assignment>(statement) != nullptr;
-				cantBeSwapped |= findParentStatementOfType<BinaryOp>(statement) != nullptr;
-				cantBeSwapped |= findParentStatementOfType<FunctionCall>(statement) != nullptr;
-				cantBeSwapped |= findParentStatementOfType<ComplexTypeDefinition>(statement) != nullptr;
-				cantBeSwapped |= findParentStatementOfType<ReturnStatement>(statement) != nullptr;
-				cantBeSwapped |= findParentStatementOfType<Compare>(statement) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<Assignment>(statement.get()) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<BinaryOp>(statement.get()) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<FunctionCall>(statement.get()) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<ComplexTypeDefinition>(statement.get()) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<ReturnStatement>(statement.get()) != nullptr;
+				cantBeSwapped |= findParentStatementOfType<Compare>(statement.get()) != nullptr;
 								
 				if (!cantBeSwapped)
 				{
@@ -1408,7 +1408,7 @@ bool LoopOptimiser::isBlockWithSingleStatement(StatementPtr s)
 		{
 			auto c = s->getChildStatement(i);
 
-			if (StatementBlock::isRealStatement(c))
+			if (StatementBlock::isRealStatement(c.get()))
 				numRealStatements++;
 		}
 
@@ -1494,7 +1494,7 @@ snex::jit::Operations::Loop* LoopOptimiser::getLoopStatement(StatementPtr s)
 	{
 		for (int i = 0; i < s->getNumChildStatements(); i++)
 		{
-			if (StatementBlock::isRealStatement(s->getChildStatement(i)))
+			if (StatementBlock::isRealStatement(s->getChildStatement(i).get()))
 			{
 				return getLoopStatement(s->getChildStatement(i));
 			}
@@ -1522,7 +1522,7 @@ snex::jit::OptimizationPass::StatementPtr LoopOptimiser::getRealParent(Statement
 snex::jit::Symbol LoopOptimiser::getRealSymbol(StatementPtr s)
 {
 	using namespace Operations;
-	if (auto ie = StatementBlock::findInlinedParameterInParentBlocks(s, as<SymbolStatement>(s)->getSymbol()))
+	if (auto ie = StatementBlock::findInlinedParameterInParentBlocks(s.get(), as<SymbolStatement>(s)->getSymbol()))
 		return as<SymbolStatement>(ie->getSubExpr(0))->getSymbol();
 	else return as<SymbolStatement>(s)->getSymbol();
 }
@@ -1641,7 +1641,7 @@ bool LoopVectoriser::isUnSimdableOperation(Ptr s)
 {
 	using namespace Operations;
 
-	auto parentLoop = Operations::findParentStatementOfType<Operations::Loop>(s);
+	auto parentLoop = Operations::findParentStatementOfType<Operations::Loop>(s.get());
 
 	if (auto cf = as<ControlFlowStatement>(s))
 		return true;

@@ -729,7 +729,7 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 				auto f2 = [info, s]()
 				{
 					if (info != nullptr)
-						DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(s), info);
+						DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(s), info.get());
 				};
 
 				MessageManager::callAsync(f2);
@@ -1940,7 +1940,7 @@ juce::CodeDocument* JavascriptProcessor::EditorHelpers::gotoAndReturnDocumentWit
 
 	if (info != nullptr)
 	{
-		DebugableObject::Helpers::gotoLocation(p, info);
+		DebugableObject::Helpers::gotoLocation(p, info.get());
 
 		auto activeEditor = getActiveEditor(jsp);
 

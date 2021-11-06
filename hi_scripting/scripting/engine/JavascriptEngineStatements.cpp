@@ -38,7 +38,7 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 				loc.fillColumnAndLines(col, line);
 				Breakpoint bp = Breakpoint(st->breakpointReference.localScopeId, loc.externalFile, line, col, loc.getCharIndex(), st->breakpointReference.index);
 
-				const bool hasRootScope = s.root == s.scope.get();
+				const bool hasRootScope = s.root.get() == s.scope.get();
 
 				if(!hasRootScope)
 					bp.localScope = s.scope.get();

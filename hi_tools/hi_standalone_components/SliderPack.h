@@ -179,7 +179,7 @@ public:
 		return dataBuffer->buffer.getReadPointer(0);
 	}
 
-	var getDataArray() const { return var(dataBuffer); }
+	var getDataArray() const { return var(dataBuffer.get()); }
 
 	void setFlashActive(bool shouldBeShown) { flashActive = shouldBeShown; };
 	void setShowValueOverlay(bool shouldBeShown) { showValueOverlay = shouldBeShown; };

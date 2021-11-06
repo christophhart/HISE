@@ -1452,7 +1452,7 @@ struct ServerController: public Component,
 				}
 				case Columns::StatusLed:
 				{
-					g.setColour(getColourForState(obj).withMultipliedSaturation(0.7f));
+					g.setColour(getColourForState(obj.get()).withMultipliedSaturation(0.7f));
 					auto circle = area.withSizeKeepingCentre(12.0f, 12.0f);
 					g.fillEllipse(circle);
 					g.setColour(Colours::white.withAlpha(0.4f));
@@ -1667,7 +1667,7 @@ struct ServerController: public Component,
 
 				if (auto data = requestModel.getData(index))
 				{
-					auto ok = s->resendCallback(data);
+					auto ok = s->resendCallback(data.get());
 
 					if (!ok.wasOk())
 					{

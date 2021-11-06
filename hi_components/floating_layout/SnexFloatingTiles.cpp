@@ -46,7 +46,7 @@ void SnexTileBase::setCurrentFile(const File& f)
 
 	
 
-	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb, getMainController(), nh));
+	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb.get(), getMainController(), nh));
 
 	//wb->setCompileHandler(new snex::JitNodeCompileThread(wb, getMainController()->getGlobalUIUpdater()));
 

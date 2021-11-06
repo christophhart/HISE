@@ -677,7 +677,7 @@ void SnexWorkbenchEditor::loadNewNetwork(const File& f)
 
 	df = new hise::DspNetworkCodeProvider(nullptr, getMainController(), fh, f);
 
-	wb = dynamic_cast<BackendProcessor*>(getMainController())->workbenches.getWorkbenchDataForCodeProvider(df, true);
+	wb = dynamic_cast<BackendProcessor*>(getMainController())->workbenches.getWorkbenchDataForCodeProvider(df, true).get();
 	wb->getTestData().setMultichannelDataProvider(new PooledAudioFileDataProvider(getMainController()));
 	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb, getMainController(), fh));
 
@@ -1369,10 +1369,10 @@ void TestRunWindow::runTest(const File& f, DspNetworkCodeProvider::SourceMode m)
 
 	auto nh = SnexWorkbenchEditor::getNetworkHolderForNewFile(getMainController(), false);
 
-	ScopedPointer<DspNetworkCodeProvider> dnp = new DspNetworkCodeProvider(d, getMainController(), nh, f);
+	ScopedPointer<DspNetworkCodeProvider> dnp = new DspNetworkCodeProvider(d.get(), getMainController(), nh, f);
 
 	d->setCodeProvider(dnp);
-	auto dch = new DspNetworkCompileHandler(d, getMainController(), nh);
+	auto dch = new DspNetworkCompileHandler(d.get(), getMainController(), nh);
 	d->setCompileHandler(dch);
 
 	d->getTestData().setTestRootDirectory(testRoot);

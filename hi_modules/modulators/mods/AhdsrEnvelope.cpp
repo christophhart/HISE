@@ -73,7 +73,7 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 	}
 
 	SimpleReadWriteLock::ScopedWriteLock sl(displayBuffer->getDataLock());
-	setExternalData(snex::ExternalData(displayBuffer, 0), 0);
+	setExternalData(snex::ExternalData(displayBuffer.get(), 0), 0);
 
 	editorStateIdentifiers.add("AttackTimeChainShown");
 	editorStateIdentifiers.add("AttackLevelChainShown");

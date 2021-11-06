@@ -2488,7 +2488,7 @@ struct Spectrum2D
 		{
 			static constexpr int RowHeight = 32;
 
-			Editor(Parameters* p);
+			Editor(Parameters::Ptr p);
 
 			void addEditor(const Identifier& id);
 
