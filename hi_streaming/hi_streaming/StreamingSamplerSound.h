@@ -162,7 +162,7 @@ public:
 	/** This sets the crossfade length. */
 	void setLoopCrossfade(int newCrossfadeLength);;
 
-	/** Returns the length of the crossfade. */
+	/** Returns the length of the crossfade (might not be the actual crossfade length if the sample is reversed). */
 	int getLoopCrossfade() const noexcept { return crossfadeLength; };
 
 	/** Loads the entire sample into the preload buffer and reverses it. */
