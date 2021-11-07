@@ -378,6 +378,10 @@ public:
 	float* calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
 	const float *getCrossfadeModValues() const;
 
+	ValueTree parseMetadata(const File& sampleFile);
+
+	static ValueTree getSamplePropertyTreeFromMetadata(const StringPairArray& metadata);
+
 	void setVoiceLimit(int newVoiceLimit) override;
 
 	float getConstantCrossFadeModulationValue() const noexcept;

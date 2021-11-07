@@ -633,7 +633,11 @@ public:
 
 private:
 
+	void clipRangeProperties(const Identifier& id, int value, bool useUndo);
+
 	void loadSampleFromValueTree(const ValueTree& sampleData, HlacMonolithInfo* hmaf);
+
+	int getPropertyValueWithDefault(const Identifier& id) const;
 
 	WeakReference<SampleMap> parentMap;
 	ValueTree data;

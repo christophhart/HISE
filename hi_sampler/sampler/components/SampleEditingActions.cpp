@@ -1068,135 +1068,32 @@ void SampleEditHandler::SampleEditingActions::writeSamplesWithAiffData(Modulator
 
 
 
-#define SET_PROPERTY_FROM_METADATA_STRING(string, prop) if (string.isNotEmpty()) sound->setSampleProperty(prop, string.getIntValue());
+
+
 
 
 
 bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPairArray &metadata, bool readOnly=false)
 {
-	const String format = metadata.getValue("MetaDataSource", "");
-	
-	
+	auto t = ModulatorSampler::getSamplePropertyTreeFromMetadata(metadata);
 
-	String lowVel, hiVel, loKey, hiKey, root, start, end, loopEnabled, loopStart, loopEnd;
-
-	DBG(metadata.getDescription());
-
-	if (format == "AIFF")
+	if (t.getNumProperties() > 0)
 	{
-		lowVel = metadata.getValue("LowVelocity", "");
-		hiVel = metadata.getValue("HighVelocity", "");
-		loKey = metadata.getValue("LowNote", "");
-		hiKey = metadata.getValue("HighNote", "");
-		root = metadata.getValue("MidiUnityNote", "");
-
-		loopEnabled = metadata.getValue("Loop0Type", "");
-		
-#if 1 // Doesn't support sample start / end, but more robust loop points.
-
-		const int loopStartId = metadata.getValue("Loop0StartIdentifier", "-1").getIntValue();
-		const int loopEndId = metadata.getValue("Loop0EndIdentifier", "-1").getIntValue();
-
-		int loopStartIndex = -1;
-		int loopEndIndex = -1;
-
-		const int numCuePoints = metadata.getValue("NumCuePoints", "0").getIntValue();
-
-		for (int i = 0; i < numCuePoints; i++)
+		if (!readOnly)
 		{
-			const String idTag = "CueLabel" + String(i) + "Identifier";
+			sound->startPropertyChange("Applying metadata");
 
-			if (metadata.getValue(idTag, "-2").getIntValue() == loopStartId)
+			for (int i = 0; i < t.getNumProperties(); i++)
 			{
-				loopStartIndex = i;
-				loopStart = metadata.getValue("Cue" + String(i) + "Offset", "");
-			}
-			else if (metadata.getValue(idTag, "-2").getIntValue() == loopEndId)
-			{
-				loopEndIndex = i;
-				loopEnd = metadata.getValue("Cue" + String(i) + "Offset", "");
+				auto id = t.getPropertyName(i);
+				sound->setSampleProperty(id, t[id]);
 			}
 		}
 
-#else
-
-		const static String loopStartTag = "LoopStart";
-		const static String loopEndTag = "LoopEnd";
-		const static String startTag = "Start";
-		const static String endTag = "End";
-
-		const int numCuePoints = metadata.getValue("NumCuePoints", "0").getIntValue();
-
-		bool loopStartAlreadyThere = false;
-
-		for (int i = 0; i < numCuePoints; i++)
-		{
-			const String thisId = "CueLabel" + String(i) + "Text";
-			const String thisValue = metadata.getValue(thisId, "");
-
-			if (thisValue == startTag) start = metadata.getValue("Cue" + String(i) + "Offset", "");
-			else if (thisValue == endTag) end = metadata.getValue("Cue" + String(i) + "Offset", "");
-			else if (thisValue == loopStartTag)
-			{
-				if (!loopStartAlreadyThere)
-				{
-					loopStart = metadata.getValue("Cue" + String(i) + "Offset", "");
-					loopStartAlreadyThere = true;
-				}
-				else
-				{
-					// Somehow the LoopEnd tag is wrong on some Aiffs...
-
-					loopEnd = metadata.getValue("Cue" + String(i) + "Offset", "");
-					if (loopEnabled == "1")
-						end = loopEnd;
-
-				}
-			}
-			else if (thisValue == loopEndTag)
-			{
-				loopEnd = metadata.getValue("Cue" + String(i) + "Offset", "");
-				if (loopEnabled == "1")
-					end = loopEnd;
-			}
-		}
-
-#endif
-
-	}
-	else if (format == "WAV")
-	{
-		loopStart = metadata.getValue("Loop0Start", "");
-		loopEnd = metadata.getValue("Loop0End", "");
-		loopEnabled = (loopStart.isNotEmpty() && loopStart != "0" && loopEnd.isNotEmpty() && loopEnd != "0") ? "1" : "";
+		return true;
 	}
 
-	if (!readOnly)
-	{
-		sound->startPropertyChange("Applying metadata");
-
-		SET_PROPERTY_FROM_METADATA_STRING(lowVel, SampleIds::LoVel);
-		SET_PROPERTY_FROM_METADATA_STRING(hiVel, SampleIds::HiVel);
-		SET_PROPERTY_FROM_METADATA_STRING(loKey, SampleIds::LoKey);
-		SET_PROPERTY_FROM_METADATA_STRING(hiKey, SampleIds::HiKey);
-		SET_PROPERTY_FROM_METADATA_STRING(root, SampleIds::Root);
-		SET_PROPERTY_FROM_METADATA_STRING(start, SampleIds::SampleStart);
-		SET_PROPERTY_FROM_METADATA_STRING(end, SampleIds::SampleEnd);
-		SET_PROPERTY_FROM_METADATA_STRING(loopEnabled, SampleIds::LoopEnabled);
-		SET_PROPERTY_FROM_METADATA_STRING(loopStart, SampleIds::LoopStart);
-		SET_PROPERTY_FROM_METADATA_STRING(loopEnd, SampleIds::LoopEnd);
-	}
-
-	return 	lowVel != "" ||
-		hiVel != "" ||
-		loKey != "" ||
-		hiKey != "" ||
-		root != "" ||
-		start != "" ||
-		end != "" ||
-		loopEnabled != "" ||
-		loopStart != "" ||
-		loopEnd != "";
+	return false;
 }
 
 #undef SET_PROPERTY_FROM_METADATA_STRING
@@ -1245,7 +1142,7 @@ void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSamp
 		sounds.add(sound.get());
 	}
 
-	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->afm);
+	
 
 	bool metadataWasFound = false;
 
@@ -1255,13 +1152,20 @@ void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSamp
 
 		File f = ref.getFile();
 
-		ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(f);
+		auto metadata = sampler->parseMetadata(f);
 
-		if (reader != nullptr)
+		if (metadata.isValid())
 		{
-			if (setSoundPropertiesFromMetadata(sounds[i].get(), reader->metadataValues))
+			metadataWasFound = true;
+
+			for (int j = 0; j < metadata.getNumProperties(); j++)
 			{
-				metadataWasFound = true;
+				auto id = metadata.getPropertyName(j);
+
+				if (id == SampleIds::FileName)
+					continue;
+
+				sounds[i]->setSampleProperty(id, metadata[id], true);
 			}
 		}
 	}

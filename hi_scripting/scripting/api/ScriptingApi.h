@@ -758,7 +758,8 @@ public:
 		/** Returns a base64 compressed string containing the entire samplemap. */
 		String getSampleMapAsBase64();
 
-
+		/** Creates a JSON object from the sample file that can be used with loadSampleMapFromJSON. */
+		var parseSampleFile(var sampleFile);
 
 		/** Loads an SFZ file into the sampler. */
 		var loadSfzFile(var sfzFile);

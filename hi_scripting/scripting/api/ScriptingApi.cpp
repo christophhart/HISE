@@ -2470,6 +2470,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_1(Sampler, saveCurrentSampleMap);
 	API_METHOD_WRAPPER_2(Sampler, importSamples);
 	API_METHOD_WRAPPER_0(Sampler, clearSampleMap);
+	API_METHOD_WRAPPER_1(Sampler, parseSampleFile);
 	API_VOID_METHOD_WRAPPER_2(Sampler, setGUISelection);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setSortByRRGroup);
 };
@@ -2515,6 +2516,7 @@ sampler(sampler_)
 	ADD_API_METHOD_0(createListFromGUISelection);
 	ADD_API_METHOD_0(createListFromScriptSelection);
 	ADD_API_METHOD_1(saveCurrentSampleMap);
+	ADD_API_METHOD_1(parseSampleFile);
 	ADD_API_METHOD_2(importSamples);
 	ADD_API_METHOD_0(clearSampleMap);
 	ADD_API_METHOD_2(setGUISelection);
@@ -3289,6 +3291,40 @@ String ScriptingApi::Sampler::getSampleMapAsBase64()
 	return mb.toBase64Encoding();
 }
 
+var ScriptingApi::Sampler::parseSampleFile(var sampleFile)
+{
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+		reportScriptError("Invalid sampler call");
+
+	File f;
+
+	if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(sampleFile.getObject()))
+		f = sf->f;
+	else if (sampleFile.isString() && File::isAbsolutePath(sampleFile.toString()))
+		f = File(sampleFile.toString());
+	else
+		reportScriptError("not a valid file input");
+
+	auto v = s->parseMetadata(f);
+
+	if (v.isValid())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+
+		for (int i = 0; i < v.getNumProperties(); i++)
+		{
+			auto id = v.getPropertyName(i);
+			obj->setProperty(id, v[id]);
+		}
+
+		return var(obj.get());
+	}
+
+	return var();
+}
+
 var ScriptingApi::Sampler::loadSfzFile(var sfzFile)
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
@@ -3640,13 +3676,15 @@ bool ScriptingApi::Sampler::clearSampleMap()
 		RETURN_IF_NO_THROW(false);
 	}
 
-	if (auto sm = s->getSampleMap())
+	auto f = [](Processor* p)
 	{
+		auto sm = static_cast<ModulatorSampler*>(p)->getSampleMap();
 		sm->clear(sendNotificationAsync);
-		return true;
-	}
+		return SafeFunctionCall::OK;
+	};
 
-	return false;
+	s->killAllVoicesAndCall(f);
+	return true;
 }
 
 // ====================================================================================================== Synth functions

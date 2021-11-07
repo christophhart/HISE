@@ -1551,6 +1551,8 @@ struct ScriptingObjects::ScriptingSamplerSound::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingSamplerSound, duplicateSample);
 	API_METHOD_WRAPPER_0(ScriptingSamplerSound, loadIntoBufferArray);
 	API_METHOD_WRAPPER_1(ScriptingSamplerSound, replaceAudioFile);
+	API_METHOD_WRAPPER_0(ScriptingSamplerSound, getSampleRate);
+	API_METHOD_WRAPPER_1(ScriptingSamplerSound, getRange);
 	API_METHOD_WRAPPER_1(ScriptingSamplerSound, refersToSameSample);
 };
 
@@ -1562,11 +1564,13 @@ ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScri
 	ADD_API_METHOD_1(setFromJSON);
 	ADD_API_METHOD_1(get);
 	ADD_API_METHOD_2(set);
+	ADD_API_METHOD_1(getRange);
 	ADD_API_METHOD_0(deleteSample);
 	ADD_API_METHOD_0(duplicateSample);
 	ADD_API_METHOD_0(loadIntoBufferArray);
 	ADD_API_METHOD_1(replaceAudioFile);
 	ADD_API_METHOD_1(refersToSameSample);
+	ADD_API_METHOD_0(getSampleRate);
 
 	sampleIds.ensureStorageAllocated(ModulatorSamplerSound::numProperties);
 	sampleIds.add(SampleIds::ID);
@@ -1687,6 +1691,33 @@ var ScriptingObjects::ScriptingSamplerSound::get(int propertyIndex) const
 	}
 
 	return sound->getSampleProperty(sampleIds[propertyIndex]);
+}
+
+var ScriptingObjects::ScriptingSamplerSound::getRange(int propertyIndex) const
+{
+	if (!objectExists())
+	{
+		reportScriptError("Sound does not exist");
+		RETURN_IF_NO_THROW(var());
+	}
+
+	auto r = sound->getPropertyRange(sampleIds[propertyIndex]);
+
+	Array<var> range;
+	range.add(r.getStart());
+	range.add(r.getEnd());
+	return var(range);
+}
+
+var ScriptingObjects::ScriptingSamplerSound::getSampleRate()
+{
+	if (!objectExists())
+	{
+		reportScriptError("Sound does not exist");
+		RETURN_IF_NO_THROW(var());
+	}
+
+	return sound->getSampleRate();
 }
 
 var ScriptingObjects::ScriptingSamplerSound::loadIntoBufferArray()

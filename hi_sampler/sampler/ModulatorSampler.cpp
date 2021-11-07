@@ -1157,6 +1157,90 @@ const float * ModulatorSampler::getCrossfadeModValues() const
 	return crossfadeGroups ? modChains[Chains::XFade].getReadPointerForVoiceValues(0) : nullptr;
 }
 
+juce::ValueTree ModulatorSampler::parseMetadata(const File& sampleFile)
+{
+	AudioFormatManager *afm = &(getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->afm);
+
+	ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(sampleFile);
+
+	if (reader != nullptr)
+	{
+		auto v = getSamplePropertyTreeFromMetadata(reader->metadataValues);
+		auto fileName = PoolReference(getMainController(), sampleFile.getFullPathName(), FileHandlerBase::Samples).getReferenceString();
+		v.setProperty(SampleIds::FileName, fileName, nullptr);
+		return v;
+	}
+
+	return {};
+
+}
+
+#define SET_PROPERTY_FROM_METADATA_STRING(string, prop) if (string.isNotEmpty()) sample.setProperty(prop, string.getIntValue(), nullptr);
+
+juce::ValueTree ModulatorSampler::getSamplePropertyTreeFromMetadata(const StringPairArray& metadata)
+{
+	ValueTree sample("Metadata");
+
+	const String format = metadata.getValue("MetaDataSource", "");
+	String lowVel, hiVel, loKey, hiKey, root, start, end, loopEnabled, loopStart, loopEnd;
+
+	if (format == "AIFF")
+	{
+		lowVel = metadata.getValue("LowVelocity", "");
+		hiVel = metadata.getValue("HighVelocity", "");
+		loKey = metadata.getValue("LowNote", "");
+		hiKey = metadata.getValue("HighNote", "");
+		root = metadata.getValue("MidiUnityNote", "");
+
+		loopEnabled = metadata.getValue("Loop0Type", "");
+
+		const int loopStartId = metadata.getValue("Loop0StartIdentifier", "-1").getIntValue();
+		const int loopEndId = metadata.getValue("Loop0EndIdentifier", "-1").getIntValue();
+
+		int loopStartIndex = -1;
+		int loopEndIndex = -1;
+
+		const int numCuePoints = metadata.getValue("NumCuePoints", "0").getIntValue();
+
+		for (int i = 0; i < numCuePoints; i++)
+		{
+			const String idTag = "CueLabel" + String(i) + "Identifier";
+
+			if (metadata.getValue(idTag, "-2").getIntValue() == loopStartId)
+			{
+				loopStartIndex = i;
+				loopStart = metadata.getValue("Cue" + String(i) + "Offset", "");
+			}
+			else if (metadata.getValue(idTag, "-2").getIntValue() == loopEndId)
+			{
+				loopEndIndex = i;
+				loopEnd = metadata.getValue("Cue" + String(i) + "Offset", "");
+			}
+		}
+	}
+	else if (format == "WAV")
+	{
+		loopStart = metadata.getValue("Loop0Start", "");
+		loopEnd = metadata.getValue("Loop0End", "");
+		loopEnabled = (loopStart.isNotEmpty() && loopStart != "0" && loopEnd.isNotEmpty() && loopEnd != "0") ? "1" : "";
+	}
+
+	SET_PROPERTY_FROM_METADATA_STRING(lowVel, SampleIds::LoVel);
+	SET_PROPERTY_FROM_METADATA_STRING(hiVel, SampleIds::HiVel);
+	SET_PROPERTY_FROM_METADATA_STRING(loKey, SampleIds::LoKey);
+	SET_PROPERTY_FROM_METADATA_STRING(hiKey, SampleIds::HiKey);
+	SET_PROPERTY_FROM_METADATA_STRING(root, SampleIds::Root);
+	SET_PROPERTY_FROM_METADATA_STRING(start, SampleIds::SampleStart);
+	SET_PROPERTY_FROM_METADATA_STRING(end, SampleIds::SampleEnd);
+	SET_PROPERTY_FROM_METADATA_STRING(loopEnabled, SampleIds::LoopEnabled);
+	SET_PROPERTY_FROM_METADATA_STRING(loopStart, SampleIds::LoopStart);
+	SET_PROPERTY_FROM_METADATA_STRING(loopEnd, SampleIds::LoopEnd);
+
+	return sample;
+}
+
+#undef SET_PROPERTY_FROM_METADATA_STRING
+
 void ModulatorSampler::setVoiceLimit(int newVoiceLimit)
 {
 	realVoiceAmount = jmax(2, newVoiceLimit);

@@ -33,6 +33,47 @@
 namespace hise { using namespace juce;
 
 
+void ModulatorSamplerSound::clipRangeProperties(const Identifier& id, int value, bool useUndo)
+{
+	if (id == SampleIds::SampleStart || id == SampleIds::SampleEnd)
+	{
+		auto loopStart = getPropertyValueWithDefault(SampleIds::LoopStart);
+		auto startMod = getPropertyValueWithDefault(SampleIds::SampleStartMod);
+		auto sampleEnd = getPropertyValueWithDefault(SampleIds::SampleEnd);
+		auto loopEnd = getPropertyValueWithDefault(SampleIds::LoopEnd);
+		auto xfade = getPropertyValueWithDefault(SampleIds::LoopXFade);
+
+		if (id == SampleIds::SampleStart)
+		{
+			// trim the xfade first
+			if (value > loopStart - xfade)
+				setSampleProperty(SampleIds::LoopXFade, jmax(loopStart - value, 0), useUndo);
+
+			// now trim the loop start if the xfade wasn't enough
+			if (value > loopStart)
+				setSampleProperty(SampleIds::LoopStart, value, useUndo);
+
+			if (startMod > sampleEnd - value)
+				setSampleProperty(SampleIds::SampleStartMod, sampleEnd - value, useUndo);
+
+			if (value > loopEnd - xfade)
+				setSampleProperty(SampleIds::LoopXFade, jmax(0, loopEnd - value), useUndo);
+
+			if (value > loopEnd)
+				setSampleProperty(SampleIds::LoopEnd, value, useUndo);
+		}
+
+		if (id == SampleIds::SampleEnd)
+		{
+			if (loopEnd > value)
+				setSampleProperty(SampleIds::LoopEnd, value, useUndo);
+
+			if (loopStart > value)
+				setSampleProperty(SampleIds::LoopStart, value, useUndo);
+		}
+	}
+}
+
 void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData, HlacMonolithInfo* hmaf)
 {
 	auto pool = parentMap->getCurrentSamplePool();
@@ -80,6 +121,22 @@ void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData,
 
 		pool->addSound({ ref, soundArray.getLast().get() });
 	}
+}
+
+int ModulatorSamplerSound::getPropertyValueWithDefault(const Identifier& id) const
+{
+	if (auto s = getReferenceToSound(0))
+	{
+		auto fullLength = (int)s->getLengthInSamples();
+
+		if (id == SampleIds::SampleEnd)
+			return (int)data.getProperty(SampleIds::SampleEnd, fullLength);
+
+		if (id == SampleIds::LoopEnd)
+			return (int)data.getProperty(SampleIds::LoopEnd, getPropertyValueWithDefault(SampleIds::SampleEnd));
+	}
+
+	return (int)data.getProperty(id, 0);
 }
 
 ModulatorSamplerSound::ModulatorSamplerSound(SampleMap* parent, const ValueTree& d, HlacMonolithInfo* hmaf) :
@@ -163,9 +220,64 @@ juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) c
 	else if( id == SampleIds::Normalized)	return Range<int>(0, 1);
 	else if( id == SampleIds::RRGroup)		return Range<int>(1, maxRRGroup);
 	else if( id == SampleIds::Pitch)		return Range<int>(-100, 100);
-	else if( id == SampleIds::SampleStart)	return firstSound->isLoopEnabled() ? Range<int>(0, jmin<int>((int)firstSound->getLoopStart() - (int)firstSound->getLoopCrossfade(), (int)(firstSound->getSampleEnd() - (int)firstSound->getSampleStartModulation()))) :
-																				 Range<int>(0, (int)firstSound->getSampleEnd() - (int)firstSound->getSampleStartModulation());
-	else if( id == SampleIds::SampleEnd)		{
+	else if (id == SampleIds::LoopEnabled)			return Range<int>(0, 1);
+	else if (id == SampleIds::SampleStart || id == SampleIds::SampleEnd ||
+		id == SampleIds::LoopStart || id == SampleIds::LoopEnd ||
+		id == SampleIds::SampleStartMod || id == SampleIds::LoopXFade)
+	{
+		// get all interesting properties with a sensible default
+		auto fullLength = (int)firstSound->getLengthInSamples();
+		auto sampleStart = getPropertyValueWithDefault(SampleIds::SampleStart);
+		auto sampleEnd = getPropertyValueWithDefault(SampleIds::SampleEnd);
+		auto loopStart = getPropertyValueWithDefault(SampleIds::LoopStart);
+		auto loopEnd = getPropertyValueWithDefault(SampleIds::LoopEnd);
+		auto startMod = getPropertyValueWithDefault(SampleIds::SampleStartMod);
+		auto xfade = getPropertyValueWithDefault(SampleIds::LoopXFade);
+
+		int minValue, maxValue;
+
+		if (id == SampleIds::SampleStart)
+		{
+			minValue = 0;
+			maxValue = sampleEnd;
+					   //jmin(sampleEnd - startMod,
+					   //loopStart - xfade);
+		}
+		if (id == SampleIds::SampleEnd)
+		{
+			minValue = sampleStart;// jmax(sampleStart + startMod, loopEnd);
+			maxValue = fullLength;
+		}
+		if (id == SampleIds::LoopStart)
+		{
+			minValue = sampleStart + xfade;
+			maxValue = loopEnd - xfade;
+		}
+		if (id == SampleIds::LoopEnd)
+		{
+			minValue = loopStart + xfade;
+			maxValue = sampleEnd;
+		}
+		if (id == SampleIds::SampleStartMod)
+		{
+			minValue = 0;
+			maxValue = sampleEnd - sampleStart;
+		}
+		if (id == SampleIds::LoopXFade)
+		{
+			minValue = 0;
+			maxValue = jmin(loopEnd - loopStart,
+				loopStart - sampleStart);
+		}
+
+		return { minValue, maxValue };
+	}
+#if 0
+		return firstSound->isLoopEnabled() ? Range<int>(0, jmin<int>((int)firstSound->getLoopStart() - (int)firstSound->getLoopCrossfade(), (int)(firstSound->getSampleEnd() - (int)firstSound->getSampleStartModulation()))) :
+			Range<int>(0, (int)firstSound->getSampleEnd() - (int)firstSound->getSampleStartModulation());
+	}
+	else if( id == SampleIds::SampleEnd)
+	{
 		const int sampleStartMinimum = (int)(firstSound->getSampleStart() + firstSound->getSampleStartModulation());
 		const int upperLimit = (int)firstSound->getLengthInSamples();
 
@@ -183,10 +295,11 @@ juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) c
 		}
 	}
 	else if( id == SampleIds::SampleStartMod)		return Range<int>(0, (int)firstSound->getSampleLength());
-	else if( id == SampleIds::LoopEnabled)			return Range<int>(0, 1);
+	
 	else if( id == SampleIds::LoopStart)			return Range<int>((int)firstSound->getSampleStart() + (int)firstSound->getLoopCrossfade(), (int)firstSound->getLoopEnd() - (int)firstSound->getLoopCrossfade());
 	else if( id == SampleIds::LoopEnd)				return Range<int>((int)firstSound->getLoopStart() + (int)firstSound->getLoopCrossfade(), (int)firstSound->getSampleEnd());
 	else if( id == SampleIds::LoopXFade)			return Range<int>(0, jmin<int>((int)(firstSound->getLoopStart() - firstSound->getSampleStart()), (int)firstSound->getLoopLength()));
+#endif
 	else if( id == SampleIds::UpperVelocityXFade)	return Range < int >(0, (int)getSampleProperty(SampleIds::HiVel) - ((int)getSampleProperty(SampleIds::LoVel) + lowerVeloXFadeValue));
 	else if( id == SampleIds::LowerVelocityXFade)	return Range < int >(0, (int)getSampleProperty(SampleIds::HiVel) - upperVeloXFadeValue - (int)getSampleProperty(SampleIds::LoVel));
 	else if( id == SampleIds::SampleState)			return Range<int>(0, (int)StreamingSamplerSound::numSampleStates - 1);
@@ -745,6 +858,8 @@ void ModulatorSamplerSound::setSampleProperty(const Identifier& id, const var& n
 		data.setProperty(id, newValue.toString(), useUndo ? undoManager : nullptr);
 		return;
 	}
+
+	clipRangeProperties(id, newValue, useUndo);
 
 	jassert(!newValue.isString());
 	auto v = getPropertyRange(id).clipValue((int)newValue);

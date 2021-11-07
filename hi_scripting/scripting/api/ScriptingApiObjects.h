@@ -961,6 +961,12 @@ namespace ScriptingObjects
 		/** Returns the sample property. */
 		var get(int propertyIndex) const;
 
+		/** Returns the value range that the given property can have (eg. the loop end might not go beyond the sample end. */
+		var getRange(int propertyIndex) const;
+
+		/*** Returns the samplerate of the sample (!= the processing samplerate). */
+		var getSampleRate();
+
 		/** Loads the sample into a array of buffers for analysis. */
 		var loadIntoBufferArray();
 
