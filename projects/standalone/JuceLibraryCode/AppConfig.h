@@ -323,7 +323,7 @@
 #endif
 
 #ifndef    JUCE_JACK
- #define   JUCE_JACK 1
+ #define   JUCE_JACK 0
 #endif
 
 #ifndef    JUCE_BELA
@@ -331,7 +331,7 @@
 #endif
 
 #ifndef    JUCE_USE_ANDROID_OBOE
- //#define JUCE_USE_ANDROID_OBOE 1
+ #define   JUCE_USE_ANDROID_OBOE 0
 #endif
 
 #ifndef    JUCE_USE_OBOE_STABILIZED_CALLBACK
@@ -542,7 +542,7 @@
 #endif
 
 #ifndef    JUCE_ENABLE_LIVE_CONSTANT_EDITOR
- //#define JUCE_ENABLE_LIVE_CONSTANT_EDITOR 0
+ #define   JUCE_ENABLE_LIVE_CONSTANT_EDITOR 0
 #endif
 
 //==============================================================================
