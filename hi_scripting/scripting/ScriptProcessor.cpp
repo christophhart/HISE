@@ -270,6 +270,8 @@ void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Cont
 #endif
 
 		scriptEngine->executeInlineFunction(fVar, args, &r);
+
+		BACKEND_ONLY(if (!r.wasOk()) debugError(dynamic_cast<Processor*>(this), r.getErrorMessage()));
 	}
 
 #if 0

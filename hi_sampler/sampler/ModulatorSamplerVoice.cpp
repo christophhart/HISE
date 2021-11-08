@@ -218,12 +218,10 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 			jassertfalse;
 	}
 
-#if USE_BACKEND
 	if (sampler->isLastStartedVoice(this))
 	{
 		handlePlaybackPosition(sound);
 	}
-#endif
 }
 
 void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound * sound)

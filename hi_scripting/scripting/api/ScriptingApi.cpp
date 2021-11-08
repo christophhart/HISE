@@ -2886,6 +2886,7 @@ void ScriptingApi::Sampler::setGUISelection(var sampleList, bool addToSelection)
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
 
+#if USE_BACKEND
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -2918,6 +2919,7 @@ void ScriptingApi::Sampler::setGUISelection(var sampleList, bool addToSelection)
 	{
 		s->getSampleEditHandler()->setMainSelectionToLast();
 	});
+#endif
 }
 
 void ScriptingApi::Sampler::selectSounds(String regexWildcard)

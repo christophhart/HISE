@@ -6343,8 +6343,10 @@ void ScriptingObjects::ScriptBackgroundTask::run()
 
 		auto r = currentTask.callSync(&t, 1);
 
+#if USE_BACKEND
 		if (!r.wasOk())
 			getScriptProcessor()->getMainController_()->writeToConsole(r.getErrorMessage(), 1, dynamic_cast<Processor*>(getScriptProcessor()));
+#endif
 
 		if (forwardToLoadingThread)
 		{
