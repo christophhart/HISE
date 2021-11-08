@@ -1690,7 +1690,14 @@ var ScriptingObjects::ScriptingSamplerSound::get(int propertyIndex) const
 		RETURN_IF_NO_THROW(var());
 	}
 
-	return sound->getSampleProperty(sampleIds[propertyIndex]);
+	auto id = sampleIds[propertyIndex];
+
+	auto v = sound->getSampleProperty(id);
+
+	if (id == SampleIds::FileName)
+		return v;
+	else
+		return var((int)v);
 }
 
 var ScriptingObjects::ScriptingSamplerSound::getRange(int propertyIndex) const

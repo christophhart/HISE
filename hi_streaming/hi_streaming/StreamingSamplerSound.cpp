@@ -293,6 +293,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 			fileReader.readFromDisk(preloadBuffer, 0, samplesToRead, sampleStartToUse, true);
 	}
 
+	rebuildCrossfadeBuffer();
 	applyCrossfadeToInternalBuffers();
 }
 
@@ -566,11 +567,18 @@ void StreamingSamplerSound::lengthChanged()
 
 void StreamingSamplerSound::applyCrossfadeToInternalBuffers()
 {
-	if (loopBuffer != nullptr && getLoopLength() > 0)
+	if (!crossfadeArea.isEmpty())
 	{
+		jassert(loopBuffer != nullptr);
+
 		auto fadePos = loopEnd - sampleStart - crossfadeArea.getLength();
+
+		if (isReversed())
+			fadePos = sampleEnd - loopStart - crossfadeArea.getLength();
+
 		auto numInBuffer = preloadBuffer.getNumSamples();
         
+#if 0
         if(loopBuffer == nullptr)
         {
             bool preloadContainsLoop = loopEnd <= preloadBuffer.getNumSamples() - sampleStart;
@@ -579,6 +587,7 @@ void StreamingSamplerSound::applyCrossfadeToInternalBuffers()
         
         if(loopBuffer == nullptr)
             return;
+#endif
         
 		if (fadePos < numInBuffer)
 		{
@@ -620,7 +629,7 @@ void StreamingSamplerSound::loopChanged()
 	}
 
 	loopStart = jmax<int>(loopStart, sampleStart);
-	loopEnd = jmin<int>(loopEnd, sampleEnd);
+	loopEnd = jlimit<int>(loopStart, sampleEnd, loopEnd);
 	
 	crossfadeArea = Range<int>((int)(getLoopEnd(isReversed()) - crossfadeLength), (int)getLoopEnd(isReversed()));
 
@@ -656,7 +665,7 @@ void StreamingSamplerSound::loopChanged()
 
         if(crossfadeLength != 0)
         {
-            rebuildCrossfadeBuffer(preloadContainsLoop);
+            rebuildCrossfadeBuffer();
             applyCrossfadeToInternalBuffers();
         }
 	}
@@ -670,7 +679,7 @@ void StreamingSamplerSound::loopChanged()
 	}
 }
 
-void StreamingSamplerSound::rebuildCrossfadeBuffer(bool preloadContainsLoop)
+void StreamingSamplerSound::rebuildCrossfadeBuffer()
 {
 	int fadeInStartOffset, fadeOutStartOffset;
 	
@@ -688,12 +697,6 @@ void StreamingSamplerSound::rebuildCrossfadeBuffer(bool preloadContainsLoop)
 	{
 		fadeInStartOffset = loopStart - crossfadeArea.getLength();
 		fadeOutStartOffset = loopEnd - crossfadeArea.getLength();
-
-		// If we're copying the crossfade to the preload buffer we will need to take the sample start into account
-		// (otherwise it will be compensated during playback)
-		auto offsetInPreloadBuffer = preloadContainsLoop ? sampleStart : 0;
-		fadeInStartOffset += offsetInPreloadBuffer;
-		fadeOutStartOffset += offsetInPreloadBuffer;
 	}
 
 	int numToCopy = crossfadeArea.getLength();
