@@ -460,6 +460,7 @@ private:
 	void loopChanged();
 	void lengthChanged();
 
+	void calculateCrossfadeArea();
     void rebuildCrossfadeBuffer();
 	void applyCrossfadeToInternalBuffers();
 

@@ -565,6 +565,15 @@ void StreamingSamplerSound::lengthChanged()
 	}
 }
 
+void StreamingSamplerSound::calculateCrossfadeArea()
+{
+	crossfadeArea = Range<int>((int)(getLoopEnd(isReversed()) - crossfadeLength), (int)getLoopEnd(isReversed()));
+	auto numBeforeLoopStart = getLoopStart(isReversed());
+
+	if (crossfadeArea.getLength() > numBeforeLoopStart)
+		crossfadeArea.setStart(getLoopEnd(isReversed()) - numBeforeLoopStart);
+}
+
 void StreamingSamplerSound::applyCrossfadeToInternalBuffers()
 {
 	if (!crossfadeArea.isEmpty())
@@ -577,17 +586,6 @@ void StreamingSamplerSound::applyCrossfadeToInternalBuffers()
 			fadePos = sampleEnd - loopStart - crossfadeArea.getLength();
 
 		auto numInBuffer = preloadBuffer.getNumSamples();
-        
-#if 0
-        if(loopBuffer == nullptr)
-        {
-            bool preloadContainsLoop = loopEnd <= preloadBuffer.getNumSamples() - sampleStart;
-            rebuildCrossfadeBuffer(preloadContainsLoop);
-        }
-        
-        if(loopBuffer == nullptr)
-            return;
-#endif
         
 		if (fadePos < numInBuffer)
 		{
@@ -631,14 +629,7 @@ void StreamingSamplerSound::loopChanged()
 	loopStart = jmax<int>(loopStart, sampleStart);
 	loopEnd = jlimit<int>(loopStart, sampleEnd, loopEnd);
 	
-	crossfadeArea = Range<int>((int)(getLoopEnd(isReversed()) - crossfadeLength), (int)getLoopEnd(isReversed()));
-
-	auto numBeforeLoopStart = getLoopStart(isReversed());
-
-	if (crossfadeArea.getLength() > numBeforeLoopStart)
-	{
-		crossfadeArea.setStart(getLoopEnd(isReversed()) - numBeforeLoopStart);
-	}
+	calculateCrossfadeArea();
 
 	if (loopEnabled)
 	{
@@ -681,6 +672,8 @@ void StreamingSamplerSound::loopChanged()
 
 void StreamingSamplerSound::rebuildCrossfadeBuffer()
 {
+	calculateCrossfadeArea();
+
 	int fadeInStartOffset, fadeOutStartOffset;
 	
 	if (isReversed())
