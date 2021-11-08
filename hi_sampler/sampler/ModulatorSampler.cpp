@@ -394,10 +394,16 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 
 	if (sampleMap->isUsingUnsavedValueTree())
 	{
-		debugError(const_cast<ModulatorSampler*>(this), "Saving embedded samplemaps is bad practice. Save the samplemap to a file instead.");
+		auto id = sampleMap->getId();
 
+		static const Identifier cj("CustomJSON");
+
+		if (id != cj)
+		{
+			debugError(const_cast<ModulatorSampler*>(this), "Saving embedded samplemaps is bad practice. Save the samplemap to a file instead.");
+		}
+		
 		v.addChild(sampleMap->getValueTree().createCopy(), -1, nullptr);
-
 	}
 	else
 	{

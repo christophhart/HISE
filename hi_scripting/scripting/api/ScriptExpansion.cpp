@@ -102,6 +102,7 @@ var ScriptUserPresetHandler::convertToJson(const ValueTree& d)
 	DynamicObject::Ptr p = new DynamicObject();
 
 	{
+		
 		auto dataTree = d.getChildWithName("Content");
 		
 		Array<var> dataArray;
@@ -120,11 +121,10 @@ var ScriptUserPresetHandler::convertToJson(const ValueTree& d)
 
 				if (id == Identifier("value"))
 				{
-					if (value.toString().startsWith("[") ||
-						value.toString().startsWith("{"))
-					{
-						value = JSON::parse(value.toString());
-					}
+					auto valueString = value.toString();
+
+					if (unpackComplexData && valueString.startsWith("JSON"))
+						value = JSON::parse(valueString.substring(4));
 				}
 
 				if (unpackComplexData && id == Identifier("data"))
@@ -159,7 +159,7 @@ juce::ValueTree ScriptUserPresetHandler::applyJSON(const ValueTree& original, Dy
 	auto dataTree = copy.getChildWithName("Content");
 	dataTree.removeAllChildren(nullptr);
 
-	if (auto dataArray = obj->getProperty("content").getArray())
+	if (auto dataArray = obj->getProperty("Content").getArray())
 	{
 		for (const auto& p : *dataArray)
 		{
@@ -174,7 +174,7 @@ juce::ValueTree ScriptUserPresetHandler::applyJSON(const ValueTree& original, Dy
 					if (nv.name == Identifier("value"))
 					{
 						if(vTouse.isArray() || vTouse.isObject())
-							vTouse = JSON::toString(vTouse);
+							vTouse = "JSON" + JSON::toString(vTouse);
 					}
 
 					if (unpackComplexData && nv.name == Identifier("data"))

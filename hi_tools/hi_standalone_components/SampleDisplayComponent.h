@@ -1416,7 +1416,14 @@ public:
 		if (showLoop != shouldShowLoop)
 		{
 			showLoop = shouldShowLoop;
-			repaint();
+
+			WeakReference<Component> safeThis(this);
+
+			MessageManager::callAsync([safeThis]()
+			{
+				if (safeThis != nullptr)
+					safeThis->repaint();
+			});
 		}
 	}
 
@@ -1427,7 +1434,8 @@ public:
 		else
 			preview->setBuffer({}, {});
 		
-		setShowLoop(connectedBuffer != nullptr && connectedBuffer->getLoopRange() != connectedBuffer->getCurrentRange());
+		auto shouldShowLoop = connectedBuffer != nullptr && connectedBuffer->getLoopRange() != connectedBuffer->getCurrentRange();
+		setShowLoop(shouldShowLoop);
 
 		updateRanges(nullptr);
 	}
