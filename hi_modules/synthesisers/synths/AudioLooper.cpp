@@ -342,13 +342,19 @@ void AudioLooper::bufferWasLoaded()
 	if (!pitchTrackingEnabled)
 		return;
 
-	SimpleReadWriteLock::ScopedReadLock sl(getBuffer().getDataLock());
+	AudioSampleBuffer copy;
+	double sr = 0.0;
 
-	auto& b = getAudioSampleBuffer();
-
-	if (b.getNumSamples() > 0)
 	{
-		auto freq = PitchDetection::detectPitch(b, 0, b.getNumSamples(), getSampleRate());
+		SimpleReadWriteLock::ScopedReadLock sl(getBuffer().getDataLock());
+		auto& b = getAudioSampleBuffer();
+		sr = getSampleRate();
+		copy.makeCopyOf(b);
+	}
+
+	if (copy.getNumSamples() > 0)
+	{
+		auto freq = PitchDetection::detectPitch(copy, 0, copy.getNumSamples(), sr);
 		
 		if (freq == 0.0)
 			return;
