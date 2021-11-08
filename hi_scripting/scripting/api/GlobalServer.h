@@ -184,6 +184,11 @@ struct GlobalServer: public ControlledObject
 		internalThread.running.store(false);
 	}
 
+	void cleanup()
+	{
+		internalThread.stopThread(HISE_SCRIPT_SERVER_TIMEOUT);
+	}
+
 	/** Resumes the execution of the request queue (if it was stopped with stop()). */
 	void resume()
 	{
@@ -208,8 +213,12 @@ struct GlobalServer: public ControlledObject
     }
     
 private:
-
-    bool initialised = false;
+	
+#if USE_BACKEND
+	bool initialised = true;
+#else
+	bool initialised = false;
+#endif
     
 	struct WebThread : public Thread
 	{
