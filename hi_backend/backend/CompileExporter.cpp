@@ -178,7 +178,7 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 	case CompileExporter::MissingArguments: return "Missing arguments";
 	case CompileExporter::BuildOptionInvalid: return "Invalid build options";
 	case CompileExporter::CompileError: return "Compilation error";
-	case CompileExporter::VSTSDKMissing: return "VST SDK is missing";
+	case CompileExporter::VSTSDKMissing: return "VST2 SDK is missing";
 	case CompileExporter::AAXSDKMissing: return "AAX SDK is missing";
 	case CompileExporter::ASIOSDKMissing: return "ASIO SDK is missing";
 	case CompileExporter::HISEPathNotSpecified: return "HISE path not set";
@@ -1591,7 +1591,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 
 		const File vstSDKPath = hisePath.getChildFile("tools/SDK/VST3 SDK");
 
-		if (buildVST && !vstSDKPath.isDirectory())
+		if (buildVST && !buildVST3 && !vstSDKPath.isDirectory())
 		{
 			return ErrorCodes::VSTSDKMissing;
 		}
