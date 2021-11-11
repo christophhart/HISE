@@ -896,6 +896,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, setCurrentExpansion);
 	API_METHOD_WRAPPER_0(Engine, createGlobalScriptLookAndFeel);
 	API_METHOD_WRAPPER_1(Engine, createBackgroundTask);
+    API_METHOD_WRAPPER_1(Engine, createFixObjectFactory);
 	API_VOID_METHOD_WRAPPER_3(Engine, showYesNoWindow);
 	API_VOID_METHOD_WRAPPER_1(Engine, addModuleStateToUserPreset);
 	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
@@ -1012,6 +1013,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(setGlobalFont);
 	ADD_API_METHOD_1(extendTimeOut);
 	ADD_API_METHOD_0(getControlRateDownsamplingFactor);
+    ADD_API_METHOD_1(createFixObjectFactory);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
@@ -1455,6 +1457,11 @@ var ScriptingApi::Engine::createGlobalScriptLookAndFeel()
 		auto slaf = new ScriptingObjects::ScriptedLookAndFeel(getScriptProcessor());
 		return var(slaf);
 	}
+}
+
+var ScriptingApi::Engine::createFixObjectFactory(var layoutData)
+{
+    return var(new ScriptingObjects::ScriptFixObjectFactory(getScriptProcessor(), layoutData));
 }
 
 var ScriptingApi::Engine::createFFT()

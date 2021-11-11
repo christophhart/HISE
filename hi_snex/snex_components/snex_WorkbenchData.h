@@ -937,7 +937,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		virtual String loadCode() const = 0;
 
-		virtual bool providesCode() const { return true; }
+		virtual bool providesCode() const { return false; }
 
 		/** You can override this method and supply a custom preprocessing
 			which will not be return by loadCode() (and thus not be saved).

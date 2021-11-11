@@ -1245,6 +1245,75 @@ namespace ScriptingObjects
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUnorderedStack);
 	};
 	
+    struct ScriptFixObjectFactory: public ConstScriptingObject
+    {
+        Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("FixObjectFactory")};
+        
+        ScriptFixObjectFactory(ProcessorWithScriptingContent* p, var layoutDescription):
+          ConstScriptingObject(p, 0),
+          factory(new fixobj::Factory(layoutDescription)),
+          compareFunction(getScriptProcessor(), var(), 2)
+        {
+            ADD_API_METHOD_0(create);
+            ADD_API_METHOD_1(createArray);
+            ADD_API_METHOD_1(setCompareFunction);
+            
+            
+        }
+        
+        // ============================================================================================================
+        
+        /** Creates a single object from the prototype layout. */
+        var create()
+        {
+            return factory->createSingleObject();
+        }
+        
+        var createArray(int numElements)
+        {
+            return factory->createArray(numElements);
+        }
+        
+        
+        void setCompareFunction(var newCompareFunction)
+        {
+            if(HiseJavascriptEngine::isJavascriptFunction(newCompareFunction))
+            {
+                compareFunction = WeakCallbackHolder(getScriptProcessor(), newCompareFunction, 2);
+                compareFunction.incRefCount();
+                
+                factory->compareFunction = BIND_MEMBER_FUNCTION_2(ScriptFixObjectFactory::compare);
+            }
+        }
+        
+        int compare(fixobj::ObjectReference::Ptr v1, fixobj::ObjectReference::Ptr v2)
+        {
+            if(compareFunction)
+            {
+                var args[2] = { var(v1), var(v2) };
+                var r(0);
+                auto ok = compareFunction.callSync(args, 2, &r);
+                
+                return (int)r;
+            }
+            
+            return 0;
+        };
+        
+        // ============================================================================================================
+        
+        struct Wrapper
+        {
+            API_METHOD_WRAPPER_0(ScriptFixObjectFactory, create);
+            API_METHOD_WRAPPER_1(ScriptFixObjectFactory, createArray);
+            API_VOID_METHOD_WRAPPER_1(ScriptFixObjectFactory, setCompareFunction);
+        };
+        
+        WeakCallbackHolder compareFunction;
+        
+        ReferenceCountedObjectPtr<fixobj::Factory> factory;
+    };
+
 	/** A scripting objects that wraps an existing Modulator.
 	*/
 	class ScriptingModulator : public ConstScriptingObject,

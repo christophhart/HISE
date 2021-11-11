@@ -315,6 +315,9 @@ public:
 		/** Creates a background task that can execute heavyweight functions. */
 		var createBackgroundTask(String name);
 
+        /** Creates a fix object factory using the data layout. */
+        var createFixObjectFactory(var layoutDescription);
+        
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();
 
