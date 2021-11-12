@@ -1475,6 +1475,7 @@ public:
 			Offset,
 			Scale,
 			AllowCallbacks,
+			BlendMode,
 			PopupMenuItems,
 			PopupOnRightClick,
 			numProperties
@@ -1515,7 +1516,13 @@ public:
 
 	private:
 
+		void updateBlendMode();
+
+		Image blendImage;
+
 		PooledImage image;
+
+		gin::BlendMode blendMode = gin::BlendMode::Normal;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptImage);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptImage);

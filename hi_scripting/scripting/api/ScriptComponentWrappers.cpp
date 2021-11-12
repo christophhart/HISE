@@ -1635,7 +1635,8 @@ void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent(int propertyI
 		PROPERTY_CASE::ScriptImage::FileName:
 		PROPERTY_CASE::ScriptImage::Offset :
 		PROPERTY_CASE::ScriptImage::Scale :
-		PROPERTY_CASE::ScriptImage::Alpha : updateImage(ic, si); break;
+		PROPERTY_CASE::ScriptImage::Alpha : 
+		PROPERTY_CASE::ScriptImage::BlendMode: updateImage(ic, si); break;
 	}
 }
 

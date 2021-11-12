@@ -445,22 +445,21 @@ namespace ScriptedDrawActions
 		{
 			auto invT = AffineTransform::scale(1.0f / handler->getScaleFactor()).translated(bounds.getX(), bounds.getY());
 
-			if (ScriptingObjects::ScriptShader::isRenderingScreenshot())
-			{
-				if (cachedOpenGlBuffer.isValid())
-				{
-					g.drawImageTransformed(cachedOpenGlBuffer, invT);
-					return;
-				}
-			}
+			
 
 			if (obj != nullptr && obj->shader != nullptr)
 			{
+				if (auto lastScreenshot = obj->getScreenshotBuffer())
+				{
+					g.drawImageTransformed(lastScreenshot->data, invT);
+					return;
+				}
+
 				if (obj->dirty)
 				{
 					{
 						obj->makeStatistics();
-						
+
 					}
 
 					auto r = obj->shader->checkCompilation(g.getInternalContext());
@@ -472,7 +471,7 @@ namespace ScriptedDrawActions
 					{
 						int safeCount = 0;
 
-						while (glGetError() != GL_NO_ERROR )
+						while (glGetError() != GL_NO_ERROR)
 						{
 							safeCount++;
 
@@ -483,7 +482,7 @@ namespace ScriptedDrawActions
 						auto s = StringArray::fromLines(obj->getErrorMessage(true));
 						s.removeEmptyStrings();
 
-						for(auto l: s)
+						for (auto l : s)
 							handler->logError(l);
 					}
 #endif
@@ -498,7 +497,7 @@ namespace ScriptedDrawActions
 					auto enabled = obj->enableBlending;
 
 					auto wasEnabled = glIsEnabled(GL_BLEND);
-					
+
 					int blendSrc;
 					int blendDst;
 
@@ -522,14 +521,13 @@ namespace ScriptedDrawActions
 						glBlendFunc(blendSrc, blendDst);
 					}
 
-					if (obj->enableCache)
+					if (obj->shouldWriteToBuffer())
 					{
-						
 						auto sb = handler->getScreenshotBounds(bounds);
 
-						cachedOpenGlBuffer = Image(Image::RGB, sb.getWidth(), sb.getHeight(), true);
+						cachedOpenGlBuffer = new ScreenshotListener::CachedImageBuffer(sb);
 
-						Image::BitmapData data(cachedOpenGlBuffer, Image::BitmapData::writeOnly);
+						Image::BitmapData data(cachedOpenGlBuffer->data, Image::BitmapData::writeOnly);
 
 						glFlush();
 						glReadPixels(sb.getX(), sb.getY(), sb.getWidth(), sb.getHeight(), GL_BGR_EXT, GL_UNSIGNED_BYTE, data.getPixelPointer(0, 0));
@@ -544,8 +542,10 @@ namespace ScriptedDrawActions
 								std::swap(srcLine[x], dstLine[x]);
 							}
 						}
-					}	
+					}
 				}
+				
+				obj->renderWasFinished(cachedOpenGlBuffer);
 			}
 		}
 
@@ -553,7 +553,7 @@ namespace ScriptedDrawActions
 		WeakReference<ScriptingObjects::ScriptShader> obj;
 		Rectangle<int> bounds;
 
-		Image cachedOpenGlBuffer;
+		ScreenshotListener::CachedImageBuffer::Ptr cachedOpenGlBuffer;
 	};
 };
 
