@@ -20,31 +20,6 @@
 //==============================================================================
 MainContentComponent::MainContentComponent(const String &commandLine)
 {
-	DynamicObject::Ptr description = new DynamicObject();
-
-	Array<var> data;
-	data.add(1);
-	data.add(2);
-	data.add(3);
-	data.add(21);
-
-	description->setProperty("myValue", 12);
-	description->setProperty("isOk", false);
-	description->setProperty("data", var(data));
-
-	auto dvar = var(description.get());
-
-	fixobj::SingleObject fixData(dvar);
-
-    fixobj::Array fixArray(dvar, 128);
-    
-    auto v = fixArray[2];
-    
-	
-	fixobj::Factory factory(dvar);
-
-	var x = factory.createSingleObject();
-
 	standaloneProcessor = new hise::StandaloneProcessor();
 
 	addAndMakeVisible(editor = standaloneProcessor->createEditor());
