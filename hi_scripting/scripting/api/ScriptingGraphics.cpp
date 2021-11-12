@@ -501,7 +501,7 @@ String ScriptingObjects::ScriptShader::getHeader()
 	s << "\n#define fragCoord _gl_fc()\n";
 	s << "#define fragColor gl_FragColor\n";
 
-#if JUCE_WINDOWS
+#if JUCE_WINDOWS && USE_BACKEND
 	// The #line directive does not work on macOS apparently...
 	s << "#line 0 \"" << shaderName << "\" \n";
 #endif
