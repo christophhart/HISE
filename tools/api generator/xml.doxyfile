@@ -852,7 +852,8 @@ FILE_PATTERNS          = ScriptingApiObjects.h \
                          DspNetwork.h \
                          NodeBase.h \
                          ScriptExpansion.h \
-                         ScriptingGraphics.h
+                         ScriptingGraphics.h \
+                         FixLayoutObjects.h
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should
 # be searched for input files as well.

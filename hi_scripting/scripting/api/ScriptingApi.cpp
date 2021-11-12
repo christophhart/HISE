@@ -1461,7 +1461,7 @@ var ScriptingApi::Engine::createGlobalScriptLookAndFeel()
 
 var ScriptingApi::Engine::createFixObjectFactory(var layoutData)
 {
-    return var(new ScriptingObjects::ScriptFixObjectFactory(getScriptProcessor(), layoutData));
+    return var(new fixobj::Factory(getScriptProcessor(), layoutData));
 }
 
 var ScriptingApi::Engine::createFFT()

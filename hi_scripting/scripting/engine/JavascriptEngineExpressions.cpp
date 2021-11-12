@@ -90,7 +90,13 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		{
 			cacheIndex(instance, s);
 
-			return instance->getAssignedValue(cachedIndex);
+			if(cachedIndex != -1)
+				return instance->getAssignedValue(cachedIndex);
+			else
+			{
+				auto idx = index->getResult(s);
+				return instance->getAssignedValue(idx);
+			}
 		}
 		else if (const Array<var>* array = result.getArray())
 			return (*array)[static_cast<int> (index->getResult(s))];

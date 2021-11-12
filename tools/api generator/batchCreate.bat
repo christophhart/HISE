@@ -19,6 +19,10 @@ xcopy "xml\classhise_1_1_scripting_api_1_1_synth.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_api_1_1_sampler.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_api_1_1_transport_handler.xml" "xml\selection"
 
+xcopy "xml\structhise_1_1fixobj_1_1_array.xml" "xml\selection"
+xcopy "xml\structhise_1_1fixobj_1_1_factory.xml" "xml\selection"
+xcopy "xml\structhise_1_1fixobj_1_1_stack.xml" "xml\selection"
+
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_file.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_api_1_1_server.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_api_1_1_file_system.xml" "xml\selection"
@@ -168,6 +172,10 @@ ren "xml\selection\classscriptnode_1_1_dsp_network.xml" "DspNetwork.xml"
 ren "xml\selection\classscriptnode_1_1_node_base.xml" "Node.xml"
 ren "xml\selection\classscriptnode_1_1_connection_base.xml" "Connection.xml"
 ren "xml\selection\classscriptnode_1_1_node_base_1_1_parameter.xml" "Parameter.xml"
+
+ren "xml\selection\structhise_1_1fixobj_1_1_array.xml" "FixObjectArray.xml"
+ren "xml\selection\structhise_1_1fixobj_1_1_factory.xml" "FixObjectFactory.xml"
+ren "xml\selection\structhise_1_1fixobj_1_1_stack.xml" "FixObjectStack.xml"
 
 ApiExtractor.exe xml\selection xml\selection
 

@@ -42,6 +42,7 @@
 
 #include "scripting/engine/JavascriptApiClass.cpp"
 #include "scripting/api/ScriptingBaseObjects.cpp"
+#include "scripting/api/FixLayoutObjects.cpp"
 
 #include "scripting/engine/HiseJavascriptEngine.cpp"
 #include "scripting/engine/JavascriptEngineExpressions.cpp"

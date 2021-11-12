@@ -84,6 +84,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/api/ScriptMacroDefinitions.h"
 #include "scripting/engine/JavascriptApiClass.h"
 #include "scripting/api/ScriptingBaseObjects.h"
+#include "scripting/api/FixLayoutObjects.h"
 
 #if JUCE_IOS
 #elif INCLUDE_TCC

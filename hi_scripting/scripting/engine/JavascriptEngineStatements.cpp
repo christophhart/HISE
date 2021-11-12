@@ -239,8 +239,12 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 				return data->getArray()->getUnchecked(loop->index);
 			}
-			else if (data->isBuffer())		return data->getBuffer()->getSample(loop->index);
-			else if (data->isObject())		return data->getDynamicObject()->getProperties().getName(loop->index).toString();
+			else if (data->isBuffer())
+				return data->getBuffer()->getSample(loop->index);
+			else if (auto obj = data->getDynamicObject())
+				return obj->getProperties().getName(loop->index).toString();
+			else if (auto fo = dynamic_cast<fixobj::Array*>(data->getObject()))
+				return fo->getAssignedValue(loop->index);
 			else location.throwError("Illegal iterator target");
 
 			return var();
@@ -254,7 +258,15 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 			if (data->isArray())		data->getArray()->set(loop->index, newValue);
 			else if (data->isBuffer())	data->getBuffer()->setSample(loop->index, newValue);
-			else if (data->isObject())	*data->getDynamicObject()->getProperties().getVarPointerAt(loop->index) = newValue;	   
+			else if (auto fo = dynamic_cast<fixobj::Array*>(data->getObject()))
+			{
+				auto v = dynamic_cast<fixobj::ObjectReference*>(fo->getAssignedValue(loop->index).getObject());
+				auto s = dynamic_cast<fixobj::ObjectReference*>(newValue.getObject());
+
+				*v = *s;
+			}
+			else if (auto obj = data->getDynamicObject())	
+				*obj->getProperties().getVarPointerAt(loop->index) = newValue;	   
 		}
 
 		bool isArray;
@@ -283,13 +295,15 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 				size = b->size;
 			else if (auto dynObj = currentObject.getDynamicObject())
 				size = dynObj->getProperties().size();
+			else if (auto fixStack = dynamic_cast<fixobj::Stack*>(currentObject.getObject()))
+				size = fixStack->getNumUsed();
+			else if (auto fixArray = dynamic_cast<fixobj::Array*>(currentObject.getObject()))
+				size = fixArray->getConstantValue(0);
 			else
 			{
 				location.throwError("no iterable type");
 			}
 				
-			
-
 			while (index < size)
 			{
 				ResultCode r = body->perform(s, returnedValue);
