@@ -207,6 +207,8 @@ private:
 		}
 
 		SampleEditHandler& parent;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(PrivateSelectionUpdater);
 	} internalSelectionListener;
 
 	bool newKeysPressed(const uint8 *currentNotes);

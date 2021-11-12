@@ -2051,18 +2051,7 @@ public:
 	};
 
 
-	struct ScreenshotListener
-	{
-        virtual ~ScreenshotListener() {};
-        
-		virtual void makeScreenshot(const File& targetFile, Rectangle<float> area) = 0;
-
-		virtual void visualGuidesChanged() = 0;
-
-	private:
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(ScreenshotListener);
-	};
+	using ScreenshotListener = ScreenshotListener;
 
 	struct VisualGuide
 	{
@@ -2249,9 +2238,14 @@ public:
 		return contentPropertyData;
 	}
 
-	void setScreenshotListener(ScreenshotListener* l)
+	void addScreenshotListener(ScreenshotListener* l)
 	{
-		screenshotListener = l;
+		screenshotListeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeScreenshotListener(ScreenshotListener* l)
+	{
+		screenshotListeners.removeAllInstancesOf(l);
 	}
 
 	var getValuePopupProperties() const { return valuePopupData; };
@@ -2438,7 +2432,7 @@ private:
 		}
 	};
 
-	WeakReference<ScreenshotListener> screenshotListener;
+	Array<WeakReference<ScreenshotListener>> screenshotListeners;
 
 	static void initNumberProperties();
 

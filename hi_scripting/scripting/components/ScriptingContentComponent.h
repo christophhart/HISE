@@ -141,6 +141,8 @@ public:
 
 	void visualGuidesChanged() override;
 
+	void prepareScreenshot() override;
+
 	void contentWasRebuilt() override;
 
     void contentRebuildStateChanged(bool rebuildState)

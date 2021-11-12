@@ -575,7 +575,18 @@ void SampleEditHandler::SampleEditingActions::selectNeighbourSample(SampleEditHa
 SampleEditHandler::PrivateSelectionUpdater::PrivateSelectionUpdater(SampleEditHandler& parent_, MainController* mc) :
 	parent(parent_)
 {
-	parent.selectedSamplerSounds.addChangeListener(this);
+	if(MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
+		parent.selectedSamplerSounds.addChangeListener(this);
+	else
+	{
+		WeakReference<PrivateSelectionUpdater> safeThis(this);
+
+		MessageManager::callAsync([safeThis]()
+		{
+			if (safeThis != nullptr)
+				safeThis->parent.selectedSamplerSounds.addChangeListener(safeThis);
+		});
+	}
 }
 
 void SampleEditHandler::PrivateSelectionUpdater::changeListenerCallback(ChangeBroadcaster*)

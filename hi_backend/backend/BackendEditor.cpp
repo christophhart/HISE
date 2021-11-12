@@ -384,6 +384,8 @@ void BackendProcessorEditor::clearModuleList()
 
 MainTopBar::MainTopBar(FloatingTile* parent) :
 	FloatingTileContent(parent),
+	SimpleTimer(parent->getMainController()->getGlobalUIUpdater()),
+	PreloadListener(parent->getMainController()->getSampleManager()),
 	ComponentWithHelp(parent->getBackendRootWindow())
 {
     {
@@ -480,6 +482,8 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	tooltipBar->setColour(TooltipBar::ColourIds::iconColour, Colours::white);
 	//tooltipBar->setShowInfoIcon(false);
 
+	stop();
+
 
 	//getRootWindow()->getBackendProcessor()->getCommandManager()->addListener(this);
 }
@@ -487,7 +491,6 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 MainTopBar::~MainTopBar()
 {
 	getParentShell()->getRootFloatingTile()->removePopupListener(this);
-
 
 	//getRootWindow()->getBackendProcessor()->getCommandManager()->removeListener(this);
 }
@@ -736,6 +739,28 @@ void MainTopBar::paint(Graphics& g)
 void MainTopBar::paintOverChildren(Graphics& g)
 {
 	ComponentWithHelp::paintHelp(g);
+
+	if (preloadState)
+	{
+		Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xEE383838));
+		Colour c2 = JUCE_LIVE_CONSTANT_OFF(Colour(0xEE404040));
+
+		g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false));
+		g.fillAll();
+
+		g.setColour(Colour(0xFFAAAAAA));
+		g.setFont(GLOBAL_BOLD_FONT());
+		
+		auto b = getLocalBounds().toFloat().withSizeKeepingCentre(800.0f, (float)getHeight()).reduced(10.0f, 5.0f);
+
+		g.drawText(preloadMessage, b.removeFromBottom(18.0f), Justification::centred);
+
+		g.drawRoundedRectangle(b, b.getHeight() / 2.0f, 1.0f);
+		b = b.reduced(2.0f);
+		b.setWidth(jmax<float>(b.getHeight(), preloadProgress * b.getWidth()));
+		g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
+		
+	}
 }
 
 void MainTopBar::buttonClicked(Button* b)

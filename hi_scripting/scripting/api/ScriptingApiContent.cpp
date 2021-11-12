@@ -4813,6 +4813,9 @@ var ScriptingApi::Content::createShader(const String& fileName)
 {
 	auto f = new ScriptingObjects::ScriptShader(getScriptProcessor());
 
+	
+	addScreenshotListener(f);
+
 #if HISE_SUPPORT_GLSL_LINE_NUMBERS
 	f->setEnableLineNumbers(true);
 #endif
@@ -4826,7 +4829,7 @@ var ScriptingApi::Content::createShader(const String& fileName)
 
 void ScriptingApi::Content::createScreenshot(var area, var directory, String name)
 {
-	if (screenshotListener != nullptr)
+	if (!screenshotListeners.isEmpty())
 	{
 		if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(directory.getObject()))
 		{
@@ -4856,7 +4859,27 @@ void ScriptingApi::Content::createScreenshot(var area, var directory, String nam
 						reportScriptError(r.getErrorMessage());
 				}
 
-				screenshotListener->makeScreenshot(target, a);
+				// Send a message to all listeners
+				for (auto sc : screenshotListeners)
+				{
+					if (sc != nullptr)
+						sc->prepareScreenshot();
+				}
+
+				int timeWaitedMs = 0;
+
+				// Now block until everything is ready
+				for (auto sc : screenshotListeners)
+				{
+					if (sc != nullptr)
+						timeWaitedMs += sc->blockWhileWaiting();
+				}
+
+				for (auto sc : screenshotListeners)
+				{
+					if (sc != nullptr)
+						sc->makeScreenshot(target, a);
+				}
 			}
 		}
 	}
@@ -4896,8 +4919,11 @@ void ScriptingApi::Content::addVisualGuide(var guideData, var colour)
 	else
 		guides.clear();
 
-	if (screenshotListener != nullptr)
-		screenshotListener->visualGuidesChanged();
+	for (auto sc : screenshotListeners)
+	{
+		if(sc != nullptr)
+			sc->visualGuidesChanged();
+	}
 }
 
 String ScriptingApi::Content::getCurrentTooltip()

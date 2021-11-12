@@ -153,7 +153,6 @@ void HiseJavascriptEngine::RootObject::ArraySubscript::cacheIndex(AssignableObje
 				if (cachedIndex == -1) location.throwError("Property " + i.toString() + " not found");
 			}
 		}
-		else location.throwError("[]-access must be used with a literal or constant");
 	}
 }
 

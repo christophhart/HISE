@@ -34,9 +34,46 @@
 
 namespace hise { using namespace juce;
 
+struct ScreenshotListener
+{
+	struct CachedImageBuffer : public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<CachedImageBuffer>;
+
+		CachedImageBuffer(Rectangle<int> sb) :
+			data(Image::RGB, sb.getWidth(), sb.getHeight(), true)
+		{
+
+		}
+
+		~CachedImageBuffer()
+		{
+			int x = 0;
+		}
+
+		Image data;
+	};
+
+	virtual ~ScreenshotListener() {};
+
+	virtual void makeScreenshot(const File& targetFile, Rectangle<float> area) {};
+
+	/** This will be called on the scripting thread and can be used by listeners to prepare the screenshot. */
+	virtual void prepareScreenshot() {};
+
+	virtual int blockWhileWaiting() { return 0; };
+
+	virtual void visualGuidesChanged() {};
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ScreenshotListener);
+};
+
 namespace ScriptingObjects
 {
-	class ScriptShader : public ConstScriptingObject
+	class ScriptShader : public ConstScriptingObject,
+						 public ScreenshotListener
 	{
 	public:
 
@@ -110,6 +147,10 @@ namespace ScriptingObjects
 
 		// ===========================================================================
 
+		int blockWhileWaiting() override;
+
+		void prepareScreenshot() override;
+
 		void makeStatistics();
 
 		void setEnableLineNumbers(bool shouldUseLineNumbers)
@@ -137,8 +178,35 @@ namespace ScriptingObjects
 			scaleFactor = sf;
 		}
 
+		bool shouldWriteToBuffer() const
+		{
+			return enableCache || screenshotPending;
+		}
+
+		void renderWasFinished(ScreenshotListener::CachedImageBuffer::Ptr newData)
+		{
+			if (screenshotPending)
+			{
+				DBG("REPAINT DONE");
+				screenshotPending = false;
+				lastScreenshot = newData;
+			}
+			else
+				lastScreenshot = nullptr;
+		}
+
+		ScreenshotListener::CachedImageBuffer::Ptr getScreenshotBuffer()
+		{
+			if (isRenderingScreenshot())
+				return lastScreenshot;
+
+			return nullptr;
+		}
+
 		struct Wrapper;
 
+
+		ScreenshotListener::CachedImageBuffer::Ptr lastScreenshot;
 		float scaleFactor = 1.0f;
 		String shaderCode;
 		NamedValueSet uniformData;
@@ -177,6 +245,7 @@ namespace ScriptingObjects
 
 	private:
 
+		bool screenshotPending = false;
 		static bool renderingScreenShot;
 
 		String compiledCode;

@@ -54,7 +54,7 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 	p(dynamic_cast<Processor*>(p_))
 {
 	processor->getScriptingContent()->addRebuildListener(this);
-	processor->getScriptingContent()->setScreenshotListener(this);
+	processor->getScriptingContent()->addScreenshotListener(this);
 
     setNewContent(processor->getScriptingContent());
 
@@ -78,6 +78,7 @@ ScriptContentComponent::~ScriptContentComponent()
 		}
 
 		contentData->removeRebuildListener(this);
+		contentData->addScreenshotListener(this);
 	}
 
 	if (p.get() != nullptr)
@@ -404,6 +405,8 @@ void ScriptContentComponent::makeScreenshot(const File& target, Rectangle<float>
 
 			auto sf = UnblurryGraphics::getScaleFactorForComponent(safeThis.get());
 
+			safeThis->repaint();
+
 			auto img = safeThis->createComponentSnapshot(area.toNearestInt(), true, sf);
 
 			juce::PNGImageFormat png;
@@ -435,6 +438,12 @@ void ScriptContentComponent::visualGuidesChanged()
 	};
 
 	MessageManager::callAsync(f);
+}
+
+void ScriptContentComponent::prepareScreenshot()
+{
+	MessageManagerLock mm;
+	repaint();
 }
 
 void ScriptContentComponent::contentWasRebuilt()

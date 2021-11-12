@@ -90,7 +90,9 @@ StringArray ScriptingObjects::ScriptShader::FileParser::getLines()
 String ScriptingObjects::ScriptShader::FileParser::createLinePointer(int i) const
 {
 	String l;
+#if USE_BACKEND
 	l << "#line " << String(i) <<  " \"" << fileNameWithoutExtension << "\"";
+#endif
 	return l;
 }
 
@@ -132,7 +134,11 @@ String ScriptingObjects::ScriptShader::FileParser::loadFileContent()
 
 	return f.loadFileAsString();
 #else
-	return getMainController()->getExternalScriptFromCollection(fileNameWithoutExtension + ".glsl");
+
+	if (!fileNameWithoutExtension.endsWith(".glsl"))
+		fileNameWithoutExtension << ".glsl";
+
+	return getMainController()->getExternalScriptFromCollection(fileNameWithoutExtension);
 #endif
 }
 
@@ -558,6 +564,46 @@ var ScriptingObjects::ScriptShader::getOpenGLStatistics()
 void ScriptingObjects::ScriptShader::setEnableCachedBuffer(bool shouldEnableBuffer)
 {
 	enableCache = shouldEnableBuffer;
+}
+
+
+
+int ScriptingObjects::ScriptShader::blockWhileWaiting()
+{
+	if (screenshotPending)
+	{
+		DBG("BLOCK UNTIL REPAINTED");
+
+		auto start = Time::getMillisecondCounter();
+
+		int delta = 0;
+
+		while (screenshotPending)
+		{
+			auto now = Time::getMillisecondCounter();
+
+			delta = now - start;
+
+			if (delta > 2000)
+				break;
+
+			Thread::getCurrentThread()->wait(200);
+		}
+
+		return delta;
+	}
+
+	return 0;
+}
+
+void ScriptingObjects::ScriptShader::prepareScreenshot()
+{
+	if (compiledOk() && enableCache)
+	{
+		screenshotPending = true;
+	}
+	else
+		screenshotPending = false;
 }
 
 void ScriptingObjects::ScriptShader::makeStatistics()

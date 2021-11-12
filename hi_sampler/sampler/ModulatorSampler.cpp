@@ -303,6 +303,8 @@ void ModulatorSampler::refreshCrossfadeTables()
 
 void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 {
+	getMainController()->getSampleManager().setCurrentPreloadMessage("Loading " + getId());
+
 	loadAttribute(PreloadSize, "PreloadSize");
     loadAttribute(UseStaticMatrix, "UseStaticMatrix");
 	
