@@ -1599,7 +1599,11 @@ void PatchBrowser::MiniPeak::paint(Graphics& g)
 		g.setColour(Colours::black.withAlpha(0.4f));
 		g.fillEllipse(b.toFloat());
 
-		g.setColour(p->getColour().withAlpha(channelValues[0]));
+		float value = channelValues[0];
+		FloatSanitizers::sanitizeFloatNumber(value);
+		value = jlimit(0.0f, 1.0f, value);
+
+		g.setColour(p->getColour().withAlpha(value));
 		g.fillEllipse(b.toFloat().reduced(1.0f));
 		break;
 	}

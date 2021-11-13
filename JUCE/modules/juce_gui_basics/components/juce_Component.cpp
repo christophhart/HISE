@@ -3307,7 +3307,7 @@ UnblurryGraphics::UnblurryGraphics(Graphics& g_, Component& componentToDrawOn, b
 		// sure that the physical scale factor is a multiple of 0.25.
 		// (I am not aware of OS that use a smaller resolution for their scale factor
 		// steps).
-		physicalScaleFactor -= fmod(physicalScaleFactor, 0.25f);
+		//physicalScaleFactor = (float)roundToInt(physicalScaleFactor * 100.0f) * 0.01f;
 		sf = juceScaleFactor * physicalScaleFactor;
 
 		pixelSizeInFloat = 1.0f / sf;
@@ -3328,7 +3328,7 @@ UnblurryGraphics::UnblurryGraphics(Graphics& g_, Component& componentToDrawOn, b
 		// sure that the physical scale factor is a multiple of 0.25.
 		// (I am not aware of OS that use a smaller resolution for their scale factor
 		// steps).
-		physicalScaleFactor -= fmod(physicalScaleFactor, 0.25f);
+		//physicalScaleFactor = (float)roundToInt(physicalScaleFactor * 100.0f) * 0.01f;
 		sf = juceScaleFactor * physicalScaleFactor;
 
 		pixelSizeInFloat = 1.0f / sf;

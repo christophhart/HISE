@@ -602,11 +602,18 @@ namespace ScriptingObjects
 
 		Identifier getObjectName() const override { return "ScriptLookAndFeel"; }
 
+		// ========================================================================================
+
 		/** Registers a function that will be used for the custom look and feel. */
 		void registerFunction(var functionName, var function);
 
 		/** Set a global font. */
 		void setGlobalFont(const String& fontName, float fontSize);
+
+		/** Loads an image that can be used by the look and feel functions. */
+		void loadImage(String imageFile, String prettyName);
+
+		// ========================================================================================
 
 		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject);
 
@@ -656,6 +663,27 @@ namespace ScriptingObjects
 		ReferenceCountedObjectPtr<GraphicsObject> g;
 
 		var functions;
+
+		Image getLoadedImage(const String& prettyName)
+		{
+			for (auto& img : loadedImages)
+			{
+				if (img.prettyName == prettyName)
+				{
+					return img.image ? *img.image.getData() : Image();
+				}
+			}
+
+			return Image();
+		}
+
+		struct NamedImage
+		{
+			PooledImage image;
+			String prettyName;
+		};
+
+		Array<NamedImage> loadedImages;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedLookAndFeel);
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptedLookAndFeel);

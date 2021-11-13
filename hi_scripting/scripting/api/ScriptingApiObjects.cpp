@@ -4653,6 +4653,7 @@ struct ScriptingObjects::ScriptedLookAndFeel::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptedLookAndFeel, registerFunction);
 	API_VOID_METHOD_WRAPPER_2(ScriptedLookAndFeel, setGlobalFont);
+	API_VOID_METHOD_WRAPPER_2(ScriptedLookAndFeel, loadImage);
 };
 
 
@@ -4663,6 +4664,7 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 {
 	ADD_API_METHOD_2(registerFunction);
 	ADD_API_METHOD_2(setGlobalFont);
+	ADD_API_METHOD_2(loadImage);
 
 	getScriptProcessor()->getMainController_()->setCurrentScriptLookAndFeel(this);
 }
