@@ -501,7 +501,8 @@ namespace ScriptingObjects
 			public ControlledObject,
 			public RingBufferComponentBase::LookAndFeelMethods,
 			public AhdsrGraph::LookAndFeelMethods,
-			public MidiFileDragAndDropper::LookAndFeelMethods
+			public MidiFileDragAndDropper::LookAndFeelMethods,
+			public CustomKeyboardLookAndFeelBase
 		{
 			Laf(MainController* mc) :
 				ControlledObject(mc)
@@ -583,6 +584,10 @@ namespace ScriptingObjects
             void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList) override;
             void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
             
+			void drawKeyboardBackground(Graphics &g, Component* c, int width, int height) override;
+			void drawWhiteNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour) override;
+			void drawBlackNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour) override;
+
 			Image createIcon(PresetHandler::IconType type) override;
 
 			bool functionDefined(const String& s);

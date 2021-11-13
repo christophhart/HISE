@@ -4718,7 +4718,10 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
         "drawThumbnailRange",
         "drawThumbnailRuler",
 		"drawAhdsrBall",
-		"drawAhdsrPath"
+		"drawAhdsrPath",
+		"drawKeyboardBackground",
+		"drawWhiteNote",
+		"drawBlackNote"
 	};
 
 	return sa;
@@ -5531,6 +5534,65 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTextOverlay(Graphics& g_, H
     }
 
     HiseAudioThumbnail::LookAndFeelMethods::drawTextOverlay(g_, th, text, area);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawKeyboardBackground(Graphics &g_, Component* c, int width, int height)
+{
+	if (functionDefined("drawKeyboardBackground"))
+	{
+		auto obj = new DynamicObject();
+
+		Rectangle<int> a(0, 0, width, height);
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));
+
+		
+
+		if (get()->callWithGraphics(g_, "drawKeyboardBackground", var(obj)))
+			return;
+	}
+
+	CustomKeyboardLookAndFeelBase::drawKeyboardBackground(g_, c, width, height);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawWhiteNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g_, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour)
+{
+	if (functionDefined("drawWhiteNote"))
+	{
+		auto obj = new DynamicObject();
+
+		Rectangle<int> a(x, y, w, h);
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));
+		obj->setProperty("noteNumber", midiNoteNumber);
+		obj->setProperty("hover", isOver);
+		obj->setProperty("down", isDown);
+
+		if (get()->callWithGraphics(g_, "drawWhiteNote", var(obj)))
+			return;
+	}
+
+	CustomKeyboardLookAndFeelBase::drawWhiteNote(state, c, midiNoteNumber, g_, x, y, w, h, isDown, isOver, lineColour, textColour);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawBlackNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g_, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour)
+{
+	if (functionDefined("drawBlackNote"))
+	{
+		auto obj = new DynamicObject();
+
+		Rectangle<int> a(x, y, w, h);
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));
+		obj->setProperty("noteNumber", midiNoteNumber);
+		obj->setProperty("hover", isOver);
+		obj->setProperty("down", isDown);
+
+		if (get()->callWithGraphics(g_, "drawBlackNote", var(obj)))
+			return;
+	}
+
+	CustomKeyboardLookAndFeelBase::drawBlackNote(state, c, midiNoteNumber, g_, x, y, w, h, isDown, isOver, noteFillColour);
 }
 
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)

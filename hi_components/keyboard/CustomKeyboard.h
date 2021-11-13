@@ -48,57 +48,30 @@ public:
 };
 
 
-class CustomKeyboardLookAndFeelBase : public LookAndFeel_V3
+class CustomKeyboardLookAndFeelBase
 {
 public:
+
+	CustomKeyboardLookAndFeelBase();
 
 	virtual ~CustomKeyboardLookAndFeelBase() {}
 	
-	virtual void drawKeyboardBackground(Graphics &g, int width, int height) = 0;
+	virtual void drawKeyboardBackground(Graphics &g, Component* c, int width, int height);
 
-	virtual void drawWhiteNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour) = 0;
-	virtual void drawBlackNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour) = 0;
+	virtual void drawWhiteNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour);
+	virtual void drawBlackNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour);
 
-};
-
-class CustomKeyboardLookAndFeel: public CustomKeyboardLookAndFeelBase
-{
-public:
-
-	CustomKeyboardLookAndFeel();
-
-	virtual void drawKeyboardBackground(Graphics &g, int width, int height);
-
-	virtual void drawWhiteNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour);
-	virtual void drawBlackNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour);
-
-	// Binary resources:
-	static const char* black_key_off_png;
-	static const int black_key_off_pngSize;
-	static const char* black_key_on_png;
-	static const int black_key_on_pngSize;
-	static const char* white_key_off_png;
-	static const int white_key_off_pngSize;
-	static const char* white_key_on_png;
-	static const int white_key_on_pngSize;
-
-	bool useVectorGraphics = false;
 	bool useFlatStyle = false;
 
 	Colour bgColour;
 	Colour topLineColour;
 	Colour overlayColour;
 	Colour activityColour;
-
-private:
-
-	//==============================================================================
-	Image cachedImage_black_key_off_png;
-	Image cachedImage_black_key_on_png;
-	Image cachedImage_white_key_off_png;
-	Image cachedImage_white_key_on_png;
-
 };
+
+class CustomKeyboardLookAndFeel: public CustomKeyboardLookAndFeelBase,
+							     public LookAndFeel_V3
+{};
 
 class KeyboardBase
 {
@@ -221,9 +194,9 @@ public:
 
 	void setUseVectorGraphics(bool shouldUseVectorGraphics, bool useFlatStyle=false) override;
 
-	bool isUsingVectorGraphics() const override { return laf.useVectorGraphics; }
+	bool isUsingVectorGraphics() const override { return true; }
 
-	bool isUsingFlatStyle() const override { return laf.useFlatStyle; }
+	bool isUsingFlatStyle() const override;
 
 	void setRange(int lowKey_, int hiKey_)
 	{
@@ -267,7 +240,7 @@ private:
 
 	MainController* mc;
 
-	CustomKeyboardLookAndFeel laf;
+	ScopedPointer<LookAndFeel> ownedLaf;
 
 	CustomKeyboardState *state;
  
