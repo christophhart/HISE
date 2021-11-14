@@ -5575,6 +5575,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawWhiteNote(CustomKeyboardSta
 		obj->setProperty("noteNumber", midiNoteNumber);
 		obj->setProperty("hover", isOver);
 		obj->setProperty("down", isDown);
+        obj->setProperty("keyColour", state->getColourForSingleKey(midiNoteNumber).getARGB());
 
 		if (get()->callWithGraphics(g_, "drawWhiteNote", var(obj)))
 			return;
@@ -5595,6 +5596,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawBlackNote(CustomKeyboardSta
 		obj->setProperty("noteNumber", midiNoteNumber);
 		obj->setProperty("hover", isOver);
 		obj->setProperty("down", isDown);
+        obj->setProperty("keyColour", state->getColourForSingleKey(midiNoteNumber).getARGB());
 
 		if (get()->callWithGraphics(g_, "drawBlackNote", var(obj)))
 			return;
