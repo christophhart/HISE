@@ -87,6 +87,16 @@ END_JUCE_MODULE_DECLARATION
 #define IS_MARKDOWN_EDITOR 0
 #endif
 
+/** Config: HISE_INCLUDE_PITCH_DETECTION
+ 
+ Includes the pitch detection code. Disable this if you don't have the dsp_library module.
+ 
+*/
+#ifndef HISE_INCLUDE_PITCH_DETECTION
+#define HISE_INCLUDE_PITCH_DETECTION 1
+#endif
+
+
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
 
@@ -119,7 +129,6 @@ END_JUCE_MODULE_DECLARATION
 #ifndef DOUBLE_TO_STRING_DIGITS
 #define DOUBLE_TO_STRING_DIGITS 8
 #endif
-
 
 
 
@@ -232,5 +241,5 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/eq_plot/FilterGraph.h"
 
 
-#include "hi_rlottie/hi_rlottie.h"
+
 
