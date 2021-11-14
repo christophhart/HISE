@@ -274,7 +274,7 @@ void MarkdownPreview::InternalComponent::setNewText(const String& s, const File&
 
 void MarkdownPreview::InternalComponent::markdownWasParsed(const Result& r)
 {
-	if (parent.getHolder().nothingInHere())
+	if (parent.getHolder().nothingInHere() && renderer.getCurrentText(true).isEmpty())
 	{
 		parent.viewport.setVisible(false);
 	}
