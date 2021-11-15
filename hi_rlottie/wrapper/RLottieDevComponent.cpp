@@ -160,7 +160,6 @@ void RLottieDevComponent::paint(Graphics& g)
 		auto text = manager->getInitResult().getErrorMessage();
 
 		g.setColour(Colours::white);
-		g.setFont(GLOBAL_BOLD_FONT());
 		g.drawText(text, getLocalBounds().toFloat(), Justification::centred);
 	}
 }

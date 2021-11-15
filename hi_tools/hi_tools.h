@@ -110,8 +110,9 @@ END_JUCE_MODULE_DECLARATION
 #if !HISE_NO_GUI_TOOLS
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
-#include "../hi_zstd/hi_zstd.h"
+#include "../hi_rlottie/hi_rlottie.h"
 #endif
+
 
 #include "../hi_streaming/hi_streaming.h"
 

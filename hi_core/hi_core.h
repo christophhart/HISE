@@ -72,6 +72,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
 #include "../hi_zstd/hi_zstd.h"
 #include "../hi_tools/hi_tools.h"
+#include "../hi_rlottie/hi_rlottie.h"
 
 #include <complex>
 

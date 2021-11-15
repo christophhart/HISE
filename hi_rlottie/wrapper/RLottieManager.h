@@ -15,10 +15,7 @@
 namespace hise {
 using namespace juce;
 
-// We can now include the rlottie library in the codebase, so
-// we don't have to drag around the dynamic library. If you want
-// to use the dynamic library, set this to one...
-#define HISE_RLOTTIE_DYNAMIC_LIBRARY 0
+
 
 
 /** This class will open the dynamic libraries and close them when it is deleted. 

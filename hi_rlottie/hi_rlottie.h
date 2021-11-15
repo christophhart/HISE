@@ -54,11 +54,27 @@ END_JUCE_MODULE_DECLARATION
 
 #include "AppConfig.h"
 
+#include "../JUCE/modules/juce_core/juce_core.h"
+#include "../JUCE/modules/juce_graphics/juce_graphics.h"
+#include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"
+#include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
+#include "../hi_zstd/hi_zstd.h"
 
-#include "../hi_tools/hi_tools.h"
+/** Config: HISE_INCLUDE_RLOTTiE
 
+    Includes the Rlottie framework so you can load Lottie Animations
+*/
 #ifndef HISE_INCLUDE_RLOTTIE
 #define HISE_INCLUDE_RLOTTIE 1
+#endif
+
+/** Config: HISE_RLOTTIE_DYNAMIC_LIBRARY
+    We can now include the rlottie library in the codebase, so
+    we don't have to drag around the dynamic library. If you want
+    to use the dynamic library, set this to one...
+ */
+#ifndef HISE_RLOTTIE_DYNAMIC_LIBRARY
+#define HISE_RLOTTIE_DYNAMIC_LIBRARY 0
 #endif
 
 #if HISE_INCLUDE_RLOTTIE

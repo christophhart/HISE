@@ -53,10 +53,10 @@ private:
 	RLottieManager::Ptr manager;
 	RLottieComponent animationComponent;
 
-	hise::HiPropertyPanelLookAndFeel alaf;
+	LookAndFeel_V4 alaf;
 
 	CodeDocument doc;
-	JavascriptTokeniser tok;
+	juce::CPlusPlusCodeTokeniser tok;
 	CodeEditorComponent editor;
 	TextButton loadButton;
 	TextButton compileButton;
