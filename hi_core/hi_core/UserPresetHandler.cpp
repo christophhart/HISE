@@ -54,16 +54,21 @@ void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v, bool 
 			return SafeFunctionCall::OK;
 		};
 
-		for (auto l : listeners)
-		{
-			if (l != nullptr)
-				pendingPreset = l.get()->prePresetLoad(pendingPreset, currentlyLoadedFile);
-		}
+		preprocess(pendingPreset);
 
 		// Send a note off to stop the arpeggiator etc...
 		mc->allNotesOff(false);
 
 		mc->killAndCallOnLoadingThread(f);
+	}
+}
+
+void MainController::UserPresetHandler::preprocess(ValueTree& presetToLoad)
+{
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			presetToLoad = l.get()->prePresetLoad(presetToLoad, currentlyLoadedFile);
 	}
 }
 
@@ -222,33 +227,37 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 		if (mc->getMacroManager().isMacroEnabledOnFrontend())
 			mc->getMacroManager().getMacroChain()->loadMacroValuesFromValueTree(userPresetToLoad);
 
-		auto f = [](Dispatchable* obj)
-		{
-			auto uph = static_cast<UserPresetHandler*>(obj);
-			auto mc_ = uph->mc;
-			ignoreUnused(mc_);
-			jassert_dispatched_message_thread(mc_);
-
-			ScopedLock sl(uph->listeners.getLock());
-
-			for (auto l : uph->listeners)
-			{
-				uph->mc->checkAndAbortMessageThreadOperation();
-
-				if (l != nullptr)
-					l->presetChanged(uph->currentlyLoadedFile);
-			}
-
-			return Status::OK;
-		};
-
-		mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
+		postPresetLoad();
 	}
-
-	
 
 	mc->getSampleManager().preloadEverything();
 }
+
+void MainController::UserPresetHandler::postPresetLoad()
+{
+	auto f = [](Dispatchable* obj)
+	{
+		auto uph = static_cast<UserPresetHandler*>(obj);
+		auto mc_ = uph->mc;
+		ignoreUnused(mc_);
+		jassert_dispatched_message_thread(mc_);
+
+		ScopedLock sl(uph->listeners.getLock());
+
+		for (auto l : uph->listeners)
+		{
+			uph->mc->checkAndAbortMessageThreadOperation();
+
+			if (l != nullptr)
+				l->presetChanged(uph->currentlyLoadedFile);
+		}
+
+		return Status::OK;
+	};
+
+	mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
+}
+
 
 
 void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDirectory)

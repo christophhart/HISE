@@ -102,8 +102,25 @@ var ScriptUserPresetHandler::convertToJson(const ValueTree& d)
 	DynamicObject::Ptr p = new DynamicObject();
 
 	{
-		
-		auto dataTree = d.getChildWithName("Content");
+		ValueTree dataTree;
+
+		String version;
+
+		if (JSONConversionHelpers::isPluginState(d))
+		{
+			dataTree = d.getChildWithName("InterfaceData").getChildWithName("Content");
+
+			// Unfortunately the plugin state does not save the version number until recently...
+			if (!d.hasProperty("Version"))
+				version = "0.0.0";
+			else
+				version = d["Version"].toString();
+		}
+		else
+		{
+			dataTree = d.getChildWithName("Content");
+			version = d["Version"].toString();
+		}
 		
 		Array<var> dataArray;
 
@@ -156,8 +173,18 @@ juce::ValueTree ScriptUserPresetHandler::applyJSON(const ValueTree& original, Dy
 
 	auto copy = original.createCopy();
 
-	auto dataTree = copy.getChildWithName("Content");
-	dataTree.removeAllChildren(nullptr);
+	ValueTree dataTree;
+
+	if (JSONConversionHelpers::isPluginState(original))
+	{
+		dataTree = copy.getChildWithName("InterfaceData").getChildWithName("Content");
+		dataTree.removeAllChildren(nullptr);
+	}
+	else
+	{
+		dataTree = copy.getChildWithName("Content");
+		dataTree.removeAllChildren(nullptr);
+	}
 
 	if (auto dataArray = obj->getProperty("Content").getArray())
 	{
@@ -224,7 +251,11 @@ void ScriptUserPresetHandler::presetChanged(const File& newPreset)
 {
 	if (postCallback)
 	{
-		var f(new ScriptingObjects::ScriptFile(getScriptProcessor(), newPreset));
+		var f;
+
+		if(newPreset.existsAsFile())
+			f = var(new ScriptingObjects::ScriptFile(getScriptProcessor(), newPreset));
+
 		postCallback.call(&f, 1);
 	}
 }

@@ -636,8 +636,6 @@ juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
 		var::NativeFunctionArgs a(thisObj, args.getRawDataPointer(), args.size());
 		engineToUse->callExternalFunction(var(castedObj), a, &r);
 
-		
-
 		if (!r.wasOk())
 			debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
 	}

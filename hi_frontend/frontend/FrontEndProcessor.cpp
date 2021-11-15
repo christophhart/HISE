@@ -478,6 +478,9 @@ void FrontendProcessor::getStateInformation(MemoryBlock &destData)
 
 	v.setProperty("UserPreset", getUserPresetHandler().getCurrentlyLoadedFile().getFullPathName(), nullptr);
 
+	// Make sure to save the version string into the plugin state
+	v.setProperty("Version", FrontendHandler::getVersionString(), nullptr);
+
 	auto mpeData = getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
 
 	// Reload the macro connections before restoring the preset values
@@ -489,8 +492,7 @@ void FrontendProcessor::getStateInformation(MemoryBlock &destData)
 
 	v.writeToStream(output);
 
-
-
+	
 
 #endif
 }
@@ -523,6 +525,8 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 #else
 
 	ValueTree v = ValueTree::readFromData(data, sizeInBytes);
+
+	getUserPresetHandler().preprocess(v);
 
 	auto expansionToLoad = v.getProperty("CurrentExpansion", "").toString();
 
@@ -562,6 +566,9 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 		getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
 	else
 		getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
+
+	getUserPresetHandler().postPresetLoad();
+
 #endif
 
 	if (suspendAfterLoad)

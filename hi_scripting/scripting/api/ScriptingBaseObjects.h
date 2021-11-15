@@ -373,6 +373,8 @@ public:
 
 struct JSONConversionHelpers
 {
+	static bool isPluginState(const ValueTree& v) { return v.getType() == Identifier("ControlData"); };
+
 	static var valueTreeToJSON(const ValueTree& v);
 
 	static ValueTree jsonToValueTree(var data, const Identifier& typeId, bool isParentData = true);
