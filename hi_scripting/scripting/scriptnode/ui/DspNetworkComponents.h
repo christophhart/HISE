@@ -700,6 +700,11 @@ public:
 
 		void rebuildAfterContentChange() override;
 
+		bool isValid() const override
+		{
+			return n.get() != nullptr;
+		}
+
 		virtual void bookmarkUpdated(const StringArray& idsToShow)
 		{
 			n->deselectAll();
@@ -724,7 +729,7 @@ public:
 
 		void addButton(const String& b) override;
 
-		DspNetwork* n;
+		WeakReference<DspNetwork> n;
 	};
 
 	struct Actions

@@ -141,13 +141,28 @@ struct Selector : public Component,
         
         p->prepareToPlay(p->getSampleRate(), p->getLargestBlockSize());
 
-		auto gw = [rootWindow, jsp]()
+		if (findParentComponentOfClass<BackendProcessorEditor>() != nullptr)
 		{
-			BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rootWindow, jsp);
-			BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
-		};
+			auto gw = [rootWindow, jsp]()
+			{
+				BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rootWindow, jsp);
+				BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+			};
 
-		MessageManager::callAsync(gw);
+			MessageManager::callAsync(gw);
+		}
+		else
+		{
+			if (auto pc = findParentComponentOfClass<PanelWithProcessorConnection>())
+			{
+				auto f = [pc, p]()
+				{
+					pc->setContentWithUndo(p, 0);
+				};
+
+				MessageManager::callAsync(f);
+			}
+		}
 	}
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
@@ -267,7 +282,7 @@ Component* DspNetworkGraphPanel::createEmptyComponent()
 #if USE_BACKEND
 
 	// don't show this in the workbench
-	if (findParentComponentOfClass<BackendRootWindow>() == nullptr)
+	if (findParentComponentOfClass<SnexWorkbenchEditor>() != nullptr)
 		return nullptr;
 
 	if (auto h = dynamic_cast<DspNetwork::Holder*>(getProcessor()))

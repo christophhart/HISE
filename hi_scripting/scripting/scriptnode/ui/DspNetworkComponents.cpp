@@ -1823,23 +1823,44 @@ bool DspNetworkGraph::Actions::eject(DspNetworkGraph& g)
     {
         auto holder = g.network->getParentHolder();
         
-        auto rootWindow = GET_BACKEND_ROOT_WINDOW((&g));
-        auto jsp = dynamic_cast<JavascriptProcessor*>(holder);
+        if (auto rootWindow = g.findParentComponentOfClass<BackendRootWindow>())
+		{
+			auto jsp = dynamic_cast<JavascriptProcessor*>(holder);
 
-        auto gw = [rootWindow, jsp]()
-        {
-            ReferenceCountedObjectPtr<DspNetwork> pendingDelete;
-            
-            pendingDelete = jsp->getActiveOrDebuggedNetwork();
-            
-            jsp->unload();
-            BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rootWindow, jsp);
-            BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
-            
-            pendingDelete = nullptr;
-        };
+			auto gw = [rootWindow, jsp]()
+			{
+				ReferenceCountedObjectPtr<DspNetwork> pendingDelete;
 
-        MessageManager::callAsync(gw);
+				pendingDelete = jsp->getActiveOrDebuggedNetwork();
+
+				jsp->unload();
+				BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rootWindow, jsp);
+				BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+
+				pendingDelete = nullptr;
+			};
+
+			MessageManager::callAsync(gw);
+		}
+		else if (auto pc = g.findParentComponentOfClass<PanelWithProcessorConnection>())
+		{
+			auto p = dynamic_cast<Processor*>(holder);
+
+			auto gw = [pc, p, holder]()
+			{
+				ReferenceCountedObjectPtr<DspNetwork> pendingDelete;
+
+				pendingDelete = holder->getActiveOrDebuggedNetwork();
+				holder->unload();
+				pc->setContentWithUndo(p, 0);
+
+				pendingDelete = nullptr;
+			};
+
+			MessageManager::callAsync(gw);
+		}
+
+        
     }
 #endif
 

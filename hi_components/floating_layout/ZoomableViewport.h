@@ -599,6 +599,8 @@ struct WrapperWithMenuBarBase : public Component,
 	/** Override this method and initialise the menu bar here. */
 	virtual void rebuildAfterContentChange() = 0;
 
+	virtual bool isValid() const { return true; }
+
 	void setContentComponent(Component* newContent)
 	{
 		actionButtons.clear();
@@ -611,6 +613,9 @@ struct WrapperWithMenuBarBase : public Component,
 	{
 		for (auto a : actionButtons)
 		{
+			if (!isValid())
+				break;
+
 			if (auto asB = dynamic_cast<ButtonWithStateFunction*>(a))
 			{
 				if (asB->hasChanged())
