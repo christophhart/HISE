@@ -57,10 +57,9 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_graphics/juce_graphics.h"
 #include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"
-#include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../hi_zstd/hi_zstd.h"
 
-/** Config: HISE_INCLUDE_RLOTTiE
+/** Config: HISE_INCLUDE_RLOTTIE
 
     Includes the Rlottie framework so you can load Lottie Animations
 */
@@ -82,5 +81,5 @@ END_JUCE_MODULE_DECLARATION
 #include "wrapper/RLottieManager.h"
 #include "wrapper/RLottieAnimation.h"
 #include "wrapper/RLottieComponent.h"
-#include "wrapper/RLottieDevComponent.h"
+
 #endif

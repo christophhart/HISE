@@ -131,12 +131,6 @@ END_JUCE_MODULE_DECLARATION
 #define DOUBLE_TO_STRING_DIGITS 8
 #endif
 
-
-
-#if HISE_NO_GUI_TOOLS
-#define HISE_INCLUDE_RLOTTIE 0
-#endif
-
 #ifndef HISE_HEADLESS
 #define HISE_HEADLESS 0
 #endif
@@ -225,6 +219,10 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/CodeEditorApiBase.h"
 #include "hi_standalone_components/AdvancedCodeEditor.h"
 #include "hi_standalone_components/ScriptWatchTable.h"
+#endif
+
+#if HISE_INCLUDE_RLOTTIE
+#include "hi_standalone_components/RLottieDevComponent.h"
 #endif
 
 #include "hi_standalone_components/Plotter.h"

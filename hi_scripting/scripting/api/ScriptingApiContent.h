@@ -1721,7 +1721,6 @@ public:
 
 #if HISE_INCLUDE_RLOTTIE
 		bool isAnimationActive() const { return animation != nullptr && animation->isValid(); }
-
 		RLottieAnimation::Ptr getAnimation() { return animation.get(); }
 #endif
 
@@ -1857,8 +1856,9 @@ public:
 		void updateAnimationData();
 		ScopedPointer<RLottieAnimation> animation;
 		var animationData;
-		Array<WeakReference<AnimationListener>> animationListeners;
 #endif
+
+		Array<WeakReference<AnimationListener>> animationListeners;
 
 		bool shownAsPopup = false;
 		bool isModalPopup = false;
