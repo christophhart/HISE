@@ -603,7 +603,7 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 		p.clear();
 		stride = jmax(1, roundToInt(rawStride));
 
-        parent->useRectList = stride > JUCE_LIVE_CONSTANT(20);
+        parent->useRectList = stride > JUCE_LIVE_CONSTANT_OFF(20);
         
         if(parent->useRectList)
             stride /= 2;

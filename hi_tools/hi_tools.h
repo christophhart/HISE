@@ -87,6 +87,16 @@ END_JUCE_MODULE_DECLARATION
 #define IS_MARKDOWN_EDITOR 0
 #endif
 
+/** Config: HISE_INCLUDE_PITCH_DETECTION
+ 
+ Includes the pitch detection code. Disable this if you don't have the dsp_library module.
+ 
+*/
+#ifndef HISE_INCLUDE_PITCH_DETECTION
+#define HISE_INCLUDE_PITCH_DETECTION 1
+#endif
+
+
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
 
@@ -100,8 +110,9 @@ END_JUCE_MODULE_DECLARATION
 #if !HISE_NO_GUI_TOOLS
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
-#include "../hi_zstd/hi_zstd.h"
+#include "../hi_rlottie/hi_rlottie.h"
 #endif
+
 
 #include "../hi_streaming/hi_streaming.h"
 
@@ -118,13 +129,6 @@ END_JUCE_MODULE_DECLARATION
 
 #ifndef DOUBLE_TO_STRING_DIGITS
 #define DOUBLE_TO_STRING_DIGITS 8
-#endif
-
-
-
-
-#if HISE_NO_GUI_TOOLS
-#define HISE_INCLUDE_RLOTTIE 0
 #endif
 
 #ifndef HISE_HEADLESS
@@ -217,6 +221,10 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/ScriptWatchTable.h"
 #endif
 
+#if HISE_INCLUDE_RLOTTIE
+#include "hi_standalone_components/RLottieDevComponent.h"
+#endif
+
 #include "hi_standalone_components/Plotter.h"
 
 #include "hi_standalone_components/RingBuffer.h"
@@ -232,5 +240,5 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/eq_plot/FilterGraph.h"
 
 
-#include "hi_rlottie/hi_rlottie.h"
+
 

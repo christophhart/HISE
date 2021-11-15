@@ -62,11 +62,6 @@ END_JUCE_MODULE_DECLARATION
 
 
 
-
-
-
-
-
 /** Config: SNEX_ENABLE_SIMD
 
 Enables SIMD processing for consecutive float spans (not functional yet). 

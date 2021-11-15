@@ -30,11 +30,11 @@
 *   ===========================================================================
 */
 
-#ifndef PITCH_DETECTION_H_INCLUDED
-#define PITCH_DETECTION_H_INCLUDED
+#pragma once
 
 namespace hise { using namespace juce;
 
+#if HISE_INCLUDE_PITCH_DETECTION
 /** A wrapper class around the dywapitchtrack library that provides JUCE-type interface methods. */
 class PitchDetection
 {
@@ -59,6 +59,8 @@ public:
 	static int getNumSamplesNeeded(double sampleRate, double minFrequencyToAnalyse);
 };
 
-} // namespace hise
 #endif
+
+} // namespace hise
+
 

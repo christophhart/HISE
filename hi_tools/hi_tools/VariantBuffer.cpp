@@ -159,6 +159,7 @@ void VariantBuffer::addMethods()
 		return var(0);
 	});
 
+#if HISE_INCLUDE_PITCH_DETECTION
 	setMethod("detectPitch", [](const var::NativeFunctionArgs& n)
 	{
 		if (auto bf = n.thisObject.getBuffer())
@@ -186,6 +187,7 @@ void VariantBuffer::addMethods()
 
 		return var(0);
 	});
+#endif
 
 	setMethod("indexOfPeak", [](const var::NativeFunctionArgs& n)
 	{

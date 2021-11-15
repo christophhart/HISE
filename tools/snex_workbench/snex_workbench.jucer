@@ -67,6 +67,7 @@
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2017 targetFolder="Builds/VisualStudio2017" IPPLibrary="Sequential"
@@ -105,6 +106,7 @@
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </VS2017>
     <VS2019 targetFolder="Builds/VisualStudio2019" extraCompilerFlags="-msse4.1 -Wno-everything">
@@ -141,6 +143,7 @@
         <MODULEPATH id="hi_core"/>
         <MODULEPATH id="hi_components"/>
         <MODULEPATH id="hi_backend"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </VS2019>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override&#10;-fpermissive"
@@ -178,6 +181,7 @@
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_components" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -189,6 +193,7 @@
     <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -220,5 +225,5 @@
   <JUCEOPTIONS HISE_INCLUDE_SNEX="1" USE_BACKEND="1" USE_FRONTEND="0" USE_RAW_FRONTEND="0"
                IS_STANDALONE_APP="1" USE_COPY_PROTECTION="0" USE_IPP="0" HISE_ENABLE_EXPANSIONS="1"
                JUCE_ASIO="1" HI_SUPPORT_FULL_DYNAMICS_HLAC="1" HI_EXPORT_DSP_LIBRARY="0"
-               JUCE_LOAD_CURL_SYMBOLS_LAZILY="1" USE_WORKBENCH_EDITOR="1"/>
+               JUCE_LOAD_CURL_SYMBOLS_LAZILY="1" USE_WORKBENCH_EDITOR="1" HISE_INCLUDE_RLOTTIE="0"/>
 </JUCERPROJECT>

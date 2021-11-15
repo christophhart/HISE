@@ -2851,12 +2851,9 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_METHOD_WRAPPER_0(ScriptPanel, removeFromParent);
 	API_METHOD_WRAPPER_0(ScriptPanel, getChildPanelList);
 	API_METHOD_WRAPPER_0(ScriptPanel, getParentPanel);
-
-#if HISE_INCLUDE_RLOTTIE
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setAnimation);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setAnimationFrame);
 	API_METHOD_WRAPPER_0(ScriptPanel, getAnimationData);
-#endif
 	API_METHOD_WRAPPER_0(ScriptPanel, isVisibleAsPopup);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setIsModalPopup);
 };
@@ -2958,11 +2955,9 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_0(getChildPanelList);
 	ADD_API_METHOD_0(getParentPanel);
 	ADD_API_METHOD_3(setMouseCursor);
-#if HISE_INCLUDE_RLOTTIE
 	ADD_API_METHOD_0(getAnimationData);
 	ADD_API_METHOD_1(setAnimation);
 	ADD_API_METHOD_1(setAnimationFrame);
-#endif
 }
 
 
@@ -3192,22 +3187,6 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 
 	if (timerRoutine)
 		timerRoutine.call(nullptr, 0);
-
-#if 0
-	WeakReference<ScriptPanel> tmp(this);
-
-	auto f = [tmp, mc](JavascriptProcessor* )
-	{
-		Result r = Result::ok();
-
-		if (auto panel = tmp.get())
-			panel->timerCallbackInternal(mc, r);
-
-		return r;
-	};
-
-	mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), f);
-#endif
 }
 
 
@@ -3511,15 +3490,21 @@ var ScriptingApi::Content::ScriptPanel::addChildPanel()
 	return var(childPanels.getLast().get());
 }
 
-#if HISE_INCLUDE_RLOTTIE
+
 var ScriptingApi::Content::ScriptPanel::getAnimationData()
 {
+#if HISE_INCLUDE_RLOTTIE
 	updateAnimationData();
 	return var(animationData);
+#else
+	reportScriptError("RLottie is disabled. Compile with HISE_INCLUDE_RLOTTIE");
+	return var();
+#endif
 }
 
 void ScriptingApi::Content::ScriptPanel::setAnimation(String base64LottieAnimation)
 {
+#if HISE_INCLUDE_RLOTTIE
 	if (base64LottieAnimation.isEmpty())
 	{
 		animation = nullptr;
@@ -3542,18 +3527,26 @@ void ScriptingApi::Content::ScriptPanel::setAnimation(String base64LottieAnimati
 		if (l.get() != nullptr)
 			l->animationChanged();
 	}
+#else
+	reportScriptError("RLottie is disabled. Compile with HISE_INCLUDE_RLOTTIE");
+#endif
 }
 
 void ScriptingApi::Content::ScriptPanel::setAnimationFrame(int numFrame)
 {
+#if HISE_INCLUDE_RLOTTIE
 	if (animation != nullptr)
 	{
 		animation->setFrame(numFrame);
 		updateAnimationData();
 		graphics->getDrawHandler().flush();
 	}
+#else
+	reportScriptError("RLottie is disabled. Compile with HISE_INCLUDE_RLOTTIE");
+#endif
 }
 
+#if HISE_INCLUDE_RLOTTIE
 void ScriptingApi::Content::ScriptPanel::updateAnimationData()
 {
 	DynamicObject::Ptr obj = animationData.getDynamicObject();  
@@ -3578,6 +3571,7 @@ void ScriptingApi::Content::ScriptPanel::updateAnimationData()
 
 	animationData = var(obj.get());
 }
+#endif
 
 bool ScriptingApi::Content::ScriptPanel::removeFromParent()
 {
@@ -3623,7 +3617,6 @@ void ScriptingApi::Content::ScriptPanel::removeAnimationListener(AnimationListen
 	animationListeners.removeAllInstancesOf(l);
 #endif
 }
-
 
 hise::DebugInformationBase::Ptr ScriptingApi::Content::ScriptPanel::createChildElement(DebugWatchIndex i) const
 {
@@ -3698,10 +3691,6 @@ int ScriptingApi::Content::ScriptPanel::getNumChildElements() const
 	buildDebugListIfEmpty();
 	return cachedList.size();
 }
-
-
-
-#endif
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)
 {

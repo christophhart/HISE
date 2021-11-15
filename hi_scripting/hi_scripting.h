@@ -80,6 +80,9 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "../hi_sampler/hi_sampler.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 #include "../hi_snex/hi_snex.h"
+#include "../hi_rlottie/hi_rlottie.h"
+
+
 
 #include "scripting/api/ScriptMacroDefinitions.h"
 #include "scripting/engine/JavascriptApiClass.h"

@@ -110,10 +110,13 @@
 #include "hi_standalone_components/SliderPack.cpp"
 #include "hi_standalone_components/TableEditor.cpp"
 
+#if HISE_INCLUDE_RLOTTIE
+#include "hi_standalone_components/RLottieDevComponent.cpp"
+#endif
 
 
 #include "hi_standalone_components/eq_plot/FilterInfo.cpp"
 #include "hi_standalone_components/eq_plot/FilterGraph.cpp"
 
 
-#include "hi_rlottie/hi_rlottie.cpp"
+

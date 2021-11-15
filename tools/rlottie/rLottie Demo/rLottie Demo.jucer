@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="VCthIU" name="rLottie Demo" projectType="guiapp" jucerVersion="5.4.3">
+<JUCERPROJECT id="VCthIU" name="rLottie Demo" projectType="guiapp" jucerFormatVersion="1"
+              cppLanguageStandard="17">
   <MAINGROUP id="gCmGD9" name="rLottie Demo">
     <GROUP id="{A5C38953-0992-AB32-3B5C-017AA4E9E9E5}" name="Source">
       <FILE id="UTdDV7" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
@@ -53,6 +54,8 @@
         <MODULEPATH id="hi_tools" path="../../../"/>
         <MODULEPATH id="hi_zstd" path="../../../"/>
         <MODULEPATH id="hi_lac" path="../../../"/>
+        <MODULEPATH id="hi_rlottie" path="../../../"/>
+        <MODULEPATH id="juce_dsp" path="../../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2017>
     <XCODE_MAC targetFolder="Builds/MacOSX">
@@ -76,11 +79,14 @@
         <MODULEPATH id="hi_zstd" path="../../../"/>
         <MODULEPATH id="hi_tools" path="../../../"/>
         <MODULEPATH id="hi_lac" path="../../../"/>
+        <MODULEPATH id="hi_rlottie" path="../../../"/>
+        <MODULEPATH id="juce_dsp" path="../../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
   </EXPORTFORMATS>
   <MODULES>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -90,6 +96,7 @@
     <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_cryptography" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -100,5 +107,5 @@
     <WINDOWS/>
     <OSX/>
   </LIVE_SETTINGS>
-  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1"/>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" HISE_INCLUDE_PITCH_DETECTION="0"/>
 </JUCERPROJECT>
