@@ -126,6 +126,9 @@ public:
 	/** Set a credentials object that can be embedded into each expansion. */
 	void setCredentials(var newCredentials);
 
+	/** Sets whether the installExpansionFromPackage function should install full dynamics. */
+	void setInstallFullDynamics(bool shouldInstallFullDynamics);
+
 	/** Sets a error function that will be executed. */
 	void setErrorFunction(var newErrorFunction);
 
