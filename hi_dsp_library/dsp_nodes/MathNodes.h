@@ -402,7 +402,7 @@ public:
 
 #define DEFINE_MONO_OP_NODE(monoName) template <int NV> using monoName = OpNode<Operations::monoName, 1>;
 
-#define DEFINE_OP_NODE(monoName) template <int NV> using monoName = OpNode<Operations::monoName, 1>;
+#define DEFINE_OP_NODE(monoName) template <int NV> using monoName = OpNode<Operations::monoName, NV>;
 
 DEFINE_OP_NODE(mul);
 DEFINE_OP_NODE(add);
