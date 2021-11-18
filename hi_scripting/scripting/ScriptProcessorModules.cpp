@@ -512,25 +512,14 @@ void JavascriptPolyphonicEffect::startVoice(int voiceIndex, const HiseEvent& e)
 {
 	if (auto n = getActiveNetwork())
 	{
-		voiceNoteOns.insertWithoutSearch({ voiceIndex, e });
-		HiseEvent c(e);
-
-		scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
-		n->getRootNode()->reset();
-		n->getRootNode()->handleHiseEvent(c);
+		voiceData.startVoice(n, voiceIndex, e);
+		
 	}
 }
 
 void JavascriptPolyphonicEffect::reset(int voiceIndex)
 {
-	for (int i = 0; i < voiceNoteOns.size(); i++)
-	{
-		if (voiceNoteOns[i].voiceIndex == voiceIndex)
-		{
-			voiceNoteOns.removeElement(i);
-			return;
-		}
-	}
+	voiceData.reset(voiceIndex);
 }
 
 void JavascriptPolyphonicEffect::handleHiseEvent(const HiseEvent &m)
@@ -540,25 +529,10 @@ void JavascriptPolyphonicEffect::handleHiseEvent(const HiseEvent &m)
 
 	HiseEvent c(m);
 
-	if (m.isNoteOff())
-	{
-		for (auto& av : voiceNoteOns)
-		{
-			if (av.noteOn.getEventId() == m.getEventId())
-			{
-				if (auto n = getActiveNetwork())
-				{
-					scriptnode::DspNetwork::VoiceSetter vs(*n, av.voiceIndex);
-					n->getRootNode()->handleHiseEvent(c);
-				}
-
-				return;
-			}
-		}
-	}
-
 	if (auto n = getActiveNetwork())
-		n->getRootNode()->handleHiseEvent(c);
+	{
+		voiceData.handleHiseEvent(n, m);
+	}
 }
 
 JavascriptMasterEffect::JavascriptMasterEffect(MainController *mc, const String &id):
@@ -1236,18 +1210,7 @@ void JavascriptEnvelopeModulator::handleHiseEvent(const HiseEvent &m)
 
 	if (auto n = getActiveNetwork())
 	{
-		if (m.isNoteOff())
-		{
-			for (auto vd : voiceNoteOns)
-			{
-				if (vd.noteOn.getEventId() == m.getEventId())
-				{
-					HiseEvent c(m);
-					scriptnode::DspNetwork::VoiceSetter vs(*n, vd.voiceIndex);
-					n->getRootNode()->handleHiseEvent(c);
-				}
-			}
-		}
+		voiceData.handleHiseEvent(n, m);
 	}
 }
 
@@ -1291,18 +1254,13 @@ float JavascriptEnvelopeModulator::startVoice(int voiceIndex)
 {
 	ScriptEnvelopeState* state = static_cast<ScriptEnvelopeState*>(states[voiceIndex]);
 
-	voiceNoteOns.insertWithoutSearch({ voiceIndex, lastNoteOn });
-
 	state->uptime = 0.0f;
 	state->isPlaying = true;
 	state->isRingingOff = false;
 
 	if (auto n = getActiveNetwork())
 	{
-		scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
-		n->getRootNode()->reset();
-		HiseEvent c(lastNoteOn);
-		n->getRootNode()->handleHiseEvent(c);
+		voiceData.startVoice(n, voiceIndex, lastNoteOn);
 	}
 
     return 0.0f;
@@ -1322,14 +1280,7 @@ void JavascriptEnvelopeModulator::reset(int voiceIndex)
 	state->isPlaying = false;
 	state->isRingingOff = false;
 
-	for (int i = 0; i < voiceNoteOns.size(); i++)
-	{
-		if (voiceNoteOns[i].voiceIndex == voiceIndex)
-		{
-			voiceNoteOns.removeElement(i--);
-			break;
-		}
-	}
+	voiceData.reset(voiceIndex);
 }
 
 bool JavascriptEnvelopeModulator::isPlaying(int voiceIndex) const
@@ -1395,323 +1346,6 @@ void JavascriptEnvelopeModulator::postCompileCallback()
 	prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
-class JavascriptModulatorSynth::Sound : public ModulatorSynthSound
-{
-public:
-	Sound() {}
-
-	bool appliesToNote(int /*midiNoteNumber*/) override   { return true; }
-	bool appliesToChannel(int /*midiChannel*/) override   { return true; }
-	bool appliesToVelocity(int /*midiChannel*/) override  { return true; }
-};
-
-
-
-class JavascriptModulatorSynth::Voice : public ModulatorSynthVoice
-{
-public:
-
-	Voice(ModulatorSynth *ownerSynth) :
-		ModulatorSynthVoice(ownerSynth)
-	{
-
-		leftBuffer = new VariantBuffer(0);
-		rightBuffer = new VariantBuffer(0);
-		pitchData = new VariantBuffer(0);
-
-		channels.add(var(leftBuffer.get()));
-		channels.add(var(rightBuffer.get()));
-		channels.add(var(pitchData.get()));
-	};
-
-	bool canPlaySound(SynthesiserSound *) override
-	{
-		return true;
-	};
-
-	void startNote(int midiNoteNumber, float velocity, SynthesiserSound*, int /*currentPitchWheelPosition*/) override
-	{
-		ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
-
-		JavascriptModulatorSynth* jms = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
-
-		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 0, getVoiceIndex());
-		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 1, midiNoteNumber);
-		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 2, velocity);
-
-		voiceUptime = 0.0;
-		uptimeDelta = (double)jms->scriptEngine->executeCallback((int)JavascriptModulatorSynth::Callback::startVoice, &jms->lastResult);
-
-		BACKEND_ONLY(if (!jms->lastResult.wasOk()) debugError(jms, jms->lastResult.getErrorMessage()));
-	}
-
-	void calculateBlock(int startSample, int numSamples) override
-	{
-		const int startIndex = startSample;
-		const int samplesToCopy = numSamples;
-
-		const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
-		const float *modValues = getOwnerSynth()->getVoiceGainValues();
-
-		float *leftValues = voiceBuffer.getWritePointer(0, startSample);
-		float *rightValues = voiceBuffer.getWritePointer(1, startSample);
-
-		channels[0].getBuffer()->referToData(leftValues, numSamples);
-		channels[1].getBuffer()->referToData(rightValues, numSamples);
-		
-		if (voicePitchValues != nullptr)
-		{
-			voicePitchValues += startSample;
-			channels[2].getBuffer()->referToData(const_cast<float*>(voicePitchValues), numSamples);
-		}
-        else
-        {
-            channels[2].getBuffer()->referToData(rightValues, numSamples);
-        }
-		
-		JavascriptModulatorSynth* jms = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
-
-		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 0, getVoiceIndex());
-		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 1, var(channels));
-
-		voiceUptime += (double)jms->scriptEngine->executeCallback((int)JavascriptModulatorSynth::Callback::renderVoice, &jms->lastResult);
-
-		BACKEND_ONLY(if (!jms->lastResult.wasOk()) debugError(jms, jms->lastResult.getErrorMessage()));
-
-		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
-
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
-	}
-
-	Array<var> channels;
-
-	VariantBuffer::Ptr leftBuffer;
-	VariantBuffer::Ptr rightBuffer;
-	VariantBuffer::Ptr pitchData;
-};
-
-
-JavascriptModulatorSynth::JavascriptModulatorSynth(MainController *mc, const String &id, int numVoices) :
-ModulatorSynth(mc, id, numVoices),
-JavascriptProcessor(mc),
-ProcessorWithScriptingContent(mc),
-scriptChain1(new ModulatorChain(mc, "Script Chain 1", numVoices, Modulation::GainMode, this)),
-scriptChain2(new ModulatorChain(mc, "Script Chain 2", numVoices, Modulation::GainMode, this)),
-onInitCallback(new SnippetDocument("onInit")),
-prepareToPlayCallback(new SnippetDocument("prepareToPlay", "sampleRate blockSize")),
-startVoiceCallback(new SnippetDocument("onStartVoice", "voiceIndex noteNumber velocity")),
-renderVoiceCallback(new SnippetDocument("renderVoice", "voiceIndex channels")),
-onNoteOnCallback(new SnippetDocument("onNoteOn")),
-onNoteOffCallback(new SnippetDocument("onNoteOff")),
-onControllerCallback(new SnippetDocument("onController")),
-onControlCallback(new SnippetDocument("onControl", "number value")),
-scriptChain1Buffer(1, 0),
-scriptChain2Buffer(1, 0)
-{
-	initContent();
-
-	scriptChain1->setColour(Colour(0xFF666666));
-	scriptChain2->setColour(Colour(0xFF666666));
-
-	editorStateIdentifiers.add("ScriptChain1Shown");
-	editorStateIdentifiers.add("ScriptChain2Shown");
-	editorStateIdentifiers.add("contentShown");
-	editorStateIdentifiers.add("onInitOpen");
-	editorStateIdentifiers.add("prepareToPlayOpen");
-	editorStateIdentifiers.add("startVoiceOpen");
-	editorStateIdentifiers.add("renderVoiceOpen");
-	editorStateIdentifiers.add("onNoteOnOpen");
-	editorStateIdentifiers.add("onNoteOffOpen");
-	editorStateIdentifiers.add("onControllerOpen");
-	editorStateIdentifiers.add("onControlOpen");
-	editorStateIdentifiers.add("externalPopupShown");
-
-	addSound(new Sound());
-
-	for (int i = 0; i < numVoices; i++)
-	{
-		addVoice(new Voice(this));
-	}
-}
-
-JavascriptModulatorSynth::~JavascriptModulatorSynth()
-{
-	clearExternalWindows();
-
-	cleanupEngine();
-
-#if USE_BACKEND
-	if (consoleEnabled)
-	{
-		getMainController()->setWatchedScriptProcessor(nullptr, nullptr);
-	}
-#endif
-
-}
-
-Processor * JavascriptModulatorSynth::getChildProcessor(int processorIndex)
-{
-	switch (processorIndex)
-	{
-	
-	case ModulatorSynth::InternalChains::MidiProcessor:	 return midiProcessorChain;
-	case ModulatorSynth::InternalChains::GainModulation: return gainChain;
-	case ModulatorSynth::InternalChains::PitchModulation:return pitchChain;
-	case ModulatorSynth::InternalChains::EffectChain:	 return effectChain;
-	case ScriptChain1:	return scriptChain1;
-	case ScriptChain2:	return scriptChain2;
-	default:			jassertfalse; return nullptr;
-	}
-}
-
-const Processor * JavascriptModulatorSynth::getChildProcessor(int processorIndex) const
-{
-	switch (processorIndex)
-	{
-	case ModulatorSynth::InternalChains::MidiProcessor:	 return midiProcessorChain;
-	case ModulatorSynth::InternalChains::GainModulation: return gainChain;
-	case ModulatorSynth::InternalChains::PitchModulation:return pitchChain;
-	case ModulatorSynth::InternalChains::EffectChain:	 return effectChain;
-	case ScriptChain1:	return scriptChain1;
-	case ScriptChain2:	return scriptChain2;
-	default:			jassertfalse; return nullptr;
-	}
-}
-
-void JavascriptModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
-{
-	if (newSampleRate > -1.0)
-	{
-		ProcessorHelpers::increaseBufferIfNeeded(scriptChain1Buffer, samplesPerBlock);
-		ProcessorHelpers::increaseBufferIfNeeded(scriptChain2Buffer, samplesPerBlock);
-
-		scriptChain1->prepareToPlay(newSampleRate, samplesPerBlock);
-		scriptChain2->prepareToPlay(newSampleRate, samplesPerBlock);
-
-		for (int i = 0; i < sounds.size(); i++)
-		{
-			//static_cast<WavetableSound*>(getSound(i))->calculatePitchRatio(sampleRate); // Todo
-		}
-	}
-
-
-	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
-}
-
-void JavascriptModulatorSynth::preHiseEventCallback(HiseEvent& m)
-{
-	scriptChain1->handleHiseEvent(m);
-	scriptChain2->handleHiseEvent(m);
-
-	ModulatorSynth::preHiseEventCallback(m);
-}
-
-void JavascriptModulatorSynth::preStartVoice(int voiceIndex, const HiseEvent& e)
-{
-	ModulatorSynth::preStartVoice(voiceIndex, e);
-
-	scriptChain1->startVoice(voiceIndex);
-	scriptChain2->startVoice(voiceIndex);
-}
-
-float JavascriptModulatorSynth::getAttribute(int parameterIndex) const
-{
-	if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getAttribute(parameterIndex);
-
-	return getControlValue(parameterIndex);
-}
-
-void JavascriptModulatorSynth::setInternalAttribute(int parameterIndex, float newValue)
-{
-	if (parameterIndex < ModulatorSynth::numModulatorSynthParameters)
-	{
-		ModulatorSynth::setInternalAttribute(parameterIndex, newValue);
-		return;
-	}
-
-	setControlValue(parameterIndex, newValue);
-}
-
-JavascriptProcessor::SnippetDocument * JavascriptModulatorSynth::getSnippet(int c)
-{
-	Callback ca = (Callback)c;
-
-	switch (ca)
-	{
-	case JavascriptModulatorSynth::Callback::onInit:		return onInitCallback;
-	case JavascriptModulatorSynth::Callback::prepareToPlay: return prepareToPlayCallback;
-	case JavascriptModulatorSynth::Callback::startVoice:	return startVoiceCallback;
-	case JavascriptModulatorSynth::Callback::renderVoice:	return renderVoiceCallback;
-	case JavascriptModulatorSynth::Callback::onNoteOn:		return onNoteOnCallback;
-	case JavascriptModulatorSynth::Callback::onNoteOff:		return onNoteOffCallback;
-	case JavascriptModulatorSynth::Callback::onController:	return onControllerCallback;
-	case JavascriptModulatorSynth::Callback::onControl:		return onControlCallback;
-	case JavascriptModulatorSynth::Callback::numCallbacks:
-	default:												break;
-	}
-
-	return nullptr;
-}
-
-const JavascriptProcessor::SnippetDocument * JavascriptModulatorSynth::getSnippet(int c) const
-{
-	Callback ca = (Callback)c;
-
-	switch (ca)
-	{
-	case JavascriptModulatorSynth::Callback::onInit:		return onInitCallback;
-	case JavascriptModulatorSynth::Callback::prepareToPlay: return prepareToPlayCallback;
-	case JavascriptModulatorSynth::Callback::startVoice:	return startVoiceCallback;
-	case JavascriptModulatorSynth::Callback::renderVoice:	return renderVoiceCallback;
-	case JavascriptModulatorSynth::Callback::onNoteOn:		return onNoteOnCallback;
-	case JavascriptModulatorSynth::Callback::onNoteOff:		return onNoteOffCallback;
-	case JavascriptModulatorSynth::Callback::onController:	return onControllerCallback;
-	case JavascriptModulatorSynth::Callback::onControl:		return onControlCallback;
-	case JavascriptModulatorSynth::Callback::numCallbacks:
-	default:												break;
-	}
-
-	return nullptr;
-}
-
-void JavascriptModulatorSynth::registerApiClasses()
-{
-	content = new ScriptingApi::Content(this);
-
-	currentMidiMessage = new ScriptingApi::Message(this);
-	engineObject = new ScriptingApi::Engine(this);
-	synthObject = new ScriptingApi::Synth(this, currentMidiMessage.get(), this);
-
-	scriptEngine->registerNativeObject("Content", content.get());
-	scriptEngine->registerApiClass(currentMidiMessage.get());
-	scriptEngine->registerApiClass(engineObject.get());
-	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
-	scriptEngine->registerApiClass(synthObject);
-
-	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(this));
-	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
-}
-
-
-
-void JavascriptModulatorSynth::postCompileCallback()
-{
-	prepareToPlay(getSampleRate(), getLargestBlockSize());
-}
-
-ProcessorEditorBody* JavascriptModulatorSynth::createEditor(ProcessorEditor *parentEditor)
-{
-#if USE_BACKEND
-	return new ScriptingEditor(parentEditor);
-#else
-
-	ignoreUnused(parentEditor);
-	jassertfalse;
-
-	return nullptr;
-#endif
-}
 
 JavascriptSynthesiser::JavascriptSynthesiser(MainController *mc, const String &id, int numVoices):
 	JavascriptProcessor(mc),
@@ -1831,6 +1465,9 @@ void JavascriptSynthesiser::preHiseEventCallback(HiseEvent &e)
 
 	if (auto n = getActiveNetwork())
 	{
+		voiceData.handleHiseEvent(n, e);
+
+#if 0
 		for (auto av : activeVoices)
 		{
 			if (e.isNoteOff() && av->getCurrentHiseEvent().getEventId() != e.getEventId())
@@ -1841,6 +1478,7 @@ void JavascriptSynthesiser::preHiseEventCallback(HiseEvent &e)
 			HiseEvent copy(e);
 			n->getRootNode()->handleHiseEvent(copy);
 		}
+#endif
 	}
 }
 
@@ -1853,8 +1491,6 @@ void JavascriptSynthesiser::preStartVoice(int voiceIndex, const HiseEvent& e)
 		static_cast<Voice*>(getVoice(voiceIndex))->setVoiceStartDataForNextRenderCallback();
 
 		currentVoiceStartSample = jlimit(0, getLargestBlockSize(), e.getTimeStamp());
-
-
 	}
 }
 
@@ -1894,14 +1530,7 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 
 		if (isVoiceStart)
 		{
-			scriptnode::DspNetwork::VoiceSetter vs(*n, getVoiceIndex());
-			// There are some nodes which need to setup some properties before
-			// calling reset based on the incoming event
-			auto event = getCurrentHiseEvent();
-			rootNode->reset();
-			rootNode->handleHiseEvent(event);
-			
-
+			synth->voiceData.startVoice(n, getVoiceIndex(), getCurrentHiseEvent());
 			isVoiceStart = false;
 		}
 
@@ -1947,6 +1576,65 @@ hise::ProcessorEditorBody * ScriptnodeVoiceKiller::createEditor(ProcessorEditor 
 	ignoreUnused(parentEditor);
 	return nullptr;
 #endif
+}
+
+void VoiceDataStack::reset(int voiceIndex)
+{
+	for (int i = 0; i < voiceNoteOns.size(); i++)
+	{
+		if (voiceNoteOns[i].voiceIndex == voiceIndex)
+		{
+			voiceNoteOns.removeElement(i--);
+			break;
+		}
+	}
+}
+
+void VoiceDataStack::handleHiseEvent(scriptnode::DspNetwork* n, const HiseEvent& m)
+{
+	if (m.isNoteOff())
+	{
+		for (auto vd : voiceNoteOns)
+		{
+			if (vd.noteOn.getEventId() == m.getEventId())
+			{
+				HiseEvent c(m);
+				scriptnode::DspNetwork::VoiceSetter vs(*n, vd.voiceIndex);
+				n->getRootNode()->handleHiseEvent(c);
+			}
+		}
+	}
+	else if (m.isPitchWheel() || m.isAftertouch() || m.isControllerOfType(74))
+	{
+		for (auto vd : voiceNoteOns)
+		{
+			if (vd.noteOn.getChannel() == m.getChannel())
+			{
+				HiseEvent c(m);
+				scriptnode::DspNetwork::VoiceSetter vs(*n, vd.voiceIndex);
+				n->getRootNode()->handleHiseEvent(c);
+			}
+		}
+	}
+	else if (!m.isNoteOn())
+	{
+		for (auto vd : voiceNoteOns)
+		{
+			HiseEvent c(m);
+			scriptnode::DspNetwork::VoiceSetter vs(*n, vd.voiceIndex);
+			n->getRootNode()->handleHiseEvent(c);
+}
+	}
+}
+
+void VoiceDataStack::startVoice(scriptnode::DspNetwork* n, int voiceIndex, const HiseEvent& e)
+{
+	voiceNoteOns.insertWithoutSearch({ voiceIndex, e });
+	HiseEvent c(e);
+
+	scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
+	n->getRootNode()->reset();
+	n->getRootNode()->handleHiseEvent(c);
 }
 
 } // namespace hise

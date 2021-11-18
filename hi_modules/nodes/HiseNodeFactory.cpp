@@ -1225,9 +1225,9 @@ namespace control
 		registerModNode<midi_logic::dynamic::NodeType, midi_logic::dynamic::editor>();
 		registerPolyModNode<control::timer<1, snex_timer>, timer<NUM_POLYPHONIC_VOICES, snex_timer>, snex_timer::editor>();
 
-		registerNoProcessNode<file_analysers::dynamic::NodeType, file_analysers::dynamic::editor, false>(); //>();
+		registerNoProcessNode<control::midi_cc<parameter::dynamic_base_holder>, midi_cc_editor>();
 
-		
+		registerNoProcessNode<file_analysers::dynamic::NodeType, file_analysers::dynamic::editor, false>(); //>();
 
 		registerModNode<tempo_sync, TempoDisplay>();
 	}

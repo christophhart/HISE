@@ -71,6 +71,91 @@ namespace control
 		RangePresets presets;
 	};
 
+	struct midi_cc_editor : public ScriptnodeExtraComponent<midi_cc<parameter::dynamic_base_holder>>
+	{
+		using ObjectType = midi_cc<parameter::dynamic_base_holder>;
+
+		midi_cc_editor(ObjectType* obj, PooledUIUpdater* u) :
+			ScriptnodeExtraComponent<ObjectType>(obj, u),
+			dragger(u)
+		{
+			addAndMakeVisible(dragger);
+			setSize(256, 32);
+		};
+
+		void checkValidContext()
+		{
+			if (contextChecked)
+				return;
+
+			if (auto nc = findParentComponentOfClass<NodeComponent>())
+			{
+				NodeBase* n = nc->node;
+				
+				try
+				{
+					ScriptnodeExceptionHandler::validateMidiProcessingContext(n);
+					n->getRootNetwork()->getExceptionHandler().removeError(n);
+				}
+				catch (Error& e)
+				{
+					n->getRootNetwork()->getExceptionHandler().addError(n, e);
+				}
+
+				contextChecked = true;
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().toFloat();
+			b.removeFromBottom((float)dragger.getHeight());
+
+			g.setColour(Colours::white.withAlpha(alpha));
+			g.drawRoundedRectangle(b, b.getHeight() / 2.0f, 1.0f);
+			
+			b = b.reduced(2.0f);
+			b.setWidth(jmax<float>(b.getHeight(), lastValue.getModValue() * b.getWidth()));
+			g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
+		}
+
+		void resized() override
+		{
+			dragger.setBounds(getLocalBounds().removeFromBottom(24));
+		}
+
+		void timerCallback() override
+		{
+			checkValidContext();
+
+			if (ObjectType* o = getObject())
+			{
+				auto lv = o->getParameter().getDisplayValue();
+
+				if (lastValue.setModValueIfChanged(lv))
+					alpha = 1.0f;
+				else
+					alpha = jmax(0.5f, alpha * 0.9f);
+
+				repaint();
+			}
+		}
+
+		static Component* createExtraComponent(void* o, PooledUIUpdater* u)
+		{
+			auto mn = static_cast<mothernode*>(o);
+			auto typed = dynamic_cast<ObjectType*>(mn);
+
+			return new midi_cc_editor(typed, u);
+		}
+
+		float alpha = 0.5f;
+		ModValue lastValue;
+
+		ModulationSourceBaseComponent dragger;
+		bool contextChecked = false;
+	};
+
 	struct bipolar_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::bipolar>>
 	{
 		using BipolarBase = pimpl::combined_parameter_base<multilogic::bipolar>;

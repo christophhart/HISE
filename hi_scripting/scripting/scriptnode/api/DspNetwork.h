@@ -106,6 +106,8 @@ class ScriptnodeExceptionHandler
 
 public:
 
+	static void validateMidiProcessingContext(NodeBase* b);
+
 	bool isOk() const noexcept
 	{
 		return items.isEmpty();
@@ -133,6 +135,12 @@ public:
 
 		for (int i = 0; i < items.size(); i++)
 		{
+			if(items[i].node == nullptr)
+			{
+				items.remove(i--);
+				continue;
+			}
+
 			auto e = items[i].error.error;
 
 			auto isErrorCode = e == errorToRemove ||

@@ -85,26 +85,11 @@ dynamic::dynamic() :
 	setCallbackHandler(&callbacks);
 }
 
+
+
 void dynamic::prepare(PrepareSpecs ps)
 {
-	if (getParentNode() != nullptr)
-	{
-		auto pp = getParentNode()->getParentNode();
-		auto isInMidiChain = getParentNode()->getRootNetwork()->isPolyphonic();
-
-		while (pp != nullptr && !isInMidiChain)
-		{
-			isInMidiChain |= pp->getValueTree()[PropertyIds::FactoryPath].toString().contains("midichain");
-			pp = pp->getParentNode();
-		}
-
-		if (!isInMidiChain)
-		{
-			Error e;
-			e.error = Error::NoMatchingParent;
-			throw e;
-		}
-	}
+	ScriptnodeExceptionHandler::validateMidiProcessingContext(getParentNode());
 
 	if (currentMode == Mode::Custom)
 		callbacks.prepare(ps);

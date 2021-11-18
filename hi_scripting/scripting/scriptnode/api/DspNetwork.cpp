@@ -1531,5 +1531,27 @@ void OpaqueNetworkHolder::setExternalData(const ExternalData& d, int index)
 		deferredData.add({ d, index });
 }
 
+void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
+{
+	if (b != nullptr)
+	{
+		auto pp = b->getParentNode();
+		auto isInMidiChain = b->getRootNetwork()->isPolyphonic();
+
+		while (pp != nullptr && !isInMidiChain)
+		{
+			isInMidiChain |= pp->getValueTree()[PropertyIds::FactoryPath].toString().contains("midichain");
+			pp = pp->getParentNode();
+		}
+
+		if (!isInMidiChain)
+		{
+			Error e;
+			e.error = Error::NoMatchingParent;
+			throw e;
+		}
+	}
+}
+
 }
 

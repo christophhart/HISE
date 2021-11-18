@@ -428,6 +428,178 @@ namespace control
 		JUCE_DECLARE_WEAK_REFERENCEABLE(resetter);
 	};
 
+	struct MidiCCHelpers
+	{
+		enum class SpecialControllers
+		{
+			ModWheel = 1 - 1,
+			BreathControl = 2 - 1,
+			Volume = 7 - 1,
+			Expression = 11 - 1,
+			Sustain = 64 - 1,
+			Aftertouch = 128 - 1,
+			Pitchbend = 129 - 1,
+			Stroke = 130 - 1,
+			Release = 131 - 1
+		};
+
+		static bool isMPEProperty(int zeroBasedNumber)
+		{
+			return zeroBasedNumber == (int)SpecialControllers::Aftertouch ||
+				   zeroBasedNumber == (int)SpecialControllers::Stroke ||
+				   zeroBasedNumber == (int)SpecialControllers::Pitchbend ||
+				   zeroBasedNumber == (int)SpecialControllers::Release;
+		}
+
+		static HiseEvent::Type getTypeForNumber(int midiNumber)
+		{
+			switch (midiNumber)
+			{
+			case (int)SpecialControllers::Pitchbend:
+				return HiseEvent::Type::PitchBend;
+			case (int)SpecialControllers::Aftertouch:
+				return HiseEvent::Type::Aftertouch;
+			case (int)SpecialControllers::Stroke:
+				return HiseEvent::Type::NoteOn;
+			case (int)SpecialControllers::Release:
+				return HiseEvent::Type::NoteOff;
+			default:
+				return HiseEvent::Type::Controller;
+			}
+		}
+
+		static StringArray createMidiCCNames()
+		{
+			StringArray sa;
+
+			for (int i = 0; i < 131; i++)
+				sa.add(String("CC " + String(i + 1)));
+
+			sa.set((int)SpecialControllers::ModWheel, "Modwheel");
+			sa.set((int)SpecialControllers::BreathControl, "Breath Control");
+			sa.set((int)SpecialControllers::Expression, "Expression");
+			sa.set((int)SpecialControllers::Sustain, "Sustain");
+			sa.set((int)SpecialControllers::Volume, "Volume");
+			sa.set((int)SpecialControllers::Aftertouch, "Aftertouch");
+			sa.set((int)SpecialControllers::Pitchbend, "Pitchbend");
+			sa.set((int)SpecialControllers::Stroke, "Stroke");
+			sa.set((int)SpecialControllers::Release, "Release");
+
+			return sa;
+		}
+	};
+
+	template <typename ParameterClass> struct midi_cc : 
+		public mothernode,
+		public pimpl::no_processing,
+		public pimpl::parameter_node_base<ParameterClass>
+	{
+		enum Parameters
+		{
+			CCNumber,
+			EnableMPE,
+			DefaultValue,
+		};
+
+		DEFINE_PARAMETERS
+		{
+			DEF_PARAMETER(CCNumber, midi_cc);
+			DEF_PARAMETER(EnableMPE, midi_cc);
+			DEF_PARAMETER(DefaultValue, midi_cc);
+		}
+		PARAMETER_MEMBER_FUNCTION;
+
+		SET_HISE_NODE_ID("midi_cc");
+		SN_GET_SELF_AS_OBJECT(midi_cc);
+		SN_PARAMETER_NODE_CONSTRUCTOR(midi_cc, ParameterClass);
+		SN_DESCRIPTION("sends a MIDI cc value");
+
+		void createParameters(ParameterDataList& data)
+		{
+			{
+				DEFINE_PARAMETERDATA(midi_cc, CCNumber);
+				auto sa = MidiCCHelpers::createMidiCCNames();
+				p.setParameterValueNames(sa);
+				data.add(std::move(p));
+			}
+
+			{
+				DEFINE_PARAMETERDATA(midi_cc, EnableMPE);
+				p.setParameterValueNames({ "On", "Off" });
+				data.add(std::move(p));
+			}
+
+			{
+				DEFINE_PARAMETERDATA(midi_cc, DefaultValue);
+				data.add(std::move(p));
+			}
+		}
+
+		void prepare(PrepareSpecs ps)
+		{
+		}
+
+		void handleHiseEvent(HiseEvent& e)
+		{
+			auto thisType = e.getType();
+
+			if (thisType == expectedType)
+			{
+				double v = 0.0;
+
+				switch (thisType)
+				{
+				case HiseEvent::Type::PitchBend:
+					v = (double)e.getPitchWheelValue() / (8192.0 * 2.0);
+					break;
+				case HiseEvent::Type::Aftertouch:
+					v = (double)e.getNoteNumber() / 127.0;
+					break;
+				case HiseEvent::Type::Controller:
+					v = (double)e.getControllerValue() / 127.0;
+					break;
+				case HiseEvent::Type::NoteOn:
+					v = (double)e.getVelocity() / 127.0;
+					break;
+				case HiseEvent::Type::NoteOff:
+					v = (double)e.getVelocity() / 127.0;
+					break;
+				}
+
+				if (this->getParameter().isConnected())
+					this->getParameter().call(v);
+			}
+		}
+
+		void setCCNumber(double v)
+		{
+			midiNumber = roundToInt(v);
+			expectedType = MidiCCHelpers::getTypeForNumber(midiNumber);
+		}
+
+		void setEnableMPE(double shouldBeEnabled)
+		{
+			enableMpe = shouldBeEnabled;
+		}
+
+		void setDefaultValue(double newDefaultValue)
+		{
+			defaultValue = newDefaultValue;
+
+			if (this->getParameter().isConnected())
+				this->getParameter().call(defaultValue);
+		}
+
+		double defaultValue = 1.0;
+
+		bool isInPolyphonicContext = false;
+		bool enableMpe = false;
+		int midiNumber = 0;
+		HiseEvent::Type expectedType = HiseEvent::Type::Controller;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(midi_cc);
+	};
+
 	
 	template <typename ExpressionClass, typename ParameterClass> struct cable_expr : public mothernode,
 																					 public pimpl::parameter_node_base<ParameterClass>,

@@ -131,9 +131,7 @@ int ScriptingEditor::getBodyHeight() const
 	if (!showContent)
 		contentHeight = 0;
 
-	const int additionalOffset = (dynamic_cast<const JavascriptModulatorSynth*>(getProcessor()) != nullptr) ? 5 : 0;
-
-	return 28 + additionalOffset + contentHeight + (codeEditor != nullptr ? EditorHeight : 0);
+	return 28 + contentHeight + (codeEditor != nullptr ? EditorHeight : 0);
 }
 
 void ScriptingEditor::resized()

@@ -135,7 +135,9 @@ struct dynamic_base_holder: public dynamic_base
 
 	bool isConnected() const
 	{
-		return base != nullptr;
+		// this should always return true to allow setting the display value
+		// when there's no connection
+		return true;
 	}
 
 	dynamic_base::Ptr base;
