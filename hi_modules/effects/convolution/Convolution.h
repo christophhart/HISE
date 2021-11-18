@@ -520,7 +520,7 @@ struct convolution : public data::base,
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto& dynData = data.as<ProcessDataDyn>();
+		auto& dynData = data.template as<ProcessDataDyn>();
 		processBase(dynData);
 	}
 
