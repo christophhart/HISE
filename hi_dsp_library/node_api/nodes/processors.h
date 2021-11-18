@@ -532,7 +532,7 @@ struct oversample_base
 	{
 		ScopedPointer<Oversampler> newOverSampler;
 
-        if(ps.voiceIndex != nullptr)
+        if(ps.voiceIndex != nullptr && ps.voiceIndex->isEnabled())
         {
             scriptnode::Error e;
             e.error = Error::IllegalPolyphony;
