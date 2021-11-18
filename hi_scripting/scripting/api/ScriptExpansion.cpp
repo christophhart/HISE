@@ -265,6 +265,7 @@ struct ScriptExpansionHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setErrorFunction);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setErrorMessage);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setCredentials);
+	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setInstallFullDynamics);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setEncryptionKey);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, setCurrentExpansion);
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, getExpansionList);
@@ -297,6 +298,7 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ADD_API_METHOD_1(getExpansion);
 	ADD_API_METHOD_1(setExpansionCallback);
 	ADD_API_METHOD_1(setCurrentExpansion);
+	ADD_API_METHOD_1(setInstallFullDynamics);
 	ADD_API_METHOD_1(encodeWithCredentials);
 	ADD_API_METHOD_0(refreshExpansions);
 	ADD_API_METHOD_2(installExpansionFromPackage);
@@ -332,6 +334,11 @@ void ScriptExpansionHandler::setCredentials(var newCredentials)
 	}
 
 	getMainController()->getExpansionHandler().setCredentials(newCredentials);
+}
+
+void ScriptExpansionHandler::setInstallFullDynamics(bool shouldInstallFullDynamics)
+{
+	getMainController()->getExpansionHandler().setInstallFullDynamics(shouldInstallFullDynamics);
 }
 
 void ScriptExpansionHandler::setErrorFunction(var newErrorFunction)

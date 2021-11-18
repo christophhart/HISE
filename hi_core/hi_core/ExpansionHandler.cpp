@@ -422,6 +422,7 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 			double unused = 0.0;
 
 			data.option = hlac::HlacArchiver::OverwriteOption::ForceOverwrite;
+			data.supportFullDynamics = getInstallFullDynamics();
 			data.targetDirectory = samplesDir;
 			data.progress = &getMainController()->getSampleManager().getPreloadProgress();
 			data.totalProgress = &unused;

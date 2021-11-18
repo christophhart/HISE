@@ -528,7 +528,14 @@ public:
 		}
 	}
 
+	void setInstallFullDynamics(bool shouldInstallFullDynamics)
+	{
+		installFullDynamics = shouldInstallFullDynamics;
+	}
+
 	var getCredentials() const { return credentials; }
+	
+	bool getInstallFullDynamics() const { return installFullDynamics; }
 
 	String getEncryptionKey() const { return keyCode; }
 
@@ -594,6 +601,7 @@ private:
 
 	String keyCode;
 	var credentials;
+	bool installFullDynamics = false;
 
 	void checkAllowedExpansions(Result& r, Expansion* e);
 
