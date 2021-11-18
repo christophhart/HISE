@@ -4073,6 +4073,8 @@ colour(Colour(0xff777777))
 	setMethod("setToolbarProperties", Wrapper::setToolbarProperties);
 	setMethod("setHeight", Wrapper::setHeight);
 	setMethod("setWidth", Wrapper::setWidth);
+	setMethod("getHeight", Wrapper::getHeight);
+	setMethod("getWidth", Wrapper::getWidth);
 	setMethod("createScreenshot", Wrapper::createScreenshot);
 	setMethod("addVisualGuide", Wrapper::addVisualGuide);
     setMethod("makeFrontInterface", Wrapper::makeFrontInterface);
@@ -4315,6 +4317,16 @@ void ScriptingApi::Content::setWidth(int newWidth) noexcept
 	width = newWidth;
 	
 };
+
+int ScriptingApi::Content::getHeight() const
+{
+	return (int)height;
+}
+
+int ScriptingApi::Content::getWidth() const
+{
+	return (int)width;
+}
 
 void ScriptingApi::Content::makeFrontInterface(int newWidth, int newHeight)
 {

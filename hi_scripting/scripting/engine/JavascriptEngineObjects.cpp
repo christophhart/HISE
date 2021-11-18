@@ -24,6 +24,9 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 	{
 		setMethod("contains", contains);
 		setMethod("remove", remove);
+		setMethod("removeIndex", remove);
+		setMethod("removeLast", remove);
+		setMethod("resize", remove);
 		setMethod("join", join);
 		setMethod("push", push);
         setMethod("sort", sort);
@@ -50,6 +53,30 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 	{
 		if (Array<var>* array = a.thisObject.getArray())
 			array->removeAllInstancesOf(get(a, 0));
+
+		return var();
+	}
+
+	static var removeIndex(Args a)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+			array->remove(get(a, 0));
+
+		return var();
+	}
+
+	static var removeLast(Args a)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+			array->removeLast(get(a, 0));
+
+		return var();
+	}
+
+	static var resize(Args a)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+			array->resize(get(a, 0));
 
 		return var();
 	}
@@ -211,6 +238,15 @@ public:
 
 	/** Removes all instances of the given element. */
 	var remove(var elementToRemove) { return var(); }
+
+	/** Removes the element at the given index. */
+	var removeIndex(var elementToRemove) { return var(); }
+
+	/** Removes n elements from the end. */
+	var removeLast(var elementToRemove) { return var(); }
+
+	/** Removes or adds empty elements to match the target size. */
+	var resize(var elementToRemove) { return var(); }
 
 	/** Reverses the order of the elements in the array. */
 	void reverse() {}

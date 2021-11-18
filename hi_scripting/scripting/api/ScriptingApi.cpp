@@ -917,6 +917,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 	API_METHOD_WRAPPER_1(Engine, getSystemTime);
 	API_METHOD_WRAPPER_1(Engine, loadAudioFileIntoBufferArray);
+	API_VOID_METHOD_WRAPPER_1(Engine, copyTextToClipboard);
 };
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
@@ -1031,6 +1032,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_3(showYesNoWindow);
 	ADD_API_METHOD_3(showMessageBox);
 	ADD_API_METHOD_1(getSystemTime);
+	ADD_API_METHOD_1(copyTextToClipboard);
 }
 
 
@@ -1043,6 +1045,11 @@ void ScriptingApi::Engine::allNotesOff()
 {
 	getProcessor()->getMainController()->allNotesOff();
 };
+
+void ScriptingApi::Engine::copyTextToClipboard(String text)
+{
+	SystemClipboard::copyTextToClipboard(text);
+}
 
 void ScriptingApi::Engine::addModuleStateToUserPreset(var moduleId)
 {
