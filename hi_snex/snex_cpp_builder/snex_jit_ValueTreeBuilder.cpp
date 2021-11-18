@@ -56,6 +56,11 @@ namespace FactoryIds
 		return id.toString() == "container::clone";
 	}
 
+	static bool isMulti(const NamespacedIdentifier& id)
+	{
+		return id.toString() == "container::multi";
+	}
+
 	static bool isParameter(const NamespacedIdentifier& id)
 	{
 		return id.getParent().getIdentifier() == parameter;
@@ -538,12 +543,17 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 
         int numToUse = numChannelsToCompile;
         
-        if(u->nodeTree[PropertyIds::FactoryPath] == "container.multi")
+		auto realPath = u->nodeTree[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf("container.", false, false);
+
+        if(realPath.startsWith("multi"))
         {
             int numChildren = u->nodeTree.getChildWithName(PropertyIds::Nodes).getNumChildren();
             numToUse /= jmax(1, numChildren);
         }
-        
+
+		if (realPath.startsWith("modchain"))
+			numToUse = 1;
+		
         ScopedChannelSetter sns(*this, numToUse);
         
 		for (auto c : u->nodeTree.getChildWithName(PropertyIds::Nodes))
@@ -556,8 +566,6 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		
 		if (needsInitialisation)
 			return parseRootContainer(u);
-
-		auto realPath = u->nodeTree[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf("container.", false, false);
 
 		if (realPath.startsWith("modchain"))
 		{
@@ -700,13 +708,15 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
 
     auto nodeTree = container->nodeTree.getChildWithName(PropertyIds::Nodes);
     
+	bool isMulti = FactoryIds::isMulti(getNodePath(container->nodeTree));
+
 	ValueTreeIterator::forEach(nodeTree, ValueTreeIterator::OnlyChildren, [&](ValueTree& c)
 	{
 		auto parentPath = getNodePath(ValueTreeIterator::findParentWithType(c, PropertyIds::Node));
 
 		auto numToUse = -1;
 
-		if (c.getParent().indexOf(c) == 0)
+		if (c.getParent().indexOf(c) == 0 || isMulti)
             numToUse = numChannelsToCompile;
 		
 		if (numToUse != -1)
