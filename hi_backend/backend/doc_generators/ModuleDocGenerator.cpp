@@ -514,12 +514,24 @@ hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& par
 	root.tocString = "ScriptNode";
 	root.c = Colour(CommonData::colour);
 
-	MarkdownDataBase::DirectoryItemGenerator mgen(rootDirectory.getChildFile("scriptnode/manual"), root.c);
+	{
+		MarkdownDataBase::DirectoryItemGenerator mgen(rootDirectory.getChildFile("scriptnode/manual"), root.c);
 
-	auto manual = mgen.createRootItem(parent);
-	manual.fillMetadataFromURL();
+		auto manual = mgen.createRootItem(parent);
+		manual.fillMetadataFromURL();
 
-	root.addChild(std::move(manual));
+		root.addChild(std::move(manual));
+	}
+
+	{
+		MarkdownDataBase::DirectoryItemGenerator mgen(rootDirectory.getChildFile("scriptnode/101"), root.c);
+
+		auto manual = mgen.createRootItem(parent);
+		manual.fillMetadataFromURL();
+
+		root.addChild(std::move(manual));
+	}
+	
 
     data->network->getScriptProcessor()->getMainController_()->setAllowFlakyThreading(true);
     
