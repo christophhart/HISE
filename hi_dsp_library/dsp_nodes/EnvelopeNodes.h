@@ -351,8 +351,13 @@ protected:
 
 		void setGate(bool on)
 		{
-			targetValue = on ? 1.0f : 0.0f;
-			smoothing = true;
+			auto isOn = targetValue == 1.0;
+
+			if (isOn != on)
+			{
+				targetValue = on ? 1.0f : 0.0f;
+				smoothing = true;
+			}
 		}
 
 		void reset()
