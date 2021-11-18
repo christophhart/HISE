@@ -1509,7 +1509,7 @@ Factory::Factory(DspNetwork* network) :
 
 	registerPolyNode<gain, gain_poly>();
 
-	
+	registerPolyNode<smoother<1>, smoother<NUM_POLYPHONIC_VOICES>>();
 
 	
 

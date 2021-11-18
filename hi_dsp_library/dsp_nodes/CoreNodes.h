@@ -1148,7 +1148,7 @@ DEFINE_EXTERN_NODE_TEMPLATE(gain, gain_poly, gain_impl);
 
 
 
-template <int NV> class smoother_impl : public HiseDspBase
+template <int NV> class smoother: public mothernode
 {
 public:
 
@@ -1160,29 +1160,31 @@ public:
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(SmoothingTime, smoother_impl);
-		DEF_PARAMETER(DefaultValue, smoother_impl);
+		DEF_PARAMETER(SmoothingTime, smoother);
+		DEF_PARAMETER(DefaultValue, smoother);
 	}
+	PARAMETER_MEMBER_FUNCTION;
 
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("smoother");
-	SN_GET_SELF_AS_OBJECT(smoother_impl);
+	SN_GET_SELF_AS_OBJECT(smoother);
 	SN_DESCRIPTION("Smoothes the input signal using a low pass filter");
 
-	smoother_impl();
+	smoother() {};
 
 	HISE_EMPTY_INITIALISE;
+	HISE_EMPTY_MOD;
     
-	void createParameters(ParameterDataList& data) override
+	void createParameters(ParameterDataList& data)
 	{
 		{
-			DEFINE_PARAMETERDATA(smoother_impl, DefaultValue);
+			DEFINE_PARAMETERDATA(smoother, DefaultValue);
 			p.setDefaultValue(0.0);
 			data.add(std::move(p));
 		}
 		{
-			DEFINE_PARAMETERDATA(smoother_impl, SmoothingTime);
+			DEFINE_PARAMETERDATA(smoother, SmoothingTime);
 			p.setRange({ 0.0, 2000.0, 0.1 });
 			p.setSkewForCentre(100.0);
 			p.setDefaultValue(100.0);
@@ -1192,12 +1194,11 @@ public:
 
 	void prepare(PrepareSpecs ps) 
 	{
-		modValue.prepare(ps);
-		smoother.prepare(ps);
+		smoothers.prepare(ps);
 		auto sr = ps.sampleRate;
 		auto sm = smoothingTimeMs;
 
-		for (auto& s : smoother)
+		for (auto& s : smoothers)
 		{
 			s.prepareToPlay(sr);
 			s.setSmoothingTime((float)sm);
@@ -1208,25 +1209,18 @@ public:
 	{
 		auto d = defaultValue;
 
-		for (auto& s : smoother)
+		for (auto& s : smoothers)
 			s.resetToValue(d, 0.0);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		data[0] = smoother.get().smooth(data[0]);
-		modValue.get().setModValue(smoother.get().getDefaultValue());
+		data[0] = smoothers.get().smooth(data[0]);
 	}
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		smoother.get().smoothBuffer(data[0].data, data.getNumSamples());
-		modValue.get().setModValue(smoother.get().getDefaultValue());
-	}
-
-	bool handleModulation(double& value)
-	{
-		return modValue.get().getChangedValue(value);
+		smoothers.get().smoothBuffer(data[0].data, data.getNumSamples());
 	}
 
 	void handleHiseEvent(HiseEvent& e)
@@ -1239,7 +1233,7 @@ public:
 	{
 		smoothingTimeMs = newSmoothingTime;
 
-		for (auto& s : smoother)
+		for (auto& s : smoothers)
 			s.setSmoothingTime((float)newSmoothingTime);
 	}
 
@@ -1249,17 +1243,14 @@ public:
 
 		auto d = defaultValue; auto sm = smoothingTimeMs;
 
-		for (auto& s : smoother)
+		for (auto& s : smoothers)
 			s.resetToValue((float)d, (float)sm);
 	}
 
 	double smoothingTimeMs = 100.0;
 	float defaultValue = 0.0f;
-	PolyData<hise::Smoother, NumVoices> smoother;
-	PolyData<ModValue, NumVoices> modValue;
+	PolyData<hise::Smoother, NumVoices> smoothers;
 };
-
-DEFINE_EXTERN_NODE_TEMPLATE(smoother, smoother_poly, smoother_impl);
 
 
 template <typename T> struct snex_osc_base: public mothernode

@@ -469,12 +469,11 @@ public:
 
 		jassert(sampleRate > 0.0);
 
-		
-
 		for (int i = 0; i < numSamples; i++)
 		{
 			currentValue = a0 * data[i] - b0 * prevValue;
 			prevValue = currentValue;
+			data[i] = currentValue;
 		}
 	}
 
