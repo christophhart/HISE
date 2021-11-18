@@ -328,8 +328,8 @@ public:
 
 	void timerCallback() override
 	{
-		if(pCounter++ % 10 == 0)
-			repaint();
+		if (pCounter++ % 10 == 0)
+			repaintIfIdle();
 	}
 	
 	static void keyChanged(SamplerSoundMap& map, int noteNumber, int velocity);
@@ -370,13 +370,7 @@ public:
         map.repaint();
     }
     
-	void sampleAmountChanged() override
-	{
-		auto old = currentSoloGroup;
-		currentSoloGroup.clear();
-		soloGroup(old);
-		updateSampleComponents();
-	}
+	void sampleAmountChanged() override;
 
 	static void selectionChanged(SamplerSoundMap& map, int numSelected);
 
@@ -436,19 +430,46 @@ public:
 	void clearDragPosition()
 	{
 		draggedFileRootNotes.clear();
-		repaint();
+		repaintIfIdle();
 	};
 
     void refreshGraphics()
     {
-		repaint();
+		repaintIfIdle();
     }
     
     void drawSoundMap(Graphics &g);
     
 	const ModulatorSampler* getSampler() const { return ownerSampler; }
 
+	void repaintIfIdle()
+	{
+		if (!skipRepaint)
+			repaint();
+	}
+
 private:
+
+	struct RepaintSkipper
+	{
+		RepaintSkipper(SamplerSoundMap& parent_):
+			parent(parent_),
+			prevValue(parent_.skipRepaint)
+		{
+			parent.skipRepaint = true;
+		}
+
+		~RepaintSkipper()
+		{
+			parent.skipRepaint = prevValue;
+			parent.repaintIfIdle();
+		}
+
+		SamplerSoundMap& parent;
+		const bool prevValue;
+	};
+
+	bool skipRepaint = false;
 
 	int pCounter = 0;
 
@@ -576,7 +597,7 @@ public:
 
 private:
 
-	
+	bool isDefaultOrder = false;
 
 	friend class SamplerTable;
 
@@ -623,7 +644,7 @@ private:
 			else
 			{
 				auto v1 = (int)first->getSampleProperty(propertyToSort);
-				auto v2 = (int)first->getSampleProperty(propertyToSort);
+				auto v2 = (int)second->getSampleProperty(propertyToSort);
 
 				int result = 0;
 

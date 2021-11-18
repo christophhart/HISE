@@ -448,6 +448,17 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 		ownerSampler->killAllVoicesAndCall(f);
 }
 
+void SamplerSoundMap::sampleAmountChanged()
+{
+	auto old = currentSoloGroup;
+	currentSoloGroup.clear();
+
+	RepaintSkipper skipper(*this);
+
+	soloGroup(old);
+	updateSampleComponents();
+}
+
 void SamplerSoundMap::selectionChanged(SamplerSoundMap& map, int numSelected)
 {
 	BigInteger bi;
@@ -495,7 +506,7 @@ void SamplerSoundMap::preloadStateChanged(bool isPreloading_)
 	else
 		stop();
 
-	repaint();
+	repaintIfIdle();
 }
 
 void SamplerSoundMap::modifierKeysChanged(const ModifierKeys &modifiers)
@@ -532,10 +543,6 @@ void SamplerSoundMap::findLassoItemsInArea(Array<ModulatorSamplerSound::Ptr> &it
 
 		auto sb = s->getBoundsInParent();
 		
-		
-
-		
-
 		if (area.expanded(1).intersects(sb))
 		{
 			itemsFound.add(s->getSound());
@@ -543,7 +550,7 @@ void SamplerSoundMap::findLassoItemsInArea(Array<ModulatorSamplerSound::Ptr> &it
 		}
 	}
 
-	repaint();
+	repaintIfIdle();
 }
 
 juce::SelectedItemSet<hise::ModulatorSamplerSound::Ptr> & SamplerSoundMap::getLassoSelection()
@@ -790,7 +797,7 @@ void SamplerSoundMap::updateSampleComponent(int index, NotificationType )
 
 		sampleComponents[index]->setSampleBounds((int)x, (int)y, (int)(x_max - x), (int)(y_max-y));
 		
-		repaint();
+		repaintIfIdle();
 	}
 
 }
@@ -798,6 +805,8 @@ void SamplerSoundMap::updateSampleComponent(int index, NotificationType )
 
 void SamplerSoundMap::updateSampleComponents()
 {
+	RepaintSkipper skipper(*this);
+
 	for(int i = 0; i < sampleComponents.size(); i++)
 	{
 		updateSampleComponent(i, dontSendNotification);
@@ -867,6 +876,9 @@ void SamplerSoundMap::mouseDown(const MouseEvent &e)
 
 void SamplerSoundMap::mouseUp(const MouseEvent &e)
 {
+	if (e.mods.isRightButtonDown())
+		return;
+
 	refreshGraphics();
 
 	if(hasDraggedSamples)
@@ -1278,15 +1290,13 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 			i3 = 80;
 		}
 
-		table.getHeader().addColumn(c.toString(), columnIds.indexOf(c)+1, i1, i2, i3, TableHeaderComponent::ColumnPropertyFlags::sortable | TableHeaderComponent::resizable | TableHeaderComponent::visible);
+		table.getHeader().addColumn(c.toString(), columnIds.indexOf(c)+1, i1, i2, i3, TableHeaderComponent::ColumnPropertyFlags::defaultFlags);
 	}
 
 	table.getHeader().setLookAndFeel(&laf);
 
 	table.setHeaderHeight(18);
-
 	table.setMultipleSelectionEnabled (true);
-
 	table.getHeader().setStretchToFitActive(true);
 	
 	refreshList();
@@ -1314,6 +1324,8 @@ void SamplerSoundTable::refreshList()
 		sortId = 1;
 		forward = true;
 	}
+
+	isDefaultOrder = sortId == 1 && forward == true;
 
 	ModulatorSampler::SoundIterator sIter(ownerSampler, false);
 
@@ -1399,7 +1411,13 @@ void SamplerSoundTable::paintCell (Graphics& g, int rowNumber, int columnId,
 
 void SamplerSoundTable::sortOrderChanged (int newSortColumnId, bool isForwards) 
 {
-    if (newSortColumnId != 0)
+	auto newDefaultOrder = newSortColumnId == 1 && isForwards;
+
+	bool needsSorting = !newDefaultOrder || (newDefaultOrder != isDefaultOrder);
+
+	isDefaultOrder = newDefaultOrder;
+
+    if (newSortColumnId != 0 && needsSorting)
     {
 		DemoDataSorter sorter (columnIds[newSortColumnId-1], isForwards);
 
@@ -1453,6 +1471,8 @@ void SamplerSoundTable::selectedRowsChanged(int /*lastRowSelected*/)
 	{
 		handler->getSelectionReference().addToSelection(sortedSoundList[selection[i]]);
 	}
+
+	handler->setMainSelectionToLast();
 };
 
 } // namespace hise

@@ -666,6 +666,10 @@ void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard
 			debugError(sampler, e.what());
 		}
 	}
+
+#if USE_BACKEND
+	sampler->getSampleEditHandler()->setMainSelectionToLast();
+#endif
 }
 
 void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& newValueVar)

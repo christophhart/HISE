@@ -268,6 +268,11 @@ bool SampleEditHandler::keyPressed(const KeyPress& k, Component* originatingComp
 			SampleEditingActions::selectNeighbourSample(this, SamplerSoundMap::Down, k.getModifiers());
 		return true;
 	}
+	if (k == KeyPress::deleteKey)
+	{
+		SampleEditingActions::deleteSelectedSounds(this);
+		return true;
+	}
 	if (k == KeyPress::tabKey)
 	{
 		if (!applyToMainSelection)

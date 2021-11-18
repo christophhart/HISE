@@ -103,6 +103,8 @@ SamplerTable::SamplerTable (ModulatorSampler *s, SamplerBody *b):
 
 	s->getSampleMap()->addListener(this);
 
+	addKeyListener(s->getSampleEditHandler());
+
 	
 	addAndMakeVisible(helpButton = new MarkdownHelpButton());
 
@@ -124,6 +126,9 @@ SamplerTable::~SamplerTable()
 
 	if(sampler != nullptr)
 		sampler->getSampleMap()->removeListener(this);
+
+	if (sampler != nullptr)
+		removeKeyListener(sampler->getSampleEditHandler());
 
     //[/Destructor_pre]
 
@@ -171,7 +176,7 @@ void SamplerTable::paint (Graphics& g)
 	{
 		g.setColour(Colours::white);
 		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText(String(numSelected) + " selected samples", searchLabel->getRight() + 20, searchLabel->getY(), 150, searchLabel->getHeight(), Justification::centredLeft);
+		g.drawText(String(numSelected) + " selected samples", helpButton->getRight() + 20, searchLabel->getY(), 150, searchLabel->getHeight(), Justification::centredLeft);
 	}
 	
 
