@@ -54,7 +54,7 @@ struct freq2ms
         if(input == 0.0)
             return 0.0;
         
-        return 1.0 / (input * 1000.0);
+        return (1.0 / input) * 1000.0;
     }
 };
 
