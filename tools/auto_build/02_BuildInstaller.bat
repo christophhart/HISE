@@ -1,7 +1,5 @@
 @echo off 
 
-cd /D "%~dp0"
-
 call ConfigWindows.bat
 
 del install_script.iss
