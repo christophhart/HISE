@@ -43,37 +43,34 @@
   </MAINGROUP>
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" vstFolder="/Volumes/Shared/Development/SDKs/vstsdk2.4"
-               postbuildCommand="" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
-               customPList="" extraLinkerFlags="/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a&#10;"
-               aaxFolder="/Volumes/Shared/Development/HISE modules/tools/SDK/AAX"
-               smallIcon="" bigIcon="">
+               postbuildCommand="" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation"
+               customPList="" aaxFolder="/Volumes/Shared/Development/HISE modules/tools/SDK/AAX"
+               smallIcon="" bigIcon="" xcodeValidArchs="x86_64" extraDefs="USE_IPP=0">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
+        <CONFIGURATION name="Debug" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
                        isDebug="1" optimisation="1" targetName="HISE Debug" cppLanguageStandard="c++11"
-                       cppLibType="libc++" headerPath="/opt/intel/ipp/include&#10;../../../../tools/SDK/VST3 SDK"
-                       libraryPath="/opt/intel/ipp/lib" xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
-                       xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
+                       cppLibType="libc++" headerPath="../../../../tools/SDK/VST3 SDK"
+                       xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/" xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
                        auBinaryLocation="/Library/Audio/Plug-Ins/Components/"/>
-        <CONFIGURATION name="Release" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
+        <CONFIGURATION name="Release" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
                        isDebug="0" optimisation="3" targetName="HISE" linkTimeOptimisation="1"
-                       cppLanguageStandard="c++11" cppLibType="libc++" headerPath="/opt/intel/ipp/include&#10;../../../../tools/SDK/VST3 SDK"
-                       libraryPath="/opt/intel/ipp/lib&#10;" xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
+                       cppLanguageStandard="c++11" cppLibType="libc++" headerPath="../../../../tools/SDK/VST3 SDK"
+                       xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/" xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
+                       enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
+                       auBinaryLocation="/Library/Audio/Plug-Ins/Components/"/>
+        <CONFIGURATION name="Debug MultiChannel" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
+                       isDebug="1" optimisation="1" targetName="HISE Debug 16 Out" cppLanguageStandard="c++11"
+                       cppLibType="libc++" headerPath="../../../../tools/SDK/VST3 SDK"
+                       defines="HISE_NUM_PLUGIN_CHANNELS=8" xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
                        xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
                        auBinaryLocation="/Library/Audio/Plug-Ins/Components/"/>
-        <CONFIGURATION name="Debug MultiChannel" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
-                       isDebug="1" optimisation="1" targetName="HISE Debug 16 Out" cppLanguageStandard="c++11"
-                       cppLibType="libc++" headerPath="/opt/intel/ipp/include&#10;../../../../tools/SDK/VST3 SDK"
-                       libraryPath="/opt/intel/ipp/lib" defines="HISE_NUM_PLUGIN_CHANNELS=8"
-                       xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/" xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
-                       enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
-                       auBinaryLocation="/Library/Audio/Plug-Ins/Components/"/>
-        <CONFIGURATION name="Release MultiChannel" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
+        <CONFIGURATION name="Release MultiChannel" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
                        isDebug="0" optimisation="3" targetName="HISE 16 Out" linkTimeOptimisation="1"
-                       cppLanguageStandard="c++11" cppLibType="libc++" headerPath="/opt/intel/ipp/include&#10;../../../../tools/SDK/VST3 SDK"
-                       libraryPath="/opt/intel/ipp/lib&#10;" defines="HISE_NUM_PLUGIN_CHANNELS=8"
-                       xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/" xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
+                       cppLanguageStandard="c++11" cppLibType="libc++" headerPath="../../../../tools/SDK/VST3 SDK"
+                       defines="HISE_NUM_PLUGIN_CHANNELS=8" xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
+                       xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
                        auBinaryLocation="/Library/Audio/Plug-Ins/Components/"/>
       </CONFIGURATIONS>
@@ -249,7 +246,7 @@
                USE_CUSTOM_FRONTEND_TOOLBAR="0" IS_STANDALONE_FRONTEND="0" USE_GLITCH_DETECTION="1"
                ENABLE_PLOTTER="1" ENABLE_SCRIPTING_SAFE_CHECKS="1" ENABLE_ALL_PEAK_METERS="1"
                ENABLE_HOST_INFO="1" ENABLE_CPU_MEASUREMENT="1" USE_HARD_CLIPPER="1"
-               USE_IPP="1" USE_VDSP_FFT="0" ENABLE_SCRIPTING_BREAKPOINTS="1"
+               USE_IPP="0" USE_VDSP_FFT="0" ENABLE_SCRIPTING_BREAKPOINTS="1"
                HLAC_MEASURE_DECODING_PERFORMANCE="0" HLAC_DEBUG_LOG="0" HLAC_INCLUDE_TEST_SUITE="0"
                STANDALONE_STREAMING="0" JUCE_ASSERTION_FIRFILTER="0" JUCE_DSP_USE_INTEL_MKL="0"
                JUCE_DSP_USE_SHARED_FFTW="0" JUCE_DSP_USE_STATIC_FFTW="0"/>
