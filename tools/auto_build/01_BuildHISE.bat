@@ -29,6 +29,13 @@ echo Resaving projects...
 cd..
 cd..
 
+cd tools/SDK
+
+tar -xf sdk.zip
+
+cd ..
+cd ..
+
 echo Setting version number %versionPoint%
 
 %projucerPath% --set-version %versionPoint% %standalone_projucer_project%
