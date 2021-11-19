@@ -23,7 +23,8 @@ echo "Compiling VST / AU Plugins..."
 
 echo "Compiling stereo version..."
 
-xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release" | xcpretty
+# Skip this for now
+# xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release" | xcpretty
 
 if [ $? != "0" ];
 then
@@ -44,7 +45,7 @@ echo "OK"
 
 echo "Compiling Standalone App..."
 
-xcodebuild -project "$standalone_folder/Builds/MacOSX/HISE Standalone.xcodeproj" -configuration "Release" | xcpretty
+xcodebuild -project "$standalone_folder/Builds/MacOSX/HISE Standalone.xcodeproj" -configuration "Debug" | xcpretty
 
 if [ $? != "0" ];
 then

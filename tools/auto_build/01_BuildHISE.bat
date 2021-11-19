@@ -53,7 +53,8 @@ set Platform=X64
 
 echo Compiling Stereo Version...
 
-"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
+REM Skip this for now...
+REM "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
@@ -66,7 +67,7 @@ echo OK
 
 echo Compiling 64bit Standalone App...
 
-"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe"  %standalone_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
+"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe"  %standalone_project% /t:Build /p:Configuration="Debug";Platform=x64 /v:m
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
