@@ -17,8 +17,6 @@ chmod +x "tools/Projucer/Projucer.app/Contents/MacOS/Projucer"
 "tools/Projucer/Projucer.app/Contents/MacOS/Projucer" --resave "projects/plugin/HISE.jucer"
 "tools/Projucer/Projucer.app/Contents/MacOS/Projucer" --resave "projects/standalone/HISE Standalone.jucer"
 
-
-
 echo "Compiling VST / AU Plugins..."
 
 echo "Compiling stereo version..."
