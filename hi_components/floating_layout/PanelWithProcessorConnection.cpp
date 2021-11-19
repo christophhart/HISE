@@ -67,6 +67,9 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
     if(parent->isOnInterface())
         return;
     
+    if (CompileExporter::isExportingFromCommandLine())
+        return;
+    
 	getMainController()->getProcessorChangeHandler().addProcessorChangeListener(this);
 
 	dynamic_cast<BackendProcessor*>(getMainController())->workspaceBroadcaster.addListener(*this, [](PanelWithProcessorConnection& pc, const Identifier& id, Processor* p)
