@@ -56,6 +56,7 @@
 #define JUCE_MODULE_AVAILABLE_hi_dsp_library              1
 #define JUCE_MODULE_AVAILABLE_hi_lac                      1
 #define JUCE_MODULE_AVAILABLE_hi_modules                  1
+#define JUCE_MODULE_AVAILABLE_hi_rlottie                  1
 #define JUCE_MODULE_AVAILABLE_hi_sampler                  1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                1
 #define JUCE_MODULE_AVAILABLE_hi_snex                     1
@@ -77,7 +78,6 @@
 #define JUCE_MODULE_AVAILABLE_juce_gui_extra              1
 #define JUCE_MODULE_AVAILABLE_juce_opengl                 1
 #define JUCE_MODULE_AVAILABLE_juce_product_unlocking      1
-#define JUCE_MODULE_AVAILABLE_stk_wrapper                 1
 
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
 
@@ -269,10 +269,14 @@
 #endif
 
 //==============================================================================
-// hi_modules flags:
+// hi_rlottie flags:
 
-#ifndef    HI_ENABLE_CUSTOM_NODE_LOCATION
- //#define HI_ENABLE_CUSTOM_NODE_LOCATION 0
+#ifndef    HISE_INCLUDE_RLOTTIE
+ //#define HISE_INCLUDE_RLOTTIE 1
+#endif
+
+#ifndef    HISE_RLOTTIE_DYNAMIC_LIBRARY
+ //#define HISE_RLOTTIE_DYNAMIC_LIBRARY 0
 #endif
 
 //==============================================================================
@@ -317,6 +321,10 @@
 
 #ifndef    IS_MARKDOWN_EDITOR
  //#define IS_MARKDOWN_EDITOR 0
+#endif
+
+#ifndef    HISE_INCLUDE_PITCH_DETECTION
+ //#define HISE_INCLUDE_PITCH_DETECTION 1
 #endif
 
 //==============================================================================
@@ -463,7 +471,7 @@
 #endif
 
 #ifndef    JUCE_STRICT_REFCOUNTEDPOINTER
- //#define JUCE_STRICT_REFCOUNTEDPOINTER 0
+ #define   JUCE_STRICT_REFCOUNTEDPOINTER 1
 #endif
 
 #ifndef    JUCE_ENABLE_ALLOCATION_HOOKS

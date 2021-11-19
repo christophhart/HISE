@@ -22,15 +22,17 @@
 
 // [END_USER_CODE_SECTION]
 
+#include "JucePluginDefines.h"
+
 /*
   ==============================================================================
 
-   In accordance with the terms of the JUCE 5 End-Use License Agreement, the
+   In accordance with the terms of the JUCE 6 End-Use License Agreement, the
    JUCE Code in SECTION A cannot be removed, changed or otherwise rendered
    ineffective unless you have a JUCE Indie or Pro license, or are using JUCE
    under the GPL v3 license.
 
-   End User License Agreement: www.juce.com/juce-5-licence
+   End User License Agreement: www.juce.com/juce-6-licence
 
   ==============================================================================
 */
@@ -41,13 +43,11 @@
  #define JUCE_DISPLAY_SPLASH_SCREEN 0
 #endif
 
-#ifndef JUCE_REPORT_APP_USAGE
- #define JUCE_REPORT_APP_USAGE 0
-#endif
-
 // END SECTION A
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
+
+#define JUCE_PROJUCER_VERSION 0x60008
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                    1
@@ -57,6 +57,7 @@
 #define JUCE_MODULE_AVAILABLE_hi_dsp_library                1
 #define JUCE_MODULE_AVAILABLE_hi_lac                        1
 #define JUCE_MODULE_AVAILABLE_hi_modules                    1
+#define JUCE_MODULE_AVAILABLE_hi_rlottie                    1
 #define JUCE_MODULE_AVAILABLE_hi_sampler                    1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                  1
 #define JUCE_MODULE_AVAILABLE_hi_snex                       1
@@ -79,9 +80,22 @@
 #define JUCE_MODULE_AVAILABLE_juce_gui_extra                1
 #define JUCE_MODULE_AVAILABLE_juce_opengl                   1
 #define JUCE_MODULE_AVAILABLE_juce_product_unlocking        1
-#define JUCE_MODULE_AVAILABLE_stk_wrapper                   1
 
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
+
+//==============================================================================
+// hi_backend flags:
+
+#ifndef    USE_WORKBENCH_EDITOR
+ //#define USE_WORKBENCH_EDITOR 0
+#endif
+
+//==============================================================================
+// hi_components flags:
+
+#ifndef    HISE_INCLUDE_SNEX_FLOATING_TILES
+ //#define HISE_INCLUDE_SNEX_FLOATING_TILES 0
+#endif
 
 //==============================================================================
 // hi_core flags:
@@ -116,6 +130,18 @@
 
 #ifndef    FRONTEND_IS_PLUGIN
  //#define FRONTEND_IS_PLUGIN 0
+#endif
+
+#ifndef    PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN
+ //#define PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN 1
+#endif
+
+#ifndef    FORCE_INPUT_CHANNELS
+ //#define FORCE_INPUT_CHANNELS 0
+#endif
+
+#ifndef    HISE_MIDIFX_PLUGIN
+ //#define HISE_MIDIFX_PLUGIN 0
 #endif
 
 #ifndef    USE_CUSTOM_FRONTEND_TOOLBAR
@@ -154,16 +180,20 @@
  //#define CRASH_ON_GLITCH 0
 #endif
 
-#ifndef    HISE_ENABLE_EXPANSIONS
- //#define HISE_ENABLE_EXPANSIONS 0
-#endif
-
 #ifndef    ENABLE_SCRIPTING_BREAKPOINTS
  #define   ENABLE_SCRIPTING_BREAKPOINTS 1
 #endif
 
+#ifndef    HISE_ENABLE_MIDI_INPUT_FOR_FX
+ //#define HISE_ENABLE_MIDI_INPUT_FOR_FX 0
+#endif
+
 #ifndef    ENABLE_ALL_PEAK_METERS
  #define   ENABLE_ALL_PEAK_METERS 1
+#endif
+
+#ifndef    READ_ONLY_FACTORY_PRESETS
+ //#define READ_ONLY_FACTORY_PRESETS 0
 #endif
 
 #ifndef    ENABLE_CONSOLE_OUTPUT
@@ -178,6 +208,10 @@
  //#define ENABLE_STARTUP_LOGGER 0
 #endif
 
+#ifndef    HISE_MAX_PROCESSING_BLOCKSIZE
+ //#define HISE_MAX_PROCESSING_BLOCKSIZE 1
+#endif
+
 #ifndef    ENABLE_CPU_MEASUREMENT
  #define   ENABLE_CPU_MEASUREMENT 1
 #endif
@@ -190,8 +224,24 @@
  //#define USE_SPLASH_SCREEN 0
 #endif
 
+#ifndef    HISE_USE_CUSTOM_EXPANSION_TYPE
+ //#define HISE_USE_CUSTOM_EXPANSION_TYPE 0
+#endif
+
+#ifndef    HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
+ //#define HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON 1
+#endif
+
+#ifndef    HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
+ //#define HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON 1
+#endif
+
 //==============================================================================
 // hi_dsp_library flags:
+
+#ifndef    HI_EXPORT_AS_PROJECT_DLL
+ //#define HI_EXPORT_AS_PROJECT_DLL 0
+#endif
 
 #ifndef    HI_EXPORT_DSP_LIBRARY
  #define   HI_EXPORT_DSP_LIBRARY 0
@@ -221,10 +271,36 @@
 #endif
 
 //==============================================================================
-// hi_modules flags:
+// hi_rlottie flags:
 
-#ifndef    HI_ENABLE_CUSTOM_NODE_LOCATION
- //#define HI_ENABLE_CUSTOM_NODE_LOCATION 0
+#ifndef    HISE_INCLUDE_RLOTTIE
+ //#define HISE_INCLUDE_RLOTTIE 1
+#endif
+
+#ifndef    HISE_RLOTTIE_DYNAMIC_LIBRARY
+ //#define HISE_RLOTTIE_DYNAMIC_LIBRARY 0
+#endif
+
+//==============================================================================
+// hi_scripting flags:
+
+#ifndef    INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
+ //#define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 1
+#endif
+
+//==============================================================================
+// hi_snex flags:
+
+#ifndef    SNEX_ENABLE_SIMD
+ //#define SNEX_ENABLE_SIMD 0
+#endif
+
+#ifndef    HISE_INCLUDE_SNEX
+ //#define HISE_INCLUDE_SNEX 0
+#endif
+
+#ifndef    SNEX_INCLUDE_MEMORY_ADDRESS_IN_DUMP
+ //#define SNEX_INCLUDE_MEMORY_ADDRESS_IN_DUMP 0
 #endif
 
 //==============================================================================
@@ -232,6 +308,25 @@
 
 #ifndef    STANDALONE_STREAMING
  #define   STANDALONE_STREAMING 0
+#endif
+
+//==============================================================================
+// hi_tools flags:
+
+#ifndef    HISE_NO_GUI_TOOLS
+ //#define HISE_NO_GUI_TOOLS 0
+#endif
+
+#ifndef    HISE_USE_NEW_CODE_EDITOR
+ //#define HISE_USE_NEW_CODE_EDITOR 1
+#endif
+
+#ifndef    IS_MARKDOWN_EDITOR
+ //#define IS_MARKDOWN_EDITOR 0
+#endif
+
+#ifndef    HISE_INCLUDE_PITCH_DETECTION
+ //#define HISE_INCLUDE_PITCH_DETECTION 1
 #endif
 
 //==============================================================================
@@ -249,10 +344,6 @@
  //#define JUCE_WASAPI 1
 #endif
 
-#ifndef    JUCE_WASAPI_EXCLUSIVE
- //#define JUCE_WASAPI_EXCLUSIVE 0
-#endif
-
 #ifndef    JUCE_DIRECTSOUND
  //#define JUCE_DIRECTSOUND 1
 #endif
@@ -262,7 +353,7 @@
 #endif
 
 #ifndef    JUCE_JACK
- //#define JUCE_JACK 0
+ //#define JUCE_JACK 1
 #endif
 
 #ifndef    JUCE_BELA
@@ -270,7 +361,11 @@
 #endif
 
 #ifndef    JUCE_USE_ANDROID_OBOE
- //#define JUCE_USE_ANDROID_OBOE 0
+ //#define JUCE_USE_ANDROID_OBOE 1
+#endif
+
+#ifndef    JUCE_USE_OBOE_STABILIZED_CALLBACK
+ //#define JUCE_USE_OBOE_STABILIZED_CALLBACK 0
 #endif
 
 #ifndef    JUCE_USE_ANDROID_OPENSLES
@@ -323,6 +418,10 @@
  //#define JUCE_USE_STUDIO_ONE_COMPATIBLE_PARAMETERS 1
 #endif
 
+#ifndef    JUCE_AU_WRAPPERS_SAVE_PROGRAM_STATES
+ //#define JUCE_AU_WRAPPERS_SAVE_PROGRAM_STATES 0
+#endif
+
 #ifndef    JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE
  //#define JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE 0
 #endif
@@ -344,6 +443,10 @@
 
 #ifndef    JUCE_PLUGINHOST_LADSPA
  //#define JUCE_PLUGINHOST_LADSPA 0
+#endif
+
+#ifndef    JUCE_CUSTOM_VST3_SDK
+ //#define JUCE_CUSTOM_VST3_SDK 0
 #endif
 
 //==============================================================================
@@ -381,7 +484,7 @@
 #endif
 
 #ifndef    JUCE_USE_CURL
- //#define JUCE_USE_CURL 0
+ //#define JUCE_USE_CURL 1
 #endif
 
 #ifndef    JUCE_LOAD_CURL_SYMBOLS_LAZILY
@@ -389,15 +492,19 @@
 #endif
 
 #ifndef    JUCE_CATCH_UNHANDLED_EXCEPTIONS
- //#define JUCE_CATCH_UNHANDLED_EXCEPTIONS 1
+ //#define JUCE_CATCH_UNHANDLED_EXCEPTIONS 0
 #endif
 
 #ifndef    JUCE_ALLOW_STATIC_NULL_VARIABLES
- //#define JUCE_ALLOW_STATIC_NULL_VARIABLES 1
+ //#define JUCE_ALLOW_STATIC_NULL_VARIABLES 0
 #endif
 
 #ifndef    JUCE_STRICT_REFCOUNTEDPOINTER
  //#define JUCE_STRICT_REFCOUNTEDPOINTER 0
+#endif
+
+#ifndef    JUCE_ENABLE_ALLOCATION_HOOKS
+ //#define JUCE_ENABLE_ALLOCATION_HOOKS 0
 #endif
 
 #ifndef    JUCE_ENABLE_AUDIO_GUARD
@@ -430,8 +537,8 @@
 //==============================================================================
 // juce_events flags:
 
-#ifndef    JUCE_EXECUTE_APP_SUSPEND_ON_IOS_BACKGROUND_TASK
- //#define JUCE_EXECUTE_APP_SUSPEND_ON_IOS_BACKGROUND_TASK 0
+#ifndef    JUCE_EXECUTE_APP_SUSPEND_ON_BACKGROUND_TASK
+ //#define JUCE_EXECUTE_APP_SUSPEND_ON_BACKGROUND_TASK 0
 #endif
 
 //==============================================================================
@@ -476,10 +583,6 @@
  //#define JUCE_USE_XCURSOR 1
 #endif
 
-#ifndef    JUCE_HEADLESS_PLUGIN_CLIENT
- //#define JUCE_HEADLESS_PLUGIN_CLIENT 0
-#endif
-
 #ifndef    JUCE_WIN_PER_MONITOR_DPI_AWARE
  //#define JUCE_WIN_PER_MONITOR_DPI_AWARE 1
 #endif
@@ -491,159 +594,12 @@
  //#define JUCE_WEB_BROWSER 1
 #endif
 
+#ifndef    JUCE_USE_WIN_WEBVIEW2
+ //#define JUCE_USE_WIN_WEBVIEW2 0
+#endif
+
 #ifndef    JUCE_ENABLE_LIVE_CONSTANT_EDITOR
  //#define JUCE_ENABLE_LIVE_CONSTANT_EDITOR 0
-#endif
-
-//==============================================================================
-// Audio plugin settings..
-
-#ifndef  JucePlugin_Build_VST
- #define JucePlugin_Build_VST              1
-#endif
-#ifndef  JucePlugin_Build_VST3
- #define JucePlugin_Build_VST3             0
-#endif
-#ifndef  JucePlugin_Build_AU
- #define JucePlugin_Build_AU               1
-#endif
-#ifndef  JucePlugin_Build_AUv3
- #define JucePlugin_Build_AUv3             0
-#endif
-#ifndef  JucePlugin_Build_RTAS
- #define JucePlugin_Build_RTAS             0
-#endif
-#ifndef  JucePlugin_Build_AAX
- #define JucePlugin_Build_AAX              0
-#endif
-#ifndef  JucePlugin_Build_Standalone
- #define JucePlugin_Build_Standalone       0
-#endif
-#ifndef  JucePlugin_Build_Unity
- #define JucePlugin_Build_Unity            0
-#endif
-#ifndef  JucePlugin_Enable_IAA
- #define JucePlugin_Enable_IAA             0
-#endif
-#ifndef  JucePlugin_Name
- #define JucePlugin_Name                   "HISE"
-#endif
-#ifndef  JucePlugin_Desc
- #define JucePlugin_Desc                   "HISE"
-#endif
-#ifndef  JucePlugin_Manufacturer
- #define JucePlugin_Manufacturer           "Hart Instruments"
-#endif
-#ifndef  JucePlugin_ManufacturerWebsite
- #define JucePlugin_ManufacturerWebsite    "http://hise.audio"
-#endif
-#ifndef  JucePlugin_ManufacturerEmail
- #define JucePlugin_ManufacturerEmail      ""
-#endif
-#ifndef  JucePlugin_ManufacturerCode
- #define JucePlugin_ManufacturerCode       0x4861696e // 'Hain'
-#endif
-#ifndef  JucePlugin_PluginCode
- #define JucePlugin_PluginCode             0x48697365 // 'Hise'
-#endif
-#ifndef  JucePlugin_IsSynth
- #define JucePlugin_IsSynth                1
-#endif
-#ifndef  JucePlugin_WantsMidiInput
- #define JucePlugin_WantsMidiInput         1
-#endif
-#ifndef  JucePlugin_ProducesMidiOutput
- #define JucePlugin_ProducesMidiOutput     0
-#endif
-#ifndef  JucePlugin_IsMidiEffect
- #define JucePlugin_IsMidiEffect           0
-#endif
-#ifndef  JucePlugin_EditorRequiresKeyboardFocus
- #define JucePlugin_EditorRequiresKeyboardFocus  1
-#endif
-#ifndef  JucePlugin_Version
- #define JucePlugin_Version                2.1.0
-#endif
-#ifndef  JucePlugin_VersionCode
- #define JucePlugin_VersionCode            0x20100
-#endif
-#ifndef  JucePlugin_VersionString
- #define JucePlugin_VersionString          "2.1.0"
-#endif
-#ifndef  JucePlugin_VSTUniqueID
- #define JucePlugin_VSTUniqueID            JucePlugin_PluginCode
-#endif
-#ifndef  JucePlugin_VSTCategory
- #define JucePlugin_VSTCategory            kPlugCategSynth
-#endif
-#ifndef  JucePlugin_Vst3Category
- #define JucePlugin_Vst3Category           "Instrument|Synth"
-#endif
-#ifndef  JucePlugin_AUMainType
- #define JucePlugin_AUMainType             'aumu'
-#endif
-#ifndef  JucePlugin_AUSubType
- #define JucePlugin_AUSubType              JucePlugin_PluginCode
-#endif
-#ifndef  JucePlugin_AUExportPrefix
- #define JucePlugin_AUExportPrefix         TestPluginAU
-#endif
-#ifndef  JucePlugin_AUExportPrefixQuoted
- #define JucePlugin_AUExportPrefixQuoted   "TestPluginAU"
-#endif
-#ifndef  JucePlugin_AUManufacturerCode
- #define JucePlugin_AUManufacturerCode     JucePlugin_ManufacturerCode
-#endif
-#ifndef  JucePlugin_CFBundleIdentifier
- #define JucePlugin_CFBundleIdentifier     com.hartinstruments.HISE
-#endif
-#ifndef  JucePlugin_RTASCategory
- #define JucePlugin_RTASCategory           0
-#endif
-#ifndef  JucePlugin_RTASManufacturerCode
- #define JucePlugin_RTASManufacturerCode   JucePlugin_ManufacturerCode
-#endif
-#ifndef  JucePlugin_RTASProductId
- #define JucePlugin_RTASProductId          JucePlugin_PluginCode
-#endif
-#ifndef  JucePlugin_RTASDisableBypass
- #define JucePlugin_RTASDisableBypass      0
-#endif
-#ifndef  JucePlugin_RTASDisableMultiMono
- #define JucePlugin_RTASDisableMultiMono   0
-#endif
-#ifndef  JucePlugin_AAXIdentifier
- #define JucePlugin_AAXIdentifier          com.hartinstruments.HISE
-#endif
-#ifndef  JucePlugin_AAXManufacturerCode
- #define JucePlugin_AAXManufacturerCode    JucePlugin_ManufacturerCode
-#endif
-#ifndef  JucePlugin_AAXProductId
- #define JucePlugin_AAXProductId           JucePlugin_PluginCode
-#endif
-#ifndef  JucePlugin_AAXCategory
- #define JucePlugin_AAXCategory            2048
-#endif
-#ifndef  JucePlugin_AAXDisableBypass
- #define JucePlugin_AAXDisableBypass       0
-#endif
-#ifndef  JucePlugin_AAXDisableMultiMono
- #define JucePlugin_AAXDisableMultiMono    0
-#endif
-#ifndef  JucePlugin_IAAType
- #define JucePlugin_IAAType                0x61757269 // 'auri'
-#endif
-#ifndef  JucePlugin_IAASubType
- #define JucePlugin_IAASubType             JucePlugin_PluginCode
-#endif
-#ifndef  JucePlugin_IAAName
- #define JucePlugin_IAAName                "Hart Instruments: HISE"
-#endif
-#ifndef  JucePlugin_VSTNumMidiInputs
- #define JucePlugin_VSTNumMidiInputs       16
-#endif
-#ifndef  JucePlugin_VSTNumMidiOutputs
- #define JucePlugin_VSTNumMidiOutputs      16
 #endif
 
 //==============================================================================

@@ -40,22 +40,6 @@ echo Setting version number %versionPoint%
 REM ===========================================================
 REM Compiling
 
-echo Compiling 32bit VST Plugins
-
-set VisualStudioVersion=15.0
-set Platform=X86 
-
-"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe" %plugin_project% /t:Build /p:Configuration=Release;Platform=Win32 /verbosity:minimal
-
-if %errorlevel% NEQ 0 (
-	echo ========================================================================
-	echo Error at compiling. Aborting...
-	cd tools\auto_build
-	pause
-	exit 1
-)
-
-echo OK
 
 echo Compiling 64bit VST Plugins
 

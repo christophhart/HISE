@@ -8,12 +8,12 @@
               pluginIsSynth="1" pluginWantsMidiIn="1" pluginProducesMidiOut="0"
               pluginSilenceInIsSilenceOut="0" pluginEditorRequiresKeys="1"
               pluginAUExportPrefix="TestPluginAU" pluginRTASCategory="" aaxIdentifier="com.hartinstruments.HISE"
-              pluginAAXCategory="2048" jucerVersion="5.4.3" companyName="Hart Instruments"
-              companyWebsite="http://hise.audio" pluginIsMidiEffectPlugin="0"
-              buildAUv3="0" companyCopyright="Hart Instruments" displaySplashScreen="0"
-              reportAppUsage="0" splashScreenColour="Dark" buildStandalone="0"
-              enableIAA="0" cppLanguageStandard="17" pluginFormats="buildVST,buildAU"
-              pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn,pluginEditorRequiresKeys">
+              pluginAAXCategory="2048" companyName="Hart Instruments" companyWebsite="http://hise.audio"
+              pluginIsMidiEffectPlugin="0" buildAUv3="0" companyCopyright="Hart Instruments"
+              displaySplashScreen="0" reportAppUsage="0" splashScreenColour="Dark"
+              buildStandalone="0" enableIAA="0" cppLanguageStandard="17" pluginFormats="buildVST,buildAU"
+              pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn,pluginEditorRequiresKeys"
+              jucerFormatVersion="1">
   <MAINGROUP id="VUOG93" name="HISE">
     <GROUP id="{665762C7-5461-7343-9D6B-1FFA3A6308C3}" name="Source">
       <FILE id="PpFbAI" name="balanceKnob_200.png" compile="0" resource="1"
@@ -105,25 +105,16 @@
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
         <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
-        <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
             smallIcon="" useIPP="Sequential" aaxFolder="D:\Development\SDKs\AAX"
-            IPPLibrary="Sequential" windowsTargetPlatformVersion="10.0.16299.0">
+            IPPLibrary="Sequential" windowsTargetPlatformVersion="10.0.16299.0"
+            extraCompilerFlags="/bigobj" extraDefs="USE_IPP=1">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="1" optimisation="1" targetName="HISE x86 Debug" binaryPath=""
-                       libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       headerPath="../../../../tools/SDK/VST3 SDK"/>
-        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="0" optimisation="3" targetName="HISE x86" binaryPath=""
-                       libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1" headerPath="../../../../tools/SDK/VST3 SDK"/>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="1" optimisation="1" targetName="HISE x64 Debug" binaryPath=""
                        libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"
@@ -144,16 +135,6 @@
                        winArchitecture="x64" isDebug="0" optimisation="3" targetName="HISE x64 16 Out"
                        binaryPath="C:\Program Files\VST Plugins" alwaysGenerateDebugSymbols="0"
                        useRuntimeLibDLL="0" libraryPath="" defines="HISE_NUM_PLUGIN_CHANNELS=8"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1" headerPath="../../../../tools/SDK/VST3 SDK"/>
-        <CONFIGURATION name="Debug MultiChannel" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="32-bit" isDebug="1" optimisation="1" targetName="HISE x86 Debug 16 Out"
-                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=8"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       headerPath="../../../../tools/SDK/VST3 SDK"/>
-        <CONFIGURATION name="Release MultiChannel" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="32-bit" isDebug="0" optimisation="3" targetName="HISE x86 16 Out"
-                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=8&#10;"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
                        linkTimeOptimisation="1" headerPath="../../../../tools/SDK/VST3 SDK"/>
       </CONFIGURATIONS>
@@ -185,9 +166,9 @@
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
         <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
-        <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="" linuxExtraPkgConfig="x11 xinerama xext">
@@ -224,9 +205,9 @@
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
         <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
-        <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -238,6 +219,7 @@
     <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -261,7 +243,6 @@
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
             useGlobalPath="0"/>
-    <MODULE id="stk_wrapper" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <JUCEOPTIONS JUCE_QUICKTIME="disabled" HI_EXPORT_DSP_LIBRARY="0" ENABLE_CONSOLE_OUTPUT="1"
                USE_BACKEND="1" USE_FRONTEND="0" IS_STANDALONE_APP="0" USE_COPY_PROTECTION="0"
