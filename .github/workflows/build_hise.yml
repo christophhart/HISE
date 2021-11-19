@@ -6,6 +6,6 @@ jobs:
     steps:
       - name: Checkout HISE repository
         uses: actions/checkout@v1
-      - name: Build HISE binaries
+      - name: Build HISE
         run: /tools/auto_build/01_BuildHISE.bat
         shell: cmd
