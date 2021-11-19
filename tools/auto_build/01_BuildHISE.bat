@@ -39,7 +39,7 @@ echo Setting version number %versionPoint%
 
 REM ===========================================================
 REM Compiling
-
+cd /D "%~dp0"
 
 echo Compiling 64bit VST Plugins
 

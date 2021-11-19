@@ -1,5 +1,7 @@
 echo off
 
+cd /D "%~dp0"
+
 call ConfigWindows.bat
 
 echo "Uploading to FTP..."
