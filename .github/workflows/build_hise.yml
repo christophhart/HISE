@@ -6,6 +6,9 @@ jobs:
     steps:
       - name: Checkout HISE repository
         uses: actions/checkout@v1
+      - name: Extract SDK
+        working-directory: ${{ github.workspace }}/tools/SDK/
+        run: tar -xf sdk.zip
       - name: Build HISE
         working-directory: ${{ github.workspace }}/tools/auto_build/
         run: 01_BuildHISE.bat
