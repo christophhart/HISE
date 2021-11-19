@@ -5,5 +5,6 @@ jobs:
     runs-on: [self-hosted, windows]
     steps:
       - name: Run build script
+        uses: actions/checkout@v1
         run: /tools/auto_build/01_BuildHISE.bat
         shell: cmd
