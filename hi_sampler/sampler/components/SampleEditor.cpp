@@ -108,6 +108,8 @@ struct EnvelopePopup : public Component
 					s.setTooltip("The frequency decay end point");
 					break;
 				}
+            default:
+                break;
 			}
 		}
 
@@ -144,6 +146,8 @@ struct EnvelopePopup : public Component
 			case EnvelopeType::PitchMode: return getLeft ? "Resolution" : "Intensity";
 			case EnvelopeType::PanMode: return getLeft ? "Hold" : "Target Frequency";
 			}
+            
+            return {};
 		}
 
 		Path createPath(const String& url) const override
@@ -221,8 +225,6 @@ struct EnvelopePopup : public Component
 	{
 		for(auto s: *sampler->getSampleEditHandler())
 		{
-			bool hasTable = s->getEnvelope(m) == nullptr;
-
 			String v;
 
 			if (shouldBeActive)
@@ -1238,9 +1240,9 @@ struct LoopImproveWindow: public Component,
 			auto p1re = getSample(true, true, DisplaySize / 2 - 1);
 
             auto p2ls = getSample(false, false, DisplaySize / 2 - 2);
-            auto p1ls = getSample(false, false, DisplaySize / 2 - 1);
+            //auto p1ls = getSample(false, false, DisplaySize / 2 - 1);
             auto p2rs = getSample(false, true, DisplaySize / 2 - 2);
-            auto p1rs = getSample(false, true, DisplaySize / 2 - 1);
+            //auto p1rs = getSample(false, true, DisplaySize / 2 - 1);
             
             auto n2le = getSample(true, false, DisplaySize / 2 + 2);
             auto n1le = getSample(true, false, DisplaySize / 2 + 1);
@@ -1361,8 +1363,8 @@ struct LoopImproveWindow: public Component,
         if (afr != nullptr)
         {
 			ScopedLock sl(w.fullBufferLock);
-            w.fullBuffer.setSize(2, afr->lengthInSamples);
-            afr->read(&w.fullBuffer, 0, afr->lengthInSamples, 0, true, true);
+            w.fullBuffer.setSize(2, (int)afr->lengthInSamples);
+            afr->read(&w.fullBuffer, 0, (int)afr->lengthInSamples, 0, true, true);
         }
         
         w.refreshThumbnailAndRanges();
@@ -1401,9 +1403,6 @@ struct LoopImproveWindow: public Component,
 
 			if (useMultipleLoops)
 			{
-				auto l = fullBuffer.getReadPointer(0, currentLoop.getStart());
-				auto r = fullBuffer.getReadPointer(0, currentLoop.getStart());
-
 				for (int i = 0; i < PreviewLength; i += currentLoop.getLength())
 				{
 					auto numToCopy = jmin(currentLoop.getLength(), PreviewLength - i);
@@ -2180,7 +2179,6 @@ void SampleEditor::setZoomFactor(float factor, int mousePos /*= 0*/)
 {
 	zoomFactor = jlimit(1.0f, 128.0f, factor);
 	auto oldPos = (double)(viewport->getViewPositionX());
-	auto oldMousePos = oldPos + mousePos;
 	auto oldWidth = (double)currentWaveForm->getWidth();
 	auto normDelta = mousePos / oldWidth;
 	auto normPos = (double)oldPos / (double)currentWaveForm->getWidth();
@@ -2399,8 +2397,6 @@ void DraggableThumbnail::paint(Graphics& g)
 		auto lc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::LoopArea);
 
 		auto sc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::SampleStartArea);
-
-		auto xc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::LoopCrossfadeArea);
 
 		auto getRange = [&](const Identifier& startId, const Identifier& endId)
 		{

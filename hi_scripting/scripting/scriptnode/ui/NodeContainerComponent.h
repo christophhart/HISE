@@ -445,6 +445,14 @@ class ContainerComponent :  public NodeComponent,
 {
 public:
 
+    enum class CableLocation
+    {
+        Input,
+        BetweenNodes,
+        Output,
+        numCableLocations
+    };
+    
 	struct MacroToolbar : public Component,
 						  public ButtonListener
 	{
@@ -659,6 +667,8 @@ public:
 		}
 	}
 
+    bool shouldPaintCable(CableLocation l) const;
+    
 	void setDropTarget(Point<int> position) override;
 	void clearDropTarget();
 

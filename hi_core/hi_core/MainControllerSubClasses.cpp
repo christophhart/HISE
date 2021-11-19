@@ -257,9 +257,6 @@ void MainController::CodeHandler::printPendingMessagesFromQueue()
 	overflowProtection = false;
 
 	WeakReference<Processor> p = mc->getMainSynthChain();
-
-	auto c = mainConsole.getComponent();
-
 	
 #endif
 }

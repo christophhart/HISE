@@ -488,6 +488,7 @@ struct dynamic
                 case Mode::Midi2Freq:  inputDomain = ""; outputDomain = "Hz"; break;
                 case Mode::Gain2dB: inputDomain = ""; outputDomain = "dB"; break;
                 case Mode::dB2Gain: inputDomain = "dB"; outputDomain = ""; break;
+                default: break;
             }
             
             String s;
@@ -512,6 +513,7 @@ struct dynamic
                 case Mode::Midi2Freq:  setRange({0, 127.0, 1.0}); break;
                 case Mode::Gain2dB: setRange({0.0, 1.0, 0.0}); break;
                 case Mode::dB2Gain: setRange({-100.0, 0.0, 0.1}, -12.0); break;
+                default: break;
             }
         }
 

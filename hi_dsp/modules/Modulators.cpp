@@ -211,6 +211,7 @@ void TimeModulation::applyTimeModulation(float* destinationBuffer, int startInde
 		case PitchMode: applyPitchModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
 		case PanMode:	applyPanModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
 		case GlobalMode: applyGlobalModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
+            default: break;
 		}
 	}
 	else
@@ -220,7 +221,9 @@ void TimeModulation::applyTimeModulation(float* destinationBuffer, int startInde
 		case GainMode:	applyGainModulation(mod, dest, getIntensity(), samplesToCopy); break;
 		case PitchMode: applyPitchModulation(mod, dest, getIntensity(), samplesToCopy); break;
 		case PanMode:	applyPanModulation(mod, dest, getIntensity(), samplesToCopy); break;
-		case GlobalMode:	applyGlobalModulation(mod, dest, getIntensity(), samplesToCopy); break;
+		case GlobalMode:	applyGlobalModulation(mod, dest, getIntensity(), samplesToCopy);
+            break;
+        default: break;
 		}
 	}
 

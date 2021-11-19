@@ -57,8 +57,6 @@ void AudioDisplayComponent::drawPlaybackBar(Graphics &g)
 
 void AudioDisplayComponent::refreshSampleAreaBounds(SampleArea* areaToSkip/*=nullptr*/)
 {
-	bool somethingVisible = getTotalSampleAmount() != 0;
-
 	for (int i = 0; i < areas.size(); i++)
 	{
 		if (areas[i] == areaToSkip) continue;
@@ -74,13 +72,9 @@ void AudioDisplayComponent::refreshSampleAreaBounds(SampleArea* areaToSkip/*=nul
 		areas[i]->rightEdge->setTooltip(String(sampleRange.getEnd()));
 
 		if (i == 0)
-		{
 			preview->setRange(x, right);
-		}
 
 		areas[i]->setBounds(x, 0, right - x, getHeight());
-
-		
 	}
 
 	repaint();
@@ -580,8 +574,6 @@ void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, RectangleLi
 	}
 	else
 	{
-		auto h = bounds.getHeight();
-
 		if(!std::isinf(bounds.getY()) && !std::isinf(bounds.getHeight()) &&
 		   !std::isnan(bounds.getY()) && !std::isnan(bounds.getHeight()))
 			p.scaleToFit(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), false);
@@ -609,7 +601,6 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
             stride /= 2;
         
 		auto numDownsampled = numSamples / stride;
-        bool forceMaxValue = false;
         
         if(isLeft)
             tempBuffer = AudioSampleBuffer(parent->rBuffer.isBuffer() ? 2 : 1, numDownsampled);
@@ -960,8 +951,8 @@ void HiseAudioThumbnail::fillAudioSampleBuffer(AudioSampleBuffer& b)
 	if (currentReader != nullptr)
 	{
 
-		b.setSize(currentReader->numChannels, currentReader->lengthInSamples);
-		currentReader->read(&b, 0, currentReader->lengthInSamples, 0, true, true);
+		b.setSize(currentReader->numChannels, (int)currentReader->lengthInSamples);
+		currentReader->read(&b, 0, (int)currentReader->lengthInSamples, 0, true, true);
 	}
 	else
 	{

@@ -983,8 +983,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 		if (numToPlay > 0)
 		{
-            int numChannels = previewBuffer.getNumChannels();
-            
             for(int i = 0; i < multiChannelBuffer.getNumChannels(); i++)
             {
                 if(isPositiveAndBelow(i, previewBuffer.getNumChannels()))

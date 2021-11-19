@@ -760,18 +760,12 @@ void SamplerSoundWaveform::mouseDown(const MouseEvent& e)
 #if USE_BACKEND
 	if (e.mods.isAnyModifierKeyDown())
 	{
-		auto mc = currentSound->getMainController();
-
 		auto numSamples = getTotalSampleAmount();
-
 		auto posNorm = (double)e.getPosition().getX() / (double)getWidth();
-
 		auto start = roundToInt((double)numSamples * posNorm);
 		start = getThumbnail()->getNextZero(start);
 
 		AudioSampleBuffer full = getThumbnail()->getBufferCopy({ 0, numSamples });
-
-		
 
 		auto s = const_cast<ModulatorSampler*>(sampler);
 
@@ -1057,8 +1051,6 @@ juce::Colour SamplerDisplayWithTimeline::getColourForEnvelope(Modulation::Mode m
 
 void SamplerDisplayWithTimeline::paint(Graphics& g)
 {
-	auto visibleArea = findParentComponentOfClass<Viewport>()->getViewArea();
-
 	auto b = getLocalBounds().removeFromTop(TimelineHeight);
 
 	g.setFont(GLOBAL_FONT());

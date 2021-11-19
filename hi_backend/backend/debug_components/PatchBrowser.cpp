@@ -626,8 +626,6 @@ isOver(false)
 
 		if(p != nullptr)
 			ProcessorEditor::deleteProcessorFromUI(c, p);
-
-		auto pb = c->findParentComponentOfClass<PatchBrowser>();
 	};
 
 	soloButton = new ShapeButton("Solo Processor", Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.5f), Colours::white);
@@ -1380,9 +1378,7 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 			b.removeFromRight(getHeight());
 		}
 
-		const bool isRoot = GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()->getRootProcessor() == p.get();
-
-        paintItemBackground(g, b);
+		paintItemBackground(g, b);
 
 		if (isMouseOver(false))
 		{

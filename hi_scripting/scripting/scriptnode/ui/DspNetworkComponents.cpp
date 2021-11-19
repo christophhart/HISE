@@ -1274,7 +1274,7 @@ struct ScriptnodeDebugPopup: public Component,
 
 		auto pl = builder.addChild<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(testTab);
 		auto uig = builder.addChild<SnexWorkbenchPanel<snex::ui::TestGraph>>(testTab);
-		auto tp = builder.addChild<WorkbenchTestPlayer>(testTab);
+		builder.addChild<WorkbenchTestPlayer>(testTab);
 
 		builder.setCustomName(pl, "Test Input");
 		builder.setCustomName(uig, "Test Signal Analyser");

@@ -139,7 +139,8 @@ void Types::Helpers::dumpNativeData(juce::String& s, int intendationLevel, const
 	auto intent = getIntendation(intendationLevel);
 
 	size_t byteOffset = (uint8*)dataPointer - (uint8*)dataStart;
-
+    ignoreUnused(byteOffset);
+    
 	s << intent << Types::Helpers::getCppTypeName((Types::ID)type) << " " << symbol;
 	s << "\t{ " << getStringFromDataPtr(type, dataPointer);
 

@@ -41,7 +41,10 @@ void LayoutBase::Helpers::writeElement(DataType type, uint8* dataWithOffset, con
 	{
 	case DataType::Integer: *reinterpret_cast<int*>(dataWithOffset) = (int)newValue; break;
 	case DataType::Float:    *reinterpret_cast<float*>(dataWithOffset) = (float)newValue; break;
-	case DataType::Boolean: *reinterpret_cast<int*>(dataWithOffset) = (int)(bool)newValue; break;
+	case DataType::Boolean: *reinterpret_cast<int*>(dataWithOffset) = (int)(bool)newValue;
+        break;
+    default:
+        break;
 	}
 }
 
@@ -97,6 +100,7 @@ juce::uint32 LayoutBase::Helpers::getTypeSize(DataType type)
 	case DataType::Integer: return sizeof(int);
 	case DataType::Boolean: return sizeof(int);
 	case DataType::Float:   return sizeof(float);
+    default:                return 0;
 	}
 }
 
@@ -252,7 +256,7 @@ var Factory::create()
 {
 	if (initResult.wasOk())
 	{
-		auto b = allocator->allocate(getElementSizeInBytes());
+		auto b = allocator->allocate((int)getElementSizeInBytes());
 
 		auto r = new ObjectReference();
 		r->init(this, b, true);
@@ -288,6 +292,8 @@ var Factory::createStack()
 		arrays.add(newElement);
 		return var(newElement);
 	}
+    
+    return var();
 }
 
 void Factory::setCompareFunction(var newCompareFunction)
@@ -619,7 +625,7 @@ void Array::init(LayoutBase* parent)
 
 	if (numAllocated > 0)
 	{
-		data = allocator->allocate(numAllocated);
+		data = allocator->allocate((int)numAllocated);
 		
 		for (int i = 0; i < numElements; i++)
 		{
@@ -713,7 +719,7 @@ bool Array::copy(String propertyName, var target)
 	}
 	else if (auto a = target.getArray())
 	{
-		a->ensureStorageAllocated(numElements);
+		a->ensureStorageAllocated((int)numElements);
 		
 		for (int i = 0; i < numElements; i++)
 		{
@@ -739,7 +745,7 @@ bool Stack::insert(var obj)
 	{
 		*items[position] = *ref;
 
-		position = jmin<int>(position + 1, numElements - 1);
+		position = jmin<int>(position + 1, (int)numElements - 1);
 		return true;
 	}
 

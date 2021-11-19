@@ -1969,8 +1969,6 @@ void ExpansionEncodingWindow::threadFinished()
 #if USE_BACKEND
 	if (projectExport)
 	{
-		auto& h = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain());
-		//Expansion::Helpers::getExpansionInfoFile(h.getWorkDirectory(), Expansion::Intermediate).revealToUser();
 		return;
 	}
 

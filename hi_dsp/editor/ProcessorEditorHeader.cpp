@@ -1067,8 +1067,6 @@ void ProcessorEditorHeader::setupButton(DrawableButton *b, ButtonShapes::Symbol 
 
 void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 {
-	bool off = !b->getToggleState();
-
 	Colour buttonColour = Colours::white;
 	
 	if(isHeaderOfChain() || isHeaderOfModulatorSynth())

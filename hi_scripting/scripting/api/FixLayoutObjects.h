@@ -224,8 +224,9 @@ struct ObjectReference : public LayoutBase,
 			switch (memberProperties->type)
 			{
 			case LayoutBase::DataType::Integer: s << "int"; break;
-			case LayoutBase::DataType::Float: s << "float"; break;
+			case LayoutBase::DataType::Float:   s << "float"; break;
 			case LayoutBase::DataType::Boolean: s << "bool"; break;
+            default:                            break;
 			}
 
 			if (!arrayMembers.isEmpty())

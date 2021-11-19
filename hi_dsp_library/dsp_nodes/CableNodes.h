@@ -564,6 +564,8 @@ namespace control
 				case HiseEvent::Type::NoteOff:
 					v = (double)e.getVelocity() / 127.0;
 					break;
+                default:
+                    break;
 				}
 
 				if (this->getParameter().isConnected())

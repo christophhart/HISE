@@ -342,7 +342,7 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
     const int fileBrowserTab = ib.addChild<HorizontalTile>(leftTab);
     
 	const int fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(fileBrowserTab);
-    const int expansionBar = ib.addChild<ExpansionEditBar>(fileBrowserTab);
+    ib.addChild<ExpansionEditBar>(fileBrowserTab);
     ib.setDynamic(fileBrowserTab, false);
     ib.getPanel(fileBrowser)->setForceShowTitle(false);
     ib.setFoldable(fileBrowserTab, false, {false, false});
@@ -359,7 +359,7 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 
 	ib.getContent<FloatingTabComponent>(leftTab)->setCurrentTabIndex(0);
 
-	auto ce = createCodeEditorPanel(ib.getPanel(swappableVertical));
+	createCodeEditorPanel(ib.getPanel(swappableVertical));
 
 	const int personaContainer = ib.addChild<VerticalTile>(swappableVertical);
 	ib.getContainer(personaContainer)->setIsDynamic(true);
@@ -379,7 +379,7 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 	var scriptData = JSON::parse(scriptJSON.loadFileAsString());
 	var sampleData = JSON::parse(sampleJSON.loadFileAsString());
 
-	auto c = createScriptingWorkspace(ib.getPanel(personaContainer));
+	createScriptingWorkspace(ib.getPanel(personaContainer));
 	createSamplerWorkspace(ib.getPanel(personaContainer));
 
 	
@@ -554,7 +554,7 @@ Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
     
 	const int variableWatch = ib.addChild<ScriptWatchTablePanel>(codeVertical);
 
-	auto mainConsole = ib.addChild<ConsolePanel>(codeEditor);
+	ib.addChild<ConsolePanel>(codeEditor);
 
 
 

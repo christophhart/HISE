@@ -494,7 +494,7 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 	
 
 	ScriptComponentSelection newSelection;
-	bool isTwo = itemsFound.size() == 2;
+	
 	for (int i = 0; i < itemsFound.size(); i++)
 	{
 		auto sc = itemsFound[i];

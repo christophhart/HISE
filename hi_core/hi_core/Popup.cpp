@@ -56,16 +56,10 @@ font(GLOBAL_BOLD_FONT())
 void TooltipBar::paint(Graphics &g)
 {
 	if (currentText.isEmpty())
-	{
 		return;
-	}
-		
-	const float thisAlpha = jmin<float>(alpha, 1.0f);
-
+	
     if(auto tlaf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-    {
         tlaf->drawTooltipBar(g, *this, alpha, currentText);
-    }
 }
 
 void TooltipBar::timerCallback()

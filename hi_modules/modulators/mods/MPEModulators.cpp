@@ -161,6 +161,7 @@ void MPEModulator::setInternalAttribute(int parameterIndex, float newValue)
 			case Modulation::GainMode:	smoothedIntensity = newValue; break;
 			case Modulation::PitchMode:	smoothedIntensity = newValue / 12.0f; break;
 			case Modulation::PanMode:	smoothedIntensity = newValue / 100.0f; break;
+            default:                    smoothedIntensity = newValue; break;
 		}
 
 		setIntensity(smoothedIntensity);
@@ -240,6 +241,7 @@ float MPEModulator::getAttribute(int parameterIndex) const
 		case Modulation::GainMode:	return defaultValue;
 		case Modulation::PitchMode:	return (defaultValue - 0.5f) * 24.0f;
 		case Modulation::PanMode:	return (defaultValue - 0.5f) * 200.0f;
+        default:                    return defaultValue;
 		}
 
 	}
@@ -250,6 +252,7 @@ float MPEModulator::getAttribute(int parameterIndex) const
 		case Modulation::GainMode:	return smoothedIntensity;
 		case Modulation::PitchMode:	return smoothedIntensity * 12.0f;
 		case Modulation::PanMode:	return smoothedIntensity * 100.0f;
+        default:                    return smoothedIntensity;
 		}
 	}
 

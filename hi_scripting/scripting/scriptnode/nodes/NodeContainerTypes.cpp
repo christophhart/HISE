@@ -797,6 +797,7 @@ CloneNode::CloneIterator::CloneIterator(CloneNode& n, const ValueTree& v, bool s
 	for (const auto& c : cloneSiblings)
 	{
 		jassert(c.getType() == original.getType());
+        ignoreUnused(c);
 	}
 }
 

@@ -309,12 +309,7 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 
 void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
 {
-    Processor *p = static_cast<Processor*>(owner->synthChain);
     
-
-	//rebuildContainer();
-    
-    //container->setRootProcessorEditor(p);
 }
 
 void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
@@ -794,15 +789,6 @@ void MainTopBar::buttonClicked(Button* b)
 void MainTopBar::resized()
 {
     hiseButton->setVisible(false);
-
-    
-    
-    
-    
-    
-    
-    
-	const int settingsWidth = 320;
 	
     layoutButton->setVisible(false);
     

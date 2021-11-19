@@ -124,12 +124,13 @@ namespace ScriptingObjects
 		float getMagnitude(int startSample, int numSamples)
 		{
 			jassertfalse;
+            return 1.0f;
 		}
 
 		/** Returns the RMS value in the given range. */
 		float getRMSLevel(int startSample, int numSamples)
 		{
-
+            return 1.0f;
 		}
 
 		/** Normalises the buffer to the given decibel value. */
@@ -147,7 +148,7 @@ namespace ScriptingObjects
 		/** Converts a buffer with up to 44100 samples to a Base64 string. */
 		String toBase64()
 		{
-
+            return {};
 		}
 
 		/** Loads the content from the Base64 string (and resizes the buffer if necessary). */
@@ -160,6 +161,7 @@ namespace ScriptingObjects
 		int indexOfPeak(int startSample, int numSamples)
 		{
 			jassertfalse;
+            return -1;
 		}
 
 		/** Returns an array with the min and max value in the given range. */

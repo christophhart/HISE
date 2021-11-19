@@ -125,7 +125,6 @@ int ScriptingEditor::getBodyHeight() const
 	if (isConnectedToExternalScript)
 		return contentHeight;
 	
-	int editorOffset = pwsc->getCallbackEditorStateOffset();
 	const bool showContent = scriptContent->isVisible();
 
 	if (!showContent)
@@ -174,8 +173,6 @@ void ScriptingEditor::resized()
 
 void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
 {
-	JavascriptProcessor *s = dynamic_cast<JavascriptProcessor*>(getProcessor());
-
 	int callbackIndex = callbackButtons.indexOf(dynamic_cast<TextButton*>(buttonThatWasClicked));
 
 	if (callbackIndex != -1)

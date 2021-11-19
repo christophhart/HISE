@@ -341,7 +341,6 @@ void ProcessorEditor::pasteAction()
 
 void ProcessorEditor::paint(Graphics &g)
 {
-	const float yOffset = (float)header->getBottom();
 	Colour c = getProcessor()->getColour();
     const float z = (float)getIndentationLevel() * 0.04f;
     c = c.withMultipliedBrightness(1.0f + z);

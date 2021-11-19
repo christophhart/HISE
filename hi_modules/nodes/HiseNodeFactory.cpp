@@ -1169,7 +1169,7 @@ Factory::Factory(DspNetwork* n) :
     REGISTER_MONO_MATH_NODE(pow);
     
 #undef REGISTER_POLY_MATH_NODE
-#undef REGISTER_MONO_MATH_NODE;
+#undef REGISTER_MONO_MATH_NODE
 
 #if HISE_INCLUDE_SNEX
 	registerPolyNode<OpNode<dynamic_expression, 1>, OpNode<dynamic_expression, NUM_POLYPHONIC_VOICES>, dynamic_expression::editor>();

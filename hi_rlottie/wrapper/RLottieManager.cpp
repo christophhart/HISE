@@ -143,7 +143,7 @@ int RLottieManager::getNumFrames(Lottie_Animation* animation)
 
 	return 0;
 #else
-    return lottie_animation_get_totalframe(animation);
+    return (int)lottie_animation_get_totalframe(animation);
 #endif
 }
 

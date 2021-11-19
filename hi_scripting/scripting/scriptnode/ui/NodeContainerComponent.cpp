@@ -174,6 +174,22 @@ void ContainerComponent::mouseDown(const MouseEvent& e)
 	}
 }
 
+bool ContainerComponent::shouldPaintCable(CableLocation location) const
+{
+    /* Implement the logic here:
+       - offline nodes have no cables
+       - clone nodes have a proper representation of their flow
+     */
+    
+    
+    switch(location)
+    {
+        case CableLocation::Input: return true;
+        case CableLocation::BetweenNodes: return true;
+        case CableLocation::Output: return dynamic_cast<ModulationChainNode*>(node.get()) == nullptr;
+        default: return false;
+    }
+}
 
 void ContainerComponent::mouseDrag(const MouseEvent& e)
 {
@@ -491,8 +507,6 @@ void ContainerComponent::rebuildNodes()
 	if (auto container = dynamic_cast<NodeContainer*>(node.get()))
 	{
 		int index = 0;
-
-		bool shouldAddCloneDisplay = false;
 		int numHidden = 0;
 
 		for (auto n : container->nodes)
@@ -653,39 +667,47 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 
 	g.setColour(Colour(0xFF888888));
 
-	PathFactory::scalePath(plug, pin1);
-	g.fillPath(plug);
-	PathFactory::scalePath(plug, pin2);
-	g.fillPath(plug);
-
-	//p.addPieSegment(pin1, 0.0, float_Pi*2.0f, 0.5f);
-	//p.addPieSegment(pin2, 0.0, float_Pi*2.0f, 0.5f);
-	p.startNewSubPath(start);
-	p.lineTo(start1);//  addLineSegment({ start, start1 }, 2.0f);
-	p.startNewSubPath(end);
-	p.lineTo(end1);
-					 //p.addLineSegment({ end, end1 }, 2.0f);
+	if(shouldPaintCable(CableLocation::Input))
+    {
+        PathFactory::scalePath(plug, pin1);
+        g.fillPath(plug);
+        
+        p.startNewSubPath(start);
+        p.lineTo(start1);//  addLineSegment({ start, start1 }, 2.0f);
+    }
+    
+    if(shouldPaintCable(CableLocation::Output))
+    {
+        PathFactory::scalePath(plug, pin2);
+        g.fillPath(plug);
+        
+        p.startNewSubPath(end);
+        p.lineTo(end1);
+    }
 
     DropShadow sh;
 	sh.colour = Colours::black.withAlpha(0.5f);
 	sh.offset = { 0, 2 };
 	sh.radius = 3;
 
-	for (int i = 0; i < childNodeComponents.size() - 1; i++)
-	{
-		auto tc = childNodeComponents[i];
-		auto nc = childNodeComponents[i + 1];
+    if(shouldPaintCable(CableLocation::BetweenNodes))
+    {
+        for (int i = 0; i < childNodeComponents.size() - 1; i++)
+        {
+            auto tc = childNodeComponents[i];
+            auto nc = childNodeComponents[i + 1];
 
-		Point<int> start_({ tc->getBounds().getCentreX(), tc->getBounds().getBottom() });
-		Point<int> end_({ nc->getBounds().getCentreX(), nc->getBounds().getY() });
+            Point<int> start_({ tc->getBounds().getCentreX(), tc->getBounds().getBottom() });
+            Point<int> end_({ nc->getBounds().getCentreX(), nc->getBounds().getY() });
 
-		Line<float> l(start_.toFloat().translated(xOffset, 0.0f), end_.toFloat().translated(xOffset, 0.0f));
+            Line<float> l(start_.toFloat().translated(xOffset, 0.0f), end_.toFloat().translated(xOffset, 0.0f));
 
-		p.startNewSubPath(l.getStart());
-		p.lineTo(l.getEnd());
+            p.startNewSubPath(l.getStart());
+            p.lineTo(l.getEnd());
 
-		//p.addLineSegment(l, 2.0f);
-	}
+            //p.addLineSegment(l, 2.0f);
+        }
+    }
 
 	g.setColour(Colour(0xFF262626));
 	g.strokePath(p, PathStrokeType(4.0f, PathStrokeType::curved, PathStrokeType::rounded));
@@ -850,7 +872,8 @@ void ParallelNodeComponent::resized()
 
 void ParallelNodeComponent::paint(Graphics& g)
 {
-	if (header.isDragging)
+
+    if (header.isDragging)
 		g.setOpacity(0.3f);
 
 	auto b = getLocalBounds().toFloat();
@@ -957,16 +980,19 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 	{
 		if (childNodeComponents.size() < 8)
 		{
-			for (auto n : childNodeComponents)
-			{
-				auto b = n->getBounds().toFloat();
+            for (auto n : childNodeComponents)
+            {
+                auto b = n->getBounds().toFloat();
 
-				Point<float> p1(b.getCentreX() + xOffset, b.getY());
-				Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
+                Point<float> p1(b.getCentreX() + xOffset, b.getY());
+                Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
 
-				p.addLineSegment({ start, p1 }, 2.0f);
-				p.addLineSegment({ p2, end }, 2.0f);
-			}
+                if(shouldPaintCable(CableLocation::Input))
+                    p.addLineSegment({ start, p1 }, 2.0f);
+                
+                if(shouldPaintCable(CableLocation::Output))
+                    p.addLineSegment({ p2, end }, 2.0f);
+            }
 		}
 		else
 		{
@@ -979,8 +1005,11 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 				Point<float> p1(b.getCentreX() + xOffset, b.getY());
 				Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
 
-				p.addLineSegment({ start, p1 }, 2.0f);
-				p.addLineSegment({ p2, end }, 2.0f);
+                if(shouldPaintCable(CableLocation::Input))
+                    p.addLineSegment({ start, p1 }, 2.0f);
+                
+                if(shouldPaintCable(CableLocation::Output))
+                    p.addLineSegment({ p2, end }, 2.0f);
 			}
 			{
 				auto b = ln->getBounds().toFloat();
@@ -988,8 +1017,11 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 				Point<float> p1(b.getCentreX() + xOffset, b.getY());
 				Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
 
-				p.addLineSegment({ start, p1 }, 2.0f);
-				p.addLineSegment({ p2, end }, 2.0f);
+                if(shouldPaintCable(CableLocation::Input))
+                    p.addLineSegment({ start, p1 }, 2.0f);
+                
+                if(shouldPaintCable(CableLocation::Output))
+                    p.addLineSegment({ p2, end }, 2.0f);
 			}
 
 			p.addLineSegment({ start, end }, 2.0f);

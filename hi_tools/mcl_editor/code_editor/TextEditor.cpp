@@ -810,11 +810,7 @@ void mcl::TextEditor::paint (Graphics& g)
 		return;
 	}
 
-	
-
-    auto start = Time::getMillisecondCounterHiRes();
     String renderSchemeString;
-
 	renderTextUsingGlyphArrangement(g);
 
 	g.setColour(Colours::blue.withAlpha(0.8f));
@@ -1605,26 +1601,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
         updateSelections();
         return true;
     };
-    auto addSelectionAtNextMatch = [this] ()
-    {
-        const auto& s = document.getSelections().getLast();
-
-        if (! s.isSingleLine())
-        {
-            return false;
-        }
-        auto t = document.search (s.tail, document.getSelectionContent (s));
-
-        if (t.isSingular())
-        {
-            return false;
-        }
-        document.addSelection (t);
-        translateToEnsureCaretIsVisible();
-        updateSelections();
-        return true;
-    };
-
+    
 	auto remove = [this](Target target, Direction direction)
 	{
 		const auto& s = document.getSelections().getLast();

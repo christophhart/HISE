@@ -641,8 +641,7 @@ bool FoldMap::keyPressed(const KeyPress& k)
 		{
 			auto thisItem = allItems[i];
 			auto nextItem = allItems[i + 1];
-			auto prevItem = allItems[i - 1];
-
+			
 			jassert(thisItem != nullptr);
 
 			if (up && nextItem != nullptr && nextItem->isBoldLine)

@@ -259,12 +259,12 @@ void VariantBuffer::addMethods()
 			if (newSize > 44100)
 				throw String("Too big");
 
-			bf->buffer.setSize(1, newSize);
-			bf->size = newSize;
+			bf->buffer.setSize(1, (int)newSize);
+			bf->size = (int)newSize;
 
 			auto asFloatArray = reinterpret_cast<float*>(mb.getData());
 
-			FloatVectorOperations::copy(bf->buffer.getWritePointer(0), asFloatArray, newSize);
+			FloatVectorOperations::copy(bf->buffer.getWritePointer(0), asFloatArray, (int)newSize);
 
 			return var(true);
 		}

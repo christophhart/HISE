@@ -218,8 +218,6 @@ parameter::data ModulationSourceNode::getParameterData(const ValueTree& m) const
 
 scriptnode::parameter::dynamic_base::Ptr ModulationSourceNode::createDynamicParameterData(ValueTree& m)
 {
-	auto allowRangeConversion = isUsingNormalisedRange();
-
 	auto range = RangeHelpers::getDoubleRange(m);
 
 	auto targetNode = getTargetNode(m);

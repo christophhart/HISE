@@ -807,8 +807,6 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 			int log10Offset = (int)(10.0 / (sampleRate * 0.5) * (double)size + 1.0);
 
-			auto maxPos = log10f((float)(size));
-
 			float lastIndex = 0.0f;
 			float value = 0.0f;
 			int lastI = 0;
@@ -817,8 +815,6 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 			int lastLineLog = 1;
 
 			Path grid;
-
-			int xLog10Pos = roundToInt(log10((float)log10Offset) / maxPos * (float)asComponent->getWidth());
 
 			for (int i = log10Offset; i < size; i += 2)
 			{

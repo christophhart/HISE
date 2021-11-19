@@ -42,14 +42,7 @@ struct ScreenshotListener
 
 		CachedImageBuffer(Rectangle<int> sb) :
 			data(Image::RGB, sb.getWidth(), sb.getHeight(), true)
-		{
-
-		}
-
-		~CachedImageBuffer()
-		{
-			int x = 0;
-		}
+		{}
 
 		Image data;
 	};

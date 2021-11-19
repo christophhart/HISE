@@ -64,13 +64,10 @@ void SearchableListComponent::resized()
 	
     auto b = getLocalBounds().removeFromTop(24);
     
-	const int numButtons = customButtons.size();
-	
-    for(auto cb: customButtons)
+	for(auto cb: customButtons)
     {
         auto margin = dynamic_cast<HiseShapeButton*>(cb.getComponent()) ? 2 : 4;
         cb->setBounds(b.removeFromLeft(b.getHeight()).reduced(margin));
-        
     }
     
     b.removeFromLeft(b.getHeight());

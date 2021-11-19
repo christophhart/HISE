@@ -98,10 +98,6 @@ FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedCom
 	
 	closeButton->addListener(this);
 
-	const int offset = 12;
-
-	const int titleOffset = hasTitle() ? 20 : 0;
-
 	auto b = getRectangle(RectangleType::FullBounds);
 	setSize(b.getWidth(), b.getHeight());
 }
@@ -174,8 +170,6 @@ void FloatingTilePopup::rebuildBoxPath()
 
 void FloatingTilePopup::paint(Graphics &g)
 {
-	auto b = getLocalBounds();
-
 #if USE_BACKEND
     
     auto ok = false;
@@ -257,8 +251,6 @@ void FloatingTilePopup::componentMovedOrResized(Component& component, bool /*mov
 	{
 		if (wasResized)
 		{
-			const int offset = 12;
-
 			auto newBounds = getRectangle(RectangleType::FullBounds);
 
 			setSize(newBounds.getWidth(), newBounds.getHeight());

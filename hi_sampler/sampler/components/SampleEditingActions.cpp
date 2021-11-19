@@ -1060,7 +1060,7 @@ void SampleEditHandler::SampleEditingActions::writeSamplesWithAiffData(Modulator
 			ScopedPointer<AudioFormatWriter> writer = af.createWriterFor(fos, reader->sampleRate, reader->numChannels, reader->bitsPerSample, metadata, 5);
 
 			auto ok = writer->writeFromAudioReader(*reader, 0, reader->lengthInSamples);
-			jassert(ok);
+            jassert(ok); ignoreUnused(ok);
 
 		}
 	}
@@ -1133,16 +1133,12 @@ void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSamp
 {
 	SampleSelection sounds;
 	
-	auto handler = sampler->getSampleEditHandler();
-
 	ModulatorSampler::SoundIterator sIter(sampler, false);
 
 	while (auto sound = sIter.getNextSound())
 	{
 		sounds.add(sound.get());
 	}
-
-	
 
 	bool metadataWasFound = false;
 

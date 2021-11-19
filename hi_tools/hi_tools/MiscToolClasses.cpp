@@ -992,6 +992,8 @@ void Spectrum2D::LookupTable::setColourScheme(ColourScheme cs)
 			grad.addColour(0.33f, Colour(0xff3a6666));
 			grad.addColour(0.66f, Colour(SIGNAL_COLOUR));
 		}
+        default:
+            break;
 		}
 
 		grad.createLookupTable(data, LookupTableSize);

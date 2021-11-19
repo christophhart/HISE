@@ -199,9 +199,6 @@ void MarkdownPreviewSyncer::synchroniseTabs(bool editorIsSource)
 
     ScopedValueSetter<bool> svs(recursiveScrollProtector, true);
 
-    auto ps = &p.viewport.getVerticalScrollBar();
-    auto es = &e.editor.getVerticalScrollBar();
-
     if (!editorIsSource)
     {
         auto yPos = (float)p.viewport.getViewPositionY();

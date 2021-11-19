@@ -151,9 +151,10 @@ struct Helpers
 	{
 		switch (m)
 		{
-		case Modulation::Mode::GainMode: return SampleIds::GainTable;
+		case Modulation::Mode::GainMode:  return SampleIds::GainTable;
 		case Modulation::Mode::PitchMode: return SampleIds::PitchTable;
-		case Modulation::Mode::PanMode: return SampleIds::LowPassTable;
+		case Modulation::Mode::PanMode:   return SampleIds::LowPassTable;
+        default:                          return {};
 		}
 			
 		return {};

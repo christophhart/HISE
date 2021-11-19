@@ -680,7 +680,7 @@ void WorkbenchTestPlayer::stop()
 
 void WorkbenchTestPlayer::timerCallback()
 {
-	auto index = getMainController()->getPreviewBufferPosition();
+	//auto index = getMainController()->getPreviewBufferPosition();
 	//inputPreview.setPlaybackPosition((double)index / wb->getTestData().testSourceData.getNumSamples());
 }
 
