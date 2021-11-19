@@ -1,0 +1,9 @@
+name: build_hise
+on: [push]
+jobs:
+  build-hise:
+    runs-on: self-hosted windows
+    steps:
+      - name: Run build script
+        run: ./tools/auto_build/01_BuildHISE.bat
+        shell: cmd
