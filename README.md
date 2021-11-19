@@ -2,6 +2,11 @@
 
 ![](http://hise.audio/images/github.png)
 
+**Build Status macOS:**
+[![build_hise_macos](https://github.com/christophhart/HISE/actions/workflows/build_hise_macos.yml/badge.svg)](https://github.com/christophhart/HISE/actions/workflows/build_hise_macos.yml)
+
+**Build Status Windows:**
+[![build_hise](https://github.com/christophhart/HISE/actions/workflows/build_hise.yml/badge.svg)](https://github.com/christophhart/HISE/actions/workflows/build_hise.yml)
 
 **The open source framework for sample based instruments.**
 
