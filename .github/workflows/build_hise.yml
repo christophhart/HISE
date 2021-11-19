@@ -7,5 +7,6 @@ jobs:
       - name: Checkout HISE repository
         uses: actions/checkout@v1
       - name: Build HISE
-        run: ${{ github.workspace }}/tools/auto_build/01_BuildHISE.bat
+        working-directory: ${{ github.workspace }}/tools/auto_build/
+        run: 01_BuildHISE.bat
         shell: cmd
