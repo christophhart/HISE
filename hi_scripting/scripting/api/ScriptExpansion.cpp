@@ -643,6 +643,7 @@ var ScriptExpansionHandler::InstallState::getObject()
 	auto newObj = new DynamicObject();
 	newObj->setProperty("Status", status);
 	newObj->setProperty("Progress", getProgress());
+	newObj->setProperty("TotalProgress", getTotalProgress());
 	newObj->setProperty("SourceFile", new ScriptingObjects::ScriptFile(parent.getScriptProcessor(), sourceFile));
 	newObj->setProperty("TargetFolder", new ScriptingObjects::ScriptFile(parent.getScriptProcessor(), targetFolder));
 	newObj->setProperty("SampleFolder", new ScriptingObjects::ScriptFile(parent.getScriptProcessor(), sampleFolder));
@@ -656,6 +657,10 @@ double ScriptExpansionHandler::InstallState::getProgress()
 	return parent.getMainController()->getSampleManager().getPreloadProgress();
 }
 
+double ScriptExpansionHandler::InstallState::getTotalProgress()
+{
+	return parent.getMainController()->getExpansionHandler().getTotalProgress();
+}
 
 struct ScriptExpansionReference::Wrapper
 {
