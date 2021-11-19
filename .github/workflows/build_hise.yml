@@ -4,7 +4,8 @@ jobs:
   build-hise:
     runs-on: [self-hosted, windows]
     steps:
-      - name: Run build script
-      - uses: actions/checkout@v1
-      - run: /tools/auto_build/01_BuildHISE.bat
+      - name: Checkout HISE repository
+        uses: actions/checkout@v1
+      - name: Build HISE binaries
+        run: /tools/auto_build/01_BuildHISE.bat
         shell: cmd
