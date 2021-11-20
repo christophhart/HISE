@@ -2642,7 +2642,7 @@ void BackendCommandTarget::Actions::createUIDataFromDesktop(BackendRootWindow * 
 #define REPLACE_WILDCARD(wildcard, x) templateProject = templateProject.replace(wildcard, data.getSetting(x).toString())
 #define REPLACE_WILDCARD_WITH_STRING(wildcard, s) (templateProject = templateProject.replace(wildcard, s))
 
-juce::String BackendCommandTarget::Actions::createWindowsInstallerTemplate(MainController* mc, bool includeAAX, bool include32, bool include64, bool includeRLottie)
+juce::String BackendCommandTarget::Actions::createWindowsInstallerTemplate(MainController* mc, bool includeAAX, bool include32, bool include64)
 {
 	String templateProject(winInstallerTemplate);
 	
@@ -2655,8 +2655,7 @@ juce::String BackendCommandTarget::Actions::createWindowsInstallerTemplate(MainC
 	REPLACE_WILDCARD_WITH_STRING("%AAX%", includeAAX ? "" : ";");
     REPLACE_WILDCARD_WITH_STRING("%32%", include32 ? "" : ";");
     REPLACE_WILDCARD_WITH_STRING("%64%", include64 ? "" : ";");
-    REPLACE_WILDCARD_WITH_STRING("%RLOTTIE%", includeRLottie ? "" : ";");
-
+    
     if(!include32)
         REPLACE_WILDCARD_WITH_STRING("%ARCHITECTURE%", " x64");
     else if (!include64)

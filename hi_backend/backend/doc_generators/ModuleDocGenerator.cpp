@@ -283,7 +283,8 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 		auto f = url.getMarkdownFile(root);
 
 
-		if (!f.existsAsFile() && MessageManager::getInstance()->isThisTheMessageThread())
+		if (!f.existsAsFile() && MessageManager::getInstance()->isThisTheMessageThread() &&
+            !CompileExporter::isExportingFromCommandLine())
 		{
 			if (PresetHandler::showYesNoWindow("Create file", "Do you want to create a file for this module"))
 			{

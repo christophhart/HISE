@@ -129,9 +129,10 @@ public:
         print("create-win-installer [-a:x64|x86] [-noaax] [-rlottie]" );
 		print("Creates a template install script for Inno Setup for the project" );
 		print("Add the -noaax flag to not include the AAX build");
-        print("Add the -rlottie flag to include the .dlls for RLottie.");
-        print("(You'll need to put them into the AdditionalSourceCode directory");
         print("Add the -a:x64 or -a:x86 flag to just create an installer for the specified platform");
+        print("");
+        print("create-docs -p:PATH");
+        print("Creates the HISE documentation files from the markdown files in the given directory.");
 
 		exit(0);
 	}
@@ -145,11 +146,10 @@ public:
 
 		const bool includeAAX = !args.contains("-noaax");
         
-        const bool includeRlottie = args.contains("-rlottie");
         const bool include32 = !args.contains("-a:x64");
         const bool include64 = !args.contains("-a:x86");
 
-		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX, include32, include64, includeRlottie);
+		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX, include32, include64);
 
 		auto root = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getWorkDirectory();
 
@@ -274,6 +274,47 @@ public:
 		}
 	}
 	
+    static void createDocumentation(const String& commandLine)
+    {
+        auto args = getCommandLineArgs(commandLine);
+        auto docRoot = getFilePathArgument(args);
+        
+        if(!docRoot.isDirectory())
+            throwErrorAndQuit("Not a valid directory");
+        
+        print("Create HISE instance");
+        
+        CompileExporter::setExportingFromCommandLine();
+        
+        StandaloneProcessor sp;
+        
+        ScopedPointer<Component> ed = sp.createEditor();
+        
+        auto bp = dynamic_cast<BackendProcessor*>(sp.getCurrentProcessor());
+        
+        hise::DatabaseCrawler crawler(*bp);
+        
+        print("Rebuild database");
+        
+        bp->setDatabaseRootDirectory(docRoot);
+        
+        bp->setForceCachedDataUse(false);
+        crawler.clearResolvers();
+        bp->addContentProcessor(&crawler);
+
+        print("Creating Content data");
+        
+        crawler.createContentTree();
+
+        print("Creating Image data");
+        
+        crawler.createImageTree();
+        
+        print("Writing data files");
+        
+        crawler.createDataFiles(docRoot.getChildFile("cached"), true);
+    }
+    
 	static void setHiseFolder(const String& commandLine)
 	{
 		auto args = getCommandLineArgs(commandLine);
@@ -438,6 +479,12 @@ public:
 			quit();
 			return;
 		}
+        else if (commandLine.startsWith("create-docs"))
+        {
+            CommandLineActions::createDocumentation(commandLine);
+            quit();
+            return;
+        }
 		else if (commandLine.startsWith("--help"))
 		{
 			CommandLineActions::printHelp();

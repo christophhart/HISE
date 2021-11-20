@@ -845,6 +845,7 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 				if ((int)thisLineLog != lastLineLog)
 				{
+                    FloatSanitizers::sanitizeFloatNumber(xPos);
 					grid.startNewSubPath(xPos, 0.0f);
 					grid.lineTo(xPos, asComponent->getHeight());
 

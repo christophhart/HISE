@@ -7,7 +7,6 @@ using namespace juce;
 // %32%: if 32bit plugins are included
 // %64%: if 64bit plugins are included
 // %AAX%: if AAX pluginsa are included
-// %RLOTTIE%: if the rlottie .dll files should be installed
 // %ARCHITECTURE% if the installer doesn't contain both 32/64 bit, this will be a ` x86` or ` x64`suffix.
     
 static const unsigned char winInstallerTemplate_lines[] =
@@ -37,7 +36,6 @@ LINE(R"(Name: "{app}\"; Permissions: users-modify powerusers-modify admins-modif
 LINE(R"()")
 LINE(R"([Components])")
     
-LINE(R"(%RLOTTIE%Name: "libs"; Description: "{#AppName} Additional Libraries"; Types: full custom; Flags: fixed)")
 LINE(R"(Name: "app"; Description: "{#AppName} Standalone application"; Types: full custom;)")
 LINE(R"(%32%Name: "vst2_32"; Description: "{#AppName} 32-bit VSTi Plugin"; Types: full custom;)")
 LINE(R"(%64%Name: "vst2_64"; Description: "{#AppName} 64-bit VSTi Plugin"; Types: full custom; Check: Is64BitInstallMode;)")
@@ -56,8 +54,6 @@ LINE(R"(%32%Source: "build\VST\{#AppName} x86.dll"; DestDir: "{code:GetVST2Dir_3
 LINE(R"()")
 LINE(R"(%32%Source: "build\VST\{#AppName} x86.dll"; DestDir: "{code:GetVST2Dir_32}"; Flags: ignoreversion; Components: vst2_32; Check: Is64BitInstallMode)")
 LINE(R"(%64%Source: "build\VST\{#AppName} x64.dll"; DestDir: "{code:GetVST2Dir_64}"; Flags: ignoreversion; Components: vst2_64; Check: Is64BitInstallMode)")
-LINE(R"(%RLOTTIE%Source: "AdditionalSourceCode/rlottie_x64.dll"; DestDir: "{win}\system32"; Flags: ignoreversion; Components: libs)")
-LINE(R"(%RLOTTIE%Source: "AdditionalSourceCode/rlottie_x86.dll"; DestDir: "{win}\system32"; Flags: ignoreversion; Components: libs)")
 LINE(R"()")
 LINE(R"(;BEGIN_AAX)")
 LINE(R"(%AAX%Source: "build\AAX\{#AppName}.aaxplugin\*.*"; DestDir: "{cf}\Avid\Audio\Plug-Ins\{#AppName}.aaxplugin\"; Flags: ignoreversion recursesubdirs; Components: aax)")
