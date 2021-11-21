@@ -800,6 +800,17 @@ void ScriptingApi::Content::ScriptComponent::setControlCallback(var controlFunct
 {
 	auto obj = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(controlFunction.getDynamicObject());
 
+    if(auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(getScriptProcessor()))
+    {
+        if(auto n = h->getActiveNetwork())
+        {
+            if(controlFunction.isObject() && n->isForwardingControlsToParameters())
+            {
+                reportScriptError("This script processor has a network that consumes the parameters");
+            }
+        }
+    }
+    
 	if (obj != nullptr)
 	{
 		int numParameters = obj->parameterNames.size();
