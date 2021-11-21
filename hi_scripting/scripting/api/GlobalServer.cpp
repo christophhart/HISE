@@ -108,6 +108,10 @@ juce::URL GlobalServer::getWithParameters(String subURL, var parameters)
 		for (auto& p : d->getProperties())
 			url = url.withParameter(p.name.toString(), p.value.toString());
 	}
+    else if (parameters.isString())
+    {
+        url = url.withPOSTData(parameters.toString());
+    }
 
 	return url;
 }
