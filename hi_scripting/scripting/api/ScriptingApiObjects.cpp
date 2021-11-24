@@ -1373,23 +1373,9 @@ float ScriptingObjects::ScriptTableData::getTableValueNormalised(double normalis
 {
 	if (auto st = dynamic_cast<SampleLookupTable*>(getTable()))
 	{
-		return st->getInterpolatedValue((double)SAMPLE_LOOKUP_TABLE_SIZE * normalisedInput, sendNotificationAsync);
+		return st->getInterpolatedValue(normalisedInput, sendNotificationAsync);
 	}
-	if (auto mt = dynamic_cast<MidiTable*>(getTable()))
-	{
-		auto indexInTable = jlimit(0.0, (double)mt->getTableSize(), normalisedInput * (double)mt->getTableSize());
-		auto data = mt->getReadPointer();
-
-		const int iLow = jlimit(0, mt->getTableSize()-1, (int)indexInTable);
-		const int iHigh = jlimit(0, mt->getTableSize() - 1, iLow + 1);
-		const float delta = (float)indexInTable - (float)iLow;
-		const float value = Interpolator::interpolateLinear(data[iLow], data[iHigh], delta);
-
-		mt->getUpdater().sendDisplayChangeMessage(normalisedInput, sendNotificationAsync);
-
-		return value;
-	}
-
+	
 	return 0.0f;
 }
 

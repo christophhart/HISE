@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 RandomModulator::RandomModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m):
 		VoiceStartModulator(mc, id, numVoices, m),
 		Modulation(m),
-		LookupTableProcessor(mc, 1, false),
+		LookupTableProcessor(mc, 1),
 		useTable(false),
 		generator(Random (Time::currentTimeMillis()))
 {
@@ -100,18 +100,13 @@ float RandomModulator::getAttribute(int parameterIndex) const
 
 float RandomModulator::calculateVoiceStartValue(const HiseEvent &)
 {
-	float randomValue;
+    auto randomValue = generator.nextFloat();
 
 	if (useTable)
 	{
-		const int index = generator.nextInt(Range<int>(0, 127));
-		randomValue = getMidiTable()->get(index, sendNotificationAsync);
+		randomValue = getTableUnchecked()->getInterpolatedValue(randomValue, sendNotificationAsync);
 	}
-	else
-	{
-		randomValue = generator.nextFloat();
-	}
-
+	
 	return randomValue;
 }
 

@@ -33,7 +33,7 @@
 namespace hise { using namespace juce;
 
 GlobalModulator::GlobalModulator(MainController *mc):
-	LookupTableProcessor(mc, 1, false),
+	LookupTableProcessor(mc, 1),
 	originalModulator(nullptr),
 	connectedContainer(nullptr),
 	useTable(false)
@@ -288,8 +288,7 @@ float GlobalVoiceStartModulator::calculateVoiceStartValue(const HiseEvent &m)
 
 		if (useTable)
 		{
-			const int index = (int)((float)globalValue * 127.0f);
-			globalValue = table->get(index, sendNotificationAsync);
+			globalValue = table->getInterpolatedValue((double)globalValue, sendNotificationAsync);
 		}
 
 		return inverted ? 1.0f - globalValue : globalValue;
@@ -366,8 +365,7 @@ float GlobalStaticTimeVariantModulator::calculateVoiceStartValue(const HiseEvent
 
 		if (useTable)
 		{
-			const int index = (int)((float)globalValue * 127.0f);
-			globalValue = table->get(index, sendNotificationAsync);
+			globalValue = table->getInterpolatedValue((double)globalValue, sendNotificationAsync);
 		}
 
 		return inverted ? 1.0f - globalValue : globalValue;
@@ -451,9 +449,7 @@ void GlobalTimeVariantModulator::calculateBlock(int startSample, int numSamples)
                 
                 while (--numSamples >= 0)
                 {
-                    const int tableIndex = (int)(data[i++] * 127.0f);
-                    
-                    internalBuffer.setSample(0, startSample++, table->get(tableIndex, dontSendNotification));
+                    internalBuffer.setSample(0, startSample++, table->getInterpolatedValue(data[i++], dontSendNotification));
                 }
                 
                 invertBuffer(startSample, numSamples);

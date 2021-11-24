@@ -90,7 +90,7 @@ protected:
 
 	GlobalModulator(MainController *mc);
 
-	MidiTable* table;
+	SampleLookupTable* table;
 
 	bool useTable = false;
 	bool inverted = false;

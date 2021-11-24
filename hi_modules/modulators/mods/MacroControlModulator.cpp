@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 MacroModulator::MacroModulator(MainController *mc, const String &id, Modulation::Mode m) :
 TimeVariantModulator(mc, id, m),
 Modulation(m),
-LookupTableProcessor(mc, 1, false),
+LookupTableProcessor(mc, 1),
 macroIndex(-1),
 smoothTime(200.0f),
 useTable(false),
@@ -158,7 +158,7 @@ void MacroModulator::macroControllerMoved(float newValue)
 
 	if(useTable)
 	{
-		targetValue = static_cast<MidiTable*>(getTableUnchecked(0))->get((int)(inputValue * 127), sendNotificationAsync);
+        targetValue = getTableUnchecked()->getInterpolatedValue(inputValue, sendNotificationAsync);
 	}
 	else
 	{

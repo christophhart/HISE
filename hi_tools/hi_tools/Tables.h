@@ -360,6 +360,7 @@ private:
 };
 
 
+#if 0
 /** A Table subclass that can be used for any 7bit data.
 */
 class MidiTable: public Table
@@ -395,6 +396,7 @@ private:
 	float data[128];
 
 };
+#endif
 
 #define SAMPLE_LOOKUP_TABLE_SIZE 512
 
@@ -455,9 +457,12 @@ public:
 	*/
 	float getInterpolatedValue(double sampleIndex, NotificationType notifyEditor) const
 	{
-		if (notifyEditor != dontSendNotification)
-			internalUpdater.sendDisplayChangeMessage(sampleIndex / (double)SAMPLE_LOOKUP_TABLE_SIZE, notifyEditor);
+        if (notifyEditor != dontSendNotification)
+			internalUpdater.sendDisplayChangeMessage(sampleIndex, notifyEditor);
 
+        
+        sampleIndex *= (double)SAMPLE_LOOKUP_TABLE_SIZE;
+        
 		const double indexInTable = coefficient * sampleIndex;
 
 		if(indexInTable >= (double)(SAMPLE_LOOKUP_TABLE_SIZE - 1)) return getLastValue();

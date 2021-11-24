@@ -519,7 +519,7 @@ public:
 
 		void rebuildBuffer();
 
-		MidiTable table;
+		SampleLookupTable table;
 		WeakReference<HiseAudioThumbnail> thumbnailToPreview;
 
 		static void processThumbnail(EnvelopeTable& t, var left, var right);

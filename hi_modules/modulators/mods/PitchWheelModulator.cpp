@@ -34,7 +34,7 @@ namespace hise { using namespace juce;
 
 PitchwheelModulator::PitchwheelModulator(MainController *mc, const String &id, Modulation::Mode m):
 	TimeVariantModulator(mc, id, m),
-	LookupTableProcessor(mc, 1, false),
+	LookupTableProcessor(mc, 1),
     targetValue(0.5f),
 	Modulation(m),
 	intensity(1.0f),
@@ -153,8 +153,10 @@ void PitchwheelModulator::handleHiseEvent (const HiseEvent &m)
 		inputValue = m.getPitchWheelValue() / 16383.0f;
 		float value;
 
-		if(useTable) value = getMidiTable()->get((int)(inputValue * 127.0f), sendNotificationAsync);
-		else value = inputValue;
+        if(useTable)
+            value = getTableUnchecked()->getInterpolatedValue(inputValue, sendNotificationAsync);
+		else
+            value = inputValue;
 
 		if(inverted) value = 1.0f - value;
 

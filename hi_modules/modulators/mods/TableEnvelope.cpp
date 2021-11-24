@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m, float attackTimeMs, float releaseTimeMs):
 		EnvelopeModulator(mc, id, voiceAmount, m),
 		Modulation(m),
-		LookupTableProcessor(mc, 2, true),
+		LookupTableProcessor(mc, 2),
 		attack(attackTimeMs),
 		release(releaseTimeMs),
 		attackChain(new ModulatorChain(mc, "AttackTime Modulation", voiceAmount, Modulation::GainMode, this)),
@@ -301,7 +301,7 @@ float TableEnvelope::calculateNewValue(int voiceIndex)
 	{
 	case TableEnvelopeState::ATTACK:
 	{
-		state->current_value = attackTable->getInterpolatedValue(state->uptime, dontSendNotification);
+		state->current_value = attackTable->getInterpolatedValue(state->uptime / (double)SAMPLE_LOOKUP_TABLE_SIZE, dontSendNotification);
 
 		state->uptime += attackUptimeDelta * state->attackModValue;
 
@@ -366,7 +366,7 @@ float TableEnvelope::calculateNewValue(int voiceIndex)
 		}
 		else
 		{
-			state->current_value = state->releaseGain * releaseTable->getInterpolatedValue(state->uptime, dontSendNotification);
+			state->current_value = state->releaseGain * releaseTable->getInterpolatedValue(state->uptime / (double)SAMPLE_LOOKUP_TABLE_SIZE, dontSendNotification);
 		}
 
 		break;

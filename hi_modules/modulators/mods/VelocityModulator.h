@@ -58,7 +58,7 @@ public:
 	VelocityModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m):
 		VoiceStartModulator(mc, id, voiceAmount, m),
 		Modulation(m),
-		LookupTableProcessor(mc, 1, false),
+		LookupTableProcessor(mc, 1),
 		tableUsed(false),
 		inverted(false),
         decibelMode(false)
@@ -136,9 +136,7 @@ public:
 		if(inverted) value = 1.0f - value;
 
 		if (tableUsed)
-		{
-			value = velocityTable->get((int)(value * 127), sendNotificationAsync);
-		}
+            value = velocityTable->getInterpolatedValue(value, sendNotificationAsync);
 			
 		if(decibelMode)
         {
@@ -159,7 +157,7 @@ private:
 
 	float inputValue;
 
-	MidiTable* velocityTable;
+	SampleLookupTable* velocityTable;
 
 	/// checks if the look up table should be used
 	bool tableUsed;

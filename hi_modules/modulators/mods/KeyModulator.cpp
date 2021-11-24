@@ -34,7 +34,7 @@ namespace hise { using namespace juce;
 
 KeyModulator::KeyModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m):
 		VoiceStartModulator(mc, id, numVoices, m),
-		LookupTableProcessor(mc, 1, false),
+		LookupTableProcessor(mc, 1),
 		Modulation(m)
 {
 	getTableUnchecked(0)->setXTextConverter(Modulation::getDomainAsMidiNote);

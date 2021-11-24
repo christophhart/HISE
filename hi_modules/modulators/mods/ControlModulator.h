@@ -122,7 +122,7 @@ private:
 
 	Smoother smoother;
 
-	MidiTable* table;
+	SampleLookupTable* table;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ControlModulator);
 };

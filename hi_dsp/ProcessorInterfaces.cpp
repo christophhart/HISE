@@ -34,8 +34,8 @@ namespace hise { using namespace juce;
 
 using namespace snex;
 
-LookupTableProcessor::LookupTableProcessor(MainController* mc, int numTables, bool useSampleLookup=true):
-	ProcessorWithSingleStaticExternalData(mc, ExternalData::DataType::Table, numTables, useSampleLookup)
+LookupTableProcessor::LookupTableProcessor(MainController* mc, int numTables):
+	ProcessorWithSingleStaticExternalData(mc, ExternalData::DataType::Table, numTables)
 {
 
 }

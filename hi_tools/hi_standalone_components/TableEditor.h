@@ -803,7 +803,7 @@ private:
 
 	WeakReference<Table> editedTable;
 
-	MidiTable dummyTable;
+	SampleLookupTable dummyTable;
 
 	float lastRightDragValue = 0.0f;
 	

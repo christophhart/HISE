@@ -428,10 +428,10 @@ struct ExternalData
 
 	static DataType getDataTypeForClass(ComplexDataUIBase* d);
 
-	template <typename TableType=hise::SampleLookupTable> static ComplexDataUIBase* create(DataType t)
+	static ComplexDataUIBase* create(DataType t)
 	{
 		if (t == DataType::Table)
-			return new TableType();
+			return new SampleLookupTable();
 		if (t == DataType::SliderPack)
 			return new SliderPackData();
 		if (t == DataType::AudioFile)

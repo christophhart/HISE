@@ -470,7 +470,7 @@ namespace pimpl
 
 		if (auto e = dynamic_cast<SampleLookupTable*>(te.getEditedTable()))
 		{
-			auto yValue = e->getInterpolatedValue(te.getLastIndex() * SAMPLE_LOOKUP_TABLE_SIZE, dontSendNotification);
+			auto yValue = e->getInterpolatedValue(te.getLastIndex(), dontSendNotification);
 
 			Point<float> p(x, (1.0f - yValue) * area.getHeight());
 

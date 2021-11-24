@@ -1828,6 +1828,9 @@ private:
 
 struct ComplexDataUIBase : public ReferenceCountedObject
 {
+    using Ptr = ReferenceCountedObjectPtr<ComplexDataUIBase>;
+    using List = ReferenceCountedArray<ComplexDataUIBase>;
+    
 	/** A listener that will be notified about changes of the complex data source. */
 	struct SourceListener
 	{

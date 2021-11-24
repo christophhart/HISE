@@ -2050,7 +2050,7 @@ ScriptingApi::Content::ComplexDataScriptComponent::ComplexDataScriptComponent(Pr
 	ScriptComponent(base, name),
 	type(type_)
 {
-	ownedObject = snex::ExternalData::create<MidiTable>(type);
+	ownedObject = snex::ExternalData::create(type);
 	ownedObject->setGlobalUIUpdater(base->getMainController_()->getGlobalUIUpdater());
 	ownedObject->setUndoManager(base->getMainController_()->getControlUndoManager());
 }
@@ -2214,11 +2214,7 @@ float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 {
 	if (auto t = getCachedTable())
 	{
-		if (MidiTable *mt = dynamic_cast<MidiTable*>(t))
-		{
-			return mt->get(inputValue, sendNotificationAsync);
-		}
-		else if (SampleLookupTable *st = dynamic_cast<SampleLookupTable*>(t))
+		if (SampleLookupTable *st = dynamic_cast<SampleLookupTable*>(t))
 		{
 			return st->getInterpolatedValue(inputValue, sendNotificationAsync);
 		}

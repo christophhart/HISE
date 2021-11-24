@@ -95,7 +95,7 @@ SET_DOCUMENTATION(ModulatorSampler)
 
 ModulatorSampler::ModulatorSampler(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices),
-LookupTableProcessor(mc, 8, true),
+LookupTableProcessor(mc, 8),
 preloadSize(PRELOAD_SIZE),
 asyncPurger(this),
 sampleMap(new SampleMap(this)),
@@ -1279,7 +1279,7 @@ float ModulatorSampler::getCrossfadeValue(int groupIndex, float modValue) const
 	if (auto st = static_cast<const SampleLookupTable*>(getTableUnchecked(groupIndex)))
 	{
 		modValue = CONSTRAIN_TO_0_1(modValue);
-		return st->getInterpolatedValue((double)modValue * (double)SAMPLE_LOOKUP_TABLE_SIZE, sendNotificationAsync);
+		return st->getInterpolatedValue((double)modValue, sendNotificationAsync);
 	}
 	
 	return 0.0f;

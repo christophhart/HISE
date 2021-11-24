@@ -36,7 +36,7 @@ using namespace juce;
 
 ShapeFX::ShapeFX(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid),
-	LookupTableProcessor(mc, 1, true),
+	LookupTableProcessor(mc, 1),
 #if HI_USE_SHAPE_FX_SCRIPTING
 	JavascriptProcessor(mc),
 	ProcessorWithScriptingContent(mc),
@@ -626,7 +626,7 @@ void ShapeFX::updateMix()
 
 PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	VoiceEffectProcessor(mc, uid, numVoices),
-	LookupTableProcessor(mc, 2, true),
+	LookupTableProcessor(mc, 2),
 	polyUpdater(*this),
 	dcRemovers(numVoices)
 {

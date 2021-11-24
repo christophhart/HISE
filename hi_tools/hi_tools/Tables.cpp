@@ -234,7 +234,9 @@ void Table::fillExternalLookupTable(float* d, int numValues)
 	};
 }
 
+#if 0
 float *MidiTable::getWritePointer() {return data;};
+#endif
 
 float *SampleLookupTable::getWritePointer() {return data;};
 
