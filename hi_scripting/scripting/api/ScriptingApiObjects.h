@@ -736,6 +736,41 @@ namespace ScriptingObjects
 
 		void setCallbackInternal(bool isDisplay, var f);
 
+        void linkToInternal(var o)
+        {
+            auto other = dynamic_cast<ScriptComplexDataReferenceBase*>(o.getObject());
+            
+            if(other == nullptr)
+            {
+                reportScriptError("Not a data object");
+                return;
+            }
+            
+            if(other->type != type)
+            {
+                reportScriptError("Type mismatch");
+                return;
+            }
+            
+            using PED = hise::ProcessorWithExternalData;
+            
+            if(auto pdst = dynamic_cast<PED*>(holder.get()))
+            {
+                if(auto psrc = dynamic_cast<PED*>(other->holder.get()))
+                {
+                    if(auto ex = psrc->getComplexBaseType(type, other->index))
+                    {
+                        complexObject->getUpdater().removeEventListener(this);
+                        pdst->linkTo(type, index, ex);
+                        complexObject = holder->getComplexBaseType(type, index);
+                        complexObject->getUpdater().addEventListener(this);
+                    }
+                }
+            }
+            
+            return;
+        }
+        
 		WeakReference<ComplexDataUIBase> complexObject;
 
 		WeakCallbackHolder displayCallback;
@@ -791,6 +826,12 @@ namespace ScriptingObjects
 
 		// ============================================================================================================
 
+        /** Links this audio file to the other*/
+        void linkTo(var other)
+        {
+            linkToInternal(other);
+        }
+        
 	private:
 
 		MultiChannelAudioBuffer* getBuffer() { return static_cast<MultiChannelAudioBuffer*>(complexObject.get()); }
@@ -863,8 +904,16 @@ namespace ScriptingObjects
 		/** Sets the table points from a multidimensional array ([x0, y0, curve0], ...]). */
 		void setTablePointsFromArray(var pointList);
 
+        /** Makes this table refer to the given table. */
+        void linkTo(var otherTable)
+        {
+            linkToInternal(otherTable);
+        }
+        
 		// ============================================================================================================
 
+        
+        
 	private:
 
 		Table* getTable() { return static_cast<Table*>(complexObject.get()); }
@@ -912,6 +961,12 @@ namespace ScriptingObjects
 		/** Sets a callback that is being executed when a point is added / removed / changed. */
 		void setContentCallback(var contentFunction);
 
+        /** Links the sliderpack to the other slider pack. */
+        void linkTo(var other)
+        {
+            linkToInternal(other);
+        }
+        
 		// ============================================================================================================
 
 	private:

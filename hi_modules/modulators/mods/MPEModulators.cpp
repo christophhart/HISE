@@ -44,12 +44,11 @@ MPEModulator::MPEModulator(MainController *mc, const String &id, int voiceAmount
 	g((Gesture)(int)getDefaultValue(GestureCC)),
 	smoothedIntensity(getIntensity())
 {
-	table = static_cast<SampleLookupTable*>(getTableUnchecked(0));
+    referenceShared(ExternalData::DataType::Table, 0);
+	
 
-	setAttribute(DefaultValue, getDefaultValue(DefaultValue), dontSendNotification);
-
-	table->setXTextConverter(Modulation::getDomainAsMidiRange);
-
+    setAttribute(DefaultValue, getDefaultValue(DefaultValue), dontSendNotification);
+    
 	parameterNames.add("GestureCC");
 	parameterNames.add("SmoothingTime");
 	parameterNames.add("DefaultValue");

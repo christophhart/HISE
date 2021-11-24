@@ -79,6 +79,12 @@ public:
 	MPEModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m);
 	~MPEModulator();
 
+    void referenceShared(ExternalData::DataType, int) override
+    {
+        table = getTableUnchecked(0);
+        table->setXTextConverter(Modulation::getDomainAsMidiRange);
+    }
+    
 	void mpeModeChanged(bool isEnabled) override;
 	void mpeModulatorAssigned(MPEModulator* m, bool wasAssigned) override;
 	void mpeDataReloaded() override;
@@ -226,7 +232,6 @@ private:
 	float unsavedStrokeValue = 0.0f;
 	float defaultValue = 0.0f;
 	float smoothingTime = -1.0f;
-
 	int ccNumber = 0;
 	Gesture g;
 	float smoothedIntensity;

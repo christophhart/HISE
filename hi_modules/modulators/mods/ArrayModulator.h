@@ -56,16 +56,19 @@ public:
 		Modulation(m),
 		SliderPackProcessor(mc, 1)
 	{
-		data = getSliderPackUnchecked(0);
-		data->setNumSliders(128);
-		data->setRange(0.0, 1.0, 0.001);
+        referenceShared(ExternalData::DataType::SliderPack, 0);
         
         for(int i = 0; i < 128; i++)
-        {
             data->setValue(i, 1.0f, dontSendNotification);
-        }
 	};
 
+    void referenceShared(ExternalData::DataType t, int)
+    {
+        data = getSliderPackUnchecked(0);
+        data->setNumSliders(128);
+        data->setRange(0.0, 1.0, 0.001);
+    }
+    
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	/// sets the constant value. The only valid parameter_index is Intensity

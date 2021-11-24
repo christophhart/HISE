@@ -63,14 +63,19 @@ public:
 		inverted(false),
         decibelMode(false)
 	{ 
-		velocityTable = getMidiTable();
-		velocityTable->setXTextConverter(Modulation::getDomainAsMidiRange);
+        referenceShared(ExternalData::DataType::Table, 0);
 
 		parameterNames.add("Inverted");
 		parameterNames.add("UseTable");
         parameterNames.add("DecibelMode");
 	};
 
+    void referenceShared(ExternalData::DataType, int) override
+    {
+        velocityTable = getTableUnchecked();
+        velocityTable->setXTextConverter(Modulation::getDomainAsMidiRange);
+    }
+    
 	void restoreFromValueTree(const ValueTree &v) override
 	{
 		VoiceStartModulator::restoreFromValueTree(v);

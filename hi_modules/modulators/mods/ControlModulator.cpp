@@ -46,11 +46,7 @@ ControlModulator::ControlModulator(MainController *mc, const String &id, Modulat
 	controllerNumber(1),
 	defaultValue(0.0f)
 {
-	table = getMidiTable();
-
-	this->enableConsoleOutput(false);
-	
-	table->setXTextConverter(Modulation::getDomainAsMidiRange);
+    referenceShared(ExternalData::DataType::Table, 0);
 
 	for (int i = 0; i < 128; i++)
 	{

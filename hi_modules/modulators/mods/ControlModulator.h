@@ -60,6 +60,12 @@ public:
 		numSpecialParameters
 	};
 
+    void referenceShared(ExternalData::DataType, int) override
+    {
+        table = getTableUnchecked(0);
+        table->setXTextConverter(Modulation::getDomainAsMidiRange);
+    }
+    
 	ControlModulator(MainController *mc, const String &id, Modulation::Mode m);
 	~ControlModulator();
 

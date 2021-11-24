@@ -38,7 +38,8 @@ GlobalModulator::GlobalModulator(MainController *mc):
 	connectedContainer(nullptr),
 	useTable(false)
 {
-	table = getMidiTable();
+    referenceShared(ExternalData::DataType::Table, 0);
+	
 
 	ModulatorSynthChain *chain = mc->getMainSynthChain();
 

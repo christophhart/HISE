@@ -114,6 +114,13 @@ public:
 		numEditorStates
 	};
 
+    void referenceShared(ExternalData::DataType, int) override
+    {
+        data = getSliderPackDataUnchecked(0);
+        customTable = getTableUnchecked(0);
+        customTable->setXTextConverter(Modulation::getDomainAsMidiRange);
+    }
+    
 	int getNumInternalChains() const override {return numInternalChains;};
 
 	void restoreFromValueTree(const ValueTree &v) override;;

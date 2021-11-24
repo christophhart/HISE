@@ -57,8 +57,8 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	tempoSync(getDefaultValue(TempoSync) >= 0.5f),
 	smoothingTime(getDefaultValue(SmoothingTime))
 {
-	data = getSliderPackDataUnchecked(0);
-	customTable = static_cast<SampleLookupTable*>(getTableUnchecked(0));
+	
+    referenceShared(ExternalData::DataType::Table, 0);
 
 	connectWaveformUpdaterToComplexUI(data, true);
 	connectWaveformUpdaterToComplexUI(customTable, true);

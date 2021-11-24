@@ -1067,6 +1067,7 @@ struct ScriptingObjects::ScriptAudioFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptAudioFile, getCurrentlyDisplayedIndex);
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, setDisplayCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, setContentCallback);
+    API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, linkTo);
 };
 
 ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index_, snex::ExternalDataHolder* otherHolder) :
@@ -1081,6 +1082,7 @@ ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent
 	ADD_API_METHOD_0(getCurrentlyDisplayedIndex);
 	ADD_API_METHOD_1(setDisplayCallback);
 	ADD_API_METHOD_1(setContentCallback);
+    ADD_API_METHOD_1(linkTo);
 }
 
 void ScriptingObjects::ScriptAudioFile::clear()
@@ -1323,6 +1325,7 @@ struct ScriptingObjects::ScriptTableData::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptTableData, setContentCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptTableData, setTablePointsFromArray);
 	API_METHOD_WRAPPER_0(ScriptTableData, getTablePointsAsArray);
+    API_VOID_METHOD_WRAPPER_1(ScriptTableData, linkTo);
 };
 
 ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* otherHolder):
@@ -1337,6 +1340,7 @@ ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent
 	ADD_API_METHOD_1(setContentCallback);
 	ADD_API_METHOD_1(setTablePointsFromArray);
 	ADD_API_METHOD_0(getTablePointsAsArray);
+    ADD_API_METHOD_1(linkTo);
 }
 
 Component* ScriptingObjects::ScriptTableData::createPopupComponent(const MouseEvent& e, Component *c)
@@ -1464,6 +1468,7 @@ struct ScriptingObjects::ScriptSliderPackData::Wrapper
 	API_METHOD_WRAPPER_0(ScriptSliderPackData, getCurrentlyDisplayedIndex);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setDisplayCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setContentCallback);
+    API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, linkTo);
 };
 
 ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, snex::ExternalDataHolder* otherHolder) :
@@ -1477,6 +1482,7 @@ ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScript
 	ADD_API_METHOD_0(getCurrentlyDisplayedIndex);
 	ADD_API_METHOD_1(setDisplayCallback);
 	ADD_API_METHOD_1(setContentCallback);
+    ADD_API_METHOD_1(linkTo);
 }
 
 var ScriptingObjects::ScriptSliderPackData::getStepSize() const

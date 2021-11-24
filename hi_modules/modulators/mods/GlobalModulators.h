@@ -67,6 +67,11 @@ public:
 	virtual ModulatorType getModulatorType() const = 0;
 	virtual ~GlobalModulator();
 
+    void referenceShared(ExternalData::DataType, int) override
+    {
+        table = getTableUnchecked(0);
+    }
+    
 	Modulator *getOriginalModulator();
 	const Modulator *getOriginalModulator() const;
 	GlobalModulatorContainer *getConnectedContainer();
