@@ -213,10 +213,7 @@ public:
 
 	void paint(Graphics &g) override;
 
-	void paintOverChildren(Graphics& g) override
-	{
-		CopyPasteTarget::paintOutlineIfSelected(g);
-	}
+	void paintOverChildren(Graphics& g) override;
 
 	void mouseDown(const MouseEvent& event) override
 	{
@@ -299,6 +296,14 @@ public:
 	};
 
 private:
+
+	struct ConnectData
+	{
+		Rectangle<float> area;
+		Colour c;
+	};
+
+	Array<ConnectData> connectPositions;
 
 	bool isPopupMode;
 

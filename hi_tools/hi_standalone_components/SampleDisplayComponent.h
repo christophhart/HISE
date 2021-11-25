@@ -1492,6 +1492,8 @@ public:
 		}
 	}
 
+	MultiChannelAudioBuffer* getBuffer() { return connectedBuffer.get(); }
+
 protected:
 
 	WeakReference<MultiChannelAudioBuffer> connectedBuffer;

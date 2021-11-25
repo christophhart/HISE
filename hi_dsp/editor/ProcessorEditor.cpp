@@ -264,7 +264,6 @@ void ProcessorEditor::resized()
 	header->setBounds(0, 0, getWidth(), header->getHeight());
 	chainBar->setBounds(0, header->getBottom() + 6, getWidth(), chainBar->getActualHeight());
 	
-
 #if HISE_IOS
 	const int marginBeforePanel = 6;
 #else
@@ -281,7 +280,64 @@ void ProcessorEditor::resized()
 		body->setBounds(0, chainBar->getBottom(), getWidth(), getProcessor()->getEditorState(Processor::BodyShown) ? body->getBodyHeight() : 0);
 		panel->setBounds(INTENDATION_WIDTH, body->getBottom() + marginBeforePanel, panel->getWidth(), panel->getHeightOfAllEditors());
 	}
-	
+
+	connectPositions.clear();
+
+	if (auto ped = dynamic_cast<ProcessorWithExternalData*>(getProcessor()))
+	{
+		Component::callRecursive<ComplexDataUIBase::EditorBase>(getBody(), [this, ped](ComplexDataUIBase::EditorBase* t)
+			{
+				if (auto te = dynamic_cast<TableEditor*>(t))
+				{
+					for (int i = 0; i < ped->getNumDataObjects(ExternalData::DataType::Table); i++)
+					{
+						if (ped->getTable(i) == te->getEditedTable())
+						{
+							auto c = ped->getSharedReferenceColour(ExternalData::DataType::Table, i);
+							if (!c.isTransparent())
+							{
+								this->connectPositions.add({ getLocalArea(te, te->getLocalBounds()).toFloat(), c });
+								return false;
+							}
+						}
+					}
+				}
+				if (auto sp = dynamic_cast<SliderPack*>(t))
+				{
+					for (int i = 0; i < ped->getNumDataObjects(ExternalData::DataType::SliderPack); i++)
+					{
+						if (ped->getSliderPack(i) == sp->getData())
+						{
+							auto c = ped->getSharedReferenceColour(ExternalData::DataType::SliderPack, i);
+							if (!c.isTransparent())
+							{
+								this->connectPositions.add({ getLocalArea(sp, sp->getLocalBounds()).toFloat(), c });
+								return false;
+							}
+						}
+					}
+				}
+
+				if (auto af = dynamic_cast<MultiChannelAudioBufferDisplay*>(t))
+				{
+					for (int i = 0; i < ped->getNumDataObjects(ExternalData::DataType::AudioFile); i++)
+					{
+						if (ped->getAudioFile(i) == af->getBuffer())
+						{
+							auto c = ped->getSharedReferenceColour(ExternalData::DataType::AudioFile, i);
+							if (!c.isTransparent())
+							{
+								this->connectPositions.add({ getLocalArea(af, af->getLocalBounds()).toFloat(), c });
+								return false;
+							}
+						}
+					}
+				}
+
+				return false;
+			});
+	}
+
 }
 
 
@@ -427,6 +483,39 @@ void ProcessorEditor::paint(Graphics &g)
 	
 }
 
+
+void ProcessorEditor::paintOverChildren(Graphics& g)
+{
+	CopyPasteTarget::paintOutlineIfSelected(g);
+
+	Random r;
+	auto width = r.nextFloat() * 10.0f + 5.0f;
+
+	if (!connectPositions.isEmpty())
+	{
+		static const unsigned char pathData[] = { 110,109,76,183,106,66,20,174,165,65,108,244,253,60,66,20,174,165,65,98,51,179,47,66,4,86,106,65,145,237,21,66,225,122,40,65,20,174,240,65,225,122,40,65,98,4,86,154,65,225,122,40,65,225,122,40,65,4,86,154,65,225,122,40,65,20,174,240,65,98,225,122,40,65,
+18,131,35,66,4,86,154,65,98,144,70,66,20,174,240,65,98,144,70,66,98,145,237,21,66,98,144,70,66,51,179,47,66,154,25,54,66,244,253,60,66,16,216,29,66,108,76,183,106,66,16,216,29,66,98,164,240,90,66,133,235,77,66,2,171,45,66,27,175,112,66,20,174,240,65,
+27,175,112,66,98,45,178,87,65,27,175,112,66,0,0,0,0,143,194,58,66,0,0,0,0,20,174,240,65,98,0,0,0,0,45,178,87,65,45,178,87,65,0,0,0,0,20,174,240,65,0,0,0,0,98,2,171,45,66,0,0,0,0,164,240,90,66,61,10,11,65,76,183,106,66,20,174,165,65,99,109,90,36,155,66,
+20,174,165,65,108,174,71,132,66,20,174,165,65,98,2,43,140,66,61,10,11,65,211,205,162,66,0,0,0,0,207,119,189,66,0,0,0,0,98,14,173,222,66,0,0,0,0,84,163,249,66,45,178,87,65,84,163,249,66,20,174,240,65,98,84,163,249,66,143,194,58,66,14,173,222,66,27,175,
+112,66,207,119,189,66,27,175,112,66,98,211,205,162,66,27,175,112,66,2,43,140,66,133,235,77,66,174,71,132,66,16,216,29,66,108,90,36,155,66,16,216,29,66,98,186,201,161,66,154,25,54,66,139,172,174,66,98,144,70,66,207,119,189,66,98,144,70,66,98,211,13,211,
+66,98,144,70,66,248,147,228,66,18,131,35,66,248,147,228,66,20,174,240,65,98,248,147,228,66,4,86,154,65,211,13,211,66,225,122,40,65,207,119,189,66,225,122,40,65,98,139,172,174,66,225,122,40,65,186,201,161,66,236,81,106,65,90,36,155,66,20,174,165,65,99,
+109,133,171,190,66,63,53,205,65,98,12,2,196,66,63,53,205,65,141,87,200,66,68,139,222,65,141,87,200,66,96,229,243,65,98,141,87,200,66,190,159,4,66,12,2,196,66,193,74,13,66,133,171,190,66,193,74,13,66,108,135,22,237,65,193,74,13,66,98,106,188,215,65,193,
+74,13,66,102,102,198,65,190,159,4,66,102,102,198,65,96,229,243,65,98,102,102,198,65,68,139,222,65,106,188,215,65,63,53,205,65,135,22,237,65,63,53,205,65,108,133,171,190,66,63,53,205,65,99,101,0,0 };
+
+		Path p;
+		p.loadPathFromData(pathData, sizeof(pathData));
+
+		for (auto r : connectPositions)
+		{
+			PathFactory::scalePath(p, r.area.withWidth(24.0f).withHeight(24.0f).reduced(5.0f));
+
+			g.setColour(Colours::black.withAlpha(0.9f));
+			g.strokePath(p, PathStrokeType(2.0f));
+			g.setColour(r.c.withAlpha(1.0f).withSaturation(0.7f).withBrightness(0.8f));
+			g.fillPath(p);
+		}
+	}
+}
 
 const Chain * ProcessorEditor::getProcessorAsChain() const { return dynamic_cast<const Chain*>(getProcessor()); }
 Chain * ProcessorEditor::getProcessorAsChain() { return dynamic_cast<Chain*>(getProcessor()); }

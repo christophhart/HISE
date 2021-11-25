@@ -52,15 +52,37 @@ public:
 		return true;
 	}
 
-    virtual void linkTo(ExternalData::DataType type, int index, ComplexDataUIBase::Ptr externalData)
+    virtual void linkTo(ExternalData::DataType type, ProcessorWithExternalData& src, int srcIndex, int dstIndex)
     {
-        referenceShared(type, index);
+		Random r;
+		Colour c((uint32)r.nextInt());
+
+		SharedReference d1(type, srcIndex, c);
+		SharedReference d2(type, dstIndex, c);
+
+		src.sharedReferences.addIfNotAlreadyThere(d1);
+		sharedReferences.addIfNotAlreadyThere(d2);
+
+        referenceShared(type, dstIndex);
     }
     
 	FilterDataObject* getFilterData(int index) override
 	{
 		jassertfalse; // soon...
 		return nullptr;
+	}
+
+	Colour getSharedReferenceColour(ExternalData::DataType t, int index) const
+	{
+		SharedReference d(t, index, Colours::transparentBlack);
+
+		for (const auto& r : sharedReferences)
+		{
+			if (d == r)
+				return r.c;
+		}
+
+		return Colours::transparentBlack;
 	}
 
 protected:
@@ -86,6 +108,26 @@ protected:
     }
     
 private:
+
+	struct SharedReference
+	{
+		SharedReference(ExternalData::DataType type_, int index_, Colour c_) :
+			type(type_),
+			index(index_),
+			c(c_)
+		{};
+
+		bool operator==(const SharedReference& other) const
+		{
+			return index == other.index && type == other.type;
+		}
+
+		ExternalData::DataType type;
+		int index;
+		Colour c;
+	};
+
+	Array<SharedReference> sharedReferences;
 
     PooledUIUpdater* getUpdater()
 	{
@@ -142,15 +184,16 @@ public:
 		return t == dataType ? ownedObjects.size() : 0;
 	}
 	
-    void linkTo(ExternalData::DataType type, int index, ComplexDataUIBase::Ptr externalData) override
+    void linkTo(ExternalData::DataType type, ProcessorWithExternalData& src, int srcIndex, int dstIndex) override
     {
-        jassert(type == dataType);
+		jassert(type == dataType);
         
-        if(isPositiveAndBelow(index, getNumDataObjects(dataType)))
+        if(isPositiveAndBelow(srcIndex, getNumDataObjects(dataType)))
         {
-            ComplexDataUIBase::Ptr old = getComplexBaseType(type, index);
-            ownedObjects.set(index, externalData);
-            referenceShared(type, index);
+            ComplexDataUIBase::Ptr old = getComplexBaseType(type, dstIndex);
+			auto otherData = src.getComplexBaseType(type, srcIndex);
+            ownedObjects.set(dstIndex, otherData);
+			ProcessorWithExternalData::linkTo(type, src, srcIndex, dstIndex);
         }
     }
     
@@ -281,29 +324,31 @@ public:
 		return *(displayBuffers.getRawDataPointer() + index);
 	}
     
-    void linkTo(ExternalData::DataType type, int index, ComplexDataUIBase::Ptr externalData) override
+    void linkTo(ExternalData::DataType type, ProcessorWithExternalData& src, int srcIndex, int dstIndex) override
     {
-        if(isPositiveAndBelow(index, getNumDataObjects(type)))
+        if(isPositiveAndBelow(dstIndex, getNumDataObjects(type)))
         {
-            ComplexDataUIBase::Ptr old = getComplexBaseType(type, index);
+            ComplexDataUIBase::Ptr old = getComplexBaseType(type, dstIndex);
             
+			auto externalData = src.getComplexBaseType(type, srcIndex);
+
             switch(type)
             {
                 case ExternalData::DataType::Table:
-                    tables.set(index, dynamic_cast<Table*>(externalData.get()));
+                    tables.set(dstIndex, dynamic_cast<Table*>(externalData));
                     break;
                 case ExternalData::DataType::SliderPack:
-                    sliderPacks.set(index, dynamic_cast<SliderPackData*>(externalData.get()));
+                    sliderPacks.set(dstIndex, dynamic_cast<SliderPackData*>(externalData));
                     break;
                 case ExternalData::DataType::AudioFile:
-                    audioFiles.set(index, dynamic_cast<MultiChannelAudioBuffer*>(externalData.get()));
+                    audioFiles.set(dstIndex, dynamic_cast<MultiChannelAudioBuffer*>(externalData));
                     break;
                 case ExternalData::DataType::DisplayBuffer:
-                    displayBuffers.set(index, dynamic_cast<SimpleRingBuffer*>(externalData.get()));
+                    displayBuffers.set(dstIndex, dynamic_cast<SimpleRingBuffer*>(externalData));
                     break;
             }
             
-            referenceShared(type, index);
+			ProcessorWithExternalData::linkTo(type, src, srcIndex, dstIndex);
         }
     }
 
@@ -428,12 +473,14 @@ public:
 		}
 	}
 
-    void linkTo(ExternalData::DataType t, int index, ComplexDataUIBase::Ptr ed) override
+    void linkTo(ExternalData::DataType type, ProcessorWithExternalData& src, int srcIndex, int dstIndex) override
     {
-        if(isPositiveAndBelow(index, getNumDataObjects(t)))
+        if(isPositiveAndBelow(dstIndex, getNumDataObjects(type)))
         {
-            registerExternalObject(t, index, ed.get());
-            referenceShared(t, index);
+			auto ed = src.getComplexBaseType(type, srcIndex);
+
+            registerExternalObject(type, dstIndex, ed);
+			ProcessorWithExternalData::linkTo(type, src, srcIndex, dstIndex);
         }
     }
 

@@ -4556,9 +4556,9 @@ hise::ScriptingObjects::ScriptDisplayBufferSource* ScriptingApi::Synth::getDispl
 
 	if (getScriptProcessor()->objectsCanBeCreated())
 	{
-		Processor::Iterator<ExternalDataHolder> it(owner);
+		Processor::Iterator<ProcessorWithExternalData> it(owner);
 
-		while (ExternalDataHolder *eh = it.getNextProcessor())
+		while (auto eh = it.getNextProcessor())
 		{
 			if (dynamic_cast<Processor*>(eh)->getId() == name)
 			{

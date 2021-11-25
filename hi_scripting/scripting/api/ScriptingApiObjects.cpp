@@ -1005,7 +1005,7 @@ Component* ScriptingObjects::ScriptComplexDataReferenceBase::createPopupComponen
 	return nullptr;
 }
 
-ScriptingObjects::ScriptComplexDataReferenceBase::ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type_, ExternalDataHolder* otherHolder/*=nullptr*/) :
+ScriptingObjects::ScriptComplexDataReferenceBase::ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type_, ProcessorWithExternalData* otherHolder/*=nullptr*/) :
 	ConstScriptingObject(c, 0),
 	index(dataIndex),
 	type(type_),
@@ -1070,7 +1070,7 @@ struct ScriptingObjects::ScriptAudioFile::Wrapper
     API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, linkTo);
 };
 
-ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index_, snex::ExternalDataHolder* otherHolder) :
+ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index_, ProcessorWithExternalData* otherHolder) :
 	ScriptComplexDataReferenceBase(pwsc, 0, snex::ExternalData::DataType::AudioFile, otherHolder)
 {
 	ADD_API_METHOD_2(setRange);
@@ -1195,7 +1195,7 @@ struct ScriptingObjects::ScriptRingBuffer::Wrapper
 	API_METHOD_WRAPPER_2(ScriptRingBuffer, getResizedBuffer);
 };
 
-ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* other/*=nullptr*/):
+ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, ProcessorWithExternalData* other/*=nullptr*/):
 	ScriptComplexDataReferenceBase(pwsc, index, snex::ExternalData::DataType::DisplayBuffer, other)
 {
 	ADD_API_METHOD_0(getReadBuffer);
@@ -1328,7 +1328,7 @@ struct ScriptingObjects::ScriptTableData::Wrapper
     API_VOID_METHOD_WRAPPER_1(ScriptTableData, linkTo);
 };
 
-ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, snex::ExternalDataHolder* otherHolder):
+ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, ProcessorWithExternalData* otherHolder):
 	ScriptComplexDataReferenceBase(pwsc, index, snex::ExternalData::DataType::Table, otherHolder)
 {
 	ADD_API_METHOD_0(reset);
@@ -1471,7 +1471,7 @@ struct ScriptingObjects::ScriptSliderPackData::Wrapper
     API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, linkTo);
 };
 
-ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, snex::ExternalDataHolder* otherHolder) :
+ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, ProcessorWithExternalData* otherHolder) :
 	ScriptComplexDataReferenceBase(pwsc, dataIndex, snex::ExternalData::DataType::SliderPack, otherHolder)
 {
 	ADD_API_METHOD_2(setValue);
@@ -3627,7 +3627,7 @@ var ScriptingObjects::ScriptingAudioSampleProcessor::getAudioFile(int slotIndex)
 {
 	if (checkValidObject())
 	{
-		if (auto ed = dynamic_cast<ExternalDataHolder*>(audioSampleProcessor.get()))
+		if (auto ed = dynamic_cast<ProcessorWithExternalData*>(audioSampleProcessor.get()))
 			return var(new ScriptAudioFile(getScriptProcessor(), slotIndex, ed));
 	}
 
@@ -3760,7 +3760,7 @@ var ScriptingObjects::ScriptingTableProcessor::getTable(int tableIndex)
 {
 	if (checkValidObject())
 	{
-		if (auto ed = dynamic_cast<ExternalDataHolder*>(tableProcessor.get()))
+		if (auto ed = dynamic_cast<ProcessorWithExternalData*>(tableProcessor.get()))
 			return var(new ScriptTableData(getScriptProcessor(), tableIndex, ed));
 	}
 
@@ -3784,7 +3784,7 @@ var ScriptingObjects::ScriptSliderPackProcessor::getSliderPack(int sliderPackInd
 {
 	if (checkValidObject())
 	{
-		if (auto ed = dynamic_cast<ExternalDataHolder*>(sp.get()))
+		if (auto ed = dynamic_cast<ProcessorWithExternalData*>(sp.get()))
 			return var(new ScriptSliderPackData(getScriptProcessor(), sliderPackIndex, ed));
 	}
 
@@ -5747,7 +5747,7 @@ struct ScriptingObjects::ScriptDisplayBufferSource::Wrapper
 	API_METHOD_WRAPPER_1(ScriptDisplayBufferSource, getDisplayBuffer);
 };
 
-ScriptingObjects::ScriptDisplayBufferSource::ScriptDisplayBufferSource(ProcessorWithScriptingContent *p, ExternalDataHolder *h):
+ScriptingObjects::ScriptDisplayBufferSource::ScriptDisplayBufferSource(ProcessorWithScriptingContent *p, ProcessorWithExternalData *h):
 	ConstScriptingObject(p, 0),
 	source(h)
 {
@@ -5761,7 +5761,7 @@ var ScriptingObjects::ScriptDisplayBufferSource::getDisplayBuffer(int index)
 		auto numObjects = source->getNumDataObjects(ExternalData::DataType::DisplayBuffer);
 
 		if (isPositiveAndBelow(index, numObjects))
-			return var(new ScriptingObjects::ScriptRingBuffer(getScriptProcessor(), index, source));
+			return var(new ScriptingObjects::ScriptRingBuffer(getScriptProcessor(), index, dynamic_cast<ProcessorWithExternalData*>(source.get())));
 
 		reportScriptError("Can't find buffer at index " + String(index));
 	}
