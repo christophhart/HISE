@@ -49,6 +49,9 @@ public:
 
 	SN_SELF_AWARE_WRAPPER(smoothed, T);
 
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isPolyphonic);
+
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
 		if (shouldSmoothBypass())
@@ -233,6 +236,9 @@ template <class T> class simple : public SingleWrapper<T>
 public:
 
 	SN_SELF_AWARE_WRAPPER(simple, T);
+
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
+	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isPolyphonic);
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{

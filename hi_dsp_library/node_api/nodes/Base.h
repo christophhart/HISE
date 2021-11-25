@@ -83,8 +83,7 @@ template <class T> class SingleWrapper : public HiseDspBase
 {
 public:
 
-	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
-	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isPolyphonic);
+	
 
 	inline void initialise(NodeBase* n) override
 	{
