@@ -525,13 +525,7 @@ public:
 	ValueTree exportAsValueTree() const override { ValueTree v = EnvelopeModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
 	void restoreFromValueTree(const ValueTree &v) override { EnvelopeModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
 
-	float getAttribute(int index) const override
-	{
-		if (auto n = getActiveOrDebuggedNetwork())
-			return n->networkParameterHandler.getParameter(index);
-		else
-			return contentParameterHandler.getParameter(index);
-	}
+	
 
 	int getNumActiveVoices() const override;
 
@@ -548,18 +542,48 @@ public:
 
 	void setInternalAttribute(int index, float newValue) override
 	{
-		if (auto n = getActiveOrDebuggedNetwork())
-			n->networkParameterHandler.setParameter(index, newValue);
+		if (index < hise::EnvelopeModulator::Parameters::numParameters)
+			EnvelopeModulator::setInternalAttribute(index, newValue);
 		else
-			contentParameterHandler.setParameter(index, newValue);
+		{
+			index -= (int)hise::EnvelopeModulator::Parameters::numParameters;
+
+			if (auto n = getActiveOrDebuggedNetwork())
+				n->networkParameterHandler.setParameter(index, newValue);
+			else
+				contentParameterHandler.setParameter(index, newValue);
+		}
 	}
 
-	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
+	float getAttribute(int index) const override
 	{
-		if (auto n = getActiveOrDebuggedNetwork())
-			return n->networkParameterHandler.getParameterId(parameterIndex);
+		if (index < hise::EnvelopeModulator::Parameters::numParameters)
+			return EnvelopeModulator::getAttribute(index);
 		else
-			return contentParameterHandler.getParameterId(parameterIndex);
+		{
+			index -= (int)hise::EnvelopeModulator::Parameters::numParameters;
+
+			if (auto n = getActiveOrDebuggedNetwork())
+				return n->networkParameterHandler.getParameter(index);
+			else
+				return contentParameterHandler.getParameter(index);
+		}
+	}
+
+	Identifier getIdentifierForParameterIndex(int index) const override
+	{
+		if (index < hise::EnvelopeModulator::Parameters::numParameters)
+			return parameterNames[index];
+		else
+		{
+			index -= (int)hise::EnvelopeModulator::Parameters::numParameters;
+
+			if (auto n = getActiveOrDebuggedNetwork())
+				return n->networkParameterHandler.getParameterId(index);
+			else
+				return contentParameterHandler.getParameterId(index);
+		}
+		
 	}
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;

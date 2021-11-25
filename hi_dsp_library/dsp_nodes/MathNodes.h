@@ -415,9 +415,9 @@ DEFINE_MONO_OP_NODE(pi);
 DEFINE_MONO_OP_NODE(sig2mod);
 DEFINE_MONO_OP_NODE(abs);
 DEFINE_MONO_OP_NODE(clear);
-DEFINE_MONO_OP_NODE(square);
-DEFINE_MONO_OP_NODE(sqrt);
-DEFINE_MONO_OP_NODE(pow);
+DEFINE_OP_NODE(square);
+DEFINE_OP_NODE(sqrt);
+DEFINE_OP_NODE(pow);
 
 template <typename ExpressionClass> struct expression_base
 {

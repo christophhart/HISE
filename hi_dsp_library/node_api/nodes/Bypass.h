@@ -65,7 +65,7 @@ public:
 			this->obj.process(data);
 	}
 
-	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
+	
 
 	void processFrame(snex::Types::dyn<float>& data) noexcept
 	{
@@ -233,8 +233,6 @@ template <class T> class simple : public SingleWrapper<T>
 public:
 
 	SN_SELF_AWARE_WRAPPER(simple, T);
-
-	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
