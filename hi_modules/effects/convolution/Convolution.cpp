@@ -160,13 +160,13 @@ void ConvolutionEffectBase::applyHighFrequencyDamping(AudioSampleBuffer& buffer,
 	SimpleOnePole lp1;
 	lp1.setType(SimpleOnePoleSubType::FilterType::LP);
 	lp1.setFrequency(20000.0);
-	lp1.setSampleRate(sampleRate >= 0.0 ? sampleRate : 44100.0);
+	lp1.setSampleRate(sampleRate > 0.0 ? sampleRate : 44100.0);
 	lp1.setNumChannels(2);
 
 	SimpleOnePole lp2;
 	lp2.setType(SimpleOnePoleSubType::FilterType::LP);
 	lp2.setFrequency(20000.0);
-	lp2.setSampleRate(sampleRate >= 0.0 ? sampleRate : 44100.0);
+	lp2.setSampleRate(sampleRate > 0.0 ? sampleRate : 44100.0);
 	lp2.setNumChannels(2);
 
 	for (int i = 0; i < numSamples; i += 64)

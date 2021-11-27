@@ -157,7 +157,8 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 	{
 		DebuggableSnexProcessor::workbenchChanged(newWorkbench);
 
-		testData = &rootWb->getTestData();
+		if(rootWb != nullptr)
+			testData = &rootWb->getTestData();
 	}
 
 	SET_PROCESSOR_CONNECTOR_TYPE_ID("ScriptProcessor");

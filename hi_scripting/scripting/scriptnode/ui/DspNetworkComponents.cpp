@@ -1306,7 +1306,7 @@ struct ScriptnodeDebugPopup: public Component,
 
 	void timerCallback() override
 	{
-		if (!dbgNetwork->isBeingDebugged())
+		if (dbgNetwork == nullptr || !dbgNetwork->isBeingDebugged())
 		{
 			findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
 		}
