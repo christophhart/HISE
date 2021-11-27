@@ -597,6 +597,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		AudioSampleBuffer testSourceData;
 		AudioSampleBuffer testOutputData;
+		AudioSampleBuffer testReferenceData;
 		
 		File currentTestFile;
 		File testInputFile;

@@ -65,7 +65,7 @@ void Graph::InternalGraph::paint(Graphics& g)
 
 	g.setFont(GLOBAL_BOLD_FONT());
 
-    bool empty = true;
+    bool empty = errorRanges.isEmpty();
     
     for(const auto& cd: channelData)
         empty &= cd.path.isEmpty();
@@ -110,15 +110,30 @@ void Graph::InternalGraph::paint(Graphics& g)
 				}
 			}
 
-            g.setColour(Colours::white.withAlpha(0.8f));
+            g.setColour(Colour(0xFFAAAAAA));
 
             for(const auto& cd: channelData)
             {
-                if (isHiresMode())
-                    g.strokePath(cd.path, PathStrokeType(2.0f));
-                else
-                    g.fillPath(cd.path);
+				if(getCurrentGraphType() == Graph::GraphType::Signal)
+					g.fillRectList(cd.rectangles);
+				else
+				{
+					if (isHiresMode())
+						g.strokePath(cd.path, PathStrokeType(2.0f));
+					else
+						g.fillPath(cd.path);
+				}
             }
+
+			for (const auto& er : errorRanges)
+			{
+				auto totalSamples = (float)lastBuffer.getNumSamples();
+				auto x = roundToInt((float)er.getStart() / totalSamples * (float)getWidth());
+				auto w = roundToInt(er.getLength() / totalSamples * (float)getWidth());
+
+				g.setColour(Colours::red.withAlpha(0.3f));
+				g.fillRect(x, 0, w, getHeight());
+			}
 		}
 	}
 
@@ -221,8 +236,8 @@ void Graph::InternalGraph::setBuffer(const AudioSampleBuffer& b)
         for(int i = 0; i < b.getNumChannels(); i++)
         {
             ChannelData nd;
-            calculatePath(nd.path, b, i);
-            nd.peaks = b.findMinMax(i, 0, b.getNumSamples());
+            calculatePath(nd, b, i);
+            
             newData.add(std::move(nd));
         }
         
@@ -237,27 +252,36 @@ Graph::GraphType Graph::InternalGraph::getCurrentGraphType() const
 	return findParentComponentOfClass<Graph>()->currentGraphType;
 }
 
-void Graph::InternalGraph::calculatePath(Path& p, const AudioSampleBuffer& b, int channel)
+void Graph::InternalGraph::calculatePath(ChannelData& c, const AudioSampleBuffer& b, int channel)
 {
+	auto& p = c.path;
+
 	numSamples = b.getNumSamples();
 	p.clear();
-	
+
 	if (numSamples == 0)
 		return;
 
 	bool bigMode = b.getNumSamples() > 20000;
 
+	auto r = b.findMinMax(channel, 0, b.getNumSamples());
+
+	auto rs = r.getStart();
+	auto re = r.getEnd();
+	FloatSanitizers::sanitizeFloatNumber(rs);
+	FloatSanitizers::sanitizeFloatNumber(re);
+	c.peaks.setStart(rs);
+	c.peaks.setEnd(re);
+	
 	if (b.getMagnitude(channel, 0, b.getNumSamples()) > 0.0f)
 	{
 		auto delta = (float)b.getNumSamples() / jmax(1.0f, (float)getWidth());
-
-		delta *= 16.0f;
 
 		int samplesPerPixel = jmax(1, (int)delta);
 
 		pixelsPerSample = 1.0f / (float)delta;
 
-		if(!bigMode)
+		if (!bigMode)
 			p.startNewSubPath(0.0f, getYPosition(0.0f));
 
 		for (int i = 0; i < b.getNumSamples(); i += samplesPerPixel)
@@ -275,7 +299,37 @@ void Graph::InternalGraph::calculatePath(Path& p, const AudioSampleBuffer& b, in
 
 			auto x = getXPosition((float)i / b.getNumSamples());
 
-            p.lineTo(x, getYPosition(s));
+			NormalisableRange<float> nr(c.peaks.getStart(), c.peaks.getEnd());
+
+			float halfHeight = (float)getHeight() * 0.5f;
+
+			auto upperNormalised = 1.0f - nr.convertTo0to1(range.getEnd());
+			auto lowerNormalised = 1.0f - nr.convertTo0to1(range.getStart());
+
+			if (getCurrentGraphType() == GraphType::Signal)
+			{
+				auto zeroPoint = 1.0f - nr.convertTo0to1(0.0f);
+
+				if (upperNormalised > zeroPoint)
+					upperNormalised = jmin(zeroPoint, upperNormalised);
+
+				if (upperNormalised < zeroPoint)
+					lowerNormalised = jmax(zeroPoint, lowerNormalised);
+			}
+			else
+			{
+				lowerNormalised = 1.0f;
+			}
+
+			int xi = roundToInt(getXPosition(x) * (float)getWidth());
+			int yi = roundToInt(upperNormalised * halfHeight + ((channel == 1) ? halfHeight : 0.0f));
+			int wi = (int)std::ceil(pixelsPerSample);
+			int hi = roundToInt(lowerNormalised * halfHeight + ((channel == 1) ? halfHeight : 0.0f)) - yi;
+			
+			hi = jmax(1, hi);
+
+			c.rectangles.addWithoutMerging({ xi++, yi, wi, hi });
+			p.lineTo(x, getYPosition(s));
 		}
 
 		if (!isHiresMode())
@@ -284,6 +338,8 @@ void Graph::InternalGraph::calculatePath(Path& p, const AudioSampleBuffer& b, in
 			p.closeSubPath();
 		}
 	}
+
+	
 }
 
 void Graph::InternalGraph::resizePath()
@@ -499,6 +555,31 @@ void Graph::InternalGraph::rebuildSpectrumRectangles()
     signalRebuild();
     
     this->repaint();
+}
+
+void Graph::InternalGraph::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel)
+{
+	if (e.mods.isAnyModifierKeyDown())
+	{
+		zoomFactor = jlimit(1.0f, 32.0f, zoomFactor + (float)wheel.deltaY * 5.0f);
+
+		auto p = findParentComponentOfClass<Graph>();
+
+		int xPos = e.getPosition().getX() - p->viewport.getViewPositionX();
+		
+		auto normX = (float)e.getPosition().getX() / (float)getWidth();
+
+		//auto thisPos = getWidth() * normX - xPos;
+
+		findParentComponentOfClass<Graph>()->resized();
+		setBuffer(lastBuffer);
+
+		auto newNormX = getWidth() * normX - xPos;
+
+		p->viewport.setViewPosition(newNormX, 0);
+	}
+	else
+		getParentComponent()->mouseWheelMove(e, wheel);
 }
 
 namespace GraphIcons
@@ -824,49 +905,201 @@ TestDataComponent::Item::Item(WorkbenchData::TestData& d, int i, bool isParamete
 	isParameter(isParameter_),
 	deleteButton("Delete", this, f)
 {
-	addAndMakeVisible(jsonEditor);
-	addAndMakeVisible(deleteButton);
-
-	jsonEditor.addListener(this);
-
-	jsonEditor.setFont(GLOBAL_MONOSPACE_FONT());
-
 	var obj;
 
 	if (isParameter)
 	{
 		auto p = d.getParameterEvent(index);
 		obj = p.toJson();
+
+		addAndMakeVisible(indexEditor);
+		addAndMakeVisible(valueEditor);
+		addAndMakeVisible(timestampEditor);
+
+		indexEditor.setText(obj.getProperty("Index", 0), dontSendNotification);
+		valueEditor.setText(obj.getProperty("Value", 0.0), dontSendNotification);
+		timestampEditor.setText(obj.getProperty("Timestamp", 0), dontSendNotification);
+
+		indexEditor.onReturnKey = BIND_MEMBER_FUNCTION_0(Item::rebuild);
+		valueEditor.onReturnKey = BIND_MEMBER_FUNCTION_0(Item::rebuild);
+		timestampEditor.onReturnKey = BIND_MEMBER_FUNCTION_0(Item::rebuild);
 	}
 	else
 	{
 		auto e = d.getTestHiseEvent(index);
 		obj = JitFileTestCase::getJSONData(e);
+
+		// {"Type": "NoteOn", "Channel": 1, "Value1": 64, "Value2": 127, "Timestamp": 408}
+
+		{
+			auto typeString = Identifier(obj.getProperty("Type", "").toString());
+
+			for (int i = 0; i < (int)HiseEvent::Type::numTypes; i++)
+			{
+				Identifier id(HiseEvent::getTypeString((HiseEvent::Type)i));
+				typeEditor.addItem(id.toString(), i + 1);
+
+				if (id == typeString)
+					typeEditor.setSelectedId(i + 1, dontSendNotification);
+			}
+		}
+
+		for (int i = 1; i < 128; i++)
+			numberEditor.addItem(String(i), i);
+
+		for (int i = 1; i < 16; i++)
+			channelEditor.addItem(String(i), i);
+
+		numberEditor.setSelectedId(obj.getProperty("Value1", 64), dontSendNotification);
+		valueEditor.setText(obj.getProperty("Value2", 127), dontSendNotification);
+		timestampEditor.setText(obj.getProperty("Timestamp", 0), dontSendNotification);
+		channelEditor.setSelectedId(obj.getProperty("Channel", 1), dontSendNotification);
+		
+		addAndMakeVisible(typeEditor);
+		addAndMakeVisible(numberEditor);
+		addAndMakeVisible(valueEditor);
+		addAndMakeVisible(channelEditor);
+		addAndMakeVisible(timestampEditor);
+
+		typeEditor.onChange = BIND_MEMBER_FUNCTION_0(Item::rebuild);
+		numberEditor.onChange = BIND_MEMBER_FUNCTION_0(Item::rebuild);
+		channelEditor.onChange = BIND_MEMBER_FUNCTION_0(Item::rebuild);
+		valueEditor.onReturnKey = BIND_MEMBER_FUNCTION_0(Item::rebuild);
+		timestampEditor.onReturnKey = BIND_MEMBER_FUNCTION_0(Item::rebuild);
 	}
 
-	jsonEditor.setText(JSON::toString(obj, true), false);
+	for (i = 0; i < getNumChildComponents(); i++)
+	{
+		getChildComponent(i)->setLookAndFeel(&claf);
+	}
+
+	claf.setTextEditorColours(timestampEditor);
+	claf.setTextEditorColours(valueEditor);
+	claf.setTextEditorColours(indexEditor);
+	
+	claf.setDefaultColours(typeEditor);
+	claf.setDefaultColours(numberEditor);
+	claf.setDefaultColours(channelEditor);
+
+	addAndMakeVisible(deleteButton);
 }
 
-void TestDataComponent::Item::textEditorReturnKeyPressed(TextEditor&)
+void TestDataComponent::Item::paint(Graphics& g)
 {
-	auto v = JSON::parse(jsonEditor.getText());
+	auto b = getLocalBounds().reduced(1).toFloat();
 
-	if (!v.isObject())
-		return;
+	g.setColour(Colours::white.withAlpha(0.1f));
+	g.drawRoundedRectangle(b, 2.0f, 1.0f);
+	g.fillRoundedRectangle(b, 2.0f);
+
+	g.setColour(Colours::white.withAlpha(0.8f));
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.drawText(String(index), b.removeFromLeft(getHeight()).toFloat(), Justification::centred);
+
+	StringArray names;
+
+	if (isParameter)
+	{
+		names = { "Timestamp", "Index", "Value" };
+	}
+	else
+	{
+		names = { "Timestamp", "Type", "Number", "Value", "Channel"};
+	}
+
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.setColour(Colours::white.withAlpha(0.4f));
+
+	for (int i = 0; i < labelAreas.size(); i++)
+	{
+		g.drawText(names[i], labelAreas[i], Justification::centred);
+	}
+}
+
+void TestDataComponent::Item::rebuild()
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	auto getIntValue = [](TextEditor& t, bool roundToRaster=false)
+	{
+		auto v = t.getText().getIntValue();
+
+		if (roundToRaster)
+			v -= (v % HISE_EVENT_RASTER);
+
+		return v;
+	};
+
+	if (isParameter)
+	{
+		obj->setProperty("Index", getIntValue(indexEditor));
+		obj->setProperty("Value", valueEditor.getText().getDoubleValue());
+		obj->setProperty("Timestamp", getIntValue(timestampEditor, true));
+	}
+	else
+	{
+		// {"Type": "NoteOn", "Channel": 1, "Value1": 64, "Value2": 127, "Timestamp": 408}
+
+		obj->setProperty("Type", HiseEvent::getTypeString((HiseEvent::Type)(typeEditor.getSelectedId() -1)) );
+		obj->setProperty("Channel", channelEditor.getSelectedId());
+		obj->setProperty("Value1", numberEditor.getSelectedId());
+		obj->setProperty("Value2", getIntValue(valueEditor));
+		obj->setProperty("Timestamp", getIntValue(timestampEditor, true));
+	}
+
+	var va(obj.get());
 
 	data.removeTestEvent(index, isParameter, dontSendNotification);
 
 	if (isParameter)
 	{
-		data.addTestEvent(WorkbenchData::TestData::ParameterEvent(v));
+		data.addTestEvent(WorkbenchData::TestData::ParameterEvent(va));
 	}
 	else
 	{
-		auto e = JitFileTestCase::parseHiseEvent(v);
+		auto e = JitFileTestCase::parseHiseEvent(va);
 		data.addTestEvent(e);
 	}
 }
 
+
+void TestDataComponent::Item::resized()
+{
+	auto b = getLocalBounds();
+	deleteButton.setBounds(b.removeFromRight(getHeight()).reduced(3));
+	b.removeFromLeft(getHeight());
+
+	labelAreas.clear();
+
+	auto f = GLOBAL_BOLD_FONT();
+
+	if (isParameter)
+	{
+		auto w = b.getWidth() / 3;
+
+		labelAreas.add(b.removeFromLeft(f.getStringWidth("Timestamp")).toFloat());
+		timestampEditor.setBounds(b.removeFromLeft(70));
+		labelAreas.add(b.removeFromLeft(f.getStringWidth("Index")).toFloat());
+		indexEditor.setBounds(b.removeFromLeft(80));
+		labelAreas.add(b.removeFromLeft(f.getStringWidth("Value")).toFloat());
+		valueEditor.setBounds(b.removeFromLeft(128));
+		
+	}
+	else
+	{
+		auto w = b.getWidth() / 5;
+		labelAreas.add(b.removeFromLeft(f.getStringWidth("Timestamp")).toFloat());
+		timestampEditor.setBounds(b.removeFromLeft(70));
+		labelAreas.add(b.removeFromLeft(f.getStringWidth("Type")).toFloat());
+		typeEditor.setBounds(b.removeFromLeft(80));
+		labelAreas.add(b.removeFromLeft(f.getStringWidth("Number")).toFloat());
+		numberEditor.setBounds(b.removeFromLeft(50));
+		labelAreas.add(b.removeFromLeft(f.getStringWidth("Value")).toFloat());
+		valueEditor.setBounds(b.removeFromLeft(50));
+		labelAreas.add(b.removeFromLeft(f.getStringWidth("Channel")).toFloat());
+		channelEditor.setBounds(b.removeFromLeft(50));
+	}
+}
 
 void TestDataComponent::buttonClicked(Button* b)
 {
@@ -885,7 +1118,7 @@ void TestDataComponent::buttonClicked(Button* b)
 	else if (b == compareButton)
 	{
 		td.saveCurrentTestOutput();
-
+		getWorkbench()->triggerPostCompileActions();
 		
 
 		return;
@@ -966,6 +1199,82 @@ juce::AudioSampleBuffer& TestGraph::getTestBuffer()
 	return bf;
 }
 
+void TestGraph::postPostCompile(WorkbenchData::Ptr wb)
+{
+	auto r = wb->getLastResult();
+
+	auto& errorRanges = graph.internalGraph.errorRanges;
+	errorRanges.clear();
+
+	if (r.compiledOk())
+	{
+		cpuUsage = wb->getTestData().cpuUsage;
+
+		auto& td = wb->getTestData();
+
+		if (td.testOutputFile.existsAsFile())
+		{
+			double speed;
+			auto refBuffer = hlac::CompressionHelpers::loadFile(td.testOutputFile, speed);
+			
+			const auto& thisBuffer = td.testOutputData;
+			
+			Range<int> currentRange;
+
+			auto isError = [](float l1, float l2, float r1, float r2)
+			{
+				if (hmath::abs(l1 - l2) > 0.001f ||
+					hmath::abs(r1 - r2) > 0.001f)
+					return true;
+
+				return false;
+			};
+
+			if (refBuffer.getNumChannels() == thisBuffer.getNumChannels() &&
+				refBuffer.getNumSamples() == thisBuffer.getNumSamples())
+			{
+				int rightChannel = refBuffer.getNumChannels() > 1 ? 1 : 0;
+
+				for (int i = 0; i < refBuffer.getNumSamples(); i++)
+				{
+					auto el = refBuffer.getSample(0, i);
+					auto er = refBuffer.getSample(rightChannel, i);
+
+					auto al = thisBuffer.getSample(0, i);
+					auto ar = thisBuffer.getSample(rightChannel, i);
+
+					if (isError(el, al, er, ar))
+					{
+						if (currentRange.isEmpty())
+						{
+							currentRange.setStart(i);
+							currentRange.setEnd(i + 1);
+						}
+						else
+							currentRange.setEnd(i);
+					}
+					else
+					{
+						if (!currentRange.isEmpty())
+							errorRanges.add(currentRange);
+
+						currentRange = {};
+					}
+				}
+
+				if (!currentRange.isEmpty())
+					errorRanges.add(currentRange);
+			}
+			else
+			{
+				jassertfalse;
+			}
+		}
+
+		graph.refreshDisplayedBuffer();
+	}
+}
+
 void TestGraph::drawTestEvent(Graphics& g, bool isParameter, int index)
 {
 	int timestamp = 0;
@@ -994,7 +1303,9 @@ void TestGraph::drawTestEvent(Graphics& g, bool isParameter, int index)
 
 	auto ni = (float)timestamp / (float)td.testSourceData.getNumSamples();
 
-	auto xPos = roundToInt(ni * getWidth());
+	auto totalWidth = (float)graph.internalGraph.getWidth();
+
+	auto xPos = roundToInt(ni * totalWidth);
 
 	g.setColour(c.withAlpha(0.8f));
 	g.drawVerticalLine(xPos, 0.0f, (float)getHeight());

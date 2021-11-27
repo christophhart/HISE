@@ -310,7 +310,14 @@ struct Graph: public Component,
 
 		GraphType getCurrentGraphType() const;
 
-		void calculatePath(Path& p, const AudioSampleBuffer& b, int channel);
+		struct ChannelData
+		{
+			Path path;
+			Range<float> peaks;
+			RectangleList<int> rectangles;
+		};
+
+		void calculatePath(ChannelData& c, const AudioSampleBuffer& b, int channel);
 
 		void resizePath();
 
@@ -342,17 +349,7 @@ struct Graph: public Component,
 			repaint();
 		}
 
-		void mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel) override
-		{
-			if (e.mods.isAnyModifierKeyDown())
-			{
-				zoomFactor = jlimit(1.0f, 32.0f, zoomFactor + (float)wheel.deltaY * 5.0f);
-				findParentComponentOfClass<Graph>()->resized();
-				setBuffer(lastBuffer);
-			}
-			else
-				getParentComponent()->mouseWheelMove(e, wheel);
-		}
+		void mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel) override;
 
 		bool isHiresMode() const
 		{
@@ -414,17 +411,14 @@ struct Graph: public Component,
 		int numSamples = 0;
 		int currentPosition = 0;
         
-        struct ChannelData
-        {
-			Path path;
-            Range<float> peaks;
-        };
+        
         
         Array<ChannelData> channelData;
         
 		Image spectroImage;
 		float zoomFactor = 1.0f;
 		
+		Array<Range<int>> errorRanges;
 
 	} internalGraph;
 
@@ -571,17 +565,7 @@ struct TestGraph : public TestDataComponentBase
 
 	AudioSampleBuffer& getTestBuffer();
 
-	void postPostCompile(WorkbenchData::Ptr wb)
-	{
-		auto r = wb->getLastResult();
-
-		if (r.compiledOk())
-		{
-			cpuUsage = wb->getTestData().cpuUsage;
-
-			graph.refreshDisplayedBuffer();
-		}
-	}
+	void postPostCompile(WorkbenchData::Ptr wb);
 
 	double cpuUsage = 0.0;
 
@@ -607,6 +591,7 @@ struct TestGraph : public TestDataComponentBase
 	}
 
 	Graph graph;
+	
 };
 
 struct TestDataComponent : public TestDataComponentBase
@@ -654,8 +639,7 @@ struct TestDataComponent : public TestDataComponentBase
 	void comboBoxChanged(ComboBox* cb) override;
 
 	struct Item : public Component,
-				  public ButtonListener,
-				  public TextEditor::Listener
+				  public ButtonListener
 	{
 		Item(WorkbenchData::TestData& d, int i, bool isParameter_);
 
@@ -667,47 +651,23 @@ struct TestDataComponent : public TestDataComponentBase
 			}
 		}
 
-		void paint(Graphics& g) override
-		{
-			auto b = getLocalBounds().reduced(1).toFloat();
+		void paint(Graphics& g) override;
 
-			g.setColour(Colours::white.withAlpha(0.1f));
-			g.drawRoundedRectangle(b, 2.0f, 1.0f);
-			g.fillRoundedRectangle(b, 2.0f);
+		void rebuild();
 
-			g.setColour(Colours::white.withAlpha(0.8f));
-			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText(String(index), b.removeFromLeft(getHeight()).toFloat(), Justification::centred);
-		}
+		void resized() override;
 
-		void textEditorReturnKeyPressed(TextEditor&);
-
-#if 0
-		void rebuildAsync()
-		{
-			auto p = findParentComponentOfClass<TestDataComponent>();
-			MessageManager::callAsync([p]()
-			{
-				p->getWorkbench()->triggerPostCompileActions();
-				p->rebuild();
-			});
-		}
-#endif
-
-		void resized() override
-		{
-			auto b = getLocalBounds();
-			deleteButton.setBounds(b.removeFromRight(getHeight()).reduced(3));
-			b.removeFromLeft(getHeight());
-			jsonEditor.setBounds(b.reduced(2));
-		}
+		GlobalHiseLookAndFeel claf;
 
 		Graph::Icons f;
 
-		TextEditor jsonEditor;
 		HiseShapeButton deleteButton;
 
-		OwnedArray<Component> components;
+		TextEditor indexEditor, valueEditor;
+		ComboBox typeEditor, numberEditor, channelEditor;
+		TextEditor timestampEditor;
+
+		Array<Rectangle<float>> labelAreas;
 
 		WorkbenchData::TestData& data;
 		bool isParameter = false;
@@ -796,8 +756,12 @@ struct TestDataComponent : public TestDataComponentBase
 		addParameter.setBounds(l.removeFromLeft(24).reduced(3));
 		addEvent.setBounds(r.removeFromLeft(24).reduced(3));
 
+
+
 		parameterViewport.setBounds(b.removeFromLeft(b.getWidth() / 2));
 		eventViewport.setBounds(b);
+
+		testEventsChanged();
 	}
 
 	Component parameterHolder;
