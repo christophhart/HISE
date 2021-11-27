@@ -957,12 +957,134 @@ using gonio_display = data::ui::pimpl::editorT<data::dynamic::displaybuffer,
 	ui::simple_gon_display,
 	false>;
 
+struct SpecNode: public NodeBase
+{
+	SET_HISE_NODE_ID("specs");
+
+	struct Comp : public NodeComponent,
+				  public PooledUIUpdater::SimpleTimer
+	{
+		Comp(SpecNode* b) :
+			NodeComponent(b),
+			SimpleTimer(b->getRootNetwork()->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
+		{
+			start();
+		};
+
+		void timerCallback() override
+		{
+
+		}
+
+		void paint(Graphics& g) override
+		{
+			NodeComponent::paint(g);
+			
+			Colour w1 = Colours::white.withAlpha(0.6f);
+			Colour w2 = Colours::white.withAlpha(0.9f);
+
+			Font f1 = GLOBAL_BOLD_FONT();
+			Font f2 = GLOBAL_MONOSPACE_FONT();
+
+			auto specs = dynamic_cast<SpecNode*>(node.get())->lastSpecs;
+
+			AttributedString as;
+			as.append("Channel Amount: ", f1, w1);
+			as.append(String(roundToInt(specs.numChannels)) + "\n", f2, w2);
+			as.append("Samplerate: ", f1, w1);
+			as.append(String(roundToInt(specs.sampleRate)) + " | ", f2, w2);
+			as.append("Block Size: ", f1, w1);
+			as.append(String(roundToInt(specs.blockSize)) + "\n", f2, w2);
+			as.append("MIDI: ", f1, w1);
+			as.append(String(dynamic_cast<SpecNode*>(node.get())->processMidi ? "true | " : "false |"), f2, w2);
+			as.append("Polyphony: ", f1, w1);
+
+			auto polyEnabled = specs.voiceIndex != nullptr && specs.voiceIndex->isEnabled();
+
+			as.append(polyEnabled ? "true\n" : "false\n", f2, w2);
+
+			if (polyEnabled)
+			{
+				if (auto vr = specs.voiceIndex->getVoiceResetter())
+				{
+					as.append("NumActiveVoices: ", f1, w1);
+					as.append(String(vr->getNumActiveVoices()) + "\n", f2, w2);
+				}
+			}
+
+			auto b = getLocalBounds();
+			b.removeFromTop(header.getHeight());
+			b = b.reduced(UIValues::NodeMargin);
+
+			ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, b.toFloat(), false);
+
+			as.draw(g, b.toFloat().reduced(UIValues::NodeMargin));
+		}
+	};
+
+	SpecNode(DspNetwork* n, ValueTree v) :
+		NodeBase(n, v, 0)
+	{};
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree v)
+	{
+		return new SpecNode(n, v);
+	}
+
+	void process(ProcessDataDyn& data) override
+	{
+		lastMs = Time::getMillisecondCounter();
+	}
+
+	void reset() override
+	{
+
+	};
+
+	void processFrame(FrameType& data) override
+	{
+		lastMs = Time::getMillisecondCounter();
+	}
+
+	void prepare(PrepareSpecs ps) override
+	{
+		lastSpecs = ps;
+
+		try
+		{
+			ScriptnodeExceptionHandler::validateMidiProcessingContext(this);
+			processMidi = true;
+		}
+		catch (scriptnode::Error& e)
+		{
+			processMidi = false;
+		}
+	}
+
+	NodeComponent* createComponent() override
+	{
+		return new Comp(this);
+	}
+
+	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+	{
+		return { topLeft.getX(), topLeft.getY(), 256, 130 };
+	}
+
+	uint32 lastMs;
+	PrepareSpecs lastSpecs;
+	bool processMidi = false;
+};
+
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
 	registerNode<wrap::data<fft, data::dynamic::displaybuffer>, fft_display>();
 	registerNode<wrap::data<oscilloscope, data::dynamic::displaybuffer>, osc_display>();
 	registerNode<wrap::data<goniometer, data::dynamic::displaybuffer>, gonio_display>();
+
+	registerPolyNodeRaw<SpecNode, SpecNode>();
+
 }
 
 }
