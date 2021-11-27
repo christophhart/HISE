@@ -1065,6 +1065,82 @@ namespace control
 			mutable bool dirty = false;
 		};
 
+		struct logic_op
+		{
+			enum class LogicType
+			{
+				AND,
+				OR,
+				XOR,
+				numLogicTypes
+			};
+
+			SET_HISE_NODE_ID("logic_op");
+			SN_DESCRIPTION("Combines the (binary) input signals using a logic operator");
+
+			static constexpr bool isNormalisedModulation() { return true; }
+
+			bool operator==(const logic_op& other) const
+			{
+				return logicType == other.logicType && leftValue == other.leftValue && rightValue == other.rightValue;
+			}
+
+			double getValue() const
+			{
+				dirty = false;
+
+				switch (logicType)
+				{
+				case LogicType::AND: return leftValue && rightValue ? 1.0 : 0.0;
+				case LogicType::OR: return leftValue || rightValue ? 1.0 : 0.0;
+				case LogicType::XOR: return (leftValue || rightValue) && !(leftValue == rightValue) ? 1.0 : 0.0;
+				}
+			}
+
+			template <int P> void setParameter(double v)
+			{
+				if constexpr (P == 0)
+					leftValue = v > 0.5;
+				if constexpr (P == 1)
+					rightValue = v > 0.5;
+				if constexpr (P == 2)
+					logicType = (LogicType)jlimit(0, 2, (int)v);
+
+				dirty = true;
+			}
+
+			template <typename NodeType> static void createParameters(ParameterDataList& data, NodeType& n)
+			{
+				{
+					parameter::data p("Left");
+					p.callback = parameter::inner<NodeType, 0>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Right");
+					p.callback = parameter::inner<NodeType, 1>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Operator");
+					p.callback = parameter::inner<NodeType, 2>(n);
+					p.setParameterValueNames({ "AND", "OR", "XOR" });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+			}
+
+			bool leftValue = false;
+			bool rightValue = false;
+			LogicType logicType = LogicType::AND;
+			mutable bool dirty = false;
+
+		};
+
 		struct minmax
 		{
 			SET_HISE_NODE_ID("minmax");
@@ -1299,6 +1375,7 @@ namespace control
 	template <int NV, typename ParameterType> using pma = multi_parameter<NV, ParameterType, multilogic::pma>;
 	template <int NV, typename ParameterType> using bipolar = multi_parameter<NV, ParameterType, multilogic::bipolar>;
 	template <int NV, typename ParameterType> using minmax = multi_parameter<NV, ParameterType, multilogic::minmax>;
+	template <int NV, typename ParameterType> using logic_op = multi_parameter<NV, ParameterType, multilogic::logic_op>;
 
 	template <typename SmootherClass> struct smoothed_parameter: public control::pimpl::templated_mode
 	{

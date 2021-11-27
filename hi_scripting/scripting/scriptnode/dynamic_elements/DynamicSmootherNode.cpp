@@ -172,6 +172,73 @@ void pma_editor::paint(Graphics& g)
 	g.drawText(end, t.translated(70.0f, 80.0f), Justification::centred);
 }
 
+logic_op_editor::logic_op_editor(LogicBase* b, PooledUIUpdater* u) :
+	ScriptnodeExtraComponent<LogicBase>(b, u),
+	dragger(u)
+{
+	setSize(256, 60);
+	addAndMakeVisible(dragger);
+}
+
+void logic_op_editor::paint(Graphics& g)
+{
+	auto b = getLocalBounds();
+	auto l = b.removeFromLeft(getWidth() / 3).toFloat().withSizeKeepingCentre(16.0f, 16.0f);
+	auto r = b.removeFromLeft(getWidth() / 3).toFloat().withSizeKeepingCentre(16.0f, 16.0f);
+	auto m = dragger.getBounds().toFloat(); m.removeFromLeft(m.getWidth() / 2.0f);
+	m = m.withSizeKeepingCentre(16.0f, 16.0f);
+	
+	ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, l.getUnion(r).expanded(6.0f, 6.0f), true);
+
+	g.setColour(Colours::white.withAlpha(0.9f));
+	g.drawEllipse(l, 2.0f);
+	g.drawEllipse(r, 2.0f);
+	g.drawEllipse(m, 2.0f);
+
+	g.setFont(GLOBAL_MONOSPACE_FONT().withHeight(l.getHeight() - 1.0f));
+
+	String w;
+
+	switch (lastData.logicType)
+	{
+	case multilogic::logic_op::LogicType::AND: w = "AND"; break;
+	case multilogic::logic_op::LogicType::OR: w = "OR"; break;
+	case multilogic::logic_op::LogicType::XOR: w = "XOR"; break;
+	}
+
+	g.drawText(w, l.getUnion(r), Justification::centred);
+
+	if (lastData.leftValue)
+		g.fillEllipse(l.reduced(4.0f));
+
+	if (lastData.rightValue)
+		g.fillEllipse(r.reduced(4.0f));
+
+	if (lastData.getValue() > 0.5)
+		g.fillEllipse(m.reduced(4.0f));
+}
+
+void logic_op_editor::timerCallback()
+{
+	auto thisData = getObject()->getUIData();
+
+	if (!(thisData == lastData))
+	{
+		lastData = thisData;
+		repaint();
+	}
+}
+
+void logic_op_editor::resized()
+{
+	auto b = getLocalBounds();
+
+	b = b.removeFromRight(getWidth() / 3);
+	b = b.withSizeKeepingCentre(28 * 2, 28);
+
+	dragger.setBounds(b);
+}
+
 minmax_editor::minmax_editor(MinMaxBase* b, PooledUIUpdater* u) :
 	ScriptnodeExtraComponent<MinMaxBase>(b, u),
 	dragger(u)

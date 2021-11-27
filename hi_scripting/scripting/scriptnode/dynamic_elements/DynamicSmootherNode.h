@@ -38,6 +38,29 @@ using namespace hise;
 
 namespace control
 {
+	struct logic_op_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::logic_op>>
+	{
+		using LogicBase = pimpl::combined_parameter_base<multilogic::logic_op>;
+
+		logic_op_editor(LogicBase* b, PooledUIUpdater* u);
+
+		void paint(Graphics& g) override;
+
+		void timerCallback() override;
+
+		void resized() override;
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			auto typed = static_cast<mothernode*>(obj);
+			return new logic_op_editor(dynamic_cast<LogicBase*>(typed), updater);
+		}
+
+		ModulationSourceBaseComponent dragger;
+
+		control::multilogic::logic_op lastData;
+	};
+
 	struct minmax_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::minmax>>
 	{
 		using MinMaxBase = pimpl::combined_parameter_base<multilogic::minmax>;
