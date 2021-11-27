@@ -139,6 +139,9 @@ public:
 	/** Returns a String representation of the type. */
 	String getTypeAsString() const noexcept;
 
+	/** Returns a String identifier for the given type. */
+	static String getTypeString(Type t);
+
 	/** Changes the type. Don't use this unless you know why. */
 	void setType(Type t) noexcept { type = t; }
 

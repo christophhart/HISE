@@ -135,7 +135,12 @@ bool HiseEvent::operator==(const HiseEvent &other) const
 
 String HiseEvent::getTypeAsString() const noexcept
 {
-	switch (type)
+	return getTypeString(type);
+}
+
+String HiseEvent::getTypeString(HiseEvent::Type t)
+{
+	switch (t)
 	{
 	case HiseEvent::Type::Empty: return "Empty";
 	case HiseEvent::Type::NoteOn: return "NoteOn";
@@ -157,7 +162,6 @@ String HiseEvent::getTypeAsString() const noexcept
 
 	return "Undefined";
 }
-
 
 bool HiseEvent::isIgnored() const noexcept
 {
@@ -543,7 +547,7 @@ hise::HiseEvent HiseEventBuffer::popEvent(int index)
 		auto e = getEvent(index);
 
 		for (int i = index; i < numUsed; i++)
-			buffer[index] = buffer[index + 1];
+			buffer[i] = buffer[i + 1];
 
 		buffer[numUsed - 1] = {};
 		numUsed--;
