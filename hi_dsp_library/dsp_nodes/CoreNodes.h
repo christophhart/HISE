@@ -869,12 +869,11 @@ public:
 	void setGate(double v)
 	{
 		auto shouldBeOn = (int)(v > 0.5);
-		v = (double)shouldBeOn;
-
+		
 		for (auto& d : voiceData)
 		{
+			d.uptime *= (double)d.enabled == shouldBeOn;
 			d.enabled = shouldBeOn;
-			d.uptime *= v;
 		}
 	}
 
