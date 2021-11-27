@@ -196,8 +196,17 @@ namespace parameter
 
 		virtual ~dynamic_list() {};
 
-		struct MultiOutputConnection : public ConnectionBase
+		struct MultiOutputConnection: public ReferenceCountedObject
 		{
+            struct ConnectionRenameLater: public ConnectionBase
+            {
+                ConnectionRenameLater(NodeBase* n, ValueTree cTree):
+                  ConnectionBase(n->getScriptProcessor(), cTree)
+                {
+                    initRemoveUpdater(n);
+                }
+            };
+            
 			valuetree::ChildListener connectionListener;
 			valuetree::RecursivePropertyListener connectionPropertyListener;
 
@@ -216,10 +225,14 @@ namespace parameter
 
 			bool matchesTarget(NodeBase::Parameter* np);
 
+            
 			bool ok = false;
+            ValueTree data;
 			ValueTree connectionTree;
 			NodeBase::Ptr parentNode;
 			parameter::dynamic_base_holder p;
+            
+            ReferenceCountedArray<ConnectionRenameLater> connections;
 
 			JUCE_DECLARE_WEAK_REFERENCEABLE(MultiOutputConnection);
 		};

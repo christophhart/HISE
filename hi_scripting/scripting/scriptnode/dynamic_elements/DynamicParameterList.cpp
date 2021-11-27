@@ -315,13 +315,11 @@ namespace parameter
 	}
 
 dynamic_list::MultiOutputConnection::MultiOutputConnection(NodeBase* n, ValueTree switchTarget) :
-	ConnectionBase(n->getScriptProcessor(), switchTarget),
+    data(switchTarget),
 	parentNode(n)
 {
 	jassert(switchTarget.getType() == PropertyIds::SwitchTarget);
 	connectionTree = switchTarget.getOrCreateChildWithName(PropertyIds::Connections, n->getUndoManager());
-
-	initRemoveUpdater(n);
 
 	connectionListener.setCallback(connectionTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(MultiOutputConnection::updateConnections));
 
@@ -340,8 +338,14 @@ void dynamic_list::MultiOutputConnection::updateConnectionProperty(ValueTree, Id
 
 bool dynamic_list::MultiOutputConnection::rebuildConnections(bool tryAgainIfFail)
 {
-	auto dc = createParameterFromConnectionTree(parentNode, connectionTree, true);
+	auto dc = ConnectionBase::createParameterFromConnectionTree(parentNode, connectionTree, true);
 	p.setParameter(nullptr, dc);
+    
+    connections.clear();
+    
+    for(auto c: connectionTree)
+        connections.add(new ConnectionRenameLater(parentNode, c));
+    
 	return dc != nullptr;
 }
 
@@ -372,6 +376,33 @@ void dynamic_list::initialise(NodeBase* n)
 {
 	parentNode = n;
 
+    if(auto mn = dynamic_cast<WrapperNode*>(n))
+    {
+        WeakReference<dynamic_list> safeThis(this);
+        
+        mn->multiConnectionFunction = [safeThis](int index, const ValueTree& v)
+        {
+            ConnectionBase* cb = nullptr;
+            
+            if(safeThis != nullptr)
+            {
+                if(auto mt = safeThis->targets[index])
+                {
+                    for(auto c: mt->connections)
+                    {
+                        if(c->data == v)
+                        {
+                            cb = c;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            return cb;
+        };
+    }
+    
 	switchTree = n->getValueTree().getOrCreateChildWithName(PropertyIds::SwitchTargets, n->getUndoManager());
 
 	connectionUpdater.setCallback(switchTree, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(dynamic_list::updateConnections));

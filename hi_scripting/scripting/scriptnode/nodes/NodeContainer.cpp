@@ -533,23 +533,14 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 	{
 		auto parameterId = d[PropertyIds::ParameterId].toString();
 
-		if (parameterId == PropertyIds::Bypassed.toString())
-		{
-			nodeToBeBypassed = targetNode;
-			auto originalRange = RangeHelpers::getDoubleRange(d.getParent().getParent());
-			rangeMultiplerForBypass = jlimit(1.0, 9000.0, originalRange.rng.end);
-		}
-		else
-		{
-			for (int i = 0; i < targetNode->getNumParameters(); i++)
-			{
-				if (targetNode->getParameter(i)->getId() == parameterId)
-				{
-					targetParameter = targetNode->getParameter(i);
-					break;
-				}
-			}
-		}
+        for (int i = 0; i < targetNode->getNumParameters(); i++)
+        {
+            if (targetNode->getParameter(i)->getId() == parameterId)
+            {
+                targetParameter = targetNode->getParameter(i);
+                break;
+            }
+        }
 	}
 	else
 	{
@@ -565,10 +556,7 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 
 NodeContainer::MacroParameter::Connection::~Connection()
 {
-	if (nodeToBeBypassed != nullptr)
-	{
-		nodeToBeBypassed->getRootNetwork()->getExceptionHandler().removeError(nodeToBeBypassed, Error::IllegalBypassConnection);
-	}
+	
 }
 
 juce::ValueTree NodeContainer::MacroParameter::getConnectionTree()

@@ -62,6 +62,8 @@ public:
 
 	std::function<Component*(void*, PooledUIUpdater* updater)> extraComponentFunction;
 
+    std::function<ConnectionBase*(int, const ValueTree&)> multiConnectionFunction;
+    
 	void setCachedSize(int extraWidth, int extraHeight)
 	{ 
 		cachedExtraWidth = extraWidth;

@@ -49,23 +49,18 @@ struct NodeContainer : public AssignableObject
 
 			~Connection();
 
-			bool isValid() const { return targetParameter.get() != nullptr || nodeToBeBypassed.get() != nullptr; };
+            bool isValid() const { return targetParameter.get() != nullptr; };
 
 			bool matchesTarget(const Parameter* target) const
 			{
 				return target == targetParameter.get();
 			}
 
-			NodeBase::Ptr nodeToBeBypassed;
-
 		private:
 
 			ValueTree targetNodeData;
 			UndoManager* um = nullptr;
-			double rangeMultiplerForBypass = 1.0;
 			MacroParameter* parentParameter = nullptr;
-			valuetree::PropertyListener exprSyncer;
-			String expressionCode;
 		};
 
 		ValueTree getConnectionTree();

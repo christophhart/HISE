@@ -553,6 +553,7 @@ struct Parameter::Wrapper
 {
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getId);
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getValue);
+    API_VOID_METHOD_WRAPPER_2(NodeBase::Parameter, setRangeProperty);
 	API_METHOD_WRAPPER_1(NodeBase::Parameter, addConnectionFrom);
 	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValue);
 };
@@ -568,6 +569,7 @@ Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
 	ADD_API_METHOD_0(getValue);
 	ADD_API_METHOD_1(addConnectionFrom);
 	ADD_API_METHOD_1(setValue);
+    ADD_API_METHOD_2(setRangeProperty);
 
 #define ADD_PROPERTY_ID_CONSTANT(id) addConstant(id.toString(), id.toString());
 
@@ -855,17 +857,40 @@ var NodeBase::Parameter::addConnectionFrom(var dragDetails)
 
 			if (dragDetails.getProperty(PropertyIds::SwitchTarget, false))
 			{
-				auto cTree = sn->getValueTree().getChildWithName(PropertyIds::SwitchTargets).getChild(parameterId.getIntValue()).getChildWithName(PropertyIds::Connections);
+                auto cTree = sn->getValueTree().getChildWithName(PropertyIds::SwitchTargets).getChild(parameterId.getIntValue()).getChildWithName(PropertyIds::Connections);
 
 				if (cTree.isValid())
 				{
-					ValueTree newC(PropertyIds::Connection);
-					newC.setProperty(PropertyIds::NodeId, parent->getId(), nullptr);
-					newC.setProperty(PropertyIds::ParameterId, getId(), nullptr);
-					RangeHelpers::storeDoubleRange(newC, RangeHelpers::getDoubleRange(data), nullptr);
-					newC.setProperty(PropertyIds::Expression, "", nullptr);
+                    ValueTree newC;
+                    
+                    for(auto existing: cTree)
+                    {
+                        if(existing[PropertyIds::NodeId].toString() == parent->getId() &&
+                           existing[PropertyIds::ParameterId].toString() == getId())
+                        {
+                            newC = existing;
+                            break;
+                        }
+                    }
+                    
+                    if(!newC.isValid())
+                    {
+                        newC = ValueTree(PropertyIds::Connection);
+                        newC.setProperty(PropertyIds::NodeId, parent->getId(), nullptr);
+                        newC.setProperty(PropertyIds::ParameterId, getId(), nullptr);
+                        RangeHelpers::storeDoubleRange(newC, RangeHelpers::getDoubleRange(data), nullptr);
+                        newC.setProperty(PropertyIds::Expression, "", nullptr);
 
-					cTree.addChild(newC, -1, parent->getUndoManager());
+                        cTree.addChild(newC, -1, parent->getUndoManager());
+                    }
+                    
+                    if(auto wn = dynamic_cast<WrapperNode*>(sn))
+                    {
+                        if(wn->multiConnectionFunction)
+                        {
+                            return var(wn->multiConnectionFunction(parameterId.getIntValue(), newC));
+                        }
+                    }
 				}
 			}
 		}
@@ -1031,6 +1056,8 @@ ConnectionBase::ConnectionBase(ProcessorWithScriptingContent* p, ValueTree data_
 	ConstScriptingObject(p, 6),
 	data(data_)
 {
+    jassert(data.getType() == PropertyIds::Connection || data.getType() == PropertyIds::ModulationTarget);
+    
 	addConstant(PropertyIds::Enabled.toString(), PropertyIds::Enabled.toString());
 	addConstant(PropertyIds::MinValue.toString(), PropertyIds::MinValue.toString());
 	addConstant(PropertyIds::MaxValue.toString(), PropertyIds::MaxValue.toString());
@@ -1041,6 +1068,8 @@ ConnectionBase::ConnectionBase(ProcessorWithScriptingContent* p, ValueTree data_
 	ADD_API_METHOD_0(getLastValue);
 	ADD_API_METHOD_1(get);
 	ADD_API_METHOD_2(set);
+    ADD_API_METHOD_0(isModulationConnection);
+    ADD_API_METHOD_0(getTarget);
 }
 
 scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConnectionTree(NodeBase* n, const ValueTree& connectionTree, bool scaleInput)
@@ -1141,7 +1170,7 @@ void ConnectionBase::initRemoveUpdater(NodeBase* parent)
 
 		sourceRemoveUpdater.setCallback(d, valuetree::AsyncMode::Synchronously, true, [](ValueTree& v)
 		{
-			jassertfalse;
+			
 		}); 
 	}
 }

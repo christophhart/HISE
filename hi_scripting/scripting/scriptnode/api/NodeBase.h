@@ -127,6 +127,17 @@ public:
 	/** Sets the value immediately and stores it asynchronously. */
 	void setValue(double newValue);
 
+    /** Sets a range property. */
+    void setRangeProperty(String id, var newValue)
+    {
+        Identifier i(id);
+        
+        if(RangeHelpers::isRangeId(i))
+        {
+            data.setProperty(i, newValue, nullptr);
+        }
+    }
+    
 	// ================================================================== End of API Calls
 
 	void setValueFromUI(double newValue);
