@@ -139,6 +139,9 @@ public:
 
     void timerCallback() override
     {
+		if (!isShowing())
+			return;
+
         for(auto b: menuButtons)
         {
             auto state = getCommandIdForName(b->getName());
