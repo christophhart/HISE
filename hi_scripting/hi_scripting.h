@@ -63,12 +63,6 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 // Periodically dumps the value tree of a dsp network
 #define DUMP_SCRIPTNODE_VALUETREE 1
 
-
-
-#define REWRITE_SNEX_SOURCE_STUFF 0
-
-#define INCLUDE_TCC 0
-
 /** This will determine the timeout duration (in milliseconds) after which a server call will be aborted. */
 #ifndef HISE_SCRIPT_SERVER_TIMEOUT
 #define HISE_SCRIPT_SERVER_TIMEOUT 10000
@@ -88,11 +82,6 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/engine/JavascriptApiClass.h"
 #include "scripting/api/ScriptingBaseObjects.h"
 #include "scripting/api/FixLayoutObjects.h"
-
-#if JUCE_IOS
-#elif INCLUDE_TCC
-#include "scripting/api/TccContext.h"
-#endif
 
 //#include "scripting/api/DspFactory.h"
 #include "scripting/engine/DebugHelpers.h"
@@ -116,7 +105,6 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/snex_nodes/SnexSource.h"
 #endif
 
-#include "scripting/scriptnode/soul/soul_includes.h"
 #include "scripting/scriptnode/nodes/JitNode.h"
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.h"
 #include "scripting/scriptnode/ui/FeedbackNodeComponents.h"

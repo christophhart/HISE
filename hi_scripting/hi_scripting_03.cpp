@@ -112,11 +112,3 @@
 #include "scripting/scriptnode/ui/DspNetworkComponents.cpp"
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.cpp"
 
-#if INCLUDE_SOUL_NODE
-#include "scripting/scriptnode/soul/custom/Soul2Hise.cpp"
-#include "scripting/scriptnode/soul/custom/SoulNode.cpp"
-#include "scripting/scriptnode/soul/custom/SoulNodeComponent.cpp"
-#include "scripting/scriptnode/soul/custom/SoulConverterHelpers.cpp"
-#endif
-
-

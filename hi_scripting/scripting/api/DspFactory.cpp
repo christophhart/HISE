@@ -354,18 +354,11 @@ var StaticDspFactory::createModule(const String &name) const
 DspFactory::Handler::Handler()
 {
 	registerStaticFactories(this);
-    
-#if INCLUDE_TCC
-	tccFactory = new TccDspFactory();
-#endif
 }
 
 DspFactory::Handler::~Handler()
 {
 	loadedPlugins.clear();
-#if INCLUDE_TCC
-	tccFactory = nullptr;
-#endif
 }
 
 DspInstance * DspFactory::Handler::createDspInstance(const String &factoryName, const String& factoryPassword, const String &moduleName)
@@ -379,10 +372,6 @@ DspInstance * DspFactory::Handler::createDspInstance(const String &factoryName, 
 DspFactory * DspFactory::Handler::getFactory(const String &name, const String& password)
 {
 	Identifier id(name);
-
-#if USE_BACKEND && INCLUDE_TCC
-	if (id == tccFactory->getId()) return tccFactory;
-#endif
 
 	for (int i = 0; i < staticFactories.size(); i++)
 	{
@@ -420,10 +409,6 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 void DspFactory::Handler::setMainController(MainController* mc_)
 {
 	mc = mc_;
-    
-#if INCLUDE_TCC
-	tccFactory->setMainController(mc);
-#endif
 }
 
 } // namespace hise
