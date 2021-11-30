@@ -879,7 +879,7 @@ public:
 
 	NodeComponent* getComponent(NodeBase::Ptr node);
 
-	static void paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha=1.0f, Colour holeColour=Colour(0xFFAAAAAA))
+	static Point<float> paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha=1.0f, Colour holeColour=Colour(0xFFAAAAAA), bool returnMidPoint=false)
 	{
 		if (start.getCentreY() > end.getCentreY())
 			std::swap(start, end);
@@ -913,8 +913,6 @@ public:
 		g.fillPath(plug);
 		//g.drawEllipse(end, 2.0f);
 
-		
-
 		Path p;
 
 		p.startNewSubPath(start.getCentre());
@@ -927,6 +925,11 @@ public:
 		g.strokePath(p, PathStrokeType(3.0f, PathStrokeType::curved, PathStrokeType::rounded));
 		g.setColour(c.withMultipliedAlpha(alpha));
 		g.strokePath(p, PathStrokeType(2.0f, PathStrokeType::curved, PathStrokeType::rounded));
+
+		if (returnMidPoint)
+			return p.getPointAlongPath(p.getLength() / 2.0f);
+
+		return {};
 	};
 
 	static Rectangle<float> getCircle(Component* c, bool getKnobCircle=true)

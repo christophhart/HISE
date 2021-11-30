@@ -161,6 +161,8 @@ namespace duplilogic
 
 			void paint(Graphics& g) override;
 
+			
+
 			void resized() override
 			{
 				auto b = getLocalBounds();
@@ -196,45 +198,24 @@ namespace parameter
 
 		virtual ~dynamic_list() {};
 
-		struct MultiOutputConnection: public ReferenceCountedObject
+		struct MultiOutputSlot: public ConnectionSourceManager
 		{
-            struct ConnectionRenameLater: public ConnectionBase
-            {
-                ConnectionRenameLater(NodeBase* n, ValueTree cTree):
-                  ConnectionBase(n->getScriptProcessor(), cTree)
-                {
-                    initRemoveUpdater(n);
-                }
-            };
-            
-			valuetree::ChildListener connectionListener;
-			valuetree::RecursivePropertyListener connectionPropertyListener;
+            MultiOutputSlot(NodeBase* n, ValueTree switchTarget);
 
-			MultiOutputConnection(NodeBase* n, ValueTree switchTarget);
+			static ValueTree getConnectionTree(NodeBase* n, ValueTree switchTarget);
 
-			virtual ~MultiOutputConnection()
+			void rebuildCallback() override;
+
+			bool isInitialised() const
 			{
-
+				return p.base != nullptr || getConnectionTree(parentNode, switchTarget).getNumChildren() == 0;
 			}
 
-			void updateConnectionProperty(ValueTree, Identifier);
-
-			bool rebuildConnections(bool tryAgainIfFail);
-
-			void updateConnections(ValueTree v, bool wasAdded);
-
-			bool matchesTarget(NodeBase::Parameter* np);
-
-            
-			bool ok = false;
-            ValueTree data;
-			ValueTree connectionTree;
+			ValueTree switchTarget;
 			NodeBase::Ptr parentNode;
 			parameter::dynamic_base_holder p;
             
-            ReferenceCountedArray<ConnectionRenameLater> connections;
-
-			JUCE_DECLARE_WEAK_REFERENCEABLE(MultiOutputConnection);
+			JUCE_DECLARE_WEAK_REFERENCEABLE(MultiOutputSlot);
 		};
 
 		valuetree::ChildListener connectionUpdater;
@@ -243,7 +224,7 @@ namespace parameter
 
 		void initialise(NodeBase* n);
 
-		bool rebuildMultiOutputConnections();
+		bool rebuildMultiOutputSlots();
 
 		int getNumParameters() const;
 
@@ -272,7 +253,7 @@ namespace parameter
 		String missingNodes;
 
 		Array<double> lastValues;
-		ReferenceCountedArray<MultiOutputConnection> targets;
+		OwnedArray<MultiOutputSlot> targets;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic_list);
 };
@@ -332,7 +313,7 @@ struct dynamic_list_editor : public ScriptnodeExtraComponent<parameter::dynamic_
 
 		bool matchesParameter(NodeBase::Parameter* p) const override;
 
-		ModulationSourceNode* n;
+		WrapperNode* n;
 
 		void mouseDown(const MouseEvent& e) override;
 

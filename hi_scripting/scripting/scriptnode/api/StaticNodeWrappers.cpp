@@ -162,7 +162,7 @@ void InterpretedNode::processStereoFrame(StereoFrameType& data)
 
 void InterpretedNode::process(ProcessDataDyn& data) noexcept
 {
-	NodeProfiler np(this);
+	NodeProfiler np(this, data.getNumSamples());
 	this->obj.process(data);
 }
 
@@ -256,7 +256,7 @@ void InterpretedModNode::processStereoFrame(StereoFrameType& data)
 
 void InterpretedModNode::process(ProcessDataDyn& data) noexcept
 {
-	NodeProfiler np(this);
+	NodeProfiler np(this, data.getNumSamples());
 	this->obj.process(data);
 }
 

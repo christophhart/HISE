@@ -62,8 +62,10 @@ public:
 
 	std::function<Component*(void*, PooledUIUpdater* updater)> extraComponentFunction;
 
-    std::function<ConnectionBase*(int, const ValueTree&)> multiConnectionFunction;
     
+    
+	virtual var addModulationConnection(var source, Parameter* targetParameter);
+
 	void setCachedSize(int extraWidth, int extraHeight)
 	{ 
 		cachedExtraWidth = extraWidth;
@@ -93,68 +95,29 @@ private:
 	mutable int cachedExtraHeight = -1;
 };
     
-class ModulationSourceNode: public WrapperNode,
-							public SnexDebugHandler
+class ModulationSourceNode : public WrapperNode,
+							 public ConnectionSourceManager
 {
 public:
 
 	static constexpr int ModulationBarHeight = 60;
-	
 
-	struct ModulationTarget: public ConnectionBase
-	{
-		ModulationTarget(ModulationSourceNode* parent_, ValueTree data_);
-
-		~ModulationTarget();
-
-		bool isModulationConnection() const override { return true; }
-
-		bool findTarget();
-
-		valuetree::PropertyListener expressionUpdater;
-		valuetree::PropertyListener rangeUpdater;
-		WeakReference<ModulationSourceNode> parent;
-
-		CachedValue<bool> active;
-	};
-
-	ValueTree getModulationTargetTree();;
+	ValueTree getModulationTargetTree();
 
 	ModulationSourceNode(DspNetwork* n, ValueTree d);;
 
-	var addModulationTarget(NodeBase::Parameter* n);
-
-	NodeBase* getTargetNode(const ValueTree& m) const;
-
-	parameter::data getParameterData(const ValueTree& m) const;
+	var addModulationConnection(var source, Parameter* targetParameter) override;
 
 	virtual bool isUsingNormalisedRange() const = 0;
 	virtual parameter::dynamic_base_holder* getParameterHolder() { return nullptr; }
 
-	parameter::dynamic_base::Ptr createDynamicParameterData(ValueTree& m);
-
-	void rebuildModulationConnections();
+	void rebuildCallback() override;
 
 	void prepare(PrepareSpecs ps) override;
 
-	void logMessage(int level, const String& s) override;
-
-	void checkTargets();
+private:
 
 	bool prepareWasCalled = false;
-
-	double lastModValue = 0.0;
-
-	bool scaleModulationValue = true;
-
-	
-	bool ok = false;
-
-	valuetree::ChildListener targetListener;
-
-	ReferenceCountedArray<ModulationTarget> targets;
-
-private:
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ModulationSourceNode);
 };

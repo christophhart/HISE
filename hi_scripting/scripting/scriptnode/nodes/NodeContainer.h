@@ -41,88 +41,27 @@ using namespace hise;
 struct NodeContainer : public AssignableObject
 {
 	struct MacroParameter : public NodeBase::Parameter,
-							public SnexDebugHandler
+							public ConnectionSourceManager
 	{
-		struct Connection: public ConnectionBase
-		{
-			Connection(NodeBase* parent, MacroParameter* pp, ValueTree d);
-
-			~Connection();
-
-            bool isValid() const { return targetParameter.get() != nullptr; };
-
-			bool matchesTarget(const Parameter* target) const
-			{
-				return target == targetParameter.get();
-			}
-
-		private:
-
-			ValueTree targetNodeData;
-			UndoManager* um = nullptr;
-			MacroParameter* parentParameter = nullptr;
-		};
-
 		ValueTree getConnectionTree();
 
 		MacroParameter(NodeBase* parentNode, ValueTree data_);;
 
-		void rebuildCallback();
-		void updateRangeForConnection(ValueTree v, Identifier);
+		void rebuildCallback() override;
 
 		void setDynamicParameter(parameter::dynamic_base::Ptr ownedNew) override;
 
-		void updateConnectionForExpression(ValueTree v, Identifier)
-		{
-			rebuildCallback();
-		}
-
 		void updateInputRange(Identifier, var);
-
-		var addParameterTarget(NodeBase::Parameter* p)
-		{
-			p->data.setProperty(PropertyIds::Automated, true, p->parent->getUndoManager());
-
-			for (auto c : connections)
-			{
-				if (c->matchesTarget(p))
-					return var(c);
-			}
-
-			ValueTree newC(PropertyIds::Connection);
-			newC.setProperty(PropertyIds::NodeId, p->parent->getId(), nullptr);
-			newC.setProperty(PropertyIds::ParameterId, p->getId(), nullptr);
-			RangeHelpers::storeDoubleRange(newC, RangeHelpers::getDoubleRange(p->data), nullptr);
-			newC.setProperty(PropertyIds::Expression, "", nullptr);
-
-			getConnectionTree().addChild(newC, -1, p->parent->getUndoManager());
-
-			return var(connections.getLast().get());
-		}
-
-		void logMessage(int level, const String& s) override
-		{
-			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), s);
-		}
-
-		bool matchesTarget(const Parameter* target) const;
-
-		valuetree::ChildListener connectionListener;
-		valuetree::RecursivePropertyListener rangeListener;
-		valuetree::RecursivePropertyListener expressionListener;
+		
 		valuetree::PropertyListener inputRangeListener;
 		ReferenceCountedObjectPtr<parameter::dynamic_base_holder> pholder;
 
-		ReferenceCountedArray<Connection> connections;
-		bool initialised = false;
 		bool editEnabled = false;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroParameter);
 	};
 
 	NodeContainer();
-
-
 
 	template <int P> static void setParameterStatic(void* obj, double v)
 	{
@@ -138,6 +77,14 @@ struct NodeContainer : public AssignableObject
 
 	NodeBase* asNode();
 	const NodeBase* asNode() const;
+
+	var addMacroConnection(var source, Parameter* n)
+	{
+		if (auto sp = dynamic_cast<NodeContainer::MacroParameter*>(asNode()->getParameterFromName(source.toString())))
+			return sp->addTarget(n);
+		
+		return var();
+	}
 
 	virtual bool hasFixedParameters() const { return false; }
 
@@ -186,6 +133,7 @@ protected:
 
 	friend class ContainerComponent;
 
+	ReferenceCountedArray<NodeBase> ownedReference;
 	NodeBase::List nodes;
 
 	double originalSampleRate = 0.0;
@@ -266,7 +214,10 @@ public:
 		return NodeContainer::createInternalParametersForMacros();
 	}
 
-	
+	var addModulationConnection(var source, Parameter* targetParameter) override
+	{
+		return NodeContainer::addMacroConnection(source, targetParameter);
+	}
 
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
 	{
@@ -284,6 +235,11 @@ public:
 	ParallelNode(DspNetwork* root, ValueTree data);
 	NodeComponent* createComponent() override;
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+
+	var addModulationConnection(var source, Parameter* targetParameter) override
+	{
+		return NodeContainer::addMacroConnection(source, targetParameter);
+	}
 
 	bool forEach(const std::function<bool(NodeBase::Ptr)>& f) override
 	{

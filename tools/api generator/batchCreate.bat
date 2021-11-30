@@ -90,6 +90,7 @@ xcopy "xml\classhise_1_1_script_user_preset_handler.xml" "xml\selection"
 
 
 xcopy "xml\classscriptnode_1_1_dsp_network.xml" "xml\selection"
+xcopy "xml\structscriptnode_1_1_script_network_test.xml" "xml\selection"
 xcopy "xml\classscriptnode_1_1_node_base.xml" "xml\selection"
 xcopy "xml\classscriptnode_1_1_connection_base.xml" "xml\selection"
 xcopy "xml\classscriptnode_1_1_node_base_1_1_parameter.xml" "xml\selection"
@@ -169,6 +170,7 @@ ren "xml\selection\classhise_1_1_script_expansion_handler.xml" "ExpansionHandler
 ren "xml\selection\classhise_1_1_script_expansion_reference.xml" "Expansion.xml"
 
 ren "xml\selection\classscriptnode_1_1_dsp_network.xml" "DspNetwork.xml"
+ren "xml\selection\structscriptnode_1_1_script_network_test.xml" "NetworkTest.xml"
 ren "xml\selection\classscriptnode_1_1_node_base.xml" "Node.xml"
 ren "xml\selection\classscriptnode_1_1_connection_base.xml" "Connection.xml"
 ren "xml\selection\classscriptnode_1_1_node_base_1_1_parameter.xml" "Parameter.xml"

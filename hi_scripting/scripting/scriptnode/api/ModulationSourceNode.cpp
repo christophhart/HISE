@@ -35,66 +35,13 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* parent_, ValueTree data_) :
-	ConnectionBase(parent_->getScriptProcessor(), data_),
-	parent(parent_),
-	active(data, PropertyIds::Enabled, parent->getUndoManager(), true)
+
+
+ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
+	WrapperNode(n, d),
+	ConnectionSourceManager(n, getModulationTargetTree())
 {
-	rangeUpdater.setCallback(data, RangeHelpers::getRangeIds(),
-		valuetree::AsyncMode::Synchronously,
-		[this](Identifier, var)
-	{
-		parent->rebuildModulationConnections();
-		
-		connectionRange = RangeHelpers::getDoubleRange(data);
-	});
-
-	
-	initRemoveUpdater(parent);
-
-	expressionUpdater.setCallback(data, { PropertyIds::Expression },
-		valuetree::AsyncMode::Synchronously,
-		[this](Identifier, var newValue)
-	{
-		parent->rebuildModulationConnections();
-	});
-}
-
-
-
-ModulationSourceNode::ModulationTarget::~ModulationTarget()
-{
-	
-}
-
-bool ModulationSourceNode::ModulationTarget::findTarget()
-{
-	String nodeId = data[PropertyIds::NodeId];
-	String parameterId = data[PropertyIds::ParameterId];
-
-	auto list = parent->getRootNetwork()->getListOfNodesWithType<NodeBase>(true);
-
-	for (auto n : list)
-	{
-		if (n->getId() == nodeId)
-		{
-			auto enabled = n->getRootNetwork()->isInSignalPath(n);
-
-			if (!enabled && !n->isBeingMoved())
-				data.setProperty(PropertyIds::Enabled, false, parent->getUndoManager());
-
-			for (int i = 0; i < n->getNumParameters(); i++)
-			{
-				if (n->getParameter(i)->getId() == parameterId)
-				{
-					targetParameter = n->getParameter(i);
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
+	initConnectionSourceListeners();
 }
 
 juce::ValueTree ModulationSourceNode::getModulationTargetTree()
@@ -110,185 +57,36 @@ juce::ValueTree ModulationSourceNode::getModulationTargetTree()
 	return vt;
 }
 
-
-ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
-	WrapperNode(n, d)
+var ModulationSourceNode::addModulationConnection(var source, Parameter* n)
 {
-	targetListener.setCallback(getModulationTargetTree(),
-		valuetree::AsyncMode::Synchronously,
-		[this](ValueTree c, bool wasAdded)
-	{
-		rebuildModulationConnections();
-
-		if (wasAdded)
-		{
-			ValueTree newTree(c);
-			targets.add(new ModulationTarget(this, newTree));
-		}
-		else
-		{
-			for (auto t : targets)
-			{
-				if (t->data == c)
-				{
-					if (auto tp = t->targetParameter)
-					{
-						auto v = tp->getValue();
-						tp->data.setProperty(PropertyIds::Automated, false, getUndoManager());
-						tp->setValueFromUI(v);
-					}
-
-					targets.removeObject(t);
-					break;
-				}
-			}
-		}
-
-		checkTargets();
-	});
-}
-
-var ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
-{
-	for (auto t : targets)
-	{
-		if (t->targetParameter.get() == n)
-			return var(t);
-	}
-
-	ValueTree m(PropertyIds::ModulationTarget);
-
-	m.setProperty(PropertyIds::NodeId, n->parent->getId(), nullptr);
-	m.setProperty(PropertyIds::ParameterId, n->getId(), nullptr);
-	m.setProperty(PropertyIds::Enabled, true, nullptr);
-
-	n->data.setProperty(PropertyIds::Automated, true, getUndoManager());
-
-	auto range = RangeHelpers::getDoubleRange(n->data);
-
-	RangeHelpers::storeDoubleRange(m, range, nullptr);
-
-	m.setProperty(PropertyIds::Expression, "", nullptr);
-	
-	getModulationTargetTree().addChild(m, -1, getUndoManager());
-
-	return var(targets.getLast().get());
-}
-
-scriptnode::NodeBase* ModulationSourceNode::getTargetNode(const ValueTree& m) const
-{
-	jassert(m.getType() == PropertyIds::ModulationTarget);
-	return getRootNetwork()->getNodeWithId(m[PropertyIds::NodeId].toString());
-}
-
-parameter::data ModulationSourceNode::getParameterData(const ValueTree& m) const
-{
-	if (auto targetNode = getTargetNode(m))
-	{
-		auto pId = m[PropertyIds::ParameterId].toString();
-
-#if HISE_INCLUDE_SNEX
-		if (auto sn = dynamic_cast<SnexSource::SnexParameter*>(targetNode->getParameter(pId)))
-		{
-			parameter::data obj;
-			obj.info = parameter::pod(sn->data);
-			obj.callback.referTo(sn->p.getObjectPtr(), sn->p.getFunction());
-			return obj;
-		}
-#endif
-
-		if (auto mp = dynamic_cast<NodeContainer::MacroParameter*>(targetNode->getParameter(pId)))
-		{
-			jassertfalse;
-		}
-		else
-		{
-			auto pList = targetNode->createInternalParameterList();
-
-			for (auto& p : pList)
-			{
-				if (p.info.getId() == pId)
-					return p;
-			}
-		}
-	}
-	
-	return parameter::data("");
-}
-
-scriptnode::parameter::dynamic_base::Ptr ModulationSourceNode::createDynamicParameterData(ValueTree& m)
-{
-	auto range = RangeHelpers::getDoubleRange(m);
-
-	auto targetNode = getTargetNode(m);
-
-	if (targetNode == nullptr)
-		return nullptr;
-
-	auto pId = m[PropertyIds::ParameterId].toString();
-
-	if (auto p = targetNode->getParameter(pId))
-		return p->getDynamicParameter();
-
-	return nullptr;
+	if (getValueTree().getChildWithName(PropertyIds::SwitchTargets).isValid())
+		return WrapperNode::addModulationConnection(source, n);
+	else
+		return addTarget(n);
 }
 
 void ModulationSourceNode::prepare(PrepareSpecs ps)
 {
 	NodeBase::prepare(ps);
 
-	rebuildModulationConnections();
-
 	prepareWasCalled = true;
 
-	checkTargets();
+	rebuildCallback();
 }
 
-void ModulationSourceNode::logMessage(int level, const String& s)
+void ModulationSourceNode::rebuildCallback()
 {
-#if USE_BACKEND
-	auto p = dynamic_cast<Processor*>(getScriptProcessor());
-
-	debugToConsole(p, s);
-#else
-    DBG(s);
-    ignoreUnused(s);
-#endif
-}
-
-void ModulationSourceNode::rebuildModulationConnections()
-{
-	auto modTree = getModulationTargetTree();
+	if (!prepareWasCalled)
+		return;
 
 	auto p = getParameterHolder();
 
 	if (p == nullptr)
 		return;
 
-	if (modTree.getNumChildren() == 0)
-	{
-		p->setParameter(nullptr, nullptr);
-		return;
-	}
+	auto mp = ConnectionBase::createParameterFromConnectionTree(this, getModulationTargetTree(), isUsingNormalisedRange());
 
-	auto mp = ConnectionBase::createParameterFromConnectionTree(this, modTree, isUsingNormalisedRange());
-
-	NodeBase::Ptr firstChildNode = getRootNetwork()->getNodeWithId(modTree.getChild(0)[PropertyIds::NodeId].toString());
-
-	p->setParameter(firstChildNode, mp);
-}
-
-void ModulationSourceNode::checkTargets()
-{
-	// We need to skip this if the node wasn't initialised properly
-	if (!prepareWasCalled)
-		return;
-
-	for (int i = 0; i < targets.size(); i++)
-	{
-		if (!targets[i]->findTarget())
-			targets.remove(i--);
-	}
+	p->setParameter(this, mp);
 }
 
 ModulationSourceBaseComponent::ModulationSourceBaseComponent(PooledUIUpdater* updater) :
@@ -529,6 +327,19 @@ void WrapperNode::initParameterData(ParameterDataList& pData)
 
 		addParameter(newP);
 	}
+}
+
+juce::var WrapperNode::addModulationConnection(var source, Parameter* n)
+{
+	jassert(getValueTree().getChildWithName(PropertyIds::SwitchTargets).isValid());
+
+	int sourceIndex = (int)source;
+
+	auto cTree = getValueTree().getChildWithName(PropertyIds::SwitchTargets).getChild(sourceIndex).getChildWithName(PropertyIds::Connections);
+
+	auto newC = ConnectionSourceManager::Helpers::getOrCreateConnection(cTree, n->parent->getId(), n->getId(), getUndoManager());
+
+	return var(new ConnectionBase(getRootNetwork(), newC));
 }
 
 }

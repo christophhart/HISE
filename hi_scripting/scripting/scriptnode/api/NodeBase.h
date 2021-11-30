@@ -255,12 +255,13 @@ public:
 			bool prevState;
 		};
 
-		DynamicBypassParameter(NodeBase* n, Range<double> enabledRange_) :
-			node(n),
-			enabledRange(enabledRange_)
+		DynamicBypassParameter(NodeBase* n, Range<double> enabledRange_);;
+
+		~DynamicBypassParameter()
 		{
-			
-		};
+			if (node != nullptr)
+				node->dynamicBypassId = prevId;
+		}
 
 		void call(double v) final override
 		{
@@ -275,9 +276,8 @@ public:
 		bool bypassed = false;
 		WeakReference<NodeBase> node;
 		Range<double> enabledRange;
+		String prevId;
 	};
-
-	
 
 	NodeBase(DspNetwork* rootNetwork, ValueTree data, int numConstants);;
 	virtual ~NodeBase();
@@ -340,12 +340,23 @@ public:
 	
 	virtual ParameterDataList createInternalParameterList() { return {}; };
 
+	virtual var addModulationConnection(var source, Parameter* targetParameter);
+
+	virtual void processProfileInfo(double cpuUsage, int numSamples)
+	{
+		lastBlockSize = numSamples;
+		ignoreUnused(cpuUsage, numSamples);
+	}
+
 	NamespacedIdentifier getPath() const;
 
 	// ============================================================================================= BEGIN NODE API
 
 	/** Bypasses the node. */
 	virtual void setBypassed(bool shouldBeBypassed);
+
+	/** Connects this node to the given parameter target. sourceInfo is either the parameter name (String) or output slot (integer). */
+	var connectTo(var parameterTarget, var sourceInfo);
 
 	/** Checks if the node is bypassed. */
 	bool isBypassed() const noexcept;
@@ -366,11 +377,9 @@ public:
 	void setParent(var parentNode, int indexInParent);
 
 	/** Returns a reference to a parameter.*/
-	var getParameterReference(var indexOrId) const;
+	var getParameter(var indexOrId) const;
 
 	// ============================================================================================= END NODE API
-
-	String getDynamicBypassSource(bool forceUpdate=true) const;
 
 	void setValueTreeProperty(const Identifier& id, const var value);
 	void setDefaultValue(const Identifier& id, var newValue);
@@ -430,7 +439,7 @@ public:
 	NodeBase* getParentNode() const;
 	ValueTree getValueTree() const;
 	String getId() const;
-	UndoManager* getUndoManager() const;
+	UndoManager* getUndoManager(bool returnIfPending=false) const;
     
 	Rectangle<int> getBoundsToDisplay(Rectangle<int> originalHeight) const;
 
@@ -438,13 +447,22 @@ public:
 
     Colour getColour() const;
 
-	
+	struct ParameterIterator
+	{
+		ParameterIterator(NodeBase& n): node(n), size(n.getNumParameters()) {}
+		Parameter** begin() const { return node.parameters.begin(); }
+		Parameter** end() const { return node.parameters.end(); }
 
-	
+	private:
 
+		NodeBase& node;
+		const int size = 0;
+		int index = 0;
+	};
+	
 	int getNumParameters() const;;
-	Parameter* getParameter(const String& id) const;
-	Parameter* getParameter(int index) const;
+	Parameter* getParameterFromName(const String& id) const;
+	Parameter* getParameterFromIndex(int index) const;
 
 	void addParameter(Parameter* p);
 	void removeParameter(int index);
@@ -482,6 +500,10 @@ public:
 
     int getCurrentChannelAmount() const { return lastSpecs.numChannels; };
     
+	String getDynamicBypassSource(bool forceUpdate) const;
+
+	int getCurrentBlockRate() const { return lastBlockSize; }
+
 protected:
 
 	ValueTree v_data;
@@ -489,10 +511,13 @@ protected:
 
 private:
 
+	int lastBlockSize = 0;
+
 	bool preserveAutomation = false;
 	bool enableUndo = true;
-	mutable String dynamicBypassId;
 	
+	mutable String dynamicBypassId;
+
 	void updateFrozenState(Identifier id, var newValue);
 
 	bool containsNetwork = false;
@@ -523,15 +548,15 @@ private:
 
 struct DummyNodeProfiler
 {
-	DummyNodeProfiler(NodeBase* unused)
+	DummyNodeProfiler(NodeBase* unused, int unused2)
 	{
-		ignoreUnused(unused);
+		ignoreUnused(unused, unused2);
 	}
 };
 
 struct RealNodeProfiler
 {
-	RealNodeProfiler(NodeBase* n);
+	RealNodeProfiler(NodeBase* n, int numSamples);
 
 	~RealNodeProfiler()
 	{
@@ -539,12 +564,16 @@ struct RealNodeProfiler
 		{
 			auto delta = Time::getMillisecondCounterHiRes() - start;
 			profileFlag = profileFlag * 0.9 + 0.1 * delta;
+
+			node->processProfileInfo(profileFlag, numSamples);
 		}
 	}
 
+	NodeBase* node;
 	bool enabled;
 	double& profileFlag;
 	double start;
+	const int numSamples;
 };
 
 #if ENABLE_NODE_PROFILING
@@ -553,51 +582,123 @@ using NodeProfiler = RealNodeProfiler;
 using NodeProfiler = DummyNodeProfiler;
 #endif
 
-/** A connection between two parameters or a parameter and a modulation source. */
-class ConnectionBase : public ConstScriptingObject
+struct ConnectionSourceManager
+{
+	/** This object listens to the source and target node and removes the connection if one of the 
+	    nodes is being deleted. 
+
+		It's lifetime is tied to the Connection valuetree and is the only entity that sets the Automated flag (TODO)
+	*/
+	struct CableRemoveListener
+	{
+		void removeCable(ValueTree& v);
+
+		ValueTree findTargetNodeData(ValueTree& recursiveTree);
+
+		CableRemoveListener(ConnectionSourceManager& parent, ValueTree connectionData, ValueTree sourceNodeData);
+
+		~CableRemoveListener();
+
+		ValueTree data;
+		ValueTree sourceNode;
+		ValueTree targetNode;
+		ValueTree targetParameterTree;
+
+		ConnectionSourceManager& parent;
+
+		valuetree::RemoveListener targetRemoveUpdater;
+		valuetree::RemoveListener sourceRemoveUpdater;
+		valuetree::PropertyListener targetRangeListener;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CableRemoveListener);
+	};
+
+	struct Helpers
+	{
+		static ValueTree getOrCreateConnection(ValueTree& connectionTree, const String& nodeId, const String& parameterId, UndoManager* um);
+		static ValueTree findParentNodeTree(ValueTree& v);
+	};
+
+	ConnectionSourceManager(DspNetwork* n_, ValueTree connectionsTree_);
+
+	virtual ~ConnectionSourceManager()
+	{
+		connections.clear();
+	}
+
+	/** Call this in your subclass constructor (it will call the virtual method rebuildCallback() so 
+	    the subclass needs to be defined. 
+	*/
+	bool isConnectedToSource(const Parameter* target) const;
+
+	var addTarget(NodeBase::Parameter* p);
+
+protected:
+
+	void initConnectionSourceListeners();
+
+	/** Override this method and rebuild the parameter callback. */
+	virtual void rebuildCallback() = 0;
+
+private:
+
+	void connectionChanged(ValueTree& v, bool wasAdded);
+
+	WeakReference<DspNetwork> n;
+	ValueTree connectionsTree;
+	OwnedArray<CableRemoveListener> connections;
+	valuetree::ChildListener connectionListener;
+	bool initialised = false;
+};
+
+
+
+
+/** A connection between two parameters or a parameter and a modulation source. These objects are
+	supposed to be used in the scripting engine and contain NO task whatsoever.
+	
+	TODO: Make a hover  info box that shows the connection update rate
+	      - search the common container
+		  - get the process specs of the container
+*/
+class ConnectionBase final: public ConstScriptingObject
 {
 public:
 
-	enum OpType
+	enum ConnectionSource
 	{
-		SetValue,
-		Multiply,
-		Add,
-		numOpTypes
+		MacroParameter,
+		SingleOutputModulation,
+		MultiOutputModulation,
+		numConnectionSources
 	};
 
-	ConnectionBase(ProcessorWithScriptingContent* p, ValueTree data_);;
-
-	virtual ~ConnectionBase() {};
+	ConnectionBase(DspNetwork* n, ValueTree data_);;
+	~ConnectionBase() {};
 
 	Identifier getObjectName() const override { return PropertyIds::Connection; };
 
 	// ============================================================================== API Calls
 
-	/** Set a property (use the constant ids of this object for valid ids). This operation is not undoable! */
-	void set(String id, var newValue)
-	{
-		data.setProperty(Identifier(id), newValue, nullptr);
-	}
-
-	/** Get a property (use the constant ids of this object for valid ids). */
-	var get(String id) const
-	{
-		return data.getProperty(Identifier(id), var());
-	}
-
-	/** Returns the last value that was sent over this connection. */
-	virtual double getLastValue() const { return 0.0; }
-
 	/** Returns the target parameter of this connection. */
-	var getTarget() const { return var(targetParameter.get()); }
+	var getTarget() const;
 
-	/** Returns true if this connection is between a modulation signal and a parameter. */
-	virtual bool isModulationConnection() const { return false; }
+	/** Returns the source node. If getSignalSource is true, it searches the node that creates the modulation signal. */
+	var getSourceNode(bool getSignalSource) const;
+
+	/** Removes this connection. */
+	void disconnect();
+
+	/** Returns the connection type. */
+	int getConnectionType() const;
+
+	/** Returns the update rate for the modulation connection. */
+	int getUpdateRate() const;
+
+	/** Checks if the connection is still valid. */
+	bool isConnected() const;
 
 	// ============================================================================== End of API Calls
-
-	
 
 	bool objectDeleted() const override
 	{
@@ -611,22 +712,25 @@ public:
 
 	static parameter::dynamic_base::Ptr createParameterFromConnectionTree(NodeBase* n, const ValueTree& connectionTree, bool scaleInput);
 
+	struct Helpers
+	{
+		static NodeBase* findRealSource(NodeBase* source);
+
+		static ValueTree findCommonParent(ValueTree v1, ValueTree v2);
+	};
+
+private:
+
+	WeakReference<DspNetwork> network;
+	WeakReference<NodeBase> sourceNode;
+	WeakReference<NodeBase> sourceInSignalChain;
+	WeakReference<NodeBase> commonContainer;
+	ConnectionSource type;
+
 	ValueTree data;
-
-	valuetree::RemoveListener nodeRemoveUpdater;
-	valuetree::RemoveListener sourceRemoveUpdater;
-
-	InvertableParameterRange connectionRange;
-
-	ReferenceCountedObjectPtr<NodeBase::Parameter> targetParameter;
-
-protected:
+	WeakReference<NodeBase::Parameter> targetParameter;
 
 	struct Wrapper;
-
-	void initRemoveUpdater(NodeBase* parent);
-
-
 };
 
 

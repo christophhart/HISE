@@ -725,13 +725,17 @@ public:
 
 	void process(ProcessDataDyn& data) final override
 	{
-		NodeProfiler np(this);
+		
 
 		if (isBypassed())
+		{
+			NodeProfiler np(this, data.getNumSamples());
 			obj.getObject().process(data.as<FixProcessType>());
+		}
+			
 		else
 		{
-			
+			NodeProfiler np(this, 1);
 			float* channels[NumChannels];
 			int numChannels = jmin(NumChannels, data.getNumChannels());
 			memcpy(channels, data.getRawDataPointers(), numChannels * sizeof(float*));

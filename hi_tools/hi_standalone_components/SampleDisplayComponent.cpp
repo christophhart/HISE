@@ -1514,7 +1514,12 @@ bool MultiChannelAudioBufferDisplay::isAudioFile(const String &s)
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
 #endif
 
-	return File(s).existsAsFile() && afm.findFormatForFileExtension(File(s).getFileExtension()) != nullptr;
+	if (File::isAbsolutePath(s))
+	{
+		return File(s).existsAsFile() && afm.findFormatForFileExtension(File(s).getFileExtension()) != nullptr;
+	}
+
+	return false;	
 }
 
 

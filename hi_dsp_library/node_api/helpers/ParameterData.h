@@ -118,6 +118,8 @@ struct RangeHelpers
 
 	static bool isIdentity(InvertableParameterRange d);
 
+	static void removeRangeProperties(ValueTree v, UndoManager* um);
+
 	static Array<Identifier> getRangeIds(bool includeValue=false);
 
 	/** Checks if the range should be inverted. */
@@ -139,8 +141,7 @@ struct RangeHelpers
 
 	static Array<Identifier> getHiddenIds()
 	{
-		return { PropertyIds::NodeId, PropertyIds::ParameterId, 
-				PropertyIds::Enabled };
+		return { PropertyIds::NodeId, PropertyIds::ParameterId, Identifier("Enabled") };
 	}
 };
 

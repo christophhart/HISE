@@ -727,8 +727,7 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 		return new FileNameValuePropertyComponent(id.toString(), file, File::findDirectories, value);
 	}
 
-	if (propId == Enabled || 
-		propId == SplitSignal ||
+	if (propId == SplitSignal ||
 		propId == AllowCompilation ||
 		propId == AllowPolyphonic)
 		return new ToggleButtonPropertyComponent(d, id, um);

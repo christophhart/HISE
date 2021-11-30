@@ -64,6 +64,14 @@ bool RangeHelpers::isIdentity(InvertableParameterRange d)
 }
 
 
+void RangeHelpers::removeRangeProperties(ValueTree v, UndoManager* um)
+{
+	for (auto id : getRangeIds(false))
+		v.removeProperty(id, um);
+
+	v.removeProperty(Identifier("Enabled"), um);
+}
+
 juce::Array<juce::Identifier> RangeHelpers::getRangeIds(bool includeValue)
 {
 	using namespace PropertyIds;

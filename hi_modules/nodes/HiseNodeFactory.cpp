@@ -821,8 +821,8 @@ struct xy_editor : public ScriptnodeExtraComponent<control::xy<parameter::dynami
 		auto xValue = (pos.getX() - a.getX()) / a.getWidth();
 		auto yValue = 1.0f - (pos.getY() - a.getY()) / a.getHeight();
 
-		findParentComponentOfClass<NodeComponent>()->node->getParameter(0)->setValueFromUI(xValue);
-		findParentComponentOfClass<NodeComponent>()->node->getParameter(1)->setValueFromUI(yValue);
+		findParentComponentOfClass<NodeComponent>()->node->getParameterFromIndex(0)->setValueFromUI(xValue);
+		findParentComponentOfClass<NodeComponent>()->node->getParameterFromIndex(1)->setValueFromUI(yValue);
 	}
 
 	void timerCallback() override
@@ -1147,7 +1147,7 @@ namespace fx
 			for (int i = 0; i < 100; i++)
 				x[i] = hmath::sin(float_Pi * 2.0f * (float)i / 100.0f);
 
-			auto delta = (int)(getNode()->getParameter(0)->getValue() / JUCE_LIVE_CONSTANT_OFF(10.0f));
+			auto delta = (int)(getNode()->getParameterFromIndex(0)->getValue() / JUCE_LIVE_CONSTANT_OFF(10.0f));
 			int counter = 0;
 			float v = 0.0;
 

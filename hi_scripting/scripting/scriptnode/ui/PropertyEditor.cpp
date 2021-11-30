@@ -52,7 +52,7 @@ juce::Path NodePopupEditor::Factory::createPath(const String& s) const
 
 NodePopupEditor::NodePopupEditor(NodeComponent* nc_) :
 	nc(nc_),
-	editor(nc->node, false, nc->node->getValueTree()),
+	editor(nc->node.get(), false, nc->node->getValueTree()),
 	exportButton("export", this, factory),
 	wrapButton("wrap", this, factory),
 	surroundButton("surround", this, factory)

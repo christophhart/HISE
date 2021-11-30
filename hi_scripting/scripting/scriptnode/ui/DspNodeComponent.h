@@ -57,9 +57,12 @@ public:
 	{
 		sliders.clear();
 
+		if (node == nullptr)
+			return;
+
 		for (int i = 0; i < node->getNumParameters(); i++)
 		{
-			auto newSlider = new ParameterSlider(node, i);
+			auto newSlider = new ParameterSlider(node.get(), i);
 
 			addAndMakeVisible(newSlider);
 			sliders.add(newSlider);

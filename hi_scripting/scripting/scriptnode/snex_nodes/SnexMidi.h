@@ -150,8 +150,11 @@ struct dynamic : public OptionalSnexSource
 
 		~editor()
 		{
-			getObject()->removeCompileListener(this);
-			midiMode.mode.asJuceValue().removeListener(this);
+			if (auto obj = getObject())
+			{
+				getObject()->removeCompileListener(this);
+				midiMode.mode.asJuceValue().removeListener(this);
+			}
 		}
 
 		void valueChanged(Value& value) override;

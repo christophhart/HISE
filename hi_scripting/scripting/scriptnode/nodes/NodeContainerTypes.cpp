@@ -49,7 +49,7 @@ ChainNode::ChainNode(DspNetwork* n, ValueTree t) :
 
 void ChainNode::process(ProcessDataDyn& data)
 {
-	NodeProfiler np(this);
+	NodeProfiler np(this, data.getNumSamples());
 
 	if (isBypassed())
 		return;
@@ -131,7 +131,7 @@ void SplitNode::process(ProcessDataDyn& data)
 	if (isBypassed() || original.begin() == nullptr)
 		return;
 
-	NodeProfiler np(this);
+	NodeProfiler np(this, data.getNumSamples());
 
 	float* ptrs[NUM_MAX_CHANNELS];
 	int numSamples = data.getNumSamples();
@@ -167,6 +167,8 @@ void SplitNode::process(ProcessDataDyn& data)
 
 			FloatVectorOperations::copy(workBuffer.begin(), original.begin(), numToCopy);
 			ProcessDataDyn cp(ptrs, numSamples, data.getNumChannels());
+
+			cp.copyNonAudioDataFrom(data);
 
 			n->process(cp);
 
@@ -210,7 +212,7 @@ void ModulationChainNode::process(ProcessDataDyn& data) noexcept
 	if (isBypassed())
 		return;
 
-	NodeProfiler np(this);
+	NodeProfiler np(this, data.getNumSamples());
 
 	obj.process(data);
 }
@@ -360,14 +362,16 @@ void OversampleNode<OversampleFactor>::handleHiseEvent(HiseEvent& e)
 template <int OversampleFactor>
 void OversampleNode<OversampleFactor>::process(ProcessDataDyn& d) noexcept
 {
-	NodeProfiler np(this);
+	
 
 	if (isBypassed())
 	{
+		NodeProfiler np(this, d.getNumSamples());
 		obj.getObject().process(d);
 	}
 	else
 	{
+		NodeProfiler np(this, d.getNumSamples() * OversampleFactor);
 		obj.process(d);
 	}
 }
@@ -396,14 +400,14 @@ SerialNode(network, d)
 template <int B>
 void FixedBlockNode<B>::process(ProcessDataDyn& d)
 {
-	NodeProfiler np(this);
-
 	if (isBypassed())
 	{
+		NodeProfiler np(this, d.getNumSamples());
 		obj.getObject().process(d);
 	}
 	else
 	{
+		NodeProfiler np(this, B);
 		obj.process(d);
 	}
 }
@@ -531,7 +535,7 @@ void MultiChannelNode::processFrame(NodeBase::FrameType& data)
 
 void MultiChannelNode::process(ProcessDataDyn& d)
 {
-	NodeProfiler np(this);
+	NodeProfiler np(this, d.getNumSamples());
 
 	int channelIndex = 0;
 
@@ -575,7 +579,7 @@ void SingleSampleBlockX::reset()
 
 void SingleSampleBlockX::process(ProcessDataDyn& data)
 {
-	NodeProfiler np(this);
+	NodeProfiler np(this, isBypassed() ? data.getNumSamples() : 1);
 
 	if (isBypassed())
 		obj.getObject().process(data);
@@ -806,10 +810,8 @@ scriptnode::Parameter* CloneNode::CloneIterator::getParameterForValueTree(const 
 	if (root == nullptr)
 		root = &cn;
 
-	for (int i = 0; i < root->getNumParameters(); i++)
+	for (auto p: NodeBase::ParameterIterator(*root))
 	{
-		auto p = root->getParameter(i);
-
 		if (p->data == pTree)
 			return p;
 	}
@@ -948,7 +950,7 @@ void CloneNode::processFrame(FrameType& data) noexcept
 
 void CloneNode::process(ProcessDataDyn& data) noexcept
 {
-	NodeProfiler np(this);
+	NodeProfiler np(this, data.getNumSamples());
 
 	if (isBypassed() && !nodes.isEmpty())
 		nodes.getFirst()->process(data);
@@ -1123,10 +1125,12 @@ void CloneNode::checkValidClones(const ValueTree& v, bool wasAdded)
 
 	cloneChangeBroadcaster.sendMessage(sendNotificationSync, this);
 
-	if (wasAdded && getParameter(0)->getValue() == getNodeTree().getNumChildren() - 1)
-		getParameter(0)->setValueFromUI(getNodeTree().getNumChildren());
-	if (!wasAdded && getParameter(0)->getValue() == getNodeTree().getNumChildren() + 1)
-		getParameter(0)->setValueFromUI(getNodeTree().getNumChildren());
+	auto firstParameter = getParameterFromIndex(0);
+
+	if (wasAdded && firstParameter->getValue() == getNodeTree().getNumChildren() - 1)
+		firstParameter->setValueFromUI(getNodeTree().getNumChildren());
+	if (!wasAdded && firstParameter->getValue() == getNodeTree().getNumChildren() + 1)
+		firstParameter->setValueFromUI(getNodeTree().getNumChildren());
 
 	updateDisplayedClones({}, getValueTree()[PropertyIds::DisplayedClones]);
 }
@@ -1229,7 +1233,7 @@ FixedBlockXNode::FixedBlockXNode(DspNetwork* network, ValueTree d) :
 
 void FixedBlockXNode::process(ProcessDataDyn& data)
 {
-	NodeProfiler np(this);
+	NodeProfiler np(this, getBlockSizeForChildNodes());
 	obj.process(data);
 }
 

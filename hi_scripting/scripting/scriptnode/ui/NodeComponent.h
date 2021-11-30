@@ -228,7 +228,7 @@ public:
 	};
 
 	NodeComponent(NodeBase* b);;
-	~NodeComponent();
+	virtual ~NodeComponent();
 
 	void paint(Graphics& g) override;
 	void paintOverChildren(Graphics& g) override;
@@ -283,7 +283,8 @@ public:
 
 	bool wasSelected = false;
 	ValueTree dataReference;
-	NodeBase::Ptr node;
+
+	ReferenceCountedObjectPtr<NodeBase> node;
 	Header header;
 	ScopedPointer<EmbeddedNetworkBar> embeddedNetworkBar;
 

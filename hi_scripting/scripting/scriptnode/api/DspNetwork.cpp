@@ -41,9 +41,14 @@ struct DspNetwork::Wrapper
 	API_VOID_METHOD_WRAPPER_1(DspNetwork, processBlock);
 	API_VOID_METHOD_WRAPPER_2(DspNetwork, prepareToPlay);
 	API_METHOD_WRAPPER_2(DspNetwork, create);
+	API_VOID_METHOD_WRAPPER_2(DspNetwork, clear);
 	API_METHOD_WRAPPER_1(DspNetwork, get);
+	API_METHOD_WRAPPER_1(DspNetwork, createTest);
 	API_VOID_METHOD_WRAPPER_1(DspNetwork, setForwardControlsToParameters);
 	API_METHOD_WRAPPER_1(DspNetwork, setParameterDataFromJSON);
+	API_METHOD_WRAPPER_3(DspNetwork, createAndAdd);
+	API_METHOD_WRAPPER_2(DspNetwork, createFromJSON);
+	API_METHOD_WRAPPER_0(DspNetwork, undo);
 	//API_VOID_METHOD_WRAPPER_0(DspNetwork, disconnectAll);
 	//API_VOID_METHOD_WRAPPER_3(DspNetwork, injectAfter);
 };
@@ -122,9 +127,14 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ADD_API_METHOD_1(processBlock);
 	ADD_API_METHOD_2(prepareToPlay);
 	ADD_API_METHOD_2(create);
+	ADD_API_METHOD_3(createAndAdd);
 	ADD_API_METHOD_1(get);
 	ADD_API_METHOD_1(setForwardControlsToParameters);
 	ADD_API_METHOD_1(setParameterDataFromJSON);
+	ADD_API_METHOD_1(createTest);
+	ADD_API_METHOD_2(clear);
+	ADD_API_METHOD_2(createFromJSON);
+	ADD_API_METHOD_0(undo);
 	//ADD_API_METHOD_0(disconnectAll);
 	//ADD_API_METHOD_3(injectAfter);
 
@@ -194,6 +204,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 DspNetwork::~DspNetwork()
 {
+	root = nullptr;
 	selectionUpdater = nullptr;
 	nodes.clear();
     nodeFactories.clear();
@@ -443,7 +454,7 @@ void DspNetwork::process(ProcessDataDyn& data)
 
 juce::Identifier DspNetwork::getParameterIdentifier(int parameterIndex)
 {
-	return getRootNode()->getParameter(parameterIndex)->getId();
+	return getRootNode()->getParameterFromIndex(parameterIndex)->getId();
 }
 
 void DspNetwork::setForwardControlsToParameters(bool shouldForward)
@@ -544,6 +555,55 @@ var DspNetwork::create(String path, String id)
 	return var(newNode);
 }
 
+juce::var DspNetwork::createAndAdd(String path, String id, var parent)
+{
+	if (id.isEmpty())
+	{
+		StringArray unused;
+		id = getNonExistentId(path.fromFirstOccurrenceOf(".", false, false), unused);
+	}
+
+	auto node = create(path, id);
+
+	if (auto n = dynamic_cast<NodeBase*>(node.getObject()))
+	{
+		n->setParent(parent, -1);
+	}
+
+	return node;
+}
+
+var DspNetwork::createFromJSON(var jsonData, var parent)
+{
+	if (auto obj = jsonData.getDynamicObject())
+	{
+		auto path = obj->getProperty(PropertyIds::FactoryPath).toString();
+		auto id = obj->getProperty(PropertyIds::ID).toString();
+
+		auto node = createAndAdd(path, id, parent);
+
+		if (dynamic_cast<NodeBase*>(node.getObject()) == nullptr)
+			return var();
+
+		if (obj->hasProperty(PropertyIds::Nodes))
+		{
+			auto a = obj->getProperty(PropertyIds::Nodes).getArray();
+
+			for (auto c : *a)
+			{
+				auto ok = createFromJSON(c, node);
+				
+				if (!ok.isObject())
+					return var();
+			}
+		}
+
+		return node;
+	}
+
+	return false;
+}
+
 var DspNetwork::get(var idOrNode) const
 {
 	checkValid();
@@ -569,6 +629,42 @@ var DspNetwork::get(var idOrNode) const
 	
 	return {};
 }
+
+void DspNetwork::clear(bool removeNodesFromSignalChain, bool removeUnusedNodes)
+{
+	if(removeNodesFromSignalChain)
+		getRootNode()->getValueTree().getChildWithName(PropertyIds::Nodes).removeAllChildren(getUndoManager());
+	
+	if (removeUnusedNodes)
+	{
+		for (int i = 0; i < nodes.size(); i++)
+		{
+			if (!nodes[i]->isActive(true))
+			{
+				deleteIfUnused(nodes[i]->getId());
+				i--;
+			}
+		}
+	}
+}
+
+bool DspNetwork::undo()
+{
+	return getUndoManager(true)->undo();
+}
+
+var DspNetwork::createTest(var testData)
+{
+	if (auto obj = testData.getDynamicObject())
+	{
+		obj->setProperty(PropertyIds::NodeId, getId());
+		return new ScriptNetworkTest(this, testData);
+	}
+
+	return var();
+}
+
+
 
 bool DspNetwork::deleteIfUnused(String id)
 {
@@ -604,7 +700,7 @@ bool DspNetwork::setParameterDataFromJSON(var jsonData)
 			{
 				if (auto node = getNodeWithId(nId))
 				{
-					if (auto p = node->getParameter(pId))
+					if (auto p = node->getParameterFromName(pId))
 					{
 						p->data.setProperty(PropertyIds::Value, value, getUndoManager());
 						p->isProbed = true;
@@ -626,10 +722,10 @@ juce::Array<Parameter*> DspNetwork::getListOfProbedParameters()
 
 	for (auto node : l)
 	{
-		for (int i = 0; i < node->getNumParameters(); i++)
+		for(auto p: NodeBase::ParameterIterator(*node))
 		{
-			if (node->getParameter(i)->isProbed)
-				list.add(node->getParameter(i));
+			if (p->isProbed)
+				list.add(p);
 		}
 	}
 
@@ -1400,7 +1496,7 @@ scriptnode::NodeBase::Ptr DspNetwork::AnonymousNodeCloner::clone(NodeBase::Ptr p
 
 void DspNetwork::ProjectNodeHolder::process(ProcessDataDyn& data)
 {
-	NodeProfiler np(network.getRootNode());
+	NodeProfiler np(network.getRootNode(), data.getNumSamples());
 
 	n.process(data);
 }
@@ -1551,6 +1647,139 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 			throw e;
 		}
 	}
+}
+
+ScriptNetworkTest::CHandler::CHandler(WorkbenchData::Ptr wb, DspNetwork* n) :
+	WorkbenchData::CompileHandler(wb.get()),
+	network(n)
+{
+	ps.voiceIndex = n->getPolyHandler();
+	ps.numChannels = wb->getTestData().testSourceData.getNumChannels();
+	ps.blockSize = 512;
+	ps.numChannels = 1;
+	ps.sampleRate = 44100.0;
+}
+
+void ScriptNetworkTest::CHandler::postCompile(ui::WorkbenchData::CompileResult& lastResult)
+{
+	auto& td = getParent()->getTestData();
+
+	td.initProcessing(ps);
+	td.processTestData(getParent());
+}
+
+void ScriptNetworkTest::CHandler::processTest(ProcessDataDyn& data)
+{
+	network->process(data);
+}
+
+void ScriptNetworkTest::CHandler::prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
+{
+	network->prepareToPlay(ps.sampleRate, ps.blockSize);
+	
+	for (auto p : initialParameters)
+		network->getCurrentParameterHandler()->setParameter(p.parameterIndex, p.valueToUse);
+
+	network->reset();
+}
+
+void ScriptNetworkTest::CHandler::processTestParameterEvent(int parameterIndex, double value)
+{
+	jassertfalse;
+}
+
+juce::var ScriptNetworkTest::runTest()
+{
+	wb->triggerRecompile();
+	auto& td = wb->getTestData();
+	auto v = new VariantBuffer(td.testOutputData.getNumSamples());
+	FloatVectorOperations::copy(v->buffer.getWritePointer(0), td.testOutputData.getReadPointer(0), v->size);
+	return var(v);
+}
+
+void ScriptNetworkTest::setTestProperty(String id, var value)
+{
+	auto v = wb->getTestData().toJSON();
+
+	if (auto obj = v.getDynamicObject())
+		obj->setProperty(Identifier(id), value);
+
+	wb->getTestData().fromJSON(v, dontSendNotification);
+}
+
+void ScriptNetworkTest::setProcessSpecs(int numChannels, double sampleRate, int blockSize)
+{
+	auto c = dynamic_cast<CHandler*>(wb->getCompileHandler());
+	c->ps.numChannels = numChannels;
+	c->ps.blockSize = blockSize;
+	c->ps.sampleRate = sampleRate;
+}
+
+juce::var ScriptNetworkTest::expectEquals(var data1, var data2, float errorDb)
+{
+	auto isNumeric = [](const var& v)
+	{
+		return v.isInt() || v.isDouble() || v.isInt64() || v.isBool();
+	};
+
+	if (data1.isArray() && (data2.isArray() || isNumeric(data2)))
+	{
+		auto size1 = data1.size();
+		auto size2 = isNumeric(data2) ? data2.size() : size1;
+
+		if (size1 != size2)
+			return var("Array size mismatch");
+
+		for (int i = 0; i < size1; i++)
+		{
+			auto v = isNumeric(data2) ? data2 : data2[i];
+			auto ok = expectEquals(data1[i], v, errorDb);
+
+			if (ok.isString())
+				return ok;
+		}
+
+		return 0;
+	}
+	if (data1.isBuffer() && (data2.isBuffer() || isNumeric(data2)))
+	{
+		auto p1 = data1.getBuffer()->buffer.getReadPointer(0);
+		auto p2 = !isNumeric(data2) ? data2.getBuffer()->buffer.getReadPointer(0) : nullptr;
+		auto size1 = data1.getBuffer()->size;
+		auto size2 = !isNumeric(data2) ? data2.getBuffer()->size : size1;
+
+		if (size1 != size2)
+			return var("Buffer size mismatch");
+
+		for (int i = 0; i < size1; i++)
+		{
+			float v = p2 != nullptr ? p2[i] : (float)data2;
+			auto result = expectEquals(p1[i], v, errorDb);
+
+			if (result.isString())
+				return result;
+		}
+
+		return 0;
+	}
+	if (isNumeric(data1) && isNumeric(data2))
+	{
+		auto v1 = (float)data1;
+		auto v2 = (float)data2;
+
+		auto diff = hmath::abs(v1 - v2);
+
+		if (diff > Decibels::decibelsToGain(errorDb))
+		{
+			String error;
+			error << "Value error: " << String(Decibels::gainToDecibels(diff), 1) << " dB";
+			return var(error);
+		}
+
+		return 0;
+	}
+	
+	return var("unsupported type");
 }
 
 }

@@ -62,9 +62,6 @@ struct MacroPropertyEditor : public Component,
 			addAndMakeVisible(deleteButton);
 			addAndMakeVisible(gotoButton);
 
-			expressionEnabler.setCallback(data, { PropertyIds::Expression }, valuetree::AsyncMode::Asynchronously,
-				BIND_MEMBER_FUNCTION_2(ConnectionEditor::enableProperties));
-
 			updateSize();
 		}
 
@@ -79,7 +76,6 @@ struct MacroPropertyEditor : public Component,
 			bool shouldBeEnabled = newValue.toString().isEmpty();
 
 			auto rangeIds = RangeHelpers::getRangeIds();
-			rangeIds.add(PropertyIds::Enabled);
 			cEditor.enableProperties(rangeIds, shouldBeEnabled);
 
 			findParentComponentOfClass<MacroPropertyEditor>()->resizeConnections();
@@ -246,14 +242,10 @@ struct MacroPropertyEditor : public Component,
 		}
 		else
 		{
-			for (int i = 0; i < b->getNumParameters(); i++)
+			for (auto p: NodeBase::ParameterIterator(*b))
 			{
-				
-
 				if (parameter != nullptr)
 					break;
-
-				auto p = b->getParameter(i);
 
 				if (p->data == data)
 				{
@@ -483,7 +475,7 @@ public:
 			{
 				auto name = PresetHandler::getCustomName("Parameter", "Enter the parameter name");
 
-				while (name.isNotEmpty() && pc->parent.node->getParameter(name) != nullptr)
+				while (name.isNotEmpty() && pc->parent.node->getParameterFromName(name) != nullptr)
 				{
 					PresetHandler::showMessageWindow("Already there", "The parameter " + name + " already exists. You need to be more creative.");
 
@@ -603,9 +595,9 @@ public:
 				Component* newSlider;
 
 				if (isFixedParameterComponent())
-					newSlider = new ParameterSlider(parent.node, i);
+					newSlider = new ParameterSlider(parent.node.get(), i);
 				else
-					newSlider = new MacroParameterSlider(parent.node, i);
+					newSlider = new MacroParameterSlider(parent.node.get(), i);
 
 				addAndMakeVisible(newSlider);
 				sliders.add(newSlider);

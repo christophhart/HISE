@@ -194,7 +194,7 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 		if (activeNetwork == nullptr)
 			return;
 
-		if (auto p = activeNetwork->getRootNode()->getParameter(parameterIndex))
+		if (auto p = activeNetwork->getRootNode()->getParameterFromIndex(parameterIndex))
 			p->setValue(newValue);
 	}
 
@@ -203,7 +203,7 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 		if (activeNetwork == nullptr)
 			return 0.0f;
 
-		if (auto p = activeNetwork->getRootNode()->getParameter(parameterIndex))
+		if (auto p = activeNetwork->getRootNode()->getParameterFromIndex(parameterIndex))
 			return p->getValue();
 
 		return 0.0f;

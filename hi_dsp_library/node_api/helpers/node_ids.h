@@ -120,7 +120,6 @@ DECLARE_ID(AudioFile);
 DECLARE_ID(CodeLibrary);
 DECLARE_ID(ClassId);
 DECLARE_ID(AllowSubBlocks);
-DECLARE_ID(Enabled);
 DECLARE_ID(Mode);
 DECLARE_ID(BlockSize);
 DECLARE_ID(IsPolyphonic);

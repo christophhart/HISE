@@ -95,10 +95,8 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 
 				np->getActiveOrDebuggedNetwork()->setExternalDataHolder(&getParent()->getTestData());
 
-				for (int i = 0; i < rootNode->getNumParameters(); i++)
+				for (auto p : NodeBase::ParameterIterator(*rootNode))
 				{
-					auto p = rootNode->getParameter(i);
-
 					scriptnode::parameter::data d;
 
 					auto f = [](void* obj, double value)
@@ -149,16 +147,9 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 
 void DspNetworkCompileHandler::processTestParameterEvent(int parameterIndex, double value)
 {
-#if 0
-	if (dllNode.getObjectPtr() != nullptr)
-	{
-		dllNode.parameterFunctions[parameterIndex](dllNode.getObjectPtr(), value);
-	}
-#endif
-
 	if (interpreter != nullptr)
 	{
-		if (auto p = interpreter->getRootNode()->getParameter(parameterIndex))
+		if (auto p = interpreter->getRootNode()->getParameterFromIndex(parameterIndex))
 			p->setValue(value);
 	}
 

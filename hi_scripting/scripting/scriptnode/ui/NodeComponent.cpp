@@ -87,11 +87,14 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 
 	dynamicPowerUpdater.setCallback(parent.node->getRootNetwork()->getValueTree(), valuetree::AsyncMode::Asynchronously, [this](ValueTree v, bool wasAdded)
 	{
-		auto on = parent.node->getDynamicBypassSource(true).isEmpty();
-		powerButton.setVisible(on);
+		if (parent.node != nullptr)
+		{
+			auto on = parent.node->getDynamicBypassSource(true).isEmpty();
+			powerButton.setVisible(on);
 
-		if(auto dng = findParentComponentOfClass<DspNetworkGraph>())
-			dng->repaint();
+			if (auto dng = findParentComponentOfClass<DspNetworkGraph>())
+				dng->repaint();
+		}
 	});
 
 	addAndMakeVisible(powerButton);
@@ -122,7 +125,7 @@ void NodeComponent::Header::buttonClicked(Button* b)
 	}
 	if (b == &deleteButton)
 	{
-		parent.node->getRootNetwork()->deselect(parent.node);
+		parent.node->getRootNetwork()->deselect(parent.node.get());
 
 		parent.dataReference.getParent().removeChild(
 			parent.dataReference, parent.node->getUndoManager());
@@ -196,7 +199,7 @@ void NodeComponent::Header::mouseUp(const MouseEvent& e)
 		graph->finishDrag();
 	else
 	{
-		parent.node->getRootNetwork()->addToSelection(parent.node, e.mods);
+		parent.node->getRootNetwork()->addToSelection(parent.node.get(), e.mods);
 	}
 		
 }
@@ -238,7 +241,7 @@ bool NodeComponent::Header::isInterestedInDragSource(const SourceDetails& detail
 	if (dynamic_cast<cable::dynamic::editor*>(details.sourceComponent.get()) != nullptr)
 		return false;
 
-	return true;
+	return dynamic_cast<SoftBypassNode*>(parent.node.get()) != nullptr;
 }
 
 void NodeComponent::Header::paint(Graphics& g)
@@ -339,8 +342,9 @@ NodeComponent::NodeComponent(NodeBase* b) :
 
 NodeComponent::~NodeComponent()
 {
-	if(node != nullptr)
-		node->getRootNetwork()->removeSelectionListener(this);
+	node->getRootNetwork()->removeSelectionListener(this);
+
+	node = nullptr;
 }
 
 
@@ -443,7 +447,7 @@ void NodeComponent::paintOverChildren(Graphics& g)
 
 	auto& exceptionHandler = node->getRootNetwork()->getExceptionHandler();
 
-	auto error = exceptionHandler.getErrorMessage(node);
+	auto error = exceptionHandler.getErrorMessage(node.get());
 
 	if (error.isNotEmpty())
 	{
@@ -499,7 +503,7 @@ hise::MarkdownLink NodeComponent::getLink() const
 
 void NodeComponent::selectionChanged(const NodeBase::List& selection)
 {
-	bool nowSelected = selection.contains(node);
+	bool nowSelected = selection.contains(node.get());
 
 	if (wasSelected != nowSelected)
 	{
@@ -589,15 +593,15 @@ void NodeComponent::handlePopupMenuResult(int result)
 	}
 	if (result == (int)MenuActions::UnfreezeNode)
 	{
-		DspNetworkGraph::Actions::unfreezeNode(node);
+		DspNetworkGraph::Actions::unfreezeNode(node.get());
 	}
 	if (result == (int)MenuActions::FreezeNode)
 	{
-		DspNetworkGraph::Actions::freezeNode(node);
+		DspNetworkGraph::Actions::freezeNode(node.get());
 	}
 	if (result == (int)MenuActions::WrapIntoDspNetwork)
 	{
-		auto wType = PopupHelpers::isWrappable(node);
+		auto wType = PopupHelpers::isWrappable(node.get());
 
 		if (wType == 2)
 		{
@@ -642,9 +646,9 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 			Array<ConnectionState> existingConnections;
 
-			for (int i = 0; i < node->getNumParameters(); i++)
+			for (auto p: NodeBase::ParameterIterator(*node))
 			{
-				auto sourceConnection = node->getParameter(i)->getConnectionSourceTree(true);
+				auto sourceConnection = p->getConnectionSourceTree(true);
 
 				if(sourceConnection.isValid())
 					existingConnections.add(ConnectionState(sourceConnection, true));
@@ -660,7 +664,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 			for (auto& c : existingConnections)
 			{
-				c.removeOldConnection(node);
+				c.removeOldConnection(node.get());
 			}
 
 			if (id == node->getPath().getIdentifier().toString())
@@ -672,7 +676,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 			node->setValueTreeProperty(PropertyIds::ID, newId);
 
-			PopupHelpers::wrapIntoChain(node, MenuActions::WrapIntoChain, id);
+			PopupHelpers::wrapIntoChain(node.get(), MenuActions::WrapIntoChain, id);
 
 			auto pn = node->getParentNode();
 			pn->getValueTree().setProperty(PropertyIds::ShowParameters, true, node->getUndoManager());
@@ -688,18 +692,16 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 				jassert(modNode != nullptr);
 
-				modNode->addModulationTarget(pmod->getParameter(0));
+				modNode->addModulationConnection(0, pmod->getParameterFromIndex(0));
 			}
+
+			for(auto p: NodeBase::ParameterIterator(*node))
+				pn->getParameterTree().addChild(p->data.createCopy(), -1, node->getUndoManager());
 
 			for (int i = 0; i < node->getNumParameters(); i++)
 			{
-				pn->getParameterTree().addChild(node->getParameter(i)->data.createCopy(), -1, node->getUndoManager());
-			}
-
-			for (int i = 0; i < pn->getNumParameters(); i++)
-			{
-				auto m = dynamic_cast<NodeContainer::MacroParameter*>(pn->getParameter(i));
-				m->addParameterTarget(node->getParameter(i));
+				auto m = dynamic_cast<NodeContainer::MacroParameter*>(pn->getParameterFromIndex(i));
+				m->addTarget(node->getParameterFromIndex(i));
 			}
 
 			PopupHelpers::wrapIntoNetwork(pn, true);
@@ -710,12 +712,12 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 		if (wType == 1)
 		{
-			PopupHelpers::wrapIntoNetwork(node, PresetHandler::showYesNoWindow("Compile this network", "Do you want to include the new network into the compilation?", PresetHandler::IconType::Question));
+			PopupHelpers::wrapIntoNetwork(node.get(), PresetHandler::showYesNoWindow("Compile this network", "Do you want to include the new network into the compilation?", PresetHandler::IconType::Question));
 		}
 	}
 	if (result >= (int)MenuActions::WrapIntoChain && result <= (int)MenuActions::WrapIntoOversample4)
 	{
-		PopupHelpers::wrapIntoChain(node, (MenuActions)result);
+		PopupHelpers::wrapIntoChain(node.get(), (MenuActions)result);
 	}
 	if (result >= (int)MenuActions::SurroundWithFeedback && result <= (int)MenuActions::SurroundWithMSDecoder)
 	{
@@ -769,7 +771,7 @@ juce::Colour NodeComponent::getOutlineColour() const
 
 	if (!exceptionHandler.isOk())
 	{
-		auto error = exceptionHandler.getErrorMessage(node);
+		auto error = exceptionHandler.getErrorMessage(node.get());
 
 		if (error.isNotEmpty())
 				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFFFF0000));
@@ -816,7 +818,7 @@ bool NodeComponent::isDragged() const
 
 bool NodeComponent::isSelected() const
 {
-	return node->getRootNetwork()->isSelected(node);
+	return node->getRootNetwork()->isSelected(node.get());
 }
 
 
@@ -1137,7 +1139,7 @@ scriptnode::NodeBase* simple_visualiser::getNode()
 double simple_visualiser::getParameter(int index)
 {
 	jassert(isPositiveAndBelow(index, getNode()->getNumParameters()));
-	return getNode()->getParameter(index)->getValue();
+	return getNode()->getParameterFromIndex(index)->getValue();
 }
 
 juce::Colour simple_visualiser::getNodeColour()

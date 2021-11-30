@@ -1004,7 +1004,7 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 	rc.targetRange = RangeHelpers::getDoubleRange(c);
 	
-	if (c.getType() == PropertyIds::ModulationTarget)
+	if (c.getParent().getType() == PropertyIds::ModulationTargets)
 		rc.cableType = Connection::CableType::Modulation;
 	else
 		rc.cableType = Connection::CableType::Parameter;

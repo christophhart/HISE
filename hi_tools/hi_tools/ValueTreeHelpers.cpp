@@ -272,7 +272,7 @@ void RemoveListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
 
 	if (fireRecursively)
 	{
-		shouldFire = child.isAChildOf(c) && p.isAChildOf(parent);
+		shouldFire = (c == child || child.isAChildOf(c)) && p.isAChildOf(parent);
 	}
 	else
 		shouldFire = p == parent && c == child;

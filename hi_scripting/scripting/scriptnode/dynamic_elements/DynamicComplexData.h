@@ -558,6 +558,9 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 
 	void paintOverChildren(Graphics& g) override
 	{
+		if (getObject() == nullptr)
+			return;
+
 		auto idx = getObject()->getIndex();
 
 		if (idx != -1)

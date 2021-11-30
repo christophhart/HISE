@@ -212,7 +212,7 @@ void ContainerComponent::removeDraggedNode(NodeComponent* draggedNode)
 
 	removeChildComponent(draggedNode);
 
-	auto dea = new DeactivatedComponent(draggedNode->node);
+	auto dea = new DeactivatedComponent(draggedNode->node.get());
 
 	addAndMakeVisible(dea);
 
@@ -252,7 +252,7 @@ void ContainerComponent::insertDraggedNode(NodeComponent* newNode, bool copyNode
 		}
 		else
 		{
-			newNode->node->setParent(var(node), insertPosition);
+			newNode->node->setParent(var(node.get()), insertPosition);
 		}
 	}
 }
@@ -337,7 +337,7 @@ void ContainerComponent::findLassoItemsInArea(Array<NodeBase::Ptr>& itemsFound, 
 
 			for (auto i : itemsFound)
 			{
-				auto p = n->node;
+				auto p = n->node.get();
 
 				while (!parentFound && p != nullptr)
 				{
@@ -347,7 +347,7 @@ void ContainerComponent::findLassoItemsInArea(Array<NodeBase::Ptr>& itemsFound, 
 			}
 
 			if(!parentFound)
-				itemsFound.addIfNotAlreadyThere(n->node);
+				itemsFound.addIfNotAlreadyThere(n->node.get());
 		}
 	}
 }
@@ -529,7 +529,7 @@ void ContainerComponent::rebuildNodes()
 
 		if (numHidden > 0 || (!node->getValueTree()[PropertyIds::ShowClones] && node->getValueTree().hasProperty(PropertyIds::DisplayedClones)))
 		{
-			addAndMakeVisible(duplicateDisplay = new DuplicateComponent(node, numHidden));
+			addAndMakeVisible(duplicateDisplay = new DuplicateComponent(node.get(), numHidden));
 		}
 	}
 
@@ -595,6 +595,9 @@ void SerialNodeComponent::resized()
 
 	for (auto nc : childNodeComponents)
 	{
+		if (nc->node == nullptr)
+			continue;
+
 		auto bounds = nc->node->getPositionInCanvas(startPos);
 		bounds = nc->node->getBoundsWithoutHelp(bounds);
 
@@ -976,7 +979,7 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 	//p.addPieSegment(pin1, 0.0f, float_Pi * 2.0f, 0.5f);
 	//p.addPieSegment(pin2, 0.0f, float_Pi * 2.0f, 0.5f);
 
-	if (dynamic_cast<SplitNode*>(node.get()) || (dynamic_cast<CloneNode*>(node.get()) != nullptr && node->getParameter(1)->getValue()))
+	if (dynamic_cast<SplitNode*>(node.get()) || (dynamic_cast<CloneNode*>(node.get()) != nullptr && node->getParameterFromIndex(1)->getValue()))
 	{
 		if (childNodeComponents.size() < 8)
 		{
@@ -1194,8 +1197,8 @@ void MacroPropertyEditor::buttonClicked(Button* b)
 					}
 				}
 
-				for (int i = 0; i < parent->getNumParameters(); i++)
-					pEntries.add({ parent->getId(), parent->getParameter(i)->getId(), false });
+				for (auto p : NodeBase::ParameterIterator(*parent))
+					pEntries.add({ parent->getId(), p->getId(), false });
 
 				parent = parent->getParentNode();
 			}

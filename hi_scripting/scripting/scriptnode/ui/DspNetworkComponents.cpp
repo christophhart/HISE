@@ -427,6 +427,48 @@ Colour getSpecialColour(Component* c, Colour defaultColour)
 	return defaultColour;
 }
 
+
+
+void drawBlockrateForCable(Graphics& g, Point<float> midPoint, Colour cableColour, float alpha, NodeBase* sourceNode, NodeBase* targetNode)
+{
+	NodeBase* commonParent;
+
+	if (sourceNode == targetNode)
+		commonParent = sourceNode;
+	else
+	{
+		auto v1 = sourceNode->getValueTree();
+		auto v2 = targetNode->getValueTree();
+
+		auto p = ConnectionBase::Helpers::findCommonParent(v1, v2).getParent();
+
+		commonParent = sourceNode->getRootNetwork()->getNodeForValueTree(p);
+	}
+
+	if (commonParent != nullptr)
+	{
+		String s;
+
+		auto blockRate = commonParent->getCurrentBlockRate();
+
+		if (blockRate == 1)
+			s << "1 sample";
+		else
+			s << String(blockRate) << " samples";
+
+		auto r = Rectangle<float>(midPoint, midPoint).withSizeKeepingCentre(GLOBAL_BOLD_FONT().getStringWidthFloat(s) + 15.0f, 24.0f);
+
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colours::black.withAlpha(alpha));
+		g.fillRoundedRectangle(r, r.getHeight() / 2.0f);
+		g.setColour(cableColour.withAlpha(alpha));
+		g.drawRoundedRectangle(r, r.getHeight() / 2.0f, 1.0f);
+		g.drawText(s, r, Justification::centred);
+	}
+}
+
+
+
 void DspNetworkGraph::paintOverChildren(Graphics& g)
 {
 	if (network->isFrozen())
@@ -527,31 +569,28 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		
 		if (auto macro = dynamic_cast<NodeContainer::MacroParameter*>(sourceSlider->parameterToControl.get()))
 		{
-			for (auto c : macro->connections)
+			for (auto targetSlider : sliderList)
 			{
-				for (auto targetSlider : sliderList)
-				{
-					auto target = targetSlider->parameterToControl;
+				auto target = targetSlider->parameterToControl;
 
+				if (target == nullptr || !target->parent->isBodyShown())
+					continue;
+
+				if (macro->isConnectedToSource(target))
+				{
 					auto colourToUse = cableColour;
-					
+
 					if (auto nc = targetSlider->findParentComponentOfClass<NodeComponent>())
 					{
 						colourToUse = nc->getHeaderColour();
 					}
 
-					if (target == nullptr || !target->parent->isBodyShown())
-						continue;
+					auto start = getCircle(sourceSlider);
+					auto end = getCircle(targetSlider);
 
-					if (c->matchesTarget(target))
-					{
-						auto start = getCircle(sourceSlider);
-						auto end = getCircle(targetSlider);
+					Colour hc = targetSlider->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
-						Colour hc = targetSlider->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
-
-						paintCable(g, start, end, colourToUse, alpha, hc);
-					}
+					paintCable(g, start, end, colourToUse, alpha, hc);
 				}
 			}
 		}
@@ -577,7 +616,12 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 				auto c = MultiOutputDragSource::getFadeColour(index, numOutputs).withAlpha(1.0f);
 
 				Colour hc = s->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
-				paintCable(g, start, end, c, alpha, hc);
+				auto midPoint = paintCable(g, start, end, c, alpha, hc, network->getCpuProfileFlag());
+
+				if (!midPoint.isOrigin())
+				{
+					drawBlockrateForCable(g, midPoint, c, alpha, multiSource->getNode(), s->node);
+				}
 			}
 		}
 	}
@@ -616,7 +660,16 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 						Colour hc = s->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
-						paintCable(g, start, end, cableColour, alpha, hc);
+						auto midPoint = paintCable(g, start, end, cableColour, alpha, hc, network->getCpuProfileFlag());
+
+						if (!midPoint.isOrigin())
+						{
+							auto thisSource = ConnectionBase::Helpers::findRealSource(sourceNode);
+							auto thisTarget = ConnectionBase::Helpers::findRealSource(s->parameterToControl->parent);
+
+							if(thisSource != nullptr && thisTarget != nullptr)
+								drawBlockrateForCable(g, midPoint, cableColour, alpha, thisSource, thisTarget);
+						}
 
 						auto drawSiblingCables = s->node->isClone() && !sourceNode->isClone();
 
@@ -626,7 +679,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 							CloneNode::CloneIterator cit(*root, s->parameterToControl->data, true);
 
-							auto numClones = root->getParameter(0)->getValue();
+							auto numClones = root->getParameterFromIndex(0)->getValue();
 							int i = 0;
 
 							for (const auto& cv : cit)
@@ -667,52 +720,62 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 		if (connection.isNotEmpty())
 		{
-			auto nodeId = connection.upToFirstOccurrenceOf(".", false, false);
-			auto pId = connection.fromFirstOccurrenceOf(".", false, false);
+			
 
-			for (auto multiSource : multiOutputList)
+			if (connection.contains("["))
 			{
-				if (!multiSource->getNode()->isBodyShown())
-					continue;
+				auto nodeId = connection.upToFirstOccurrenceOf("[", false, false);
+				auto slotIndex = connection.fromFirstOccurrenceOf("[", false, false).getIntValue();
 
-				if (multiSource->getNode()->getId() == nodeId)
+				for (auto multiSource : multiOutputList)
 				{
-					if (multiSource->getOutputIndex() == pId.getIntValue())
+					if (!multiSource->getNode()->isBodyShown())
+						continue;
+
+					if (multiSource->getNode()->getId() == nodeId)
 					{
-						auto start = getCircle(multiSource->asComponent(), false);
-						auto end = getCircle(&b->powerButton).translated(0.0, -60.0f);
+						if (multiSource->getOutputIndex() == slotIndex)
+						{
+							auto start = getCircle(multiSource->asComponent(), false);
+							auto end = getCircle(&b->powerButton).translated(0.0, -60.0f);
 
-						auto c = n->isBypassed() ? Colours::grey : Colour(SIGNAL_COLOUR).withAlpha(0.8f);
+							auto c = n->isBypassed() ? Colours::grey : Colour(SIGNAL_COLOUR).withAlpha(0.8f);
 
-						Colour hc = b->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
+							Colour hc = b->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
-						paintCable(g, start, end, c, alpha, hc);
+							paintCable(g, start, end, c, alpha, hc);
+						}
 					}
 				}
 			}
-
-			for (auto sourceSlider : sliderList)
+			else
 			{
-				auto c = n->isBypassed() ? Colours::grey : Colour(SIGNAL_COLOUR).withAlpha(0.8f);
+				auto nodeId = connection.upToFirstOccurrenceOf(".", false, false);
+				auto pId = connection.fromFirstOccurrenceOf(".", false, false);
 
-				c = getSpecialColour(sourceSlider, c);
-
-				if (sourceSlider->parameterToControl == nullptr)
-					continue;
-
-				if (!sourceSlider->parameterToControl->parent->isBodyShown())
-					continue;
-
-				if (sourceSlider->parameterToControl->getId() == pId &&
-					sourceSlider->parameterToControl->parent->getId() == nodeId)
+				for (auto sourceSlider : sliderList)
 				{
-					auto start = getCircle(sourceSlider);
-					auto end = getCircle(&b->powerButton).translated(0.0, -60.0f);
+					auto c = n->isBypassed() ? Colours::grey : Colour(SIGNAL_COLOUR).withAlpha(0.8f);
 
-					Colour hc = sourceSlider->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
+					c = getSpecialColour(sourceSlider, c);
 
-					paintCable(g, start, end, c, alpha, hc);
-					break;
+					if (sourceSlider->parameterToControl == nullptr)
+						continue;
+
+					if (!sourceSlider->parameterToControl->parent->isBodyShown())
+						continue;
+
+					if (sourceSlider->parameterToControl->getId() == pId &&
+						sourceSlider->parameterToControl->parent->getId() == nodeId)
+					{
+						auto start = getCircle(sourceSlider);
+						auto end = getCircle(&b->powerButton).translated(0.0, -60.0f);
+
+						Colour hc = sourceSlider->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
+
+						paintCable(g, start, end, c, alpha, hc);
+						break;
+					}
 				}
 			}
 		}
@@ -1490,7 +1553,7 @@ bool DspNetworkGraph::Actions::foldUnselectedNodes(DspNetworkGraph& g)
 
 		for (auto nc : list)
 		{
-			if (selection.contains(nc->node))
+			if (selection.contains(nc->node.get()))
 			{
 				auto b = g.getLocalArea(nc, nc->getLocalBounds());
 				nBounds.addWithoutMerging(b);
@@ -1664,7 +1727,7 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 			if (thisAdd != -1)
 			{
 				hoverPosition = thisAdd;
-				hoverContainer = nc->node;
+				hoverContainer = nc->node.get();
 				break;
 			}
 		}
@@ -1689,7 +1752,7 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 			if (addPosition == -1)
 				addPosition = thisAddPosition;
 
-			KeyboardPopup* newPopup = new KeyboardPopup(nc->node, addPosition);
+			KeyboardPopup* newPopup = new KeyboardPopup(nc->node.get(), addPosition);
 
 			auto midPoint = nc->getInsertRuler(addPosition);
 
@@ -2655,9 +2718,8 @@ KeyboardPopup::ImagePreviewCreator::ImagePreviewCreator(KeyboardPopup& kp_, cons
 			createdNode = dynamic_cast<NodeBase*>(network->create(path, path.fromFirstOccurrenceOf(".", false, false)).getObject());
 			network->getExceptionHandler().removeError(createdNode);
 
-			for (int i = 0; i < createdNode->getNumParameters(); i++)
+			for (auto p: NodeBase::ParameterIterator(*createdNode))
 			{
-				auto p = createdNode->getParameter(i);
 				auto nr = RangeHelpers::getDoubleRange(p->data);
 				auto v = nr.convertFrom0to1(Random::getSystemRandom().nextDouble());
 				p->setValue(v);

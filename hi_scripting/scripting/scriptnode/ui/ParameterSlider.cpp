@@ -289,8 +289,9 @@ struct ParameterSlider::RangeComponent : public Component,
 
 		RangeHelpers::storeDoubleRange(s.parameterToControl->data, rangeToUse, s.node->getUndoManager());
 
-		if(connectionSource.isValid())
-			RangeHelpers::storeDoubleRange(connectionSource, rangeToUse, s.node->getUndoManager());
+		// We don't store anything in the connection tree anymore
+		//if(connectionSource.isValid())
+		//	RangeHelpers::storeDoubleRange(connectionSource, rangeToUse, s.node->getUndoManager());
 
 		if (updateRange != dontSendNotification)
 			oldRange = rangeToUse;
@@ -847,9 +848,9 @@ struct ParameterSlider::RangeComponent : public Component,
 
 ParameterSlider::ParameterSlider(NodeBase* node_, int index_) :
 	SimpleTimer(node_->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
-	parameterToControl(node_->getParameter(index_)),
+	parameterToControl(node_->getParameterFromIndex(index_)),
 	node(node_),
-	pTree(node_->getParameter(index_)->data),
+	pTree(node_->getParameterFromIndex(index_)->data),
 	index(index_)
 {
 	addAndMakeVisible(rangeButton);
@@ -941,7 +942,7 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 	if (details.sourceComponent == this)
 		return false;
 
-	auto sourceNode = details.sourceComponent->findParentComponentOfClass<NodeComponent>()->node;
+	auto sourceNode = details.sourceComponent->findParentComponentOfClass<NodeComponent>()->node.get();
 
 	if (CloneNode::getCloneIndex(sourceNode) > 0)
 	{
@@ -962,7 +963,7 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 		return false;
 	}
 	
-    if(auto modSource = dynamic_cast<ModulationSourceNode*>(sourceNode.get()))
+    if(auto modSource = dynamic_cast<ModulationSourceNode*>(sourceNode))
     {
         auto h = modSource->getParameterHolder();
 

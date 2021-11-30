@@ -166,6 +166,10 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 			updateChannels(n->getValueTree(), Identifier());
 		}
 	}
+
+	ownedReference.clear();
+	for (auto n : nodes)
+		ownedReference.add(n.get());
 }
 
 
@@ -192,7 +196,7 @@ void NodeContainer::parameterAddedOrRemoved(ValueTree child, bool wasAdded)
 	{
 		for (int i = 0; i < n->getNumParameters(); i++)
 		{
-			if (n->getParameter(i)->data == child)
+			if (n->getParameterFromIndex(i)->data == child)
 			{
 				n->removeParameter(i);
 				break;
@@ -519,46 +523,6 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<SoftBypassNode>();
 }
 
-
-NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroParameter* pp, ValueTree d):
-	ConnectionBase(parent->getScriptProcessor(), d),
-	um(parent->getUndoManager()),
-	parentParameter(pp)
-{
-	initRemoveUpdater(parent);
-
-	auto nodeId = d[PropertyIds::NodeId].toString();
-
-	if (auto targetNode = dynamic_cast<NodeBase*>(parent->getRootNetwork()->get(nodeId).getObject()))
-	{
-		auto parameterId = d[PropertyIds::ParameterId].toString();
-
-        for (int i = 0; i < targetNode->getNumParameters(); i++)
-        {
-            if (targetNode->getParameter(i)->getId() == parameterId)
-            {
-                targetParameter = targetNode->getParameter(i);
-                break;
-            }
-        }
-	}
-	else
-	{
-		targetParameter = nullptr;
-		return;
-	}
-
-	connectionRange = RangeHelpers::getDoubleRange(d);
-}
-
-
-
-
-NodeContainer::MacroParameter::Connection::~Connection()
-{
-	
-}
-
 juce::ValueTree NodeContainer::MacroParameter::getConnectionTree()
 {
 	auto existing = data.getChildWithName(PropertyIds::Connections);
@@ -566,7 +530,7 @@ juce::ValueTree NodeContainer::MacroParameter::getConnectionTree()
 	if (!existing.isValid())
 	{
 		existing = ValueTree(PropertyIds::Connections);
-		data.addChild(existing, -1, parent->getUndoManager());
+		data.addChild(existing, -1, parent->getUndoManager(true));
 	}
 
 	return existing;
@@ -575,56 +539,19 @@ juce::ValueTree NodeContainer::MacroParameter::getConnectionTree()
 
 NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree data_) :
 	Parameter(parentNode, data_),
+	ConnectionSourceManager(parentNode->getRootNetwork(), getConnectionTree()),
 	pholder(new parameter::dynamic_base_holder())
 {
-	rangeListener.setCallback(getConnectionTree(),
-		RangeHelpers::getRangeIds(),
-		valuetree::AsyncMode::Synchronously,
-		BIND_MEMBER_FUNCTION_2(MacroParameter::updateRangeForConnection));
-
-	expressionListener.setCallback(getConnectionTree(),
-		{ PropertyIds::Expression },
-		valuetree::AsyncMode::Synchronously,
-		BIND_MEMBER_FUNCTION_2(MacroParameter::updateRangeForConnection));
-
 	inputRangeListener.setCallback(data, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(MacroParameter::updateInputRange));
 	
-	connectionListener.setCallback(getConnectionTree(),
-		valuetree::AsyncMode::Synchronously,
-		[this](ValueTree child, bool wasAdded)
-	{
-		rebuildCallback();
-	});
-
-	
+	initConnectionSourceListeners();
 }
 
 void NodeContainer::MacroParameter::rebuildCallback()
 {
-	
-
-	connections.clear();
-	auto cTree = data.getChildWithName(PropertyIds::Connections);
-
-	for (auto c : cTree)
-	{
-		ScopedPointer<Connection> newC = new Connection(parent, this, c);
-
-		if (newC->isValid())
-			connections.add(newC.release());
-	}
-
-	auto nc = Connection::createParameterFromConnectionTree(parent, cTree, true);
-
+	auto nc = ConnectionBase::createParameterFromConnectionTree(parent, getConnectionTree(), true);
 	setDynamicParameter(nc);
-}
-
-
-void NodeContainer::MacroParameter::updateRangeForConnection(ValueTree v, Identifier)
-{
-	//RangeHelpers::checkInversion(v, &rangeListener, parent->getUndoManager());
-	rebuildCallback();
 }
 
 void NodeContainer::MacroParameter::setDynamicParameter(parameter::dynamic_base::Ptr ownedNew)
@@ -636,15 +563,6 @@ void NodeContainer::MacroParameter::setDynamicParameter(parameter::dynamic_base:
 void NodeContainer::MacroParameter::updateInputRange(Identifier, var)
 {
 	rebuildCallback();
-}
-
-bool NodeContainer::MacroParameter::matchesTarget(const Parameter* target) const
-{
-	for (auto c : connections)
-		if (c->matchesTarget(target))
-			return true;
-
-	return false;
 }
 
 

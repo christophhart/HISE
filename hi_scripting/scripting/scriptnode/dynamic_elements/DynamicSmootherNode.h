@@ -113,7 +113,7 @@ namespace control
 
 			if (auto nc = findParentComponentOfClass<NodeComponent>())
 			{
-				NodeBase* n = nc->node;
+				NodeBase* n = nc->node.get();
 				
 				try
 				{
@@ -476,7 +476,7 @@ struct dynamic
         void setRange(NormalisableRange<double> nr, double center = -90.0)
         {
             auto n = findParentComponentOfClass<NodeComponent>()->node;
-            auto p = n->getParameter(0);
+            auto p = n->getParameterFromIndex(0);
             
             if(center != -90.0)
                 nr.setSkewForCentre(center);
@@ -493,7 +493,7 @@ struct dynamic
             g.setFont(GLOBAL_BOLD_FONT());
             
             auto n = findParentComponentOfClass<NodeComponent>()->node;
-            auto v = n->getParameter(0)->getValue();
+            auto v = n->getParameterFromIndex(0)->getValue();
             auto output = getObject()->getValue(v);
             
             auto m = (Mode)getConverterNames().indexOf(modeSelector.getText());
