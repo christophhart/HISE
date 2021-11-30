@@ -318,6 +318,9 @@ namespace ScriptingObjects
 		/** Loads the encrypted object using the supplied RSA key pair. */
 		var loadEncryptedObject(String key);
 
+		/** Loads the given file as audio file. */
+		var loadAsAudioFile() const;
+
 		/** Opens a Explorer / Finder window that points to the file. */
 		void show();
 

@@ -487,7 +487,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		var toJSON() const;
 
-		bool fromJSON(const var& jsonData);
+		bool fromJSON(const var& jsonData, NotificationType runTest=sendNotificationSync);
 
 		bool shouldRunTest() const
 		{

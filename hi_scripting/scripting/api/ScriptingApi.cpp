@@ -5041,6 +5041,7 @@ struct ScriptingApi::Console::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Console, assertIsDefined);
 	API_VOID_METHOD_WRAPPER_1(Console, assertIsObjectOrArray);
 	API_VOID_METHOD_WRAPPER_1(Console, assertLegalNumber);
+	API_VOID_METHOD_WRAPPER_1(Console, assertNoString);
 	API_VOID_METHOD_WRAPPER_0(Console, breakInDebugger);
 	API_VOID_METHOD_WRAPPER_0(Console, blink);
 };
@@ -5064,6 +5065,7 @@ startTime(0.0)
 	ADD_API_METHOD_1(assertLegalNumber);
 
 	ADD_API_METHOD_0(breakInDebugger);
+	ADD_API_METHOD_1(assertNoString);
 }
 
 
@@ -5230,6 +5232,14 @@ void ScriptingApi::Console::assertIsObjectOrArray(var value)
 	if (!(value.isObject() || value.isArray()))
 	{
 		reportScriptError("Assertion failure: value is not object or array. Type: " + VarTypeHelpers::getVarType(value));
+	}
+}
+
+void ScriptingApi::Console::assertNoString(var value)
+{
+	if (value.isString())
+	{
+		reportScriptError("Assertion failure: " + value.toString());
 	}
 }
 

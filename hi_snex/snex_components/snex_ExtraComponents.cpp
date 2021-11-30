@@ -655,6 +655,7 @@ juce::Path ComponentWithTopBar::Icons::createPath(const String& t) const
 	LOAD_PATH_IF_URL("log-scale", GraphIcons::logIcon);
 	LOAD_PATH_IF_URL("markers", GraphIcons::markerIcons);
 	LOAD_PATH_IF_URL("compare", GraphIcons::compareIcon);
+	LOAD_PATH_IF_URL("copy", SampleMapIcons::pasteSamples);
 
 
 	LOAD_PATH_IF_URL("test", SnexIcons::bugIcon);
@@ -1109,9 +1110,9 @@ void TestDataComponent::buttonClicked(Button* b)
 		td.addTestEvent(WorkbenchData::TestData::ParameterEvent());
 	else if (b == &addEvent)
 		td.addTestEvent(HiseEvent(HiseEvent::Type::NoteOn, 64, 127, 1));
-	else if (b == testIcon)
+	else if (b == copyButton)
 	{
-		getWorkbench()->setDebugMode(b->getToggleState(), sendNotificationAsync);
+		SystemClipboard::copyTextToClipboard(JSON::toString(td.toJSON()));
 
 		return;
 	}

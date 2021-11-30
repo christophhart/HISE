@@ -614,7 +614,7 @@ struct TestDataComponent : public TestDataComponentBase
 		addSpacer();
 
 		compareButton = addButton("compare");
-		testIcon = addButton("test", "test");
+		copyButton = addButton("copy");
 
 		eventViewport.setViewedComponent(&eventHolder, false);
 		parameterViewport.setViewedComponent(&parameterHolder, false);
@@ -778,7 +778,7 @@ struct TestDataComponent : public TestDataComponentBase
 	ComboBox* signalLength;
 	ComboBox* signalType;
 	HiseShapeButton* compareButton;
-	HiseShapeButton* testIcon;
+	HiseShapeButton* copyButton;
 };
 
 struct TestComplexDataManager : public TestDataComponentBase,

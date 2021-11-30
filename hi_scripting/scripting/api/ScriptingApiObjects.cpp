@@ -195,6 +195,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_3(ScriptFile, writeAudioFile);
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsString);
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsObject);
+	API_METHOD_WRAPPER_0(ScriptFile, loadAsAudioFile);
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
 	API_METHOD_WRAPPER_1(ScriptFile, toReferenceString);
@@ -238,6 +239,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_3(writeAudioFile);
 	ADD_API_METHOD_0(loadAsString);
 	ADD_API_METHOD_0(loadAsObject);
+	ADD_API_METHOD_0(loadAsAudioFile);
 	ADD_API_METHOD_1(loadEncryptedObject);
 	ADD_API_METHOD_0(show);
 	ADD_API_METHOD_3(extractZipFile);
@@ -512,6 +514,41 @@ var ScriptingObjects::ScriptFile::loadEncryptedObject(String key)
 	auto r = JSON::parse(in.toString(), v);
 
 	return v;
+}
+
+juce::var ScriptingObjects::ScriptFile::loadAsAudioFile() const
+{
+	double unused = 0;
+	auto buffer = hlac::CompressionHelpers::loadFile(f, unused);
+
+	if (buffer.getNumSamples() == 0 || buffer.getNumChannels() == 0)
+	{
+		reportScriptError("No valid audio file");
+	}
+
+	if (buffer.getNumChannels() == 1)
+	{
+		auto bf = new VariantBuffer(buffer.getNumSamples());
+
+		bf->buffer = buffer;
+		return var(bf);
+	}
+	else
+	{
+		Array<var> channels;
+
+		for (int i = 0; i < buffer.getNumChannels(); i++)
+		{
+			auto ptr = buffer.getReadPointer(i);
+			auto bf = new VariantBuffer(buffer.getNumSamples());
+			FloatVectorOperations::copy(bf->buffer.getWritePointer(0), ptr, bf->size);
+			channels.add(var(bf));
+		}
+
+		return var(channels);
+	}
+
+	return var();
 }
 
 void ScriptingObjects::ScriptFile::show()
