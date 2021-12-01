@@ -1239,9 +1239,9 @@ int ConnectionBase::getUpdateRate() const
 	return 0;
 }
 
-juce::ValueTree ConnectionSourceManager::Helpers::getOrCreateConnection(ValueTree& connectionTree, const String& nodeId, const String& parameterId, UndoManager* um)
+juce::ValueTree ConnectionSourceManager::Helpers::getOrCreateConnection(ValueTree connectionTree, const String& nodeId, const String& parameterId, UndoManager* um)
 {
-	for (auto& c : connectionTree)
+	for (const auto& c : connectionTree)
 	{
 		if (c[PropertyIds::NodeId].toString() == nodeId &&
 			c[PropertyIds::ParameterId].toString() == parameterId)
@@ -1303,7 +1303,7 @@ void ConnectionSourceManager::CableRemoveListener::removeCable(ValueTree& v)
 	}
 }
 
-juce::ValueTree ConnectionSourceManager::CableRemoveListener::findTargetNodeData(ValueTree& recursiveTree)
+juce::ValueTree ConnectionSourceManager::CableRemoveListener::findTargetNodeData(const ValueTree& recursiveTree)
 {
 	if (recursiveTree.getType() == PropertyIds::Node)
 	{
@@ -1414,7 +1414,7 @@ juce::var ConnectionSourceManager::addTarget(NodeBase::Parameter* p)
 	return var(new ConnectionBase(n, newC));
 }
 
-juce::ValueTree ConnectionSourceManager::Helpers::findParentNodeTree(ValueTree& v)
+juce::ValueTree ConnectionSourceManager::Helpers::findParentNodeTree(const ValueTree& v)
 {
 	if (!v.isValid())
 	{
@@ -1428,7 +1428,7 @@ juce::ValueTree ConnectionSourceManager::Helpers::findParentNodeTree(ValueTree& 
 	return findParentNodeTree(v.getParent());
 }
 
-void ConnectionSourceManager::connectionChanged(ValueTree& v, bool wasAdded)
+void ConnectionSourceManager::connectionChanged(ValueTree v, bool wasAdded)
 {
 	if (wasAdded)
 	{

@@ -1675,6 +1675,7 @@ void ScriptNetworkTest::CHandler::processTest(ProcessDataDyn& data)
 
 void ScriptNetworkTest::CHandler::prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
 {
+    network->setNumChannels(ps.numChannels);
 	network->prepareToPlay(ps.sampleRate, ps.blockSize);
 	
 	for (auto p : initialParameters)

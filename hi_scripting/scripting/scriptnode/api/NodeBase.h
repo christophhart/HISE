@@ -593,7 +593,7 @@ struct ConnectionSourceManager
 	{
 		void removeCable(ValueTree& v);
 
-		ValueTree findTargetNodeData(ValueTree& recursiveTree);
+		ValueTree findTargetNodeData(const ValueTree& recursiveTree);
 
 		CableRemoveListener(ConnectionSourceManager& parent, ValueTree connectionData, ValueTree sourceNodeData);
 
@@ -615,8 +615,8 @@ struct ConnectionSourceManager
 
 	struct Helpers
 	{
-		static ValueTree getOrCreateConnection(ValueTree& connectionTree, const String& nodeId, const String& parameterId, UndoManager* um);
-		static ValueTree findParentNodeTree(ValueTree& v);
+		static ValueTree getOrCreateConnection(ValueTree connectionTree, const String& nodeId, const String& parameterId, UndoManager* um);
+		static ValueTree findParentNodeTree(const ValueTree& v);
 	};
 
 	ConnectionSourceManager(DspNetwork* n_, ValueTree connectionsTree_);
@@ -642,7 +642,7 @@ protected:
 
 private:
 
-	void connectionChanged(ValueTree& v, bool wasAdded);
+	void connectionChanged(ValueTree v, bool wasAdded);
 
 	WeakReference<DspNetwork> n;
 	ValueTree connectionsTree;
