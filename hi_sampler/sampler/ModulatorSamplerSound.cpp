@@ -1753,9 +1753,14 @@ void ModulatorSamplerSound::EnvelopeTable::onComplexDataEvent(ComplexDataUIUpdat
 {
 	if (t != ComplexDataUIUpdaterBase::EventType::DisplayIndex)
 	{
-		auto propId = type == Type::GainMode ? SampleIds::GainTable : SampleIds::PitchTable;
+		Identifier propId;
+
+		if (type == Type::GainMode) propId = SampleIds::GainTable;
+		if (type == Type::PitchMode) propId = SampleIds::PitchTable;
+		if (type == Type::PanMode) propId = SampleIds::LowPassTable;
+
 		parent.setSampleProperty(propId, table.exportData());
-		startTimer(JUCE_LIVE_CONSTANT(200));
+		startTimer(JUCE_LIVE_CONSTANT_OFF(200));
 	}
 }
 

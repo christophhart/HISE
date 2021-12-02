@@ -163,6 +163,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsImportArchivedSamples,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenseFile,
+		MenuToolsApplySampleMapProperties,
 		MenuViewResetLookAndFeel,
 		MenuViewReset,
         MenuViewFullscreen,
@@ -534,6 +535,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Clear all Samplemaps", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+	case MenuToolsApplySampleMapProperties:
+		setCommandTarget(result, "Apply sample map properties to sample files", true, false, 'X', false);
+		result.categoryName = "Tools";
+		break;
 	case MenuToolsUnloadAllAudioFiles:
 		setCommandTarget(result, "Unload all audio files", true, false, 'X', false);
 		result.categoryName = "Tools";
@@ -730,6 +735,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
 	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
     case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(); updateCommands(); return true;
+	case MenuToolsApplySampleMapProperties: Actions::applySampleMapProperties(bpe); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
 	case MenuViewBack:					bpe->mainEditor->getViewUndoManager()->undo(); updateCommands(); return true;
 	case MenuViewReset:				    bpe->resetInterface(); updateCommands(); return true;
@@ -979,6 +985,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsGetMissingSampleList);
 		ADD_DESKTOP_ONLY(MenuToolsDeleteMissingSamples);
 		ADD_DESKTOP_ONLY(MenuToolsCheckAllSampleMaps);
+		ADD_DESKTOP_ONLY(MenuToolsApplySampleMapProperties);
 		ADD_DESKTOP_ONLY(MenuToolsImportArchivedSamples);
 		ADD_DESKTOP_ONLY(MenuToolsCollectExternalFiles);
 		ADD_DESKTOP_ONLY(MenuToolsCheckUnusedImages);
@@ -2135,6 +2142,13 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 		
 	}
 #endif
+}
+
+void BackendCommandTarget::Actions::applySampleMapProperties(BackendRootWindow* bpe)
+{
+	auto downloader = new SampleMapPropertySaverWithBackup(bpe);
+
+	downloader->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(BackendRootWindow * bpe)

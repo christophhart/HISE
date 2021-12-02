@@ -554,16 +554,18 @@ public:
 
 		static float getFreqValueInverse(float input);
 
-	private:
-
 		static float getFreqValue(float input);
-
-		
 
 		static float getGainValue(float input)
 		{
 			return input * 2.0f;
 		}
+
+		static float getPitchValue(float input);
+
+	private:
+
+		
 
 		static String getFreqencyString(float input)
 		{
@@ -611,7 +613,7 @@ public:
 			return input;
 		}
 
-		static float getPitchValue(float input);
+		
 
 		Range<int> sampleRange;
 		HeapBlock<float> lookupTable;
