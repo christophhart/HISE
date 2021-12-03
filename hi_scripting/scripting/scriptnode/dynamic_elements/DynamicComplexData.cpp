@@ -103,8 +103,7 @@ void dynamic_base::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType d, var
 			cTree.setProperty(PropertyIds::EmbeddedData, s, parentNode->getUndoManager());
 		}
 
-		if(d == ComplexDataUIUpdaterBase::EventType::ContentRedirected)
-			updateExternalData();
+		updateExternalData();
 	}
 }
 
