@@ -157,7 +157,10 @@ struct ComboBoxWithModeProperty : public ComboBox,
 
 	void valueTreeCallback(Identifier id, var newValue)
 	{
-		setText(newValue.toString(), dontSendNotification);
+        SafeAsyncCall::call<ComboBoxWithModeProperty>(*this, [newValue](ComboBoxWithModeProperty& c)
+        {
+            c.setText(newValue.toString(), dontSendNotification);
+        });
 	}
 
 	void initModes(const StringArray& modes, NodeBase* n)
@@ -178,6 +181,7 @@ struct ComboBoxWithModeProperty : public ComboBox,
 	UndoManager* um;
 	NodePropertyT<String> mode;
 	ScriptnodeComboBoxLookAndFeel plaf;
+    JUCE_DECLARE_WEAK_REFERENCEABLE(ComboBoxWithModeProperty);
 };
 
 

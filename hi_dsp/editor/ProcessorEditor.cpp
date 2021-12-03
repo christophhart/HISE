@@ -489,8 +489,7 @@ void ProcessorEditor::paintOverChildren(Graphics& g)
 	CopyPasteTarget::paintOutlineIfSelected(g);
 
 	Random r;
-	auto width = r.nextFloat() * 10.0f + 5.0f;
-
+	
 	if (!connectPositions.isEmpty())
 	{
 		static const unsigned char pathData[] = { 110,109,76,183,106,66,20,174,165,65,108,244,253,60,66,20,174,165,65,98,51,179,47,66,4,86,106,65,145,237,21,66,225,122,40,65,20,174,240,65,225,122,40,65,98,4,86,154,65,225,122,40,65,225,122,40,65,4,86,154,65,225,122,40,65,20,174,240,65,98,225,122,40,65,

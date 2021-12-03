@@ -1081,8 +1081,6 @@ void TestDataComponent::Item::resized()
 
 	if (isParameter)
 	{
-		auto w = b.getWidth() / 3;
-
 		labelAreas.add(b.removeFromLeft(f.getStringWidth("Timestamp")).toFloat());
 		timestampEditor.setBounds(b.removeFromLeft(70));
 		labelAreas.add(b.removeFromLeft(f.getStringWidth("Index")).toFloat());
@@ -1093,7 +1091,6 @@ void TestDataComponent::Item::resized()
 	}
 	else
 	{
-		auto w = b.getWidth() / 5;
 		labelAreas.add(b.removeFromLeft(f.getStringWidth("Timestamp")).toFloat());
 		timestampEditor.setBounds(b.removeFromLeft(70));
 		labelAreas.add(b.removeFromLeft(f.getStringWidth("Type")).toFloat());

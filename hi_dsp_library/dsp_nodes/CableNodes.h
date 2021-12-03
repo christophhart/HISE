@@ -1093,6 +1093,8 @@ namespace control
 				case LogicType::OR: return leftValue || rightValue ? 1.0 : 0.0;
 				case LogicType::XOR: return (leftValue || rightValue) && !(leftValue == rightValue) ? 1.0 : 0.0;
 				}
+                
+                return 0.0;
 			}
 
 			template <int P> void setParameter(double v)

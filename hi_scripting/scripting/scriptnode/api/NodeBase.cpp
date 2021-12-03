@@ -1137,7 +1137,7 @@ ConnectionBase::ConnectionBase(DspNetwork* network_, ValueTree data_) :
 		}
 	}
 
-	if (sourceInSignalChain = Helpers::findRealSource(sourceNode))
+	if ((sourceInSignalChain = Helpers::findRealSource(sourceNode)))
 	{
 		if (targetParameter != nullptr)
 		{
