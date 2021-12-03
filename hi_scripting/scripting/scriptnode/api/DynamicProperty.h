@@ -125,12 +125,14 @@ struct dynamic_base_holder: public dynamic_base
 	{
 		dynamic_base::Ptr old = base;
 
+		auto oldValue = getDisplayValue();
+
 		{
 			SimpleReadWriteLock::ScopedWriteLock sl(connectionLock);
 			base = b;
 		}
 
-		call(getDisplayValue());
+		call(oldValue);
 	}
 
 	bool isConnected() const
