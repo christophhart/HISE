@@ -83,6 +83,12 @@ public:
 		smoother.setSmoothingTime(smoothingTime);
 	}
 
+	void reset()
+	{
+		smoother.resetToValue(gain);
+		lastValue = gain;
+	}
+
 	void processBlock(float** data, int numChannels, int numSamples);
 
 	int getNumConstants() const 
@@ -247,6 +253,8 @@ struct ConvolutionEffectBase: public AsyncUpdater,
 	virtual const MultiChannelAudioBuffer& getImpulseBufferBase() const = 0;
 
 protected:
+
+	void resetBase();
 
 	void prepareBase(double sampleRate, int blockSize);
 	
@@ -514,6 +522,7 @@ struct convolution : public data::base,
 
 	void reset()
 	{
+		resetBase();
 	}
 
 	
