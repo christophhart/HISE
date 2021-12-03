@@ -1698,6 +1698,20 @@ juce::var ScriptNetworkTest::runTest()
 	return var(v);
 }
 
+String ScriptNetworkTest::dumpNetworkAsXml()
+{
+    auto v = dynamic_cast<CHandler*>(wb->getCompileHandler())->network->getValueTree();
+    auto copy = v.createCopy();
+    
+#if USE_BACKEND
+    DspNetworkListeners::PatchAutosaver::stripValueTree(copy);
+#endif
+    
+    auto xml = copy.createXml();
+    
+    return xml->createDocument("");
+}
+
 void ScriptNetworkTest::setTestProperty(String id, var value)
 {
 	auto v = wb->getTestData().toJSON();

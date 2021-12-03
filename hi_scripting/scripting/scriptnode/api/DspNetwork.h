@@ -1259,14 +1259,13 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 		API_VOID_METHOD_WRAPPER_2(ScriptNetworkTest, setTestProperty);
 		API_VOID_METHOD_WRAPPER_3(ScriptNetworkTest, setProcessSpecs);
 		API_METHOD_WRAPPER_3(ScriptNetworkTest, expectEquals);
+        API_METHOD_WRAPPER_0(ScriptNetworkTest, dumpNetworkAsXml);
 	};
 
 	ScriptNetworkTest(DspNetwork* n, var testData) :
 		ConstScriptingObject(n->getScriptProcessor(), 0),
 		wb(new snex::ui::WorkbenchData())
 	{
-		
-
 		wb->setCompileHandler(new CHandler(wb, n));
 		wb->setCodeProvider(new CProvider(wb, n));
 
@@ -1276,6 +1275,7 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 		ADD_API_METHOD_2(setTestProperty);
 		ADD_API_METHOD_3(setProcessSpecs);
 		ADD_API_METHOD_3(expectEquals);
+        ADD_API_METHOD_0(dumpNetworkAsXml);
 	};
 
 	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("NetworkTest"); }
@@ -1294,6 +1294,10 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 	/** Compares the two data types and returns a error message if they don't match. */
 	var expectEquals(var data1, var data2, float errorDb);
 
+    /** Creates a XML representation of the current network. */
+    String dumpNetworkAsXml();
+    
+    
 	// ================================================================================= API Methods
 
 private:
