@@ -323,7 +323,7 @@ void ContainerComponent::findLassoItemsInArea(Array<NodeBase::Ptr>& itemsFound, 
 
 	for (auto n : nodeComponents)
 	{
-		if (n->node == node->getRootNetwork()->getRootNode())
+		if (n->node.get() == node->getRootNetwork()->getRootNode())
 			continue;
 
 		if (n == this)

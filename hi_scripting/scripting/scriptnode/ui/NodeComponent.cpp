@@ -800,7 +800,7 @@ void NodeComponent::drawTopBodyGradient(Graphics& g, Rectangle<float> b, float a
 
 bool NodeComponent::isRoot() const
 {
-	return node->getRootNetwork()->getRootNode() == node;
+	return node->getRootNetwork()->getRootNode() == node.get();
 }
 
 bool NodeComponent::isFolded() const

@@ -659,11 +659,13 @@ bool DspNetwork::undo()
 
 var DspNetwork::createTest(var testData)
 {
+#if USE_BACKEND
 	if (auto obj = testData.getDynamicObject())
 	{
 		obj->setProperty(PropertyIds::NodeId, getId());
 		return new ScriptNetworkTest(this, testData);
 	}
+#endif
 
 	return var();
 }
@@ -1653,6 +1655,8 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 	}
 }
 
+#if USE_BACKEND
+
 ScriptNetworkTest::ScriptNetworkTest(DspNetwork* n, var testData) :
 	ConstScriptingObject(n->getScriptProcessor(), 0),
 	wb(new snex::ui::WorkbenchData())
@@ -1861,5 +1865,9 @@ void ScriptnodeCompileHandlerBase::processHiseEvent(HiseEvent& e)
 	jassertfalse;
 }
 
+
+#endif
+
 }
+
 

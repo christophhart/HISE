@@ -727,7 +727,7 @@ namespace ui
 
 		auto root = pdl->parentNode->getRootNetwork()->getRootNode();
 
-		while (container != nullptr && container->node != root)
+		while (container != nullptr && container->node.get() != root)
 		{
 			container = container->findParentComponentOfClass<ContainerComponent>();
 		}

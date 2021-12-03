@@ -1198,6 +1198,7 @@ struct HostHelpers
 };
 
 
+#if USE_BACKEND
 using namespace snex;
 using namespace snex::ui;
 
@@ -1305,7 +1306,6 @@ private:
 };
 
 
-#if USE_BACKEND
 struct DspNetworkListeners
 {
 	struct Base : public valuetree::AnyListener

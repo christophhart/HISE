@@ -137,7 +137,7 @@ public:
 
 		bool isRootHeader() const
 		{
-			return parent.node->getRootNetwork()->getRootNode() == parent.node;
+			return parent.node->getRootNetwork()->getRootNode() == parent.node.get();
 		}
 
 		void updateColour(Identifier id, var value)

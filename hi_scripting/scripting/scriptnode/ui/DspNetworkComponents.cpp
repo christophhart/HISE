@@ -828,7 +828,7 @@ scriptnode::NodeComponent* DspNetworkGraph::getComponent(NodeBase::Ptr node)
 	fillChildComponentList(nodes, this);
 
 	for (auto nc : nodes)
-		if (nc->node == node)
+		if (nc->node.get() == node.get())
 			return nc;
 
 	return nullptr;
@@ -1683,7 +1683,7 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 		auto thisAddPosition = nc->getCurrentAddPosition();
 
 
-		bool containerIsSelected = nc->node == containerToLookFor;
+		bool containerIsSelected = nc->node.get() == containerToLookFor.get();
 		bool nothingSelectedAndAddPositionMatches = (containerToLookFor == nullptr && thisAddPosition != -1);
 
 		if (containerIsSelected || nothingSelectedAndAddPositionMatches)
@@ -1801,7 +1801,7 @@ bool DspNetworkGraph::Actions::showJSONEditorForSelection(DspNetworkGraph& g)
 
 			for (auto nc : ncList)
 			{
-				if (nc->node == fn)
+				if (nc->node.get() == fn.get())
 				{
 					componentToPointTo = nc;
 					break;
