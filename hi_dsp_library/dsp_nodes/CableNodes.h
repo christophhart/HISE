@@ -81,8 +81,6 @@ namespace control
 				if(this->getParameter().isConnected())
 					this->getParameter().call(v);
 
-				lastValue = v;
-
 				externalData.setDisplayedValue((double)index.getIndex(b.size()));
 			}
 		}
