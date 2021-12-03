@@ -45,6 +45,7 @@ struct NodeBase::Wrapper
 	API_VOID_METHOD_WRAPPER_2(NodeBase, setParent);
 	API_METHOD_WRAPPER_2(NodeBase, connectTo);
 	API_METHOD_WRAPPER_1(NodeBase, getParameter);
+    API_METHOD_WRAPPER_3(NodeBase, setComplexDataIndex);
 };
 
 
@@ -71,6 +72,7 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ADD_API_METHOD_2(setParent);
 	ADD_API_METHOD_1(getParameter);
 	ADD_API_METHOD_2(connectTo);
+    ADD_API_METHOD_3(setComplexDataIndex);
 
 	for (auto c : getPropertyTree())
 		addConstant(c[PropertyIds::ID].toString(), c[PropertyIds::ID]);
@@ -591,7 +593,28 @@ var NodeBase::getParameter(var indexOrId) const
 	if (p != nullptr)
 		return var(p);
 	else
-		return {};
+    {
+        if(auto nc = dynamic_cast<const NodeContainer*>(this))
+        {
+            auto name = indexOrId.toString();
+            
+            ValueTree p(PropertyIds::Parameter);
+            p.setProperty(PropertyIds::ID, name, nullptr);
+            p.setProperty(PropertyIds::MinValue, 0.0, nullptr);
+            p.setProperty(PropertyIds::MaxValue, 1.0, nullptr);
+
+            PropertyIds::Helpers::setToDefault(p, PropertyIds::StepSize);
+            PropertyIds::Helpers::setToDefault(p, PropertyIds::SkewFactor);
+
+            p.setProperty(PropertyIds::Value, 1.0, nullptr);
+            getValueTree().getChildWithName(PropertyIds::Parameters).addChild(p, -1, getUndoManager());
+            
+            return var(getParameterFromName(name));
+        }
+        
+        return {};
+    }
+		
 }
 
 struct Parameter::Wrapper

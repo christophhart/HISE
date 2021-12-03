@@ -273,6 +273,9 @@ void Graph::InternalGraph::calculatePath(ChannelData& c, const AudioSampleBuffer
 	c.peaks.setStart(rs);
 	c.peaks.setEnd(re);
 	
+    if(rs == re && rs != 0.0)
+        c.peaks.setStart(0.0);
+    
 	if (b.getMagnitude(channel, 0, b.getNumSamples()) > 0.0f)
 	{
 		auto delta = (float)b.getNumSamples() / jmax(1.0f, (float)getWidth());
@@ -299,6 +302,8 @@ void Graph::InternalGraph::calculatePath(ChannelData& c, const AudioSampleBuffer
 
 			auto x = getXPosition((float)i / b.getNumSamples());
 
+            
+            
 			NormalisableRange<float> nr(c.peaks.getStart(), c.peaks.getEnd());
 
 			float halfHeight = (float)getHeight() * 0.5f;

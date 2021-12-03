@@ -370,6 +370,30 @@ public:
 	/** Sets the property of the node. */
 	void set(var id, var value);
 
+    /** Sets the complex data type at the dataSlot to the given index and data (if embedded). */
+    bool setComplexDataIndex(String dataType, int dataSlot, int indexValue)
+    {
+        auto v = getValueTree().getChildWithName(PropertyIds::ComplexData);
+        
+        if(!v.isValid())
+            return false;
+        
+        auto types = dataType + "s";
+        v = v.getChildWithName(Identifier(types));
+        
+        if(!v.isValid())
+            return false;
+        
+        v = v.getChild(dataSlot);
+        
+        if(!v.isValid())
+            return false;
+        
+        v.setProperty(PropertyIds::Index, dataSlot, getUndoManager());
+        
+        return true;
+    }
+    
 	/** Returns a property of the node. */
 	var get(var id);
 
