@@ -48,6 +48,53 @@
 namespace hise {
 using namespace juce;
 
+/** This class will safely call the given function on the message thread as long as the object that was passed in is still alive.
+
+	You can pass in any lambda with a reference parameter to a class object and it will be guaranteed to be executed only if the object wasn't deleted.
+
+	Obviously the class you want to use here needs to be JUCE_DECLARE_WEAK_REFERENCEABLE.
+*/
+class SafeAsyncCall
+{
+	template <typename T> struct SafeAsyncCaller
+	{
+		using Func = std::function<void(T&)>;
+
+		void operator()()
+		{
+			if (obj_.get() != nullptr)
+				f_(*obj_.get());
+		}
+
+		SafeAsyncCaller(T* o, const Func& f2_) :
+			obj_(o),
+			f_(f2_)
+		{};
+
+	private:
+
+		WeakReference<T> obj_;
+		Func f_;
+	};
+
+public:
+
+	template <typename T> static void call(T& object, std::function<void(T&)> f)
+	{
+		MessageManager::callAsync(SafeAsyncCaller<T>(&object, f));
+	}
+
+	static void resized(Component* c)
+	{
+		call<Component>(*c, [](Component& c) { c.resized(); });
+	}
+
+	static void repaint(Component* c)
+	{
+		call<Component>(*c, [](Component& c) { c.repaint(); });
+	}
+};
+
 
 struct audio_spin_mutex 
 {
@@ -913,7 +960,12 @@ private:
 				for (auto l : listeners)
 				{
 					if (l.get() != nullptr)
+					{
 						l->onComplexDataEvent(t, v);
+
+						if (lastChange != EventType::DisplayIndex)
+							l->onComplexDataEvent(ComplexDataUIUpdaterBase::EventType::DisplayIndex, lastDisplayValue);
+					}
 				}
 			}
 

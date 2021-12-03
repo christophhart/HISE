@@ -338,13 +338,18 @@ void TableEditor::resized()
 	}
 }
 
+
+
 void TableEditor::graphHasChanged(int point)
 {
-	if (currently_dragged_point == nullptr)
-	{
-		createDragPoints();
-		refreshGraph();
-	}
+	SafeAsyncCall::call<TableEditor>(*this, [](TableEditor& t) 
+	{	
+		if (t.currently_dragged_point == nullptr)
+		{
+			t.createDragPoints();
+			t.refreshGraph();
+		}
+	});
 }
 
 void TableEditor::setDomain(DomainType newDomainType, Range<int> newRange)

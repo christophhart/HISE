@@ -808,7 +808,7 @@ public:
 		void setParameter(int index, float newValue) final override
 		{
 			if(isPositiveAndBelow(index, getNumParameters()))
-				root->getParameterFromIndex(index)->setValue((double)newValue);
+				root->getParameterFromIndex(index)->setValueAsync((double)newValue);
 		}
 
 		NodeBase::Ptr root;
@@ -1210,6 +1210,36 @@ using namespace snex::ui;
 	- implement parameters
 */
 
+
+struct ScriptnodeCompileHandlerBase : public snex::ui::WorkbenchData::CompileHandler
+{
+	ScriptnodeCompileHandlerBase(WorkbenchData* d, DspNetwork* network_);
+
+	WorkbenchData::CompileResult compile(const String& codeToCompile) override;
+
+	void processTestParameterEvent(int parameterIndex, double value) override;
+
+	void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters);
+
+	void initExternalData(ExternalDataHolder* h) override;
+
+	void postCompile(ui::WorkbenchData::CompileResult& lastResult) override;
+
+	Result runTest(ui::WorkbenchData::CompileResult& lastResult) override;
+
+
+
+	void processTest(ProcessDataDyn& data);
+
+	bool shouldProcessEventsManually() const;
+
+	void processHiseEvent(HiseEvent& e);;
+
+	virtual PrepareSpecs getPrepareSpecs() const = 0;
+
+	WeakReference<DspNetwork> network;
+};
+
 /** A test object for a DSP Network. */
 struct ScriptNetworkTest : public hise::ConstScriptingObject
 {
@@ -1227,29 +1257,12 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 		Identifier id;
 	};
 
-	struct CHandler : public WorkbenchData::CompileHandler
+	struct CHandler : public ScriptnodeCompileHandlerBase
 	{
-		CHandler(WorkbenchData::Ptr wb, DspNetwork* n);;
+		CHandler(WorkbenchData::Ptr wb, DspNetwork* n);
 
-		WorkbenchData::CompileResult compile(const String& codeToCompile) override
-		{
-			return {};
-		}
+		PrepareSpecs getPrepareSpecs() const override { return ps; }
 
-		void initExternalData(ExternalDataHolder* h) override
-		{
-			
-		}
-
-		void postCompile(ui::WorkbenchData::CompileResult& lastResult) override;
-
-		void processTest(ProcessDataDyn& data) override;
-
-		void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) override;
-
-		void processTestParameterEvent(int parameterIndex, double value) override;
-
-		WeakReference<DspNetwork> network;
 		PrepareSpecs ps;
 	};
 
@@ -1262,21 +1275,7 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
         API_METHOD_WRAPPER_0(ScriptNetworkTest, dumpNetworkAsXml);
 	};
 
-	ScriptNetworkTest(DspNetwork* n, var testData) :
-		ConstScriptingObject(n->getScriptProcessor(), 0),
-		wb(new snex::ui::WorkbenchData())
-	{
-		wb->setCompileHandler(new CHandler(wb, n));
-		wb->setCodeProvider(new CProvider(wb, n));
-
-		wb->getTestData().fromJSON(testData, dontSendNotification);
-
-		ADD_API_METHOD_0(runTest);
-		ADD_API_METHOD_2(setTestProperty);
-		ADD_API_METHOD_3(setProcessSpecs);
-		ADD_API_METHOD_3(expectEquals);
-        ADD_API_METHOD_0(dumpNetworkAsXml);
-	};
+	ScriptNetworkTest(DspNetwork* n, var testData);;
 
 	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("NetworkTest"); }
 

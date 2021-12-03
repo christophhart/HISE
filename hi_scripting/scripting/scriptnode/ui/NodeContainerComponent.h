@@ -514,7 +514,8 @@ public:
 	};
 	
 	struct ParameterComponent : public Component,
-								public ValueTree::Listener
+								public ValueTree::Listener,
+								public AsyncUpdater
 	{
 		
 		ParameterComponent(ContainerComponent& parent_):
@@ -526,8 +527,8 @@ public:
 			if ((leftTabComponent = dynamic_cast<NodeContainer*>(parent.node.get())->createLeftTabComponent()))
 				addAndMakeVisible(leftTabComponent);
 
-			rebuildParameters();
 			setSize(500, UIValues::ParameterHeight);
+			rebuildParameters();
 		}
 
 		~ParameterComponent()
@@ -540,6 +541,11 @@ public:
 			return dynamic_cast<NodeContainer*>(parent.node.get())->hasFixedParameters();
 		}
 
+		void handleAsyncUpdate() override
+		{
+			rebuildParameters();
+		}
+
 		void valueTreeChildAdded(ValueTree& parentTree, ValueTree&) override
 		{
 			if (isFixedParameterComponent())
@@ -548,7 +554,7 @@ public:
 			if (parentTree.getType() == PropertyIds::Connections)
 				return;
 
-			rebuildParameters();
+			triggerAsyncUpdate();
 		}
 		void valueTreeChildOrderChanged(ValueTree& parentTree, int, int) override
 		{
@@ -558,7 +564,7 @@ public:
 			if (parentTree.getType() == PropertyIds::Connections)
 				return;
 
-			rebuildParameters();
+			triggerAsyncUpdate();
 		}
 
 		void valueTreeChildRemoved(ValueTree& parentTree, ValueTree&, int) override
@@ -569,7 +575,7 @@ public:
 			if (parentTree.getType() == PropertyIds::Connections)
 				return;
 
-			rebuildParameters();
+			triggerAsyncUpdate();
 		}
 		void valueTreePropertyChanged(ValueTree&, const Identifier&) override {}
 		void valueTreeParentChanged(ValueTree&) override {}

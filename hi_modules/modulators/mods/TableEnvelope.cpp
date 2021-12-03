@@ -89,8 +89,7 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 	releasePoints.add(Table::GraphPoint(0.0f, 1.0f, 0.5));
 	releasePoints.add(Table::GraphPoint(1.0f, 0.0f, 0.5));
 
-	releaseTable->setGraphPoints(releasePoints, 2);
-	releaseTable->fillLookUpTable();
+	releaseTable->setGraphPoints(releasePoints, 2, true);
 
 	attackChain->setParentProcessor(this);
 	releaseChain->setParentProcessor(this);

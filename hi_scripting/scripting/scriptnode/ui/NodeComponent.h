@@ -164,7 +164,7 @@ public:
 		{
 			if (isHoveringOverBypass)
 			{
-				parent.node->addConnectionToBypass(dragSourceDetails.description);
+				parent.node->connectToBypass(dragSourceDetails.description);
 			}
 
 			isHoveringOverBypass = false;

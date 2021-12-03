@@ -1487,8 +1487,7 @@ void ScriptingObjects::ScriptTableData::setTablePointsFromArray(var pointList)
 			ngp.getReference(0).x = 0.0f;
 			ngp.getReference(ngp.size() - 1).x = 1.0f;
 
-			getTable()->setGraphPoints(ngp, a->size());
-			getTable()->fillLookUpTable();
+			getTable()->setGraphPoints(ngp, a->size(), true);
 		}
 		else
 			reportScriptError("You need at least 2 table points");

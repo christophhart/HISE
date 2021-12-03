@@ -102,7 +102,7 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 					auto f = [](void* obj, double value)
 					{
 						auto typed = static_cast<scriptnode::NodeBase::Parameter*>(obj);
-						typed->setValue(value);
+						typed->setValueAsync(value);
 					};
 
 					d.info = scriptnode::parameter::pod(p->data);
@@ -150,7 +150,7 @@ void DspNetworkCompileHandler::processTestParameterEvent(int parameterIndex, dou
 	if (interpreter != nullptr)
 	{
 		if (auto p = interpreter->getRootNode()->getParameterFromIndex(parameterIndex))
-			p->setValue(value);
+			p->setValueAsync(value);
 	}
 
 	if (isPositiveAndBelow(parameterIndex, lastResult.parameters.size()))

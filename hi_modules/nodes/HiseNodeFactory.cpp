@@ -821,8 +821,8 @@ struct xy_editor : public ScriptnodeExtraComponent<control::xy<parameter::dynami
 		auto xValue = (pos.getX() - a.getX()) / a.getWidth();
 		auto yValue = 1.0f - (pos.getY() - a.getY()) / a.getHeight();
 
-		findParentComponentOfClass<NodeComponent>()->node->getParameterFromIndex(0)->setValueFromUI(xValue);
-		findParentComponentOfClass<NodeComponent>()->node->getParameterFromIndex(1)->setValueFromUI(yValue);
+		findParentComponentOfClass<NodeComponent>()->node->getParameterFromIndex(0)->setValueSync(xValue);
+		findParentComponentOfClass<NodeComponent>()->node->getParameterFromIndex(1)->setValueSync(yValue);
 	}
 
 	void timerCallback() override

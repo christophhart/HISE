@@ -44,12 +44,15 @@ Table::~Table()
 {
 }
 
-void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints)
+void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints, bool refreshLookupTable)
 {
 	graphPoints.clear();
 	graphPoints.addArray(newGraphPoints, 0, numPoints);
 
-	internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
+	if (refreshLookupTable)
+		fillLookUpTable();
+
+	internalUpdater.sendContentChangeMessage(sendNotificationSync, -1);
 };
 
 String Table::exportData() const

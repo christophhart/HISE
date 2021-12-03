@@ -44,6 +44,7 @@ struct NodeBase::Wrapper
 	API_METHOD_WRAPPER_1(NodeBase, get);
 	API_VOID_METHOD_WRAPPER_2(NodeBase, setParent);
 	API_METHOD_WRAPPER_2(NodeBase, connectTo);
+	API_VOID_METHOD_WRAPPER_1(NodeBase, connectToBypass);
 	API_METHOD_WRAPPER_1(NodeBase, getParameter);
     API_METHOD_WRAPPER_3(NodeBase, setComplexDataIndex);
 };
@@ -72,6 +73,7 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ADD_API_METHOD_2(setParent);
 	ADD_API_METHOD_1(getParameter);
 	ADD_API_METHOD_2(connectTo);
+	ADD_API_METHOD_1(connectToBypass);
     ADD_API_METHOD_3(setComplexDataIndex);
 
 	for (auto c : getPropertyTree())
@@ -97,7 +99,7 @@ void NodeBase::prepare(PrepareSpecs specs)
 			continue;
 
 		auto v = p->getValue();
-		p->setValue(v);
+		p->setValueAsync(v);
 	}
 }
 
@@ -623,7 +625,8 @@ struct Parameter::Wrapper
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getValue);
     API_VOID_METHOD_WRAPPER_2(NodeBase::Parameter, setRangeProperty);
 	API_METHOD_WRAPPER_1(NodeBase::Parameter, addConnectionFrom);
-	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValue);
+	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValueSync);
+	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValueAsync);
 };
 
 Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
@@ -636,7 +639,8 @@ Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
 
 	ADD_API_METHOD_0(getValue);
 	ADD_API_METHOD_1(addConnectionFrom);
-	ADD_API_METHOD_1(setValue);
+	ADD_API_METHOD_1(setValueAsync);
+	ADD_API_METHOD_1(setValueSync);
     ADD_API_METHOD_2(setRangeProperty);
 
 #define ADD_PROPERTY_ID_CONSTANT(id) addConstant(id.toString(), id.toString());
@@ -697,7 +701,7 @@ void Parameter::setDynamicParameter(parameter::dynamic_base::Ptr ownedNew)
 	}
 }
 
-void Parameter::setValue(double newValue)
+void Parameter::setValueAsync(double newValue)
 {
 	if (dynamicParameter != nullptr)
 	{
@@ -706,7 +710,7 @@ void Parameter::setValue(double newValue)
 	}
 }
 
-void Parameter::setValueFromUI(double newValue)
+void Parameter::setValueSync(double newValue)
 {
 	data.setProperty(PropertyIds::Value, newValue, parent->getUndoManager());
 }
@@ -860,7 +864,7 @@ struct DragHelpers
 	}
 };
 
-void NodeBase::addConnectionToBypass(var dragDetails)
+void NodeBase::connectToBypass(var dragDetails)
 {
 	auto sourceParameterTree = DragHelpers::getValueTreeOfSourceParameter(this, dragDetails);
 
@@ -869,10 +873,6 @@ void NodeBase::addConnectionToBypass(var dragDetails)
 		ValueTree newC(PropertyIds::Connection);
 		newC.setProperty(PropertyIds::NodeId, getId(), nullptr);
 		newC.setProperty(PropertyIds::ParameterId, PropertyIds::Bypassed.toString(), nullptr);
-
-		InvertableParameterRange r(0.5, 1.1, 0.5);
-
-		RangeHelpers::storeDoubleRange(newC, r, nullptr);
 
 		String connectionId = DragHelpers::getSourceNodeId(dragDetails) + "." + 
 							  DragHelpers::getSourceParameterId(dragDetails);

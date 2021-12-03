@@ -152,7 +152,7 @@ void NodeComponent::Header::mouseDoubleClick(const MouseEvent& e)
 {
 	if (powerButton.getBoundsInParent().expanded(2).contains(e.getPosition()))
 	{
-		parent.node->addConnectionToBypass({});
+		parent.node->connectToBypass({});
 		findParentComponentOfClass<DspNetworkGraph>()->repaint();
 		return;
 	}

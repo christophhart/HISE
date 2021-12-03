@@ -323,11 +323,11 @@ void minmax_editor::setRange(InvertableParameterRange newRange)
 		RangeHelpers::storeDoubleRange(n->getParameterFromIndex(1)->data, newRange, n->getUndoManager());
 		RangeHelpers::storeDoubleRange(n->getParameterFromIndex(2)->data, newRange, n->getUndoManager());
 
-		n->getParameterFromIndex(1)->setValueFromUI(newRange.inv ? newRange.rng.end : newRange.rng.start);
-		n->getParameterFromIndex(2)->setValueFromUI(newRange.inv ? newRange.rng.start : newRange.rng.end);
-		n->getParameterFromIndex(3)->setValueFromUI(newRange.rng.skew);
-		n->getParameterFromIndex(4)->setValueFromUI(newRange.rng.interval);
-        n->getParameterFromIndex(5)->setValueFromUI(newRange.inv ? 1.0 : 0.0);
+		n->getParameterFromIndex(1)->setValueSync(newRange.inv ? newRange.rng.end : newRange.rng.start);
+		n->getParameterFromIndex(2)->setValueSync(newRange.inv ? newRange.rng.start : newRange.rng.end);
+		n->getParameterFromIndex(3)->setValueSync(newRange.rng.skew);
+		n->getParameterFromIndex(4)->setValueSync(newRange.rng.interval);
+        n->getParameterFromIndex(5)->setValueSync(newRange.inv ? 1.0 : 0.0);
 		rebuildPaths();
 	}
 }

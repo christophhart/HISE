@@ -141,7 +141,7 @@ public:
 	};
 
 	/** Sets the GraphPoints. If you need to refresh the internal table, you also have to call fillLookUpTable(). */
-	void setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints);
+	void setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints, bool refreshLookupTable);
 
 	/** Exports the data as base64 encoded String. This is not a ValueTree (so RestorableObject is no base class from Table),
 	*	because it needs to be embedded in an XML attribute
@@ -207,13 +207,10 @@ public:
 
 		if (!delayUpdates)
 		{
-			internalUpdater.sendContentChangeMessage(sendNotificationAsync, pointIndex);
 			fillLookUpTable();
+			internalUpdater.sendContentChangeMessage(sendNotificationSync, pointIndex);
 		}
-		
 	}
-
-	
 
 	void reset()
 	{

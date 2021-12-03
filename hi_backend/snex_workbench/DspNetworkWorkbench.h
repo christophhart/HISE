@@ -195,7 +195,7 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 			return;
 
 		if (auto p = activeNetwork->getRootNode()->getParameterFromIndex(parameterIndex))
-			p->setValue(newValue);
+			p->setValueAsync(newValue);
 	}
 
 	float getAttribute(int parameterIndex) const override

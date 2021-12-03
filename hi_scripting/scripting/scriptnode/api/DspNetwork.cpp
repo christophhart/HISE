@@ -632,8 +632,11 @@ var DspNetwork::get(var idOrNode) const
 
 void DspNetwork::clear(bool removeNodesFromSignalChain, bool removeUnusedNodes)
 {
-	if(removeNodesFromSignalChain)
+	if (removeNodesFromSignalChain)
+	{
 		getRootNode()->getValueTree().getChildWithName(PropertyIds::Nodes).removeAllChildren(getUndoManager());
+		getRootNode()->getParameterTree().removeAllChildren(getUndoManager());
+	}
 	
 	if (removeUnusedNodes)
 	{
@@ -641,6 +644,7 @@ void DspNetwork::clear(bool removeNodesFromSignalChain, bool removeUnusedNodes)
 		{
 			if (!nodes[i]->isActive(true))
 			{
+				MessageManagerLock mm;
 				deleteIfUnused(nodes[i]->getId());
 				i--;
 			}
@@ -1649,44 +1653,20 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 	}
 }
 
-ScriptNetworkTest::CHandler::CHandler(WorkbenchData::Ptr wb, DspNetwork* n) :
-	WorkbenchData::CompileHandler(wb.get()),
-	network(n)
+ScriptNetworkTest::ScriptNetworkTest(DspNetwork* n, var testData) :
+	ConstScriptingObject(n->getScriptProcessor(), 0),
+	wb(new snex::ui::WorkbenchData())
 {
-	ps.voiceIndex = n->getPolyHandler();
-	ps.numChannels = wb->getTestData().testSourceData.getNumChannels();
-	ps.blockSize = 512;
-	ps.numChannels = 1;
-	ps.sampleRate = 44100.0;
-}
+	wb->setCompileHandler(new CHandler(wb, n));
+	wb->setCodeProvider(new CProvider(wb, n));
 
-void ScriptNetworkTest::CHandler::postCompile(ui::WorkbenchData::CompileResult& lastResult)
-{
-	auto& td = getParent()->getTestData();
+	wb->getTestData().fromJSON(testData, dontSendNotification);
 
-	td.initProcessing(ps);
-	td.processTestData(getParent());
-}
-
-void ScriptNetworkTest::CHandler::processTest(ProcessDataDyn& data)
-{
-	network->process(data);
-}
-
-void ScriptNetworkTest::CHandler::prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
-{
-    network->setNumChannels(ps.numChannels);
-	network->prepareToPlay(ps.sampleRate, ps.blockSize);
-	
-	for (auto p : initialParameters)
-		network->getCurrentParameterHandler()->setParameter(p.parameterIndex, p.valueToUse);
-
-	network->reset();
-}
-
-void ScriptNetworkTest::CHandler::processTestParameterEvent(int parameterIndex, double value)
-{
-	jassertfalse;
+	ADD_API_METHOD_0(runTest);
+	ADD_API_METHOD_2(setTestProperty);
+	ADD_API_METHOD_3(setProcessSpecs);
+	ADD_API_METHOD_3(expectEquals);
+	ADD_API_METHOD_0(dumpNetworkAsXml);
 }
 
 juce::var ScriptNetworkTest::runTest()
@@ -1795,6 +1775,90 @@ juce::var ScriptNetworkTest::expectEquals(var data1, var data2, float errorDb)
 	}
 	
 	return var("unsupported type");
+}
+
+ScriptNetworkTest::CHandler::CHandler(WorkbenchData::Ptr wb, DspNetwork* n) :
+	ScriptnodeCompileHandlerBase(wb.get(), n)
+{
+	ps.voiceIndex = n->getPolyHandler();
+	ps.numChannels = wb->getTestData().testSourceData.getNumChannels();
+	ps.blockSize = 512;
+	ps.numChannels = 1;
+	ps.sampleRate = 44100.0;
+}
+
+ScriptnodeCompileHandlerBase::ScriptnodeCompileHandlerBase(WorkbenchData* d, DspNetwork* network_) :
+	CompileHandler(d),
+	network(network_)
+{
+
+}
+
+snex::ui::WorkbenchData::CompileResult ScriptnodeCompileHandlerBase::compile(const String& codeToCompile)
+{
+	return {};
+}
+
+void ScriptnodeCompileHandlerBase::processTestParameterEvent(int parameterIndex, double value)
+{
+	SimpleReadWriteLock::ScopedReadLock sl(network->getConnectionLock());
+	network->getCurrentParameterHandler()->setParameter(parameterIndex, value);
+}
+
+void ScriptnodeCompileHandlerBase::prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
+{
+	network->setNumChannels(ps.numChannels);
+	network->prepareToPlay(ps.sampleRate, ps.blockSize);
+
+	for (auto pe : initialParameters)
+	{
+		if(pe.timeStamp == 0)
+			processTestParameterEvent(pe.parameterIndex, pe.valueToUse);
+	}
+	
+	network->reset();
+}
+
+void ScriptnodeCompileHandlerBase::initExternalData(ExternalDataHolder* h)
+{
+
+}
+
+void ScriptnodeCompileHandlerBase::postCompile(ui::WorkbenchData::CompileResult& lastResult)
+{
+	runTest(lastResult);
+}
+
+Result ScriptnodeCompileHandlerBase::runTest(ui::WorkbenchData::CompileResult& lastResult)
+{
+	auto& td = getParent()->getTestData();
+
+	auto cs = getPrepareSpecs();
+
+	if (cs.sampleRate <= 0.0 || cs.blockSize == 0)
+	{
+		cs.sampleRate = 44100.0;
+		cs.blockSize = 512;
+	}
+
+	td.initProcessing(cs);
+	td.processTestData(getParent());
+	return Result::ok();
+}
+
+void ScriptnodeCompileHandlerBase::processTest(ProcessDataDyn& data)
+{
+	network->process(data);
+}
+
+bool ScriptnodeCompileHandlerBase::shouldProcessEventsManually() const
+{
+	return false;
+}
+
+void ScriptnodeCompileHandlerBase::processHiseEvent(HiseEvent& e)
+{
+	jassertfalse;
 }
 
 }

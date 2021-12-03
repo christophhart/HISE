@@ -1128,9 +1128,9 @@ void CloneNode::checkValidClones(const ValueTree& v, bool wasAdded)
 	auto firstParameter = getParameterFromIndex(0);
 
 	if (wasAdded && firstParameter->getValue() == getNodeTree().getNumChildren() - 1)
-		firstParameter->setValueFromUI(getNodeTree().getNumChildren());
+		firstParameter->setValueSync(getNodeTree().getNumChildren());
 	if (!wasAdded && firstParameter->getValue() == getNodeTree().getNumChildren() + 1)
-		firstParameter->setValueFromUI(getNodeTree().getNumChildren());
+		firstParameter->setValueSync(getNodeTree().getNumChildren());
 
 	updateDisplayedClones({}, getValueTree()[PropertyIds::DisplayedClones]);
 }

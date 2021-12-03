@@ -1220,12 +1220,11 @@ struct PopupCodeProvider : public snex::ui::WorkbenchData::CodeProvider
 	Identifier networkId;
 };
 
-struct PopupCompileHandler : public snex::ui::WorkbenchData::CompileHandler,
+struct PopupCompileHandler : public ScriptnodeCompileHandlerBase,
 	public valuetree::AnyListener
 {
 	PopupCompileHandler(WorkbenchData* d, DspNetwork* n) :
-		CompileHandler(d),
-		network(n)
+		ScriptnodeCompileHandlerBase(d, n)
 	{
 		setRootValueTree(n->getValueTree());
 		setMillisecondsBetweenUpdate(500);
@@ -1243,70 +1242,10 @@ struct PopupCompileHandler : public snex::ui::WorkbenchData::CompileHandler,
 		getParent()->triggerPostCompileActions();
 	}
 
-	/** Override this function and call the parameter method. */
-	void processTestParameterEvent(int parameterIndex, double value)
+	PrepareSpecs getPrepareSpecs() const override
 	{
-		SimpleReadWriteLock::ScopedReadLock sl(network->getConnectionLock());
-		network->getCurrentParameterHandler()->setParameter(parameterIndex, value);
-	};
-
-	void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
-	{
-		network->prepareToPlay(ps.sampleRate, ps.blockSize);
-
-		for (auto pe : initialParameters)
-			processTestParameterEvent(pe.parameterIndex, pe.valueToUse);
+		return network->getCurrentSpecs();
 	}
-	void processTest(ProcessDataDyn& data)
-	{
-		network->process(data);
-	}
-
-	bool shouldProcessEventsManually() const
-	{
-		return false;
-	}
-
-	void processHiseEvent(HiseEvent& e)
-	{
-		jassertfalse;
-	};
-
-	snex::ui::WorkbenchData::CompileResult compile(const String& codeToCompile) override
-	{
-		snex::ui::WorkbenchData::CompileResult r;
-		r.compileResult = Result::ok();
-		return r;
-	}
-
-	void initExternalData(ExternalDataHolder* h) override
-	{
-
-	}
-
-	Result runTest(ui::WorkbenchData::CompileResult& lastResult) override
-	{
-		auto& td = getParent()->getTestData();
-
-		auto cs = network->getCurrentSpecs();
-
-		if (cs.sampleRate <= 0.0 || cs.blockSize == 0)
-		{
-			cs.sampleRate = 44100.0;
-			cs.blockSize = 512;
-		}
-
-		td.initProcessing(cs);
-		td.processTestData(getParent());
-		return Result::ok();
-	}
-
-	void postCompile(ui::WorkbenchData::CompileResult& lastResult) override
-	{
-		runTest(lastResult);
-	}
-
-	WeakReference<DspNetwork> network;
 };
 
 using namespace snex::ui;
@@ -2722,7 +2661,7 @@ KeyboardPopup::ImagePreviewCreator::ImagePreviewCreator(KeyboardPopup& kp_, cons
 			{
 				auto nr = RangeHelpers::getDoubleRange(p->data);
 				auto v = nr.convertFrom0to1(Random::getSystemRandom().nextDouble());
-				p->setValue(v);
+				p->setValueSync(v);
 			}
 		}
 	}

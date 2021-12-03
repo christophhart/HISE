@@ -125,7 +125,9 @@ public:
 	double getValue() const;
 
 	/** Sets the value immediately and stores it asynchronously. */
-	void setValue(double newValue);
+	void setValueAsync(double newValue);
+
+
 
     /** Sets a range property. */
     void setRangeProperty(String id, var newValue)
@@ -138,9 +140,10 @@ public:
         }
     }
     
-	// ================================================================== End of API Calls
+	/** Stores the value synchronously and calls the callback. */
+	void setValueSync(double newValue);
 
-	void setValueFromUI(double newValue);
+	// ================================================================== End of API Calls
 
 	ValueTree getConnectionSourceTree(bool forceUpdate);
 
@@ -163,7 +166,7 @@ public:
 	void updateFromValueTree(Identifier id, var newValue)
 	{
 		jassert(id == PropertyIds::Value);
-		setValue((double)newValue);
+		setValueAsync((double)newValue);
 	}
 
 	ValueTree data;
@@ -358,6 +361,9 @@ public:
 	/** Connects this node to the given parameter target. sourceInfo is either the parameter name (String) or output slot (integer). */
 	var connectTo(var parameterTarget, var sourceInfo);
 
+	/** Connects the bypass button of this node to the given source info ("NodeId.ParameterId"). */
+	void connectToBypass(var sourceInfo);
+
 	/** Checks if the node is bypassed. */
 	bool isBypassed() const noexcept;
 
@@ -432,7 +438,7 @@ public:
 
 	HelpManager& getHelpManager() { return helpManager; }
 
-	void addConnectionToBypass(var dragDetails);
+	
 
 	DspNetwork* getRootNetwork() const;
 

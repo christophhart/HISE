@@ -534,7 +534,7 @@ private:
 			{
 				value = newIndex;
 
-				repaint();
+				SafeAsyncCall::repaint(this);
 			}
 		};
 
@@ -779,13 +779,7 @@ private:
 		for(int i = 0; i < drag_points.size(); i++)	newPoints.add(drag_points[i]->getGraphPoint());
 
 		if(editedTable.get() != nullptr) 
-			editedTable->setGraphPoints(newPoints, drag_points.size());
-
-		if(refreshLookUpTable)
-		{
-			if(editedTable.get() != nullptr) 
-				editedTable->fillLookUpTable();
-		}
+			editedTable->setGraphPoints(newPoints, drag_points.size(), refreshLookUpTable);
 	};
 
 	int snapXValueToGrid(int x) const;
@@ -890,8 +884,10 @@ private:
 	Array<float> snapValues;
 
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TableEditor)
-		void showTouchOverlay();
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TableEditor)
+	JUCE_DECLARE_WEAK_REFERENCEABLE(TableEditor);
+
+	void showTouchOverlay();
 
 	void updateTouchOverlayPosition();
 
