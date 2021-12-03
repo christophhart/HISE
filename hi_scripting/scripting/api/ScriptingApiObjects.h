@@ -709,7 +709,7 @@ namespace ScriptingObjects
 
 		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
 
-		ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type, ProcessorWithExternalData* otherHolder=nullptr);;
+		ScriptComplexDataReferenceBase(ProcessorWithScriptingContent* c, int dataIndex, snex::ExternalData::DataType type, ExternalDataHolder* otherHolder=nullptr);;
 
 		virtual ~ScriptComplexDataReferenceBase();
 
@@ -757,9 +757,9 @@ namespace ScriptingObjects
             
             using PED = hise::ProcessorWithExternalData;
             
-            if(auto pdst = dynamic_cast<PED*>(holder.get()))
+            if(auto pdst = holder.get())
             {
-                if(auto psrc = dynamic_cast<PED*>(other->holder.get()))
+                if(auto psrc = other->holder.get())
                 {
                     if(auto ex = psrc->getComplexBaseType(type, other->index))
                     {
@@ -792,7 +792,7 @@ namespace ScriptingObjects
 	{
 	public:
 
-		ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index, ProcessorWithExternalData* otherHolder = nullptr);
+		ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* otherHolder = nullptr);
 
 		// ============================================================================================================
 
@@ -848,7 +848,7 @@ namespace ScriptingObjects
 	{
 	public:
 
-		ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, ProcessorWithExternalData* other=nullptr);
+		ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* other=nullptr);
 
 		// ============================================================================================================
 
@@ -875,7 +875,7 @@ namespace ScriptingObjects
 	{
 	public:
 
-		ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, ProcessorWithExternalData* externalHolder=nullptr);
+		ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* externalHolder=nullptr);
 
 		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
 
@@ -932,7 +932,7 @@ namespace ScriptingObjects
 	{
 	public:
 
-		ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, ProcessorWithExternalData* otherHolder=nullptr);
+		ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, ExternalDataHolder* otherHolder=nullptr);
 
 		~ScriptSliderPackData() {};
 

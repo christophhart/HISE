@@ -553,6 +553,12 @@ struct ExternalDataHolder
 	virtual FilterDataObject* getFilterData(int index) = 0;
 	virtual SimpleRingBuffer* getDisplayBuffer(int index) = 0;
 
+    virtual void linkTo(ExternalData::DataType type, ExternalDataHolder& src, int srcIndex, int dstIndex)
+    {
+        // this data holder doesn't support linking
+        jassertfalse;
+    }
+    
 	ComplexDataUIBase* getComplexBaseType(ExternalData::DataType t, int index);
 
 	/** Override this method and remove the object in question. Return true if successful. */
