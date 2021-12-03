@@ -1088,6 +1088,13 @@ template <class ParameterClass, class T> struct mod
 		static_cast<mod*>(o)->template setParameter<P>(v);
 	}
 
+    void createParameters(ParameterDataList& data)
+    {
+        if constexpr (prototypes::check::createParameters<T>::value)
+            obj.createParameters(data);
+        
+    }
+    
 	void setExternalData(const ExternalData& d, int index)
 	{
 		if constexpr (prototypes::check::setExternalData<T>::value)

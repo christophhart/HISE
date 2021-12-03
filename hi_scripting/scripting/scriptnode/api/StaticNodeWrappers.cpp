@@ -206,7 +206,7 @@ bool InterpretedModNode::isUsingNormalisedRange() const
 
 scriptnode::parameter::dynamic_base_holder* InterpretedModNode::getParameterHolder()
 {
-	return &this->obj.p;
+	return &this->obj.obj.p;
 }
 
 void InterpretedModNode::reset()
@@ -258,6 +258,12 @@ void InterpretedModNode::process(ProcessDataDyn& data) noexcept
 {
 	NodeProfiler np(this, data.getNumSamples());
 	this->obj.process(data);
+}
+
+void InterpretedModNode::setBypassed(bool shouldBeBypassed)
+{
+    WrapperNode::setBypassed(shouldBeBypassed);
+    WrapperType::setParameter<bypass::ParameterId>(&this->obj, (double)shouldBeBypassed);
 }
 
 void InterpretedModNode::handleHiseEvent(HiseEvent& e)

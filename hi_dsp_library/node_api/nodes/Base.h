@@ -83,9 +83,7 @@ template <class T> class SingleWrapper : public HiseDspBase
 {
 public:
 
-	
-
-	inline void initialise(NodeBase* n) override
+    inline void initialise(NodeBase* n) override
 	{
 		obj.initialise(n);
 	}
@@ -94,9 +92,6 @@ public:
 	{
 		obj.handleHiseEvent(e);
 	}
-
-
-protected:
 
 	T obj;
 };

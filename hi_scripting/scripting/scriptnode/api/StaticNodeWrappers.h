@@ -287,7 +287,7 @@ public:
 	valuetree::PropertyListener bypassListener;
 };
 
-using ModWrapType_ = wrap::mod<parameter::dynamic_base_holder, OpaqueNode>;
+using ModWrapType_ = bypass::simple<wrap::mod<parameter::dynamic_base_holder, OpaqueNode>>;
 
 class InterpretedModNode : public ModulationSourceNode,
 						   public InterpretedNodeBase<ModWrapType_>
@@ -344,6 +344,8 @@ public:
 	void process(ProcessDataDyn& data) noexcept final override;
 	void handleHiseEvent(HiseEvent& e) final override;
 
+    void setBypassed(bool shouldBeBypassed) final override;
+    
 	WrapperType wrapper;
 };
 

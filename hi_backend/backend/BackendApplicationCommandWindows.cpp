@@ -1559,7 +1559,7 @@ public:
 			int numChannels = ob.getNumChannels();
 			int numSamples = ob.getNumSamples();
 
-			auto ok = fileToUse.deleteFile();
+			fileToUse.deleteFile();
 
 			AudioSampleBuffer lut;
 			bool isTable = getPropertyIds(Preset::Tables).contains(id);
@@ -1828,13 +1828,6 @@ public:
 
 		if (!r.wasOk())
 			throw r;
-
-		
-
-		auto addFromValueTree = [&](const ValueTree& propTree, const ValueTree& v)
-		{
-			
-		};
 
 		for (auto c : v)
 		{
