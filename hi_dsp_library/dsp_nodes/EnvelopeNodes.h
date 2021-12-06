@@ -95,6 +95,12 @@ template <typename ParameterType> struct envelope_base: public control::pimpl::p
 		numKeys = 0;
 	}
 
+	void sendGateOffAtReset()
+	{
+		this->getParameter().template call<1>(0.0);
+		this->getParameter().template call<0>(0.0);
+	}
+
 	bool handleKeyEvent(HiseEvent& e, bool& newValue)
 	{
 		if (e.isNoteOn())
@@ -439,9 +445,9 @@ template <int NV, typename ParameterType> struct simple_ar: public pimpl::envelo
 		this->resetNoteCounter();
 
 		for (auto& s : states)
-		{
 			s.reset();
-		}
+
+		sendGateOffAtReset();
 	}
 
 	void handleHiseEvent(HiseEvent& e)
@@ -606,6 +612,8 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 
 		for (state_base& s : states)
 			s.current_state = pimpl::ahdsr_base::state_base::IDLE;
+
+		sendGateOffAtReset();
 	}
 
 	void handleHiseEvent(HiseEvent& e)
