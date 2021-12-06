@@ -121,11 +121,8 @@ public:
 
 	void reset()
 	{ 
-		if (!bypassed)
-		{
-			ramper.reset();
-			this->obj.reset();
-		}
+        ramper.reset();
+        this->obj.reset();
 	}
 
 	bool handleModulation(double& value) noexcept
