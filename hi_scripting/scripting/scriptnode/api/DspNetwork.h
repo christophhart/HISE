@@ -185,11 +185,11 @@ public:
 		return s;
 	}
 
-	String getErrorMessage(NodeBase* n) const
+	String getErrorMessage(NodeBase* n = nullptr) const
 	{
 		for (auto& i : items)
 		{
-			if (i.node == n)
+			if (i.node == n || n == nullptr)
 			{
 				return i.toString(customErrorMessage);
 			}
@@ -416,7 +416,7 @@ public:
 			SnexSourceCompileHandler(snex::ui::WorkbenchData* d, ProcessorWithScriptingContent* sp_);;
 
 			void processTestParameterEvent(int parameterIndex, double value) final override {};
-			void prepareTest(PrepareSpecs ps, const Array<snex::ui::WorkbenchData::TestData::ParameterEvent>& initialParameters) final override {};
+            Result prepareTest(PrepareSpecs ps, const Array<snex::ui::WorkbenchData::TestData::ParameterEvent>& initialParameters) final override { return Result::ok(); };
 			void processTest(ProcessDataDyn& data) final override {};
 
 			void run() override;
@@ -1220,7 +1220,7 @@ struct ScriptnodeCompileHandlerBase : public snex::ui::WorkbenchData::CompileHan
 
 	void processTestParameterEvent(int parameterIndex, double value) override;
 
-	void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters);
+	Result prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters);
 
 	void initExternalData(ExternalDataHolder* h) override;
 
@@ -1239,6 +1239,7 @@ struct ScriptnodeCompileHandlerBase : public snex::ui::WorkbenchData::CompileHan
 	virtual PrepareSpecs getPrepareSpecs() const = 0;
 
 	WeakReference<DspNetwork> network;
+    Result lastTestResult;
 };
 
 /** A test object for a DSP Network. */
@@ -1274,6 +1275,7 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 		API_VOID_METHOD_WRAPPER_3(ScriptNetworkTest, setProcessSpecs);
 		API_METHOD_WRAPPER_3(ScriptNetworkTest, expectEquals);
         API_METHOD_WRAPPER_0(ScriptNetworkTest, dumpNetworkAsXml);
+        API_METHOD_WRAPPER_0(ScriptNetworkTest, getLastTestException);
 	};
 
 	ScriptNetworkTest(DspNetwork* n, var testData);;
@@ -1296,6 +1298,9 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 
     /** Creates a XML representation of the current network. */
     String dumpNetworkAsXml();
+
+    /** Returns the exception that was caused by the last test run (or empty if fine). */
+    String getLastTestException() const;
     
     
 	// ================================================================================= API Methods

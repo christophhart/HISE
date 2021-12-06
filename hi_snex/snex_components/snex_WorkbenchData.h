@@ -383,7 +383,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 		/** Override this function and call the parameter method. */
 		virtual void processTestParameterEvent(int parameterIndex, double value) = 0;
 
-		virtual void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) = 0;
+		virtual Result prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) = 0;
 
 		virtual void processTest(ProcessDataDyn& data) = 0;
 
@@ -575,7 +575,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 		
 		void processInChunks(const std::function<void()>& f);
 
-		void processTestData(WorkbenchData::Ptr data);
+		Result processTestData(WorkbenchData::Ptr data);
 
 		void clear(NotificationType notify = dontSendNotification)
 		{

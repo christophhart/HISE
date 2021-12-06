@@ -732,7 +732,7 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 
 	void processTestParameterEvent(int parameterIndex, double value) override;
 
-	void prepareTest(PrepareSpecs ps, const Array<WorkbenchData::TestData::ParameterEvent>& ) override;
+	Result prepareTest(PrepareSpecs ps, const Array<WorkbenchData::TestData::ParameterEvent>& ) override;
 
 	void processTest(ProcessDataDyn& data) override;
 

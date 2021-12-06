@@ -440,12 +440,14 @@ struct SnexSource : public WorkbenchData::Listener,
 			parameterHandler.setParameterDynamic(parameterIndex, value);
 		};
 
-		void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) override
+		Result prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) override
 		{
 			callbacks.runPrepareTest(ps);
 
 			for (const auto& p : initialParameters)
 				processTestParameterEvent(p.parameterIndex, p.valueToUse);
+            
+            return Result::ok();
 		}
 
 		void processTest(ProcessDataDyn& data) override

@@ -170,7 +170,7 @@ void DspNetworkCompileHandler::initExternalData(ExternalDataHolder* h)
 
 }
 
-void DspNetworkCompileHandler::prepareTest(PrepareSpecs ps, const Array<WorkbenchData::TestData::ParameterEvent>& initialParameters)
+Result DspNetworkCompileHandler::prepareTest(PrepareSpecs ps, const Array<WorkbenchData::TestData::ParameterEvent>& initialParameters)
 {
 	if (dllNode.getObjectPtr() != nullptr)
 		dllNode.prepare(ps);
@@ -191,6 +191,8 @@ void DspNetworkCompileHandler::prepareTest(PrepareSpecs ps, const Array<Workbenc
 		interpreter->getRootNode()->reset();
 	else if (jitNode != nullptr)
 		jitNode->reset();
+    
+    return Result::ok();
 }
 
 void DspNetworkCompileHandler::processTest(ProcessDataDyn& data)
