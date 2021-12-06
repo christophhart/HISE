@@ -862,55 +862,57 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 
 		break;
 	}
-	case Target::firstnonwhitespace:
-	{
-		auto isLineBreak = getNumLinesForRow(i.x) > 1;
+    case Target::firstnonwhitespaceAfterLineBreak:
+    {
+        auto isLineBreak = getNumLinesForRow(i.x) > 1;
 
-		if (isLineBreak)
-		{
-			auto y = getGlyphBounds(i, GlyphArrangementArray::ReturnLastCharacter).getY();
-			
-			while (navigateLeftRight(i, false))
-			{
-				auto thisY = getGlyphBounds(i, GlyphArrangementArray::ReturnLastCharacter).getY();
-
-				if (y != thisY)
-				{
-					navigateLeftRight(i, true);
-					break;
-				}
-			}
-		}
-		else
-		{
-            if(direction == Direction::forwardCol)
+        if (isLineBreak)
+        {
+            auto y = getGlyphBounds(i, GlyphArrangementArray::ReturnLastCharacter).getY();
+            
+            while (navigateLeftRight(i, false))
             {
-                while(CF::isWhitespace(get(i)) && navigateLeftRight(i, true))
-                    ;
-                    
-                return;
+                auto thisY = getGlyphBounds(i, GlyphArrangementArray::ReturnLastCharacter).getY();
+
+                if (y != thisY)
+                {
+                    navigateLeftRight(i, true);
+                    break;
+                }
             }
             
-			if (i.y != 0 && get(i) == '\n' && direction == Direction::backwardCol)
-			{
-				navigateLeftRight(i, false);
-			}
+            break;
+        }
+    }
+	case Target::firstnonwhitespace:
+	{
+        if(direction == Direction::forwardCol)
+        {
+            while(CF::isWhitespace(get(i)) && navigateLeftRight(i, true))
+                ;
+                
+            return;
+        }
+        
+        if (i.y != 0 && get(i) == '\n' && direction == Direction::backwardCol)
+        {
+            navigateLeftRight(i, false);
+        }
 
-			jassert(direction == Direction::backwardCol);
+        jassert(direction == Direction::backwardCol);
 
-			bool skipTofirstNonWhiteCharacter = false;
+        bool skipTofirstNonWhiteCharacter = false;
 
-			while (get(i) != '\n' && navigateLeftRight(i, false))
-				skipTofirstNonWhiteCharacter |= !CF::isWhitespace(get(i));
+        while (get(i) != '\n' && navigateLeftRight(i, false))
+            skipTofirstNonWhiteCharacter |= !CF::isWhitespace(get(i));
 
-			while (skipTofirstNonWhiteCharacter && CF::isWhitespace(get(i)))
-				navigateLeftRight(i, true);
+        while (skipTofirstNonWhiteCharacter && CF::isWhitespace(get(i)))
+            navigateLeftRight(i, true);
 
-			if (skipTofirstNonWhiteCharacter)
-				navigateLeftRight(i, false);
+        if (skipTofirstNonWhiteCharacter)
+            navigateLeftRight(i, false);
 
-			break;
-		}
+        break;
 	}
 	case Target::subword: while ((CF::isLetterOrDigit(get(i)) || get(i) == '_') && advance(i)) {} break;
 	case Target::subwordWithPoint: while ((CF::isLetterOrDigit(get(i)) || get(i) == '_' || get(i) == '.') && advance(i)) {} break;

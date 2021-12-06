@@ -384,13 +384,15 @@ public:
 		lastTest->nodeToTest->process(data);
 	}
 
-	void prepareTest(PrepareSpecs ps, const Array<ui::WorkbenchData::TestData::ParameterEvent>& initialParameters) override
+	Result prepareTest(PrepareSpecs ps, const Array<ui::WorkbenchData::TestData::ParameterEvent>& initialParameters) override
 	{
 		jassert(lastTest != nullptr);
 		jassert(lastTest->nodeToTest != nullptr);
 
 		lastTest->nodeToTest->prepare(ps);
 		lastTest->nodeToTest->reset();
+        
+        return Result::ok();
 	}
 
 private:
@@ -413,10 +415,12 @@ public:
 		
 	};
 
-	void prepareTest(PrepareSpecs ps, const Array<ui::WorkbenchData::TestData::ParameterEvent>& initialParameters)
+	Result prepareTest(PrepareSpecs ps, const Array<ui::WorkbenchData::TestData::ParameterEvent>& initialParameters)
 	{
 		if (lastNode != nullptr)
 			lastNode->prepare(ps);
+        
+        return Result::ok();
 	}
 
 	void processTestParameterEvent(int parameterIndex, double value) override

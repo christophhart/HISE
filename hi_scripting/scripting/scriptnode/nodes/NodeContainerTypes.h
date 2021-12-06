@@ -408,10 +408,42 @@ template <int OversampleFactor> class OversampleNode : public SerialNode
 {
 public:
 
-	SCRIPTNODE_FACTORY(OversampleNode, "oversample" + String(OversampleFactor) + "x");
+    enum Parameters
+    {
+        OversamplingFactor
+    };
+    
+    static String getOversampleName()
+    {
+        String x;
+        x << "oversample";
+        
+        if(OversampleFactor != -1)
+        {
+            x << String(OversampleFactor) << "x";
+        }
+        
+        return x;
+    }
+    
+	SCRIPTNODE_FACTORY(OversampleNode, getOversampleName());
 
 	OversampleNode(DspNetwork* network, ValueTree d);
 
+    DEFINE_PARAMETERS
+    {
+        DEF_PARAMETER(OversamplingFactor, OversampleNode);
+    }
+
+    PARAMETER_MEMBER_FUNCTION;
+
+    void setOversamplingFactor(double newFactor)
+    {
+        obj.setOversamplingFactor(jlimit(0, 16, (int)newFactor));
+    }
+    
+    virtual bool hasFixedParameters() const { return OversampleFactor == -1; }
+    
 	double getSampleRateForChildNodes() const override;
 
 	int getBlockSizeForChildNodes() const override;

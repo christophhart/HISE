@@ -481,6 +481,7 @@ public:
 		subwordWithPoint,
 		word,
 		firstnonwhitespace,
+        firstnonwhitespaceAfterLineBreak,
 		token,
 		line,
 		lineUntilBreak,

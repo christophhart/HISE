@@ -627,7 +627,7 @@ void ui::WorkbenchData::TestData::processInChunks(const std::function<void()>& f
 
 }
 
-void ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
+Result ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 {
 	auto tester = customTester.get();
 
@@ -646,7 +646,10 @@ void ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 
 	
 
-	tester->prepareTest(ps, parameterEvents);
+	auto r = tester->prepareTest(ps, parameterEvents);
+    
+    if(!r.wasOk())
+        return r;
 
 	testOutputData.makeCopyOf(testSourceData);
 
@@ -733,6 +736,8 @@ void ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 	auto calculatedSeconds = (double)testOutputData.getNumSamples() / ps.sampleRate;
 
 	cpuUsage = delta / calculatedSeconds;
+    
+    return Result::ok();
 }
 
 int ui::WorkbenchData::CompileResult::getNumDebugObjects() const

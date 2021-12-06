@@ -1672,15 +1672,48 @@ ScriptNetworkTest::ScriptNetworkTest(DspNetwork* n, var testData) :
 	ADD_API_METHOD_3(expectEquals);
 	ADD_API_METHOD_0(dumpNetworkAsXml);
 	ADD_API_METHOD_1(setWaitingTime);
+    ADD_API_METHOD_0(getLastTestException);
+}
+
+String ScriptNetworkTest::getLastTestException() const
+{
+    if(auto b = dynamic_cast<CHandler*>(wb->getCompileHandler()))
+    {
+        return b->lastTestResult.getErrorMessage();
+    }
+    
+    jassertfalse;
+    return {};
 }
 
 juce::var ScriptNetworkTest::runTest()
 {
 	wb->triggerRecompile();
 	auto& td = wb->getTestData();
+    
+    auto numChannels = td.testOutputData.getNumChannels();
+    
+    if(numChannels == 1)
+    {
+    
 	auto v = new VariantBuffer(td.testOutputData.getNumSamples());
 	FloatVectorOperations::copy(v->buffer.getWritePointer(0), td.testOutputData.getReadPointer(0), v->size);
 	return var(v);
+    }
+    else
+    {
+        Array<var> channels;
+        
+        for(int i = 0; i < numChannels; i++)
+        {
+            auto v = new VariantBuffer(td.testOutputData.getNumSamples());
+            FloatVectorOperations::copy(v->buffer.getWritePointer(0), td.testOutputData.getReadPointer(i), v->size);
+            
+            channels.add(var(v));
+        }
+        
+        return var(channels);
+    }
 }
 
 String ScriptNetworkTest::dumpNetworkAsXml()
@@ -1810,7 +1843,8 @@ void ScriptNetworkTest::CHandler::prepareTest(PrepareSpecs ps, const Array<Param
 
 ScriptnodeCompileHandlerBase::ScriptnodeCompileHandlerBase(WorkbenchData* d, DspNetwork* network_) :
 	CompileHandler(d),
-	network(network_)
+	network(network_),
+    lastTestResult(Result::ok())
 {
 
 }
@@ -1826,8 +1860,10 @@ void ScriptnodeCompileHandlerBase::processTestParameterEvent(int parameterIndex,
 	network->getCurrentParameterHandler()->setParameter(parameterIndex, value);
 }
 
-void ScriptnodeCompileHandlerBase::prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
+Result ScriptnodeCompileHandlerBase::prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
 {
+    network->getExceptionHandler().removeError(nullptr);
+    
 	network->setNumChannels(ps.numChannels);
 	network->prepareToPlay(ps.sampleRate, ps.blockSize);
 
@@ -1837,7 +1873,12 @@ void ScriptnodeCompileHandlerBase::prepareTest(PrepareSpecs ps, const Array<Para
 			processTestParameterEvent(pe.parameterIndex, pe.valueToUse);
 	}
 	
+    if(!network->getExceptionHandler().isOk())
+        return Result::fail(network->getExceptionHandler().getErrorMessage(nullptr));
+    
 	network->reset();
+    
+    return Result::ok();
 }
 
 void ScriptnodeCompileHandlerBase::initExternalData(ExternalDataHolder* h)
@@ -1847,7 +1888,7 @@ void ScriptnodeCompileHandlerBase::initExternalData(ExternalDataHolder* h)
 
 void ScriptnodeCompileHandlerBase::postCompile(ui::WorkbenchData::CompileResult& lastResult)
 {
-	runTest(lastResult);
+	lastTestResult = runTest(lastResult);
 }
 
 Result ScriptnodeCompileHandlerBase::runTest(ui::WorkbenchData::CompileResult& lastResult)
@@ -1863,8 +1904,8 @@ Result ScriptnodeCompileHandlerBase::runTest(ui::WorkbenchData::CompileResult& l
 	}
 
 	td.initProcessing(cs);
-	td.processTestData(getParent());
-	return Result::ok();
+    
+	return td.processTestData(getParent());
 }
 
 void ScriptnodeCompileHandlerBase::processTest(ProcessDataDyn& data)

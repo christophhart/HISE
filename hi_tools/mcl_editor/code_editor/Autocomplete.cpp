@@ -185,6 +185,8 @@ void Autocomplete::setInput(const String& input, const String& previousToken, in
 
 	viewIndex = 0;
 
+    tokenCollection.sortForInput(input);
+    
 	for (auto t : tokenCollection)
 	{
 		if (t->matches(input, previousToken, lineNumber))
