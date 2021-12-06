@@ -542,7 +542,13 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcesso
 	ms->getMatrix().setNumDestinationChannels(synth->getMatrix().getNumSourceChannels());
 	ms->getMatrix().setTargetProcessor(synth);
 
-	ms->prepareToPlay(synth->getSampleRate(), synth->getLargestBlockSize());
+	auto bs = synth->getLargestBlockSize();
+
+	if (bs > 0)
+	{
+		ms->prepareToPlay(synth->getSampleRate(), synth->getLargestBlockSize());
+	}
+
 	ms->setParentProcessor(synth);
 
 	{
