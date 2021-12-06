@@ -1673,6 +1673,7 @@ ScriptNetworkTest::ScriptNetworkTest(DspNetwork* n, var testData) :
 	ADD_API_METHOD_0(dumpNetworkAsXml);
 	ADD_API_METHOD_1(setWaitingTime);
     ADD_API_METHOD_0(getLastTestException);
+	ADD_API_METHOD_2(createBufferContentAsAsciiArt);
 }
 
 String ScriptNetworkTest::getLastTestException() const
@@ -1728,6 +1729,78 @@ String ScriptNetworkTest::dumpNetworkAsXml()
     auto xml = copy.createXml();
     
     return xml->createDocument("");
+}
+
+String ScriptNetworkTest::createBufferContentAsAsciiArt(var buffer, int numLines)
+{
+	if (numLines == 0)
+	{
+		reportScriptError("numLines must not be zero");
+		RETURN_IF_NO_THROW({});
+	}
+
+	String s;
+
+	if (auto b = buffer.getBuffer())
+	{
+		auto numSamplesPerLine = b->size / numLines;
+		int numCols = 40;
+
+		for (int i = 0; i < b->size; i += numSamplesPerLine)
+		{
+			int numThisTime = jmin(numSamplesPerLine, b->size - i);
+			float mag = jlimit(0.0f, 1.0f, b->buffer.getMagnitude(i, numThisTime));
+
+			for (int c = 0; c < numCols; c++)
+			{
+				float cValue = ((float)c / (float)numCols) * 2.0f - 1.0f;
+
+				Range<float> cRange(cValue - (1.0f / (float)numCols), cValue + (1.0f / (float)numCols));
+
+				juce_wchar nc;
+
+				if (mag == 0.0f)
+				{
+					nc = cRange.contains(0.0f) ? 'X' : ' ';
+				}
+				else if (mag < 0.0f)
+				{
+					if (cRange.contains(mag))
+						nc = 'X';
+					else if (cValue < mag)
+						nc = ' ';
+					else
+					{
+						if (cRange.contains(0.0f))
+							nc = '0';
+						else if (cValue < 0.0f)
+							nc = '-';
+						else
+							nc = ' ';
+					}
+				}
+				else
+				{
+					if (cRange.contains(mag))
+						nc = 'X';
+					else if (cValue < 0.0f)
+					{
+						nc = ' ';
+					}
+					else
+					{
+						nc = cValue > mag ? ' ' : '-';
+					}
+				}
+
+				s << nc;
+			}
+
+			s << "\n";
+		}
+	}
+
+	return s;
 }
 
 void ScriptNetworkTest::setTestProperty(String id, var value)
@@ -1830,15 +1903,17 @@ ScriptNetworkTest::CHandler::CHandler(WorkbenchData::Ptr wb, DspNetwork* n) :
 	ps.sampleRate = 44100.0;
 }
 
-void ScriptNetworkTest::CHandler::prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
+Result ScriptNetworkTest::CHandler::prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
 {
-	ScriptnodeCompileHandlerBase::prepareTest(ps, initialParameters);
+	lastTestResult = ScriptnodeCompileHandlerBase::prepareTest(ps, initialParameters);
 
 	if (waitTimeMs > 0)
 	{
 		HiseJavascriptEngine::TimeoutExtender te(dynamic_cast<JavascriptProcessor*>(network->getScriptProcessor())->getScriptEngine());
 		Thread::getCurrentThread()->wait(waitTimeMs);
 	}
+
+	return lastTestResult;
 }
 
 ScriptnodeCompileHandlerBase::ScriptnodeCompileHandlerBase(WorkbenchData* d, DspNetwork* network_) :

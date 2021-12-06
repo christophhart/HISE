@@ -1263,7 +1263,7 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 
 		PrepareSpecs getPrepareSpecs() const override { return ps; }
 
-		void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) override;
+		Result prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) override;
 
 		PrepareSpecs ps;
 		int waitTimeMs = 0;
@@ -1278,6 +1278,7 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
         API_METHOD_WRAPPER_0(ScriptNetworkTest, dumpNetworkAsXml);
 		API_VOID_METHOD_WRAPPER_1(ScriptNetworkTest, setWaitingTime);
         API_METHOD_WRAPPER_0(ScriptNetworkTest, getLastTestException);
+		API_METHOD_WRAPPER_2(ScriptNetworkTest, createBufferContentAsAsciiArt);
 	};
 
 	ScriptNetworkTest(DspNetwork* n, var testData);;
@@ -1303,6 +1304,9 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 
     /** Creates a XML representation of the current network. */
     String dumpNetworkAsXml();
+
+	/** Creates a string that vaguely represents the buffer data content. */
+	String createBufferContentAsAsciiArt(var buffer, int numLines);
 
     /** Returns the exception that was caused by the last test run (or empty if fine). */
     String getLastTestException() const;
