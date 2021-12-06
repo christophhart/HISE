@@ -1220,7 +1220,7 @@ struct ScriptnodeCompileHandlerBase : public snex::ui::WorkbenchData::CompileHan
 
 	void processTestParameterEvent(int parameterIndex, double value) override;
 
-	void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters);
+	void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) override;
 
 	void initExternalData(ExternalDataHolder* h) override;
 
@@ -1264,7 +1264,10 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 
 		PrepareSpecs getPrepareSpecs() const override { return ps; }
 
+		void prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) override;
+
 		PrepareSpecs ps;
+		int waitTimeMs = 0;
 	};
 
 	struct Wrapper
@@ -1274,6 +1277,7 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 		API_VOID_METHOD_WRAPPER_3(ScriptNetworkTest, setProcessSpecs);
 		API_METHOD_WRAPPER_3(ScriptNetworkTest, expectEquals);
         API_METHOD_WRAPPER_0(ScriptNetworkTest, dumpNetworkAsXml);
+		API_VOID_METHOD_WRAPPER_1(ScriptNetworkTest, setWaitingTime);
 	};
 
 	ScriptNetworkTest(DspNetwork* n, var testData);;
@@ -1293,6 +1297,9 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 
 	/** Compares the two data types and returns a error message if they don't match. */
 	var expectEquals(var data1, var data2, float errorDb);
+
+	/** Sets a time to wait between calling prepare and processing the data. */
+	void setWaitingTime(int timeToWaitMs);
 
     /** Creates a XML representation of the current network. */
     String dumpNetworkAsXml();

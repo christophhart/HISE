@@ -1671,6 +1671,7 @@ ScriptNetworkTest::ScriptNetworkTest(DspNetwork* n, var testData) :
 	ADD_API_METHOD_3(setProcessSpecs);
 	ADD_API_METHOD_3(expectEquals);
 	ADD_API_METHOD_0(dumpNetworkAsXml);
+	ADD_API_METHOD_1(setWaitingTime);
 }
 
 juce::var ScriptNetworkTest::runTest()
@@ -1781,6 +1782,11 @@ juce::var ScriptNetworkTest::expectEquals(var data1, var data2, float errorDb)
 	return var("unsupported type");
 }
 
+void ScriptNetworkTest::setWaitingTime(int timeToWaitMs)
+{
+	dynamic_cast<CHandler*>(wb->getCompileHandler())->waitTimeMs = jlimit(0, 3000, timeToWaitMs);
+}
+
 ScriptNetworkTest::CHandler::CHandler(WorkbenchData::Ptr wb, DspNetwork* n) :
 	ScriptnodeCompileHandlerBase(wb.get(), n)
 {
@@ -1789,6 +1795,17 @@ ScriptNetworkTest::CHandler::CHandler(WorkbenchData::Ptr wb, DspNetwork* n) :
 	ps.blockSize = 512;
 	ps.numChannels = 1;
 	ps.sampleRate = 44100.0;
+}
+
+void ScriptNetworkTest::CHandler::prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters)
+{
+	ScriptnodeCompileHandlerBase::prepareTest(ps, initialParameters);
+
+	if (waitTimeMs > 0)
+	{
+		HiseJavascriptEngine::TimeoutExtender te(dynamic_cast<JavascriptProcessor*>(network->getScriptProcessor())->getScriptEngine());
+		Thread::getCurrentThread()->wait(waitTimeMs);
+	}
 }
 
 ScriptnodeCompileHandlerBase::ScriptnodeCompileHandlerBase(WorkbenchData* d, DspNetwork* network_) :
