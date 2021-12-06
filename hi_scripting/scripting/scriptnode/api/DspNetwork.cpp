@@ -1731,6 +1731,74 @@ String ScriptNetworkTest::dumpNetworkAsXml()
     return xml->createDocument("");
 }
 
+String printBufferSlice(VariantBuffer::Ptr b, int i, int numSamplesPerLine, int numCols)
+{
+	String s;
+
+	int numThisTime = jmin(numSamplesPerLine, b->size - i);
+
+	auto magRange = b->buffer.findMinMax(0, i, numThisTime);
+
+	auto absStart = hmath::abs(magRange.getStart());
+	auto absEnd = hmath::abs(magRange.getEnd());
+
+	float mag;
+
+	if (absStart > absEnd)
+		mag = magRange.getStart();
+	if (absStart < absEnd)
+		mag = magRange.getEnd();
+	if (absStart == absEnd)
+		mag = magRange.getStart() + magRange.getLength() * 0.5f;
+
+	mag = jlimit(-1.0f, 1.0f, mag);
+
+	for (int c = 0; c < numCols; c++)
+	{
+		float cValue = ((float)c / (float)(numCols - 1)) * 2.0f - 1.0f;
+
+		Range<float> cRange(cValue - (1.0f / (float)(numCols - 1)), cValue + (1.0f / (float)(numCols - 1)));
+
+		juce_wchar nc;
+
+		if (mag == 0.0f)
+		{
+			nc = cRange.contains(0.0f) ? 'X' : ' ';
+		}
+		else if (mag < 0.0f)
+		{
+			if (cRange.contains(mag))
+				nc = 'X';
+			else if (cValue < mag)
+				nc = ' ';
+			else
+			{
+				if (cRange.contains(0.0f))
+					nc = 'o';
+				else if (cValue < 0.0f)
+					nc = '-';
+				else
+					nc = ' ';
+			}
+		}
+		else
+		{
+			if (cRange.contains(mag))
+				nc = 'X';
+			else if (cRange.contains(0.0f))
+				nc = 'o';
+			else if (cValue < 0.0f)
+				nc = ' ';
+			else
+				nc = cValue > mag ? ' ' : '-';
+		}
+
+		s << nc;
+	}
+
+	return s;
+}
+
 String ScriptNetworkTest::createBufferContentAsAsciiArt(var buffer, int numLines)
 {
 	if (numLines == 0)
@@ -1741,62 +1809,71 @@ String ScriptNetworkTest::createBufferContentAsAsciiArt(var buffer, int numLines
 
 	String s;
 
+	VariantBuffer::Ptr b1, b2;
+
+	int numSamples = 0;
+
 	if (auto b = buffer.getBuffer())
 	{
-		auto numSamplesPerLine = b->size / numLines;
-		int numCols = 40;
+		b1 = b;
+		numSamples = b1->size;
+	}
+		
 
-		for (int i = 0; i < b->size; i += numSamplesPerLine)
+	if (auto ar = buffer.getArray())
+	{
+		b1 = buffer[0].getBuffer();
+		b2 = buffer[1].getBuffer();
+
+		if (b1 == nullptr || b2 == nullptr)
 		{
-			int numThisTime = jmin(numSamplesPerLine, b->size - i);
-			float mag = jlimit(0.0f, 1.0f, b->buffer.getMagnitude(i, numThisTime));
+			reportScriptError("not a stereo channel array");
+			RETURN_IF_NO_THROW({});
+		}
 
-			for (int c = 0; c < numCols; c++)
+		if (b1->size != b2->size)
+		{
+			reportScriptError("Buffer size mismatch");
+			RETURN_IF_NO_THROW({});
+		}
+
+		numSamples = b1->size;
+	}
+
+	if (b1 != nullptr)
+	{
+		s << "\n";
+		auto numSamplesPerLine = numSamples / numLines;
+		int numCols = b2 == nullptr ? 40 : 30;
+
+		snex::Types::span<Range<int>, 5> eqRanges;
+
+		eqRanges[0] = Range<int>(0, numSamplesPerLine / 2);
+		eqRanges[1] = Range<int>(numSamples / 4 - numSamplesPerLine / 2, numSamples / 4 + numSamplesPerLine / 2);
+		eqRanges[2] = Range<int>(numSamples / 2 - numSamplesPerLine / 2, numSamples / 2 + numSamplesPerLine / 2);
+		eqRanges[3] = Range<int>(3 * numSamples / 4 - numSamplesPerLine / 2, 3 * numSamples / 4 + numSamplesPerLine / 2);
+		eqRanges[4] = Range<int>(numSamples - numSamplesPerLine / 2, numSamples + numSamplesPerLine / 2);
+
+		for (int i = 0; i < numSamples; i += numSamplesPerLine)
+		{
+			auto lineChar = '|';
+
+			for (const auto& r : eqRanges)
 			{
-				float cValue = ((float)c / (float)numCols) * 2.0f - 1.0f;
-
-				Range<float> cRange(cValue - (1.0f / (float)numCols), cValue + (1.0f / (float)numCols));
-
-				juce_wchar nc;
-
-				if (mag == 0.0f)
+				if (r.contains(i))
 				{
-					nc = cRange.contains(0.0f) ? 'X' : ' ';
+					lineChar = '=';
+					break;
 				}
-				else if (mag < 0.0f)
-				{
-					if (cRange.contains(mag))
-						nc = 'X';
-					else if (cValue < mag)
-						nc = ' ';
-					else
-					{
-						if (cRange.contains(0.0f))
-							nc = '0';
-						else if (cValue < 0.0f)
-							nc = '-';
-						else
-							nc = ' ';
-					}
-				}
-				else
-				{
-					if (cRange.contains(mag))
-						nc = 'X';
-					else if (cValue < 0.0f)
-					{
-						nc = ' ';
-					}
-					else
-					{
-						nc = cValue > mag ? ' ' : '-';
-					}
-				}
-
-				s << nc;
 			}
+			
+			s << "\n" << lineChar;
+			s << printBufferSlice(b1, i, numSamplesPerLine, numCols);
 
-			s << "\n";
+			if (b2 != nullptr)
+				s << lineChar << printBufferSlice(b2, i, numSamplesPerLine, numCols);
+
+			s << lineChar;
 		}
 	}
 

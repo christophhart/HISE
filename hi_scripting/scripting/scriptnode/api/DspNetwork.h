@@ -1198,7 +1198,7 @@ struct HostHelpers
 };
 
 
-#if USE_BACKEND
+#if !USE_FRONTEND
 using namespace snex;
 using namespace snex::ui;
 
@@ -1310,7 +1310,6 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 
     /** Returns the exception that was caused by the last test run (or empty if fine). */
     String getLastTestException() const;
-    
     
 	// ================================================================================= API Methods
 
