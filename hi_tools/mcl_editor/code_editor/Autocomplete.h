@@ -54,7 +54,7 @@ public:
 			if (input.length() == 1)
 				return code.toLowerCase().startsWith(input.toLowerCase());
 			else
-				return FuzzySearcher::fitsSearch(input.toLowerCase(), code.toLowerCase(), JUCE_LIVE_CONSTANT_OFF(0.6));
+				return FuzzySearcher::fitsSearch(input.toLowerCase(), code.toLowerCase(), JUCE_LIVE_CONSTANT(0.6));
 		}
 
 		virtual bool equals(const Token* other) const
@@ -323,13 +323,13 @@ public:
 
 	bool isEnabled() const { return enabled; }
 
-	private:
-
+    
+    
 	struct Sorter
 	{
 		static int compareElements(Token* first, Token* second)
 		{
-			if (first->priority > second->priority)
+            if (first->priority > second->priority)
 				return -1;
 
 			if (first->priority < second->priority)
@@ -337,10 +337,52 @@ public:
 
 			return first->tokenContent.compareIgnoreCase(second->tokenContent);
 		}
+        
 	};
 
-	
+    struct FuzzySorter
+    {
+        FuzzySorter(const String& e):
+          exactSearchTerm(e)
+        {
+            
+        };
+        
+        int compareElements(Token* first, Token* second) const
+        {
+            auto s1 = first->tokenContent;
+            auto s2 = second->tokenContent;
+            
+            auto exactMatch1 = s1.contains(exactSearchTerm);
+            auto exactMatch2 = s2.contains(exactSearchTerm);
+            
+            if(exactMatch1 && !exactMatch2)
+                return -1;
+            
+            if(!exactMatch1 && exactMatch2)
+                return 1;
+            
+            auto startsWith1 = s1.startsWith(exactSearchTerm);
+            auto startsWith2 = s2.startsWith(exactSearchTerm);
+            
+            if(startsWith1 && !startsWith2)
+                return -1;
+            
+            if(!startsWith1 && startsWith2)
+                return 1;
+            
+            return 0;
+        }
+        
+        String exactSearchTerm;
+    };
 
+    void sortForInput(const String& input)
+    {
+        FuzzySorter fs(input);
+        tokens.sort(fs);
+    }
+    
 private:
 
 	bool enabled = true;
