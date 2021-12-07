@@ -639,6 +639,9 @@ public:
 		/** Returns enabled state of midi channel (0 = All channels). */
 		bool isMidiChannelEnabled(int index);
 
+		/** Returns an array of the form [width, height]. */
+		var getUserDesktopSize();
+
 		// ============================================================================================================
 
 	private:
