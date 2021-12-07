@@ -60,14 +60,7 @@ struct InvertableParameterRange
 		inv(false)
 	{};
 
-	double convertFrom0to1(double input) const
-	{
-		if (isIdentity)
-			return input;
-
-		input = inv ? (1.0 - input) : input;
-		return rng.convertFrom0to1(input);
-	}
+	double convertFrom0to1(double input) const;
 
 	InvertableParameterRange inverted() const
 	{
@@ -76,14 +69,7 @@ struct InvertableParameterRange
 		return copy;
 	}
 
-	double convertTo0to1(double input) const
-	{
-		if (isIdentity)
-			return input;
-
-		input = rng.convertTo0to1(input);
-		return inv ? (1.0 - input) : input;
-	}
+	double convertTo0to1(double input) const;
 
 	Range<double> getRange() const
 	{
@@ -129,6 +115,8 @@ struct RangeHelpers
 	static InvertableParameterRange getDoubleRange(const ValueTree& t);
 
 	static void storeDoubleRange(ValueTree& d, InvertableParameterRange r, UndoManager* um);
+
+	static bool equalsWithError(const InvertableParameterRange& r1, const InvertableParameterRange& r2, double maxError);
 
 	static bool isEqual(const InvertableParameterRange& r1, const InvertableParameterRange& r2)
 	{

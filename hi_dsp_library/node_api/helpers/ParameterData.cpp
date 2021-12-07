@@ -105,11 +105,34 @@ void RangeHelpers::storeDoubleRange(ValueTree& d, InvertableParameterRange r, Un
 	d.setProperty(SkewFactor, r.rng.skew, um);
 }
 
+bool RangeHelpers::equalsWithError(const InvertableParameterRange& r1, const InvertableParameterRange& r2, double maxError)
+{
+	if (isEqual(r1, r2))
+		return true;
+
+	auto startError = hmath::abs(r1.getRange().getStart() - r2.getRange().getStart());
+	auto endError = hmath::abs(r1.getRange().getEnd() - r2.getRange().getEnd());
+	auto skewError = hmath::abs(r1.rng.skew - r2.rng.skew);
+	auto intervalError = hmath::abs(r1.rng.interval - r2.rng.interval);
+
+	auto thisError = jmax(startError, endError, skewError, intervalError);
+
+	return thisError < hmath::abs(maxError);
+
+}
+
 scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const ValueTree& t)
 {
 	using namespace PropertyIds;
 
 	InvertableParameterRange r;
+
+	if (t.getType() == PropertyIds::Connection || t.getType() == PropertyIds::ModulationTarget)
+	{
+		// this must not happen (the connection does not have a range anymore, but just take the 
+		// target's parameter range
+		jassertfalse;
+	}
 
 	auto minValue = (double)t.getProperty(MinValue, 0.0);
 	auto maxValue = (double)t.getProperty(MaxValue, 1.0);
@@ -365,6 +388,32 @@ namespace parameter
 InvertableParameterRange::InvertableParameterRange(const ValueTree& v)
 {
 	*this = RangeHelpers::getDoubleRange(v);
+}
+
+double InvertableParameterRange::convertFrom0to1(double input) const
+{
+	if (isIdentity)
+		return input;
+
+	if (rng.skew != 1.0)
+		return ranges::RangeBase<double>::from0To1Skew(rng.start, rng.end, rng.skew, input);
+	else if (rng.interval != 0.0)
+		return ranges::RangeBase<double>::from0To1Step(rng.start, rng.end, rng.interval, input);
+	else
+		return ranges::RangeBase<double>::from0To1(rng.start, rng.end, input);
+}
+
+double InvertableParameterRange::convertTo0to1(double input) const
+{
+	if (isIdentity)
+		return input;
+
+	if (rng.skew != 1.0)
+		return ranges::RangeBase<double>::to0To1Skew(rng.start, rng.end, rng.skew, input);
+	else if (rng.interval != 0.0)
+		return ranges::RangeBase<double>::to0To1Step(rng.start, rng.end, rng.interval, input);
+	else
+		return ranges::RangeBase<double>::to0To1(rng.start, rng.end, input);
 }
 
 bool InvertableParameterRange::operator==(const InvertableParameterRange& other) const
