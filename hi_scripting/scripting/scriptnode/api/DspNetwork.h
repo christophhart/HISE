@@ -1282,6 +1282,10 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 		API_VOID_METHOD_WRAPPER_1(ScriptNetworkTest, setWaitingTime);
         API_METHOD_WRAPPER_0(ScriptNetworkTest, getLastTestException);
 		API_METHOD_WRAPPER_2(ScriptNetworkTest, createBufferContentAsAsciiArt);
+		API_METHOD_WRAPPER_0(ScriptNetworkTest, getListOfCompiledNodes);
+		API_METHOD_WRAPPER_0(ScriptNetworkTest, getListOfAllCompileableNodes);
+		API_METHOD_WRAPPER_0(ScriptNetworkTest, checkCompileHashCodes);
+		API_METHOD_WRAPPER_3(ScriptNetworkTest, createAsciiDiff);
 	};
 
 	ScriptNetworkTest(DspNetwork* n, var testData);;
@@ -1311,9 +1315,21 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 	/** Creates a string that vaguely represents the buffer data content. */
 	String createBufferContentAsAsciiArt(var buffer, int numLines);
 
+	/** Creates a ASCII diff with 'X' as error when the datas don't match. */
+	String createAsciiDiff(var data1, var data2, int numLines);
+
     /** Returns the exception that was caused by the last test run (or empty if fine). */
     String getLastTestException() const;
     
+	/** Returns the list of all compiled nodes. */
+	var getListOfCompiledNodes();
+
+	/** Returns the list of all nodes that can be compiled. */
+	var getListOfAllCompileableNodes();
+
+	/** Checks whether the hash code of all compiled nodes match their network file. */
+	var checkCompileHashCodes();
+
 	// ================================================================================= API Methods
 
 private:

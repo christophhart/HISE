@@ -1700,6 +1700,10 @@ ScriptNetworkTest::ScriptNetworkTest(DspNetwork* n, var testData) :
 	ADD_API_METHOD_1(setWaitingTime);
     ADD_API_METHOD_0(getLastTestException);
 	ADD_API_METHOD_2(createBufferContentAsAsciiArt);
+	ADD_API_METHOD_3(createAsciiDiff);
+	ADD_API_METHOD_0(getListOfCompiledNodes);
+	ADD_API_METHOD_0(getListOfAllCompileableNodes);
+	ADD_API_METHOD_0(checkCompileHashCodes);
 }
 
 String ScriptNetworkTest::getLastTestException() const
@@ -1711,6 +1715,83 @@ String ScriptNetworkTest::getLastTestException() const
     
     jassertfalse;
     return {};
+}
+
+var ScriptNetworkTest::getListOfCompiledNodes()
+{
+	auto mg = dynamic_cast<BackendProcessor*>(getScriptProcessor()->getMainController_())->dllManager;
+	
+	Array<var> list;
+
+	if (mg != nullptr && mg->projectDll != nullptr)
+	{
+		int numNodes = mg->projectDll->getNumNodes();
+
+		for (int i = 0; i < numNodes; i++)
+		{
+			list.add(var(mg->projectDll->getNodeId(i)));
+		}
+	}
+
+	return var(list);
+}
+
+juce::var ScriptNetworkTest::getListOfAllCompileableNodes()
+{
+	Array<var> list;
+
+	auto mg = dynamic_cast<BackendProcessor*>(getScriptProcessor()->getMainController_())->dllManager;
+
+	if (mg != nullptr)
+	{
+		auto fileList = mg->getNetworkFiles(getScriptProcessor()->getMainController_(), false);
+
+		for (auto f : fileList)
+		{
+			list.add(var(f.getFileNameWithoutExtension()));
+		}
+
+	}
+
+	return var(list);
+}
+
+var ScriptNetworkTest::checkCompileHashCodes()
+{
+	auto mg = dynamic_cast<BackendProcessor*>(getScriptProcessor()->getMainController_())->dllManager;
+
+	if (mg == nullptr)
+		return var("No DLL manager can be found");
+
+	if (mg != nullptr)
+	{
+		auto fileList = mg->getNetworkFiles(getScriptProcessor()->getMainController_(), false);
+
+		if (mg->projectDll == nullptr)
+			return var("The DLL was not loaded");
+
+		if (mg->projectDll != nullptr)
+		{
+			int numNodes = mg->projectDll->getNumNodes();
+
+			for (int i = 0; i < numNodes; i++)
+			{
+				auto id = mg->projectDll->getNodeId(i);
+				auto fileHash = mg->getHashForNetworkFile(getScriptProcessor()->getMainController_(), id);
+
+				auto compileHash = mg->projectDll->getHash(i);
+
+				if (fileHash != compileHash)
+				{
+					String errorMessage;
+					errorMessage << "Hash mismatch for node " << id << ": " << String(fileHash) << " -> " << String(compileHash);
+					return var(errorMessage);
+				}
+			}
+		}
+	}
+
+	return var(0);
 }
 
 juce::var ScriptNetworkTest::runTest()
@@ -1757,120 +1838,45 @@ String ScriptNetworkTest::dumpNetworkAsXml()
     return xml->createDocument("");
 }
 
-String printBufferSlice(VariantBuffer::Ptr b, int i, int numSamplesPerLine, int numCols)
+struct Buffer2Ascii
 {
-	String s;
-
-	int numThisTime = jmin(numSamplesPerLine, b->size - i);
-
-	auto magRange = b->buffer.findMinMax(0, i, numThisTime);
-
-	auto absStart = hmath::abs(magRange.getStart());
-	auto absEnd = hmath::abs(magRange.getEnd());
-
-	float mag;
-
-	if (absStart > absEnd)
-		mag = magRange.getStart();
-	if (absStart < absEnd)
-		mag = magRange.getEnd();
-	if (absStart == absEnd)
-		mag = magRange.getStart() + magRange.getLength() * 0.5f;
-
-	mag = jlimit(-1.0f, 1.0f, mag);
-
-	for (int c = 0; c < numCols; c++)
+	enum class WaveformCharacters
 	{
-		float cValue = ((float)c / (float)(numCols - 1)) * 2.0f - 1.0f;
+		ZeroChar = 0,
+		UpChar,
+		DownChar,
+		FillChar,
+		ZeroLineChar,
+		VoidChar,
+		UpperBounds,
+		LowerBounds,
+		QuarterMarker,
+		numWaveformCharacters
+	};
 
-		Range<float> cRange(cValue - (1.0f / (float)(numCols - 1)), cValue + (1.0f / (float)(numCols - 1)));
+	Buffer2Ascii(var data_, int numLines_):
+		data(data_),
+		characterSet("O/\\:- ==|"),
+		numLines(numLines_)
+	{
 
-		juce_wchar nc;
-
-		if (mag == 0.0f)
-		{
-			nc = cRange.contains(0.0f) ? 'X' : ' ';
-		}
-		else if (mag < 0.0f)
-		{
-			if (cRange.contains(mag))
-				nc = 'X';
-			else if (cValue < mag)
-				nc = ' ';
-			else
-			{
-				if (cRange.contains(0.0f))
-					nc = 'o';
-				else if (cValue < 0.0f)
-					nc = '-';
-				else
-					nc = ' ';
-			}
-		}
-		else
-		{
-			if (cRange.contains(mag))
-				nc = 'X';
-			else if (cRange.contains(0.0f))
-				nc = 'o';
-			else if (cValue < 0.0f)
-				nc = ' ';
-			else
-				nc = cValue > mag ? ' ' : '-';
-		}
-
-		s << nc;
 	}
 
-	return s;
-}
-
-String ScriptNetworkTest::createBufferContentAsAsciiArt(var buffer, int numLines)
-{
-	if (numLines == 0)
+	void setCharacterSet(const String& newCharacterSet)
 	{
-		reportScriptError("numLines must not be zero");
-		RETURN_IF_NO_THROW({});
+		characterSet = newCharacterSet;
 	}
 
-	String s;
-
-	VariantBuffer::Ptr b1, b2;
-
-	int numSamples = 0;
-
-	if (auto b = buffer.getBuffer())
+	String toString() const
 	{
-		b1 = b;
-		numSamples = b1->size;
-	}
-		
+		String s;
 
-	if (auto ar = buffer.getArray())
-	{
-		b1 = buffer[0].getBuffer();
-		b2 = buffer[1].getBuffer();
-
-		if (b1 == nullptr || b2 == nullptr)
-		{
-			reportScriptError("not a stereo channel array");
-			RETURN_IF_NO_THROW({});
-		}
-
-		if (b1->size != b2->size)
-		{
-			reportScriptError("Buffer size mismatch");
-			RETURN_IF_NO_THROW({});
-		}
-
-		numSamples = b1->size;
-	}
-
-	if (b1 != nullptr)
-	{
 		s << "\n";
+
+		auto numSamples = getNumSamples();
+
 		auto numSamplesPerLine = numSamples / numLines;
-		int numCols = b2 == nullptr ? 40 : 30;
+		int numCols = isMultiChannel() ? 9 : 13;
 
 		snex::Types::span<Range<int>, 5> eqRanges;
 
@@ -1880,30 +1886,300 @@ String ScriptNetworkTest::createBufferContentAsAsciiArt(var buffer, int numLines
 		eqRanges[3] = Range<int>(3 * numSamples / 4 - numSamplesPerLine / 2, 3 * numSamples / 4 + numSamplesPerLine / 2);
 		eqRanges[4] = Range<int>(numSamples - numSamplesPerLine / 2, numSamples + numSamplesPerLine / 2);
 
+		if (isMultiChannel())
+		{
+			for (int i = 0; i < getNumChannels(); i++)
+			{
+				s << get(WaveformCharacters::QuarterMarker);
+
+				for (int c = 0; c < numCols / 2; c++)
+					s << get(WaveformCharacters::VoidChar);
+
+				s << getChannelChar(getNumChannels() - 1 - i);
+
+				for (int c = 0; c < numCols / 2; c++)
+					s << get(WaveformCharacters::VoidChar);
+
+				s << get(WaveformCharacters::QuarterMarker);
+			}
+		}
+
 		for (int i = 0; i < numSamples; i += numSamplesPerLine)
 		{
-			auto lineChar = '|';
+			String lineChars; 
+			lineChars << get(WaveformCharacters::LowerBounds);
+			lineChars << get(WaveformCharacters::UpperBounds);
 
 			for (const auto& r : eqRanges)
 			{
 				if (r.contains(i))
 				{
-					lineChar = '=';
+					lineChars = {};
+					lineChars << get(WaveformCharacters::QuarterMarker);
+					lineChars << get(WaveformCharacters::QuarterMarker);
 					break;
 				}
 			}
-			
-			s << "\n" << lineChar;
-			s << printBufferSlice(b1, i, numSamplesPerLine, numCols);
 
-			if (b2 != nullptr)
-				s << lineChar << printBufferSlice(b2, i, numSamplesPerLine, numCols);
+			s << "\n";
 
-			s << lineChar;
+			for (int c = getNumChannels() - 1; c >= 0; c--)
+			{
+				s << lineChars[0];
+				s << printBufferSlice(getChannel(c), i, numSamplesPerLine, numCols);
+				s << lineChars[1];
+			}
+		}
+
+		return rotateString(s);
+	}
+
+	Result sanityCheck() const
+	{
+		if (numLines == 0)
+			return Result::fail("numLines must not be zero");
+
+		if (getNumSamples() == 0)
+			return Result::fail("Buffer must not have zero length");
+
+		if (isMultiChannel())
+		{
+			for (int i = getNumChannels()-1; i >= 0; i--)
+			{
+				auto c = getChannel(i);
+				if (c == nullptr)
+					return Result::fail("channel " + String(i + 1) + " is not a buffer");
+
+				if (c->size != getNumSamples())
+					return Result::fail("channel size mismatch at channel " + String(i + 1));
+			}
+		}
+		
+		return Result::ok();
+	}
+
+private:
+
+	juce_wchar getChannelChar(int channelIndex) const
+	{
+		if (getNumChannels() == 2)
+			return channelIndex == 0 ? 'L' : 'R';
+		else
+			return String(channelIndex + 1)[0];
+	}
+
+	juce_wchar get(WaveformCharacters s) const
+	{
+		return characterSet[(int)s];
+	}
+
+	int numLines;
+
+	int getNumSamples() const { return getChannel(0)->size; };
+
+	int getNumChannels() const { return isMultiChannel() ? data.size() : 1; }
+
+	VariantBuffer::Ptr getChannel(int index) const
+	{
+		if (!isMultiChannel())
+			return data.getBuffer();
+		else
+		{
+			return data[index].getBuffer();
 		}
 	}
 
-	return s;
+	bool isMultiChannel() const { return data.isArray(); }
+
+	String characterSet;
+	
+
+	var data;
+
+	static String rotateString(String s)
+	{
+		auto rows = StringArray::fromLines(s);
+
+		rows.removeEmptyStrings();
+
+		int numCols = rows[0].length();
+
+		StringArray rotated;
+
+		for (int i = numCols - 1; i >= 0; i--)
+		{
+			String newRow;
+			newRow.preallocateBytes(rows.size());
+
+			for (const auto& r : rows)
+			{
+				newRow << r[i];
+			}
+
+			rotated.add(newRow);
+		}
+
+		auto r = "\n" + rotated.joinIntoString("\n");
+
+		return r;
+	}
+
+	String printBufferSlice(VariantBuffer::Ptr b, int i, int numSamplesPerLine, int numCols) const
+	{
+		String s;
+		s.preallocateBytes(numCols);
+
+		int numThisTime = jmin(numSamplesPerLine, b->size - i);
+
+		auto magRange = b->buffer.findMinMax(0, i, numThisTime);
+
+		auto firstHalfMag = b->buffer.findMinMax(0, i, numThisTime / 2);
+		auto secondHalfMag = b->buffer.findMinMax(0, i + numThisTime / 2, numThisTime / 2);
+
+		char SignalChar;
+
+		float delta = 0.0f;
+
+		auto ptr = b->buffer.getReadPointer(0, i);
+
+		for (int j = 1; j < numThisTime; j++)
+			delta += ptr[j] - ptr[j - 1];
+
+		float cDelta = 1.0f / ((float)numCols - 1.0f);
+
+		if (hmath::abs(delta) < cDelta * JUCE_LIVE_CONSTANT(0.25))
+			SignalChar = get(WaveformCharacters::ZeroLineChar);
+		else if (delta > 0.0)
+			SignalChar = get(WaveformCharacters::UpChar);
+		else
+			SignalChar = get(WaveformCharacters::DownChar);
+
+		auto absStart = hmath::abs(magRange.getStart());
+		auto absEnd = hmath::abs(magRange.getEnd());
+
+		float mag;
+
+		if (absStart > absEnd)
+			mag = magRange.getStart();
+		if (absStart < absEnd)
+			mag = magRange.getEnd();
+		if (absStart == absEnd)
+			mag = magRange.getStart() + magRange.getLength() * 0.5f;
+
+		mag = jlimit(-1.0f, 1.0f, mag);
+
+		mag = (mag + 1.0f) * 0.5f;
+
+		auto thisColIndex = roundToInt(mag * (numCols - 1));
+
+		auto halfCol = numCols / 2;
+
+		for (int i = 0; i < numCols; i++)
+		{
+			if (i == thisColIndex)
+				s << SignalChar;
+			else
+			{
+				if (i == halfCol)
+				{
+					s << get(WaveformCharacters::ZeroLineChar);
+				}
+				else if (i < halfCol)
+				{
+					if (i < thisColIndex)
+						s << get(WaveformCharacters::VoidChar);
+					else
+						s << get(WaveformCharacters::FillChar);
+				}
+				else
+				{
+					if (i > thisColIndex)
+						s << get(WaveformCharacters::VoidChar);
+					else
+						s << get(WaveformCharacters::FillChar);
+				}
+			}
+		}
+
+		return s;
+	}
+	
+};
+
+
+String ScriptNetworkTest::createBufferContentAsAsciiArt(var buffer, int numLines)
+{
+	Buffer2Ascii bf(buffer, numLines);
+
+	auto r = bf.sanityCheck();
+
+	if (r.failed())
+	{
+		reportScriptError(r.getErrorMessage());
+		RETURN_IF_NO_THROW({});
+	}
+
+	return bf.toString();
+}
+
+String ScriptNetworkTest::createAsciiDiff(var data1, var data2, int numLines)
+{
+	Buffer2Ascii b1(data1, numLines);
+	Buffer2Ascii b2(data2, numLines);
+
+	b1.setCharacterSet("O/\\ - ==|");
+	b2.setCharacterSet("O/\\ - ==|");
+
+	auto r = b1.sanityCheck();
+
+	if (!r.wasOk())
+	{
+		reportScriptError(r.getErrorMessage());
+		RETURN_IF_NO_THROW({});
+	}
+
+	r = b2.sanityCheck();
+
+	if (!r.wasOk())
+	{
+		reportScriptError(r.getErrorMessage());
+		RETURN_IF_NO_THROW({});
+	}
+
+	auto s1 = b1.toString();
+	auto s2 = b2.toString();
+
+	if (s1.compare(s2) == 0)
+	{
+		return s1;
+	}
+	else
+	{
+		auto p1 = s1.begin();
+		auto p2 = s2.begin();
+		
+		int l = s1.length();
+		int l2 = s2.length();
+
+		jassert(l == l2);
+
+		String newC;
+		newC.preallocateBytes(l);
+
+		for (int i = 0; i < l; i++)
+		{
+			if (*p1 != *p2)
+				newC << 'X';
+			else
+				newC << *p1;
+
+			++p1;
+			++p2;
+		}
+
+		return newC;
+	}
+
 }
 
 void ScriptNetworkTest::setTestProperty(String id, var value)
