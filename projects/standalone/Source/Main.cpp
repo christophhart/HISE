@@ -65,12 +65,22 @@ private:
 		return f;
 	}
 
-	static File getFilePathArgument(const StringArray& args)
+	
+
+	static File getFilePathArgument(const StringArray& args, const File& root = File())
 	{
 		auto s = getArgument(args, "-p:");
 
 		if (s.isNotEmpty() && File::isAbsolutePath(s))
 			return File(s);
+
+		if (root.isDirectory())
+		{
+			auto rel = root.getChildFile(s);
+
+			if (rel.existsAsFile())
+				return rel;
+		}
 
 		throwErrorAndQuit("`" + s + "` is not a valid path");
 
@@ -133,6 +143,14 @@ public:
         print("");
         print("create-docs -p:PATH");
         print("Creates the HISE documentation files from the markdown files in the given directory.");
+		print("load -p:PATH");
+		print("");
+		print("Loads the given file (either .xml file or .hip file) and returns the status code");
+		print("You can call Engine.setCommandLineStatus(1) in the onInit callback to report an error");
+		print("");
+		print("compile_networks -c:CONFIG");
+		print("Compiles the DSP networks in the given project folder. Use the -c flag to specify the build");
+		print("configuration ('Debug' or 'Release')");
 
 		exit(0);
 	}
@@ -213,6 +231,85 @@ public:
 		else throwErrorAndQuit(pd.getFullPathName() + " is not a valid folder");
 	}
 	
+	static int loadPresetFile(const String& commandLine)
+	{
+		auto args = getCommandLineArgs(commandLine);
+
+		CompileExporter::setExportingFromCommandLine();
+		
+		ScopedPointer<StandaloneProcessor> processor = new StandaloneProcessor();
+
+		auto bp = dynamic_cast<BackendProcessor*>(processor->getCurrentProcessor());
+
+		ModulatorSynthChain* mainSynthChain = bp->getMainSynthChain();
+		File currentProjectFolder = GET_PROJECT_HANDLER(mainSynthChain).getWorkDirectory();
+
+		File presetFile = getFilePathArgument(args, bp->getActiveFileHandler()->getRootFolder());
+
+		CompileExporter::setExportUsingCI(false);
+
+		File projectDirectory = presetFile.getParentDirectory().getParentDirectory();
+
+		std::cout << "Loading the preset...";
+
+		CompileExporter exporter(mainSynthChain);
+
+		if (presetFile.getFileExtension() == ".hip")
+		{
+			bp->loadPresetFromFile(presetFile, nullptr);
+		}
+		else if (presetFile.getFileExtension() == ".xml")
+		{
+			auto xml = XmlDocument::parse(presetFile);
+
+			if (xml != nullptr)
+			{
+				XmlBackupFunctions::addContentFromSubdirectory(*xml, presetFile);
+				String newId = xml->getStringAttribute("ID");
+
+				auto v = ValueTree::fromXml(*xml);
+				XmlBackupFunctions::restoreAllScripts(v, mainSynthChain, newId);
+				
+				bp->loadPresetFromValueTree(v);
+			}
+		}
+
+		std::cout << "DONE" << std::endl << std::endl;
+
+		processor = nullptr;
+		
+		return 0;
+	}
+
+	static void compileNetworks(const String& commandLine)
+	{
+		auto args = getCommandLineArgs(commandLine);
+		auto config = getArgument(args, "-c:");
+
+		if (config != "Debug" && config != "Release")
+		{
+			throwErrorAndQuit("Invalid build configuration: " + config);
+		}
+
+		ScopedPointer<StandaloneProcessor> sp = new StandaloneProcessor();
+
+		auto mc = dynamic_cast<MainController*>(sp->getCurrentProcessor());
+
+		raw::Builder builder(mc);
+
+		auto jsfx = builder.create<JavascriptMasterEffect>(mc->getMainSynthChain(), raw::IDs::Chains::FX);
+
+		auto network = jsfx->getOrCreate("dsp");
+
+		CompileExporter::setExportingFromCommandLine();
+
+		hise::DspNetworkCompileExporter exporter(nullptr, dynamic_cast<BackendProcessor*>(mc));
+
+		exporter.getComboBoxComponent("build")->setText(config, dontSendNotification);
+
+		exporter.run();
+	}
+
 	static void setProjectFolder(const String& commandLine)
 	{
 		auto args = getCommandLineArgs(commandLine);
@@ -425,7 +522,7 @@ public:
     //==============================================================================
     void initialise (const String& commandLine) override
     {
-        if (commandLine.startsWith("export"))
+		if (commandLine.startsWith("export"))
 		{
 			String pluginFile;
 
@@ -501,6 +598,25 @@ public:
 
 			Logger::setCurrentLogger(nullptr);
 			stdLogger = nullptr;
+
+			quit();
+			return;
+		}
+		else if (commandLine.startsWith("load "))
+		{
+			auto ok = CommandLineActions::loadPresetFile(commandLine);
+
+			if (ok != 0)
+			{
+				throw std::exception();
+			}
+
+			quit();
+			return;
+		}
+		else if (commandLine.startsWith("compile_networks"))
+		{
+			CommandLineActions::compileNetworks(commandLine);
 
 			quit();
 			return;
