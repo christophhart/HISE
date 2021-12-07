@@ -447,7 +447,7 @@ template <int NV, typename ParameterType> struct simple_ar: public pimpl::envelo
 		for (auto& s : states)
 			s.reset();
 
-		sendGateOffAtReset();
+		this->sendGateOffAtReset();
 	}
 
 	void handleHiseEvent(HiseEvent& e)
@@ -613,7 +613,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		for (state_base& s : states)
 			s.current_state = pimpl::ahdsr_base::state_base::IDLE;
 
-		sendGateOffAtReset();
+		this->sendGateOffAtReset();
 	}
 
 	void handleHiseEvent(HiseEvent& e)
