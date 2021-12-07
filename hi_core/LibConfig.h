@@ -113,7 +113,7 @@ private:
 
 #define LOG_START(x) StartupLogger::log(x);
 #else
-#define LOG_START(x) DBG(x);
+#define LOG_START(x)
 #endif
 
 #ifndef USE_RELATIVE_PATH_FOR_AUDIO_FILES

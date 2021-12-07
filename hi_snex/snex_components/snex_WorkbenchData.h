@@ -217,6 +217,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 		friend class WorkbenchData;
 
 		WorkbenchData::WeakPtr parent;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SubItemBase);
 	};
 
 	struct CompileResult: public ApiProviderBase
@@ -957,6 +959,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 	private:
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(CodeProvider);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CodeProvider);
 	};
 
 	struct DefaultCodeProvider: public CodeProvider

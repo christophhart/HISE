@@ -621,7 +621,6 @@ public:
 	SharedCache()
 	{
 		DataType* unused = nullptr;
-		DBG("Create Shared Cache Pool for " + PoolHelpers::getPrettyName(unused));
 		ignoreUnused(unused);
 	}
 
@@ -659,7 +658,6 @@ public:
 	~SharedCache()
 	{
 		DataType* unused = nullptr;
-		DBG("Delete Shared Cache Pool for " + PoolHelpers::getPrettyName(unused));
 		ignoreUnused(unused);
 	}
 

@@ -919,7 +919,11 @@ juce::ValueTree ProjectHandler::getEmbeddedNetwork(const String& id)
 	{
 		if (auto xml = XmlDocument::parse(nf))
 		{
-			debugToConsole(getMainController()->getMainSynthChain(), "Load network " + nf.getFileName() + " from project folder");
+			if (!CompileExporter::isExportingFromCommandLine())
+			{
+				debugToConsole(getMainController()->getMainSynthChain(), "Load network " + nf.getFileName() + " from project folder");
+			}
+
 			return ValueTree::fromXml(*xml);
 		}
 	}

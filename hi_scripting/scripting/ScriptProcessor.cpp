@@ -1458,8 +1458,6 @@ bool JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUnd
 
 	getSnippet(0)->replaceContentAsync(codeToCut);
 
-	debugToConsole(dynamic_cast<Processor*>(this), "All callbacks sucessfuly parsed");
-
 	return true;
 }
 

@@ -213,6 +213,15 @@ void MainController::CodeHandler::initialise()
 
 void MainController::CodeHandler::writeToConsole(const String &t, int warningLevel, const Processor *p, Colour /*c*/)
 {
+#if USE_BACKEND
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		DBG(t);
+		std::cout << t << "\n";
+		return;
+	}
+#endif
+
 	pendingMessages.push({ (WarningLevel)warningLevel, const_cast<Processor*>(p), t });
 	triggerAsyncUpdate();
 }

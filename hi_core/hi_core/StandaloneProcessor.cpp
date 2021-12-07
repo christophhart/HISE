@@ -146,11 +146,6 @@ StandaloneProcessor::StandaloneProcessor()
 
 	ScopedPointer<XmlElement> xml = AudioProcessorDriver::getSettings();
 
-	if (xml != nullptr)
-	{
-		dynamic_cast<MainController*>(wrappedProcessor.get())->getDebugLogger().logMessage("Sucessfully loaded XML settings from disk");
-	}
-
 #if USE_BACKEND
 	if(!CompileExporter::isExportingFromCommandLine()) 
 		dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(xml);
@@ -190,16 +185,9 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
     
 	DebugLogger& logger = dynamic_cast<MainController*>(this)->getDebugLogger();
 
-	if (deviceData != nullptr)
-	{
-		logger.logMessage("Audio Driver Initialisation with Settings:  \n\n```xml\n" + deviceData->createDocument("") + "```\n");
-	}
-
 	if (deviceData != nullptr && deviceData->hasTagName("DEVICESETUP"))
 	{
 		String errorMessage = deviceManager->initialise(0, 2, deviceData, true);
-
-		
 
 		if (errorMessage.isNotEmpty() || deviceManager->getCurrentAudioDevice() == nullptr)
 		{
@@ -210,17 +198,7 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 			const String error = deviceManager->initialiseWithDefaultDevices(0, 2);
 
 			if (error.isNotEmpty())
-			{
 				logger.logMessage("Error initialising with default settings: " + error);
-			}
-			else
-			{
-				logger.logMessage("... audio driver successfully initialised with default settings");
-			}
-		}
-		else
-		{
-			logger.logMessage("... audio driver successfully initialised");
 		}
 	}
 	else
@@ -230,13 +208,7 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 		const String error = deviceManager->initialiseWithDefaultDevices(0, 2);
 
 		if (error.isNotEmpty())
-		{
 			logger.logMessage("Error initialising with default settings: " + error);
-		}
-		else
-		{
-			logger.logMessage("... audio driver successfully initialised with default settings");
-		}
 	}
 
 	callback->setProcessor(dynamic_cast<AudioProcessor*>(this));
