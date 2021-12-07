@@ -105,6 +105,11 @@ bool LockHelpers::noMessageThreadBeyondInitialisation(const MainController* mc)
 
 bool LockHelpers::isMessageThreadBeyondInitialisation(const MainController* mc)
 {
+#if USE_BACKEND
+	if (CompileExporter::isExportingFromCommandLine())
+		return false;
+#endif
+
 	if (!mc->isInitialised())
 	{
 		return false;

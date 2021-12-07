@@ -276,6 +276,12 @@ DspNetworkGraph::~DspNetworkGraph()
 {
 	if (network != nullptr)
 		network->removeSelectionListener(this);
+
+	periodicRepainter = nullptr;
+	root = nullptr;
+
+
+	network = nullptr;
 }
 
 
@@ -2220,7 +2226,7 @@ void KeyboardPopup::PopupList::Item::resized()
 
 DspNetworkGraph::WrapperWithMenuBar::WrapperWithMenuBar(DspNetworkGraph* g) :
 	WrapperWithMenuBarBase(g),
-	n(g->network)
+	n(g->network.get())
 {
 	rebuildAfterContentChange();
 }
@@ -2235,7 +2241,7 @@ void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
 
 	if (n->getParentNetwork() != nullptr)
 	{
-		BACKEND_ONLY(addCustomComponent(new BreadcrumbComponent(n)));
+		BACKEND_ONLY(addCustomComponent(new BreadcrumbComponent(n.get())));
 	}
 
     addButton("debug");

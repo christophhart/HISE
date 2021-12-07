@@ -1500,6 +1500,14 @@ scriptnode::NodeBase::Ptr DspNetwork::AnonymousNodeCloner::clone(NodeBase::Ptr p
 	return parent.createFromValueTree(parent.isPolyphonic(), p->getValueTree(), false);
 }
 
+DspNetwork::ProjectNodeHolder::~ProjectNodeHolder()
+{
+	if (loaded && dll != nullptr)
+	{
+		dll->deInitNode(&n);
+	}
+}
+
 void DspNetwork::ProjectNodeHolder::process(ProcessDataDyn& data)
 {
 	NodeProfiler np(network.getRootNode(), data.getNumSamples());
@@ -1662,7 +1670,10 @@ ScriptNetworkTest::ScriptNetworkTest(DspNetwork* n, var testData) :
 	wb(new snex::ui::WorkbenchData())
 {
 	wb->setCompileHandler(new CHandler(wb, n));
-	wb->setCodeProvider(new CProvider(wb, n));
+
+	cProv = new CProvider(wb, n);
+
+	wb->setCodeProvider(cProv);
 
 	wb->getTestData().fromJSON(testData, dontSendNotification);
 

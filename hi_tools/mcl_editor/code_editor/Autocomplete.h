@@ -41,6 +41,8 @@ public:
 			tokenContent(text)
 		{};
 
+		virtual ~Token() {};
+
 		/** Override the method and check whether the currently written input matches the token. */
 		virtual bool matches(const String& input, const String& previousToken, int lineNumber) const
 		{

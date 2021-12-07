@@ -2305,7 +2305,7 @@ public:
 
 	static int getTempoInSamples(double hostTempoBpm, double sampleRate, float tempoFactor);
 
-	static const StringArray& getTempoNames() { return tempoNames; };
+	static StringArray getTempoNames();;
 
 	/** Returns the time for the specified tempo in milliseconds. */
 	static float getTempoInMilliSeconds(double hostTempoBpm, Tempo t);;
@@ -2333,7 +2333,9 @@ public:
 
 private:
 
-	static StringArray tempoNames;
+	using TempoString = char[6];
+
+	static TempoString tempoNames[numTempos];
 	static float tempoFactors[numTempos];
 
 };

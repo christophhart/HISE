@@ -1182,8 +1182,7 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 		{
 			if (auto validNode = dynamic_cast<SoftBypassNode*>(tn))
 			{
-				auto r = RangeHelpers::getDoubleRange(c).getRange();
-				p = new NodeBase::DynamicBypassParameter(tn, r);
+				p = new NodeBase::DynamicBypassParameter(tn, {});
 			}
 			else
 			{
@@ -1200,7 +1199,7 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 
 		if (numConnections == 1)
 		{
-			if (!scaleInput || p->getRange() == inputRange)
+			if (!scaleInput || RangeHelpers::equalsWithError(p->getRange(), inputRange, 0.001))
 				return p;
 		}
 

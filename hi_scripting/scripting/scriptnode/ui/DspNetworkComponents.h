@@ -729,7 +729,7 @@ public:
 
 		void addButton(const String& b) override;
 
-		WeakReference<DspNetwork> n;
+		ReferenceCountedObjectPtr<DspNetwork> n;
 	};
 
 	struct Actions
@@ -1047,7 +1047,7 @@ public:
 	WeakReference<NodeDropTarget> currentDropTarget;
 	ScopedPointer<NodeComponent> currentlyDraggedComponent;
 
-	WeakReference<DspNetwork> network;
+	ReferenceCountedObjectPtr<DspNetwork> network;
 };
 
 

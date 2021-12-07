@@ -34,6 +34,11 @@ DLL_EXPORT size_t getNodeId(int index, char* t)
 	return HelperFunctions::writeString(t, f.getId(index).getCharPointer());
 }
 
+DLL_EXPORT void deInitOpaqueNode(scriptnode::OpaqueNode* n)
+{
+	n->callDestructor();
+}
+
 DLL_EXPORT void initOpaqueNode(scriptnode::OpaqueNode* n, int index)
 {
 	f.initOpaqueNode(n, index);

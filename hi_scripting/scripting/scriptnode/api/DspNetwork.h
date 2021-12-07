@@ -1023,13 +1023,7 @@ private:
 			return 0.0f;
 		};
 
-		~ProjectNodeHolder()
-		{
-			if (loaded)
-			{
-				n.callDestructor();
-			}
-		}
+		~ProjectNodeHolder();
 
 		bool isActive() const { return forwardToNode; }
 
@@ -1316,6 +1310,8 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 private:
 
 	snex::ui::WorkbenchData::Ptr wb;
+
+	ScopedPointer<CProvider> cProv;
 };
 
 

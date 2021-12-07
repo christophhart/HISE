@@ -390,6 +390,14 @@ bool MainController::KillStateHandler::killVoicesAndCall(Processor* p, const Pro
 {
 	WARN_IF_AUDIO_THREAD(true, IllegalOps::GlobalLocking);
 
+#if USE_BACKEND
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		functionToExecuteWhenKilled(p);
+		return true;
+	}
+#endif
+
     if (!initialised())
 	{
 		jassert(currentState == State::WaitingForInitialisation || 

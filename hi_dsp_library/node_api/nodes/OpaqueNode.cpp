@@ -312,6 +312,14 @@ bool ProjectDll::initNode(OpaqueNode* n, int index, bool polyphonicIfPossible)
 }
 
 
+void ProjectDll::deInitNode(OpaqueNode* n)
+{
+	if (dinf != nullptr)
+	{
+		dinf(n);
+	}
+}
+
 ProjectDll::ProjectDll(const File& f)
 {
 	dll = new DynamicLibrary();
@@ -324,8 +332,9 @@ ProjectDll::ProjectDll(const File& f)
 		gndo = (GetNumDataObjects)dll->getFunction("getNumDataObjects");
 		gwtf = (GetWrapperTypeFunc)dll->getFunction("getWrapperType");
 		ghf = (GetHashFunction)dll->getFunction("getHash");
+		dinf = (DeInitNodeFunc)dll->getFunction("deInitOpaqueNode");
 
-		ok = gnnf != nullptr && gnif != nullptr && inf != nullptr && ghf != nullptr && gwtf != nullptr;
+		ok = gnnf != nullptr && gnif != nullptr && inf != nullptr && ghf != nullptr && gwtf != nullptr && dinf != nullptr;
 	}
 	else
 	{
@@ -334,6 +343,7 @@ ProjectDll::ProjectDll(const File& f)
 		inf = nullptr;
 		dnf = nullptr;
 		ghf = nullptr;
+		dinf = nullptr;
 
 		ok = false;
 	}

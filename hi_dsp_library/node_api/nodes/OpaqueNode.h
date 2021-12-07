@@ -381,6 +381,7 @@ namespace dll
 		typedef int(*GetNumNodesFunc)();
 		typedef size_t(*GetNodeIdFunc)(int, char*);
 		typedef void(*InitNodeFunc)(scriptnode::OpaqueNode*, int, bool);
+		typedef void(*DeInitNodeFunc)(scriptnode::OpaqueNode*);
 		typedef void(*DeleteNodeFunc)(void* obj);
 		typedef int(*GetNumDataObjects)(int, int);
 
@@ -393,6 +394,8 @@ namespace dll
 		String getNodeId(int index) const;
 
 		bool initNode(OpaqueNode* n, int index, bool polyphonicIfPossible);
+
+		void deInitNode(OpaqueNode* n);
 
 		ProjectDll(const File& f);
 
@@ -413,6 +416,7 @@ namespace dll
 		GetNumNodesFunc gnnf;
 		GetNodeIdFunc gnif;
 		InitNodeFunc inf;
+		DeInitNodeFunc dinf;
 		DeleteNodeFunc dnf;
 		GetNumDataObjects gndo;
 		GetWrapperTypeFunc gwtf;

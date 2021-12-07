@@ -1247,6 +1247,15 @@ template <class T> struct node : public scriptnode::data::base
 
 	void prepare(PrepareSpecs ps)
 	{
+		if (ps.numChannels != NumChannels)
+		{
+			Error e;
+			e.error = Error::ChannelMismatch;
+			e.actual = ps.numChannels;
+			e.expected = NumChannels;
+			throw e;
+		}
+
 		obj.prepare(ps);
 	}
 

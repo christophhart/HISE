@@ -516,7 +516,13 @@ template <int BSize, int Alignment> struct ObjectStorage
 		free();
 	}
 
-    ObjectStorage& operator==(ObjectStorage&& other)
+	~ObjectStorage()
+	{
+		free();
+		bigBuffer.free();
+	}
+
+    ObjectStorage& operator=(ObjectStorage&& other)
     {
         objPtr = other.objPtr;
         other.objPtr = nullptr;
@@ -538,7 +544,11 @@ template <int BSize, int Alignment> struct ObjectStorage
 
 	void free()
 	{
-		bigBuffer.free();
+		if (allocatedSize > SmallBufferSize)
+		{
+			bigBuffer.free();
+		}
+		
 		memset(smallBuffer, 0, BSize + Alignment);
 		objPtr = nullptr;
 		allocatedSize = 0;
