@@ -139,7 +139,17 @@ void NodeBase::set(var id, var value)
 {
 	checkValid();
 
-	setNodeProperty(id.toString(), value);
+	Identifier id_(id.toString());
+
+	if (hasNodeProperty(id_))
+	{
+		setNodeProperty(id.toString(), value);
+	}
+
+	if (getValueTree().hasProperty(id_))
+	{
+		getValueTree().setProperty(id_, value, getUndoManager());
+	}
 }
 
 var NodeBase::getNodeProperty(const Identifier& id)
@@ -516,8 +526,15 @@ void NodeBase::updateFrozenState(Identifier id, var newValue)
 {
 	if (auto n = getEmbeddedNetwork())
 	{
-		if (n->canBeFrozen())
-			n->setUseFrozenNode((bool)newValue);
+		try
+		{
+			if (n->canBeFrozen())
+				n->setUseFrozenNode((bool)newValue);
+		}
+		catch (Error& e)
+		{
+			getRootNetwork()->getExceptionHandler().addError(this, e);
+		}
 	}
 }
 
