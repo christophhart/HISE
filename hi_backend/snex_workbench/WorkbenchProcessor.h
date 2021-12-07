@@ -390,11 +390,12 @@ struct DspNetworkCompileExporter : public hise::DialogWindowWithBackgroundThread
 	enum class DspNetworkErrorCodes
 	{
 		OK,
+		NoNetwork,
 		NonCompiledInclude,
 		UninitialisedProperties
 	};
 
-	DspNetworkCompileExporter(SnexWorkbenchEditor* editor);
+	DspNetworkCompileExporter(Component* editor, BackendProcessor* bp);
 
 	void run() override;
 
@@ -404,9 +405,15 @@ struct DspNetworkCompileExporter : public hise::DialogWindowWithBackgroundThread
 
 private:
 
+	DspNetwork* getNetwork();
+
 	static Array<File> getIncludedNetworkFiles(const File& networkFile);
 
-	SnexWorkbenchEditor* editor;
+	SnexWorkbenchEditor* getEditorWorkbench() { return dynamic_cast<SnexWorkbenchEditor*>(editor); }
+
+	BackendDllManager* getDllManager();
+
+	Component* editor;
 
 	ErrorCodes ok = ErrorCodes::UserAbort;
 
@@ -429,6 +436,8 @@ private:
 	File getSourceDirectory(bool isDllMainFile) const;
 
 	void createMainCppFile(bool isDllMainFile);
+
+	snex::cppgen::CustomNodeProperties nodeProperties;
 };
 
 

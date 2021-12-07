@@ -76,6 +76,16 @@ struct ValueTreeIterator
 		return v.getParent().indexOf(v);
 	}
 
+	static ValueTree getRoot(const ValueTree& v)
+	{
+		auto p = v.getParent();
+
+		if (p.isValid())
+			return getRoot(p);
+
+		return v;
+	}
+
 	static bool isBetween(IterationType l, IterationType u, IterationType v);
 	static bool isBackwards(IterationType t);
 	static bool isRecursive(IterationType t);
@@ -108,6 +118,8 @@ struct ValueTreeIterator
 	static String getSnexCode(const ValueTree& nodeTree);
 
 	static NamespacedIdentifier getNodeFactoryPath(const ValueTree& nodeTree);
+
+	static ValueTree getTargetParameterTree(const ValueTree& connectionTree);
 
 	static bool hasChildNodeWithProperty(const ValueTree& nodeTree, Identifier propId);
 

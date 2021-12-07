@@ -896,8 +896,14 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 
 	auto mustCreateChain = !RangeHelpers::isIdentity(inputRange) || numConnections > 1;
 
-	if (numConnections == 1 && RangeHelpers::isEqual(inputRange, RangeHelpers::getDoubleRange(cTree.getChild(0))))
-		mustCreateChain = false;
+	
+
+	if (numConnections == 1)
+	{
+		auto pTree = ValueTreeIterator::getTargetParameterTree(cTree.getChild(0));
+		if(RangeHelpers::isEqual(inputRange, RangeHelpers::getDoubleRange(pTree)))
+			mustCreateChain = false;
+	}
 
 	if (!mustCreateChain)
 	{
@@ -1002,7 +1008,9 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 	Connection rc;
 
-	rc.targetRange = RangeHelpers::getDoubleRange(c);
+	auto targetTree = ValueTreeIterator::getTargetParameterTree(c);
+
+	rc.targetRange = RangeHelpers::getDoubleRange(targetTree);
 	
 	if (c.getParent().getType() == PropertyIds::ModulationTargets)
 		rc.cableType = Connection::CableType::Modulation;
@@ -1582,6 +1590,42 @@ snex::NamespacedIdentifier ValueTreeIterator::getNodeFactoryPath(const ValueTree
 	}
 
 	return NamespacedIdentifier::fromString(s);
+}
+
+juce::ValueTree ValueTreeIterator::getTargetParameterTree(const ValueTree& connectionTree)
+{
+	jassert(connectionTree.getType() == PropertyIds::Connection ||
+		    connectionTree.getType() == PropertyIds::ModulationTarget);
+
+	auto nodeId = connectionTree[PropertyIds::NodeId].toString();
+	auto pId = connectionTree[PropertyIds::ParameterId].toString();
+
+	jassert(!nodeId.isEmpty());
+	jassert(!pId.isEmpty());
+
+	ValueTree ptr;
+
+	forEach(getRoot(connectionTree), Forward, [&](ValueTree& v)
+	{
+		if (v.getType() == PropertyIds::Parameter)
+		{
+			if (v[PropertyIds::ID].toString() == pId)
+			{
+				auto nodeTree = v.getParent().getParent();
+				jassert(nodeTree.getType() == PropertyIds::Node);
+
+				if (nodeTree[PropertyIds::ID].toString() == nodeId)
+				{
+					ptr = v;
+					return true;
+				}
+			}
+		}
+
+		return false;
+	});
+
+	return ptr;
 }
 
 bool ValueTreeIterator::hasChildNodeWithProperty(const ValueTree& nodeTree, Identifier propId)

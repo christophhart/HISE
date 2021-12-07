@@ -118,6 +118,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportFileAsSnippet,
 		MenuExportSampleDataForInstaller,
 		MenuExportCompileFilesInPool,
+		MenuExportCompileNetworksAsDll,
 		MenuFileQuit,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -326,6 +327,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportFileAsSnippet:
 		setCommandTarget(result, "Export as HISE Snippet", true, false, 'X', false);
+		result.categoryName = "Export";
+		break;
+	case MenuExportCompileNetworksAsDll:
+		setCommandTarget(result, "Compile DSP networks as dll", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuFileCreateRecoveryXml:
@@ -774,6 +779,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
         exporter.exportMainSynthChainAsMidiFx();
         return true;
     }
+	case MenuExportCompileNetworksAsDll: Actions::compileNetworksToDll(bpe); return true;
     case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe->getBackendProcessor()); return true;
 	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
@@ -949,6 +955,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuExportSampleDataForInstaller);
 		ADD_DESKTOP_ONLY(MenuFileSettingsCleanBuildDirectory);
 		ADD_DESKTOP_ONLY(MenuExportCompileFilesInPool);
+		ADD_DESKTOP_ONLY(MenuExportCompileNetworksAsDll);
 		break;
 	}
 	case BackendCommandTarget::ToolsMenu:
@@ -2061,8 +2068,6 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendRootWindow * bpe, con
 			XmlBackupFunctions::addContentFromSubdirectory(*xml, fileToLoad);
 			String newId = xml->getStringAttribute("ID");
 			
-			
-
 			auto v = ValueTree::fromXml(*xml);
 			XmlBackupFunctions::restoreAllScripts(v, bpe->getMainSynthChain(), newId);
 			bpe->loadNewContainer(v);
@@ -2486,6 +2491,12 @@ void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendR
 	e->setModalBaseWindowComponent(bpe);
 }
 
+void BackendCommandTarget::Actions::compileNetworksToDll(BackendRootWindow* bpe)
+{
+	auto s = new DspNetworkCompileExporter(bpe, bpe->getBackendProcessor());
+	s->setModalBaseWindowComponent(bpe);
+}
+
 void BackendCommandTarget::Actions::cleanBuildDirectory(BackendRootWindow * bpe)
 {
 	if (!GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive()) return;
@@ -2831,6 +2842,126 @@ bool BackendCommandTarget::Helpers::canCopyDeviceType(BackendRootWindow* bpe)
 
 	return !mp->hasUIDataForDeviceType();
 	
+}
+
+void XmlBackupFunctions::removeEditorStatesFromXml(XmlElement &xml)
+{
+	xml.deleteAllChildElementsWithTagName("EditorStates");
+
+	for (int i = 0; i < xml.getNumChildElements(); i++)
+	{
+		removeEditorStatesFromXml(*xml.getChildElement(i));
+	}
+}
+
+juce::XmlElement* XmlBackupFunctions::getFirstChildElementWithAttribute(XmlElement* parent, const String& attributeName, const String& value)
+{
+	if (parent->getStringAttribute(attributeName) == value)
+		return parent;
+
+	for (int i = 0; i < parent->getNumChildElements(); i++)
+	{
+		auto* e = parent->getChildElement(i);
+
+		if (e->getStringAttribute(attributeName) == value)
+			return e;
+
+		auto c = getFirstChildElementWithAttribute(e, attributeName, value);
+
+		if (c != nullptr)
+			return c;
+	}
+
+	return nullptr;
+}
+
+void XmlBackupFunctions::addContentFromSubdirectory(XmlElement& xml, const File& fileToLoad)
+{
+	String subDirectoryId = fileToLoad.getFileNameWithoutExtension() + "UIData";
+
+	auto folder = fileToLoad.getParentDirectory().getChildFile(subDirectoryId);
+
+	Array<File> contentFiles;
+
+	folder.findChildFiles(contentFiles, File::findFiles, false, "*.xml");
+
+	if (auto uiData = getFirstChildElementWithAttribute(&xml, "Source", subDirectoryId))
+	{
+		for (const auto& f : contentFiles)
+		{
+			if (auto child = XmlDocument::parse(f))
+			{
+				uiData->addChildElement(child.release());
+			}
+		}
+
+		uiData->removeAttribute("Source");
+	}
+}
+
+void XmlBackupFunctions::extractContentData(XmlElement& xml, const String& interfaceId, const File& xmlFile)
+{
+	auto folder = xmlFile.getParentDirectory().getChildFile(xmlFile.getFileNameWithoutExtension() + "UIData");
+
+	if (folder.isDirectory())
+		folder.createDirectory();
+
+	if (auto pXml = getFirstChildElementWithAttribute(&xml, "ID", interfaceId))
+	{
+		if (auto uiData = pXml->getChildByName("UIData"))
+		{
+			for (int i = 0; i < uiData->getNumChildElements(); i++)
+			{
+				auto e = uiData->getChildElement(i);
+				auto name = e->getStringAttribute("DeviceType");
+
+				auto file = folder.getChildFile(xmlFile.getFileNameWithoutExtension() + name + ".xml");
+
+				file.create();
+				file.replaceWithText(e->createDocument(""));
+			}
+
+			uiData->deleteAllChildElements();
+			uiData->setAttribute("Source", folder.getRelativePathFrom(xmlFile.getParentDirectory()));
+		}
+	}
+}
+
+void XmlBackupFunctions::removeAllScripts(XmlElement &xml)
+{
+	const String t = xml.getStringAttribute("Script");
+
+	if (!t.startsWith("{EXTERNAL_SCRIPT}"))
+	{
+		xml.removeAttribute("Script");
+	}
+
+	for (int i = 0; i < xml.getNumChildElements(); i++)
+	{
+		removeAllScripts(*xml.getChildElement(i));
+	}
+}
+
+juce::File XmlBackupFunctions::getScriptDirectoryFor(ModulatorSynthChain *masterChain, const String &chainId /*= String()*/)
+{
+	if (chainId.isEmpty())
+	{
+		return GET_PROJECT_HANDLER(masterChain).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile("ScriptProcessors/" + getSanitiziedName(masterChain->getId()));
+	}
+	else
+	{
+		return GET_PROJECT_HANDLER(masterChain).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile("ScriptProcessors/" + getSanitiziedName(chainId));
+	}
+}
+
+juce::File XmlBackupFunctions::getScriptFileFor(ModulatorSynthChain *, File& directory, const String &id)
+{
+	return directory.getChildFile(getSanitiziedName(id) + ".js");
+}
+
+String XmlBackupFunctions::getSanitiziedName(const String &id)
+{
+	return id.removeCharacters(" .()");
 }
 
 } // namespace hise
