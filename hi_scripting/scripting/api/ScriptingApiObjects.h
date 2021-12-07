@@ -321,6 +321,9 @@ namespace ScriptingObjects
 		/** Loads the given file as audio file. */
 		var loadAsAudioFile() const;
 
+		/** Returns a relative path from the given other file. */
+		String getRelativePathFrom(var otherFile);
+
 		/** Opens a Explorer / Finder window that points to the file. */
 		void show();
 

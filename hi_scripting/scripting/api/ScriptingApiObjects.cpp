@@ -199,6 +199,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
 	API_METHOD_WRAPPER_1(ScriptFile, toReferenceString);
+	API_METHOD_WRAPPER_1(ScriptFile, getRelativePathFrom);
 	API_VOID_METHOD_WRAPPER_2(ScriptFile, setReadOnly);
 	API_VOID_METHOD_WRAPPER_3(ScriptFile, extractZipFile);
 	API_VOID_METHOD_WRAPPER_0(ScriptFile, show);
@@ -245,6 +246,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_3(extractZipFile);
 	ADD_API_METHOD_2(setReadOnly);
 	ADD_API_METHOD_1(toReferenceString);
+	ADD_API_METHOD_1(getRelativePathFrom);
 }
 
 
@@ -549,6 +551,25 @@ juce::var ScriptingObjects::ScriptFile::loadAsAudioFile() const
 	}
 
 	return var();
+}
+
+String ScriptingObjects::ScriptFile::getRelativePathFrom(var otherFile)
+{
+	if (auto sf = dynamic_cast<ScriptFile*>(otherFile.getObject()))
+	{
+		if (!sf->f.isDirectory())
+			reportScriptError("otherFile is not a directory");
+
+		auto rp = f.getRelativePathFrom(sf->f);
+		return rp.replaceCharacter('\\', '/');
+	}
+	else
+	{
+		reportScriptError("otherFile is not a file");
+	}
+
+
+	return {};
 }
 
 void ScriptingObjects::ScriptFile::show()
