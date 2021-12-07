@@ -161,6 +161,11 @@ struct dynamic
 	{
 		mode.initialise(n);
 		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::updateMode), true);
+
+		if (n->getValueTree().getChildWithName(PropertyIds::SwitchTargets).getNumChildren() == 0)
+		{
+			n->setNodeProperty(PropertyIds::NumParameters, 2);
+		}
 	}
 
 	void updateMode(Identifier id, var newValue)

@@ -918,7 +918,16 @@ public:
 
 	ModValue& getNetworkModValue() { return networkModValue; }
 
+	void addPostInitFunction(const std::function<bool(void)>& f)
+	{
+		postInitFunctions.add(f);
+	}
+
+	void runPostInitFunctions();
+
 private:
+
+	Array<std::function<bool()>> postInitFunctions;
 
 	ModValue networkModValue;
 

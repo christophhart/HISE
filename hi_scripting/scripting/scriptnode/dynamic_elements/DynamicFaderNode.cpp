@@ -170,11 +170,6 @@ namespace faders
 		dragRow(&v->p, updater_),
 		faderSelector("Linear")
 	{
-		if (v->p.getNumParameters() == 0)
-		{
-			v->p.parentNode->setNodeProperty(PropertyIds::NumParameters, 2);
-		}
-
 		addAndMakeVisible(dragRow);
 
 		addAndMakeVisible(faderSelector);

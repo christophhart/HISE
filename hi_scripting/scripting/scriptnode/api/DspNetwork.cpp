@@ -200,6 +200,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
     });
 
 	checkIfDeprecated();
+
+	runPostInitFunctions();
 }
 
 DspNetwork::~DspNetwork()
@@ -209,6 +211,8 @@ DspNetwork::~DspNetwork()
 	nodes.clear();
     nodeFactories.clear();
 	
+	
+
 	getMainController()->removeTempoListener(&tempoSyncer);
 }
 
@@ -466,6 +470,8 @@ void DspNetwork::setForwardControlsToParameters(bool shouldForward)
 
 void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 {
+	runPostInitFunctions();
+
 	if (sampleRate > 0.0)
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(getConnectionLock(), isInitialised());
@@ -1080,6 +1086,15 @@ hise::ScriptParameterHandler* DspNetwork::getCurrentParameterHandler()
 		return &projectNodeHolder;
 	else
 		return &networkParameterHandler;
+}
+
+void DspNetwork::runPostInitFunctions()
+{
+	for (int i = 0; i < postInitFunctions.size(); i++)
+	{
+		if (postInitFunctions[i]())
+			postInitFunctions.remove(i--);
+	}
 }
 
 DspNetwork::Holder::Holder()
