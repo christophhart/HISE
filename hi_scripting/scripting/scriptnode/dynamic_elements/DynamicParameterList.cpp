@@ -357,10 +357,14 @@ void dynamic_list::initialise(NodeBase* n)
 	{
 		WeakReference<dynamic_list> safeThis(this);
 
-		n->getRootNetwork()->getScriptProcessor()->getMainController_()->getKillStateHandler().callLater([safeThis]()
+		n->getRootNetwork()->addPostInitFunction([safeThis]()
 		{
 			if (safeThis.get() != nullptr)
-				safeThis.get()->rebuildMultiOutputSlots();
+			{
+				return safeThis.get()->rebuildMultiOutputSlots();
+			}
+
+			return true;
 		});
 	}
 }

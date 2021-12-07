@@ -160,7 +160,7 @@ void cable::dynamic::restoreConnections(Identifier id, var newValue)
 	auto f = [safePtr, id, newValue]()
 	{
 		if (safePtr.get() == nullptr)
-			return;
+			return true;
 
 		if (id == PropertyIds::Value && safePtr->parentNode != nullptr)
 		{
@@ -184,18 +184,25 @@ void cable::dynamic::restoreConnections(Identifier id, var newValue)
 					{
 						source = safePtr.get();
 						source->connect(ro.as<dynamic_receive>());
+						return true;
 					}
 					else
 					{
 						if (source == safePtr.get())
+						{
 							source = &(ro.as<dynamic_receive>().null);
+							return true;
+						}
+							
 					}
 				}
 			}
 		}
+
+		return false;
 	};
 
-	parentNode->getScriptProcessor()->getMainController_()->getKillStateHandler().callLater(f);
+	parentNode->getRootNetwork()->addPostInitFunction(f);
 }
 
 void cable::dynamic::setConnection(dynamic_receive& receiveTarget, bool addAsConnection)
