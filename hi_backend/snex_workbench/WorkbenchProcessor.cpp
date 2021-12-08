@@ -704,46 +704,6 @@ void SnexWorkbenchEditor::loadNewNetwork(const File& f)
 	});
 }
 
-DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProcessor* bp) :
-	DialogWindowWithBackgroundThread("Compile DSP networks"),
-	ControlledObject(bp),
-	CompileExporter(bp->getMainSynthChain()),
-	editor(e)
-{
-	addComboBox("build", { "Debug", "Release" }, "Build Configuration");
-
-	if (auto n = getNetwork())
-		n->createAllNodesOnce();
-
-#if 0
-	
-#endif
-
-	addBasicComponents(true);
-}
-
-scriptnode::DspNetwork* DspNetworkCompileExporter::getNetwork()
-{
-	if (auto ed = getEditorWorkbench())
-	{
-		if (auto fh = ed->getNetworkHolderForNewFile(ed->getProcessor(), ed->getSynthMode()))
-		{
-			if (auto n = fh->getActiveOrDebuggedNetwork())
-				return n;
-		}
-	}
-
-	Processor::Iterator<JavascriptProcessor> iter(getMainController()->getMainSynthChain());
-
-	while (auto jsp = iter.getNextProcessor())
-	{
-		if (auto n = jsp->getActiveOrDebuggedNetwork())
-			return n;
-	}
-    
-    return nullptr;
-}
-
 struct IncludeSorter
 {
 	static int compareElements(const File& f1, const File& f2)
@@ -779,7 +739,7 @@ struct IncludeSorter
 			};
 
 			auto firstIsReferencedInSecond = ValueTreeIterator::forEach(v1, ValueTreeIterator::ChildrenFirst, f2);
-			
+
 			auto secondIsReferencedInFirst = ValueTreeIterator::forEach(v1, ValueTreeIterator::ChildrenFirst, f2);
 
 			String e;
@@ -807,6 +767,58 @@ struct IncludeSorter
 	};
 };
 
+DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProcessor* bp) :
+	DialogWindowWithBackgroundThread("Compile DSP networks"),
+	ControlledObject(bp),
+	CompileExporter(bp->getMainSynthChain()),
+	editor(e)
+{
+	addComboBox("build", { "Debug", "Release" }, "Build Configuration");
+
+
+
+	if (auto n = getNetwork())
+		n->createAllNodesOnce();
+
+	addBasicComponents(true);
+
+	String s;
+	s << "Nodes to compile:\n";
+
+	for (auto f : bp->dllManager->getNetworkFiles(bp, false))
+		s << " - " << f.getFileNameWithoutExtension() << "\n";
+
+	s = s.upToLastOccurrenceOf(", ", false, false);
+
+	addTextBlock(s);
+
+	showStatusMessage("Press OK to compile the nodes into a DLL");
+}
+
+scriptnode::DspNetwork* DspNetworkCompileExporter::getNetwork()
+{
+	if (auto ed = getEditorWorkbench())
+	{
+		if (auto fh = ed->getNetworkHolderForNewFile(ed->getProcessor(), ed->getSynthMode()))
+		{
+			if (auto n = fh->getActiveOrDebuggedNetwork())
+				return n;
+		}
+	}
+
+	Processor::Iterator<JavascriptProcessor> iter(getMainController()->getMainSynthChain());
+
+	while (auto jsp = iter.getNextProcessor())
+	{
+		if (auto n = jsp->getActiveOrDebuggedNetwork())
+			return n;
+	}
+    
+    return nullptr;
+}
+
+
+
 void DspNetworkCompileExporter::run()
 {
 	auto n = getNetwork();
@@ -814,7 +826,8 @@ void DspNetworkCompileExporter::run()
 	if (n == nullptr)
 	{
 		ok = (ErrorCodes)(int)DspNetworkErrorCodes::NoNetwork;
-		errorMessage << "You need at least one active network for the export process";
+		errorMessage << "You need at least one active network for the export process.  \n";
+		errorMessage << "> This is used to create all nodes once to setup the codegen properties";
 		return;
 	}
 
