@@ -2033,9 +2033,7 @@ private:
 
 		auto magRange = b->buffer.findMinMax(0, i, numThisTime);
 
-		auto firstHalfMag = b->buffer.findMinMax(0, i, numThisTime / 2);
-		auto secondHalfMag = b->buffer.findMinMax(0, i + numThisTime / 2, numThisTime / 2);
-
+		
 		char SignalChar;
 
 		float delta = 0.0f;
@@ -2047,7 +2045,7 @@ private:
 
 		float cDelta = 1.0f / ((float)numCols - 1.0f);
 
-		if (hmath::abs(delta) < cDelta * JUCE_LIVE_CONSTANT(0.25))
+		if (hmath::abs(delta) < cDelta * JUCE_LIVE_CONSTANT_OFF(0.25))
 			SignalChar = get(WaveformCharacters::ZeroLineChar);
 		else if (delta > 0.0)
 			SignalChar = get(WaveformCharacters::UpChar);

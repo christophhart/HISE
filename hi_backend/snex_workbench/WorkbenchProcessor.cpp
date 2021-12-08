@@ -740,6 +740,8 @@ scriptnode::DspNetwork* DspNetworkCompileExporter::getNetwork()
 		if (auto n = jsp->getActiveOrDebuggedNetwork())
 			return n;
 	}
+    
+    return nullptr;
 }
 
 struct IncludeSorter

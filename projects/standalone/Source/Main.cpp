@@ -299,7 +299,7 @@ public:
 
 		auto jsfx = builder.create<JavascriptMasterEffect>(mc->getMainSynthChain(), raw::IDs::Chains::FX);
 
-		auto network = jsfx->getOrCreate("dsp");
+		jsfx->getOrCreate("dsp");
 
 		CompileExporter::setExportingFromCommandLine();
 
