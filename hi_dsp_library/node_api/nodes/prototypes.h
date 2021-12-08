@@ -167,7 +167,23 @@ namespace prototypes
 	{
 		static T* create(void* obj) { return new (obj)T(); };
 		static void destruct(void* obj) { static_cast<T*>(obj)->~T(); }
-		static void prepare(void* obj, PrepareSpecs* ps) { static_cast<T*>(obj)->prepare(*ps); };
+
+		static void prepare(void* obj, PrepareSpecs* ps) 
+		{ 
+#if THROW_SCRIPTNODE_ERRORS
+			static_cast<T*>(obj)->prepare(*ps);
+#else
+			try
+			{
+				static_cast<T*>(obj)->prepare(*ps);
+			}
+			catch (scriptnode::Error& e)
+			{
+				DynamicLibraryErrorStorage::currentError = e;
+			}
+#endif
+		};
+
 		template <typename ProcessDataType> static void process(void* obj, ProcessDataType* data) { static_cast<T*>(obj)->process(*data); }
 		template <typename FrameDataType> static void processFrame(void* obj, FrameDataType* data) { static_cast<T*>(obj)->processFrame(*data); };
 		static void reset(void* obj) { static_cast<T*>(obj)->reset(); }

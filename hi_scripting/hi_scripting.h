@@ -96,6 +96,11 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/api/Properties.h"
 #include "scripting/scriptnode/api/NodeBase.h"
 #include "scripting/scriptnode/api/DspNetwork.h"
+
+#if USE_BACKEND
+#include "scripting/scriptnode/api/TestClasses.h"
+#endif
+
 #include "scripting/scriptnode/ui/NodeComponent.h"
 #include "scripting/scriptnode/ui/PropertyEditor.h"
 #include "scripting/scriptnode/api/ModulationSourceNode.h"

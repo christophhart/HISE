@@ -236,9 +236,7 @@ namespace parameter
 		{
 			if (!n->isClone())
 			{
-				Error e;
-				e.error = Error::CloneMismatch;
-				n->getRootNetwork()->getExceptionHandler().addError(n, e, "Can't connect clone source to uncloned node");
+				n->getRootNetwork()->getExceptionHandler().addCustomError(n, Error::CloneMismatch, "Can't connect clone source to uncloned node");
 				setParameter(nullptr, nullptr);
 				return;
 			}

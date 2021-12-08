@@ -469,13 +469,7 @@ void MultiChannelNode::prepare(PrepareSpecs ps)
 	getRootNetwork()->getExceptionHandler().removeError(this);
 
 	if (numNodes > numChannels)
-	{
-		Error e;
-		e.error = Error::TooManyChildNodes;
-		e.expected = numChannels;
-		e.actual = numNodes;
-		getRootNetwork()->getExceptionHandler().addError(this, e);
-	}
+		Error::throwError(Error::TooManyChildNodes, numChannels, numNodes);
 
 	int numPerChildren = jmax(1,  numNodes > 0 ? numChannels / numNodes : 0);
 	
@@ -830,9 +824,7 @@ scriptnode::Parameter* CloneNode::CloneIterator::getParameterForValueTree(const 
 
 void CloneNode::CloneIterator::throwError(const String& e)
 {
-	Error error;
-	error.error = Error::CloneMismatch;
-	cn.getRootNetwork()->getExceptionHandler().addError(&cn, error, e);
+	cn.getRootNetwork()->getExceptionHandler().addCustomError(&cn, Error::CloneMismatch, e);
 }
 
 void CloneNode::CloneIterator::resetError()
@@ -1106,21 +1098,12 @@ void CloneNode::checkValidClones(const ValueTree& v, bool wasAdded)
 	auto firstTree = getNodeTree().getChild(0);
 
     if(firstTree.isValid() && !firstTree[PropertyIds::FactoryPath].toString().startsWith("container."))
-    {
-        Error e;
-        e.error = Error::CloneMismatch;
-        getRootNetwork()->getExceptionHandler().addError(this, e, "clone root element must be a container");
-    }
+        getRootNetwork()->getExceptionHandler().addCustomError(this, Error::CloneMismatch, "clone root element must be a container");
     
 	for (int i = 1; i < getNodeTree().getNumChildren(); i++)
 	{
 		if (!sameNodes(firstTree, getNodeTree().getChild(i)))
-		{
-			Error e;
-			e.error = Error::CloneMismatch;
-
-			getRootNetwork()->getExceptionHandler().addError(this, e);
-		}
+			getRootNetwork()->getExceptionHandler().addCustomError(this, Error::CloneMismatch, "clone doesn't match");
 	}
 
 	cloneChangeBroadcaster.sendMessage(sendNotificationSync, this);

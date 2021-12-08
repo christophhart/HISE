@@ -1371,6 +1371,18 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 			StatementBlock bk(b);
 			b << "return f.getWrapperType(index);";
 		}
+
+		{
+			b << "DLL_EXPORT scriptnode::Error getError()";
+			StatementBlock bk(b);
+			b << "return f.getError();";
+		}
+
+		{
+			b << "DLL_EXPORT void clearError()";
+			StatementBlock bk(b);
+			b << "f.clearError();";
+		}
 	}
 	else
 	{

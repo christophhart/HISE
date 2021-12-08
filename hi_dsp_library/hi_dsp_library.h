@@ -150,7 +150,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_basics/Oscillators.h"
 #include "dsp_basics/MultiChannelFilters.h"
 
-
+#include "node_api/helpers/Error.h";
 #include "node_api/helpers/node_ids.h"
 #include "node_api/helpers/ParameterData.h"
 

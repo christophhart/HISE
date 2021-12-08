@@ -40,6 +40,10 @@ using namespace snex;
 using namespace Types;
 
 
+
+
+
+
 /** mother of all nodes. */
 struct mothernode
 {
@@ -291,8 +295,6 @@ public:
 
 namespace dll
 {
-	
-
 	/** The base class for both factory types. */
 	struct FactoryBase
 	{
@@ -303,6 +305,8 @@ namespace dll
 		virtual int getNumDataObjects(int index, int dataTypeAsInt) const = 0;
 		virtual int getWrapperType(int index) const = 0;
 
+		virtual Error getError() const = 0;
+		virtual void clearError() const = 0;
 	};
 
 	/** A Factory that initialises the nodes using the templated OpaqueNode::create function.
@@ -368,6 +372,10 @@ namespace dll
 
 			items.add(i);
 		}
+
+		Error getError() const override;
+
+		void clearError() const override;
 	};
 
 	/** A reference counted object around a dynamic library and functions
@@ -376,14 +384,31 @@ namespace dll
 	{
 		using Ptr = ReferenceCountedObjectPtr<ProjectDll>;
 
-		typedef int(*GetHashFunction)(int);
-		typedef int(*GetWrapperTypeFunc)(int);
-		typedef int(*GetNumNodesFunc)();
-		typedef size_t(*GetNodeIdFunc)(int, char*);
-		typedef void(*InitNodeFunc)(scriptnode::OpaqueNode*, int, bool);
-		typedef void(*DeInitNodeFunc)(scriptnode::OpaqueNode*);
-		typedef void(*DeleteNodeFunc)(void* obj);
+		enum class ExportedFunction
+		{
+			GetHash,
+			GetWrapperType,
+			GetNumNodes,
+			GetNodeId,
+			InitOpaqueNode,
+			DeInitOpaqueNode,
+			GetNumDataObjects,
+			GetError,
+			ClearError,
+			numFunctions
+		};
+
+		static String getFuncName(ExportedFunction f);
+
+		typedef int(*GetHash)(int);
+		typedef int(*GetWrapperType)(int);
+		typedef int(*GetNumNodes)();
+		typedef size_t(*GetNodeId)(int, char*);
+		typedef void(*InitOpaqueNode)(scriptnode::OpaqueNode*, int, bool);
+		typedef void(*DeInitOpaqueNode)(scriptnode::OpaqueNode*);
 		typedef int(*GetNumDataObjects)(int, int);
+		typedef Error(*GetError)();
+		typedef void(*ClearError)();
 
 		int getWrapperType(int index) const;
 
@@ -393,9 +418,13 @@ namespace dll
 
 		String getNodeId(int index) const;
 
-		bool initNode(OpaqueNode* n, int index, bool polyphonicIfPossible);
+		bool initOpaqueNode(OpaqueNode* n, int index, bool polyphonicIfPossible);
 
-		void deInitNode(OpaqueNode* n);
+		void deInitOpaqueNode(OpaqueNode* n);
+
+		void clearError() const;
+
+		Error getError() const;
 
 		ProjectDll(const File& f);
 
@@ -403,23 +432,43 @@ namespace dll
 
 		operator bool() const
 		{
-			return ok;
+			return r.wasOk();
 		}
+
+		String getInitError() const { return r.getErrorMessage(); }
 
 		int getHash(int index) const;
 
 	private:
 
-		bool ok = false;
+		void clearAllFunctions()
+		{
+			memset(functions, 0, sizeof(void*) * (int)ExportedFunction::numFunctions);
+		}
 
-		GetHashFunction ghf;
-		GetNumNodesFunc gnnf;
-		GetNodeIdFunc gnif;
-		InitNodeFunc inf;
-		DeInitNodeFunc dinf;
-		DeleteNodeFunc dnf;
-		GetNumDataObjects gndo;
-		GetWrapperTypeFunc gwtf;
+		void* getFromDll(ExportedFunction f, const File& dllFile)
+		{
+			auto id = getFuncName(f);
+
+			void* func = nullptr;
+
+			if (r.failed())
+				return func;
+
+			func = dll->getFunction(id);
+
+			if (func == nullptr)
+			{
+				r = Result::fail("Can't find function " + id + "() in " + dllFile.getFileName());
+				clearAllFunctions();
+			}
+				
+			return func;
+		};
+
+		Result r;
+
+		void* functions[(int)ExportedFunction::numFunctions];
 
 		ScopedPointer<DynamicLibrary> dll;
 	};
@@ -444,6 +493,10 @@ namespace dll
 		int getNumDataObjects(int index, int dataTypeAsInt) const override;
 		int getWrapperType(int index) const override;
 
+		void clearError() const override;
+
+		Error getError() const override;
+		
 	private:
 
 		ProjectDll::Ptr projectDll;

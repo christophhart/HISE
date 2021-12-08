@@ -198,7 +198,7 @@ public:
 		MenuToolsEnableAutoSaving,
 		MenuToolsEnableDebugLogging,
 		MenuToolsRecordOneSecond,
-		
+		MenuToolsShowDspNetworkDllInfo,
 		MenuToolsDeviceSimulatorOffset,
 		MenuHelpShowAboutPage = 0x70000,
 		MenuHelpShowDocumentation,
@@ -372,6 +372,7 @@ public:
 		static void copyMissingSampleListToClipboard(BackendRootWindow * bpe);
 		static void createRecoveryXml(BackendRootWindow * bpe);
 		static void showDocWindow(BackendRootWindow * bpe);
+		static void showNetworkDllInfo(BackendRootWindow * bpe);
 	};
 
 private:

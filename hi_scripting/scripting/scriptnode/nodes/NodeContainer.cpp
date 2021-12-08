@@ -183,10 +183,7 @@ void NodeContainer::parameterAddedOrRemoved(ValueTree child, bool wasAdded)
 	{
         if(auto cn = dynamic_cast<CloneNode*>(asNode()->getParentNode()))
         {
-            Error e;
-            e.error = Error::CloneMismatch;
-            cn->getRootNetwork()->getExceptionHandler().addError(asNode(), e, "A cloned container must not have any parameters of its own");
-            jassertfalse;
+            cn->getRootNetwork()->getExceptionHandler().addCustomError(asNode(), Error::CloneMismatch, "A cloned container must not have any parameters of its own");
         }
         
 		auto newParameter = new MacroParameter(asNode(), child);

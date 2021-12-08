@@ -213,9 +213,8 @@ public:
 
 		if (!isConnected())
 		{
-			Error e;
-			e.error = Error::IllegalMod;
-			parentNode->getRootNetwork()->getExceptionHandler().addError(parentNode, e, "the extra_mod node must only be used in a scriptnode synthesiser");
+			auto& exp = parentNode->getRootNetwork()->getExceptionHandler();
+			exp.addCustomError(parentNode, Error::IllegalMod, "the extra_mod node must only be used in a scriptnode synthesiser");
 		}
 
 		if (parentProcessor != nullptr && ps.sampleRate > 0.0)
@@ -298,15 +297,11 @@ public:
 
 		if (!isConnected())
 		{
-			Error e;
-			e.error = Error::IllegalMod;
-			parentNode->getRootNetwork()->getExceptionHandler().addError(parentNode, e, "the pitch_mod node must only be used in a sound generator with a pitch chain");
+			parentNode->getRootNetwork()->getExceptionHandler().addCustomError(parentNode, Error::IllegalMod, "the pitch_mod node must only be used in a sound generator with a pitch chain");
 		}
 		else if (dynamic_cast<ModulatorSynthChain*>(parentSynth.get()))
 		{
-			Error e;
-			e.error = Error::IllegalMod;
-			parentNode->getRootNetwork()->getExceptionHandler().addError(parentNode, e, "the pitch_mod node cannot be used in a container");
+			parentNode->getRootNetwork()->getExceptionHandler().addCustomError(parentNode, Error::IllegalMod, "the pitch_mod node cannot be used in a container");
 		}
 		else if (ps.sampleRate > 0.0)
 		{
@@ -382,9 +377,7 @@ public:
 
 		if (globalContainer == nullptr)
 		{
-			Error e;
-			e.error = Error::IllegalMod;
-			parentNode->getRootNetwork()->getExceptionHandler().addError(parentNode, e, "You need a global modulator container in your signal path");
+			parentNode->getRootNetwork()->getExceptionHandler().addCustomError(parentNode, Error::IllegalMod, "You need a global modulator container in your signal path");
 		}
 		else if (ps.sampleRate > 0.0)
 		{

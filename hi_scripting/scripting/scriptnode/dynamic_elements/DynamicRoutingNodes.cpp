@@ -643,7 +643,7 @@ void dynamic::editor::paint(Graphics& g)
 
 	if (dragOver)
 	{
-		auto c = currentDragError.error != Error::OK ? Colours::red : Colour(SIGNAL_COLOUR);
+		auto c = !currentDragError.isOk() ? Colours::red : Colour(SIGNAL_COLOUR);
 		g.setColour(c);
 		g.drawRect(getLocalBounds().toFloat(), 1.0f);
 	}

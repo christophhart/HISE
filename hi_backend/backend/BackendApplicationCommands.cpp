@@ -165,6 +165,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenseFile,
 		MenuToolsApplySampleMapProperties,
+		MenuToolsShowDspNetworkDllInfo,
 		MenuViewResetLookAndFeel,
 		MenuViewReset,
         MenuViewFullscreen,
@@ -507,6 +508,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Collect external files into Project folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+	case MenuToolsShowDspNetworkDllInfo:
+		setCommandTarget(result, "Show DSP Network DLL info", true, false, 'X', false);
+		result.categoryName = "Tools";
+		break;
 	case MenuToolsCheckUnusedImages:
 		setCommandTarget(result, "Check for unreferenced images", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		result.categoryName = "Tools";
@@ -726,6 +731,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateUIDataFromDesktop: Actions::createUIDataFromDesktop(bpe); updateCommands(); return true;
 	case MenuToolsCheckDeviceSanity:	Actions::checkDeviceSanity(bpe); return true;
 	case MenuToolsCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
+	case MenuToolsShowDspNetworkDllInfo: Actions::showNetworkDllInfo(bpe); return true;
 	case MenuToolsRedirectScriptFolder: Actions::redirectScriptFolder(bpe); updateCommands(); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
 	case MenuToolsConvertSampleMapToWavetableBanks:	Actions::convertSampleMapToWavetableBanks(bpe); return true;
@@ -1004,6 +1010,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsConvertSfzToSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsRemoveAllSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsUnloadAllAudioFiles);
+		ADD_DESKTOP_ONLY(MenuToolsShowDspNetworkDllInfo);
 		ADD_DESKTOP_ONLY(MenuToolsRecordOneSecond);
 		p.addSeparator();
 		p.addSectionHeader("License Management");
@@ -2810,6 +2817,18 @@ void BackendCommandTarget::Actions::showDocWindow(BackendRootWindow * bpe)
 	}
 
 	bpe->createOrShowDocWindow(l);
+}
+
+
+void BackendCommandTarget::Actions::showNetworkDllInfo(BackendRootWindow * bpe)
+{
+	auto v = bpe->getBackendProcessor()->dllManager->getStatistics();
+
+	String t;
+	
+	t << "DLL Info:  \n> `" << JSON::toString(v, true) << "`";
+
+	PresetHandler::showMessageWindow("DllInfo", t, PresetHandler::IconType::Info);
 }
 
 #undef REPLACE_WILDCARD

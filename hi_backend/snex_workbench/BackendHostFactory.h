@@ -119,6 +119,8 @@ struct BackendDllManager : public ReferenceCountedObject,
 	bool unloadDll();
 	bool loadDll(bool forceUnload);
 
+	var getStatistics();
+
 	static bool allowCompilation(const File& networkFile);
 	static bool allowPolyphonic(const File& networkFile);
 

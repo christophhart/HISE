@@ -1203,9 +1203,7 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 			}
 			else
 			{
-				Error e;
-				e.error = Error::IllegalBypassConnection;
-				tn->getRootNetwork()->getExceptionHandler().addError(tn, e);
+				tn->getRootNetwork()->getExceptionHandler().addCustomError(tn, Error::IllegalBypassConnection, "Can't add a bypass here");
 				return nullptr;
 			}
 		}

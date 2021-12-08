@@ -193,6 +193,37 @@ bool BackendDllManager::loadDll(bool forceUnload)
 	return false;
 }
 
+juce::var BackendDllManager::getStatistics()
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+
+#if JUCE_DEBUG
+	auto f = getBestProjectDll(DllType::Debug);
+#else
+	auto f = getBestProjectDll(DllType::Release);
+#endif
+
+	obj->setProperty("File", f.getFileName());
+	obj->setProperty("Loaded", projectDll != nullptr);
+
+	if (projectDll != nullptr)
+	{
+		obj->setProperty("Valid", (bool)(*(projectDll.get())));
+		obj->setProperty("InitError", projectDll->getInitError());
+		
+		Array<var> dllNodes;
+
+		for (int i = 0; i < projectDll->getNumNodes(); i++)
+		{
+			dllNodes.add(projectDll->getNodeId(i));
+		}
+
+		obj->setProperty("Nodes", dllNodes);
+	}
+
+	return var(obj.get());
+}
+
 bool BackendDllManager::allowCompilation(const File& networkFile)
 {
 	if (auto xml = XmlDocument::parse(networkFile))

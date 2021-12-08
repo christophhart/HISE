@@ -197,6 +197,28 @@ int StaticLibraryHostFactory::getNumDataObjects(int index, int dataTypeAsInt) co
 	return items[index].numDataObjects[dataTypeAsInt];
 }
 
+Error StaticLibraryHostFactory::getError() const
+{
+#if THROW_SCRIPTNODE_ERRORS
+	// must never happen - a static library factory either
+	// resides in the dynamic library and thus THROW_SCRIPTNODE_ERRORS==0
+	// or it will be in the compiled project and never ask this question
+	jassertfalse;
+	return {};
+#else
+	return DynamicLibraryErrorStorage::currentError;
+#endif
+}
+
+void StaticLibraryHostFactory::clearError() const
+{
+#if THROW_SCRIPTNODE_ERRORS
+	jassertfalse;
+#else
+	DynamicLibraryErrorStorage::currentError = {};
+#endif
+}
+
 DynamicLibraryHostFactory::DynamicLibraryHostFactory(ProjectDll::Ptr dll_) :
 	projectDll(dll_)
 {
@@ -228,7 +250,7 @@ bool DynamicLibraryHostFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int in
 {
 	if (projectDll != nullptr)
 	{
-		auto ok = projectDll->initNode(n, index, polyphonicIfPossible);
+		auto ok = projectDll->initOpaqueNode(n, index, polyphonicIfPossible);
 
 		if (ok && n->canBePolyphonic())
 		{
@@ -238,7 +260,6 @@ bool DynamicLibraryHostFactory::initOpaqueNode(scriptnode::OpaqueNode* n, int in
 
 		return ok;
 	}
-		
 
 	return false;
 }
@@ -259,51 +280,84 @@ int DynamicLibraryHostFactory::getWrapperType(int index) const
 	return 0;
 }
 
+void DynamicLibraryHostFactory::clearError() const
+{
+	if (projectDll != nullptr)
+		projectDll->clearError();
+}
+
+Error DynamicLibraryHostFactory::getError() const
+{
+	if (projectDll != nullptr)
+		return projectDll->getError();
+
+	return {};
+}
+
+String ProjectDll::getFuncName(ExportedFunction f)
+{
+	switch (f)
+	{
+	case ExportedFunction::GetHash:				return "getHash";
+	case ExportedFunction::GetWrapperType:		return "getWrapperType";
+	case ExportedFunction::GetNumNodes:			return "getNumNodes";
+	case ExportedFunction::GetNodeId:			return "getNodeId";
+	case ExportedFunction::InitOpaqueNode:		return "initOpaqueNode";
+	case ExportedFunction::DeInitOpaqueNode:	return "deInitOpaqueNode";
+	case ExportedFunction::GetNumDataObjects:	return "getNumDataObjects";
+	case ExportedFunction::GetError:			return "getError";
+	case ExportedFunction::ClearError:			return "clearError";
+	default: jassertfalse; return "";
+	}
+}
+
+#define DLL_FUNCTION(x) ((x)functions[(int)ExportedFunction::x])
+
 int ProjectDll::getWrapperType(int i) const
 {
-	if (gwtf != nullptr)
-		return gwtf(i);
+	if (*this)
+		return DLL_FUNCTION(GetWrapperType)(i);
     
     return 0;
 }
 
 int ProjectDll::getNumNodes() const
 {
-	if (gnnf != nullptr)
-		return gnnf();
+	if (*this)
+		return DLL_FUNCTION(GetNumNodes)();
 
 	return 0;
 }
 
 int ProjectDll::getNumDataObjects(int nodeIndex, int dataTypeAsInt) const
 {
-	if (gndo != nullptr)
-		return gndo(nodeIndex, dataTypeAsInt);
+	if (*this)
+		return DLL_FUNCTION(GetNumDataObjects)(nodeIndex, dataTypeAsInt);
 
 	return 0;
 }
 
 String ProjectDll::getNodeId(int index) const
 {
-	if (gnif != nullptr)
+	if (*this)
 	{
 		char buffer[256];
 
-		auto length = gnif(index, buffer);
+		auto length = DLL_FUNCTION(GetNodeId)(index, buffer);
 		return String(buffer, length);
 	}
 
 	return {};
 }
 
-bool ProjectDll::initNode(OpaqueNode* n, int index, bool polyphonicIfPossible)
+bool ProjectDll::initOpaqueNode(OpaqueNode* n, int index, bool polyphonicIfPossible)
 {
-	if (inf != nullptr)
+	if (*this)
 	{
-		inf(n, index, polyphonicIfPossible);
+		DLL_FUNCTION(InitOpaqueNode)(n, index, polyphonicIfPossible);
 
 		for(int i = 0; i < (int)ExternalData::DataType::numDataTypes; i++)
-			n->numDataObjects[i] = gndo(index, i);
+			n->numDataObjects[i] = DLL_FUNCTION(GetNumDataObjects)(index, i);
 
 		return true;
 	}
@@ -312,60 +366,67 @@ bool ProjectDll::initNode(OpaqueNode* n, int index, bool polyphonicIfPossible)
 }
 
 
-void ProjectDll::deInitNode(OpaqueNode* n)
+void ProjectDll::deInitOpaqueNode(OpaqueNode* n)
 {
-	if (dinf != nullptr)
-	{
-		dinf(n);
-	}
+	if (*this)
+		DLL_FUNCTION(DeInitOpaqueNode)(n);
 }
 
-ProjectDll::ProjectDll(const File& f)
+void ProjectDll::clearError() const
+{
+	if (*this)
+		DLL_FUNCTION(ClearError)();
+}
+
+Error ProjectDll::getError() const
+{
+	if (*this)
+		return DLL_FUNCTION(GetError)();
+
+	return {};
+}
+
+int ProjectDll::getHash(int index) const
+{
+	if (*this)
+		return DLL_FUNCTION(GetHash)(index);
+
+	jassertfalse;
+	return 0;
+}
+
+#undef DLL_FUNCTION
+
+ProjectDll::ProjectDll(const File& f):
+	r(Result::fail("Can't find DLL file "  + f.getFullPathName()))
 {
 	dll = new DynamicLibrary();
 
 	if (dll->open(f.getFullPathName()))
 	{
-		gnnf = (GetNumNodesFunc)dll->getFunction("getNumNodes");
-		gnif = (GetNodeIdFunc)dll->getFunction("getNodeId");
-		inf = (InitNodeFunc)dll->getFunction("initOpaqueNode");
-		gndo = (GetNumDataObjects)dll->getFunction("getNumDataObjects");
-		gwtf = (GetWrapperTypeFunc)dll->getFunction("getWrapperType");
-		ghf = (GetHashFunction)dll->getFunction("getHash");
-		dinf = (DeInitNodeFunc)dll->getFunction("deInitOpaqueNode");
+		r = Result::ok();
 
-		ok = gnnf != nullptr && gnif != nullptr && inf != nullptr && ghf != nullptr && gwtf != nullptr && dinf != nullptr;
+		for (int i = 0; i < (int)ExportedFunction::numFunctions; i++)
+			functions[i] = getFromDll((ExportedFunction)i, f);
 	}
 	else
 	{
-		gnnf = nullptr;
-		gnif = nullptr;
-		inf = nullptr;
-		dnf = nullptr;
-		ghf = nullptr;
-		dinf = nullptr;
-
-		ok = false;
+		clearAllFunctions();
+		dll->close();
+		dll = nullptr;
 	}
 }
 
 ProjectDll::~ProjectDll()
 {
+	clearAllFunctions();
 	dll->close();
-	ok = false;
 	dll = nullptr;
 }
 
 
 
-int ProjectDll::getHash(int index) const
-{
-	if (ghf != nullptr)
-		return ghf(index);
 
-	jassertfalse;
-	return 0;
-}
 
 }
 

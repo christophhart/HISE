@@ -99,7 +99,7 @@ void SnexSource::throwScriptnodeErrorIfCompileFail()
 		auto& eh = parentNode->getRootNetwork()->getExceptionHandler();
 
 		if (wb->getGlobalScope().isDebugModeEnabled())
-			eh.addError(parentNode, { Error::ErrorCode::NodeDebuggerEnabled, 0, 0 });
+			eh.addCustomError(parentNode, Error::NodeDebuggerEnabled, "Debug is enabled");
 		else
 			eh.removeError(parentNode, Error::NodeDebuggerEnabled);
 
@@ -112,14 +112,8 @@ void SnexSource::throwScriptnodeErrorIfCompileFail()
 		else
 		{
 			wb->getLastResult().compileResult = lastResult;
-
 			auto e = lastResult.getErrorMessage();
-
-			auto s = e.fromFirstOccurrenceOf("Line ", false, false);
-			auto l = s.getIntValue() - 1;
-			auto c = s.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false).getIntValue();
-
-			parentNode->getRootNetwork()->getExceptionHandler().addError(parentNode, { scriptnode::Error::CompileFail, l, c });
+			parentNode->getRootNetwork()->getExceptionHandler().addCustomError(parentNode, scriptnode::Error::CompileFail, e);
 		}
 	}
 }

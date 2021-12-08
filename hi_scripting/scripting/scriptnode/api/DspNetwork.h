@@ -113,6 +113,13 @@ public:
 		return items.isEmpty();
 	}
 
+	void addCustomError(NodeBase* n, Error::ErrorCode c, const String& errorMessage)
+	{
+		Error e;
+		e.error = c;
+		addError(n, e, errorMessage);
+	}
+
 	void addError(NodeBase* n, Error e, const String& errorMessage = {})
 	{
 		customErrorMessage = errorMessage;
@@ -1038,7 +1045,15 @@ private:
 
 		void prepare(PrepareSpecs ps)
 		{
+			dll->clearError();
+
 			n.prepare(ps);
+
+			auto e = dll->getError();
+
+			if (!e.isOk())
+				throw e;
+
 			n.reset();
 		}
 
@@ -1202,143 +1217,6 @@ struct HostHelpers
 
 
 #if !USE_FRONTEND
-using namespace snex;
-using namespace snex::ui;
-
-/* A test
-
-	- fix multi channel
-	- add exception check
-	- implement external data stuff
-	- extend timeout
-	- implement parameters
-*/
-
-
-struct ScriptnodeCompileHandlerBase : public snex::ui::WorkbenchData::CompileHandler
-{
-	ScriptnodeCompileHandlerBase(WorkbenchData* d, DspNetwork* network_);
-
-	WorkbenchData::CompileResult compile(const String& codeToCompile) override;
-
-	void processTestParameterEvent(int parameterIndex, double value) override;
-
-	Result prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) override;
-
-	void initExternalData(ExternalDataHolder* h) override;
-
-	void postCompile(ui::WorkbenchData::CompileResult& lastResult) override;
-
-	Result runTest(ui::WorkbenchData::CompileResult& lastResult) override;
-
-	void processTest(ProcessDataDyn& data);
-
-	bool shouldProcessEventsManually() const;
-
-	void processHiseEvent(HiseEvent& e);;
-
-	virtual PrepareSpecs getPrepareSpecs() const = 0;
-
-	WeakReference<DspNetwork> network;
-    Result lastTestResult;
-};
-
-/** A test object for a DSP Network. */
-struct ScriptNetworkTest : public hise::ConstScriptingObject
-{
-	struct CProvider : public WorkbenchData::CodeProvider
-	{
-		CProvider(WorkbenchData::Ptr wb, DspNetwork* n) :
-			WorkbenchData::CodeProvider(wb.get()),
-			id(n->getId())
-		{};
-
-		String loadCode() const override { return {}; }
-		bool providesCode() const override { return false; }
-		bool saveCode(const String& ) override { return true; }
-		Identifier getInstanceId() const override { return id; }
-		Identifier id;
-	};
-
-	struct CHandler : public ScriptnodeCompileHandlerBase
-	{
-		CHandler(WorkbenchData::Ptr wb, DspNetwork* n);
-
-		PrepareSpecs getPrepareSpecs() const override { return ps; }
-
-		Result prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) override;
-
-		PrepareSpecs ps;
-		int waitTimeMs = 0;
-	};
-
-	struct Wrapper
-	{
-		API_METHOD_WRAPPER_0(ScriptNetworkTest, runTest);
-		API_VOID_METHOD_WRAPPER_2(ScriptNetworkTest, setTestProperty);
-		API_VOID_METHOD_WRAPPER_3(ScriptNetworkTest, setProcessSpecs);
-		API_METHOD_WRAPPER_3(ScriptNetworkTest, expectEquals);
-        API_METHOD_WRAPPER_0(ScriptNetworkTest, dumpNetworkAsXml);
-		API_VOID_METHOD_WRAPPER_1(ScriptNetworkTest, setWaitingTime);
-        API_METHOD_WRAPPER_0(ScriptNetworkTest, getLastTestException);
-		API_METHOD_WRAPPER_2(ScriptNetworkTest, createBufferContentAsAsciiArt);
-		API_METHOD_WRAPPER_0(ScriptNetworkTest, getListOfCompiledNodes);
-		API_METHOD_WRAPPER_0(ScriptNetworkTest, getListOfAllCompileableNodes);
-		API_METHOD_WRAPPER_0(ScriptNetworkTest, checkCompileHashCodes);
-		API_METHOD_WRAPPER_3(ScriptNetworkTest, createAsciiDiff);
-	};
-
-	ScriptNetworkTest(DspNetwork* n, var testData);;
-
-	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("NetworkTest"); }
-
-	// ================================================================================= API Methods
-
-	/** runs the test and returns the buffer. */
-	var runTest();
-
-	/** Sets a test property. */
-	void setTestProperty(String id, var value);
-
-	/** Set the processing specifications for the test run. */
-	void setProcessSpecs(int numChannels, double sampleRate, int blockSize);
-
-	/** Compares the two data types and returns a error message if they don't match. */
-	var expectEquals(var data1, var data2, float errorDb);
-
-	/** Sets a time to wait between calling prepare and processing the data. */
-	void setWaitingTime(int timeToWaitMs);
-
-    /** Creates a XML representation of the current network. */
-    String dumpNetworkAsXml();
-
-	/** Creates a string that vaguely represents the buffer data content. */
-	String createBufferContentAsAsciiArt(var buffer, int numLines);
-
-	/** Creates a ASCII diff with 'X' as error when the datas don't match. */
-	String createAsciiDiff(var data1, var data2, int numLines);
-
-    /** Returns the exception that was caused by the last test run (or empty if fine). */
-    String getLastTestException() const;
-    
-	/** Returns the list of all compiled nodes. */
-	var getListOfCompiledNodes();
-
-	/** Returns the list of all nodes that can be compiled. */
-	var getListOfAllCompileableNodes();
-
-	/** Checks whether the hash code of all compiled nodes match their network file. */
-	var checkCompileHashCodes();
-
-	// ================================================================================= API Methods
-
-private:
-
-	snex::ui::WorkbenchData::Ptr wb;
-
-	ScopedPointer<CProvider> cProv;
-};
-
 
 struct DspNetworkListeners
 {

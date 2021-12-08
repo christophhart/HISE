@@ -69,6 +69,11 @@
 
 #include "scripting/scriptnode/api/ModulationSourceNode.cpp"
 #include "scripting/scriptnode/api/DspNetwork.cpp"
+
+#if USE_BACKEND
+#include "scripting/scriptnode/api/TestClasses.cpp"
+#endif
+
 #include "scripting/scriptnode/api/StaticNodeWrappers.cpp"
 
 #include "scripting/scriptnode/dynamic_elements/DynamicParameterList.cpp"

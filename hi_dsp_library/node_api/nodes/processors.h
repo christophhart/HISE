@@ -550,12 +550,12 @@ struct oversample_base
     
 	void prepare(PrepareSpecs ps)
 	{
-        if(ps.voiceIndex != nullptr && ps.voiceIndex->isEnabled())
-        {
-            scriptnode::Error e;
-            e.error = Error::IllegalPolyphony;
-            throw e;
-        }
+		if (ps.voiceIndex != nullptr && ps.voiceIndex->isEnabled())
+		{
+			scriptnode::Error::throwError(Error::IllegalPolyphony);
+			return;
+		}
+            
         
         originalBlockSize = ps.blockSize;
         numChannels = ps.numChannels;
@@ -1150,9 +1150,7 @@ template <typename T> struct illegal_poly: public scriptnode::data::base
 
 	void prepare(PrepareSpecs ps)
 	{
-		scriptnode::Error e;
-		e.error = Error::IllegalPolyphony;
-		throw e;
+		Error::throwError(Error::IllegalPolyphony);
 	}
 
     void setExternalData(const ExternalData& d, int index) override
@@ -1249,11 +1247,7 @@ template <class T> struct node : public scriptnode::data::base
 	{
 		if (ps.numChannels != NumChannels)
 		{
-			Error e;
-			e.error = Error::ChannelMismatch;
-			e.actual = ps.numChannels;
-			e.expected = NumChannels;
-			throw e;
+			Error::throwError(Error::ChannelMismatch, NumChannels, ps.numChannels);
 		}
 
 		obj.prepare(ps);
