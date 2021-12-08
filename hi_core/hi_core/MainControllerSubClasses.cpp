@@ -216,8 +216,10 @@ void MainController::CodeHandler::writeToConsole(const String &t, int warningLev
 #if USE_BACKEND
 	if (CompileExporter::isExportingFromCommandLine())
 	{
-		DBG(t);
-		std::cout << t << "\n";
+#if !JUCE_MAC
+        DBG(t);
+#endif
+        std::cout << t << "\n";
 		return;
 	}
 #endif
