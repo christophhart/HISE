@@ -340,7 +340,7 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 	/** deregisters an item with the tempo changed class. */
 	void deregisterItem(void* obj)
 	{
-		data.removeElement(Item(obj, nullptr));
+		data.remove(Item(obj, nullptr));
 	}
 
 	void tempoChanged(double newTempo)
