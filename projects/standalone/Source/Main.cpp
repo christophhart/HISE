@@ -252,30 +252,35 @@ public:
 
 		std::cout << "Loading the preset...";
 
-		CompileExporter exporter(mainSynthChain);
-
-		if (presetFile.getFileExtension() == ".hip")
+		try
 		{
-			bp->loadPresetFromFile(presetFile, nullptr);
-		}
-		else if (presetFile.getFileExtension() == ".xml")
-		{
-			auto xml = XmlDocument::parse(presetFile);
-
-			if (xml != nullptr)
+			if (presetFile.getFileExtension() == ".hip")
 			{
-				XmlBackupFunctions::addContentFromSubdirectory(*xml, presetFile);
-				String newId = xml->getStringAttribute("ID");
+				bp->loadPresetFromFile(presetFile, nullptr);
+			}
+			else if (presetFile.getFileExtension() == ".xml")
+			{
+				auto xml = XmlDocument::parse(presetFile);
 
-				auto v = ValueTree::fromXml(*xml);
-				XmlBackupFunctions::restoreAllScripts(v, mainSynthChain, newId);
-				
-				bp->loadPresetFromValueTree(v);
+				if (xml != nullptr)
+				{
+					XmlBackupFunctions::addContentFromSubdirectory(*xml, presetFile);
+					String newId = xml->getStringAttribute("ID");
+
+					auto v = ValueTree::fromXml(*xml);
+					XmlBackupFunctions::restoreAllScripts(v, mainSynthChain, newId);
+
+					bp->loadPresetFromValueTree(v);
+				}
 			}
 		}
-
+		catch (hise::CommandLineException& c)
+		{
+			throwErrorAndQuit(c.r.getErrorMessage());
+			return 1;
+		}
+		
 		std::cout << "DONE" << std::endl << std::endl;
-
 		processor = nullptr;
 		
 		return 0;
@@ -608,8 +613,10 @@ public:
 
 			if (ok != 0)
 			{
-				throw std::exception();
+				exit(ok);
+				return;
 			}
+				
 
 			quit();
 			return;

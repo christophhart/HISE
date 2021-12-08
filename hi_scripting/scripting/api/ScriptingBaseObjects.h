@@ -51,6 +51,17 @@ public:
 	virtual float getParameter(int index) const = 0;
 };
 
+#if USE_BACKEND
+struct CommandLineException: public std::exception
+{
+	CommandLineException(const String& r) :
+		r(Result::fail(r))
+	{};
+
+	Result r;
+};
+#endif
+
 /** The base class for all scripting API classes. 
 *	@ingroup scripting
 *

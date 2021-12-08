@@ -1061,7 +1061,11 @@ void ScriptingObject::logErrorAndContinue(const String &errorMessage) const
 void ScriptingObject::reportScriptError(const String &errorMessage) const
 {
 #if USE_BACKEND
-	throw errorMessage;
+
+	if (CompileExporter::isExportingFromCommandLine())
+		throw CommandLineException(errorMessage);
+	else
+		throw errorMessage;
 #else
 	
 #if JUCE_DEBUG
