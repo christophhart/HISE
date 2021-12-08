@@ -386,7 +386,10 @@ Set this to false to not give the user the ability to set the sample location on
 #endif
 #endif
 
-
+/** This flag is set when the build configuration is CI (mild optimisation, no debug symbols). */
+#ifndef HISE_CI
+#define HISE_CI 0
+#endif
 
 /**Appconfig file
 

@@ -286,7 +286,7 @@ public:
 		auto args = getCommandLineArgs(commandLine);
 		auto config = getArgument(args, "-c:");
 
-		if (config != "Debug" && config != "Release")
+		if (config != "Debug" && config != "Release" && config != "CI")
 		{
 			throwErrorAndQuit("Invalid build configuration: " + config);
 		}

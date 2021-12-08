@@ -176,7 +176,7 @@ bool BackendDllManager::loadDll(bool forceUnload)
 
 	if (projectDll == nullptr)
 	{
-		auto dllFile = getBestProjectDll(DllType::Latest);
+		auto dllFile = getBestProjectDll(DllType::Current);
 
 		bool ok = false;
 

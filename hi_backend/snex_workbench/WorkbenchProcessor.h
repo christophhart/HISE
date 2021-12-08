@@ -351,7 +351,7 @@ struct TestRunWindow : public hise::DialogWindowWithBackgroundThread,
 			c.add(DspNetworkCodeProvider::SourceMode::InterpretedNode);
 			c.add(DspNetworkCodeProvider::SourceMode::JitCompiledNode);
 
-			if (editor->dllManager->getBestProjectDll(BackendDllManager::DllType::Latest).existsAsFile())
+			if (editor->dllManager->getBestProjectDll(BackendDllManager::DllType::Current).existsAsFile())
 				c.add(DspNetworkCodeProvider::SourceMode::DynamicLibrary);
 		}
 		else

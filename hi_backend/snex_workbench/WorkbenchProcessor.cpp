@@ -773,9 +773,7 @@ DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProces
 	CompileExporter(bp->getMainSynthChain()),
 	editor(e)
 {
-	addComboBox("build", { "Debug", "Release" }, "Build Configuration");
-
-
+	addComboBox("build", { "Debug", "CI", "Release" }, "Build Configuration");
 
 	if (auto n = getNetwork())
 		n->createAllNodesOnce();
@@ -1085,7 +1083,7 @@ PresetHandler::showMessageWindow("Compilation OK", "Press OK to reload the proje
 				c << "Included DSP networks:\n  > `";
 				c << list.joinIntoString(", ") << "`";
 
-				PresetHandler::showMessageWindow("Loaded DLL " + ed->dllManager->getBestProjectDll(BackendDllManager::DllType::Latest).getFileName(), c);
+				PresetHandler::showMessageWindow("Loaded DLL " + ed->dllManager->getBestProjectDll(BackendDllManager::DllType::Current).getFileName(), c);
 				return;
 			}
 		}
@@ -1181,9 +1179,11 @@ void DspNetworkCompileExporter::createProjucerFile()
 	auto dllFolder = getFolder(BackendDllManager::FolderSubType::DllLocation);
 	auto dbgFile = dllFolder.getChildFile("project_debug").withFileExtension(".dll");
 	auto rlsFile = dllFolder.getChildFile("project").withFileExtension(".dll");
+	auto ciFile = dllFolder.getChildFile("project_ci").withFileExtension(".dll");
 
 	auto dbgName = dbgFile.getNonexistentSibling(false).getFileNameWithoutExtension().removeCharacters(" ");
 	auto rlsName = rlsFile.getNonexistentSibling(false).getFileNameWithoutExtension().removeCharacters(" ");
+	auto ciName =  ciFile.getNonexistentSibling(false).getFileNameWithoutExtension().removeCharacters(" ");
 
 #if JUCE_MAC
     REPLACE_WILDCARD_WITH_STRING("%USE_IPP_MAC%", useIpp ? "USE_IPP=1" : String());
@@ -1194,6 +1194,7 @@ void DspNetworkCompileExporter::createProjucerFile()
 
 	REPLACE_WILDCARD_WITH_STRING("%DEBUG_DLL_NAME%", dbgName);
 	REPLACE_WILDCARD_WITH_STRING("%RELEASE_DLL_NAME%", rlsName);
+	REPLACE_WILDCARD_WITH_STRING("%CI_DLL_NAME%", ciName);
 	REPLACE_WILDCARD_WITH_STRING("%NAME%", projectName);
 	REPLACE_WILDCARD_WITH_STRING("%HISE_PATH%", hisePath.getFullPathName());
 	REPLACE_WILDCARD_WITH_STRING("%JUCE_PATH%", jucePath.getFullPathName());

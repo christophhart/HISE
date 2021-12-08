@@ -84,8 +84,9 @@ struct BackendDllManager : public ReferenceCountedObject,
 	enum class DllType
 	{
 		Debug,
+		CI,
 		Release,
-		Latest,
+		Current,
 		numDllTypes
 	};
 
@@ -129,6 +130,31 @@ struct BackendDllManager : public ReferenceCountedObject,
 	static File createIfNotDirectory(const File& f);
 	static File getSubFolder(const MainController* mc, FolderSubType t);
 
+	static bool matchesDllType(DllType t, const File& f)
+	{
+		if (t == DllType::Current)
+		{
+#if JUCE_DEBUG
+			t = DllType::Debug;
+#elif HISE_CI
+			t = DllType::CI;
+#else
+			t = DllType::Release;
+#endif
+		}
+			
+		auto fn = f.getFileNameWithoutExtension();
+
+		if (t == DllType::CI)
+			return fn.contains("_ci");
+		if (t == DllType::Debug)
+			return fn.contains("_debug");
+		if (t == DllType::Release)
+			return !fn.contains("_debug") && !fn.contains("_ci");
+
+		return false;
+	}
+
 	File getBestProjectDll(DllType t) const
 	{
 		auto dllFolder = getSubFolder(getMainController(), FolderSubType::DllLocation);
@@ -143,27 +169,11 @@ struct BackendDllManager : public ReferenceCountedObject,
 
 		auto files = dllFolder.findChildFiles(File::findFiles, false, extension);
 
-		auto removeWildcard = "Never";
-
-		if (t == DllType::Debug)
-			removeWildcard = "release";
-		if (t == DllType::Release)
-			removeWildcard = "debug";
-
 		for (int i = 0; i < files.size(); i++)
 		{
 			auto fileName = files[i].getFileName();
 
-#if JUCE_DEBUG
-			if (!fileName.contains("debug"))
-				files.remove(i--);
-#else
-			if (fileName.contains("debug"))
-				files.remove(i--);
-#endif
-
-
-			if (fileName.contains(removeWildcard))
+			if (!matchesDllType(t, files[i]))
 				files.remove(i--);
 		}
 
