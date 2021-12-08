@@ -1092,6 +1092,7 @@ namespace control
 				case LogicType::AND: return leftValue && rightValue ? 1.0 : 0.0;
 				case LogicType::OR: return leftValue || rightValue ? 1.0 : 0.0;
 				case LogicType::XOR: return (leftValue || rightValue) && !(leftValue == rightValue) ? 1.0 : 0.0;
+                default: return 0.0;
 				}
                 
                 return 0.0;
