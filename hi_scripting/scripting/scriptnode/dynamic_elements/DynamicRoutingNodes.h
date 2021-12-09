@@ -126,6 +126,8 @@ struct dynamic
 
 	void setConnection(routing::receive<cable::dynamic>& receiveTarget, bool addAsConnection);
 
+	void checkSourceAndTargetProcessSpecs();
+
 	span<float, NUM_MAX_CHANNELS> data_;
 	dyn<float> frameData;
 
@@ -143,7 +145,11 @@ struct dynamic
 	WeakReference<NodeBase> parentNode;
 
 	NodePropertyT<String> receiveIds;
-	PrepareSpecs currentSpecs;
+
+	PrepareSpecs sendSpecs;
+	PrepareSpecs receiveSpecs;
+	bool postPrepareCheckActive = false;
+
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic);
 

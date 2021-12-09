@@ -541,6 +541,15 @@ protected:
 
 private:
 
+	void updateBypassState(Identifier, var newValue)
+	{
+		auto shouldBeBypassed = (bool)newValue;
+		setBypassed((bool)newValue);
+
+		// This needs to be set in the virtual method above
+		jassert(shouldBeBypassed == bypassState);
+	}
+
 	int lastBlockSize = 0;
 
 	bool preserveAutomation = false;
@@ -553,6 +562,9 @@ private:
 	bool containsNetwork = false;
 
 	valuetree::PropertyListener frozenListener;
+	valuetree::PropertyListener bypassListener;
+
+	bool bypassState = false;
 
 	WeakReference<NodeBase::Holder> embeddedNetwork;
 	WeakReference<NodeBase::Holder> parent;
@@ -566,8 +578,6 @@ private:
 
 	HelpManager helpManager;
 	
-	CachedValue<bool> bypassState;
-
 	ReferenceCountedArray<Parameter> parameters;
 	WeakReference<NodeBase> parentNode;
 

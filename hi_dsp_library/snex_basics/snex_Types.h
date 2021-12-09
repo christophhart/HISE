@@ -551,6 +551,16 @@ struct PrepareSpecs
 		return numChannels > 0 && sampleRate > 0.0 && blockSize > 0;
 	}
 
+	bool operator==(const PrepareSpecs& other) const
+	{
+		return numChannels == other.numChannels && sampleRate == other.sampleRate && blockSize == other.blockSize;
+	}
+
+	bool operator!=(const PrepareSpecs& other) const
+	{
+		return numChannels != other.numChannels || sampleRate != other.sampleRate || blockSize != other.blockSize;
+	}
+
 	PrepareSpecs withNumChannels(int newNumChannels) const
 	{
 		PrepareSpecs copy(*this);

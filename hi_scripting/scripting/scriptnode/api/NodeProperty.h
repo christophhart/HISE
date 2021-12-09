@@ -140,9 +140,9 @@ private:
 struct ComboBoxWithModeProperty : public ComboBox,
 	public ComboBoxListener
 {
-	ComboBoxWithModeProperty(String defaultValue) :
+	ComboBoxWithModeProperty(String defaultValue, const Identifier& id=PropertyIds::Mode) :
 		ComboBox(),
-		mode(PropertyIds::Mode, defaultValue)
+		mode(id, defaultValue)
 	{
 		addListener(this);
 		setLookAndFeel(&plaf);

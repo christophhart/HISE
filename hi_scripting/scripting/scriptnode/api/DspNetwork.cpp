@@ -491,6 +491,9 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 				currentSpecs.voiceIndex = getPolyHandler();
 
 				getRootNode()->prepare(currentSpecs);
+
+				runPostInitFunctions();
+
 				getRootNode()->reset();
 
 				if (projectNodeHolder.isActive())

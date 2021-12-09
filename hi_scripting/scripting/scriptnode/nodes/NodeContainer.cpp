@@ -165,6 +165,11 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 			nodes.removeAllInstancesOf(nodeToProcess);
 			updateChannels(n->getValueTree(), Identifier());
 		}
+
+		n->getRootNetwork()->runPostInitFunctions();
+
+		//auto cs = n->getRootNetwork()->getCurrentSpecs();
+		//n->getRootNetwork()->prepareToPlay(cs.sampleRate, cs.blockSize);
 	}
 
 	ownedReference.clear();
