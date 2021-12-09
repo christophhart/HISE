@@ -851,7 +851,11 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(EventListener);
 	};
 
-	virtual ~ComplexDataUIUpdaterBase() {};
+	virtual ~ComplexDataUIUpdaterBase() 
+	{
+		ScopedLock sl(updateLock);
+		listeners.clear();
+	};
 
 	void addEventListener(EventListener* l)
 	{
@@ -955,6 +959,8 @@ private:
 
 			if (forceUpdate || (isMoreImportantChange && valueHasChanged))
 			{
+				ScopedLock sl(updateLock);
+
 				lastChange = jmax(t, lastChange);
 
 				for (auto l : listeners)

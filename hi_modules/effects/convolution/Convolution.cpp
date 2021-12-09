@@ -101,15 +101,26 @@ ConvolutionEffectBase::~ConvolutionEffectBase()
 	convolverR = nullptr;
 }
 
-void ConvolutionEffectBase::setImpulse(bool sync)
+void ConvolutionEffectBase::setImpulse(NotificationType sync)
 {
-	if (sync)
+	if (!prepareCalledOnce)
+		sync = dontSendNotification;
+
+	switch (sync)
 	{
-		jassert(!getImpulseBufferBase().getDataLock().writeAccessIsLocked());
+	case dontSendNotification: 
+		break;
+	case sendNotification:
+	case sendNotificationAsync: 
+		triggerAsyncUpdate(); 
+		break;
+	case sendNotificationSync:
+		cancelPendingUpdate();
 		handleAsyncUpdate();
+		break;
+	default:
+		jassertfalse;
 	}
-	else
-		triggerAsyncUpdate();
 }
 
 void ConvolutionEffectBase::enableProcessing(bool shouldBeProcessed)
@@ -135,6 +146,9 @@ void ConvolutionEffectBase::calcPredelay()
 
 void ConvolutionEffectBase::applyExponentialFadeout(AudioSampleBuffer& buffer, int numSamples, float targetValue)
 {
+	if (targetValue == 1.0f)
+		return;
+
 	float* l = buffer.getWritePointer(0);
 	float* r = buffer.getWritePointer(1);
 
@@ -153,6 +167,9 @@ void ConvolutionEffectBase::applyExponentialFadeout(AudioSampleBuffer& buffer, i
 
 void ConvolutionEffectBase::applyHighFrequencyDamping(AudioSampleBuffer& buffer, int numSamples, double cutoffFrequency, double sampleRate)
 {
+	if (cutoffFrequency >= 20000.0)
+		return;
+
 	const double base = cutoffFrequency / 20000.0;
 	const double invBase = 1.0 - base;
 	const double factor = -1.0 * (double)numSamples / 8.0;
@@ -183,7 +200,7 @@ void ConvolutionEffectBase::applyHighFrequencyDamping(AudioSampleBuffer& buffer,
 
 void ConvolutionEffectBase::calcCutoff()
 {
-	setImpulse(false);
+	setImpulse(sendNotificationAsync);
 }
 
 
@@ -223,9 +240,10 @@ void ConvolutionEffectBase::prepareBase(double sampleRate, int samplesPerBlock)
 
 		leftPredelay.prepareToPlay(sampleRate);
 		rightPredelay.prepareToPlay(sampleRate);
-
-		setImpulse(false);
 	}
+
+	prepareCalledOnce = sampleRate > 0.0;
+	setImpulse(sendNotificationSync);
 }
 
 void ConvolutionEffectBase::processBase(ProcessDataDyn& d)
@@ -450,9 +468,9 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 						break;
 	case Latency:		latency = (int)newValue;
 		jassert(isPowerOfTwo(latency));
-		setImpulse(false);
+		setImpulse(sendNotificationAsync);
 		break;
-	case ImpulseLength:	setImpulse(false);
+	case ImpulseLength:	setImpulse(sendNotificationAsync);
 		break;
 	case ProcessInput:	processingEnabled = newValue >= 0.5f;
 						enableProcessing(processingEnabled); 
@@ -477,7 +495,7 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 						
 						break;
 	case Damping:		damping = Decibels::decibelsToGain(newValue); 
-						setImpulse(false);
+						setImpulse(sendNotificationAsync);
 						break;
 	case FFTType:		
 	{
@@ -486,7 +504,7 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 		if (newType != audiofft::ImplementationType::numImplementationTypes)
 		{
 			currentType = newType;
-			setImpulse(false);
+			setImpulse(sendNotificationSync);
 		}
 		
 		break;

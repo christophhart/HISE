@@ -286,76 +286,53 @@ struct VoiceResetter
 
 struct DllBoundaryTempoSyncer: public hise::TempoListener
 {
-	typedef void(*MyFunc)(void*, double);
-
-	
-
-	struct Item
-	{
-		Item() :
-			obj(nullptr),
-			f(nullptr)
-		{};
-
-		Item(void* o, MyFunc f_) :
-			obj(o),
-			f(f_)
-		{};
-
-		bool operator==(const Item& other) const { return obj == other.obj; }
-		operator bool() const { return obj != nullptr; }
-		
-		void call(double newTempo)
-		{
-			if (obj != nullptr)
-				f(obj, newTempo);
-		}
-
-		void* obj = nullptr;
-		MyFunc f = nullptr;
-	};
-
 	DllBoundaryTempoSyncer()
 	{
-		
+		tempoListeners.ensureStorageAllocated(256);
 	}
-
-	~DllBoundaryTempoSyncer()
-	{
-
-	}
-
+	~DllBoundaryTempoSyncer() = default;
+	
 	/** Register an item that has a tempoChangedStatic class. */
-	template <typename T> bool registerItem(T* obj)
+	void registerItem(TempoListener* obj)
 	{
-		Item newItem(obj, T::tempoChangedStatic);
-		auto ok = data.insert(newItem);
+		jassert(tempoListeners.size() < 255);
 
-		if(ok)
-			newItem.call(bpm);
-
-		return ok;
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(listenerLock);
+			tempoListeners.addIfNotAlreadyThere(obj);
+		}
+		
+		obj->tempoChanged(bpm);
 	}
 
 	/** deregisters an item with the tempo changed class. */
-	void deregisterItem(void* obj)
+	void deregisterItem(hise::TempoListener* obj)
 	{
-		data.remove(Item(obj, nullptr));
+		SimpleReadWriteLock::ScopedWriteLock sl(listenerLock);
+		tempoListeners.removeAllInstancesOf(obj);
 	}
 
 	void tempoChanged(double newTempo)
 	{
 		if (bpm != newTempo)
 		{
+			SimpleReadWriteLock::ScopedReadLock sl(listenerLock);
+
 			bpm = newTempo;
 
-			for (auto& d : data)
-				d.call(newTempo);
+			for (auto d : tempoListeners)
+			{
+				if (d != nullptr)
+					d->tempoChanged(bpm);
+			}
 		}
 	}
 
 	double bpm = 120.0;
-	hise::UnorderedStack<Item, 32> data;
+	
+	hise::SimpleReadWriteLock listenerLock;
+
+	Array<WeakReference<hise::TempoListener>> tempoListeners;
 
 	// Oh boy, what a disgrace...
 	ModValue* publicModValue = nullptr;

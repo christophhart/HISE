@@ -600,7 +600,8 @@ public:
 		if(playBackPosition != normalizedPlaybackPosition)
         {
             playBackPosition = normalizedPlaybackPosition;
-            repaint();
+
+			SafeAsyncCall::repaint(this);
         }
 	};
 
@@ -739,7 +740,6 @@ private:
 	NormalisableRange<double> totalLength;
 
 	ListenerList<Listener> list;
-
 };
 
 
@@ -1467,7 +1467,6 @@ public:
 		{
 			auto s = connectedBuffer->getCurrentRange().getLength();
 			AudioDisplayComponent::setPlaybackPosition((double)newSampleIndex / s);
-			repaint();
 		}
 	}
 

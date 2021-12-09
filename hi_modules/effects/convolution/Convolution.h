@@ -233,7 +233,7 @@ struct ConvolutionEffectBase: public AsyncUpdater,
 	ConvolutionEffectBase();;
 	virtual ~ConvolutionEffectBase();;
 
-	void setImpulse(bool sync);
+	void setImpulse(NotificationType n);
 
 	void handleAsyncUpdate() override
 	{
@@ -325,6 +325,10 @@ protected:
 	static void applyHighFrequencyDamping(AudioSampleBuffer& buffer, int numSamples, double cutoffFrequency, double sampleRate);
 
 	void calcCutoff();
+
+private:
+
+	bool prepareCalledOnce = false;
 };
 
 
@@ -367,12 +371,12 @@ public:
 
 	void bufferWasLoaded() override
 	{
-		setImpulse(false);
+		setImpulse(sendNotificationSync);
 	}
 
 	void bufferWasModified() override
 	{
-		setImpulse(false);
+		setImpulse(sendNotificationSync);
 	}
 
 	MultiChannelAudioBuffer& getImpulseBufferBase() override { return getBuffer(); }
@@ -464,10 +468,8 @@ struct convolution : public data::base,
 	void setExternalData(const snex::ExternalData& d, int index) override
 	{
 		base::setExternalData(d, index);
-
 		getImpulseBufferBase().setDisabledXYZProviders({ Identifier("SampleMap"), Identifier("SFZ") });
-
-		setImpulse(false);
+		setImpulse(sendNotificationSync);
 	}
 
 	void prepare(PrepareSpecs specs)
@@ -551,20 +553,29 @@ struct convolution : public data::base,
 
 	void setDamping(double targetSustainDb)
 	{
-		damping = Decibels::decibelsToGain(targetSustainDb);
-		setImpulse(false);
+		if (damping != targetSustainDb)
+		{
+			damping = Decibels::decibelsToGain(targetSustainDb);
+			setImpulse(sendNotificationAsync);
+		}
 	}
 
 	void setHiCut(double targetFreq)
 	{
-		cutoffFrequency = (double)targetFreq;
-		calcCutoff();
+		if (cutoffFrequency != targetFreq)
+		{
+			cutoffFrequency = (double)targetFreq;
+			calcCutoff();
+		}
 	}
 
 	void setPredelay(double newDelay)
 	{
-		predelayMs = newDelay;
-		calcPredelay();
+		if (newDelay != predelayMs)
+		{
+			predelayMs = newDelay;
+			calcPredelay();
+		}
 	}
 
 	void setGate(double shouldBeEnabled)
@@ -585,12 +596,14 @@ struct convolution : public data::base,
 		{
 			DEFINE_PARAMETERDATA(convolution, Predelay);
 			p.setRange({ 0.0, 1000.0, 1.0 });
+			p.setDefaultValue(0.0);
 			data.add(std::move(p));
 		}
 
 		{
 			DEFINE_PARAMETERDATA(convolution, Damping);
 			p.setRange({ -100.0, 0.0, 0.1 });
+			p.setDefaultValue(0.0);
 			p.setSkewForCentre(-12.0);
 			data.add(std::move(p));
 		}
@@ -598,6 +611,7 @@ struct convolution : public data::base,
 		{
 			DEFINE_PARAMETERDATA(convolution, HiCut);
 			p.setRange({ 20.0, 20000.0, 1.0});
+			p.setDefaultValue(20000.0);
 			p.setSkewForCentre(1000.0);
 			data.add(std::move(p));
 		}
