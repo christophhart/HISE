@@ -131,8 +131,27 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 
 		Result prepareTest(PrepareSpecs ps, const Array<ParameterEvent>& initialParameters) override;
 
+		void processTest(ProcessDataDyn& data) override;
+
 		PrepareSpecs ps;
+
+		void addRuntimeFunction(const var& f, int timestamp);
+
 		int waitTimeMs = 0;
+
+	private:
+
+		struct RuntimeFunction
+		{
+			RuntimeFunction(DspNetwork* n, const var& f_, int timestamp);;
+			WeakCallbackHolder f;
+			int timestamp;
+
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RuntimeFunction);
+		};
+
+		int currentTimestamp = 0;
+		OwnedArray<RuntimeFunction> runtimeFunctions;
 	};
 
 	ScriptNetworkTest(DspNetwork* n, var testData);;
@@ -155,6 +174,9 @@ struct ScriptNetworkTest : public hise::ConstScriptingObject
 
 	/** Sets a time to wait between calling prepare and processing the data. */
 	void setWaitingTime(int timeToWaitMs);
+
+	/** Sets a function that will be executed at the given time to simulate live user input. */
+	void addRuntimeFunction(var f, int timestamp);
 
 	/** Creates a XML representation of the current network. */
 	String dumpNetworkAsXml();

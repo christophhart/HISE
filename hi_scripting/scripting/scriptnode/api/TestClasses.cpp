@@ -49,6 +49,7 @@ struct ScriptNetworkTest::Wrapper
 	API_METHOD_WRAPPER_0(ScriptNetworkTest, checkCompileHashCodes);
 	API_METHOD_WRAPPER_3(ScriptNetworkTest, createAsciiDiff);
 	API_METHOD_WRAPPER_0(ScriptNetworkTest, getDllInfo);
+	API_VOID_METHOD_WRAPPER_2(ScriptNetworkTest, addRuntimeFunction);
 };
 
 ScriptNetworkTest::ScriptNetworkTest(DspNetwork* n, var testData) :
@@ -73,6 +74,7 @@ ScriptNetworkTest::ScriptNetworkTest(DspNetwork* n, var testData) :
 	ADD_API_METHOD_0(getListOfAllCompileableNodes);
 	ADD_API_METHOD_0(checkCompileHashCodes);
 	ADD_API_METHOD_0(getDllInfo);
+	ADD_API_METHOD_2(addRuntimeFunction);
 }
 
 String ScriptNetworkTest::getLastTestException() const
@@ -174,6 +176,15 @@ juce::var ScriptNetworkTest::runTest()
 {
 	wb->triggerRecompile();
 	auto& td = wb->getTestData();
+
+	if (auto b = dynamic_cast<CHandler*>(wb->getCompileHandler()))
+	{
+		if (b->lastTestResult.wasOk() && !b->network->getExceptionHandler().isOk())
+		{
+			// A runtime error occured!
+			b->lastTestResult = Result::fail(b->network->getExceptionHandler().getErrorMessage());
+		}
+	}
 
 	auto numChannels = td.testOutputData.getNumChannels();
 
@@ -382,6 +393,14 @@ void ScriptNetworkTest::setWaitingTime(int timeToWaitMs)
 	dynamic_cast<CHandler*>(wb->getCompileHandler())->waitTimeMs = jlimit(0, 3000, timeToWaitMs);
 }
 
+void ScriptNetworkTest::addRuntimeFunction(var f, int timestamp)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(f))
+	{
+		dynamic_cast<CHandler*>(wb->getCompileHandler())->addRuntimeFunction(f, timestamp);
+	}
+}
+
 ScriptNetworkTest::CHandler::CHandler(WorkbenchData::Ptr wb, DspNetwork* n) :
 	ScriptnodeCompileHandlerBase(wb.get(), n)
 {
@@ -402,7 +421,39 @@ Result ScriptNetworkTest::CHandler::prepareTest(PrepareSpecs ps, const Array<Par
 		Thread::getCurrentThread()->wait(waitTimeMs);
 	}
 
+	currentTimestamp = 0;
+
 	return lastTestResult;
+}
+
+void ScriptNetworkTest::CHandler::processTest(ProcessDataDyn& data)
+{
+	Range<int> timestampRange(currentTimestamp, currentTimestamp + data.getNumSamples());
+
+	for (auto f : runtimeFunctions)
+	{
+		if (timestampRange.contains(f->timestamp))
+		{
+			f->f.callSync(nullptr, 0);
+		}
+	}
+
+	ScriptnodeCompileHandlerBase::processTest(data);
+
+	currentTimestamp += data.getNumSamples();
+}
+
+ScriptNetworkTest::CHandler::RuntimeFunction::RuntimeFunction(DspNetwork* n, const var& f_, int timestamp_) :
+	f(n->getScriptProcessor(), f_, 0),
+	timestamp(timestamp_)
+{
+	f.incRefCount();
+	f.setThisObject(n);
+}
+
+void ScriptNetworkTest::CHandler::addRuntimeFunction(const var& f, int timestamp)
+{
+	runtimeFunctions.add(new RuntimeFunction(network, f, timestamp));
 }
 
 ScriptnodeCompileHandlerBase::ScriptnodeCompileHandlerBase(WorkbenchData* d, DspNetwork* network_) :
