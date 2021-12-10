@@ -387,9 +387,25 @@ namespace ScriptedDrawActions
 
 		bool wantsCachedImage() const override { return true; };
 
+		//bool wantsToDrawOnParent() const override { return true; }
+
 		void perform(Graphics& g) override
 		{
-			shadow.drawForImage(g, cachedImage);
+			jassert(!mainImage.getBounds().isEmpty());
+
+			auto invT = AffineTransform::scale(1.0f / scaleFactor);
+
+			g.saveState();
+			g.addTransform(invT);
+
+
+			int prevR = shadow.radius;
+
+			shadow.radius *= scaleFactor;
+			shadow.drawForImage(g, mainImage);
+			shadow.radius = prevR;
+
+			g.restoreState();
 		}
 
 		DropShadow shadow;

@@ -764,8 +764,7 @@ struct GraphicHelpers
 
 void BorderPanel::paint(Graphics &g)
 {
-	if (recursion)
-		return;
+	
 
 
 	registerToTopLevelComponent();
@@ -787,74 +786,9 @@ void BorderPanel::paint(Graphics &g)
 		if (isOpaque())
 			g.fillAll(Colours::black);
 
-		UnblurryGraphics ug(g, *this);
-
-		auto sf = ug.getTotalScaleFactor();
-		auto st = AffineTransform::scale(jmin<double>(2.0, sf));
-		auto st2 = AffineTransform::scale(sf);
-
-		auto tc = getTopLevelComponent();
-
-		auto gb = getLocalArea(tc, getLocalBounds()).transformed(st2);
-		
-		drawHandler->setGlobalBounds(gb, tc->getLocalBounds(), sf);
-
 		DrawActions::Handler::Iterator it(drawHandler.get());
 
-		if (it.wantsCachedImage())
-		{
-			// We are creating one master image before the loop
-			Image cachedImg;
-			
-			if (!isOpaque() && (getParentComponent() != nullptr && it.wantsToDrawOnParent()))
-			{
-				// fetch the parent component content here...
-				ScopedValueSetter<bool> sv(recursion, true);
-				cachedImg = getParentComponent()->createComponentSnapshot(getBoundsInParent(), true, sf);
-			}
-			else
-			{
-				// just use an empty image
-				cachedImg = Image(Image::ARGB, getWidth() * sf, getHeight() * sf, true);
-			}
-
-			Graphics g2(cachedImg);
-			g2.addTransform(st);
-
-			while (auto action = it.getNextAction())
-			{
-				if (action->wantsCachedImage())
-				{
-					Image actionImage;
-
-					if (action->wantsToDrawOnParent())
-						actionImage = cachedImg; // just use the cached image
-					else
-					{
-						actionImage = Image(cachedImg.getFormat(), cachedImg.getWidth(), cachedImg.getHeight(), true);
-					}
-
-					Graphics g3(actionImage);
-					g3.addTransform(st);
-					action->setScaleFactor(sf);
-					action->setCachedImage(actionImage);
-					action->perform(g3);
-
-					if (!action->wantsToDrawOnParent())
-						GraphicHelpers::quickDraw(cachedImg, actionImage);
-				}
-				else
-					action->perform(g2);
-			}
-			
-			g.drawImageTransformed(cachedImg, st.inverted());
-		}
-		else
-		{
-			while (auto action = it.getNextAction())
-				action->perform(g);
-		}
-
+		it.render(g, this);
 		
 	}
 	else
@@ -1091,21 +1025,93 @@ juce::Rectangle<int> DrawActions::Handler::getScreenshotBounds(Rectangle<int> sh
 
 void DrawActions::BlendingLayer::perform(Graphics& g)
 {
-	auto imageToBlendOn = cachedImage;
+	auto imageToBlendOn = actionImage;
 
-	blendSource = Image(Image::ARGB, cachedImage.getWidth(), cachedImage.getHeight(), true);
+	blendSource = Image(Image::ARGB, actionImage.getWidth(), actionImage.getHeight(), true);
 
 	for (auto a : actions)
 	{
 		if (a->wantsCachedImage())
-			a->setCachedImage(blendSource);
+			a->setCachedImage(blendSource, actionImage);
 	}
 
-	setCachedImage(blendSource);
+	setCachedImage(blendSource, actionImage);
 	Graphics g2(blendSource);
 
 	ActionLayer::perform(g2);
 	gin::applyBlend(imageToBlendOn, blendSource, blendMode, alpha);
+}
+
+void DrawActions::Handler::Iterator::render(Graphics& g, Component* c)
+{
+	if (handler->recursion)
+		return;
+
+	UnblurryGraphics ug(g, *c);
+
+	auto sf = ug.getTotalScaleFactor();
+	auto st = AffineTransform::scale(jmin<double>(2.0, sf));
+	auto st2 = AffineTransform::scale(sf);
+
+	auto tc = c->getTopLevelComponent();
+
+	auto gb = c->getLocalArea(tc, c->getLocalBounds()).transformed(st2);
+
+	handler->setGlobalBounds(gb, tc->getLocalBounds(), sf);
+
+	if (wantsCachedImage())
+	{
+		// We are creating one master image before the loop
+		Image cachedImg;
+
+		if (!c->isOpaque() && (c->getParentComponent() != nullptr && wantsToDrawOnParent()))
+		{
+			// fetch the parent component content here...
+			ScopedValueSetter<bool> sv(handler->recursion, true);
+			cachedImg = c->getParentComponent()->createComponentSnapshot(c->getBoundsInParent(), true, sf);
+		}
+		else
+		{
+			// just use an empty image
+			cachedImg = Image(Image::ARGB, c->getWidth() * sf, c->getHeight() * sf, true);
+		}
+
+		Graphics g2(cachedImg);
+		g2.addTransform(st);
+
+		while (auto action = getNextAction())
+		{
+			if (action->wantsCachedImage())
+			{
+				Image actionImage;
+
+				if (action->wantsToDrawOnParent())
+					actionImage = cachedImg; // just use the cached image
+				else
+				{
+					actionImage = Image(cachedImg.getFormat(), cachedImg.getWidth(), cachedImg.getHeight(), true);
+				}
+
+				Graphics g3(actionImage);
+				g3.addTransform(st);
+				action->setScaleFactor(sf);
+				action->setCachedImage(actionImage, cachedImg);
+				action->perform(g3);
+
+				if (!action->wantsToDrawOnParent())
+					GraphicHelpers::quickDraw(cachedImg, actionImage);
+			}
+			else
+				action->perform(g2);
+		}
+
+		g.drawImageTransformed(cachedImg, st.inverted());
+	}
+	else
+	{
+		while (auto action = getNextAction())
+			action->perform(g);
+	}
 }
 
 } // namespace hise

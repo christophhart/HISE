@@ -613,7 +613,7 @@ namespace ScriptingObjects
 
 		// ========================================================================================
 
-		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject);
+		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject, Component* c);
 
 		var callDefinedFunction(const Identifier& name, var* args, int numArgs);
 
