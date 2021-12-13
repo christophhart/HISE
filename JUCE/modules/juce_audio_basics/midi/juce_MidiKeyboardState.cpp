@@ -90,6 +90,15 @@ void MidiKeyboardState::noteOff (const int midiChannel, const int midiNoteNumber
     }
 }
 
+void MidiKeyboardState::injectMessage(const MidiMessage& m)
+{
+	jassert(!m.isNoteOnOrOff());
+
+	const int timeNow = (int)Time::getMillisecondCounter();
+	eventsToAdd.addEvent(m, timeNow);
+	eventsToAdd.clear(0, timeNow - 500);
+}
+
 void MidiKeyboardState::noteOffInternal  (const int midiChannel, const int midiNoteNumber, const float velocity)
 {
     if (isNoteOn (midiChannel, midiNoteNumber))

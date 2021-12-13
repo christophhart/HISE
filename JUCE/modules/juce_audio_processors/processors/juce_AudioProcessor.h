@@ -1211,6 +1211,8 @@ public:
     */
     const WrapperType wrapperType;
 
+	WrapperType getWrapperTypeBeingCreated() const;
+
     /** Returns a textual description of a WrapperType value */
     static const char* getWrapperTypeDescription (AudioProcessor::WrapperType) noexcept;
 

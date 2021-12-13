@@ -93,6 +93,8 @@ public:
     */
     void noteOff (int midiChannel, int midiNoteNumber, float velocity);
 
+	void injectMessage(const MidiMessage& m);
+
     /** This will turn off any currently-down notes for the given midi channel.
 
         If you pass 0 for the midi channel, it will in fact turn off all notes on all channels.
@@ -165,6 +167,8 @@ public:
         */
         virtual void handleNoteOff (MidiKeyboardState* source,
                                     int midiChannel, int midiNoteNumber, float velocity) = 0;
+
+		virtual void handleMessage(const MidiMessage& /*m*/) {};
     };
 
     /** Registers a listener for callbacks when keys go up or down.

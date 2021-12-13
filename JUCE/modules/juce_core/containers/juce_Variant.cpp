@@ -569,8 +569,6 @@ namespace juce
 
 	var::~var() noexcept { type->cleanUp(value); }
 
-	JUCE_DECLARE_DEPRECATED_STATIC(const var var::null;)
-
 		//==============================================================================
 		var::var(const var& valueToCopy) : type(valueToCopy.type)
 	{

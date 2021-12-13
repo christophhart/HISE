@@ -1229,6 +1229,11 @@ int32 AudioProcessor::getAAXPluginIDForMainBusConfig (const AudioChannelSet& mai
     return (idForAudioSuite ? 0x6a796161 /* 'jyaa' */ : 0x6a636161 /* 'jcaa' */) + uniqueFormatId;
 }
 
+AudioProcessor::WrapperType AudioProcessor::getWrapperTypeBeingCreated() const
+{
+	return wrapperTypeBeingCreated.get();
+}
+
 //==============================================================================
 const char* AudioProcessor::getWrapperTypeDescription (AudioProcessor::WrapperType type) noexcept
 {
