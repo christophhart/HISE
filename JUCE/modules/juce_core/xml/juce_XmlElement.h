@@ -142,7 +142,7 @@ public:
         String customEncoding;             /**< If not empty and addDefaultHeader is true, this will be set as the encoding. Otherwise, a default of "UTF-8" will be used */
         bool addDefaultHeader = true;      /**< If true, a default header will be generated; otherwise just bare XML will be emitted. */
         int lineWrapLength = 60;           /**< A maximum line length before wrapping is done. (If newLineChars is nullptr, this is ignored) */
-        const char* newLineChars = "\r\n"; /**< Allows the newline characters to be set. If you set this to nullptr, then the whole XML document will be placed on a single line. */
+        const char* newLineChars = "\n"; /**< Allows the newline characters to be set. If you set this to nullptr, then the whole XML document will be placed on a single line. */
 
         TextFormat singleLine() const;     /**< returns a copy of this format with newLineChars set to nullptr. */
         TextFormat withoutHeader() const;  /**< returns a copy of this format with the addDefaultHeader flag set to false. */

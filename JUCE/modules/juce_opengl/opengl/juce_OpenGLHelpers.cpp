@@ -214,16 +214,27 @@ String OpenGLHelpers::translateVertexShaderToV3 (const String& code)
     return code;
 }
 
-String OpenGLHelpers::translateFragmentShaderToV3 (const String& code)
+String OpenGLHelpers::translateFragmentShaderToV3(const String& code)
 {
-    if (getOpenGLVersion() >= Version (3, 2))
-        return getGLSLVersionString() + "\n"
-               "out " JUCE_MEDIUMP " vec4 fragColor;\n"
-                + code.replace ("varying", "in")
-                      .replace ("texture2D", "texture")
-                      .replace ("gl_FragColor", "fragColor");
+#if JUCE_OPENGL3
+	if (VersionHelpers::getVersionNumber(code) > 1.2)
+	{
+		String prefix;
 
-    return code;
+		auto replacedCode = code.replace("varying", "in")
+			.replace("texture2D", "texture")
+			.replace("gl_FragColor", "fragColor");
+
+		if (!VersionHelpers::hasVersionString(code))
+			prefix << JUCE_GLSL_VERSION << "\n";
+
+		prefix << "out " JUCE_MEDIUMP " vec4 fragColor;\n";
+
+		return VersionHelpers::addPrefixAfterVersion(replacedCode, prefix);
+	}
+#endif
+
+	return code;
 }
 
 } // namespace juce

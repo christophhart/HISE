@@ -1001,6 +1001,9 @@ public:
         {
             popupDisplay.reset (new PopupDisplayComponent (owner, parentForPopupDisplay == nullptr));
 
+			popupDisplay->setColour(BubbleComponent::outlineColourId, owner.findColour(Slider::trackColourId));
+			popupDisplay->setColour(BubbleComponent::backgroundColourId, owner.findColour(Slider::trackColourId).withAlpha(0.2f));
+
             if (parentForPopupDisplay != nullptr)
                 parentForPopupDisplay->addChildComponent (popupDisplay.get());
             else

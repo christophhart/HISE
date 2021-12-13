@@ -95,11 +95,11 @@ SampleType Compressor<SampleType>::processSample (int channel, SampleType inputV
     auto env = envelopeFilter.processSample (channel, inputValue);
 
     // VCA
-    auto gain = (env < threshold) ? static_cast<SampleType> (1.0)
+    currentGain = (env < threshold) ? static_cast<SampleType> (1.0)
                                   : std::pow (env * thresholdInverse, ratioInverse - static_cast<SampleType> (1.0));
 
     // Output
-    return gain * inputValue;
+    return currentGain * inputValue;
 }
 
 template <typename SampleType>

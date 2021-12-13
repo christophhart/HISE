@@ -577,6 +577,10 @@ int File::findChildFiles (Array<File>& results, int whatToLookFor, bool searchRe
         results.add (di.getFile());
         ++total;
     }
+    
+#if JUCE_MAC
+    results.sort();
+#endif
 
     return total;
 }

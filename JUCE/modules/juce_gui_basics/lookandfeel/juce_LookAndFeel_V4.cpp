@@ -968,11 +968,21 @@ void LookAndFeel_V4::drawLinearSlider (Graphics& g, int x, int y, int width, int
 
         auto trackWidth = jmin (6.0f, slider.isHorizontal() ? (float) height * 0.25f : (float) width * 0.25f);
 
-        Point<float> startPoint (slider.isHorizontal() ? (float) x : (float) x + (float) width * 0.5f,
-                                 slider.isHorizontal() ? (float) y + (float) height * 0.5f : (float) (height + y));
+		auto isBipolar = slider.getRange().expanded(-0.1).contains(0.0);
 
-        Point<float> endPoint (slider.isHorizontal() ? (float) (width + x) : startPoint.x,
-                               slider.isHorizontal() ? startPoint.y : (float) y);
+		Point<float> startPoint, endPoint;
+
+
+		if (slider.isHorizontal())
+		{
+			startPoint = { (float)x, (float)y + (float)height * 0.5f };
+			endPoint = { (float)(width + x) , startPoint.y };
+		}
+		else
+		{
+			startPoint = { (float)x + (float)width * 0.5f , (float)(height + y) };
+			endPoint = { startPoint.x , (float)y };
+		}
 
         Path backgroundTrack;
         backgroundTrack.startNewSubPath (startPoint);
@@ -1000,6 +1010,11 @@ void LookAndFeel_V4::drawLinearSlider (Graphics& g, int x, int y, int width, int
             auto kx = slider.isHorizontal() ? sliderPos : ((float) x + (float) width * 0.5f);
             auto ky = slider.isHorizontal() ? ((float) y + (float) height * 0.5f) : sliderPos;
 
+			if (isBipolar)
+			{
+				startPoint.x = (float)x + (float)width * 0.5f;
+			}
+
             minPoint = startPoint;
             maxPoint = { kx, ky };
         }
@@ -1013,8 +1028,11 @@ void LookAndFeel_V4::drawLinearSlider (Graphics& g, int x, int y, int width, int
 
         if (! isTwoVal)
         {
-            g.setColour (slider.findColour (Slider::thumbColourId));
-            g.fillEllipse (Rectangle<float> (static_cast<float> (thumbWidth), static_cast<float> (thumbWidth)).withCentre (isThreeVal ? thumbPoint : maxPoint));
+            g.setColour (slider.findColour (Slider::thumbColourId).withMultipliedBrightness(slider.isMouseOverOrDragging() ? 1.15f : 1.0f));
+
+			float thumbSize = slider.isMouseButtonDown() ? 0.9f : 1.0f;
+
+            g.fillEllipse (Rectangle<float> (static_cast<float> (thumbWidth) * thumbSize, static_cast<float> (thumbWidth) * thumbSize).withCentre (isThreeVal ? thumbPoint : maxPoint));
         }
 
         if (isTwoVal || isThreeVal)

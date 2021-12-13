@@ -1885,10 +1885,90 @@ struct CustomProgram  : public ReferenceCountedObject,
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomProgram)
 };
 
+struct VersionHelpers
+{
+	static bool hasVersionString(const String& fragmentShaderCode)
+	{
+		return fragmentShaderCode.contains("#version");
+	}
+
+	static double getVersionNumber(const String& fragmentShaderCode)
+	{
+		if (!hasVersionString(fragmentShaderCode))
+			return OpenGLShaderProgram::getLanguageVersion();
+
+		return (double)getVersionLine(fragmentShaderCode).getTrailingIntValue() / 100.0;
+	}
+
+	static String getVersionLine(const String& fragmentShaderCode)
+	{
+		if (!hasVersionString(fragmentShaderCode))
+			return {};
+
+		auto vIndex = fragmentShaderCode.indexOf("#version");
+
+		auto s = fragmentShaderCode.getCharPointer() + vIndex;
+		auto end = s;
+
+		while (end)
+		{
+			if (*end == '\n')
+				return String(s, end);
+
+			end++;
+		}
+		
+		jassertfalse;
+		return {};
+	}
+
+	static String getCodeWithoutVersion(const String& fragmentShaderCode)
+	{
+		auto s = StringArray::fromLines(fragmentShaderCode);
+
+		for (auto& l : s)
+		{
+			if (l.startsWith("#version"))
+				l = " ";
+		}
+			
+		return s.joinIntoString("\n");
+	}
+
+	static String addPrefixAfterVersion(const String& fragmentShaderCode, const String& prefix)
+	{
+		String s;
+
+		if (hasVersionString(fragmentShaderCode))
+		{
+			s << getVersionLine(fragmentShaderCode) << "\n";
+			s << prefix;
+			s << getCodeWithoutVersion(fragmentShaderCode);
+		}
+		else
+		{
+			s << prefix;
+			s << fragmentShaderCode;
+		}
+
+		return s;
+	}
+
+	static String appendCustomGraphicsHeader(const String& fragmentShaderCode)
+	{
+		String prefix;
+		prefix << JUCE_DECLARE_VARYING_COLOUR;
+		prefix << JUCE_DECLARE_VARYING_PIXELPOS;
+		prefix << "\n#define pixelAlpha frontColour.a\n";
+
+		return addPrefixAfterVersion(fragmentShaderCode, prefix);
+	}
+};
+
+
+
 OpenGLGraphicsContextCustomShader::OpenGLGraphicsContextCustomShader (const String& fragmentShaderCode)
-    : code (String (JUCE_DECLARE_VARYING_COLOUR
-                    JUCE_DECLARE_VARYING_PIXELPOS
-                    "\n#define pixelAlpha frontColour.a\n") + fragmentShaderCode),
+    : code (VersionHelpers::appendCustomGraphicsHeader(fragmentShaderCode)),
       hashName (String::toHexString (fragmentShaderCode.hashCode64()) + "_shader")
 {
 }

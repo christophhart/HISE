@@ -1403,6 +1403,8 @@ public:
     */
     void grabKeyboardFocus();
 
+	void grabKeyboardFocusAsync();
+
     /** If this component or any of its children currently have the keyboard focus,
         this will defocus it, send a focus change notification, and try to pass the
         focus to the next component.
@@ -2393,6 +2395,40 @@ public:
     */
     bool getViewportIgnoreDragFlag() const noexcept                     { return flags.viewportIgnoreDragFlag; }
 
+	/** This will simply skip the painting of this component without causing a repaint. */
+	void setSkipPainting(bool shouldSkip);
+
+	/** Recursively calls a function on all components with the given type. */
+	template <typename ComponentType = Component> static bool callRecursive(Component* root, const std::function<bool(ComponentType* c)>& f, bool async = false)
+	{
+		if (async)
+		{
+			Component::SafePointer<Component> safeRoot(root);
+
+			MessageManager::callAsync([safeRoot, f]()
+				{
+					if (safeRoot != nullptr)
+						callRecursive<ComponentType>(safeRoot.getComponent(), f, false);
+				});
+
+			return false;
+		}
+
+		if (auto typed = dynamic_cast<ComponentType*>(root))
+		{
+			if (f(typed))
+				return true;
+		}
+
+		for (int i = 0; i < root->getNumChildComponents(); i++)
+		{
+			if (callRecursive(root->getChildComponent(i), f))
+				return true;
+		}
+
+		return false;
+	}
+
     //==============================================================================
     /** Returns the title text for this component.
 
@@ -2558,6 +2594,7 @@ private:
         bool isMoveCallbackPending        : 1;
         bool isResizeCallbackPending      : 1;
         bool viewportIgnoreDragFlag       : 1;
+		bool skipPaintFlag				  : 1;
         bool accessibilityIgnoredFlag     : 1;
         bool cachedMouseInsideComponent   : 1;
        #if JUCE_DEBUG

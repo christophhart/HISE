@@ -169,6 +169,7 @@ public:
         */
         Position movedByLines (int deltaLines) const;
 
+
         /** Returns the character in the document at this position.
             @see getLineText
         */
@@ -178,6 +179,8 @@ public:
             @see getCharacter, getLineNumber
         */
         String getLineText() const;
+
+		const CodeDocument* getOwner() const { return owner; }
 
     private:
         CodeDocument* owner = nullptr;
@@ -335,6 +338,11 @@ public:
 
         /** Called by a CodeDocument when text is deleted. */
         virtual void codeDocumentTextDeleted (int startIndex, int endIndex) = 0;
+
+		virtual void lineRangeChanged(Range<int> range, bool wasAdded)
+		{
+			ignoreUnused(range, wasAdded);
+		};
     };
 
     /** Registers a listener object to receive callbacks when the document changes.
@@ -347,6 +355,8 @@ public:
         @see addListener
     */
     void removeListener (Listener* listener);
+
+	int getNumListeners() const;
 
     //==============================================================================
     /** Iterates the text in a CodeDocument.
@@ -407,6 +417,8 @@ public:
 
         /** Returns the line number of the next character. */
         int getLine() const noexcept            { return line; }
+
+		int getIndexInLine() const;
 
         /** Returns true if the iterator has reached the end of the document. */
         bool isEOF() const noexcept;

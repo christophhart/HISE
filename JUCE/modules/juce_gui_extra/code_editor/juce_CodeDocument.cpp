@@ -290,6 +290,17 @@ void CodeDocument::Iterator::skipWhitespace() noexcept
         skip();
 }
 
+int CodeDocument::Iterator::getIndexInLine() const
+{
+	if (auto* l = document->lines[line])
+	{
+		if(charPointer >= l->line.begin() && charPointer < l->line.end())
+			return (int)(charPointer - l->line.getCharPointer());
+	}
+
+	return 0;
+}
+
 bool CodeDocument::Iterator::isEOF() const noexcept
 {
     return charPointer.getAddress() == nullptr && line >= document->lines.size();
@@ -878,6 +889,11 @@ void CodeDocument::checkLastLineStatus()
 void CodeDocument::addListener    (CodeDocument::Listener* l)   { listeners.add (l); }
 void CodeDocument::removeListener (CodeDocument::Listener* l)   { listeners.remove (l); }
 
+int CodeDocument::getNumListeners() const
+{
+	return listeners.size();
+}
+
 //==============================================================================
 struct CodeDocument::InsertAction   : public UndoableAction
 {
@@ -954,12 +970,26 @@ void CodeDocument::insert (const String& text, const int insertPos, const bool u
                 lineStart += l.lineLength;
             }
 
+			int numLinesBefore = getNumLines();
             checkLastLineStatus();
+
+
+
+			
+
             auto newTextLength = text.length();
 
             for (auto* p : positionsToMaintain)
                 if (p->getPosition() >= insertPos)
                     p->setPosition (p->getPosition() + newTextLength);
+
+			auto rangeEnd = firstAffectedLine + newLines.size();
+
+			if (getNumLines() != numLinesBefore)
+				rangeEnd++;
+
+			Range<int> rangeThatChanged(firstAffectedLine, rangeEnd);
+			listeners.call([&](Listener& l) { l.lineRangeChanged(rangeThatChanged, true); });
 
             listeners.call ([&] (Listener& l) { l.codeDocumentTextInserted (text, insertPos); });
         }
@@ -1054,6 +1084,9 @@ void CodeDocument::remove (const int startPos, const int endPos, const bool undo
             if (p->getPosition() > totalChars)
                 p->setPosition (totalChars);
         }
+
+		Range<int> rangeThatWasDeleted(firstAffectedLine, endLine);
+		listeners.call([=](Listener& l) { l.lineRangeChanged(rangeThatWasDeleted, false); });
 
         listeners.call ([=] (Listener& l) { l.codeDocumentTextDeleted (startPos, endPos); });
     }

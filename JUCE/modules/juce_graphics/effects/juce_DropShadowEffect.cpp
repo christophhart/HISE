@@ -82,6 +82,9 @@ void DropShadow::drawForImage (Graphics& g, const Image& srcImage) const
         Image shadowImage (srcImage.convertedToFormat (Image::SingleChannel));
         shadowImage.duplicateIfShared();
 
+        if(jmin(shadowImage.getWidth(), shadowImage.getHeight()) <= jmin(2, radius))
+            return;
+        
         blurSingleChannelImage (shadowImage, radius);
 
         g.setColour (colour);

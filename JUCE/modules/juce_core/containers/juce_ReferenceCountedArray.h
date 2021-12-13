@@ -23,6 +23,14 @@
 namespace juce
 {
 
+
+#if JUCE_LINUX
+#define PREVENT_OPTIMISATION asm volatile("": : : "memory")
+#else
+#define PREVENT_OPTIMISATION
+#endif
+
+
 //==============================================================================
 /**
     Holds a list of objects derived from ReferenceCountedObject, or which implement basic
@@ -64,6 +72,8 @@ public:
         const ScopedLockType lock (other.getLock());
         values.addArray (other.begin(), other.size());
 
+		PREVENT_OPTIMISATION;
+
         for (auto* o : *this)
             if (o != nullptr)
                 o->incReferenceCount();
@@ -81,6 +91,8 @@ public:
     {
         const typename ReferenceCountedArray<OtherObjectClass, OtherCriticalSection>::ScopedLockType lock (other.getLock());
         values.addArray (other.begin(), other.size());
+
+		PREVENT_OPTIMISATION;
 
         for (auto* o : *this)
             if (o != nullptr)
