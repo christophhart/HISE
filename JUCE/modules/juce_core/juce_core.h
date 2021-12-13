@@ -75,6 +75,13 @@
  //#define JUCE_FORCE_DEBUG 0
 #endif
 
+/** Config: JUCE_ENABLE_AUDIO_GUARD
+	If enabled, this will watch for calls considered evil in the audio thread and fire a warning
+*/
+#ifndef JUCE_ENABLE_AUDIO_GUARD
+#define JUCE_ENABLE_AUDIO_GUARD 0
+#endif
+
 //==============================================================================
 /** Config: JUCE_LOG_ASSERTIONS
 
@@ -234,9 +241,20 @@ JUCE_BEGIN_IGNORE_WARNINGS_MSVC (4514 4996)
 
 JUCE_END_IGNORE_WARNINGS_MSVC
 
+#if JUCE_ENABLE_AUDIO_GUARD
+/** This little macro just calls DBG() with suspended audio guard (otherwise the string creation would fire). */
+#define DBG_WITH_AUDIO_GUARD(x) { juce::AudioThreadGuard::Suspender s; DBG(x); }
+#define WARN_IF_AUDIO_THREAD(condition, operationType) juce::AudioThreadGuard::warnIf(condition, operationType)
+#else
+#define WARN_IF_AUDIO_THREAD(condition, operationType)
+#define DBG_WITH_AUDIO_GUARD(x)
+#endif
+
+
 #include "text/juce_String.h"
 #include "text/juce_StringRef.h"
 #include "logging/juce_Logger.h"
+#include "logging/juce_AudioThreadGuard.h"
 #include "memory/juce_LeakedObjectDetector.h"
 #include "memory/juce_ContainerDeletePolicy.h"
 #include "memory/juce_HeapBlock.h"

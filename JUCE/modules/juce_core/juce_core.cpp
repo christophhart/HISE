@@ -142,6 +142,7 @@
 #include "files/juce_TemporaryFile.cpp"
 #include "logging/juce_FileLogger.cpp"
 #include "logging/juce_Logger.cpp"
+#include "logging/juce_AudioThreadGuard.cpp"
 #include "maths/juce_BigInteger.cpp"
 #include "maths/juce_Expression.cpp"
 #include "maths/juce_Random.cpp"
