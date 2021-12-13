@@ -110,6 +110,15 @@ enum MissingOpenGLDefinitions
     GL_POINT_SPRITE                 = 0x8861,
    #endif
 
+    
+#ifndef GL_BLEND_DST
+    GL_BLEND_DST                    = 0x0BE0,
+#endif
+    
+#ifndef GL_BLEND_SRC
+    GL_BLEND_SRC                    = 0x0BE1,
+#endif
+    
    #if JUCE_WINDOWS && ! defined (GL_TEXTURE0)
     GL_OPERAND0_RGB                 = 0x8590,
     GL_OPERAND1_RGB                 = 0x8591,
