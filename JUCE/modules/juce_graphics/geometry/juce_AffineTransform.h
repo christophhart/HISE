@@ -281,8 +281,6 @@ public:
         Obviously a length may be scaled by entirely different amounts depending on its
         direction, so this is only appropriate as a rough guide.
     */
-    [[deprecated ("This method produces incorrect values for transforms containing rotations. "
-                 "See the method docs for a code example on how to calculate the correct scale factor.")]]
     float getScaleFactor() const noexcept;
 
     [[deprecated ("If you need an identity transform, just use AffineTransform() or {}.")]]

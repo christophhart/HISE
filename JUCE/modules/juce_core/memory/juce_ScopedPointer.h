@@ -30,7 +30,7 @@ namespace juce
     This class is deprecated. You should use std::unique_ptr instead.
 */
 template <class ObjectType>
-class [[deprecated]] ScopedPointer
+class ScopedPointer
 {
 public:
     //==============================================================================
