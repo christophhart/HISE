@@ -5449,43 +5449,43 @@ ApiClass(139)
 int ScriptingApi::Colours::withAlpha(int colour, float alpha)
 {
 	Colour c((uint32)colour);
-	return (int)c.withAlpha(alpha).getARGB();
+	return (int)c.withAlpha(jlimit(0.0f, 1.0f, alpha)).getARGB();
 }
 
 int ScriptingApi::Colours::withHue(int colour, float hue)
 {
 	Colour c((uint32)colour);
-	return (int)c.withHue(hue).getARGB();
+	return (int)c.withHue(jlimit(0.0f, 1.0f, hue)).getARGB();
 }
 
 int ScriptingApi::Colours::withSaturation(int colour, float saturation)
 {
 	Colour c((uint32)colour);
-	return (int)c.withSaturation(saturation).getARGB();
+	return (int)c.withSaturation(jlimit(0.0f, 1.0f, saturation)).getARGB();
 }
 
 int ScriptingApi::Colours::withBrightness(int colour, float brightness)
 {
 	Colour c((uint32)colour);
-	return (int)c.withBrightness(brightness).getARGB();
+	return (int)c.withBrightness(jlimit(0.0f, 1.0f, brightness)).getARGB();
 }
 
 int ScriptingApi::Colours::withMultipliedAlpha(int colour, float factor)
 {
 	Colour c((uint32)colour);
-	return (int)c.withMultipliedAlpha(factor).getARGB();
+	return (int)c.withMultipliedAlpha(jmax(0.0f, factor)).getARGB();
 }
 
 int ScriptingApi::Colours::withMultipliedSaturation(int colour, float factor)
 {
 	Colour c((uint32)colour);
-	return (int)c.withMultipliedSaturation(factor).getARGB();
+	return (int)c.withMultipliedSaturation(jmax(0.0f, factor)).getARGB();
 }
 
 int ScriptingApi::Colours::withMultipliedBrightness(int colour, float factor)
 {
 	Colour c((uint32)colour);
-	return (int)c.withMultipliedBrightness(factor).getARGB();
+	return (int)c.withMultipliedBrightness(jmax(0.0f, factor)).getARGB();
 }
 
 var ScriptingApi::Colours::toVec4(int colour)
