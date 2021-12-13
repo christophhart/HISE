@@ -39,16 +39,23 @@ static bool exeIsAvailable (String executable)
     return false;
 }
 
+static bool isSet (int flags, int toCheck)
+{
+    return (flags & toCheck) != 0;
+}
+
 class FileChooser::Native    : public FileChooser::Pimpl,
                                private Timer
 {
 public:
     Native (FileChooser& fileChooser, int flags)
         : owner (fileChooser),
-          isDirectory         ((flags & FileBrowserComponent::canSelectDirectories)   != 0),
-          isSave              ((flags & FileBrowserComponent::saveMode)               != 0),
-          selectMultipleFiles ((flags & FileBrowserComponent::canSelectMultipleItems) != 0),
-          warnAboutOverwrite  ((flags & FileBrowserComponent::warnAboutOverwriting)   != 0)
+          // kdialog/zenity only support opening either files or directories.
+          // Files should take precedence, if requested.
+          isDirectory         (isSet (flags, FileBrowserComponent::canSelectDirectories) && ! isSet (flags, FileBrowserComponent::canSelectFiles)),
+          isSave              (isSet (flags, FileBrowserComponent::saveMode)),
+          selectMultipleFiles (isSet (flags, FileBrowserComponent::canSelectMultipleItems)),
+          warnAboutOverwrite  (isSet (flags, FileBrowserComponent::warnAboutOverwriting))
     {
         const File previousWorkingDirectory (File::getCurrentWorkingDirectory());
 
@@ -214,9 +221,12 @@ private:
         }
         else
         {
-            if (isDirectory)  args.add ("--directory");
-            if (isSave)       args.add ("--save");
+            if (isSave)
+                args.add ("--save");
         }
+
+        if (isDirectory)
+            args.add ("--directory");
 
         if (owner.filters.isNotEmpty() && owner.filters != "*" && owner.filters != "*.*")
         {

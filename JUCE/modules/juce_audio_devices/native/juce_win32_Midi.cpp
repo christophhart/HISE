@@ -109,7 +109,7 @@ private:
         {
             stop();
 
-            if (deviceHandle != 0)
+            if (deviceHandle != nullptr)
             {
                 for (int count = 5; --count >= 0;)
                 {
@@ -183,7 +183,7 @@ private:
 
         void start()
         {
-            if (deviceHandle != 0 && ! isStarted.load())
+            if (deviceHandle != nullptr && ! isStarted.load())
             {
                 activeMidiCollectors.addIfNotAlreadyThere (this);
 
@@ -232,7 +232,7 @@ private:
         }
 
         MidiDeviceInfo deviceInfo;
-        HMIDIIN deviceHandle = 0;
+        HMIDIIN deviceHandle = nullptr;
 
     private:
         Win32MidiService& midiService;
@@ -258,7 +258,7 @@ private:
 
         struct MidiHeader
         {
-            MidiHeader() {}
+            MidiHeader() = default;
 
             void prepare (HMIDIIN device)
             {
@@ -396,7 +396,7 @@ private:
             collector->addClient (this);
         }
 
-        ~Win32InputWrapper()
+        ~Win32InputWrapper() override
         {
             collector->removeClient (this);
         }
@@ -413,7 +413,7 @@ private:
 
                 if (d.identifier == deviceIdentifier)
                 {
-                    deviceID = i;
+                    deviceID = (UINT) i;
                     deviceName = d.name;
                     break;
                 }
@@ -526,7 +526,7 @@ private:
 
                 if (d.identifier == deviceIdentifier)
                 {
-                    deviceID = i;
+                    deviceID = (UINT) i;
                     deviceName = d.name;
                     break;
                 }
@@ -554,7 +554,7 @@ private:
 
             for (int i = 4; --i >= 0;)
             {
-                HMIDIOUT h = 0;
+                HMIDIOUT h = nullptr;
                 auto res = midiOutOpen (&h, deviceID, 0, 0, CALLBACK_NULL);
 
                 if (res == MMSYSERR_NOERROR)
@@ -608,7 +608,7 @@ private:
             {
                 for (int i = 0; i < 50; ++i)
                 {
-                    if (midiOutShortMsg (han->handle, *(unsigned int*) message.getRawData()) != MIDIERR_NOTREADY)
+                    if (midiOutShortMsg (han->handle, *unalignedPointerCast<const unsigned int*> (message.getRawData())) != MIDIERR_NOTREADY)
                         break;
 
                     Sleep (1);

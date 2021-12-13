@@ -399,7 +399,7 @@ public:
 
         jassert (currentCallback == nullptr);
 
-        if (bufferSizeSamples < 8 || bufferSizeSamples > 16384)
+        if (bufferSizeSamples < 8 || bufferSizeSamples > 32768)
             shouldUsePreferredSize = true;
 
         if (asioObject == nullptr)
@@ -415,11 +415,8 @@ public:
         auto err = asioObject->getChannels (&totalNumInputChans, &totalNumOutputChans);
         jassert (err == ASE_OK);
 
-        bufferSizeSamples = readBufferSizes (bufferSizeSamples);
-
         auto sampleRate = sr;
         currentSampleRate = sampleRate;
-        currentBlockSizeSamples = bufferSizeSamples;
         currentChansOut.clear();
         currentChansIn.clear();
 
@@ -441,6 +438,7 @@ public:
         buffersCreated = false;
 
         setSampleRate (sampleRate);
+        currentBlockSizeSamples = bufferSizeSamples = readBufferSizes (bufferSizeSamples);
 
         // (need to get this again in case a sample rate change affected the channel count)
         err = asioObject->getChannels (&totalNumInputChans, &totalNumOutputChans);
@@ -821,7 +819,15 @@ private:
 
     long refreshBufferSizes()
     {
-        return asioObject->getBufferSize (&minBufferSize, &maxBufferSize, &preferredBufferSize, &bufferGranularity);
+        const auto err = asioObject->getBufferSize (&minBufferSize, &maxBufferSize, &preferredBufferSize, &bufferGranularity);
+
+        if (err == ASE_OK)
+        {
+            bufferSizes.clear();
+            addBufferSizes (minBufferSize, maxBufferSize, preferredBufferSize, bufferGranularity);
+        }
+
+        return err;
     }
 
     int readBufferSizes (int bufferSizeSamples)
@@ -945,15 +951,18 @@ private:
         {
             JUCE_ASIO_LOG ("rate change: " + String (currentSampleRate) + " to " + String (newRate));
             auto err = asioObject->setSampleRate (newRate);
+            JUCE_ASIO_LOG_ERROR ("setSampleRate", err);
+            Thread::sleep (10);
 
             if (err == ASE_NoClock && numClockSources > 0)
             {
                 JUCE_ASIO_LOG ("trying to set a clock source..");
-                Thread::sleep (10);
                 err = asioObject->setClockSource (clocks[0].index);
                 JUCE_ASIO_LOG_ERROR ("setClockSource2", err);
                 Thread::sleep (10);
                 err = asioObject->setSampleRate (newRate);
+                JUCE_ASIO_LOG_ERROR ("setSampleRate", err);
+                Thread::sleep (10);
             }
 
             if (err == 0)
@@ -1214,8 +1223,6 @@ private:
 
                     if ((err = refreshBufferSizes()) == 0)
                     {
-                        addBufferSizes (minBufferSize, maxBufferSize, preferredBufferSize, bufferGranularity);
-
                         auto currentRate = getSampleRate();
 
                         if (currentRate < 1.0 || currentRate > 192001.0)

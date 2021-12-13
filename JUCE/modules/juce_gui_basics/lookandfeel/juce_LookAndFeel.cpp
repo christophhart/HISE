@@ -68,11 +68,9 @@ LookAndFeel::~LookAndFeel()
        safe WeakReference to it, but it could cause some unexpected graphical behaviour,
        so it's advisable to clear up any references before destroying them!
     */
-#if 0
-	jassert(masterReference.getNumActiveWeakReferences() == 0
-		|| (masterReference.getNumActiveWeakReferences() == 1
-			&& this == &getDefaultLookAndFeel()));
-#endif
+    jassert (masterReference.getNumActiveWeakReferences() == 0
+              || (masterReference.getNumActiveWeakReferences() == 1
+                   && this == &getDefaultLookAndFeel()));
 }
 
 //==============================================================================
@@ -84,7 +82,7 @@ Colour LookAndFeel::findColour (int colourID) const noexcept
     if (index >= 0)
         return colours[index].colour;
 
-    
+    jassertfalse;
     return Colours::black;
 }
 
@@ -184,7 +182,7 @@ void LookAndFeel::setUsingNativeAlertWindows (bool shouldUseNativeAlerts)
 
 bool LookAndFeel::isUsingNativeAlertWindows()
 {
-   #if JUCE_LINUX
+   #if JUCE_LINUX || JUCE_BSD
     return false; // not available currently..
    #else
     return useNativeAlertWindows;

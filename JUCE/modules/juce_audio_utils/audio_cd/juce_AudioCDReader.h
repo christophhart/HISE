@@ -28,7 +28,6 @@ namespace juce
 
 #if JUCE_USE_CDREADER || DOXYGEN
 
-
 //==============================================================================
 /**
     A type of AudioFormatReader that reads from an audio CD.
@@ -166,7 +165,7 @@ private:
     AudioCDReader (void* handle);
     int getIndexAt (int samplePos);
 
-   #elif JUCE_LINUX
+   #elif JUCE_LINUX || JUCE_BSD
     AudioCDReader();
    #endif
 

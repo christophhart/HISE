@@ -36,9 +36,11 @@
 #define JUCE_CORE_INCLUDE_OBJC_HELPERS 1
 #define JUCE_GUI_BASICS_INCLUDE_XHEADERS 1
 #define JUCE_GUI_BASICS_INCLUDE_SCOPED_THREAD_DPI_AWARENESS_SETTER 1
+#define JUCE_GRAPHICS_INCLUDE_COREGRAPHICS_HELPERS 1
 
 #include "juce_audio_processors.h"
 #include <juce_gui_extra/juce_gui_extra.h>
+#include <set>
 
 //==============================================================================
 #if JUCE_MAC
@@ -48,14 +50,14 @@
  #endif
 #endif
 
-#if (JUCE_PLUGINHOST_VST || JUCE_PLUGINHOST_VST3) && JUCE_LINUX
+#if (JUCE_PLUGINHOST_VST || JUCE_PLUGINHOST_VST3) && (JUCE_LINUX || JUCE_BSD)
  #include <X11/Xlib.h>
  #include <X11/Xutil.h>
  #include <sys/utsname.h>
  #undef KeyPress
 #endif
 
-#if ! JUCE_WINDOWS && ! JUCE_MAC && ! JUCE_LINUX
+#if ! JUCE_WINDOWS && ! JUCE_MAC && ! JUCE_LINUX && ! JUCE_BSD
  #undef JUCE_PLUGINHOST_VST3
  #define JUCE_PLUGINHOST_VST3 0
 #endif
@@ -68,7 +70,7 @@
 namespace juce
 {
 
-#if JUCE_PLUGINHOST_VST || (JUCE_PLUGINHOST_LADSPA && JUCE_LINUX)
+#if JUCE_PLUGINHOST_VST || (JUCE_PLUGINHOST_LADSPA && (JUCE_LINUX || JUCE_BSD))
 
 static bool arrayContainsPlugin (const OwnedArray<PluginDescription>& list,
                                  const PluginDescription& desc)
@@ -82,143 +84,99 @@ static bool arrayContainsPlugin (const OwnedArray<PluginDescription>& list,
 
 #endif
 
-#if JUCE_WINDOWS
+#if JUCE_MAC
 
 //==============================================================================
-class HWNDComponentWithParent  : public HWNDComponent,
-                                 private Timer
+/*  This is an NSViewComponent which holds a long-lived NSView which acts
+    as the parent view for plugin editors.
+
+    Note that this component does not auto-resize depending on the bounds
+    of the owned view. VST2 and VST3 plugins have dedicated interfaces to
+    request that the editor bounds are updated. We can call `setSize` on this
+    component from inside those dedicated callbacks.
+*/
+struct NSViewComponentWithParent  : public NSViewComponent,
+                                    private AsyncUpdater
 {
-public:
-    HWNDComponentWithParent()
+    enum class WantsNudge { no, yes };
+
+    explicit NSViewComponentWithParent (WantsNudge shouldNudge)
+        : wantsNudge (shouldNudge)
     {
-        String className ("JUCE_");
-        className << String::toHexString (Time::getHighResolutionTicks());
-
-        HMODULE moduleHandle = (HMODULE) Process::getCurrentModuleInstanceHandle();
-
-        WNDCLASSEX wc = {};
-        wc.cbSize         = sizeof (wc);
-        wc.lpfnWndProc    = (WNDPROC) wndProc;
-        wc.cbWndExtra     = 4;
-        wc.hInstance      = moduleHandle;
-        wc.lpszClassName  = className.toWideCharPointer();
-
-        atom = RegisterClassEx (&wc);
-        jassert (atom != 0);
-
-        hwnd = CreateWindow (getClassNameFromAtom(), L"HWNDComponentWithParent",
-                             0, 0, 0, 0, 0,
-                             nullptr, nullptr, moduleHandle, nullptr);
-
-        jassert (hwnd != nullptr);
-
-        setHWND (hwnd);
-        startTimer (30);
+        auto* view = [[getViewClass().createInstance() init] autorelease];
+        object_setInstanceVariable (view, "owner", this);
+        setView (view);
     }
 
-    ~HWNDComponentWithParent() override
-    {
-        if (IsWindow (hwnd))
-            DestroyWindow (hwnd);
+    explicit NSViewComponentWithParent (AudioPluginInstance& instance)
+        : NSViewComponentWithParent (getWantsNudge (instance)) {}
 
-        UnregisterClass (getClassNameFromAtom(), nullptr);
+    ~NSViewComponentWithParent() override
+    {
+        if (auto* view = static_cast<NSView*> (getView()))
+            object_setInstanceVariable (view, "owner", nullptr);
+
+        cancelPendingUpdate();
     }
+
+    JUCE_DECLARE_NON_COPYABLE (NSViewComponentWithParent)
+    JUCE_DECLARE_NON_MOVEABLE (NSViewComponentWithParent)
 
 private:
-    //==============================================================================
-    static LRESULT CALLBACK wndProc (HWND h, const UINT message, const WPARAM wParam, const LPARAM lParam)
-    {
-        if (message == WM_SHOWWINDOW && wParam == TRUE)
-            return 0;
+    WantsNudge wantsNudge = WantsNudge::no;
 
-        return DefWindowProc (h, message, wParam, lParam);
+    static WantsNudge getWantsNudge (AudioPluginInstance& instance)
+    {
+        PluginDescription pd;
+        instance.fillInPluginDescription (pd);
+        return pd.manufacturerName == "FabFilter" ? WantsNudge::yes : WantsNudge::no;
     }
 
-    void timerCallback() override
+    void handleAsyncUpdate() override
     {
-        if (HWND child = getChildHWND())
+        if (auto* peer = getTopLevelComponent()->getPeer())
         {
-            stopTimer();
-
-            ShowWindow (child, SW_HIDE);
-            SetParent (child, NULL);
-
-            auto windowFlags = GetWindowLongPtr (child, -16);
-
-            windowFlags &= ~WS_CHILD;
-            windowFlags |= WS_POPUP;
-
-            SetWindowLongPtr (child, -16, windowFlags);
-
-            setHWND (child);
+            auto* view = static_cast<NSView*> (getView());
+            const auto newArea = peer->getAreaCoveredBy (*this);
+            [view setFrame: makeNSRect (newArea.withHeight (newArea.getHeight() + 1))];
+            [view setFrame: makeNSRect (newArea)];
         }
     }
 
-    LPCTSTR getClassNameFromAtom() noexcept  { return (LPCTSTR) (pointer_sized_uint) atom; }
-
-    HWND getChildHWND() const
+    struct FlippedNSView : public ObjCClass<NSView>
     {
-        if (HWND parent = (HWND) getHWND())
-            return GetWindow (parent, GW_CHILD);
-
-        return nullptr;
-    }
-
-    //==============================================================================
-    ATOM atom;
-    HWND hwnd;
-
-    //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HWNDComponentWithParent)
-};
-
-#elif JUCE_MAC || JUCE_IOS
-
-#if JUCE_IOS
- #define JUCE_IOS_MAC_VIEW  UIView
- using ViewComponentBaseClass = UIViewComponent;
-#else
- #define JUCE_IOS_MAC_VIEW  NSView
- using ViewComponentBaseClass = NSViewComponent;
-#endif
-
-//==============================================================================
-struct AutoResizingNSViewComponent  : public ViewComponentBaseClass,
-                                      private AsyncUpdater
-{
-    void childBoundsChanged (Component*) override  { triggerAsyncUpdate(); }
-    void handleAsyncUpdate() override              { resizeToFitView(); }
-};
-
-//==============================================================================
-struct AutoResizingNSViewComponentWithParent  : public AutoResizingNSViewComponent,
-                                                private Timer
-{
-    AutoResizingNSViewComponentWithParent()
-    {
-        JUCE_IOS_MAC_VIEW* v = [[JUCE_IOS_MAC_VIEW alloc] init];
-        setView (v);
-        [v release];
-
-        startTimer (30);
-    }
-
-    JUCE_IOS_MAC_VIEW* getChildView() const
-    {
-        if (JUCE_IOS_MAC_VIEW* parent = (JUCE_IOS_MAC_VIEW*) getView())
-            if ([[parent subviews] count] > 0)
-                return [[parent subviews] objectAtIndex: 0];
-
-        return nil;
-    }
-
-    void timerCallback() override
-    {
-        if (JUCE_IOS_MAC_VIEW* child = getChildView())
+        FlippedNSView()
+            : ObjCClass ("JuceFlippedNSView_")
         {
-            stopTimer();
-            setView (child);
+            addIvar<NSViewComponentWithParent*> ("owner");
+
+            addMethod (@selector (isFlipped),      isFlipped);
+            addMethod (@selector (isOpaque),       isOpaque);
+            addMethod (@selector (didAddSubview:), didAddSubview);
+
+            registerClass();
         }
+
+        static BOOL isFlipped (id, SEL) { return YES; }
+        static BOOL isOpaque  (id, SEL) { return YES; }
+
+        static void nudge (id self)
+        {
+            if (auto* owner = getIvar<NSViewComponentWithParent*> (self, "owner"))
+                if (owner->wantsNudge == WantsNudge::yes)
+                    owner->triggerAsyncUpdate();
+        }
+
+        static void viewDidUnhide (id self, SEL)               { nudge (self); }
+        static void didAddSubview (id self, SEL, NSView*)      { nudge (self); }
+        static void viewDidMoveToSuperview (id self, SEL)      { nudge (self); }
+        static void viewDidMoveToWindow (id self, SEL)         { nudge (self); }
+    };
+
+    static FlippedNSView& getViewClass()
+    {
+        static FlippedNSView result;
+        return result;
     }
 };
 

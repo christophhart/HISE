@@ -290,51 +290,6 @@ public:
         setStepSize();
     }
 
-	/** Set a new target value without ramping.
-	@param newValue New target value
-	*/
-	void setValueWithoutSmoothing(FloatType newValue) noexcept
-	{
-		this->target = newValue;
-		this->currentValue = this->target;
-		this->countdown = 0;
-	}
-
-	void setValueAndRampTime(FloatType newValue, double sampleRateToUse, double rampLengthInSeconds) noexcept
-	{
-		if (this->target != newValue)
-		{
-			this->target = newValue;
-
-			jassert(sampleRateToUse > 0 && rampLengthInSeconds >= 0);
-			this->stepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
-			this->countdown = this->stepsToTarget;
-
-			if (this->countdown <= 0)
-				this->currentValue = this->target;
-			else
-				this->step = (this->target - this->currentValue) / (FloatType)this->countdown;
-		}
-		else // might be possible that it still wants the same target but at a different speed
-		{
-			jassert(sampleRateToUse > 0 && rampLengthInSeconds >= 0);
-			const auto thisStepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
-
-			if (stepsToTarget != thisStepsToTarget)
-			{
-				// Readjust the ramp speed
-				stepsToTarget = thisStepsToTarget;
-				this->countdown = this->stepsToTarget;
-
-				if (this->countdown <= 0)
-					this->currentValue = this->target;
-				else
-					this->step = (this->target - this->currentValue) / (FloatType)this->countdown;
-			}
-
-		}
-	}
-
     //==============================================================================
     /** Compute the next value.
         @returns Smoothed value
@@ -375,9 +330,8 @@ public:
     }
 
     //==============================================================================
-    /** THIS FUNCTION IS DEPRECATED.
-
-        Use `setTargetValue (float)` and `setCurrentAndTargetValue()` instead:
+   #ifndef DOXYGEN
+    /** Using the new methods:
 
         lsv.setValue (x, false); -> lsv.setTargetValue (x);
         lsv.setValue (x, true);  -> lsv.setCurrentAndTargetValue (x);
@@ -385,6 +339,7 @@ public:
         @param newValue     The new target value
         @param force        If true, the value will be set immediately, bypassing the ramp
     */
+    [[deprecated ("Use setTargetValue and setCurrentAndTargetValue instead.")]]
     void setValue (FloatType newValue, bool force = false) noexcept
     {
         if (force)
@@ -395,6 +350,7 @@ public:
 
         setTargetValue (newValue);
     }
+   #endif
 
 private:
     //==============================================================================
@@ -448,10 +404,8 @@ private:
     int stepsToTarget = 0;
 };
 
-
 template <typename FloatType>
 using LinearSmoothedValue = SmoothedValue <FloatType, ValueSmoothingTypes::Linear>;
-
 
 
 //==============================================================================
@@ -557,7 +511,7 @@ public:
             expect (referenceData.getSample (0, 10) < sv.getTargetValue());
             expectWithinAbsoluteError (referenceData.getSample (0, 11),
                                        sv.getTargetValue(),
-                                       1.0e-7f);
+                                       2.0e-7f);
 
             auto getUnitData = [] (int numSamplesToGenerate)
             {
@@ -575,7 +529,7 @@ public:
                 for (int i = 0; i < test.getNumSamples(); ++i)
                     expectWithinAbsoluteError (test.getSample (0, i),
                                                reference.getSample (0, i),
-                                               1.0e-7f);
+                                               2.0e-7f);
             };
 
             auto testData = getUnitData (numSamples);

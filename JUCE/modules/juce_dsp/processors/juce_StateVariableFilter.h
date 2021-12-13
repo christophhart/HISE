@@ -70,19 +70,17 @@ namespace StateVariableFilter
         using ParametersPtr = typename Parameters<NumericType>::Ptr;
 
         //==============================================================================
-        /** Creates a filter with default parameters.
+       #ifndef DOXYGEN
+        /** Creates a filter with default parameters. */
+        [[deprecated ("The classes in the StateVariableFilter namespace are deprecated. you should "
+                     "use the equivalent functionality in the StateVariableTPTFilter class.")]]
+        Filter() : parameters (new Parameters<NumericType>) { reset(); }
 
-            The classes in the StateVariableFilter namespace are deprecated. you should
-            use the equivalent functionality in the StateVariableTPTFilter class.
-        */
-        JUCE_DEPRECATED_WITH_BODY (Filter(), : parameters (new Parameters<NumericType>) { reset(); })
-
-        /** Creates a filter using some parameters.
-
-            The classes in the StateVariableFilter namespace are deprecated. you should
-            use the equivalent functionality in the StateVariableTPTFilter class.
-        */
-        JUCE_DEPRECATED_WITH_BODY (Filter (ParametersPtr parametersToUse), : parameters (std::move (parametersToUse)) { reset(); })
+        /** Creates a filter using some parameters. */
+        [[deprecated ("The classes in the StateVariableFilter namespace are deprecated. you should "
+                     "use the equivalent functionality in the StateVariableTPTFilter class.")]]
+        Filter (ParametersPtr parametersToUse) : parameters (std::move (parametersToUse)) { reset(); }
+       #endif
 
         /** Creates a copy of another filter. */
         Filter (const Filter&) = default;
@@ -160,7 +158,7 @@ namespace StateVariableFilter
             for (size_t i = 0 ; i < n; ++i)
                 output[i] = processLoop<isBypassed, type> (input[i], state);
 
-           #if JUCE_SNAP_TO_ZERO
+           #if JUCE_DSP_ENABLE_SNAP_TO_ZERO
             snapToZero();
            #endif
 

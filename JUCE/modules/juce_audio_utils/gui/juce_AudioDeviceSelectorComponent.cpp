@@ -405,7 +405,7 @@ public:
         }
 
         if (error.isNotEmpty())
-            AlertWindow::showMessageBoxAsync (AlertWindow::WarningIcon,
+            AlertWindow::showMessageBoxAsync (MessageBoxIconType::WarningIcon,
                                               TRANS("Error when trying to open audio device!"),
                                               error);
     }
@@ -692,13 +692,17 @@ private:
             sampleRateDropDown->onChange = nullptr;
         }
 
+        const auto getFrequencyString = [] (int rate) { return String (rate) + " Hz"; };
+
         for (auto rate : currentDevice->getAvailableSampleRates())
         {
-            auto intRate = roundToInt (rate);
-            sampleRateDropDown->addItem (String (intRate) + " Hz", intRate);
+            const auto intRate = roundToInt (rate);
+            sampleRateDropDown->addItem (getFrequencyString (intRate), intRate);
         }
 
-        sampleRateDropDown->setSelectedId (roundToInt (currentDevice->getCurrentSampleRate()), dontSendNotification);
+        const auto intRate = roundToInt (currentDevice->getCurrentSampleRate());
+        sampleRateDropDown->setText (getFrequencyString (intRate), dontSendNotification);
+
         sampleRateDropDown->onChange = [this] { updateConfig (false, false, true, false); };
     }
 

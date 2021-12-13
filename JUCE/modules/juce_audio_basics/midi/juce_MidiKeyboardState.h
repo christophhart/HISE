@@ -43,7 +43,6 @@ class JUCE_API  MidiKeyboardState
 public:
     //==============================================================================
     MidiKeyboardState();
-    ~MidiKeyboardState();
 
     //==============================================================================
     /** Resets the state of the object.
@@ -93,8 +92,6 @@ public:
         But if the note isn't actually down for the given channel, this method will in fact do nothing.
     */
     void noteOff (int midiChannel, int midiNoteNumber, float velocity);
-
-	void injectMessage(const MidiMessage& m);
 
     /** This will turn off any currently-down notes for the given midi channel.
 
@@ -168,8 +165,6 @@ public:
         */
         virtual void handleNoteOff (MidiKeyboardState* source,
                                     int midiChannel, int midiNoteNumber, float velocity) = 0;
-
-		virtual void handleMessage(const MidiMessage& /*m*/) {};
     };
 
     /** Registers a listener for callbacks when keys go up or down.
@@ -191,8 +186,6 @@ private:
 
     void noteOnInternal  (int midiChannel, int midiNoteNumber, float velocity);
     void noteOffInternal (int midiChannel, int midiNoteNumber, float velocity);
-
-	void sendMessageInternal(const MidiMessage& m);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiKeyboardState)
 };

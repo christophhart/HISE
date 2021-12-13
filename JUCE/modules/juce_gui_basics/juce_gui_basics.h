@@ -35,11 +35,12 @@
 
   ID:                 juce_gui_basics
   vendor:             juce
-  version:            6.0.8
+  version:            6.1.3
   name:               JUCE GUI core classes
   description:        Basic user-interface components and related classes.
   website:            http://www.juce.com/juce
   license:            GPL/Commercial
+  minimumCppStandard: 14
 
   dependencies:       juce_graphics juce_data_structures
   OSXFrameworks:      Cocoa Carbon QuartzCore
@@ -155,9 +156,15 @@ namespace juce
     class ApplicationCommandManagerListener;
     class DrawableButton;
     class Displays;
+    class AccessibilityHandler;
+    class KeyboardFocusTraverser;
 
     class FlexBox;
     class Grid;
+
+   #if JUCE_MAC || JUCE_WINDOWS || JUCE_LINUX
+    Image createSnapshotOfNativeWindow (void* nativeWindowHandle);
+   #endif
 }
 
 #include "mouse/juce_MouseCursor.h"
@@ -167,7 +174,8 @@ namespace juce
 #include "mouse/juce_MouseEvent.h"
 #include "keyboard/juce_KeyPress.h"
 #include "keyboard/juce_KeyListener.h"
-#include "keyboard/juce_KeyboardFocusTraverser.h"
+#include "components/juce_ComponentTraverser.h"
+#include "components/juce_FocusTraverser.h"
 #include "components/juce_ModalComponentManager.h"
 #include "components/juce_ComponentListener.h"
 #include "components/juce_CachedComponentImage.h"
@@ -185,6 +193,7 @@ namespace juce
 #include "mouse/juce_TextDragAndDropTarget.h"
 #include "mouse/juce_TooltipClient.h"
 #include "keyboard/juce_CaretComponent.h"
+#include "keyboard/juce_KeyboardFocusTraverser.h"
 #include "keyboard/juce_SystemClipboard.h"
 #include "keyboard/juce_TextEditorKeyMapper.h"
 #include "keyboard/juce_TextInputTarget.h"
@@ -253,6 +262,7 @@ namespace juce
 #include "misc/juce_JUCESplashScreen.h"
 #include "widgets/juce_TreeView.h"
 #include "windows/juce_TopLevelWindow.h"
+#include "windows/juce_MessageBoxOptions.h"
 #include "windows/juce_AlertWindow.h"
 #include "windows/juce_CallOutBox.h"
 #include "windows/juce_ComponentPeer.h"
@@ -293,8 +303,17 @@ namespace juce
 #include "lookandfeel/juce_LookAndFeel_V3.h"
 #include "lookandfeel/juce_LookAndFeel_V4.h"
 #include "mouse/juce_LassoComponent.h"
+#include "accessibility/interfaces/juce_AccessibilityCellInterface.h"
+#include "accessibility/interfaces/juce_AccessibilityTableInterface.h"
+#include "accessibility/interfaces/juce_AccessibilityTextInterface.h"
+#include "accessibility/interfaces/juce_AccessibilityValueInterface.h"
+#include "accessibility/enums/juce_AccessibilityActions.h"
+#include "accessibility/enums/juce_AccessibilityEvent.h"
+#include "accessibility/enums/juce_AccessibilityRole.h"
+#include "accessibility/juce_AccessibilityState.h"
+#include "accessibility/juce_AccessibilityHandler.h"
 
-#if JUCE_LINUX
+#if JUCE_LINUX || JUCE_BSD
  #if JUCE_GUI_BASICS_INCLUDE_XHEADERS
   // If you're missing these headers, you need to install the libx11-dev package
   #include <X11/Xlib.h>
@@ -351,3 +370,4 @@ namespace juce
 
 #include "layout/juce_GridItem.h"
 #include "layout/juce_Grid.h"
+#include "native/juce_ScopedDPIAwarenessDisabler.h"

@@ -40,26 +40,17 @@ DelayLine<SampleType, InterpolationType>::DelayLine (int maximumDelayInSamples)
 {
     jassert (maximumDelayInSamples >= 0);
 
-    totalSize = jmax (4, maximumDelayInSamples + 1);
     sampleRate = 44100.0;
-}
 
-template <typename SampleType, typename InterpolationType /*= DelayLineInterpolationTypes::Linear*/>
-void juce::dsp::DelayLine<SampleType, InterpolationType>::setMaxDelaySamples(int newMaxSize)
-{
-	totalSize = jmax<int>(4, newMaxSize + 1);
-	
-	if(lastSpecs.numChannels > 0)
-		prepare(lastSpecs);
-
-	updateInternalVariables();
+    setMaximumDelayInSamples (maximumDelayInSamples);
 }
 
 //==============================================================================
 template <typename SampleType, typename InterpolationType>
 void DelayLine<SampleType, InterpolationType>::setDelay (SampleType newDelayInSamples)
 {
-    auto upperLimit = (SampleType) (totalSize - 1);
+    auto upperLimit = (SampleType) getMaximumDelayInSamples();
+    jassert (isPositiveAndNotGreaterThan (newDelayInSamples, upperLimit));
 
     delay     = jlimit ((SampleType) 0, upperLimit, newDelayInSamples);
     delayInt  = static_cast<int> (std::floor (delay));
@@ -78,8 +69,6 @@ SampleType DelayLine<SampleType, InterpolationType>::getDelay() const
 template <typename SampleType, typename InterpolationType>
 void DelayLine<SampleType, InterpolationType>::prepare (const ProcessSpec& spec)
 {
-	lastSpecs = spec;
-
     jassert (spec.numChannels > 0);
 
     bufferData.setSize ((int) spec.numChannels, totalSize, false, false, true);
@@ -90,6 +79,15 @@ void DelayLine<SampleType, InterpolationType>::prepare (const ProcessSpec& spec)
     v.resize (spec.numChannels);
     sampleRate = spec.sampleRate;
 
+    reset();
+}
+
+template <typename SampleType, typename InterpolationType>
+void DelayLine<SampleType, InterpolationType>::setMaximumDelayInSamples (int maxDelayInSamples)
+{
+    jassert (maxDelayInSamples >= 0);
+    totalSize = jmax (4, maxDelayInSamples + 1);
+    bufferData.setSize ((int) bufferData.getNumChannels(), totalSize, false, false, true);
     reset();
 }
 

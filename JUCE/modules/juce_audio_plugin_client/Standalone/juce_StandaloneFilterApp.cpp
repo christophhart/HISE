@@ -28,7 +28,6 @@
 
 #include "../utility/juce_IncludeSystemHeaders.h"
 #include "../utility/juce_IncludeModuleHeaders.h"
-#include "../utility/juce_FakeMouseMoveGenerator.h"
 #include "../utility/juce_WindowsHooks.h"
 
 #include <juce_audio_devices/juce_audio_devices.h>
@@ -58,7 +57,7 @@ public:
         options.applicationName     = getApplicationName();
         options.filenameSuffix      = ".settings";
         options.osxLibrarySubFolder = "Application Support";
-       #if JUCE_LINUX
+       #if JUCE_LINUX || JUCE_BSD
         options.folderName          = "~/.config";
        #else
         options.folderName          = "";
@@ -67,7 +66,7 @@ public:
         appProperties.setStorageParameters (options);
     }
 
-    const String getApplicationName() override              { return JucePlugin_Name; }
+    const String getApplicationName() override              { return CharPointer_UTF8 (JucePlugin_Name); }
     const String getApplicationVersion() override           { return JucePlugin_VersionString; }
     bool moreThanOneInstanceAllowed() override              { return true; }
     void anotherInstanceStarted (const String&) override    {}

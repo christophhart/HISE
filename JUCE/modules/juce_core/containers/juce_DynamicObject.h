@@ -98,8 +98,6 @@ public:
     /** Returns the NamedValueSet that holds the object's properties. */
     NamedValueSet& getProperties() noexcept     { return properties; }
 
-	const NamedValueSet& getProperties() const noexcept { return properties; }
-
     /** Calls var::clone() on all the properties that this object contains. */
     void cloneAllProperties();
 
@@ -119,17 +117,9 @@ public:
     */
     virtual void writeAsJSON (OutputStream&, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces);
 
-	/** Swaps the properties. */
-	void swapProperties(NamedValueSet&& newProperties);
-
 private:
     //==============================================================================
     NamedValueSet properties;
-
-   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
-    // This method has been deprecated - use var::invoke instead
-    virtual void invokeMethod (const Identifier&, const var*, int) {}
-   #endif
 
     JUCE_LEAK_DETECTOR (DynamicObject)
 };

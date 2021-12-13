@@ -23,7 +23,7 @@
   ==============================================================================
 */
 
-#if JUCE_PLUGINHOST_LADSPA && JUCE_LINUX
+#if JUCE_PLUGINHOST_LADSPA && (JUCE_LINUX || JUCE_BSD)
 
 #include <ladspa.h>
 
@@ -113,7 +113,7 @@ private:
 };
 
 //==============================================================================
-class LADSPAPluginInstance     : public AudioPluginInstance
+class LADSPAPluginInstance final    : public AudioPluginInstance
 {
 public:
     LADSPAPluginInstance (const LADSPAModuleHandle::Ptr& m)
@@ -197,7 +197,7 @@ public:
             }
         }
 
-        setParameterTree (std::move (newTree));
+        setHostedParameterTree (std::move (newTree));
 
         for (auto* param : getParameters())
             if (auto* ladspaParam = dynamic_cast<LADSPAParameter*> (param))
@@ -220,7 +220,7 @@ public:
     {
         desc.name = getName();
         desc.fileOrIdentifier = module->file.getFullPathName();
-        desc.uid = getUID();
+        desc.uniqueId = desc.deprecatedUid = getUID();
         desc.lastFileModTime = module->file.getLastModificationTime();
         desc.lastInfoUpdateTime = Time::getCurrentTime();
         desc.pluginFormatName = "LADSPA";
@@ -516,6 +516,11 @@ private:
 
         bool isAutomatable() const override                            { return automatable; }
 
+        String getParameterID() const override
+        {
+            return String (paramID);
+        }
+
         static float scaledValue (float low, float high, float alpha, bool useLog) noexcept
         {
             if (useLog && low > 0 && high > 0)
@@ -583,7 +588,7 @@ void LADSPAPluginFormat::findAllTypesForFile (OwnedArray<PluginDescription>& res
 
     PluginDescription desc;
     desc.fileOrIdentifier = fileOrIdentifier;
-    desc.uid = 0;
+    desc.uniqueId = desc.deprecatedUid = 0;
 
     auto createdInstance = createInstanceFromDescription (desc, 44100.0, 512);
     auto instance = dynamic_cast<LADSPAPluginInstance*> (createdInstance.get());
@@ -600,7 +605,7 @@ void LADSPAPluginFormat::findAllTypesForFile (OwnedArray<PluginDescription>& res
         {
             if (auto* plugin = instance->module->moduleMain ((size_t) uid))
             {
-                desc.uid = uid;
+                desc.uniqueId = desc.deprecatedUid = uid;
                 desc.name = plugin->Name != nullptr ? plugin->Name : "Unknown";
 
                 if (! arrayContainsPlugin (results, desc))
@@ -631,7 +636,7 @@ void LADSPAPluginFormat::createPluginInstance (const PluginDescription& desc,
 
         if (module != nullptr)
         {
-            shellLADSPAUIDToCreate = desc.uid;
+            shellLADSPAUIDToCreate = desc.uniqueId != 0 ? desc.uniqueId : desc.deprecatedUid;
 
             result.reset (new LADSPAPluginInstance (module));
 

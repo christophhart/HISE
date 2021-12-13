@@ -81,7 +81,6 @@ JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 #define JUCE_CORE_INCLUDE_OBJC_HELPERS 1
 
 #include "../utility/juce_IncludeModuleHeaders.h"
-#include "../utility/juce_FakeMouseMoveGenerator.h"
 #include "../utility/juce_CarbonVisibility.h"
 
 #include <juce_audio_basics/native/juce_mac_CoreAudioLayouts.h>
@@ -131,8 +130,8 @@ public:
     JuceAU (AudioUnit component)
         : AudioProcessorHolder (activePlugins.size() + activeUIs.size() == 0),
           MusicDeviceBase (component,
-                           (UInt32) AudioUnitHelpers::getBusCount (juceFilter.get(), true),
-                           (UInt32) AudioUnitHelpers::getBusCount (juceFilter.get(), false)),
+                           (UInt32) AudioUnitHelpers::getBusCountForWrapper (*juceFilter, true),
+                           (UInt32) AudioUnitHelpers::getBusCountForWrapper (*juceFilter, false)),
           mapper (*juceFilter)
     {
         inParameterChangedCallback = false;
@@ -210,7 +209,7 @@ public:
             return err;
 
         mapper.alloc();
-        pulledSucceeded.calloc (static_cast<size_t> (AudioUnitHelpers::getBusCount (juceFilter.get(), true)));
+        pulledSucceeded.calloc (static_cast<size_t> (AudioUnitHelpers::getBusCountForWrapper (*juceFilter, true)));
 
         prepareToPlay();
 
@@ -251,7 +250,7 @@ public:
         {
             juceFilter->setRateAndBufferSizeDetails (getSampleRate(), (int) GetMaxFramesPerSlice());
 
-            audioBuffer.prepare (totalInChannels, totalOutChannels, (int) GetMaxFramesPerSlice() + 32);
+            audioBuffer.prepare (AudioUnitHelpers::getBusesLayout (juceFilter.get()), (int) GetMaxFramesPerSlice() + 32);
             juceFilter->prepareToPlay (getSampleRate(), (int) GetMaxFramesPerSlice());
 
             midiEvents.ensureSize (2048);
@@ -300,7 +299,7 @@ public:
         if (isInput) return false;
        #endif
 
-        const int busCount = AudioUnitHelpers::getBusCount (juceFilter.get(), isInput);
+        const int busCount = AudioUnitHelpers::getBusCount (*juceFilter, isInput);
         return (juceFilter->canAddBus (isInput) || (busCount > 0 && juceFilter->canRemoveBus (isInput)));
        #endif
     }
@@ -313,12 +312,12 @@ public:
         if ((err = scopeToDirection (scope, isInput)) != noErr)
             return err;
 
-        if (count != (UInt32) AudioUnitHelpers::getBusCount (juceFilter.get(), isInput))
+        if (count != (UInt32) AudioUnitHelpers::getBusCount (*juceFilter, isInput))
         {
            #ifdef JucePlugin_PreferredChannelConfigurations
             return kAudioUnitErr_PropertyNotWritable;
            #else
-            const int busCount = AudioUnitHelpers::getBusCount (juceFilter.get(), isInput);
+            const int busCount = AudioUnitHelpers::getBusCount (*juceFilter, isInput);
 
             if  ((! juceFilter->canAddBus (isInput)) && ((busCount == 0) || (! juceFilter->canRemoveBus (isInput))))
                 return kAudioUnitErr_PropertyNotWritable;
@@ -362,7 +361,7 @@ public:
             if (err != noErr)
             {
                 // restore bus state
-                const int newBusCount = AudioUnitHelpers::getBusCount (juceFilter.get(), isInput);
+                const int newBusCount = AudioUnitHelpers::getBusCount (*juceFilter, isInput);
                 for (int i = newBusCount; i != busCount; i += (busCount > newBusCount ? 1 : -1))
                 {
                     if (busCount > newBusCount)
@@ -380,6 +379,8 @@ public:
             // update total channel count
             totalInChannels  = juceFilter->getTotalNumInputChannels();
             totalOutChannels = juceFilter->getTotalNumOutputChannels();
+
+            addSupportedLayoutTagsForDirection (isInput);
 
             if (err != noErr)
                 return err;
@@ -657,17 +658,17 @@ public:
 
                 case kAudioUnitProperty_OfflineRender:
                 {
-                    auto shouldBeRealtime = (*reinterpret_cast<const UInt32*> (inData) != 0);
+                    const auto shouldBeOffline = (*reinterpret_cast<const UInt32*> (inData) != 0);
 
                     if (juceFilter != nullptr)
                     {
-                        auto isCurrentlyRealtime = juceFilter->isNonRealtime();
+                        const auto isOffline = juceFilter->isNonRealtime();
 
-                        if (isCurrentlyRealtime != shouldBeRealtime)
+                        if (isOffline != shouldBeOffline)
                         {
                             const ScopedLock sl (juceFilter->getCallbackLock());
 
-                            juceFilter->setNonRealtime (shouldBeRealtime);
+                            juceFilter->setNonRealtime (shouldBeOffline);
                             juceFilter->prepareToPlay (getSampleRate(), (int) GetMaxFramesPerSlice());
                         }
                     }
@@ -719,12 +720,9 @@ public:
 
             if (state.getSize() > 0)
             {
-                CFDataRef ourState = CFDataCreate (kCFAllocatorDefault, (const UInt8*) state.getData(), (CFIndex) state.getSize());
-
-                CFStringRef key = CFStringCreateWithCString (kCFAllocatorDefault, JUCE_STATE_DICTIONARY_KEY, kCFStringEncodingUTF8);
-                CFDictionarySetValue (dict, key, ourState);
-                CFRelease (key);
-                CFRelease (ourState);
+                CFUniquePtr<CFDataRef> ourState (CFDataCreate (kCFAllocatorDefault, (const UInt8*) state.getData(), (CFIndex) state.getSize()));
+                CFUniquePtr<CFStringRef> key (CFStringCreateWithCString (kCFAllocatorDefault, JUCE_STATE_DICTIONARY_KEY, kCFStringEncodingUTF8));
+                CFDictionarySetValue (dict, key.get(), ourState.get());
             }
         }
 
@@ -735,10 +733,9 @@ public:
     {
         {
             // Remove the data entry from the state to prevent the superclass loading the parameters
-            CFMutableDictionaryRef copyWithoutData = CFDictionaryCreateMutableCopy (nullptr, 0, (CFDictionaryRef) inData);
-            CFDictionaryRemoveValue (copyWithoutData, CFSTR (kAUPresetDataKey));
-            ComponentResult err = MusicDeviceBase::RestoreState (copyWithoutData);
-            CFRelease (copyWithoutData);
+            CFUniquePtr<CFMutableDictionaryRef> copyWithoutData (CFDictionaryCreateMutableCopy (nullptr, 0, (CFDictionaryRef) inData));
+            CFDictionaryRemoveValue (copyWithoutData.get(), CFSTR (kAUPresetDataKey));
+            ComponentResult err = MusicDeviceBase::RestoreState (copyWithoutData.get());
 
             if (err != noErr)
                 return err;
@@ -749,10 +746,9 @@ public:
             CFDictionaryRef dict = (CFDictionaryRef) inData;
             CFDataRef data = nullptr;
 
-            CFStringRef key = CFStringCreateWithCString (kCFAllocatorDefault, JUCE_STATE_DICTIONARY_KEY, kCFStringEncodingUTF8);
+            CFUniquePtr<CFStringRef> key (CFStringCreateWithCString (kCFAllocatorDefault, JUCE_STATE_DICTIONARY_KEY, kCFStringEncodingUTF8));
 
-            bool valuePresent = CFDictionaryGetValueIfPresent (dict, key, (const void**) &data);
-            CFRelease (key);
+            bool valuePresent = CFDictionaryGetValueIfPresent (dict, key.get(), (const void**) &data);
 
             if (valuePresent)
             {
@@ -803,15 +799,14 @@ public:
     UInt32 GetAudioChannelLayout (AudioUnitScope scope, AudioUnitElement element,
                                   AudioChannelLayout* outLayoutPtr, Boolean& outWritable) override
     {
-        bool isInput;
-        int busNr;
-
         outWritable = false;
 
-        if (elementToBusIdx (scope, element, isInput, busNr) != noErr)
+        const auto info = getElementInfo (scope, element);
+
+        if (info.error != noErr)
             return 0;
 
-        if (busIgnoresLayout (isInput, busNr))
+        if (busIgnoresLayout (info.isInput, info.busNr))
             return 0;
 
         outWritable = true;
@@ -821,7 +816,7 @@ public:
         if (outLayoutPtr != nullptr)
         {
             zeromem (outLayoutPtr, sizeInBytes);
-            outLayoutPtr->mChannelLayoutTag = getCurrentLayout (isInput, busNr);
+            outLayoutPtr->mChannelLayoutTag = getCurrentLayout (info.isInput, info.busNr);
         }
 
         return sizeInBytes;
@@ -829,16 +824,15 @@ public:
 
     UInt32 GetChannelLayoutTags (AudioUnitScope scope, AudioUnitElement element, AudioChannelLayoutTag* outLayoutTags) override
     {
-        bool isInput;
-        int busNr;
+        const auto info = getElementInfo (scope, element);
 
-        if (elementToBusIdx (scope, element, isInput, busNr) != noErr)
+        if (info.error != noErr)
             return 0;
 
-        if (busIgnoresLayout (isInput, busNr))
+        if (busIgnoresLayout (info.isInput, info.busNr))
             return 0;
 
-        const Array<AudioChannelLayoutTag>& layouts = getSupportedBusLayouts (isInput, busNr);
+        const Array<AudioChannelLayoutTag>& layouts = getSupportedBusLayouts (info.isInput, info.busNr);
 
         if (outLayoutTags != nullptr)
             std::copy (layouts.begin(), layouts.end(), outLayoutTags);
@@ -848,20 +842,18 @@ public:
 
     OSStatus SetAudioChannelLayout (AudioUnitScope scope, AudioUnitElement element, const AudioChannelLayout* inLayout) override
     {
-        bool isInput;
-        int busNr;
-        OSStatus err;
+        const auto info = getElementInfo (scope, element);
 
-        if ((err = elementToBusIdx (scope, element, isInput, busNr)) != noErr)
-            return err;
+        if (info.error != noErr)
+            return info.error;
 
-        if (busIgnoresLayout (isInput, busNr))
+        if (busIgnoresLayout (info.isInput, info.busNr))
             return kAudioUnitErr_PropertyNotWritable;
 
         if (inLayout == nullptr)
             return kAudioUnitErr_InvalidPropertyValue;
 
-        if (const AUIOElement* ioElement = GetIOElement (isInput ? kAudioUnitScope_Input : kAudioUnitScope_Output, element))
+        if (const AUIOElement* ioElement = GetIOElement (info.isInput ? kAudioUnitScope_Input : kAudioUnitScope_Output, element))
         {
             const AudioChannelSet newChannelSet = CoreAudioLayouts::fromCoreAudio (*inLayout);
             const int currentNumChannels = static_cast<int> (ioElement->GetStreamFormat().NumberChannels());
@@ -874,14 +866,14 @@ public:
            #ifdef JucePlugin_PreferredChannelConfigurations
             short configs[][2] = {JucePlugin_PreferredChannelConfigurations};
 
-            if (! AudioUnitHelpers::isLayoutSupported (*juceFilter, isInput, busNr, newChannelNum, configs))
+            if (! AudioUnitHelpers::isLayoutSupported (*juceFilter, info.isInput, info.busNr, newChannelNum, configs))
                 return kAudioUnitErr_FormatNotSupported;
            #else
-            if (! juceFilter->getBus (isInput, busNr)->isLayoutSupported (newChannelSet))
+            if (! juceFilter->getBus (info.isInput, info.busNr)->isLayoutSupported (newChannelSet))
                 return kAudioUnitErr_FormatNotSupported;
            #endif
 
-            getCurrentLayout (isInput, busNr) = CoreAudioLayouts::toCoreAudio (newChannelSet);
+            getCurrentLayout (info.isInput, info.busNr) = CoreAudioLayouts::toCoreAudio (newChannelSet);
 
             return noErr;
         }
@@ -1036,10 +1028,11 @@ public:
             {
                 auto value = inValue / getMaximumParameterValue (param);
 
-                param->setValue (value);
-
-                inParameterChangedCallback = true;
-                param->sendValueChangedMessageToListeners (value);
+                if (value != param->getValue())
+                {
+                    inParameterChangedCallback = true;
+                    param->setValueNotifyingHost (value);
+                }
 
                 return noErr;
             }
@@ -1056,7 +1049,14 @@ public:
     ComponentResult Version() override                   { return JucePlugin_VersionCode; }
     bool SupportsTail() override                         { return true; }
     Float64 GetTailTime() override                       { return juceFilter->getTailLengthSeconds(); }
-    double getSampleRate()                               { return AudioUnitHelpers::getBusCount (juceFilter.get(), false) > 0 ? GetOutput (0)->GetStreamFormat().mSampleRate : 44100.0; }
+
+    double getSampleRate()
+    {
+        if (AudioUnitHelpers::getBusCountForWrapper (*juceFilter, false) > 0)
+            return GetOutput (0)->GetStreamFormat().mSampleRate;
+
+        return 44100.0;
+    }
 
     Float64 GetLatency() override
     {
@@ -1091,22 +1091,27 @@ public:
         info.ppqPositionOfLastBarStart = 0;
         info.isRecording = false;
 
-        switch (lastTimeStamp.mSMPTETime.mType)
+        info.frameRate = [this]
         {
-            case kSMPTETimeType2398:        info.frameRate = AudioPlayHead::fps23976;    break;
-            case kSMPTETimeType24:          info.frameRate = AudioPlayHead::fps24;       break;
-            case kSMPTETimeType25:          info.frameRate = AudioPlayHead::fps25;       break;
-            case kSMPTETimeType30Drop:      info.frameRate = AudioPlayHead::fps30drop;   break;
-            case kSMPTETimeType30:          info.frameRate = AudioPlayHead::fps30;       break;
-            case kSMPTETimeType2997:        info.frameRate = AudioPlayHead::fps2997;     break;
-            case kSMPTETimeType2997Drop:    info.frameRate = AudioPlayHead::fps2997drop; break;
-            case kSMPTETimeType60:          info.frameRate = AudioPlayHead::fps60;       break;
-            case kSMPTETimeType60Drop:      info.frameRate = AudioPlayHead::fps60drop;   break;
-            case kSMPTETimeType5994:
-            case kSMPTETimeType5994Drop:
-            case kSMPTETimeType50:
-            default:                        info.frameRate = AudioPlayHead::fpsUnknown;  break;
-        }
+            switch (lastTimeStamp.mSMPTETime.mType)
+            {
+                case kSMPTETimeType2398:        return FrameRate().withBaseRate (24).withPullDown();
+                case kSMPTETimeType24:          return FrameRate().withBaseRate (24);
+                case kSMPTETimeType25:          return FrameRate().withBaseRate (25);
+                case kSMPTETimeType30Drop:      return FrameRate().withBaseRate (30).withDrop();
+                case kSMPTETimeType30:          return FrameRate().withBaseRate (30);
+                case kSMPTETimeType2997:        return FrameRate().withBaseRate (30).withPullDown();
+                case kSMPTETimeType2997Drop:    return FrameRate().withBaseRate (30).withPullDown().withDrop();
+                case kSMPTETimeType60:          return FrameRate().withBaseRate (60);
+                case kSMPTETimeType60Drop:      return FrameRate().withBaseRate (60).withDrop();
+                case kSMPTETimeType5994:        return FrameRate().withBaseRate (60).withPullDown();
+                case kSMPTETimeType5994Drop:    return FrameRate().withBaseRate (60).withPullDown().withDrop();
+                case kSMPTETimeType50:          return FrameRate().withBaseRate (50);
+                default:                        break;
+            }
+
+            return FrameRate();
+        }();
 
         if (CallHostBeatAndTempo (&info.ppqPosition, &info.bpm) != noErr)
         {
@@ -1181,22 +1186,7 @@ public:
 
     void audioProcessorChanged (AudioProcessor*, const ChangeDetails& details) override
     {
-        if (details.latencyChanged)
-            PropertyChanged (kAudioUnitProperty_Latency, kAudioUnitScope_Global, 0);
-
-        if (details.parameterInfoChanged)
-        {
-            PropertyChanged (kAudioUnitProperty_ParameterList, kAudioUnitScope_Global, 0);
-            PropertyChanged (kAudioUnitProperty_ParameterInfo, kAudioUnitScope_Global, 0);
-        }
-
-        PropertyChanged (kAudioUnitProperty_ClassInfo, kAudioUnitScope_Global, 0);
-
-        if (details.programChanged)
-        {
-            refreshCurrentPreset();
-            PropertyChanged (kAudioUnitProperty_PresentPreset, kAudioUnitScope_Global, 0);
-        }
+        audioProcessorChangedUpdater.update (details);
     }
 
     //==============================================================================
@@ -1211,32 +1201,33 @@ public:
     //==============================================================================
     bool StreamFormatWritable (AudioUnitScope scope, AudioUnitElement element) override
     {
-        bool ignore;
-        int busIdx;
+        const auto info = getElementInfo (scope, element);
 
-        return ((! IsInitialized()) && (elementToBusIdx (scope, element, ignore, busIdx) == noErr));
+        return ((! IsInitialized()) && (info.error == noErr));
     }
 
     bool ValidFormat (AudioUnitScope scope, AudioUnitElement element, const CAStreamBasicDescription& format) override
     {
-        bool isInput;
-        int busNr;
-
         // DSP Quattro incorrectly uses global scope for the ValidFormat call
         if (scope == kAudioUnitScope_Global)
             return ValidFormat (kAudioUnitScope_Input,  element, format)
                 || ValidFormat (kAudioUnitScope_Output, element, format);
 
-        if (elementToBusIdx (scope, element, isInput, busNr) != noErr)
+        const auto info = getElementInfo (scope, element);
+
+        if (info.error != noErr)
             return false;
 
+        if (info.kind == BusKind::wrapperOnly)
+            return true;
+
         const int newNumChannels = static_cast<int> (format.NumberChannels());
-        const int oldNumChannels = juceFilter->getChannelCountOfBus (isInput, busNr);
+        const int oldNumChannels = juceFilter->getChannelCountOfBus (info.isInput, info.busNr);
 
         if (newNumChannels == oldNumChannels)
             return true;
 
-        if (AudioProcessor::Bus* bus = juceFilter->getBus (isInput, busNr))
+        if (AudioProcessor::Bus* bus = juceFilter->getBus (info.isInput, info.busNr))
         {
             if (! MusicDeviceBase::ValidFormat (scope, element, format))
                 return false;
@@ -1245,7 +1236,7 @@ public:
             short configs[][2] = {JucePlugin_PreferredChannelConfigurations};
 
             ignoreUnused (bus);
-            return AudioUnitHelpers::isLayoutSupported (*juceFilter, isInput, busNr, newNumChannels, configs);
+            return AudioUnitHelpers::isLayoutSupported (*juceFilter, info.isInput, info.busNr, newNumChannels, configs);
            #else
             return bus->isNumberOfChannelsSupported (newNumChannels);
            #endif
@@ -1257,33 +1248,39 @@ public:
     // AU requires us to override this for the sole reason that we need to find a default layout tag if the number of channels have changed
     OSStatus ChangeStreamFormat (AudioUnitScope scope, AudioUnitElement element, const CAStreamBasicDescription& old, const CAStreamBasicDescription& format) override
     {
-        bool isInput;
-        int busNr;
-        OSStatus err = elementToBusIdx (scope, element, isInput, busNr);
+        const auto info = getElementInfo (scope, element);
 
-        if (err != noErr)
-            return err;
+        if (info.error != noErr)
+            return info.error;
 
-        AudioChannelLayoutTag& currentTag = getCurrentLayout (isInput, busNr);
+        AudioChannelLayoutTag& currentTag = getCurrentLayout (info.isInput, info.busNr);
 
         const int newNumChannels = static_cast<int> (format.NumberChannels());
-        const int oldNumChannels = juceFilter->getChannelCountOfBus (isInput, busNr);
+        const int oldNumChannels = juceFilter->getChannelCountOfBus (info.isInput, info.busNr);
 
        #ifdef JucePlugin_PreferredChannelConfigurations
         short configs[][2] = {JucePlugin_PreferredChannelConfigurations};
 
-        if (! AudioUnitHelpers::isLayoutSupported (*juceFilter, isInput, busNr, newNumChannels, configs))
+        if (! AudioUnitHelpers::isLayoutSupported (*juceFilter, info.isInput, info.busNr, newNumChannels, configs))
             return kAudioUnitErr_FormatNotSupported;
        #endif
 
         // predict channel layout
-        AudioChannelSet set = (newNumChannels != oldNumChannels) ? juceFilter->getBus (isInput, busNr)->supportedLayoutWithChannels (newNumChannels)
-                                                                 : juceFilter->getChannelLayoutOfBus (isInput, busNr);
+        const auto set = [&]
+        {
+            if (info.kind == BusKind::wrapperOnly)
+                return AudioChannelSet::discreteChannels (newNumChannels);
+
+            if (newNumChannels != oldNumChannels)
+                return juceFilter->getBus (info.isInput, info.busNr)->supportedLayoutWithChannels (newNumChannels);
+
+            return juceFilter->getChannelLayoutOfBus (info.isInput, info.busNr);
+        }();
 
         if (set == AudioChannelSet())
             return kAudioUnitErr_FormatNotSupported;
 
-        err = MusicDeviceBase::ChangeStreamFormat (scope, element, old, format);
+        const auto err = MusicDeviceBase::ChangeStreamFormat (scope, element, old, format);
 
         if (err == noErr)
             currentTag = CoreAudioLayouts::toCoreAudio (set);
@@ -1307,8 +1304,8 @@ public:
 
         ioActionFlags &= ~kAudioUnitRenderAction_OutputIsSilence;
 
-        const int numInputBuses  = static_cast<int> (GetScope (kAudioUnitScope_Input) .GetNumberOfElements());
-        const int numOutputBuses = static_cast<int> (GetScope (kAudioUnitScope_Output).GetNumberOfElements());
+        const int numInputBuses  = AudioUnitHelpers::getBusCount (*juceFilter, true);
+        const int numOutputBuses = AudioUnitHelpers::getBusCount (*juceFilter, false);
 
         // set buffer pointers to minimize copying
         {
@@ -1348,21 +1345,12 @@ public:
             for (int busIdx = 0; busIdx < numInputBuses; ++busIdx)
             {
                 if (pulledSucceeded[busIdx])
-                {
-                    audioBuffer.push (GetInput ((UInt32) busIdx)->GetBufferList(), mapper.get (true, busIdx));
-                }
+                    audioBuffer.set (busIdx, GetInput ((UInt32) busIdx)->GetBufferList(), mapper.get (true, busIdx));
                 else
-                {
-                    const int n = juceFilter->getChannelCountOfBus (true, busIdx);
-
-                    for (int ch = 0; ch < n; ++ch)
-                        zeromem (audioBuffer.push(), sizeof (float) * nFrames);
-                }
+                    audioBuffer.clearInputBus (busIdx);
             }
 
-            // clear remaining channels
-            for (int i = totalInChannels; i < totalOutChannels; ++i)
-                zeromem (audioBuffer.push(), sizeof (float) * nFrames);
+            audioBuffer.clearUnusedChannels();
         }
 
         // swap midi buffers
@@ -1378,7 +1366,7 @@ public:
         // copy back
         {
             for (int busIdx = 0; busIdx < numOutputBuses; ++busIdx)
-                audioBuffer.pop (GetOutput ((UInt32) busIdx)->GetBufferList(), mapper.get (false, busIdx));
+                audioBuffer.get (busIdx, GetOutput ((UInt32) busIdx)->GetBufferList(), mapper.get (false, busIdx));
         }
 
         // process midi output
@@ -1489,7 +1477,6 @@ public:
             setWantsKeyboardFocus (true);
            #endif
 
-            ignoreUnused (fakeMouseGenerator);
             setBounds (getSizeToContainChild());
 
             lastBounds = getBounds();
@@ -1601,7 +1588,6 @@ public:
         }
 
     private:
-        FakeMouseMoveGenerator fakeMouseGenerator;
         Rectangle<int> lastBounds;
 
         JUCE_DECLARE_NON_COPYABLE (EditorCompHolder)
@@ -1627,10 +1613,10 @@ public:
             addIvar<JuceAU*> ("au");
             addIvar<EditorCompHolder*> ("editor");
 
-            addMethod (@selector (dealloc),                     dealloc,                    "v@:");
-            addMethod (@selector (applicationWillTerminate:),   applicationWillTerminate,   "v@:@");
-            addMethod (@selector (viewDidMoveToWindow),         viewDidMoveToWindow,        "v@:");
-            addMethod (@selector (mouseDownCanMoveWindow),      mouseDownCanMoveWindow,     "c@:");
+            addMethod (@selector (dealloc),                     dealloc);
+            addMethod (@selector (applicationWillTerminate:),   applicationWillTerminate);
+            addMethod (@selector (viewDidMoveToWindow),         viewDidMoveToWindow);
+            addMethod (@selector (mouseDownCanMoveWindow),      mouseDownCanMoveWindow);
 
             registerClass();
         }
@@ -1714,9 +1700,9 @@ public:
     {
         JuceUICreationClass()  : ObjCClass<NSObject> ("JUCE_AUCocoaViewClass_")
         {
-            addMethod (@selector (interfaceVersion),             interfaceVersion,    @encode (unsigned int), "@:");
-            addMethod (@selector (description),                  description,         @encode (NSString*),    "@:");
-            addMethod (@selector (uiViewForAudioUnit:withSize:), uiViewForAudioUnit,  @encode (NSView*),      "@:", @encode (AudioUnit), @encode (NSSize));
+            addMethod (@selector (interfaceVersion),             interfaceVersion);
+            addMethod (@selector (description),                  description);
+            addMethod (@selector (uiViewForAudioUnit:withSize:), uiViewForAudioUnit);
 
             addProtocol (@protocol (AUCocoaUIBase));
 
@@ -1750,6 +1736,70 @@ public:
 
 private:
     //==============================================================================
+    /*  The call to AUBase::PropertyChanged may allocate hence the need for this class */
+    class AudioProcessorChangedUpdater final  : private AsyncUpdater
+    {
+    public:
+        explicit AudioProcessorChangedUpdater (JuceAU& o) : owner (o) {}
+        ~AudioProcessorChangedUpdater() override { cancelPendingUpdate(); }
+
+        void update (const ChangeDetails& details)
+        {
+            int flags = 0;
+
+            if (details.latencyChanged)
+                flags |= latencyChangedFlag;
+
+            if (details.parameterInfoChanged)
+                flags |= parameterInfoChangedFlag;
+
+            if (details.programChanged)
+                flags |= programChangedFlag;
+
+            if (flags != 0)
+            {
+                callbackFlags.fetch_or (flags);
+
+                if (MessageManager::getInstance()->isThisTheMessageThread())
+                    handleAsyncUpdate();
+                else
+                    triggerAsyncUpdate();
+            }
+        }
+
+    private:
+        void handleAsyncUpdate() override
+        {
+            const auto flags = callbackFlags.exchange (0);
+
+            if ((flags & latencyChangedFlag) != 0)
+                owner.PropertyChanged (kAudioUnitProperty_Latency, kAudioUnitScope_Global, 0);
+
+            if ((flags & parameterInfoChangedFlag) != 0)
+            {
+                owner.PropertyChanged (kAudioUnitProperty_ParameterList, kAudioUnitScope_Global, 0);
+                owner.PropertyChanged (kAudioUnitProperty_ParameterInfo, kAudioUnitScope_Global, 0);
+            }
+
+            owner.PropertyChanged (kAudioUnitProperty_ClassInfo, kAudioUnitScope_Global, 0);
+
+            if ((flags & programChangedFlag) != 0)
+            {
+                owner.refreshCurrentPreset();
+                owner.PropertyChanged (kAudioUnitProperty_PresentPreset, kAudioUnitScope_Global, 0);
+            }
+        }
+
+        JuceAU& owner;
+
+        static constexpr int latencyChangedFlag       = 1 << 0,
+                             parameterInfoChangedFlag = 1 << 1,
+                             programChangedFlag       = 1 << 2;
+
+        std::atomic<int> callbackFlags { 0 };
+    };
+
+    //==============================================================================
     AudioUnitHelpers::CoreAudioBufferList audioBuffer;
     MidiBuffer midiEvents, incomingEvents;
     bool prepared = false, isBypassed = false;
@@ -1781,6 +1831,8 @@ private:
     HeapBlock<MIDIPacketList> packetList { packetListBytes, 1 };
 
     ThreadLocalValue<bool> inParameterChangedCallback;
+
+    AudioProcessorChangedUpdater audioProcessorChangedUpdater { *this };
 
     //==============================================================================
     Array<AUChannelInfo> channelInfo;
@@ -1844,14 +1896,18 @@ private:
 
     void prepareOutputBuffers (const UInt32 nFrames) noexcept
     {
-        const unsigned int numOutputBuses = GetScope (kAudioUnitScope_Output).GetNumberOfElements();
+        const auto numProcessorBuses = AudioUnitHelpers::getBusCount (*juceFilter, false);
+        const auto numWrapperBuses = GetScope (kAudioUnitScope_Output).GetNumberOfElements();
 
-        for (unsigned int busIdx = 0; busIdx < numOutputBuses; ++busIdx)
+        for (UInt32 busIdx = 0; busIdx < numWrapperBuses; ++busIdx)
         {
             AUOutputElement* output = GetOutput (busIdx);
 
             if (output->WillAllocateBuffer())
                 output->PrepareBuffer (nFrames);
+
+            if (busIdx >= (UInt32) numProcessorBuses)
+                AudioUnitHelpers::clearAudioBuffer (output->GetBufferList());
         }
     }
 
@@ -1949,16 +2005,37 @@ private:
               ? (OSStatus) kAudioUnitErr_InvalidScope : (OSStatus) noErr;
     }
 
-    OSStatus elementToBusIdx (AudioUnitScope scope, AudioUnitElement element, bool& isInput, int& busIdx) noexcept
+    enum class BusKind
     {
+        processor,
+        wrapperOnly,
+    };
+
+    struct ElementInfo
+    {
+        int busNr;
+        BusKind kind;
+        bool isInput;
+        OSStatus error;
+    };
+
+    ElementInfo getElementInfo (AudioUnitScope scope, AudioUnitElement element) noexcept
+    {
+        bool isInput = false;
         OSStatus err;
 
-        busIdx = static_cast<int> (element);
+        if ((err = scopeToDirection (scope, isInput)) != noErr)
+            return { {}, {}, {}, err };
 
-        if ((err = scopeToDirection (scope, isInput)) != noErr) return err;
-        if (isPositiveAndBelow (busIdx, AudioUnitHelpers::getBusCount (juceFilter.get(), isInput))) return noErr;
+        const auto busIdx = static_cast<int> (element);
 
-        return kAudioUnitErr_InvalidElement;
+        if (isPositiveAndBelow (busIdx, AudioUnitHelpers::getBusCount (*juceFilter, isInput)))
+            return { busIdx, BusKind::processor, isInput, noErr };
+
+        if (isPositiveAndBelow (busIdx, AudioUnitHelpers::getBusCountForWrapper (*juceFilter, isInput)))
+            return { busIdx, BusKind::wrapperOnly, isInput, noErr };
+
+        return { {}, {}, {}, kAudioUnitErr_InvalidElement };
     }
 
     //==============================================================================
@@ -1975,7 +2052,7 @@ private:
         }
         else
         {
-            for (auto* param : juceParameters.params)
+            for (auto* param : juceParameters)
             {
                 const AudioUnitParameterID auParamID = generateAUParameterID (param);
 
@@ -1992,14 +2069,14 @@ private:
        #if JUCE_DEBUG
         // Some hosts can't handle the huge numbers of discrete parameter values created when
         // using the default number of steps.
-        for (auto* param : juceParameters.params)
+        for (auto* param : juceParameters)
             if (param->isDiscrete())
                 jassert (param->getNumSteps() != AudioProcessor::getDefaultNumParameterSteps());
        #endif
 
         parameterValueStringArrays.ensureStorageAllocated (numParams);
 
-        for (auto* param : juceParameters.params)
+        for (auto* param : juceParameters)
         {
             OwnedArray<const __CFString>* stringValues = nullptr;
 
@@ -2074,22 +2151,25 @@ private:
     OSStatus syncAudioUnitWithProcessor()
     {
         OSStatus err = noErr;
-        const int enabledInputs  = AudioUnitHelpers::getBusCount (juceFilter.get(), true);
-        const int enabledOutputs = AudioUnitHelpers::getBusCount (juceFilter.get(), false);
+        const auto numWrapperInputs  = AudioUnitHelpers::getBusCountForWrapper (*juceFilter, true);
+        const auto numWrapperOutputs = AudioUnitHelpers::getBusCountForWrapper (*juceFilter, false);
 
-        if ((err =  MusicDeviceBase::SetBusCount (kAudioUnitScope_Input,  static_cast<UInt32> (enabledInputs))) != noErr)
+        if ((err =  MusicDeviceBase::SetBusCount (kAudioUnitScope_Input,  static_cast<UInt32> (numWrapperInputs))) != noErr)
             return err;
 
-        if ((err =  MusicDeviceBase::SetBusCount (kAudioUnitScope_Output, static_cast<UInt32> (enabledOutputs))) != noErr)
+        if ((err =  MusicDeviceBase::SetBusCount (kAudioUnitScope_Output, static_cast<UInt32> (numWrapperOutputs))) != noErr)
             return err;
 
         addSupportedLayoutTags();
 
-        for (int i = 0; i < enabledInputs; ++i)
+        const auto numProcessorInputs  = AudioUnitHelpers::getBusCount (*juceFilter, true);
+        const auto numProcessorOutputs = AudioUnitHelpers::getBusCount (*juceFilter, false);
+
+        for (int i = 0; i < numProcessorInputs; ++i)
             if ((err = syncAudioUnitWithChannelSet (true,  i, juceFilter->getChannelLayoutOfBus (true,  i))) != noErr)
                 return err;
 
-        for (int i = 0; i < enabledOutputs; ++i)
+        for (int i = 0; i < numProcessorOutputs; ++i)
             if ((err = syncAudioUnitWithChannelSet (false, i, juceFilter->getChannelLayoutOfBus (false, i))) != noErr)
                 return err;
 
@@ -2098,8 +2178,8 @@ private:
 
     OSStatus syncProcessorWithAudioUnit()
     {
-        const int numInputBuses  = AudioUnitHelpers::getBusCount (juceFilter.get(), true);
-        const int numOutputBuses = AudioUnitHelpers::getBusCount (juceFilter.get(), false);
+        const int numInputBuses  = AudioUnitHelpers::getBusCount (*juceFilter, true);
+        const int numOutputBuses = AudioUnitHelpers::getBusCount (*juceFilter, false);
 
         const int numInputElements  = static_cast<int> (GetScope(kAudioUnitScope_Input). GetNumberOfElements());
         const int numOutputElements = static_cast<int> (GetScope(kAudioUnitScope_Output).GetNumberOfElements());
@@ -2233,8 +2313,8 @@ private:
     void addSupportedLayoutTagsForDirection (bool isInput)
     {
         auto& layouts = isInput ? supportedInputLayouts : supportedOutputLayouts;
-        layouts.clear();
-        auto numBuses = AudioUnitHelpers::getBusCount (juceFilter.get(), isInput);
+        layouts.clearQuick();
+        auto numBuses = AudioUnitHelpers::getBusCount (*juceFilter, isInput);
 
         for (int busNr = 0; busNr < numBuses; ++busNr)
         {
@@ -2249,8 +2329,8 @@ private:
     {
         currentInputLayout.clear(); currentOutputLayout.clear();
 
-        currentInputLayout. resize (AudioUnitHelpers::getBusCount (juceFilter.get(), true));
-        currentOutputLayout.resize (AudioUnitHelpers::getBusCount (juceFilter.get(), false));
+        currentInputLayout. resize (AudioUnitHelpers::getBusCountForWrapper (*juceFilter, true));
+        currentOutputLayout.resize (AudioUnitHelpers::getBusCountForWrapper (*juceFilter, false));
 
         addSupportedLayoutTagsForDirection (true);
         addSupportedLayoutTagsForDirection (false);
@@ -2345,7 +2425,6 @@ private:
     //==============================================================================
     AudioProcessor* juceFilter;
     std::unique_ptr<Component> windowComp;
-    FakeMouseMoveGenerator fakeMouseGenerator;
 
     void deleteUI()
     {

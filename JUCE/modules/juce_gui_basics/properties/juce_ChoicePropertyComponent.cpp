@@ -82,19 +82,21 @@ public:
 
     var getValue() const override
     {
-        if (valueWithDefault == nullptr)
-            return {};
+        if (valueWithDefault != nullptr && ! valueWithDefault->isUsingDefault())
+        {
+            const auto target = sourceValue.getValue();
+            const auto equalsWithSameType = [&target] (const var& map) { return map.equalsWithSameType (target); };
 
-        if (valueWithDefault->isUsingDefault())
-            return -1;
+            auto iter = std::find_if (mappings.begin(), mappings.end(), equalsWithSameType);
 
-        auto targetValue = sourceValue.getValue();
+            if (iter == mappings.end())
+                iter = std::find (mappings.begin(), mappings.end(), target);
 
-        for (auto map : mappings)
-            if (map.equalsWithSameType (targetValue))
-                return mappings.indexOf (map) + 1;
+            if (iter != mappings.end())
+                return 1 + (int) std::distance (mappings.begin(), iter);
+        }
 
-        return mappings.indexOf (targetValue) + 1;
+        return -1;
     }
 
     void setValue (const var& newValue) override
@@ -143,9 +145,7 @@ ChoicePropertyComponent::ChoicePropertyComponent (const String& name,
 {
     // The array of corresponding values must contain one value for each of the items in
     // the choices array!
-    jassert (correspondingValues.size() == choices.size());
-
-    ignoreUnused (correspondingValues);
+    jassertquiet (correspondingValues.size() == choices.size());
 }
 
 ChoicePropertyComponent::ChoicePropertyComponent (const Value& valueToControl,
@@ -209,11 +209,9 @@ ChoicePropertyComponent::~ChoicePropertyComponent()
 void ChoicePropertyComponent::initialiseComboBox (const Value& v)
 {
     if (v != Value())
-    {
         comboBox.setSelectedId (v.getValue(), dontSendNotification);
-        comboBox.getSelectedIdAsValue().referTo (v);
-    }
 
+    comboBox.getSelectedIdAsValue().referTo (v);
     comboBox.setEditableText (false);
     addAndMakeVisible (comboBox);
 }
@@ -222,10 +220,12 @@ void ChoicePropertyComponent::refreshChoices()
 {
     comboBox.clear();
 
-    for (auto choice : choices)
+    for (int i = 0; i < choices.size(); ++i)
     {
+        const auto& choice = choices[i];
+
         if (choice.isNotEmpty())
-            comboBox.addItem (choice, choices.indexOf (choice) + 1);
+            comboBox.addItem (choice, i + 1);
         else
             comboBox.addSeparator();
     }

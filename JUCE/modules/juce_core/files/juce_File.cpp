@@ -63,8 +63,6 @@ File& File::operator= (File&& other) noexcept
     return *this;
 }
 
-JUCE_DECLARE_DEPRECATED_STATIC (const File File::nonexistent{};)
-
 //==============================================================================
 static String removeEllipsis (const String& path)
 {
@@ -231,7 +229,7 @@ String File::addTrailingSeparator (const String& path)
 }
 
 //==============================================================================
-#if JUCE_LINUX
+#if JUCE_LINUX || JUCE_BSD
  #define NAMES_ARE_CASE_SENSITIVE 1
 #endif
 
@@ -579,10 +577,6 @@ int File::findChildFiles (Array<File>& results, int whatToLookFor, bool searchRe
         results.add (di.getFile());
         ++total;
     }
-    
-#if JUCE_MAC
-    results.sort();
-#endif
 
     return total;
 }
@@ -1014,6 +1008,19 @@ File File::getLinkedTarget() const
 #endif
 
 //==============================================================================
+#if JUCE_ALLOW_STATIC_NULL_VARIABLES
+
+JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wdeprecated-declarations")
+JUCE_BEGIN_IGNORE_WARNINGS_MSVC (4996)
+
+const File File::nonexistent{};
+
+JUCE_END_IGNORE_WARNINGS_GCC_LIKE
+JUCE_END_IGNORE_WARNINGS_MSVC
+
+#endif
+
+//==============================================================================
 MemoryMappedFile::MemoryMappedFile (const File& file, MemoryMappedFile::AccessMode mode, bool exclusive)
     : range (0, file.getSize())
 {
@@ -1065,7 +1072,25 @@ public:
         expect (! home.isOnCDRomDrive());
         expect (File::getCurrentWorkingDirectory().exists());
         expect (home.setAsCurrentWorkingDirectory());
-        expect (File::getCurrentWorkingDirectory() == home);
+
+        {
+            auto homeParent = home;
+            bool noSymlinks = true;
+
+            while (! homeParent.isRoot())
+            {
+                if (homeParent.isSymbolicLink())
+                {
+                    noSymlinks = false;
+                    break;
+                }
+
+                homeParent = homeParent.getParentDirectory();
+            }
+
+            if (noSymlinks)
+                expect (File::getCurrentWorkingDirectory() == home);
+        }
 
         {
             Array<File> roots;
@@ -1083,7 +1108,11 @@ public:
 
         beginTest ("Writing");
 
-        File demoFolder (temp.getChildFile ("JUCE UnitTests Temp Folder.folder"));
+        auto random = getRandom();
+        const auto tempFolderName = "JUCE UnitTests Temp Folder "
+                                  + String::toHexString (random.nextInt())
+                                  + ".folder";
+        File demoFolder (temp.getChildFile (tempFolderName));
         expect (demoFolder.deleteRecursively());
         expect (demoFolder.createDirectory());
         expect (demoFolder.isDirectory());

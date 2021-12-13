@@ -174,12 +174,13 @@ void TableHeaderComponent::setColumnWidth (const int columnId, const int newWidt
 {
     if (auto* ci = getInfoForId (columnId))
     {
-        if (ci->width != newWidth)
+        const auto newWidthToUse = jlimit (ci->minimumWidth, ci->maximumWidth, newWidth);
+
+        if (ci->width != newWidthToUse)
         {
             auto numColumns = getNumColumns (true);
 
-            ci->lastDeliberateWidth = ci->width
-                = jlimit (ci->minimumWidth, ci->maximumWidth, newWidth);
+            ci->lastDeliberateWidth = ci->width = newWidthToUse;
 
             if (stretchToFit)
             {
@@ -894,6 +895,12 @@ void TableHeaderComponent::showColumnChooserMenu (const int columnIdClicked)
 
 void TableHeaderComponent::Listener::tableColumnDraggingChanged (TableHeaderComponent*, int)
 {
+}
+
+//==============================================================================
+std::unique_ptr<AccessibilityHandler> TableHeaderComponent::createAccessibilityHandler()
+{
+    return std::make_unique<AccessibilityHandler> (*this, AccessibilityRole::tableHeader);
 }
 
 } // namespace juce

@@ -32,11 +32,12 @@
 
   ID:                 juce_core
   vendor:             juce
-  version:            6.0.8
+  version:            6.1.3
   name:               JUCE core classes
   description:        The essential set of basic JUCE classes, as required by all the other JUCE modules. Includes text, container, memory, threading and i/o functionality.
   website:            http://www.juce.com/juce
   license:            ISC
+  minimumCppStandard: 14
 
   dependencies:
   OSXFrameworks:      Cocoa Foundation IOKit
@@ -189,13 +190,6 @@
  #define JUCE_STRING_UTF_TYPE 8
 #endif
 
-/** Config: JUCE_ENABLE_AUDIO_GUARD
-	If enabled, this will watch for calls considered evil in the audio thread and fire a warning
-*/
-#ifndef JUCE_ENABLE_AUDIO_GUARD
-#define JUCE_ENABLE_AUDIO_GUARD 0
-#endif
-
 //==============================================================================
 //==============================================================================
 
@@ -225,17 +219,6 @@ namespace juce
     extern JUCE_API void JUCE_CALLTYPE logAssertion (const char* file, int line) noexcept;
 }
 
-
-#if JUCE_ENABLE_AUDIO_GUARD
-/** This little macro just calls DBG() with suspended audio guard (otherwise the string creation would fire). */
-#define DBG_WITH_AUDIO_GUARD(x) { juce::AudioThreadGuard::Suspender s; DBG(x); }
-#define WARN_IF_AUDIO_THREAD(condition, operationType) juce::AudioThreadGuard::warnIf(condition, operationType)
-#else
-#define WARN_IF_AUDIO_THREAD(condition, operationType)
-#define DBG_WITH_AUDIO_GUARD(x)
-#endif
-
-
 #include "memory/juce_Memory.h"
 #include "maths/juce_MathsFunctions.h"
 #include "memory/juce_ByteOrder.h"
@@ -254,7 +237,6 @@ JUCE_END_IGNORE_WARNINGS_MSVC
 #include "text/juce_String.h"
 #include "text/juce_StringRef.h"
 #include "logging/juce_Logger.h"
-#include "logging/juce_AudioThreadGuard.h"
 #include "memory/juce_LeakedObjectDetector.h"
 #include "memory/juce_ContainerDeletePolicy.h"
 #include "memory/juce_HeapBlock.h"
@@ -262,6 +244,7 @@ JUCE_END_IGNORE_WARNINGS_MSVC
 #include "memory/juce_ReferenceCountedObject.h"
 #include "memory/juce_ScopedPointer.h"
 #include "memory/juce_OptionalScopedPointer.h"
+#include "containers/juce_ScopedValueSetter.h"
 #include "memory/juce_Singleton.h"
 #include "memory/juce_WeakReference.h"
 #include "threads/juce_ScopedLock.h"
@@ -277,10 +260,10 @@ JUCE_END_IGNORE_WARNINGS_MSVC
 #include "containers/juce_ListenerList.h"
 #include "containers/juce_OwnedArray.h"
 #include "containers/juce_ReferenceCountedArray.h"
-#include "containers/juce_ScopedValueSetter.h"
 #include "containers/juce_SortedSet.h"
 #include "containers/juce_SparseSet.h"
 #include "containers/juce_AbstractFifo.h"
+#include "containers/juce_SingleThreadedAbstractFifo.h"
 #include "text/juce_NewLine.h"
 #include "text/juce_StringPool.h"
 #include "text/juce_Identifier.h"
@@ -291,6 +274,7 @@ JUCE_END_IGNORE_WARNINGS_MSVC
 #include "text/juce_TextDiff.h"
 #include "text/juce_LocalisedStrings.h"
 #include "text/juce_Base64.h"
+#include "misc/juce_Functional.h"
 #include "misc/juce_Result.h"
 #include "misc/juce_Uuid.h"
 #include "misc/juce_ConsoleApplication.h"
@@ -357,9 +341,10 @@ JUCE_END_IGNORE_WARNINGS_MSVC
 #include "containers/juce_PropertySet.h"
 #include "memory/juce_SharedResourcePointer.h"
 #include "memory/juce_AllocationHooks.h"
+#include "memory/juce_Reservoir.h"
 
 #if JUCE_CORE_INCLUDE_OBJC_HELPERS && (JUCE_MAC || JUCE_IOS)
- #include "native/juce_osx_ObjCHelpers.h"
+ #include "native/juce_mac_ObjCHelpers.h"
 #endif
 
 #if JUCE_CORE_INCLUDE_COM_SMART_PTR && JUCE_WINDOWS

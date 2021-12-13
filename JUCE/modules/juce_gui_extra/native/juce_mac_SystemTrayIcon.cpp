@@ -26,7 +26,7 @@
 namespace juce
 {
 
-JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wunguarded-availability", "-Wdeprecated-declarations")
+JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wunguarded-availability", "-Wunguarded-availability-new", "-Wdeprecated-declarations")
 
 extern NSMenu* createNSMenu (const PopupMenu&, const String& name, int topLevelMenuId,
                              int topLevelIndex, bool addDelegate);
@@ -36,7 +36,7 @@ struct StatusItemContainer   : public Timer
 {
     //==============================================================================
     StatusItemContainer (SystemTrayIconComponent& iconComp, const Image& im)
-        : owner (iconComp), statusIcon (imageToNSImage (im))
+        : owner (iconComp), statusIcon (imageToNSImage (ScaledImage (im)))
     {
     }
 
@@ -51,7 +51,7 @@ struct StatusItemContainer   : public Timer
 
     void updateIcon (const Image& newImage)
     {
-        statusIcon.reset (imageToNSImage (newImage));
+        statusIcon.reset (imageToNSImage (ScaledImage (newImage)));
         setIconSize();
         configureIcon();
     }
@@ -80,8 +80,8 @@ struct StatusItemContainer   : public Timer
     //==============================================================================
     SystemTrayIconComponent& owner;
 
-    std::unique_ptr<NSStatusItem, NSObjectDeleter> statusItem;
-    std::unique_ptr<NSImage, NSObjectDeleter> statusIcon;
+    NSUniquePtr<NSStatusItem> statusItem;
+    NSUniquePtr<NSImage> statusIcon;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StatusItemContainer)
 };
@@ -184,7 +184,7 @@ struct ButtonBasedStatusItem   : public StatusItemContainer
         {
             addIvar<ButtonBasedStatusItem*> ("owner");
 
-            addMethod (@selector (handleEvent:), handleEvent, "v@:@");
+            addMethod (@selector (handleEvent:), handleEvent);
 
             registerClass();
         }
@@ -201,7 +201,7 @@ struct ButtonBasedStatusItem   : public StatusItemContainer
     };
 
     //==============================================================================
-    std::unique_ptr<NSObject, NSObjectDeleter> eventForwarder;
+    NSUniquePtr<NSObject> eventForwarder;
 };
 
 //==============================================================================
@@ -311,12 +311,12 @@ struct ViewBasedStatusItem   : public StatusItemContainer
             addIvar<ViewBasedStatusItem*> ("owner");
             addIvar<NSImage*> ("image");
 
-            addMethod (@selector (mouseDown:),      handleEventDown, "v@:@");
-            addMethod (@selector (rightMouseDown:), handleEventDown, "v@:@");
-            addMethod (@selector (drawRect:),       drawRect,        "v@:@");
+            addMethod (@selector (mouseDown:),      handleEventDown);
+            addMethod (@selector (rightMouseDown:), handleEventDown);
+            addMethod (@selector (drawRect:),       drawRect);
 
             JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wundeclared-selector")
-            addMethod (@selector (frameChanged:),   frameChanged,    "v@:@");
+            addMethod (@selector (frameChanged:),   frameChanged);
             JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 
             registerClass();
@@ -368,7 +368,7 @@ struct ViewBasedStatusItem   : public StatusItemContainer
     };
 
     //==============================================================================
-    std::unique_ptr<NSControl, NSObjectDeleter> view;
+    NSUniquePtr<NSControl> view;
     bool isHighlighted = false;
 };
 

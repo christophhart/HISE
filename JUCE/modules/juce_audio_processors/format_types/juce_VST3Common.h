@@ -23,10 +23,12 @@
   ==============================================================================
 */
 
-#if ! DOXYGEN
+#ifndef DOXYGEN
 
 namespace juce
 {
+
+JUCE_BEGIN_NO_SANITIZE ("vptr")
 
 //==============================================================================
 #define JUCE_DECLARE_VST3_COM_REF_METHODS \
@@ -46,21 +48,105 @@ static bool doUIDsMatch (const Steinberg::TUID a, const Steinberg::TUID b) noexc
     return std::memcmp (a, b, sizeof (Steinberg::TUID)) == 0;
 }
 
-#define TEST_FOR_AND_RETURN_IF_VALID(iidToTest, ClassType) \
-    if (doUIDsMatch (iidToTest, ClassType::iid)) \
-    { \
-        addRef(); \
-        *obj = dynamic_cast<ClassType*> (this); \
-        return Steinberg::kResultOk; \
+/*  Holds a tresult and a pointer to an object.
+
+    Useful for holding intermediate results of calls to queryInterface.
+*/
+class QueryInterfaceResult
+{
+public:
+    QueryInterfaceResult() = default;
+
+    QueryInterfaceResult (Steinberg::tresult resultIn, void* ptrIn)
+        : result (resultIn), ptr (ptrIn) {}
+
+    bool isOk() const noexcept   { return result == Steinberg::kResultOk; }
+
+    Steinberg::tresult extract (void** obj) const
+    {
+        *obj = result == Steinberg::kResultOk ? ptr : nullptr;
+        return result;
     }
 
-#define TEST_FOR_COMMON_BASE_AND_RETURN_IF_VALID(iidToTest, CommonClassType, SourceClassType) \
-    if (doUIDsMatch (iidToTest, CommonClassType::iid)) \
-    { \
-        addRef(); \
-        *obj = (CommonClassType*) static_cast<SourceClassType*> (this); \
-        return Steinberg::kResultOk; \
+private:
+    Steinberg::tresult result = Steinberg::kResultFalse;
+    void* ptr = nullptr;
+};
+
+/*  Holds a tresult and a pointer to an object.
+
+    Calling InterfaceResultWithDeferredAddRef::extract() will also call addRef
+    on the pointed-to object. It is expected that users will use
+    InterfaceResultWithDeferredAddRef to hold intermediate results of a queryInterface
+    call. When a suitable interface is found, the function can be exited with
+    `return suitableInterface.extract (obj)`, which will set the obj pointer,
+    add a reference to the interface, and return the appropriate result code.
+*/
+class InterfaceResultWithDeferredAddRef
+{
+public:
+    InterfaceResultWithDeferredAddRef() = default;
+
+    template <typename Ptr>
+    InterfaceResultWithDeferredAddRef (Steinberg::tresult resultIn, Ptr* ptrIn)
+        : result (resultIn, ptrIn),
+          addRefFn (doAddRef<Ptr>) {}
+
+    bool isOk() const noexcept   { return result.isOk(); }
+
+    Steinberg::tresult extract (void** obj) const
+    {
+        const auto toReturn = result.extract (obj);
+
+        if (result.isOk() && addRefFn != nullptr && *obj != nullptr)
+            addRefFn (*obj);
+
+        return toReturn;
     }
+
+private:
+    template <typename Ptr>
+    static void doAddRef (void* obj)   { static_cast<Ptr*> (obj)->addRef(); }
+
+    QueryInterfaceResult result;
+    void (*addRefFn) (void*) = nullptr;
+};
+
+template <typename ClassType>                                   struct UniqueBase {};
+template <typename CommonClassType, typename SourceClassType>   struct SharedBase {};
+
+template <typename ToTest, typename CommonClassType, typename SourceClassType>
+InterfaceResultWithDeferredAddRef testFor (ToTest& toTest,
+                                           const Steinberg::TUID targetIID,
+                                           SharedBase<CommonClassType, SourceClassType>)
+{
+    if (! doUIDsMatch (targetIID, CommonClassType::iid))
+        return {};
+
+    return { Steinberg::kResultOk, static_cast<CommonClassType*> (static_cast<SourceClassType*> (std::addressof (toTest))) };
+}
+
+template <typename ToTest, typename ClassType>
+InterfaceResultWithDeferredAddRef testFor (ToTest& toTest,
+                                           const Steinberg::TUID targetIID,
+                                           UniqueBase<ClassType>)
+{
+    return testFor (toTest, targetIID, SharedBase<ClassType, ClassType>{});
+}
+
+template <typename ToTest>
+InterfaceResultWithDeferredAddRef testForMultiple (ToTest&, const Steinberg::TUID) { return {}; }
+
+template <typename ToTest, typename Head, typename... Tail>
+InterfaceResultWithDeferredAddRef testForMultiple (ToTest& toTest, const Steinberg::TUID targetIID, Head head, Tail... tail)
+{
+    const auto result = testFor (toTest, targetIID, head);
+
+    if (result.isOk())
+        return result;
+
+    return testForMultiple (toTest, targetIID, tail...);
+}
 
 //==============================================================================
 #if VST_VERSION < 0x030608
@@ -91,7 +177,7 @@ inline void toString128 (Steinberg::Vst::String128 result, const juce::String& s
  static const Steinberg::FIDString defaultVST3WindowType = Steinberg::kPlatformTypeHWND;
 #elif JUCE_MAC
  static const Steinberg::FIDString defaultVST3WindowType = Steinberg::kPlatformTypeNSView;
-#elif JUCE_LINUX
+#elif JUCE_LINUX || JUCE_BSD
  static const Steinberg::FIDString defaultVST3WindowType = Steinberg::kPlatformTypeX11EmbedWindowID;
 #endif
 
@@ -284,10 +370,13 @@ static Steinberg::Vst::SpeakerArrangement getVst3SpeakerArrangement (const Audio
     if (channels == AudioChannelSet::create7point1SDDS())   return k71Cine;
     if (channels == AudioChannelSet::ambisonic())           return kAmbi1stOrderACN;
     if (channels == AudioChannelSet::quadraphonic())        return k40Music;
+    if (channels == AudioChannelSet::create5point1point4()) return k51_4;
     if (channels == AudioChannelSet::create7point0point2()) return k71_2 & ~(Steinberg::Vst::kSpeakerLfe);
     if (channels == AudioChannelSet::create7point1point2()) return k71_2;
     if (channels == AudioChannelSet::create7point0point4()) return k71_4 & ~(Steinberg::Vst::kSpeakerLfe);
     if (channels == AudioChannelSet::create7point1point4()) return k71_4;
+    if (channels == AudioChannelSet::create7point1point6()) return k71_6;
+    if (channels == AudioChannelSet::create9point1point6()) return k91_6;
     if (channels == AudioChannelSet::ambisonic (0))         return (1ull << 20);
     if (channels == AudioChannelSet::ambisonic (1))         return (1ull << 20) | (1ull << 21) | (1ull << 22) | (1ull << 23);
    #if VST_VERSION >= 0x030608
@@ -297,10 +386,8 @@ static Steinberg::Vst::SpeakerArrangement getVst3SpeakerArrangement (const Audio
 
     Steinberg::Vst::SpeakerArrangement result = 0;
 
-    Array<AudioChannelSet::ChannelType> types (channels.getChannelTypes());
-
-    for (int i = 0; i < types.size(); ++i)
-        result |= getSpeakerType (channels, types.getReference(i));
+    for (const auto& type : channels.getChannelTypes())
+        result |= getSpeakerType (channels, type);
 
     return result;
 }
@@ -332,6 +419,7 @@ static AudioChannelSet getChannelSetForSpeakerArrangement (Steinberg::Vst::Speak
         case k71_2 & ~(Steinberg::Vst::kSpeakerLfe):          return AudioChannelSet::create7point0point2();
         case k71_4:                                           return AudioChannelSet::create7point1point4();
         case k71_4 & ~(Steinberg::Vst::kSpeakerLfe):          return AudioChannelSet::create7point0point4();
+        case k71_6:                                           return AudioChannelSet::create7point1point6();
         case (1 << 20):                                       return AudioChannelSet::ambisonic (0);
         case kAmbi1stOrderACN:                                return AudioChannelSet::ambisonic (1);
        #if VST_VERSION >= 0x030608
@@ -401,6 +489,67 @@ private:
 };
 
 //==============================================================================
+/*  This class stores a plugin's preferred MIDI mappings.
+
+    The IMidiMapping is normally an extension of the IEditController which
+    should only be accessed from the UI thread. If we're being strict about
+    things, then we shouldn't call IMidiMapping functions from the audio thread.
+
+    This code is very similar to that found in the audioclient demo code in the
+    VST3 SDK repo.
+*/
+class StoredMidiMapping
+{
+public:
+    StoredMidiMapping()
+    {
+        for (auto& channel : channels)
+            channel.resize (Steinberg::Vst::kCountCtrlNumber);
+    }
+
+    void storeMappings (Steinberg::Vst::IMidiMapping& mapping)
+    {
+        for (size_t channelIndex = 0; channelIndex < channels.size(); ++channelIndex)
+            storeControllers (mapping, channels[channelIndex], channelIndex);
+    }
+
+    /* Returns kNoParamId if there is no mapping for this controller. */
+    Steinberg::Vst::ParamID getMapping (Steinberg::int16 channel,
+                                        Steinberg::Vst::CtrlNumber controller) const noexcept
+    {
+        return channels[(size_t) channel][(size_t) controller];
+    }
+
+private:
+    // Maps controller numbers to ParamIDs
+    using Controllers = std::vector<Steinberg::Vst::ParamID>;
+
+    // Each channel may have a different CC mapping
+    using Channels = std::array<Controllers, 16>;
+
+    static void storeControllers (Steinberg::Vst::IMidiMapping& mapping, Controllers& channel, size_t channelIndex)
+    {
+        for (size_t controllerIndex = 0; controllerIndex < channel.size(); ++controllerIndex)
+            channel[controllerIndex] = getSingleMapping (mapping, channelIndex, controllerIndex);
+    }
+
+    static Steinberg::Vst::ParamID getSingleMapping (Steinberg::Vst::IMidiMapping& mapping,
+                                                     size_t channelIndex,
+                                                     size_t controllerIndex)
+    {
+        Steinberg::Vst::ParamID result{};
+        const auto returnCode = mapping.getMidiControllerAssignment (0,
+                                                                     (int16) channelIndex,
+                                                                     (Steinberg::Vst::CtrlNumber) controllerIndex,
+                                                                     result);
+
+        return returnCode == Steinberg::kResultTrue ? result : Steinberg::Vst::kNoParamId;
+    }
+
+    Channels channels;
+};
+
+//==============================================================================
 class MidiEventList  : public Steinberg::Vst::IEventList
 {
 public:
@@ -460,12 +609,12 @@ public:
 
     static void hostToPluginEventList (Steinberg::Vst::IEventList& result, MidiBuffer& midiBuffer,
                                        Steinberg::Vst::IParameterChanges* parameterChanges,
-                                       Steinberg::Vst::IMidiMapping* midiMapping)
+                                       const StoredMidiMapping& midiMapping)
     {
         toEventList (result,
                      midiBuffer,
                      parameterChanges,
-                     midiMapping,
+                     &midiMapping,
                      EventConversionKind::hostToPlugin);
     }
 
@@ -493,7 +642,7 @@ private:
 
     static void toEventList (Steinberg::Vst::IEventList& result, MidiBuffer& midiBuffer,
                              Steinberg::Vst::IParameterChanges* parameterChanges,
-                             Steinberg::Vst::IMidiMapping* midiMapping,
+                             const StoredMidiMapping* midiMapping,
                              EventConversionKind kind)
     {
         enum { maxNumEvents = 2048 }; // Steinberg's Host Checker states that no more than 2048 events are allowed at once
@@ -512,11 +661,10 @@ private:
 
                 if (toVst3ControlEvent (msg, controlEvent))
                 {
-                    Steinberg::Vst::ParamID controlParamID;
+                    const auto controlParamID = midiMapping->getMapping (createSafeChannel (msg.getChannel()),
+                                                                         controlEvent.controllerNumber);
 
-                    if (midiMapping->getMidiControllerAssignment (0, createSafeChannel (msg.getChannel()),
-                                                                  controlEvent.controllerNumber,
-                                                                  controlParamID) == Steinberg::kResultOk)
+                    if (controlParamID != Steinberg::Vst::kNoParamId)
                     {
                         Steinberg::int32 ignore;
 
@@ -921,6 +1069,162 @@ template <> struct VST3FloatAndDoubleBusMapCompositeHelper<double>
     static VST3BufferExchange<double>::BusMap& get (VST3FloatAndDoubleBusMapComposite& impl) { return impl.doubleVersion; }
 };
 
+//==============================================================================
+class FloatCache
+{
+    using FlagType = uint32_t;
+
+public:
+    FloatCache() = default;
+
+    explicit FloatCache (size_t sizeIn)
+        : values (sizeIn),
+          flags (divCeil (sizeIn, numFlagBits))
+    {
+        std::fill (values.begin(), values.end(), 0.0f);
+        std::fill (flags.begin(), flags.end(), 0);
+    }
+
+    size_t size() const noexcept { return values.size(); }
+
+    void setWithoutNotifying (size_t index, float value)
+    {
+        jassert (index < size());
+        values[index].store (value, std::memory_order_relaxed);
+    }
+
+    void set (size_t index, float value)
+    {
+        jassert (index < size());
+        const auto previous = values[index].exchange (value, std::memory_order_relaxed);
+        const auto bit = previous == value ? ((FlagType) 0) : ((FlagType) 1 << (index % numFlagBits));
+        flags[index / numFlagBits].fetch_or (bit, std::memory_order_acq_rel);
+    }
+
+    float get (size_t index) const noexcept
+    {
+        jassert (index < size());
+        return values[index].load (std::memory_order_relaxed);
+    }
+
+    /*  Calls the supplied callback for any entries which have been modified
+        since the last call to this function.
+    */
+    template <typename Callback>
+    void ifSet (Callback&& callback)
+    {
+        for (size_t flagIndex = 0; flagIndex < flags.size(); ++flagIndex)
+        {
+            const auto prevFlags = flags[flagIndex].exchange (0, std::memory_order_acq_rel);
+
+            for (size_t bit = 0; bit < numFlagBits; ++bit)
+            {
+                if (prevFlags & ((FlagType) 1 << bit))
+                {
+                    const auto itemIndex = (flagIndex * numFlagBits) + bit;
+                    callback (itemIndex, values[itemIndex].load (std::memory_order_relaxed));
+                }
+            }
+        }
+    }
+
+private:
+    static constexpr size_t numFlagBits = 8 * sizeof (FlagType);
+
+    static constexpr size_t divCeil (size_t a, size_t b)
+    {
+        return (a / b) + ((a % b) != 0);
+    }
+
+    std::vector<std::atomic<float>> values;
+    std::vector<std::atomic<FlagType>> flags;
+};
+
+/*  Provides very quick polling of all parameter states.
+
+    We must iterate all parameters on each processBlock call to check whether any
+    parameter value has changed. This class attempts to make this polling process
+    as quick as possible.
+
+    The indices here are of type Steinberg::int32, as they are expected to correspond
+    to parameter information obtained from the IEditController. These indices may not
+    match the indices of parameters returned from AudioProcessor::getParameters(), so
+    be careful!
+*/
+class CachedParamValues
+{
+public:
+    CachedParamValues() = default;
+
+    explicit CachedParamValues (std::vector<Steinberg::Vst::ParamID> paramIdsIn)
+        : paramIds (std::move (paramIdsIn)), floatCache (paramIds.size()) {}
+
+    size_t size() const noexcept { return floatCache.size(); }
+
+    Steinberg::Vst::ParamID getParamID (Steinberg::int32 index) const noexcept { return paramIds[(size_t) index]; }
+
+    void set                 (Steinberg::int32 index, float value)   { floatCache.set                 ((size_t) index, value); }
+    void setWithoutNotifying (Steinberg::int32 index, float value)   { floatCache.setWithoutNotifying ((size_t) index, value); }
+
+    float get (Steinberg::int32 index) const noexcept { return floatCache.get ((size_t) index); }
+
+    template <typename Callback>
+    void ifSet (Callback&& callback)
+    {
+        floatCache.ifSet ([&] (size_t index, float value)
+        {
+            callback ((Steinberg::int32) index, value);
+        });
+    }
+
+private:
+    std::vector<Steinberg::Vst::ParamID> paramIds;
+    FloatCache floatCache;
+};
+
+/*  Ensures that a 'restart' call only ever happens on the main thread. */
+class ComponentRestarter : private AsyncUpdater
+{
+public:
+    struct Listener
+    {
+        virtual ~Listener() = default;
+        virtual void restartComponentOnMessageThread (int32 flags) = 0;
+    };
+
+    explicit ComponentRestarter (Listener& listenerIn)
+        : listener (listenerIn) {}
+
+    ~ComponentRestarter() noexcept override
+    {
+        cancelPendingUpdate();
+    }
+
+    void restart (int32 newFlags)
+    {
+        if (newFlags == 0)
+            return;
+
+        flags.fetch_or (newFlags);
+
+        if (MessageManager::getInstance()->isThisTheMessageThread())
+            handleAsyncUpdate();
+        else
+            triggerAsyncUpdate();
+    }
+
+private:
+    void handleAsyncUpdate() override
+    {
+        listener.restartComponentOnMessageThread (flags.exchange (0));
+    }
+
+    Listener& listener;
+    std::atomic<int32> flags { 0 };
+};
+
+JUCE_END_NO_SANITIZE
+
 } // namespace juce
 
-#endif // ! DOXYGEN
+#endif

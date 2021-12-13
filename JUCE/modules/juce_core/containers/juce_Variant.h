@@ -23,8 +23,6 @@
 namespace juce
 {
 
-class VariantBuffer;
-
 //==============================================================================
 /**
     A variant class, that can be used to hold a range of primitive values.
@@ -67,7 +65,6 @@ public:
 
     var (const var& valueToCopy);
     var (int value) noexcept;
-	var (uint32 value) noexcept;
     var (int64 value) noexcept;
     var (bool value) noexcept;
     var (double value) noexcept;
@@ -80,7 +77,6 @@ public:
     var (NativeFunction method) noexcept;
     var (const void* binaryData, size_t dataSize);
     var (const MemoryBlock& binaryData);
-	var (VariantBuffer *buffer);
 
     var& operator= (const var& valueToCopy);
     var& operator= (int value);
@@ -94,7 +90,6 @@ public:
     var& operator= (const Array<var>& value);
     var& operator= (ReferenceCountedObject* object);
     var& operator= (NativeFunction method);
-	var& operator= (VariantBuffer *buffer);
 
     var (var&&) noexcept;
     var (String&&);
@@ -136,8 +131,6 @@ public:
     ReferenceCountedObject* getObject() const noexcept;
     DynamicObject* getDynamicObject() const noexcept;
 
-	VariantBuffer *getBuffer() const noexcept;
-
     //==============================================================================
     bool isVoid() const noexcept;
     bool isUndefined() const noexcept;
@@ -151,11 +144,20 @@ public:
     bool isBinaryData() const noexcept;
     bool isMethod() const noexcept;
 
-	bool isBuffer() const noexcept;
-
     /** Returns true if this var has the same value as the one supplied.
         Note that this ignores the type, so a string var "123" and an integer var with the
         value 123 are considered to be equal.
+
+        Note that equality checking depends on the "wrapped" type of the object on which
+        equals() is called. That means the following code will convert the right-hand-side
+        argument to a string and compare the string values, because the object on the
+        left-hand-side was initialised from a string:
+        @code var ("123").equals (var (123)) @endcode
+        However, the following code will convert the right-hand-side argument to a double
+        and compare the values as doubles, because the object on the left-hand-side was
+        initialised from a double:
+        @code var (45.6).equals ("45.6000") @endcode
+
         @see equalsWithSameType
     */
     bool equals (const var& other) const noexcept;
@@ -280,15 +282,14 @@ public:
     */
     static var readFromStream (InputStream& input);
 
-    /* This was a static empty var object, but is now deprecated as it's too easy to accidentally
-       use it indirectly during a static constructor, leading to hard-to-find order-of-initialisation
-       problems.
-       @deprecated If you need a default-constructed var, just use var() or {}.
-       The only time you might miss having var::null available might be if you need to return an
-       empty var from a function by reference, but if you need to do that, it's easy enough to use
-       a function-local static var and return that, avoiding any order-of-initialisation issues.
-    */
-    JUCE_DEPRECATED_STATIC (static const var null;)
+    //==============================================================================
+   #if JUCE_ALLOW_STATIC_NULL_VARIABLES && ! defined (DOXYGEN)
+    [[deprecated ("This was a static empty var object, but is now deprecated as it's too easy to accidentally "
+                 "use it indirectly during a static constructor leading to hard-to-find order-of-initialisation "
+                 "problems. Use var() or {} instead. For returning an empty var from a function by reference, "
+                 "use a function-local static var and return that.")]]
+    static const var null;
+   #endif
 
 private:
     //==============================================================================

@@ -584,19 +584,12 @@ private:
 //==============================================================================
 WebBrowserComponent::WebBrowserComponent (const bool unloadWhenHidden)
     : blankPageShown (false),
-      unloadPageWhenBrowserIsHidden (unloadWhenHidden)
+      unloadPageWhenHidden (unloadWhenHidden)
 {
     setOpaque (true);
 
     browser.reset (new Pimpl (*this));
     addAndMakeVisible (browser.get());
-}
-
-WebBrowserComponent::WebBrowserComponent (bool unloadWhenHidden,
-                                          const File&,
-                                          const File&)
-    : WebBrowserComponent (unloadWhenHidden)
-{
 }
 
 WebBrowserComponent::~WebBrowserComponent()
@@ -665,7 +658,7 @@ void WebBrowserComponent::checkWindowAssociation()
     }
     else
     {
-        if (unloadPageWhenBrowserIsHidden && ! blankPageShown)
+        if (unloadPageWhenHidden && ! blankPageShown)
         {
             // when the component becomes invisible, some stuff like flash
             // carries on playing audio, so we need to force it onto a blank
@@ -681,7 +674,7 @@ void WebBrowserComponent::reloadLastURL()
 {
     if (lastURL.isNotEmpty())
     {
-        goToURL (lastURL, &lastHeaders, lastPostData.getSize() == 0 ? nullptr : &lastPostData);
+        goToURL (lastURL, &lastHeaders, lastPostData.isEmpty() ? nullptr : &lastPostData);
         lastURL.clear();
     }
 }

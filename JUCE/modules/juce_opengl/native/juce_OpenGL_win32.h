@@ -29,17 +29,14 @@ namespace juce
 extern ComponentPeer* createNonRepaintingEmbeddedWindowsPeer (Component&, void* parent);
 
 //==============================================================================
-class OpenGLContext::NativeContext
-   #if JUCE_WIN_PER_MONITOR_DPI_AWARE
-    : private Timer
-   #endif
+class OpenGLContext::NativeContext  : private ComponentPeer::ScaleFactorListener
 {
 public:
     NativeContext (Component& component,
                    const OpenGLPixelFormat& pixelFormat,
-                   void* contextToShareWith,
+                   void* contextToShareWithIn,
                    bool /*useMultisampling*/,
-                   OpenGLVersion)
+                   OpenGLVersion version)
     {
         dummyComponent.reset (new DummyComponent (*this));
         createNativeWindow (component);
@@ -52,12 +49,12 @@ public:
         if (pixFormat != 0)
             SetPixelFormat (dc, pixFormat, &pfd);
 
-        renderContext = wglCreateContext (dc);
+        initialiseWGLExtensions (dc);
+        renderContext = createRenderContext (version, dc);
 
         if (renderContext != nullptr)
         {
             makeActive();
-            initialiseGLExtensions();
 
             auto wglFormat = wglChoosePixelFormatExtension (pixelFormat);
             deactivateCurrentContext();
@@ -73,22 +70,26 @@ public:
                 if (SetPixelFormat (dc, wglFormat, &pfd))
                 {
                     deleteRenderContext();
-                    renderContext = wglCreateContext (dc);
+                    renderContext = createRenderContext (version, dc);
                 }
             }
 
-            if (contextToShareWith != nullptr)
-                wglShareLists ((HGLRC) contextToShareWith, renderContext);
+            if (contextToShareWithIn != nullptr)
+                wglShareLists ((HGLRC) contextToShareWithIn, renderContext);
 
             component.getTopLevelComponent()->repaint();
             component.repaint();
         }
     }
 
-    ~NativeContext()
+    ~NativeContext() override
     {
         deleteRenderContext();
         releaseDC();
+
+        if (safeComponent != nullptr)
+            if (auto* peer = safeComponent->getTopLevelComponent()->getPeer())
+                peer->removeScaleFactorListener (this);
     }
 
     bool initialiseOnRenderThread (OpenGLContext& c)
@@ -156,104 +157,28 @@ public:
     }
 
 private:
-    struct DummyComponent  : public Component
+    //==============================================================================
+    static void initialiseWGLExtensions (HDC dcIn)
     {
-        DummyComponent (NativeContext& c) : context (c) {}
+        static bool initialised = false;
 
-        // The windowing code will call this when a paint callback happens
-        void handleCommandMessage (int) override   { context.triggerRepaint(); }
+        if (initialised)
+            return;
 
-        NativeContext& context;
-    };
+        initialised = true;
 
-    std::unique_ptr<DummyComponent> dummyComponent;
-    std::unique_ptr<ComponentPeer> nativeWindow;
-    std::unique_ptr<ScopedThreadDPIAwarenessSetter> threadAwarenessSetter;
-    HGLRC renderContext;
-    HDC dc;
-    OpenGLContext* context = {};
+        const auto dummyContext = wglCreateContext (dcIn);
+        wglMakeCurrent (dcIn, dummyContext);
 
-    double nativeScaleFactor = 1.0;
-
-   #if JUCE_WIN_PER_MONITOR_DPI_AWARE
-    Component::SafePointer<Component> safeComponent;
-   #endif
-
-    #define JUCE_DECLARE_WGL_EXTENSION_FUNCTION(name, returnType, params) \
-        typedef returnType (__stdcall *type_ ## name) params; type_ ## name name;
-
-    JUCE_DECLARE_WGL_EXTENSION_FUNCTION (wglChoosePixelFormatARB,  BOOL, (HDC, const int*, const FLOAT*, UINT, int*, UINT*))
-    JUCE_DECLARE_WGL_EXTENSION_FUNCTION (wglSwapIntervalEXT,       BOOL, (int))
-    JUCE_DECLARE_WGL_EXTENSION_FUNCTION (wglGetSwapIntervalEXT,    int, ())
-    #undef JUCE_DECLARE_WGL_EXTENSION_FUNCTION
-
-   #if JUCE_WIN_PER_MONITOR_DPI_AWARE
-    void timerCallback() override
-    {
-        if (safeComponent != nullptr)
-        {
-            if (auto* peer = safeComponent->getTopLevelComponent()->getPeer())
-            {
-                auto newScale = peer->getPlatformScaleFactor();
-
-                if (! approximatelyEqual (newScale, nativeScaleFactor))
-                {
-                    nativeScaleFactor = newScale;
-                    updateWindowPosition (peer->getAreaCoveredBy (*safeComponent));
-                }
-            }
-        }
-    }
-   #endif
-
-    void initialiseGLExtensions()
-    {
         #define JUCE_INIT_WGL_FUNCTION(name)    name = (type_ ## name) OpenGLHelpers::getExtensionFunction (#name);
-        JUCE_INIT_WGL_FUNCTION (wglChoosePixelFormatARB);
-        JUCE_INIT_WGL_FUNCTION (wglSwapIntervalEXT);
-        JUCE_INIT_WGL_FUNCTION (wglGetSwapIntervalEXT);
+        JUCE_INIT_WGL_FUNCTION (wglChoosePixelFormatARB)
+        JUCE_INIT_WGL_FUNCTION (wglSwapIntervalEXT)
+        JUCE_INIT_WGL_FUNCTION (wglGetSwapIntervalEXT)
+        JUCE_INIT_WGL_FUNCTION (wglCreateContextAttribsARB)
         #undef JUCE_INIT_WGL_FUNCTION
-    }
 
-    void createNativeWindow (Component& component)
-    {
-        auto* topComp = component.getTopLevelComponent();
-
-        {
-            auto* parentHWND = topComp->getWindowHandle();
-
-            ScopedThreadDPIAwarenessSetter setter { parentHWND };
-            nativeWindow.reset (createNonRepaintingEmbeddedWindowsPeer (*dummyComponent, parentHWND));
-        }
-
-        if (auto* peer = topComp->getPeer())
-        {
-           #if JUCE_WIN_PER_MONITOR_DPI_AWARE
-            safeComponent = Component::SafePointer<Component> (&component);
-            nativeScaleFactor = peer->getPlatformScaleFactor();
-
-            startTimer (50);
-           #endif
-
-            updateWindowPosition (peer->getAreaCoveredBy (component));
-        }
-
-        nativeWindow->setVisible (true);
-        dc = GetDC ((HWND) nativeWindow->getNativeHandle());
-    }
-
-    void deleteRenderContext()
-    {
-        if (renderContext != nullptr)
-        {
-            wglDeleteContext (renderContext);
-            renderContext = nullptr;
-        }
-    }
-
-    void releaseDC()
-    {
-        ReleaseDC ((HWND) nativeWindow->getNativeHandle(), dc);
+        wglMakeCurrent (nullptr, nullptr);
+        wglDeleteContext (dummyContext);
     }
 
     static void initialisePixelFormatDescriptor (PIXELFORMATDESCRIPTOR& pfd, const OpenGLPixelFormat& pixelFormat)
@@ -277,6 +202,90 @@ private:
         pfd.cAccumGreenBits = (BYTE) pixelFormat.accumulationBufferGreenBits;
         pfd.cAccumBlueBits  = (BYTE) pixelFormat.accumulationBufferBlueBits;
         pfd.cAccumAlphaBits = (BYTE) pixelFormat.accumulationBufferAlphaBits;
+    }
+
+    static HGLRC createRenderContext (OpenGLVersion version, HDC dcIn)
+    {
+        if (version >= openGL3_2 && wglCreateContextAttribsARB != nullptr)
+        {
+            const int attribs[] =
+            {
+                WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+                WGL_CONTEXT_MINOR_VERSION_ARB, 2,
+                WGL_CONTEXT_PROFILE_MASK_ARB,  WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+                0
+            };
+
+            const auto c = wglCreateContextAttribsARB (dcIn, nullptr, attribs);
+
+            if (c != nullptr)
+                return c;
+        }
+
+        return wglCreateContext (dcIn);
+    }
+
+    //==============================================================================
+    struct DummyComponent  : public Component
+    {
+        DummyComponent (NativeContext& c) : context (c) {}
+
+        // The windowing code will call this when a paint callback happens
+        void handleCommandMessage (int) override   { context.triggerRepaint(); }
+
+        NativeContext& context;
+    };
+
+    //==============================================================================
+    void nativeScaleFactorChanged (double newScaleFactor) override
+    {
+        if (approximatelyEqual (newScaleFactor, nativeScaleFactor)
+            || safeComponent == nullptr)
+            return;
+
+        if (auto* peer = safeComponent->getTopLevelComponent()->getPeer())
+        {
+            nativeScaleFactor = newScaleFactor;
+            updateWindowPosition (peer->getAreaCoveredBy (*safeComponent));
+        }
+    }
+
+    void createNativeWindow (Component& component)
+    {
+        auto* topComp = component.getTopLevelComponent();
+
+        {
+            auto* parentHWND = topComp->getWindowHandle();
+
+            ScopedThreadDPIAwarenessSetter setter { parentHWND };
+            nativeWindow.reset (createNonRepaintingEmbeddedWindowsPeer (*dummyComponent, parentHWND));
+        }
+
+        if (auto* peer = topComp->getPeer())
+        {
+            safeComponent = Component::SafePointer<Component> (&component);
+
+            nativeScaleFactor = peer->getPlatformScaleFactor();
+            updateWindowPosition (peer->getAreaCoveredBy (component));
+            peer->addScaleFactorListener (this);
+        }
+
+        nativeWindow->setVisible (true);
+        dc = GetDC ((HWND) nativeWindow->getNativeHandle());
+    }
+
+    void deleteRenderContext()
+    {
+        if (renderContext != nullptr)
+        {
+            wglDeleteContext (renderContext);
+            renderContext = nullptr;
+        }
+    }
+
+    void releaseDC()
+    {
+        ReleaseDC ((HWND) nativeWindow->getNativeHandle(), dc);
     }
 
     int wglChoosePixelFormatExtension (const OpenGLPixelFormat& pixelFormat) const
@@ -327,6 +336,27 @@ private:
         return format;
     }
 
+    //==============================================================================
+    #define JUCE_DECLARE_WGL_EXTENSION_FUNCTION(name, returnType, params) \
+        typedef returnType (__stdcall *type_ ## name) params; static type_ ## name name;
+
+    JUCE_DECLARE_WGL_EXTENSION_FUNCTION (wglChoosePixelFormatARB,    BOOL,  (HDC, const int*, const FLOAT*, UINT, int*, UINT*))
+    JUCE_DECLARE_WGL_EXTENSION_FUNCTION (wglSwapIntervalEXT,         BOOL,  (int))
+    JUCE_DECLARE_WGL_EXTENSION_FUNCTION (wglGetSwapIntervalEXT,      int,   ())
+    JUCE_DECLARE_WGL_EXTENSION_FUNCTION (wglCreateContextAttribsARB, HGLRC, (HDC, HGLRC, const int*))
+    #undef JUCE_DECLARE_WGL_EXTENSION_FUNCTION
+
+    //==============================================================================
+    std::unique_ptr<DummyComponent> dummyComponent;
+    std::unique_ptr<ComponentPeer> nativeWindow;
+    std::unique_ptr<ScopedThreadDPIAwarenessSetter> threadAwarenessSetter;
+    Component::SafePointer<Component> safeComponent;
+    HGLRC renderContext;
+    HDC dc;
+    OpenGLContext* context = nullptr;
+    double nativeScaleFactor = 1.0;
+
+    //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NativeContext)
 };
 

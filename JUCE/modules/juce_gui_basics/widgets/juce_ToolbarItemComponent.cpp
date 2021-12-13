@@ -74,7 +74,7 @@ public:
 
             if (DragAndDropContainer* const dnd = DragAndDropContainer::findParentDragContainerFor (this))
             {
-                dnd->startDragging (Toolbar::toolbarDragDescriptor, getParentComponent(), Image(), true, nullptr, &e.source);
+                dnd->startDragging (Toolbar::toolbarDragDescriptor, getParentComponent(), ScaledImage(), true, nullptr, &e.source);
 
                 if (ToolbarItemComponent* const tc = getToolbarItemComponent())
                 {
@@ -237,6 +237,19 @@ void ToolbarItemComponent::setEditingMode (const ToolbarEditingMode newMode)
 
         resized();
     }
+}
+
+//==============================================================================
+std::unique_ptr<AccessibilityHandler> ToolbarItemComponent::createAccessibilityHandler()
+{
+    const auto shouldItemBeAccessible = (itemId != ToolbarItemFactory::separatorBarId
+                                      && itemId != ToolbarItemFactory::spacerId
+                                      && itemId != ToolbarItemFactory::flexibleSpacerId);
+
+    if (! shouldItemBeAccessible)
+        return nullptr;
+
+    return std::make_unique<ButtonAccessibilityHandler> (*this, AccessibilityRole::button);
 }
 
 } // namespace juce

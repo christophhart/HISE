@@ -48,10 +48,6 @@ void Logger::writeToLog (const String& message)
 #if JUCE_LOG_ASSERTIONS || JUCE_DEBUG
 void JUCE_API JUCE_CALLTYPE logAssertion (const char* const filename, const int lineNum) noexcept
 {
-#if JUCE_ENABLE_AUDIO_GUARD
-    AudioThreadGuard::Suspender suspender;
-#endif
-
     String m ("JUCE Assertion failure in ");
     m << File::createFileWithoutCheckingPath (CharPointer_UTF8 (filename)).getFileName() << ':' << lineNum;
 

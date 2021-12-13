@@ -61,13 +61,9 @@ AsyncUpdater::~AsyncUpdater()
 
 void AsyncUpdater::triggerAsyncUpdate()
 {
-	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::AsyncUpdater);
-
-#if !HISE_HEADLESS
     // If you're calling this before (or after) the MessageManager is
     // running, then you're not going to get any callbacks!
-    jassert (MessageManager::getInstanceWithoutCreating() != nullptr);
-#endif
+    JUCE_ASSERT_MESSAGE_MANAGER_EXISTS
 
     if (activeMessage->shouldDeliver.compareAndSetBool (1, 0))
         if (! activeMessage->post())

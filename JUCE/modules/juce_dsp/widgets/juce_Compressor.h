@@ -94,9 +94,6 @@ public:
     /** Performs the processing operation on a single sample at a time. */
     SampleType processSample (int channel, SampleType inputValue);
 
-	/** Returns the gain reduction. */
-	SampleType getGainReduction() const noexcept { return currentGain; };
-
 private:
     //==============================================================================
     void update();
@@ -104,8 +101,6 @@ private:
     //==============================================================================
     SampleType threshold, thresholdInverse, ratioInverse;
     BallisticsFilter<SampleType> envelopeFilter;
-
-	SampleType currentGain = 1.0;
 
     double sampleRate = 44100.0;
     SampleType thresholddB = 0.0, ratio = 1.0, attackTime = 1.0, releaseTime = 100.0;

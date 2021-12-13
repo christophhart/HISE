@@ -356,8 +356,6 @@ struct CppTokeniserFunctions
         {
             auto c = source.peekNextChar();
 
-			auto asString = String::charToString(c);
-
             if (c == '"')
             {
                 skipQuotedString (source);
@@ -379,14 +377,10 @@ struct CppTokeniserFunctions
 
             if (c == '\n' || c == '\r')
             {
-				source.skipToEndOfLine();
+                source.skipToEndOfLine();
 
-				if (lastWasBackslash)
-				{
-					source.skip();
-					skipPreprocessorLine(source);
-				}
-                    
+                if (lastWasBackslash)
+                    skipPreprocessorLine (source);
 
                 break;
             }

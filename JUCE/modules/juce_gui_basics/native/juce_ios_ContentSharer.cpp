@@ -26,6 +26,10 @@
 namespace juce
 {
 
+#if ! defined (__IPHONE_10_0) || __IPHONE_OS_VERSION_MAX_ALLOWED < __IPHONE_10_0
+ using UIActivityType = NSString*;
+#endif
+
 class ContentSharer::ContentSharerNativeImpl    : public ContentSharer::Pimpl,
                                                   private Component
 {
@@ -172,7 +176,7 @@ private:
     {
         PopoverDelegateClass()  : ObjCClass<NSObject<UIPopoverPresentationControllerDelegate>> ("PopoverDelegateClass_")
         {
-            addMethod (@selector (popoverPresentationController:willRepositionPopoverToRect:inView:), willRepositionPopover, "v@:@@@");
+            addMethod (@selector (popoverPresentationController:willRepositionPopoverToRect:inView:), willRepositionPopover);
 
             registerClass();
         }
@@ -191,8 +195,8 @@ private:
 
     ContentSharer& owner;
     UIViewComponentPeer* peer = nullptr;
-    std::unique_ptr<UIActivityViewController, NSObjectDeleter> controller;
-    std::unique_ptr<NSObject<UIPopoverPresentationControllerDelegate>, NSObjectDeleter> popoverDelegate;
+    NSUniquePtr<UIActivityViewController> controller;
+    NSUniquePtr<NSObject<UIPopoverPresentationControllerDelegate>> popoverDelegate;
 
     bool succeeded = false;
     String errorDescription;

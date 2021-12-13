@@ -390,7 +390,7 @@ public:
 
             jbyteArray postDataArray = nullptr;
 
-            if (postData.getSize() > 0)
+            if (! postData.isEmpty())
             {
                 postDataArray = env->NewByteArray (static_cast<jsize> (postData.getSize()));
                 env->SetByteArrayRegion (postDataArray, 0, static_cast<jsize> (postData.getSize()), (const jbyte*) postData.getData());
@@ -554,9 +554,9 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl)
 };
 
-std::unique_ptr<URL::DownloadTask> URL::downloadToFile (const File& targetLocation, String extraHeaders, DownloadTask::Listener* listener, bool shouldUsePost)
+std::unique_ptr<URL::DownloadTask> URL::downloadToFile (const File& targetLocation, const DownloadTaskOptions& options)
 {
-    return URL::DownloadTask::createFallbackDownloader (*this, targetLocation, extraHeaders, listener, shouldUsePost);
+    return URL::DownloadTask::createFallbackDownloader (*this, targetLocation, options);
 }
 
 //==============================================================================

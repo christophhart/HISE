@@ -221,6 +221,7 @@ private:
     bool shouldShowDismissButton = true;
 
     //==============================================================================
+    std::unique_ptr<AccessibilityHandler> createAccessibilityHandler() override;
     void lookAndFeelChanged() override;
     void componentMovedOrResized (Component&, bool wasMoved, bool wasResized) override;
     void changeListenerCallback (ChangeBroadcaster*) override;

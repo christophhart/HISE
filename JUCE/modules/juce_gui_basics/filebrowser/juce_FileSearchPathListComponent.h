@@ -45,9 +45,6 @@ public:
     /** Creates an empty FileSearchPathListComponent. */
     FileSearchPathListComponent();
 
-    /** Destructor. */
-    ~FileSearchPathListComponent() override;
-
     //==============================================================================
     /** Returns the path as it is currently shown. */
     const FileSearchPath& getPath() const noexcept                  { return path; }
@@ -100,6 +97,7 @@ private:
     //==============================================================================
     FileSearchPath path;
     File defaultBrowseTarget;
+    std::unique_ptr<FileChooser> chooser;
 
     ListBox listBox;
     TextButton addButton, removeButton, changeButton;

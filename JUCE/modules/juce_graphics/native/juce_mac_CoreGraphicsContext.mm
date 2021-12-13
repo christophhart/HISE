@@ -118,9 +118,10 @@ public:
 
         if (mustOutliveSource)
         {
-            CFDataRef data = CFDataCreate (nullptr, (const UInt8*) srcData.data, (CFIndex) ((size_t) srcData.lineStride * (size_t) srcData.height));
-            provider = detail::DataProviderPtr { CGDataProviderCreateWithCFData (data) };
-            CFRelease (data);
+            CFUniquePtr<CFDataRef> data (CFDataCreate (nullptr,
+                                                       (const UInt8*) srcData.data,
+                                                       (CFIndex) ((size_t) srcData.lineStride * (size_t) srcData.height)));
+            provider = detail::DataProviderPtr { CGDataProviderCreateWithCFData (data.get()) };
         }
         else
         {
@@ -609,7 +610,9 @@ void CoreGraphicsContext::setFont (const Font& newFont)
         state->fontRef = nullptr;
         state->font = newFont;
 
-        if (auto osxTypeface = dynamic_cast<OSXTypeface*> (state->font.getTypeface()))
+        auto typeface = state->font.getTypefacePtr();
+
+        if (auto osxTypeface = dynamic_cast<OSXTypeface*> (typeface.get()))
         {
             state->fontRef = osxTypeface->fontRef;
             CGContextSetFont (context.get(), state->fontRef);
@@ -666,7 +669,7 @@ void CoreGraphicsContext::drawGlyph (int glyphNumber, const AffineTransform& tra
     {
         Path p;
         auto& f = state->font;
-        f.getTypeface()->getOutlineForGlyph (glyphNumber, p);
+        f.getTypefacePtr()->getOutlineForGlyph (glyphNumber, p);
 
         fillPath (p, AffineTransform::scale (f.getHeight() * f.getHorizontalScale(), f.getHeight())
                                      .followedBy (transform));
@@ -675,8 +678,7 @@ void CoreGraphicsContext::drawGlyph (int glyphNumber, const AffineTransform& tra
 
 bool CoreGraphicsContext::drawTextLayout (const AttributedString& text, const Rectangle<float>& area)
 {
-    CoreTextTypeLayout::drawToCGContext (text, area, context.get(), (float) flipHeight);
-    return true;
+    return CoreTextTypeLayout::drawToCGContext (text, area, context.get(), (float) flipHeight);
 }
 
 CoreGraphicsContext::SavedState::SavedState()
@@ -829,6 +831,9 @@ Image juce_loadWithCoreImage (InputStream& input)
     MemoryBlockHolder::Ptr memBlockHolder = new MemoryBlockHolder();
     input.readIntoMemoryBlock (memBlockHolder->block, -1);
 
+    if (memBlockHolder->block.isEmpty())
+        return {};
+
    #if JUCE_IOS
     JUCE_AUTORELEASEPOOL
    #endif
@@ -845,12 +850,11 @@ Image juce_loadWithCoreImage (InputStream& input)
                                                                                 memBlockHolder->block.getData(),
                                                                                 memBlockHolder->block.getSize(),
                                                                                 [] (void * __nullable info, const void*, size_t) { delete (MemoryBlockHolder::Ptr*) info; }) };
-        auto imageSource = CGImageSourceCreateWithDataProvider (provider.get(), nullptr);
 
-        if (imageSource != nullptr)
+        if (auto imageSource = CFUniquePtr<CGImageSourceRef> (CGImageSourceCreateWithDataProvider (provider.get(), nullptr)))
         {
-            auto loadedImage = CGImageSourceCreateImageAtIndex (imageSource, 0, nullptr);
-            CFRelease (imageSource);
+            CFUniquePtr<CGImageRef> loadedImagePtr (CGImageSourceCreateImageAtIndex (imageSource.get(), 0, nullptr));
+            auto* loadedImage = loadedImagePtr.get();
       #endif
 
             if (loadedImage != nullptr)
@@ -870,10 +874,6 @@ Image juce_loadWithCoreImage (InputStream& input)
 
                 CGContextDrawImage (cgImage->context.get(), convertToCGRect (image.getBounds()), loadedImage);
                 CGContextFlush (cgImage->context.get());
-
-               #if ! JUCE_IOS
-                CFRelease (loadedImage);
-               #endif
 
                 // Because it's impossible to create a truly 24-bit CG image, this flag allows a user
                 // to find out whether the file they just loaded the image from had an alpha channel or not.
@@ -929,8 +929,11 @@ CGContextRef juce_getImageContext (const Image& image)
 #endif
 
 #if JUCE_MAC
- NSImage* imageToNSImage (const Image& image, float scaleFactor)
+ NSImage* imageToNSImage (const ScaledImage& scaled)
  {
+     const auto image = scaled.getImage();
+     const auto scaleFactor = scaled.getScale();
+
      JUCE_AUTORELEASEPOOL
      {
          NSImage* im = [[NSImage alloc] init];

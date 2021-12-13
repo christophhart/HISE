@@ -33,7 +33,6 @@ int64 InputStream::getNumBytesRemaining()
     return len;
 }
 
-#if 0
 ssize_t InputStream::read (void* destBuffer, size_t size)
 {
     ssize_t totalRead = 0;
@@ -53,7 +52,6 @@ ssize_t InputStream::read (void* destBuffer, size_t size)
 
     return totalRead;
 }
-#endif
 
 char InputStream::readByte()
 {

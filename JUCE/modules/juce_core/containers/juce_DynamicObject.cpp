@@ -129,9 +129,4 @@ void DynamicObject::writeAsJSON (OutputStream& out, const int indentLevel, const
     out << '}';
 }
 
-void DynamicObject::swapProperties(NamedValueSet&& newProperties)
-{
-	std::swap(properties, newProperties);
-}
-
 } // namespace juce

@@ -109,18 +109,16 @@
  #endif
 
 //==============================================================================
-#elif JUCE_LINUX && JUCE_WEB_BROWSER
- JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wzero-as-null-pointer-constant", "-Wparentheses")
+#elif (JUCE_LINUX || JUCE_BSD) && JUCE_WEB_BROWSER
+ JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wzero-as-null-pointer-constant", "-Wparentheses", "-Wdeprecated-declarations")
 
  // If you're missing this header, you need to install the webkit2gtk-4.0 package
  #include <gtk/gtk.h>
-
- JUCE_END_IGNORE_WARNINGS_GCC_LIKE
-
- // If you're missing these headers, you need to install the webkit2gtk-4.0 package
  #include <gtk/gtkx.h>
  #include <glib-unix.h>
  #include <webkit2/webkit2.h>
+
+ JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 #endif
 
 //==============================================================================
@@ -168,7 +166,7 @@
  #include "native/juce_win32_SystemTrayIcon.cpp"
 
 //==============================================================================
-#elif JUCE_LINUX
+#elif JUCE_LINUX || JUCE_BSD
  JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wzero-as-null-pointer-constant")
 
  #include "native/juce_linux_XEmbedComponent.cpp"
@@ -191,7 +189,9 @@
 #endif
 
 //==============================================================================
-#if ! JUCE_WINDOWS
- juce::ScopedDPIAwarenessDisabler::ScopedDPIAwarenessDisabler()  { ignoreUnused (previousContext); }
- juce::ScopedDPIAwarenessDisabler::~ScopedDPIAwarenessDisabler() {}
+#if ! JUCE_WINDOWS && JUCE_WEB_BROWSER
+ juce::WebBrowserComponent::WebBrowserComponent (ConstructWithoutPimpl) {}
+ juce::WindowsWebView2WebBrowserComponent::WindowsWebView2WebBrowserComponent (bool unloadWhenHidden,
+                                                                               const WebView2Preferences&)
+     : WebBrowserComponent (unloadWhenHidden) {}
 #endif

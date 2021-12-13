@@ -1065,13 +1065,6 @@ public:
         values.ensureAllocatedSize (minNumElements);
     }
 
-	/** Returns the number of allocated elements. */
-	int getNumAllocated() const noexcept
-	{
-		const ScopedLockType lock(getLock());
-		return values.capacity();
-	}
-
     //==============================================================================
     /** Sorts the array using a default comparison operation.
         If the type of your elements isn't supported by the DefaultElementComparator class
@@ -1132,9 +1125,9 @@ public:
 
     //==============================================================================
    #ifndef DOXYGEN
-    // Note that the swapWithArray method has been replaced by a more flexible templated version,
-    // and renamed "swapWith" to be more consistent with the names used in other classes.
-    JUCE_DEPRECATED_WITH_BODY (void swapWithArray (Array& other) noexcept, { swapWith (other); })
+    [[deprecated ("This method has been replaced by a more flexible templated version and renamed "
+                 "to swapWith to be more consistent with the names used in other classes.")]]
+    void swapWithArray (Array& other) noexcept { swapWith (other); }
    #endif
 
 private:

@@ -49,7 +49,7 @@ public:
     CodeDocument();
 
     /** Destructor. */
-    virtual ~CodeDocument();
+    ~CodeDocument();
 
     //==============================================================================
     /** A position in a code document.
@@ -179,8 +179,6 @@ public:
         */
         String getLineText() const;
 
-		const CodeDocument* getOwner() const { return owner; }
-
     private:
         CodeDocument* owner = nullptr;
         int characterPos = 0, line = 0, indexInLine = 0;
@@ -253,9 +251,6 @@ public:
     /** Writes the editor's current contents to a stream. */
     bool writeToStream (OutputStream& stream);
 
-	/** Disables the undo manger and directly calls the functions. */
-	void setDisableUndo(bool shouldBeDisabled);
-
     //==============================================================================
     /** Returns the preferred new-line characters for the document.
         This will be either "\\n", "\\r\\n", or (rarely) "\\r".
@@ -325,13 +320,6 @@ public:
     /** Finds the line that contains the given position. */
     void findLineContaining  (const Position& pos, Position& start, Position& end) const noexcept;
 
-	/** Checks whether the line contains a newline character at the end. */
-	bool endsWithNewLine(int lineIndex) const noexcept;
-
-	String getLineWithoutLinebreak(int lineIndex) const noexcept;
-
-	
-
     //==============================================================================
     /** An object that receives callbacks from the CodeDocument when its text changes.
         @see CodeDocument::addListener, CodeDocument::removeListener
@@ -347,11 +335,6 @@ public:
 
         /** Called by a CodeDocument when text is deleted. */
         virtual void codeDocumentTextDeleted (int startIndex, int endIndex) = 0;
-
-		virtual void lineRangeChanged(Range<int> range, bool wasAdded) 
-		{
-			ignoreUnused(range, wasAdded);
-		};
     };
 
     /** Registers a listener object to receive callbacks when the document changes.
@@ -364,8 +347,6 @@ public:
         @see addListener
     */
     void removeListener (Listener* listener);
-
-	int getNumListeners() const;
 
     //==============================================================================
     /** Iterates the text in a CodeDocument.
@@ -427,8 +408,6 @@ public:
         /** Returns the line number of the next character. */
         int getLine() const noexcept            { return line; }
 
-		int getIndexInLine() const;
-
         /** Returns true if the iterator has reached the end of the document. */
         bool isEOF() const noexcept;
 
@@ -448,15 +427,10 @@ public:
 
 private:
     //==============================================================================
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(CodeDocument);
-
     struct InsertAction;
     struct DeleteAction;
     friend class Iterator;
     friend class Position;
-
-	bool undoDisabled = false;
 
     OwnedArray<CodeDocumentLine> lines;
     Array<Position*> positionsToMaintain;

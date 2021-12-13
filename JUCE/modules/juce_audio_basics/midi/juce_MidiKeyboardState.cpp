@@ -26,11 +26,6 @@ namespace juce
 MidiKeyboardState::MidiKeyboardState()
 {
     zerostruct (noteStates);
-	eventsToAdd.ensureSize(128 * 3);
-}
-
-MidiKeyboardState::~MidiKeyboardState()
-{
 }
 
 //==============================================================================
@@ -95,15 +90,6 @@ void MidiKeyboardState::noteOff (const int midiChannel, const int midiNoteNumber
     }
 }
 
-void MidiKeyboardState::injectMessage(const MidiMessage& m)
-{
-	jassert(!m.isNoteOnOrOff());
-
-	const int timeNow = (int)Time::getMillisecondCounter();
-	eventsToAdd.addEvent(m, timeNow);
-	eventsToAdd.clear(0, timeNow - 500);
-}
-
 void MidiKeyboardState::noteOffInternal  (const int midiChannel, const int midiNoteNumber, const float velocity)
 {
     if (isNoteOn (midiChannel, midiNoteNumber))
@@ -111,12 +97,6 @@ void MidiKeyboardState::noteOffInternal  (const int midiChannel, const int midiN
         noteStates[midiNoteNumber] = static_cast<uint16> (noteStates[midiNoteNumber] & ~(1 << (midiChannel - 1)));
         listeners.call ([&] (Listener& l) { l.handleNoteOff (this, midiChannel, midiNoteNumber, velocity); });
     }
-}
-
-void MidiKeyboardState::sendMessageInternal(const MidiMessage& m)
-{
-	for (int i = listeners.size(); --i >= 0;)
-		listeners.getListeners().getUnchecked(i)->handleMessage(m);
 }
 
 void MidiKeyboardState::allNotesOff (const int midiChannel)
@@ -150,10 +130,6 @@ void MidiKeyboardState::processNextMidiEvent (const MidiMessage& message)
         for (int i = 0; i < 128; ++i)
             noteOffInternal (message.getChannel(), i, 0.0f);
     }
-	else if (message.isChannelPressure() || message.isControllerOfType(74) || message.isPitchWheel() || message.isControllerOfType(1))
-	{
-		sendMessageInternal(message);
-	}
 }
 
 void MidiKeyboardState::processNextMidiBuffer (MidiBuffer& buffer,
@@ -162,11 +138,6 @@ void MidiKeyboardState::processNextMidiBuffer (MidiBuffer& buffer,
                                                const bool injectIndirectEvents)
 {
     const ScopedLock sl (lock);
-
-#if JUCE_ENABLE_AUDIO_GUARD
-    // Don't fire here until this is sorted out.
-    AudioThreadGuard::Suspender suspender;
-#endif
 
     for (const auto metadata : buffer)
         processNextMidiEvent (metadata.getMessage());

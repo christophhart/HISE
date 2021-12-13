@@ -31,7 +31,7 @@ namespace juce
     Makes it easy to quickly draw scaled views of the waveform shape of an
     audio file.
 
-    To use this class, just create an AudioThumbNail class for the file you want
+    To use this class, just create an AudioThumbnail class for the file you want
     to draw, call setSource to tell it which file or resource to use, then call
     drawChannel() to draw it.
 
@@ -205,7 +205,7 @@ private:
     OwnedArray<ThumbData> channels;
 
     int32 samplesPerThumbSample = 0;
-    std::atomic<int64> totalSamples { 0 };
+    int64 totalSamples { 0 };
     int64 numSamplesFinished = 0;
     int32 numChannels = 0;
     double sampleRate = 0;

@@ -41,6 +41,32 @@
 
 #include "juce_opengl.h"
 
+#define JUCE_STATIC_LINK_GL_VERSION_1_0 1
+#define JUCE_STATIC_LINK_GL_VERSION_1_1 1
+
+#if JUCE_MAC
+ #define JUCE_STATIC_LINK_GL_VERSION_1_2 1
+ #define JUCE_STATIC_LINK_GL_VERSION_1_3 1
+ #define JUCE_STATIC_LINK_GL_VERSION_1_4 1
+ #define JUCE_STATIC_LINK_GL_VERSION_1_5 1
+ #define JUCE_STATIC_LINK_GL_VERSION_2_0 1
+ #define JUCE_STATIC_LINK_GL_VERSION_2_1 1
+ #define JUCE_STATIC_LINK_GL_VERSION_3_0 1
+ #define JUCE_STATIC_LINK_GL_VERSION_3_1 1
+ #define JUCE_STATIC_LINK_GL_VERSION_3_2 1
+#endif
+
+#define JUCE_STATIC_LINK_GL_ES_VERSION_2_0 1
+#if !JUCE_ANDROID || JUCE_ANDROID_GL_ES_VERSION_3_0
+#define JUCE_STATIC_LINK_GL_ES_VERSION_3_0 1
+#endif
+
+#if JUCE_OPENGL_ES
+ #include "opengl/juce_gles2.cpp"
+#else
+ #include "opengl/juce_gl.cpp"
+#endif
+
 //==============================================================================
 #if JUCE_IOS
  #import <QuartzCore/QuartzCore.h>
@@ -54,7 +80,7 @@
  #endif
 
 //==============================================================================
-#elif JUCE_LINUX
+#elif JUCE_LINUX || JUCE_BSD
  /* Got an include error here?
 
     If you want to install OpenGL support, the packages to get are "mesa-common-dev"
@@ -69,63 +95,27 @@
 
 //==============================================================================
 #elif JUCE_ANDROID
- #ifndef GL_GLEXT_PROTOTYPES
-  #define GL_GLEXT_PROTOTYPES 1
- #endif
-
- #if JUCE_ANDROID_GL_ES_VERSION_3_0
-  #include <GLES3/gl3.h>
-
-  // workaround for a bug in SDK 18 and 19
-  // see: https://stackoverflow.com/questions/31003863/gles-3-0-including-gl2ext-h
-  #define __gl2_h_
-  #include <GLES2/gl2ext.h>
- #else
-  #include <GLES2/gl2.h>
- #endif
+ #include <android/native_window.h>
+ #include <android/native_window_jni.h>
+ #include <EGL/egl.h>
 #endif
 
 //==============================================================================
 namespace juce
 {
 
+using namespace ::juce::gl;
+
 void OpenGLExtensionFunctions::initialise()
 {
-   #if JUCE_WINDOWS || JUCE_LINUX
-    #define JUCE_INIT_GL_FUNCTION(name, returnType, params, callparams) \
-        name = (type_ ## name) OpenGLHelpers::getExtensionFunction (#name);
-
-    JUCE_GL_BASE_FUNCTIONS (JUCE_INIT_GL_FUNCTION)
-    #undef JUCE_INIT_GL_FUNCTION
-
-    #define JUCE_INIT_GL_FUNCTION(name, returnType, params, callparams) \
-        name = (type_ ## name) OpenGLHelpers::getExtensionFunction (#name); \
-        if (name == nullptr) \
-            name = (type_ ## name) OpenGLHelpers::getExtensionFunction (JUCE_STRINGIFY (name ## EXT));
-
-    JUCE_GL_EXTENSION_FUNCTIONS (JUCE_INIT_GL_FUNCTION)
-    #if JUCE_OPENGL3
-     JUCE_GL_VERTEXBUFFER_FUNCTIONS (JUCE_INIT_GL_FUNCTION)
-    #endif
-
-    #undef JUCE_INIT_GL_FUNCTION
-   #endif
+    gl::loadFunctions();
 }
 
-#if JUCE_OPENGL_ES
- #define JUCE_DECLARE_GL_FUNCTION(name, returnType, params, callparams) \
-    returnType OpenGLExtensionFunctions::name params noexcept { return ::name callparams; }
-
- JUCE_GL_BASE_FUNCTIONS (JUCE_DECLARE_GL_FUNCTION)
- JUCE_GL_EXTENSION_FUNCTIONS (JUCE_DECLARE_GL_FUNCTION)
-#if JUCE_OPENGL3
- JUCE_GL_VERTEXBUFFER_FUNCTIONS (JUCE_DECLARE_GL_FUNCTION)
-#endif
-
- #undef JUCE_DECLARE_GL_FUNCTION
-#endif
-
-#undef JUCE_GL_EXTENSION_FUNCTIONS
+#define X(name) decltype (::juce::gl::name)& OpenGLExtensionFunctions::name = ::juce::gl::name;
+JUCE_GL_BASE_FUNCTIONS
+JUCE_GL_EXTENSION_FUNCTIONS
+JUCE_GL_VERTEXBUFFER_FUNCTIONS
+#undef X
 
 #if JUCE_DEBUG && ! defined (JUCE_CHECK_OPENGL_ERROR)
 static const char* getGLErrorMessage (const GLenum e) noexcept
@@ -214,7 +204,7 @@ static void checkGLError (const char* file, const int line)
             continue;
 
         DBG ("***** " << getGLErrorMessage (e) << "  at " << file << " : " << line);
-        //jassertfalse;
+        jassertfalse;
     }
 }
 
@@ -271,9 +261,20 @@ private:
  #endif
 
 #elif JUCE_WINDOWS
+ #include "opengl/juce_wgl.h"
  #include "native/juce_OpenGL_win32.h"
 
-#elif JUCE_LINUX
+#define JUCE_IMPL_WGL_EXTENSION_FUNCTION(name) \
+    decltype (juce::OpenGLContext::NativeContext::name) juce::OpenGLContext::NativeContext::name = nullptr;
+
+JUCE_IMPL_WGL_EXTENSION_FUNCTION (wglChoosePixelFormatARB)
+JUCE_IMPL_WGL_EXTENSION_FUNCTION (wglSwapIntervalEXT)
+JUCE_IMPL_WGL_EXTENSION_FUNCTION (wglGetSwapIntervalEXT)
+JUCE_IMPL_WGL_EXTENSION_FUNCTION (wglCreateContextAttribsARB)
+
+#undef JUCE_IMPL_WGL_EXTENSION_FUNCTION
+
+#elif JUCE_LINUX || JUCE_BSD
  #include "native/juce_OpenGL_linux_X11.h"
 
 #elif JUCE_ANDROID

@@ -25,6 +25,26 @@ namespace juce
 
 void MACAddress::findAllAddresses (Array<MACAddress>& result)
 {
+   #if JUCE_BSD
+    struct ifaddrs* addrs = nullptr;
+
+    if (getifaddrs (&addrs) != -1)
+    {
+        for (auto* i = addrs; i != nullptr; i = i->ifa_next)
+        {
+            if (i->ifa_addr->sa_family == AF_LINK)
+            {
+                struct sockaddr_dl* sdl = (struct sockaddr_dl*) i->ifa_addr;
+                MACAddress ma ((const uint8*) (sdl->sdl_data + sdl->sdl_nlen));
+
+                if (! ma.isNull())
+                    result.addIfNotAlreadyThere (ma);
+            }
+        }
+
+        freeifaddrs (addrs);
+    }
+   #else
     auto s = socket (AF_INET, SOCK_DGRAM, 0);
 
     if (s != -1)
@@ -53,6 +73,7 @@ void MACAddress::findAllAddresses (Array<MACAddress>& result)
 
         ::close (s);
     }
+   #endif
 }
 
 
@@ -586,9 +607,9 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl)
 };
 
-std::unique_ptr<URL::DownloadTask> URL::downloadToFile (const File& targetLocation, String extraHeaders, DownloadTask::Listener* listener, bool shouldUsePost)
+std::unique_ptr<URL::DownloadTask> URL::downloadToFile (const File& targetLocation, const DownloadTaskOptions& options)
 {
-    return URL::DownloadTask::createFallbackDownloader (*this, targetLocation, extraHeaders, listener, shouldUsePost);
+    return URL::DownloadTask::createFallbackDownloader (*this, targetLocation, options);
 }
 #endif
 

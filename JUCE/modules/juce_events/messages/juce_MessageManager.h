@@ -79,7 +79,7 @@ public:
     */
     bool hasStopMessageBeenSent() const noexcept        { return quitMessagePosted.get() != 0; }
 
-   #if JUCE_MODAL_LOOPS_PERMITTED || DOXYGEN
+   #if JUCE_MODAL_LOOPS_PERMITTED
     /** Synchronously dispatches messages until a given time has elapsed.
 
         Returns false if a quit message has been posted by a call to stopDispatchLoop(),
@@ -203,7 +203,7 @@ public:
             Creates a new critical section to exclusively access methods which can
             only be called when the message manager is locked.
 
-            Unlike CrititcalSection, multiple instances of this lock class provide
+            Unlike CriticalSection, multiple instances of this lock class provide
             exclusive access to a single resource - the MessageManager.
         */
         Lock();
@@ -333,7 +333,6 @@ private:
     static void* exitModalLoopCallback (void*);
     static void doPlatformSpecificInitialisation();
     static void doPlatformSpecificShutdown();
-    static bool dispatchNextMessageOnSystemQueue (bool returnIfNoPendingMessages);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MessageManager)
 };

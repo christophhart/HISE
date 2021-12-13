@@ -290,17 +290,6 @@ void CodeDocument::Iterator::skipWhitespace() noexcept
         skip();
 }
 
-int CodeDocument::Iterator::getIndexInLine() const
-{
-	if (auto* l = document->lines[line])
-	{
-		if(charPointer >= l->line.begin() && charPointer < l->line.end())
-			return (int)(charPointer - l->line.getCharPointer());
-	}
-
-	return 0;
-}
-
 bool CodeDocument::Iterator::isEOF() const noexcept
 {
     return charPointer.getAddress() == nullptr && line >= document->lines.size();
@@ -723,14 +712,6 @@ bool CodeDocument::writeToStream (OutputStream& stream)
     return true;
 }
 
-void CodeDocument::setDisableUndo(bool shouldBeDisabled)
-{
-	if (shouldBeDisabled)
-		clearUndoHistory();
-
-	undoDisabled = shouldBeDisabled;
-}
-
 void CodeDocument::setNewLineCharacters (const String& newChars) noexcept
 {
     jassert (newChars == "\r\n" || newChars == "\n" || newChars == "\r");
@@ -739,33 +720,23 @@ void CodeDocument::setNewLineCharacters (const String& newChars) noexcept
 
 void CodeDocument::newTransaction()
 {
-	if(!undoDisabled)
-		undoManager.beginNewTransaction (String());
+    undoManager.beginNewTransaction (String());
 }
 
 void CodeDocument::undo()
 {
-	if (!undoDisabled)
-	{
-		newTransaction();
-		undoManager.undo();
-	}
-    
+    newTransaction();
+    undoManager.undo();
 }
 
 void CodeDocument::redo()
 {
-	if (!undoDisabled)
-	{
-		undoManager.redo();
-	}
-    
+    undoManager.redo();
 }
 
 void CodeDocument::clearUndoHistory()
 {
-	if(!undoDisabled)
-		undoManager.clearUndoHistory();
+    undoManager.clearUndoHistory();
 }
 
 void CodeDocument::setSavePoint() noexcept
@@ -883,30 +854,6 @@ void CodeDocument::findLineContaining  (const Position& pos, Position& s, Positi
     e.setLineAndIndex (pos.getLineNumber() + 1, 0);
 }
 
-bool CodeDocument::endsWithNewLine(int lineIndex) const noexcept
-{
-	if (isPositiveAndBelow(lineIndex, lines.size()))
-	{
-		return lines[lineIndex]->endsWithLineBreak();
-	}
-
-	return false;
-}
-
-String CodeDocument::getLineWithoutLinebreak(int lineIndex) const noexcept
-{
-	if (isPositiveAndBelow(lineIndex, lines.size()))
-	{
-		auto l = lines[lineIndex];
-
-		auto start = l->line.getCharPointer();
-		auto end = start + l->lineLengthWithoutNewLines;
-		return String(start, end);
-	}
-
-	return {};
-}
-
 void CodeDocument::checkLastLineStatus()
 {
     while (lines.size() > 0
@@ -930,11 +877,6 @@ void CodeDocument::checkLastLineStatus()
 //==============================================================================
 void CodeDocument::addListener    (CodeDocument::Listener* l)   { listeners.add (l); }
 void CodeDocument::removeListener (CodeDocument::Listener* l)   { listeners.remove (l); }
-
-int CodeDocument::getNumListeners() const
-{
-	return listeners.size();
-}
 
 //==============================================================================
 struct CodeDocument::InsertAction   : public UndoableAction
@@ -971,7 +913,7 @@ void CodeDocument::insert (const String& text, const int insertPos, const bool u
 {
     if (text.isNotEmpty())
     {
-        if (undoable && !undoDisabled)
+        if (undoable)
         {
             undoManager.perform (new InsertAction (*this, text, insertPos));
         }
@@ -1012,26 +954,12 @@ void CodeDocument::insert (const String& text, const int insertPos, const bool u
                 lineStart += l.lineLength;
             }
 
-			int numLinesBefore = getNumLines();
             checkLastLineStatus();
-
-
-
-			
-
             auto newTextLength = text.length();
 
             for (auto* p : positionsToMaintain)
                 if (p->getPosition() >= insertPos)
                     p->setPosition (p->getPosition() + newTextLength);
-
-			auto rangeEnd = firstAffectedLine + newLines.size();
-
-			if (getNumLines() != numLinesBefore)
-				rangeEnd++;
-
-			Range<int> rangeThatChanged(firstAffectedLine, rangeEnd);
-			listeners.call([&](Listener& l) { l.lineRangeChanged(rangeThatChanged, true); });
 
             listeners.call ([&] (Listener& l) { l.codeDocumentTextInserted (text, insertPos); });
         }
@@ -1076,7 +1004,7 @@ void CodeDocument::remove (const int startPos, const int endPos, const bool undo
     if (endPos <= startPos)
         return;
 
-    if (undoable && !undoDisabled)
+    if (undoable)
     {
         undoManager.perform (new DeleteAction (*this, startPos, endPos));
     }
@@ -1126,9 +1054,6 @@ void CodeDocument::remove (const int startPos, const int endPos, const bool undo
             if (p->getPosition() > totalChars)
                 p->setPosition (totalChars);
         }
-
-		Range<int> rangeThatWasDeleted(firstAffectedLine, endLine);
-		listeners.call([=](Listener& l) { l.lineRangeChanged(rangeThatWasDeleted, false); });
 
         listeners.call ([=] (Listener& l) { l.codeDocumentTextDeleted (startPos, endPos); });
     }

@@ -50,7 +50,6 @@ struct var::VariantType
     struct ArrayTag     {};
     struct BinaryTag    {};
     struct MethodTag    {};
-	struct BufferTag    {};
 
     // members =====================================================================
     bool isVoid         = false;
@@ -65,7 +64,6 @@ struct var::VariantType
     bool isBinary       = false;
     bool isMethod       = false;
     bool isComparable   = false;
-	bool isBuffer       = false;
 
     int                     (*toInt)         (const ValueUnion&)                 = defaultToInt;
     int64                   (*toInt64)       (const ValueUnion&)                 = defaultToInt64;
@@ -353,54 +351,6 @@ struct var::VariantType
           equals        (objectEquals),
           writeToStream (objectWriteToStream) {}
 
-	// buffer ======================================================================
-
-	static void bufferCleanUp(ValueUnion& data) noexcept { if (data.objectValue != nullptr) data.objectValue->decReferenceCount();; }
-
-	static void bufferCreateCopy(ValueUnion& dest, const ValueUnion& source) {
-		dest.objectValue = source.objectValue;
-		if (dest.objectValue != nullptr)
-			dest.objectValue->incReferenceCount();
-	}
-
-	static String bufferToString(const ValueUnion& data) { return "Object 0x" + String::toHexString((pointer_sized_int)data.objectValue); }
-
-	static bool bufferToBool(const ValueUnion& data) noexcept { return data.objectValue != nullptr; }
-
-	static ReferenceCountedObject* bufferToObject(const ValueUnion& data) noexcept { return data.objectValue; }
-
-	static bool bufferEquals(const ValueUnion& data, const ValueUnion& otherData, const VariantType& otherType) noexcept
-	{
-		return otherType.toObject(otherData) == data.objectValue;
-	}
-
-	static var bufferClone(const var& original)
-	{
-		if (DynamicObject* d = original.getDynamicObject())
-			return d->clone().get();
-
-		jassertfalse; // can only clone DynamicObjects!
-		return var();
-	}
-
-	static void bufferWriteToStream(const ValueUnion&, OutputStream& output)
-	{
-		jassertfalse; // Can't write an object to a stream!
-		output.writeCompressedInt(0);
-	}
-
-	constexpr explicit VariantType(BufferTag) noexcept
-		: isObject(true),
-		  isBuffer(true),
-		  toString(bufferToString),
-		  toBool(bufferToBool),
-		  toObject(bufferToObject),
-		  clone(bufferClone),
-		  cleanUp(bufferCleanUp),
-		  createCopy(bufferCreateCopy),
-		  equals(bufferEquals),
-		  writeToStream(bufferWriteToStream) {}
-
     // array =======================================================================
     static String                  arrayToString (const ValueUnion&)            { return "[Array]"; }
     static ReferenceCountedObject* arrayToObject (const ValueUnion&) noexcept   { return nullptr; }
@@ -528,10 +478,6 @@ struct var::VariantType
           writeToStream (methodWriteToStream) {}
 };
 
-
-
-
-
 struct var::Instance
 {
     static constexpr VariantType attributesVoid           { VariantType::VoidTag{} };
@@ -545,7 +491,6 @@ struct var::Instance
     static constexpr VariantType attributesString         { VariantType::StringTag{} };
     static constexpr VariantType attributesBinary         { VariantType::BinaryTag{} };
     static constexpr VariantType attributesObject         { VariantType::ObjectTag{} };
-	static constexpr VariantType attributesBuffer         { VariantType::BufferTag{} };
 };
 
 constexpr var::VariantType var::Instance::attributesVoid;
@@ -556,7 +501,6 @@ constexpr var::VariantType var::Instance::attributesBool;
 constexpr var::VariantType var::Instance::attributesDouble;
 constexpr var::VariantType var::Instance::attributesMethod;
 constexpr var::VariantType var::Instance::attributesArray;
-constexpr var::VariantType var::Instance::attributesBuffer;
 constexpr var::VariantType var::Instance::attributesString;
 constexpr var::VariantType var::Instance::attributesBinary;
 constexpr var::VariantType var::Instance::attributesObject;
@@ -564,12 +508,7 @@ constexpr var::VariantType var::Instance::attributesObject;
 //==============================================================================
 var::var() noexcept : type (&Instance::attributesVoid) {}
 var::var (const VariantType& t) noexcept  : type (&t) {}
-
-
-
 var::~var() noexcept  { type->cleanUp (value); }
-
-JUCE_DECLARE_DEPRECATED_STATIC (const var var::null;)
 
 //==============================================================================
 var::var (const var& valueToCopy)  : type (valueToCopy.type)
@@ -578,13 +517,11 @@ var::var (const var& valueToCopy)  : type (valueToCopy.type)
 }
 
 var::var (const int v) noexcept       : type (&Instance::attributesInt)    { value.intValue = v; }
-var::var (uint32 v) noexcept          : type (&Instance::attributesInt64)  { value.int64Value = v; }
 var::var (const int64 v) noexcept     : type (&Instance::attributesInt64)  { value.int64Value = v; }
 var::var (const bool v) noexcept      : type (&Instance::attributesBool)   { value.boolValue = v; }
 var::var (const double v) noexcept    : type (&Instance::attributesDouble) { value.doubleValue = v; }
 var::var (NativeFunction m) noexcept  : type (&Instance::attributesMethod) { value.methodValue = new NativeFunction (m); }
 var::var (const Array<var>& v)        : type (&Instance::attributesArray)  { value.objectValue = new VariantType::RefCountedArray (v); }
-
 var::var (const String& v)            : type (&Instance::attributesString) { new (value.stringValue) String (v); }
 var::var (const char* const v)        : type (&Instance::attributesString) { new (value.stringValue) String (v); }
 var::var (const wchar_t* const v)     : type (&Instance::attributesString) { new (value.stringValue) String (v); }
@@ -600,14 +537,6 @@ var::var (const StringArray& v)       : type (&Instance::attributesArray)
         strings.add (var (i));
 
     value.objectValue = new VariantType::RefCountedArray (strings);
-}
-
-var::var(VariantBuffer *b) : type(&Instance::attributesBuffer) 
-{ 
-	value.objectValue = (ReferenceCountedObject*)b;
-
-	if (value.objectValue != nullptr)
-		value.objectValue->incReferenceCount();
 }
 
 var::var (ReferenceCountedObject* const object)  : type (&Instance::attributesObject)
@@ -632,7 +561,6 @@ bool var::isObject() const noexcept     { return type->isObject; }
 bool var::isArray() const noexcept      { return type->isArray; }
 bool var::isBinaryData() const noexcept { return type->isBinary; }
 bool var::isMethod() const noexcept     { return type->isMethod; }
-bool var::isBuffer() const noexcept     { return type->isBuffer; }
 
 var::operator int() const noexcept                      { return type->toInt (value); }
 var::operator int64() const noexcept                    { return type->toInt64 (value); }
@@ -645,14 +573,6 @@ ReferenceCountedObject* var::getObject() const noexcept { return type->toObject 
 Array<var>* var::getArray() const noexcept              { return type->toArray (value); }
 MemoryBlock* var::getBinaryData() const noexcept        { return type->toBinary (value); }
 DynamicObject* var::getDynamicObject() const noexcept   { return dynamic_cast<DynamicObject*> (getObject()); }
-
-VariantBuffer* var::getBuffer() const noexcept
-{
-	// All because this line...
-	if (isBuffer()) return (VariantBuffer*)getObject();
-	else return nullptr;
-}
-
 
 //==============================================================================
 void var::swapWith (var& other) noexcept
@@ -673,7 +593,6 @@ var& var::operator= (const MemoryBlock& v)       { type->cleanUp (value); type =
 var& var::operator= (const Array<var>& v)        { var v2 (v); swapWith (v2); return *this; }
 var& var::operator= (ReferenceCountedObject* v)  { var v2 (v); swapWith (v2); return *this; }
 var& var::operator= (NativeFunction v)           { var v2 (v); swapWith (v2); return *this; }
-var& var::operator= (VariantBuffer *buffer)  { var v2(buffer); swapWith(v2); return *this; }
 
 var::var (var&& other) noexcept
     : type (other.type),
@@ -839,8 +758,6 @@ var var::call (const Identifier& method, const var& arg1, const var& arg2, const
 //==============================================================================
 int var::size() const
 {
-	jassert(!isBuffer());
-
     if (auto array = getArray())
         return array->size();
 
@@ -849,8 +766,6 @@ int var::size() const
 
 const var& var::operator[] (int arrayIndex) const
 {
-	jassert(!isBuffer());
-
     auto array = getArray();
 
     // When using this method, the var must actually be an array, and the index
@@ -862,8 +777,6 @@ const var& var::operator[] (int arrayIndex) const
 
 var& var::operator[] (int arrayIndex)
 {
-	jassert(!isBuffer());
-
     auto array = getArray();
 
     // When using this method, the var must actually be an array, and the index
@@ -980,6 +893,17 @@ var::NativeFunctionArgs::NativeFunctionArgs (const var& t, const var* args, int 
 {
 }
 
+//==============================================================================
+#if JUCE_ALLOW_STATIC_NULL_VARIABLES
 
+JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wdeprecated-declarations")
+JUCE_BEGIN_IGNORE_WARNINGS_MSVC (4996)
+
+const var var::null;
+
+JUCE_END_IGNORE_WARNINGS_GCC_LIKE
+JUCE_END_IGNORE_WARNINGS_MSVC
+
+#endif
 
 } // namespace juce
