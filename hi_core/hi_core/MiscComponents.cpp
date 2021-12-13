@@ -1050,7 +1050,7 @@ void DrawActions::Handler::Iterator::render(Graphics& g, Component* c)
 	UnblurryGraphics ug(g, *c);
 
 	auto sf = ug.getTotalScaleFactor();
-	auto st = AffineTransform::scale(jmin<double>(2.0, sf));
+	auto st = AffineTransform::scale(jmin<double>(4.0, sf));
 	auto st2 = AffineTransform::scale(sf);
 
 	auto tc = c->getTopLevelComponent();
