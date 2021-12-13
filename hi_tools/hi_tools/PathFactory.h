@@ -130,7 +130,7 @@ using namespace juce;
 
 		void setToggleModeWithColourChange(bool shouldBeEnabled)
 		{
-			setClickingTogglesState(shouldBeEnabled, false);
+			setClickingTogglesState(shouldBeEnabled);
 
 			if (shouldBeEnabled)
 				addListener(this);

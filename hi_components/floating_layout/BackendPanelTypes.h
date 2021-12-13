@@ -115,7 +115,7 @@ public:
 			parent(parent_)
 		{}
 
-		Image createSnapshotOfRows(const SparseSet<int>& rows, int& imageX, int& imageY) override
+		ScaledImage createSnapshotOfRows(const SparseSet<int>& rows, int& imageX, int& imageY) override
 		{
 			imageX = 256;
 			imageY = 128;
@@ -123,17 +123,12 @@ public:
 			if (auto ref = parent.pool->getReference(rows.getTotalRange().getStart()))
 			{
 				auto m = parent.pool->getWeakReferenceToItem(ref);
-
-				return PoolTableHelpers::getPreviewImage(m.getData(), 256);
+				return ScaledImage(PoolTableHelpers::getPreviewImage(m.getData(), 256));
 			}
 			else
 			{
-				jassertfalse;
-				return PoolHelpers::getEmptyImage(imageX, imageY);
+				return ScaledImage(PoolHelpers::getEmptyImage(imageX, imageY));
 			}
-
-
-
 		}
 
 		ExternalFileTableBase& parent;

@@ -169,6 +169,7 @@ private:
 *	Then simply create a instance and call its method 'setModalComponentOfMainEditor()'
 */
 class DialogWindowWithBackgroundThread : public AlertWindow,
+									  public ButtonListener,
 									  public QuasiModalComponent,
 									  public AsyncUpdater
 {

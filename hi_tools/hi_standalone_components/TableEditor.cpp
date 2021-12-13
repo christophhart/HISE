@@ -47,8 +47,6 @@ TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 
 	setSpecialLookAndFeel(&defaultLaf, false);
 
-	setEnablePaintProfiling("TableEditor");
-
     // MUST BE SET!
 	jassert(editedTable != nullptr);
 

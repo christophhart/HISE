@@ -478,9 +478,9 @@ struct EnvelopePopup : public Component
 		setFocusContainer(true);
 	}
 
-	KeyboardFocusTraverser* createFocusTraverser() override
+	std::unique_ptr<ComponentTraverser> createKeyboardFocusTraverser() override
 	{
-		return new SampleEditHandler::SubEditorTraverser(display);
+		return std::make_unique<SampleEditHandler::SubEditorTraverser>(display);
 	}
     
     static void toolChanged(EnvelopePopup& p, SamplerTools::Mode m)
@@ -1698,9 +1698,9 @@ void SampleEditor::perform(SampleMapCommands c)
     return;
 }
 
-juce::KeyboardFocusTraverser* SampleEditor::createFocusTraverser()
+std::unique_ptr<ComponentTraverser> SampleEditor::createKeyboardFocusTraverser()
 {
-	return new SampleEditHandler::SubEditorTraverser(this);
+	return std::make_unique<SampleEditHandler::SubEditorTraverser>(this);
 }
 
 SampleEditor::~SampleEditor()

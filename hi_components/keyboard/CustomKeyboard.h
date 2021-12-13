@@ -44,7 +44,7 @@ class ComponentWithMidiKeyboardTraverser : public Component
 {
 public:
 
-	KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); };
+	std::unique_ptr<ComponentTraverser> createKeyboardFocusTraverser() override { return std::make_unique<MidiKeyboardFocusTraverser>(); };
 };
 
 

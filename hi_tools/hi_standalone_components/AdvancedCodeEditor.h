@@ -107,7 +107,7 @@ public:
 
 		void addRowFromApiClass(const ValueTree classTree, const String& originalToken, bool isTemplate=false);
 
-		KeyboardFocusTraverser* createFocusTraverser() override;
+		std::unique_ptr<ComponentTraverser> createKeyboardFocusTraverser();
 
 		MarkdownLink getLink() const override;
 

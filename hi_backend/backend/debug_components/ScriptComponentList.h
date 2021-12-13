@@ -67,7 +67,7 @@ public:
 	{
 		ScopedPointer<XmlElement> xml = new XmlElement("OpenState");
 		xml->setAttribute("id", getUniqueName());
-		xml->setAttribute("open", getOpenness());
+		xml->setAttribute("open", (int)getOpenness());
 		
 		for (int i = 0; i < getNumSubItems(); i++)
 		{
@@ -339,7 +339,7 @@ private:
 	{
 		for (int i = 0; i < rootItem->getNumSubItems(); i++)
 		{
-			rootItem->getSubItem(i)->setOpenness(shouldBeFolded ? TreeViewItem::opennessClosed : TreeViewItem::opennessOpen);
+			rootItem->getSubItem(i)->setOpenness(shouldBeFolded ? TreeViewItem::Openness::opennessClosed : TreeViewItem::Openness::opennessOpen);
 		}
 	}
 

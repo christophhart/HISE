@@ -1287,6 +1287,11 @@ void JavascriptCodeEditor::AutoCompletePopup::addRowFromApiClass(const ValueTree
 }
 
 
+std::unique_ptr<juce::ComponentTraverser> JavascriptCodeEditor::AutoCompletePopup::createKeyboardFocusTraverser()
+{
+	return std::make_unique<AllToTheEditorTraverser>(editor);
+}
+
 void JavascriptCodeEditor::AutoCompletePopup::addRowsFromObject(DebugableObjectBase* obj, const String& originalToken, const ValueTree& classTree)
 {
 	auto classId = obj->getObjectName();
@@ -1410,11 +1415,6 @@ void JavascriptCodeEditor::AutoCompletePopup::addApiMethods(const ValueTree &cla
 	}
 }
 #endif
-
-KeyboardFocusTraverser* JavascriptCodeEditor::AutoCompletePopup::createFocusTraverser()
-{
-	return new AllToTheEditorTraverser(editor);
-}
 
 int JavascriptCodeEditor::AutoCompletePopup::getNumRows()
 {

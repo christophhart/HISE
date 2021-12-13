@@ -377,9 +377,9 @@ private:
 			for (int i = 0; i < runningClients.size(); ++i)
 			{
 				juce::Component* comp = runningClients.getReference(i);
-
+				
 				juce::Rectangle<int> r = (parent.getLocalArea(comp, comp->getLocalBounds()).toFloat() * displayScale).getSmallestIntegerContainer();
-				glViewport((GLint)r.getX(),
+				juce::gl::glViewport((GLint)r.getX(),
 					(GLint)parentBounds.getHeight() - (GLint)r.getBottom(),
 					(GLsizei)r.getWidth(), (GLsizei)r.getHeight());
 				juce::OpenGLHelpers::clear(backgroundColour);

@@ -897,7 +897,6 @@ HiseAudioThumbnail::HiseAudioThumbnail() :
 
 	setLookAndFeel(&defaultLaf);
 
-	setEnablePaintProfiling("AudioThumbnail");
 	setColour(AudioDisplayComponent::ColourIds::bgColour, JUCE_LIVE_CONSTANT_OFF(Colours::transparentBlack));
 	setColour(AudioDisplayComponent::ColourIds::fillColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xffcccccc)));
 	setColour(AudioDisplayComponent::ColourIds::outlineColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xa2181818)));

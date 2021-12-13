@@ -294,42 +294,42 @@ public:
 
 	SampleLookupTable* getTableUnchecked(int index = 0)
 	{
-		return static_cast<SampleLookupTable*>(*(tables.getRawDataPointer() + index));
+		return static_cast<SampleLookupTable*>(*(tables.begin() + index));
 	}
 
 	const SampleLookupTable* getTableUnchecked(int index = 0) const
 	{
-		return static_cast<SampleLookupTable*>(*(tables.getRawDataPointer() + index));
+		return static_cast<SampleLookupTable*>(*(tables.begin() + index));
 	}
 
 	SliderPackData* getSliderPackDataUnchecked(int index = 0)
 	{
-		return *(sliderPacks.getRawDataPointer() + index);
+		return *(sliderPacks.begin() + index);
 	}
 
 	const SliderPackData* getSliderPackDataUnchecked(int index = 0) const
 	{
-		return *(sliderPacks.getRawDataPointer() + index);
+		return *(sliderPacks.begin() + index);
 	}
 
 	MultiChannelAudioBuffer* getAudioFileUnchecked(int index = 0)
 	{
-		return *(audioFiles.getRawDataPointer() + index);
+		return *(audioFiles.begin() + index);
 	}
 
 	const MultiChannelAudioBuffer* getAudioFileUnchecked(int index = 0) const
 	{
-		return *(audioFiles.getRawDataPointer() + index);
+		return *(audioFiles.begin() + index);
 	}
 
 	SimpleRingBuffer* getDisplayBufferUnchecked(int index = 0)
 	{
-		return *(displayBuffers.getRawDataPointer() + index);
+		return *(displayBuffers.begin() + index);
 	}
 
 	const SimpleRingBuffer* getDisplayBufferUnchecked(int index = 0) const
 	{
-		return *(displayBuffers.getRawDataPointer() + index);
+		return *(displayBuffers.begin() + index);
 	}
     
     void linkTo(ExternalData::DataType type, ExternalDataHolder& src, int srcIndex, int dstIndex) override

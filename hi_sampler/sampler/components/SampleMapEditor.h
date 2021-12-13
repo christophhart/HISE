@@ -318,7 +318,7 @@ public:
 
 	void updateWarningButton();
 
-	KeyboardFocusTraverser* createFocusTraverser() override;
+	std::unique_ptr<ComponentTraverser> createKeyboardFocusTraverser() override;
 
 	void itemDropped(const SourceDetails &dragSourceDetails) override
 	{

@@ -204,15 +204,15 @@ void ValueSettingComponent::setCurrentSelection(const SampleSelection &newSelect
 	updateValue();
 }
 
-juce::KeyboardFocusTraverser* ValueSettingComponent::createFocusTraverser()
+std::unique_ptr<juce::ComponentTraverser> ValueSettingComponent::createKeyboardFocusTraverser()
 {
 	if (auto sub = findParentComponentOfClass<SamplerSubEditor>())
-	{
-		return new SampleEditHandler::SubEditorTraverser(dynamic_cast<Component*>(sub));
-	}
+		return std::make_unique<SampleEditHandler::SubEditorTraverser>(dynamic_cast<Component*>(sub));
 
 	return Component::createFocusTraverser();
 }
+
+
 
 void ValueSettingComponent::setPropertyForAllSelectedSounds(const Identifier& p, int newValue)
 {

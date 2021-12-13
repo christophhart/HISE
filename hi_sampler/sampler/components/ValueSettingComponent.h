@@ -115,7 +115,7 @@ public:
 
 	void setCurrentSelection(const SampleSelection &newSelection);;
 
-	KeyboardFocusTraverser* createFocusTraverser() override;
+	std::unique_ptr<ComponentTraverser> createKeyboardFocusTraverser() override;
 
 	void setPropertyForAllSelectedSounds(const Identifier& p, int newValue);;
 

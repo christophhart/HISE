@@ -43,7 +43,6 @@ FilterGraph::FilterGraph (int numFiltersInit, int drawType_):
 	setSpecialLookAndFeel(new DefaultLookAndFeel(), true);
 
 	setOpaque(true);
-	setEnablePaintProfiling("FilterGraph");
 
 	setColour(ColourIds::bgColour, Colour(0xFF333333));
 	setColour(ColourIds::lineColour, Colours::white);

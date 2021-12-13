@@ -645,7 +645,7 @@ void StaticBiquadSubType::updateCoefficients(double sampleRate, double frequency
 	case LowShelf:		currentCoefficients = IIRCoefficients::makeLowShelf(sampleRate, frequency, q, (float)gain); break;
 	case HighShelf:		currentCoefficients = IIRCoefficients::makeHighShelf(sampleRate, frequency, q, (float)gain); break;
 	case Peak:			currentCoefficients = IIRCoefficients::makePeakFilter(sampleRate, frequency, q, (float)gain); break;
-	case ResoLow:		currentCoefficients = IIRCoefficients::makeResoLowPass(sampleRate, frequency, q); break;
+	case ResoLow:		currentCoefficients = IIRCoefficients::makeLowPass(sampleRate, frequency, q); break;
 	default:							jassertfalse; break;
 	}
 

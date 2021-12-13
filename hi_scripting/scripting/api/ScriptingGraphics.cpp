@@ -204,6 +204,8 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
 
 	void paint(Graphics& g) override
 	{
+		using namespace gl;
+
 		if (auto obj = getObject<ScriptShader>())
 		{
             auto tc = TopLevelWindowWithOptionalOpenGL::findRoot(this);
@@ -258,6 +260,8 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
 
 				int blendSrc;
 				int blendDst;
+
+				
 
 				glGetIntegerv(GL_BLEND_SRC, &blendSrc);
 				glGetIntegerv(GL_BLEND_DST, &blendDst);
@@ -458,6 +462,8 @@ ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) 
 	ConstScriptingObject(sp, (int)BlendMode::numBlendModes),
 	r(Result::fail("uncompiled"))
 {
+	using namespace juce::gl;
+
 	addConstant("GL_ZERO", GL_ZERO); 
 	addConstant("GL_ONE", GL_ONE); 
 	addConstant("GL_SRC_COLOR", GL_SRC_COLOR); 
@@ -608,6 +614,8 @@ void ScriptingObjects::ScriptShader::prepareScreenshot()
 
 void ScriptingObjects::ScriptShader::makeStatistics()
 {
+	using namespace juce::gl;
+
 	auto d = new DynamicObject();
 
 	int major = 0, minor = 0;

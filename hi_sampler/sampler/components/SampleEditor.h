@@ -160,7 +160,7 @@ public:
 		updateWaveform();
 	}
 
-	KeyboardFocusTraverser* createFocusTraverser() override;
+	std::unique_ptr<ComponentTraverser> createKeyboardFocusTraverser() override;
 
 	void updateInterface() override
 	{
