@@ -46,7 +46,7 @@
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
-#define JUCE_PROJUCER_VERSION 0x60008
+#define JUCE_PROJUCER_VERSION 0x60103
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                  1
@@ -476,10 +476,6 @@
 
 #ifndef    JUCE_ENABLE_ALLOCATION_HOOKS
  //#define JUCE_ENABLE_ALLOCATION_HOOKS 0
-#endif
-
-#ifndef    JUCE_ENABLE_AUDIO_GUARD
- //#define JUCE_ENABLE_AUDIO_GUARD 0
 #endif
 
 //==============================================================================

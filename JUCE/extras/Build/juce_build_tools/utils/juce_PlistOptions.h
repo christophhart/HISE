@@ -37,6 +37,7 @@ namespace build_tools
 
         String executableName;
         String bundleIdentifier;
+		String applicationCategory;
 
         String plistToMerge;
 
@@ -61,6 +62,8 @@ namespace build_tools
         String projectName;
         String version;
         String companyCopyright;
+
+		String currentProjectVersion;
 
         StringPairArray allPreprocessorDefs;
         String documentExtensions;

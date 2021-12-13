@@ -25,10 +25,6 @@
 
 #include "../../Application/jucer_Headers.h"
 
-#ifdef BUILDING_JUCE_COMPILEENGINE
- const char* getPreferredLineFeed() { return "\r\n"; }
-#endif
-
 //==============================================================================
 String joinLinesIntoSourceFile (StringArray& lines)
 {
@@ -101,6 +97,11 @@ String createGUID (const String& seed)
 String escapeSpaces (const String& s)
 {
     return s.replace (" ", "\\ ");
+}
+
+String escapeQuotesAndSpaces (const String& s)
+{
+    return escapeSpaces (s).replace ("'", "\\'").replace ("\"", "\\\"");
 }
 
 String addQuotesIfContainsSpaces (const String& text)
@@ -269,7 +270,6 @@ StringArray getJUCEModules() noexcept
         "juce_audio_plugin_client",
         "juce_audio_processors",
         "juce_audio_utils",
-        "juce_blocks_basics",
         "juce_box2d",
         "juce_core",
         "juce_cryptography",

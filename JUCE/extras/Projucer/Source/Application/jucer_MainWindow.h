@@ -39,7 +39,8 @@ class MainWindow  : public DocumentWindow,
                     public ApplicationCommandTarget,
                     public FileDragAndDropTarget,
                     public DragAndDropContainer,
-                    private Value::Listener
+                    private Value::Listener,
+                    private ChangeListener
 {
 public:
     //==============================================================================
@@ -53,7 +54,7 @@ public:
 
     //==============================================================================
     bool canOpenFile (const File& file) const;
-    bool openFile (const File& file);
+    void openFile (const File& file, std::function<void (bool)> callback);
 
     void setProject (std::unique_ptr<Project> newProject);
     Project* getProject() const  { return currentProject.get(); }
@@ -61,7 +62,7 @@ public:
     void makeVisible();
     void restoreWindowPosition();
     void updateTitleBarIcon();
-    bool closeCurrentProject (OpenDocumentManager::SaveIfNeeded askToSave);
+    void closeCurrentProject (OpenDocumentManager::SaveIfNeeded askToSave, std::function<void (bool)> callback);
     void moveProject (File newProjectFile, OpenInIDE openInIDE);
 
     void showStartPage();
@@ -87,11 +88,12 @@ public:
                                                StringArray& files, bool& canMoveFiles) override;
 private:
     void valueChanged (Value&) override;
+    void changeListenerCallback (ChangeBroadcaster* source) override;
 
     static const char* getProjectWindowPosName()   { return "projectWindowPos"; }
     void createProjectContentCompIfNeeded();
 
-    bool openPIP (PIPGenerator);
+    void openPIP (const File&, std::function<void (bool)> callback);
     void setupTemporaryPIPProject (PIPGenerator&);
 
     void initialiseProjectWindow();
@@ -112,14 +114,14 @@ public:
     MainWindowList();
 
     void forceCloseAllWindows();
-    bool askAllWindowsToClose();
+    void askAllWindowsToClose (std::function<void (bool)> callback);
     void closeWindow (MainWindow*);
 
     void goToSiblingWindow (MainWindow*, int delta);
 
     void createWindowIfNoneAreOpen();
     void openDocument (OpenDocumentManager::Document*, bool grabFocus);
-    bool openFile (const File& file, bool openInBackground = false);
+    void openFile (const File& file, std::function<void (bool)> callback, bool openInBackground = false);
 
     MainWindow* createNewMainWindow();
     MainWindow* getFrontmostWindow (bool createIfNotFound = true);
@@ -142,4 +144,5 @@ private:
     bool isInReopenLastProjects = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindowList)
+    JUCE_DECLARE_WEAK_REFERENCEABLE (MainWindowList)
 };

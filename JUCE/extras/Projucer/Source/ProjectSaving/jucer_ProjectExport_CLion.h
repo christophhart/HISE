@@ -57,6 +57,8 @@ public:
     static String getValueTreeTypeName()  { return "CLION"; }
     static String getTargetFolderName()   { return "CLion"; }
 
+    Identifier getExporterIdentifier() const override { return getValueTreeTypeName(); }
+
     static CLionProjectExporter* createForSettings (Project& projectToUse, const ValueTree& settingsToUse)
     {
         if (settingsToUse.hasType (getValueTreeTypeName()))
@@ -110,7 +112,7 @@ public:
         static Identifier exporterName (XcodeProjectExporter::getValueTreeTypeNameMac());
        #elif JUCE_WINDOWS
         static Identifier exporterName (CodeBlocksProjectExporter::getValueTreeTypeNameWindows());
-       #elif JUCE_LINUX
+       #elif JUCE_LINUX || JUCE_BSD
         static Identifier exporterName (MakefileProjectExporter::getValueTreeTypeName());
        #else
         static Identifier exporterName;
@@ -124,7 +126,12 @@ public:
 
     bool launchProject() override
     {
-        return getCLionExecutableOrApp().startAsProcess (getTargetFolder().getFullPathName().quoted());
+        return getCLionExecutableOrApp().startAsProcess (getIDEProjectFile().getFullPathName().quoted());
+    }
+
+    File getIDEProjectFile() const override
+    {
+        return getTargetFolder();
     }
 
     String getDescription() override
@@ -540,7 +547,7 @@ private:
                 auto cxxStandard = project.getCppStandardString();
 
                 if (cxxStandard == "latest")
-                    cxxStandard = "17";
+                    cxxStandard = project.getLatestNumberedCppStandardString();
 
                 out << "    CXX_STANDARD " << cxxStandard << newLine;
 
@@ -606,7 +613,7 @@ private:
 
             String cxxFlags;
 
-            for (auto& flag : exporter.getCXXFlags())
+            for (auto& flag : exporter.getCXXFlags (config))
                 if (! flag.startsWith ("-std="))
                     cxxFlags += " " + flag;
 
@@ -669,7 +676,7 @@ private:
                 auto cxxStandard = project.getCppStandardString();
 
                 if (cxxStandard == "latest")
-                    cxxStandard = "17";
+                    cxxStandard = project.getLatestNumberedCppStandardString();
 
                 out << "    CXX_STANDARD " << cxxStandard << newLine;
 
@@ -983,7 +990,7 @@ private:
                             auto resSourcesVar = targetVarName + "_REZ_SOURCES";
                             auto resOutputVar = targetVarName + "_REZ_OUTPUT";
 
-                            auto sdkVersion = config.getOSXSDKVersionString().upToFirstOccurrenceOf (" ", false, false);
+                            auto sdkVersion = config.getMacOSBaseSDKString().upToFirstOccurrenceOf (" ", false, false);
                             auto sysroot = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX" + sdkVersion + ".sdk";
 
                             build_tools::RelativePath rFile ("JuceLibraryCode/include_juce_audio_plugin_client_AU.r", build_tools::RelativePath::projectFolder);
@@ -1074,7 +1081,7 @@ private:
                 auto cxxStandard = project.getCppStandardString();
 
                 if (cxxStandard == "latest")
-                    cxxStandard = "17";
+                    cxxStandard = project.getLatestNumberedCppStandardString();
 
                 out << "    CXX_STANDARD " << cxxStandard << newLine;
 

@@ -121,7 +121,7 @@ public:
 
         This must be a localised string.
     */
-    virtual String getTitle() const                  { return component.getTitle(); }
+    virtual String getTitle() const                  { return component.getComponentTitle(); }
 
     /** A short description of the UI element.
 

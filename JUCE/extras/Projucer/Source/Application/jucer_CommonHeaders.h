@@ -25,6 +25,8 @@
 
 #pragma once
 
+#define JUCER_ENABLE_GPL_MODE 1
+
 
 //==============================================================================
 // The GCC extensions define linux somewhere in the headers, so undef it here...
@@ -48,7 +50,7 @@ struct TargetOS
         return windows;
        #elif JUCE_MAC
         return osx;
-       #elif JUCE_LINUX
+       #elif JUCE_LINUX || JUCE_BSD
         return linux;
        #else
         return unknown;

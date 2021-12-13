@@ -58,6 +58,8 @@ public:
 
     static bool canProjectBeLaunched (Project*);
 
+    virtual Identifier getExporterIdentifier() const = 0;
+
     //==============================================================================
     // capabilities of exporter
     virtual bool usesMMFiles() const = 0;
@@ -86,6 +88,8 @@ public:
     virtual bool isLinux() const   = 0;
     virtual bool isOSX() const     = 0;
     virtual bool isiOS() const     = 0;
+
+    virtual File getIDEProjectFile() const  { return {}; }
 
     virtual String getNewLineString() const = 0;
     virtual String getDescription()  { return {}; }
@@ -117,6 +121,8 @@ public:
         return isWindows() || isAndroid();
        #elif JUCE_LINUX
         return isLinux() || isAndroid();
+       #elif JUCE_BSD
+        return isLinux();
        #else
         #error
        #endif
@@ -140,7 +146,8 @@ public:
     String getExtraCompilerFlagsString() const            { return extraCompilerFlagsValue.get().toString().replaceCharacters ("\r\n", "  "); }
     String getExtraLinkerFlagsString() const              { return extraLinkerFlagsValue.get().toString().replaceCharacters ("\r\n", "  "); }
 
-    String getExternalLibrariesString() const             { return getSearchPathsFromString (externalLibrariesValue.get().toString()).joinIntoString (";"); }
+    StringArray getExternalLibrariesStringArray() const   { return getSearchPathsFromString (externalLibrariesValue.get().toString()); }
+    String getExternalLibrariesString() const             { return getExternalLibrariesStringArray().joinIntoString (";"); }
 
     bool shouldUseGNUExtensions() const                   { return gnuExtensionsValue.get(); }
 
@@ -264,7 +271,32 @@ public:
         void createPropertyEditors (PropertyListBuilder&);
         void addRecommendedLinuxCompilerWarningsProperty (PropertyListBuilder&);
         void addRecommendedLLVMCompilerWarningsProperty (PropertyListBuilder&);
-        StringArray getRecommendedCompilerWarningFlags() const;
+
+        struct CompilerNames
+        {
+            static constexpr const char* gcc = "GCC";
+            static constexpr const char* llvm = "LLVM";
+        };
+
+        struct CompilerWarningFlags
+        {
+            static CompilerWarningFlags getRecommendedForGCCAndLLVM()
+            {
+                CompilerWarningFlags result;
+                result.common = { "-Wall", "-Wstrict-aliasing", "-Wuninitialized", "-Wunused-parameter",
+                                  "-Wswitch-enum", "-Wsign-conversion", "-Wsign-compare",
+                                  "-Wunreachable-code", "-Wcast-align", "-Wno-ignored-qualifiers" };
+                result.cpp = { "-Woverloaded-virtual", "-Wreorder", "-Wzero-as-null-pointer-constant" };
+
+                return result;
+            }
+
+            StringArray common;
+            StringArray cpp;
+        };
+
+        CompilerWarningFlags getRecommendedCompilerWarningFlags() const;
+
         void addGCCOptimisationProperty (PropertyListBuilder&);
         void removeFromExporter();
 
@@ -279,7 +311,7 @@ public:
                          usePrecompiledHeaderFileValue, precompiledHeaderFileValue;
 
     private:
-        std::map<String, StringArray> recommendedCompilerWarningFlags;
+        std::map<String, CompilerWarningFlags> recommendedCompilerWarningFlags;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BuildConfiguration)
     };

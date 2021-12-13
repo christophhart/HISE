@@ -27,14 +27,6 @@
 #include "jucer_JucerDocument.h"
 
 //==============================================================================
-BinaryResources::BinaryResources()
-{
-}
-
-BinaryResources::~BinaryResources()
-{
-}
-
 BinaryResources& BinaryResources::operator= (const BinaryResources& other)
 {
     for (auto* r : other.resources)
@@ -130,33 +122,55 @@ bool BinaryResources::reload (const int index)
                     File (resources [index]->originalFilename));
 }
 
-String BinaryResources::browseForResource (const String& title,
-                                           const String& wildcard,
-                                           const File& fileToStartFrom,
-                                           const String& resourceToReplace)
+void BinaryResources::browseForResource (const String& title,
+                                         const String& wildcard,
+                                         const File& fileToStartFrom,
+                                         const String& resourceToReplace,
+                                         std::function<void (String)> callback)
 {
-    FileChooser fc (title, fileToStartFrom, wildcard);
+    chooser = std::make_unique<FileChooser> (title, fileToStartFrom, wildcard);
+    auto flags = FileBrowserComponent::openMode | FileBrowserComponent::canSelectFiles;
 
-    if (fc.browseForFileToOpen())
+    chooser->launchAsync (flags, [safeThis = WeakReference<BinaryResources> { this },
+                                  resourceToReplace,
+                                  callback] (const FileChooser& fc)
     {
-        String name (resourceToReplace);
-
-        if (name.isEmpty())
-            name = findUniqueName (fc.getResult().getFileName());
-
-        if (! add (name, fc.getResult()))
+        if (safeThis == nullptr)
         {
-            AlertWindow::showMessageBox (AlertWindow::WarningIcon,
-                                         TRANS("Adding Resource"),
-                                         TRANS("Failed to load the file!"));
+            if (callback != nullptr)
+                callback ({});
 
-            name.clear();
+            return;
         }
 
-        return name;
-    }
+        const auto result = fc.getResult();
 
-    return {};
+        auto resourceName = [safeThis, result, resourceToReplace]() -> String
+        {
+            if (result == File())
+                return {};
+
+            if (resourceToReplace.isEmpty())
+                return safeThis->findUniqueName (result.getFileName());
+
+            return resourceToReplace;
+        }();
+
+        if (resourceName.isNotEmpty())
+        {
+            if (! safeThis->add (resourceName, result))
+            {
+                AlertWindow::showMessageBoxAsync (MessageBoxIconType::WarningIcon,
+                                                  TRANS("Adding Resource"),
+                                                  TRANS("Failed to load the file!"));
+
+                resourceName.clear();
+            }
+        }
+
+        if (callback != nullptr)
+            callback (resourceName);
+    });
 }
 
 String BinaryResources::findUniqueName (const String& rootName) const

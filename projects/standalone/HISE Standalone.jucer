@@ -50,14 +50,16 @@
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxCompatibility="10.9 SDK" osxArchitecture="64BitIntel"
                        isDebug="1" optimisation="1" targetName="HISE Debug" linkTimeOptimisation="0"
-                       cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"/>
+                       cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"
+                       macOSDeploymentTarget="10.9"/>
         <CONFIGURATION name="Release" osxCompatibility="10.9 SDK" osxArchitecture="64BitIntel"
                        isDebug="0" optimisation="3" targetName="HISE" linkTimeOptimisation="1"
-                       cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"/>
+                       cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"
+                       macOSDeploymentTarget="10.9"/>
         <CONFIGURATION name="CI" osxCompatibility="10.9 SDK" osxArchitecture="64BitIntel"
                        isDebug="0" optimisation="4" targetName="HISE" linkTimeOptimisation="0"
                        cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"
-                       stripLocalSymbols="1" defines="HISE_CI=1"/>
+                       stripLocalSymbols="1" defines="HISE_CI=1" macOSDeploymentTarget="10.9"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
@@ -100,10 +102,11 @@
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" iosCompatibility="8.0" isDebug="1" optimisation="1"
                        targetName="HISE Standalone" cppLanguageStandard="c++11" cppLibType="libc++"
-                       libraryPath="" headerPath="" enablePluginBinaryCopyStep="1"/>
+                       libraryPath="" headerPath="" enablePluginBinaryCopyStep="1" iosDeploymentTarget="8.0"/>
         <CONFIGURATION name="Release" iosCompatibility="8.0" isDebug="0" optimisation="3"
                        targetName="HISE Standalone" headerPath="" libraryPath="" cppLanguageStandard="c++11"
-                       cppLibType="libc++" linkTimeOptimisation="1" enablePluginBinaryCopyStep="1"/>
+                       cppLibType="libc++" linkTimeOptimisation="1" enablePluginBinaryCopyStep="1"
+                       iosDeploymentTarget="8.0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>

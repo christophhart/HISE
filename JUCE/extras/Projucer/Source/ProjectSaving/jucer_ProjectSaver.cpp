@@ -42,17 +42,31 @@ ProjectSaver::ProjectSaver (Project& p)
     generatedFilesGroup.setID (generatedGroupID);
 }
 
-Result ProjectSaver::save (ProjectExporter* exporterToSave)
+void ProjectSaver::save (Async async, ProjectExporter* exporterToSave, std::function<void (Result)> onCompletion)
 {
-    if (! ProjucerApplication::getApp().isRunningCommandLine)
+    if (async == Async::yes)
+        saveProjectAsync (exporterToSave, std::move (onCompletion));
+    else
+        onCompletion (saveProject (exporterToSave));
+}
+
+void ProjectSaver::saveProjectAsync (ProjectExporter* exporterToSave, std::function<void (Result)> onCompletion)
+{
+    jassert (saveThread == nullptr);
+
+    saveThread = std::make_unique<SaveThreadWithProgressWindow> (*this, exporterToSave,
+                                                                 [ref = WeakReference<ProjectSaver> { this }, onCompletion] (Result result)
     {
-        SaveThreadWithProgressWindow thread (*this, exporterToSave);
-        thread.runThread();
+        if (ref == nullptr)
+            return;
 
-        return thread.result;
-    }
+        // Clean up old save thread in case onCompletion wants to start a new save thread
+        ref->saveThread->waitForThreadToExit (-1);
+        ref->saveThread = nullptr;
 
-    return saveProject (exporterToSave);
+        NullCheckedInvocation::invoke (onCompletion, result);
+    });
+    saveThread->launchThread();
 }
 
 Result ProjectSaver::saveResourcesOnly()
@@ -72,19 +86,6 @@ void ProjectSaver::saveBasicProjectItems (const OwnedArray<LibraryModule>& modul
     writeBinaryDataFiles();
     writeAppHeader (modules);
     writeModuleCppWrappers (modules);
-}
-
-Result ProjectSaver::saveContentNeededForLiveBuild()
-{
-    auto modules = getModules();
-
-    if (errors.isEmpty())
-    {
-        saveBasicProjectItems (modules, loadUserContentFromAppConfig());
-        return Result::ok();
-    }
-
-    return Result::fail (errors[0]);
 }
 
 Project::Item ProjectSaver::addFileToGeneratedGroup (const File& file)
@@ -290,6 +291,20 @@ Result ProjectSaver::saveProject (ProjectExporter* specifiedExporterToSave)
 
     if (errors.isEmpty())
     {
+        if (project.isAudioPluginProject())
+        {
+            const auto isInvalidCode = [] (String code)
+            {
+                return code.length() != 4 || code.toStdString().size() != 4;
+            };
+
+            if (isInvalidCode (project.getPluginManufacturerCodeString()))
+                return Result::fail ("The plugin manufacturer code must contain exactly four characters.");
+
+            if (isInvalidCode (project.getPluginCodeString()))
+                return Result::fail ("The plugin code must contain exactly four characters.");
+        }
+
         if (project.isAudioPluginProject())
         {
             if (project.shouldBuildUnityPlugin())
