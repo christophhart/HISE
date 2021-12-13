@@ -723,6 +723,14 @@ bool CodeDocument::writeToStream (OutputStream& stream)
     return true;
 }
 
+void CodeDocument::setDisableUndo(bool shouldBeDisabled)
+{
+	if (shouldBeDisabled)
+		clearUndoHistory();
+
+	undoDisabled = shouldBeDisabled;
+}
+
 void CodeDocument::setNewLineCharacters (const String& newChars) noexcept
 {
     jassert (newChars == "\r\n" || newChars == "\n" || newChars == "\r");
@@ -731,23 +739,29 @@ void CodeDocument::setNewLineCharacters (const String& newChars) noexcept
 
 void CodeDocument::newTransaction()
 {
-    undoManager.beginNewTransaction (String());
+	if(!undoDisabled)
+		undoManager.beginNewTransaction (String());
 }
 
 void CodeDocument::undo()
 {
-    newTransaction();
-    undoManager.undo();
+	if (!undoDisabled)
+	{
+		newTransaction();
+		undoManager.undo();
+	}
 }
 
 void CodeDocument::redo()
 {
-    undoManager.redo();
+	if(!undoDisabled)
+		undoManager.redo();
 }
 
 void CodeDocument::clearUndoHistory()
 {
-    undoManager.clearUndoHistory();
+	if(!undoDisabled)
+		undoManager.clearUndoHistory();
 }
 
 void CodeDocument::setSavePoint() noexcept

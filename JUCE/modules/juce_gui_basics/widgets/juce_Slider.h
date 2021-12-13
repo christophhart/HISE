@@ -778,6 +778,8 @@ public:
     */
     void setNumDecimalPlacesToDisplay (int decimalPlacesToDisplay);
 
+
+
     //==============================================================================
     /** Allows a user-defined mapping of distance along the slider to its value.
 
@@ -1006,6 +1008,11 @@ public:
     [[deprecated]] void setMinAndMaxValues (double, double, bool, bool);
     [[deprecated]] void setMinAndMaxValues (double, double, bool);
    #endif
+
+protected:
+
+	/** returns the current textbox label. */
+	Label* getTextBox();
 
 private:
     //==============================================================================

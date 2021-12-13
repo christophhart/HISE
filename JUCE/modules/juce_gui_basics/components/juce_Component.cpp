@@ -2002,6 +2002,8 @@ void Component::paintComponentAndChildren (Graphics& g)
 	if (flags.skipPaintFlag)
 		return;
 
+	auto clipBounds = g.getClipBounds();
+
     if (flags.dontClipGraphicsFlag)
     {
         paint (g);
@@ -2009,6 +2011,8 @@ void Component::paintComponentAndChildren (Graphics& g)
     else
     {
         Graphics::ScopedSaveState ss (g);
+
+		
 
         if (! (ComponentHelpers::clipObscuredRegions (*this, g, clipBounds, {}) && g.isClipEmpty()))
             paint (g);

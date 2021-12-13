@@ -215,6 +215,13 @@ public:
     static bool performExternalDragDropOfText (const String& text, Component* sourceComponent = nullptr,
                                                std::function<void()> callback = nullptr);
 
+	struct DragImageComponentBase
+	{
+		virtual ~DragImageComponentBase() {};
+
+		virtual DragAndDropTarget::SourceDetails getDetails() const = 0;
+	};
+
 protected:
     /** Override this if you want to be able to perform an external drag of a set of files
         when the user drags outside of this container component.

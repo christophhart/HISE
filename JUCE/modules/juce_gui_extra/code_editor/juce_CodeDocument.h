@@ -254,6 +254,9 @@ public:
     /** Writes the editor's current contents to a stream. */
     bool writeToStream (OutputStream& stream);
 
+	/** Disables the undo manger and directly calls the functions. */
+	void setDisableUndo(bool shouldBeDisabled);
+
     //==============================================================================
     /** Returns the preferred new-line characters for the document.
         This will be either "\\n", "\\r\\n", or (rarely) "\\r".
@@ -452,11 +455,14 @@ private:
     ListenerList<Listener> listeners;
     String newLineChars { "\r\n" };
 
+	bool undoDisabled = false;
+
     void insert (const String& text, int insertPos, bool undoable);
     void remove (int startPos, int endPos, bool undoable);
     void checkLastLineStatus();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CodeDocument)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CodeDocument);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(CodeDocument);
 };
 
 } // namespace juce

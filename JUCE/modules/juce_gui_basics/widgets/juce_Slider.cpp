@@ -1239,6 +1239,11 @@ public:
         incButton->setBounds (buttonRect);
     }
 
+	Label* getTextBox()
+	{
+		return valueBox.get();
+	}
+
     //==============================================================================
     Slider& owner;
     SliderStyle style;
@@ -1547,6 +1552,11 @@ void Slider::setMaxValue (double newValue, NotificationType notification, bool a
 void Slider::setMinAndMaxValues (double newMinValue, double newMaxValue, NotificationType notification)
 {
     pimpl->setMinAndMaxValues (newMinValue, newMaxValue, notification);
+}
+
+juce::Label* Slider::getTextBox()
+{
+	return pimpl->getTextBox();
 }
 
 void Slider::setDoubleClickReturnValue (bool isDoubleClickEnabled,  double valueToSetOnDoubleClick, ModifierKeys mods)

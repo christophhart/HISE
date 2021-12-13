@@ -89,6 +89,10 @@ public:
 
     inline bool isMiddleButtonDown() const noexcept     { return testFlags (middleButtonModifier); }
 
+	inline bool isX1ButtonDown() const noexcept			{ return testFlags(x1ButtonModifier); }
+
+	inline bool isX2ButtonDown() const noexcept			{ return testFlags(x2ButtonModifier); }
+
     /** Tests for any of the mouse-button flags. */
     inline bool isAnyMouseButtonDown() const noexcept   { return testFlags (allMouseButtonModifiers); }
 
@@ -134,6 +138,12 @@ public:
 
         /** Middle mouse button flag. */
         middleButtonModifier                    = 64,
+
+		/** First additional mouse button */
+		x1ButtonModifier						= 128,
+
+		/** Second additional mouse button. */
+		x2ButtonModifier						= 256,
 
        #if JUCE_MAC || JUCE_IOS
         /** Command key flag - on windows this is the same as the CTRL key flag. */
