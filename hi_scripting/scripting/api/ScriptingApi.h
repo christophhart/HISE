@@ -788,6 +788,9 @@ public:
         /** Returns the ID of the attribute with the given index. */
 		String getAttributeId(int index);
 
+		/** Returns the index of the attribute with the given ID. */
+		int getAttributeIndex(String id);
+
         /** Sets a attribute to the given value. */
         void setAttribute(int index, var newValue);
 

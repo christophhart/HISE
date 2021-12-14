@@ -202,6 +202,11 @@ Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) const
 	return parameterNames[parameterIndex];
 }
 
+int Processor::getParameterIndexForIdentifier(String id) const
+{
+	return parameterNames.indexOf(id);
+}
+
 
 int Processor::getNumParameters() const
 {
