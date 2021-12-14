@@ -242,6 +242,8 @@ struct Selector : public Component,
 		tooltipper.setBounds(textBounds);
 	}
 
+    scriptnode::ScriptnodeComboBoxLookAndFeel slaf;
+    
 	Colour colour;
 	Rectangle<float> iconBounds;
 	Rectangle<float> textBounds;
@@ -253,7 +255,7 @@ struct Selector : public Component,
 	HiseShapeButton embeddedButton;
 	HiseShapeButton importButton;
 	ComboBox selector;
-	scriptnode::ScriptnodeComboBoxLookAndFeel slaf;
+	
 	ScopedPointer<Drawable> mainLogoColoured;
 };
 #endif

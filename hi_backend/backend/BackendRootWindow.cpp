@@ -749,6 +749,11 @@ void PeriodicScreenshotter::run()
 {
 	while (!threadShouldExit())
 	{
+        if(MessageManager::getInstanceWithoutCreating() == nullptr)
+        {
+            return;
+        }
+        
 		Image newImage;
 		{
 			MessageManagerLock mm;

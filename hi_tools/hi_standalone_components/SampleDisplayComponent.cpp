@@ -907,6 +907,7 @@ HiseAudioThumbnail::HiseAudioThumbnail() :
 
 HiseAudioThumbnail::~HiseAudioThumbnail()
 {
+    setLookAndFeel(nullptr);
 	loadingThread.stopThread(400);
 }
 

@@ -120,6 +120,11 @@ public:
 
 		Editor(Canvas* c);
 
+        ~Editor()
+        {
+            zoomSelector->setLookAndFeel(nullptr);
+        }
+        
 		void rebuildAfterContentChange() override;
 
 		ValueTree getBookmarkValueTree() override { return {}; }

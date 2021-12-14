@@ -50,10 +50,10 @@ public:
 
 private:
 
+    hise::HiPropertyPanelLookAndFeel alaf;
+    
 	RLottieManager::Ptr manager;
 	RLottieComponent animationComponent;
-
-    hise::HiPropertyPanelLookAndFeel alaf;
 
 	CodeDocument doc;
 	JavascriptTokeniser tok;

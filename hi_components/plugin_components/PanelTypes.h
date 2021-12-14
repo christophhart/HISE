@@ -219,11 +219,9 @@ public:
 
 private:
 
+    ScopedPointer<LookAndFeel> slaf;
 	ScopedPointer<Viewport> viewport;
-
 	ScopedPointer<ToggleButtonList> midiInputList;
-
-	ScopedPointer<LookAndFeel> slaf;
 
 	int numMidiDevices = 0;
 };

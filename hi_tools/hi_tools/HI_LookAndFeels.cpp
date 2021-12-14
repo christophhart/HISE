@@ -1063,10 +1063,11 @@ void AlertWindowLookAndFeel::drawButtonText(Graphics &g, TextButton &button, boo
 	Font font(getTextButtonFont(button, button.getHeight()));
 	g.setFont(font);
 
-	auto c = button.findColour(HiseColourScheme::ComponentTextColourId);
-
-	if (c == Colours::black)
-		c = dark;
+    
+    Colour c = dark;
+    
+    if(button.isColourSpecified(HiseColourScheme::ComponentTextColourId))
+        c = button.findColour(HiseColourScheme::ComponentTextColourId);
 
 	g.setColour(c.withMultipliedAlpha(button.isEnabled() ? 1.0f : 0.5f));
 
@@ -1087,13 +1088,13 @@ void AlertWindowLookAndFeel::drawButtonText(Graphics &g, TextButton &button, boo
 
 void AlertWindowLookAndFeel::drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/, bool isMouseOverButton, bool isButtonDown)
 {
-	auto c = button.findColour(HiseColourScheme::ComponentBackgroundColour);
-
-	if (c == Colours::black)
-		c = bright;
-
+    Colour c = bright;
+    
+    if(button.isColourSpecified(HiseColourScheme::ComponentBackgroundColour))
+        c = button.findColour(HiseColourScheme::ComponentBackgroundColour);
+    
 	Colour baseColour(c.withMultipliedSaturation(button.hasKeyboardFocus(true) ? 1.3f : 0.9f)
-		.withMultipliedAlpha(button.isEnabled() ? 0.9f : 0.5f));
+                       .withMultipliedAlpha(button.isEnabled() ? 0.9f : 0.5f));
 
 	if (isButtonDown || isMouseOverButton)
 		baseColour = baseColour.contrasting(isButtonDown ? 0.2f : 0.1f);
@@ -1113,28 +1114,21 @@ void AlertWindowLookAndFeel::drawAlertBox(Graphics &g, AlertWindow &alert, const
 
 	g.setGradientFill(grad);
 	g.fillAll();
-
 	g.setColour(Colours::white.withAlpha(0.1f));
-
 	g.fillRect(0, 0, alert.getWidth(), 37);
-
 	g.setColour(bright);
 
 	for (int i = 0; i < textLayout.getNumLines(); i++)
-	{
 		textLayout.getLine(i).runs.getUnchecked(0)->colour = bright;
-	}
 
 	textLayout.draw(g, Rectangle<int>(textArea.getX(),
-		textArea.getY(),
-		textArea.getWidth(),
-		textArea.getHeight()).toFloat());
+                                      textArea.getY(),
+                                      textArea.getWidth(),
+                                      textArea.getHeight()).toFloat());
 
 	g.setColour(bright);
 	g.drawRect(0, 0, alert.getWidth(), alert.getHeight());
 }
-
-
 
 
 void ChainBarButtonLookAndFeel::drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/)

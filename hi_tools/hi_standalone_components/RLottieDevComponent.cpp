@@ -139,7 +139,7 @@ RLottieDevComponent::RLottieDevComponent(RLottieManager::Ptr m_) :
 
 RLottieDevComponent::~RLottieDevComponent()
 {
-	
+    setLookAndFeel(nullptr);
 }
 
 void RLottieDevComponent::timerCallback()

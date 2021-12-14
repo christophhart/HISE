@@ -71,6 +71,8 @@ WaveformComponent::WaveformComponent(Processor* p, int index_) :
 
 WaveformComponent::~WaveformComponent()
 {
+    setLookAndFeel(nullptr);
+    
 	if (processor.get() != nullptr)
 	{
 		dynamic_cast<Broadcaster*>(processor.get())->removeWaveformListener(this);
@@ -310,7 +312,8 @@ SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler)
 
 SamplerSoundWaveform::~SamplerSoundWaveform()
 {
-
+    getThumbnail()->setLookAndFeel(nullptr);
+    slaf = nullptr;
 }
 
 struct SamplerLaf : public HiseAudioThumbnail::LookAndFeelMethods,

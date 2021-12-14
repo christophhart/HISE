@@ -2157,7 +2157,10 @@ struct ScrollbarFader : public Timer,
         for(auto sb: scrollbars)
         {
             if(sb != nullptr)
+            {
                 sb->removeListener(this);
+                sb->setLookAndFeel(nullptr);
+            }
         }
     }
     

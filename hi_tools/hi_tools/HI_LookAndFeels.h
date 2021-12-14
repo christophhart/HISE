@@ -144,6 +144,11 @@ public:
 		setLookAndFeel(&dlaf);
 	};
 
+    ~NumberTag()
+    {
+        setLookAndFeel(nullptr);
+    }
+    
 	void paint(Graphics &g) override
 	{
 		if(number == 0) 

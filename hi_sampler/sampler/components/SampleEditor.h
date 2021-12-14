@@ -21,6 +21,11 @@ struct DraggableThumbnail : public HiseAudioThumbnail
 
 	DraggableThumbnail();
 
+    ~DraggableThumbnail()
+    {
+        setLookAndFeel(nullptr);
+    }
+    
 	void setPosition(const MouseEvent& e);
 
 	void mouseDown(const MouseEvent& e) override;
@@ -307,10 +312,10 @@ private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	friend class SampleEditorToolbarFactory;
 
+	LookAndFeel_V4 slaf;
+    ScrollbarFader::Laf laf;
+    GlobalHiseLookAndFeel claf;
 	
-
-	
-
 	ModulatorSampler *sampler;
 	SamplerBody	*body;
 
@@ -318,10 +323,8 @@ private:
     
 	HiseShapeButton* envelopeButton;
 
-	
-
 	ScrollbarFader fader;
-	ScrollbarFader::Laf laf;
+	
 
 	ScopedPointer<Component> viewContent;
 
@@ -336,7 +339,7 @@ private:
 	Component* improveButton;
 	Component* scriptButton;
 
-	LookAndFeel_V4 slaf;
+	
 
     //[/UserVariables]
 
@@ -359,7 +362,7 @@ private:
     
 	DraggableThumbnail overview;
 
-    GlobalHiseLookAndFeel claf;
+    
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SampleEditor);
 

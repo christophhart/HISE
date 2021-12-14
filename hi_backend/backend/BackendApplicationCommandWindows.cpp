@@ -333,12 +333,9 @@ void XmlBackupFunctions::restoreAllScripts(ValueTree& v, ModulatorSynthChain *ma
 			jassertfalse;
 		}
 
-
-		DirectoryIterator iter(scriptDirectory, false, "*.js", File::findFiles);
-
-		while (iter.next())
+        for(auto f: RangedDirectoryIterator(scriptDirectory, false, "*.js", File::findFiles))
 		{
-			File script = iter.getFile();
+			File script = f.getFile();
 
 			if (script.getFileNameWithoutExtension() == fileName)
 			{
@@ -404,11 +401,9 @@ public:
 		ignoredDirectories.add("Binaries");
 		ignoredDirectories.add("git");
 
-		DirectoryIterator walker(projectDirectory, true, "*", File::findFilesAndDirectories);
-
-		while (walker.next())
+		for(auto f: RangedDirectoryIterator(projectDirectory, true, "*", File::findFilesAndDirectories))
 		{
-			File currentFile = walker.getFile();
+			File currentFile = f.getFile();
 
 			if (currentFile.isDirectory() ||
 				currentFile.getFullPathName().contains("git") ||

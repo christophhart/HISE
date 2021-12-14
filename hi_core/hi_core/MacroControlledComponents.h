@@ -348,6 +348,11 @@ public:
         setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
 	};
 
+    ~HiComboBox()
+    {
+        setLookAndFeel(nullptr);
+    }
+    
 	void setup(Processor *p, int parameter, const String &name) override;
 
 	void updateValue(NotificationType sendAttributeChange = sendNotification) override;
@@ -441,7 +446,10 @@ public:
         setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 	};
 
-	
+    ~HiToggleButton()
+    {
+        setLookAndFeel(nullptr);
+    }
 
 	void setup(Processor *p, int parameter, const String &name) override;
 
@@ -586,6 +594,11 @@ public:
 	*/
 	HiSlider(const String &name);;
 
+    ~HiSlider()
+    {
+        setLookAndFeel(nullptr);
+    }
+    
 	static String getFrequencyString(float input)
 	{
 		if (input < 30.0f)

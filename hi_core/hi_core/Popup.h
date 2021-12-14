@@ -96,6 +96,11 @@ public:
 
 	TooltipBar();
 
+    ~TooltipBar()
+    {
+        setLookAndFeel(nullptr);
+    }
+    
     struct LookAndFeelMethods
     {
         LookAndFeelMethods()

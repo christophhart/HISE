@@ -282,6 +282,9 @@ void MacroControlledObject::macroConnectionChanged(int macroIndex, Processor* p,
 
 MacroControlledObject::~MacroControlledObject()
 {
+    numberTag = nullptr;
+    slaf = nullptr;
+    
 	if (auto p = getProcessor())
 	{
 		p->getMainController()->getMainSynthChain()->removeMacroConnectionListener(this);
