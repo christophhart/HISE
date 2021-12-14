@@ -549,7 +549,6 @@ public:
     };
 
     /** This function is replaced by a new overload accepting a DownloadTaskOptions argument. */
-    [[deprecated ("Use the overload with a DownloadTaskOptions argument instead")]]
     std::unique_ptr<DownloadTask> downloadToFile (const File& targetLocation,
                                                   String extraHeaders = String(),
                                                   DownloadTaskListener* listener = nullptr,
@@ -662,11 +661,6 @@ public:
    #ifndef DOXYGEN
     using OpenStreamProgressCallback = bool (void* context, int bytesSent, int totalBytes);
 
-    /** This method has been deprecated.
-
-        @see InputStreamOptions
-    */
-    [[deprecated ("New code should use the method which takes an InputStreamOptions argument instead.")]]
     std::unique_ptr<InputStream> createInputStream (bool doPostLikeRequest,
                                                     OpenStreamProgressCallback* progressCallback = nullptr,
                                                     void* progressCallbackContext = nullptr,

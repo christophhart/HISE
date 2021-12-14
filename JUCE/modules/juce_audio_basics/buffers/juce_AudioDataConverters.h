@@ -794,7 +794,7 @@ public:
 
     @tags{Audio}
 */
-class [[deprecated]] JUCE_API  AudioDataConverters
+class JUCE_API  AudioDataConverters
 {
 public:
     //==============================================================================

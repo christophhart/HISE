@@ -735,14 +735,14 @@ public:
    #ifndef DOXYGEN
     [[deprecated]] void macroBasedForLoop() const noexcept {}
 
-    [[deprecated ("This has been deprecated in favour of the toString method.")]]
+    
     String createDocument (StringRef dtdToUse,
                            bool allOnOneLine = false,
                            bool includeXmlHeader = true,
                            StringRef encodingType = "UTF-8",
                            int lineWrapLength = 60) const;
 
-    [[deprecated ("This has been deprecated in favour of the writeTo method.")]]
+    
     void writeToStream (OutputStream& output,
                         StringRef dtdToUse,
                         bool allOnOneLine = false,
@@ -750,7 +750,7 @@ public:
                         StringRef encodingType = "UTF-8",
                         int lineWrapLength = 60) const;
 
-    [[deprecated ("This has been deprecated in favour of the writeTo method.")]]
+    
     bool writeToFile (const File& destinationFile,
                       StringRef dtdToUse,
                       StringRef encodingType = "UTF-8",

@@ -175,9 +175,9 @@ public:
 
     // These methods have been deprecated - use the methods which return a Display* instead as they will return
     // nullptr on headless systems with no connected displays
-    [[deprecated]] const Display& findDisplayForRect (Rectangle<int>, bool isPhysical = false) const noexcept;
-    [[deprecated]] const Display& findDisplayForPoint (Point<int>, bool isPhysical = false) const noexcept;
-    [[deprecated]] const Display& getMainDisplay() const noexcept;
+    const Display& findDisplayForRect (Rectangle<int>, bool isPhysical = false) const noexcept;
+    const Display& findDisplayForPoint (Point<int>, bool isPhysical = false) const noexcept;
+    const Display& getMainDisplay() const noexcept;
    #endif
 
 private:

@@ -126,21 +126,21 @@ public:
     //
     // In addition to being marked as deprecated these methods will assert on
     // the first call.
-    [[deprecated]] String getParameterID (int index) override;
-    [[deprecated]] float getParameter (int parameterIndex) override;
-    [[deprecated]] void setParameter (int parameterIndex, float newValue) override;
-    [[deprecated]] const String getParameterName (int parameterIndex) override;
-    [[deprecated]] String getParameterName (int parameterIndex, int maximumStringLength) override;
-    [[deprecated]] const String getParameterText (int parameterIndex) override;
-    [[deprecated]] String getParameterText (int parameterIndex, int maximumStringLength) override;
-    [[deprecated]] int getParameterNumSteps (int parameterIndex) override;
-    [[deprecated]] bool isParameterDiscrete (int parameterIndex) const override;
-    [[deprecated]] bool isParameterAutomatable (int parameterIndex) const override;
-    [[deprecated]] float getParameterDefaultValue (int parameterIndex) override;
-    [[deprecated]] String getParameterLabel (int parameterIndex) const override;
-    [[deprecated]] bool isParameterOrientationInverted (int parameterIndex) const override;
-    [[deprecated]] bool isMetaParameter (int parameterIndex) const override;
-    [[deprecated]] AudioProcessorParameter::Category getParameterCategory (int parameterIndex) const override;
+    String getParameterID (int index) override;
+    float getParameter (int parameterIndex) override;
+    void setParameter (int parameterIndex, float newValue) override;
+    const String getParameterName (int parameterIndex) override;
+    String getParameterName (int parameterIndex, int maximumStringLength) override;
+    const String getParameterText (int parameterIndex) override;
+    String getParameterText (int parameterIndex, int maximumStringLength) override;
+    int getParameterNumSteps (int parameterIndex) override;
+    bool isParameterDiscrete (int parameterIndex) const override;
+    bool isParameterAutomatable (int parameterIndex) const override;
+    float getParameterDefaultValue (int parameterIndex) override;
+    String getParameterLabel (int parameterIndex) const override;
+    bool isParameterOrientationInverted (int parameterIndex) const override;
+    bool isMetaParameter (int parameterIndex) const override;
+    AudioProcessorParameter::Category getParameterCategory (int parameterIndex) const override;
    #endif
 
 protected:

@@ -158,11 +158,11 @@ public:
 
     //==============================================================================
    #ifndef DOXYGEN
-    [[deprecated ("Use getAvailableDevices instead.")]]
+    
     static StringArray getDevices();
-    [[deprecated ("Use getDefaultDevice instead.")]]
+    
     static int getDefaultDeviceIndex();
-    [[deprecated ("Use openDevice that takes a device identifier instead.")]]
+    
     static std::unique_ptr<MidiInput> openDevice (int, MidiInputCallback*);
    #endif
 
@@ -350,11 +350,11 @@ public:
 
     //==============================================================================
    #ifndef DOXYGEN
-    [[deprecated ("Use getAvailableDevices instead.")]]
+    
     static StringArray getDevices();
-    [[deprecated ("Use getDefaultDevice instead.")]]
+    
     static int getDefaultDeviceIndex();
-    [[deprecated ("Use openDevice that takes a device identifier instead.")]]
+    
     static std::unique_ptr<MidiOutput> openDevice (int);
    #endif
 

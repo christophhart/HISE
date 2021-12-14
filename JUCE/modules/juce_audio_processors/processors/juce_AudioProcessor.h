@@ -1384,36 +1384,36 @@ public:
    #ifndef DOXYGEN
     // These methods are all deprecated in favour of using AudioProcessorParameter
     // and AudioProcessorParameterGroup
-    [[deprecated]] virtual int getNumParameters();
-    [[deprecated]] virtual const String getParameterName (int parameterIndex);
-    [[deprecated]] virtual String getParameterID (int index);
-    [[deprecated]] virtual float getParameter (int parameterIndex);
-    [[deprecated]] virtual String getParameterName (int parameterIndex, int maximumStringLength);
-    [[deprecated]] virtual const String getParameterText (int parameterIndex);
-    [[deprecated]] virtual String getParameterText (int parameterIndex, int maximumStringLength);
-    [[deprecated]] virtual int getParameterNumSteps (int parameterIndex);
-    [[deprecated]] virtual bool isParameterDiscrete (int parameterIndex) const;
-    [[deprecated]] virtual float getParameterDefaultValue (int parameterIndex);
-    [[deprecated]] virtual String getParameterLabel (int index) const;
-    [[deprecated]] virtual bool isParameterOrientationInverted (int index) const;
-    [[deprecated]] virtual void setParameter (int parameterIndex, float newValue);
-    [[deprecated]] virtual bool isParameterAutomatable (int parameterIndex) const;
-    [[deprecated]] virtual bool isMetaParameter (int parameterIndex) const;
-    [[deprecated]] virtual AudioProcessorParameter::Category getParameterCategory (int parameterIndex) const;
-    [[deprecated]] void beginParameterChangeGesture (int parameterIndex);
-    [[deprecated]] void endParameterChangeGesture (int parameterIndex);
-    [[deprecated]] void setParameterNotifyingHost (int parameterIndex, float newValue);
+    virtual int getNumParameters();
+    virtual const String getParameterName (int parameterIndex);
+    virtual String getParameterID (int index);
+    virtual float getParameter (int parameterIndex);
+    virtual String getParameterName (int parameterIndex, int maximumStringLength);
+    virtual const String getParameterText (int parameterIndex);
+    virtual String getParameterText (int parameterIndex, int maximumStringLength);
+    virtual int getParameterNumSteps (int parameterIndex);
+    virtual bool isParameterDiscrete (int parameterIndex) const;
+    virtual float getParameterDefaultValue (int parameterIndex);
+    virtual String getParameterLabel (int index) const;
+    virtual bool isParameterOrientationInverted (int index) const;
+    virtual void setParameter (int parameterIndex, float newValue);
+    virtual bool isParameterAutomatable (int parameterIndex) const;
+    virtual bool isMetaParameter (int parameterIndex) const;
+    virtual AudioProcessorParameter::Category getParameterCategory (int parameterIndex) const;
+    void beginParameterChangeGesture (int parameterIndex);
+    void endParameterChangeGesture (int parameterIndex);
+    void setParameterNotifyingHost (int parameterIndex, float newValue);
 
     // These functions are deprecated: your audio processor can inform the host
     // on its bus and channel layouts and names using the AudioChannelSet and various bus classes.
-    [[deprecated]] int getNumInputChannels() const noexcept                   { return getTotalNumInputChannels(); }
-    [[deprecated]] int getNumOutputChannels() const noexcept                  { return getTotalNumOutputChannels(); }
-    [[deprecated]] const String getInputSpeakerArrangement() const noexcept   { return cachedInputSpeakerArrString; }
-    [[deprecated]] const String getOutputSpeakerArrangement() const noexcept  { return cachedOutputSpeakerArrString; }
-    [[deprecated]] virtual const String getInputChannelName  (int channelIndex) const;
-    [[deprecated]] virtual const String getOutputChannelName (int channelIndex) const;
-    [[deprecated]] virtual bool isInputChannelStereoPair  (int index) const;
-    [[deprecated]] virtual bool isOutputChannelStereoPair (int index) const;
+    int getNumInputChannels() const noexcept                   { return getTotalNumInputChannels(); }
+    int getNumOutputChannels() const noexcept                  { return getTotalNumOutputChannels(); }
+    const String getInputSpeakerArrangement() const noexcept   { return cachedInputSpeakerArrString; }
+    const String getOutputSpeakerArrangement() const noexcept  { return cachedOutputSpeakerArrString; }
+    virtual const String getInputChannelName  (int channelIndex) const;
+    virtual const String getOutputChannelName (int channelIndex) const;
+    virtual bool isInputChannelStereoPair  (int index) const;
+    virtual bool isOutputChannelStereoPair (int index) const;
    #endif
 
 private:
