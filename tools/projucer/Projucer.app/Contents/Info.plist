@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>BuildMachineOSBuild</key>
-	<string>20D64</string>
+	<string>18G6042</string>
 	<key>CFBundleDisplayName</key>
 	<string>Projucer</string>
 	<key>CFBundleDocumentTypes</key>
@@ -19,6 +19,8 @@
 			<string>jucer</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
 			<key>NSPersistentStoreTypeKey</key>
 			<string>XML</string>
 		</dict>
@@ -34,7 +36,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>6.0.8</string>
+	<string>6.1.3</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleSupportedPlatforms</key>
@@ -42,25 +44,23 @@
 		<string>MacOSX</string>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>6.0.8</string>
+	<string>6.1.3</string>
 	<key>DTCompiler</key>
 	<string>com.apple.compilers.llvm.clang.1_0</string>
 	<key>DTPlatformBuild</key>
-	<string>12D4e</string>
-	<key>DTPlatformName</key>
-	<string>macosx</string>
+	<string>10G8</string>
 	<key>DTPlatformVersion</key>
-	<string>11.1</string>
+	<string>GM</string>
 	<key>DTSDKBuild</key>
-	<string>20C63</string>
+	<string>18G74</string>
 	<key>DTSDKName</key>
-	<string>macosx11.1</string>
+	<string>macosx10.14</string>
 	<key>DTXcode</key>
-	<string>1240</string>
+	<string>1030</string>
 	<key>DTXcodeBuild</key>
-	<string>12D4e</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>10.11</string>
+	<string>10G8</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
 	<key>NSCameraUsageDescription</key>
 	<string>This app requires access to the camera to function correctly.</string>
 	<key>NSHighResolutionCapable</key>
