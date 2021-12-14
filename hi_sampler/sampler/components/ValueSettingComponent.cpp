@@ -153,7 +153,7 @@ ValueSettingComponent::ValueSettingComponent (ModulatorSampler* sampler_):
 	plusButton->setWantsKeyboardFocus(false);
 	
 	setWantsKeyboardFocus(true);
-	setFocusContainer(true);
+	setFocusContainerType(FocusContainerType::keyboardFocusContainer);
     //[UserPreSize]
 
 	plusButton->setLookAndFeel(&cb);

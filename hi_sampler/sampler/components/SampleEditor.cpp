@@ -475,7 +475,7 @@ struct EnvelopePopup : public Component
 
 		grabKeyboardFocusAsync();
 		setWantsKeyboardFocus(false);
-		setFocusContainer(true);
+		setFocusContainerType(FocusContainerType::keyboardFocusContainer);
 	}
 
 	std::unique_ptr<ComponentTraverser> createKeyboardFocusTraverser() override
@@ -822,7 +822,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
         }
     });
     
-	setFocusContainer(true);
+	setFocusContainerType(FocusContainerType::keyboardFocusContainer);
 	setWantsKeyboardFocus(true);
 	addKeyListener(handler);
 

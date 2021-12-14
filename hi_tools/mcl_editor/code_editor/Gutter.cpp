@@ -376,7 +376,7 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 								blinkButton("Blink when hit")
 							{
 								setLookAndFeel(&laf);
-								laf.setDefaultSansSerifTypeface(GLOBAL_BOLD_FONT().getTypeface());
+								laf.setDefaultSansSerifTypeface(GLOBAL_BOLD_FONT().getTypefacePtr());
 
 								bp->useCondition.addListener(this);
 

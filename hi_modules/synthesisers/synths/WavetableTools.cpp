@@ -52,11 +52,9 @@ juce::ValueTree WavetableConverter::convertDirectoryToWavetableData(const String
 	double sampleRate = -1.0;
 	directoryPath = File(directoryPath_);
 	jassert(directoryPath.isDirectory());
-	DirectoryIterator iter(directoryPath, false, "*.wav");
-
-	while (iter.next())
+	for(auto f: RangedDirectoryIterator(directoryPath, false, "*.wav"))
 	{
-		File wavFile = iter.getFile();
+		File wavFile = f.getFile();
 		const String noteName = wavFile.getFileNameWithoutExtension().upToFirstOccurrenceOf("_", false, false);
 		const int noteNumber = getMidiNoteNumber(noteName);
 

@@ -743,7 +743,7 @@ namespace ui
 			details->setProperty(PropertyIds::ParameterId, index);
 			details->setProperty(PropertyIds::SwitchTarget, true);
 
-			container->startDragging(var(details), this, ModulationSourceBaseComponent::createDragImageStatic(false));
+			container->startDragging(var(details), this, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
 			findParentComponentOfClass<DspNetworkGraph>()->repaint();
 		}
 	}

@@ -740,7 +740,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 			m.soloGroup(*displayedGroup);
 	});
 
-	setFocusContainer(true);
+	setFocusContainerType(FocusContainerType::keyboardFocusContainer);
 
 
     //[/Constructor]

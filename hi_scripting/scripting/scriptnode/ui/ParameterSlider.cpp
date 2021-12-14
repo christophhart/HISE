@@ -1412,7 +1412,7 @@ void MacroParameterSlider::mouseDrag(const MouseEvent& )
 		{
 			auto details = DragHelpers::createDescription(slider.node->getId(), slider.parameterToControl->getId());
 
-			container->startDragging(details, &slider, ModulationSourceBaseComponent::createDragImageStatic(false));
+			container->startDragging(details, &slider, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
 
 			findParentComponentOfClass<DspNetworkGraph>()->repaint();
 		}

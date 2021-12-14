@@ -178,7 +178,7 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent&)
 		details->setProperty(PropertyIds::ID, sourceNode->getId());
 		details->setProperty(PropertyIds::Automated, true);
 
-		container->startDragging(var(details), this, createDragImage());
+		container->startDragging(var(details), this, ScaledImage(createDragImage()));
 
 		findParentComponentOfClass<DspNetworkGraph>()->dragOverlay.setEnabled(true);
 	}

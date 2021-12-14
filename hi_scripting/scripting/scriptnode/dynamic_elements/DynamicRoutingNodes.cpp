@@ -618,7 +618,7 @@ void dynamic::editor::mouseDown(const MouseEvent& e)
 	else
 	{
 		auto dd = getDragAndDropContainer();
-		dd->startDragging(var(), this, ModulationSourceBaseComponent::createDragImageStatic(false));
+		dd->startDragging(var(), this, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
 
 		findParentComponentOfClass<DspNetworkGraph>()->repaint();
 

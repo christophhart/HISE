@@ -41,13 +41,11 @@ ValueTree BaseExporter::exportUserPresetFiles()
 {
 	File presetDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 
-	DirectoryIterator iter(presetDirectory, true, "*", File::findFiles);
-
-	ValueTree userPresets("UserPresets");
-
-	while (iter.next())
-	{
-		File f = iter.getFile();
+    ValueTree userPresets("UserPresets");
+    
+	for(auto e: RangedDirectoryIterator(presetDirectory, true, "*", File::findFiles))
+    {
+		File f = e.getFile();
 
         if(f.isHidden())
             continue;
@@ -80,8 +78,6 @@ ValueTree BaseExporter::exportUserPresetFiles()
 	}
 
 	return userPresets;
-
-	
 }
 
 juce::ValueTree BaseExporter::exportEmbeddedFiles()
