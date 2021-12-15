@@ -140,11 +140,12 @@ void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 	addProgressBarComponent(logData.progress);
 	
 	if (addOKButton)
+	{
 		addButton("OK", 1, KeyPress(KeyPress::returnKey));
+		getButton("OK")->addListener(this);
+	}
 	
 	addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
-
-	getButton("OK")->addListener(this);
 	getButton("Cancel")->addListener(this);
 
 	for (int i = 0; i < getNumChildComponents(); i++)
