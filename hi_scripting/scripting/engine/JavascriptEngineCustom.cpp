@@ -483,7 +483,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 				s.root->removeFromCallStack(f->name);
 
-				f->cleanUpAfterExecution();
+				if(f->e == this)
+					f->cleanUpAfterExecution();
 
 				f->lastReturnValue = returnVar;
 

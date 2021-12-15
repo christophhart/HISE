@@ -1770,6 +1770,8 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 		while (lowPriorityQueue.pop(lpt))
 		{
+			ScopedLock sl(lookAndFeelRenderLock);
+
 			jassert(!lpt.getFunction().isHiPriority());
 
 			if (alreadyCompiled(lpt))
@@ -1821,6 +1823,11 @@ void JavascriptThreadPool::killVoicesAndExtendTimeOut(JavascriptProcessor* jp, i
 	{
 		engine->extendTimeout(milliseconds);
 	}
+}
+
+juce::CriticalSection& JavascriptThreadPool::getLookAndFeelRenderLock()
+{
+	return lookAndFeelRenderLock;
 }
 
 void JavascriptThreadPool::pushToQueue(const Task::Type& t, JavascriptProcessor* p, const Task::Function& f)

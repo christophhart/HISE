@@ -589,6 +589,8 @@ namespace ScriptingObjects
 
 			static bool addParentFloatingTile(Component& c, DynamicObject* obj);
 
+			static void setColourOrBlack(DynamicObject* obj, const Identifier& id, Component& c, int colourId);
+
 			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Laf);
 		};
 

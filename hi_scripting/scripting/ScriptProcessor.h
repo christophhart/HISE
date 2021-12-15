@@ -890,6 +890,8 @@ public:
 
 	GlobalServer* getGlobalServer() { return globalServer.get(); }
 
+	CriticalSection& getLookAndFeelRenderLock();
+
 	void resume()
 	{
 		shouldWakeUp = true;
@@ -1015,6 +1017,8 @@ private:
 	Task::Type currentType;
 
 	CriticalSection scriptLock;
+
+	CriticalSection lookAndFeelRenderLock;
 
 	using CompilationTask = SuspendHelpers::Suspended<Task, SuspendHelpers::ScopedTicket>;
 	using CallbackTask = SuspendHelpers::Suspended<Task, SuspendHelpers::FreeTicket>;

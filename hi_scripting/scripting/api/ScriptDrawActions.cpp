@@ -402,7 +402,12 @@ namespace ScriptedDrawActions
 			int prevR = shadow.radius;
 
 			shadow.radius *= scaleFactor;
-			shadow.drawForImage(g, mainImage);
+
+			if (shadow.radius > 0)
+			{
+				shadow.drawForImage(g, mainImage);
+			}
+
 			shadow.radius = prevR;
 
 			g.restoreState();

@@ -279,8 +279,8 @@ struct DrawActions
 		virtual bool wantsCachedImage() const { return false; };
 		virtual bool wantsToDrawOnParent() const { return false; }
 
-		void setCachedImage(Image& actionImage_, Image& mainImage_) { actionImage = actionImage_; mainImage = mainImage_; }
-		void setScaleFactor(float sf) { scaleFactor = sf; }
+		virtual void setCachedImage(Image& actionImage_, Image& mainImage_) { actionImage = actionImage_; mainImage = mainImage_; }
+		virtual void setScaleFactor(float sf) { scaleFactor = sf; }
 
 	protected:
 
@@ -308,15 +308,44 @@ struct DrawActions
 			drawOnParent(drawOnParent_)
 		{};
 
-		bool wantsCachedImage() const override { return postActions.size() > 0; }
+		bool wantsCachedImage() const override 
+		{ 
+			if(postActions.size() > 0)
+				return true;
+
+			for (auto a : internalActions)
+			{
+				if (a->wantsCachedImage())
+					return true;
+			}
+
+			return false;
+		}
 
 		bool wantsToDrawOnParent() const override { return drawOnParent; };
+
+		void setCachedImage(Image& actionImage_, Image& mainImage_) final override
+		{ 
+			ActionBase::setCachedImage(actionImage_, mainImage_);
+
+			// do not propagate the main image
+			for (auto a : internalActions)
+				a->setCachedImage(actionImage_, actionImage_);
+		}
+
+		virtual void setScaleFactor(float sf) final override
+		{ 
+			ActionBase::setScaleFactor(sf);
+
+			for (auto a : internalActions)
+				a->setScaleFactor(sf);
+		}
 
 		void perform(Graphics& g)
 		{
 			for (auto action : internalActions)
 				action->perform(g);
-
+			
 			if (postActions.size() > 0)
 			{
 				PostGraphicsRenderer r(stack, actionImage, scaleFactor);
