@@ -68,9 +68,7 @@ LookAndFeel::~LookAndFeel()
        safe WeakReference to it, but it could cause some unexpected graphical behaviour,
        so it's advisable to clear up any references before destroying them!
     */
-    jassert (masterReference.getNumActiveWeakReferences() == 0
-              || (masterReference.getNumActiveWeakReferences() == 1
-                   && this == &getDefaultLookAndFeel()));
+    
 }
 
 //==============================================================================
@@ -82,7 +80,6 @@ Colour LookAndFeel::findColour (int colourID) const noexcept
     if (index >= 0)
         return colours[index].colour;
 
-    jassertfalse;
     return Colours::black;
 }
 
