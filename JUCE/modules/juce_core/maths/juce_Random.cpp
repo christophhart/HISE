@@ -84,7 +84,6 @@ int Random::nextInt() noexcept
 
 int Random::nextInt (const int maxValue) noexcept
 {
-    jassert (maxValue > 0);
     return (int) ((((unsigned int) nextInt()) * (uint64) maxValue) >> 32);
 }
 
