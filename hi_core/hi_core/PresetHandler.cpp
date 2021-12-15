@@ -629,6 +629,7 @@ String PresetHandler::getCustomName(const String &typeName, const String& thisMe
 #endif
     
 	nameWindow->getTextEditor("Name")->setSelectAllWhenFocused(true);
+	nameWindow->getTextEditor("Name")->grabKeyboardFocusAsync();
 
 	if(nameWindow->runModalLoop()) return nameWindow->getTextEditorContents("Name");
 	else return String();
