@@ -397,10 +397,16 @@ struct Array : public LayoutBase,
 	virtual void clear();
 
 	/** Returns the index of the first element that matches the given object. */
-	int indexOf(var obj);
+	int indexOf(var obj) const;
 
 	/** Copies the property from each element into a buffer (or array). */
 	bool copy(String propertyName, var target);
+
+	/** Returns the size of the array. */
+	virtual int size() const;
+
+	/** checks if the array contains the object. */
+	bool contains(var obj) const;
 
 	// =======================================================================================================
 
@@ -424,7 +430,10 @@ struct Stack : public Array
 		API_METHOD_WRAPPER_1(Stack, insert);
 		API_METHOD_WRAPPER_1(Stack, remove);
 		API_METHOD_WRAPPER_1(Stack, removeElement);
-		API_METHOD_WRAPPER_0(Stack, getNumUsed);
+		API_METHOD_WRAPPER_0(Stack, size);
+		API_METHOD_WRAPPER_1(Stack, indexOf);
+		API_METHOD_WRAPPER_1(Stack, contains);
+		API_METHOD_WRAPPER_0(Stack, isEmpty);
 	};
 
 	Stack(ProcessorWithScriptingContent* s) :
@@ -433,7 +442,10 @@ struct Stack : public Array
 		ADD_API_METHOD_1(insert);
 		ADD_API_METHOD_1(remove);
 		ADD_API_METHOD_1(removeElement);
-		ADD_API_METHOD_0(getNumUsed);
+		ADD_API_METHOD_0(size);
+		ADD_API_METHOD_1(indexOf);
+		ADD_API_METHOD_1(contains);
+		ADD_API_METHOD_0(isEmpty);
 	};
 
 	Identifier getObjectName() { RETURN_STATIC_IDENTIFIER("FixObjectStack"); }
@@ -444,13 +456,22 @@ struct Stack : public Array
 	bool insert(var obj);
 
 	/** Returns the number of used elements in the stack. */
-	int getNumUsed() const;
+	int size() const override;
 
 	/** Removes the element from the stack and fills up the gap. */
 	bool remove(var obj);
 
 	/** Removes the element at the given index and fills the gap. */
 	bool removeElement(int index);
+
+	/** Clears the stack. */
+	void clear() override;
+
+	/** Clears the stack by moving the end pointer to the start (leaving its elements in the same state). */
+	void clearQuick();
+
+	/** Checks whether the stack is empty. */
+	bool isEmpty() const;
 
 	// =======================================================================================================
 

@@ -296,7 +296,7 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 			else if (auto dynObj = currentObject.getDynamicObject())
 				size = dynObj->getProperties().size();
 			else if (auto fixStack = dynamic_cast<fixobj::Stack*>(currentObject.getObject()))
-				size = fixStack->getNumUsed();
+				size = fixStack->size();
 			else if (auto fixArray = dynamic_cast<fixobj::Array*>(currentObject.getObject()))
 				size = fixArray->getConstantValue(0);
 			else
