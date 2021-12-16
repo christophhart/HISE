@@ -1611,6 +1611,7 @@ struct ScriptingObjects::ScriptingSamplerSound::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingSamplerSound, getSampleRate);
 	API_METHOD_WRAPPER_1(ScriptingSamplerSound, getRange);
 	API_METHOD_WRAPPER_1(ScriptingSamplerSound, refersToSameSample);
+	API_METHOD_WRAPPER_0(ScriptingSamplerSound, getCustomProperties);
 };
 
 ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScriptingContent* p, ModulatorSampler* sampler_, ModulatorSamplerSound::Ptr sound_) :
@@ -1628,6 +1629,7 @@ ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScri
 	ADD_API_METHOD_1(replaceAudioFile);
 	ADD_API_METHOD_1(refersToSameSample);
 	ADD_API_METHOD_0(getSampleRate);
+	ADD_API_METHOD_0(getCustomProperties);
 
 	sampleIds.ensureStorageAllocated(ModulatorSamplerSound::numProperties);
 	sampleIds.add(SampleIds::ID);
@@ -1653,6 +1655,7 @@ ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScri
 	sampleIds.add(SampleIds::UpperVelocityXFade);
 	sampleIds.add(SampleIds::SampleState);
 	sampleIds.add(SampleIds::Reversed);
+	
 
 	for (int i = 1; i < sampleIds.size(); i++)
 		addConstant(sampleIds[i].toString(), (int)i);
@@ -1665,18 +1668,35 @@ juce::String ScriptingObjects::ScriptingSamplerSound::getDebugValue() const
 
 hise::DebugInformation* ScriptingObjects::ScriptingSamplerSound::getChildElement(int index)
 {
-	ModulatorSamplerSound::Ptr other = sound;
+	std::function<var()> av;
 
-	auto id = sampleIds[index];
+	Identifier id;
 
-	auto av = [other, id]()
+	if (isPositiveAndBelow(index, sampleIds.size()))
 	{
-		if (other != nullptr)
-			return other->getSampleProperty(id);
+		id = sampleIds[index];
+		ModulatorSamplerSound::Ptr other = sound;
 
-		return var();
-	};
+		av = [other, id]()
+		{
+			if (other != nullptr)
+				return other->getSampleProperty(id);
 
+			return var();
+		};
+	}
+	else
+	{
+		id = Identifier("CustomProperties");
+
+		var obj(customObject);
+
+		av = [obj]()
+		{
+			return obj;
+		};
+	}
+		
 	String cid = "%PARENT%.";
 	cid << id;
 
@@ -1986,6 +2006,15 @@ bool ScriptingObjects::ScriptingSamplerSound::refersToSameSample(var otherSample
 
 	reportScriptError("refersToSampleSample: otherSample parameter is not a sample object");
 	RETURN_IF_NO_THROW(false);
+}
+
+juce::var ScriptingObjects::ScriptingSamplerSound::getCustomProperties()
+{
+	if (customObject.isObject())
+		return customObject;
+
+	customObject = var(new DynamicObject());
+	return customObject;
 }
 
 hise::ModulatorSampler* ScriptingObjects::ScriptingSamplerSound::getSampler() const

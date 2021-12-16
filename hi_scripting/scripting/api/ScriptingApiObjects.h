@@ -999,7 +999,7 @@ namespace ScriptingObjects
 		String getDebugName() const override { return "Sample"; };
 		String getDebugValue() const override;
 
-		int getNumChildElements() const override { return (int)ModulatorSamplerSound::Property::numProperties; }
+		int getNumChildElements() const override { return (int)sampleIds.size() + (int)customObject.isObject(); }
 
 		DebugInformation* getChildElement(int index) override;
 
@@ -1049,9 +1049,14 @@ namespace ScriptingObjects
 		/** Checks if the otherSample object refers to the same sample as this. */
 		bool refersToSameSample(var otherSample);
 
+		/** Returns an object that can hold additional properties. */
+		var getCustomProperties();
+
 		// ============================================================================================================
 
 	private:
+
+		var customObject;
 
 		ModulatorSampler* getSampler() const;
 
