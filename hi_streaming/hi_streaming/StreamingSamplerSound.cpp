@@ -58,7 +58,7 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad, Strea
 	setPreloadSize(0);
 }
 
-StreamingSamplerSound::StreamingSamplerSound(MonolithInfoToUse::Ptr info, int channelIndex, int sampleIndex) :
+StreamingSamplerSound::StreamingSamplerSound(HlacMonolithInfo::Ptr info, int channelIndex, int sampleIndex) :
 	fileReader(this, nullptr),
 	sampleRate(-1.0),
 	purged(false),
@@ -1059,11 +1059,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 
 		if (monolithicInfo != nullptr)
 		{
-#if USE_FALLBACK_READERS_FOR_MONOLITH
-			normalReader = monolithicInfo->createFallbackReader(monolithicIndex, monolithicChannelIndex);
-#else
-			normalReader = monolithicInfo->createMonolithicReader(monolithicIndex, monolithicChannelIndex);
-#endif
+			normalReader = monolithicInfo->createReader(monolithicIndex, monolithicChannelIndex);
 
 			if (normalReader != nullptr)
 				stereo = normalReader->numChannels > 1;
@@ -1232,7 +1228,7 @@ float StreamingSamplerSound::FileReader::calculatePeakValue()
 AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForPreview()
 {
 	if (monolithicInfo != nullptr)
-		return monolithicInfo->createThumbnailReader(monolithicIndex, monolithicChannelIndex);
+		return monolithicInfo->createUserInterfaceReader(monolithicIndex, monolithicChannelIndex);
 	else
 		return pool->afm.createReaderFor(loadedFile);
 }
@@ -1269,16 +1265,15 @@ juce::AudioFormatWriter* StreamingSamplerSound::FileReader::createWriterWithSame
 	return nullptr;
 }
 
-void StreamingSamplerSound::FileReader::setMonolithicInfo(MonolithInfoToUse::Ptr info, int channelIndex, int sampleIndex)
+void StreamingSamplerSound::FileReader::setMonolithicInfo(HlacMonolithInfo::Ptr info, int channelIndex, int sampleIndex)
 {
 	monolithicInfo = info;
 	monolithicIndex = sampleIndex;
+	monolithicChannelIndex = channelIndex;
 	missing = (sampleIndex == -1);
 	monolithicName = info->getFileName(channelIndex, sampleIndex);
 
 	hashCode = monolithicName.hashCode64();
-
-	monolithicChannelIndex = channelIndex;
 }
 
 } // namespace hise

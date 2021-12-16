@@ -109,9 +109,6 @@ void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData,
 		{
 			int multimicIndex = isMultiMicSound ? sampleData.getParent().indexOf(sampleData) : 0;
 
-			if (sampleData.hasProperty("MonolithSplitIndex"))
-				multimicIndex = (int)sampleData.getProperty("MonolithSplitIndex");
-
 			soundArray.add(new StreamingSamplerSound(hmaf, multimicIndex, getId()));
 		}
 		else
@@ -967,7 +964,7 @@ HlacMonolithInfo::Ptr ModulatorSamplerSoundPool::loadMonolithicData(const ValueT
 
 	clearUnreferencedMonoliths();
 	
-	loadedMonoliths.add(new MonolithInfoToUse(monolithicFiles));
+	loadedMonoliths.add(new HlacMonolithInfo(monolithicFiles));
 
 	auto hmaf = loadedMonoliths.getLast();
 

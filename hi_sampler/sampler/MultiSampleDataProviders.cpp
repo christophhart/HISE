@@ -154,9 +154,7 @@ hise::MultiChannelAudioBuffer::SampleReference::Ptr XYZSampleMapProvider::Monoli
 
 				auto sampleRange = realRanges[i];
 
-				ScopedPointer<AudioFormatReader> afs = hmToUse->createFallbackReader(i, 0);
-
-
+				ScopedPointer<AudioFormatReader> afs = hmToUse->createReader(i, 0);
 
 				if (afs != nullptr)
 				{

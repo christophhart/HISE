@@ -32,187 +32,393 @@
 
 namespace hise { using namespace juce;
 
-#if USE_OLD_MONOLITH_FORMAT
-
-void HiseMonolithAudioFormat::fillMetadataInfo(const ValueTree &sampleMap)
+String MonolithFileReference::getFileExtensionPrefix()
 {
-	int numChannels = sampleMap.getChild(0).getNumChildren();
-	if (numChannels == 0) numChannels = 1;
+	// Change this for the ultimate HISE customization: Make your own file format!
+	// Just change it here and you have created your own personal file format that
+	// everybody will love! WOW. So much professional!
+	return String("ch");
+}
 
-	multiChannelSampleInformation.reserve(numChannels);
+String MonolithFileReference::getIdFromValueTree(const ValueTree& v)
+{
+	if (v.hasProperty(MonolithIds::MonolithReference))
+		return v[MonolithIds::MonolithReference].toString();
 
-	for (int i = 0; i < numChannels; i++)
+	return v["ID"].toString();
+}
+
+juce::juce_wchar MonolithFileReference::getCharForSplitPart(int partIndex)
+{
+	if (partIndex == -1)
 	{
-		std::vector<SampleInfo> newVector;
-		newVector.reserve(sampleMap.getNumChildren());
-		multiChannelSampleInformation.push_back(newVector);
+		jassertfalse;
+		return 0;
 	}
 
+	return (juce_wchar)jlimit(0, 26, partIndex) + 'a';
+}
 
-	for (int i = 0; i < sampleMap.getNumChildren(); i++)
+int MonolithFileReference::getSplitPartFromChar(juce_wchar splitChar)
+{
+	return (int)splitChar - 'a';
+}
+
+juce::File MonolithFileReference::getFile()
+{
+	jassert(referenceString.isNotEmpty());
+
+	auto path = referenceString.replace("/", "_");
+
+	auto extension = getFileExtensionPrefix();
+
+	if (isMultimic())
 	{
-		ValueTree sample = sampleMap.getChild(i);
+		extension << String(channelIndex + 1);
 
-		if (numChannels == 1)
+		if (useSplitIndex())
+			extension << getCharForSplitPart(partIndex);
+	}
+	else if (useSplitIndex())
+	{
+		extension << String(partIndex + 1);	
+	}
+	else
+		extension << String(1);
+
+	for (const auto& f : sampleRoots)
+	{
+		auto mf = f.getChildFile(path).withFileExtension(extension);
+
+		if (!mf.existsAsFile())
 		{
-			SampleInfo info;
-
-			info.start = sample.getProperty("MonolithOffset");
-			info.length = sample.getProperty("MonolithLength");
-			info.sampleRate = sample.getProperty("SampleRate");
-			info.fileName = sample.getProperty("FileName");
-
-			multiChannelSampleInformation[0].push_back(info);
+			if(fileNotFoundBehaviour == FileNotFoundBehaviour::ThrowException)
+				throw Result::fail(f.getFullPathName() + " can't be found");
 		}
-		else
-		{
-			for (int channel = 0; channel < numChannels; channel++)
-			{
-				SampleInfo info;
 
-				info.start = sample.getProperty("MonolithOffset");
-				info.length = sample.getProperty("MonolithLength");
-				info.sampleRate = sample.getProperty("SampleRate");
-				info.fileName = sample.getChild(channel).getProperty("FileName");
-
-				multiChannelSampleInformation[channel].push_back(info);
-			}
-		}
+		return mf;
 	}
 
-	for (int i = 0; i < numChannels; i++)
+	return File();
+}
+
+Array<juce::File> MonolithFileReference::getAllFiles()
+{
+	channelIndex = 0;
+	partIndex = 0;
+	
+	Array<File> filesToLoad;
+
+	filesToLoad.addIfNotAlreadyThere(getFile());
+
+	while (bumpToNextMonolith(true))
 	{
-		dummyReader.numChannels = isMonoChannel[i] ? 1 : 2;
-		dummyReader.sampleRate = multiChannelSampleInformation[i][0].sampleRate;
+		filesToLoad.addIfNotAlreadyThere(getFile());
+	}
 
-		const int bytesPerFrame = sizeof(int16) * dummyReader.numChannels;
-		FileInputStream fis(monolithicFiles[i]);
-		dummyReader.lengthInSamples = (fis.getTotalLength() - 1) / bytesPerFrame;
+	int numExpected = numChannels * jmax(1, numParts);
+	jassert(filesToLoad.size() == numExpected);
 
-		ScopedPointer<MonolithAudioFormatReader> reader = new MonolithAudioFormatReader(monolithicFiles[i], dummyReader, 1, fis.getTotalLength() - 1, isMonoChannel[i]);
-		
-#if !USE_FALLBACK_READERS_FOR_MONOLITH
-		reader->mapEntireFile();
+	return filesToLoad;
+}
 
-		memoryReaders.add(reader.release());
-
-		if (memoryReaders.getLast()->getMappedSection().isEmpty())
+bool MonolithFileReference::bumpToNextMonolith(bool allowChannelBump)
+{
+	if (useSplitIndex())
+	{
+		if (isPositiveAndBelow(partIndex, numParts-1))
 		{
-			jassertfalse;
-			throw StreamingSamplerSound::LoadingError(monolithicFiles[i].getFileName(), "Error at memory mapping");
+			partIndex++;
+			return true;
 		}
+
+		if (!isMultimic() || !allowChannelBump)
+			return false;
+
+		partIndex = 0;
+	}
+	
+	if (!allowChannelBump)
+		return false;
+
+	if (isPositiveAndBelow(channelIndex, numChannels - 1))
+	{
+		channelIndex++;
+		return true;
+	}
+
+	return false;
+}
+
+void MonolithFileReference::setNumSplitPartsToCurrentIndex()
+{
+	jassert(numParts == INT_MAX);
+
+	if (partIndex == 0)
+		numParts = 0;
+	else
+		numParts = partIndex + 1;
+}
+
+MonolithFileReference::MonolithFileReference(const File& monolithFile, int numChannels_, int numParts_):
+	numChannels(numChannels_),
+	numParts(numParts_)
+{
+	auto extension = monolithFile.getFileExtension().substring(1);
+	jassert(extension.startsWith(getFileExtensionPrefix()));
+
+	sampleRoots.add(monolithFile.getParentDirectory());
+	referenceString = monolithFile.getFileNameWithoutExtension();
+
+	if(isMultimic())
+		channelIndex = jlimit(0, 15, extension.fromFirstOccurrenceOf(getFileExtensionPrefix(), false, false).getIntValue() - 1);
+
+	if (useSplitIndex())
+	{
+		auto lastChar = extension.getLastCharacter();
+
+		jassert(CharacterFunctions::isLetter(lastChar));
+		partIndex = getSplitPartFromChar(lastChar);
+	}
+}
+
+MonolithFileReference::MonolithFileReference(int numChannels_, int numParts_) : 
+	numChannels(jmax(1, numChannels_)), 
+	numParts(numParts_)
+{
+
+}
+
+MonolithFileReference::MonolithFileReference(const ValueTree& v)
+{
+	numChannels = jmax(1, v.getChild(0).getNumChildren());
+	numParts = v.getProperty(MonolithIds::MonolithSplitAmount, 0);
+	referenceString = getIdFromValueTree(v);
+}
+
+HlacMonolithInfo::HlacMonolithInfo(const Array<File>& monolithicFiles_)
+{
+	id = monolithicFiles_.getFirst().getFileNameWithoutExtension().replaceCharacter('_', '/');
+	monolithicFiles.reserve(monolithicFiles_.size());
+
+	for (int i = 0; i < monolithicFiles_.size(); i++)
+	{
+		monolithicFiles.push_back(monolithicFiles_[i]);
+
+#if USE_FALLBACK_READERS_FOR_MONOLITH
+		ScopedPointer<FileInputStream> fallbackStream = new FileInputStream(monolithicFiles_[i]);
+		fallbackReaders.add(new hlac::HiseLosslessAudioFormatReader(fallbackStream.release()));
 #endif
 	}
 }
 
-#else
+HlacMonolithInfo::~HlacMonolithInfo()
+{
+	memoryReaders.clear();
+	fallbackReaders.clear();
+}
+
+bool HlacMonolithInfo::operator==(const Identifier& sampleMapId) const
+{
+	auto first = sampleMapId.toString().replaceCharacter('/', '_');
+	auto second = id.toString().replaceCharacter('/', '_');
+	return first == second;
+}
 
 void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 {
-	int numChannels = sampleMap.getChild(0).getNumChildren();
-	if (numChannels == 0) numChannels = 1;
+	numChannels = sampleMap.getChild(0).getNumChildren();
+	
+	if (numChannels == 0) 
+		numChannels = 1;
 
-	int numSplitFiles = (int)sampleMap.getProperty("MonolithSplitAmount", 0);
+	numSplitFiles = (int)sampleMap.getProperty(MonolithIds::MonolithSplitAmount, 0);
 
-	numChannels = jmax(numSplitFiles, numChannels);
+	jassert(monolithicFiles.size() == (jmax(1, numSplitFiles) * numChannels));
 
-	multiChannelSampleInformation.reserve(numChannels);
+	sampleInfo.reserve(sampleMap.getNumChildren());
 
-	for (int i = 0; i < numChannels; i++)
+	for (const auto& sample: sampleMap)
 	{
-		std::vector<SampleInfo> newVector;
-		newVector.reserve(sampleMap.getNumChildren());
-		multiChannelSampleInformation.push_back(newVector);
-	}
-
-
-	for (int i = 0; i < sampleMap.getNumChildren(); i++)
-	{
-		ValueTree sample = sampleMap.getChild(i);
-
-		if (!sample.hasProperty("MonolithLength") || !sample.hasProperty("MonolithOffset"))
+		if (!sample.hasProperty(MonolithIds::MonolithLength) || !sample.hasProperty(MonolithIds::MonolithOffset))
 		{
 			throw StreamingSamplerSound::LoadingError(sample.getProperty("FileName").toString(), "\nhas no monolith metadata (probably an export error)");
 		}
 
+		SampleInfo info;
+
+		info.splitIndex = sample.getProperty(MonolithIds::MonolithSplitIndex, 0);
+		info.start = sample.getProperty(MonolithIds::MonolithOffset);
+		info.length = sample.getProperty(MonolithIds::MonolithLength);
+		info.sampleRate = sample.getProperty("SampleRate");
+		
+		int splitIndex = sample.getProperty(MonolithIds::MonolithSplitIndex, 0);
+
 		if (numChannels == 1)
 		{
-			SampleInfo info;
-
-			info.start = sample.getProperty("MonolithOffset");
-			info.length = sample.getProperty("MonolithLength");
-			info.sampleRate = sample.getProperty("SampleRate");
-			info.fileName = sample.getProperty("FileName");
-
-			int splitIndex = sample.getProperty("MonolithSplitIndex", 0);
-
-			multiChannelSampleInformation[splitIndex].push_back(info);
+			info.fileNames.add(sample.getProperty(MonolithIds::FileName));
 		}
 		else
 		{
 			for (int channel = 0; channel < numChannels; channel++)
-			{
-				SampleInfo info;
-
-				info.start = sample.getProperty("MonolithOffset");
-				info.length = sample.getProperty("MonolithLength");
-				info.sampleRate = sample.getProperty("SampleRate");
-				info.fileName = sample.getChild(channel).getProperty("FileName");
-
-				multiChannelSampleInformation[channel].push_back(info);
-			}
+				info.fileNames.add(sample.getChild(channel).getProperty(MonolithIds::FileName));
 		}
+
+		sampleInfo.push_back(info);
 	}
 
-	for (size_t i = 0; i < (size_t)numChannels; i++)
+	for (auto& mf: monolithicFiles)
 	{
-		dummyReader.numChannels = isMonoChannel[i] ? 1 : 2;
-        
-        if(multiChannelSampleInformation.size() < i)
+        if(mf.getSize() == 0)
         {
             jassertfalse;
-            dummyReader.sampleRate = 44100.0;
+            throw StreamingSamplerSound::LoadingError(mf.getFileName(), "File is corrupt");
         }
-        else if(multiChannelSampleInformation[i].size() <= 0)
-        {
-            jassertfalse;
-            dummyReader.sampleRate = 44100.0;
-        }
-        else
-            dummyReader.sampleRate = multiChannelSampleInformation[i][0].sampleRate;
 
-		const int bytesPerFrame = sizeof(int16) * dummyReader.numChannels;
-		FileInputStream fis(monolithicFiles[i]);
-        
-        if(fis.getTotalLength() == 0)
-        {
-            jassertfalse;
-            throw StreamingSamplerSound::LoadingError(monolithicFiles[i].getFileName(), "File is corrupt");
-        }
-        
-        
-		dummyReader.lengthInSamples = (fis.getTotalLength() - 1) / bytesPerFrame;
-
-		ScopedPointer<MemoryMappedAudioFormatReader> reader = hlaf.createMemoryMappedReader(monolithicFiles[i]);
-
-		
+		ScopedPointer<MemoryMappedAudioFormatReader> reader = hlaf.createMemoryMappedReader(mf);
 
 #if !USE_FALLBACK_READERS_FOR_MONOLITH
 		reader->mapEntireFile();
 
 		memoryReaders.add(dynamic_cast<hlac::HlacMemoryMappedAudioFormatReader*>(reader.release()));
-
 		memoryReaders.getLast()->setTargetAudioDataType(AudioDataConverters::DataFormat::int16BE);
 
 		if (memoryReaders.getLast()->getMappedSection().isEmpty())
 		{
 			jassertfalse;
-			throw StreamingSamplerSound::LoadingError(monolithicFiles[i].getFileName(), "Error at memory mapping");
+			throw StreamingSamplerSound::LoadingError(mf.getFileName(), "Error at memory mapping");
 		}
 #endif
 	}
 }
 
+
+String HlacMonolithInfo::getFileName(int channelIndex, int sampleIndex) const
+{
+	return sampleInfo[sampleIndex].fileNames[channelIndex];
+}
+
+juce::int64 HlacMonolithInfo::getMonolithOffset(int sampleIndex) const
+{
+	return sampleInfo[sampleIndex].start;
+}
+
+int HlacMonolithInfo::getNumSamplesInMonolith() const
+{
+	return (int)sampleInfo.size();
+}
+
+juce::int64 HlacMonolithInfo::getMonolithLength(int sampleIndex) const
+{
+	return (int64)jmax<int>(0, (int)sampleInfo[sampleIndex].length);
+}
+
+double HlacMonolithInfo::getMonolithSampleRate(int sampleIndex) const
+{
+	return sampleInfo[sampleIndex].sampleRate;
+}
+
+juce::AudioFormatReader* HlacMonolithInfo::createReader(int sampleIndex, int channelIndex)
+{
+#if USE_FALLBACK_READERS_FOR_MONOLITH
+	return createFallbackReader(sampleIndex, channelIndex);
+#else
+	return createMonolithicReader(sampleIndex, channelIndex);
 #endif
+}
+
+int HlacMonolithInfo::getFileIndex(int channelIndex, int sampleIndex) const
+{
+	if (numSplitFiles == 0)
+	{
+		jassert(isPositiveAndBelow(channelIndex, monolithicFiles.size()));
+		return channelIndex;
+	}
+	else
+	{
+		auto splitIndex = sampleInfo[sampleIndex].splitIndex;
+
+		auto fileIndex = channelIndex * numSplitFiles + splitIndex;
+		jassert(isPositiveAndBelow(fileIndex, monolithicFiles.size()));
+		return fileIndex;
+	}
+}
+
+juce::File HlacMonolithInfo::getFile(int channelIndex, int sampleIndex) const
+{
+	auto fileIndex = getFileIndex(channelIndex, sampleIndex);
+	return monolithicFiles[fileIndex];
+}
+
+juce::AudioFormatReader* HlacMonolithInfo::createUserInterfaceReader(int sampleIndex, int channelIndex)
+{
+	if (isPositiveAndBelow(sampleIndex, sampleInfo.size()))
+	{
+		const auto& info = sampleInfo[sampleIndex];
+
+		const int64 start = info.start;
+		const int64 length = info.length;
+
+		auto mf = getFile(channelIndex, sampleIndex);
+
+		if (mf.existsAsFile())
+		{
+			ScopedPointer<FileInputStream> fallbackStream = new FileInputStream(mf);
+			ScopedPointer<hlac::HiseLosslessAudioFormatReader> thumbnailReader = new hlac::HiseLosslessAudioFormatReader(fallbackStream.release());
+
+			thumbnailReader->setTargetAudioDataType(AudioDataConverters::float32BE);
+			thumbnailReader->sampleRate = info.sampleRate;
+			return new AudioSubsectionReader(thumbnailReader.release(), start, length, true);
+		}
+	}
+
+	return nullptr;
+}
+
+juce::AudioFormatReader* HlacMonolithInfo::createMonolithicReader(int sampleIndex, int channelIndex)
+{
+	if (isPositiveAndBelow(sampleIndex, sampleInfo.size()))
+	{
+		const auto& info = sampleInfo[sampleIndex];
+
+		const int64 start = info.start;
+		const int64 length = info.length;
+
+		auto fileIndex = getFileIndex(channelIndex, sampleIndex);
+
+		if (memoryReaders[fileIndex] != nullptr)
+		{
+			return new hlac::HlacSubSectionReader(memoryReaders[fileIndex], start, length);
+		}
+		else
+			return nullptr;
+	}
+
+	return nullptr;
+}
+
+juce::AudioFormatReader* HlacMonolithInfo::createFallbackReader(int sampleIndex, int channelIndex)
+{
+	if (isPositiveAndBelow(sampleIndex, sampleInfo.size()))
+	{
+		const auto& info = sampleInfo[sampleIndex];
+
+		const int64 start = info.start;
+		const int64 length = info.length;
+
+		auto fileIndex = getFileIndex(channelIndex, sampleIndex);
+		fallbackReaders[fileIndex]->sampleRate = info.sampleRate;
+
+		return new hlac::HlacSubSectionReader(fallbackReaders[fileIndex], start, length);
+	}
+
+	return nullptr;
+}
+
+
+
+
+
+
 
 } // namespace hise

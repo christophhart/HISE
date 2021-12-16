@@ -85,7 +85,7 @@ public:
 	StreamingSamplerSound(const String &fileNameToLoad, StreamingSamplerSoundPool *pool);
 
 	/** Creates a new StreamingSamplerSound from a monolithic file. */
-	StreamingSamplerSound(MonolithInfoToUse::Ptr info, int channelIndex, int sampleIndex);
+	StreamingSamplerSound(HlacMonolithInfo::Ptr info, int channelIndex, int sampleIndex);
 
 	~StreamingSamplerSound();
 
@@ -307,7 +307,7 @@ private:
 		// ==============================================================================================================================================
 
 		void setFile(const String &fileName);
-		void setMonolithicInfo(MonolithInfoToUse::Ptr info, int channelIndex, int sampleIndex);
+		void setMonolithicInfo(HlacMonolithInfo::Ptr info, int channelIndex, int sampleIndex);
 
 		String getFileName(bool getFullPath);
 		void checkFileReference();
@@ -402,7 +402,7 @@ private:
 
 		StreamingSamplerSoundPool *pool;
 
-		ReferenceCountedObjectPtr<MonolithInfoToUse> monolithicInfo = nullptr;
+		HlacMonolithInfo::Ptr monolithicInfo;
 		int monolithicIndex = -1;
 		int monolithicChannelIndex = -1;
 		String monolithicName;

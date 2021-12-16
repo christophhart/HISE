@@ -863,7 +863,7 @@ private:
 
 	AsyncCleaner asyncCleaner;
 
-	ReferenceCountedArray<MonolithInfoToUse> loadedMonoliths;
+	ReferenceCountedArray<HlacMonolithInfo> loadedMonoliths;
 
 	int getSoundIndexFromPool(int64 hashCode);
 

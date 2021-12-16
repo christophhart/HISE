@@ -535,24 +535,24 @@ protected:
 
 private:
 
-	struct SplitMonolithData
-	{
-		int index;
-		File lastSample;
-	};
-
-	Array<SplitMonolithData> splitData;
+	Array<int> splitIndexes;
 
 	AudioFormatWriter* createWriter(hlac::HiseLosslessAudioFormat& hlaf, const File& f, bool isMono);
 
 	/** The max monolith size is 2GB - 60MB (to guarantee to stay below 2GB for FAT32. */
-	constexpr static int maxMonolithSize = 2084569088;
+	//constexpr static int maxMonolithSize = 2084569088;
+
+	uint32 getNumBytesForSplitSize() const;
 
 	void checkSanity();
 
+	File getNextMonolith(const File& f) const;
 
 	/** Writes the files and updates the samplemap with the information. */
 	void writeFiles(int channelIndex, bool overwriteExistingData);
+
+	/** Checks whether the monolith needs to be split up. */
+	bool shouldSplit(int channelIndex, int numBytesWritten, int sampleIndex) const;
 
 	void updateSampleMap();
 
@@ -567,7 +567,10 @@ private:
 	int numSamples;
 	File sampleMapDirectory;
 	
-	
+	ScopedPointer<MonolithFileReference> monolithFileReference;
+
+
+	int numMonolithSplitParts = -1;
 
 	String error;
 };

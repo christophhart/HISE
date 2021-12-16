@@ -617,30 +617,34 @@ Array<File> SampleDataExporter::collectMonoliths()
 	Array<File> sampleMonoliths;
 	auto expName = getExpansionName();
 
+	FileHandlerBase* handler = &getMainController()->getCurrentFileHandler();
+
 	if (expName.isNotEmpty())
 	{
-		StringArray validIds;
-
 		if (auto e = getMainController()->getExpansionHandler().getExpansionFromName(expName))
-		{
-			auto& smPool = e->pool->getSampleMapPool();
-			
-			auto f = e->getSubDirectory(FileHandlerBase::Samples);
-			//f.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
-
-			for (auto& id : smPool.getIdList())
-			{
-				auto hlacFileName = id.fromLastOccurrenceOf("}", false, false).replaceCharacter('/', '_');
-
-				f.findChildFiles(sampleMonoliths, File::findFiles, false, hlacFileName + ".*");
-
-			}
-		}
+			handler = e;
 	}
-	else
+
+	auto& smPool = handler->pool->getSampleMapPool();
+	auto sampleDirectory = handler->getSubDirectory(FileHandlerBase::Samples);
+
+	for (int i = 0; i < smPool.getNumLoadedFiles(); i++)
 	{
-		File sampleDirectory = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
-		sampleDirectory.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
+		auto entry = smPool.loadFromReference(smPool.getReference(i), PoolHelpers::DontCreateNewEntry);
+
+		MonolithFileReference mref(entry->data);
+		mref.addSampleDirectory(sampleDirectory);
+
+		try
+		{
+			for (auto f : mref.getAllFiles())
+				sampleMonoliths.addIfNotAlreadyThere(f);
+		}
+		catch (Result& r)
+		{
+			criticalErrorOccured(r.getErrorMessage());
+			return {};
+		}
 	}
 
 	sampleMonoliths.sort();
