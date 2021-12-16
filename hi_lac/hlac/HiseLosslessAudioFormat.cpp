@@ -215,10 +215,16 @@ void HiseLosslessHeader::readMetadataFromStream(InputStream* input)
 
 			blockOffsets.malloc(blockAmount);
 
+			auto numBytesToRead = sizeof(uint32) * blockAmount;
+
+			input->read(blockOffsets, numBytesToRead);
+
+#if 0
 			for (uint32 i = 0; i < blockAmount; i++)
 			{
 				blockOffsets[i] = (uint32)input->readInt();
 			}
+#endif
 		}
 	}
 
