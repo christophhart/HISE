@@ -62,7 +62,6 @@ struct XYZSampleMapProvider : public MultiChannelAudioBuffer::XYZProviderBase,
 		hise::HlacMonolithInfo::Ptr hmToUse;
 		WeakReference<XYZSampleMapProvider> parent;
 		ValueTree sampleMap;
-		Array<Range<int>> realRanges;
 	};
 
 	struct FileBasedDataProvider : public MultiChannelAudioBuffer::DataProvider

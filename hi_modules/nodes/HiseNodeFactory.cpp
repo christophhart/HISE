@@ -191,12 +191,12 @@ struct granulator: public data::base
 		AudioDataType grainData;
 	};
 
-
-
 	// Reset the processing pipeline here
 	void reset()
 	{
-
+		voiceCounter = 0;
+		voices.clear();
+		activeEvents.clear();
 	}
 
 	bool isXYZ() const
@@ -216,7 +216,7 @@ struct granulator: public data::base
 			auto delta = ((Math.randomDouble() - 0.5) * (double)timeBetweenGrains * 0.3);
 			timeOfLastGrainStart = uptime + delta;
 
-			double thisPitch = pitchRatio * 44100.0 / sampleRate;
+			double thisPitch = pitchRatio * sourceSampleRate / sampleRate;
 			auto thisGain = 1.0f;
 
 			StereoSample nextSample;
@@ -308,24 +308,48 @@ struct granulator: public data::base
 
 	void handleHiseEvent(HiseEvent& e)
 	{
+		if (e.isController())
+		{
+			if (e.getControllerNumber() == 64)
+			{
+				pedal = e.getControllerValue() > 64;
+
+				if (!pedal)
+				{
+					for (auto& dl : delayedNoteOffs)
+						handleHiseEvent(dl);
+
+					delayedNoteOffs.clear();
+				}
+			}
+		}
+
+		if (e.isAllNotesOff())
+		{
+			reset();
+		}
+
 		if (e.isNoteOn())
 		{
 			voices[voiceCounter] = e;
 			voiceCounter = Math.min(voices.size()-1, voiceCounter + 1);
 		}
-		else
+		else if (e.isNoteOff())
 		{
 			for (auto& v : voices)
 			{
 				if (v.getEventId() == e.getEventId())
 				{
-					voiceCounter = Math.max(0, voiceCounter - 1);
-
-					v = voices[voiceCounter];
-
-					voices[voiceCounter].clear();
-
-					break;
+					if (pedal)
+					{
+						delayedNoteOffs.insert(e);
+					}
+					else
+					{
+						voiceCounter = Math.max(0, voiceCounter - 1);
+						v = voices[voiceCounter];
+						voices[voiceCounter].clear();
+					}
 				}
 			}
 		}
@@ -339,7 +363,7 @@ struct granulator: public data::base
 	void updateGrainLength()
 	{
 		grainLengthSamples = grainLength * 0.001 * sampleRate;
-		timeBetweenGrains = (int)(grainLengthSamples * pitchRatio * (1.0 - density)) / 2;
+		timeBetweenGrains = (int)(grainLengthSamples * (1.0 / pitchRatio) * (1.0 - density)) / 2;
 
 		timeBetweenGrains = jmax(400, timeBetweenGrains);
 
@@ -354,7 +378,8 @@ struct granulator: public data::base
 
 		ed = d;
 
-
+		if (d.sampleRate != 0.0)
+			sourceSampleRate = d.sampleRate;
 
 		//d.referBlockTo(audioData[0], 0);
 		//d.referBlockTo(audioData[1], 1);
@@ -489,14 +514,20 @@ struct granulator: public data::base
 	double sampleFrequency = 440.0;
 	double pitchRatio = 1.0;
 	double sampleRate = 44100.0;
+	double sourceSampleRate = 44100.0;
 
 	double density = 1.0;
 	double detune = 0.0;
 	float spread = 0.0f;
 
+	bool pedal = false;
+
 	span<HiseEvent, 8> voices;
 	int voiceCounter = 0;
 	dyn<HiseEvent> activeEvents;
+
+	UnorderedStack<HiseEvent, 8> delayedNoteOffs;
+
 	int eventIndex = 0;
 
 	float maxGainInGrain = 1.0f;

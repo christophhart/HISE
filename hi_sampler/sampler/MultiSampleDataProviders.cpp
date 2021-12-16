@@ -103,41 +103,19 @@ XYZSampleMapProvider::MonolithDataProvider::MonolithDataProvider(XYZSampleMapPro
 	auto pool = p->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
 	auto id = sampleMap[SampleIds::ID].toString();
 
-	int numMicPositions = jmax(1, sampleMap.getChild(0).getNumChildren());
-
 	hmToUse = pool->getMonolith(id);
 
 	if (hmToUse == nullptr)
 	{
-		Array<File> files;
-		auto sampleRoot = p->getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Samples);
+		MonolithFileReference info(sampleMap_);
 
-		for (int i = 0; i < numMicPositions; i++)
-		{
-			String extension = "ch";
-			extension << String(i + 1);
-			files.add(sampleRoot.getChildFile(id).withFileExtension(extension));
-		}
+		info.addSampleDirectory(p->getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Samples));
+
+		auto files = info.getAllFiles();
 
 		hmToUse = pool->loadMonolithicData(sampleMap, files);
 
 		int numSamples = hmToUse->getNumSamplesInMonolith();
-		realRanges.insertMultiple(0, {}, numSamples);
-
-		for (int i = 0; i < numSamples; i++)
-		{
-			auto offset = hmToUse->getMonolithOffset(i);
-
-			for (const auto& s : sampleMap)
-			{
-				if ((int)s["MonolithOffset"] == offset)
-				{
-					auto r = Range<int>(s[SampleIds::SampleStart], s[SampleIds::SampleEnd]);
-					realRanges.set(i, r);
-					break;
-				}
-			}
-		}
 	}
 }
 
@@ -152,12 +130,14 @@ hise::MultiChannelAudioBuffer::SampleReference::Ptr XYZSampleMapProvider::Monoli
 				auto lr = new MultiChannelAudioBuffer::SampleReference();
 				lr->sampleRate = hmToUse->getMonolithSampleRate(i);
 
-				auto sampleRange = realRanges[i];
-
-				ScopedPointer<AudioFormatReader> afs = hmToUse->createReader(i, 0);
+				ScopedPointer<AudioFormatReader> afs = hmToUse->createUserInterfaceReader(i, 0);
 
 				if (afs != nullptr)
 				{
+					auto s = sampleMap.getChild(i);
+
+					Range<int> sampleRange((int)s[SampleIds::SampleStart], (int)s[SampleIds::SampleEnd]);
+
 					if (sampleRange.isEmpty())
 						sampleRange = Range<int>(0, (int)afs->lengthInSamples);
 

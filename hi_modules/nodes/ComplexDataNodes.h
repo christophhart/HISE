@@ -118,9 +118,6 @@ template <int NV> struct file_player : public data::base
 
 	void setExternalData(const snex::ExternalData& d, int index) override
 	{
-		if (auto b = dynamic_cast<MultiChannelAudioBuffer*>(d.obj))
-			b->setDisabledXYZProviders({ scriptnode::data::XYZSampleMapProvider::getStaticId(), scriptnode::data::XYZSFZProvider::getStaticId() });
-
 		base::setExternalData(d, index);
 
 		if(lastSpecs)
@@ -295,8 +292,9 @@ template <int NV> struct file_player : public data::base
 
 				if (this->externalData.getStereoSample(cd, e))
 					s.uptimeDelta = cd.getPitchFactor();
+				else
+					s.uptimeDelta = e.getFrequency() / rootFreq;
 
-				s.uptimeDelta = e.getFrequency() / rootFreq;
 				s.uptime = 0.0;
 			}
 		}
