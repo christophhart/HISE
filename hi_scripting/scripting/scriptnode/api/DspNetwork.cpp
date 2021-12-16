@@ -419,6 +419,8 @@ void DspNetwork::registerOwnedFactory(NodeFactory* ownedFactory)
 
 void DspNetwork::reset()
 {
+	SimpleReadWriteLock::ScopedWriteLock sl(getConnectionLock());
+	
 	if (projectNodeHolder.isActive())
 		projectNodeHolder.n.reset();
 	else

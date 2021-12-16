@@ -711,6 +711,8 @@ public:
 		getCurrentNetworkParameterHandler(&contentParameterHandler)->setParameter(index, newValue);
 	}
 
+	void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler) noexcept override;
+
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
 		return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameterId(parameterIndex);

@@ -784,6 +784,19 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 	}
 }
 
+void JavascriptMasterEffect::setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler) noexcept
+{
+	MasterEffectProcessor::setBypassed(shouldBeBypassed, notifyChangeHandler);
+
+	if (!shouldBeBypassed)
+	{
+		if (auto n = getActiveNetwork())
+		{
+			n->reset();
+		}
+	}
+}
+
 JavascriptVoiceStartModulator::JavascriptVoiceStartModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m) :
 JavascriptProcessor(mc),
 ProcessorWithScriptingContent(mc),
