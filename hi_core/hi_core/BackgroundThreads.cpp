@@ -633,12 +633,16 @@ Array<File> SampleDataExporter::collectMonoliths()
 		auto entry = smPool.loadFromReference(smPool.getReference(i), PoolHelpers::DontCreateNewEntry);
 
 		MonolithFileReference mref(entry->data);
+		mref.setFileNotFoundBehaviour(MonolithFileReference::FileNotFoundBehaviour::DoNothing);
 		mref.addSampleDirectory(sampleDirectory);
 
 		try
 		{
 			for (auto f : mref.getAllFiles())
-				sampleMonoliths.addIfNotAlreadyThere(f);
+			{
+				if(f.existsAsFile())
+					sampleMonoliths.addIfNotAlreadyThere(f);
+			}
 		}
 		catch (Result& r)
 		{
