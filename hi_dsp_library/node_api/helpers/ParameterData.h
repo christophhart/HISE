@@ -60,7 +60,7 @@ struct InvertableParameterRange
 		inv(false)
 	{};
 
-	double convertFrom0to1(double input) const;
+	double convertFrom0to1(double input, bool applyInversion) const;
 
 	InvertableParameterRange inverted() const
 	{
@@ -69,7 +69,7 @@ struct InvertableParameterRange
 		return copy;
 	}
 
-	double convertTo0to1(double input) const;
+	double convertTo0to1(double input, bool applyInversion) const;
 
 	Range<double> getRange() const
 	{

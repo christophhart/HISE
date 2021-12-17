@@ -160,7 +160,7 @@ namespace parameter
 
 		if (auto p = cloneTargets[index])
 		{
-			v = p->getRange().convertFrom0to1(v);
+			v = p->getRange().convertFrom0to1(v, true);
 			p->call(v);
 		}
 	}

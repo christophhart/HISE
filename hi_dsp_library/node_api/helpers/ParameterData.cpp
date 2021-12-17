@@ -85,10 +85,18 @@ juce::Array<juce::Identifier> RangeHelpers::getRangeIds(bool includeValue)
 
 bool RangeHelpers::isInverted(const ValueTree& v)
 {
-	if (!v.isValid())
+    if (!v.isValid())
 		return false;
 
 	using namespace PropertyIds;
+    
+    if (v.getType() == Connection || v.getType() == ModulationTarget)
+    {
+        // this must not happen (the connection does not have a range anymore, but just take the
+        // target's parameter range
+        jassertfalse;
+    }
+    
 	auto max = (double)v[MaxValue];
 	auto min = (double)v[MinValue];
 
@@ -98,6 +106,13 @@ bool RangeHelpers::isInverted(const ValueTree& v)
 void RangeHelpers::storeDoubleRange(ValueTree& d, InvertableParameterRange r, UndoManager* um)
 {
 	using namespace PropertyIds;
+    
+    if (d.getType() == Connection || d.getType() == ModulationTarget)
+    {
+        // this must not happen (the connection does not have a range anymore, but just take the
+        // target's parameter range
+        jassertfalse;
+    }
 
 	d.setProperty(r.inv ? MaxValue : MinValue, r.rng.start, um);
 	d.setProperty(r.inv ? MinValue : MaxValue, r.rng.end, um);
@@ -110,6 +125,9 @@ bool RangeHelpers::equalsWithError(const InvertableParameterRange& r1, const Inv
 	if (isEqual(r1, r2))
 		return true;
 
+    if(r1.inv != r2.inv)
+        return false;
+    
 	auto startError = hmath::abs(r1.getRange().getStart() - r2.getRange().getStart());
 	auto endError = hmath::abs(r1.getRange().getEnd() - r2.getRange().getEnd());
 	auto skewError = hmath::abs(r1.rng.skew - r2.rng.skew);
@@ -127,7 +145,7 @@ scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const ValueTre
 
 	InvertableParameterRange r;
 
-	if (t.getType() == PropertyIds::Connection || t.getType() == PropertyIds::ModulationTarget)
+	if (t.getType() == Connection || t.getType() == ModulationTarget)
 	{
 		// this must not happen (the connection does not have a range anymore, but just take the 
 		// target's parameter range
@@ -390,11 +408,16 @@ InvertableParameterRange::InvertableParameterRange(const ValueTree& v)
 	*this = RangeHelpers::getDoubleRange(v);
 }
 
-double InvertableParameterRange::convertFrom0to1(double input) const
+double InvertableParameterRange::convertFrom0to1(double input, bool applyInversion) const
 {
 	if (isIdentity)
 		return input;
 
+    auto inversionFactor = (double)(int)(applyInversion && inv);
+    
+    // branchless like a pro...
+    input = input * (1.0 - inversionFactor) + (1.0 - input) * inversionFactor;
+    
 	if (rng.skew != 1.0)
 		return ranges::RangeBase<double>::from0To1Skew(rng.start, rng.end, rng.skew, input);
 	else if (rng.interval != 0.0)
@@ -403,17 +426,26 @@ double InvertableParameterRange::convertFrom0to1(double input) const
 		return ranges::RangeBase<double>::from0To1(rng.start, rng.end, input);
 }
 
-double InvertableParameterRange::convertTo0to1(double input) const
+double InvertableParameterRange::convertTo0to1(double input, bool applyInversion) const
 {
 	if (isIdentity)
 		return input;
 
+    double v;
+    
 	if (rng.skew != 1.0)
-		return ranges::RangeBase<double>::to0To1Skew(rng.start, rng.end, rng.skew, input);
+		v = ranges::RangeBase<double>::to0To1Skew(rng.start, rng.end, rng.skew, input);
 	else if (rng.interval != 0.0)
-		return ranges::RangeBase<double>::to0To1Step(rng.start, rng.end, rng.interval, input);
+		v = ranges::RangeBase<double>::to0To1Step(rng.start, rng.end, rng.interval, input);
 	else
-		return ranges::RangeBase<double>::to0To1(rng.start, rng.end, input);
+		v = ranges::RangeBase<double>::to0To1(rng.start, rng.end, input);
+    
+    auto inversionFactor = (double)(int)(applyInversion && inv);
+    
+    // branchless like a pro...
+    v = v * (1.0 - inversionFactor) + (1.0 - v) * inversionFactor;
+    
+    return v;
 }
 
 bool InvertableParameterRange::operator==(const InvertableParameterRange& other) const

@@ -343,8 +343,8 @@ void minmax_editor::rebuildPaths()
     if(lastData.range.rng.getRange().isEmpty())
         return;
     
-	auto maxValue = (float)lastData.range.convertFrom0to1(1.0);
-	auto minValue = (float)lastData.range.convertFrom0to1(0.0);
+	auto maxValue = (float)lastData.range.convertFrom0to1(1.0, false);
+	auto minValue = (float)lastData.range.convertFrom0to1(0.0, false);
 
 	auto vToY = [&](float v)
 	{
@@ -365,7 +365,7 @@ void minmax_editor::rebuildPaths()
 	{
 		float normX = (float)i / (float)getWidth();
 
-		auto v = lastData.range.convertFrom0to1(normX);
+		auto v = lastData.range.convertFrom0to1(normX, false);
 		v = lastData.range.snapToLegalValue(v);
 
 		auto y = vToY((float)v);

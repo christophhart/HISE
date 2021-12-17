@@ -228,7 +228,7 @@ struct ParameterSlider::RangeComponent : public Component,
 		auto r = getRangeArea(true);
 		auto x = p.toFloat().getX();
 
-		if (hmath::abs(x - r.getX()) < 8)
+        if (hmath::abs(x - r.getX()) < 8)
 			return Left;
 		else if (hmath::abs(x - r.getRight()) < 8)
 			return Right;
@@ -279,7 +279,7 @@ struct ParameterSlider::RangeComponent : public Component,
 		d.rng.end = r.getEnd();
 		d.rng.skew = getParent().getSkewFactor();
 		d.rng.interval = getParent().getInterval();
-		d.inv = false;
+		d.inv = RangeHelpers::isInverted(getParent().pTree);
 		return d;
 	}
 
@@ -311,7 +311,7 @@ struct ParameterSlider::RangeComponent : public Component,
 		nr.rng.end = newEnd;
 		nr.rng.interval = s.getInterval();
 		nr.rng.skew = skewToUse;
-		nr.inv = RangeHelpers::isInverted(connectionSource);
+        nr.inv = oldRange.inv;
 
 		setNewRange(nr, updateRange);
 	}
@@ -319,9 +319,10 @@ struct ParameterSlider::RangeComponent : public Component,
 	void setNewValue(const MouseEvent& e)
 	{
 		auto t = getTotalArea();
-		auto nv = jlimit(0.0f, 1.0f, ((float)e.getPosition().getX() - t.getX()) / t.getWidth());
+		auto nv = jlimit(0.0, 1.0, ((double)e.getPosition().getX() - t.getX()) / t.getWidth());
 
-		auto v = getParentRange().convertFrom0to1(nv);
+        auto pRange = getParentRange();
+		auto v = pRange.convertFrom0to1(nv, true);
 		getParent().setValue(v, sendNotification);
 		repaint();
 	}
@@ -333,7 +334,7 @@ struct ParameterSlider::RangeComponent : public Component,
 
 		auto v = getParent().getValueFromText(t.getText());
 
-		r.inv = RangeHelpers::isInverted(connectionSource);
+		r.inv = RangeHelpers::isInverted(getParent().pTree);
 		auto isLeft = currentTextPos == Left;// && !inv) || (Right && inv);
 
 		if (currentTextPos == Inside)
@@ -385,6 +386,8 @@ struct ParameterSlider::RangeComponent : public Component,
 
 		g.setColour(Colours::white.withAlpha(0.3f));
 
+        auto inv = RangeHelpers::isInverted(getParent().pTree);
+        
 		{
 			g.saveState();
 
@@ -398,24 +401,30 @@ struct ParameterSlider::RangeComponent : public Component,
 
 			
 
-			auto inv = connectionSource.isValid() && RangeHelpers::isInverted(connectionSource);
+            
 
 			Path valuePath;
 
 			{
-				auto startValue = (float)d.convertFrom0to1(0.0);
+				auto startValue = (float)d.convertFrom0to1(0.0, false);
 				valuePath.startNewSubPath({ 0.0f, inv ? startValue : 1.0f - startValue});
 				path.startNewSubPath({ 0.0f, inv ? startValue : 1.0f - startValue });
 			}
 			
 			auto modValue = getParent().parameterToControl->getValue();
-			auto valueAssI = d.convertTo0to1(modValue);
+            
+            
+            
+			auto valueAssI = d.convertTo0to1(modValue, false);
 
+            if(inv)
+                valueAssI = 1.0 - valueAssI;
+            
 			//auto valueAssI = d.convertTo0to1(getParent().getValue());
 
 			for (float i = 0.0f; i < 1.0f; i += (0.5f / inner.getWidth()))
 			{
-				auto v = d.convertFrom0to1(i);
+				auto v = d.convertFrom0to1(i, false);
 				v = d.snapToLegalValue(v);
 
 				path.lineTo(i, inv ? v : 1.0f - v);
@@ -424,7 +433,7 @@ struct ParameterSlider::RangeComponent : public Component,
 					valuePath.lineTo(i, inv ? v : 1.0f - v);
 			}
 
-			auto endValue = (float)d.convertFrom0to1(1.0);
+			auto endValue = (float)d.convertFrom0to1(1.0, false);
 
 			valuePath.startNewSubPath(1.0f, inv ? endValue : 1.0f - endValue);
 			path.startNewSubPath(1.0f, inv ? endValue : 1.0f - endValue);
@@ -495,8 +504,11 @@ struct ParameterSlider::RangeComponent : public Component,
 				g.setColour(Colours::white.withAlpha(0.1f));
 				g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
 
-				auto nv = getParentRange().convertTo0to1(getParent().getValue());
+				auto nv = getParentRange().convertTo0to1(getParent().getValue(), false);
 
+                if(inv)
+                    nv = 1.0 - nv;
+                
 				auto w = jmax<float>(b.getHeight(), b.getWidth() * nv);
 
 				b = b.removeFromLeft(w);
@@ -515,11 +527,11 @@ struct ParameterSlider::RangeComponent : public Component,
 		auto newStart = oldRange.rng.start + currentRange.rng.start * oldRange.getRange().getLength();
 		auto newEnd = oldRange.rng.start + currentRange.rng.end * oldRange.getRange().getLength();
 
-		switch (p)
+        switch (p)
 		{
 		case Left: 
 		case Right: return getParent().getTextFromValue(newStart) + " - " + getParent().getTextFromValue(newEnd);
-		case Inside: return "Mid: " + String(getParentRange().convertFrom0to1(0.5));
+		case Inside: return "Mid: " + String(getParentRange().convertFrom0to1(0.5, false));
         default: break;
 		}
 
@@ -550,7 +562,7 @@ struct ParameterSlider::RangeComponent : public Component,
 			{
 			case Left:   t = getParent().getTextFromValue(getParent().getMinimum()); break;
 			case Right:  t = getParent().getTextFromValue(getParent().getMaximum()); break;
-			case Inside: t = String(getParentRange().convertFrom0to1(0.5)); break;
+			case Inside: t = String(getParentRange().convertFrom0to1(0.5, false)); break;
 			case Outside: t = getParent().getTextFromValue(getParent().getValue()); break;
             default: break;
 			}
@@ -680,7 +692,7 @@ struct ParameterSlider::RangeComponent : public Component,
 			m.addItem(4, "Reset Range");
 			m.addItem(6, "Reset skew", getParent().getSkewFactor() != 1.0);
 			m.addSeparator();
-			m.addItem(5, "Invert range", connectionSource.isValid(), RangeHelpers::isInverted(connectionSource));
+			m.addItem(5, "Invert range", true, RangeHelpers::isInverted(getParent().pTree));
 			m.addItem(7, "Copy range to source", connectionSource.isValid());
 
 			auto r = m.show();
@@ -717,14 +729,14 @@ struct ParameterSlider::RangeComponent : public Component,
 			if (r == 5)
 			{
 				auto cr = getParentRange();
-				cr.inv = !RangeHelpers::isInverted(connectionSource);
-				setNewRange(cr, sendNotification);
+				cr.inv = !RangeHelpers::isInverted(getParent().pTree);
+                setNewRange(cr, sendNotification);
 			}
 			if (r == 6)
 			{
 				auto cr = getParentRange();
 				cr.rng.skew = 1.0;
-				cr.inv = RangeHelpers::isInverted(connectionSource);
+				cr.inv = RangeHelpers::isInverted(getParent().pTree);
 				setNewRange(cr, sendNotification);
 			}
 			if (r == 7)
@@ -785,6 +797,9 @@ struct ParameterSlider::RangeComponent : public Component,
 		if (e.mods.isRightButtonDown() || e.mods.isShiftDown())
 			return;
 
+        if(!e.mouseWasDraggedSinceMouseDown())
+            return;
+        
 		if (dragPos == Outside)
 		{
 			if(!connectionSource.isValid())
@@ -870,7 +885,9 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index_) :
 		valuetree::AsyncMode::Asynchronously,
 		[this](Identifier, var newValue)
 	{
-		setValue(newValue, dontSendNotification);
+        double value = (double)newValue;
+        
+		setValue(value, dontSendNotification);
 		repaint();
 	});
 
@@ -1247,13 +1264,15 @@ void ParameterSlider::sliderValueChanged(Slider*)
 
 	if (parameterToControl != nullptr)
 	{
-		if(isControllingFrozenNode())
+        auto value = getValue();
+        
+        if(isControllingFrozenNode())
 		{
 			auto n = parameterToControl->parent->getRootNetwork();
-			n->getCurrentParameterHandler()->setParameter(index, getValue());
+			n->getCurrentParameterHandler()->setParameter(index, value);
 		}
 		
-		parameterToControl->data.setProperty(PropertyIds::Value, getValue(), parameterToControl->parent->getUndoManager());
+		parameterToControl->data.setProperty(PropertyIds::Value, value, parameterToControl->parent->getUndoManager());
 	}
 
 	if (auto nl = dynamic_cast<ParameterKnobLookAndFeel::SliderLabel*>(getTextBox()))
@@ -1270,7 +1289,7 @@ juce::String ParameterSlider::getTextFromValue(double value)
 
 	if (parameterToControl->valueNames.isEmpty())
 	{
-		auto min = getMinimum();
+        auto min = getMinimum();
 		auto max = getMaximum();
 
 		auto numDecimals = max - min > 4.0 ? 1 : 2;
@@ -1296,18 +1315,21 @@ double ParameterSlider::getValueFromText(const String& text)
 
 double ParameterSlider::getValueToDisplay() const
 {
+    double v;
+    
 	if (parameterToControl != nullptr)
 	{
 		if (isControllingFrozenNode())
-			return getValue();
-
-		return parameterToControl->getValue();
+			v = getValue();
+        else
+            v = parameterToControl->getValue();
 	}
 	else
 	{
-		return getValue();
+		v = getValue();
 	}
 	
+    return v;
 }
 
 bool ParameterSlider::isControllingFrozenNode() const

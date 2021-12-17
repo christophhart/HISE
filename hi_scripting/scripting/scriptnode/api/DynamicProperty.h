@@ -169,11 +169,11 @@ template <bool ScaleInput> struct dynamic_chain : public dynamic_base
 	void call(double v)
 	{
 		setDisplayValue(v);
-		auto nv = ScaleInput ? getRange().convertTo0to1(v) : v;
+		auto nv = ScaleInput ? getRange().convertTo0to1(v, true) : v;
 
 		for (auto& t : targets)
 		{
-			auto tv = ScaleInput ? t->getRange().convertFrom0to1(nv) : v;
+			auto tv = ScaleInput ? t->getRange().convertFrom0to1(nv, true) : v;
 			t->call(tv);
 		}
 	}

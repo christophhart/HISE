@@ -86,7 +86,7 @@ void DspHelpers::setErrorIfNotOriginalSamplerate(const PrepareSpecs& ps, NodeBas
 }
 
 
-
+#if 0
 scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRange(InvertableParameterRange range, const ParameterCallback& originalFunction)
 {
 	if (RangeHelpers::isIdentity(range))
@@ -108,6 +108,7 @@ scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRang
 		originalFunction(v);
 	};
 }
+#endif
 
 void DspHelpers::validate(PrepareSpecs sp, PrepareSpecs rp)
 {

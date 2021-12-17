@@ -450,8 +450,6 @@ template <class T, int P, class RangeType> struct from0To1_inv : public single_b
 
 	static void callStatic(void* obj_, double v)
 	{
-		v = 1.0 - v;
-
 		auto converted = RangeType::from0To1(v);
 		using ObjectType = typename T::ObjectType;
 		ObjectType::template setParameterStatic<P>(obj_, converted);

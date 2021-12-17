@@ -1154,7 +1154,7 @@ namespace control
 			double getValue() const 
 			{ 
 				dirty = false; 
-				auto v = range.convertFrom0to1(value); 
+				auto v = range.convertFrom0to1(value, true);
 				v = range.snapToLegalValue(v);
 				return v;
 			}

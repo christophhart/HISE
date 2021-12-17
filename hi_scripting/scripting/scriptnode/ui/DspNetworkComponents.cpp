@@ -2666,7 +2666,7 @@ KeyboardPopup::ImagePreviewCreator::ImagePreviewCreator(KeyboardPopup& kp_, cons
 			for (auto p: NodeBase::ParameterIterator(*createdNode))
 			{
 				auto nr = RangeHelpers::getDoubleRange(p->data);
-				auto v = nr.convertFrom0to1(Random::getSystemRandom().nextDouble());
+				auto v = nr.convertFrom0to1(Random::getSystemRandom().nextDouble(), false);
 				p->setValueSync(v);
 			}
 		}
