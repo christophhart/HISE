@@ -1316,6 +1316,7 @@ namespace control
 
 			typed->sendPending();
 		}
+        PARAMETER_MEMBER_FUNCTION;
 
 		void sendPending()
 		{

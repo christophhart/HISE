@@ -80,6 +80,11 @@ void Base::addComment(const String& comment, CommentType commentType)
 	{
 	case CommentType::AlignOnSameLine:
 	{
+        // Remove the intend markers to avoid compile errors since this is expected
+        // be a single line
+        
+        auto cToUse = comment.removeCharacters(StringHelpers::withToken(IntendMarker));
+        
 		String l;
 
 		auto lastLine = lines[lines.size() - 1];
@@ -89,7 +94,7 @@ void Base::addComment(const String& comment, CommentType commentType)
 			auto lv = StringArray::fromTokens(lastLine, StringHelpers::withToken(IntendMarker), "");
 
 			auto cv = lv[1];
-			cv << AlignMarker << "// " << comment;
+			cv << AlignMarker << "// " << cToUse;
 
 			lv.set(1, cv);
 
@@ -97,7 +102,7 @@ void Base::addComment(const String& comment, CommentType commentType)
 		}
 		else
 		{
-			l << lastLine << AlignMarker << "// " << comment;
+			l << lastLine << AlignMarker << "// " << cToUse;
 		}
 		
 		lines.set(lines.size() - 1, l);
@@ -306,12 +311,14 @@ String Base::parseLines() const
 			for (auto& a : again)
 				maxLineLength = jmax(maxLineLength, getRealLineLength(a));
 
+            maxLineLength = jmin(100, maxLineLength);
+            
 			for (auto& l : again)
 			{
 				if (l.contains("%FILL80"))
 				{
 					auto lc = l.upToFirstOccurrenceOf("%FILL80", false, false);
-					auto required = maxLineLength - getRealLineLength(lc);
+					auto required = jmax(0, maxLineLength - getRealLineLength(lc));
 
 					ns << lc;
 
@@ -324,7 +331,7 @@ String Base::parseLines() const
 				{
 					auto lc = l.fromFirstOccurrenceOf("%FILL40", false, false);
 
-					auto required = (maxLineLength - getRealLineLength(lc) - 6) / 2;
+					auto required = jmax(0, (maxLineLength - getRealLineLength(lc) - 6) / 2);
 
 					String h;
 
