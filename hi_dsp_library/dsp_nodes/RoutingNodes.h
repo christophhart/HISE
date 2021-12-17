@@ -374,7 +374,7 @@ template <typename CableType> struct receive: public base
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		if (CableType::allowFrame())
+		if constexpr (CableType::allowFrame())
 		{
 			jassert(data.size() <= source->frameData.size());
 
