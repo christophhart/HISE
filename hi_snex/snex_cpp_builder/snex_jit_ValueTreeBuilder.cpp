@@ -406,6 +406,7 @@ Node::Ptr ValueTreeBuilder::parseNode(const ValueTree& n)
 
 Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
 {
+    jassert(u->nodeTree.isValid());
 	auto np = getNodePath(u->nodeTree);
 
 	if (np.getIdentifier() == Identifier("matrix"))
@@ -469,6 +470,8 @@ Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
 
 Node::Ptr ValueTreeBuilder::parseOptionalSnexNode(Node::Ptr u)
 {
+    jassert(u->nodeTree.isValid());
+    
 	auto p = getNodePath(u->nodeTree).toString();
 
 	if (CustomNodeProperties::nodeHasProperty(u->nodeTree, PropertyIds::IsOptionalSnexNode))
@@ -517,6 +520,8 @@ Node::Ptr ValueTreeBuilder::parseOptionalSnexNode(Node::Ptr u)
 
 Node::Ptr ValueTreeBuilder::parseExpressionNode(Node::Ptr u)
 {
+    jassert(u->nodeTree.isValid());
+    
 	bool isMathNode = getNodePath(u->nodeTree).getParent() == NamespacedIdentifier("math");
 	ExpressionNodeBuilder nb(*this, u, isMathNode);
 
@@ -532,6 +537,8 @@ Node::Ptr ValueTreeBuilder::parseSnexNode(Node::Ptr u)
 
 Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 {
+    jassert(u->nodeTree.isValid());
+    
 	if (FactoryIds::isClone(getNodePath(u->nodeTree)))
 	{
 		return parseCloneContainer(u);
@@ -557,7 +564,12 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
         ScopedChannelSetter sns(*this, numToUse);
         
 		for (auto c : u->nodeTree.getChildWithName(PropertyIds::Nodes))
-			pooledTypeDefinitions.add(parseNode(c));
+        {
+            auto childNode = parseNode(c);
+            
+            jassert(childNode->nodeTree.isValid());
+			pooledTypeDefinitions.add(childNode);
+        }
 
 		parseContainerParameters(u);
 		parseContainerChildren(u);
@@ -598,6 +610,7 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::oversample"), os);
 		}
 
+        jassert(u->nodeTree.isValid());
 		jassert(!u->isFlushed());
 
 		addNodeComment(u);
@@ -797,6 +810,8 @@ Node::Ptr ValueTreeBuilder::parseRootContainer(Node::Ptr container)
 
 Node::Ptr ValueTreeBuilder::parseComplexDataNode(Node::Ptr u, bool flushNode)
 {
+    jassert(u->nodeTree.isValid());
+    
 	if (ValueTreeIterator::isComplexDataNode(u->nodeTree))
 	{
 		ComplexDataBuilder c(*this, u);
@@ -982,6 +997,8 @@ Node::Ptr ValueTreeBuilder::wrapNode(Node::Ptr u, const NamespacedIdentifier& wr
 
 	Node::Ptr wn = new Node(*this, u->scopedId.id, wrapId);
 
+    wn->nodeTree = u->nodeTree;
+    
 	if (u->getLength() > 30)
 	{
 		StringHelpers::addSuffix(u->scopedId, "_");
@@ -1063,6 +1080,8 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 {
+    jassert(u->nodeTree.isValid());
+    
 	auto modTree = u->nodeTree.getChildWithName(PropertyIds::ModulationTargets);
 
 	auto multiModTree = u->nodeTree.getChildWithName(PropertyIds::SwitchTargets);
