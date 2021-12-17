@@ -263,6 +263,11 @@ template <int NV> struct jpanner : public base::jwrapper<juce::dsp::Panner<float
 {
 	SNEX_NODE(jpanner);
 
+    jpanner()
+    {
+        cppgen::CustomNodeProperties::addNodeIdManually(getStaticId(), PropertyIds::IsPolyphonic);
+    }
+    
 	template <int P> void setParameter(double v)
 	{
 		for (auto& obj : this->objects)

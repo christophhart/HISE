@@ -921,7 +921,9 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 
 		for (auto c : cTree)
 		{
-			auto cRange = RangeHelpers::getDoubleRange(c);
+            auto targetTree = ValueTreeIterator::getTargetParameterTree(c);
+            
+			auto cRange = RangeHelpers::getDoubleRange(targetTree);
 
 			if(!useUnnormalisedModulation)
 				unEqualRange |= !RangeHelpers::isEqual(inputRange, cRange);

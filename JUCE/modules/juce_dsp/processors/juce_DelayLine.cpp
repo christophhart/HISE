@@ -60,8 +60,7 @@ template <typename SampleType, typename InterpolationType>
 void DelayLine<SampleType, InterpolationType>::setDelay (SampleType newDelayInSamples)
 {
     auto upperLimit = (SampleType) getMaximumDelayInSamples();
-    jassert (isPositiveAndNotGreaterThan (newDelayInSamples, upperLimit));
-
+    
     delay     = jlimit ((SampleType) 0, upperLimit, newDelayInSamples);
     delayInt  = static_cast<int> (std::floor (delay));
     delayFrac = delay - (SampleType) delayInt;
