@@ -318,6 +318,8 @@ public:
 
 		addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
 
+        getButton("Cancel")->addListener(this);
+        
 		rebuildLines();
 
 		getTextEditor("searchTerm")->grabKeyboardFocusAsync();
