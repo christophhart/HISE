@@ -1306,6 +1306,16 @@ public:
 
     static int getModifierForButtonNumber (const NSInteger num)
     {
+        switch(num)
+        {
+            case 0: return ModifierKeys::leftButtonModifier;
+            case 1: return ModifierKeys::rightButtonModifier;
+            case 2: return ModifierKeys::middleButtonModifier;
+            case 3: return ModifierKeys::x1ButtonModifier;
+            case 4: return ModifierKeys::x2ButtonModifier;
+            default: return 0;
+        }
+        
         return num == 0 ? ModifierKeys::leftButtonModifier
                         : (num == 1 ? ModifierKeys::rightButtonModifier
                                     : (num == 2 ? ModifierKeys::middleButtonModifier : 0));

@@ -165,7 +165,7 @@ public:
         allKeyboardModifiers                    = shiftModifier | ctrlModifier | altModifier | commandModifier,
 
         /** Represents a combination of all the mouse buttons at once. */
-        allMouseButtonModifiers                 = leftButtonModifier | rightButtonModifier | middleButtonModifier,
+        allMouseButtonModifiers                 = leftButtonModifier | rightButtonModifier | middleButtonModifier | x1ButtonModifier | x2ButtonModifier,
 
         /** Represents a combination of all the alt, ctrl and command key modifiers. */
         ctrlAltCommandModifiers                 = ctrlModifier | altModifier | commandModifier
