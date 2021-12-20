@@ -125,6 +125,8 @@ public:
 		float getAttack() const noexcept { return (float)attack; };
 		float getRelease() const noexcept { return (float)release; };
 
+		double getSampleRate() const { return sampleRate; }
+
 	private:
 
 		void calculateCoefficients();

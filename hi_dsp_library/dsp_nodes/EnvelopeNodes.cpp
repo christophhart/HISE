@@ -452,15 +452,17 @@ void simple_ar_base::PropertyObject::transformReadBuffer(AudioSampleBuffer& b)
 
 	auto attack = parent->uiValues[0];
 	auto release = parent->uiValues[1];
+	auto curve = parent->uiValues[2];
 
-	s.env.setAttackDouble(attack);
-	s.env.setReleaseDouble(release);
+	s.setAttack(attack);
+	s.setRelease(release);
+	s.setAttackCurve(curve);
 
 	auto totalSeconds = (attack + release) * 0.001 + 0.1;
 	auto sr = 512.0 / totalSeconds;
 	
-	s.env.setSampleRate(sr);
-	s.env.reset();
+	s.setSampleRate(sr);
+	s.reset();
 	s.setGate(true);
 
 	jassert(b.getNumSamples() == 1024);
@@ -562,7 +564,7 @@ void simple_ar_base::PropertyObject::transformReadBuffer(AudioSampleBuffer& b)
 
 void simple_ar_base::setDisplayValue(int index, double value)
 {
-	if (index == 2)
+	if (index == 3)
 	{
 		if (rb != nullptr)
 			rb->getUpdater().sendDisplayChangeMessage((float)value, sendNotificationAsync, true);
@@ -574,6 +576,56 @@ void simple_ar_base::setDisplayValue(int index, double value)
 		if (rb != nullptr)
 			rb->getUpdater().sendContentChangeMessage(sendNotificationAsync, index);
 	}
+}
+
+float simple_ar_base::State::tick()
+{
+	if (!smoothing)
+		return targetValue;
+
+	float returnValue;
+
+	if (targetValue == 1.0)
+		linearRampValue = jmin(1.0, linearRampValue + upRampDelta);
+	else
+		linearRampValue = jmax(0.0, linearRampValue - downRampDelta);
+
+	lastValue = env.calculateValue(targetValue);
+
+	if (curve == 0.5f)
+		returnValue = (float)linearRampValue;
+	if (curve < 0.5f)
+	{
+		auto alpha = 2.0f * (curve);
+		returnValue = Interpolator::interpolateLinear(lastValue, (float)linearRampValue, alpha);
+	}
+
+	if (curve > 0.5f)
+	{
+		auto oneValue = hmath::pow((float)linearRampValue, float_Pi);
+
+		auto alpha = 2.0f * (curve - 0.5f);
+		returnValue = Interpolator::interpolateLinear((float)linearRampValue, oneValue, alpha);
+	}
+
+	smoothing = std::abs(targetValue - lastValue) > 0.0001;
+	active = smoothing || targetValue == 1.0;
+
+	return returnValue;
+}
+
+void simple_ar_base::State::recalculateLinearAttackTime()
+{
+	auto attackTimeMs = (double)env.getAttack();
+	auto attackTimeSamples = attackTimeMs * 0.001 * env.getSampleRate();
+
+	auto releaseTimeMs = (double)env.getRelease();
+	auto releaseTimeSamples = releaseTimeMs * 0.001 * env.getSampleRate();
+
+	double fullRamp = JUCE_LIVE_CONSTANT_OFF(0.9);
+
+	upRampDelta = attackTimeSamples > 0.0 ? 1.0 / attackTimeSamples : 1.0;
+	downRampDelta = releaseTimeSamples > 0.0 ? fullRamp / releaseTimeSamples : 1.0;
 }
 
 } // pimpl
