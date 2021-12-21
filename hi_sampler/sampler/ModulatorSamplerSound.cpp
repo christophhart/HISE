@@ -637,7 +637,12 @@ void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard
 	}
 
 #if USE_BACKEND
-	sampler->getSampleEditHandler()->setMainSelectionToLast();
+
+	SafeAsyncCall::call<ModulatorSampler>(*sampler, [](ModulatorSampler& s)
+	{
+		s.getSampleEditHandler()->setMainSelectionToLast();
+	});
+
 #endif
 }
 
