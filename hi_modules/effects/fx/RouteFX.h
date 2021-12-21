@@ -174,6 +174,8 @@ struct SendContainer : public ModulatorSynth
 
 	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi) override
 	{
+		processHiseEventBuffer(inputMidi, outputAudio.getNumSamples());
+
 		effectChain->renderMasterEffects(internalBuffer);
 		
         
