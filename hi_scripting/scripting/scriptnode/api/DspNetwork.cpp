@@ -458,6 +458,11 @@ void DspNetwork::process(ProcessDataDyn& data)
 	}
 }
 
+bool DspNetwork::hasTail() const
+{
+	return true;
+}
+
 juce::Identifier DspNetwork::getParameterIdentifier(int parameterIndex)
 {
 	return getRootNode()->getParameterFromIndex(parameterIndex)->getId();

@@ -326,7 +326,11 @@ struct granulator: public data::base
 
 		if (e.isAllNotesOff())
 		{
-			reset();
+			for (auto v : voices)
+				v.clear();
+
+			voiceCounter = 0;
+			delayedNoteOffs.clear();
 		}
 
 		if (e.isNoteOn())
@@ -1177,6 +1181,11 @@ namespace fx
 
 			for (int i = 0; i < 100; i++)
 				x[i] = hmath::sin(float_Pi * 2.0f * (float)i / 100.0f);
+
+			auto n = getNode();
+
+			if (n == nullptr)
+				return;
 
 			auto delta = (int)(getNode()->getParameterFromIndex(0)->getValue() / JUCE_LIVE_CONSTANT_OFF(10.0f));
 			int counter = 0;

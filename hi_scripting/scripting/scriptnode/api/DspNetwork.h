@@ -679,6 +679,8 @@ public:
 
 	bool isPolyphonic() const { return isPoly; }
 
+	bool hasTail() const;
+
 	bool handleModulation(double& v)
 	{
 		if (isFrozen())

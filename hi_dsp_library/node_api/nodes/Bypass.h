@@ -59,13 +59,22 @@ public:
 			const int numChannels = data.getNumChannels();
 			const int numSamples = data.getNumSamples();
 
+			auto rampData = (float*)alloca(sizeof(float) * numSamples);
+
+			for (int i = 0; i < numSamples; i++)
+			{
+				rampData[i] = jlimit(0.0f, 1.0f, ramper.advance());
+			}
+
 			auto stackBufferData = (float*)alloca(sizeof(float) * numChannels * numSamples);
 			float* channels[NUM_MAX_CHANNELS];
 
 			for (int i = 0; i < numChannels; i++)
 			{
 				channels[i] = stackBufferData + i * numSamples;
+
 				FloatVectorOperations::copy(channels[i], data[i].begin(), numSamples);
+				FloatVectorOperations::multiply(channels[i], rampData, numSamples);
 			}
 
 			ProcessDataType wetData(channels, numSamples, numChannels);
@@ -75,7 +84,7 @@ public:
 
 			for (int i = 0; i < numSamples; i++)
 			{
-				const auto rampValue = jlimit(0.0f, 1.0f, ramper.advance());
+				const auto rampValue = rampData[i];
 				const auto invRampValue = 1.0f - rampValue;
 
 				for (int c = 0; c < numChannels; c++)
@@ -116,12 +125,16 @@ public:
 	{
 		if (shouldSmoothBypass())
 		{
+			const auto rampValue = ramper.advance();
+			const auto invRampValue = 1.0f - rampValue;
+
 			FrameDataType wet = data;
+
+			wet *= rampValue;
 
 			this->obj.processFrame(wet);
 
-			const auto rampValue = ramper.advance();
-			const auto invRampValue = 1.0f - rampValue;
+			
 			data *= invRampValue;
 			wet *= rampValue;
 			data += wet;
@@ -138,7 +151,7 @@ public:
 	void prepare(PrepareSpecs ps)
 	{
 		ramper.prepare(ps.sampleRate, 20.0);
-		ramper.set(bypassed ? 1.0f : 0.0f);
+		ramper.set(bypassed ? 0.0f : 1.0f);
 		ramper.reset();
 
 		this->obj.prepare(ps);
@@ -178,8 +191,14 @@ private:
 
 	void setBypassed(bool shouldBeBypassed)
 	{
-		bypassed = shouldBeBypassed;
-		ramper.set(bypassed ? 0.0f : 1.0f);
+		if (bypassed != shouldBeBypassed)
+		{
+			bypassed = shouldBeBypassed;
+			ramper.set(bypassed ? 0.0f : 1.0f);
+
+			if (!shouldBeBypassed)
+				this->obj.reset();
+		}
 	}
 
 	sfloat ramper;

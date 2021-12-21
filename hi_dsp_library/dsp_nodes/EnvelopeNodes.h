@@ -103,6 +103,14 @@ template <typename ParameterType> struct envelope_base: public control::pimpl::p
 
 	bool handleKeyEvent(HiseEvent& e, bool& newValue)
 	{
+		if (e.isAllNotesOff())
+		{
+			numSustainedKeys = 0;
+			numKeys = 0;
+			newValue = false;
+			return true;
+		}
+
 		if (e.isControllerOfType(64))
 		{
 			auto wasPedal = pedal;
@@ -111,6 +119,7 @@ template <typename ParameterType> struct envelope_base: public control::pimpl::p
 			if (!pedal && wasPedal)
 			{
 				numKeys = jmax(0, numKeys - numSustainedKeys);
+				numSustainedKeys = 0;
 				newValue = false;
 				return numKeys == 0;
 			}

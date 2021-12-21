@@ -691,6 +691,25 @@ void JavascriptMasterEffect::postCompileCallback()
 
 
 
+void JavascriptMasterEffect::voicesKilled()
+{
+	if (auto n = getActiveNetwork())
+	{
+
+		n->reset();
+	}
+}
+
+bool JavascriptMasterEffect::hasTail() const
+{
+	if (auto n = getActiveNetwork())
+	{
+		return n->hasTail();
+	}
+
+	return false;
+}
+
 void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);

@@ -1384,7 +1384,7 @@ ConnectionSourceManager::CableRemoveListener::CableRemoveListener(ConnectionSour
 {
 	targetNode = findTargetNodeData(parent.n->getValueTree().getChildWithName(PropertyIds::Node));
 
-	jassert(data.hasType(PropertyIds::Connection));
+	jassert(data.hasType(PropertyIds::Connection) || data.hasType(PropertyIds::ModulationTarget));
 	jassert(sourceNode.hasType(PropertyIds::Node));
 	jassert(targetNode.hasType(PropertyIds::Node));
 

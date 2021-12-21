@@ -1366,6 +1366,8 @@ void SoftBypassNode::process(ProcessDataDyn& data) noexcept
 
 void SoftBypassNode::prepare(PrepareSpecs ps)
 {
+	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
 	obj.prepare(ps);
 }
 

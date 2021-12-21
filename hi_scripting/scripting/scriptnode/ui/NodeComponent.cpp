@@ -1134,13 +1134,20 @@ simple_visualiser::simple_visualiser(NodeBase*, PooledUIUpdater* u) :
 
 scriptnode::NodeBase* simple_visualiser::getNode()
 {
-	return findParentComponentOfClass<NodeComponent>()->node.get();
+	auto nc = findParentComponentOfClass<NodeComponent>();
+	auto n = nc->node.get();
+	return n;
 }
 
 double simple_visualiser::getParameter(int index)
 {
-	jassert(isPositiveAndBelow(index, getNode()->getNumParameters()));
-	return getNode()->getParameterFromIndex(index)->getValue();
+	if (auto n = getNode())
+	{
+		jassert(isPositiveAndBelow(index, n->getNumParameters()));
+		return n->getParameterFromIndex(index)->getValue();
+	}
+
+	return 0.0;
 }
 
 juce::Colour simple_visualiser::getNodeColour()

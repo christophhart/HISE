@@ -256,6 +256,11 @@ void ConvolutionEffectBase::processBase(ProcessDataDyn& d)
 		auto l = channels[0];
 		auto r = numChannels > 1 ? channels[1] : nullptr;
 
+		FloatSanitizers::sanitizeArray(l, numSamples);
+
+		if(numChannels > 1)
+			FloatSanitizers::sanitizeArray(r, numSamples);
+
 		isCurrentlyProcessing.store(true);
 
 		if (isReloading || (!processFlag && !rampFlag))
@@ -608,15 +613,8 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 void ConvolutionEffect::voicesKilled()
 {
-	{
-		SimpleReadWriteLock::ScopedReadLock sl(swapLock);
-		convolverL->cleanPipeline();
-		convolverR->cleanPipeline();
-	}
-
-	leftPredelay.clear();
-	rightPredelay.clear();
-	}
+	resetBase();
+}
 
 ProcessorEditorBody *ConvolutionEffect::createEditor(ProcessorEditor *parentEditor)
 {

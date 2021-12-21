@@ -686,7 +686,9 @@ public:
 	void postCompileCallback() override;
 
 
-	bool hasTail() const override { return false; };
+	void voicesKilled() override;
+
+	bool hasTail() const override;;
 
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
 	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };
