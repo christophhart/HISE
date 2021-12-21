@@ -192,18 +192,8 @@ public:
 
 		static String removeLeadingNumbers(const String& p)
 		{
-
 			auto path = p.replaceCharacter('\\', '/').trimCharactersAtStart("01234567890 ");
-
 			path = path.removeCharacters("()[]");
-
-			auto regex = R"((\/[0-9]{2} ))";
-
-			auto matches = RegexFunctions::search(regex, path);
-
-			for (auto m : matches)
-				path = path.replace(m, "/");
-
 			return path;
 		}
 
