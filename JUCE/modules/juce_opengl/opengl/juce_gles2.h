@@ -133,6 +133,8 @@ enum : GLenum
     GL_BLEND_EQUATION_ALPHA                                 = 0x883D,
     GL_FUNC_SUBTRACT                                        = 0x800A,
     GL_FUNC_REVERSE_SUBTRACT                                = 0x800B,
+    GL_BLEND_DST                                            = 0x0BE0,
+    GL_BLEND_SRC                                            = 0x0BE1,
     GL_BLEND_DST_RGB                                        = 0x80C8,
     GL_BLEND_SRC_RGB                                        = 0x80C9,
     GL_BLEND_DST_ALPHA                                      = 0x80CA,
