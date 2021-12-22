@@ -335,8 +335,15 @@ bool XYZSampleMapProvider::parse(const String& v, MultiChannelAudioBuffer::XYZIt
 
 	if (p.get() != nullptr)
 	{
-		parseValueTree(p->data, list);
-		return true;
+        try
+        {
+            parseValueTree(p->data, list);
+            return true;
+        }
+        catch(Result& r)
+        {
+            DBG(r.getErrorMessage());
+        }
 	}
 
 	return false;
