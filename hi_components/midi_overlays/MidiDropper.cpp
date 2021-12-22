@@ -94,7 +94,7 @@ void MidiFileDragAndDropper::mouseDown(const MouseEvent& e)
 	}
 	else
 	{
-		if (externalDrag)
+		if (enableExternalDrag)
 		{
 			if (currentSequence != nullptr)
 			{
