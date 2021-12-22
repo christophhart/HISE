@@ -169,7 +169,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "        <MODULEPATH id=\"hi_snex\" path=\"%HISE_PATH%\"/>\r\n"
 "      </MODULEPATHS>\r\n"
 "    </XCODE_MAC>\r\n"
-"    <XCODE_IPHONE targetFolder=\"Builds/iOS\" iosScreenOrientation=\"landscape\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override\" extraLinkerFlags=\"%OSX_STATIC_LIBS%\" extraDefs=\"%EXTRA_DEFINES_IOS%&#10;USE_IPP=0&#10;HISE_IOS=1&#10;JUCE_USE_CUSTOM_PLUGIN_STANDALONE_APP=1&#10;USE_VDSP_FFT=1\" %ICON_FILE% \r\n"
+"    <XCODE_IPHONE targetFolder=\"Builds/iOS\" iosScreenOrientation=\"landscape\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override -fno-aligned-allocation\" extraLinkerFlags=\"%OSX_STATIC_LIBS%\" extraDefs=\"%EXTRA_DEFINES_IOS%&#10;USE_IPP=0&#10;HISE_IOS=1&#10;JUCE_USE_CUSTOM_PLUGIN_STANDALONE_APP=1&#10;USE_VDSP_FFT=1\" %ICON_FILE% \r\n"
 "                  UIStatusBarHidden=\"1\" iosBackgroundAudio=\"1\" iosBackgroundBle=\"0\""
 "   customXcodeResourceFolders=\"../Samples\n../Images\nEmbeddedResources\n../UserPresets\""
 "   iosAppGroups=\"%USE_APP_GROUPS%\" iosAppGroupsId=\"%APP_GROUP_ID%\""
