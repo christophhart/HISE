@@ -84,13 +84,13 @@ public:
 
 	void setEnableExternalDrag(bool shouldDragToExternalTarget)
 	{
-		externalDrag = shouldDragToExternalTarget;
+		enableExternalDrag = shouldDragToExternalTarget;
 	}
 
 	bool isActive() const { return currentSequence != nullptr; }
 
 	bool hover = false;
-	bool externalDrag = true;
+	bool externalDrag = false;
 
 private:
 	
