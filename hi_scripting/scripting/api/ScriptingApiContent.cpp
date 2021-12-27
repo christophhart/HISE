@@ -2848,9 +2848,10 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, stopTimer);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, changed);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, loadImage);
+	API_VOID_METHOD_WRAPPER_0(ScriptPanel, unloadAllImages);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setDraggingBounds);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, setPopupData);
-    API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
+  API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, showAsPopup);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, closeAsPopup);
 	API_VOID_METHOD_WRAPPER_3(ScriptPanel, setMouseCursor);
@@ -2950,6 +2951,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_1(startTimer);
 	ADD_API_METHOD_0(stopTimer);
 	ADD_API_METHOD_2(loadImage);
+	ADD_API_METHOD_0(unloadAllImages);
 	ADD_API_METHOD_1(setDraggingBounds);
 	ADD_API_METHOD_2(setPopupData);
 	ADD_API_METHOD_3(setValueWithUndo);
@@ -3224,6 +3226,11 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 	{
 		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Image " + imageName + " not found. ");
 	}
+}
+
+void ScriptingApi::Content::ScriptPanel::unloadAllImages()
+{
+	loadedImages.clear();
 }
 
 StringArray ScriptingApi::Content::ScriptPanel::getItemList() const
