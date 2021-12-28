@@ -284,6 +284,9 @@ namespace ScriptingObjects
 
 		/** Returns the size of the file in bytes. */
 		int getSize();
+		
+		/*Reads a file and generates the hash of its contents. */
+		String getHash();
 
 		/** Returns a String representation of that file. */
 		String toString(int formatType) const;
