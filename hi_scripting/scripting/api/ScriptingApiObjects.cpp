@@ -220,7 +220,7 @@ String ScriptingObjects::ScriptFile::getFileNameFromFile(var fileOrString)
 }
 
 ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const File& f_) :
-	ConstScriptingObject(p, 3),
+	ConstScriptingObject(p, 4),
 	f(f_)
 {
 	addConstant("FullPath", (int)FullPath);
