@@ -282,6 +282,9 @@ namespace ScriptingObjects
 		/** Returns the new directory created at the file location, if directory doesn't already exist */
 		var createDirectory(String directoryName);
 
+		/** Returns the size of the file in bytes. */
+		int getSize();
+
 		/** Returns a String representation of that file. */
 		String toString(int formatType) const;
 		

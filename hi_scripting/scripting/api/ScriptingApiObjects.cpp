@@ -186,6 +186,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, getParentDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, getChildFile);
 	API_METHOD_WRAPPER_1(ScriptFile, createDirectory);
+	API_METHOD_WRAPPER_0(ScriptFile, getSize);
 	API_METHOD_WRAPPER_1(ScriptFile, toString);
 	API_METHOD_WRAPPER_0(ScriptFile, isFile);
 	API_METHOD_WRAPPER_0(ScriptFile, isDirectory);
@@ -230,6 +231,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_0(getParentDirectory);
 	ADD_API_METHOD_1(getChildFile);
 	ADD_API_METHOD_1(createDirectory);
+	ADD_API_METHOD_0(getSize);
 	ADD_API_METHOD_1(toString);
 	ADD_API_METHOD_0(isFile);
 	ADD_API_METHOD_0(isDirectory);
@@ -266,6 +268,11 @@ var ScriptingObjects::ScriptFile::createDirectory(String directoryName)
 		f.getChildFile(directoryName).createDirectory();
 
 	return new ScriptFile(getScriptProcessor(), f.getChildFile(directoryName));
+}
+
+int ScriptingObjects::ScriptFile::getSize()
+{	
+	return f.getSize();
 }
 
 String ScriptingObjects::ScriptFile::toString(int formatType) const

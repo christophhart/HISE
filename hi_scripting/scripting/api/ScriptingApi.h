@@ -1451,6 +1451,9 @@ public:
 
 		/** Returns a unique machine ID that can be used to identify the computer. */
 		String getSystemId();
+		
+		/**  Convert a file size in bytes to a neat string description. */
+		String descriptionOfSizeInBytes(int bytes);
 
 		// ========================================================= End of API calls
 
