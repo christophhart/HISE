@@ -684,7 +684,10 @@ void PresetBrowserColumn::paint(Graphics& g)
 	if (auto exp = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
 		emptyText = "";
 
-	getPresetBrowserLookAndFeel().drawColumnBackground(g, listArea, emptyText);
+	Rectangle<int> columnArea;
+	columnArea = {0, 0, getWidth(), getHeight()};
+
+	getPresetBrowserLookAndFeel().drawColumnBackground(g, columnArea, emptyText);
 }
 
 void PresetBrowserColumn::resized()
