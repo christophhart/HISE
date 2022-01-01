@@ -584,6 +584,7 @@ var PresetBrowserPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::ListAreaOffset, var(options.listAreaOffset));
 	storePropertyInObject(obj, SpecialPanelIds::ColumnRowPadding, var(options.columnRowPadding));
 	storePropertyInObject(obj, SpecialPanelIds::SearchBarBounds, var(options.searchBarBounds));
+	storePropertyInObject(obj, SpecialPanelIds::FavoriteButtonBounds, var(options.favoriteButtonBounds));
 
 	return obj;
 }
@@ -631,6 +632,13 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 		options.searchBarBounds.addArray(*searchBarBounds.getArray());
 	}	
 	
+	auto favoriteButtonBounds = getPropertyWithDefault(object, SpecialPanelIds::FavoriteButtonBounds);	
+	if (favoriteButtonBounds.isArray())
+	{
+		options.favoriteButtonBounds.clear();
+		options.favoriteButtonBounds.addArray(*favoriteButtonBounds.getArray());
+	}	
+	
 	options.showFavoriteIcons = getPropertyWithDefault(object, SpecialPanelIds::ShowFavoriteIcon);
 	options.backgroundColour = findPanelColour(PanelColourId::bgColour);
 	options.highlightColour = findPanelColour(PanelColourId::itemColour1);
@@ -668,6 +676,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ListAreaOffset, "ListAreaOffset");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ColumnRowPadding, "ColumnRowPadding");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::SearchBarBounds, "SearchBarBounds");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FavoriteButtonBounds, "FavoriteButtonBounds");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::NumColumns, "NumColumns");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ColumnWidthRatio, "ColumnWidthRatio");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionsAsColumn, "ShowExpansionsAsColumn");
@@ -711,6 +720,9 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 
 	Array<var> defaultSearchBarBounds;
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::SearchBarBounds, var(defaultSearchBarBounds));
+
+	Array<var> defaultFavoriteButtonBounds;
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FavoriteButtonBounds, var(defaultFavoriteButtonBounds));
 
 	return var();
 }

@@ -415,6 +415,7 @@ public:
 		ShowDeleteButton,
 		ColumnRowPadding,
 		SearchBarBounds,
+		FavoriteButtonBounds,
 		numSpecialProperties
 	};
 
