@@ -418,6 +418,9 @@ public:
 	/** Returns a list of all available data files in the expansion. */
 	var getDataFileList() const;
 
+	/** Returns a list of all available user presets in the expansion. */
+	var getUserPresetList() const;
+
 	/** Returns the folder where this expansion looks for samples. */
 	var getSampleFolder();
 
