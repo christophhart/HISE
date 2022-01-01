@@ -2121,7 +2121,7 @@ public:
 	ScriptSliderPack *addSliderPack(Identifier sliderPackName, int x, int y);
 
 	/** Adds a viewport. */
-	ScriptedViewport* addScriptedViewport(Identifier viewportName, int x, int y);
+	ScriptedViewport* addViewport(Identifier viewportName, int x, int y);
 
 	/** Adds a floating layout component. */
 	ScriptFloatingTile* addFloatingTile(Identifier floatingTileName, int x, int y);

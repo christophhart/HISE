@@ -4071,7 +4071,7 @@ colour(Colour(0xff777777))
 	setMethod("addComboBox", Wrapper::addComboBox);
 	setMethod("addTable", Wrapper::addTable);
 	setMethod("addImage", Wrapper::addImage);
-	setMethod("addViewport", Wrapper::addScriptedViewport);
+	setMethod("addViewport", Wrapper::addViewport);
 	setMethod("addPanel", Wrapper::addPanel);
 	setMethod("addAudioWaveform", Wrapper::addAudioWaveform);
 	setMethod("addSliderPack", Wrapper::addSliderPack);
@@ -4179,7 +4179,7 @@ ScriptingApi::Content::ScriptLabel * ScriptingApi::Content::addLabel(Identifier 
 };
 
 
-ScriptingApi::Content::ScriptedViewport* ScriptingApi::Content::addScriptedViewport(Identifier viewportName, int x, int y)
+ScriptingApi::Content::ScriptedViewport* ScriptingApi::Content::addViewport(Identifier viewportName, int x, int y)
 {
 	return addComponent<ScriptedViewport>(viewportName, x, y);
 }
