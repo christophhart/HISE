@@ -29,6 +29,7 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
         setMethod("sort", sort);
         setMethod("sortNatural", sortNatural);
 		setMethod("insert", insert);
+		setMethod("concat", concat);
         setMethod("indexOf", indexOf);
         setMethod("isArray", isArray);
 		setMethod("reverse", reverse);
@@ -159,6 +160,24 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 		return var();
 	}
     
+	static var concat(Args a)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+		{
+			for (int i = 0; i < a.numArguments; i++)
+			{
+				var newElements = get(a, i);
+				
+				for (int j = 0; j < newElements.size(); j++)
+				{
+					array->insert(-1, newElements[j]);
+				}	
+			}
+		}
+
+		return var();
+	}
+		
     static var indexOf(Args a)
     {
         if (const Array<var>* array = a.thisObject.getArray())
@@ -235,6 +254,9 @@ public:
 
 	/** Inserts the given arguments at the firstIndex. */
 	void insert(int firstIndex, var argumentList) {}
+	
+	/** Concatenates (joins) two or more arrays */
+	void concat(var argumentList) {}
 
 	/** Searches the array and returns the first index. */
 	int indexOf(var elementToLookFor, int startOffset, int typeStrictness) {return -1;}
