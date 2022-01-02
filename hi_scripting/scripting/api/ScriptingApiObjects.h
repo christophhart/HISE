@@ -324,6 +324,9 @@ namespace ScriptingObjects
 		/** Loads the encrypted object using the supplied RSA key pair. */
 		var loadEncryptedObject(String key);
 
+		/** Renames the file. */
+		bool rename(String newName);
+
 		/** Loads the given file as audio file. */
 		var loadAsAudioFile() const;
 
