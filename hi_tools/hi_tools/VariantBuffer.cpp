@@ -109,13 +109,13 @@ void VariantBuffer::addMul(const VariantBuffer &a, const VariantBuffer &b)
 
 var VariantBuffer::getSample(int sampleIndex)
 {
-	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
+	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), toDebugString() + " Error: Invalid get sample index: " + String(sampleIndex));
 	return (*this)[sampleIndex];
 }
 
 void VariantBuffer::setSample(int sampleIndex, float newValue)
 {
-	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
+	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), toDebugString() + " Error: Invalid set sample index: " + String(sampleIndex));
 
 	buffer.setSample(0, sampleIndex, FloatSanitizers::sanitizeFloatNumber(newValue));
 }
@@ -477,13 +477,13 @@ VariantBuffer& VariantBuffer::operator*(const VariantBuffer &b)
 
 float &VariantBuffer::operator [](int sampleIndex)
 {
-	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
+	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), toDebugString() + " Error: Invalid sample index: " + String(sampleIndex));
 	return buffer.getWritePointer(0)[sampleIndex];
 }
 
 const float & VariantBuffer::operator[](int sampleIndex) const
 {
-	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
+	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), toDebugString() + " Error: Invalid sample index: " + String(sampleIndex));
 	return buffer.getReadPointer(0)[sampleIndex];
 }
 
