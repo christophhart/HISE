@@ -225,10 +225,9 @@ void GlobalServer::WebThread::run()
 
 					if (!r.wasOk())
 					{
-						args[0] = 500;
-						args[1] = var(new DynamicObject());
-						args[1].getDynamicObject()->setProperty("error", r.getErrorMessage());
+						args[1] = response;
 					}
+					
 
 					job->responseObj = args[1];
 

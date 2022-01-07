@@ -916,6 +916,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getLatencySamples);
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 	API_METHOD_WRAPPER_1(Engine, getSystemTime);
+	API_METHOD_WRAPPER_0(Engine, createLicenseUnlocker);
 	API_METHOD_WRAPPER_1(Engine, loadAudioFileIntoBufferArray);
 };
 
@@ -1031,6 +1032,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_3(showYesNoWindow);
 	ADD_API_METHOD_3(showMessageBox);
 	ADD_API_METHOD_1(getSystemTime);
+	ADD_API_METHOD_0(createLicenseUnlocker);
 }
 
 
@@ -1462,6 +1464,11 @@ var ScriptingApi::Engine::createGlobalScriptLookAndFeel()
 var ScriptingApi::Engine::createFixObjectFactory(var layoutData)
 {
     return var(new fixobj::Factory(getScriptProcessor(), layoutData));
+}
+
+juce::var ScriptingApi::Engine::createLicenseUnlocker()
+{
+	return var(new ScriptUnlocker::RefObject(getScriptProcessor()));
 }
 
 var ScriptingApi::Engine::createFFT()

@@ -88,6 +88,8 @@ xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_audio_waveform.xm
 xcopy "xml\classhise_1_1_script_user_preset_handler.xml" "xml\selection"
 
 
+xcopy "xml\structhise_1_1_script_unlocker_1_1_ref_object.xml" "xml\selection"
+
 
 xcopy "xml\classscriptnode_1_1_dsp_network.xml" "xml\selection"
 xcopy "xml\structscriptnode_1_1_script_network_test.xml" "xml\selection"
@@ -175,9 +177,13 @@ ren "xml\selection\classscriptnode_1_1_node_base.xml" "Node.xml"
 ren "xml\selection\classscriptnode_1_1_connection_base.xml" "Connection.xml"
 ren "xml\selection\classscriptnode_1_1_node_base_1_1_parameter.xml" "Parameter.xml"
 
+
+
 ren "xml\selection\structhise_1_1fixobj_1_1_array.xml" "FixObjectArray.xml"
 ren "xml\selection\structhise_1_1fixobj_1_1_factory.xml" "FixObjectFactory.xml"
 ren "xml\selection\structhise_1_1fixobj_1_1_stack.xml" "FixObjectStack.xml"
+
+ren "xml\selection\structhise_1_1_script_unlocker_1_1_ref_object.xml" "Unlocker.xml"
 
 ApiExtractor.exe xml\selection xml\selection
 

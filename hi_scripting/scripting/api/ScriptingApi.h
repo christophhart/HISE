@@ -318,6 +318,9 @@ public:
         /** Creates a fix object factory using the data layout. */
         var createFixObjectFactory(var layoutDescription);
         
+		/** Creates a reference to the script license manager. */
+		var createLicenseUnlocker();
+
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();
 

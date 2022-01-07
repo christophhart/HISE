@@ -86,7 +86,7 @@ AudioProcessorEditor(fp)
         deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, false);
     }
     
-#if USE_COPY_PROTECTION
+#if USE_COPY_PROTECTION && !USE_SCRIPT_COPY_PROTECTION
 	if (!fp->unlocker.isUnlocked())
 		deactiveOverlay->checkLicense();
 

@@ -73,7 +73,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 {
 	if (b == resolveLicenseButton)
 	{
-#if USE_COPY_PROTECTION
+#if USE_COPY_PROTECTION && !USE_SCRIPT_COPY_PROTECTION
 		Unlocker::resolveLicenseFile(this);
 #endif
 	}
@@ -142,7 +142,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	}
 	else if (b == registerProductButton)
 	{
-#if USE_COPY_PROTECTION
+#if USE_COPY_PROTECTION  && !USE_SCRIPT_COPY_PROTECTION
 		Unlocker::showActivationWindow(this);
 #endif
 	}
@@ -275,7 +275,7 @@ String DeactiveOverlay::getTextForError(State s) const
 		break;
 	case DeactiveOverlay::LicenseInvalid:
 	{
-#if USE_COPY_PROTECTION
+#if USE_COPY_PROTECTION && !USE_SCRIPT_COPY_PROTECTION
 
 		auto ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
 

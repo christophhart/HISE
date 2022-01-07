@@ -1356,9 +1356,7 @@ void FrontendHandler::checkAllSampleReferences()
 File FrontendHandler::getLicenseKey()
 {
 #if USE_FRONTEND
-
 	return getAppDataDirectory().getChildFile(getProjectName() + getLicenseKeyExtension());
-
 #else
 
 	return File();

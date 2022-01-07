@@ -36,12 +36,16 @@
 namespace hise { using namespace juce;
 
 #if USE_COPY_PROTECTION
+
+#if USE_SCRIPT_COPY_PROTECTION
+using Unlocker = hise::ScriptUnlocker;
+#else
+
 class Unlocker
 {
 public:
 
 	Unlocker();
-
 	~Unlocker();
 
 	var loadKeyFile();
@@ -69,6 +73,7 @@ private:
 	class Pimpl;
 	Pimpl* pimpl;
 };
+#endif
 #endif
 
 
@@ -108,7 +113,7 @@ public:
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
 	void releaseResources() {};
 
-	void loadSamplesAfterRegistration()
+	void loadSamplesAfterRegistration(bool reloadSamples=true)
     {
 #if USE_COPY_PROTECTION
         keyFileCorrectlyLoaded = unlocker.isUnlocked();
@@ -116,7 +121,10 @@ public:
         keyFileCorrectlyLoaded = true;
 #endif
         
-        GET_PROJECT_HANDLER(getMainSynthChain()).loadSamplesAfterSetup();
+		if (reloadSamples)
+		{
+			GET_PROJECT_HANDLER(getMainSynthChain()).loadSamplesAfterSetup();
+		}
     }
 
 	void getStateInformation	(MemoryBlock &destData) override;;
@@ -194,6 +202,7 @@ public:
 	void setCurrentProgram(int index) override;
 	
 #if USE_COPY_PROTECTION
+	juce::OnlineUnlockStatus* getLicenseUnlocker() override { return &unlocker; };
 	Unlocker unlocker;
 #endif
 

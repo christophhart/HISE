@@ -1577,6 +1577,10 @@ public:
 		return xyzPool.get();
 	}
 
+#if USE_COPY_PROTECTION || USE_BACKEND
+	virtual juce::OnlineUnlockStatus* getLicenseUnlocker() = 0;
+#endif
+
 #if HISE_INCLUDE_RLOTTIE
 	RLottieManager::Ptr getRLottieManager();
 #endif

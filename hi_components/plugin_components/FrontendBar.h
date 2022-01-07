@@ -166,7 +166,9 @@ public:
 
 	bool check(State s, const String &value = String());
 
+#if !USE_SCRIPT_COPY_PROTECTION
 	State checkLicense(const String &keyContent = String());
+#endif
 
 	void refreshLabel()
 	{

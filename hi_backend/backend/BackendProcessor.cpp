@@ -35,7 +35,8 @@ namespace hise { using namespace juce;
 BackendProcessor::BackendProcessor(AudioDeviceManager *deviceManager_/*=nullptr*/, AudioProcessorPlayer *callback_/*=nullptr*/) :
 MainController(),
 AudioProcessorDriver(deviceManager_, callback_),
-viewUndoManager(new UndoManager())
+viewUndoManager(new UndoManager()),
+scriptUnlocker(this)
 {
 	ExtendedApiDocumentation::init();
 

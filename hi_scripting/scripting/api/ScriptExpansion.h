@@ -484,4 +484,62 @@ public:
 	WeakReference<Expansion> e;
 };
 
+
+struct ScriptUnlocker : public juce::OnlineUnlockStatus,
+					    public ControlledObject
+{
+	ScriptUnlocker(MainController* mc):
+		ControlledObject(mc)
+	{
+
+	}
+
+	struct RefObject : public ConstScriptingObject
+	{
+		RefObject(ProcessorWithScriptingContent* p);
+
+		~RefObject();
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Unlocker"); }
+
+		WeakReference<ScriptUnlocker> unlocker;
+
+		/** Checks if the registration went OK. */
+		var isUnlocked() const;
+
+		/** Sets a function that performs a product name check and expects to return true or false for a match. */
+		void setProductCheckFunction(var f);
+
+		/** This checks if there is a key file and applies it.  */
+		var loadKeyFile();
+
+		/** Writes the key data to the location. */
+		var writeKeyFile(const String& keyData);
+
+		/** Returns the user email that was used for the registration. */
+		String getUserEmail() const;
+
+		WeakCallbackHolder pcheck;
+
+		struct Wrapper;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(RefObject);
+	};
+
+	String getProductID() override;
+	bool doesProductIDMatch(const String& returnedIDFromServer) override;
+	RSAKey getPublicKey() override;
+	void saveState(const String&) override;
+	String getState() override;
+	String getWebsiteName() override;
+	URL getServerAuthenticationURL() override;
+	String readReplyFromWebserver(const String& email, const String& password) override;
+
+	var loadKeyFile();
+	File getLicenseKeyFile();
+	WeakReference<RefObject> currentObject;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUnlocker);
+};
+
 } // namespace hise

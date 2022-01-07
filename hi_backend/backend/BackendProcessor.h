@@ -189,6 +189,13 @@ public:
 
 	void setEditorData(var editorState);
 
+	juce::OnlineUnlockStatus* getLicenseUnlocker() 
+	{
+		return &scriptUnlocker;
+	}
+
+	ScriptUnlocker scriptUnlocker;
+
 #if HISE_INCLUDE_SNEX_FLOATING_TILES
 	snex::ui::WorkbenchManager workbenches;
 	virtual void* getWorkbenchManager() override { return reinterpret_cast<void*>(&workbenches); }

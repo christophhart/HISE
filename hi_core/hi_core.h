@@ -123,6 +123,20 @@ If true, then the copy protection will be used
 #define USE_COPY_PROTECTION 0
 #endif
 
+/** Config: USE_SCRIPT_COPY_PROTECTION
+
+	Uses the scripted layer to the JUCE unlock class for copy protection
+*/
+#ifndef USE_SCRIPT_COPY_PROTECTION
+#define USE_SCRIPT_COPY_PROTECTION 0
+#endif
+
+// Ensure that USE_COPY_PROTECTION is true when the USE_SCRIPT_COPY_PROTECTION macro is being used
+#if USE_SCRIPT_COPY_PROTECTION && !USE_COPY_PROTECTION
+#undef USE_COPY_PROTECTION
+#define USE_COPY_PROTECTION 1
+#endif
+
 /** Config: USE_IPP
 
 Use the Intel Performance Primitives Library for the convolution reverb.

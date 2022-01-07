@@ -772,21 +772,19 @@ void AboutPagePanel::rebuildText()
 		bgImage = handler.loadImageReference(PoolReference(getMainController(), "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images));
 	}
 	
+	String licencee;
+
+	if (auto ul = getMainController()->getLicenseUnlocker())
+		ul->getUserEmail();
 
 #if USE_FRONTEND
 	const String projectName = FrontendHandler::getProjectName();
-
-#if USE_COPY_PROTECTION
-	const String licencee = dynamic_cast<FrontendProcessor*>(getMainController())->unlocker.getEmailAdress();
-#endif
-
 	const String version = FrontendHandler::getVersionString();
 	
 #else
 	const auto& data = dynamic_cast<GlobalSettingManager*>(getMainController())->getSettingsObject();
 
 	const String projectName = data.getSetting(HiseSettings::Project::Name);
-	const String licencee = "mailMcFaceMail@mail.mail";
 	const String version = data.getSetting(HiseSettings::Project::Version);
 
 #endif
@@ -813,7 +811,7 @@ void AboutPagePanel::rebuildText()
 		text.append(version + nl + nl, normal, low);
 	}
 
-#if USE_COPY_PROTECTION
+#if USE_COPY_PROTECTION && !USE_SCRIPT_COPY_PROTECTION
 	if (showLicensedEmail)
 	{
 		text.append("Licensed to: ", bold, low);
