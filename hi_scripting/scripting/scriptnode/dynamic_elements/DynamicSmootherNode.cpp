@@ -446,8 +446,8 @@ void bipolar_editor::paint(Graphics& g)
 
 namespace smoothers
 {
-	dynamic::editor::editor(dynamic* p, PooledUIUpdater* updater) :
-		ScriptnodeExtraComponent<dynamic>(p, updater),
+	dynamic_base::editor::editor(dynamic_base* p, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<dynamic_base>(p, updater),
 		plotter(updater),
 		modeSelector("Linear Ramp")
 	{
@@ -456,7 +456,7 @@ namespace smoothers
 		setSize(200, 58);
 	}
 
-	void dynamic::editor::paint(Graphics& g)
+	void dynamic_base::editor::paint(Graphics& g)
 	{
 		float a = JUCE_LIVE_CONSTANT_OFF(0.4f);
 
@@ -470,13 +470,13 @@ namespace smoothers
 		g.fillEllipse(b.toFloat());
 	}
 
-	void dynamic::editor::timerCallback()
+	void dynamic_base::editor::timerCallback()
 	{
 		double v = 0.0;
-		currentColour = getObject()->lastValue.getChangedValue(v) ? Colour(SIGNAL_COLOUR) : Colours::grey;
+		currentColour =  getObject()->lastValue.getChangedValue(v) ? Colour(SIGNAL_COLOUR) : Colours::grey;
 		repaint();
 
-		modeSelector.initModes(smoothers::dynamic::getSmoothNames(), plotter.getSourceNodeFromParent());
+		modeSelector.initModes(smoothers::dynamic_base::getSmoothNames(), plotter.getSourceNodeFromParent());
 	}
 
 }

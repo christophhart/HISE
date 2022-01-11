@@ -92,6 +92,25 @@ template <int C> struct ProcessDataHelpers
 		return obj.size() / NumChannels;
 	}
 
+	template <typename OtherContainer> static void copyFrom(const ProcessData<C>& target, OtherContainer& s)
+	{
+		static_assert(std::is_same<float, typename OtherContainer::DataType>(), "target must be float array");
+
+		auto src = t.begin();
+		int numElements = target.getNumSamples();
+		int numToCopy = numElements * NumChannels;
+
+		auto targetPtrs = target.getRawDataPointers();
+
+		for (int i = 0; i < NumChannels; i++)
+		{
+			auto offset = i * numElements;
+			memcpy(targetPtrs[i], src + offset, sizeof(float)*numElements);
+		}
+
+		jassert(s.size() >= numToCopy); ignoreUnused(numToCopy);
+	}
+
 	template <typename OtherContainer> static void copyTo(const ProcessData<C>& source, OtherContainer& t)
 	{
         static_assert(std::is_same<float, typename OtherContainer::DataType>(), "target must be float array");

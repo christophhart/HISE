@@ -1379,8 +1379,17 @@ namespace control
 	template <int NV, typename ParameterType> using minmax = multi_parameter<NV, ParameterType, multilogic::minmax>;
 	template <int NV, typename ParameterType> using logic_op = multi_parameter<NV, ParameterType, multilogic::logic_op>;
 
-	template <typename SmootherClass> struct smoothed_parameter: public control::pimpl::templated_mode
+	struct smoothed_parameter_base: public mothernode
 	{
+		virtual ~smoothed_parameter_base() {};
+		virtual smoothers::base* getSmootherObject() = 0;
+	};
+
+	template <typename SmootherClass, int NV> struct smoothed_parameter: public control::pimpl::templated_mode,
+																		 public smoothed_parameter_base
+	{
+		static constexpr int NumVoices = NV;
+
 		enum Parameters
 		{
 			Value,
@@ -1391,6 +1400,8 @@ namespace control
 		smoothed_parameter():
 			templated_mode(getStaticId(), "smoothers")
 		{
+			static_assert(std::is_base_of<smoothers::base, SmootherClass>(), "Not a smoother class");
+			static_assert(SmootherClass::NumVoices == NumVoices, "Voice amount mismatch");
 		}
 
 		SET_HISE_NODE_ID("smoothed_parameter");
@@ -1415,7 +1426,7 @@ namespace control
 
 		static constexpr bool isNormalisedModulation() { return true; };
 
-		bool isPolyphonic() const { return false; };
+		static constexpr bool isPolyphonic() { return NumVoices > 1; };
 
 		template <typename ProcessDataType> void process(ProcessDataType& d)
 		{
@@ -1435,7 +1446,11 @@ namespace control
 		void reset()
 		{
 			value.reset();
-			modValue.setModValueIfChanged(value.get());
+
+			// Force the change flag to true in order to trigger the modulation for polyphonic
+			// contexts at voice start
+			modValue.setModValue(value.get());
+			//modValue.setModValueIfChanged(value.get());
 		}
 
 		void prepare(PrepareSpecs ps)
@@ -1478,6 +1493,8 @@ namespace control
 		{
 			value.setSmoothingTime(newSmoothingTime);
 		}
+
+		smoothers::base* getSmootherObject() override { return &value; }
 
 		SmootherClass value;
 

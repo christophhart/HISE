@@ -584,6 +584,14 @@ struct base
         }
     }
 
+	void setEnabled(double v)
+	{
+		enabled = v > 0.5;
+
+		if (enabled)
+			reset();
+	}
+
     virtual float get() const = 0;
     virtual void reset() = 0;
     virtual void set(double v) = 0;
@@ -597,16 +605,17 @@ struct base
 
     virtual void refreshSmoothingTime() = 0;
 
-    virtual void setEnabled(double v) = 0;
-
     virtual HISE_EMPTY_INITIALISE;
 
     double currentBlockRate = 0.0;
     double smoothingTimeMs = 0.0;
+	bool enabled = true;
 };
 
-struct no : public base
+template <int NV> struct no : public base
 {
+	static constexpr int NumVoices = NV;
+
     float get() const final override
     {
         return v;
@@ -619,8 +628,6 @@ struct no : public base
         v = nv;
     }
 
-    void setEnabled(double v) final override { };
-
     float advance() final override
     {
         return v;
@@ -631,106 +638,133 @@ struct no : public base
     float v = 0.0f;
 };
 
-struct low_pass : public base
+template <int NV> struct low_pass : public base
 {
+	static constexpr int NumVoices = NV;
+
     float get() const final override
     {
-        return lastValue;
+        return state.get().lastValue;
     }
+
+	void prepare(PrepareSpecs ps) final override
+	{
+		base::prepare(ps);
+		state.prepare(ps);
+	}
 
     void reset() final override
     {
-        isSmoothing = false;
-        lastValue = target;
-        s.resetToValue(target);
+		for (auto& s : state)
+			s.reset();
     }
 
     float advance() final override
     {
-        if (isSmoothing && enabled)
-        {
-            auto thisValue = s.smooth(target);
-            isSmoothing = std::abs(thisValue - target) > 0.001f;
-            lastValue = thisValue;
-            return thisValue;
-        }
-
-        return target;
+		return enabled ? state.get().advance() : state.get().target;
     }
 
     void set(double targetValue) final override
     {
-        auto tf = (float)targetValue;
-
-        if (tf != target)
-        {
-            target = tf;
-            isSmoothing = target != lastValue;
-        }
+		for (auto& s : state)
+			s.set(targetValue);
     }
 
     void refreshSmoothingTime() final override
     {
-        s.prepareToPlay(currentBlockRate);
-        s.setSmoothingTime(smoothingTimeMs);
-    }
-
-    void setEnabled(double v) final override
-    {
-        enabled = v > 0.5;
-
-        if (enabled)
-            reset();
+		for (auto& s : state)
+		{
+			s.s.prepareToPlay(currentBlockRate);
+			s.s.setSmoothingTime(smoothingTimeMs);
+		}
     }
 
 private:
 
-    bool enabled = true;
-    bool isSmoothing = false;
-    float lastValue = 0.0f;
-    float target = 0.0f;
-    Smoother s;
+	struct State
+	{
+		void reset()
+		{
+			isSmoothing = false;
+			lastValue = target;
+			s.resetToValue(target);
+		}
+
+		float advance()
+		{
+			if (isSmoothing)
+			{
+				auto thisValue = s.smooth(target);
+				isSmoothing = std::abs(thisValue - target) > 0.001f;
+				lastValue = thisValue;
+				return thisValue;
+			}
+
+			return target;
+		}
+
+		void set(double targetValue)
+		{
+			auto tf = (float)targetValue;
+
+			if (tf != target)
+			{
+				target = tf;
+				isSmoothing = target != lastValue;
+			}
+		}
+
+		
+		bool isSmoothing = false;
+		float lastValue = 0.0f;
+		float target = 0.0f;
+		Smoother s;
+	};
+
+	PolyData<State, NumVoices> state;
 };
 
-struct linear_ramp : public base
+template <int NV> struct linear_ramp : public base
 {
+	static constexpr int NumVoices = NV;
+
     void reset()final override
     {
-        d.reset();
+		for(auto& s: state)
+			s.reset();
     }
+
+	void prepare(PrepareSpecs ps) override
+	{
+		base::prepare(ps);
+		state.prepare(ps);
+	}
 
     float advance() final override
     {
-        return enabled ? d.advance() : d.targetValue;
+        return enabled ? state.get().advance() : state.get().targetValue;
     }
 
     float get() const final override
     {
-        return enabled ? d.get() : d.targetValue;
+        return enabled ? state.get().get() : state.get().targetValue;
     }
 
     void set(double newValue) final override
     {
-        d.set(newValue);
+		for(auto& s: state)
+			s.set(newValue);
     }
 
     void refreshSmoothingTime() final override
     {
-        d.prepare(currentBlockRate, smoothingTimeMs);
-    }
-
-    void setEnabled(double v) final override
-    {
-        enabled = v > 0.5;
-
-        if (enabled)
-            reset();
+		for(auto& s: state)
+			s.prepare(currentBlockRate, smoothingTimeMs);
     }
 
 private:
-
-    sdouble d;
-    bool enabled = true;
+	
+	PolyData<sdouble, NumVoices> state;
 };
 }
 

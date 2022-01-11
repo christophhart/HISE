@@ -2150,7 +2150,7 @@ juce::var ScriptUnlocker::RefObject::writeKeyFile(const String& keyData)
 
 String ScriptUnlocker::RefObject::getUserEmail() const
 {
-	unlocker->getUserEmail();
+	return unlocker->getUserEmail();
 }
 
 } // namespace hise

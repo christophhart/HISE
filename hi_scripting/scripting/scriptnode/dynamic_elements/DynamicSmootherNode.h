@@ -583,9 +583,10 @@ struct dynamic
 
 namespace smoothers
 {
-struct dynamic : public base
+
+struct dynamic_base : public base
 {
-	using NodeType = control::smoothed_parameter<dynamic>;
+	using NodeType = control::smoothed_parameter_base;
 
 	enum class SmoothingType
 	{
@@ -597,92 +598,23 @@ struct dynamic : public base
 
 	static StringArray getSmoothNames() { return { "NoSmoothing", "Linear Ramp", "Low Pass" }; }
 
-	dynamic() :
+	dynamic_base() :
 		mode(PropertyIds::Mode, "Linear Ramp")
-	{
-		b = &r;
-	}
-
-	float get() const final override
-	{
-		return (float)lastValue.getModValue();
-	}
-
-	void reset() final override
-	{
-		b->reset();
-	};
-
-	void set(double nv) final override
-	{
-		value = nv;
-		b->set(nv);
-	}
-
-	float advance() final override
-	{
-		lastValue.setModValueIfChanged(b->advance());
-
-		return (float)lastValue.getModValue();
-	}
-
-	void prepare(PrepareSpecs ps) final override
-	{
-		l.prepare(ps);
-		r.prepare(ps);
-		n.prepare(ps);
-	}
-
-	void refreshSmoothingTime() final override
-	{
-		b->setSmoothingTime(smoothingTimeMs);
-	};
-
-	float v = 0.0f;
+	{};
 
 	void initialise(NodeBase* n) override
 	{
 		mode.initialise(n);
-		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::setMode), true);
+		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic_base::setMode), true);
 	}
 
-	void setEnabled(double value) final override
+	virtual void setMode(Identifier id, var newValue) {};
+	
+	virtual ~dynamic_base() {};
+
+	struct editor : public ScriptnodeExtraComponent<dynamic_base>
 	{
-		b->setEnabled(value);
-	}
-
-	void setMode(Identifier id, var newValue)
-	{
-		auto m = (SmoothingType)getSmoothNames().indexOf(newValue.toString());
-
-		switch (m)
-		{
-		case SmoothingType::NoSmoothing: b = &n; break;
-		case SmoothingType::LinearRamp: b = &r; break;
-		case SmoothingType::LowPass: b = &l; break;
-		default: b = &r; break;
-		}
-
-		refreshSmoothingTime();
-		b->set(value);
-		b->reset();
-	}
-
-	NodePropertyT<String> mode;
-
-	ModValue lastValue;
-	double value = 0.0;
-
-	smoothers::no n;
-	smoothers::linear_ramp r;
-	smoothers::low_pass l;
-	smoothers::base* b = nullptr;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic);
-
-	struct editor : public ScriptnodeExtraComponent<dynamic>
-	{
-		editor(dynamic* p, PooledUIUpdater* updater);
+		editor(dynamic_base* p, PooledUIUpdater* updater);
 
 		void paint(Graphics& g) override;
 
@@ -691,7 +623,10 @@ struct dynamic : public base
 		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
 		{
 			auto v = static_cast<NodeType*>(obj);
-			return new editor(&v->value, updater);
+
+			auto o = v->getSmootherObject();
+
+			return new editor(dynamic_cast<dynamic_base*>(o), updater);
 		}
 
 		void resized() override
@@ -708,6 +643,84 @@ struct dynamic : public base
 
 		Colour currentColour;
 	};
+
+	float get() const final override
+	{
+		return (float)lastValue.getModValue();
+	}
+
+protected:
+
+	double value = 0.0;
+	NodePropertyT<String> mode;
+	ModValue lastValue;
+	smoothers::base* b = nullptr;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic_base);
+};
+
+template <int NV> struct dynamic : public dynamic_base
+{
+	static constexpr int NumVoices = NV;
+	
+	dynamic()	
+	{
+		b = &r;
+	}
+
+	void reset() final override
+	{
+		b->reset();
+	};
+
+	void set(double nv) final override
+	{
+		value = nv;
+		b->set(nv);
+	}
+
+	float advance() final override
+	{
+		if (enabled)
+			lastValue.setModValueIfChanged(b->advance());
+		
+		return get();
+	}
+
+	void prepare(PrepareSpecs ps) final override
+	{
+		l.prepare(ps);
+		r.prepare(ps);
+		n.prepare(ps);
+	}
+
+	void refreshSmoothingTime() final override
+	{
+		b->setSmoothingTime(smoothingTimeMs);
+	};
+
+	float v = 0.0f;
+
+	void setMode(Identifier id, var newValue) override
+	{
+		auto m = (SmoothingType)getSmoothNames().indexOf(newValue.toString());
+
+		switch (m)
+		{
+		case SmoothingType::NoSmoothing: b = &n; break;
+		case SmoothingType::LinearRamp: b = &r; break;
+		case SmoothingType::LowPass: b = &l; break;
+		default: b = &r; break;
+		}
+
+		refreshSmoothingTime();
+		b->set(value);
+		b->reset();
+	}
+
+	smoothers::no<NumVoices> n;
+	smoothers::linear_ramp<NumVoices> r;
+	smoothers::low_pass<NumVoices> l;
 };
 }
 

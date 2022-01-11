@@ -1349,10 +1349,7 @@ namespace control
 	using dynamic_cable_table = wrap::data<control::cable_table<parameter::dynamic_base_holder>, data::dynamic::table>;
 	using dynamic_cable_pack = wrap::data<control::cable_pack<parameter::dynamic_base_holder>, data::dynamic::sliderpack>;
 
-	using dynamic_smoother_parameter = control::smoothed_parameter<smoothers::dynamic>;
-
-
-	
+	template <int NV> using dynamic_smoother_parameter = control::smoothed_parameter<smoothers::dynamic<NV>, NV>;
 
  	Factory::Factory(DspNetwork* network) :
 		NodeFactory(network)
@@ -1381,7 +1378,7 @@ namespace control
 		registerNoProcessNode<faders::dynamic::NodeType, faders::dynamic::editor>();
 		registerNoProcessNode<control::xy_editor::NodeType, control::xy_editor>();
 		registerNoProcessNode<control::resetter_editor::NodeType, control::resetter_editor>();
-		registerModNode<smoothers::dynamic::NodeType, smoothers::dynamic::editor>();
+		registerPolyModNode<dynamic_smoother_parameter<1>, dynamic_smoother_parameter<NUM_POLYPHONIC_VOICES>, smoothers::dynamic_base::editor>();
 
 #if HISE_INCLUDE_SNEX
 		registerNoProcessNode<dynamic_expression::ControlNodeType, dynamic_expression::editor>();
