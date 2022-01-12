@@ -1385,7 +1385,8 @@ namespace control
 		virtual smoothers::base* getSmootherObject() = 0;
 	};
 
-	template <typename SmootherClass, int NV> struct smoothed_parameter: public control::pimpl::templated_mode,
+	template <int NV, typename SmootherClass> struct smoothed_parameter: public control::pimpl::templated_mode,
+                                                                         public polyphonic_base,
 																		 public smoothed_parameter_base
 	{
 		static constexpr int NumVoices = NV;
@@ -1398,8 +1399,11 @@ namespace control
 		};
 
 		smoothed_parameter():
-			templated_mode(getStaticId(), "smoothers")
+          polyphonic_base(getStaticId(), false),
+          templated_mode(getStaticId(), "smoothers")
 		{
+            cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::TemplateArgumentIsPolyphonic);
+            
 			static_assert(std::is_base_of<smoothers::base, SmootherClass>(), "Not a smoother class");
 			static_assert(SmootherClass::NumVoices == NumVoices, "Voice amount mismatch");
 		}

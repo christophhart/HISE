@@ -1349,7 +1349,7 @@ namespace control
 	using dynamic_cable_table = wrap::data<control::cable_table<parameter::dynamic_base_holder>, data::dynamic::table>;
 	using dynamic_cable_pack = wrap::data<control::cable_pack<parameter::dynamic_base_holder>, data::dynamic::sliderpack>;
 
-	template <int NV> using dynamic_smoother_parameter = control::smoothed_parameter<smoothers::dynamic<NV>, NV>;
+	template <int NV> using dynamic_smoother_parameter = control::smoothed_parameter<NV, smoothers::dynamic<NV>>;
 
  	Factory::Factory(DspNetwork* network) :
 		NodeFactory(network)
