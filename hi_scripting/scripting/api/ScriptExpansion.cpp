@@ -664,6 +664,7 @@ struct ScriptExpansionReference::Wrapper
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getAudioFileList);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getMidiFileList);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getDataFileList);
+	API_METHOD_WRAPPER_0(ScriptExpansionReference, getUserPresetList);
 	API_METHOD_WRAPPER_0(ScriptExpansionReference, getProperties);
 	API_METHOD_WRAPPER_1(ScriptExpansionReference, loadDataFile);
 	API_METHOD_WRAPPER_2(ScriptExpansionReference, writeDataFile);
@@ -686,6 +687,7 @@ ScriptExpansionReference::ScriptExpansionReference(ProcessorWithScriptingContent
 	ADD_API_METHOD_0(getAudioFileList);
 	ADD_API_METHOD_0(getMidiFileList);
 	ADD_API_METHOD_0(getDataFileList);
+	ADD_API_METHOD_0(getUserPresetList);
 	ADD_API_METHOD_0(getProperties);
 	ADD_API_METHOD_1(loadDataFile);
 	ADD_API_METHOD_2(writeDataFile);
@@ -807,6 +809,32 @@ var ScriptExpansionReference::getDataFileList() const
 			list.add(ref.getReferenceString());
 
 		return list;
+	}
+
+	reportScriptError("Expansion was deleted");
+	RETURN_IF_NO_THROW({});
+}
+
+var ScriptExpansionReference::getUserPresetList() const
+{
+	if (objectExists())
+	{
+ 		File userPresetRoot = exp->getSubDirectory(FileHandlerBase::UserPresets);
+		
+		Array<File> presets;
+		userPresetRoot.findChildFiles(presets, File::findFiles, true, "*.preset");
+		
+		Array<var> list;
+
+		for (auto& pr : presets)
+		{
+			auto name = pr.getRelativePathFrom(userPresetRoot).upToFirstOccurrenceOf(".preset", false, true);
+			name = name.replaceCharacter('\\', '/');
+
+			list.add(var(name));
+		}
+
+		return var(list);
 	}
 
 	reportScriptError("Expansion was deleted");
