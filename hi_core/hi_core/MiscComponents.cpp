@@ -398,7 +398,8 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 
 	if (popupShouldBeAligned)
 	{
-		result = m.showAt(this, 0, getWidth());
+		auto gm = dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController());
+		result = m.showAt(this, 0, getWidth() * gm->getGlobalScaleFactor());
 	}
 	else
 	{
