@@ -2486,6 +2486,7 @@ struct ScriptingApi::Sampler::Wrapper
     API_METHOD_WRAPPER_0(Sampler, getNumAttributes);
     API_METHOD_WRAPPER_1(Sampler, getAttribute);
     API_METHOD_WRAPPER_1(Sampler, getAttributeId);
+		API_METHOD_WRAPPER_1(Sampler, getAttributeIndex);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setUseStaticMatrix);
     API_METHOD_WRAPPER_1(Sampler, loadSampleForAnalysis);
 	API_METHOD_WRAPPER_1(Sampler, loadSfzFile);
@@ -2535,6 +2536,7 @@ sampler(sampler_)
 	ADD_API_METHOD_0(getNumAttributes);
     ADD_API_METHOD_1(getAttribute);
     ADD_API_METHOD_1(getAttributeId);
+		ADD_API_METHOD_1(getAttributeIndex);
     ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(isNoteNumberMapped);
     ADD_API_METHOD_1(loadSampleForAnalysis);
@@ -3632,6 +3634,16 @@ String ScriptingApi::Sampler::getAttributeId(int parameterIndex)
         return s->getIdentifierForParameterIndex(parameterIndex).toString();    
     
     return String();
+}
+
+int ScriptingApi::Sampler::getAttributeIndex(String parameterId)
+{
+    ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+    if (checkValidObject())
+        return s->getParameterIndexForIdentifier(parameterId);
+
+    return -1;
 }
 
 void ScriptingApi::Sampler::setAttribute(int index, var newValue)
