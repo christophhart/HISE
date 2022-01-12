@@ -69,7 +69,7 @@ void UIComponentDatabase::CommonData::Data::init(BackendProcessor* bp_)
 	list.getLast()->setScriptObjectProperty(ScriptComponent::width, 512);
 	list.getLast()->setScriptObjectProperty(ScriptComponent::height, 100);
 
-	list.add(c->addScriptedViewport("Viewport", 0, 0));
+	list.add(c->addViewport("Viewport", 0, 0));
 
 	list.getLast()->setScriptObjectProperty(ScriptComponent::width, 512);
 	list.getLast()->setScriptObjectProperty(ScriptComponent::height, 100);
