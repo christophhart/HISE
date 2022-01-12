@@ -231,6 +231,14 @@ template <class T, int Size, int Alignment=16> struct span
 					OpType::op(s, op);
 			}
 		}
+		else if constexpr (std::is_pointer<T>())
+		{
+			static_assert(std::is_same<OpType, SpanOperators<T>::assign>(), "only assignment supported");
+			static_assert(std::is_same<typename OperandType::DataType, T>(), "type mismatch");
+
+			memset(begin(), 0, sizeof(void*) * size());
+			memcpy(begin(), op.begin(), sizeof(void*) * jmin<int>(op.size(), size()));
+		}
 		else
 		{
 			// OperandType is a span with the same element type
