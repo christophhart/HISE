@@ -351,8 +351,14 @@ public:
 		/** Returns the millisecond value for the supplied tempo (HINT: Use "TempoSync" mode from Slider!) */
 		double getMilliSecondsForTempo(int tempoIndex) const;;
 
-    /** launches the given URL in the system's web browser. */
-    void openWebsite(String url);
+		/** launches the given URL in the system's web browser. */
+		void openWebsite(String url);
+
+		/** Copies the given text to the clipboard. */
+		void copyToClipboard(String textToCopy);
+
+		/** Returns the clipboard content. */
+		String getClipboardContent();
 
 		/** Creates a list of all available expansions. */
 		var getExpansionList();
@@ -1454,6 +1460,9 @@ public:
 
 		/** Returns a unique machine ID that can be used to identify the computer. */
 		String getSystemId();
+
+		/** Returns the number of free bytes on the volume of a given folder. */
+		int64 getBytesFreeOnVolume(var folder);
 
 		// ========================================================= End of API calls
 
