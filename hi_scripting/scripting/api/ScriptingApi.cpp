@@ -1703,6 +1703,7 @@ struct ScriptingApi::Settings::Wrapper
 	API_METHOD_WRAPPER_1(Settings, isMidiInputEnabled);
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiChannel);
 	API_METHOD_WRAPPER_1(Settings, isMidiChannelEnabled);
+	API_METHOD_WRAPPER_0(Settings, getUserDesktopSize);
 };
 
 ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
@@ -1741,6 +1742,19 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 	ADD_API_METHOD_1(isMidiInputEnabled);
 	ADD_API_METHOD_2(toggleMidiChannel);
 	ADD_API_METHOD_1(isMidiChannelEnabled);
+	ADD_API_METHOD_0(getUserDesktopSize);
+}
+
+var ScriptingApi::Settings::getUserDesktopSize()
+{
+	auto area = Desktop::getInstance().getDisplays().getMainDisplay().userArea;
+
+	Array<var> desktopSize;
+
+	desktopSize.add(area.getWidth());
+	desktopSize.add(area.getHeight());
+
+	return desktopSize;
 }
 
 double ScriptingApi::Settings::getZoomLevel() const
