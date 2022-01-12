@@ -1497,16 +1497,18 @@ struct ScriptingObjects::ScriptedLookAndFeel::Wrapper
 };
 
 
-ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptingContent* sp) :
+ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptingContent* sp, bool isGlobal) :
 	ConstScriptingObject(sp, 0),
 	g(new GraphicsObject(sp, this)),
-	functions(new DynamicObject())
+	functions(new DynamicObject()),
+	wasGlobal(isGlobal)
 {
 	ADD_API_METHOD_2(registerFunction);
 	ADD_API_METHOD_2(setGlobalFont);
 	ADD_API_METHOD_2(loadImage);
 
-	getScriptProcessor()->getMainController_()->setCurrentScriptLookAndFeel(this);
+	if(isGlobal)
+		getScriptProcessor()->getMainController_()->setCurrentScriptLookAndFeel(this);
 }
 
 ScriptingObjects::ScriptedLookAndFeel::~ScriptedLookAndFeel()
@@ -2601,5 +2603,17 @@ void ScriptingObjects::ScriptedLookAndFeel::loadImage(String imageName, String p
 }
 
 
+
+ScriptingObjects::ScriptedLookAndFeel::LocalLaf::LocalLaf(ScriptedLookAndFeel* l) :
+	Laf(l->getScriptProcessor()->getMainController_()),
+	weakLaf(l)
+{
+
+}
+
+hise::ScriptingObjects::ScriptedLookAndFeel* ScriptingObjects::ScriptedLookAndFeel::LocalLaf::get()
+{
+	return weakLaf.get();
+}
 
 } 

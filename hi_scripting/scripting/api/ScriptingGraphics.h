@@ -485,6 +485,8 @@ namespace ScriptingObjects
 	{
 	public:
 
+		
+
 		struct Laf : public GlobalHiseLookAndFeel,
 			public PresetBrowserLookAndFeelMethods,
 			public TableEditor::LookAndFeelMethods,
@@ -501,7 +503,9 @@ namespace ScriptingObjects
 				ControlledObject(mc)
 			{}
 
-			ScriptedLookAndFeel* get()
+			virtual ~Laf() {};
+
+			virtual ScriptedLookAndFeel* get()
 			{
 				return dynamic_cast<ScriptedLookAndFeel*>(getMainController()->getCurrentScriptLookAndFeel());
 			}
@@ -594,9 +598,17 @@ namespace ScriptingObjects
 			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Laf);
 		};
 
+		struct LocalLaf : public Laf
+		{
+			LocalLaf(ScriptedLookAndFeel* l);;
+			ScriptedLookAndFeel* get() override;
+			
+			WeakReference<ScriptedLookAndFeel> weakLaf;
+		};
+
 		struct Wrapper;
 
-		ScriptedLookAndFeel(ProcessorWithScriptingContent* sp);
+		ScriptedLookAndFeel(ProcessorWithScriptingContent* sp, bool isGlobal);
 
 		~ScriptedLookAndFeel();
 
@@ -683,6 +695,7 @@ namespace ScriptingObjects
 			String prettyName;
 		};
 
+		const bool wasGlobal;
 		Array<NamedImage> loadedImages;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedLookAndFeel);

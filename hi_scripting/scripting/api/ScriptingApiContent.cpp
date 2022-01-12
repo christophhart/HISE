@@ -130,6 +130,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setKeyPressCallback);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, loseFocus);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setZLevel);
+	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setLocalLookAndFeel);
 };
 
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
@@ -231,6 +232,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_1(setZLevel);
 	ADD_API_METHOD_1(setKeyPressCallback);
 	ADD_API_METHOD_0(loseFocus);
+	ADD_API_METHOD_1(setLocalLookAndFeel);
 
 	//setName(name_.toString());
 
@@ -1188,6 +1190,31 @@ void ScriptingApi::Content::ScriptComponent::loseFocus()
 		if (l != nullptr)
 			l->wantsToLoseFocus();
 	}
+}
+
+juce::LookAndFeel* ScriptingApi::Content::ScriptComponent::createLocalLookAndFeel()
+{
+	if (auto l = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(localLookAndFeel.getObject()))
+	{
+		return new ScriptingObjects::ScriptedLookAndFeel::LocalLaf(l);
+	}
+
+	return nullptr;
+}
+
+void ScriptingApi::Content::ScriptComponent::setLocalLookAndFeel(var lafObject)
+{
+	if (auto l = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(lafObject.getObject()))
+	{
+		localLookAndFeel = lafObject;
+
+		ChildIterator<ScriptComponent> iter(this);
+
+		while (auto sc = iter.getNextChildComponent())
+			sc->localLookAndFeel = lafObject;
+	}
+	else
+		localLookAndFeel = var();
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -4097,6 +4124,7 @@ colour(Colour(0xff777777))
 	setMethod("createPath", Wrapper::createPath);
 	setMethod("createShader", Wrapper::createShader);
 	setMethod("getCurrentTooltip", Wrapper::getCurrentTooltip);
+	setMethod("createLocalLookAndFeel", Wrapper::createLocalLookAndFeel);
 }
 
 ScriptingApi::Content::~Content()
@@ -4646,6 +4674,11 @@ var ScriptingApi::Content::createPath()
 	return var(obj);
 }
 
+juce::var ScriptingApi::Content::createLocalLookAndFeel()
+{
+	return var(new ScriptingObjects::ScriptedLookAndFeel(getScriptProcessor(), false));
+}
+
 void ScriptingApi::Content::cleanJavascriptObjects()
 {
 	allowAsyncFunctions = false;
@@ -4655,6 +4688,7 @@ void ScriptingApi::Content::cleanJavascriptObjects()
 		components[i]->cancelChangedControlCallback();
 		components[i]->setControlCallback(var());
 		components[i]->cleanScriptChangedPropertyIds();
+		components[i]->setLocalLookAndFeel(var());
 
 		if (auto p = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(components[i].get()))
 		{

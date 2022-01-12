@@ -192,6 +192,16 @@ void ScriptCreatedComponentWrapper::initAllProperties()
 
 		updateComponent(i, v);
 	}
+
+	if (auto l = sc->createLocalLookAndFeel())
+	{
+		localLookAndFeel = l;
+		component->setLookAndFeel(l);
+	}
+	else
+	{
+		localLookAndFeel = nullptr;
+	}
 }
 
 

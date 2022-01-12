@@ -101,6 +101,8 @@ struct ScriptingApi::Content::Wrapper
 
 	static var createScreenshot(const var::NativeFunctionArgs& args);
 
+	static var createLocalLookAndFeel(const var::NativeFunctionArgs& args);
+
 	static var addVisualGuide(const var::NativeFunctionArgs& args);
 
 	static var setImageFile(const var::NativeFunctionArgs& args);
@@ -951,6 +953,17 @@ var ScriptingApi::Content::Wrapper::getCurrentTooltip(const var::NativeFunctionA
 	{
 		CHECK_ARGUMENTS("getCurrentTooltip()", 0);
 		return thisObject->getCurrentTooltip();
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::createLocalLookAndFeel(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("createLocalLookAndFeel()", 0);
+		return thisObject->createLocalLookAndFeel();
 	}
 
 	return var();

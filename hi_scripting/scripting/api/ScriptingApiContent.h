@@ -583,6 +583,9 @@ public:
 		/** Call this method in order to give away the focus for this component. */
 		void loseFocus();
 
+		/** Attaches the local look and feel to this component. */
+		void setLocalLookAndFeel(var lafObject);
+
 		// End of API Methods ============================================================================================
 
 		bool handleKeyPress(const KeyPress& k);
@@ -681,6 +684,9 @@ public:
 			}
 		}
 
+		/** Returns a local look and feel if it was registered before. */
+		LookAndFeel* createLocalLookAndFeel();
+
 		static Array<Identifier> numberPropertyIds;
 		static bool numbersInitialised;
 
@@ -747,6 +753,8 @@ public:
 #endif
 
 	private:
+
+		var localLookAndFeel;
 
 		WeakCallbackHolder keyboardCallback;
 
@@ -2185,6 +2193,9 @@ public:
 
 	/** Set this to true to render all script panels with double resolution for retina or rescaling. */
 	void setUseHighResolutionForPanels(bool shouldUseDoubleResolution);
+
+	/** Creates a look and feel that you can attach manually to certain components. */
+	var createLocalLookAndFeel();
 
 	// ================================================================================================================
 

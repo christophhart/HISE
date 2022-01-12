@@ -1456,7 +1456,7 @@ var ScriptingApi::Engine::createGlobalScriptLookAndFeel()
 		return var(sc);
 	else
 	{
-		auto slaf = new ScriptingObjects::ScriptedLookAndFeel(getScriptProcessor());
+		auto slaf = new ScriptingObjects::ScriptedLookAndFeel(getScriptProcessor(), true);
 		return var(slaf);
 	}
 }
