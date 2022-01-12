@@ -511,8 +511,9 @@ template <class ShaperType> struct snex_shaper
 	template <int P> static void setParameterStatic(void* obj, double v)
 	{
 		auto t = static_cast<snex_shaper<ShaperType>*>(obj);
-		t->shaper.setParameter<P>(v);
+		t->shaper.template setParameter<P>(v);
 	}
+    PARAMETER_MEMBER_FUNCTION;
 
 	HISE_EMPTY_CREATE_PARAM;
 };
