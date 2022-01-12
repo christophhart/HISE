@@ -85,6 +85,8 @@ public:
 
 	static Array<Identifier> getGlobalApiClasses();
 
+	static PathStrokeType createPathStrokeType(var strokeType);
+
 #if USE_BACKEND
 
 	static String getValueType(const var &v);

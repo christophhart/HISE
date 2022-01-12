@@ -306,6 +306,9 @@ namespace ScriptingObjects
 		/** Returns the area ([x, y, width, height]) that the path is occupying with the scale factor applied. */
 		var getBounds(var scaleFactor);
 
+		/** Creates a fillable path using the provided strokeData (with optional dot. */
+		var createStrokedPath(var strokeData, var dotData);
+
 		// ============================================================================================================
 
 		struct Wrapper;

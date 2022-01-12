@@ -4765,6 +4765,30 @@ juce::Array<juce::Identifier> ApiHelpers::getGlobalApiClasses()
 	return ids;
 }
 
+juce::PathStrokeType ApiHelpers::createPathStrokeType(var strokeType)
+{
+	PathStrokeType s(1.0f);
+
+	if (auto obj = strokeType.getDynamicObject())
+	{
+		static const StringArray endcaps = { "butt", "square", "rounded" };
+		static const StringArray jointStyles = { "mitered", "curved","beveled" };
+
+		auto endCap = (PathStrokeType::EndCapStyle)endcaps.indexOf(obj->getProperty("EndCapStyle").toString());
+		auto jointStyle = (PathStrokeType::JointStyle)jointStyles.indexOf(obj->getProperty("JointStyle").toString());
+		auto thickness = (float)obj->getProperty("Thickness");
+
+		s = PathStrokeType(SANITIZED(thickness), jointStyle, endCap);
+	}
+	else
+	{
+		auto t = (float)strokeType;
+		s = PathStrokeType(SANITIZED(t));
+	}
+
+	return s;
+}
+
 #if USE_BACKEND
 juce::ValueTree ApiHelpers::getApiTree()
 {

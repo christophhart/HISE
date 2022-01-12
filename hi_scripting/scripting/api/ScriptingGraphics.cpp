@@ -830,6 +830,7 @@ struct ScriptingObjects::PathObject::Wrapper
 	API_VOID_METHOD_WRAPPER_0(PathObject, clear);
 	API_VOID_METHOD_WRAPPER_4(PathObject, quadraticTo);
 	API_VOID_METHOD_WRAPPER_3(PathObject, addArc);
+	API_METHOD_WRAPPER_2(PathObject, createStrokedPath);
 	API_METHOD_WRAPPER_1(PathObject, getBounds);
 };
 
@@ -844,6 +845,7 @@ ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_4(quadraticTo);
 	ADD_API_METHOD_3(addArc);
 	ADD_API_METHOD_1(getBounds);
+	ADD_API_METHOD_2(createStrokedPath);
 }
 
 ScriptingObjects::PathObject::~PathObject()
@@ -928,6 +930,40 @@ var ScriptingObjects::PathObject::getBounds(var scaleFactor)
 	area.add(r.getHeight());
 
 	return var(area);
+}
+
+juce::var ScriptingObjects::PathObject::createStrokedPath(var strokeData, var dotData)
+{
+	auto s = ApiHelpers::createPathStrokeType(strokeData);
+
+	auto np = new PathObject(getScriptProcessor());
+
+	if (dotData.isArray())
+	{
+		auto& ar = *dotData.getArray();
+
+		if (!ar.isEmpty())
+		{
+			Array<float> dashes;
+
+			for (auto& a : ar)
+				dashes.add((float)a);
+
+			s.createDashedStroke(np->p, p, dashes.begin(), dashes.size());
+
+			np->p.startNewSubPath(p.getBounds().getTopLeft());
+			np->p.startNewSubPath(p.getBounds().getBottomRight());
+
+			return var(np);
+		}
+	}
+	
+	s.createStrokedPath(np->p, p);
+	
+	np->p.startNewSubPath(p.getBounds().getTopLeft());
+	np->p.startNewSubPath(p.getBounds().getBottomRight());
+
+	return var(np);
 }
 
 struct ScriptingObjects::GraphicsObject::Wrapper
@@ -1426,24 +1462,7 @@ void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var strokeTy
 			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
 		}
 
-		PathStrokeType s(1.0f);
-
-		if (auto obj = strokeType.getDynamicObject())
-		{
-			static const StringArray endcaps = { "butt", "square", "rounded" };
-			static const StringArray jointStyles = { "mitered", "curved","beveled" };
-
-			auto endCap = (PathStrokeType::EndCapStyle)endcaps.indexOf(obj->getProperty("EndCapStyle").toString());
-			auto jointStyle = (PathStrokeType::JointStyle)jointStyles.indexOf(obj->getProperty("JointStyle").toString());
-			auto thickness = (float)obj->getProperty("Thickness");
-
-			s = PathStrokeType(SANITIZED(thickness), jointStyle, endCap);
-		}
-		else
-		{
-			auto t = (float)strokeType;
-			s = PathStrokeType(SANITIZED(t));
-		}
+		auto s = ApiHelpers::createPathStrokeType(strokeType);
 
 		drawActionHandler.addDrawAction(new ScriptedDrawActions::drawPath(p, s));
 	}
