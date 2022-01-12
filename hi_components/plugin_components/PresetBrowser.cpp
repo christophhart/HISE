@@ -863,6 +863,9 @@ void PresetBrowser::resized()
 
 	const bool showCloseButton = closeButton->isVisible();
 
+	if (searchBarBounds.size() == 4)
+		searchBar->setBounds((int)searchBarBounds[0], (int)searchBarBounds[1], (int)searchBarBounds[2], (int)searchBarBounds[3]);
+		
 	if (showCloseButton)
 	{
 
@@ -877,7 +880,9 @@ void PresetBrowser::resized()
 
 		saveButton->setBounds(ar.removeFromRight(100));
 		manageButton->setBounds(ar.removeFromLeft(100));
-		searchBar->setBounds(ar);
+		
+		if (searchBarBounds.size() != 4 || searchBarBounds.isEmpty())
+			searchBar->setBounds(ar);
 
 		y += 40;
 
@@ -898,7 +903,9 @@ void PresetBrowser::resized()
 
 		ar.removeFromLeft(10);
 
-		searchBar->setBounds(ar);
+		if (searchBarBounds.size() != 4 || searchBarBounds.isEmpty())
+			searchBar->setBounds(ar);
+
 		y += 40;
 	}
 
@@ -1109,15 +1116,47 @@ void PresetBrowser::setShowNotesLabel(bool shouldBeShown)
 	}
 }
 
-void PresetBrowser::setShowEditButtons(bool showEditButtons)
+void PresetBrowser::setShowEditButtons(int buttonId, bool show)
+{	
+	if (expansionColumn != nullptr)
+		expansionColumn->setShowButtons(buttonId, show);
+
+	bankColumn->setShowButtons(buttonId, show);
+	categoryColumn->setShowButtons(buttonId, show);
+	presetColumn->setShowButtons(buttonId, show);
+	
+	if (buttonId == 0)
+		tagList->setShowEditButton(show);
+}
+
+void PresetBrowser::setEditButtonOffset(int offset)
 {
 	if (expansionColumn != nullptr)
-		expansionColumn->setShowButtons(showEditButtons);
+		expansionColumn->setEditButtonOffset(offset);
 
-	bankColumn->setShowButtons(showEditButtons);
-	categoryColumn->setShowButtons(showEditButtons);
-	presetColumn->setShowButtons(showEditButtons);
-	tagList->setShowEditButton(showEditButtons);
+	bankColumn->setEditButtonOffset(offset);
+	categoryColumn->setEditButtonOffset(offset);
+	presetColumn->setEditButtonOffset(offset);
+}
+
+void PresetBrowser::setListAreaOffset(Array<var> offset)
+{	
+	if (expansionColumn != nullptr)
+		expansionColumn->setListAreaOffset(offset);
+
+	bankColumn->setListAreaOffset(offset);
+	categoryColumn->setListAreaOffset(offset);
+	presetColumn->setListAreaOffset(offset);
+}
+
+void PresetBrowser::setColumnRowPadding(Array<var> padding)
+{	
+	if (expansionColumn != nullptr)
+		expansionColumn->setRowPadding((double)padding[0]);
+
+	bankColumn->setRowPadding((double)padding[1]);
+	categoryColumn->setRowPadding((double)padding[2]);
+	presetColumn->setRowPadding((double)padding[3]);
 }
 
 void PresetBrowser::setShowCloseButton(bool shouldShowButton)
@@ -1206,12 +1245,24 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	setNumColumns(newOptions.numColumns);
 	columnWidthRatios.clear();
 	columnWidthRatios.addArray(newOptions.columnWidthRatios);
-
+	
+	searchBarBounds.clear();
+	searchBarBounds.addArray(newOptions.searchBarBounds);
+	
 	setShowButton(0, newOptions.showFolderButton);
 	setShowButton(1, newOptions.showSaveButtons);
-	setShowEditButtons(newOptions.showEditButtons);
+	setShowEditButtons(0, newOptions.showEditButtons);
+	setShowEditButtons(1, newOptions.showAddButton);
+	setShowEditButtons(2, newOptions.showRenameButton);
+	setShowEditButtons(3, newOptions.showDeleteButton);
+	setEditButtonOffset(newOptions.editButtonOffset);
+	setListAreaOffset(newOptions.listAreaOffset);
+	setColumnRowPadding(newOptions.columnRowPadding);
 	setShowNotesLabel(newOptions.showNotesLabel);
 	setShowFavorites(newOptions.showFavoriteIcons);
+
+	if (expansionColumn != nullptr)
+		expansionColumn->update();
 
 	searchBar->update();
 	bankColumn->update();
@@ -1258,7 +1309,9 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 		bankColumn->setModel(new PresetBrowserColumn::ColumnListModel(this, 0, this), rootFile);
 		bankColumn->setNewRootDirectory(rootFile);
 		categoryColumn->setModel(new PresetBrowserColumn::ColumnListModel(this, 1, this), rootFile);
-
+		categoryColumn->setNewRootDirectory(currentCategoryFile);
+		presetColumn->setNewRootDirectory(File());
+		
 		auto pc = new PresetBrowserColumn::ColumnListModel(this, 2, this);
 		pc->setDisplayDirectories(false);
 		presetColumn->setModel(pc, rootFile);

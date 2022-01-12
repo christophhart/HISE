@@ -75,6 +75,13 @@ public:
 
 		bool showNotesLabel = true;
 		bool showEditButtons = true;
+		bool showAddButton = true;
+		bool showRenameButton = true;
+		bool showDeleteButton = true;
+		int editButtonOffset = 0;
+		Array<var> listAreaOffset;
+		Array<var> columnRowPadding;
+		Array<var> searchBarBounds;
 		bool showSaveButtons = true;
 		bool showFolderButton = true;
 		bool showFavoriteIcons = true;
@@ -218,14 +225,18 @@ private:
 	/** SaveButton = 1, ShowFolderButton = 0 */
 	void setShowButton(int buttonId, bool newValue);
 	void setShowNotesLabel(bool shouldBeShown);
-	void setShowEditButtons(bool showEditButtons);
+	void setShowEditButtons(int buttonId, bool showEditButtons);
+	void setEditButtonOffset(int offset);
+	void setListAreaOffset(Array<var> offset);
+	void setColumnRowPadding(Array<var> offset);
 	void setShowCloseButton(bool shouldShowButton);
 
 	// ============================================================================================
 
 	int numColumns = 3;
 	Array<var> columnWidthRatios;
-
+	Array<var> searchBarBounds;
+	
 	File defaultRoot;
 	File rootFile;
 	File currentBankFile;

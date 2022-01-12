@@ -412,9 +412,42 @@ public:
 		listbox->updateContent();
 	}
 
-	void setShowButtons(bool shouldBeShown)
+	void setShowButtons(int buttonId, bool shouldBeShown)
 	{
-		showButtonsAtBottom = shouldBeShown;
+		enum ButtonIndexes
+		{
+			All = 0,
+			AddButton,
+			RenameButton,
+			DeleteButton
+		};
+		
+		switch (buttonId)
+		{
+			case All: showButtonsAtBottom = shouldBeShown; break;
+			case AddButton: shouldShowAddButton = shouldBeShown; break;
+			case RenameButton: shouldShowRenameButton = shouldBeShown; break;
+			case DeleteButton: shouldShowDeleteButton = shouldBeShown; break;
+		}
+		
+		
+		resized();
+	}
+	void setEditButtonOffset(int offset)
+	{
+		editButtonOffset = offset;
+		resized();
+	}
+
+	void setListAreaOffset(Array<var> offset)
+	{
+		listAreaOffset = offset;
+		resized();
+	}
+	
+	void setRowPadding(double padding)
+	{
+		rowPadding = padding;
 		resized();
 	}
 
@@ -422,7 +455,7 @@ public:
 	{
 		auto& l = getPresetBrowserLookAndFeel();
 
-		listbox->setRowHeight((int)l.font.getHeight() * 2);
+		listbox->setRowHeight((int)l.font.getHeight() * 2 + rowPadding);
 
 		if (auto v = listbox->getViewport())
 		{
@@ -521,7 +554,7 @@ public:
 
 	void showAddButton()
 	{
-		addButton->setVisible(true);
+		addButton->setVisible(true && shouldShowAddButton);
 	}
 
 private:
@@ -531,7 +564,13 @@ private:
 	// ============================================================================================
 
 	bool showButtonsAtBottom = true;
+	bool shouldShowAddButton = true;
+	bool shouldShowRenameButton = true;
+	bool shouldShowDeleteButton = true;
+	int editButtonOffset = 0;
+	double rowPadding = 0;
 	Rectangle<int> listArea;
+	Array<var> listAreaOffset;
 	bool isResultBar = false;
 	int index;
 	File currentRoot;
