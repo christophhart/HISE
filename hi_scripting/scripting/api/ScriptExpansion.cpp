@@ -2128,7 +2128,9 @@ struct ScriptUnlocker::RefObject::Wrapper
 
 ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
 	ConstScriptingObject(p, 0),
+#if USE_BACKEND || USE_COPY_PROTECTION
 	unlocker(dynamic_cast<ScriptUnlocker*>(p->getMainController_()->getLicenseUnlocker())),
+#endif
 	pcheck(p, var(), 1)
 {
 	unlocker->load();

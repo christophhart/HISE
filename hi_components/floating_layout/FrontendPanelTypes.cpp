@@ -825,8 +825,10 @@ void AboutPagePanel::rebuildText()
 	
 	String licencee;
 
+#if USE_BACKEND || USE_COPY_PROTECTION
 	if (auto ul = getMainController()->getLicenseUnlocker())
-		ul->getUserEmail();
+		licencee = ul->getUserEmail();
+#endif
 
 #if USE_FRONTEND
 	const String projectName = FrontendHandler::getProjectName();
