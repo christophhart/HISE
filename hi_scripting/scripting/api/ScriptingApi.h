@@ -232,6 +232,9 @@ public:
 		/** Converts milli seconds to samples */
 		double getSamplesForMilliSeconds(double milliSeconds) const;;
 
+		/** Returns the tempo name for the given index */
+		String getTempoName(int tempoIndex);
+
 		/** Converts samples to quarter beats using the current tempo. */
 		double getQuarterBeatsForSamples(double samples);
 

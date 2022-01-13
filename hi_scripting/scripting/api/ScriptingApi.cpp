@@ -818,6 +818,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getCpuUsage);
 	API_METHOD_WRAPPER_0(Engine, getNumVoices);
 	API_METHOD_WRAPPER_0(Engine, getMemoryUsage);
+	API_METHOD_WRAPPER_1(Engine, getTempoName);
 	API_METHOD_WRAPPER_1(Engine, getMilliSecondsForTempo);
 	API_METHOD_WRAPPER_1(Engine, getSamplesForMilliSeconds);
 	API_METHOD_WRAPPER_1(Engine, getMilliSecondsForSamples);
@@ -936,6 +937,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getCpuUsage);
 	ADD_API_METHOD_0(getNumVoices);
 	ADD_API_METHOD_0(getMemoryUsage);
+	ADD_API_METHOD_1(getTempoName);
 	ADD_API_METHOD_1(getMilliSecondsForTempo);
 	ADD_API_METHOD_1(getSamplesForMilliSeconds);
 	ADD_API_METHOD_1(getMilliSecondsForSamples);
@@ -1144,7 +1146,10 @@ bool ScriptingApi::Engine::setMinimumSampleRate(double minimumSampleRate)
 double ScriptingApi::Engine::getSampleRate() const { return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate(); }
 double ScriptingApi::Engine::getSamplesForMilliSeconds(double milliSeconds) const { return (milliSeconds / 1000.0) * getSampleRate(); }
 
-
+String ScriptingApi::Engine::getTempoName(int tempoIndex)
+{
+	return hise::TempoSyncer::getTempoName(tempoIndex);
+}
 
 double ScriptingApi::Engine::getQuarterBeatsForSamples(double samples)
 {
