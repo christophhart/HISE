@@ -535,11 +535,9 @@ var ScriptingObjects::ScriptFile::loadEncryptedObject(String key)
 }
 
 bool ScriptingObjects::ScriptFile::rename(String newName)
-{
-	String oldName = f.getFileNameWithoutExtension();
-	String path = f.getFullPathName().replaceFirstOccurrenceOf(oldName, newName);	
-	
-	return f.moveFileTo(File(path));
+{	
+	auto newFile = f.getSiblingFile(newName).withFileExtension(f.getFileExtension());
+	return f.moveFileTo(newFile);
 }
 
 juce::var ScriptingObjects::ScriptFile::loadAsAudioFile() const
