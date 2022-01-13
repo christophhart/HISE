@@ -121,7 +121,7 @@ void NodeComponent::Header::buttonClicked(Button* b)
 {
 	if (b == &powerButton)
 	{
-		parent.node->setBypassed(!b->getToggleState());
+		parent.node->setValueTreeProperty(PropertyIds::Bypassed, !b->getToggleState());
 	}
 	if (b == &deleteButton)
 	{

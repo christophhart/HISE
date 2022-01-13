@@ -76,10 +76,6 @@ struct Error
 
 	bool isOk() const { return error == ErrorCode::OK; }
 
-private:
-
-	friend class ScriptnodeExceptionHandler;
-
 	ErrorCode error = ErrorCode::OK;
 	int expected = 0;
 	int actual = 0;
