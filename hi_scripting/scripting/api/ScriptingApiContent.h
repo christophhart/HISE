@@ -541,6 +541,9 @@ public:
         /** Returns the absolute y-position relative to the interface. */
         int getGlobalPositionY();
         
+		/** Returns list of component's children */
+		var getChildComponents();
+				
 		/** Returns a [x, y, w, h] array that was reduced by the given amount. */
 		var getLocalBounds(float reduceAmount);
 
