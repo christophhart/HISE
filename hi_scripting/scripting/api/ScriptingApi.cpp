@@ -2173,7 +2173,7 @@ var ScriptingApi::Engine::loadAudioFileIntoBufferArray(String audioFileReference
 {
 	PoolReference ref(getScriptProcessor()->getMainController_(), audioFileReference, FileHandlerBase::AudioFiles);
 
-	auto pool = getScriptProcessor()->getMainController_()->getCurrentFileHandler()().pool.get();
+	auto pool = getScriptProcessor()->getMainController_()->getCurrentFileHandler().pool.get();
 
 	if (auto e = getScriptProcessor()->getMainController_()->getExpansionHandler().getExpansionForWildcardReference(ref.getReferenceString()))
 	{
