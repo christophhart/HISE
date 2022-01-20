@@ -1279,7 +1279,7 @@ void JavascriptProcessor::restoreInterfaceData(ValueTree propertyData)
 
 String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<File>& includedFiles, const JavascriptProcessor* p)
 {
-	String regex("include\\(\"([\\w\\s]+\\.\\w+)\"\\);");
+	String regex("include\\(\"([/\\w\\s]+\\.\\w+)\"\\);");
 	StringArray results = RegexFunctions::search(regex, x, 0);
 	StringArray fileNames = RegexFunctions::search(regex, x, 1);
 	StringArray includedContents;
