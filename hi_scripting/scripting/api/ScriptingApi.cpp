@@ -2173,7 +2173,7 @@ var ScriptingApi::Engine::loadAudioFileIntoBufferArray(String audioFileReference
 {
 	PoolReference ref(getScriptProcessor()->getMainController_(), audioFileReference, FileHandlerBase::AudioFiles);
 
-	auto pool = getScriptProcessor()->getMainController_()->getActiveFileHandler()->pool.get();
+	auto pool = getScriptProcessor()->getMainController_()->getCurrentFileHandler()().pool.get();
 
 	if (auto e = getScriptProcessor()->getMainController_()->getExpansionHandler().getExpansionForWildcardReference(ref.getReferenceString()))
 	{
@@ -5774,7 +5774,7 @@ juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 
 	switch (l)
 	{
-	case Samples:	f = getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Samples);
+	case Samples:	f = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);
 		break;
 	case Expansions: return getMainController()->getExpansionHandler().getExpansionFolder();
 #if USE_BACKEND

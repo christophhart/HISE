@@ -1382,7 +1382,7 @@ void DspNetwork::SelectionUpdater::changeListenerCallback(ChangeBroadcaster*)
 #if HISE_INCLUDE_SNEX
 juce::File DspNetwork::CodeManager::getCodeFolder() const
 {
-	File f = parent.getScriptProcessor()->getMainController_()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::DspNetworks).getChildFile("CodeLibrary");
+	File f = parent.getScriptProcessor()->getMainController_()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::DspNetworks).getChildFile("CodeLibrary");
 	f.createDirectory();
 	return f;
 }

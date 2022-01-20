@@ -1284,7 +1284,7 @@ hise::FileHandlerBase* PooledAudioFileDataProvider::getFileHandlerBase(const Str
 	if (auto e = getMainController()->getExpansionHandler().getExpansionForWildcardReference(refString))
 		return e;
 
-	return getMainController()->getActiveFileHandler();
+	return &getMainController()->getSampleManager().getProjectHandler();
 }
 
 } // namespace hise
