@@ -905,6 +905,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
 	API_VOID_METHOD_WRAPPER_2(Engine, loadFontAs);
 	API_VOID_METHOD_WRAPPER_1(Engine, setGlobalFont);
+	API_VOID_METHOD_WRAPPER_0(Engine, quit);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
 	API_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
@@ -1019,6 +1020,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(extendTimeOut);
 	ADD_API_METHOD_0(getControlRateDownsamplingFactor);
     ADD_API_METHOD_1(createFixObjectFactory);
+	ADD_API_METHOD_0(quit);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
@@ -2425,6 +2427,11 @@ var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
 String ScriptingApi::Engine::doubleToString(double value, int digits)
 {
     return String(value, digits);
+}
+
+void ScriptingApi::Engine::quit()
+{
+	quit();
 }
 
 void ScriptingApi::Engine::undo()
