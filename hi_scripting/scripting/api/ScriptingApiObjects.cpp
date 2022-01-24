@@ -187,6 +187,9 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, getChildFile);
 	API_METHOD_WRAPPER_1(ScriptFile, createDirectory);
 	API_METHOD_WRAPPER_0(ScriptFile, getSize);
+	API_METHOD_WRAPPER_0(ScriptFile, getBytesFreeOnVolume);
+	API_METHOD_WRAPPER_1(ScriptFile, setExecutePermission);
+	API_METHOD_WRAPPER_1(ScriptFile, startAsProcess);
 	API_METHOD_WRAPPER_0(ScriptFile, getHash);
 	API_METHOD_WRAPPER_1(ScriptFile, toString);
 	API_METHOD_WRAPPER_0(ScriptFile, isFile);
@@ -237,6 +240,9 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_0(getHash);
 	ADD_API_METHOD_1(toString);
 	ADD_API_METHOD_0(isFile);
+	ADD_API_METHOD_0(getBytesFreeOnVolume);
+	ADD_API_METHOD_1(setExecutePermission);
+	ADD_API_METHOD_1(startAsProcess);
 	ADD_API_METHOD_0(isDirectory);
 	ADD_API_METHOD_0(deleteFileOrDirectory);
 	ADD_API_METHOD_1(writeObject);
@@ -277,6 +283,21 @@ var ScriptingObjects::ScriptFile::createDirectory(String directoryName)
 int64 ScriptingObjects::ScriptFile::getSize()
 {	
 	return f.getSize();
+}
+
+int64 ScriptingObjects::ScriptFile::getBytesFreeOnVolume()
+{
+	return f.getBytesFreeOnVolume();
+}
+
+bool ScriptingObjects::ScriptFile::setExecutePermission(bool shouldBeExecutable)
+{
+	return f.setExecutePermission(shouldBeExecutable);
+}
+
+bool ScriptingObjects::ScriptFile::startAsProcess(String parameters)
+{
+	return f.startAsProcess(parameters);
 }
 
 String ScriptingObjects::ScriptFile::getHash()

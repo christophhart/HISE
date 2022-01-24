@@ -285,7 +285,16 @@ namespace ScriptingObjects
 		/** Returns the size of the file in bytes. */
 		int64 getSize();
 		
-		/*Reads a file and generates the hash of its contents. */
+		/** Returns the number of bytes free on the drive that this file lives on. */
+		int64 getBytesFreeOnVolume();
+
+		/** Changes the execute-permissions of a file. */
+		bool setExecutePermission(bool shouldBeExecutable);
+
+		/** Launches the file as a process. */
+		bool startAsProcess(String parameters);
+		
+		/** Reads a file and generates the hash of its contents. */
 		String getHash();
 
 		/** Returns a String representation of that file. */
