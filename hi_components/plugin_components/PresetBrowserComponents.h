@@ -439,6 +439,12 @@ public:
 		resized();
 	}
 
+	void setButtonsInsideBorder(bool inside)
+	{
+		buttonsInsideBorder = inside;
+		resized();
+	}
+
 	void setListAreaOffset(Array<var> offset)
 	{
 		listAreaOffset = offset;
@@ -567,7 +573,8 @@ private:
 	bool shouldShowAddButton = true;
 	bool shouldShowRenameButton = true;
 	bool shouldShowDeleteButton = true;
-	int editButtonOffset = 0;
+	bool buttonsInsideBorder = false;
+	int editButtonOffset = 10;
 	double rowPadding = 0;
 	Rectangle<int> listArea;
 	Array<var> listAreaOffset;

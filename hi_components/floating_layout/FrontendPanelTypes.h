@@ -413,6 +413,7 @@ public:
 		ShowAddButton,
 		ShowRenameButton,
 		ShowDeleteButton,
+		ButtonsInsideBorder,
 		ColumnRowPadding,
 		SearchBarBounds,
 		numSpecialProperties

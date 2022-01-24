@@ -687,7 +687,11 @@ void PresetBrowserColumn::paint(Graphics& g)
 	Rectangle<int> columnArea;
 	columnArea = {0, 0, getWidth(), getHeight()};
 
-	getPresetBrowserLookAndFeel().drawColumnBackground(g, columnArea, emptyText);
+	if (!buttonsInsideBorder)
+		getPresetBrowserLookAndFeel().drawColumnBackground(g, listArea, emptyText);
+	else
+		getPresetBrowserLookAndFeel().drawColumnBackground(g, columnArea, emptyText);	
+	
 }
 
 void PresetBrowserColumn::resized()
