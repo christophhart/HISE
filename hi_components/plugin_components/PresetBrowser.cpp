@@ -676,8 +676,6 @@ expHandler(mc->getExpansionHandler())
 	presetColumn->tagCacheNeedsRebuilding();
 	presetColumn->setAllowRecursiveFileSearch(true);
 
-	bankColumn->setNewRootDirectory(rootFile);
-
 	addAndMakeVisible(saveButton = new TextButton("Save Preset"));
 	saveButton->addListener(this);
 
@@ -693,6 +691,8 @@ expHandler(mc->getExpansionHandler())
 		rootFile = e->getSubDirectory(FileHandlerBase::UserPresets);
 		currentlySelectedExpansion = e;
 	}
+	
+	bankColumn->setNewRootDirectory(rootFile);
 
 	rebuildAllPresets();
 
