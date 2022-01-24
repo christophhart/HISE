@@ -155,7 +155,8 @@ Use the Intel Performance Primitives Library for the convolution reverb.
 
 /** Config: FRONTEND_IS_PLUGIN
 
-If set to 1, the compiled plugin will be a effect (stereo in / out). */
+If set to 1, the compiled plugin will be a effect (stereo in / out).
+*/
 #ifndef FRONTEND_IS_PLUGIN
 #define FRONTEND_IS_PLUGIN 0
 #endif
@@ -180,7 +181,8 @@ This can be used to simulate an audio effect routing setup (when the appropriate
 
 /** Config: HISE_MIDIFX_PLUGIN
 
-If set to 1, then the plugin will be a MIDI effect plugin. */
+If set to 1, then the plugin will be a MIDI effect plugin.
+*/
 #ifndef HISE_MIDIFX_PLUGIN
 #define HISE_MIDIFX_PLUGIN 0
 #endif
@@ -269,7 +271,8 @@ If this is set to 1, the application will crash instantly if there is a drop out
 
 
 /** Config: HISE_ENABLE_MIDI_INPUT_FOR_FX
-If true, then the FX plugin will have a MIDI input and the MIDI processor chain is being processed. */
+If true, then the FX plugin will have a MIDI input and the MIDI processor chain is being processed.
+*/
 #ifndef HISE_ENABLE_MIDI_INPUT_FOR_FX
 #define HISE_ENABLE_MIDI_INPUT_FOR_FX 0
 #endif
@@ -284,9 +287,18 @@ Set this to 0 to deactivate peak collection for any other processor than the mai
 
 /** Config: READ_ONLY_FACTORY_PRESETS 
 
-Set this to 1 to enable read only presets that are shipped with the plugin / expansion. */
+Set this to 1 to enable read only presets that are shipped with the plugin / expansion.
+*/
 #ifndef READ_ONLY_FACTORY_PRESETS
 #define READ_ONLY_FACTORY_PRESETS 0
+#endif
+
+/** Config: CONFIRM_PRESET_OVERWRITE
+
+Set this to 0 to disable preset overwriting confirmation popup. The preset will be overwritten automatically.
+*/
+#ifndef CONFIRM_PRESET_OVERWRITE
+#define CONFIRM_PRESET_OVERWRITE 1
 #endif
 
 /** Config: ENABLE_CONSOLE_OUTPUT
