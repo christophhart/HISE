@@ -374,7 +374,7 @@ public:
 		/** Returns the number of arguments specified in the constructor. */
 		int getNumArgs() const { return numArgs; }
 
-		void replaceContentAsync(String s)
+		void replaceContentAsync(String s, bool shouldBeAsync=true)
 		{
             
 #if USE_FRONTEND
@@ -382,11 +382,18 @@ public:
             // being resized...
             replaceAllContent(s);
 #else
-			// Makes sure that this won't be accessed during replacement...
-			
-			SpinLock::ScopedLockType sl(pendingLock);
-			pendingNewContent.swapWith(s);
-			notifier.notify();
+            if(shouldBeAsync)
+            {
+                // Makes sure that this won't be accessed during replacement...
+                
+                SpinLock::ScopedLockType sl(pendingLock);
+                pendingNewContent.swapWith(s);
+                notifier.notify();
+            }
+            else
+            {
+                notifier.handleAsyncUpdate();
+            }
 #endif
 		}
 
@@ -411,8 +418,6 @@ public:
 				triggerAsyncUpdate();
 			}
 
-		private:
-
 			void handleAsyncUpdate() override
 			{
 				String text;
@@ -423,11 +428,8 @@ public:
 				}
 
                 parent.setDisableUndo(true);
-                
 				parent.replaceAllContent(text);
-                
                 parent.setDisableUndo(false);
-                
                 
 				parent.pendingNewContent = String();
 			}
