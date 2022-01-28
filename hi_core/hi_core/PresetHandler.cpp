@@ -74,6 +74,8 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
     String existingNote;
 	StringArray existingTags;
     
+#if CONFIRM_PRESET_OVERWRITE
+
 	if (presetFile.existsAsFile() && PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset (Press cancel to create a new user preset?"))
 	{
         existingNote = PresetBrowser::DataBaseHelpers::getNoteFromXml(presetFile);
@@ -81,6 +83,18 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		presetFile.deleteFile();
 	}
+
+#else
+
+	if (presetFile.existsAsFile())
+	{
+        existingNote = PresetBrowser::DataBaseHelpers::getNoteFromXml(presetFile);
+        existingTags = PresetBrowser::DataBaseHelpers::getTagsFromXml(presetFile);
+
+		presetFile.deleteFile();
+	}
+
+#endif
 	
 	if (!presetFile.existsAsFile())
 	{
