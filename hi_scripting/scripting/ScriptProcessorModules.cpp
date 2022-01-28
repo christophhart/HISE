@@ -39,6 +39,7 @@ onInitCallback(new SnippetDocument("onInit")),
 onNoteOnCallback(new SnippetDocument("onNoteOn")),
 onNoteOffCallback(new SnippetDocument("onNoteOff")),
 onControllerCallback(new SnippetDocument("onController")),
+onNRPNControllerCallback(new SnippetDocument("onNRPNController")),
 onTimerCallback(new SnippetDocument("onTimer")),
 onControlCallback(new SnippetDocument("onControl", "number value")),
 front(false),
@@ -53,6 +54,7 @@ deferredUpdatePending(false)
 	editorStateIdentifiers.add("onNoteOnOpen");
 	editorStateIdentifiers.add("onNoteOffOpen");
 	editorStateIdentifiers.add("onControllerOpen");
+    editorStateIdentifiers.add("onNRPNControllerOpen");
 	editorStateIdentifiers.add("onTimerOpen");
 	editorStateIdentifiers.add("onControlOpen");
 	
@@ -75,6 +77,7 @@ JavascriptMidiProcessor::~JavascriptMidiProcessor()
 	onNoteOnCallback = nullptr;
 	onNoteOffCallback = nullptr;
 	onControllerCallback = nullptr;
+    onNRPNControllerCallback = nullptr;
 	onTimerCallback = nullptr;
 	onControlCallback = nullptr;
 
@@ -114,6 +117,7 @@ JavascriptMidiProcessor::SnippetDocument * JavascriptMidiProcessor::getSnippet(i
 	case onNoteOn:		return onNoteOnCallback;
 	case onNoteOff:		return onNoteOffCallback;
 	case onController:	return onControllerCallback;
+    case onNRPNController:    return onNRPNControllerCallback;
 	case onTimer:		return onTimerCallback;
 	case onControl:		return onControlCallback;
 	default:			jassertfalse; return nullptr;
@@ -128,6 +132,7 @@ const JavascriptMidiProcessor::SnippetDocument * JavascriptMidiProcessor::getSni
 	case onNoteOn:		return onNoteOnCallback;
 	case onNoteOff:		return onNoteOffCallback;
 	case onController:	return onControllerCallback;
+    case onNRPNController:    return onNRPNControllerCallback;
 	case onTimer:		return onTimerCallback;
 	case onControl:		return onControlCallback;
 	default:			jassertfalse; return nullptr;
@@ -270,6 +275,21 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
 		break;
 	}
+    case HiseEvent::Type::NRPNController:
+    {
+
+        
+        if (onNRPNControllerCallback->isSnippetEmpty()) return;
+        
+        
+        
+        
+        Result r = Result::ok();
+        scriptEngine->executeCallback(onNRPNController, &lastResult);
+        
+        BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
+        break;
+    }
 	case HiseEvent::Type::TimerEvent:
 	{
 		if (!currentEvent->isIgnored() && currentEvent->getChannel() == getIndexInChain())
@@ -811,6 +831,7 @@ Modulation(m)
 	onVoiceStartCallback = new SnippetDocument("onVoiceStart", "voiceIndex");
 	onVoiceStopCallback = new SnippetDocument("onVoiceStop", "voiceIndex");
 	onControllerCallback = new SnippetDocument("onController");
+    onNRPNControllerCallback = new SnippetDocument("onNRPNController");
 	onControlCallback = new SnippetDocument("onControl", "number value");
 
 	editorStateIdentifiers.add("contentShown");
@@ -818,6 +839,7 @@ Modulation(m)
 	editorStateIdentifiers.add("onVoiceStartOpen");
 	editorStateIdentifiers.add("onVoiceStopOpen");
 	editorStateIdentifiers.add("onControllerOpen");
+    editorStateIdentifiers.add("onNRPNControllerOpen");
 	editorStateIdentifiers.add("onControlOpen");
 	editorStateIdentifiers.add("externalPopupShown");
 }
@@ -874,12 +896,19 @@ void JavascriptVoiceStartModulator::handleHiseEvent(const HiseEvent& m)
 			BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
 		}
 	}
-	else if (m.isController() && !onControllerCallback->isSnippetEmpty())
+	else if (m.isController() && !m.isNRPNController() && !onControllerCallback->isSnippetEmpty())
 	{
 		scriptEngine->executeCallback(onController, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
 	}
+    
+    else if (m.isController() && m.isNRPNController() && !onNRPNControllerCallback->isSnippetEmpty())
+    {
+        scriptEngine->executeCallback(onNRPNController, &lastResult);
+        
+        BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
+    }
 }
 
 float JavascriptVoiceStartModulator::startVoice(int voiceIndex)
@@ -904,6 +933,7 @@ JavascriptProcessor::SnippetDocument * JavascriptVoiceStartModulator::getSnippet
 	case Callback::onVoiceStart: return onVoiceStartCallback;
 	case Callback::onVoiceStop:	 return onVoiceStopCallback;
 	case Callback::onController: return onControllerCallback;
+    case Callback::onNRPNController: return onNRPNControllerCallback;
 	case Callback::onControl:	 return onControlCallback;
 	}
 
@@ -918,6 +948,7 @@ const JavascriptProcessor::SnippetDocument * JavascriptVoiceStartModulator::getS
 	case Callback::onVoiceStart: return onVoiceStartCallback;
 	case Callback::onVoiceStop:	 return onVoiceStopCallback;
 	case Callback::onController: return onControllerCallback;
+            case Callback::onNRPNController: return onNRPNControllerCallback;
 	case Callback::onControl:	 return onControlCallback;
 	}
 
@@ -955,6 +986,7 @@ buffer(new VariantBuffer(0))
 	onNoteOnCallback = new SnippetDocument("onNoteOn");
 	onNoteOffCallback = new SnippetDocument("onNoteOff");
 	onControllerCallback = new SnippetDocument("onController");
+    onNRPNControllerCallback = new SnippetDocument("onNRPNController");
 	onControlCallback = new SnippetDocument("onControl", "number value");
 
 	editorStateIdentifiers.add("contentShown");
@@ -964,6 +996,7 @@ buffer(new VariantBuffer(0))
 	editorStateIdentifiers.add("onNoteOnOpen");
 	editorStateIdentifiers.add("onNoteOffOpen");
 	editorStateIdentifiers.add("onControllerOpen");
+    editorStateIdentifiers.add("onNRPNControllerOpen");
 	editorStateIdentifiers.add("onControlOpen");
 	editorStateIdentifiers.add("externalPopupShown");
 
@@ -981,6 +1014,7 @@ JavascriptTimeVariantModulator::~JavascriptTimeVariantModulator()
 	onNoteOnCallback = new SnippetDocument("onNoteOn");
 	onNoteOffCallback = new SnippetDocument("onNoteOff");
 	onControllerCallback = new SnippetDocument("onController");
+    onNRPNControllerCallback = new SnippetDocument("onNRPNController");
 	onControlCallback = new SnippetDocument("onControl", "number value");
 	
 	bufferVar = var::undefined();
@@ -1044,12 +1078,19 @@ void JavascriptTimeVariantModulator::handleHiseEvent(const HiseEvent &m)
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
 	}
-	else if (m.isController() && !onControllerCallback->isSnippetEmpty())
+	else if (m.isController() && !m.isNRPNController() && !onControllerCallback->isSnippetEmpty())
 	{
 		scriptEngine->executeCallback(onController, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
 	}
+    
+    else if (m.isController() && m.isNRPNController() && !onNRPNControllerCallback->isSnippetEmpty())
+    {
+        scriptEngine->executeCallback(onNRPNController, &lastResult);
+        
+        BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
+    }
 
 
 }
@@ -1114,6 +1155,7 @@ JavascriptProcessor::SnippetDocument* JavascriptTimeVariantModulator::getSnippet
 	case Callback::onNoteOn: return onNoteOnCallback;
 	case Callback::onNoteOff: return onNoteOffCallback;
 	case Callback::onController: return onControllerCallback;
+            case Callback::onNRPNController: return onNRPNControllerCallback;
 	case Callback::onControl: return onControlCallback;
 	}
 
@@ -1130,6 +1172,7 @@ const JavascriptProcessor::SnippetDocument * JavascriptTimeVariantModulator::get
 	case Callback::onNoteOn: return onNoteOnCallback;
 	case Callback::onNoteOff: return onNoteOffCallback;
 	case Callback::onController: return onControllerCallback;
+            case Callback::onNRPNController: return onNRPNControllerCallback;
 	case Callback::onControl: return onControlCallback;
 	}
 
@@ -1488,6 +1531,7 @@ renderVoiceCallback(new SnippetDocument("renderVoice", "voiceIndex channels")),
 onNoteOnCallback(new SnippetDocument("onNoteOn")),
 onNoteOffCallback(new SnippetDocument("onNoteOff")),
 onControllerCallback(new SnippetDocument("onController")),
+onNRPNControllerCallback(new SnippetDocument("onNRPNController")),
 onControlCallback(new SnippetDocument("onControl", "number value")),
 scriptChain1Buffer(1, 0),
 scriptChain2Buffer(1, 0)
@@ -1507,6 +1551,7 @@ scriptChain2Buffer(1, 0)
 	editorStateIdentifiers.add("onNoteOnOpen");
 	editorStateIdentifiers.add("onNoteOffOpen");
 	editorStateIdentifiers.add("onControllerOpen");
+    editorStateIdentifiers.add("onNRPNControllerOpen");
 	editorStateIdentifiers.add("onControlOpen");
 	editorStateIdentifiers.add("externalPopupShown");
 
@@ -1629,6 +1674,7 @@ JavascriptProcessor::SnippetDocument * JavascriptModulatorSynth::getSnippet(int 
 	case JavascriptModulatorSynth::Callback::onNoteOn:		return onNoteOnCallback;
 	case JavascriptModulatorSynth::Callback::onNoteOff:		return onNoteOffCallback;
 	case JavascriptModulatorSynth::Callback::onController:	return onControllerCallback;
+    case JavascriptModulatorSynth::Callback::onNRPNController:    return onNRPNControllerCallback;
 	case JavascriptModulatorSynth::Callback::onControl:		return onControlCallback;
 	case JavascriptModulatorSynth::Callback::numCallbacks:
 	default:												break;
@@ -1650,6 +1696,7 @@ const JavascriptProcessor::SnippetDocument * JavascriptModulatorSynth::getSnippe
 	case JavascriptModulatorSynth::Callback::onNoteOn:		return onNoteOnCallback;
 	case JavascriptModulatorSynth::Callback::onNoteOff:		return onNoteOffCallback;
 	case JavascriptModulatorSynth::Callback::onController:	return onControllerCallback;
+    case JavascriptModulatorSynth::Callback::onNRPNController:    return onNRPNControllerCallback;
 	case JavascriptModulatorSynth::Callback::onControl:		return onControlCallback;
 	case JavascriptModulatorSynth::Callback::numCallbacks:
 	default:												break;

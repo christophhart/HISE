@@ -34,6 +34,9 @@ namespace hise { using namespace juce;
 
 HiseEvent::HiseEvent(const MidiMessage& message)
 {
+    
+
+    
 	const uint8* data = message.getRawData();
 
 	channel = (uint8)message.getChannel();
@@ -41,7 +44,12 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 	if (message.isNoteOn()) type = Type::NoteOn;
 	else if (message.isNoteOff()) type = Type::NoteOff;
 	else if (message.isPitchWheel()) type = Type::PitchBend;
-	else if (message.isController()) type = Type::Controller;
+    else if (message.isController()){
+        if (message.isNRPNController())
+            type = Type::NRPNController;
+        else
+            type = Type::Controller;
+    }
 	else if (message.isChannelPressure() || message.isAftertouch()) type = Type::Aftertouch;
 	else if (message.isAllNotesOff() || message.isAllSoundOff()) type = Type::AllNotesOff;
 	else if (message.isProgramChange()) type = Type::ProgramChange;
@@ -52,12 +60,31 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 		value = 0;
 		channel = 0;
 		return;
-	}
-	
-	number = data[1];
-	value = data[2];
+    }
 
-	setTimeStamp((int)message.getTimeStamp());
+ 
+   
+    
+    /*if (detector.parseControllerMessage (message.getChannel(),
+                                            message.getControllerNumber(),
+                                            message.getControllerValue(),
+                                            rpn))
+    {
+        number = rpn.parameterNumber;
+        value = rpn.value;
+        //setTimeStamp((int)message.getTimeStamp());
+    }
+    else{
+    number = data[1];
+    value = data[2];
+    setTimeStamp((int)message.getTimeStamp());
+    }*/
+    
+    
+    number = data[1];
+    value = data[2];
+    setTimeStamp((int)message.getTimeStamp());
+	
 }
 
 HiseEvent::HiseEvent(Type type_, uint8 number_, uint8 value_, uint8 channel_ /*= 1*/) :
@@ -71,8 +98,9 @@ HiseEvent::HiseEvent(Type type_, uint8 number_, uint8 value_, uint8 channel_ /*=
 
 HiseEvent::HiseEvent(const HiseEvent &other) noexcept
 {
+    size_t sizeOf = sizeof(HiseEvent);
 	// Only works with struct size of 16 bytes...
-	jassert(sizeof(HiseEvent) == 16);
+	jassert(sizeof(HiseEvent) == 32);
 
 	uint64* data = reinterpret_cast<uint64*>(this);
 
@@ -106,7 +134,7 @@ void HiseEvent::swapWith(HiseEvent &other)
 	
 
 	// Only works with struct size of 16 bytes...
-	jassert(sizeof(HiseEvent) == 16);
+	jassert(sizeof(HiseEvent) == 32);
 
 	uint64* data = reinterpret_cast<uint64*>(this);
 
@@ -124,7 +152,7 @@ void HiseEvent::swapWith(HiseEvent &other)
 bool HiseEvent::operator==(const HiseEvent &other) const
 {
 	// Only works with struct size of 16 bytes...
-	jassert(sizeof(HiseEvent) == 16);
+	jassert(sizeof(HiseEvent) == 32);
 
 	const uint64* data = reinterpret_cast<const uint64*>(this);
 
@@ -141,6 +169,7 @@ String HiseEvent::getTypeAsString() const noexcept
 	case HiseEvent::Type::NoteOn: return "NoteOn";
 	case HiseEvent::Type::NoteOff: return "NoteOff";
 	case HiseEvent::Type::Controller: return "Controller";
+    case HiseEvent::Type::NRPNController: return "NRPNController";
 	case HiseEvent::Type::PitchBend: return "PitchBend";
 	case HiseEvent::Type::Aftertouch: return "Aftertouch";
 	case HiseEvent::Type::AllNotesOff: return "AllNotesOff";
@@ -354,6 +383,8 @@ void HiseEventBuffer::clear()
 
 void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
 {
+    
+   
 	if (numUsed >= HISE_EVENT_BUFFER_SIZE)
 	{
 		// Buffer full..

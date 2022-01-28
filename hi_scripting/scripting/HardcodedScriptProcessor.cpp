@@ -102,6 +102,9 @@ void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 		case HiseEvent::Type::Aftertouch: 
 			onController();
 			break;
+        case HiseEvent::Type::NRPNController:
+                onNRPNController();
+                break;
 		case HiseEvent::Type::TimerEvent:
 		{
 			if (m.getTimerIndex() == getIndexInChain())

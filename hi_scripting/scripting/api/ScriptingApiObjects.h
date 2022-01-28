@@ -733,6 +733,8 @@ public:
 
 		/** Returns true if the event is a CC controller event. */
 		bool isController() const;
+        
+        bool isNRPNController() const;
 
 		/** Creates a info string for debugging. */
 		String dump() const;

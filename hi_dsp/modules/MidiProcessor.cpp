@@ -62,6 +62,13 @@ void MidiProcessor::addHiseEventToBuffer(const HiseEvent &m)
 
 	
 }
+    
+/*void MidiProcessor::addHiseNRPNEventToBuffer(const HiseEvent &m)
+{
+    ownerSynth->midiProcessorChain->addArtificialEvent(m);
+    
+    
+}*/
 
 ProcessorEditorBody *MidiProcessor::createEditor(ProcessorEditor *parentEditor)
 {
@@ -125,6 +132,11 @@ bool MidiProcessorChain::setArtificialTimestamp(uint16 eventId, int newTimestamp
 
 void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int numSamples)
 {
+    int parameterNumber = 0;
+
+    int nrpnValue = 0;
+
+   
 	if (allNotesOffAtNextBuffer)
 	{
 		buffer.clear();
@@ -150,8 +162,52 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 	
 	jassert(buffer.timeStampsAreSorted());
 
+    //changed a lot - user added
 	while (HiseEvent* e = it.getNextEventPointer(true, false))
 	{
+        if (e->getType() == HiseEvent::Type::NRPNController)
+        {
+            switch(e->getControllerNumber())
+            {
+                    
+                    //lsb
+                case 98:{
+                    parameterNumber+= e->getControllerValue();
+                    break;
+                }
+                    
+                    //msb
+                case 99:{
+                    parameterNumber += e->getControllerValue()*128;
+                    break;
+                }
+                    
+                    //lsb
+                case 38:{
+                    nrpnValue = e->getControllerValue();
+                    break;
+  
+                }
+                    
+                    //msb
+                case 6: {
+                    HiseEvent nrpnEvent(*e);
+                    if(nrpnValue)
+                        nrpnValue += e->getControllerValue()*128;
+                    else
+                        nrpnValue = e->getControllerValue();
+                    nrpnEvent.setParameterNumber(parameterNumber);
+                    nrpnEvent.setNRPNValue(nrpnValue);
+                    parameterNumber = 0;
+                     nrpnValue = 0;
+                    processHiseEvent(nrpnEvent);
+                    
+                    break;
+                    
+                }
+        }
+        }
+        else
 		processHiseEvent(*e);
 	}
 
