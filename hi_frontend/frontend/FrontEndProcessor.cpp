@@ -383,6 +383,11 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 
 	synthChain->restoreFromValueTree(synthData);
 
+    Processor::Iterator<GlobalModulator> gi(synthChain, false);
+    
+    while(auto m = gi.getNextProcessor())
+        m->connectIfPending();
+    
 	setSkipCompileAtPresetLoad(false);
 
 	{
