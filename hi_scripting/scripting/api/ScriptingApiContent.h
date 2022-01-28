@@ -957,6 +957,9 @@ public:
 		/** Adds an item to a combo box. */
 		void addItem(const String &newName);
 
+        /** Removes all items from a combo box. */
+        void clear();
+
 		// ========================================================================================================
 
 		struct Wrapper;

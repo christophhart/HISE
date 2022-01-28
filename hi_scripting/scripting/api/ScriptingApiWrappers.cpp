@@ -795,6 +795,12 @@ var ScriptingApi::Content::Wrapper::clear (const var::NativeFunctionArgs& args)
 		thisObject->clear();
 	}
 
+    if (ScriptingApi::Content::ScriptComboBox* thisObject = GET_OBJECT(Content::ScriptComboBox))
+    {
+        CHECK_ARGUMENTS("clear()", 0);
+        thisObject->clear();
+    }
+
 	return var();
 };
 
