@@ -812,6 +812,7 @@ void ScriptingApi::Message::onAllNotesOff()
 struct ScriptingApi::Engine::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_0(Engine, allNotesOff);
+	API_METHOD_WRAPPER_0(Engine, getProjectInfo);
 	API_METHOD_WRAPPER_0(Engine, getUptime);
 	API_METHOD_WRAPPER_0(Engine, getHostBpm);
 	API_VOID_METHOD_WRAPPER_1(Engine, setHostBpm);
@@ -929,6 +930,7 @@ ScriptingObject(p),
 ApiClass(0),
 parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 {
+	ADD_API_METHOD_0(getProjectInfo);
 	ADD_API_METHOD_0(allNotesOff);
 	ADD_API_METHOD_0(getUptime);
 	ADD_API_METHOD_0(getHostBpm);
@@ -1045,6 +1047,25 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 ScriptingApi::Engine::~Engine()
 {
 
+}
+
+var ScriptingApi::Engine::getProjectInfo()
+{		
+	auto obj = new DynamicObject();
+
+	obj->setProperty("Company", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::User::Company).toString());
+	obj->setProperty("CompanyCode", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::User::CompanyCode).toString());
+	obj->setProperty("CompanyURL", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::User::CompanyURL).toString());
+	obj->setProperty("CompanyCopyright", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::User::CompanyCopyright).toString());
+	obj->setProperty("ProjectName", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::Name).toString());
+	obj->setProperty("ProjectVersion", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::Version).toString());
+	obj->setProperty("ProjectDescription", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::Description).toString());
+	obj->setProperty("BundleIdentifier", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::BundleIdentifier).toString());
+	obj->setProperty("PluginCode", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::PluginCode).toString());
+	obj->setProperty("HISEBuild", String(HISE_VERSION));
+	obj->setProperty("BuildDate", Time::getCompilationDate().toString(true, false, false, true));
+		
+	return obj;
 }
 
 void ScriptingApi::Engine::allNotesOff()
