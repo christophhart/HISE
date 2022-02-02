@@ -544,6 +544,9 @@ public:
 		/** Returns a [x, y, w, h] array that was reduced by the given amount. */
 		var getLocalBounds(float reduceAmount);
 
+		/** Returns a [x, y, w, h] array that was reduced by the given amount for each side. */
+		var getTrimmedBounds(float top, float left, float bottom, float right);
+
 		/** Restores all properties from a JSON object. */
 		void setPropertiesFromJSON(const var &jsonData);
 
