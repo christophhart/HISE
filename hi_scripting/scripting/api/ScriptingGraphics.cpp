@@ -2156,6 +2156,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableBackground(Graphics& g
 
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
 		obj->setProperty("position", rulerPosition);
+		obj->setProperty("text", te.getName());
 		setColourOrBlack(obj, "bgColour",    te, TableEditor::ColourIds::bgColour);
 		setColourOrBlack(obj, "itemColour",  te, TableEditor::ColourIds::fillColour);
 		setColourOrBlack(obj, "itemColour2", te, TableEditor::ColourIds::lineColour);
