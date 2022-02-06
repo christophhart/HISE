@@ -328,11 +328,13 @@ namespace pimpl
 			getObject()->sourceWatcher.removeSourceListener(this);
 	}
 
+	void complex_ui_laf::drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition)
+	{
+		ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, area, false);	
+	}	
 
 	void complex_ui_laf::drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness)
 	{
-		ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, area, false);
-
 		UnblurryGraphics ug(g, te, true);
 
 		auto b = area;

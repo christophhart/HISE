@@ -279,7 +279,11 @@ void TableEditor::paint (Graphics& g)
 	}
 
 	if (auto l = getTableLookAndFeel())
+	{
+		l->drawTableBackground(g, *this, getTableArea(), this->ruler->getValue());
 		l->drawTablePath(g, *this, dragPath, getTableArea(), lineThickness);
+	}
+		
 
 #if !HISE_IOS
     if (currently_dragged_point != nullptr && isInMainPanel())
@@ -848,13 +852,24 @@ bool TableEditor::TableAction::undo()
 	return true;
 }
 
+void TableEditor::LookAndFeelMethods::drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition)
+{
+	if(te.useFlatDesign)
+	{
+		g.setColour(te.findColour(ColourIds::bgColour));
+		g.fillAll();
+	}
+	else
+	{
+		g.setColour(Colours::lightgrey.withAlpha(0.1f));
+		g.drawRect(area, 1);	
+	}
+}
+
 void TableEditor::LookAndFeelMethods::drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float )
 {
     if(te.useFlatDesign)
     {
-        g.setColour(te.findColour(ColourIds::bgColour));
-        g.fillAll();
-
         g.setColour(te.findColour(ColourIds::fillColour));
         g.fillPath(p);
         g.setColour(te.findColour(ColourIds::lineColour));
@@ -862,9 +877,6 @@ void TableEditor::LookAndFeelMethods::drawTablePath(Graphics& g, TableEditor& te
     }
     else
     {
-        g.setColour(Colours::lightgrey.withAlpha(0.1f));
-        g.drawRect(area, 1);
-
         GlobalHiseLookAndFeel::fillPathHiStyle(g, p, area.getWidth(), area.getHeight());
     }
 }
