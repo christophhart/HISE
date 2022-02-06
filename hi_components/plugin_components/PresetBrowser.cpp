@@ -676,12 +676,10 @@ expHandler(mc->getExpansionHandler())
 	presetColumn->tagCacheNeedsRebuilding();
 	presetColumn->setAllowRecursiveFileSearch(true);
 
-	bankColumn->setNewRootDirectory(rootFile);
-
 	addAndMakeVisible(saveButton = new TextButton("Save Preset"));
 	saveButton->addListener(this);
 
-    addAndMakeVisible(manageButton = new TextButton(HiseDeviceSimulator::isMobileDevice() ? "Sync" : "More"));
+  addAndMakeVisible(manageButton = new TextButton(HiseDeviceSimulator::isMobileDevice() ? "Sync" : "More"));
 	manageButton->addListener(this);
 
 	setSize(width, height);
@@ -693,6 +691,8 @@ expHandler(mc->getExpansionHandler())
 		rootFile = e->getSubDirectory(FileHandlerBase::UserPresets);
 		currentlySelectedExpansion = e;
 	}
+	
+	bankColumn->setNewRootDirectory(rootFile);
 
 	rebuildAllPresets();
 
@@ -1215,6 +1215,9 @@ void PresetBrowser::showLoadedPreset()
 
 		File category = f.getParentDirectory();
 		File bank = category.getParentDirectory();
+
+		if (numColumns == 2)
+			bank = category;
 
 		bankColumn->setSelectedFile(bank, dontSendNotification);
 		categoryColumn->setNewRootDirectory(bank);
