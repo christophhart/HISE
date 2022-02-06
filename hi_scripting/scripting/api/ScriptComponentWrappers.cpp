@@ -1209,7 +1209,11 @@ ScriptCreatedComponentWrapper(content, index)
     
     auto slaf = &mc->getGlobalLookAndFeel();
 
-    if (auto s = dynamic_cast<TableEditor::LookAndFeelMethods*>(slaf))
+    if(auto l = dynamic_cast<TableEditor::LookAndFeelMethods*>(localLookAndFeel.get()))
+    {
+        t->setSpecialLookAndFeel(localLookAndFeel, false);
+    }
+    else if (auto s = dynamic_cast<TableEditor::LookAndFeelMethods*>(slaf))
     {
         t->setSpecialLookAndFeel(slaf, false);
     }
@@ -2347,6 +2351,17 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 	ft->setOpaque(false);
 	ft->setContent(floatingTile->getContentData());
 	ft->refreshRootLayout();
+
+    if (auto l = floatingTile->createLocalLookAndFeel())
+    {
+        localLookAndFeel = l;
+        
+        Component::callRecursive<Component>(ft, [l](Component* c)
+        {
+            c->setLookAndFeel(l);
+            return false;
+        });
+    }
 }
 
 
