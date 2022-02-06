@@ -2431,7 +2431,9 @@ String ScriptingApi::Engine::doubleToString(double value, int digits)
 
 void ScriptingApi::Engine::quit()
 {
-	quit();
+	#if IS_STANDALONE_APP
+		quit();
+	#endif
 }
 
 void ScriptingApi::Engine::undo()
