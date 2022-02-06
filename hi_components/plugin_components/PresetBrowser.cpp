@@ -1129,6 +1129,16 @@ void PresetBrowser::setShowEditButtons(int buttonId, bool show)
 		tagList->setShowEditButton(show);
 }
 
+void PresetBrowser::setButtonsInsideBorder(bool inside)
+{
+	if (expansionColumn != nullptr)
+		expansionColumn->setButtonsInsideBorder(inside);
+
+	bankColumn->setButtonsInsideBorder(inside);
+	categoryColumn->setButtonsInsideBorder(inside);
+	presetColumn->setButtonsInsideBorder(inside);
+}
+
 void PresetBrowser::setEditButtonOffset(int offset)
 {
 	if (expansionColumn != nullptr)
@@ -1255,6 +1265,7 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	setShowEditButtons(1, newOptions.showAddButton);
 	setShowEditButtons(2, newOptions.showRenameButton);
 	setShowEditButtons(3, newOptions.showDeleteButton);
+	setButtonsInsideBorder(newOptions.buttonsInsideBorder);
 	setEditButtonOffset(newOptions.editButtonOffset);
 	setListAreaOffset(newOptions.listAreaOffset);
 	setColumnRowPadding(newOptions.columnRowPadding);

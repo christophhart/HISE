@@ -78,7 +78,8 @@ public:
 		bool showAddButton = true;
 		bool showRenameButton = true;
 		bool showDeleteButton = true;
-		int editButtonOffset = 0;
+		bool buttonsInsideBorder = false;
+		int editButtonOffset = 10;
 		Array<var> listAreaOffset;
 		Array<var> columnRowPadding;
 		Array<var> searchBarBounds;
@@ -226,6 +227,7 @@ private:
 	void setShowButton(int buttonId, bool newValue);
 	void setShowNotesLabel(bool shouldBeShown);
 	void setShowEditButtons(int buttonId, bool showEditButtons);
+	void setButtonsInsideBorder(bool inside);
 	void setEditButtonOffset(int offset);
 	void setListAreaOffset(Array<var> offset);
 	void setColumnRowPadding(Array<var> offset);
