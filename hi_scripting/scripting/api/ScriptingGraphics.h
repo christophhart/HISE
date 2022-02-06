@@ -401,6 +401,9 @@ namespace ScriptingObjects
 
 		/** Draws a text with the given alignment (see the Label alignment property). */
 		void drawAlignedText(String text, var area, String alignment);
+		
+		/** Tries to draw a text string inside a given space. */
+		void drawFittedText(String text, var area, String alignment, int maxLines, float scale);
 
 		/** Sets the current gradient via an array [Colour1, x1, y1, Colour2, x2, y2] */
 		void setGradientFill(var gradientData);

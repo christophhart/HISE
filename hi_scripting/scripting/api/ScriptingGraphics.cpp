@@ -980,6 +980,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, setFont);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawAlignedText);
+	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawFittedText);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setGradientFill);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawEllipse);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillEllipse);
@@ -1027,6 +1028,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_2(setFont);
 	ADD_API_METHOD_2(drawText);
 	ADD_API_METHOD_3(drawAlignedText);
+	ADD_API_METHOD_5(drawFittedText);
 	ADD_API_METHOD_1(setGradientFill);
 	ADD_API_METHOD_2(drawEllipse);
 	ADD_API_METHOD_1(fillEllipse);
@@ -1277,6 +1279,17 @@ void ScriptingObjects::GraphicsObject::drawAlignedText(String text, var area, St
 		reportScriptError(re.getErrorMessage());
 
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText(text, r, just));
+}
+
+void ScriptingObjects::GraphicsObject::drawFittedText(String text, var area, String alignment, int maxLines, float scale)
+{
+	Result re = Result::ok();
+	auto just = ApiHelpers::getJustification(alignment, &re);
+
+	if (re.failed())
+		reportScriptError(re.getErrorMessage());
+
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawFittedText(text, area, just, maxLines, scale));
 }
 
 void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
