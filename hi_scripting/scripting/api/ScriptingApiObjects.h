@@ -284,6 +284,21 @@ namespace ScriptingObjects
 		/** Returns the new directory created at the file location, if directory doesn't already exist */
 		var createDirectory(String directoryName);
 
+		/** Returns the size of the file in bytes. */
+		int64 getSize();
+		
+		/** Returns the number of bytes free on the drive that this file lives on. */
+		int64 getBytesFreeOnVolume();
+
+		/** Changes the execute-permissions of a file. */
+		bool setExecutePermission(bool shouldBeExecutable);
+
+		/** Launches the file as a process. */
+		bool startAsProcess(String parameters);
+		
+		/** Reads a file and generates the hash of its contents. */
+		String getHash();
+
 		/** Returns a String representation of that file. */
 		String toString(int formatType) const;
 		
@@ -319,6 +334,9 @@ namespace ScriptingObjects
 
 		/** Loads the encrypted object using the supplied RSA key pair. */
 		var loadEncryptedObject(String key);
+
+		/** Renames the file. */
+		bool rename(String newName);
 
 		/** Loads the given file as audio file. */
 		var loadAsAudioFile() const;

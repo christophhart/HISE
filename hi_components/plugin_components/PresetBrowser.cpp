@@ -676,12 +676,10 @@ expHandler(mc->getExpansionHandler())
 	presetColumn->tagCacheNeedsRebuilding();
 	presetColumn->setAllowRecursiveFileSearch(true);
 
-	bankColumn->setNewRootDirectory(rootFile);
-
 	addAndMakeVisible(saveButton = new TextButton("Save Preset"));
 	saveButton->addListener(this);
 
-    addAndMakeVisible(manageButton = new TextButton(HiseDeviceSimulator::isMobileDevice() ? "Sync" : "More"));
+  addAndMakeVisible(manageButton = new TextButton(HiseDeviceSimulator::isMobileDevice() ? "Sync" : "More"));
 	manageButton->addListener(this);
 
 	setSize(width, height);
@@ -693,6 +691,8 @@ expHandler(mc->getExpansionHandler())
 		rootFile = e->getSubDirectory(FileHandlerBase::UserPresets);
 		currentlySelectedExpansion = e;
 	}
+	
+	bankColumn->setNewRootDirectory(rootFile);
 
 	rebuildAllPresets();
 
@@ -881,7 +881,7 @@ void PresetBrowser::resized()
 		saveButton->setBounds(ar.removeFromRight(100));
 		manageButton->setBounds(ar.removeFromLeft(100));
 		
-		if (searchBarBounds.size() != 4 || searchBarBounds.isEmpty())
+		if (searchBarBounds.size() != 4)
 			searchBar->setBounds(ar);
 
 		y += 40;
@@ -897,13 +897,17 @@ void PresetBrowser::resized()
 
 		favoriteButton->setVisible(showFavoritesButton);
 
-		if(showFavoritesButton)
-			favoriteButton->setBounds(ar.removeFromLeft(30));
-
+		if (showFavoritesButton)
+		{
+			if (favoriteButtonBounds.size() != 4)
+				favoriteButton->setBounds(ar.removeFromLeft(30));
+			else 
+				favoriteButton->setBounds((int)favoriteButtonBounds[0], (int)favoriteButtonBounds[1], (int)favoriteButtonBounds[2], (int)favoriteButtonBounds[3]);
+		}
 
 		ar.removeFromLeft(10);
 
-		if (searchBarBounds.size() != 4 || searchBarBounds.isEmpty())
+		if (searchBarBounds.size() != 4)
 			searchBar->setBounds(ar);
 
 		y += 40;
@@ -1129,6 +1133,16 @@ void PresetBrowser::setShowEditButtons(int buttonId, bool show)
 		tagList->setShowEditButton(show);
 }
 
+void PresetBrowser::setButtonsInsideBorder(bool inside)
+{
+	if (expansionColumn != nullptr)
+		expansionColumn->setButtonsInsideBorder(inside);
+
+	bankColumn->setButtonsInsideBorder(inside);
+	categoryColumn->setButtonsInsideBorder(inside);
+	presetColumn->setButtonsInsideBorder(inside);
+}
+
 void PresetBrowser::setEditButtonOffset(int offset)
 {
 	if (expansionColumn != nullptr)
@@ -1206,6 +1220,9 @@ void PresetBrowser::showLoadedPreset()
 		File category = f.getParentDirectory();
 		File bank = category.getParentDirectory();
 
+		if (numColumns == 2)
+			bank = category;
+
 		bankColumn->setSelectedFile(bank, dontSendNotification);
 		categoryColumn->setNewRootDirectory(bank);
 		categoryColumn->setSelectedFile(category, dontSendNotification);
@@ -1248,6 +1265,9 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	
 	searchBarBounds.clear();
 	searchBarBounds.addArray(newOptions.searchBarBounds);
+
+	favoriteButtonBounds.clear();
+	favoriteButtonBounds.addArray(newOptions.favoriteButtonBounds);
 	
 	setShowButton(0, newOptions.showFolderButton);
 	setShowButton(1, newOptions.showSaveButtons);
@@ -1255,6 +1275,7 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	setShowEditButtons(1, newOptions.showAddButton);
 	setShowEditButtons(2, newOptions.showRenameButton);
 	setShowEditButtons(3, newOptions.showDeleteButton);
+	setButtonsInsideBorder(newOptions.buttonsInsideBorder);
 	setEditButtonOffset(newOptions.editButtonOffset);
 	setListAreaOffset(newOptions.listAreaOffset);
 	setColumnRowPadding(newOptions.columnRowPadding);

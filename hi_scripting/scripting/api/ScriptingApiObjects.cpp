@@ -186,6 +186,11 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, getParentDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, getChildFile);
 	API_METHOD_WRAPPER_1(ScriptFile, createDirectory);
+	API_METHOD_WRAPPER_0(ScriptFile, getSize);
+	API_METHOD_WRAPPER_0(ScriptFile, getBytesFreeOnVolume);
+	API_METHOD_WRAPPER_1(ScriptFile, setExecutePermission);
+	API_METHOD_WRAPPER_1(ScriptFile, startAsProcess);
+	API_METHOD_WRAPPER_0(ScriptFile, getHash);
 	API_METHOD_WRAPPER_1(ScriptFile, toString);
 	API_METHOD_WRAPPER_0(ScriptFile, isFile);
 	API_METHOD_WRAPPER_0(ScriptFile, isDirectory);
@@ -198,6 +203,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsAudioFile);
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
+	API_METHOD_WRAPPER_1(ScriptFile, rename);
 	API_METHOD_WRAPPER_1(ScriptFile, toReferenceString);
 	API_METHOD_WRAPPER_1(ScriptFile, getRelativePathFrom);
 	API_VOID_METHOD_WRAPPER_2(ScriptFile, setReadOnly);
@@ -219,7 +225,7 @@ String ScriptingObjects::ScriptFile::getFileNameFromFile(var fileOrString)
 }
 
 ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const File& f_) :
-	ConstScriptingObject(p, 3),
+	ConstScriptingObject(p, 4),
 	f(f_)
 {
 	addConstant("FullPath", (int)FullPath);
@@ -230,8 +236,13 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_0(getParentDirectory);
 	ADD_API_METHOD_1(getChildFile);
 	ADD_API_METHOD_1(createDirectory);
+	ADD_API_METHOD_0(getSize);
+	ADD_API_METHOD_0(getHash);
 	ADD_API_METHOD_1(toString);
 	ADD_API_METHOD_0(isFile);
+	ADD_API_METHOD_0(getBytesFreeOnVolume);
+	ADD_API_METHOD_1(setExecutePermission);
+	ADD_API_METHOD_1(startAsProcess);
 	ADD_API_METHOD_0(isDirectory);
 	ADD_API_METHOD_0(deleteFileOrDirectory);
 	ADD_API_METHOD_1(writeObject);
@@ -242,6 +253,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_0(loadAsObject);
 	ADD_API_METHOD_0(loadAsAudioFile);
 	ADD_API_METHOD_1(loadEncryptedObject);
+	ADD_API_METHOD_1(rename);
 	ADD_API_METHOD_0(show);
 	ADD_API_METHOD_3(extractZipFile);
 	ADD_API_METHOD_2(setReadOnly);
@@ -267,6 +279,31 @@ var ScriptingObjects::ScriptFile::createDirectory(String directoryName)
 
 	return new ScriptFile(getScriptProcessor(), f.getChildFile(directoryName));
 }
+
+int64 ScriptingObjects::ScriptFile::getSize()
+{	
+	return f.getSize();
+}
+
+int64 ScriptingObjects::ScriptFile::getBytesFreeOnVolume()
+{
+	return f.getBytesFreeOnVolume();
+}
+
+bool ScriptingObjects::ScriptFile::setExecutePermission(bool shouldBeExecutable)
+{
+	return f.setExecutePermission(shouldBeExecutable);
+}
+
+bool ScriptingObjects::ScriptFile::startAsProcess(String parameters)
+{
+	return f.startAsProcess(parameters);
+}
+
+String ScriptingObjects::ScriptFile::getHash()
+{
+	return SHA256(f).toHexString();
+};
 
 String ScriptingObjects::ScriptFile::toString(int formatType) const
 {
@@ -516,6 +553,12 @@ var ScriptingObjects::ScriptFile::loadEncryptedObject(String key)
 	auto r = JSON::parse(in.toString(), v);
 
 	return v;
+}
+
+bool ScriptingObjects::ScriptFile::rename(String newName)
+{	
+	auto newFile = f.getSiblingFile(newName).withFileExtension(f.getFileExtension());
+	return f.moveFileTo(newFile);
 }
 
 juce::var ScriptingObjects::ScriptFile::loadAsAudioFile() const

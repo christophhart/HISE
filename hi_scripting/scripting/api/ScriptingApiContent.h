@@ -541,6 +541,9 @@ public:
         /** Returns the absolute y-position relative to the interface. */
         int getGlobalPositionY();
         
+		/** Returns list of component's children */
+		var getChildComponents();
+				
 		/** Returns a [x, y, w, h] array that was reduced by the given amount. */
 		var getLocalBounds(float reduceAmount);
 
@@ -886,6 +889,7 @@ public:
 		/** Set the value from a 0.0 to 1.0 range */
 		void setValueNormalized(double normalizedValue) override;
 
+		/** Returns the normalized value. */
 		double getValueNormalized() const override;
 
 		/** Sets the range and the step size of the knob. */

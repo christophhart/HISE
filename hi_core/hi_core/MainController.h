@@ -1835,6 +1835,9 @@ private:
 	int scrollY;
 	BigInteger shownComponents;
 
+    // Make sure that this is alive all the time...
+    snex::cppgen::CustomNodeProperties data;
+    
 	ScopedPointer<ControlledObject> defaultPresetHandler;
 
 	void handleSuspendedNoteOffs();

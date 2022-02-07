@@ -232,6 +232,9 @@ public:
 		/** Converts milli seconds to samples */
 		double getSamplesForMilliSeconds(double milliSeconds) const;;
 
+		/** Returns the tempo name for the given index */
+		String getTempoName(int tempoIndex);
+
 		/** Converts samples to quarter beats using the current tempo. */
 		double getQuarterBeatsForSamples(double samples);
 
@@ -1469,6 +1472,9 @@ public:
 
 		/** Returns a unique machine ID that can be used to identify the computer. */
 		String getSystemId();
+		
+		/**  Convert a file size in bytes to a neat string description. */
+		String descriptionOfSizeInBytes(int bytes);
 
 		/** Returns the number of free bytes on the volume of a given folder. */
 		int64 getBytesFreeOnVolume(var folder);

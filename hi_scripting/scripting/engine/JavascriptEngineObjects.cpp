@@ -286,6 +286,7 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		setMethod("lastIndexOf", lastIndexOf);
 		setMethod("toLowerCase", toLowerCase);
 		setMethod("toUpperCase", toUpperCase);
+		setMethod("parseAsJSON", parseAsJSON);
 		setMethod("trim", trim);
 		setMethod("concat", concat);
 	}
@@ -300,7 +301,7 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 	static var charCodeAt(Args a)    { return (int)a.thisObject.toString()[getInt(a, 0)]; }
     static var replace(Args a)       { return a.thisObject.toString().replace(getString(a, 0), getString(a, 1)); }
 	static var charAt(Args a)        { int p = getInt(a, 0); return a.thisObject.toString().substring(p, p + 1); }
-	
+	static var parseAsJSON(Args a)   { return JSON::parse(a.thisObject.toString()); }	
 	static var toUpperCase(Args a) { return a.thisObject.toString().toUpperCase(); };
 	static var toLowerCase(Args a) { return a.thisObject.toString().toLowerCase(); };
 

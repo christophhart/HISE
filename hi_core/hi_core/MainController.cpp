@@ -320,6 +320,13 @@ void MainController::loadPresetInternal(const ValueTree& v)
 			skipCompilingAtPresetLoad = true;
 			getSampleManager().setCurrentPreloadMessage("Building modules...");
 			synthChain->restoreFromValueTree(v);
+            
+            Processor::Iterator<GlobalModulator> gi(synthChain, false);
+            
+            while(auto m = gi.getNextProcessor())
+                m->connectIfPending();
+            
+            
 			skipCompilingAtPresetLoad = false;
 
 			getSampleManager().setCurrentPreloadMessage("Compiling scripts...");

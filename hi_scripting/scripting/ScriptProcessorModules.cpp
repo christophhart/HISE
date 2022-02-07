@@ -1593,7 +1593,7 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 
 		{
 			scriptnode::DspNetwork::VoiceSetter vs(*n, getVoiceIndex());
-			rootNode->process(d);
+            n->process(d);
 		}
 		
 		if (auto modValues = getOwnerSynth()->getVoiceGainValues())
@@ -1645,7 +1645,7 @@ void VoiceDataStack::handleHiseEvent(scriptnode::DspNetwork* n, const HiseEvent&
 			{
 				HiseEvent c(m);
 				scriptnode::DspNetwork::VoiceSetter vs(*n, vd.voiceIndex);
-				n->getRootNode()->handleHiseEvent(c);
+				n->handleHiseEvent(c);
 			}
 		}
 	}
@@ -1657,7 +1657,7 @@ void VoiceDataStack::handleHiseEvent(scriptnode::DspNetwork* n, const HiseEvent&
 			{
 				HiseEvent c(m);
 				scriptnode::DspNetwork::VoiceSetter vs(*n, vd.voiceIndex);
-				n->getRootNode()->handleHiseEvent(c);
+				n->handleHiseEvent(c);
 			}
 		}
 	}
@@ -1667,7 +1667,7 @@ void VoiceDataStack::handleHiseEvent(scriptnode::DspNetwork* n, const HiseEvent&
 		{
 			HiseEvent c(m);
 			scriptnode::DspNetwork::VoiceSetter vs(*n, vd.voiceIndex);
-			n->getRootNode()->handleHiseEvent(c);
+			n->handleHiseEvent(c);
 }
 	}
 }
@@ -1678,8 +1678,11 @@ void VoiceDataStack::startVoice(scriptnode::DspNetwork* n, int voiceIndex, const
 	HiseEvent c(e);
 
 	scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
-	n->getRootNode()->reset();
-	n->getRootNode()->handleHiseEvent(c);
+    
+    HiseEvent copy(e);
+    
+    n->reset();
+    n->handleHiseEvent(copy);
 }
 
 } // namespace hise

@@ -1283,7 +1283,7 @@ void JavascriptProcessor::restoreInterfaceData(ValueTree propertyData)
 
 String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<File>& includedFiles, const JavascriptProcessor* p)
 {
-	String regex("include\\(\"([\\w\\s]+\\.\\w+)\"\\);");
+	String regex("include\\(\"([/\\w\\s]+\\.\\w+)\"\\);");
 	StringArray results = RegexFunctions::search(regex, x, 0);
 	StringArray fileNames = RegexFunctions::search(regex, x, 1);
 	StringArray includedContents;
@@ -1450,14 +1450,13 @@ bool JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUnd
 
 		String code = codeToCut.fromLastOccurrenceOf(filter, true, false);
 
-		s->replaceContentAsync(code);
+        // If this is true, we're loading the preset and don't care about multithreading
+        auto shouldBeAsync = !clearUndoHistory;
+        
+		s->replaceContentAsync(code, shouldBeAsync);
 
 		codeToCut = codeToCut.upToLastOccurrenceOf(filter, false, false);
         
-        if(clearUndoHistory)
-        {
-            s->getUndoManager().clearUndoHistory();
-        }
 	}
 
 	getSnippet(0)->replaceContentAsync(codeToCut);

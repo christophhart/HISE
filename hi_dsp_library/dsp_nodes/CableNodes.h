@@ -430,15 +430,15 @@ namespace control
 	{
 		enum class SpecialControllers
 		{
-			ModWheel = 1 - 1,
-			BreathControl = 2 - 1,
-			Volume = 7 - 1,
-			Expression = 11 - 1,
-			Sustain = 64 - 1,
-			Aftertouch = 128 - 1,
-			Pitchbend = 129 - 1,
-			Stroke = 130 - 1,
-			Release = 131 - 1
+			ModWheel = 1,
+			BreathControl = 2,
+			Volume = 7,
+			Expression = 11,
+			Sustain = 64,
+			Aftertouch = 128,
+			Pitchbend = 129,
+			Stroke = 130,
+			Release = 131
 		};
 
 		static bool isMPEProperty(int zeroBasedNumber)
@@ -470,8 +470,8 @@ namespace control
 		{
 			StringArray sa;
 
-			for (int i = 0; i < 131; i++)
-				sa.add(String("CC " + String(i + 1)));
+			for (int i = 0; i < 132; i++)
+				sa.add(String("CC " + String(i)));
 
 			sa.set((int)SpecialControllers::ModWheel, "Modwheel");
 			sa.set((int)SpecialControllers::BreathControl, "Breath Control");
@@ -518,6 +518,7 @@ namespace control
 				DEFINE_PARAMETERDATA(midi_cc, CCNumber);
 				auto sa = MidiCCHelpers::createMidiCCNames();
 				p.setParameterValueNames(sa);
+                p.setDefaultValue(1.0);
 				data.add(std::move(p));
 			}
 
@@ -594,7 +595,7 @@ namespace control
 
 		bool isInPolyphonicContext = false;
 		bool enableMpe = false;
-		int midiNumber = 0;
+		int midiNumber = 1;
 		HiseEvent::Type expectedType = HiseEvent::Type::Controller;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(midi_cc);

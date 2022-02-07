@@ -765,7 +765,7 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 
 	template <int P> void setParameter(double v)
 	{
-		T::setParameterStatic<P>(&this->obj, v);
+		T::template setParameterStatic<P>(&this->obj, v);
 	}
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(data);

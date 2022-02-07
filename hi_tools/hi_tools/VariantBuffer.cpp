@@ -206,11 +206,12 @@ void VariantBuffer::addMethods()
 			auto ptr = bf->buffer.getReadPointer(0, offset);
 
 			int index = 0;
-			int maxValue = 0.0f;
+			auto maxValue = 0.0f;
 
 			for (int i = 0; i < numSamples; i++)
 			{
 				auto thisValue = std::abs(ptr[i]);
+                
 				if (thisValue > maxValue)
 				{
 					maxValue = thisValue;

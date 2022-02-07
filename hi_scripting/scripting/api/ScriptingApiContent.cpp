@@ -122,6 +122,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_METHOD_WRAPPER_0(ScriptComponent, getWidth);
 	API_METHOD_WRAPPER_0(ScriptComponent, getHeight);
 	API_METHOD_WRAPPER_1(ScriptComponent, getLocalBounds);
+	API_METHOD_WRAPPER_0(ScriptComponent, getChildComponents);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, changed);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionX);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
@@ -307,6 +308,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(getWidth);
 	ADD_API_METHOD_0(getHeight);
 	ADD_API_METHOD_1(getLocalBounds);
+	ADD_API_METHOD_0(getChildComponents);
 	ADD_API_METHOD_0(changed);
 	ADD_API_METHOD_0(getGlobalPositionX);
 	ADD_API_METHOD_0(getGlobalPositionY);
@@ -1106,6 +1108,17 @@ const ScriptingApi::Content::ScriptComponent* ScriptingApi::Content::ScriptCompo
 	const Identifier id_("id");
 	auto id = Identifier(propertyTree.getParent().getProperty(id_).toString());
 	return parent->getComponentWithName(id);
+}
+
+var ScriptingApi::Content::ScriptComponent::getChildComponents()
+{
+		ChildIterator<ScriptComponent> iter(this);
+		Array<var> list;
+		
+		while (auto child = iter.getNextChildComponent())
+			if (child != this) list.add(child);
+			
+		return var(list);
 }
 
 ScriptingApi::Content::ScriptComponent::~ScriptComponent()
