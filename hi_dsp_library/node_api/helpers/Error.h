@@ -67,6 +67,7 @@ struct Error
 		DeprecatedNode,
 		IllegalPolyphony,
 		IllegalBypassConnection,
+		IllegalCompilation,
 		CloneMismatch,
 		IllegalMod,
 		numErrorCodes

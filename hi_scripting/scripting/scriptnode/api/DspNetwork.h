@@ -182,6 +182,7 @@ public:
 		case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
 		case Error::IllegalBypassConnection: return "Use a `container.soft_bypass` node";
 		case Error::CloneMismatch:	return "Clone container must have equal child nodes";
+		case Error::IllegalCompilation: return "Can't compile networks with this node. Uncheck the `AllowCompilation` flag to remove the error.";
 		case Error::CompileFail:	s << "Compilation error** at Line " << e.expected << ", Column " << e.actual; return s;
 		default:
 			break;
