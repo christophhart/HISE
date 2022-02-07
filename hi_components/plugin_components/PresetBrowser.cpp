@@ -309,10 +309,12 @@ void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(Graphics
 	}
 }
 
-void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode)
+void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
 {
-	g.setGradientFill(ColourGradient(highlightColour.withAlpha(0.3f), 0.0f, 0.0f,
-		highlightColour.withAlpha(0.2f), 0.0f, (float)position.getHeight(), false));
+	float alphaBoost = hover ? 0.1f : 0.0f;
+
+	g.setGradientFill(ColourGradient(highlightColour.withAlpha(0.3f + alphaBoost), 0.0f, 0.0f,
+		highlightColour.withAlpha(0.2f + alphaBoost), 0.0f, (float)position.getHeight(), false));
 
 	if (rowIsSelected)
 		g.fillRect(position);
@@ -767,6 +769,47 @@ hise::PresetBrowserLookAndFeelMethods& PresetBrowser::getPresetBrowserLookAndFee
 	return laf;
 }
 
+Point<int> PresetBrowser::getMouseHoverInformation() const
+{
+	Point<int> p(-9000, -9000);
+
+	auto mp = getMouseXYRelative();
+
+
+
+	auto setIfHover = [&](PresetBrowserColumn* c)
+	{
+		if (c == nullptr)
+			return false;
+
+		if (!c->isVisible())
+			return false;
+
+		if(c->getBoundsInParent().contains(mp))
+		{
+			auto lp = c->getLocalPoint(this, mp);
+			p = { c->getColumnIndex(), c->getIndexForPosition(lp) };
+			return true;
+		};
+
+		return false;
+	};
+
+	if (setIfHover(expansionColumn))
+		return p;
+
+	if (setIfHover(bankColumn))
+		return p;
+
+	if (setIfHover(categoryColumn))
+		return p;
+
+	if (setIfHover(presetColumn))
+		return p;
+	
+	return p;
+}
+
 void PresetBrowser::presetChanged(const File& newPreset)
 {
 	if (allPresets[currentlyLoadedPreset] == newPreset)
@@ -892,10 +935,13 @@ void PresetBrowser::resized()
 		Rectangle<int> ar(3, 3 + 3, getWidth() - 6, 30);
 
 
+		bool somethingInTopRow = false;
+
 		saveButton->setBounds(ar.removeFromRight(100));
 		manageButton->setBounds(ar.removeFromLeft(100));
-
 		favoriteButton->setVisible(showFavoritesButton);
+
+		
 
 		if (showFavoritesButton)
 		{
@@ -910,7 +956,13 @@ void PresetBrowser::resized()
 		if (searchBarBounds.size() != 4)
 			searchBar->setBounds(ar);
 
-		y += 40;
+		somethingInTopRow |= saveButton->isVisible();
+		somethingInTopRow |= manageButton->isVisible();
+		somethingInTopRow |= showFavoritesButton;
+		somethingInTopRow |= searchBar->getHeight() > 0;
+
+		if(somethingInTopRow)
+			y += 40;
 	}
 
 	int x = 3;

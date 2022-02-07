@@ -149,6 +149,8 @@ public:
 	PresetBrowser(MainController* mc_, int width=810, int height=500);
 	~PresetBrowser();
 
+	
+
 	bool isReadOnly(const File& f);
 
 	void presetChanged(const File& newPreset) override;
@@ -215,6 +217,9 @@ public:
 	{
 		manageButton->setVisible(false);
 	}
+
+	Point<int> getMouseHoverInformation() const;
+
 
 private:
 

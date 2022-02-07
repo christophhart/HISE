@@ -254,6 +254,12 @@ class PresetBrowserColumn : public Component,
 public:
 	// ============================================================================================
 
+	struct HoverInformation
+	{
+		int columnIndex;
+		int rowIndex;
+	};
+
 	class ColumnListModel : public ListBoxModel,
 							public PresetBrowserChildComponentBase
 	{
@@ -283,6 +289,8 @@ public:
 		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
 
 		void update() override {};
+
+		bool isMouseHover(int rowNumber) const;
 
 		const Array<CachedTag>& getCachedTags() const;
 
@@ -352,6 +360,8 @@ public:
 		bool allowRecursiveSearch = false;
 		bool deleteOnClick = false;
 
+		int getColumnIndex() const { return index; }
+
 	protected:
 
 		bool empty = false;
@@ -402,6 +412,13 @@ public:
 	{
 		listModel->setShowFavoritesOnly(shouldShow);
 		listbox->updateContent();
+	}
+
+	int getColumnIndex() const { return listModel->getColumnIndex(); }
+
+	int getIndexForPosition(Point<int> pos)
+	{
+		return listbox->getRowContainingPosition(pos.getX(), pos.getY());
 	}
 
 	void setEditMode(bool on) { listModel->setEditMode(on); listbox->repaint(); };
@@ -480,6 +497,11 @@ public:
 	void mouseUp(const MouseEvent& /*e*/) override
 	{
 		TouchAndHoldComponent::abortTouch();
+	}
+
+	void mouseMove(const MouseEvent& e) override
+	{
+		repaint();
 	}
 
 	void buttonClicked(Button* b);

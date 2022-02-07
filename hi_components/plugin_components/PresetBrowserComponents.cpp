@@ -382,8 +382,15 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 	{
 		auto itemName = entries[rowNumber].getFileNameWithoutExtension();
 		auto position = Rectangle<int>(0, 1, width, height - 2);
-		getPresetBrowserLookAndFeel().drawListItem(g, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick);
+
+		getPresetBrowserLookAndFeel().drawListItem(g, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick, isMouseHover(rowNumber));
 	}
+}
+
+bool PresetBrowserColumn::ColumnListModel::isMouseHover(int rowIndex) const
+{
+	auto p = parent->getMouseHoverInformation();
+	return p.x == index && p.y == rowIndex;
 }
 
 const juce::Array<PresetBrowserColumn::ColumnListModel::CachedTag>& PresetBrowserColumn::ColumnListModel::getCachedTags() const
@@ -539,6 +546,8 @@ PresetBrowserColumn::PresetBrowserColumn(MainController* mc_, PresetBrowser* p, 
 	listbox->addMouseListener(this, true);
 
 	setSize(150, 300);
+
+	setRepaintsOnMouseActivity(true);
 }
 
 File PresetBrowserColumn::getChildDirectory(File& root, int level, int index)
@@ -789,7 +798,7 @@ void PresetBrowserColumn::ExpansionColumnModel::paintListBoxItem(int rowNumber, 
 	if (rowNumber < entries.size())
 	{
 		auto position = Rectangle<int>(0, 1, width, height - 2);
-		getPresetBrowserLookAndFeel().drawListItem(g, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick);
+		getPresetBrowserLookAndFeel().drawListItem(g, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick, isMouseHover(rowNumber));
 	}
 }
 
