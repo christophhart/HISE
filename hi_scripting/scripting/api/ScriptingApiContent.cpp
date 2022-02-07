@@ -557,9 +557,22 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		}
 	}
 	else if (id == getIdFor(x) || id == getIdFor(y) || id == getIdFor(width) ||
-		id == getIdFor(height) || id == getIdFor(visible) || id == getIdFor(enabled))
+		id == getIdFor(height) || id == getIdFor(enabled))
 	{
 		
+	}
+	else if (id == getIdFor(visible))
+	{
+		const bool wasVisible = (bool)getScriptObjectProperty(visible);
+		const bool isNowVisible = (bool)newValue;
+
+		setScriptObjectProperty(visible, newValue);
+
+		if (wasVisible != isNowVisible)
+		{
+			repaintThisAndAllChildren();
+
+		}
 	}
 	else if (id == getIdFor(processorId))
 	{
@@ -3569,15 +3582,6 @@ void ScriptingApi::Content::ScriptPanel::closeAsPopup()
 	repaintThisAndAllChildren();
 
 	triggerAsyncUpdate();
-}
-
-void ScriptingApi::Content::ScriptPanel::repaintThisAndAllChildren()
-{
-	// Call repaint on all children to make sure they are updated...
-	ChildIterator<ScriptPanel> iter(this);
-
-	while (auto childPanel = iter.getNextChildComponent())
-		childPanel->repaint();
 }
 
 void ScriptingApi::Content::ScriptPanel::handleDefaultDeactivatedProperties()

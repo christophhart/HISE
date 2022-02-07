@@ -668,6 +668,10 @@ public:
 			return scriptChangedProperties.contains(id);
 		}
 
+		void repaintThisAndAllChildren();
+
+
+
 		void setPropertyToLookFor(const Identifier& id)
 		{
 			searchedProperty = id;
@@ -1756,20 +1760,7 @@ public:
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override
 		{
-			if (id == getIdFor((int)ScriptComponent::Properties::visible))
-			{
-				const bool wasVisible = (bool)getScriptObjectProperty(visible);
-
-				const bool isNowVisible = (bool)newValue;
-
-				setScriptObjectProperty(visible, newValue);
-
-				if (wasVisible != isNowVisible)
-				{
-					repaintThisAndAllChildren();
-
-				}
-			}
+			
 
 			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 
@@ -1785,8 +1776,6 @@ public:
 			}
 #endif
 		}
-
-		void repaintThisAndAllChildren();
 
 		struct Wrapper;
 
