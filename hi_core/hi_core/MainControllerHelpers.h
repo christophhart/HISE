@@ -508,6 +508,8 @@ public:
 
 private:
 
+	bool illegalBufferSize = false;
+
 	class Pimpl;
 
 	ScopedPointer<Pimpl> pimpl;
