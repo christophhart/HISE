@@ -1239,7 +1239,11 @@ namespace control
 
 			static constexpr bool isNormalisedModulation() { return true; }
 
-			double getValue() const { dirty = false; return value * mulValue + addValue; }
+			double getValue() const 
+			{ 
+				dirty = false; 
+				return jlimit(0.0, 1.0, value * mulValue + addValue); 
+			}
 
 			template <int P> void setParameter(double v)
 			{

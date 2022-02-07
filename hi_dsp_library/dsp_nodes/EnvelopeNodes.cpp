@@ -175,13 +175,13 @@ void ahdsr_base::state_base::refreshDecayTime()
 	const float susModValue = modValues[ahdsr_base::SustainLevelChain];
 	const float thisSustain = envelope->sustain * susModValue;
 
-	decayCoef = envelope->calcCoef(decayTime, envelope->targetRatioDR);
+	decayCoef = jlimit(0.0f, 1.0f, envelope->calcCoef(decayTime, envelope->targetRatioDR));
 	decayBase = (thisSustain - envelope->targetRatioDR) * (1.0f - decayCoef);
 }
 
 void ahdsr_base::state_base::refreshReleaseTime()
 {
-	releaseCoef = envelope->calcCoef(releaseTime, envelope->targetRatioDR);
+	releaseCoef = jlimit(0.0f, 1.0f, envelope->calcCoef(releaseTime, envelope->targetRatioDR));
 	releaseBase = -envelope->targetRatioDR * (1.0f - releaseCoef);
 }
 
@@ -203,7 +203,7 @@ void ahdsr_base::state_base::setAttackRate(float rate)
 	if (modValue == 0.0f)
 	{
 		attackBase = 1.0f;
-		attackCoef = 0.0f;
+		attackCoef = 0.0f; 
 	}
 	else if (modValue != 1.0f)
 	{
@@ -402,6 +402,8 @@ float ahdsr_base::state_base::tick()
 #endif
 	}
 	}
+
+	FloatSanitizers::sanitizeFloatNumber(state->current_value);
 
 	return state->current_value;
 }
