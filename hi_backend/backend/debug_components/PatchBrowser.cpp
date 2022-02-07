@@ -362,11 +362,186 @@ int PatchBrowser::getNumCollectionsToCreate() const
 		i++;
 	}
 
+	if (rootWindow.getComponent()->getMainController()->getGlobalRoutingManager() != nullptr)
+		i++;
+
 	return i;
 }
 
+struct GlobalCableCollection : public SearchableListComponent::Collection,
+						       public ControlledObject,
+							   public PooledUIUpdater::SimpleTimer
+{
+	struct CableItem : public SearchableListComponent::Item
+	{
+		PatchBrowser::Factory f;
+
+		CableItem(scriptnode::routing::GlobalRoutingManager::SlotBase::Ptr p) :
+			Item(p->id),
+			slot(p),
+			gotoButton("workspace", nullptr, f)
+		{
+			addAndMakeVisible(gotoButton);
+
+			scriptnode::routing::GlobalRoutingManager::Helpers::addGotoTargetCallback(&gotoButton, slot.get());
+
+			setSize(380 - 16, ITEM_HEIGHT);
+		};
+
+		void resized() override
+		{
+			gotoButton.setBounds(getLocalBounds().removeFromRight(getHeight()).reduced(3));
+		}
+
+		void paint(Graphics &g) override
+		{
+			auto b = getLocalBounds().toFloat();
+			b.removeFromLeft(32.0f);
+
+			paintItemBackground(g, b);
+
+			auto led = b.removeFromLeft(b.getHeight()).reduced(6.0f);
+
+			auto c = scriptnode::routing::GlobalRoutingManager::Helpers::getColourFromId(searchKeywords);
+
+			g.setColour(c);
+			g.drawEllipse(led, 1.0f);
+
+			if (auto cable = dynamic_cast<scriptnode::routing::GlobalRoutingManager::Cable*>(slot.get()))
+			{
+				g.setColour(c.withAlpha((float)jlimit(0.0, 1.0, cable->lastValue)));
+				g.fillEllipse(led.reduced(2.0f));
+			}
+
+			g.setColour(Colours::white.withAlpha(0.7f));
+			g.setFont(GLOBAL_BOLD_FONT());
+
+			b.removeFromLeft(5.0f);
+
+			String s;
+			s << searchKeywords;
+			s << " (" << String(slot->getTargetList().size()) << ")";
+
+			g.drawText(s, b, Justification::left);
+		}
+
+		scriptnode::routing::GlobalRoutingManager::SlotBase::Ptr slot;
+		HiseShapeButton gotoButton;
+	};
+
+	GlobalCableCollection(var m, MainController* mc) :
+		Collection(),
+		ControlledObject(mc),
+		SimpleTimer(mc->getGlobalUIUpdater()),
+		manager(dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(m.getObject())),
+		foldButton("folded", nullptr, f, "unfolded")
+	{
+		auto type = scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable;
+
+		manager->listUpdater.addListener(*this, rebuildList, false);
+
+		foldButton.setToggleModeWithColourChange(true);
+		foldButton.onColour = foldButton.offColour;
+		foldButton.refreshButtonColours();
+		addAndMakeVisible(foldButton);
+		foldButton.onClick = BIND_MEMBER_FUNCTION_0(GlobalCableCollection::toggleFold);
+
+		auto cableList = manager->getIdList(type);
+
+		for (auto c : cableList)
+		{
+			items.add(new CableItem(manager->getSlotBase(c, type)));
+			addAndMakeVisible(items.getLast());
+		}
+	};
+
+	static void rebuildList(GlobalCableCollection& c, scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType t, StringArray idList)
+	{
+		SafeAsyncCall::call<GlobalCableCollection>(c, [](GlobalCableCollection& c)
+		{
+			c.findParentComponentOfClass<PatchBrowser>()->rebuildModuleList(true);
+		});
+	}
+
+	void toggleFold()
+	{
+		setFolded(foldButton.getToggleState());
+		findParentComponentOfClass<PatchBrowser>()->refreshDisplayedItems();
+	}
+
+	void timerCallback() override
+	{
+		if (!foldButton.getToggleState())
+		{
+			for (auto i : items)
+				i->repaint();
+		}
+	}
+
+	void paint(Graphics &g) override
+	{
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(16.0f));
+
+		auto b = getLocalBounds().removeFromTop(40).toFloat();
+
+		
+
+		g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0xff303030)), 0.0f, 0.0f,
+			JUCE_LIVE_CONSTANT_OFF(Colour(0xff212121)), 0.0f, (float)b.getHeight(), false));
+
+		auto iconSpace2 = b.reduced(7.0f);
+		auto iconSpace = iconSpace2.removeFromLeft(iconSpace2.getHeight());
+
+		g.fillRoundedRectangle(iconSpace2.reduced(2.0f), 2.0f);
+
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.drawRoundedRectangle(iconSpace2.reduced(2.0f), 1.0f, 1.0f);
+
+		auto c = JUCE_LIVE_CONSTANT_OFF(Colour(0xff828282));
+
+		g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.1f), 0.0f, 7.0f,
+			c.withMultipliedBrightness(0.9f), 0.0f, 35.0f, false));
+
+		//g.fillRoundedRectangle(iconSpace.reduced(2.0f), 2.0f);
+
+		auto iconArea = iconSpace.toNearestInt();
+
+		g.setColour(Colour(0xFF222222));
+
+		g.drawRoundedRectangle(iconSpace.reduced(2.0f), 2.0f, 1.0f);
+
+		g.setColour(Colours::white.withAlpha(0.7f));
+
+		g.drawText("Global Cables", iconSpace2.reduced(10.0f, 0.0f), Justification::left);
+	}
+
+	void resized() override
+	{
+		Collection::resized();
+		foldButton.setBounds(getLocalBounds().removeFromTop(40).removeFromLeft(40).reduced(12));
+	}
+
+	PatchBrowser::Factory f;
+
+	HiseShapeButton foldButton;
+
+	scriptnode::routing::GlobalRoutingManager::Ptr manager;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(GlobalCableCollection);
+};
+
 SearchableListComponent::Collection * PatchBrowser::createCollection(int index)
 {
+	auto mc = rootWindow.getComponent()->getMainController();
+
+	if (auto obj = mc->getGlobalRoutingManager())
+	{
+		if (index == 0)
+			return new GlobalCableCollection(var(obj), mc);
+		else
+			index -= 1;
+	}
+	
 	Processor::Iterator<ModulatorSynth> iter(rootWindow.getComponent()->getMainSynthChain(), true);
 
 	Array<ModulatorSynth*> synths;
@@ -412,13 +587,14 @@ void PatchBrowser::paint(Graphics &g)
 
 		for (int j = 0; j < numCollections; j++)
 		{
-			PatchCollection *possibleRootCollection = dynamic_cast<PatchCollection*>(getCollection(j));
-
-			if (possibleRootCollection->getProcessor() == root)
+			if (auto possibleRootCollection = dynamic_cast<PatchCollection*>(getCollection(j)))
 			{
-				Point<int> startPoint = possibleRootCollection->getPointForTreeGraph(true);
-				startPointInParent = getLocalPoint(possibleRootCollection, startPoint);
-				break;
+				if (possibleRootCollection->getProcessor() == root)
+				{
+					Point<int> startPoint = possibleRootCollection->getPointForTreeGraph(true);
+					startPointInParent = getLocalPoint(possibleRootCollection, startPoint);
+					break;
+				}
 			}
 		}
 
@@ -1739,6 +1915,24 @@ void PatchBrowser::MiniPeak::timerCallback()
 		}
 	}
 	}
+}
+
+juce::Path PatchBrowser::Factory::createPath(const String& url) const
+{
+	Path p;
+	LOAD_PATH_IF_URL("add", EditorIcons::penShape);
+	LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
+	LOAD_PATH_IF_URL("close", SampleMapIcons::deleteSamples);
+	LOAD_PATH_IF_URL("create", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
+
+	LOAD_PATH_IF_URL("folded", HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon);
+
+	LOAD_PATH_IF_URL("unfolded", HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon);
+
+	if (url == "unfolded")
+		p.applyTransform(AffineTransform::rotation(float_Pi * 0.5f));
+
+	return p;
 }
 
 } // namespace hise

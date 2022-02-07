@@ -72,6 +72,8 @@ struct MatrixEditor : public ScriptnodeExtraComponent<matrix<dynamic_matrix>>
 using MatrixEditor = HostHelpers::NoExtraComponent;
 #endif
 
+
+
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
@@ -85,6 +87,10 @@ Factory::Factory(DspNetwork* n) :
 	registerNode<ms_encode>();
 	registerNode<ms_decode>();
 	registerNode<public_mod>();
+
+	registerNodeRaw<GlobalSendNode>();
+	registerPolyNodeRaw<GlobalReceiveNode<1>, GlobalReceiveNode<NUM_POLYPHONIC_VOICES>>();
+	registerNodeRaw<GlobalCableNode>();
 }
 
 }
@@ -328,9 +334,7 @@ dynamic::editor::editor(routing::base* b, PooledUIUpdater* u) :
 {
 	addAndMakeVisible(levelDisplay);
 	levelDisplay.setInterceptsMouseClicks(false, false);
-
 	levelDisplay.setForceLinear(true);
-
 	levelDisplay.setColour(VuMeter::backgroundColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xff383838)));
 	levelDisplay.setColour(VuMeter::ColourId::ledColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xFFAAAAAA)));
 

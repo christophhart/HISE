@@ -618,6 +618,10 @@ public:
 
 		bool isConnectedToProcessor() const;;
 
+		bool isConnectedToGlobalCable() const;
+
+		void sendGlobalCableValue(var v);
+
 		Processor* getConnectedProcessor() const { return connectedProcessor.get(); };
 
 		int getConnectedParameterIndex() { return connectedParameterIndex; };
@@ -778,6 +782,8 @@ public:
             ProcessorWithScriptingContent* p;
         };
         
+		struct GlobalCableConnection;
+
 		AsyncControlCallbackSender controlSender;
 
 		bool isPositionProperty(Identifier id) const;
@@ -809,6 +815,8 @@ public:
 
 		WeakReference<Processor> connectedProcessor;
 		int connectedParameterIndex = -1;
+
+		ScopedPointer<GlobalCableConnection> globalConnection;
 
         int connectedMacroIndex = -1;
         bool macroRecursionProtection = false;

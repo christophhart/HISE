@@ -917,6 +917,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 	API_METHOD_WRAPPER_1(Engine, getSystemTime);
 	API_METHOD_WRAPPER_0(Engine, createLicenseUnlocker);
+	API_METHOD_WRAPPER_0(Engine, getGlobalRoutingManager);
 	API_METHOD_WRAPPER_1(Engine, loadAudioFileIntoBufferArray);
 	API_METHOD_WRAPPER_0(Engine, getClipboardContent);
 	API_VOID_METHOD_WRAPPER_1(Engine, copyToClipboard);
@@ -1012,6 +1013,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(createAndRegisterTableData);
 	ADD_API_METHOD_1(createAndRegisterAudioFile);
 	ADD_API_METHOD_1(createAndRegisterRingBuffer);
+	ADD_API_METHOD_0(getGlobalRoutingManager);
 	ADD_API_METHOD_1(loadFont);
 	ADD_API_METHOD_2(loadFontAs);
 	ADD_API_METHOD_1(loadAudioFileIntoBufferArray);
@@ -1544,6 +1546,11 @@ var ScriptingApi::Engine::getDspNetworkReference(String processorId, String id)
 	}
 
 	return var();
+}
+
+juce::var ScriptingApi::Engine::getGlobalRoutingManager()
+{
+	return var(new ScriptingObjects::GlobalRoutingManagerReference(getScriptProcessor()));
 }
 
 var ScriptingApi::Engine::createBackgroundTask(String name)

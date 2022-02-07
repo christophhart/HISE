@@ -6003,4 +6003,288 @@ void ScriptingObjects::ScriptFFT::applyInverseFFT(int numChannelsThisTime)
 	}
 }
 
+struct ScriptingObjects::GlobalRoutingManagerReference::Wrapper
+{
+	API_METHOD_WRAPPER_1(GlobalRoutingManagerReference, getCable);
+};
+
+
+ScriptingObjects::GlobalRoutingManagerReference::GlobalRoutingManagerReference(ProcessorWithScriptingContent* sp) :
+	ConstScriptingObject(sp, 0),
+	ControlledObject(sp->getMainController_())
+{
+	auto ptr = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(getMainController());
+	manager = ptr.get();
+
+	ADD_API_METHOD_1(getCable);
+}
+
+scriptnode::routing::GlobalRoutingManager::Cable* getCableFromVar(const var& v)
+{
+	if (auto c = v.getObject())
+	{
+		return static_cast<scriptnode::routing::GlobalRoutingManager::Cable*>(c);
+	}
+
+	return nullptr;
+}
+
+Component* ScriptingObjects::GlobalRoutingManagerReference::createPopupComponent(const MouseEvent& e, Component *c)
+{
+	return scriptnode::routing::GlobalRoutingManager::Helpers::createDebugViewer(getScriptProcessor()->getMainController_());
+}
+
+juce::var ScriptingObjects::GlobalRoutingManagerReference::getCable(String cableId)
+{
+	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
+	{
+		auto c = m->getSlotBase(cableId, scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable);
+
+		return new GlobalCableReference(getScriptProcessor(), var(c.get()));
+	}
+
+	return var();
+}
+
+struct ScriptingObjects::GlobalCableReference::Wrapper
+{
+	API_METHOD_WRAPPER_0(GlobalCableReference, getValue);
+	API_METHOD_WRAPPER_0(GlobalCableReference, getValueNormalised);
+	API_VOID_METHOD_WRAPPER_1(GlobalCableReference, setValue);
+	API_VOID_METHOD_WRAPPER_1(GlobalCableReference, setValueNormalised);
+	API_VOID_METHOD_WRAPPER_2(GlobalCableReference, setRange);
+	API_VOID_METHOD_WRAPPER_3(GlobalCableReference, setRangeWithSkew);
+	API_VOID_METHOD_WRAPPER_3(GlobalCableReference, setRangeWithStep);
+	API_VOID_METHOD_WRAPPER_2(GlobalCableReference, registerCallback);
+};
+
+struct ScriptingObjects::GlobalCableReference::DummyTarget : public scriptnode::routing::GlobalRoutingManager::CableTargetBase
+{
+	DummyTarget(GlobalCableReference& p) :
+		parent(p)
+	{
+		if (auto c = getCableFromVar(parent.cable))
+			c->addTarget(this);
+	}
+
+	String getTargetId() const override 
+	{ 
+		String s;
+		s << dynamic_cast<Processor*>(parent.getScriptProcessor())->getId();
+		s << ".";
+		s << parent.getDebugName();
+		s << " (Script Reference)";
+		return s;
+	}
+
+	Path getTargetIcon() const override
+	{
+		Path path;
+		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor));
+		return path;
+	}
+
+	void selectCallback(Component* rootEditor) override
+	{
+#if USE_BACKEND
+		auto r = dynamic_cast<BackendRootWindow*>(rootEditor);
+
+		r->gotoIfWorkspace(dynamic_cast<Processor*>(parent.getScriptProcessor()));
+#endif
+	}
+
+	void sendValue(double v) final override {};
+
+	~DummyTarget()
+	{
+		if (auto c = getCableFromVar(parent.cable))
+		{
+			c->removeTarget(this);
+		}
+	}
+
+	GlobalCableReference& parent;
+};
+
+ScriptingObjects::GlobalCableReference::GlobalCableReference(ProcessorWithScriptingContent* ps, var c) :
+	ConstScriptingObject(ps, 0),
+	cable(c),
+	dummyTarget(new DummyTarget(*this))
+{
+	ADD_API_METHOD_0(getValue);
+	ADD_API_METHOD_0(getValueNormalised);
+	ADD_API_METHOD_1(setValue);
+	ADD_API_METHOD_1(setValueNormalised);
+	ADD_API_METHOD_2(setRange);
+	ADD_API_METHOD_3(setRangeWithSkew);
+	ADD_API_METHOD_3(setRangeWithStep);
+	ADD_API_METHOD_2(registerCallback);
+}
+
+ScriptingObjects::GlobalCableReference::~GlobalCableReference()
+{
+	callbacks.clear();
+}
+
+double ScriptingObjects::GlobalCableReference::getValue() const
+{
+	auto v = getValueNormalised();
+	return inputRange.convertFrom0to1(v, true);
+}
+
+double ScriptingObjects::GlobalCableReference::getValueNormalised() const
+{
+	if (auto c = getCableFromVar(cable))
+		return c->lastValue;
+	
+	return 0.0;
+}
+
+void ScriptingObjects::GlobalCableReference::setValueNormalised(double normalisedInput)
+{
+	if (auto c = getCableFromVar(cable))
+		c->sendValue(nullptr, normalisedInput);
+}
+
+void ScriptingObjects::GlobalCableReference::setValue(double inputWithinRange)
+{
+	auto v = inputRange.convertTo0to1(inputWithinRange, true);
+	setValueNormalised(v);
+}
+
+void ScriptingObjects::GlobalCableReference::setRange(double min, double max)
+{
+	inputRange = scriptnode::InvertableParameterRange(min, max);
+}
+
+void ScriptingObjects::GlobalCableReference::setRangeWithSkew(double min, double max, double midPoint)
+{
+	inputRange = scriptnode::InvertableParameterRange(min, max);
+	inputRange.setSkewForCentre(midPoint);
+}
+
+void ScriptingObjects::GlobalCableReference::setRangeWithStep(double min, double max, double stepSize)
+{
+	inputRange = scriptnode::InvertableParameterRange(min, max, stepSize);
+}
+
+
+
+struct ScriptingObjects::GlobalCableReference::Callback: public scriptnode::routing::GlobalRoutingManager::CableTargetBase,
+														 public PooledUIUpdater::SimpleTimer
+{
+	Callback(GlobalCableReference& p, const var& f, bool synchronous) :
+		SimpleTimer(p.getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
+		parent(p),
+		sync(synchronous),
+		callback(p.getScriptProcessor(), f, 1)
+	{
+		id << dynamic_cast<Processor*>(p.getScriptProcessor())->getId();
+		id << ".";
+
+		if (auto ilf = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(f.getObject()))
+		{
+			id << ilf->name;
+			funcLocation = ilf->getLocation();
+
+			callback.incRefCount();
+			callback.setHighPriority();
+
+			if (auto c = getCableFromVar(parent.cable))
+			{
+				c->addTarget(this);
+			}
+
+			if (!synchronous)
+				start();
+			else
+				stop();
+		}
+		else
+		{
+			stop();
+		}
+	}
+
+	void timerCallback() override
+	{
+		if (sync)
+			return;
+
+		double nv;
+
+		if (value.getChangedValue(nv))
+			callback.call1(nv);
+	}
+
+	String getTargetId() const override { return id; }
+
+	Path getTargetIcon() const override
+	{
+		Path path;
+		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor));
+		return path;
+	}
+
+	void selectCallback(Component* rootEditor) override
+	{
+#if USE_BACKEND
+		auto sp = parent.getScriptProcessor();
+
+		auto br = dynamic_cast<BackendRootWindow*>(rootEditor);
+
+		br->gotoIfWorkspace(dynamic_cast<Processor*>(sp));
+
+		auto l = funcLocation;
+
+		BackendPanelHelpers::ScriptingWorkspace::showEditor(br, true);
+
+		auto f = [sp, l]()
+		{
+			DebugableObject::Helpers::gotoLocation(nullptr, dynamic_cast<JavascriptProcessor*>(sp), l);
+		};
+
+		Timer::callAfterDelay(400, f); 
+#endif
+	}
+
+	void sendValue(double v) override
+	{
+		if (sync)
+		{
+			callback.call1(v);
+		}
+		else
+			value.setModValueIfChanged(v);
+	}
+
+	~Callback()
+	{
+		if (auto c = getCableFromVar(parent.cable))
+		{
+			c->removeTarget(this);
+		}
+	}
+
+	GlobalCableReference& parent;
+
+	WeakCallbackHolder callback;
+	const bool sync = false;
+
+	ModValue value;
+
+	String id;
+
+	DebugableObject::Location funcLocation;
+};
+
+void ScriptingObjects::GlobalCableReference::registerCallback(var callbackFunction, bool synchronous)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(callbackFunction))
+	{
+		auto nc = new Callback(*this, callbackFunction, synchronous);
+		callbacks.add(nc);
+	}
+}
+
 } // namespace hise

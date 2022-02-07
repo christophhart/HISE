@@ -136,6 +136,89 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
 #define ADD_NUMBER_PROPERTY(id, name) ADD_SCRIPT_PROPERTY(id, name); jassert(numberPropertyIds.contains(id));
 
+struct ScriptingApi::Content::ScriptComponent::GlobalCableConnection : public scriptnode::routing::GlobalRoutingManager::CableTargetBase
+{
+	using Cable = scriptnode::routing::GlobalRoutingManager::Cable;
+	static constexpr auto CableType = scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable;
+
+	GlobalCableConnection(ScriptComponent& p) :
+		parent(p)
+	{};
+
+	~GlobalCableConnection()
+	{
+		if (cable != nullptr)
+		{
+			cable->removeTarget(this);
+		}
+	}
+
+	void call(double v)
+	{
+		if (cable != nullptr)
+			cable->sendValue(this, v);
+	}
+
+	virtual void sendValue(double v) override
+	{
+		// do nothing for now - we don't want to change the UI values by global connections (yet)...
+	}
+
+	Path getTargetIcon() const override
+	{
+		Path path;
+		path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
+		return path;
+	}
+
+	String getTargetId() const override
+	{
+		String s;
+		s << "Control: ";
+		s << dynamic_cast<Processor*>(parent.getScriptProcessor())->getId();
+		s << ".";
+		s << parent.getName().toString();
+
+		return s;
+	}
+
+	void selectCallback(Component* rootEditor) override
+	{
+#if USE_BACKEND
+		auto brw = dynamic_cast<BackendRootWindow*>(rootEditor);
+		brw->gotoIfWorkspace(dynamic_cast<Processor*>(parent.getScriptProcessor()));
+
+		auto sc = &parent;
+
+		auto f = [sc]()
+		{
+			auto b = sc->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
+			b->setSelection({ sc }, sendNotificationAsync);
+		};
+
+		Timer::callAfterDelay(400, f);
+#endif
+	}
+
+	void connect(const String& id)
+	{
+		if (cable != nullptr)
+		{
+			cable->removeTarget(this);
+		}
+
+		auto m = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(parent.getScriptProcessor()->getMainController_());
+
+		cable = dynamic_cast<Cable*>(m->getSlotBase(id, CableType).get());
+		cable->addTarget(this);
+	}
+
+	ReferenceCountedObjectPtr<Cable> cable;
+
+	ScriptComponent& parent;
+};
+
+
 ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants /*= 0*/) :
 	ConstScriptingObject(base, numConstants),
 	UpdateDispatcher::Listener(base->getScriptingContent()->getUpdateDispatcher()),
@@ -272,11 +355,22 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 	}
 	else if (id == getIdFor(processorId))
 	{
-		return ProcessorHelpers::getListOfAllConnectableProcessors(dynamic_cast<Processor*>(getScriptProcessor()));
+		auto sa = ProcessorHelpers::getListOfAllConnectableProcessors(dynamic_cast<Processor*>(getScriptProcessor()));
+		sa.add("GlobalCable");
+		return sa;
 	}
-	else if (id == getIdFor(parameterId) && connectedProcessor.get() != nullptr)
+	else if (id == getIdFor(parameterId))
 	{
-		return ProcessorHelpers::getListOfAllParametersForProcessor(connectedProcessor.get());
+		if (connectedProcessor.get() != nullptr)
+		{
+			return ProcessorHelpers::getListOfAllParametersForProcessor(connectedProcessor.get());
+		}
+		else if (globalConnection != nullptr)
+		{
+			auto m = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(getScriptProcessor()->getMainController_());
+
+			return m->getIdList(scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable);
+		}
 	}
 	else if (id == getIdFor(linkedTo))
 	{
@@ -471,6 +565,14 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 	{
 		auto pId = newValue.toString();
 
+		auto shouldUseGlobalCable = pId == "GlobalCable";
+		auto usesGlobalCable = globalConnection != nullptr;
+
+		if (shouldUseGlobalCable != usesGlobalCable)
+		{
+			globalConnection = shouldUseGlobalCable ? new GlobalCableConnection(*this) : nullptr;
+		}
+		
 		if (pId == " " || pId == "")
 		{
 			connectedProcessor = nullptr;
@@ -485,12 +587,22 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 	{
 		auto parameterName = newValue.toString();
 
-		if (parameterName.isNotEmpty())
+		if (globalConnection != nullptr)
 		{
-			connectedParameterIndex = ProcessorHelpers::getParameterIndexFromProcessor(connectedProcessor, Identifier(parameterName));
+			globalConnection->connect(parameterName);
+
+			connectedProcessor = nullptr;
+			connectedParameterIndex = -1;
 		}
 		else
-			connectedParameterIndex = -1;
+		{
+			if (parameterName.isNotEmpty())
+			{
+				connectedParameterIndex = ProcessorHelpers::getParameterIndexFromProcessor(connectedProcessor, Identifier(parameterName));
+			}
+			else
+				connectedParameterIndex = -1;
+		}
 	}
 
 	setScriptObjectProperty(propertyIds.indexOf(id), newValue, notifyEditor);
@@ -1215,6 +1327,30 @@ void ScriptingApi::Content::ScriptComponent::setLocalLookAndFeel(var lafObject)
 	}
 	else
 		localLookAndFeel = var();
+}
+
+void ScriptingApi::Content::ScriptComponent::sendGlobalCableValue(var v)
+{
+	auto value = (float)v;
+	FloatSanitizers::sanitizeFloatNumber(value);
+
+	jassert(globalConnection != nullptr);
+
+	globalConnection->call((double)value);
+}
+
+bool ScriptingApi::Content::ScriptComponent::isConnectedToGlobalCable() const
+{
+	return globalConnection != nullptr && globalConnection->cable != nullptr;
+}
+
+void ScriptingApi::Content::ScriptComponent::repaintThisAndAllChildren()
+{
+	// Call repaint on all children to make sure they are updated...
+	ChildIterator<ScriptPanel> iter(this);
+
+	while (auto childPanel = iter.getNextChildComponent())
+		childPanel->repaint();
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper

@@ -154,6 +154,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.h"
 #include "scripting/scriptnode/dynamic_elements/DynamicSmootherNode.h"
 #include "scripting/scriptnode/dynamic_elements/DynamicRoutingNodes.h"
+#include "scripting/scriptnode/dynamic_elements/GlobalRoutingNodes.h"
 
 #include "scripting/scriptnode/nodes/AudioFileNodeBase.h"
 

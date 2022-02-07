@@ -2002,6 +2002,79 @@ namespace ScriptingObjects
 	};
 
 
+	struct GlobalRoutingManagerReference : public ConstScriptingObject,
+										  public ControlledObject
+	{
+		GlobalRoutingManagerReference(ProcessorWithScriptingContent* sp);;
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("GlobalRoutingManager"); }
+
+		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
+
+		// =============================================================================================
+
+		/** Returns a scripted reference to the global cable (and creates a cable with this ID if it can't be found. */
+		var getCable(String cableId);
+
+		// =============================================================================================
+
+	private:
+
+		struct Wrapper;
+
+		var manager;
+	};
+
+	/** A wrapper around a global cable. */
+	struct GlobalCableReference : public ConstScriptingObject
+	{
+		GlobalCableReference(ProcessorWithScriptingContent* ps, var c);
+
+		~GlobalCableReference();
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("GlobalCable"); }
+
+		// =============================================================================================
+
+		/** Returns the value (converted to the input range). */
+		double getValue() const;
+
+		/** Returns the normalised value between 0...1 */
+		double getValueNormalised() const;
+
+		/** Sends the normalised value to all targets. */
+		void setValueNormalised(double normalisedInput);
+
+		/** Sends the value to all targets (after converting it from the input range. */
+		void setValue(double inputWithinRange);
+		
+		/** Set the input range using a min and max value (no steps / no skew factor). */
+		void setRange(double min, double max);
+
+		/** Set the input range using a min and max value and a mid point for skewing the range. */
+		void setRangeWithSkew(double min, double max, double midPoint);
+
+		/** Set the input range using a min and max value as well as a step size. */
+		void setRangeWithStep(double min, double max, double stepSize);
+
+		/** Registers a function that will be executed whenever a value is sent through the cable. */
+		void registerCallback(var callbackFunction, bool synchronous);
+
+		// =============================================================================================
+
+	private:
+
+		struct DummyTarget;
+		struct Wrapper;
+		struct Callback;
+
+		var cable;
+
+		ScopedPointer<DummyTarget> dummyTarget;
+		OwnedArray<Callback> callbacks;
+		scriptnode::InvertableParameterRange inputRange;
+	};
+
 	class TimerObject : public ConstScriptingObject,
 					    public ControlledObject
 	{
