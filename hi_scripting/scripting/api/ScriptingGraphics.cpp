@@ -1971,6 +1971,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawComboBox(Graphics& g_, int 
 		obj->setProperty("text", text);
 		obj->setProperty("active", cb.getSelectedId() != 0);
 		obj->setProperty("enabled", cb.isEnabled() && cb.getNumItems() > 0);
+		obj->setProperty("hover", cb.isMouseOver(true) || cb.isMouseButtonDown(true) || cb.isPopupActive());
 
 		setColourOrBlack(obj, "bgColour",    cb, HiseColourScheme::ComponentOutlineColourId);
 		setColourOrBlack(obj, "itemColour1", cb, HiseColourScheme::ComponentFillTopColourId);
