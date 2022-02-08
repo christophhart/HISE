@@ -36,7 +36,7 @@
 
 
 
-#define GET_BACKEND_ROOT_WINDOW(child) child->findParentComponentOfClass<ComponentWithBackendConnection>()->getBackendRootWindow()
+#define GET_BACKEND_ROOT_WINDOW(child) child->template findParentComponentOfClass<ComponentWithBackendConnection>()->getBackendRootWindow()
 
 #define GET_ROOT_FLOATING_TILE(child) GET_BACKEND_ROOT_WINDOW(child)->getRootFloatingTile()
 

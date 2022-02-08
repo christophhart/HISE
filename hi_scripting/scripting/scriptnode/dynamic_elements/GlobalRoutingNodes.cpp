@@ -416,9 +416,9 @@ template <class NodeType>
 		dbgButton("debug", nullptr, *this),
 		newButton("new", nullptr, *this)
 	{
-		addAndMakeVisible(newButton);
-		addAndMakeVisible(slotSelector);
-		addAndMakeVisible(dbgButton);
+		this->addAndMakeVisible(newButton);
+		this->addAndMakeVisible(slotSelector);
+		this->addAndMakeVisible(dbgButton);
 		slotSelector.setLookAndFeel(&claf);
 		slotSelector.setTextWhenNoChoicesAvailable("No Slots available");
 		slotSelector.setTextWhenNothingSelected("No slot selected");
@@ -430,11 +430,11 @@ template <class NodeType>
 		peakMeter.setColour(VuMeter::backgroundColour, Colours::transparentBlack);
 		peakMeter.setOpaque(false);
 		peakMeter.setColour(VuMeter::ColourId::ledColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xFFAAAAAA)));
-		addAndMakeVisible(peakMeter);
+		this->addAndMakeVisible(peakMeter);
 
-		getObject()->globalRoutingManager->listUpdater.addListener(*this, listUpdated);
+		this->getObject()->globalRoutingManager->listUpdater.addListener(*this, listUpdated);
 
-		v.referTo(getObject()->getNodePropertyAsValue(PropertyIds::Connection));
+		v.referTo(this->getObject()->getNodePropertyAsValue(PropertyIds::Connection));
 		v.addListener(this);
 		valueChanged(v);
 
@@ -461,8 +461,8 @@ template <class NodeType>
 #endif
 		};
 
-		setSize(256, EditorHeight);
-		start();
+		this->setSize(256, EditorHeight);
+		this->start();
 
 		parentUpdater.setCallback(p->getValueTree(), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_0(SlotBaseEditor::rebuildSlotList));
 		rebuildSlotList();
@@ -482,7 +482,7 @@ template <class NodeType>
 	{
 		slotSelector.clear(dontSendNotification);
 
-		auto rm = getObject()->globalRoutingManager;
+		auto rm = this->getObject()->globalRoutingManager;
 		auto list = rm->getIdList(SlotTypeId);
 		int id = 1;
 		auto currentName = v.toString();
