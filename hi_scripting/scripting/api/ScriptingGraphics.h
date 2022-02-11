@@ -138,6 +138,9 @@ namespace ScriptingObjects
 		/** If this is enabled, the shader will create a buffered image of the last rendering result. */
 		void setEnableCachedBuffer(bool shouldEnableBuffer);
 
+		/** Adds a preprocessor definition before the code and recompiles the shader (Empty string removes all preprocessors). */
+		void setPreprocessor(String preprocessorString, var value);
+
 		// ===========================================================================
 
 		int blockWhileWaiting() override;
@@ -237,6 +240,8 @@ namespace ScriptingObjects
 		};
 
 	private:
+
+		NamedValueSet preprocessors;
 
 		bool screenshotPending = false;
 		static bool renderingScreenShot;

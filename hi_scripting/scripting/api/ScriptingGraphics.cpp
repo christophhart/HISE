@@ -454,6 +454,7 @@ struct ScriptingObjects::ScriptShader::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptShader, setBlendFunc);
 	API_VOID_METHOD_WRAPPER_1(ScriptShader, fromBase64);
 	API_VOID_METHOD_WRAPPER_1(ScriptShader, setEnableCachedBuffer);
+	API_VOID_METHOD_WRAPPER_2(ScriptShader, setPreprocessor);
 	API_METHOD_WRAPPER_0(ScriptShader, toBase64);
 	API_METHOD_WRAPPER_0(ScriptShader, getOpenGLStatistics);
 };
@@ -483,6 +484,7 @@ ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) 
 	ADD_API_METHOD_0(toBase64);
 	ADD_API_METHOD_0(getOpenGLStatistics);
 	ADD_API_METHOD_1(setEnableCachedBuffer);
+	ADD_API_METHOD_2(setPreprocessor);
 }
 
 bool ScriptingObjects::ScriptShader::renderingScreenShot = false;
@@ -507,9 +509,12 @@ String ScriptingObjects::ScriptShader::getHeader()
 	s << "\n#define fragCoord _gl_fc()\n";
 	s << "#define fragColor gl_FragColor\n";
 
-#if JUCE_WINDOWS && USE_BACKEND
-	// The #line directive does not work on macOS apparently...
-	s << "#line 0 \"" << shaderName << "\" \n";
+#if USE_BACKEND
+	// We'll make this dynamic so everybody can adjust it to their graphics card
+	if (GET_HISE_SETTING(dynamic_cast<Processor*>(getScriptProcessor()), HiseSettings::Other::EnableShaderLineNumbers))
+	{
+		s << "#line 0 \"" << shaderName << "\" \n";
+	}
 #endif
 
 	return s;
@@ -573,6 +578,16 @@ void ScriptingObjects::ScriptShader::setEnableCachedBuffer(bool shouldEnableBuff
 }
 
 
+
+void ScriptingObjects::ScriptShader::setPreprocessor(String preprocessorString, var value)
+{
+	if (preprocessorString.isEmpty())
+		preprocessors.clear();
+	else
+		preprocessors.set(Identifier(preprocessorString), value);
+
+	compileRawCode(compiledCode);
+}
 
 int ScriptingObjects::ScriptShader::blockWhileWaiting()
 {
@@ -674,7 +689,14 @@ void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
 {
 	compiledCode = code;
 
-	shaderCode = getHeader();
+	shaderCode = {};
+	
+	for (auto& p : preprocessors)
+	{
+		shaderCode << "#define " << p.name << " " << p.value.toString() << "\n";
+	}
+
+	shaderCode << getHeader();
 
 	shaderCode << compiledCode;
 
