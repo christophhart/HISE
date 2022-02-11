@@ -522,6 +522,9 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 		/** Returns the user email that was used for the registration. */
 		String getUserEmail() const;
 
+		/** Returns the machine ID that is encoded into the license file. This does not look in the encrypted blob, but just parses the header string. */
+		String getRegisteredMachineId();
+
 		WeakCallbackHolder pcheck;
 
 		struct Wrapper;
@@ -541,6 +544,8 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 	var loadKeyFile();
 	File getLicenseKeyFile();
 	WeakReference<RefObject> currentObject;
+
+	String registeredMachineId;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUnlocker);
 };
