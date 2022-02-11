@@ -1437,10 +1437,16 @@ private:
 
 	var parseFunctionDefinition(Identifier& functionName)
 	{
+		
 		const String::CharPointerType functionStart(location.location);
 
 		if (currentType == TokenTypes::identifier)
 			functionName = parseIdentifier();
+
+		// We need to temporarily set the currentInlineFunction to nullptr to avoid
+		// local references inside the nested function body which will fail when
+		// ENABLE_SCRIPTING_BREAKPOINTS is disabled
+		ScopedValueSetter<DynamicObject*> cifMuter(currentInlineFunction, nullptr);
 
 		ScopedPointer<FunctionObject> fo(new FunctionObject());
 
@@ -1452,6 +1458,7 @@ private:
         fo->createFunctionDefinition(functionName);
 		fo->commentDoc = lastComment;
 		clearLastComment();
+
 		return var(fo.release());
 	}
 
