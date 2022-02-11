@@ -317,6 +317,12 @@ namespace ScriptingObjects
 		/** Replaces the file content with the JSON data. */
 		bool writeObject(var jsonData);
 
+		/** Replaces the XML file with the JSON content (needs to be convertible). */
+		bool writeAsXmlFile(var jsonDataToBeXmled, String tagName);
+
+		/** Loads the XML file and tries to parse it as JSON object. */
+		var loadFromXmlFile();
+
 		/** Writes the given data (either a Buffer or Array of Buffers) to a audio file. */
 		bool writeAudioFile(var audioData, double sampleRate, int bitDepth);
 
