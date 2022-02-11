@@ -678,6 +678,33 @@ void ScriptingObjects::ScriptFile::show()
 	});
 }
 
+struct PartUpdater : public Timer
+{
+	PartUpdater(const std::function<void()>& f_):
+		f(f_)
+	{
+		startTimer(200);
+	}
+
+	~PartUpdater()
+	{
+		ScopedLock sl(lock);
+		stopTimer();
+	}
+
+	std::function<void()> f;
+
+	void timerCallback() override
+	{
+		ScopedLock sl(lock);
+		f();
+	}
+
+	CriticalSection lock;
+
+	bool abortFlag = false;
+};
+
 void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool overwriteFiles, var callback)
 {
 	File tf;
@@ -700,6 +727,8 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 
 		DynamicObject::Ptr data = new DynamicObject();
 
+		double entryProgress = 0.0;
+
 		data->setProperty("Status", 0);
 		data->setProperty("Progress", 0.0);
 		data->setProperty("TotalBytesWritten", 0);
@@ -711,7 +740,7 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 		int64 numBytesWritten = 0;
 
 		WeakCallbackHolder cb(safeThis.get()->getScriptProcessor(), callback, 1);
-		cb.setThisObject(safeThis.get());
+		//cb.setThisObject(safeThis.get());
 		cb.incRefCount();
 
 		if (cb)
@@ -723,7 +752,13 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 		data->setProperty("Status", 1);
 		int numEntries = zipFile.getNumEntries();
 		bool callForEachFile = numEntries < 500;
+		
+		int64 numBytesToWrite = 0;
 
+		for (int i = 0; i < numEntries; i++)
+		{
+			numBytesToWrite += zipFile.getEntry(i)->uncompressedSize;
+		}
 
 		for (int i = 0; i < numEntries; i++)
 		{
@@ -743,12 +778,40 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 			c->setProperty("TotalBytesWritten", numBytesWritten);
 			c->setProperty("CurrentFile", zipFile.getEntry(i)->filename);
 
-			if (callForEachFile && cb)
+			ScopedPointer<PartUpdater> partUpdater;
+
+			auto entrySize = zipFile.getEntry(i)->uncompressedSize;
+
+			auto updateEntryProgress = entrySize > 200 * 1024 * 1024;
+			
+			if (updateEntryProgress)
+			{
+				auto f = [&]()
+				{
+					auto c2 = c->clone();
+					auto betterProgress = ((double)numBytesWritten + entryProgress * (double)entrySize) / (double)numBytesToWrite;
+
+					safeThis.get()->getScriptProcessor()->getMainController_()->getSampleManager().getPreloadProgress() = betterProgress;
+					c2->setProperty("Progress", betterProgress);
+
+					if (cb)
+					{
+						cb.call1(var(c2.get()));
+					}
+				};
+
+				partUpdater = new PartUpdater(f);
+			}
+			else if (callForEachFile && cb)
 				cb.call1(var(c.get()));
 
-			auto result = zipFile.uncompressEntry(i, tf, overwriteFiles);
 
-			numBytesWritten += zipFile.getEntry(i)->uncompressedSize;
+			auto result = zipFile.uncompressEntry(i, tf, overwriteFiles, &entryProgress);
+
+			
+			partUpdater = nullptr;
+
+			numBytesWritten += entrySize;
 
 			if (result.failed())
 			{
