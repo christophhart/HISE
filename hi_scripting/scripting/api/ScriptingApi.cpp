@@ -875,6 +875,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
 	API_METHOD_WRAPPER_0(Engine, getOS);	
 	API_METHOD_WRAPPER_0(Engine, isPlugin);
+	API_METHOD_WRAPPER_0(Engine, isHISE);
+	API_VOID_METHOD_WRAPPER_0(Engine, reloadAllSamples);
 	API_METHOD_WRAPPER_0(Engine, getPreloadProgress);
 	API_METHOD_WRAPPER_0(Engine, getPreloadMessage);
 	API_METHOD_WRAPPER_0(Engine, getDeviceType);
@@ -1043,6 +1045,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(createLicenseUnlocker);
 	ADD_API_METHOD_0(getClipboardContent);
 	ADD_API_METHOD_1(copyToClipboard);
+	ADD_API_METHOD_0(isHISE);
+	ADD_API_METHOD_0(reloadAllSamples);
 }
 
 
@@ -1305,6 +1309,34 @@ bool ScriptingApi::Engine::isPlugin() const
 	return true;
 #endif
 #endif
+}
+
+bool ScriptingApi::Engine::isHISE()
+{
+#if USE_BACKEND
+	return true;
+#else
+	return false;
+#endif
+}
+
+void ScriptingApi::Engine::reloadAllSamples()
+{
+	auto f = [](Processor* p)
+	{
+		Processor::Iterator<ModulatorSampler> iter(p);
+
+		while (auto s = iter.getNextProcessor())
+			s->reloadSampleMap();
+
+		return SafeFunctionCall::OK;
+	};
+
+	auto mc = getScriptProcessor()->getMainController_();
+	
+	mc->getSampleManager().getProjectHandler().checkSubDirectories();
+
+	mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 }
 
 double ScriptingApi::Engine::getPreloadProgress()
