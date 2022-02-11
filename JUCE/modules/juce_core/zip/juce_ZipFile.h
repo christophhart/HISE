@@ -177,7 +177,8 @@ public:
     */
     Result uncompressEntry (int index,
                             const File& targetDirectory,
-                            bool shouldOverwriteFiles = true);
+                            bool shouldOverwriteFiles = true,
+							double* progress=nullptr);
 
 
     //==============================================================================
