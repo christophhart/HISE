@@ -1196,6 +1196,9 @@ public:
                 auto* d = inputDevice != nullptr ? static_cast<WASAPIDeviceBase*> (inputDevice.get())
                                                  : static_cast<WASAPIDeviceBase*> (outputDevice.get());
 
+				if (d->defaultBufferSize == 441)
+					d->defaultBufferSize = 512;
+
                 defaultSampleRate = d->defaultSampleRate;
                 minBufferSize = d->minBufferSize;
                 defaultBufferSize = d->defaultBufferSize;
