@@ -873,7 +873,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, matchesRegex);
 	API_METHOD_WRAPPER_2(Engine, getRegexMatches);
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
-	API_METHOD_WRAPPER_0(Engine, getOS);	
+	API_METHOD_WRAPPER_0(Engine, getOS);
+	API_METHOD_WRAPPER_0(Engine, getSystemStats);
 	API_METHOD_WRAPPER_0(Engine, isPlugin);
 	API_METHOD_WRAPPER_0(Engine, isHISE);
 	API_VOID_METHOD_WRAPPER_0(Engine, reloadAllSamples);
@@ -995,6 +996,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_2(doubleToString);
 	ADD_API_METHOD_1(getMasterPeakLevel);
 	ADD_API_METHOD_0(getOS);
+	ADD_API_METHOD_0(getSystemStats);
 	ADD_API_METHOD_0(getDeviceType);
 	ADD_API_METHOD_0(getDeviceResolution);
 	ADD_API_METHOD_0(isPlugin);
@@ -1278,6 +1280,28 @@ String ScriptingApi::Engine::getOS()
 #else
 	return "OSX";
 #endif
+}
+
+var ScriptingApi::Engine::getSystemStats()
+{
+	auto obj = new DynamicObject();
+	
+	obj->setProperty("OperatingSystemName", SystemStats::getOperatingSystemName());
+	obj->setProperty("OperatingSystem64Bit", SystemStats::isOperatingSystem64Bit());
+	obj->setProperty("LogonName", SystemStats::getLogonName());
+	obj->setProperty("FullUserName", SystemStats::getFullUserName());
+	obj->setProperty("ComputerName", SystemStats::getComputerName());
+	obj->setProperty("UserLanguage", SystemStats::getUserLanguage());
+	obj->setProperty("UserRegion", SystemStats::getUserRegion());
+	obj->setProperty("DisplayLanguage", SystemStats::getDisplayLanguage());
+	obj->setProperty("NumCpus", SystemStats::getNumCpus());
+	obj->setProperty("NumPhysicalCpus", SystemStats::getNumPhysicalCpus());
+	obj->setProperty("CpuSpeedInMegahertz", SystemStats::getCpuSpeedInMegahertz());
+	obj->setProperty("CpuVendor", SystemStats::getCpuVendor());
+	obj->setProperty("CpuModel", SystemStats::getCpuModel());
+	obj->setProperty("MemorySizeInMegabytes", SystemStats::getMemorySizeInMegabytes());
+
+	return obj;
 }
 
 String ScriptingApi::Engine::getDeviceType()
