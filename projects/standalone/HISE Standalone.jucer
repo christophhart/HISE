@@ -190,14 +190,13 @@
         <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </VS2017>
-    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=1&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;"
-                smallIcon="bfBEgJ" bigIcon="bfBEgJ" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
-                linuxExtraPkgConfig="x11 xinerama xext" extraLinkerFlags="-no-pie&#10;/opt/intel/ipp/lib/intel64/libippi.a &#10;/opt/intel/ipp/lib/intel64/libipps.a&#10;/opt/intel/ipp/lib/intel64/libippvm.a&#10;/opt/intel/ipp/lib/intel64/libippcore.a&#10;">
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;"
+                smallIcon="bfBEgJ" bigIcon="bfBEgJ" linuxExtraPkgConfig="x11 xinerama xext"
+                extraLinkerFlags="-no-pie&#10;">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE Standalone"
-                       libraryPath="/opt/intel/ipp/lib" headerPath="/opt/intel/ipp/include"/>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE Standalone"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE Standalone"
-                       linkTimeOptimisation="1" libraryPath="/opt/intel/ipp/lib" headerPath="/opt/intel/ipp/include"/>
+                       linkTimeOptimisation="1"/>
         <CONFIGURATION name="TravisCI" isDebug="1" optimisation="1" targetName="HISE Standalone"
                        defines="TRAVIS_CI=1"/>
       </CONFIGURATIONS>
