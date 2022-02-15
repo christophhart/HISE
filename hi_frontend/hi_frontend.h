@@ -63,7 +63,7 @@ END_JUCE_MODULE_DECLARATION
 	can define your own thing. 
 */
 #ifndef HISE_DEACTIVATE_OVERLAY
-#define HISE_DEACTIVATE_OVERLAY 1
+#define HISE_DEACTIVATE_OVERLAY 0
 #endif
 
 #include "frontend/FrontendHostFactory.h"
