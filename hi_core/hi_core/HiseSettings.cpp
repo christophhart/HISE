@@ -959,8 +959,8 @@ juce::Result HiseSettings::Data::checkInput(const Identifier& id, const var& new
 	if (id == Project::AppGroupID || id == Project::BundleIdentifier)
 	{
 		const String wildcard = (id == HiseSettings::Project::BundleIdentifier) ?
-			R"(com\.[\w\d-_]+\.[\w\d-_]+$)" :
-			R"(group\.[\w\d-_]+\.[\w\d-_]+$)";
+			R"(com\.[\w_]+\.[\w_]+$)" :
+			R"(group\.[\w_]+\.[\w_]+$)";
 
 		if (!RegexFunctions::matchesWildcard(wildcard, newValue.toString()))
 		{
