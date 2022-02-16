@@ -5953,6 +5953,16 @@ void ScriptingApi::Server::callWithPOST(String subURL, var parameters, var callb
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
 		GlobalServer::PendingCallback::Ptr p = new GlobalServer::PendingCallback(getScriptProcessor(), callback);
+        
+        const bool isNotAFile = !subURL.containsChar('.');
+        const bool trailingSlashMissing = !subURL.endsWithChar('/');
+        
+        if(isNotAFile && trailingSlashMissing)
+        {
+            // We need to append a slash in order to prevent redirecting to a GET call
+            subURL << '/';
+        }
+        
 		p->url = getWithParameters(subURL, parameters);
 		p->isPost = true;
 		globalServer.addPendingCallback(p);
