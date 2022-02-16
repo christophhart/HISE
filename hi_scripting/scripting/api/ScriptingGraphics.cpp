@@ -634,15 +634,37 @@ void ScriptingObjects::ScriptShader::makeStatistics()
 	auto d = new DynamicObject();
 
 	int major = 0, minor = 0;
-	glGetIntegerv(GL_MAJOR_VERSION, &major);
-	glGetIntegerv(GL_MINOR_VERSION, &minor);
-
+	
+    
 	auto vendor = String((const char*)glGetString(GL_VENDOR));
-
+    jassert(glGetError() == GL_NO_ERROR);
+    
 	auto renderer = String((const char*)glGetString(GL_RENDERER));
+    jassert(glGetError() == GL_NO_ERROR);
+    
 	auto version = String((const char*)glGetString(GL_VERSION));
+    jassert(glGetError() == GL_NO_ERROR);
+    
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    auto ok1 = glGetError();
+    
+    glGetIntegerv(GL_MINOR_VERSION, &minor);
+    auto ok2 = glGetError();
+    
 	auto shaderVersion = OpenGLShaderProgram::getLanguageVersion();
-
+    jassert(glGetError() == GL_NO_ERROR);
+    
+    // Apparently this fails on older macs, so we need to parse the version integers from the string
+    if(ok1 != GL_NO_ERROR || ok2 != GL_NO_ERROR)
+    {
+        const auto v = version.upToFirstOccurrenceOf(" ", false, false);
+        
+        major = v.upToFirstOccurrenceOf(".", false, false).getIntValue();
+        minor = v.fromFirstOccurrenceOf(".", false, false).getIntValue();
+    }
+    
+    
+    
 	d->setProperty("VersionString", version);
 	d->setProperty("Major", major);
 	d->setProperty("Minor", minor);
