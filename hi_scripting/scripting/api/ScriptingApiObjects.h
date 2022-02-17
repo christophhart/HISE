@@ -432,6 +432,9 @@ namespace ScriptingObjects
 		/** Call a function on the background thread. */
 		void callOnBackgroundThread(var backgroundTaskFunction);
 
+		/** Kills all voices and calls the given function on the sample loading thread. */
+		bool killVoicesAndCall(var loadingFunction);
+
 		/** Set a progress for this task. */
 		void setProgress(double p);
 
@@ -486,6 +489,8 @@ namespace ScriptingObjects
 		NamedValueSet synchronisedData;
 		WeakCallbackHolder currentTask;
 		WeakCallbackHolder finishCallback;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptBackgroundTask);
 	};
 
 	class ScriptFFT : public ConstScriptingObject,

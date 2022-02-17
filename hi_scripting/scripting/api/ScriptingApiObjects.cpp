@@ -5553,6 +5553,7 @@ struct ScriptingObjects::ScriptBackgroundTask::Wrapper
 	API_METHOD_WRAPPER_1(ScriptBackgroundTask, getProperty);
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setFinishCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, callOnBackgroundThread);
+	API_METHOD_WRAPPER_1(ScriptBackgroundTask, killVoicesAndCall);
 	API_METHOD_WRAPPER_0(ScriptBackgroundTask, getProgress);
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setProgress);
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setTimeOut);
@@ -5573,6 +5574,7 @@ ScriptingObjects::ScriptBackgroundTask::ScriptBackgroundTask(ProcessorWithScript
 	ADD_API_METHOD_1(getProperty);
 	ADD_API_METHOD_1(setFinishCallback);
 	ADD_API_METHOD_1(callOnBackgroundThread);
+	ADD_API_METHOD_1(killVoicesAndCall);
 	ADD_API_METHOD_0(getProgress);
 	ADD_API_METHOD_1(setProgress);
 	ADD_API_METHOD_1(setTimeOut);
@@ -5648,6 +5650,35 @@ void ScriptingObjects::ScriptBackgroundTask::callOnBackgroundThread(var backgrou
 		currentTask.incRefCount();
 		startThread(6);
 	}
+}
+
+bool ScriptingObjects::ScriptBackgroundTask::killVoicesAndCall(var loadingFunction)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(loadingFunction))
+	{
+		stopThread(timeOut);
+		currentTask = WeakCallbackHolder(getScriptProcessor(), loadingFunction, 0);
+		currentTask.incRefCount();
+		
+		WeakReference<ScriptBackgroundTask> safeThis(this);
+
+		auto f = [safeThis](Processor* p)
+		{
+			if (safeThis != nullptr)
+			{
+				auto r = safeThis->currentTask.callSync(nullptr, 0, nullptr);
+
+				if (!r.wasOk())
+					debugError(p, r.getErrorMessage());
+			}
+				
+			return SafeFunctionCall::OK;
+		};
+
+		return getScriptProcessor()->getMainController_()->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(getScriptProcessor()), f, MainController::KillStateHandler::SampleLoadingThread);
+	}
+
+	return false;
 }
 
 void ScriptingObjects::ScriptBackgroundTask::setProgress(double p)
