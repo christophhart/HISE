@@ -64,10 +64,9 @@ template <typename ParameterType> struct envelope_base: public control::pimpl::p
 
 		if (thisActive)
 		{
-			auto mv = t.getModValue();
-
-			if(mv != lastValue)
-				this->getParameter().template call<0>(mv);
+			float mv = (float)t.getModValue();
+			FloatSanitizers::sanitizeFloatNumber(mv);
+			this->getParameter().template call<0>((double)mv);
 		}
 
 		if (thisActive != wasActive)
@@ -248,7 +247,7 @@ struct ahdsr_base: public mothernode,
 
 		/// the uptime
 		int holdCounter;
-		float current_value;
+		float current_value = 0.0f;
 
 		int leftOverSamplesFromLastBuffer = 0;
 
@@ -257,17 +256,17 @@ struct ahdsr_base: public mothernode,
 
 		float attackTime;
 
-		float attackLevel;
-		float attackCoef;
-		float attackBase;
+		float attackLevel = 0.5f;
+		float attackCoef = 0.0f;
+		float attackBase = 1.0f;
 
 		float decayTime;
-		float decayCoef;
-		float decayBase;
+		float decayCoef = 0.0f;
+		float decayBase = 1.0f;
 
 		float releaseTime;
-		float releaseCoef;
-		float releaseBase;
+		float releaseCoef = 0.0f;
+		float releaseBase = 1.0f;
 		float release_delta;
 
 		float lastSustainValue;
@@ -286,8 +285,11 @@ struct ahdsr_base: public mothernode,
 	void setDisplayValue(int index, float value, bool convertDbValues=true)
 	{
 		if (convertDbValues && (index == 1 || index == 4))
-			value = Decibels::gainToDecibels(value);
-
+		{
+			value = Decibels::gainToDecibels(jlimit(-100.0f, 0.0f, value));
+		}
+		else
+			
 		if(rb != nullptr)
 			rb->getUpdater().sendContentChangeMessage(sendNotificationAsync, index);
 
@@ -804,6 +806,8 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		auto v = (float)value;
 
 		jassert(std::isfinite(value));
+
+		FloatSanitizers::sanitizeFloatNumber(v);
 
 		setDisplayValue(P, v);
 
