@@ -1311,8 +1311,8 @@ public:
 			setScriptObjectProperty(getIndexPropertyId(), index, sendNotification);
 		}
 
-		/** Returns the table value from 0.0 to 1.0 according to the input value from 0 to 127. */
-		float getTableValue(int inputValue);
+		/** Returns the table value from 0.0 to 1.0 according to the input value from 0.0 to 1.0. */
+		float getTableValue(float inputValue);
 
 		/** Connects the table to an existing Processor. */
 		/** Makes the table snap to the given x positions (from 0.0 to 1.0). */

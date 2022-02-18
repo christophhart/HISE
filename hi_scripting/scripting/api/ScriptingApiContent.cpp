@@ -2399,7 +2399,7 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createCompon
 	return new ScriptCreatedComponentWrappers::TableWrapper(content, this, index);
 }
 
-float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
+float ScriptingApi::Content::ScriptTable::getTableValue(float inputValue)
 {
 	if (auto t = getCachedTable())
 	{
