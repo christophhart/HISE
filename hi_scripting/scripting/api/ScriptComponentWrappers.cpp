@@ -79,13 +79,6 @@ void ScriptCreatedComponentWrapper::updateComponent(int propertyIndex, var newVa
 	}
 }
 
-void ScriptCreatedComponentWrapper::changed(var newValue)
-{
-	getScriptComponent()->value = newValue;
-
-	dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
-}
-
 bool ScriptCreatedComponentWrapper::setMouseCursorFromParentPanel(ScriptComponent* sc, MouseCursor& c)
 {
 	if (sc == nullptr)
@@ -478,23 +471,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateValue(var newValue)
 
 void ScriptCreatedComponentWrappers::SliderWrapper::sliderValueChanged(Slider *s)
 {
-	if (s->getSliderStyle() == Slider::TwoValueHorizontal)
-	{
-		if (s->getThumbBeingDragged() == 1)
-		{
-			dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent())->setMinValue(s->getMinValue());
-			changed(s->getMinValue());
-		}
-		else
-		{
-			dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent())->setMaxValue(s->getMaxValue());
-			changed(s->getMaxValue());
-		}
-	}
-	else
-	{
-		/*changed(s->getValue());*/ // setInternalAttribute handles this for .
-	}
+	
 }
 
 void ScriptCreatedComponentWrappers::SliderWrapper::updateTooltip(Slider * s)
@@ -1673,7 +1650,7 @@ void ScriptCreatedComponentWrappers::ImageWrapper::updatePopupMenu(ScriptingApi:
 
 void ScriptCreatedComponentWrappers::ImageWrapper::mouseCallback(const var &mouseInformation)
 {
-    changed(mouseInformation);
+    
 }
 
 ScriptCreatedComponentWrappers::PanelWrapper::PanelWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPanel *panel, int index) :
@@ -2699,7 +2676,8 @@ int ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::getNumR
 
 void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::listBoxItemClicked(int row, const MouseEvent &)
 {
-	parent->changed(row);
+	parent->getScriptComponent()->setValue(row);
+	parent->getScriptComponent()->changed();
 }
 
 void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected)
@@ -2723,7 +2701,8 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::paintL
 
 void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::returnKeyPressed(int row)
 {
-	parent->changed(row);
+	parent->getScriptComponent()->setValue(row);
+	parent->getScriptComponent()->changed();
 }
 
 

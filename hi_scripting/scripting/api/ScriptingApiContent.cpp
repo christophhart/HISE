@@ -2679,6 +2679,17 @@ var ScriptingApi::Content::ScriptSliderPack::registerAtParent(int pIndex)
 	return registerComplexDataObjectAtParent(pIndex);
 }
 
+void ScriptingApi::Content::ScriptSliderPack::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
+{
+	if (t == ComplexDataUIUpdaterBase::EventType::ContentChange)
+	{
+		auto sliderIndex = (int)data;
+
+		value = sliderIndex;;
+		getScriptProcessor()->controlCallback(this, value);
+	}
+}
+
 struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioWaveform, referToData);

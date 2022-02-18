@@ -1161,7 +1161,8 @@ public:
 
 
 	struct ComplexDataScriptComponent : public ScriptComponent,
-										public ExternalDataHolder
+										public ExternalDataHolder,
+										public ComplexDataUIUpdaterBase::EventListener
 	{
 		ComplexDataScriptComponent(ProcessorWithScriptingContent* base, Identifier name, snex::ExternalData::DataType type_);;
 			
@@ -1252,11 +1253,22 @@ public:
 
 		var registerComplexDataObjectAtParent(int index = -1);
 
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override
+		{
+			
+		}
+
 	protected:
 
 		void updateCachedObjectReference()
 		{
+			if (cachedObjectReference != nullptr)
+				cachedObjectReference->getUpdater().removeEventListener(this);
+
 			cachedObjectReference = getComplexBaseType(type, 0);
+
+			if (cachedObjectReference != nullptr)
+				cachedObjectReference->getUpdater().addEventListener(this);
 		}
 
 	private:
@@ -1401,7 +1413,11 @@ public:
 		/** Registers this sliderpack to the script processor to be acessible from the outside. */
 		var registerAtParent(int pIndex);
 
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override;
+
 		// ========================================================================================================
+
+		
 
 		struct Wrapper;
 
