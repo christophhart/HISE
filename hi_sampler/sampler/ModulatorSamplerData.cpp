@@ -884,15 +884,27 @@ void SampleMap::load(const PoolReference& reference)
 
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
 
+	
+
 	if (!FullInstrumentExpansion::isEnabled(getSampler()->getMainController()))
 	{
 		if (auto expansion = getSampler()->getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString()))
 		{
 			currentPool = &expansion->pool->getSampleMapPool();
 		}
+
+		sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+	}
+	else
+	{
+		// Remove the "{PROJECT_FOLDER}" wildcard or it won't find it in the pool...
+		auto ref = PoolReference(getSampler()->getMainController(), 
+							reference.getReferenceString().fromLastOccurrenceOf("{PROJECT_FOLDER}", false, false),
+							FileHandlerBase::SampleMaps);
+
+		sampleMapData = currentPool->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
 	}
 
-	sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
 	currentPool->addListener(this);
 
 	if (sampleMapData)
