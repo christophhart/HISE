@@ -2668,7 +2668,9 @@ void ScriptedControlAudioParameter::setParameterNotifyingHostInternal(int index,
 
 	auto sanitizedValue = jlimit<float>(range.start, range.end, newValue);
 
+	parentProcessor->beginParameterChangeGesture(index);
 	parentProcessor->setParameterNotifyingHost(index, range.convertTo0to1(sanitizedValue));
+	parentProcessor->endParameterChangeGesture(index);
 }
 
 
