@@ -1679,6 +1679,21 @@ Result FullInstrumentExpansion::lazyLoad()
 
 	auto presetData = allData.getChildWithName(ExpansionIds::Preset)[ExpansionIds::Data].toString();
 
+	auto fontData = allData.getChildWithName(ExpansionIds::HeaderData).getChildWithName(ExpansionIds::Fonts);
+
+	if (fontData.isValid())
+	{
+		zstd::ZDefaultCompressor d;
+		ValueTree realFontData;
+		auto fontAsBase64 = fontData[ExpansionIds::Data].toString();
+		MemoryBlock mb;
+		mb.fromBase64Encoding(fontAsBase64);
+
+		d.expand(mb, realFontData);
+
+		getMainController()->restoreCustomFontValueTree(realFontData);
+	}
+
 	ScopedPointer<BlowFish> bf = createBlowfish();
 
 	MemoryBlock mb;
