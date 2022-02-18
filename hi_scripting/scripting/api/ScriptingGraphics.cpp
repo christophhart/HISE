@@ -2520,8 +2520,6 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawKeyboardBackground(Graphics
 
 		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));
 
-
-
 		if (get()->callWithGraphics(g_, "drawKeyboardBackground", var(obj), c))
 			return;
 	}
@@ -2577,7 +2575,7 @@ juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler
 
 	if (auto l = get())
 	{
-		auto obj = new DynamicObject();
+		DynamicObject::Ptr obj = new DynamicObject();
 
 		String s;
 
@@ -2596,7 +2594,7 @@ juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler
 		Image img2(Image::ARGB, img.getWidth(), img.getHeight(), true);
 		Graphics g(img2);
 
-		if (l->callWithGraphics(g, "drawAlertWindowIcon", var(obj), nullptr))
+		if (l->callWithGraphics(g, "drawAlertWindowIcon", var(obj.get()), nullptr))
 		{
 			if ((int)obj->getProperty("type") == -1)
 				return {};
