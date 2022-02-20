@@ -305,7 +305,7 @@ protected:
 
 	bool shouldPopupMenuScaleWithTargetComponent(const PopupMenu::Options& /*options*/) override
 	{
-		return false;
+		return true;
 	};
 
 	void drawPopupMenuBackground(Graphics& g, int width, int height) override
