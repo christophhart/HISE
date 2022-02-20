@@ -402,7 +402,8 @@ namespace ScriptedDrawActions
 
 		void perform(Graphics& g) override
 		{
-			jassert(!mainImage.getBounds().isEmpty());
+			if (mainImage.getBounds().isEmpty())
+				return;
 
 			auto invT = AffineTransform::scale(1.0f / scaleFactor);
 
