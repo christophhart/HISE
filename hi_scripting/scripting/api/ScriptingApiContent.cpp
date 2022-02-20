@@ -2525,7 +2525,7 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSliderPack::createC
 void ScriptingApi::Content::ScriptSliderPack::setSliderAtIndex(int index, double newValue)
 {
 	if(auto d = getCachedSliderPack())
-		d->setValue(index, (float)newValue, sendNotification);
+		d->setValue(index, (float)newValue, dontSendNotification);
 }
 
 double ScriptingApi::Content::ScriptSliderPack::getSliderValueAt(int index)
