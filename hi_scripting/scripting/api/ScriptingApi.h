@@ -663,6 +663,12 @@ public:
 		/** Returns an array of the form [width, height]. */
 		var getUserDesktopSize();
 
+		/** Returns whether OpenGL is enabled or not. The return value might be out of sync with the actual state (after you changed this setting until the next reload). */
+		bool isOpenGLEnabled() const;
+
+		/** Enable OpenGL. This setting will be applied the next time the interface is rebuild. */
+		void setEnableOpenGL(bool shouldBeEnabled);
+
 		// ============================================================================================================
 
 	private:

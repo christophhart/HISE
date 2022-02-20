@@ -1113,6 +1113,12 @@ void ScriptingApi::Engine::loadFontAs(String fileName, String fontId)
 
 #if USE_BACKEND
 
+	if (FullInstrumentExpansion::isEnabled(getProcessor()->getMainController()))
+	{
+		// Already loaded???
+		return;
+	}
+
 	const String absolutePath = GET_PROJECT_HANDLER(getProcessor()).getFilePath(fileName, ProjectHandler::SubDirectories::Images);
 	File f(absolutePath);
 	auto fis = f.createInputStream();
@@ -1737,6 +1743,7 @@ struct ScriptingApi::Settings::Wrapper
 	API_METHOD_WRAPPER_0(Settings, getAvailableDeviceNames);
 	API_METHOD_WRAPPER_0(Settings, getCurrentAudioDevice);
 	API_VOID_METHOD_WRAPPER_1(Settings, setAudioDevice);
+	
 	API_METHOD_WRAPPER_0(Settings, getAvailableOutputChannels);
 	API_METHOD_WRAPPER_0(Settings, getCurrentOutputChannel);
 	API_VOID_METHOD_WRAPPER_1(Settings, setOutputChannel);
@@ -1755,6 +1762,8 @@ struct ScriptingApi::Settings::Wrapper
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiChannel);
 	API_METHOD_WRAPPER_1(Settings, isMidiChannelEnabled);
 	API_METHOD_WRAPPER_0(Settings, getUserDesktopSize);
+	API_METHOD_WRAPPER_0(Settings, isOpenGLEnabled);
+	API_VOID_METHOD_WRAPPER_1(Settings, setEnableOpenGL);
 };
 
 ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
@@ -1794,6 +1803,8 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 	ADD_API_METHOD_2(toggleMidiChannel);
 	ADD_API_METHOD_1(isMidiChannelEnabled);
 	ADD_API_METHOD_0(getUserDesktopSize);
+	ADD_API_METHOD_0(isOpenGLEnabled);
+	ADD_API_METHOD_1(setEnableOpenGL);
 }
 
 var ScriptingApi::Settings::getUserDesktopSize()
@@ -1806,6 +1817,16 @@ var ScriptingApi::Settings::getUserDesktopSize()
 	desktopSize.add(area.getHeight());
 
 	return desktopSize;
+}
+
+bool ScriptingApi::Settings::isOpenGLEnabled() const
+{
+	return driver->useOpenGL;
+}
+
+void ScriptingApi::Settings::setEnableOpenGL(bool shouldBeEnabled)
+{
+	driver->useOpenGL = shouldBeEnabled;
 }
 
 double ScriptingApi::Settings::getZoomLevel() const
