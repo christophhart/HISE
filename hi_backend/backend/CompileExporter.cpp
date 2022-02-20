@@ -1573,7 +1573,10 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AUV3%", "0");
 
 		const bool buildAU = BuildOptionHelpers::isAU(option);
-		const bool buildVST = BuildOptionHelpers::isVST(option) || BuildOptionHelpers::isHeadlessLinuxPlugin(option);
+		bool buildVST = BuildOptionHelpers::isVST(option);
+		const bool headlessLinux = BuildOptionHelpers::isHeadlessLinuxPlugin(option);
+
+		buildVST |= headlessLinux;
 
 		auto vst3 = GET_SETTING(HiseSettings::Project::VST3Support) == "1";
 
