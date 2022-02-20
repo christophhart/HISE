@@ -111,7 +111,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "      </MODULEPATHS>\r\n"
 "    </%VS_VERSION%>\r\n"
 "    <XCODE_MAC targetFolder=\"Builds/MacOSX\" vstFolder=\"%VSTSDK_FOLDER%\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override -fno-aligned-allocation\" %ICON_FILE% \r\n"
-"               extraLinkerFlags=\"%IPP_COMPILER_FLAGS% %OSX_STATIC_LIBS%\" extraDefs=\"%EXTRA_DEFINES_OSX%\" hardenedRuntime=\"1\" hardenedRuntimeOptions=\"com.apple.security.cs.allow-jit,com.apple.security.cs.allow-unsigned-executable-memory,com.apple.security.device.audio-input\" xcodeValidArchs=\"arm64,arm64e,x86_64\">\r\n"
+"               extraLinkerFlags=\"%IPP_COMPILER_FLAGS% %OSX_STATIC_LIBS%\" extraDefs=\"%EXTRA_DEFINES_OSX%\" hardenedRuntime=\"0\" hardenedRuntimeOptions=\"com.apple.security.cs.allow-jit,com.apple.security.cs.allow-unsigned-executable-memory,com.apple.security.device.audio-input\" xcodeValidArchs=\"arm64,arm64e,x86_64\">\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" osxSDK=\"default\" osxCompatibility=\"10.9 SDK\" osxArchitecture=\"%MACOS_ARCHITECTURE%\"\r\n"
 "                       isDebug=\"1\" optimisation=\"1\" targetName=\"%NAME% Debug\"\r\n"
