@@ -376,12 +376,18 @@ int CompileExporter::getBuildOptionPart(const String& argument)
     }
 	case 'a':
 	{
+		// Always return 64bit, 32bit is dead.
+		return 0x0002;
+#if 0
 		const String architectureName = argument.fromFirstOccurrenceOf("-a:", false, true);
+
+
 
 		if (architectureName == "x86") return 0x0001;
 		else if (architectureName == "x64") return 0x0002;
 		else if (architectureName == "x86x64") return 0x0004;
 		else return 0;
+#endif
 	}
 	case 't':
 	{
