@@ -455,8 +455,8 @@ namespace ScriptingObjects
 		/** Adds a drop shadow based on the alpha values of the current image. */
 		void addDropShadowFromAlpha(var colour, int radius);
 
-		/** Applies an OpenGL shader to the panel. */
-		void applyShader(var shader, var area);
+		/** Applies an OpenGL shader to the panel. Returns false if the shader could not be compiled. */
+		bool applyShader(var shader, var area);
 
 
 		/** Fills a Path. */

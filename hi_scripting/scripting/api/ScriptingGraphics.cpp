@@ -1052,7 +1052,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, applySharpness);
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, applySepia);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyVignette);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, applyShader);
+	API_METHOD_WRAPPER_2(GraphicsObject, applyShader);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -1479,13 +1479,16 @@ void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(var colour, int ra
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::addDropShadowFromAlpha(shadow));
 }
 
-void ScriptingObjects::GraphicsObject::applyShader(var shader, var area)
+bool ScriptingObjects::GraphicsObject::applyShader(var shader, var area)
 {
 	if (auto obj = dynamic_cast<ScriptingObjects::ScriptShader*>(shader.getObject()))
 	{
 		Rectangle<int> b = getRectangleFromVar(area).toNearestInt();
 		drawActionHandler.addDrawAction(new ScriptedDrawActions::addShader(&drawActionHandler, obj, b));
+		return true;
 	}
+
+	return false;
 }
 
 void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
