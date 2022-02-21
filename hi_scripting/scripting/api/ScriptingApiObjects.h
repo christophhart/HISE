@@ -287,6 +287,9 @@ namespace ScriptingObjects
 		/** Returns the size of the file in bytes. */
 		int64 getSize();
 		
+		/** If possible, this will try to create a version string for the given file. */
+		String getVersion();
+		
 		/** Returns the number of bytes free on the drive that this file lives on. */
 		int64 getBytesFreeOnVolume();
 

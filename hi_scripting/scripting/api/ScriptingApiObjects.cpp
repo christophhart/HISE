@@ -187,6 +187,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, getChildFile);
 	API_METHOD_WRAPPER_1(ScriptFile, createDirectory);
 	API_METHOD_WRAPPER_0(ScriptFile, getSize);
+	API_METHOD_WRAPPER_0(ScriptFile, getVersion);
 	API_METHOD_WRAPPER_0(ScriptFile, getBytesFreeOnVolume);
 	API_METHOD_WRAPPER_1(ScriptFile, setExecutePermission);
 	API_METHOD_WRAPPER_1(ScriptFile, startAsProcess);
@@ -239,6 +240,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_1(getChildFile);
 	ADD_API_METHOD_1(createDirectory);
 	ADD_API_METHOD_0(getSize);
+	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getHash);
 	ADD_API_METHOD_1(toString);
 	ADD_API_METHOD_0(isFile);
@@ -287,6 +289,16 @@ var ScriptingObjects::ScriptFile::createDirectory(String directoryName)
 int64 ScriptingObjects::ScriptFile::getSize()
 {	
 	return f.getSize();
+}
+
+String ScriptingObjects::ScriptFile::getVersion()
+{	
+	#if JUCE_LINUX
+		auto matches = RegexFunctions::getFirstMatch(R"((\d+)(.\d+)*)", f.getFileName());
+		return matches[0];
+	#else
+		return f.getVersion();
+	#endif	
 }
 
 int64 ScriptingObjects::ScriptFile::getBytesFreeOnVolume()
