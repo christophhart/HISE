@@ -138,6 +138,9 @@ namespace ScriptingObjects
 		/** If this is enabled, the shader will create a buffered image of the last rendering result. */
 		void setEnableCachedBuffer(bool shouldEnableBuffer);
 
+		/** Adds a preprocessor definition before the code and recompiles the shader (Empty string removes all preprocessors). */
+		void setPreprocessor(String preprocessorString, var value);
+
 		// ===========================================================================
 
 		int blockWhileWaiting() override;
@@ -237,6 +240,8 @@ namespace ScriptingObjects
 		};
 
 	private:
+
+		NamedValueSet preprocessors;
 
 		bool screenshotPending = false;
 		static bool renderingScreenShot;
@@ -450,8 +455,8 @@ namespace ScriptingObjects
 		/** Adds a drop shadow based on the alpha values of the current image. */
 		void addDropShadowFromAlpha(var colour, int radius);
 
-		/** Applies an OpenGL shader to the panel. */
-		void applyShader(var shader, var area);
+		/** Applies an OpenGL shader to the panel. Returns false if the shader could not be compiled. */
+		bool applyShader(var shader, var area);
 
 
 		/** Fills a Path. */

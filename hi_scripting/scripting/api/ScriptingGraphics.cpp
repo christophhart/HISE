@@ -454,6 +454,7 @@ struct ScriptingObjects::ScriptShader::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptShader, setBlendFunc);
 	API_VOID_METHOD_WRAPPER_1(ScriptShader, fromBase64);
 	API_VOID_METHOD_WRAPPER_1(ScriptShader, setEnableCachedBuffer);
+	API_VOID_METHOD_WRAPPER_2(ScriptShader, setPreprocessor);
 	API_METHOD_WRAPPER_0(ScriptShader, toBase64);
 	API_METHOD_WRAPPER_0(ScriptShader, getOpenGLStatistics);
 };
@@ -483,6 +484,7 @@ ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) 
 	ADD_API_METHOD_0(toBase64);
 	ADD_API_METHOD_0(getOpenGLStatistics);
 	ADD_API_METHOD_1(setEnableCachedBuffer);
+	ADD_API_METHOD_2(setPreprocessor);
 }
 
 bool ScriptingObjects::ScriptShader::renderingScreenShot = false;
@@ -507,9 +509,12 @@ String ScriptingObjects::ScriptShader::getHeader()
 	s << "\n#define fragCoord _gl_fc()\n";
 	s << "#define fragColor gl_FragColor\n";
 
-#if JUCE_WINDOWS && USE_BACKEND
-	// The #line directive does not work on macOS apparently...
-	s << "#line 0 \"" << shaderName << "\" \n";
+#if USE_BACKEND
+	// We'll make this dynamic so everybody can adjust it to their graphics card
+	if (GET_HISE_SETTING(dynamic_cast<Processor*>(getScriptProcessor()), HiseSettings::Other::EnableShaderLineNumbers))
+	{
+		s << "#line 0 \"" << shaderName << "\" \n";
+	}
 #endif
 
 	return s;
@@ -574,6 +579,16 @@ void ScriptingObjects::ScriptShader::setEnableCachedBuffer(bool shouldEnableBuff
 
 
 
+void ScriptingObjects::ScriptShader::setPreprocessor(String preprocessorString, var value)
+{
+	if (preprocessorString.isEmpty())
+		preprocessors.clear();
+	else
+		preprocessors.set(Identifier(preprocessorString), value);
+
+	compileRawCode(compiledCode);
+}
+
 int ScriptingObjects::ScriptShader::blockWhileWaiting()
 {
 	if (screenshotPending)
@@ -619,15 +634,37 @@ void ScriptingObjects::ScriptShader::makeStatistics()
 	auto d = new DynamicObject();
 
 	int major = 0, minor = 0;
-	glGetIntegerv(GL_MAJOR_VERSION, &major);
-	glGetIntegerv(GL_MINOR_VERSION, &minor);
-
+	
+    
 	auto vendor = String((const char*)glGetString(GL_VENDOR));
-
+    jassert(glGetError() == GL_NO_ERROR);
+    
 	auto renderer = String((const char*)glGetString(GL_RENDERER));
+    jassert(glGetError() == GL_NO_ERROR);
+    
 	auto version = String((const char*)glGetString(GL_VERSION));
+    jassert(glGetError() == GL_NO_ERROR);
+    
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    auto ok1 = glGetError();
+    
+    glGetIntegerv(GL_MINOR_VERSION, &minor);
+    auto ok2 = glGetError();
+    
 	auto shaderVersion = OpenGLShaderProgram::getLanguageVersion();
-
+    jassert(glGetError() == GL_NO_ERROR);
+    
+    // Apparently this fails on older macs, so we need to parse the version integers from the string
+    if(ok1 != GL_NO_ERROR || ok2 != GL_NO_ERROR)
+    {
+        const auto v = version.upToFirstOccurrenceOf(" ", false, false);
+        
+        major = v.upToFirstOccurrenceOf(".", false, false).getIntValue();
+        minor = v.fromFirstOccurrenceOf(".", false, false).getIntValue();
+    }
+    
+    
+    
 	d->setProperty("VersionString", version);
 	d->setProperty("Major", major);
 	d->setProperty("Minor", minor);
@@ -674,7 +711,14 @@ void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
 {
 	compiledCode = code;
 
-	shaderCode = getHeader();
+	shaderCode = {};
+	
+	for (auto& p : preprocessors)
+	{
+		shaderCode << "#define " << p.name << " " << p.value.toString() << "\n";
+	}
+
+	shaderCode << getHeader();
 
 	shaderCode << compiledCode;
 
@@ -1008,7 +1052,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, applySharpness);
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, applySepia);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyVignette);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, applyShader);
+	API_METHOD_WRAPPER_2(GraphicsObject, applyShader);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -1435,13 +1479,16 @@ void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(var colour, int ra
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::addDropShadowFromAlpha(shadow));
 }
 
-void ScriptingObjects::GraphicsObject::applyShader(var shader, var area)
+bool ScriptingObjects::GraphicsObject::applyShader(var shader, var area)
 {
 	if (auto obj = dynamic_cast<ScriptingObjects::ScriptShader*>(shader.getObject()))
 	{
 		Rectangle<int> b = getRectangleFromVar(area).toNearestInt();
 		drawActionHandler.addDrawAction(new ScriptedDrawActions::addShader(&drawActionHandler, obj, b));
+		return true;
 	}
+
+	return false;
 }
 
 void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
@@ -2476,8 +2523,6 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawKeyboardBackground(Graphics
 
 		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));
 
-
-
 		if (get()->callWithGraphics(g_, "drawKeyboardBackground", var(obj), c))
 			return;
 	}
@@ -2533,7 +2578,7 @@ juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler
 
 	if (auto l = get())
 	{
-		auto obj = new DynamicObject();
+		DynamicObject::Ptr obj = new DynamicObject();
 
 		String s;
 
@@ -2552,7 +2597,7 @@ juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler
 		Image img2(Image::ARGB, img.getWidth(), img.getHeight(), true);
 		Graphics g(img2);
 
-		if (l->callWithGraphics(g, "drawAlertWindowIcon", var(obj), nullptr))
+		if (l->callWithGraphics(g, "drawAlertWindowIcon", var(obj.get()), nullptr))
 		{
 			if ((int)obj->getProperty("type") == -1)
 				return {};

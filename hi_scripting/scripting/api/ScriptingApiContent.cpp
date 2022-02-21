@@ -2399,7 +2399,7 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createCompon
 	return new ScriptCreatedComponentWrappers::TableWrapper(content, this, index);
 }
 
-float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
+float ScriptingApi::Content::ScriptTable::getTableValue(float inputValue)
 {
 	if (auto t = getCachedTable())
 	{
@@ -2677,6 +2677,17 @@ void ScriptingApi::Content::ScriptSliderPack::setWidthArray(var normalizedWidths
 var ScriptingApi::Content::ScriptSliderPack::registerAtParent(int pIndex)
 {
 	return registerComplexDataObjectAtParent(pIndex);
+}
+
+void ScriptingApi::Content::ScriptSliderPack::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
+{
+	if (t == ComplexDataUIUpdaterBase::EventType::ContentChange)
+	{
+		auto sliderIndex = (int)data;
+
+		value = sliderIndex;;
+		getScriptProcessor()->controlCallback(this, value);
+	}
 }
 
 struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper

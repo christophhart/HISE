@@ -142,9 +142,9 @@
     </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
             useIPP="Sequential" IPPLibrary="Sequential" windowsTargetPlatformVersion="10.0.16299.0"
-            extraDefs="USE_IPP=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000" extraCompilerFlags="/bigobj">
+            extraDefs="USE_IPP=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000" extraCompilerFlags="/bigobj /W0">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+        <CONFIGURATION name="Debug" winWarningLevel="2" generateManifest="1" winArchitecture="x64"
                        isDebug="1" optimisation="1" targetName="HISE Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"
                        enablePluginBinaryCopyStep="0"/>

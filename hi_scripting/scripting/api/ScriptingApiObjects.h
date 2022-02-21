@@ -317,6 +317,12 @@ namespace ScriptingObjects
 		/** Replaces the file content with the JSON data. */
 		bool writeObject(var jsonData);
 
+		/** Replaces the XML file with the JSON content (needs to be convertible). */
+		bool writeAsXmlFile(var jsonDataToBeXmled, String tagName);
+
+		/** Loads the XML file and tries to parse it as JSON object. */
+		var loadFromXmlFile();
+
 		/** Writes the given data (either a Buffer or Array of Buffers) to a audio file. */
 		bool writeAudioFile(var audioData, double sampleRate, int bitDepth);
 
@@ -426,6 +432,9 @@ namespace ScriptingObjects
 		/** Call a function on the background thread. */
 		void callOnBackgroundThread(var backgroundTaskFunction);
 
+		/** Kills all voices and calls the given function on the sample loading thread. */
+		bool killVoicesAndCall(var loadingFunction);
+
 		/** Set a progress for this task. */
 		void setProgress(double p);
 
@@ -480,6 +489,8 @@ namespace ScriptingObjects
 		NamedValueSet synchronisedData;
 		WeakCallbackHolder currentTask;
 		WeakCallbackHolder finishCallback;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptBackgroundTask);
 	};
 
 	class ScriptFFT : public ConstScriptingObject,

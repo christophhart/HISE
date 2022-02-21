@@ -269,7 +269,7 @@ template <class Locktype=SpinLock> class ExecutionLimiter
 public:
 	/** creates a new UpdateMerger and registeres the given listener.*/
 	ExecutionLimiter():
-        countLimit(0),
+        countLimit(1),
         updateCounter(0)
 	{};
 
@@ -288,7 +288,7 @@ public:
 	{
 		typename Locktype::ScopedLockType sl(processLock);
 
-		countLimit = skipAmount;
+		countLimit = jmax(1, skipAmount);
 		updateCounter = 0;
 	};
 
@@ -300,7 +300,7 @@ public:
 	{
 		// the limit rate has not been set!
 		jassert(countLimit > 0);
-		if(++updateCounter == countLimit)
+		if(++updateCounter >= countLimit)
 		{
 			typename Locktype::ScopedLockType sl(processLock);
 			updateCounter = 0;

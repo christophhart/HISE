@@ -875,6 +875,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
 	API_METHOD_WRAPPER_0(Engine, getOS);	
 	API_METHOD_WRAPPER_0(Engine, isPlugin);
+	API_METHOD_WRAPPER_0(Engine, isHISE);
+	API_VOID_METHOD_WRAPPER_0(Engine, reloadAllSamples);
 	API_METHOD_WRAPPER_0(Engine, getPreloadProgress);
 	API_METHOD_WRAPPER_0(Engine, getPreloadMessage);
 	API_METHOD_WRAPPER_0(Engine, getDeviceType);
@@ -1043,6 +1045,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(createLicenseUnlocker);
 	ADD_API_METHOD_0(getClipboardContent);
 	ADD_API_METHOD_1(copyToClipboard);
+	ADD_API_METHOD_0(isHISE);
+	ADD_API_METHOD_0(reloadAllSamples);
 }
 
 
@@ -1108,6 +1112,12 @@ void ScriptingApi::Engine::loadFontAs(String fileName, String fontId)
 {
 
 #if USE_BACKEND
+
+	if (FullInstrumentExpansion::isEnabled(getProcessor()->getMainController()))
+	{
+		// Already loaded???
+		return;
+	}
 
 	const String absolutePath = GET_PROJECT_HANDLER(getProcessor()).getFilePath(fileName, ProjectHandler::SubDirectories::Images);
 	File f(absolutePath);
@@ -1305,6 +1315,41 @@ bool ScriptingApi::Engine::isPlugin() const
 	return true;
 #endif
 #endif
+}
+
+bool ScriptingApi::Engine::isHISE()
+{
+#if USE_BACKEND
+	return true;
+#else
+	return false;
+#endif
+}
+
+void ScriptingApi::Engine::reloadAllSamples()
+{
+	auto f = [](Processor* p)
+	{
+		Processor::Iterator<ModulatorSampler> iter(p);
+
+		while (auto s = iter.getNextProcessor())
+			s->reloadSampleMap();
+
+		return SafeFunctionCall::OK;
+	};
+
+	auto mc = getScriptProcessor()->getMainController_();
+	
+#if USE_BACKEND
+	mc->getSampleManager().getProjectHandler().checkSubDirectories();
+#else
+	mc->getSampleManager().getProjectHandler().checkAllSampleReferences();
+#endif
+
+	
+
+
+	mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 }
 
 double ScriptingApi::Engine::getPreloadProgress()
@@ -1698,6 +1743,7 @@ struct ScriptingApi::Settings::Wrapper
 	API_METHOD_WRAPPER_0(Settings, getAvailableDeviceNames);
 	API_METHOD_WRAPPER_0(Settings, getCurrentAudioDevice);
 	API_VOID_METHOD_WRAPPER_1(Settings, setAudioDevice);
+	
 	API_METHOD_WRAPPER_0(Settings, getAvailableOutputChannels);
 	API_METHOD_WRAPPER_0(Settings, getCurrentOutputChannel);
 	API_VOID_METHOD_WRAPPER_1(Settings, setOutputChannel);
@@ -1716,6 +1762,8 @@ struct ScriptingApi::Settings::Wrapper
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiChannel);
 	API_METHOD_WRAPPER_1(Settings, isMidiChannelEnabled);
 	API_METHOD_WRAPPER_0(Settings, getUserDesktopSize);
+	API_METHOD_WRAPPER_0(Settings, isOpenGLEnabled);
+	API_VOID_METHOD_WRAPPER_1(Settings, setEnableOpenGL);
 };
 
 ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
@@ -1755,6 +1803,8 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 	ADD_API_METHOD_2(toggleMidiChannel);
 	ADD_API_METHOD_1(isMidiChannelEnabled);
 	ADD_API_METHOD_0(getUserDesktopSize);
+	ADD_API_METHOD_0(isOpenGLEnabled);
+	ADD_API_METHOD_1(setEnableOpenGL);
 }
 
 var ScriptingApi::Settings::getUserDesktopSize()
@@ -1767,6 +1817,16 @@ var ScriptingApi::Settings::getUserDesktopSize()
 	desktopSize.add(area.getHeight());
 
 	return desktopSize;
+}
+
+bool ScriptingApi::Settings::isOpenGLEnabled() const
+{
+	return driver->useOpenGL;
+}
+
+void ScriptingApi::Settings::setEnableOpenGL(bool shouldBeEnabled)
+{
+	driver->useOpenGL = shouldBeEnabled;
 }
 
 double ScriptingApi::Settings::getZoomLevel() const
@@ -5133,6 +5193,8 @@ startTime(0.0)
 
 void ScriptingApi::Console::print(var x)
 {
+	
+
 #if USE_BACKEND
 
 	AudioThreadGuard::Suspender suspender;
@@ -5142,6 +5204,8 @@ void ScriptingApi::Console::print(var x)
     jp->addInplaceDebugValue(id, lineNumber, x.toString());
     
 	debugToConsole(getProcessor(), x);
+#else
+	DBG(x.toString());
 #endif
 }
 
@@ -5780,6 +5844,7 @@ void ScriptingApi::FileSystem::browseInternally(File f, bool forSaving, bool isD
 		if (a.isObject())
 		{
 			WeakCallbackHolder cb(p_, callback, 1);
+			cb.setHighPriority();
 			cb.call(&a, 1);
 		}
 	};
@@ -5909,6 +5974,16 @@ void ScriptingApi::Server::callWithPOST(String subURL, var parameters, var callb
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
 		GlobalServer::PendingCallback::Ptr p = new GlobalServer::PendingCallback(getScriptProcessor(), callback);
+        
+        const bool isNotAFile = !subURL.containsChar('.');
+        const bool trailingSlashMissing = !subURL.endsWithChar('/');
+        
+        if(isNotAFile && trailingSlashMissing)
+        {
+            // We need to append a slash in order to prevent redirecting to a GET call
+            subURL << '/';
+        }
+        
 		p->url = getWithParameters(subURL, parameters);
 		p->isPost = true;
 		globalServer.addPendingCallback(p);

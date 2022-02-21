@@ -223,13 +223,11 @@ void GlobalServer::WebThread::run()
 
 					auto r = JSON::parse(response, args[1]);
 
-					if (!r.wasOk())
+					if (!r.wasOk() || response.isEmpty())
 					{
 						args[1] = response;
+						job->responseObj = args[1];
 					}
-					
-
-					job->responseObj = args[1];
 
 					job->f.call(args);
 

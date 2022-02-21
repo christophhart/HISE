@@ -456,6 +456,12 @@ public:
 		/** Returns true if running as VST / AU / AAX plugin. */
 		bool isPlugin() const;
 
+		/** Returns true if the project is running inside HISE. You can use this during development to simulate different environments. */
+		bool isHISE();
+
+		/** Forces a full (asynchronous) reload of all samples (eg. after the sample directory has changed). */
+		void reloadAllSamples();
+
 		/** Returns the preload progress from 0.0 to 1.0. Use this to display some kind of loading icon. */
 		double getPreloadProgress();
 
@@ -656,6 +662,12 @@ public:
 
 		/** Returns an array of the form [width, height]. */
 		var getUserDesktopSize();
+
+		/** Returns whether OpenGL is enabled or not. The return value might be out of sync with the actual state (after you changed this setting until the next reload). */
+		bool isOpenGLEnabled() const;
+
+		/** Enable OpenGL. This setting will be applied the next time the interface is rebuild. */
+		void setEnableOpenGL(bool shouldBeEnabled);
 
 		// ============================================================================================================
 

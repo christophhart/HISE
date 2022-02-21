@@ -195,6 +195,8 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, isFile);
 	API_METHOD_WRAPPER_0(ScriptFile, isDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, writeObject);
+	API_METHOD_WRAPPER_2(ScriptFile, writeAsXmlFile);
+	API_METHOD_WRAPPER_0(ScriptFile, loadFromXmlFile);
 	API_METHOD_WRAPPER_1(ScriptFile, writeString);
 	API_METHOD_WRAPPER_2(ScriptFile, writeEncryptedObject);
 	API_METHOD_WRAPPER_3(ScriptFile, writeAudioFile);
@@ -259,6 +261,8 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_2(setReadOnly);
 	ADD_API_METHOD_1(toReferenceString);
 	ADD_API_METHOD_1(getRelativePathFrom);
+	ADD_API_METHOD_0(loadFromXmlFile);
+	ADD_API_METHOD_2(writeAsXmlFile);
 }
 
 
@@ -368,6 +372,56 @@ bool ScriptingObjects::ScriptFile::writeObject(var jsonData)
 {
 	auto text = JSON::toString(jsonData);
 	return writeString(text);
+}
+
+bool ScriptingObjects::ScriptFile::writeAsXmlFile(var jsonDataToBeXmled, String tagName)
+{
+	ScopedPointer<XmlElement> xml = new XmlElement(tagName);
+
+	if (auto obj = jsonDataToBeXmled.getDynamicObject())
+	{
+		for (const auto& p : obj->getProperties())
+		{
+			if (p.value.isString())
+				xml->setAttribute(p.name, p.value.toString());
+			else if (p.value.isInt() || p.value.isInt64())
+				xml->setAttribute(p.name, (int)p.value);
+			else
+				xml->setAttribute(p.name, (double)p.value);
+		}
+	}
+
+	auto content = xml->createDocument("");
+	return writeString(content);
+}
+
+
+
+juce::var ScriptingObjects::ScriptFile::loadFromXmlFile()
+{
+	auto s = loadAsString();
+
+	if (auto xml = XmlDocument::parse(s))
+	{
+		DynamicObject::Ptr p = new DynamicObject();
+
+		for (int i = 0; i < xml->getNumAttributes(); i++)
+		{
+			auto id = xml->getAttributeName(i);
+			auto sv = xml->getStringAttribute(id);
+
+			if (sv.containsOnly("1234567890"))
+				p->setProperty(Identifier(id), sv.getIntValue());
+			else if (sv.containsOnly("1234567890."))
+				p->setProperty(Identifier(id), sv.getDoubleValue());
+			else
+				p->setProperty(Identifier(id), sv);
+		}
+
+		return var(p.get());
+	}
+
+	return var();
 }
 
 bool ScriptingObjects::ScriptFile::writeAudioFile(var audioData, double sampleRate, int bitDepth)
@@ -624,6 +678,33 @@ void ScriptingObjects::ScriptFile::show()
 	});
 }
 
+struct PartUpdater : public Timer
+{
+	PartUpdater(const std::function<void()>& f_):
+		f(f_)
+	{
+		startTimer(200);
+	}
+
+	~PartUpdater()
+	{
+		ScopedLock sl(lock);
+		stopTimer();
+	}
+
+	std::function<void()> f;
+
+	void timerCallback() override
+	{
+		ScopedLock sl(lock);
+		f();
+	}
+
+	CriticalSection lock;
+
+	bool abortFlag = false;
+};
+
 void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool overwriteFiles, var callback)
 {
 	File tf;
@@ -646,6 +727,8 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 
 		DynamicObject::Ptr data = new DynamicObject();
 
+		double entryProgress = 0.0;
+
 		data->setProperty("Status", 0);
 		data->setProperty("Progress", 0.0);
 		data->setProperty("TotalBytesWritten", 0);
@@ -657,7 +740,7 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 		int64 numBytesWritten = 0;
 
 		WeakCallbackHolder cb(safeThis.get()->getScriptProcessor(), callback, 1);
-		cb.setThisObject(safeThis.get());
+		//cb.setThisObject(safeThis.get());
 		cb.incRefCount();
 
 		if (cb)
@@ -669,7 +752,13 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 		data->setProperty("Status", 1);
 		int numEntries = zipFile.getNumEntries();
 		bool callForEachFile = numEntries < 500;
+		
+		int64 numBytesToWrite = 0;
 
+		for (int i = 0; i < numEntries; i++)
+		{
+			numBytesToWrite += zipFile.getEntry(i)->uncompressedSize;
+		}
 
 		for (int i = 0; i < numEntries; i++)
 		{
@@ -689,12 +778,40 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 			c->setProperty("TotalBytesWritten", numBytesWritten);
 			c->setProperty("CurrentFile", zipFile.getEntry(i)->filename);
 
-			if (callForEachFile && cb)
+			ScopedPointer<PartUpdater> partUpdater;
+
+			auto entrySize = zipFile.getEntry(i)->uncompressedSize;
+
+			auto updateEntryProgress = entrySize > 200 * 1024 * 1024;
+			
+			if (updateEntryProgress)
+			{
+				auto f = [&]()
+				{
+					auto c2 = c->clone();
+					auto betterProgress = ((double)numBytesWritten + entryProgress * (double)entrySize) / (double)numBytesToWrite;
+
+					safeThis.get()->getScriptProcessor()->getMainController_()->getSampleManager().getPreloadProgress() = betterProgress;
+					c2->setProperty("Progress", betterProgress);
+
+					if (cb)
+					{
+						cb.call1(var(c2.get()));
+					}
+				};
+
+				partUpdater = new PartUpdater(f);
+			}
+			else if (callForEachFile && cb)
 				cb.call1(var(c.get()));
 
-			auto result = zipFile.uncompressEntry(i, tf, overwriteFiles);
 
-			numBytesWritten += zipFile.getEntry(i)->uncompressedSize;
+			auto result = zipFile.uncompressEntry(i, tf, overwriteFiles, &entryProgress);
+
+			
+			partUpdater = nullptr;
+
+			numBytesWritten += entrySize;
 
 			if (result.failed())
 			{
@@ -5436,6 +5553,7 @@ struct ScriptingObjects::ScriptBackgroundTask::Wrapper
 	API_METHOD_WRAPPER_1(ScriptBackgroundTask, getProperty);
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setFinishCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, callOnBackgroundThread);
+	API_METHOD_WRAPPER_1(ScriptBackgroundTask, killVoicesAndCall);
 	API_METHOD_WRAPPER_0(ScriptBackgroundTask, getProgress);
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setProgress);
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setTimeOut);
@@ -5456,6 +5574,7 @@ ScriptingObjects::ScriptBackgroundTask::ScriptBackgroundTask(ProcessorWithScript
 	ADD_API_METHOD_1(getProperty);
 	ADD_API_METHOD_1(setFinishCallback);
 	ADD_API_METHOD_1(callOnBackgroundThread);
+	ADD_API_METHOD_1(killVoicesAndCall);
 	ADD_API_METHOD_0(getProgress);
 	ADD_API_METHOD_1(setProgress);
 	ADD_API_METHOD_1(setTimeOut);
@@ -5531,6 +5650,35 @@ void ScriptingObjects::ScriptBackgroundTask::callOnBackgroundThread(var backgrou
 		currentTask.incRefCount();
 		startThread(6);
 	}
+}
+
+bool ScriptingObjects::ScriptBackgroundTask::killVoicesAndCall(var loadingFunction)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(loadingFunction))
+	{
+		stopThread(timeOut);
+		currentTask = WeakCallbackHolder(getScriptProcessor(), loadingFunction, 0);
+		currentTask.incRefCount();
+		
+		WeakReference<ScriptBackgroundTask> safeThis(this);
+
+		auto f = [safeThis](Processor* p)
+		{
+			if (safeThis != nullptr)
+			{
+				auto r = safeThis->currentTask.callSync(nullptr, 0, nullptr);
+
+				if (!r.wasOk())
+					debugError(p, r.getErrorMessage());
+			}
+				
+			return SafeFunctionCall::OK;
+		};
+
+		return getScriptProcessor()->getMainController_()->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(getScriptProcessor()), f, MainController::KillStateHandler::SampleLoadingThread);
+	}
+
+	return false;
 }
 
 void ScriptingObjects::ScriptBackgroundTask::setProgress(double p)

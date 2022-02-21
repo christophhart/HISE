@@ -263,6 +263,14 @@ void MidiKeyboardPanel::restoreInternal(const var& object)
 
 	mpeZone = { startChannel, endChannel };
 
+	auto bgColour = findPanelColour(PanelColourId::bgColour);
+
+	if (bgColour.isTransparent())
+	{
+		keyboard->asComponent()->setColour(juce::MidiKeyboardComponent::ColourIds::shadowColourId, bgColour);
+		keyboard->asComponent()->setColour(juce::MidiKeyboardComponent::ColourIds::keySeparatorLineColourId, bgColour);
+	}
+
 	if (keyboard->isMPEKeyboard())
 	{
 		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::bgColour, findPanelColour(PanelColourId::bgColour));
