@@ -620,7 +620,7 @@ namespace ScriptingObjects
 	{
 		using Ptr = ReferenceCountedObjectPtr<ScriptDownloadObject>;
 
-		ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const File& targetFile, var callback);;
+		ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const String& extraHeader, const File& targetFile, var callback);;
 
 		~ScriptDownloadObject();
 
@@ -721,6 +721,8 @@ namespace ScriptingObjects
 		File targetFile;
 
 		WeakCallbackHolder callback;
+
+		String extraHeaders;
 
 		ScopedPointer<URL::DownloadTask> download;
 

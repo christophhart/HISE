@@ -875,11 +875,12 @@ struct ScriptingObjects::ScriptDownloadObject::Wrapper
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, getDownloadSpeed);
 };
 
-ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const File& targetFile_, var callback_) :
+ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const String& extraHeader_, const File& targetFile_, var callback_) :
 	ConstScriptingObject(pwsc, 3),
 	callback(pwsc, callback_, 0),
 	downloadURL(url),
 	targetFile(targetFile_),
+	extraHeaders(extraHeader_),
 	jp(dynamic_cast<JavascriptProcessor*>(pwsc))
 {
 	data = new DynamicObject();
@@ -972,7 +973,7 @@ bool ScriptingObjects::ScriptDownloadObject::resumeInternal()
 
 			int status = 0;
 
-			auto wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
+			auto wis = downloadURL.createInputStream(false, nullptr, nullptr, extraHeaders, 0, nullptr, &status);
 
 			auto numTotal = wis != nullptr ? wis->getTotalLength() : 0;
 
@@ -1180,7 +1181,7 @@ void ScriptingObjects::ScriptDownloadObject::start()
 
 	int status = 0;
 
-	auto wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &status);
+	auto wis = downloadURL.createInputStream(false, nullptr, nullptr, extraHeaders, HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &status);
 
 	if (Thread::currentThreadShouldExit())
 		return;

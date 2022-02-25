@@ -6009,7 +6009,7 @@ var ScriptingApi::Server::downloadFile(String subURL, var parameters, var target
 
 		if(urlToUse.isWellFormed())
 		{
-			ScriptingObjects::ScriptDownloadObject::Ptr p = new ScriptingObjects::ScriptDownloadObject(getScriptProcessor(), urlToUse, sf->f, callback);
+			ScriptingObjects::ScriptDownloadObject::Ptr p = new ScriptingObjects::ScriptDownloadObject(getScriptProcessor(), urlToUse, globalServer.getExtraHeader(), sf->f, callback);
 			return globalServer.addDownload(p);
 		}
 	}
