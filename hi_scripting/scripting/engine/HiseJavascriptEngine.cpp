@@ -1296,8 +1296,10 @@ struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWith
 			replaceArgs("paintFunction", "g");
 			replaceArgs("mouseCallbackFunction", "event");
 			replaceArgs("loadingCallback", "isPreloading");
-			replaceArgs("displayFunction", "displayValue");
+            replaceArgs("loadingFunction", ""); // this is peak code quality right here...
+            replaceArgs("displayFunction", "displayValue");
 			replaceArgs("contentFunction", "changedIndex");
+            
 			
 			replaceArgs("presetPreCallback", "presetData");
 			replaceArgs("presetPostCallback", "presetFile");
