@@ -436,8 +436,8 @@ struct Stack : public Array
 		API_METHOD_WRAPPER_0(Stack, isEmpty);
 	};
 
-	Stack(ProcessorWithScriptingContent* s) :
-		Array(s, 128)
+	Stack(ProcessorWithScriptingContent* s, int numElements) :
+		Array(s, numElements)
 	{
 		ADD_API_METHOD_1(insert);
 		ADD_API_METHOD_1(remove);
@@ -501,7 +501,7 @@ struct Factory : public LayoutBase,
 	var createArray(int numElements);
 
 	/** Creates an unordered stack. */
-	var createStack();
+	var createStack(int numElements);
 
 	/** Registers a function that will be used for comparison. */
 	void setCompareFunction(var newCompareFunction);
@@ -516,7 +516,7 @@ private:
 	{
 		API_METHOD_WRAPPER_0(Factory, create);
 		API_METHOD_WRAPPER_1(Factory, createArray);
-		API_METHOD_WRAPPER_0(Factory, createStack);
+		API_METHOD_WRAPPER_1(Factory, createStack);
 		API_VOID_METHOD_WRAPPER_1(Factory, setCompareFunction);
 	};
 
