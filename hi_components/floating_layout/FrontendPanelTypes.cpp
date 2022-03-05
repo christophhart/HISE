@@ -1287,7 +1287,7 @@ void TableFloatingTileBase::initTable()
 
 	table.getHeader().addColumn(getIndexName(), CCNumber, fWidth, fWidth, fWidth);
 	table.getHeader().addColumn("Parameter", ParameterName, 70);
-	table.getHeader().addColumn("Inverted", Inverted, 50, 50, 50);
+	table.getHeader().addColumn("Inverted", Inverted, 70, 70, 70);
 	table.getHeader().addColumn("Min", Minimum, 70, 70, 70);
 	table.getHeader().addColumn("Max", Maximum, 70, 70, 70);
 	table.getHeader().setStretchToFitActive(true);
