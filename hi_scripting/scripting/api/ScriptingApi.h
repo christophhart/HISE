@@ -668,6 +668,9 @@ public:
 
 		/** Enable OpenGL. This setting will be applied the next time the interface is rebuild. */
 		void setEnableOpenGL(bool shouldBeEnabled);
+		
+		/** Enables or disables debug logging */
+		void setEnableDebugMode(bool shouldBeEnabled);
 
 		// ============================================================================================================
 
