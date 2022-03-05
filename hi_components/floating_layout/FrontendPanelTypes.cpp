@@ -1166,8 +1166,8 @@ TableFloatingTileBase::InvertedButton::InvertedButton(TableFloatingTileBase &own
 {
 	laf.setFontForAll(owner.font);
 
-	addAndMakeVisible(t = new TextButton("Inverted"));
-	t->setButtonText("Inverted");
+	addAndMakeVisible(t = new TextButton("Inv"));
+	t->setButtonText("Inv");
 	t->setLookAndFeel(&laf);
 	t->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
 	t->addListener(this);
@@ -1190,12 +1190,12 @@ void TableFloatingTileBase::InvertedButton::setRowAndColumn(const int newRow, bo
 	row = newRow;
 
 	t->setToggleState(value, dontSendNotification);
-	t->setButtonText(value ? "Inverted" : "Normal");
+	t->setButtonText(value ? "Inv" : "Norm");
 }
 
 void TableFloatingTileBase::InvertedButton::buttonClicked(Button *b)
 {
-	t->setButtonText(b->getToggleState() ? "Inverted" : "Normal");
+	t->setButtonText(b->getToggleState() ? "Inv" : "Norm");
 	owner.setInverted(row, b->getToggleState());
 }
 
@@ -1287,9 +1287,9 @@ void TableFloatingTileBase::initTable()
 
 	table.getHeader().addColumn(getIndexName(), CCNumber, fWidth, fWidth, fWidth);
 	table.getHeader().addColumn("Parameter", ParameterName, 70);
-	table.getHeader().addColumn("Inverted", Inverted, 50, 50, 50);
-	table.getHeader().addColumn("Min", Minimum, 70, 70, 70);
-	table.getHeader().addColumn("Max", Maximum, 70, 70, 70);
+	table.getHeader().addColumn("Invert", Inverted, 40, 40, 40);
+	table.getHeader().addColumn("Min", Minimum, 60, 60, 60);
+	table.getHeader().addColumn("Max", Maximum, 60, 60, 60);
 	table.getHeader().setStretchToFitActive(true);
 }
 
@@ -1439,7 +1439,10 @@ void TableFloatingTileBase::paintCell(Graphics& g, int rowNumber, int columnId, 
 	g.setFont(font);
 	auto text = getCellText(rowNumber, columnId);
 
-	g.drawText(text, 2, 0, width - 4, height, Justification::centredLeft, true);
+	if (columnId == ParameterName)
+		g.drawText(text, 3, 0, width - 3, height, Justification::centredLeft, true);
+	else
+		g.drawText(text, 0, 0, width, height, Justification::centred, true);
 }
 
 } // namespace hise
