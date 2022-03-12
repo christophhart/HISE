@@ -643,6 +643,8 @@ void SliderPack::setValuesFromLine()
 {
 	data->setNewUndoAction();
 
+    int lastIndex = -1;
+    
 	for (int i = 0; i < sliders.size(); i++)
 	{
 		Slider *s = sliders[i];
@@ -659,10 +661,12 @@ void SliderPack::setValuesFromLine()
 
 			double value = s->proportionOfLengthToValue(normalizedValue);
 
-			s->setValue(value, sendNotificationAsync);
+            data->setValue(i, value, dontSendNotification, true);
+            lastIndex = -1;
 		}
-
 	}
+    
+    data->getUpdater().sendContentChangeMessage(sendNotificationAsync, lastIndex);
 
 	rightClickLine = Line<float>(0.0f, 0.0f, 0.0f, 0.0f);
 }
