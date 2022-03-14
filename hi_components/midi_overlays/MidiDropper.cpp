@@ -108,7 +108,6 @@ void MidiFileDragAndDropper::mouseDown(const MouseEvent& e)
 
 				performExternalDragDropOfFiles({ tmp.getFullPathName() }, false, this, [tmp, this]()
 				{
-					this->externalDrag = false;
 					this->repaint();
 
 					auto f = [tmp]()
