@@ -330,17 +330,10 @@ void SampleMap::parseValueTree(const ValueTree &v)
 
 	micPositions.removeEmptyStrings(true);
 
-	if (!sampler->isUsingStaticMatrix())
-	{
-		if (micPositions.size() != 0)
-		{
-			sampler->setNumMicPositions(micPositions);
-		}
-		else
-		{
-			sampler->setNumChannels(numChannels);
-		}
-	}
+	if (micPositions.size() != 0)
+		sampler->setNumMicPositions(micPositions);
+	else
+		sampler->setNumChannels(numChannels);
 
 	auto& progress = getSampler()->getMainController()->getSampleManager().getPreloadProgress();
 
