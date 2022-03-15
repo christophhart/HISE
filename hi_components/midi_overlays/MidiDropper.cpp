@@ -94,35 +94,28 @@ void MidiFileDragAndDropper::mouseDown(const MouseEvent& e)
 	}
 	else
 	{
-		if (externalDrag)
+		if (currentSequence != nullptr)
 		{
-			if (currentSequence != nullptr)
+			auto c = currentSequence->clone();
+			c->setCurrentTrackIndex(getPlayer()->getAttribute(MidiPlayer::CurrentTrack) - 1);
+			c->trimInactiveTracks();
+
+			auto tmp = c->writeToTempFile();
+			externalDrag = true;
+			repaint();
+
+			performExternalDragDropOfFiles({ tmp.getFullPathName() }, false, this, [tmp, this]()
 			{
-				auto c = currentSequence->clone();
-				c->setCurrentTrackIndex(getPlayer()->getAttribute(MidiPlayer::CurrentTrack) - 1);
-				c->trimInactiveTracks();
+				this->externalDrag = false;
+				this->repaint();
 
-				auto tmp = c->writeToTempFile();
-				externalDrag = true;
-				repaint();
-
-				performExternalDragDropOfFiles({ tmp.getFullPathName() }, false, this, [tmp, this]()
+				auto f = [tmp]()
 				{
-					this->repaint();
+					tmp.deleteFile();
+				};
 
-					auto f = [tmp]()
-					{
-						tmp.deleteFile();
-					};
-
-					new DelayedFunctionCaller(f, 2000);
-				});
-			}
-		}
-		else
-		{
-			auto d = getPlayer()->getPoolReference().createDragDescription();
-			startDragging(d, this, createSnapshot(), true);
+				new DelayedFunctionCaller(f, 2000);
+			});
 		}
 	}
 }
