@@ -1789,6 +1789,7 @@ struct ScriptingApi::Settings::Wrapper
 	API_METHOD_WRAPPER_0(Settings, getUserDesktopSize);
 	API_METHOD_WRAPPER_0(Settings, isOpenGLEnabled);
 	API_VOID_METHOD_WRAPPER_1(Settings, setEnableOpenGL);
+	API_VOID_METHOD_WRAPPER_1(Settings, setEnableDebugMode);
 };
 
 ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
@@ -1830,6 +1831,7 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 	ADD_API_METHOD_0(getUserDesktopSize);
 	ADD_API_METHOD_0(isOpenGLEnabled);
 	ADD_API_METHOD_1(setEnableOpenGL);
+	ADD_API_METHOD_1(setEnableDebugMode);
 }
 
 var ScriptingApi::Settings::getUserDesktopSize()
@@ -1853,6 +1855,12 @@ void ScriptingApi::Settings::setEnableOpenGL(bool shouldBeEnabled)
 {
 	driver->useOpenGL = shouldBeEnabled;
 }
+
+void ScriptingApi::Settings::setEnableDebugMode(bool shouldBeEnabled)
+{
+	shouldBeEnabled ? mc->getDebugLogger().startLogging() : mc->getDebugLogger().stopLogging();	
+}
+
 
 double ScriptingApi::Settings::getZoomLevel() const
 {
