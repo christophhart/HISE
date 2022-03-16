@@ -446,6 +446,9 @@ public:
 
 		/** Returns the current operating system ("OSX", "LINUX", or ("WIN"). */
 		String getOS();
+		
+		/** Returns info about the current hardware and OS configuration. */
+		var getSystemStats();
 				
 		/** Returns the mobile device that this software is running on. */
 		String getDeviceType();
