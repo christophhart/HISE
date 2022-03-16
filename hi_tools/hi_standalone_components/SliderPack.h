@@ -166,7 +166,7 @@ public:
 		return nextIndexToDisplay;
 	}
 
-	void swapData(const var &otherData);
+	void swapData(const var &otherData, NotificationType n);
 
 	void setDisplayedIndex(int index)
 	{
@@ -215,7 +215,7 @@ public:
 
 private:
 
-	void swapBuffer(VariantBuffer::Ptr otherBuffer);
+	void swapBuffer(VariantBuffer::Ptr otherBuffer, NotificationType n);
 
 	struct SliderPackAction : public UndoableAction
 	{
@@ -332,15 +332,7 @@ public:
 		}
 	} 
 
-	void displayedIndexChanged(SliderPackData* d, int newIndex) override
-	{
-		if (currentDisplayIndex != newIndex)
-		{
-			currentDisplayIndex = newIndex;
-			displayAlphas.set(newIndex, 0.4f);
-			startTimer(30);
-		}
-	}
+	void displayedIndexChanged(SliderPackData* d, int newIndex) override;
 
 	void timerCallback() override;
 
