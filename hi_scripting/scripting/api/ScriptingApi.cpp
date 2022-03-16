@@ -1116,7 +1116,8 @@ void ScriptingApi::Engine::loadFontAs(String fileName, String fontId)
 	if (FullInstrumentExpansion::isEnabled(getProcessor()->getMainController()))
 	{
 		// Already loaded???
-		return;
+		if (auto e = FullInstrumentExpansion::getCurrentFullExpansion(getProcessor()->getMainController()))
+			return;
 	}
 
 	const String absolutePath = GET_PROJECT_HANDLER(getProcessor()).getFilePath(fileName, ProjectHandler::SubDirectories::Images);
