@@ -3494,6 +3494,7 @@ var ScriptingApi::Sampler::loadSfzFile(var sfzFile)
 			{
 				auto delta = Time::getMillisecondCounter();
 				auto v = imp.importSfzFile();
+				v.setProperty("ID", "CustomSFZ", nullptr);
 				delta = Time::getMillisecondCounter() - delta;
 				dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(delta);
 
