@@ -582,6 +582,7 @@ namespace ScriptingObjects
 
 			void drawScrollbar(Graphics& g, ScrollBar& scrollbar, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown) override;
 
+			void drawAhdsrBackground(Graphics& g, AhdsrGraph& graph) override;
 			void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive) override;
 			void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p) override;
 
