@@ -281,11 +281,12 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		setMethod("charAt", charAt);
 		setMethod("charCodeAt", charCodeAt);
 		setMethod("fromCharCode", fromCharCode);
-        setMethod("replace", replace);
+		setMethod("replace", replace);
 		setMethod("split", split);
 		setMethod("lastIndexOf", lastIndexOf);
 		setMethod("toLowerCase", toLowerCase);
 		setMethod("toUpperCase", toUpperCase);
+		setMethod("toStartCase", toStartCase);
 		setMethod("parseAsJSON", parseAsJSON);
 		setMethod("trim", trim);
 		setMethod("concat", concat);
@@ -299,12 +300,11 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 	static var indexOf(Args a)       { return a.thisObject.toString().indexOf(getString(a, 0)); }
 	static var lastIndexOf(Args a)		 { return a.thisObject.toString().lastIndexOf(getString(a, 0)); }
 	static var charCodeAt(Args a)    { return (int)a.thisObject.toString()[getInt(a, 0)]; }
-    static var replace(Args a)       { return a.thisObject.toString().replace(getString(a, 0), getString(a, 1)); }
+	static var replace(Args a)       { return a.thisObject.toString().replace(getString(a, 0), getString(a, 1)); }
 	static var charAt(Args a)        { int p = getInt(a, 0); return a.thisObject.toString().substring(p, p + 1); }
 	static var parseAsJSON(Args a)   { return JSON::parse(a.thisObject.toString()); }	
 	static var toUpperCase(Args a) { return a.thisObject.toString().toUpperCase(); };
 	static var toLowerCase(Args a) { return a.thisObject.toString().toLowerCase(); };
-
 	static var trim(Args a) { return a.thisObject.toString().trim(); };
 
 	static var concat(Args a)
@@ -337,6 +337,28 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 
 		return array;
 	}
+	
+	static var toStartCase(Args a)
+	{
+		const String str(a.thisObject.toString());
+
+		StringArray strings;
+		strings.addTokens(str, " ", "");
+
+		StringArray result;
+		String firstLetter;
+		
+		for (int i = 0; i < strings.size(); i++)
+		{
+			firstLetter = strings[i].substring(0, 1);
+			firstLetter = firstLetter.toUpperCase();
+			strings[i] = firstLetter + strings[i].substring(1, 999).toLowerCase();
+			result.add(strings[i]);
+		}
+
+		return var(result.joinIntoString(" ", 0, -1));
+	}
+
 };
 
 #define Array Array<var>
@@ -377,6 +399,9 @@ public:
 
 	/** Converts a string to uppercase letters. */
 	String toUpperCase() { return String(); }
+	
+	/** Converts a string to start case (first letter of every word is uppercase). */
+	String toStartCase() { return String(); }
 
 	/** Returns a copy of this string with any whitespace characters removed from the start and end. */
 	String trim() { return String(); }
