@@ -352,7 +352,7 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		{
 			firstLetter = strings[i].substring(0, 1);
 			firstLetter = firstLetter.toUpperCase();
-			strings[i] = firstLetter + strings[i].substring(1, 999).toLowerCase();
+			strings[i] = firstLetter + strings[i].substring(1, 999);
 			result.add(strings[i]);
 		}
 
