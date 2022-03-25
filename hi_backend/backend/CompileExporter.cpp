@@ -2369,7 +2369,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
         ADD_LINE("echo Compiling " << projectType << " " << projectName << " ...");
 
 		String xcodeLine;
-		xcodeLine << "xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"" << exporter->configurationName << "\"";
+		xcodeLine << "xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"" << exporter->configurationName << "\" -jobs \"" << threads << "\"";
 
 		if (!isUsingCIMode())
 		{
