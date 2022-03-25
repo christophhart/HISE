@@ -286,7 +286,7 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		setMethod("lastIndexOf", lastIndexOf);
 		setMethod("toLowerCase", toLowerCase);
 		setMethod("toUpperCase", toUpperCase);
-		setMethod("toStartCase", toStartCase);
+		setMethod("capitalize", capitalize);
 		setMethod("parseAsJSON", parseAsJSON);
 		setMethod("trim", trim);
 		setMethod("concat", concat);
@@ -338,7 +338,7 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		return array;
 	}
 	
-	static var toStartCase(Args a)
+	static var capitalize(Args a)
 	{
 		const String str(a.thisObject.toString());
 
@@ -352,8 +352,7 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		{
 			firstLetter = strings[i].substring(0, 1);
 			firstLetter = firstLetter.toUpperCase();
-			strings[i] = firstLetter + strings[i].substring(1, 999);
-			result.add(strings[i]);
+			result.add(firstLetter + strings[i].substring(1));
 		}
 
 		return var(result.joinIntoString(" ", 0, -1));
@@ -401,7 +400,7 @@ public:
 	String toUpperCase() { return String(); }
 	
 	/** Converts a string to start case (first letter of every word is uppercase). */
-	String toStartCase() { return String(); }
+	String capitalize() { return String(); }
 
 	/** Returns a copy of this string with any whitespace characters removed from the start and end. */
 	String trim() { return String(); }
