@@ -1717,6 +1717,12 @@ public:
 		/** Unload all images from the panel. */
 		void unloadAllImages();
 
+		/** Returns the width of a loaded image. */
+		int getImageWidth(String imageName);
+
+		/** Returns the height of a loaded image. */
+		int getImageHeight(String imageName);
+
 		/** If `allowedDragging` is enabled, it will define the boundaries where the panel can be dragged. */
 		void setDraggingBounds(var area);
 
