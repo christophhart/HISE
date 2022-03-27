@@ -3888,8 +3888,23 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 			reportScriptError("You must call Engine.loadAudioFilesIntoPool() before using this method");
 #endif
 
+		String fileName_ = fileName;
+
+		if (FullInstrumentExpansion::isEnabled(audioSampleProcessor->getMainController()))
+		{
+			static const String projectFolderWildcard("{PROJECT_FOLDER}");
+			
+			if (fileName.startsWith(projectFolderWildcard))
+			{
+				if (auto e = audioSampleProcessor->getMainController()->getExpansionHandler().getCurrentExpansion())
+				{
+					fileName_ = fileName.replace(projectFolderWildcard, e->getWildcard());
+				}
+			}
+		}
+
 		auto asp = dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get());
-		asp->getBuffer().fromBase64String(fileName);
+		asp->getBuffer().fromBase64String(fileName_);
 	}
 }
 
