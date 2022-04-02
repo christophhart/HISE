@@ -1460,6 +1460,8 @@ public:
 			Documents,
 			Desktop,
 			Downloads,
+			Applications,
+			Temp,
 			numSpecialLocations
 		};
 
