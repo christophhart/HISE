@@ -384,6 +384,18 @@ namespace ScriptedDrawActions
 		float scale;
 	};
 
+	struct drawMultiLineText : public DrawActions::ActionBase
+	{
+		drawMultiLineText(const String& text_, int startX_, int baseLineY_, int maxWidth_, Justification j_ = Justification::centred, float leading_ = 0.0f) : text(text_), startX(startX_), baseLineY(baseLineY_), maxWidth(maxWidth_), j(j_), leading(leading_) {};
+		void perform(Graphics& g) override { g.drawMultiLineText(text, startX, baseLineY, maxWidth, j, leading); };
+		String text;
+        int startX;
+        int baseLineY;
+		int maxWidth;
+		Justification j;
+		float leading;
+	};
+
 	struct drawDropShadow : public DrawActions::ActionBase
 	{
 		drawDropShadow(Rectangle<int> r_, DropShadow& shadow_) : r(r_), shadow(shadow_) {};
