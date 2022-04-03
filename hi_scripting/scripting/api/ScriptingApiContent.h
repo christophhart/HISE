@@ -572,7 +572,7 @@ public:
 		void setControlCallback(var controlFunction);
 
 		/** Call this to indicate that the value has changed (the onControl callback will be executed. */
-		void changed();
+		virtual void changed();
 
 		/** Returns a list of all property IDs as array. */
 		var getAllProperties();
@@ -1417,7 +1417,7 @@ public:
 
 		// ========================================================================================================
 
-		
+		void changed() override;
 
 		struct Wrapper;
 

@@ -356,6 +356,9 @@ namespace ScriptingObjects
 		/** Extracts the ZIP archive if this file is a .zip file. */
 		void extractZipFile(var targetDirectory, bool overwriteFiles, var callback);
 
+		/** Returns the number of items in the zip file. */
+		int getNumZippedItems();
+
 		/** Changes the read/write permission for the given file. */
 		void setReadOnly(bool shouldBeReadOnly, bool applyRecursively);
 
@@ -620,7 +623,7 @@ namespace ScriptingObjects
 	{
 		using Ptr = ReferenceCountedObjectPtr<ScriptDownloadObject>;
 
-		ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const File& targetFile, var callback);;
+		ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const String& extraHeader, const File& targetFile, var callback);;
 
 		~ScriptDownloadObject();
 
@@ -721,6 +724,8 @@ namespace ScriptingObjects
 		File targetFile;
 
 		WeakCallbackHolder callback;
+
+		String extraHeaders;
 
 		ScopedPointer<URL::DownloadTask> download;
 

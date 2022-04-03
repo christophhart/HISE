@@ -873,7 +873,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, matchesRegex);
 	API_METHOD_WRAPPER_2(Engine, getRegexMatches);
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
-	API_METHOD_WRAPPER_0(Engine, getOS);	
+	API_METHOD_WRAPPER_0(Engine, getOS);
+	API_METHOD_WRAPPER_0(Engine, getSystemStats);
 	API_METHOD_WRAPPER_0(Engine, isPlugin);
 	API_METHOD_WRAPPER_0(Engine, isHISE);
 	API_VOID_METHOD_WRAPPER_0(Engine, reloadAllSamples);
@@ -995,6 +996,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_2(doubleToString);
 	ADD_API_METHOD_1(getMasterPeakLevel);
 	ADD_API_METHOD_0(getOS);
+	ADD_API_METHOD_0(getSystemStats);
 	ADD_API_METHOD_0(getDeviceType);
 	ADD_API_METHOD_0(getDeviceResolution);
 	ADD_API_METHOD_0(isPlugin);
@@ -1116,7 +1118,8 @@ void ScriptingApi::Engine::loadFontAs(String fileName, String fontId)
 	if (FullInstrumentExpansion::isEnabled(getProcessor()->getMainController()))
 	{
 		// Already loaded???
-		return;
+		if (auto e = FullInstrumentExpansion::getCurrentFullExpansion(getProcessor()->getMainController()))
+			return;
 	}
 
 	const String absolutePath = GET_PROJECT_HANDLER(getProcessor()).getFilePath(fileName, ProjectHandler::SubDirectories::Images);
@@ -1284,6 +1287,28 @@ String ScriptingApi::Engine::getOS()
 #else
 	return "OSX";
 #endif
+}
+
+var ScriptingApi::Engine::getSystemStats()
+{
+	auto obj = new DynamicObject();
+	
+	obj->setProperty("OperatingSystemName", SystemStats::getOperatingSystemName());
+	obj->setProperty("OperatingSystem64Bit", SystemStats::isOperatingSystem64Bit());
+	obj->setProperty("LogonName", SystemStats::getLogonName());
+	obj->setProperty("FullUserName", SystemStats::getFullUserName());
+	obj->setProperty("ComputerName", SystemStats::getComputerName());
+	obj->setProperty("UserLanguage", SystemStats::getUserLanguage());
+	obj->setProperty("UserRegion", SystemStats::getUserRegion());
+	obj->setProperty("DisplayLanguage", SystemStats::getDisplayLanguage());
+	obj->setProperty("NumCpus", SystemStats::getNumCpus());
+	obj->setProperty("NumPhysicalCpus", SystemStats::getNumPhysicalCpus());
+	obj->setProperty("CpuSpeedInMegahertz", SystemStats::getCpuSpeedInMegahertz());
+	obj->setProperty("CpuVendor", SystemStats::getCpuVendor());
+	obj->setProperty("CpuModel", SystemStats::getCpuModel());
+	obj->setProperty("MemorySizeInMegabytes", SystemStats::getMemorySizeInMegabytes());
+
+	return obj;
 }
 
 String ScriptingApi::Engine::getDeviceType()
@@ -1764,6 +1789,7 @@ struct ScriptingApi::Settings::Wrapper
 	API_METHOD_WRAPPER_0(Settings, getUserDesktopSize);
 	API_METHOD_WRAPPER_0(Settings, isOpenGLEnabled);
 	API_VOID_METHOD_WRAPPER_1(Settings, setEnableOpenGL);
+	API_VOID_METHOD_WRAPPER_1(Settings, setEnableDebugMode);
 };
 
 ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
@@ -1805,6 +1831,7 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 	ADD_API_METHOD_0(getUserDesktopSize);
 	ADD_API_METHOD_0(isOpenGLEnabled);
 	ADD_API_METHOD_1(setEnableOpenGL);
+	ADD_API_METHOD_1(setEnableDebugMode);
 }
 
 var ScriptingApi::Settings::getUserDesktopSize()
@@ -1828,6 +1855,12 @@ void ScriptingApi::Settings::setEnableOpenGL(bool shouldBeEnabled)
 {
 	driver->useOpenGL = shouldBeEnabled;
 }
+
+void ScriptingApi::Settings::setEnableDebugMode(bool shouldBeEnabled)
+{
+	shouldBeEnabled ? mc->getDebugLogger().startLogging() : mc->getDebugLogger().stopLogging();	
+}
+
 
 double ScriptingApi::Settings::getZoomLevel() const
 {
@@ -3494,6 +3527,7 @@ var ScriptingApi::Sampler::loadSfzFile(var sfzFile)
 			{
 				auto delta = Time::getMillisecondCounter();
 				auto v = imp.importSfzFile();
+				v.setProperty("ID", "CustomSFZ", nullptr);
 				delta = Time::getMillisecondCounter() - delta;
 				dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(delta);
 
@@ -5709,6 +5743,8 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	addConstant("Documents", (int)Documents);
 	addConstant("Desktop", (int)Desktop);
 	addConstant("Downloads", (int)Downloads);
+	addConstant("Applications", (int)Applications);
+	addConstant("Temp", (int)Temp);
 
 	ADD_API_METHOD_1(getFolder);
 	ADD_API_METHOD_3(findFiles);
@@ -5891,6 +5927,8 @@ juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 	case Documents: f = File::getSpecialLocation(File::userDocumentsDirectory); break;
 	case Desktop:	f = File::getSpecialLocation(File::userDesktopDirectory); break;
 	case Downloads: f = File::getSpecialLocation(File::userHomeDirectory).getChildFile("Downloads"); break;
+	case Applications: f = File::getSpecialLocation(File::globalApplicationsDirectory); break;
+	case Temp: f = File::getSpecialLocation(File::tempDirectory); break;
 	case AudioFiles: 
 #if USE_BACKEND
 		f = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::AudioFiles);
@@ -6009,7 +6047,7 @@ var ScriptingApi::Server::downloadFile(String subURL, var parameters, var target
 
 		if(urlToUse.isWellFormed())
 		{
-			ScriptingObjects::ScriptDownloadObject::Ptr p = new ScriptingObjects::ScriptDownloadObject(getScriptProcessor(), urlToUse, sf->f, callback);
+			ScriptingObjects::ScriptDownloadObject::Ptr p = new ScriptingObjects::ScriptDownloadObject(getScriptProcessor(), urlToUse, globalServer.getExtraHeader(), sf->f, callback);
 			return globalServer.addDownload(p);
 		}
 	}

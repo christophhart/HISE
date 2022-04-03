@@ -1517,7 +1517,7 @@ void MonolithExporter::updateSampleMap()
 					s.setProperty(SampleIds::SampleEnd, reader->lengthInSamples, nullptr);
 				}
 				
-				largestSample = jmax<int64>(largestSample, length);
+				largestSample = jmax<int64_t>(largestSample, length);
 
 				s.setProperty(MonolithIds::MonolithOffset, offset, nullptr);
 				s.setProperty(MonolithIds::MonolithLength, length, nullptr);

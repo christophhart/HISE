@@ -208,6 +208,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, rename);
 	API_METHOD_WRAPPER_1(ScriptFile, toReferenceString);
 	API_METHOD_WRAPPER_1(ScriptFile, getRelativePathFrom);
+	API_METHOD_WRAPPER_0(ScriptFile, getNumZippedItems);
 	API_VOID_METHOD_WRAPPER_2(ScriptFile, setReadOnly);
 	API_VOID_METHOD_WRAPPER_3(ScriptFile, extractZipFile);
 	API_VOID_METHOD_WRAPPER_0(ScriptFile, show);
@@ -258,6 +259,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_1(rename);
 	ADD_API_METHOD_0(show);
 	ADD_API_METHOD_3(extractZipFile);
+	ADD_API_METHOD_0(getNumZippedItems);
 	ADD_API_METHOD_2(setReadOnly);
 	ADD_API_METHOD_1(toReferenceString);
 	ADD_API_METHOD_1(getRelativePathFrom);
@@ -857,6 +859,12 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 	getScriptProcessor()->getMainController_()->getKillStateHandler().killVoicesAndCall(p, cb, MainController::KillStateHandler::SampleLoadingThread);
 }
 
+int ScriptingObjects::ScriptFile::getNumZippedItems()
+{
+	juce::ZipFile zipFile(f);
+	return zipFile.getNumEntries();
+}
+
 void ScriptingObjects::ScriptFile::setReadOnly(bool shouldBeReadOnly, bool applyRecursively)
 {
 	f.setReadOnly(shouldBeReadOnly, applyRecursively);
@@ -875,11 +883,12 @@ struct ScriptingObjects::ScriptDownloadObject::Wrapper
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, getDownloadSpeed);
 };
 
-ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const File& targetFile_, var callback_) :
+ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const String& extraHeader_, const File& targetFile_, var callback_) :
 	ConstScriptingObject(pwsc, 3),
 	callback(pwsc, callback_, 0),
 	downloadURL(url),
 	targetFile(targetFile_),
+	extraHeaders(extraHeader_),
 	jp(dynamic_cast<JavascriptProcessor*>(pwsc))
 {
 	data = new DynamicObject();
@@ -972,7 +981,7 @@ bool ScriptingObjects::ScriptDownloadObject::resumeInternal()
 
 			int status = 0;
 
-			auto wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
+			auto wis = downloadURL.createInputStream(false, nullptr, nullptr, extraHeaders, 0, nullptr, &status);
 
 			auto numTotal = wis != nullptr ? wis->getTotalLength() : 0;
 
@@ -1180,7 +1189,7 @@ void ScriptingObjects::ScriptDownloadObject::start()
 
 	int status = 0;
 
-	auto wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &status);
+	auto wis = downloadURL.createInputStream(false, nullptr, nullptr, extraHeaders, HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &status);
 
 	if (Thread::currentThreadShouldExit())
 		return;

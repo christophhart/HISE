@@ -524,8 +524,12 @@ public:
 			if (blockSize > 7 && isPowerOfTwo(blockSize))
 			{
 				SimpleReadWriteLock::ScopedWriteLock sl(parent->getRootNetwork()->getConnectionLock());
-				parent->prepare(originalSpecs);
-				parent->getRootNetwork()->runPostInitFunctions();
+                
+                if(originalSpecs)
+                {
+                    parent->prepare(originalSpecs);
+                    parent->getRootNetwork()->runPostInitFunctions();
+                }
 			}
 			else
 				blockSize = 64;

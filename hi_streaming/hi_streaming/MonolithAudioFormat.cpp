@@ -88,7 +88,9 @@ juce::File MonolithFileReference::getFile()
 
 	for (const auto& f : sampleRoots)
 	{
-		auto mf = f.getChildFile(path).withFileExtension(extension);
+		path << "." << extension;
+
+		auto mf = f.getChildFile(path);
 
 		if (!mf.existsAsFile())
 		{

@@ -756,7 +756,7 @@ public:
 
 	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || getPolyHandler()->getVoiceIndex() == 0; }
 
-	bool isInitialised() const noexcept { return currentSpecs.blockSize > 0 && currentSpecs.numChannels > 0; };
+    bool isInitialised() const noexcept { return initialised; };
 
 	bool isForwardingControlsToParameters() const
 	{
@@ -986,6 +986,8 @@ private:
 		valuetree::RecursiveTypedChildListener deleteChecker;
 	};
 
+    bool initialised = false;
+    
 	ScopedPointer<SelectionUpdater> selectionUpdater;
 
 	OwnedArray<NodeFactory> ownedFactories;

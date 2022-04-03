@@ -183,11 +183,11 @@ void SliderPackData::fromBase64(const String &encodedValues)
 
 		memcpy(newBuffer->buffer.getWritePointer(0), mb.getData(), mb.getSize());
 
-		swapBuffer(newBuffer);
+		swapBuffer(newBuffer, sendNotification);
 	}
 }
 
-void SliderPackData::swapData(const var &otherData)
+void SliderPackData::swapData(const var &otherData, NotificationType n)
 {
 	if (otherData.isArray())
 	{
@@ -200,11 +200,11 @@ void SliderPackData::swapData(const var &otherData)
 			(*newBuffer)[i] = (float)v;
 		}
 
-		swapBuffer(newBuffer);
+		swapBuffer(newBuffer, n);
 	}
 	else if (otherData.isBuffer())
 	{
-		swapBuffer(otherData.getBuffer());
+		swapBuffer(otherData.getBuffer(), n);
 	}
 }
 
@@ -213,11 +213,13 @@ void SliderPackData::setNewUndoAction() const
 	
 }
 
-void SliderPackData::swapBuffer(VariantBuffer::Ptr otherBuffer)
+void SliderPackData::swapBuffer(VariantBuffer::Ptr otherBuffer, NotificationType n)
 {
 	SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
 	std::swap(otherBuffer, dataBuffer);
-	internalUpdater.sendContentRedirectMessage();
+
+	if(n != dontSendNotification)
+		internalUpdater.sendContentRedirectMessage();
 }
 
 void SliderPackData::setNumSliders(int numSliders)
@@ -239,7 +241,7 @@ void SliderPackData::setNumSliders(int numSliders)
 				newBuffer->setSample(i, defaultValue);
 		}
 
-		swapBuffer(newBuffer);
+		swapBuffer(newBuffer, sendNotification);
 	}
 }
 
@@ -643,6 +645,8 @@ void SliderPack::setValuesFromLine()
 {
 	data->setNewUndoAction();
 
+    int lastIndex = -1;
+    
 	for (int i = 0; i < sliders.size(); i++)
 	{
 		Slider *s = sliders[i];
@@ -659,12 +663,33 @@ void SliderPack::setValuesFromLine()
 
 			double value = s->proportionOfLengthToValue(normalizedValue);
 
-			s->setValue(value, sendNotificationAsync);
+            data->setValue(i, value, dontSendNotification, true);
+            lastIndex = -1;
 		}
-
 	}
+    
+    data->getUpdater().sendContentChangeMessage(sendNotificationAsync, lastIndex);
 
 	rightClickLine = Line<float>(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
+void SliderPack::displayedIndexChanged(SliderPackData* d, int newIndex)
+{
+	if (auto s = sliders[newIndex])
+		s->setValue(getValue(newIndex), dontSendNotification);
+	else if (newIndex == -1)
+	{
+		for (int i = 0; i < getNumSliders(); i++)
+			sliders[i]->setValue(getValue(i), dontSendNotification);
+	}
+
+	if (currentDisplayIndex != newIndex)
+	{
+		currentDisplayIndex = newIndex;
+
+		displayAlphas.set(newIndex, 0.4f);
+		startTimer(30);
+	}
 }
 
 void SliderPack::timerCallback()

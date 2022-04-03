@@ -243,7 +243,7 @@ Factory::Factory(ProcessorWithScriptingContent* s, const var& d) :
 
 	ADD_API_METHOD_0(create);
 	ADD_API_METHOD_1(createArray);
-	ADD_API_METHOD_0(createStack);
+	ADD_API_METHOD_1(createStack);
 	ADD_API_METHOD_1(setCompareFunction);
 
 	addConstant("prototype", d);
@@ -282,11 +282,11 @@ var Factory::createArray(int numElements)
 	return {};
 }
 
-var Factory::createStack()
+var Factory::createStack(int numElements)
 {
 	if (initResult.wasOk())
 	{
-		auto newElement = new Stack(getScriptProcessor());
+		auto newElement = new Stack(getScriptProcessor(), numElements);
 		newElement->compareFunction = compareFunction;
 		newElement->init(this);
 		arrays.add(newElement);
