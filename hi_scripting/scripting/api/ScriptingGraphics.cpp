@@ -1655,6 +1655,7 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawThumbnailPath",
 		"drawThumbnailRange",
 		"drawThumbnailRuler",
+		"drawAhdsrBackground",
 		"drawAhdsrBall",
 		"drawAhdsrPath",
 		"drawKeyboardBackground",
