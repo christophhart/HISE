@@ -208,6 +208,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, rename);
 	API_METHOD_WRAPPER_1(ScriptFile, toReferenceString);
 	API_METHOD_WRAPPER_1(ScriptFile, getRelativePathFrom);
+	API_METHOD_WRAPPER_0(ScriptFile, getNumZippedItems);
 	API_VOID_METHOD_WRAPPER_2(ScriptFile, setReadOnly);
 	API_VOID_METHOD_WRAPPER_3(ScriptFile, extractZipFile);
 	API_VOID_METHOD_WRAPPER_0(ScriptFile, show);
@@ -258,6 +259,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_1(rename);
 	ADD_API_METHOD_0(show);
 	ADD_API_METHOD_3(extractZipFile);
+	ADD_API_METHOD_0(getNumZippedItems);
 	ADD_API_METHOD_2(setReadOnly);
 	ADD_API_METHOD_1(toReferenceString);
 	ADD_API_METHOD_1(getRelativePathFrom);
@@ -855,6 +857,12 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 	auto p = dynamic_cast<Processor*>(getScriptProcessor());
 
 	getScriptProcessor()->getMainController_()->getKillStateHandler().killVoicesAndCall(p, cb, MainController::KillStateHandler::SampleLoadingThread);
+}
+
+int ScriptingObjects::ScriptFile::getNumZippedItems()
+{
+	juce::ZipFile zipFile(f);
+	return zipFile.getNumEntries();
 }
 
 void ScriptingObjects::ScriptFile::setReadOnly(bool shouldBeReadOnly, bool applyRecursively)

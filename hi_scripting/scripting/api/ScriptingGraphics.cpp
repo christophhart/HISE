@@ -1025,6 +1025,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawAlignedText);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawFittedText);
+	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawMultiLineText);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setGradientFill);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawEllipse);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillEllipse);
@@ -1073,6 +1074,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_2(drawText);
 	ADD_API_METHOD_3(drawAlignedText);
 	ADD_API_METHOD_5(drawFittedText);
+	ADD_API_METHOD_5(drawMultiLineText);
 	ADD_API_METHOD_1(setGradientFill);
 	ADD_API_METHOD_2(drawEllipse);
 	ADD_API_METHOD_1(fillEllipse);
@@ -1334,6 +1336,20 @@ void ScriptingObjects::GraphicsObject::drawFittedText(String text, var area, Str
 		reportScriptError(re.getErrorMessage());
 
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawFittedText(text, area, just, maxLines, scale));
+}
+
+void ScriptingObjects::GraphicsObject::drawMultiLineText(String text, var xy, int maxWidth, String alignment, float leading)
+{
+	Result re = Result::ok();
+	auto just = ApiHelpers::getJustification(alignment, &re);
+
+	if (re.failed())
+		reportScriptError(re.getErrorMessage());
+    
+    int startX = (int)xy[0];
+    int baseLineY = (int)xy[1];
+    
+    drawActionHandler.addDrawAction(new ScriptedDrawActions::drawMultiLineText(text, startX, baseLineY, maxWidth, just, leading));
 }
 
 void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
