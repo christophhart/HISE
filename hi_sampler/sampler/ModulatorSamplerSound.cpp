@@ -161,9 +161,14 @@ ModulatorSamplerSound::ModulatorSamplerSound(SampleMap* parent, const ValueTree&
 
 	firstSound = soundArray.getFirst().get();
 
-    for(auto s: soundArray)
-        s->setDelayPreloadInitialisation(true);
-    
+	auto gv = parent->getCrossfadeGammaValue();
+
+	for (auto s : soundArray)
+	{
+		s->setDelayPreloadInitialisation(true);
+		s->setCrossfadeGammaValue(gv);
+	}
+
 	ScopedValueSetter<bool> svs(enableAsyncPropertyChange, false);
 
 	for (int i = 0; i < data.getNumProperties(); i++)

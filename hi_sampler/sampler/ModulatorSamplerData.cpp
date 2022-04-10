@@ -158,6 +158,24 @@ juce::String SampleMap::getMonolithID() const
 	return MonolithFileReference::getIdFromValueTree(data);
 }
 
+void SampleMap::updateCrossfades(Identifier id, var newValue)
+{
+	if (id == Identifier("CrossfadeGamma"))
+	{
+		auto gamma = (float)newValue;
+
+		ModulatorSampler::SoundIterator iter(getSampler(), true);
+
+		while (auto s = iter.getNextSound())
+		{
+			for (int i = 0; i < s->getNumMultiMicSamples(); i++)
+			{
+				s->getReferenceToSound(i)->setCrossfadeGammaValue(gamma);
+			}
+		}
+	}
+}
+
 hise::FileHandlerBase* SampleMap::getCurrentFileHandler() const
 {
 	FileHandlerBase* handler = &GET_PROJECT_HANDLER(sampler);
@@ -379,6 +397,11 @@ void SampleMap::parseValueTree(const ValueTree &v)
 const ValueTree SampleMap::getValueTree() const
 {
 	return data;
+}
+
+float SampleMap::getCrossfadeGammaValue() const
+{
+	return (float)data["CrossfadeGamma"];
 }
 
 void SampleMap::poolEntryReloaded(PoolReference referenceThatWasChanged)
@@ -761,6 +784,11 @@ void SampleMap::setNewValueTree(const ValueTree& v)
 
 	data = v;
 	data.addListener(this);
+
+	if (!data.hasProperty("CrossfadeGamma"))
+		data.setProperty("CrossfadeGamma", 1.0, nullptr);
+
+	crossfadeListener.setCallback(data, Identifier("CrossfadeGamma"), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(SampleMap::updateCrossfades));
 }
 
 void SampleMap::addSound(ValueTree& newSoundData)

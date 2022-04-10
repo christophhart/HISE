@@ -558,8 +558,11 @@ public:
 			repaint();
 		}
 
+		void setGamma(float newGamma);
+
 	private:
 
+		float gamma = 1.0f;
 		bool reversed = false;
 		bool useConstrainer;
 
