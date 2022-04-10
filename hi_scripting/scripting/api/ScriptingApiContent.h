@@ -1247,6 +1247,12 @@ public:
 				otherHolder = cd;
 				updateCachedObjectReference();
 			}
+			else if ((newData.isInt() || newData.isInt64()) && (int)newData == -1)
+			{
+				// just go back to its own data object
+				otherHolder = nullptr;
+				updateCachedObjectReference();
+			}
 		}
 
 		ComplexDataUIBase* getCachedDataObject() const { return cachedObjectReference.get(); };
@@ -1257,6 +1263,8 @@ public:
 		{
 			
 		}
+
+		ComplexDataUIBase::SourceWatcher& getSourceWatcher() { return sourceWatcher; }
 
 	protected:
 
@@ -1269,6 +1277,8 @@ public:
 
 			if (cachedObjectReference != nullptr)
 				cachedObjectReference->getUpdater().addEventListener(this);
+
+			sourceWatcher.setNewSource(cachedObjectReference);
 		}
 
 	private:
@@ -1284,6 +1294,8 @@ public:
 
 		WeakReference<ComplexDataUIBase> cachedObjectReference;
 		ReferenceCountedObjectPtr<ComplexDataUIBase> ownedObject;
+
+		ComplexDataUIBase::SourceWatcher sourceWatcher;
 	};
 
 	struct ScriptTable : public ComplexDataScriptComponent
@@ -1330,7 +1342,7 @@ public:
 		/** Makes the table snap to the given x positions (from 0.0 to 1.0). */
 		void setSnapValues(var snapValueArray);
 
-		/** Connects it to a table data object (or UI element in the same interface). */
+		/** Connects it to a table data object (or UI element in the same interface). -1 sets it back to its internal data object. */
 		void referToData(var tableData);
 
 		/** Registers this table (and returns a reference to the data) with the given index so you can use it from the outside. */
@@ -1392,7 +1404,7 @@ public:
 
 		// ======================================================================================================== API Methods
 
-		/** Connects this SliderPack to an existing SliderPackData object. */
+		/** Connects this SliderPack to an existing SliderPackData object. -1 sets it back to its internal data object. */
 		void referToData(var sliderPackData);
 
 		/** sets the slider value at the given index.*/
@@ -1464,7 +1476,7 @@ public:
 
 		// ======================================================================================================== API Methods
 
-		/** Connects this AudioFile to an existing ScriptAudioFile object. */
+		/** Connects this AudioFile to an existing ScriptAudioFile object. -1 sets it back to its internal data object. */
 		void referToData(var audioData);
 
 		/** Returns the current range start. */
