@@ -3065,6 +3065,8 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, changed);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, loadImage);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, unloadAllImages);
+	API_METHOD_WRAPPER_1(ScriptPanel, getImageWidth);
+	API_METHOD_WRAPPER_1(ScriptPanel, getImageHeight);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setDraggingBounds);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, setPopupData);
   API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
@@ -3168,6 +3170,8 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_0(stopTimer);
 	ADD_API_METHOD_2(loadImage);
 	ADD_API_METHOD_0(unloadAllImages);
+	ADD_API_METHOD_1(getImageWidth);
+	ADD_API_METHOD_1(getImageHeight);
 	ADD_API_METHOD_1(setDraggingBounds);
 	ADD_API_METHOD_2(setPopupData);
 	ADD_API_METHOD_3(setValueWithUndo);
@@ -3447,6 +3451,36 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 void ScriptingApi::Content::ScriptPanel::unloadAllImages()
 {
 	loadedImages.clear();
+}
+
+int ScriptingApi::Content::ScriptPanel::getImageWidth(String imageName)
+{
+	for (auto& img : loadedImages)
+	{
+		if (img.prettyName == imageName)
+		{
+			return img.image->data.getWidth();
+		}
+	}
+
+	debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Image " + imageName + " not found. ");
+
+	return 0;
+}
+
+int ScriptingApi::Content::ScriptPanel::getImageHeight(String imageName)
+{
+	for (auto& img : loadedImages)
+	{
+		if (img.prettyName == imageName)
+		{
+			return img.image->data.getHeight();
+		}
+	}
+
+	debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Image " + imageName + " not found. ");
+
+    return 0;
 }
 
 StringArray ScriptingApi::Content::ScriptPanel::getItemList() const
