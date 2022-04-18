@@ -5799,7 +5799,7 @@ var ScriptingApi::FileSystem::findFiles(var directory, String wildcard, bool rec
 	return l;
 }
 
-String ScriptingApi::FileSystem::descriptionOfSizeInBytes(int bytes)
+String ScriptingApi::FileSystem::descriptionOfSizeInBytes(int64 bytes)
 {
 	return File::descriptionOfSizeInBytes(bytes);
 };
