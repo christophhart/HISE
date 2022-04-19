@@ -544,7 +544,9 @@ public:
     var getRegexMatches(String stringToMatch, String regex);
 
     /** Returns a string of the value with the supplied number of digits. */
-    String doubleToString(double value, int digits);
+    String doubleToString(double value, int digits);	
+		/** Checks whether the CTRL key's flag is set. */
+		bool isCtrlDown();
 
 		/** Reverts the last controller change. */
 		void undo();
