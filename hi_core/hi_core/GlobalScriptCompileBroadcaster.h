@@ -151,6 +151,9 @@ private:
 
 class ScriptComponentEditBroadcaster;
 
+
+
+
 /** This class sends a message to all registered listeners. */
 class GlobalScriptCompileBroadcaster
 {
@@ -241,11 +244,17 @@ public:
 		currentScriptLaf = newLaf;
 	}
 
+	ReferenceCountedObject* getGlobalRoutingManager() { return routingManager.get(); }
+
+	void setGlobalRoutingManager(ReferenceCountedObject* newManager) { routingManager = newManager; };
+
 private:
 	
 	ReferenceCountedObjectPtr<ReferenceCountedObject> currentScriptLaf;
 
 	ScopedPointer<ScriptComponentEditBroadcaster> globalEditBroadcaster;
+
+	ReferenceCountedObjectPtr<ReferenceCountedObject> routingManager;
 
     void createDummyLoader();
     

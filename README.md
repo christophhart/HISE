@@ -69,27 +69,7 @@ Then remove the include directories from the **Debug** and **Release** configura
 1. Get these dependencies (taken from the JUCE forum):
 
 ```
-sudo apt-get -y install llvm
-sudo apt-get -y install clang
-sudo apt-get -y install libfreetype6-dev
-sudo apt-get -y install libx11-dev
-sudo apt-get -y install libxinerama-dev
-sudo apt-get -y install libxrandr-dev
-sudo apt-get -y install libxcursor-dev
-sudo apt-get -y install mesa-common-dev
-sudo apt-get -y install libasound2-dev
-sudo apt-get -y install freeglut3-dev
-sudo apt-get -y install libxcomposite-dev
-sudo apt-get -y install libcurl4-gnutls-dev
-
-and, since JUCE 5, also these:
-
-sudo apt-get -y install libwebkit2gtk-4.0 
-sudo apt-get -y install libgtk-3-dev
-
-If you want to use JACK, make sure it's also installed:
-
-sudo apt-get -y install libjack-jackd2-dev
+sudo apt-get -y install llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libwebkit2gtk-4.0 libgtk-3-dev libjack-jackd2-dev
 ```
 
 2. Clone this repository.

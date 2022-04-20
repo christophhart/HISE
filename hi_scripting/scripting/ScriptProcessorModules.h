@@ -212,6 +212,8 @@ private:
 	bool front, deferred, deferredUpdatePending;
 
 	StringArray storedModuleIds;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptMidiProcessor);
 };
 
 class JavascriptVoiceStartModulator : public JavascriptProcessor,
@@ -288,7 +290,8 @@ private:
 	ScopedPointer<SnippetDocument> onControllerCallback;
 	ScopedPointer<SnippetDocument> onControlCallback;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptVoiceStartModulator)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptVoiceStartModulator);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptVoiceStartModulator);
 };
 
 
@@ -393,7 +396,9 @@ private:
 	ScopedPointer<SnippetDocument> onControllerCallback;
 	ScopedPointer<SnippetDocument> onControlCallback;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptTimeVariantModulator)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptTimeVariantModulator);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptTimeVariantModulator);
+
 };
 
 class ScriptnodeVoiceKiller : public EnvelopeModulator,
@@ -639,7 +644,8 @@ private:
 	ScopedPointer<SnippetDocument> onInitCallback;
 	ScopedPointer<SnippetDocument> onControlCallback;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptEnvelopeModulator)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptEnvelopeModulator);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptEnvelopeModulator);
 };
 
 

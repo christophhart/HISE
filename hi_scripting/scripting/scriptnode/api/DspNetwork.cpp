@@ -445,6 +445,9 @@ void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
 
 void DspNetwork::process(ProcessDataDyn& data)
 {
+    if(!isInitialised())
+        return;
+    
 	if (projectNodeHolder.isActive())
 	{
 		projectNodeHolder.process(data);
@@ -506,6 +509,8 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 				if (projectNodeHolder.isActive())
 					projectNodeHolder.prepare(currentSpecs);
 			}
+            
+            initialised = true;
 		}
 		catch (String& errorMessage)
 		{

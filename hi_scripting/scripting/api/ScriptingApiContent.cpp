@@ -122,6 +122,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_METHOD_WRAPPER_0(ScriptComponent, getWidth);
 	API_METHOD_WRAPPER_0(ScriptComponent, getHeight);
 	API_METHOD_WRAPPER_1(ScriptComponent, getLocalBounds);
+	API_METHOD_WRAPPER_0(ScriptComponent, getChildComponents);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, changed);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionX);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
@@ -135,6 +136,89 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
 #define ADD_NUMBER_PROPERTY(id, name) ADD_SCRIPT_PROPERTY(id, name); jassert(numberPropertyIds.contains(id));
+
+struct ScriptingApi::Content::ScriptComponent::GlobalCableConnection : public scriptnode::routing::GlobalRoutingManager::CableTargetBase
+{
+	using Cable = scriptnode::routing::GlobalRoutingManager::Cable;
+	static constexpr auto CableType = scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable;
+
+	GlobalCableConnection(ScriptComponent& p) :
+		parent(p)
+	{};
+
+	~GlobalCableConnection()
+	{
+		if (cable != nullptr)
+		{
+			cable->removeTarget(this);
+		}
+	}
+
+	void call(double v)
+	{
+		if (cable != nullptr)
+			cable->sendValue(this, v);
+	}
+
+	virtual void sendValue(double v) override
+	{
+		// do nothing for now - we don't want to change the UI values by global connections (yet)...
+	}
+
+	Path getTargetIcon() const override
+	{
+		Path path;
+		path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
+		return path;
+	}
+
+	String getTargetId() const override
+	{
+		String s;
+		s << "Control: ";
+		s << dynamic_cast<Processor*>(parent.getScriptProcessor())->getId();
+		s << ".";
+		s << parent.getName().toString();
+
+		return s;
+	}
+
+	void selectCallback(Component* rootEditor) override
+	{
+#if USE_BACKEND
+		auto brw = dynamic_cast<BackendRootWindow*>(rootEditor);
+		brw->gotoIfWorkspace(dynamic_cast<Processor*>(parent.getScriptProcessor()));
+
+		auto sc = &parent;
+
+		auto f = [sc]()
+		{
+			auto b = sc->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
+			b->setSelection({ sc }, sendNotificationAsync);
+		};
+
+		Timer::callAfterDelay(400, f);
+#endif
+	}
+
+	void connect(const String& id)
+	{
+		if (cable != nullptr)
+		{
+			cable->removeTarget(this);
+		}
+
+		auto m = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(parent.getScriptProcessor()->getMainController_());
+
+		cable = dynamic_cast<Cable*>(m->getSlotBase(id, CableType).get());
+		cable->addTarget(this);
+	}
+
+	ReferenceCountedObjectPtr<Cable> cable;
+
+	ScriptComponent& parent;
+};
+
 
 ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants /*= 0*/) :
 	ConstScriptingObject(base, numConstants),
@@ -224,6 +308,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(getWidth);
 	ADD_API_METHOD_0(getHeight);
 	ADD_API_METHOD_1(getLocalBounds);
+	ADD_API_METHOD_0(getChildComponents);
 	ADD_API_METHOD_0(changed);
 	ADD_API_METHOD_0(getGlobalPositionX);
 	ADD_API_METHOD_0(getGlobalPositionY);
@@ -272,11 +357,22 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 	}
 	else if (id == getIdFor(processorId))
 	{
-		return ProcessorHelpers::getListOfAllConnectableProcessors(dynamic_cast<Processor*>(getScriptProcessor()));
+		auto sa = ProcessorHelpers::getListOfAllConnectableProcessors(dynamic_cast<Processor*>(getScriptProcessor()));
+		sa.add("GlobalCable");
+		return sa;
 	}
-	else if (id == getIdFor(parameterId) && connectedProcessor.get() != nullptr)
+	else if (id == getIdFor(parameterId))
 	{
-		return ProcessorHelpers::getListOfAllParametersForProcessor(connectedProcessor.get());
+		if (connectedProcessor.get() != nullptr)
+		{
+			return ProcessorHelpers::getListOfAllParametersForProcessor(connectedProcessor.get());
+		}
+		else if (globalConnection != nullptr)
+		{
+			auto m = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(getScriptProcessor()->getMainController_());
+
+			return m->getIdList(scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable);
+		}
 	}
 	else if (id == getIdFor(linkedTo))
 	{
@@ -463,14 +559,35 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		}
 	}
 	else if (id == getIdFor(x) || id == getIdFor(y) || id == getIdFor(width) ||
-		id == getIdFor(height) || id == getIdFor(visible) || id == getIdFor(enabled))
+		id == getIdFor(height) || id == getIdFor(enabled))
 	{
 		
+	}
+	else if (id == getIdFor(visible))
+	{
+		const bool wasVisible = (bool)getScriptObjectProperty(visible);
+		const bool isNowVisible = (bool)newValue;
+
+		setScriptObjectProperty(visible, newValue);
+
+		if (wasVisible != isNowVisible)
+		{
+			repaintThisAndAllChildren();
+
+		}
 	}
 	else if (id == getIdFor(processorId))
 	{
 		auto pId = newValue.toString();
 
+		auto shouldUseGlobalCable = pId == "GlobalCable";
+		auto usesGlobalCable = globalConnection != nullptr;
+
+		if (shouldUseGlobalCable != usesGlobalCable)
+		{
+			globalConnection = shouldUseGlobalCable ? new GlobalCableConnection(*this) : nullptr;
+		}
+		
 		if (pId == " " || pId == "")
 		{
 			connectedProcessor = nullptr;
@@ -485,12 +602,22 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 	{
 		auto parameterName = newValue.toString();
 
-		if (parameterName.isNotEmpty())
+		if (globalConnection != nullptr)
 		{
-			connectedParameterIndex = ProcessorHelpers::getParameterIndexFromProcessor(connectedProcessor, Identifier(parameterName));
+			globalConnection->connect(parameterName);
+
+			connectedProcessor = nullptr;
+			connectedParameterIndex = -1;
 		}
 		else
-			connectedParameterIndex = -1;
+		{
+			if (parameterName.isNotEmpty())
+			{
+				connectedParameterIndex = ProcessorHelpers::getParameterIndexFromProcessor(connectedProcessor, Identifier(parameterName));
+			}
+			else
+				connectedParameterIndex = -1;
+		}
 	}
 
 	setScriptObjectProperty(propertyIds.indexOf(id), newValue, notifyEditor);
@@ -983,6 +1110,17 @@ const ScriptingApi::Content::ScriptComponent* ScriptingApi::Content::ScriptCompo
 	return parent->getComponentWithName(id);
 }
 
+var ScriptingApi::Content::ScriptComponent::getChildComponents()
+{
+		ChildIterator<ScriptComponent> iter(this);
+		Array<var> list;
+		
+		while (auto child = iter.getNextChildComponent())
+			if (child != this) list.add(child);
+			
+		return var(list);
+}
+
 ScriptingApi::Content::ScriptComponent::~ScriptComponent()
 {
 	if (linkedComponent != nullptr)
@@ -1215,6 +1353,30 @@ void ScriptingApi::Content::ScriptComponent::setLocalLookAndFeel(var lafObject)
 	}
 	else
 		localLookAndFeel = var();
+}
+
+void ScriptingApi::Content::ScriptComponent::sendGlobalCableValue(var v)
+{
+	auto value = (float)v;
+	FloatSanitizers::sanitizeFloatNumber(value);
+
+	jassert(globalConnection != nullptr);
+
+	globalConnection->call((double)value);
+}
+
+bool ScriptingApi::Content::ScriptComponent::isConnectedToGlobalCable() const
+{
+	return globalConnection != nullptr && globalConnection->cable != nullptr;
+}
+
+void ScriptingApi::Content::ScriptComponent::repaintThisAndAllChildren()
+{
+	// Call repaint on all children to make sure they are updated...
+	ChildIterator<ScriptPanel> iter(this);
+
+	while (auto childPanel = iter.getNextChildComponent())
+		childPanel->repaint();
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -2237,7 +2399,7 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createCompon
 	return new ScriptCreatedComponentWrappers::TableWrapper(content, this, index);
 }
 
-float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
+float ScriptingApi::Content::ScriptTable::getTableValue(float inputValue)
 {
 	if (auto t = getCachedTable())
 	{
@@ -2362,8 +2524,12 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSliderPack::createC
 
 void ScriptingApi::Content::ScriptSliderPack::setSliderAtIndex(int index, double newValue)
 {
-	if(auto d = getCachedSliderPack())
-		d->setValue(index, (float)newValue, sendNotification);
+	if (auto d = getCachedSliderPack())
+	{
+		value = index;
+		d->setValue(index, (float)newValue, dontSendNotification);
+		d->getUpdater().sendDisplayChangeMessage((float)index, sendNotificationAsync);
+	}
 }
 
 double ScriptingApi::Content::ScriptSliderPack::getSliderValueAt(int index)
@@ -2386,7 +2552,8 @@ void ScriptingApi::Content::ScriptSliderPack::setAllValues(double newValue)
 			d->setValue(i, (float)newValue, dontSendNotification);
 		}
 
-		d->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+		value = -1;
+		d->getUpdater().sendDisplayChangeMessage(-1.0f, sendNotificationAsync, true);
 	}
 }
 
@@ -2474,14 +2641,21 @@ void ScriptingApi::Content::ScriptSliderPack::setValue(var newValue)
 {
 	ScriptComponent::setValue(newValue);
 
+	value = newValue;
+
 	if (auto array = newValue.getArray())
 	{
-		if(auto d = getCachedSliderPack())
-			d->swapData(*array);
+		if (auto d = getCachedSliderPack())
+			d->swapData(*array, dontSendNotification);
+	}
+	else if (auto b = newValue.getBuffer())
+	{
+		if (auto d = getCachedSliderPack())
+			d->swapData(newValue, dontSendNotification);
 	}
 	else
 	{
-		logErrorAndContinue("You must call setValue() with an array for Slider Packs");
+		logErrorAndContinue("You must call setValue() with an array or Buffer for Slider Packs");
 	}
 }
 
@@ -2515,6 +2689,21 @@ void ScriptingApi::Content::ScriptSliderPack::setWidthArray(var normalizedWidths
 var ScriptingApi::Content::ScriptSliderPack::registerAtParent(int pIndex)
 {
 	return registerComplexDataObjectAtParent(pIndex);
+}
+
+void ScriptingApi::Content::ScriptSliderPack::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
+{
+	if (t == ComplexDataUIUpdaterBase::EventType::ContentChange)
+	{
+		auto sliderIndex = (int)data;
+		value = sliderIndex;;
+		changed();
+	}
+}
+
+void ScriptingApi::Content::ScriptSliderPack::changed()
+{
+	getScriptProcessor()->controlCallback(this, value);
 }
 
 struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper
@@ -3433,15 +3622,6 @@ void ScriptingApi::Content::ScriptPanel::closeAsPopup()
 	repaintThisAndAllChildren();
 
 	triggerAsyncUpdate();
-}
-
-void ScriptingApi::Content::ScriptPanel::repaintThisAndAllChildren()
-{
-	// Call repaint on all children to make sure they are updated...
-	ChildIterator<ScriptPanel> iter(this);
-
-	while (auto childPanel = iter.getNextChildComponent())
-		childPanel->repaint();
 }
 
 void ScriptingApi::Content::ScriptPanel::handleDefaultDeactivatedProperties()

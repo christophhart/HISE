@@ -64,10 +64,9 @@ template <typename ParameterType> struct envelope_base: public control::pimpl::p
 
 		if (thisActive)
 		{
-			auto mv = t.getModValue();
-
-			if(mv != lastValue)
-				this->getParameter().template call<0>(mv);
+			float mv = (float)t.getModValue();
+			FloatSanitizers::sanitizeFloatNumber(mv);
+			this->getParameter().template call<0>((double)mv);
 		}
 
 		if (thisActive != wasActive)
@@ -237,11 +236,18 @@ struct ahdsr_base: public mothernode,
 		void refreshDecayTime();
 		void refreshReleaseTime();
 
+		void updateAfterSampleRateChange()
+		{
+			refreshAttackTime();
+			refreshDecayTime();
+			refreshReleaseTime();
+		}
+
 		const ahdsr_base* envelope = nullptr;
 
 		/// the uptime
 		int holdCounter;
-		float current_value;
+		float current_value = 0.0f;
 
 		int leftOverSamplesFromLastBuffer = 0;
 
@@ -250,17 +256,17 @@ struct ahdsr_base: public mothernode,
 
 		float attackTime;
 
-		float attackLevel;
-		float attackCoef;
-		float attackBase;
+		float attackLevel = 0.5f;
+		float attackCoef = 0.0f;
+		float attackBase = 1.0f;
 
 		float decayTime;
-		float decayCoef;
-		float decayBase;
+		float decayCoef = 0.0f;
+		float decayBase = 1.0f;
 
 		float releaseTime;
-		float releaseCoef;
-		float releaseBase;
+		float releaseCoef = 0.0f;
+		float releaseBase = 1.0f;
 		float release_delta;
 
 		float lastSustainValue;
@@ -279,8 +285,11 @@ struct ahdsr_base: public mothernode,
 	void setDisplayValue(int index, float value, bool convertDbValues=true)
 	{
 		if (convertDbValues && (index == 1 || index == 4))
-			value = Decibels::gainToDecibels(value);
-
+		{
+			value = Decibels::gainToDecibels(jlimit(-100.0f, 0.0f, value));
+		}
+		else
+			
 		if(rb != nullptr)
 			rb->getUpdater().sendContentChangeMessage(sendNotificationAsync, index);
 
@@ -309,7 +318,7 @@ struct ahdsr_base: public mothernode,
 	void setAttackCurve(float newValue);
 	void setDecayCurve(float newValue);
 
-	double sampleRate = -1.0;
+	double sampleRate = 44100.0;
 	float inputValue;
 	float attack;
 	float attackLevel;
@@ -329,6 +338,8 @@ struct ahdsr_base: public mothernode,
 	float release_delta;
 
 	float uiValues[9];
+
+	bool retrigger = false;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ahdsr_base);
 };
@@ -644,6 +655,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		Sustain,
 		Release,
 		AttackCurve,
+		Retrigger,
 		Gate,
 		numParameters
 	};
@@ -677,6 +689,9 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 
 		setBaseSampleRate(ps.sampleRate);
 		ballUpdater.limitFromBlockSizeToFrameRate(ps.sampleRate, ps.blockSize);
+
+		for (state_base& s : states)
+			s.updateAfterSampleRateChange();
 	}
 
 	void reset()
@@ -700,8 +715,10 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		{
 			bool value;
 
-			if (this->handleKeyEvent(e, value))
-				setGate(value ? 1.0 : 0.0);
+			auto shouldRetrigger = e.isNoteOn() && retrigger;
+
+			if (this->handleKeyEvent(e, value) || shouldRetrigger)
+				setGate((value || shouldRetrigger) ? 1.0 : 0.0);
 		}
 	}
 
@@ -788,6 +805,10 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 	{
 		auto v = (float)value;
 
+		jassert(std::isfinite(value));
+
+		FloatSanitizers::sanitizeFloatNumber(v);
+
 		setDisplayValue(P, v);
 
 		if (P == Parameters::AttackCurve)
@@ -800,6 +821,10 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		else if (P == Parameters::Hold)
 		{
 			this->setHoldTime(v);
+		}
+		else if (P == Parameters::Retrigger)
+		{
+			this->retrigger = value > 0.5;
 		}
 		else
 		{
@@ -908,6 +933,12 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 			data.add(p);
 		}
 
+		{
+			parameter::data p("Retrigger", { 0.0, 1.0, 1.0 });
+			p.callback = parameter::inner<ahdsr, Parameters::Retrigger>(*this);
+			p.setDefaultValue(0.0);
+			data.add(p);
+		}
 		{
 			parameter::data p("Gate", { 0.0, 1.0, 1.0 });
 			p.callback = parameter::inner<ahdsr, Parameters::Gate>(*this);

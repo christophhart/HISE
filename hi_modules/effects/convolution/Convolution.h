@@ -588,7 +588,7 @@ struct convolution : public data::base,
 	{
 		{
 			DEFINE_PARAMETERDATA(convolution, Gate);
-			p.setParameterValueNames({ "On", "Off" });
+			p.setParameterValueNames({ "Off", "On" });
 			p.setDefaultValue(1.0);
 			data.add(std::move(p));
 		}
@@ -618,7 +618,7 @@ struct convolution : public data::base,
 
 		{
 			DEFINE_PARAMETERDATA(convolution, Multithread);
-			p.setParameterValueNames({ "On", "Off" });
+			p.setParameterValueNames({ "Off", "On" });
 			data.add(std::move(p));
 		}
 	}

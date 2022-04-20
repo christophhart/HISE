@@ -290,7 +290,11 @@ public:
     /** Use this in order to skip the preloading before all properties have been set. */
     void setDelayPreloadInitialisation(bool shouldDelay);
     
+	void setCrossfadeGammaValue(float newGammaValue);
+
 private:
+
+	
 
 	// ==============================================================================================================================================
 
@@ -503,6 +507,8 @@ private:
 	int loopStart;
 	int loopEnd;
 	int crossfadeLength;
+
+	float crossfadeGamma = 1.0f;
 
 	Range<int> crossfadeArea;
 

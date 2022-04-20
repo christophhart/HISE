@@ -184,6 +184,10 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 		}
 
 	}
+	else if (component->isConnectedToGlobalCable())
+	{
+		component->sendGlobalCableValue(controllerValue);
+	}
 	else
 	{
 		int callbackIndex = getControlCallbackIndex();

@@ -196,7 +196,7 @@ public:
     {
 		jassert(type == dataType);
         
-        if(isPositiveAndBelow(srcIndex, getNumDataObjects(dataType)))
+        if(isPositiveAndBelow(srcIndex, src.getNumDataObjects(dataType)))
         {
             ComplexDataUIBase::Ptr old = getComplexBaseType(type, dstIndex);
 			auto otherData = src.getComplexBaseType(type, srcIndex);

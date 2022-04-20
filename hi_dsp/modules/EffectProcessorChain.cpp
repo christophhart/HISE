@@ -173,10 +173,12 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 
 	newProcessor->setConstrainerForAllInternalChains(chain->getFactoryType()->getConstrainer());
 
+	newProcessor->setParentProcessor(chain);
+
 	if (chain->getSampleRate() > 0.0 && newProcessor != nullptr)
 		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
 	
-	newProcessor->setParentProcessor(chain);
+	
 
 	{
 		LOCK_PROCESSING_CHAIN(chain);

@@ -387,8 +387,10 @@ void DspNetworkGraph::finishDrag()
 	if (currentDropTarget != nullptr)
 	{
 		currentDropTarget->insertDraggedNode(currentlyDraggedComponent, copyDraggedNode);
-		currentlyDraggedComponent = nullptr;
 	}
+	
+	rebuildNodes();
+	currentlyDraggedComponent = nullptr;
 }
 
 void DspNetworkGraph::paint(Graphics& g)
@@ -861,7 +863,41 @@ bool DspNetworkGraph::setCurrentlyDraggedComponent(NodeComponent* n)
 
 void DspNetworkGraph::Actions::selectAndScrollToNode(DspNetworkGraph& g, NodeBase::Ptr node)
 {
+	auto p = node->getValueTree();
+
+	while (p.getType() != PropertyIds::Network && p.isValid())
+	{
+		if (p.getType() == PropertyIds::Node)
+			p.setProperty(PropertyIds::Folded, false, node->getUndoManager());
+
+		p = p.getParent();
+	}
+
+	g.network->deselectAll();
+	g.network->addToSelection(node, {});
 	
+	auto parent = g.findParentComponentOfClass<ZoomableViewport>();
+	auto selection = g.network->getSelection();
+
+	RectangleList<int> nBounds;
+	Array<NodeComponent*> list;
+
+	fillChildComponentList(list, &g);
+
+	for (auto nc : list)
+	{
+		if (selection.contains(nc->node.get()))
+		{
+			auto b = g.getLocalArea(nc, nc->getLocalBounds());
+			nBounds.addWithoutMerging(b);
+		}
+	}
+
+	auto selectionBounds = nBounds.getBounds().expanded(UIValues::NodeMargin);
+
+	parent->zoomToRectangle(selectionBounds.expanded(300));
+	g.repaint();
+	g.grabKeyboardFocus();
 }
 
 bool DspNetworkGraph::Actions::swapOrientation(DspNetworkGraph& g)

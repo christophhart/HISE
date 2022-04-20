@@ -428,6 +428,7 @@ private:
 
 	Identifier fileId;
 
+	DynamicObject* outerInlineFunction = nullptr;
 	DynamicObject* currentInlineFunction = nullptr;
 
 	JavascriptNamespace* currentNamespace = nullptr;
@@ -1437,10 +1438,17 @@ private:
 
 	var parseFunctionDefinition(Identifier& functionName)
 	{
+		
 		const String::CharPointerType functionStart(location.location);
 
 		if (currentType == TokenTypes::identifier)
 			functionName = parseIdentifier();
+
+		// We need to temporarily set the currentInlineFunction to nullptr to avoid
+		// local references inside the nested function body which will fail when
+		// ENABLE_SCRIPTING_BREAKPOINTS is disabled
+		ScopedValueSetter<DynamicObject*> svs1(outerInlineFunction, currentInlineFunction);
+		ScopedValueSetter<DynamicObject*> svs2(currentInlineFunction, nullptr);
 
 		ScopedPointer<FunctionObject> fo(new FunctionObject());
 
@@ -1452,6 +1460,7 @@ private:
         fo->createFunctionDefinition(functionName);
 		fo->commentDoc = lastComment;
 		clearLastComment();
+
 		return var(fo.release());
 	}
 
@@ -1629,9 +1638,20 @@ private:
 			{
 				return parseSuffixes(new LoopStatement::IteratorName(location, parseIdentifier()));
 			}
-			else if (currentInlineFunction != nullptr)
+			else if (auto ob = dynamic_cast<InlineFunction::Object*>(outerInlineFunction))
 			{
-				InlineFunction::Object* ob = dynamic_cast<InlineFunction::Object*>(currentInlineFunction);
+				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
+				const int localParameterIndex = ob->localProperties.indexOf(id);
+
+				if (inlineParameterIndex != -1)
+					location.throwError("Can't reference inline function parameters in nested function body");
+
+				if (localParameterIndex != -1)
+					location.throwError("Can't reference local variables in nested function body");
+			}
+			else if (auto ob = dynamic_cast<InlineFunction::Object*>(currentInlineFunction))
+			{
+				
 
 				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
 				const int localParameterIndex = ob->localProperties.indexOf(id);

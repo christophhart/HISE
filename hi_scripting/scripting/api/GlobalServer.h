@@ -166,6 +166,8 @@ struct GlobalServer: public ControlledObject
 
 	int getNumPendingRequests() const { return internalThread.pendingCallbacks.size(); }
 
+	String getExtraHeader() const { return extraHeader; }
+
 	PendingCallback::WeakPtr getPendingCallback(int i) const
 	{
 		return internalThread.pendingCallbacks[i].get();

@@ -263,6 +263,14 @@ void MidiKeyboardPanel::restoreInternal(const var& object)
 
 	mpeZone = { startChannel, endChannel };
 
+	auto bgColour = findPanelColour(PanelColourId::bgColour);
+
+	if (bgColour.isTransparent())
+	{
+		keyboard->asComponent()->setColour(juce::MidiKeyboardComponent::ColourIds::shadowColourId, bgColour);
+		keyboard->asComponent()->setColour(juce::MidiKeyboardComponent::ColourIds::keySeparatorLineColourId, bgColour);
+	}
+
 	if (keyboard->isMPEKeyboard())
 	{
 		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::bgColour, findPanelColour(PanelColourId::bgColour));
@@ -579,11 +587,13 @@ var PresetBrowserPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::ShowRenameButton, options.showRenameButton);
 	storePropertyInObject(obj, SpecialPanelIds::ShowDeleteButton, options.showDeleteButton);
 	storePropertyInObject(obj, SpecialPanelIds::ShowFavoriteIcon, options.showFavoriteIcons);
+	storePropertyInObject(obj, SpecialPanelIds::ButtonsInsideBorder, options.buttonsInsideBorder);
 	storePropertyInObject(obj, SpecialPanelIds::NumColumns, options.numColumns);
 	storePropertyInObject(obj, SpecialPanelIds::ColumnWidthRatio, var(options.columnWidthRatios));
 	storePropertyInObject(obj, SpecialPanelIds::ListAreaOffset, var(options.listAreaOffset));
 	storePropertyInObject(obj, SpecialPanelIds::ColumnRowPadding, var(options.columnRowPadding));
 	storePropertyInObject(obj, SpecialPanelIds::SearchBarBounds, var(options.searchBarBounds));
+	storePropertyInObject(obj, SpecialPanelIds::FavoriteButtonBounds, var(options.favoriteButtonBounds));
 
 	return obj;
 }
@@ -599,6 +609,7 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	options.showAddButton = getPropertyWithDefault(object, SpecialPanelIds::ShowAddButton);	
 	options.showRenameButton = getPropertyWithDefault(object, SpecialPanelIds::ShowRenameButton);
 	options.showDeleteButton = getPropertyWithDefault(object, SpecialPanelIds::ShowDeleteButton);
+	options.buttonsInsideBorder = getPropertyWithDefault(object, SpecialPanelIds::ButtonsInsideBorder);
 	options.editButtonOffset = getPropertyWithDefault(object, SpecialPanelIds::EditButtonOffset);
 	options.showExpansions = getPropertyWithDefault(object, SpecialPanelIds::ShowExpansionsAsColumn);
 	options.numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
@@ -629,6 +640,13 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	{
 		options.searchBarBounds.clear();
 		options.searchBarBounds.addArray(*searchBarBounds.getArray());
+	}	
+	
+	auto favoriteButtonBounds = getPropertyWithDefault(object, SpecialPanelIds::FavoriteButtonBounds);	
+	if (favoriteButtonBounds.isArray())
+	{
+		options.favoriteButtonBounds.clear();
+		options.favoriteButtonBounds.addArray(*favoriteButtonBounds.getArray());
 	}	
 	
 	options.showFavoriteIcons = getPropertyWithDefault(object, SpecialPanelIds::ShowFavoriteIcon);
@@ -664,10 +682,12 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowAddButton, "ShowAddButton");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowRenameButton, "ShowRenameButton");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowDeleteButton, "ShowDeleteButton");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ButtonsInsideBorder, "ButtonsInsideBorder");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::EditButtonOffset, "EditButtonOffset");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ListAreaOffset, "ListAreaOffset");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ColumnRowPadding, "ColumnRowPadding");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::SearchBarBounds, "SearchBarBounds");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FavoriteButtonBounds, "FavoriteButtonBounds");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::NumColumns, "NumColumns");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ColumnWidthRatio, "ColumnWidthRatio");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionsAsColumn, "ShowExpansionsAsColumn");
@@ -693,7 +713,8 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowAddButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowRenameButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowDeleteButton, true);
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::EditButtonOffset, 0);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ButtonsInsideBorder, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::EditButtonOffset, 10);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::NumColumns, 3);
 
 	Array<var> defaultRatios;
@@ -711,6 +732,9 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 
 	Array<var> defaultSearchBarBounds;
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::SearchBarBounds, var(defaultSearchBarBounds));
+
+	Array<var> defaultFavoriteButtonBounds;
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FavoriteButtonBounds, var(defaultFavoriteButtonBounds));
 
 	return var();
 }
@@ -1263,7 +1287,7 @@ void TableFloatingTileBase::initTable()
 
 	table.getHeader().addColumn(getIndexName(), CCNumber, fWidth, fWidth, fWidth);
 	table.getHeader().addColumn("Parameter", ParameterName, 70);
-	table.getHeader().addColumn("Inverted", Inverted, 50, 50, 50);
+	table.getHeader().addColumn("Inverted", Inverted, 70, 70, 70);
 	table.getHeader().addColumn("Min", Minimum, 70, 70, 70);
 	table.getHeader().addColumn("Max", Maximum, 70, 70, 70);
 	table.getHeader().setStretchToFitActive(true);

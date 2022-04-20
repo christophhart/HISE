@@ -158,6 +158,24 @@ juce::String SampleMap::getMonolithID() const
 	return MonolithFileReference::getIdFromValueTree(data);
 }
 
+void SampleMap::updateCrossfades(Identifier id, var newValue)
+{
+	if (id == Identifier("CrossfadeGamma"))
+	{
+		auto gamma = (float)newValue;
+
+		ModulatorSampler::SoundIterator iter(getSampler(), true);
+
+		while (auto s = iter.getNextSound())
+		{
+			for (int i = 0; i < s->getNumMultiMicSamples(); i++)
+			{
+				s->getReferenceToSound(i)->setCrossfadeGammaValue(gamma);
+			}
+		}
+	}
+}
+
 hise::FileHandlerBase* SampleMap::getCurrentFileHandler() const
 {
 	FileHandlerBase* handler = &GET_PROJECT_HANDLER(sampler);
@@ -379,6 +397,11 @@ void SampleMap::parseValueTree(const ValueTree &v)
 const ValueTree SampleMap::getValueTree() const
 {
 	return data;
+}
+
+float SampleMap::getCrossfadeGammaValue() const
+{
+	return (float)data["CrossfadeGamma"];
 }
 
 void SampleMap::poolEntryReloaded(PoolReference referenceThatWasChanged)
@@ -761,6 +784,11 @@ void SampleMap::setNewValueTree(const ValueTree& v)
 
 	data = v;
 	data.addListener(this);
+
+	if (!data.hasProperty("CrossfadeGamma"))
+		data.setProperty("CrossfadeGamma", 1.0, nullptr);
+
+	crossfadeListener.setCallback(data, Identifier("CrossfadeGamma"), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(SampleMap::updateCrossfades));
 }
 
 void SampleMap::addSound(ValueTree& newSoundData)
@@ -884,15 +912,27 @@ void SampleMap::load(const PoolReference& reference)
 
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
 
+	
+
 	if (!FullInstrumentExpansion::isEnabled(getSampler()->getMainController()))
 	{
 		if (auto expansion = getSampler()->getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString()))
 		{
 			currentPool = &expansion->pool->getSampleMapPool();
 		}
+
+		sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+	}
+	else
+	{
+		// Remove the "{PROJECT_FOLDER}" wildcard or it won't find it in the pool...
+		auto ref = PoolReference(getSampler()->getMainController(), 
+							reference.getReferenceString().fromLastOccurrenceOf("{PROJECT_FOLDER}", false, false),
+							FileHandlerBase::SampleMaps);
+
+		sampleMapData = currentPool->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
 	}
 
-	sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
 	currentPool->addListener(this);
 
 	if (sampleMapData)
@@ -1505,7 +1545,7 @@ void MonolithExporter::updateSampleMap()
 					s.setProperty(SampleIds::SampleEnd, reader->lengthInSamples, nullptr);
 				}
 				
-				largestSample = jmax<int64>(largestSample, length);
+				largestSample = jmax<int64_t>(largestSample, length);
 
 				s.setProperty(MonolithIds::MonolithOffset, offset, nullptr);
 				s.setProperty(MonolithIds::MonolithLength, length, nullptr);

@@ -372,6 +372,29 @@ namespace ScriptedDrawActions
 		Rectangle<float> area;
 		Justification j;
 	};
+	
+	struct drawFittedText : public DrawActions::ActionBase
+	{
+		drawFittedText(const String& text_, var area_, Justification j_, int maxLines_, float scale_ = Justification::centred) : text(text_), area(area_), j(j_), maxLines(maxLines_), scale(scale_) {};
+		void perform(Graphics& g) override { g.drawFittedText(text, area[0], area[1], area[2], area[3], j, maxLines, scale); };
+		String text;
+		var area;
+		Justification j;
+		int maxLines;
+		float scale;
+	};
+
+	struct drawMultiLineText : public DrawActions::ActionBase
+	{
+		drawMultiLineText(const String& text_, int startX_, int baseLineY_, int maxWidth_, Justification j_ = Justification::centred, float leading_ = 0.0f) : text(text_), startX(startX_), baseLineY(baseLineY_), maxWidth(maxWidth_), j(j_), leading(leading_) {};
+		void perform(Graphics& g) override { g.drawMultiLineText(text, startX, baseLineY, maxWidth, j, leading); };
+		String text;
+        int startX;
+        int baseLineY;
+		int maxWidth;
+		Justification j;
+		float leading;
+	};
 
 	struct drawDropShadow : public DrawActions::ActionBase
 	{
@@ -391,7 +414,8 @@ namespace ScriptedDrawActions
 
 		void perform(Graphics& g) override
 		{
-			jassert(!mainImage.getBounds().isEmpty());
+			if (mainImage.getBounds().isEmpty())
+				return;
 
 			auto invT = AffineTransform::scale(1.0f / scaleFactor);
 

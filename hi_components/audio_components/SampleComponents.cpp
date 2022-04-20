@@ -714,8 +714,15 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 
 	currentSound = const_cast<ModulatorSamplerSound*>(s);
 
+	gammaListener.setCallback(const_cast<ModulatorSampler*>(sampler)->getSampleMap()->getValueTree(), { Identifier("CrossfadeGamma") }, valuetree::AsyncMode::Asynchronously, [this](Identifier, var newValue)
+		{
+			getSampleArea(AreaTypes::LoopCrossfadeArea)->setGamma((float)newValue);
+		});
+
 	if (s != nullptr && !s->isMissing() && !s->isPurged())
 	{
+		
+
 		auto reversed = s->getReferenceToSound(0)->isReversed();
 
 		areas[SampleStartArea]->leftEdge->setVisible(reversed);

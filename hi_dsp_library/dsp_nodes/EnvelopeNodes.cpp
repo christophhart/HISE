@@ -39,6 +39,12 @@ namespace pimpl {
 using namespace juce;
 using namespace hise;
 
+float getNormalisedAndSanitized(float input)
+{
+	FloatSanitizers::sanitizeFloatNumber(input);
+	return jlimit(0.0f, 1.0f, input);
+}
+
 float ahdsr_base::getSampleRateForCurrentMode() const
 {
 	return sampleRate;
@@ -51,18 +57,24 @@ void ahdsr_base::refreshUIPath(Path& p, Point<float>& position)
 
 
 void ahdsr_base::setAttackRate(float rate) {
-	attack = rate;
+
+	FloatSanitizers::sanitizeFloatNumber(rate);
+	attack = jlimit(0.0f, 30000.0f, rate);
 }
 
 void ahdsr_base::setHoldTime(float holdTimeMs) {
 	hold = holdTimeMs;
+
+	FloatSanitizers::sanitizeFloatNumber(holdTimeMs);
+	hold = jlimit(0.0f, 30000.0f, holdTimeMs);
 
 	holdTimeSamples = holdTimeMs * ((float)getSampleRateForCurrentMode() / 1000.0f);
 }
 
 void ahdsr_base::setDecayRate(float rate)
 {
-	decay = rate;
+	FloatSanitizers::sanitizeFloatNumber(rate);
+	decay = jlimit(1.0f, 30000.0f, rate);
 
 	decayCoef = calcCoef(decay, targetRatioDR);
 	decayBase = (sustain - targetRatioDR) * (1.0f - decayCoef);
@@ -70,7 +82,8 @@ void ahdsr_base::setDecayRate(float rate)
 
 void ahdsr_base::setReleaseRate(float rate)
 {
-	release = jmax<float>(1.0f, rate);
+	FloatSanitizers::sanitizeFloatNumber(rate);
+	release = jlimit(1.0f, 30000.0f, rate);
 
 	releaseCoef = calcCoef(release, targetRatioDR);
 	releaseBase = -targetRatioDR * (1.0f - releaseCoef);
@@ -78,9 +91,8 @@ void ahdsr_base::setReleaseRate(float rate)
 
 void ahdsr_base::setSustainLevel(float level)
 {
-	sustain = level;
+	sustain = getNormalisedAndSanitized(level);
 	decayBase = (sustain - targetRatioDR) * (1.0f - decayCoef);
-
 }
 
 void ahdsr_base::setTargetRatioDR(float targetRatio) {
@@ -91,12 +103,15 @@ void ahdsr_base::setTargetRatioDR(float targetRatio) {
 
 	decayBase = (sustain - targetRatioDR) * (1.0f - decayCoef);
 	releaseBase = -targetRatioDR * (1.0f - releaseCoef);
+
+	FloatSanitizers::sanitizeFloatNumber(decayBase);
+	FloatSanitizers::sanitizeFloatNumber(releaseBase);
 }
 
 
 void ahdsr_base::setAttackCurve(float newValue)
 {
-	attackCurve = newValue;
+	attackCurve = getNormalisedAndSanitized(newValue);
 
 	if (newValue > 0.5001f)
 	{
@@ -112,13 +127,15 @@ void ahdsr_base::setAttackCurve(float newValue)
 	{
 		attackBase = 1.2f;
 	}
+
+	FloatSanitizers::sanitizeFloatNumber(attackBase);
 }
 
 void ahdsr_base::setDecayCurve(float newValue)
 {
-	decayCurve = newValue;
+	decayCurve = getNormalisedAndSanitized(newValue);
 
-	const float newRatio = decayCurve * 0.0001f;
+const float newRatio = decayCurve * 0.0001f;
 
 	setTargetRatioDR(newRatio);
 	setDecayRate(decay);
@@ -162,6 +179,9 @@ void ahdsr_base::calculateCoefficients(float timeInMilliSeconds, float base, flo
 
 	stateCoeff = exp1;
 	stateBase = (exp1 *invertedBase - invertedBase) * maximum;
+
+	FloatSanitizers::sanitizeFloatNumber(stateCoeff);
+	FloatSanitizers::sanitizeFloatNumber(stateBase);
 }
 
 
@@ -175,14 +195,17 @@ void ahdsr_base::state_base::refreshDecayTime()
 	const float susModValue = modValues[ahdsr_base::SustainLevelChain];
 	const float thisSustain = envelope->sustain * susModValue;
 
-	decayCoef = envelope->calcCoef(decayTime, envelope->targetRatioDR);
+	decayCoef = getNormalisedAndSanitized(envelope->calcCoef(decayTime, envelope->targetRatioDR));
 	decayBase = (thisSustain - envelope->targetRatioDR) * (1.0f - decayCoef);
+	FloatSanitizers::sanitizeFloatNumber(decayBase);
 }
 
 void ahdsr_base::state_base::refreshReleaseTime()
 {
-	releaseCoef = envelope->calcCoef(releaseTime, envelope->targetRatioDR);
+	releaseCoef = getNormalisedAndSanitized(envelope->calcCoef(releaseTime, envelope->targetRatioDR));
 	releaseBase = -envelope->targetRatioDR * (1.0f - releaseCoef);
+
+	FloatSanitizers::sanitizeFloatNumber(releaseBase);
 }
 
 ahdsr_base::state_base::state_base() :
@@ -198,12 +221,12 @@ ahdsr_base::state_base::state_base() :
 
 void ahdsr_base::state_base::setAttackRate(float rate)
 {
-	const float modValue = modValues[ahdsr_base::AttackTimeChain];
+	const float modValue = getNormalisedAndSanitized(modValues[ahdsr_base::AttackTimeChain]);
 
 	if (modValue == 0.0f)
 	{
 		attackBase = 1.0f;
-		attackCoef = 0.0f;
+		attackCoef = 0.0f; 
 	}
 	else if (modValue != 1.0f)
 	{
@@ -219,10 +242,10 @@ void ahdsr_base::state_base::setAttackRate(float rate)
 
 void ahdsr_base::state_base::setDecayRate(float rate)
 {
-	const float modValue = modValues[ahdsr_base::DecayTimeChain];
+	const float modValue = getNormalisedAndSanitized(modValues[ahdsr_base::DecayTimeChain]);
 
-	const float susModValue = modValues[ahdsr_base::SustainLevelChain];
-	const float thisSustain = envelope->sustain * susModValue;
+	const float susModValue = getNormalisedAndSanitized(modValues[ahdsr_base::SustainLevelChain]);
+	const float thisSustain = getNormalisedAndSanitized(envelope->sustain * susModValue);
 
 	if (modValue == 0.0f)
 	{
@@ -250,7 +273,7 @@ void ahdsr_base::state_base::setDecayRate(float rate)
 
 void ahdsr_base::state_base::setReleaseRate(float rate)
 {
-	const float modValue = modValues[ahdsr_base::ReleaseTimeChain];
+	const float modValue = getNormalisedAndSanitized(modValues[ahdsr_base::ReleaseTimeChain]);
 
 	if (modValue != 1.0f)
 	{
@@ -402,6 +425,8 @@ float ahdsr_base::state_base::tick()
 #endif
 	}
 	}
+
+	FloatSanitizers::sanitizeFloatNumber(state->current_value);
 
 	return state->current_value;
 }

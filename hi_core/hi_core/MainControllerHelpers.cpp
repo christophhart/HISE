@@ -1091,6 +1091,13 @@ bool CircularAudioSampleBuffer::readMidiEvents(MidiBuffer& destination, int offs
 
 void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
+	if (illegalBufferSize)
+	{
+		mc->getKillStateHandler().handleKillState();
+		return;
+	}
+		
+
 	if (shouldDelayRendering())
 	{
 	
@@ -1247,6 +1254,8 @@ void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBloc
 	}
 	else
 	{
+		illegalBufferSize = !(samplesPerBlock % HISE_EVENT_RASTER == 0);
+
 		mc->prepareToPlay(sampleRate, jmin(samplesPerBlock, HISE_MAX_PROCESSING_BLOCKSIZE));
 	}
 }

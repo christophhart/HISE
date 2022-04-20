@@ -142,9 +142,9 @@
     </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
             useIPP="Sequential" IPPLibrary="Sequential" windowsTargetPlatformVersion="10.0.16299.0"
-            extraDefs="USE_IPP=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000" extraCompilerFlags="/bigobj">
+            extraDefs="USE_IPP=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000" extraCompilerFlags="/bigobj /W0">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+        <CONFIGURATION name="Debug" winWarningLevel="2" generateManifest="1" winArchitecture="x64"
                        isDebug="1" optimisation="1" targetName="HISE Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"
                        enablePluginBinaryCopyStep="0"/>
@@ -190,14 +190,13 @@
         <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </VS2017>
-    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=1&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;"
-                smallIcon="bfBEgJ" bigIcon="bfBEgJ" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
-                linuxExtraPkgConfig="x11 xinerama xext" extraLinkerFlags="-no-pie&#10;/opt/intel/ipp/lib/intel64/libippi.a &#10;/opt/intel/ipp/lib/intel64/libipps.a&#10;/opt/intel/ipp/lib/intel64/libippvm.a&#10;/opt/intel/ipp/lib/intel64/libippcore.a&#10;">
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;"
+                smallIcon="bfBEgJ" bigIcon="bfBEgJ" linuxExtraPkgConfig="x11 xinerama xext"
+                extraLinkerFlags="-no-pie&#10;" extraCompilerFlags="-fpermissive">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE Standalone"
-                       libraryPath="/opt/intel/ipp/lib" headerPath="/opt/intel/ipp/include"/>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE Standalone"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE Standalone"
-                       linkTimeOptimisation="1" libraryPath="/opt/intel/ipp/lib" headerPath="/opt/intel/ipp/include"/>
+                       linkTimeOptimisation="1"/>
         <CONFIGURATION name="TravisCI" isDebug="1" optimisation="1" targetName="HISE Standalone"
                        defines="TRAVIS_CI=1"/>
       </CONFIGURATIONS>

@@ -382,16 +382,18 @@ public:
             // being resized...
             replaceAllContent(s);
 #else
-            if(shouldBeAsync)
             {
                 // Makes sure that this won't be accessed during replacement...
-                
                 SpinLock::ScopedLockType sl(pendingLock);
                 pendingNewContent.swapWith(s);
+            }
+            
+            if(shouldBeAsync)
+            {
                 notifier.notify();
             }
             else
-            {
+            {   
                 notifier.handleAsyncUpdate();
             }
 #endif

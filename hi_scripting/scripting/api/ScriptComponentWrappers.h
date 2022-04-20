@@ -146,6 +146,7 @@ DECLARE_ID(height);
 */
 class ScriptCreatedComponentWrapper: public AsyncValueTreePropertyListener,
 									 public ScriptingApi::Content::ScriptComponent::ZLevelListener,
+									 public ComplexDataUIBase::SourceListener,
 									 public KeyListener,
 									 public juce::FocusChangeListener
 {
@@ -292,8 +293,7 @@ public:
 	/** Overwrite this method and update the value of the component. */
 	virtual void updateValue(var newValue) {};
 
-	/** Call this in your listener callback with the new value. */
-	void changed(var newValue);
+	void sourceHasChanged(ComplexDataUIBase*, ComplexDataUIBase*) override;
 
 	bool setMouseCursorFromParentPanel(ScriptComponent* sc, MouseCursor& c);
 
@@ -370,6 +370,8 @@ protected:
 
 	void globalFocusChanged(Component* focusedComponent) override;
 
+    ScopedPointer<LookAndFeel> localLookAndFeel;
+    
 private:
 
 	bool wasFocused = false;
@@ -413,9 +415,10 @@ private:
 
 	const int index;
 
-	ScopedPointer<LookAndFeel> localLookAndFeel;
+	
 	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptCreatedComponentWrapper)
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptCreatedComponentWrapper);
 };
 
 
@@ -556,12 +559,16 @@ public:
 
 		void updateComponent(int index, var newValue) override;
 
+		
+
 		String getTextForTablePopup(float x, float y);
 
 		void pointDragStarted(Point<int> position, float index, float value) override;
 		void pointDragEnded() override;
 		void pointDragged(Point<int> position, float index, float value) override;
 		void curveChanged(Point<int> position, float curveValue) override;
+
+		
 
 		Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const override;
 
@@ -572,7 +579,8 @@ public:
 		String popupText;
 		Point<int> localPopupPosition;
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TableWrapper)
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TableWrapper);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(TableWrapper);
 	};
 
 
@@ -707,7 +715,6 @@ public:
 	};
 
 	class SliderPackWrapper : public ScriptCreatedComponentWrapper,
-							  public ComplexDataUIBase::SourceListener,
 							  public SliderPackData::Listener
 	{
 	public:
@@ -723,19 +730,7 @@ public:
 		
 		void updateValue(var newValue) override;
 
-		void sliderPackChanged(SliderPackData *, int newIndex) override { changed(newIndex); };
-
-		void sourceHasChanged(ComplexDataUIBase* oldSource, ComplexDataUIBase* newSource) override
-		{
-			SliderPack *sp = dynamic_cast<SliderPack*>(component.get());
-
-			auto newPack = dynamic_cast<SliderPackData*>(newSource);
-
-			if (newPack != sp->getData())
-			{
-				sp->setSliderPackData(newPack);
-			}
-		}
+		void sliderPackChanged(SliderPackData *, int newIndex) override { /*changed(newIndex);*/ };
 
 	private:
 

@@ -138,6 +138,9 @@ namespace ScriptingObjects
 		/** If this is enabled, the shader will create a buffered image of the last rendering result. */
 		void setEnableCachedBuffer(bool shouldEnableBuffer);
 
+		/** Adds a preprocessor definition before the code and recompiles the shader (Empty string removes all preprocessors). */
+		void setPreprocessor(String preprocessorString, var value);
+
 		// ===========================================================================
 
 		int blockWhileWaiting() override;
@@ -237,6 +240,8 @@ namespace ScriptingObjects
 		};
 
 	private:
+
+		NamedValueSet preprocessors;
 
 		bool screenshotPending = false;
 		static bool renderingScreenShot;
@@ -401,6 +406,12 @@ namespace ScriptingObjects
 
 		/** Draws a text with the given alignment (see the Label alignment property). */
 		void drawAlignedText(String text, var area, String alignment);
+		
+		/** Tries to draw a text string inside a given space. */
+		void drawFittedText(String text, var area, String alignment, int maxLines, float scale);
+
+		/** Break to new lines when the text becomes wider than maxWidth. */
+		void drawMultiLineText(String text, var xy, int maxWidth, String alignment, float leading);
 
 		/** Sets the current gradient via an array [Colour1, x1, y1, Colour2, x2, y2] */
 		void setGradientFill(var gradientData);
@@ -447,8 +458,8 @@ namespace ScriptingObjects
 		/** Adds a drop shadow based on the alpha values of the current image. */
 		void addDropShadowFromAlpha(var colour, int radius);
 
-		/** Applies an OpenGL shader to the panel. */
-		void applyShader(var shader, var area);
+		/** Applies an OpenGL shader to the panel. Returns false if the shader could not be compiled. */
+		bool applyShader(var shader, var area);
 
 
 		/** Fills a Path. */
@@ -564,9 +575,10 @@ namespace ScriptingObjects
 			void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText) override;
 			void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
 			void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command) override;
-			void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode) override;
+			void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover) override;
 			void drawSearchBar(Graphics& g, Rectangle<int> area) override;
 
+			void drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition) override;
 			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
 			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
 			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
