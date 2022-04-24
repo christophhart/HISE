@@ -6041,6 +6041,28 @@ var ScriptingApi::Server::downloadFile(String subURL, var parameters, var target
 {
 	if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(targetFile.getObject()))
 	{
+		if (subURL.contains("?") && parameters.getDynamicObject() != nullptr && parameters.getDynamicObject()->getProperties().isEmpty())
+		{
+			auto parameterObject = new DynamicObject();
+			auto realSubURL = subURL.upToFirstOccurrenceOf("?", false, false);
+			auto parameterString = subURL.fromFirstOccurrenceOf("?", false, false);
+			auto parameterObjects = StringArray::fromTokens(parameterString, "&", "");
+
+			for (auto po : parameterObjects)
+			{
+				auto key = po.upToFirstOccurrenceOf("=", false, false);
+				auto value = po.fromFirstOccurrenceOf("=", false, false);
+
+				if (!key.isEmpty() && !value.isEmpty())
+				{
+					parameterObject->setProperty(Identifier(key), var(value));
+				}
+			}
+
+			parameters = var(parameterObject);
+			subURL = realSubURL;
+		}
+
 		if (sf->f.isDirectory())
 		{
 			reportScriptError("target file is a directory");
