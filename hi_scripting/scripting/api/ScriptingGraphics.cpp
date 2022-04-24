@@ -1655,6 +1655,7 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawThumbnailPath",
 		"drawThumbnailRange",
 		"drawThumbnailRuler",
+		"drawAhdsrBackground",
 		"drawAhdsrBall",
 		"drawAhdsrPath",
 		"drawKeyboardBackground",
@@ -2359,6 +2360,28 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawScrollbar(Graphics& g_, Scr
 	GlobalHiseLookAndFeel::drawScrollbar(g_, scrollbar, x, y, width, height, isScrollbarVertical, thumbStartPosition, thumbSize, isMouseOver, isMouseDown);
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrBackground(Graphics& g, AhdsrGraph& graph)
+{
+	if (functionDefined("drawAhdsrBackground"))
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("enabled", graph.isEnabled());
+		obj->setProperty("area", ApiHelpers::getVarRectangle(graph.getBounds().toFloat()));
+		
+		setColourOrBlack(obj, "bgColour", graph, AhdsrGraph::ColourIds::bgColour);
+		setColourOrBlack(obj, "itemColour", graph, AhdsrGraph::ColourIds::fillColour);
+		setColourOrBlack(obj, "itemColour2", graph, AhdsrGraph::ColourIds::lineColour);
+		setColourOrBlack(obj, "itemColour3", graph, AhdsrGraph::ColourIds::outlineColour);
+
+		addParentFloatingTile(graph, obj);
+
+		if (get()->callWithGraphics(g, "drawAhdsrBackground", var(obj), &graph))
+			return;
+	}
+
+	AhdsrGraph::LookAndFeelMethods::drawAhdsrBackground(g, graph);
+}
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive)
 {

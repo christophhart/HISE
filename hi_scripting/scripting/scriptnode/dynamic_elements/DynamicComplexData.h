@@ -361,6 +361,7 @@ struct complex_ui_laf : public ScriptnodeComboBoxLookAndFeel,
 	void drawGonioMeterDots(Graphics& g, RingBufferComponentBase& ac, const RectangleList<float>& dots, int index) override;
 	void drawAnalyserGrid(Graphics& g, RingBufferComponentBase& ac, const Path& p) override;
 
+	void drawAhdsrBackground(Graphics& g, AhdsrGraph& graph) override;
 	void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive) override;
 	void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p) override;
 	
