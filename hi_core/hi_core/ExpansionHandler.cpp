@@ -528,6 +528,12 @@ hise::Expansion* ExpansionHandler::getExpansionForWildcardReference(const String
 	if (!isEnabled())
 		return nullptr;
 
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
+	{
+		if (getCurrentExpansion() != nullptr && poolReferenceString.startsWith("{PROJECT_FOLDER}"))
+			return getCurrentExpansion();
+	}
+
 	auto id = Expansion::Helpers::getExpansionIdFromReference(poolReferenceString);
 
 	if (id.isNotEmpty())

@@ -2312,6 +2312,10 @@ void ScriptingApi::Engine::loadImageIntoPool(const String& id)
 	auto mc = getScriptProcessor()->getMainController_();
 
 	auto pool = mc->getCurrentImagePool();
+
+	if (auto e = mc->getExpansionHandler().getExpansionForWildcardReference(id))
+		pool = &e->pool->getImagePool();
+
 	const bool isWildcard = id.contains("*");
 
 	if (isWildcard)
