@@ -96,6 +96,7 @@ struct ScriptingApi::Content::Wrapper
 	static var setContentTooltip(const var::NativeFunctionArgs& args);
 	static var setToolbarProperties(const var::NativeFunctionArgs& args);
 	static var setUseHighResolutionForPanels(const var::NativeFunctionArgs& args);
+	static var isCtrlDown(const var::NativeFunctionArgs& args);
 
 	static var getCurrentTooltip(const var::NativeFunctionArgs& args);
 
@@ -454,6 +455,17 @@ var ScriptingApi::Content::Wrapper::setUseHighResolutionForPanels(const var::Nat
 	return var();
 }
 
+var ScriptingApi::Content::Wrapper::isCtrlDown(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("isCtrlDown()", 0);
+
+		return thisObject->isCtrlDown();
+	}
+
+	return var();
+}
 
 var ScriptingApi::Content::Wrapper::setToolbarProperties(const var::NativeFunctionArgs& args)
 {

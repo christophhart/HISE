@@ -4321,6 +4321,7 @@ colour(Colour(0xff777777))
 	setMethod("setUseHighResolutionForPanels", Wrapper::setUseHighResolutionForPanels);
 	setMethod("setColour", Wrapper::setColour);
 	setMethod("clear", Wrapper::clear);
+	setMethod("isCtrlDown", Wrapper::isCtrlDown);
 	setMethod("createPath", Wrapper::createPath);
 	setMethod("createShader", Wrapper::createShader);
 	setMethod("getCurrentTooltip", Wrapper::getCurrentTooltip);
@@ -4579,6 +4580,10 @@ void ScriptingApi::Content::setUseHighResolutionForPanels(bool shouldUseDoubleRe
 	useDoubleResolution = shouldUseDoubleResolution;
 }
 
+bool ScriptingApi::Content::isCtrlDown()
+{
+	return juce::ModifierKeys::currentModifiers.isCommandDown() || juce::ModifierKeys::currentModifiers.isCtrlDown();
+}
 
 
 void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName, const ValueTree& automationData)
