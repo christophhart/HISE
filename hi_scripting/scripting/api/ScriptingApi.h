@@ -551,6 +551,9 @@ public:
 		
 		String intToHexString(int value);
 
+		/** Signals that the application should terminate. */
+		void quit();
+
 		/** Reverts the last controller change. */
 		void undo();
 
