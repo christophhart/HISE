@@ -1496,7 +1496,7 @@ public:
 		String getSystemId();
 		
 		/**  Convert a file size in bytes to a neat string description. */
-		String descriptionOfSizeInBytes(int bytes);
+		String descriptionOfSizeInBytes(int64 bytes);
 
 		/** Returns the number of free bytes on the volume of a given folder. */
 		int64 getBytesFreeOnVolume(var folder);
