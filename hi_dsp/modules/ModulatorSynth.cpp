@@ -881,9 +881,12 @@ void ModulatorSynth::numDestinationChannelsChanged()
 
 void ModulatorSynth::setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler) noexcept
 {
-	Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
+	if (isBypassed() != shouldBeBypassed)
+	{
+		Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
 
-	setSoftBypass(shouldBeBypassed, true);
+		setSoftBypass(shouldBeBypassed, true);
+	}
 }
 
 void ModulatorSynth::softBypassStateChanged(bool isBypassedNow)

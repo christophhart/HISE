@@ -454,6 +454,7 @@ struct ScriptingObjects::ScriptShader::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptShader, setBlendFunc);
 	API_VOID_METHOD_WRAPPER_1(ScriptShader, fromBase64);
 	API_VOID_METHOD_WRAPPER_1(ScriptShader, setEnableCachedBuffer);
+	API_VOID_METHOD_WRAPPER_2(ScriptShader, setPreprocessor);
 	API_METHOD_WRAPPER_0(ScriptShader, toBase64);
 	API_METHOD_WRAPPER_0(ScriptShader, getOpenGLStatistics);
 };
@@ -483,6 +484,7 @@ ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) 
 	ADD_API_METHOD_0(toBase64);
 	ADD_API_METHOD_0(getOpenGLStatistics);
 	ADD_API_METHOD_1(setEnableCachedBuffer);
+	ADD_API_METHOD_2(setPreprocessor);
 }
 
 bool ScriptingObjects::ScriptShader::renderingScreenShot = false;
@@ -507,9 +509,12 @@ String ScriptingObjects::ScriptShader::getHeader()
 	s << "\n#define fragCoord _gl_fc()\n";
 	s << "#define fragColor gl_FragColor\n";
 
-#if JUCE_WINDOWS && USE_BACKEND
-	// The #line directive does not work on macOS apparently...
-	s << "#line 0 \"" << shaderName << "\" \n";
+#if USE_BACKEND
+	// We'll make this dynamic so everybody can adjust it to their graphics card
+	if (GET_HISE_SETTING(dynamic_cast<Processor*>(getScriptProcessor()), HiseSettings::Other::EnableShaderLineNumbers))
+	{
+		s << "#line 0 \"" << shaderName << "\" \n";
+	}
 #endif
 
 	return s;
@@ -574,6 +579,16 @@ void ScriptingObjects::ScriptShader::setEnableCachedBuffer(bool shouldEnableBuff
 
 
 
+void ScriptingObjects::ScriptShader::setPreprocessor(String preprocessorString, var value)
+{
+	if (preprocessorString.isEmpty())
+		preprocessors.clear();
+	else
+		preprocessors.set(Identifier(preprocessorString), value);
+
+	compileRawCode(compiledCode);
+}
+
 int ScriptingObjects::ScriptShader::blockWhileWaiting()
 {
 	if (screenshotPending)
@@ -619,15 +634,37 @@ void ScriptingObjects::ScriptShader::makeStatistics()
 	auto d = new DynamicObject();
 
 	int major = 0, minor = 0;
-	glGetIntegerv(GL_MAJOR_VERSION, &major);
-	glGetIntegerv(GL_MINOR_VERSION, &minor);
-
+	
+    
 	auto vendor = String((const char*)glGetString(GL_VENDOR));
-
+    jassert(glGetError() == GL_NO_ERROR);
+    
 	auto renderer = String((const char*)glGetString(GL_RENDERER));
+    jassert(glGetError() == GL_NO_ERROR);
+    
 	auto version = String((const char*)glGetString(GL_VERSION));
+    jassert(glGetError() == GL_NO_ERROR);
+    
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    auto ok1 = glGetError();
+    
+    glGetIntegerv(GL_MINOR_VERSION, &minor);
+    auto ok2 = glGetError();
+    
 	auto shaderVersion = OpenGLShaderProgram::getLanguageVersion();
-
+    jassert(glGetError() == GL_NO_ERROR);
+    
+    // Apparently this fails on older macs, so we need to parse the version integers from the string
+    if(ok1 != GL_NO_ERROR || ok2 != GL_NO_ERROR)
+    {
+        const auto v = version.upToFirstOccurrenceOf(" ", false, false);
+        
+        major = v.upToFirstOccurrenceOf(".", false, false).getIntValue();
+        minor = v.fromFirstOccurrenceOf(".", false, false).getIntValue();
+    }
+    
+    
+    
 	d->setProperty("VersionString", version);
 	d->setProperty("Major", major);
 	d->setProperty("Minor", minor);
@@ -674,7 +711,14 @@ void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
 {
 	compiledCode = code;
 
-	shaderCode = getHeader();
+	shaderCode = {};
+	
+	for (auto& p : preprocessors)
+	{
+		shaderCode << "#define " << p.name << " " << p.value.toString() << "\n";
+	}
+
+	shaderCode << getHeader();
 
 	shaderCode << compiledCode;
 
@@ -980,6 +1024,8 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, setFont);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawAlignedText);
+	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawFittedText);
+	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawMultiLineText);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setGradientFill);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawEllipse);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillEllipse);
@@ -1007,7 +1053,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, applySharpness);
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, applySepia);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyVignette);
-	API_VOID_METHOD_WRAPPER_2(GraphicsObject, applyShader);
+	API_METHOD_WRAPPER_2(GraphicsObject, applyShader);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -1027,6 +1073,8 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_2(setFont);
 	ADD_API_METHOD_2(drawText);
 	ADD_API_METHOD_3(drawAlignedText);
+	ADD_API_METHOD_5(drawFittedText);
+	ADD_API_METHOD_5(drawMultiLineText);
 	ADD_API_METHOD_1(setGradientFill);
 	ADD_API_METHOD_2(drawEllipse);
 	ADD_API_METHOD_1(fillEllipse);
@@ -1279,6 +1327,31 @@ void ScriptingObjects::GraphicsObject::drawAlignedText(String text, var area, St
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText(text, r, just));
 }
 
+void ScriptingObjects::GraphicsObject::drawFittedText(String text, var area, String alignment, int maxLines, float scale)
+{
+	Result re = Result::ok();
+	auto just = ApiHelpers::getJustification(alignment, &re);
+
+	if (re.failed())
+		reportScriptError(re.getErrorMessage());
+
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawFittedText(text, area, just, maxLines, scale));
+}
+
+void ScriptingObjects::GraphicsObject::drawMultiLineText(String text, var xy, int maxWidth, String alignment, float leading)
+{
+	Result re = Result::ok();
+	auto just = ApiHelpers::getJustification(alignment, &re);
+
+	if (re.failed())
+		reportScriptError(re.getErrorMessage());
+    
+    int startX = (int)xy[0];
+    int baseLineY = (int)xy[1];
+    
+    drawActionHandler.addDrawAction(new ScriptedDrawActions::drawMultiLineText(text, startX, baseLineY, maxWidth, just, leading));
+}
+
 void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
 {
 	if (gradientData.isArray())
@@ -1422,13 +1495,16 @@ void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(var colour, int ra
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::addDropShadowFromAlpha(shadow));
 }
 
-void ScriptingObjects::GraphicsObject::applyShader(var shader, var area)
+bool ScriptingObjects::GraphicsObject::applyShader(var shader, var area)
 {
 	if (auto obj = dynamic_cast<ScriptingObjects::ScriptShader*>(shader.getObject()))
 	{
 		Rectangle<int> b = getRectangleFromVar(area).toNearestInt();
 		drawActionHandler.addDrawAction(new ScriptedDrawActions::addShader(&drawActionHandler, obj, b));
+		return true;
 	}
+
+	return false;
 }
 
 void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
@@ -1568,6 +1644,7 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawPresetBrowserListItem",
 		"drawPresetBrowserSearchBar",
 		"drawPresetBrowserTag",
+		"drawTableBackground",
 		"drawTablePath",
 		"drawTablePoint",
 		"drawTableRuler",
@@ -1971,6 +2048,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawComboBox(Graphics& g_, int 
 		obj->setProperty("text", text);
 		obj->setProperty("active", cb.getSelectedId() != 0);
 		obj->setProperty("enabled", cb.isEnabled() && cb.getNumItems() > 0);
+		obj->setProperty("hover", cb.isMouseOver(true) || cb.isMouseButtonDown(true) || cb.isPopupActive());
 
 		setColourOrBlack(obj, "bgColour",    cb, HiseColourScheme::ComponentOutlineColourId);
 		setColourOrBlack(obj, "itemColour1", cb, HiseColourScheme::ComponentFillTopColourId);
@@ -2091,7 +2169,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawColumnBackground(Graphics& 
 	PresetBrowserLookAndFeelMethods::drawColumnBackground(g_, listArea, emptyText);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawListItem(Graphics& g_, int columnIndex, int rowIndex, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawListItem(Graphics& g_, int columnIndex, int rowIndex, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
 {
 	if (functionDefined("drawPresetBrowserListItem"))
 	{
@@ -2101,6 +2179,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawListItem(Graphics& g_, int 
 		obj->setProperty("rowIndex", rowIndex);
 		obj->setProperty("text", itemName);
 		obj->setProperty("selected", rowIsSelected);
+		obj->setProperty("hover", hover);
 		obj->setProperty("bgColour", backgroundColour.getARGB());
 		obj->setProperty("itemColour", highlightColour.getARGB());
 		obj->setProperty("itemColour2", modalBackgroundColour.getARGB());
@@ -2110,7 +2189,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawListItem(Graphics& g_, int 
 			return;
 	}
 
-	PresetBrowserLookAndFeelMethods::drawListItem(g_, columnIndex, rowIndex, itemName, position, rowIsSelected, deleteMode);
+	PresetBrowserLookAndFeelMethods::drawListItem(g_, columnIndex, rowIndex, itemName, position, rowIsSelected, deleteMode, hover);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSearchBar(Graphics& g_, Rectangle<int> area)
@@ -2145,6 +2224,27 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSearchBar(Graphics& g_, Rec
 	}
 
 	PresetBrowserLookAndFeelMethods::drawSearchBar(g_, area);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableBackground(Graphics& g_, TableEditor& te, Rectangle<float> area, double rulerPosition)
+{
+	if (functionDefined("drawTableBackground"))
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
+		obj->setProperty("id", te.getName());
+		obj->setProperty("position", rulerPosition);
+		setColourOrBlack(obj, "bgColour",    te, TableEditor::ColourIds::bgColour);
+		setColourOrBlack(obj, "itemColour",  te, TableEditor::ColourIds::fillColour);
+		setColourOrBlack(obj, "itemColour2", te, TableEditor::ColourIds::lineColour);
+		setColourOrBlack(obj, "textColour",  te, TableEditor::ColourIds::rulerColour);
+
+		addParentFloatingTile(te, obj);
+
+		if (get()->callWithGraphics(g_, "drawTableBackground", var(obj), &te))
+			return;		
+	}
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTablePath(Graphics& g_, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness)
@@ -2272,6 +2372,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrPathSection(Graphics& 
 
 		p->getPath() = s;
 
+		obj->setProperty("enabled", graph.isEnabled());
 		obj->setProperty("isActive", isActive);
 		obj->setProperty("path", keeper);
 		obj->setProperty("currentState", graph.getCurrentStateIndex());
@@ -2300,6 +2401,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrBallPosition(Graphics&
 		obj->setProperty("area", ApiHelpers::getVarRectangle(graph.getLocalBounds().toFloat()));
 		obj->setProperty("position", ApiHelpers::getVarFromPoint(pos));
 		obj->setProperty("currentState", graph.getCurrentStateIndex());
+		obj->setProperty("enabled", graph.isEnabled());
 
 		setColourOrBlack(obj, "bgColour",	 graph, AhdsrGraph::ColourIds::bgColour);
 		setColourOrBlack(obj, "itemColour",  graph, AhdsrGraph::ColourIds::fillColour);
@@ -2439,8 +2541,6 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawKeyboardBackground(Graphics
 
 		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));
 
-
-
 		if (get()->callWithGraphics(g_, "drawKeyboardBackground", var(obj), c))
 			return;
 	}
@@ -2496,7 +2596,7 @@ juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler
 
 	if (auto l = get())
 	{
-		auto obj = new DynamicObject();
+		DynamicObject::Ptr obj = new DynamicObject();
 
 		String s;
 
@@ -2515,7 +2615,7 @@ juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler
 		Image img2(Image::ARGB, img.getWidth(), img.getHeight(), true);
 		Graphics g(img2);
 
-		if (l->callWithGraphics(g, "drawAlertWindowIcon", var(obj), nullptr))
+		if (l->callWithGraphics(g, "drawAlertWindowIcon", var(obj.get()), nullptr))
 		{
 			if ((int)obj->getProperty("type") == -1)
 				return {};

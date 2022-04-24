@@ -100,16 +100,7 @@ public:
 
     struct Factory: public PathFactory
     {
-        Path createPath(const String& url) const override
-        {
-            Path p;
-            LOAD_PATH_IF_URL("add", EditorIcons::penShape);
-            LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
-			LOAD_PATH_IF_URL("close", SampleMapIcons::deleteSamples);
-			LOAD_PATH_IF_URL("create", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
-
-            return p;
-        }
+        Path createPath(const String& url) const override;
     };
     
 	SET_GENERIC_PANEL_ID("PatchBrowser");

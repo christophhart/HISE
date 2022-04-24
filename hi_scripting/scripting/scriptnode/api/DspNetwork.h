@@ -182,6 +182,7 @@ public:
 		case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
 		case Error::IllegalBypassConnection: return "Use a `container.soft_bypass` node";
 		case Error::CloneMismatch:	return "Clone container must have equal child nodes";
+		case Error::IllegalCompilation: return "Can't compile networks with this node. Uncheck the `AllowCompilation` flag to remove the error.";
 		case Error::CompileFail:	s << "Compilation error** at Line " << e.expected << ", Column " << e.actual; return s;
 		default:
 			break;
@@ -755,7 +756,7 @@ public:
 
 	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || getPolyHandler()->getVoiceIndex() == 0; }
 
-	bool isInitialised() const noexcept { return currentSpecs.blockSize > 0 && currentSpecs.numChannels > 0; };
+    bool isInitialised() const noexcept { return initialised; };
 
 	bool isForwardingControlsToParameters() const
 	{
@@ -985,6 +986,8 @@ private:
 		valuetree::RecursiveTypedChildListener deleteChecker;
 	};
 
+    bool initialised = false;
+    
 	ScopedPointer<SelectionUpdater> selectionUpdater;
 
 	OwnedArray<NodeFactory> ownedFactories;
@@ -1113,8 +1116,8 @@ struct OpaqueNetworkHolder
 
 	bool isPolyphonic() const { return false; }
 
-	HISE_EMPTY_INITIALISE;
-	HISE_EMPTY_PROCESS_SINGLE;
+	SN_EMPTY_INITIALISE;
+	SN_EMPTY_PROCESS_FRAME;
 
 	OpaqueNetworkHolder()
 	{

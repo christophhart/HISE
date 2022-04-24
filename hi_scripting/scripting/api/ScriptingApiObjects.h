@@ -284,6 +284,24 @@ namespace ScriptingObjects
 		/** Returns the new directory created at the file location, if directory doesn't already exist */
 		var createDirectory(String directoryName);
 
+		/** Returns the size of the file in bytes. */
+		int64 getSize();
+		
+		/** Returns the number of bytes free on the drive that this file lives on. */
+		int64 getBytesFreeOnVolume();
+
+		/** Changes the execute-permissions of a file. */
+		bool setExecutePermission(bool shouldBeExecutable);
+
+		/** Launches the file as a process. */
+		bool startAsProcess(String parameters);
+		
+		/** Reads a file and generates the hash of its contents. */
+		String getHash();
+
+		/** true if it's possible to create and write to this file. If the file doesn't already exist, this will check its parent directory to see if writing is allowed. */
+		bool hasWriteAccess();
+
 		/** Returns a String representation of that file. */
 		String toString(int formatType) const;
 		
@@ -301,6 +319,12 @@ namespace ScriptingObjects
 
 		/** Replaces the file content with the JSON data. */
 		bool writeObject(var jsonData);
+
+		/** Replaces the XML file with the JSON content (needs to be convertible). */
+		bool writeAsXmlFile(var jsonDataToBeXmled, String tagName);
+
+		/** Loads the XML file and tries to parse it as JSON object. */
+		var loadFromXmlFile();
 
 		/** Writes the given data (either a Buffer or Array of Buffers) to a audio file. */
 		bool writeAudioFile(var audioData, double sampleRate, int bitDepth);
@@ -320,6 +344,9 @@ namespace ScriptingObjects
 		/** Loads the encrypted object using the supplied RSA key pair. */
 		var loadEncryptedObject(String key);
 
+		/** Renames the file. */
+		bool rename(String newName);
+
 		/** Loads the given file as audio file. */
 		var loadAsAudioFile() const;
 
@@ -331,6 +358,9 @@ namespace ScriptingObjects
 
 		/** Extracts the ZIP archive if this file is a .zip file. */
 		void extractZipFile(var targetDirectory, bool overwriteFiles, var callback);
+
+		/** Returns the number of items in the zip file. */
+		int getNumZippedItems();
 
 		/** Changes the read/write permission for the given file. */
 		void setReadOnly(bool shouldBeReadOnly, bool applyRecursively);
@@ -408,6 +438,9 @@ namespace ScriptingObjects
 		/** Call a function on the background thread. */
 		void callOnBackgroundThread(var backgroundTaskFunction);
 
+		/** Kills all voices and calls the given function on the sample loading thread. */
+		bool killVoicesAndCall(var loadingFunction);
+
 		/** Set a progress for this task. */
 		void setProgress(double p);
 
@@ -462,6 +495,8 @@ namespace ScriptingObjects
 		NamedValueSet synchronisedData;
 		WeakCallbackHolder currentTask;
 		WeakCallbackHolder finishCallback;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptBackgroundTask);
 	};
 
 	class ScriptFFT : public ConstScriptingObject,
@@ -591,7 +626,7 @@ namespace ScriptingObjects
 	{
 		using Ptr = ReferenceCountedObjectPtr<ScriptDownloadObject>;
 
-		ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const File& targetFile, var callback);;
+		ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const String& extraHeader, const File& targetFile, var callback);;
 
 		~ScriptDownloadObject();
 
@@ -692,6 +727,8 @@ namespace ScriptingObjects
 		File targetFile;
 
 		WeakCallbackHolder callback;
+
+		String extraHeaders;
 
 		ScopedPointer<URL::DownloadTask> download;
 
@@ -2001,6 +2038,79 @@ namespace ScriptingObjects
 		// ============================================================================================================
 	};
 
+
+	struct GlobalRoutingManagerReference : public ConstScriptingObject,
+										  public ControlledObject
+	{
+		GlobalRoutingManagerReference(ProcessorWithScriptingContent* sp);;
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("GlobalRoutingManager"); }
+
+		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
+
+		// =============================================================================================
+
+		/** Returns a scripted reference to the global cable (and creates a cable with this ID if it can't be found. */
+		var getCable(String cableId);
+
+		// =============================================================================================
+
+	private:
+
+		struct Wrapper;
+
+		var manager;
+	};
+
+	/** A wrapper around a global cable. */
+	struct GlobalCableReference : public ConstScriptingObject
+	{
+		GlobalCableReference(ProcessorWithScriptingContent* ps, var c);
+
+		~GlobalCableReference();
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("GlobalCable"); }
+
+		// =============================================================================================
+
+		/** Returns the value (converted to the input range). */
+		double getValue() const;
+
+		/** Returns the normalised value between 0...1 */
+		double getValueNormalised() const;
+
+		/** Sends the normalised value to all targets. */
+		void setValueNormalised(double normalisedInput);
+
+		/** Sends the value to all targets (after converting it from the input range. */
+		void setValue(double inputWithinRange);
+		
+		/** Set the input range using a min and max value (no steps / no skew factor). */
+		void setRange(double min, double max);
+
+		/** Set the input range using a min and max value and a mid point for skewing the range. */
+		void setRangeWithSkew(double min, double max, double midPoint);
+
+		/** Set the input range using a min and max value as well as a step size. */
+		void setRangeWithStep(double min, double max, double stepSize);
+
+		/** Registers a function that will be executed whenever a value is sent through the cable. */
+		void registerCallback(var callbackFunction, bool synchronous);
+
+		// =============================================================================================
+
+	private:
+
+		struct DummyTarget;
+		struct Wrapper;
+		struct Callback;
+
+		var cable;
+
+		ScopedPointer<DummyTarget> dummyTarget;
+		OwnedArray<Callback> callbacks;
+		scriptnode::InvertableParameterRange inputRange;
+	};
 
 	class TimerObject : public ConstScriptingObject,
 					    public ControlledObject

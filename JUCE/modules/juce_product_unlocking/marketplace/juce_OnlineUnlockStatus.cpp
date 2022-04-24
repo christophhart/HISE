@@ -314,14 +314,24 @@ void OnlineUnlockStatus::MachineIDUtilities::addMACAddressesToList (StringArray&
         ids.add (getEncodedIDString (address.toString()));
 }
 
+#ifndef JUCE_CREATE_DUMMY_MACHINE_IDS
+#define JUCE_CREATE_DUMMY_MACHINE_IDS 0
+#endif
+
 StringArray OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs()
 {
+#if JUCE_CREATE_DUMMY_MACHINE_IDS
+	StringArray sa;
+	sa.add("DUMMYID1234");
+	return sa;
+#else
     auto identifiers = SystemStats::getDeviceIdentifiers();
 
     for (auto& identifier : identifiers)
         identifier = getEncodedIDString (identifier);
 
     return identifiers;
+#endif
 }
 
 StringArray OnlineUnlockStatus::getLocalMachineIDs()

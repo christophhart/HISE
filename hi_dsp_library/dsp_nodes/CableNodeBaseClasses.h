@@ -82,16 +82,16 @@ struct no_processing
 	virtual ~no_processing() {};
 
 	static constexpr bool isPolyphonic() { return false; };
-	virtual HISE_EMPTY_INITIALISE;
-	virtual HISE_EMPTY_PREPARE;
+	virtual SN_EMPTY_INITIALISE;
+	virtual SN_EMPTY_PREPARE;
 
 	static constexpr bool isNormalisedModulation() { return true; };
 	bool handleModulation(double& d) { return false; };
 
-	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_PROCESS;
-	HISE_EMPTY_PROCESS_SINGLE;
-	HISE_EMPTY_RESET;
+	SN_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_PROCESS;
+	SN_EMPTY_PROCESS_FRAME;
+	SN_EMPTY_RESET;
 };
 
 template <class ParameterType> struct parameter_node_base

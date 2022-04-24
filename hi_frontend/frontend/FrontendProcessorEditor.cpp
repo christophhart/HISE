@@ -63,9 +63,11 @@ AudioProcessorEditor(fp)
 #endif
 #endif
 
+
+#if !HISE_DEACTIVATE_OVERLAY
 	fp->addOverlayListener(this);
-	
 	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay(fp));
+#endif
 
 #if FRONTEND_IS_PLUGIN || HISE_IOS
     const bool searchSamples = false;
@@ -74,6 +76,7 @@ AudioProcessorEditor(fp)
     
 #endif
 
+#if !HISE_DEACTIVATE_OVERLAY
     if(searchSamples && !fp->deactivatedBecauseOfMemoryLimitation)
     {
         deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !FrontendHandler::checkSamplesCorrectlyInstalled());
@@ -92,7 +95,8 @@ AudioProcessorEditor(fp)
 
 	deactiveOverlay->setState(DeactiveOverlay::LicenseInvalid, !fp->unlocker.isUnlocked());
 #endif
-    
+#endif
+
 	container->addAndMakeVisible(loaderOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
     
 	loaderOverlay->setDialog(nullptr);
@@ -108,8 +112,11 @@ AudioProcessorEditor(fp)
         
         getContentComponent()->setVisible(false);
         
+#if !HISE_DEACTIVATE_OVERLAY
         deactiveOverlay->clearAllFlags();
         deactiveOverlay->setVisible(false);
+#endif
+
         container->setVisible(false);
         
         setSize(b.getWidth(), b.getHeight());
@@ -265,7 +272,11 @@ void FrontendProcessorEditor::resized()
 
     container->setBounds(0, 0, width, height);
 	getContentComponent()->setBounds(0, 0, width, height);
+
+#if !HISE_DEACTIVATE_OVERLAY
     deactiveOverlay->setBounds(0, 0, width, height);
+#endif
+
 	loaderOverlay->setBounds(0, 0, width, height);
 	debugLoggerComponent->setBounds(0, height -90, width, 90);
 }

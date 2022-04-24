@@ -437,14 +437,14 @@ struct convolution : public data::base,
 		DEF_PARAMETER(Predelay, convolution);
 	    DEF_PARAMETER(Multithread, convolution);
 	};
-	PARAMETER_MEMBER_FUNCTION;
+	SN_PARAMETER_MEMBER_FUNCTION;
 
-	SET_HISE_NODE_ID("convolution");
+	SN_NODE_ID("convolution");
 	SN_GET_SELF_AS_OBJECT(convolution);
 	SN_DESCRIPTION("A convolution reverb node");
 
-	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_INITIALISE;
+	SN_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_INITIALISE;
 
 	static constexpr bool isPolyphonic() { return false; }
 	static constexpr bool isNormalisedModulation() { return false; }
@@ -588,7 +588,7 @@ struct convolution : public data::base,
 	{
 		{
 			DEFINE_PARAMETERDATA(convolution, Gate);
-			p.setParameterValueNames({ "On", "Off" });
+			p.setParameterValueNames({ "Off", "On" });
 			p.setDefaultValue(1.0);
 			data.add(std::move(p));
 		}
@@ -618,7 +618,7 @@ struct convolution : public data::base,
 
 		{
 			DEFINE_PARAMETERDATA(convolution, Multithread);
-			p.setParameterValueNames({ "On", "Off" });
+			p.setParameterValueNames({ "Off", "On" });
 			data.add(std::move(p));
 		}
 	}

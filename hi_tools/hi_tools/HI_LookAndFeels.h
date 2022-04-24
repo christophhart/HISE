@@ -305,7 +305,7 @@ protected:
 
 	bool shouldPopupMenuScaleWithTargetComponent(const PopupMenu::Options& /*options*/) override
 	{
-		return false;
+		return true;
 	};
 
 	void drawPopupMenuBackground(Graphics& g, int width, int height) override
@@ -797,7 +797,7 @@ public:
 	virtual void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText);
 	virtual void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
 	virtual void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);
-	virtual void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode);
+	virtual void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover);
 	virtual void drawSearchBar(Graphics& g, Rectangle<int> area);
 
 	Font getFont(bool fontForTitle);

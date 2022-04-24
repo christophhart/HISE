@@ -67,6 +67,7 @@ struct Error
 		DeprecatedNode,
 		IllegalPolyphony,
 		IllegalBypassConnection,
+		IllegalCompilation,
 		CloneMismatch,
 		IllegalMod,
 		numErrorCodes
@@ -75,10 +76,6 @@ struct Error
 	static void throwError(ErrorCode code, int expected_ = 0, int actual_ = 0);
 
 	bool isOk() const { return error == ErrorCode::OK; }
-
-private:
-
-	friend class ScriptnodeExceptionHandler;
 
 	ErrorCode error = ErrorCode::OK;
 	int expected = 0;

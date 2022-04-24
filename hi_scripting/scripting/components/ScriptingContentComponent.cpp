@@ -60,6 +60,8 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 
 	setInterceptsMouseClicks(false, true);
 
+    setWantsKeyboardFocus(true);
+    
 	p->addDeleteListener(this);
 
 	p->addChangeListener(this);

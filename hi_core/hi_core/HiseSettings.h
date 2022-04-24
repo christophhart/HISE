@@ -134,6 +134,7 @@ namespace Other
 {
 DECLARE_ID(GlobalSamplePath);
 DECLARE_ID(UseOpenGL);
+DECLARE_ID(EnableShaderLineNumbers);
 DECLARE_ID(GlassEffect);
 DECLARE_ID(EnableAutosave);
 DECLARE_ID(AutosaveInterval);

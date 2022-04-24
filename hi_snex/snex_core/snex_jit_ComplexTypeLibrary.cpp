@@ -944,7 +944,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 				if (index->isMemoryLocation())
 				{
 					if (IS_IMM(index))
-						cc.cmp(limit, INT_IMM(index));
+						cc.cmp(limit, (int64_t)INT_IMM(index));
 					else
 						cc.cmp(limit, INT_MEM(index));
 				}
@@ -973,7 +973,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 				cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), flagReg);
 				
 				if(index->isImmediate())
-					cc.mov(flagReg, INT_IMM(index));
+					cc.mov(flagReg, (int64_t)INT_IMM(index));
 				else if (index->isMemoryLocation())
 					cc.mov(flagReg, INT_MEM(index));
 				else

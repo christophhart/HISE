@@ -118,13 +118,13 @@ public:
 		SampleRate, ///< the sample rate
 		GlobalBPM, ///< the global BPM if you don't want to tempo sync.
 		ScaleFactor, ///< the global scale factor for the UI
+		UseOpenGL, ///< enables OpenGL
 		StreamingMode, ///< Sets the streaming settings
 		VoiceAmountMultiplier, ///< the max voice amount per sound generator
 		ClearMidiCC, /// removes all MIDI learn information
 		SampleLocation, /// shows the sample location
 		DebugMode, /// toggles the Debug mode
 		ScaleFactorList, ///< the list of scale factors as Array<var> containing doubles.
-		UseOpenGL,
 		numProperties
 	};
 

@@ -631,7 +631,7 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 		auto n = base.cloneAdjustedAndResized(0x01, 1);
 
 		auto v = d->args[0];
-		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		if (IS_MEM(v)) cc.mov(n, (int64_t)INT_IMM(v));
 		else cc.mov(n, INT_REG_R(v));
 
 		return Result::ok();
@@ -643,7 +643,7 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 		auto n = base.cloneAdjustedAndResized(0x02, 1);
 
 		auto v = d->args[0];
-		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		if (IS_MEM(v)) cc.mov(n, (int64_t)INT_IMM(v));
 		else cc.mov(n, INT_REG_R(v));
 
 		return Result::ok();
@@ -655,7 +655,7 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 		auto n = base.cloneAdjustedAndResized(0x03, 1);
 
 		auto v = d->args[0];
-		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		if (IS_MEM(v)) cc.mov(n, (int64_t)INT_IMM(v));
 		else cc.mov(n, INT_REG_R(v));
 
 		return Result::ok();

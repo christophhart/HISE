@@ -226,21 +226,58 @@ void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 		auto h = (float)getHeight();
 		auto z = 0.0f;
 
+		
+
 		if (!reversed)
 		{
 			fadeInPath.startNewSubPath(z, h);
-			fadeInPath.lineTo(w, z);
-			fadeInPath.lineTo(w, h);
+
+			if (gamma == 1.0f)
+			{
+				fadeInPath.lineTo(w, z);
+				fadeInPath.lineTo(w, h);
+			}
+			else
+			{
+				for (float x = z; x < w; x += 3.0f)
+				{
+					float gain = (x - z) / w;
+					gain = std::pow(gain, gamma);
+					float y = h - gain * h;
+					fadeInPath.lineTo(x, y);
+				}
+
+				fadeInPath.lineTo(w, h);
+			}
+			
 			fadeInPath.closeSubPath();
 		}
 		else
 		{
-			fadeInPath.startNewSubPath(z, z);
-			fadeInPath.lineTo(w, h);
-			fadeInPath.lineTo(z, h);
+			
+
+			if (gamma == 1.0f)
+			{
+				fadeInPath.startNewSubPath(z, z);
+				fadeInPath.lineTo(w, h);
+				fadeInPath.lineTo(z, h);
+			}
+			else
+			{
+				fadeInPath.startNewSubPath(w, h);
+				for (float x = z; x < w; x += 3.0f)
+				{
+					float gain = (x - z) / w;
+					gain = std::pow(gain, gamma);
+					float y = h - gain * h;
+					fadeInPath.lineTo(w - x, y);
+				}
+
+				fadeInPath.lineTo(z, h);
+			}
+			
 			fadeInPath.closeSubPath();
 		}
-		
 
 		g.setColour(getAreaColour((AreaTypes)area).withAlpha(areaEnabled ? 0.1f : 0.05f));
 		g.fillPath(fadeInPath);
@@ -341,6 +378,12 @@ Colour AudioDisplayComponent::SampleArea::getAreaColour(AreaTypes area)
 }
 
 
+
+void AudioDisplayComponent::SampleArea::setGamma(float newGamma)
+{
+	gamma = jlimit<float>(0.125f, 16.0f, newGamma);
+	repaint();
+}
 
 void AudioDisplayComponent::SampleArea::EdgeLookAndFeel::drawStretchableLayoutResizerBar (Graphics &g, 
 																   int w, int h, 

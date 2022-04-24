@@ -73,8 +73,8 @@ template <typename T, int NV> struct jwrapper
 			obj.prepare(jps);
 	}
 
-	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_INITIALISE;
+	SN_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_INITIALISE;
 	
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{

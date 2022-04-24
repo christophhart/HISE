@@ -254,6 +254,12 @@ class PresetBrowserColumn : public Component,
 public:
 	// ============================================================================================
 
+	struct HoverInformation
+	{
+		int columnIndex;
+		int rowIndex;
+	};
+
 	class ColumnListModel : public ListBoxModel,
 							public PresetBrowserChildComponentBase
 	{
@@ -283,6 +289,8 @@ public:
 		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
 
 		void update() override {};
+
+		bool isMouseHover(int rowNumber) const;
 
 		const Array<CachedTag>& getCachedTags() const;
 
@@ -352,6 +360,8 @@ public:
 		bool allowRecursiveSearch = false;
 		bool deleteOnClick = false;
 
+		int getColumnIndex() const { return index; }
+
 	protected:
 
 		bool empty = false;
@@ -404,6 +414,13 @@ public:
 		listbox->updateContent();
 	}
 
+	int getColumnIndex() const { return listModel->getColumnIndex(); }
+
+	int getIndexForPosition(Point<int> pos)
+	{
+		return listbox->getRowContainingPosition(pos.getX(), pos.getY());
+	}
+
 	void setEditMode(bool on) { listModel->setEditMode(on); listbox->repaint(); };
 
 	void setAllowRecursiveFileSearch(bool shouldAllow)
@@ -436,6 +453,12 @@ public:
 	void setEditButtonOffset(int offset)
 	{
 		editButtonOffset = offset;
+		resized();
+	}
+
+	void setButtonsInsideBorder(bool inside)
+	{
+		buttonsInsideBorder = inside;
 		resized();
 	}
 
@@ -474,6 +497,11 @@ public:
 	void mouseUp(const MouseEvent& /*e*/) override
 	{
 		TouchAndHoldComponent::abortTouch();
+	}
+
+	void mouseMove(const MouseEvent& e) override
+	{
+		repaint();
 	}
 
 	void buttonClicked(Button* b);
@@ -567,7 +595,8 @@ private:
 	bool shouldShowAddButton = true;
 	bool shouldShowRenameButton = true;
 	bool shouldShowDeleteButton = true;
-	int editButtonOffset = 0;
+	bool buttonsInsideBorder = false;
+	int editButtonOffset = 10;
 	double rowPadding = 0;
 	Rectangle<int> listArea;
 	Array<var> listAreaOffset;

@@ -46,9 +46,9 @@ namespace control
 														   public pimpl::parameter_node_base<ParameterClass>,
 														   public pimpl::no_processing
 	{
-		SET_HISE_NODE_ID("cable_pack");
+		SN_NODE_ID("cable_pack");
 		SN_GET_SELF_AS_OBJECT(cable_pack);
-		HISE_ADD_SET_VALUE(cable_pack);
+		SN_ADD_SET_VALUE(cable_pack);
 		SN_PARAMETER_NODE_CONSTRUCTOR(cable_pack, ParameterClass);
 		SN_DESCRIPTION("Uses a slider pack to modify a modulation signal");
 
@@ -95,9 +95,9 @@ namespace control
 														   public pimpl::no_processing,
 														   public hise::ComplexDataUIUpdaterBase::EventListener
 	{
-		SET_HISE_NODE_ID("sliderbank");
+		SN_NODE_ID("sliderbank");
 		SN_GET_SELF_AS_OBJECT(sliderbank);
-		HISE_ADD_SET_VALUE(sliderbank);
+		SN_ADD_SET_VALUE(sliderbank);
 		SN_PARAMETER_NODE_CONSTRUCTOR(sliderbank, ParameterClass);
 		SN_DESCRIPTION("Scale a value with a slider pack and send it to multiple targets");
 
@@ -203,12 +203,12 @@ namespace control
 						  public pimpl::templated_mode,
 						  public pimpl::parameter_node_base<ParameterClass>
 	{
-		SET_HISE_NODE_ID("file_analyser");
+		SN_NODE_ID("file_analyser");
 		SN_GET_SELF_AS_OBJECT(file_analyser);
 		SN_TEMPLATED_MODE_PARAMETER_NODE_CONSTRUCTOR(file_analyser, ParameterClass, "file_analysers");
 		SN_DESCRIPTION("Extracts file information (pitch, length, etc) and sends it as modulation signal on file load");
 
-		HISE_EMPTY_CREATE_PARAM;
+		SN_EMPTY_CREATE_PARAM;
 
 		static constexpr bool isNormalisedModulation() { return false; }
 
@@ -238,7 +238,7 @@ namespace control
 	template <typename ParameterClass> struct input_toggle : public pimpl::parameter_node_base<ParameterClass>,
 															 public pimpl::no_processing
 	{
-		SET_HISE_NODE_ID("input_toggle");
+		SN_NODE_ID("input_toggle");
 		SN_GET_SELF_AS_OBJECT(input_toggle);
 		SN_PARAMETER_NODE_CONSTRUCTOR(input_toggle, ParameterClass);
 		SN_DESCRIPTION("Switch between two input values as modulation signal");
@@ -256,7 +256,7 @@ namespace control
 			DEF_PARAMETER(Value1, input_toggle);
 			DEF_PARAMETER(Value2, input_toggle);
 		};
-		PARAMETER_MEMBER_FUNCTION;
+		SN_PARAMETER_MEMBER_FUNCTION;
 
 		static constexpr bool isNormalisedModulation() { return false; };
 
@@ -339,21 +339,21 @@ namespace control
 			DEF_PARAMETER(Enabled, tempo_sync);
 			DEF_PARAMETER(UnsyncedTime, tempo_sync);
 		}
-		PARAMETER_MEMBER_FUNCTION;
+		SN_PARAMETER_MEMBER_FUNCTION;
 
 		bool isPolyphonic() const { return false; }
 
-		SET_HISE_NODE_ID("tempo_sync");
+		SN_NODE_ID("tempo_sync");
 		SN_GET_SELF_AS_OBJECT(tempo_sync);
 		SN_DESCRIPTION("Sends the tempo duration as modulation signal");
 
 		void prepare(PrepareSpecs ps);
 
-		HISE_EMPTY_INITIALISE;
-		HISE_EMPTY_RESET;
-		HISE_EMPTY_PROCESS;
-		HISE_EMPTY_PROCESS_SINGLE;
-		HISE_EMPTY_HANDLE_EVENT;
+		SN_EMPTY_INITIALISE;
+		SN_EMPTY_RESET;
+		SN_EMPTY_PROCESS;
+		SN_EMPTY_PROCESS_FRAME;
+		SN_EMPTY_HANDLE_EVENT;
 
 		tempo_sync();
 		~tempo_sync();
@@ -398,7 +398,7 @@ namespace control
 														 public pimpl::no_processing,
 														 public pimpl::parameter_node_base<ParameterClass>
 	{
-		SET_HISE_NODE_ID("resetter");
+		SN_NODE_ID("resetter");
 		SN_GET_SELF_AS_OBJECT(resetter);
 		SN_PARAMETER_NODE_CONSTRUCTOR(resetter, ParameterClass);
 		SN_DESCRIPTION("Sends an inverted impulse (0,1) to reset gate-like parameters");
@@ -421,7 +421,7 @@ namespace control
 
 		int flashCounter = 0;
 
-		FORWARD_PARAMETER_TO_MEMBER(resetter);
+		SN_FORWARD_PARAMETER_TO_MEMBER(resetter);
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(resetter);
 	};
@@ -505,9 +505,9 @@ namespace control
 			DEF_PARAMETER(EnableMPE, midi_cc);
 			DEF_PARAMETER(DefaultValue, midi_cc);
 		}
-		PARAMETER_MEMBER_FUNCTION;
+		SN_PARAMETER_MEMBER_FUNCTION;
 
-		SET_HISE_NODE_ID("midi_cc");
+		SN_NODE_ID("midi_cc");
 		SN_GET_SELF_AS_OBJECT(midi_cc);
 		SN_PARAMETER_NODE_CONSTRUCTOR(midi_cc, ParameterClass);
 		SN_DESCRIPTION("sends a MIDI cc value");
@@ -606,14 +606,14 @@ namespace control
 																					 public pimpl::parameter_node_base<ParameterClass>,
 																					 public pimpl::no_processing
 	{
-		SET_HISE_NODE_ID("cable_expr");
+		SN_NODE_ID("cable_expr");
 		SN_GET_SELF_AS_OBJECT(cable_expr);
 		SN_DESCRIPTION("evaluates an expression for the control value");
 
-		HISE_ADD_SET_VALUE(cable_expr);
+		SN_ADD_SET_VALUE(cable_expr);
 		SN_PARAMETER_NODE_CONSTRUCTOR(cable_expr, ParameterClass);
 
-		HISE_DEFAULT_INIT(ExpressionClass);
+		SN_DEFAULT_INIT(ExpressionClass);
 
 		void setValue(double input)
 		{
@@ -632,13 +632,13 @@ namespace control
                            public pimpl::parameter_node_base<ParameterClass>,
                            public pimpl::no_processing
     {
-        SET_HISE_NODE_ID("converter");
+        SN_NODE_ID("converter");
         SN_GET_SELF_AS_OBJECT(converter);
         SN_DESCRIPTION("converts a control value");
 
-        HISE_DEFAULT_INIT(ConverterClass);
-        HISE_DEFAULT_PREPARE(ConverterClass);
-        HISE_ADD_SET_VALUE(converter);
+        SN_DEFAULT_INIT(ConverterClass);
+        SN_DEFAULT_PREPARE(ConverterClass);
+        SN_ADD_SET_VALUE(converter);
         SN_PARAMETER_NODE_CONSTRUCTOR(converter, ParameterClass);
 
         static constexpr bool isNormalisedModulation() { return false; }
@@ -658,11 +658,11 @@ namespace control
 															public pimpl::parameter_node_base<ParameterClass>,
 															public pimpl::no_processing
 	{
-		SET_HISE_NODE_ID("cable_table");
+		SN_NODE_ID("cable_table");
 		SN_GET_SELF_AS_OBJECT(cable_table);
 		SN_DESCRIPTION("Modify a modulation signal using a lookup table");
 
-		HISE_ADD_SET_VALUE(cable_table);
+		SN_ADD_SET_VALUE(cable_table);
 		SN_PARAMETER_NODE_CONSTRUCTOR(cable_table, ParameterClass);
 
 		void setExternalData(const ExternalData& d, int index) override
@@ -702,7 +702,7 @@ namespace control
 														 public hise::ComplexDataUIUpdaterBase::EventListener
 	{
 		SN_GET_SELF_AS_OBJECT(clone_pack);
-		SET_HISE_NODE_ID("clone_pack");
+		SN_NODE_ID("clone_pack");
 		
 		enum class Parameters
 		{
@@ -715,7 +715,7 @@ namespace control
 			DEF_PARAMETER(NumClones, clone_pack);
 			DEF_PARAMETER(Value, clone_pack);
 		};
-		PARAMETER_MEMBER_FUNCTION;
+		SN_PARAMETER_MEMBER_FUNCTION;
 
 		SN_DESCRIPTION("control cloned parameters with a slider pack");
 		
@@ -822,7 +822,7 @@ namespace control
 							 public control::pimpl::templated_mode								
 	{
 		SN_GET_SELF_AS_OBJECT(clone_cable);
-		SET_HISE_NODE_ID("clone_cable");
+		SN_NODE_ID("clone_cable");
 		SN_DESCRIPTION("Send different values to cloned nodes");
 
 		clone_cable():
@@ -848,7 +848,7 @@ namespace control
 			DEF_PARAMETER(Value, clone_cable);
 			DEF_PARAMETER(Gamma, clone_cable);
 		};
-		PARAMETER_MEMBER_FUNCTION;
+		SN_PARAMETER_MEMBER_FUNCTION;
 
 		void initialise(NodeBase* n)
 		{
@@ -942,12 +942,12 @@ namespace control
 																		   public control::pimpl::templated_mode,
 																		   public pimpl::no_processing
 	{
-		SET_HISE_NODE_ID("xfader");
+		SN_NODE_ID("xfader");
 		SN_GET_SELF_AS_OBJECT(xfader);
 		SN_TEMPLATED_MODE_PARAMETER_NODE_CONSTRUCTOR(xfader, ParameterClass, "faders");
 		SN_DESCRIPTION("Apply a crossfade to multiple outputs");
 
-		HISE_ADD_SET_VALUE(xfader);
+		SN_ADD_SET_VALUE(xfader);
 
 		void initialise(NodeBase* n) override
 		{
@@ -997,7 +997,7 @@ namespace control
 	{
 		struct bipolar
 		{
-			SET_HISE_NODE_ID("bipolar");
+			SN_NODE_ID("bipolar");
 			SN_DESCRIPTION("Creates a bipolar mod signal from a 0...1 range");
 
 			static constexpr bool isNormalisedModulation() { return true; }
@@ -1074,7 +1074,7 @@ namespace control
 				numLogicTypes
 			};
 
-			SET_HISE_NODE_ID("logic_op");
+			SN_NODE_ID("logic_op");
 			SN_DESCRIPTION("Combines the (binary) input signals using a logic operator");
 
 			static constexpr bool isNormalisedModulation() { return true; }
@@ -1145,7 +1145,7 @@ namespace control
 
 		struct minmax
 		{
-			SET_HISE_NODE_ID("minmax");
+			SN_NODE_ID("minmax");
 			SN_DESCRIPTION("Scales the input value to a modifyable range");
 
 			static constexpr bool isNormalisedModulation() { return false; }
@@ -1235,12 +1235,16 @@ namespace control
 
 		struct pma
 		{
-			SET_HISE_NODE_ID("pma");
+			SN_NODE_ID("pma");
 			SN_DESCRIPTION("Scales and offsets a modulation signal");
 
 			static constexpr bool isNormalisedModulation() { return true; }
 
-			double getValue() const { dirty = false; return value * mulValue + addValue; }
+			double getValue() const 
+			{ 
+				dirty = false; 
+				return jlimit(0.0, 1.0, value * mulValue + addValue); 
+			}
 
 			template <int P> void setParameter(double v)
 			{
@@ -1297,7 +1301,7 @@ namespace control
 	{
 		static constexpr int NumVoices = NV;
 
-		SET_HISE_POLY_NODE_ID(DataType::getStaticId());
+		SN_POLY_NODE_ID(DataType::getStaticId());
 		SN_GET_SELF_AS_OBJECT(multi_parameter);
 		SN_DESCRIPTION(DataType::getDescription());
 		
@@ -1317,7 +1321,7 @@ namespace control
 
 			typed->sendPending();
 		}
-        PARAMETER_MEMBER_FUNCTION;
+        SN_PARAMETER_MEMBER_FUNCTION;
 
 		void sendPending()
 		{
@@ -1409,7 +1413,7 @@ namespace control
 			static_assert(SmootherClass::NumVoices == NumVoices, "Voice amount mismatch");
 		}
 
-		SET_HISE_NODE_ID("smoothed_parameter");
+		SN_NODE_ID("smoothed_parameter");
 		SN_GET_SELF_AS_OBJECT(smoothed_parameter);
 		SN_DESCRIPTION("Smoothes an incoming modulation signal");
 
@@ -1419,7 +1423,7 @@ namespace control
 			DEF_PARAMETER(SmoothingTime, smoothed_parameter);
 			DEF_PARAMETER(Enabled, smoothed_parameter);
 		}
-		PARAMETER_MEMBER_FUNCTION;
+		SN_PARAMETER_MEMBER_FUNCTION;
 
 
 		void initialise(NodeBase* n)
@@ -1427,7 +1431,7 @@ namespace control
 			value.initialise(n);
 		}
 
-		HISE_EMPTY_HANDLE_EVENT;
+		SN_EMPTY_HANDLE_EVENT;
 
 		static constexpr bool isNormalisedModulation() { return true; };
 

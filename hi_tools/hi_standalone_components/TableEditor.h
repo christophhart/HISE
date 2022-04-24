@@ -170,6 +170,7 @@ public:
      
 		virtual bool shouldClosePath() const { return true; }
 
+		virtual void drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition);
 		virtual void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness);
 		virtual void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged);
 		virtual void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition);
@@ -292,6 +293,7 @@ public:
 			editedTable->addRulerListener(this);
 			createDragPoints();
 			refreshGraph();
+			setDisplayedIndex(editedTable->getUpdater().getLastDisplayValue());
 		}
 	}
 
@@ -461,11 +463,7 @@ public:
 	*
 	*	The range of newIndex is 0.0 - 1.0.
 	*/
-	void setDisplayedIndex(float newIndex)
-	{
-		lastIndex = newIndex;
-		ruler->setIndex(newIndex);
-	};
+	void setDisplayedIndex(float newIndex);;
 
 	/** \brief Sets the point at the left or right edge to the new value
 	 *  
@@ -527,6 +525,8 @@ private:
 		};
 
 		void paint(Graphics &g);
+		
+		double getValue() {return value;}
 		
 		void setIndex(float newIndex)
 		{

@@ -79,11 +79,12 @@ void ScriptCreatedComponentWrapper::updateComponent(int propertyIndex, var newVa
 	}
 }
 
-void ScriptCreatedComponentWrapper::changed(var newValue)
+void ScriptCreatedComponentWrapper::sourceHasChanged(ComplexDataUIBase*, ComplexDataUIBase*)
 {
-	getScriptComponent()->value = newValue;
-
-	dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
+	SafeAsyncCall::call<ScriptCreatedComponentWrapper>(*this, [](ScriptCreatedComponentWrapper& t)
+	{
+		t.updateComplexDataConnection();
+	});
 }
 
 bool ScriptCreatedComponentWrapper::setMouseCursorFromParentPanel(ScriptComponent* sc, MouseCursor& c)
@@ -478,23 +479,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateValue(var newValue)
 
 void ScriptCreatedComponentWrappers::SliderWrapper::sliderValueChanged(Slider *s)
 {
-	if (s->getSliderStyle() == Slider::TwoValueHorizontal)
-	{
-		if (s->getThumbBeingDragged() == 1)
-		{
-			dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent())->setMinValue(s->getMinValue());
-			changed(s->getMinValue());
-		}
-		else
-		{
-			dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent())->setMaxValue(s->getMaxValue());
-			changed(s->getMaxValue());
-		}
-	}
-	else
-	{
-		/*changed(s->getValue());*/ // setInternalAttribute handles this for .
-	}
+	
 }
 
 void ScriptCreatedComponentWrappers::SliderWrapper::updateTooltip(Slider * s)
@@ -1199,7 +1184,7 @@ ScriptCreatedComponentWrapper(content, index)
 	t->setName(table->name.toString());
 	t->popupFunction = BIND_MEMBER_FUNCTION_2(TableWrapper::getTextForTablePopup);
 
-	
+	table->getSourceWatcher().addSourceListener(this);
 
 	component = t;
 	
@@ -1209,7 +1194,11 @@ ScriptCreatedComponentWrapper(content, index)
     
     auto slaf = &mc->getGlobalLookAndFeel();
 
-    if (auto s = dynamic_cast<TableEditor::LookAndFeelMethods*>(slaf))
+    if(auto l = dynamic_cast<TableEditor::LookAndFeelMethods*>(localLookAndFeel.get()))
+    {
+        t->setSpecialLookAndFeel(localLookAndFeel, false);
+    }
+    else if (auto s = dynamic_cast<TableEditor::LookAndFeelMethods*>(slaf))
     {
         t->setSpecialLookAndFeel(slaf, false);
     }
@@ -1219,6 +1208,8 @@ ScriptCreatedComponentWrappers::TableWrapper::~TableWrapper()
 {
 	if (auto table = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
 	{
+		table->getSourceWatcher().removeSourceListener(this);
+
 		if (auto te = dynamic_cast<TableEditor*>(component.get()))
 			te->removeEditListener(this);
 	}
@@ -1254,6 +1245,8 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateComponent(int propertyI
 		break;
 	}
 }
+
+
 
 juce::String ScriptCreatedComponentWrappers::TableWrapper::getTextForTablePopup(float x, float y)
 {
@@ -1669,7 +1662,7 @@ void ScriptCreatedComponentWrappers::ImageWrapper::updatePopupMenu(ScriptingApi:
 
 void ScriptCreatedComponentWrappers::ImageWrapper::mouseCallback(const var &mouseInformation)
 {
-    changed(mouseInformation);
+    
 }
 
 ScriptCreatedComponentWrappers::PanelWrapper::PanelWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPanel *panel, int index) :
@@ -1957,6 +1950,8 @@ ScriptCreatedComponentWrapper(content, index)
 
 	sp->setSliderWidths(pack->widthArray);
 
+	pack->getSourceWatcher().addSourceListener(this);
+
 	component = sp;
 
 	initAllProperties();
@@ -1964,6 +1959,10 @@ ScriptCreatedComponentWrapper(content, index)
 
 ScriptCreatedComponentWrappers::SliderPackWrapper::~SliderPackWrapper()
 {
+	if (auto pack = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(getScriptComponent()))
+	{
+		pack->getSourceWatcher().removeSourceListener(this);
+	}
 }
 
 void ScriptCreatedComponentWrappers::SliderPackWrapper::updateComponent()
@@ -2237,6 +2236,8 @@ ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(Scrip
 		component = asb;
 	}
 
+	form->getSourceWatcher().addSourceListener(this);
+
 	initAllProperties();
 }
 
@@ -2245,6 +2246,11 @@ ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(Scrip
 ScriptCreatedComponentWrappers::AudioWaveformWrapper::~AudioWaveformWrapper()
 {
 	samplerListener = nullptr;
+
+	if (auto form = dynamic_cast<ScriptingApi::Content::ScriptAudioWaveform*>(getScriptComponent()))
+	{
+		form->getSourceWatcher().removeSourceListener(this);
+	}
 }
 
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent()
@@ -2347,6 +2353,17 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 	ft->setOpaque(false);
 	ft->setContent(floatingTile->getContentData());
 	ft->refreshRootLayout();
+
+    if (auto l = floatingTile->createLocalLookAndFeel())
+    {
+        localLookAndFeel = l;
+        
+        Component::callRecursive<Component>(ft, [l](Component* c)
+        {
+            c->setLookAndFeel(l);
+            return false;
+        });
+    }
 }
 
 
@@ -2653,7 +2670,9 @@ void ScriptedControlAudioParameter::setParameterNotifyingHostInternal(int index,
 
 	auto sanitizedValue = jlimit<float>(range.start, range.end, newValue);
 
+	parentProcessor->beginParameterChangeGesture(index);
 	parentProcessor->setParameterNotifyingHost(index, range.convertTo0to1(sanitizedValue));
+	parentProcessor->endParameterChangeGesture(index);
 }
 
 
@@ -2682,7 +2701,8 @@ int ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::getNumR
 
 void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::listBoxItemClicked(int row, const MouseEvent &)
 {
-	parent->changed(row);
+	parent->getScriptComponent()->setValue(row);
+	parent->getScriptComponent()->changed();
 }
 
 void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected)
@@ -2706,7 +2726,8 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::paintL
 
 void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::returnKeyPressed(int row)
 {
-	parent->changed(row);
+	parent->getScriptComponent()->setValue(row);
+	parent->getScriptComponent()->changed();
 }
 
 

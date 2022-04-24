@@ -399,7 +399,7 @@ Result ZipFile::uncompressTo (const File& targetDirectory,
     return Result::ok();
 }
 
-Result ZipFile::uncompressEntry (int index, const File& targetDirectory, bool shouldOverwriteFiles)
+Result ZipFile::uncompressEntry (int index, const File& targetDirectory, bool shouldOverwriteFiles, double* progress)
 {
     auto* zei = entries.getUnchecked (index);
 
@@ -449,7 +449,28 @@ Result ZipFile::uncompressEntry (int index, const File& targetDirectory, bool sh
         if (out.failedToOpen())
             return Result::fail ("Failed to write to target file: " + targetFile.getFullPathName());
 
-        out << *in;
+		// Don't track the progress for files < 200MB
+		static constexpr int BigFileThreshhold = 200 * 1024 * 1024;
+
+		if (progress == nullptr || in->getTotalLength() < BigFileThreshhold)
+		{
+			out << *in;
+		}
+		else
+		{
+			static constexpr int BufferSize = 32768;
+
+			int numWritten = 0;
+			int numTotal = jmax<int64>(1, in->getTotalLength());
+
+			while (!in->isExhausted())
+			{
+				out.writeFromInputStream(*in, BufferSize);
+				*progress = jmin(1.0, (double)numWritten / (double)numTotal);
+				numWritten += BufferSize;
+			}
+		}
+
     }
 
     targetFile.setCreationTime (zei->entry.fileTime);

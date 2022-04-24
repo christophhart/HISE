@@ -376,12 +376,18 @@ int CompileExporter::getBuildOptionPart(const String& argument)
     }
 	case 'a':
 	{
+		// Always return 64bit, 32bit is dead.
+		return 0x0002;
+#if 0
 		const String architectureName = argument.fromFirstOccurrenceOf("-a:", false, true);
+
+
 
 		if (architectureName == "x86") return 0x0001;
 		else if (architectureName == "x64") return 0x0002;
 		else if (architectureName == "x86x64") return 0x0004;
 		else return 0;
+#endif
 	}
 	case 't':
 	{
@@ -1567,7 +1573,10 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AUV3%", "0");
 
 		const bool buildAU = BuildOptionHelpers::isAU(option);
-		const bool buildVST = BuildOptionHelpers::isVST(option) || BuildOptionHelpers::isHeadlessLinuxPlugin(option);
+		bool buildVST = BuildOptionHelpers::isVST(option);
+		const bool headlessLinux = BuildOptionHelpers::isHeadlessLinuxPlugin(option);
+
+		buildVST |= headlessLinux;
 
 		auto vst3 = GET_SETTING(HiseSettings::Project::VST3Support) == "1";
 
@@ -2359,8 +2368,9 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
     {
         ADD_LINE("echo Compiling " << projectType << " " << projectName << " ...");
 
+		int threads = SystemStats::getNumCpus() - 2;
 		String xcodeLine;
-		xcodeLine << "xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"" << exporter->configurationName << "\"";
+		xcodeLine << "xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"" << exporter->configurationName << "\" -jobs \"" << threads << "\"";
 
 		if (!isUsingCIMode())
 		{

@@ -238,6 +238,9 @@ void SfzImporter::parseOpcodes()
 		}
 		else if (currentLine.startsWith(Group::getTag()))
 		{
+			if (currentTarget == nullptr)
+				setIfRoot(currentTarget = new Global(currentTarget.get()));
+
 			navigateToParent<Global>(ThrowErrorIfNotFound);
 
 			if (i < fileData.size() - 1)

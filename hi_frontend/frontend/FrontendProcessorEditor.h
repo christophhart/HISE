@@ -78,10 +78,12 @@ public:
 
 	void setSamplesCorrectlyInstalled(bool wasOK)
 	{
+#if !HISE_DEACTIVATE_OVERLAY
 		if (deactiveOverlay != nullptr)
 		{
 			deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !wasOK);
 		}
+#endif
 
 		if (wasOK)
 		{
@@ -89,17 +91,18 @@ public:
 			
 			GET_PROJECT_HANDLER(fp->getMainSynthChain()).setAllSampleReferencesCorrect();
 			fp->loadSamplesAfterRegistration();
-		}
-			
+		}	
 	}
 
 	void overlayMessageSent(int state, const String& message) override
 	{
+#if !HISE_DEACTIVATE_OVERLAY
 		if (deactiveOverlay != nullptr)
 		{
 			deactiveOverlay->setCustomMessage(message);
 			deactiveOverlay->setState((DeactiveOverlay::State)state, true);
 		}
+#endif
 	}
 
 #if USE_RAW_FRONTEND
@@ -155,7 +158,10 @@ private:
 
 	ScopedPointer<FloatingTile> rootTile;
 
+#if !HISE_DEACTIVATE_OVERLAY
 	ScopedPointer<DeactiveOverlay> deactiveOverlay;
+#endif
+
 	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> loaderOverlay;
 	ScopedPointer<DebugLoggerComponent> debugLoggerComponent;
     

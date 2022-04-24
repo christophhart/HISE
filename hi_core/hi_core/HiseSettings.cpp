@@ -152,6 +152,7 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 	ids.add(AudioThreadGuardEnabled);
 	ids.add(ExternalEditorPath);
     ids.add(AutoShowWorkspace);
+	ids.add(EnableShaderLineNumbers);
 
 	return ids;
 }
@@ -517,6 +518,10 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("Watches for illegal calls in the audio thread. Use this during script development to catch allocations etc.");
 		P_();
 
+		P(HiseSettings::Other::EnableShaderLineNumbers);
+		D("Enables proper support for line numbers when editing GLSL shader files. This injects a `#line` preprocessor before your code so that the line numbers will be displayed correctly.     \n> Old graphic cards (eg. the integrated Intel HD ones) do not support this, so if you get a weird GLSL compile error, untick this line.");
+		P_();
+
 		P(HiseSettings::Documentation::DocRepository);
 		D("The folder of the `hise_documentation` repository. If you want to contribute to the documentation you can setup this folder.");
 		D("Otherwise it will use the cached version that was downloaded from the HISE doc server");
@@ -681,6 +686,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Other::UseOpenGL ||
 		id == Other::GlassEffect ||
         id == Other::AutoShowWorkspace ||
+		id == Other::EnableShaderLineNumbers ||
 		id == Compiler::RebuildPoolFiles ||
 		id == Compiler::Support32BitMacOS ||
 		id == Project::SupportMonoFX ||
@@ -874,7 +880,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::ExpansionType)			return "Disabled";
 	else if (id == Project::LinkExpansionsToProject)   return "No";
 	else if (id == Other::UseOpenGL)				return "No";
-	else if (id == Other::GlassEffect)				return "Yes";
+	else if (id == Other::GlassEffect)				return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
@@ -953,8 +959,8 @@ juce::Result HiseSettings::Data::checkInput(const Identifier& id, const var& new
 	if (id == Project::AppGroupID || id == Project::BundleIdentifier)
 	{
 		const String wildcard = (id == HiseSettings::Project::BundleIdentifier) ?
-			R"(com\.[\w\d-_]+\.[\w\d-_]+$)" :
-			R"(group\.[\w\d-_]+\.[\w\d-_]+$)";
+			R"(com\.[\w_]+\.[\w_]+$)" :
+			R"(group\.[\w_]+\.[\w_]+$)";
 
 		if (!RegexFunctions::matchesWildcard(wildcard, newValue.toString()))
 		{

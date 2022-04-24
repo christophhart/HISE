@@ -347,7 +347,8 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 	{
 		static const Identifier func("function");
 
-		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, func));
+		if (result != nullptr && root != nullptr)
+            *result = Result::fail(root->dumpCallStack(e, func));
 	}
 	catch (Breakpoint& bp)
 	{
@@ -355,7 +356,8 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 		sendBreakpointMessage(bp.index);
 
 		static const Identifier func("function");
-		if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), func));
+		if (result != nullptr && root != nullptr)
+            *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), func));
 	}
 
 	return returnVal;

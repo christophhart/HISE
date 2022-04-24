@@ -1679,6 +1679,21 @@ Result FullInstrumentExpansion::lazyLoad()
 
 	auto presetData = allData.getChildWithName(ExpansionIds::Preset)[ExpansionIds::Data].toString();
 
+	auto fontData = allData.getChildWithName(ExpansionIds::HeaderData).getChildWithName(ExpansionIds::Fonts);
+
+	if (fontData.isValid())
+	{
+		zstd::ZDefaultCompressor d;
+		ValueTree realFontData;
+		auto fontAsBase64 = fontData[ExpansionIds::Data].toString();
+		MemoryBlock mb;
+		mb.fromBase64Encoding(fontAsBase64);
+
+		d.expand(mb, realFontData);
+
+		getMainController()->restoreCustomFontValueTree(realFontData);
+	}
+
 	ScopedPointer<BlowFish> bf = createBlowfish();
 
 	MemoryBlock mb;
@@ -2037,7 +2052,12 @@ bool ScriptUnlocker::doesProductIDMatch(const String& returnedIDFromServer)
 			return rv;
 	}
 
-	return getProductID() == returnedIDFromServer;
+	// By default we don't want the product version mismatch to cause a license fail, so
+	// we trim it. If you need this behaviour, define a callback that uses the branch above...
+	auto realId = getProductID().upToLastOccurrenceOf(" ", false, false).trim();
+	auto expectedId = returnedIDFromServer.upToLastOccurrenceOf(" ", false, false).trim();
+
+	return realId == expectedId;
 }
 
 #if USE_BACKEND
@@ -2095,6 +2115,17 @@ juce::var ScriptUnlocker::loadKeyFile()
 	{
 		String keyData = keyFile.loadFileAsString();
 
+		StringArray keyLines = StringArray::fromLines(keyData);
+
+		for (const auto& k : keyLines)
+		{
+			if (k.startsWith("Machine numbers"))
+			{
+				registeredMachineId = k.fromFirstOccurrenceOf(": ", false, false).trim();
+				break;
+			}
+		}
+
 		if (this->applyKeyFile(keyData))
 		{
 #if USE_FRONTEND
@@ -2127,8 +2158,10 @@ struct ScriptUnlocker::RefObject::Wrapper
 	API_METHOD_WRAPPER_0(RefObject, isUnlocked);
 	API_METHOD_WRAPPER_0(RefObject, loadKeyFile);
 	API_VOID_METHOD_WRAPPER_1(RefObject, setProductCheckFunction);
-	API_VOID_METHOD_WRAPPER_1(RefObject, writeKeyFile);
+	API_METHOD_WRAPPER_1(RefObject, writeKeyFile);
 	API_METHOD_WRAPPER_0(RefObject, getUserEmail);
+	API_METHOD_WRAPPER_0(RefObject, getRegisteredMachineId);
+	API_METHOD_WRAPPER_1(RefObject, isValidKeyFile);
 };
 
 ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
@@ -2138,7 +2171,11 @@ ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
 #endif
 	pcheck(p, var(), 1)
 {
-	unlocker->load();
+	if (unlocker->getLicenseKeyFile().existsAsFile())
+	{
+		unlocker->loadKeyFile();
+	}
+	
 	unlocker->currentObject = this;
 
 	ADD_API_METHOD_0(isUnlocked);
@@ -2146,6 +2183,8 @@ ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_1(setProductCheckFunction);
 	ADD_API_METHOD_1(writeKeyFile);
 	ADD_API_METHOD_0(getUserEmail);
+	ADD_API_METHOD_0(getRegisteredMachineId);
+	ADD_API_METHOD_1(isValidKeyFile);
 }
 
 ScriptUnlocker::RefObject::~RefObject()
@@ -2183,9 +2222,24 @@ juce::var ScriptUnlocker::RefObject::writeKeyFile(const String& keyData)
 	return {};
 }
 
+bool ScriptUnlocker::RefObject::isValidKeyFile(var possibleKeyData)
+{
+	if (possibleKeyData.isString())
+	{
+		return possibleKeyData.toString().startsWith("Keyfile for ");
+	}
+
+	return false;
+}
+
 String ScriptUnlocker::RefObject::getUserEmail() const
 {
 	return unlocker->getUserEmail();
+}
+
+String ScriptUnlocker::RefObject::getRegisteredMachineId()
+{
+	return unlocker->registeredMachineId;
 }
 
 } // namespace hise

@@ -221,15 +221,15 @@ struct public_mod_target
 
 struct public_mod
 {
-	SET_HISE_NODE_ID("public_mod");
+	SN_NODE_ID("public_mod");
 	SN_GET_SELF_AS_OBJECT(public_mod);
 	SN_DESCRIPTION("Creates a modulation signal slot in the compiled node / nested network");
 
-	HISE_EMPTY_INITIALISE;
-	HISE_EMPTY_PROCESS;
-	HISE_EMPTY_PROCESS_SINGLE;
-	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_RESET;
+	SN_EMPTY_INITIALISE;
+	SN_EMPTY_PROCESS;
+	SN_EMPTY_PROCESS_FRAME;
+	SN_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_RESET;
 
 	void prepare(PrepareSpecs ps)
 	{
@@ -251,7 +251,7 @@ struct public_mod
 		if (ptr != nullptr)
 			ptr->setModValueIfChanged(v);
 	}
-	FORWARD_PARAMETER_TO_MEMBER(public_mod);
+	SN_FORWARD_PARAMETER_TO_MEMBER(public_mod);
 
 	void connect(public_mod_target& obj)
 	{
@@ -284,7 +284,7 @@ struct base
 
 template <typename CableType> struct receive: public base
 {
-	SET_HISE_NODE_ID("receive");
+	SN_NODE_ID("receive");
 
 	SN_GET_SELF_AS_OBJECT(receive);
 	SN_DESCRIPTION("A signal target for a send node with adjustable feedback");
@@ -313,7 +313,7 @@ template <typename CableType> struct receive: public base
 		t->template setParameter<P>(value);
 	}
 
-	HISE_EMPTY_RESET;
+	SN_EMPTY_RESET;
 
 	bool isConnected() const
 	{
@@ -441,7 +441,7 @@ template <typename CableType> struct receive: public base
 */
 template <typename CableType> struct send: public base
 {
-	SET_HISE_NODE_ID("send");
+	SN_NODE_ID("send");
 
 	SN_GET_SELF_AS_OBJECT(CableType);
 	SN_DESCRIPTION("Send the signal to one or more targets");
@@ -499,16 +499,16 @@ namespace routing
 
 struct ms_encode: public HiseDspBase
 {
-	SET_HISE_NODE_ID("ms_encode");
+	SN_NODE_ID("ms_encode");
 	SN_GET_SELF_AS_OBJECT(ms_encode);
 	SN_DESCRIPTION("A MS encoder (`L-R -> M-S`)");
 
-	HISE_EMPTY_RESET;
-	HISE_EMPTY_PREPARE;
-	HISE_EMPTY_CREATE_PARAM;
-	HISE_EMPTY_INITIALISE;
-	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_SET_PARAMETER;
+	SN_EMPTY_RESET;
+	SN_EMPTY_PREPARE;
+	SN_EMPTY_CREATE_PARAM;
+	SN_EMPTY_INITIALISE;
+	SN_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_SET_PARAMETER;
 	
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
@@ -533,16 +533,16 @@ struct ms_encode: public HiseDspBase
 
 struct ms_decode: public HiseDspBase
 {
-	SET_HISE_NODE_ID("ms_decode");
+	SN_NODE_ID("ms_decode");
 	SN_GET_SELF_AS_OBJECT(ms_decode);
 	SN_DESCRIPTION("A MS decoder (`M-S -> L-R`)");
 
-	HISE_EMPTY_RESET;
-	HISE_EMPTY_PREPARE;
-	HISE_EMPTY_CREATE_PARAM;
-	HISE_EMPTY_INITIALISE;
-	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_SET_PARAMETER;
+	SN_EMPTY_RESET;
+	SN_EMPTY_PREPARE;
+	SN_EMPTY_CREATE_PARAM;
+	SN_EMPTY_INITIALISE;
+	SN_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_SET_PARAMETER;
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
@@ -568,13 +568,13 @@ struct ms_decode: public HiseDspBase
 
 template <class MatrixType> struct matrix
 {
-	SET_HISE_NODE_ID("matrix");
+	SN_NODE_ID("matrix");
 
 	SN_GET_SELF_AS_OBJECT(matrix);
 	SN_DESCRIPTION("A dynamic routing matrix for any arbitrary channel routing");
 
-	HISE_EMPTY_RESET;
-	HISE_EMPTY_SET_PARAMETER;
+	SN_EMPTY_RESET;
+	SN_EMPTY_SET_PARAMETER;
 
 	void prepare(PrepareSpecs specs)
 	{

@@ -95,7 +95,9 @@
 #include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.cpp"
 #include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.cpp"
 #include "scripting/scriptnode/dynamic_elements/DynamicSmootherNode.cpp"
+#include "scripting/scriptnode/dynamic_elements/GlobalRoutingNodes.cpp"
 #include "scripting/scriptnode/dynamic_elements/DynamicRoutingNodes.cpp"
+
 
 #include "scripting/scriptnode/nodes/AudioFileNodeBase.cpp"
 #include "scripting/scriptnode/nodes/CodeGenerator.cpp"

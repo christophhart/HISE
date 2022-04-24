@@ -541,6 +541,9 @@ public:
         /** Returns the absolute y-position relative to the interface. */
         int getGlobalPositionY();
         
+		/** Returns list of component's children */
+		var getChildComponents();
+				
 		/** Returns a [x, y, w, h] array that was reduced by the given amount. */
 		var getLocalBounds(float reduceAmount);
 
@@ -569,7 +572,7 @@ public:
 		void setControlCallback(var controlFunction);
 
 		/** Call this to indicate that the value has changed (the onControl callback will be executed. */
-		void changed();
+		virtual void changed();
 
 		/** Returns a list of all property IDs as array. */
 		var getAllProperties();
@@ -618,6 +621,10 @@ public:
 
 		bool isConnectedToProcessor() const;;
 
+		bool isConnectedToGlobalCable() const;
+
+		void sendGlobalCableValue(var v);
+
 		Processor* getConnectedProcessor() const { return connectedProcessor.get(); };
 
 		int getConnectedParameterIndex() { return connectedParameterIndex; };
@@ -663,6 +670,10 @@ public:
 		{
 			return scriptChangedProperties.contains(id);
 		}
+
+		void repaintThisAndAllChildren();
+
+
 
 		void setPropertyToLookFor(const Identifier& id)
 		{
@@ -778,6 +789,8 @@ public:
             ProcessorWithScriptingContent* p;
         };
         
+		struct GlobalCableConnection;
+
 		AsyncControlCallbackSender controlSender;
 
 		bool isPositionProperty(Identifier id) const;
@@ -809,6 +822,8 @@ public:
 
 		WeakReference<Processor> connectedProcessor;
 		int connectedParameterIndex = -1;
+
+		ScopedPointer<GlobalCableConnection> globalConnection;
 
         int connectedMacroIndex = -1;
         bool macroRecursionProtection = false;
@@ -874,6 +889,7 @@ public:
 		/** Set the value from a 0.0 to 1.0 range */
 		void setValueNormalized(double normalizedValue) override;
 
+		/** Returns the normalized value. */
 		double getValueNormalized() const override;
 
 		/** Sets the range and the step size of the knob. */
@@ -1145,7 +1161,8 @@ public:
 
 
 	struct ComplexDataScriptComponent : public ScriptComponent,
-										public ExternalDataHolder
+										public ExternalDataHolder,
+										public ComplexDataUIUpdaterBase::EventListener
 	{
 		ComplexDataScriptComponent(ProcessorWithScriptingContent* base, Identifier name, snex::ExternalData::DataType type_);;
 			
@@ -1230,17 +1247,38 @@ public:
 				otherHolder = cd;
 				updateCachedObjectReference();
 			}
+			else if ((newData.isInt() || newData.isInt64()) && (int)newData == -1)
+			{
+				// just go back to its own data object
+				otherHolder = nullptr;
+				updateCachedObjectReference();
+			}
 		}
 
 		ComplexDataUIBase* getCachedDataObject() const { return cachedObjectReference.get(); };
 
 		var registerComplexDataObjectAtParent(int index = -1);
 
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override
+		{
+			
+		}
+
+		ComplexDataUIBase::SourceWatcher& getSourceWatcher() { return sourceWatcher; }
+
 	protected:
 
 		void updateCachedObjectReference()
 		{
+			if (cachedObjectReference != nullptr)
+				cachedObjectReference->getUpdater().removeEventListener(this);
+
 			cachedObjectReference = getComplexBaseType(type, 0);
+
+			if (cachedObjectReference != nullptr)
+				cachedObjectReference->getUpdater().addEventListener(this);
+
+			sourceWatcher.setNewSource(cachedObjectReference);
 		}
 
 	private:
@@ -1256,6 +1294,8 @@ public:
 
 		WeakReference<ComplexDataUIBase> cachedObjectReference;
 		ReferenceCountedObjectPtr<ComplexDataUIBase> ownedObject;
+
+		ComplexDataUIBase::SourceWatcher sourceWatcher;
 	};
 
 	struct ScriptTable : public ComplexDataScriptComponent
@@ -1295,14 +1335,14 @@ public:
 			setScriptObjectProperty(getIndexPropertyId(), index, sendNotification);
 		}
 
-		/** Returns the table value from 0.0 to 1.0 according to the input value from 0 to 127. */
-		float getTableValue(int inputValue);
+		/** Returns the table value from 0.0 to 1.0 according to the input value from 0.0 to 1.0. */
+		float getTableValue(float inputValue);
 
 		/** Connects the table to an existing Processor. */
 		/** Makes the table snap to the given x positions (from 0.0 to 1.0). */
 		void setSnapValues(var snapValueArray);
 
-		/** Connects it to a table data object (or UI element in the same interface). */
+		/** Connects it to a table data object (or UI element in the same interface). -1 sets it back to its internal data object. */
 		void referToData(var tableData);
 
 		/** Registers this table (and returns a reference to the data) with the given index so you can use it from the outside. */
@@ -1364,7 +1404,7 @@ public:
 
 		// ======================================================================================================== API Methods
 
-		/** Connects this SliderPack to an existing SliderPackData object. */
+		/** Connects this SliderPack to an existing SliderPackData object. -1 sets it back to its internal data object. */
 		void referToData(var sliderPackData);
 
 		/** sets the slider value at the given index.*/
@@ -1385,7 +1425,11 @@ public:
 		/** Registers this sliderpack to the script processor to be acessible from the outside. */
 		var registerAtParent(int pIndex);
 
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override;
+
 		// ========================================================================================================
+
+		void changed() override;
 
 		struct Wrapper;
 
@@ -1432,7 +1476,7 @@ public:
 
 		// ======================================================================================================== API Methods
 
-		/** Connects this AudioFile to an existing ScriptAudioFile object. */
+		/** Connects this AudioFile to an existing ScriptAudioFile object. -1 sets it back to its internal data object. */
 		void referToData(var audioData);
 
 		/** Returns the current range start. */
@@ -1684,6 +1728,9 @@ public:
 
 		/** Unload all images from the panel. */
 		void unloadAllImages();
+		
+		/** Checks if the image has been loaded into the panel */
+		bool isImageLoaded(String prettyName);
 
 		/** If `allowedDragging` is enabled, it will define the boundaries where the panel can be dragged. */
 		void setDraggingBounds(var area);
@@ -1748,20 +1795,7 @@ public:
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override
 		{
-			if (id == getIdFor((int)ScriptComponent::Properties::visible))
-			{
-				const bool wasVisible = (bool)getScriptObjectProperty(visible);
-
-				const bool isNowVisible = (bool)newValue;
-
-				setScriptObjectProperty(visible, newValue);
-
-				if (wasVisible != isNowVisible)
-				{
-					repaintThisAndAllChildren();
-
-				}
-			}
+			
 
 			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 
@@ -1777,8 +1811,6 @@ public:
 			}
 #endif
 		}
-
-		void repaintThisAndAllChildren();
 
 		struct Wrapper;
 

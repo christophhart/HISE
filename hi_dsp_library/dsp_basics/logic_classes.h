@@ -139,8 +139,8 @@ namespace midi_logic
 
 template <int Unused> struct gate
 {
-    HISE_EMPTY_PREPARE;
-    HISE_EMPTY_INITIALISE;
+    SN_EMPTY_PREPARE;
+    SN_EMPTY_INITIALISE;
 
     bool getMidiValue(HiseEvent& e, double& v)
     {
@@ -156,8 +156,8 @@ template <int Unused> struct gate
 
 template <int Unused> struct velocity
 {
-    HISE_EMPTY_PREPARE;
-    HISE_EMPTY_INITIALISE;
+    SN_EMPTY_PREPARE;
+    SN_EMPTY_INITIALISE;
 
     bool getMidiValue(HiseEvent& e, double& v)
     {
@@ -173,8 +173,8 @@ template <int Unused> struct velocity
 
 template <int Unused> struct notenumber
 {
-    HISE_EMPTY_PREPARE;
-    HISE_EMPTY_INITIALISE;
+    SN_EMPTY_PREPARE;
+    SN_EMPTY_INITIALISE;
 
     bool getMidiValue(HiseEvent& e, double& v)
     {
@@ -190,8 +190,8 @@ template <int Unused> struct notenumber
 
 template <int Unused> struct frequency
 {
-    HISE_EMPTY_PREPARE;
-    HISE_EMPTY_INITIALISE;
+    SN_EMPTY_PREPARE;
+    SN_EMPTY_INITIALISE;
 
     static constexpr bool IsProcessingHiseEvent() { return true; }
 
@@ -397,16 +397,16 @@ namespace timer_logic
 {
 template <int NV> struct ping
 {
-    HISE_EMPTY_PREPARE;
-    HISE_EMPTY_RESET;
+    SN_EMPTY_PREPARE;
+    SN_EMPTY_RESET;
 
     double getTimerValue() const { return 1.0; }
 };
 
 template <int NV> struct random
 {
-    HISE_EMPTY_PREPARE;
-    HISE_EMPTY_RESET;
+    SN_EMPTY_PREPARE;
+    SN_EMPTY_RESET;
 
     double getTimerValue() const
     {
@@ -449,7 +449,7 @@ namespace faders
 {
 struct switcher
 {
-    HISE_EMPTY_INITIALISE;
+    SN_EMPTY_INITIALISE;
 
     template <int Index> double getFadeValue(int numElements, double normalisedInput)
     {
@@ -462,7 +462,7 @@ struct switcher
 
 struct overlap
 {
-    HISE_EMPTY_INITIALISE;
+    SN_EMPTY_INITIALISE;
 
     template <int Index> double getFadeValue(int numElements, double normalisedInput)
     {
@@ -509,7 +509,7 @@ struct overlap
 
 struct harmonics
 {
-    HISE_EMPTY_INITIALISE;
+    SN_EMPTY_INITIALISE;
 
     template <int Index> double getFadeValue(int numElements, double normalisedInput)
     {
@@ -519,7 +519,7 @@ struct harmonics
 
 struct linear
 {
-    HISE_EMPTY_INITIALISE;
+    SN_EMPTY_INITIALISE;
 
     template <int Index> double getFadeValue(int numElements, double normalisedInput)
     {
@@ -541,7 +541,7 @@ struct linear
 
 struct squared
 {
-    HISE_EMPTY_INITIALISE;
+    SN_EMPTY_INITIALISE;
 
     template <int Index> double getFadeValue(int numElements, double normalisedInput)
     {
@@ -554,7 +554,7 @@ struct squared
 
 struct rms
 {
-    HISE_EMPTY_INITIALISE;
+    SN_EMPTY_INITIALISE;
 
     template <int Index> double getFadeValue(int numElements, double normalisedInput)
     {
@@ -605,7 +605,7 @@ struct base
 
     virtual void refreshSmoothingTime() = 0;
 
-    virtual HISE_EMPTY_INITIALISE;
+    virtual SN_EMPTY_INITIALISE;
 
     double currentBlockRate = 0.0;
     double smoothingTimeMs = 0.0;

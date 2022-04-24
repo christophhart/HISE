@@ -78,6 +78,18 @@ bool EffectProcessor::isSilent(AudioSampleBuffer& b, int startSample, int numSam
 	return true;
 }
 
+void EffectProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	jassert(finalised);
+
+	Processor::prepareToPlay(sampleRate, samplesPerBlock);
+
+	isInSend = dynamic_cast<SendContainer*>(getParentProcessor(true)) != nullptr;
+
+	for (auto& mc : modChains)
+		mc.prepareToPlay(sampleRate, samplesPerBlock);
+}
+
 void EffectProcessor::finaliseModChains()
 {
 	modChains.finalise();
